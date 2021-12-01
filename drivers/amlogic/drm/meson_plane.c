@@ -370,10 +370,14 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 		plane_info->vf = dmabuf_get_vframe(ubo->dmabuf);
 		dmabuf_put_vframe(ubo->dmabuf);
 		plane_info->is_uvm = meson_fb->bufp[0]->is_uvm;
-		if (video_plane->vfm_mode)
-			plane_info->dmabuf = ubo->dmabuf;
-		DRM_DEBUG("%s dmabuf %px\n", __func__, ubo->dmabuf);
+		plane_info->dmabuf = ubo->dmabuf;
+	} else {
+		plane_info->dmabuf = meson_fb->bufp[0]->base.dma_buf;
 	}
+	if (!plane_info->dmabuf)
+		return -EINVAL;
+
+	DRM_DEBUG("%s dmabuf %px\n", __func__, plane_info->dmabuf);
 	#else
 	if (!fb) {
 		return -EINVAL;
@@ -533,37 +537,17 @@ static int meson_video_prepare_fence(struct drm_plane *plane,
 {
 	struct am_video_plane *video_plane = to_am_video_plane(plane);
 	struct dma_fence *fence;
-	struct dma_buf *dmabuf;
-	struct drm_framebuffer *fb = state->fb;
-	struct am_meson_fb *meson_fb;
-	int ret = 0;
-
-	#ifdef CONFIG_DRM_MESON_USE_ION
-	meson_fb = container_of(fb, struct am_meson_fb, base);
-	if (!meson_fb)
-		return -EINVAL;
-
-	fence = am_meson_video_create_fence(&video_plane->lock);
-	if (!fence)
-		return -ENOMEM;
-	/*need wait on the in_fence(explicit fence)
-	 */
 
 	/*creat implicit fence as out_fence, and next will directly
 	 *export to video composer module
 	 */
-	dmabuf = meson_fb->bufp[0]->ubo.dmabuf;
-	dma_resv_add_excl_fence(dmabuf->resv, fence);
+	fence = am_meson_video_create_fence(&video_plane->lock);
+	if (!fence)
+		return -ENOMEM;
 
-	ret = dma_resv_reserve_shared(dmabuf->resv, 1);
-	if (unlikely(ret))
-		return ret;
-	dma_resv_add_shared_fence(dmabuf->resv, fence);
 	mvv->fence = fence;
-
-	DRM_DEBUG("creat fence %s fence(%px) plane_index%d, dmabuf(%px)\n",
-		__func__, fence, video_plane->plane_index, dmabuf);
-	#endif
+	DRM_DEBUG("creat fence %s fence(%px) plane_index%d\n",
+		__func__, fence, video_plane->plane_index);
 	return 0;
 }
 
@@ -917,10 +901,8 @@ static void meson_video_plane_atomic_update(struct drm_plane *plane,
 	struct drm_atomic_state *old_atomic_state = old_state->state;
 	struct meson_vpu_video *mvv = pipeline->video[video_plane->plane_index];
 
-	if (video_plane->vfm_mode)
-		meson_video_prepare_fence(plane, old_state, mvv);
-
 	DRM_DEBUG("video plane atomic_update.\n");
+	meson_video_prepare_fence(plane, old_state, mvv);
 	vpu_video_plane_update(pipeline, old_atomic_state, video_plane->plane_index);
 }
 
@@ -1361,8 +1343,7 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	plane = &video_plane->base;
 	sprintf(plane_name, "video%d", i);
 	const_plane_name = plane_name;
-	if (video_plane->vfm_mode)
-		spin_lock_init(&video_plane->lock);
+	spin_lock_init(&video_plane->lock);
 	drm_universal_plane_init(priv->drm, plane, 0xFF,
 				 &am_video_plane_funs,
 				 video_supported_drm_formats,
