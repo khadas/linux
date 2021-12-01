@@ -244,6 +244,7 @@ static const unsigned int tvafe_pq_reg_trust_table[][2] = {
 	{ACD_REG_56,                        0x00f00000},
 	{ACD_REG_57,                        0x03ff81ff},
 	{ACD_REG_58,                        0x8fffffff},
+	{ACD_REG_59,                        0xffffffff},
 	{ACD_REG_5B,                        0x3ff7ffff},
 	{ACD_REG_64,                        0xffffffff},
 	{ACD_REG_65,                        0xffffffff},
