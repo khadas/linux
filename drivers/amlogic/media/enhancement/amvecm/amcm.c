@@ -186,15 +186,19 @@ void am_set_regmap(struct am_regs_s *p)
 					    __func__, addr);
 			} else if (addr == 0x208) {
 				if (get_cpu_type() >=
-				    MESON_CPU_MAJOR_ID_G12A)
+				    MESON_CPU_MAJOR_ID_G12A) {
 					val = val & 0xfffffffd;
-				else
+					if (val & 0x1)
+						cm_dis_flag = false;
+					else
+						cm_dis_flag = true;
+				} else {
 					val = val & 0xfffffffb;
-
-				if (val & 0x2)
-					cm_dis_flag = false;
-				else
-					cm_dis_flag = true;
+					if (val & 0x2)
+						cm_dis_flag = false;
+					else
+						cm_dis_flag = true;
+				}
 			}
 
 			VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, addr);
