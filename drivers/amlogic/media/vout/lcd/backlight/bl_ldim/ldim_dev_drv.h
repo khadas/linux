@@ -20,8 +20,7 @@ int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 		 void (*complete)(void *context), void *context);
 
 int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
-			 unsigned char *rbuf, int tlen,
-			 int dma_mode, int max_len);
+			 int tlen, int dma_mode, int max_len);
 int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf, int wlen);
 int ldim_spi_read(struct spi_device *spi, unsigned char *tbuf, int wlen,
 		  unsigned char *rbuf, int rlen);

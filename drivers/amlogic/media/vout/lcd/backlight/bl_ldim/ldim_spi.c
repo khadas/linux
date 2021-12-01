@@ -117,8 +117,7 @@ static void ldim_spi_async_callback(void *arg)
 }
 
 int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
-			 unsigned char *rbuf, int tlen,
-			 int dma_mode, int max_len)
+			 int tlen, int dma_mode, int max_len)
 {
 	int xlen, ret;
 
@@ -136,11 +135,13 @@ int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 		spi->bits_per_word = 8;
 	}
 
-	if (ldim_spi_async_busy)
+	if (ldim_spi_async_busy) {
 		LDIMERR("%s: spi_async_busy=%d\n", __func__, ldim_spi_async_busy);
+		return -1;
+	}
 
 	ldim_spi_async_busy = 1;
-	ret = dirspi_async(spi, tbuf, rbuf, xlen,
+	ret = dirspi_async(spi, tbuf, NULL, xlen,
 		ldim_spi_async_callback, (void *)&ldim_spi_async_busy);
 	if (ret)
 		LDIMERR("%s\n", __func__);

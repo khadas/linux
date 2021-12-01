@@ -284,7 +284,7 @@ static int spi_wregs_duty(struct spi_device *spi, unsigned int chip_cnt,
 			memcpy(&tbuf[3 + i * tlen], &data_buf[i * tlen], tlen);
 		memset(&tbuf[3 + tlen * chip_cnt], 0, n);
 	}
-	ret = ldim_spi_write_async(spi, tbuf, rbuf, xlen,
+	ret = ldim_spi_write_async(spi, tbuf, xlen,
 			bl_iw7027->dma_support, bl_iw7027->tbuf_size);
 
 	return ret;

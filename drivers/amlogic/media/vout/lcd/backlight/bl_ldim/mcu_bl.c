@@ -188,7 +188,7 @@ static int blmcu_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 				  dev_drv->zone_num);
 	ldim_vs_debug_info(ldim_drv);
 
-	ret = ldim_spi_write_async(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->rbuf, bl_mcu->tbuf_size,
+	ret = ldim_spi_write_async(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->tbuf_size,
 				bl_mcu->dma_support, bl_mcu->tbuf_size);
 	mutex_unlock(&dev_mutex);
 
