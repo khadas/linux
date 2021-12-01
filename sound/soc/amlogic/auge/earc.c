@@ -2442,7 +2442,6 @@ static int earc_platform_probe(struct platform_device *pdev)
 	if (!IS_ERR(p_earc->rx_top_map)) {
 		earcrx_extcon_register(p_earc);
 		earcrx_cmdc_setup(p_earc);
-		register_earcrx_callback(earc_hdmitx_hpdst);
 	}
 
 	/* TX */
@@ -2461,6 +2460,9 @@ static int earc_platform_probe(struct platform_device *pdev)
 		INIT_WORK(&p_earc->work, earc_work_func);
 		INIT_WORK(&p_earc->rx_dmac_int_work, valid_auto_work_func);
 	}
+
+	if (!IS_ERR(p_earc->rx_top_map))
+		register_earcrx_callback(earc_hdmitx_hpdst);
 
 	dev_err(dev, "registered eARC platform\n");
 

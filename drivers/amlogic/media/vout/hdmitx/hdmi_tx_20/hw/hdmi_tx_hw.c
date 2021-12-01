@@ -106,9 +106,11 @@ static enum hdmi_vic get_vic_from_pkt(void);
 
 static pf_callback earc_hdmitx_hpdst;
 
-pf_callback *hdmitx_earc_hpdst(void)
+void hdmitx_earc_hpdst(pf_callback cb)
 {
-	return &earc_hdmitx_hpdst;
+	earc_hdmitx_hpdst = cb;
+	if (cb && get_hdmitx_device()->rhpd_state)
+		cb(true);
 }
 
 int hdmitx_hpd_hw_op(enum hpd_op cmd)
