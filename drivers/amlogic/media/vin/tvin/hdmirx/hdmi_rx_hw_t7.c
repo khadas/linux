@@ -773,6 +773,49 @@ void get_eq_val_t7(void)
 	rx_pr("eq:%d-%d-%d\n", eq_boost0, eq_boost1, eq_boost2);
 }
 
+/* check eq_boost1 & tap0 status */
+bool is_eq1_tap0_err(void)
+{
+	u32 data32 = 0;
+	u32 eq0, eq1, eq2;
+	u32 tap0, tap1, tap2;
+	u32 eq_avr, tap0_avr;
+	bool ret = false;
+
+	if (rx.phy.phy_bw < PHY_BW_5)
+		return ret;
+	/* get eq_boost1 val */
+	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
+	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x3);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
+	eq0 = data32 & 0x1f;
+	eq1 = (data32 >> 8)  & 0x1f;
+	eq2 = (data32 >> 16)      & 0x1f;
+	eq_avr =  (eq0 + eq1 + eq2) / 3;
+	if (log_level & EQ_LOG)
+		rx_pr("eq0=0x%x, eq1=0x%x, eq2=0x%x avr=0x%x\n",
+			eq0, eq1, eq2, eq_avr);
+
+	/* get tap0 val */
+	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL4, EYE_STATUS_EN, 0x0);
+	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
+	hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x0);
+	usleep_range(100, 110);
+	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_DCHD_STAT);
+	tap0 = data32 & 0xff;
+	tap1 = (data32 >> 8) & 0xff;
+	tap2 = (data32 >> 16) & 0xff;
+	tap0_avr = (tap0 + tap1 + tap2) / 3;
+	if (log_level & EQ_LOG)
+		rx_pr("tap0=0x%x, tap1=0x%x, tap2=0x%x avr=0x%x\n",
+			tap0, tap1, tap2, tap0_avr);
+	if (eq_avr >= 21 && tap0_avr >= 40)
+		ret = true;
+
+	return ret;
+}
+
 void aml_eq_cfg_t7(void)
 {
 	/* dont need to run eq if no sqo_clk or pll not lock */
@@ -832,6 +875,13 @@ void aml_eq_cfg_t7(void)
 	}
 	/* enable dfe for all frequency */
 	aml_dfe_en_t7();
+	if (is_eq1_tap0_err()) {
+		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHA_CNTL0, LEQ_BUF_GAIN, 0x0);
+		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHA_CNTL0, LEQ_POLE, 0x2);
+		if (log_level & EQ_LOG)
+			rx_pr("eq1 & tap0 err, tune eq setting\n");
+	}
+
 	/*enable HYPER_GAIN calibration for 6G to fix 2.0 cts HF2-1 issue*/
 	aml_hyper_gain_tuning_t7();
 	usleep_range(100, 110);
