@@ -1138,6 +1138,8 @@
 #define HHI_RX_PHY_MISC_CNTL2		(0x7 << 2)/*0x1c*/
 #define HHI_RX_PHY_MISC_CNTL3		(0x8 << 2)/*0x20*/
 #define HHI_RX_PHY_DCHA_CNTL0		(0x9 << 2)/*0x24*/
+	#define LEQ_BUF_GAIN			MSK(3, 20)
+	#define LEQ_POLE				MSK(3, 16)
 	#define HYPER_GAIN				MSK(3, 12)
 #define HHI_RX_PHY_DCHA_CNTL1		(0xa << 2)/*0x28*/
 #define HHI_RX_PHY_DCHA_CNTL2		(0xb << 2)/*0x2c*/

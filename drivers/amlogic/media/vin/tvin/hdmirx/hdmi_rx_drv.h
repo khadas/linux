@@ -42,8 +42,8 @@
 #define COR_LOG		0x4000
 #define DBG1_LOG    0x8000
 #define ECC_LOG		0x10000
-/* fix esd no signal issue */
-#define RX_VER1 "ver.2021/10/19"
+/* sony x700 6g unstable */
+#define RX_VER1 "ver.2021/12/01a"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
