@@ -255,34 +255,18 @@ static void pdm_set_lowpower_mode(struct aml_pdm *p_pdm, bool islowpower, int id
 	p_pdm->islowpower = islowpower;
 
 	if (p_pdm->clk_on) {
-		int osr, filter_mode, dclk_idx;
-
-		if (p_pdm->islowpower) {
-			/* dclk for 768k */
-			dclk_idx = 2;
-
-			pr_info("%s force pdm sysclk to 24m, dclk 768k\n",
-				__func__);
-		} else {
-			dclk_idx = p_pdm->dclk_idx;
-		}
-
-		clk_set_rate(p_pdm->clk_pdm_dclk,
-			pdm_dclkidx2rate(dclk_idx));
-
-		/* filter for pdm */
-		osr = pdm_get_ors(dclk_idx, p_pdm->rate);
-		if (!osr)
-			osr = 192;
-
-		filter_mode = p_pdm->islowpower ? 4 : p_pdm->filter_mode;
-		aml_pdm_filter_ctrl(p_pdm->pdm_gain_index, osr, filter_mode, id);
-
-		/* update sample count */
-		pdm_set_channel_ctrl(pdm_get_sample_count(p_pdm->islowpower, dclk_idx), id);
-
 		/* check to set pdm sysclk */
 		pdm_force_sysclk_to_oscin(p_pdm->islowpower, id, p_pdm->chipinfo->vad_top);
+
+		if (p_pdm->islowpower) {
+			/* set dclk clk_sel is oscin,and set rate is 3M */
+			pdm_force_dclk_to_oscin(id, p_pdm->chipinfo->vad_top);
+			pdm_set_channel_ctrl(3, id);
+		} else {
+			clk_set_parent(p_pdm->clk_pdm_dclk, p_pdm->dclk_srcpll);
+			clk_set_rate(p_pdm->clk_pdm_dclk, pdm_dclkidx2rate(p_pdm->dclk_idx));
+			pdm_set_channel_ctrl(pdm_get_sample_count(false, p_pdm->dclk_idx), id);
+		}
 
 		pr_info("\n%s, pdm_sysclk:%lu pdm_dclk:%lu, dclk_srcpll:%lu\n",
 			__func__,

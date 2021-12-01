@@ -68,6 +68,24 @@ void pdm_force_sysclk_to_oscin(bool force, int id, bool vad_top)
 	}
 }
 
+void pdm_force_dclk_to_oscin(int id, bool vad_top)
+{
+	if (vad_top) {
+		vad_top_update_bits(EE_AUDIO2_CLK_PDMIN_CTRL0,
+				    0x7 << 24 | 0xffff << 0,
+				    0x7 << 24 | 0x7 << 0);
+	} else {
+		if (id == 0)
+			audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL0,
+					     0x7 << 24 | 0xffff << 0,
+					     0x7 << 24 | 0x7 << 0);
+		else if (id == 1)
+			audiobus_update_bits(EE_AUDIO_CLK_PDMIN_CTRL2,
+					    0x7 << 24 | 0xffff << 0,
+					    0x7 << 24 | 0x7 << 0);
+	}
+}
+
 void pdm_set_channel_ctrl(int sample_count, int id)
 {
 	int left_sample_count = sample_count, right_sample_count = sample_count;
