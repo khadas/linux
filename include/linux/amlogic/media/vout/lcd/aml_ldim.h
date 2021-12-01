@@ -34,6 +34,12 @@
 #define AML_LDIM_IOC_NR_GET_INFO_NEW	0x53
 #define AML_LDIM_IOC_NR_SET_INFO_NEW	0x54
 
+#define AML_LDIM_IOC_NR_GET_BL_MAPPING_PATH	0x55
+#define AML_LDIM_IOC_NR_SET_BL_MAPPING	0x56
+
+#define AML_LDIM_IOC_NR_GET_BL_PROFILE_PATH	0x57
+#define AML_LDIM_IOC_NR_SET_BL_PROFILE	0x58
+
 #define AML_LDIM_IOC_CMD_GET_INFO \
 	_IOR(_VE_LDIM, AML_LDIM_IOC_NR_GET_INFO, struct aml_ldim_info_s)
 #define AML_LDIM_IOC_CMD_SET_INFO \
@@ -42,6 +48,15 @@
 	_IOR(_VE_LDIM, AML_LDIM_IOC_NR_GET_INFO_NEW, struct aml_ldim_pq_s)
 #define AML_LDIM_IOC_CMD_SET_INFO_NEW \
 	_IOW(_VE_LDIM, AML_LDIM_IOC_NR_SET_INFO_NEW, struct aml_ldim_pq_s)
+
+struct aml_ldim_bin_s {
+	unsigned int index;
+	unsigned int len;
+	union {
+	void *ptr;
+	long long ptr_length;
+	};
+};
 
 enum ldim_dev_type_e {
 	LDIM_DEV_TYPE_NORMAL = 0,
@@ -233,6 +248,7 @@ struct ldim_dev_driver_s {
 	unsigned int dim_max;
 
 	unsigned int zone_num;
+	char bl_mapping_path[256];
 	unsigned short *bl_mapping;
 	struct ldim_profile_s *bl_profile;
 

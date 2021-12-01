@@ -1170,6 +1170,7 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 	ret = of_property_read_string(child, "ldim_zone_mapping_path", &str);
 	if (ret == 0) {
 		LDIMPR("find custom ldim_zone_mapping\n");
+		strncpy(dev_drv->bl_mapping_path, str, 255);
 		ret = ldim_dev_zone_mapping_load(dev_drv, str);
 		if (ret) {
 			for (i = 0; i < dev_drv->zone_num; i++)
@@ -1514,6 +1515,7 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 			dev_drv->bl_mapping[i] = (unsigned short)i;
 	} else {
 		LDIMPR("find custom ldim_zone_mapping\n");
+		strncpy(dev_drv->bl_mapping_path, str, 255);
 		ret = ldim_dev_zone_mapping_load(dev_drv, str);
 		if (ret) {
 			for (i = 0; i < dev_drv->zone_num; i++)

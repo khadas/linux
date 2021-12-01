@@ -1025,6 +1025,8 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	char *lut_buf;
 	void __user *argp;
 	int mcd_nr;
+	unsigned char *buf;
+	struct aml_ldim_bin_s ldim_buff;
 
 	mcd_nr = _IOC_NR(cmd);
 	LDIMPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
@@ -1129,6 +1131,89 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 		}
 		aml_ldim_pq_update();
+		break;
+	case AML_LDIM_IOC_NR_GET_BL_MAPPING_PATH:
+		LDIMPR("get bl_mapping_path is(%s)\n", ldim_driver.dev_drv->bl_mapping_path);
+		if (copy_to_user(argp, ldim_driver.dev_drv->bl_mapping_path,
+				 0xff)) {
+			ret = -EFAULT;
+		}
+		break;
+	case AML_LDIM_IOC_NR_SET_BL_MAPPING:
+		if (copy_from_user(&ldim_buff,
+				   (void __user *)arg,
+				   sizeof(struct aml_ldim_bin_s))) {
+			LDIMERR("cp aml_ldim_bin_s fail\n");
+			return -EFAULT;
+		}
+		argp = (void __user *)ldim_buff.ptr;
+		LDIMPR("index =  0x%x, len=  0x%x\n", ldim_buff.index, ldim_buff.len);
+		if (ldim_buff.len != (2 * ldim_driver.dev_drv->zone_num)) {
+			LDIMERR("bl_mapping_size = %d NOT match with zone_num!!!\n", ldim_buff.len);
+			return -EFAULT;
+		}
+		buf = vmalloc(ldim_buff.len);
+		if (!buf) {
+			LDIMERR("%s vmalloc buf for receive bl mapping failed\n", __func__);
+			vfree(buf);
+			return -EFAULT;
+		}
+		if (copy_from_user((void *)buf, argp,
+				   ldim_buff.len)) {
+			LDIMERR("cp aml_ldim_bin_s to buf fail\n");
+			vfree(buf);
+			return -EFAULT;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+			for (i = 0; i < ldim_buff.len; i++)
+				LDIMPR("buf[%d] =  0x%x\n", i, buf[i]);
+		}
+		memset(ldim_driver.dev_drv->bl_mapping, 0, ldim_buff.len);
+		memcpy(ldim_driver.dev_drv->bl_mapping, buf, ldim_buff.len);
+		LDIMPR("%s : write %d bytes zone_mapping done\n", __func__, ldim_buff.len);
+		vfree(buf);
+		break;
+	case AML_LDIM_IOC_NR_GET_BL_PROFILE_PATH:
+		LDIMPR("get profile_path is(%s)\n",
+			ldim_driver.dev_drv->bl_profile->file_path);
+		if (copy_to_user(argp, ldim_driver.dev_drv->bl_profile->file_path,
+				 0xff)) {
+			ret = -EFAULT;
+		}
+		break;
+	case AML_LDIM_IOC_NR_SET_BL_PROFILE:
+		if (copy_from_user(&ldim_buff,
+				   (void __user *)arg,
+				   sizeof(struct aml_ldim_bin_s))) {
+			LDIMERR("cp aml_ldim_bin_s fail\n");
+			return -EFAULT;
+		}
+		argp = (void __user *)ldim_buff.ptr;
+		LDIMPR("index =  0x%x, len=  0x%x\n", ldim_buff.index, ldim_buff.len);
+		if (ldim_buff.len == 0 || ldim_buff.len > 0xC0000) {
+			LDIMERR("profile bin size = %d is invalid!!\n",
+				ldim_buff.len);
+			return -EFAULT;
+		}
+		buf = vmalloc(ldim_buff.len);
+		if (!buf) {
+			LDIMERR("%s vmalloc buf for receive profile failed\n", __func__);
+			vfree(buf);
+			return -EFAULT;
+		}
+		if (copy_from_user((void *)buf, argp,
+				   ldim_buff.len)) {
+			LDIMERR("cp aml_ldim_bin_s to buf fail\n");
+			vfree(buf);
+			return -EFAULT;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+			for (i = 0; i < 100; i++)  //for check profile begins
+				LDIMPR("profile[%d] =  0x%x\n", i, buf[i]);
+		}
+		ldc_mem_write_profile(buf, ldim_driver.rmem->profile_mem_paddr, ldim_buff.len);
+		LDIMPR("%s : write %d bytes profile done\n", __func__, ldim_buff.len);
+		vfree(buf);
 		break;
 	default:
 		ret = -EINVAL;
