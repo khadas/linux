@@ -33,9 +33,11 @@ static void top_hpd_intr_stub_handler(struct intr_t *);
 
 static pf_callback earc_hdmitx_hpdst;
 
-pf_callback *hdmitx21_earc_hpdst(void)
+void hdmitx21_earc_hpdst(pf_callback cb)
 {
-	return &earc_hdmitx_hpdst;
+	earc_hdmitx_hpdst = cb;
+	if (cb && get_hdmitx21_device()->rhpd_state)
+		cb(true);
 }
 
 union intr_u hdmi_all_intrs = {
@@ -180,6 +182,7 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 		if (dat_top & (1 << 1)) {
 			hdev->hdmitx_event |= HDMI_TX_HPD_PLUGIN;
 			hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
+			hdev->rhpd_state = 1;
 			hdmitx_phy_bandgap_en(hdev);
 			if (earc_hdmitx_hpdst)
 				earc_hdmitx_hpdst(true);
@@ -192,6 +195,7 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 					   &hdev->work_aud_hpd_plug, 2 * HZ);
 			hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
 			hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
+			hdev->rhpd_state = 0;
 			if (earc_hdmitx_hpdst)
 				earc_hdmitx_hpdst(false);
 			queue_delayed_work(hdev->hdmi_wq,

@@ -181,21 +181,13 @@ EXPORT_SYMBOL(hdmitx_ext_get_i2s_mask);
 
 int register_earcrx_callback(pf_callback callback)
 {
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
-	pf_callback *hdmitx;
-#endif
-
 #if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1) {
-		hdmitx = hdmitx_earc_hpdst();
-		*hdmitx = callback;
-	}
+	if (get_hdmitx20_init() == 1)
+		hdmitx_earc_hpdst(callback);
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1) {
-		hdmitx = hdmitx21_earc_hpdst();
-		*hdmitx = callback;
-	}
+	if (get_hdmitx21_init() == 1)
+		hdmitx21_earc_hpdst(callback);
 #endif
 	return 0;
 }
@@ -203,21 +195,13 @@ EXPORT_SYMBOL(register_earcrx_callback);
 
 void unregister_earcrx_callback(void)
 {
-#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
-	pf_callback *hdmitx;
-#endif
-
 #if defined(CONFIG_AMLOGIC_HDMITX)
-	if (get_hdmitx20_init() == 1) {
-		hdmitx = hdmitx_earc_hpdst();
-		*hdmitx = NULL;
-	}
+	if (get_hdmitx20_init() == 1)
+		hdmitx_earc_hpdst(NULL);
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1) {
-		hdmitx = hdmitx21_earc_hpdst();
-		*hdmitx = NULL;
-	}
+	if (get_hdmitx21_init() == 1)
+		hdmitx21_earc_hpdst(NULL);
 #endif
 }
 EXPORT_SYMBOL(unregister_earcrx_callback);

@@ -366,6 +366,7 @@ struct hdmitx_dev {
 	u8 hpd_event; /* 1, plugin; 2, plugout */
 	u8 hpd_state; /* 1, connect; 0, disconnect */
 	u8 drm_mode_setting; /* 1, setting; 0, keeping */
+	u8 rhpd_state; /* For repeater use only, no delay */
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
 	struct hdmitx_info hdmi_info;

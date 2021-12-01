@@ -11,13 +11,13 @@
  * only for hdmitx20/21 module internally
  */
 #ifdef CONFIG_AMLOGIC_HDMITX
-	pf_callback *hdmitx_earc_hpdst(void);
+	void hdmitx_earc_hpdst(pf_callback cb);
 #else
 	#define hdmitx_earc_hpdst NULL
 #endif
 
 #ifdef CONFIG_AMLOGIC_HDMITX21
-	pf_callback *hdmitx21_earc_hpdst(void);
+	void hdmitx21_earc_hpdst(pf_callback cb);
 #else
 	#define hdmitx21_earc_hpdst NULL
 #endif
