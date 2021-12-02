@@ -14,10 +14,6 @@ ifneq ($(CONFIG_DRM_MESON_VPU),)
         $(MESON_DRM_MODULE_NAME)-y += meson_vpu.o
 endif
 
-ifneq ($(CONFIG_DRM_MESON_HDMI),)
-        $(MESON_DRM_MODULE_NAME)-y += meson_hdmi.o meson_hdcp.o
-endif
-
 ifneq ($(CONFIG_DRM_MESON_CVBS),)
         $(MESON_DRM_MODULE_NAME)-y += meson_cvbs.o
         ccflags-y += -I$(srctree)/drivers/amlogic/media/
@@ -34,6 +30,8 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               meson_crtc.o meson_vpu_pipeline.o \
                               meson_vpu_pipeline_private.o \
 		              meson_debugfs.o meson_vpu_util.o \
+			      meson_drm_bind.o \
+				meson_hdmi.o \
                               vpu-hw/meson_vpu_video_wrapper.o \
                               vpu-hw/meson_vpu_osd_mif.o \
                               vpu-hw/meson_osd_afbc.o \

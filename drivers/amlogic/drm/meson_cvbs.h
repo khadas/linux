@@ -19,4 +19,9 @@ struct am_drm_cvbs_s {
 	struct drm_encoder encoder;
 };
 
+int meson_cvbs_dev_bind(struct drm_device *drm,
+	int type, struct meson_connector_dev *intf);
+int meson_cvbs_dev_unbind(struct drm_device *drm,
+	int type, int connector_id);
+
 #endif

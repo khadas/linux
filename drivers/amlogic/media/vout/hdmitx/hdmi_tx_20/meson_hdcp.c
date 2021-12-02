@@ -3,13 +3,7 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-#include <drm/drm_modeset_helper.h>
 #include <drm/drmP.h>
-#include <drm/drm_edid.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_hdcp.h>
-
 #include <linux/component.h>
 #include <linux/irq.h>
 #include <linux/io.h>
@@ -19,13 +13,13 @@
 #include <linux/workqueue.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
+#include <drm/amlogic/meson_connector_dev.h>
 #include <linux/arm-smccc.h>
 #include <linux/workqueue.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
-#include "meson_drv.h"
-#include "meson_hdmi.h"
 #include "meson_hdcp.h"
+#include "meson_drm_hdmitx.h"
 
 /* ioctl numbers */
 enum {
@@ -80,7 +74,7 @@ struct meson_hdmitx_hdcp {
 	int hdcp_report;
 	int hdcp22_daemon_state;
 
-	hdcp_notify hdcp_cb;
+	struct connector_hdcp_cb drm_hdcp_cb;
 	struct timer_list daemon_load_timer;
 	unsigned int key_chk_cnt;
 	struct delayed_work notify_work;
@@ -100,7 +94,7 @@ static unsigned int get_hdcp_downstream_ver(void)
 	return hdcp_downstream_type;
 }
 
-unsigned int meson_hdcp_get_key_version(void)
+static unsigned int meson_hdcp_get_key_version(void)
 {
 	unsigned int hdcp_tx_type = drm_hdmitx_get_hdcp_cap();
 
@@ -228,18 +222,22 @@ static void meson_hdmitx_hdcp_cb(void *data, int auth)
 
 		if (hdcp_auth_result != hdcp_data->hdcp_auth_result) {
 			hdcp_data->hdcp_auth_result = hdcp_auth_result;
-			if (meson_hdcp.hdcp_cb)
-				meson_hdcp.hdcp_cb(hdcp_data->hdcp_execute_type,
+			if (meson_hdcp.drm_hdcp_cb.hdcp_notify)
+				meson_hdcp.drm_hdcp_cb.hdcp_notify
+					(meson_hdcp.drm_hdcp_cb.data,
+					hdcp_data->hdcp_execute_type,
 					hdcp_data->hdcp_auth_result);
 		}
 	}
 }
 
-void meson_hdcp_reg_result_notify(hdcp_notify cb)
+void meson_hdcp_reg_result_notify(struct connector_hdcp_cb *cb)
 {
-	if (meson_hdcp.hdcp_cb)
+	if (meson_hdcp.drm_hdcp_cb.hdcp_notify)
 		DRM_ERROR("Register hdcp notify again!?\n");
-	meson_hdcp.hdcp_cb = cb;
+
+	meson_hdcp.drm_hdcp_cb.hdcp_notify = cb->hdcp_notify;
+	meson_hdcp.drm_hdcp_cb.data = cb->data;
 }
 
 void meson_hdcp_enable(int hdcp_type)
@@ -483,7 +481,8 @@ static void meson_hdcp_key_notify(struct work_struct *work)
 		container_of(dwork, struct meson_hdmitx_hdcp,
 			     notify_work);
 
-	meson_hdcp->hdcp_cb(HDCP_KEY_UPDATE, HDCP_AUTH_UNKNOWN);
+	meson_hdcp->drm_hdcp_cb.hdcp_notify(meson_hdcp->drm_hdcp_cb.data,
+		HDCP_KEY_UPDATE, HDCP_AUTH_UNKNOWN);
 }
 
 void hdcp_key_check(struct timer_list *timer)
@@ -507,6 +506,7 @@ void hdcp_key_check(struct timer_list *timer)
 		schedule_delayed_work(&meson_hdcp->notify_work, 0);
 	}
 }
+
 void meson_hdcp_init(void)
 {
 	int ret;
@@ -521,6 +521,9 @@ void meson_hdcp_init(void)
 	meson_hdcp.hdcp_comm_device.minor = MISC_DYNAMIC_MINOR;
 	meson_hdcp.hdcp_comm_device.name = "tee_comm_hdcp";
 	meson_hdcp.hdcp_comm_device.fops = &hdcp_comm_file_operations;
+	meson_hdcp.drm_hdcp_cb.hdcp_notify = NULL;
+	meson_hdcp.drm_hdcp_cb.data = NULL;
+
 	ret = misc_register(&meson_hdcp.hdcp_comm_device);
 	if (ret < 0)
 		DRM_ERROR("%s [ERROR] misc_register fail\n", __func__);

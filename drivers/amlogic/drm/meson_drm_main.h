@@ -18,18 +18,6 @@ static inline int am_meson_cvbs_init(void)
 static inline void am_meson_cvbs_exit(void) {}
 #endif
 
-#ifdef CONFIG_DRM_MESON_HDMI
-int am_meson_hdmi_init(void);
-void am_meson_hdmi_exit(void);
-#else
-static inline int am_meson_hdmi_init(void)
-{
-	return 0;
-}
-
-static inline void am_meson_hdmi_exit(void) {}
-#endif
-
 #ifdef CONFIG_DRM_MESON_PANEL
 int am_meson_lcd_init(void);
 void am_meson_lcd_exit(void);

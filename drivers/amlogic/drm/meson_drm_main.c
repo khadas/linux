@@ -29,11 +29,6 @@ static int __init meson_drm_main_init(void)
 		DRM_ERROR("am_meson_cvbs_init fail\n");
 		return ret;
 	}
-	am_meson_hdmi_init();
-	if (ret) {
-		DRM_ERROR("am_meson_hdmi_init fail\n");
-		return ret;
-	}
 	am_meson_lcd_init();
 	if (ret) {
 		DRM_ERROR("am_meson_lcd_init fail\n");
@@ -57,7 +52,6 @@ static void __exit meson_drm_main_exit(void)
 {
 	DRM_INFO("%s() start\n", __func__);
 	am_meson_cvbs_exit();
-	am_meson_hdmi_exit();
 	am_meson_lcd_exit();
 	am_meson_vpu_exit();
 	am_meson_drm_exit();

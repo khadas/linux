@@ -26,6 +26,7 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
+#include <drm/amlogic/meson_drm_bind.h>
 #ifdef CONFIG_DRM_MESON_USE_ION
 #include "meson_fb.h"
 #endif
@@ -75,9 +76,7 @@ char *am_meson_crtc2_get_voutmode(struct drm_display_mode *mode)
 
 	if (vinfo && vinfo->mode == VMODE_LCD)
 		return mode->name;
-#ifdef CONFIG_DRM_MESON_HDMI
 	name = am_meson_hdmi_get_voutmode(mode);
-#endif
 #ifdef CONFIG_DRM_MESON_CVBS
 	if (!name)
 		name = am_cvbs_get_voutmode(mode);
@@ -190,7 +189,8 @@ static int am_meson_vpu_bind(struct device *dev,
 			     struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct drm_device *drm_dev = data;
+	struct meson_drm_bound_data *bound_data = data;
+	struct drm_device *drm_dev = bound_data->drm;
 	struct meson_drm *private = drm_dev->dev_private;
 	struct meson_vpu_pipeline *pipeline = private->pipeline;
 	struct am_meson_crtc *amcrtc;
@@ -306,7 +306,8 @@ static int am_meson_vpu_bind(struct device *dev,
 static void am_meson_vpu_unbind(struct device *dev,
 				struct device *master, void *data)
 {
-	struct drm_device *drm_dev = data;
+	struct meson_drm_bound_data *bound_data = data;
+	struct drm_device *drm_dev = bound_data->drm;
 	struct meson_drm *private = drm_dev->dev_private;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT

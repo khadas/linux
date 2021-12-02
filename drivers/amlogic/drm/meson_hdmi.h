@@ -9,7 +9,7 @@
 #include "meson_drv.h"
 #include <drm/drm_connector.h>
 #include <drm/drm_encoder.h>
-#include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
+#include <drm/amlogic/meson_connector_dev.h>
 #include <media/cec-notifier.h>
 
 enum {
@@ -54,6 +54,8 @@ struct am_hdmi_tx {
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
 #endif
+
+	struct meson_hdmitx_dev *hdmitx_dev;
 };
 
 struct am_hdmitx_connector_state {
@@ -74,4 +76,10 @@ struct am_hdmitx_connector_state {
 #define connector_to_am_hdmi(x) \
 	container_of(connector_to_meson_connector(x), struct am_hdmi_tx, base)
 #define encoder_to_am_hdmi(x)	container_of(x, struct am_hdmi_tx, encoder)
+
+int meson_hdmitx_dev_bind(struct drm_device *drm,
+	int type, struct meson_connector_dev *intf);
+int meson_hdmitx_dev_unbind(struct drm_device *drm,
+	int type, int connector_id);
+
 #endif

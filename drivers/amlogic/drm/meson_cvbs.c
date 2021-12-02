@@ -22,6 +22,8 @@
 #include "meson_cvbs.h"
 #include <vout/cvbs/cvbs_out.h>
 
+static bool cvbs_probe;
+
 static struct drm_display_mode cvbs_mode[] = {
 	{ /* MODE_480CVBS */
 		.name = "480cvbs",
@@ -195,19 +197,17 @@ static const struct drm_encoder_funcs am_cvbs_encoder_funcs = {
 	.destroy        = drm_encoder_cleanup,
 };
 
-static const struct of_device_id am_meson_cvbs_dt_ids[] = {
-	{ .compatible = "amlogic, drm-cvbsout", },
-	{}
-};
-MODULE_DEVICE_TABLE(of, am_meson_cvbs_dt_ids);
-
-static int am_meson_cvbs_bind(struct device *dev,
-			      struct device *master, void *data)
+int meson_cvbs_dev_bind(struct drm_device *drm,
+	int type, struct meson_connector_dev *intf)
 {
-	struct drm_device *drm = data;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	int ret = 0;
+
+	if (!cvbs_probe) {
+		DRM_ERROR("No probed cvbs to bind.\n");
+		return -ENOENT;
+	}
 
 	DRM_INFO("[%s] in\n", __func__);
 
@@ -260,12 +260,27 @@ cvbs_err:
 	return ret;
 }
 
-static void am_meson_cvbs_unbind(struct device *dev,
-				 struct device *master, void *data)
+int meson_cvbs_dev_unbind(struct drm_device *drm,
+	int type, int connector_id)
 {
 	am_drm_cvbs->base.connector.funcs->destroy(&am_drm_cvbs->base.connector);
 	am_drm_cvbs->encoder.funcs->destroy(&am_drm_cvbs->encoder);
 	kfree(am_drm_cvbs);
+	return 0;
+}
+
+static int am_meson_cvbs_bind(struct device *dev,
+			      struct device *master, void *data)
+{
+	cvbs_probe = true;
+	return 0;
+}
+
+static void am_meson_cvbs_unbind(struct device *dev,
+				 struct device *master, void *data)
+{
+	meson_cvbs_dev_unbind(NULL, DRM_MODE_CONNECTOR_TV, 0);
+	cvbs_probe = false;
 }
 
 static const struct component_ops am_meson_cvbs_ops = {
@@ -281,9 +296,16 @@ static int am_meson_cvbs_probe(struct platform_device *pdev)
 
 static int am_meson_cvbs_remove(struct platform_device *pdev)
 {
+	DRM_INFO("[%s:%d] in\n", __func__, __LINE__);
 	component_del(&pdev->dev, &am_meson_cvbs_ops);
 	return 0;
 }
+
+static const struct of_device_id am_meson_cvbs_dt_ids[] = {
+	{ .compatible = "amlogic, drm-cvbsout", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, am_meson_cvbs_dt_ids);
 
 static struct platform_driver am_meson_cvbs_pltfm_driver = {
 	.probe  = am_meson_cvbs_probe,

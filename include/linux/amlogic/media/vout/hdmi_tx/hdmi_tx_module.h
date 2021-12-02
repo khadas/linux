@@ -18,8 +18,8 @@
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
-#include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
 #include <linux/spinlock.h>
+#include <drm/amlogic/meson_connector_dev.h>
 
 #define DEVICE_NAME "amhdmitx"
 
@@ -240,6 +240,11 @@ struct scdc_locked_st {
 	u8 ch0_locked:1;
 	u8 ch1_locked:1;
 	u8 ch2_locked:1;
+};
+
+struct drm_hdmitx_hdcp_cb {
+	void (*callback)(void *data, int auth);
+	void *data;
 };
 
 enum hdmi_hdr_transfer {
@@ -497,9 +502,10 @@ struct hdmitx_dev {
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 
 	/*DRM related*/
-	unsigned int drm_feature;/*force 0 now.*/
-	struct drm_hdmitx_hpd_cb drm_hpd_cb;
+	int drm_hdmitx_id;
+	struct connector_hpd_cb drm_hpd_cb;
 	struct drm_hdmitx_hdcp_cb drm_hdcp_cb;
+
 #ifdef CONFIG_AMLOGIC_VPU
 	struct vpu_dev_s *encp_vpu_dev;
 	struct vpu_dev_s *enci_vpu_dev;
