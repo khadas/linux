@@ -411,8 +411,10 @@ static int pdm_train_debug_set_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aml_pdm *p_pdm = dev_get_drvdata(component->dev);
 	int value = ucontrol->value.integer.value[0];
-
-	p_pdm->pdm_train_debug = value;
+	if (!component->active)
+		p_pdm->pdm_train_debug = 0;
+	else
+		p_pdm->pdm_train_debug = value;
 	schedule_work(&p_pdm->debug_work);
 
 	return 0;
@@ -1022,11 +1024,13 @@ static void aml_pdm_train_debug_work(struct work_struct *debug)
 {
 	struct aml_pdm *p_pdm;
 	int ret;
-
 	p_pdm = container_of(debug, struct aml_pdm, debug_work);
-	ret = pdm_auto_train_algorithm(p_pdm->pdm_id, p_pdm->pdm_train_debug);
-	if (ret > 0)
-		pr_info("pdm train sample count = %d\n", ret);
+	if (p_pdm->pdm_train_debug) {
+		ret = pdm_auto_train_algorithm(p_pdm->pdm_id, p_pdm->pdm_train_debug);
+		if (ret > 0)
+			pr_info("pdm train sample count = %d\n", ret);
+	}
+	p_pdm->pdm_train_debug = 0;
 }
 
 static int aml_pdm_platform_probe(struct platform_device *pdev)
