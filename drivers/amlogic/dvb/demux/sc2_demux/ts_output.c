@@ -138,6 +138,7 @@ struct out_elem {
 
 	struct dump_file dump_file;
 	u8 use_external_mem;
+	unsigned int decoder_rp_offset;
 };
 
 struct sid_entry {
@@ -216,6 +217,7 @@ struct dump_file dvr_dump_file;
 #define DVR_DUMP_FILE       "/data/dvr_dump"
 
 #define READ_CACHE_SIZE      (188)
+#define INVALID_DECODE_RP	(0xFFFFFFFF)
 
 static int out_flush_time = 10;
 static int out_es_flush_time = 10;
@@ -2065,6 +2067,7 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 	pout->media_type = media_type;
 	pout->ref = 0;
 	pout->newest_pts = 0;
+	pout->decoder_rp_offset = INVALID_DECODE_RP;
 
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
@@ -3050,5 +3053,106 @@ int ts_output_set_dvr_dump(int flag)
 	mod_timer(&ts_out_task_tmp.out_timer,
 	  jiffies + msecs_to_jiffies(out_flush_time));
 
+	return 0;
+}
+
+int ts_output_set_decode_info(int sid, struct decoder_mem_info *info)
+{
+	int i = 0;
+	unsigned int total_size = 0;
+	unsigned int buf_phy_start = 0;
+	unsigned int free_size = 0;
+	unsigned int wp_offset = 0;
+	struct out_elem *pout;
+	struct es_entry *es_slot;
+
+	for (i = 0; i < MAX_ES_NUM; i++) {
+		es_slot = &es_table[i];
+		pout = es_slot->pout;
+
+		if (es_slot->used &&
+			es_slot->status == ES_FORMAT &&
+			pout->type == VIDEO_TYPE &&
+			pout->sid == sid) {
+			ts_output_get_mem_info(pout,
+					       &total_size,
+					       &buf_phy_start,
+					       &free_size, &wp_offset, NULL);
+			if (info->rp_phy >= buf_phy_start &&
+				info->rp_phy <= (buf_phy_start + total_size)) {
+				pout->decoder_rp_offset = info->rp_phy - buf_phy_start;
+				return 0;
+			}
+		}
+	}
+
+	return 0;
+}
+
+int ts_output_check_flow_control(int sid, int percentage)
+{
+	int i = 0;
+	struct es_entry *es_slot;
+	unsigned int total_size = 0;
+	unsigned int buf_phy_start = 0;
+	unsigned int free_size = 0;
+	unsigned int wp_offset = 0;
+	unsigned int buff_len = 0;
+	unsigned int level = 0;
+	struct out_elem *pout;
+	struct cb_entry *ptmp = NULL;
+
+	pr_dbg("%s enter\n", __func__);
+	for (i = 0; i < MAX_ES_NUM; i++) {
+		es_slot = &es_table[i];
+		pout = es_slot->pout;
+
+		if (es_slot->used &&
+			es_slot->status == ES_FORMAT &&
+			pout->sid == sid) {
+			ts_output_get_mem_info(pout,
+				&total_size,
+				&buf_phy_start,
+				&free_size, &wp_offset, NULL);
+			level = total_size * percentage / 100;
+
+			if (pout->type == VIDEO_TYPE) {
+				if (pout->decoder_rp_offset == INVALID_DECODE_RP)
+					continue;
+				if (pout->decoder_rp_offset <= wp_offset) {
+					buff_len = wp_offset - pout->decoder_rp_offset;
+					if (buff_len >= level) {
+						pr_dbg("%s v 1 buf:0x%0x, level:0x%0x\n",
+							__func__, buff_len, level);
+						return -1;
+					}
+				} else {
+					buff_len = wp_offset - pout->decoder_rp_offset + total_size;
+					if (buff_len >= level) {
+						pr_dbg("%s v 2 buf:0x%0x, level:0x%0x\n",
+							__func__, buff_len, level);
+						return -1;
+					}
+				}
+			} else if (pout->type == AUDIO_TYPE) {
+				if ((total_size - free_size) >= level) {
+					pr_dbg("%s a 1 buf:0x%0x, level:0x%0x\n",
+						__func__, buff_len, level);
+					return -2;
+				}
+				ptmp = pout->cb_ts_list;
+				while (ptmp && ptmp->cb) {
+					if (check_dmx_filter_buff(ptmp->udata[0],
+						(total_size - level)) != 0) {
+						pr_dbg("%s a 2 buf:0x%0x, level:0x%0x\n",
+							__func__, buff_len, level);
+						return -3;
+					}
+					ptmp = ptmp->next;
+				}
+			}
+		}
+	}
+	pr_dbg("%s exit\n", __func__);
 	return 0;
 }

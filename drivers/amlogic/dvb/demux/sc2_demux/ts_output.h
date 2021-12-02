@@ -191,4 +191,6 @@ int ts_output_dump_info(char *buf);
 int ts_output_update_filter(int dmx_no, int sid);
 int ts_output_set_dvr_dump(int flag);
 
+int ts_output_set_decode_info(int sid, struct decoder_mem_info *info);
+int ts_output_check_flow_control(int sid, int percentage);
 #endif

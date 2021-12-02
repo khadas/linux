@@ -110,5 +110,5 @@ int dmx_unregist_dmx_class(void);
 int dmx_get_stc(struct dmx_demux *dmx, unsigned int num,
 		u64 *stc, unsigned int *base);
 int dmx_get_pcr(struct dmx_demux *dmx, unsigned int num,	u64 *pcr);
-
+int check_dmx_filter_buff(struct dmx_ts_feed *feed, int req_len);
 #endif

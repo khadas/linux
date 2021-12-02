@@ -468,6 +468,10 @@ struct dmx_filter_mem_info {
 struct dvr_mem_info {
 	__u32 wp_offset;
 };
+
+struct decoder_mem_info {
+	__u32 rp_phy;
+};
 #endif
 
 #define DMX_START                _IO('o', 41)
@@ -505,5 +509,6 @@ typedef struct dmx_filter dmx_filter_t;
 #define DMX_SET_SEC_MEM			_IOW('o', 85, struct dmx_sec_mem)
 #define DMX_GET_DVR_MEM			_IOR('o', 86, struct dvr_mem_info)
 #define DMX_REMAP_PID			_IOR('o', 87, __u16[2])
+#define DMX_SET_DECODE_INFO     _IOW('o', 88, struct decoder_mem_info)
 #endif
 #endif /* _DVBDMX_H_ */

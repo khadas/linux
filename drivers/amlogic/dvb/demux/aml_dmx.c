@@ -101,6 +101,10 @@ MODULE_PARM_DESC(dvr_buf_size, "\n\t\t set sec buf size");
 static int dvr_buf_size = TS_OUTPUT_CHAN_DVR_BUF_SIZE;
 module_param(dvr_buf_size, int, 0644);
 
+MODULE_PARM_DESC(flow_control, "\n\t\t flow control percentage");
+static int flow_control = 80;
+module_param(flow_control, int, 0644);
+
 static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata,
 			  int req_len, int *req_ret);
@@ -153,7 +157,16 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 		ts_input_write_empty(pdmx->sc2_input, pdmx->video_pid);
 		pdmx->reset_init = 1;
 	}
-
+	if (mutex_lock_interruptible(pdmx->pmutex)) {
+		dprint("%s line:%d\n", __func__, __LINE__);
+		return -ERESTARTSYS;
+	}
+	ret = ts_output_check_flow_control(pdmx->id, flow_control);
+	if (ret != 0) {
+		mutex_unlock(pdmx->pmutex);
+		return ret;
+	}
+	mutex_unlock(pdmx->pmutex);
 	ret = ts_input_write(pdmx->sc2_input, buf, count);
 
 //	if (signal_pending(current))
@@ -1646,6 +1659,21 @@ static int _dmx_remap_pid(struct dmx_demux *dmx, u16 pids[2])
 	return 0;
 }
 
+static int _dmx_decode_info(struct dmx_demux *dmx, struct decoder_mem_info *info)
+{
+	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+
+	pr_dbg("%s dmx%d\n", __func__, demux->id);
+
+	if (mutex_lock_interruptible(demux->pmutex))
+		return -ERESTARTSYS;
+
+	if (demux->source != INPUT_DEMOD)
+		ts_output_set_decode_info(demux->local_sid, info);
+	mutex_unlock(demux->pmutex);
+	return 0;
+}
+
 void dmx_init_hw(int sid_num, int *sid_info)
 {
 	ts_output_init(sid_num, sid_info);
@@ -1717,6 +1745,7 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->dmx.set_sec_mem = _dmx_set_sec_mem;
 	pdmx->dmx.get_dvr_mem = _dmx_get_dvr_mem;
 	pdmx->dmx.remap_pid = _dmx_remap_pid;
+	pdmx->dmx.decode_info = _dmx_decode_info;
 	pdmx->dev.filternum = (MAX_TS_FEED_NUM + MAX_SEC_FEED_NUM);
 	pdmx->dev.demux = &pdmx->dmx;
 	pdmx->dev.capabilities = DMXDEV_CAP_DUPLEX;

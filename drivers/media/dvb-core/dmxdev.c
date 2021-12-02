@@ -1205,6 +1205,13 @@ static int dvb_demux_do_ioctl(struct file *file,
 		}
 		ret = dmxdev->demux->remap_pid(dmxdev->demux, parg);
 		break;
+	case DMX_SET_DECODE_INFO:
+		if (!dmxdev->demux->decode_info) {
+			ret = -EINVAL;
+			break;
+		}
+		ret = dmxdev->demux->decode_info(dmxdev->demux, parg);
+		break;
 #endif
 
 	case DMX_ADD_PID:

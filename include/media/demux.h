@@ -614,6 +614,8 @@ struct dmx_demux {
 			struct dvr_mem_info *info);
 	int (*remap_pid)(struct dmx_demux *demux,
 			u16 pids[2]);
+	int (*decode_info)(struct dmx_demux *demux,
+		struct decoder_mem_info *info);
 #endif
 };
 
