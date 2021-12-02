@@ -3252,6 +3252,19 @@ static void vpp_set_super_scaler
 		next_frame_par->supscl_path = scaler_path_sel;
 	}
 
+	/*double check core0 input width for core0_vert_ratio */
+	/*when CORE0_AFTER_PPS!!!*/
+	if (next_frame_par->supsc0_vert_ratio) {
+		if (next_frame_par->supscl_path == CORE0_AFTER_PPS &&
+			next_frame_par->supsc0_hori_ratio == 0) {
+			src_width = width_out;
+			if (src_width > sr->core0_v_enable_width_max) {
+				next_frame_par->supsc0_vert_ratio = 0;
+				next_frame_par->supsc0_enable = 0;
+			}
+		}
+	}
+
 	/*patch for width align 2*/
 	if (super_scaler && (width_out % 2) &&
 	    (((next_frame_par->supscl_path == CORE0_AFTER_PPS ||
