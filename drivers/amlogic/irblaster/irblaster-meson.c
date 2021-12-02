@@ -17,6 +17,9 @@
 #include <linux/amlogic/irblaster_consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
+#include <linux/cdev.h>
+#include <linux/fs.h>
+#include <linux/uaccess.h>
 
 /* Amlogic AO_IR_BLASTER_ADDR0 bits */
 #define BLASTER_BUSY				BIT(26)
@@ -59,6 +62,7 @@
 #define COUNT_DELAY_MASK			(0X3ff)
 #define TIMEBASE_SHIFT				(10)
 #define BLASTER_KFIFO_SIZE			(4)
+#define BLASTER_DEVICE_COUNT			(1)
 
 #define AO_IR_BLASTER_ADDR0			(0x0)
 #define AO_IR_BLASTER_ADDR1			(0x4)
@@ -73,14 +77,20 @@
 #define BLASTER_TIMEBASE_COUNT			(BIT(10) - 1)
 #define BLASTER_DEBUG_HIGH			(2)
 #define	BLASTER_DELAY_MS			25
+#define BLASTER_NAME				"meson-irblaster"
 
 struct meson_irblaster_dev {
 	struct device *dev;
 	struct work_struct blaster_work;
 	struct irblaster_chip chip;
+	struct cdev blaster_cdev;
+	struct class *blaster_class;
 	struct completion blaster_completion;
+	unsigned int carrier_freqs;
+	unsigned int duty_cycle;
 	unsigned int count;
 	unsigned int irq;
+	dev_t dev_t;
 	unsigned int buffer_size;
 	unsigned int *buffer;
 	spinlock_t irblaster_lock; /* use to send data */
@@ -89,6 +99,7 @@ struct meson_irblaster_dev {
 };
 
 #define IROUTDebug(fmt, x...)
+static DEFINE_MUTEX(blaster_mutex);
 
 static void meson_irblaster_tasklet(unsigned long data);
 DECLARE_TASKLET_DISABLED(irblaster_tasklet, meson_irblaster_tasklet, 0);
@@ -331,6 +342,150 @@ static struct irblaster_ops meson_irblaster_ops = {
 	.send = meson_irblaster_send,
 };
 
+static int  set_duty_cycle(struct meson_irblaster_dev *dev, int duty_cycle)
+{
+	if (duty_cycle > MAX_DUTY || duty_cycle < LIMIT_DUTY) {
+		pr_info("duty_cycle[%d,%d]\n", LIMIT_DUTY, MAX_DUTY);
+		return -1;
+	}
+	dev->duty_cycle = duty_cycle;
+	return 0;
+}
+
+static int  get_carrier_freqs(struct meson_irblaster_dev *dev)
+{
+	return dev->carrier_freqs;
+}
+
+static int send(struct meson_irblaster_dev *dev, const char *buf, int len)
+{
+	int i = 0, j = 0, m = 0, ret = 0;
+	int val;
+	char tone[PS_SIZE];
+	unsigned int sum_time = 0;
+
+	for (i = 0; i < len; i++) {
+		if (buf[i] == '\0') {
+			break;
+		} else if (buf[i] == 's') {
+			tone[j] = '\0';
+			ret = kstrtoint(tone, 10, &val);
+			if (ret) {
+				pr_err("Invalid tone\n");
+				return ret;
+			}
+			dev->buffer[m] = val * 10;
+			sum_time = sum_time + val * 10;
+			j = 0;
+			m++;
+			if (m >= MAX_PLUSE)
+				break;
+			continue;
+		}
+		tone[j] = buf[i];
+		j++;
+		if (j >= PS_SIZE)
+			return -ENOMEM;
+	}
+	dev->buffer_size = m;
+	dev->count = 0;
+	send_all_data(dev);
+	ret = wait_for_completion_interruptible_timeout(&dev->blaster_completion,
+			msecs_to_jiffies(sum_time / 1000));
+	if (!ret)
+		pr_info("failed to sended all data\n");
+	return ret;
+}
+
+int set_carrier_freqs(struct meson_irblaster_dev *dev, int carrier_freqs)
+{
+	if (carrier_freqs > MAX_FREQ || carrier_freqs < LIMIT_FREQ) {
+		pr_info("freqs[%d,%d]\n", LIMIT_FREQ, MAX_FREQ);
+		return -1;
+	}
+	dev->carrier_freqs = carrier_freqs;
+	return 0;
+}
+
+static long aml_irblaster_ioctl(struct file *filp, unsigned int cmd,
+				unsigned long args)
+{
+	int carrier_freqs = 0, duty_cycle = 0;
+	static int psize;
+	s32 r = 0;
+	void __user *argp = (void __user *)args;
+	char *sendcode = NULL;
+	struct meson_irblaster_dev *dev = filp->private_data;
+
+	switch (cmd) {
+	case CONSUMERIR_TRANSMIT:
+		psize = psize ? psize : MAX_PLUSE;
+		sendcode = kcalloc(psize, sizeof(char), GFP_KERNEL);
+		if (!sendcode) {
+			pr_err("can't get sendcode memory\n");
+			return -ENOMEM;
+		}
+		if (copy_from_user(sendcode, (char *)argp,
+					psize))
+			return -EFAULT;
+		pr_info("send code is %s\n", sendcode);
+		mutex_lock(&blaster_mutex);
+		r = send(dev, sendcode, psize);
+		mutex_unlock(&blaster_mutex);
+		kfree(sendcode);
+		break;
+	case GET_CARRIER:
+		pr_info("in get freq\n");
+		carrier_freqs = get_carrier_freqs(dev);
+		put_user(carrier_freqs, (int *)argp);
+		return carrier_freqs;
+	case SET_CARRIER:
+		pr_info("in set freq\n");
+		if (get_user(carrier_freqs, (int *)argp) < 0)
+			return -EFAULT;
+		mutex_lock(&blaster_mutex);
+		r = set_carrier_freqs(dev, carrier_freqs);
+		mutex_unlock(&blaster_mutex);
+		break;
+	case SET_DUTYCYCLE:
+		pr_info("in set duty_cycle\n");
+		if (copy_from_user(&duty_cycle, argp, sizeof(int)))
+			return -EFAULT;
+		get_user(duty_cycle, (int *)argp);
+		mutex_lock(&blaster_mutex);
+		r = set_duty_cycle(dev, duty_cycle);
+		mutex_unlock(&blaster_mutex);
+		break;
+	default:
+		r = -ENOIOCTLCMD;
+		break;
+	}
+	return r;
+}
+
+static int aml_irblaster_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static int aml_irblaster_open(struct inode *inode, struct file *file)
+{
+	struct meson_irblaster_dev *dev = NULL;
+
+	dev = container_of(inode->i_cdev,
+				struct meson_irblaster_dev, blaster_cdev);
+	file->private_data = dev;
+	return 0;
+}
+
+static const struct file_operations blaster_fops = {
+	.owner		= THIS_MODULE,
+	.open		= aml_irblaster_open,
+	.compat_ioctl = aml_irblaster_ioctl,
+	.unlocked_ioctl = aml_irblaster_ioctl,
+	.release	= aml_irblaster_release,
+};
+
 static void meson_irblaster_tasklet(unsigned long data)
 {
 	struct meson_irblaster_dev *dev = (struct meson_irblaster_dev *)data;
@@ -422,6 +577,37 @@ static int  meson_irblaster_probe(struct platform_device *pdev)
 	irblaster_dev->chip.of_irblaster_n_cells = 2;
 	irblaster_dev->chip.state.freq = DEFAULT_CARRIER_FREQ;
 	irblaster_dev->chip.state.duty = DEFAULT_DUTY_CYCLE;
+
+	ret = alloc_chrdev_region(&irblaster_dev->dev_t, 0,
+				BLASTER_DEVICE_COUNT,
+				BLASTER_NAME);
+	if (ret < 0) {
+		pr_err("Failed to alloc cdev  major  device\n");
+		return ret;
+	}
+	cdev_init(&irblaster_dev->blaster_cdev, &blaster_fops);
+	irblaster_dev->blaster_cdev.owner = THIS_MODULE;
+	ret = cdev_add(&irblaster_dev->blaster_cdev,
+			irblaster_dev->dev_t,
+			BLASTER_DEVICE_COUNT);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register cdev\n");
+		return 0;
+	}
+
+	irblaster_dev->blaster_class = class_create(THIS_MODULE,
+						BLASTER_NAME);
+	if (IS_ERR(irblaster_dev->blaster_class)) {
+		pr_err("Failed to class create\n");
+		ret = PTR_ERR(irblaster_dev->blaster_class);
+		return ret;
+	}
+
+	irblaster_dev->dev = device_create(irblaster_dev->blaster_class,  NULL,
+						irblaster_dev->dev_t, NULL,
+						"irblaster%d", 1);
+	if (IS_ERR(irblaster_dev->dev))
+		return PTR_ERR(irblaster_dev->dev);
 
 	err = irblasterchip_add(&irblaster_dev->chip);
 	if (err < 0) {
