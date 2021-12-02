@@ -17,6 +17,8 @@
 /*CONFIG_DRM_MESON_EMULATE_FBDEV*/
 #include <meson_fbdev.h>
 
+#include <drm/amlogic/meson_drm_bind.h>
+
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
@@ -71,14 +73,16 @@ struct meson_drm {
 	struct meson_drm_fbdev_config ui_config;
 	struct meson_drm_fbdev *osd_fbdevs[MESON_MAX_OSD];
 
+	struct meson_drm_bound_data bound_data;
+
 	bool compat_mode;
 };
 
-static inline int meson_vpu_is_compatible(struct meson_drm *priv,
-					  const char *compat)
-{
-	return of_device_is_compatible(priv->dev->of_node, compat);
-}
+/*component bind functions*/
+int meson_connector_dev_bind(struct drm_device *drm,
+	int type, struct meson_connector_dev *intf);
+int meson_connector_dev_unbind(struct drm_device *drm,
+	int type, int connector_id);
 
 /*meson mode config atomic func*/
 int meson_atomic_commit(struct drm_device *dev,

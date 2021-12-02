@@ -836,7 +836,8 @@ static const struct of_device_id am_meson_lcd_dt_ids[] = {
 static int am_meson_lcd_bind(struct device *dev, struct device *master,
 			     void *data)
 {
-	struct drm_device *drm = data;
+	struct meson_drm_bound_data *bound_data = data;
+	struct drm_device *drm = bound_data->drm;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
 	int encoder_type, connector_type;

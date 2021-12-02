@@ -587,6 +587,11 @@ static int am_meson_drm_bind(struct device *dev)
 	drm->dev_private = priv;
 	priv->drm = drm;
 	priv->dev = dev;
+	/*bound data to be used by component driver.*/
+	priv->bound_data.drm = drm;
+	priv->bound_data.connector_component_bind = meson_connector_dev_bind;
+	priv->bound_data.connector_component_unbind = meson_connector_dev_unbind;
+
 	dev_set_drvdata(dev, priv);
 
 #ifdef CONFIG_DRM_MESON_USE_ION
@@ -610,7 +615,7 @@ static int am_meson_drm_bind(struct device *dev)
 	drm->mode_config.allow_fb_modifiers = true;
 
 	/* Try to bind all sub drivers. */
-	ret = component_bind_all(dev, drm);
+	ret = component_bind_all(dev, &priv->bound_data);
 	if (ret)
 		goto err_gem;
 
@@ -619,6 +624,10 @@ static int am_meson_drm_bind(struct device *dev)
 	if (ret)
 		goto err_gem;
 	DRM_INFO("mode_config crtc number:%d\n", drm->mode_config.num_crtc);
+
+	/*todo: temp bind cvbs here, will move to cvbs driver.*/
+	if (priv->bound_data.connector_component_bind)
+		priv->bound_data.connector_component_bind(drm, DRM_MODE_CONNECTOR_TV, NULL);
 
 	ret = meson_worker_thread_init(priv);
 	if (ret)

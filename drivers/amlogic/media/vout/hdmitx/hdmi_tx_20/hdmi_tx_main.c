@@ -43,7 +43,6 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_info_global.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_ddc.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
-#include <linux/amlogic/media/vout/hdmi_tx/meson_drm_hdmitx.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_config.h>
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/registers/cpu_version.h>
@@ -52,9 +51,13 @@
 #include "hw/hw_clk.h"
 #include "hw/reg_ops.h"
 #include "hdmi_tx_hdcp.h"
+#include "meson_drm_hdmitx.h"
+#include "meson_hdcp.h"
 
+#include <linux/component.h>
 #include <uapi/drm/drm_mode.h>
 #include <linux/amlogic/gki_module.h>
+#include <drm/amlogic/meson_drm_bind.h>
 
 #define DEVICE_NAME "amhdmitx"
 #define HDMI_TX_COUNT 32
@@ -84,6 +87,10 @@ static void update_current_para(struct hdmitx_dev *hdev);
 static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
 static unsigned int hdmitx_get_frame_duration(void);
+static int meson_hdmitx_bind(struct device *dev,
+			      struct device *master, void *data);
+static void meson_hdmitx_unbind(struct device *dev,
+				 struct device *master, void *data);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data);
@@ -6454,41 +6461,6 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 	return 0;
 }
 
-static void amhdmitx_get_drm_info(void)
-{
-	struct device_node *drm_node;
-	unsigned char *drm_status;
-	int ret = 0;
-
-	if (false) {
-		drm_node = of_find_node_by_path("/drm-amhdmitx");
-		if (drm_node) {
-			ret =
-			of_property_read_string(drm_node, "status",
-						(const char **)&drm_status);
-			if (ret) {
-				pr_info(SYS "not find drm_feature\n");
-			} else {
-				if (memcmp(drm_status, "okay", 4) == 0)
-					hdmitx_device.drm_feature = 1;
-				else
-					hdmitx_device.drm_feature = 0;
-				pr_info(SYS "hdmitx_device.drm_feature : %d\n",
-					hdmitx_device.drm_feature);
-			}
-		} else {
-			pr_info(SYS "not find drm_amhdmitx\n");
-		}
-	} else {
-		hdmitx_device.drm_feature = 0;
-		hdmitx_device.drm_hpd_cb.callback = 0;
-		hdmitx_device.drm_hpd_cb.data = 0;
-		hdmitx_device.drm_hdcp_cb.callback = 0;
-		hdmitx_device.drm_hdcp_cb.data = 0;
-		pr_debug("drm_feature skip.");
-	}
-}
-
 static int amhdmitx_get_dt_info(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -6634,8 +6606,6 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			hdmitx_device.hdcp_ctl_lvl = 0;
 		if (hdmitx_device.hdcp_ctl_lvl > 0)
 			hdmitx_device.systemcontrol_on = true;
-		/* Get drm feature information */
-		amhdmitx_get_drm_info();
 
 		/* Get reg information */
 		ret = hdmitx_init_reg_map(pdev);
@@ -6739,6 +6709,11 @@ void amhdmitx_vpu_dev_regiter(struct hdmitx_dev *hdev)
 	hdev->hdmitx_vpu_clk_gate_dev =
 	vpu_dev_register(VPU_VENCI, DEVICE_NAME);
 }
+
+static const struct component_ops meson_hdmitx_bind_ops = {
+	.bind	= meson_hdmitx_bind,
+	.unbind	= meson_hdmitx_unbind,
+};
 
 static int amhdmitx_probe(struct platform_device *pdev)
 {
@@ -6915,9 +6890,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	hdev->tx_aud_cfg = 1; /* default audio configure is on */
 
-	/*Direct Rander Management use another irq*/
-	if (hdev->drm_feature == 0)
-		hdev->hwop.setupirq(hdev);
+	hdev->hwop.setupirq(hdev);
 
 	if (hdev->hpd_state) {
 		/* need to get edid before vout probe */
@@ -6949,12 +6922,18 @@ static int amhdmitx_probe(struct platform_device *pdev)
 
 	pr_info(SYS "%s end\n", __func__);
 
+	component_add(&pdev->dev, &meson_hdmitx_bind_ops);
+
 	return r;
 }
 
 static int amhdmitx_remove(struct platform_device *pdev)
 {
 	struct device *dev = hdmitx_device.hdtx_dev;
+
+	/*unbind from drm.*/
+	if (hdmitx_device.drm_hdmitx_id != 0)
+		component_del(&pdev->dev, &meson_hdmitx_bind_ops);
 
 	cancel_work_sync(&hdmitx_device.work_hdr);
 
@@ -7291,13 +7270,12 @@ MODULE_PARM_DESC(log_level, "\n log_level\n");
 module_param(log_level, int, 0644);
 
 /*************DRM connector API**************/
-int drm_hdmitx_detect_hpd(void)
+static int drm_hdmitx_detect_hpd(void)
 {
 	return hdmitx_device.hpd_state;
 }
-EXPORT_SYMBOL(drm_hdmitx_detect_hpd);
 
-int drm_hdmitx_register_hpd_cb(struct drm_hdmitx_hpd_cb *hpd_cb)
+static int drm_hdmitx_register_hpd_cb(struct connector_hpd_cb *hpd_cb)
 {
 	mutex_lock(&setclk_mutex);
 	hdmitx_device.drm_hpd_cb.callback = hpd_cb->callback;
@@ -7305,9 +7283,8 @@ int drm_hdmitx_register_hpd_cb(struct drm_hdmitx_hpd_cb *hpd_cb)
 	mutex_unlock(&setclk_mutex);
 	return 0;
 }
-EXPORT_SYMBOL(drm_hdmitx_register_hpd_cb);
 
-int drm_hdmitx_get_vic_list(int **vics)
+static int drm_hdmitx_get_vic_list(int **vics)
 {
 	enum hdmi_vic vic;
 	char mode_tmp[32];
@@ -7349,16 +7326,14 @@ int drm_hdmitx_get_vic_list(int **vics)
 
 	return count;
 }
-EXPORT_SYMBOL(drm_hdmitx_get_vic_list);
 
-unsigned char *drm_hdmitx_get_raw_edid(void)
+static unsigned char *drm_hdmitx_get_raw_edid(void)
 {
 	if (hdmitx_device.edid_ptr)
 		return hdmitx_device.edid_ptr;
 	else
 		return hdmitx_device.EDID_buf;
 }
-EXPORT_SYMBOL(drm_hdmitx_get_raw_edid);
 
 int drm_hdmitx_register_hdcp_cb(struct drm_hdmitx_hdcp_cb *hdcp_cb)
 {
@@ -7368,10 +7343,9 @@ int drm_hdmitx_register_hdcp_cb(struct drm_hdmitx_hdcp_cb *hdcp_cb)
 	mutex_unlock(&setclk_mutex);
 	return 0;
 }
-EXPORT_SYMBOL(drm_hdmitx_register_hdcp_cb);
 
 /* bit[1]: hdcp22, bit[0]: hdcp14 */
-int drm_hdmitx_get_hdcp_cap(void)
+unsigned int drm_hdmitx_get_hdcp_cap(void)
 {
 	if (hdmitx_device.hdmi_init != 1)
 		return 0;
@@ -7385,7 +7359,6 @@ int drm_hdmitx_get_hdcp_cap(void)
 	}
 	return hdmitx_device.lstore & 0x3;
 }
-EXPORT_SYMBOL(drm_hdmitx_get_hdcp_cap);
 
 /* bit[1]: hdcp22, bit[0]: hdcp14 */
 unsigned int drm_get_rx_hdcp_cap(void)
@@ -7409,7 +7382,6 @@ unsigned int drm_get_rx_hdcp_cap(void)
 	else
 		return 0x1;
 }
-EXPORT_SYMBOL(drm_get_rx_hdcp_cap);
 
 /* after TEE hdcp key valid, do hdcp22 init before tx22 start */
 void drm_hdmitx_hdcp22_init(void)
@@ -7420,7 +7392,6 @@ void drm_hdmitx_hdcp22_init(void)
 	hdmitx_device.hwop.cntlddc(&hdmitx_device,
 		DDC_HDCP_MUX_INIT, 2);
 }
-EXPORT_SYMBOL(drm_hdmitx_hdcp22_init);
 
 /* echo 1/2 > hdcp_mode */
 int drm_hdmitx_hdcp_enable(unsigned int content_type)
@@ -7453,7 +7424,6 @@ int drm_hdmitx_hdcp_enable(unsigned int content_type)
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_hdmitx_hdcp_enable);
 
 /* echo -1 > hdcp_mode;echo stop14/22 > hdcp_ctrl */
 int drm_hdmitx_hdcp_disable(unsigned int content_type)
@@ -7477,7 +7447,6 @@ int drm_hdmitx_hdcp_disable(unsigned int content_type)
 
 	return 0;
 }
-EXPORT_SYMBOL(drm_hdmitx_hdcp_disable);
 
 int drm_get_hdcp_auth_sts(void)
 {
@@ -7486,7 +7455,6 @@ int drm_get_hdcp_auth_sts(void)
 
 	return hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_GET_AUTH, 0);
 }
-EXPORT_SYMBOL(drm_get_hdcp_auth_sts);
 
 void drm_hdmitx_avmute(unsigned char mute)
 {
@@ -7500,7 +7468,6 @@ void drm_hdmitx_avmute(unsigned char mute)
 		cmd = SET_AVMUTE;
 	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_AVMUTE_OP, cmd);
 }
-EXPORT_SYMBOL(drm_hdmitx_avmute);
 
 void drm_hdmitx_set_phy(unsigned char en)
 {
@@ -7515,7 +7482,6 @@ void drm_hdmitx_set_phy(unsigned char en)
 		cmd = TMDS_PHY_ENABLE;
 	hdmitx_device.hwop.cntlmisc(&hdmitx_device, MISC_TMDS_PHY_OP, cmd);
 }
-EXPORT_SYMBOL(drm_hdmitx_set_phy);
 
 void drm_hdmitx_setup_attr(const char *buf)
 {
@@ -7524,13 +7490,11 @@ void drm_hdmitx_setup_attr(const char *buf)
 	memcpy(attr, buf, sizeof(attr));
 	memcpy(hdmitx_device.fmt_attr, attr, sizeof(hdmitx_device.fmt_attr));
 }
-EXPORT_SYMBOL(drm_hdmitx_setup_attr);
 
 void drm_hdmitx_get_attr(char attr[16])
 {
 	memcpy(attr, hdmitx_device.fmt_attr, sizeof(hdmitx_device.fmt_attr));
 }
-EXPORT_SYMBOL(drm_hdmitx_get_attr);
 
 bool drm_hdmitx_chk_mode_attr_sup(char *mode, char *attr)
 {
@@ -7559,9 +7523,8 @@ bool drm_hdmitx_chk_mode_attr_sup(char *mode, char *attr)
 
 	return valid;
 }
-EXPORT_SYMBOL(drm_hdmitx_chk_mode_attr_sup);
 
-unsigned int drm_hdmitx_get_contenttypes(void)
+static unsigned int drm_hdmitx_get_contenttypes(void)
 {
 	unsigned int types = 1 << DRM_MODE_CONTENT_TYPE_NO_DATA;/*NONE DATA*/
 	struct rx_cap *prxcap = &hdmitx_device.rxcap;
@@ -7577,9 +7540,8 @@ unsigned int drm_hdmitx_get_contenttypes(void)
 
 	return types;
 }
-EXPORT_SYMBOL(drm_hdmitx_get_contenttypes);
 
-int drm_hdmitx_set_contenttype(int content_type)
+static int drm_hdmitx_set_contenttype(int content_type)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	int ret = 0;
@@ -7619,18 +7581,15 @@ int drm_hdmitx_set_contenttype(int content_type)
 
 	return ret;
 }
-EXPORT_SYMBOL(drm_hdmitx_set_contenttype);
 
-
-const struct dv_info *drm_hdmitx_get_dv_info(void)
+static const struct dv_info *drm_hdmitx_get_dv_info(void)
 {
 	const struct dv_info *dv = &hdmitx_device.rxcap.dv_info;
 
 	return dv;
 }
-EXPORT_SYMBOL(drm_hdmitx_get_dv_info);
 
-const struct hdr_info *drm_hdmitx_get_hdr_info(void)
+static const struct hdr_info *drm_hdmitx_get_hdr_info(void)
 {
 	static struct hdr_info hdrinfo;
 
@@ -7638,12 +7597,75 @@ const struct hdr_info *drm_hdmitx_get_hdr_info(void)
 
 	return &hdrinfo;
 }
-EXPORT_SYMBOL(drm_hdmitx_get_hdr_info);
 
-int drm_hdmitx_get_hdr_priority(void)
+static int drm_hdmitx_get_hdr_priority(void)
 {
 	return hdmitx_device.hdr_priority;
 }
-EXPORT_SYMBOL(drm_hdmitx_get_hdr_priority);
+
+static struct meson_hdmitx_dev drm_hdmitx_instance = {
+	.base = {
+		.ver = MESON_DRM_CONNECTOR_V10,
+	},
+	.detect = drm_hdmitx_detect_hpd,
+	.register_hpd_cb = drm_hdmitx_register_hpd_cb,
+	.get_raw_edid = drm_hdmitx_get_raw_edid,
+	.get_vic_list = drm_hdmitx_get_vic_list,
+	.get_content_types = drm_hdmitx_get_contenttypes,
+	.set_content_type = drm_hdmitx_set_contenttype,
+	.setup_attr = drm_hdmitx_setup_attr,
+	.get_attr = drm_hdmitx_get_attr,
+	.test_attr = drm_hdmitx_chk_mode_attr_sup,
+	.get_dv_info = drm_hdmitx_get_dv_info,
+	.get_hdr_info = drm_hdmitx_get_hdr_info,
+	.get_hdr_priority = drm_hdmitx_get_hdr_priority,
+	.avmute = drm_hdmitx_avmute,
+
+	/*hdcp apis*/
+	.hdcp_init = meson_hdcp_init,
+	.hdcp_exit = meson_hdcp_exit,
+	.hdcp_enable = meson_hdcp_enable,
+	.hdcp_disable = meson_hdcp_disable,
+	.hdcp_disconnect = meson_hdcp_disconnect,
+	.get_tx_hdcp_cap = drm_hdmitx_get_hdcp_cap,
+	.get_rx_hdcp_cap = drm_get_rx_hdcp_cap,
+	.register_hdcp_notify = meson_hdcp_reg_result_notify,
+};
+
+static int meson_hdmitx_bind(struct device *dev,
+			      struct device *master, void *data)
+{
+	struct meson_drm_bound_data *bound_data = data;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (bound_data->connector_component_bind) {
+		hdev->drm_hdmitx_id = bound_data->connector_component_bind
+			(bound_data->drm,
+			DRM_MODE_CONNECTOR_HDMIA,
+			&drm_hdmitx_instance.base);
+		pr_info("%s hdmi [%d]\n", __func__, hdev->drm_hdmitx_id);
+	} else {
+		pr_err("no bind func from drm.\n");
+	}
+
+	return 0;
+}
+
+static void meson_hdmitx_unbind(struct device *dev,
+				 struct device *master, void *data)
+{
+	struct meson_drm_bound_data *bound_data = data;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	if (bound_data->connector_component_unbind) {
+		bound_data->connector_component_unbind(bound_data->drm,
+			DRM_MODE_CONNECTOR_HDMIA, hdev->drm_hdmitx_id);
+		pr_info("%s hdmi [%d]\n", __func__, hdev->drm_hdmitx_id);
+	} else {
+		pr_err("no unbind func from drm.\n");
+	}
+
+	hdev->drm_hdmitx_id = 0;
+}
 
 /*************DRM connector API end**************/
