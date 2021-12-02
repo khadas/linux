@@ -711,7 +711,7 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	tdmb: tdm@1 {
@@ -723,7 +723,7 @@
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "clk_srcpll";
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	spdifa: spdif@0 {
@@ -748,7 +748,7 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	apdm: pdm {
@@ -772,7 +772,7 @@
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 #if 0
 	asrca: resample@0 {
@@ -828,7 +828,7 @@
 		 */
 		level = <1>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	loopbacka:loopback@0 {
@@ -883,7 +883,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "okay";
+		status = "disabled";
 	};
 #if 0
 	aed:effect {
