@@ -42,8 +42,9 @@
 // frc_20211109 frc chg demo mode
 // frc_20211118 frc chg set max line to vlock module
 // frc_20211119 frc set off when vf pic type
+// frc_20211125 frc chg me little_window fhd
 
-#define FRC_FW_VER			"2021-1125 frc chg me little_window fhd"
+#define FRC_FW_VER			"2021-1202 fix frc reboot crash"
 #define FRC_KERDRV_VER                  1309
 
 #define FRC_DEVNO	1

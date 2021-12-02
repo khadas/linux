@@ -907,6 +907,7 @@ static void frc_shutdown(struct platform_device *pdev)
 
 	PR_FRC("%s:module shutdown\n", __func__);
 	// frc_devp = platform_get_drvdata(pdev);
+	frc_devp->power_on_flag = false;
 	tasklet_kill(&frc_devp->input_tasklet);
 	tasklet_kill(&frc_devp->output_tasklet);
 	tasklet_disable(&frc_devp->input_tasklet);
@@ -915,7 +916,6 @@ static void frc_shutdown(struct platform_device *pdev)
 		free_irq(frc_devp->in_irq, (void *)frc_devp);
 	if (frc_devp->out_irq > 0)
 		free_irq(frc_devp->out_irq, (void *)frc_devp);
-
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);

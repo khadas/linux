@@ -142,7 +142,7 @@ int frc_is_on(void)
 	if (!devp)
 		return 0;
 
-	if (!devp->probe_ok)
+	if (!devp->probe_ok || !devp->power_on_flag)
 		return 0;
 
 	if (READ_FRC_BITS(FRC_TOP_CTRL, 0, 1) == FRC_STATE_ENABLE)
