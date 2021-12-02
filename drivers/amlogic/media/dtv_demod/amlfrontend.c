@@ -3648,51 +3648,64 @@ void dtvdemod_cma_release(struct amldtvdemod_device_s *devp)
 }
 #endif
 
-static void set_agc_pinmux(enum fe_delivery_system delsys, unsigned int on)
+static void set_agc_pinmux(struct aml_dtvdemod *demod,
+		enum fe_delivery_system delsys, unsigned int on)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	char pin_name[20];
+	struct pinctrl *pin = NULL;
+	char *agc_name = NULL;
+	char *diseqc_name = NULL;
 
 	switch (delsys) {
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		/* dvbs connects to rf agc pin due to no IF */
-		strcpy(pin_name, "rf_agc_pins");
+		agc_name = "rf_agc_pins";
+		diseqc_name = "diseqc";
 		break;
-
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+		if (demod->id == 1)
+			agc_name = "if_agc2_pins";
+		else
+			agc_name = "if_agc_pins";
+		break;
 	default:
-		strcpy(pin_name, "if_agc_pins");
+		agc_name = "if_agc_pins";
 		break;
 	}
 
 	if (on) {
-		if (devp->agc_pin_enable) {
-			PR_INFO("agc_pin_enable is already on\n");
-			return;
+		if (IS_ERR_OR_NULL(demod->pin_agc)) {
+			pin = devm_pinctrl_get_select(devp->dev, agc_name);
+			if (IS_ERR_OR_NULL(pin))
+				PR_ERR("get agc pins fail: %s\n", agc_name);
+			else
+				demod->pin_agc = pin;
 		}
 
-		devp->pin = devm_pinctrl_get_select(devp->dev, pin_name);
-		if (IS_ERR_OR_NULL(devp->pin)) {
-			devp->pin = NULL;
-			PR_ERR("get agc pins fail: %s\n", pin_name);
-		} else {
-			devp->agc_pin_enable = true;
+		if (diseqc_name && IS_ERR_OR_NULL(demod->pin_diseqc)) {
+			pin = devm_pinctrl_get_select(devp->dev, diseqc_name);
+			if (IS_ERR_OR_NULL(pin))
+				PR_ERR("get agc pins fail: %s\n", diseqc_name);
+			else
+				demod->pin_diseqc = pin;
 		}
 	} else {
-		if (!devp->agc_pin_enable) {
-			PR_INFO("agc_pin_enable is already off\n");
-			return;
+		if (!IS_ERR_OR_NULL(demod->pin_agc)) {
+			devm_pinctrl_put(demod->pin_agc);
+			demod->pin_agc = NULL;
 		}
 
-		if (!IS_ERR_OR_NULL(devp->pin)) {
-			devm_pinctrl_put(devp->pin);
-			devp->pin = NULL;
+		if (diseqc_name) {
+			if (!IS_ERR_OR_NULL(demod->pin_diseqc)) {
+				devm_pinctrl_put(demod->pin_diseqc);
+				demod->pin_diseqc = NULL;
+			}
 		}
-
-		devp->agc_pin_enable = false;
 	}
 
-	PR_INFO("%s '%s' %d done.\n", __func__, pin_name, on);
+	PR_INFO("%s '%s' %d done.\n", __func__, agc_name, on);
 }
 
 static void vdac_clk_gate_ctrl(int status)
@@ -3801,7 +3814,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 	else
 		PR_ERR("%s [id %d]:%d\n", __func__, demod->id, delsys);
 
-	set_agc_pinmux(delsys, 1);
+	set_agc_pinmux(demod, delsys, 1);
 
 	/*-------------------*/
 	/* must enable the adc ref signal for demod, */
@@ -3994,7 +4007,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		/*vdac_enable(0, VDAC_MODULE_DTV_DEMOD);*/
 		dtvdemod_vdac_enable(0);/*off*/
 		demod_32k_ctrl(0);
-		set_agc_pinmux(delsys, 0);
+		set_agc_pinmux(demod, delsys, 0);
 
 		if (devp->cma_flag == 1 && devp->flg_cma_allc && devp->cma_mem_size) {
 			dtvdemod_cma_release(devp);
@@ -4343,7 +4356,6 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 {
 	u32 value;
 	int ret;
-	struct pinctrl_state *pin_agc_st;
 	struct amldtvdemod_device_s *devp =
 			(struct amldtvdemod_device_s *)platform_get_drvdata(pdev);
 
@@ -4352,22 +4364,6 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
 		PR_INFO("no reserved mem.\n");
-
-	/*agc pinmux: option*/
-	if (of_get_property(pdev->dev.of_node, "pinctrl-names", NULL)) {
-		devp->pin = devm_pinctrl_get(&pdev->dev);
-
-		pin_agc_st = pinctrl_lookup_state(devp->pin, "if_agc_pins");
-		if (IS_ERR(pin_agc_st))
-			PR_ERR("no pin_agc_st: if_agc_pins\n");
-
-		pin_agc_st = pinctrl_lookup_state(devp->pin, "rf_agc_pins");
-		if (IS_ERR(pin_agc_st))
-			PR_ERR("no pin_agc_st: rf_agc_pins\n");
-	} else {
-		PR_INFO("pinmux:not define in dts\n");
-		devp->pin = NULL;
-	}
 
 	//Agc pin direction set
 	//have "agc_pin_direction" agc_direction = 1;donot have agc_direction = 0
@@ -4496,20 +4492,6 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 	} else {
 		devp->demod_irq_num = 0;
 		PR_INFO("no demod isr\n");
-	}
-
-	/*diseqc pin ctrl*/
-	if (!IS_ERR_OR_NULL(devp->pin)) {
-		devp->diseqc_pin_st =
-			pinctrl_lookup_state(devp->pin, "diseqc");
-		if (IS_ERR_OR_NULL(devp->diseqc_pin_st))
-			PR_INFO("no diseqc pinctrl\n");
-		else
-			pinctrl_select_state(devp->pin,
-					devp->diseqc_pin_st);
-
-		devm_pinctrl_put(devp->pin);
-		devp->pin = NULL;
 	}
 
 	return 0;

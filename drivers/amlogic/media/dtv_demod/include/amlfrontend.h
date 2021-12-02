@@ -25,6 +25,7 @@
 /*  V1.1.32  dvbc frc offset optimization              */
 /*  V1.1.33  dvbs qpsk 1/4 C/N worse             */
 /*  V1.1.34  dvbs blind scan new work plan with fft   */
+/*  V1.1.35  fixed s4/s4d 2 * dvbc agc control  */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -41,8 +42,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.34"
-#define DTVDEMOD_VER	"2021/12/09: dvbs blind scan new work plan with fft"
+#define AMLDTVDEMOD_VER "V1.1.35"
+#define DTVDEMOD_VER	"2021/12/09: fixed s4/s4d 2 * dvbc agc control"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -281,6 +282,9 @@ struct aml_dtvdemod {
 	unsigned int timeout_ddr_leave;
 
 	struct aml_demod_para_real real_para;
+
+	struct pinctrl *pin_agc;    /*agc pintrcl*/
+	struct pinctrl *pin_diseqc; /*diseqc out pin*/
 };
 
 struct amldtvdemod_device_s {
@@ -307,8 +311,6 @@ struct amldtvdemod_device_s {
 	unsigned int clk_demod_32k_state;
 	struct clk *demod_32k;
 #endif
-	/*agc pin mux*/
-	struct pinctrl *pin;	/*agc pintrcl*/
 
 	bool agc_direction;
 
@@ -349,7 +351,6 @@ struct amldtvdemod_device_s {
 	const char *diseqc_name;
 	unsigned int demod_irq_num;
 	unsigned int demod_irq_en;
-	struct pinctrl_state *diseqc_pin_st;/*diseqc pin state*/
 	struct mutex mutex_tx_msg;/*pretect tx cec msg*/
 	unsigned int print_on;
 	int tuner_strength_limit;
@@ -370,7 +371,6 @@ struct amldtvdemod_device_s {
 	unsigned int blind_same_frec;
 
 	bool vdac_enable;
-	bool agc_pin_enable;
 	bool dvbc_inited;
 	int peak[2048];
 	unsigned int ber_base;
