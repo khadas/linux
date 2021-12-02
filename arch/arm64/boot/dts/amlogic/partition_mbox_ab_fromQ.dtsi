@@ -1,0 +1,156 @@
+/*
+ * Amlogic partition set for normal
+ *
+ * Copyright (c) 2017-2017 Amlogic Ltd
+ *
+ * This file is licensed under a dual GPLv2 or BSD license.
+ *
+ */
+
+#include "firmware_ab_fromQ.dtsi"
+
+/ {
+    partitions: partitions{
+		parts = <22>;
+		part-0 = <&logo>;
+		part-1 = <&vendor_boot_a>;
+		part-2 = <&vendor_boot_b>;
+		part-3 = <&tee>;
+		part-4 = <&factory>;
+		part-5 = <&misc>;
+		part-6 = <&dtbo_a>;
+		part-7 = <&dtbo_b>;
+		part-8 = <&cri_data>;
+		part-9 = <&param>;
+		part-10 = <&boot_a>;
+		part-11 = <&boot_b>;
+		part-12 = <&oem_a>;
+		part-13 = <&metadata>;
+		part-14 = <&oem_b>;
+		part-15 = <&odm_ext_a>;
+		part-16 = <&odm_ext_b>;
+		part-17 = <&rsv>;
+		part-18 = <&vbmeta_a>;
+		part-19 = <&vbmeta_b>;
+		part-20 = <&super>;
+		part-21 = <&userdata>;
+
+		logo:logo{
+			pname = "logo";
+			size = <0x0 0x800000>;
+			mask = <1>;
+		};
+		vendor_boot_a:vendor_boot_a{
+			pname = "vendor_boot_a";
+			size = <0x0 0x1800000>;
+			mask = <1>;
+		};
+		vendor_boot_b:vendor_boot_b{
+			pname = "vendor_boot_b";
+			size = <0x0 0x1800000>;
+			mask = <1>;
+		};
+		tee:tee{
+			pname = "tee";
+			size = <0x0 0x2000000>;
+			mask = <1>;
+		};
+		factory:factory{
+			pname = "factory";
+			size = <0x0 0x800000>;
+			mask = <0x11>;
+		};
+		misc:misc{
+			pname = "misc";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		dtbo_a:dtbo_a{
+			pname = "dtbo_a";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		dtbo_b:dtbo_b{
+			pname = "dtbo_b";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		cri_data:cri_data
+		{
+			pname = "cri_data";
+			size = <0x0 0x800000>;
+			mask = <2>;
+		};
+		oem_a:oem_a{
+			pname = "oem_a";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		metadata:metadata{
+			pname = "metadata";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		oem_b:oem_b{
+			pname = "oem_b";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		odm_ext_a:odm_ext_a
+		{
+			pname = "odm_ext_a";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		odm_ext_b:odm_ext_b
+		{
+			pname = "odm_ext_b";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		rsv:rsv{
+			pname = "rsv";
+			size = <0x0 0x1000000>;
+			mask = <1>;
+		};
+		vbmeta_a:vbmeta_a{
+			pname = "vbmeta_a";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		vbmeta_b:vbmeta_b{
+			pname = "vbmeta_b";
+			size = <0x0 0x200000>;
+			mask = <1>;
+		};
+		param:param{
+			pname = "param";
+			size = <0x0 0x1000000>;
+			mask = <2>;
+		};
+		boot_a:boot_a
+		{
+			pname = "boot_a";
+			size = <0x0 0x1800000>;
+			mask = <1>;
+		};
+		boot_b:boot_b
+		{
+			pname = "boot_b";
+			size = <0x0 0x1800000>;
+			mask = <1>;
+		};
+		super:super
+		{
+			pname = "super";
+			size = <0x0 0xC8800000>;
+			mask = <1>;
+		};
+		userdata:userdata
+		{
+			pname = "userdata";
+			size = <0xffffffff 0xffffffff>;
+			mask = <4>;
+		};
+	};
+};/* end of / */
