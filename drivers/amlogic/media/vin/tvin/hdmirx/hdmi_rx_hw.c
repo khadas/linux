@@ -3501,7 +3501,7 @@ void cor_init(void)
 	data8 |= (1 << 5);//[5]  reg_sd1_en
 	data8 |= (1 << 4);//[4]  reg_sd0_en
 	data8 |= (0 << 3);//[3]  reg_mclk_en
-	data8 |= (0 << 2);//[2]  reg_mute_flag
+	data8 |= (1 << 2);//[2]  reg_mute_flag
 	data8 |= (0 << 1);//[1]  reg_vucp
 	data8 |= (0 << 0);//[0]  reg_pcm
 	hdmirx_wr_cor(RX_I2S_CTRL2_AUD_IVCRX, data8);
