@@ -885,10 +885,15 @@ static int lcd_tcon_data_set(struct aml_lcd_drv_s *pdrv,
 
 	for (i = 0; i < mm_table->block_cnt; i++) {
 		index = mm_table->data_priority[i].index;
+		if (!mm_table->data_mem_vaddr[index]) {
+			LCDERR("%s: data_mem_vaddr[%d] is null\n",
+			       __func__, index);
+			continue;
+		}
 		if (index >= mm_table->block_cnt ||
 		    mm_table->data_priority[i].priority == 0xff) {
-			LCDERR("%s: data index or priority is invalid\n",
-			       __func__);
+			LCDERR("%s: data index %d or priority %d is invalid\n",
+			       __func__, index, mm_table->data_priority[i].priority);
 			return -1;
 		}
 		data_buf = mm_table->data_mem_vaddr[index];
@@ -1176,8 +1181,10 @@ int lcd_tcon_enable_tl1(struct aml_lcd_drv_s *pdrv)
 		return -1;
 	if (!mm_table)
 		return -1;
-	if (mm_table->tcon_data_flag == 0)
-		lcd_tcon_data_load();
+	if (mm_table->init_load == 0) {
+		if (mm_table->tcon_data_flag == 0)
+			lcd_tcon_bin_load(pdrv);
+	}
 
 	/* step 1: tcon top */
 	lcd_tcon_top_set_tl1(pdrv);
@@ -1282,8 +1289,10 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 		return -1;
 	if (!mm_table)
 		return -1;
-	if (mm_table->tcon_data_flag == 0)
-		lcd_tcon_data_load();
+	if (mm_table->init_load == 0) {
+		if (mm_table->tcon_data_flag == 0)
+			lcd_tcon_bin_load(pdrv);
+	}
 
 	lcd_vcbus_write(ENCL_VIDEO_EN, 0);
 

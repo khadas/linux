@@ -27,7 +27,8 @@
 /* 20211009: support 59 & 47 frame rate for tv mode*/
 /* 20211102: add t5w support*/
 /* 20211106: support vrr config*/
-#define LCD_DRV_VERSION    "20211106"
+/* 20211210: support load tcon bin by ioctl*/
+#define LCD_DRV_VERSION    "20211210"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

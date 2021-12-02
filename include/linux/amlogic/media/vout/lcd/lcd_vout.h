@@ -641,13 +641,34 @@ extern struct mutex lcd_power_mutex;
  * IOCTL define
  * **********************************
  */
+struct aml_lcd_tcon_bin_s {
+	unsigned int index;
+	unsigned int size;
+	union {
+		void *ptr;
+		long long ptr_length;
+	};
+};
+
 #define LCD_IOC_TYPE               'C'
 #define LCD_IOC_NR_GET_HDR_INFO    0x0
 #define LCD_IOC_NR_SET_HDR_INFO    0x1
+#define LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO 0x2
+#define LCD_IOC_SET_TCON_DATA_INDEX_INFO  0x3
+#define LCD_IOC_GET_TCON_BIN_PATH_INFO    0x4
+#define LCD_IOC_SET_TCON_BIN_DATA_INFO    0x5
 
 #define LCD_IOC_CMD_GET_HDR_INFO   \
 	_IOR(LCD_IOC_TYPE, LCD_IOC_NR_GET_HDR_INFO, struct lcd_optical_info_s)
 #define LCD_IOC_CMD_SET_HDR_INFO   \
 	_IOW(LCD_IOC_TYPE, LCD_IOC_NR_SET_HDR_INFO, struct lcd_optical_info_s)
+#define LCD_IOC_CMD_GET_TCON_BIN_MAX_CNT_INFO   \
+	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO, unsigned int)
+#define LCD_IOC_CMD_SET_TCON_DATA_INDEX_INFO   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_TCON_DATA_INDEX_INFO, unsigned int)
+#define LCD_IOC_CMD_GET_TCON_BIN_PATH_INFO   \
+	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO, long long)
+#define LCD_IOC_CMD_SET_TCON_BIN_DATA_INFO   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_TCON_BIN_DATA_INFO, struct aml_lcd_tcon_bin_s)
 
 #endif
