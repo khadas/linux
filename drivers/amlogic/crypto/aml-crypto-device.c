@@ -2092,7 +2092,7 @@ int __init aml_crypto_device_driver_init(void)
 	return platform_driver_register(&aml_crypto_dev_driver);
 }
 
-void __exit aml_crypto_device_driver_exit(void)
+void aml_crypto_device_driver_exit(void)
 {
 	platform_driver_unregister(&aml_crypto_dev_driver);
 }

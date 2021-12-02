@@ -42,26 +42,35 @@
 #define AML_DMA_QUEUE_LENGTH (50)
 static struct dentry *aml_dma_debug_dent;
 int debug = 3;
+int disable_link_mode;
 
 void __iomem *cryptoreg;
 
 struct meson_dma_data {
 	u32 thread;
 	u32 status;
+	u8  link_mode;
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct meson_dma_data meson_gxl_data = {
 	.thread = GXL_DMA_T0,
 	.status = GXL_DMA_STS0,
+	.link_mode = 0,
 };
 #endif
 
 struct meson_dma_data meson_txlx_data = {
 	.thread = TXLX_DMA_T0,
 	.status = TXLX_DMA_STS0,
+	.link_mode = 0,
 };
 
+struct meson_dma_data meson_p1_data = {
+	.thread = TXLX_DMA_T0,
+	.status = TXLX_DMA_STS0,
+	.link_mode = 1,
+};
 #ifdef CONFIG_OF
 static const struct of_device_id aml_dma_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -71,6 +80,9 @@ static const struct of_device_id aml_dma_dt_match[] = {
 #endif
 	{	.compatible = "amlogic,aml_txlx_dma",
 		.data = &meson_txlx_data,
+	},
+	{	.compatible = "amlogic,aml_p1_dma",
+		.data = &meson_p1_data,
 	},
 	{},
 };
@@ -96,6 +108,12 @@ static int aml_dma_init_dbgfs(struct device *dev)
 			dev_err(dev, "can not create entry in debugfs directory\n");
 			return -ENOMEM;
 		}
+		file = debugfs_create_u32("disable_link_mode", 0644,
+					  aml_dma_debug_dent, &disable_link_mode);
+		if (!file) {
+			dev_err(dev, "can not create entry in debugfs directory\n");
+			return -ENOMEM;
+		}
 	}
 	return 0;
 }
@@ -110,12 +128,12 @@ static int aml_dma_queue_manage(void *data)
 	unsigned long flags;
 
 	do {
+		__set_current_state(TASK_INTERRUPTIBLE);
+
 		spin_lock_irqsave(&dev->queue_lock, flags);
 		backlog = crypto_get_backlog(&dev->queue);
 		async_req = crypto_dequeue_request(&dev->queue);
 		spin_unlock_irqrestore(&dev->queue_lock, flags);
-
-		__set_current_state(TASK_INTERRUPTIBLE);
 
 		if (backlog)
 			backlog->complete(backlog, -EINPROGRESS);
@@ -174,6 +192,7 @@ static int aml_dma_probe(struct platform_device *pdev)
 	priv_data = match->data;
 	dma_dd->thread = priv_data->thread;
 	dma_dd->status = priv_data->status;
+	dma_dd->link_mode = priv_data->link_mode;
 	res_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res_base) {
 		dev_err(dev, "error to get normal IORESOURCE_MEM.\n");

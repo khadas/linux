@@ -2221,7 +2221,7 @@
 	};
 
 	aml_dma {
-		compatible = "amlogic,aml_txlx_dma";
+		compatible = "amlogic,aml_p1_dma";
 		reg = <0x0 0xfe440400 0x0 0x48>;
 		interrupts = <0 24 1>;
 		status = "okay";

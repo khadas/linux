@@ -101,13 +101,27 @@ struct dma_dsc {
 			unsigned op_mode:2;
 			unsigned enc_sha_only:1;
 			unsigned block:1;
-			unsigned error:1;
+			unsigned link_error:1;
 			unsigned owner:1;
 		} b;
 	} dsc_cfg;
 	u32 src_addr;
 	u32 tgt_addr;
-};
+} __packed;
+
+struct dma_sg_dsc {
+	union {
+		u32 d32;
+		struct {
+			unsigned valid:1;
+			unsigned eoc:1;
+			unsigned intr:1;
+			unsigned act:3;
+			unsigned length:26;
+		} b;
+	} dsc_cfg;
+	u32 addr;
+} __packed;
 
 #define DMA_FLAG_MAY_OCCUPY    BIT(0)
 #define DMA_FLAG_TDES_IN_USE   BIT(1)
@@ -124,6 +138,7 @@ struct aml_dma_dev {
 	u32 status;
 	int	irq;
 	u8 dma_busy;
+	u8 link_mode;
 	unsigned long irq_flags;
 	struct task_struct *kthread;
 	struct crypto_queue	queue;
@@ -135,6 +150,8 @@ void aml_write_crypto_reg(u32 addr, u32 data);
 u32 aml_read_crypto_reg(u32 addr);
 void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 		   u32 thread, u32 status);
+void aml_dma_link_debug(struct dma_sg_dsc *dsc, dma_addr_t dma_dsc,
+			u32 nents, const char *msg);
 
 u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
 			  struct dma_dsc *dsc,
@@ -161,6 +178,8 @@ extern int debug;
 	} while (0)
 
 #endif
+
+extern int disable_link_mode;
 
 int __init aml_sha_driver_init(void);
 void aml_sha_driver_exit(void);

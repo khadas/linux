@@ -52,6 +52,7 @@ aml_tdes{
 * Dma engine for crypto operations
 Required properties:
 - compatible : Should be "amlogic,aml_gxl_dma" or "amlogic,aml_txlx_dma"
+					       or "amlogic,aml_p1_dma" with link mode.
 - reg:  Should contain the base address of regs
 - interrupts: Should contain the IRQ line for DMA.
 

@@ -89,8 +89,8 @@ void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 		     dsc[i].dsc_cfg.b.enc_sha_only);
 		dbgp(0, "desc (%4x) (blk) = 0x%8x\n", i,
 		     dsc[i].dsc_cfg.b.block);
-		dbgp(0, "desc (%4x) (err) = 0x%8x\n", i,
-		     dsc[i].dsc_cfg.b.error);
+		dbgp(0, "desc (%4x) (lnk_err) = 0x%8x\n", i,
+		     dsc[i].dsc_cfg.b.link_error);
 		dbgp(0, "desc (%4x) (own) = 0x%8x\n", i,
 		     dsc[i].dsc_cfg.b.owner);
 		dbgp(0, "desc (%4x) (src) = 0x%8x\n", i,
@@ -101,6 +101,35 @@ void aml_dma_debug(struct dma_dsc *dsc, u32 nents, const char *msg,
 	dbgp(0, "end %s\n", msg);
 }
 EXPORT_SYMBOL_GPL(aml_dma_debug);
+
+void aml_dma_link_debug(struct dma_sg_dsc *dsc, dma_addr_t dma_dsc,
+			u32 nents, const char *msg)
+{
+	u32 i = 0;
+
+	dbgp(0, "link begin %s\n", msg);
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	dbgp(0, "link dma_addr 0x%llx\n", dma_dsc);
+#else
+	dbgp(0, "link dma_addr 0x%x\n", dma_dsc);
+#endif
+	for (i = 0; i < nents; i++) {
+		dbgp(0, "sg desc (%4x) (vld) = 0x%8x\n", i,
+		     dsc[i].dsc_cfg.b.valid);
+		dbgp(0, "sg desc (%4x) (eoc) = 0x%8x\n", i,
+		     dsc[i].dsc_cfg.b.eoc);
+		dbgp(0, "sg desc (%4x) (int) = 0x%8x\n", i,
+		     dsc[i].dsc_cfg.b.intr);
+		dbgp(0, "sg desc (%4x) (act) = 0x%8x\n", i,
+		     dsc[i].dsc_cfg.b.act);
+		dbgp(0, "sg desc (%4x) (len) = 0x%8x\n", i,
+		     dsc[i].dsc_cfg.b.length);
+		dbgp(0, "sg desc (%4x) (adr) = 0x%8x\n", i,
+		     dsc[i].addr);
+	}
+	dbgp(0, "link end %s\n", msg);
+}
+EXPORT_SYMBOL_GPL(aml_dma_link_debug);
 
 u8 aml_dma_do_hw_crypto(struct aml_dma_dev *dd,
 			  struct dma_dsc *dsc,
