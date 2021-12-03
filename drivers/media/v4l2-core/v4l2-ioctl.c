@@ -1391,6 +1391,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_SUNXI_TILED_NV12: descr = "Sunxi Tiled NV12 Format"; break;
 #ifdef CONFIG_AMLOGIC_MODIFY
 		case V4L2_PIX_FMT_AV1:		descr = "AV1"; break;
+		case V4L2_PIX_FMT_AVS2:		descr = "AVS2"; break;
 #endif
 		default:
 			if (fmt->description[0])
