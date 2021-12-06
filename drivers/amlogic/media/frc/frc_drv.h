@@ -43,11 +43,12 @@
 // frc_20211118 frc chg set max line to vlock module
 // frc_20211119 frc set off when vf pic type
 // frc_20211125 frc chg me little_window fhd
-// frc_20211202 fix frc reboot crash
 // frc_20211201 frc add detect error
+// frc_20211202 fix frc reboot crash
 // frc_20211208 frc set limit size
+// frc_20211209 sync frc alg from vlsi
 
-#define FRC_FW_VER			"2021-1209 sync frc alg from vlsi"
+#define FRC_FW_VER			"2021-1206 frc add fpp set level"
 #define FRC_KERDRV_VER                  1414
 
 #define FRC_DEVNO	1

@@ -205,6 +205,7 @@ static long frc_ioctl(struct file *file,
 	void __user *argp = (void __user *)arg;
 	u32 data;
 	u8  tmpver[32];
+	enum frc_fpp_state_e fpp_state;
 
 	devp = file->private_data;
 	if (!devp)
@@ -288,6 +289,27 @@ static long frc_ioctl(struct file *file,
 		}
 		frc_memc_set_demo(data);
 		// pr_frc(1, "SET_MEMC_DEMO:%d\n", data);
+		break;
+
+	case FRC_IOC_SET_FPP_MEMC_LEVEL:
+		if (copy_from_user(&fpp_state, argp,
+			sizeof(enum frc_fpp_state_e))) {
+			pr_frc(1, "fpp copy from user error!/n");
+			ret = -EFAULT;
+			break;
+		}
+		if (fpp_state == FPP_MEMC_OFF)
+			frc_fpp_memc_set_level(0, 0);
+		else if (fpp_state == FPP_MEMC_LOW)
+			frc_fpp_memc_set_level(9, 0);
+		else if (fpp_state == FPP_MEMC_MID)
+			frc_fpp_memc_set_level(10, 0);
+		else if (fpp_state == FPP_MEMC_HIGH)
+			frc_fpp_memc_set_level(10, 1);
+		else
+			frc_fpp_memc_set_level((u8)fpp_state, 0);
+
+		pr_frc(1, "SET_FPP_MEMC_LEVEL:%d\n", fpp_state);
 		break;
 
 	case FRC_IOC_GET_MEMC_VERSION:

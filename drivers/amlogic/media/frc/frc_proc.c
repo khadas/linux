@@ -1002,6 +1002,26 @@ int frc_memc_set_level(u8 level)
 	return 1;
 }
 
+int frc_fpp_memc_set_level(u8 level, u8 num)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp || !devp->probe_ok || !devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	pfw_data->frc_top_type.frc_memc_level = level;
+	if (num == 1) {
+		//memc enhance
+		pr_frc(1, "pass\n");
+	}
+	pr_frc(1, "fpp_set_memc_level:%d\n", level);
+	if (pfw_data->frc_memc_level)
+		pfw_data->frc_memc_level(pfw_data);
+
+	return 1;
+}
+
 int frc_memc_set_demo(u8 setdemo)
 {
 	struct frc_dev_s *devp = get_frc_devp();

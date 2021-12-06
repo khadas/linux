@@ -19,6 +19,14 @@ enum frc_state_e {
 	FRC_STATE_NULL,
 };
 
+enum frc_fpp_state_e {
+	FPP_MEMC_OFF = 0,    // MEMC OFF
+	FPP_MEMC_LOW,        // MEMC LOW, default level9
+	FPP_MEMC_MID,        // MEMC MID, default level10
+	FPP_MEMC_HIGH,       // MEMC HIGH, default level10 and other
+	FPP_MEMC_CUSTOME,    // Retain customization
+};
+
 //==== ioctrol define =============
 #define FRC_IOC_MAGIC                   'F'
 #define FRC_IOC_GET_FRC_EN		_IOR(FRC_IOC_MAGIC, 0x00, unsigned int)
@@ -30,6 +38,7 @@ enum frc_state_e {
 #define FRC_IOC_SET_MEMC_ON_OFF		_IOW(FRC_IOC_MAGIC, 0x06, unsigned int)
 #define FRC_IOC_SET_MEMC_LEVEL		_IOW(FRC_IOC_MAGIC, 0x07, unsigned int)
 #define FRC_IOC_SET_MEMC_DMEO_MODE	_IOW(FRC_IOC_MAGIC, 0x08, unsigned int)
+#define FRC_IOC_SET_FPP_MEMC_LEVEL	_IOW(FRC_IOC_MAGIC, 0x09, enum frc_fpp_state_e)
 #define FRC_IOC_GET_MEMC_VERSION    _IOR(FRC_IOC_MAGIC, 0x0F, unsigned char[32])
 
 int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts);
@@ -38,6 +47,7 @@ int frc_get_video_latency(void);
 int frc_is_on(void);
 int frc_is_supported(void);
 int frc_memc_set_level(u8 level);
+int frc_fpp_memc_set_level(u8 level, u8 num);
 int frc_set_seg_display(u8 enable, u8 seg1, u8 seg2, u8 seg3);
 
 #endif
