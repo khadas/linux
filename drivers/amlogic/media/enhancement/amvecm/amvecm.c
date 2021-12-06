@@ -5044,9 +5044,13 @@ static ssize_t amvecm_set_post_matrix_store(struct class *cla,
 	    !is_meson_s4d_cpu() && !is_meson_s4_cpu()) {
 		reg_val = READ_VPP_REG(VPP_PROBE_CTRL);
 		reg_val = reg_val & 0xffffffc0;
-		reg_val |= 0x10000;
+		/*reg_val |= 0x10000;*/
 		/* enable probe hit */
 		reg_val = reg_val | (val & 0x3f);
+		if (val & (1 << 5))
+			reg_val |= 1 << 15;
+		else
+			reg_val &= ~(1 << 15);
 
 		WRITE_VPP_REG(VPP_PROBE_CTRL, reg_val);
 		WRITE_VPP_REG(VPP_HI_COLOR, 0x80000000);
