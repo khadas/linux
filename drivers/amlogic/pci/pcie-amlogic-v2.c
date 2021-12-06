@@ -491,10 +491,6 @@ static void amlogic_pcie_init_dw(struct amlogic_pcie *amlogic_pcie)
 {
 	u32 val = 0;
 
-	val = amlogic_cfg_readl(amlogic_pcie, PCIE_CFG0);
-	val &= (~APP_LTSSM_ENABLE);
-	amlogic_cfg_writel(amlogic_pcie, val, PCIE_CFG0);
-
 	val = amlogic_elb_readl(amlogic_pcie, PCIE_PORT_LINK_CTRL_OFF);
 	val &= (~(0x3f<<16));
 	amlogic_elb_writel(amlogic_pcie, val, PCIE_PORT_LINK_CTRL_OFF);
@@ -1019,6 +1015,21 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail_bus_clk;
 
+	cfg_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
+	if (!cfg_base) {
+		ret = -ENOMEM;
+		goto fail_clk;
+	}
+	amlogic_pcie->cfg_base = devm_ioremap_resource(dev, cfg_base);
+	if (IS_ERR(amlogic_pcie->cfg_base)) {
+		ret = PTR_ERR(amlogic_pcie->cfg_base);
+		goto fail_clk;
+	}
+
+	val = amlogic_cfg_readl(amlogic_pcie, PCIE_CFG0);
+	val &= (~APP_LTSSM_ENABLE);
+	amlogic_cfg_writel(amlogic_pcie, val, PCIE_CFG0);
+
 	/*RESET0[1,2] = 1*/
 	if (amlogic_pcie->pcie_num == 1) {
 		if (amlogic_pcie->rst_mod == 0) {
@@ -1063,17 +1074,6 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 	amlogic_pcie->elbi_base = devm_ioremap_resource(dev, elbi_base);
 	if (IS_ERR(amlogic_pcie->elbi_base)) {
 		ret = PTR_ERR(amlogic_pcie->elbi_base);
-		goto fail_clk;
-	}
-
-	cfg_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
-	if (!cfg_base) {
-		ret = -ENOMEM;
-		goto fail_clk;
-	}
-	amlogic_pcie->cfg_base = devm_ioremap_resource(dev, cfg_base);
-	if (IS_ERR(amlogic_pcie->cfg_base)) {
-		ret = PTR_ERR(amlogic_pcie->cfg_base);
 		goto fail_clk;
 	}
 
