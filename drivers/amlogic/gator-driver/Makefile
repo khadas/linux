@@ -75,7 +75,7 @@ gator-$(CONFIG_ARM64) +=
 
 $(obj)/gator_main.o: $(obj)/gator_src_md5.h
 
-clean-files := gator_src_md5.h
+#clean-files := gator_src_md5.h
 
 # Note, in the recipe below we use "cd $(srctree) && cd $(src)" rather than
 # "cd $(srctree)/$(src)" because under DKMS $(src) is an absolute path, and we
