@@ -674,6 +674,7 @@ endif
 
 ifdef CONFIG_AMLOGIC_DRIVER
 include $(srctree)/../common_drivers/header_include.mk
+KBUILD_CFLAGS += -Werror
 endif
 
 ifeq ($(KBUILD_EXTMOD),)
@@ -2038,8 +2039,18 @@ endif # config-build
 endif # mixed-build
 endif # need-sub-make
 
+ifdef CONFIG_AMLOGIC_DRIVER
 PHONY += FORCE
 FORCE:
+	$(Q)cp $(srctree)/scripts/amlogic/pre-commit $(srctree)/.git/hooks/pre-commit
+	$(Q)cp $(srctree)/scripts/amlogic/pre-commit-commn_drivers $(srctree)/../common_drivers/.git/hooks/pre-commit
+	$(Q)mkdir -p $(srctree)/../common_drivers/scripts/amlogic
+	$(Q)cp $(srctree)/scripts/amlogic/licence_pre.pl $(srctree)/../common_drivers/scripts/amlogic
+	$(Q)cp $(srctree)/scripts/amlogic/licence_check.pl $(srctree)/../common_drivers/scripts/amlogic
+else
+PHONY += FORCE
+FORCE:
+endif
 
 # Declare the contents of the PHONY variable as phony.  We keep that
 # information in a variable so we can use it in if_changed and friends.
