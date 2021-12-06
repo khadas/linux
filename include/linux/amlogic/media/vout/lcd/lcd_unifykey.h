@@ -42,8 +42,9 @@ int key_unify_get_init_flag(void);
 struct aml_lcd_unifykey_header_s {
 	unsigned int crc32;
 	unsigned short data_len;
-	unsigned short version;
-	unsigned short reserved;
+	unsigned char version;
+	unsigned char block_next_flag;
+	unsigned short block_cur_size;
 };
 
 /* ********************************
@@ -52,7 +53,7 @@ struct aml_lcd_unifykey_header_s {
  */
 /* V1: 265 */
 /* V2: 319 */
-#define LCD_UKEY_LCD_SIZE          319
+#define LCD_UKEY_LCD_SIZE          700 //265+424
 
 /* header (10Byte) */
 /* LCD_UKEY_HEAD_SIZE */
@@ -103,47 +104,43 @@ struct aml_lcd_unifykey_header_s {
 #define LCD_UKEY_IF_ATTR_7       (LCD_UKEY_MODEL_NAME + 99)
 #define LCD_UKEY_IF_ATTR_8       (LCD_UKEY_MODEL_NAME + 101)
 #define LCD_UKEY_IF_ATTR_9       (LCD_UKEY_MODEL_NAME + 103)
-/* ctrl (44Byte) */ /* V2 */
-#define LCD_UKEY_CTRL_FLAG      (LCD_UKEY_MODEL_NAME + 105)
-#define LCD_UKEY_CTRL_ATTR_0    (LCD_UKEY_MODEL_NAME + 109)
-#define LCD_UKEY_CTRL_ATTR_1    (LCD_UKEY_MODEL_NAME + 111)
-#define LCD_UKEY_CTRL_ATTR_2    (LCD_UKEY_MODEL_NAME + 113)
-#define LCD_UKEY_CTRL_ATTR_3    (LCD_UKEY_MODEL_NAME + 115)
-#define LCD_UKEY_CTRL_ATTR_4    (LCD_UKEY_MODEL_NAME + 117)
-#define LCD_UKEY_CTRL_ATTR_5    (LCD_UKEY_MODEL_NAME + 119)
-#define LCD_UKEY_CTRL_ATTR_6    (LCD_UKEY_MODEL_NAME + 121)
-#define LCD_UKEY_CTRL_ATTR_7    (LCD_UKEY_MODEL_NAME + 123)
-#define LCD_UKEY_CTRL_ATTR_8    (LCD_UKEY_MODEL_NAME + 125)
-#define LCD_UKEY_CTRL_ATTR_9    (LCD_UKEY_MODEL_NAME + 127)
-#define LCD_UKEY_CTRL_ATTR_10   (LCD_UKEY_MODEL_NAME + 129)
-#define LCD_UKEY_CTRL_ATTR_11   (LCD_UKEY_MODEL_NAME + 131)
-#define LCD_UKEY_CTRL_ATTR_12   (LCD_UKEY_MODEL_NAME + 133)
-#define LCD_UKEY_CTRL_ATTR_13   (LCD_UKEY_MODEL_NAME + 135)
-#define LCD_UKEY_CTRL_ATTR_14   (LCD_UKEY_MODEL_NAME + 137)
-#define LCD_UKEY_CTRL_ATTR_15   (LCD_UKEY_MODEL_NAME + 139)
-#define LCD_UKEY_CTRL_ATTR_16   (LCD_UKEY_MODEL_NAME + 141)
-#define LCD_UKEY_CTRL_ATTR_17   (LCD_UKEY_MODEL_NAME + 143)
-#define LCD_UKEY_CTRL_ATTR_18   (LCD_UKEY_MODEL_NAME + 145)
-#define LCD_UKEY_CTRL_ATTR_19   (LCD_UKEY_MODEL_NAME + 147)
-/* phy (10Byte) */ /* V2 */
-#define LCD_UKEY_PHY_ATTR_0     (LCD_UKEY_MODEL_NAME + 149)
-#define LCD_UKEY_PHY_ATTR_1     (LCD_UKEY_MODEL_NAME + 150)
-#define LCD_UKEY_PHY_ATTR_2     (LCD_UKEY_MODEL_NAME + 151)
-#define LCD_UKEY_PHY_ATTR_3     (LCD_UKEY_MODEL_NAME + 152)
-#define LCD_UKEY_PHY_ATTR_4     (LCD_UKEY_MODEL_NAME + 153)
-#define LCD_UKEY_PHY_ATTR_5     (LCD_UKEY_MODEL_NAME + 154)
-#define LCD_UKEY_PHY_ATTR_6     (LCD_UKEY_MODEL_NAME + 155)
-#define LCD_UKEY_PHY_ATTR_7     (LCD_UKEY_MODEL_NAME + 156)
-#define LCD_UKEY_PHY_ATTR_8     (LCD_UKEY_MODEL_NAME + 157)
-#define LCD_UKEY_PHY_ATTR_9     (LCD_UKEY_MODEL_NAME + 158)
 
 #define LCD_UKEY_DATA_LEN_V1        (LCD_UKEY_MODEL_NAME + 105)
-#define LCD_UKEY_DATA_LEN_V2        (LCD_UKEY_MODEL_NAME + 159)
 /* power (5Byte * n) */
+/* v1/v2  p + offsite*/
+/* 10+36+18+31+20 byte */
+/* 10+36+18+31+20+44+10 byte */
+#define LCD_UKEY_PWR_STEP          (LCD_UKEY_MODEL_NAME + 105)
 #define LCD_UKEY_PWR_TYPE          (0)
 #define LCD_UKEY_PWR_INDEX         (1)
 #define LCD_UKEY_PWR_VAL           (2)
 #define LCD_UKEY_PWR_DELAY         (3)
+
+/* version 2 */
+#define LCD_UKEY_DATA_LEN_V2        424
+
+/* header (10Byte) */
+/* LCD_UKEY_HEAD_SIZE */
+/* phy (356Byte) */
+#define LCD_UKEY_PHY_ATTR_FLAG     (LCD_UKEY_HEAD_SIZE + 0)
+#define LCD_UKEY_PHY_ATTR_0        (LCD_UKEY_HEAD_SIZE + 4)
+#define LCD_UKEY_PHY_ATTR_1        (LCD_UKEY_HEAD_SIZE + 6)
+#define LCD_UKEY_PHY_ATTR_2        (LCD_UKEY_HEAD_SIZE + 8)
+#define LCD_UKEY_PHY_ATTR_3        (LCD_UKEY_HEAD_SIZE + 10)
+#define LCD_UKEY_PHY_ATTR_4        (LCD_UKEY_HEAD_SIZE + 12)
+#define LCD_UKEY_PHY_ATTR_5        (LCD_UKEY_HEAD_SIZE + 14)
+#define LCD_UKEY_PHY_ATTR_6        (LCD_UKEY_HEAD_SIZE + 16)
+#define LCD_UKEY_PHY_ATTR_7        (LCD_UKEY_HEAD_SIZE + 18)
+#define LCD_UKEY_PHY_ATTR_8        (LCD_UKEY_HEAD_SIZE + 20)
+#define LCD_UKEY_PHY_ATTR_9        (LCD_UKEY_HEAD_SIZE + 22)
+#define LCD_UKEY_PHY_ATTR_10       (LCD_UKEY_HEAD_SIZE + 24)
+#define LCD_UKEY_PHY_ATTR_11       (LCD_UKEY_HEAD_SIZE + 26)
+#define LCD_UKEY_PHY_LANE_CTRL     (LCD_UKEY_HEAD_SIZE + 28)//64*4
+#define LCD_UKEY_PHY_LANE_PN_SWAP  (LCD_UKEY_HEAD_SIZE + 284)//8
+#define LCD_UKEY_PHY_LANE_SWAP     (LCD_UKEY_HEAD_SIZE + 292)//64
+/* ctrl (68Byte) */
+#define LCD_UKEY_CTRL_START        (LCD_UKEY_HEAD_SIZE + 356)
+#define LCD_UKEY_CTRL_END          (LCD_UKEY_HEAD_SIZE + 424)
 
 /* ********************************
  * lcd extern

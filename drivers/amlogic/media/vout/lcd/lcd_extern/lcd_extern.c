@@ -1232,7 +1232,6 @@ static int lcd_extern_get_config_unifykey(struct lcd_extern_driver_s *edrv,
 		EXTPR("crc32             = 0x%08x\n", ext_header.crc32);
 		EXTPR("data_len          = %d\n", ext_header.data_len);
 		EXTPR("version           = 0x%04x\n", ext_header.version);
-		EXTPR("reserved          = 0x%04x\n", ext_header.reserved);
 	}
 
 	/* basic: 33byte */
