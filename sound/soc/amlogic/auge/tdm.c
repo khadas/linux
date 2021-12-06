@@ -43,6 +43,10 @@
 
 #define DRV_NAME "snd_tdm"
 
+#define TDMOUT_DEFAULT_DELAY 3072
+#define DEFAULT_UNDERRUN_THRESHOLD 960
+#define DEFAULT_DIFF_THRESHOLD 128
+
 static snd_pcm_uframes_t aml_tdm_pointer(struct snd_pcm_substream *substream);
 static void dump_pcm_setting(struct pcm_setting *setting)
 {
@@ -110,6 +114,12 @@ struct aml_tdm {
 	bool vad_buf_occupation;
 	bool vad_buf_recovery;
 	enum trigger_state tdm_trigger_state;
+	int underrun_threshold;
+	snd_pcm_sframes_t tdmout_last_delay;
+	bool tdmout_gain_mute;
+	int disable_gain_count;
+	int tdm_for_speaker;
+	bool tdm_fade_out_enable;
 };
 
 #define TDM_BUFFER_BYTES (512 * 1024)
@@ -401,7 +411,7 @@ void aml_tdm_trigger(struct aml_tdm *p_tdm, int stream, bool enable)
 	if (!p_tdm)
 		return;
 
-	aml_tdm_enable(p_tdm->actrl, stream, p_tdm->id, enable);
+	aml_tdm_enable(p_tdm->actrl, stream, p_tdm->id, enable, p_tdm->tdm_fade_out_enable);
 }
 
 int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
@@ -723,6 +733,42 @@ static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 		snd_pcm_stop_xrun(substream);
 	}
 
+	if (p_tdm->tdm_fade_out_enable && substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		snd_pcm_sframes_t delay;
+		int err;
+
+		err = snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DELAY,
+						&delay);
+		if (!err) {
+			int difference = (p_tdm->tdmout_last_delay > delay) ?
+				(p_tdm->tdmout_last_delay - delay) :
+				(delay - p_tdm->tdmout_last_delay);
+
+			if ((delay < p_tdm->underrun_threshold &&
+			    delay < p_tdm->tdmout_last_delay &&
+			    difference > DEFAULT_DIFF_THRESHOLD &&
+			    !p_tdm->tdmout_gain_mute &&
+			    p_tdm->disable_gain_count < 5) ||
+			    (substream->runtime->status->state == SNDRV_PCM_STATE_DRAINING &&
+			     !p_tdm->tdmout_gain_mute)) {
+				pr_info("enable gain step, delay: %ld, last: %ld, threshold: %d\n",
+					delay, p_tdm->tdmout_last_delay, p_tdm->underrun_threshold);
+				aml_tdmout_gain_step(p_tdm->id, true);
+				p_tdm->tdmout_gain_mute = true;
+			} else if (p_tdm->tdmout_gain_mute &&
+				   delay >= p_tdm->tdmout_last_delay &&
+				   substream->runtime->status->state != SNDRV_PCM_STATE_DRAINING) {
+				pr_info("disable gain step, delay: %ld, last: %ld, threshold: %d\n",
+					delay, p_tdm->tdmout_last_delay, p_tdm->underrun_threshold);
+				aml_tdmout_gain_step(p_tdm->id, false);
+				p_tdm->tdmout_gain_mute = false;
+				p_tdm->disable_gain_count++;
+			}
+
+			p_tdm->tdmout_last_delay = delay;
+		}
+	}
+
 #ifdef DEBUG_IRQ
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK && p_tdm->fddr) {
 		unsigned int addr = aml_tdm_pointer(substream);
@@ -1038,6 +1084,57 @@ static struct snd_pcm_ops aml_tdm_ops = {
 	.mmap = aml_tdm_mmap,
 };
 
+static int tdm_fade_out_enable_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	p_tdm->tdm_fade_out_enable = ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static int tdm_fade_out_enable_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.integer.value[0] = p_tdm->tdm_fade_out_enable;
+	return 0;
+}
+
+static int tdm_underrun_threshold_put(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	p_tdm->underrun_threshold = ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static int tdm_underrun_threshold_get(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.integer.value[0] = p_tdm->underrun_threshold;
+	return 0;
+}
+
+static const struct snd_kcontrol_new tdm_fade_out_controls[] = {
+	SOC_SINGLE_BOOL_EXT("tdm fade out enable",
+			    0,
+			    tdm_fade_out_enable_get,
+			    tdm_fade_out_enable_put),
+	SOC_SINGLE_EXT("tdm underrun auto fade-out threshold",
+		       0, 0, 4096, 0,
+		       tdm_underrun_threshold_get,
+		       tdm_underrun_threshold_put),
+};
+
 static const struct snd_soc_component_driver aml_tdm_component = {
 	.name           = DRV_NAME,
 	.ops            = &aml_tdm_ops,
@@ -1196,13 +1293,17 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			/*don't change this flow*/
 			aml_aed_top_enable(p_tdm->fddr, true);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, true);
+				substream->stream, p_tdm->id, true, p_tdm->tdm_fade_out_enable);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_trigger(p_tdm, runtime->channels, cmd);
 
+			p_tdm->tdmout_last_delay = TDMOUT_DEFAULT_DELAY;
+			p_tdm->disable_gain_count = 0;
+			p_tdm->tdmout_gain_mute = false;
 			aml_frddr_enable(p_tdm->fddr, true);
 			udelay(100);
-			aml_tdmout_enable_gain(p_tdm->id, false,
+			if (!p_tdm->tdm_fade_out_enable)
+				aml_tdmout_enable_gain(p_tdm->id, false,
 					p_tdm->chipinfo->gain_ver);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, false);
@@ -1212,7 +1313,7 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 				 p_tdm->id);
 			aml_toddr_enable(p_tdm->tddr, 1);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, true);
+				substream->stream, p_tdm->id, true, p_tdm->tdm_fade_out_enable);
 			p_tdm->tdm_trigger_state = TRIGGER_START_ALSA_BUF;
 		}
 		break;
@@ -1240,13 +1341,14 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			dev_dbg(substream->pcm->card->dev,
 				 "TDM[%d] Playback stop\n",
 				 p_tdm->id);
-			aml_tdmout_enable_gain(p_tdm->id, true,
+			if (!p_tdm->tdm_fade_out_enable)
+				aml_tdmout_enable_gain(p_tdm->id, true,
 					p_tdm->chipinfo->gain_ver);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, true);
 			aml_aed_top_enable(p_tdm->fddr, false);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, false);
+				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_trigger(p_tdm, runtime->channels, cmd);
 
@@ -1260,7 +1362,7 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			if (p_tdm->tdm_trigger_state == TRIGGER_STOP)
 				break;
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, false);
+				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable);
 			dev_info(substream->pcm->card->dev,
 				 "TDM[%d] Capture stop\n",
 				 p_tdm->id);
@@ -1419,6 +1521,14 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 		if (ret < 0)
 			pr_err("%s, failed add snd tdm clk controls\n",
 				__func__);
+	}
+
+	if (p_tdm->tdm_for_speaker) {
+		ret = snd_soc_add_dai_controls(cpu_dai,
+				tdm_fade_out_controls,
+				ARRAY_SIZE(tdm_fade_out_controls));
+		if (ret < 0)
+			pr_err("%s, failed add snd tdm fade out controls\n", __func__);
 	}
 
 	/* config ddr arb */
@@ -1901,9 +2011,18 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		pr_info("TDM id %d tuning clk enable:%d\n",
 			p_tdm->id, p_tdm->clk_tuning_enable);
 
+	ret = of_property_read_u32(node, "tdm_for_speaker",
+				&p_tdm->tdm_for_speaker);
+	if (ret < 0)
+		p_tdm->clk_tuning_enable = 0;
+	else
+		pr_info("TDM id %d tdm_for_speaker\n", p_tdm->id);
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	tdm_register_early_suspend_hdr(p_tdm->id, pdev);
 #endif
+
+	p_tdm->underrun_threshold = DEFAULT_UNDERRUN_THRESHOLD;
 
 	return 0;
 }

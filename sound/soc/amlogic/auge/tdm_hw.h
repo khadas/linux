@@ -62,7 +62,7 @@ struct pcm_setting {
 
 void aml_tdm_enable(struct aml_audio_controller *actrl,
 	int stream, int index,
-	bool is_enable);
+	bool is_enable, bool fade_out);
 
 void aml_tdm_arb_config(struct aml_audio_controller *actrl);
 
@@ -158,4 +158,5 @@ void aml_tdmout_set_mute(int tdmout_id, int mute);
 int aml_tdmout_get_mute(int tdmout_id);
 int aml_tdmin_get_status(int tdm_id);
 void aml_tdmin_set_slot_num(struct aml_audio_controller *actrl, int index, int slot_num);
+void aml_tdmout_gain_step(int index, int enable);
 #endif

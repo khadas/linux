@@ -17,35 +17,67 @@
 #define MST_CLK_INVERT_PH2_TDMOUT_BCLK    BIT(4)
 #define MST_CLK_INVERT_PH2_TDMOUT_FCLK    BIT(5)
 
+void aml_tdmout_gain_step(int index, int enable)
+{
+	unsigned int reg, offset, reg1;
+	int i;
+
+	if (index >= 3) {
+		reg = EE_AUDIO_TDMOUT_D_GAIN_CTRL;
+	} else {
+		offset = EE_AUDIO_TDMOUT_B_GAIN_CTRL - EE_AUDIO_TDMOUT_A_GAIN_CTRL;
+		reg = EE_AUDIO_TDMOUT_A_GAIN_CTRL + offset * index;
+	}
+	audiobus_update_bits(reg, 0x1 << 31, (enable ? 1 : 0) << 31);
+
+	if (index >= 3) {
+		reg = EE_AUDIO_TDMOUT_D_GAIN0;
+		reg1 = EE_AUDIO_TDMOUT_D_GAIN2;
+	} else {
+		offset = EE_AUDIO_TDMOUT_B_GAIN0 - EE_AUDIO_TDMOUT_A_GAIN0;
+		reg = EE_AUDIO_TDMOUT_A_GAIN0 + offset * index;
+		reg1 = EE_AUDIO_TDMOUT_A_GAIN2 + offset * index;
+	}
+
+	for (i = 0; i < 2; i++) {
+		if (enable) {
+			audiobus_write(reg + i, 0x0);
+			audiobus_write(reg1 + i, 0x0);
+		} else {
+			audiobus_write(reg + i, 0xffffffff);
+			audiobus_write(reg1 + i, 0xffffffff);
+		}
+	}
+}
+
 /* without audio handler, it should be improved */
 void aml_tdm_enable(struct aml_audio_controller *actrl,
 	int stream, int index,
-	bool is_enable)
+	bool is_enable, bool fade_out)
 {
 	unsigned int offset, reg;
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		pr_debug("tdm playback enable\n");
-		if (index == 3) {
+
+		if (is_enable && fade_out)
+			aml_tdmout_gain_step(index, false);
+		if (index >= 3) {
 			reg = EE_AUDIO_TDMOUT_D_CTRL0;
-		} else if (index < 3) {
+		} else {
 			offset = EE_AUDIO_TDMOUT_B_CTRL0
 					- EE_AUDIO_TDMOUT_A_CTRL0;
 			reg = EE_AUDIO_TDMOUT_A_CTRL0 + offset * index;
-		} else {
-			reg = EE_AUDIO_TDMOUT_A_CTRL0;
 		}
 		aml_audiobus_update_bits(actrl, reg, 1 << 31, is_enable << 31);
 	} else {
 		pr_debug("tdm capture enable\n");
-		if (index == 3) {
+		if (index >= 3) {
 			reg = EE_AUDIO_TDMIN_D_CTRL;
-		} else if (index < 3) {
+		} else {
 			offset = EE_AUDIO_TDMIN_B_CTRL
 					- EE_AUDIO_TDMIN_A_CTRL;
 			reg = EE_AUDIO_TDMIN_A_CTRL + offset * index;
-		} else {
-			reg = EE_AUDIO_TDMIN_A_CTRL;
 		}
 		aml_audiobus_update_bits(actrl, reg, 1 << 31 | 1 << 26, is_enable << 31 | 1 << 26);
 	}
@@ -1035,23 +1067,19 @@ void aml_tdmout_auto_gain_enable(unsigned int tdm_id)
 {
 	unsigned int reg, offset;
 
-	if (tdm_id == 3) {
+	if (tdm_id >= 3) {
 		reg = EE_AUDIO_TDMOUT_D_GAIN_EN;
-	} else if (tdm_id < 3) {
+	} else {
 		offset = EE_AUDIO_TDMOUT_B_GAIN_EN - EE_AUDIO_TDMOUT_A_GAIN_EN;
 		reg = EE_AUDIO_TDMOUT_A_GAIN_EN + offset * tdm_id;
-	} else {
-		reg = EE_AUDIO_TDMOUT_A_GAIN_EN;
 	}
 	/* 0 - 8 channel */
 	audiobus_update_bits(reg, 0xFF << 0, 0xFF << 0);
-	if (tdm_id == 3) {
+	if (tdm_id >= 3) {
 		reg = EE_AUDIO_TDMOUT_D_GAIN_CTRL;
-	} else if (tdm_id < 3) {
+	} else {
 		offset = EE_AUDIO_TDMOUT_B_GAIN_CTRL - EE_AUDIO_TDMOUT_A_GAIN_CTRL;
 		reg = EE_AUDIO_TDMOUT_A_GAIN_CTRL + offset * tdm_id;
-	} else {
-		reg = EE_AUDIO_TDMOUT_A_GAIN_CTRL;
 	}
 	/*
 	 * bit 31: step by step change gain
@@ -1060,7 +1088,7 @@ void aml_tdmout_auto_gain_enable(unsigned int tdm_id)
 	 */
 	audiobus_update_bits(reg,
 			     0x1 << 31 | 0xFF << 16 | 0xFFFF << 0,
-			     0x1 << 31 | 0x0C << 16 | 0x03C0 << 0);
+			     0x1 << 31 | 0x05 << 16 | 0x000a << 0);
 }
 
 void aml_tdmout_set_gain(int tdmout_id, int value)
