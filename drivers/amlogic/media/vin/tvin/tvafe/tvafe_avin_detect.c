@@ -479,21 +479,28 @@ static void tvafe_avin_detect_anlog_config(void)
 		W_HIU_BIT(meson_data->detect_cntl, 1, AFE_CH1_EN_DC_BIAS_BIT,
 			AFE_CH1_EN_DC_BIAS_WIDTH);
 
-		/*ch2 config*/
-		W_HIU_BIT(meson_data->detect_cntl, dc_level_adj,
-			AFE_CH2_DC_LEVEL_ADJ_BIT, AFE_CH2_DC_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(meson_data->detect_cntl, comp_level_adj,
-		AFE_CH2_COMP_LEVEL_ADJ_BIT, AFE_CH2_COMP_LEVEL_ADJ_WIDTH);
-		W_HIU_BIT(meson_data->detect_cntl, 0,
-			AFE_CH2_COMP_HYS_ADJ_BIT, AFE_CH2_COMP_HYS_ADJ_WIDTH);
-		if (meson_data->cpu_id >= AVIN_CPU_TYPE_T5)
+		if (meson_data->cpu_id >= AVIN_CPU_TYPE_T5) {
+			W_HIU_BIT(meson_data->detect_cntl, 0,
+				  AFE_T5_AFE_MAN_MODE_BIT,
+				  AFE_T5_AFE_MAN_MODE_WIDTH);
 			W_HIU_BIT(meson_data->detect_cntl, 1,
 				  AFE_T5_CH2_EN_DC_BIAS_BIT,
 				  AFE_T5_CH2_EN_DC_BIAS_WIDTH);
-		else
+		} else {
+			/*ch config*/
 			W_HIU_BIT(meson_data->detect_cntl, 1,
 				  AFE_CH2_EN_DC_BIAS_BIT,
 				  AFE_CH2_EN_DC_BIAS_WIDTH);
+			W_HIU_BIT(meson_data->detect_cntl, dc_level_adj,
+				  AFE_CH2_DC_LEVEL_ADJ_BIT,
+				  AFE_CH2_DC_LEVEL_ADJ_WIDTH);
+			W_HIU_BIT(meson_data->detect_cntl, comp_level_adj,
+				  AFE_CH2_COMP_LEVEL_ADJ_BIT,
+				  AFE_CH2_COMP_LEVEL_ADJ_WIDTH);
+			W_HIU_BIT(meson_data->detect_cntl, 0,
+				  AFE_CH2_COMP_HYS_ADJ_BIT,
+				  AFE_CH2_COMP_HYS_ADJ_WIDTH);
+		}
 	} else {
 		if (detect_mode == 0) {
 			/*for ch1*/
