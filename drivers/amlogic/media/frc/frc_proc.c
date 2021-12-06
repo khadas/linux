@@ -51,7 +51,7 @@ int frc_enable_cnt = 1;
 module_param(frc_enable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_enable_cnt, "frc enable counter");
 
-int frc_disable_cnt = 2;
+int frc_disable_cnt = 1;
 module_param(frc_disable_cnt, int, 0664);
 MODULE_PARM_DESC(frc_disable_cnt, "frc disable counter");
 
@@ -423,7 +423,8 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	if (devp->frc_sts.re_cfg_cnt) {
 		devp->frc_sts.re_cfg_cnt--;
 		cur_sig_in = false;
-	} else if (devp->in_sts.in_hsize == 0 || devp->in_sts.in_vsize == 0) {
+	} else if (devp->in_sts.in_hsize < FRC_H_LIMIT_SIZE ||
+			devp->in_sts.in_vsize < FRC_V_LIMIT_SIZE) {
 		cur_sig_in = false;
 	} else {
 		cur_sig_in = cur_in_sts->vf_sts;
@@ -497,7 +498,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts)
 {
 	struct st_frc_in_sts cur_in_sts;
-	u32 no_input = false;
+	u32 no_input = false, vd_en_flag, vd_regval;
 	enum efrc_event frc_event;
 
 	if (!devp)
@@ -506,7 +507,15 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (!devp->probe_ok || !devp->power_on_flag)
 		return;
 
-	if (!vf || !cur_video_sts || !get_video_enabled()) {
+	vd_en_flag = get_video_enabled();
+	vd_regval = vpu_reg_read(0x1dfb);
+	if (devp->ud_dbg.res1_dbg_en == 1)
+		pr_frc(1, "get_vd_en=%2d, 0x1dfb=0x%8x\n",
+			vd_en_flag, vd_regval);
+	if (!vf || !cur_video_sts || vd_en_flag == 0) {
+		devp->in_sts.vf_null_cnt++;
+		no_input = true;
+	} else if ((vd_regval & (BIT_0 | BIT_8)) == 0) {
 		devp->in_sts.vf_null_cnt++;
 		no_input = true;
 	}
@@ -532,6 +541,11 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 			no_input = true;
 		} else {
 			devp->in_sts.pic_type = false;
+		}
+
+		if (vf->height < FRC_V_LIMIT_SIZE ||
+			vf->width < FRC_H_LIMIT_SIZE) {
+			no_input = true;
 		}
 	}
 

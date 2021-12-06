@@ -44,8 +44,9 @@
 // frc_20211119 frc set off when vf pic type
 // frc_20211125 frc chg me little_window fhd
 // frc_20211202 fix frc reboot crash
+// frc_20211201 frc add detect error
 
-#define FRC_FW_VER			"2021-1201 frc add detect error"
+#define FRC_FW_VER			"2021-1208 frc set limit size"
 #define FRC_KERDRV_VER                  1309
 
 #define FRC_DEVNO	1
@@ -83,6 +84,9 @@ extern int frc_dbg_en;
 #define FRC_HME_SD_RATE			4
 
 #define FRC_HVSIZE_ALIGN_SIZE		16
+
+#define FRC_V_LIMIT_SIZE		144
+#define FRC_H_LIMIT_SIZE		128
 
 /*bit number config*/
 #define FRC_MC_BITS_NUM			10

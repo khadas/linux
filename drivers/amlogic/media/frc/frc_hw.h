@@ -85,5 +85,7 @@ u8 frc_frame_forcebuf_enable(u8 enable);
 void frc_frame_forcebuf_count(u8 forceidx);
 void inp_undone_read(struct frc_dev_s *frc_devp);
 void vp_undone_read(struct frc_dev_s *frc_devp);
+u32 vpu_reg_read(u32 addr);
+
 
 #endif
