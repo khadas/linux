@@ -239,6 +239,7 @@ static struct mediaconfig_node mediaconfig_nodes[] = {
 	{"media", "codec_mm", "media.codec_mm", CONFIG_FOR_RW},
 	{"media", "audio", "media.audio", CONFIG_FOR_RW},
 	{"media", "vfm", "media.vfm", CONFIG_FOR_RW},
+	{"media", "secmem", "media.secmem", CONFIG_FOR_RW},
 };
 
 struct config_file_private {

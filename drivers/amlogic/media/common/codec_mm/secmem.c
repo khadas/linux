@@ -14,21 +14,24 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/genalloc.h>
+#include <linux/list.h>
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/secmem.h>
+#include <linux/amlogic/media/codec_mm/configs.h>
 
 static int secmem_debug;
 module_param(secmem_debug, int, 0644);
 
 static int secmem_vdec_def_size_bytes;
-module_param(secmem_vdec_def_size_bytes, int, 0644);
-
 static u32 secmem_block_align_2n;
-module_param(secmem_block_align_2n, int, 0644);
+static u32 secmem_heap_version = SECMEM_HEAP_SUPPORT_DELAY_ALLOC_VERSION;
 
 #define  DEVICE_NAME "secmem"
 #define  CLASS_NAME  "secmem"
+
+#define CONFIG_PATH "media.secmem"
+#define CONFIG_PREFIX "media"
 
 #define dprintk(level, fmt, arg...)					      \
 	do {								      \
@@ -46,15 +49,24 @@ struct ksecmem_attachment {
 	enum dma_data_direction dma_dir;
 };
 
-#define SZ_1_5G				0x60000000
-#define SECMEM_MM_ALIGNED_2N		20
-#define SECMEM_MM_BLOCK_ALIGNED_2N	16
-#define SECMEM_MM_BLOCK_PADDING_SIZE (256 * 1024)
-#define SECMEM_MM_MAX_VDEC_SIZE_BYTES		(32 * 1024 * 1024)
+#define SZ_1_5G					0x60000000
+#define SECMEM_MM_ALIGNED_2N			20
+#define SECMEM_MM_BLOCK_ALIGNED_2N		16
+#define SECMEM_MM_BLOCK_PADDING_SIZE		(256 * 1024)
+#define SECMEM_MM_MAX_VDEC_SIZE_BYTES		(80 * 1024 * 1024)
 #define SECMEM_MM_DEF_VDEC_SIZE_BYTES		(28 * 1024 * 1024)
 #define SECMEM_MM_MID_VDEC_SIZE_BYTES		(20 * 1024 * 1024)
 #define SECMEM_MM_MIN_VDEC_SIZE_BYTES		(8 * 1024 * 1024)
-#define SECMEM_MM_MIN_CMA_SIZE_BYTES		(230 * 1024 * 1024)
+#define SECMEM_MM_MIN_CMA_SIZE_BYTES		(320 * 1024 * 1024)
+
+static struct list_head block_list;
+
+struct block_node {
+	struct list_head list;
+	u32 paddr;
+	u32 size;
+	u32 flag;
+};
 
 struct secmem_vdec_info {
 	u32 used;
@@ -419,19 +431,14 @@ static int secure_block_pool_init(void)
 			vdec_size = SECMEM_MM_DEF_VDEC_SIZE_BYTES;
 		}
 	}
-	vdec_size += SZ_1M;
-	g_vdec_info.vdec_size = secmem_align_up2n(vdec_size,
-			SECMEM_MM_ALIGNED_2N);
+	g_vdec_info.vdec_size = secmem_align_up2n(vdec_size, SECMEM_MM_ALIGNED_2N);
 	g_vdec_info.vdec_paddr = codec_mm_alloc_for_dma("dma-secure-buf",
-		g_vdec_info.vdec_size / PAGE_SIZE,
-		0, CODEC_MM_FLAGS_DMA);
+		g_vdec_info.vdec_size / PAGE_SIZE, 0, CODEC_MM_FLAGS_DMA);
 	if (!g_vdec_info.vdec_paddr) {
-		pr_error("allocate cma size failed %x\n",
-			g_vdec_info.vdec_size);
+		pr_error("allocate cma size failed %x\n", g_vdec_info.vdec_size);
 		goto error_init;
 	}
-	if (secmem_addr_is_aligned(g_vdec_info.vdec_paddr,
-				SECMEM_MM_ALIGNED_2N)) {
+	if (secmem_addr_is_aligned(g_vdec_info.vdec_paddr, SECMEM_MM_ALIGNED_2N)) {
 		g_vdec_info.vdec_pool_paddr = g_vdec_info.vdec_paddr;
 		g_vdec_info.vdec_pool_size = g_vdec_info.vdec_size;
 	} else {
@@ -439,14 +446,15 @@ static int secure_block_pool_init(void)
 			secmem_align_up2n(g_vdec_info.vdec_paddr, SECMEM_MM_ALIGNED_2N);
 		vdec_size = g_vdec_info.vdec_paddr +
 			g_vdec_info.vdec_size - g_vdec_info.vdec_pool_paddr;
-		g_vdec_info.vdec_pool_size = secmem_align_down_2n(vdec_size, SECMEM_MM_ALIGNED_2N);
+		g_vdec_info.vdec_pool_size = secmem_align_down_2n(vdec_size,
+			SECMEM_MM_BLOCK_ALIGNED_2N);
 	}
 	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_STREAM_INPUT,
 				(u32)g_vdec_info.vdec_pool_paddr,
 				(u32)g_vdec_info.vdec_pool_size,
 				&g_vdec_info.vdec_handle);
 	if (ret) {
-		pr_error("protect vdec failed  addr %x %x ret is %x\n",
+		pr_error("protect vdec failed addr %x %x ret is %x\n",
 			g_vdec_info.vdec_pool_paddr, g_vdec_info.vdec_pool_size, ret);
 		goto error_init;
 	}
@@ -458,6 +466,7 @@ static int secure_block_pool_init(void)
 		pr_error("secmem pool create failed\n");
 		goto error_init;
 	}
+	INIT_LIST_HEAD(&block_list);
 	g_vdec_info.used = 1;
 	return 0;
 error_init:
@@ -473,33 +482,44 @@ error_init:
 
 static ssize_t secmem_mm_dump_vdec_info(int forceshow)
 {
-	char buf[512] = { 0 };
+	char buf[2048] = { 0 };
 	char *pbuf = buf;
-	u32 size = 512;
+	u32 size = 2048;
 	u32 s = 0;
 	u32 tsize = 0;
 	u32 freesize = 0;
+	u32 blocknum = 0;
+	struct block_node *block = NULL;
+	struct list_head *pos, *tmp;
 
 	if (forceshow == 0 && secmem_debug < 8)
 		return 0;
 	s = snprintf(pbuf, size - tsize,
-			"secmem mem info:\nused %d\n",
-			g_vdec_info.used);
+			"secmem mem info:\nused %d\n", g_vdec_info.used);
 	tsize += s;
 	pbuf += s;
 	s = snprintf(pbuf, size - tsize,
-			"vdec size= %d MB\ndef vdec size: %dMB\n",
-			g_vdec_info.vdec_pool_size / SZ_1M,
-			secmem_vdec_def_size_bytes / SZ_1M);
+			"vdec size: %d\ndef vdec size: %d\n",
+			g_vdec_info.vdec_pool_size, secmem_vdec_def_size_bytes);
 	tsize += s;
 	pbuf += s;
 	if (g_vdec_info.used) {
 		freesize = secure_pool_free_size(g_vdec_info.pool);
 		s = snprintf(pbuf, size - tsize,
-				"Allocate = %zx bytes\nfreed: %d bytes\n",
-				secure_pool_size(g_vdec_info.pool) - freesize,
-				freesize);
+				"Allocate: %zd bytes\nfreed: %d bytes\n",
+				secure_pool_size(g_vdec_info.pool) - freesize, freesize);
+		tsize += s;
+		pbuf += s;
+		list_for_each_safe(pos, tmp, &block_list) {
+			block = list_entry(pos, struct block_node, list);
+			s = snprintf(pbuf, size - tsize, "[%d]\t addr %x size %d flag %x\n",
+				blocknum, block->paddr, block->size, block->flag);
+			blocknum++;
+			tsize += s;
+			pbuf += s;
+		}
 	}
+	s = snprintf(pbuf, size - tsize, "Total block num %d\n", blocknum);
 	pr_error("%s", buf);
 	return 0;
 }
@@ -507,20 +527,32 @@ static ssize_t secmem_mm_dump_vdec_info(int forceshow)
 phys_addr_t secure_block_alloc(unsigned long size, unsigned long flags)
 {
 	phys_addr_t paddr = 0;
-	int ret;
+	int ret = 0;
 	u32 alignsize = 0;
+	struct block_node *block = NULL;
 
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
 	if (!g_vdec_info.used)
 		goto error_alloc;
 	alignsize = secmem_align_up2n(size, SECMEM_MM_BLOCK_ALIGNED_2N);
-	alignsize += SECMEM_MM_BLOCK_PADDING_SIZE;
+	if (secmem_heap_version == SECMEM_HEAP_DEFAULT_VERSION)
+		alignsize += SECMEM_MM_BLOCK_PADDING_SIZE;
 	paddr = secure_pool_alloc(g_vdec_info.pool, alignsize);
 	if (paddr > 0) {
 		ret = tee_check_in_mem(paddr, alignsize);
+		if (secmem_debug >= 6) {
+			block = kzalloc(sizeof(*block), GFP_KERNEL);
+			if (!block)
+				goto error_alloc;
+			block->paddr = paddr;
+			block->size = alignsize;
+			list_add_tail(&block->list, &block_list);
+			if (ret)
+				block->flag = 1;
+		}
 		if (ret)
-			pr_error("checkin err \n");
+			pr_error("Secmem checkin err %x\n", ret);
 	}
 error_alloc:
 	secmem_mm_dump_vdec_info(0);
@@ -530,28 +562,49 @@ error_alloc:
 
 unsigned long secure_block_free(phys_addr_t addr, unsigned long size)
 {
-	int ret;
+	int ret = -1;
 	u32 alignsize = 0;
+	struct block_node *block = NULL;
+	struct list_head *pos, *tmp;
 
 	mutex_lock(&g_secmem_mutex);
 	pr_enter();
 	if (!g_vdec_info.used)
 		goto error_free;
 	alignsize = secmem_align_up2n(size, SECMEM_MM_BLOCK_ALIGNED_2N);
-	alignsize += SECMEM_MM_BLOCK_PADDING_SIZE;
+	if (secmem_heap_version == SECMEM_HEAP_DEFAULT_VERSION)
+		alignsize += SECMEM_MM_BLOCK_PADDING_SIZE;
 	secure_pool_free(g_vdec_info.pool, addr, alignsize);
 	ret = tee_check_out_mem(addr, alignsize);
-	if (ret) {
-		pr_error("checkout err \n");
-		goto error_free;
+	if (ret)
+		pr_error("Secmem checkout err %x\n", ret);
+	if (secmem_debug >= 6) {
+		list_for_each_safe(pos, tmp, &block_list) {
+			block = list_entry(pos, struct block_node, list);
+			if (block->size == alignsize && block->paddr == addr) {
+				list_del(&block->list);
+				kfree(block);
+			}
+		}
 	}
-	secmem_mm_dump_vdec_info(0);
-	mutex_unlock(&g_secmem_mutex);
-	return 0;
 error_free:
 	secmem_mm_dump_vdec_info(0);
 	mutex_unlock(&g_secmem_mutex);
-	return -1;
+	return ret;
+}
+
+unsigned int secmem_get_secure_heap_version(void)
+{
+	u32 version = 0;
+
+	pr_enter();
+	if (secmem_heap_version < SECMEM_HEAP_DEFAULT_VERSION ||
+		secmem_heap_version >= SECMEM_HEAP_MAX_VERSION)
+		version = SECMEM_HEAP_DEFAULT_VERSION;
+	else
+		version = secmem_heap_version;
+	pr_inf("version %d\n", version);
+	return version;
 }
 
 static int secmem_open(struct inode *inodep, struct file *filep)
@@ -641,10 +694,40 @@ static ssize_t secmem_mm_dump_show(struct class *class,
 	return 0;
 }
 
+static ssize_t secmem_mm_config_show(struct class *class,
+	struct class_attribute *attr, char *buf)
+{
+	ssize_t ret;
+
+	ret = configs_list_path_nodes(CONFIG_PATH, buf, PAGE_SIZE,
+					  LIST_MODE_NODE_CMDVAL_ALL);
+	return ret;
+}
+
+static ssize_t secmem_mm_config_store(struct class *class,
+			struct class_attribute *attr,
+			const char *buf, size_t size)
+{
+	int ret;
+
+	ret = configs_set_prefix_path_valonpath(CONFIG_PREFIX, buf);
+	if (ret < 0)
+		pr_err("set config failed %s\n", buf);
+	return size;
+}
+
+static struct mconfig secmem_mm_configs[] = {
+	MC_PI32("secmem_vdec_def_size_bytes", &secmem_vdec_def_size_bytes),
+	MC_PI32("secmem_block_align_2n", &secmem_block_align_2n),
+	MC_PI32("secmem_heap_version", &secmem_heap_version)
+};
+
 static CLASS_ATTR_RO(secmem_mm_dump);
+static CLASS_ATTR_RW(secmem_mm_config);
 
 static struct attribute *secmem_class_attrs[] = {
 	&class_attr_secmem_mm_dump.attr,
+	&class_attr_secmem_mm_config.attr,
 	NULL
 };
 
@@ -679,6 +762,7 @@ int __init secmem_init(void)
 		ret = PTR_ERR(secmem_dev);
 		goto error_create;
 	}
+	REG_PATH_CONFIGS(CONFIG_PATH, secmem_mm_configs);
 	pr_dbg("init done\n");
 	return 0;
 error_create:

@@ -33,14 +33,18 @@ module_param(dma_buf_debug, int, 0644);
 #define pr_dbg(fmt, args ...)		dprintk(6, fmt, ## args)
 #define pr_error(fmt, args ...)		dprintk(1, fmt, ## args)
 #define pr_inf(fmt, args ...)		dprintk(8, fmt, ## args)
-#define pr_enter()					pr_inf("enter")
+#define pr_enter()			pr_inf("enter")
+
+#define SECMEM_DMA_BLOCK_PADDING_SIZE		(256 * 1024)
+#define SECMEM_DMA_BLOCK_MIN_SZIE		(256 * 1024)
+#define SECMEM_DMA_BLOCK_ALIGN_2N		12
 
 struct secure_block_info {
 	__u32 version;
 	__u32 size;
 	__u32 phyaddr;
-	__u32 buffer;
-	__u32 bind;
+	__u32 allocsize;
+	__u32 state;
 };
 
 struct secure_heap_buffer {
@@ -57,6 +61,7 @@ struct secure_heap_buffer {
 	//used for mmap to get phyaddr
 	struct secure_block_info *block;
 	struct page *block_page;
+	struct dma_buf *buf;
 };
 
 struct dma_heap_attachment {
@@ -190,12 +195,58 @@ static int secure_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 	return 0;
 }
 
+static inline u32 secure_align_up2n(u32 size, u32 alg2n)
+{
+	return ((size + (1 << alg2n) - 1) & (~((1 << alg2n) - 1)));
+}
+
 static int secure_heap_mmap(struct dma_buf *dmabuf,
 						struct vm_area_struct *vma)
 {
 	struct secure_heap_buffer *buffer = dmabuf->priv;
+	unsigned long len = 0;
+	unsigned long paddr = 0;
+	struct secure_block_info *block = NULL;
 
 	pr_enter();
+	if (!buffer)
+		return -1;
+	if (buffer->block &&
+		buffer->block->version >= SECMEM_HEAP_SUPPORT_DELAY_ALLOC_VERSION) {
+		block = buffer->block;
+		switch (block->state) {
+		case 1:
+			if (block->allocsize < SECMEM_DMA_BLOCK_MIN_SZIE)
+				len = SECMEM_DMA_BLOCK_MIN_SZIE;
+			else
+				len = secure_align_up2n(block->allocsize,
+					SECMEM_DMA_BLOCK_ALIGN_2N);
+			len += SECMEM_DMA_BLOCK_PADDING_SIZE;
+			if (block->size < len || block->size - len >= SECMEM_DMA_BLOCK_MIN_SZIE) {
+				if (block->size && block->phyaddr) {
+					if (secure_block_free(block->phyaddr, block->size))
+						pr_err("Secmem free err please fix it");
+					block->phyaddr = 0;
+					block->size = 0;
+				}
+				paddr = secure_block_alloc(len, 0);
+				if (!paddr) {
+					pr_err("No more secure memory can be alloc %ld", len);
+					return -1;
+				}
+				sg_set_page(buffer->sg_table.sgl,
+					pfn_to_page(PFN_DOWN(paddr)), len, 0);
+				block->phyaddr = paddr;
+				block->size = len;
+				buffer->buf->size = len;
+			}
+			block->allocsize = 0;
+			block->state = 0;
+			break;
+		default:
+			break;
+		}
+	}
 	return remap_pfn_range(vma, vma->vm_start,
 						page_to_pfn(buffer->block_page),
 						PAGE_SIZE,
@@ -216,18 +267,17 @@ static void secure_heap_vunmap(struct dma_buf *dmabuf, void *vaddr)
 static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 {
 	struct secure_heap_buffer *buffer = dmabuf->priv;
-	struct sg_table *table;
-	phys_addr_t paddr = 0;
+	struct secure_block_info *block = NULL;
 
 	pr_enter();
-	table = &buffer->sg_table;
-
-	paddr = PFN_PHYS(page_to_pfn(sg_page(table->sgl)));
-
-	if (secure_block_free(paddr, buffer->len))
-		pr_inf("secmem free error, please fix it");
-
-	sg_free_table(table);
+	if (!buffer)
+		return;
+	block = buffer->block;
+	if (block && block->phyaddr && block->size) {
+		if (secure_block_free(block->phyaddr, block->size))
+			pr_err("Secmem release error, please fix it");
+	}
+	sg_free_table(&buffer->sg_table);
 	if (buffer->block_page)
 		free_reserved_page(buffer->block_page);
 	else if (buffer->block)
@@ -283,14 +333,15 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 	if (sg_alloc_table(table, 1, GFP_KERNEL))
 		goto free_priv_buffer;
 
-	paddr = secure_block_alloc(len, 0);
-	if (!paddr)
-		goto free_tables;
-
-	buffer->block->version = 1;
-	buffer->block->size = len;
-	buffer->block->phyaddr = paddr;
-	sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), len, 0);
+	buffer->block->version = secmem_get_secure_heap_version();
+	if (buffer->block->version == SECMEM_HEAP_DEFAULT_VERSION) {
+		paddr = secure_block_alloc(len, 0);
+		if (!paddr)
+			goto free_tables;
+		buffer->block->size = len;
+		buffer->block->phyaddr = paddr;
+		sg_set_page(table->sgl, pfn_to_page(PFN_DOWN(paddr)), len, 0);
+	}
 
 	/* create the dmabuf */
 	exp_info.exp_name = dma_heap_get_name(heap);
@@ -303,6 +354,7 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 		ret = PTR_ERR(dmabuf);
 		goto free_tables;
 	}
+	buffer->buf = dmabuf;
 
 	return dmabuf;
 
