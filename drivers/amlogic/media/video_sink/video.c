@@ -6567,7 +6567,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 	if (cur_frame_par &&
-		vd1_path_id == VFM_PATH_AMVIDEO) {
+		(vd1_path_id == VFM_PATH_AMVIDEO ||
+		vd1_path_id == VFM_PATH_DEF)) {
 		/*need call every vsync*/
 		if (vf)
 			vlock_process(vf, cur_frame_par);
