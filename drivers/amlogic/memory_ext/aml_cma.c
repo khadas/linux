@@ -862,6 +862,7 @@ struct cma_shrinker {
 	unsigned int free[PARA_COUNT];
 	unsigned long shrink_timeout;
 	unsigned long foreground_timeout;
+	unsigned int enable;
 };
 
 struct cma_shrinker *cs;
@@ -953,6 +954,9 @@ static unsigned long cma_shrinker_scan(struct shrinker *s,
 	int cache_low  = 0;
 	int last_idx   = PARA_COUNT - 1;
 	int selected_taskswap = 0;
+
+	if (!cs->enable)
+		return 0;
 
 	swap_low = swapcache_low();
 	if ((!cma_forbidden_mask(sc->gfp_mask) || current_is_kswapd()) &&
@@ -1183,12 +1187,40 @@ static ssize_t free_show(struct class *cla,
 	return sz;
 }
 
+static ssize_t enable_store(struct class *cla,
+			  struct class_attribute *attr,
+			  const char *buf, size_t count)
+{
+	int ret;
+	unsigned int enable;
+
+	ret = kstrtouint(buf, 10, &enable);
+	if (ret) {
+		pr_err("invalid input:%s\n", buf);
+		return count;
+	}
+
+	cs->enable = enable;
+	return count;
+}
+
+static ssize_t enable_show(struct class *cla,
+			 struct class_attribute *attr, char *buf)
+{
+	int sz = 0;
+
+	sz = sprintf(buf, "enable flag: %d\n", cs->enable);
+	return sz;
+}
+
 static CLASS_ATTR_RW(adj);
 static CLASS_ATTR_RW(free);
+static CLASS_ATTR_RW(enable);
 
 static struct attribute *cma_shrinker_attrs[] = {
 	&class_attr_adj.attr,
 	&class_attr_free.attr,
+	&class_attr_enable.attr,
 	NULL
 };
 
@@ -1210,6 +1242,7 @@ static int cma_shrinker_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	cs = p;
+	cs->enable = 1;
 	np = pdev->dev.of_node;
 	ret = of_property_read_u32_array(np, "adj", cs->adj, PARA_COUNT);
 	if (ret < 0)
