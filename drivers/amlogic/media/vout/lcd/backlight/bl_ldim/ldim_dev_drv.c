@@ -1343,7 +1343,6 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		LDIMPR("unifykey header:\n");
 		LDIMPR("crc32             = 0x%08x\n", ldev_header.crc32);
 		LDIMPR("data_len          = %d\n", ldev_header.data_len);
-		LDIMPR("reserved          = 0x%04x\n", ldev_header.reserved);
 	}
 
 	/* step 2: check backlight parameters */

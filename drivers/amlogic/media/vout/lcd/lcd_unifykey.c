@@ -74,8 +74,9 @@ int lcd_unifykey_header_check(unsigned char *buf,
 	header->crc32 = (buf[0] | (buf[1] << 8) |
 			(buf[2] << 16) | (buf[3] << 24));
 	header->data_len = (buf[4] | (buf[5] << 8));
-	header->version = (buf[6] | (buf[7] << 8));
-	header->reserved = (buf[8] | (buf[9] << 8));
+	header->version = buf[6];
+	header->block_next_flag = buf[7];
+	header->block_cur_size = (buf[8] | (buf[9] << 8));
 
 	return 0;
 }

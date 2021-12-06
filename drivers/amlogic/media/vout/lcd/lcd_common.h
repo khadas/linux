@@ -26,7 +26,8 @@
 /* 20210705: add lcd mute and test state protection*/
 /* 20211009: support 59 & 47 frame rate for tv mode*/
 /* 20211106: support vrr config*/
-#define LCD_DRV_VERSION    "20211106"
+/* 20211216: support phy adjust by lane*/
+#define LCD_DRV_VERSION    "20211216"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -89,6 +90,8 @@ void lcd_phy_tcon_chpi_bbc_init_tl1(struct lcd_config_s *pconf);
 void lcd_phy_set(struct aml_lcd_drv_s *pdrv, int status);
 int lcd_phy_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_phy_config_init(struct aml_lcd_drv_s *pdrv);
+unsigned int lcd_phy_vswing_level_to_value(struct aml_lcd_drv_s *pdrv, unsigned int level);
+unsigned int lcd_phy_preem_level_to_value(struct aml_lcd_drv_s *pdrv, unsigned int level);
 
 /*lcd vbyone*/
 void lcd_vbyone_enable_dft(struct aml_lcd_drv_s *pdrv);

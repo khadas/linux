@@ -454,6 +454,30 @@ struct lcd_power_step_s {
 	unsigned short delay;
 };
 
+struct phy_lane_s {
+	unsigned int preem;
+	unsigned int amp;
+};
+
+#define CH_LANE_MAX 32
+struct phy_config_s {
+	unsigned int flag;
+	unsigned int vswing;
+	unsigned int vcm;
+	unsigned int odt;
+	unsigned int ref_bias;
+	unsigned int mode;
+	unsigned int weakly_pull_down;
+	unsigned int clk_vswing;
+	unsigned int clk_preem;
+	struct phy_lane_s lane[CH_LANE_MAX];
+
+	unsigned int lane_num;
+	unsigned int vswing_level;
+	unsigned int ext_pullup;
+	unsigned int preem_level;
+};
+
 struct lcd_power_ctrl_s {
 	struct lcd_cpu_gpio_s cpu_gpio[LCD_CPU_GPIO_NUM_MAX];
 	struct lcd_pmu_gpio_s pmu_gpio[LCD_PMU_GPIO_NUM_MAX];
@@ -471,6 +495,7 @@ struct lcd_config_s {
 	struct lcd_timing_s timing;
 	union lcd_ctrl_config_u control;
 	struct lcd_power_ctrl_s power;
+	struct phy_config_s phy_cfg;
 	struct lcd_optical_info_s optical;
 	unsigned int vlock_param[5];
 	struct pinctrl *pin;

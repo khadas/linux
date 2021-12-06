@@ -528,8 +528,11 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	unsigned int lcd_clk, sync_duration;
 	struct lcd_config_s *pconf;
 	int n, len = 0;
+	struct phy_config_s *phy = NULL;
+	int i;
 
 	pconf = &pdrv->config;
+	phy = &pconf->phy_cfg;
 	lcd_clk = (pconf->timing.lcd_clk / 1000);
 	sync_duration = pconf->timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->timing.sync_duration_den;
@@ -616,6 +619,31 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		len += lcd_debug_info_if->interface_print(pdrv, (buf + len), (len + offset));
 	else
 		LCDERR("%s: lcd_debug_info_if is null\n", __func__);
+
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+			"ctrl_flag:         0x%x\n"
+			"vswing_level:      %u\n"
+			"ext_pullup:        %u\n"
+			"preem_level:       %u\n"
+			"vcm:               0x%x\n"
+			"ref_bias:          0x%x\n"
+			"odt:               0x%x\n",
+			phy->flag,
+			phy->vswing,
+			phy->ext_pullup,
+			phy->preem_level,
+			phy->vcm,
+			phy->ref_bias,
+			phy->odt);
+	for (i = 0; i < phy->lane_num; i++) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n,
+				"lane%d_amp:        0x%x\n"
+				"lane%d_preem:      0x%x\n",
+				i, phy->lane[i].amp,
+				i, phy->lane[i].preem);
+	}
 
 	return len;
 }
@@ -4911,121 +4939,22 @@ static ssize_t lcd_p2p_debug_store(struct device *dev, struct device_attribute *
 	return count;
 }
 
-static void lcd_phy_config_update(struct aml_lcd_drv_s *pdrv, unsigned int *para, int cnt)
-{
-	struct lcd_config_s *pconf;
-	struct lvds_config_s *lvds_conf;
-
-	pconf = &pdrv->config;
-	switch (pconf->basic.lcd_type) {
-	case LCD_LVDS:
-		lvds_conf = &pconf->control.lvds_cfg;
-		if (cnt >= 2) {
-			lvds_conf->phy_vswing = para[0];
-			lvds_conf->phy_preem = para[1];
-
-			if (pdrv->status & LCD_STATUS_IF_ON)
-				lcd_phy_set(pdrv, 1);
-
-			LCDPR("%s: vswing=0x%x, preemphasis=0x%x\n",
-			      __func__, para[0], para[1]);
-		} else {
-			LCDERR("%s: invalid parameters cnt: %d\n",
-			       __func__, cnt);
-		}
-		break;
-	case LCD_VBYONE:
-		if (cnt >= 2) {
-			pconf->control.vbyone_cfg.phy_vswing = para[0];
-			pconf->control.vbyone_cfg.phy_preem = para[1];
-
-			if (pdrv->status & LCD_STATUS_IF_ON)
-				lcd_phy_set(pdrv, 1);
-
-			LCDPR("%s: vswing=0x%x, preemphasis=0x%x\n",
-			      __func__, para[0], para[1]);
-		} else {
-			LCDERR("%s: invalid parameters cnt: %d\n",
-			       __func__, cnt);
-		}
-		break;
-	case LCD_MLVDS:
-		if (cnt >= 2) {
-			pconf->control.mlvds_cfg.phy_vswing = para[0];
-			pconf->control.mlvds_cfg.phy_preem = para[1];
-
-			if (pdrv->status & LCD_STATUS_IF_ON)
-				lcd_phy_set(pdrv, 1);
-
-			LCDPR("%s: vswing=0x%x, preemphasis=0x%x\n",
-			      __func__, para[0], para[1]);
-		} else {
-			LCDERR("%s: invalid parameters cnt: %d\n",
-			       __func__, cnt);
-		}
-		break;
-	case LCD_P2P:
-		if (cnt >= 2) {
-			pconf->control.p2p_cfg.phy_vswing = para[0];
-			pconf->control.p2p_cfg.phy_preem = para[1];
-
-			if (pdrv->status & LCD_STATUS_IF_ON)
-				lcd_phy_set(pdrv, 1);
-
-			LCDPR("%s: vswing=0x%x, preemphasis=0x%x\n",
-			      __func__, para[0], para[1]);
-		} else {
-			LCDERR("%s: invalid parameters cnt: %d\n",
-			       __func__, cnt);
-		}
-		break;
-	default:
-		LCDERR("%s: not support lcd_type: %s\n",
-		       __func__,
-		       lcd_type_type_to_str(pconf->basic.lcd_type));
-		break;
-	}
-}
-
 static ssize_t lcd_phy_debug_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	struct lcd_config_s *pconf;
-	unsigned int vswing = 0xff, preem = 0xff;
+	struct phy_config_s *phy_cfg;
 	ssize_t len = 0;
+	int i = 0;
 
-	pconf = &pdrv->config;
-	switch (pconf->basic.lcd_type) {
-	case LCD_LVDS:
-		vswing = pconf->control.lvds_cfg.phy_vswing;
-		preem = pconf->control.lvds_cfg.phy_preem;
-		len += sprintf(buf + len, "vswing=0x%x, preemphasis=0x%x\n",
-			vswing, preem);
-		break;
-	case LCD_VBYONE:
-		vswing = pconf->control.vbyone_cfg.phy_vswing;
-		preem = pconf->control.vbyone_cfg.phy_preem;
-		len += sprintf(buf + len, "vswing=0x%x, preemphasis=0x%x\n",
-			vswing, preem);
-		break;
-	case LCD_MLVDS:
-		vswing = pconf->control.mlvds_cfg.phy_vswing;
-		preem = pconf->control.mlvds_cfg.phy_preem;
-		len += sprintf(buf + len, "vswing=0x%x, preemphasis=0x%x\n",
-			vswing, preem);
-		break;
-	case LCD_P2P:
-		vswing = pconf->control.p2p_cfg.phy_vswing;
-		preem = pconf->control.p2p_cfg.phy_preem;
-		len += sprintf(buf + len, "vswing=0x%x, preemphasis=0x%x\n",
-			vswing, preem);
-		break;
-	default:
-		len = sprintf(buf, "%s: invalid lcd_type: %d\n",
-			      __func__, pconf->basic.lcd_type);
-		break;
+	phy_cfg = &pdrv->config.phy_cfg;
+	len = sprintf(buf, "vswing_level=0x%x, ext_pullup=%d, preem_level=0x%x\n",
+		      phy_cfg->vswing_level, phy_cfg->ext_pullup, phy_cfg->preem_level);
+	for (i = 0; i < phy_cfg->lane_num; i++) {
+		len += sprintf(buf + len, "lane[%d] amp=0x%x, preem=0x%x\n",
+		      i, phy_cfg->lane[i].amp, phy_cfg->lane[i].preem);
 	}
+
 	return len;
 }
 
@@ -5033,18 +4962,87 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 				   const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	unsigned int para[2];
+	union lcd_ctrl_config_u *pctrl = &pdrv->config.control;
+	struct phy_config_s *phy_cfg;
+	unsigned int para[4];
 	int ret = 0;
+	int i = 0;
 
-	ret = sscanf(buf, "%x %x", &para[0], &para[1]);
-
-	if (ret == 2) {
-		lcd_phy_config_update(pdrv, para, 2);
-		return count;
+	phy_cfg = &pdrv->config.phy_cfg;
+	if (buf[0] == 'l') {
+		ret = sscanf(buf, "lane %d %x %x", &para[0], &para[1], &para[2]);
+		if (ret == 3) {
+			if (para[0] >= 12) {
+				pr_info("%s: invalid lane num %d\n",
+					__func__, para[0]);
+				return -EINVAL;
+			}
+			phy_cfg->lane[para[0]].amp = para[1];
+			phy_cfg->lane[para[0]].preem = para[2];
+			pr_info("%s: update lane[%d] amp=0x%x, preem=0x%x\n",
+				__func__, para[0], para[1], para[2]);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
+	} else if (buf[0] == 'v') {
+		ret = sscanf(buf, "vswing %x", &para[0]);
+		if (ret == 1) {
+			phy_cfg->vswing = para[0];
+			pr_info("%s: update vswing=0x%x\n", __func__, para[0]);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
+	} else {
+		ret = sscanf(buf, "%x %x", &para[0], &para[1]);
+		if (ret == 2) {
+			switch (pdrv->config.basic.lcd_type) {
+			case LCD_LVDS:
+				pctrl->lvds_cfg.phy_vswing = para[0];
+				pctrl->lvds_cfg.phy_preem = para[1];
+				break;
+			case LCD_VBYONE:
+				pctrl->vbyone_cfg.phy_vswing = para[0];
+				pctrl->vbyone_cfg.phy_preem = para[1];
+				break;
+			case LCD_MLVDS:
+				pctrl->mlvds_cfg.phy_vswing = para[0];
+				pctrl->mlvds_cfg.phy_preem = para[1];
+				break;
+			case LCD_P2P:
+				pctrl->p2p_cfg.phy_vswing = para[0];
+				pctrl->p2p_cfg.phy_preem = para[1];
+				break;
+			case LCD_EDP:
+				pctrl->edp_cfg.phy_vswing = para[0];
+				pctrl->edp_cfg.phy_preem = para[1];
+				break;
+			default:
+				LCDERR("%s: not support lcd_type: %s\n",
+				       __func__,
+				       lcd_type_type_to_str(pdrv->config.basic.lcd_type));
+				return -EINVAL;
+			}
+			phy_cfg->vswing_level = para[0] & 0xf;
+			phy_cfg->ext_pullup = (para[0] >> 4) & 0x3;
+			phy_cfg->preem_level = para[1];
+			phy_cfg->vswing =
+				lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
+			para[2] = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+			for (i = 0; i < phy_cfg->lane_num; i++)
+				phy_cfg->lane[i].preem = para[2];
+			pr_info("%s: update vswing_level=0x%x, preem_level=0x%x\n",
+				__func__, para[0], para[1]);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
 	}
+	if (pdrv->status & LCD_STATUS_IF_ON)
+		lcd_phy_set(pdrv, 1);
 
-	pr_info("invalid data\n");
-	return -EINVAL;
+	return count;
 }
 
 static ssize_t lcd_vx1_status_show(struct device *dev,
