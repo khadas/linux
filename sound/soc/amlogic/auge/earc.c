@@ -85,13 +85,14 @@ struct earc_chipinfo {
 	bool no_ana_auto_cal;
 	bool chnum_mult_mode;
 	bool unstable_tick_sel;
+	bool rx_enable;
+	bool tx_enable;
 };
 
 struct earc {
 	struct aml_audio_controller *actrl;
 	struct device *dev;
 
-	struct clk *clk_rx_gate;
 	struct clk *clk_rx_cmdc;
 	struct clk *clk_rx_dmac;
 	struct clk *clk_rx_cmdc_srcpll;
@@ -2040,16 +2041,22 @@ static const struct snd_soc_component_driver earc_component = {
 struct earc_chipinfo sm1_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V1,
 	.rx_dmac_sync_int = false,
+	.rx_enable = true,
+	.tx_enable = false,
 };
 
 struct earc_chipinfo tm2_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V1,
 	.rx_dmac_sync_int = false,
+	.rx_enable = true,
+	.tx_enable = true,
 };
 
 struct earc_chipinfo tm2_revb_earc_chipinfo = {
 	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
 	.rx_dmac_sync_int = true,
+	.rx_enable = true,
+	.tx_enable = true,
 };
 
 struct earc_chipinfo t7_earc_chipinfo = {
@@ -2059,6 +2066,19 @@ struct earc_chipinfo t7_earc_chipinfo = {
 	.no_ana_auto_cal = true,
 	.chnum_mult_mode = true,
 	.unstable_tick_sel = true,
+	.rx_enable = true,
+	.tx_enable = true,
+};
+
+struct earc_chipinfo t3_earc_chipinfo = {
+	.earc_spdifout_lane_mask = EARC_SPDIFOUT_LANE_MASK_V2,
+	.rx_dmac_sync_int = false,
+	.rterm_on = true,
+	.no_ana_auto_cal = true,
+	.chnum_mult_mode = true,
+	.unstable_tick_sel = true,
+	.rx_enable = false,
+	.tx_enable = true,
 };
 
 static const struct of_device_id earc_device_id[] = {
@@ -2077,6 +2097,10 @@ static const struct of_device_id earc_device_id[] = {
 	{
 		.compatible = "amlogic, t7-snd-earc",
 		.data = &t7_earc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t3-snd-earc",
+		.data = &t3_earc_chipinfo,
 	},
 	{}
 };
@@ -2342,89 +2366,88 @@ static int earc_platform_probe(struct platform_device *pdev)
 	if (!p_earc->rx_top_map)
 		dev_info(dev, "Can't get earcrx_top regmap!!\n");
 
-	/* clock gate */
-	p_earc->clk_rx_gate = devm_clk_get(&pdev->dev, "rx_gate");
-	if (IS_ERR(p_earc->clk_rx_gate))
-		dev_info(&pdev->dev, "Can't get earc gate\n");
-
 	/* RX */
-	spin_lock_init(&p_earc->rx_lock);
-	p_earc->clk_rx_cmdc = devm_clk_get(&pdev->dev, "rx_cmdc");
-	if (IS_ERR(p_earc->clk_rx_cmdc))
-		dev_info(&pdev->dev, "Can't get clk_rx_cmdc\n");
+	if (p_earc->chipinfo->rx_enable) {
+		spin_lock_init(&p_earc->rx_lock);
+		p_earc->clk_rx_cmdc = devm_clk_get(&pdev->dev, "rx_cmdc");
+		if (IS_ERR(p_earc->clk_rx_cmdc))
+			dev_info(&pdev->dev, "Can't get clk_rx_cmdc\n");
 
-	p_earc->clk_rx_dmac = devm_clk_get(&pdev->dev, "rx_dmac");
-	if (IS_ERR(p_earc->clk_rx_dmac))
-		dev_info(&pdev->dev, "Can't get clk_rx_dmac\n");
+		p_earc->clk_rx_dmac = devm_clk_get(&pdev->dev, "rx_dmac");
+		if (IS_ERR(p_earc->clk_rx_dmac))
+			dev_info(&pdev->dev, "Can't get clk_rx_dmac\n");
 
-	p_earc->clk_rx_cmdc_srcpll = devm_clk_get(&pdev->dev, "rx_cmdc_srcpll");
-	if (IS_ERR(p_earc->clk_rx_cmdc_srcpll))
-		dev_info(&pdev->dev, "Can't get clk_rx_cmdc_srcpll\n");
+		p_earc->clk_rx_cmdc_srcpll = devm_clk_get(&pdev->dev, "rx_cmdc_srcpll");
+		if (IS_ERR(p_earc->clk_rx_cmdc_srcpll))
+			dev_info(&pdev->dev, "Can't get clk_rx_cmdc_srcpll\n");
 
-	p_earc->clk_rx_dmac_srcpll = devm_clk_get(&pdev->dev, "rx_dmac_srcpll");
-	if (IS_ERR(p_earc->clk_rx_dmac_srcpll))
-		dev_info(&pdev->dev, "Can't get clk_rx_dmac_srcpll\n");
+		p_earc->clk_rx_dmac_srcpll = devm_clk_get(&pdev->dev, "rx_dmac_srcpll");
+		if (IS_ERR(p_earc->clk_rx_dmac_srcpll))
+			dev_info(&pdev->dev, "Can't get clk_rx_dmac_srcpll\n");
 
-	if (!IS_ERR(p_earc->clk_rx_cmdc) && !IS_ERR(p_earc->clk_rx_cmdc_srcpll)) {
-		ret = clk_set_parent(p_earc->clk_rx_cmdc, p_earc->clk_rx_cmdc_srcpll);
-		if (ret) {
-			dev_err(dev, "Can't set clk_rx_cmdc parent clock\n");
-			return ret;
+		if (!IS_ERR(p_earc->clk_rx_cmdc) && !IS_ERR(p_earc->clk_rx_cmdc_srcpll)) {
+			ret = clk_set_parent(p_earc->clk_rx_cmdc, p_earc->clk_rx_cmdc_srcpll);
+			if (ret) {
+				dev_err(dev, "Can't set clk_rx_cmdc parent clock\n");
+				return ret;
+			}
 		}
-	}
-	if (!IS_ERR(p_earc->clk_rx_dmac) && !IS_ERR(p_earc->clk_rx_dmac_srcpll)) {
-		ret = clk_set_parent(p_earc->clk_rx_dmac, p_earc->clk_rx_dmac_srcpll);
-		if (ret) {
-			dev_err(dev, "Can't set clk_rx_dmac parent clock\n");
-			return ret;
+		if (!IS_ERR(p_earc->clk_rx_dmac) && !IS_ERR(p_earc->clk_rx_dmac_srcpll)) {
+			ret = clk_set_parent(p_earc->clk_rx_dmac, p_earc->clk_rx_dmac_srcpll);
+			if (ret) {
+				dev_err(dev, "Can't set clk_rx_dmac parent clock\n");
+				return ret;
+			}
 		}
+
+		p_earc->irq_earc_rx =
+			platform_get_irq_byname(pdev, "earc_rx");
+		if (p_earc->irq_earc_rx < 0)
+			dev_err(dev, "platform get irq earc_rx failed\n");
+		else
+			dev_info(dev, "%s, irq_earc_rx:%d\n", __func__, p_earc->irq_earc_rx);
 	}
 
 	/* TX */
-	p_earc->clk_tx_cmdc = devm_clk_get(&pdev->dev, "tx_cmdc");
-	if (IS_ERR(p_earc->clk_tx_cmdc))
-		dev_info(&pdev->dev, "Check whether support eARC TX\n");
+	if (p_earc->chipinfo->tx_enable) {
+		p_earc->clk_tx_cmdc = devm_clk_get(&pdev->dev, "tx_cmdc");
+		if (IS_ERR(p_earc->clk_tx_cmdc))
+			dev_info(&pdev->dev, "Check whether support eARC TX\n");
 
-	p_earc->clk_tx_dmac = devm_clk_get(&pdev->dev, "tx_dmac");
-	if (IS_ERR(p_earc->clk_tx_dmac))
-		dev_info(&pdev->dev, "Check whether support eARC TX\n");
+		p_earc->clk_tx_dmac = devm_clk_get(&pdev->dev, "tx_dmac");
+		if (IS_ERR(p_earc->clk_tx_dmac))
+			dev_info(&pdev->dev, "Check whether support eARC TX\n");
 
-	p_earc->clk_tx_cmdc_srcpll = devm_clk_get(&pdev->dev, "tx_cmdc_srcpll");
-	if (IS_ERR(p_earc->clk_tx_cmdc_srcpll))
-		dev_info(&pdev->dev, "Check whether support eARC TX\n");
+		p_earc->clk_tx_cmdc_srcpll = devm_clk_get(&pdev->dev, "tx_cmdc_srcpll");
+		if (IS_ERR(p_earc->clk_tx_cmdc_srcpll))
+			dev_info(&pdev->dev, "Check whether support eARC TX\n");
 
-	p_earc->clk_tx_dmac_srcpll = devm_clk_get(&pdev->dev, "tx_dmac_srcpll");
-	if (IS_ERR(p_earc->clk_tx_dmac_srcpll))
-		dev_info(&pdev->dev, "Check whether support eARC TX\n");
+		p_earc->clk_tx_dmac_srcpll = devm_clk_get(&pdev->dev, "tx_dmac_srcpll");
+		if (IS_ERR(p_earc->clk_tx_dmac_srcpll))
+			dev_info(&pdev->dev, "Check whether support eARC TX\n");
 
-	if (!IS_ERR(p_earc->clk_tx_cmdc) && !IS_ERR(p_earc->clk_tx_cmdc_srcpll)) {
-		ret = clk_set_parent(p_earc->clk_tx_cmdc, p_earc->clk_tx_cmdc_srcpll);
-		if (ret) {
-			dev_err(dev, "Can't set clk_tx_cmdc parent clock\n");
-			return ret;
+		if (!IS_ERR(p_earc->clk_tx_cmdc) && !IS_ERR(p_earc->clk_tx_cmdc_srcpll)) {
+			ret = clk_set_parent(p_earc->clk_tx_cmdc, p_earc->clk_tx_cmdc_srcpll);
+			if (ret) {
+				dev_err(dev, "Can't set clk_tx_cmdc parent clock\n");
+				return ret;
+			}
 		}
-	}
-	if (!IS_ERR(p_earc->clk_tx_dmac) && !IS_ERR(p_earc->clk_tx_dmac_srcpll)) {
-		ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_tx_dmac_srcpll);
-		if (ret) {
-			dev_err(dev, "Can't set clk_tx_dmac parent clock\n");
-			return ret;
+		if (!IS_ERR(p_earc->clk_tx_dmac) && !IS_ERR(p_earc->clk_tx_dmac_srcpll)) {
+			ret = clk_set_parent(p_earc->clk_tx_dmac, p_earc->clk_tx_dmac_srcpll);
+			if (ret) {
+				dev_err(dev, "Can't set clk_tx_dmac parent clock\n");
+				return ret;
+			}
 		}
+
+		p_earc->irq_earc_tx =
+			platform_get_irq_byname(pdev, "earc_tx");
+		if (p_earc->irq_earc_tx < 0)
+			dev_err(dev, "platform get irq earc_tx failed\n");
+		else
+			dev_info(dev, "%s, irq_earc_tx:%d\n", __func__, p_earc->irq_earc_tx);
 	}
-
-	/* irqs */
-	p_earc->irq_earc_rx =
-		platform_get_irq_byname(pdev, "earc_rx");
-	if (p_earc->irq_earc_rx < 0)
-		dev_info(dev, "platform get irq earc_rx failed\n");
-
-	p_earc->irq_earc_tx =
-		platform_get_irq_byname(pdev, "earc_tx");
-	if (p_earc->irq_earc_tx < 0)
-		dev_info(dev, "platform get irq earc_tx failed, Check whether support eARC TX\n");
-
-	dev_info(dev, "%s, irq_earc_rx:%d, irq_earc_tx:%d\n",
-		 __func__, p_earc->irq_earc_rx, p_earc->irq_earc_tx);
 
 	ret = snd_soc_register_component(&pdev->dev,
 				&earc_component,
