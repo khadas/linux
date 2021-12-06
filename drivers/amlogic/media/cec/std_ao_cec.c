@@ -1948,7 +1948,7 @@ static int ao_cec_adap_enable(struct cec_adapter *adap, bool enable)
 	    tmp != 0xffff) {
 		cec_dev->phy_addr = tmp;
 	} else {
-		CEC_INFO("%s dev_type %ul, tmp_phy_addr: 0x%x\n",
+		CEC_INFO("%s dev_type %lu, tmp_phy_addr: 0x%x\n",
 			 __func__, cec_dev->dev_type, tmp);
 		cec_dev->phy_addr = 0;
 	}
