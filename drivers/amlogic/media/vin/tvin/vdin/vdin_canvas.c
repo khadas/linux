@@ -642,15 +642,8 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 			vdin_set_canvas_addr[i].paddr =
 				roundup(vdin_set_canvas_addr[i].paddr,
 					devp->canvas_align);
-			/*real buffer number*/
-			max_buffer_num = i + 1;
 			if (devp->cfg_dma_buf)
 				devp->mem_start = vdin_set_canvas_addr[i].paddr;
-			devp->canvas_max_num = max_buffer_num;
-			devp->vfmem_max_cnt = max_buffer_num;
-			/*update to real total frames size*/
-			mem_size =
-				vdin_set_canvas_addr[i].size * max_buffer_num;
 			devp->vfmem_start[i] = vdin_set_canvas_addr[i].paddr;
 			if (vdin_dbg_en)
 				pr_info("vdin%d buf[%d] mem_start = 0x%lx, mem_size = 0x%x\n",
@@ -658,7 +651,14 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 					devp->vfmem_start[i],
 					vdin_set_canvas_addr[i].size);
 		}
-
+		/*real buffer number*/
+		max_buffer_num = i;
+		devp->canvas_max_num = max_buffer_num;
+		devp->vfmem_max_cnt = max_buffer_num;
+		/*update to real total frames size*/
+		if (i > 0)
+			mem_size =
+				vdin_set_canvas_addr[0].size * max_buffer_num;
 		devp->mem_size = mem_size;
 		devp->cma_mem_alloc = 1;
 		pr_info("vdin%d keystone cma alloc %d buffers ok!\n",
