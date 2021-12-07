@@ -170,6 +170,7 @@ source "drivers/amlogic/i2c_slave/Kconfig"
 source "drivers/amlogic/aml_hwspinlock/Kconfig"
 source "drivers/amlogic/rtc/Kconfig"
 source "drivers/amlogic/iio/Kconfig"
+source "drivers/amlogic/asr/Kconfig"
 
 endmenu
 endif

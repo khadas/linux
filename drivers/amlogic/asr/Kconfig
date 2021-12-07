@@ -1,0 +1,3 @@
+config VAD_WAKEUP_ASR
+	bool "Automatic Speech Recognition for voice wakeup"
+	default n

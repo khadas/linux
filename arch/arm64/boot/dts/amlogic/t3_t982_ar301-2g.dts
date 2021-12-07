@@ -1195,6 +1195,8 @@
 		 * 1: in kernel space
 		 */
 		level = <1>;
+		mic-src = <&pdm>;
+		wakeup_sample_rate = <16000>;
 
 		status = "okay";
 	};
