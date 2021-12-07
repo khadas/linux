@@ -477,6 +477,8 @@ struct vf_nn_sr_t {
 	u32 hf_height;
 	u32 hf_align_w;
 	u32 hf_align_h;
+	u32 buf_align_w;
+	u32 buf_align_h;
 	u32 nn_status;
 	u32 nn_index;
 	u32 nn_mode;

@@ -9066,6 +9066,10 @@ bool aisr_update_frame_info(struct video_layer_s *layer,
 				srout_data->hf_align_w;
 			layer->aisr_mif_setting.src_align_h =
 				srout_data->hf_align_h;
+			layer->aisr_mif_setting.buf_align_w =
+				srout_data->buf_align_w;
+			layer->aisr_mif_setting.buf_align_h =
+				srout_data->buf_align_h;
 			layer->aisr_mif_setting.phy_addr =
 				srout_data->nn_out_phy_addr;
 			layer->aisr_mif_setting.x_start = 0;
@@ -9132,8 +9136,8 @@ void aisr_reshape_addr_set(struct video_layer_s *layer,
 	cur_dev->scaler_sep_coef_en = 1;
 	cur_dev->aisr_enable = 1;
 	cur_dev->pps_auto_calc = 1;
-	aisr_stride = aisr_mif_setting->src_align_w;
-	aisr_align_h = aisr_mif_setting->src_align_h;
+	aisr_stride = aisr_mif_setting->buf_align_w;
+	aisr_align_h = aisr_mif_setting->buf_align_h;
 	video_info_change_status |= VIDEO_AISR_FRAME_EVENT;
 
 	for (i = 0; i < 4; i++)

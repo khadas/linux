@@ -333,6 +333,8 @@ struct aisr_setting_s {
 	u32 src_h;
 	u32 src_align_w;
 	u32 src_align_h;
+	u32 buf_align_w;
+	u32 buf_align_h;
 	u32 x_start;
 	u32 x_end;
 	u32 y_start;
