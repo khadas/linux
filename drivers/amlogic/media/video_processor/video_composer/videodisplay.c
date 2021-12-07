@@ -29,19 +29,47 @@ static struct composer_dev *mdev[3];
 
 #define MAX_VIDEO_COMPOSER_INSTANCE_NUM 3
 static int get_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
-static unsigned int countinue_vsync_count[MAX_VD_LAYERS];
+static unsigned int countinue_vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
+
+#define PATTERN_32_DETECT_RANGE 5
+#define PATTERN_22_DETECT_RANGE 5
+#define PATTERN_41_DETECT_RANGE 2
+#define MAX_COUNTINUE_HOLD_COUNT 50
+
+enum video_refresh_pattern {
+	PATTERN_32 = 0,
+	PATTERN_22,
+	PATTERN_41,
+	MAX_NUM_PATTERNS
+};
+
+static int patten_trace[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
+static int vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 
 void vsync_notify_video_composer(void)
 {
 	int i;
 	int count = MAX_VIDEO_COMPOSER_INSTANCE_NUM;
 
-	countinue_vsync_count[0]++;
-	countinue_vsync_count[1]++;
-
-	for (i = 0; i < count; i++)
+	for (i = 0; i < count; i++) {
+		vsync_count[i]++;
 		get_count[i] = 0;
+		countinue_vsync_count[i]++;
+		patten_trace[i]++;
+	}
 	do_gettimeofday(&vsync_time);
+}
+
+static bool vd_vf_is_tvin(struct vframe_s *vf)
+{
+	if (!vf)
+		return false;
+
+	if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI ||
+		vf->source_type == VFRAME_SOURCE_TYPE_CVBS ||
+		vf->source_type == VFRAME_SOURCE_TYPE_TUNER)
+		return true;
+	return false;
 }
 
 static void vf_pop_display_q(struct composer_dev *dev, struct vframe_s *vf)
@@ -159,6 +187,149 @@ static void vc_ready_q_uninit(struct composer_dev *dev)
 	}
 }
 
+void video_dispaly_push_ready(struct composer_dev *dev, struct vframe_s *vf)
+{
+	u32 vsync_index = vsync_count[dev->index];
+
+	if (vf && vf->vc_private)
+		vf->vc_private->vsync_index = vsync_index;
+}
+
+static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern)
+{
+	int factor1 = 0, factor2 = 0, pattern_range = 0;
+
+	if (pattern >= MAX_NUM_PATTERNS)
+		return;
+
+	if (pattern == PATTERN_32) {
+		factor1 = 3;
+		factor2 = 2;
+		pattern_range = PATTERN_32_DETECT_RANGE;
+	} else if (pattern == PATTERN_22) {
+		factor1 = 2;
+		factor2 = 2;
+		pattern_range =  PATTERN_22_DETECT_RANGE;
+	} else if (pattern == PATTERN_41) {
+		pr_err("not support 41 pattern\n");
+		return;
+	}
+
+	/* update 3:2 or 2:2 mode detection */
+	if ((dev->pre_pat_trace == factor1 && patten_trace[dev->index] == factor2) ||
+	    (dev->pre_pat_trace == factor2 && patten_trace[dev->index] == factor1)) {
+		if (dev->pattern[pattern] < pattern_range) {
+			dev->pattern[pattern]++;
+			if (dev->pattern[pattern] == pattern_range) {
+				dev->pattern_enter_cnt++;
+				dev->pattern_detected = pattern;
+				vc_print(dev->index, PRINT_PATTERN,
+					"patten: video %d:%d mode detected\n",
+					factor1, factor2);
+			}
+		}
+	} else if (dev->pattern[pattern] == pattern_range) {
+		dev->pattern[pattern] = 0;
+		dev->pattern_exit_cnt++;
+		vc_print(dev->index, PRINT_PATTERN,
+			"patten: video %d:%d mode broken\n", factor1, factor2);
+	} else {
+		dev->pattern[pattern] = 0;
+	}
+}
+
+static void vsync_video_pattern(struct composer_dev *dev)
+{
+	vd_vsync_video_pattern(dev, PATTERN_32);
+	vd_vsync_video_pattern(dev, PATTERN_22);
+	/*vd_vsync_video_pattern(dev, PTS_41_PATTERN);*/
+}
+
+static inline int vd_perform_pulldown(struct composer_dev *dev,
+					 struct vframe_s *vf,
+					 bool *expired)
+{
+	int pattern_range, expected_curr_interval;
+	int expected_prev_interval;
+
+	/* Dont do anything if we have invalid data */
+	if (!vf || !vf->vc_private)
+		return -1;
+	if (vf->vc_private->vsync_index == 0)
+		return -1;
+
+	if (vd_vf_is_tvin(vf))
+		return -1;
+
+	switch (dev->pattern_detected) {
+	case PATTERN_32:
+		pattern_range = PATTERN_32_DETECT_RANGE;
+		switch (dev->pre_pat_trace) {
+		case 3:
+			expected_prev_interval = 3;
+			expected_curr_interval = 2;
+			break;
+		case 2:
+			expected_prev_interval = 2;
+			expected_curr_interval = 3;
+			break;
+		default:
+			return -1;
+		}
+		break;
+	case PATTERN_22:
+		if (dev->pre_pat_trace != 2)
+			return -1;
+		pattern_range =  PATTERN_22_DETECT_RANGE;
+		expected_prev_interval = 2;
+		expected_curr_interval = 2;
+		break;
+	case PATTERN_41:
+		/* TODO */
+	default:
+		return -1;
+	}
+
+	vc_print(dev->index, PRINT_PATTERN,
+		"patten: detected %d, pattern =%d, patten_trace=%d, expected=%d expired=%d\n",
+		dev->pattern_detected,
+		dev->pattern[dev->pattern_detected],
+		patten_trace[dev->index],
+		expected_curr_interval,
+		*expired);
+
+	/* We do nothing if we dont have enough data*/
+	if (dev->pattern[dev->pattern_detected] != pattern_range)
+		return -1;
+
+	if (*expired) {
+		if (patten_trace[dev->index] < expected_curr_interval) {
+			/* 2323232323..2233..2323, prev=2, curr=3,*/
+			/* check if next frame will toggle after 3 vsyncs */
+			/* 22222...22222 -> 222..2213(2)22...22 */
+			/* check if next frame will toggle after 3 vsyncs */
+			*expired = false;
+			vc_print(dev->index, PRINT_PATTERN,
+				"patten:hold frame for pattern: %d",
+				dev->pattern_detected);
+		}
+	} else {
+		if (patten_trace[dev->index] == expected_curr_interval) {
+			/* 23232323..233223...2323 curr=2, prev=3 */
+			/* check if this frame will expire next vsyncs and */
+			/* next frame will expire after 3 vsyncs */
+			/* 22222...22222 -> 222..223122...22 */
+			/* check if this frame will expire next vsyncs and */
+			/* next frame will expire after 2 vsyncs */
+			*expired = true;
+			vc_print(dev->index, PRINT_PATTERN,
+				"patten: pull frame for pattern: %d",
+				dev->pattern_detected);
+		}
+	}
+	return 0;
+}
+
 /* -----------------------------------------------------------------
  *           provider opeations
  * -----------------------------------------------------------------
@@ -171,6 +342,12 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	struct timeval time2;
 	u64 time_vsync;
 	int interval_time;
+	bool expired = true;
+	bool expired_tmp = true;
+	bool open_pulldown = false;
+	int ready_len;
+	u32 vsync_index = 0;
+	int ret;
 
 	time1 = dev->start_time;
 	time2 = vsync_time;
@@ -201,6 +378,64 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 		if (!vf)
 			return NULL;
 
+		/*duration: 1600(60fps) 3200(30fps) 3203(29.97) 3840(25fps) */
+		/*4000(24fps) 4004(23.976fps)*/
+
+		if (dev->enable_pulldown &&
+			(vf->duration == 3200 ||
+			vf->duration == 3203 ||
+			vf->duration == 3840 ||
+			vf->duration == 4000 ||
+			vf->duration == 4004)) {
+			open_pulldown = true;
+			ready_len = kfifo_len(&dev->ready_q);
+			if (ready_len > 1) {
+				open_pulldown = false;
+				vc_print(dev->index, PRINT_PATTERN,
+					"ready_q len=%d\n", ready_len);
+			}
+		}
+
+		if (open_pulldown &&
+			!vd_vf_is_tvin(vf) &&
+			!(vf->flag & VFRAME_FLAG_FAKE_FRAME)) {
+			if (vf->vc_private) {
+				vsync_index = vf->vc_private->vsync_index;
+				vc_print(dev->index, PRINT_PATTERN,
+					"peek: vsync_index: %d, vsync_count:%d, omx_index=%d\n",
+					vf->vc_private->vsync_index, vsync_count[dev->index],
+					vf->omx_index);
+				if (vf->vc_private->vsync_index + 1 >= vsync_count[dev->index])
+					expired = false;
+			}
+			expired_tmp = expired;
+			ret = vd_perform_pulldown(dev, vf, &expired);
+			if (!expired) {
+				if (vsync_index + 2 < vsync_count[dev->index]) {
+					vc_print(dev->index, PRINT_PATTERN,
+						"need disp, vsync_index =%d, vsync_count=%d\n",
+						vsync_index, vsync_count[dev->index]);
+					expired = true;
+				} else if (expired_tmp) {
+					if (dev->last_hold_index + 1 == vf->omx_index)
+						dev->continue_hold_count++;
+					else
+						dev->continue_hold_count = 1;
+					vc_print(dev->index, PRINT_PATTERN,
+						"patten: hold, omx_index =%d, continue_count=%d\n",
+						vf->omx_index, dev->continue_hold_count);
+					dev->last_hold_index = vf->omx_index;
+					if (dev->continue_hold_count >= MAX_COUNTINUE_HOLD_COUNT) {
+						expired = true;
+						vc_print(dev->index, PRINT_PATTERN,
+						"patten: can not hold too many vf\n");
+					}
+				}
+				if (!expired)
+					return NULL;
+			}
+		}
+
 		if (dev->is_drm_enable)
 			return vf;
 		else
@@ -214,6 +449,7 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 {
 	struct composer_dev *dev = (struct composer_dev *)op_arg;
 	struct vframe_s *vf = NULL;
+	u32 vsync_index_diff = 0;
 
 	if (kfifo_get(&dev->ready_q, &vf)) {
 		if (!vf)
@@ -221,6 +457,7 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 
 		if (vf->flag & VFRAME_FLAG_FAKE_FRAME)
 			return vf;
+
 		if (!kfifo_put(&dev->display_q, vf))
 			vc_print(dev->index, PRINT_ERROR,
 				 "display_q is full!\n");
@@ -232,17 +469,38 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		get_count[dev->index]++;
 		dev->fget_count++;
 
+		if (vf->vc_private) {
+			vsync_index_diff = vf->vc_private->vsync_index - dev->last_vsync_index;
+			dev->last_vsync_index = vf->vc_private->vsync_index;
+			if (vf->omx_index < dev->last_vf_index) {
+				vc_print(dev->index, PRINT_PATTERN,
+					 "change source\n");
+				vf->vc_private->flag |= VC_FLAG_FIRST_FRAME;
+			}
+			dev->last_vf_index = vf->omx_index;
+		}
+
 		vc_print(dev->index, PRINT_OTHER | PRINT_PATTERN,
-			 "%s: omx_index=%d, index_disp=%d, get_count=%d, total_get_count=%lld, vsync =%d, vf=%p\n",
-			 __func__,
+			 "get:omx_index=%d, index_disp=%d, get=%d, total_get=%lld, vsync =%d, diff=%d, duration=%d\n",
 			 vf->omx_index,
 			 vf->index_disp,
 			 get_count[dev->index],
 			 dev->fget_count,
 			 countinue_vsync_count[dev->index],
-			 vf);
-		countinue_vsync_count[dev->index] = 0;
+			 vsync_index_diff,
+			 vf->duration);
 
+		if (vf->vc_private)
+			vf->vc_private->last_disp_count =
+				countinue_vsync_count[dev->index];
+
+		if (dev->enable_pulldown) {
+			vsync_video_pattern(dev);
+			dev->pre_pat_trace = patten_trace[dev->index];
+			patten_trace[dev->index] = 0;
+		}
+
+		countinue_vsync_count[dev->index] = 0;
 		return vf;
 	} else {
 		return NULL;
@@ -472,6 +730,16 @@ int video_display_create_path(struct composer_dev *dev)
 
 	vf_notify_receiver(dev->vf_provider_name,
 			   VFRAME_EVENT_PROVIDER_START, NULL);
+
+	vsync_count[dev->index] = 0;
+	dev->last_vsync_index = 0;
+	dev->last_vf_index = 0xffffffff;
+	dev->enable_pulldown = false;
+	if (vd_enforce_pulldown && frc_get_video_latency() != 0) {
+		dev->enable_pulldown = true;
+		vc_print(dev->index, PRINT_ERROR,
+			"enable pulldown\n");
+	}
 	return 0;
 }
 
@@ -545,6 +813,7 @@ static int video_display_init(int layer_index)
 	for (i = 0; i < COMPOSER_READY_POOL_SIZE; i++)
 		vd_prepare_data_q_put(dev, &dev->vd_prepare[i]);
 
+	vsync_count[dev->index] = 0;
 	dev->fput_count = 0;
 	dev->drop_frame_count = 0;
 	dev->fget_count = 0;

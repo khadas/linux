@@ -244,6 +244,16 @@ struct composer_dev {
 	bool is_drm_enable;
 	u32 video_render_index;
 	u32 vframe_dump_flag;
+	u32 pre_pat_trace;
+	u32 pattern[3];
+	u32 pattern_enter_cnt;
+	u32 pattern_exit_cnt;
+	u32 pattern_detected;
+	u32 continue_hold_count;
+	u32 last_hold_index;
+	u32 last_vsync_index;
+	u32 last_vf_index;
+	bool enable_pulldown;
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'
@@ -261,5 +271,6 @@ struct video_composer_port_s *video_composer_get_port(u32 index);
 int vc_print(int index, int debug_flag, const char *fmt, ...);
 void videocomposer_vf_put(struct vframe_s *vf, void *op_arg);
 struct vframe_s *videocomposer_vf_peek(void *op_arg);
+void video_dispaly_push_ready(struct composer_dev *dev, struct vframe_s *vf);
 
 #endif /* VIDEO_COMPOSER_H */

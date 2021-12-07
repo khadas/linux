@@ -91,6 +91,7 @@ static u64 nn_margin_time = 9000;
 static u32 nn_bypass;
 static u32 tv_fence_creat_count;
 static u32 dump_vframe;
+u32 vd_enforce_pulldown = 1;
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -435,6 +436,7 @@ static void vc_private_q_init(struct composer_dev *dev)
 		dev->vc_private[i].flag = 0;
 		dev->vc_private[i].srout_data = NULL;
 		dev->vc_private[i].src_vf = NULL;
+		dev->vc_private[i].vsync_index = 0;
 		if (!kfifo_put(&dev->vc_private_q, &dev->vc_private[i]))
 			vc_print(dev->index, PRINT_ERROR,
 				"q_init: vc_private_q is full!\n");
@@ -450,6 +452,7 @@ static void vc_private_q_recycle(struct composer_dev *dev,
 	vc_private->flag = 0;
 	vc_private->srout_data = NULL;
 	vc_private->src_vf = NULL;
+	vc_private->vsync_index = 0;
 	if (!kfifo_put(&dev->vc_private_q, vc_private))
 		vc_print(dev->index, PRINT_ERROR,
 			"vc_private_q is full!\n");
@@ -1070,6 +1073,8 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 			}
 		}
 		dmabuf_put_vframe((struct dma_buf *)(file_vf->private_data));
+		if (vf->omx_index == 0 && vf->index_disp != 0)
+			vf->omx_index = vf->index_disp;
 	} else {
 		vc_print(dev->index, PRINT_OTHER, "vf is from v4lvideo\n");
 		file_private_data = vc_get_file_private(dev, file_vf);
@@ -1941,6 +1946,7 @@ static void video_composer_task(struct composer_dev *dev)
 						 "too time1=%lld, time2=%lld\n",
 						 delay_time1, delay_time2);
 			}
+			video_dispaly_push_ready(dev, vf);
 			if (!kfifo_put(&dev->ready_q,
 				       (const struct vframe_s *)vf))
 				vc_print(dev->index, PRINT_ERROR,
@@ -3271,6 +3277,26 @@ static ssize_t tv_fence_creat_count_show(struct class *class,
 	return sprintf(buf, "tv_fence_creat_count: %d\n", tv_fence_creat_count);
 }
 
+static ssize_t vd_enforce_pulldown_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "vd_enforce_pulldown: %d\n", vd_enforce_pulldown);
+}
+
+static ssize_t vd_enforce_pulldown_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+	vd_enforce_pulldown = val;
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -3303,6 +3329,7 @@ static CLASS_ATTR_RW(nn_margin_time);
 static CLASS_ATTR_RW(nn_bypass);
 static CLASS_ATTR_RO(tv_fence_creat_count);
 static CLASS_ATTR_RW(dump_vframe);
+static CLASS_ATTR_RW(vd_enforce_pulldown);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -3337,6 +3364,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_nn_bypass.attr,
 	&class_attr_tv_fence_creat_count.attr,
 	&class_attr_dump_vframe.attr,
+	&class_attr_vd_enforce_pulldown.attr,
 	NULL
 };
 

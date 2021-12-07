@@ -492,12 +492,16 @@ struct vf_aipq_t {
 };
 
 #define VC_FLAG_AI_SR	0x1
+#define VC_FLAG_FIRST_FRAME	0x2
+
 
 struct video_composer_private {
 	u32 index;
 	u32 flag; /*if  & VC_FLAG_AI_SR, and VPP will get AI_SR_out*/
 	struct vf_nn_sr_t *srout_data;
 	struct vframe_s *src_vf;
+	u32 last_disp_count; /*last frame disp vsync count*/
+	u32 vsync_index;
 };
 
 struct vframe_s {
