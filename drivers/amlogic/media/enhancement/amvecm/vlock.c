@@ -1216,6 +1216,15 @@ void vlock_vmode_check(struct stvlock_sig_sts *pvlock)
 			vlock_capture_limit =
 				((1024 * 1024 * 16) * vlock_line_limit) /
 				(vinfo->vtotal + 1);
+
+			if (vlock_notify_event == VOUT_EVENT_MODE_CHANGE) {
+				pvlock->enc_frc_max_line = pvlock->pre_enc_max_line;
+				pvlock->enc_frc_max_pixel = pvlock->pre_enc_max_pixel;
+				if (vlock_debug & VLOCK_DEBUG_INFO)
+					pr_info("vlock : frc_maxLine %d, frc_maxPixel %d\n",
+						pvlock->enc_frc_max_line,
+						pvlock->enc_frc_max_pixel);
+			}
 		}
 		vlock_notify_event = 0;
 		vlock_vmode_changed = 1;
@@ -2503,10 +2512,10 @@ u32 vlock_fsm_to_en_func(struct stvlock_sig_sts *pvlock,
 
 		if (vlock_debug & VLOCK_DEBUG_FLASH)
 			pr_info("%s pre_enc_max_line:%d org_enc_line_num:%d pre_enc_max_pixel:%d\n",
-				__func__,
-				pvlock->pre_enc_max_line,
-				pvlock->org_enc_line_num,
-				pvlock->pre_enc_max_pixel);
+			__func__,
+			pvlock->pre_enc_max_line,
+			pvlock->org_enc_line_num,
+			pvlock->pre_enc_max_pixel);
 
 		//if (vlock_debug & VLOCK_DEBUG_INFO) {
 		//	pr_info("HIU pll m[0x%x]=0x%x\n",
