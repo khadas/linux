@@ -262,16 +262,16 @@ static const char *parse_string(struct cjson *item, const char *str)
 
 				switch (len) {
 				case 4:
-					*--ptr2 = ((uc | 0x80) & 0xBF);
-					uc >>= 6;
 				case 3:
-					*--ptr2 = ((uc | 0x80) & 0xBF);
-					uc >>= 6;
 				case 2:
 					*--ptr2 = ((uc | 0x80) & 0xBF);
-					uc >>= 6;
+					uc = uc >> 6;
+					break;
 				case 1:
 					*--ptr2 = (uc | firstByteMark[len]);
+					break;
+				default:
+					break;
 				}
 				ptr2 += len;
 				break;
