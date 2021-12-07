@@ -10535,6 +10535,8 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		/*need before set buffer*/
 		if (dim_afds())
 			dim_afds()->reg_val(pch);
+		if (get_datal()->dct_op)
+			get_datal()->dct_op->reg(pch);
 
 		/*
 		 * 10 bit mode need 1.5 times buffer size of
@@ -10572,10 +10574,10 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		if (dim_afds())
 			dim_afds()->reg_val(pch);
 		#endif
-
+#ifdef HIS_CODE	//move to front
 		if (get_datal()->dct_op)
 			get_datal()->dct_op->reg(pch);
-
+#endif
 		dcntr_reg(1);
 
 		set_init_flag(channel, true);/*init_flag = 1;*/
