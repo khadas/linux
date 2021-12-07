@@ -1041,6 +1041,7 @@ enum DDIM_DCT_BYPASS_REASON {
 	DDIM_DCT_BYPASS_BY_V_I,
 	DDIM_DCT_BYPASS_BY_V_COMP,
 	DDIM_DCT_BYPASS_BY_V_SIZE,
+	DDIM_DCT_BYPASS_BY_V_EOS,
 	DDIM_DCT_BYPASS_BY_PRE_BASE = 0x20,
 };
 
@@ -1052,8 +1053,9 @@ static unsigned int dct_check_vfm_bypass(struct vframe_s *vf)
 
 	if (!vf)
 		return 0;
-
-	if (!hdct->i_do_decontour && VFMT_IS_I(vf->type))
+	if (vf->type & VIDTYPE_V4L_EOS)
+		breason = DDIM_DCT_BYPASS_BY_V_EOS;
+	else if (!hdct->i_do_decontour && VFMT_IS_I(vf->type))
 		breason = DDIM_DCT_BYPASS_BY_V_I;
 	else if (IS_COMP_MODE(vf->type) &&
 		 (vf->type & VIDTYPE_NO_DW	||
@@ -1320,7 +1322,7 @@ static unsigned int dct_sft_prepare(struct di_ch_s *pch,
 		mem_put_free(dcntr_mem);
 		return DCT_SFT_BYPSS_BIT | (DDIM_DCT_BYPASS_BY_PRE_BASE + 4);
 	}
-
+	dcntr_mem->cnt_in = nins->c.cnt;
 	vf->decontour_pre = (void *)dcntr_mem;
 
 	return DCT_SFT_DO_DCT;
@@ -1864,7 +1866,7 @@ static bool dct_m_check(void)
 	}
 
 	if (dct_check_need_bypass(pch, vf)) {
-		dbg_dctp("m_check:bypass:0x%x\n",
+		PR_INF("m_check:bypass:0x%x\n",
 			get_datal()->hw_dct.sbypass_reason);
 		dct_do_bypass(pch);
 		dct->state--;
@@ -2056,8 +2058,8 @@ void dim_dbg_dct_info_show(struct seq_file *s, void *v,
 {
 	if (!pprecfg)
 		return;
-	seq_printf(s, "index[%d],free[%d]\n",
-			  pprecfg->index, pprecfg->free);
+	seq_printf(s, "index[%d],free[%d],cnt[%d]\n",
+			  pprecfg->index, pprecfg->free, pprecfg->cnt_in);
 
 	seq_printf(s, "use_org[%d],ration[%d]\n",
 		  pprecfg->use_org, pprecfg->ds_ratio);

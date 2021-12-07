@@ -413,6 +413,7 @@ struct nn_value_t {
 
 struct dcntr_mem_s {
 	u32 index;
+	unsigned int cnt_in;
 	unsigned long grd_addr;
 	unsigned long yds_addr;
 	unsigned long cds_addr;
