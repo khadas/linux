@@ -33,6 +33,33 @@ struct fe_lla_lookup_t {
 	struct fe_lla_lookpoint_t table[500];	//Lookup table
 };
 
+struct fft_threadcontrols {
+	s32 flow;
+	s32 fup;
+	u32 range;
+	u32 mode;
+	u32 acc;
+	u32 in_bw_center_frc;
+};
+
+struct fft_search_result {
+	s32 found_ok;
+	u32 result_frc;
+	s32 result_bw;
+};
+
+struct fft_in_bw_result {
+	s32 found_tp_num;
+	u32 in_bw_result_frc[45];
+	u32 in_bw_result_bw[45];
+};
+
+struct fft_total_result {
+	s32 found_tp_num;
+	u32 total_result_frc[1000];
+	u32 total_result_bw[1000];
+};
+
 #define DVBS_REG_MRELEASE	0x100
 #define DVBS_REG_DEVICE_ID	0x101
 
@@ -116,5 +143,10 @@ void dvbs2_diseqc_init(void);
 void dvbs2_diseqc_continuous_tone(unsigned int onoff);
 void dvbs_check_status(struct seq_file *seq);
 unsigned int dvbs_get_freq_offset(unsigned int *polarity);
+void dvbs_fft_reg_init(unsigned int *reg_val);
+void dvbs_fft_reg_term(unsigned int reg_val[60]);
+void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
+	int frq, struct fft_search_result *search_result);
+void dvbs_blind_fft_result_handle(struct fft_total_result *total_result);
 
 #endif

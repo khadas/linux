@@ -3334,8 +3334,71 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	if (devp->agc_direction) {
 		PR_DVBS("DTV AGC direction: %d, Set dvbs agc pin reverse\n", devp->agc_direction);
 		dvbs_wr_byte(0x118, 0x04);
-		dvbs_wr_byte(0x913, 0x50);
 	}
+
+	return ret;
+}
+
+int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
+	struct fft_in_bw_result *in_bw_result, unsigned int fft_frc_range_min,
+	unsigned int fft_frc_range_max, unsigned int range_ini)
+{
+	struct fft_threadcontrols spectr_ana_data;
+	struct fft_search_result search_result;
+	unsigned int fft_reg_val[60] = {0};
+	unsigned int reg_value[3];
+	int frq = 0;
+	int ret = 0;
+
+	reg_value[0] = dvbs_rd_byte(0x910);//AGC1CFG
+	reg_value[1] = dvbs_rd_byte(0x912);//AGC1CN
+	reg_value[2] = dvbs_rd_byte(0x913);//AGC1REF
+
+	dvbs_fft_reg_init(fft_reg_val);
+
+	spectr_ana_data.flow = fft_frc_range_min;
+	spectr_ana_data.fup = fft_frc_range_max;
+	spectr_ana_data.range = range_ini;
+	spectr_ana_data.mode = 0;
+	spectr_ana_data.acc = 1;
+
+	//get center frc of the frc range
+	spectr_ana_data.in_bw_center_frc = (spectr_ana_data.flow +  spectr_ana_data.fup) >> 1;
+
+	fe->dtv_property_cache.frequency = spectr_ana_data.in_bw_center_frc * 1000;
+	fe->dtv_property_cache.bandwidth_hz = 45000000;
+	fe->dtv_property_cache.symbol_rate = 45000000;
+	tuner_set_params(fe);
+	msleep(20);
+
+	for (frq = -22; frq <= 22;) {
+		/* modify range and central frequency to adjust*/
+		/*the last acquisition to the wanted range */
+		search_result.found_ok = 0;
+		search_result.result_bw = 0;
+		search_result.result_frc = 0;
+
+		dvbs_blind_fft_work(&spectr_ana_data, frq, &search_result);
+		if (search_result.found_ok == 1) {
+			in_bw_result->in_bw_result_frc[in_bw_result->found_tp_num] =
+				search_result.result_frc;
+			in_bw_result->in_bw_result_bw[in_bw_result->found_tp_num] =
+				search_result.result_bw;
+			in_bw_result->found_tp_num++;
+			PR_DVBS("IN range:%d: find frc:%d,sr:%d\n",
+				spectr_ana_data.range, search_result.result_frc,
+				search_result.result_bw);
+		}
+
+		frq = frq + (int)spectr_ana_data.range * 2 / 5;
+	}
+
+	//fft reg reset
+	dvbs_fft_reg_term(fft_reg_val);
+
+	dvbs_wr_byte(0x910, reg_value[0]);
+	dvbs_wr_byte(0x912, reg_value[1]);
+	dvbs_wr_byte(0x913, reg_value[2]);
 
 	return ret;
 }
@@ -4663,32 +4726,35 @@ static void dtvdemod_fw_dwork(struct work_struct *work)
 	cnt++;
 }
 
-static void dvbs_blind_scan_work(struct work_struct *work)
+static struct fft_total_result total_result;
+static struct fft_in_bw_result in_bw_result;
+static void dvbs_blind_scan_new_work(struct work_struct *work)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	unsigned int freq, srate = 45000000;
+	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
+	struct dvb_frontend *fe;
+	enum fe_status status;
+	static unsigned int last_locked_freq;
 	unsigned int freq_min = devp->blind_min_fre;
 	unsigned int freq_max = devp->blind_max_fre;
 	unsigned int freq_step = devp->blind_fre_step;
-	unsigned int symbol_rate_hw;
-	struct dvb_frontend *fe;
-	enum fe_status status;
-	unsigned int freq_one_percent;
-	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
-	unsigned int freq_offset;
-	unsigned int polarity;
-	static unsigned int last_locked_freq;
-	static unsigned int last_freq;
-	static unsigned int add_event;
+	unsigned int freq, srate = 45000000;
+	unsigned int range[4] = {22, 11, 6, 3};
 	unsigned int cur_locked_freq = 0;
-	//unsigned int threshold_average = 0;
-	unsigned int threshold = 0;
-	unsigned int fastsrearch_val = 0;
+	unsigned int fft_frc_range_min;
+	unsigned int fft_frc_range_max;
+	unsigned int freq_one_percent;
+	unsigned int symbol_rate_hw;
+	unsigned int freq_offset;
+	unsigned int range_ini;
+	unsigned int polarity;
 	int sr_int = 0;
 	int i = 0;
+	int j = 0;
+	int k = 0;
 
 	status = FE_NONE;
-
+	PR_INFO("a new htread\n");
 	if (unlikely(!devp)) {
 		PR_ERR("%s err, devp is NULL\n", __func__);
 		return;
@@ -4715,164 +4781,147 @@ static void dvbs_blind_scan_work(struct work_struct *work)
 
 	/* map blind scan process */
 	freq_one_percent = (freq_max - freq_min) / 100;
-	PR_DVBS("freq_one_percent : %d\n", freq_one_percent);
-	timer_set_max(demod, D_TIMER_DETECT, 7000);
+	PR_INFO("freq_one_percent : %d\n", freq_one_percent);
+	timer_set_max(demod, D_TIMER_DETECT, 600);
 	fe->ops.info.type = FE_QPSK;
 
 	if (fe->ops.tuner_ops.set_config)
 		fe->ops.tuner_ops.set_config(fe, NULL);
 
-	last_locked_freq = 0;
-	last_freq = 0;
-	add_event = 0;
+	fe->dtv_property_cache.symbol_rate = srate;
+	demod->demod_status.symb_rate = srate / 1000;
+	demod->demod_status.is_blind_scan = devp->blind_scan_stop;
+	demod->last_lock = -1;
+	//dvbs all reg init
+	dtvdemod_dvbs_set_ch(&demod->demod_status);
 
-	if (devp->blind_debug_max_frc != 0) {
-		freq_max = devp->blind_debug_max_frc;
-		freq_min = devp->blind_debug_min_frc;
-	}
+	total_result.found_tp_num = 0;
 
-	for (freq = freq_min; freq <= freq_max;) {
+	for (freq = freq_min; freq < freq_max;) {
 		if (devp->blind_scan_stop)
 			break;
+		PR_INFO("------Search From:%dM to %dM-----\n", freq, freq + freq_step);
 
-		if (freq == freq_min && last_freq != freq) {
-			fe->dtv_property_cache.frequency = freq;
-			fe->dtv_property_cache.bandwidth_hz = srate;
-			fe->dtv_property_cache.symbol_rate = srate;
+		fft_frc_range_min = freq / 1000;
+		fft_frc_range_max = (freq / 1000) + (freq_step / 1000);
+		for (i = 0; i < 4; i++) {
+			if (devp->blind_scan_stop)
+				break;
+			range_ini = range[i];
+			in_bw_result.found_tp_num = 0;
+			dtvdemod_dvbs_blind_set_frontend(fe, &in_bw_result,
+				fft_frc_range_min, fft_frc_range_max, range_ini);
+
+			if (in_bw_result.found_tp_num != 0)
+				PR_INFO("------In Bw Find Tp Num:%d-----\n",
+					in_bw_result.found_tp_num);
+
+			for (j = 0; j < in_bw_result.found_tp_num; j++) {
+				total_result.total_result_frc[total_result.found_tp_num] =
+					in_bw_result.in_bw_result_frc[j];
+				total_result.total_result_bw[total_result.found_tp_num] =
+					in_bw_result.in_bw_result_bw[j];
+				total_result.found_tp_num++;
+			}
 		}
 
-		dtvdemod_dvbs_set_frontend(fe);
-		timer_begain(demod, D_TIMER_DETECT);
-
-		do {
-			if (devp->blind_scan_stop) {
-				freq = freq_max + freq_step;
-				status = FE_TIMEDOUT;
-				break;
-			}
-			usleep_range(250000, 260000);
-			dtvdemod_dvbs_read_status(fe, &status);
-
-			//threshold = 0;
-
-			if ((unsigned int)status != 0)
-				break;
-
-			for (i = 0; i < 10; i++)
-				threshold += dvbs_rd_byte(0x91A);
-			threshold = (unsigned int)threshold / 10;
-			PR_INFO("check no dvbs signal:0x%x\n", threshold);
-
-			if (devp->data->hw_ver == DTVDEMOD_HW_T5D ||
-				devp->data->hw_ver == DTVDEMOD_HW_T3)
-				fastsrearch_val = 0xa0;
-
-			if ((unsigned int)threshold < fastsrearch_val ||
-					devp->data->hw_ver != DTVDEMOD_HW_S4D) {
-				status = FE_TIMEDOUT;
-				PR_INFO("check no dvbs signal:0x%x\n", threshold);
-				break;
-			}
-
-//			if (fe->dtv_property_cache.bandwidth_hz == 43000000)
-//				threshold_average = threshold;
-//			if (fe->dtv_property_cache.bandwidth_hz < 43000000 &&
-//				fe->dtv_property_cache.bandwidth_hz > 23000000) {
-//				if (threshold_average - threshold >= 10) {
-//					status = FE_TIMEDOUT;
-//					break;
-//				}
-//			}
-
-			if (fe->dtv_property_cache.bandwidth_hz > 10000000) {
-				fe->dtv_property_cache.bandwidth_hz -= 2000000;
-				fe->dtv_property_cache.symbol_rate -= 2000000;
-			} else if (fe->dtv_property_cache.bandwidth_hz <= 10000000 &&
-				fe->dtv_property_cache.bandwidth_hz > 0){
-				fe->dtv_property_cache.bandwidth_hz -= 1000000;
-				fe->dtv_property_cache.symbol_rate -= 1000000;
-			}
-			if (fe->dtv_property_cache.bandwidth_hz < 1000000 ||
-				fe->dtv_property_cache.symbol_rate < 1000000) {
-				fe->dtv_property_cache.bandwidth_hz = 0;
-				fe->dtv_property_cache.symbol_rate = 0;
-			}
-			devp->blind_same_frec = 1;
-			dtvdemod_dvbs_set_frontend(fe);
-		} while (!(unsigned int)status);
-
-		if (status == FE_TIMEDOUT) {/* unlock */
+		if (freq < freq_max) {
 			fe->dtv_property_cache.frequency =
 				(freq - freq_min) / freq_one_percent;
 			status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-			PR_DVBS("unlock:blind process %d%%\n",
+			PR_DVBS("fft search:blind process %d%%\n",
 				fe->dtv_property_cache.frequency);
-			add_event = 1;
-		} else {/* lock */
-			freq_offset = dvbs_get_freq_offset(&polarity);
-			if (polarity)
-				cur_locked_freq = freq + freq_offset * 1000;
-			else
-				cur_locked_freq = freq - freq_offset * 1000;
+			dvb_frontend_add_event(fe, status);
+		}
 
-			PR_DVBS("%s:cur locked: %d, polarity:%d\n",
-				__func__, cur_locked_freq, polarity);
+		freq = freq + freq_step;
+		if (freq >= freq_max) {
+			if (devp->blind_scan_stop)
+				break;
+			if (total_result.found_tp_num != 0)
+				PR_INFO("------TOTAL FIND TP NUM:%d-----\n",
+					total_result.found_tp_num);
 
-			if (abs(last_locked_freq - cur_locked_freq) < 5000) {
-				fe->dtv_property_cache.frequency =
-					(freq - freq_min) / freq_one_percent;
-				status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
-				PR_DVBS("%s locked:process: %d%%\n", __func__,
-					fe->dtv_property_cache.frequency);
-				add_event = 1;
-			} else {
-				symbol_rate_hw = dvbs_rd_byte(0x9fc) << 16;
-				symbol_rate_hw |= dvbs_rd_byte(0x9fd) << 8;
-				symbol_rate_hw |= dvbs_rd_byte(0x9fe);
-				sr_int = (int)symbol_rate_hw;
-				sr_int = (int)(sr_int /
-					((16777216 + 67500) / 135000));
-				fe->dtv_property_cache.symbol_rate =
-					(unsigned int)sr_int * 1000;
-				fe->dtv_property_cache.delivery_system =
-					demod->last_delsys;
-				status = BLINDSCAN_UPDATERESULTFREQ |
-					FE_HAS_LOCK;
-				PR_DVBS("lock:freq %d,symbol_rate_hw %d\n",
-					freq, symbol_rate_hw);
-				if (last_freq == freq) {
-					fe->dtv_property_cache.frequency = freq;
-					dvb_frontend_add_event(fe, status);
-					last_locked_freq = cur_locked_freq;
-					fe->dtv_property_cache.frequency =
-						cur_locked_freq;
-					add_event = 1;
-				} else {
-					//freq = freq;
-					fe->dtv_property_cache.frequency = freq;
-					fe->dtv_property_cache.bandwidth_hz = (unsigned int)sr_int * 1000;
-					fe->dtv_property_cache.symbol_rate = (unsigned int)sr_int * 1000;
-					last_freq = freq;
+			dvbs_blind_fft_result_handle(&total_result);
+
+			PR_INFO("------Start Try To Lock Test-----\n");
+			last_locked_freq = 0;
+			for (k = 0; k < total_result.found_tp_num;) {
+				PR_INFO("blind_scan_stop:%d\n", devp->blind_scan_stop);
+				if (devp->blind_scan_stop) {
+					PR_INFO("stop scan\n");
+					break;
 				}
+				fe->dtv_property_cache.frequency =
+					total_result.total_result_frc[k] * 1000;
+				fe->dtv_property_cache.bandwidth_hz =
+					total_result.total_result_bw[k] * 1000;
+				fe->dtv_property_cache.symbol_rate =
+					total_result.total_result_bw[k] * 1000;
+
+				dtvdemod_dvbs_set_frontend(fe);
+				timer_begain(demod, D_TIMER_DETECT);
+
+				usleep_range(500000, 510000);
+				dtvdemod_dvbs_read_status(fe, &status);
+
+				if (status == FE_TIMEDOUT || status == 0) {/* unlock */
+					status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
+				} else {/* lock */
+					freq_offset = dvbs_get_freq_offset(&polarity);
+					if (polarity)
+						cur_locked_freq =
+							total_result.total_result_frc[k] * 1000 +
+								freq_offset * 1000;
+					else
+						cur_locked_freq =
+							total_result.total_result_frc[k] * 1000 -
+								freq_offset * 1000;
+
+					PR_DVBS("%s:cur locked: %d, polarity:%d\n",
+						__func__, cur_locked_freq, polarity);
+
+					if (abs(last_locked_freq - cur_locked_freq) < 5000) {
+						PR_DVBS("same cur frc,do nt report\n");
+					} else {
+						symbol_rate_hw = dvbs_rd_byte(0x9fc) << 16;
+						symbol_rate_hw |= dvbs_rd_byte(0x9fd) << 8;
+						symbol_rate_hw |= dvbs_rd_byte(0x9fe);
+						sr_int = (int)symbol_rate_hw;
+						sr_int = (int)(sr_int /
+							((16777216 + 67500) / 135000));
+						fe->dtv_property_cache.symbol_rate =
+							(unsigned int)sr_int * 1000;
+						fe->dtv_property_cache.delivery_system =
+							demod->last_delsys;
+						fe->dtv_property_cache.bandwidth_hz =
+							(unsigned int)sr_int * 1000;
+						fe->dtv_property_cache.frequency =
+							cur_locked_freq;
+						last_locked_freq = cur_locked_freq;
+						status = BLINDSCAN_UPDATERESULTFREQ |
+							FE_HAS_LOCK;
+
+						PR_DVBS("lock:freq %d,sr_hw %d curfreq:%d\n",
+							total_result.total_result_frc[k] * 1000,
+							symbol_rate_hw,
+							cur_locked_freq);
+
+						dvb_frontend_add_event(fe, status);
+					}
+				}
+
+				k++;
 			}
 
-			PR_DVBS("%s,freqoffset:%dM,polarity:%d,process:%d%%\n",
-				__func__, freq_offset, polarity,
-				fe->dtv_property_cache.frequency);
+			if (status == (BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK)) {
+				usleep_range(500000, 600000);
+				fe->dtv_property_cache.frequency = 100;
+				PR_DVBS("100%% to upper layer\n");
+				dvb_frontend_add_event(fe, status);
+			}
 		}
 
-		devp->blind_same_frec = 0;
-		if (freq > freq_max &&
-			status == (BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK))
-			fe->dtv_property_cache.frequency = 100;
-		if (add_event == 1) {
-			dvb_frontend_add_event(fe, status);
-			freq += freq_step;
-			fe->dtv_property_cache.frequency = freq;
-			fe->dtv_property_cache.bandwidth_hz = srate;
-			fe->dtv_property_cache.symbol_rate = srate;
-			add_event = 0;
-		}
 	}
 
 	if (status == (BLINDSCAN_UPDATERESULTFREQ | FE_HAS_LOCK)) {
@@ -4970,7 +5019,8 @@ static int aml_dtvdemod_probe(struct platform_device *pdev)
 		}
 
 		/* workqueue for dvbs blind scan process */
-		INIT_WORK(&devp->blind_scan_work, dvbs_blind_scan_work);
+		//INIT_WORK(&devp->blind_scan_work, dvbs_blind_scan_work);
+		INIT_WORK(&devp->blind_scan_work, dvbs_blind_scan_new_work);
 	}
 
 	PR_INFO("[amldtvdemod.] : version: %s (%s),T2 fw version: %s, probe ok.\n",
@@ -6085,7 +6135,8 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 
 	case DTV_BLIND_SCAN_FRE_STEP:
 		//devp->blind_fre_step = tvp->u.data;
-		devp->blind_fre_step = 2000;
+		//set blind scan setp fft for 40M
+		devp->blind_fre_step = 40000;
 
 		if (!devp->blind_fre_step)
 			devp->blind_fre_step = 2000;/* 2M */
@@ -6099,7 +6150,7 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_START_BLIND_SCAN:
-		PR_DVBS("DTV_START_BLIND_SCAN\n");
+		PR_INFO("DTV_START_BLIND_SCAN\n");
 		devp->blind_scan_stop = 0;
 		schedule_work(&devp->blind_scan_work);
 		PR_INFO("schedule workqueue for blind scan, return\n");
@@ -6107,7 +6158,7 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 
 	case DTV_CANCEL_BLIND_SCAN:
 		devp->blind_scan_stop = 1;
-		PR_DVBS("DTV_CANCEL_BLIND_SCAN\n");
+		PR_INFO("DTV_CANCEL_BLIND_SCAN\n");
 		break;
 
 	default:
@@ -6212,7 +6263,7 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			else
 				tvp->reserved[1] = 0xFF;
 		}
-		PR_INFO("[id %d] get delivery system : %d,modulation:0x%x\n",
+		PR_DVBT("[id %d] get delivery system : %d,modulation:0x%x\n",
 			demod->id, tvp->u.data, tvp->reserved[0]);
 		break;
 

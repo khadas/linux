@@ -1223,7 +1223,7 @@ void demod_init_local(unsigned int is_blind_scan)
 			break;
 		//while blind scan,set autosr on,0 means blind scan
 		if (is_blind_scan == 0 && l2a_def_val_local[reg].addr == AUTOSR_REG)
-			dvbs_wr_byte(AUTOSR_REG, AUTOSR_ON);
+			dvbs_wr_byte(AUTOSR_REG, AUTOSR_OFF);
 		else
 			dvbs_wr_byte(l2a_def_val_local[reg].addr,
 				     l2a_def_val_local[reg].value);
@@ -1547,4 +1547,279 @@ int dvbs_get_signal_strength_off(void)
 	PR_DVBS("average value level val=0x%x\n", val);
 
 	return -i;
+}
+
+void dvbs_fft_reg_init(unsigned int *reg_val)
+{
+	unsigned int fld_value;
+	int i = 0;
+
+	fld_value = (dvbs_rd_byte(0x8c0)) & 0x1;
+	reg_val[i++] = fld_value;
+	fld_value = ((dvbs_rd_byte(0x942)) & 0xc0) >> 6;
+	reg_val[i++] = fld_value;
+	fld_value = ((dvbs_rd_byte(0x940)) & 0xc0) >> 6;
+	reg_val[i++] = fld_value;
+	fld_value = (dvbs_rd_byte(0x924)) & 0x1f;
+	reg_val[i++] = fld_value;
+	fld_value = ((dvbs_rd_byte(0xb31)) & 0x80) >> 7;
+	reg_val[i++] = fld_value;
+
+	fld_value = ((dvbs_rd_byte(0x9a3)) & 0x80) >> 7;
+	reg_val[i++] = fld_value;
+	fld_value = ((dvbs_rd_byte(0x99f)) & 0x80) >> 7;
+	reg_val[i++] = fld_value;
+	fld_value = (dvbs_rd_byte(0x990)) & 0x7;
+	reg_val[i++] = fld_value;
+
+	fld_value = dvbs_rd_byte(0x970);
+	reg_val[i++] = fld_value;
+	fld_value = dvbs_rd_byte(0x971);
+	reg_val[i++] = fld_value;
+	fld_value = dvbs_rd_byte(0x9a0);
+	reg_val[i++] = fld_value;
+	fld_value = dvbs_rd_byte(0x9a1);
+	reg_val[i++] = fld_value;
+
+	fld_value = ((dvbs_rd_byte(0x8c0)) & 0x3c) >> 2;
+	reg_val[i++] = fld_value;
+	fld_value = (dvbs_rd_byte(0x8c5)) & 0xff;
+	reg_val[i++] = fld_value;
+	fld_value = ((dvbs_rd_byte(0x8c0)) & 0x40) >> 6;
+	reg_val[i++] = fld_value;
+
+	fld_value = dvbs_rd_byte(0x8c1);
+	reg_val[i++] = fld_value;
+	fld_value = dvbs_rd_byte(0x8c4);
+	reg_val[i++] = fld_value;
+	fld_value = dvbs_rd_byte(0x8c3);
+	reg_val[i++] = fld_value;
+	fld_value = dvbs_rd_byte(0x8ec);
+	reg_val[i++] = fld_value;
+
+	dvbs_write_bits(0x942, 0x01, 6, 2);
+	dvbs_write_bits(0x940, 0x01, 6, 2);
+	dvbs_write_bits(0x924, 0x02, 0, 5);//demod_mode
+	dvbs_write_bits(0xb31, 0x00, 7, 1);
+	dvbs_write_bits(0x8a1, 0x02, 4, 2);
+	/* Agc blocked */
+	dvbs_write_bits(0x9a3, 0x1, 7, 1);
+	dvbs_write_bits(0x99f, 0x1, 7, 1);
+	dvbs_write_bits(0x990, 0x0, 0, 3);
+
+	dvbs_write_bits(0x970, 0x1, 0, 1);
+	dvbs_write_bits(0x970, 0x1, 1, 1);
+	dvbs_write_bits(0x970, 0x1, 2, 1);
+
+	dvbs_write_bits(0x971, 0x0, 0, 2);
+	dvbs_write_bits(0x971, 0x0, 2, 2);
+	dvbs_write_bits(0x971, 0x0, 4, 2);
+
+	dvbs_wr_byte(0x9a0, 0x40);
+	dvbs_wr_byte(0x9a1, 0x42);
+
+	/* fft reading registers adjustment */
+	dvbs_write_bits(0x8c0, 0x1, 2, 4); // input mode  1-cte 2-z4
+	dvbs_write_bits(0x8c5, 0x2, 0, 8);
+	dvbs_write_bits(0x8c0, 0x0, 6, 1);
+
+	dvbs_write_bits(0x8c1, 0x0, 0, 3);
+	dvbs_write_bits(0x8c1, 0x1, 3, 1);
+	dvbs_write_bits(0x8c1, 0x4, 4, 3);//cte mode
+	dvbs_write_bits(0x8c1, 0x0, 7, 1);
+
+	dvbs_write_bits(0x8c4, 0x2, 0, 7);
+	dvbs_write_bits(0x8c4, 0x0, 7, 1);
+
+	dvbs_write_bits(0x8c3, 0x4, 0, 4);//MAX_THRESHOLD
+	dvbs_write_bits(0x8c3, 0x0, 4, 1);//NO_STOP
+
+	dvbs_write_bits(0x8ec, 0x0, 0, 1);
+	dvbs_write_bits(0x8ec, 0x0, 1, 1);
+	dvbs_write_bits(0x8ec, 0x0, 2, 1);
+	dvbs_write_bits(0x8ec, 0x1, 3, 1);
+	dvbs_write_bits(0x8ec, 0x0, 4, 1);
+	dvbs_write_bits(0x8ec, 0x1, 5, 1);
+	dvbs_write_bits(0x8ec, 0x0, 6, 1);
+
+	dvbs_write_bits(0x9a3, 0x88, 0, 7);
+	dvbs_write_bits(0x99f, 0x56, 0, 7);
+
+	dvbs_wr_byte(0x990, 0x0);
+	dvbs_write_bits(0x912, 0x0, 0, 3);
+	dvbs_write_bits(0x910, 0x1, 5, 1);
+	dvbs_write_bits(0x910, 0x1, 3, 1);
+	dvbs_wr_byte(0x913, 0x58);
+	dvbs_write_bits(0x912, 0x0, 0, 3);
+
+	dvbs_wr_byte(0x918, 0x00);
+	dvbs_wr_byte(0x919, 0x00);
+	dvbs_wr_byte(0x993, 0x02);
+	dvbs_wr_byte(0x9b1, 0x00);
+	dvbs_wr_byte(0x9b2, 0x00);
+	dvbs_wr_byte(0x9b3, 0x00);
+	dvbs_wr_byte(0x9b5, 0x00);
+	dvbs_wr_byte(0x9b6, 0x00);
+	dvbs_wr_byte(0x9ba, 0x00);
+	dvbs_wr_byte(0x9d7, 0x00);
+
+	dvbs_wr_byte(0x9d8, 0x00);
+	dvbs_wr_byte(0x9d9, 0x00);
+	dvbs_wr_byte(0x9e0, 0xc3);
+	dvbs_wr_byte(0x9e1, 0x00);
+	dvbs_wr_byte(0xa00, 0x00);
+	dvbs_wr_byte(0xa01, 0x00);
+	dvbs_wr_byte(0xa02, 0x00);
+	dvbs_wr_byte(0xa61, 0x00);
+	dvbs_wr_byte(0xa63, 0x00);
+	dvbs_wr_byte(0xa64, 0x00);
+	dvbs_wr_byte(0xa65, 0x00);
+	msleep(100);
+}
+
+void dvbs_fft_reg_term(unsigned int reg_val[60])
+{
+	int i = 0;
+
+	/* Restore params */
+	dvbs_write_bits(0x8c0, reg_val[i++], 0, 1);
+	dvbs_write_bits(0x942, reg_val[i++], 6, 2);
+	dvbs_write_bits(0x940, reg_val[i++], 6, 2);
+	dvbs_write_bits(0x924, reg_val[i++], 0, 5);//demod_mode
+	dvbs_write_bits(0xb31, reg_val[i++], 7, 1);
+
+	dvbs_write_bits(0x9a3, reg_val[i++], 7, 1);
+	dvbs_write_bits(0x99f, reg_val[i++], 7, 1);
+	dvbs_write_bits(0x990, reg_val[i++], 0, 3);
+
+	dvbs_wr_byte(0x970, reg_val[i++]);
+	dvbs_wr_byte(0x971, reg_val[i++]);
+
+	dvbs_wr_byte(0x9a0, reg_val[i++]);
+	dvbs_wr_byte(0x9a1, reg_val[i++]);
+
+	dvbs_write_bits(0x8c0, reg_val[i++], 2, 4);
+	dvbs_write_bits(0x8c5, reg_val[i++], 0, 8);
+	dvbs_write_bits(0x8c0, reg_val[i++], 6, 1);
+
+	dvbs_wr_byte(0x8c1, reg_val[i++]);
+	dvbs_wr_byte(0x8c4, reg_val[i++]);
+	dvbs_wr_byte(0x8c3, reg_val[i++]);
+	dvbs_wr_byte(0x8ec, reg_val[i++]);
+	// Forbid the use of RAMs by the UFBS
+	dvbs_write_bits(0x8a1, 0, 4, 2);
+}
+
+void fe_l2a_set_symbol_rate(unsigned int symb_rate)
+{
+	unsigned int tmp = 0;
+
+	tmp = (symb_rate / 1000) * (1 << 15);
+	tmp = tmp / (135000000 / 1000);
+	tmp = tmp * (1 << 9);
+
+	dvbs_wr_byte(0x9f0, (tmp >> 16) & 0xff);
+	dvbs_wr_byte(0x9f1, (tmp >> 8) & 0xff);
+	dvbs_wr_byte(0x9f2, tmp & 0xff);
+}
+
+void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
+	int frq, struct fft_search_result *search_result)
+{
+	unsigned int frc_demod_set = 0;
+	unsigned int fld_value = 0;
+	unsigned int contmode = 0;
+	int cte_freq_ok = 0;
+	int timeout = 0;
+	int range_m = 0;
+	int bin_max = 0;
+
+	dvbs_write_bits(0x8c1, spectr_ana_data->mode, 0, 3);
+	dvbs_write_bits(0x8c2, spectr_ana_data->acc, 0, 8);
+	dvbs_write_bits(0x8c0, 0x1, 0, 1);//UFBS_ENABLE
+
+	frc_demod_set = frq * (1 << 24) / 135;
+	dvbs_wr_byte(0x9c3, ((char)(frc_demod_set >> 16)));
+	dvbs_wr_byte(0x9c4, ((char)(frc_demod_set >> 8)));
+	dvbs_wr_byte(0x9c5, (char)frc_demod_set);
+
+	// Set bandwidth
+	fe_l2a_set_symbol_rate(2 * spectr_ana_data->range * 1000000);
+
+	// start acquisition
+	dvbs_write_bits(0x8c0, 0x1, 1, 1);
+	msleep(20);
+	dvbs_write_bits(0x8c0, 0x0, 1, 1);
+
+	fld_value = (dvbs_rd_byte(0x8c4) & 0x80) >> 7;
+	if (!fld_value) {
+		contmode = (dvbs_rd_byte(0x8c6)) & 0x1;
+		while ((contmode != 1) && (timeout < 40)) {
+			contmode = (dvbs_rd_byte(0x8c6)) & 0x1;
+			timeout = timeout + 1;
+			msleep(20);
+		}
+	}
+
+	//change range from hz to M
+	range_m = spectr_ana_data->range;
+	//search_result->result_cfo_est = (dvbs_rd_byte(0x8da) << 8) + dvbs_rd_byte(0x8db);
+	//indicates the bin of the highest peak
+	bin_max = (dvbs_rd_byte(0x8c8) << 8) + dvbs_rd_byte(0x8c9);
+
+	if (bin_max > 4095)
+		bin_max = bin_max - 8191;
+	search_result->result_bw = range_m * 2000 * (8192 - bin_max) / 8192;
+	cte_freq_ok = ((dvbs_rd_byte(0x8c6)) & 0x10) >> 4;
+
+	if (cte_freq_ok == 1) {
+		if ((search_result->result_bw < 1100 * range_m * 2) &
+			(search_result->result_bw > 550 * range_m * 2)) {
+			if (bin_max >= 0) {
+				search_result->result_frc = spectr_ana_data->in_bw_center_frc - frq;
+				search_result->found_ok = 1;
+			} else if ((bin_max < 0) & (search_result->result_bw >= (range_m * 2000)) &
+				((abs(bin_max * 10) / 8192) < 1)) {
+				search_result->result_frc = spectr_ana_data->in_bw_center_frc - frq;
+				search_result->found_ok = 1;
+			} else {
+				search_result->found_ok = 0;
+			}
+		} else {
+			search_result->found_ok = 0;
+		}
+	} else {
+		search_result->found_ok = 0;
+	}
+
+	// Empty hardware fft
+	dvbs_write_bits(0x8ed, 0x0, 0, 3);
+	dvbs_wr_byte(0x8ee, 0x0);
+	// Sleep down hardware fft
+	dvbs_write_bits(0x8c0, 0x1, 1, 1);
+}
+
+void dvbs_blind_fft_result_handle(struct fft_total_result *total_result)
+{
+	static int m;
+	static int n;
+	static unsigned int frc_data_tmp;
+	static unsigned int bw_data_tmp;
+
+	for (m = 0; m < (total_result->found_tp_num - 1); m++) {
+		for (n = 0; n < (total_result->found_tp_num - 1 - m); n++) {
+			if (total_result->total_result_frc[n] >
+					total_result->total_result_frc[n + 1]) {
+				frc_data_tmp = total_result->total_result_frc[n];
+				total_result->total_result_frc[n] =
+					total_result->total_result_frc[n + 1];
+				total_result->total_result_frc[n + 1] = frc_data_tmp;
+
+				bw_data_tmp = total_result->total_result_bw[n];
+				total_result->total_result_bw[n] =
+					total_result->total_result_bw[n + 1];
+				total_result->total_result_bw[n + 1] = bw_data_tmp;
+			}
+		}
+	}
 }

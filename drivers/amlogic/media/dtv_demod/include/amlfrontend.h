@@ -24,6 +24,7 @@
 /*  V1.1.31  t5w back trunk,version fix              */
 /*  V1.1.32  dvbc frc offset optimization              */
 /*  V1.1.33  dvbs qpsk 1/4 C/N worse             */
+/*  V1.1.34  dvbs blind scan new work plan with fft   */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -40,9 +41,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.33"
+#define AMLDTVDEMOD_VER "V1.1.34"
+#define DTVDEMOD_VER	"2021/12/09: dvbs blind scan new work plan with fft"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
-#define DTVDEMOD_VER	"2021/12/6: dvbs qpsk 1/4 C/N worse"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)

@@ -837,10 +837,10 @@ void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 		return;
 
 	/*mutex_lock(&mp);*/
-	val = readl(gbase_dvbs() + (reg_addr << 2));
+	val =  dvbs_rd_byte(reg_addr);
 	val &= ~(((1L << (len)) - 1) << (start));
 	val |= (((reg_data) & ((1L << (len)) - 1)) << (start));
-	writel(val, gbase_dvbs() + (reg_addr << 2));
+	dvbs_wr_byte(reg_addr, val);
 	/*mutex_unlock(&mp);*/
 }
 
