@@ -499,21 +499,45 @@ static int aml_dvb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int find_same_sid(int sid_num, int sid)
+{
+	int i = 0;
+
+	for (i = 0; i < sid_num; i++) {
+		if (sid_info[i] == sid)
+			return 1;
+	}
+	return 0;
+}
+
 static int get_all_sid_info(int dmx_dev_num, struct aml_dvb *advb)
 {
 	int i = 0;
 	int j = 0;
 	int count = 0;
+	int same = 0;
 
-	for (i = 0; i < dmx_dev_num; i++)
+	for (i = 0; i < dmx_dev_num; i++) {
 		sid_info[i] = i;
-
-	count = i;
+		sid_info[dmx_dev_num + i] = i + 32;
+	}
+	count = dmx_dev_num * 2;
 
 	for (j = 0; j < FE_DEV_COUNT; j++) {
 		if (advb->ts[j].ts_sid != -1) {
-			sid_info[count] = advb->ts[j].ts_sid;
-			count++;
+			same = find_same_sid(dmx_dev_num * 2, advb->ts[j].ts_sid);
+			if (same == 0) {
+				sid_info[count] = advb->ts[j].ts_sid;
+				count++;
+			}
+			if (advb->ts[j].ts_sid < 32) {
+				same = find_same_sid(dmx_dev_num * 2, advb->ts[j].ts_sid);
+				if (same == 0) {
+					sid_info[count] =
+						advb->ts[j].ts_sid + 32;
+					count++;
+				}
+			}
 		}
 	}
 	return count;
