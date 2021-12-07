@@ -211,6 +211,8 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 	struct stream_buf_s *tmp_pbuf = NULL;
 	u32 tmp_buf_level = 0;
 	u32 tmp_buf_space = 0;
+	int diff2 = 0;
+	int delay_ms = 0;
 
 	if (type >= PTS_TYPE_MAX)
 		return 0;
@@ -248,9 +250,29 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 			outtime = timestamp_apts_get();
 		else
 			outtime = timestamp_pcrscr_get();
-	if (outtime == 0 || outtime == 0xffffffff)
+	if (outtime == 0 || outtime == 0xffffffff ||
+		(type == PTS_TYPE_AUDIO && outtime > ptable->last_checkin_pts))
 		outtime = ptable->last_checkout_pts;
 	timestampe_delayed = (ptable->last_checkin_pts - outtime) / 90;
+
+	/*calc timestamp from amstream buffer when pts jumped*/
+	if ((tsync_get_buf_by_type(type, tmp_pbuf) &&
+		tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level)) &&
+		((ptable->last_checkin_pts < ptable->last_checkout_pts &&
+		(timestampe_delayed < 10 || timestampe_delayed > (3 * 1000))) ||
+		abs(ptable->last_pts_delay_ms - timestampe_delayed) > 3000)
+		) {
+		tsync_get_buf_by_type(type, tmp_pbuf);
+		tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level);
+		diff2 = tmp_buf_level;
+		delay_ms = diff2 * 1000 / (1 + ptable->last_avg_bitrate / 8);
+		if ((timestampe_delayed < 10 && delay_ms > timestampe_delayed) ||
+			(timestampe_delayed > (3 * 1000) &&
+			delay_ms < timestampe_delayed)) {
+			timestampe_delayed = delay_ms;
+			//ptable->last_pts_delay_ms = timestampe_delayed;
+		}
+	}
 	ptable->last_pts_delay_ms = timestampe_delayed;
 	if (tsync_get_buf_by_type(type, tmp_pbuf) &&
 	    tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level) &&
@@ -260,8 +282,6 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 			> 3000) && (ptable->last_avg_bitrate > 0))) {
 			int diff = ptable->last_checkin_offset -
 			ptable->last_checkout_offset;
-		int diff2;
-		int delay_ms;
 
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		if (has_hevc_vdec()) {
