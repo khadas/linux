@@ -8,7 +8,7 @@
 enum get_info_type_e {
 	GET_INVALID = 0,
 	GET_HF_INFO = 1,
-	GET_HF_DATA = 2,
+	GET_VINFO_SIZE = 2,
 };
 
 /*hwc attach nn info*/
@@ -24,11 +24,15 @@ struct uvm_ai_sr_info {
 	s32 hf_height;
 	s32 hf_align_w;
 	s32 hf_align_h;
+	s32 buf_align_w;
+	s32 buf_align_h;
 	s32 nn_status;
 	s32 nn_index;
 	s32 nn_mode;
 	s32 get_info_type;
 	s32 src_interlace_flag;
+	s32 vinfo_width;
+	s32 vinfo_height;
 };
 
 struct meson_nn_mod_ops {

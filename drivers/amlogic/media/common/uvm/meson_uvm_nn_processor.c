@@ -14,7 +14,7 @@
 #include <linux/amlogic/media/video_sink/v4lvideo_ext.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/utils/am_com.h>
-
+#include <linux/amlogic/media/vout/vout_notify.h>
 #include "meson_uvm_nn_processor.h"
 
 static int uvm_nn_debug;
@@ -104,8 +104,13 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 				*di_flag = 1;
 			else
 				*di_flag = 0;
-			nn_print(PRINT_OTHER, "has hf:phy=%llx omx_index=%d\n",
-				hf_info->phy_addr, vf->omx_index);
+			nn_print(PRINT_OTHER,
+				"%s:phy=%llx, omx_index=%d, hf_align: %d*%d.\n",
+				__func__,
+				hf_info->phy_addr,
+				vf->omx_index,
+				nn_sr->hf_align_w,
+				nn_sr->hf_align_h);
 		} else {
 			nn_print(PRINT_OTHER, "no hf info\n");
 			nn_sr->hf_phy_addr = 0;
@@ -223,7 +228,8 @@ int attach_nn_hook_mod_info(int shared_fd,
 	nn_sr->nn_status = ai_sr_info->nn_status;
 
 	nn_print(PRINT_OTHER,
-		"attach: shared_fd=%d, fence_fd=%d, %d*%d, nn_status=%d, nn_sr=%px\n",
+		"%s: shared_fd=%d, fence_fd=%d, %d*%d, nn_status=%d, nn_sr=%px\n",
+		__func__,
 		ai_sr_info->shared_fd,
 		ai_sr_info->fence_fd,
 		ai_sr_info->hf_width,
@@ -316,6 +322,12 @@ int nn_mod_setinfo(void *arg, char *buf)
 	nn_sr_dst->nn_mode = nn_sr_src->nn_mode;
 
 	if (nn_sr_src->nn_status == NN_START_DOING) {
+		nn_print(PRINT_OTHER, "%s: buf_align:%d*%d.\n",
+			__func__,
+			nn_sr_src->buf_align_w,
+			nn_sr_src->buf_align_h);
+		nn_sr_dst->buf_align_w = nn_sr_src->buf_align_w;
+		nn_sr_dst->buf_align_h = nn_sr_src->buf_align_h;
 		do_gettimeofday(&nn_sr_dst->start_time);
 		get_file(nn_sr_dst->nn_out_file);
 		nn_sr_dst->nn_out_file_count++;
@@ -324,7 +336,8 @@ int nn_mod_setinfo(void *arg, char *buf)
 	nn_sr_dst->nn_status = nn_sr_src->nn_status;/*this must at the last line of this function*/
 
 	nn_print(PRINT_OTHER,
-		"setinfo: shared_fd =%d, nn_fd=%d,status=%d, nn_index=%d, nn_mode=%d\n",
+		"%s: shared_fd=%d,nn_fd=%d,status=%d,nn_index=%d,nn_mode=%d.\n",
+		__func__,
 		nn_sr_src->shared_fd, nn_out_fd,
 		nn_sr_src->nn_status,
 		nn_sr_src->nn_index,
@@ -335,7 +348,8 @@ int nn_mod_setinfo(void *arg, char *buf)
 int nn_mod_getinfo(void *arg, char *buf)
 {
 	struct vf_nn_sr_t *vf_nn_sr = NULL;
-	struct uvm_ai_sr_info *si_sr_info = NULL;
+	struct uvm_ai_sr_info *ai_sr_info = NULL;
+	struct vinfo_s *vinfo = NULL;
 	int ret = -1;
 	phys_addr_t addr = 0;
 	u8 *data_hf;
@@ -343,48 +357,59 @@ int nn_mod_getinfo(void *arg, char *buf)
 	int hf_size;
 	int src_interlace_flag = 0;
 
-	si_sr_info = (struct uvm_ai_sr_info *)buf;
+	ai_sr_info = (struct uvm_ai_sr_info *)buf;
 	vf_nn_sr = (struct vf_nn_sr_t *)arg;
 
-	if (si_sr_info->get_info_type != GET_HF_INFO &&
-		si_sr_info->get_info_type != GET_HF_DATA) {
+	if (ai_sr_info->get_info_type != GET_HF_INFO &&
+		ai_sr_info->get_info_type != GET_VINFO_SIZE) {
 		nn_print(PRINT_ERROR, "%s: err get_info_type =%d\n",
-			__func__, si_sr_info->get_info_type);
+			__func__, ai_sr_info->get_info_type);
 		return -EINVAL;
 	}
 
-	if (si_sr_info->get_info_type == GET_HF_INFO) {
-		ret = nn_get_hf_info(si_sr_info->shared_fd,
+	if (ai_sr_info->get_info_type == GET_HF_INFO) {
+		ret = nn_get_hf_info(ai_sr_info->shared_fd,
 					vf_nn_sr,
 					&src_interlace_flag);
 		if (ret) {
 			nn_print(PRINT_OTHER, "get hf info error\n");
 			return -EINVAL;
 		}
-	}
 
-	si_sr_info->hf_phy_addr = vf_nn_sr->hf_phy_addr;
-	si_sr_info->hf_width = vf_nn_sr->hf_width;
-	si_sr_info->hf_height = vf_nn_sr->hf_height;
-	si_sr_info->hf_align_w = vf_nn_sr->hf_align_w;
-	si_sr_info->hf_align_h = vf_nn_sr->hf_align_h;
-	si_sr_info->nn_out_phy_addr = vf_nn_sr->nn_out_phy_addr;
-	si_sr_info->nn_status = vf_nn_sr->nn_status;
-	si_sr_info->nn_index = vf_nn_sr->nn_index;
-	si_sr_info->src_interlace_flag = src_interlace_flag;
+		nn_print(PRINT_OTHER, "%s: hf_phy_addr=0x%x, %d*%d, hf_align:%d*%d.\n",
+			__func__,
+			vf_nn_sr->hf_phy_addr,
+			vf_nn_sr->hf_width,
+			vf_nn_sr->hf_height,
+			vf_nn_sr->hf_align_w,
+			vf_nn_sr->hf_align_h);
+		ai_sr_info->hf_phy_addr = vf_nn_sr->hf_phy_addr;
+		ai_sr_info->hf_width = vf_nn_sr->hf_width;
+		ai_sr_info->hf_height = vf_nn_sr->hf_height;
+		ai_sr_info->hf_align_w = vf_nn_sr->hf_align_w;
+		ai_sr_info->hf_align_h = vf_nn_sr->hf_align_h;
+		ai_sr_info->nn_out_phy_addr = vf_nn_sr->nn_out_phy_addr;
+		ai_sr_info->nn_status = vf_nn_sr->nn_status;
+		ai_sr_info->nn_index = vf_nn_sr->nn_index;
+		ai_sr_info->src_interlace_flag = src_interlace_flag;
+	} else if (ai_sr_info->get_info_type == GET_VINFO_SIZE) {
+		vinfo = get_current_vinfo();
+		if (IS_ERR_OR_NULL(vinfo)) {
+			nn_print(PRINT_OTHER, "get vinfo error\n");
+			return -EINVAL;
+		}
 
-	if (si_sr_info->get_info_type == GET_HF_INFO) {
-		nn_print(PRINT_OTHER, "getinfo: hf_phy_addr=%llx, %d*%d\n",
-			si_sr_info->hf_phy_addr,
-			si_sr_info->hf_width,
-			si_sr_info->hf_height);
-		return 0;
+		nn_print(PRINT_OTHER, "getvinfo: width=%d, height=%d.\n",
+			vinfo->width,
+			vinfo->height);
+		ai_sr_info->vinfo_width = vinfo->width;
+		ai_sr_info->vinfo_height = vinfo->height;
 	}
 
 	if ((uvm_nn_debug & PRINT_NN_DUMP) &&
-		si_sr_info->hf_phy_addr) {
-		hf_size = si_sr_info->hf_align_w * si_sr_info->hf_align_h;
-		data_hf = codec_mm_vmap(si_sr_info->hf_phy_addr, hf_size);
+		ai_sr_info->hf_phy_addr) {
+		hf_size = ai_sr_info->hf_align_w * ai_sr_info->hf_align_h;
+		data_hf = codec_mm_vmap(ai_sr_info->hf_phy_addr, hf_size);
 		data_tmp = codec_mm_vmap(addr, hf_size);
 		if (data_hf && data_tmp)
 			memcpy(data_tmp, data_hf, hf_size);
@@ -393,5 +418,6 @@ int nn_mod_getinfo(void *arg, char *buf)
 		if (data_tmp)
 			codec_mm_unmap_phyaddr(data_tmp);
 	}
+
 	return 0;
 }
