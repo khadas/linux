@@ -1511,8 +1511,129 @@ static struct clk_regmap a5_sys_clk = {
 };
 
 /*axi clk*/
-
 /*rama_clk*/
+/*dspa_clk*/
+static u32 a5_dsp_clk_table[] = {0, 1, 2, 5};
+static const struct clk_parent_data a5_dsp_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &a5_fclk_div2p5.hw },
+	{ .hw = &a5_fclk_div3.hw },
+	{ .hw = &a5_fclk_div4.hw },
+};
+
+static struct clk_regmap a5_dspa_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_DSPA_CLK_CTRL0,
+		.mask = 0x7,
+		.shift = 10,
+		.table = a5_dsp_clk_table,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dspa_0_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = a5_dsp_parent_hws,
+		.num_parents = ARRAY_SIZE(a5_dsp_parent_hws),
+	},
+};
+
+static struct clk_regmap a5_dspa_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = CLKCTRL_DSPA_CLK_CTRL0,
+		.shift = 0,
+		.width = 10,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dspa_0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&a5_dspa_0_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap a5_dspa_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_DSPA_CLK_CTRL0,
+		.bit_idx = 13,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "dspa_0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&a5_dspa_0_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap a5_dspa_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_DSPA_CLK_CTRL0,
+		.mask = 0x7,
+		.shift = 26,
+		.table = a5_dsp_clk_table,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dspa_1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = a5_dsp_parent_hws,
+		.num_parents = ARRAY_SIZE(a5_dsp_parent_hws),
+	},
+};
+
+static struct clk_regmap a5_dspa_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = CLKCTRL_DSPA_CLK_CTRL0,
+		.shift = 16,
+		.width = 10,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dspa_1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&a5_dspa_1_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap a5_dspa_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_DSPA_CLK_CTRL0,
+		.bit_idx = 29,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "dspa_1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&a5_dspa_1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap a5_dspa = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = CLKCTRL_DSPA_CLK_CTRL0,
+		.mask = 0x1,
+		.shift = 15,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dspa",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&a5_dspa_0.hw,
+			&a5_dspa_1.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
 
 /*12_24M clk*/
 static struct clk_regmap a5_24M_clk_gate = {
@@ -2588,7 +2709,7 @@ static MESON_A5_SYS_GATE(a5_sar_adc, CLKCTRL_SYS_CLK_EN0_REG0, 20);
 static MESON_A5_SYS_GATE(a5_startup, CLKCTRL_SYS_CLK_EN0_REG0, 21);
 static MESON_A5_SYS_GATE(a5_secure, CLKCTRL_SYS_CLK_EN0_REG0, 22);
 static MESON_A5_SYS_GATE(a5_spifc, CLKCTRL_SYS_CLK_EN0_REG0, 23);
-static MESON_A5_SYS_GATE(a5_dspa, CLKCTRL_SYS_CLK_EN0_REG0, 24);
+static MESON_A5_SYS_GATE(a5_sys_dspa, CLKCTRL_SYS_CLK_EN0_REG0, 24);
 static MESON_A5_SYS_GATE(a5_nna, CLKCTRL_SYS_CLK_EN0_REG0, 25);
 static MESON_A5_SYS_GATE(a5_eth_mac, CLKCTRL_SYS_CLK_EN0_REG0, 26);
 static MESON_A5_SYS_GATE(a5_gic, CLKCTRL_SYS_CLK_EN0_REG0, 27);
@@ -2674,6 +2795,13 @@ static struct clk_hw_onecell_data a5_hw_onecell_data = {
 		[CLKID_SYS_CLK_0_DIV]			= &a5_sysclk_0_div.hw,
 		[CLKID_SYS_CLK_0]			= &a5_sysclk_0.hw,
 		[CLKID_SYS_CLK]				= &a5_sys_clk.hw,
+		[CLKID_DSPA_1_SEL]			= &a5_dspa_1_sel.hw,
+		[CLKID_DSPA_1_DIV]			= &a5_dspa_1_div.hw,
+		[CLKID_DSPA_1]				= &a5_dspa_1.hw,
+		[CLKID_DSPA_0_SEL]			= &a5_dspa_0_sel.hw,
+		[CLKID_DSPA_0_DIV]			= &a5_dspa_0_div.hw,
+		[CLKID_DSPA_0]				= &a5_dspa_0.hw,
+		[CLKID_DSPA]				= &a5_dspa.hw,
 		[CLKID_24M_CLK_GATE]			= &a5_24M_clk_gate.hw,
 		[CLKID_12M_CLK_DIV]			= &a5_12M_clk_div.hw,
 		[CLKID_12M_CLK_GATE]			= &a5_12M_clk_gate.hw,
@@ -2759,7 +2887,7 @@ static struct clk_hw_onecell_data a5_hw_onecell_data = {
 		[CLKID_SYS_CLK_STARTUP]			= &a5_startup.hw,
 		[CLKID_SYS_CLK_SECURE]			= &a5_secure.hw,
 		[CLKID_SYS_CLK_SPIFC]			= &a5_spifc.hw,
-		[CLKID_SYS_CLK_DSPA]			= &a5_dspa.hw,
+		[CLKID_SYS_CLK_DSPA]			= &a5_sys_dspa.hw,
 		[CLKID_SYS_CLK_NNA]			= &a5_nna.hw,
 		[CLKID_SYS_CLK_ETH_MAC]			= &a5_eth_mac.hw,
 		[CLKID_SYS_CLK_GIC]			= &a5_gic.hw,
@@ -2807,6 +2935,13 @@ static struct clk_regmap *const a5_clk_regmaps[] __initconst  = {
 	&a5_sysclk_0_div,
 	&a5_sysclk_0,
 	&a5_sys_clk,
+	&a5_dspa_0_sel,
+	&a5_dspa_0_div,
+	&a5_dspa_0,
+	&a5_dspa_1_sel,
+	&a5_dspa_1_div,
+	&a5_dspa_1,
+	&a5_dspa,
 	&a5_24M_clk_gate,
 	&a5_12M_clk_gate,
 	&a5_25m_clk_div,
@@ -2889,7 +3024,7 @@ static struct clk_regmap *const a5_clk_regmaps[] __initconst  = {
 	&a5_startup,
 	&a5_secure,
 	&a5_spifc,
-	&a5_dspa,
+	&a5_sys_dspa,
 	&a5_nna,
 	&a5_eth_mac,
 	&a5_gic,
