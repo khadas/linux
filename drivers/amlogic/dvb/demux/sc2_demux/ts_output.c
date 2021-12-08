@@ -1597,7 +1597,7 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				&es_params->last_header, 16);
 			memcpy(&es_params->last_header, pcur_header,
 					sizeof(es_params->last_header));
-			dprint("error: header.len is 0, jump\n");
+//			dprint("error: header.len is 0, jump\n");
 			return 0;
 		} else if (pheader->len >= pout->pchan->mem_size) {
 			memcpy(&es_params->last_last_header,
