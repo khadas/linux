@@ -1913,9 +1913,11 @@ RESTART:
 			next_frame_par);
 	}
 	/* speical mode did not use aisr */
+	/* 3d not use aisr */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
-	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T) {
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T ||
+	    process_3d_type) {
 		cur_dev->aisr_enable = 0;
 		cur_dev->pps_auto_calc = 0;
 	}
@@ -2590,9 +2592,11 @@ void aisr_set_filters(struct disp_info_s *input,
 	filter = &aisr_frame_par->vpp_filter;
 
 	/* speical mode did not use ext sar mode */
+	/* 3d not use aisr */
 	if (wide_mode == VIDEO_WIDEOPTION_NONLINEAR ||
 	    wide_mode == VIDEO_WIDEOPTION_NORMAL_NOSCALEUP ||
-	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T) {
+	    wide_mode == VIDEO_WIDEOPTION_NONLINEAR_T ||
+	    process_3d_type) {
 		aisr_frame_par->aisr_enable = 0;
 		return;
 	}
