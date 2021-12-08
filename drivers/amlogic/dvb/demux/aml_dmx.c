@@ -105,6 +105,11 @@ MODULE_PARM_DESC(flow_control, "\n\t\t flow control percentage");
 static int flow_control = 80;
 module_param(flow_control, int, 0644);
 
+MODULE_PARM_DESC(local_sec_level,
+	"\n\t\t set sec level when dmx source input_local_sec");
+static int local_sec_level = 2;
+module_param(local_sec_level, int, 0644);
+
 static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata,
 			  int req_len, int *req_ret);
@@ -428,6 +433,9 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	}
 
 	sec_level = (filter->params.pes.flags >> 10) & 0x7;
+
+	if (demux->source == INPUT_LOCAL_SEC)
+		sec_level = local_sec_level;
 
 	feed->type = type;
 	feed->format = format;
@@ -799,6 +807,10 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			break;
 		}
 	}
+
+	if (demux->source == INPUT_LOCAL_SEC)
+		sec_level = local_sec_level;
+
 	if (sec_level != 0) {
 		if (aml_aucpu_strm_get_load_firmware_status() != 0) {
 			dprint("load aucpu firmware fail, don't use aucpu\n");
