@@ -7004,10 +7004,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	video_get_vf_cnt = 0;
 
-	/* toggle_3d_fa_frame*/
-	/* determine the out frame is L or R or blank */
-	judge_3d_fa_out_mode();
-
 	while (vf && !video_suspend) {
 		if (debug_flag & DEBUG_FLAG_OMX_DEBUG_DROP_FRAME) {
 			pr_info("next pts= %d,index %d,pcr = %d,vpts = %d\n",
@@ -7371,6 +7367,10 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	}
 #endif
 SET_FILTER:
+	/* toggle_3d_fa_frame*/
+	/* determine the out frame is L or R or blank */
+	judge_3d_fa_out_mode();
+
 	if (cur_dispbuf_back != cur_dispbuf) {
 		display_frame_count++;
 		drop_frame_count = receive_frame_count - display_frame_count;

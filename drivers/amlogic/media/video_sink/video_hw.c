@@ -685,7 +685,7 @@ static const u8 skip_tab[6] = { 0x24, 0x04, 0x68, 0x48, 0x28, 0x08 };
 static bool video_mute_on;
 /* 0: off, 1: vpp mute 2:dv mute */
 static int video_mute_status;
-
+static int debug_flag_3d = 0xf;
 /*********************************************************
  * Utils APIs
  *********************************************************/
@@ -1600,8 +1600,8 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 			baddr_cr >> 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | 0 << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
-			1 << 16 | 0);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_if_stride_1,
+			1 << 16 | 0, 0, 16);
 	} else {
 		baddr_y = cs0->addr;
 		y_buffer_width = cs0->width;
@@ -1619,8 +1619,8 @@ static void set_vd_mif_linear_cs(struct video_layer_s *layer,
 			baddr_cr >> 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | c_line_stride << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
-			1 << 16 | c_line_stride);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_if_stride_1,
+			1 << 16 | c_line_stride, 0, 16);
 	}
 }
 
@@ -1669,8 +1669,8 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 			baddr_cr >> 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | 0 << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
-			1 << 16 | 0);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_if_stride_1,
+			1 << 16 | 0, 0, 16);
 		break;
 	case 2:
 		baddr_y = cfg->phy_addr;
@@ -1689,8 +1689,8 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 			baddr_cr >> 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | c_line_stride << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
-			1 << 16 | c_line_stride);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_if_stride_1,
+			1 << 16 | c_line_stride, 0, 16);
 		break;
 	case 3:
 		baddr_y = cfg->phy_addr;
@@ -1710,8 +1710,8 @@ static void set_vd_mif_linear(struct video_layer_s *layer,
 			baddr_cr >> 4);
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_0,
 			y_line_stride | c_line_stride << 16);
-		cur_dev->rdma_func[vpp_index].rdma_wr(vd_if_stride_1,
-			1 << 16 | c_line_stride);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_if_stride_1,
+			1 << 16 | c_line_stride, 0, 16);
 		break;
 	default:
 		pr_err("error planes=%d\n", planes);
@@ -1739,6 +1739,17 @@ static void vd_set_blk_mode(struct video_layer_s *layer, u8 block_mode)
 		(block_mode << 0),
 		18,
 		9);
+	/* VD1_IF0_STRIDE_1_F1 bit31:18 same as vd_if0_gen_reg3 */
+	if (process_3d_type & MODE_3D_ENABLE) {
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(layer->vd_mif_linear_reg.vd_if0_stride_1_f1,
+			(pic_32byte_aligned << 6) |
+			(block_mode << 4) |
+			(block_mode << 2) |
+			(block_mode << 0),
+			18,
+			9);
+	}
 }
 
 static void set_vd1_vd2_mux(void)
@@ -5278,24 +5289,30 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 	misc_off = layer->misc_reg_offt;
 	cur_frame_par = layer->cur_frame_par;
 	if (FA_enable && toggle_3d_fa_frame == OUT_FA_A_FRAME) {
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(VPP_MISC + misc_off, 1, 14, 1);
-			/* VPP_VD1_PREBLEND disable */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC +
-			VPP_MISC + misc_off, 1, 10, 1);
-			/* VPP_VD1_POSTBLEND disable */
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_mif_reg->vd_if0_luma_psel,
-			0x4000000);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_mif_reg->vd_if0_chroma_psel,
-			0x4000000);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd2_mif_reg->vd_if0_luma_psel,
-			0x4000000);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd2_mif_reg->vd_if0_chroma_psel,
-			0x4000000);
+		if (!cur_dev->t7_display) {
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_MISC + misc_off, 1, 14, 1);
+				/* VPP_VD1_PREBLEND disable */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits(VPP_MISC +
+				VPP_MISC + misc_off, 1, 10, 1);
+				/* VPP_VD1_POSTBLEND disable */
+		}
+		if (debug_flag_3d & 0x01) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_luma_psel,
+				0x4000000);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_chroma_psel,
+				0x4000000);
+		}
+		if (debug_flag_3d & 0x02) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd2_mif_reg->vd_if0_luma_psel,
+				0x4000000);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd2_mif_reg->vd_if0_chroma_psel,
+				0x4000000);
+		}
 		if (dispbuf->type & VIDTYPE_COMPRESS) {
 			if ((process_3d_type & MODE_FORCE_3D_FA_LR) &&
 			    cur_frame_par->vpp_3d_mode == 1) {
@@ -5347,20 +5364,26 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 			}
 		}
 	} else if (FA_enable && (toggle_3d_fa_frame == OUT_FA_B_FRAME)) {
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(VPP_MISC + misc_off, 1, 14, 1);
-		/* VPP_VD1_PREBLEND disable */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(VPP_MISC + misc_off, 1, 10, 1);
-		/* VPP_VD1_POSTBLEND disable */
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_mif_reg->vd_if0_luma_psel, 0);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd_mif_reg->vd_if0_chroma_psel, 0);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd2_mif_reg->vd_if0_luma_psel, 0);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vd2_mif_reg->vd_if0_chroma_psel, 0);
+		if (!cur_dev->t7_display) {
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_MISC + misc_off, 1, 14, 1);
+			/* VPP_VD1_PREBLEND disable */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_MISC + misc_off, 1, 10, 1);
+			/* VPP_VD1_POSTBLEND disable */
+		}
+		if (debug_flag_3d & 0x4) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_luma_psel, 0);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_chroma_psel, 0);
+		}
+		if (debug_flag_3d & 0x8) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd2_mif_reg->vd_if0_luma_psel, 0);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd2_mif_reg->vd_if0_chroma_psel, 0);
+		}
 		if (dispbuf->type & VIDTYPE_COMPRESS) {
 			if ((process_3d_type & MODE_FORCE_3D_FA_LR) &&
 			    cur_frame_par->vpp_3d_mode == 1) {
@@ -5413,13 +5436,15 @@ void switch_3d_view_per_vsync(struct video_layer_s *layer)
 			}
 		}
 	} else if (FA_enable && (toggle_3d_fa_frame == OUT_FA_BANK_FRAME)) {
-		/* output a banking frame */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(VPP_MISC + misc_off, 0, 14, 1);
-		/* VPP_VD1_PREBLEND disable */
-		cur_dev->rdma_func[vpp_index].rdma_wr_bits
-			(VPP_MISC + misc_off, 0, 10, 1);
-		/* VPP_VD1_POSTBLEND disable */
+		if (!cur_dev->t7_display) {
+			/* output a banking frame */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_MISC + misc_off, 0, 14, 1);
+			/* VPP_VD1_PREBLEND disable */
+			cur_dev->rdma_func[vpp_index].rdma_wr_bits
+				(VPP_MISC + misc_off, 0, 10, 1);
+			/* VPP_VD1_POSTBLEND disable */
+		}
 	}
 
 	if ((process_3d_type & MODE_3D_OUT_TB) ||
@@ -7698,17 +7723,10 @@ static void canvas_update_for_3d(struct video_layer_s *layer,
 				vd_layer[1].mif_setting.block_mode =
 					vf->canvas1_config[0].block_mode;
 			}
-			if (cur_frame_par &&
-				cur_frame_par->vpp_2pic_mode == 1)
-				set_vd_mif_linear_cs(&vd_layer[0],
-					&cs0[0], &cs1[0], &cs2[0],
-					vf,
-					1);
-			else
-				set_vd_mif_linear_cs(&vd_layer[0],
-					&cs0[1], &cs1[1], &cs2[1],
-					vf,
-					1);
+			set_vd_mif_linear_cs(&vd_layer[0],
+				&cs0[0], &cs1[0], &cs2[0],
+				vf,
+				1);
 			if (is_mvc)
 				set_vd_mif_linear_cs(&vd_layer[1],
 					&cs0[0], &cs1[0], &cs2[0],
@@ -7753,19 +7771,11 @@ static void canvas_update_for_3d(struct video_layer_s *layer,
 				vd_layer[1].mif_setting.block_mode =
 					vf->canvas1_config[0].block_mode;
 			}
-			if (cur_frame_par &&
-				cur_frame_par->vpp_2pic_mode == 1)
-				set_vd_mif_linear(&vd_layer[0],
-					&vf->canvas0_config[0],
-					vf->plane_num,
-					vf,
-					1);
-			else
-				set_vd_mif_linear(&vd_layer[0],
-					&vf->canvas1_config[0],
-					vf->plane_num,
-					vf,
-					1);
+			set_vd_mif_linear(&vd_layer[0],
+				&vf->canvas0_config[0],
+				vf->plane_num,
+				vf,
+				1);
 			if (is_mvc)
 				set_vd_mif_linear(&vd_layer[1],
 					&vf->canvas0_config[0],
@@ -10992,3 +11002,6 @@ module_param(video_mute_on, bool, 0664);
 
 MODULE_PARM_DESC(cur_vf_flag, "cur_vf_flag");
 module_param(cur_vf_flag, uint, 0444);
+
+MODULE_PARM_DESC(debug_flag_3d, "\n debug_flag_3d\n");
+module_param(debug_flag_3d, uint, 0664);
