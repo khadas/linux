@@ -14,6 +14,7 @@
 #include <linux/amlogic/efuse.h>
 #include <linux/kallsyms.h>
 #include "efuse.h"
+#include <linux/amlogic/secmon.h>
 
 static DEFINE_MUTEX(efuse_lock);
 
@@ -209,6 +210,107 @@ unsigned long efuse_amlogic_set(char *buf, size_t count)
 
 	ret = efuse_data_process(AML_D_P_W_EFUSE_AMLOGIC,
 				 (unsigned long)buf, (unsigned long)count, 0);
+	set_cpus_allowed_ptr(current, &task_cpumask);
+
+	return ret;
+}
+
+static u32 meson_efuse_obj_read(u32 obj_id, u8 *buff, u32 *size)
+{
+	u32 rc = EFUSE_OBJ_ERR_UNKNOWN;
+	u32 len = 0;
+	struct arm_smccc_res res;
+
+	mutex_lock(&efuse_lock);
+	meson_sm_mutex_lock();
+
+	memcpy((void *)sharemem_input_base, buff, *size);
+
+	do {
+		arm_smccc_smc((unsigned long)EFUSE_OBJ_READ,
+			      (unsigned long)obj_id,
+			      (unsigned long)*size,
+			      0, 0, 0, 0, 0, &res);
+
+	} while (0);
+
+	rc = res.a0;
+	len = res.a1;
+
+	if (rc == EFUSE_OBJ_SUCCESS) {
+		if (*size >= len) {
+			memcpy(buff, (const void *)sharemem_output_base, len);
+			*size = len;
+		} else {
+			rc = EFUSE_OBJ_ERR_SIZE;
+		}
+	}
+
+	meson_sm_mutex_unlock();
+	mutex_unlock(&efuse_lock);
+
+	return rc;
+}
+
+static u32 meson_efuse_obj_write(u32 obj_id, u8 *buff, u32 size)
+{
+	struct arm_smccc_res res;
+
+	mutex_lock(&efuse_lock);
+	meson_sm_mutex_lock();
+
+	memcpy((void *)sharemem_input_base, buff, size);
+
+	do {
+		arm_smccc_smc((unsigned long)EFUSE_OBJ_WRITE,
+			      (unsigned long)obj_id,
+			      (unsigned long)size,
+			      0, 0, 0, 0, 0, &res);
+
+	} while (0);
+
+	meson_sm_mutex_unlock();
+	mutex_unlock(&efuse_lock);
+
+	return res.a0;
+}
+
+u32 efuse_obj_write(u32 obj_id, char *name, u8 *buff, u32 size)
+{
+	u32 ret;
+	struct efuse_obj_field_t efuseinfo;
+	struct cpumask task_cpumask;
+
+	cpumask_copy(&task_cpumask, current->cpus_ptr);
+	set_cpus_allowed_ptr(current, cpumask_of(0));
+
+	memset(&efuseinfo, 0, sizeof(efuseinfo));
+	strncpy(efuseinfo.name, name, sizeof(efuseinfo.name) - 1);
+	if (size > sizeof(efuseinfo.data))
+		return EFUSE_OBJ_ERR_SIZE;
+	efuseinfo.size = size;
+	memcpy(efuseinfo.data, buff, efuseinfo.size);
+	ret = meson_efuse_obj_write(obj_id, (uint8_t *)&efuseinfo, sizeof(efuseinfo));
+	set_cpus_allowed_ptr(current, &task_cpumask);
+
+	return ret;
+}
+
+u32 efuse_obj_read(u32 obj_id, char *name, u8 *buff, u32 *size)
+{
+	u32 ret;
+	struct efuse_obj_field_t efuseinfo;
+	struct cpumask task_cpumask;
+
+	cpumask_copy(&task_cpumask, current->cpus_ptr);
+	set_cpus_allowed_ptr(current, cpumask_of(0));
+
+	memset(&efuseinfo, 0, sizeof(efuseinfo));
+	strncpy(efuseinfo.name, name, sizeof(efuseinfo.name) - 1);
+	*size = sizeof(efuseinfo);
+	ret = meson_efuse_obj_read(obj_id, (uint8_t *)&efuseinfo, size);
+	memcpy(buff, efuseinfo.data, efuseinfo.size);
+	*size = efuseinfo.size;
 	set_cpus_allowed_ptr(current, &task_cpumask);
 
 	return ret;

@@ -40,6 +40,37 @@ struct aml_efuse_key {
 #define AML_DATA_PROCESS            (0x820000FF)
 #define AML_D_P_W_EFUSE_AMLOGIC     (0x20)
 #define EFUSE_PATTERN_SIZE      (0x400)
+#define EFUSE_OBJ_READ          (0x8200003B)
+#define EFUSE_OBJ_WRITE         (0x8200003C)
+
+enum efuse_obj_status_e {
+	EFUSE_OBJ_SUCCESS		= 0,
+
+	EFUSE_OBJ_ERR_OTHER_INTERNAL	= 1,
+
+	EFUSE_OBJ_ERR_INVALID_DATA	= 100,
+	EFUSE_OBJ_ERR_NOT_FOUND,
+	EFUSE_OBJ_ERR_DEPENDENCY,
+	EFUSE_OBJ_ERR_SIZE,
+	EFUSE_OBJ_ERR_NOT_SUPPORT,
+
+	EFUSE_OBJ_ERR_ACCESS		= 200,
+	EFUSE_OBJ_ERR_WRITE_PROTECTED = 201,
+
+	EFUSE_OBJ_ERR_UNKNOWN		= 300,
+	EFUSE_OBJ_ERR_INTERNAL,
+};
+
+enum efuse_obj_info_e {
+	EFUSE_OBJ_EFUSE_DATA	= 0,
+	EFUSE_OBJ_LOCK_STATUS,
+};
+
+struct efuse_obj_field_t {
+	char name[48];
+	unsigned char data[32];
+	unsigned int size;
+};
 
 /* efuse HAL_API arg */
 struct efuse_hal_api_arg {
@@ -70,11 +101,15 @@ struct aml_efuse_lockable_check {
 };
 
 extern struct aml_efuse_cmd efuse_cmd;
+extern void __iomem *sharemem_input_base;
+extern void __iomem *sharemem_output_base;
 
 ssize_t efuse_get_max(void);
 ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
 ssize_t efuse_write_usr(char *buf, size_t count, loff_t *ppos);
 unsigned long efuse_amlogic_set(char *buf, size_t count);
+u32 efuse_obj_write(u32 obj_id, char *name, u8 *buff, u32 size);
+u32 efuse_obj_read(u32 obj_id, char *name, u8 *buff, u32 *size);
 
 /*return: 0:is configurated, -1: don't cfg*/
 int efuse_burn_lockable_is_cfg(char *itemname);

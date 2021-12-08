@@ -16,6 +16,7 @@
 #include "efuse.h"
 #include <linux/amlogic/efuse.h>
 #include <linux/io.h>
+#include <linux/amlogic/secmon.h>
 
 #define EFUSE_DEVICE_NAME   "efuse"
 #define EFUSE_CLASS_NAME    "efuse"
@@ -31,8 +32,12 @@ static struct aml_efuse_lockable_check efusecheck = {
 	.infos = NULL,
 };
 
+static struct efuse_obj_field_t efuse_field;
+
 struct aml_efuse_cmd efuse_cmd;
 unsigned int efuse_pattern_size;
+void __iomem *sharemem_input_base;
+void __iomem *sharemem_output_base;
 
 #define  DEFINE_EFUEKEY_SHOW_ATTR(keyname)	\
 	static ssize_t  keyname##_show(struct class *cla, \
@@ -971,11 +976,204 @@ exit:
 	return ret;
 }
 
+static char *efuse_obj_err_parse(uint32_t  efuse_obj_err_status)
+{
+	char *err_char = NULL;
+
+	switch (efuse_obj_err_status) {
+	case EFUSE_OBJ_ERR_INVALID_DATA:
+		err_char = "invalid data";
+		break;
+	case EFUSE_OBJ_ERR_NOT_FOUND:
+		err_char = "field not found";
+		break;
+	case EFUSE_OBJ_ERR_SIZE:
+		err_char = "size not match";
+		break;
+	case EFUSE_OBJ_ERR_NOT_SUPPORT:
+		err_char = "not support";
+		break;
+	case EFUSE_OBJ_ERR_ACCESS:
+		err_char = "access denied";
+		break;
+	case EFUSE_OBJ_ERR_WRITE_PROTECTED:
+		err_char = "write protected";
+		break;
+	case EFUSE_OBJ_ERR_INTERNAL:
+	case EFUSE_OBJ_ERR_OTHER_INTERNAL:
+		err_char = "internal error";
+		break;
+	default:
+		err_char = "unknown error";
+		break;
+		}
+
+	return err_char;
+}
+
+static int char2hex(char *hex, void *bin, size_t binlen)
+{
+	int i, c, n1, n2, hexlen, k;
+
+	hexlen = strnlen(hex, 64);
+	k = 0;
+	n1 = -1;
+	n2 = -1;
+	for (i = 0; i < hexlen; i++) {
+		n2 = n1;
+		c = hex[i];
+		if (c >= '0' && c <= '9') {
+			n1 = c - '0';
+		} else if (c >= 'a' && c <= 'f') {
+			n1 = c - 'a' + 10;
+		} else if (c >= 'A' && c <= 'F') {
+			n1 = c - 'A' + 10;
+		} else if (c == ' ') {
+			n1 = -1;
+			continue;
+		} else {
+			return -1;
+		}
+		if (n1 >= 0 && n2 >= 0) {
+			((u8 *)bin)[k] = (n2 << 4) | n1;
+			n1 = -1;
+			k++;
+		}
+	}
+
+	return k;
+}
+
+static ssize_t efuse_obj_store(struct class *cla,
+	struct class_attribute *attr, const char *buf, size_t count)
+{
+	int rc = -EINVAL;
+	char argv[3][48];
+	char argc;
+	u8 buff[32];
+	u32 bufflen = sizeof(buff);
+	char *name = NULL;
+	char *data = NULL;
+	int dlen = 0;
+	u8 databuf[32] = {0};
+
+	argc = sscanf(buf, "%s %s %s", argv[0], argv[1], argv[2]);
+	if (argc < 2) {
+		pr_err("Invalid number of arguments %d\n", argc);
+		return  -EINVAL;
+	}
+
+	memset(&buff[0], 0, sizeof(buff));
+	memset(&efuse_field, 0, sizeof(efuse_field));
+
+	if (strcmp(argv[0], "get") == 0) {
+		// $0 get field
+		if (argc == 2) {
+			name = argv[1];
+			rc = efuse_obj_read(EFUSE_OBJ_EFUSE_DATA, name, buff, &bufflen);
+			if (rc == EFUSE_OBJ_SUCCESS) {
+				memset(&efuse_field, 0, sizeof(efuse_field));
+				strncpy(efuse_field.name, name, sizeof(efuse_field.name) - 1);
+				memcpy(efuse_field.data, buff, bufflen);
+				efuse_field.size = bufflen;
+				rc = count;
+			} else {
+				pr_err("Error get efuse object: %s: %d\n",
+					efuse_obj_err_parse(rc), rc);
+				rc = -EINVAL;
+			}
+		} else {
+			pr_err("Error: too many arguments %d\n", argc);
+			rc = -EINVAL;
+		}
+	} else if (strcmp(argv[0], "set") == 0) {
+		// $0 set field data
+		if (argc == 3) {
+			name = argv[1];
+			data = argv[2];
+			dlen = strnlen(data, 64);
+			dlen = char2hex(data, databuf, dlen);
+			if (dlen < 0) {
+				pr_err("parse data hex2bin error\n");
+				return -EINVAL;
+			}
+			rc = efuse_obj_write(EFUSE_OBJ_EFUSE_DATA, name, databuf, dlen);
+			if (rc == EFUSE_OBJ_SUCCESS) {
+				rc = count;
+			} else {
+				pr_err("Error set efuse object: %s: %d\n",
+					efuse_obj_err_parse(rc), rc);
+				rc = -EINVAL;
+			}
+		} else {
+			pr_err("Error: too few arguments %d\n", argc);
+			rc = -EINVAL;
+		}
+	} else if (strcmp(argv[0], "lock") == 0) {
+		// $0 lock field
+		if (argc == 2) {
+			name = argv[1];
+			rc = efuse_obj_write(EFUSE_OBJ_LOCK_STATUS, name, buff, bufflen);
+			if (rc == EFUSE_OBJ_SUCCESS) {
+				rc = count;
+			} else {
+				pr_err("Error lock efuse object: %s: %d\n",
+					efuse_obj_err_parse(rc), rc);
+				rc = -EINVAL;
+			}
+		} else {
+			pr_err("Error: too many arguments %d\n", argc);
+			rc = -EINVAL;
+		}
+	} else if (strcmp(argv[0], "get_lock") == 0) {
+		// $0 get_lock field
+		if (argc == 2) {
+			name = argv[1];
+			rc = efuse_obj_read(EFUSE_OBJ_LOCK_STATUS, name, buff, &bufflen);
+			if (rc == EFUSE_OBJ_SUCCESS) {
+				memset(&efuse_field, 0, sizeof(efuse_field));
+				strncpy(efuse_field.name, name, sizeof(efuse_field.name) - 1);
+				memcpy(efuse_field.data, buff, bufflen);
+				efuse_field.size = bufflen;
+				rc = count;
+			} else {
+				pr_err("Error get_lock efuse object: %s: %d\n",
+					efuse_obj_err_parse(rc), rc);
+				rc = -EINVAL;
+			}
+		} else {
+			pr_err("Error: too many arguments %d\n", argc);
+			rc = -EINVAL;
+		}
+	} else {
+		pr_err("Error: not support efuse object cmd \"%s\"\n", argv[0]);
+		rc = -EINVAL;
+	}
+
+	return rc;
+}
+
+static ssize_t efuse_obj_show(struct class *class,
+	struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+	int i;
+
+	for (i = 0; i < efuse_field.size; i++)
+		len += sprintf(buf + len, "%02x%s", efuse_field.data[i],
+			((i % 16 == 15) || (i == efuse_field.size - 1) ? "\n" : " "));
+
+	memset(&efuse_field, 0, sizeof(efuse_field));
+
+	return len;
+}
+
 static EFUSE_CLASS_ATTR(userdata);
 static EFUSE_CLASS_ATTR(mac);
 static EFUSE_CLASS_ATTR(mac_bt);
 static EFUSE_CLASS_ATTR(mac_wifi);
 static EFUSE_CLASS_ATTR(usid);
+static EFUSE_CLASS_ATTR(efuse_obj);
 static CLASS_ATTR_WO(amlogic_set);
 static CLASS_ATTR_RO(secureboot_check);
 static EFUSE_CLASS_ATTR(checkburn);
@@ -987,6 +1185,7 @@ static struct attribute *efuse_calss_attrs[] = {
 	&class_attr_mac_bt.attr,
 	&class_attr_mac_wifi.attr,
 	&class_attr_usid.attr,
+	&class_attr_efuse_obj.attr,
 	&class_attr_amlogic_set.attr,
 	&class_attr_secureboot_check.attr,
 	&class_attr_checkburn.attr,
@@ -1126,6 +1325,9 @@ static int efuse_probe(struct platform_device *pdev)
 		ret = PTR_ERR(devp);
 		goto error4;
 	}
+
+	sharemem_input_base = get_meson_sm_input_base();
+	sharemem_output_base = get_meson_sm_output_base();
 
 	dev_info(&pdev->dev, "device %s created OK\n", EFUSE_DEVICE_NAME);
 	return 0;
