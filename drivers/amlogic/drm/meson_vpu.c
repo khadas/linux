@@ -359,6 +359,8 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	 .data = &vpu_t7_data,},
 	{.compatible = "amlogic, meson-t5w-vpu",
 	 .data = &vpu_t5w_data,},
+	{.compatible = "amlogic, meson-t3-vpu",
+	 .data = &vpu_t7_data,},
 	{}
 };
 
