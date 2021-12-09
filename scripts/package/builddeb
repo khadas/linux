@@ -122,7 +122,7 @@ deploy_kernel_headers () {
 		cd $srctree
 		find . arch/$SRCARCH -maxdepth 1 -name Makefile\*
 		find include scripts -type f -o -type l
-		find arch/$SRCARCH -name Kbuild.platforms -o -name Platform
+		find arch/$SRCARCH -name module.lds -o -name Kbuild.platforms -o -name Platform
 		find $(find arch/$SRCARCH -name include -o -name scripts -type d) -type f
 	) > debian/hdrsrcfiles
 
@@ -354,6 +354,7 @@ create_package "$packagename" "$tmpdir"
 (cd $srctree; find security/*/include -type f) >> "$objtree/debian/hdrsrcfiles"
 (cd $srctree; find arch/$SRCARCH -name module.lds -o -name Kbuild.platforms -o -name Platform) >> "$objtree/debian/hdrsrcfiles"
 (cd $srctree; find $(find arch/$SRCARCH -name include -o -name scripts -type d) -type f) >> "$objtree/debian/hdrsrcfiles"
+ldstemp=$(mktemp);cp scripts/module.lds $ldstemp
 if is_enabled CONFIG_STACK_VALIDATION; then
 	(cd $objtree; find tools/objtool -type f -executable) >> "$objtree/debian/hdrobjfiles"
 fi
@@ -371,6 +372,8 @@ ln -sf "/usr/src/linux-headers-$version" "$kernel_headers_dir/lib/modules/$versi
 rm -f "$objtree/debian/hdrsrcfiles" "$objtree/debian/hdrobjfiles"
 
 (cd $destdir; export sub_make_done=0; make M=scripts clean;)
+
+mv ${ldstemp} $destdir/scripts/module.lds
 
 if [ "$ARCH" != "um" ]; then
 	create_package "$kernel_headers_packagename" "$kernel_headers_dir" "headers"
