@@ -138,6 +138,7 @@ struct resman_session {
 	struct mutex lock; /*session lock*/
 	wait_queue_head_t wq_event;
 	int app_type;
+	int prio;
 };
 
 /**
@@ -488,18 +489,43 @@ static bool resman_counter_preempt(struct resman_session *curr,
 	struct resman_node *node, *selected = NULL;
 	struct resman_session *sess;
 	struct list_head *pos, *tmp;
+	int lowestprio = curr->prio;
 
 	list_for_each_safe(pos, tmp, &resource->sessions) {
 		node = list_entry(pos, struct resman_node, slist);
 		sess = node->session_ptr;
-		if (sess->status == RESMAN_STATUS_PREEMPTED) {
+		if (sess->status == RESMAN_STATUS_PREEMPTED && sess->prio >= curr->prio) {
 			selected = node;
+			dprintk(2, "preempt prio%d\n",  sess->prio);
 			break;
 		}
 	}
+	/*find the lowest prio*/
+	if (!selected) {
+		list_for_each_safe(pos, tmp, &resource->sessions) {
+			node = list_entry(pos, struct resman_node, slist);
+			sess = node->session_ptr;
+			if (sess->prio > lowestprio) {
+				selected = node;
+				lowestprio = sess->prio;
+			}
+		}
+	}
+	/*find the oldest same prio*/
+	if (!selected) {
+		list_for_each_safe(pos, tmp, &resource->sessions) {
+			node = list_entry(pos, struct resman_node, slist);
+			sess = node->session_ptr;
+			if (sess->prio == lowestprio) {
+				selected = node;
+				break;
+			}
+		}
+	}
 	if (!selected)
-		selected = list_first_entry_or_null(&resource->sessions,
-			struct resman_node, slist);
+		dprintk(2, "fail to find node to preempt\n");
+	else
+		dprintk(2, "preempt node prio:%d\n", lowestprio);
 
 	if (resman_preempt_session(curr, selected))
 		ret = true;
@@ -657,19 +683,28 @@ static bool resman_tvp_preempt(struct resman_session *curr)
 	struct resman_node *node, *selected = NULL;
 	struct resman_session *sess;
 	struct list_head *pos, *tmp;
+	int lowestprio = curr->prio;
 
 	resource = resman_find_resource_by_id(RESMAN_ID_CODEC_MM);
 	if (!resource)
 		return false;
 
-	/*Find the oldest non-secure decoder instance*/
+	/*find the lowest non-secure prio*/
 	list_for_each_safe(pos, tmp, &resource->sessions) {
 		node = list_entry(pos, struct resman_node, slist);
 		sess = node->session_ptr;
-		if (sess == curr || node->s.codec_mm.secure)
-			continue;
-		selected = node;
-		break;
+		if (!node->s.codec_mm.secure && sess->prio > lowestprio)
+			lowestprio = sess->prio;
+	}
+
+	/*find the oldest non-secure decoder instance*/
+	list_for_each_safe(pos, tmp, &resource->sessions) {
+		node = list_entry(pos, struct resman_node, slist);
+		sess = node->session_ptr;
+		if (!node->s.codec_mm.secure && sess->prio >= lowestprio) {
+			selected = node;
+			break;
+		}
 	}
 
 	if (resman_preempt_session(curr, selected))
@@ -785,6 +820,8 @@ static bool resman_codec_mm_preempt(struct resman_session *curr,
 	struct resman_session *sess;
 	struct list_head *pos, *tmp;
 	__u32 new_score;
+	int lowestprio = curr->prio;
+
 
 	secure_count = atomic_read(&resource->d.codec_mm.counter_secure);
 
@@ -813,19 +850,37 @@ static bool resman_codec_mm_preempt(struct resman_session *curr,
 		}
 		if (new_score + score <= resource->d.codec_mm.total)
 			break;
-
-		/*Find the oldest session not preempted*/
+		/*find the lowest prio*/
 		list_for_each_safe(pos, tmp, &resource->sessions) {
 			node = list_entry(pos, struct resman_node, slist);
 			sess = node->session_ptr;
-			if (sess->status == RESMAN_STATUS_ACQUIRED) {
+			if (sess->status == RESMAN_STATUS_ACQUIRED && sess->prio > lowestprio) {
 				selected = node;
-				break;
+				lowestprio = sess->prio;
 			}
 		}
+		/*find the oldest same prio*/
+		if (!selected) {
+			list_for_each_safe(pos, tmp, &resource->sessions) {
+				node = list_entry(pos, struct resman_node, slist);
+				sess = node->session_ptr;
+				if (sess->status == RESMAN_STATUS_ACQUIRED &&
+					sess->prio == lowestprio) {
+					dprintk(2, "preempt prio:%d\n",  sess->prio);
+					selected = node;
+					break;
+				}
+			}
+		}
+		if (!selected)
+			dprintk(2, "fail to find node to preempt\n");
+		else
+			dprintk(2, "preempt node prio:%d\n", lowestprio);
 
 		if (resman_preempt_session(curr, selected)) {
 			new_score -= selected->s.codec_mm.score;
+			lowestprio = curr->prio;
+			/*if not enough need preempt more*/
 			ret = true;
 		}
 	} while (selected &&
@@ -1004,6 +1059,7 @@ static bool resman_capacity_preempt(struct resman_session *curr,
 	struct resman_session *sess;
 	struct list_head *pos, *tmp;
 	__u32 used_size;
+	int lowestprio = curr->prio;
 
 	do {
 		selected = NULL;
@@ -1019,18 +1075,36 @@ static bool resman_capacity_preempt(struct resman_session *curr,
 		if ((used_size + size) <= resource->d.capacity.total)
 			break;
 
-		/*Find the oldest session not preempted*/
+		/*find the lowest prio*/
 		list_for_each_safe(pos, tmp, &resource->sessions) {
 			node = list_entry(pos, struct resman_node, slist);
 			sess = node->session_ptr;
-			if (sess->status == RESMAN_STATUS_ACQUIRED) {
+			if (sess->status == RESMAN_STATUS_ACQUIRED && sess->prio > lowestprio) {
 				selected = node;
-				break;
+				lowestprio = sess->prio;
 			}
 		}
+		/*find the oldest same prio*/
+		if (!selected) {
+			list_for_each_safe(pos, tmp, &resource->sessions) {
+				node = list_entry(pos, struct resman_node, slist);
+				sess = node->session_ptr;
+				if (sess->status == RESMAN_STATUS_ACQUIRED &&
+					sess->prio == lowestprio) {
+					selected = node;
+					break;
+				}
+			}
+		}
+		if (!selected)
+			dprintk(2, "fail to find node to preempt\n");
+		else
+			dprintk(2, "preempt node prio:%d\n", lowestprio);
 
 		if (resman_preempt_session(curr, selected)) {
 			used_size -= selected->s.capacity.use;
+			lowestprio = curr->prio;
+			/*if not enough need preempt more*/
 			ret = true;
 		}
 	} while (selected &&
@@ -1809,10 +1883,12 @@ static long resman_ioctl_setappinfo(struct resman_session *sess,
 			sizeof(sess->app_name));
 		sess->app_name[sizeof(sess->app_name) - 1] = '\0';
 		sess->app_type = appinfo.app_type;
-		dprintk(1, "%d appname:%s, type=%d\n",
+		sess->prio = appinfo.prio;
+		dprintk(1, "%d appname:%s, type = %d prio = %d\n",
 			sess->id,
 			sess->app_name,
-			sess->app_type);
+			sess->app_type,
+			sess->prio);
 	}
 	return r;
 }

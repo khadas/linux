@@ -42,6 +42,7 @@ struct resman_para {
 struct app_info {
 	char app_name[32];
 	__u32 app_type;
+	int  prio;
 };
 
 enum RESMAN_ID {
