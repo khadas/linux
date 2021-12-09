@@ -46,7 +46,7 @@
 #define DRV_NAME "EXTN"
 #define MAX_INT    0x7ffffff
 
-#define MAX_AUDIO_EDID_LENGTH 30
+#define MAX_AUDIO_EDID_LENGTH 38
 
 struct extn_chipinfo {
 	int arc_version;
@@ -855,8 +855,9 @@ int aml_set_audio_edid(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_tlv *tlv;
 	char *val = (char *)bytes + sizeof(*tlv);
 	int res, edid_size = size - sizeof(*tlv);
+	bool update = false;
+	int i = 0;
 
-	pr_info("%s edid_size = %d\n", __func__, edid_size);
 	if ((edid_size % 3) != 0 || edid_size > (MAX_AUDIO_EDID_LENGTH - 3))
 		return -EFAULT;
 
@@ -868,7 +869,7 @@ int aml_set_audio_edid(struct snd_kcontrol *kcontrol,
 		memcpy(p_extn->user_setting_edid, p_extn->default_edid,
 		       p_extn->default_edid_size);
 		rx_edid_set_aud_sad(NULL, 0);
-		pr_info("%s default_edid_size = %d\n", __func__,
+		pr_info("%s update default edid! edid size = %d\n", __func__,
 			p_extn->default_edid_size);
 	} else {
 		/* update user setting edid */
@@ -880,7 +881,30 @@ int aml_set_audio_edid(struct snd_kcontrol *kcontrol,
 		if (res)
 			return -EFAULT;
 
-		rx_edid_set_aud_sad(p_extn->user_setting_edid, edid_size + 3);
+		/* get current edid from hdmirx */
+		p_extn->default_edid_size =
+			(int)rx_edid_get_aud_sad(p_extn->default_edid);
+
+		if (p_extn->default_edid_size != edid_size + 3) {
+			update = true;
+		} else {
+			while (i < edid_size) {
+				if (p_extn->default_edid[i + 3] !=
+				    p_extn->user_setting_edid[i + 3]) {
+					update = true;
+					break;
+				}
+				i++;
+			}
+		}
+		if (update) {
+			/* first 3 bytes from default_edid for pcm */
+			memcpy(p_extn->user_setting_edid, p_extn->default_edid, 3);
+			rx_edid_set_aud_sad(p_extn->user_setting_edid,
+					edid_size + 3);
+			pr_info("%s update user setting edid! edid size = %d\n",
+				__func__, edid_size);
+		}
 	}
 	p_extn->user_setting_edid_size = edid_size;
 
