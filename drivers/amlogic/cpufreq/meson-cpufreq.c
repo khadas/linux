@@ -45,6 +45,12 @@ static u32 dsu_freq_vote_result[VOTER_NUM];
 	typeof(x1) _x1 = x1; \
 	typeof(x2) _x2 = x2; \
 	(_x1 > _x2 ? _x1 : _x2); })
+#ifdef CONFIG_AMLOGIC_MODIFY
+static unsigned int freqmax0;
+module_param(freqmax0, uint, 0644);
+static unsigned int freqmax1;
+module_param(freqmax1, uint, 0644);
+#endif
 
 static unsigned int get_cpufreq_table_index(u64 function_id,
 					    u64 arg0, u64 arg1, u64 arg2)
@@ -1005,10 +1011,20 @@ static int meson_cpufreq_resume(struct cpufreq_policy *policy)
 static void meson_cpufreq_ready(struct cpufreq_policy *policy)
 {
 	struct meson_cpufreq_driver_data *cpufreq_data = policy->driver_data;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int maxfreq = cpufreq_data->clusterid ? freqmax1 : freqmax0;
+#endif
 
 	if (!cooldev[cpufreq_data->clusterid])
 		cooldev[cpufreq_data->clusterid] = of_cpufreq_cooling_register(policy);
 	create_meson_cpufreq_proc_files(policy);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (maxfreq && maxfreq >= policy->min && maxfreq < policy->max) {
+		pr_info("policy%d: set policy->max to %u from bootargs\n", policy->cpu, maxfreq);
+		freq_qos_update_request(policy->max_freq_req, maxfreq);
+	}
+#endif
 }
 
 static struct cpufreq_driver meson_cpufreq_driver = {

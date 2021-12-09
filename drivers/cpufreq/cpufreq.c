@@ -33,13 +33,6 @@
 
 static LIST_HEAD(cpufreq_policy_list);
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-static unsigned int freqmax0;
-core_param(freqmax0, freqmax0, uint, 0644);
-static unsigned int freqmax1;
-core_param(freqmax1, freqmax1, uint, 0644);
-#endif
-
 /* Macros to iterate over CPU policies */
 #define for_each_suitable_policy(__policy, __active)			 \
 	list_for_each_entry(__policy, &cpufreq_policy_list, policy_list) \
@@ -1388,18 +1381,6 @@ static int cpufreq_online(unsigned int cpu)
 
 	down_write(&policy->rwsem);
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-		if (topology_physical_package_id(cpu) == 0 && freqmax0) {
-			if (freqmax0 >= policy->min && freqmax0 < policy->max)
-				policy->max = freqmax0;
-			pr_notice(" freqmax0:%d, max:%d\n", freqmax0, policy->max);
-		}
-		if (topology_physical_package_id(cpu) == 1 && freqmax1) {
-			if (freqmax1 >= policy->min && freqmax1 < policy->max)
-				policy->max = freqmax1;
-			pr_notice(" freqmax1:%d, max:%d\n", freqmax1, policy->max);
-		}
-#endif
 	/*
 	 * affected cpus must always be the one, which are online. We aren't
 	 * managing offline cpus here.
