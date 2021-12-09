@@ -499,6 +499,10 @@ int lcd_tcon_info_print(char *buf, int offset)
 			}
 		}
 		if (tcon_mm_table.data_mem_vaddr && tcon_mm_table.data_size) {
+			n = lcd_debug_info_len(len + offset);
+			len += snprintf((buf + len), n,
+				"data_mem block_cnt:   %d\n",
+				tcon_mm_table.block_cnt);
 			for (i = 0; i < tcon_mm_table.block_cnt; i++) {
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
@@ -537,7 +541,7 @@ int lcd_tcon_info_print(char *buf, int offset)
 		if (cnt > 32)
 			return len;
 		n = lcd_debug_info_len(len + offset);
-		len += snprintf((buf + len), n, "\n");
+		len += snprintf((buf + len), n, "\nbin_path cnt: %d\n", cnt);
 		for (i = 0; i < cnt; i++) {
 			m = 32 + 256 * i;
 			size = mem_vaddr[m] |
@@ -547,7 +551,7 @@ int lcd_tcon_info_print(char *buf, int offset)
 			str = (char *)&mem_vaddr[m + 4];
 			n = lcd_debug_info_len(len + offset);
 			len += snprintf((buf + len), n,
-					"tcon_path[%d]: size: 0x%x, %s\n",
+					"bin_path[%d]: size: 0x%x, %s\n",
 					i, size, str);
 		}
 	}
@@ -739,13 +743,12 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv)
 	if (tcon_mm_table.version) {
 		if (tcon_mm_table.init_load == 0) {
 			for (i = 0; i < tcon_mm_table.block_cnt; i++) {
-				if (!tcon_mm_table.data_mem_vaddr[i])
-					continue;
 				kfree(tcon_mm_table.data_mem_vaddr[i]);
 				tcon_mm_table.data_mem_vaddr[i] = NULL;
 			}
 			tcon_mm_table.valid_flag = 0;
 			tcon_mm_table.tcon_data_flag = 0;
+			tcon_mm_table.block_bit_flag = 0;
 		}
 		lcd_tcon_data_multi_remvoe(&tcon_mm_table);
 	}
@@ -1387,16 +1390,21 @@ int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int 
 	int j;
 
 	if (!tcon_mm_table.data_size) {
-		LCDERR("%s: data_size error\n", __func__);
+		LCDERR("%s: data_size buf error\n", __func__);
 		return -1;
 	}
 	if (!tcon_mm_table.data_priority) {
-		LCDERR("%s: data_priority error\n", __func__);
+		LCDERR("%s: data_priority buf error\n", __func__);
 		return -1;
 	}
 
 	data_prio = tcon_mm_table.data_priority;
 	block_header = (struct lcd_tcon_data_block_header_s *)data_buf;
+	if (block_header->block_size < sizeof(struct lcd_tcon_data_block_header_s)) {
+		LCDERR("%s: block[%d] size 0x%x error\n",
+			__func__, index, block_header->block_size);
+		return -1;
+	}
 
 	tcon_mm_table.valid_flag |= block_header->block_flag;
 	if (block_header->block_flag == LCD_TCON_DATA_VALID_DEMURA)
@@ -1495,55 +1503,65 @@ int lcd_tcon_bin_load(struct aml_lcd_drv_s *pdrv)
 			return 0;
 		LCDPR("%s\n", __func__);
 		if (!tcon_mm_table.data_mem_vaddr) {
-			LCDERR("%s: data_mem error\n", __func__);
+			LCDERR("%s: data_mem buf error\n", __func__);
 			return -1;
 		}
 		if (!tcon_mm_table.data_size) {
-			LCDERR("%s: data_size error\n", __func__);
+			LCDERR("%s: data_size buf error\n", __func__);
 			return -1;
 		}
 
 		for (i = 0; i < tcon_mm_table.block_cnt; i++) {
 			n = 32 + i * 256;
-			size = tcon_mm_table.data_size[i];
 			str = (char *)&tcon_rmem.bin_path_rmem.mem_vaddr[n + 4];
 			set_fs(KERNEL_DS);
 			filp = filp_open(str, O_RDONLY, 0);
 			if (IS_ERR(filp)) {
-				LCDERR("%s: read %s error\n", __func__, str);
+				LCDERR("%s: bin[%d]: %s error\n", __func__, i, str);
 				set_fs(old_fs);
-				return -1;
+				continue;
 			}
 
-			if (!tcon_mm_table.data_mem_vaddr[i]) {
-				data_cnt = vfs_read(filp, (void *)&block_header,
-						    header_size, &pos);
-				if (data_cnt != header_size) {
-					LCDERR("read block head failed, data_cnt: %d\n",
-					       data_cnt);
-					goto lcd_tcon_bin_load_next;
-				}
-
-				size = block_header.block_size;
-				tcon_mm_table.data_mem_vaddr[i] =
-					kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
-				if (!tcon_mm_table.data_mem_vaddr[i]) {
-					LCDERR("%s: Not enough memory\n", __func__);
-					goto lcd_tcon_bin_load_next;
-				}
-			}
 			pos = 0; /* must reset pos for file read */
-			data_cnt =
-			vfs_read(filp, (char *)tcon_mm_table.data_mem_vaddr[i], size, &pos);
-			if (data_cnt != size) {
-				LCDERR("%s: data_cnt: %d, data_size: %d\n",
-				       __func__, data_cnt, size);
+			data_cnt = vfs_read(filp, (void *)&block_header,
+					header_size, &pos);
+			if (data_cnt != header_size) {
+				LCDERR("%s: block[%d] header failed, read data_cnt: %d\n",
+					__func__, i, data_cnt);
 				goto lcd_tcon_bin_load_next;
 			}
-			memcpy((void *)&block_header, (void *)tcon_mm_table.data_mem_vaddr[i],
-			       header_size);
+			size = block_header.block_size;
+			if (size < sizeof(struct lcd_tcon_data_block_header_s)) {
+				LCDERR("%s: block[%d] size 0x%x error\n",
+					__func__, i, size);
+				goto lcd_tcon_bin_load_next;
+			}
 
-			lcd_tcon_data_load(pdrv, tcon_mm_table.data_mem_vaddr[i], i);
+			tcon_mm_table.data_mem_vaddr[i] =
+				kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
+			if (!tcon_mm_table.data_mem_vaddr[i]) {
+				LCDERR("%s: Not enough memory\n", __func__);
+				goto lcd_tcon_bin_load_next;
+			}
+
+			pos = 0; /* must reset pos for file read */
+			data_cnt = vfs_read(filp, (char *)tcon_mm_table.data_mem_vaddr[i],
+					size, &pos);
+			if (data_cnt != size) {
+				LCDERR("%s: block[%d]: read data_cnt: 0x%x, block_size: 0x%x\n",
+				       __func__, i, data_cnt, size);
+				goto lcd_tcon_bin_load_next;
+			}
+
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+				LCDPR("%s: bin[%d]: %s, size: 0x%x -> 0x%x\n",
+				      __func__, i, str, tcon_mm_table.data_size[i], size);
+			}
+			ret = lcd_tcon_data_load(pdrv, tcon_mm_table.data_mem_vaddr[i], i);
+			if (ret) {
+				kfree(tcon_mm_table.data_mem_vaddr[i]);
+				tcon_mm_table.data_mem_vaddr[i] = NULL;
+			}
 
 lcd_tcon_bin_load_next:
 			vfs_fsync(filp, 0);
@@ -2399,8 +2417,6 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 	if (tcon_mm_table.version) {
 		if (tcon_mm_table.data_mem_vaddr) {
 			for (i = 0; i < tcon_mm_table.block_cnt; i++) {
-				if (!tcon_mm_table.data_mem_vaddr[i])
-					continue;
 				kfree(tcon_mm_table.data_mem_vaddr[i]);
 				tcon_mm_table.data_mem_vaddr[i] = NULL;
 			}

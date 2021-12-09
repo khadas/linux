@@ -5239,9 +5239,8 @@ static void lcd_tcon_rmem_save(char *path, unsigned int flag)
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 	struct tcon_rmem_s *rmem = get_lcd_tcon_rmem();
 	struct tcon_mem_map_table_s *table = get_lcd_tcon_mm_table();
-	struct lcd_tcon_data_block_header_s *block_header;
 	char *str = NULL;
-	int ret, i;
+	int ret;
 
 	if (!tcon_conf) {
 		LCDPR("%s: tcon_conf is null\n", __func__);
@@ -5310,33 +5309,80 @@ static void lcd_tcon_rmem_save(char *path, unsigned int flag)
 			pr_info("acc invalid\n");
 		}
 		break;
-	case 4: /* tcon_data*/
-		if (table->version) {
-			pr_info("data_mem_block_cnt:   %d\n", table->block_cnt);
-
-			for (i = 0; i < table->block_cnt; i++) {
-				sprintf(str, "%s_%d.bin", path, i);
-				if (!table->data_mem_vaddr[i]) {
-					LCDERR("%s: data_mem_vaddr[%d] is null",
-					       __func__, i);
-					continue;
-				}
-
-				block_header = (struct lcd_tcon_data_block_header_s *)
-					table->data_mem_vaddr[i];
-				ret = lcd_tcon_buf_save(str, table->data_mem_vaddr[i],
-							block_header->block_size);
-				if (ret == 0)
-					LCDPR("save tcon_data to %s finish", str);
-			}
-		} else {
-			pr_info("tcon_data invalid\n");
-		}
-		break;
 	default:
 		break;
 	}
 
+	kfree(str);
+}
+
+static void lcd_tcon_data_save(unsigned int index, char *path)
+{
+	struct tcon_mem_map_table_s *table = get_lcd_tcon_mm_table();
+	struct lcd_tcon_data_block_header_s *block_header;
+	char *str = NULL;
+	int ret, i;
+
+	if (!table) {
+		LCDPR("%s: tcon_mm_table is null\n", __func__);
+		return;
+	}
+	if (table->version == 0) {
+		LCDPR("%s: tcon_data invalid\n", __func__);
+		return;
+	}
+
+	str = kcalloc(512, sizeof(char), GFP_KERNEL);
+	if (!str)
+		return;
+
+	if (index == 0xff) {
+		LCDPR("data_mem_block_cnt:   %d\n", table->block_cnt);
+
+		for (i = 0; i < table->block_cnt; i++) {
+			if ((table->block_bit_flag & (1 << i)) == 0) {
+				LCDERR("%s: index %d is not ready\n", __func__, i);
+				continue;
+			}
+			if (!table->data_mem_vaddr[i]) {
+				LCDERR("%s: data_mem_vaddr[%d] is null\n",
+					__func__, i);
+				continue;
+			}
+
+			sprintf(str, "%s_%d.bin", path, i);
+			block_header = (struct lcd_tcon_data_block_header_s *)
+				table->data_mem_vaddr[i];
+			ret = lcd_tcon_buf_save(str, table->data_mem_vaddr[i],
+						block_header->block_size);
+			if (ret == 0)
+				LCDPR("save tcon_data to %s finish\n", str);
+		}
+	} else {
+		if (index >= table->block_cnt) {
+			LCDERR("%s: index %d invalid\n", __func__, index);
+			goto lcd_tcon_data_save_exit;
+		}
+		if ((table->block_bit_flag & (1 << index)) == 0) {
+			LCDERR("%s: index %d is not ready\n", __func__, index);
+			goto lcd_tcon_data_save_exit;
+		}
+		if (!table->data_mem_vaddr[index]) {
+			LCDERR("%s: data_mem_vaddr[%d] is null\n",
+				__func__, index);
+			goto lcd_tcon_data_save_exit;
+		}
+
+		sprintf(str, "%s_%d.bin", path, index);
+		block_header =
+			(struct lcd_tcon_data_block_header_s *)table->data_mem_vaddr[index];
+		ret = lcd_tcon_buf_save(str, table->data_mem_vaddr[index],
+					block_header->block_size);
+		if (ret == 0)
+			LCDPR("save tcon_data to %s finish\n", str);
+	}
+
+lcd_tcon_data_save_exit:
 	kfree(str);
 }
 
@@ -5779,6 +5825,15 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 			lcd_tcon_rmem_save(parm[2], 2);
 		} else if (strcmp(parm[1], "acc") == 0) {
 			lcd_tcon_rmem_save(parm[2], 3);
+		} else if (strcmp(parm[1], "data") == 0) {
+			if (!parm[3])
+				goto lcd_tcon_debug_store_err;
+			ret = kstrtouint(parm[2], 10, &temp);
+			if (ret)
+				goto lcd_tcon_debug_store_err;
+			/* parm[2]: tcon data index */
+			/* parm[3]: save path */
+			lcd_tcon_data_save(temp, parm[3]);
 		} else {
 			goto lcd_tcon_debug_store_err;
 		}

@@ -989,9 +989,10 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		size = block_header.block_size;
-		if (size > lcd_tcon_buff.size || size == 0) {
-			LCDERR("[%d]: %s: invalid block_size %d\n",
-			       pdrv->index, __func__, size);
+		if (size > lcd_tcon_buff.size ||
+		    size < sizeof(struct lcd_tcon_data_block_header_s)) {
+			LCDERR("[%d]: %s: block[%d] size 0x%x error\n",
+			       pdrv->index, __func__, index, size);
 			ret = -EFAULT;
 			break;
 		}
@@ -1013,7 +1014,12 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		LCDPR("[%d]: load tcon bin_path[%d]: %s, size: 0x%x -> 0x%x\n",
 		      pdrv->index, index, str, temp, size);
 
-		lcd_tcon_data_load(pdrv, mm_table->data_mem_vaddr[index], index);
+		ret = lcd_tcon_data_load(pdrv, mm_table->data_mem_vaddr[index], index);
+		if (ret) {
+			kfree(mm_table->data_mem_vaddr[index]);
+			mm_table->data_mem_vaddr[index] = NULL;
+			ret = -EFAULT;
+		}
 		break;
 	default:
 		LCDERR("[%d]: not support ioctl cmd_nr: 0x%x\n",
