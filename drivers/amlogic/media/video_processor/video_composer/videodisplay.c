@@ -17,6 +17,7 @@
  */
  #include <linux/amlogic/meson_uvm_core.h>
  #include <linux/amlogic/media/utils/am_com.h>
+ #include <linux/amlogic/media/codec_mm/codec_mm.h>
  #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
@@ -101,6 +102,10 @@ static void vc_display_q_uninit(struct composer_dev *dev)
 				for (i = 0; i <= repeat_count; i++) {
 					dma_buf_put((struct dma_buf *)file_vf);
 					dma_fence_signal(vd_prepare->release_fence);
+					vc_print(dev->index, PRINT_FENCE,
+						"%s: release_fence = %px\n",
+						__func__,
+						vd_prepare->release_fence);
 					dev->fput_count++;
 				}
 			} else if (!(dis_vf->flag
@@ -143,6 +148,10 @@ static void vc_ready_q_uninit(struct composer_dev *dev)
 				for (i = 0; i <= repeat_count; i++) {
 					dma_buf_put((struct dma_buf *)file_vf);
 					dma_fence_signal(vd_prepare->release_fence);
+					vc_print(dev->index, PRINT_FENCE,
+						"%s: release_fence = %px\n",
+						__func__,
+						vd_prepare->release_fence);
 					dev->fput_count++;
 				}
 			}
@@ -268,6 +277,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 				__func__);
 			return;
 		}
+
 		repeat_count = vf->repeat_count[dev->index];
 		file_vf = vf->file_vf;
 
@@ -276,6 +286,10 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 			if (file_vf) {
 				dma_buf_put((struct dma_buf *)file_vf);
 				dma_fence_signal(vd_prepare_tmp->release_fence);
+				vc_print(dev->index, PRINT_FENCE,
+					"%s: release_fence = %px\n",
+					__func__,
+					vd_prepare_tmp->release_fence);
 				dev->fput_count++;
 			} else {
 				vc_print(dev->index, PRINT_ERROR,
@@ -586,6 +600,33 @@ static int video_display_uninit(int layer_index)
 	return ret;
 }
 
+static unsigned long get_dma_phy_addr(struct dma_buf *dbuf,
+					struct composer_dev *dev)
+{
+	unsigned long phy_addr = 0;
+	struct sg_table *table = NULL;
+	struct page *page = NULL;
+	struct dma_buf_attachment *attach = NULL;
+
+	if (IS_ERR_OR_NULL(dbuf) || IS_ERR_OR_NULL(dev)) {
+		vc_print(dev->index, PRINT_ERROR,
+			 "%s: param is NULL.\n",
+			 __func__);
+		return 0;
+	}
+
+	attach = dma_buf_attach(dbuf, dev->port->pdev);
+	if (IS_ERR(attach))
+		return 0;
+
+	table = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
+	page = sg_page(table->sgl);
+	phy_addr = PFN_PHYS(page_to_pfn(page));
+	dma_buf_unmap_attachment(attach, table, DMA_BIDIRECTIONAL);
+	dma_buf_detach(dbuf, attach);
+	return phy_addr;
+}
+
 int video_display_setenable(int layer_index, int is_enable)
 {
 	int ret = 0;
@@ -635,7 +676,7 @@ int video_display_setframe(int layer_index,
 	struct composer_dev *dev;
 	struct vframe_s *vf = NULL;
 	int ready_count = 0;
-	bool is_repeat_vf = false;
+	bool is_dec_vf = false, is_v4l_vf = false, is_repeat_vf = false;
 	struct vd_prepare_s *vd_prepare = NULL;
 
 	if (IS_ERR_OR_NULL(frame_info)) {
@@ -652,25 +693,19 @@ int video_display_setframe(int layer_index,
 			__func__);
 		return -EBUSY;
 	}
-
 	if (dev->enable_composer != 1)
 		video_display_setenable(layer_index, 1);
 
-	vf = vd_get_vf_from_buf(dev, frame_info->dmabuf);
-	if (!vf) {
-		vc_print(layer_index, PRINT_ERROR,
-			"%s: get vf failed.\n",
-			__func__);
-		return -ENOENT;
-	}
-
+	is_dec_vf = is_valid_mod_type(frame_info->dmabuf, VF_SRC_DECODER);
+	is_v4l_vf = is_valid_mod_type(frame_info->dmabuf, VF_PROCESS_V4LVIDEO);
 	get_dma_buf(frame_info->dmabuf);
 	dev->received_count++;
 	vc_print(layer_index, PRINT_OTHER | PRINT_PATTERN,
 		"%s: total receive_count is %lld.\n",
 		__func__, dev->received_count);
 
-	if (dev->last_file == (struct file *)frame_info->dmabuf)
+	if ((dev->last_file == (struct file *)frame_info->dmabuf) &&
+	    (is_dec_vf || is_v4l_vf))
 		is_repeat_vf = true;
 
 	if (is_repeat_vf) {
@@ -684,8 +719,19 @@ int video_display_setframe(int layer_index,
 			return -ENOENT;
 		}
 
-		vd_prepare->src_frame = vf;
-		vd_prepare->dst_frame = *vf;
+		if (is_dec_vf || is_v4l_vf) {
+			vf = vd_get_vf_from_buf(dev, frame_info->dmabuf);
+			if (!vf) {
+				vc_print(layer_index, PRINT_ERROR,
+					"%s: get vf failed.\n",
+					__func__);
+				return -ENOENT;
+			}
+			vd_prepare->src_frame = vf;
+			vd_prepare->dst_frame = *vf;
+		} else {/*dma buf*/
+			vd_prepare->src_frame = &vd_prepare->dst_frame;
+		}
 		vd_prepare->release_fence = frame_info->release_fence;
 		dev->vd_prepare_last = vd_prepare;
 	}
@@ -709,6 +755,38 @@ int video_display_setframe(int layer_index,
 		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 	vf->disp_pts = 0;
 
+	if (!(is_dec_vf || is_v4l_vf)) {
+		vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
+		vf->canvas0Addr = -1;
+		vf->canvas0_config[0].phy_addr =
+			get_dma_phy_addr(frame_info->dmabuf, dev);
+			vf->canvas0_config[0].width =
+					frame_info->buffer_w;
+			vf->canvas0_config[0].height =
+					frame_info->buffer_h;
+			vc_print(dev->index, PRINT_PATTERN,
+				 "buffer: w %d, h %d.\n",
+				 frame_info->buffer_w,
+				 frame_info->buffer_h);
+		vf->canvas1Addr = -1;
+		vf->canvas0_config[1].phy_addr =
+			get_dma_phy_addr(frame_info->dmabuf, dev)
+			+ vf->canvas0_config[0].width
+			* vf->canvas0_config[0].height;
+		vf->canvas0_config[1].width =
+			vf->canvas0_config[0].width;
+		vf->canvas0_config[1].height =
+			vf->canvas0_config[0].height;
+		vf->width = frame_info->buffer_w;
+		vf->height = frame_info->buffer_h;
+		vf->plane_num = 2;
+		vf->type = VIDTYPE_PROGRESSIVE
+				| VIDTYPE_VIU_FIELD
+				| VIDTYPE_VIU_NV21;
+		vf->bitdepth =
+			BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
+	}
+
 	if (is_repeat_vf) {
 		vf->repeat_count[dev->index]++;
 		vc_print(layer_index, PRINT_ERROR,
@@ -716,10 +794,10 @@ int video_display_setframe(int layer_index,
 			__func__, vf->repeat_count[dev->index]);
 		return 0;
 	}
-
 	dev->last_file = (struct file *)frame_info->dmabuf;
 	vf->file_vf = (struct file *)(frame_info->dmabuf);
 	vf->repeat_count[dev->index] = 0;
+	dev->vd_prepare_last = vd_prepare;
 	if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)vf)) {
 		vc_print(layer_index, PRINT_ERROR,
 			"%s: ready_q is full.\n",
