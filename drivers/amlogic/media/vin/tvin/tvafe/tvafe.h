@@ -20,7 +20,7 @@
 /* ************************************************* */
 /* *** macro definitions ********************************************* */
 /* *********************************************************** */
-#define TVAFE_VER "Ref.2021/12/16 vbi work queue set zero"
+#define TVAFE_VER "Ref.2021/12/25 tvafe change clamp config"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

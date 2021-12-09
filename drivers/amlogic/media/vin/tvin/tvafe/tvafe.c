@@ -859,7 +859,8 @@ static bool white_pattern_reset_pag(enum tvin_port_e port,
 		}
 
 		if ((av1_plugin_state == 0 || av2_plugin_state == 0) &&
-		      top_init_en && cvd2->info.state_cnt == 3) {
+			!R_APB_BIT(TVFE_CLAMP_INTF,
+				CLAMP_EN_BIT, CLAMP_EN_WID)) {
 			white_pattern_pga_reset(port);
 			tvafe_pr_info("av1:%u av2:%u\n", av1_plugin_state,
 				      av2_plugin_state);
