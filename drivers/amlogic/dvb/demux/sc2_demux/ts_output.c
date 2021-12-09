@@ -824,6 +824,47 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	return 0;
 }
 
+static int re_get_non_sec_es_header(struct out_elem *pout, char *last_header,
+				 char *cur_header,
+				 struct dmx_non_sec_es_header *pheader)
+{
+	unsigned int cur_es_bytes = 0;
+	unsigned int last_es_bytes = 0;
+
+	cur_es_bytes = cur_header[7] << 24 |
+		cur_header[6] << 16 | cur_header[5] << 8 | cur_header[4];
+
+	pheader->pts_dts_flag = last_header[2] & 0xF;
+	pheader->dts = last_header[3] & 0x1;
+	pheader->dts <<= 32;
+	pheader->dts |= ((__u64)last_header[11]) << 24
+			| ((__u64)last_header[10]) << 16
+			| ((__u64)last_header[9]) << 8
+			| ((__u64)last_header[8]);
+	pheader->dts &= 0x1FFFFFFFF;
+
+	pheader->pts = last_header[3] >> 1 & 0x1;
+	pheader->pts <<= 32;
+	pheader->pts |= ((__u64)last_header[15]) << 24
+			| ((__u64)last_header[14]) << 16
+			| ((__u64)last_header[13]) << 8
+			| ((__u64)last_header[12]);
+
+	pheader->pts &= 0x1FFFFFFFF;
+	last_es_bytes = last_header[7] << 24
+			| last_header[6] << 16 | last_header[5] << 8 | last_header[4];
+	if (cur_es_bytes < last_es_bytes)
+		pheader->len = 0xffffffff - last_es_bytes + cur_es_bytes + 1;
+	else
+		pheader->len = cur_es_bytes - last_es_bytes;
+
+	dprint("sid:0x%0x pid:0x%0x len:%d,cur_es:0x%0x, last_es:0x%0x\n",
+		   pout->sid, pout->es_pes->pid,
+		   pheader->len, cur_es_bytes, last_es_bytes);
+
+	return 0;
+}
+
 static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 {
 	int ret;
@@ -1557,6 +1598,8 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 	char *pcur_header;
 	char *plast_header;
 	struct dmx_non_sec_es_header *pheader = &es_params->header;
+	unsigned int len = 0;
+	char *pheader_again;
 
 	memset(&cur_header, 0, sizeof(cur_header));
 	pcur_header = (char *)&cur_header;
@@ -1599,16 +1642,38 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 					sizeof(es_params->last_header));
 //			dprint("error: header.len is 0, jump\n");
 			return 0;
-		} else if (pheader->len >= pout->pchan->mem_size) {
-			memcpy(&es_params->last_last_header,
-				&es_params->last_header, 16);
-			memcpy(&es_params->last_header, pcur_header,
-					sizeof(es_params->last_header));
-			es_params->header_wp =
-				SC2_bufferid_get_wp_offset(pout->pchan1);
-			dprint("error: es len: 0x%0x\n", pheader->len);
-			es_params->es_error_cn++;
-			return 0;
+		}
+		len = SC2_bufferid_get_data_len(pout->pchan);
+		if (pheader->len > len) {
+			dprint("compute len:%d, es len:%d\n", pheader->len, len);
+			//re read header data again
+			if (pout->aucpu_pts_start) {
+				goto error_hande;
+			} else {
+				SC2_bufferid_read_header_again(pout->pchan1, &pheader_again);
+				if (memcmp(pcur_header, pheader_again, 0x10) != 0) {
+					dprint("cur header: 0x%0x 0x%0x 0x%0x 0x%0x\n",
+				       *(unsigned int *)pcur_header,
+				       *((unsigned int *)pcur_header + 1),
+				       *((unsigned int *)pcur_header + 2),
+				       *((unsigned int *)pcur_header + 3));
+					dprint("read again header: 0x%0x 0x%0x 0x%0x 0x%0x\n",
+					   *(unsigned int *)pheader_again,
+					   *((unsigned int *)pheader_again + 1),
+					   *((unsigned int *)pheader_again + 2),
+					   *((unsigned int *)pheader_again + 3));
+					memcpy(pcur_header, pheader_again, 0x10);
+					re_get_non_sec_es_header(pout, plast_header, pcur_header,
+					  pheader);
+					if (pheader->len > len) {
+						dprint("two compute len:%d, es len:%d\n",
+							pheader->len, len);
+						goto error_hande;
+					}
+				} else {
+					goto error_hande;
+				}
+			}
 		}
 		memcpy(&es_params->last_last_header,
 			&es_params->last_header, 16);
@@ -1657,6 +1722,13 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 		}
 	}
 	return -1;
+error_hande:
+	es_params->header_wp =
+		SC2_bufferid_get_wp_offset(pout->pchan1);
+	es_params->es_error_cn++;
+	dprint("error: es len: 0x%0x, err count:%d\n",
+		pheader->len, es_params->es_error_cn);
+	return 0;
 }
 
 static void add_ts_out_list(struct ts_out_task *head, struct ts_out *ts_out_tmp)

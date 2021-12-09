@@ -148,6 +148,8 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid);
 
 unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan);
 unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan);
+unsigned int SC2_bufferid_get_data_len(struct chan_id *pchan);
+int SC2_bufferid_read_header_again(struct chan_id *pchan, char **pread);
 
 int _alloc_buff(unsigned int len, int sec_level,
 		unsigned long *vir_mem, unsigned long *phy_mem);
