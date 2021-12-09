@@ -45,9 +45,10 @@
 // frc_20211125 frc chg me little_window fhd
 // frc_20211202 fix frc reboot crash
 // frc_20211201 frc add detect error
+// frc_20211208 frc set limit size
 
-#define FRC_FW_VER			"2021-1208 frc set limit size"
-#define FRC_KERDRV_VER                  1309
+#define FRC_FW_VER			"2021-1209 sync frc alg from vlsi"
+#define FRC_KERDRV_VER                  1414
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
