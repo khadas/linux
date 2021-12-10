@@ -194,6 +194,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	struct meson_drm *private = drm_dev->dev_private;
 	struct meson_vpu_pipeline *pipeline = private->pipeline;
 	struct am_meson_crtc *amcrtc;
+	struct meson_vpu_data *vpu_data;
 #ifdef CONFIG_CMA
 	struct cma *cma;
 	struct reserved_mem *rmem = NULL;
@@ -293,13 +294,9 @@ static int am_meson_vpu_bind(struct device *dev,
 	}
 
 	/* HW config for different VPUs */
-	if (pipeline->osd_version == OSD_V7) {
-		fix_vpu_clk2_default_regs();
-		/* OSD3  uses VPP0*/
-		osd_set_vpp_path_default(3, 0);
-		/* OSD4  uses VPP0*/
-		osd_set_vpp_path_default(4, 0);
-	}
+	vpu_data = (struct meson_vpu_data *)of_device_get_match_data(dev);
+	if (vpu_data && vpu_data->crtc_func)
+		vpu_data->crtc_func->init_default_reg();
 
 	irq_init_done = 1;
 	DRM_INFO("[%s] out\n", __func__);
@@ -325,6 +322,22 @@ static const struct component_ops am_meson_vpu_component_ops = {
 	.unbind = am_meson_vpu_unbind,
 };
 
+static struct meson_vpu_crtc_func vpu_crtc_t7_func = {
+	.init_default_reg = fix_vpu_clk2_default_regs,
+};
+
+static struct meson_vpu_crtc_func vpu_crtc_t5w_func = {
+	.init_default_reg = independ_path_default_regs,
+};
+
+static const struct meson_vpu_data vpu_t7_data = {
+	.crtc_func = &vpu_crtc_t7_func,
+};
+
+static const struct meson_vpu_data vpu_t5w_data = {
+	.crtc_func = &vpu_crtc_t5w_func,
+};
+
 static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{ .compatible = "amlogic, meson-gxbb-vpu",},
@@ -342,7 +355,10 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	{.compatible = "amlogic, meson-t5-vpu",},
 	{.compatible = "amlogic, meson-sc2-vpu",},
 	{.compatible = "amlogic, meson-s4-vpu",},
-	{.compatible = "amlogic, meson-t7-vpu",},
+	{.compatible = "amlogic, meson-t7-vpu",
+	 .data = &vpu_t7_data,},
+	{.compatible = "amlogic, meson-t5w-vpu",
+	 .data = &vpu_t5w_data,},
 	{}
 };
 

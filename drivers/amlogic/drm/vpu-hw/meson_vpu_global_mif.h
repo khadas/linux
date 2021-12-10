@@ -18,6 +18,15 @@
 #define MALI_AFBCD1_TOP_CTRL                       0x1a55
 #define PATH_START_SEL                             0x1a8a
 
+#define VIU_VD1_PATH_CTRL                          0x1a73
+#define VIU_VD2_PATH_CTRL                          0x1a74
+
+#define VIU_OSD1_PATH_CTRL                         0x1a76
+#define VIU_OSD2_PATH_CTRL                         0x1a77
+#define VIU_OSD3_PATH_CTRL                         0x1a78
+
 void fix_vpu_clk2_default_regs(void);
-void osd_set_vpp_path_default(u32 osd_index, u32 vpp_index);
+
+void independ_path_default_regs(void);
+
 #endif
