@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -93,7 +93,6 @@ struct um_desc
         struct
         {
             struct page **pages;
-            struct sg_table sgt;
         };
 
         /* UM_PFN_MAP. */
@@ -104,6 +103,8 @@ struct um_desc
         };
     };
 
+    struct sg_table sgt;
+
     /* contiguous chunks, does not include padding pages. */
     int chunk_count;
 
@@ -111,20 +112,48 @@ struct um_desc
     unsigned long user_vaddr;
     size_t size;
     unsigned long offset;
+    dma_addr_t dmaHandle;
 
     size_t pageCount;
     size_t extraPage;
 };
 
-static int import_physical_map(struct um_desc *um, unsigned long phys)
+static int import_physical_map(gckOS Os, struct um_desc *um, unsigned long phys)
 {
     um->type = UM_PHYSICAL_MAP;
     um->physical = phys & PAGE_MASK;
     um->chunk_count = 1;
+
+    if (Os->iommu)
+    {
+        dma_addr_t dmaHandle;
+        unsigned long pfn = phys >> PAGE_SHIFT;
+
+        if (pfn_valid(pfn))
+        {
+            dmaHandle = dma_map_page(galcore_device, pfn_to_page(pfn), 0, um->size, DMA_BIDIRECTIONAL);
+        }
+        else
+        {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+            dmaHandle = dma_map_resource(galcore_device, phys, um->size, DMA_BIDIRECTIONAL, 0);
+#else
+            dmaHandle = dma_map_page(galcore_device, pfn_to_page(pfn), 0, um->size, DMA_BIDIRECTIONAL);
+#endif
+        }
+
+        if (dma_mapping_error(galcore_device, dmaHandle))
+        {
+            return gcvSTATUS_OUT_OF_MEMORY;
+        }
+
+        um->dmaHandle = dmaHandle;
+    }
+
     return 0;
 }
 
-static int import_page_map(struct um_desc *um,
+static int import_page_map(gckOS Os, struct um_desc *um,
                 unsigned long addr, size_t page_count, size_t size)
 {
     int i;
@@ -141,16 +170,22 @@ static int import_page_map(struct um_desc *um,
     if (!pages)
         return -ENOMEM;
 
-    down_read(&current->mm->mmap_sem);
+    down_read(&current_mm_mmap_sem);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0)
+    result = get_user_pages_longterm(
+#else
     result = get_user_pages(
+#endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
             current,
             current->mm,
 #endif
             addr & PAGE_MASK,
             page_count,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+            FOLL_WRITE | FOLL_LONGTERM,
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0) || defined(CONFIG_PPC)
             FOLL_WRITE,
 #else
             1,
@@ -159,7 +194,7 @@ static int import_page_map(struct um_desc *um,
             pages,
             NULL);
 
-    up_read(&current->mm->mmap_sem);
+    up_read(&current_mm_mmap_sem);
 
     if (result < page_count)
     {
@@ -208,6 +243,11 @@ static int import_page_map(struct um_desc *um,
         goto error;
     }
 
+    if (Os->iommu)
+    {
+        um->dmaHandle = sg_dma_address(um->sgt.sgl);
+    }
+
     dma_sync_sg_for_cpu(galcore_device, um->sgt.sgl, um->sgt.nents, DMA_FROM_DEVICE);
 
     um->type = UM_PAGE_MAP;
@@ -231,20 +271,23 @@ error:
 }
 
 
-static int import_pfn_map(struct um_desc *um,
+static int import_pfn_map(gckOS Os, struct um_desc *um,
                 unsigned long addr, size_t pfn_count)
 {
     int i;
     struct vm_area_struct *vma;
     unsigned long *pfns;
     int *refs;
+    struct page **pages = gcvNULL;
+    int result = 0;
+    size_t pageCount = 0;
 
     if (!current->mm)
         return -ENOTTY;
 
-    down_read(&current->mm->mmap_sem);
+    down_read(&current_mm_mmap_sem);
     vma = find_vma(current->mm, addr);
-    up_read(&current->mm->mmap_sem);
+    up_read(&current_mm_mmap_sem);
 
     if (!vma)
         return -ENOTTY;
@@ -262,10 +305,21 @@ static int import_pfn_map(struct um_desc *um,
         return -ENOMEM;
     }
 
+    pages = kzalloc(pfn_count * sizeof(void *), GFP_KERNEL | gcdNOWARN);
+    if (!pages)
+    {
+        kfree(pfns);
+        kfree(refs);
+        return -ENOMEM;
+    }
+
     for (i = 0; i < pfn_count; i++)
     {
         spinlock_t *ptl;
         pgd_t *pgd;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
+        p4d_t *p4d;
+#endif
         pud_t *pud;
         pmd_t *pmd;
         pte_t *pte;
@@ -281,7 +335,15 @@ static int import_pfn_map(struct um_desc *um,
     && LINUX_VERSION_CODE >= KERNEL_VERSION (4,11,0)
         pud = pud_offset((p4d_t*)pgd, addr);
 #else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
+        p4d = p4d_offset(pgd, addr);
+        if (p4d_none(READ_ONCE(*p4d)))
+            goto err;
+
+        pud = pud_offset(p4d, addr);
+#else
         pud = pud_offset(pgd, addr);
+#endif
 #endif
         if (pud_none(*pud) || pud_bad(*pud))
             goto err;
@@ -291,11 +353,6 @@ static int import_pfn_map(struct um_desc *um,
             goto err;
 
         pte = pte_offset_map_lock(current->mm, pmd, addr, &ptl);
-        if (!pte)
-        {
-            spin_unlock(ptl);
-            goto err;
-        }
 
         if (!pte_present(*pte))
         {
@@ -316,6 +373,8 @@ static int import_pfn_map(struct um_desc *um,
         {
             struct page *page = pfn_to_page(pfns[i]);
             refs[i] = get_page_unless_zero(page);
+            pages[i] = page;
+            pageCount++;
         }
     }
 
@@ -328,6 +387,48 @@ static int import_pfn_map(struct um_desc *um,
         }
     }
 
+    if (pageCount == pfn_count)
+    {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (3,6,0) \
+    && (defined(ARCH_HAS_SG_CHAIN) || defined(CONFIG_ARCH_HAS_SG_CHAIN))
+        result = sg_alloc_table_from_pages(&um->sgt, pages, pfn_count,
+                        addr & ~PAGE_MASK, pfn_count * PAGE_SIZE, GFP_KERNEL | gcdNOWARN);
+
+#else
+        result = alloc_sg_list_from_pages(&um->sgt.sgl, pages, pfn_count,
+                        addr & ~PAGE_MASK, pfn_count * PAGE_SIZE, &um->sgt.nents);
+
+        um->sgt.orig_nents = um->sgt.nents;
+#endif
+        if (unlikely(result < 0))
+        {
+            printk("[galcore]: %s: sg_alloc_table_from_pages failed\n", __FUNCTION__);
+            goto err;
+        }
+
+        result = dma_map_sg(galcore_device, um->sgt.sgl, um->sgt.nents, DMA_TO_DEVICE);
+
+        if (unlikely(result != um->sgt.nents))
+        {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (3,6,0) \
+    && (defined(ARCH_HAS_SG_CHAIN) || defined(CONFIG_ARCH_HAS_SG_CHAIN))
+            sg_free_table(&um->sgt);
+#else
+            kfree(um->sgt.sgl);
+#endif
+            printk("[galcore]: %s: dma_map_sg failed\n", __FUNCTION__);
+            goto err;
+        }
+
+        if (Os->iommu)
+        {
+            um->dmaHandle = sg_dma_address(um->sgt.sgl);
+        }
+    }
+
+    kfree(pages);
+    pages = gcvNULL;
+
     um->type = UM_PFN_MAP;
     um->pfns = pfns;
     um->refs = refs;
@@ -339,6 +440,9 @@ err:
 
     if (refs)
         kfree(refs);
+
+    if (pages)
+        kfree(pages);
 
     return -ENOTTY;
 }
@@ -368,7 +472,7 @@ _Import(
     gcmkVERIFY_ARGUMENT(Memory != gcvNULL || Physical != ~0ULL);
     gcmkVERIFY_ARGUMENT(Size > 0);
 
-    memory = (Physical != gcvINVALID_PHYSICAL_ADDRESS) ? Physical : (gctSIZE_T)Memory;
+    memory = (Physical != gcvINVALID_PHYSICAL_ADDRESS) ? Physical : untagged_addr((gctSIZE_T)Memory);
 
     /* Get the number of required pages. */
     end = (memory + Size + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -407,7 +511,9 @@ _Import(
             vaddr += PAGE_SIZE;
         }
 
+        down_read(&current_mm_mmap_sem);
         vma = find_vma(current->mm, memory);
+        up_read(&current_mm_mmap_sem);
 
         if (!vma)
         {
@@ -423,6 +529,7 @@ _Import(
         vm_flags = vma->vm_flags;
         vaddr = vma->vm_end;
 
+        down_read(&current_mm_mmap_sem);
         while (vaddr < memory + Size)
         {
             vma = find_vma(current->mm, vaddr);
@@ -430,32 +537,35 @@ _Import(
             if (!vma)
             {
                 /* No such memory. */
+                up_read(&current_mm_mmap_sem);
                 gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
             }
 
             if ((vma->vm_flags & VM_PFNMAP) != (vm_flags & VM_PFNMAP))
             {
                 /* Can not support different map type: both PFN and PAGE detected. */
+                up_read(&current_mm_mmap_sem);
                 gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
             }
 
             vaddr = vma->vm_end;
         }
+        up_read(&current_mm_mmap_sem);
     }
 
     if (Physical != gcvINVALID_PHYSICAL_ADDRESS)
     {
-        result = import_physical_map(UserMemory, Physical);
+        result = import_physical_map(Os, UserMemory, Physical);
     }
     else
     {
         if (vm_flags & VM_PFNMAP)
         {
-            result = import_pfn_map(UserMemory, memory, pageCount);
+            result = import_pfn_map(Os, UserMemory, memory, pageCount);
         }
         else
         {
-            result = import_page_map(UserMemory, memory, pageCount, Size);
+            result = import_page_map(Os, UserMemory, memory, pageCount, Size);
         }
     }
 
@@ -571,11 +681,30 @@ OnError:
     return status;
 }
 
-static void release_physical_map(struct um_desc *um)
+static void release_physical_map(gckOS Os, struct um_desc *um)
 {
+    if (Os->iommu)
+    {
+        unsigned long pfn = um->physical >> PAGE_SHIFT;
+
+        if (pfn_valid(pfn))
+        {
+            dma_unmap_page(galcore_device, um->dmaHandle, um->size, DMA_BIDIRECTIONAL);
+        }
+        else
+        {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 0)
+            dma_unmap_resource(galcore_device, um->physical, um->size, DMA_BIDIRECTIONAL, 0);
+#else
+            dma_unmap_page(galcore_device, um->dmaHandle, um->size, DMA_BIDIRECTIONAL);
+#endif
+        }
+
+        um->dmaHandle = 0;
+    }
 }
 
-static void release_page_map(struct um_desc *um)
+static void release_page_map(gckOS Os, struct um_desc *um)
 {
     int i;
     dma_sync_sg_for_device(galcore_device,
@@ -585,6 +714,8 @@ static void release_page_map(struct um_desc *um)
                     um->sgt.sgl, um->sgt.nents, DMA_FROM_DEVICE);
 
     dma_unmap_sg(galcore_device, um->sgt.sgl, um->sgt.nents, DMA_FROM_DEVICE);
+
+    um->dmaHandle = 0;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION (3,6,0) \
     && (defined(ARCH_HAS_SG_CHAIN) || defined(CONFIG_ARCH_HAS_SG_CHAIN))
@@ -606,10 +737,24 @@ static void release_page_map(struct um_desc *um)
     kfree(um->pages);
 }
 
-static void release_pfn_map(struct um_desc *um)
+static void release_pfn_map(gckOS Os, struct um_desc *um)
 {
 
     int i;
+
+    if (Os->iommu)
+    {
+        dma_unmap_sg(galcore_device, um->sgt.sgl, um->sgt.nents, DMA_FROM_DEVICE);
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (3,6,0) \
+    && (defined(ARCH_HAS_SG_CHAIN) || defined(CONFIG_ARCH_HAS_SG_CHAIN))
+        sg_free_table(&um->sgt);
+#else
+        kfree(um->sgt.sgl);
+#endif
+    }
+
+    um->dmaHandle = 0;
 
     for (i = 0; i < um->pageCount; i++)
     {
@@ -648,13 +793,13 @@ _UserMemoryFree(
         switch (userMemory->type)
         {
         case UM_PHYSICAL_MAP:
-            release_physical_map(userMemory);
+            release_physical_map(os, userMemory);
             break;
         case UM_PAGE_MAP:
-            release_page_map(userMemory);
+            release_page_map(os, userMemory);
             break;
         case UM_PFN_MAP:
-            release_pfn_map(userMemory);
+            release_pfn_map(os, userMemory);
             break;
         }
 
@@ -728,7 +873,7 @@ _UserMemoryCache(
     struct um_desc *um = Mdl->priv;
     enum dma_data_direction dir;
 
-    if (um->type != UM_PAGE_MAP)
+    if (um->type == UM_PHYSICAL_MAP)
     {
         _MemoryBarrier();
         return gcvSTATUS_OK;
@@ -782,7 +927,14 @@ _UserMemoryPhysical(
     {
         if (index < userMemory->pageCount + userMemory->extraPage)
         {
-            *Physical = page_to_phys(os->paddingPage);
+            if (os->iommu)
+            {
+                *Physical = os->iommu->paddingPageDmaHandle;
+            }
+            else
+            {
+                *Physical = page_to_phys(os->paddingPage);
+            }
         }
         else
         {
@@ -791,17 +943,24 @@ _UserMemoryPhysical(
     }
     else
     {
-        switch (userMemory->type)
+        if (os->iommu)
         {
-        case UM_PHYSICAL_MAP:
-            *Physical = userMemory->physical + (gctPHYS_ADDR_T)index * PAGE_SIZE;
-            break;
-        case UM_PAGE_MAP:
-            *Physical = page_to_phys(userMemory->pages[index]);
-            break;
-        case UM_PFN_MAP:
-            *Physical = (gctPHYS_ADDR_T)userMemory->pfns[index] << PAGE_SHIFT;
-            break;
+            *Physical = userMemory->dmaHandle + (gctPHYS_ADDR_T)index * PAGE_SIZE;
+        }
+        else
+        {
+            switch (userMemory->type)
+            {
+            case UM_PHYSICAL_MAP:
+                *Physical = userMemory->physical + (gctPHYS_ADDR_T)index * PAGE_SIZE;
+                break;
+            case UM_PAGE_MAP:
+                *Physical = page_to_phys(userMemory->pages[index]);
+                break;
+            case UM_PFN_MAP:
+                *Physical = (gctPHYS_ADDR_T)userMemory->pfns[index] << PAGE_SHIFT;
+                break;
+            }
         }
     }
 

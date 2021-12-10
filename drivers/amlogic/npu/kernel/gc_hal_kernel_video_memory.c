@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -612,11 +612,7 @@ _FindNode(
 {
     gcuVIDMEM_NODE_PTR node;
     gctUINT32 alignment;
-
-#if gcdENABLE_BANK_ALIGNMENT
     gctUINT32 bankAlignment;
-    gceSTATUS status;
-#endif
 
     if (Memory->sentinel[Bank].VidMem.nextFree == gcvNULL)
     {
@@ -624,30 +620,40 @@ _FindNode(
         return gcvNULL;
     }
 
-#if gcdENABLE_BANK_ALIGNMENT
     /* Walk all free nodes until we have one that is big enough or we have
     ** reached the sentinel. */
     for (node = Memory->sentinel[Bank].VidMem.nextFree;
          node->VidMem.bytes != 0;
          node = node->VidMem.nextFree)
     {
+        gctUINT offset;
+
+        gcmkSAFECASTSIZET(offset, node->VidMem.offset);
+
         if (node->VidMem.bytes < Bytes)
         {
             continue;
         }
 
-        gcmkONERROR(_GetSurfaceBankAlignment(
+#if gcdENABLE_BANK_ALIGNMENT
+        if (gcmIS_ERROR(_GetSurfaceBankAlignment(
             Kernel,
             Type,
             (gctUINT32)(node->VidMem.parent->physicalBase + node->VidMem.offset),
-            &bankAlignment));
+            &bankAlignment)))
+        {
+            return gcvNULL;
+        }
 
         bankAlignment = gcmALIGN(bankAlignment, *Alignment);
+#else
+        bankAlignment = 0;
+#endif
 
         /* Compute number of bytes to skip for alignment. */
         alignment = (*Alignment == 0)
                   ? 0
-                  : (*Alignment - (node->VidMem.offset % *Alignment));
+                  : (*Alignment - (offset & (*Alignment - 1)));
 
         if (alignment == *Alignment)
         {
@@ -662,42 +668,7 @@ _FindNode(
             return node;
         }
     }
-#endif
 
-    /* Walk all free nodes until we have one that is big enough or we have
-       reached the sentinel. */
-    for (node = Memory->sentinel[Bank].VidMem.nextFree;
-         node->VidMem.bytes != 0;
-         node = node->VidMem.nextFree)
-    {
-        gctUINT offset;
-
-        gctINT modulo;
-
-        gcmkSAFECASTSIZET(offset, node->VidMem.offset);
-
-        modulo = gckMATH_ModuloInt(offset, *Alignment);
-
-        /* Compute number of bytes to skip for alignment. */
-        alignment = (*Alignment == 0) ? 0 : (*Alignment - modulo);
-
-        if (alignment == *Alignment)
-        {
-            /* Node is already aligned. */
-            alignment = 0;
-        }
-
-        if (node->VidMem.bytes >= Bytes + alignment)
-        {
-            /* This node is big enough. */
-            *Alignment = alignment;
-            return node;
-        }
-    }
-
-#if gcdENABLE_BANK_ALIGNMENT
-OnError:
-#endif
     /* Not enough memory. */
     return gcvNULL;
 }
@@ -762,6 +733,11 @@ gckVIDMEM_AllocateLinear(
     gcmkVERIFY_ARGUMENT(Bytes > 0);
     gcmkVERIFY_ARGUMENT(Node != gcvNULL);
     gcmkVERIFY_ARGUMENT(Type < gcvVIDMEM_TYPE_COUNT);
+
+    if (Alignment && (Alignment & (Alignment - 1)))
+    {
+        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+    }
 
     /* Acquire the mutex. */
     gcmkONERROR(gckOS_AcquireMutex(Memory->os, Memory->mutex, gcvINFINITE));
@@ -1299,7 +1275,7 @@ _ConvertPhysical(
         physical -= Kernel->hardware->baseAddress;
 
         /* 2G upper is virtual space, better to move to gckHARDWARE section. */
-        if (physical + Node->Virtual.bytes > 0x80000000)
+        if (Node && (physical + Node->Virtual.bytes > 0x80000000U))
         {
             /* End is above 2G, ie virtual space. */
             status = gcvSTATUS_NOT_SUPPORTED;
@@ -1374,6 +1350,21 @@ gckVIDMEM_MapVidMemBlock(
                                     0,
                                     &physAddr));
 
+    if (!Kernel->hardware->options.enableMMU)
+    {
+        if (physAddr >= ((gctUINT64)1 << 32))
+        {
+            gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+        }
+        else
+        {
+            VidMemBlock->addresses[hwType] = (gctUINT32)physAddr;
+
+            gcmkFOOTER_ARG("*Address=0x%08X", VidMemBlock->addresses[hwType]);
+            return gcvSTATUS_OK;
+        }
+    }
+
     status = _ConvertPhysical(Kernel,
                               Kernel->core,
                               gcvNULL,
@@ -1382,10 +1373,27 @@ gckVIDMEM_MapVidMemBlock(
                               &VidMemBlock->addresses[hwType]);
     if (gcmIS_ERROR(status))
     {
+        gctSIZE_T pageCount = VidMemBlock->pageCount;
+
+        /* If physical address is not aligned. */
+        if (physAddr & (gcd1M_PAGE_SIZE - 1))
+        {
+            if (VidMemBlock->contiguous)
+            {
+                pageCount++;
+            }
+            else
+            {
+                gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+            }
+        }
+
+        VidMemBlock->fixedPageCount = (gctUINT32)pageCount;
+
         /* Allocate pages inside the MMU. */
         gcmkONERROR(
             gckMMU_AllocatePagesEx(Kernel->mmu,
-                                   VidMemBlock->pageCount,
+                                   pageCount,
                                    VidMemBlock->type,
                                    gcvPAGE_TYPE_1M,
                                    VidMemBlock->secure,
@@ -1399,7 +1407,7 @@ gckVIDMEM_MapVidMemBlock(
                 gckOS_Map1MPages(os,
                                  Kernel->core,
                                  VidMemBlock->physical,
-                                 VidMemBlock->pageCount,
+                                 pageCount,
                                  VidMemBlock->addresses[hwType],
                                  VidMemBlock->pageTables[hwType],
                                  gcvTRUE,
@@ -1417,6 +1425,7 @@ gckVIDMEM_MapVidMemBlock(
                    VidMemBlock,
                    VidMemBlock->addresses[hwType]);
 
+    gcmkFOOTER();
     return gcvSTATUS_OK;
 
 OnError:
@@ -1429,7 +1438,7 @@ OnError:
                              gcvPAGE_TYPE_1M,
                              VidMemBlock->addresses[hwType],
                              VidMemBlock->pageTables[hwType],
-                             VidMemBlock->pageCount));
+                             VidMemBlock->fixedPageCount));
 
         VidMemBlock->pageTables[hwType] = gcvNULL;
     }
@@ -1460,7 +1469,7 @@ _UnmapVidMemBlock(
                              gcvPAGE_TYPE_1M,
                              VidMemBlock->addresses[HwType],
                              VidMemBlock->pageTables[HwType],
-                             VidMemBlock->pageCount));
+                             VidMemBlock->fixedPageCount));
 
         VidMemBlock->pageTables[HwType] = gcvNULL;
     }
@@ -2213,6 +2222,9 @@ gckVIDMEM_LockVirtual(
 
     gcmkHEADER_ARG("Kernel=%p Node=%p", Kernel, Node);
 
+    gcmkVERIFY_ARGUMENT(Kernel != gcvNULL);
+    gcmkVERIFY_ARGUMENT(Kernel->hardware != gcvNULL);
+
     gcmkVERIFY_OK(
         gckKERNEL_GetHardwareType(Kernel,
                                   &hwType));
@@ -2222,6 +2234,21 @@ gckVIDMEM_LockVirtual(
                                     Node->Virtual.physical,
                                     0,
                                     &physicalAddress));
+
+    if (!Kernel->hardware->options.enableMMU)
+    {
+        if (physicalAddress >= ((gctUINT64)1 << 32))
+        {
+            gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+        }
+        else
+        {
+            *Address = (gctUINT32)physicalAddress;
+
+            gcmkFOOTER_ARG("*Address=0x%08X", *Address);
+            return gcvSTATUS_OK;
+        }
+    }
 
 
     /* Increment the lock count. */
@@ -2478,11 +2505,17 @@ gckVIDMEM_UnlockVirtual(
     IN OUT gctBOOL * Asynchroneous
     )
 {
-    gceSTATUS status;
+    gceSTATUS status = gcvSTATUS_OK;
     gceHARDWARE_TYPE hwType;
 
     gcmkHEADER_ARG("Node=0x%x *Asynchroneous=%d",
                    Node, gcmOPT_VALUE(Asynchroneous));
+
+    if (!Kernel->hardware->options.enableMMU)
+    {
+            gcmkFOOTER();
+            return status;
+    }
 
     gcmkVERIFY_OK(
         gckKERNEL_GetHardwareType(Kernel,
@@ -2512,7 +2545,7 @@ gckVIDMEM_UnlockVirtual(
             address = Node->Virtual.addresses[hwType] & ~(4096 - 1);
 
 #if gcdSECURITY
-            if (Node->Virtual.addresses[hwType] > 0x80000000)
+            if (Node->Virtual.addresses[hwType] > 0x80000000U)
             {
                 gcmkONERROR(gckKERNEL_SecurityUnmapMemory(
                     Kernel,
@@ -3282,10 +3315,18 @@ gckVIDMEM_NODE_Lock(
     gceSTATUS status;
     gckOS os = Kernel->os;
     gctBOOL acquired = gcvFALSE;
-    gcuVIDMEM_NODE_PTR node = NodeObject->node;
-    gckVIDMEM_BLOCK vidMemBlock = node->VirtualChunk.parent;
+    gcuVIDMEM_NODE_PTR node;
+    gckVIDMEM_BLOCK vidMemBlock;
 
     gcmkHEADER_ARG("NodeObject=%p", NodeObject);
+
+    if (gcvNULL == NodeObject)
+    {
+        gcmkONERROR(gcvSTATUS_INVALID_OBJECT);
+    }
+
+    node = NodeObject->node;
+    vidMemBlock = node->VirtualChunk.parent;
 
     /* Grab the mutex. */
     gcmkONERROR(gckOS_AcquireMutex(os, NodeObject->mutex, gcvINFINITE));

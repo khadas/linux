@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -150,9 +150,41 @@ BEGIN_EXTERN_C()
 /* bump up version to 1.55 for saving shaderKind and swizzle of uniform to gcSHADER on 09/09/2020 */
 /* bump up version to 1.56 for refine save and load inputLocation and outputLocation in gcSHADER on 09/22/2020 */
 
-/* current version */
-#define gcdSL_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 57)
-#define gcdSL_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 57)
+/* bump up version to 1.57 for saving ocl packed types to gcSHADER on 10/13/2020 */
+#define gcdSL_SHADER_BINARY_BEFORE_SAVEING_OCL_PACKED_TYPE gcmCC(0, 0, 1, 57)
+/* bump up version to 1.58 for saving and loading attribute inputIndex gcSHADER on 10/27/2020 */
+/* bump up version to 1.59 for saving and loading isDual16Shader in gcSHADER binary on 11/04/2020 */
+/* bump up version to 1.60 for adding some information for saving and loading gcSHADER binary on 10/28/2020 */
+/* bump up version to 1.61 for OCL target target and memory data are of same format gcSHADER binary on 11/23/2020 */
+/* bump up version to 1.63 for saving and loading uniforms in uniform block on 12/04/2020 */
+/* bump up version to 1.64 for the type qualifier into the function argument on 03/08/2021 */
+
+
+/* current shader binary version */
+#define gcdSL_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 64)
+#define gcdSL_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 64)
+
+/*********************** SHADER BINARY FILE SUB VERSION *********************/
+#define gcdSL_SHADER_BINARY_SUB_VERSION gcmCC(SHADER_64BITMODE, 0, 0, 0)
+
+/******************** SHADER LIBRARY BINARY FILE VERSION *********************/
+/* Current gcshader CL/VX library version*/
+/* 0.0.0.0 Start to set gcshader cl/vx library version, 12/23/2020 */
+/* Upped version to 1 for fixing precision of _viv_vstore_half*_rtz, 1/7/2021 */
+/* Upped version to 2 for handling NAN inputs for viv_vstore_half*_rtz(), 1/12/2021 */
+/* Upped version to 3 for handling denorms inputs for viv_vstore_half*_rtn(), 1/18/2021 */
+/* Upped version to 4 for implementing sinh and exp, exp10 ..., 2/22/2021 */
+/* Upped version to 5 for implementing cosh 2/23/2021 */
+/* Upped version to 6 for implementing tanh 2/24/2021 */
+/* Upped version to 7 for implementing acosh 3/5/2021 */
+/* Upped version to 8 for implementing atanh 3/6/2021 */
+/* Upped version to 9 for implementing log, log2, log10 3/15/2021 */
+/* Upped version to 10 for implementing log1p 3/17/2021 */
+#define gcdSL_SHADER_CL_LIBRARY_FILE_VERSION  gcmCC(SHADER_64BITMODE, 0, 0, 10)
+
+/* Current gcshader graphic library version*/
+/* 0.0.0.0 Start to set gcshader library version, 12/23/2020 */
+#define gcdSL_SHADER_GRAPHICS_LIBRARY_FILE_VERSION  gcmCC(SHADER_64BITMODE, 0, 0, 0)
 
 typedef union _gcsValue
 {
@@ -251,6 +283,7 @@ gceFRAGOUT_USAGE;
 
 #define gcShader_IsCL(S)           (GetShaderType(S) == gcSHADER_TYPE_CL && (((S)->compilerVersion[0] & 0xFFFF) == _cldLanguageType))
 #define gcShader_IsGlCompute(S)    (GetShaderType(S) == gcSHADER_TYPE_COMPUTE && (((S)->compilerVersion[0] & 0xFFFF) != _cldLanguageType))
+#define gcShader_IsLibrary(S)      (GetShaderType(S) == gcSHADER_TYPE_LIBRARY)
 
 /* Client version. */
 typedef enum _gcSL_OPCODE
@@ -403,8 +436,8 @@ typedef enum _gcSL_OPCODE
     gcSL_GET_SAMPLER_LBS, /* 0x8E Get sampler's levelbasesize */
     gcSL_TEXLD_U, /* 0x8F For TEXLD_U, use the format of coord to select FLOAT/INT/UNSIGINED. */
     gcSL_PARAM_CHAIN, /* 0x90 No specific semantic, only used to chain two sources to one dest. */
-    gcSL_INTRINSIC, /* 0x91 Instrinsic dest, IntrinsicId, Param */
-    gcSL_INTRINSIC_ST, /* 0x92 Instrinsic dest, IntrinsicId, Param; Param is stored implicitly */
+    gcSL_INTRINSIC, /* 0x91 Intrinsic dest, IntrinsicId, Param */
+    gcSL_INTRINSIC_ST, /* 0x92 Intrinsic dest, IntrinsicId, Param; Param is stored implicitly */
     gcSL_CMAD, /* 0x93 Complex number mad. */
     gcSL_CONJ, /* 0x94 Conjugate modifier. */
     gcSL_CMUL, /* 0x95 Complex number mul. */
@@ -1049,6 +1082,17 @@ typedef enum _gcSHADER_TYPE
     gcSHADER_USAMPLER_1D, /* 0xCC */
     gcSHADER_SAMPLER_1D_SHADOW, /* 0xCD */
 
+    /* FP16 matrix. */
+    gcSHADER_FLOAT16_2X2, /* 0xCE */
+    gcSHADER_FLOAT16_2X3, /* 0xCF */
+    gcSHADER_FLOAT16_2X4, /* 0xD0 */
+    gcSHADER_FLOAT16_3X2, /* 0xD1 */
+    gcSHADER_FLOAT16_3X3, /* 0xD2 */
+    gcSHADER_FLOAT16_3X4, /* 0xD3 */
+    gcSHADER_FLOAT16_4X2, /* 0xD4 */
+    gcSHADER_FLOAT16_4X3, /* 0xD5 */
+    gcSHADER_FLOAT16_4X4, /* 0xD6 */
+
     gcSHADER_UNKONWN_TYPE, /* do not add type after this */
     gcSHADER_TYPE_COUNT         /* must to change gcvShaderTypeInfo at the
                                  * same time if you add any new type! */
@@ -1615,6 +1659,8 @@ typedef enum _gceBuiltinNameKind
 /* non-zero field to indicate the number of components in target being packed; width of six bits
  allows number of components to 32. */
 #define gcdSL_TARGET_PackedComponents          19 : 6
+/* target and memory data are of same format */
+#define gcdSL_TARGET_RegMemorySameFormat       25 : 1
 typedef gctUINT32 gctTARGET_t;
 
 #define gcmSL_TARGET_GET(Value, Field) \
@@ -2107,6 +2153,9 @@ typedef struct _gcBINARY_ATTRIBUTE
     /* IO block array index. */
     gctINT16                      ioBlockArrayIndex;
 
+    /* Field index. */
+    gctINT16                      fieldIndex;
+
     /* Only used for a IO block member, point to the next element in block. */
     gctINT16                      nextSibling;
 
@@ -2118,6 +2167,15 @@ typedef struct _gcBINARY_ATTRIBUTE
 
     /* shader mode: flat/smooth/... */
     gctINT16                      shaderMode;
+
+    /* If other attributes packed to this attribute, we need to change the shade mode for each components. */
+    gctINT16                      componentShadeMode[4];
+
+    /* Assigned input register index. */
+    gctINT16                      inputIndex;
+
+    /* Location index. */
+    gctINT                        location;
 
     /* The attribute name. */
     char                          name[1];
@@ -2447,20 +2505,23 @@ typedef struct _gcBINARY_UNIFORM_BLOCK
     /* points to the previous array element for block, if any */
     gctINT16                        prevSibling;
 
-    /* Index of the uniform to keep the base address. */
+    /* Index of the uniform block. */
     gctINT16                        index;
 
-    /* Index of the uniform to keep the base address. */
+    /* Array Index of the uniform block. */
     gctINT16                        arrayIndex;
 
     /* Length of the uniform block name. */
     gctINT16                        nameLength;
 
+    /* Number of uniforms in block */
+    gctINT16                        uniformCount;
+
     /* binding point */
     char                            binding[sizeof(gctINT32)];
 
-    /* The uniform block name. */
-    char                            name[1];
+    /* The uniformIndexList and name. */
+    char                            memory[1];
 }
 *gcBINARY_UNIFORM_BLOCK;
 
@@ -2695,8 +2756,8 @@ struct _gcUNIFORM
 
     union
     {
-        /* Data type for this most-inner variable. */
-        gcSHADER_TYPE               type;
+        /* Data type for this most-inner variable. use gctUINT16 to replace gcSHADER_TYPE*/
+        gctUINT16                   type;
 
         /* Number of element in structure if arraySize of this */
         /* struct is 1, otherwise, set it to 0 */
@@ -2769,6 +2830,9 @@ struct _gcUNIFORM
 
     /* image format */
     gctINT16                        imageFormat;
+
+    /* the uniform data type of save nbg */
+    gctUINT32                       uniformSaveDataType;
 
     gcUNIFORM                       followingAddr;
     gctUINT32                       followingOffset;            /* or sampler_t constant value */
@@ -2869,6 +2933,9 @@ typedef struct _gcBINARY_UNIFORM
     }
     u;
 
+    /* Index of the uniform. */
+    gctUINT16                       index;
+
     /* Number of array elements for this uniform. */
     gctINT16                        arraySize;
 
@@ -2880,14 +2947,32 @@ typedef struct _gcBINARY_UNIFORM
     /* uniform flags */
     char                            flags[sizeof(gceUNIFORM_FLAGS)];
 
+    /* Format of element of the uniform shaderType. */
+    gctUINT16                       format;
+
+    /* Wheter the uniform is a pointer. */
+    gctINT16                        isPointer;
+
+    gctTYPE_QUALIFIER               qualifier;
+
     /* Physically assigned values. */
     gctUINT8                        swizzle;
 
     /* Shader type for this uniform. Set this at the end of link. */
     gcSHADER_KIND                   shaderKind;
 
+    /* companion to format field to denote vector size,
+       value of 0 denote the underlying type is scalar */
+    gctINT16                        vectorSize;
+
+    /* offset to typeNameBuffer in gcSHADER at which the name of derived type reside */
+    gctCHAR                         typeNameOffset[sizeof(gctINT)];
+
     /* Corresponding Index of Program's GLUniform */
     gctINT16                        glUniformIndex;
+
+    /* Index to corresponding image sampler */
+    gctUINT16                       imageSamplerIndex;
 
     /* Variable category */
     gctINT16                        varCategory;
@@ -3293,6 +3378,8 @@ typedef struct _gcBINARY_OUTPUT
     /* Temporary register index that holds the output value. */
     gctUINT32                       tempIndex;
 
+    gctINT32                        output2RTIndex;
+
     gctUINT16                       flags1;
 
     gctUINT16                       flags2;
@@ -3308,6 +3395,9 @@ typedef struct _gcBINARY_OUTPUT
 
     /* IO block array index. */
     gctINT16                        ioBlockArrayIndex;
+
+    /* Field Index. */
+    gctINT16                        fieldIndex;
 
     /* Only used for a IO block member, point to the next element in block. */
     gctINT16                        nextSibling;
@@ -3393,8 +3483,8 @@ struct _gcVARIABLE
 
     union
     {
-        /* Data type for this most-inner variable. */
-        gcSHADER_TYPE               type;
+        /* Data type for this most-inner variable. use gctUINT16 to store gcSHADER_TYPE */
+        gctUINT16                   type;
 
         /* Number of element in structure if arraySize of this */
         /* struct is 1, otherwise, set it to 0 */
@@ -3547,7 +3637,7 @@ typedef struct _gcBINARY_VARIABLE
            definition in struct _gcVARIABLE. This is a potential
            problem - KLC
         */
-    gctINT16                         arraySize;
+    gctINT16                        arraySize;
 
     gctUINT16                       arrayLengthCount;
 
@@ -3590,6 +3680,14 @@ typedef struct _gcBINARY_VARIABLE
     /* Storage block index: Default block index = -1 */
     gctINT16                        blockIndex;
 
+    char                            matrixStride[sizeof(gctINT16)];
+
+    /* stride on array. For scalar, it represents its size in bytes */
+    char                            arrayStride[sizeof(gctINT32)];
+
+    /* offset from constant memory base address */
+    char                            offset[sizeof(gctINT32)];
+
     /* The variable arrayLengthList and name. */
     char                            memory[1];
 }
@@ -3614,7 +3712,7 @@ typedef struct _gcBINARY_VARIABLE_EX
            definition in struct _gcVARIABLE. This is a potential
            problem - KLC
         */
-    gctINT16                         arraySize;
+    gctINT16                        arraySize;
 
     gctUINT16                       arrayLengthCount;
 
@@ -3680,6 +3778,8 @@ typedef struct _gcsFUNCTION_ARGUMENT
     gctUINT32                       index;
     gctUINT8                        enable;
     gctUINT8                        qualifier;
+    /* For some reason we don't create a variable for each argument, so we need to store the typeQualifier here. */
+    gctUINT16                       typeQualifier;
     gctUINT8                        precision;
     gctUINT16                       variableIndex;
     gctUINT8                        flags;
@@ -3697,9 +3797,10 @@ typedef struct _gcBINARY_ARGUMENT
     gctUINT32                       index;
     gctUINT8                        enable;
     gctUINT8                        qualifier;
+    gctUINT16                       typeQualifier;
     gctUINT8                        precision;
-    gctUINT8                        flags;
     gctUINT16                       variableIndex;
+    gctUINT8                        flags;
 }
 * gcBINARY_ARGUMENT;
 
@@ -4296,6 +4397,7 @@ typedef enum _gcSHADER_FLAGS
     gcSHADER_FLAG_USE_LOCAL_MEM             = 0x8000, /* the shader use local memory */
     gcSHADER_FLAG_VP_TWO_SIDE_ENABLE        = 0x10000, /* the shader use two side, for GL fragment shader only. */
     gcSHADER_FLAG_CLAMP_OUTPUT_COLOR        = 0x20000, /* Clamp the output color, for GL shader only. */
+    gcSHADER_FLAG_HAS_CL_FLOAT16            = 0x20000, /* Has half operations, for CL shader only. This bit is shared with CLAMP_OUTPUT_COLOR which should be mutually exclusive */
     gcSHADER_FLAG_HAS_INT64_PATCH           = 0x40000, /* the shader has 64 bit integer data and operation patch (recompile). */
     gcSHADER_FLAG_AFTER_LINK                = 0x80000, /* the shader is linked(gcLinkProgram/gcLinkShaders/gcLinkKernel). */
     gcSHADER_FLAG_LOADED_KERNEL             = 0x100000, /* shader has loaded a specified kernel function, for OCL shader only. */
@@ -4308,6 +4410,8 @@ typedef enum _gcSHADER_FLAGS
     gcSHADER_FLAG_COMPATIBILITY_PROFILE     = 0x8000000, /* the shader version is compatibility profile for OGL.*/
     gcSHADER_FLAG_USE_CONST_REG_FOR_UBO     = 0x10000000, /* Use constant register to save the UBO.*/
     gcSHADER_FLAG_HAS_CL_KHR_FP16_EXTENSION = 0x20000000, /* the shader has OCL extension cl-khr-fp16 enabled */
+    gcSHADER_FLAG_HAS_OCL_PACKED_TYPE       = 0x40000000, /* the shader has OCL packed type */
+    gcSHADER_FLAG_DENORM_FLUSH_TO_ZERO      = 0x80000000, /* denorm needs to be flushed to zero */
 } gcSHADER_FLAGS;
 
 #define gcShaderIsOldHeader(Shader)             (((Shader)->flags & gcSHADER_FLAG_OLDHEADER) != 0)
@@ -4322,12 +4426,14 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderNeedPatchForCentroid(Shader)    (((Shader)->flags & gcSHADER_FLAG_NEED_PATCH_FOR_CENTROID) != 0)
 #define gcShaderHasBaseMemoryAddr(Shader)       (((Shader)->flags & gcSHADER_FLAG_HAS_BASE_MEMORY_ADDR) != 0)
 #define gcShaderHasLocalMemoryAddr(Shader)      (((Shader)->flags & gcSHADER_FLAG_HAS_LOCAL_MEMORY_ADDR) != 0)
+#define gcShaderHasClFloat16(Shader)            (((Shader)->flags & gcSHADER_FLAG_HAS_CL_FLOAT16) != 0)
 #define gcShaderHasInt64(Shader)                (((Shader)->flags & gcSHADER_FLAG_HAS_INT64) != 0)
 #define gcShaderHasInt64Patch(Shader)           (((Shader)->flags & gcSHADER_FLAG_HAS_INT64_PATCH) != 0)
 #define gcShaderHasImageQuery(Shader)           (((Shader)->flags & gcSHADER_FLAG_HAS_IMAGE_QUERY) != 0)
 #define gcShaderHasVivVxExtension(Shader)       (((Shader)->flags & gcSHADER_FLAG_HAS_VIV_VX_EXTENSION) != 0)
 #define gcShaderHasVivGcslDriverImage(Shader)   (((Shader)->flags & gcSHADER_FLAG_HAS_VIV_GCSL_DRIVER_IMAGE) != 0)
 #define gcShaderHasClKhrFp16Extension(Shader)   (((Shader)->flags & gcSHADER_FLAG_HAS_CL_KHR_FP16_EXTENSION) != 0)
+#define gcShaderHasOclPackedType(Shader)        (((Shader)->flags & gcSHADER_FLAG_HAS_OCL_PACKED_TYPE) != 0)
 #define gcShaderUseLocalMem(Shader)             (((Shader)->flags & gcSHADER_FLAG_USE_LOCAL_MEM) != 0)
 #define gcShaderVPTwoSideEnable(Shader)         (((Shader)->flags & gcSHADER_FLAG_VP_TWO_SIDE_ENABLE) != 0)
 #define gcShaderClampOutputColor(Shader)        (((Shader)->flags & gcSHADER_FLAG_CLAMP_OUTPUT_COLOR) != 0)
@@ -4340,6 +4446,7 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderEnableOfflineCompiler(Shader)   (((Shader)->flags & gcSHADER_FLAG_GENERATED_OFFLINE_COMPILER) != 0)
 #define gcShaderIsCompatibilityProfile(Shader)  (((Shader)->flags & gcSHADER_FLAG_COMPATIBILITY_PROFILE) != 0)
 #define gcShaderUseConstRegForUBO(Shader)       (((Shader)->flags & gcSHADER_FLAG_USE_CONST_REG_FOR_UBO) != 0)
+#define gcShaderDenormFlushToZero(Shader)       (((Shader)->flags & gcSHADER_FLAG_DENORM_FLUSH_TO_ZERO) != 0)
 
 #define gcShaderGetFlag(Shader)                 (Shader)->flags)
 
@@ -4361,6 +4468,8 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderClrHasBaseMemoryAddr(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_BASE_MEMORY_ADDR; } while (0)
 #define gcShaderSetHasLocalMemoryAddr(Shader)   do { (Shader)->flags |= gcSHADER_FLAG_HAS_LOCAL_MEMORY_ADDR; } while (0)
 #define gcShaderClrHasLocalMemoryAddr(Shader)   do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_LOCAL_MEMORY_ADDR; } while (0)
+#define gcShaderSetHasClFloat16(Shader)         do { (Shader)->flags |= gcSHADER_FLAG_HAS_CL_FLOAT16; } while (0)
+#define gcShaderClrHasClFloat16(Shader)         do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_CL_FLOAT16; } while (0)
 #define gcShaderSetHasInt64(Shader)             do { (Shader)->flags |= gcSHADER_FLAG_HAS_INT64; } while (0)
 #define gcShaderClrHasInt64(Shader)             do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_INT64; } while (0)
 #define gcShaderSetHasInt64Patch(Shader)        do { (Shader)->flags |= gcSHADER_FLAG_HAS_INT64_PATCH; } while (0)
@@ -4373,6 +4482,10 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderClrHasVivGcslDriverImage(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_VIV_GCSL_DRIVER_IMAGE; } while (0)
 #define gcShaderSetHasClKhrFp16Extension(Shader)    do { (Shader)->flags |= gcSHADER_FLAG_HAS_CL_KHR_FP16_EXTENSION; } while (0)
 #define gcShaderClrHasClKhrFp16Extension(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_CL_KHR_FP16_EXTENSION; } while (0)
+#define gcShaderSetHasOclPackedType(Shader)     do { (Shader)->flags |= gcSHADER_FLAG_HAS_OCL_PACKED_TYPE; } while (0)
+#define gcShaderClrHasOclPackedType(Shader)     do { (Shader)->flags &= ~gcSHADER_FLAG_HAS_OCL_PACKED_TYPE; } while (0)
+#define gcShaderSetUseLocalMem(Shader)          do { (Shader)->flags |= gcSHADER_FLAG_USE_LOCAL_MEM; } while (0)
+#define gcShaderClrUseLocalMem(Shader)          do { (Shader)->flags &= ~gcSHADER_FLAG_USE_LOCAL_MEM; } while (0)
 #define gcShaderSetVPTwoSideEnable(Shader)      do { (Shader)->flags |= gcSHADER_FLAG_VP_TWO_SIDE_ENABLE; } while (0)
 #define gcShaderClrVPTwoSideEnable(Shader)      do { (Shader)->flags &= ~gcSHADER_FLAG_VP_TWO_SIDE_ENABLE; } while (0)
 #define gcShaderSetClampOutputColor(Shader)     do { (Shader)->flags |= gcSHADER_FLAG_CLAMP_OUTPUT_COLOR; } while (0)
@@ -4395,7 +4508,29 @@ typedef enum _gcSHADER_FLAGS
 #define gcShaderClrIsCompatibilityProfile(Shader)     do { (Shader)->flags &= ~gcSHADER_FLAG_COMPATIBILITY_PROFILE; } while (0)
 #define gcShaderSetUseConstRegForUBO(Shader)    do { (Shader)->flags |= gcSHADER_FLAG_USE_CONST_REG_FOR_UBO; } while (0)
 #define gcShaderClrUseConstRegForUBO(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_USE_CONST_REG_FOR_UBO; } while (0)
-#define gcShaderSetFlag(Shader, Flag)           do { (Shader)->flags = (Flag); } while (0)
+#define gcShaderSetDenormFlushToZero(Shader)    do { (Shader)->flags |= gcSHADER_FLAG_DENORM_FLUSH_TO_ZERO; } while (0)
+#define gcShaderClrDenormFlushToZero(Shader)    do { (Shader)->flags &= ~gcSHADER_FLAG_DENORM_FLUSH_TO_ZERO; } while (0)
+#define gcShaderSetFlags(Shader, Flag)          do { (Shader)->flags = (Flag); } while (0)
+
+typedef enum _gcSHADER_OCL_PACKED_TYPES
+{
+    gcSHADER_OCL_PACKED_NONE        = 0x00000000,
+    gcSHADER_OCL_PACKED_HALF        = 0x00000001,
+    gcSHADER_OCL_PACKED_SHORT       = 0x00000002,
+    gcSHADER_OCL_PACKED_USHORT      = 0x00000004,
+    gcSHADER_OCL_PACKED_CHAR        = 0x00000008,
+    gcSHADER_OCL_PACKED_UCHAR       = 0x00000010,
+    gcSHADER_OCL_PACKED_ALL         = 0xFFFFFFFF,
+} gcSHADER_OCL_PACKED_TYPES;
+
+#define gcShaderSetOclPackedType(Shader, Type)          do { (Shader)->oclPackedTypes |= (Type); } while (0)
+#define gcShaderClrOclPackedType(Shader, Type)          do { (Shader)->oclPackedTypes &= (~Type); } while (0)
+#define gcShaderHasPackHalf(Shader)                     (((Shader)->oclPackedTypes & gcSHADER_OCL_PACKED_HALF) != 0)
+#define gcShaderHasPackShort(Shader)                    (((Shader)->oclPackedTypes & gcSHADER_OCL_PACKED_SHORT) != 0)
+#define gcShaderHasPackUShort(Shader)                   (((Shader)->oclPackedTypes & gcSHADER_OCL_PACKED_USHORT) != 0)
+#define gcShaderHasPackChar(Shader)                     (((Shader)->oclPackedTypes & gcSHADER_OCL_PACKED_CHAR) != 0)
+#define gcShaderHasPackUChar(Shader)                    (((Shader)->oclPackedTypes & gcSHADER_OCL_PACKED_UCHAR) != 0)
+#define gcShaderHasPackALl(Shader)                      (((Shader)->oclPackedTypes & gcSHADER_OCL_PACKED_ALL) != 0)
 
 typedef struct _gcLibraryList gcLibraryList;
 
@@ -4559,6 +4694,9 @@ struct _gcSHADER
 
     /* Flags */
     gcSHADER_FLAGS              flags;
+
+    /* OCL packed types. */
+    gcSHADER_OCL_PACKED_TYPES   oclPackedTypes;
 
     /* Maximum of kernel function arguments, used to calculation the starting uniform index */
     gctUINT32                   maxKernelFunctionArgs;
@@ -4760,6 +4898,7 @@ struct _gcSHADER
 #define _gcdOCL_NumMemoryAddressRegs             8  /*number of memory address registers */
 #define _gcdOCL_MaxLocalTempRegs                16  /*maximum # of local temp register including the reserved ones for base addresses to memory spaces*/
 
+#define gcShaderIsOpenCL(S)                     ((S)->clientApiVersion == gcvAPI_OPENCL)
 #define gcShaderIsDesktopGL(S)                  ((S)->clientApiVersion == gcvAPI_OPENGL)
 #define gcShaderIsOpenVG(S)                     ((S)->clientApiVersion == gcvAPI_OPENVG || (((S)->compilerVersion[0] & 0xffff) == _SHADER_VG_TYPE))
 
@@ -4821,6 +4960,7 @@ struct _gcSHADER
 #define GetShaderKernelFunction(s, i)           ((s)->kernelFunctions[(i)])
 #define GetShaderCurrentKernelFunction(s)       ((s)->currentKernelFunction)
 #define GetShaderWorkGroupSize(s)               ((s)->shaderLayout.compute.workGroupSize)
+#define GetShaderWorkGroupSizeFactor(s)         ((s)->shaderLayout.compute.workGroupSizeFactor)
 #define SetShaderWorkGroupSize(s, v)            ((s)->shaderLayout.compute.workGroupSize[0] = (v)[0], \
                                                  (s)->shaderLayout.compute.workGroupSize[1] = (v)[1], \
                                                  (s)->shaderLayout.compute.workGroupSize[2] = (v)[2])

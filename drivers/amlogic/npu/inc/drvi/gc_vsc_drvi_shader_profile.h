@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -1310,7 +1310,9 @@ typedef struct SHADER_EXECUTABLE_DERIVED_HINTS
             /* Whether the shader depends on the workGroupSize. */
             gctUINT               bDependOnWorkGroupSize          : 1;
 
-            gctUINT               reserved                        : 27;
+            gctUINT               localIdWKind                    : 2;
+
+            gctUINT               reserved                        : 25;
 
             gctUINT16             workGroupSizeFactor[3];
         } gps;

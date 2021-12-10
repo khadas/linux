@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -57,6 +57,7 @@ typedef enum SHS_PRIV_CONSTANT_KIND
     SHS_PRIV_CONSTANT_KIND_DEFAULT_UBO_ADDRESS              = 27,
     SHS_PRIV_CONSTANT_KIND_THREAD_ID_MEM_ADDR               = 28,
     SHS_PRIV_CONSTANT_KIND_ENQUEUED_LOCAL_SIZE              = 29,
+    SHS_PRIV_CONSTANT_KIND_BASE_VERTEX                      = 30,
     SHS_PRIV_CONSTANT_KIND_COUNT, /* last member, add new kind beofre this */
 }SHS_PRIV_CONSTANT_KIND;
 
@@ -88,7 +89,7 @@ typedef struct SHADER_PRIV_MAPPING_COMMON_ENTRY
     gctUINT                                     privmKindIndex;
 
     /* For some flags, they will have their private data to tell driver how to do. */
-    gctBOOL                                     notAllocated;
+    gctBOOL                                     bNotAllocated;
     void*                                       pPrivateData;
 }
 SHADER_PRIV_MAPPING_COMMON_ENTRY;

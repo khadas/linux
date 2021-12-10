@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -57,20 +57,25 @@
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
 #include <linux/uaccess.h>
+
 #include <linux/fs.h>
 #include <linux/sysfs.h>
-#include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/delay.h>
+
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_driver.h"
+
+#include <linux/platform_device.h>
 
 /* Zone used for header/footer. */
 #define _GC_OBJ_ZONE    gcvZONE_DRIVER
 
 MODULE_DESCRIPTION("Vivante Graphics Driver");
 MODULE_LICENSE("Dual MIT/GPL");
-
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
 
 static struct class* gpuClass = NULL;
 
@@ -196,10 +201,15 @@ static uint recovery = 1;
 module_param(recovery, uint, 0644);
 MODULE_PARM_DESC(recovery, "Recover GPU from stuck (1: Enable, 0: Disable)");
 
-/* Middle needs about 40KB buffer, Maximal may need more than 200KB buffer. */
+/*
+ * Level of stuck dump content, 0 ~ 5.
+ * 0: Disable. 1: Dump nearby memory. 2: Dump user command.
+ * 3: Commit stall besides level2. 4: Dump kernel command buffer besides level3.
+ * 5: Dump all the cores with level4.
+ */
 static uint stuckDump = 0;
 module_param(stuckDump, uint, 0644);
-MODULE_PARM_DESC(stuckDump, "Level of stuck dump content (1: Minimal, 2: Middle, 3: Maximal)");
+MODULE_PARM_DESC(stuckDump, "Level of stuck dump content.");
 
 static int showArgs = 0;
 module_param(showArgs, int, 0644);
@@ -229,7 +239,7 @@ static uint type = 0;
 module_param(type, uint, 0664);
 MODULE_PARM_DESC(type, "0 - Char Driver (Default), 1 - Misc Driver");
 
-static uint userClusterMasks[gcdMAX_MAJOR_CORE_COUNT] = {[0 ... gcdMAX_MAJOR_CORE_COUNT - 1] = 0};
+static uint userClusterMasks[gcdMAX_MAJOR_CORE_COUNT] = {[0 ... gcdMAX_MAJOR_CORE_COUNT - 1] = 0xff};
 module_param_array(userClusterMasks, uint, NULL, 0644);
 MODULE_PARM_DESC(userClusterMasks, "Array of user defined per-core cluster enable mask");
 
@@ -246,6 +256,10 @@ MODULE_PARM_DESC(enableNN, "How many NN cores will be enabled in one VIP, 0xFF m
 static int smallBatch = 1;
 module_param(smallBatch, int, 0644);
 MODULE_PARM_DESC(smallBatch, "Enable/disable GPU small batch feature, enable by default");
+
+int aml_debuglevel = 0;
+module_param(aml_debuglevel, int, 0644);
+MODULE_PARM_DESC(aml_debuglevel, "aml_debug_level");
 
 static int allMapInOne = 1;
 module_param(allMapInOne, int, 0644);
@@ -298,10 +312,24 @@ static uint isrPoll = 0;
 module_param(isrPoll, uint, 0644);
 MODULE_PARM_DESC(isrPoll, "Bits isr polling for per-core, default 0'1b means disable, 1'1b means auto enable isr polling mode");
 
+static uint softReset = 1;
+module_param(softReset, uint, 0644);
+MODULE_PARM_DESC(softReset, "Disable soft reset when insert the driver if set it to 0, enabled by default.");
+
 #if USE_LINUX_PCIE
 static int bar = 1;
 module_param(bar, int, 0644);
 MODULE_PARM_DESC(bar, "PCIE Bar index of GC core");
+
+static int bar2D = 1;
+module_param(bar2D, int, 0644);
+MODULE_PARM_DESC(bar2D, "PCIE Bar index of GC 2D core");
+
+static int barVG = 1;
+module_param(barVG, int, 0644);
+MODULE_PARM_DESC(barVG, "PCIE Bar index of GC VG core");
+
+
 
 static int bars[gcvCORE_COUNT] = {[0 ... gcvCORE_COUNT - 1] = -1};
 module_param_array(bars, int, NULL, 0644);
@@ -323,10 +351,6 @@ MODULE_PARM_DESC(sRAMOffsets, "Array of SRAM offset inside bar of shared externa
 static int gpu3DMinClock = 1;
 static int contiguousRequested = 0;
 static ulong bankSize = 0;
-
-static gcsMODULE_PARAMETERS moduleParam;
-
-
 
 /*============the control format should as: (control-domain:control-value)==========*/
 static int kcmp(const char *buff,const char *token,int lenth)
@@ -368,7 +392,8 @@ static ssize_t show_class_control(struct class *class,
 	{
 		platform->ops->getPowerStatus(platform,&status);
 	}
-	return snprintf(buf, PAGE_SIZE, "customid:%d,status:%d\n",galDevice->kernels[0]->hardware->identity.customerID,status);
+
+	return snprintf(buf, PAGE_SIZE, "customid:%d,status:%d,ddk_version:%s\n",galDevice->kernels[0]->hardware->identity.customerID,status,gcvVERSION_STRING);
 }
 /*============the control format should as: (control-domain:control-value)==========*/
 
@@ -492,6 +517,7 @@ static struct class_attribute gal_class_attrs[] = {
 /*=========================some sysfs functions,class end=======================================*/
 
 
+
 static void
 _InitModuleParam(
     gcsMODULE_PARAMETERS * ModuleParam
@@ -515,22 +541,21 @@ _InitModuleParam(
 #endif
     }
 
-    /* Check legacy style. */
-#if USE_LINUX_PCIE
-    if (bar != -1)
-    {
-        if (p->bars[gcvCORE_MAJOR] == -1)
-        {
-            p->bars[gcvCORE_MAJOR] = bar;
-        }
-    }
-#endif
-
     if (irqLine != -1)
     {
         p->irqs[gcvCORE_MAJOR]          = irqLine;
         p->registerBases[gcvCORE_MAJOR] = registerMemBase;
         p->registerSizes[gcvCORE_MAJOR] = registerMemSize;
+            /* Check legacy style. */
+#if USE_LINUX_PCIE
+        if (bar != -1)
+        {
+            if (p->bars[gcvCORE_MAJOR] == -1)
+            {
+                p->bars[gcvCORE_MAJOR] = bar;
+            }
+        }
+#endif
     }
 
     if (irqLine2D != -1)
@@ -538,6 +563,15 @@ _InitModuleParam(
         p->irqs[gcvCORE_2D]          = irqLine2D;
         p->registerBases[gcvCORE_2D] = registerMemBase2D;
         p->registerSizes[gcvCORE_2D] = registerMemSize2D;
+#if USE_LINUX_PCIE
+        if (bar2D != -1)
+        {
+            if (p->bars[gcvCORE_2D] == -1)
+            {
+                p->bars[gcvCORE_2D] = bar2D;
+            }
+        }
+#endif
     }
 
     if (irqLineVG != -1)
@@ -545,6 +579,16 @@ _InitModuleParam(
         p->irqs[gcvCORE_VG]          = irqLineVG;
         p->registerBases[gcvCORE_VG] = registerMemBaseVG;
         p->registerSizes[gcvCORE_VG] = registerMemSizeVG;
+#if USE_LINUX_PCIE
+        if (barVG != -1)
+        {
+            if (p->bars[gcvCORE_VG] == -1)
+            {
+                p->bars[gcvCORE_VG] = barVG;
+            }
+        }
+#endif
+
     }
 
 #if gcdDEC_ENABLE_AHB
@@ -597,7 +641,7 @@ _InitModuleParam(
 
     for (i = 0; i < gcdMAX_MAJOR_CORE_COUNT; i++)
     {
-        userClusterMasks[i] = p->userClusterMasks[i];
+        p->userClusterMasks[i] = userClusterMasks[i];
     }
 
     p->sRAMRequested = sRAMRequested;
@@ -610,6 +654,8 @@ _InitModuleParam(
     p->recovery        = recovery;
     p->powerManagement = powerManagement;
 
+    p->softReset = softReset;
+
     p->enableMmu = mmu;
     p->fastClear = fastClear;
 
@@ -621,7 +667,8 @@ _InitModuleParam(
     p->smallBatch      = smallBatch;
 
     p->stuckDump   = stuckDump;
-    p->gpuProfiler = gpuProfiler;
+	
+	p->gpuProfiler = gpuProfiler;
 
     p->deviceType  = type;
     p->showArgs    = showArgs;
@@ -649,11 +696,11 @@ _InitModuleParam(
 
 static void
 _SyncModuleParam(
-    const gcsMODULE_PARAMETERS * ModuleParam
+    gcsMODULE_PARAMETERS * ModuleParam
     )
 {
     gctUINT i, j;
-    gcsMODULE_PARAMETERS *p = &moduleParam;
+    gcsMODULE_PARAMETERS *p = ModuleParam;
 
     for (i = 0; i < gcvCORE_COUNT; i++)
     {
@@ -670,6 +717,8 @@ _SyncModuleParam(
 
 #if USE_LINUX_PCIE
     bar               = p->bars[gcvCORE_MAJOR];
+    bar2D               = p->bars[gcvCORE_2D];
+    barVG               = p->bars[gcvCORE_VG];
 #endif
     irqLine           = p->irqs[gcvCORE_MAJOR];
     registerMemBase   = (ulong)p->registerBases[gcvCORE_MAJOR];
@@ -748,12 +797,13 @@ _SyncModuleParam(
     smallBatch      = p->smallBatch;
 
     stuckDump   = p->stuckDump;
-    gpuProfiler = p->gpuProfiler;
+	
+	gpuProfiler = p->gpuProfiler;
 
     type        = p->deviceType;
     showArgs    = p->showArgs;
 
-    mmuPageTablePool = p->mmuDynamicMap;
+    mmuPageTablePool = p->mmuPageTablePool;
     mmuDynamicMap = p->mmuDynamicMap;
     allMapInOne = p->allMapInOne;
     isrPoll = p->isrPoll;
@@ -791,6 +841,14 @@ gckOS_DumpParam(
     if (bar != -1)
     {
         printk("  bar               = %d\n",      bar);
+    }
+    if (bar2D != -1)
+    {
+        printk("  bar2D             = %d\n",      bar2D);
+    }
+    if (barVG != -1)
+    {
+        printk("  barVG             = %d\n",      barVG);
     }
 #endif
 #if gcdDEC_ENABLE_AHB
@@ -1271,7 +1329,14 @@ static struct file_operations driver_fops =
     .open       = drv_open,
     .release    = drv_release,
     .unlocked_ioctl = drv_ioctl,
+
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5,8,18)
+
 #ifdef HAVE_COMPAT_IOCTL
+    .compat_ioctl = drv_ioctl,
+#endif
+
+#else
     .compat_ioctl = drv_ioctl,
 #endif
 };
@@ -1299,7 +1364,7 @@ static int drv_init(void)
     }
 
     /* Create the GAL device. */
-    status = gckGALDEVICE_Construct(platform, &moduleParam, &device);
+    status = gckGALDEVICE_Construct(platform, &platform->params, &device);
 
     if (gcmIS_ERROR(status))
     {
@@ -1362,7 +1427,7 @@ static int drv_init(void)
         }
 
         /* Create the device class. */
-        device_class = class_create(THIS_MODULE, "npu");
+		device_class = class_create(THIS_MODULE, "npu");
 
         if (IS_ERR(device_class))
         {
@@ -1464,8 +1529,8 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 #endif
 {
     int ret = -ENODEV;
-    bool getPowerFlag = gcvFALSE;
 	int i = 0;
+    bool getPowerFlag = gcvFALSE;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
     static u64 dma_mask = DMA_BIT_MASK(40);
 #else
@@ -1488,14 +1553,22 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 		printk("nn is disable,should not do probe continue\n");
 		return ret;
 	}
+
     platform->device = pdev;
     galcore_device = &pdev->dev;
 
+    if (!mmu)
+    {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+        dma_mask = DMA_BIT_MASK(32);
+#else
+        dma_mask = DMA_32BIT_MASK;
+#endif
+    }
+
     galcore_device->dma_mask = &dma_mask;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
-        galcore_device->coherent_dma_mask = dma_mask;
-#endif
+    galcore_device->coherent_dma_mask = dma_mask;
 
     if (platform->ops->getPower)
     {
@@ -1508,11 +1581,11 @@ static int __devinit gpu_probe(struct platform_device *pdev)
     }
 
     /* Gather module parameters. */
-    _InitModuleParam(&moduleParam);
+    _InitModuleParam(&platform->params);
 
 #if gcdCAPTURE_ONLY_MODE
-    contiguousBaseCap = moduleParam.contiguousBase;
-    contiguousSizeCap = moduleParam.contiguousSize;
+    contiguousBaseCap = platform->params.contiguousBase;
+    contiguousSizeCap = platform->params.contiguousSize;
 
     gcmkPRINT("Capture only mode is enabled in Hal Kernel.");
 
@@ -1525,45 +1598,45 @@ static int __devinit gpu_probe(struct platform_device *pdev)
     {
         for (j = 0; j < gcvSRAM_INTER_COUNT; j++)
         {
-            sRAMBaseCap[i][j] = moduleParam.sRAMBases[i][j];
-            sRAMSizeCap[i][j] = moduleParam.sRAMSizes[i][j];
+            sRAMBaseCap[i][j] = platform->params.sRAMBases[i][j];
+            sRAMSizeCap[i][j] = platform->params.sRAMSizes[i][j];
         }
     }
 
     for (i = 0; i < gcvSRAM_EXT_COUNT; i++)
     {
-        extSRAMBaseCap[i] = moduleParam.extSRAMBases[i];
-        extSRAMSizeCap[i] = moduleParam.extSRAMSizes[i];
+        extSRAMBaseCap[i] = platform->params.extSRAMBases[i];
+        extSRAMSizeCap[i] = platform->params.extSRAMSizes[i];
     }
 #endif
 
     if (platform->ops->adjustParam)
     {
         /* Override default module param. */
-        platform->ops->adjustParam(platform, &moduleParam);
+        platform->ops->adjustParam(platform, &platform->params);
     }
 
 #if gcdCAPTURE_ONLY_MODE
-    moduleParam.contiguousBase = contiguousBaseCap;
-    moduleParam.contiguousSize = contiguousSizeCap;
+    platform->params.contiguousBase = contiguousBaseCap;
+    platform->params.contiguousSize = contiguousSizeCap;
 
     for (i = 0; i < gcvCORE_COUNT; i++)
     {
         for (j = 0; j < gcvSRAM_INTER_COUNT; j++)
         {
-            moduleParam.sRAMBases[i][j] = sRAMBaseCap[i][j];
-            moduleParam.sRAMSizes[i][j] = sRAMSizeCap[i][j];
+            platform->params.sRAMBases[i][j] = sRAMBaseCap[i][j];
+            platform->params.sRAMSizes[i][j] = sRAMSizeCap[i][j];
         }
     }
 
     for (i = 0; i < gcvSRAM_EXT_COUNT; i++)
     {
-        moduleParam.extSRAMBases[i] = extSRAMBaseCap[i];
-        moduleParam.extSRAMSizes[i] = extSRAMSizeCap[i];
+        platform->params.extSRAMBases[i] = extSRAMBaseCap[i];
+        platform->params.extSRAMSizes[i] = extSRAMSizeCap[i];
     }
 #endif
     /* Update module param because drv_init() uses them directly. */
-    _SyncModuleParam(&moduleParam);
+    _SyncModuleParam(&platform->params);
 
     if (powerManagement == 0)
     {

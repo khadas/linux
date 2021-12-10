@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -149,12 +149,12 @@
         gcvFALSE, gcvFALSE                                                     \
         )
 
-#define _STATE_INIT_VALUE_1(reg, value)                                        \
+#define _STATE_INIT_VALUE_OFFSET(reg, offset, value)                           \
     _State(\
         Context, index, \
-        (reg ## _Address >> 2) + 1, \
+        (reg ## _Address >> 2) + offset, \
         value, \
-        reg ## _Count, \
+        1, \
         gcvFALSE, gcvFALSE                                                     \
         )
 
@@ -3325,6 +3325,9 @@ _InitializeContextBuffer(
     gctBOOL hasMsaaFragOperation;
     gctBOOL newGPipe;
     gctBOOL computeOnly;
+#if gcdSYNC && gcdENDIAN_BIG
+    gctUINT PEFenceEndianControl;
+#endif
 #endif
 
     gckHARDWARE hardware;
@@ -3383,6 +3386,11 @@ _InitializeContextBuffer(
     hasMsaaFragOperation = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_MSAA_FRAGMENT_OPERATION);
     newGPipe = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_NEW_GPIPE);
     computeOnly = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_COMPUTE_ONLY);
+#if gcdSYNC && gcdENDIAN_BIG
+    PEFenceEndianControl = gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_FENCE_64BIT)
+                                                           ? 0x3
+                                                           : 0x2;
+#endif
 
     /* Multi render target. */
     if (Context->hardware->identity.chipModel == gcv880 &&
@@ -3441,7 +3449,7 @@ _InitializeContextBuffer(
 
     if (multiCluster)
     {
-        index += _State(Context, index, 0x03910 >> 2, ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+        index += _State(Context, index, (0x03910 >> 2) + 0, ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  7:0) - (0 ?
  7:0) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ?
@@ -3451,7 +3459,7 @@ _InitializeContextBuffer(
  7:0) - (0 ?
  7:0) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ?
- 7:0) - (0 ? 7:0) + 1))))))) << (0 ? 7:0))), 4, gcvFALSE, gcvFALSE);
+ 7:0) - (0 ? 7:0) + 1))))))) << (0 ? 7:0))), 1, gcvFALSE, gcvFALSE);
 
         index += _State(Context, index, (0x03910 >> 2) + 1, ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  7:0) - (0 ?
@@ -3463,7 +3471,7 @@ _InitializeContextBuffer(
  7:0) - (0 ?
  7:0) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ?
- 7:0) - (0 ? 7:0) + 1))))))) << (0 ? 7:0))), 4, gcvFALSE, gcvFALSE);
+ 7:0) - (0 ? 7:0) + 1))))))) << (0 ? 7:0))), 1, gcvFALSE, gcvFALSE);
 
         index += _State(Context, index, 0x03908 >> 2, ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  2:0) - (0 ?
@@ -4418,7 +4426,21 @@ _InitializeContextBuffer(
 
     if (halti3)
     {
+#if gcdSYNC && gcdENDIAN_BIG
+        index += _State(Context, index, 0x014BC >> 2, ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 10:9) - (0 ?
+ 10:9) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 10:9) - (0 ?
+ 10:9) + 1))))))) << (0 ?
+ 10:9))) | (((gctUINT32) ((gctUINT32) (PEFenceEndianControl) & ((gctUINT32) ((((1 ?
+ 10:9) - (0 ?
+ 10:9) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 10:9) - (0 ? 10:9) + 1))))))) << (0 ? 10:9))), 1, gcvFALSE, gcvFALSE);
+#else
         index += _State(Context, index, 0x014BC >> 2, 0x00000000, 1, gcvFALSE, gcvFALSE);
+#endif
     }
 
     if (halti4)

@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -308,6 +308,31 @@ gckHARDWARE_SetClock(
     IN gctUINT32 Core,
     IN gctUINT32 MCScale,
     IN gctUINT32 SHScale
+    );
+
+gceSTATUS
+gckHARDWARE_PowerControlClusters(
+    gckHARDWARE Hardware,
+    gctUINT32  PowerControlValue,
+    gctBOOL PowerState
+    );
+
+gceSTATUS
+gckHARDWARE_QueryCycleCount(
+    IN gckHARDWARE Hardware,
+    OUT gctUINT32 *hi_total_cycle_count,
+    OUT gctUINT32 *hi_total_idle_cycle_count
+    );
+
+gceSTATUS
+gckHARDWARE_CleanCycleCount(
+    IN gckHARDWARE Hardware
+    );
+
+gceSTATUS
+gckHARDWARE_QueryCoreLoad(
+    IN gckHARDWARE Hardware,
+    OUT gctUINT32 *Load
     );
 
 #define gcmkWRITE_MEMORY(logical, data) \

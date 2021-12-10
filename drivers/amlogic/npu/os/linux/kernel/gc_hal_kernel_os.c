@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -72,6 +72,10 @@
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
 #include <linux/anon_inodes.h>
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
+#include <linux/io.h>
 #endif
 
 #if gcdLINUX_SYNC_FILE
@@ -458,6 +462,9 @@ _QueryProcessPageTable(
         struct vm_area_struct *vma;
         spinlock_t *ptl;
         pgd_t *pgd;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
+        p4d_t *p4d;
+#endif
         pud_t *pud;
         pmd_t *pmd;
         pte_t *pte;
@@ -465,9 +472,9 @@ _QueryProcessPageTable(
         if (!current->mm)
             return gcvSTATUS_NOT_FOUND;
 
-        down_read(&current->mm->mmap_sem);
+        down_read(&current_mm_mmap_sem);
         vma = find_vma(current->mm, logical);
-        up_read(&current->mm->mmap_sem);
+        up_read(&current_mm_mmap_sem);
 
         /* To check if mapped to user. */
         if (!vma)
@@ -484,7 +491,15 @@ _QueryProcessPageTable(
     && LINUX_VERSION_CODE >= KERNEL_VERSION (4,11,0)
         pud = pud_offset((p4d_t*)pgd, logical);
 #else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
+        p4d = p4d_offset(pgd, logical);
+        if (p4d_none(READ_ONCE(*p4d)))
+            return gcvSTATUS_NOT_FOUND;
+
+        pud = pud_offset(p4d, logical);
+#else
         pud = pud_offset(pgd, logical);
+#endif
 #endif
         if (pud_none(*pud) || pud_bad(*pud))
             return gcvSTATUS_NOT_FOUND;
@@ -494,11 +509,6 @@ _QueryProcessPageTable(
             return gcvSTATUS_NOT_FOUND;
 
         pte = pte_offset_map_lock(current->mm, pmd, logical, &ptl);
-        if (!pte)
-        {
-            spin_unlock(ptl);
-            return gcvSTATUS_NOT_FOUND;
-        }
 
         if (!pte_present(*pte))
         {
@@ -775,22 +785,18 @@ gckOS_Construct(
 
     spin_lock_init(&os->registerAccessLock);
 
-    gckOS_ImportAllocators(os);
 
-#if defined(CONFIG_IOMMU_SUPPORT)
-    if (0)
+    /* Check iommu. */
+    if (gcmIS_ERROR(gckIOMMU_Construct(os, &os->iommu)))
     {
-        /* Only use IOMMU when internal MMU is not enabled. */
-        if (gcmIS_ERROR(gckIOMMU_Construct(os, &os->iommu)))
-        {
-            gcmkTRACE_ZONE(
-                gcvLEVEL_INFO, gcvZONE_OS,
-                "%s(%d): Fail to setup IOMMU",
-                __FUNCTION__, __LINE__
-                );
-        }
+        gcmkTRACE_ZONE(
+            gcvLEVEL_INFO, gcvZONE_OS,
+            "%s(%d): Fail to setup IOMMU",
+            __FUNCTION__, __LINE__
+            );
     }
-#endif
+
+    gckOS_ImportAllocators(os);
 
 #if gcdDUMP_IN_KERNEL
     mutex_init(&os->dumpFilpMutex);
@@ -866,12 +872,10 @@ gckOS_Destroy(
 
     gckOS_FreeAllocators(Os);
 
-#ifdef CONFIG_IOMMU_SUPPORT
     if (Os->iommu)
     {
         gckIOMMU_Destory(Os, Os->iommu);
     }
-#endif
 
     /* Mark the gckOS object as unknown. */
     Os->object.type = gcvOBJ_UNKNOWN;
@@ -2466,8 +2470,8 @@ gckOS_MapPhysical(
         {
             /* Map memory as cached memory. */
             request_mem_region(physical, Bytes, "MapRegion");
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,5,0)
-            logical = (gctPOINTER) memremap(physical, Bytes, MEMREMAP_WT);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+            logical = (gctPOINTER) ioremap(physical, Bytes);
 #else
             logical = (gctPOINTER) ioremap_nocache(physical, Bytes);
 #endif
@@ -3681,7 +3685,7 @@ gckOS_MapPagesEx(
     while (PageCount-- > 0)
     {
         gctUINT i;
-        gctPHYS_ADDR_T phys = ~0U;
+        gctPHYS_ADDR_T phys = ~0ULL;
 
         gcmALLOCATOR_Physical(allocator, mdl, offset, &phys);
 
@@ -3696,25 +3700,6 @@ gckOS_MapPagesEx(
             phys |= ((gctPHYS_ADDR_T)policyID << 36);
         }
 
-#ifdef CONFIG_IOMMU_SUPPORT
-        if (Os->iommu)
-        {
-            /* remove LSB. */
-            phys &= PAGE_MASK;
-
-            gcmkTRACE_ZONE(
-                gcvLEVEL_INFO, gcvZONE_OS,
-                "%s(%d): Setup mapping in IOMMU %x => %x",
-                __FUNCTION__, __LINE__,
-                Address + offset, phys
-                );
-
-            /* When use IOMMU, GPU use system PAGE_SIZE. */
-            gcmkONERROR(gckIOMMU_Map(
-                Os->iommu, Address + offset, phys, PAGE_SIZE));
-        }
-        else
-#endif
         {
             /* remove LSB. */
             phys &= ~(4096ull - 1);
@@ -3779,14 +3764,6 @@ gckOS_UnmapPages(
     IN gctUINT32 Address
     )
 {
-#ifdef CONFIG_IOMMU_SUPPORT
-    if (Os->iommu)
-    {
-        gcmkVERIFY_OK(gckIOMMU_Unmap(
-            Os->iommu, Address, PageCount * 4096));
-    }
-#endif
-
     return gcvSTATUS_OK;
 }
 
@@ -3807,7 +3784,6 @@ gckOS_Map1MPages(
     PLINUX_MDL mdl;
     gctUINT32* table;
     gctUINT32  offset = 0;
-
     gctSIZE_T bytes = PageCount * 4;
     gckALLOCATOR allocator;
 
@@ -3854,7 +3830,7 @@ gckOS_Map1MPages(
 
     while (PageCount-- > 0)
     {
-        gctPHYS_ADDR_T phys = ~0U;
+        gctPHYS_ADDR_T phys = ~0ULL;
 
         gcmALLOCATOR_Physical(allocator, mdl, offset, &phys);
 
@@ -3870,14 +3846,15 @@ gckOS_Map1MPages(
         }
 
         /* Get the start physical of 1M page. */
-        phys &= ~((1 << 20) - 1);
+        phys &= ~(gcd1M_PAGE_SIZE - 1);
 
-        gcmkONERROR(
-            gckMMU_SetPage(Os->device->kernels[Core]->mmu,
+        gcmkONERROR(gckMMU_SetPage(
+            Os->device->kernels[Core]->mmu,
             phys,
             gcvPAGE_TYPE_1M,
             Writable,
-            table++));
+            table++
+            ));
 
         offset += gcd1M_PAGE_SIZE;
     }
@@ -4275,14 +4252,11 @@ gckOS_WriteMemory(
             gcmkONERROR(gcvSTATUS_INVALID_ADDRESS);
         }
     }
-    else if (virt_addr_valid(Address) || is_vmalloc_addr(Address))
-    {
-        /* Kernel address. */
-        *(gctUINT32 *)Address = Data;
-    }
     else
     {
-        gcmkONERROR(gcvSTATUS_INVALID_ADDRESS);
+        /* don't check the virtual address, maybe it come from io memory or reserved memory */
+        /* Kernel address. */
+        *(gctUINT32 *)Address = Data;
     }
 
 OnError:
@@ -7521,6 +7495,10 @@ gckOS_QueryOption(
     {
         *Value = device->args.enableNN;
     }
+    else if (!strcmp(Option, "softReset"))
+    {
+        *Value = device->args.softReset;
+    }
     else
     {
         status = gcvSTATUS_NOT_SUPPORTED;
@@ -7798,3 +7776,25 @@ gckOS_GetPolicyID(
 
     return status;
 }
+
+#if gcdENABLE_MP_SWITCH
+gceSTATUS
+gckOS_SwitchCoreCount(
+    IN gckOS Os,
+    OUT gctUINT32 *Count
+    )
+{
+    gceSTATUS status = gcvSTATUS_OK;
+    gcsPLATFORM * platform = Os->device->platform;
+
+    gcmkHEADER_ARG("Os=%p", Os);
+
+    status = (platform && platform->ops->switchCoreCount)
+           ? platform->ops->switchCoreCount(platform, Count)
+           : gcvSTATUS_OK;
+
+    gcmkFOOTER_ARG("*Count=%d", *Count);
+    return status;
+}
+#endif
+

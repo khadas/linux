@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -647,6 +647,13 @@ typedef struct _gcsHAL_COMMIT
     /* Brother cores in user device of current commit process. */
     gctUINT32                   broCoreMask;
 
+#if gcdENABLE_MP_SWITCH
+    /* Multi-processor mode. */
+    gctUINT32                   mpMode;
+
+    /* Switch multi-processor mode. */
+    gctUINT32                   switchMpMode;
+#endif
 
 #if gcdENABLE_SW_PREEMPTION
     /* If user need to merge the delta. */
@@ -801,6 +808,8 @@ typedef struct _gcsHAL_GET_PROFILE_SETTING
     OUT gctBOOL                 enable;
     /* Profile mode */
     OUT gceProfilerMode         profileMode;
+    /* Probe mode */
+    OUT gceProbeMode            probeMode;
 }
 gcsHAL_GET_PROFILE_SETTING;
 
@@ -811,6 +820,8 @@ typedef struct _gcsHAL_SET_PROFILE_SETTING
     IN gctBOOL                  enable;
     /* Profile mode */
     IN gceProfilerMode          profileMode;
+    /* Probe mode */
+    IN gceProbeMode             probeMode;
 }
 gcsHAL_SET_PROFILE_SETTING;
 

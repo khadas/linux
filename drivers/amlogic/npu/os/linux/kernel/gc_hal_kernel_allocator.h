@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -456,6 +456,10 @@ typedef struct _gcsALLOCATOR
     void                      (*destructor)(struct _gcsALLOCATOR *);
 
     struct list_head          link;
+#if gcdANON_FILE_FOR_ALLOCATOR
+    /*Anonymous file for map to user. */
+    struct file *             anon_file;
+#endif
 }
 gcsALLOCATOR;
 

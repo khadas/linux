@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -57,8 +57,6 @@
 #include <gc_feature_database.h>
 #include "gc_hal_kernel_hardware_func_flop_reset.h"
 #include "gc_hal_kernel_hardware_func_flop_reset_config.h"
-
-
 
 /*
  * Flop reset.
@@ -96,76 +94,7 @@
 /*
  * PPU.
  */
-#define PPU_IMAGE_XSIZE 64
-#define PPU_IMAGE_YSIZE 6
-#define PPU_IMAGE_DATA 0x01010101
-#define MAX_PPU_INSTRUCTION_COUNT 16
-#define MAX_PPU_COMMAND_NUM 128
 
-#define GCREG_SH_INSTRUCTION_TYPE_INVALID (~0U)
-
-typedef enum _gceFLOP_RESET_PPU_DATA {
-    gcvFLOP_RESET_PPU_INSTRUCTION = 0,
-    gcvFLOP_RESET_PPU_INPUT       = 1,
-    gcvFLOP_RESET_PPU_OUTPUT      = 2,
-    gcvFLOP_RESET_PPU_DATA_NUM
-}
-gceFLOP_RESET_PPU_DATA;
-
-/*
- * NN convolution.
- */
-#define MAX_NN_COMMAND_NUM 192
-
-#define NN_KERNEL_XSIZE 2
-#define NN_KERNEL_YSIZE 2
-#define NN_KERNEL_ZSIZE 1
-
-#define NN_INPUT_XSIZE 3
-#define NN_INPUT_YSIZE 2
-#define NN_INPUT_ZSIZE 1
-
-#define NN_OUTPUT_XSIZE 2
-#define NN_OUTPUT_YSIZE 1
-#define NN_OUTPUT_ZSIZE 1
-
-typedef enum _gceVIP_ARCH_TYPE {
-    gcvVIP_ARCH_TYPE_V6,
-    gcvVIP_ARCH_TYPE_V7,
-    gcvVIP_ARCH_TYPE_V8
-}
-gceVIP_ARCH_TYPE;
-
-typedef enum _gceFLOP_RESET_NN_DATA {
-    gcvFLOP_RESET_NN_INSTRUCTION = 0,
-    gcvFLOP_RESET_NN_INPUT       = 1,
-    gcvFLOP_RESET_NN_OUTPUT      = 2,
-    gcvFLOP_RESET_NN_KERNEL      = 3,
-    gcvFLOP_RESET_NN_DATA_NUM
-}
-gceFLOP_RESET_NN_DATA;
-
-#define TP_KERNEL_XSIZE 1
-#define TP_KERNEL_YSIZE 1
-#define TP_KERNEL_ZSIZE 2
-#define TP_KENREL_UNITS 64
-
-#define TP_INPUT_XSIZE 1
-#define TP_INPUT_YSIZE 1
-#define TP_INPUT_ZSIZE 2
-
-#define TP_OUTPUT_XSIZE 1
-#define TP_OUTPUT_YSIZE 64
-#define TP_OUTPUT_ZSIZE 1
-
-typedef enum _gceFLOP_RESET_TP_DATA {
-    gcvFLOP_RESET_TP_INSTRUCTION = 0,
-    gcvFLOP_RESET_TP_INPUT       = 1,
-    gcvFLOP_RESET_TP_OUTPUT      = 2,
-    gcvFLOP_RESET_TP_KERNEL      = 3,
-    gcvFLOP_RESET_TP_DATA_NUM
-}
-gceFLOP_RESET_TP_DATA;
 
 
 static gceSTATUS
@@ -457,6 +386,15 @@ _GetVIPCoreInfo(
         *ArchType = archType;
     }
 
+    if(Hardware->identity.customerID == 0x23 || Hardware->identity.customerID == 0x83)
+    {
+        dataType = 0x1;
+    }
+    else if(Hardware->identity.customerID == 0x96)
+    {
+        dataType = 0x2;
+    }
+
     if (DataType)
     {
         *DataType = dataType;
@@ -482,42 +420,6 @@ _GetVIPCoreInfo(
 OnError:
     return status;
 }
-
-#if gcdENABLE_FLOP_RESET == 0
-static gceSTATUS
-_GetMapIndex(
-    gctUINT8 DataType,
-    gctUINT32_PTR Index
-    )
-{
-    gceSTATUS status = gcvSTATUS_OK;
-
-    if (!Index)
-    {
-        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-    }
-
-    switch (DataType)
-    {
-    case 0x1:
-        *Index = 1;
-        break;
-
-    case 0x7:
-        *Index = 2;
-        break;
-
-    default:
-        *Index = 0;
-        break;
-    }
-
-    return gcvSTATUS_OK;
-
-OnError:
-    return status;
-}
-#endif
 
 static gceSTATUS
 _GetNNDataSize(
@@ -579,7 +481,7 @@ _ProgramPPUInput(
     gctUINT32 *buffer = gcvNULL;
     gctUINT32 i;
 
-    bufferBytes = bytes = InImageXSize * InImageYSize * itemBytes;
+    bufferBytes = bytes = (gctSIZE_T)(InImageXSize * InImageYSize * itemBytes);
 
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
@@ -657,7 +559,7 @@ _ProgramPPUOutput(
     gctUINT32 bufferAddress = 0;
     gctSIZE_T bufferBytes, bytes;
 
-    bufferBytes = bytes = Width * Height * itemBytes;
+    bufferBytes = bytes = (gctSIZE_T)(Width * Height * itemBytes);
 
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
@@ -1153,6 +1055,10 @@ gckPPU_AddOpCode(
 {
     gceSTATUS status = gcvSTATUS_OK;
 
+    if (!Inst)
+    {
+        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+    }
 
     Inst[0] = ((((gctUINT32) (Inst[0])) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  5:0) - (0 ?
@@ -1174,11 +1080,6 @@ gckPPU_AddOpCode(
  16:16) - (0 ?
  16:16) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ? 16:16) - (0 ? 16:16) + 1))))))) << (0 ? 16:16)));
-
-    if (!Inst)
-    {
-        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-    }
 
     switch (OpCode)
     {
@@ -1696,6 +1597,7 @@ static gceSTATUS
 _ProgramPPUInstruction(
     IN gckHARDWARE Hardware,
     IN gctUINT32 DataType,
+    IN gctUINT32 numShaderCores,
     IN gctUINT32 AllocFlag,
     IN OUT gcePOOL *Pool,
     OUT gctUINT32 *InstCount,
@@ -1764,7 +1666,7 @@ _ProgramPPUInstruction(
 
     /* img_store.u8 r1, c2, r0.xy, r1 */
     gcmkONERROR(gckPPU_AddOpCode(Hardware, 0x7A, 0, outImageDataType, &inst[instCount]));
-    gcmkONERROR(gckPPU_SetEVIS(0, gckPPU_GetPixel(outImageDataType), 1, &inst[instCount]));
+    gcmkONERROR(gckPPU_SetEVIS(0, (gckPPU_GetPixel(outImageDataType) + 1) / numShaderCores - 1, 1, &inst[instCount]));
     gcmkONERROR(gckPPU_SetUniform(0, 1, gcdVX_SWIZZLE, 0, &inst[instCount]));
     gcmkONERROR(gckPPU_SetTempReg(1, 0, gcdVX_SWIZZLE2(0, 1), 0, &inst[instCount]));
     gcmkONERROR(gckPPU_SetTempReg(2, 1, gcdVX_SWIZZLE, 0, &inst[instCount]));
@@ -4138,6 +4040,7 @@ gckHARDWARE_ResetFlopWithPPU(
     gcmkONERROR(_ProgramPPUInstruction(
         Hardware,
         dataType,
+        numShaderCores,
         AllocFlag,
         Pool,
         &instCount,
@@ -4190,6 +4093,10 @@ gckHARDWARE_ResetFlopWithPPU(
 
     Command->data = data;
     Command->dataCount = dataCount;
+    if(Hardware->identity.customerID == 0x85)
+    {
+        Command->channelId = 1;
+    }
 
     return gcvSTATUS_OK;
 
@@ -4228,253 +4135,16 @@ OnError:
 static gceSTATUS
 _ProgramNNKernel(
     IN gckHARDWARE Hardware,
-    IN gceVIP_ARCH_TYPE ArchType,
-    IN gctUINT32 CoreCount,
-    IN gctUINT32 Zdp,
     IN gctUINT8 DataType,
     IN gctUINT32 KernelXSize,
     IN gctUINT32 KernelYSize,
     IN gctUINT32 KernelZSize,
+    IN chipCmdData* cd,
     IN gctUINT32 AllocFlag,
     IN OUT gcePOOL *Pool,
     OUT gcsFUNCTION_EXECUTION_DATA *Data
     )
 {
-#if gcdENABLE_FLOP_RESET == 0
-    gceSTATUS status = gcvSTATUS_OK;
-
-    gctUINT32 filterBytes = 0;
-    gctUINT8_PTR kernels = gcvNULL;
-    gctUINT32 offset = 0;
-    gctUINT8_PTR kernelStreamSizePtr = gcvNULL;
-    gctUINT32 filterTotalCount = 1;
-    gctUINT32 itemBytes = 1;
-    gctUINT32 biasBytes = 4;
-    gckVIDMEM_NODE bufferNode = gcvNULL;
-    gctPOINTER bufferLogical = gcvNULL;
-    gctUINT32 bufferAddress = 0;
-    gctSIZE_T bufferBytes, bytes;
-
-    gcmkONERROR(_GetNNDataSize(DataType, &itemBytes));
-
-    filterBytes = KernelXSize * KernelYSize * KernelZSize * itemBytes;
-
-    /* Kernel buffer. */
-    if (gcvVIP_ARCH_TYPE_V8 == ArchType)
-    {
-        /* Head (align to 64) + body (align to 64) + tail (align to 64). */
-        gcmkASSERT(Zdp == 1 || Zdp == 3);
-        bufferBytes = 64 + gcmALIGN_NP2((gcmALIGN_NP2(filterBytes, Zdp * 3) * (Zdp * 3) * filterTotalCount) + (1 * (16 / itemBytes)), 64) + 64;
-    }
-    else
-    {
-        /* Head (align to 64) + body (align to 64). */
-        bufferBytes = 64 + gcmALIGN_NP2(((filterBytes + biasBytes +  3) * filterTotalCount + 3), 64);
-    }
-
-    gcmkONERROR(_AllocateVideoMemory(
-        Hardware->kernel,
-        gcvVIDMEM_TYPE_BITMAP,
-        AllocFlag,
-        Pool,
-        &bufferBytes,
-        &bufferNode,
-        &bufferLogical,
-        &bufferAddress
-        ));
-
-    kernels = (gctUINT8_PTR)bufferLogical;
-
-    /* V8 huffman encoder. */
-    if (gcvVIP_ARCH_TYPE_V8 == ArchType)
-    {
-        gctUINT32 i = 0;
-        gctUINT8 rlt[][18] = {
-            {0}, /* uint8 */
-            {1, 1, 0, 1}, /* fp16 */
-            {7, 1}, /* int8 */
-            {0}, /* uint16 */
-            {3, 1, 0, 1}, /* int16 */
-            {0}, /* uint4 */
-            {0}, /* int4 */
-            {1, 1, 0, 1}    /* bf16 */
-        };
-        gctUINT8 map[][9] = {
-            {1, 8, 7, 0, 4, 5, 6, 2, 3},
-            {1, 5, 0, 7, 8, 2, 6, 3, 4},
-            {1, 0, 7, 8, 4, 5, 6, 2, 3},
-        };
-        gctBOOL bit16 = DataType == 0x4 ||
-                        DataType == 0x1  ||
-                        DataType == 0x7;
-        gctBOOL fp16 = DataType == 0x1;
-        gctUINT32 index = 0;
-
-        if (Hardware->identity.customerID == 0x9f)
-        {
-            rlt[0][0] = 3;
-            rlt[0][1] = 1;
-            rlt[0][3] = 1;
-        }
-
-        gcmkONERROR(_GetMapIndex(DataType, &index));
-
-        gcmkONERROR(_BitValue(&kernels, 0, &offset, 1));        /* precode */
-        gcmkONERROR(_BitValue(&kernels, bit16, &offset, 1));    /* bit16 */
-        gcmkONERROR(_BitValue(&kernels, fp16, &offset, 1));     /* fp16 */
-        gcmkONERROR(_BitValue(&kernels, 0, &offset, 1));        /* reserved */
-        gcmkONERROR(_BitValue(&kernels, 1, &offset, 4));        /* version, 1 */
-        gcmkONERROR(_BitValue(&kernels, 4, &offset, 8));        /* zero run length size */
-
-        for (i = 0; i < 18; i++)
-        {
-            /* Zero run length x 18. */
-            gcmkONERROR(_BitValue(&kernels, rlt[DataType][i], &offset, 8));
-        }
-
-        for (i = 0; i < 4; i++)
-        {
-            /* Map x 4. */
-            gcmkONERROR(_BitValue(&kernels, (map[index][2 * i + 1] << 4) + map[index][2 * i], &offset, 8));
-        }
-
-        /* Avg bias */
-        gcmkONERROR(_BitValue(&kernels, 0, &offset, 16));
-
-        /* Reserved, must zero. */
-        gcmkONERROR(_BitValue(&kernels, 0, &offset, 16));
-
-        kernelStreamSizePtr = kernels;
-
-        for (i = 0; i < CoreCount; i ++)
-        {
-            /* Stream size. */
-            gcmkONERROR(_BitValue(&kernels, 0, &offset, 32));
-        }
-
-        kernels = (gctUINT8_PTR)bufferLogical + gcmALIGN_NP2((gctUINT32)((gctUINT8_PTR)kernels - (gctUINT8_PTR)bufferLogical), 64);
-
-        switch (DataType)
-        {
-        case 0x4:
-            /* Huffman data: 00000018 00924600 */
-            gcmkONERROR(_BitValue(&kernels, 0x04058000, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x640101fc, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x00001200, &offset, 32));
-
-            /* Only on core, stream size. */
-            gcmkONERROR(_BitValue(&kernelStreamSizePtr, 0x0000006d, &offset, 32));
-
-            break;
-
-        case 0x0:
-        case 0x2:
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0xec000038, &offset, 32));
-
-            /* Only on core, stream size. */
-            gcmkONERROR(_BitValue(&kernelStreamSizePtr, 0x35, &offset, 32));
-
-            break;
-
-        case 0x1:
-            /* Huffman data: 0009db68 000006c0 000001f0 00000900 00024000. */
-            gcmkONERROR(_BitValue(&kernels, 0x0009db68, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x000006c0, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x000001f0, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x00000900, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x00024000, &offset, 32));
-
-            /* Only on core, stream size. */
-            gcmkONERROR(_BitValue(&kernelStreamSizePtr, 0x000000a3, &offset, 32));
-
-            break;
-
-        case 0x7:
-            /* Huffman data: 0007fff8 7f00fdfc c0397f00 0900001f 40000000 00000002. */
-            gcmkONERROR(_BitValue(&kernels, 0x0007fff8, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x7f00fdfc, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0xc0397f00, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x0900001f, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x40000000, &offset, 32));
-            /* Huffman data. */
-            gcmkONERROR(_BitValue(&kernels, 0x00000002, &offset, 32));
-
-            /* Only on core, stream size. */
-            gcmkONERROR(_BitValue(&kernelStreamSizePtr, 0x000000b2, &offset, 32));
-
-            break;
-
-        default:
-            gcmkFATAL("Huffman encode not support this format! Please check!");
-            break;
-        }
-    }
-    else
-    {
-        gctBOOL zeroAll = gcvFALSE;
-        gctUINT8 zrl = 0;
-        gctUINT16 vzNum = 1;
-        gctUINT32 bias = 0;
-        gctUINT32 totalSize = gcmALIGN_NP2((filterTotalCount * (filterBytes + biasBytes +  3) + 3), 64);
-
-        gckOS_ZeroMemory(kernels, totalSize + 64);
-
-        *((gctUINT32_PTR)kernels) = totalSize;
-        kernels += totalSize;
-        if (zeroAll)
-        {
-            /*
-             * Zrl & coreFilterCount, both compressed weight and bias are zero,
-             * the size (1 * 1 * 2 * 2 + 4 ) < 64, aligned to 64.
-             */
-            *((gctUINT32_PTR)kernels) = (vzNum << (8 * itemBytes));
-        }
-        else
-        {
-            gctINT16 value = (DataType == 0x1) ? 0x3c00 /*1.0f*/ : 1;
-            gctUINT32 i = 0;
-
-            _BitValue(&kernels, zrl, &offset, 8);
-            _BitValue(&kernels, vzNum, &offset, 16);
-            _BitValue(&kernels, value, &offset, 8 * itemBytes);
-            _BitValue(&kernels, bias, &offset, 32);
-
-            if (DataType == 0x3 ||
-                DataType == 0x4)
-            {
-                _BitValue(&kernels, 0, &offset, 16);
-            }
-
-            for (i = 1; i < filterBytes / itemBytes; i++)
-            {
-                _BitValue(&kernels, value, &offset, 8 * itemBytes);
-            }
-        }
-    }
-
-    bytes = kernels + (offset + 7) / 8 - (gctUINT8_PTR)bufferLogical;
-
-    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
-        Hardware->kernel,
-        bufferNode,
-        0,
-        bufferLogical,
-        bytes
-        ));
-
-
-#else
     gceSTATUS status = gcvSTATUS_OK;
     gckVIDMEM_NODE bufferNode = gcvNULL;
     gctPOINTER bufferLogical = gcvNULL;
@@ -4482,15 +4152,10 @@ _ProgramNNKernel(
     gctSIZE_T bufferBytes;
     gctSIZE_T bytes = 0;
     gctUINT32 *buffer = gcvNULL;
-    chipCmdData *cd = gcvNULL;
+    gctBOOL need_refine = (Hardware->identity.customerID == 0x85 && Hardware->options.configNNPowerControl != 0);
 
     /*define bufferbytes*/
-    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
-    if(cd == gcvNULL)
-    {
-        return status;
-    }
-    bufferBytes = cd->NNkerLen;
+    bytes = bufferBytes = cd->NNkerLen;
     /* hardcode */
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
@@ -4506,8 +4171,17 @@ _ProgramNNKernel(
     buffer = (gctUINT32_PTR)bufferLogical;
 
     /* Fill the data. */
-    gckOS_MemCopy(bufferLogical, cd->NNKer, bufferBytes);
+    gckOS_MemCopy(bufferLogical, cd->NNKer, bytes);
 
+    if(need_refine)
+    {
+        buffer[16] = buffer[32];
+        buffer[17] = buffer[33];
+        buffer[18] = buffer[34];
+        buffer[32] = 0x0;
+        buffer[33] = 0x0;
+        buffer[34] = 0x0;
+    }
 
     gcmkONERROR(gckVIDMEM_NODE_CleanCache(
         Hardware->kernel,
@@ -4516,9 +4190,7 @@ _ProgramNNKernel(
         bufferLogical,
         bufferBytes
         ));
-    bytes = bufferBytes;
 
-#endif
 
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(Hardware->os, "#[flop reset: nn kernel]");
@@ -4527,15 +4199,15 @@ _ProgramNNKernel(
         gcvDUMP_BUFFER_KERNEL_COMMAND,
         bufferLogical,
         bufferAddress,
-        bytes
+        need_refine? (bytes - 0x40):bytes
         );
 #endif
 
     Data->bufVidMem = bufferNode;
-    Data->bufVidMemBytes = bufferBytes;
+    Data->bufVidMemBytes = need_refine ? (bufferBytes - 0x40) : bufferBytes;
     Data->address = bufferAddress;
     Data->logical = bufferLogical;
-    Data->bytes = bytes;
+    Data->bytes = need_refine ? (bytes - 0x40) : bytes;
 
     return gcvSTATUS_OK;
 
@@ -4554,7 +4226,6 @@ OnError:
 static gceSTATUS
 _ProgramNNInput(
     IN gckHARDWARE Hardware,
-    IN gceVIP_ARCH_TYPE ArchType,
     IN gctUINT8 DataType,
     IN gctUINT32 InImageXSize,
     IN gctUINT32 InImageYSize,
@@ -4576,16 +4247,6 @@ _ProgramNNInput(
 
     gctUINT32 i = 0;
     gctUINT32 offset = 0;
-    gctUINT32 value[] = {
-        0x33, /* uint8 */
-        0x3c00, /* fp16 */
-        1, /* int8 */
-        1, /* uint16 */
-        1, /* int16 */
-        1, /* uint4 */
-        1, /* int4 */
-        0x3f80  /* bf16 */
-    };
 
     gcmkONERROR(_GetNNDataSize(DataType, &itemBytes));
 
@@ -4602,16 +4263,11 @@ _ProgramNNInput(
         &bufferAddress
         ));
 
-    if (gcvVIP_ARCH_TYPE_V8 == ArchType)
-    {
-        value[0x4] = 0x81;
-    }
-
     buffer = (gctUINT8_PTR)bufferLogical;
 
     for (i = 0; i < inputSize; i++)
     {
-        _BitValue(&buffer, value[DataType], &offset, itemBytes * 8);
+        _BitValue(&buffer, flopResetInputs[DataType], &offset, itemBytes * 8);
     }
 
     bytes = buffer + (offset + 7) / 8 - (gctUINT8_PTR)bufferLogical;
@@ -4679,7 +4335,7 @@ _ProgramNNOutput(
 
     gcmkONERROR(_GetNNDataSize(DataType, &itemBytes));
 
-    bufferBytes = bytes = OutputXSize * OutputYSize * OutputZSize * itemBytes;
+    bufferBytes = bytes = (gctSIZE_T)(OutputXSize * OutputYSize * OutputZSize * itemBytes);
 
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
@@ -4720,7 +4376,6 @@ OnError:
 static gceSTATUS
 _ProgramNNInstruction(
     IN gckHARDWARE Hardware,
-    IN gceVIP_ARCH_TYPE ArchType,
     IN gctUINT8 DataType,
     IN gctUINT32 InImageXSize,
     IN gctUINT32 InImageYSize,
@@ -4733,38 +4388,22 @@ _ProgramNNInstruction(
     IN gctUINT32 InImageAddress,
     IN gctUINT32 OutImageAddress,
     IN gctUINT32 KernelAddress,
+    IN chipCmdData* cd,
     IN gctUINT32 AllocFlag,
     IN gcePOOL *Pool,
     OUT gcsFUNCTION_EXECUTION_DATA_PTR Data
     )
 {
-#if gcdENABLE_FLOP_RESET == 0
+    gctUINT32 itemBytes = 0;
     gceSTATUS status = gcvSTATUS_OK;
-
-    gckOS os = Hardware->os;
-
-    gctUINT32 itemBytes;
     gckVIDMEM_NODE bufferNode = gcvNULL;
     gctPOINTER bufferLogical = gcvNULL;
     gctUINT32 bufferAddress = 0;
     gctSIZE_T bufferBytes, bytes;
     gctUINT32 *command = gcvNULL;
+    gctSIZE_T outbufferBytes = 0;
 
-    gctUINT8 kernelDataType;
-    gctUINT8 inImageDataType;
-    gctUINT8 outImageDataType;
-
-    gctUINT32 kernelsPerCore = 1;
-
-    gctUINT32 nnLayerFlush = 1;
-    gctUINT32 noZOffset = 0;
-    gctUINT32 imageEndAddress = 2048;
-    gctUINT32 postShift = 0;
-    gctUINT32 postShiftBit56 = 0;
-    gctUINT8 coefZP = 0;
-    gctUINT8 outputZP = 0;
-
-    bufferBytes = bytes = gcmSIZEOF(gctUINT32) * ((ArchType == gcvVIP_ARCH_TYPE_V6) ? 16 : 32);
+    bufferBytes = bytes = gckHARDWARE_IsFeatureAvailable(Hardware, gcFEATURE_BIT_NN_TENSOR_ADD_FIELD_MOVE_TO_EXT_CMD)? NN_INSTRUCTION_LEN_EXT:NN_INSTRUCTION_LEN;
 
     /* Allocate buffer. */
     gcmkONERROR(_AllocateVideoMemory(
@@ -4777,901 +4416,11 @@ _ProgramNNInstruction(
         &bufferLogical,
         &bufferAddress
         ));
-
-    command = (gctUINT32_PTR)bufferLogical;
 
     gcmkONERROR(_GetNNDataSize(DataType, &itemBytes));
-
-    kernelDataType   =
-    inImageDataType  =
-    outImageDataType = DataType;
-
-    switch (ArchType)
-    {
-    case gcvVIP_ARCH_TYPE_V8:
-        noZOffset = 1;
-        outputZP = 0;
-        postShift = (gckHARDWARE_IsFeatureAvailable(Hardware, gcvFEATURE_NN_FLOAT_POST_MULT)) ? 0x1f : 0;
-        postShiftBit56 = (gckHARDWARE_IsFeatureAvailable(Hardware, gcvFEATURE_NN_FLOAT_POST_MULT)) ? 3 : 0;
-        break;
-
-    case gcvVIP_ARCH_TYPE_V7:
-    case gcvVIP_ARCH_TYPE_V6:
-        postShift = (DataType == 0x2) ? 15 : 0;
-        break;
-
-    default:
-        gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
-        break;
-    }
-
-    /* gcregNNInstWord0 */
-    gcmkWRITE_MEMORY(
-        command,
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 0:0) - (0 ?
- 0:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 0:0) - (0 ?
- 0:0) + 1))))))) << (0 ?
- 0:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 0:0) - (0 ?
- 0:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 1:1) - (0 ?
- 1:1) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 1:1) - (0 ?
- 1:1) + 1))))))) << (0 ?
- 1:1))) | (((gctUINT32) ((gctUINT32) (noZOffset) & ((gctUINT32) ((((1 ?
- 1:1) - (0 ?
- 1:1) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 5:2) - (0 ?
- 5:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 5:2) - (0 ?
- 5:2) + 1))))))) << (0 ?
- 5:2))) | (((gctUINT32) ((gctUINT32) (KernelXSize) & ((gctUINT32) ((((1 ?
- 5:2) - (0 ?
- 5:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 5:2) - (0 ? 5:2) + 1))))))) << (0 ? 5:2)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 19:6) - (0 ?
- 19:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 19:6) - (0 ?
- 19:6) + 1))))))) << (0 ?
- 19:6))) | (((gctUINT32) ((gctUINT32) ((KernelZSize & 0x3FFF)) & ((gctUINT32) ((((1 ?
- 19:6) - (0 ?
- 19:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 19:6) - (0 ? 19:6) + 1))))))) << (0 ? 19:6)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 26:20) - (0 ?
- 26:20) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 26:20) - (0 ?
- 26:20) + 1))))))) << (0 ?
- 26:20))) | (((gctUINT32) ((gctUINT32) (kernelsPerCore) & ((gctUINT32) ((((1 ?
- 26:20) - (0 ?
- 26:20) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 26:20) - (0 ? 26:20) + 1))))))) << (0 ? 26:20)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 28:27) - (0 ?
- 28:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 28:27) - (0 ?
- 28:27) + 1))))))) << (0 ?
- 28:27))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 28:27) - (0 ?
- 28:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 28:27) - (0 ? 28:27) + 1))))))) << (0 ? 28:27)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 29:29) - (0 ?
- 29:29) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 29:29) - (0 ?
- 29:29) + 1))))))) << (0 ?
- 29:29))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 29:29) - (0 ?
- 29:29) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 29:29) - (0 ? 29:29) + 1))))))) << (0 ? 29:29)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 30:30) - (0 ?
- 30:30) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 30:30) - (0 ?
- 30:30) + 1))))))) << (0 ?
- 30:30))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 30:30) - (0 ?
- 30:30) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 30:30) - (0 ? 30:30) + 1))))))) << (0 ? 30:30)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:31) - (0 ?
- 31:31) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:31) - (0 ?
- 31:31) + 1))))))) << (0 ?
- 31:31))) | (((gctUINT32) ((gctUINT32) (nnLayerFlush) & ((gctUINT32) ((((1 ?
- 31:31) - (0 ?
- 31:31) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:31) - (0 ? 31:31) + 1))))))) << (0 ? 31:31)))
-        );
-
-    /* gcregNNInstWord1 */
-    gcmkWRITE_MEMORY(
-        command,
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 18:6) - (0 ?
- 18:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 18:6) - (0 ?
- 18:6) + 1))))))) << (0 ?
- 18:6))) | (((gctUINT32) ((gctUINT32) (InImageXSize) & ((gctUINT32) ((((1 ?
- 18:6) - (0 ?
- 18:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 18:6) - (0 ? 18:6) + 1))))))) << (0 ? 18:6)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:19) - (0 ?
- 31:19) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:19) - (0 ?
- 31:19) + 1))))))) << (0 ?
- 31:19))) | (((gctUINT32) ((gctUINT32) (InImageYSize) & ((gctUINT32) ((((1 ?
- 31:19) - (0 ?
- 31:19) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:19) - (0 ? 31:19) + 1))))))) << (0 ? 31:19)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 1:1) - (0 ?
- 1:1) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 1:1) - (0 ?
- 1:1) + 1))))))) << (0 ?
- 1:1))) | (((gctUINT32) ((gctUINT32) (kernelDataType >> 1) & ((gctUINT32) ((((1 ?
- 1:1) - (0 ?
- 1:1) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 3:3) - (0 ?
- 3:3) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 3:3) - (0 ?
- 3:3) + 1))))))) << (0 ?
- 3:3))) | (((gctUINT32) ((gctUINT32) (inImageDataType >> 1) & ((gctUINT32) ((((1 ?
- 3:3) - (0 ?
- 3:3) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 3:3) - (0 ? 3:3) + 1))))))) << (0 ? 3:3)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 5:5) - (0 ?
- 5:5) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 5:5) - (0 ?
- 5:5) + 1))))))) << (0 ?
- 5:5))) | (((gctUINT32) ((gctUINT32) (outImageDataType >> 1) & ((gctUINT32) ((((1 ?
- 5:5) - (0 ?
- 5:5) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 5:5) - (0 ? 5:5) + 1))))))) << (0 ? 5:5)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 0:0) - (0 ?
- 0:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 0:0) - (0 ?
- 0:0) + 1))))))) << (0 ?
- 0:0))) | (((gctUINT32) ((gctUINT32) (kernelDataType & 0x1) & ((gctUINT32) ((((1 ?
- 0:0) - (0 ?
- 0:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 2:2) - (0 ?
- 2:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 2:2) - (0 ?
- 2:2) + 1))))))) << (0 ?
- 2:2))) | (((gctUINT32) ((gctUINT32) (inImageDataType & 0x1) & ((gctUINT32) ((((1 ?
- 2:2) - (0 ?
- 2:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 2:2) - (0 ? 2:2) + 1))))))) << (0 ? 2:2)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 4:4) - (0 ?
- 4:4) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 4:4) - (0 ?
- 4:4) + 1))))))) << (0 ?
- 4:4))) | (((gctUINT32) ((gctUINT32) (outImageDataType & 0x1) & ((gctUINT32) ((((1 ?
- 4:4) - (0 ?
- 4:4) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 4:4) - (0 ? 4:4) + 1))))))) << (0 ? 4:4)))
-        );
-
-    /* gcregNNInstWord2 */
-    gcmkWRITE_MEMORY(
-        command,
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 24:24) - (0 ?
- 24:24) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 24:24) - (0 ?
- 24:24) + 1))))))) << (0 ?
- 24:24))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 24:24) - (0 ?
- 24:24) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 24:24) - (0 ? 24:24) + 1))))))) << (0 ? 24:24)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:25) - (0 ?
- 25:25) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:25) - (0 ?
- 25:25) + 1))))))) << (0 ?
- 25:25))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 25:25) - (0 ?
- 25:25) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:25) - (0 ? 25:25) + 1))))))) << (0 ? 25:25)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 2:0) - (0 ?
- 2:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 2:0) - (0 ?
- 2:0) + 1))))))) << (0 ?
- 2:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 2:0) - (0 ?
- 2:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 2:0) - (0 ? 2:0) + 1))))))) << (0 ? 2:0)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 5:3) - (0 ?
- 5:3) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 5:3) - (0 ?
- 5:3) + 1))))))) << (0 ?
- 5:3))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 5:3) - (0 ?
- 5:3) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 5:3) - (0 ? 5:3) + 1))))))) << (0 ? 5:3)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 26:26) - (0 ?
- 26:26) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 26:26) - (0 ?
- 26:26) + 1))))))) << (0 ?
- 26:26))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 26:26) - (0 ?
- 26:26) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 26:26) - (0 ? 26:26) + 1))))))) << (0 ? 26:26)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 7:7) - (0 ?
- 7:7) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 7:7) - (0 ?
- 7:7) + 1))))))) << (0 ?
- 7:7))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 7:7) - (0 ?
- 7:7) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 7:7) - (0 ? 7:7) + 1))))))) << (0 ? 7:7)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 23:8) - (0 ?
- 23:8) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 23:8) - (0 ?
- 23:8) + 1))))))) << (0 ?
- 23:8))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 23:8) - (0 ?
- 23:8) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 23:8) - (0 ? 23:8) + 1))))))) << (0 ? 23:8)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) ((gctUINT32) (postShift) & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-        );
-
-    /* gcregNNInstWord3 */
-    gcmkWRITE_MEMORY(
-        command,
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 18:6) - (0 ?
- 18:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 18:6) - (0 ?
- 18:6) + 1))))))) << (0 ?
- 18:6))) | (((gctUINT32) ((gctUINT32) (OutImageXSize) & ((gctUINT32) ((((1 ?
- 18:6) - (0 ?
- 18:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 18:6) - (0 ? 18:6) + 1))))))) << (0 ? 18:6)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:19) - (0 ?
- 31:19) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:19) - (0 ?
- 31:19) + 1))))))) << (0 ?
- 31:19))) | (((gctUINT32) ((gctUINT32) (OutImageYSize) & ((gctUINT32) ((((1 ?
- 31:19) - (0 ?
- 31:19) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:19) - (0 ? 31:19) + 1))))))) << (0 ? 31:19)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 2:2) - (0 ?
- 2:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 2:2) - (0 ?
- 2:2) + 1))))))) << (0 ?
- 2:2))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 2:2) - (0 ?
- 2:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 2:2) - (0 ? 2:2) + 1))))))) << (0 ? 2:2)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 3:3) - (0 ?
- 3:3) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 3:3) - (0 ?
- 3:3) + 1))))))) << (0 ?
- 3:3))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 3:3) - (0 ?
- 3:3) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 3:3) - (0 ? 3:3) + 1))))))) << (0 ? 3:3)))
-        );
-
-    /* gcregNNInstWord4 */
-    gcmkWRITE_MEMORY(
-        command,
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 13:0) - (0 ?
- 13:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 13:0) - (0 ?
- 13:0) + 1))))))) << (0 ?
- 13:0))) | (((gctUINT32) ((gctUINT32) (OutImageZSize) & ((gctUINT32) ((((1 ?
- 13:0) - (0 ?
- 13:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 13:0) - (0 ? 13:0) + 1))))))) << (0 ? 13:0)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:14) - (0 ?
- 15:14) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:14) - (0 ?
- 15:14) + 1))))))) << (0 ?
- 15:14))) | (((gctUINT32) ((gctUINT32) (0x0) & ((gctUINT32) ((((1 ?
- 15:14) - (0 ?
- 15:14) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:14) - (0 ? 15:14) + 1))))))) << (0 ? 15:14)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 24:18) - (0 ?
- 24:18) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 24:18) - (0 ?
- 24:18) + 1))))))) << (0 ?
- 24:18))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 24:18) - (0 ?
- 24:18) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 24:18) - (0 ? 24:18) + 1))))))) << (0 ? 24:18)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:25) - (0 ?
- 31:25) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:25) - (0 ?
- 31:25) + 1))))))) << (0 ?
- 31:25))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 31:25) - (0 ?
- 31:25) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:25) - (0 ? 31:25) + 1))))))) << (0 ? 31:25)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 16:16) - (0 ?
- 16:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 16:16) - (0 ?
- 16:16) + 1))))))) << (0 ?
- 16:16))) | (((gctUINT32) ((gctUINT32) ((0 >> 3) & 0x1) & ((gctUINT32) ((((1 ?
- 16:16) - (0 ?
- 16:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 16:16) - (0 ? 16:16) + 1))))))) << (0 ? 16:16)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 17:17) - (0 ?
- 17:17) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 17:17) - (0 ?
- 17:17) + 1))))))) << (0 ?
- 17:17))) | (((gctUINT32) ((gctUINT32) ((0 >> 3) & 0x1) & ((gctUINT32) ((((1 ?
- 17:17) - (0 ?
- 17:17) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 17:17) - (0 ? 17:17) + 1))))))) << (0 ? 17:17)))
-        );
-
-    /* gcregNNInstWord5 */
-    gcmkWRITE_MEMORY(
-        command,
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:26) - (0 ?
- 31:26) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:26) - (0 ?
- 31:26) + 1))))))) << (0 ?
- 31:26))) | (((gctUINT32) ((gctUINT32) (((KernelZSize >> 14) & 0x3F)) & ((gctUINT32) ((((1 ?
- 31:26) - (0 ?
- 31:26) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:26) - (0 ? 31:26) + 1))))))) << (0 ? 31:26)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:0) - (0 ?
- 25:0) + 1))))))) << (0 ?
- 25:0))) | (((gctUINT32) ((gctUINT32) ((KernelAddress >> 6)) & ((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:0) - (0 ? 25:0) + 1))))))) << (0 ? 25:0)))
-        );
-
-    /* gcregNNInstWord6 */
-    gcmkWRITE_MEMORY(command, InImageAddress);
-
-    /* gcregNNInstWord7 */
-    gcmkWRITE_MEMORY(command, OutImageAddress);
-
-    /* gcregNNInstWord8 */
-    gcmkWRITE_MEMORY(
-        command,
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:12) - (0 ?
- 15:12) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:12) - (0 ?
- 15:12) + 1))))))) << (0 ?
- 15:12))) | (((gctUINT32) ((gctUINT32) (KernelYSize) & ((gctUINT32) ((((1 ?
- 15:12) - (0 ?
- 15:12) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:12) - (0 ? 15:12) + 1))))))) << (0 ? 15:12)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:16) - (0 ?
- 31:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:16) - (0 ?
- 31:16) + 1))))))) << (0 ?
- 31:16))) | (((gctUINT32) ((gctUINT32) (OutImageYSize) & ((gctUINT32) ((((1 ?
- 31:16) - (0 ?
- 31:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:16) - (0 ? 31:16) + 1))))))) << (0 ? 31:16)))
-        );
-
-    /* gcregNNInstWord9 */
-    gcmkWRITE_MEMORY(command, 0);
-
-    /* gcregNNInstWord10 */
-    gcmkWRITE_MEMORY(command, 0);
-
-    /* gcregNNInstWord11 */
-    gcmkWRITE_MEMORY(command, 0);
-
-    /* gcregNNInstWord12 */
-    gcmkWRITE_MEMORY(command, 0);
-
-    /* gcregNNInstWord13 */
-    gcmkWRITE_MEMORY(command, 0);
-
-    /* gcregNNInstWord14 */
-    gcmkWRITE_MEMORY(command, imageEndAddress);
-
-    /* gcregNNInstWord15 */
-    gcmkWRITE_MEMORY(
-        command,
-        ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 1:0) - (0 ?
- 1:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 1:0) - (0 ?
- 1:0) + 1))))))) << (0 ?
- 1:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 1:0) - (0 ?
- 1:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 1:0) - (0 ? 1:0) + 1))))))) << (0 ? 1:0)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 17:2) - (0 ?
- 17:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 17:2) - (0 ?
- 17:2) + 1))))))) << (0 ?
- 17:2))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 17:2) - (0 ?
- 17:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 17:2) - (0 ? 17:2) + 1))))))) << (0 ? 17:2)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 19:19) - (0 ?
- 19:19) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 19:19) - (0 ?
- 19:19) + 1))))))) << (0 ?
- 19:19))) | (((gctUINT32) ((gctUINT32) (kernelDataType >> 2) & ((gctUINT32) ((((1 ?
- 19:19) - (0 ?
- 19:19) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 19:19) - (0 ? 19:19) + 1))))))) << (0 ? 19:19)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 20:20) - (0 ?
- 20:20) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 20:20) - (0 ?
- 20:20) + 1))))))) << (0 ?
- 20:20))) | (((gctUINT32) ((gctUINT32) (inImageDataType >> 2) & ((gctUINT32) ((((1 ?
- 20:20) - (0 ?
- 20:20) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 20:20) - (0 ? 20:20) + 1))))))) << (0 ? 20:20)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 21:21) - (0 ?
- 21:21) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 21:21) - (0 ?
- 21:21) + 1))))))) << (0 ?
- 21:21))) | (((gctUINT32) ((gctUINT32) (outImageDataType >> 2) & ((gctUINT32) ((((1 ?
- 21:21) - (0 ?
- 21:21) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 21:21) - (0 ? 21:21) + 1))))))) << (0 ? 21:21)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 27:22) - (0 ?
- 27:22) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 27:22) - (0 ?
- 27:22) + 1))))))) << (0 ?
- 27:22))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 27:22) - (0 ?
- 27:22) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 27:22) - (0 ? 27:22) + 1))))))) << (0 ? 27:22)))
-      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 29:28) - (0 ?
- 29:28) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 29:28) - (0 ?
- 29:28) + 1))))))) << (0 ?
- 29:28))) | (((gctUINT32) ((gctUINT32) (postShiftBit56) & ((gctUINT32) ((((1 ?
- 29:28) - (0 ?
- 29:28) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 29:28) - (0 ? 29:28) + 1))))))) << (0 ? 29:28)))
-        );
-
-    /* V7 or V8 */
-    if (ArchType == gcvVIP_ARCH_TYPE_V7 ||
-        ArchType == gcvVIP_ARCH_TYPE_V8)
-    {
-        /* gcregNNInstWord16 */
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (InImageXSize * itemBytes) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:16) - (0 ?
- 31:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:16) - (0 ?
- 31:16) + 1))))))) << (0 ?
- 31:16))) | (((gctUINT32) ((gctUINT32) (InImageYSize) & ((gctUINT32) ((((1 ?
- 31:16) - (0 ?
- 31:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:16) - (0 ? 31:16) + 1))))))) << (0 ? 31:16)))
-            );
-
-        /* gcregNNInstWord17 */
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (OutImageXSize * itemBytes) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:24) - (0 ?
- 31:24) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:24) - (0 ?
- 31:24) + 1))))))) << (0 ?
- 31:24))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 31:24) - (0 ?
- 31:24) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:24) - (0 ? 31:24) + 1))))))) << (0 ? 31:24)))
-            );
-
-        /* gcregNNInstWord18 */
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:0) - (0 ?
- 25:0) + 1))))))) << (0 ?
- 25:0))) | (((gctUINT32) ((gctUINT32) (0 >> 6) & ((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:0) - (0 ? 25:0) + 1))))))) << (0 ? 25:0)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 26:26) - (0 ?
- 26:26) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 26:26) - (0 ?
- 26:26) + 1))))))) << (0 ?
- 26:26))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 26:26) - (0 ?
- 26:26) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 26:26) - (0 ? 26:26) + 1))))))) << (0 ? 26:26)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 29:29) - (0 ?
- 29:29) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 29:29) - (0 ?
- 29:29) + 1))))))) << (0 ?
- 29:29))) | (((gctUINT32) ((gctUINT32) ((0 >> 4) & 0x1) & ((gctUINT32) ((((1 ?
- 29:29) - (0 ?
- 29:29) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 29:29) - (0 ? 29:29) + 1))))))) << (0 ? 29:29)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 30:30) - (0 ?
- 30:30) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 30:30) - (0 ?
- 30:30) + 1))))))) << (0 ?
- 30:30))) | (((gctUINT32) ((gctUINT32) ((0 >> 4) & 0x1) & ((gctUINT32) ((((1 ?
- 30:30) - (0 ?
- 30:30) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 30:30) - (0 ? 30:30) + 1))))))) << (0 ? 30:30)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 28:28) - (0 ?
- 28:28) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 28:28) - (0 ?
- 28:28) + 1))))))) << (0 ?
- 28:28))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 28:28) - (0 ?
- 28:28) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 28:28) - (0 ? 28:28) + 1))))))) << (0 ? 28:28)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:31) - (0 ?
- 31:31) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:31) - (0 ?
- 31:31) + 1))))))) << (0 ?
- 31:31))) | (((gctUINT32) ((gctUINT32) (kernelDataType >> 3) & ((gctUINT32) ((((1 ?
- 31:31) - (0 ?
- 31:31) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:31) - (0 ? 31:31) + 1))))))) << (0 ? 31:31)))
-            );
-
-        /* 25:0 */
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:0) - (0 ?
- 25:0) + 1))))))) << (0 ?
- 25:0))) | (((gctUINT32) ((gctUINT32) (0xFFFFFFFF >> 6) & ((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:0) - (0 ? 25:0) + 1))))))) << (0 ? 25:0)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 30:30) - (0 ?
- 30:30) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 30:30) - (0 ?
- 30:30) + 1))))))) << (0 ?
- 30:30))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 30:30) - (0 ?
- 30:30) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 30:30) - (0 ? 30:30) + 1))))))) << (0 ? 30:30)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:31) - (0 ?
- 31:31) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:31) - (0 ?
- 31:31) + 1))))))) << (0 ?
- 31:31))) | (((gctUINT32) ((gctUINT32) (inImageDataType >> 3) & ((gctUINT32) ((((1 ?
- 31:31) - (0 ?
- 31:31) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:31) - (0 ? 31:31) + 1))))))) << (0 ? 31:31)))
-            );
-
-        /* GCREG_NN_INST_WORD20 */
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:0) - (0 ?
- 25:0) + 1))))))) << (0 ?
- 25:0))) | (((gctUINT32) ((gctUINT32) (0 >> 6) & ((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:0) - (0 ? 25:0) + 1))))))) << (0 ? 25:0)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 26:26) - (0 ?
- 26:26) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 26:26) - (0 ?
- 26:26) + 1))))))) << (0 ?
- 26:26))) | (((gctUINT32) ((gctUINT32) (outImageDataType >> 3) & ((gctUINT32) ((((1 ?
- 26:26) - (0 ?
- 26:26) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 26:26) - (0 ? 26:26) + 1))))))) << (0 ? 26:26)))
-            );
-
-        /* 25:0 */
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:0) - (0 ?
- 25:0) + 1))))))) << (0 ?
- 25:0))) | (((gctUINT32) ((gctUINT32) (0xFFFFFFFF >> 6) & ((gctUINT32) ((((1 ?
- 25:0) - (0 ?
- 25:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:0) - (0 ? 25:0) + 1))))))) << (0 ? 25:0)))
-            );
-
-        /*GCREG_NN_INST_WORD22*/
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 7:0) - (0 ?
- 7:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 7:0) - (0 ?
- 7:0) + 1))))))) << (0 ?
- 7:0))) | (((gctUINT32) ((gctUINT32) (coefZP) & ((gctUINT32) ((((1 ?
- 7:0) - (0 ?
- 7:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 7:0) - (0 ? 7:0) + 1))))))) << (0 ? 7:0)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:8) - (0 ?
- 15:8) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:8) - (0 ?
- 15:8) + 1))))))) << (0 ?
- 15:8))) | (((gctUINT32) ((gctUINT32) (outputZP) & ((gctUINT32) ((((1 ?
- 15:8) - (0 ?
- 15:8) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:8) - (0 ? 15:8) + 1))))))) << (0 ? 15:8)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 16:16) - (0 ?
- 16:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 16:16) - (0 ?
- 16:16) + 1))))))) << (0 ?
- 16:16))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 16:16) - (0 ?
- 16:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 16:16) - (0 ? 16:16) + 1))))))) << (0 ? 16:16)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 17:17) - (0 ?
- 17:17) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 17:17) - (0 ?
- 17:17) + 1))))))) << (0 ?
- 17:17))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 17:17) - (0 ?
- 17:17) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 17:17) - (0 ? 17:17) + 1))))))) << (0 ? 17:17)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:18) - (0 ?
- 25:18) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:18) - (0 ?
- 25:18) + 1))))))) << (0 ?
- 25:18))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 25:18) - (0 ?
- 25:18) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:18) - (0 ? 25:18) + 1))))))) << (0 ? 25:18)))
-            );
-
-        /*GCREG_NN_INST_WORD23*/
-        gcmkWRITE_MEMORY(command, 0);
-
-        /*GCREG_NN_INST_WORD24*/
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 3:0) - (0 ?
- 3:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 3:0) - (0 ?
- 3:0) + 1))))))) << (0 ?
- 3:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 3:0) - (0 ?
- 3:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 3:0) - (0 ? 3:0) + 1))))))) << (0 ? 3:0)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:4) - (0 ?
- 31:4) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:4) - (0 ?
- 31:4) + 1))))))) << (0 ?
- 31:4))) | (((gctUINT32) ((gctUINT32) (0 >> 4) & ((gctUINT32) ((((1 ?
- 31:4) - (0 ?
- 31:4) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:4) - (0 ? 31:4) + 1))))))) << (0 ? 31:4)))
-            );
-
-        /*GCREG_NN_INST_WORD25*/
-        gcmkWRITE_MEMORY(
-            command,
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 3:0) - (0 ?
- 3:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 3:0) - (0 ?
- 3:0) + 1))))))) << (0 ?
- 3:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 3:0) - (0 ?
- 3:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 3:0) - (0 ? 3:0) + 1))))))) << (0 ? 3:0)))
-          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:4) - (0 ?
- 31:4) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:4) - (0 ?
- 31:4) + 1))))))) << (0 ?
- 31:4))) | (((gctUINT32) ((gctUINT32) (0 >> 4) & ((gctUINT32) ((((1 ?
- 31:4) - (0 ?
- 31:4) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:4) - (0 ? 31:4) + 1))))))) << (0 ? 31:4)))
-            );
-    }
-
-    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
-        Hardware->kernel,
-        bufferNode,
-        0,
-        bufferLogical,
-        bytes
-        ));
-
-#else
-    gceSTATUS status = gcvSTATUS_OK;
-    gckVIDMEM_NODE bufferNode = gcvNULL;
-    gctPOINTER bufferLogical = gcvNULL;
-    gctUINT32 bufferAddress = 0;
-    gctSIZE_T bufferBytes, bytes;
-    gctUINT32 *command = gcvNULL;
-    chipCmdData *cd = gcvNULL;
-    //v8
-
-    //gctUINT32 i;
-    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
-    if(cd == gcvNULL)
-    {
-        return status;
-    }
-    bufferBytes = bytes = 0x080;
-
-    /* Allocate buffer. */
-    gcmkONERROR(_AllocateVideoMemory(
-        Hardware->kernel,
-        gcvVIDMEM_TYPE_COMMAND,
-        AllocFlag,
-        Pool,
-        &bufferBytes,
-        &bufferNode,
-        &bufferLogical,
-        &bufferAddress
-        ));
-
+    outbufferBytes = (gctSIZE_T)(OutImageXSize * OutImageYSize * OutImageZSize * itemBytes);
     command = (gctUINT32_PTR)bufferLogical;
-    gckOS_MemCopy(command, cd->NNIns, bufferBytes);
+    gckOS_MemCopy(command, cd->NNIns, bytes);
 
     /* Fill the data. */
     command[5] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
@@ -5697,15 +4446,30 @@ _ProgramNNInstruction(
     command[6] = InImageAddress;
     command[7] = OutImageAddress;
 
+    if(Hardware->identity.customerID == 0x85)
+    {
+        if(Hardware->options.configNNPowerControl == 3)
+        {
+            command[12] = 0x00000900;
+        }
+        else if(Hardware->options.configNNPowerControl == 4)
+        {
+            command[12] = 0x00000A00;
+        }
+        else if(Hardware->options.configNNPowerControl == 0)
+        {
+            command[12] = 0x00000B00;
+        }
+    }
+
     gcmkONERROR(gckVIDMEM_NODE_CleanCache(
         Hardware->kernel,
         bufferNode,
         0,
         bufferLogical,
-        bytes
+        bufferBytes
         ));
 
-#endif
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(Hardware->os, "#[flop reset: nn instruction]");
     gcmkDUMP_BUFFER(
@@ -5740,581 +4504,13 @@ OnError:
 static gceSTATUS
 _ProgramNNCommand(
     IN gckHARDWARE Hardware,
-    IN gceVIP_ARCH_TYPE ArchType,
-    IN gctUINT32 KernelBurstSize,
     IN gctUINT32 InstAddress,
+    IN chipCmdData* cd,
     IN gctUINT32 AllocFlag,
     IN gcePOOL *Pool,
     OUT gcsFUNCTION_COMMAND_PTR Command
     )
 {
-#if gcdENABLE_FLOP_RESET == 0
-    gceSTATUS status = gcvSTATUS_OK;
-
-    gckVIDMEM_NODE bufferNode = gcvNULL;
-    gctPOINTER bufferLogical = gcvNULL;
-    gctUINT32 bufferAddress = 0;
-    gctSIZE_T bufferBytes;
-    gctUINT32 bytes;
-    gctUINT8_PTR endLogical;
-    gctUINT32 endAddress;
-    gctUINT32 endBytes = 0;
-    gcsFEATURE_DATABASE *database = (gcsFEATURE_DATABASE *)(Hardware->featureDatabase);
-    gctUINT32 index = 0;
-    gctINT32 disableZDPN = 1, disableSWTiling = 1;
-    gctBOOL enableNNStride = gcvFALSE;
-    gctUINT32 smallBatch;
-    gctUINT32 ddrBurstSize;
-    gctUINT32 *commands = gcvNULL;
-
-    bufferBytes = gcmSIZEOF(gctUINT32) * MAX_NN_COMMAND_NUM;
-
-    gcmkONERROR(_AllocateVideoMemory(
-        Hardware->kernel,
-        gcvVIDMEM_TYPE_COMMAND,
-        AllocFlag,
-        Pool,
-        &bufferBytes,
-        &bufferNode,
-        &bufferLogical,
-        &bufferAddress
-        ));
-
-    commands = (gctUINT32 *)bufferLogical;
-
-    disableZDPN = (database->NN_ZDP3 || database->NN_ZDP6) ? 0 : 1;
-
-    enableNNStride = database->NN_STRIDE_SUPPORT;
-    disableSWTiling = enableNNStride ? 0 : 1;
-
-    if (Hardware->identity.chipModel == 0x8000 &&
-        Hardware->identity.chipRevision == 0x7120 &&
-        (Hardware->identity.customerID == 0x80 ||
-         Hardware->identity.customerID == 0x92))
-    {
-        smallBatch = 0x0;
-    }
-    else
-    {
-        smallBatch = (database->NN_SMALLBATCH_PHASE1 && database->NN_COMMAND_KERNEL_REQUEST_CONFICT_FIX)
-                     ? 0x0 : 0x1;
-    }
-
-    switch(KernelBurstSize)
-    {
-    case 256:
-        ddrBurstSize = 0x2;
-        break;
-
-    case 64:
-    default:
-        ddrBurstSize = 0x0;
-        break;
-    }
-
-    commands = (gctUINT32_PTR)bufferLogical;
-
-    if (gcvVIP_ARCH_TYPE_V6 == ArchType)
-    {
-        commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x006B) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-        commands[index++] = 0;
-
-        commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E03) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                          | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-        commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 6:6) - (0 ?
- 6:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 6:6) - (0 ?
- 6:6) + 1))))))) << (0 ?
- 6:6))) | (((gctUINT32) (0x1 & ((gctUINT32) ((((1 ?
- 6:6) - (0 ?
- 6:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 6:6) - (0 ? 6:6) + 1))))))) << (0 ? 6:6)));
-    }
-
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E4E) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = Hardware->options.sRAMGPUVirtAddrs[0];
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E4F) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = 0x00000000;
-
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E50) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = 0x00000000;
-
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E03) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 6:6) - (0 ?
- 6:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 6:6) - (0 ?
- 6:6) + 1))))))) << (0 ?
- 6:6))) | (((gctUINT32) (0x1 & ((gctUINT32) ((((1 ?
- 6:6) - (0 ?
- 6:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 6:6) - (0 ? 6:6) + 1))))))) << (0 ? 6:6)));
-
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E4C) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 2:2) - (0 ?
- 2:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 2:2) - (0 ?
- 2:2) + 1))))))) << (0 ?
- 2:2))) | (((gctUINT32) ((gctUINT32) (disableZDPN) & ((gctUINT32) ((((1 ?
- 2:2) - (0 ?
- 2:2) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 2:2) - (0 ? 2:2) + 1))))))) << (0 ? 2:2)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 3:3) - (0 ?
- 3:3) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 3:3) - (0 ?
- 3:3) + 1))))))) << (0 ?
- 3:3))) | (((gctUINT32) ((gctUINT32) (disableSWTiling) & ((gctUINT32) ((((1 ?
- 3:3) - (0 ?
- 3:3) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 3:3) - (0 ? 3:3) + 1))))))) << (0 ? 3:3)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 4:4) - (0 ?
- 4:4) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 4:4) - (0 ?
- 4:4) + 1))))))) << (0 ?
- 4:4))) | (((gctUINT32) ((gctUINT32) (smallBatch) & ((gctUINT32) ((((1 ?
- 4:4) - (0 ?
- 4:4) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 4:4) - (0 ? 4:4) + 1))))))) << (0 ? 4:4)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 6:5) - (0 ?
- 6:5) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 6:5) - (0 ?
- 6:5) + 1))))))) << (0 ?
- 6:5))) | (((gctUINT32) ((gctUINT32) (ddrBurstSize) & ((gctUINT32) ((((1 ?
- 6:5) - (0 ?
- 6:5) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 6:5) - (0 ? 6:5) + 1))))))) << (0 ? 6:5)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 12:12) - (0 ?
- 12:12) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 12:12) - (0 ?
- 12:12) + 1))))))) << (0 ?
- 12:12))) | (((gctUINT32) ((gctUINT32) (0x0) & ((gctUINT32) ((((1 ?
- 12:12) - (0 ?
- 12:12) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 12:12) - (0 ? 12:12) + 1))))))) << (0 ? 12:12)));
-
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E54) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 0:0) - (0 ?
- 0:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 0:0) - (0 ?
- 0:0) + 1))))))) << (0 ?
- 0:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 0:0) - (0 ?
- 0:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 1:1) - (0 ?
- 1:1) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 1:1) - (0 ?
- 1:1) + 1))))))) << (0 ?
- 1:1))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 1:1) - (0 ?
- 1:1) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 1:1) - (0 ? 1:1) + 1))))))) << (0 ? 1:1)));
-
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0428) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:6) - (0 ?
- 31:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:6) - (0 ?
- 31:6) + 1))))))) << (0 ?
- 31:6))) | (((gctUINT32) ((gctUINT32) ((InstAddress >> 6)) & ((gctUINT32) ((((1 ?
- 31:6) - (0 ?
- 31:6) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:6) - (0 ? 31:6) + 1))))))) << (0 ? 31:6)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 4:0) - (0 ?
- 4:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 4:0) - (0 ?
- 4:0) + 1))))))) << (0 ?
- 4:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
- 4:0) - (0 ?
- 4:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 4:0) - (0 ? 4:0) + 1))))))) << (0 ? 4:0)));
-
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0429) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = 0;
-
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 31:27) - (0 ?
- 31:27) + 1))))))) << (0 ?
- 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
- 31:27) - (0 ?
- 31:27) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E03) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
-                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 25:16) - (0 ?
- 25:16) + 1))))))) << (0 ?
- 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
- 25:16) - (0 ?
- 25:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
-    commands[index++] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 5:5) - (0 ?
- 5:5) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 5:5) - (0 ?
- 5:5) + 1))))))) << (0 ?
- 5:5))) | (((gctUINT32) (0x1 & ((gctUINT32) ((((1 ?
- 5:5) - (0 ?
- 5:5) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 5:5) - (0 ? 5:5) + 1))))))) << (0 ? 5:5)));
-
-    bytes = gcmSIZEOF(gctUINT32) * index;
-
-    endLogical = (gctUINT8_PTR)bufferLogical + bytes;
-    endAddress = bufferAddress + bytes;
-
-    if (Hardware->wlFE)
-    {
-        gcmkONERROR(gckWLFE_End(Hardware, gcvNULL, ~0U, &endBytes));
-        gcmkONERROR(gckWLFE_End(Hardware, endLogical, endAddress, &endBytes));
-    }
-
-    bytes += endBytes;
-
-    gcmkASSERT(bytes <= bufferBytes);
-
-    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
-        Hardware->kernel,
-        bufferNode,
-        0,
-        bufferLogical,
-        bytes
-        ));
-
-    Command->funcVidMem = bufferNode;
-    Command->funcVidMemBytes = bufferBytes;
-    Command->logical = bufferLogical;
-    Command->address = bufferAddress;
-    Command->bytes = bytes;
-    Command->endAddress = endAddress;
-    Command->endLogical = endLogical;
-
-    return gcvSTATUS_OK;
-#else
     gceSTATUS status = gcvSTATUS_OK;
     gckVIDMEM_NODE bufferNode = gcvNULL;
     gctPOINTER bufferLogical = gcvNULL;
@@ -6325,15 +4521,8 @@ _ProgramNNCommand(
     gctUINT32 endAddress;
     gctUINT32 endBytes = 0;
     gctUINT32 *commands = gcvNULL;
-    chipCmdData *cd = gcvNULL;
 
-    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
-    if(cd == gcvNULL)
-    {
-        return status;
-    }
     bufferBytes = gcmSIZEOF(gctUINT32) *  MAX_NN_COMMAND_NUM;
-
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
         gcvVIDMEM_TYPE_COMMAND,
@@ -6347,7 +4536,33 @@ _ProgramNNCommand(
 
     commands = (gctUINT32_PTR)bufferLogical;
     gckOS_MemCopy(commands, cd->NNCmd, cd->NNCmdLen);
-    commands[cd->NNCmdOffset] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+    if(Hardware->identity.customerID == 0x85)
+    {
+         commands[cd->NNCmdOffset - 4] = commands[cd->NNCmdOffset - 4]
+                      | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1))))))) << (0 ?
+ 11:8))) | (((gctUINT32) ((gctUINT32) (Hardware->options.configNNPowerControl) & ((gctUINT32) ((((1 ?
+ 11:8) - (0 ?
+ 11:8) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 11:8) - (0 ? 11:8) + 1))))))) << (0 ? 11:8)));
+         commands[cd->NNCmdOffset] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1))))))) << (0 ?
+ 25:0))) | (((gctUINT32) ((gctUINT32) ((InstAddress >> 6)) & ((gctUINT32) ((((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 25:0) - (0 ? 25:0) + 1))))))) << (0 ? 25:0)));
+    }
+    else
+    {
+        commands[cd->NNCmdOffset] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  31:6) - (0 ?
  31:6) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ?
@@ -6367,6 +4582,7 @@ _ProgramNNCommand(
  4:0) - (0 ?
  4:0) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ? 4:0) - (0 ? 4:0) + 1))))))) << (0 ? 4:0)));
+    }
 
     bytes = cd->NNCmdLen;
 
@@ -6407,10 +4623,9 @@ _ProgramNNCommand(
         bufferAddress,
         bytes
         );
-    gcmkPRINT("NN commands dump, commands length:%d, endBytes:%d", bytes, endBytes);
 #endif
     return gcvSTATUS_OK;
-#endif
+
 
 OnError:
     if (bufferNode)
@@ -6449,17 +4664,14 @@ gckHARDWARE_ResetFlopWithNN(
     gctUINT32 i;
     gctPOINTER pointer = gcvNULL;
 
-    gceVIP_ARCH_TYPE archType;
     gctUINT8 dataType;
-    gctUINT32 coreCount = 0;
     gctUINT32 itemBytes = 0;
-    gctUINT32 zdp = 1;
-    gctUINT32 kernelBurstSize;
     gcsFUNCTION_EXECUTION_DATA_PTR data = gcvNULL;
     gctUINT32 dataCount = 0;
+    chipCmdData *cd = gcvNULL;
 
 #if gcdENABLE_FLOP_RESET_DEBUG
-    char * golden;
+    gctUINT8_PTR golden;
     gctSIZE_T outBufBytes;
 
 #endif
@@ -6471,12 +4683,19 @@ gckHARDWARE_ResetFlopWithNN(
 
     gcmkONERROR(_GetVIPCoreInfo(
         Hardware,
-        &archType,
+        gcvNULL,
         &dataType,
-        &coreCount,
-        &zdp,
-        &kernelBurstSize
+        gcvNULL,
+        gcvNULL,
+        gcvNULL
         ));
+
+    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
+    if(cd == gcvNULL)
+    {
+        return status;
+    }
+    gcmkASSERT(dataType == cd->InputDataType);
 
     gcmkONERROR(_GetNNDataSize(dataType, &itemBytes));
 
@@ -6495,13 +4714,11 @@ gckHARDWARE_ResetFlopWithNN(
     /* Kernel. */
     gcmkONERROR(_ProgramNNKernel(
         Hardware,
-        archType,
-        coreCount,
-        zdp,
         dataType,
         kernelXSize,
         kernelYSize,
         kernelZSize,
+        cd,
         AllocFlag,
         Pool,
         &data[gcvFLOP_RESET_NN_KERNEL]
@@ -6510,7 +4727,6 @@ gckHARDWARE_ResetFlopWithNN(
     /* Input. */
     gcmkONERROR(_ProgramNNInput(
         Hardware,
-        archType,
         dataType,
         inImageXSize,
         inImageYSize,
@@ -6535,7 +4751,6 @@ gckHARDWARE_ResetFlopWithNN(
     /* Commands. */
     gcmkONERROR(_ProgramNNInstruction(
         Hardware,
-        archType,
         dataType,
         inImageXSize,
         inImageYSize,
@@ -6548,6 +4763,7 @@ gckHARDWARE_ResetFlopWithNN(
         data[gcvFLOP_RESET_NN_INPUT].address,
         data[gcvFLOP_RESET_NN_OUTPUT].address,
         data[gcvFLOP_RESET_NN_KERNEL].address,
+        cd,
         AllocFlag,
         Pool,
         &data[gcvFLOP_RESET_NN_INSTRUCTION]
@@ -6555,9 +4771,8 @@ gckHARDWARE_ResetFlopWithNN(
 
     gcmkONERROR(_ProgramNNCommand(
         Hardware,
-        archType,
-        kernelBurstSize,
         data[gcvFLOP_RESET_NN_INSTRUCTION].address,
+        cd,
         AllocFlag,
         Pool,
         Command
@@ -6565,29 +4780,44 @@ gckHARDWARE_ResetFlopWithNN(
 
 #if gcdENABLE_FLOP_RESET_DEBUG
     outBufBytes = outImageXSize * outImageYSize * outImageZSize * itemBytes;
-    gcmkPRINT("outImageXSize : %d,outImageYSize : %d, outImageZSize : %d, itemBytes : %d", outImageXSize, outImageYSize, outImageZSize, itemBytes);
 
     gcmkONERROR(gckOS_Allocate(Hardware->os, outBufBytes, &Command->golden));
     gckOS_ZeroMemory(Command->golden, outBufBytes);
-    golden = (char*)Command->golden;
-    for (i = 0; i < outBufBytes; ++i)
+    golden = (gctUINT8_PTR)Command->golden;
+    if(Hardware->identity.customerID == 0x23 || Hardware->identity.customerID == 0x83)
     {
-        golden[i] = '3';
+        golden[0] = 0xe3;
+        golden[1] = 0x34;
+        golden[2] = 0xe3;
+        golden[3] = 0x34;
     }
-
-    gcmkPRINT("when reading NN golden, NN gloden address is %p", Command->golden);
-    gcmkPRINT("NN conv result top 2 bytes: %c, %c", ((char*)Command->golden)[0], ((char*)Command->golden)[1]);
+    else if(Hardware->identity.customerID == 0x96)
+    {
+        golden[0] = 0x50;
+        golden[1] = 0x50;
+    }
+    else
+    {
+        for (i = 0; i < outBufBytes; ++i)
+        {
+            golden[i] = '3';
+        }
+    }
     Command->outlogical = data[gcvFLOP_RESET_NN_OUTPUT].logical;
     Command->outSize = outBufBytes;
 #endif
 
+    if(Hardware->identity.customerID == 0x85)
+    {
+        Command->channelId = 2;
+    }
     Command->data = data;
     Command->dataCount = dataCount;
 
     return gcvSTATUS_OK;
 
 OnError:
-    if (Command->funcVidMem)
+    if (Command && Command->funcVidMem)
     {
         gcmkVERIFY_OK(_FreeVideoMemory(
             Hardware->kernel,
@@ -6625,76 +4855,25 @@ OnError:
 static gceSTATUS
 _ProgramTPKernel(
     IN gckHARDWARE Hardware,
-    IN gceVIP_ARCH_TYPE ArchType,
-    IN gctUINT32 CoreCount,
-    IN gctUINT32 Zdp,
     IN gctUINT8 DataType,
     IN gctUINT32 KernelXSize,
     IN gctUINT32 KernelYSize,
     IN gctUINT32 KernelZSize,
+    IN chipCmdData* cd,
     IN gctUINT32 AllocFlag,
     IN OUT gcePOOL *Pool,
     OUT gcsFUNCTION_EXECUTION_DATA *Data
     )
 {
-#if gcdENABLE_FLOP_RESET == 0
-    gceSTATUS status = gcvSTATUS_OK;
-    gckVIDMEM_NODE bufferNode = gcvNULL;
-    gctPOINTER bufferLogical = gcvNULL;
-    gctUINT32 bufferAddress =0;
-    gctSIZE_T bufferBytes = 0x3C0;
-    gctUINT32 *buffer = gcvNULL;
-    gctUINT32 i;
-
-
-    /* hardcode */
-    gcmkONERROR(_AllocateVideoMemory(
-        Hardware->kernel,
-        gcvVIDMEM_TYPE_BITMAP,
-        AllocFlag,
-        Pool,
-        &bufferBytes,
-        &bufferNode,
-        &bufferLogical,
-        &bufferAddress
-        ));
-
-    buffer = (gctUINT32_PTR)bufferLogical;
-
-    /* Fill the data. */
-    for (i = 0; i < bufferBytes / 4; i++)
-    {
-        buffer[i] = 0;
-    }
-
-    buffer[0] = 0x01150410;
-    buffer[1] = buffer[81] = buffer[161] = 0x00000100;
-    buffer[5] = buffer[85] = buffer[165] = 0x26543780;
-    buffer[6] = buffer[86] = buffer[166] = 0x000000ff;
-    buffer[7] = buffer[87] = buffer[167] = 0x0006801a;
-    buffer[48] = buffer[128] = buffer[208] = 0x00024938;
-    buffer[64] = buffer[144] = buffer[224] = 0x00024938;
-    buffer[80] = buffer[160] = 0x01140410;
-
-
-    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
-        Hardware->kernel,
-        bufferNode,
-        0,
-        bufferLogical,
-        bufferBytes
-        ));
-#else
     gceSTATUS status = gcvSTATUS_OK;
     gckVIDMEM_NODE bufferNode = gcvNULL;
     gctPOINTER bufferLogical = gcvNULL;
     gctUINT32 bufferAddress = 0;
     gctSIZE_T bufferBytes = 0;
+    gctSIZE_T bytes;
     gctUINT32 *buffer = gcvNULL;
-    chipCmdData *cd;
 
-    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
-    bufferBytes = cd->TPkerLen;
+    bytes = bufferBytes = cd->TPkerLen;
     /* hardcode */
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
@@ -6710,7 +4889,7 @@ _ProgramTPKernel(
     buffer = (gctUINT32_PTR)bufferLogical;
 
     /* Fill the data. */
-    gckOS_MemCopy(bufferLogical, cd->TPKer, bufferBytes);
+    gckOS_MemCopy(bufferLogical, cd->TPKer, bytes);
 
     gcmkONERROR(gckVIDMEM_NODE_CleanCache(
         Hardware->kernel,
@@ -6719,7 +4898,6 @@ _ProgramTPKernel(
         bufferLogical,
         bufferBytes
         ));
-#endif
 
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(Hardware->os, "#[flop reset: TP kernel]");
@@ -6728,7 +4906,7 @@ _ProgramTPKernel(
         gcvDUMP_BUFFER_KERNEL_COMMAND,
         bufferLogical,
         bufferAddress,
-        bufferBytes
+        bytes
         );
 #endif
 
@@ -6736,7 +4914,7 @@ _ProgramTPKernel(
     Data->bufVidMemBytes = bufferBytes;
     Data->address = bufferAddress;
     Data->logical = bufferLogical;
-    Data->bytes = bufferBytes;
+    Data->bytes = bytes;
 
     return gcvSTATUS_OK;
 
@@ -6755,7 +4933,6 @@ OnError:
 static gceSTATUS
 _ProgramTPInput(
     IN gckHARDWARE Hardware,
-    IN gceVIP_ARCH_TYPE ArchType,
     IN gctUINT8 DataType,
     IN gctUINT32 InImageXSize,
     IN gctUINT32 InImageYSize,
@@ -6774,19 +4951,9 @@ _ProgramTPInput(
     gctUINT32 bufferAddress = 0;
     gctSIZE_T bufferBytes, bytes;
     gctUINT8_PTR buffer = gcvNULL;
-
     gctUINT32 i = 0;
     gctUINT32 offset = 0;
-    gctUINT32 value[] = {
-        0x33, /* uint8, the case set scale = 0.003921569*/
-        0x3c00, /* fp16 */
-        1, /* int8 */
-        1, /* uint16 */
-        1, /* int16 */
-        1, /* uint4 */
-        1, /* int4 */
-        0x3f80  /* bf16 */
-    };
+
     gcmkONERROR(_GetNNDataSize(DataType, &itemBytes));
 
     bufferBytes = inputSize * itemBytes;
@@ -6802,16 +4969,11 @@ _ProgramTPInput(
         &bufferAddress
         ));
 
-    if (gcvVIP_ARCH_TYPE_V8 == ArchType)
-    {
-        value[0x4] = 0x81;
-    }
-
     buffer = (gctUINT8_PTR)bufferLogical;
 
     for (i = 0; i < inputSize; i++)
     {
-        _BitValue(&buffer, value[DataType], &offset, itemBytes * 8);
+        _BitValue(&buffer, flopResetInputs[DataType], &offset, itemBytes * 8);
     }
 
     bytes = buffer + (offset + 7) / 8 - (gctUINT8_PTR)bufferLogical;
@@ -6879,12 +5041,7 @@ _ProgramTPOutput(
 
     gcmkONERROR(_GetNNDataSize(DataType, &itemBytes));
 
-    bufferBytes = bytes = OutputXSize * OutputYSize * OutputZSize * itemBytes;
-    if(Hardware->identity.customerID == 0x86)
-    {
-        bufferBytes *= 2;
-        bytes *= 2;
-    }
+    bufferBytes = bytes = (gctSIZE_T)(OutputXSize * OutputYSize * OutputZSize * itemBytes);
 
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
@@ -6925,7 +5082,6 @@ OnError:
 static gceSTATUS
 _ProgramTPInstruction(
     IN gckHARDWARE Hardware,
-    IN gceVIP_ARCH_TYPE ArchType,
     IN gctUINT8 DataType,
     IN gctUINT32 InImageXSize,
     IN gctUINT32 InImageYSize,
@@ -6938,90 +5094,24 @@ _ProgramTPInstruction(
     IN gctUINT32 InImageAddress,
     IN gctUINT32 OutImageAddress,
     IN gctUINT32 KernelAddress,
+    IN chipCmdData* cd,
     IN gctUINT32 AllocFlag,
     IN gcePOOL *Pool,
     OUT gcsFUNCTION_EXECUTION_DATA_PTR Data
     )
 {
-#if gcdENABLE_FLOP_RESET == 0
-    gceSTATUS status = gcvSTATUS_OK;
-
-    gckVIDMEM_NODE bufferNode = gcvNULL;
-    gctPOINTER bufferLogical = gcvNULL;
-    gctUINT32 bufferAddress = 0;
-    gctSIZE_T bufferBytes, bytes;
-    gctUINT32 *command = gcvNULL;
-    gctUINT32 i;
-
-    bufferBytes = bytes = 0x180;
-
-    /* Allocate buffer. */
-    gcmkONERROR(_AllocateVideoMemory(
-        Hardware->kernel,
-        gcvVIDMEM_TYPE_COMMAND,
-        AllocFlag,
-        Pool,
-        &bufferBytes,
-        &bufferNode,
-        &bufferLogical,
-        &bufferAddress
-        ));
-
-    command = (gctUINT32_PTR)bufferLogical;
-
-    /* Fill the data. */
-    for (i = 0; i < bufferBytes / 4; i++)
-    {
-        command[i] = 0;
-    }
-
-    for (i = 0; i < 3; i++)
-    {
-        command[0] = command[2] = command[3] = command[20] = 0x00000001;
-        command[1] = 0x00020001;
-        command[8] = command[9] = command[16] = command[19] = 0x00010001;
-        command[10] = InImageAddress;
-        command[24] = 0x0000240a;
-        command[26] = command[28] = 0x03ffffff;
-        command[30] = 0x00008100;
-        command = command + 32;
-    }
-
-    command = (gctUINT32_PTR)bufferLogical;
-
-    command[6] = 0xa0002a1b;
-    command[38] = command[70] = 0xa000281b;
-    command[12] = command[44] = 0xc0000002;
-    command[76] = 0x80000002;
-    command[22] = 0x00010016;
-    command[54] = command[86] = 0x00010015;
-    command[11] = KernelAddress;
-    command[43] = KernelAddress + 0x140;
-    command[75] = KernelAddress + 0x280;
-    command[13] = OutImageAddress;
-    command[45] = OutImageAddress + 0x16;
-    command[77] = OutImageAddress + 0x2b;
-    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
-        Hardware->kernel,
-        bufferNode,
-        0,
-        bufferLogical,
-        bytes
-        ));
-#else
     gceSTATUS status = gcvSTATUS_OK;
     gckVIDMEM_NODE bufferNode = gcvNULL;
     gctPOINTER bufferLogical = gcvNULL;
     gctUINT32 bufferAddress = 0;
     gctSIZE_T bufferBytes;
+    gctSIZE_T bytes;
     gctUINT32 *command = gcvNULL;
     gctUINT32 i;
     gctSIZE_T steps = 1;
     gctUINT32 KernelAnchor = 0, OutImageAnchor = 0;
-    chipCmdData* cd;
 
-    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
-    bufferBytes = cd->TPInsLen;
+    bytes = bufferBytes = cd->TPCoreCount * TP_INSTRUCTION_LEN;
     /* Allocate buffer. */
     gcmkONERROR(_AllocateVideoMemory(
         Hardware->kernel,
@@ -7033,9 +5123,9 @@ _ProgramTPInstruction(
         &bufferLogical,
         &bufferAddress
         ));
-    gckOS_MemCopy(bufferLogical, cd->TPIns, bufferBytes);
+    gckOS_MemCopy(bufferLogical, cd->TPIns, bytes);
     command = (gctUINT32_PTR)bufferLogical;
-    steps = bufferBytes/128;
+    steps = bytes / TP_INSTRUCTION_LEN;
     KernelAnchor = command[11];
     OutImageAnchor = command[13];
     for(i = 0; i < steps; ++i)
@@ -7044,6 +5134,7 @@ _ProgramTPInstruction(
         command[i*32 + 11] = KernelAddress + command[i*32 + 11] - KernelAnchor;
         command[i*32 + 13] = OutImageAddress + command[i*32 + 13] - OutImageAnchor;
     }
+
     gcmkONERROR(gckVIDMEM_NODE_CleanCache(
         Hardware->kernel,
         bufferNode,
@@ -7051,7 +5142,7 @@ _ProgramTPInstruction(
         bufferLogical,
         bufferBytes
         ));
-#endif
+
 #if gcdDUMP_IN_KERNEL
     gcmkDUMP(Hardware->os, "#[flop reset: TP instruction]");
     gcmkDUMP_BUFFER(
@@ -7059,7 +5150,7 @@ _ProgramTPInstruction(
         gcvDUMP_BUFFER_KERNEL_COMMAND,
         bufferLogical,
         bufferAddress,
-        bufferBytes
+        bytes
         );
 #endif
 
@@ -7067,7 +5158,7 @@ _ProgramTPInstruction(
     Data->bufVidMemBytes = bufferBytes;
     Data->address = bufferAddress;
     Data->logical = bufferLogical;
-    Data->bytes = bufferBytes;
+    Data->bytes = bytes;
 
     return gcvSTATUS_OK;
 
@@ -7086,100 +5177,13 @@ OnError:
 static gceSTATUS
 _ProgramTPCommand(
     IN gckHARDWARE Hardware,
-    IN gceVIP_ARCH_TYPE ArchType,
     IN gctUINT32 InstAddress,
+    IN chipCmdData* cd,
     IN gctUINT32 AllocFlag,
     IN gcePOOL *Pool,
     OUT gcsFUNCTION_COMMAND_PTR Command
     )
 {
-#if gcdENABLE_FLOP_RESET == 0
-    gceSTATUS status = gcvSTATUS_OK;
-
-    gckVIDMEM_NODE bufferNode = gcvNULL;
-    gctPOINTER bufferLogical = gcvNULL;
-    gctUINT32 bufferAddress = 0;
-    gctSIZE_T bufferBytes;
-    gctUINT32 bytes;
-    gctUINT32 *commands;
-
-    gctUINT8_PTR endLogical;
-    gctUINT32 endAddress;
-    gctUINT32 endBytes = 0;
-    gctUINT32 i = 0;
-    gctUINT32 k;
-
-    bufferBytes = gcmSIZEOF(gctUINT32) * 64;
-
-    gcmkONERROR(_AllocateVideoMemory(
-        Hardware->kernel,
-        gcvVIDMEM_TYPE_COMMAND,
-        AllocFlag,
-        Pool,
-        &bufferBytes,
-        &bufferNode,
-        &bufferLogical,
-        &bufferAddress
-        ));
-
-    commands = (gctUINT32_PTR)bufferLogical;
-    for (i = 0; i < 3; i++)
-    {
-        k = 14 * i;
-        commands[0 + k] = 0x08010e4e;
-        commands[1 + k] = 0x00400000;
-        commands[2 + k] = 0x08010e4f;
-        commands[3 + k] = 0x00000000;
-        commands[4 + k] = 0x08010e50;
-        commands[5 + k] = 0x00000000;
-        commands[6 + k] = 0x08010e53;
-        commands[7 + k] = 0x00000000;
-        commands[8 + k] = 0x08010e54;
-        commands[9 + k] = 0x00000008;
-        commands[10 + k] = 0x08010e27;
-        commands[11 + k] = 0x00000000;
-        commands[12 + k] = 0x0801042e;
-    }
-
-    commands[13] = (InstAddress & 0xffffffC0) | (0x1);
-    commands[27] = ((InstAddress + 0x80) & 0xffffffC0) | (0x1);
-    commands[37] = 0x00000000;
-    commands[41] = ((InstAddress + 0x100) & 0xffffffC0);
-    commands[42] = 0x08010429;
-    commands[43] = 0;
-    commands[44] = 0x08010E03;
-    commands[45] = 0x20;
-
-    bytes = 46 * 4;
-    endLogical = (gctUINT8_PTR)bufferLogical + bytes;
-    endAddress = bufferAddress + bytes;
-
-    if (Hardware->wlFE)
-    {
-        gcmkONERROR(gckWLFE_End(Hardware, gcvNULL, ~0U, &endBytes));
-        gcmkONERROR(gckWLFE_End(Hardware, endLogical, endAddress, &endBytes));
-    }
-
-    bytes += endBytes;
-
-    gcmkASSERT(bytes <= bufferBytes);
-    gcmkONERROR(gckVIDMEM_NODE_CleanCache(
-        Hardware->kernel,
-        bufferNode,
-        0,
-        bufferLogical,
-        bytes
-        ));
-    Command->funcVidMem = bufferNode;
-    Command->funcVidMemBytes = bufferBytes;
-    Command->logical = bufferLogical;
-    Command->address = bufferAddress;
-    Command->bytes = bytes;
-    Command->endAddress = endAddress;
-    Command->endLogical = endLogical;
-
-    return gcvSTATUS_OK;
-#else
     gceSTATUS status = gcvSTATUS_OK;
     gckVIDMEM_NODE bufferNode = gcvNULL;
     gctPOINTER bufferLogical = gcvNULL;
@@ -7194,9 +5198,8 @@ _ProgramTPCommand(
     gctUINT32 endBytes = 0;
     gctUINT32 i = 0;
     gctUINT32 k = 1;
-    chipCmdData *cd;
+
     bufferBytes = gcmSIZEOF(gctUINT32) * 280;
-    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
     bytes = cd->TPCmdLen;
 
 
@@ -7213,10 +5216,23 @@ _ProgramTPCommand(
 
     commands = (gctUINT32_PTR)bufferLogical;
     gckOS_MemCopy(commands, cd->TPCmd, bytes);
-    //cannot reverse, only proper when instaddress = *00
-    i = cd->TPInsLen/128;
+
+    i = cd->TPCoreCount;
     startAnchor = commands[cd->TPCmdOffset[0]];
-    commands[cd->TPCmdOffset[0]] = (cd->TPInsLen / 0x80 == 1)?(InstAddress & 0xffffffC0):((InstAddress & 0xffffffC0) | (0x1));
+    commands[cd->TPCmdOffset[0]] = (cd->TPCoreCount == 1)?(InstAddress & 0xffffffC0):((InstAddress & 0xffffffC0) | (0x1));
+    if(Hardware->identity.customerID == 0x85)
+    {
+        commands[cd->TPCmdOffset[0]] = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1))))))) << (0 ?
+ 25:0))) | (((gctUINT32) ((gctUINT32) ((InstAddress >> 6)) & ((gctUINT32) ((((1 ?
+ 25:0) - (0 ?
+ 25:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 25:0) - (0 ? 25:0) + 1))))))) << (0 ? 25:0)));
+    }
     for(k = 1; k < i; k++)
     {
         commands[cd->TPCmdOffset[k]] =  commands[cd->TPCmdOffset[0]] + commands[cd->TPCmdOffset[k]] - startAnchor;
@@ -7241,7 +5257,7 @@ _ProgramTPCommand(
         bufferNode,
         0,
         bufferLogical,
-        bytes
+        bufferBytes
         ));
 
     Command->funcVidMem = bufferNode;
@@ -7264,7 +5280,6 @@ _ProgramTPCommand(
 #endif
 
     return gcvSTATUS_OK;
-#endif
 
 OnError:
     if (bufferNode)
@@ -7306,16 +5321,14 @@ gckHARDWARE_ResetFlopWithTP(
     gctUINT32 i;
     gctPOINTER pointer = gcvNULL;
 
-    gceVIP_ARCH_TYPE archType = gcvVIP_ARCH_TYPE_V8;
     gctUINT8 dataType;
-    gctUINT32 coreCount = 0;
-    gctUINT32 zdp = 1;
     gctUINT32 itemBytes = 0;
     gcsFUNCTION_EXECUTION_DATA_PTR data = gcvNULL;
     gctUINT32 dataCount = 0;
+    chipCmdData* cd;
 
 #if gcdENABLE_FLOP_RESET_DEBUG
-    char *golden;
+    gctUINT8_PTR golden;
     gctSIZE_T outBufBytes;
 
 #endif
@@ -7325,9 +5338,12 @@ gckHARDWARE_ResetFlopWithTP(
         gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
     }
 
-
-    dataType = 0x0;
-
+    cd = gcQuerychipCmdDB(Hardware->identity.customerID, Hardware->identity.chipModel, Hardware->identity.chipRevision, Hardware->identity.productID, Hardware->identity.ecoID);
+    if(cd == gcvNULL)
+    {
+        return status;
+    }
+    dataType = cd->InputDataType;
     gcmkONERROR(_GetNNDataSize(dataType, &itemBytes));
 
     /* Exectution data. */
@@ -7345,13 +5361,11 @@ gckHARDWARE_ResetFlopWithTP(
     /* Kernel. */
     gcmkONERROR(_ProgramTPKernel(
         Hardware,
-        archType,
-        coreCount,
-        zdp,
         dataType,
         kernelXSize,
         kernelYSize,
         kernelZSize,
+        cd,
         AllocFlag,
         Pool,
         &data[gcvFLOP_RESET_TP_KERNEL]
@@ -7360,7 +5374,6 @@ gckHARDWARE_ResetFlopWithTP(
     /* Input. */
     gcmkONERROR(_ProgramTPInput(
         Hardware,
-        archType,
         dataType,
         inImageXSize,
         inImageYSize,
@@ -7385,7 +5398,6 @@ gckHARDWARE_ResetFlopWithTP(
     /* Commands. */
     gcmkONERROR(_ProgramTPInstruction(
         Hardware,
-        archType,
         dataType,
         inImageXSize,
         inImageYSize,
@@ -7398,6 +5410,7 @@ gckHARDWARE_ResetFlopWithTP(
         data[gcvFLOP_RESET_TP_INPUT].address,
         data[gcvFLOP_RESET_TP_OUTPUT].address,
         data[gcvFLOP_RESET_TP_KERNEL].address,
+        cd,
         AllocFlag,
         Pool,
         &data[gcvFLOP_RESET_TP_INSTRUCTION]
@@ -7405,8 +5418,8 @@ gckHARDWARE_ResetFlopWithTP(
 
     gcmkONERROR(_ProgramTPCommand(
         Hardware,
-        archType,
         data[gcvFLOP_RESET_TP_INSTRUCTION].address,
+        cd,
         AllocFlag,
         Pool,
         Command
@@ -7414,21 +5427,223 @@ gckHARDWARE_ResetFlopWithTP(
 
 #if gcdENABLE_FLOP_RESET_DEBUG
     outBufBytes = outImageXSize * outImageYSize * outImageZSize * itemBytes;
-    gcmkPRINT("outImageXSize : %d,outImageYSize : %d, outImageZSize : %d, itemBytes : %d", outImageXSize, outImageYSize, outImageZSize, itemBytes);
     gcmkONERROR(gckOS_Allocate(Hardware->os, outBufBytes, &Command->golden));
     gckOS_ZeroMemory(Command->golden, outBufBytes);
-    golden = (char*)Command->golden;
-    for(i = 0; i < outBufBytes; ++i)
+    golden = (gctUINT8_PTR)Command->golden;
+    if(Hardware->identity.customerID == 0x23 || Hardware->identity.customerID == 0x83)
     {
-        golden[i] = '3';
+        golden[0] = 0x19;
+        golden[1] = 0xa9;
+        golden[2] = 0x31;
+        golden[3] = 0x31;
+        golden[4] = 0xf9;
+        golden[5] = 0x35;
+        golden[6] = 0x53;
+        golden[7] = 0x30;
+        golden[8] = 0x3c;
+        golden[9] = 0x29;
+        golden[10] = 0x3b;
+        golden[11] = 0x37;
+        golden[12] = 0x24;
+        golden[13] = 0x38;
+        golden[14] = 0x33;
+        golden[15] = 0x37;
+        golden[16] = 0xd;
+        golden[17] = 0x39;
+        golden[18] = 0x6e;
+        golden[19] = 0x32;
+        golden[20] = 0x68;
+        golden[21] = 0xba;
+        golden[22] = 0x40;
+        golden[23] = 0x2a;
+        golden[24] = 0xab;
+        golden[25] = 0xa9;
+        golden[26] = 0xb;
+        golden[27] = 0xb4;
+        golden[28] = 0xe8;
+        golden[29] = 0xab;
+        golden[30] = 0x9e;
+        golden[31] = 0x30;
+        golden[32] = 0xf0;
+        golden[33] = 0x20;
+        golden[34] = 0x98;
+        golden[35] = 0xb6;
+        golden[36] = 0x5a;
+        golden[37] = 0xb1;
+        golden[38] = 0x90;
+        golden[39] = 0xb4;
+        golden[40] = 0xff;
+        golden[41] = 0x38;
+        golden[42] = 0x7c;
+        golden[43] = 0xb4;
+        golden[44] = 0xb6;
+        golden[45] = 0x31;
+        golden[46] = 0x34;
+        golden[47] = 0xae;
+        golden[48] = 0xa3;
+        golden[49] = 0x38;
+        golden[50] = 0xb4;
+        golden[51] = 0x32;
+        golden[52] = 0x5f;
+        golden[53] = 0x31;
+        golden[54] = 0x12;
+        golden[55] = 0x34;
+        golden[56] = 0xc0;
+        golden[57] = 0x34;
+        golden[58] = 0xac;
+        golden[59] = 0xa6;
+        golden[60] = 0x6f;
+        golden[61] = 0x38;
+        golden[62] = 0xfd;
+        golden[63] = 0x34;
+        golden[64] = 0xa7;
+        golden[65] = 0xb7;
+        golden[66] = 0xa0;
+        golden[67] = 0x33;
+        golden[68] = 0x89;
+        golden[69] = 0x34;
+        golden[70] = 0xb6;
+        golden[71] = 0x33;
+        golden[72] = 0x80;
+        golden[73] = 0x94;
+        golden[74] = 0x5d;
+        golden[75] = 0xb2;
+        golden[76] = 0x68;
+        golden[77] = 0x37;
+        golden[78] = 0xbb;
+        golden[79] = 0xb1;
+        golden[80] = 0x23;
+        golden[81] = 0xb5;
+        golden[82] = 0xc3;
+        golden[83] = 0x28;
+        golden[84] = 0xac;
+        golden[85] = 0x35;
+        golden[86] = 0x8a;
+        golden[87] = 0xb3;
+        golden[88] = 0x12;
+        golden[89] = 0x34;
+        golden[90] = 0x47;
+        golden[91] = 0xb4;
+        golden[92] = 0xa6;
+        golden[93] = 0x32;
+        golden[94] = 0x86;
+        golden[95] = 0xb1;
+        golden[96] = 0x83;
+        golden[97] = 0xae;
+        golden[98] = 0x6a;
+        golden[99] = 0x32;
+        golden[100] = 0x1a;
+        golden[101] = 0xb1;
+        golden[102] = 0x99;
+        golden[103] = 0xb4;
+        golden[104] = 0xcd;
+        golden[105] = 0x32;
+        golden[106] = 0x78;
+        golden[107] = 0xb4;
+        golden[108] = 0x66;
+        golden[109] = 0x8a;
+        golden[110] = 0xa6;
+        golden[111] = 0xad;
+        golden[112] = 0xf3;
+        golden[113] = 0x2f;
+        golden[114] = 0x79;
+        golden[115] = 0xa0;
+        golden[116] = 0x15;
+        golden[117] = 0xb5;
+        golden[118] = 0x1a;
+        golden[119] = 0xb5;
+        golden[120] = 0x4a;
+        golden[121] = 0xb5;
+        golden[122] = 0x4;
+        golden[123] = 0xb8;
+        golden[124] = 0xdc;
+        golden[125] = 0x2f;
+        golden[126] = 0x8e;
+        golden[127] = 0x31;
     }
-
-    gcmkPRINT("TP fc result top 3 bytes: %c, %c, %c", ((char*)Command->golden)[0], ((char*)Command->golden)[1], ((char*)Command->golden)[2]);
+    else if(Hardware->identity.customerID == 0x96)
+    {
+        golden[0] = 0x32;
+        golden[1] = 0x0;
+        golden[2] = 0xfe;
+        golden[3] = 0xfa;
+        golden[4] = 0x16;
+        golden[5] = 0xfe;
+        golden[6] = 0xfc;
+        golden[7] = 0xf7;
+        golden[8] = 0x2;
+        golden[9] = 0xf;
+        golden[10] = 0x3;
+        golden[11] = 0xf;
+        golden[12] = 0x18;
+        golden[13] = 0xec;
+        golden[14] = 0x6;
+        golden[15] = 0xf6;
+        golden[16] = 0xf7;
+        golden[17] = 0xc;
+        golden[18] = 0xf8;
+        golden[19] = 0x4;
+        golden[20] = 0xef;
+        golden[21] = 0x4;
+        golden[22] = 0xea;
+        golden[23] = 0xfa;
+        golden[24] = 0xf4;
+        golden[25] = 0xd;
+        golden[26] = 0xe;
+        golden[27] = 0xfd;
+        golden[28] = 0xee;
+        golden[29] = 0xff;
+        golden[30] = 0xe6;
+        golden[31] = 0xfc;
+        golden[32] = 0x13;
+        golden[33] = 0x1;
+        golden[34] = 0xf7;
+        golden[35] = 0xdf;
+        golden[36] = 0xe9;
+        golden[37] = 0xec;
+        golden[38] = 0xf;
+        golden[39] = 0xf0;
+        golden[40] = 0xf0;
+        golden[41] = 0xb;
+        golden[42] = 0xa;
+        golden[43] = 0xe7;
+        golden[44] = 0x0;
+        golden[45] = 0xec;
+        golden[46] = 0x1b;
+        golden[47] = 0xf4;
+        golden[48] = 0xee;
+        golden[49] = 0x1b;
+        golden[50] = 0xe2;
+        golden[51] = 0x20;
+        golden[52] = 0xe9;
+        golden[53] = 0x1;
+        golden[54] = 0xfe;
+        golden[55] = 0x1;
+        golden[56] = 0x17;
+        golden[57] = 0xf7;
+        golden[58] = 0x26;
+        golden[59] = 0x8;
+        golden[60] = 0xd8;
+        golden[61] = 0xf3;
+        golden[62] = 0x5;
+        golden[63] = 0x1c;
+    }
+    else
+    {
+        for(i = 0; i < outBufBytes; ++i)
+        {
+            golden[i] = '3';
+        }
+    }
 
     Command->outlogical = data[gcvFLOP_RESET_TP_OUTPUT].logical;
     Command->outSize = outBufBytes;
 #endif
 
+    if(Hardware->identity.customerID == 0x85)
+    {
+        Command->channelId = 3;
+    }
     Command->data = data;
     Command->dataCount = dataCount;
 
@@ -7436,7 +5651,7 @@ gckHARDWARE_ResetFlopWithTP(
     return gcvSTATUS_OK;
 
 OnError:
-    if (Command->funcVidMem)
+    if (Command && Command->funcVidMem)
     {
         gcmkVERIFY_OK(_FreeVideoMemory(
             Hardware->kernel,

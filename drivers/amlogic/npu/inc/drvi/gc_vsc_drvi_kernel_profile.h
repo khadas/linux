@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -105,6 +105,9 @@ PROG_CL_COMBINED_TEXTURE_SAMPLER_TABLE;
 typedef struct PROG_CL_IMAGE_TABLE_ENTRY
 {
     gctUINT                                    imageArgIndex;
+
+    /* Decl'ed array size by OCL, at this time, it must be 1 */
+    gctSIZE_T                                  arraySize;
 
     gctBOOL                                    kernelHardcodeSampler;
     gctUINT                                    samplerArgIndex;

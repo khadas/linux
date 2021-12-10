@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -225,6 +225,7 @@ gcoVX_ProgrammCrossEngine(
     IN gctPOINTER                Data,
     IN gceVX_ACCELERATOR_TYPE    Type,
     IN gctPOINTER                Options,
+    IN gctUINT32                 cmdType,
     IN OUT gctUINT32_PTR        *Instruction
     );
 
@@ -340,6 +341,25 @@ gcoVX_CaptureState(
     IN gctBOOL dropCommandEnabled
     );
 
+#if gcdUSE_CAPBUF
+gceSTATUS gcoVX_StartCAPBUF();
+gceSTATUS gcoVX_EndCAPBUF();
+
+gceSTATUS
+gcoVX_QueryCAPBUFMetaData(
+    IN gceCAPBUF_META_TYPE Type,
+    IN gctBOOL WithPattern,
+    IN gctUINT32 Pattern,
+    OUT gctUINT32_PTR Count,
+    OUT gctUINT32_PTR *Data
+    );
+
+gceSTATUS
+gcoVX_FreeCAPBUFMetaQueryBuffer(
+    IN gctUINT32_PTR Data
+    );
+#endif
+
 gceSTATUS
 gcoVX_SetRemapAddress(
     IN gctUINT32 remapStart,
@@ -378,6 +398,10 @@ gceSTATUS gcoVX_MultiGPUSync(
 
 gceSTATUS gcoVX_QueryNNClusters(
     OUT gctUINT32 *Clusters
+    );
+
+gceSTATUS gcoVX_QueryNNRingCount(
+    OUT gctUINT32 *RingCount
     );
 
 #ifdef __cplusplus

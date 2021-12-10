@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -65,8 +65,12 @@ typedef enum _gceMMU_TYPE
 }
 gceMMU_TYPE;
 
+#define gcd4G_SIZE 0x100000000
+#define gcdMTLB_RESERVED_SIZE (16 << 20)
+
 /* VIP SRAM start virtual address. */
 #define gcdRESERVE_START (4 << 20)
+
 #define gcdRESERVE_ALIGN (4 << 10)
 
 #define gcmENTRY_TYPE(x) (x & 0xF0)
@@ -77,7 +81,7 @@ gceMMU_TYPE;
 
 #define gcdVERTEX_START      (128 << 10)
 
-#define gcdMTLB_RESERVED_SIZE (16 << 20)
+#define gcdFLAT_MAPPING_MODE gcvPAGE_TYPE_16M
 
 typedef struct _gcsMMU_STLB_CHUNK *gcsMMU_STLB_CHUNK_PTR;
 
@@ -652,457 +656,292 @@ static gcePOOL _GetPageTablePool(IN gckOS Os)
 }
 
 static gceSTATUS
-_FillFlatMapping(
+_GetCurStlbChunk(
+    IN gckMMU Mmu,
+    IN gctUINT32 MtlbIndex,
+    OUT gcsMMU_STLB_CHUNK_PTR *StlbChunk
+    )
+{
+    gcsMMU_STLB_CHUNK_PTR curStlbChunk = (gcsMMU_STLB_CHUNK_PTR)Mmu->staticSTLB;
+
+    while (curStlbChunk)
+    {
+        if ((MtlbIndex >= curStlbChunk->mtlbIndex) &&
+            (MtlbIndex < (curStlbChunk->mtlbIndex + curStlbChunk->mtlbEntryNum)))
+        {
+            break;
+        }
+        curStlbChunk = curStlbChunk->next;
+    }
+
+    *StlbChunk = curStlbChunk;
+
+    return gcvSTATUS_OK;
+}
+
+static gceSTATUS
+gckMMU_FillFlatMappingWithPage16M(
     IN gckMMU Mmu,
     IN gctUINT64 PhysBase,
-    IN gctSIZE_T Size,
+    IN gctUINT32 flatSize,
     IN gctBOOL   reserved,
-    IN gctBOOL   ableToShift,
+    IN gctBOOL   needShiftMapping,
+    IN gctBOOL   specificFlatMapping,
+    IN gctUINT32 reqVirtualBase,
     OUT gctUINT32 *GpuBaseAddress
     )
 {
     gceSTATUS status;
-    gctUINT32 mtlb;
-    gctUINT32 physBase;
     gckKERNEL kernel = Mmu->hardware->kernel;
-    gcsADDRESS_AREA_PTR area = &Mmu->dynamicArea4K;
-    gctBOOL physicalRangeOverlapped = gcvFALSE;
-    gctBOOL virtualRangeOverlapped = gcvFALSE;
-    gctBOOL specificFlatMapping = gcvFALSE;
-    gctBOOL needShiftMapping = gcvFALSE;
-    gctUINT64 flatBase = PhysBase;
-    gctUINT32 flatSize = (gctUINT32) Size;
-    gctUINT64 base = flatBase;
-    gctUINT64 end  = base + flatSize;
-    gctUINT32 reqVirtualBase = 0;
+    gctBOOL mutex = gcvFALSE;
+    gctUINT32 physBaseExt = (gctUINT32) (PhysBase >> 32);
+    gctUINT32 physBase = (gctUINT32) PhysBase;
+    gctUINT32 start = physBase & ~gcdMMU_PAGE_16M_MASK;
+    gctUINT32 end = (gctUINT32) (physBase + flatSize - 1) & ~gcdMMU_PAGE_16M_MASK;
+    gctUINT32 mStart = start >> gcdMMU_MTLB_SHIFT;
+    gctUINT32 mEnd = end >> gcdMMU_MTLB_SHIFT;
+    gctUINT32 mCursor;
+    gctUINT32 sStart = (start & gcdMMU_STLB_16M_MASK) >> gcdMMU_STLB_16M_SHIFT;
+    gctUINT32 sEnd = (end & gcdMMU_STLB_16M_MASK) >> gcdMMU_STLB_16M_SHIFT;
+    gctPHYS_ADDR_T physical;
+    gcsMMU_STLB_CHUNK_PTR newStlbChunk = gcvNULL;
+    gctUINT32 stlbIndex = 0;
+    gctUINT32 totalNewStlbs = 0;
+    gctINT32 firstMtlbEntry = -1;
+    gctUINT32 mtlbCurEntry;
     gctUINT32 flatVirtualBase = 0;
-    gctUINT32 i;
-
-    /************************ Get flat mapping type and range. ************************/
+    gcsMMU_STLB_CHUNK_PTR curStlbChunk = gcvNULL;
+    enum
     {
-        for (i = 0; i < Mmu->gpuPhysicalRangeCount; i++)
-        {
-            if (base < Mmu->gpuPhysicalRanges[i].start)
-            {
-                if (end > Mmu->gpuPhysicalRanges[i].start)
-                {
-                    physicalRangeOverlapped = gcvTRUE;
-                    if (Mmu->gpuPhysicalRanges[i].flag == gcvFLATMAP_DIRECT)
-                    {
-                        /* Overlapped part is direct mapping, continue direct mapping */
-                        end = Mmu->gpuPhysicalRanges[i].start;
-                    }
-                    else
-                    {
-                        /* Overlapped part is shift mapping, do entire shift mapping */
-                        needShiftMapping = gcvTRUE;
-                    }
-                }
+        COLOR_NONE   = 0,
+        COLOR_RED    = 1, /* occupied entry */
+        COLOR_BLUE   = 2, /* empty entry */
+        COLOR_MAX    = COLOR_BLUE,
+    } lastColor = COLOR_NONE;
+    gctUINT32 colorNumber = 0;
 
-                flatSize = (gctUINT32) (end - base);
-            }
-            else if (end > Mmu->gpuPhysicalRanges[i].end)
-            {
-                if (base < Mmu->gpuPhysicalRanges[i].end)
-                {
-                    physicalRangeOverlapped = gcvTRUE;
-                    if (Mmu->gpuPhysicalRanges[i].flag == gcvFLATMAP_DIRECT)
-                    {
-                        /* Overlapped part is direct mapping, continue direct mapping */
-                        base = Mmu->gpuPhysicalRanges[i].end + 1;
-                    }
-                    else
-                    {
-                        /* Overlapped part is shift mapping, do entire shift mapping */
-                        needShiftMapping = gcvTRUE;
-                    }
+    /* Grab the mutex. */
+    gcmkONERROR(gckOS_AcquireMutex(Mmu->os, Mmu->pageTableMutex, gcvINFINITE));
+    mutex = gcvTRUE;
 
-                }
+    if (needShiftMapping)
+    {
+        gctUINT32 mEntries;
+        gctUINT32 sEntries;
 
-                flatBase = base;
-                flatSize = (gctUINT32) (end - base);
-            }
-            else
-            {
-                /* it is already inside existing flat mapping ranges. */
-                flatSize = 0;
-            }
+        mEntries = ((physBase + flatSize + gcdMMU_PAGE_16M_SIZE - 1) >> gcdMMU_STLB_16M_SHIFT) - (physBase >> gcdMMU_STLB_16M_SHIFT);
 
-            if (flatSize == 0)
-            {
-                if (GpuBaseAddress)
-                {
-                    *GpuBaseAddress = (gctUINT32) PhysBase;
-                }
+        gcmkONERROR(_GetMtlbFreeSpace(Mmu, mEntries, &mStart, &mEnd));
 
-                return gcvSTATUS_OK;
-            }
-        }
+        sStart = mStart % gcdMMU_STLB_16M_ENTRY_NUM;
+        sEntries = mEntries;
+        sEnd = (sStart + sEntries - 1) % gcdMMU_STLB_16M_ENTRY_NUM;
     }
 
-    /* overwrite the orignal parameters */
-    PhysBase = flatBase;
-    physBase = (gctUINT32)flatBase;
+    if (specificFlatMapping)
+    {
+        start    = reqVirtualBase & ~gcdMMU_PAGE_16M_MASK;
+        end      = (reqVirtualBase + flatSize - 1) & ~gcdMMU_PAGE_16M_MASK;
+        mStart   = start >> gcdMMU_MTLB_SHIFT;
+        mEnd     = end >> gcdMMU_MTLB_SHIFT;
+        sStart   = (start & gcdMMU_STLB_16M_MASK) >> gcdMMU_STLB_16M_SHIFT;
+        sEnd     = (end & gcdMMU_STLB_16M_MASK) >> gcdMMU_STLB_16M_SHIFT;
+    }
 
-    mtlb = _MtlbOffset(physBase);
+    /* No matter direct mapping or shift mapping or specific mapping, store gpu virtual ranges */
+    flatVirtualBase = (mStart << gcdMMU_MTLB_SHIFT)
+                    | (sStart << gcdMMU_STLB_16M_SHIFT)
+                    | (physBase & gcdMMU_PAGE_16M_MASK);
 
+    /* Return GPU virtual base address if necessary */
     if (GpuBaseAddress)
     {
-        reqVirtualBase = *GpuBaseAddress;
+        *GpuBaseAddress = flatVirtualBase;
     }
 
-    /*
-     * if no partcial physical range overlap to request entire shift mapping,
-     * it is specific shift mapping or directly mapping by default.
-     */
-    if (!needShiftMapping)
+    mtlbCurEntry = mStart;
+
+    /* find all new stlbs, part of new flat mapping range may already have stlbs*/
+    while (mtlbCurEntry <= mEnd)
     {
-        flatVirtualBase = reqVirtualBase ? reqVirtualBase : (gctUINT32)flatBase;
-    }
-
-    for (i = 0; i < Mmu->gpuAddressRangeCount; i++)
-    {
-        if (_IsRangeInsected(flatVirtualBase, flatSize,
-            Mmu->gpuAddressRanges[i].start,  Mmu->gpuAddressRanges[i].size))
+        if (*(Mmu->mtlbLogical + mtlbCurEntry) == 0)
         {
-            virtualRangeOverlapped = gcvTRUE;
-        }
-    }
-
-    /* If gpu virtual range overlapped or gpu physical over 4G, still need entire shift mapping */
-    if ((!physicalRangeOverlapped && virtualRangeOverlapped) ||
-        PhysBase + flatSize - 1 > 0xffffffff)
-    {
-        needShiftMapping = gcvTRUE;
-    }
-
-    if (needShiftMapping && !ableToShift)
-    {
-        /*
-         * Return without mapping any address.
-         * By now, only physBase physSize could run here.
-         */
-        return gcvSTATUS_OK;
-    }
-
-    specificFlatMapping = (reqVirtualBase && !virtualRangeOverlapped && !physicalRangeOverlapped);
-
-    /************************ Setup flat mapping in dynamic range. ****************/
-    if (area->mappingStart != gcvINVALID_ADDRESS && mtlb >= area->mappingStart && mtlb < area->mappingEnd)
-    {
-        /* This path is useless now, keep it 4K page size */
-
-        gctUINT32_PTR stlbEntry;
-
-        stlbEntry = _StlbEntry(area, physBase);
-
-        /* Must be aligned to page. */
-        gcmkASSERT((flatSize & 0xFFF) == 0);
-
-        for (i = 0; i < (flatSize / gcdMMU_PAGE_4K_SIZE); i++)
-        {
-            /* Flat mapping in page table. */
-            _WritePageEntry(stlbEntry, _SetPage(physBase + i * gcdMMU_PAGE_4K_SIZE, 0, gcvTRUE));
-#if gcdMMU_TABLE_DUMP
-            gckOS_Print("%s(%d): insert MTLB[%d] STLB[%d]: %08x\n",
-                __FUNCTION__, __LINE__,
-                (physBase & gcdMMU_MTLB_MASK) >> gcdMMU_MTLB_SHIFT,
-                ((physBase & gcdMMU_STLB_4K_MASK) >> gcdMMU_STLB_4K_SHIFT) + i,
-                _ReadPageEntry(stlbEntry));
-#endif
-            stlbEntry++;
-        }
-
-#if gcdDUMP_IN_KERNEL
-        {
-            gctPHYS_ADDR_T physical;
-            gctUINT32 data = _SetPage(physBase, 0, gcvTRUE) & ~0xF;
-            gctUINT32 step = (_SetPage(physBase + gcdMMU_PAGE_4K_SIZE, 0, gcvTRUE) & ~0xF) - data;
-            gctUINT32 mask = _SetPage(physBase, 0, gcvTRUE) & 0xF;
-
-            physical  = area->stlbPhysical + 4 * _AddressToIndex(area, physBase);
-
-            gcmkDUMP(Mmu->os,
-                     "#[mmu-stlb: flat-mapping in dynamic: 0x%08X - 0x%08X]",
-                     physBase, physBase - 1 + flatSize);
-
-            gcmkDUMP(Mmu->os,
-                     "@[physical.step 0x%010llX 0x%08X 0x%08lX 0x%08X 0x%08X",
-                     (unsigned long long)physical, data,
-                     (unsigned long)(flatSize / gcdMMU_PAGE_4K_SIZE * sizeof(gctUINT32)),
-                     step, mask);
-        }
-#endif
-
-        /* Flat mapping in map. */
-        _FillFlatMappingInMap(area, _AddressToIndex(area, physBase), flatSize / gcdMMU_PAGE_4K_SIZE);
-
-        return gcvSTATUS_OK;
-    }
-
-    /************************ Setup flat mapping in non dynamic range. **************/
-    {
-        gctBOOL mutex = gcvFALSE;
-        gctUINT32 physBaseExt = (gctUINT32) (PhysBase >> 32);
-        gctUINT32 start = physBase & ~gcdMMU_PAGE_1M_MASK;
-        gctUINT32 end = (gctUINT32) (physBase + flatSize - 1) & ~gcdMMU_PAGE_1M_MASK;
-        gctUINT32 mStart = start >> gcdMMU_MTLB_SHIFT;
-        gctUINT32 mEnd = end >> gcdMMU_MTLB_SHIFT;
-        gctUINT32 sStart = (start & gcdMMU_STLB_1M_MASK) >> gcdMMU_STLB_1M_SHIFT;
-        gctUINT32 sEnd = (end & gcdMMU_STLB_1M_MASK) >> gcdMMU_STLB_1M_SHIFT;
-        gctPHYS_ADDR_T physical;
-        gcsMMU_STLB_CHUNK_PTR newStlbChunk = gcvNULL;
-        gctUINT32 stlbIndex = 0;
-        gctUINT32 totalNewStlbs = 0;
-        gctINT32 firstMtlbEntry = -1;
-        gctUINT32 mtlbCurEntry;
-        gcsMMU_STLB_CHUNK_PTR curStlbChunk = gcvNULL;
-        gceFLATMAP_FLAG mapFlag = gcvFLATMAP_DIRECT;
-        enum
-        {
-            COLOR_NONE   = 0,
-            COLOR_RED    = 1, /* occupied entry */
-            COLOR_BLUE   = 2, /* empty entry */
-            COLOR_MAX    = COLOR_BLUE,
-        } lastColor = COLOR_NONE;
-        gctUINT32 colorNumber = 0;
-
-        /* Grab the mutex. */
-        gcmkONERROR(gckOS_AcquireMutex(Mmu->os, Mmu->pageTableMutex, gcvINFINITE));
-        mutex = gcvTRUE;
-
-        if (needShiftMapping)
-        {
-            gctUINT32 mEntries;
-            gctUINT32 sEntries;
-
-            mEntries = (flatSize + (1 << gcdMMU_MTLB_SHIFT) - 1) / (1 << gcdMMU_MTLB_SHIFT);
-
-            gcmkONERROR(_GetMtlbFreeSpace(Mmu, mEntries, &mStart, &mEnd));
-
-            sStart = 0;
-            sEntries = (flatSize + gcdMMU_PAGE_1M_SIZE - 1) / gcdMMU_PAGE_1M_SIZE;
-            sEnd = (sEntries - 1) % gcdMMU_STLB_1M_ENTRY_NUM;
-            mapFlag = gcvFLATMAP_SHIFT;
-        }
-
-        if (specificFlatMapping)
-        {
-            start    = reqVirtualBase & ~gcdMMU_PAGE_1M_MASK;
-            end      = (reqVirtualBase + flatSize - 1) & ~gcdMMU_PAGE_1M_MASK;
-            mStart   = start >> gcdMMU_MTLB_SHIFT;
-            mEnd     = end >> gcdMMU_MTLB_SHIFT;
-            sStart   = (start & gcdMMU_STLB_1M_MASK) >> gcdMMU_STLB_1M_SHIFT;
-            sEnd     = (end & gcdMMU_STLB_1M_MASK) >> gcdMMU_STLB_1M_SHIFT;
-            mapFlag  = gcvFLATMAP_SHIFT;
-        }
-
-        /* No matter direct mapping or shift mapping or specific mapping, store gpu virtual ranges */
-        flatVirtualBase = (mStart << gcdMMU_MTLB_SHIFT)
-                        | (sStart << gcdMMU_STLB_1M_SHIFT)
-                        | (physBase & gcdMMU_PAGE_1M_MASK);
-
-        /* Return GPU virtual base address if necessary */
-        if (GpuBaseAddress)
-        {
-            *GpuBaseAddress = flatVirtualBase;
-        }
-
-        mtlbCurEntry = mStart;
-
-        /* find all new stlbs, part of new flat mapping range may already have stlbs*/
-        while (mtlbCurEntry <= mEnd)
-        {
-            if (*(Mmu->mtlbLogical + mtlbCurEntry) == 0)
+            if (lastColor != COLOR_BLUE)
             {
-                if (lastColor != COLOR_BLUE)
+                if (colorNumber < COLOR_MAX)
                 {
-                    if (colorNumber < COLOR_MAX)
-                    {
-                        lastColor = COLOR_BLUE;
-                        colorNumber++;
-                    }
-                    else
-                    {
-                        gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
-                    }
+                    lastColor = COLOR_BLUE;
+                    colorNumber++;
                 }
-
-                totalNewStlbs++;
-                if (-1 == firstMtlbEntry)
+                else
                 {
-                    firstMtlbEntry = mtlbCurEntry;
+                    gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
                 }
             }
-            else
+
+            _GetCurStlbChunk(Mmu, mtlbCurEntry, &curStlbChunk);
+
+            if (!curStlbChunk)
             {
-                if (lastColor != COLOR_RED)
+                gctUINT32 stlbNum = mtlbCurEntry >> 4;
+                if (Mmu->stlbAllocated[stlbNum] == gcvFALSE)
                 {
-                    if (colorNumber < COLOR_MAX)
-                    {
-                        lastColor = COLOR_RED;
-                        colorNumber++;
-                    }
-                    else
-                    {
-                        gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
-                    }
+                    Mmu->stlbAllocated[stlbNum] = gcvTRUE;
+                    totalNewStlbs++;
                 }
             }
-            mtlbCurEntry++;
+
+            if (-1 == firstMtlbEntry)
+            {
+                firstMtlbEntry = mtlbCurEntry & (~((1 << 4) - 1));
+            }
         }
-
-        /* Need allocate a new chunk of stlbs */
-        if (totalNewStlbs)
+        else
         {
-            gcePOOL pool = Mmu->pool;
-            gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
+            if (lastColor != COLOR_RED)
+            {
+                if (colorNumber < COLOR_MAX)
+                {
+                    lastColor = COLOR_RED;
+                    colorNumber++;
+                }
+                else
+                {
+                    gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
+                }
+            }
+        }
+        mtlbCurEntry++;
+    }
 
-            gcmkONERROR(
-                gckOS_Allocate(Mmu->os,
-                               sizeof(struct _gcsMMU_STLB_CHUNK),
-                               (gctPOINTER *)&newStlbChunk));
+    /* Need allocate a new chunk of stlbs */
+    if (totalNewStlbs)
+    {
+        gcePOOL pool = Mmu->pool;
+        gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
 
-            newStlbChunk->mtlbEntryNum = totalNewStlbs;
-            newStlbChunk->next = gcvNULL;
-            newStlbChunk->videoMem = gcvNULL;
-            newStlbChunk->logical = gcvNULL;
-            newStlbChunk->size = gcdMMU_STLB_1M_SIZE * newStlbChunk->mtlbEntryNum;
-            newStlbChunk->pageCount = 0;
-            newStlbChunk->mtlbIndex = firstMtlbEntry;
+        gcmkONERROR(
+            gckOS_Allocate(Mmu->os,
+                           sizeof(struct _gcsMMU_STLB_CHUNK),
+                           (gctPOINTER *)&newStlbChunk));
+
+        newStlbChunk->mtlbEntryNum = totalNewStlbs * 16;
+        newStlbChunk->next = gcvNULL;
+        newStlbChunk->videoMem = gcvNULL;
+        newStlbChunk->logical = gcvNULL;
+        newStlbChunk->size = gcdMMU_STLB_16M_SIZE * totalNewStlbs;
+        newStlbChunk->pageCount = 0;
+        newStlbChunk->mtlbIndex = firstMtlbEntry;
 
 #if gcdENABLE_CACHEABLE_COMMAND_BUFFER
-            allocFlag |= gcvALLOC_FLAG_CACHEABLE;
+        allocFlag |= gcvALLOC_FLAG_CACHEABLE;
 #endif
 
-            if (!Mmu->pageTableOver4G)
-            {
-                allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
-            }
-
-            gcmkONERROR(gckKERNEL_AllocateVideoMemory(
-                kernel,
-                gcdMMU_STLB_1M_SIZE,
-                gcvVIDMEM_TYPE_COMMAND,
-                allocFlag | gcvALLOC_FLAG_4K_PAGES,
-                &newStlbChunk->size,
-                &pool,
-                &newStlbChunk->videoMem));
-
-            /* Lock for kernel side CPU access. */
-            gcmkONERROR(gckVIDMEM_NODE_LockCPU(
-                kernel,
-                newStlbChunk->videoMem,
-                gcvFALSE,
-                gcvFALSE,
-                (gctPOINTER *)&newStlbChunk->logical));
-
-            gcmkONERROR(gckOS_ZeroMemory(newStlbChunk->logical, newStlbChunk->size));
-
-            /* Get CPU physical address. */
-            gcmkONERROR(gckVIDMEM_NODE_GetPhysical(
-                kernel,
-                newStlbChunk->videoMem,
-                0,
-                &physical));
-
-            gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(
-                Mmu->os,
-                physical,
-                &physical));
-
-            newStlbChunk->physBase = physical;
+        if (!Mmu->pageTableOver4G)
+        {
+            allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
         }
 
-        while (mStart <= mEnd)
+        gcmkONERROR(gckKERNEL_AllocateVideoMemory(
+            kernel,
+            64,
+            gcvVIDMEM_TYPE_COMMAND,
+            allocFlag | gcvALLOC_FLAG_4K_PAGES,
+            &newStlbChunk->size,
+            &pool,
+            &newStlbChunk->videoMem));
+
+        /* Lock for kernel side CPU access. */
+        gcmkONERROR(gckVIDMEM_NODE_LockCPU(
+            kernel,
+            newStlbChunk->videoMem,
+            gcvFALSE,
+            gcvFALSE,
+            (gctPOINTER *)&newStlbChunk->logical));
+
+        gcmkONERROR(gckOS_ZeroMemory(newStlbChunk->logical, newStlbChunk->size));
+
+        /* Get CPU physical address. */
+        gcmkONERROR(gckVIDMEM_NODE_GetPhysical(
+            kernel,
+            newStlbChunk->videoMem,
+            0,
+            &physical));
+
+        gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(
+            Mmu->os,
+            physical,
+            &physical));
+
+        newStlbChunk->physBase = physical;
+    }
+
+    mCursor = mStart;
+
+    while (mCursor <= mEnd)
+    {
+        gctPHYS_ADDR_T stlbPhyBase;
+        gctUINT32_PTR stlbLogical;
+
+        gcmkASSERT(mCursor < gcdMMU_MTLB_ENTRY_NUM);
+
+        if (*(Mmu->mtlbLogical + mCursor) == 0)
         {
-            gctUINT32 last = (mStart == mEnd) ? sEnd : (gcdMMU_STLB_1M_ENTRY_NUM - 1);
-            gctPHYS_ADDR_T stlbPhyBase;
-            gctUINT32_PTR stlbLogical;
+            gctUINT32 mtlbEntry;
 
-            gcmkASSERT(mStart < gcdMMU_MTLB_ENTRY_NUM);
-
-            if (*(Mmu->mtlbLogical + mStart) == 0)
+            _GetCurStlbChunk(Mmu, mCursor, &curStlbChunk);
+            if (!curStlbChunk)
             {
-                gctUINT32 mtlbEntry;
-                curStlbChunk = newStlbChunk;
-                stlbPhyBase = curStlbChunk->physBase + (stlbIndex * gcdMMU_STLB_1M_SIZE);
-                stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbIndex * gcdMMU_STLB_1M_SIZE));
+                if (totalNewStlbs)
+                {
+                    curStlbChunk = newStlbChunk;
+                }
+            }
 
-                physical  = stlbPhyBase
-                          /* 1MB page size */
-                          | (1 << 3)
-                          /* Ignore exception */
-                          | (0 << 1)
-                          /* Present */
-                          | (1 << 0);
+            stlbIndex = (mCursor - curStlbChunk->mtlbIndex) >> 4;
+            stlbPhyBase = curStlbChunk->physBase + (stlbIndex * gcdMMU_STLB_16M_SIZE);
+            stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbIndex * gcdMMU_STLB_16M_SIZE));
 
-                gcmkSAFECASTPHYSADDRT(mtlbEntry, physical);
+            physical  = stlbPhyBase
+                      /* 16MB page size */
+                      | (0x3 << 2)
+                      /* Ignore exception */
+                      | (0 << 1)
+                      /* Present */
+                      | (1 << 0);
 
-                _WritePageEntry(Mmu->mtlbLogical + mStart, mtlbEntry);
+            gcmkSAFECASTPHYSADDRT(mtlbEntry, physical);
+
+            _WritePageEntry(Mmu->mtlbLogical + mCursor, mtlbEntry);
 
 #if gcdMMU_TABLE_DUMP
-                gckOS_Print("%s(%d): insert MTLB[%d]: %08x\n",
-                    __FUNCTION__, __LINE__,
-                    mStart,
-                    _ReadPageEntry(Mmu->mtlbLogical + mStart));
+            gckOS_Print("%s(%d): insert MTLB[%d]: %08x\n",
+                __FUNCTION__, __LINE__,
+                mStart,
+                _ReadPageEntry(Mmu->mtlbLogical + mCursor));
 
-                gckOS_Print("%s(%d): STLB: logical:%08x -> physical:%08x\n",
-                        __FUNCTION__, __LINE__,
-                        stlbLogical,
-                        stlbPhyBase);
+            gckOS_Print("%s(%d): STLB: logical:%08x -> physical:%08x\n",
+                    __FUNCTION__, __LINE__,
+                    stlbLogical,
+                    stlbPhyBase);
 #endif
 
-                gcmkDUMP(Mmu->os, "#[mmu-mtlb: flat-mapping, slot: %d]", mStart);
+            gcmkDUMP(Mmu->os, "#[mmu-mtlb: flat-mapping, slot: %d]", mCursor);
 
-                gcmkDUMP(Mmu->os, "@[physical.fill 0x%010llX 0x%08X 0x%08X]",
-                         (unsigned long long)Mmu->mtlbPhysical + mStart * 4,
-                         Mmu->mtlbLogical[mStart], 4);
+            gcmkDUMP(Mmu->os, "@[physical.fill 0x%010llX 0x%08X 0x%08X]",
+                     (unsigned long long)Mmu->mtlbPhysical + mCursor * 4,
+                     Mmu->mtlbLogical[mCursor], 4);
 
-                ++stlbIndex;
-            }
-            else
-            {
-                gctUINT32 mtlbEntry = _ReadPageEntry(Mmu->mtlbLogical + mStart);
-                gctUINT stlbOffset;
-
-                curStlbChunk = (gcsMMU_STLB_CHUNK_PTR)Mmu->staticSTLB;
-
-                while (curStlbChunk)
-                {
-                    if ((mStart >= curStlbChunk->mtlbIndex) &&
-                        (mStart < (curStlbChunk->mtlbIndex + curStlbChunk->mtlbEntryNum)))
-                    {
-                        break;
-                    }
-                    curStlbChunk = curStlbChunk->next;
-                }
-                gcmkASSERT(curStlbChunk);
-
-                if (!curStlbChunk)
-                    gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-
-                stlbOffset = mStart - curStlbChunk->mtlbIndex;
-
-                stlbPhyBase = curStlbChunk->physBase + (stlbOffset * gcdMMU_STLB_1M_SIZE);
-                stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbOffset * gcdMMU_STLB_1M_SIZE));
-                if (stlbPhyBase != (mtlbEntry & gcdMMU_MTLB_ENTRY_STLB_MASK))
-                {
-                    gcmkASSERT(0);
-                }
-            }
 
 #if gcdDUMP_IN_KERNEL
-            /* Start index. */
-            i = sStart;
-
             gcmkDUMP(Mmu->os, "#[mmu-stlb: flat-mapping: 0x%08X - 0x%08X]",
-                     start, start + (last - sStart) * gcdMMU_PAGE_1M_SIZE - 1);
+                     start, start + gcdMMU_PAGE_16M_SIZE - 1);
 #endif
 
-            while (sStart <= last)
+            if (*(stlbLogical + sStart) == 0)
             {
-                gcmkASSERT(!(start & gcdMMU_PAGE_1M_MASK));
+                gcmkASSERT(!(start & gcdMMU_PAGE_16M_MASK));
+
                 if (reserved)
                 {
                     /* program NOT_PRESENT | EXCEPTION  for reserved entries */
@@ -1118,28 +957,7 @@ _FillFlatMapping(
                     sStart,
                     _ReadPageEntry(stlbLogical + sStart));
 #endif
-                /* next page. */
-                start += gcdMMU_PAGE_1M_SIZE;
-                if (start == 0)
-                {
-                    physBaseExt++;
-                }
-                sStart++;
-                curStlbChunk->pageCount++;
             }
-
-#if gcdDUMP_IN_KERNEL
-            {
-                gctUINT32 data = stlbLogical[i] & ~0xF;
-                gctUINT32 step = (last > i) ? (stlbLogical[i + 1] - stlbLogical[i]) : 0;
-                gctUINT32 mask = stlbLogical[i] & 0xF;
-
-                gcmkDUMP(Mmu->os,
-                         "@[physical.step 0x%010llX 0x%08X 0x%08X 0x%08X 0x%08X]",
-                         (unsigned long long)stlbPhyBase + i * 4,
-                         data, (last - i) * 4, step, mask);
-            }
-#endif
 
             gcmkONERROR(gckVIDMEM_NODE_CleanCache(
                 kernel,
@@ -1149,81 +967,1141 @@ _FillFlatMapping(
                 curStlbChunk->size
                 ));
 
-            sStart = 0;
-            ++mStart;
+            curStlbChunk->pageCount++;
         }
 
-        gcmkASSERT(totalNewStlbs == stlbIndex);
-
-        if (newStlbChunk)
+        /* next page. */
+        start += gcdMMU_PAGE_16M_SIZE;
+        if (start == 0)
         {
-            /* Insert the stlbChunk into staticSTLB. */
-            if (Mmu->staticSTLB == gcvNULL)
+            physBaseExt++;
+        }
+
+        if (++sStart == gcdMMU_STLB_16M_ENTRY_NUM)
+            sStart = 0;
+
+        ++mCursor;
+    }
+
+    if (newStlbChunk)
+    {
+        /* Insert the stlbChunk into staticSTLB. */
+        if (Mmu->staticSTLB == gcvNULL)
+        {
+            Mmu->staticSTLB = newStlbChunk;
+        }
+        else
+        {
+            gcmkASSERT(newStlbChunk != gcvNULL);
+            gcmkASSERT(newStlbChunk->next == gcvNULL);
+            newStlbChunk->next = Mmu->staticSTLB;
+            Mmu->staticSTLB = newStlbChunk;
+        }
+    }
+
+    /* Release the mutex. */
+    gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+
+    return gcvSTATUS_OK;
+OnError:
+    /* Roll back the allocation.
+    ** We don't need roll back mtlb programming as gckmONERROR
+    ** is only used during allocation time.
+    */
+    if (newStlbChunk)
+    {
+        if (newStlbChunk->videoMem)
+        {
+            gcmkVERIFY_OK(gckVIDMEM_NODE_Dereference(
+                kernel,
+                newStlbChunk->videoMem
+                ));
+        }
+
+        gcmkVERIFY_OK(gcmkOS_SAFE_FREE(Mmu->os, newStlbChunk));
+    }
+    if (mutex)
+    {
+        /* Release the mutex. */
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+    }
+    return status;
+}
+
+static gceSTATUS
+gckMMU_FillFlatMappingWithPage1M(
+    IN gckMMU Mmu,
+    IN gctUINT64 PhysBase,
+    IN gctUINT32 flatSize,
+    IN gctBOOL   reserved,
+    IN gctBOOL   needShiftMapping,
+    IN gctBOOL   specificFlatMapping,
+    IN gctUINT32 reqVirtualBase,
+    OUT gctUINT32 *GpuBaseAddress
+    )
+{
+    gceSTATUS status;
+    gckKERNEL kernel = Mmu->hardware->kernel;
+    gctBOOL mutex = gcvFALSE;
+    gctUINT32 physBaseExt = (gctUINT32) (PhysBase >> 32);
+    gctUINT32 physBase = (gctUINT32) PhysBase;
+    gctUINT32 start = physBase & ~gcdMMU_PAGE_1M_MASK;
+    gctUINT32 end = (gctUINT32) (physBase + flatSize - 1) & ~gcdMMU_PAGE_1M_MASK;
+    gctUINT32 mStart = start >> gcdMMU_MTLB_SHIFT;
+    gctUINT32 mEnd = end >> gcdMMU_MTLB_SHIFT;
+    gctUINT32 sStart = (start & gcdMMU_STLB_1M_MASK) >> gcdMMU_STLB_1M_SHIFT;
+    gctUINT32 sEnd = (end & gcdMMU_STLB_1M_MASK) >> gcdMMU_STLB_1M_SHIFT;
+    gctPHYS_ADDR_T physical;
+    gcsMMU_STLB_CHUNK_PTR newStlbChunk = gcvNULL;
+    gctUINT32 stlbIndex = 0;
+    gctUINT32 totalNewStlbs = 0;
+    gctINT32 firstMtlbEntry = -1;
+    gctUINT32 mtlbCurEntry;
+    gctUINT32 flatVirtualBase = 0;
+    gcsMMU_STLB_CHUNK_PTR curStlbChunk = gcvNULL;
+    enum
+    {
+        COLOR_NONE   = 0,
+        COLOR_RED    = 1, /* occupied entry */
+        COLOR_BLUE   = 2, /* empty entry */
+        COLOR_MAX    = COLOR_BLUE,
+    } lastColor = COLOR_NONE;
+    gctUINT32 colorNumber = 0;
+
+    /* Grab the mutex. */
+    gcmkONERROR(gckOS_AcquireMutex(Mmu->os, Mmu->pageTableMutex, gcvINFINITE));
+    mutex = gcvTRUE;
+
+    if (needShiftMapping)
+    {
+        gctUINT32 mEntries;
+        gctUINT32 sEntries;
+
+        mEntries = (flatSize + (1 << gcdMMU_MTLB_SHIFT) - 1) / (1 << gcdMMU_MTLB_SHIFT);
+
+        gcmkONERROR(_GetMtlbFreeSpace(Mmu, mEntries, &mStart, &mEnd));
+
+        sStart = 0;
+        sEntries = (flatSize + gcdMMU_PAGE_1M_SIZE - 1) / gcdMMU_PAGE_1M_SIZE;
+        sEnd = (sEntries - 1) % gcdMMU_STLB_1M_ENTRY_NUM;
+    }
+
+    if (specificFlatMapping)
+    {
+        start    = reqVirtualBase & ~gcdMMU_PAGE_1M_MASK;
+        end      = (reqVirtualBase + flatSize - 1) & ~gcdMMU_PAGE_1M_MASK;
+        mStart   = start >> gcdMMU_MTLB_SHIFT;
+        mEnd     = end >> gcdMMU_MTLB_SHIFT;
+        sStart   = (start & gcdMMU_STLB_1M_MASK) >> gcdMMU_STLB_1M_SHIFT;
+        sEnd     = (end & gcdMMU_STLB_1M_MASK) >> gcdMMU_STLB_1M_SHIFT;
+    }
+
+    /* No matter direct mapping or shift mapping or specific mapping, store gpu virtual ranges */
+    flatVirtualBase = (mStart << gcdMMU_MTLB_SHIFT)
+                    | (sStart << gcdMMU_STLB_1M_SHIFT)
+                    | (physBase & gcdMMU_PAGE_1M_MASK);
+
+    /* Return GPU virtual base address if necessary */
+    if (GpuBaseAddress)
+    {
+        *GpuBaseAddress = flatVirtualBase;
+    }
+
+    mtlbCurEntry = mStart;
+
+    /* find all new stlbs, part of new flat mapping range may already have stlbs*/
+    while (mtlbCurEntry <= mEnd)
+    {
+        if (*(Mmu->mtlbLogical + mtlbCurEntry) == 0)
+        {
+            if (lastColor != COLOR_BLUE)
             {
-                Mmu->staticSTLB = newStlbChunk;
+                if (colorNumber < COLOR_MAX)
+                {
+                    lastColor = COLOR_BLUE;
+                    colorNumber++;
+                }
+                else
+                {
+                    gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
+                }
+            }
+
+            totalNewStlbs++;
+            if (-1 == firstMtlbEntry)
+            {
+                firstMtlbEntry = mtlbCurEntry;
+            }
+        }
+        else
+        {
+            if (lastColor != COLOR_RED)
+            {
+                if (colorNumber < COLOR_MAX)
+                {
+                    lastColor = COLOR_RED;
+                    colorNumber++;
+                }
+                else
+                {
+                    gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
+                }
+            }
+        }
+        mtlbCurEntry++;
+    }
+
+    /* Need allocate a new chunk of stlbs */
+    if (totalNewStlbs)
+    {
+        gcePOOL pool = Mmu->pool;
+        gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
+
+        gcmkONERROR(
+            gckOS_Allocate(Mmu->os,
+                           sizeof(struct _gcsMMU_STLB_CHUNK),
+                           (gctPOINTER *)&newStlbChunk));
+
+        newStlbChunk->mtlbEntryNum = totalNewStlbs;
+        newStlbChunk->next = gcvNULL;
+        newStlbChunk->videoMem = gcvNULL;
+        newStlbChunk->logical = gcvNULL;
+        newStlbChunk->size = gcdMMU_STLB_1M_SIZE * newStlbChunk->mtlbEntryNum;
+        newStlbChunk->pageCount = 0;
+        newStlbChunk->mtlbIndex = firstMtlbEntry;
+
+#if gcdENABLE_CACHEABLE_COMMAND_BUFFER
+        allocFlag |= gcvALLOC_FLAG_CACHEABLE;
+#endif
+
+        if (!Mmu->pageTableOver4G)
+        {
+            allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+        }
+
+        gcmkONERROR(gckKERNEL_AllocateVideoMemory(
+            kernel,
+            64,
+            gcvVIDMEM_TYPE_COMMAND,
+            allocFlag | gcvALLOC_FLAG_4K_PAGES,
+            &newStlbChunk->size,
+            &pool,
+            &newStlbChunk->videoMem));
+
+        /* Lock for kernel side CPU access. */
+        gcmkONERROR(gckVIDMEM_NODE_LockCPU(
+            kernel,
+            newStlbChunk->videoMem,
+            gcvFALSE,
+            gcvFALSE,
+            (gctPOINTER *)&newStlbChunk->logical));
+
+        gcmkONERROR(gckOS_ZeroMemory(newStlbChunk->logical, newStlbChunk->size));
+
+        /* Get CPU physical address. */
+        gcmkONERROR(gckVIDMEM_NODE_GetPhysical(
+            kernel,
+            newStlbChunk->videoMem,
+            0,
+            &physical));
+
+        gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(
+            Mmu->os,
+            physical,
+            &physical));
+
+        newStlbChunk->physBase = physical;
+    }
+
+    while (mStart <= mEnd)
+    {
+        gctUINT32 last = (mStart == mEnd) ? sEnd : (gcdMMU_STLB_1M_ENTRY_NUM - 1);
+        gctPHYS_ADDR_T stlbPhyBase;
+        gctUINT32_PTR stlbLogical;
+
+        gcmkASSERT(mStart < gcdMMU_MTLB_ENTRY_NUM);
+
+        if (*(Mmu->mtlbLogical + mStart) == 0)
+        {
+            gctUINT32 mtlbEntry;
+            curStlbChunk = newStlbChunk;
+            stlbPhyBase = curStlbChunk->physBase + (stlbIndex * gcdMMU_STLB_1M_SIZE);
+            stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbIndex * gcdMMU_STLB_1M_SIZE));
+
+            physical  = stlbPhyBase
+                      /* 1MB page size */
+                      | (1 << 3)
+                      /* Ignore exception */
+                      | (0 << 1)
+                      /* Present */
+                      | (1 << 0);
+
+            gcmkSAFECASTPHYSADDRT(mtlbEntry, physical);
+
+            _WritePageEntry(Mmu->mtlbLogical + mStart, mtlbEntry);
+
+#if gcdMMU_TABLE_DUMP
+            gckOS_Print("%s(%d): insert MTLB[%d]: %08x\n",
+                __FUNCTION__, __LINE__,
+                mStart,
+                _ReadPageEntry(Mmu->mtlbLogical + mStart));
+
+            gckOS_Print("%s(%d): STLB: logical:%08x -> physical:%08x\n",
+                    __FUNCTION__, __LINE__,
+                    stlbLogical,
+                    stlbPhyBase);
+#endif
+
+            gcmkDUMP(Mmu->os, "#[mmu-mtlb: flat-mapping, slot: %d]", mStart);
+
+            gcmkDUMP(Mmu->os, "@[physical.fill 0x%010llX 0x%08X 0x%08X]",
+                     (unsigned long long)Mmu->mtlbPhysical + mStart * 4,
+                     Mmu->mtlbLogical[mStart], 4);
+
+            ++stlbIndex;
+        }
+        else
+        {
+            gctUINT32 mtlbEntry = _ReadPageEntry(Mmu->mtlbLogical + mStart);
+            gctUINT stlbOffset;
+
+            _GetCurStlbChunk(Mmu, mStart, &curStlbChunk);
+
+            if (!curStlbChunk)
+                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+
+            stlbOffset = mStart - curStlbChunk->mtlbIndex;
+
+            stlbPhyBase = curStlbChunk->physBase + (stlbOffset * gcdMMU_STLB_1M_SIZE);
+            stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbOffset * gcdMMU_STLB_1M_SIZE));
+            if (stlbPhyBase != (mtlbEntry & gcdMMU_MTLB_ENTRY_STLB_MASK))
+            {
+                gcmkASSERT(0);
+            }
+        }
+
+#if gcdDUMP_IN_KERNEL
+        gcmkDUMP(Mmu->os, "#[mmu-stlb: flat-mapping: 0x%08X - 0x%08X]",
+                 start, start + (last - sStart) * gcdMMU_PAGE_1M_SIZE - 1);
+#endif
+
+        while (sStart <= last)
+        {
+            gcmkASSERT(!(start & gcdMMU_PAGE_1M_MASK));
+            if (reserved)
+            {
+                /* program NOT_PRESENT | EXCEPTION  for reserved entries */
+                _WritePageEntry(stlbLogical + sStart, 1 << 1);
             }
             else
             {
-                gcmkASSERT(newStlbChunk != gcvNULL);
-                gcmkASSERT(newStlbChunk->next == gcvNULL);
-                newStlbChunk->next = Mmu->staticSTLB;
-                Mmu->staticSTLB = newStlbChunk;
+                _WritePageEntry(stlbLogical + sStart, _SetPage(start, physBaseExt, gcvTRUE));
             }
+#if gcdMMU_TABLE_DUMP
+            gckOS_Print("%s(%d): insert STLB[%d]: %08x\n",
+                __FUNCTION__, __LINE__,
+                sStart,
+                _ReadPageEntry(stlbLogical + sStart));
+#endif
+            /* next page. */
+            start += gcdMMU_PAGE_1M_SIZE;
+            if (start == 0)
+            {
+                physBaseExt++;
+            }
+            sStart++;
+            curStlbChunk->pageCount++;
         }
 
-        /* Release the mutex. */
-        gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
-
-#if gcdENABLE_TRUST_APPLICATION
-        if (Mmu->hardware->options.secureMode == gcvSECURE_IN_TA)
+#if gcdDUMP_IN_KERNEL
         {
-            gckKERNEL_SecurityMapMemory(Mmu->hardware->kernel, gcvNULL, physBase, flatSize / gcdMMU_PAGE_4K_SIZE, &physBase);
+            gctUINT32 i = sStart;
+            gctUINT32 data = stlbLogical[i] & ~0xF;
+            gctUINT32 step = (last > i) ? (stlbLogical[i + 1] - stlbLogical[i]) : 0;
+            gctUINT32 mask = stlbLogical[i] & 0xF;
+
+            gcmkDUMP(Mmu->os,
+                     "@[physical.step 0x%010llX 0x%08X 0x%08X 0x%08X 0x%08X]",
+                     (unsigned long long)stlbPhyBase + i * 4,
+                     data, (last - i) * 4, step, mask);
         }
 #endif
 
-        /* Store the gpu physical ranges */
-        Mmu->gpuPhysicalRanges[Mmu->gpuPhysicalRangeCount].start = flatBase;
-        Mmu->gpuPhysicalRanges[Mmu->gpuPhysicalRangeCount].end   = flatBase + flatSize - 1;
-        Mmu->gpuPhysicalRanges[Mmu->gpuPhysicalRangeCount].size  = flatSize;
-        Mmu->gpuPhysicalRanges[Mmu->gpuPhysicalRangeCount].flag  = mapFlag;
-        Mmu->gpuPhysicalRangeCount++;
+        gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+            kernel,
+            curStlbChunk->videoMem,
+            0,
+            curStlbChunk->logical,
+            curStlbChunk->size
+            ));
 
-        gcmkASSERT(Mmu->gpuPhysicalRangeCount <= gcdMAX_FLAT_MAPPING_COUNT);
+        sStart = 0;
+        ++mStart;
+    }
 
-        /* Store the gpu virtual ranges */
-        Mmu->gpuAddressRanges[Mmu->gpuAddressRangeCount].start = flatVirtualBase;
-        Mmu->gpuAddressRanges[Mmu->gpuAddressRangeCount].end   = flatVirtualBase + flatSize - 1;
-        Mmu->gpuAddressRanges[Mmu->gpuAddressRangeCount].size  = flatSize;
-        Mmu->gpuAddressRanges[Mmu->gpuAddressRangeCount].flag  = mapFlag;
-        Mmu->gpuAddressRangeCount++;
+    gcmkASSERT(totalNewStlbs == stlbIndex);
 
-        gcmkASSERT(Mmu->gpuAddressRangeCount <= gcdMAX_FLAT_MAPPING_COUNT);
-
-        return gcvSTATUS_OK;
-OnError:
-        /* Roll back the allocation.
-        ** We don't need roll back mtlb programming as gckmONERROR
-        ** is only used during allocation time.
-        */
-        if (newStlbChunk)
+    if (newStlbChunk)
+    {
+        /* Insert the stlbChunk into staticSTLB. */
+        if (Mmu->staticSTLB == gcvNULL)
         {
-            if (newStlbChunk->videoMem)
+            Mmu->staticSTLB = newStlbChunk;
+        }
+        else
+        {
+            gcmkASSERT(newStlbChunk != gcvNULL);
+            gcmkASSERT(newStlbChunk->next == gcvNULL);
+            newStlbChunk->next = Mmu->staticSTLB;
+            Mmu->staticSTLB = newStlbChunk;
+        }
+    }
+
+    /* Release the mutex. */
+    gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+
+    return gcvSTATUS_OK;
+OnError:
+    /* Roll back the allocation.
+    ** We don't need roll back mtlb programming as gckmONERROR
+    ** is only used during allocation time.
+    */
+    if (newStlbChunk)
+    {
+        if (newStlbChunk->videoMem)
+        {
+            gcmkVERIFY_OK(gckVIDMEM_NODE_Dereference(
+                kernel,
+                newStlbChunk->videoMem
+                ));
+        }
+
+        gcmkVERIFY_OK(gcmkOS_SAFE_FREE(Mmu->os, newStlbChunk));
+    }
+    if (mutex)
+    {
+        /* Release the mutex. */
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+    }
+    return status;
+}
+
+static gceSTATUS
+gckMMU_FillFlatMappingWithPage64K(
+    IN gckMMU Mmu,
+    IN gctUINT64 PhysBase,
+    IN gctUINT32 flatSize,
+    IN gctBOOL   reserved,
+    IN gctBOOL   needShiftMapping,
+    IN gctBOOL   specificFlatMapping,
+    IN gctUINT32 reqVirtualBase,
+    OUT gctUINT32 *GpuBaseAddress
+    )
+{
+    gceSTATUS status;
+    gckKERNEL kernel = Mmu->hardware->kernel;
+    gctBOOL mutex = gcvFALSE;
+    gctUINT32 physBaseExt = (gctUINT32) (PhysBase >> 32);
+    gctUINT32 physBase = (gctUINT32) PhysBase;
+    gctUINT32 start = physBase & ~gcdMMU_PAGE_64K_MASK;
+    gctUINT32 end = (gctUINT32) (physBase + flatSize - 1) & ~gcdMMU_PAGE_64K_MASK;
+    gctUINT32 mStart = start >> gcdMMU_MTLB_SHIFT;
+    gctUINT32 mEnd = end >> gcdMMU_MTLB_SHIFT;
+    gctUINT32 sStart = (start & gcdMMU_STLB_64K_MASK) >> gcdMMU_STLB_64K_SHIFT;
+    gctUINT32 sEnd = (end & gcdMMU_STLB_64K_MASK) >> gcdMMU_STLB_64K_SHIFT;
+    gctPHYS_ADDR_T physical;
+    gcsMMU_STLB_CHUNK_PTR newStlbChunk = gcvNULL;
+    gctUINT32 stlbIndex = 0;
+    gctUINT32 totalNewStlbs = 0;
+    gctINT32 firstMtlbEntry = -1;
+    gctUINT32 mtlbCurEntry;
+    gctUINT32 flatVirtualBase = 0;
+    gcsMMU_STLB_CHUNK_PTR curStlbChunk = gcvNULL;
+    enum
+    {
+        COLOR_NONE   = 0,
+        COLOR_RED    = 1, /* occupied entry */
+        COLOR_BLUE   = 2, /* empty entry */
+        COLOR_MAX    = COLOR_BLUE,
+    } lastColor = COLOR_NONE;
+    gctUINT32 colorNumber = 0;
+
+    /* Grab the mutex. */
+    gcmkONERROR(gckOS_AcquireMutex(Mmu->os, Mmu->pageTableMutex, gcvINFINITE));
+    mutex = gcvTRUE;
+
+    if (needShiftMapping)
+    {
+        gctUINT32 mEntries;
+        gctUINT32 sEntries;
+
+        mEntries = (flatSize + (1 << gcdMMU_MTLB_SHIFT) - 1) / (1 << gcdMMU_MTLB_SHIFT);
+
+        gcmkONERROR(_GetMtlbFreeSpace(Mmu, mEntries, &mStart, &mEnd));
+
+        sStart = 0;
+        sEntries = (flatSize + gcdMMU_PAGE_64K_SIZE - 1) / gcdMMU_PAGE_64K_SIZE;
+        sEnd = (sEntries - 1) % gcdMMU_STLB_64K_ENTRY_NUM;
+    }
+
+    if (specificFlatMapping)
+    {
+        start    = reqVirtualBase & ~gcdMMU_PAGE_64K_MASK;
+        end      = (reqVirtualBase + flatSize - 1) & ~gcdMMU_PAGE_64K_MASK;
+        mStart   = start >> gcdMMU_MTLB_SHIFT;
+        mEnd     = end >> gcdMMU_MTLB_SHIFT;
+        sStart   = (start & gcdMMU_STLB_64K_MASK) >> gcdMMU_STLB_64K_SHIFT;
+        sEnd     = (end & gcdMMU_STLB_64K_MASK) >> gcdMMU_STLB_64K_SHIFT;
+    }
+
+    /* No matter direct mapping or shift mapping or specific mapping, store gpu virtual ranges */
+    flatVirtualBase = (mStart << gcdMMU_MTLB_SHIFT)
+                    | (sStart << gcdMMU_STLB_64K_SHIFT)
+                    | (physBase & gcdMMU_PAGE_64K_MASK);
+
+    /* Return GPU virtual base address if necessary */
+    if (GpuBaseAddress)
+    {
+        *GpuBaseAddress = flatVirtualBase;
+    }
+
+    mtlbCurEntry = mStart;
+
+    /* find all new stlbs, part of new flat mapping range may already have stlbs*/
+    while (mtlbCurEntry <= mEnd)
+    {
+        if (*(Mmu->mtlbLogical + mtlbCurEntry) == 0)
+        {
+            if (lastColor != COLOR_BLUE)
             {
-                gcmkVERIFY_OK(gckVIDMEM_NODE_Dereference(
-                    kernel,
-                    newStlbChunk->videoMem
-                    ));
+                if (colorNumber < COLOR_MAX)
+                {
+                    lastColor = COLOR_BLUE;
+                    colorNumber++;
+                }
+                else
+                {
+                    gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
+                }
             }
 
-            gcmkVERIFY_OK(gcmkOS_SAFE_FREE(Mmu->os, newStlbChunk));
+            totalNewStlbs++;
+            if (-1 == firstMtlbEntry)
+            {
+                firstMtlbEntry = mtlbCurEntry;
+            }
         }
-        if (mutex)
+        else
         {
-            /* Release the mutex. */
-            gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+            if (lastColor != COLOR_RED)
+            {
+                if (colorNumber < COLOR_MAX)
+                {
+                    lastColor = COLOR_RED;
+                    colorNumber++;
+                }
+                else
+                {
+                    gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
+                }
+            }
         }
-        return status;
+        mtlbCurEntry++;
     }
+
+    /* Need allocate a new chunk of stlbs */
+    if (totalNewStlbs)
+    {
+        gcePOOL pool = Mmu->pool;
+        gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
+
+        gcmkONERROR(
+            gckOS_Allocate(Mmu->os,
+                           sizeof(struct _gcsMMU_STLB_CHUNK),
+                           (gctPOINTER *)&newStlbChunk));
+
+        newStlbChunk->mtlbEntryNum = totalNewStlbs;
+        newStlbChunk->next = gcvNULL;
+        newStlbChunk->videoMem = gcvNULL;
+        newStlbChunk->logical = gcvNULL;
+        newStlbChunk->size = gcdMMU_STLB_64K_SIZE * newStlbChunk->mtlbEntryNum;
+        newStlbChunk->pageCount = 0;
+        newStlbChunk->mtlbIndex = firstMtlbEntry;
+
+#if gcdENABLE_CACHEABLE_COMMAND_BUFFER
+        allocFlag |= gcvALLOC_FLAG_CACHEABLE;
+#endif
+
+        if (!Mmu->pageTableOver4G)
+        {
+            allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+        }
+
+        gcmkONERROR(gckKERNEL_AllocateVideoMemory(
+            kernel,
+            64,
+            gcvVIDMEM_TYPE_COMMAND,
+            allocFlag | gcvALLOC_FLAG_4K_PAGES,
+            &newStlbChunk->size,
+            &pool,
+            &newStlbChunk->videoMem));
+
+        /* Lock for kernel side CPU access. */
+        gcmkONERROR(gckVIDMEM_NODE_LockCPU(
+            kernel,
+            newStlbChunk->videoMem,
+            gcvFALSE,
+            gcvFALSE,
+            (gctPOINTER *)&newStlbChunk->logical));
+
+        gcmkONERROR(gckOS_ZeroMemory(newStlbChunk->logical, newStlbChunk->size));
+
+        /* Get CPU physical address. */
+        gcmkONERROR(gckVIDMEM_NODE_GetPhysical(
+            kernel,
+            newStlbChunk->videoMem,
+            0,
+            &physical));
+
+        gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(
+            Mmu->os,
+            physical,
+            &physical));
+
+        newStlbChunk->physBase = physical;
+    }
+
+    while (mStart <= mEnd)
+    {
+        gctUINT32 last = (mStart == mEnd) ? sEnd : (gcdMMU_STLB_64K_ENTRY_NUM - 1);
+        gctPHYS_ADDR_T stlbPhyBase;
+        gctUINT32_PTR stlbLogical;
+
+        gcmkASSERT(mStart < gcdMMU_MTLB_ENTRY_NUM);
+
+        if (*(Mmu->mtlbLogical + mStart) == 0)
+        {
+            gctUINT32 mtlbEntry;
+            curStlbChunk = newStlbChunk;
+            stlbPhyBase = curStlbChunk->physBase + (stlbIndex * gcdMMU_STLB_64K_SIZE);
+            stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbIndex * gcdMMU_STLB_64K_SIZE));
+
+            physical  = stlbPhyBase
+                      /* 64KB page size */
+                      | (1 << 2)
+                      /* Ignore exception */
+                      | (0 << 1)
+                      /* Present */
+                      | (1 << 0);
+
+            gcmkSAFECASTPHYSADDRT(mtlbEntry, physical);
+
+            _WritePageEntry(Mmu->mtlbLogical + mStart, mtlbEntry);
+
+#if gcdMMU_TABLE_DUMP
+            gckOS_Print("%s(%d): insert MTLB[%d]: %08x\n",
+                __FUNCTION__, __LINE__,
+                mStart,
+                _ReadPageEntry(Mmu->mtlbLogical + mStart));
+
+            gckOS_Print("%s(%d): STLB: logical:%08x -> physical:%08x\n",
+                    __FUNCTION__, __LINE__,
+                    stlbLogical,
+                    stlbPhyBase);
+#endif
+
+            gcmkDUMP(Mmu->os, "#[mmu-mtlb: flat-mapping, slot: %d]", mStart);
+
+            gcmkDUMP(Mmu->os, "@[physical.fill 0x%010llX 0x%08X 0x%08X]",
+                     (unsigned long long)Mmu->mtlbPhysical + mStart * 4,
+                     Mmu->mtlbLogical[mStart], 4);
+
+            ++stlbIndex;
+        }
+        else
+        {
+            gctUINT32 mtlbEntry = _ReadPageEntry(Mmu->mtlbLogical + mStart);
+            gctUINT stlbOffset;
+
+            _GetCurStlbChunk(Mmu, mStart, &curStlbChunk);
+
+            if (!curStlbChunk)
+                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+
+            stlbOffset = mStart - curStlbChunk->mtlbIndex;
+
+            stlbPhyBase = curStlbChunk->physBase + (stlbOffset * gcdMMU_STLB_64K_SIZE);
+            stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbOffset * gcdMMU_STLB_64K_SIZE));
+            if (stlbPhyBase != (mtlbEntry & gcdMMU_MTLB_ENTRY_STLB_MASK))
+            {
+                gcmkASSERT(0);
+            }
+        }
+
+#if gcdDUMP_IN_KERNEL
+        gcmkDUMP(Mmu->os, "#[mmu-stlb: flat-mapping: 0x%08X - 0x%08X]",
+                 start, start + (last - sStart) * gcdMMU_PAGE_64K_SIZE - 1);
+#endif
+
+        while (sStart <= last)
+        {
+            gcmkASSERT(!(start & gcdMMU_PAGE_64K_MASK));
+            if (reserved)
+            {
+                /* program NOT_PRESENT | EXCEPTION  for reserved entries */
+                _WritePageEntry(stlbLogical + sStart, 1 << 1);
+            }
+            else
+            {
+                _WritePageEntry(stlbLogical + sStart, _SetPage(start, physBaseExt, gcvTRUE));
+            }
+#if gcdMMU_TABLE_DUMP
+            gckOS_Print("%s(%d): insert STLB[%d]: %08x\n",
+                __FUNCTION__, __LINE__,
+                sStart,
+                _ReadPageEntry(stlbLogical + sStart));
+#endif
+            /* next page. */
+            start += gcdMMU_PAGE_64K_SIZE;
+            if (start == 0)
+            {
+                physBaseExt++;
+            }
+            sStart++;
+            curStlbChunk->pageCount++;
+        }
+
+#if gcdDUMP_IN_KERNEL
+        {
+            gctUINT32 i = sStart;
+            gctUINT32 data = stlbLogical[i] & ~0xF;
+            gctUINT32 step = (last > i) ? (stlbLogical[i + 1] - stlbLogical[i]) : 0;
+            gctUINT32 mask = stlbLogical[i] & 0xF;
+
+            gcmkDUMP(Mmu->os,
+                     "@[physical.step 0x%010llX 0x%08X 0x%08X 0x%08X 0x%08X]",
+                     (unsigned long long)stlbPhyBase + i * 4,
+                     data, (last - i) * 4, step, mask);
+        }
+#endif
+
+        gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+            kernel,
+            curStlbChunk->videoMem,
+            0,
+            curStlbChunk->logical,
+            curStlbChunk->size
+            ));
+
+        sStart = 0;
+        ++mStart;
+    }
+
+    gcmkASSERT(totalNewStlbs == stlbIndex);
+
+    if (newStlbChunk)
+    {
+        /* Insert the stlbChunk into staticSTLB. */
+        if (Mmu->staticSTLB == gcvNULL)
+        {
+            Mmu->staticSTLB = newStlbChunk;
+        }
+        else
+        {
+            gcmkASSERT(newStlbChunk != gcvNULL);
+            gcmkASSERT(newStlbChunk->next == gcvNULL);
+            newStlbChunk->next = Mmu->staticSTLB;
+            Mmu->staticSTLB = newStlbChunk;
+        }
+    }
+
+    /* Release the mutex. */
+    gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+
+    return gcvSTATUS_OK;
+OnError:
+    /* Roll back the allocation.
+    ** We don't need roll back mtlb programming as gckmONERROR
+    ** is only used during allocation time.
+    */
+    if (newStlbChunk)
+    {
+        if (newStlbChunk->videoMem)
+        {
+            gcmkVERIFY_OK(gckVIDMEM_NODE_Dereference(
+                kernel,
+                newStlbChunk->videoMem
+                ));
+        }
+
+        gcmkVERIFY_OK(gcmkOS_SAFE_FREE(Mmu->os, newStlbChunk));
+    }
+    if (mutex)
+    {
+        /* Release the mutex. */
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+    }
+    return status;
+}
+
+static gceSTATUS
+gckMMU_FillFlatMappingWithPage4K(
+    IN gckMMU Mmu,
+    IN gctUINT64 PhysBase,
+    IN gctUINT32 flatSize,
+    IN gctBOOL   reserved,
+    IN gctBOOL   needShiftMapping,
+    IN gctBOOL   specificFlatMapping,
+    IN gctUINT32 reqVirtualBase,
+    OUT gctUINT32 *GpuBaseAddress
+    )
+{
+    gceSTATUS status;
+    gckKERNEL kernel = Mmu->hardware->kernel;
+    gctBOOL mutex = gcvFALSE;
+    gctUINT32 physBaseExt = (gctUINT32) (PhysBase >> 32);
+    gctUINT32 physBase = (gctUINT32) PhysBase;
+    gctUINT32 start = physBase & ~gcdMMU_PAGE_4K_MASK;
+    gctUINT32 end = (gctUINT32) (physBase + flatSize - 1) & ~gcdMMU_PAGE_4K_MASK;
+    gctUINT32 mStart = start >> gcdMMU_MTLB_SHIFT;
+    gctUINT32 mEnd = end >> gcdMMU_MTLB_SHIFT;
+    gctUINT32 sStart = (start & gcdMMU_STLB_4K_MASK) >> gcdMMU_STLB_4K_SHIFT;
+    gctUINT32 sEnd = (end & gcdMMU_STLB_4K_MASK) >> gcdMMU_STLB_4K_SHIFT;
+    gctPHYS_ADDR_T physical;
+    gcsMMU_STLB_CHUNK_PTR newStlbChunk = gcvNULL;
+    gctUINT32 stlbIndex = 0;
+    gctUINT32 totalNewStlbs = 0;
+    gctINT32 firstMtlbEntry = -1;
+    gctUINT32 mtlbCurEntry;
+    gctUINT32 flatVirtualBase = 0;
+    gcsMMU_STLB_CHUNK_PTR curStlbChunk = gcvNULL;
+    enum
+    {
+        COLOR_NONE   = 0,
+        COLOR_RED    = 1, /* occupied entry */
+        COLOR_BLUE   = 2, /* empty entry */
+        COLOR_MAX    = COLOR_BLUE,
+    } lastColor = COLOR_NONE;
+    gctUINT32 colorNumber = 0;
+
+    /* Grab the mutex. */
+    gcmkONERROR(gckOS_AcquireMutex(Mmu->os, Mmu->pageTableMutex, gcvINFINITE));
+    mutex = gcvTRUE;
+
+    if (needShiftMapping)
+    {
+        gctUINT32 mEntries;
+        gctUINT32 sEntries;
+
+        mEntries = (flatSize + (1 << gcdMMU_MTLB_SHIFT) - 1) / (1 << gcdMMU_MTLB_SHIFT);
+
+        gcmkONERROR(_GetMtlbFreeSpace(Mmu, mEntries, &mStart, &mEnd));
+
+        sStart = 0;
+        sEntries = (flatSize + gcdMMU_PAGE_4K_SIZE - 1) / gcdMMU_PAGE_4K_SIZE;
+        sEnd = (sEntries - 1) % gcdMMU_STLB_4K_ENTRY_NUM;
+    }
+
+    if (specificFlatMapping)
+    {
+        start    = reqVirtualBase & ~gcdMMU_PAGE_4K_MASK;
+        end      = (reqVirtualBase + flatSize - 1) & ~gcdMMU_PAGE_4K_MASK;
+        mStart   = start >> gcdMMU_MTLB_SHIFT;
+        mEnd     = end >> gcdMMU_MTLB_SHIFT;
+        sStart   = (start & gcdMMU_STLB_4K_MASK) >> gcdMMU_STLB_4K_SHIFT;
+        sEnd     = (end & gcdMMU_STLB_4K_MASK) >> gcdMMU_STLB_4K_SHIFT;
+    }
+
+    /* No matter direct mapping or shift mapping or specific mapping, store gpu virtual ranges */
+    flatVirtualBase = (mStart << gcdMMU_MTLB_SHIFT)
+                    | (sStart << gcdMMU_STLB_4K_SHIFT)
+                    | (physBase & gcdMMU_PAGE_4K_MASK);
+
+    /* Return GPU virtual base address if necessary */
+    if (GpuBaseAddress)
+    {
+        *GpuBaseAddress = flatVirtualBase;
+    }
+
+    mtlbCurEntry = mStart;
+
+    /* find all new stlbs, part of new flat mapping range may already have stlbs*/
+    while (mtlbCurEntry <= mEnd)
+    {
+        if (*(Mmu->mtlbLogical + mtlbCurEntry) == 0)
+        {
+            if (lastColor != COLOR_BLUE)
+            {
+                if (colorNumber < COLOR_MAX)
+                {
+                    lastColor = COLOR_BLUE;
+                    colorNumber++;
+                }
+                else
+                {
+                    gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
+                }
+            }
+
+            totalNewStlbs++;
+            if (-1 == firstMtlbEntry)
+            {
+                firstMtlbEntry = mtlbCurEntry;
+            }
+        }
+        else
+        {
+            if (lastColor != COLOR_RED)
+            {
+                if (colorNumber < COLOR_MAX)
+                {
+                    lastColor = COLOR_RED;
+                    colorNumber++;
+                }
+                else
+                {
+                    gcmkPRINT("There is a hole in new flat mapping range, which is not correct");
+                }
+            }
+        }
+        mtlbCurEntry++;
+    }
+
+    /* Need allocate a new chunk of stlbs */
+    if (totalNewStlbs)
+    {
+        gcePOOL pool = Mmu->pool;
+        gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
+
+        gcmkONERROR(
+            gckOS_Allocate(Mmu->os,
+                           sizeof(struct _gcsMMU_STLB_CHUNK),
+                           (gctPOINTER *)&newStlbChunk));
+
+        newStlbChunk->mtlbEntryNum = totalNewStlbs;
+        newStlbChunk->next = gcvNULL;
+        newStlbChunk->videoMem = gcvNULL;
+        newStlbChunk->logical = gcvNULL;
+        newStlbChunk->size = gcdMMU_STLB_4K_SIZE * newStlbChunk->mtlbEntryNum;
+        newStlbChunk->pageCount = 0;
+        newStlbChunk->mtlbIndex = firstMtlbEntry;
+
+#if gcdENABLE_CACHEABLE_COMMAND_BUFFER
+        allocFlag |= gcvALLOC_FLAG_CACHEABLE;
+#endif
+
+        if (!Mmu->pageTableOver4G)
+        {
+            allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
+        }
+
+        gcmkONERROR(gckKERNEL_AllocateVideoMemory(
+            kernel,
+            64,
+            gcvVIDMEM_TYPE_COMMAND,
+            allocFlag | gcvALLOC_FLAG_4K_PAGES,
+            &newStlbChunk->size,
+            &pool,
+            &newStlbChunk->videoMem));
+
+        /* Lock for kernel side CPU access. */
+        gcmkONERROR(gckVIDMEM_NODE_LockCPU(
+            kernel,
+            newStlbChunk->videoMem,
+            gcvFALSE,
+            gcvFALSE,
+            (gctPOINTER *)&newStlbChunk->logical));
+
+        gcmkONERROR(gckOS_ZeroMemory(newStlbChunk->logical, newStlbChunk->size));
+
+        /* Get CPU physical address. */
+        gcmkONERROR(gckVIDMEM_NODE_GetPhysical(
+            kernel,
+            newStlbChunk->videoMem,
+            0,
+            &physical));
+
+        gcmkVERIFY_OK(gckOS_CPUPhysicalToGPUPhysical(
+            Mmu->os,
+            physical,
+            &physical));
+
+        newStlbChunk->physBase = physical;
+    }
+
+    while (mStart <= mEnd)
+    {
+        gctUINT32 last = (mStart == mEnd) ? sEnd : (gcdMMU_STLB_4K_ENTRY_NUM - 1);
+        gctPHYS_ADDR_T stlbPhyBase;
+        gctUINT32_PTR stlbLogical;
+
+        gcmkASSERT(mStart < gcdMMU_MTLB_ENTRY_NUM);
+
+        if (*(Mmu->mtlbLogical + mStart) == 0)
+        {
+            gctUINT32 mtlbEntry;
+            curStlbChunk = newStlbChunk;
+            stlbPhyBase = curStlbChunk->physBase + (stlbIndex * gcdMMU_STLB_4K_SIZE);
+            stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbIndex * gcdMMU_STLB_4K_SIZE));
+
+            physical  = stlbPhyBase
+                      /* 4KB page size */
+                      | (0 << 3)
+                      /* Ignore exception */
+                      | (0 << 1)
+                      /* Present */
+                      | (1 << 0);
+
+            gcmkSAFECASTPHYSADDRT(mtlbEntry, physical);
+
+            _WritePageEntry(Mmu->mtlbLogical + mStart, mtlbEntry);
+
+#if gcdMMU_TABLE_DUMP
+            gckOS_Print("%s(%d): insert MTLB[%d]: %08x\n",
+                __FUNCTION__, __LINE__,
+                mStart,
+                _ReadPageEntry(Mmu->mtlbLogical + mStart));
+
+            gckOS_Print("%s(%d): STLB: logical:%08x -> physical:%08x\n",
+                    __FUNCTION__, __LINE__,
+                    stlbLogical,
+                    stlbPhyBase);
+#endif
+
+            gcmkDUMP(Mmu->os, "#[mmu-mtlb: flat-mapping, slot: %d]", mStart);
+
+            gcmkDUMP(Mmu->os, "@[physical.fill 0x%010llX 0x%08X 0x%08X]",
+                     (unsigned long long)Mmu->mtlbPhysical + mStart * 4,
+                     Mmu->mtlbLogical[mStart], 4);
+
+            ++stlbIndex;
+        }
+        else
+        {
+            gctUINT32 mtlbEntry = _ReadPageEntry(Mmu->mtlbLogical + mStart);
+            gctUINT stlbOffset;
+
+            curStlbChunk = (gcsMMU_STLB_CHUNK_PTR)Mmu->staticSTLB;
+
+            _GetCurStlbChunk(Mmu, mStart, &curStlbChunk);
+
+            if (!curStlbChunk)
+                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+
+            stlbOffset = mStart - curStlbChunk->mtlbIndex;
+
+            stlbPhyBase = curStlbChunk->physBase + (stlbOffset * gcdMMU_STLB_4K_SIZE);
+            stlbLogical = (gctUINT32_PTR)((gctUINT8_PTR)curStlbChunk->logical + (stlbOffset * gcdMMU_STLB_4K_SIZE));
+            if (stlbPhyBase != (mtlbEntry & gcdMMU_MTLB_ENTRY_STLB_MASK))
+            {
+                gcmkASSERT(0);
+            }
+        }
+
+#if gcdDUMP_IN_KERNEL
+        gcmkDUMP(Mmu->os, "#[mmu-stlb: flat-mapping: 0x%08X - 0x%08X]",
+                 start, start + (last - sStart) * gcdMMU_PAGE_4K_SIZE - 1);
+#endif
+
+        while (sStart <= last)
+        {
+            gcmkASSERT(!(start & gcdMMU_PAGE_4K_MASK));
+            if (reserved)
+            {
+                /* program NOT_PRESENT | EXCEPTION  for reserved entries */
+                _WritePageEntry(stlbLogical + sStart, 1 << 1);
+            }
+            else
+            {
+                _WritePageEntry(stlbLogical + sStart, _SetPage(start, physBaseExt, gcvTRUE));
+            }
+#if gcdMMU_TABLE_DUMP
+            gckOS_Print("%s(%d): insert STLB[%d]: %08x\n",
+                __FUNCTION__, __LINE__,
+                sStart,
+                _ReadPageEntry(stlbLogical + sStart));
+#endif
+            /* next page. */
+            start += gcdMMU_PAGE_4K_SIZE;
+            if (start == 0)
+            {
+                physBaseExt++;
+            }
+            sStart++;
+            curStlbChunk->pageCount++;
+        }
+
+#if gcdDUMP_IN_KERNEL
+        {
+            gctUINT32 i = sStart;
+            gctUINT32 data = stlbLogical[i] & ~0xF;
+            gctUINT32 step = (last > i) ? (stlbLogical[i + 1] - stlbLogical[i]) : 0;
+            gctUINT32 mask = stlbLogical[i] & 0xF;
+
+            gcmkDUMP(Mmu->os,
+                     "@[physical.step 0x%010llX 0x%08X 0x%08X 0x%08X 0x%08X]",
+                     (unsigned long long)stlbPhyBase + i * 4,
+                     data, (last - i) * 4, step, mask);
+        }
+#endif
+
+        gcmkONERROR(gckVIDMEM_NODE_CleanCache(
+            kernel,
+            curStlbChunk->videoMem,
+            0,
+            curStlbChunk->logical,
+            curStlbChunk->size
+            ));
+
+        sStart = 0;
+        ++mStart;
+    }
+
+    gcmkASSERT(totalNewStlbs == stlbIndex);
+
+    if (newStlbChunk)
+    {
+        /* Insert the stlbChunk into staticSTLB. */
+        if (Mmu->staticSTLB == gcvNULL)
+        {
+            Mmu->staticSTLB = newStlbChunk;
+        }
+        else
+        {
+            gcmkASSERT(newStlbChunk != gcvNULL);
+            gcmkASSERT(newStlbChunk->next == gcvNULL);
+            newStlbChunk->next = Mmu->staticSTLB;
+            Mmu->staticSTLB = newStlbChunk;
+        }
+    }
+
+    /* Release the mutex. */
+    gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+
+    return gcvSTATUS_OK;
+OnError:
+    /* Roll back the allocation.
+    ** We don't need roll back mtlb programming as gckmONERROR
+    ** is only used during allocation time.
+    */
+    if (newStlbChunk)
+    {
+        if (newStlbChunk->videoMem)
+        {
+            gcmkVERIFY_OK(gckVIDMEM_NODE_Dereference(
+                kernel,
+                newStlbChunk->videoMem
+                ));
+        }
+
+        gcmkVERIFY_OK(gcmkOS_SAFE_FREE(Mmu->os, newStlbChunk));
+    }
+    if (mutex)
+    {
+        /* Release the mutex. */
+        gcmkVERIFY_OK(gckOS_ReleaseMutex(Mmu->os, Mmu->pageTableMutex));
+    }
+    return status;
 }
 
 static gceSTATUS
@@ -1455,7 +2333,7 @@ gckMMU_SetupDynamicSpace(
     gckOS_Free(Mmu->os, (gctPOINTER)nodeArray);
 
 #if gcdENABLE_TRUST_APPLICATION
-    if (gckHARDWARE_IsFeatureAvailable(Mmu->hardware, gcvFEATURE_SECURITY) == gcvSTATUS_TRUE)
+    if (Mmu->hardware->options.secureMode == gcvSECURE_IN_TA)
     {
         /* Setup secure address area when needed. */
         gctUINT32 secureAreaSize = gcdMMU_SECURE_AREA_SIZE;
@@ -1608,7 +2486,7 @@ _Construct(
     gctPHYS_ADDR_T exclusiveBase = 0;
     gctSIZE_T externalSize = 0;
     gctSIZE_T exclusiveSize = 0;
-    gctUINT32 gpuAddress;
+    gctUINT32 gpuAddress = 0;
     gctPHYS_ADDR_T gpuPhysical;
     gcsADDRESS_AREA_PTR area = gcvNULL;
     gcePOOL pool;
@@ -1662,6 +2540,8 @@ _Construct(
     gcmkONERROR(gckOS_CreateMutex(os, &mmu->pageTableMutex));
 
     gcmkONERROR(gckOS_QueryOption(os, "mmu", &mmuEnabled));
+
+    mmu->flatMappingMode = gcdFLAT_MAPPING_MODE;
 
     if (hardware->mmuVersion == 0)
     {
@@ -1783,7 +2663,10 @@ _Construct(
             allocFlag |= gcvALLOC_FLAG_4GB_ADDR;
         }
 
-        /* 1K mode is 1024 byte aligned. */
+        /*
+         * mtlb address requires 256 alignment in 4K mode and 1024 alignment in 1K mode (Descriptor only use bit31 ~ bit10 for 1K mode).
+         * stlb address is always 64 byte alignment (mtlb entry uses bit31 ~ bit6 for aligned stlb address).
+         */
         gcmkONERROR(gckKERNEL_AllocateVideoMemory(
                     Kernel,
                     1024,
@@ -1850,10 +2733,18 @@ _Construct(
             gpuAddress = gcdMTLB_RESERVED_SIZE;
         }
 
+#ifndef MSDX
         if (physSize)
+#else
+        gctUINT64 wddmMode = 0;
+
+        if (physSize &&
+            ((gcvSTATUS_OK != gckOS_QueryOption(mmu->os, "wddmMode", &wddmMode)) ||
+             (0 == wddmMode)))
+#endif
         {
             /* Setup user specified flat mapping. */
-            gcmkONERROR(_FillFlatMapping(mmu, gpuAddress, physSize, gcvFALSE, gcvFALSE, gcvNULL));
+            gcmkONERROR(gckMMU_FillFlatMapping(mmu, gpuAddress, physSize, gcvFALSE, gcvFALSE, gcvNULL));
         }
 
 #if !(0 || gcdCAPTURE_ONLY_MODE)
@@ -1883,6 +2774,33 @@ _Construct(
             mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].flag  = gcvFLATMAP_DIRECT;
             mmu->gpuAddressRangeCount++;
         }
+#elif defined(VSIMULATOR_DEBUG)
+        if (!_ReadPageEntry(mmu->mtlbLogical + 255))
+        {
+            gctUINT32 mtlbEntry;
+            /*
+             * Reserved the last mtlb.
+             * 1MB page size, Ingore exception, Not Present.
+             */
+            mtlbEntry = (1 << 3)
+                      | (0 << 1)
+                      | (0 << 0);
+
+            _WritePageEntry(mmu->mtlbLogical + 255, mtlbEntry);
+
+            gcmkDUMP(mmu->os, "#[mmu-mtlb: reserved 16M space, slot: 255]");
+            gcmkDUMP(mmu->os,
+                     "@[physical.fill 0x%010llX 0x%08X 0x%08X]",
+                     (unsigned long long)mmu->mtlbPhysical,
+                     mmu->mtlbLogical[0], 4);
+
+            /* Store the gpu virtual ranges */
+            mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].start = gcdRESERVE_START;
+            mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].end   = gcdRESERVE_START + gcdMTLB_RESERVED_SIZE - 1;
+            mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].size  = gcdMTLB_RESERVED_SIZE;
+            mmu->gpuAddressRanges[mmu->gpuAddressRangeCount].flag  = gcvFLATMAP_DIRECT;
+            mmu->gpuAddressRangeCount++;
+        }
 #endif
 
         if (contiguousSize && gpuContiguousBase != ~0ULL)
@@ -1890,7 +2808,7 @@ _Construct(
             gctUINT32 contiguousBaseAddress = 0;
 
             /* Setup flat mapping for reserved memory (VIDMEM). */
-            gcmkONERROR(_FillFlatMapping(mmu, gpuContiguousBase, contiguousSize, gcvFALSE, gcvTRUE, &contiguousBaseAddress));
+            gcmkONERROR(gckMMU_FillFlatMapping(mmu, gpuContiguousBase, contiguousSize, gcvFALSE, gcvTRUE, &contiguousBaseAddress));
 
             if (mmuEnabled)
             {
@@ -1918,7 +2836,7 @@ _Construct(
             gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(mmu->os, externalBase, &gpuExternalBase));
 
             /* Setup flat mapping for external memory. */
-            gcmkONERROR(_FillFlatMapping(mmu, gpuExternalBase, externalSize, gcvFALSE, gcvTRUE, &externalBaseAddress));
+            gcmkONERROR(gckMMU_FillFlatMapping(mmu, gpuExternalBase, externalSize, gcvFALSE, gcvTRUE, &externalBaseAddress));
 
             mmu->externalBaseAddress = externalBaseAddress;
         }
@@ -1936,7 +2854,7 @@ _Construct(
             gctUINT32 exclusiveBaseAddress = 0;
 
             /* Setup flat mapping for external memory. */
-            gcmkONERROR(_FillFlatMapping(mmu, exclusiveBase, exclusiveSize, gcvFALSE, gcvTRUE, &exclusiveBaseAddress));
+            gcmkONERROR(gckMMU_FillFlatMapping(mmu, exclusiveBase, exclusiveSize, gcvFALSE, gcvTRUE, &exclusiveBaseAddress));
 
             mmu->exclusiveBaseAddress = exclusiveBaseAddress;
         }
@@ -3036,7 +3954,6 @@ gckMMU_DumpAddressSpace(
 {
     gctUINT i;
     gctUINT next;
-    /* TODO: */
     gcsADDRESS_AREA_PTR area = &Mmu->dynamicArea4K;
     gctUINT32_PTR map = area->mapLogical;
     gctBOOL used = gcvFALSE;
@@ -3110,16 +4027,274 @@ gceSTATUS
 gckMMU_FillFlatMapping(
     IN gckMMU Mmu,
     IN gctUINT64 PhysBase,
-    IN gctSIZE_T Size
+    IN gctSIZE_T Size,
+    IN gctBOOL   Reserved,
+    IN gctBOOL   AbleToShift,
+    OUT gctUINT32 *GpuBaseAddress
     )
 {
     gceSTATUS status;
     gckHARDWARE hardware = Mmu->hardware;
+    gctUINT32 mtlb;
+    gctUINT32 physBase;
+    gcsADDRESS_AREA_PTR area = &Mmu->dynamicArea4K;
+    gctBOOL physicalRangeOverlapped = gcvFALSE;
+    gctBOOL virtualRangeOverlapped = gcvFALSE;
+    gctBOOL specificFlatMapping = gcvFALSE;
+    gctBOOL needShiftMapping = gcvFALSE;
+    gctUINT64 flatBase = PhysBase;
+    gctUINT32 flatSize = (gctUINT32) Size;
+    gctUINT64 base = flatBase;
+    gctUINT64 end  = base + flatSize;
+    gctUINT32 reqVirtualBase = 0;
+    gctUINT32 flatVirtualBase = 0;
+    gceFLATMAP_FLAG mapFlag = gcvFLATMAP_DIRECT;
+    gctUINT32 i;
+#if gcdENABLE_TRUST_APPLICATION
+    gckKERNEL kernel = Mmu->hardware->kernel;
+#endif
 
-    if (hardware->mmuVersion)
+    if (!hardware->mmuVersion)
     {
-        gcmkONERROR(_FillFlatMapping(Mmu, PhysBase, Size, gcvFALSE, gcvTRUE, gcvNULL));
+        return gcvSTATUS_OK;
     }
+
+    /************************ Get flat mapping type and range. ************************/
+    {
+        for (i = 0; i < Mmu->gpuPhysicalRangeCount; i++)
+        {
+            if (base < Mmu->gpuPhysicalRanges[i].start)
+            {
+                if (end > Mmu->gpuPhysicalRanges[i].start)
+                {
+                    physicalRangeOverlapped = gcvTRUE;
+                    if (Mmu->gpuPhysicalRanges[i].flag == gcvFLATMAP_DIRECT)
+                    {
+                        /* Overlapped part is direct mapping, continue direct mapping */
+                        end = Mmu->gpuPhysicalRanges[i].start;
+                    }
+                    else
+                    {
+                        /* Overlapped part is shift mapping, do entire shift mapping */
+                        needShiftMapping = gcvTRUE;
+                    }
+                }
+
+                flatSize = (gctUINT32)(end - base);
+            }
+            else if (end > Mmu->gpuPhysicalRanges[i].end)
+            {
+                if (base < Mmu->gpuPhysicalRanges[i].end)
+                {
+                    physicalRangeOverlapped = gcvTRUE;
+                    if (Mmu->gpuPhysicalRanges[i].flag == gcvFLATMAP_DIRECT)
+                    {
+                        /* Overlapped part is direct mapping, continue direct mapping */
+                        base = Mmu->gpuPhysicalRanges[i].end + 1;
+                    }
+                    else
+                    {
+                        /* Overlapped part is shift mapping, do entire shift mapping */
+                        needShiftMapping = gcvTRUE;
+                    }
+
+                }
+
+                flatBase = base;
+                flatSize = (gctUINT32)(end - base);
+            }
+            else
+            {
+                /* it is already inside existing flat mapping ranges. */
+                flatSize = 0;
+            }
+
+            if (flatSize == 0)
+            {
+                if (GpuBaseAddress)
+                {
+                    *GpuBaseAddress = (gctUINT32) PhysBase;
+                }
+
+                return gcvSTATUS_OK;
+            }
+        }
+    }
+
+    /* overwrite the orignal parameters */
+    PhysBase = flatBase;
+    physBase = (gctUINT32)flatBase;
+
+    mtlb = _MtlbOffset(physBase);
+
+    if (GpuBaseAddress)
+    {
+        reqVirtualBase = *GpuBaseAddress;
+    }
+
+    /*
+     * if no partcial physical range overlap to request entire shift mapping,
+     * it is specific shift mapping or directly mapping by default.
+     */
+    if (!needShiftMapping)
+    {
+        flatVirtualBase = reqVirtualBase ? reqVirtualBase : (gctUINT32)flatBase;
+    }
+
+    for (i = 0; i < Mmu->gpuAddressRangeCount; i++)
+    {
+        if (_IsRangeInsected(flatVirtualBase, flatSize,
+            Mmu->gpuAddressRanges[i].start,  Mmu->gpuAddressRanges[i].size))
+        {
+            virtualRangeOverlapped = gcvTRUE;
+        }
+    }
+
+    /* If gpu virtual range overlapped or gpu physical over 4G, still need entire shift mapping */
+    if ((!physicalRangeOverlapped && virtualRangeOverlapped) ||
+        PhysBase + flatSize - 1 > 0xffffffff)
+    {
+        needShiftMapping = gcvTRUE;
+    }
+
+    if (needShiftMapping && !AbleToShift)
+    {
+        /*
+         * Return without mapping any address.
+         * By now, only physBase physSize could run here.
+         */
+        return gcvSTATUS_OK;
+    }
+
+    if (needShiftMapping || specificFlatMapping)
+    {
+        mapFlag  = gcvFLATMAP_SHIFT;
+    }
+
+    specificFlatMapping = (reqVirtualBase && !virtualRangeOverlapped && !physicalRangeOverlapped);
+
+    /************************ Setup flat mapping in dynamic range. ****************/
+    if (area->mappingStart != gcvINVALID_ADDRESS && mtlb >= area->mappingStart && mtlb < area->mappingEnd)
+    {
+        /* This path is useless now, keep it 4K page size */
+
+        gctUINT32_PTR stlbEntry;
+
+        stlbEntry = _StlbEntry(area, physBase);
+
+        /* Must be aligned to page. */
+        gcmkASSERT((flatSize & 0xFFF) == 0);
+
+        for (i = 0; i < (flatSize / gcdMMU_PAGE_4K_SIZE); i++)
+        {
+            /* Flat mapping in page table. */
+            _WritePageEntry(stlbEntry, _SetPage(physBase + i * gcdMMU_PAGE_4K_SIZE, 0, gcvTRUE));
+#if gcdMMU_TABLE_DUMP
+            gckOS_Print("%s(%d): insert MTLB[%d] STLB[%d]: %08x\n",
+                __FUNCTION__, __LINE__,
+                (physBase & gcdMMU_MTLB_MASK) >> gcdMMU_MTLB_SHIFT,
+                ((physBase & gcdMMU_STLB_4K_MASK) >> gcdMMU_STLB_4K_SHIFT) + i,
+                _ReadPageEntry(stlbEntry));
+#endif
+            stlbEntry++;
+        }
+
+#if gcdDUMP_IN_KERNEL
+        {
+            gctPHYS_ADDR_T physical;
+            gctUINT32 data = _SetPage(physBase, 0, gcvTRUE) & ~0xF;
+            gctUINT32 step = (_SetPage(physBase + gcdMMU_PAGE_4K_SIZE, 0, gcvTRUE) & ~0xF) - data;
+            gctUINT32 mask = _SetPage(physBase, 0, gcvTRUE) & 0xF;
+
+            physical  = area->stlbPhysical + 4 * _AddressToIndex(area, physBase);
+
+            gcmkDUMP(Mmu->os,
+                     "#[mmu-stlb: flat-mapping in dynamic: 0x%08X - 0x%08X]",
+                     physBase, physBase - 1 + flatSize);
+
+            gcmkDUMP(Mmu->os,
+                     "@[physical.step 0x%010llX 0x%08X 0x%08lX 0x%08X 0x%08X",
+                     (unsigned long long)physical, data,
+                     (unsigned long)(flatSize / gcdMMU_PAGE_4K_SIZE * sizeof(gctUINT32)),
+                     step, mask);
+        }
+#endif
+
+        /* Flat mapping in map. */
+        _FillFlatMappingInMap(area, _AddressToIndex(area, physBase), flatSize / gcdMMU_PAGE_4K_SIZE);
+
+        return gcvSTATUS_OK;
+    }
+
+    /************************ Setup flat mapping in non dynamic range. **************/
+    switch (Mmu->flatMappingMode)
+    {
+    case gcvPAGE_TYPE_16M:
+        if (flatSize >= gcdMMU_PAGE_16M_SIZE)
+        {
+            gcmkONERROR(gckMMU_FillFlatMappingWithPage16M(
+                Mmu,
+                PhysBase, flatSize,
+                Reserved, needShiftMapping,
+                specificFlatMapping, reqVirtualBase,
+                GpuBaseAddress));
+
+            break;
+        }
+        /* FALLTHRU */
+    case gcvPAGE_TYPE_1M:
+        gcmkONERROR(gckMMU_FillFlatMappingWithPage1M(
+            Mmu,
+            PhysBase, flatSize,
+            Reserved, needShiftMapping,
+            specificFlatMapping, reqVirtualBase,
+            GpuBaseAddress));
+
+        break;
+    case gcvPAGE_TYPE_64K:
+        gcmkONERROR(gckMMU_FillFlatMappingWithPage64K(
+            Mmu,
+            PhysBase, flatSize,
+            Reserved, needShiftMapping,
+            specificFlatMapping, reqVirtualBase,
+            GpuBaseAddress));
+
+        break;
+    case gcvPAGE_TYPE_4K:
+        gcmkONERROR(gckMMU_FillFlatMappingWithPage4K(
+            Mmu,
+            PhysBase, flatSize,
+            Reserved, needShiftMapping,
+            specificFlatMapping, reqVirtualBase,
+            GpuBaseAddress));
+
+        break;
+    }
+
+#if gcdENABLE_TRUST_APPLICATION
+    if (Mmu->hardware->options.secureMode == gcvSECURE_IN_TA)
+    {
+        gckKERNEL_SecurityMapMemory(kernel, gcvNULL, physBase, flatSize / gcdMMU_PAGE_4K_SIZE, &physBase);
+    }
+#endif
+
+    /* Store the gpu physical ranges */
+    Mmu->gpuPhysicalRanges[Mmu->gpuPhysicalRangeCount].start = flatBase;
+    Mmu->gpuPhysicalRanges[Mmu->gpuPhysicalRangeCount].end   = flatBase + flatSize - 1;
+    Mmu->gpuPhysicalRanges[Mmu->gpuPhysicalRangeCount].size  = flatSize;
+    Mmu->gpuPhysicalRanges[Mmu->gpuPhysicalRangeCount].flag  = mapFlag;
+    Mmu->gpuPhysicalRangeCount++;
+
+    gcmkASSERT(Mmu->gpuPhysicalRangeCount <= gcdMAX_FLAT_MAPPING_COUNT);
+
+    /* Store the gpu virtual ranges */
+    Mmu->gpuAddressRanges[Mmu->gpuAddressRangeCount].start = flatVirtualBase;
+    Mmu->gpuAddressRanges[Mmu->gpuAddressRangeCount].end   = flatVirtualBase + flatSize - 1;
+    Mmu->gpuAddressRanges[Mmu->gpuAddressRangeCount].size  = flatSize;
+    Mmu->gpuAddressRanges[Mmu->gpuAddressRangeCount].flag  = mapFlag;
+    Mmu->gpuAddressRangeCount++;
+
+    gcmkASSERT(Mmu->gpuAddressRangeCount <= gcdMAX_FLAT_MAPPING_COUNT);
 
     return gcvSTATUS_OK;
 
@@ -3249,7 +4424,7 @@ gckMMU_SetupSRAM(
                         &reservedBase
                         ));
 
-                    gcmkONERROR(_FillFlatMapping(
+                    gcmkONERROR(gckMMU_FillFlatMapping(
                         Mmu,
                         reservedBase,
                         reservedSize,
@@ -3288,16 +4463,27 @@ gckMMU_SetupSRAM(
             if (Device->extSRAMSizes[i] &&
                (Device->extSRAMBases[i] != gcvINVALID_PHYSICAL_ADDRESS))
             {
-
-                Device->extSRAMBaseAddresses[i] = 0;
-
                 gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(
                     Mmu->os,
                     Device->extSRAMBases[i],
                     &Device->extSRAMGPUBases[i]
                     ));
 
-                gcmkONERROR(_FillFlatMapping(
+                if ((Device->extSRAMGPUBases[i] + Device->extSRAMSizes[i] - 1 <= gcvINVALID_ADDRESS)
+                    && (Device->extSRAMGPUBases[i] + Device->extSRAMSizes[i] * 2 > gcvINVALID_ADDRESS))
+                {
+                    Device->extSRAMBaseAddresses[i] = 0xFFFF000 - Device->extSRAMSizes[i] * 2;
+                    if (Device->extSRAMBaseAddresses[i] < 0x1000000)
+                    {
+                        gcmkONERROR(gcvSTATUS_OUT_OF_RESOURCES);
+                    }
+                }
+                else
+                {
+                    Device->extSRAMBaseAddresses[i] = 0;
+                }
+
+                gcmkONERROR(gckMMU_FillFlatMapping(
                     Mmu,
                     Device->extSRAMGPUBases[i],
                     Device->extSRAMSizes[i],

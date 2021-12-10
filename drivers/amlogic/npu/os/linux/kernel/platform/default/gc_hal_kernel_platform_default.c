@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -55,9 +55,10 @@
 
 #include "gc_hal_kernel_linux.h"
 #include "gc_hal_kernel_platform.h"
+#include "gc_hal_kernel_platform_default.h"
 
 /* Disable MSI for internal FPGA build except PPC */
-#if gcdFPGA_BUILD && !defined(CONFIG_PPC)
+#if gcdFPGA_BUILD
 #define USE_MSI     0
 #else
 #define USE_MSI     1
@@ -76,13 +77,435 @@ _GetGPUPhysical(
     OUT gctPHYS_ADDR_T *GPUPhysical
     );
 
+#if gcdENABLE_MP_SWITCH
+gceSTATUS
+_SwitchCoreCount(
+    IN gcsPLATFORM *Platform,
+    OUT gctUINT32 *Count
+    );
+#endif
+
 static struct _gcsPLATFORM_OPERATIONS default_ops =
 {
     .adjustParam   = _AdjustParam,
     .getGPUPhysical = _GetGPUPhysical,
+#if gcdENABLE_MP_SWITCH
+    .switchCoreCount = _SwitchCoreCount,
+#endif
 };
 
-#if USE_LINUX_PCIE
+
+#if gcdSUPPORT_DEVICE_TREE_SOURCE
+static int gpu_parse_dt(struct platform_device *pdev, gcsMODULE_PARAMETERS *params);
+static void gpu_add_power_domains(void);
+
+static struct _gcsPLATFORM default_platform =
+{
+    .name = __FILE__,
+    .ops  = &default_ops,
+};
+
+static gcsPOWER_DOMAIN domains[] =
+{
+    [gcvCORE_MAJOR] =
+    {
+        .base =
+        {
+            .name = "pd-major",
+        },
+    },
+    [gcvCORE_3D1] =
+    {
+        .base =
+        {
+            .name = "pd-3d1",
+        },
+    },
+    [gcvCORE_3D2] =
+    {
+        .base =
+        {
+            .name = "pd-3d2",
+        },
+    },
+    [gcvCORE_3D3] =
+    {
+        .base =
+        {
+            .name = "pd-3d3",
+        },
+    },
+    [gcvCORE_3D4] =
+    {
+        .base =
+        {
+            .name = "pd-3d4",
+        },
+    },
+    [gcvCORE_3D5] =
+    {
+        .base =
+        {
+            .name = "pd-3d5",
+        },
+    },
+    [gcvCORE_3D6] =
+    {
+        .base =
+        {
+            .name = "pd-3d6",
+        },
+    },
+    [gcvCORE_3D7] =
+    {
+        .base =
+        {
+            .name = "pd-3d7",
+        },
+    },
+    [gcvCORE_2D] =
+    {
+        .base =
+        {
+            .name = "pd-2d",
+        },
+    },
+    [gcvCORE_VG] =
+    {
+        .base =
+        {
+            .name = "pd-vg",
+        },
+    },
+#if gcdDEC_ENABLE_AHB
+    [gcvCORE_DEC] =
+    {
+        .base =
+        {
+            .name = "pd-dec",
+        },
+    },
+#endif
+    [gcvCORE_2D1] =
+    {
+        .base =
+        {
+            .name = "pd-2d1",
+        },
+    },
+};
+
+static inline gcsPOWER_DOMAIN *to_gc_power_domain(struct generic_pm_domain *gpd)
+{
+    return gcmCONTAINEROF(gpd, gcsPOWER_DOMAIN, base);
+}
+
+static int gc_power_domain_power_on(    struct generic_pm_domain *gpd)
+{
+    return 0;
+}
+
+static int gc_power_domain_power_off(    struct generic_pm_domain *gpd)
+{
+    return 0;
+}
+
+static int gc_power_domain_probe(struct platform_device *pdev)
+{
+    gceSTATUS status;
+    int ret = 0;
+    struct device_node *np = pdev->dev.of_node;
+    int core_id;
+
+    ret = of_property_read_u32(np, "core-id", &core_id);
+    if (ret)
+    {
+        gcmONERROR(gcvSTATUS_INVALID_ARGUMENT);
+    }
+    if (core_id >= gcvCORE_COUNT)
+    {
+        gcmONERROR(gcvSTATUS_INVALID_ARGUMENT);
+    }
+
+    ret = platform_device_add_data(pdev, (gctPOINTER)&domains[core_id], sizeof(gcsPOWER_DOMAIN));
+    if (ret)
+    {
+        gcmONERROR(gcvSTATUS_NOT_SUPPORTED);
+    }
+
+    return 0;
+OnError:
+    return ret;
+}
+
+static int gc_power_domain_remove(struct platform_device *pdev)
+{
+    gcsPOWER_DOMAIN *domain = pdev->dev.platform_data;
+
+    if (IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
+    {
+        of_genpd_del_provider(domain->pdev->dev.of_node);
+    }
+
+    return 0;
+}
+
+static const struct of_device_id gc_power_domain_dt_ids[] =
+{
+    {.compatible = "verisilicon,pd-vip",},
+    {.compatible = "verisilicon,pd-gpu2d",},
+    {.compatible = "verisilicon,pd-gpu3d",},
+
+    {/* sentinel */}
+};
+
+static struct platform_driver gc_power_domain_driver =
+{
+    .driver = {
+        .owner = THIS_MODULE,
+        .name = "gc-pm-domains",
+        .of_match_table = gc_power_domain_dt_ids,
+    },
+    .probe = gc_power_domain_probe,
+    .remove = gc_power_domain_remove,
+};
+
+static int gpu_power_domain_init(void)
+{
+    return platform_driver_register(&gc_power_domain_driver);
+}
+
+
+static void gpu_power_domain_exit(void)
+{
+    platform_driver_unregister(&gc_power_domain_driver);
+}
+
+static void gpu_add_power_domains(void)
+{
+    struct device_node *np = gcvNULL;
+    int ret;
+    gceSTATUS status;
+
+    for_each_matching_node(np, gc_power_domain_dt_ids)
+    {
+        struct platform_device *pdev;
+        gcsPOWER_DOMAIN *domain = domains;
+        int core_id;
+
+        if (!of_device_is_available(np))
+        {
+            continue;
+        }
+
+        pdev = of_find_device_by_node(np);
+
+        if (!pdev)
+            break;
+
+        ret = of_property_read_u32(np, "core-id", &core_id);
+        if (ret)
+        {
+            gcmONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+        if (core_id >= gcvCORE_COUNT)
+        {
+            gcmONERROR(gcvSTATUS_INVALID_ARGUMENT);
+        }
+
+        domain[core_id].pdev = pdev;
+        domain[core_id].core_id = core_id;
+
+        domain[core_id].base.power_on = gc_power_domain_power_on;
+        domain[core_id].base.power_off = gc_power_domain_power_off;
+
+        if (IS_ENABLED(CONFIG_PM_GENERIC_DOMAINS))
+        {
+            ret = pm_genpd_init(&domain[core_id].base, gcvNULL, true);
+            if (ret)
+            {
+                continue;
+            }
+
+            ret = of_genpd_add_provider_simple(np, &domain[core_id].base);
+            if (ret)
+            {
+                continue;
+            }
+        }
+    }
+OnError:
+    return;
+}
+
+static int gpu_parse_dt(struct platform_device *pdev, gcsMODULE_PARAMETERS *params)
+{
+    struct device_node *root = pdev->dev.of_node;
+    struct resource* res;
+    gctUINT32 i;
+    const gctUINT32 *value;
+    const char *core_names[] =
+    {
+        "core_major",
+        "core_3d1",
+        "core_3d2",
+        "core_3d3",
+        "core_3d4",
+        "core_3d5",
+        "core_3d6",
+        "core_3d7",
+        "core_2d",
+        "core_vg",
+#if gcdDEC_ENABLE_AHB
+        "core_dec",
+#endif
+        "core_2d1",
+    };
+
+    gcmSTATIC_ASSERT(gcvCORE_COUNT == gcmCOUNTOF(core_names),
+                     "core_names array does not match core types");
+
+    /* parse the irqs config */
+    for (i = 0; i < gcvCORE_COUNT; i++)
+    {
+        res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, core_names[i]);
+        if (res)
+        {
+            params->irqs[i] = res->start;
+        }
+    }
+
+    /* parse the registers config */
+    for (i = 0; i < gcvCORE_COUNT; i++)
+    {
+        res = platform_get_resource_byname(pdev, IORESOURCE_MEM, core_names[i]);
+        if (res)
+        {
+            params->registerBases[i] = res->start;
+            params->registerSizes[i] = res->end - res->start + 1;
+        }
+    }
+
+    /* parse the contiguous mem */
+    value = of_get_property(root, "contiguous-size", gcvNULL);
+    if (value && *value != 0)
+    {
+        gctUINT64 addr;
+
+        of_property_read_u64(root, "contiguous-base", &addr);
+        params->contiguousSize = *value;
+        params->contiguousBase = addr;
+    }
+
+    value = of_get_property(root, "contiguous-requested", gcvNULL);
+    if (value)
+    {
+        params->contiguousRequested = *value ? gcvTRUE : gcvFALSE;
+    }
+
+    /* parse the external mem */
+    value = of_get_property(root, "external-size", gcvNULL);
+    if (value && *value != 0)
+    {
+        gctUINT64 addr;
+
+        of_property_read_u64(root, "external-base", &addr);
+        params->externalSize = *value;
+        params->externalBase = addr;
+    }
+
+    value = of_get_property(root, "phys-size", gcvNULL);
+    if (value && *value != 0)
+    {
+        gctUINT64 addr;
+
+        of_property_read_u64(root, "base-address", &addr);
+        params->physSize = *value;
+        params->baseAddress = addr;
+    }
+
+    value = of_get_property(root, "phys-size", gcvNULL);
+    if (value)
+    {
+        params->bankSize = *value;
+    }
+
+    value = of_get_property(root, "recovery", gcvNULL);
+    if (value)
+    {
+        params->recovery = *value;
+    }
+
+    value = of_get_property(root, "power-management", gcvNULL);
+    if (value)
+    {
+        params->powerManagement = *value;
+    }
+
+    value = of_get_property(root, "enable-mmu", gcvNULL);
+    if (value)
+    {
+        params->enableMmu = *value;
+    }
+
+    value = of_get_property(root, "user-cluster-mask", gcvNULL);
+    if (value)
+    {
+        params->userClusterMask = *value;
+    }
+
+    value = of_get_property(root, "stuck-dump", gcvNULL);
+    if (value)
+    {
+        params->stuckDump = *value;
+    }
+
+    value = of_get_property(root, "gpu-profiler", gcvNULL);
+    if (value)
+    {
+        params->gpuProfiler = *value;
+    }
+
+    value = of_get_property(root, "show-args", gcvNULL);
+    if (value)
+    {
+        params->showArgs = *value;
+    }
+
+    value = of_get_property(root, "mmu-page-table-pool", gcvNULL);
+    if (value)
+    {
+        params->mmuPageTablePool = *value;
+    }
+
+    value = of_get_property(root, "mmu-dynamic-map", gcvNULL);
+    if (value)
+    {
+        params->mmuDynamicMap = *value;
+    }
+
+    value = of_get_property(root, "all-map-in-one", gcvNULL);
+    if (value)
+    {
+        params->allMapInOne = *value;
+    }
+
+    value = of_get_property(root, "isr-poll-mask", gcvNULL);
+    if (value)
+    {
+        params->isrPoll = *value;
+    }
+
+    return 0;
+}
+
+static const struct of_device_id gpu_dt_ids[] = {
+    { .compatible = "verisilicon,galcore",},
+
+    {/* sentinel */}
+};
+
+#elif USE_LINUX_PCIE
 
 #define MAX_PCIE_DEVICE 4
 #define MAX_PCIE_BAR    6
@@ -167,8 +590,80 @@ _QueryBarInfo(
     *BarSize = size;
 }
 
-#else
+static const struct pci_device_id vivpci_ids[] = {
+  {
+    .class = 0x000000,
+    .class_mask = 0x000000,
+    .vendor = 0x10ee,
+    .device = 0x7012,
+    .subvendor = PCI_ANY_ID,
+    .subdevice = PCI_ANY_ID,
+    .driver_data = 0
+  }, { /* End: all zeroes */ }
+};
 
+MODULE_DEVICE_TABLE(pci, vivpci_ids);
+
+
+static int gpu_sub_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
+    static u64 dma_mask = DMA_BIT_MASK(40);
+#else
+    static u64 dma_mask = DMA_40BIT_MASK;
+#endif
+
+    gcmkPRINT("PCIE DRIVER PROBED");
+    if (pci_enable_device(pdev)) {
+        printk(KERN_ERR "galcore: pci_enable_device() failed.\n");
+    }
+
+    if (pci_set_dma_mask(pdev, dma_mask)) {
+        printk(KERN_ERR "galcore: Failed to set DMA mask.\n");
+    }
+
+    pci_set_master(pdev);
+
+    if (pci_request_regions(pdev, "galcore")) {
+        printk(KERN_ERR "galcore: Failed to get ownership of BAR region.\n");
+    }
+
+#if USE_MSI
+    if (pci_enable_msi(pdev)) {
+        printk(KERN_ERR "galcore: Failed to enable MSI.\n");
+    }
+#endif
+
+#if defined(CONFIG_PPC)
+    /* On PPC platform, enable bus master, enable irq. */
+    if (pci_write_config_word(pdev, 0x4, 0x0006) < 0) {
+        printk(KERN_ERR "galcore: Failed to enable bus master on PPC.\n");
+    }
+#endif
+
+    default_platform.pcie_info[default_platform.device_number++].pdev = pdev;
+    return 0;
+}
+
+static void gpu_sub_remove(struct pci_dev *pdev)
+{
+    pci_set_drvdata(pdev, NULL);
+#if USE_MSI
+    pci_disable_msi(pdev);
+#endif
+    pci_clear_master(pdev);
+    pci_release_regions(pdev);
+    pci_disable_device(pdev);
+    return;
+}
+
+static struct pci_driver gpu_pci_subdriver = {
+    .name = DEVICE_NAME,
+    .id_table = vivpci_ids,
+    .probe = gpu_sub_probe,
+    .remove = gpu_sub_remove
+};
+#else
 static struct _gcsPLATFORM default_platform =
 {
     .name = __FILE__,
@@ -182,7 +677,10 @@ _AdjustParam(
     OUT gcsMODULE_PARAMETERS *Args
     )
 {
-#if USE_LINUX_PCIE
+#if gcdSUPPORT_DEVICE_TREE_SOURCE
+    gpu_parse_dt(Platform->device, Args);
+    gpu_add_power_domains();
+#elif USE_LINUX_PCIE
     struct _gcsPLATFORM_PCIE *pcie_platform = (struct _gcsPLATFORM_PCIE *)Platform;
     struct pci_dev *pdev = pcie_platform->pcie_info[0].pdev;
     int irqline = pdev->irq;
@@ -218,6 +716,11 @@ _AdjustParam(
         {
             if (Args->bars[i] != -1)
             {
+                if (i > gcvCORE_3D_MAX)
+                {
+                    core_index = i;
+                }
+
                 Args->irqs[core_index] = pcieDev->irq;
 
                 /* VIV bitfile: Merge last 4 cores to last one bar to support 8 cores. */
@@ -290,7 +793,6 @@ _GetGPUPhysical(
     gctPHYS_ADDR_T sram_gpu_base = pcie_platform->pcie_info[0].sram_gpu_bases[0];
     uint32_t sram_size = pcie_platform->pcie_info[0].sram_sizes[0];
 
-    /* TODO: We should always set axi sram size by insmod parameters, never from feature database. */
     if (!sram_size && Platform->dev && Platform->dev->extSRAMSizes[0])
     {
         sram_size = Platform->dev->extSRAMSizes[0];
@@ -316,82 +818,25 @@ _GetGPUPhysical(
     return gcvSTATUS_OK;
 }
 
-#if USE_LINUX_PCIE
-static const struct pci_device_id vivpci_ids[] = {
-  {
-    .class = 0x000000,
-    .class_mask = 0x000000,
-    .vendor = 0x10ee,
-    .device = 0x7012,
-    .subvendor = PCI_ANY_ID,
-    .subdevice = PCI_ANY_ID,
-    .driver_data = 0
-  }, { /* End: all zeroes */ }
-};
-
-MODULE_DEVICE_TABLE(pci, vivpci_ids);
-
-
-static int gpu_sub_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+#if gcdENABLE_MP_SWITCH
+gceSTATUS
+_SwitchCoreCount(
+    IN gcsPLATFORM *Platform,
+    OUT gctUINT32 *Count
+    )
 {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 24)
-    static u64 dma_mask = DMA_BIT_MASK(40);
-#else
-    static u64 dma_mask = DMA_40BIT_MASK;
-#endif
+    *Count = Platform->coreCount;
 
-    gcmkPRINT("PCIE DRIVER PROBED");
-    if (pci_enable_device(pdev)) {
-        printk(KERN_ERR "galcore: pci_enable_device() failed.\n");
-    }
-
-    if (pci_set_dma_mask(pdev, dma_mask)) {
-        printk(KERN_ERR "galcore: Failed to set DMA mask.\n");
-    }
-
-    pci_set_master(pdev);
-
-    if (pci_request_regions(pdev, "galcore")) {
-        printk(KERN_ERR "galcore: Failed to get ownership of BAR region.\n");
-    }
-
-#if USE_MSI
-    if (pci_enable_msi(pdev)) {
-        printk(KERN_ERR "galcore: Failed to enable MSI.\n");
-    }
-#endif
-    default_platform.pcie_info[default_platform.device_number++].pdev = pdev;
-    return 0;
+    return gcvSTATUS_OK;
 }
-
-static void gpu_sub_remove(struct pci_dev *pdev)
-{
-    pci_set_drvdata(pdev, NULL);
-#if USE_MSI
-    pci_disable_msi(pdev);
 #endif
-    pci_clear_master(pdev);
-    pci_release_regions(pdev);
-    pci_disable_device(pdev);
-    return;
-}
-
-static struct pci_driver gpu_pci_subdriver = {
-    .name = DEVICE_NAME,
-    .id_table = vivpci_ids,
-    .probe = gpu_sub_probe,
-    .remove = gpu_sub_remove
-};
-
-#endif
-
-static struct platform_device *default_dev;
 
 int gckPLATFORM_Init(struct platform_driver *pdrv,
             struct _gcsPLATFORM **platform)
 {
-    int ret;
-    default_dev = platform_device_alloc(pdrv->driver.name, -1);
+    int ret = 0;
+#if !gcdSUPPORT_DEVICE_TREE_SOURCE
+    struct platform_device *default_dev = platform_device_alloc(pdrv->driver.name, -1);
 
     if (!default_dev) {
         printk(KERN_ERR "galcore: platform_device_alloc failed.\n");
@@ -402,28 +847,36 @@ int gckPLATFORM_Init(struct platform_driver *pdrv,
     ret = platform_device_add(default_dev);
     if (ret) {
         printk(KERN_ERR "galcore: platform_device_add failed.\n");
-        goto put_dev;
+        platform_device_put(default_dev);
+        return ret;
     }
-
-    *platform = (gcsPLATFORM *)&default_platform;
 
 #if USE_LINUX_PCIE
     ret = pci_register_driver(&gpu_pci_subdriver);
+    if (ret)
+    {
+        platform_device_unregister(default_dev);
+        return ret;
+    }
+#endif
+#else
+    pdrv->driver.of_match_table = gpu_dt_ids;
+    ret = gpu_power_domain_init();
+    if (ret) {
+        printk(KERN_ERR "galcore: gpu_gpc_init failed.\n");
+    }
 #endif
 
-    return 0;
-
-put_dev:
-    platform_device_put(default_dev);
-
+    *platform = (gcsPLATFORM *)&default_platform;
     return ret;
 }
 
 int gckPLATFORM_Terminate(struct _gcsPLATFORM *platform)
 {
-    if (default_dev) {
-        platform_device_unregister(default_dev);
-        default_dev = NULL;
+#if !gcdSUPPORT_DEVICE_TREE_SOURCE
+    if (platform->device) {
+        platform_device_unregister(platform->device);
+        platform->device = NULL;
     }
 
 #if USE_LINUX_PCIE
@@ -445,6 +898,8 @@ int gckPLATFORM_Terminate(struct _gcsPLATFORM *platform)
         pci_unregister_driver(&gpu_pci_subdriver);
     }
 #endif
-
+#else
+    gpu_power_domain_exit();
+#endif
     return 0;
 }

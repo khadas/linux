@@ -53,24 +53,28 @@
 *****************************************************************************/
 
 
-#ifndef __gc_hal_vg_h_
-#define __gc_hal_vg_h_
+#ifndef _gc_hal_kernel_platform_default_h_
+#define _gc_hal_kernel_platform_default_h_
 
-#ifdef __cplusplus
-extern "C" {
+#if gcdSUPPORT_DEVICE_TREE_SOURCE
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include "gc_hal.h"
+#include "gc_hal_driver.h"
+#include "gc_hal_kernel.h"
+#include "gc_hal_kernel_platform.h"
+
+typedef struct _gcsPOWER_DOMAIN
+{
+    struct generic_pm_domain base;
+    gceCORE core_id;
+    gctUINT32 flags;
+    struct platform_device *pdev;
+}gcsPOWER_DOMAIN;
+
 #endif
-
-
-#include "gc_hal_types.h"
-#include "gc_hal_enum.h"
-#include "gc_hal_base.h"
-#include "shared/gc_hal_vg_shared.h"
-
-
-#ifdef __cplusplus
-} /* extern "C" */
 #endif
-
-#endif /* __gc_hal_h_ */
-
-

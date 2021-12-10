@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -67,6 +67,10 @@
 #include <linux/vmalloc.h>
 #include <linux/dma-mapping.h>
 #include <linux/kthread.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
+#include <linux/iommu.h>
+#include <linux/iova.h>
+#endif
 
 #include <linux/idr.h>
 
@@ -165,13 +169,39 @@
 
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0)
+#define current_mm_mmap_sem current->mm->mmap_lock
+#else
+#define current_mm_mmap_sem current->mm->mmap_sem
+#endif
+
+#ifndef untagged_addr
+#define untagged_addr(addr) (addr)
+#endif
+
 int get_nna_status(struct platform_device *dev);
+
 
 extern struct device *galcore_device;
 
 /******************************************************************************\
 ********************************** Structures **********************************
 \******************************************************************************/
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29)
+/* Just to compile without error */
+struct iommu_domain
+{
+    void *priv;
+}
+#endif
+
+typedef struct _gcsIOMMU
+{
+    struct iommu_domain * domain;
+    struct device *       device;
+    dma_addr_t            paddingPageDmaHandle;
+}
+gcsIOMMU;
 typedef struct _gcsIOMMU * gckIOMMU;
 
 typedef struct _gcsINTEGER_DB * gcsINTEGER_DB_PTR;
@@ -349,7 +379,6 @@ is_vmalloc_addr(
 }
 #endif
 
-#ifdef CONFIG_IOMMU_SUPPORT
 void
 gckIOMMU_Destory(
     IN gckOS Os,
@@ -361,21 +390,5 @@ gckIOMMU_Construct(
     IN gckOS Os,
     OUT gckIOMMU * Iommu
     );
-
-gceSTATUS
-gckIOMMU_Map(
-    IN gckIOMMU Iommu,
-    IN gctUINT32 DomainAddress,
-    IN gctUINT32 Physical,
-    IN gctUINT32 Bytes
-    );
-
-gceSTATUS
-gckIOMMU_Unmap(
-    IN gckIOMMU Iommu,
-    IN gctUINT32 DomainAddress,
-    IN gctUINT32 Bytes
-    );
-#endif
 
 #endif /* __gc_hal_kernel_linux_h_ */

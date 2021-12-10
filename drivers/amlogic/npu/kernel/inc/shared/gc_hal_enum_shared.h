@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -259,6 +259,7 @@ typedef enum _gceFEATURE
     gcvFEATURE_2D_10BIT_OUTPUT_LINEAR,
     gcvFEATURE_2D_YUV420_OUTPUT_LINEAR,
     gcvFEATURE_ACE,
+    gcvFEATURE_NO_YUV420_SOURCE,/* unsupported source with three planes */
     gcvFEATURE_COLOR_COMPRESSION,
     gcvFEATURE_32BPP_COMPONENT_TEXTURE_CHANNEL_SWIZZLE,
     gcvFEATURE_64BPP_HW_CLEAR_SUPPORT,
@@ -648,6 +649,20 @@ typedef enum _gceFEATURE
     gcvFEATURE_PE_A8B8G8R8, /* For PE support A8B8G8R8 format feature*/
     gcvFEATURE_DEPTHWISE_NEIGHBOR_IMG_DATA_TRANSFER_NOT_EFFICIENT_FIX,
 
+    /* FP16 enhancement-related features. */
+    gcvFEATURE_DST_TEX_I2F_F2I_INST_DEPRECATE,
+    gcvFEATURE_ALU_FP16_INST_SUPPORT,
+    gcvFEATURE_DUAL16_14BIT_PC_SUPPORT,
+    gcvFEATURE_LDST_CONV_4ROUNDING_MODES,
+    gcvFEATURE_FULL_PACK_MODE_SUPPORT,
+    gcvFEATURE_FP32_TO_FP16_CONV_FIX,
+
+    gcvFEATURE_SH_HAS_IMGLD_COMP_COUNT_FIX,
+    gcvFEATURE_SH_SUPPORT_FP32_FMA,
+
+    gcvFEATURE_SH_SUPPORT_VEC2_INT_MULMAD,
+    gcvFEATURE_SH_SUPPORT_VEC4_INT_MULMAD,
+
     /* AIGPU feature. */
     gcvFEATURE_AI_GPU,
     gcvFEATURE_NN_FAST_FIRST_PIXEL_POOLING,
@@ -689,7 +704,7 @@ typedef enum _gceFEATURE
 
     /* TP reorder the int tile x should be less than 512 */
     gcFEATURE_TP_REORDER_INTILE_X_SIZE_512_FIX,
-    gcFEATURE_NN_WASET_COEF_READ_WRITE_BANDWIDTH_128BYTE_VIPSRAM_IN_FULL_PATIAL_CACHE_MODE,
+    gcFEATURE_NN_WASTE_COEF_READ_WRITE_BANDWIDTH_128BYTE_VIPSRAM_IN_FULL_PATIAL_CACHE_MODE_FIX,
     gcFEATURE_BIT_BFP_COEF_AUTO_PAD_INCOMPLETE_ZERO_IN_KZ_PLANE,
     gcvFEATURE_NN_FLOAT32_IO,
     gcvFEATURE_TP_FLOAT32_IO,
@@ -733,6 +748,22 @@ typedef enum _gceFEATURE
     gcFEATURE_BIT_NN_ENHANCED_MAX_POOLING,
     gcvFEATURE_NN_1x1_NON_POOLING_PACKING,
     gcFEATURE_BIT_NN_SUPPORT_BOTH_CONV_NATIVE_STRIDE2_AND_POOLING,
+    gcFEATURE_BIT_NN_SUPPORT_ALU,
+    gcvFEATURE_BIT_NN_TRANSPOSE_PHASE2,
+    gcvFEATURE_BIT_NN_FC_ENHANCEMENT,
+    gcFEATURE_BIT_NN_2ND_IMG_BASE_ADDR_FIX,
+    gcFEATURE_BIT_NN_TENSOR_ADD_FIELD_MOVE_TO_EXT_CMD,
+
+    gcvFEATURE_IMGLD_WIDTH_LT16_FIX,
+    gcvFEATURE_BIT_GPU_INSPECTOR_COUNTERS,
+
+    gcvFEATURE_VIP_REMOVE_MMU,
+    gcFEATURE_BIT_TPLITE_SUPPORT_TP_DATA_TRANSPOSE,
+    gcvFEATURE_BIT_NN_JD_DIRECT_MODE_FIX,
+    gcFEATURE_BIT_NN_CONV_CORE_BYPASS,
+    gcvFEATURE_BIT_TP_REMOVE_FC,
+
+    gcvFEATURE_BIT_HI_DEFAULT_ENABLE_REORDER_FIX,
 
     /* Insert features above this comment only. */
     gcvFEATURE_COUNT                /* Not a feature. */
@@ -818,6 +849,7 @@ typedef enum _gceSURF_TYPE
     gcvSURF_3D                      = 0x200000, /* It's 3d surface */
     gcvSURF_DMABUF_EXPORTABLE       = 0x400000, /* master node can be exported as dma-buf fd */
     gcvSURF_CACHE_MODE_128          = 0x800000,
+    gcvSURF_TILED                   = 0x1000000, /* force create tile buffer, as we will convert it to supertile according to related hardware feature by default */
 
     gcvSURF_TEXTURE_LINEAR               = gcvSURF_TEXTURE
                                          | gcvSURF_LINEAR,
@@ -1433,6 +1465,7 @@ typedef enum _gceCORE
 #if gcdDEC_ENABLE_AHB
     gcvCORE_DEC,
 #endif
+    gcvCORE_2D1,
     gcvCORE_COUNT
 }
 gceCORE;
@@ -1982,10 +2015,34 @@ gceSYNC_VIDEO_MEMORY_REASON;
 
 typedef enum _gceProfilerMode
 {
-    gcvPROFILER_PROBE_MODE = 0,
-    gcvPROFILER_AHB_MODE   = 1,
+    gcvPROFILER_UNKNOWN_MODE = 0,
+    gcvPROFILER_PROBE_MODE,
+    gcvPROFILER_AHB_MODE,
 }
 gceProfilerMode;
+
+typedef enum _gceProbeMode
+{
+    gcvPROFILER_UNKNOWN_PROBE = 0,
+    gcvPROFILER_GPU_PROBE,
+    gcvPROFILER_VIP_PROBE,
+}
+gceProbeMode;
+
+typedef enum _gceMULTI_PROCESSOR_MODE
+{
+    gcvMP_MODE_COMBINED    = 0,
+    gcvMP_MODE_INDEPENDENT = 1
+}
+gceMULTI_PROCESSOR_MODE;
+
+typedef enum _gceSwitchMpMode
+{
+    gcvMP_MODE_NO_SWITCH = 0,
+    gcvMP_MODE_SWITCH_TO_SINGLE,
+    gcvMP_MODE_SWITCH_TO_MULTI,
+}
+gceSwitchMpMode;
 
 #ifdef __cplusplus
 }

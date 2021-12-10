@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -70,8 +70,27 @@
 /* 0.0.1.47 Save the HW specific attributes in VIR_Shader 05/26/2020 */
 /* 0.0.1.48 Add a new variable to save the symbol ID of the register spill base address in VIR_Shader 07/13/2020 */
 /* 0.0.1.49 Save the RA instruction ID in VIR_Instruction 08/11/2020 */
-#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 49)
-#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 49)
+/* 0.0.1.50 Always save enclose function ID 01/19/2021 */
+/* 0.0.1.51 Add a new enumeration for VIR_InstFlag 01/25/2021 */
+/* 0.0.1.52 Save the linkage information for VIR_Symbol 02/23/2021 */
+/* 0.0.1.53 Change the layout of VIR_OPERAND_REL_INFO 02/24/2021 */
+/* 0.0.1.54 Save VIR_OPERAND_REL_INFO 02/25/2021 */
+/* 0.0.1.55 Change the value of VIR_SymFlagExt 03/03/2021 */
+#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 55)
+#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 55)
+
+/*********************** VIR SHADER BINARY FILE SUB VERSION *********************/
+#define gcdVIR_SHADER_BINARY_SUB_VERSION gcmCC(SHADER_64BITMODE, 0, 0, 0)
+
+/******************** VIR SHADER LIBRARY BINARY FILE VERSION *********************/
+/* Current vir shader CL/VX library version */
+/* 0.0.0.0 Start to set vir shader cl/vx library version, 12/23/2020 */
+/* 0.0.0.1 Change vir shader cl/vx library version to add long/ulong intrinsic functions, 03/15/2021 */
+#define gcdVIR_SHADER_CL_LIBRARY_FILE_VERSION  gcmCC(SHADER_64BITMODE, 0, 0, 1)
+
+/* Current vir shader graphic library version */
+/* 0.0.0.0 Start to set vir shader library version, 12/23/2020 */
+#define gcdVIR_SHADER_GRAPHICS_LIBRARY_FILE_VERSION  gcmCC(SHADER_64BITMODE, 0, 0, 0)
 
 #if !defined(gcdTARGETHOST_BIGENDIAN)
 #define gcdTARGETHOST_BIGENDIAN 0  /* default host little endian, to change the
@@ -421,31 +440,39 @@ typedef enum _VSC_IMAGE_FORMAT
     VSC_IMAGE_FORMAT_NONE = 0x00000000,
     /*F32.*/
     VSC_IMAGE_FORMAT_RGBA32F,
+    VSC_IMAGE_FORMAT_RGB32F,
     VSC_IMAGE_FORMAT_RG32F,
     VSC_IMAGE_FORMAT_R32F,
     /*I32.*/
     VSC_IMAGE_FORMAT_RGBA32I,
+    VSC_IMAGE_FORMAT_RGB32I,
     VSC_IMAGE_FORMAT_RG32I,
     VSC_IMAGE_FORMAT_R32I,
     /*UI32.*/
     VSC_IMAGE_FORMAT_RGBA32UI,
+    VSC_IMAGE_FORMAT_RGB32UI,
     VSC_IMAGE_FORMAT_RG32UI,
     VSC_IMAGE_FORMAT_R32UI,
     /*F16.*/
     VSC_IMAGE_FORMAT_RGBA16F,
+    VSC_IMAGE_FORMAT_RGB16F,
     VSC_IMAGE_FORMAT_RG16F,
     VSC_IMAGE_FORMAT_R16F,
     /*I16.*/
     VSC_IMAGE_FORMAT_RGBA16I,
+    VSC_IMAGE_FORMAT_RGB16I,
     VSC_IMAGE_FORMAT_RG16I,
     VSC_IMAGE_FORMAT_R16I,
     /*UI16.*/
     VSC_IMAGE_FORMAT_RGBA16UI,
+    VSC_IMAGE_FORMAT_RGB16UI,
     VSC_IMAGE_FORMAT_RG16UI,
     VSC_IMAGE_FORMAT_R16UI,
     /*F16 SNORM/UNORM.*/
     VSC_IMAGE_FORMAT_RGBA16,
     VSC_IMAGE_FORMAT_RGBA16_SNORM,
+    VSC_IMAGE_FORMAT_RGB16,
+    VSC_IMAGE_FORMAT_RGB16_SNORM,
     VSC_IMAGE_FORMAT_RG16,
     VSC_IMAGE_FORMAT_RG16_SNORM,
     VSC_IMAGE_FORMAT_R16,
@@ -454,26 +481,33 @@ typedef enum _VSC_IMAGE_FORMAT
     VSC_IMAGE_FORMAT_BGRA8_UNORM,
     VSC_IMAGE_FORMAT_RGBA8,
     VSC_IMAGE_FORMAT_RGBA8_SNORM,
+    VSC_IMAGE_FORMAT_RGB8,
+    VSC_IMAGE_FORMAT_RGB8_SNORM,
     VSC_IMAGE_FORMAT_RG8,
     VSC_IMAGE_FORMAT_RG8_SNORM,
     VSC_IMAGE_FORMAT_R8,
     VSC_IMAGE_FORMAT_R8_SNORM,
     /*I8.*/
     VSC_IMAGE_FORMAT_RGBA8I,
+    VSC_IMAGE_FORMAT_RGB8I,
     VSC_IMAGE_FORMAT_RG8I,
     VSC_IMAGE_FORMAT_R8I,
     /*UI8.*/
     VSC_IMAGE_FORMAT_RGBA8UI,
+    VSC_IMAGE_FORMAT_RGB8UI,
     VSC_IMAGE_FORMAT_RG8UI,
     VSC_IMAGE_FORMAT_R8UI,
     /*F-PACK.*/
     VSC_IMAGE_FORMAT_R5G6B5_UNORM_PACK16,
+    VSC_IMAGE_FORMAT_R5G5B5_UNORM_PACK16,
     VSC_IMAGE_FORMAT_ABGR8_UNORM_PACK32,
     VSC_IMAGE_FORMAT_ABGR8I_PACK32,
     VSC_IMAGE_FORMAT_ABGR8UI_PACK32,
     VSC_IMAGE_FORMAT_A2R10G10B10_UNORM_PACK32,
     VSC_IMAGE_FORMAT_A2B10G10R10_UNORM_PACK32,
     VSC_IMAGE_FORMAT_A2B10G10R10UI_PACK32,
+
+    VSC_IMAGE_FORMAT_COUNT,
 } VSC_IMAGE_FORMAT;
 
 typedef enum _VSC_ADDRSPACE
@@ -667,6 +701,8 @@ typedef struct _VSC_DRV_CALLBACKS
     PFN_FREE_VIDMEM_CB  pfnFreeVidMemCb;
 }VSC_DRV_CALLBACKS, *PVSC_DRV_CALLBACKS;
 
+#define __MINIMUM_VID_MEM_ALIGN_SIZE__      256
+
 /* VSC hardware (chip) configuration that poses on (re)-compiling */
 typedef struct _VSC_HW_CONFIG
 {
@@ -731,7 +767,7 @@ typedef struct _VSC_HW_CONFIG
         gctUINT          canSrc0OfImgLdStBeTemp : 1;
 
         gctUINT          hasPSIOInterlock       : 1;
-        gctUINT          support128BppImage     : 1;
+        gctUINT          support128bppTexture   : 1;
         gctUINT          supportMSAATexture     : 1;
         gctUINT          supportPerCompDepForLS : 1;
         gctUINT          supportImgAddr         : 1;
@@ -794,7 +830,23 @@ typedef struct _VSC_HW_CONFIG
         gctUINT          hasUSCAtomicFix2       : 1;
         gctUINT          hasFloatingMadFix      : 1;
         gctUINT          hasA0WriteEnableFix    : 1;
-        gctUINT          reserved1              : 26;
+        gctUINT          dstTexI2FInstDeprecate : 1;
+        gctUINT          hasAluFp16InstSupport  : 1;
+        gctUINT          has14BitPcDual16       : 1;
+        gctUINT          ldstConv4RoundingMode  : 1;
+        gctUINT          fullPackModeSupport    : 1;
+        gctUINT          hasFp32ToFp16ConvFix   : 1;
+        gctUINT          ldDststSrc2DenormFp32  : 1;
+        gctUINT          supportFloatOrdNotEqual: 1;
+        gctUINT          hasCallRetFix          : 1;
+        gctUINT          supportJmpAfterEndPC   : 1;
+        gctUINT          hasImgLdCompCountFix   : 1;
+        /* CModel and some old chips have the different behavior, CModel doesn't calculate shift all the time. */
+        gctUINT          CalcShiftForImgLdSt    : 1;
+        gctUINT          supportFP32FMA         : 1;
+        gctUINT          hasVec2IntMulMad       : 1;
+        gctUINT          hasVec4IntMulMad       : 1;
+        gctUINT          reserved1              : 11;
 
         /* Last word */
         /* Followings will be removed after shader programming is removed out of VSC */
@@ -833,6 +885,7 @@ typedef struct _VSC_HW_CONFIG
     gctUINT              maxTotalInstCount;
     gctUINT              maxVSInstCount;
     gctUINT              maxPSInstCount;
+    gctUINT              maxInstCountUnderDual16;
     gctUINT              maxHwNativeTotalConstRegCount;
     gctUINT              maxTotalConstRegCount;
     gctUINT              unifiedConst;
@@ -960,6 +1013,7 @@ typedef gcsGLSLCaps VSC_GL_API_CONFIG, *PVSC_GL_API_CONFIG;
 #define VSC_COMPILER_FLAG_ENABLE_DUAL16_FOR_VK         0x00200000  /* It is a temp option to enable dual16 for vulkan. we need to remove after verify all vulkan cases. */
 #define VSC_COMPILER_FLAG_USE_CONST_REG_FOR_UBO        0x00400000
 #define VSC_COMPILER_FLAG_FORCE_GEN_FLOAT_MAD          0x00800000  /* Force generate a floating MAD, no matter if HW can support it. */
+#define VSC_COMPILER_FLAG_ALWAYS_EMIT_OUTPUT           0x01000000
 
 #define VSC_COMPILER_FLAG_COMPILE_FULL_LEVELS          0x0000000F
 
@@ -1006,6 +1060,9 @@ VSC_SHADER_STAGE_BIT;
 #define VSC_CPT_SHADER_STAGE_CS                        0
 
 typedef void* SHADER_HANDLE;
+typedef void* PROGRAM_RESOURCE_LAYOUT_HANDLE;
+typedef void* SHADER_RESOURCE_LAYOUT_HANDLE;
+typedef void* PROGRAM_LINKER_PARAM_HANDLE;
 typedef void* VSC_PRIV_DATA_HANDLE;
 
 typedef enum _VSC_SHADER_RESOURCE_TYPE
@@ -1225,6 +1282,36 @@ gceSTATUS vscFinalizeHwPipelineShadersStates(VSC_SYS_CONTEXT* pSysCtx, VSC_HW_PI
 gceSTATUS vscCreatePrivateData(VSC_CORE_SYS_CONTEXT* pCoreSysCtx, VSC_PRIV_DATA_HANDLE* phOutPrivData, gctBOOL bForOCL);
 gceSTATUS vscDestroyPrivateData(VSC_CORE_SYS_CONTEXT* pCoreSysCtx, VSC_PRIV_DATA_HANDLE hPrivData);
 
+/* Two ways to save VSC_PROGRAM_LINKER_PARAM binary:
+ * 1) compiler allocates memory and return the memory in *pBinary and size in pSizeInByte
+ *    if (* pBinary) is NULL when calling the function
+ * 2) Allocate memory in (*pBinary), size in pSizeInByte
+ * 3) Only save cfg and pPgResourceLayout to binary.
+ */
+gceSTATUS vscSaveProgramLinkerParamToBinary(
+    IN PROGRAM_LINKER_PARAM_HANDLE handle,
+    OUT void ** pBinary,
+    OUT gctUINT* pSizeInByte);
+
+/* read VSC_PROGRAM_LINKER_PARAM from binary
+ * binary is the out from vscSaveProgramLinkerParamToBinary function.
+ * sizeInByte is length of binary.
+ * If pLayout is empty, the function will allocate memory space.
+ * Only read cfg and pPgResourceLayout from binary.
+ */
+gceSTATUS vscReadProgramLinkerParamFromBinary(
+    IN void * binary,
+    IN gctUINT sizeInByte,
+    OUT VSC_PROGRAM_LINKER_PARAM **pParam);
+
+/*
+ * Destroy all VSC_SHADER_COMPILER_PARAM's pointer member variables.
+ * But memory pointed to by param pointer will not be destroyed.
+ */
+gceSTATUS vscDestroyProgramLinkerParam(
+    IN OUT VSC_PROGRAM_LINKER_PARAM *param);
+
+
 /* Create a shader with content unfilled. In general, driver calls this
    function to create a shader, and then pass this shader handle to shader
    generator. Or alternatively, shader generator can directly call this
@@ -1234,6 +1321,9 @@ gceSTATUS vscDestroyPrivateData(VSC_CORE_SYS_CONTEXT* pCoreSysCtx, VSC_PRIV_DATA
 gceSTATUS vscCreateShader(SHADER_HANDLE* pShaderHandle,
                           gctUINT shStage);
 gceSTATUS vscDestroyShader(SHADER_HANDLE hShader);
+
+/* Get VIR Shader version. */
+gceSTATUS vscGetShaderVersion(OUT gctUINT32 * shaderVersion);
 
 /* Print (dump) shader */
 gceSTATUS vscPrintShader(SHADER_HANDLE hShader,
@@ -1412,6 +1502,16 @@ vscImageSamplerNeedLibFuncForHWCfg(
     gctUINT *               KeyofImgSampler         /* the key state of the image-sampler pair */
     );
 
+/* For given image descriptor and sampler value for HW cfg, do we
+ * need to do recompilation for the image read due to the component count issue ? */
+gctBOOL
+vscImageSamplerHasImgLdCompCountIssue(
+    void *                  pImageDesc,
+    gctUINT                 imageSamplerValue,
+    VSC_HW_CONFIG*          pHwCfg,
+    gctUINT*                pKeyofImgSampler
+    );
+
 /* For given image descriptorfor HW cfg, do we
  * need to do recompilation for the image write ?  */
 gctBOOL
@@ -1469,6 +1569,49 @@ void vscSetDriverVIRPath(gctBOOL bUseVIRPath);
 gceSTATUS vscGetTemporaryDir(OUT gctSTRING gcTmpDir);
 
 void vscSetIsLibraryShader(SHADER_HANDLE hShader, gctBOOL bIsLibraryShader);
+
+/****************************************************************************
+    Following are for driver to query some information.
+*****************************************************************************/
+gctBOOL
+vscQueryImgLdStSuppport(
+    IN  VSC_HW_CONFIG*      pHwCfg,
+    IN  gctBOOL             bUseInGraphicStage
+    );
+
+gctBOOL
+vscQueryTexldUSupport(
+    IN  VSC_HW_CONFIG*      pHwCfg
+    );
+
+/****************************************************************************
+    Following are for the OpenCL SPIR-V/VIR_Shader support.
+*****************************************************************************/
+gctUINT
+vscGetKernelFunctionCount(
+    IN  SHADER_HANDLE       pKernelShaderHandle
+    );
+
+gceSTATUS
+vscGetKernelFunctionNameByIndex(
+    IN  SHADER_HANDLE       pKernelShaderHandle,
+    IN  gctUINT             kernelIndex,
+    OUT gctSTRING*          pFuncNameString
+    );
+
+gceSTATUS
+vscLinkKernel(
+    OUT SHADER_HANDLE       destShaderHandle,
+    IN  SHADER_HANDLE*      srcShaderHandles,
+    IN  gctUINT             count,
+    IN  VSC_SYS_CONTEXT*    sysCtx
+    );
+
+gceSTATUS
+vscLoadKernel(
+    IN  SHADER_HANDLE       pShaderHandle,
+    IN  gctSTRING           pKernelName
+    );
 
 END_EXTERN_C();
 

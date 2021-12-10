@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -658,7 +658,8 @@ gckKERNEL_Construct(
 #if VIVANTE_PROFILER
     /* Initialize profile setting */
     kernel->profiler.profileEnable = gcvFALSE;
-    kernel->profiler.profileMode = gcvPROFILER_PROBE_MODE;
+    kernel->profiler.profileMode = gcvPROFILER_UNKNOWN_MODE;
+    kernel->profiler.probeMode = gcvPROFILER_UNKNOWN_PROBE;
     kernel->profiler.profileCleanRegister = gcvTRUE;
 #endif
 
@@ -720,13 +721,12 @@ gckKERNEL_Construct(
     return gcvSTATUS_OK;
 
 OnError:
-    gckOS_SetGPUPower(Os, kernel->core, gcvFALSE, gcvFALSE);
-    *Kernel = gcvNULL;
-
     if (kernel != gcvNULL)
     {
+        gckOS_SetGPUPower(Os, kernel->core, gcvFALSE, gcvFALSE);
         gckKERNEL_Destroy(kernel);
     }
+    *Kernel = gcvNULL;
 
     /* Return the error. */
     gcmkFOOTER();
@@ -1006,12 +1006,21 @@ gckKERNEL_AllocateVideoMemory(
     gcmkHEADER_ARG("Kernel=%p *Pool=%d *Bytes=%lu Alignment=%lu Type=%d",
                    Kernel, *Pool, *Bytes, Alignment, Type);
 
+    gcmkVERIFY_ARGUMENT(Kernel != gcvNULL);
+
     *NodeObject = gcvNULL;
 
     /* Check flags. */
     contiguous = Flag & gcvALLOC_FLAG_CONTIGUOUS;
     cacheable  = Flag & gcvALLOC_FLAG_CACHEABLE;
     secure     = Flag & gcvALLOC_FLAG_SECURITY;
+
+    gcmkASSERT(Kernel->hardware != gcvNULL);
+
+    if (!Kernel->hardware->options.enableMMU)
+    {
+        contiguous = gcvTRUE;
+    }
 
     if (Flag & gcvALLOC_FLAG_FAST_POOLS)
     {
@@ -1039,6 +1048,12 @@ gckKERNEL_AllocateVideoMemory(
         *Pool = gcvPOOL_VIRTUAL;
     }
 
+#ifdef __QNXNTO__
+    if (Flag & gcvALLOC_FLAG_4GB_ADDR) {
+        /* Use the Virtual pool, since the system pool may be allocated above 4G limit */
+        *Pool = gcvPOOL_VIRTUAL;
+    }
+#endif
     if (Flag & gcvALLOC_FLAG_DMABUF_EXPORTABLE)
     {
         gctSIZE_T pageSize = 0;
@@ -1072,6 +1087,7 @@ gckKERNEL_AllocateVideoMemory(
             Flag |= gcvALLOC_FLAG_CONTIGUOUS;
         }
     }
+
 
 AllocateMemory:
 
@@ -1407,9 +1423,6 @@ _AllocateLinearMemory(
     gckOS_QueryOption(Kernel->os, "allMapInOne", &mappingInOne);
     if (mappingInOne == 0)
     {
-        /* TODO: it should page align if driver uses dynamic mapping for mapped user memory.
-         * it should be adjusted with different os.
-         */
         alignment = gcmALIGN(alignment, 4096);
     }
 
@@ -1694,7 +1707,7 @@ OnError:
         gckVIDMEM_NODE_UnlockCPU(Kernel, nodeObject, ProcessID, gcvTRUE, gcvFALSE);
     }
 
-    if (address)
+    if (address != gcvINVALID_ADDRESS)
     {
         gckVIDMEM_NODE_Unlock(Kernel, nodeObject, ProcessID, &asynchronous);
 
@@ -1893,6 +1906,18 @@ _WrapUserMemory(
     gckVIDMEM_NODE nodeObject = gcvNULL;
     gceDATABASE_TYPE type;
     gctUINT32 handle = 0;
+    gctBOOL isContiguous;
+
+    gcmkHEADER_ARG("Kernel=%p ProcessID=%x", Kernel, ProcessID);
+
+    gcmkVERIFY_ARGUMENT(Kernel != gcvNULL);
+
+    gcmkASSERT(Kernel->hardware != gcvNULL);
+
+    if (!Kernel->hardware->options.enableMMU)
+    {
+        gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+    }
 
     gcmkONERROR(
         gckVIDMEM_NODE_WrapUserMemory(Kernel,
@@ -1919,7 +1944,23 @@ _WrapUserMemory(
                                gcvNULL,
                                (gctSIZE_T)Interface->u.WrapUserMemory.bytes));
 
+    gcmkONERROR(gckVIDMEM_NODE_IsContiguous(Kernel, nodeObject, &isContiguous));
+
+    if (isContiguous)
+    {
+        /* Record in process db. */
+        gcmkONERROR(
+                gckKERNEL_AddProcessDB(Kernel,
+                                       ProcessID,
+                                       gcvDB_CONTIGUOUS,
+                                       gcmINT2PTR(handle),
+                                       gcvNULL,
+                                       (gctSIZE_T)Interface->u.WrapUserMemory.bytes));
+    }
+
     Interface->u.WrapUserMemory.node = handle;
+
+    gcmkFOOTER_NO();
     return gcvSTATUS_OK;
 
 OnError:
@@ -1933,6 +1974,7 @@ OnError:
         gckVIDMEM_NODE_Dereference(Kernel, nodeObject);
     }
 
+    gcmkFOOTER();
     return status;
 }
 
@@ -2672,12 +2714,7 @@ _Commit(
         {
             gcmkONERROR(gckCOMMAND_Stall(kernel->command, gcvTRUE));
 
-            if (kernel->command->currContext)
-            {
-                gcmkONERROR(gckHARDWARE_UpdateContextProfile(
-                            kernel->hardware,
-                            kernel->command->currContext));
-            }
+            gcmkONERROR(gckHARDWARE_UpdateContextProfile(kernel->hardware));
         }
 #endif
 
@@ -3108,6 +3145,10 @@ gckKERNEL_Dispatch(
                 ));
             commitMutexAcquired = gcvTRUE;
         }
+
+#if gcdENABLE_MP_SWITCH
+        gcmkONERROR(gckKERNEL_DetectMpModeSwitch(Kernel, Interface->u.Commit.mpMode, &Interface->u.Commit.switchMpMode));
+#endif
 
         gcmkONERROR(_Commit(Device,
                             Kernel->hardware->type,
@@ -5372,6 +5413,16 @@ gckFENCE_Create(
     gctSIZE_T size = 8;
     gctUINT32 allocFlag = gcvALLOC_FLAG_CONTIGUOUS;
 
+#ifdef MSDX
+    gctUINT64 wddmMode = 0;
+
+    if ((gckOS_QueryOption(Os, "wddmMode", &wddmMode) == gcvSTATUS_OK) &&
+        (wddmMode))
+    {
+        allocFlag &= ~gcvALLOC_FLAG_CONTIGUOUS;
+    }
+#endif
+
 #if gcdENABLE_CACHEABLE_COMMAND_BUFFER
     allocFlag |= gcvALLOC_FLAG_CACHEABLE;
 #endif
@@ -5701,7 +5752,7 @@ gckDEVICE_ChipInfo(
             Interface->u.ChipInfo.types[i] = info[i].type;
             Interface->u.ChipInfo.ids[i] = info[i].chipID;
 
-            Interface->u.ChipInfo.coreIndexs[i] = info[i].core;
+            Interface->u.ChipInfo.coreIndexs[i] = i;
         }
 
         Interface->u.ChipInfo.count = Device->coreNum;
@@ -5852,9 +5903,14 @@ gckDEVICE_Dispatch(
         {
             kernel = Device->coreInfoArray[coreIndex].kernel;
         }
-        else
+        else if (type > gcvHARDWARE_INVALID && type < gcvHARDWARE_NUM_TYPES)
         {
             kernel = Device->map[type].kernels[coreIndex];
+        }
+        else
+        {
+            status = gcvSTATUS_INVALID_ARGUMENT;
+            return status;
         }
 
         {
@@ -5889,7 +5945,6 @@ gckDEVICE_Profiler_Dispatch(
             gckHARDWARE_QueryContextProfile(
                 kernel->hardware,
                 kernel->profiler.profileCleanRegister,
-                gcmNAME_TO_PTR(Interface->u.RegisterProfileData_part1.context),
                 &Interface->u.RegisterProfileData_part1.Counters,
                 gcvNULL));
 
@@ -5902,7 +5957,6 @@ gckDEVICE_Profiler_Dispatch(
             gckHARDWARE_QueryContextProfile(
                 kernel->hardware,
                 kernel->profiler.profileCleanRegister,
-                gcmNAME_TO_PTR(Interface->u.RegisterProfileData_part2.context),
                 gcvNULL,
                 &Interface->u.RegisterProfileData_part2.Counters));
 
@@ -5915,12 +5969,17 @@ gckDEVICE_Profiler_Dispatch(
 
         Interface->u.GetProfileSetting.profileMode = kernel->profiler.profileMode;
 
+        if (kernel->profiler.profileMode == gcvPROFILER_PROBE_MODE)
+        {
+            Interface->u.GetProfileSetting.probeMode = kernel->profiler.probeMode;
+        }
+
         status = gcvSTATUS_OK;
         break;
 
     case gcvHAL_SET_PROFILE_SETTING:
         /* Set profile setting */
-        kernel->profiler.profileEnable = Interface->u.GetProfileSetting.enable;
+        kernel->profiler.profileEnable = Interface->u.SetProfileSetting.enable;
 
         if(kernel->profiler.profileEnable)
         {
@@ -5934,6 +5993,15 @@ gckDEVICE_Profiler_Dispatch(
             if (kernel->profiler.profileMode == gcvPROFILER_AHB_MODE)
             {
                 gcmkONERROR(gckHARDWARE_InitProfiler(kernel->hardware));
+            }
+            else if (kernel->profiler.profileMode == gcvPROFILER_PROBE_MODE)
+            {
+                kernel->profiler.probeMode = Interface->u.SetProfileSetting.probeMode;
+            }
+            else
+            {
+                gcmkPRINT("unknown profileMode argument");
+                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
             }
         }
         else
@@ -6088,4 +6156,42 @@ OnError:
     return status;
 }
 #endif
+
+#if gcdENABLE_MP_SWITCH
+gceSTATUS
+gckKERNEL_DetectMpModeSwitch(
+    IN gckKERNEL Kernel,
+    IN gceMULTI_PROCESSOR_MODE Mode,
+    OUT gctUINT32 *SwitchMpMode
+    )
+{
+    gceSTATUS status = gcvSTATUS_OK;
+    gctUINT32 switchMpMode = gcvMP_MODE_NO_SWITCH;
+    gctUINT32 count = 0;
+
+    gcmkHEADER_ARG("Kernel=%p Mode=%x", Kernel, Mode);
+
+    gcmkONERROR(gckOS_SwitchCoreCount(Kernel->os, &count));
+
+    if (count == 1 && Mode != gcvMP_MODE_INDEPENDENT)
+    {
+        switchMpMode = gcvMP_MODE_SWITCH_TO_SINGLE;
+    }
+    else if (count > 1 && Mode == gcvMP_MODE_INDEPENDENT)
+    {
+
+        switchMpMode = gcvMP_MODE_SWITCH_TO_MULTI;
+    }
+
+    *SwitchMpMode = switchMpMode;
+
+    gcmkFOOTER_ARG("*SwitchMpMode=%x", *SwitchMpMode);
+    return gcvSTATUS_OK;
+
+OnError:
+    gcmkFOOTER();
+    return status;
+}
+#endif
+
 
