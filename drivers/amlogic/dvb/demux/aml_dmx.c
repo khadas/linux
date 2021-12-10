@@ -1573,7 +1573,7 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 		demux->local_sid = hw_source - DMA_0_1 + 0x20;
 		demux->demod_sid = -1;
 		ts_output_update_filter(demux->id, demux->local_sid);
-		dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
+		dsc_set_sid(demux->id, INPUT_LOCAL, hw_source - DMA_0_1);
 		advb->tsn_flag |= (1 << demux->id);
 		tsn_set_double_out(1);
 	} else if (hw_source >= FRONTEND_TS0_1 && hw_source <= FRONTEND_TS7_1) {
@@ -1582,7 +1582,7 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 			demux->demod_sid =
 				advb->ts[demux->ts_index].ts_sid ^ 0x20;
 			ts_output_update_filter(demux->id, demux->demod_sid);
-			dsc_set_sid(demux->id, INPUT_DEMOD, demux->demod_sid);
+			dsc_set_sid(demux->id, INPUT_DEMOD, advb->ts[demux->ts_index].ts_sid);
 		}
 		demux->local_sid = -1;
 		advb->tsn_flag |= (1 << demux->id);
