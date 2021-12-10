@@ -1383,6 +1383,10 @@ static int vpp_set_filters_internal
 		video_source_crop_right =
 			(video_source_crop_right + 3) & ~0x03;
 	}
+
+	if (is_bandwidth_policy_hit(input->layer_id))
+		next_frame_par->vscale_skip_count++;
+
 RESTART_ALL:
 	crop_left = video_source_crop_left / crop_ratio;
 	crop_right = video_source_crop_right / crop_ratio;
@@ -4423,7 +4427,12 @@ RERTY:
 		src_width = vf->width;
 		src_height = vf->height;
 	}
-
+	update_vd_src_info(input->layer_id,
+		src_width, src_height, vf->compWidth, vf->compHeight);
+	if (super_debug)
+		pr_info("vf->compWidth=%d, vf->compHeight=%d, vf->width=%d, vf->height=%d\n",
+			vf->compWidth, vf->compHeight,
+			vf->width, vf->height);
 #if defined(TV_3D_FUNCTION_OPEN) && defined(CONFIG_AMLOGIC_MEDIA_TVIN)
 	/*
 	 *check 3d mode change in display buffer or 3d type
