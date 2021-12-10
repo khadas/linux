@@ -16,6 +16,14 @@ struct am_vout_mode {
 	unsigned int flags;
 };
 
+struct meson_vpu_crtc_func {
+	void (*init_default_reg)(void);
+};
+
+struct meson_vpu_data {
+	struct meson_vpu_crtc_func *crtc_func;
+};
+
 extern struct am_meson_logo logo;
 char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode);
 char *am_meson_crtc2_get_voutmode(struct drm_display_mode *mode);
