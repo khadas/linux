@@ -979,6 +979,13 @@ static int aml_tdm_prepare(struct snd_pcm_substream *substream)
 	} else {
 		struct toddr *to = p_tdm->tddr;
 
+		if (p_tdm->tdm_trigger_state == TRIGGER_START_ALSA_BUF ||
+		    p_tdm->tdm_trigger_state == TRIGGER_START_VAD_BUF) {
+			pr_err("%s, trigger state is %d\n", __func__,
+				p_tdm->tdm_trigger_state);
+			return 0;
+		}
+
 		/*
 		 * Contrast minimum of period and fifo depth,
 		 * and set the value as half.

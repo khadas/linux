@@ -624,6 +624,13 @@ static int aml_pdm_prepare(struct snd_pcm_substream *substream)
 	unsigned int start_addr, end_addr, int_addr;
 	unsigned int period, threshold;
 
+	if (p_pdm->pdm_trigger_state == TRIGGER_START_ALSA_BUF ||
+	    p_pdm->pdm_trigger_state == TRIGGER_START_VAD_BUF) {
+		pr_err("%s, trigger state is %d\n", __func__,
+			p_pdm->pdm_trigger_state);
+		return 0;
+	}
+
 	start_addr = runtime->dma_addr;
 	end_addr = start_addr + runtime->dma_bytes - FIFO_BURST;
 	period   = frames_to_bytes(runtime, runtime->period_size);
