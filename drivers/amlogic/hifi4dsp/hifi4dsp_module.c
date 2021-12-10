@@ -1430,6 +1430,7 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	struct clk *dsp_clk = NULL;
 
 	struct hifi4dsp_info_t *hifi_info = NULL;
+	unsigned int dsp_freqs[2];
 
 	np = pdev->dev.of_node;
 
@@ -1582,6 +1583,15 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		if (ret < 0)
 			goto err3;
 	}
+
+	/*get dsp_clk_freqs */
+	ret = of_property_read_u32_array(np, "dsp_clk_freqs", &dsp_freqs[0], dsp_cnt);
+	if (!ret)
+		for (i = 0; i < dsp_cnt; i++)
+			dsp_pdatas[i].clk_freq = dsp_freqs[i];
+	else
+		pr_debug("\ndsp_clk_freqs not configed in dtsi.");
+
 	/*init hifi4 syslog*/
 	create_hifi4_syslog();
 	mutex_init(&hifi4dsp_flock);

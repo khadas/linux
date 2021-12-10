@@ -42,6 +42,14 @@
 		#size-cells = <2>;
 		ranges;
 
+		dsp_fw_reserved:linux,dsp_fw {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x00800000>;
+			alignment = <0x0 0x00400000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x00800000>;
+		};
+
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;

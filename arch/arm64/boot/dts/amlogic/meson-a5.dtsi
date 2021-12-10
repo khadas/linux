@@ -9,6 +9,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/power/s4-pd.h>
+#include <dt-bindings/power/a5-pd.h>
 #include <dt-bindings/clock/amlogic,a5-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-a5-gpio.h>
@@ -311,6 +312,32 @@
 		mbox-names = "ree2aocpu";
 		mboxes = <&mhu_fifo A5_REE2AO>;
 		mbox-dests = <MAILBOX_AOCPU>;
+	};
+
+	hifi4dsp: hifi4dsp {
+		compatible = "amlogic, hifi4dsp";
+		memory-region = <&dsp_fw_reserved>;
+		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
+			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
+			  <0 0x0 0 0x0>,     /*dspa status counter*/
+			  <0 0x0 0 0x0>,     /*dspb status counter*/
+			  <0 0x30000000 0 0x80000>; /*dsp shm region*/
+		dsp-monitor-period-ms = <1000>;
+		reg-names = "dspa_top_reg", "dspb_top_reg";
+		clocks = <&clkc CLKID_DSPA>;
+		clock-names = "dspa_clk";
+		dsp-start-mode = <1>; /*0:scpi start mode,1:smc start mode*/
+		dsp-cnt = <1>;
+		dspaoffset = <0xa0000>;
+		dspboffset = <0x8a0000>;
+		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
+		boot_sram_addr = <0xfff00000>;
+		boot_sram_size = <0x80000>;
+		suspend_resume_support = <1 0>;
+		power-domains = <&pwrdm PDID_A5_DSPA>;
+		power-domain-names = "dspa";
+		dsp_clk_freqs = <800000000>;
+		status = "okay";
 	};
 
 	vddcpu0: pwm_j-regulator {
