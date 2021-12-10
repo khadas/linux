@@ -360,6 +360,11 @@ static u32 frame_detect_drop_count;
 static u32 vpp_hold_setting_cnt;
 static u32 blend_conflict_cnt;
 
+int vdec_out_size_threshold_8k = 7;
+int vpp_in_size_threshold_8k = 7;
+int vdec_out_size_threshold_4k = 9;
+int vpp_in_size_threshold_4k = 9;
+
 #ifdef FIQ_VSYNC
 #define BRIDGE_IRQ INT_TIMER_C
 #define BRIDGE_IRQ_SET() WRITE_CBUS_REG(ISA_TIMERC, 1)
@@ -16320,6 +16325,48 @@ static ssize_t vpu_module_urgent_set(struct class *class,
 	return count;
 }
 
+static ssize_t video_threshold_8k_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "vdec_out_size_threshold_8k:%d,vpp_in_size_threshold_8k:%d\n",
+		vdec_out_size_threshold_8k,
+		vpp_in_size_threshold_8k);
+}
+
+static ssize_t video_threshold_8k_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		vdec_out_size_threshold_8k = parsed[0];
+		vpp_in_size_threshold_8k = parsed[1];
+	}
+	return count;
+}
+
+static ssize_t video_threshold_4k_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "vdec_out_size_threshold_4k:%d,vpp_in_size_threshold_4k:%d\n",
+		vdec_out_size_threshold_4k,
+		vpp_in_size_threshold_4k);
+}
+
+static ssize_t video_threshold_4k_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		vdec_out_size_threshold_4k = parsed[0];
+		vpp_in_size_threshold_4k = parsed[1];
+	}
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -16781,6 +16828,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0644,
 		aipq_dbg_data_show,
 		aipq_dbg_data_store),
+	__ATTR(video_threshold_8k,
+		0664,
+		video_threshold_8k_show,
+		video_threshold_8k_store),
+	__ATTR(video_threshold_4k,
+		0664,
+		video_threshold_4k_show,
+		video_threshold_4k_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

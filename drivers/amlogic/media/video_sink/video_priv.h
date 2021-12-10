@@ -431,6 +431,10 @@ struct video_layer_s {
 	bool vd1_vd2_mux;
 	u32 video_en_bg_color;
 	u32 video_dis_bg_color;
+	u32 compWidth;
+	u32 compHeight;
+	u32 src_width;
+	u32 src_height;
 };
 
 enum {
@@ -511,6 +515,10 @@ extern u32 osd_vpp1_bld_ctrl;
 extern u32 osd_vpp2_bld_ctrl;
 extern bool update_osd_vpp1_bld_ctrl;
 extern bool update_osd_vpp2_bld_ctrl;
+extern int vdec_out_size_threshold_8k;
+extern int vpp_in_size_threshold_8k;
+extern int vdec_out_size_threshold_4k;
+extern int vpp_in_size_threshold_4k;
 
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
@@ -616,7 +624,10 @@ void enable_vpp_crc_viu2(u32 vpp_crc_en);
 int vpp_crc_viu2_check(u32 vpp_crc_en);
 void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type);
 struct video_layer_s *get_layer_by_layer_id(u8 layer_id);
-
+void update_vd_src_info(u8 layer_id,
+							u32 src_width, u32 src_height,
+							u32 compWidth, u32 compHeight);
+bool is_bandwidth_policy_hit(u8 layer_id);
 int video_hw_init(void);
 int video_early_init(struct amvideo_device_data_s *p_amvideo);
 int video_late_uninit(void);

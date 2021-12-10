@@ -865,6 +865,219 @@ u32 get_videopip2_onoff_state(void)
 }
 EXPORT_SYMBOL(get_videopip2_onoff_state);
 
+static struct video_layer_s *get_vd_layer(u8 layer_id)
+{
+	struct video_layer_s *layer = &vd_layer[layer_id];
+
+	if (is_vpp0(layer_id))
+		/* single vpp */
+		layer = &vd_layer[layer_id];
+	else if (is_vpp1(layer_id))
+		layer = &vd_layer_vpp[VPP1 - 1];
+	else if (is_vpp2(layer_id))
+		layer = &vd_layer_vpp[VPP2 - 1];
+	return layer;
+}
+
+void update_vd_src_info(u8 layer_id,
+							u32 src_width, u32 src_height,
+							u32 compWidth, u32 compHeight)
+{
+	struct video_layer_s *layer = get_vd_layer(layer_id);
+
+	layer->src_width = src_width;
+	layer->src_height = src_height;
+	layer->compWidth = compWidth;
+	layer->compHeight = compHeight;
+}
+
+static bool is_layer_8k_to_4k_input(u8 layer_id)
+{
+	bool video_en = false;
+	ulong vdec_output, vd_input;
+	struct video_layer_s *layer = get_vd_layer(layer_id);
+
+	if (layer->new_vframe_count)
+		video_en = true;
+	if (!video_en)
+		return false;
+
+	if ((layer->compWidth && layer->compHeight) &&
+		(layer->compWidth * layer->compHeight >=
+		layer->src_width * layer->src_height))
+		vdec_output = layer->compWidth * layer->compHeight;
+	else
+		vdec_output = layer->src_width * layer->src_height;
+	/* check decoder is 8K */
+	if (vdec_output < 7680 * 4320 * vdec_out_size_threshold_8k / 10)
+		return false;
+	vd_input = layer->src_width * layer->src_height;
+	if (vd_input >= 3840 * 2160 * vpp_in_size_threshold_8k / 10)
+		return true;
+	else
+		return false;
+}
+
+static bool is_layer_4k_to_4k_input(u8 layer_id)
+{
+	bool video_en = false;
+	ulong vdec_output, vd_input;
+	struct video_layer_s *layer = get_vd_layer(layer_id);
+
+	if (layer->new_vframe_count)
+		video_en = true;
+	if (!video_en)
+		return false;
+	/* only need adjust for none afbc case */
+	if ((layer->compWidth && layer->compHeight) &&
+		(layer->compWidth * layer->compHeight >=
+		layer->src_width * layer->src_height))
+		vdec_output = 0;
+	/* layer->compWidth * layer->compHeight; */
+	else
+		vdec_output = layer->src_width * layer->src_height;
+	/* check decoder is 4K */
+	if (vdec_output < 3840 * 2160 * vdec_out_size_threshold_4k / 10)
+		return false;
+	vd_input = layer->src_width * layer->src_height;
+	if (vd_input >= 3840 * 2160 * vpp_in_size_threshold_4k / 10)
+		return true;
+	else
+		return false;
+}
+
+#ifdef CHECK_LATER
+bool is_bandwidth_policy_hit(u8 layer_id)
+{
+	struct video_layer_s *layer = NULL;
+	static bool re_trigger;
+	bool hit_8k_to_4k[3] = {false};
+	bool hit_4k_to_4k[3] = {false};
+
+	if (video_is_meson_t7_cpu()) {
+		layer = get_vd_layer(0);
+		if (is_layer_8k_to_4k_input(layer->layer_id))
+			hit_8k_to_4k[0] = true;
+
+		layer = get_vd_layer(1);
+		if (is_layer_8k_to_4k_input(layer->layer_id)) {
+			hit_8k_to_4k[1] = true;
+			/* vd1 re-trigger */
+			if (!re_trigger) {
+				vd_layer[0].property_changed = true;
+				re_trigger = true;
+			}
+		}
+		layer = get_vd_layer(2);
+		if (is_layer_8k_to_4k_input(layer->layer_id)) {
+			hit_8k_to_4k[2] = true;
+			/* vd1 re-trigger */
+			if (!re_trigger) {
+				vd_layer[0].property_changed = true;
+				re_trigger = true;
+			}
+		}
+		pr_info("hit_8k_to_4k[0/1/2]=%d %d %d\n",
+			hit_8k_to_4k[0],
+			hit_8k_to_4k[1],
+			hit_8k_to_4k[2]);
+
+		if (layer_id == 0 && hit_8k_to_4k[0] &&
+			(hit_8k_to_4k[1] ||
+			hit_8k_to_4k[2])) {
+			re_trigger = false;
+			vd_layer[0].property_changed = false;
+			pr_info("vd1 hit 8k to 4k input!\n");
+			return true;
+		}
+
+		layer = get_vd_layer(0);
+		if (is_layer_4k_to_4k_input(layer->layer_id))
+			hit_4k_to_4k[0] = true;
+		layer = get_vd_layer(1);
+		if (is_layer_4k_to_4k_input(layer->layer_id))
+			hit_4k_to_4k[1] = true;
+		layer = get_vd_layer(2);
+		if (is_layer_4k_to_4k_input(layer->layer_id))
+			hit_4k_to_4k[2] = true;
+
+		pr_info("hit_4k_to_4k[0/1/2]=%d, %d %d\n",
+			hit_4k_to_4k[0],
+			hit_4k_to_4k[1],
+			hit_4k_to_4k[2]);
+
+		if (layer_id == 1 &&
+			hit_4k_to_4k[0] &&
+			hit_4k_to_4k[1]) {
+			pr_info("vd%d hit 4k to 4k input!\n",
+				layer_id + 1);
+			re_trigger = false;
+			return true;
+		}
+
+		if (layer_id == 2 &&
+			hit_4k_to_4k[2] &&
+			hit_4k_to_4k[0]) {
+			pr_info("vd%d hit 4k to 4k input!\n",
+				layer_id + 1);
+			re_trigger = false;
+			return true;
+		}
+	}
+	return false;
+}
+#else
+bool is_bandwidth_policy_hit(u8 layer_id)
+{
+	struct video_layer_s *layer = NULL;
+	static bool re_trigger;
+	bool hit_vskip[3] = {false};
+
+	if (video_is_meson_t7_cpu()) {
+		layer = get_vd_layer(0);
+		if (is_layer_8k_to_4k_input(layer->layer_id) ||
+			(is_layer_4k_to_4k_input(layer->layer_id)))
+			hit_vskip[0] = true;
+
+		layer = get_vd_layer(1);
+		if (is_layer_8k_to_4k_input(layer->layer_id) ||
+			is_layer_4k_to_4k_input(layer->layer_id)) {
+			hit_vskip[1] = true;
+			/* vd1 re-trigger */
+			if (!re_trigger) {
+				vd_layer[0].property_changed = true;
+				re_trigger = true;
+			}
+		}
+		layer = get_vd_layer(2);
+		if (is_layer_8k_to_4k_input(layer->layer_id) ||
+			is_layer_4k_to_4k_input(layer->layer_id)) {
+			hit_vskip[2] = true;
+			/* vd1 re-trigger */
+			if (!re_trigger) {
+				vd_layer[0].property_changed = true;
+				re_trigger = true;
+			}
+		}
+		pr_info("hit_vskip[0/1/2]=%d %d %d\n",
+			hit_vskip[0],
+			hit_vskip[1],
+			hit_vskip[2]);
+
+		if (hit_vskip[0] && (hit_vskip[1] || hit_vskip[2])) {
+			if (layer_id == 0) {
+				re_trigger = false;
+				vd_layer[0].property_changed = false;
+			}
+			pr_info("vd%d hit larger than 4k to 4k input!\n", layer_id);
+			return true;
+		}
+	}
+	return false;
+}
+
+#endif
+
 bool is_di_on(void)
 {
 	bool ret = false;
@@ -6967,7 +7180,9 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	post_blend_dummy_data_update(vpp_index);
 
 	if (vd_layer[2].vpp_index == VPP0 &&
-	    vd_layer[2].dispbuf && video3_off_req)
+	    ((vd_layer[2].dispbuf && video3_off_req) ||
+	    (!vd_layer[2].dispbuf &&
+	     (video1_off_req || video3_off_req))))
 		disable_vd3_blend(&vd_layer[2]);
 
 	if (vd_layer[1].vpp_index == VPP0 &&
@@ -10804,4 +11019,3 @@ module_param(video_mute_on, bool, 0664);
 
 MODULE_PARM_DESC(cur_vf_flag, "cur_vf_flag");
 module_param(cur_vf_flag, uint, 0444);
-
