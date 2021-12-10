@@ -2047,6 +2047,7 @@ FORCE:
 	$(Q)mkdir -p $(srctree)/../common_drivers/scripts/amlogic
 	$(Q)cp $(srctree)/scripts/amlogic/licence_pre.pl $(srctree)/../common_drivers/scripts/amlogic
 	$(Q)cp $(srctree)/scripts/amlogic/licence_check.pl $(srctree)/../common_drivers/scripts/amlogic
+	$(Q)cp $(srctree)/scripts/amlogic/merge_pre_check.pl $(srctree)/../common_drivers/scripts/amlogic
 else
 PHONY += FORCE
 FORCE:
