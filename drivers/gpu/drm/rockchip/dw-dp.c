@@ -2855,6 +2855,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	struct drm_bridge *bridge = &dp->bridge;
 	struct drm_property *prop;
 	struct drm_device *dev = bridge->dev;
+	struct rockchip_drm_private *private = dev->dev_private;
 	int ret;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
@@ -2940,6 +2941,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	drm_object_attach_property(&connector->base,
 				   dev->mode_config.hdr_output_metadata_property,
 				   0);
+	drm_object_attach_property(&dp->connector.base, private->connector_id_prop, dp->id);
 
 	return 0;
 }
