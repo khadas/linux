@@ -616,6 +616,8 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 	struct codec_mm_s *mm;
 	int try_alloc_size = size;
 	int have_alloced = 0;
+	int tvp_free_size = 0;
+	int cma_free_size = 0;
 
 	if (try_alloc_size > 0 && try_alloc_size <= PAGE_SIZE)
 		return NULL;	/*don't alloc less than one PAGE. */
@@ -637,8 +639,23 @@ codec_mm_slot_alloc(struct codec_mm_scatter_mgt *smgt, int size, int flags)
 					smgt->try_alloc_in_cma_page_cnt *
 					PAGE_SIZE;
 			}
-			if (codec_mm_get_free_size() < try_alloc_size)
-				try_alloc_size = codec_mm_get_free_size();
+			if (smgt->tvp_mode) {
+				tvp_free_size = codec_mm_get_tvp_free_size();
+				cma_free_size = codec_mm_get_free_size();
+				if (try_alloc_size > tvp_free_size &&
+					try_alloc_size > cma_free_size) {
+					try_alloc_size = cma_free_size > tvp_free_size
+						? cma_free_size : tvp_free_size;
+				}
+			} else {
+				cma_free_size = codec_mm_get_free_size();
+				if (cma_free_size < try_alloc_size)
+					try_alloc_size = cma_free_size;
+			}
+			if (try_alloc_size <= 0) {
+				DBG_LOG("No memory can be used for scatter");
+				break;
+			}
 			mm = codec_mm_alloc(SCATTER_MEM, try_alloc_size, 0,
 					    CODEC_MM_FLAGS_FOR_VDECODER |
 					    CODEC_MM_FLAGS_FOR_SCATTER |
