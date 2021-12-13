@@ -14,6 +14,7 @@ snd-soc-aml_codec_tl1_acodec-objs  := aml_codec_tl1_acodec.o
 #Third part codecs
 snd-soc-tas5782m-objs := tas5782m.o
 snd-soc-tas5707-objs := tas5707.o
+snd-soc-es8316-objs := es8316.o
 snd-soc-tlv320adc3101-objs := tlv320adc3101.o
 snd-soc-pcm186x-objs := pcm186x.o pcm186x-i2c.o pcm186x-spi.o
 snd-soc-ssm3515-objs := ssm3515.o
@@ -35,6 +36,7 @@ obj-$(CONFIG_AMLOGIC_SND_CODEC_TL1_ACODEC)  += snd-soc-aml_codec_tl1_acodec.o
 #Third part codecs
 obj-$(CONFIG_AMLOGIC_SND_SOC_TAS5782M) += snd-soc-tas5782m.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_TAS5707) += snd-soc-tas5707.o
+obj-$(CONFIG_AMLOGIC_SND_SOC_ES8316) += snd-soc-es8316.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_TLV320ADC3101) += snd-soc-tlv320adc3101.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_PCM186X) += snd-soc-pcm186x.o
 obj-$(CONFIG_AMLOGIC_SND_SOC_SSM3515) += snd-soc-ssm3515.o

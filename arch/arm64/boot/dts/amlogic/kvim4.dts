@@ -559,7 +559,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmacodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&es8316 &dummy_codec>;
 			};
 		};
 
@@ -971,7 +971,7 @@
 		samesource_sel = <3>;
 
 		/* In for ACODEC_ADC */
-		acodec_adc = <1>;
+		acodec_adc = <0>;
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 
@@ -1371,6 +1371,24 @@
 	clock-frequency = <100000>; /* default 100k */
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c0_pins1>;
+
+	es8316: es8316@10 {
+	    compatible = "everest,es8316";
+	    #sound-dai-cells = <0>;
+	    reg = <0x10>;
+	    status = "okay";
+		io-channels = <&saradc 3>;
+		io-channel-names = "jack-chan-3";
+		hp_val = <784>; //val=voltage/1800mV*1023
+		hp_tolerance = <50>;
+		spk-con-gpio = <&gpio GPIOT_9 0>;
+	};
+};
+
 &i2c1 {
 	status = "okay";
 	pinctrl-names="default";
@@ -1754,7 +1772,7 @@
 	tdm_d3_pins: tdm_d3_pin {
 		mux {
 			groups = "tdm_d3";
-			function = "tdmouta_lane1";
+			function = "tdmina_lane0";
 		};
 	};
 
