@@ -583,7 +583,7 @@
 		compatible = "amlogic, atv-demod";
 		status = "okay";
 		btsc_sap_mode = <1>;
-		interrupts = <0 236 1>;
+		interrupts = <0 94 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
 		/* pinctrl-0=<&atvdemod_agc_pins>; */
 		reg = <0x0 0xfe0be000 0x0 0x2000 /* demod reg */
