@@ -115,7 +115,6 @@ static int __init media_main_init(void)
 	call_sub_init(di_v4l_init);
 	call_sub_init(cec_init);
 	call_sub_init(gdc_driver_init);
-	call_sub_init(amvdec_656in_init_module);
 	call_sub_init(adc_init);
 	call_sub_init(tvafe_drv_init);
 	call_sub_init(vbi_init);
