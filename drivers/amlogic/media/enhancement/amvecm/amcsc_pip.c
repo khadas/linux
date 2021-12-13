@@ -1773,11 +1773,11 @@ void video_post_process(struct vframe_s *vf,
 		} else if (hdr10_plus_process_mode[vd_path] == PROC_HDRP_TO_SDR) {
 			gamut_convert_process(vinfo, source_type, vd_path, &m, 8);
 			if (vd_path == VD1_PATH)
-				hdr_proc(vf, VD1_HDR, HDR10P_SDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, VD1_HDR, HDR10P_SDR, vinfo, &m, vpp_index);
 			else if (vd_path == VD2_PATH)
-				hdr_proc(vf, VD2_HDR, HDR10P_SDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, VD2_HDR, HDR10P_SDR, vinfo, &m, vpp_index);
 			else if (vd_path == VD3_PATH)
-				hdr_proc(vf, VD3_HDR, HDR10P_SDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, VD3_HDR, HDR10P_SDR, vinfo, &m, vpp_index);
 			hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 			hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);

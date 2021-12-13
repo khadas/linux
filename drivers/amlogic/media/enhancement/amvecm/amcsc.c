@@ -7847,7 +7847,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		source_format[vd_path] = get_hdr_source_type();
 	}
 
-	if (vf && (flags & (CSC_FLAG_TOGGLE_FRAME | CSC_FLAG_FORCE_SIGNAL))) {
+	if (vf && ((flags & (CSC_FLAG_TOGGLE_FRAME | CSC_FLAG_FORCE_SIGNAL)) ||
+		(signal_change_flag & SIG_FORCE_CHG))) {
 		hdr10p_meta_updated =
 		hdr10_plus_metadata_update(vf, csc_type,
 					   &hdmitx_hdr10plus_params[vd_path]);
