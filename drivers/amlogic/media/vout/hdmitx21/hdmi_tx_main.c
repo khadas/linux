@@ -979,15 +979,19 @@ static ssize_t rawedid_show(struct device *dev,
 	int i;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	int num;
+	int block_no = 0;
 
 	/* prevent null prt */
 	if (!hdev->edid_ptr)
 		hdev->edid_ptr = hdev->EDID_buf;
-
-	if (hdev->edid_ptr[0x7e] < 4)
-		num = (hdev->edid_ptr[0x7e] + 1) * 0x80;
+	block_no = hdev->edid_ptr[126];
+	if (block_no == 1)
+		if (hdev->edid_ptr[128 + 4] == 0xe2 && hdev->edid_ptr[128 + 5] == 0x78)
+			block_no = hdev->edid_ptr[128 + 6];
+	if (block_no < 8)
+		num = (block_no + 1) * 0x80;
 	else
-		num = 0x100;
+		num = 8 * 128;
 
 	for (i = 0; i < num; i++)
 		pos += snprintf(buf + pos, PAGE_SIZE, "%02x",

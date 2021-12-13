@@ -2647,6 +2647,11 @@ int hdmitx_edid_parse(struct hdmitx_dev *hdmitx_device)
 		return 0; /* do nothing. */
 	}
 
+	/* HF-EEODB */
+	if (blockcount == 1 && EDID_buf[128 + 4] == 0xe2 &&
+		EDID_buf[128 + 5] == 0x78)
+		blockcount = EDID_buf[128 + 6];
+
 	/* Note: some DVI monitor have more than 1 block */
 	if (blockcount == 1 && EDID_buf[0x81] == 1) {
 		hdmitx_device->rxcap.ieeeoui = 0;

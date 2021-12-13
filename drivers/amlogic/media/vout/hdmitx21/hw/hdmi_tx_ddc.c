@@ -146,12 +146,19 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 			if (byte_num == 126) {
 				edid_extension  = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
 				rx_edid[byte_num] = edid_extension;
-				if (edid_extension > 3)
-					edid_extension = 3;
 			} else {
 				rx_edid[byte_num] = hdmitx21_rd_reg(DDC_DATA_AON_IVCTX);
 			}
 			byte_num++;
+		}
+		if (byte_num > 127 && byte_num < 256)
+			if (rx_edid[128 + 4] == 0xe2 && rx_edid[128 + 5] == 0x78)
+				edid_extension = rx_edid[128 + 6];
+		if (edid_extension > 7) {
+			pr_info(HW "edid extension block number:");
+			pr_info(HW " %d, reset to MAX 7\n",
+				edid_extension);
+			edid_extension = 7; /* Max extended block */
 		}
 	}
 } /* hdmi20_tx_read_edid */

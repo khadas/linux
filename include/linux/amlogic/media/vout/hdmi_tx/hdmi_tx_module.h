@@ -298,7 +298,7 @@ struct st_debug_param {
 	unsigned int avmute_frame;
 };
 
-#define EDID_MAX_BLOCK              4
+#define EDID_MAX_BLOCK              8
 struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
 	dev_t hdmitx_id;

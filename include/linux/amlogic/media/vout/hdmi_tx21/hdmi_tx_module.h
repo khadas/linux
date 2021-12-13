@@ -279,7 +279,7 @@ struct hdmitx_clk_tree_s {
 	struct clk *venci_1_gate;
 };
 
-#define EDID_MAX_BLOCK              4
+#define EDID_MAX_BLOCK              8
 struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
 	dev_t hdmitx_id;

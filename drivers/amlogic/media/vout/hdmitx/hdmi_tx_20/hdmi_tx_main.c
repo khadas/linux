@@ -938,6 +938,10 @@ static int dump_edid_data(unsigned int type, char *path)
 	}
 
 	block_cnt = hdmitx_device.EDID_buf[0x7e] + 1;
+	if (hdmitx_device.EDID_buf[0x7e] != 0 &&
+		hdmitx_device.EDID_buf[128 + 4] == 0xe2 &&
+		hdmitx_device.EDID_buf[128 + 5] == 0x78)
+		block_cnt = hdmitx_device.EDID_buf[128 + 6] + 1;
 	if (type == 1) {
 		/* dump as bin file*/
 		size = vfs_write(filp, hdmitx_device.EDID_buf,
@@ -1132,15 +1136,21 @@ static ssize_t rawedid_show(struct device *dev,
 	int i;
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	int num;
+	int block_no = 0;
 
 	/* prevent null prt */
 	if (!hdev->edid_ptr)
 		hdev->edid_ptr = hdev->EDID_buf;
 
-	if (hdev->edid_ptr[0x7e] < 4)
-		num = (hdev->edid_ptr[0x7e] + 1) * 0x80;
+	block_no = hdev->edid_ptr[126];
+	if (block_no == 1)
+		if (hdev->edid_ptr[128 + 4] == 0xe2 &&
+			hdev->edid_ptr[128 + 5 == 0x78])
+			block_no = hdev->edid_ptr[128 + 6];	//EEODB
+	if (block_no < 8)
+		num = (block_no + 1) * 128;
 	else
-		num = 0x100;
+		num = 8 * 128;
 
 	for (i = 0; i < num; i++)
 		pos += snprintf(buf + pos, PAGE_SIZE, "%02x",
