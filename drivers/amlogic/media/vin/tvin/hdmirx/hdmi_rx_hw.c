@@ -1492,7 +1492,7 @@ bool is_clk_stable(void)
 		clk = hdmirx_rd_phy(PHY_MAINFSM_STATUS1) & 0x100;
 	}
 
-	if (clk)
+	if (clk && rx.clk.cable_clk > TMDS_CLK_MIN * KHz)
 		return true;
 	else
 		return false;

@@ -2259,6 +2259,8 @@ static void rx_phy_resume(void)
 			rx_phy_rxsense_pulse(10, 50, 1);
 		}
 	}
+	if (rx.phy_ver >= PHY_VER_TM2)
+		rx.aml_phy.pre_int = 1;
 	hdmirx_phy_init();
 	pre_port = 0xff;
 	rx.boot_flag = true;
