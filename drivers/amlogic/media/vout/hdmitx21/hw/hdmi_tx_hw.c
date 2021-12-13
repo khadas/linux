@@ -1504,8 +1504,11 @@ static void hdmitx_getediddata(u8 *des, u8 *src)
 	int i = 0;
 	u32 blk = src[126] + 1;
 
-	if (blk > 4)
-		blk = 4;
+	if (blk == 2)
+		if (src[128 + 4] == 0xe2 && src[128 + 5] == 0x78)
+			blk = src[128 + 6] + 1;
+	if (blk > 8)
+		blk = 8;
 
 	for (i = 0; i < 128 * blk; i++)
 		des[i] = src[i];

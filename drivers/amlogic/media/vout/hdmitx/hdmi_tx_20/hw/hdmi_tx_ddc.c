@@ -183,6 +183,16 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
 			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x1);
 			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 3);
+		} else if ((byte_num >= 512) && (byte_num < 768) && (blk_no > 2)) {
+			/* Program SEGMENT/SEGPTR */
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x2);
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 3);
+		} else if ((byte_num >= 768) && (byte_num < 1024) && (blk_no > 2)) {
+			/* Program SEGMENT/SEGPTR */
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGADDR, 0x30);
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_SEGPTR, 0x3);
+			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 3);
 		} else {
 			hdmitx_wr_reg(HDMITX_DWC_I2CM_OPERATION, 1 << 2);
 		}
@@ -200,16 +210,18 @@ void hdmitx_read_edid(unsigned char *rx_edid)
 		for (i = 0; i < 8; i++) {
 			rx_edid[byte_num] =
 				hdmitx_rd_reg(HDMITX_DWC_I2CM_READ_BUFF0 + i);
-			if (byte_num == 126) {
+			if (byte_num == 126)
 				blk_no = rx_edid[126] + 1;
-				if (blk_no > 4) {
-					pr_info(HW "edid extension block number:");
-					pr_info(HW " %d, reset to MAX 3\n",
-						blk_no - 1);
-					blk_no = 4; /* Max extended block */
-				}
-			}
 			byte_num++;
+		}
+		if (byte_num > 127 && byte_num < 256)
+			if (rx_edid[128 + 4] == 0xe2 && rx_edid[128 + 5] == 0x78)
+				blk_no = rx_edid[128 + 6] + 1;
+		if (blk_no > 8) {
+			pr_info(HW "edid extension block number:");
+			pr_info(HW " %d, reset to MAX 7\n",
+				blk_no - 1);
+			blk_no = 8; /* Max extended block */
 		}
 	}
 	/* Because DRM will use segment registers,
