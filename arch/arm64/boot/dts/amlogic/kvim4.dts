@@ -947,7 +947,7 @@
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
-				&clkaudio CLKID_AUDIO_MCLK_PAD1
+				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_MPLL0
 				&clkc CLKID_MPLL1
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
@@ -955,11 +955,11 @@
 			"samesource_srcpll", "samesource_clk";
 
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&mclk_1_pins
-			&tdm_a_pins
-			&tdm_d2_pins
-			&tdm_d3_pins
-			&tdm_clk_pins>;
+		pinctrl-0 = <&mclk_2_pins
+			&tdm_a2_pins
+			&tdm_d4_pins
+			&tdm_d7_pins
+			&tdm_clk2_pins>;
 
 		/*
 		 * 0: tdmout_a;
@@ -1376,6 +1376,14 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c0_pins1>;
 
+
+};
+
+&i2c1 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c1_pins1>;
+
 	es8316: es8316@10 {
 	    compatible = "everest,es8316";
 	    #sound-dai-cells = <0>;
@@ -1386,13 +1394,7 @@
 		hp_val = <784>; //val=voltage/1800mV*1023
 		hp_tolerance = <50>;
 		spk-con-gpio = <&gpio GPIOT_9 0>;
-	};
-};
-
-&i2c1 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c1_pins1>;
+	};	
 };
 
 &i2c2 {
@@ -1675,6 +1677,17 @@
 		};
 	};
 
+	tdm_a2_pins: tdm_a2_pin {
+		mux { /* GPIOT_14, GPIOT_15, GPIOT_5, GPIOT_8 */
+			groups = "tdm_sclk2",
+				"tdm_fs2",
+				"tdm_d4",
+				"tdm_d7";
+			function = "tdm";
+		};
+	};
+
+
     dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
 			groups = "tsin_a_sop_t",
@@ -1782,6 +1795,28 @@
 			function = "tdm_clk_outa";
 		};
 	};
+
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d4";
+			function = "tdmouta_lane0";
+		};
+	};
+
+	tdm_d7_pins: tdm_d7_pin {
+		mux {
+			groups = "tdm_d7";
+			function = "tdmina_lane0";
+		};
+	};
+
+	tdm_clk2_pins: tdm_clk2_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outa";
+		};
+	};
+
 };
 
 &ir {

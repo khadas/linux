@@ -80,7 +80,7 @@ struct es8316_priv {
 	int hp_det_invert;
 	struct delayed_work work;
 
-	//int spk_ctl_gpio;
+	int spk_ctl_gpio;
 	//int spk_mute_gpio;
 	//int hp_det_gpio;
 	bool muted;
@@ -112,12 +112,12 @@ static int es8316_reset(struct snd_soc_component *component)
 
 static void es8316_enable_spk(struct es8316_priv *es8316, bool enable)
 {
-	/*bool level;
+	bool level;
 
 	level = enable ? es8316->spk_active_level : !es8316->spk_active_level;
-	printk("es8316 spk_ctl_gpio %d\n",level);
+	//printk("es8316 spk_ctl_gpio %d\n",level);
 	gpio_set_value(es8316->spk_ctl_gpio, level);
-	level = !level;
+	/*level = !level;
 	printk("es8316 spk_mute_gpio %d\n",level);
 	gpio_set_value(es8316->spk_mute_gpio, level);*/
 }
@@ -1033,7 +1033,7 @@ int es8316_headset_detect(int jack_insert)
 	if (jack_insert) {
 		snd_soc_component_update_bits(es8316_component,
 				    ES8316_SYS_PDN_REG0D, 0x3f, 0);
-		es8316_enable_spk(es8316, false);
+		//es8316_enable_spk(es8316, false);
 	}
 
 	return 0;
@@ -1234,8 +1234,8 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	int ret = -1;
 	int hpret = -1;
 	//int hp_irq;
-	//enum of_gpio_flags flags;
-	//struct device_node *np = i2c->dev.of_node;
+	enum of_gpio_flags flags;
+	struct device_node *np = i2c->dev.of_node;
 	//return ret;
 	//printk("es8316_i2c_probe %d\n",__LINE__);
 	es8316 = devm_kzalloc(&i2c->dev, sizeof(*es8316), GFP_KERNEL);
@@ -1247,7 +1247,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	es8316->debounce_time = 200;
 	es8316->hp_det_invert = 0;
 	es8316->pwr_count = 0;
-	es8316->hp_inserted = true;
+	es8316->hp_inserted = false;
 	es8316->muted = true;
 	es8316->regmap = devm_regmap_init_i2c(i2c, &es8316_regmap_config);
 	if (IS_ERR(es8316->regmap)) {
@@ -1272,8 +1272,8 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 			dev_err(&i2c->dev, "Failed to request spk_ctl_gpio\n");
 			return ret;
 		}
-	}
-	
+    }
+*/
 	es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
 						       "spk-con-gpio",
 						       0,
@@ -1289,10 +1289,10 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 			dev_err(&i2c->dev, "Failed to request spk_ctl_gpio\n");
 			return ret;
 		}
-		es8316_enable_spk(es8316, false);
+		es8316_enable_spk(es8316, true);
 	}
 
-	es8316->hp_det_gpio = of_get_named_gpio_flags(np,
+	/*es8316->hp_det_gpio = of_get_named_gpio_flags(np,
 						      "hp-det-gpio",
 						      0,
 						      &flags);
@@ -1343,10 +1343,10 @@ static  int es8316_i2c_remove(struct i2c_client *client)
 
 static void es8316_i2c_shutdown(struct i2c_client *client)
 {
-	struct es8316_priv *es8316 = i2c_get_clientdata(client);
+	//struct es8316_priv *es8316 = i2c_get_clientdata(client);
 
 	if (es8316_component != NULL) {
-		es8316_enable_spk(es8316, false);
+		//es8316_enable_spk(es8316, false);
 		msleep(20);
 		es8316_set_bias_level(es8316_component, SND_SOC_BIAS_OFF);
 	}
