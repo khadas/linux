@@ -619,7 +619,7 @@
 			};
 			tdmbcodec: codec {
 				prefix-names = "AMP", "AMP1";
-				sound-dai = <&tas5707_36 &tas5707_3a &acodec>;
+				sound-dai = <&es8316 &acodec>;
 			};
 		};
 
@@ -1398,6 +1398,24 @@
 	clock-frequency = <100000>; /* default 100k */
 };
 
+&i2c0 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c0_pins1>;
+
+	es8316: es8316@10 {
+	    compatible = "everest,es8316";
+	    #sound-dai-cells = <0>;
+	    reg = <0x10>;
+	    status = "okay";
+		io-channels = <&saradc 3>;
+		io-channel-names = "jack-chan-3";
+		hp_val = <784>; //val=voltage/1800mV*1023
+		hp_tolerance = <50>;
+		spk-con-gpio = <&gpio GPIOT_9 0>;
+	};
+};
+
 &i2c1 {
 	status = "okay";
 	pinctrl-names="default";
@@ -1781,7 +1799,7 @@
 	tdm_d3_pins: tdm_d3_pin {
 		mux {
 			groups = "tdm_d3";
-			function = "tdmoutb_lane1";
+			function = "tdminb_lane0";
 		};
 	};
 
