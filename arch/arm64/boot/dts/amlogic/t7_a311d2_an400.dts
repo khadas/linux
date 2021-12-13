@@ -157,7 +157,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -454,6 +454,7 @@
 		compatible = "soc, sensor";
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name-sub = "imx290sub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -1335,6 +1336,22 @@
 	};
 };
 
+&i2c3 {
+	status = "okay";
+	pinctrl-names = "default";//, "sleep"
+	pinctrl-0 = <&i2c3_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-sub";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
+};
+
 &i2c5 {
 	status = "okay";
 	pinctrl-names = "default";//, "sleep"
@@ -1433,15 +1450,19 @@
 &isp {
 	status = "okay";
 	temper-line-offset = <0x1680>;
-	temper-buf-size = <12>;
+	temper-buf-size = <6>;
 	temper-frame-num = <1>;
-	temper-frame-size = <0xBDD800>;
+	temper-frame-size = <0x5EEC00>;
+	temper-line-offset1 = <0x1680>;
+	temper-buf-size1 = <6>;
+	temper-frame-num1 = <1>;
+	temper-frame-size1 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <24>;
+	mem_alloc = <64>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
