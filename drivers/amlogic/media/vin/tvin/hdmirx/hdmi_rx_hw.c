@@ -4633,45 +4633,48 @@ void rx_debug_load22key(void)
 	int ret = 0;
 	int wait_kill_done_cnt = 0;
 
-	if (rx.chip_id >= CHIP_ID_T7)
-		return;
-	ret = rx_sec_set_duk(hdmirx_repeat_support());
-	rx_pr("22 = %d\n", ret);
-	if (ret) {
-		rx_pr("load 2.2 key\n");
-		sm_pause = 1;
-		rx_set_cur_hpd(0, 4);
-		hdcp22_on = 1;
-		hdcp22_kill_esm = 1;
-		while (wait_kill_done_cnt++ < 10) {
-			if (!hdcp22_kill_esm)
-				break;
-			msleep(20);
+	if (rx.chip_id >= CHIP_ID_T7) {
+		rx.fsm_ext_state = FSM_HPD_LOW;
+	} else {
+		ret = rx_sec_set_duk(hdmirx_repeat_support());
+		rx_pr("22 = %d\n", ret);
+		if (ret) {
+			rx_pr("load 2.2 key\n");
+			sm_pause = 1;
+			rx_set_cur_hpd(0, 4);
+			hdcp22_on = 1;
+			hdcp22_kill_esm = 1;
+			while (wait_kill_done_cnt++ < 10) {
+				if (!hdcp22_kill_esm)
+					break;
+				msleep(20);
+			}
+			hdcp22_kill_esm = 0;
+			/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
+			rx_hdcp22_send_uevent(0);
+			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
+			/* if key_a is already exist on platform,*/
+			/*need to set valid bit to 0 before burning key_b,*/
+			/*otherwise,key_b will not be activated*/
+			rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
+			hdmirx_hdcp22_esm_rst();
+			mdelay(110);
+			rx_is_hdcp22_support();
+			hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
+			/* rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1); */
+			hdcp22_clk_en(1);
+			/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
+			rx_hdcp22_send_uevent(1);
+			mdelay(100);
+			hdmi_rx_top_edid_update();
+			hdmirx_hw_config();
+			hpd_to_esm = 1;
+			/* mdelay(900); */
+			rx_set_cur_hpd(1, 4);
+			sm_pause = 0;
 		}
-		hdcp22_kill_esm = 0;
-		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
-		rx_hdcp22_send_uevent(0);
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
-		/* if key_a is already exist on platform,*/
-		/*need to set valid bit to 0 before burning key_b,*/
-		/*otherwise,key_b will not be activated*/
-		rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
-		hdmirx_hdcp22_esm_rst();
-		mdelay(110);
-		rx_is_hdcp22_support();
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
-		/* rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1); */
-		hdcp22_clk_en(1);
-		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
-		rx_hdcp22_send_uevent(1);
-		mdelay(100);
-		hdmi_rx_top_edid_update();
-		hdmirx_hw_config();
-		hpd_to_esm = 1;
-		/* mdelay(900); */
-		rx_set_cur_hpd(1, 4);
-		sm_pause = 0;
 	}
+	rx_pr("%s\n", __func__);
 }
 
 void rx_debug_loadkey(void)
