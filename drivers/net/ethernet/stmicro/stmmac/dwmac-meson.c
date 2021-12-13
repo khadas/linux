@@ -610,6 +610,9 @@ void meson6_dwmac_shutdown(struct platform_device *pdev)
 }
 
 #endif
+
+extern int wol_enable;
+
 static int meson6_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -660,7 +663,7 @@ static int meson6_dwmac_probe(struct platform_device *pdev)
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
 		goto err_remove_config_dt;
-	if (support_mac_wol)
+	if (wol_enable)
 		device_init_wakeup(&pdev->dev, 1);
 	return 0;
 
