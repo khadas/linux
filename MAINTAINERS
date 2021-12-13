@@ -18129,3 +18129,10 @@ F:	drivers/amlogic/media/enhancement/amprime_sl/amprime_sl.c
 F:	drivers/amlogic/media/enhancement/amprime_sl/amprime_sl.h
 F:	drivers/amlogic/media/enhancement/amprime_sl/amprime_sl_hw.c
 F:	include/linux/amlogic/media/amprime_sl/prime_sl.h
+
+AMLOGIC DRM NONROOT
+M:	Emil Velikov <emil.velikov@collabora.com>
+F:	drivers/amlogic/drm/Kconfig
+F:	drivers/gpu/drm/drm_auth.c
+F:	drivers/gpu/drm/drm_ioctl.c
+F:	include/drm/drm_file.h

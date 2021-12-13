@@ -91,3 +91,10 @@ config DRM_MESON_FBDEV_UI_H
 	help
 		UI size height
 
+config AMLOGIC_DRM_NONROOT
+	bool "support drm whether require root privileges"
+	default n
+	depends on AMLOGIC_DRM
+	depends on AMLOGIC_MODIFY
+	help
+		drmSetMaster and drmDropMaster whether require root privileges

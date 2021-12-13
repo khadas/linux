@@ -200,6 +200,19 @@ struct drm_file {
 	 */
 	bool writeback_connectors;
 
+#ifdef CONFIG_AMLOGIC_DRM_NONROOT
+	/**
+	 * @was_master:
+	 *
+	 * This client has or had, master capability. Protected by struct
+	 * &drm_device.master_mutex.
+	 *
+	 * This is used to ensure that CAP_SYS_ADMIN is not enforced, if the
+	 * client is or was master in the past.
+	 */
+	bool was_master;
+#endif
+
 	/**
 	 * @is_master:
 	 *
