@@ -373,6 +373,11 @@ static void am_meson_load_logo(struct drm_device *dev)
 		return;
 	}
 
+	if (!strcmp("dummy_l", logo.outputmode)) {
+		DRM_INFO("Skip showing logo in dummy mode!");
+		return;
+	}
+
 	/*init all connecotr and found matched uboot mode.*/
 	found = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
