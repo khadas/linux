@@ -625,4 +625,10 @@ config USB_NET_AQC111
 	  This driver should work with at least the following devices:
 	  * Aquantia AQtion USB to 5GbE
 
+config USB_GOBI_NET
+	tristate "Gobi USB Net driver for Quectel module"
+	help
+	  Support Quectelmodule
+
+	  A modemmanager with support for GobiNet is recommended.
 endif # USB_NET_DRIVERS
