@@ -48,8 +48,9 @@
 // frc_20211208 frc set limit size
 // frc_20211209 sync frc alg from vlsi
 // frc_20211206 frc add fpp set level
+// frc_20211215 sync frc alg and fpp set level
 
-#define FRC_FW_VER			"2021-1215 sync frc alg and fpp set level"
+#define FRC_FW_VER			"2021-1215 frc change by2dis"
 #define FRC_KERDRV_VER                  1457
 
 #define FRC_DEVNO	1

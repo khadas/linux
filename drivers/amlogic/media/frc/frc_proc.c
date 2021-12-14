@@ -914,13 +914,24 @@ void frc_state_handle(struct frc_dev_s *devp)
 	case FRC_STATE_BYPASS:
 	if (state_changed) {
 		if (new_state == FRC_STATE_DISABLE) {
-			set_frc_bypass(OFF);
-			set_frc_enable(OFF);
-			devp->frc_sts.frame_cnt = 0;
-			pr_frc(log, "sm state change %s -> %s\n",
-					frc_state_ary[cur_state],
-					frc_state_ary[new_state]);
-			frc_state_change_finish(devp);
+			if (devp->frc_sts.frame_cnt == 0) {
+				//clk_set_rate(devp->clk_frc, 667000000);
+				if (devp->clk_state != FRC_CLOCK_NOR &&
+					devp->clk_state != FRC_CLOCK_2NOR)  {
+					devp->clk_state = FRC_CLOCK_2NOR;
+					schedule_work(&devp->frc_clk_work);
+				} else if (devp->clk_state == FRC_CLOCK_NOR) {
+					devp->frc_sts.frame_cnt++;
+				}
+			} else {
+				set_frc_bypass(OFF);
+				set_frc_enable(OFF);
+				devp->frc_sts.frame_cnt = 0;
+				pr_frc(log, "sm state change %s -> %s\n",
+				frc_state_ary[cur_state],
+				frc_state_ary[new_state]);
+				frc_state_change_finish(devp);
+			}
 		} else if (new_state == FRC_STATE_ENABLE) {
 			if (devp->frc_sts.frame_cnt == 0) {
 				//clk_set_rate(devp->clk_frc, 667000000);
