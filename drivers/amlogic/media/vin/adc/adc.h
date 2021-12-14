@@ -6,7 +6,7 @@
 #ifndef __ADC_H_
 #define __ADC_H_
 
-#define TVDIN_ADC_VER "2021/10/28 T5W bringup"
+#define TVDIN_ADC_VER "2021/12/16 close adc clk and tvfe top"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
