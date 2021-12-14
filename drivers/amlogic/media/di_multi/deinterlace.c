@@ -4964,6 +4964,8 @@ unsigned char dim_pre_bypass(struct di_ch_s *pch)
 /* 0: ok
  * other: reason
  **/
+static void di_load_pq_table(void);
+
 unsigned char dim_pre_de_buf_config(unsigned int channel)
 {
 	struct di_buf_s *di_buf = NULL;
@@ -6225,6 +6227,9 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		return 24;
 	}
+
+	di_load_pq_table();
+
 	if (is_meson_tl1_cpu()			&&
 	    ppre->comb_mode			&&
 	    flg_1080i) {
