@@ -439,6 +439,11 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			devp->ud_dbg.res1_dbg_en = val1;
+	} else if (!strcmp(parm[0], "inp_err")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->ud_dbg.res1_time_en = val1;
 	}
 exit:
 	kfree(buf_orig);

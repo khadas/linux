@@ -46,11 +46,12 @@
 // frc_20211201 frc add detect error
 // frc_20211202 fix frc reboot crash
 // frc_20211208 frc set limit size
-// frc_20211209 sync frc alg from vlsi
+// frc_20211209 sync frc alg from vlsi 1414
 // frc_20211206 frc add fpp set level
-// frc_20211215 sync frc alg and fpp set level
+// frc_20211215 sync frc alg and fpp set level 1457
+// frc_20211215 frc change by2dis
 
-#define FRC_FW_VER			"2021-1215 frc change by2dis"
+#define FRC_FW_VER			"2021-1217 frc fixed video flickers"
 #define FRC_KERDRV_VER                  1457
 
 #define FRC_DEVNO	1
@@ -224,6 +225,7 @@ struct st_frc_sts {
 	u32 me_undone_cnt;
 	u32 mc_undone_cnt;
 	u32 vp_undone_cnt;
+	u32 retrycnt;
 };
 
 struct st_frc_in_sts {
@@ -313,12 +315,11 @@ struct frc_ud_s {
 
 	unsigned inud_time_en:1;
 	unsigned outud_time_en:1;
-	unsigned res1_time_en:1;
+	unsigned res1_time_en:2;
 	unsigned res2_time_en:1;
 	unsigned res3_time_en:1;
 	unsigned res4_time_en:1;
 	unsigned res5_time_en:1;
-	unsigned res6_time_en:1;
 
 	unsigned mc_undone_err:1;
 	unsigned me_undone_err:1;

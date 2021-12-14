@@ -221,8 +221,15 @@ void frc_mc_reset(u32 onoff)
 
 void set_frc_enable(u32 en)
 {
+	struct frc_dev_s *devp = get_frc_devp();
 	WRITE_FRC_BITS(FRC_TOP_CTRL, 0, 8, 1);
 	WRITE_FRC_BITS(FRC_TOP_CTRL, en, 0, 1);
+	if (devp->ud_dbg.res1_time_en == 0 || devp->ud_dbg.res1_time_en == 3) {
+		if (en == 1) {
+			WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0xFFFF, 0, 16);
+			WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0x0, 0, 16);
+		}
+	}
 }
 
 void set_frc_bypass(u32 en)
@@ -331,7 +338,7 @@ void frc_mc_crc_read(struct frc_dev_s *frc_devp)
 
 void inp_undone_read(struct frc_dev_s *frc_devp)
 {
-	u32 inp_ud_flag;
+	u32 inp_ud_flag, readval, timeout;
 
 	if (!frc_devp)
 		return;
@@ -343,10 +350,40 @@ void inp_undone_read(struct frc_dev_s *frc_devp)
 		frc_devp->ud_dbg.inp_undone_err = inp_ud_flag;
 		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x3f, 0, 6);
 		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x0, 0, 6);
-		if (frc_devp->frc_sts.inp_undone_cnt >= MAX_INP_UNDONE_CNT) {
-			PR_ERR("inp_ud_err=0x%x, err_cnt = %d, frc reconfig\n",
-				inp_ud_flag, frc_devp->frc_sts.inp_undone_cnt);
-			frc_devp->frc_sts.re_config = true;
+		if (frc_devp->frc_sts.inp_undone_cnt < 10)
+			PR_ERR("inp_ud_err=0x%x,err_cnt=%d,vs_cnt=%d\n",
+				inp_ud_flag,
+				frc_devp->frc_sts.inp_undone_cnt,
+				frc_devp->in_sts.vs_cnt);
+		else if ((frc_devp->frc_sts.inp_undone_cnt & 0x10) == 0x10)
+			PR_ERR("inp_ud_err=0x%x,err_cnt=%d,vs_cnt=%d\n",
+				inp_ud_flag,
+				frc_devp->frc_sts.inp_undone_cnt,
+				frc_devp->in_sts.vs_cnt);
+		timeout = 0;
+		do {
+			readval = READ_FRC_BITS(FRC_INP_UE_CLR, 0, 6);
+			if (readval == 0)
+				break;
+		} while (timeout++ < 100);
+		if (frc_devp->ud_dbg.res1_time_en == 0) {
+			if (frc_devp->frc_sts.inp_undone_cnt ==
+						MAX_INP_UNDONE_CNT) {
+				if (frc_devp->frc_sts.retrycnt++ < 10) {
+					frc_devp->frc_sts.re_config = true;
+					PR_ERR("frc will reopen\n");
+				}
+			}
+		} else if (frc_devp->ud_dbg.res1_time_en == 1) {
+			if (frc_devp->frc_sts.inp_undone_cnt ==
+						MAX_INP_UNDONE_CNT * 3) {
+				if (frc_devp->frc_sts.retrycnt++ < 10) {
+					frc_devp->frc_sts.re_config = true;
+					PR_ERR("frc will reopen\n");
+				}
+			}
+		} else if (frc_devp->ud_dbg.res1_time_en == 2) {
+			frc_devp->frc_sts.re_config = false;
 		}
 	} else {
 		frc_devp->frc_sts.inp_undone_cnt = 0;

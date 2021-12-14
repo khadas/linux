@@ -452,6 +452,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 			devp->in_sts.have_vf_cnt = 0;
 			if (devp->frc_sts.state == FRC_STATE_DISABLE &&
 				devp->in_sts.vf_null_cnt == 108) {
+				devp->frc_sts.retrycnt = 0;
 				frc_change_to_state(FRC_STATE_BYPASS);
 				pr_frc(1, "no_frm->chg bypass\n");
 			} else if (devp->frc_sts.state == FRC_STATE_BYPASS &&
