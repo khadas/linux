@@ -3803,12 +3803,14 @@ void dim_pre_de_process(unsigned int channel)
 	/*dbg_set_DI_PRE_CTRL();*/
 	atomic_set(&get_hw_pre()->flg_wait_int, 1);
 	ppre->pre_de_busy = 1;
+	ppre->irq_time[0] = cur_to_usecs();
+	ppre->irq_time[1] = ppre->irq_time[0];
 	di_unlock_irqfiq_restore(irq_flag2);
 	/*reinit pre busy flag*/
 	pch->sum_pre++;
 	dim_dbg_pre_cnt(channel, "s3");
-	ppre->irq_time[0] = cur_to_msecs();
-	ppre->irq_time[1] = cur_to_msecs();
+//	ppre->irq_time[0] = cur_to_msecs();
+//	ppre->irq_time[1] = cur_to_msecs();
 	dim_ddbg_mod_save(EDI_DBG_MOD_PRE_SETE, channel, ppre->in_seq);/*dbg*/
 	dim_tr_ops.pre_set(ppre->di_wr_buf->vframe->index_disp);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
@@ -3900,6 +3902,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 				di_hf_hw_release(1);
 				ppre->di_wr_buf->hf_done = false;
 			}
+			ppre->timeout_check = true;
 		} else {
 			if (ppre->di_wr_buf->hf_done) {
 				di_hf_hw_release(1);
@@ -5280,6 +5283,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			vframe->width = dimp_get(edi_mp_force_width);
 		if (dimp_get(edi_mp_force_height))
 			vframe->height = dimp_get(edi_mp_force_height);
+		vframe->width = roundup(vframe->width, width_roundup);
 
 		/* backup frame motion info */
 		vframe->combing_cur_lev = dimp_get(edi_mp_cur_lev);/*cur_lev;*/
@@ -6542,11 +6546,11 @@ void dim_irq_pre(void)
 	struct di_pre_stru_s *ppre;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_hpre_s  *pre = get_hw_pre();
-
+	u64 ctime;
 	unsigned int data32 = RD(DI_INTR_CTRL);
 	unsigned int mask32 = (data32 >> 16) & 0x3ff;
 	unsigned int flag = 0;
-	unsigned long irq_flg;
+	unsigned long irq_flg = 0;
 
 	if (!sc2_dbg_is_en_pre_irq()) {
 		sc2_dbg_pre_info(data32);
@@ -6555,6 +6559,7 @@ void dim_irq_pre(void)
 	di_lock_irqfiq_save(irq_flg);	//2020-12-10
 	channel = pre->curr_ch;
 	ppre = pre->pres;
+	data32 = RD(DI_INTR_CTRL);
 
 	data32 &= 0x3fffffff;
 	//if ((data32 & 1) == 0 && dimp_get(edi_mp_di_dbg_mask) & 8)
@@ -6571,9 +6576,23 @@ void dim_irq_pre(void)
 			dim_print("irq pre DI IRQ 0x%x ==\n", data32);
 			flag = 0;
 		}
+	} else {
+		PR_WARN("irq:flag 0\n");
 	}
 
-
+	/* check timeout*/
+	ctime = cur_to_usecs() - ppre->irq_time[0];
+	if (ppre->timeout_check) {
+		if (ctime < 300 && flag) {
+			//DIM_DI_WR(DI_INTR_CTRL,
+			//	  (data32 & 0xfffffffb) | (intr_mode << 30));
+			ppre->timeout_check = false;
+			di_unlock_irqfiq_restore(irq_flg);
+			PR_WARN("irq delet %d\n", (unsigned int)ctime);
+			return;
+		}
+		ppre->timeout_check = false;
+	}
 	if (flag) {
 		if (DIM_IS_IC_EF(SC2))
 			opl1()->pre_gl_sw(false);
@@ -6596,10 +6615,10 @@ void dim_irq_pre(void)
 	}
 
 	if (flag) {
-		ppre->irq_time[0] =
-			(cur_to_msecs() - ppre->irq_time[0]);
-
-		dim_tr_ops.pre(ppre->field_count_for_cont, ppre->irq_time[0]);
+		//ppre->irq_time[0] =
+		//	(cur_to_msecs() - ppre->irq_time[0]);
+		dim_tr_ops.pre(ppre->field_count_for_cont,
+			       (unsigned long)ctime);
 
 		/*add from valsi wang.feng*/
 		if (!dim_dbg_cfg_disable_arb()) {

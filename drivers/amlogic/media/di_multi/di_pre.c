@@ -178,6 +178,9 @@ void dpre_clear(void)
 	memset(pre, 0, sizeof(struct di_hpre_s));
 }
 
+static unsigned int dim_pre_tm_thd = 40;
+module_param_named(dim_pre_tm_thd, dim_pre_tm_thd, uint, 0664);
+
 void dpre_init(void)
 {/*reg:*/
 	struct di_hpre_s  *pre = get_hw_pre();
@@ -186,7 +189,7 @@ void dpre_init(void)
 	//bset(&pre->self_trig_mask, 2);//
 
 	/*timer out*/
-	di_tout_int(&pre->tout, 40);	/*ms*/
+	di_tout_int(&pre->tout, dim_pre_tm_thd);	/*ms*/
 }
 
 void pw_use_hw_pre(enum EDI_SUB_ID channel, bool on)
@@ -543,8 +546,8 @@ void dpre_mtotal_timeout_contr(void)
 			pre->curr_ch,
 			pre->pres->field_count_for_cont,
 			RD(DI_INTR_CTRL),
-			(unsigned int)(cur_to_msecs() -
-			pre->pres->irq_time[1]),
+			(unsigned int)((cur_to_usecs() -
+			pre->pres->irq_time[0]) >> 10),
 			pre->irq_nr);
 	}
 	/*******************************/

@@ -548,7 +548,7 @@ struct di_pre_stru_s {
 //	bool vdin_source; /* ary 2020-06-12: no*/
 	int cma_release_req;
 	/* for performance debug */
-	unsigned long irq_time[2];
+	u64 irq_time[2];
 	/* combing adaptive */
 	struct combing_status_s *mtn_status;
 	bool combing_fix_en;
@@ -562,6 +562,7 @@ struct di_pre_stru_s {
 	unsigned int		v_size;	//real di v_size
 	struct SHRK_S shrk_cfg;
 	struct dvfm_s dw_wr_dvfm;
+	bool timeout_check;
 };
 
 struct dim_fmt_s;
