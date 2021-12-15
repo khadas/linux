@@ -482,9 +482,9 @@ error_init:
 
 static ssize_t secmem_mm_dump_vdec_info(int forceshow)
 {
-	char buf[2048] = { 0 };
+	char buf[1024] = { 0 };
 	char *pbuf = buf;
-	u32 size = 2048;
+	u32 size = 1024;
 	u32 s = 0;
 	u32 tsize = 0;
 	u32 freesize = 0;
