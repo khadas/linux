@@ -1146,7 +1146,7 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "tuner_num", &val);
 	if (ret == 0) {
 		dvbdev->tuner_num = val;
-		pr_err("find dvb tuner numbers %d.\n", dvbdev->tuner_num);
+		pr_debug("find dvb tuner numbers %d.\n", dvbdev->tuner_num);
 	} else {
 		pr_err("can't find tuner_num.\n");
 		goto PROPERTY_DEMOD;
@@ -1174,7 +1174,7 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 		} else {
 			tops->index = i;
 
-			pr_err("find tuner%d, id %d, i2c_addr 0x%x.\n",
+			pr_debug("find tuner%d, id %d, i2c_addr 0x%x.\n",
 				i, tops->cfg.id, tops->cfg.i2c_addr);
 
 			ret = dvb_tuner_ops_add(tops);
@@ -1187,7 +1187,7 @@ PROPERTY_DEMOD:
 	ret = of_property_read_u32(pdev->dev.of_node, "fe_num", &val);
 	if (ret == 0) {
 		dvbdev->demod_num = val;
-		pr_err("find dvb fe numbers %d.\n", dvbdev->demod_num);
+		pr_debug("find dvb fe numbers %d.\n", dvbdev->demod_num);
 	} else {
 		pr_err("can't find fe_num.\n");
 		goto PROPERTY_DONE;
@@ -1218,7 +1218,7 @@ PROPERTY_DEMOD:
 
 		dops->index = i;
 
-		pr_err("find demod%d, id %d, i2c_addr 0x%x.\n",
+		pr_debug("find demod%d, id %d, i2c_addr 0x%x.\n",
 				i, dops->cfg.id, dops->cfg.i2c_addr);
 
 		ret = dvb_demod_ops_add(dops);
@@ -1241,7 +1241,7 @@ PROPERTY_DEMOD:
 				memcpy(&dops->cfg.tuner0, &tops->cfg,
 						sizeof(struct tuner_config));
 
-			pr_err("get %s %d.\n", buf, val);
+			pr_debug("get %s %d.\n", buf, val);
 		}
 
 		/* S/S2 tuner */
@@ -1254,7 +1254,7 @@ PROPERTY_DEMOD:
 				memcpy(&dops->cfg.tuner1, &tops->cfg,
 						sizeof(struct tuner_config));
 
-			pr_err("get %s %d.\n", buf, val);
+			pr_debug("get %s %d.\n", buf, val);
 		}
 	}
 
@@ -1264,7 +1264,7 @@ PROPERTY_DEMOD:
 PROPERTY_DONE:
 	dvb_extern_dev = dvbdev;
 
-	pr_info("%s: OK.\n", __func__);
+	pr_debug("%s: OK.\n", __func__);
 
 	return 0;
 
