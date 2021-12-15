@@ -92,7 +92,7 @@ static int uk_item_create(struct platform_device *pdev, int *num)
 			index++;
 	}
 	*num = index;
-	pr_info("unifykey num is %d\n", *num);
+	pr_debug("unifykey num is %d\n", *num);
 
 	return 0;
 }
@@ -107,7 +107,7 @@ int uk_dt_create(struct platform_device *pdev)
 	ret = of_property_read_u32(pdev->dev.of_node, "unifykey-encrypt",
 				   &ukdev->uk_info.encrypt_type);
 	if (ret < 0)
-		pr_info("no unifykey-encrypt property\n");
+		pr_debug("no unifykey-encrypt property\n");
 
 	if (!(ukdev->uk_info.key_flag)) {
 		uk_item_create(pdev, &key_num);

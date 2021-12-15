@@ -783,7 +783,7 @@ static int key_item_parse_dt(const struct device_node *np_efusekey,
 		goto exit;
 	}
 
-	pr_info("efusekey name: %15s\toffset: %5d\tsize: %5d\n",
+	pr_debug("efusekey name: %15s\toffset: %5d\tsize: %5d\n",
 		infos[index].keyname,
 		infos[index].offset,
 		infos[index].size);
@@ -826,7 +826,7 @@ static int get_efusekey_info(struct device_node *np)
 		pr_err("efusekey num config error\n");
 		goto exit;
 	}
-	pr_info("efusekey num: %d\n", efuse_key.num);
+	pr_debug("efusekey num: %d\n", efuse_key.num);
 
 	efuse_key.infos = kzalloc((sizeof(struct efusekey_info))
 		* efuse_key.num, GFP_KERNEL);
@@ -892,7 +892,7 @@ static int check_item_parse_dt(const struct device_node *np_efusecheck,
 		goto exit;
 	}
 
-	pr_info("efusecheck name: %15s subcmd: 0x%16x\n",
+	pr_debug("efusecheck name: %15s subcmd: 0x%16x\n",
 		infos[index].itemname,
 		infos[index].subcmd);
 
@@ -932,7 +932,7 @@ static int get_efusecheck_info(struct device_node *np)
 		pr_notice("don't cfg efusecheck maincmd, used default:0x%x\n",
 				efusecheck.main_cmd);
 	} else {
-		pr_info("efuse check maincmd:0x%x\n",
+		pr_debug("efuse check maincmd:0x%x\n",
 			efusecheck.main_cmd);
 	}
 
@@ -947,7 +947,7 @@ static int get_efusecheck_info(struct device_node *np)
 		pr_err("efusecheck num config error\n");
 		goto exit;
 	}
-	pr_info("efusecheck num: %d\n", efusecheck.item_num);
+	pr_debug("efusecheck num: %d\n", efusecheck.item_num);
 
 	efusecheck.infos = kzalloc((sizeof(struct lockable_info))
 		* efusecheck.item_num, GFP_KERNEL);
@@ -1069,7 +1069,7 @@ static int efuse_probe(struct platform_device *pdev)
 		pr_err("can't get efuse_pattern_size, use default size0x%x\n",
 			efuse_pattern_size);
 	} else {
-		pr_info("efuse_pattern_size:0x%x\n",
+		pr_debug("efuse_pattern_size:0x%x\n",
 			efuse_pattern_size);
 	}
 

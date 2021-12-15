@@ -1276,7 +1276,7 @@ static int __init aml_unifykeys_probe(struct platform_device *pdev)
 		pr_err("fail to allocate major number\n ");
 		goto error1;
 	}
-	pr_info("unifykey_devno: %x\n", ukdev->uk_devno);
+	pr_debug("unifykey_devno: %x\n", ukdev->uk_devno);
 
 	ukdev->cls.name = UNIFYKEYS_CLASS_NAME;
 	ukdev->cls.owner = THIS_MODULE;
