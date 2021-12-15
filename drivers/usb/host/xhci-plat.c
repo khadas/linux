@@ -21,6 +21,7 @@
 #include <linux/usb/of.h>
 #ifdef CONFIG_AMLOGIC_USB
 #include <linux/kthread.h>
+#include <linux/amlogic/cpu_version.h>
 #endif
 
 #include "xhci.h"
@@ -206,8 +207,27 @@ static int crg_reset_thread(void *data)
 	}
 
 	crg_task[mutex_id].crg_reset_task = NULL;
+	kfree(crg_task[mutex_id].hcd_mutex);
 
 	return 0;
+}
+
+void crg_reset_thread_stop(struct platform_device *pdev)
+{
+	int i;
+
+	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
+		if (crg_task[i].id == pdev->id)
+			break;
+	}
+	if (i >= CRG_XHCI_MAX_COUNT) {
+		dev_err(&pdev->dev,
+				"Can't find the crg_task.id( dev->id=%d), not do unregister\n",
+				pdev->id);
+		return;
+	}
+	if (crg_task[i].crg_reset_task)
+		kthread_stop(crg_task[i].crg_reset_task);
 }
 #endif
 
@@ -414,6 +434,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_AMLOGIC_USB
 	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
+		if (!(xhci->quirks & XHCI_CRG_HOST) &&
+			!is_meson_t7_cpu()) {
+			break;
+		}
 		if (!crg_task[i].crg_reset_task) {
 			for (j = 0; j < i; j++) {
 				if (crg_task[j].id == pdev->id) {
@@ -638,15 +662,6 @@ module_init(xhci_plat_init);
 
 static void __exit xhci_plat_exit(void)
 {
-#ifdef CONFIG_AMLOGIC_USB
-	int i;
-
-	for (i = 0; i <= crg_xhci_count; i++) {
-		if (crg_task[i].crg_reset_task)
-			kthread_stop(crg_task[i].crg_reset_task);
-		kfree(crg_task[i].hcd_mutex);
-	}
-#endif
 	platform_driver_unregister(&usb_xhci_driver);
 }
 module_exit(xhci_plat_exit);

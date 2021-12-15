@@ -34,8 +34,9 @@ struct crg_reset {
 	int id;
 };
 
-extern struct crg_reset crg_task[CRG_XHCI_MAX_COUNT];
+//extern struct crg_reset crg_task[CRG_XHCI_MAX_COUNT];
 extern unsigned int db_wait;
+void crg_reset_thread_stop(struct platform_device *pdev);
 #endif
 
 /* xHCI PCI Configuration Registers */
@@ -1917,7 +1918,6 @@ struct xhci_hcd {
 #define XHCI_AML_SUPER_SPEED_SUPPORT   BIT_ULL(41)
 #define XHCI_CRG_HOST          BIT_ULL(42)
 #endif
-
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;

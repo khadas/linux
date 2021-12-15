@@ -163,24 +163,8 @@ static int crg_core_get_phy(struct crg_drd *crg)
 
 static void crg_host_exit(struct crg_drd *crg)
 {
-	int i;
-
-	for (i = 0; i < CRG_XHCI_MAX_COUNT; i++) {
-		if (crg_task[i].id == crg->xhci->id)
-			break;
-	}
-	if (i >= CRG_XHCI_MAX_COUNT) {
-		dev_err(crg->dev,
-				"Can't find the crg_task.id( dev->id=%d), not do unregister\n",
-				crg->xhci->id);
-		return;
-	}
-	if (crg_task[i].crg_reset_task)
-		kthread_stop(crg_task[i].crg_reset_task);
-
+	crg_reset_thread_stop(crg->xhci);
 	platform_device_unregister(crg->xhci);
-
-	kfree(crg_task[i].hcd_mutex);
 }
 
 static int crg_host_init(struct crg_drd *crg)
