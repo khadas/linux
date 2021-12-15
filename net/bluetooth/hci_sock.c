@@ -2052,7 +2052,7 @@ int __init hci_sock_init(void)
 		goto error;
 	}
 
-	BT_INFO("HCI socket layer initialized");
+	BT_DBG("HCI socket layer initialized");
 
 	return 0;
 

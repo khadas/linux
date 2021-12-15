@@ -741,7 +741,7 @@ static int __init bt_init(void)
 	if (err)
 		goto cleanup_sysfs;
 
-	BT_INFO("HCI device and connection manager initialized");
+	BT_DBG("HCI device and connection manager initialized");
 
 	err = hci_sock_init();
 	if (err)

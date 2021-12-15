@@ -373,7 +373,7 @@ static int bt_set_block(void *data, bool blocked)
 	struct bt_dev_data *pdata = data;
 
 	if (rfk_reg) {
-		pr_info("first rfkill_register skip\n");
+		pr_debug("first rfkill_register skip\n");
 		rfk_reg = 0;
 		return 0;
 	}
@@ -477,7 +477,7 @@ static int bt_probe(struct platform_device *pdev)
 		ret = of_property_read_string(pdev->dev.of_node,
 					      "bt_en-gpios", &str);
 		if (ret) {
-			pr_warn("not get gpio_en\n");
+			pr_debug("not get gpio_en\n");
 			pdata->gpio_en = 0;
 		} else {
 			pdata->gpio_en = of_get_named_gpio_flags
@@ -499,7 +499,7 @@ static int bt_probe(struct platform_device *pdev)
 		ret = of_property_read_string(pdev->dev.of_node,
 			"btwakeup-gpios", &str);
 		if (ret) {
-			pr_warn("not get btwakeup-gpios\n");
+			pr_debug("not get btwakeup-gpios\n");
 			pdata->gpio_btwakeup = 0;
 		} else {
 			pdata->gpio_btwakeup = of_get_named_gpio_flags

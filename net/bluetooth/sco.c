@@ -1227,7 +1227,7 @@ int __init sco_init(void)
 		goto error;
 	}
 
-	BT_INFO("SCO socket layer initialized");
+	BT_DBG("SCO socket layer initialized");
 
 	hci_register_cb(&sco_cb);
 
