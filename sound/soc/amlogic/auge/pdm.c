@@ -1163,7 +1163,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 		/* defulat set 1 */
 		p_pdm->filter_mode = 1;
 	}
-	pr_info("%s pdm filter mode from dts:%d\n",
+	pr_debug("%s pdm filter mode from dts:%d\n",
 		__func__, p_pdm->filter_mode);
 
 	ret = of_property_read_u32(node, "train_sample_count",
@@ -1191,7 +1191,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	pr_info("%s, register soc platform\n", __func__);
+	pr_debug("%s, register soc platform\n", __func__);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	pdm_platform_early_suspend_handler[p_pdm->pdm_id].param = pdev;
