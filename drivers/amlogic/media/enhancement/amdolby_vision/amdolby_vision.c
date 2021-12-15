@@ -1440,6 +1440,11 @@ static int set_backlight_delay_vsync = 1;
 module_param(set_backlight_delay_vsync, int, 0664);
 MODULE_PARM_DESC(set_backlight_delay_vsync,    "\n set_backlight_delay_vsync\n");
 
+static bool disable_aoi;
+static int debug_cp_res;
+static int debug_disable_aoi;
+static int debug_dma_start_line;
+
 s16 brightness_off[8][2] = {
 	{0, 150},   /* DV OTT DM3, DM4  */
 	{0, 150}, /* DV Sink-led DM3, DM4 */
@@ -2227,7 +2232,9 @@ static void adjust_vpotch_tv(void)
 
 	if (is_meson_tm2() || is_meson_t7() ||
 	    is_meson_t3() || is_meson_t5w()) {
-		if (vinfo) {
+		if (debug_dma_start_line) {
+			dma_start_line = debug_dma_start_line;
+		} else if (vinfo) {
 			if (vinfo && vinfo->width >= 1920 &&
 			vinfo->height >= 1080 &&
 			vinfo->field_height >= 1080)
@@ -2530,6 +2537,15 @@ static int tv_dolby_core1_set
 	}
 	tv_dovi_setting->core1_reg_lut[1] =
 		0x0000000100000000 | run_mode;
+	if (debug_disable_aoi) {
+		if (debug_disable_aoi == 1)
+			tv_dovi_setting->core1_reg_lut[44] =
+			0x0000002e00000000;
+	} else if (disable_aoi) {
+		tv_dovi_setting->core1_reg_lut[44] =
+		0x0000002e00000000;
+	}
+
 	if (reset)
 		VSYNC_WR_DV_REG(DOLBY_TV_REG_START + 1, run_mode);
 	if (is_meson_tm2_stbmode() || is_meson_t7_stbmode())
@@ -9603,6 +9619,10 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		}
 		tv_dovi_setting->video_width = w << 16;
 		tv_dovi_setting->video_height = h << 16;
+		if (debug_cp_res > 0) {
+			tv_dovi_setting->video_width = debug_cp_res & 0xffff0000;
+			tv_dovi_setting->video_height = (debug_cp_res & 0xffff) << 16;
+		}
 		if (!p_funcs_tv || !p_funcs_tv->tv_control_path)
 			return -1;
 		if (!(dolby_vision_flags & FLAG_CERTIFICAION) &&
@@ -10554,6 +10574,32 @@ static void bypass_pps_path(u8 pps_state)
 	}
 }
 
+/*In some cases, from full screen to small window, the L5 metadata of the stream does*/
+/*not change, and the AOI area does not change, lead to the display to be incomplete*/
+/*if vpp disp size smaller than stream source size,  ignore AOI info*/
+static void update_aoi_flag(struct vframe_s *vf, u32 display_size)
+{
+	int tmp_h;
+	int tmp_v;
+
+	tmp_h = (vf->type & VIDTYPE_COMPRESS) ?
+		vf->compWidth : vf->width;
+	tmp_v = (vf->type & VIDTYPE_COMPRESS) ?
+		vf->compHeight : vf->height;
+	if (tmp_h != ((display_size >> 16) & 0xffff) ||
+		tmp_v != (display_size & 0xffff)) {
+		disable_aoi = true;
+		if (debug_dolby & 1)
+			pr_dolby_dbg
+			("disp size != src size %d %d->%d %d\n",
+			 tmp_h, tmp_v,
+			 (display_size >> 16) & 0xffff,
+			 display_size & 0xffff);
+	} else {
+		disable_aoi = false;
+	}
+}
+
 /* toggle mode: 0: not toggle; 1: toggle frame; 2: use keep frame */
 /* pps_state 0: no change, 1: pps enable, 2: pps disable */
 int dolby_vision_process(struct vframe_s *vf,
@@ -10602,6 +10648,9 @@ int dolby_vision_process(struct vframe_s *vf,
 		}
 		dolby_vision_on_count = 1 +
 			dolby_vision_run_mode_delay;
+	} else {
+		if (vf)
+			update_aoi_flag(vf, display_size);
 	}
 
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME)	{
@@ -13467,7 +13516,9 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo enable_vf_check 1 > /sys/class/amdolby_vision/debug;\n"
 	"echo enable_vf_check 0 > /sys/class/amdolby_vision/debug;\n"
 	"echo force_hdmin_fmt value > /sys/class/amdolby_vision/debug; 1:HDR10 2:HLG 3:DV LL\n"
-
+	"echo debug_cp_res value > /sys/class/amdolby_vision/debug; bit0~bit15 h, bit16~bit31 w\n"
+	"echo debug_disable_aoi value > /sys/class/amdolby_vision/debug; 1:disable aoi;>1 not disable\n"
+	"echo debug_dma_start_line value > /sys/class/amdolby_vision/debug;\n"
 };
 
 static ssize_t  amdolby_vision_debug_show
@@ -13591,6 +13642,21 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		force_hdmin_fmt = val;
 		pr_info("set force_hdmin_fmt %d\n", force_hdmin_fmt);
+	} else if (!strcmp(parm[0], "debug_disable_aoi")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		debug_disable_aoi = val;
+		pr_info("set debug_disable_aoi %d\n", debug_disable_aoi);
+	} else if (!strcmp(parm[0], "debug_cp_res")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		debug_cp_res = val;
+		pr_info("set debug_cp_res %d\n", debug_cp_res);
+	} else if (!strcmp(parm[0], "debug_dma_start_line")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		debug_dma_start_line = val;
+		pr_info("set debug_dma_start_line %d\n", debug_dma_start_line);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
