@@ -832,7 +832,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	dsu_pre_parent2 = of_clk_get_by_name(np, DSU_PRE_PARENT2);
 	if (IS_ERR(dsu_pre_parent2)) {
 		dsu_pre_parent2 = NULL;
-		pr_info("%s: ignor dsu pre parent2 clk!\n", __func__);
+		pr_debug("%s: ignor dsu pre parent2 clk!\n", __func__);
 	}
 
 	cpufreq_voltage_set_skip = of_property_read_bool(np,
@@ -865,11 +865,11 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 
 	cpu_supply_external_used = of_property_read_bool(np, "cpu_supply_external_used");
 	dsu_clock_shared = of_property_read_bool(np, "dsu_clock_shared");
-	pr_info("[%s %d][%d %d]\n", __func__, __LINE__, cpu_supply_external_used, dsu_clock_shared);
+	pr_debug("[%s %d][%d %d]\n", __func__, __LINE__, cpu_supply_external_used, dsu_clock_shared);
 
 	if (of_property_read_u32(np, "voltage-tolerance", &volt_tol))
 		volt_tol = DEF_VOLT_TOL;
-	pr_info("value of voltage_tolerance %u\n", volt_tol);
+	pr_debug("value of voltage_tolerance %u\n", volt_tol);
 
 	if (!of_property_read_u32(np, "mid-rate",
 				  &tmp_rate))
@@ -877,7 +877,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	if (of_property_read_u32(np, "dsu-low-rate",
 				 &low_dsu_rate))
 		low_dsu_rate = DSU_LOW_RATE;
-	pr_info("value of low_dsu_rate %u\n", low_dsu_rate);
+	pr_debug("value of low_dsu_rate %u\n", low_dsu_rate);
 
 	tables_index = choose_cpufreq_tables_index(np, cur_cluster);
 	ret = dev_pm_opp_of_add_table_indexed(cpu_dev, tables_index);
