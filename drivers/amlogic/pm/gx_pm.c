@@ -30,6 +30,7 @@
 #include <linux/amlogic/power_domain.h>
 #include "vad_power.h"
 #include <linux/syscore_ops.h>
+#include <linux/time64.h>
 
 #undef pr_fmt
 #define pr_fmt(fmt) "gxbb_pm: " fmt
@@ -229,7 +230,11 @@ static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
 static void __iomem *debug_reg;
 static void __iomem *exit_reg;
 static suspend_state_t pm_state;
+static unsigned int suspend_reason;
 static unsigned int resume_reason;
+static unsigned int suspend_time_out;
+static unsigned int shutdown_time_out;
+static unsigned int shutdown_set_time;
 
 /*
  * get_resume_reason always return last resume reason.
@@ -300,7 +305,6 @@ EXPORT_SYMBOL_GPL(is_pm_s2idle_mode);
 
 /*Call it as suspend_reason because of historical reasons. */
 /*Actually, we should call it wakeup_reason.               */
-static unsigned int suspend_reason;
 ssize_t suspend_reason_show(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
@@ -338,13 +342,12 @@ ssize_t time_out_show(struct device *dev, struct device_attribute *attr,
 {
 	unsigned int val = 0, len;
 
-	val = readl_relaxed(debug_reg);
+	val = suspend_time_out;
 	len = sprintf(buf, "%d\n", val);
 
 	return len;
 }
 
-static int sys_time_out;
 ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 		       const char *buf, size_t count)
 {
@@ -354,8 +357,7 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 	ret = kstrtouint(buf, 10, &time_out);
 	switch (ret) {
 	case 0:
-		sys_time_out = time_out;
-		writel_relaxed(time_out, debug_reg);
+		suspend_time_out = time_out;
 		break;
 	default:
 		return -EINVAL;
@@ -366,9 +368,53 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RW(time_out);
 
+ssize_t shutdown_alarm_show(struct device *dev, struct device_attribute *attr,
+		   char *buf)
+{
+	unsigned int len = 0;
+	int val;
+	struct timespec64 boot_time;
+
+	if (shutdown_set_time == 0)
+		return len;
+
+	ktime_get_boottime_ts64(&boot_time);
+	val = shutdown_time_out - boot_time.tv_sec;
+	if (val > 0)
+		len = sprintf(buf, "%d\n", shutdown_set_time);
+	else
+		pr_info("%s: alarm is expired\n", __func__);
+
+	return len;
+}
+
+ssize_t shutdown_alarm_store(struct device *dev, struct device_attribute *attr,
+		    const char *buf, size_t count)
+{
+	unsigned int time_out;
+	int ret;
+	struct timespec64 boot_time;
+
+	ret = kstrtouint(buf, 10, &time_out);
+	switch (ret) {
+	case 0:
+		shutdown_set_time = time_out;
+		ktime_get_boottime_ts64(&boot_time);
+		shutdown_time_out = time_out + boot_time.tv_sec;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(shutdown_alarm);
+
 static struct attribute *meson_pm_attrs[] = {
 	&dev_attr_suspend_reason.attr,
 	&dev_attr_time_out.attr,
+	&dev_attr_shutdown_alarm.attr,
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	&dev_attr_early_suspend_trigger.attr,
 #endif
@@ -385,20 +431,32 @@ static struct class meson_pm_class = {
 
 int gx_pm_syscore_suspend(void)
 {
-	if (sys_time_out)
-		writel_relaxed(sys_time_out, debug_reg);
+	if (suspend_time_out)
+		writel_relaxed(suspend_time_out, debug_reg);
 	return 0;
 }
 
 void gx_pm_syscore_resume(void)
 {
-	sys_time_out = 0;
+	suspend_time_out = 0;
 	set_resume_method(get_resume_reason());
+}
+
+void gx_pm_syscore_shutdown(void)
+{
+	int val;
+	struct timespec64 boot_time;
+
+	ktime_get_boottime_ts64(&boot_time);
+	val = shutdown_time_out - boot_time.tv_sec;
+	if (val > 0)
+		writel_relaxed(val, debug_reg);
 }
 
 static struct syscore_ops gx_pm_syscore_ops = {
 	.suspend = gx_pm_syscore_suspend,
 	.resume	= gx_pm_syscore_resume,
+	.shutdown = gx_pm_syscore_shutdown,
 };
 
 static int __init gx_pm_init_ops(void)
@@ -483,6 +541,7 @@ static int __exit meson_pm_remove(struct platform_device *pdev)
 		iounmap(exit_reg);
 	device_remove_file(&pdev->dev, &dev_attr_suspend_reason);
 	device_remove_file(&pdev->dev, &dev_attr_time_out);
+	device_remove_file(&pdev->dev, &dev_attr_shutdown_alarm);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	lgcy_early_suspend_exit(pdev);
 #endif
