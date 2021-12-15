@@ -48,6 +48,16 @@ struct ddr_port_desc {
 	unsigned char port_id;
 };
 
+struct vpu_sub_desc {
+	char vpu_r0_2[MAX_NAME]; /* vpu_r0 same as vpu_r2 */
+	char vpu_r1[MAX_NAME];
+	char vpu_w0[MAX_NAME];
+	char vpu_w1[MAX_NAME];
+	unsigned char sub_id;
+};
+
+int dmc_find_port_sub(int cpu_type, struct vpu_sub_desc **desc);
+char *vpu_to_sub_port(char *name, char rw, int sid, char *id_str);
 /*
  * This function used only during boot
  */

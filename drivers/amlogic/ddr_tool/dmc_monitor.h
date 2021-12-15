@@ -47,12 +47,14 @@ struct dmc_monitor {
 	u32            mon_number;	/* monitor number */
 	u8             debug;		/* monitor debug */
 	unsigned short port_num;	/* how many devices? */
+	unsigned short vpu_port_num;	/* vpu sub number */
 	unsigned char  chip;		/* chip ID */
 	unsigned char  configs;		/* config for dmc */
 	unsigned long  last_addr;
 	unsigned long  same_page;
 	unsigned long  last_status;
 	struct ddr_port_desc *port;
+	struct vpu_sub_desc *vpu_port;
 	struct dmc_mon_ops   *ops;
 	struct delayed_work work;
 };
@@ -87,6 +89,7 @@ unsigned long dmc_prot_rw(void __iomem *base, unsigned long addr,
 			  unsigned long value, int rw);
 
 char *to_ports(int id);
+char *to_sub_ports_name(int mid, int sid, char *id_str, char rw);
 char *to_sub_ports(int mid, int sid, char *id_str);
 void show_violation_mem(unsigned long addr);
 

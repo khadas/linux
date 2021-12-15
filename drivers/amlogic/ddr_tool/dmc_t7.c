@@ -124,7 +124,8 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 {
 	char rw = 'n';
 	char title[5] = "";
-	int port;
+	char id_str[4];
+	int port, subport;
 	unsigned long addr;
 	unsigned long status;
 	struct page *page;
@@ -173,8 +174,10 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 	}
 
 	port = status & 0xff;
-	pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, c:%ld, d:%p, rw:%c\n",
+	subport = (status >> 9) & 0xf;
+	pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p, rw:%c\n",
 		 title, addr, status, to_ports(port),
+		 to_sub_ports_name(port, subport, id_str, rw),
 		 mon->same_page, io, rw);
 
 	if (rw == 'w')

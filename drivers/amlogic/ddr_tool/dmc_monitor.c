@@ -137,16 +137,18 @@ char *to_ports(int id)
 	return NULL;
 }
 
-char *to_sub_ports(int mid, int sid, char *id_str)
+/*
+ * Currently only T3, T7 and P1 have added READ functionality
+ * Other chips driver only have write function by default,
+ * if you want to use the read function, you need to modify the driver
+ */
+char *to_sub_ports_name(int mid, int sid, char *id_str, char rw)
 {
 	int i, s_port;
 
-	if (dual_dmc(dmc_mon) || quad_dmc(dmc_mon))	/* not supported */
-		return NULL;
-
 	/* 7 is device port id */
 	/* t5w 7 and 10 is device port id */
-	if (strstr(dmc_mon->port[mid].port_name, "DEVICE")) {
+	if (strstr(to_ports(mid), "DEVICE")) {
 		if (mid == 7)
 			s_port = sid + PORT_MAJOR;
 		else if (mid == 10)
@@ -157,9 +159,18 @@ char *to_sub_ports(int mid, int sid, char *id_str)
 				return dmc_mon->port[i].port_name;
 		}
 	}
+	if (strstr(to_ports(mid), "VPU"))
+		return vpu_to_sub_port(to_ports(mid), rw, sid, id_str);
+
 	sprintf(id_str, "%2d", sid);
 
 	return id_str;
+}
+
+/* The old default parsing sub id function */
+char *to_sub_ports(int mid, int sid, char *id_str)
+{
+	return to_sub_ports_name(mid, sid, id_str, 'w');
 }
 
 unsigned int get_all_dev_mask(void)
@@ -583,10 +594,11 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 
 static int __init dmc_monitor_probe(struct platform_device *pdev)
 {
-	int r = 0, irq, ports;
+	int r = 0, irq, ports, vpu_ports;
 	unsigned int tmp;
 	struct device_node *node;
 	struct ddr_port_desc *desc = NULL;
+	struct vpu_sub_desc *vpu_desc = NULL;
 	struct resource *res;
 
 	pr_info("%s\n", __func__);
@@ -606,6 +618,14 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	dmc_mon->port_num = ports;
 	dmc_mon->port = desc;
 	get_dmc_ops(dmc_mon->chip, dmc_mon);
+
+	vpu_ports = dmc_find_port_sub(tmp, &vpu_desc);
+	if (vpu_ports < 0) {
+		dmc_mon->vpu_port = NULL;
+		dmc_mon->vpu_port_num = 0;
+	}
+	dmc_mon->vpu_port_num = vpu_ports;
+	dmc_mon->vpu_port = vpu_desc;
 
 	node = pdev->dev.of_node;
 	r = of_property_read_u32(node, "reg_base", &tmp);
