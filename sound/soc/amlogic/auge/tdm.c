@@ -68,6 +68,7 @@ static void dump_pcm_setting(struct pcm_setting *setting)
 	pr_debug("\tlane_mask_out(%#x)\n", setting->lane_mask_out);
 }
 
+#define SRC_LENGTH (32)
 struct aml_tdm {
 	struct pcm_setting setting;
 	struct pinctrl *pin_ctl;
@@ -94,7 +95,7 @@ struct aml_tdm {
 	int lane_ss;
 	/* virtual link for i2s to hdmitx */
 	int i2s2hdmitx;
-	char tdmin_src_name[32];
+	char tdmin_src_name[SRC_LENGTH];
 	uint last_mpll_freq;
 	uint last_mclk_freq;
 	uint last_fmt;
@@ -669,11 +670,9 @@ static int tdmin_src_enum_put(struct snd_kcontrol *kcontrol,
 	if (value >= ARRAY_SIZE(tdmin_source_text))
 		return -EINVAL;
 
-	if (p) {
-	//	pr_info("%s(), strlen = %d\n",
-	//			__func__, strlen(p));
-		memcpy(p, tdmin_source_text[value],	strlen(p));
-	}
+	if (p)
+		strncpy(p, tdmin_source_text[value],	SRC_LENGTH - 1);
+
 	return 0;
 }
 
@@ -1892,7 +1891,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 
 		ret = of_property_read_string(node, "tdmin-src-name", &p);
 		if (p)
-			memcpy(p_tdm->tdmin_src_name, p, strlen(p));
+			strncpy(p_tdm->tdmin_src_name, p, SRC_LENGTH - 1);
 
 		if (!ret)
 			pr_info("TDM id %d supports %s\n",
