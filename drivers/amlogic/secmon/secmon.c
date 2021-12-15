@@ -109,7 +109,7 @@ static int secmon_probe(struct platform_device *pdev)
 		pr_err("alloc page failed, ret:%p\n", page);
 		return -ENOMEM;
 	}
-	pr_info("get page:%p, %lx\n", page, page_to_pfn(page));
+	pr_debug("get page:%p, %lx\n", page, page_to_pfn(page));
 	secmon_start_virt = (unsigned long)page_to_virt(page);
 
 	if (pfn_valid(__phys_to_pfn(phy_in_base)))
@@ -134,9 +134,9 @@ static int secmon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	secmon_dev_registered = DEV_REGISTERED;
-	pr_info("share in base: 0x%lx, share out base: 0x%lx\n",
+	pr_debug("share in base: 0x%lx, share out base: 0x%lx\n",
 		(long)sharemem_in_base, (long)sharemem_out_base);
-	pr_info("phy_in_base: 0x%lx, phy_out_base: 0x%lx\n",
+	pr_debug("phy_in_base: 0x%lx, phy_out_base: 0x%lx\n",
 		phy_in_base, phy_out_base);
 
 	return ret;
