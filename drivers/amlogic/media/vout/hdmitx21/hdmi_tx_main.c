@@ -4169,7 +4169,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	edidinfo_detach_to_vinfo(hdev);
-	pr_info("plugout\n");
+	pr_debug("plugout\n");
 	if (!!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))) {
 		pr_info("hpd gpio high\n");
 		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
@@ -4357,7 +4357,7 @@ static void hdmitx_init_fmt_attr(struct hdmitx_dev *hdev)
 	default:
 		break;
 	}
-	pr_info("fmt_attr %s\n", hdev->fmt_attr);
+	pr_debug("fmt_attr %s\n", hdev->fmt_attr);
 }
 
 /* for notify to cec */

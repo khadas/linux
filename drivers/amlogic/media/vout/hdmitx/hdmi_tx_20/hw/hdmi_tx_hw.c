@@ -259,7 +259,7 @@ int hdmitx_hdcp_opr(unsigned int val)
 
 static void config_avmute(unsigned int val)
 {
-	pr_info(HW "avmute set to %d\n", val);
+	pr_debug(HW "avmute set to %d\n", val);
 	switch (val) {
 	case SET_AVMUTE:
 		hdmitx_set_reg_bits(HDMITX_DWC_FC_GCP, 1, 1, 1);
@@ -618,7 +618,7 @@ int hdmitx_uboot_audio_en(void)
 	unsigned int data;
 
 	data = hdmitx_rd_reg(HDMITX_DWC_FC_PACKET_TX_EN);
-	pr_info("%s[%d] data = 0x%x\n", __func__, __LINE__, data);
+	pr_debug("%s[%d] data = 0x%x\n", __func__, __LINE__, data);
 	if ((data & 1) || ((data >> 3) & 1))
 		return 1;
 	else

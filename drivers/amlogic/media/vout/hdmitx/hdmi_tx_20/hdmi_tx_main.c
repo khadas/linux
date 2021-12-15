@@ -1543,14 +1543,14 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 				(data->features >> 16) & 0xff;
 			hdev->colormetry =
 				(data->features >> 30) & 0x1;
-			pr_info("%s: tf=%d, cf=%d, colormetry=%d\n",
+			pr_debug("%s: tf=%d, cf=%d, colormetry=%d\n",
 				__func__,
 				hdev->hdr_transfer_feature,
 				hdev->hdr_color_feature,
 				hdev->colormetry);
 		}
 	} else {
-		pr_info("%s: disable drm pkt\n", __func__);
+		pr_debug("%s: disable drm pkt\n", __func__);
 	}
 
 	hdr_status_pos = 1;
@@ -6485,7 +6485,7 @@ static void amhdmitx_get_drm_info(void)
 		hdmitx_device.drm_hpd_cb.data = 0;
 		hdmitx_device.drm_hdcp_cb.callback = 0;
 		hdmitx_device.drm_hdcp_cb.data = 0;
-		pr_info("drm_feature skip.");
+		pr_debug("drm_feature skip.");
 	}
 }
 
@@ -6543,7 +6543,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 				hdmitx_device.data->chip_name = "tm2";
 			}
 		}
-		pr_info(SYS "chip_type:%d chip_name:%s\n",
+		pr_debug(SYS "chip_type:%d chip_name:%s\n",
 			hdmitx_device.data->chip_type,
 			hdmitx_device.data->chip_name);
 
@@ -6656,7 +6656,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		       __func__);
 			return -ENXIO;
 	}
-	pr_info(SYS "hpd irq = %d\n", hdmitx_device.irq_hpd);
+	pr_debug(SYS "hpd irq = %d\n", hdmitx_device.irq_hpd);
 
 	hdmitx_device.irq_viu1_vsync =
 		platform_get_irq_byname(pdev, "viu1_vsync");
@@ -6665,7 +6665,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		       __func__);
 		return -ENXIO;
 	}
-	pr_info(SYS "viu1_vsync irq = %d\n", hdmitx_device.irq_viu1_vsync);
+	pr_debug(SYS "viu1_vsync irq = %d\n", hdmitx_device.irq_viu1_vsync);
 
 	return ret;
 }
@@ -6683,7 +6683,7 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev)
 
 	hdmi_clk_vapb = devm_clk_get(hdmitx_dev, "hdmi_vapb_clk");
 	if (IS_ERR(hdmi_clk_vapb)) {
-		pr_warn(SYS "vapb_clk failed to probe\n");
+		pr_debug(SYS "vapb_clk failed to probe\n");
 	} else {
 		hdmitx_device.hdmitx_clk_tree.hdmi_clk_vapb = hdmi_clk_vapb;
 		clk_prepare_enable(hdmitx_device.hdmitx_clk_tree.hdmi_clk_vapb);
@@ -6691,7 +6691,7 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev)
 
 	hdmi_clk_vpu = devm_clk_get(hdmitx_dev, "hdmi_vpu_clk");
 	if (IS_ERR(hdmi_clk_vpu)) {
-		pr_warn(SYS "vpu_clk failed to probe\n");
+		pr_debug(SYS "vpu_clk failed to probe\n");
 	} else {
 		hdmitx_device.hdmitx_clk_tree.hdmi_clk_vpu = hdmi_clk_vpu;
 		clk_prepare_enable(hdmitx_device.hdmitx_clk_tree.hdmi_clk_vpu);
@@ -6699,31 +6699,31 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev)
 
 	hdcp22_tx_skp = devm_clk_get(hdmitx_dev, "hdcp22_tx_skp");
 	if (IS_ERR(hdcp22_tx_skp))
-		pr_warn(SYS "hdcp22_tx_skp failed to probe\n");
+		pr_debug(SYS "hdcp22_tx_skp failed to probe\n");
 	else
 		hdmitx_device.hdmitx_clk_tree.hdcp22_tx_skp = hdcp22_tx_skp;
 
 	hdcp22_tx_esm = devm_clk_get(hdmitx_dev, "hdcp22_tx_esm");
 	if (IS_ERR(hdcp22_tx_esm))
-		pr_warn(SYS "hdcp22_tx_esm failed to probe\n");
+		pr_debug(SYS "hdcp22_tx_esm failed to probe\n");
 	else
 		hdmitx_device.hdmitx_clk_tree.hdcp22_tx_esm = hdcp22_tx_esm;
 
 	venci_top_gate = devm_clk_get(hdmitx_dev, "venci_top_gate");
 	if (IS_ERR(venci_top_gate))
-		pr_warn(SYS "venci_top_gate failed to probe\n");
+		pr_debug(SYS "venci_top_gate failed to probe\n");
 	else
 		hdmitx_device.hdmitx_clk_tree.venci_top_gate = venci_top_gate;
 
 	venci_0_gate = devm_clk_get(hdmitx_dev, "venci_0_gate");
 	if (IS_ERR(venci_0_gate))
-		pr_warn(SYS "venci_0_gate failed to probe\n");
+		pr_debug(SYS "venci_0_gate failed to probe\n");
 	else
 		hdmitx_device.hdmitx_clk_tree.venci_0_gate = venci_0_gate;
 
 	venci_1_gate = devm_clk_get(hdmitx_dev, "venci_1_gate");
 	if (IS_ERR(venci_1_gate))
-		pr_warn(SYS "venci_0_gate failed to probe\n");
+		pr_debug(SYS "venci_0_gate failed to probe\n");
 	else
 		hdmitx_device.hdmitx_clk_tree.venci_1_gate = venci_1_gate;
 

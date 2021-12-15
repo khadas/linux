@@ -116,7 +116,7 @@ EXPORT_SYMBOL(hdmitx21_ddc_hw_op);
 
 static void config_avmute(u32 val)
 {
-	pr_info(HW "avmute set to %d\n", val);
+	pr_debug(HW "avmute set to %d\n", val);
 	switch (val) {
 	case SET_AVMUTE:
 		break;
