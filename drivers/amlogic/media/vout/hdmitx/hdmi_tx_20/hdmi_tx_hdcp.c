@@ -286,7 +286,7 @@ int hdmitx_hdcp_init(void)
 	struct hdmitx_dev *hdev = get_hdmitx_device();
 	struct dentry *entry;
 
-	pr_info(HDCP "%s\n", __func__);
+	pr_debug(HDCP "%s\n", __func__);
 	if (!hdev->hdtx_dev) {
 		pr_info(HDCP "exit for null device of hdmitx!\n");
 		return -ENODEV;
