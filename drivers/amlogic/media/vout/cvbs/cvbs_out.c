@@ -1448,7 +1448,7 @@ static int create_cvbs_attr(struct cvbs_drv_s *cdrv)
 		ret = PTR_ERR(cdrv->dev);
 		goto fail_create_device;
 	} else {
-		cvbs_log_info("create cdev %s\n", CVBS_NAME);
+		cvbs_log_dbg("create cdev %s\n", CVBS_NAME);
 	}
 	return 0;
 
@@ -1491,7 +1491,7 @@ static void cvbsout_get_config(struct device *dev)
 			cvbs_log_err("error: invalid clk_path\n");
 		} else {
 			cvbs_clk_path = val;
-			cvbs_log_info("clk path:0x%x\n", cvbs_clk_path);
+			cvbs_log_dbg("clk path:0x%x\n", cvbs_clk_path);
 		}
 	}
 
@@ -1514,7 +1514,7 @@ static void cvbsout_get_config(struct device *dev)
 	if (cnt >= CVBS_PERFORMANCE_CNT_MAX)
 		cnt = 0;
 	if (cnt > 0) {
-		cvbs_log_info("find performance_pal config\n");
+		cvbs_log_dbg("find performance_pal config\n");
 		cvbs_drv->perf_conf_pal_sva.reg_table =
 			kcalloc(cnt, sizeof(struct reg_s), GFP_KERNEL);
 		if (!cvbs_drv->perf_conf_pal_sva.reg_table) {
@@ -1560,7 +1560,7 @@ static void cvbsout_get_config(struct device *dev)
 	if (cnt >= CVBS_PERFORMANCE_CNT_MAX)
 		cnt = 0;
 	if (cnt > 0) {
-		cvbs_log_info("find performance_pal config\n");
+		cvbs_log_dbg("find performance_pal config\n");
 		cvbs_drv->perf_conf_pal.reg_table =
 			kcalloc(cnt, sizeof(struct reg_s), GFP_KERNEL);
 		if (!cvbs_drv->perf_conf_pal.reg_table) {
@@ -1606,7 +1606,7 @@ static void cvbsout_get_config(struct device *dev)
 	if (cnt >= CVBS_PERFORMANCE_CNT_MAX)
 		cnt = 0;
 	if (cnt > 0) {
-		cvbs_log_info("find performance_ntsc config\n");
+		cvbs_log_dbg("find performance_ntsc config\n");
 		cvbs_drv->perf_conf_ntsc.reg_table =
 			kcalloc(cnt, sizeof(struct reg_s), GFP_KERNEL);
 		if (!cvbs_drv->perf_conf_ntsc.reg_table) {
@@ -1985,7 +1985,7 @@ static int cvbsout_probe(struct platform_device *pdev)
 		goto cvbsout_probe_err;
 	}
 	cvbs_drv->cvbs_data = (struct meson_cvbsout_data *)match->data;
-	cvbs_log_info("%s, cpu_id:%d,name:%s\n", __func__,
+	cvbs_log_dbg("%s, cpu_id:%d,name:%s\n", __func__,
 		cvbs_drv->cvbs_data->cpu_id, cvbs_drv->cvbs_data->name);
 
 	if (cvbs_drv->cvbs_data->cpu_id != CVBS_CPU_TYPE_SC2 &&
@@ -2005,7 +2005,7 @@ static int cvbsout_probe(struct platform_device *pdev)
 		cvbs_log_err("alloc_chrdev_region error\n");
 		goto cvbsout_probe_err;
 	}
-	cvbs_log_err("chrdev devno %d for disp\n", cvbs_drv->devno);
+	cvbs_log_dbg("chrdev devno %d for disp\n", cvbs_drv->devno);
 	ret = create_cvbs_attr(cvbs_drv);
 	if (ret < 0) {
 		cvbs_log_err("create_cvbs_attr error\n");
@@ -2022,7 +2022,7 @@ static int cvbsout_probe(struct platform_device *pdev)
 #endif
 
 	INIT_DELAYED_WORK(&cvbs_drv->vdac_dwork, cvbs_vdac_dwork);
-	cvbs_log_info("%s OK\n", __func__);
+	cvbs_log_dbg("%s OK\n", __func__);
 	return 0;
 
 cvbsout_probe_err:

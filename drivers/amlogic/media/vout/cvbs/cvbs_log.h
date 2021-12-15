@@ -32,6 +32,6 @@
 	pr_err(fmt, ##__VA_ARGS__)
 
 #define cvbs_log_dbg(fmt, ...) \
-	pr_warn(fmt, ##__VA_ARGS__)
+	pr_debug(fmt, ##__VA_ARGS__)
 
 #endif
