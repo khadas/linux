@@ -4926,7 +4926,7 @@ static int __init osd_probe(struct platform_device *pdev)
 		goto failed1;
 	}
 	for (i = 0; i < (HW_OSD_COUNT + 1); i++)
-		osd_log_info("mem_size: 0x%x\n", fb_memsize[i]);
+		osd_log_dbg(MODULE_BASE, "mem_size: 0x%x\n", fb_memsize[i]);
 
 	/* init reserved memory */
 	ret = of_reserved_mem_device_init(&pdev->dev);
