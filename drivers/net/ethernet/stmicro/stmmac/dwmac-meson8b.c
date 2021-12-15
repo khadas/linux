@@ -21,6 +21,11 @@
 
 #include "stmmac_platform.h"
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+#include <linux/input.h>
+#include <linux/amlogic/pm.h>
+#endif
+
 #define PRG_ETH0			0x0
 #define PRG_ETH1			0x4
 
@@ -64,6 +69,9 @@ struct meson8b_dwmac {
 	phy_interface_t			phy_mode;
 	struct clk			*rgmii_tx_clk;
 	u32				tx_delay_ns;
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	struct input_dev		*input_dev;
+#endif
 };
 
 struct meson8b_dwmac_clk_configs {
@@ -420,11 +428,24 @@ extern int stmmac_pltfr_resume(struct device *dev);
 static int aml_dwmac_resume(struct device *dev)
 {
 	int ret = 0;
+	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(dev);
 
 	pr_info("aml_eth_resume\n");
 	if (internal_phy != 2)
 		dwmac_meson_recover_analog(dev);
+
 	ret = stmmac_pltfr_resume(dev);
+	if (support_mac_wol) {
+		if (get_resume_method() == ETH_PHY_WAKEUP) {
+			pr_info("evan---wol rx--KEY_POWER\n");
+			input_event(dwmac->input_dev,
+				EV_KEY, KEY_POWER, 1);
+			input_sync(dwmac->input_dev);
+			input_event(dwmac->input_dev,
+				EV_KEY, KEY_POWER, 0);
+			input_sync(dwmac->input_dev);
+		}
+	}
 	return 0;
 }
 
@@ -450,6 +471,9 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
 	struct meson8b_dwmac *dwmac;
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	struct input_dev *input_dev;
+#endif
 	int ret;
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
@@ -518,6 +542,36 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	if (support_mac_wol) {
 		set_wol_notify_bl31();
 		device_init_wakeup(&pdev->dev, 1);
+
+	/*input device to send virtual pwr key for android*/
+		input_dev = input_allocate_device();
+		if (!input_dev) {
+			pr_err("[abner test]input_allocate_device failed: %d\n", ret);
+			return -EINVAL;
+		}
+		set_bit(EV_KEY,  input_dev->evbit);
+		set_bit(KEY_POWER, input_dev->keybit);
+		set_bit(133, input_dev->keybit);
+
+		input_dev->name = "input_ethrcu";
+		input_dev->phys = "input_ethrcu/input0";
+		input_dev->dev.parent = &pdev->dev;
+		input_dev->id.bustype = BUS_ISA;
+		input_dev->id.vendor = 0x0001;
+		input_dev->id.product = 0x0001;
+		input_dev->id.version = 0x0100;
+		input_dev->rep[REP_DELAY] = 0xffffffff;
+		input_dev->rep[REP_PERIOD] = 0xffffffff;
+		input_dev->keycodesize = sizeof(unsigned short);
+		input_dev->keycodemax = 0x1ff;
+		ret = input_register_device(input_dev);
+		if (ret < 0) {
+			pr_err("[abner test]input_register_device failed: %d\n", ret);
+			input_free_device(input_dev);
+			return -EINVAL;
+		}
+		dwmac->input_dev = input_dev;
+
 	}
 #endif
 	return 0;
@@ -528,6 +582,27 @@ err_remove_config_dt:
 	return ret;
 }
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+static int meson8b_dwmac_remove(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	int err;
+
+	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
+
+	if (support_mac_wol)
+		input_unregister_device(dwmac->input_dev);
+
+	err = stmmac_dvr_remove(&pdev->dev);
+	if (err < 0)
+		dev_err(&pdev->dev, "failed to remove platform: %d\n", err);
+
+	stmmac_remove_config_dt(pdev, priv->plat);
+
+	return err;
+}
+#endif
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson8b_dwmac_data meson8b_dwmac_data = {
 	.set_phy_mode = meson8b_set_phy_mode,
@@ -566,7 +641,11 @@ SIMPLE_DEV_PM_OPS(stmmac_meson8b_pm_ops, aml_dwmac_suspend,
 #endif
 static struct platform_driver meson8b_dwmac_driver = {
 	.probe  = meson8b_dwmac_probe,
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	.remove = meson8b_dwmac_remove,
+#else
 	.remove = stmmac_pltfr_remove,
+#endif
 	.shutdown = meson8b_dwmac_shutdown,
 	.driver = {
 		.name           = "meson8b-dwmac",
