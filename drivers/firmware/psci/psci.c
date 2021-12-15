@@ -242,7 +242,7 @@ static int get_set_conduit_method(struct device_node *np)
 {
 	const char *method;
 
-	pr_info("probing for conduit method from DT.\n");
+	pr_debug("probing for conduit method from DT.\n");
 
 	if (of_property_read_string(np, "method", &method)) {
 		pr_warn("missing \"method\" property\n");
@@ -374,7 +374,7 @@ static void __init psci_init_migrate(void)
 	type = psci_ops.migrate_info_type();
 
 	if (type == PSCI_0_2_TOS_MP) {
-		pr_info("Trusted OS migration not required\n");
+		pr_debug("Trusted OS migration not required\n");
 		return;
 	}
 
@@ -429,7 +429,7 @@ static void __init psci_init_smccc(void)
 
 static void __init psci_0_2_set_functions(void)
 {
-	pr_info("Using standard PSCI v0.2 function IDs\n");
+	pr_debug("Using standard PSCI v0.2 function IDs\n");
 	psci_ops.get_version = psci_get_version;
 
 	psci_function_id[PSCI_FN_CPU_SUSPEND] =
@@ -461,7 +461,7 @@ static int __init psci_probe(void)
 {
 	u32 ver = psci_get_version();
 
-	pr_info("PSCIv%d.%d detected in firmware.\n",
+	pr_debug("PSCIv%d.%d detected in firmware.\n",
 			PSCI_VERSION_MAJOR(ver),
 			PSCI_VERSION_MINOR(ver));
 
