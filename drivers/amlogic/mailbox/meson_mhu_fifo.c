@@ -257,7 +257,7 @@ static u64 mbox_irqstatus(struct mhu_ctlr *ctlr)
 	} else {
 		status = readl(mbox_irq_base + IRQ_STS_OFFSET(irqctlr));
 	}
-	pr_info("irq status = %llu\n", status);
+	pr_debug("irq status = %llu\n", status);
 	return status;
 }
 
@@ -287,7 +287,7 @@ static irqreturn_t mbox_handler(int irq, void *p)
 		outcnt--;
 		WARN_ON(!outcnt);
 	}
-	pr_info("in mbox handler\n");
+	pr_debug("in mbox handler\n");
 	return IRQ_HANDLED;
 }
 
@@ -749,7 +749,7 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 	int wrrd = 0;
 	int memid = 0;
 
-	pr_info("mhu fifo probe\n");
+	pr_debug("mhu fifo probe\n");
 	mhu_ctlr = devm_kzalloc(dev, sizeof(*mhu_ctlr), GFP_KERNEL);
 	if (!mhu_ctlr)
 		return -ENOMEM;
@@ -768,10 +768,10 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 	if (err)
 		dev_err(dev, "no get mbox wrrd %d\n", err);
 
-	pr_info("mbox-wr-rd %d\n", wrrd);
+	pr_debug("mbox-wr-rd %d\n", wrrd);
 
 	if (wrrd == 0) {
-		pr_info("mbox-wr-rd 0\n");
+		pr_debug("mbox-wr-rd 0\n");
 		res = platform_get_resource(pdev, IORESOURCE_MEM, memid++);
 		if (!res) {
 			dev_err(dev, "failed to get mailbox memory resource\n");
@@ -782,7 +782,7 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 			return PTR_ERR(mhu_ctlr->mbox_rd_base);
 	} else {
 		/*wr rd use the same fifo buf*/
-		pr_info("mbox-wr-rd 11\n");
+		pr_debug("mbox-wr-rd 11\n");
 		mhu_ctlr->mbox_rd_base = mhu_ctlr->mbox_wr_base;
 	}
 	res = platform_get_resource(pdev, IORESOURCE_MEM, memid++);
@@ -940,7 +940,7 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 	mhu_fifo_device = dev;
 	/*set mhu type*/
 	mhu_f |= MASK_MHU_FIFO;
-	pr_info("mbox fifo probe done node:%pK, mhuf:0x%x\n",
+	pr_debug("mbox fifo probe done node:%pK, mhuf:0x%x\n",
 		mhu_fifo_device, mhu_f);
 	return 0;
 }

@@ -203,7 +203,7 @@ static int mhu_sec_probe(struct platform_device *pdev)
 	int idx, err;
 	u32 num_chans = 0;
 
-	pr_info("mhu sec start\n");
+	pr_debug("mhu sec start\n");
 	mhu_ctlr = devm_kzalloc(dev, sizeof(*mhu_ctlr), GFP_KERNEL);
 	if (!mhu_ctlr)
 		return -ENOMEM;
