@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -42,6 +42,7 @@ typedef enum _gcePATCH_ID
     gcvPATCH_GLBM27,
     gcvPATCH_GLBMGUI,
     gcvPATCH_GFXBENCH,
+    gcvPATCH_ANDROID_GPUTEST,
     gcvPATCH_ANTUTU, /* Antutu 3.x */
     gcvPATCH_ANTUTU4X, /* Antutu 4.x */
     gcvPATCH_ANTUTU5X, /* Antutu 5.x */
@@ -137,6 +138,7 @@ typedef enum _gcePATCH_ID
     gcvPATCH_LEANBACKSCROLLING,
     gcvPATCH_ANTUTU6X, /* Antutu 6.x */
     gcvPATCH_ANTUTU3DBench,
+    gcvPATCH_ANTUTU_V8_REFINERY,
     gcvPATCH_CAR_CHASE,
     gcvPATCH_ANDROID_BROWSER,
     gcvPATCH_COMPUTBENCH_CL, /* ComputBench 1.5 */
@@ -150,6 +152,7 @@ typedef enum _gcePATCH_ID
     gcvPATCH_SASCHAWILLEMS,
     gcvPATCH_NATIVEHARDWARE_CTS,
     gcvPATCH_ANDROID_PHOTOS,
+    gcvPATCH_MUSTANG,
     gcvPATCH_OVX_CTS,
     gcvPATCH_DEQP_VK,
     gcvPATCH_KANZI,
@@ -158,11 +161,14 @@ typedef enum _gcePATCH_ID
     gcvPATCH_VK_T3DSTRESSTEST,
     gcvPATCH_VK_HDR02_FBBASICTONEMAPPING,
     gcvPATCH_VK_BLOOM,
+    gcvPATCH_VK_GFXBENCH5,
     gcvPATCH_CLBLAST,
     gcvPATCH_GRAPHICS_BENCHMARKS,
     gcvPATCH_INTEL_CL_BITONICSORT,
     gcvPATCH_PIGLIT_CL,
-
+    gcvPATCH_VK_UNITY,
+    gcvPATCH_VK_UNREAL,
+    gcvPATCH_VK_UNITY_SAMPLEASSETS,
     gcvPATCH_COUNT
 } gcePATCH_ID;
 

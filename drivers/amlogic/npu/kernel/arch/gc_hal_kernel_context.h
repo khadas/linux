@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -180,13 +180,6 @@ struct _gckCONTEXT
     gctBOOL                     lastFixed;
 
     gctUINT32                   pipeSelectBytes;
-
-    gcsPROFILER_COUNTERS_PART1    latestProfiler_part1;
-    gcsPROFILER_COUNTERS_PART1    histroyProfiler_part1;
-    gcsPROFILER_COUNTERS_PART1    preProfiler_part1;
-    gcsPROFILER_COUNTERS_PART2    latestProfiler_part2;
-    gcsPROFILER_COUNTERS_PART2    histroyProfiler_part2;
-    gcsPROFILER_COUNTERS_PART2    preProfiler_part2;
 
 #if gcdENABLE_SW_PREEMPTION
     /* Kernel delta. */

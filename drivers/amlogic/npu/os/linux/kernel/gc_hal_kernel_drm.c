@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -55,7 +55,14 @@
 
 #if gcdENABLE_DRM
 
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
+#else
 #include <drm/drmP.h>
+#endif
 #include <drm/drm_gem.h>
 #include <linux/dma-buf.h>
 #include "gc_hal_kernel_linux.h"
@@ -74,6 +81,16 @@ struct viv_gem_object {
     gckVIDMEM_NODE        node_object;
     gctBOOL               cacheable;
 };
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0)
+void viv_gem_free_object(struct drm_gem_object *gem_obj);
+struct dma_buf *viv_gem_prime_export(struct drm_gem_object *gem_obj, int flags);
+
+static const struct drm_gem_object_funcs viv_gem_object_funcs = {
+    .free = viv_gem_free_object,
+    .export = viv_gem_prime_export,
+};
+#endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
 struct dma_buf *viv_gem_prime_export(struct drm_gem_object *gem_obj,
@@ -134,6 +151,9 @@ struct drm_gem_object *viv_gem_prime_import(struct drm_device *drm,
     /* ioctl output */
     gem_obj = kzalloc(sizeof(struct viv_gem_object), GFP_KERNEL);
     drm_gem_private_object_init(drm, gem_obj, dmabuf->size);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0)
+    gem_obj->funcs = &viv_gem_object_funcs;
+#endif
     viv_obj = container_of(gem_obj, struct viv_gem_object, base);
     viv_obj->node_handle = iface.u.WrapUserMemory.node;
     viv_obj->node_object = nodeObject;
@@ -213,6 +233,9 @@ static int viv_ioctl_gem_create(struct drm_device *drm, void *data,
     /* ioctl output */
     gem_obj = kzalloc(sizeof(struct viv_gem_object), GFP_KERNEL);
     drm_gem_private_object_init(drm, gem_obj, (size_t)alignSize);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,11,0)
+    gem_obj->funcs = &viv_gem_object_funcs;
+#endif
     ret = drm_gem_handle_create(file, gem_obj, &args->handle);
 
     viv_obj = container_of(gem_obj, struct viv_gem_object, base);
@@ -478,9 +501,10 @@ static int viv_ioctl_gem_set_tiling(struct drm_device *drm, void *data,
     }
     viv_obj = container_of(gem_obj, struct viv_gem_object, base);
 
-    viv_obj->node_object->tilingMode = args->tiling_mode;
-    viv_obj->node_object->tsMode     = args->ts_mode;
-    viv_obj->node_object->clearValue = args->clear_value;
+    viv_obj->node_object->tilingMode    = args->tiling_mode;
+    viv_obj->node_object->tsMode        = args->ts_mode;
+    viv_obj->node_object->tsCacheMode   = args->ts_cache_mode;
+    viv_obj->node_object->clearValue    = args->clear_value;
 
 OnError:
     if (gem_obj)
@@ -513,9 +537,10 @@ static int viv_ioctl_gem_get_tiling(struct drm_device *drm, void *data,
     }
     viv_obj = container_of(gem_obj, struct viv_gem_object, base);
 
-    args->tiling_mode = viv_obj->node_object->tilingMode;
-    args->ts_mode     = viv_obj->node_object->tsMode;
-    args->clear_value = viv_obj->node_object->clearValue;
+    args->tiling_mode   = viv_obj->node_object->tilingMode;
+    args->ts_mode       = viv_obj->node_object->tsMode;
+    args->ts_cache_mode = viv_obj->node_object->tsCacheMode;
+    args->clear_value   = viv_obj->node_object->clearValue;
 
 OnError:
     if (gem_obj)
@@ -794,14 +819,18 @@ static struct drm_driver viv_drm_driver = {
 #endif
     .open = viv_drm_open,
     .postclose = viv_drm_postclose,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,11,0)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4,7,0)
     .gem_free_object_unlocked = viv_gem_free_object,
 #else
     .gem_free_object    = viv_gem_free_object,
 #endif
+#endif
     .prime_handle_to_fd = drm_gem_prime_handle_to_fd,
     .prime_fd_to_handle = drm_gem_prime_fd_to_handle,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5,11,0)
     .gem_prime_export   = viv_gem_prime_export,
+#endif
     .gem_prime_import   = viv_gem_prime_import,
     .ioctls             = viv_ioctls,
     .num_ioctls         = DRM_VIV_NUM_IOCTLS,

@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -111,9 +111,16 @@ typedef enum _VSC_RES_OP_BIT
     VSC_RES_OP_BIT_TEXLD_PCF        = 0x00002000,
     VSC_RES_OP_BIT_TEXLD_BIAS_PCF   = 0x00004000,
     VSC_RES_OP_BIT_TEXLD_LOD_PCF    = 0x00008000,
-    VSC_RES_OP_BIT_LOAD_STORE       = 0x00010000,
-    VSC_RES_OP_BIT_IMAGE_OP         = 0x00020000,
-    VSC_RES_OP_BIT_ATOMIC           = 0x00040000,
+    VSC_RES_OP_BIT_MEM_LD_OP        = 0x00010000,
+    VSC_RES_OP_BIT_MEM_ST_OP        = 0x00020000,
+    VSC_RES_OP_BIT_MEM_LD_ST_OP     = VSC_RES_OP_BIT_MEM_LD_OP
+                                    | VSC_RES_OP_BIT_MEM_ST_OP,
+    VSC_RES_OP_BIT_IMAGE_LD_OP      = 0x00040000,
+    VSC_RES_OP_BIT_IMAGE_ST_OP      = 0x00080000,
+    VSC_RES_OP_BIT_IMAGE_ADDR_OP    = 0x00100000,
+    VSC_RES_OP_BIT_IMAGE_OP         = VSC_RES_OP_BIT_IMAGE_LD_OP
+                                    | VSC_RES_OP_BIT_IMAGE_ST_OP,
+    VSC_RES_OP_BIT_ATOMIC           = 0x00200000,
 }VSC_RES_OP_BIT;
 
 typedef enum _VSC_RES_ACT_BIT
@@ -132,6 +139,7 @@ typedef enum _VSC_LINK_POINT_RESOURCE_SUBTYPE
     VSC_LINK_POINT_RESOURCE_SUBTYPE_TEXGATHERPCF_D32F               = 6,
     VSC_LINK_POINT_RESOURCE_SUBTYPE_NORMALIZE_TEXCOORD              = 7,
     VSC_LINK_POINT_RESOURCE_SUBTYPE_YCBCR_TEXTURE                   = 8,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_UNORM_SNORM_TEXTURE             = 9,
 } VSC_LINK_POINT_RESOURCE_SUBTYPE;
 
 typedef struct _VSC_LIB_LINK_POINT_FUNC_NAME

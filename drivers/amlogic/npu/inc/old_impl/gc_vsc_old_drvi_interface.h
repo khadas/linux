@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -49,7 +49,8 @@ BEGIN_EXTERN_C()
 
 /* For OES. */
 #define _sldSharedVariableStorageBlockName  "#sh_sharedVar"
-#define _sldWorkGroupIdName                 "#sh_workgroupId"
+#define _sldWorkGroupIndex                  "#sh_workGroupIndex"
+#define _sldModWorkGroupIdName              "#sh_modWorkgroupId"
 #define __INIT_VALUE_FOR_WORK_GROUP_INDEX__ 0x1234
 
 /* For OCL. */
@@ -655,6 +656,14 @@ typedef struct _gcWORK_GROUP_SIZE
     gctUINT       z;
 }gcWORK_GROUP_SIZE;
 
+/* The same definition of VIR_LocalIdWKind. */
+typedef enum _gceLOCAL_ID_W_KIND
+{
+    gcvLOCAL_ID_W_DISABLE               = 0x0000,
+    gcvLOCAL_ID_W_LOCAL_STORAGE_BASE    = 0x0001,
+    gcvLOCAL_ID_W_RUNNING_WORK_GROUP_ID = 0x0002,
+} gceLOCAL_ID_W_KIND;
+
 typedef struct _gcsHINT
 {
     /* fields for the program */
@@ -855,6 +864,8 @@ typedef struct _gcsHINT
     /* Concurrent workGroupCount. */
     gctUINT16   workGroupCount;
 
+    gceLOCAL_ID_W_KIND localIdWKind;
+
     /* Sampler Base offset. */
     gctBOOL     useGPRSpill[gcvPROGRAM_STAGE_LAST];
 
@@ -862,7 +873,7 @@ typedef struct _gcsHINT
     gctINT32    GSmaxThreadsPerHwTG;
     gctUINT     tpgTopology;
     /* padding bytes to make the offset of shaderVidNodes field be consistent in 32bit and 64bit platforms */
-    gctCHAR     reservedByteForShaderVidNodeOffset[8];
+    gctCHAR     reservedByteForShaderVidNodeOffset[4];
 
     /* shaderVidNodes should always be the LAST filed in hits. */
     /* SURF Node for memory that is used in shader. */
@@ -1085,9 +1096,16 @@ typedef enum _gceSHADER_FLAGS
 }
 gceSHADER_FLAGS;
 
+typedef enum _gceSHADER_EXT_FLAGS
+{
+    gcvSHADER_EXTFLAG_NONE                  = 0x00000000,
+    gcvSHADER_EXTFLAG_ALWAYS_EMIT_OUTPUT    = 0x00000001,
+} gceSHADER_EXT_FLAGS;
+
 typedef struct _gceSHADER_SUB_FLAGS
 {
-    gctUINT     dual16PrecisionRule;
+    gctUINT                                 dual16PrecisionRule;
+    gceSHADER_EXT_FLAGS                     extFlags;
 }
 gceSHADER_SUB_FLAGS;
 
@@ -1230,6 +1248,9 @@ typedef enum _Dual16_PrecisionRule
     /* HW Cvt2OutColFmt has issue with 0x2,
     thus require output to be highp */
     Dual16_PrecisionRule_OUTPUT_HP              = 1 << 5,
+
+    /* enable hp MAD for dual16*/
+    Dual16_PrecisionRule_MAD_HP                 = 1 << 6,
 
     /*  default rules */
     Dual16_PrecisionRule_DEFAULT                = Dual16_PrecisionRule_TEXLD_COORD_HP |
@@ -1607,6 +1628,22 @@ typedef struct _gcOPTIMIZER_OPTION
     gctBOOL     oclPackedBasicType;
 
     /*
+     * Handle OCL half type as packed
+     *
+     *   VC_OPTION=-OCLPACKEDHALFTYPE:0|1
+     *
+     */
+    gctBOOL     oclPackedHalfType;
+
+    /*
+     * Handle OCL short type as packed
+     *
+     *   VC_OPTION=-OCLPACKEDSHORTTYPE:0|1
+     *
+     */
+    gctBOOL     oclPackedShortType;
+
+    /*
      * Handle OCL  relaxing local address space in OCV
      *
      *   VC_OPTION=-OCLOCVLOCALADDRESSSPACE:0|1
@@ -1731,6 +1768,12 @@ typedef struct _gcOPTIMIZER_OPTION
     /* Close all optimization fro OCL debugger */
     gctBOOL     disableOptForDebugger;
 
+    /* use intrinsic instruction for OCL built-in functions */
+    gctBOOL     useIntrinsicInstForOclBuiltinFunc;
+
+    /* Since we don't want to change the interface to add a extra flag, we add here. */
+    gceSHADER_EXT_FLAGS     extFlags;
+
     /* NOTE: when you add a new option, you MUST initialize it with default
        value in theOptimizerOption too */
 } gcOPTIMIZER_OPTION;
@@ -1740,11 +1783,13 @@ typedef struct _gcOPTIMIZER_OPTION
    DUAL16_AUTO_ALL:   turn on dual16 for all
    DUAL16_FORCE_ON:   we have heuristic to turn off dual16 if the single-t instructions are too many,
                       this option will ignore the heuristic
+   DUAL16_FORCE_HP_TO_MP: force dual16 on and change all the hp to mp to generate more dual-t instructions
 */
 #define DUAL16_FORCE_OFF            0
 #define DUAL16_AUTO_BENCH           1
 #define DUAL16_AUTO_ALL             2
 #define DUAL16_FORCE_ON             3
+#define DUAL16_FORCE_HP_TO_MP       4
 
 #define VC_OPTION_OCLFPCAPS_FASTRELAXEDMATH     (1 << 0 )
 #define VC_OPTION_OCLFPCAPS_FINITEMATHONLY      (1 << 1 )
@@ -1815,15 +1860,23 @@ extern gcOPTIMIZER_OPTION theOptimizerOption;
 #define gcmOPT_DisableOPTforDebugger()     (gcmGetOptimizerOption()->disableOptForDebugger)
 #define gcmOPT_SetDisableOPTforDebugger(b) (gcmGetOptimizerOption()->disableOptForDebugger = b)
 
+#define gcmOPT_UseIntrinsicInstForOclBuiltinFunc()     (gcmGetOptimizerOption()->useIntrinsicInstForOclBuiltinFunc)
+#define gcmOPT_SetUseIntrinsicInstForOclBuiltinFunc(b) (gcmGetOptimizerOption()->useIntrinsicInstForOclBuiltinFunc = b)
+
 #define gcmOPT_TESSLEVEL()          (gcmGetOptimizerOption()->testTessLevel)
 
 #define gcmOPT_DualFP16PrecisionRule()          (gcmGetOptimizerOption()->dual16PrecisionRule)
 #define gcmOPT_DualFP16PrecisionRuleFromEnv()   (gcmGetOptimizerOption()->dual16PrecisionRuleFromEnv)
 
+#define gcmOPT_GetExtFlags()        (gcmGetOptimizerOption()->extFlags)
+#define gcmOPT_SetExtFlags(b)       (gcmGetOptimizerOption()->extFlags = b)
+
 #define gcmOPT_ForceInline()        (gcmGetOptimizerOption()->forceInline)
 #define gcmOPT_UploadUBO()          (gcmGetOptimizerOption()->uploadUBO)
 #define gcmOPT_oclFpCaps()          (gcmGetOptimizerOption()->oclFpCaps)
 #define gcmOPT_oclPackedBasicType() (gcmGetOptimizerOption()->oclPackedBasicType)
+#define gcmOPT_oclPackedHalfType()  (gcmGetOptimizerOption()->oclPackedHalfType)
+#define gcmOPT_oclPackedShortType() (gcmGetOptimizerOption()->oclPackedShortType)
 #define gcmOPT_oclOcvLocalAddressSpace() (gcmGetOptimizerOption()->oclOcvLocalAddressSpace)
 #define gcmOPT_oclOpenCV()          (gcmGetOptimizerOption()->oclOpenCV)
 #define gcmOPT_oclHasLong()         (gcmGetOptimizerOption()->oclHasLong)
@@ -2104,12 +2157,24 @@ extern gcePATCH_ID *
 #define GetPatchID()                          (gcGetPatchId())
 
 /* HW caps.*/
+typedef enum _gcHW_KIND {
+    gcHW_KIND_GPU       = 0,
+    gcHW_KIND_VIP       = 1,
+    gcHW_KIND_COUNT     = 2,
+} gcHW_KIND;
+
 typedef struct _VSC_HW_CONFIG gcsHWCaps;
-extern gcsHWCaps gcHWCaps;
+
 extern gcsHWCaps *
     gcGetHWCaps(
     void
     );
+
+void
+gcSetHWCaps(
+  gcsHWCaps* hwCaps,
+  gcHW_KIND currentHwKind
+);
 
 /* Get HW features. */
 #define GetHWHasHalti0()                      (gcGetHWCaps()->hwFeatureFlags.hasHalti0)
@@ -2117,14 +2182,20 @@ extern gcsHWCaps *
 #define GetHWHasHalti2()                      (gcGetHWCaps()->hwFeatureFlags.hasHalti2)
 #define GetHWHasHalti5()                      (gcGetHWCaps()->hwFeatureFlags.hasHalti5)
 #define GetHWHasAdvancedInst()                (gcGetHWCaps()->hwFeatureFlags.supportAdvancedInsts)
-#define GetHWHasFmaSupport()                  (GetHWHasHalti5() && GetHWHasAdvancedInst())
-#define GetHWHasLoadStoreConv4RoundingMode()  gcvFALSE
-#define GetHWHasFullPackedModeSupport()       gcvFALSE
+#define GetHWHasOldFmaSupport()               (GetHWHasHalti5() && GetHWHasAdvancedInst())
+#define GetHWHasNewFmaSupport()               (gcGetHWCaps()->hwFeatureFlags.supportFP32FMA)
+#define GetHWHasFmaSupport()                  (GetHWHasNewFmaSupport() || GetHWHasOldFmaSupport())
+#define GetHWHasLoadStoreConv4RoundingMode()  (gcGetHWCaps()->hwFeatureFlags.ldstConv4RoundingMode)
+#define GetHWHasFullPackedModeSupport()       (gcGetHWCaps()->hwFeatureFlags.fullPackModeSupport)
 #define GetHWHasTS()                          (gcGetHWCaps()->hwFeatureFlags.supportTS)
 #define GetHWHasGS()                          (gcGetHWCaps()->hwFeatureFlags.supportGS)
 #define GetHWHasSamplerBaseOffset()           (gcGetHWCaps()->hwFeatureFlags.hasSamplerBaseOffset)
+#define GetHWHasUniversalTexldV1()            (gcGetHWCaps()->hwFeatureFlags.hasUniversalTexld)
 #define GetHWHasUniversalTexldV2()            (gcGetHWCaps()->hwFeatureFlags.hasUniversalTexldV2)
 #define GetHWHasTexldUFix()                   (gcGetHWCaps()->hwFeatureFlags.hasTexldUFix)
+#define GetHWSupportTexldUV1()                (GetHWHasUniversalTexldV1())
+#define GetHWSupportTexldUV2()                (GetHWHasUniversalTexldV2() && GetHWHasTexldUFix())
+#define GetHWSupportTexldU()                  (GetHWSupportTexldUV1() && GetHWSupportTexldUV2())
 #define GetHWHasImageOutBoundaryFix()         (gcGetHWCaps()->hwFeatureFlags.hasImageOutBoundaryFix)
 
 /* Get HW caps. */
@@ -2488,6 +2559,21 @@ gceSTATUS
 gcSHADER_GetShaderID(
     IN gcSHADER  Shader,
     IN gctUINT32 * ID
+    );
+
+/*******************************************************************************
+**  gcSHADER_GetShaderVersion
+**
+**  Get the gc shader version.
+**
+**  OUTPUT:
+**
+**      gctUINT32 * shaderVersion
+**          The shader version of gcshader.
+*/
+gceSTATUS
+gcSHADER_GetShaderVersion(
+    OUT gctUINT32 * shaderVersion
     );
 
 /*******************************************************************************
@@ -5411,6 +5497,29 @@ gcSHADER_UpdateTargetPacked(
     IN gctINT Components
     );
 
+/*****************************************************************************************************
+**  gcSHADER_UpdateTargetRegMemorySameFormat
+**
+**  Update instruction target's regMemorySameFormat field to indicate target and memory data of same format
+**
+**  INPUT:
+**
+**      gcSHADER Shader
+**          Pointer to a gcSHADER object.
+**
+**      gctUINT8  RegMemorySameFormat
+**          Flag to indicate if reg and memory reference is of same format
+**
+**  OUTPUT:
+**
+**      Nothing.
+*/
+gceSTATUS
+gcSHADER_UpdateTargetRegMemorySameFormat(
+    IN gcSHADER Shader,
+    IN gctUINT8 RegMemorySameFormat
+    );
+
 /*******************************************************************************
 **  gcSHADER_UpdateSourcePacked
 **
@@ -7421,7 +7530,8 @@ gcKERNEL_FUNCTION_AddArgument(
     IN gctUINT16 VariableIndex,
     IN gctUINT32 TempIndex,
     IN gctUINT8 Enable,
-    IN gctUINT8 Qualifier
+    IN gctUINT8 Qualifier,
+    IN gctUINT16 TypeQualifier
     );
 
 gceSTATUS

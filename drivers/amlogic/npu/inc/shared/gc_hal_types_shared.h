@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -85,7 +85,11 @@ extern "C" {
 
 #if defined(ANDROID) && defined(__BIONIC_FORTIFY)
 #if defined(__clang__)
-#       define gcmINLINE            __inline__ __attribute__ ((always_inline)) __attribute__ ((gnu_inline))
+#if (__clang_major__ >= 10)
+#           define gcmINLINE            __inline__ __attribute__ ((always_inline))
+#       else
+#           define gcmINLINE            __inline__ __attribute__ ((always_inline)) __attribute__ ((gnu_inline))
+#       endif
 #   else
 #       define gcmINLINE            __inline__ __attribute__ ((always_inline)) __attribute__ ((gnu_inline)) __attribute__ ((artificial))
 #   endif
@@ -255,7 +259,56 @@ gcuFLOAT_UINT32;
 #define gcvNEGONE_X             ((gctFIXED_POINT) 0xFFFF0000)
 #define gcvTWO_X                ((gctFIXED_POINT) 0x00020000)
 
+/* No special needs. */
+#define gcvALLOC_FLAG_NONE                  0x00000000
 
+/* Physical contiguous. */
+#define gcvALLOC_FLAG_CONTIGUOUS            0x00000001
+/* Physical non contiguous. */
+#define gcvALLOC_FLAG_NON_CONTIGUOUS        0x00000002
+
+/* Should not swap out. */
+#define gcvALLOC_FLAG_NON_PAGED             0x00000004
+
+/* CPU access explicitly needed. */
+#define gcvALLOC_FLAG_CPU_ACCESS            0x00000008
+/* Can be remapped as cacheable. */
+#define gcvALLOC_FLAG_CACHEABLE             0x00000010
+
+/* Need 32bit address. */
+#define gcvALLOC_FLAG_4GB_ADDR              0x00000020
+
+/* Secure buffer. */
+#define gcvALLOC_FLAG_SECURITY              0x00000040
+/* Can be exported as dmabuf-fd */
+#define gcvALLOC_FLAG_DMABUF_EXPORTABLE     0x00000080
+/* Do not try slow pools (gcvPOOL_VIRTUAL) */
+#define gcvALLOC_FLAG_FAST_POOLS            0x00000100
+
+/* Only accessed by GPU */
+#define gcvALLOC_FLAG_NON_CPU_ACCESS        0x00000200
+/* Do not be moved */
+#define gcvALLOC_FLAG_NO_EVICT              0x00000400
+
+/* Import DMABUF. */
+#define gcvALLOC_FLAG_DMABUF                0x00001000
+/* Import USERMEMORY. */
+#define gcvALLOC_FLAG_USERMEMORY            0x00002000
+/* Import an External Buffer. */
+#define gcvALLOC_FLAG_EXTERNAL_MEMORY       0x00004000
+/* Import linux reserved memory. */
+#define gcvALLOC_FLAG_LINUX_RESERVED_MEM    0x00008000
+
+/* 1M pages unit allocation. */
+#define gcvALLOC_FLAG_1M_PAGES              0x00010000
+
+/* Non 1M pages unit allocation. */
+#define gcvALLOC_FLAG_4K_PAGES              0x00020000
+
+/* Real allocation happens when GPU page fault. */
+#define gcvALLOC_FLAG_ALLOC_ON_FAULT        0x01000000
+/* Alloc with memory limit. */
+#define gcvALLOC_FLAG_MEMLIMIT              0x02000000
 
 #define gcmFIXEDCLAMP_NEG1_TO_1(_x) \
     (((_x) < gcvNEGONE_X) \
@@ -723,6 +776,26 @@ gcs2D_PROFILE;
         (((gctUINT32)(x) & (gctUINT32)0xFF000000U) >> 8)))
 
 /*******************************************************************************
+**
+** gcmBSWAP16IN32EX
+**
+**      Return a value with whole 16 bit swapped of a 32 bit data type.
+*/
+#  define gcmBSWAP16IN32EX(x) ((gctUINT32)(\
+        (((gctUINT32)(x) & (gctUINT32)0x0000FFFFU) << 16)  | \
+        (((gctUINT32)(x) & (gctUINT32)0xFFFF0000U) >> 16)))
+
+/*******************************************************************************
+**
+** gcmBSWAP32IN64
+**
+**      Return a value with whole 32 bit swapped of a 64 bit data type.
+*/
+#  define gcmBSWAP32IN64(x) ((gctUINT64)(\
+        (((gctUINT64)(x) & (gctUINT64)0x00000000FFFFFFFFULL) << 32) | \
+        (((gctUINT64)(x) & (gctUINT64)0xFFFFFFFF00000000ULL) >> 32)))
+
+/*******************************************************************************
 ***** Database ****************************************************************/
 
 typedef struct _gcsDATABASE_COUNTERS
@@ -939,6 +1012,17 @@ typedef struct _gcsHAL_PATCH_VIDMEM_TIMESTAMP
     gctUINT32           flag;
 }
 gcsHAL_PATCH_VIDMEM_TIMESTAMP;
+
+/* Put together patch list handling variables. */
+typedef struct _gcsPATCH_LIST_VARIABLE
+{
+    /* gcvHAL_PATCH_VIDMEM_TIMESTAMP. */
+    gctUINT64 maxAsyncTimestamp;
+
+    /* gcvHAL_PATCH_MCFE_SEMAPHORE. */
+    gctBOOL semaUsed;
+}
+gcsPATCH_LIST_VARIABLE;
 
 /*
     gcvFEATURE_DATABASE_DATE_MASK

@@ -170,7 +170,7 @@ gceSTATUS _AdjustParam(IN gcsPLATFORM *Platform,OUT gcsMODULE_PARAMETERS *Args)
         Args->extSRAMBases[0] = (gctPHYS_ADDR_T)res->start;
 
         Args->contiguousBase = 0;
-        Args->contiguousSize = (gctSIZE_T)(res->end - res->start+1);
+		Args->contiguousSize = 0x200000;/*(gctSIZE_T)(res->end - res->start+1);*/
     }
     else
     {
@@ -415,7 +415,6 @@ void Runtime_getpower_be(struct platform_device *pdev)
 }
 void Runtime_downpower_be(struct platform_device *pdev)
 {
-
     pm_runtime_put_sync(&pdev->dev);
     pm_runtime_disable(&pdev->dev);
 }
@@ -572,7 +571,6 @@ _GetPowerStatus(IN gcsPLATFORM *Platform,OUT gctUINT32_PTR  pstat)
 
 gceSTATUS _SetPolicy(IN gcsPLATFORM *Platform,IN gctUINT32  powerLevel)
 {
-    //printk("nn_power_version:%d\n",nn_power_version);
     switch (nn_power_version)
     {
         case 1:
@@ -596,7 +594,7 @@ gceSTATUS _SetPolicy(IN gcsPLATFORM *Platform,IN gctUINT32  powerLevel)
     {
         nanoqFreq = nanoqFreq/2;
     }
-    else if(powerLevel == 3)
+    else if (powerLevel == 3)
     {
         nanoqFreq = nanoqFreq/4;
     }

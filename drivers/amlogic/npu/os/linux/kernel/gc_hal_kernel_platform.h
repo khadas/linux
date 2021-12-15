@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -124,7 +124,7 @@ typedef struct _gcsMODULE_PARAMETERS
     /* Debug or other information. */
     gctUINT                 stuckDump;
 	gctINT                  gpuProfiler;
-
+    gctUINT                 softReset;
     /* device type, 0 for char device, 1 for misc device. */
     gctUINT                 deviceType;
     gctUINT                 showArgs;
@@ -312,7 +312,6 @@ typedef struct _gcsPLATFORM_OPERATIONS
     **
     ** syncMemory
     **
-    ** sync invisible memory by dma if support.
     */
     gceSTATUS
     (*syncMemory)(
@@ -345,33 +344,44 @@ typedef struct _gcsPLATFORM_OPERATIONS
         IN gctUINT32  powerLevel
         );
 
-/*******************************************************************************
-**
-**  _ExternalCacheOperation
-**
-**  External device cache operation, if support. If the core has any additional caches
-**  they must be invalidated after this function returns. If the core does not
-**  have any addional caches the externalCacheOperation in the platform->ops should
-**  remain NULL. The function may be called by multiple thread, so need to add mutex
-**  in the callback when there is shared resource.
-**
-**  INPUT:
-**
-**      gckOS Os
-**          Pointer to an gckOS object.
-**
-**      gceCACHEOPERATION Operation
-**          Cache Operation: gcvCACHE_FLUSH, gcvCACHE_CLEAN or gcvCACHE_INVALIDATE.
-**
-**  OUTPUT:
-**
-**      Nothing.
-*/
+
+    /*******************************************************************************
+    **
+    **  _ExternalCacheOperation
+    **
+    **  External device cache operation, if support. If the core has any additional caches
+    **  they must be invalidated after this function returns. If the core does not
+    **  have any addional caches the externalCacheOperation in the platform->ops should
+    **  remain NULL. The function may be called by multiple thread, so need to add mutex
+    **  in the callback when there is shared resource.
+    **
+    **  INPUT:
+    **      gceCACHEOPERATION Operation
+    **          Cache Operation: gcvCACHE_FLUSH, gcvCACHE_CLEAN or gcvCACHE_INVALIDATE.
+    **
+    **  OUTPUT:
+    **
+    **      Nothing.
+    */
     void
     (*externalCacheOperation)(
         IN gcsPLATFORM *Platform,
         IN gceCACHEOPERATION Operation
     );
+
+#if gcdENABLE_MP_SWITCH
+    /*******************************************************************************
+    ** switchCoreCount
+    **
+    ** Switch the core count according to specific conditions.
+    **
+    */
+    gceSTATUS
+    (*switchCoreCount)(
+        IN gcsPLATFORM *Platform,
+        OUT gctUINT32 *Count
+    );
+#endif
 }
 gcsPLATFORM_OPERATIONS;
 
@@ -383,13 +393,17 @@ struct _gcsPLATFORM
     const char *name;
     gcsPLATFORM_OPERATIONS* ops;
 
-    /* TODO: Remove AXI-SRAM size from feature database. */
     gckDEVICE dev;
 
     /* PLATFORM specific flags */
     gctUINT32  flagBits;
 
+    /* Real-time core count. */
+    gctUINT32  coreCount;
+
     void*                   priv;
+    /* Module special parameters */
+    gcsMODULE_PARAMETERS params;
 };
 
 int gckPLATFORM_Init(struct platform_driver *pdrv, gcsPLATFORM **platform);

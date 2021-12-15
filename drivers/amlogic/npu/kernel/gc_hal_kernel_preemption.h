@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -75,6 +75,14 @@ typedef enum _gcePREEMPTION_MODE
     gcvNON_FULLY_PREEMPTIBLE_MODE,
 }
 gcePREEMPTION_MODE;
+
+typedef struct _gcsPATCH_ARRAY
+{
+    gctUINT64 kArray[32];
+
+    struct _gcsPATCH_ARRAY * next;
+}
+gcsPATCH_ARRAY;
 
 /* Preempt commit. */
 typedef struct _gcsPREEMPT_COMMIT * gckPREEMPT_COMMIT;

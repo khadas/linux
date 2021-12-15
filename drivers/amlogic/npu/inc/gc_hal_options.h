@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -163,7 +163,7 @@ This define enables the use of VM for gckCommand and fence buffers.
         When set to 1, will dump TP/NN command buffer when GPU/VIP hang.
 */
 #ifndef gcdDUMP_TPNN_SUBCOMMAND
-#   define gcdDUMP_TPNN_SUBCOMMAND              0
+#   define gcdDUMP_TPNN_SUBCOMMAND              1
 #endif
 
 /*
@@ -294,15 +294,6 @@ This define enables the use of VM for gckCommand and fence buffers.
 #   define gcdENABLE_FSCALE_VAL_ADJUST          1
 #endif
 
-/*
-    gcdCAPTURE_ONLY_MODE
-        When non-zero, driver is built with capture only mode.
-        1) Set DDR address range in capture file with contiguousBase and contiguoutsSize.
-           Video memory allocation will go through reserved pool with capture only mode.
-        2) Set SRAM address range in capture file with sRAMBases, sRAMSizes and extSRAMBases, extSRAMSizes.
-           Video memory querion will go through reserved pool with capture only mode.
-        3) TODO: SRAM video memory allocation.
-*/
 #ifndef gcdCAPTURE_ONLY_MODE
 #   define gcdCAPTURE_ONLY_MODE                 0
 #endif
@@ -1400,6 +1391,15 @@ This define enables the use of VM for gckCommand and fence buffers.
 #endif
 
 /*
+    gcdSUPPORT_DEVICE_TREE_SOURCE
+        To suppor device tree feature if set to 1, disable by default.
+        Only works on linux OS.
+*/
+#ifndef gcdSUPPORT_DEVICE_TREE_SOURCE
+#   define gcdSUPPORT_DEVICE_TREE_SOURCE        0
+#endif
+
+/*
     gcdENABLE_PER_DEVICE_PM
         Enable per device power management if set to 2, all the hardware cores will be one device.
         Enable per user device power management if set to 1, the brother cores of a device depends on user driver.
@@ -1408,6 +1408,31 @@ This define enables the use of VM for gckCommand and fence buffers.
 */
 #ifndef gcdENABLE_PER_DEVICE_PM
 #   define gcdENABLE_PER_DEVICE_PM 0
+#endif
+
+/*
+    gcdUSE_CAPBUF
+ */
+#ifndef gcdUSE_CAPBUF
+#   define gcdUSE_CAPBUF 1
+#endif
+
+/*
+    gcdENABLE_MP_SWITCH
+        Enable multi-processor mode dynamic switch, the processor count is determined by specific conditions.
+        Only support Linux OS currently.
+*/
+#ifndef gcdENABLE_MP_SWITCH
+#   define gcdENABLE_MP_SWITCH 0
+#endif
+
+/*
+    gcdANON_FILE_FOR_ALLOCATOR
+        Enable this macro can replace the /dev/zero by anon_inode:[galcore] in /proc/<pid>/maps.
+        Without the macro, run 'cat /proc/<pid>/maps' will print "/dev/zero".
+*/
+#ifndef gcdANON_FILE_FOR_ALLOCATOR
+#   define gcdANON_FILE_FOR_ALLOCATOR 0
 #endif
 
 #endif /* __gc_hal_options_h_ */

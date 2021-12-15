@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -212,6 +212,11 @@ reserved_mem_attach(
 
     Mdl->priv = res;
 
+    if ((res->start + res->size) < 0xFFFFFFFF)
+    {
+        Allocator->capability |= gcvALLOC_FLAG_4GB_ADDR;
+    }
+
     return gcvSTATUS_OK;
 }
 
@@ -312,13 +317,16 @@ reserved_mem_unmap_user(
         printk("%s: vm_munmap failed\n", __func__);
     }
 #else
-    down_write(&current->mm->mmap_sem);
+    down_write(&current_mm_mmap_sem);
     if (do_munmap(current->mm, (unsigned long)MdlMap->vmaAddr - res->offset_in_page, res->size) < 0)
     {
         printk("%s: do_munmap failed\n", __func__);
     }
-    up_write(&current->mm->mmap_sem);
+    up_write(&current_mm_mmap_sem);
 #endif
+
+    MdlMap->vma = NULL;
+    MdlMap->vmaAddr = NULL;
 }
 
 static gceSTATUS
@@ -342,13 +350,17 @@ reserved_mem_map_user(
     }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
+#if gcdANON_FILE_FOR_ALLOCATOR
+    userLogical = (gctPOINTER)vm_mmap(Allocator->anon_file, 0L, res->size,
+#else
     userLogical = (gctPOINTER)vm_mmap(NULL, 0L, res->size,
+#endif
                 PROT_READ | PROT_WRITE, MAP_SHARED | MAP_NORESERVE, 0);
 #else
-    down_write(&current->mm->mmap_sem);
+    down_write(&current_mm_mmap_sem);
     userLogical = (gctPOINTER)do_mmap_pgoff(NULL, 0L, res->size,
                 PROT_READ | PROT_WRITE, MAP_SHARED, 0);
-    up_write(&current->mm->mmap_sem);
+    up_write(&current_mm_mmap_sem);
 #endif
 
     gcmkTRACE_ZONE(
@@ -365,10 +377,13 @@ reserved_mem_map_user(
             __FUNCTION__, __LINE__
             );
 
+        userLogical = gcvNULL;
+
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
     }
 
-    down_write(&current->mm->mmap_sem);
+    down_write(&current_mm_mmap_sem);
+
     do
     {
         struct vm_area_struct *vma = find_vma(current->mm, (unsigned long)userLogical);
@@ -390,12 +405,14 @@ reserved_mem_map_user(
         MdlMap->vma = vma;
     }
     while (gcvFALSE);
-    up_write(&current->mm->mmap_sem);
+
+    up_write(&current_mm_mmap_sem);
 
 OnError:
     if (gcmIS_ERROR(status) && userLogical)
     {
-        reserved_mem_unmap_user(Allocator, Mdl, userLogical, res->size);
+        MdlMap->vmaAddr = userLogical + res->offset_in_page;
+        reserved_mem_unmap_user(Allocator, Mdl, MdlMap, res->size);
     }
 Out:
     gcmkFOOTER();
@@ -424,16 +441,14 @@ reserved_mem_map_kernel(
         return gcvSTATUS_INVALID_ARGUMENT;
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,6,0)
 #if gcdENABLE_BUFFERABLE_VIDEO_MEMORY
-    vaddr = memremap(res->start + Offset, Bytes, MEMREMAP_WC);
+    vaddr = ioremap_wc(res->start + Offset, Bytes);
 #else
-    vaddr = memremap(res->start + Offset, Bytes, MEMREMAP_WT);
-#endif
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
-    vaddr = memremap(res->start + Offset, Bytes, MEMREMAP_WT);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,6,0)
+    vaddr = ioremap(res->start + Offset, Bytes);
 #else
     vaddr = ioremap_nocache(res->start + Offset, Bytes);
+#endif
 #endif
 
     if (!vaddr)
@@ -457,11 +472,8 @@ reserved_mem_unmap_kernel(
         return gcvSTATUS_NOT_SUPPORTED;
     }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0)
-    memunmap((void *)Logical);
-#else
     iounmap((void *)Logical);
-#endif
+
     return gcvSTATUS_OK;
 }
 
@@ -568,8 +580,7 @@ _ReservedMemoryAllocatorInit(
     allocator->capability = gcvALLOC_FLAG_LINUX_RESERVED_MEM
                           | gcvALLOC_FLAG_CONTIGUOUS
                           | gcvALLOC_FLAG_CPU_ACCESS
-                          | gcvALLOC_FLAG_NON_CPU_ACCESS
-                          | gcvALLOC_FLAG_4GB_ADDR;
+                          | gcvALLOC_FLAG_NON_CPU_ACCESS;
 
     *Allocator = allocator;
 

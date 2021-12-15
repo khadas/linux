@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -1235,10 +1235,17 @@ OnError:
 }
 
 static gctBOOL
-_IsGPUIdle(
-    IN gctUINT32 Idle
+_IsHWIdle(
+    IN gctUINT32 Idle,
+    IN gckHARDWARE Hardware
     )
 {
+    if (Hardware->identity.customerID == 0x15 ||
+        gckHARDWARE_IsFeatureAvailable(Hardware, gcvFEATURE_VIP_SCALER) ||
+        gckHARDWARE_IsFeatureAvailable(Hardware, gcvFEATURE_VIP_SCALER_4K))
+    {
+        Idle = (Idle | (1 << 14));
+    }
     return Idle == 0x7FFFFFFF;
 }
 
@@ -1680,6 +1687,18 @@ _QueryFeatureDatabase(
         available = database->MMU_PAGE_DESCRIPTOR;
         break;
 
+    case gcvFEATURE_VIP_REMOVE_MMU:
+        available = database->VIP_REMOVE_MMU;
+        break;
+
+    case gcvFEATURE_VIP_SCALER:
+        available = database->SCALER;
+        break;
+
+    case gcvFEATURE_VIP_SCALER_4K:
+        available = database->SCALER_4K;
+        break;
+
         /*FALLTHRU*/
     default:
         gcmkFATAL("Invalid feature has been requested.");
@@ -1790,6 +1809,53 @@ _ConfigurePolicyID(
             ));
     }
 }
+
+static gceSTATUS
+_QueryNNClusters(
+    IN gckHARDWARE Hardware
+    )
+{
+    gctUINT64 enableNN = ~0UL;
+    gctUINT32 value = 0;
+    gceSTATUS status = gcvSTATUS_OK;
+
+    if (gcmIS_SUCCESS(gckOS_QueryOption(Hardware->os, "enableNN", &enableNN)))
+    {
+        if (!enableNN)
+        {
+            value = 0x2;
+        }
+        else if (enableNN == 0xFF || (enableNN == Hardware->identity.nnClusterNum))
+        {
+            value = 0;
+        }
+        else
+        {
+            /* We only support maximum 8 clusters by current. */
+            if (enableNN > 0x7)
+            {
+                gcmkPRINT("[Galcore warning]: Invalid enableNN value is configured.");
+
+                gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
+            }
+
+            value = (gctUINT32)enableNN + 0x2;
+        }
+    }
+
+    Hardware->options.enableNNClusters = (gctUINT32)enableNN;
+
+    if (value && Hardware->identity.customerID != 0x85)
+    {
+        gcmkPRINT("Galcore warning: Don't set enableNN as this chip not support NN cluster power control!\n");
+    }
+
+    Hardware->options.configNNPowerControl = value;
+
+OnError:
+    return status;
+}
+
 /****************************
 ** Initialise hardware options
 */
@@ -1808,7 +1874,7 @@ _SetHardwareOptions(
     gctBOOL featureTS = gckHARDWARE_IsFeatureAvailable(Hardware, gcvFEATURE_TESSELLATION) ? gcvTRUE : gcvFALSE;
     gctUINT32 featureL1CacheSize = database->L1CacheSize;
     gctUINT32 featureUSCMaxPages = database->USC_MAX_PAGES;
-
+    gctUINT32 i;
 
     status = gckOS_QueryOption(Hardware->os, "powerManagement", &data);
     options->powerManagement = (data != 0);
@@ -1819,14 +1885,33 @@ _SetHardwareOptions(
         options->powerManagement = gcvTRUE;
     }
 
-    status = gckOS_QueryOption(Hardware->os, "mmu", &data);
-    options->enableMMU = (data != 0);
-
-    if (status == gcvSTATUS_NOT_SUPPORTED)
+#if 0
+#ifndef EMULATOR
+    if (gckHARDWARE_IsFeatureAvailable(Hardware, gcvFEATURE_VIP_REMOVE_MMU))
     {
-        /* Disable MMU if we can't get result from OS layer query */
         options->enableMMU = gcvFALSE;
     }
+    else
+#endif
+#endif
+    {
+        status = gckOS_QueryOption(Hardware->os, "mmu", &data);
+        options->enableMMU = (data != 0);
+
+        if (status == gcvSTATUS_NOT_SUPPORTED)
+        {
+            /* Disable MMU if we can't get result from OS layer query */
+            options->enableMMU = gcvFALSE;
+        }
+    }
+
+    if (options->enableMMU == gcvFALSE)
+    {
+        gcmkPRINT("Galcore warning: MMU is disabled!\n");
+    }
+
+    /* Query enabled NN clusters. */
+    _QueryNNClusters(Hardware);
 
     gcmCONFIGUSC2(gcmk, featureUSC, featureSeparateLS, featureComputeOnly, featureTS,
                  featureL1CacheSize, featureUSCMaxPages,
@@ -1841,6 +1926,11 @@ _SetHardwareOptions(
     }
 
     status = gckOS_QueryOption(Hardware->os, "userClusterMasks", (gctUINT64 *)options->userClusterMasks);
+
+    for (i = 0; i < gcdMAX_MAJOR_CORE_COUNT; i++)
+    {
+        options->userClusterMasks[i] &= Hardware->identity.clusterAvailMask;
+    }
 
     options->userClusterMask = options->userClusterMasks[Hardware->core];
 
@@ -2127,7 +2217,7 @@ gckHARDWARE_Construct(
     gctUINT16 data = 0xff00;
     gctPOINTER pointer = gcvNULL;
     gctUINT    i;
-
+    gctUINT64 enableSoftReset = 1;
     gcmkHEADER_ARG("Os=0x%x", Os);
 
     /* Verify the arguments. */
@@ -2213,12 +2303,16 @@ gckHARDWARE_Construct(
             ? 0x0100
             : 0x0000;
 
-
-    /* _ResetGPU need powerBaseAddress. */
-    status = _ResetGPU(hardware, Os, Core);
-    if (status != gcvSTATUS_OK)
+    status = gckOS_QueryOption(Os, "softReset", (gctUINT64 *)&enableSoftReset);
+    if (enableSoftReset == 1)
     {
-        gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_HARDWARE, "_ResetGPU failed: status=%d\n", status);
+        /* _ResetGPU need powerBaseAddress. */
+        status = _ResetGPU(hardware, Os, Core);
+
+        if (status != gcvSTATUS_OK)
+        {
+            gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_HARDWARE, "_ResetGPU failed: status=%d\n", status);
+        }
     }
 
 #if gcdDEC_ENABLE_AHB
@@ -2990,9 +3084,11 @@ gckHARDWARE_InitializeHardware(
     }
 
     if (Hardware->identity.chipModel == 0x620 &&
-        Hardware->identity.chipRevision == 0x5552 &&
         Hardware->identity.productID == 0x6200 &&
-        Hardware->identity.customerID == 0x209)
+        ((Hardware->identity.chipRevision == 0x5552 &&
+        Hardware->identity.customerID == 0x209) ||
+        (Hardware->identity.chipRevision == 0x5553 &&
+        Hardware->identity.customerID == 0x210)))
     {
         gctUINT32 offset = 0;
 
@@ -3324,6 +3420,31 @@ gckHARDWARE_InitializeHardware(
                                   data));
     }
 
+    if (_IsHardwareMatch(Hardware, gcv8000, 0x7200))
+    {
+        if (regPMC == 0)
+        {
+        gcmkONERROR(
+            gckOS_ReadRegisterEx(Hardware->os,
+                                 Hardware->core,
+                                 Hardware->powerBaseAddress
+                                 + 0x00104,
+                                 &regPMC));
+        }
+
+        /* Disable SH_EU clock gating. */
+        regPMC = ((((gctUINT32) (regPMC)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 10:10) - (0 ?
+ 10:10) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 10:10) - (0 ?
+ 10:10) + 1))))))) << (0 ?
+ 10:10))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
+ 10:10) - (0 ?
+ 10:10) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 10:10) - (0 ? 10:10) + 1))))))) << (0 ? 10:10)));
+    }
+
     if (regPMC != 0)
     {
         gcmkONERROR(
@@ -3421,7 +3542,8 @@ gckHARDWARE_InitializeHardware(
 
     if (gckHARDWARE_IsFeatureAvailable(Hardware, gcvFEATURE_NN_ENGINE) &&
         (!gckHARDWARE_IsFeatureAvailable(Hardware, gcvFEATURE_HI_REORDER_FIX) ||
-        (((gcsFEATURE_DATABASE *)Hardware->featureDatabase)->AXI_SRAM_SIZE == 0))
+        (((gcsFEATURE_DATABASE *)Hardware->featureDatabase)->AXI_SRAM_SIZE == 0)) &&
+        (((gcsFEATURE_DATABASE *)Hardware->featureDatabase)->HI_DEFAULT_ENABLE_REORDER_FIX)
         )
     {
         gcmkONERROR(gckOS_ReadRegisterEx(
@@ -3443,6 +3565,8 @@ gckHARDWARE_InitializeHardware(
     }
 
     _ConfigurePolicyID(Hardware);
+
+    gcmkONERROR(gckHARDWARE_PowerControlClusters(Hardware, Hardware->options.configNNPowerControl, gcvTRUE));
 
 #if gcdDEBUG_MODULE_CLOCK_GATING
     _ConfigureModuleLevelClockGating(Hardware);
@@ -6256,7 +6380,7 @@ gckHARDWARE_GetIdle(
                                              &address));
 
             /* See if we have to wait for FE idle. */
-            if (_IsGPUIdle(idle)
+            if (_IsHWIdle(idle, Hardware)
              && (address == Hardware->lastEnd + 8)
              )
             {
@@ -6266,7 +6390,7 @@ gckHARDWARE_GetIdle(
         }
 
         /* Check if we need to wait for FE and FE is busy. */
-        if (Wait && !_IsGPUIdle(idle))
+        if (Wait && !_IsHWIdle(idle, Hardware))
         {
             /* Wait a little. */
             gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_HARDWARE,
@@ -7724,18 +7848,40 @@ OnError:
 #endif
 }
 
+/*******************************************************************************
+**
+**  gckHARDWARE_PowerControlClusters
+**
+**  Power control clusters of one core.
+**  Currently only support NN clusters.
+**
+**  INPUT:
+**
+**      gckHARDWARE Harwdare
+**          Pointer to an gckHARDWARE object.
+**
+**      gctUINT32 PowerControlVaule
+**          The value programmed to power control register.
+**
+**      gctBOOL PowerState
+**          Power State to switch.
+**
+*/
+
 gceSTATUS
-gckHARDWARE_PowerControlNNClusters(
+gckHARDWARE_PowerControlClusters(
     gckHARDWARE Hardware,
-    gctUINT32  PowerControlValue
+    gctUINT32  PowerControlValue,
+    gctBOOL PowerState
     )
 {
     gceSTATUS status = gcvSTATUS_OK;
-    gckCOMMAND command;
-    gctPOINTER buffer;
-    gctUINT32_PTR logical;
+    gckCOMMAND command = gcvNULL;
+    gctPOINTER buffer = gcvNULL;
+    gctUINT32_PTR logical = gcvNULL;
     gctUINT32 reqBytes = 16;
     gctUINT32 bytes;
+    gctUINT32 idle, timer = 0;
 
     gcmkHEADER_ARG("Hardware=%p PowerControlValue=%x", Hardware, PowerControlValue);
 
@@ -7743,7 +7889,17 @@ gckHARDWARE_PowerControlNNClusters(
 
     command = Hardware->kernel->command;
 
-    if (Hardware->mcFE)
+#if !gcdFPGA_BUILD
+    if (Hardware->identity.customerID != 0x85 || !Hardware->mcFE ||
+        Hardware->options.enableNNClusters == ~0UL ||
+        (!PowerState && !Hardware->powerState))
+#endif
+    {
+        gcmkFOOTER_NO();
+        return gcvSTATUS_OK;
+    }
+
+    /* Program cluster power control command, only with MCFE by current. */
     {
         /* Start the command parser. */
         gcmkONERROR(gckCOMMAND_Start(command));
@@ -7821,18 +7977,33 @@ gckHARDWARE_PowerControlNNClusters(
  31:27) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)));
 
-        gcmkONERROR(gckCOMMAND_ExecuteMultiChannel(command, gcvFALSE, 0, reqBytes));
+        gcmkONERROR(gckCOMMAND_ExecuteMultiChannel(command, gcvFALSE, 2, reqBytes));
 
-        /* Wait for handshake? */
-        /* gckOS_Delay(gcvNULL, 1);*/
+        do
+        {
+            gckOS_Udelay(Hardware->os, 10);
+
+            gcmkONERROR(gckOS_ReadRegisterEx(
+                Hardware->os,
+                Hardware->core,
+                0x00004,
+                &idle));
+
+            timer += 1;
+
+#if gcdGPU_TIMEOUT
+            if (timer >= Hardware->kernel->timeOut)
+            {
+                gcmkPRINT("%s %d Galcore timeout...\n", __FUNCTION__, __LINE__);
+
+                gcmkONERROR(gcvSTATUS_DEVICE);
+            }
+#endif
+        }
+        while (!_IsHWIdle(idle, Hardware));
 
         /* Stop the command parser. */
         gcmkONERROR(gckCOMMAND_Stop(command));
-    }
-    else
-    {
-        /* Only support NN power control when it is MCFE currently. */
-        gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
     }
 
 OnError:
@@ -7940,20 +8111,6 @@ _PmClockOff(
     )
 {
     gceSTATUS status;
-
-    if (Hardware->options.enableNNClusters &&
-        Hardware->identity.customerID == 0x85)
-    {
-        /* Power on. */
-        if (PowerState)
-        {
-            gcmkONERROR(gckHARDWARE_PowerControlNNClusters(Hardware, Hardware->options.configNNPowerControl));
-        }
-        else /* Power off. */
-        {
-            gcmkONERROR(gckHARDWARE_PowerControlNNClusters(Hardware, 0x2));
-        }
-    }
 
     gcmkONERROR(gckOS_SetGPUPower(Hardware->os, Hardware->core,
                                   gcvFALSE, PowerState));
@@ -8357,7 +8514,6 @@ _PmFlushCache(
     else
     {
         gcmkONERROR(gckFUNCTION_Execute(&Hardware->functions[gcvFUNCTION_EXECUTION_FLUSH]));
-        gckOS_Delay(gcvNULL, 1);
     }
 
 OnError:
@@ -8513,6 +8669,8 @@ _PmSetPowerOffDirection(
             /* Flush. */
             gcmkONERROR(_PmFlushCache(Hardware, command));
         }
+
+        gcmkONERROR(gckHARDWARE_PowerControlClusters(Hardware, 0x2, gcvFALSE));
 
         /* Clock control. */
         gcmkONERROR(_PmClockControl(Hardware, gcvPOWER_OFF));
@@ -8965,7 +9123,7 @@ gckHARDWARE_SetPowerState(
     if (Hardware->chipPowerState == state)
     {
         /* No state change. */
-        gckOS_ReleaseMutex(os, Hardware->powerMutex)
+        gckOS_ReleaseMutex(os, Hardware->powerMutex);
         gcmkFOOTER_NO();
         return gcvSTATUS_OK;
     }
@@ -8974,7 +9132,7 @@ gckHARDWARE_SetPowerState(
         state == gcvPOWER_SUSPEND && Hardware->chipPowerState == gcvPOWER_OFF)
     {
         /* Do nothing, donot change chipPowerState. */
-        gckOS_ReleaseMutex(os, Hardware->powerMutex)
+        gckOS_ReleaseMutex(os, Hardware->powerMutex);
         gcmkFOOTER_NO();
         return gcvSTATUS_OK;
     }
@@ -8984,7 +9142,7 @@ gckHARDWARE_SetPowerState(
         if (Hardware->nextPowerState == gcvPOWER_INVALID)
         {
             /* delayed power state change is canceled. */
-            gckOS_ReleaseMutex(os, Hardware->powerMutex)
+            gckOS_ReleaseMutex(os, Hardware->powerMutex);
             gcmkFOOTER_NO();
             return gcvSTATUS_OK;
         }
@@ -9195,7 +9353,8 @@ gckHARDWARE_SetPowerState(
         Hardware->nextPowerState = gcvPOWER_OFF_TIMEOUT;
 
         /* Start a timer to power off GPU when GPU enters IDLE or SUSPEND. */
-        if(Hardware->powerTimeout > 0)
+        //gcmkVERIFY_OK(gckOS_StartTimer(os, Hardware->powerStateTimer, gcdPOWEROFF_TIMEOUT));
+		if(Hardware->powerTimeout > 0)
 		{
 			gcmkVERIFY_OK(gckOS_StartTimer(os, Hardware->powerStateTimer, Hardware->powerTimeout));
 		}
@@ -9970,8 +10129,8 @@ CalcDelta(
 #if USE_SW_RESET
 #define gcmkRESET_PROFILE_DATA_PART1(counterName) \
     temp = profiler_part1->counterName; \
-    profiler_part1->counterName = CalcDelta(temp, Context->preProfiler_part1.counterName); \
-    Context->preProfiler_part1.counterName = temp
+    profiler_part1->counterName = CalcDelta(temp, Hardware->kernel->profiler.preProfiler_part1.counterName); \
+    Hardware->kernel->profiler.preProfiler_part1.counterName = temp
 #endif
 
 #define gcmkUPDATE_PROFILE_DATA_PART1(data) \
@@ -9983,7 +10142,6 @@ gceSTATUS
 gckHARDWARE_QueryContextProfile(
     IN gckHARDWARE Hardware,
     IN gctBOOL Reset,
-    IN gckCONTEXT Context,
     OUT gcsPROFILER_COUNTERS_PART1 * Counters_part1,
     OUT gcsPROFILER_COUNTERS_PART2 * Counters_part2
 )
@@ -9998,10 +10156,6 @@ gckHARDWARE_QueryContextProfile(
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
 
-    if (!Context)
-    {
-        gcmkONERROR(gcvSTATUS_INVALID_ARGUMENT);
-    }
     /* Acquire the context sequnence mutex. */
     gcmkONERROR(gckOS_AcquireMutex(
         command->os, command->mutexContextSeq, gcvINFINITE
@@ -10011,13 +10165,13 @@ gckHARDWARE_QueryContextProfile(
     if (Counters_part1)
     {
         gcmkVERIFY_OK(gckOS_MemCopy(
-            profiler_part1, &Context->histroyProfiler_part1, gcmSIZEOF(gcsPROFILER_COUNTERS_PART1)
+            profiler_part1, &Hardware->kernel->profiler.histroyProfiler_part1, gcmSIZEOF(gcsPROFILER_COUNTERS_PART1)
             ));
     }
     else if (Counters_part2)
     {
         gcmkVERIFY_OK(gckOS_MemCopy(
-            profiler_part2, &Context->histroyProfiler_part2, gcmSIZEOF(gcsPROFILER_COUNTERS_PART2)
+            profiler_part2, &Hardware->kernel->profiler.histroyProfiler_part2, gcmSIZEOF(gcsPROFILER_COUNTERS_PART2)
             ));
     }
 
@@ -10027,13 +10181,13 @@ gckHARDWARE_QueryContextProfile(
         if (Counters_part1)
         {
             gcmkVERIFY_OK(gckOS_ZeroMemory(
-                &Context->histroyProfiler_part1, gcmSIZEOF(gcsPROFILER_COUNTERS_PART1)
+                &Hardware->kernel->profiler.histroyProfiler_part1, gcmSIZEOF(gcsPROFILER_COUNTERS_PART1)
                 ));
         }
         else if (Counters_part2)
         {
             gcmkVERIFY_OK(gckOS_ZeroMemory(
-                &Context->histroyProfiler_part2, gcmSIZEOF(gcsPROFILER_COUNTERS_PART2)
+                &Hardware->kernel->profiler.histroyProfiler_part2, gcmSIZEOF(gcsPROFILER_COUNTERS_PART2)
                 ));
         }
     }
@@ -10054,15 +10208,14 @@ OnError:
 
 gceSTATUS
 gckHARDWARE_UpdateContextProfile(
-    IN gckHARDWARE Hardware,
-    IN gckCONTEXT Context
+    IN gckHARDWARE Hardware
 )
 {
     gceSTATUS status;
-    gcsPROFILER_COUNTERS_PART1 * profiler_part1 = &Context->latestProfiler_part1;
-    gcsPROFILER_COUNTERS_PART1 * profilerHistroy_part1 = &Context->histroyProfiler_part1;
-    gcsPROFILER_COUNTERS_PART2 * profiler_part2 = &Context->latestProfiler_part2;
-    gcsPROFILER_COUNTERS_PART2 * profilerHistroy_part2 = &Context->histroyProfiler_part2;
+    gcsPROFILER_COUNTERS_PART1 * profiler_part1 = &Hardware->kernel->profiler.latestProfiler_part1;
+    gcsPROFILER_COUNTERS_PART1 * profilerHistroy_part1 = &Hardware->kernel->profiler.histroyProfiler_part1;
+    gcsPROFILER_COUNTERS_PART2 * profiler_part2 = &Hardware->kernel->profiler.latestProfiler_part2;
+    gcsPROFILER_COUNTERS_PART2 * profilerHistroy_part2 = &Hardware->kernel->profiler.histroyProfiler_part2;
     gceCHIPMODEL chipModel;
     gctUINT32 chipRevision;
     gctUINT32 i;
@@ -10076,11 +10229,10 @@ gckHARDWARE_UpdateContextProfile(
     gckCOMMAND command = Hardware->kernel->command;
     gctBOOL mutexAcquired = gcvFALSE;
 
-    gcmkHEADER_ARG("Hardware=0x%x Context=0x%x", Hardware, Context);
+    gcmkHEADER_ARG("Hardware=0x%x", Hardware);
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
-    gcmkVERIFY_OBJECT(Context, gcvOBJ_CONTEXT);
 
     /* Acquire the context sequnence mutex. */
     gcmkONERROR(gckOS_AcquireMutex(
@@ -12066,7 +12218,6 @@ OnError:
     return status;
 }
 
-
 gceSTATUS
 gckHARDWARE_InitProfiler(
     IN gckHARDWARE Hardware
@@ -12668,7 +12819,7 @@ gckHARDWARE_DumpMMUException(
               Hardware->identity.chipRevision);
 
     gcmkPRINT("**************************\n");
-    gcmkPRINT("***   MMU ERROR DUMP   ***\n");
+    gcmkPRINT("***   MMU STATUS DUMP   ***\n");
     gcmkPRINT("**************************\n");
 
 
@@ -13129,7 +13280,7 @@ gckHARDWARE_DumpGPUState(
     };
 
     gceSTATUS status;
-    gctUINT32 idle = 0, axi = 0;
+    gctUINT32 idle = 0, axi = 0, hiControl = 0;
     gctUINT32 dmaAddress1 = 0, dmaAddress2 = 0;
     gctUINT32 dmaState1 = 0, dmaState2 = 0;
     gctUINT32 dmaLow = 0, dmaHigh = 0;
@@ -13185,6 +13336,7 @@ gckHARDWARE_DumpGPUState(
     veReqState  = (dmaState2 >> 16) & 0x03;
 
     gcmkONERROR(gckOS_ReadRegisterEx(os, core, 0x00004, &idle));
+    gcmkONERROR(gckOS_ReadRegisterEx(os, core, 0x00000, &hiControl));
     gcmkONERROR(gckOS_ReadRegisterEx(os, core, 0x0000C, &axi));
     gcmkONERROR(gckOS_ReadRegisterEx(os, core, 0x00668, &dmaLow));
     gcmkONERROR(gckOS_ReadRegisterEx(os, core, 0x00668, &dmaLow));
@@ -13219,6 +13371,8 @@ gckHARDWARE_DumpGPUState(
     if ((idle & 0x00040000) == 0) gcmkPRINT_N(0, "    NN not idle\n");
     if ((idle & 0x00080000) == 0) gcmkPRINT_N(0, "    TP not idle\n");
     if ((idle & 0x80000000) != 0) gcmkPRINT_N(0, "    AXI low power mode\n");
+
+    gcmkPRINT_N(4, "  AQ_HI_CLOCK_CONTROL  = 0x%08X\n", hiControl);
 
     if ((dmaAddress1 == dmaAddress2)
      && (dmaState1 == dmaState2))
@@ -14141,10 +14295,20 @@ gckHARDWARE_ExecuteFunctions(
     {
         address = Execution->funcCmd[i].address;
 
+#if gcdDUMP_IN_KERNEL
+        gcmkDUMP_BUFFER(
+            hardware->os,
+            gcvDUMP_BUFFER_KERNEL_COMMAND,
+            Execution->funcCmd[i].logical,
+            Execution->funcCmd[i].address,
+            Execution->funcCmd[i].bytes
+            );
+#endif
+
         /* Execute prepared command sequence. */
         if (hardware->mcFE)
         {
-            gcmkONERROR(gckMCFE_Execute(hardware, gcvFALSE, 0, address, Execution->funcCmd[i].bytes));
+            gcmkONERROR(gckMCFE_Execute(hardware, gcvFALSE, Execution->funcCmd[i].channelId, address, Execution->funcCmd[i].bytes));
         }
         else
         {
@@ -14164,16 +14328,6 @@ gckHARDWARE_ExecuteFunctions(
 
             gckQUEUE_Enqueue(&hardware->linkQueue, &data);
         }
-#endif
-
-#if gcdDUMP_IN_KERNEL
-        gcmkDUMP_BUFFER(
-            hardware->os,
-            gcvDUMP_BUFFER_KERNEL_COMMAND,
-            Execution->funcCmd[i].logical,
-            Execution->funcCmd[i].address,
-            Execution->funcCmd[i].bytes
-            );
 #endif
 
         /* Wait until GPU idle. */
@@ -14207,9 +14361,8 @@ gckHARDWARE_ExecuteFunctions(
             }
 #endif
         }
-        while (!_IsGPUIdle(idle));
+        while (!_IsHWIdle(idle, hardware));
     }
-
     return gcvSTATUS_OK;
 
 OnError:
@@ -16474,7 +16627,6 @@ gckHARDWARE_ExitQueryClock(
 
         if (!shCycle)
         {
-            /*TODO: [VIV] Query SH cycle not support for old chips */
             *ShClk = *McClk;
             return gcvSTATUS_OK;
         }
@@ -16671,7 +16823,7 @@ gckHARDWARE_SetClock(
 
     if (mcScale > 0 && mcScale <= 64)
     {
-        gckOS_ReadRegisterEx(Hardware->os, core, 0x00000, &org);
+        gcmkONERROR(gckOS_ReadRegisterEx(Hardware->os, core, 0x00000, &org));
 
         org = ((((gctUINT32) (org)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  8:2) - (0 ?
@@ -16685,7 +16837,7 @@ gckHARDWARE_SetClock(
  ~0U : (~(~0U << ((1 ? 8:2) - (0 ? 8:2) + 1))))))) << (0 ? 8:2)));
 
         /* Write the clock control register. */
-        gckOS_WriteRegisterEx(Hardware->os, core,
+        gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, core,
                             0x00000,
                             ((((gctUINT32) (org)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  9:9) - (0 ?
@@ -16696,10 +16848,10 @@ gckHARDWARE_SetClock(
  9:9))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
  9:9) - (0 ?
  9:9) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))));
+ ~0U : (~(~0U << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9)))));
 
         /* Done loading the frequency scaler. */
-        gckOS_WriteRegisterEx(Hardware->os, core,
+        gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, core,
                             0x00000,
                             ((((gctUINT32) (org)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  9:9) - (0 ?
@@ -16710,21 +16862,21 @@ gckHARDWARE_SetClock(
  9:9))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
  9:9) - (0 ?
  9:9) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9))));
+ ~0U : (~(~0U << ((1 ? 9:9) - (0 ? 9:9) + 1))))))) << (0 ? 9:9)))));
 
         /* Need to change 0x0010C when it is introduced. */
-        gckOS_ReadRegisterEx(Hardware->os, core, 0x0010C, &org);
+        gcmkONERROR(gckOS_ReadRegisterEx(Hardware->os, core, 0x0010C, &org));
 
         /* Never impact shader clk. */
         org = 0x01020800 | (org & 0xFF);
 
-        gckOS_WriteRegisterEx(Hardware->os, core, 0x0010C, org);
+        gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, core, 0x0010C, org));
     }
 
     /* set SH clock */
     if (shScale > 0 && shScale <= 64)
     {
-        gckOS_ReadRegisterEx(Hardware->os, core, 0x0010C, &org);
+        gcmkONERROR(gckOS_ReadRegisterEx(Hardware->os, core, 0x0010C, &org));
 
         org = ((((gctUINT32) (org)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  7:1) - (0 ?
@@ -16758,7 +16910,7 @@ gckHARDWARE_SetClock(
  ~0U : (~(~0U << ((1 ? 17:17) - (0 ? 17:17) + 1))))))) << (0 ? 17:17)));
 
         /* Write the clock control register. */
-        gckOS_WriteRegisterEx(Hardware->os, core,
+        gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, core,
                             0x0010C,
                             ((((gctUINT32) (org)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  0:0) - (0 ?
@@ -16769,10 +16921,10 @@ gckHARDWARE_SetClock(
  0:0))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
  0:0) - (0 ?
  0:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0))));
+ ~0U : (~(~0U << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))));
 
         /* Done loading the frequency scaler. */
-        gckOS_WriteRegisterEx(Hardware->os, core,
+        gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, core,
                             0x0010C,
                             ((((gctUINT32) (org)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  0:0) - (0 ?
@@ -16783,7 +16935,7 @@ gckHARDWARE_SetClock(
  0:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ?
  0:0) - (0 ?
  0:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0))));
+ ~0U : (~(~0U << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))));
     }
 
     /* Release the global semaphore. */
@@ -16808,6 +16960,202 @@ OnError:
 
     gcmkFOOTER_NO();
 
+    return status;
+}
+
+gceSTATUS
+gckHARDWARE_QueryCycleCount(
+    IN gckHARDWARE Hardware,
+    OUT gctUINT32 *hi_total_cycle_count,
+    OUT gctUINT32 *hi_total_idle_cycle_count
+    )
+{
+    gceSTATUS status = gcvSTATUS_OK;
+    gceCHIPMODEL chipModel;
+
+    gcmkHEADER_ARG("Hardware=0x%p hi_total_cycle_count=0x%p hi_total_idle_cycle_count=0x%p", Hardware, hi_total_cycle_count, hi_total_idle_cycle_count);
+
+    gcmkVERIFY_ARGUMENT(Hardware != gcvNULL);
+
+    chipModel = Hardware->identity.chipModel;
+
+    if (chipModel == gcv2100 || chipModel == gcv2000 || chipModel == gcv880)
+    {
+        gcmkONERROR(
+            gckOS_ReadRegisterEx(Hardware->os,
+            Hardware->core,
+            0x00078,
+            hi_total_idle_cycle_count));
+
+        gcmkONERROR(
+            gckOS_ReadRegisterEx(Hardware->os,
+            Hardware->core,
+            0x00438,
+            hi_total_cycle_count));
+     }
+     else
+     {
+        gcmkONERROR(
+            gckOS_ReadRegisterEx(Hardware->os,
+            Hardware->core,
+            0x0007C,
+            hi_total_idle_cycle_count));
+
+        gcmkONERROR(
+            gckOS_ReadRegisterEx(Hardware->os,
+            Hardware->core,
+            0x00078,
+            hi_total_cycle_count));
+      }
+
+OnError:
+    /* Return the status. */
+    gcmkFOOTER();
+    return status;
+}
+
+gceSTATUS
+gckHARDWARE_CleanCycleCount(
+    IN gckHARDWARE Hardware
+    )
+{
+    gceSTATUS status = gcvSTATUS_OK;
+
+    gcmkHEADER_ARG("Hardware=0x%p", Hardware);
+
+    gcmkVERIFY_ARGUMENT(Hardware != gcvNULL);
+
+    gcmkONERROR(
+        gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x0007C, 0));
+
+    gcmkONERROR(
+        gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x00438, 0));
+
+    gcmkONERROR(
+        gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x00078, 0));
+
+OnError:
+    /* Return the status. */
+    gcmkFOOTER();
+    return status;
+}
+
+gceSTATUS
+gckHARDWARE_QueryCoreLoad(
+    IN gckHARDWARE Hardware,
+    OUT gctUINT32 *Load
+    )
+{
+    gctUINT32 i = 0;
+    gceSTATUS status = gcvSTATUS_OK;
+    gceCHIPPOWERSTATE statesStored, state;
+    gctBOOL powerManagement = gcvFALSE;
+    static gctUINT32 hardwareCount = 0;
+    static gctBOOL profilerEnable = gcvFALSE;
+    gckHARDWARE hardware[gcvCORE_3D_MAX + 1] = {gcvNULL};
+    gctUINT32 hi_total_cycle_count = 0, hi_total_idle_cycle_count =0;
+
+    gcmkHEADER_ARG("Hardware=0x%p Load=0x%p", Hardware, Load);
+
+    gcmkVERIFY_ARGUMENT(Hardware != gcvNULL);
+
+    powerManagement = Hardware->options.powerManagement;
+
+    if (powerManagement)
+    {
+        gcmkONERROR(gckHARDWARE_EnablePowerManagement(
+        Hardware, gcvFALSE
+        ));
+    }
+
+    gcmkONERROR(gckHARDWARE_QueryPowerState(
+        Hardware, &statesStored
+        ));
+
+    gcmkONERROR(gckHARDWARE_SetPowerState(
+        Hardware, gcvPOWER_ON_AUTO
+        ));
+
+    if (hardwareCount == 0)
+    {
+        hardware[0] = Hardware;
+        hardwareCount = 1;
+    }
+    else
+    {
+        for (i = 0; i < hardwareCount; i++)
+        {
+            if (Hardware == hardware[i])
+            {
+                break;
+            }
+            else if (i == hardwareCount - 1)
+            {
+                profilerEnable = gcvFALSE;
+                hardware[hardwareCount] = Hardware;
+                hardwareCount++;
+                break;
+            }
+        }
+    }
+
+    if (!profilerEnable)
+    {
+        gcmkONERROR(gckHARDWARE_SetGpuProfiler(
+            Hardware,
+            gcvTRUE
+            ));
+
+        gcmkONERROR(gckHARDWARE_InitProfiler(Hardware));
+
+        profilerEnable = gcvTRUE;
+    }
+
+    Hardware->waitCount = 200 * 100;
+
+    gcmkONERROR(gckHARDWARE_CleanCycleCount(Hardware));
+
+    gcmkONERROR(gckHARDWARE_QueryCycleCount(Hardware,
+        &hi_total_cycle_count,
+        &hi_total_idle_cycle_count));
+
+    switch(statesStored)
+    {
+    case gcvPOWER_OFF:
+        state = gcvPOWER_OFF_BROADCAST;
+        break;
+    case gcvPOWER_IDLE:
+        state = gcvPOWER_IDLE_BROADCAST;
+        break;
+    case gcvPOWER_SUSPEND:
+        state = gcvPOWER_SUSPEND_BROADCAST;
+        break;
+    case gcvPOWER_ON:
+        state = gcvPOWER_ON_AUTO;
+        break;
+    default:
+        state = statesStored;
+        break;
+    }
+
+    Hardware->waitCount = 200;
+
+    if (powerManagement)
+    {
+        gcmkONERROR(gckHARDWARE_EnablePowerManagement(
+            Hardware, gcvTRUE
+            ));
+    }
+
+    gcmkONERROR(gckHARDWARE_SetPowerState(
+        Hardware, state
+        ));
+
+    *Load = (hi_total_cycle_count - hi_total_idle_cycle_count) * 100 / hi_total_cycle_count;
+
+OnError:
+    /* Return the status. */
+    gcmkFOOTER();
     return status;
 }
 

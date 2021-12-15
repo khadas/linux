@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -66,6 +66,11 @@
 #endif
 #include <linux/slab.h>
 #include <linux/platform_device.h>
+#if defined(CONFIG_X86)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,12,0)
+#include <asm/set_memory.h>
+#endif
+#endif
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
@@ -256,17 +261,33 @@ _DmaGetSGT(
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
     }
 
-#if !defined(phys_to_page)
-    page = virt_to_page(mdlPriv->kvaddr);
-#elif LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
-    page = phys_to_page(mdlPriv->dmaHandle);
+    if (Allocator->os->iommu)
+    {
+        phys_addr_t phys;
+        for (i = 0; i < numPages; i++)
+        {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0)
+            phys = iommu_iova_to_phys(Allocator->os->iommu->domain, mdlPriv->dmaHandle + (i + skipPages) * PAGE_SIZE);
 #else
-    page = phys_to_page(dma_to_phys(&Allocator->os->device->platform->device->dev, mdlPriv->dmaHandle));
+            gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
+#endif
+            pages[i] = pfn_to_page(phys >> PAGE_SHIFT);
+        }
+    }
+    else
+    {
+#if !defined(phys_to_page)
+        page = virt_to_page(mdlPriv->kvaddr);
+#elif LINUX_VERSION_CODE < KERNEL_VERSION(3,13,0)
+        page = phys_to_page(mdlPriv->dmaHandle);
+#else
+        page = phys_to_page(dma_to_phys(&Allocator->os->device->platform->device->dev, mdlPriv->dmaHandle));
 #endif
 
-    for (i = 0; i < numPages; ++i)
-    {
-        pages[i] = nth_page(page, i + skipPages);
+        for (i = 0; i < numPages; ++i)
+        {
+            pages[i] = nth_page(page, i + skipPages);
+        }
     }
 
     if (sg_alloc_table_from_pages(sgt, pages, numPages, offset, Bytes, GFP_KERNEL) < 0)
@@ -414,7 +435,7 @@ _DmaUnmapUser(
                 );
     }
 #else
-    down_write(&current->mm->mmap_sem);
+    down_write(&current_mm_mmap_sem);
     if (do_munmap(current->mm, (unsigned long)MdlMap->vmaAddr, Size) < 0)
     {
         gcmkTRACE_ZONE(
@@ -423,8 +444,11 @@ _DmaUnmapUser(
                 __FUNCTION__, __LINE__
                 );
     }
-    up_write(&current->mm->mmap_sem);
+    up_write(&current_mm_mmap_sem);
 #endif
+
+    MdlMap->vma = NULL;
+    MdlMap->vmaAddr = NULL;
 }
 
 static gceSTATUS
@@ -441,21 +465,25 @@ _DmaMapUser(
     gcmkHEADER_ARG("Allocator=%p Mdl=%p Cacheable=%d", Allocator, Mdl, Cacheable);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 4, 0)
+#if gcdANON_FILE_FOR_ALLOCATOR
+    userLogical = (gctPOINTER)vm_mmap(Allocator->anon_file,
+#else
     userLogical = (gctPOINTER)vm_mmap(gcvNULL,
+#endif
                     0L,
                     Mdl->numPages * PAGE_SIZE,
                     PROT_READ | PROT_WRITE,
                     MAP_SHARED | MAP_NORESERVE,
                     0);
 #else
-    down_write(&current->mm->mmap_sem);
+    down_write(&current_mm_mmap_sem);
     userLogical = (gctPOINTER)do_mmap_pgoff(gcvNULL,
                     0L,
                     Mdl->numPages * PAGE_SIZE,
                     PROT_READ | PROT_WRITE,
                     MAP_SHARED,
                     0);
-    up_write(&current->mm->mmap_sem);
+    up_write(&current_mm_mmap_sem);
 #endif
 
     gcmkTRACE_ZONE(
@@ -472,10 +500,13 @@ _DmaMapUser(
             __FUNCTION__, __LINE__
             );
 
+        userLogical = gcvNULL;
+
         gcmkONERROR(gcvSTATUS_OUT_OF_MEMORY);
     }
 
-    down_write(&current->mm->mmap_sem);
+    down_write(&current_mm_mmap_sem);
+
     do
     {
         struct vm_area_struct *vma = find_vma(current->mm, (unsigned long)userLogical);
@@ -497,12 +528,14 @@ _DmaMapUser(
         MdlMap->vma = vma;
     }
     while (gcvFALSE);
-    up_write(&current->mm->mmap_sem);
+
+    up_write(&current_mm_mmap_sem);
 
 OnError:
     if (gcmIS_ERROR(status) && userLogical)
     {
-        _DmaUnmapUser(Allocator, Mdl, userLogical, Mdl->numPages * PAGE_SIZE);
+        MdlMap->vmaAddr = userLogical;
+        _DmaUnmapUser(Allocator, Mdl, MdlMap, Mdl->numPages * PAGE_SIZE);
     }
     gcmkFOOTER();
     return status;
@@ -640,6 +673,15 @@ _DmaAlloctorInit(
                           | gcvALLOC_FLAG_4GB_ADDR
 #endif
                           ;
+
+    if (Os->iommu)
+    {
+        /* Add some flags to ensure successful memory allocation */
+        allocator->capability |= gcvALLOC_FLAG_NON_CONTIGUOUS;
+        allocator->capability |= gcvALLOC_FLAG_1M_PAGES;
+        allocator->capability |= gcvALLOC_FLAG_CACHEABLE;
+        allocator->capability |= gcvALLOC_FLAG_MEMLIMIT;
+    }
 
     *Allocator = allocator;
 

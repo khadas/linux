@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -17,6 +17,11 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define ANDROID_PROFILER_COUNTERS   1
+#define APP_INFO   1
+#define FPGA_INFO   0
+#define RECORD_COUNTER_ADDRESS  0
 
 /* HW profile information. */
 typedef struct _gcsPROFILER_COUNTERS_PART1

@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -223,17 +223,36 @@ extern "C" {
 #define PPS_SOURCE           (PPS_FUNCTIONCOUNT    + 1)
 /* End of MISC Counter IDs. */
 
+#define VPG(x) (gcoPROFILER_getVPGConst(x))
+
+enum gceVPG
+{
+    VPHEADER,
+    INFO,
+    FRAME,
+    TIME,
+    ES11,
+    ES20,
+    VG11,
+    HW,
+    MULTI_GPU,
+    PROG,
+    ES11DRAW,
+    ES20DRAW,
+    MEM,
+    PVS,
+    PPS,
+    ES11_TIME,
+    ES20_TIME,
+    ES30,
+    ES30_DRAW,
+    ES30_TIME,
+    FINISH,
+    END,
+};
 
 /* Category Constants. */
-#define VPHEADER        0x010000
-#define VPG_INFO        0x020000
-#define VPG_TIME        0x030000
-#define VPG_MEM         0x040000
-#define VPG_ES11        0x050000
-#define VPG_ES30        0x060000
-#define VPG_VG11        0x070000
 #define VPG_HAL         0x080000
-#define VPG_HW          0x090000
 #define VPG_GPU         0x0a0000
 #define VPG_VS          0x0b0000
 #define VPG_PS          0x0c0000
@@ -244,17 +263,8 @@ extern "C" {
 #define VPG_PE          0x110000
 #define VPG_MC          0x120000
 #define VPG_AXI         0x130000
-#define VPG_PROG        0x140000
-#define VPG_PVS         0x150000
-#define VPG_PPS         0x160000
-#define VPG_ES11_TIME   0x170000
-#define VPG_ES30_TIME   0x180000
-#define VPG_FRAME       0x190000
-#define VPG_ES11_DRAW   0x200000
-#define VPG_ES30_DRAW   0x210000
 #define VPG_VG11_TIME   0x220000
 #define VPG_FE          0x230000
-#define VPG_MULTI_GPU   0x240000
 #define VPNG_FE         0x250000
 #define VPNG_VS         0x260000
 #define VPNG_PS         0x270000
@@ -269,49 +279,48 @@ extern "C" {
 #define VPNG_L2         0x300000
 #define VPNG_NN         0x310000
 #define VPNG_TP         0x320000
-#define VPG_FINISH      0x330000
-#define VPG_END         0xff0000
 
 /* Info. */
-#define VPC_INFOCOMPANY         (VPG_INFO + 1)
+#define VPC_INFOCOMPANY         (VPG(INFO) + 1)
 #define VPC_INFOVERSION         (VPC_INFOCOMPANY + 1)
 #define VPC_INFORENDERER        (VPC_INFOVERSION + 1)
 #define VPC_INFOREVISION        (VPC_INFORENDERER + 1)
 #define VPC_INFODRIVER          (VPC_INFOREVISION + 1)
 #define VPC_INFODRIVERMODE      (VPC_INFODRIVER + 1)
 #define VPC_INFOSCREENSIZE      (VPC_INFODRIVERMODE + 1)
+#define VPC_INFOASICMODE        (VPC_INFOSCREENSIZE + 1)
 
 /* Counter Constants. */
-#define VPC_ELAPSETIME          (VPG_TIME + 1)
+#define VPC_ELAPSETIME          (VPG(TIME) + 1)
 #define VPC_CPUTIME             (VPC_ELAPSETIME + 1)
 
-#define VPC_MEMMAXRES           (VPG_MEM + 1)
+#define VPC_MEMMAXRES           (VPG(MEM) + 1)
 #define VPC_MEMSHARED           (VPC_MEMMAXRES + 1)
 #define VPC_MEMUNSHAREDDATA     (VPC_MEMSHARED + 1)
 #define VPC_MEMUNSHAREDSTACK    (VPC_MEMUNSHAREDDATA + 1)
 
 /* OpenGL ES11 Statics Counter IDs. */
-#define    VPC_ES11CALLS            (VPG_ES11 +    ES11_CALLS)
-#define    VPC_ES11DRAWCALLS        (VPG_ES11 +    ES11_DRAWCALLS)
-#define    VPC_ES11STATECHANGECALLS (VPG_ES11 +    ES11_STATECHANGECALLS)
-#define    VPC_ES11POINTCOUNT       (VPG_ES11 +    ES11_POINTCOUNT)
-#define    VPC_ES11LINECOUNT        (VPG_ES11 +    ES11_LINECOUNT)
-#define    VPC_ES11TRIANGLECOUNT    (VPG_ES11 +    ES11_TRIANGLECOUNT)
+#define    VPC_ES11CALLS            (VPG(ES11) +    ES11_CALLS)
+#define    VPC_ES11DRAWCALLS        (VPG(ES11) +    ES11_DRAWCALLS)
+#define    VPC_ES11STATECHANGECALLS (VPG(ES11) +    ES11_STATECHANGECALLS)
+#define    VPC_ES11POINTCOUNT       (VPG(ES11) +    ES11_POINTCOUNT)
+#define    VPC_ES11LINECOUNT        (VPG(ES11) +    ES11_LINECOUNT)
+#define    VPC_ES11TRIANGLECOUNT    (VPG(ES11) +    ES11_TRIANGLECOUNT)
 
 /* OpenGL ES30 Statistics Counter IDs. */
-#define    VPC_ES30CALLS            (VPG_ES30 +    ES30_CALLS)
-#define    VPC_ES30DRAWCALLS        (VPG_ES30 +    ES30_DRAWCALLS)
-#define    VPC_ES30STATECHANGECALLS (VPG_ES30 +    ES30_STATECHANGECALLS)
-#define    VPC_ES30POINTCOUNT       (VPG_ES30 +    ES30_POINTCOUNT)
-#define    VPC_ES30LINECOUNT        (VPG_ES30 +    ES30_LINECOUNT)
-#define    VPC_ES30TRIANGLECOUNT    (VPG_ES30 +    ES30_TRIANGLECOUNT)
+#define    VPC_ES30CALLS            (VPG(ES30) +    ES30_CALLS)
+#define    VPC_ES30DRAWCALLS        (VPG(ES30) +    ES30_DRAWCALLS)
+#define    VPC_ES30STATECHANGECALLS (VPG(ES30) +    ES30_STATECHANGECALLS)
+#define    VPC_ES30POINTCOUNT       (VPG(ES30) +    ES30_POINTCOUNT)
+#define    VPC_ES30LINECOUNT        (VPG(ES30) +    ES30_LINECOUNT)
+#define    VPC_ES30TRIANGLECOUNT    (VPG(ES30) +    ES30_TRIANGLECOUNT)
 
 /* OpenVG Statistics Counter IDs. */
-#define    VPC_VG11CALLS            (VPG_VG11 +    VG11_CALLS)
-#define    VPC_VG11DRAWCALLS        (VPG_VG11 +    VG11_DRAWCALLS)
-#define    VPC_VG11STATECHANGECALLS (VPG_VG11 +    VG11_STATECHANGECALLS)
-#define    VPC_VG11FILLCOUNT        (VPG_VG11 +    VG11_FILLCOUNT)
-#define    VPC_VG11STROKECOUNT      (VPG_VG11 +    VG11_STROKECOUNT)
+#define    VPC_VG11CALLS            (VPG(VG11) +    VG11_CALLS)
+#define    VPC_VG11DRAWCALLS        (VPG(VG11) +    VG11_DRAWCALLS)
+#define    VPC_VG11STATECHANGECALLS (VPG(VG11) +    VG11_STATECHANGECALLS)
+#define    VPC_VG11FILLCOUNT        (VPG(VG11) +    VG11_FILLCOUNT)
+#define    VPC_VG11STROKECOUNT      (VPG(VG11) +    VG11_STROKECOUNT)
 
 /* HAL Counters. */
 #define VPC_HALVERTBUFNEWBYTEALLOC      (VPG_HAL + HAL_VERTBUFNEWBYTEALLOC)
@@ -638,27 +647,27 @@ extern "C" {
 #define TOTAL_MODULE_NUMBER              12
 
 /* PROGRAM: Shader program counters. */
-#define VPC_PVSINSTRCOUNT           (VPG_PVS + PVS_INSTRCOUNT)
-#define VPC_PVSALUINSTRCOUNT        (VPG_PVS + PVS_ALUINSTRCOUNT)
-#define VPC_PVSTEXINSTRCOUNT        (VPG_PVS + PVS_TEXINSTRCOUNT)
-#define VPC_PVSATTRIBCOUNT          (VPG_PVS + PVS_ATTRIBCOUNT)
-#define VPC_PVSUNIFORMCOUNT         (VPG_PVS + PVS_UNIFORMCOUNT)
-#define VPC_PVSFUNCTIONCOUNT        (VPG_PVS + PVS_FUNCTIONCOUNT)
-#define VPC_PVSSOURCE               (VPG_PVS + PVS_SOURCE)
+#define VPC_PVSINSTRCOUNT           (VPG(PVS) + PVS_INSTRCOUNT)
+#define VPC_PVSALUINSTRCOUNT        (VPG(PVS) + PVS_ALUINSTRCOUNT)
+#define VPC_PVSTEXINSTRCOUNT        (VPG(PVS) + PVS_TEXINSTRCOUNT)
+#define VPC_PVSATTRIBCOUNT          (VPG(PVS) + PVS_ATTRIBCOUNT)
+#define VPC_PVSUNIFORMCOUNT         (VPG(PVS) + PVS_UNIFORMCOUNT)
+#define VPC_PVSFUNCTIONCOUNT        (VPG(PVS) + PVS_FUNCTIONCOUNT)
+#define VPC_PVSSOURCE               (VPG(PVS) + PVS_SOURCE)
 
-#define VPC_PPSINSTRCOUNT           (VPG_PPS + PPS_INSTRCOUNT)
-#define VPC_PPSALUINSTRCOUNT        (VPG_PPS + PPS_ALUINSTRCOUNT)
-#define VPC_PPSTEXINSTRCOUNT        (VPG_PPS + PPS_TEXINSTRCOUNT)
-#define VPC_PPSATTRIBCOUNT          (VPG_PPS + PPS_ATTRIBCOUNT)
-#define VPC_PPSUNIFORMCOUNT         (VPG_PPS + PPS_UNIFORMCOUNT)
-#define VPC_PPSFUNCTIONCOUNT        (VPG_PPS + PPS_FUNCTIONCOUNT)
-#define VPC_PPSSOURCE               (VPG_PPS + PPS_SOURCE)
+#define VPC_PPSINSTRCOUNT           (VPG(PPS) + PPS_INSTRCOUNT)
+#define VPC_PPSALUINSTRCOUNT        (VPG(PPS) + PPS_ALUINSTRCOUNT)
+#define VPC_PPSTEXINSTRCOUNT        (VPG(PPS) + PPS_TEXINSTRCOUNT)
+#define VPC_PPSATTRIBCOUNT          (VPG(PPS) + PPS_ATTRIBCOUNT)
+#define VPC_PPSUNIFORMCOUNT         (VPG(PPS) + PPS_UNIFORMCOUNT)
+#define VPC_PPSFUNCTIONCOUNT        (VPG(PPS) + PPS_FUNCTIONCOUNT)
+#define VPC_PPSSOURCE               (VPG(PPS) + PPS_SOURCE)
 
-#define VPC_PROGRAMHANDLE           (VPG_PROG + 1)
+#define VPC_PROGRAMHANDLE           (VPG(PROG) + 1)
 
-#define VPC_ES30_DRAW_NO            (VPG_ES30_DRAW + 1)
+#define VPC_ES30_DRAW_NO            (VPG(ES30_DRAW) + 1)
 #define VPC_ES11_DRAW_NO            (VPG_ES11_DRAW + 1)
-#define VPC_ES30_GPU_NO             (VPG_MULTI_GPU + 1)
+#define VPC_ES30_GPU_NO             (VPG(MULTI_GPU) + 1)
 
 
 #define   MODULE_FRONT_END_COUNTER_NUM                    0x5
@@ -987,6 +996,8 @@ struct gcsCounterBuffer
     gctPOINTER                  logicalAddress;
     gceCOUNTER_OPTYPE           opType;
     gctUINT32                   opID;
+    gctUINT32                   opCount[4];
+    gctUINT32                   currentShaderId[6];
     gctUINT32                   startPos;
     gctUINT32                   endPos;
     gctUINT32                   dataSize;
@@ -996,6 +1007,22 @@ struct gcsCounterBuffer
     gcsCounterBuffer_PTR        prev;
 };
 
+typedef struct _gcoPROBE         gcoPROBE;
+struct _gcoPROBE
+{
+    gctUINT32                   address;
+    gctUINT32                   offset;
+};
+
+typedef struct _gcoMODULE         gcoMODULE;
+struct _gcoMODULE
+{
+    gctUINT32                   name;
+    gctUINT32                   address;
+    gctUINT32                   numProbe;
+    gcoPROBE                    probe[256];
+};
+
 typedef struct _gcoPROFILER *        gcoPROFILER;
 
 struct _gcoPROFILER
@@ -1003,11 +1030,13 @@ struct _gcoPROFILER
     gctBOOL                     enable;
     gctBOOL                     enablePrint;
     gctBOOL                     disableProbe;
-    gctBOOL                     probeMode;
+
     gctBOOL                     vipProbe;
 
     gctFILE                     file;
     gctCHAR*                    fileName;
+    gceProfilerMode             profilerMode;
+    gceProbeMode                probeMode;
 
     gcsCounterBuffer_PTR        counterBuf;
     gctUINT32                   bufferCount;
@@ -1035,12 +1064,21 @@ typedef struct _gcsPROBESTATES
 
 typedef struct _gckPROFILER
 {
-    /* Profile mode */
-    gceProfilerMode             profileMode;
     /* Enable profiling */
     gctBOOL                     profileEnable;
+    /* Profile mode */
+    gceProfilerMode             profileMode;
+    /* Probe mode */
+    gceProbeMode                probeMode;
     /* Clear profile register or not*/
     gctBOOL                     profileCleanRegister;
+    /* Profile counter */
+    gcsPROFILER_COUNTERS_PART1  latestProfiler_part1;
+    gcsPROFILER_COUNTERS_PART1  histroyProfiler_part1;
+    gcsPROFILER_COUNTERS_PART1  preProfiler_part1;
+    gcsPROFILER_COUNTERS_PART2  latestProfiler_part2;
+    gcsPROFILER_COUNTERS_PART2  histroyProfiler_part2;
+    gcsPROFILER_COUNTERS_PART2  preProfiler_part2;
 }gckPROFILER;
 
 /* Construct a Profiler object per context. */
@@ -1093,6 +1131,30 @@ gceSTATUS
 gcoPROFILER_GetProbeNumber(
     IN gcoHARDWARE Hardware,
     OUT gctUINT32 *TotalProbeNumber
+    );
+
+gctUINT32 gcoPROFILER_getMuduleNum(
+    IN gcoPROFILER Profiler
+    );
+
+gctUINT32 gcoPROFILER_getMuduleProbeNum(
+    IN gcoPROFILER Profiler,
+    IN gctUINT32 index
+    );
+
+gctUINT32 gcoPROFILER_getModuleAddress(
+    IN gcoPROFILER Profiler,
+    IN gctUINT32 ModuleIndex
+    );
+
+gctUINT32 gcoPROFILER_getProbeAddress(
+    IN gcoPROFILER Profiler,
+    IN gctUINT32 ModuleIndex,
+    IN gctUINT32 ProbeIndex
+    );
+
+gctUINT32 gcoPROFILER_getCounterBufferSize(
+    IN gcoPROFILER Profiler
     );
 
 #ifdef __cplusplus

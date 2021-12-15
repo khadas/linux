@@ -1,6 +1,6 @@
 ##############################################################################
 #
-#    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+#    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 #
 #    The material in this file is confidential and contains trade secrets
 #    of Vivante Corporation. This is proprietary information owned by
@@ -51,6 +51,7 @@ EXPORTS
     gcoOS_DestroySignal
     gcoOS_DeviceControl
     gcoOS_EnableDebugBuffer
+    gcoOS_QueryCurrentProcessName
     gcoOS_Flush
     gcoOS_Free
     gcoOS_FreeLibrary
@@ -281,7 +282,9 @@ EXPORTS
     gcoHAL_GetPriority
     gcoHAL_GetLastCommitStatus
     gcoHAL_SetLastCommitStatus
+    gcoHAL_CommitDone
     gcoHAL_IsFlatMapped
+    gcoHAL_QueryMCFESemaphoreCapacity
 
 !IF "$(VIVANTE_ENABLE_3D)" == "1"
     gcoHAL_QueryShaderCaps
@@ -696,6 +699,8 @@ EXPORTS
     gcoCLHardware_Construct
 
     ; gcoPROFILER
+	gcoPROFILER_getVersion;
+	gcoPROFILER_getVPGConst
     gcoPROFILER_Construct
     gcoPROFILER_Destroy
     gcoPROFILER_Initialize
@@ -769,7 +774,7 @@ EXPORTS
     gcoVX_SetImageInfo
     gcoVX_BindKernel
     gcoVX_BindUniform
-	gcoVX_GetUniformBase
+    gcoVX_GetUniformBase
     gcoVX_InvokeKernel
     gcoVX_Commit
     gcoVX_AllocateMemory
@@ -797,6 +802,10 @@ EXPORTS
     gcoVX_SetRemapAddress
     gcoVX_ProgrammYUV2RGBScale
     gcoVX_CaptureState
+    gcoVX_StartCAPBUF
+    gcoVX_EndCAPBUF
+    gcoVX_QueryCAPBUFMetaData
+    gcoVX_FreeCAPBUFMetaQueryBuffer
     gcoVX_CreateHW
     gcoVX_DestroyHW
     gcoVX_VerifyHardware
@@ -807,15 +816,16 @@ EXPORTS
     gcoVX_SetHardwareType
     gcoVX_MultiGPUSync
     gcoVX_QueryNNClusters
+    gcoVX_QueryNNRingCount
 
-	DWLSetupApbFilter
-	DWLReadAxiFeHwCfg
-	DWLConfigAxiFe
-	DWLConfigAxiFeChns
-	DWLEnableAxiFe
-	DWLReadAxiFeStat
-	DWLDisableAxiFe
-	DWLResetAxiFe
+    DWLSetupApbFilter
+    DWLReadAxiFeHwCfg
+    DWLConfigAxiFe
+    DWLConfigAxiFeChns
+    DWLEnableAxiFe
+    DWLReadAxiFeStat
+    DWLDisableAxiFe
+    DWLResetAxiFe
 
 !IF "$(VSIMULATOR_DEBUG)" == "1"
     gcoOS_UpdateSimulatorCallback

@@ -2,7 +2,7 @@
 *
 *    The MIT License (MIT)
 *
-*    Copyright (c) 2014 - 2020 Vivante Corporation
+*    Copyright (c) 2014 - 2021 Vivante Corporation
 *
 *    Permission is hereby granted, free of charge, to any person obtaining a
 *    copy of this software and associated documentation files (the "Software"),
@@ -26,7 +26,7 @@
 *
 *    The GPL License (GPL)
 *
-*    Copyright (C) 2014 - 2020 Vivante Corporation
+*    Copyright (C) 2014 - 2021 Vivante Corporation
 *
 *    This program is free software; you can redistribute it and/or
 *    modify it under the terms of the GNU General Public License
@@ -689,6 +689,13 @@ typedef struct _gcsHAL_COMMIT
     /* Brother cores in user device of current commit process. */
     gctUINT32                   broCoreMask;
 
+#if gcdENABLE_MP_SWITCH
+    /* Multi-processor mode. */
+    gctUINT32                   mpMode;
+
+    /* Switch multi-processor mode. */
+    gctUINT32                   switchMpMode;
+#endif
 
 #if gcdENABLE_SW_PREEMPTION
     /* If user need to merge the delta. */
@@ -843,6 +850,8 @@ typedef struct _gcsHAL_GET_PROFILE_SETTING
     OUT gctBOOL                 enable;
     /* Profile mode */
     OUT gceProfilerMode         profileMode;
+    /* Probe mode */
+    OUT gceProbeMode            probeMode;
 }
 gcsHAL_GET_PROFILE_SETTING;
 
@@ -853,6 +862,8 @@ typedef struct _gcsHAL_SET_PROFILE_SETTING
     IN gctBOOL                  enable;
     /* Profile mode */
     IN gceProfilerMode          profileMode;
+    /* Probe mode */
+    IN gceProbeMode             probeMode;
 }
 gcsHAL_SET_PROFILE_SETTING;
 

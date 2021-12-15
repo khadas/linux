@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -878,13 +878,6 @@ typedef enum _gceMULTI_GPU_RENDERING_MODE
 }
 gceMULTI_GPU_RENDERING_MODE;
 
-typedef enum _gceMULTI_GPU_MODE
-{
-    gcvMULTI_GPU_MODE_COMBINED    = 0,
-    gcvMULTI_GPU_MODE_INDEPENDENT = 1
-}
-gceMULTI_GPU_MODE;
-
 typedef enum _gceMACHINECODE
 {
     gcvMACHINECODE_ANTUTU0 = 0x0,
@@ -960,8 +953,10 @@ gceMCFE_CHANNEL_TYPE;
 
 typedef enum _gcePAGE_TYPE
 {
-    gcvPAGE_TYPE_1M,
     gcvPAGE_TYPE_4K,
+    gcvPAGE_TYPE_64K,
+    gcvPAGE_TYPE_1M,
+    gcvPAGE_TYPE_16M,
 }
 gcePAGE_TYPE;
 
@@ -1692,20 +1687,29 @@ typedef enum _gceBUFOBJ_TYPE
 
 typedef enum _gceBUFOBJ_USAGE
 {
-    gcvBUFOBJ_USAGE_STREAM_DRAW = 1,
-    gcvBUFOBJ_USAGE_STREAM_READ,
-    gcvBUFOBJ_USAGE_STREAM_COPY,
-    gcvBUFOBJ_USAGE_STATIC_DRAW,
-    gcvBUFOBJ_USAGE_STATIC_READ,
-    gcvBUFOBJ_USAGE_STATIC_COPY,
-    gcvBUFOBJ_USAGE_DYNAMIC_DRAW,
-    gcvBUFOBJ_USAGE_DYNAMIC_READ,
-    gcvBUFOBJ_USAGE_DYNAMIC_COPY,
+    gcvBUFOBJ_USAGE_NONE                                = 0x0,
+    gcvBUFOBJ_USAGE_STREAM_DRAW                         = 0x1,
+    gcvBUFOBJ_USAGE_STREAM_READ                         = 0x2,
+    gcvBUFOBJ_USAGE_STREAM_COPY                         = 0x3,
+    gcvBUFOBJ_USAGE_STATIC_DRAW                         = 0x4,
+    gcvBUFOBJ_USAGE_STATIC_READ                         = 0x5,
+    gcvBUFOBJ_USAGE_STATIC_COPY                         = 0x6,
+    gcvBUFOBJ_USAGE_DYNAMIC_DRAW                        = 0x7,
+    gcvBUFOBJ_USAGE_DYNAMIC_READ                        = 0x8,
+    gcvBUFOBJ_USAGE_DYNAMIC_COPY                        = 0x9,
 
+    /* Use 8bits to save the usage. */
+    gcvBUFOBJ_USAGE_MASK                                = 0xFF,
+
+    /* Some special flags. */
     /* special patch for optimaize performance,
     ** no fence and duplicate stream to ensure data correct
     */
-    gcvBUFOBJ_USAGE_DISABLE_FENCE_DYNAMIC_STREAM = 256
+    gcvBUFOBJ_USAGE_FLAG_DISABLE_FENCE_DYNAMIC_STREAM   = 0x100,
+
+    /* This buffer object is used by driver, so we need to copy the data to the logical memory. */
+    gcvBUFOBJ_USAGE_FLAG_DATA_USED_BY_DRIVER            = 0x200,
+
 } gceBUFOBJ_USAGE;
 
 /**
@@ -2078,55 +2082,57 @@ enum
     gcvPLATFORM_FLAG_IMX_MM           = 1 << 1,
 };
 
-/* No special needs. */
-#define gcvALLOC_FLAG_NONE                  0x00000000
+#if gcdUSE_CAPBUF
+typedef enum _gceCAPBUF_META_TYPE
+{
+    gcvCAPBUF_META_TYPE_BASE = 0,
+    gcvCAPBUF_META_TYPE_STATE_BUFFER = 0,
+    gcvCAPBUF_META_TYPE_DRAW_ID,
+    gcvCAPBUF_META_TYPE_SH_UNIFORM,
+    gcvCAPBUF_META_TYPE_VIP_SRAM,
+    gcvCAPBUF_META_TYPE_AXI_SRAM,
+    gcvCAPBUF_META_TYPE_PPU_PARAMETERS,
+    gcvCAPBUF_META_TYPE_VIP_SRAM_REMAP,
+    gcvCAPBUF_META_TYPE_AXI_SRAM_REMAP,
+    gcvCAPBUF_META_TYPE_IMAGE_PHYSICAL_ADDRESS,
+    gcvCAPBUF_META_TYPE_SH_INST_ADDRESS,
+    gcvCAPBUF_META_TYPE_SH_UNIFORM_ARGS_LOCAL_ADDRESS_SPACE,
+    gcvCAPBUF_META_TYPE_SH_UNIFORM_ARGS_CONSTANT_ADDRESS_SPACE,
+    /* Keep it at the end of the list. */
+    gcvCAPBUF_META_TYPE_COUNT
+}
+gceCAPBUF_META_TYPE;
 
-/* Physical contiguous. */
-#define gcvALLOC_FLAG_CONTIGUOUS            0x00000001
-/* Physical non contiguous. */
-#define gcvALLOC_FLAG_NON_CONTIGUOUS        0x00000002
+typedef enum _gceCAPBUF_SH_UNIFROM_ARGS
+{
+    gcvCAPBUF_SH_UNIFORM_ARGS_INVALID = 0,
+    gcvCAPBUF_SH_UNIFORM_ARGS_IMAGE_PHYSICAL_ADDRESS,
+    gcvCAPBUF_SH_UNIFORM_ARGS_LOCAL_ADDRESS_SPACE,
+    gcvCAPBUF_SH_UNIFORM_ARGS_CONSTANT_ADDRESS_SPACE,
+    /* Keep it at the end of the list. */
+    gcvCAPBUF_SH_UNIFORM_ARGS_COUNT
+}
+gceCAPBUF_SH_UNIFORM_ARGS;
 
-/* Should not swap out. */
-#define gcvALLOC_FLAG_NON_PAGED             0x00000004
+typedef enum _gceCAPBUF_PPU_PARAMETERS_INDEX
+{
+    gcvCAPBUF_PPU_GLOBAL_OFFSET_X = 0,
+    gcvCAPBUF_PPU_GLOBAL_OFFSET_Y,
+    gcvCAPBUF_PPU_GLOBAL_OFFSET_Z,
+    gcvCAPBUF_PPU_GLOBAL_SCALE_X,
+    gcvCAPBUF_PPU_GLOBAL_SCALE_Y,
+    gcvCAPBUF_PPU_GLOBAL_SCALE_Z,
+    gcvCAPBUF_PPU_GROUP_SIZE_X,
+    gcvCAPBUF_PPU_GROUP_SIZE_Y,
+    gcvCAPBUF_PPU_GROUP_SIZE_Z,
+    gcvCAPBUF_PPU_GROUP_COUNT_X,
+    gcvCAPBUF_PPU_GROUP_COUNT_Y,
+    gcvCAPBUF_PPU_GROUP_COUNT_Z,
+    gcvCAPBUF_PPU_PARAMETERS_COUNT
+}
+gceCAPBUF_PPU_GLOBALE_OFFSET_INDEX;
 
-/* CPU access explicitly needed. */
-#define gcvALLOC_FLAG_CPU_ACCESS            0x00000008
-/* Can be remapped as cacheable. */
-#define gcvALLOC_FLAG_CACHEABLE             0x00000010
-
-/* Need 32bit address. */
-#define gcvALLOC_FLAG_4GB_ADDR              0x00000020
-
-/* Secure buffer. */
-#define gcvALLOC_FLAG_SECURITY              0x00000040
-/* Can be exported as dmabuf-fd */
-#define gcvALLOC_FLAG_DMABUF_EXPORTABLE     0x00000080
-/* Do not try slow pools (gcvPOOL_VIRTUAL) */
-#define gcvALLOC_FLAG_FAST_POOLS            0x00000100
-
-/* Only accessed by GPU */
-#define gcvALLOC_FLAG_NON_CPU_ACCESS        0x00000200
-
-/* Import DMABUF. */
-#define gcvALLOC_FLAG_DMABUF                0x00001000
-/* Import USERMEMORY. */
-#define gcvALLOC_FLAG_USERMEMORY            0x00002000
-/* Import an External Buffer. */
-#define gcvALLOC_FLAG_EXTERNAL_MEMORY       0x00004000
-/* Import linux reserved memory. */
-#define gcvALLOC_FLAG_LINUX_RESERVED_MEM    0x00008000
-
-/* 1M pages unit allocation. */
-#define gcvALLOC_FLAG_1M_PAGES              0x00010000
-
-/* Non 1M pages unit allocation. */
-#define gcvALLOC_FLAG_4K_PAGES              0x00020000
-
-/* Real allocation happens when GPU page fault. */
-#define gcvALLOC_FLAG_ALLOC_ON_FAULT        0x01000000
-/* Alloc with memory limit. */
-#define gcvALLOC_FLAG_MEMLIMIT              0x02000000
-
+#endif
 
 /* GL_VIV internal usage */
 #ifndef GL_MAP_BUFFER_OBJ_VIV

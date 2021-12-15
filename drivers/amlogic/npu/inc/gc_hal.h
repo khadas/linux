@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -765,7 +765,7 @@ gckOS_Delay(
     IN gctUINT32 Delay
     );
 
-/* Delay a number of microseconds. */
+/* Delay a number of milliseconds. */
 gceSTATUS
 gckOS_Udelay(
     IN gckOS Os,
@@ -1102,6 +1102,14 @@ gckOS_GetPolicyID(
     OUT gctUINT32_PTR PolicyID,
     OUT gctUINT32_PTR AXIConfig
     );
+
+#if gcdENABLE_MP_SWITCH
+gceSTATUS
+gckOS_SwitchCoreCount(
+    IN gckOS Os,
+    OUT gctUINT32 *Count
+    );
+#endif
 
 /******************************************************************************\
 ************************** Android Native Fence Sync ***************************
@@ -2115,7 +2123,10 @@ gceSTATUS
 gckMMU_FillFlatMapping(
     IN gckMMU Mmu,
     IN gctUINT64 PhysBase,
-    IN gctSIZE_T Size
+    IN gctSIZE_T Size,
+    IN gctBOOL   Reserved,
+    IN gctBOOL   AbleToShift,
+    OUT gctUINT32 *GpuBaseAddress
     );
 
 gceSTATUS
@@ -2138,15 +2149,13 @@ gceSTATUS
 gckHARDWARE_QueryContextProfile(
     IN gckHARDWARE Hardware,
     IN gctBOOL Reset,
-    IN gckCONTEXT Context,
     OUT gcsPROFILER_COUNTERS_PART1 * Counters_part1,
     OUT gcsPROFILER_COUNTERS_PART2 * Counters_part2
     );
 
 gceSTATUS
 gckHARDWARE_UpdateContextProfile(
-    IN gckHARDWARE Hardware,
-    IN gckCONTEXT Context
+    IN gckHARDWARE Hardware
     );
 
 gceSTATUS

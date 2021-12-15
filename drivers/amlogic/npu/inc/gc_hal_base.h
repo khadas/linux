@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -62,6 +62,7 @@ typedef struct _gcsUSER_MEMORY_DESC *   gcsUSER_MEMORY_DESC_PTR;
 typedef struct _gcsNN_FIXED_FEATURE
 {
     gctUINT  vipCoreCount;
+    gctUINT  vipRingCount;
     gctUINT  nnMadPerCore;
     gctUINT  nnInputBufferDepth;
     gctUINT  nnAccumBufferDepth;
@@ -542,7 +543,7 @@ gcoHAL_QueryChipAxiBusWidth(
 gceSTATUS
 gcoHAL_QueryMultiGPUAffinityConfig(
     IN gceHARDWARE_TYPE Type,
-    OUT gceMULTI_GPU_MODE *Mode,
+    OUT gceMULTI_PROCESSOR_MODE *Mode,
     OUT gctUINT32_PTR CoreIndex
     );
 
@@ -1045,10 +1046,29 @@ gcoHAL_SetLastCommitStatus(
     );
 
 gceSTATUS
+gcoHAL_CommitDone(
+    IN gcoHAL Hal
+    );
+
+gceSTATUS
 gcoHAL_IsFlatMapped(
     IN gctPHYS_ADDR_T PhysicalAddress,
     OUT gctUINT32 *Address
     );
+
+gceSTATUS
+gcoHAL_QueryMCFESemaphoreCapacity(
+    IN gcoHAL Hal,
+    OUT gctUINT32 * Capacity
+    );
+
+
+#if gcdENABLE_MP_SWITCH
+gceSTATUS
+gcoHAL_SwitchMpMode(
+    gcoHAL Hal
+    );
+#endif
 
 /******************************************************************************\
 ********************************** gcoOS Object *********************************

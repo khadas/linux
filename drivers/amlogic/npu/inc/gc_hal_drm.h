@@ -1,6 +1,6 @@
 /****************************************************************************
 *
-*    Copyright (c) 2005 - 2020 by Vivante Corp.  All rights reserved.
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
@@ -97,11 +97,17 @@ struct drm_viv_gem_timestamp {
 #define DRM_VIV_GEM_TS_NORMAL       0x02
 #define DRM_VIV_GEM_TS_COMPRESSED   0x03
 
+/* ts cache mode. */
+#define DRM_VIV_GEM_TS_CACHE_MODE_64B     0x00
+#define DRM_VIV_GEM_TS_CACHE_MODE_128B    0x01
+#define DRM_VIV_GEM_TS_CACHE_MODE_256B    0x02
+
 struct drm_viv_gem_set_tiling {
     __u32 handle;
     __u32 tiling_mode;
 
     __u32 ts_mode;
+    __u32 ts_cache_mode;
     __u64 clear_value;
 };
 
@@ -110,6 +116,7 @@ struct drm_viv_gem_get_tiling {
     __u32 tiling_mode;
 
     __u32 ts_mode;
+    __u32 ts_cache_mode;
     __u64 clear_value;
 };
 
@@ -153,7 +160,10 @@ struct drm_viv_gem_ref_node {
 #define DRM_IOCTL_VIV_GEM_REF_NODE      DRM_IOWR(DRM_COMMAND_BASE + DRM_VIV_GEM_REF_NODE, struct drm_viv_gem_ref_node)
 
 #ifdef __KERNEL__
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,9,0)
+#define drm_gem_object_unreference_unlocked drm_gem_object_put
+#define drm_dev_unref drm_dev_put
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5,4,0)
 #define drm_gem_object_unreference_unlocked drm_gem_object_put_unlocked
 #define drm_dev_unref drm_dev_put
 #endif
