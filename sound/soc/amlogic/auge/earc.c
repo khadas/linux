@@ -171,6 +171,7 @@ struct earc {
 	bool tx_reset_hpd;
 	int tx_state;
 	u8 tx_latency;
+	struct work_struct send_uevent;
 };
 
 static struct earc *s_earc;
@@ -1737,6 +1738,8 @@ int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 
 	p_earc->tx_earc_mode = earc_mode;
 	earctx_set_earc_mode(p_earc, earc_mode);
+	if (!earc_mode && earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
+		audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_ARC);
 
 	return 0;
 }
@@ -2223,6 +2226,13 @@ static int earcrx_cmdc_setup(struct earc *p_earc)
 	return ret;
 }
 
+static void send_uevent_work_func(struct work_struct *p_work)
+{
+	struct earc *p_earc = container_of(p_work, struct earc, send_uevent);
+
+	audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_ARC);
+}
+
 void earc_hdmirx_hpdst(int earc_port, bool st)
 {
 	struct earc *p_earc = s_earc;
@@ -2257,6 +2267,8 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 	earctx_cmdc_hpd_detect(p_earc->tx_top_map,
 			       p_earc->tx_cmdc_map,
 			       earc_port, st);
+	if (st && !p_earc->tx_earc_mode)
+		schedule_work(&p_earc->send_uevent);
 }
 
 static int earctx_cmdc_setup(struct earc *p_earc)
@@ -2495,6 +2507,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 		earctx_ss_ops.private = p_earc;
 		register_samesrc_ops(SHAREBUFFER_EARCTX, &earctx_ss_ops);
 		INIT_WORK(&p_earc->tx_resume_work, tx_resume_work_func);
+		INIT_WORK(&p_earc->send_uevent, send_uevent_work_func);
 	}
 
 	if ((!IS_ERR(p_earc->rx_top_map)) ||
