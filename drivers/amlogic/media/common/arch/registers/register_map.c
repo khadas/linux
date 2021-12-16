@@ -844,7 +844,7 @@ static int __init codec_io_probe(struct platform_device *pdev)
 		} else {
 			codecio_reg_map[i] = 0;
 			codecio_reg_start[i] = 0;
-			pr_err("ignore io source start %lx,size=%d\n",
+			pr_debug("ignore io source start %lx,size=%d\n",
 			       (unsigned long)res.start, (int)resource_size(&res));
 		}
 
