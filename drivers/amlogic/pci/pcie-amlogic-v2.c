@@ -775,6 +775,7 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 	int pcie_ctrl_a_rst_bit = 0;
 	u32 pwr_ctl = 0;
 	u32 phy_type = 0;
+	u32 tee_start, tee_end;
 	const void *prop;
 	union pcie_phy_m31_r0 r0;
 
@@ -906,11 +907,11 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 		dev_info(dev, "use pcie protect mem!\n");
 	} else {
 #endif
+		tee_start = roundup(virt_to_phys((void *)_text), TEE_MEM_ALIGN_SIZE);
+		tee_end = rounddown(virt_to_phys((void *)_end), TEE_MEM_ALIGN_SIZE);
 		tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL,
-		  roundup(virt_to_phys((void *)_text),
-		  TEE_MEM_ALIGN_SIZE),
-		  rounddown(virt_to_phys((void *)_end),
-		  TEE_MEM_ALIGN_SIZE),
+		  tee_start,
+		  tee_end - tee_start,
 		  &handle);
 #if USE_TEE_WHITELIST
 	}
