@@ -293,11 +293,25 @@
 #define CLKCTRL_VIID_CLK_DIV                       0x0033
 #define CLKCTRL_VIID_CLK_CTRL                      0x0034
 
+/* ENC0 */
 #define CLKCTRL_VID_CLK0_CTRL                      0x0030
 #define CLKCTRL_VID_CLK0_CTRL2                     0x0031
 #define CLKCTRL_VID_CLK0_DIV                       0x0032
 #define CLKCTRL_VIID_CLK0_DIV                      0x0033
 #define CLKCTRL_VIID_CLK0_CTRL                     0x0034
+
+/* ENC1 */
+#define CLKCTRL_VID_CLK1_CTRL                      0x0073
+#define CLKCTRL_VID_CLK1_CTRL2                     0x0074
+#define CLKCTRL_VID_CLK1_DIV                       0x0075
+#define CLKCTRL_VIID_CLK1_DIV                      0x0076
+#define CLKCTRL_VIID_CLK1_CTRL                     0x0077
+/* ENC2 */
+#define CLKCTRL_VID_CLK2_CTRL                      0x0078
+#define CLKCTRL_VID_CLK2_CTRL2                     0x0079
+#define CLKCTRL_VID_CLK2_DIV                       0x007a
+#define CLKCTRL_VIID_CLK2_DIV                      0x007b
+#define CLKCTRL_VIID_CLK2_CTRL                     0x007c
 
 unsigned int vout_clk_read(unsigned int _reg);
 void vout_clk_write(unsigned int _reg, unsigned int _value);
