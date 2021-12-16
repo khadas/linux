@@ -134,7 +134,7 @@ static int spi_rregs(struct spi_device *spi, unsigned char chip_id, unsigned int
 		     unsigned char reg, unsigned char *data_buf, unsigned int rlen)
 {
 	unsigned char *tbuf, *rbuf;
-	int n, xlen, ret;
+	int n, xlen, ret = 0;
 	int i;
 
 	if (!bl_iw7027 || !bl_iw7027->tbuf || !bl_iw7027->rbuf) {
@@ -167,7 +167,9 @@ static int spi_rregs(struct spi_device *spi, unsigned char chip_id, unsigned int
 	}
 
 	if (reg >= 0x80)
-		spi_high_reg_switch(spi, chip_id, chip_cnt, 1);
+		ret = spi_high_reg_switch(spi, chip_id, chip_cnt, 1);
+	if (ret)
+		return -1;
 
 	if (rlen == 1) {
 		tbuf[0] = NORMAL_MSG | SINGLE_DATA | (chip_id & 0x3f);
@@ -180,10 +182,15 @@ static int spi_rregs(struct spi_device *spi, unsigned char chip_id, unsigned int
 		memset(&tbuf[3], 0, n);
 	}
 	ret = ldim_spi_read_sync(spi, tbuf, rbuf, xlen);
+	if (ret)
+		return -1;
+
 	memcpy(data_buf, &rbuf[xlen - rlen], rlen);
 
 	if (reg >= 0x80)
-		spi_high_reg_switch(spi, chip_id, chip_cnt, 0);
+		ret = spi_high_reg_switch(spi, chip_id, chip_cnt, 0);
+	if (ret)
+		return -1;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV) {
 		LDIMPR("%s: reg=0x%02x, rlen=%d, data_buf:\n", __func__, reg, rlen);

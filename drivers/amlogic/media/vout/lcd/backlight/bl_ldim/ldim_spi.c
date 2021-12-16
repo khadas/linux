@@ -160,6 +160,11 @@ int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf, int tlen)
 		LDIMERR("%s: dev_drv is null\n", __func__);
 		return -1;
 	}
+	if (ldim_spi_async_busy) {
+		LDIMERR("%s: spi_async_busy=%d\n", __func__, ldim_spi_async_busy);
+		return -1;
+	}
+	ldim_spi_async_busy = 1;
 
 	if (dev_drv->cs_hold_delay)
 		udelay(dev_drv->cs_hold_delay);
@@ -174,6 +179,7 @@ int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf, int tlen)
 	ret = spi_sync(spi, &msg);
 	if (ret)
 		LDIMERR("%s\n", __func__);
+	ldim_spi_async_busy = 0;
 
 	return ret;
 }
@@ -190,6 +196,11 @@ int ldim_spi_read(struct spi_device *spi, unsigned char *tbuf, int tlen,
 		LDIMERR("%s: dev_drv is null\n", __func__);
 		return -1;
 	}
+	if (ldim_spi_async_busy) {
+		LDIMERR("%s: spi_async_busy=%d\n", __func__, ldim_spi_async_busy);
+		return -1;
+	}
+	ldim_spi_async_busy = 1;
 
 	if (dev_drv->cs_hold_delay)
 		udelay(dev_drv->cs_hold_delay);
@@ -208,6 +219,7 @@ int ldim_spi_read(struct spi_device *spi, unsigned char *tbuf, int tlen,
 	ret = spi_sync(spi, &msg);
 	if (ret)
 		LDIMERR("%s\n", __func__);
+	ldim_spi_async_busy = 0;
 
 	return ret;
 }
@@ -225,6 +237,11 @@ int ldim_spi_read_sync(struct spi_device *spi, unsigned char *tbuf,
 		LDIMERR("%s: dev_drv is null\n", __func__);
 		return -1;
 	}
+	if (ldim_spi_async_busy) {
+		LDIMERR("%s: spi_async_busy=%d\n", __func__, ldim_spi_async_busy);
+		return -1;
+	}
+	ldim_spi_async_busy = 1;
 
 	if (dev_drv->cs_hold_delay)
 		udelay(dev_drv->cs_hold_delay);
@@ -240,6 +257,7 @@ int ldim_spi_read_sync(struct spi_device *spi, unsigned char *tbuf,
 	ret = spi_sync(spi, &msg);
 	if (ret)
 		LDIMERR("%s\n", __func__);
+	ldim_spi_async_busy = 0;
 
 	return ret;
 }
@@ -264,6 +282,8 @@ static int ldim_spi_dev_probe(struct spi_device *spi)
 	ret = spi_setup(spi);
 	if (ret)
 		LDIMERR("spi setup failed\n");
+
+	ldim_spi_async_busy = 0;
 
 	/* dummy for spi clktree init */
 	ldim_spi_write(spi, NULL, 0);
