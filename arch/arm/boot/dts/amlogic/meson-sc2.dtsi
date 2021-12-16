@@ -1678,7 +1678,8 @@
 
 	aml_bt: aml_bt {
 		compatible = "amlogic, aml-bt";
-		status = "disabled";
+		status = "okay";
+		bt_en-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	};
 
 	aml_wifi: aml_wifi {
