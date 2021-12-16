@@ -38,11 +38,15 @@
 
 #define QUERY_SECURE_BUFFER (1)
 #define QUERY_NO_SECURE_BUFFER (0)
-#define  RESMAN_VERSION         (3)
+#define RESMAN_VERSION         (3)
 #define SINGLE_SIZE           (64)
-#define  EXT_MAX_SIZE     (64 * 1024)
-#define  EXTCONFIGNAME "/vendor/etc/resman.json"
-#define  EXTCONFIGNAMELIX "/etc/resman.json"
+#define EXT_MAX_SIZE     (64 * 1024)
+#define EXTCONFIGNAME "/vendor/etc/resman.json"
+#define EXTCONFIGNAMELIX "/etc/resman.json"
+#define EXTCONFIGCUSTOMNAME "/vendor/etc/resmanext.json"
+#define EXTCONFIGCUSTOMNAMELIX "/etc/resmanext.json"
+#define COMMOMCONFIG  (1)
+#define CUSTOMCONFIG  (2)
 
 struct {
 	int id;
@@ -1163,7 +1167,8 @@ static bool resman_create_resource(const char *name,
 			kfree(resource);
 			resource = restmp;
 		} else {
-			strncpy(resource->name, name, strlen(name));
+			if (strlen(name) < 32)
+				strncpy(resource->name, name, strlen(name));
 			dprintk(3, "ext resource id[%d] name %s\n",
 				resource->id, resource->name);
 		}
@@ -1481,12 +1486,12 @@ static bool resman_parser_config(const char *buf)
 
 #endif
 
-static bool ext_resource_init(void)
+static bool ext_resource_init(u32 conftype)
 {
 	bool ret = false;
 	struct file *extfile = NULL;
 	struct kstat stat;
-	char *extfilename = EXTCONFIGNAME;
+	char *extfilename = (conftype == CUSTOMCONFIG) ? EXTCONFIGCUSTOMNAME : EXTCONFIGNAME;
 	char *extconfig = NULL;
 	mm_segment_t old_fs;
 	loff_t pos = 0;
@@ -1497,8 +1502,10 @@ static bool ext_resource_init(void)
 	extfile = filp_open(extfilename, O_RDONLY, 0);
 
 	if (IS_ERR_OR_NULL(extfile)) {
+		/*First access the Android path , if fail access Linux path*/
 		dprintk(2, "There(%s) is no ext config or read failed\n", extfilename);
-		extfilename = EXTCONFIGNAMELIX;
+		extfilename = (conftype == CUSTOMCONFIG) ?
+						EXTCONFIGCUSTOMNAMELIX : EXTCONFIGNAMELIX;
 		extfile = filp_open(extfilename, O_RDONLY, 0);
 		if (IS_ERR_OR_NULL(extfile)) {
 			dprintk(2, "There(%s) is no ext config or read failed\n", extfilename);
@@ -1726,8 +1733,8 @@ static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 	selec_res = resman.k;
 	resource = resman_find_resource_by_id(selec_res);
 	if (resource) {
-		strncpy(resman.v.query.name,
-		resource->name, sizeof(resman.v.query.name));
+		memcpy(resman.v.query.name,
+			resource->name, sizeof(resman.v.query.name));
 		resman.v.query.type = resource->type;
 
 	switch (resource->type) {
@@ -1969,8 +1976,16 @@ static ssize_t extconfig_store(struct class *class,
 		dprintk(0, "extcofig format has error\n");
 		return -EINVAL;
 	}
-	if (val == 1 && ext_resource_init())
+	/*First access common config resman.json, then access custom config resmanext.json*/
+	if (val == 1 && ext_resource_init(COMMOMCONFIG)) {
 		extloaded = true;
+		dprintk(3, "resman.json loading successful\n");
+	}
+	if (val == 1 && ext_resource_init(CUSTOMCONFIG)) {
+		extloaded = true;
+		dprintk(3, "resmanext.json loading successful\n");
+	}
+
 	return size;
 }
 

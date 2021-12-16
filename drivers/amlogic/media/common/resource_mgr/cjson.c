@@ -197,7 +197,7 @@ static const char *parse_string(struct cjson *item, const char *str)
 	char *ptr2;
 	char *out;
 	int len = 0;
-	unsigned int uc, uc2;
+	unsigned int uc, uc2, tmp;
 
 	if (*str != '\"') {
 		ep = str;
@@ -265,12 +265,11 @@ static const char *parse_string(struct cjson *item, const char *str)
 				case 3:
 				case 2:
 					*--ptr2 = ((uc | 0x80) & 0xBF);
-					uc = uc >> 6;
+					tmp = uc >> 6;
+					uc = tmp;
 					break;
 				case 1:
 					*--ptr2 = (uc | firstByteMark[len]);
-					break;
-				default:
 					break;
 				}
 				ptr2 += len;
