@@ -28,7 +28,7 @@ ifneq ($(CONFIG_DRM_MESON_PANEL),)
 endif
 
 $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
-			      meson_atomic.o \
+                              meson_atomic.o  meson_sysfs.o\
                               meson_vpu_pipeline_traverse.o \
                               meson_crtc.o meson_vpu_pipeline.o \
                               meson_vpu_pipeline_private.o \

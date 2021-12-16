@@ -36,6 +36,7 @@
 #include "meson_vpu.h"
 #include "meson_vpu_pipeline.h"
 #include "meson_crtc.h"
+#include "meson_sysfs.h"
 
 #include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -644,8 +645,14 @@ static int am_meson_drm_bind(struct device *dev)
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto err_fbdev_fini;
+	ret = meson_drm_sysfs_register(drm);
+	if (ret)
+		goto err_drm_dev_unregister;
 
 	return 0;
+
+err_drm_dev_unregister:
+	drm_dev_unregister(drm);
 
 err_fbdev_fini:
 #ifdef CONFIG_DRM_MESON_EMULATE_FBDEV
@@ -674,6 +681,7 @@ static void am_meson_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 
+	meson_drm_sysfs_unregister(drm);
 	drm_dev_unregister(drm);
 #ifdef CONFIG_DRM_MESON_EMULATE_FBDEV
 	am_meson_drm_fbdev_fini(drm);
