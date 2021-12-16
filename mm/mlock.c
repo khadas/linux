@@ -611,7 +611,6 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 		tmp = vma->vm_end;
 		if (tmp > end)
 			tmp = end;
-		error = mlock_fixup(vma, &prev, nstart, tmp, newflags);
 	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 		if (vma->vm_file && vma->vm_file->f_mapping) {
 			struct inode *host;
@@ -633,6 +632,7 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 				vma->vm_file->f_mapping->flags);
 		}
 	#endif
+		error = mlock_fixup(vma, &prev, nstart, tmp, newflags);
 		if (error)
 			break;
 		nstart = tmp;
