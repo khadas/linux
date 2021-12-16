@@ -187,6 +187,7 @@ struct frc_top_type_s {
 	u32 out_vsize;
 	/* frc_other*/
 	u8  frc_memc_level;
+	u8  frc_memc_level_1; // default 0, 1:fullback, 2:24P film
 	u8  frc_other_reserved;
 	u16 frc_other_info;
 	u32 frc_reserved;

@@ -1012,8 +1012,11 @@ int frc_fpp_memc_set_level(u8 level, u8 num)
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pfw_data->frc_top_type.frc_memc_level = level;
 	if (num == 1) {
-		//memc enhance
-		pr_frc(1, "pass\n");
+		pfw_data->frc_top_type.frc_memc_level_1 = 1;
+		pr_frc(1, "fpp enhancement!\n");
+	} else {
+		pfw_data->frc_top_type.frc_memc_level_1 = 0;
+		pr_frc(1, "fpp frc_memc_level_1 0\n");
 	}
 	pr_frc(1, "fpp_set_memc_level:%d\n", level);
 	if (pfw_data->frc_memc_level)
