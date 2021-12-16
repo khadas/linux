@@ -660,7 +660,7 @@ int vout_func_vout_register_server(int index,
 		VOUTERR("vout%d: server name is NULL\n", index);
 		return -1;
 	}
-	VOUTPR("vout%d: register server: %s\n", index, mem_server->name);
+	VOUTDBG("vout%d: register server: %s\n", index, mem_server->name);
 
 	mutex_lock(&vout_mutex);
 

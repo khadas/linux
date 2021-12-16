@@ -10,6 +10,7 @@
 
 #define VOUTPR(fmt, args...)     pr_info(fmt "", ## args)
 #define VOUTERR(fmt, args...)    pr_err("error: " fmt "", ## args)
+#define VOUTDBG(fmt, args...)    pr_debug("debug: " fmt "", ## args)
 
 struct vout_cdev_s {
 	dev_t         devno;
