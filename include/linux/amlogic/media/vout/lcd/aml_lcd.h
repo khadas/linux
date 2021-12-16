@@ -35,31 +35,36 @@ struct lcd_i2c_match_s {
 /*******************************************/
 /*        LCD EXT CMD                      */
 /*******************************************/
-#define LCD_EXT_CMD_TYPE_CMD_DELAY     0x00
-#define LCD_EXT_CMD_TYPE_CMD2_DELAY    0x01  /* for i2c device 2nd addr */
-#define LCD_EXT_CMD_TYPE_CMD3_DELAY    0x02  /* for i2c device 3rd addr */
-#define LCD_EXT_CMD_TYPE_CMD4_DELAY    0x03  /* for i2c device 4th addr */
-#define LCD_EXT_CMD_TYPE_NONE          0x10
-#define LCD_EXT_CMD_TYPE_CMD_BIN2      0xa0  /* with reg offset and data_len*/
-#define LCD_EXT_CMD_TYPE_CMD2_BIN2     0xa1  /* for i2c device 2nd addr */
-#define LCD_EXT_CMD_TYPE_CMD3_BIN2     0xa2  /* for i2c device 3rd addr */
-#define LCD_EXT_CMD_TYPE_CMD4_BIN2     0xa3  /* for i2c device 4th addr */
-#define LCD_EXT_CMD_TYPE_CMD_BIN       0xb0
-#define LCD_EXT_CMD_TYPE_CMD2_BIN      0xb1  /* for i2c device 2nd addr */
-#define LCD_EXT_CMD_TYPE_CMD3_BIN      0xb2  /* for i2c device 3rd addr */
-#define LCD_EXT_CMD_TYPE_CMD4_BIN      0xb3  /* for i2c device 4th addr */
-#define LCD_EXT_CMD_TYPE_CMD           0xc0
-#define LCD_EXT_CMD_TYPE_CMD2          0xc1  /* for i2c device 2nd addr */
-#define LCD_EXT_CMD_TYPE_CMD3          0xc2  /* for i2c device 3rd addr */
-#define LCD_EXT_CMD_TYPE_CMD4          0xc3  /* for i2c device 4th addr */
-#define LCD_EXT_CMD_TYPE_CMD_BIN_DATA  0xd0 /* without auto fill reg addr 0x0 */
-#define LCD_EXT_CMD_TYPE_CMD2_BIN_DATA 0xd1 /* for i2c device 2nd addr */
-#define LCD_EXT_CMD_TYPE_CMD3_BIN_DATA 0xd2 /* for i2c device 3rd addr */
-#define LCD_EXT_CMD_TYPE_CMD4_BIN_DATA 0xd3 /* for i2c device 4th addr */
-#define LCD_EXT_CMD_TYPE_GPIO          0xf0
-#define LCD_EXT_CMD_TYPE_CHECK         0xfc
-#define LCD_EXT_CMD_TYPE_DELAY         0xfd
-#define LCD_EXT_CMD_TYPE_END           0xff
+#define LCD_EXT_CMD_TYPE_CMD_DELAY              0x00
+#define LCD_EXT_CMD_TYPE_CMD2_DELAY             0x01  /* for i2c device 2nd addr */
+#define LCD_EXT_CMD_TYPE_CMD3_DELAY             0x02  /* for i2c device 3rd addr */
+#define LCD_EXT_CMD_TYPE_CMD4_DELAY             0x03  /* for i2c device 4th addr */
+#define LCD_EXT_CMD_TYPE_NONE                   0x10
+#define LCD_EXT_CMD_TYPE_MULTI_FR               0x21 /* for dlg frame_rate list*/
+#define LCD_EXT_CMD_TYPE_CMD_BIN2               0xa0  /* with reg offset and data_len*/
+#define LCD_EXT_CMD_TYPE_CMD2_BIN2              0xa1  /* for i2c device 2nd addr */
+#define LCD_EXT_CMD_TYPE_CMD3_BIN2              0xa2  /* for i2c device 3rd addr */
+#define LCD_EXT_CMD_TYPE_CMD4_BIN2              0xa3  /* for i2c device 4th addr */
+#define LCD_EXT_CMD_TYPE_CMD_BIN                0xb0
+#define LCD_EXT_CMD_TYPE_CMD2_BIN               0xb1  /* for i2c device 2nd addr */
+#define LCD_EXT_CMD_TYPE_CMD3_BIN               0xb2  /* for i2c device 3rd addr */
+#define LCD_EXT_CMD_TYPE_CMD4_BIN               0xb3  /* for i2c device 4th addr */
+#define LCD_EXT_CMD_TYPE_CMD                    0xc0
+#define LCD_EXT_CMD_TYPE_CMD2                   0xc1  /* for i2c device 2nd addr */
+#define LCD_EXT_CMD_TYPE_CMD3                   0xc2  /* for i2c device 3rd addr */
+#define LCD_EXT_CMD_TYPE_CMD4                   0xc3  /* for i2c device 4th addr */
+#define LCD_EXT_CMD_TYPE_CMD_BIN_DATA           0xd0 /* without auto fill reg addr 0x0 */
+#define LCD_EXT_CMD_TYPE_CMD2_BIN_DATA          0xd1 /* for i2c device 2nd addr */
+#define LCD_EXT_CMD_TYPE_CMD3_BIN_DATA          0xd2 /* for i2c device 3rd addr */
+#define LCD_EXT_CMD_TYPE_CMD4_BIN_DATA          0xd3 /* for i2c device 4th addr */
+#define LCD_EXT_CMD_TYPE_CMD_MULTI              0xe0
+#define LCD_EXT_CMD_TYPE_CMD2_MULTI             0xe1
+#define LCD_EXT_CMD_TYPE_CMD3_MULTI             0xe2
+#define LCD_EXT_CMD_TYPE_CMD4_MULTI             0xe3
+#define LCD_EXT_CMD_TYPE_GPIO                   0xf0
+#define LCD_EXT_CMD_TYPE_CHECK                  0xfc
+#define LCD_EXT_CMD_TYPE_DELAY                  0xfd
+#define LCD_EXT_CMD_TYPE_END                    0xff
 
 #define LCD_EXT_CMD_SIZE_DYNAMIC      0xff
 #define LCD_EXT_DYNAMIC_SIZE_INDEX    1

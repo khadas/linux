@@ -481,6 +481,11 @@ struct phy_config_s {
 	unsigned int preem_level;
 };
 
+struct cus_ctrl_config_s {
+	unsigned int flag;
+	unsigned char dlg_flag;
+};
+
 struct lcd_power_ctrl_s {
 	struct lcd_cpu_gpio_s cpu_gpio[LCD_CPU_GPIO_NUM_MAX];
 	struct lcd_pmu_gpio_s pmu_gpio[LCD_PMU_GPIO_NUM_MAX];
@@ -499,6 +504,7 @@ struct lcd_config_s {
 	union lcd_ctrl_config_u control;
 	struct lcd_power_ctrl_s power;
 	struct phy_config_s phy_cfg;
+	struct cus_ctrl_config_s cus_ctrl;
 	struct lcd_optical_info_s optical;
 	unsigned int vlock_param[5];
 	struct pinctrl *pin;
@@ -601,7 +607,7 @@ struct aml_lcd_drv_s {
 	char vsync_isr_name[3][15];
 	char vbyone_isr_name[10];
 	char output_name[30];
-	unsigned int output_vmode;
+	unsigned int vmode_update;
 
 	struct lcd_data_s *data;
 	struct cdev cdev;

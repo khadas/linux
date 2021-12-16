@@ -30,6 +30,7 @@
 /* 20211210: support load tcon bin by ioctl*/
 /* 20211216: support phy adjust by lane*/
 /* 20211229: update multi lut init and switch flow*/
+/* 20211230: support lcd driver DLG switch flow*/
 /* 20220105: support measure vinfo sync_duration*/
 #define LCD_DRV_VERSION    "20220105"
 

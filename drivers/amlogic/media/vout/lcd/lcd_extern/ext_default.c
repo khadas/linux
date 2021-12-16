@@ -265,12 +265,50 @@ parameter_check2_err0:
 	EXTERR("%s: dev_%d: error parameters\n", __func__, edev->dev_index);
 }
 
+static int lcd_extern_cmd_multi_id(struct lcd_extern_driver_s *edrv,
+				   struct lcd_extern_dev_s *edev,
+				   unsigned char multi_id)
+{
+	struct aml_lcd_drv_s *pdrv;
+	struct lcd_extern_multi_list_s *temp_list;
+	unsigned int frame_rate, frame_rate_max, frame_rate_min;
+
+	pdrv = aml_lcd_get_driver(edrv->index);
+	if (!pdrv)
+		return -1;
+	if (pdrv->config.cus_ctrl.dlg_flag == 0)
+		return -1;
+
+	frame_rate = pdrv->config.timing.sync_duration_num /
+		pdrv->config.timing.sync_duration_den;
+
+	temp_list = edev->multi_list_header;
+	while (temp_list) {
+		if (multi_id == temp_list->index) {
+			if (temp_list->type == LCD_EXT_CMD_TYPE_MULTI_FR) {
+				frame_rate_min = temp_list->data_buf[0];
+				frame_rate_max = temp_list->data_buf[1];
+				if (frame_rate < frame_rate_min ||
+				    frame_rate > frame_rate_max) {
+					return -1;
+				}
+				EXTPR("[%d]: %s: dev_%d: multi_id=%d, type=0x%x, framerate=%d\n",
+					edrv->index, __func__, edev->dev_index,
+					temp_list->index, temp_list->type, frame_rate);
+				return 0;
+			}
+		}
+		temp_list = temp_list->next;
+	}
+	return -1;
+}
+
 static int lcd_extern_power_cmd_dynamic_size(struct lcd_extern_driver_s *edrv,
 					     struct lcd_extern_dev_s *edev,
 					     unsigned char *table, int flag)
 {
-	int i = 0, j, step = 0, max_len = 0;
-	unsigned char type, size;
+	int i = 0, j = 0, step = 0, max_len = 0;
+	unsigned char type, size, temp;
 	int delay_ms, ret = 0;
 
 	if (flag)
@@ -432,6 +470,92 @@ static int lcd_extern_power_cmd_dynamic_size(struct lcd_extern_driver_s *edrv,
 					goto power_cmd_dynamic_i2c_next;
 				ret = lcd_extern_i2c_write(edev->i2c_dev[3]->client,
 							   &table[i + 2], size);
+			} else if (type == LCD_EXT_CMD_TYPE_MULTI_FR) {
+				/* do nothing here */
+			} else if (type == LCD_EXT_CMD_TYPE_CMD_MULTI) {
+				if (!edev->i2c_dev[0]) {
+					EXTERR("[%d]: dev_%d invalid i2c0 device\n",
+					       edrv->index, edev->dev_index);
+					return -1;
+				}
+				ret = lcd_extern_cmd_multi_id(edrv, edev, table[i + 2]);
+				if (ret)
+					goto power_cmd_dynamic_i2c_next;
+				temp = (table[i + 3] << 4);
+				if (temp == LCD_EXT_CMD_TYPE_CMD_BIN2) {
+					lcd_extern_init_reg_check2(edev, edev->i2c_dev[0]->client,
+						temp, &table[i + 4], (size - 2));
+				} else {
+					lcd_extern_init_reg_check(edev, edev->i2c_dev[0]->client,
+						temp, &table[i + 4], (size - 2));
+				}
+				if (edev->check_state[0] == 1)
+					goto power_cmd_dynamic_i2c_next;
+				ret = lcd_extern_i2c_write(edev->i2c_dev[0]->client,
+							&table[i + 4], (size - 2));
+			} else if (type == LCD_EXT_CMD_TYPE_CMD2_MULTI) {
+				if (!edev->i2c_dev[1]) {
+					EXTERR("[%d]: dev_%d invalid i2c1 device\n",
+					       edrv->index, edev->dev_index);
+					return -1;
+				}
+				ret = lcd_extern_cmd_multi_id(edrv, edev, table[i + 2]);
+				if (ret)
+					goto power_cmd_dynamic_i2c_next;
+				temp = (table[i + 3] << 4) | (1 << 0);
+				if (temp == LCD_EXT_CMD_TYPE_CMD2_BIN2) {
+					lcd_extern_init_reg_check2(edev, edev->i2c_dev[1]->client,
+						temp, &table[i + 4], (size - 2));
+				} else {
+					lcd_extern_init_reg_check(edev, edev->i2c_dev[1]->client,
+						temp, &table[i + 4], (size - 2));
+				}
+				if (edev->check_state[1] == 1)
+					goto power_cmd_dynamic_i2c_next;
+				ret = lcd_extern_i2c_write(edev->i2c_dev[1]->client,
+							&table[i + 4], (size - 2));
+			} else if (type == LCD_EXT_CMD_TYPE_CMD3_MULTI) {
+				if (!edev->i2c_dev[2]) {
+					EXTERR("[%d]: dev_%d invalid i2c2 device\n",
+					       edrv->index, edev->dev_index);
+					return -1;
+				}
+				ret = lcd_extern_cmd_multi_id(edrv, edev, table[i + 2]);
+				if (ret)
+					goto power_cmd_dynamic_i2c_next;
+				temp = (table[i + 3] << 4) | (2 << 0);
+				if (temp == LCD_EXT_CMD_TYPE_CMD3_BIN2) {
+					lcd_extern_init_reg_check2(edev, edev->i2c_dev[2]->client,
+						temp, &table[i + 4], (size - 2));
+				} else {
+					lcd_extern_init_reg_check(edev, edev->i2c_dev[2]->client,
+						temp, &table[i + 4], (size - 2));
+				}
+				if (edev->check_state[2] == 1)
+					goto power_cmd_dynamic_i2c_next;
+				ret = lcd_extern_i2c_write(edev->i2c_dev[2]->client,
+							&table[i + 4], (size - 2));
+			} else if (type == LCD_EXT_CMD_TYPE_CMD4_MULTI) {
+				if (!edev->i2c_dev[3]) {
+					EXTERR("[%d]: dev_%d invalid i2c3 device\n",
+					       edrv->index, edev->dev_index);
+					return -1;
+				}
+				ret = lcd_extern_cmd_multi_id(edrv, edev, table[i + 2]);
+				if (ret)
+					goto power_cmd_dynamic_i2c_next;
+				temp = (table[i + 3] << 4) | (3 << 0);
+				if (temp == LCD_EXT_CMD_TYPE_CMD4_BIN2) {
+					lcd_extern_init_reg_check2(edev, edev->i2c_dev[2]->client,
+						temp, &table[i + 4], (size - 2));
+				} else {
+					lcd_extern_init_reg_check(edev, edev->i2c_dev[3]->client,
+						temp, &table[i + 4], (size - 2));
+				}
+				if (edev->check_state[3] == 1)
+					goto power_cmd_dynamic_i2c_next;
+				ret = lcd_extern_i2c_write(edev->i2c_dev[3]->client,
+							&table[i + 4], (size - 2));
 			} else if (type == LCD_EXT_CMD_TYPE_CMD_DELAY) {
 				if (!edev->i2c_dev[0]) {
 					EXTERR("[%d]: dev_%d invalid i2c0 device\n",

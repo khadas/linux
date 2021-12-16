@@ -34,7 +34,6 @@
 #include "../lcd_common.h"
 
 static int lcd_init_on_flag;
-
 /* ************************************************** *
  * lcd mode function
  * **************************************************
@@ -68,6 +67,14 @@ struct lcd_vmode_info_s {
 	unsigned int frac;
 	struct lcd_duration_s *duration;
 };
+
+struct lcd_vmode_list_s {
+	struct lcd_vmode_info_s *info;
+	struct lcd_vmode_list_s *next;
+};
+
+struct lcd_vmode_list_s *lcd_vmode_list_header;
+struct lcd_vmode_info_s *lcd_vmode_cur_info;
 
 enum lcd_vmode_e {
 	LCD_VMODE_600P = 0,
@@ -135,34 +142,58 @@ static struct lcd_vmode_info_s lcd_vmode_info[] = {
 	},
 };
 
-static int lcd_output_vmode_init(struct aml_lcd_drv_s *pdrv)
+static int lcd_vmode_add_list(struct lcd_vmode_info_s *vmode_info)
+{
+	struct lcd_vmode_list_s *temp_list;
+	struct lcd_vmode_list_s *cur_list;
+
+	/* creat list */
+	cur_list = kzalloc(sizeof(*cur_list), GFP_KERNEL);
+	if (!cur_list)
+		return -1;
+	cur_list->info = vmode_info;
+
+	if (!lcd_vmode_list_header) {
+		lcd_vmode_list_header = cur_list;
+	} else {
+		temp_list = lcd_vmode_list_header;
+		while (temp_list->next)
+			temp_list = temp_list->next;
+		temp_list->next = cur_list;
+	}
+
+	LCDPR("%s: %s\n", __func__, cur_list->info->name);
+
+	return 0;
+}
+
+static int lcd_vmode_remove_list(void)
+{
+	struct lcd_vmode_list_s *cur_list;
+	struct lcd_vmode_list_s *next_list;
+
+	/* add to exist list */
+	cur_list = lcd_vmode_list_header;
+	while (cur_list) {
+		next_list = cur_list->next;
+		kfree(cur_list);
+		cur_list = next_list;
+	}
+	lcd_vmode_list_header = NULL;
+	lcd_vmode_cur_info = NULL;
+
+	return 0;
+}
+
+static int lcd_output_vmode_init_with_outputmode(struct aml_lcd_drv_s *pdrv,
+		const char *mode)
 {
 	int i, count = ARRAY_SIZE(lcd_vmode_info) - 1;
+	char temp[30], *p;
+	int n;
 
 	if (!pdrv)
 		return -1;
-
-	for (i = 0; i < count; i++) {
-		if (pdrv->config.basic.h_active == lcd_vmode_info[i].width &&
-		    pdrv->config.basic.v_active == lcd_vmode_info[i].height) {
-			pdrv->output_vmode = i;
-			pdrv->std_duration = lcd_vmode_info[i].duration;
-			return 0;
-		}
-	}
-
-	pdrv->output_vmode = LCD_VMODE_MAX;
-	pdrv->std_duration = lcd_std_fr;
-	LCDERR("[%d]: %s: unsupport resolution: %dx%d\n",
-	       pdrv->index, __func__,
-	       pdrv->config.basic.h_active, pdrv->config.basic.v_active);
-	return -1;
-}
-
-static int lcd_outputmode_is_mached(struct aml_lcd_drv_s *pdrv, const char *mode)
-{
-	char temp[30], *p;
-	int n;
 
 	p = strchr(mode, 'p');
 	if (!p)
@@ -170,14 +201,105 @@ static int lcd_outputmode_is_mached(struct aml_lcd_drv_s *pdrv, const char *mode
 	n = p - mode + 1;
 	strncpy(temp, mode, n);
 	temp[n] = '\0';
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: outputmode=%s, lcd_vmode=%s\n", pdrv->index, mode, temp);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: outputmode=%s, lcd_vmode=%s\n",
+			pdrv->index, __func__, mode, temp);
+	}
 
-	if (pdrv->output_vmode >= LCD_VMODE_MAX)
+	lcd_vmode_remove_list();
+	for (i = 0; i < count; i++) {
+		if (strcmp(temp, lcd_vmode_info[i].name) == 0) {
+			lcd_vmode_add_list(&lcd_vmode_info[i]);
+			lcd_vmode_cur_info = &lcd_vmode_info[i];
+			pdrv->std_duration = lcd_vmode_info[i].duration;
+			return 0;
+		}
+	}
+
+	pdrv->std_duration = lcd_std_fr;
+	LCDERR("[%d]: %s: unsupport outputmode: %s\n",
+	       pdrv->index, __func__, mode);
+	return -1;
+}
+
+static int lcd_output_vmode_init(struct aml_lcd_drv_s *pdrv)
+{
+	int i, count = ARRAY_SIZE(lcd_vmode_info) - 1;
+
+	if (!pdrv)
 		return -1;
 
-	if (strcmp(temp, lcd_vmode_info[pdrv->output_vmode].name) == 0)
+	lcd_vmode_remove_list();
+	if (pdrv->config.cus_ctrl.dlg_flag) {
+		for (i = 0; i < count; i++) {
+			if (lcd_vmode_info[i].width == 3840)
+				lcd_vmode_add_list(&lcd_vmode_info[i]);
+			if (pdrv->config.basic.h_active == lcd_vmode_info[i].width &&
+			    pdrv->config.basic.v_active == lcd_vmode_info[i].height) {
+				lcd_vmode_cur_info = &lcd_vmode_info[i];
+				pdrv->std_duration = lcd_vmode_info[i].duration;
+			}
+		}
+		if (!pdrv->std_duration)
+			pdrv->std_duration = lcd_std_fr;
 		return 0;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (pdrv->config.basic.h_active == lcd_vmode_info[i].width &&
+		    pdrv->config.basic.v_active == lcd_vmode_info[i].height) {
+			lcd_vmode_add_list(&lcd_vmode_info[i]);
+			lcd_vmode_cur_info = &lcd_vmode_info[i];
+			pdrv->std_duration = lcd_vmode_info[i].duration;
+			return 0;
+		}
+	}
+
+	pdrv->std_duration = lcd_std_fr;
+	LCDERR("[%d]: %s: unsupport resolution: %dx%d\n",
+	       pdrv->index, __func__,
+	       pdrv->config.basic.h_active, pdrv->config.basic.v_active);
+	return -1;
+}
+
+static int lcd_outputmode_is_matched(struct aml_lcd_drv_s *pdrv, const char *mode)
+{
+	char temp[30], *p;
+	int n;
+	struct lcd_vmode_list_s *temp_list;
+
+	p = strchr(mode, 'p');
+	if (!p)
+		return LCD_VMODE_MAX;
+	n = p - mode + 1;
+	strncpy(temp, mode, n);
+	temp[n] = '\0';
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: input outputmode=%s, lcd_vmode=%s\n",
+			pdrv->index, __func__, mode, temp);
+	}
+
+	temp_list = lcd_vmode_list_header;
+	while (temp_list) {
+		if (strcmp(temp, temp_list->info->name) == 0) {
+			pdrv->std_duration = temp_list->info->duration;
+			if (lcd_vmode_cur_info != temp_list->info) {
+				lcd_vmode_cur_info = temp_list->info;
+				/* need update resolution for vmode switch */
+				pdrv->config.basic.h_active = temp_list->info->width;
+				pdrv->config.basic.v_active = temp_list->info->height;
+				pdrv->vmode_update = 1;
+				if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+					LCDPR("[%d]: %s: %s, h_actvie=%d, v_active=%d\n",
+						pdrv->index, __func__,
+						temp_list->info->name,
+						pdrv->config.basic.h_active,
+						pdrv->config.basic.v_active);
+				}
+			return 0;
+		}
+		temp_list = temp_list->next;
+	}
 
 	LCDERR("[%d]: %s: invalid mode: %s\n", pdrv->index, __func__, mode);
 	return -1;
@@ -189,6 +311,9 @@ static int lcd_outputmode_to_frame_rate(struct aml_lcd_drv_s *pdrv, const char *
 	char temp[30], *p;
 	int n, i, ret = 0;
 
+	if (!lcd_vmode_cur_info)
+		return 0;
+
 	p = strchr(mode, 'p');
 	if (!p)
 		return 0;
@@ -199,11 +324,13 @@ static int lcd_outputmode_to_frame_rate(struct aml_lcd_drv_s *pdrv, const char *
 		return 0;
 	*p = '\0';
 	ret = kstrtoint(temp, 10, &frame_rate);
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: outputmode=%s, frame_rate=%d\n", pdrv->index, mode, frame_rate);
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("[%d]: %s: outputmode=%s, frame_rate=%d\n",
+			pdrv->index, __func__, mode, frame_rate);
+	}
 
 	for (i = 0; i < LCD_STD_FRAME_RATE_MAX; i++) {
-		if (frame_rate == pdrv->std_duration[i].frame_rate)
+		if (frame_rate == lcd_vmode_cur_info->duration[i].frame_rate)
 			return frame_rate;
 	}
 
@@ -233,13 +360,14 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv, enum vmode_e mode
 		return;
 
 	pconf = &pdrv->config;
-	info = &lcd_vmode_info[pdrv->output_vmode];
+	if (!lcd_vmode_cur_info)
+		return;
+	info = lcd_vmode_cur_info;
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 	sprintf(pdrv->output_name, "%s%dhz", info->name, info->frame_rate);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: %s vmode = %d, lcd_vmode = %d, outputmode = %s\n",
-		      pdrv->index, __func__, mode, pdrv->output_vmode,
-		      pdrv->output_name);
+		LCDPR("[%d]: %s vmode = %d, outputmode = %s\n",
+		      pdrv->index, __func__, mode, pdrv->output_name);
 	}
 
 	/* store standard duration */
@@ -353,14 +481,13 @@ static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac,
 	if (!mode)
 		return VMODE_MAX;
 
-	if (pdrv->output_vmode >= LCD_VMODE_MAX)
-		return VMODE_MAX;
-
-	ret = lcd_outputmode_is_mached(pdrv, mode);
+	ret = lcd_outputmode_is_matched(pdrv, mode);
 	if (ret)
 		return VMODE_MAX;
+	if (!lcd_vmode_cur_info)
+		return VMODE_MAX;
 
-	info = &lcd_vmode_info[pdrv->output_vmode];
+	info = lcd_vmode_cur_info;
 	if (lcd_fr_is_fixed(pdrv)) {
 		LCDPR("[%d]: %s: fixed timing\n", pdrv->index, __func__);
 		return info->mode;
@@ -397,6 +524,20 @@ static struct vinfo_s *lcd_get_current_info(void *data)
 	return &pdrv->vinfo;
 }
 
+static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
+{
+	if (pdrv->vmode_update == 0)
+		return;
+
+	/* include lcd_vout_mutex */
+	if (flag) {
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
+		lcd_if_enable_retry(pdrv);
+	} else {
+		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
+	}
+}
+
 static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 {
 	int ret = 0;
@@ -414,7 +555,9 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 		LCDPR("[%d]: fixed timing, exit vmode change\n", pdrv->index);
 		return -1;
 	}
+
 	mutex_lock(&lcd_power_mutex);
+
 	/* do not change mode value here, for bit mask is useful */
 	lcd_vmode_vinfo_update(pdrv, mode & VMODE_MODE_BIT_MASK);
 	if (VMODE_LCD == (mode & VMODE_MODE_BIT_MASK)) {
@@ -427,22 +570,27 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 				aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
 				lcd_if_enable_retry(pdrv);
 			} else if (pdrv->driver_change) {
+				lcd_vmode_switch(pdrv, 0);
 				mutex_lock(&lcd_vout_mutex);
 				ret = pdrv->driver_change(pdrv);
 				mutex_unlock(&lcd_vout_mutex);
+				lcd_vmode_switch(pdrv, 1);
 			}
 		} else if (lcd_init_on_flag == 1) {
+			lcd_vmode_switch(pdrv, 0);
 			mutex_lock(&lcd_vout_mutex);
 			if (pdrv->driver_change)
 				ret = pdrv->driver_change(pdrv);
 			else
 				ret = -1;
 			mutex_unlock(&lcd_vout_mutex);
+			lcd_vmode_switch(pdrv, 1);
 		}
 	} else {
 		ret = -EINVAL;
 	}
 
+	pdrv->vmode_update = 0;
 	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
 
 	mutex_unlock(&lcd_power_mutex);
@@ -459,19 +607,18 @@ static int lcd_vmode_is_supported(enum vmode_e mode, void *data)
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 
 	mode &= VMODE_MODE_BIT_MASK;
+	if (!lcd_vmode_cur_info)
+		return false;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: %s vmode = %d, lcd_vmode = %d(%s)\n",
-		      pdrv->index, __func__, mode, pdrv->output_vmode,
-		      lcd_vmode_info[pdrv->output_vmode].name);
+		      pdrv->index, __func__, mode, lcd_vmode_cur_info->mode,
+		      lcd_vmode_cur_info->name);
 	}
 
-	if (mode != lcd_vmode_info[pdrv->output_vmode].mode)
-		return false;
-
-	if (pdrv->output_vmode < LCD_VMODE_MAX)
+	if (mode == lcd_vmode_cur_info->mode)
 		return true;
-	else
-		return false;
+
+	return false;
 }
 
 static int lcd_vout_disable(enum vmode_e cur_vmod, void *data)
@@ -482,7 +629,6 @@ static int lcd_vout_disable(enum vmode_e cur_vmod, void *data)
 		return -1;
 
 	pdrv->status &= ~LCD_STATUS_VMODE_ACTIVE;
-
 	return 0;
 }
 
@@ -522,14 +668,24 @@ static int lcd_vout_get_state(void *data)
 
 static int lcd_vout_get_disp_cap(char *buf, void *data)
 {
-	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
-	struct lcd_vmode_info_s *info;
+	struct lcd_vmode_list_s *temp_list;
 	int ret = 0, i;
 
-	info = &lcd_vmode_info[pdrv->output_vmode];
-	for (i = 0; i < ACTIVE_FRAME_RATE_CNT; i++) {
-		ret += sprintf(buf + ret, "%s%dhz\n", info->name,
-			      pdrv->std_duration[i].frame_rate);
+	if (!lcd_vmode_list_header) {
+		ret += sprintf(buf + ret, "null\n");
+		return ret;
+	}
+
+	temp_list = lcd_vmode_list_header;
+	while (temp_list) {
+		if (!temp_list->info)
+			continue;
+		for (i = 0; i < ACTIVE_FRAME_RATE_CNT; i++) {
+			ret += sprintf(buf + ret, "%s%dhz\n",
+				temp_list->info->name,
+				temp_list->info->duration[i].frame_rate);
+		}
+		temp_list = temp_list->next;
 	}
 
 	return ret;
@@ -808,13 +964,14 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 		return;
 	frac = lcd_parse_vout_init_name(mode);
 
-	if (pdrv->status & LCD_STATUS_ENCL_ON) {
+	if (pdrv->status & LCD_STATUS_ENCL_ON)
 		lcd_output_vmode_init(pdrv);
-	} else {
-		pdrv->output_vmode = LCD_VMODE_MAX;
-		pdrv->std_duration = lcd_std_fr;
-	}
-	info = &lcd_vmode_info[pdrv->output_vmode];
+	else
+		lcd_output_vmode_init_with_outputmode(pdrv, mode);
+	if (lcd_vmode_cur_info)
+		info = lcd_vmode_cur_info;
+	else
+		info = &lcd_vmode_info[LCD_VMODE_MAX];
 
 	frame_rate = lcd_outputmode_to_frame_rate(pdrv, mode);
 	if (frac) {

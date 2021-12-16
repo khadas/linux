@@ -618,11 +618,11 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 
 	if (lcd_debug_info_if && lcd_debug_info_if->interface_print)
 		len += lcd_debug_info_if->interface_print(pdrv, (buf + len), (len + offset));
-	else
-		LCDERR("%s: lcd_debug_info_if is null\n", __func__);
 
+	/* phy_attr */
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
+			"lcd phy_attr:\n"
 			"ctrl_flag:         0x%x\n"
 			"vswing_level:      %u\n"
 			"ext_pullup:        %u\n"
@@ -645,6 +645,15 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 				i, phy->lane[i].amp,
 				i, phy->lane[i].preem);
 	}
+
+	/* cus_ctrl_attr */
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+			"\nlcd cus_ctrl:\n"
+			"ctrl_flag:         0x%x\n"
+			"dlg_flag:          %u\n",
+			pconf->cus_ctrl.flag,
+			pconf->cus_ctrl.dlg_flag);
 
 	len += lcd_clk_clkmsr_print(pdrv, (buf + len), (len + offset));
 
@@ -4101,6 +4110,16 @@ static ssize_t lcd_debug_print_store(struct device *dev, struct device_attribute
 	return count;
 }
 
+static ssize_t lcd_debug_cus_ctrl_show(struct device *dev,
+				       struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+
+	return sprintf(buf, "cus_ctrl:\n"
+		"dlg_flag: %d\n",
+		pdrv->config.cus_ctrl.dlg_flag);
+}
+
 static ssize_t lcd_debug_vinfo_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
 {
@@ -4171,6 +4190,7 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(vlock,       0444, lcd_debug_vlock_show, NULL),
 	__ATTR(dump,        0644, lcd_debug_dump_show, lcd_debug_dump_store),
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
+	__ATTR(cus_ctrl,    0444, lcd_debug_cus_ctrl_show, NULL),
 	__ATTR(vinfo,       0444, lcd_debug_vinfo_show, NULL)
 };
 

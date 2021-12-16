@@ -35,6 +35,14 @@ struct lcd_extern_i2c_dev_s {
 	struct i2c_client *client;
 };
 
+struct lcd_extern_multi_list_s {
+	unsigned int index;
+	unsigned int type;
+	unsigned char data_len;
+	unsigned char *data_buf;
+	struct lcd_extern_multi_list_s *next;
+};
+
 struct lcd_extern_config_s {
 	unsigned char index;
 	char name[LCD_EXTERN_NAME_LEN_MAX];
@@ -65,6 +73,7 @@ struct lcd_extern_dev_s {
 	int dev_index;
 	unsigned char addr_sel; /* internal used */
 	struct lcd_extern_config_s config;
+	struct lcd_extern_multi_list_s *multi_list_header;
 	struct lcd_extern_i2c_dev_s *i2c_dev[4];
 	unsigned char check_state[4];
 	unsigned char check_flag;
