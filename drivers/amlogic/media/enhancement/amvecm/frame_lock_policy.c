@@ -57,6 +57,17 @@ struct vrr_sig_sts frame_sts = {
 	.vrr_frame_out_fps_max = 120,
 };
 
+unsigned int frame_lock_show_vout_framerate(void)
+{
+	unsigned int fr = 0;
+
+	#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	fr = vout_frame_rate_measure_for_vrr();
+	#endif
+
+	return fr;
+}
+
 void frame_lock_parse_param(char *buf_orig, char **parm)
 {
 	char *ps, *token;
@@ -146,7 +157,8 @@ bool frame_lock_check_freerun_mode(struct vinfo_s *vinfo)
 	else
 		ret = false;
 
-	if (frame_lock_debug & VRR_POLICY_DEBUG_FREERUN_FLAG)
+	if ((frame_lock_debug & VRR_POLICY_DEBUG_FREERUN_FLAG) &&
+		vinfo->fr_adj_type == VOUT_FR_ADJ_FREERUN)
 		FrameLockPR("%s vrr_frame_cur:%d fr_adj_type:%d ret:%d\n",
 			__func__, frame_sts.vrr_frame_cur,
 			vinfo->fr_adj_type, ret);
@@ -156,7 +168,7 @@ bool frame_lock_check_freerun_mode(struct vinfo_s *vinfo)
 
 bool frame_lock_vrr_lock_status(void)
 {
-	int ret = true;
+	int ret = false;
 
 	if (aml_vrr_state()/*&& vrr_lcnt_variance <= 5*/)
 		ret = true;
@@ -222,9 +234,20 @@ int frame_lock_frame_rate_check(struct vinfo_s *vinfo)
 	if (!vinfo)
 		return ret;
 
+	if (frame_lock_check_freerun_mode(vinfo)) {
+		ret = true;
+		frame_sts.vrr_frame_outof_range_cnt = 0;
+
+		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
+			FrameLockPR("%s freerun mode fps_cur:%d  fr_adj_type:%d\n",
+				__func__, frame_sts.vrr_frame_cur,
+				vinfo->fr_adj_type);
+
+		return ret;
+	}
+
 	if (frame_sts.vrr_frame_cur >= frame_sts.vrr_frame_out_fps_min &&
-		frame_sts.vrr_frame_cur <= frame_sts.vrr_frame_out_fps_max &&
-		vinfo->fr_adj_type != VOUT_FR_ADJ_FREERUN) {
+		frame_sts.vrr_frame_cur <= frame_sts.vrr_frame_out_fps_max) {
 		frame_sts.vrr_frame_outof_range_cnt = 0;
 		ret = true;
 	} else {
@@ -246,6 +269,7 @@ static unsigned int frame_lock_check_input_hz(struct vframe_s *vf)
 {
 	unsigned int ret_hz = 0;
 	unsigned int duration = 0;
+	unsigned int fr = 0;
 
 	if (!vf) {
 		frame_sts.vrr_frame_in_frame_cnt++;
@@ -267,9 +291,12 @@ static unsigned int frame_lock_check_input_hz(struct vframe_s *vf)
 		ret_hz = 0;
 	}
 
-	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-		FrameLockPR("input frame rate :%d duration:%d no_vf_limit:%d\n",
-		ret_hz, duration, vrr_dis_cnt_no_vf_limit);
+	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG) {
+		fr = frame_lock_show_vout_framerate();
+		FrameLockPR("in_fps: %d.%3d out_fps: %d.%3d duration: %d  no_vf_limit: %d\n",
+		((96000 + duration / 2) / duration), ((96000 + duration / 2) % duration),
+		(fr / 1000), (fr % 1000), duration, vrr_dis_cnt_no_vf_limit);
+	}
 
 	return ret_hz;
 }
@@ -318,17 +345,15 @@ u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vfr
 	if (!vinfo)
 		return FRAMELOCK_VLOCK;
 
+	if (frame_lock_chk_is_small_win(cur_video_sts, vinfo)) {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
+			FrameLockPR("%s small window, VRR disable!!!\n",
+			__func__);
+		return FRAMELOCK_VLOCK;
+	}
+
 	if (frame_sts.vrr_en) {
 		frame_sts.vrr_frame_cur = frame_lock_check_input_hz(vf);
-
-		if (frame_lock_chk_is_small_win(cur_video_sts, vinfo)) {
-			ret = FRAMELOCK_VLOCK;
-		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-			FrameLockPR("%s small window, VRR disable!!!\n", __func__);
-		}
-
-		if (frame_lock_check_freerun_mode(vinfo))
-			ret = FRAMELOCK_VRRLOCK;
 
 		if (frame_lock_frame_rate_check(vinfo) &&
 			frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt) {
