@@ -28,6 +28,7 @@
 struct vout_mux_data_s {
 	int vdin_meas_id;
 	void (*update_viu_mux)(int index, unsigned int mux_sel);
+	void (*clear_viu_mux)(int index, unsigned int mux_sel);
 };
 
 static struct vout_mux_data_s *vout_mux_data;
@@ -211,6 +212,26 @@ static void vout_viu_mux_update_t3(int index, unsigned int mux_sel)
 	 */
 }
 
+static void vout_viu_mux_clear_t7(int index, unsigned int mux_sel)
+{
+	unsigned int viu_sel, venc_idx;
+	unsigned int reg_value, venc_dmy;
+
+	reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
+	VOUTPR("%s: index=%d, mux_sel=0x%x\n", __func__, index, mux_sel);
+	VOUTPR("%s: viu_mux reg=0x%x\n", __func__, reg_value);
+
+	viu_sel = mux_sel & 0xf;
+	if (viu_sel == VIU_MUX_PROJECT) {
+		venc_dmy = (reg_value >> 2) & 0x3;
+		venc_idx = reg_value & 0x3;
+		reg_value &= ~(0x10f);
+		reg_value |= ((venc_idx << 2) | venc_dmy);
+		vout_vcbus_write(VPU_VIU_VENC_MUX_CTRL, reg_value);
+		VOUTPR("%s: update viu_mux reg=0x%x\n", __func__, reg_value);
+	}
+}
+
 void vout_viu_mux_update(int index, unsigned int mux_sel)
 {
 	/* for default case */
@@ -224,20 +245,34 @@ void vout_viu_mux_update(int index, unsigned int mux_sel)
 		vout_mux_data->update_viu_mux(index, mux_sel);
 }
 
+void vout_viu_mux_clear(int index, unsigned int mux_sel)
+{
+	/* for default case */
+	if (!vout_mux_data)
+		return;
+
+	/* for new case */
+	if (vout_mux_data->clear_viu_mux)
+		vout_mux_data->clear_viu_mux(index, mux_sel);
+}
+
 /* ********************************************************* */
 static struct vout_mux_data_s vout_mux_match_data = {
 	.vdin_meas_id = 38,
 	.update_viu_mux = vout_viu_mux_update_default,
+	.clear_viu_mux = NULL,
 };
 
 static struct vout_mux_data_s vout_mux_match_data_t7 = {
 	.vdin_meas_id = 60,
 	.update_viu_mux = vout_viu_mux_update_t7,
+	.clear_viu_mux = vout_viu_mux_clear_t7,
 };
 
 static struct vout_mux_data_s vout_mux_match_data_t3 = {
 	.vdin_meas_id = 60,
 	.update_viu_mux = vout_viu_mux_update_t3,
+	.clear_viu_mux = vout_viu_mux_clear_t7,
 };
 
 static const struct of_device_id vout_mux_dt_match_table[] = {

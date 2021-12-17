@@ -158,6 +158,22 @@ static inline int vout_func_check_state(int index, unsigned int state,
 	return 0;
 }
 
+static inline void vout_func_pre_server_disable(int index, struct vout_server_s *p_server)
+{
+	struct vinfo_s *vinfo = NULL;
+	enum vmode_e mode = VMODE_MAX;
+
+	if (p_server->op.get_vinfo) {
+		vinfo = p_server->op.get_vinfo(p_server->data);
+		if (vinfo) {
+			mode = vinfo->mode;
+			vout_viu_mux_clear(index, vinfo->viu_mux);
+		}
+	}
+	if (p_server->op.disable)
+		p_server->op.disable(mode, p_server->data);
+}
+
 void vout_func_set_state(int index, enum vmode_e mode)
 {
 	struct vout_server_s *p_server;
@@ -209,10 +225,8 @@ void vout_func_set_state(int index, enum vmode_e mode)
 		} else {
 			if (p_server->op.get_state) {
 				state = p_server->op.get_state(data);
-				if (state & (1 << index)) {
-					if (p_server->op.disable)
-						p_server->op.disable(mode, data);
-				}
+				if (state & (1 << index))
+					vout_func_pre_server_disable(index, p_server);
 			}
 			if (p_server->op.clr_state)
 				p_server->op.clr_state(index, data);
