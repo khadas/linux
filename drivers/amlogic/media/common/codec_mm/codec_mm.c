@@ -249,13 +249,20 @@ static int codec_mm_valid_mm_locked(struct codec_mm_s *mmhandle)
 static int codec_mm_alloc_tvp_pre_check_in(struct codec_mm_mgt_s *mgt,
 		int need_size, int flags)
 {
+	if (!mgt)
+		return 0;
+
 	struct extpool_mgt_s *tvp_pool = &mgt->tvp_pool;
 	int i = 0;
 
+	mutex_lock(&tvp_pool->pool_lock);
 	for (i = 0; i < tvp_pool->slot_num; i++) {
-		if (gen_pool_avail(tvp_pool->gen_pool[i]) >= need_size)
+		if (gen_pool_avail(tvp_pool->gen_pool[i]) >= need_size) {
+			mutex_unlock(&tvp_pool->pool_lock);
 			return 1;
+		}
 	}
+	mutex_unlock(&tvp_pool->pool_lock);
 	return 0;
 }
 
