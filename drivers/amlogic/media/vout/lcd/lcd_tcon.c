@@ -1904,6 +1904,32 @@ static void lcd_tcon_axi_mem_secure_t5(void)
 #endif
 }
 
+/* default non-secure */
+static void lcd_tcon_axi_mem_secure_t3(void)
+{
+	/* only protect od mem */
+#ifdef CONFIG_AMLOGIC_TEE
+	tcon_local_cfg.secure_cfg.handle = 0;
+	tcon_local_cfg.secure_cfg.protect = 0;
+#endif
+}
+
+#ifdef CONFIG_AMLOGIC_TEE
+int lcd_tcon_mem_tee_get_status(void)
+{
+	return tcon_local_cfg.secure_cfg.protect;
+}
+
+int lcd_tcon_mem_tee_unprotect(void)
+{
+	if (tcon_local_cfg.secure_cfg.protect) {
+		tee_unprotect_mem(tcon_local_cfg.secure_cfg.handle);
+		tcon_local_cfg.secure_cfg.protect = 0;
+	}
+	return tcon_local_cfg.secure_cfg.protect;
+}
+#endif
+
 static int lcd_tcon_mem_config(void)
 {
 	unsigned int max_size;
@@ -1951,22 +1977,6 @@ static int lcd_tcon_mem_config(void)
 		ret = lcd_tcon_mm_table_config_v1();
 	return ret;
 }
-
-#ifdef CONFIG_AMLOGIC_TEE
-int lcd_tcon_mem_tee_get_status(void)
-{
-	return tcon_local_cfg.secure_cfg.protect;
-}
-
-int lcd_tcon_mem_tee_unprotect(void)
-{
-	if (tcon_local_cfg.secure_cfg.protect) {
-		tee_unprotect_mem(tcon_local_cfg.secure_cfg.handle);
-		tcon_local_cfg.secure_cfg.protect = 0;
-	}
-	return tcon_local_cfg.secure_cfg.protect;
-}
-#endif
 
 #ifdef CONFIG_CMA
 static int lcd_tcon_cma_mem_config(struct cma *cma)
@@ -2314,11 +2324,53 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 
 	.axi_reg = NULL,
 	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_t5,
-	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t5,
+	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t3,
+};
+
+static struct lcd_tcon_config_s tcon_data_t5w = {
+	.tcon_valid = 0,
+
+	.core_reg_ver = 1, /* new version with header */
+	.core_reg_width = LCD_TCON_CORE_REG_WIDTH_T5,
+	.reg_table_width = LCD_TCON_TABLE_WIDTH_T5,
+	.reg_table_len = LCD_TCON_TABLE_LEN_T5,
+	.core_reg_start = TCON_CORE_REG_START_T5,
+	.top_reg_base = TCON_TOP_BASE,
+
+	.reg_top_ctrl = REG_LCD_TCON_MAX,
+	.bit_en = BIT_TOP_EN_T5,
+
+	.reg_core_od = REG_CORE_OD_T5,
+	.bit_od_en = BIT_OD_EN_T5,
+
+	.reg_ctrl_timing_base = REG_LCD_TCON_MAX,
+	.ctrl_timing_offset = CTRL_TIMING_OFFSET_T5,
+	.ctrl_timing_cnt = CTRL_TIMING_CNT_T5,
+
+	.axi_bank = LCD_TCON_AXI_BANK_T5,
+
+	/*rsv_mem(12M)    axi_mem(10M)   bin_path(10K)
+	 *             |----------------|-------------|
+	 */
+	.rsv_mem_size    = 0x00c00000,
+	.axi_mem_size    = 0x00a00000,
+	.bin_path_size   = 0x00002800,
+	.vac_size        = 0,
+	.demura_set_size = 0,
+	.demura_lut_size = 0,
+	.acc_lut_size    = 0,
+
+	.axi_reg = NULL,
+	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_t5,
+	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
+	.tcon_global_reset = lcd_tcon_global_reset_t5,
+	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
+	.tcon_enable = lcd_tcon_enable_t5,
+	.tcon_disable = lcd_tcon_disable_t5,
 };
 
 int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
@@ -2343,7 +2395,7 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 		lcd_tcon_conf = &tcon_data_t3;
 		break;
 	case LCD_CHIP_T5W:
-		lcd_tcon_conf = &tcon_data_t5;
+		lcd_tcon_conf = &tcon_data_t5w;
 		break;
 	default:
 		break;
