@@ -2566,10 +2566,9 @@ static int rx_vrr_notify_handler(struct notifier_block *nb,
 	int ret = 0;
 	struct vrr_notifier_data_s vdata;
 
-	memcpy(&vdata, p, sizeof(struct vrr_notifier_data_s));
-
 	switch (value) {
 	case VRR_EVENT_UPDATE:
+		memcpy(&vdata, p, sizeof(struct vrr_notifier_data_s));
 		rx.vrr_min = vdata.dev_vfreq_min;
 		rx.vrr_max = vdata.dev_vfreq_max;
 		rx_pr("%s: vrrmin=%d, vrrmax=%d\n", __func__, rx.vrr_min, rx.vrr_max);
