@@ -813,7 +813,7 @@ void show_page(struct page *page)
 		page->flags & 0xffffffff,
 		page_mapcount(page), page_count(page), page->private, page->index,
 		(void *)trace);
-	if (cma_debug_level > 4)
+	if (cma_debug_level > 4 && !irqs_disabled())
 		rmap_walk_vma(page);
 }
 
@@ -865,10 +865,10 @@ static ssize_t cma_debug_write(struct file *file, const char __user *buffer,
 	}
 
 	if (kstrtoint(buf, 10, &arg))
-		return -EINVAL;
+		goto exit;
 
 	if (arg > MAX_DEBUG_LEVEL)
-		return -EINVAL;
+		goto exit;
 
 	ok = 1;
 	cma_debug_level = arg;
