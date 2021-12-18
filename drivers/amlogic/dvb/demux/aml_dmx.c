@@ -110,6 +110,11 @@ MODULE_PARM_DESC(local_sec_level,
 static int local_sec_level = 2;
 module_param(local_sec_level, int, 0644);
 
+MODULE_PARM_DESC(enable_w_mutex,
+	"\n\t\t set ddr write mutex with key setting");
+static int enable_w_mutex;
+module_param(enable_w_mutex, int, 0644);
+
 static int out_ts_elem_cb(struct out_elem *pout,
 			  char *buf, int count, void *udata,
 			  int req_len, int *req_ret);
@@ -172,8 +177,18 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 		return ret;
 	}
 	mutex_unlock(pdmx->pmutex);
-	ret = ts_input_write(pdmx->sc2_input, buf, count);
 
+	if (enable_w_mutex) {
+		if (mutex_lock_interruptible(pdmx->pmutex)) {
+			dprint("%s line:%d\n", __func__, __LINE__);
+			return -ERESTARTSYS;
+		}
+	}
+	ret = ts_input_write(pdmx->sc2_input, buf, count);
+	if (enable_w_mutex) {
+		usleep_range(1000, 1500);
+		mutex_unlock(pdmx->pmutex);
+	}
 //	if (signal_pending(current))
 //		return -EINTR;
 	return ret;

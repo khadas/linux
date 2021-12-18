@@ -370,6 +370,40 @@ ssize_t tsn_loop_store(struct class *class,
 	return count;
 }
 
+static int lock_err_status;
+
+ssize_t dmx_mutex_show(struct class *class,
+			struct class_attribute *attr, char *buf)
+{
+	int r, total = 0;
+
+	r = sprintf(buf, "lock_err_status:%d\n", lock_err_status);
+
+	buf += r;
+	total += r;
+	return total;
+}
+
+ssize_t dmx_mutex_store(struct class *class,
+			 struct class_attribute *attr,
+			 const char *buf, size_t count)
+{
+	struct aml_dvb *advb = aml_get_dvb_device();
+
+	if (!strncmp(buf, "lock", 4)) {
+		if (mutex_lock_interruptible(&advb->mutex))
+			lock_err_status++;
+		else
+			;//pr_dbg("dmx_mutex lock\n");
+	} else if (!strncmp(buf, "unlock", 6)) {
+		mutex_unlock(&advb->mutex);
+		//pr_dbg("dmx_mutex unlock\n");
+	} else {
+		dprint("err parameters %s\n", buf);
+	}
+	return count;
+}
+
 ssize_t dmc_mem_show(struct class *class,
 			struct class_attribute *attr, char *buf)
 {
@@ -413,6 +447,7 @@ static CLASS_ATTR_RW(tsn_source);
 static CLASS_ATTR_RW(tso_source);
 static CLASS_ATTR_RW(tsn_loop);
 static CLASS_ATTR_RW(dmc_mem);
+static CLASS_ATTR_RW(dmx_mutex);
 
 static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_ts_setting.attr,
@@ -424,6 +459,7 @@ static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_tsn_loop.attr,
 	&class_attr_dmc_mem.attr,
 	&class_attr_dmx_ver.attr,
+	&class_attr_dmx_mutex.attr,
 	NULL
 };
 
