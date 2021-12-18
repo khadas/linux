@@ -839,6 +839,17 @@ config MESON_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called meson_wdt.
 
+config TPS3851_WATCHDOG
+	tristate "TPS3851 watchdog support"
+	depends on ARCH_MESON || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include watchdog support embedded into TPS3851.
+	  If the watchdog timer expires, TPS3851 will shut down all its power
+	  supplies.
+	  To compile this driver as a module, choose M here: the
+	  module will be called TPS3851_wdt.
+
 config MEDIATEK_WATCHDOG
 	tristate "Mediatek SoCs watchdog support"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
