@@ -272,6 +272,22 @@ static struct notifier_block clr_suspend_notifier = {
 	.notifier_call = clr_suspend_notify,
 };
 
+static int frz_begin(void)
+{
+	pm_state = PM_SUSPEND_TO_IDLE;
+	return 0;
+}
+
+static void frz_end(void)
+{
+	pm_state = PM_SUSPEND_ON;
+}
+
+static const struct platform_s2idle_ops meson_gx_frz_ops = {
+	.begin = frz_begin,
+	.end = frz_end,
+};
+
 unsigned int is_pm_s2idle_mode(void)
 {
 	if (pm_state == PM_SUSPEND_TO_IDLE)
@@ -425,7 +441,7 @@ static int meson_pm_probe(struct platform_device *pdev)
 	else
 		is_clr_exit_reg = false;
 
-
+	s2idle_set_ops(&meson_gx_frz_ops);
 	err = register_pm_notifier(&clr_suspend_notifier);
 	if (unlikely(err))
 		return err;
