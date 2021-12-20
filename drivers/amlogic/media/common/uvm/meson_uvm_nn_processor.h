@@ -33,6 +33,7 @@ struct uvm_ai_sr_info {
 	s32 src_interlace_flag;
 	s32 vinfo_width;
 	s32 vinfo_height;
+	s32 need_do_aisr;
 };
 
 struct meson_nn_mod_ops {
