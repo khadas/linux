@@ -44,6 +44,68 @@ int nn_print(int debug_flag, const char *fmt, ...)
 	return 0;
 }
 
+struct vframe_s *nn_get_vframe(int shared_fd)
+{
+	struct uvm_hook_mod *uhmod = NULL;
+	struct dma_buf *dmabuf = NULL;
+	bool is_dec_vf = false, is_v4l_vf = false;
+	struct file_private_data *file_private_data = NULL;
+	struct vframe_s *vframe = NULL;
+
+	dmabuf = dma_buf_get(shared_fd);
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		nn_print(PRINT_ERROR,
+			"Invalid dmabuf %s %d\n", __func__, __LINE__);
+		return NULL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
+		nn_print(PRINT_ERROR,
+			"%s: dmabuf is not uvm.dmabuf=%px, shared_fd=%d\n",
+			__func__, dmabuf, shared_fd);
+		dma_buf_put(dmabuf);
+		return NULL;
+	}
+
+	is_dec_vf = is_valid_mod_type(dmabuf, VF_SRC_DECODER);
+	is_v4l_vf = is_valid_mod_type(dmabuf, VF_PROCESS_V4LVIDEO);
+
+	if (is_dec_vf) {
+		vframe = dmabuf_get_vframe(dmabuf);
+		if (IS_ERR_OR_NULL(vframe)) {
+			nn_print(PRINT_ERROR, "get vframe failed.\n");
+		} else {
+			if (vframe->vf_ext &&
+			    (vframe->flag & VFRAME_FLAG_CONTAIN_POST_FRAME))
+				vframe = vframe->vf_ext;
+		}
+		nn_print(PRINT_OTHER, "vframe type: %d\n", vframe->type);
+		dmabuf_put_vframe(dmabuf);
+	} else {
+		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
+		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
+			nn_print(PRINT_OTHER, "get_fh err: no v4lvideo\n");
+			dma_buf_put(dmabuf);
+			return NULL;
+		}
+		file_private_data = uhmod->arg;
+		uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
+		if (!file_private_data)
+			nn_print(PRINT_ERROR, "invalid fd no uvm/v4lvideo\n");
+		else
+			vframe = &file_private_data->vf;
+	}
+
+	dma_buf_put(dmabuf);
+
+	if (!vframe) {
+		nn_print(PRINT_ERROR, "%s: get vf failed.\n", __func__);
+		return NULL;
+	}
+
+	return vframe;
+}
+
 int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 {
 	struct uvm_hook_mod *uhmod = NULL;
@@ -119,7 +181,7 @@ int nn_get_hf_info(int shared_fd, struct vf_nn_sr_t *nn_sr, int *di_flag)
 			*di_flag = 0;
 		}
 	} else {
-		nn_print(PRINT_ERROR, "not find vf\n");
+		nn_print(PRINT_ERROR, "%s: not find vf\n", __func__);
 		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
@@ -159,18 +221,28 @@ int attach_nn_hook_mod_info(int shared_fd,
 	struct vf_nn_sr_t nn_sr_t;
 	bool attached = false;
 	int src_interlace_flag = 0;
-
+	struct vframe_s *vf = NULL;
 	memset(&nn_sr_t, 0, sizeof(struct vf_nn_sr_t));
 
 	if (!uvm_open_nn) {
 		ai_sr_info->hf_phy_addr = 0;
 		ai_sr_info->hf_width = 0;
 		ai_sr_info->hf_height = 0;
+		ai_sr_info->need_do_aisr = 0;
 	} else {
 		ret = nn_get_hf_info(shared_fd, &nn_sr_t, &src_interlace_flag);
 		ai_sr_info->hf_phy_addr = nn_sr_t.hf_phy_addr;
 		ai_sr_info->hf_width = nn_sr_t.hf_width;
 		ai_sr_info->hf_height = nn_sr_t.hf_height;
+		ai_sr_info->need_do_aisr = 1;
+		vf = nn_get_vframe(shared_fd);
+		if (vf) {
+			if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+				nn_print(PRINT_OTHER,
+					"game mode bypass ai_sr.\n");
+				ai_sr_info->need_do_aisr = 0;
+			}
+		}
 	}
 
 	if (ret) {
