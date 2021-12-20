@@ -2523,18 +2523,17 @@ static void lcd_debug_config_update(struct aml_lcd_drv_s *pdrv)
 	lcd_vinfo_update(pdrv);
 }
 
-static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
+static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf;
-	unsigned int sync_duration;
+	unsigned int pclk, sync_duration;
 
 	lcd_vout_notify_mode_change_pre(pdrv);
 
 	pconf = &pdrv->config;
+	pclk = pconf->timing.lcd_clk;
 	sync_duration = pclk / pconf->basic.h_period;
 	sync_duration = sync_duration * 100 / pconf->basic.v_period;
-	pconf->timing.lcd_clk = pclk;
-	pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
 	pconf->timing.sync_duration_num = sync_duration;
 	pconf->timing.sync_duration_den = 100;
 
@@ -2601,7 +2600,9 @@ static ssize_t lcd_debug_store(struct device *dev, struct device_attribute *attr
 				temp = pconf->basic.h_period * pconf->basic.v_period * temp;
 				pr_info("set clk: %dHz\n", temp);
 			}
-			lcd_debug_clk_change(pdrv, temp);
+			pconf->timing.lcd_clk = temp;
+			pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
+			lcd_debug_clk_change(pdrv);
 		} else {
 			LCDERR("invalid data\n");
 			return -EINVAL;
@@ -2823,18 +2824,21 @@ static ssize_t lcd_debug_change_show(struct device *dev,
 	return sprintf(buf, "%s\n", lcd_debug_change_usage_str);
 }
 
-static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv, unsigned int pclk)
+static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_config_s *pconf;
-	unsigned int sync_duration;
+	struct lcd_config_s *pconf = &pdrv->config;
+	unsigned int pclk, sync_duration;
 
-	pconf = &pdrv->config;
+	pclk = pconf->timing.lcd_clk;
 	sync_duration = pclk / pconf->basic.h_period;
 	sync_duration = sync_duration * 100 / pconf->basic.v_period;
-	pconf->timing.lcd_clk = pclk;
-	pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
 	pconf->timing.sync_duration_num = sync_duration;
 	pconf->timing.sync_duration_den = 100;
+
+	/* update vinfo */
+	pdrv->vinfo.sync_duration_num = sync_duration;
+	pdrv->vinfo.sync_duration_den = 100;
+	pdrv->vinfo.video_clk = pclk;
 
 	switch (pdrv->mode) {
 #ifdef CONFIG_AMLOGIC_LCD_TV
@@ -2864,6 +2868,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 
 	pconf = &pdrv->config;
 	pctrl = &pconf->control;
+
 	switch (buf[0]) {
 	case 'c': /* clk */
 		ret = sscanf(buf, "clk %d", &temp);
@@ -2875,7 +2880,9 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 				temp = pconf->basic.h_period * pconf->basic.v_period * temp;
 				pr_info("change clk=%dHz\n", temp);
 			}
-			lcd_debug_change_clk_change(pdrv, temp);
+			pconf->timing.lcd_clk = temp;
+			pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
+			lcd_debug_change_clk_change(pdrv);
 			pconf->change_flag = 1;
 		} else {
 			LCDERR("invalid data\n");
@@ -2971,7 +2978,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 			pr_info("set ttl config:\n"
 	"clk_pol=%d, de_valid=%d, de_valid=%d, rb_swap=%d, bit_swap=%d\n",
 				val[0], val[1], val[2], val[3], val[4]);
-			lcd_debug_change_clk_change(pdrv, pconf->timing.lcd_clk);
+			lcd_debug_change_clk_change(pdrv);
 			pconf->change_flag = 1;
 		} else {
 			LCDERR("invalid data\n");
@@ -2994,7 +3001,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 				pctrl->lvds_cfg.pn_swap,
 				pctrl->lvds_cfg.port_swap,
 				pctrl->lvds_cfg.lane_reverse);
-			lcd_debug_change_clk_change(pdrv, pconf->timing.lcd_clk);
+			lcd_debug_change_clk_change(pdrv);
 			pconf->change_flag = 1;
 		} else if (ret == 4) {
 			pctrl->lvds_cfg.lvds_repack = val[0];
@@ -3007,7 +3014,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 				pctrl->lvds_cfg.dual_port,
 				pctrl->lvds_cfg.pn_swap,
 				pctrl->lvds_cfg.port_swap);
-			lcd_debug_change_clk_change(pdrv, pconf->timing.lcd_clk);
+			lcd_debug_change_clk_change(pdrv);
 			pconf->change_flag = 1;
 		} else {
 			LCDERR("invalid data\n");
@@ -3026,7 +3033,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 				pctrl->vbyone_cfg.lane_count,
 				pctrl->vbyone_cfg.region_num,
 				pctrl->vbyone_cfg.byte_mode);
-			lcd_debug_change_clk_change(pdrv, pconf->timing.lcd_clk);
+			lcd_debug_change_clk_change(pdrv);
 			pconf->change_flag = 1;
 		} else {
 			LCDERR("invalid data\n");
@@ -3062,7 +3069,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 					pctrl->mipi_cfg.video_mode_type,
 					pctrl->mipi_cfg.clk_always_hs,
 					pctrl->mipi_cfg.phy_switch);
-				lcd_debug_change_clk_change(pdrv, pconf->timing.lcd_clk);
+				lcd_debug_change_clk_change(pdrv);
 				pconf->change_flag = 1;
 			} else {
 				LCDERR("invalid data\n");
@@ -3090,7 +3097,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 					pctrl->mlvds_cfg.clk_phase,
 					pctrl->mlvds_cfg.pn_swap,
 					pctrl->mlvds_cfg.bit_swap);
-				lcd_debug_change_clk_change(pdrv, pconf->timing.lcd_clk);
+				lcd_debug_change_clk_change(pdrv);
 				pconf->change_flag = 1;
 			} else {
 				LCDERR("invalid data\n");
@@ -3118,7 +3125,7 @@ static ssize_t lcd_debug_change_store(struct device *dev, struct device_attribut
 				pctrl->p2p_cfg.channel_sel1,
 				pctrl->p2p_cfg.pn_swap,
 				pctrl->p2p_cfg.bit_swap);
-			lcd_debug_change_clk_change(pdrv, pconf->timing.lcd_clk);
+			lcd_debug_change_clk_change(pdrv);
 			pconf->change_flag = 1;
 		} else {
 			LCDERR("invalid data\n");
