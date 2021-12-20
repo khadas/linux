@@ -1396,8 +1396,8 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 			frame_number =
 				dev->last_vf->nn_value[AI_PQ_TOP - 1].maxclass;
 			vdetect_print(dev->inst, PRINT_MN_SET_FLOW,
-					      "%d: get nn info from %d frame\n",
-					      __LINE__, frame_number);
+					"%d: sdk get nn info from %d frame\n",
+					__LINE__, frame_number);
 		}
 		mutex_unlock(&dev->vf_mutex);
 		vdetect_print(dev->inst, PRINT_CAPTUREINFO,
@@ -1566,10 +1566,9 @@ static int vidioc_s_parm(struct file *file, void *priv,
 				"not video capture.\n");
 		return 0;
 	}
-
 	vdetect_print(dev->inst, PRINT_MN_SET_FLOW,
-			"set nn info for %d frame\n",
-			frame_number);
+			"sdk set nn info for %d frame start, buf_num is %d.\n",
+			frame_number, nn_frame_num);
 	if (nn_frame_num == 0)
 		buf_num = MAX_NN_INFO_BUF_COUNT - 1;
 	else
@@ -1964,7 +1963,8 @@ EXPORT_SYMBOL(vdetect_assign_map);
 int vdetect_get_frame_nn_info(struct vframe_s *vframe)
 {
 	int ret = -ENODEV;
-	int i, j, work_frame_num, check_flag;
+	int i, j, work_frame_num, max_saved_frame_num, check_flag;
+	int buf_last_num;
 
 	if (IS_ERR_OR_NULL(vframe)) {
 		vdetect_print(0, PRINT_MN_SET_FLOW,
@@ -1982,25 +1982,44 @@ int vdetect_get_frame_nn_info(struct vframe_s *vframe)
 	}
 
 	work_frame_num = vframe->nn_value[AI_PQ_TOP - 1].maxclass;
-	for (i = 0; i < MAX_NN_INFO_BUF_COUNT; i++) {
-		if (work_frame_num == nn_info[i].nn_frame_num) {
-			vdetect_print(0, PRINT_MN_SET_FLOW,
-				"buf[%d] save nn for %d frame.\n",
-				i, work_frame_num);
-			for (j = 0; j < AI_PQ_TOP - 1; j++) {
-				vframe->nn_value[j].maxclass =
-					nn_info[i].nn_value[j].maxclass;
-				vframe->nn_value[j].maxprob =
-					nn_info[i].nn_value[j].maxprob;
-			}
-			check_flag = nn_info[i].nn_value[AI_PQ_TOP - 1].maxprob;
-			if (check_flag != nn_info[i].nn_frame_num) {
+	buf_last_num = nn_frame_num - 1;
+	if (buf_last_num < 0)
+		buf_last_num = MAX_NN_INFO_BUF_COUNT - 1;
+	vdetect_print(0, PRINT_MN_SET_FLOW,
+		"vpp get nn info for %d frame, buf_num is %d.\n",
+		work_frame_num, buf_last_num);
+	max_saved_frame_num = nn_info[buf_last_num].nn_frame_num;
+	if (work_frame_num >= max_saved_frame_num) {
+		vdetect_print(0, PRINT_MN_SET_FLOW,
+			"use %d frame nn info for %d frame param.\n",
+			max_saved_frame_num, work_frame_num);
+		for (i = 0; i < AI_PQ_TOP - 1; i++) {
+			vframe->nn_value[i].maxclass =
+				nn_info[buf_last_num].nn_value[i].maxclass;
+			vframe->nn_value[i].maxprob =
+				nn_info[buf_last_num].nn_value[i].maxprob;
+		}
+	} else {
+		for (i = 0; i < MAX_NN_INFO_BUF_COUNT; i++) {
+			if (work_frame_num == nn_info[i].nn_frame_num) {
 				vdetect_print(0, PRINT_MN_SET_FLOW,
-					"%d frame no nn param.\n",
-					work_frame_num);
+					"buf[%d] save nn for %d frame.\n",
+					i, work_frame_num);
+				for (j = 0; j < AI_PQ_TOP - 1; j++) {
+					vframe->nn_value[j].maxclass =
+						nn_info[i].nn_value[j].maxclass;
+					vframe->nn_value[j].maxprob =
+						nn_info[i].nn_value[j].maxprob;
+				}
+				ret = 0;
+				break;
 			}
-			ret = 0;
-			break;
+		}
+		check_flag = nn_info[i].nn_value[AI_PQ_TOP - 1].maxprob;
+		if (work_frame_num != check_flag) {
+			vdetect_print(0, PRINT_MN_SET_FLOW,
+				"%d frame no nn param, use %d instead.\n",
+				work_frame_num, check_flag);
 		}
 	}
 
@@ -2008,12 +2027,6 @@ int vdetect_get_frame_nn_info(struct vframe_s *vframe)
 		vframe->ai_pq_enable = true;
 	else
 		vframe->ai_pq_enable = false;
-
-	if (i == MAX_NN_INFO_BUF_COUNT) {
-		vdetect_print(0, PRINT_MN_SET_FLOW,
-			"don't save %d frame nn info.\n",
-			work_frame_num);
-	}
 
 	return ret;
 }
