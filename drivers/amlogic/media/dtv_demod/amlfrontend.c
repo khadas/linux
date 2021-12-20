@@ -1099,7 +1099,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		val = (dvbt_t2_rdb(0x2838) +
 			(dvbt_t2_rdb(0x2839) << 8) +
 			(dvbt_t2_rdb(0x283A) << 16));
-		p1_peak = val == 0xe00 ? 0 : 1;
+		p1_peak = val <= 0xe00 ? 0 : 1;
 	}
 
 	PR_DVBT("s=%d, p1=%d, demod->p1=%d, demod->last_lock=%d, val=0x%08x\n",
