@@ -1883,18 +1883,13 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			if (val1) {
 				if (ldim_drv->func_en) {
 					ldim_drv->conf->remap_en = 1;
-					if (dbg_attr.chip_type != LCD_CHIP_T7 &&
-						dbg_attr.chip_type !=
-						LCD_CHIP_T3)
-						ldim_remap_ctrl(1);
+					ldim_remap_ctrl(1);
 				} else {
 					pr_info("error: ldim_func is disabled\n");
 				}
 			} else {
 				ldim_drv->conf->remap_en = 0;
-				if (dbg_attr.chip_type != LCD_CHIP_T7 &&
-					dbg_attr.chip_type != LCD_CHIP_T3)
-					ldim_remap_ctrl(0);
+				ldim_remap_ctrl(0);
 			}
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
@@ -2639,7 +2634,6 @@ static ssize_t ldim_func_en_store(struct class *class,
 				  struct class_attribute *attr,
 				  const char *buf, size_t count)
 {
-	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int val = 0;
 	int ret = 0;
@@ -2648,13 +2642,10 @@ static ssize_t ldim_func_en_store(struct class *class,
 	LDIMPR("local diming function: %s\n", (val ? "enable" : "disable"));
 	ldim_drv->conf->func_en = val ? 1 : 0;
 
-	//LCD_CHIP_T3/T7 update in vsync isr
-	if (bdrv->data->chip_type != LCD_CHIP_T3 &&
-		bdrv->data->chip_type != LCD_CHIP_T7) {
-		if (ldim_drv->data && ldim_drv->data->func_ctrl)
-			ldim_drv->data->func_ctrl(ldim_drv,
-			ldim_drv->conf->func_en);
-	}
+	if (ldim_drv->data && ldim_drv->data->func_ctrl)
+		ldim_drv->data->func_ctrl(ldim_drv,
+		ldim_drv->conf->func_en);
+
 	return count;
 }
 
@@ -2673,7 +2664,6 @@ static ssize_t ldim_remap_store(struct class *class,
 				struct class_attribute *attr,
 				const char *buf, size_t count)
 {
-	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 	unsigned int val = 0;
 	int ret = 0;
@@ -2682,11 +2672,8 @@ static ssize_t ldim_remap_store(struct class *class,
 	LDIMPR("local diming remap: %s\n", (val ? "enable" : "disable"));
 	ldim_drv->conf->remap_en = val ? 1 : 0;
 
-	//LCD_CHIP_T3/T7 update in vsync isr
-	if (bdrv->data->chip_type != LCD_CHIP_T3 &&
-		bdrv->data->chip_type != LCD_CHIP_T7) {
-		ldim_remap_ctrl(ldim_drv->conf->remap_en);
-	}
+	ldim_remap_ctrl(ldim_drv->conf->remap_en);
+
 	return count;
 }
 

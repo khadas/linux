@@ -167,7 +167,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.load_db_en = 1,
 	.db_print_flag = 0,
 
-	.state = 0,
+	.state = LDIM_STATE_LD_EN,
 	.data_min = LD_DATA_MIN,
 	.data_max = LD_DATA_MAX,
 	.brightness_level = 0,
@@ -627,7 +627,7 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 		ldim_remap_update();
 	}
 
-	if (ldim_driver.func_en) {
+	if (ldim_driver.func_en && ldim_driver.ld_sel) {
 		local_time[0] = sched_clock();
 		if (ldim_dev.data->vs_arithmetic)
 			ldim_dev.data->vs_arithmetic(&ldim_driver);
@@ -790,7 +790,7 @@ static void ldim_off_vs_brightness(void)
 		else
 			update_flag = 1;
 	}
-	if (ldim_debug_print && update_flag) {
+	if (ldim_debug_print == 4 && update_flag) {
 		if (ldim_driver.test_bl_en)
 			LDIMPR("%s: test_matrix update\n", __func__);
 		else
@@ -852,7 +852,6 @@ static int ldim_release(struct inode *inode, struct file *file)
 
 static void aml_ldim_info_update(void)
 {
-	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct fw_ctrl_s *fctrl;
 	int i = 0, j = 0;
 
@@ -892,13 +891,9 @@ static void aml_ldim_info_update(void)
 	ldim_config.remap_en = ldim_info.remapping_en;
 	ldim_config.func_en = ldim_info.func_en;
 
-	//LCD_CHIP_T3/T7 update in vsync isr
-	if (bdrv->data->chip_type != LCD_CHIP_T3 &&
-		bdrv->data->chip_type != LCD_CHIP_T7) {
-		if (ldim_driver.data->func_ctrl)
-			ldim_driver.data->func_ctrl(&ldim_driver,
-			ldim_config.func_en);
-	}
+	if (ldim_driver.data->func_ctrl)
+		ldim_driver.data->func_ctrl(&ldim_driver,
+		ldim_config.func_en);
 }
 
 static void ldim_remap_lut_print(char *buf, int len)
@@ -922,7 +917,6 @@ static void ldim_remap_lut_print(char *buf, int len)
 
 static void aml_ldim_pq_update(void)
 {
-	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct fw_ctrl_s *fctrl;
 	struct ldim_comp_s *comp;
 	int i = 0, j = 0;
@@ -1007,14 +1001,15 @@ static void aml_ldim_pq_update(void)
 
 	ldim_config.remap_en = ldim_pq.remapping_en;
 	ldim_config.func_en = ldim_pq.func_en;
+	LDIMPR("%s, func_en = %d, remap_en = %d\n", __func__,
+		ldim_config.func_en, ldim_config.remap_en);
 
-	//LCD_CHIP_T3/T7 update in vsync isr
-	if (bdrv->data->chip_type != LCD_CHIP_T3 &&
-		bdrv->data->chip_type != LCD_CHIP_T7) {
-		if (ldim_driver.data->func_ctrl)
-			ldim_driver.data->func_ctrl(&ldim_driver,
-			ldim_config.func_en);
-	}
+	ldim_driver.pq_updating = 1;
+	ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, 0, 14, 1); //set comp_en off first
+
+	if (ldim_driver.data->func_ctrl)
+		ldim_driver.data->func_ctrl(&ldim_driver,
+		ldim_config.func_en);
 }
 
 static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1602,30 +1597,35 @@ ldim_malloc_t7_err0:
 static void ldim_remap_update_t3(struct ld_reg_s *nprm,
 		unsigned int avg_update_en, unsigned int matrix_update_en)
 {
-	unsigned int linecnt;
-
-	if (ldim_debug_print == 9) {
-		linecnt = lcd_vcbus_getb(VPU_VENCP_STAT, 16, 13);
-		LDIMPR("%s linecnt = %d\n", __func__, linecnt);
+	if (ldim_driver.ld_sel == 0) {
+		if (ldim_debug_print == 5)
+			LDIMPR("%s: exit for ld_sel=0\n", __func__);
+		return;
 	}
 
 	if (ldim_config.func_en != ldim_driver.func_en) {
-		if (ldim_debug_print)
+		if (ldim_debug_print == 5)
 			LDIMPR("%s  func_en = %d : %d\n", __func__,
 			ldim_driver.func_en, ldim_config.func_en);
 		if (ldim_driver.data && ldim_driver.data->func_ctrl)
 			ldim_driver.data->func_ctrl(&ldim_driver,
 			ldim_config.func_en);
-		ldim_driver.func_en = ldim_config.func_en;
-	} else if (ldim_config.remap_en != ldim_driver.remap_en) {
-		if (ldim_driver.func_en) {
-			if (ldim_debug_print)
-				LDIMPR("%s  func_en = 1,remap_en = %d : %d\n", __func__,
-				ldim_driver.remap_en, ldim_config.remap_en);
-			ldim_config_update_t7(&ldim_driver);
-			ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
-			ldim_driver.remap_en = ldim_config.remap_en;
+	}
+
+	if (ldim_driver.pq_updating) {
+		if (ldim_driver.pq_updating == 1) {
+			ldim_driver.pq_updating++;
+			return;
 		}
+		ldc_min_gain_lut_set();
+		ldc_dither_lut_set();
+		ldc_gain_lut_set_t3();
+		ldim_config_update_t7(&ldim_driver);
+		ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
+		ldim_driver.pq_updating = 0;
+		if (ldim_debug_print == 5)
+			LDIMPR("%s  pq_updating = %d\n", __func__,
+			ldim_driver.pq_updating);
 	}
 }
 
@@ -1803,6 +1803,10 @@ int aml_ldim_probe(struct platform_device *pdev)
 
 	ldim_driver.level_update = 0;
 	ldim_driver.duty_update_flag = 0;
+	ldim_driver.switch_ld_cnt = 0;
+	ldim_driver.pq_updating = 0;
+	ldim_driver.ld_sel = 1;
+	ldim_driver.state |= LDIM_STATE_LD_EN;
 
 	if (!fw) {
 		LDIMERR("%s: fw is null\n", __func__);

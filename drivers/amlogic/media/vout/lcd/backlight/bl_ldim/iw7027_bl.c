@@ -804,7 +804,7 @@ static int iw7027_config_update(struct aml_ldim_driver_s *ldim_drv)
 {
 	int ret = 0;
 
-	LDIMPR("%s: func_en = %d\n", __func__, ldim_drv->func_en);
+//	LDIMPR("%s: func_en = %d\n", __func__, ldim_drv->func_en);
 	return ret;
 }
 

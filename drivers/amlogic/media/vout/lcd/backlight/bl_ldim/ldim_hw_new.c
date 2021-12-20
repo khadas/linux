@@ -286,7 +286,7 @@ void ldc_gain_lut_set_t3(void)
 			data_wr = ((p[j + 1] << 12) + p[j]);
 			data_rd = lcd_vcbus_read(LDC_RO_GAIN_SMP_DATA);
 			if (data_wr != data_rd) {
-				if (ldim_debug_print) {
+				if (ldim_debug_print == 6) {
 					LDIMERR("%s: %d: data_wr=0x%x, data_rd=0x%x\n",
 						__func__, i * 64 + j,
 						data_wr, data_rd);
@@ -836,6 +836,59 @@ static void ldc_rmem_duty_set(struct aml_ldim_driver_s *ldim_drv)
 	lcd_vcbus_setb(LDC_CTRL_MISC0, fid, 23, 2);
 }
 
+static void ldc_rmem_duty_set_maximum(struct aml_ldim_driver_s *ldim_drv)
+{
+	unsigned int dim_data;
+	unsigned char *buf, *p;
+	unsigned int fid, row, col, n, zone_num, index;
+	unsigned int temp = 0, max;
+	int i, j, k;
+
+	if (!ldim_drv->fw->bl_matrix) {
+		LDIMERR("%s: bl_matrix buf is null\n", __func__);
+		return;
+	}
+	if (!ldim_drv->rmem->duty_vaddr) {
+		LDIMERR("%s: duty_vaddr is null\n", __func__);
+		return;
+	}
+
+	dim_data = ldim_drv->dev_drv->dim_max;
+
+	row = ldim_drv->conf->seg_row;
+	col = ldim_drv->conf->seg_col;
+	zone_num = row * col;
+
+	//ldim_drv->rmem->duty_fid = 0;
+	fid = ldim_drv->rmem->duty_fid;
+	buf = ldim_drv->rmem->duty_vaddr;
+
+	for (i = 0; i < zone_num; i++) {
+		ldim_drv->fw->bl_matrix[i] = dim_data;
+		ldim_drv->fw->fdat->tf_bl[i] = dim_data;
+	}
+
+	n = 3; /* 3bytes 2 seg */
+	for (i = 0; i < row; i++) {
+		p = buf + (i * 0x50);
+		for (j = 0; j < ((col + 1) / 2); j++) {
+			max = (i + 1) * col;
+			if (max > zone_num)
+				break;
+
+			index = i * col + j * 2;
+			if (index >= max)
+				break;
+			temp = dim_data & 0xfff;
+			if ((index + 1) < max)
+				temp |= ((dim_data & 0xfff) << 12);
+
+			for (k = 0; k < n; k++)
+				p[j * n + k] = (temp >> (k * 8)) & 0xff;
+		}
+	}
+}
+
 void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 {
 	if (flag) {
@@ -941,10 +994,21 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 			return;
 		}
 
-//		ldim_config_update_t7(ldim_drv);
-//		ldim_drv->remap_en = ldim_drv->conf->remap_en;
-//		ldim_hw_remap_en_t7(ldim_drv, ldim_drv->conf->remap_en);
+		if (ldim_drv->func_en == ldim_drv->conf->func_en) {
+			if (ldim_debug_print)
+				LDIMPR("%s: func_en is same as conf.func_en\n", __func__);
+			return;
+		}
+
 		ldim_wr_reg_bits_rdma(LDC_REG_BLOCK_NUM, 1, 20, 1);
+
+		ldim_drv->switch_ld_cnt++;
+		if (ldim_drv->switch_ld_cnt < 4)
+			return;
+		ldim_drv->switch_ld_cnt = 0;
+		ldc_rmem_duty_set_maximum(ldim_drv);
+		ldim_drv->remap_en = ldim_drv->conf->remap_en;
+		ldim_hw_remap_en_t7(ldim_drv, ldim_drv->conf->remap_en);
 
 		ldim_drv->top_en = 1;
 		ldim_drv->hist_en = 1;
@@ -960,6 +1024,7 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_drv->top_en = 0;
 		ldim_drv->hist_en = 0;
 		ldim_drv->alg_en = 0;
+		ldim_drv->switch_ld_cnt = 0;
 
 		ldim_wr_reg_bits_rdma(LDC_REG_BLOCK_NUM, 0, 20, 1);
 		ldim_hw_remap_en_t7(ldim_drv, 0);
@@ -1027,6 +1092,7 @@ void ldim_drv_init_t3(struct aml_ldim_driver_s *ldim_drv)
 	ldc_dither_lut_set();
 	ldc_set_t7(ldim_drv, width, height, col_num, row_num);
 	ldc_gain_lut_set_t3();
+	ldim_config_update_t7(ldim_drv);
 
 	LDIMPR("drv_init: col: %d, row: %d, axi paddr: 0x%lx\n",
 		col_num, row_num, (unsigned long)ldim_drv->rmem->rsv_mem_paddr);

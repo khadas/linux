@@ -129,7 +129,7 @@ static struct ldim_fw_s ldim_fw = {
 	.para_size = sizeof(struct ldim_fw_s),
 	.fw_ctrl_size = sizeof(struct fw_ctrl_s),
 	.alg_ver = "not installed",
-	.fw_sel = 0, /* bit0:hw/sw, bit1:no/have fw_cus */
+	.fw_sel = 1, /* bit0:hw/sw, bit1:no/have fw_cus */
 	.valid = 0,
 	.flag = 0,
 
