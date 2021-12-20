@@ -1725,15 +1725,15 @@
 
 	p_tsensor: p_tsensor@fe020000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe020000 0x0 0x50>;
 		tsensor_id = <1>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
 		rtemp = <110000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-		//clocks = <&clkc CLKID_TS_CLK_GATE>;
-		//clock-names = "ts_comp";
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 	};
 
@@ -1763,36 +1763,36 @@
 			polling-delay-passive = <100>;
 			sustainable-power = <1160>;
 			thermal-sensors = <&p_tsensor 0>;
-			trips {
-				pswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				pcontrol: trip-point@1 {
-					temperature = <95000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				pcritical: trip-point@2 {
-					temperature = <105000>;
-					hysteresis = <1000>;
-					type = "critical";
-				};
-			};
+			//trips {
+			//	pswitch_on: trip-point@0 {
+			//		temperature = <85000>;
+			//		hysteresis = <5000>;
+			//		type = "passive";
+			//	};
+			//	pcontrol: trip-point@1 {
+			//		temperature = <95000>;
+			//		hysteresis = <5000>;
+			//		type = "passive";
+			//	};
+			//	pcritical: trip-point@2 {
+			//		temperature = <105000>;
+			//		hysteresis = <1000>;
+			//		type = "critical";
+			//	};
+			//};
 
-			cooling-maps {
-				cpufreq_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&CPU0 0 8>;
-					contribution = <1024>;
-				};
-				gpufreq_cooling_map {
-					trip = <&pcontrol>;
-					cooling-device = <&gpu 0 3>;
-					contribution = <1024>;
-				};
-			};
+			//cooling-maps {
+			//	cpufreq_cooling_map {
+			//		trip = <&pcontrol>;
+			//		cooling-device = <&CPU0 0 8>;
+			//		contribution = <1024>;
+			//	};
+			//	gpufreq_cooling_map {
+			//		trip = <&pcontrol>;
+			//		cooling-device = <&gpu 0 3>;
+			//		contribution = <1024>;
+			//	};
+			//};
 		};
 	};/*thermal zone end*/
 
