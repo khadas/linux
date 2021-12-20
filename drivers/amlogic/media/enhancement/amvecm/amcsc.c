@@ -6815,9 +6815,11 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path, enum vpp_index vp
 		if (sink_support_hdr10_plus(vinfo) &&
 		    vd_path == VD1_PATH)
 			return HDRTYPE_HDR10PLUS;
-		else if (!sink_support_hdr10_plus(vinfo) &&
+		/* tv chip need not regard hdr10p as hdr10. */
+		else if (vinfo_lcd_support() ||
+			(!sink_support_hdr10_plus(vinfo) &&
 			 !sink_support_hdr(vinfo) &&
-			!is_dolby_vision_enable())
+			 !is_dolby_vision_enable()))
 			return HDRTYPE_HDR10PLUS;
 		else
 			return HDRTYPE_HDR10;
