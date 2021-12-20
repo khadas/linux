@@ -2247,6 +2247,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(en_take_dtd_space, i++);
 	pr_var(earc_cap_ds_update_hpd_en, i++);
 	pr_var(scdc_force_en, i++);
+	pr_var(ddc_dbg_en, i++);
 	pr_var(hdcp_hpd_ctrl_en, i++);
 	pr_var(eq_dbg_lvl, i++);
 	pr_var(edid_select, i++);
@@ -2510,6 +2511,8 @@ int rx_set_global_variable(const char *buf, int size)
 		return pr_var(earc_cap_ds_update_hpd_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(scdc_force_en), &scdc_force_en, value))
 		return pr_var(scdc_force_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(ddc_dbg_en), &ddc_dbg_en, value))
+		return pr_var(ddc_dbg_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(hdcp_hpd_ctrl_en), &hdcp_hpd_ctrl_en, value))
 		return pr_var(hdcp_hpd_ctrl_en, index);
 	if (set_pr_var(tmpbuf, var_to_str(eq_dbg_lvl), &eq_dbg_lvl, value))
