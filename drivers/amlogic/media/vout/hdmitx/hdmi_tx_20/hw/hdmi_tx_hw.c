@@ -56,6 +56,7 @@ static void hdmitx_csc_config(unsigned char input_color_format,
 static int hdmitx_hdmi_dvi_config(struct hdmitx_dev *hdev,
 				  unsigned int dvi_mode);
 static void hdmitx_set_avi_colorimetry(struct hdmi_format_para *para);
+static int hdmitx_tmds_rxsense(void);
 
 struct ksv_lists_ {
 	unsigned char valid;
@@ -3720,6 +3721,8 @@ static void hdcptx_events_handle(struct timer_list *t)
 	int bstatus0 = 0;
 	int bstatus1 = 0;
 
+	if (hdev->rxsense_policy && !hdmitx_tmds_rxsense())
+		return;
 	if (hdev->hdcp_max_exceed_cnt == 0) {
 		hdcpobs3_1 = 0;
 		bcaps_5_ksvfifoready = 0;
