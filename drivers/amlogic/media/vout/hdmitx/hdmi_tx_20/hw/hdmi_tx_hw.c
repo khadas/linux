@@ -5216,8 +5216,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
 	hdmitx_wr_reg(HDMITX_DWC_A_VIDPOLCFG,   data32);
 
 	hdmitx_wr_reg(HDMITX_DWC_A_OESSWCFG,    0x40);
-	if (hdmitx_hdcp_opr(0xa))
-		hdmitx_hdcp_opr(0);
+	hdmitx_hdcp_opr(0);
 	/* Interrupts */
 	/* Clear interrupts */
 	hdmitx_wr_reg(HDMITX_DWC_IH_FC_STAT0,  0xff);
