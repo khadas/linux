@@ -5241,11 +5241,15 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	enum fe_delivery_system ldelsys = demod->last_delsys;
 	enum fe_delivery_system cdelsys = delsys;
-
 	int ncaps, support;
+	int is_T_T2_switch = 0;
 
 	if (ldelsys == cdelsys)
 		return 0;
+
+	if ((cdelsys == SYS_DVBT && ldelsys == SYS_DVBT2) ||
+		(cdelsys == SYS_DVBT2 && ldelsys == SYS_DVBT))
+		is_T_T2_switch = 1;
 
 	ncaps = 0;
 	support = 0;
@@ -5361,7 +5365,7 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 
 	if (cdelsys != SYS_UNDEFINED) {
 		if (ldelsys != SYS_UNDEFINED) {
-			if (fe->ops.tuner_ops.release)
+			if (fe->ops.tuner_ops.release && !is_T_T2_switch)
 				fe->ops.tuner_ops.release(fe);
 
 			leave_mode(demod, ldelsys);
@@ -5392,7 +5396,7 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	demod->last_delsys = cdelsys;
 	PR_INFO("[id %d] info fe type:%d.\n", demod->id, fe->ops.info.type);
 
-	if (fe->ops.tuner_ops.set_config)
+	if (fe->ops.tuner_ops.set_config && !is_T_T2_switch)
 		fe->ops.tuner_ops.set_config(fe, NULL);
 
 	return 0;
