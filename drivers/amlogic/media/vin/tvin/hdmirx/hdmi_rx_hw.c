@@ -117,7 +117,7 @@ int hdcp_tee_path;
 /* emp buffer */
 char emp_buf[1024];
 int i2c_err_cnt;
-
+u8 ddc_dbg_en;
 /*------------------------variable define end------------------------------*/
 
 static int check_regmap_flag(unsigned int addr)
@@ -5731,6 +5731,9 @@ void rx_ddc_active_monitor(void)
 {
 	u32 temp = 0;
 
+	if (ddc_dbg_en)
+		return;
+
 	if (rx.state != FSM_WAIT_CLK_STABLE)
 		return;
 
@@ -5758,7 +5761,7 @@ void rx_ddc_active_monitor(void)
 	}
 
 	temp = temp & 0xff;
-	if (temp < 0x3f && temp != 8 && temp) {
+	if (temp < 0x3f && temp != 1 && temp != 8 && temp != 0x0c && temp) {
 		rx.ddc_filter_en = true;
 		if (log_level & EDID_LOG)
 			rx_pr("port: %d, edid_status: 0x%x,\n", rx.port, temp);

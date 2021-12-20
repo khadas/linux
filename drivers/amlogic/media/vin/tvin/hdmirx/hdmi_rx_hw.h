@@ -3173,6 +3173,7 @@ extern u32 hdcp22_reauth_enable;
 extern int i2c_err_cnt;
 extern u32 rx_ecc_err_thres;
 extern u32 rx_ecc_err_frames;
+extern u8 ddc_dbg_en;
 
 void rx_get_best_eq_setting(void);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
