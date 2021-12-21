@@ -92,15 +92,22 @@ static struct sg_table
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (ua->flags & BIT(UVM_FAKE_ALLOC)) {
-		dma_map_page(attachment->dev, sg_page(sgt->sgl), 0,
+	if (ua->flags & BIT(UVM_SECURE_ALLOC)) {
+		if (dma_map_sgtable(attachment->dev, sgt, direction, DMA_ATTR_SKIP_CPU_SYNC)) {
+			UVM_PRINTK(0, "meson_uvm: map sgtable error.\n");
+			return ERR_PTR(-ENOMEM);
+		}
+	} else {
+		if (ua->flags & BIT(UVM_FAKE_ALLOC)) {
+			dma_map_page(attachment->dev, sg_page(sgt->sgl), 0,
 			     UVM_FAKE_SIZE, direction);
-	} else if (!dma_map_sg(attachment->dev, sgt->sgl, sgt->nents,
+		} else if (!dma_map_sg(attachment->dev, sgt->sgl, sgt->nents,
 				direction)) {
-		UVM_PRINTK(0, "meson_uvm: dma_map_sg call failed.\n");
-		return ERR_PTR(-ENOMEM);
+			UVM_PRINTK(0, "meson_uvm: dma_map_sg call failed.\n");
+			return ERR_PTR(-ENOMEM);
+		}
+		dma_sync_sg_for_device(attachment->dev, sgt->sgl, sgt->nents, DMA_BIDIRECTIONAL);
 	}
-	dma_sync_sg_for_device(attachment->dev, sgt->sgl, sgt->nents, DMA_BIDIRECTIONAL);
 	return sgt;
 }
 
@@ -117,11 +124,15 @@ static void meson_uvm_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	ua = handle->ua;
 
 	UVM_PRINTK(1, "%s called, %s.\n", __func__, current->comm);
-	if (ua->flags & BIT(UVM_FAKE_ALLOC))
-		dma_unmap_page(attachment->dev, sgt->sgl->dma_address,
-			       UVM_FAKE_SIZE, direction);
-	else
-		dma_unmap_sg(attachment->dev, sgt->sgl, sgt->nents, direction);
+	if (ua->flags & BIT(UVM_SECURE_ALLOC)) {
+		dma_unmap_sgtable(attachment->dev, sgt, direction, DMA_ATTR_SKIP_CPU_SYNC);
+	} else {
+		if (ua->flags & BIT(UVM_FAKE_ALLOC))
+			dma_unmap_page(attachment->dev, sgt->sgl->dma_address,
+				       UVM_FAKE_SIZE, direction);
+		else
+			dma_unmap_sg(attachment->dev, sgt->sgl, sgt->nents, direction);
+	}
 }
 
 static void meson_uvm_release(struct dma_buf *dmabuf)
