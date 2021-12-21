@@ -2576,10 +2576,6 @@ void aisr_set_filters(struct disp_info_s *input,
 	u32 ratio_y = 0;
 	u32 src_w, src_h, dst_w, dst_h;
 	u32 w_in, h_in;
-	u32 video_source_crop_top, video_source_crop_left;
-	u32 video_source_crop_bottom, video_source_crop_right;
-	u32 crop_ratio = 1;
-	u32 crop_left, crop_right, crop_top, crop_bottom;
 	u32 cur_super_debug = 0;
 	u32 wide_mode;
 	struct vppfilter_mode_s *filter = NULL;
@@ -2602,33 +2598,11 @@ void aisr_set_filters(struct disp_info_s *input,
 	}
 	if (!cur_dev->aisr_enable)
 		return;
+	w_in = next_frame_par->VPP_hd_end_lines_ -
+		next_frame_par->VPP_hd_start_lines_ + 1;
+	h_in = next_frame_par->VPP_vd_end_lines_ -
+		next_frame_par->VPP_vd_start_lines_ + 1;
 
-	w_in = aisr_frame_par->video_input_w;
-	h_in = aisr_frame_par->video_input_h;
-
-	video_source_crop_left = input->crop_left;
-	video_source_crop_right = input->crop_right;
-	video_source_crop_top = input->crop_top;
-	video_source_crop_bottom = input->crop_bottom;
-
-	crop_left = video_source_crop_left / crop_ratio;
-	crop_right = video_source_crop_right / crop_ratio;
-	crop_top = video_source_crop_top / crop_ratio;
-	crop_bottom = video_source_crop_bottom / crop_ratio;
-
-	if (likely(w_in >
-		(crop_left + crop_right))) {
-		w_in -= crop_left;
-		w_in -= crop_right;
-	}
-
-	if (likely(h_in >
-		(crop_top + crop_bottom))) {
-		h_in -= crop_top;
-		h_in -= crop_bottom;
-	}
-	aisr_frame_par->crop_top = crop_top;
-	aisr_frame_par->crop_bottom = crop_bottom;
 	aisr_frame_par->video_input_w = w_in;
 	aisr_frame_par->video_input_h = h_in;
 	aisr_frame_par->reshape_output_w = w_in * aisr_frame_par->reshape_scaler_w;
