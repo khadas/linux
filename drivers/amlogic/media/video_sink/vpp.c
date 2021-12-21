@@ -1397,6 +1397,8 @@ RESTART_ALL:
 	if (crop_adjust) {
 		crop_left &= ~1;
 		crop_top &= ~1;
+		crop_right &= ~1;
+		crop_bottom &= ~1;
 		w_in = width_in;
 		h_in = height_in;
 		crop_adjust = false;
