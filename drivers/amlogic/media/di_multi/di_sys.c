@@ -3788,7 +3788,8 @@ static int dim_probe(struct platform_device *pdev)
 	}
 	pdata = (struct di_data_l_s *)di_pdev->data_l;
 	pdata->mdata = match->data;
-	if (DIM_IS_IC(SC2) && is_meson_rev_c())
+	if (DIM_IS_IC(SC2) &&
+	    (get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR) >= 0xC))
 		pdata->ic_sub_ver = DI_IC_REV_SUB;
 	else
 		pdata->ic_sub_ver = DI_IC_REV_MAJOR;
