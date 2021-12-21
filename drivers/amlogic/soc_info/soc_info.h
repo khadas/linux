@@ -17,6 +17,7 @@
 #define CMD_AUTH_REGION_SET  _IO('s', 0x06)
 #define CMD_AUTH_REGION_RST  _IO('s', 0x07)
 #define CMD_AUTH_REGION_GET_ALL  _IO('s', 0x08)
+#define CMD_SOC_CHIP_NOCS_INFO  _IO('s', 0x09)
 
 #define EFUSE_HAL_NOCS_API_READ	 4
 #define EFUSE_HAL_NOCS_API_WRITE 5
@@ -25,7 +26,8 @@
 #define AUTH_REG_SET_IDX 1
 #define AUTH_REG_SET_RST 2
 #define AUTH_REG_GET_ALL 3
-
+#define S905C2_CHIP_NUM 0x32
+#define CAS_NOCS_MODE 0x05
 
 /* efuse HAL_API arg */
 struct efuse_hal_api_arg {

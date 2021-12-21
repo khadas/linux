@@ -22,11 +22,14 @@
 #include <linux/random.h>
 #include <linux/amlogic/secmon.h>
 #include "soc_info.h"
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+#include <linux/amlogic/cpu_info.h>
+#endif
 
 unsigned int read_nocsdata_cmd;
 unsigned int write_nocsdata_cmd;
 unsigned int auth_reg_ops_cmd;
-static void __iomem *soc_ver1_addr, *soc_poc_addr;
+static void __iomem *soc_ver1_addr, *soc_poc_addr, *soc_nocs_addr;
 
 struct socdata_dev_t {
 	struct cdev cdev;
@@ -53,6 +56,11 @@ static long socdata_unlocked_ioctl(struct file *file,
 	unsigned char info[NOCS_DATA_LENGTH];
 	long long offset = 0;
 	void *all_authnt_region;
+
+	unsigned int val = 0;
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+	unsigned char chipid[CHIPID_LEN];
+#endif
 
 	switch (cmd) {
 	case CMD_POC_DATA:
@@ -127,7 +135,24 @@ static long socdata_unlocked_ioctl(struct file *file,
 		if (auth_region_rst())
 			return -EFAULT;
 		break;
-
+	case CMD_SOC_CHIP_NOCS_INFO:
+#ifdef CONFIG_AMLOGIC_CPU_INFO
+		cpuinfo_get_chipid(chipid, CHIPID_LEN);
+		if (chipid[0] == S905C2_CHIP_NUM) {
+			val = readl(soc_nocs_addr);
+			if ((val & 0x0f) == CAS_NOCS_MODE)
+				val = 1;
+			else
+				val = 0;
+		} else {
+			val = 0;
+		}
+#else
+		val = 0;
+#endif
+		if (put_user(val, soc_info))
+			return -EFAULT;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -175,6 +200,7 @@ static int aml_socdata_probe(struct platform_device *pdev)
 
 	soc_ver1_addr = of_iomap(pdev->dev.of_node, 0);
 	soc_poc_addr = of_iomap(pdev->dev.of_node, 1);
+	soc_nocs_addr = of_iomap(pdev->dev.of_node, 2);
 
 	if (of_property_read_u32(pdev->dev.of_node, "read_nocsdata_cmd",
 			&read_nocsdata_cmd)) {
