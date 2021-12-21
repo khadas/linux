@@ -149,6 +149,55 @@
 			alignment = <0x0 0x400000>;
 		};
 	};
+
+	vddio3v3_reg: fixedregulator@5{
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddio_1v8_reg: fixedregulator@6{
+		vin-supply = <&vddio3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddio_x: gpio-regulator {
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-gpio";
+		regulator-name = "VDDIO_X";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
+		gpios-states = <1>;
+		states = <1800000 1
+			  3300000 0>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddds1v8_reg: fixedregulator@7{
+		vin-supply = <&vddao3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_DSOFF_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio GPIOD_2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
