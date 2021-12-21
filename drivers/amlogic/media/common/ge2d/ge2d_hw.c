@@ -1140,7 +1140,10 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 	if (cfg->sc_hsc_en && cfg->hsc_div_en) {
 		unsigned int hsc_div_length;
 
-		hsc_div_length = (124 << 24) / cfg->hsc_phase_step;
+		if (ge2d_meson_dev.chip_type < MESON_CPU_MAJOR_ID_G12B)
+			hsc_div_length = (120 << 24) / cfg->hsc_phase_step;
+		else
+			hsc_div_length = (124 << 24) / cfg->hsc_phase_step;
 
 		/* in blend case, for chip after C2
 		 * src2 repeat function needs hsc_div_length 8 alignment
