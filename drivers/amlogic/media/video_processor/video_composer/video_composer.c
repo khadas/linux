@@ -90,7 +90,7 @@ static u64 nn_need_time = 15000;
 static u64 nn_margin_time = 9000;
 static u32 nn_bypass;
 static u32 tv_fence_creat_count;
-
+static u32 dump_vframe;
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -1083,6 +1083,59 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 	return vf;
 }
 
+static void dump_vf(struct vframe_s *vf, int flag)
+{
+	struct file *fp = NULL;
+	char name_buf[32];
+	int data_size_y, data_size_uv;
+	u8 *data_y;
+	u8 *data_uv;
+	mm_segment_t fs;
+	loff_t pos;
+
+	/*use flag to distinguish src and dst vframe*/
+	if (!vf)
+		return;
+
+	if (flag == 0)
+		snprintf(name_buf, sizeof(name_buf),
+			"/data/src_vframe_%d.yuv", dump_vframe);
+	else
+		snprintf(name_buf, sizeof(name_buf),
+			"/data/dst_vframe_%d.yuv", dump_vframe);
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp))
+		return;
+	data_size_y = vf->canvas0_config[0].width *
+			vf->canvas0_config[0].height;
+	data_size_uv = vf->canvas0_config[1].width *
+			vf->canvas0_config[1].height;
+	data_y = codec_mm_vmap(vf->canvas0_config[0].phy_addr, data_size_y);
+	data_uv = codec_mm_vmap(vf->canvas0_config[1].phy_addr, data_size_uv);
+	if (!data_y || !data_uv) {
+		pr_info("%s: vmap failed.\n", __func__);
+		return;
+	}
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = fp->f_pos;
+	vfs_write(fp, data_y, data_size_y, &pos);
+	fp->f_pos = pos;
+	vfs_fsync(fp, 0);
+	pr_info("%s: write %u size to addr%p\n",
+		__func__, data_size_y, data_y);
+	codec_mm_unmap_phyaddr(data_y);
+	pos = fp->f_pos;
+	vfs_write(fp, data_uv, data_size_uv, &pos);
+	fp->f_pos = pos;
+	vfs_fsync(fp, 0);
+	pr_info("%s: write %u size to addr%p\n",
+		__func__, data_size_uv, data_uv);
+	codec_mm_unmap_phyaddr(data_uv);
+	set_fs(fs);
+	filp_close(fp, NULL);
+}
+
 static void vframe_composer(struct composer_dev *dev)
 {
 	struct received_frames_t *received_frames = NULL;
@@ -1445,6 +1498,11 @@ static void vframe_composer(struct composer_dev *dev)
 	dev->last_frames = *received_frames;
 	dev->fake_vf = *dev->last_dst_vf;
 
+	if (dump_vframe != dev->vframe_dump_flag) {
+		dump_vf(scr_vf, 0);
+		dump_vf(dst_vf, 1);
+		dev->vframe_dump_flag = dump_vframe;
+	}
 	if (!kfifo_put(&dev->ready_q, (const struct vframe_s *)dst_vf))
 		vc_print(dev->index, PRINT_ERROR, "ready_q is full\n");
 
@@ -2017,6 +2075,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
 	dev->thread_need_stop = false;
+	dev->vframe_dump_flag = 0;
 
 	memcpy(dev->vf_provider_name, port->name,
 	       strlen(port->name) + 1);
@@ -2645,6 +2704,31 @@ static ssize_t debug_axis_pip_store(struct class *cla,
 	return count;
 }
 
+static ssize_t dump_vframe_show(struct class *cla,
+				   struct class_attribute *attr,
+				   char *buf)
+{
+	return snprintf(buf, 80,
+			"dump_vframe: %d.\n",
+			dump_vframe);
+}
+
+static ssize_t dump_vframe_store(struct class *cla,
+				    struct class_attribute *attr,
+				    const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	dump_vframe = tmp;
+	return count;
+}
+
 static ssize_t force_composer_show(struct class *cla,
 				   struct class_attribute *attr,
 				   char *buf)
@@ -3215,6 +3299,7 @@ static CLASS_ATTR_RW(nn_need_time);
 static CLASS_ATTR_RW(nn_margin_time);
 static CLASS_ATTR_RW(nn_bypass);
 static CLASS_ATTR_RO(tv_fence_creat_count);
+static CLASS_ATTR_RW(dump_vframe);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -3248,6 +3333,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_nn_margin_time.attr,
 	&class_attr_nn_bypass.attr,
 	&class_attr_tv_fence_creat_count.attr,
+	&class_attr_dump_vframe.attr,
 	NULL
 };
 
