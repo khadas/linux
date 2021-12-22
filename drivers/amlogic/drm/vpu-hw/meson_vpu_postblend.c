@@ -260,12 +260,8 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 			/*dout switch config*/
 			osd1_blend_switch_set(vblk, reg_ops, postblend->reg,
 					      VPP_POSTBLEND);
-			osd2_blend_switch_set(vblk, reg_ops, postblend->reg,
-					      VPP_POSTBLEND);
 			/*vpp input config*/
 			vpp_osd1_preblend_mux_set(vblk, reg_ops,
-						  postblend->reg, VPP_NULL);
-			vpp_osd2_preblend_mux_set(vblk, reg_ops,
 						  postblend->reg, VPP_NULL);
 
 			if (pipeline->osd_version == OSD_V7)
@@ -276,8 +272,6 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 				vpp_osd1_postblend_mux_set(vblk, reg_ops,
 							   postblend->reg,
 							   VPP_OSD1);
-			vpp_osd2_postblend_mux_set(vblk, reg_ops,
-						   postblend->reg, VPP_NULL);
 		}
 
 		vpp_chk_crc(vblk, reg_ops, amc);
@@ -471,11 +465,24 @@ static void independ_path_default_regs(struct meson_vpu_block *vblk,
 	osd_set_vpp_path_default(vblk, reg_ops, 4, 0);
 }
 
+static void postblend_osd2_def_conf(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
+
+	osd2_blend_switch_set(vblk, vblk->pipeline->subs[0].reg_ops,
+			      postblend->reg, VPP_POSTBLEND);
+	vpp_osd2_preblend_mux_set(vblk, vblk->pipeline->subs[0].reg_ops,
+				  postblend->reg, VPP_NULL);
+	vpp_osd2_postblend_mux_set(vblk, vblk->pipeline->subs[0].reg_ops,
+				   postblend->reg, VPP_NULL);
+}
+
 static void postblend_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_postblend *postblend = to_postblend_block(vblk);
 
 	postblend->reg = &postblend_reg;
+	postblend_osd2_def_conf(vblk);
 	DRM_DEBUG("%s hw_init called.\n", postblend->base.name);
 }
 
@@ -486,8 +493,10 @@ static void t7_postblend_hw_init(struct meson_vpu_block *vblk)
 	postblend->reg = &postblend_reg;
 	postblend->reg1 = &postblend1_reg[vblk->index];
 
-	if (vblk->index == 0)
+	if (vblk->index == 0) {
 		fix_vpu_clk2_default_regs(vblk, vblk->pipeline->subs[0].reg_ops);
+		postblend_osd2_def_conf(vblk);
+	}
 
 	DRM_DEBUG("%s hw_init called.\n", postblend->base.name);
 }
