@@ -1630,7 +1630,12 @@ void cec_key_report(int suspend)
 	}
 	#ifdef CEC_FREEZE_WAKE_UP
 	if (is_pm_s2idle_mode()) {
-		pm_wakeup_event(cec_dev->dbg_dev, 2000);
+		/* for kernel5.4, if NO_SUSPEND flag is set
+		 * when request irq, the interrupt of this
+		 * module can't wakeup system, need to force
+		 * wakeup by hard event interface.
+		 */
+		pm_wakeup_hard_event(cec_dev->dbg_dev);
 		CEC_INFO("freeze mode:pm_wakeup_event\n");
 	}
 	#endif
