@@ -53,7 +53,8 @@ static struct early_suspend bt_early_suspend;
 #endif
 
 #define BT_RFKILL "bt_rfkill"
-#define MODULE_ID 0x271
+#define QCA_ID 0x271
+#define AML_ID 0x8888
 #define POWER_EVENT_DEF     0
 #define POWER_EVENT_RESET   1
 #define POWER_EVENT_EN      2
@@ -75,11 +76,12 @@ static int distinguish_module(void)
 	int vendor_id = 0;
 
 	vendor_id = sdio_get_vendor();
+	pr_info("vendor_id = 0x%x\n", vendor_id);
 
-	if (vendor_id == MODULE_ID)
-		return 0;
+	if (vendor_id == QCA_ID || vendor_id == AML_ID)
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 static ssize_t value_show(struct class *cls,
@@ -219,7 +221,7 @@ static void on_reset_power(struct bt_dev_data *pdata, unsigned long up_time)
 
 static void bt_device_off(struct bt_dev_data *pdata)
 {
-	if (!distinguish_module())
+	if (sdio_get_vendor() == QCA_ID)
 		return;
 
 	if (pdata->power_down_disable == 0) {
@@ -430,7 +432,7 @@ static int bt_resume(struct platform_device *pdev)
 		flag_p = 0;
 		cnt = 0;
 	}
-	if (distinguish_module() && get_resume_method() == BT_WAKEUP) {
+	if (!distinguish_module() && get_resume_method() == BT_WAKEUP) {
 		input_event(prdata->pdata->input_dev,
 			EV_KEY, KEY_POWER, 1);
 		input_sync(prdata->pdata->input_dev);
