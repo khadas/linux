@@ -50,7 +50,6 @@
  */
 
 #define MESON_SPICC_HW_IF
-#define MESON_SPICC_TEST_SYNC
 
 #ifndef CONFIG_AMLOGIC_MODIFY
 #define SPICC_MAX_FREQ	30000000
@@ -1082,18 +1081,8 @@ static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 	t.rx_buf = (void *)rx_buf;
 	t.len = num;
 	spi_message_add_tail(&t, &m);
-#ifdef MESON_SPICC_HW_IF
-#ifdef MESON_SPICC_TEST_SYNC
-	dev_info(dev, "dirspi sync ...\n");
-	ret = dirspi_sync(m.spi, tx_buf, rx_buf, num);
-#else
-	dirspi_start(m.spi);
-	ret = dirspi_xfer(m.spi, tx_buf, rx_buf, num);
-	dirspi_stop(m.spi);
-#endif
-#else
 	ret = spi_sync(m.spi, &m);
-#endif
+
 	if (!ret && (mode & (SPI_LOOP | (1 << 16)))) {
 		ret = 0;
 		for (i = 0; i < num; i++) {
