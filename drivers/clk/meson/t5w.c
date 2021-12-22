@@ -3851,7 +3851,9 @@ static MESON_T5W_SYS_GATE(t5w_clk81_spicc0,		HHI_GCLK_MPEG0, 8);
 static MESON_T5W_SYS_GATE(t5w_clk81_i2c,		HHI_GCLK_MPEG0, 9);
 static MESON_T5W_SYS_GATE(t5w_clk81_sana,		HHI_GCLK_MPEG0, 10);
 static MESON_T5W_SYS_GATE(t5w_clk81_smartcard,		HHI_GCLK_MPEG0, 11);
+static MESON_T5W_SYS_GATE(t5w_clk81_spicc2,		HHI_GCLK_MPEG0, 12);
 static MESON_T5W_SYS_GATE(t5w_clk81_uart0,		HHI_GCLK_MPEG0, 13);
+static MESON_T5W_SYS_GATE(t5w_clk81_spicc1,		HHI_GCLK_MPEG0, 14);
 static MESON_T5W_SYS_GATE(t5w_clk81_stream,		HHI_GCLK_MPEG0, 15);
 static MESON_T5W_SYS_GATE(t5w_clk81_async_fifo,		HHI_GCLK_MPEG0, 16);
 static MESON_T5W_SYS_GATE(t5w_clk81_tvfe,		HHI_GCLK_MPEG0, 18);
@@ -3981,6 +3983,8 @@ static struct clk_hw_onecell_data t5w_hw_onecell_data = {
 		[CLKID_CLK81_I2C]		= &t5w_clk81_i2c.hw,
 		[CLKID_CLK81_SANA]		= &t5w_clk81_sana.hw,
 		[CLKID_CLK81_SMARTCARD]		= &t5w_clk81_smartcard.hw,
+		[CLKID_CLK81_SPICC1]		= &t5w_clk81_spicc1.hw,
+		[CLKID_CLK81_SPICC2]		= &t5w_clk81_spicc2.hw,
 		[CLKID_CLK81_UART0]		= &t5w_clk81_uart0.hw,
 		[CLKID_CLK81_STREAM]		= &t5w_clk81_stream.hw,
 		[CLKID_CLK81_ASYNC_FIFO]	= &t5w_clk81_async_fifo.hw,
@@ -4345,6 +4349,8 @@ static struct clk_regmap *const t5w_cpu_clk_regmaps[] __initconst = {
 	&t5w_clk81_pl310,
 	&t5w_clk81_periphs,
 	&t5w_clk81_spicc0,
+	&t5w_clk81_spicc1,
+	&t5w_clk81_spicc2,
 	&t5w_clk81_i2c,
 	&t5w_clk81_sana,
 	&t5w_clk81_smartcard,
