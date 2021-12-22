@@ -10057,6 +10057,7 @@ void di_unreg_variable(unsigned int channel)
 	pch->sum_ext_buf_in2 = 0;
 	pch->in_cnt = 0;
 	pch->sumx.need_local = 0;
+	set_bypass2_complete(channel, false);
 	init_completion(&tsk->fcmd[channel].alloc_done);
 	dbg_timer_clear(channel);
 	dbg_reg("ndis_used[%d], nout[%d],flg_realloc[%d]\n",
