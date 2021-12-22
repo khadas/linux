@@ -1454,10 +1454,10 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	}
 
 	tuner_set_params(fe);
+	/* wait tuner stable */
+	msleep(100);
 	dvbt2_set_ch(demod, fe);
 	demod->time_start = jiffies_to_msecs(jiffies);
-	/* wait tuner stable */
-	msleep(30);
 
 	return 0;
 }

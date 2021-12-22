@@ -27,6 +27,7 @@
 /*  V1.1.34  dvbs blind scan new work plan with fft   */
 /*  V1.1.35  fixed s4/s4d 2 * dvbc agc control  */
 /*  V1.1.36  Stuck during the blindscan process  */
+/*  V1.1.37  dvbt2 change channel will return to home  */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -43,8 +44,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.36"
-#define DTVDEMOD_VER	"2021/12/30: Stuck during the blindscan process"
+#define AMLDTVDEMOD_VER "V1.1.37"
+#define DTVDEMOD_VER	"2021/12/29: dvbt2 change channel will return to home"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
