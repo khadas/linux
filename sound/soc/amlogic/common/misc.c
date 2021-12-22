@@ -6,6 +6,8 @@
  *
  */
 
+#include <sound/asoundef.h>
+
 #if (defined CONFIG_AMLOGIC_ATV_DEMOD ||\
 		defined CONFIG_AMLOGIC_ATV_DEMOD_MODULE)
 #include <linux/amlogic/aml_atvdemod.h>
@@ -189,6 +191,11 @@ static const char * const hdmi_in_bitwidth[] = {
 	"24bit"
 };
 
+static const char * const hdmi_in_nonaudio[] = {
+	"PCM",
+	"NONAUDIO"
+};
+
 const struct soc_enum hdmi_in_status_enum[] = {
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_is_stable),
 			audio_is_stable),
@@ -201,7 +208,9 @@ const struct soc_enum hdmi_in_status_enum[] = {
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(hdmi_in_audio_packet),
 			hdmi_in_audio_packet),
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(hdmi_in_bitwidth),
-			hdmi_in_bitwidth)
+			hdmi_in_bitwidth),
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(hdmi_in_nonaudio),
+			hdmi_in_nonaudio)
 };
 
 int get_hdmiin_audio_stable(void)
@@ -319,4 +328,19 @@ int aml_get_hdmiin_audio_packet(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+int aml_get_hdmiin_nonaudio(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct rx_audio_stat_s aud_sts;
+	int nonaudio = 0;
+	(void)kcontrol;
+
+	rx_get_audio_status(&aud_sts);
+	if (aud_sts.ch_sts[0] & IEC958_AES0_NONAUDIO)
+		nonaudio = 1;
+
+	ucontrol->value.integer.value[0] = nonaudio;
+
+	return 0;
+}
 #endif

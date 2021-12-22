@@ -1095,6 +1095,11 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		aml_get_hdmiin_audio_bitwidth,
 		NULL),
 
+	SOC_ENUM_EXT("HDMIIN NONAUDIO",
+		hdmi_in_status_enum[6],
+		aml_get_hdmiin_nonaudio,
+		NULL),
+
 	/* normally use "HDMIIN AUDIO EDID" to update audio edid*/
 	SOC_SINGLE_BOOL_EXT("HDMI ATMOS EDID Switch",
 		0,
