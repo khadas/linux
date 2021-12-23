@@ -439,7 +439,6 @@ void dim_slt_init(void);
 bool dim_is_slt_mode(void);
 unsigned int dim_int_tab(struct device *dev,
 				 struct afbce_map_s *pcfg);
-
 void di_decontour_disable(bool on);
 void dip_pps_cnt_hv(unsigned int *w_in, unsigned int *h_in);
 bool dip_cfg_is_pps_4k(unsigned int ch);

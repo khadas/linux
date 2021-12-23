@@ -5196,6 +5196,20 @@ void dim_slt_init(void)
 }
 
 /************************************************
+ * ic list for support crc cts test
+ ***********************************************/
+
+bool dim_config_crc_ic(void)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
+	else
+		return de_devp->is_crc_ic;
+}
+EXPORT_SYMBOL(dim_config_crc_ic);
+/************************************************
  * aisr lrhf
  ************************************************/
 unsigned int di_hf_cnt_size(unsigned int w, unsigned int h, bool is_4k)

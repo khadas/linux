@@ -43,6 +43,7 @@
 #include "register.h"
 #include "deinterlace_mtn.h"
 #include "deinterlace.h"
+#include <linux/amlogic/media/di/di.h>
 
 #include "di_pqa.h"
 #define MAX_NUM_DI_REG 32
@@ -467,6 +468,8 @@ struct combing_status_s *adpative_combing_config(unsigned int width,
 	cmb_param.src_type = src_type;
 	cmb_param.fmt = fmt;
 	cmb_param.prog_flag = prog;
+	if (dim_config_crc_ic())
+		cmb_status.cur_level = 0;//add for crc @2k22-0102
 	return &cmb_status;
 }
 

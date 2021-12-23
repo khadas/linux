@@ -3892,7 +3892,8 @@ static int dim_probe(struct platform_device *pdev)
 	//set ic version need before PQ init
 	dil_set_diffver_flag(1);
 	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
-
+	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4))
+		di_devp->is_crc_ic = true;
 	dip_init_pq_ops();
 
 	if (dim_get_canvas()) {

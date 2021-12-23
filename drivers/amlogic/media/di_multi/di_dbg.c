@@ -322,6 +322,87 @@ static const char * const dbg_timer_name[] = {
 	"2_pst",
 };
 
+static const unsigned int crc_value[CRC_COUNT_NUB][CRC_NUB] = {
+	{0xfa34ba3b, 0x6ee997fc, 0x9b9b9757},
+	{0x73cf853a, 0x15c2a743, 0x5277700a},
+	{0x5fb1aa69, 0xd32974f0, 0xd4eba4b3},
+	{0x56d314a8, 0x65141931, 0x7555f3f7},
+	{0x8ae376a3, 0x460fefde, 0xaae9e2a8},
+	{0x8f597055, 0xf5ab056a, 0xbb6ad7f},
+	{0xdb6aa249, 0xe253adda, 0x29f8a81f},
+	{0x7d97b111, 0x51a47d, 0x9713ee6b},
+	{0x749bed58, 0x5de61417, 0x2332c62},
+	{0xc00cb131, 0xd443d780, 0x1847c8ed},
+	{0x88b65af8, 0xb656b462, 0xe7892e9},
+	{0xb3309546, 0xf612f6e7, 0x7bbc9e8d},
+	{0x73f3e269, 0x2ed08da6, 0xe924af1c},
+	{0xbe0eb0a1, 0x75c9d03f, 0xf7691baa},
+	{0xe05b0258, 0xc5079743, 0x140d4899},
+	{0xd692e594, 0xb920b1aa, 0xe910b32e},
+	{0x538943f0, 0xe9d99783, 0xad886e46},
+	{0xbfb0c4d7, 0x146ae882, 0xf3c49a9},
+	{0x2458a298, 0x3a673707, 0x422545ba},
+	{0x65860c9, 0x42e49489, 0xe133a509},
+
+};
+
+void dbg_slt_crc_count(struct di_ch_s *pch, unsigned int postcrc,
+		       unsigned int nrcrc, unsigned int mtncrc)
+{
+	if (pch->crc_cnt >= CRC_COUNT_NUB)
+		return;
+
+	if (crc_value[pch->crc_cnt][0] != postcrc)
+		dbg_post_ref("err count=%x, postcrc=0x%x, demo=0x%x",
+		pch->crc_cnt, postcrc, crc_value[pch->crc_cnt][0]);
+	if (crc_value[pch->crc_cnt][1] != nrcrc)
+		dbg_post_ref("err count=%x, nrcrc=0x%x, demo=0x%x",
+		pch->crc_cnt, nrcrc, crc_value[pch->crc_cnt][1]);
+	if (crc_value[pch->crc_cnt][2] != mtncrc)
+		dbg_post_ref("err count=%x, mtncrc=0x%x, demo=0x%x",
+		pch->crc_cnt, mtncrc, crc_value[pch->crc_cnt][2]);
+	pch->crc_cnt++;
+	dbg_post_ref("count test=%d", pch->crc_cnt);
+}
+
+void dbg_slt_crc(struct di_buf_s *di_buf)
+{
+	bool flg = 0;
+	unsigned int *p;
+	int i;
+	unsigned int crc = 0;
+	unsigned long crc_tmp = 0;
+	unsigned int sh, sv;
+	//unsigned int size_y, size_uv;
+	unsigned long nr_size = 0, dump_adr = 0;
+
+	sh = di_buf->vframe->canvas0_config[0].width;
+	sv = di_buf->vframe->canvas0_config[0].height;
+	//size_y = sh * sv;
+	//size_uv = size_y / 2;
+	//nr_size = size_y + size_uv;
+	nr_size = sh * (sv - 8) / 4;//0x4f1a00/4
+
+	dump_adr = di_buf->vframe->canvas0_config[0].phy_addr;//di_buf->nr_adr;
+
+	p = (unsigned int *)dim_vmap(dump_adr, nr_size, &flg);
+	if (!p) {
+		pr_error("%s:vmap:0x%lx\n", __func__, dump_adr);
+		return;
+	}
+
+	for (i = 0; i < nr_size; i++)
+		crc_tmp += *(p + i);
+
+	crc = (unsigned int)crc_tmp;
+
+	dbg_post_ref("%s:crc_tmp:0x%x,nr_size=0x%lx,dump_adr=0x%lx\n", __func__,
+		crc, nr_size, dump_adr);
+
+	if (flg)
+		dim_unmap_phyaddr((u8 *)p);
+}
+
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
 {
 	u64 ustime, udiff;

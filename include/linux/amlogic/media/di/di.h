@@ -96,5 +96,5 @@ struct dim_rpt_s *dim_api_getrpt(struct vframe_s *vfm);
  **************************************************/
 bool dim_pq_db_sel(unsigned int idx, unsigned int mode, unsigned int *pdate);
 void dim_pq_db_setreg(unsigned int nub, unsigned int *preg);
-
+bool dim_config_crc_ic(void);
 #endif /* VIDEO_H */

@@ -919,6 +919,10 @@ struct mm_size_out_s {
 	};
 };
 
+void ma_di_init(void);
+void mc_blend_sc2_init(void);
+void dimh_set_crc_init(int count);
+
 void dw_fill_outvf(struct vframe_s *vfm,
 		   struct di_buf_s *di_buf);
 

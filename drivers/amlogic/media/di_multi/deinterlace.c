@@ -3677,6 +3677,9 @@ void dim_pre_de_process(unsigned int channel)
 				dimh_set_slv_mcvec(1);
 		}
 	}
+	if (dim_config_crc_ic()) //add for crc @2k22-0102
+		dimh_set_crc_init(ppre->field_count_for_cont);
+
 	if (IS_ERR_OR_NULL(ppre->di_wr_buf))
 		return;
 	if (dim_hdr_ops() && ppre->di_wr_buf->c.en_hdr)
@@ -3735,7 +3738,6 @@ void dim_pre_de_process(unsigned int channel)
 					      &ppre->di_mcvecwr_mif,
 					      ppre->mcdi_enable);
 	}
-
 	if (dim_is_slt_mode()) {
 		if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
 		    DIM_IS_IC(T5D)) {
@@ -3881,7 +3883,6 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 	unsigned int field_motnum = 0;
 	unsigned int pd_info = 0;
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
-	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_ch_s *pch;
 	//struct di_buf_s *bufn;
 	//bool crc_right;
@@ -4059,6 +4060,19 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 				p_ref_set_buf(ppre->di_mem_buf_dup_p, 1, 0, 1);
 				di_que_in(channel, QUE_PRE_READY,
 						  ppre->di_wr_buf);
+				if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
+					if ((DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
+					    DIM_IS_IC(T5D)) &&
+					    ppre->di_wr_buf) {
+						ppre->di_wr_buf->nrcrc =
+							RD(DI_T5_RO_CRC_NRWR);
+					} else if (DIM_IS_IC_EF(SC2)) {
+						ppre->di_wr_buf->nrcrc =
+							RD(DI_RO_CRC_NRWR);
+						DIM_DI_WR_REG_BITS(DI_CRC_CHK0,
+								   0x1, 31, 1);
+					}
+				}
 
 				#endif
 			}
@@ -4156,6 +4170,21 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 			if (ppre->di_post_wr_buf)
 				di_que_in(channel, QUE_PRE_READY,
 					  ppre->di_post_wr_buf);
+			if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
+				if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
+				    DIM_IS_IC(T5D)) {
+					if (ppre->di_wr_buf)
+						ppre->di_wr_buf->nrcrc =
+							RD(DI_T5_RO_CRC_NRWR);
+				} else if (DIM_IS_IC_EF(SC2)) {
+					if (ppre->di_wr_buf) {
+						ppre->di_wr_buf->nrcrc =
+							RD(DI_RO_CRC_NRWR);
+					}
+					DIM_DI_WR_REG_BITS(DI_CRC_CHK0,
+							   0x1, 31, 1);
+				}
+			}
 
 #ifdef DI_BUFFER_DEBUG
 			dim_print("%s: %s[%d] => pre_ready_list\n", __func__,
@@ -4216,7 +4245,21 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 			if (ppre->di_post_wr_buf)
 				di_que_in(channel, QUE_PRE_READY,
 					  ppre->di_post_wr_buf);
-
+			if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
+				if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
+				    DIM_IS_IC(T5D)) {
+					if (ppre->di_wr_buf->di_buf_post)
+						ppre->di_wr_buf->di_buf_post->nrcrc =
+							RD(DI_T5_RO_CRC_NRWR);
+				} else if (DIM_IS_IC_EF(SC2)) {
+					if (ppre->di_wr_buf->di_buf_post) {
+						ppre->di_wr_buf->di_buf_post->nrcrc =
+							RD(DI_RO_CRC_NRWR);
+					}
+					DIM_DI_WR_REG_BITS(DI_CRC_CHK0,
+							   0x1, 31, 1);
+				}
+			}
 			dim_print("%s: %s[%d] => pre_ready_list\n", __func__,
 				  vframe_type_name[ppre->di_wr_buf->type],
 				  ppre->di_wr_buf->index);
@@ -4263,28 +4306,6 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 		}
 	}
 	dim_ddbg_mod_save(EDI_DBG_MOD_PRE_DONEE, channel, ppre->in_seq);/*dbg*/
-
-	if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
-		if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
-		    DIM_IS_IC(T5D)) {
-			de_devp->di_pre_nrcrc[de_devp->setcrccount] =
-				RD(DI_T5_RO_CRC_NRWR);
-		} else if (DIM_IS_IC_EF(SC2)) {
-			de_devp->di_pre_nrcrc[de_devp->setcrccount] =
-				RD(DI_RO_CRC_NRWR);
-			DIM_DI_WR_REG_BITS(DI_CRC_CHK0,
-					   0x1, 31, 1);
-		}
-
-		dbg_post_ref("NRWR ==ch[=0x%x],index=%d\n",
-			     de_devp->di_pre_nrcrc[de_devp->setcrccount],
-			     de_devp->setcrccount);
-		if (de_devp->setcrccount < MAX_CRC_COUNT_NUM - 1)
-			de_devp->setcrccount++;
-		else
-			de_devp->setcrccount = 0;
-	}
-
 	dim_dbg_pre_cnt(channel, "d2");
 }
 
@@ -8717,6 +8738,7 @@ void dim_post_de_done_buf_config(unsigned int channel)
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_ch_s *pch;
 	unsigned int datacrc = 0xffffffff;
+	unsigned int mtncrc = 0xffffffff;
 
 	if (!ppost->cur_post_buf) {
 		PR_ERR("%s:no cur\n", __func__);
@@ -8776,18 +8798,19 @@ void dim_post_de_done_buf_config(unsigned int channel)
 			datacrc = RD(DI_RO_CRC_DEINT);
 			DIM_DI_WR_REG_BITS(DI_CRC_CHK0,
 					   0x1, 30, 1);
+			mtncrc = RD(DI_RO_CRC_MTNWR);
+			DIM_DI_WR_REG_BITS(DI_CRC_CHK0,
+					   0x1, 29, 1);
 		}
 		dbg_post_ref("DEINT ==ch[=0x%x]\n", datacrc);
 		//dbg_post_ref("irq p= 0x%p\n",ppost->cur_post_buf);
 		ppost->cur_post_buf->datacrc = datacrc;
-		ppost->cur_post_buf->nrcrc =
-			de_devp->di_pre_nrcrc[de_devp->getcrccount];
-		dbg_post_ref("DEINT ==ch[=0x%x],NRWR ==ch[=0x%x]\n",
-		     datacrc, ppost->cur_post_buf->nrcrc);
-		if (de_devp->getcrccount < MAX_CRC_COUNT_NUM - 1)
-			de_devp->getcrccount++;
-		else
-			de_devp->getcrccount = 0;
+		ppost->cur_post_buf->nrcrc = di_buf->nrcrc;
+		ppost->cur_post_buf->mtncrc = mtncrc;
+		dbg_post_ref("DEINT[=0x%x],NRWR[=0x%x],MTN[=0x%x]\n",
+		     datacrc, ppost->cur_post_buf->nrcrc, mtncrc);
+		dbg_slt_crc_count(pch, datacrc, di_buf->nrcrc, mtncrc);
+		dbg_slt_crc(di_buf);
 	}
 	pch->itf.op_fill_ready(pch, ppost->cur_post_buf);
 	mtask_wake_m();
@@ -10008,8 +10031,6 @@ void di_unreg_variable(unsigned int channel)
 	pch->ponly	= 0;
 	dim_uninit_buf(mirror_disable, channel);
 	ndrd_reset(pch);
-	de_devp->getcrccount = 0;
-	de_devp->setcrccount = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	if (di_pre_rdma_enable)
 		rdma_clear(de_devp->rdma_handle);
@@ -10056,6 +10077,7 @@ void di_unreg_variable(unsigned int channel)
 	pch->sum_ext_buf_in = 0;
 	pch->sum_ext_buf_in2 = 0;
 	pch->in_cnt = 0;
+	pch->crc_cnt = 0;
 	pch->sumx.need_local = 0;
 	set_bypass2_complete(channel, false);
 	init_completion(&tsk->fcmd[channel].alloc_done);
@@ -10471,6 +10493,12 @@ void di_reg_setting(unsigned int channel, struct vframe_s *vframe)
 		dim_hdr_ops()->init();
 	/*--------------------------*/
 	/*test*/
+	/*if (dim_config_crc_ic()) {//add for crc @2k22-0102
+		ma_di_init();
+		if (DIM_IS_REV(SC2, MAJOR))
+			mc_blend_sc2_init();
+	}
+	*/
 	dimh_int_ctr(0, 0, 0, 0, 0, 0);
 	sc2_dbg_set(DI_BIT0 | DI_BIT1);
 }

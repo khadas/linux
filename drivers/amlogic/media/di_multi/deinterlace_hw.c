@@ -113,11 +113,24 @@ static void set_di_if0_mif(struct DI_MIF_S *mif, int urgent,
 static void set_di_if0_mif_g12(struct DI_MIF_S *mif, int urgent,
 			       int hold_line, int vskip_cnt, int wr_en);
 
-static void ma_di_init(void)
+void ma_di_init(void)
 {
 	/* 420->422 chrome difference is large motion is large,flick */
 	DIM_DI_WR(DI_MTN_1_CTRL4, 0x01800880);
 	DIM_DI_WR(DI_MTN_1_CTRL7, 0x0a800480);
+	if (dim_config_crc_ic()) {//add for crc @2k22-0102
+		DIM_DI_WR(DI_MTN_1_CTRL3, 0x15200a0a);
+		DIM_DI_WR(DI_MTN_1_CTRL5, 0x74000d0d);
+		DIM_DI_WR(DI_MTN_1_CTRL7, 0xa800480);
+		DIM_DI_WR(DI_MTN_1_CTRL11, 0x5080304);
+
+		DIM_DI_WR(MCDI_REL_DET_PD22_CHK, 0x400d7f12);
+		DIM_DI_WR(MCDI_PD22_CHK_THD, 0x200204);
+		DIM_DI_WR(MCDI_PD22_CHK_THD_RT, 0x12002);
+		DIM_DI_WR(MCDI_CTRL_MODE, 0x8000000);
+		DIM_DI_WR(MCDI_REF_MV_NUM, 0x0);
+		DIM_DI_WR(MCDI_FIELD_LUMA_AVG_SUM_0, 0x0);
+	}
 	/* mtn setting */
 	if (DIM_IS_IC_EF(SC2)) {
 		DIM_DI_WR(DI_MTN_1_CTRL1, 0x202015);
@@ -167,7 +180,7 @@ static void mc_di_param_init(void)
 		DIM_DI_WR_REG_BITS(MCDI_REF_MV_NUM, 2, 0, 2);
 }
 
-static void mc_blend_sc2_init(void)//sc2 from vlsi feijun for reg overlap
+void mc_blend_sc2_init(void)//sc2 from vlsi feijun for reg overlap
 {
 	DIM_DI_WR_REG_BITS(MCDI_HOR_SADOFST, 0x18, 0, 8);
 	DIM_DI_WR_REG_BITS(MCDI_HOR_SADOFST, 0x8, 8, 8);
@@ -182,6 +195,27 @@ static void mc_blend_sc2_init(void)//sc2 from vlsi feijun for reg overlap
 	DIM_DI_WR_REG_BITS(MCDI_LMV_GAINTHD, 0x9, 0, 8);
 
 	DIM_DI_WR_REG_BITS(MCDI_REF_MV_NUM, 2, 0, 2);
+}
+
+/************************************************
+ * 1700 bit16=1,bit17 first frame 0,after 1
+ * mcdi 0x2f04 bit28 first frame 0,after 1
+ * 0x170c the first/second frame 0x4f014000,third is 0xf014000
+ ***********************************************/
+void dimh_set_crc_init(int count)
+{
+	if (count < 1) {
+		DIM_RDMA_WR(DI_MTN_CTRL1, 0x4f014000);
+		DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0, 28, 1);
+		//DIM_RDMA_WR_BITS(DI_PRE_CTRL, 0, 17, 1);
+		DIM_RDMA_WR(DI_PRE_CTRL, 0x0901000c);
+	} else {
+		DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 1, 28, 1);
+		DIM_RDMA_WR_BITS(DI_PRE_CTRL, 1, 17, 1);
+		DIM_RDMA_WR(DI_MTN_CTRL1, 0xf014000);
+		if (count == 1)
+			DIM_RDMA_WR(DI_MTN_CTRL1, 0x4f014000);
+	}
 }
 
 static void crc_init(void)//debug crc init
@@ -1173,15 +1207,23 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 	} else if (DIM_IS_IC_EF(SC2)) {//from vlsi yanling
 		if (mcdi_en) {
 			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xf7ff, 0, 16);
-			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xdff, 17, 15);
+			//add for crc @2k22-0102
+			if (dim_config_crc_ic()) {
+				DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xdff, 17, 11);
+				DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0, 29, 3);
+			} else {
+				DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xdff, 17, 15);
+			}
 		} else {
 			DIM_RDMA_WR(MCDI_CTRL_MODE, 0);
 		}
 	} else {
 		DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfff7ff : 0));
 	}
-
-	DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 3 : 0), 16, 2);
+	if (dim_config_crc_ic())
+		DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 1 : 0), 16, 1);
+	else
+		DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 3 : 0), 16, 2);
 
 	DIM_RDMA_WR_BITS(MCINFRD_SCOPE_X, mcinford_mif->size_x, 16, 13);
 	DIM_RDMA_WR_BITS(MCINFRD_SCOPE_Y, mcinford_mif->size_y, 16, 13);
