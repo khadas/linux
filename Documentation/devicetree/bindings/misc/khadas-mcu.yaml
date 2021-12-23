@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+
+title: Khadas MCU Controller Device Tree Bindings
+
+maintainers:
+  - Yan <yan-wyb@foxmail.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: khadas-mcu
+    description:
+     This driver is for Khadas MCU.Control fan && WoL, and the power for CPU
+
+required:
+  - compatible
+  - reg
+
+examples:
+  - |
+    i2c {
+       khadas-mcu {
+           compatible = "khadas-mcu";
+           reg = <0x18>;
+           fan,trig_temp_level0 = <50>;
+           fan,trig_temp_level1 = <60>;
+           fan,trig_temp_level2 = <70>;
+           hwver = "VIM4.V11";
+       };
+   };
+
