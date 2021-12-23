@@ -686,7 +686,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	scope_src.v_start = mvos->src_y;
 	scope_src.v_end = mvos->src_y + mvos->src_h - 1;
 	pixel_format = mvos->pixel_format;
-	canvas_index = osd_canvas[vblk->index][osd_canvas_index[vblk->index]];
 
 	reverse_x = (mvos->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
 	reverse_y = (mvos->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
@@ -724,8 +723,6 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	DRM_DEBUG("plane_index=%d,HW-OSD=%d\n",
 		  mvos->plane_index, vblk->index);
-	DRM_DEBUG("canvas_index[%d]=0x%x,phy_addr=0x%pa\n",
-		  osd_canvas_index[vblk->index], canvas_index, &phy_addr);
 	DRM_DEBUG("scope h/v start/end:[%d/%d/%d/%d]\n",
 		  scope_src.h_start, scope_src.h_end,
 		scope_src.v_start, scope_src.v_end);

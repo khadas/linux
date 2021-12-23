@@ -229,7 +229,7 @@ void osdblend_premult_config(struct osdblend_reg_s *reg)
 enum osd_channel_e osd2channel(u8 osd_index)
 {
 	u8 din_channel_seq[MAX_DIN_NUM] = {OSD_CHANNEL1, OSD_CHANNEL2,
-		OSD_CHANNEL3, OSD_CHANNEL4, OSD_CHANNEL_NUM};
+		OSD_CHANNEL3, OSD_CHANNEL_NUM};
 
 	if (osd_index >= MAX_DIN_NUM) {
 		DRM_DEBUG("osd_index:%d overflow!!.\n", osd_index);

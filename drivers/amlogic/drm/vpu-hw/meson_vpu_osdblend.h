@@ -55,7 +55,6 @@ enum osd_channel_e {
 	OSD_CHANNEL1 = 1,
 	OSD_CHANNEL2,
 	OSD_CHANNEL3,
-	OSD_CHANNEL4,
 	OSD_CHANNEL_NUM
 };
 
