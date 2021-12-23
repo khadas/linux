@@ -127,6 +127,8 @@ void frc_status(struct frc_dev_s *devp)
 		devp->force_size.force_vsize);
 	pr_frc(0, "get_video_latency = %d\n", frc_get_video_latency());
 	pr_frc(0, "get_frc_adj_me_out_line = %d\n", devp->out_line);
+	pr_frc(0, "vendor = %d\n", fw_data->frc_fw_alg_ctrl.frc_algctrl_u8vendor);
+	pr_frc(0, "mc_fb = %d\n", fw_data->frc_fw_alg_ctrl.frc_algctrl_u8mcfb);
 
 }
 
@@ -444,6 +446,21 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			devp->ud_dbg.res1_time_en = val1;
+	} else if (!strcmp(parm[0], "vendor")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_tell_alg_vendor(val1 & 0xFF);
+	} else if (!strcmp(parm[0], "mcfb")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_set_memc_fallback(val1 & 0x1F);
+	} else if (!strcmp(parm[0], "filmset")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_set_film_support(val1);
 	}
 exit:
 	kfree(buf_orig);

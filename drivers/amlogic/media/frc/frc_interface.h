@@ -41,7 +41,10 @@ enum frc_fpp_state_e {
 #define FRC_IOC_SET_MEMC_LEVEL		_IOW(FRC_IOC_MAGIC, 0x07, unsigned int)
 #define FRC_IOC_SET_MEMC_DMEO_MODE	_IOW(FRC_IOC_MAGIC, 0x08, unsigned int)
 #define FRC_IOC_SET_FPP_MEMC_LEVEL	_IOW(FRC_IOC_MAGIC, 0x09, enum frc_fpp_state_e)
-#define FRC_IOC_GET_MEMC_VERSION    _IOR(FRC_IOC_MAGIC, 0x0F, unsigned char[32])
+#define FRC_IOC_SET_MEMC_VENDOR         _IOW(FRC_IOC_MAGIC, 0x0A, unsigned int)
+#define FRC_IOC_SET_MEMC_FB		_IOW(FRC_IOC_MAGIC, 0x0B, unsigned int)
+#define FRC_IOC_SET_MEMC_FILM		_IOW(FRC_IOC_MAGIC, 0x0C, unsigned int)
+#define FRC_IOC_GET_MEMC_VERSION	_IOR(FRC_IOC_MAGIC, 0x0F, unsigned char[32])
 
 int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts);
 int frc_set_mode(enum frc_state_e state);

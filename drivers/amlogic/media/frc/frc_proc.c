@@ -1105,3 +1105,66 @@ void frc_vpp_vs_ir_chk_film(struct frc_dev_s *frc_devp)
 	// echo frc_pause 0 > /sys/class/frc/debug
 }
 
+int frc_tell_alg_vendor(u8 vendor_info)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_alg_ctrl_s *pfrc_fw_alg_ctrl;
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+	if (!devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	pfrc_fw_alg_ctrl = (struct frc_fw_alg_ctrl_s *)&pfw_data->frc_fw_alg_ctrl;
+	pr_frc(1, "tell_alg_vendor:0x%x\n", vendor_info);
+	pfrc_fw_alg_ctrl->frc_algctrl_u8vendor = vendor_info;
+	if (pfw_data->frc_fw_ctrl_if)
+		pfw_data->frc_fw_ctrl_if(pfw_data);
+	return 1;
+}
+
+int frc_set_memc_fallback(u8 fbvale)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_alg_ctrl_s *pfrc_fw_alg_ctrl;
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+	if (!devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	pfrc_fw_alg_ctrl = (struct frc_fw_alg_ctrl_s *)&pfw_data->frc_fw_alg_ctrl;
+	pr_frc(1, "set mc fallback:0x%x\n", fbvale);
+	pfrc_fw_alg_ctrl->frc_algctrl_u8mcfb = (fbvale > 20) ? 20 : fbvale;
+	if (pfw_data->frc_fw_ctrl_if)
+		pfw_data->frc_fw_ctrl_if(pfw_data);
+	return 1;
+}
+
+int frc_set_film_support(u32 filmcnt)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_alg_ctrl_s *pfrc_fw_alg_ctrl;
+	struct frc_fw_data_s *pfw_data;
+
+	if (!devp)
+		return 0;
+	if (!devp->probe_ok)
+		return 0;
+	if (!devp->fw_data)
+		return 0;
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	pfrc_fw_alg_ctrl = (struct frc_fw_alg_ctrl_s *)&pfw_data->frc_fw_alg_ctrl;
+	pr_frc(1, "set support film:0x%x\n", filmcnt);
+	pfrc_fw_alg_ctrl->frc_algctrl_u32film = filmcnt;
+	if (pfw_data->frc_fw_ctrl_if)
+		pfw_data->frc_fw_ctrl_if(pfw_data);
+	return 1;
+}
+

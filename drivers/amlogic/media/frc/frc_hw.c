@@ -388,6 +388,7 @@ void inp_undone_read(struct frc_dev_s *frc_devp)
 	} else {
 		frc_devp->frc_sts.inp_undone_cnt = 0;
 		frc_devp->ud_dbg.inp_undone_err = inp_ud_flag;
+		frc_devp->frc_sts.retrycnt = 0;
 	}
 	if (frc_devp->ud_dbg.inpud_dbg_en &&
 		frc_devp->ud_dbg.inp_undone_err > 0 &&

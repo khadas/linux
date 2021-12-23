@@ -311,13 +311,32 @@ static long frc_ioctl(struct file *file,
 
 		pr_frc(1, "SET_FPP_MEMC_LEVEL:%d\n", fpp_state);
 		break;
-
+	case FRC_IOC_SET_MEMC_VENDOR:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		frc_tell_alg_vendor(data);
+		break;
+	case FRC_IOC_SET_MEMC_FB:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		frc_set_memc_fallback(data);
+		break;
+	case FRC_IOC_SET_MEMC_FILM:
+		if (copy_from_user(&data, argp, sizeof(u32))) {
+			ret = -EFAULT;
+			break;
+		}
+		frc_set_film_support(data);
+		break;
 	case FRC_IOC_GET_MEMC_VERSION:
 		strncpy(&tmpver[0], &fw_data.frc_alg_ver[0], sizeof(u8) * 32);
 		if (copy_to_user(argp, tmpver, sizeof(u8) * 32))
 			ret = -EFAULT;
 		break;
-
 	}
 
 	return ret;

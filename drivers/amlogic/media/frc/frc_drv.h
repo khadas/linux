@@ -50,9 +50,10 @@
 // frc_20211206 frc add fpp set level
 // frc_20211215 sync frc alg and fpp set level 1457
 // frc_20211215 frc change by2dis
+// frc_20211217 frc fixed video flickers
 
-#define FRC_FW_VER			"2021-1217 frc fixed video flickers"
-#define FRC_KERDRV_VER                  1457
+#define FRC_FW_VER			"2022-0101 frc build memc interface"
+#define FRC_KERDRV_VER                  1539
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"

@@ -194,6 +194,21 @@ struct frc_top_type_s {
 
 };
 
+struct frc_fw_alg_ctrl_s {
+	u8 frc_algctrl_u8vendor;  // vendor information
+	u8 frc_algctrl_u8mcfb;
+	u8 frc_algctrl_u8param3;
+	u8 frc_algctrl_u8param4;
+	u8 frc_algctrl_u8param5;
+	u8 frc_algctrl_u8param6;
+	u8 frc_algctrl_u8param7;
+	u8 frc_algctrl_u8param8;
+	u16 frc_algctrl_u16param1;
+	u16 frc_algctrl_u16param2;
+	u32 frc_algctrl_u32film;
+	u32 frc_algctrl_u32param2;
+};
+
 #define MONITOR_REG_MAX	6
 #define DBG_REG_BUFF	4096
 
@@ -230,6 +245,9 @@ struct frc_fw_data_s {
 					enum efrc_memc_dbg_type dbg_type, char *buf, size_t count);
 	u8 frc_alg_ver[32];
 	void (*frc_fw_reinit)(void);
+	/*below interfaces in alg which fae can to adjust it **/
+	struct frc_fw_alg_ctrl_s  frc_fw_alg_ctrl;
+	void (*frc_fw_ctrl_if)(struct frc_fw_data_s *fw_data);
 };
 
 extern int frc_dbg_en;
