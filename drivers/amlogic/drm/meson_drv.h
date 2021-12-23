@@ -50,6 +50,8 @@ struct meson_drm {
 	struct device *dev;
 
 	struct drm_device *drm;
+	struct device_node *topo_node;
+	struct device_node *blocks_node;
 	struct drm_plane *primary_plane;
 	struct drm_plane *cursor_plane;
 	struct drm_property_blob *gamma_lut_blob;
@@ -60,6 +62,7 @@ struct meson_drm {
 
 	struct meson_vpu_pipeline *pipeline;
 	struct meson_vpu_funcs *funcs;
+	struct meson_vpu_data *vpu_data;
 	struct am_meson_logo *logo;
 	struct drm_atomic_state *state;
 

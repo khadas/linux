@@ -14,6 +14,7 @@
 #include "vpu-hw/meson_osd_afbc.h"
 #include "meson_vpu_pipeline.h"
 #include "meson_drv.h"
+#include "meson_vpu.h"
 
 static int flush_time = 3;
 module_param(flush_time, int, 0664);
@@ -167,73 +168,101 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 		       struct meson_vpu_pipeline *pipeline)
 {
 	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_ops *ops;
 	size_t blk_size;
 
 	switch (para->type) {
 	case MESON_BLK_OSD:
 		blk_size = sizeof(struct meson_vpu_osd);
-		if (pipeline->osd_version != OSD_V7)
-			mvb = create_block(blk_size, para, &osd_ops, pipeline);
+		if (pipeline->priv && pipeline->priv->vpu_data)
+			ops = pipeline->priv->vpu_data->osd_ops;
 		else
-			mvb = create_block(blk_size, para, &osd_ops_v7,
-					pipeline);
+			ops = &osd_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->osds[mvb->index] = to_osd_block(mvb);
 		pipeline->num_osds++;
 		break;
 	case MESON_BLK_AFBC:
 		blk_size = sizeof(struct meson_vpu_afbc);
-		if (pipeline->osd_version != OSD_V7)
-			mvb = create_block(blk_size, para, &afbc_ops, pipeline);
+		if (pipeline->priv && pipeline->priv->vpu_data)
+			ops = pipeline->priv->vpu_data->afbc_ops;
 		else
-			mvb = create_block(blk_size, para, &afbc_ops_v7,
-					pipeline);
+			ops = &afbc_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->afbc_osds[mvb->index] = to_afbc_block(mvb);
 		pipeline->num_afbc_osds++;
 		break;
 	case MESON_BLK_SCALER:
 		blk_size = sizeof(struct meson_vpu_scaler);
-		mvb = create_block(blk_size, para, &scaler_ops, pipeline);
+		if (pipeline->priv && pipeline->priv->vpu_data)
+			ops = pipeline->priv->vpu_data->scaler_ops;
+		else
+			ops = &scaler_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->scalers[mvb->index] = to_scaler_block(mvb);
 		pipeline->num_scalers++;
 		break;
 	case MESON_BLK_OSDBLEND:
 		blk_size = sizeof(struct meson_vpu_osdblend);
-		mvb = create_block(blk_size, para, &osdblend_ops, pipeline);
+		if (pipeline->priv && pipeline->priv->vpu_data)
+			ops = pipeline->priv->vpu_data->osdblend_ops;
+		else
+			ops = &osdblend_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->osdblend = to_osdblend_block(mvb);
 		break;
 	case MESON_BLK_HDR:
 		blk_size = sizeof(struct meson_vpu_hdr);
-		mvb = create_block(blk_size, para, &hdr_ops, pipeline);
+		if (pipeline->priv && pipeline->priv->vpu_data)
+			ops = pipeline->priv->vpu_data->hdr_ops;
+		else
+			ops = &hdr_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->hdrs[mvb->index] = to_hdr_block(mvb);
 		pipeline->num_hdrs++;
 		break;
 	case MESON_BLK_DOVI:
 		blk_size = sizeof(struct meson_vpu_dolby);
-		mvb = create_block(blk_size, para, &dolby_ops, pipeline);
+		if (pipeline->priv && pipeline->priv->vpu_data)
+			ops = pipeline->priv->vpu_data->dv_ops;
+		else
+			ops = &dolby_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->dolbys[mvb->index] = to_dolby_block(mvb);
 		pipeline->num_dolbys++;
 		break;
 	case MESON_BLK_VPPBLEND:
 		blk_size = sizeof(struct meson_vpu_postblend);
-		if (pipeline->osd_version != OSD_V7)
-			mvb = create_block(blk_size, para, &postblend_ops,
-					pipeline);
+		if (pipeline->priv && pipeline->priv->vpu_data)
+			ops = pipeline->priv->vpu_data->postblend_ops;
 		else
-			mvb = create_block(blk_size, para, &postblend_ops_v7,
-					pipeline);
+			ops = &postblend_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->postblends[mvb->index] = to_postblend_block(mvb);
 		pipeline->num_postblend++;
 		break;
 	case MESON_BLK_VIDEO:
 		blk_size = sizeof(struct meson_vpu_video);
-		mvb = create_block(blk_size, para, &video_ops, pipeline);
+		if (pipeline->priv && pipeline->priv->vpu_data)
+			ops = pipeline->priv->vpu_data->video_ops;
+		else
+			ops = &video_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
 
 		pipeline->video[mvb->index] = to_video_block(mvb);
 		pipeline->num_video++;
@@ -668,6 +697,18 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	return 0;
 }
 
+int vpu_topology_populate(struct meson_vpu_pipeline *pipeline)
+{
+	struct meson_drm *priv = pipeline->priv;
+
+	populate_vpu_pipeline(priv->blocks_node, pipeline);
+	of_node_put(priv->blocks_node);
+	of_node_put(priv->topo_node);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpu_topology_populate);
+
 int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 {
 	struct device *dev = &pdev->dev;
@@ -689,11 +730,10 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 	if (!pipeline)
 		return -ENOMEM;
 
-	populate_vpu_pipeline(vpu_block_node, pipeline);
 	priv->pipeline = pipeline;
 	pipeline->priv = priv;
-	of_node_put(vpu_block_node);
-	of_node_put(child);
+	priv->topo_node = child;
+	priv->blocks_node = vpu_block_node;
 
 	return 0;
 }

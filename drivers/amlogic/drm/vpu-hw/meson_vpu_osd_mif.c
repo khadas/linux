@@ -873,7 +873,7 @@ struct meson_vpu_block_ops osd_ops = {
 	.fini = osd_hw_fini,
 };
 
-struct meson_vpu_block_ops osd_ops_v7 = {
+struct meson_vpu_block_ops t7_osd_ops = {
 	.check_state = osd_check_state,
 	.update_state = osd_set_state,
 	.enable = osd_hw_enable,
