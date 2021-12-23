@@ -674,7 +674,6 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 	struct device_node *np = dev->of_node;
 	struct device_node *child, *vpu_block_node;
 	struct meson_vpu_pipeline *pipeline;
-	int ret;
 
 	child = of_get_child_by_name(np, "vpu_topology");
 	if (!child)
@@ -689,11 +688,6 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 	pipeline = kzalloc(sizeof(*pipeline), GFP_KERNEL);
 	if (!pipeline)
 		return -ENOMEM;
-
-	ret = of_property_read_u8(dev->of_node,
-				"osd_ver", &pipeline->osd_version);
-	if (ret)
-		DRM_ERROR("osd_ver is not configured!\n");
 
 	populate_vpu_pipeline(vpu_block_node, pipeline);
 	priv->pipeline = pipeline;

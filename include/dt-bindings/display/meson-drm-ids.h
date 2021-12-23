@@ -10,6 +10,9 @@
 #define OSD2_BLOCK 1
 #define OSD3_BLOCK 2
 #define OSD4_BLOCK 3
+#define AFBC_OSD1_BLOCK 4
+#define AFBC_OSD2_BLOCK 5
+#define AFBC_OSD3_BLOCK 6
 #define AFBC1_BLOCK 4
 #define AFBC2_BLOCK 5
 #define AFBC3_BLOCK 6
@@ -32,11 +35,8 @@
 #define VIDEO1_BLOCK 17
 #define VIDEO2_BLOCK 18
 #define VIDEO3_BLOCK 19
-#define AFBC_OSD1_BLOCK 20
-#define AFBC_OSD2_BLOCK 21
-#define AFBC_OSD3_BLOCK 22
-#define VIU2_OSD1_BLOCK 23
-#define VPP2_BLOCK 24
+#define VIU2_OSD1_BLOCK 20
+#define VPP2_BLOCK 21
 #define BLOCK_ID_MAX 29
 
 #define OSD1_PORT 0
