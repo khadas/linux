@@ -1052,20 +1052,30 @@
 		};
 
 		vout_mux: vout_mux {
-			compatible = "amlogic, vout_mux";
+			compatible = "amlogic, vout_mux-t5w";
 			status = "okay";
 		};
 
 		vout: vout {
 			compatible = "amlogic, vout";
 			status = "okay";
+		};
 
-			/* fr_policy:
-			 *    0: disable
-			 *    1: nearby (only for 60->59.94 and 30->29.97)
-			 *    2: force (60/50/30/24/59.94/23.97)
-			 */
-			fr_policy = <0>;
+		vout2: vout2 {
+			compatible = "amlogic, vout2";
+			status = "okay";
+		};
+
+		dummy_venc: dummy_venc {
+			compatible = "amlogic, dummy_venc_t5w";
+			status = "okay";
+		};
+
+		vrr0: vrr0 {
+			compatible = "amlogic, vrr-t5w";
+			status = "okay";
+			index = <0>;
+			line_delay = <500>;
 		};
 
 		vdac {

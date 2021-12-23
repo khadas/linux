@@ -21,14 +21,18 @@
 enum vrr_chip_e {
 	VRR_CHIP_T7 = 0,
 	VRR_CHIP_T3 = 1,
+	VRR_CHIP_T5W = 2,
 	VRR_CHIP_MAX,
 };
 
+struct aml_vrr_drv_s;
 struct vrr_data_s {
 	unsigned int chip_type;
 	const char *chip_name;
 	unsigned int drv_max;
 	unsigned int offset[VRR_MAX_DRV];
+
+	void (*sw_vspin)(struct aml_vrr_drv_s *vdrv);
 };
 
 #define VRR_STATE_EN          BIT(0)

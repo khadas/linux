@@ -275,6 +275,12 @@ static struct vout_mux_data_s vout_mux_match_data_t3 = {
 	.clear_viu_mux = vout_viu_mux_clear_t7,
 };
 
+static struct vout_mux_data_s vout_mux_match_data_t5w = {
+	.vdin_meas_id = 38,
+	.update_viu_mux = vout_viu_mux_update_t3,
+	.clear_viu_mux = vout_viu_mux_clear_t7,
+};
+
 static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux",
@@ -287,6 +293,10 @@ static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux-t3",
 		.data = &vout_mux_match_data_t3,
+	},
+	{
+		.compatible = "amlogic, vout_mux-t5w",
+		.data = &vout_mux_match_data_t5w,
 	},
 	{}
 };
