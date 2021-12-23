@@ -25,7 +25,8 @@
 #define VIDEO_DISPLAY_ENABLE_NONE    0
 #define VIDEO_DISPLAY_ENABLE_NORMAL  1
 
-extern u32 vd_enforce_pulldown;
+extern u32 vd_pulldown_level;
+extern u32 vd_max_hold_count;
 
 struct video_display_frame_info_t {
 	struct dma_buf *dmabuf;

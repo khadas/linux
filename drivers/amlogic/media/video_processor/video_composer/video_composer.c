@@ -91,7 +91,8 @@ static u64 nn_margin_time = 9000;
 static u32 nn_bypass;
 static u32 tv_fence_creat_count;
 static u32 dump_vframe;
-u32 vd_enforce_pulldown = 1;
+u32 vd_pulldown_level = 2;
+u32 vd_max_hold_count = 300;
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -3278,13 +3279,13 @@ static ssize_t tv_fence_creat_count_show(struct class *class,
 	return sprintf(buf, "tv_fence_creat_count: %d\n", tv_fence_creat_count);
 }
 
-static ssize_t vd_enforce_pulldown_show(struct class *class,
+static ssize_t vd_pulldown_level_show(struct class *class,
 			       struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "vd_enforce_pulldown: %d\n", vd_enforce_pulldown);
+	return sprintf(buf, "vd_pulldown_level: %d\n", vd_pulldown_level);
 }
 
-static ssize_t vd_enforce_pulldown_store(struct class *class,
+static ssize_t vd_pulldown_level_store(struct class *class,
 				struct class_attribute *attr,
 				const char *buf, size_t count)
 {
@@ -3294,7 +3295,27 @@ static ssize_t vd_enforce_pulldown_store(struct class *class,
 	r = kstrtoint(buf, 0, &val);
 	if (r < 0)
 		return -EINVAL;
-	vd_enforce_pulldown = val;
+	vd_pulldown_level = val;
+	return count;
+}
+
+static ssize_t vd_max_hold_count_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "vd_max_hold_count: %d\n", vd_max_hold_count);
+}
+
+static ssize_t vd_max_hold_count_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	ssize_t r;
+	int val;
+
+	r = kstrtoint(buf, 0, &val);
+	if (r < 0)
+		return -EINVAL;
+	vd_max_hold_count = val;
 	return count;
 }
 
@@ -3330,7 +3351,8 @@ static CLASS_ATTR_RW(nn_margin_time);
 static CLASS_ATTR_RW(nn_bypass);
 static CLASS_ATTR_RO(tv_fence_creat_count);
 static CLASS_ATTR_RW(dump_vframe);
-static CLASS_ATTR_RW(vd_enforce_pulldown);
+static CLASS_ATTR_RW(vd_pulldown_level);
+static CLASS_ATTR_RW(vd_max_hold_count);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -3365,7 +3387,8 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_nn_bypass.attr,
 	&class_attr_tv_fence_creat_count.attr,
 	&class_attr_dump_vframe.attr,
-	&class_attr_vd_enforce_pulldown.attr,
+	&class_attr_vd_pulldown_level.attr,
+	&class_attr_vd_max_hold_count.attr,
 	NULL
 };
 
