@@ -294,6 +294,7 @@ static int aml_sha_xmit_dma(struct aml_sha_dev *dd,
 								  1, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR)
 		dd->flags |= SHA_FLAGS_ERROR;
+	aml_dma_debug(dsc, nents, "end sha", dd->thread, dd->status);
 
 	dd->flags |= SHA_FLAGS_OUTPUT_READY;
 	dd->flags &= ~SHA_FLAGS_DMA_ACTIVE;
@@ -654,6 +655,7 @@ static int aml_sha_finish_hmac(struct ahash_request *req)
 		dev_err(dd->dev, "hw crypto failed.\n");
 		err = -EINVAL;
 	}
+	aml_dma_debug(dsc, 2, "end hmac", dd->thread, dd->status);
 #endif
 	dma_unmap_single(dd->parent, dma_key,
 			 tctx->keylen, DMA_TO_DEVICE);
@@ -819,6 +821,7 @@ static int aml_sha_state_restore(struct ahash_request *req)
 		dev_err(dd->dev, "hw crypto failed.\n");
 		err = -EINVAL;
 	}
+	aml_dma_debug(dsc, 1, "end restore", dd->thread, dd->status);
 #endif
 
 	dma_unmap_single(dd->parent, dma_ctx,
@@ -925,6 +928,7 @@ static int aml_hmac_install_key(struct aml_sha_dev *dd,
 		dev_err(dd->dev, "hw crypto failed.\n");
 		err = -EINVAL;
 	}
+	aml_dma_debug(dsc, 1, "end hmac key", dd->thread, dd->status);
 #endif
 	memcpy(ctx->digest, digest, AML_DIGEST_BUFSZ);
 	dmam_free_coherent(dd->parent, bs, key, dma_key);

@@ -259,6 +259,7 @@ static int set_tdes_key_iv(struct aml_tdes_dev *dd,
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_TDES_IN_USE);
+	aml_dma_debug(dsc, 1, "end tdes keyiv", dd->thread, dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
 		dev_err(dev, "hw crypto failed.\n");
 		err = -EINVAL;
@@ -508,6 +509,7 @@ static int aml_tdes_crypt_dma(struct aml_tdes_dev *dd, struct dma_dsc *dsc,
 			     1, DMA_FLAG_TDES_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR)
 		dd->flags |= TDES_FLAGS_ERROR;
+	aml_dma_debug(dsc, nents, "end tdes", dd->thread, dd->status);
 	err = aml_tdes_crypt_dma_stop(dd);
 	if (!err) {
 		err = dd->flags & TDES_FLAGS_ERROR;
@@ -601,7 +603,11 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 #endif
 	struct aml_tdes_ctx *ctx;
 	struct aml_tdes_reqctx *rctx;
-	int err, ret = 0;
+	s32 err = 0;
+#if DMA_IRQ_MODE
+	s32 ret = 0;
+#endif
+
 #if DMA_IRQ_MODE
 	unsigned long flags;
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
@@ -665,7 +671,14 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 #endif
 	}
 
+#if DMA_IRQ_MODE
 	return ret;
+#else
+	if (err)
+		return -EAGAIN;
+	else
+		return 0;
+#endif
 }
 
 int aml_tdes_process(struct ablkcipher_request *req)

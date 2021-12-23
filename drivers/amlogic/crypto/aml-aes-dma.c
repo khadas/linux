@@ -272,6 +272,7 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 #else
 	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
 			     1, DMA_FLAG_AES_IN_USE);
+	aml_dma_debug(dsc, 1, "end aes keyiv", dd->thread, dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
 		dev_err(dev, "hw crypto failed.\n");
 		err = -EINVAL;
@@ -521,6 +522,7 @@ static int aml_aes_crypt_dma(struct aml_aes_dev *dd, struct dma_dsc *dsc,
 			     1, DMA_FLAG_AES_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR)
 		dd->flags |= AES_FLAGS_ERROR;
+	aml_dma_debug(dsc, nents, "end aes", dd->thread, dd->status);
 	err = aml_aes_crypt_dma_stop(dd);
 	if (!err) {
 		err = dd->flags & AES_FLAGS_ERROR;
@@ -630,7 +632,11 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 #endif
 	struct aml_aes_ctx *ctx;
 	struct aml_aes_reqctx *rctx;
-	s32 err, ret = 0;
+	s32 err = 0;
+#if DMA_IRQ_MODE
+	s32 ret = 0;
+#endif
+
 #if DMA_IRQ_MODE
 	unsigned long flags;
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
@@ -701,7 +707,14 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 #endif
 	}
 
+#if DMA_IRQ_MODE
 	return ret;
+#else
+	if (err)
+		return -EAGAIN;
+	else
+		return 0;
+#endif
 }
 
 int aml_aes_process(struct ablkcipher_request *req)
