@@ -615,10 +615,6 @@ struct clk *__clk_lookup(const char *name)
 	return !core ? NULL : core->hw->clk;
 }
 
-#ifdef CONFIG_AMLOGIC_BREAK_GKI
-EXPORT_SYMBOL_GPL(__clk_lookup);
-#endif
-
 static void clk_core_get_boundaries(struct clk_core *core,
 				    unsigned long *min_rate,
 				    unsigned long *max_rate)
