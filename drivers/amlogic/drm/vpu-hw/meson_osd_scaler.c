@@ -836,7 +836,8 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
 	/*todo:move afbc start to afbc block.*/
-	arm_fbc_start(mvps);
+	if (pipeline->osd_version < OSD_V7)
+		arm_fbc_start(mvps);
 
 	if (!scaler_state) {
 		DRM_DEBUG("scaler or scaler_state is NULL!!\n");

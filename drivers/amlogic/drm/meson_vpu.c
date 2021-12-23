@@ -253,6 +253,12 @@ static int am_meson_vpu_bind(struct device *dev,
 		}
 	}
 
+	vpu_data = (struct meson_vpu_data *)of_device_get_match_data(dev);
+	private->vpu_data = vpu_data;
+
+	vpu_topology_populate(pipeline);
+	meson_vpu_block_state_init(private, private->pipeline);
+
 	ret = am_meson_plane_create(private);
 	if (ret)
 		return ret;
@@ -294,7 +300,6 @@ static int am_meson_vpu_bind(struct device *dev,
 	}
 
 	/* HW config for different VPUs */
-	vpu_data = (struct meson_vpu_data *)of_device_get_match_data(dev);
 	if (vpu_data && vpu_data->crtc_func)
 		vpu_data->crtc_func->init_default_reg();
 
@@ -331,12 +336,51 @@ static struct meson_vpu_crtc_func vpu_crtc_t5w_func = {
 	.init_default_reg = independ_path_default_regs,
 };
 
+static const struct meson_vpu_data vpu_g12a_data = {
+	.osd_ops = &osd_ops,
+	.afbc_ops = &afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &dolby_ops,
+	.postblend_ops = &postblend_ops,
+	.video_ops = &video_ops,
+};
+
 static const struct meson_vpu_data vpu_t7_data = {
 	.crtc_func = &vpu_crtc_t7_func,
+	.osd_ops = &t7_osd_ops,
+	.afbc_ops = &t7_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &dolby_ops,
+	.postblend_ops = &t7_postblend_ops,
+	.video_ops = &video_ops,
+};
+
+static const struct meson_vpu_data vpu_t3_data = {
+	.crtc_func = &vpu_crtc_t5w_func,
+	.osd_ops = &t7_osd_ops,
+	.afbc_ops = &t3_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &dolby_ops,
+	.postblend_ops = &t7_postblend_ops,
+	.video_ops = &video_ops,
 };
 
 static const struct meson_vpu_data vpu_t5w_data = {
 	.crtc_func = &vpu_crtc_t5w_func,
+	.osd_ops = &t7_osd_ops,
+	.afbc_ops = &t3_afbc_ops,
+	.scaler_ops = &scaler_ops,
+	.osdblend_ops = &osdblend_ops,
+	.hdr_ops = &hdr_ops,
+	.dv_ops = &dolby_ops,
+	.postblend_ops = &t7_postblend_ops,
+	.video_ops = &video_ops,
 };
 
 static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
@@ -349,19 +393,26 @@ static const struct of_device_id am_meson_vpu_driver_dt_match[] = {
 	{ .compatible = "amlogic, meson-axg-vpu",},
 	{.compatible = "amlogic, meson-tl1-vpu",},
 #endif
-	{ .compatible = "amlogic, meson-g12a-vpu",},
-	{ .compatible = "amlogic, meson-g12b-vpu",},
-	{.compatible = "amlogic, meson-sm1-vpu",},
-	{.compatible = "amlogic, meson-tm2-vpu",},
-	{.compatible = "amlogic, meson-t5-vpu",},
-	{.compatible = "amlogic, meson-sc2-vpu",},
-	{.compatible = "amlogic, meson-s4-vpu",},
+	{ .compatible = "amlogic, meson-g12a-vpu",
+	  .data = &vpu_g12a_data,},
+	{ .compatible = "amlogic, meson-g12b-vpu",
+	  .data = &vpu_g12a_data,},
+	{.compatible = "amlogic, meson-sm1-vpu",
+	  .data = &vpu_g12a_data,},
+	{.compatible = "amlogic, meson-tm2-vpu",
+	  .data = &vpu_g12a_data,},
+	{.compatible = "amlogic, meson-t5-vpu",
+	  .data = &vpu_g12a_data,},
+	{.compatible = "amlogic, meson-sc2-vpu",
+	  .data = &vpu_g12a_data,},
+	{.compatible = "amlogic, meson-s4-vpu",
+	  .data = &vpu_g12a_data,},
 	{.compatible = "amlogic, meson-t7-vpu",
 	 .data = &vpu_t7_data,},
 	{.compatible = "amlogic, meson-t5w-vpu",
 	 .data = &vpu_t5w_data,},
 	{.compatible = "amlogic, meson-t3-vpu",
-	 .data = &vpu_t7_data,},
+	 .data = &vpu_t3_data,},
 	{}
 };
 

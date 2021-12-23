@@ -259,7 +259,7 @@ struct meson_vpu_block_ops postblend_ops = {
 	.init = postblend_hw_init,
 };
 
-struct meson_vpu_block_ops postblend_ops_v7 = {
+struct meson_vpu_block_ops t7_postblend_ops = {
 	.check_state = postblend_check_state,
 	.update_state = postblend_set_state,
 	.enable = postblend_hw_enable,

@@ -614,7 +614,6 @@ static int am_meson_drm_bind(struct device *dev)
 	drm_mode_config_init(drm);
 
 	vpu_topology_init(pdev, priv);
-	meson_vpu_block_state_init(priv, priv->pipeline);
 
 	/* init meson config before bind other component,
 	 * other component may use it.

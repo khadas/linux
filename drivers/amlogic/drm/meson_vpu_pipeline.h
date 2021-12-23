@@ -547,6 +547,7 @@ int vpu_pipeline_osd_check(struct meson_vpu_pipeline *pipeline,
 int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *pipeline,
 			struct drm_atomic_state *old_state);
 
+int vpu_topology_populate(struct meson_vpu_pipeline *pipeline);
 int vpu_topology_init(struct platform_device *pdev, struct meson_drm *private);
 int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
 		       struct drm_atomic_state *state);
@@ -596,9 +597,10 @@ extern struct meson_vpu_block_ops hdr_ops;
 extern struct meson_vpu_block_ops dolby_ops;
 extern struct meson_vpu_block_ops postblend_ops;
 
-extern struct meson_vpu_block_ops osd_ops_v7;
-extern struct meson_vpu_block_ops afbc_ops_v7;
-extern struct meson_vpu_block_ops postblend_ops_v7;
+extern struct meson_vpu_block_ops t7_osd_ops;
+extern struct meson_vpu_block_ops t7_afbc_ops;
+extern struct meson_vpu_block_ops t3_afbc_ops;
+extern struct meson_vpu_block_ops t7_postblend_ops;
 
 #ifdef CONFIG_DEBUG_FS
 extern u32 overwrite_reg[256];
