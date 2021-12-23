@@ -64,9 +64,11 @@ int ntfs_utf16_to_nls(struct ntfs_sb_info *sbi, const __le16 *name, u32 len,
 		hex_byte_pack(&dump[0], ec >> 8);
 		hex_byte_pack(&dump[2], ec);
 		dump[4] = 0;
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+#else
 		ntfs_err(sbi->sb, "failed to convert \"%s\" to %s", dump,
 			 nls->charset);
+#endif
 	}
 
 	*op = '\0';
