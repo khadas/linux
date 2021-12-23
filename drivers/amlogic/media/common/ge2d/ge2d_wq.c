@@ -342,12 +342,13 @@ static void ge2d_set_canvas(struct ge2d_config_s *cfg)
 			cfg->src1_data.canaddr &= ~0xff;
 			cfg->src1_data.canaddr |= index;
 
-			canvas_config(index++,
+			canvas_config_ex(index++,
 				      canvas.addr,
 				      canvas.width,
 				      canvas.height,
 				      canvas.wrap,
-				      canvas.blkmode);
+				      canvas.blkmode,
+				      canvas.endian);
 		}
 
 		if (cfg->src_canvas_cfg[i].canvas_used) {
