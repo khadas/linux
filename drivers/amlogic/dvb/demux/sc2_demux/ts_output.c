@@ -3089,6 +3089,24 @@ int ts_output_set_decode_info(int sid, struct decoder_mem_info *info)
 	return 0;
 }
 
+static int aucpu_get_aud_free_size(struct out_elem *pout)
+{
+	struct aml_aucpu_buf_upd upd;
+	unsigned int w_offset = 0;
+	int free_size = -1;
+	unsigned int total_size = 0;
+
+	if (aml_aucpu_strm_get_dst(pout->aucpu_handle, &upd) >= 0) {
+		w_offset = upd.phy_cur_ptr - pout->aucpu_mem_phy;
+		total_size = pout->aucpu_mem_size;
+		if (w_offset >= pout->aucpu_read_offset)
+			free_size = total_size - w_offset + pout->aucpu_read_offset;
+		else
+			free_size = pout->aucpu_read_offset - w_offset;
+	}
+	return free_size;
+}
+
 int ts_output_check_flow_control(int sid, int percentage)
 {
 	int i = 0;
@@ -3135,9 +3153,16 @@ int ts_output_check_flow_control(int sid, int percentage)
 					}
 				}
 			} else if (pout->type == AUDIO_TYPE) {
+				if (pout->aucpu_start) {
+					free_size = aucpu_get_aud_free_size(pout);
+					if (free_size == -1)
+						continue;
+					total_size = pout->aucpu_mem_size;
+					pr_dbg("aucpu flow control free_size:0x%0x\n", free_size);
+				}
 				if ((total_size - free_size) >= level) {
-					pr_dbg("%s a 1 buf:0x%0x, level:0x%0x\n",
-						__func__, buff_len, level);
+					pr_dbg("%s a 1 free:0x%0x, level:0x%0x\n",
+						__func__, free_size, level);
 					return -2;
 				}
 				ptmp = pout->cb_ts_list;
