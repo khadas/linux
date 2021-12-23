@@ -734,6 +734,10 @@
 		status = "disabled";
 		};
 	};
+
+	efuse: efuse {
+		status = "okay";
+	};
 };
 
 /*
