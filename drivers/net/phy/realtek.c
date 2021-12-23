@@ -320,7 +320,16 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 #endif
 
     g_phydev = phydev;
-
+	phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd8a);
+	/*set magic packet for wol*/
+	phy_write(g_phydev, 0x10, 0x1000);
+	phy_write(g_phydev, 0x11, 0x9fff);
+	/*pin 31 pull high*/
+	phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd40);
+	val = phy_read(g_phydev, 0x16);
+	phy_write(g_phydev, 0x16, val | (1 << 5));
+	phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0);	
+	//printk("999...rtl8211f_config_init\n");
 	return 0;
 }
 

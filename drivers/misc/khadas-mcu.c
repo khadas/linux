@@ -640,13 +640,13 @@ static ssize_t store_wol_enable(struct class *cls, struct class_attribute *attr,
 	if (kstrtoint(buf, 0, &enable))
 		return -EINVAL;
 
-	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_BOOT_EN_WOL_REG, reg, 1);
+	ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_BOOT_EN_WOL_REG, reg, 1);
 	if (ret < 0) {
 		printk("write wol state err\n");
 		return ret;
 	}
 	state = (int)reg[0];
-	reg[0] = enable | (state & 0x01);
+	reg[0] = enable | (state & 0x02);
 	ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_BOOT_EN_WOL_REG, reg, 1);
 	if (ret < 0) {
 		printk("write wol state err\n");
@@ -664,7 +664,7 @@ static ssize_t show_wol_enable(struct class *cls,
 		        struct class_attribute *attr, char *buf)
 {
 	int enable;
-	enable = g_mcu_data->wol_enable & 0x01;
+	enable = g_mcu_data->wol_enable & 0x03;
 	return sprintf(buf, "%d\n", enable);
 }
 
@@ -833,6 +833,14 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	create_mcu_attrs();
 
+	//if (is_support_wol()) {
+		reg[0] = 0x01;
+		ret = mcu_i2c_write_regs(client, 0x87, reg, 1);
+		if (ret < 0) {
+			printk("write mcu err\n");
+			goto  exit;
+		}
+	//}
 	return 0;
 
 exit:
