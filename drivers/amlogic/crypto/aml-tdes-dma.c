@@ -545,7 +545,11 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 #endif
 	struct aml_tdes_ctx *ctx;
 	struct aml_tdes_reqctx *rctx;
-	int err, ret = 0;
+	s32 err = 0;
+#if DMA_IRQ_MODE
+	s32 ret = 0;
+#endif
+
 #if DMA_IRQ_MODE
 	unsigned long flags;
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
@@ -605,7 +609,14 @@ static int aml_tdes_handle_queue(struct aml_tdes_dev *dd,
 #endif
 	}
 
+#if DMA_IRQ_MODE
 	return ret;
+#else
+	if (err)
+		return -EAGAIN;
+	else
+		return 0;
+#endif
 }
 
 int aml_tdes_process(struct ablkcipher_request *req)

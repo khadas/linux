@@ -582,7 +582,11 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 #endif
 	struct aml_aes_ctx *ctx;
 	struct aml_aes_reqctx *rctx;
-	s32 err, ret = 0;
+	s32 err = 0;
+#if DMA_IRQ_MODE
+	s32 ret = 0;
+#endif
+
 #if DMA_IRQ_MODE
 	unsigned long flags;
 	spin_lock_irqsave(&dd->dma->dma_lock, flags);
@@ -649,7 +653,14 @@ static int aml_aes_handle_queue(struct aml_aes_dev *dd,
 #endif
 	}
 
+#if DMA_IRQ_MODE
 	return ret;
+#else
+	if (err)
+		return -EAGAIN;
+	else
+		return 0;
+#endif
 }
 
 int aml_aes_process(struct ablkcipher_request *req)
