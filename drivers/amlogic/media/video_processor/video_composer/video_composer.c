@@ -1063,6 +1063,9 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 			    (need_dw && di_vf->width != 0)) {
 				vc_print(dev->index, PRINT_OTHER,
 					"use di vf.\n");
+				/* link uvm vf into di_vf->vf_ext */
+				if (!di_vf->vf_ext)
+					di_vf->vf_ext = vf;
 				vf = di_vf;
 			}
 		}

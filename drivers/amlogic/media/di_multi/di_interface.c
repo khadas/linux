@@ -351,13 +351,8 @@ static void cfg_ch_set(struct di_ch_s *pch)
 			break;
 		}
 		cfgsch(pch, DW_EN, 0);
-		/******************************************
-		 * for all new_interface: before 2021-12-06
-		 * SWPL-67746 : enable when use di deinfe
-		 ******************************************/
-		cfgsch(pch, KEEP_DEC_VF, 0);
 	}
-	//SWPL-67746 cfgsch(pch, KEEP_DEC_VF, 0); // for all new_interface
+	cfgsch(pch, KEEP_DEC_VF, 0); // for all new_interface
 	if (dip_itf_is_ins_exbuf(pch)) {
 		//cfgsch(pch, KEEP_DEC_VF, 0);
 		cfgsch(pch, ALLOC_SCT, 0);
