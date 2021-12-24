@@ -1034,32 +1034,30 @@
 	status = "disabled";
 };
 
-&dwc2_a {
-	status = "disabled";
-	/** 0: normal, 1: otg+dwc3 host only, 2: otg+dwc3 device only*/
+&crg_udc_2 {
+	status = "okay";
+};
+
+&crg20_otg {
+	status = "okay";
 	controller-type = <3>;
 };
 
-&crg {
-	status = "disabled";
+&crg2_drd {
+	compatible = "amlogic, crg-drd";
+	status = "okay";
 };
 
-&usb2_phy_v2 {
-	status = "disabled";
-	portnum = <2>;
+&crg_phy_20 {
+	status = "okay";
+	portnum = <1>;
+	gpio-vbus-power = "GPIOD_10";
+	gpios = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
 };
 
-&usb3_phy_v2 {
-	status = "disabled";
+&crg3_phy_20 {
+	status = "okay";
 	portnum = <0>;
-	otg = <1>;
-	/*gpio-vbus-power = "GPIOH_6";*/
-	/*gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;*/
-};
-
-&pcie {
-	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	status = "disable";
 };
 
 /* SDIO */
