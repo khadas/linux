@@ -58,7 +58,8 @@
 /*                          Fix atbm253/2040 stable delay when scanning. */
 /*                          Fix pal-dk and add pal-bg/i audio overmodulation. */
 /* 2021/11/05 --- V2.31 --- Bringup t5w. */
-#define AMLATVDEMOD_VER "V2.31"
+/* 2021/12/24 --- V2.32 --- Fix shutdown. */
+#define AMLATVDEMOD_VER "V2.32"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 

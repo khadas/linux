@@ -1156,8 +1156,20 @@ void v4l2_frontend_detach(struct v4l2_frontend *v4l2_fe)
 
 int v4l2_frontend_shutdown(struct v4l2_frontend *v4l2_fe)
 {
+	int ret = 0;
+	struct dvb_frontend *fe = &v4l2_fe->fe;
+	struct dvb_tuner_ops tuner_ops = fe->ops.tuner_ops;
+	struct analog_demod_ops analog_ops = fe->ops.analog_ops;
+
+	if (analog_ops.standby)
+		analog_ops.standby(fe);
+
+	if (tuner_ops.suspend)
+		tuner_ops.suspend(fe);
+
 	pr_info("%s: OK.\n", __func__);
-	return 0;
+
+	return ret;
 }
 
 int v4l2_frontend_suspend(struct v4l2_frontend *v4l2_fe)
