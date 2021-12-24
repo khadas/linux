@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont7.dtsi"
+#include "mesont7_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
@@ -1420,7 +1421,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x100000>;
 	logo_addr = "0x3f800000";
@@ -1719,3 +1720,9 @@
 		<&a53pwm_opp_table2>,
 		<&a53pwm_opp_table3>;
 };
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x3f800000";
+};
+

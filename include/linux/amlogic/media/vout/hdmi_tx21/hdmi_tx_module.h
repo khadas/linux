@@ -17,6 +17,7 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vrr/vrr.h>
+#include <drm/amlogic/meson_connector_dev.h>
 
 #define DEVICE_NAME "amhdmitx21"
 
@@ -422,10 +423,13 @@ struct hdmitx_dev {
 	u32 cedst_en:1; /* configure in DTS */
 	u32 hdr_priority;
 	u32 bist_lock:1;
-	u32 drm_feature;/*Direct Rander Management*/
 	u32 vend_id_hit:1;
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
+
+	/*DRM related*/
+	int drm_hdmitx_id;
+	struct connector_hpd_cb drm_hpd_cb;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)

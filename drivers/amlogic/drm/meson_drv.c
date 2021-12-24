@@ -839,7 +839,7 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 	struct component_match *match = NULL;
 	int i;
 
-	pr_info("[%s] in\n", __func__);
+	DRM_INFO("[%s] in\n", __func__);
 	if (am_meson_drv_use_osd())
 		return am_meson_drv_probe_prune(pdev);
 
@@ -892,7 +892,7 @@ static int am_meson_drv_probe(struct platform_device *pdev)
 		am_meson_add_endpoints(dev, &match, port);
 		of_node_put(port);
 	}
-	pr_info("[%s] out\n", __func__);
+	DRM_INFO("[%s] out\n", __func__);
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 	disable_vout_mode_set_sysfs();
 #endif
