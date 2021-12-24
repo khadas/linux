@@ -4162,7 +4162,7 @@ int lcd_clk_clkmsr_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	clk = meson_clk_measure(cconf->data->enc_clk_msr_id);
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"encl_clk:        %d\n", clk);
+		"encl_clk:    %u\n", clk);
 
 lcd_clk_clkmsr_print_step_1:
 	if (cconf->data->fifo_clk_msr_id == -1)
@@ -4170,7 +4170,7 @@ lcd_clk_clkmsr_print_step_1:
 	clk = meson_clk_measure(cconf->data->fifo_clk_msr_id);
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
-		"fifo_clk:        %d\n", clk);
+		"fifo_clk:    %u\n", clk);
 
 lcd_clk_clkmsr_print_step_2:
 	switch (pdrv->config.basic.lcd_type) {
@@ -4181,7 +4181,7 @@ lcd_clk_clkmsr_print_step_2:
 		clk = meson_clk_measure(cconf->data->tcon_clk_msr_id);
 		n = lcd_debug_info_len(len + offset);
 		len += snprintf((buf + len), n,
-			"tcon_clk:        %d\n", clk);
+			"tcon_clk:    %u\n", clk);
 	default:
 		break;
 	}

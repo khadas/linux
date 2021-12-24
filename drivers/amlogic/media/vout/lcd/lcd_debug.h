@@ -13,6 +13,19 @@
 #define LCD_DEBUG_REG_CNT_MAX    30
 #define LCD_DEBUG_REG_END        0xffffffff
 
+#define LCD_REG_DBG_VC_BUS          0
+#define LCD_REG_DBG_ANA_BUS         1
+#define LCD_REG_DBG_CLK_BUS         2
+#define LCD_REG_DBG_PERIPHS_BUS     3
+#define LCD_REG_DBG_MIPIHOST_BUS    4
+#define LCD_REG_DBG_MIPIPHY_BUS     5
+#define LCD_REG_DBG_TCON_BUS        6
+#define LCD_REG_DBG_EDPHOST_BUS     7
+#define LCD_REG_DBG_EDPDPCD_BUS     8
+#define LCD_REG_DBG_COMBOPHY_BUS    9
+#define LCD_REG_DBG_RST_BUS         10
+#define LCD_REG_DBG_MAX_BUS         0xff
+
 /*tcon adb port use */
 #define LCD_ADB_TCON_REG_RW_MODE_NULL              0
 #define LCD_ADB_TCON_REG_RW_MODE_RN                1
@@ -31,20 +44,29 @@ struct lcd_tcon_adb_reg_s {
 	unsigned int len;
 };
 
-struct lcd_debug_info_reg_s {
+struct lcd_debug_info_if_s {
+	int (*interface_print)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
+	int (*reg_dump_interface)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
+	int (*reg_dump_phy)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
+	struct device_attribute *attrs;
+};
+
+struct lcd_debug_info_s {
 	unsigned int *reg_pll_table;
 	unsigned int *reg_clk_table;
 	unsigned int *reg_encl_table;
 	unsigned int *reg_pinmux_table;
 	void (*prbs_test)(struct aml_lcd_drv_s *pdrv, unsigned int s,
 			  unsigned int mode_flag);
-};
 
-struct lcd_debug_info_if_s {
-	int (*interface_print)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
-	int (*reg_dump_interface)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
-	int (*reg_dump_phy)(struct aml_lcd_drv_s *pdrv, char *buf, int offset);
-	struct device_attribute *attrs;
+	struct lcd_debug_info_if_s *debug_if_ttl;
+	struct lcd_debug_info_if_s *debug_if_lvds;
+	struct lcd_debug_info_if_s *debug_if_vbyone;
+	struct lcd_debug_info_if_s *debug_if_mlvds;
+	struct lcd_debug_info_if_s *debug_if_p2p;
+	struct lcd_debug_info_if_s *debug_if_mipi;
+	struct lcd_debug_info_if_s *debug_if_edp;
+	struct lcd_debug_info_if_s *debug_if;
 };
 
 static unsigned int lcd_reg_dump_clk_gp0_g12a[] = {

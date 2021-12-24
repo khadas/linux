@@ -523,9 +523,9 @@ int lcd_tcon_info_print(char *buf, int offset)
 			for (i = 0; i < lcd_tcon_conf->axi_bank; i++) {
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
-					"axi_mem[%d]_paddr:      0x%lx\n"
-					"axi_mem[%d]_vaddr:      0x%p\n"
-					"axi_mem[%d]_size:       0x%x\n",
+					"axi_mem[%d]_paddr:  0x%lx\n"
+					"axi_mem[%d]_vaddr:  0x%p\n"
+					"axi_mem[%d]_size:   0x%x\n",
 					i, (unsigned long)tcon_rmem.axi_rmem[i].mem_paddr,
 					i, tcon_rmem.axi_rmem[i].mem_vaddr,
 					i, tcon_rmem.axi_rmem[i].mem_size);
@@ -534,17 +534,17 @@ int lcd_tcon_info_print(char *buf, int offset)
 	} else {
 		len += snprintf((buf + len), n,
 			"\ntcon info:\n"
-			"core_reg_width:         %d\n"
-			"reg_table_len:          %d\n"
-			"tcon_bin_ver:           %s\n"
-			"tcon_rmem_flag:         %d\n"
-			"bin_path init_load:     %d\n"
-			"bin_path data_flag:     %d\n"
-			"reserved_mem paddr:     0x%lx\n"
-			"reserved_mem size:      0x%x\n"
-			"bin_path_mem_paddr:     0x%lx\n"
-			"bin_path_mem_vaddr:     0x%px\n"
-			"bin_path_mem_size:      0x%x\n\n",
+			"core_reg_width:       %d\n"
+			"reg_table_len:        %d\n"
+			"tcon_bin_ver:         %s\n"
+			"tcon_rmem_flag:       %d\n"
+			"bin_path init_load:   %d\n"
+			"bin_path data_flag:   %d\n"
+			"reserved_mem paddr:   0x%lx\n"
+			"reserved_mem size:    0x%x\n"
+			"bin_path_mem_paddr:   0x%lx\n"
+			"bin_path_mem_vaddr:   0x%px\n"
+			"bin_path_mem_size:    0x%x\n\n",
 			lcd_tcon_conf->core_reg_width,
 			lcd_tcon_conf->reg_table_len,
 			tcon_local_cfg.bin_ver,
@@ -560,8 +560,8 @@ int lcd_tcon_info_print(char *buf, int offset)
 			for (i = 0; i < lcd_tcon_conf->axi_bank; i++) {
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
-					"axi_mem[%d]_paddr:      0x%lx\n"
-					"axi_mem[%d]_size:       0x%x\n",
+					"axi_mem[%d]_paddr:  0x%lx\n"
+					"axi_mem[%d]_size:   0x%x\n",
 					i, (unsigned long)tcon_rmem.axi_rmem[i].mem_paddr,
 					i, tcon_rmem.axi_rmem[i].mem_size);
 			}
@@ -574,8 +574,8 @@ int lcd_tcon_info_print(char *buf, int offset)
 			for (i = 0; i < tcon_mm_table.block_cnt; i++) {
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
-					"data_mem_vaddr[%d]:     0x%px\n"
-					"data_mem_size[%d]:      0x%x\n",
+					"data_mem_vaddr[%d]: 0x%px\n"
+					"data_mem_size[%d]:  0x%x\n",
 					i, tcon_mm_table.data_mem_vaddr[i],
 					i, tcon_mm_table.data_size[i]);
 			}
@@ -644,9 +644,9 @@ int lcd_tcon_info_print(char *buf, int offset)
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"\ntcon_status:\n"
-		"vac_valid:              %d\n"
-		"demura_valid:           %d\n"
-		"acc_valid:              %d\n",
+		"vac_valid:      %d\n"
+		"demura_valid:   %d\n"
+		"acc_valid:      %d\n",
 		((tcon_mm_table.valid_flag >> LCD_TCON_DATA_VALID_VAC) & 0x1),
 		((tcon_mm_table.valid_flag >> LCD_TCON_DATA_VALID_DEMURA) & 0x1),
 		((tcon_mm_table.valid_flag >> LCD_TCON_DATA_VALID_ACC) & 0x1));
