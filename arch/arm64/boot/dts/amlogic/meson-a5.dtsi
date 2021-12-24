@@ -1194,7 +1194,7 @@
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
+			status = "okay";
 		};
 		amlogic_codec:t9015{
 			#sound-dai-cells = <0>;
@@ -1216,7 +1216,7 @@
 			#clock-cells = <1>;
 			reg = <0x0 0xFE330000 0x0 0xb0>, <0x0 0xFE334C00 0x0 0x20>;
 			reg-names = "audio_bus", "audio_vad_top";
-			status = "disabled";
+			status = "okay";
 		};
 
 		audiobus: audiobus@0xFE330000 {
@@ -1228,7 +1228,7 @@
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
 			//chip_id = <0x37>;
 			//power-domains = <&pwrdm PDID_S4_AUDIO>;
-			status = "disabled";
+			status = "okay";
 			ddr_manager {
 				compatible =
 					"amlogic, a5-audio-ddr-manager";
@@ -1252,7 +1252,7 @@
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
