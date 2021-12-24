@@ -706,10 +706,10 @@ static const unsigned int mic_mute_led_h_pins[]		= { GPIOH_25 };
 static const unsigned int gen_clk_ee_h13_pins[]		= { GPIOH_13 };
 static const unsigned int spi0_clk_h14_pins[]		= { GPIOH_14 };
 static const unsigned int spi0_ss1_h19_pins[]		= { GPIOH_19 };
-static const unsigned int spi2_ss0_h_pins[]		= { GPIOH_22 };
-static const unsigned int spi2_miso_h_pins[]		= { GPIOH_23 };
-static const unsigned int spi2_mosi_h_pins[]		= { GPIOH_24 };
-static const unsigned int spi2_clk_h_pins[]		= { GPIOH_25 };
+static const unsigned int spi1_ss0_h_pins[]		= { GPIOH_22 };
+static const unsigned int spi1_miso_h_pins[]		= { GPIOH_23 };
+static const unsigned int spi1_mosi_h_pins[]		= { GPIOH_24 };
+static const unsigned int spi1_clk_h_pins[]		= { GPIOH_25 };
 
 /* BANK H func6 */
 //static const unsigned int gen_clk_ee_h13_pins[]		= { GPIOH_13 };
@@ -1197,10 +1197,10 @@ static struct meson_pmx_group meson_t5w_periphs_groups[] __initdata = {
 	GROUP(gen_clk_ee_h13,		5),
 	GROUP(spi0_clk_h14,		5),
 	GROUP(spi0_ss1_h19,		5),
-	GROUP(spi2_ss0_h,		5),
-	GROUP(spi2_miso_h,		5),
-	GROUP(spi2_mosi_h,		5),
-	GROUP(spi2_clk_h,		5),
+	GROUP(spi1_ss0_h,		5),
+	GROUP(spi1_miso_h,		5),
+	GROUP(spi1_mosi_h,		5),
+	GROUP(spi1_clk_h,		5),
 
 	GROUP(s2_demod_gpio0_h,		6),
 	GROUP(s2_demod_gpio1_h,		6),
@@ -1506,13 +1506,13 @@ static const char * const spi0_groups[] = {
 
 static const char * const spi1_groups[] = {
 	"spi1_ss0_z", "spi1_miso_z",
+
+	"spi1_ss0_h", "spi1_miso_h", "spi1_mosi_h", "spi1_clk_h"
 };
 
 static const char * const spi2_groups[] = {
 	"spi2_miso_c", "spi2_mosi_c", "spi2_clk_c", "spi2_ss0_c",
-	"spi2_ss1_c", "spi2_ss2_c",
-
-	"spi2_ss0_h", "spi2_miso_h", "spi2_mosi_h", "spi2_clk_h",
+	"spi2_ss1_c", "spi2_ss2_c"
 };
 
 static const char * const mclk_groups[] = {
