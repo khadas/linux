@@ -488,10 +488,20 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	unsigned int hdmitx_content_type =
 		am_hdmitx->hdmitx_dev->get_content_types();
 
+	if (!state) {
+		DRM_ERROR("state is NULL.\n");
+		return -EINVAL;
+	}
+
 	old_hdmitx_state = to_am_hdmitx_connector_state
 		(drm_atomic_get_old_connector_state(state, connector));
 	new_hdmitx_state = to_am_hdmitx_connector_state
 		(drm_atomic_get_new_connector_state(state, connector));
+
+	if (!new_hdmitx_state || !old_hdmitx_state) {
+		DRM_ERROR("hdmitx_state is NULL.\n");
+		return -EINVAL;
+	}
 
 	/*check content type.*/
 	if (((1 << new_hdmitx_state->base.content_type) &
@@ -509,8 +519,7 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 	else
 		return 0;
 
-	if (state && state->allow_modeset &&
-		new_hdmitx_state && new_crtc_state) {
+	if (state->allow_modeset && new_crtc_state) {
 		if (!am_hdmi_info.hdmitx_on) {
 			new_crtc_state->connectors_changed = true;
 			DRM_ERROR("hdmitx_on changed, force modeset.\n");
@@ -1168,7 +1177,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 
 	if (hdmitx_dev->hdcp_ctl_lvl == 0) {
 		am_hdmi_info.android_path = true;
-	} else {
+	} else if (am_hdmi_info.hdmitx_dev->hdcp_init) {
 		am_hdmi_info.hdmitx_dev->hdcp_init();
 		if (hdmitx_dev->hdcp_ctl_lvl == 1) {
 			/*TODO: for westeros start hdcp by driver, will move to userspace.*/
@@ -1182,6 +1191,9 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 			am_hdmi_info.hdcp_request_content_protection =
 				DRM_MODE_CONTENT_PROTECTION_UNDESIRED;
 		}
+	} else {
+		DRM_ERROR("%s no HDCP func regsitered.\n", __func__);
+		am_hdmi_info.android_path = true;
 	}
 
 #ifdef CONFIG_CEC_NOTIFIER
@@ -1262,7 +1274,8 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 int meson_hdmitx_dev_unbind(struct drm_device *drm,
 	int type, int connector_id)
 {
-	am_hdmi_info.hdmitx_dev->hdcp_exit();
+	if (am_hdmi_info.hdmitx_dev->hdcp_exit)
+		am_hdmi_info.hdmitx_dev->hdcp_exit();
 
 #ifdef CONFIG_CEC_NOTIFIER
 	if (am_hdmi_info.cec_notifier) {

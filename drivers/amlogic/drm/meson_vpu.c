@@ -371,7 +371,7 @@ static int am_meson_vpu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
-	pr_info("[%s] in\n", __func__);
+	DRM_INFO("[%s] in\n", __func__);
 	if (!dev->of_node) {
 		dev_err(dev, "can't find vpu devices\n");
 		return -ENODEV;
