@@ -64,7 +64,8 @@
 
 /* 20220124: vf->flag add pc mode flag to bypass aipq aisr */
 /* 20220214: The desktop screenshot probability gray screen */
-#define VDIN_VER "20220214"
+/* 20220216: t5d dmc write 1 set to supper urgent */
+#define VDIN_VER "20220216"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

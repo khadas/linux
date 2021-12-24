@@ -5921,7 +5921,8 @@ void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool onoff)
 		 * dmc write 1 set to supper urgent
 		 */
 		if (devp->dtdata->hw_ver == VDIN_HW_T5 ||
-			devp->dtdata->hw_ver == VDIN_HW_T5W) {
+		    devp->dtdata->hw_ver == VDIN_HW_T5D ||
+		    devp->dtdata->hw_ver == VDIN_HW_T5W) {
 			reg = READ_DMCREG(0x6c) & (~(1 << 17));
 			if (!(reg & (1 << 18)))
 				WRITE_DMCREG(0x6c, reg | (1 << 18));
@@ -5931,7 +5932,8 @@ void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool onoff)
 		 * dmc write 1 set to urgent
 		 */
 		if (devp->dtdata->hw_ver == VDIN_HW_T5 ||
-			devp->dtdata->hw_ver == VDIN_HW_T5W) {
+		    devp->dtdata->hw_ver == VDIN_HW_T5D ||
+		    devp->dtdata->hw_ver == VDIN_HW_T5W) {
 			reg = READ_DMCREG(0x6c) & (~(1 << 18));
 			WRITE_DMCREG(0x6c, reg | (1 << 17));
 		}
