@@ -1316,19 +1316,31 @@
 			      <0x0 0xfe024000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			power-domains = <&pwrdm PDID_S4_ETH>;
+			power-domains = <&pwrdm PDID_A5_ETH>;
 			clocks = <&clkc CLKID_SYS_CLK_ETH_MAC>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_MPLL2>;
 			clock-names = "stmmaceth", "clkin0", "clkin1";
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
+			internal_phy = <2>;
+			cali_val = <0x80000>;
 			status = "disabled";
 
-			mdio0: mdio {
+			ext_mdio: mdio {
+				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "snps,dwmac-mdio";
+				external_phy: ethernet-phy@0 {
+						reg = <0>;
+						max-speed = <1000>;
+
+						reset-assert-us = <20000>;
+						reset-deassert-us = <50000>;
+						reset-gpios = <&gpio GPIOZ_15 (GPIO_ACTIVE_LOW |
+									GPIO_OPEN_DRAIN)>;
+				};
 			};
 		};
 
@@ -2688,6 +2700,35 @@
 		};
 	};
 #endif
+	eth_pins: eth {
+		mux {
+			groups = "eth_mdio",
+				 "eth_mdc",
+				 "eth_rgmii_rx_clk",
+				 "eth_rx_dv",
+				 "eth_rxd0",
+				 "eth_rxd1",
+				 "eth_txen",
+				 "eth_txd0",
+				 "eth_txd1";
+			function = "eth";
+			drive-strength-microamp = <4000>;
+			bias-disable;
+		};
+	};
+
+	eth_rgmii_pins: eth-rgmii {
+		mux {
+			groups = "eth_rxd2_rgmii",
+				 "eth_rxd3_rgmii",
+				 "eth_rgmii_tx_clk",
+				 "eth_txd2_rgmii",
+				 "eth_txd3_rgmii";
+			function = "eth";
+			drive-strength-microamp = <4000>;
+			bias-disable;
+		};
+	};
 };
 
 &gpu{
