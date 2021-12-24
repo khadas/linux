@@ -1338,13 +1338,12 @@
 			interrupts = <0 168 1>;
 			status = "disabled";
 			clocks = <&xtal
-						&clkc CLKID_SYS_CLK_UART_A>;
+				&clkc CLKID_SYS_CLK_UART_A>;
 			clock-names = "clk_uart",
 				"clk_gate";
-			xtal_tick_en = <3>;
 			fifosize = < 64 >;
 			pinctrl-names = "default";
-			pinctrl-0 = <&a_uart_pins>;
+			pinctrl-0 = <&a_uart_pins0>;
 		};
 
 		uart_C: serial@fe07c000 {
@@ -1353,12 +1352,12 @@
 			interrupts = <0 170 1>;
 			status = "disabled";
 			clocks = <&xtal
-						&clkc CLKID_SYS_CLK_UART_C>;
+				&clkc CLKID_SYS_CLK_UART_C>;
 			clock-names = "clk_uart",
 				"clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
-			pinctrl-0 = <&c_uart_pins>;
+			pinctrl-0 = <&c_uart_pins0>;
 		};
 
 		uart_D: serial@fe07e000 {
@@ -1367,12 +1366,12 @@
 			reg = <0x0 0xfe07e000 0x0 0x18>;
 			interrupts = <0 171 1>;
 			clocks = <&xtal
-					&clkc CLKID_SYS_CLK_UART_D>;
+				&clkc CLKID_SYS_CLK_UART_D>;
 			clock-names = "clk_uart",
 					"clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
-			pinctrl-0 = <&d_uart_pins1>;
+			pinctrl-0 = <&d_uart_pins>;
 		};
 
 		uart_E: serial@fe080000 {
@@ -1381,12 +1380,12 @@
 			reg = <0x0 0xfe080000 0x0 0x18>;
 			interrupts = <0 172 1>;
 			clocks = <&xtal
-					&clkc CLKID_SYS_CLK_UART_E>;
+				&clkc CLKID_SYS_CLK_UART_E>;
 			clock-names = "clk_uart",
-						"clk_gate";
+					"clk_gate";
 			fifosize = < 64 >;
 			pinctrl-names = "default";
-			pinctrl-0 = <&e_uart_pins1>;
+			pinctrl-0 = <&e_uart_pins>;
 		};
 	};
 
@@ -2153,60 +2152,62 @@
 		};
 	};
 
-	a_uart_pins:a_uart {
+	a_uart_pins0:a_uart0 {
 		mux {
-			groups = "uart_a_tx",
-				"uart_a_rx",
-				"uart_a_cts",
+			groups = "uart_a_tx_x",
+				"uart_a_rx_x",
+				"uart_a_cts_x",
+				"uart_a_rts_x";
+			function = "uart_a";
+		};
+	};
+
+	a_uart_pins1:a_uart1 {
+		mux {
+			groups = "uart_a_tx_h",
+				"uart_a_rx_h",
+				"uart_a_cts_h",
 				"uart_a_rts";
 			function = "uart_a";
 		};
 	};
 
-	c_uart_pins:c_uart {
+	c_uart_pins0:c_uart0 {
 		mux {
-			groups = "uart_c_tx",
-				"uart_c_rx";
+			groups = "uart_c_tx_d",
+				"uart_c_rx_d";
 			function = "uart_c";
 		};
 	};
 
-	d_uart_pins1:d_uart1 {
+	c_uart_pins1:c_uart1 {
 		mux {
-			groups = "uart_d_tx_h",
-				"uart_d_rx_h";
+			groups = "uart_c_tx_t",
+				"uart_c_rx_t";
+			function = "uart_c";
+		};
+	};
+
+	c_uart_pins2:c_uart2 {
+		mux {
+			groups = "uart_c_tx_z",
+				"uart_c_rx_z";
+			function = "uart_c";
+		};
+	};
+
+	d_uart_pins:d_uart {
+		mux {
+			groups = "uart_d_tx_c",
+				"uart_d_rx_c";
 			function = "uart_d";
 		};
 	};
 
-	d_uart_pins2:d_uart2 {
+	e_uart_pins:e_uart {
 		mux {
-			groups = "uart_d_tx_z",
-				"uart_d_rx_z";
-			function = "uart_d";
-		};
-	};
-
-	e_uart_pins1:e_uart1 {
-		mux {
-			groups = "uart_e_tx_h",
-				"uart_e_rx_h";
-			function = "uart_e";
-		};
-	};
-
-	e_uart_pins2:e_uart2 {
-		mux {
-			groups = "uart_e_tx_z11",
-				"uart_e_rx_z12";
-			function = "uart_e";
-		};
-	};
-
-	e_uart_pins3:e_uart3 {
-		mux {
-			groups = "uart_e_tx_z8",
-				"uart_e_rx_z9";
+			groups = "uart_e_tx_t",
+				"uart_e_rx_t";
 			function = "uart_e";
 		};
 	};
