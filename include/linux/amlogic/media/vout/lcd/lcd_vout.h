@@ -614,6 +614,7 @@ struct aml_lcd_drv_s {
 #ifdef CONFIG_OF
 	struct device_node *of_node;
 #endif
+	void *debug_info;
 
 	unsigned int vout_state;
 	unsigned int fr_auto_policy;

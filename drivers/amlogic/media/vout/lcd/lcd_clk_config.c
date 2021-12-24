@@ -4097,6 +4097,38 @@ void lcd_clk_gate_switch(struct aml_lcd_drv_s *pdrv, int status)
 	}
 }
 
+int lcd_clk_clkmsr_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
+{
+	struct lcd_clk_config_s *cconf;
+	int clk;
+	int n, len = 0;
+
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf) {
+		n = lcd_debug_info_len(len + offset);
+		len += snprintf((buf + len), n, "[%d]: %s: clk config is null\n",
+				pdrv->index, __func__);
+		return len;
+	}
+
+	if (cconf->data->enc_clk_msr_id == -1)
+		goto lcd_clk_clkmsr_print_step_1;
+	clk = meson_clk_measure(cconf->data->enc_clk_msr_id);
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"encl_clk:        %d\n", clk);
+
+lcd_clk_clkmsr_print_step_1:
+	if (cconf->data->fifo_clk_msr_id == -1)
+		return len;
+	clk = meson_clk_measure(cconf->data->fifo_clk_msr_id);
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"fifo_clk:        %d\n", clk);
+
+	return len;
+}
+
 int lcd_clk_config_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 {
 	struct lcd_clk_config_s *cconf;

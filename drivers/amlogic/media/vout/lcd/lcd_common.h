@@ -162,6 +162,10 @@ int lcd_mipi_test_read(struct aml_lcd_drv_s *pdrv, struct dsi_read_s *dread);
 int dsi_set_operation_mode(struct aml_lcd_drv_s *pdrv, unsigned char op_mode);
 int dptx_edid_dump(struct aml_lcd_drv_s *pdrv);
 int dptx_edid_timing_probe(struct aml_lcd_drv_s *pdrv);
+int dptx_dpcd_read(struct aml_lcd_drv_s *pdrv, unsigned char *buf,
+		   unsigned int reg, int len);
+int dptx_dpcd_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned char val);
+void dptx_dpcd_dump(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_vout_server_remove(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_clk_config_change(struct aml_lcd_drv_s *pdrv);

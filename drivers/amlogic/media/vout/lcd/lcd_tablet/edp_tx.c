@@ -628,6 +628,39 @@ static void dptx_link_fast_training(struct aml_lcd_drv_s *pdrv)
 	dptx_reg_write(pdrv, EDP_TX_TRAINING_PATTERN_SET, 0x0);
 }
 
+int dptx_dpcd_read(struct aml_lcd_drv_s *pdrv, unsigned char *buf,
+		   unsigned int reg, int len)
+{
+	int index = pdrv->index;
+	int ret;
+
+	if (!buf)
+		return -1;
+	if (index > 1) {
+		LCDERR("[%d]: %s: invalid drv_index\n", index, __func__);
+		return -1;
+	}
+
+	ret = dptx_aux_read(pdrv, reg, len, buf);
+	return ret;
+}
+
+int dptx_dpcd_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned char val)
+{
+	int index = pdrv->index;
+	unsigned char auxdata;
+	int ret;
+
+	if (index > 1) {
+		LCDERR("[%d]: %s: invalid drv_index\n", index, __func__);
+		return -1;
+	}
+
+	auxdata = val;
+	ret = dptx_aux_write(pdrv, reg, 1, &auxdata);
+	return ret;
+}
+
 void dptx_dpcd_dump(struct aml_lcd_drv_s *pdrv)
 {
 	int index = pdrv->index;
@@ -845,7 +878,8 @@ static void edp_tx_init(struct aml_lcd_drv_s *pdrv)
 		LCDERR("[%d]: edp sink power up link failed.....\n", index);
 
 	dptx_link_fast_training(pdrv);
-	/*dptx_dpcd_dump(pdrv); */
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		dptx_dpcd_dump(pdrv);
 
 	dptx_set_msa(pdrv);
 	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
