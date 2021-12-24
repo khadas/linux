@@ -4502,7 +4502,7 @@ static ssize_t lcd_tcon_status_show(struct device *dev,
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", pdrv->tcon_status);
+	return sprintf(buf, "0x%x\n", pdrv->tcon_status);
 }
 
 static ssize_t lcd_tcon_adb_status_show(struct device *dev,
@@ -5803,6 +5803,8 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 			else
 				lcd_tcon_od_set(pdrv, 0);
 		}
+	} else if (strcmp(parm[0], "multi_lut") == 0) {
+		lcd_tcon_multi_lut_print();
 	} else if (strcmp(parm[0], "save") == 0) { /* save buf to bin */
 		if (!parm[2])
 			goto lcd_tcon_debug_store_err;

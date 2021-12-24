@@ -35,8 +35,8 @@
 /* #define LCD_DEBUG_INFO */
 extern unsigned int lcd_debug_print_flag;
 #define LCD_DBG_PR_NORMAL       BIT(0)
-#define LCD_DBG_PR_ADV          BIT(1) //tcon_data
-#define LCD_DBG_PR_CLK          BIT(2)
+#define LCD_DBG_PR_ADV          BIT(1)
+#define LCD_DBG_PR_ADV2         BIT(2) //clk calc, tcon data
 #define LCD_DBG_PR_ISR          BIT(3)
 #define LCD_DBG_PR_BL_NORMAL    BIT(4)
 #define LCD_DBG_PR_BL_ADV       BIT(5) //pwm, isr, ext, ldim

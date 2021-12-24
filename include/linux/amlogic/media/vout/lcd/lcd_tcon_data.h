@@ -16,7 +16,7 @@
 
 /* for tconless data format */
 /* for tconless data block type */
-#define LCD_TCON_DATA_BLOCK_TYPE_NONE           0x00
+#define LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT     0x00 /* for basic init setting */
 #define LCD_TCON_DATA_BLOCK_TYPE_DEMURA_SET     0x01
 #define LCD_TCON_DATA_BLOCK_TYPE_DEMURA_LUT     0x02
 #define LCD_TCON_DATA_BLOCK_TYPE_ACC_LUT        0x03
@@ -52,8 +52,10 @@
 #define LCD_TCON_INIT_BIN_VERSION_SIZE          8
 
 /* tcon data control defaine */
-#define LCD_TCON_DATA_CTRL_FLAG_MULTI           BIT(0)
-
+/* block_ctrl */
+#define LCD_TCON_DATA_CTRL_FLAG_MULTI           0x01
+#define LCD_TCON_DATA_CTRL_FLAG_DLG             0xd0
+/* ctrl_method */
 #define LCD_TCON_DATA_CTRL_DEFAULT              0x00
 #define LCD_TCON_DATA_CTRL_MULTI_VFREQ          0x01
 #define LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL       0x11
@@ -61,7 +63,8 @@
 
 struct lcd_tcon_init_block_header_s {
 	unsigned int crc32;
-	unsigned int reserved;
+	unsigned short h_active;
+	unsigned short v_active;
 	unsigned int block_size;
 	unsigned short header_size;
 	unsigned short reserved1;
@@ -101,7 +104,7 @@ struct lcd_tcon_data_part_ctrl_s {
 	unsigned char tuning_flag;
 	unsigned char part_type;
 	unsigned short ctrl_data_flag;
-	unsigned short ctrl_sub_type;
+	unsigned short ctrl_method;
 	unsigned short data_byte_width;
 	unsigned short data_cnt;
 };

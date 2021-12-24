@@ -29,7 +29,8 @@
 /* 20211106: support vrr config*/
 /* 20211210: support load tcon bin by ioctl*/
 /* 20211216: support phy adjust by lane*/
-#define LCD_DRV_VERSION    "20211216"
+/* 20211229: update multi lut init and switch flow*/
+#define LCD_DRV_VERSION    "20211229"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
