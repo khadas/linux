@@ -1155,8 +1155,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	enum tvin_sig_fmt_e fmt;
 
-	if (IS_ERR_OR_NULL(devp)) {
-		pr_err("[vdin]%s vdin%d has't registered or devp is NULL\n",
+	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(vdin0_devp)) {
+		pr_err("[vdin]%s vdin%d has't registered or vdin0 is NULL\n",
 		       __func__, no);
 		return -1;
 	}
