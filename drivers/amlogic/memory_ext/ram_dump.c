@@ -456,7 +456,7 @@ static int __init ramdump_probe(struct platform_device *pdev)
 		schedule_delayed_work(&ram->work, 1);
 		/* if ramdump is disabled in env, no need to set sticky reg */
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   "PREG_STICKY_REG8");
+						   "SYSCTRL_STICKY_REG6");
 		if (res) {
 			base = devm_ioremap(&pdev->dev, res->start,
 					    res->end - res->start);

@@ -320,7 +320,7 @@
 		compatible = "amlogic, ram_dump";
 		status = "okay";
 		reg = <0xFF6345E0 4>;
-		reg-names = "PREG_STICKY_REG8";
+		reg-names = "SYSCTRL_STICKY_REG6";
 		store_device = "data";
 	};
 

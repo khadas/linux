@@ -205,6 +205,14 @@
 		dis_nb_cpus_in_shutdown;
 	};
 
+	ram-dump {
+			compatible = "amlogic, ram_dump";
+			status = "okay";
+			reg = <0xFE0102D8 4>;
+			reg-names = "SYSCTRL_STICKY_REG6";
+			store_device = "data";
+	};
+
 	cma_shrinker: cma_shrinker {
 		compatible = "amlogic, cma-shrinker";
 		status = "okay";
