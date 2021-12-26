@@ -428,6 +428,18 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 	if (suspend_test(TEST_PLATFORM))
 		goto Platform_wake;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	error = suspend_disable_secondary_cpus();
+	if (error || suspend_test(TEST_CPUS)) {
+		log_suspend_abort_reason("Disabling non-boot cpus failed");
+		goto Enable_cpus;
+	}
+
+	if (state == PM_SUSPEND_TO_IDLE) {
+		s2idle_loop();
+		goto Enable_cpus;
+	}
+#else
 	if (state == PM_SUSPEND_TO_IDLE) {
 		s2idle_loop();
 		goto Platform_wake;
@@ -438,7 +450,7 @@ static int suspend_enter(suspend_state_t state, bool *wakeup)
 		log_suspend_abort_reason("Disabling non-boot cpus failed");
 		goto Enable_cpus;
 	}
-
+#endif
 	arch_suspend_disable_irqs();
 	BUG_ON(!irqs_disabled());
 

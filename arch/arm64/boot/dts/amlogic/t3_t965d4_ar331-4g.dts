@@ -1703,3 +1703,9 @@
 	pinctrl-0 = <&spicc2_pins>;
 	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
 };
+
+&meson_suspend {
+	vad_wakeup_disable = <0x0>;
+	vddio3v3_en = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+	p5v_en = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
+};
