@@ -46,7 +46,7 @@ MODULE_AUTHOR("Johnson Leung");
 MODULE_LICENSE("GPL");
 
 struct phy_device *g_phydev;
-static int wol_enable = 0;
+int wol_enable = 0;
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 unsigned int support_external_phy_wol;

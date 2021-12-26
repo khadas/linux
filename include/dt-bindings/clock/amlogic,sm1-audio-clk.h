@@ -88,5 +88,8 @@
 #define CLKID_EARCRX_CMDC                       (MCLK_BASE + 20)
 #define CLKID_EARCRX_DMAC                       (MCLK_BASE + 21)
 
-#define NUM_AUDIO_CLKS                          (MCLK_BASE + 22)
+#define CLKID_AUDIO_MCLK_PAD0                   (MCLK_BASE + 22)
+#define CLKID_AUDIO_MCLK_PAD1                   (MCLK_BASE + 23)
+
+#define NUM_AUDIO_CLKS                          (MCLK_BASE + 24)
 #endif /* __SM1_AUDIO_CLK_H__ */

@@ -1170,18 +1170,16 @@
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
-		//dai-tdm-lane-slot-mask-in = <0 0 0 0 0 0 0 0>;
-		//dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
 				&clkc CLKID_MPLL1
 				&clkc CLKID_MPLL0
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "mclk", "clk_srcpll",
+		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
 		pinctrl-names = "tdm_pins";
-		/*pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;*/
-		pinctrl-0 = < &tdmout_b &tdmin_b>;
+		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
 		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		/*
@@ -1539,13 +1537,13 @@
 		};
 	};
 
-	//tdmb_mclk: tdmb_mclk {
-	//	mux {
-	//		groups = "mclk0_a";
-	//		function = "mclk0";
-	//		drive-strength = <2>;
-	//	};
-	//};
+	tdmb_mclk: tdmb_mclk {
+		mux {
+			groups = "mclk0_a";
+			function = "mclk0";
+			drive-strength = <2>;
+		};
+	};
 	tdmout_b: tdmout_b {
 		mux { /* GPIOA_1, GPIOA_2, GPIOA_3, GPIOA_4, */
 			  /* GPIOA_5, GPIOA_6, GPIOA_7, GPIOA_8, */

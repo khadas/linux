@@ -170,7 +170,7 @@ gceSTATUS _AdjustParam(IN gcsPLATFORM *Platform,OUT gcsMODULE_PARAMETERS *Args)
         Args->extSRAMBases[0] = (gctPHYS_ADDR_T)res->start;
 
         Args->contiguousBase = 0;
-		Args->contiguousSize = 0x200000;/*(gctSIZE_T)(res->end - res->start+1);*/
+		Args->contiguousSize = (gctSIZE_T)(res->end - res->start+1);
     }
     else
     {
