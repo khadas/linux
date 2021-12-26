@@ -771,12 +771,26 @@
 	tdma: tdm@0 {
 		compatible = "amlogic, a5-snd-tdma";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-in = <0 1>;
-		dai-tdm-lane-slot-mask-out = <1 0>;
+		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
+		dai-tdm-lane-slot-mask-out = <1 1>;
 		dai-tdm-clk-sel = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_MPLL0>;
-		clock-names = "mclk", "clk_srcpll";
+		clock-names = "mclk", "mclk_pad", "clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <
+			&mclk_2_pins
+			&tdm_a_pins
+			&tdmain_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			//&tdm_d8_pins
+			&tdm_d9_pins
+			&tdm_d10_pins
+			&tdm_d11_pins
+			&tdma_clk_pins
+			&tdmain_clk_pins>;
 
 		status = "okay";
 	};
@@ -784,11 +798,25 @@
 	tdmb: tdm@1 {
 		compatible = "amlogic, a5-snd-tdmb";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+				&clkaudio CLKID_AUDIO_MCLK_PAD1
 				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "clk_srcpll";
+		clock-names = "mclk", "mclk_pad", "clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <
+			&mclk_1_pins
+			&tdm_b_pins
+			&tdm_d2_pins
+			&tdm_d3_pins
+			&tdm_d4_pins
+			&tdm_d5_pins
+			&tdm_d6_pins
+			&tdm_d7_pins
+			&tdm_d12_pins
+			&tdm_d13_pins
+			&tdmb_clk_pins>;
 
 		status = "okay";
 	};
@@ -978,76 +1006,44 @@
 }; /* end of audiobus */
 
 &periphs_pinctrl {
-#if 0
-	tdm_a: tdm_a {
-		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
-			groups = "tdm_sclk0",
-				"tdm_fs0",
-				"tdm_d3",
-				"tdm_d4";
+	tdm_a_pins: tdm_a_pin {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_9, GPIOX_8 */
+			groups = "tdm_sclk0_x",
+				"tdm_fs0_x",
+				"tdm_d0_x",
+				"tdm_d1_x";
 			function = "tdm";
 		};
 	};
 
-	tdmin_a: tdmin_a {
-		mux { /* GPIOX_8 */
-			groups = "tdma_din1";
-			function = "tdma_in";
+	tdmain_pins: tdmain_pin {
+		mux { /* GPIOT_1, GPIOT_0, GPIOT_2, GPIOT_3, GPIOT_4, GPIOT_5 */
+			groups = "tdm_sclk2_t",
+				"tdm_fs2_t",
+				//"tdm_d8_t",
+				"tdm_d9_t",
+				"tdm_d10_t",
+				"tdm_d11_t";
+			function = "tdm";
 		};
 	};
 
-	tdmb_mclk: tdmb_mclk {
-		mux {
-			groups = "mclk0_a";
-			function = "mclk0";
-			drive-strength = <2>;
+	tdm_b_pins: tdm_b_pin {
+		mux { /* GPIOC_3, GPIOC_2, GPIOC_0, GPIOC_1, GPIOC_5--GPIOC_8, GPIOT12, GPIOT13*/
+			groups = "tdm_sclk1_c",
+				"tdm_fs1_c",
+				"tdm_d2_c",
+				"tdm_d3_c",
+				"tdm_d4_c",
+				"tdm_d5_c",
+				"tdm_d6_c",
+				"tdm_d7_c",
+				"tdm_d12_t",
+				"tdm_d13_t";
+			function = "tdm";
 		};
 	};
-	tdmout_b: tdmout_b {
-		mux { /* GPIOA_1, GPIOA_2, GPIOA_3 */
-			groups = "tdmb_sclk",
-				"tdmb_fs",
-				"tdmb_dout0";
-			function = "tdmb_out";
-			drive-strength = <2>;
-		};
-	};
-
-	tdmin_b:tdmin_b {
-		mux { /* GPIOA_4 */
-			groups = "tdmb_din1"
-				/*,"tdmb_slv_sclk", "tdmb_slv_fs"*/;
-			function = "tdmb_in";
-			drive-strength = <2>;
-		};
-	};
-
-	tdmc_mclk: tdmc_mclk {
-		mux { /* GPIOA_11 */
-			groups = "mclk1_a";
-			function = "mclk1";
-		};
-	};
-
-	tdmout_c:tdmout_c {
-		mux { /* GPIOA_12, GPIOA_13 */
-			groups = "tdmc_sclk_a",
-				"tdmc_fs_a"
-				/*, "tdmc_dout0_a"
-				 *,	"tdmc_dout2"
-				 *, "tdmc_dout3"
-				 */;
-			function = "tdmc_out";
-		};
-	};
-
-	tdmin_c:tdmin_c {
-		mux { /* GPIOA_10 */
-			groups = "tdmc_din0_a";
-			function = "tdmc_in";
-		};
-	};
-
+#if 0
 	spdifin: spdifin {
 		mux {/* GPIOH_5 */
 			groups = "spdif_in_h";
@@ -1088,6 +1084,127 @@
 		};
 	};
 }; /* end of periphs_pinctrl */
+
+&pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmina_lane1";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdmouta_lane0";
+		};
+	};
+
+	tdm_d2_pins: tdm_d2_pin {
+		mux {
+			groups = "tdm_d2";
+			function = "tdmoutb_lane0";
+		};
+	};
+
+	tdm_d3_pins: tdm_d3_pin {
+		mux {
+			groups = "tdm_d3";
+			function = "tdmoutb_lane1";
+		};
+	};
+
+	tdm_d4_pins: tdm_d4_pin {
+		mux {
+			groups = "tdm_d4";
+			function = "tdmoutb_lane2";
+		};
+	};
+
+	tdm_d5_pins: tdm_d5_pin {
+		mux {
+			groups = "tdm_d5";
+			function = "tdmoutb_lane3";
+		};
+	};
+
+	tdm_d6_pins: tdm_d6_pin {
+		mux {
+			groups = "tdm_d6";
+			function = "tdmoutb_lane4";
+		};
+	};
+
+	tdm_d7_pins: tdm_d7_pin {
+		mux {
+			groups = "tdm_d7";
+			function = "tdmoutb_lane5";
+		};
+	};
+#if 0
+	tdm_d8_pins: tdm_d8_pin {
+		mux {
+			groups = "tdm_d8";
+			function = "tdmina_lane1";
+		};
+	};
+#endif
+	tdm_d9_pins: tdm_d9_pin {
+		mux {
+			groups = "tdm_d9";
+			function = "tdmina_lane2";
+		};
+	};
+
+	tdm_d10_pins: tdm_d10_pin {
+		mux {
+			groups = "tdm_d10";
+			function = "tdmina_lane3";
+		};
+	};
+
+	tdm_d11_pins: tdm_d11_pin {
+		mux {
+			groups = "tdm_d11";
+			function = "tdmina_lane0";
+		};
+	};
+
+	tdm_d12_pins: tdm_d12_pin {
+		mux {
+			groups = "tdm_d12";
+			function = "tdmoutb_lane6";
+		};
+	};
+
+	tdm_d13_pins: tdm_d13_pin {
+		mux {
+			groups = "tdm_d13";
+			function = "tdmoutb_lane7";
+		};
+	};
+
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+
+	tdmb_clk_pins: tdmb_clk_pin {
+		mux {
+			groups = "tdm_sclk1", "tdm_lrclk1";
+			function = "tdm_clk_outb";
+		};
+	};
+
+	tdmain_clk_pins: tdmain_clk_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outa";
+		};
+	};
+};
 
 &audio_data {
 	status = "disabled";

@@ -2744,6 +2744,21 @@
 			function = "remote_out";
 		};
 	};
+
+	mclk_1_pins: mclk_1_pin {
+		mux { /* GPIOC_4 */
+			groups = "mclk_1_c";
+			function = "mclk";
+		};
+	};
+
+	mclk_2_pins: mclk_2_pin {
+		mux { /* GPIOT_6 */
+			groups = "mclk_2_t";
+			function = "mclk";
+		};
+	};
+
 #if 0
 	spdifin: spdifin {
 		mux {/* GPIOH_5 */

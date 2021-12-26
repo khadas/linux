@@ -379,7 +379,7 @@ static int ap_set_mux(struct pinctrl_dev *pctldev,
 		aml_audiobus_update_bits(actrl, addr,
 			0x1f << offset, val << offset);
 		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
-			1 << val, 0);
+			1 << group, 0);
 	} else if (selector <= FUNC_TDM_CLK_IN_LAST) {
 		base = EE_AUDIO_SCLK_PAD_CTRL0;
 		addr = (group - GRP_TDM_SCLK_START) / 5 + base;
@@ -411,7 +411,7 @@ static int ap_set_mux(struct pinctrl_dev *pctldev,
 		aml_audiobus_update_bits(actrl, addr,
 			0x1f << offset, val << offset);
 		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
-			1 << val, 0);
+			1 << group, 0);
 	} else {
 		dev_err(ap->dev, "%s() unsupport selector: %d, grp %d\n",
 			__func__, selector, group);
