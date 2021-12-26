@@ -153,7 +153,7 @@ void meson_ir_keydown(struct meson_ir_dev *dev, int scancode, int status)
 	if (status == IR_STATUS_NORMAL) {
 		keycode = dev->getkeycode(dev, scancode);
 		if (keycode == KEY_POWER)
-			pm_wakeup_event(dev->dev, 2000);
+			pm_wakeup_hard_event(dev->dev);
 		meson_ir_do_keydown(dev, scancode, keycode);
 	}
 
