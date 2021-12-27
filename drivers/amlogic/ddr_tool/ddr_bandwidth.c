@@ -1057,8 +1057,12 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	/* next for pll register base */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, io_idx);
 	if (res) {
-		base = ioremap(res->start, res->end - res->start);
-		aml_db->pll_reg = (void *)base;
+		if (aml_db->cpu_type == DMC_TYPE_A5) {
+			aml_db->pll_reg = (void *)res->start;
+		} else {
+			base = ioremap(res->start, res->end - res->start);
+			aml_db->pll_reg = (void *)base;
+		}
 	} else {
 		pr_err("can't get ddr reg %d base\n", io_idx);
 		aml_db = NULL;

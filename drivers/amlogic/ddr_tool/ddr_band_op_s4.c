@@ -122,7 +122,11 @@ static unsigned long s4_get_dmc_freq_quick(struct ddr_bandwidth *db)
 	unsigned int od_div = 0xfff;
 	unsigned long freq = 0;
 
-	val = readl(db->pll_reg);
+	if (db->cpu_type == DMC_TYPE_A5)
+		val = dmc_rw((unsigned long)db->pll_reg, 0, DMC_READ);
+	else
+		val = readl(db->pll_reg);
+
 	val = val & 0xfffff;
 	switch ((val >> 16) & 7) {
 	case 0:
