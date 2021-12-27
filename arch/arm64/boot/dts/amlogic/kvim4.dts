@@ -251,6 +251,12 @@
 		status = "okay";
 	};
 
+	gpiomem {
+		compatible = "amlogic, gpiomem";
+		reg = <0x0 0xfe004000 0x0 0x1000>;
+		status = "okay";
+	};
+
 	cvbsout {
 		compatible = "amlogic, cvbsout-sc2";
 		status = "disabled";
