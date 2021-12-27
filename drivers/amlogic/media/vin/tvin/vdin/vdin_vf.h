@@ -41,6 +41,11 @@
 #define VF_FLAG_FREEZED_FRAME		 0x00000002
 #define VFRAME_DISP_MAX_NUM 20
 #define VDIN_CANVAS_MAX_CNT	11
+/* total canvas num in chips */
+#define VDIN_TOTAL_CANVAS_NUM	20
+/* real canvas num for each vdin */
+#define VDIN0_CANVAS_MAX_CNT	11
+#define VDIN1_CANVAS_MAX_CNT	9
 #define VDIN_VF_POOL_FREEZE              0x00000001
 #define ISR_LOG_EN
 

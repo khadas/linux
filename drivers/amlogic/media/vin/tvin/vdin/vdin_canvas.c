@@ -261,6 +261,11 @@ void vdin_canvas_start_config(struct vdin_dev_s *devp)
 	}
 }
 
+unsigned int vdin_get_canvas_num(struct vdin_dev_s *devp)
+{
+	return (devp->index == 0) ? VDIN0_CANVAS_MAX_CNT : VDIN1_CANVAS_MAX_CNT;
+}
+
 /*
  *this function used for configure canvas when canvas_config_mode=2
  *base on the input format
@@ -306,6 +311,11 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	case VDIN_FORMAT_CONVERT_YUV_NV21:
 	case VDIN_FORMAT_CONVERT_RGB_NV12:
 	case VDIN_FORMAT_CONVERT_RGB_NV21:
+		/* screencap case:S4/S4D cannot use the same canvas id */
+		if (devp->dtdata->hw_ver == VDIN_HW_S4 ||
+			devp->dtdata->hw_ver == VDIN_HW_S4D)
+			canvas_num = vdin_get_canvas_num(devp);
+		/* screencap case:end */
 		canvas_num = canvas_num / 2;
 		canvas_step = 2;
 		devp->canvas_w = h_active;

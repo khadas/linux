@@ -930,7 +930,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	pr_info("cma_mem_alloc:%d\n", devp->cma_mem_alloc);
 	pr_info("cma_mem_size:0x%x\n", devp->cma_mem_size);
 	pr_info("cma_mem_mode:%d\n", devp->cma_mem_mode);
-	pr_info("frame_buff_num:%d\n", devp->frame_buff_num);
+	pr_info("frame_buff_num:%d, vfmem_max_cnt:%d\n",
+		devp->frame_buff_num, devp->vfmem_max_cnt);
 	pr_info("force_yuv444_malloc:%d\n", devp->force_yuv444_malloc);
 	pr_info("hdr_Flag =0x%x\n", devp->prop.vdin_hdr_flag);
 	pr_info("hdr10p_Flag =0x%x\n", devp->prop.hdr10p_info.hdr10p_on);
