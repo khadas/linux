@@ -124,7 +124,7 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 {
 	char rw = 'n';
 	char title[5] = "";
-	char id_str[4];
+	char id_str[MAX_NAME];
 	int port, subport;
 	unsigned long addr;
 	unsigned long status;

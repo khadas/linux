@@ -79,7 +79,7 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 {
 	int i, port, subport;
 	unsigned long addr, status, value;
-	char id_str[4];
+	char id_str[MAX_NAME];
 	struct page *page;
 	struct page_trace *trace;
 
