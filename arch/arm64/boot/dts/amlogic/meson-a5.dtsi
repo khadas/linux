@@ -2801,14 +2801,28 @@
 		};
 	};
 
-#if 0
+	spdifout: spdifout {
+		mux { /* GPIOC_9 */
+			groups = "spdif_out_c";
+			function = "spdif_out";
+		};
+	};
+
 	spdifin: spdifin {
-		mux {/* GPIOH_5 */
-			groups = "spdif_in";
+		mux {/* GPIOC_10 */
+			groups = "spdif_in_c10";
 			function = "spdif_in";
 		};
 	};
-#endif
+
+	spdifout_a_mute: spdifout_a_mute {
+		mux { /* GPIOC_9 */
+			groups = "GPIOC_9";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+
 	eth_pins: eth {
 		mux {
 			groups = "eth_mdio",
