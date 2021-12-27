@@ -248,12 +248,12 @@ config AMLOGIC_DRIVER
 	  directory ../common_drivers/drivers/
 
 if AMLOGIC_DRIVER
-config AMLOGIC_USERDEBUG
-	bool "Amlogic userdebug"
+config AMLOGIC_BREAK_GKI
+	bool "Amlogic Break GKI"
 	default n
 	help
-	  this option is provide for control userdebug,
-	  if you want to debug driver, should enable it,
+	  this option is provide for control Break GKI,
+	  if you want to debug driver temporarily, should enable it,
 	  export function or variable with this config,
 	  and the driver Kconfig depends on this option
 
@@ -265,7 +265,7 @@ config AMLOGIC_MODIFY
 	  kernel source code. All modify of kernel standard code
 	  should be wrapped by this config
 
-config AMLOGIC_NONGKI
+config AMLOGIC_IN_KERNEL_MODULES
 	bool "Amlogic Drivers in build or extra build"
 	default n
 	help
@@ -274,7 +274,7 @@ config AMLOGIC_NONGKI
 	  to in build, should enable; if want to extra
 	  build, should disable
 
-if AMLOGIC_NONGKI
+if AMLOGIC_IN_KERNEL_MODULES
 source "../common_drivers/drivers/Kconfig"
 endif
 endif

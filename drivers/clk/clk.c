@@ -614,7 +614,8 @@ struct clk *__clk_lookup(const char *name)
 
 	return !core ? NULL : core->hw->clk;
 }
-#ifdef CONFIG_AMLOGIC_USERDEBUG
+
+#ifdef CONFIG_AMLOGIC_BREAK_GKI
 EXPORT_SYMBOL_GPL(__clk_lookup);
 #endif
 
