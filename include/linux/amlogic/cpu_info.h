@@ -6,6 +6,8 @@
 #ifndef __CPU_INFO_H_
 #define __CPU_INFO_H_
 
+extern const char *machine_model;
+
 #define CHIPID_LEN 16
 void cpuinfo_get_chipid(unsigned char *cid, unsigned int size);
 
