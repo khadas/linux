@@ -678,7 +678,7 @@ static int aml_cpufreq_table_validate_and_sort(struct cpufreq_policy *policy)
 	return set_freq_table_sorted(policy);
 }
 
-static int policy_info_show(struct seq_file *m, void *v)
+static int opptable_show(struct seq_file *m, void *v)
 {
 	struct cpufreq_policy *policy = m->private;
 	struct meson_cpufreq_driver_data *driver_data = policy->driver_data;
@@ -697,19 +697,75 @@ static int policy_info_show(struct seq_file *m, void *v)
 				continue;
 			seq_printf(m, "%lu %lu\n", opp->rate, opp->supplies[0].u_volt);
 		}
+		dev_pm_opp_put_opp_table(opp_table);
 		mutex_unlock(&opp_table->lock);
 	}
 	return 0;
 }
 
-static int meson_cpufreq_open(struct inode *inode, struct file *file)
+static int maxfreq_show(struct seq_file *m, void *v)
 {
-	return single_open(file, policy_info_show, PDE_DATA(inode));
+	return 0;
 }
 
-static const struct file_operations meson_cpufreq_fops = {
-	.open = meson_cpufreq_open,
+static int get_index_from_freq(struct cpufreq_frequency_table *table, int freq)
+{
+	struct cpufreq_frequency_table *pos;
+	int i = 0;
+
+	cpufreq_for_each_valid_entry(pos, table) {
+		if (freq > pos->frequency)
+			i++;
+		else
+			break;
+	}
+	return i;
+}
+
+static ssize_t  meson_maxfreq_write(struct file *file, const char __user *userbuf,
+	size_t count, loff_t *ppos)
+{
+	struct cpufreq_policy *policy = PDE_DATA(file_inode(file));
+	struct meson_cpufreq_driver_data *driver_data = policy->driver_data;
+	char buf[10] = {0};
+	int maxfreq, index;
+
+	count = min_t(size_t, count, sizeof(buf) - 1);
+
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	//ret = sscanf(buf, "%d", &maxfreq);
+	if (kstrtoint(buf, 0, &maxfreq))
+		return -EINVAL;
+
+	index = get_index_from_freq(freq_table[driver_data->clusterid], maxfreq);
+	meson_cpufreq_set_target(policy, index);
+
+	return count;
+}
+
+static int meson_opptable_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, opptable_show, PDE_DATA(inode));
+}
+
+static int meson_maxfreq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, maxfreq_show, PDE_DATA(inode));
+}
+
+static const struct file_operations meson_opptable_fops = {
+	.open = meson_opptable_open,
 	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
+static const struct file_operations meson_maxfreq_fops = {
+	.open = meson_maxfreq_open,
+	.read = seq_read,
+	.write = meson_maxfreq_write,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
@@ -717,18 +773,28 @@ static const struct file_operations meson_cpufreq_fops = {
 static void create_meson_cpufreq_proc_files(struct cpufreq_policy *policy)
 {
 	char policy_name[10] = {0};
+	struct meson_cpufreq_driver_data *data = policy->driver_data;
 
 	snprintf(policy_name, sizeof(policy_name), "policy%u",
 		cpumask_first(policy->related_cpus));
-	proc_create_data(policy_name, 0444, cpufreq_proc, &meson_cpufreq_fops, policy);
+	data->parent_proc = proc_mkdir(policy_name, cpufreq_proc);
+	if (data->parent_proc) {
+		proc_create_data("opp-table", 0444, data->parent_proc,
+			&meson_opptable_fops, policy);
+		proc_create_data("scaling_max_freq", 0444, data->parent_proc,
+			&meson_maxfreq_fops, policy);
+	}
 }
 
 static void destroy_meson_cpufreq_proc_files(struct cpufreq_policy *policy)
 {
 	char policy_name[10] = {0};
+	struct meson_cpufreq_driver_data *data = policy->driver_data;
 
 	snprintf(policy_name, sizeof(policy_name), "policy%u",
 		cpumask_first(policy->related_cpus));
+	remove_proc_entry("opp-table", data->parent_proc);
+	remove_proc_entry("scaling_max_freq", data->parent_proc);
 	remove_proc_entry(policy_name, cpufreq_proc);
 }
 

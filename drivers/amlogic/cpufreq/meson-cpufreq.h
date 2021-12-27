@@ -69,6 +69,7 @@ struct meson_cpufreq_driver_data {
 	struct clk *clk_dsu_pre;
 	struct clk *clk_dsu_pre2;
 	int clusterid;
+	struct proc_dir_entry *parent_proc;
 };
 
 enum dsu_clock_power_voters {
