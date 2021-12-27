@@ -438,10 +438,10 @@ static const struct pll_params_table a5_gp0_pll_table[] = {
 static const struct reg_sequence a5_gp0_init_regs[] = {
 	{ .reg = ANACTRL_GP0PLL_CTRL1,	.def = 0x00000000 },
 	{ .reg = ANACTRL_GP0PLL_CTRL2,	.def = 0x00000000 },
-	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x48681c00 },
-	{ .reg = ANACTRL_GP0PLL_CTRL4,	.def = 0x88770290 },
-	{ .reg = ANACTRL_GP0PLL_CTRL5,	.def = 0x39272000 },
-	{ .reg = ANACTRL_GP0PLL_CTRL6,	.def = 0x56540000 }
+	{ .reg = ANACTRL_GP0PLL_CTRL3,	.def = 0x6a295c00 },
+	{ .reg = ANACTRL_GP0PLL_CTRL4,	.def = 0x65771290 },
+	{ .reg = ANACTRL_GP0PLL_CTRL5,	.def = 0x3927200a },
+	{ .reg = ANACTRL_GP0PLL_CTRL6,	.def = 0x54540000 }
 };
 
 static struct clk_regmap a5_gp0_pll_dco = {
@@ -495,7 +495,7 @@ static struct clk_regmap a5_gp0_pll_dco = {
 			{ .fw_name = "xtal", }
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -527,7 +527,8 @@ static struct clk_regmap a5_gp0_pll = {
 			&a5_gp0_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE
+				| CLK_IGNORE_UNUSED,
 	},
 };
 #endif
@@ -1823,14 +1824,12 @@ static struct clk_regmap a5_ts_clk = {
 };
 
 /* a5 cts_nand_clk*/
+static u32 a5_sd_emmc_clk0_table[] = {0, 1, 2, 4, 7};
 static const struct clk_parent_data a5_sd_emmc_clk0_parent_data[] = {
 	{ .fw_name = "xtal", },
 	{ .hw = &a5_fclk_div2.hw },
 	{ .hw = &a5_fclk_div3.hw },
-	{ .hw = &a5_hifi_pll.hw },
 	{ .hw = &a5_fclk_div2p5.hw },
-	{ .hw = &a5_mpll2.hw },
-	{ .hw = &a5_mpll3.hw },
 	{ .hw = &a5_gp0_pll.hw }
 };
 
@@ -1839,6 +1838,7 @@ static struct clk_regmap a5_sd_emmc_c_clk0_sel = {
 		.offset = CLKCTRL_NAND_CLK_CTRL,
 		.mask = 0x7,
 		.shift = 9,
+		.table = a5_sd_emmc_clk0_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_c_clk0_sel",
@@ -1888,6 +1888,7 @@ static struct clk_regmap a5_sd_emmc_a_clk0_sel = {
 		.offset = CLKCTRL_SD_EMMC_CLK_CTRL,
 		.mask = 0x7,
 		.shift = 9,
+		.table = a5_sd_emmc_clk0_table,
 	},
 	.hw.init = &(struct clk_init_data) {
 		.name = "sd_emmc_a_clk0_sel",
