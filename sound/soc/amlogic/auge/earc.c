@@ -299,7 +299,7 @@ static void earcrx_pll_reset(struct earc *p_earc)
 		earcrx_pll_refresh(p_earc->rx_top_map,
 				   RST_BY_SELF,
 				   true);
-		pr_info("refresh earcrx pll, i %d\n", i++);
+		dev_info(p_earc->dev, "refresh earcrx pll, i %d\n", i++);
 		if (i >= 9) {
 			dev_info(p_earc->dev,
 				 "refresh earcrx pll failed\n");
@@ -333,7 +333,7 @@ static void earcrx_pll_reset(struct earc *p_earc)
 	}
 
 	earcrx_dmac_sync_int_enable(p_earc->rx_top_map, 1);
-	pr_info("earcrx pll %d, auto %d, pengding is 0x%x\n",
+	dev_info(p_earc->dev, "earcrx pll %d, auto %d, pengding is 0x%x\n",
 		earxrx_get_pll_valid(p_earc->rx_top_map),
 		earxrx_get_pll_valid_auto(p_earc->rx_top_map),
 		earcrx_dmac_get_irqs(p_earc->rx_top_map));
@@ -448,11 +448,11 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 		    p_earc->rx_status1 & INT_EARCRX_DMAC_VALID_AUTO_NEG_INT_SET) {
 			earcrx_dmac_sync_int_enable(p_earc->rx_top_map, 0);
 			schedule_work(&p_earc->rx_dmac_int_work);
-			pr_info("%s EARCRX_DMAC_VALID_AUTO_NEG_INT_SET\n", __func__);
+			dev_info(p_earc->dev, "%s EARCRX_DMAC_VALID_AUTO_NEG_INT_SET\n", __func__);
 		} else if (p_earc->chipinfo->unstable_tick_sel &&
 			   p_earc->rx_status1 & INT_EARCRX_DMAC_VALID_AUTO_NEG_INT_SET) {
 			earcrx_dmac_sync_clr_irqs(p_earc->rx_top_map);
-			pr_info("%s unstable tick happen\n", __func__);
+			dev_info(p_earc->dev, "%s unstable tick happen\n", __func__);
 			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true);
 		}
 	}
@@ -466,15 +466,28 @@ static void earctx_update_attend_event(struct earc *p_earc,
 	if (state) {
 		if (is_earc) {
 			p_earc->earctx_connected_device_type = ATNDTYP_EARC;
+			dev_info(p_earc->dev, "send EARCTX_ARC_STATE=ATNDTYP_EARC\n");
+			if (p_earc->tx_dmac_clk_on)
+				earctx_compressed_enable(p_earc->tx_dmac_map,
+					ATNDTYP_EARC, p_earc->tx_audio_coding_type, true);
 			audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_EARC);
 		} else {
 			/* if the connected device is earc, lost HB still is earc device */
 			if (p_earc->earctx_connected_device_type != ATNDTYP_EARC)
 				p_earc->earctx_connected_device_type = ATNDTYP_ARC;
-			audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_ARC);
+			if (earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC) {
+				dev_info(p_earc->dev, "send EARCTX_ARC_STATE=ATNDTYP_ARC\n");
+				if (p_earc->tx_dmac_clk_on)
+					earctx_compressed_enable(p_earc->tx_dmac_map,
+						ATNDTYP_ARC, p_earc->tx_audio_coding_type, true);
+				audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_ARC);
+			}
 		}
 	} else {
-		audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_DISCNCT);
+		if (!p_earc->tx_reset_hpd) {
+			dev_info(p_earc->dev, "send EARCTX_ARC_STATE=ATNDTYP_DISCNCT\n");
+			audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_DISCNCT);
+		}
 	}
 }
 
@@ -495,7 +508,7 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 		    (earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map)
 			== ATNDTYP_DISCNCT)) {
 			snd_pcm_stop(substream, SNDRV_PCM_STATE_XRUN);
-			pr_info("snd_pcm_stop, eARC disconnect\n");
+			dev_info(p_earc->dev, "snd_pcm_stop, eARC disconnect\n");
 		}
 		snd_pcm_stream_unlock_irqrestore(substream, flags);
 	}
@@ -544,23 +557,11 @@ static irqreturn_t earc_tx_isr(int irq, void *data)
 		dev_dbg(p_earc->dev, "EARCTX_CMDC_RECV_NORSP\n");
 	if (status0 & INT_EARCTX_CMDC_RECV_UNEXP)
 		dev_info(p_earc->dev, "EARCTX_CMDC_RECV_UNEXP\n");
-
-	/*
-	 * plug out ARC, from ARC to IDLE2, then to IDLE1
-	 * if receive both interrupt, then only send IDLE1 status
-	 */
-	if ((status0 & INT_EARCTX_CMDC_IDLE1) && (status0 & INT_EARCTX_CMDC_IDLE2)) {
-		earctx_update_attend_event(p_earc, false, false);
-		dev_info(p_earc->dev, "only send EARCTX_CMDC_IDLE1\n");
-	} else {
-		if (status0 & INT_EARCTX_CMDC_IDLE1) {
-			earctx_update_attend_event(p_earc, false, false);
-			dev_info(p_earc->dev, "EARCTX_CMDC_IDLE1\n");
-		}
-		if (status0 & INT_EARCTX_CMDC_IDLE2) {
-			earctx_update_attend_event(p_earc, false, true);
-			dev_info(p_earc->dev, "EARCTX_CMDC_IDLE2\n");
-		}
+	if (status0 & INT_EARCTX_CMDC_IDLE1)
+		dev_info(p_earc->dev, "EARCTX_CMDC_IDLE1\n");
+	if (status0 & INT_EARCTX_CMDC_IDLE2) {
+		earctx_update_attend_event(p_earc, false, true);
+		dev_info(p_earc->dev, "EARCTX_CMDC_IDLE2\n");
 	}
 
 	if (p_earc->tx_dmac_clk_on) {
@@ -1238,10 +1239,10 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 			int separated)
 {
 	if (s_earc->earctx_on) {
-		pr_debug("%s earctx priority\n", __func__);
+		dev_dbg(s_earc->dev, "%s earctx priority\n", __func__);
 		return 0;
 	}
-	pr_debug("%s() %d, lvl %d\n", __func__, __LINE__, share_lvl);
+	dev_dbg(s_earc->dev, "%s() %d, lvl %d\n", __func__, __LINE__, share_lvl);
 	sharebuffer_prepare(substream,
 		pfrddr,
 		samesource_sel,
@@ -1256,10 +1257,10 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 static int ss_trigger(int cmd, int samesource_sel, bool reenable)
 {
 	if (s_earc->earctx_on) {
-		pr_debug("%s earctx priority\n", __func__);
+		dev_dbg(s_earc->dev, "%s earctx priority\n", __func__);
 		return 0;
 	}
-	pr_debug("%s() ss %d\n", __func__, samesource_sel);
+	dev_dbg(s_earc->dev, "%s() ss %d\n", __func__, samesource_sel);
 	sharebuffer_trigger(cmd, samesource_sel, reenable);
 
 	return 0;
@@ -1269,10 +1270,10 @@ static int ss_free(struct snd_pcm_substream *substream,
 	void *pfrddr, int samesource_sel, int share_lvl)
 {
 	if (s_earc->earctx_on) {
-		pr_debug("%s earctx priority\n", __func__);
+		dev_dbg(s_earc->dev, "%s earctx priority\n", __func__);
 		return 0;
 	}
-	pr_info("%s() samesrc %d, lvl %d\n",
+	dev_info(s_earc->dev, "%s() samesrc %d, lvl %d\n",
 		__func__, samesource_sel, share_lvl);
 	if (aml_check_sharebuffer_valid(pfrddr,
 			samesource_sel)) {
@@ -1727,7 +1728,7 @@ static void tx_resume_work_func(struct work_struct *p_work)
 	struct earc *p_earc = container_of(p_work, struct earc, tx_resume_work);
 
 	msleep(2500);
-	pr_info("%s reset hpd\n", __func__);
+	dev_info(p_earc->dev, "%s reset hpd\n", __func__);
 	earctx_set_earc_mode(p_earc, true);
 }
 
@@ -1744,7 +1745,7 @@ int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 	p_earc->tx_earc_mode = earc_mode;
 	earctx_set_earc_mode(p_earc, earc_mode);
 	if (!earc_mode && earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
-		audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_ARC);
+		earctx_update_attend_event(p_earc, false, true);
 
 	return 0;
 }
@@ -2268,8 +2269,12 @@ static int earcrx_cmdc_setup(struct earc *p_earc)
 static void send_uevent_work_func(struct work_struct *p_work)
 {
 	struct earc *p_earc = container_of(p_work, struct earc, send_uevent);
+	enum attend_type type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
 
-	audio_send_uevent(p_earc->dev, EARCTX_ATNDTYP_EVENT, ATNDTYP_ARC);
+	if (type == ATNDTYP_ARC)
+		earctx_update_attend_event(p_earc, false, true);
+	else if (type == ATNDTYP_DISCNCT)
+		earctx_update_attend_event(p_earc, false, false);
 }
 
 void earc_hdmirx_hpdst(int earc_port, bool st)
@@ -2283,6 +2288,7 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 		 earc_port,
 		 st ? "plugin" : "plugout");
 	if (!st) {
+		schedule_work(&p_earc->send_uevent);
 		/* set discnnect when cable plugout */
 		p_earc->earctx_connected_device_type = ATNDTYP_DISCNCT;
 		/* release earctx same source when cable plug out */
