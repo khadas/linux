@@ -338,6 +338,28 @@
 		status = "okay";
 	};
 
+	galcore {
+		compatible = "amlogic, galcore";
+		dev_name = "galcore";
+		status = "okay";
+		clocks = <&clkc CLKID_CTS_NNA_AXI_CLK>,
+		      <&clkc CLKID_CTS_NNA_CORE_CLK>;
+		clock-names = "cts_vipnanoq_axi_clk_composite",
+		      "cts_vipnanoq_core_clk_composite";
+		interrupts = <0 128 4>;
+		interrupt-names = "galcore";
+		power-domains = <&pwrdm PDID_A5_NNA>;
+		reg = <0x0 0xfdb00000 0x0 0x40000
+		      0x0 0xfe090000 0x0 0x2000
+		      0x0 0xfe00c040 0x0 0x4
+		      0x0 0xfe00c044 0x0 0x4
+		      0x0 0xfe00c034 0x0 0x4
+		      0X0 0xfe000220 0X0 0x4>;
+		reg-names = "NN_REG","NN_SRAM","NN_MEM0",
+		      "NN_MEM1","NN_RESET","NN_CLK";
+		nn_power_version = <6>;
+	};
+
 	jtag {
 		compatible = "amlogic, jtag";
 		status = "disabled";
