@@ -699,66 +699,158 @@ int vpu_topology_init(struct platform_device *pdev, struct meson_drm *priv)
 }
 EXPORT_SYMBOL(vpu_topology_init);
 
+static int get_venc_type(struct meson_vpu_pipeline *pipeline, u32 viu_type)
+{
+	u32 venc_type = 0;
+
+	if (pipeline->osd_version == OSD_V7) {
+		u32 venc_mux = 3;
+		u32 venc_addr = VPU_VENC_CTRL;
+
+		venc_mux = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux >>= (viu_type * 2);
+		venc_mux &= 0x3;
+
+		switch (venc_mux) {
+		case 0:
+			venc_addr = VPU_VENC_CTRL;
+			break;
+		case 1:
+			venc_addr = VPU1_VENC_CTRL;
+			break;
+		case 2:
+			venc_addr = VPU2_VENC_CTRL;
+			break;
+		}
+		venc_type = aml_read_vcbus(venc_addr);
+	} else {
+		if (viu_type == 0)
+			venc_type = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL);
+		else if (viu_type == 1)
+			venc_type = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2;
+	}
+
+	venc_type &= 0x3;
+
+	return venc_type;
+}
+
 int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
 	int *vpos, int *hpos)
 {
-	unsigned int reg = 0;
-	u32 enc_sel;
+	int viu_type = 0;
+	unsigned int reg = VPU_VENCI_STAT;
+	unsigned int reg_val = 0;
+	u32 offset = 0;
+	u32 venc_type = get_venc_type(pipeline, viu_type);
 
-	if (pipeline->index == 1)
-		enc_sel = (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
-	else
-		enc_sel = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	switch (enc_sel) {
-	case 0:
-		reg = aml_read_vcbus(ENCL_INFO_READ);
-		break;
-	case 1:
-		reg = aml_read_vcbus(ENCI_INFO_READ);
-		break;
-	case 2:
-		reg = aml_read_vcbus(ENCP_INFO_READ);
-		break;
-	case 3:
-		reg = aml_read_vcbus(ENCT_INFO_READ);
-		break;
+	if (pipeline->osd_version == OSD_V7) {
+		u32 venc_mux = 3;
+
+		venc_mux = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux >>= (viu_type * 2);
+		venc_mux &= 0x3;
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (venc_type) {
+		case 0:
+			reg = VPU_VENCI_STAT;
+			break;
+		case 1:
+			reg = VPU_VENCP_STAT;
+			break;
+		case 2:
+			reg = VPU_VENCL_STAT;
+			break;
+		}
+	} else {
+		switch (venc_type) {
+		case 0:
+			reg = ENCL_INFO_READ;
+			break;
+		case 1:
+			reg = ENCI_INFO_READ;
+			break;
+		case 2:
+			reg = ENCP_INFO_READ;
+			break;
+		case 3:
+			reg = ENCT_INFO_READ;
+			break;
+		}
 	}
 
-	*vpos = (reg >> 16) & 0x1fff;
-	*hpos = (reg & 0x1fff);
+	reg_val = aml_read_vcbus(reg + offset);
+	*vpos = (reg_val >> 16) & 0x1fff;
+	*hpos = (reg_val & 0x1fff);
 
 	return 0;
 }
 EXPORT_SYMBOL(vpu_pipeline_read_scanout_pos);
 
-static int vpu_pipeline_get_active_begin_line
-	(struct meson_vpu_pipeline *pipeline)
+static int vpu_pipeline_get_active_begin_line(struct meson_vpu_pipeline *pipeline, u32 viu_type)
 {
-	int active_line_begin;
-	u32 enc_sel;
+	int active_line_begin = 0;
+	u32 offset = 0;
+	u32 reg = ENCL_VIDEO_VAVON_BLINE;
 
-	if (pipeline->index == 1)
-		enc_sel = (aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) >> 2) & 0x3;
-	else
-		enc_sel = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	switch (enc_sel) {
-	case 0:
-		active_line_begin =
-			aml_read_vcbus(ENCL_VIDEO_VAVON_BLINE);
-		break;
-	case 1:
-		active_line_begin =
-			aml_read_vcbus(ENCI_VFIFO2VD_LINE_TOP_START);
-		break;
-	case 2:
-		active_line_begin =
-			aml_read_vcbus(ENCP_VIDEO_VAVON_BLINE);
-		break;
-	case 3:
-		active_line_begin =
-			aml_read_vcbus(ENCT_VIDEO_VAVON_BLINE);
-		break;
+	if (pipeline->osd_version == OSD_V7) {
+		u32 venc_mux = 3;
+
+		venc_mux = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux >>= (viu_type * 2);
+		venc_mux &= 0x3;
+
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (get_venc_type(pipeline, viu_type)) {
+		case 0:
+			reg = ENCI_VFIFO2VD_LINE_TOP_START;
+			break;
+		case 1:
+			reg = ENCP_VIDEO_VAVON_BLINE;
+			break;
+		case 2:
+			reg = ENCL_VIDEO_VAVON_BLINE;
+			break;
+		}
+
+	} else {
+		switch (get_venc_type(pipeline, viu_type)) {
+		case 0:
+			reg = ENCL_VIDEO_VAVON_BLINE;
+			break;
+		case 1:
+			reg = ENCI_VFIFO2VD_LINE_TOP_START;
+			break;
+		case 2:
+			reg = ENCP_VIDEO_VAVON_BLINE;
+			break;
+		case 3:
+			reg = ENCT_VIDEO_VAVON_BLINE;
+			break;
+		}
 	}
+
+	active_line_begin = aml_read_vcbus(reg + offset);
 
 	return active_line_begin;
 }
@@ -774,7 +866,7 @@ void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 	 * 2. wait rdma hw flush finish (flush time depends on aps clock.)
 	 * | VSYNC| VBackP | VACTIVE | VFrontP |...
 	 */
-	vsync_active_begin = vpu_pipeline_get_active_begin_line(pipeline);
+	vsync_active_begin = vpu_pipeline_get_active_begin_line(pipeline, 0);
 	vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col);
 	line_threshold = vdisplay * flush_time * vrefresh / 1000;
 	wait_cnt = 0;

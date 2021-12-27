@@ -1160,6 +1160,13 @@
 #define VIU2_OSD1_MATRIX_PRE_OFFSET2           0x1e7c
 #define VIU2_OSD1_MATRIX_EN_CTRL               0x1e7d
 
+#define VPU_VENCI_STAT				0x1ceb
+#define VPU_VENCL_STAT				0x1cec
+#define VPU_VENCP_STAT				0x1ced
+#define VPU_VENC_CTRL				0x1cef
+#define VPU1_VENC_CTRL				0x22ef
+#define VPU2_VENC_CTRL				0x24ef
+
 /* reg definition */
 
 #endif
