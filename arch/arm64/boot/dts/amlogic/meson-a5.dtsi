@@ -380,12 +380,16 @@
 		      <0x0 0xfe007020 0x0 0x40>;   /* mhu irqctrl reg */
 		interrupts = <0 248 1>;   /* irq top */
 		mbox-irqctlr = <0>;
-		mbox-nums = <2>;
+		mbox-nums = <4>;
 		mbox-names = "ao_dev",
-			     "ap_to_ao";
+			     "ap_to_ao",
+			     "dsp_dev",
+			     "ap_2_dspa";
 		mboxes = <&mhu_fifo A5_AO2REE>,
-			 <&mhu_fifo A5_REE2AO>;
-		mbox-id = <0x2 0x3>;
+			 <&mhu_fifo A5_REE2AO>,
+			 <&mhu_fifo A5_DSP2REE>,
+			 <&mhu_fifo A5_REE2DSP>;
+		mbox-id = <0x2 0x3 0x0 0x1>;
 		#mbox-cells = <1>;
 	};
 
