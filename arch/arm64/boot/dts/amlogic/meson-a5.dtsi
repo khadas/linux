@@ -31,7 +31,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			#cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
@@ -50,7 +50,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			#cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
@@ -69,7 +69,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			#cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
@@ -88,7 +88,7 @@
 			compatible = "arm,cortex-a55","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			#cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
+			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			dynamic-power-coefficient = <230>;
 			#cooling-cells = <2>;
 			clocks = <&clkc CLKID_CPU_CLK>,
