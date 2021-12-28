@@ -1011,6 +1011,18 @@
 				status = "disabled";
 			};
 
+			spicc1: spi@52000 {
+				compatible = "amlogic,meson-g12-spicc";
+				reg = <0x0 0x52000 0x0 0x44>;
+				interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&clkc CLKID_SYS_CLK_SPICC_1>,
+					 <&clkc CLKID_SPICC1>;
+				clock-names = "core", "async";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			spifc: spi@56000 {
 				compatible = "amlogic,meson-spifc";
 				status = "disabled";
@@ -2737,7 +2749,6 @@
 		mux {
 			groups = "spi_a_mosi_x",
 				 "spi_a_miso_x",
-				 //"spi_a_ss0_x",
 				 "spi_a_clk_x";
 			function = "spi_a";
 			drive-strength = <2>;
@@ -2748,20 +2759,28 @@
 		mux {
 			groups = "spi_a_mosi_h",
 				 "spi_a_miso_h",
-				 //"spi_a_ss0_h",
 				 "spi_a_clk_h";
 			function = "spi_a";
 			drive-strength = <2>;
 		};
 	};
 
-	spicc0_pins_z: spicc0_pins_z {
+	spicc0_pins_t: spicc0_pins_t {
 		mux {
-			groups = "spi_a_mosi_z",
-				 "spi_a_miso_z",
-				 //"spi_a_ss0_z",
-				 "spi_a_clk_z";
+			groups = "spi_a_mosi_t",
+				 "spi_a_miso_t",
+				 "spi_a_clk_t";
 			function = "spi_a";
+			drive-strength = <2>;
+		};
+	};
+
+	spicc1_pins_t: spicc1_pins_t {
+		mux {
+			groups = "spi_b_mosi_t",
+				 "spi_b_miso_t",
+				 "spi_b_clk_t";
+			function = "spi_b";
 			drive-strength = <2>;
 		};
 	};
