@@ -13,6 +13,7 @@
 
 struct am_drm_writeback {
 	struct meson_connector base;
+	struct drm_writeback_connector wb_connector;
 	struct drm_device drm_dev;
 	struct drm_framebuffer *fb;
 	struct workqueue_struct *writeback_wq;
@@ -30,13 +31,11 @@ struct am_drm_writeback_state {
 
 #define to_am_writeback_state(x)   \
 	container_of(x, struct am_drm_writeback_state, base)
-#define connector_to_am_writeback(x)  \
-	container_of((x), struct am_drm_writeback, drm_dev)
-#define wb_connector_to_meson_connector(x)   \
-	container_of((x), struct meson_connector, wb_connector)
-#define meson_connector_to_am_writeback(x)   \
-	container_of(wb_connector_to_meson_connector(x), \
-		struct am_drm_writeback, base)
+#define connector_to_wb_connector(x)   \
+	container_of((x), struct drm_writeback_connector, base)
+#define connector_to_am_writeback(x)   \
+	container_of(connector_to_wb_connector(x), \
+		struct am_drm_writeback, wb_connector)
 
 int am_meson_writeback_create(struct drm_device *drm);
 

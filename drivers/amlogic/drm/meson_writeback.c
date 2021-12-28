@@ -64,13 +64,6 @@ static int meson_writeback_connector_atomic_check(struct drm_connector *conn,
 	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
 	fb = conn_state->writeback_job->fb;
 
-	if (fb->width != crtc_state->mode.hdisplay ||
-	    fb->height != crtc_state->mode.vdisplay) {
-		DRM_ERROR("Invalid framebuffer size %ux%u\n",
-			      fb->width, fb->height);
-		return -EINVAL;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(writeback_fmts); i++) {
 		if (fb->format->format == writeback_fmts[i])
 			break;
@@ -186,7 +179,7 @@ static void meson_writeback_capture_work(struct work_struct *work)
 	meson_writeback_capture_picture(drm_writeback->fb,
 		drm_writeback->capture_port);
 
-	drm_writeback_signal_completion(&drm_writeback->base.wb_connector, 0);
+	drm_writeback_signal_completion(&drm_writeback->wb_connector, 0);
 	DRM_DEBUG("%s %d capture done!\n", __func__, __LINE__);
 }
 
@@ -194,7 +187,6 @@ static void meson_writeback_connector_atomic_commit(struct drm_connector *conn,
 					struct drm_connector_state *conn_state)
 {
 	struct drm_framebuffer *fb;
-	struct drm_writeback_connector *wb_connector;
 	struct am_drm_writeback *drm_writeback;
 	int i;
 
@@ -203,8 +195,7 @@ static void meson_writeback_connector_atomic_commit(struct drm_connector *conn,
 	if (WARN_ON(!conn_state->writeback_job))
 		return;
 
-	wb_connector = container_of(conn, struct drm_writeback_connector, base);
-	drm_writeback = meson_connector_to_am_writeback(wb_connector);
+	drm_writeback = connector_to_am_writeback(conn);
 	fb = conn_state->writeback_job->fb;
 	drm_writeback->fb = fb;
 
@@ -218,7 +209,7 @@ static void meson_writeback_connector_atomic_commit(struct drm_connector *conn,
 		return;
 	}
 
-	drm_writeback_queue_job(wb_connector, conn_state);
+	drm_writeback_queue_job(&drm_writeback->wb_connector, conn_state);
 	queue_work(drm_writeback->writeback_wq, &drm_writeback->writeback_work);
 	DRM_DEBUG("am_drm_writeback: %s %d\n", __func__, __LINE__);
 }
@@ -278,11 +269,8 @@ static int am_writeback_connector_atomic_set_property
 	struct drm_property *property, uint64_t val)
 {
 	struct am_drm_writeback *drm_writeback;
-	struct drm_writeback_connector *wb_connector;
 
-	wb_connector = container_of(connector,
-			struct drm_writeback_connector, base);
-	drm_writeback = meson_connector_to_am_writeback(wb_connector);
+	drm_writeback = connector_to_am_writeback(connector);
 
 	if (property == drm_writeback->capture_port_prop) {
 		drm_writeback->capture_port = val;
@@ -298,11 +286,8 @@ static int am_writeback_connector_atomic_get_property
 	struct drm_property *property, uint64_t *val)
 {
 	struct am_drm_writeback *drm_writeback;
-	struct drm_writeback_connector *wb_connector;
 
-	wb_connector = container_of(connector,
-			struct drm_writeback_connector, base);
-	drm_writeback = meson_connector_to_am_writeback(wb_connector);
+	drm_writeback = connector_to_am_writeback(connector);
 
 	if (property == drm_writeback->capture_port_prop) {
 		*val = drm_writeback->capture_port;
@@ -369,7 +354,7 @@ static int meson_writeback_port_property(struct drm_device *drm_dev,
 				ARRAY_SIZE(writeback_capture_port_enum_list));
 	if (prop) {
 		drm_writeback->capture_port_prop = prop;
-		mode_obj = drm_writeback->base.wb_connector.base.base;
+		mode_obj = drm_writeback->wb_connector.base.base;
 		drm_object_attach_property(&mode_obj, prop, capture_port);
 	} else {
 		DRM_ERROR("Failed to UPDATE property\n");
@@ -397,16 +382,20 @@ int meson_writeback_get_format(u32 *writeback_fmts)
 
 int am_meson_writeback_create(struct drm_device *drm)
 {
-	struct drm_writeback_connector *connector;
+	struct drm_writeback_connector *wb_connector;
 	struct am_drm_writeback *drm_writeback;
+	struct meson_connector *mesonconn;
 	int ret = 0;
 
 	drm_writeback = kzalloc(sizeof(*drm_writeback), GFP_KERNEL);
 	if (!drm_writeback)
 		return -ENOMEM;
 
-	connector = &drm_writeback->base.wb_connector;
-	connector->encoder.possible_crtcs = BIT(0);
+	mesonconn = &drm_writeback->base;
+	mesonconn->drm_priv = drm->dev_private;
+	mesonconn->update = NULL;
+	wb_connector = &drm_writeback->wb_connector;
+	wb_connector->encoder.possible_crtcs = BIT(0);
 	drm_writeback->drm_dev = *drm;
 	drm_writeback->capture_port = TVIN_PORT_VIU1_WB0_VPP;
 
@@ -418,9 +407,9 @@ int am_meson_writeback_create(struct drm_device *drm)
 	}
 
 	/* register Connector */
-	drm_connector_helper_add(&connector->base,
+	drm_connector_helper_add(&wb_connector->base,
 			&am_writeback_connector_helper_funcs);
-	ret = drm_writeback_connector_init(drm, connector,
+	ret = drm_writeback_connector_init(drm, wb_connector,
 			&am_writeback_connector_funcs,
 			&am_writeback_encoder_helper_funcs,
 			writeback_fmts, ARRAY_SIZE(writeback_fmts));
