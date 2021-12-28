@@ -148,14 +148,11 @@ static struct clk_regmap a5_sys_pll_dco = {
 			.shift   = 16,
 			.width   = 5,
 		},
-#ifdef CONFIG_ARM
-		/* od for 32bit */
 		.od = {
 			.reg_off = ANACTRL_SYSPLL_CTRL0,
 			.shift	 = 12,
 			.width	 = 3,
 		},
-#endif
 		.table = a5_sys_pll_params_table,
 		.l = {
 			.reg_off = ANACTRL_SYSPLL_CTRL0,
@@ -582,13 +579,11 @@ static struct clk_regmap a5_gp1_pll_dco = {
 			.shift   = 0,
 			.width   = 8,
 		},
-#ifdef CONFIG_ARM
 		.od = {
 			.reg_off = ANACTRL_GP1PLL_CTRL0,
-			.shift	 = 16,
+			.shift	 = 12,
 			.width	 = 3,
 		},
-#endif
 		.l = {
 			.reg_off = ANACTRL_GP1PLL_CTRL0,
 			.shift   = 31,
@@ -600,21 +595,13 @@ static struct clk_regmap a5_gp1_pll_dco = {
 			.width   = 1,
 		},
 		.table = a5_gp1_pll_table,
-		/* GP1 has been opened under the bootloader,
-		 * do not repeat the operation here, otherwise gp1
-		 * may be closed
-		 */
-		//.init_regs = a5_gp1_init_regs,
-		//.init_count = ARRAY_SIZE(a5_gp1_init_regs),
-
-		//.smc_id = SECURE_PLL_CLK,
-		//.secid_disable = SECID_GP1_DCO_PLL_DIS,
-		//.secid = SECID_GP1_DCO_PLL
-
+		.smc_id = SECURE_PLL_CLK,
+		.secid_disable = SECID_GP1_DCO_PLL_DIS,
+		.secid = SECID_GP1_DCO_PLL
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll_dco",
-		.ops = &meson_clk_pll_ops,
+		.ops = &meson_secure_pll_v2_ops,
 		.parent_data = (const struct clk_parent_data []) {
 			{ .fw_name = "xtal", }
 		},
@@ -643,12 +630,12 @@ static struct clk_regmap a5_gp1_pll = {
 		.width = 3,
 		.flags = (CLK_DIVIDER_POWER_OF_TWO |
 			  CLK_DIVIDER_ROUND_CLOSEST),
-		//.smc_id = SECURE_PLL_CLK,
-		//.secid = SECID_GP1_PLL_OD
+		.smc_id = SECURE_PLL_CLK,
+		.secid = SECID_GP1_PLL_OD
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll",
-		.ops = &clk_regmap_divider_ops,
+		.ops = &clk_regmap_secure_v2_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&a5_gp1_pll_dco.hw
 		},
