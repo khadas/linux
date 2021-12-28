@@ -1063,7 +1063,8 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 				di_vf->type,
 				di_vf->type_original);
 			if (!need_dw ||
-			    (need_dw && di_vf->width != 0)) {
+			    (need_dw && di_vf->width != 0 &&
+				di_vf->canvas0_config[0].phy_addr != 0)) {
 				vc_print(dev->index, PRINT_OTHER,
 					"use di vf.\n");
 				/* link uvm vf into di_vf->vf_ext */
