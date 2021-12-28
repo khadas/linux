@@ -3168,7 +3168,7 @@ int ts_output_check_flow_control(int sid, int percentage)
 				ptmp = pout->cb_ts_list;
 				while (ptmp && ptmp->cb) {
 					if (check_dmx_filter_buff(ptmp->udata[0],
-						(total_size - level)) != 0) {
+						(total_size - free_size)) != 0) {
 						pr_dbg("%s a 2 buf:0x%0x, level:0x%0x\n",
 							__func__, buff_len, level);
 						return -3;
