@@ -71,7 +71,10 @@ enum toddr_src {
 	PDMIN_B = 16,
 	TDMINB_LB = 17,
 	TDMIN_D = 18,
-	TODDR_SRC_MAX = 19
+	VAD_TOP_VAD = 19,
+	VAD_TDMIN = 20,
+	VAD_PDMIN = 21,
+	TODDR_SRC_MAX = 22
 };
 
 enum resample_idx {

@@ -69,6 +69,9 @@ struct src_enum_table toddr_src_table[TODDR_SRC_MAX] = {
 	{PDMIN_B,      "pdmin_b"},
 	{TDMINB_LB,    "tdminb_lb"},
 	{TDMIN_D,      "tdmin_d"},
+	{VAD_TOP_VAD,  "vad_top_vad"},
+	{VAD_TDMIN,    "vad_tdmin"},
+	{VAD_PDMIN,    "vad_pdmin"}
 };
 
 struct frddr_enum_table frddr_src_table[FRDDR_MAX] = {
@@ -2122,7 +2125,9 @@ struct toddr_src_conf toddr_srcs_v4[] = {
 	TODDR_SRC_CONFIG("tdmin_lb", 6, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("loopback_a", 7, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("resample_a", 13, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
-	/*need vap top */
+	TODDR_SRC_CONFIG("vad_top_vad", 29, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("vad_tdmin", 30, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("vad_pdmin", 31, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	{ /* sentinel */ }
 };
 
