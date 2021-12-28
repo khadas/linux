@@ -783,6 +783,10 @@ static int dump_edid_data(u32 type, char *path)
 	}
 
 	block_cnt = hdev->EDID_buf[0x7e] + 1;
+	if (hdev->EDID_buf[0x7e] != 0 &&
+		hdev->EDID_buf[128 + 4] == 0xe2 &&
+		hdev->EDID_buf[128 + 5] == 0x78)
+		block_cnt = hdev->EDID_buf[128 + 6] + 1;
 	if (type == 1) {
 		/* dump as bin file*/
 		size = vfs_write(filp, hdev->EDID_buf,

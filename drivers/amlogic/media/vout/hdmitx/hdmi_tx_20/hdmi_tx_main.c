@@ -1145,7 +1145,7 @@ static ssize_t rawedid_show(struct device *dev,
 	block_no = hdev->edid_ptr[126];
 	if (block_no == 1)
 		if (hdev->edid_ptr[128 + 4] == 0xe2 &&
-			hdev->edid_ptr[128 + 5 == 0x78])
+			hdev->edid_ptr[128 + 5] == 0x78)
 			block_no = hdev->edid_ptr[128 + 6];	//EEODB
 	if (block_no < 8)
 		num = (block_no + 1) * 128;
