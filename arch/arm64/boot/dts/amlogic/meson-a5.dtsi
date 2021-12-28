@@ -1402,7 +1402,6 @@
 			status = "disabled";
 
 			ext_mdio: mdio {
-				reg = <0>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "snps,dwmac-mdio";
