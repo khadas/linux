@@ -67,6 +67,9 @@
 #define PPS_FRAC_BITS 24
 #define PPS_INT_BITS 4
 
+#define DATA_ALIGNED_4(x)  (((x) + 3) & ~3)
+#define DATA_ALIGNED_DOWN_4(x)  ((x) & ~3)
+
 struct filter_info_s {
 	u32 cur_vert_filter;
 	u32 cur_horz_filter;
@@ -1292,6 +1295,7 @@ static int vpp_set_filters_internal
 	u32 src_width_max, src_height_max;
 	bool afbc_support;
 	bool crop_adjust = false;
+	bool hskip_adjust = false;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1425,6 +1429,12 @@ RESTART_ALL:
 		next_frame_par->vscale_skip_count++;
 
 RESTART:
+	if (next_frame_par->hscale_skip_count && !hskip_adjust) {
+		w_in  = DATA_ALIGNED_DOWN_4(w_in);
+		crop_left = DATA_ALIGNED_4(crop_left);
+		hskip_adjust = true;
+	}
+
 	aspect_factor = (vpp_flags & VPP_FLAG_AR_MASK) >> VPP_FLAG_AR_BITS;
 	/* don't use input->wide_mode */
 	wide_mode = (vpp_flags & VPP_FLAG_WIDEMODE_MASK) >> VPP_WIDEMODE_BITS;
@@ -1958,9 +1968,11 @@ RESTART:
 				goto RESTART;
 			} else {
 				next_frame_par->hscale_skip_count = 1;
+				goto RESTART;
 			}
 		} else if (skip == SPEED_CHECK_HSKIP) {
 			next_frame_par->hscale_skip_count = 1;
+			goto RESTART;
 		}
 	}
 
@@ -3894,6 +3906,7 @@ static int vpp_set_filters_no_scaler_internal
 	bool no_compress = false;
 	u32 cur_super_debug = 0;
 	bool afbc_support;
+	bool hskip_adjust = false;
 
 	if (!input)
 		return vppfilter_fail;
@@ -3983,6 +3996,12 @@ RESTART_ALL:
 	}
 
 RESTART:
+	if (next_frame_par->hscale_skip_count && !hskip_adjust) {
+		w_in  = DATA_ALIGNED_DOWN_4(w_in);
+		crop_left = DATA_ALIGNED_4(crop_left);
+		hskip_adjust = true;
+	}
+
 	/* don't use input->wide_mode */
 	wide_mode = (vpp_flags & VPP_FLAG_WIDEMODE_MASK) >> VPP_WIDEMODE_BITS;
 
@@ -4252,9 +4271,11 @@ RESTART:
 				goto RESTART;
 			} else {
 				next_frame_par->hscale_skip_count = 1;
+				goto RESTART;
 			}
 		} else if (skip == SPEED_CHECK_HSKIP) {
 			next_frame_par->hscale_skip_count = 1;
+			goto RESTART;
 		}
 	}
 
