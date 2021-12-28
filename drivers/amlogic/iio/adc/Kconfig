@@ -1,0 +1,23 @@
+#
+# ADC drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Analog to digital converters"
+
+config AMLOGIC_SARADC
+	tristate "Amlogic Meson SAR ADC driver"
+	depends on OF && COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
+	depends on REGMAP_MMIO
+	depends on IIO
+	depends on IIO_BUFFER
+	depends on IIO_KFIFO_BUF
+	default n
+	help
+	  Say yes here to build support for the SAR ADC found in Amlogic Meson
+	  SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called meson_saradc.
+
+endmenu

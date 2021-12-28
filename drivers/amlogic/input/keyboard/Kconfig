@@ -14,7 +14,7 @@ menuconfig AMLOGIC_INPUT_KEYBOARD
 config AMLOGIC_ADC_KEYPADS
 	tristate "Meson ADC keypad support"
 	depends on AMLOGIC_INPUT_KEYBOARD
-	depends on MESON_SARADC
+	depends on MESON_SARADC || AMLOGIC_SARADC
 	default n
 	help
 	  Say Y here if you want to use the Meson ADC keypad.
