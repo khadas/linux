@@ -28,6 +28,7 @@
 
 #include "meson_drv.h"
 #include "meson_crtc.h"
+#include "meson_writeback.h"
 
 struct meson_commit_work_item {
 	struct kthread_work kthread_work;
@@ -420,12 +421,18 @@ void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_connector *conn;
 	struct meson_connector *meson_conn;
+	struct am_drm_writeback *drm_writeback;
 	struct drm_connector_state *new_conn_state, *old_conn_state;
 	int i;
 
 	/*do  update which dont need       pipe change.*/
 	for_each_oldnew_connector_in_state(old_state, conn, old_conn_state, new_conn_state, i) {
-		meson_conn = connector_to_meson_connector(conn);
+		if (conn->connector_type == DRM_MODE_CONNECTOR_WRITEBACK) {
+			drm_writeback = connector_to_am_writeback(conn);
+			meson_conn = &drm_writeback->base;
+		} else {
+			meson_conn = connector_to_meson_connector(conn);
+		}
 
 		if (meson_conn->update)
 			meson_conn->update(new_conn_state, old_conn_state);

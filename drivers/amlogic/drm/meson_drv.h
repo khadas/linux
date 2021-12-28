@@ -35,7 +35,6 @@ struct meson_drm_thread {
 
 struct meson_connector {
 	struct drm_connector connector;
-	struct drm_writeback_connector wb_connector;
 	struct meson_drm *drm_priv;
 	void (*update)(struct drm_connector_state *new_state,
 		struct drm_connector_state *old_state);
