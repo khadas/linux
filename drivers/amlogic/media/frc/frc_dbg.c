@@ -71,6 +71,7 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "frs state:%d (%s) new:%d\n", devp->frc_sts.state,
 	       frc_state_ary[devp->frc_sts.state], devp->frc_sts.new_state);
 	pr_frc(0, "input in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
+	pr_frc(0, "frc_memc_level = %d\n", fw_data->frc_top_type.frc_memc_level);
 	pr_frc(0, "game_mode=%d secure_mode=%d pic_type=%d\n", devp->in_sts.game_mode,
 		devp->in_sts.secure_mode, devp->in_sts.pic_type);
 	pr_frc(0, "dbg en:%d in_out_ratio=0x%x\n", devp->dbg_force_en, devp->dbg_in_out_ratio);
@@ -129,6 +130,7 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "get_frc_adj_me_out_line = %d\n", devp->out_line);
 	pr_frc(0, "vendor = %d\n", fw_data->frc_fw_alg_ctrl.frc_algctrl_u8vendor);
 	pr_frc(0, "mc_fb = %d\n", fw_data->frc_fw_alg_ctrl.frc_algctrl_u8mcfb);
+	pr_frc(0, "high_freq_flash = %d\n", devp->in_sts.high_freq_flash);
 
 }
 
@@ -461,6 +463,11 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_set_film_support(val1);
+	} else if (!strcmp(parm[0], "freq_en")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->in_sts.high_freq_en = val1;
 	}
 exit:
 	kfree(buf_orig);

@@ -57,8 +57,9 @@
 // frc_20220111 frc close in high bandwidth"
 // frc_20220112 frc mark demo setting"
 // frc_20220119 add frc secure mode protection
+// frc_2022-0207 frc sync frc_fw glb setting
 
-#define FRC_FW_VER			"2022-0207 frc sync frc_fw glb setting"
+#define FRC_FW_VER			"2022-0215 frc fix char flashing of video"
 #define FRC_KERDRV_VER                  1715
 
 #define FRC_DEVNO	1
@@ -258,6 +259,9 @@ struct st_frc_in_sts {
 	u32 game_mode;
 	u32 secure_mode;
 	u32 pic_type;
+
+	u32  high_freq_en;
+	u32  high_freq_flash; /*0 default, 1: high freq char flash*/
 };
 
 struct st_frc_out_sts {

@@ -8,6 +8,13 @@
 #define ON	1
 #define OFF	0
 
+/*fix High frequency char flash*/
+#define MAX_HIST1 8250000
+#define MIN_HIST1 8150000
+#define MAX_HIST2 7560000
+#define MIN_HIST2 7150000
+#define LIMIT 10
+
 enum vf_sts {
 	VFRAME_NO = 0,
 	VFRAME_HAVE = 1,
@@ -43,5 +50,6 @@ int frc_tell_alg_vendor(u8 vendor_info);
 int frc_set_memc_fallback(u8 fbvale);
 int frc_set_film_support(u32 filmcnt);
 void frc_mm_secure_set(struct frc_dev_s *devp);
+void frc_char_flash_check(void);
 
 #endif

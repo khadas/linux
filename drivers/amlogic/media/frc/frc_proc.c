@@ -42,6 +42,7 @@
 #include <linux/amlogic/media/frc/frc_common.h>
 #include <linux/amlogic/tee.h>
 #include <linux/clk.h>
+#include <linux/amlogic/media/video_sink/video.h>
 
 #include "frc_drv.h"
 #include "frc_proc.h"
@@ -578,6 +579,7 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	frc_event = frc_input_sts_check(devp, &cur_in_sts);
 	if (frc_event)
 		pr_frc(1, "event = 0x%08x\n", frc_event);
+	frc_char_flash_check();
 }
 
 void frc_state_change_finish(struct frc_dev_s *devp)
@@ -1186,3 +1188,65 @@ int frc_set_film_support(u32 filmcnt)
 	return 1;
 }
 
+static int notify_frc_signal_to_amvideo(int *char_flash_check)
+{
+	static int pre_char_flash_check;
+
+//#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+	if (pre_char_flash_check != *char_flash_check) {
+		pr_frc(2, "char_flash_check = %d\n", *char_flash_check);
+		pre_char_flash_check = *char_flash_check;
+		amvideo_notifier_call_chain
+			(AMVIDEO_UPDATE_FRC_CHAR_FLASH,
+			(void *)char_flash_check);
+	}
+//#endif
+	return 0;
+}
+
+// fix frc char flashing
+void frc_char_flash_check(void)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *pfw_data;
+	static u16 match_count;
+	int char_flash_check;
+	int temp, temp2;
+
+	if (!devp || !devp->probe_ok || !devp->fw_data)
+		return;
+	if (devp->in_sts.high_freq_en) {
+		if (devp->in_sts.high_freq_flash) {
+			char_flash_check = 0;
+			devp->in_sts.high_freq_flash = char_flash_check;
+			notify_frc_signal_to_amvideo(&char_flash_check);
+		}
+		return;
+	}
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
+	/*4K input/output && memc on && glb_motion && hist*/
+	if (pfw_data->frc_top_type.hsize == 3840 &&
+		pfw_data->frc_top_type.vsize == 2160 &&
+		devp->frc_sts.state == 1) {
+		temp = READ_FRC_REG(FRC_BBD_RO_MAX1_HIST_CNT);
+		temp2 = READ_FRC_REG(FRC_BBD_RO_MAX2_HIST_CNT);
+		temp = temp + temp2;
+		if ((temp > MIN_HIST1 && temp < MAX_HIST1) ||
+			(temp > MIN_HIST2 && temp < MAX_HIST2)) {
+			match_count++;
+			if (match_count > LIMIT * 2)
+				match_count = LIMIT * 2;
+		} else {
+			match_count--;
+			if (match_count < 1)
+				match_count = 1;
+		}
+
+		if (match_count > LIMIT)
+			char_flash_check = 1;
+		else
+			char_flash_check = 0;
+		devp->in_sts.high_freq_flash = char_flash_check;
+		notify_frc_signal_to_amvideo(&char_flash_check);
+	}
+}
