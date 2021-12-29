@@ -803,10 +803,12 @@
 
 		status = "okay";
 	};
-#if 0
+
+	/* a5 only one resample, a/b can only use one at the same time */
+	/* spdif use this resample */
 	asrca: resample@0 {
 		compatible = "amlogic, t5-resample-a";
-		clocks = <&clkc CLKID_MPLL3
+		clocks = <&clkc CLKID_MPLL2
 				&clkaudio CLKID_AUDIO_MCLK_F
 				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
@@ -820,10 +822,23 @@
 		 *	TDMIN_LB, 6
 		 *	LOOPBACK, 7
 		 */
-		resample_module = <4>;
+		resample_module = <3>;
 		status = "disabled";
 	};
-#endif
+
+	/* loopback use this resample */
+	asrcb: resample@1 {
+		compatible = "amlogic, t5-resample-b";
+		clocks = <&clkc CLKID_MPLL2
+				&clkaudio CLKID_AUDIO_MCLK_F
+				&clkaudio CLKID_AUDIO_RESAMPLE_A>;
+		clock-names = "resample_pll", "resample_src", "resample_clk";
+		/*this resample is only used for loopback_A.*/
+		capture_sample_rate = <16000>;
+
+		status = "okay";
+	};
+
 	vad:vad {
 		compatible = "amlogic, snd-vad-top";
 		#sound-dai-cells = <0>;

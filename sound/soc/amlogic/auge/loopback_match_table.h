@@ -47,6 +47,7 @@ struct mux_conf lb_srcs_v3[] = {
 	AUDIO_SRC_CONFIG("tdmin_lb", 6, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("loopback_a", 7, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("resample_a", 13, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("resample_b", 13, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("vad", 29, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("tdmin_b", 30, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("pdmin", 31, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
@@ -107,6 +108,7 @@ struct loopback_chipinfo {
 	 * before t5 chips, Lb src sel: EE_AUDIO_LB_A_CTRL1 [0]
 	 */
 	bool multi_bits_lbsrcs;
+	bool use_resamplea;
 };
 
 static struct loopback_chipinfo g12a_loopbacka_chipinfo = {
@@ -216,6 +218,7 @@ static struct loopback_chipinfo a5_loopbacka_chipinfo = {
 	.srcs = &lb_srcs_v3[0],
 	.tdmin_lb_srcs = &tdmin_lb_srcs_v2[0],
 	.multi_bits_lbsrcs = true,
+	.use_resamplea = true,
 };
 
 static const struct of_device_id loopback_device_id[] = {

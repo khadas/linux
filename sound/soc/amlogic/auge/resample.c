@@ -95,6 +95,10 @@ int get_resample_module_num(void)
 	if (p_resample && p_resample->chipinfo)
 		return p_resample->chipinfo->num;
 
+	p_resample = get_audioresample(RESAMPLE_B);
+	if (p_resample && p_resample->chipinfo)
+		return p_resample->chipinfo->num;
+
 	return 1;
 }
 
