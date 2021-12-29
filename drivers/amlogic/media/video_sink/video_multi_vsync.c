@@ -393,7 +393,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 
 	/* filter setting management */
 	pipx_render_frame(vpp_index, info);
-	/* video_secure_set(); */
+	video_secure_set(vpp_index);
 
 	if (vd_layer_vpp[vpp_id].dispbuf &&
 	    (vd_layer_vpp[vpp_id].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME))

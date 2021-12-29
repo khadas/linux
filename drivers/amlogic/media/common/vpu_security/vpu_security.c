@@ -46,6 +46,7 @@ static struct vpu_security_device_info vpu_security_info;
 static struct sec_dev_data_s sec_meson_dev;
 static u32 secure_cfg;
 static u32 log_level;
+static u32 debug_value;
 
 static struct vpu_sec_reg_s reg_v1[] = {
 	{VIU_DATA_SEC, 1, 0, 1}, /* 00. OSD1 */
@@ -229,10 +230,11 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			    enum secure_module_e module,
 			    u32 secure_src, u32 vpp_index)
 {
-	static u32 osd_secure, video_secure;
+	static u32 osd_secure[VPP_TOP_MAX] = {0,};
+	static u32 video_secure[VPP_TOP_MAX] = {0,};
 	static bool osd_secure_en[VPP_TOP_MAX] = {0,};
 	static bool video_secure_en[VPP_TOP_MAX] = {0,};
-	static int value_save;
+	static int value_save[VPP_TOP_MAX] = {0,};
 	u32 value = 0;
 	int secure_update = 0;
 	struct vd_secure_info_s vd_secure[MAX_SECURE_OUT];
@@ -254,15 +256,17 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 					secure_src |= OSD4_INPUT_SECURE;
 
 				/* OSD module secure */
-				osd_secure = secure_src;
-				value = osd_secure | video_secure;
+				osd_secure[vpp_index] = secure_src;
+				value = osd_secure[vpp_index] |
+					video_secure[vpp_index];
 				ins->secure_enable = 1;
 				ins->secure_status = value;
 				osd_secure_en[vpp_index] = 1;
 			} else {
 				/* OSD none secure */
-				osd_secure = secure_src;
-				value = osd_secure | video_secure;
+				osd_secure[vpp_index] = secure_src;
+				value = osd_secure[vpp_index] |
+					video_secure[vpp_index];
 				ins->secure_enable = 0;
 				ins->secure_status = value;
 				osd_secure_en[vpp_index] = 0;
@@ -275,15 +279,17 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			    (secure_src & VD2_INPUT_SECURE) ||
 			    (secure_src & VD1_INPUT_SECURE)) {
 				/* video module secure */
-				video_secure = secure_src;
-				value = video_secure | osd_secure;
+				video_secure[vpp_index] = secure_src;
+				value = video_secure[vpp_index] |
+					osd_secure[vpp_index];
 				ins->secure_enable = 1;
 				ins->secure_status = value;
 				video_secure_en[vpp_index] = 1;
 			} else {
 				/* video module secure */
-				video_secure = secure_src;
-				value = video_secure | osd_secure;
+				video_secure[vpp_index] = secure_src;
+				value = video_secure[vpp_index] |
+					osd_secure[vpp_index];
 				ins->secure_enable = 0;
 				ins->secure_status = value;
 				video_secure_en[vpp_index] = 0;
@@ -318,24 +324,31 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 				value &= ~VPP2_OUTPUT_SECURE;
 		}
 
+		/* debug value setting */
+		if (debug_value)
+			value = debug_value;
+
 		if (module == OSD_MODULE ||
 			module == VIDEO_MODULE ||
 			module == DI_MODULE) {
-			if (value_save != value) {
+			if (value_save[vpp_index] != value) {
 				/* record changed bit and current val */
-				change.bit_changed = value ^ value_save;
+				change.bit_changed =
+						value ^ value_save[vpp_index];
 				change.current_val = value;
 				secure_reg_update(ins, &change, vpp_index);
 				secure_update = 1;
 			}
-			value_save = value;
+			value_save[vpp_index] = value;
 		}
 	}
 
 	if (log_level >= 2)
 		pr_info("vpu secure bit 0x%x\n", value);
 
-	secure_cfg = value;
+	secure_cfg = value_save[VPP_TOP] |
+			value_save[VPP_TOP_1] |
+			value_save[VPP_TOP_2];
 	if (secure_update) {
 		int i;
 
@@ -453,11 +466,49 @@ static ssize_t log_level_store(struct class *cla,
 	return count;
 }
 
+static ssize_t debug_value_show(struct class *cla,
+			      struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len, "cur val:0x%x\n", debug_value);
+	len += sprintf(buf + len, "bit00. OSD1\n");
+	len += sprintf(buf + len, "bit01. OSD2\n");
+	len += sprintf(buf + len, "bit02. VD1\n");
+	len += sprintf(buf + len, "bit03. VD2\n");
+	len += sprintf(buf + len, "bit04. OSD3\n");
+	len += sprintf(buf + len, "bit05. VD AFBC, not used\n");
+	len += sprintf(buf + len, "bit06. DV\n");
+	len += sprintf(buf + len, "bit07. OSD AFBC\n");
+	len += sprintf(buf + len, "bit08. VPP_TOP\n");
+	len += sprintf(buf + len, "bit09. OSD4\n");
+	len += sprintf(buf + len, "bit10. VD3\n");
+	len += sprintf(buf + len, "bit11. VPP_TOP1\n");
+	len += sprintf(buf + len, "bit12. VPP_TOP2\n");
+
+	return len;
+}
+
+static ssize_t debug_value_store(struct class *cla,
+			       struct class_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	pr_info("debug_value: %d->%d\n", debug_value, res);
+	debug_value = res;
+	return count;
+}
+
 static struct class_attribute vpu_security_attrs[] = {
 	__ATTR(security_info, 0444,
 	       vpu_security_info_show, NULL),
 	__ATTR(log_level, 0644,
 	       log_level_show, log_level_store),
+	__ATTR(debug_value, 0644,
+	       debug_value_show, debug_value_store),
 };
 
 irqreturn_t vpu_security_isr(int irq, void *dev_id)

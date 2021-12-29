@@ -10288,7 +10288,7 @@ void vpp_secure_cb(u32 arg)
 }
 #endif
 
-void video_secure_set(void)
+void video_secure_set(u8 vpp_index)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	int i;
@@ -10297,7 +10297,11 @@ void video_secure_set(void)
 	struct video_layer_s *layer = NULL;
 
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
-		layer = &vd_layer[i];
+		layer = get_layer_by_layer_id(i);
+
+		/* layer is NULL or vpp_index does not match, skip */
+		if (!layer || layer->vpp_index != vpp_index)
+			continue;
 		if (layer->dispbuf &&
 		    (layer->dispbuf->flag & VFRAME_FLAG_VIDEO_SECURE))
 			secure_enable = 1;
@@ -10315,7 +10319,7 @@ void video_secure_set(void)
 				secure_src |= VD3_INPUT_SECURE;
 		}
 	}
-	secure_config(VIDEO_MODULE, secure_src, VPP0);
+	secure_config(VIDEO_MODULE, secure_src, vpp_index);
 #endif
 }
 

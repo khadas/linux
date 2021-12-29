@@ -8809,7 +8809,7 @@ SET_FILTER:
 	frame_par_di_set = primary_render_frame(&vd_layer[0]);
 	pip_render_frame(&vd_layer[1], vinfo);
 	pip2_render_frame(&vd_layer[2], vinfo);
-	video_secure_set();
+	video_secure_set(VPP0);
 
 	if (vd_layer[0].dispbuf &&
 		(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME)) {

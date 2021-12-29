@@ -720,7 +720,7 @@ void fgrain_setting(struct video_layer_s *layer,
 		    struct vframe_s *vf);
 void fgrain_update_table(struct video_layer_s *layer,
 			 struct vframe_s *vf);
-void video_secure_set(void);
+void video_secure_set(u8 vpp_index);
 bool has_hscaler_8tap(u8 layer_id);
 bool has_pre_hscaler_ntap(u8 layer_id);
 bool has_pre_hscaler_8tap(u8 layer_id);
