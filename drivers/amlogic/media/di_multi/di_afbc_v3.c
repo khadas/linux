@@ -3574,7 +3574,9 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	op->wr(reg[EAFBCE_DEFCOLOR_2],
 	       ((def_color_2 & 0xfff) << 12) |
 	       ((def_color_1 & 0xfff) << 0));
-
+	op->wr(reg[EAFBCE_DUMMY_DATA],
+	       ((def_color_2 & 0x3ff) << 10) |
+	       ((def_color_2 & 0x3ff) << 0));
 	/*4k addr have used in every frame;*/
 	/*cur_mmu_used += Rd(DI_AFBCE_MMU_NUM);*/
 

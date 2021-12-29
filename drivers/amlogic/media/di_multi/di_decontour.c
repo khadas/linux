@@ -1866,7 +1866,7 @@ static bool dct_m_check(void)
 	}
 
 	if (dct_check_need_bypass(pch, vf)) {
-		PR_INF("m_check:bypass:0x%x\n",
+		dbg_dbg("m_check:bypass:0x%x\n",
 			get_datal()->hw_dct.sbypass_reason);
 		dct_do_bypass(pch);
 		dct->state--;
