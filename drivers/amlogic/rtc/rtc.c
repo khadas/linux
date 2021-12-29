@@ -15,6 +15,9 @@
 #include <linux/amlogic/rtc.h>
 #include <linux/amlogic/scpi_protocol.h>
 #include <linux/clk.h>
+#include <dt-bindings/rtc/amlogic,rtc.h>
+
+#define RTC_CALIBRATION
 
 static void meson_set_time(struct meson_rtc_data *rtc, u32 time_sec)
 {
@@ -157,6 +160,175 @@ static int meson_rtc_alarm_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
+static void meson_rtc_clk_config(struct meson_rtc_data *rtc)
+{
+	u32 reg_val;
+
+	if (rtc->freq == OSC_24MHZ) {
+		reg_val = readl(rtc->reg_base + RTC_CTRL);
+		/* Select RTC osillator to 24MHz clock output */
+		reg_val |= (1 << RTC_OSC_SEL_BIT);
+		writel(reg_val, rtc->reg_base + RTC_CTRL);
+
+		/* Set RTC osillator to freq_out to freq_in/((N0*M0+N1*M1)/(M0+M1)) */
+		reg_val = readl(rtc->reg_base + RTC_OSCIN_CTRL0);
+		reg_val &= (~(0x3 << 28));
+		reg_val |= (0x1 << 28);
+		/* Enable clock_in gate of osillator 24MHz */
+		reg_val |= (1 << 31);
+		/* N0 is set to 733, N1 is set to 732 by default*/
+		writel(reg_val, rtc->reg_base + RTC_OSCIN_CTRL0);
+		/* Set M0 to 2, M1 to 3, so freq_out = 32768 Hz*/
+		reg_val = readl(rtc->reg_base + RTC_OSCIN_CTRL1);
+		reg_val &= ~(0xfff);
+		reg_val |= (0x1 << 0);
+		reg_val &= ~(0xfff << 12);
+		reg_val |= (0x2 << 12);
+		writel(reg_val, rtc->reg_base + RTC_OSCIN_CTRL1);
+	}
+}
+
+#ifdef RTC_CALIBRATION
+static int meson_rtc_adjust_sec(struct device *dev, u32 match_counter,
+				enum meson_rtc_adj ops)
+{
+	struct meson_rtc_data *rtc = dev_get_drvdata(dev->parent);
+	u32 reg_val;
+
+	if (match_counter > 0x7ffff) {
+		pr_err("%s: invalid match_counter\n", __func__);
+		return -EINVAL;
+	}
+
+	reg_val = readl(rtc->reg_base + RTC_SEC_ADJUST_REG);
+	/* Set sec_adjust_ctrl */
+	reg_val &= (~(0x3 << 19));
+	if (ops == ADJUST_DROP)
+		reg_val |= (0x2 << 19);
+	else if (ops == ADJUST_INSERT)
+		reg_val |= (0x3 << 19);
+	/* Set match_counter */
+	reg_val &= (~(0x7ffff << 0));
+	reg_val |= match_counter;
+	/* Valid adjust */
+	reg_val |= (0x1 << 23);
+	writel(reg_val, rtc->reg_base + RTC_SEC_ADJUST_REG);
+
+	return 0;
+}
+
+static int meson_rtc_set_calibration(struct device *dev, u32 calibration)
+{
+	enum meson_rtc_adj cal_ops;
+	u32 match_counter;
+	u32 sec_adjust_ctrl;
+	int ret;
+
+	match_counter = calibration & 0x7ffff;
+	sec_adjust_ctrl = (calibration >> 30) & 0x3;
+	cal_ops = sec_adjust_ctrl;
+
+	if (cal_ops == ADJUST_MAX) {
+		pr_err("%s: calibration ops val invalid!\n", __func__);
+		return -EINVAL;
+	}
+
+	ret = meson_rtc_adjust_sec(dev, match_counter, cal_ops);
+	dev_dbg(dev, "%s: Success to store RTC calibration attribute\n",
+		__func__);
+
+	return ret;
+}
+
+static int meson_rtc_get_calibration(struct device *dev, u32 *calibration)
+{
+	struct meson_rtc_data *rtc = dev_get_drvdata(dev->parent);
+	enum meson_rtc_adj cal_ops;
+	u32 match_counter;
+	u32 reg_val;
+	u32 sec_adjust_ctrl;
+
+	reg_val = readl(rtc->reg_base + RTC_SEC_ADJUST_REG);
+	match_counter = reg_val & 0x7ffff;
+	sec_adjust_ctrl = ((reg_val >> 19) & 0x3);
+
+	switch (sec_adjust_ctrl) {
+	case 0:
+	case 1:
+		cal_ops = ADJUST_NONE;
+		break;
+	case 2:
+		cal_ops = ADJUST_DROP;
+		break;
+	case 3:
+		cal_ops = ADJUST_INSERT;
+		break;
+	default:
+		cal_ops = ADJUST_NONE;
+		break;
+	}
+
+	*calibration = ((cal_ops & 0x3) << 30) | (match_counter & 0x7ffff);
+	return 0;
+}
+
+/* The calibration value transferred from buf takes bit[18:0] to represent   */
+/* match counter, while takes bit[31:30] to represent operation style       */
+/* which can be set to: 0 reprensents no calibration; 1 represents drop one */
+/* second every match counter; 2 represents insert one second every match counter */
+static ssize_t rtc_calibration_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int retval;
+	int calibration = 0;
+
+	if (sscanf(buf, " %i ", &calibration) != 1) {
+		dev_err(dev, "Failed to store RTC calibration attribute\n");
+		return -EINVAL;
+	}
+
+	retval = meson_rtc_set_calibration(dev, calibration);
+
+	return retval ? retval : count;
+}
+
+static ssize_t rtc_calibration_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int  retval = 0;
+	u32  calibration = 0;
+
+	retval = meson_rtc_get_calibration(dev, &calibration);
+	if (retval < 0) {
+		dev_err(dev, "Failed to read RTC calibration attribute\n");
+		sprintf(buf, "0\n");
+		return retval;
+	}
+
+	return sprintf(buf, "0x%x\n", calibration);
+}
+
+static DEVICE_ATTR_RW(rtc_calibration);
+
+static struct attribute *meson_rtc_attrs[] = {
+	&dev_attr_rtc_calibration.attr,
+	NULL
+};
+
+static const struct attribute_group meson_rtc_sysfs_files = {
+	.attrs	= meson_rtc_attrs,
+};
+#endif
+
+static const struct rtc_class_ops aml_meson_rtc_ops = {
+	.read_time = meson_rtc_read_time,
+	.set_time = meson_rtc_set_time,
+	.read_alarm = meson_rtc_read_alarm,
+	.set_alarm = meson_rtc_set_alarm,
+	.alarm_irq_enable = meson_rtc_alarm_enable,
+};
+
 static void meson_rtc_init(struct device *dev, struct meson_rtc_data *rtc)
 {
 	u32 reg_val;
@@ -169,19 +341,7 @@ static void meson_rtc_init(struct device *dev, struct meson_rtc_data *rtc)
 	dev_dbg(dev, "%s: rtc enable = %u\n", __func__, rtc_enable);
 	/* If rtc is not enable, enable and init it */
 	if (!rtc_enable) {
-		/* Set RTC osillator to freq_out to freq_in/N0 */
-		reg_val = readl(rtc->reg_base + RTC_OSCIN_CTRL0);
-		reg_val &= (~(0x3 << 28));
-		/* Enable clock_in gate of osillator 24MHz */
-		reg_val |= (1 << 31);
-		/* Set N0 to 3, so freq_out=24MHz/3=8MHz, to be changed!!*/
-		reg_val &= (~0xfff);
-		reg_val |= (2 << 0);
-		writel(reg_val, rtc->reg_base + RTC_OSCIN_CTRL0);
-
-		/* Select RTC osillator to 24MHz clock output */
-		reg_val = readl(rtc->reg_base + RTC_CTRL);
-		reg_val |= (1 << RTC_OSC_SEL_BIT);
+		meson_rtc_clk_config(rtc);
 		/* Enable RTC */
 		reg_val |= (1 << RTC_ENABLE_BIT);
 		writel(reg_val, rtc->reg_base + RTC_CTRL);
@@ -220,19 +380,12 @@ static void meson_rtc_init(struct device *dev, struct meson_rtc_data *rtc)
 	dev_dbg(dev, "%s: rtc time stamp = %u\n", __func__, reg_val);
 }
 
-static const struct rtc_class_ops aml_meson_rtc_ops = {
-	.read_time = meson_rtc_read_time,
-	.set_time = meson_rtc_set_time,
-	.read_alarm = meson_rtc_read_alarm,
-	.set_alarm = meson_rtc_set_alarm,
-	.alarm_irq_enable = meson_rtc_alarm_enable,
-};
-
 static int meson_rtc_probe(struct platform_device *pdev)
 {
 	struct meson_rtc_data *rtc;
 	struct device_node *node = pdev->dev.of_node;
 	int ret;
+	u32 freq = 0;
 
 	if (!node) {
 		dev_err(&pdev->dev,
@@ -259,7 +412,24 @@ static int meson_rtc_probe(struct platform_device *pdev)
 		pr_err("invalid rtc clock\n");
 		return -EINVAL;
 	}
-	clk_set_rate(rtc->clock, 24000000);
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "osc_freq", &freq);
+	if (!ret) {
+		if (freq != OSC_24MHZ && freq != OSC_32KHZ) {
+			pr_err("%s: Invalid clock configuration\n",
+				__func__);
+			return -EINVAL;
+		}
+		dev_dbg(&pdev->dev, "%s: Select %dHz oscillator as rtc source clock\n",
+			__func__, freq);
+		rtc->freq = freq;
+	} else {
+		pr_err("%s: Get rtc clock frequency failed!\n", __func__);
+		return -EINVAL;
+	}
+
+	clk_set_rate(rtc->clock, rtc->freq);
 	clk_prepare_enable(rtc->clock);
 
 	meson_rtc_init(&pdev->dev, rtc);
@@ -281,6 +451,12 @@ static int meson_rtc_probe(struct platform_device *pdev)
 	}
 
 	rtc->rtc_dev->ops = &aml_meson_rtc_ops;
+
+#ifdef RTC_CALIBRATION
+	ret = rtc_add_group(rtc->rtc_dev, &meson_rtc_sysfs_files);
+	if (ret)
+		return ret;
+#endif
 
 	ret = rtc_register_device(rtc->rtc_dev);
 	if (ret)

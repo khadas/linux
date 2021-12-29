@@ -49,6 +49,13 @@ enum meson_rtc_cmd {
 	RTC_CMD_SHUTDOWN	= 3,
 };
 
+enum meson_rtc_adj {
+	ADJUST_NONE		= 0,
+	ADJUST_DROP		= 1,
+	ADJUST_INSERT		= 2,
+	ADJUST_MAX		= 3,
+};
+
 struct meson_rtc_message {
 	enum meson_rtc_cmd  cmd;
 	u32  data;
@@ -62,4 +69,5 @@ struct meson_rtc_data {
 	bool alarm_enabled;
 	struct clk *clock;
 	int irq;
+	u32 freq;
 };
