@@ -10825,10 +10825,9 @@ static void adjust_dst_position(u32 output_index)
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 void osd_secure_cb(u32 arg)
 {
-	osd_log_dbg(MODULE_SECURE, "%s: arg=%x, secure_src=%x, reg:%x\n",
+	osd_log_dbg(MODULE_SECURE, "%s: arg=%x, secure_src=%x\n",
 		    __func__,
-		    arg, osd_hw.secure_src,
-		    osd_reg_read(VIU_DATA_SEC));
+		    arg, osd_hw.secure_src);
 }
 #endif
 
@@ -11289,6 +11288,9 @@ static void osd_setting_viux(u32 output_index)
 	u32 bld_src2_sel = 2;
 	u32 osd1_premult = 0;
 	u32 blend_en = 1;
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	u32 secure_src = 0;
+#endif
 
 	osd_log_dbg2(MODULE_RENDER, "### vpp_top%d display\n", output_index);
 
@@ -11430,7 +11432,7 @@ static void osd_setting_viux(u32 output_index)
 
 		/* vpp_top input mux */
 		rdma_wr_bits(OSD_PATH_MISC_CTRL, index + VPP_OSD1,
-			     index * 4 + 16, 8);
+			     index * 4 + 16, 4);
 
 		/* to vpp_topx */
 		vppx_blend_reg = &vpp_topx_blend_reg_array[output_index];
@@ -11546,6 +11548,31 @@ static void osd_setting_viux(u32 output_index)
 						  osd_hw.dim_color[index] & 0xff, 6, 8);
 		}
 	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	if (osd_hw.secure_enable[i]) {
+		switch (i) {
+		case 0:
+			secure_src |= OSD1_INPUT_SECURE;
+			break;
+		case 1:
+			secure_src |= OSD2_INPUT_SECURE;
+			break;
+		case 2:
+			secure_src |= OSD3_INPUT_SECURE;
+			break;
+		case 3:
+			secure_src |= OSD4_INPUT_SECURE;
+			break;
+		}
+	}
+	if (secure_src && osd_hw.osd_afbcd[i].enable)
+		secure_src |= MALI_AFBCD_SECURE;
+	osd_hw.secure_src = secure_src;
+
+	secure_config(OSD_MODULE, secure_src, output_index);
+#endif
+
 	osd_wait_vsync_hw_viux(output_index);
 }
 
