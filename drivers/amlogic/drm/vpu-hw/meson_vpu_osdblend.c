@@ -181,12 +181,17 @@ static void osd_blend1_size_set(struct osdblend_reg_s *reg,
 /*osd blend0 size config*/
 static void osd_dv_core_size_set(u32 h_size, u32 v_size)
 {
-	meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL1,
-			    ((h_size + 0x40) << 16) |
-			     (v_size + 0x80));
-	meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL2,
-			    (h_size << 16) | v_size);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	u32 tmp_h = h_size;
+	u32 tmp_v = v_size;
+
+	update_dvcore2_timing(&tmp_h, &tmp_v);
+	meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL1,
+			    ((tmp_h + 0x40) << 16) |
+			     (tmp_v + 0x80));
+	meson_vpu_write_reg(DOLBY_CORE2A_SWAP_CTRL2,
+			    (tmp_h << 16) | tmp_v);
+
 	update_graphic_width_height(h_size, v_size);
 #endif
 }
