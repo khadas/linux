@@ -1712,7 +1712,10 @@ bool rx_edid_set_aud_sad(u_char *sad, u_char len)
 	memset(tmp_sad, 0, sizeof(tmp_sad));
 	if (sad)
 		memcpy(tmp_sad, sad, len);
-	tmp_sad_len = len;
+	if (tmp_sad_len != len)
+		tmp_sad_len = len;
+	else
+		return false;
 	hdmi_rx_top_edid_update();
 	if (rx.open_fg && rx.port != rx.arc_port) {
 		if (atmos_edid_update_hpd_en)
@@ -1767,24 +1770,23 @@ bool rx_edid_update_aud_blk(u_char *pedid,
 /* update atmos bit
  * it will also update audio data blk(if required from Audio)
  */
-unsigned char rx_edid_update_atmos(unsigned char *p_edid)
+unsigned char rx_edid_update_sad(unsigned char *p_edid)
 {
 	unsigned char offset = 0;
 
-	if (need_support_atmos_bit == 0xff)
-		return 0;
-
-	offset = get_atmos_offset(p_edid);
-	if (offset == 0) {
-		if (log_level & EDID_LOG)
-			rx_pr("can not find atmos info\n");
-	} else {
-		if (need_support_atmos_bit)
-			p_edid[offset] = 1;
-		else
-			p_edid[offset] = 0;
-		if (log_level & EDID_LOG)
-			rx_pr("offset = %d\n", offset);
+	if (need_support_atmos_bit != 0xff)	{
+		offset = get_atmos_offset(p_edid);
+		if (offset == 0) {
+			if (log_level & EDID_LOG)
+				rx_pr("can not find atmos info\n");
+		} else {
+			if (need_support_atmos_bit)
+				p_edid[offset] = 1;
+			else
+				p_edid[offset] = 0;
+			if (log_level & EDID_LOG)
+				rx_pr("offset = %d\n", offset);
+		}
 	}
 	rx_edid_update_aud_blk(p_edid, tmp_sad, tmp_sad_len);
 	return 0;
@@ -1929,68 +1931,41 @@ bool hdmi_rx_top_edid_update(void)
 	 * update vsvdb
 	 */
 	rx_edid_update_hdr_info(pedid_data1);
-	rx_edid_update_audio_info(pedid_data1, EDID_SIZE);
-	edid_splice_earc_capds(pedid_data1,
-			       recv_earc_cap_ds, earc_cap_ds_len);
-	rx_edid_update_atmos(pedid_data1);
+	rx_edid_update_sad(pedid_data1);
 	rx_edid_update_vsvdb(pedid_data1,
 			     recv_vsvdb, recv_vsvdb_len);
 
 	if (size == 2 * EDID_SIZE) {
 		rx_edid_update_hdr_info(pedid_data2);
-		rx_edid_update_audio_info(pedid_data2,
-					  EDID_SIZE);
-		edid_splice_earc_capds(pedid_data2,
-				       recv_earc_cap_ds, earc_cap_ds_len);
-		rx_edid_update_atmos(pedid_data2);
+		rx_edid_update_sad(pedid_data2);
 		rx_edid_update_vsvdb(pedid_data2,
 				     recv_vsvdb, recv_vsvdb_len);
 	} else if (size == 2 * PORT_NUM * EDID_SIZE) {
 		rx_edid_update_vrr_info(pedid_data2);
 		rx_edid_update_hdr_info(pedid_data2);
-		rx_edid_update_audio_info(pedid_data2,
-					  EDID_SIZE);
-		edid_splice_earc_capds(pedid_data2,
-				       recv_earc_cap_ds, earc_cap_ds_len);
-		rx_edid_update_atmos(pedid_data2);
+		rx_edid_update_sad(pedid_data2);
 		rx_edid_update_vsvdb(pedid_data2,
 				     recv_vsvdb, recv_vsvdb_len);
 
 		rx_edid_update_hdr_info(pedid_data3);
-		rx_edid_update_audio_info(pedid_data3,
-					  EDID_SIZE);
-		edid_splice_earc_capds(pedid_data3,
-				       recv_earc_cap_ds, earc_cap_ds_len);
-		rx_edid_update_atmos(pedid_data3);
+		rx_edid_update_sad(pedid_data3);
 		rx_edid_update_vsvdb(pedid_data3,
 				     recv_vsvdb, recv_vsvdb_len);
 
 		rx_edid_update_vrr_info(pedid_data4);
 		rx_edid_update_hdr_info(pedid_data4);
-		rx_edid_update_audio_info(pedid_data4,
-					  EDID_SIZE);
-		edid_splice_earc_capds(pedid_data4,
-				       recv_earc_cap_ds, earc_cap_ds_len);
-		rx_edid_update_atmos(pedid_data4);
+		rx_edid_update_sad(pedid_data4);
 		rx_edid_update_vsvdb(pedid_data4,
 				     recv_vsvdb, recv_vsvdb_len);
 
 		rx_edid_update_hdr_info(pedid_data5);
-		rx_edid_update_audio_info(pedid_data5,
-					  EDID_SIZE);
-		edid_splice_earc_capds(pedid_data5,
-				       recv_earc_cap_ds, earc_cap_ds_len);
-		rx_edid_update_atmos(pedid_data5);
+		rx_edid_update_sad(pedid_data5);
 		rx_edid_update_vsvdb(pedid_data5,
 				     recv_vsvdb, recv_vsvdb_len);
 
 		rx_edid_update_vrr_info(pedid_data6);
 		rx_edid_update_hdr_info(pedid_data6);
-		rx_edid_update_audio_info(pedid_data6,
-					  EDID_SIZE);
-		edid_splice_earc_capds(pedid_data6,
-				       recv_earc_cap_ds, earc_cap_ds_len);
-		rx_edid_update_atmos(pedid_data6);
+		rx_edid_update_sad(pedid_data6);
 		rx_edid_update_vsvdb(pedid_data6,
 				     recv_vsvdb, recv_vsvdb_len);
 	}
