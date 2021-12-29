@@ -427,8 +427,7 @@ EXPORT_SYMBOL(unregister_cec_callback);
 
 static bool video_mute_enabled(void)
 {
-	if (rx.state != FSM_SIG_READY ||
-	    !already_start_dec)
+	if (rx.state != FSM_SIG_READY)
 		return false;
 
 	/* for debug with flicker issues, especially
@@ -3281,13 +3280,13 @@ void rx_main_state_machine(void)
 			}
 		} else {
 			sig_unready_cnt = 0;
-			one_frame_cnt = (1000 * 100 / rx.pre.frame_rate / 10) + 1;
+			one_frame_cnt = (1000 * 100 / rx.pre.frame_rate / 12) + 1;
 			if (rx.skip > 0) {
 				rx.skip--;
 			} else if (video_mute_enabled()) {
 				/* clear vpp mute after signal stable */
 				if (get_video_mute()) {
-					if (rx.var.mute_cnt++ < one_frame_cnt)
+					if (rx.var.mute_cnt++ < one_frame_cnt + 1)
 						break;
 					rx.var.mute_cnt = 0;
 					set_video_mute(false);
