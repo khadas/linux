@@ -314,6 +314,7 @@ static bool dolby_vision_el_disable;
 #define FLAG_DISABLE_LOAD_VSVDB		0x400000
 #define FLAG_DISABLE_CRC			0x800000
 #define FLAG_ENABLE_EL				0x1000000
+#define FLAG_DEBUG_CORE2_TIMING			0x2000000
 #define FLAG_MUTE				0x4000000
 #define FLAG_FORCE_HDMI_PKT			0x8000000
 #define FLAG_RX_EMP_VSEM			0x20000000
@@ -2609,6 +2610,19 @@ int dolby_vision_update_setting(void)
 }
 EXPORT_SYMBOL(dolby_vision_update_setting);
 
+/*update timing to 1080p if size < 1080p*/
+void update_dvcore2_timing(u32 *hsize, u32 *vsize)
+{
+	if (hsize && vsize &&
+	    !(dolby_vision_flags & FLAG_CERTIFICAION) &&
+	    !(dolby_vision_flags & FLAG_DEBUG_CORE2_TIMING) &&
+	    *hsize < 1920 && *vsize < 1080) {
+		*hsize = 1920;
+		*vsize = 1080;
+	}
+}
+EXPORT_SYMBOL(update_dvcore2_timing);
+
 static int dolby_core1_set
 	(u32 dm_count,
 	 u32 comp_count,
@@ -3373,6 +3387,8 @@ static int dolby_core2a_set
 	bool reset = false;
 	u32 *last_dm = (u32 *)&dovi_setting.dm_reg2;
 	u32 bypass_flag = 0;
+	u32 tmp_h = hsize;
+	u32 tmp_v = vsize;
 
 	if (dolby_vision_on &&
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
@@ -3425,16 +3441,18 @@ static int dolby_core2a_set
 
 	if (is_meson_box() || is_meson_tm2_stbmode() ||
 	    is_meson_t7_stbmode() || reset) {
+		/*update timing to 1080p if size < 1080p, otherwise display color dot*/
+		update_dvcore2_timing(&tmp_h, &tmp_v);
 		VSYNC_WR_DV_REG
 			(DOLBY_CORE2A_SWAP_CTRL1,
-			((hsize + g_htotal_add) << 16) | (vsize
+			((tmp_h + g_htotal_add) << 16) | (tmp_v
 			 + ((g_vtiming & 0xff000000) ?
 			 ((g_vtiming >> 24) & 0xff) : g_vtotal_add)
 			 + ((g_vtiming & 0xff0000) ?
 			 ((g_vtiming >> 16) & 0xff) : g_vsize_add)));
 		VSYNC_WR_DV_REG
 			(DOLBY_CORE2A_SWAP_CTRL2,
-			 (hsize << 16) | (vsize
+			 (tmp_h << 16) | (tmp_v
 			 + ((g_vtiming & 0xff0000) ?
 			 ((g_vtiming >> 16) & 0xff) : g_vsize_add)));
 	}
@@ -3485,9 +3503,9 @@ static int dolby_core2a_set
 		set_lut = false;
 
 	if (debug_dolby & 2)
-		pr_dolby_dbg("core2a g_potch %x %x, reset %d, set_lut %d, flag %x\n",
+		pr_dolby_dbg("core2 potch %x %x, reset %d, %d, flag %x, size %d %d\n",
 			     g_hpotch, g_vpotch, reset, set_lut,
-			     stb_core_setting_update_flag);
+			     stb_core_setting_update_flag, hsize, vsize);
 
 	/* core2 metadata program done */
 	VSYNC_WR_DV_REG(DOLBY_CORE2A_REG_START + 3, 1);

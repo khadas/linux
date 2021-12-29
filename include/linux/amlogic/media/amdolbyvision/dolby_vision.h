@@ -277,4 +277,5 @@ int parse_sei_and_meta_ext
 	 char *comp_buf);
 void dolby_vision_clear_buf(void);
 bool is_dv_control_backlight(void);
+void update_dvcore2_timing(u32 *hsize, u32 *vsize);
 #endif

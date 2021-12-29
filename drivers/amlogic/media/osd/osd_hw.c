@@ -10643,6 +10643,10 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 	u32 dv_core2_hsize;
 	u32 dv_core2_vsize;
 	u32 osd1_alpha_div = 0, osd2_alpha_div = 0;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	u32 tmp_h;
+	u32 tmp_v;
+#endif
 
 	if (!osd_blend_reg)
 		return;
@@ -10702,13 +10706,17 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 	dv_core2_hsize = osd_blend_reg->osd_blend_blend0_size & 0xfff;
 
 	if (osd_hw.osd_meson_dev.has_dolby_vision) {
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
-				     ((dv_core2_hsize + 0x40) << 16)
-				     | (dv_core2_vsize + 0x80 + 0));
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL2,
-				     (dv_core2_hsize << 16) |
-				     (dv_core2_vsize + 0));
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		tmp_h = dv_core2_hsize;
+		tmp_v = dv_core2_vsize;
+
+		update_dvcore2_timing(&tmp_h, &tmp_v);
+		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
+				     ((tmp_h + 0x40) << 16)
+				     | (tmp_v + 0x80 + 0));
+		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL2,
+				     (tmp_h << 16) |
+				     (tmp_v + 0));
 		update_graphic_width_height(dv_core2_hsize, dv_core2_vsize);
 		if (!update_to_dv) {
 			update_graphic_status();
