@@ -401,6 +401,7 @@ static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 	pr_dbg("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
 		buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0, len);
+	codec_mm_dma_flush((void *)buf_start_virt, len, DMA_TO_DEVICE);
 	mem->level = sec_level;
 	if (sec_level) {
 		sec_level = sec_level == 1 ? 0 : sec_level;
