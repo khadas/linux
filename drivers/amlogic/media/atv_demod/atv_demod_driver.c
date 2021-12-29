@@ -59,7 +59,8 @@
 /*                          Fix pal-dk and add pal-bg/i audio overmodulation. */
 /* 2021/11/05 --- V2.31 --- Bringup t5w. */
 /* 2021/12/24 --- V2.32 --- Fix shutdown. */
-#define AMLATVDEMOD_VER "V2.32"
+/* 2021/12/29 --- V2.33 --- Fix unable to find symbol aml_atvdemod_attach. */
+#define AMLATVDEMOD_VER "V2.33"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -114,7 +115,8 @@ static ssize_t atvdemod_debug_store(struct class *class,
 				priv_cfg = AML_ATVDEMOD_UNINIT;
 		}
 
-		fe->ops.analog_ops.set_config(fe, &priv_cfg);
+		if (fe->ops.analog_ops.set_config)
+			fe->ops.analog_ops.set_config(fe, &priv_cfg);
 
 		pr_info("%s.\n", priv_cfg ? "init" : "uninit");
 	} else if (!strncmp(parm[0], "reinit", 6)) {
@@ -330,7 +332,8 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		params.audmode = p->audmode;
 		params.std = p->std;
 
-		fe->ops.analog_ops.set_params(fe, &params);
+		if (fe->ops.analog_ops.set_params)
+			fe->ops.analog_ops.set_params(fe, &params);
 
 		pr_info("tune std color %s, audio %s, cvbs %s, freq %d Hz.\n",
 				v4l2_std_to_str((0xff000000 & p->std)),
@@ -353,7 +356,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		int adc_power = 0;
 		unsigned int audio_power = 0;
 
-		if (priv->state == ATVDEMOD_STATE_WORK) {
+		if (priv && priv->state == ATVDEMOD_STATE_WORK) {
 			retrieve_vpll_carrier_lock(&vpll_lock);
 			pr_info("vpp lock: %s.\n",
 				vpll_lock == 0 ? "Locked" : "Unlocked");
@@ -393,13 +396,22 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		pr_info("[params] if_inv: %d\n", dev->if_inv);
 		pr_info("[params] fre_offset: %d\n", dev->fre_offset);
 		pr_info("version: %s.\n", AMLATVDEMOD_VER);
-	} else if (!strncmp(parm[0], "attach_tuner", 12)) {
-		ret = aml_atvdemod_attach_tuner(dev);
-		if (ret)
-			pr_info("attach_tuner error.\n");
-		else
-			pr_info("attach_tuner %d done.\n", dev->tuner_id);
+	} else if (!strncmp(parm[0], "attach", 6)) {
+		if (!dev->analog_attached) {
+			ret = aml_atvdemod_attach_demod(dev);
+			if (ret < 0)
+				pr_err("attach_demod error ret %d.\n", ret);
+		} else {
+			pr_err("attach_demod already done.\n");
+		}
 
+		if (!dev->tuner_attached) {
+			ret = aml_atvdemod_attach_tuner(dev);
+			if (ret < 0)
+				pr_err("attach_tuner error ret %d.\n", ret);
+		} else {
+			pr_err("attach_tuner already done.\n");
+		}
 	} else if (!strncmp(parm[0], "dump_demod", 10)) {
 		int blk = 0, reg = 0;
 
@@ -451,6 +463,9 @@ static ssize_t atvdemod_debug_show(struct class *class,
 	len += sprintf(buff + len, "[tune]\n\techo tune vstd astd freq > %s\n", patch);
 	len += sprintf(buff + len, "[adc_pll]\n\techo adc_pll on_off > %s\n", patch);
 	len += sprintf(buff + len, "[vdac\n\techo vdac on_off > %s\n", patch);
+	len += sprintf(buff + len, "[attach\n\techo attach > %s\n", patch);
+	len += sprintf(buff + len, "[dump_demod\n\techo dump_demod > %s\n", patch);
+	len += sprintf(buff + len, "[dump_audemod\n\techo dump_audemod > %s\n", patch);
 
 	len += sprintf(buff + len, "ATV Demod Status:\n");
 	if (priv && priv->state == ATVDEMOD_STATE_WORK) {
@@ -754,7 +769,7 @@ static int aml_atvdemod_probe(struct platform_device *pdev)
 
 	aml_atvdemod_dt_parse(dev);
 
-	aml_atvdemod_attach_demod(dev);
+	/* aml_atvdemod_attach_demod(dev); */
 	/* aml_atvdemod_attach_tuner(dev); */
 
 	dev->v4l2_fe.dev = dev->dev;
