@@ -2633,7 +2633,7 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_B)) {	/*trig cma alloc*/
 		dbg_timer(ch, EDBG_TIMER_ALLOC);
 
-		if (is_bypass2(vframe, ch)) {
+		if (is_bypass2(vframe, ch) && !dip_itf_is_ins_exbuf(pch)) {
 			mm->sts.flg_alloced = false;
 			di_bypass_state_set(ch, true);
 			//pch->sumx.vfm_bypass = true;
