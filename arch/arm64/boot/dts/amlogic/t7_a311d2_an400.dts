@@ -455,6 +455,7 @@
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
 		sensor-name-sub = "imx290sub";
+		sensor-name-ssub = "imx290ssub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -1302,6 +1303,16 @@
 	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-ssub";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
 
 	tas5707_36: tas5707_36@1b {
 		compatible = "ti,tas5707";
@@ -1457,12 +1468,18 @@
 	temper-buf-size1 = <6>;
 	temper-frame-num1 = <1>;
 	temper-frame-size1 = <0x5EEC00>;
+	temper-line-offset2 = <0x1680>;
+	temper-buf-size2 = <6>;
+	temper-frame-num2 = <1>;
+	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <64>;
+	mem_alloc = <32>;
+	mem_alloc1 = <16>;
+	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
