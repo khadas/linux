@@ -707,12 +707,12 @@
 
 		status = "okay";
 	};
-#if 0
+
 	aed:effect {
-		compatible = "amlogic, snd-effect-v3";
+		compatible = "amlogic, snd-effect-v4";
 		#sound-dai-cells = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_GATE_EQDRC
-			&clkc CLKID_FCLK_DIV5
+			&clkc CLKID_FCLK_DIV4
 			&clkaudio CLKID_AUDIO_EQDRC>;
 		clock-names = "gate", "srcpll", "eqdrc";
 		/*
@@ -727,9 +727,8 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
-		status = "disabled";
+		status = "okay";
 	};
-#endif
 }; /* end of audiobus */
 
 &periphs_pinctrl {
