@@ -73,6 +73,7 @@ struct vad {
 	struct toddr *tddr;
 
 	char *buf;
+	char *vad_whole_buf;
 	struct task_struct *thread;
 
 	struct snd_dma_buffer dma_buffer;
@@ -115,6 +116,9 @@ struct vad {
 	void *mic_src;
 	int wakeup_sample_rate;
 	unsigned int syssrc_clk_rate;
+	bool wake_up_flag;
+	int vad_fs_count;
+	int wakeup_timeout_fs_count;
 
 #ifdef __VAD_DUMP_DATA__
 	struct file *fp;
@@ -272,7 +276,7 @@ static int vad_transfer_data_to_algorithm(struct vad *p_vad,
 }
 
 /* Check buffer in kernel for VAD */
-static int vad_engine_check(struct vad *p_vad)
+static int vad_engine_check(struct vad *p_vad, bool init)
 {
 	unsigned char *hwbuf;
 	int bytes, read_bytes;
@@ -281,14 +285,13 @@ static int vad_engine_check(struct vad *p_vad)
 	int frame_count = VAD_READ_FRAME_COUNT;
 	unsigned int timeout_cnt = 0;
 	unsigned int timeout_max_cnt = 20;
-	unsigned int timeout_time_ms = 5;
 
 	if (!p_vad->tddr || !p_vad->tddr->actrl ||
 		!p_vad->tddr->in_use)
 		return 0;
 
 	hwbuf = p_vad->dma_buffer.area;
-	size  = p_vad->dma_buffer.bytes - 8;
+	size  = p_vad->dma_buffer.bytes;
 	start = p_vad->dma_buffer.addr;
 	end   = start + size;
 	last_addr = p_vad->addr;
@@ -299,6 +302,24 @@ static int vad_engine_check(struct vad *p_vad)
 
 	/* bytes for each sample */
 	bytes_per_sample = bitdepth >> 3;
+
+	/* copy vad whole buffer when first detect voice */
+	if (init) {
+		int frame_count1 = p_vad->dma_buffer.bytes / chnum / bytes_per_sample;
+		int send_size = frame_count1 * chnum * bytes_per_sample;
+
+		pr_info("%s copy vad whole buffer\n", __func__);
+		curr_addr = aml_toddr_get_position(p_vad->tddr);
+		memcpy(p_vad->vad_whole_buf, hwbuf + curr_addr - start, end - curr_addr);
+		memcpy(p_vad->vad_whole_buf + end - curr_addr, hwbuf, curr_addr - start);
+
+		p_vad->addr = curr_addr;
+
+		return vad_transfer_data_to_algorithm(p_vad,
+			p_vad->vad_whole_buf + (p_vad->dma_buffer.bytes - send_size),
+			frame_count1, rate, chnum, bitdepth);
+	}
+
 	read_bytes = frame_count * chnum * bytes_per_sample;
 
 	do {
@@ -323,13 +344,11 @@ static int vad_engine_check(struct vad *p_vad)
 		bytes = (curr_addr - last_addr + size) % size;
 
 		if (bytes < read_bytes) {
-			msleep(timeout_time_ms);
+			/* can't use sleep as cpd is idle, timer is invalid */
+			schedule();
 			timeout_cnt++;
-			if (timeout_cnt >= timeout_max_cnt) {
-				pr_info("vad:%s read timeout avail:%d bytes, curr_addr:%x, need:%d more data\n",
-					 __func__, bytes, curr_addr, read_bytes);
+			if (timeout_cnt >= timeout_max_cnt)
 				break;
-			}
 		}
 	} while (bytes < read_bytes);
 
@@ -386,18 +405,27 @@ static int vad_engine_check(struct vad *p_vad)
 static int vad_freeze_thread(void *data)
 {
 	struct vad *p_vad = data;
+	bool init = true;
 
 	if (!p_vad)
 		return 0;
 
 	current->flags |= PF_NOFREEZE;
-	dev_dbg(p_vad->dev, "vad: freeze thread start\n");
+	p_vad->vad_whole_buf = kzalloc(p_vad->dma_buffer.bytes, GFP_KERNEL);
+	dev_info(p_vad->dev, "vad: freeze thread start\n");
 
 	for (;;) {
-		msleep_interruptible(10);
+		if (p_vad->vad_fs_count > p_vad->wakeup_timeout_fs_count &&
+		    !p_vad->wake_up_flag) {
+			dev_info(p_vad->dev, "vad: thread entry schedule\n");
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule();
+			set_current_state(TASK_RUNNING);
+			init = true;
+			dev_info(p_vad->dev, "vad: thread wake up\n");
+		}
 		if (kthread_should_stop()) {
 			pr_info("%s line:%d\n", __func__, __LINE__);
-
 			break;
 		}
 
@@ -407,10 +435,16 @@ static int vad_freeze_thread(void *data)
 			continue;
 		}
 
-		if (vad_engine_check(p_vad) > 0)
+		if (vad_engine_check(p_vad, init) > 0) {
+			dev_info(p_vad->dev, "vad: vad_notify_user_space\n");
 			vad_notify_user_space(p_vad);
+		}
+		init = false;
+		/* can't use sleep as cpd is idle, timer is invalid */
+		schedule();
 	}
 
+	kfree(p_vad->vad_whole_buf);
 	dev_info(p_vad->dev, "vad: freeze thread exit\n");
 	return 0;
 }
@@ -419,18 +453,30 @@ static irqreturn_t vad_wakeup_isr(int irq, void *data)
 {
 	struct vad *p_vad = (struct vad *)data;
 
-	if (vad_in_kernel_test &&
-		p_vad->level == LEVEL_KERNEL &&
-		p_vad->a2v_buf) {
+	if (p_vad->level == LEVEL_KERNEL &&
+		p_vad->a2v_buf &&
+		vad_wakeup_count % 20 == 0) {
 		vad_wakeup_count++;
 		pr_info("%s vad_wakeup_count:%d\n", __func__, vad_wakeup_count);
 	}
+	p_vad->wake_up_flag = true;
+	wake_up_process(p_vad->thread);
 
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t vad_fs_isr(int irq, void *data)
 {
+	struct vad *p_vad = (struct vad *)data;
+
+	if (p_vad->wake_up_flag) {
+		p_vad->vad_fs_count = 0;
+		p_vad->wake_up_flag = false;
+
+	} else {
+		p_vad->vad_fs_count++;
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -496,7 +542,6 @@ static int vad_init(struct vad *p_vad)
 						"vad freeze: Creating thread failed\n");
 				return err;
 			}
-			wake_up_process(p_vad->thread);
 			vad_wakeup_count = 0;
 		}
 
@@ -523,7 +568,7 @@ static int vad_init(struct vad *p_vad)
 	}
 
 	ret = request_irq(p_vad->irq_fs,
-			vad_fs_isr, 0, "vad_fs",
+			vad_fs_isr, flag, "vad_fs",
 			p_vad);
 	if (ret) {
 		dev_err(p_vad->dev, "failed to claim irq_fs %u, ret: %d\n",
@@ -786,8 +831,8 @@ void vad_enable(bool enable)
 
 	/* Force VAD enable to set parameters */
 	if (enable) {
-		int *p_de_coeff = vad_de_coeff;
-		int len_de = ARRAY_SIZE(vad_de_coeff);
+		int *p_de_coeff = vad_de_coeff_16k;
+		int len_de = ARRAY_SIZE(vad_de_coeff_16k);
 		int *p_win_coeff = vad_ram_coeff;
 		int len_ram = ARRAY_SIZE(vad_ram_coeff);
 		struct aml_pdm *pdm = (struct aml_pdm *)p_vad->mic_src;
@@ -841,6 +886,9 @@ static int vad_set_enable_enum(struct snd_kcontrol *kcontrol,
 		pr_debug("VAD is not inited\n");
 		return 0;
 	}
+
+	pr_info("%s, p_vad->end = %d, set value %ld\n",
+		__func__, p_vad->en, ucontrol->value.integer.value[0]);
 
 	if (p_vad->en == ucontrol->value.integer.value[0])
 		return 0;
@@ -958,6 +1006,24 @@ static int vad_test_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int vad_wakeup_timeout_fs_count_get(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	struct vad *p_vad = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.integer.value[0] = p_vad->wakeup_timeout_fs_count;
+	return 0;
+}
+
+static int vad_wakeup_timeout_fs_count_put(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	struct vad *p_vad = snd_kcontrol_chip(kcontrol);
+
+	p_vad->wakeup_timeout_fs_count = ucontrol->value.integer.value[0];
+	return 0;
+}
+
 static const struct snd_kcontrol_new vad_controls[] = {
 	SOC_SINGLE_BOOL_EXT("VAD enable",
 		0,
@@ -977,6 +1043,10 @@ static const struct snd_kcontrol_new vad_controls[] = {
 		0,
 		vad_test_get_enum,
 		vad_test_set_enum),
+	SOC_SINGLE_EXT("VAD wake up timeout fs count",
+		       0, 0, 4096, 0,
+		       vad_wakeup_timeout_fs_count_get,
+		       vad_wakeup_timeout_fs_count_put),
 };
 
 int card_add_vad_kcontrols(struct snd_soc_card *card)
@@ -1178,6 +1248,9 @@ static int vad_platform_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+	/* time = 200ms * 10 = 2s */
+	p_vad->wakeup_timeout_fs_count = 200;
+
 	return 0;
 }
 

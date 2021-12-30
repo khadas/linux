@@ -7,7 +7,7 @@
 #define __VAD_HW_COEFF_H__
 
 /* parameters for downsample and emphasis filter */
-static int vad_de_coeff[] = {
+static int __maybe_unused vad_de_coeff_48k[] = {
 	0x31007f05,
 	0x000003e6,
 	0x0000070c,
@@ -23,6 +23,23 @@ static int vad_de_coeff[] = {
 	0x044c0361,
 	0x024d0263,
 	0x026a0000,
+
+};
+
+static int vad_de_coeff_16k[] = {
+	0x11007f01,
+	0x000003e6,
+	0x0000074f,
+	0x06be06b7,
+	0x04580589,
+	0x039c0419,
+	0x00500000,
+};
+
+static int __maybe_unused vad_de_coeff_8k[] = {
+	0x01007f00,
+	0x000003e6,
+	0x007f0000,
 };
 
 static int vad_ram_coeff[] = {
