@@ -485,31 +485,31 @@ static int vad_init(struct vad *p_vad)
 	if (p_vad->level == LEVEL_KERNEL) {
 		flag = IRQF_SHARED | IRQF_NO_SUSPEND;
 
-	/* Start Micro/Audio Dock firmware loader thread */
-	if (!p_vad->thread) {
-		p_vad->thread =
-			kthread_create(vad_freeze_thread, p_vad,
-					   "vad_freeze_thread");
-		if (IS_ERR(p_vad->thread)) {
-			int err = PTR_ERR(p_vad->thread);
+		/* Start Micro/Audio Dock firmware loader thread */
+		if (!p_vad->thread) {
+			p_vad->thread =
+				kthread_create(vad_freeze_thread, p_vad,
+						   "vad_freeze_thread");
+			if (IS_ERR(p_vad->thread)) {
+				int err = PTR_ERR(p_vad->thread);
 
-			p_vad->thread = NULL;
-			dev_info(p_vad->dev,
-					"vad freeze: Creating thread failed\n");
-			return err;
+				p_vad->thread = NULL;
+				dev_info(p_vad->dev,
+						"vad freeze: Creating thread failed\n");
+				return err;
+			}
+			wake_up_process(p_vad->thread);
+			vad_wakeup_count = 0;
 		}
-		wake_up_process(p_vad->thread);
-		vad_wakeup_count = 0;
-	}
 
 #ifdef __VAD_DUMP_DATA__
-	p_vad->fp = filp_open(VAD_DUMP_FILE_NAME, O_RDWR | O_CREAT, 0666);
-	if (IS_ERR(p_vad->fp)) {
-		pr_err("create file %s error/n", VAD_DUMP_FILE_NAME);
-		return -1;
-	}
-	p_vad->fs = get_fs();
-	p_vad->pos = 0;
+		p_vad->fp = filp_open(VAD_DUMP_FILE_NAME, O_RDWR | O_CREAT, 0666);
+		if (IS_ERR(p_vad->fp)) {
+			pr_err("create file %s error/n", VAD_DUMP_FILE_NAME);
+			return -1;
+		}
+		p_vad->fs = get_fs();
+		p_vad->pos = 0;
 #endif
 
 	} else if (p_vad->level == LEVEL_USER)

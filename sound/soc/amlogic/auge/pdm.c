@@ -738,14 +738,10 @@ static int aml_pdm_dai_prepare(struct snd_pcm_substream *substream,
 	fmt.bit_depth = bitwidth;
 	fmt.ch_num    = runtime->channels;
 	fmt.rate      = runtime->rate;
-	if (pdm_id == PDM_A) {
-		if (p_pdm->chipinfo->vad_top)
-			aml_toddr_select_src(to, VAD_PDMIN);
-		else
-			aml_toddr_select_src(to, PDMIN);
-	} else {
+	if (pdm_id == PDM_A)
+		aml_toddr_select_src(to, PDMIN);
+	else
 		aml_toddr_select_src(to, PDMIN_B);
-	}
 
 	aml_toddr_set_format(to, &fmt);
 
