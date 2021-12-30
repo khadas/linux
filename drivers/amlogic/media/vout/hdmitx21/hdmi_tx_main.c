@@ -59,6 +59,7 @@
 #define HDMI_TX_RESOURCE_NUM 4
 #define HDMI_TX_PWR_CTRL_NUM	6
 
+static unsigned int hdcp_ctl_lvl;
 static struct class *hdmitx_class;
 static int set_disp_mode_auto(void);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
@@ -3435,9 +3436,33 @@ static ssize_t hdcp_mode_show(struct device *dev,
 			      char *buf)
 {
 	int pos = 0;
+	unsigned int hdcp_ret = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdev->hdcp_mode);
+	switch (hdev->hdcp_mode) {
+	case 1:
+		pos += snprintf(buf + pos, PAGE_SIZE, "14");
+		break;
+	case 2:
+		pos += snprintf(buf + pos, PAGE_SIZE, "22");
+		break;
+	default:
+		pos += snprintf(buf + pos, PAGE_SIZE, "off");
+		break;
+	}
+
+	if (hdcp_ctl_lvl > 0 && hdev->hdcp_mode > 0) {
+		if (hdev->hdcp_mode == 1)
+			hdcp_ret = get_hdcp1_result();
+		else if (hdev->hdcp_mode == 2)
+			hdcp_ret = get_hdcp2_result();
+		else
+			hdcp_ret = 0;
+		if (hdcp_ret == 1)
+			pos += snprintf(buf + pos, PAGE_SIZE, ": succeed\n");
+		else
+			pos += snprintf(buf + pos, PAGE_SIZE, ": fail\n");
+	}
 
 	return pos;
 }
@@ -4602,6 +4627,14 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 				hdev->enc_idx = 2;
 		}
 
+		/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
+		ret = of_property_read_u32(pdev->dev.of_node,
+			   "hdcp_ctl_lvl", &hdcp_ctl_lvl);
+		if (!ret) {
+			if (hdcp_ctl_lvl > 2)
+				hdcp_ctl_lvl = 0;
+		}
+
 		/* Get vendor information */
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "vend-data", &val);
@@ -5431,6 +5464,85 @@ static int drm_hdmitx_get_hdr_priority(void)
 	return hdmitx21_device.hdr_priority;
 }
 
+/*hdcp functions*/
+static void drm_hdmitx_hdcp_init(void)
+{
+}
+
+static void drm_hdmitx_hdcp_exit(void)
+{
+}
+
+static void drm_hdmitx_hdcp_enable(int hdcp_type)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	switch (hdcp_type) {
+	case HDCP_NULL:
+		pr_err("%s enabld HDCP_NULL\n", __func__);
+		break;
+	case HDCP_MODE14:
+		hdev->hdcp_mode = 0x11;
+		hdcp_mode_set(1);
+		break;
+	case HDCP_MODE22:
+		hdev->hdcp_mode = 0x12;
+		hdcp_mode_set(2);
+		break;
+	default:
+		pr_err("%s unknown hdcp %d\n", __func__, hdcp_type);
+		break;
+	};
+}
+
+static void drm_hdmitx_hdcp_disable(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	hdev->hdcp_mode = 0x00;
+	hdcp_mode_set(0);
+}
+
+static void drm_hdmitx_hdcp_disconnect(void)
+{
+	drm_hdmitx_hdcp_disable();
+}
+
+static unsigned int drm_hdmitx_get_tx_hdcp_cap(void)
+{
+	int lstore = 0;
+
+	if (get_hdcp2_lstore())
+		lstore |= HDCP_MODE22;
+	if (get_hdcp1_lstore())
+		lstore |= HDCP_MODE14;
+
+	pr_info("%s tx hdcp [%d]\n", __func__, lstore);
+	return lstore;
+}
+
+static unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
+{
+	int rxhdcp = 0;
+
+	if (is_rx_hdcp2ver())
+		rxhdcp = HDCP_MODE22 | HDCP_MODE14;
+	else
+		rxhdcp = HDCP_MODE14;
+
+	pr_info("%s rx hdcp [%d]\n", __func__, rxhdcp);
+	return 0;
+}
+
+static void drm_hdmitx_register_hdcp_notify(struct connector_hdcp_cb *cb)
+{
+	if (hdmitx21_device.drm_hdcp_cb.hdcp_notify)
+		pr_err("Register hdcp notify again!?\n");
+
+	hdmitx21_device.drm_hdcp_cb.hdcp_notify = cb->hdcp_notify;
+	hdmitx21_device.drm_hdcp_cb.data = cb->data;
+}
+
 static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.base = {
 		.ver = MESON_DRM_CONNECTOR_V10,
@@ -5448,6 +5560,16 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdr_info = drm_hdmitx_get_hdr_info,
 	.get_hdr_priority = drm_hdmitx_get_hdr_priority,
 	.avmute = drm_hdmitx_avmute,
+
+	/*hdcp apis*/
+	.hdcp_init = drm_hdmitx_hdcp_init,
+	.hdcp_exit = drm_hdmitx_hdcp_exit,
+	.hdcp_enable = drm_hdmitx_hdcp_enable,
+	.hdcp_disable = drm_hdmitx_hdcp_disable,
+	.hdcp_disconnect = drm_hdmitx_hdcp_disconnect,
+	.get_tx_hdcp_cap = drm_hdmitx_get_tx_hdcp_cap,
+	.get_rx_hdcp_cap = drm_hdmitx_get_rx_hdcp_cap,
+	.register_hdcp_notify = drm_hdmitx_register_hdcp_notify,
 };
 
 static int meson_hdmitx_bind(struct device *dev,

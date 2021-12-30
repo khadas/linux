@@ -431,6 +431,7 @@ struct hdmitx_dev {
 	/*DRM related*/
 	int drm_hdmitx_id;
 	struct connector_hpd_cb drm_hpd_cb;
+	struct connector_hdcp_cb drm_hdcp_cb;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
