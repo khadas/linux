@@ -832,13 +832,9 @@ int aml_get_audio_edid(struct snd_kcontrol *kcontrol,
 	char *val = (char *)bytes + sizeof(*tlv);
 	int res;
 
-	if (p_extn->default_edid_size == 0 &&
-			p_extn->user_setting_edid_size == 0) {
-		p_extn->default_edid_size =
-			(int)rx_edid_get_aud_sad(p_extn->default_edid);
-		memcpy(p_extn->user_setting_edid, p_extn->default_edid,
-		       p_extn->default_edid_size);
-	}
+	/* get current edid to userspace */
+	p_extn->user_setting_edid_size =
+		(int)rx_edid_get_aud_sad(p_extn->user_setting_edid);
 
 	res = copy_to_user(val, p_extn->user_setting_edid,
 			   MAX_AUDIO_EDID_LENGTH);
@@ -862,17 +858,10 @@ int aml_set_audio_edid(struct snd_kcontrol *kcontrol,
 		return -EFAULT;
 
 	if (edid_size == 0) {
-		/* restore the default edid */
-		p_extn->default_edid_size =
-			(int)rx_edid_get_aud_sad(p_extn->default_edid);
-		memset(p_extn->user_setting_edid, 0, MAX_AUDIO_EDID_LENGTH);
-		memcpy(p_extn->user_setting_edid, p_extn->default_edid,
-		       p_extn->default_edid_size);
+		/* update default edid */
 		rx_edid_set_aud_sad(NULL, 0);
-		pr_info("%s update default edid! edid size = %d\n", __func__,
-			p_extn->default_edid_size);
+		pr_info("%s update default edid!\n", __func__);
 	} else {
-		/* update user setting edid */
 		/* first 3 bytes for pcm, don't update. */
 		memset(p_extn->user_setting_edid + 3, 0,
 		       MAX_AUDIO_EDID_LENGTH - 3);
@@ -904,6 +893,12 @@ int aml_set_audio_edid(struct snd_kcontrol *kcontrol,
 					edid_size + 3);
 			pr_info("%s update user setting edid! edid size = %d\n",
 				__func__, edid_size);
+			for (i = 0; i <= (edid_size + 3); i += 3) {
+				pr_debug("EDID: [%x, %x, %x]\n",
+					p_extn->user_setting_edid[i],
+					p_extn->user_setting_edid[i + 1],
+					p_extn->user_setting_edid[i + 2]);
+			}
 		}
 	}
 	p_extn->user_setting_edid_size = edid_size;
