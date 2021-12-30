@@ -222,7 +222,8 @@ static int meson_sar_adc_calib_val(struct iio_dev *indio_dev, int val)
 static int meson_sar_adc_wait_busy_clear(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	int regval, timeout = 10000;
+	/* C2/A5 need more time to sample while decim filter is enable */
+	int regval, timeout = 20000;
 
 	/*
 	 * NOTE: we need a small delay before reading the status, otherwise

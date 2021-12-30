@@ -20,6 +20,8 @@
 
 #define MESON_C2_SAR_ADC_REG13					0x34
 	#define MESON_C2_SAR_ADC_REG13_VREF_SEL			BIT(19)
+	#define MESON_C2_SAR_ADC_REG13_VBG_SEL			BIT(16)
+	#define MESON_C2_SAR_ADC_REG13_EN_VCM0P9		BIT(1)
 
 #define	MESON_C2_SAR_ADC_REG14					0x38
 
@@ -109,6 +111,7 @@ static struct iio_chan_spec meson_c2_sar_adc_iio_channels[] = {
 
 static int meson_c2_sar_adc_extra_init(struct iio_dev *indio_dev)
 {
+	unsigned char i;
 	unsigned int regval;
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
 
@@ -117,11 +120,23 @@ static int meson_c2_sar_adc_extra_init(struct iio_dev *indio_dev)
 			   MESON_C2_SAR_ADC_REG11_EOC, regval);
 
 	/* to select the VDDA if the vref is optional */
-	regval = FIELD_PREP(MESON_C2_SAR_ADC_REG13_VREF_SEL, VDDA_AS_VREF);
-	if (priv->param->vref_is_optional) {
-		regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_REG13,
-				   MESON_C2_SAR_ADC_REG13_VREF_SEL, regval);
-	}
+	regval = FIELD_PREP(MESON_C2_SAR_ADC_REG13_VBG_SEL, VDDA_AS_VREF);
+	regval |= FIELD_PREP(MESON_C2_SAR_ADC_REG13_EN_VCM0P9, VDDA_AS_VREF);
+
+	regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_REG13,
+			   MESON_C2_SAR_ADC_REG13_VBG_SEL |
+			   MESON_C2_SAR_ADC_REG13_EN_VCM0P9,
+			   priv->param->vref_is_optional ? regval : 0);
+	regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_REG14,
+			   MESON_C2_SAR_ADC_REG13_VBG_SEL |
+			   MESON_C2_SAR_ADC_REG13_EN_VCM0P9,
+			   priv->param->vref_is_optional ? regval : 0);
+
+	for (i = 0; i < indio_dev->num_channels; i++)
+		regmap_update_bits(priv->regmap, MESON_C2_SAR_ADC_CHX_CTRL1(i),
+				   MESON_C2_SAR_ADC_REG13_VBG_SEL |
+				   MESON_C2_SAR_ADC_REG13_EN_VCM0P9,
+				   priv->param->vref_is_optional ? regval : 0);
 
 	return 0;
 }

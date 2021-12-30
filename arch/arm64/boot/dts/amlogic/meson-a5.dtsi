@@ -561,7 +561,7 @@
 	};
 
 	saradc: saradc@fe026000 {
-		compatible = "amlogic,meson-g12a-saradc",
+		compatible = "amlogic,meson-c2-saradc",
 			   "amlogic,meson-saradc";
 		status = "disabled";
 		#io-channel-cells = <1>;
@@ -572,7 +572,7 @@
 		clock-names = "clkin", "core",
 		    "adc_clk", "adc_sel";
 		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
-		reg = <0x00 0xfe026000 0x00 0x48>;
+		reg = <0x00 0xfe026000 0x00 0xf0>;
 	};
 
 	soc {
