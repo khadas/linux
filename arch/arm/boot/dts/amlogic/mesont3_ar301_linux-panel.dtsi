@@ -518,7 +518,7 @@
 			bl_level_default_uboot_kernel = <100 100>;
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
-			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo,3=ldim*/
+			bl_ctrl_method = <3>; /*1=pwm,2=pwm_combo,3=ldim*/
 			bl_power_attr = <0  /*en_gpio_index*/
 				1 0 /*on_value, off_value*/
 				200 200>; /* on_delay(ms), off_delay(ms)*/
@@ -534,7 +534,7 @@
 			bl_level_default_uboot_kernel = <100 100>;
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
-			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo,3=ldim*/
+			bl_ctrl_method = <3>; /*1=pwm,2=pwm_combo,3=ldim*/
 			bl_power_attr = <0	/*en_gpio_index*/
 				1 0 /*on_value, off_value*/
 				200 200>; /* on_delay(ms), off_delay(ms)*/
@@ -596,7 +596,7 @@
 			ldim_pwm_port = "PWM_VS";
 			ldim_pwm_attr = <1  /* pol */
 				2 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				50>;/*default duty(%)*/
+				2>;/*default duty(%)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <1000000>; /* unit: hz */
@@ -757,7 +757,7 @@
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <3000000>; /* unit: hz */
-			spi_mode = <1>; /* mode: 0, 1, 2, 3 */
+			spi_mode = <2>; /* mode: 0, 1, 2, 3 */
 			spi_dma_support = <1>;
 			spi_cs_delay = <10  /* hold_high_delay */
 				100>; /* clk_cs_delay (unit: us) */
