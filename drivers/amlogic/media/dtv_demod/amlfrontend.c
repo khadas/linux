@@ -4864,6 +4864,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 						__func__, cur_locked_freq, polarity);
 
 					if (abs(last_locked_freq - cur_locked_freq) < 5000) {
+						status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
 						PR_DVBS("same cur frc,do nt report\n");
 					} else {
 						symbol_rate_hw = dvbs_rd_byte(0x9fc) << 16;
