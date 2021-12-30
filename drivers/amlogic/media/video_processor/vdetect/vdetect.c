@@ -317,6 +317,7 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 	struct vframe_s *vf;
 	struct vdetect_dev *dev = (struct vdetect_dev *)op_arg;
 	unsigned long flags;
+	bool bypass_flag = false;
 
 	vf = vf_get(dev->recv_name);
 
@@ -331,12 +332,14 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 		vf->width > 3840 ||
 		vf->height > 2160) {
 		dev->last_vf = NULL;
+		bypass_flag = true;
 	} else {
 		vf->flag |= VFRAME_FLAG_THROUGH_VDETECT;
 	}
 
 	spin_lock_irqsave(&lock, flags);
-	if (atomic_read(&dev->vdect_status) != VDETECT_PREPARE)
+	if (!bypass_flag &&
+	    (atomic_read(&dev->vdect_status) != VDETECT_PREPARE))
 		dev->last_vf = vf;
 	spin_unlock_irqrestore(&lock, flags);
 
