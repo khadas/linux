@@ -22,6 +22,7 @@
 #define MCU_USB_PCIE_SWITCH_REG         0x33 /* VIM3/VIM3L only */
 #define MCU_PWR_OFF_CMD_REG             0x80
 #define MCU_SHUTDOWN_NORMAL_REG         0x2c
+#define MCU_RED_LED_CTRL_REG         	0x28
 
 #define MCU_FAN_TRIG_TEMP_LEVEL0        60	// 50 degree if not set
 #define MCU_FAN_TRIG_TEMP_LEVEL1        80	// 60 degree if not set
@@ -73,6 +74,13 @@ enum khadas_board {
 	KHADAS_BOARD_VIM4
 };
 
+enum khadas_redled_mode {
+	KHADAS_RED_LED_OFF = 0,
+	KHADAS_RED_LED_ON,
+	KHADAS_RED_LED_BREATH,
+	KHADAS_RED_LED_HEARTBEAT
+};
+
 struct mcu_fan_data {
 	struct platform_device *pdev;
 	struct class *fan_class;
@@ -92,6 +100,7 @@ struct mcu_data {
 	int wol_enable;	
 	enum khadas_board board;
 	enum khadas_board_hwver hwver;
+	enum khadas_redled_mode redled_mode;
 	struct mcu_fan_data fan_data;
 };
 
@@ -197,6 +206,37 @@ static int is_mcu_fan_control_supported(void)
 			return 0;
 	} else {
 		return 0;
+	}
+}
+
+static int is_mcu_redled_control_supported(void)
+{
+	// MCU Red LED control is supported for:
+	// 1. Khadas VIM4 V11 and later
+	if (g_mcu_data->board == KHADAS_BOARD_VIM4) {
+		if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V11)
+			return 1;
+		else
+			return 0;
+	} else {
+		return 0;
+	}
+}
+
+static void mcu_redled_set(int mode)
+{
+	int ret;
+	char reg;
+
+	if (mode >= 0 && mode <= 3) {
+		g_mcu_data->redled_mode = mode;
+		reg = (char)mode;
+		if (is_mcu_redled_control_supported()) {
+			ret = mcu_i2c_write_regs(g_mcu_data->client,MCU_RED_LED_CTRL_REG,&reg, 1);
+			if (ret < 0) {
+				pr_debug("write red led cmd error\n");
+			}
+		}
 	}
 }
 
@@ -507,6 +547,28 @@ static ssize_t store_fan_trigger_high(struct class *cls,
 	return count;
 }
 
+static ssize_t show_redled_mode(struct class *cls,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf,
+			"Red LED mode:%d\n",
+			g_mcu_data->redled_mode);
+}
+
+static ssize_t store_redled_mode(struct class *cls,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int mode;
+
+	if (kstrtoint(buf, 0, &mode))
+		return -EINVAL;
+
+	mcu_redled_set(mode);
+
+	return count;
+}
+
 static ssize_t store_mcu_poweroff(struct class *cls,
 		struct class_attribute *attr,
 		const char *buf, size_t count)
@@ -610,6 +672,7 @@ static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(poweroff, 0644, NULL, store_mcu_poweroff),
 	__ATTR(rst, 0644, NULL, store_mcu_rst),
 	__ATTR(wol_enable, 0644, show_wol_enable, store_wol_enable),
+	__ATTR(redled, 0644, show_redled_mode, store_redled_mode),
 };
 
 static void create_mcu_attrs(void)
@@ -763,6 +826,11 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		INIT_DELAYED_WORK(&g_mcu_data->fan_data.work, fan_work_func);
 		mcu_fan_level_set(&g_mcu_data->fan_data, 0);
 	}
+
+	if (is_mcu_redled_control_supported()) {
+		mcu_redled_set(KHADAS_RED_LED_ON);
+	}
+
 	create_mcu_attrs();
 
 	return 0;
