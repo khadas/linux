@@ -1520,6 +1520,7 @@ static int dhdpcie_device_scan(struct device *dev, void *data)
 int
 dhdpcie_bus_register(void)
 {
+#if 0
 	int error = 0;
 
 	if (!(error = pci_register_driver(&dhdpcie_driver))) {
@@ -1537,6 +1538,9 @@ dhdpcie_bus_register(void)
 	}
 
 	return error;
+#else
+	return pci_register_driver(&dhdpcie_driver);
+#endif
 }
 
 void
