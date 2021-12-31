@@ -24,6 +24,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 #include <sound/asoundef.h>
+#include <linux/clk-provider.h>
 
 #include "ddr_mngr.h"
 #include "spdif_hw.h"
@@ -92,6 +93,7 @@ struct aml_spdif {
 	/* share buffer with module */
 	enum sharebuffer_srcs samesource_sel;
 	unsigned int l_src;
+	unsigned int syssrc_clk_rate;
 };
 
 unsigned int get_spdif_source_l_config(int id)
@@ -1550,6 +1552,9 @@ static void aml_set_spdifclk(struct aml_spdif *p_spdif)
 
 	if (p_spdif->sysclk_freq) {
 		int ret;
+		char *clk_name = NULL;
+
+		clk_name = (char *)__clk_get_name(p_spdif->sysclk);
 
 		if (raw_is_4x_clk(p_spdif->codec_type)) {
 			pr_debug("set 4x audio clk for 958\n");
@@ -1562,7 +1567,16 @@ static void aml_set_spdifclk(struct aml_spdif *p_spdif)
 		/* make sure mpll_freq doesn't exceed MPLL max freq */
 		while (mpll_freq > AML_MPLL_FREQ_MAX)
 			mpll_freq = mpll_freq >> 1;
-		clk_set_rate(p_spdif->sysclk, mpll_freq);
+
+		if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+			if (p_spdif->syssrc_clk_rate)
+				clk_set_rate(p_spdif->sysclk,
+					p_spdif->syssrc_clk_rate);
+			else
+				clk_set_rate(p_spdif->sysclk, 1806336 * 1000);
+		} else {
+			clk_set_rate(p_spdif->sysclk, mpll_freq);
+		}
 		/*
 		 * clk_set_rate(p_spdif->clk_spdifout, p_spdif->sysclk_freq);
 		 */
@@ -1670,6 +1684,14 @@ static int aml_spdif_parse_of(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct aml_spdif *p_spdif = dev_get_drvdata(dev);
 	int ret = 0, ss = 0;
+
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_spdif->syssrc_clk_rate);
+	if (ret < 0)
+		p_spdif->syssrc_clk_rate = 0;
+	else
+		pr_info("%s sys-src clk rate from dts:%d\n",
+			__func__, p_spdif->syssrc_clk_rate);
 
 	ret = of_property_read_u32(dev->of_node, "samesource_sel",
 			&ss);

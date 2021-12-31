@@ -110,6 +110,7 @@ struct vad {
 
 	void *mic_src;
 	int wakeup_sample_rate;
+	unsigned int syssrc_clk_rate;
 
 #ifdef __VAD_DUMP_DATA__
 	struct file *fp;
@@ -441,10 +442,14 @@ static int vad_set_clks(struct vad *p_vad, bool enable)
 
 		/* enable clock gate */
 		ret = clk_prepare_enable(p_vad->gate);
-		if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
-			clk_set_rate(p_vad->pll, 1806336 * 1000);
-		else
+		if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+			if (p_vad->syssrc_clk_rate)
+				clk_set_rate(p_vad->pll, p_vad->syssrc_clk_rate);
+			else
+				clk_set_rate(p_vad->pll, 1806336 * 1000);
+		} else {
 			clk_set_rate(p_vad->pll, 25000000);
+		}
 		/* enable clock */
 		ret = clk_prepare_enable(p_vad->pll);
 		if (ret) {
@@ -990,6 +995,14 @@ static int vad_platform_probe(struct platform_device *pdev)
 		actrl = (struct aml_audio_controller *)
 					platform_get_drvdata(pdev_parent);
 	p_vad->actrl = actrl;
+
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_vad->syssrc_clk_rate);
+	if (ret < 0)
+		p_vad->syssrc_clk_rate = 0;
+	else
+		pr_info("%s sys-src clk rate from dts:%d\n",
+			__func__, p_vad->syssrc_clk_rate);
 
 	/* clock */
 	p_vad->gate = devm_clk_get(&pdev->dev, "gate");

@@ -104,6 +104,7 @@ struct aml_pdm {
 	enum trigger_state pdm_trigger_state;
 	int pdm_train_debug;
 	struct work_struct debug_work;
+	unsigned int syssrc_clk_rate;
 };
 
 int pdm_get_train_sample_count_from_dts(void);

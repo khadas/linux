@@ -148,6 +148,7 @@ struct loopback {
 
 	void *mic_src;
 	enum trigger_state loopback_trigger_state;
+	unsigned int syssrc_clk_rate;
 };
 
 static struct loopback *loopback_priv[2];
@@ -928,7 +929,10 @@ static void datain_pdm_set_clk(struct loopback *p_loopback)
 	clk_name = (char *)__clk_get_name(p_loopback->pdm_dclk_srcpll);
 	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		pr_info("hifipll set 1806336*1000\n");
-		clk_set_rate(p_loopback->pdm_dclk_srcpll, 1806336 * 1000);
+		if (p_loopback->syssrc_clk_rate)
+			clk_set_rate(p_loopback->pdm_dclk_srcpll, p_loopback->syssrc_clk_rate);
+		else
+			clk_set_rate(p_loopback->pdm_dclk_srcpll, 1806336 * 1000);
 	} else {
 		if (pdm_dclk_srcpll_freq == 0)
 			clk_set_rate(p_loopback->pdm_dclk_srcpll, 24576000);
@@ -1623,6 +1627,14 @@ static int loopback_platform_probe(struct platform_device *pdev)
 	p_loopback->id = p_chipinfo->id;
 
 	loopback_priv[p_loopback->id] = p_loopback;
+
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_loopback->syssrc_clk_rate);
+	if (ret < 0)
+		p_loopback->syssrc_clk_rate = 0;
+	else
+		pr_info("%s sys-src clk rate from dts:%d\n",
+			__func__, p_loopback->syssrc_clk_rate);
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);

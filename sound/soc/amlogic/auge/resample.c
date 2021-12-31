@@ -69,6 +69,7 @@ struct audioresample {
 
 	struct timer_list timer;
 	bool timer_running;
+	unsigned int syssrc_clk_rate;
 };
 
 struct audioresample *s_resample_a;
@@ -178,7 +179,11 @@ static int resample_clk_set(struct audioresample *p_resample, int output_sr)
 	clk_name = (char *)__clk_get_name(p_resample->pll);
 	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		pr_info("%s:set hifi pll\n", __func__);
-		clk_set_rate(p_resample->pll, 1806336 * 1000);
+		if (p_resample->syssrc_clk_rate)
+			clk_set_rate(p_resample->pll,
+				p_resample->syssrc_clk_rate);
+		else
+			clk_set_rate(p_resample->pll, 1806336 * 1000);
 	} else {
 		/* defaule tdm out mclk to resample clk */
 		/* for same with earctx, so need *5 */
@@ -770,6 +775,14 @@ static int resample_platform_probe(struct platform_device *pdev)
 					DEFAULT_MIC_SAMPLERATE;
 		}
 	}
+
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_resample->syssrc_clk_rate);
+	if (ret < 0)
+		p_resample->syssrc_clk_rate = 0;
+	else
+		pr_info("%s sys-src clk rate from dts:%d\n",
+			__func__, p_resample->syssrc_clk_rate);
 
 	/* config from dts */
 	p_resample->resample_module = resample_module;

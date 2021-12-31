@@ -863,7 +863,10 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 	clk_name = (char *)__clk_get_name(p_pdm->dclk_srcpll);
 	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		pr_info("%s:set hifi pll\n", __func__);
-		clk_set_rate(p_pdm->dclk_srcpll, 1806336 * 1000);
+		if (p_pdm->syssrc_clk_rate)
+			clk_set_rate(p_pdm->dclk_srcpll, p_pdm->syssrc_clk_rate);
+		else
+			clk_set_rate(p_pdm->dclk_srcpll, 1806336 * 1000);
 	} else {
 		if (dclk_srcpll_freq == 0)
 			clk_set_rate(p_pdm->dclk_srcpll, 24576000 * 20);
@@ -1065,6 +1068,13 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_pdm->syssrc_clk_rate);
+	if (ret < 0)
+		p_pdm->syssrc_clk_rate = 0;
+	pr_info("%s sys-src clk rate from dts:%d\n",
+		__func__, p_pdm->syssrc_clk_rate);
 
 	/* match data */
 	p_chipinfo = (struct pdm_chipinfo *)

@@ -121,6 +121,7 @@ struct aml_tdm {
 	int disable_gain_count;
 	int tdm_for_speaker;
 	bool tdm_fade_out_enable;
+	unsigned int syssrc_clk_rate;
 };
 
 #define TDM_BUFFER_BYTES (512 * 1024)
@@ -323,7 +324,10 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
 	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
-		mpll_freq = 1806336 * 1000;
+		if (p_tdm->syssrc_clk_rate)
+			mpll_freq = p_tdm->syssrc_clk_rate;
+		else
+			mpll_freq = 1806336 * 1000;
 	else
 		mpll_freq = freq * ratio;
 
@@ -1605,8 +1609,12 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 		p_tdm->clk_sel, lrclk_hi / 2, lrclk_hi);
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
-	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
-		pll = 1806336 * 1000;
+	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		if (p_tdm->syssrc_clk_rate)
+			pll = p_tdm->syssrc_clk_rate;
+		else
+			pll = 1806336 * 1000;
+	}
 
 	clk_prepare_enable(p_tdm->mclk);
 	clk_set_rate(p_tdm->clk, pll);
@@ -1860,6 +1868,14 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	actrl = (struct aml_audio_controller *)
 				platform_get_drvdata(pdev_parent);
 	p_tdm->actrl = actrl;
+
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_tdm->syssrc_clk_rate);
+	if (ret < 0)
+		p_tdm->syssrc_clk_rate = 0;
+	else
+		pr_info("%s sys-src clk rate from dts:%d\n",
+			__func__, p_tdm->syssrc_clk_rate);
 
 	/* get tdm mclk sel configs */
 	ret = of_property_read_u32(node, "dai-tdm-clk-sel",

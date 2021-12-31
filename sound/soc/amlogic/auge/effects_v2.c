@@ -63,6 +63,7 @@ struct audioeffect {
 
 	/*which module should be effected */
 	int effect_module;
+	unsigned int syssrc_clk_rate;
 };
 
 struct audioeffect *s_effect;
@@ -120,9 +121,12 @@ static int eqdrc_clk_set(struct audioeffect *p_effect)
 	}
 
 	clk_name = (char *)__clk_get_name(p_effect->srcpll);
-	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
-		clk_set_rate(p_effect->srcpll, 1806336 * 1000);
-
+	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		if (p_effect->syssrc_clk_rate)
+			clk_set_rate(p_effect->srcpll, p_effect->syssrc_clk_rate);
+		else
+			clk_set_rate(p_effect->srcpll, 1806336 * 1000);
+	}
 	ret = clk_prepare_enable(p_effect->srcpll);
 	if (ret) {
 		pr_err("Can't enable eqdrc src pll clock: %d\n",
@@ -615,6 +619,14 @@ static int effect_platform_probe(struct platform_device *pdev)
 	if (!p_chipinfo)
 		dev_warn_once(dev, "check whether to update effect chipinfo\n");
 	p_effect->chipinfo = p_chipinfo;
+
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_effect->syssrc_clk_rate);
+	if (ret < 0)
+		p_effect->syssrc_clk_rate = 0;
+	else
+		pr_info("%s sys-src clk rate from dts:%d\n",
+			__func__, p_effect->syssrc_clk_rate);
 
 	p_effect->gate = devm_clk_get(&pdev->dev, "gate");
 	if (IS_ERR(p_effect->gate)) {
