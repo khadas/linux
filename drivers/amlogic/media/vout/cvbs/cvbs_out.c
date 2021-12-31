@@ -59,7 +59,9 @@
 #ifdef CONFIG_AMLOGIC_WSS
 #include "wss.h"
 #endif
+#include <linux/component.h>
 #include <linux/amlogic/gki_module.h>
+#include <drm/amlogic/meson_drm_bind.h>
 
 #ifdef CONFIG_AML_VOUT_CC_BYPASS
 /* interrupt source */
@@ -204,6 +206,11 @@ static ssize_t aml_CVBS_attr_debug_show(struct class *class,
 static ssize_t aml_CVBS_attr_debug_store(struct class *class,
 					 struct class_attribute *attr,
 					 const char *buf, size_t count);
+static int meson_cvbs_bind(struct device *dev,
+			      struct device *master, void *data);
+static void meson_cvbs_unbind(struct device *dev,
+				 struct device *master, void *data);
+
 struct class_attribute class_CVBS_attr_debug =
 	__ATTR(debug, 0644, aml_CVBS_attr_debug_show,
 	       aml_CVBS_attr_debug_store);
@@ -1943,6 +1950,41 @@ static irqreturn_t tvout_vsync_isr(int irq, void *dev_id)
 }
 #endif
 
+static const struct component_ops meson_cvbs_bind_ops = {
+	.bind	= meson_cvbs_bind,
+	.unbind	= meson_cvbs_unbind,
+};
+
+static int am_meson_cvbs_probe(struct platform_device *pdev)
+{
+	pr_info("[%s:%d] in\n", __func__, __LINE__);
+	return component_add(&pdev->dev, &meson_cvbs_bind_ops);
+}
+
+static int am_meson_cvbs_remove(struct platform_device *pdev)
+{
+	pr_info("[%s:%d] in\n", __func__, __LINE__);
+	component_del(&pdev->dev, &meson_cvbs_bind_ops);
+	return 0;
+}
+
+static const struct of_device_id am_meson_cvbs_dt_ids[] = {
+	{ .compatible = "amlogic, drm-cvbsout", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, am_meson_cvbs_dt_ids);
+
+static struct platform_driver am_meson_cvbs_pltfm_driver = {
+	.probe  = am_meson_cvbs_probe,
+	.remove = am_meson_cvbs_remove,
+	.driver = {
+		.name = "meson-amcvbsout",
+#ifdef CONFIG_OF
+		.of_match_table = am_meson_cvbs_dt_ids,
+#endif
+	},
+};
+
 static int cvbsout_probe(struct platform_device *pdev)
 {
 	int  ret;
@@ -2004,7 +2046,10 @@ static int cvbsout_probe(struct platform_device *pdev)
 #endif
 
 	INIT_DELAYED_WORK(&cvbs_drv->vdac_dwork, cvbs_vdac_dwork);
-	cvbs_log_info("%s OK\n", __func__);
+	//component_add(&pdev->dev, &meson_cvbs_bind_ops);
+	platform_driver_register(&am_meson_cvbs_pltfm_driver);
+	cvbs_log_dbg("%s OK\n", __func__);
+
 	return 0;
 
 cvbsout_probe_err:
@@ -2039,6 +2084,8 @@ static int cvbsout_remove(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_unregister_server(&cvbs_vout2_server);
 #endif
+	//component_del(&pdev->dev, &meson_cvbs_bind_ops);
+	platform_driver_unregister(&am_meson_cvbs_pltfm_driver);
 	cvbs_log_info("%s\n", __func__);
 	return 0;
 }
@@ -2058,6 +2105,48 @@ static void cvbsout_shutdown(struct platform_device *pdev)
 	cvbs_out_vpu_power_ctrl(0);
 	cvbs_out_clk_gate_ctrl(0);
 	cvbs_log_info("%s\n", __func__);
+}
+
+static struct meson_cvbs_dev drm_cvbs_instance = {
+	.base = {
+		.ver = MESON_DRM_CONNECTOR_V10,
+	},
+};
+
+static int meson_cvbs_bind(struct device *dev,
+			      struct device *master, void *data)
+{
+	struct meson_drm_bound_data *bound_data = data;
+	struct cvbs_drv_s *hdev = cvbs_drv;
+
+	if (bound_data->connector_component_bind) {
+		hdev->drm_cvbs_id = bound_data->connector_component_bind
+			(bound_data->drm,
+			DRM_MODE_CONNECTOR_TV,
+			&drm_cvbs_instance.base);
+		cvbs_log_info("%s cvbs [%d]\n", __func__, hdev->drm_cvbs_id);
+	} else {
+		cvbs_log_err("no bind func from drm.\n");
+	}
+
+	return 0;
+}
+
+static void meson_cvbs_unbind(struct device *dev,
+				 struct device *master, void *data)
+{
+	struct meson_drm_bound_data *bound_data = data;
+	struct cvbs_drv_s *hdev = cvbs_drv;
+
+	if (bound_data->connector_component_unbind) {
+		bound_data->connector_component_unbind(bound_data->drm,
+			DRM_MODE_CONNECTOR_TV, hdev->drm_cvbs_id);
+		pr_info("%s cvbs [%d]\n", __func__, hdev->drm_cvbs_id);
+	} else {
+		pr_err("no unbind func from drm.\n");
+	}
+
+	hdev->drm_cvbs_id = 0;
 }
 
 static struct platform_driver cvbsout_driver = {

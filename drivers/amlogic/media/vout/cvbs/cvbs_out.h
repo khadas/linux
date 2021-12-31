@@ -106,6 +106,9 @@ struct cvbs_drv_s {
 #ifdef CONFIG_AMLOGIC_VPU
 	struct vpu_dev_s *cvbs_vpu_dev;
 #endif
+
+	/*DRM related*/
+	int drm_cvbs_id;
 };
 
 static  DEFINE_MUTEX(cvbs_mutex);

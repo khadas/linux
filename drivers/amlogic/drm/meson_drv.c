@@ -625,10 +625,6 @@ static int am_meson_drm_bind(struct device *dev)
 		goto err_gem;
 	DRM_INFO("mode_config crtc number:%d\n", drm->mode_config.num_crtc);
 
-	/*todo: temp bind cvbs here, will move to cvbs driver.*/
-	if (priv->bound_data.connector_component_bind)
-		priv->bound_data.connector_component_bind(drm, DRM_MODE_CONNECTOR_TV, NULL);
-
 	ret = meson_worker_thread_init(priv);
 	if (ret)
 		goto err_unbind_all;
