@@ -587,6 +587,17 @@
 			/* standards.ieee.org/develop/regauth/oui/oui.txt */
 			vendor_id = <0x000000>;
 		};
+
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				hdmitx_to_drm: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <0>;
+				};
+			};
+		};
 	};
 
 	ge2d: ge2d {

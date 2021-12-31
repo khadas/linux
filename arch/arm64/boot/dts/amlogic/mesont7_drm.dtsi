@@ -4,24 +4,12 @@
  */
 
 #include <dt-bindings/display/meson-drm-ids.h>
+#include "mesont7.dtsi"
 
 / {
 	drm_amhdmitx: drm-amhdmitx {
 		status = "disabled";
 		hdcp = "disabled";
-		compatible = "amlogic, drm-amhdmitx";
-		dev_name = "meson-amhdmitx";
-		interrupts = <GIC_SPI 204 IRQ_TYPE_EDGE_RISING>;
-		ports {
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				hdmi_in_vpu: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vpu_out_hdmi>;
-				};
-			};
-		};
 	};
 
 	drm_amcvbsout: drm-amcvbsout {
@@ -32,9 +20,9 @@
 			port {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				cvbs_in_vpu: endpoint@0 {
+				cvbs_to_drm: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&vpu_out_cvbs>;
+					remote-endpoint = <&drm_to_cvbs>;
 				};
 			};
 		};
@@ -111,18 +99,10 @@
 		clocks = <&clkc CLKID_VPU_CLKC_MUX>;
 		clock-names = "vpu_clkc";
 		dma-coherent;
-		vpu_out: port {
+		vpu_out: port@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			vpu_out_hdmi: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&hdmi_in_vpu>;
-			};
-			vpu_out_cvbs: endpoint@1 {
-				reg = <1>;
-				remote-endpoint = <&cvbs_in_vpu>;
-			};
 			vpu_out_lcd: endpoint@2 {
 				reg = <2>;
 				remote-endpoint = <&lcd_in_vpu>;
@@ -136,12 +116,25 @@
 				remote-endpoint = <&lcd2_in_vpu>;
 			};
 		};
+		/*EXTERNAL port for driver outside of drm.*/
+		connectors_dev: port@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			drm_to_hdmitx: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&hdmitx_to_drm>;
+			};
+			drm_to_cvbs: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&cvbs_to_drm>;
+			};
+		};
 	};
 
 	drm_subsystem: drm-subsystem {
 		status = "okay";
 		compatible = "amlogic, drm-subsystem";
-		ports = <&vpu_out>;
+		ports = <&vpu_out>,<&connectors_dev>;
 		fbdev_sizes = <1920 1080 1920 2160 32>;
 		osd_ver = /bits/ 8 <OSD_V7>;
 
@@ -355,3 +348,15 @@
 	};
 };
 
+&amhdmitx {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			hdmitx_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_hdmitx>;
+			};
+		};
+	};
+};

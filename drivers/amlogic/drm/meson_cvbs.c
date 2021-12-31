@@ -22,8 +22,6 @@
 #include "meson_cvbs.h"
 #include <vout/cvbs/cvbs_out.h>
 
-static bool cvbs_probe;
-
 static struct drm_display_mode cvbs_mode[] = {
 	{ /* MODE_480CVBS */
 		.name = "480cvbs",
@@ -204,11 +202,6 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 	struct drm_connector *connector;
 	int ret = 0;
 
-	if (!cvbs_probe) {
-		DRM_ERROR("No probed cvbs to bind.\n");
-		return -ENOENT;
-	}
-
 	DRM_INFO("[%s] in\n", __func__);
 
 	am_drm_cvbs = kzalloc(sizeof(*am_drm_cvbs), GFP_KERNEL);
@@ -268,70 +261,3 @@ int meson_cvbs_dev_unbind(struct drm_device *drm,
 	kfree(am_drm_cvbs);
 	return 0;
 }
-
-static int am_meson_cvbs_bind(struct device *dev,
-			      struct device *master, void *data)
-{
-	cvbs_probe = true;
-	return 0;
-}
-
-static void am_meson_cvbs_unbind(struct device *dev,
-				 struct device *master, void *data)
-{
-	meson_cvbs_dev_unbind(NULL, DRM_MODE_CONNECTOR_TV, 0);
-	cvbs_probe = false;
-}
-
-static const struct component_ops am_meson_cvbs_ops = {
-	.bind	= am_meson_cvbs_bind,
-	.unbind	= am_meson_cvbs_unbind,
-};
-
-static int am_meson_cvbs_probe(struct platform_device *pdev)
-{
-	DRM_INFO("[%s:%d] in\n", __func__, __LINE__);
-	return component_add(&pdev->dev, &am_meson_cvbs_ops);
-}
-
-static int am_meson_cvbs_remove(struct platform_device *pdev)
-{
-	DRM_INFO("[%s:%d] in\n", __func__, __LINE__);
-	component_del(&pdev->dev, &am_meson_cvbs_ops);
-	return 0;
-}
-
-static const struct of_device_id am_meson_cvbs_dt_ids[] = {
-	{ .compatible = "amlogic, drm-cvbsout", },
-	{}
-};
-MODULE_DEVICE_TABLE(of, am_meson_cvbs_dt_ids);
-
-static struct platform_driver am_meson_cvbs_pltfm_driver = {
-	.probe  = am_meson_cvbs_probe,
-	.remove = am_meson_cvbs_remove,
-	.driver = {
-		.name = "meson-amcvbsout",
-		.of_match_table = am_meson_cvbs_dt_ids,
-	},
-};
-
-int __init am_meson_cvbs_init(void)
-{
-	return platform_driver_register(&am_meson_cvbs_pltfm_driver);
-}
-
-void __exit am_meson_cvbs_exit(void)
-{
-	platform_driver_unregister(&am_meson_cvbs_pltfm_driver);
-}
-
-#ifndef MODULE
-module_init(am_meson_cvbs_init);
-module_exit(am_meson_cvbs_exit);
-#endif
-
-MODULE_AUTHOR("MultiMedia Amlogic <multimedia-sh@amlogic.com>");
-MODULE_DESCRIPTION("Amlogic Meson Drm CVBS driver");
-MODULE_LICENSE("GPL");
-
