@@ -8032,6 +8032,77 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		(struct vframe_s *)vf->vf_ext : vf,
 		layer->cur_frame_par, layer_info);
 
+	if (layer->global_debug & DEBUG_FLAG_TRACE_EVENT) {
+		struct vframe_s *dispbuf = NULL;
+		u32 adapted_mode, info_frame;
+		bool print_info = false;
+
+		if (layer->dispbuf && vf &&
+			(layer->dispbuf->ratio_control & DISP_RATIO_ADAPTED_PICMODE) &&
+			layer->dispbuf->ratio_control == vf->ratio_control &&
+			memcmp(&layer->dispbuf->pic_mode, &vf->pic_mode,
+			   sizeof(struct vframe_pic_mode_s)))
+			print_info = true;
+		else if (layer->dispbuf &&
+			 memcmp(&layer->dispbuf->pic_mode, &gpic_info[layer_id],
+				sizeof(struct vframe_pic_mode_s)))
+			print_info = true;
+		else if (!layer->dispbuf)
+			print_info = true;
+
+		if (layer->dispbuf && print_info) {
+			dispbuf = layer->dispbuf;
+			adapted_mode = (dispbuf->ratio_control
+				& DISP_RATIO_ADAPTED_PICMODE) ? 1 : 0;
+			info_frame = (dispbuf->ratio_control
+				& DISP_RATIO_INFOFRAME_AVAIL) ? 1 : 0;
+
+			pr_info("VID%d: dispbuf:%p; ratio_control=0x%x;\n",
+				layer_id,
+				dispbuf, dispbuf->ratio_control);
+			pr_info("VID%d: adapted_mode=%d; info_frame=%d;\n",
+				layer_id,
+				adapted_mode, info_frame);
+			pr_info("VID%d: hs=%d, he=%d, vs=%d, ve=%d;\n",
+				layer_id,
+				dispbuf->pic_mode.hs,
+				dispbuf->pic_mode.he,
+				dispbuf->pic_mode.vs,
+				dispbuf->pic_mode.ve);
+			pr_info("VID%d: screen_mode=%d; custom_ar=%d; AFD_enable=%d\n",
+				layer_id,
+				dispbuf->pic_mode.screen_mode,
+				dispbuf->pic_mode.custom_ar,
+				dispbuf->pic_mode.AFD_enable);
+		}
+
+		if (vf && print_info) {
+			dispbuf = vf;
+			adapted_mode = (dispbuf->ratio_control
+				& DISP_RATIO_ADAPTED_PICMODE) ? 1 : 0;
+			info_frame = (dispbuf->ratio_control
+				& DISP_RATIO_INFOFRAME_AVAIL) ? 1 : 0;
+
+			pr_info("VID%d: new vf:%p; ratio_control=0x%x;\n",
+				layer_id,
+				dispbuf, dispbuf->ratio_control);
+			pr_info("VID%d: adapted_mode=%d; info_frame=%d;\n",
+				layer_id,
+				adapted_mode, info_frame);
+			pr_info("VID%d: hs=%d, he=%d, vs=%d, ve=%d;\n",
+				layer_id,
+				dispbuf->pic_mode.hs,
+				dispbuf->pic_mode.he,
+				dispbuf->pic_mode.vs,
+				dispbuf->pic_mode.ve);
+			pr_info("VID%d: screen_mode=%d; custom_ar=%d; AFD_enable=%d\n",
+				layer_id,
+				dispbuf->pic_mode.screen_mode,
+				dispbuf->pic_mode.custom_ar,
+				dispbuf->pic_mode.AFD_enable);
+		}
+	}
+
 	frame_changed = is_vframe_changed
 		(layer_id,
 		layer->dispbuf, vf);

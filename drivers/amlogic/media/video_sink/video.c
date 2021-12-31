@@ -8070,6 +8070,18 @@ SET_FILTER:
 		}
 	}
 
+	if (debug_flag & DEBUG_FLAG_PRINT_DISBUF_PER_VSYNC)
+		pr_info("VID: layer enable status: VD1:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD2:e:%d,e_save:%d,g:%d,d:%d,f:%s; VD3:e:%d,e_save:%d,g:%d,d:%d,f:%s",
+			vd_layer[0].enabled, vd_layer[0].enabled_status_saved,
+			vd_layer[0].global_output, vd_layer[0].disable_video,
+			vd_layer[0].force_disable ? "true" : "false",
+			vd_layer[1].enabled, vd_layer[1].enabled_status_saved,
+			vd_layer[1].global_output, vd_layer[1].disable_video,
+			vd_layer[1].force_disable ? "true" : "false",
+			vd_layer[2].enabled, vd_layer[2].enabled_status_saved,
+			vd_layer[2].global_output, vd_layer[2].disable_video,
+			vd_layer[2].force_disable ? "true" : "false");
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (is_dolby_vision_enable() && vd_layer[0].global_output) {
 		/* no new frame but path switched case, */
@@ -8171,9 +8183,17 @@ SET_FILTER:
 			}
 			vd_layer[0].force_disable = true;
 		} else {
+			if (vd_layer[0].force_disable &&
+			    vd_layer[0].global_output &&
+			    !vd_layer[0].disable_video)
+				safe_switch_videolayer(0, true, true);
 			vd_layer[0].force_disable = false;
 		}
 	} else {
+		if (vd_layer[0].force_disable &&
+		    vd_layer[0].global_output &&
+		    !vd_layer[0].disable_video)
+			safe_switch_videolayer(0, true, true);
 		vd_layer[0].force_disable = false;
 	}
 	if (cur_frame_par) {
@@ -11156,6 +11176,11 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 				} else if (mode != layer->wide_mode) {
 					u8 id = layer->layer_id;
 
+					if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+						pr_info("screen_mode ioctl: id:%d, mode %d->%d %s\n",
+							id, mode,
+							layer->wide_mode,
+							current->comm);
 					layer->wide_mode = mode;
 					vd_layer[id].property_changed = true;
 				}
@@ -12039,6 +12064,9 @@ static ssize_t video_screen_mode_store(struct class *cla,
 
 	if (mode < VIDEO_WIDEOPTION_MAX &&
 	    mode != layer->wide_mode) {
+		if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+			pr_info("video_screen_mode sysfs:%d->%ld %s\n",
+				layer->wide_mode, mode, current->comm);
 		layer->wide_mode = mode;
 		vd_layer[0].property_changed = true;
 	}
