@@ -191,15 +191,15 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 		}
 		/* HPD falling */
 		if (dat_top & (1 << 2)) {
-			queue_delayed_work(hdev->hdmi_wq,
-					   &hdev->work_aud_hpd_plug, 2 * HZ);
 			hdev->hdmitx_event |= HDMI_TX_HPD_PLUGOUT;
 			hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 			hdev->rhpd_state = 0;
+			queue_delayed_work(hdev->hdmi_wq,
+				&hdev->work_hpd_plugout, 0);
 			if (earc_hdmitx_hpdst)
 				earc_hdmitx_hpdst(false);
 			queue_delayed_work(hdev->hdmi_wq,
-				&hdev->work_hpd_plugout, 0);
+					   &hdev->work_aud_hpd_plug, 2 * HZ);
 		}
 	}
 next:
@@ -229,11 +229,11 @@ static void intr_status_save_and_clear(void)
 static irqreturn_t intr_handler(int irq, void *dev)
 {
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
-	struct hdcp_t *amhdcp = (struct hdcp_t *)hdev->am_hdcp;
 
 	intr_status_save_and_clear();
 
-	queue_delayed_work(amhdcp->hdcp_wq, &hdev->work_internal_intr, 1);
+	/* for hdcp cts test, need handle ASAP w/o any delay */
+	queue_delayed_work(hdev->hdmi_wq, &hdev->work_internal_intr, 0);
 
 	return IRQ_HANDLED;
 }

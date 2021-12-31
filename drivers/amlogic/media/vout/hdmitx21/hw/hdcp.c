@@ -214,6 +214,10 @@ void hdcptx2_csm_send(struct hdcp_csm_t *csm_msg)
 	hdmitx21_wr_reg(CP2TX_TX_RPT_SMNG_IN_IVCTX, (u8)(csm_msg->streamid_type));
 	hdmitx21_wr_reg(CP2TX_TX_CTRL_0_IVCTX, BIT_CP2TX_TX_CTRL_0_RI_RPT_SMNG_WR);
 	hdmitx21_wr_reg(CP2TX_TX_CTRL_0_IVCTX, 0);
+}
+
+void hdcptx2_rpt_smng_xfer_start(void)
+{
 	hdmitx21_wr_reg(CP2TX_TX_CTRL_0_IVCTX, BIT_CP2TX_TX_CTRL_0_RI_RPT_SMNG_XFER_START);
 	hdmitx21_wr_reg(CP2TX_TX_CTRL_0_IVCTX, 0);
 }
