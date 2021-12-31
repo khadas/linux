@@ -557,6 +557,11 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		int_reg[0], int_reg[1], int_reg[2], int_reg[3]);
 
 	if (cp2tx_intr0_st & BIT_CP2TX_INTR0_AUTH_DONE) {
+		/* intr0 bit7 and bit0 needs to be 1, then start smng xfer */
+		/* otherwise the 1B-09 will fail */
+		if ((cp2tx_intr0_st & BIT_CP2TX_INTR0_POLL_INTERVAL) &&
+			p_hdcp->ds_repeater)
+			hdcptx2_rpt_smng_xfer_start();
 		if (hdcptx2_auth_status()) {
 			if (!hdcptx_query_ds_repeater(p_hdcp)) {
 				hdcp_authenticated_handle(p_hdcp);

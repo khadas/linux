@@ -195,6 +195,7 @@ u8 hdcptx2_rpt_dev_cnt_get(void);
 u8 hdcptx2_rpt_depth_get(void);
 u8 hdcptx2_topology_get(void);
 void hdcptx2_csm_send(struct hdcp_csm_t *csm_msg);
+void hdcptx2_rpt_smng_xfer_start(void);
 void hdcptx1_bcaps_get(u8 *p_bcaps_status);
 void hdcptx2_smng_auto(bool en);
 void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val);

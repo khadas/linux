@@ -2586,12 +2586,12 @@ static ssize_t dc_cap_show(struct device *dev,
 	if (prxcap->dc_36bit || dv->sup_10b_12b_444 == 0x2 ||
 	    dv2->sup_10b_12b_444 == 0x2)
 		if (!hdev->vend_id_hit)
-			;
+			pos += snprintf(buf + pos, PAGE_SIZE, "rgb,12bit\n");
 	if (prxcap->dc_30bit || dv->sup_10b_12b_444 == 0x1 ||
 	    dv2->sup_10b_12b_444 == 0x1)
 		if (!hdev->vend_id_hit)
-			;
-	; // pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
+			pos += snprintf(buf + pos, PAGE_SIZE, "rgb,10bit\n");
+	pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
 	return pos;
 }
 
