@@ -2029,7 +2029,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	ret = of_property_read_u32(node, "tdm_for_speaker",
 				&p_tdm->tdm_for_speaker);
 	if (ret < 0)
-		p_tdm->clk_tuning_enable = 0;
+		p_tdm->tdm_for_speaker = 0;
 	else
 		pr_info("TDM id %d tdm_for_speaker\n", p_tdm->id);
 
