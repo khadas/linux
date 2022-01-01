@@ -91,9 +91,19 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	struct drm_property *property,
 	uint64_t *val)
 {
-	DRM_INFO("unsupported crtc property\n");
+	struct am_meson_crtc_state *crtc_state =
+		to_am_meson_crtc_state(state);
+	struct am_meson_crtc *meson_crtc = to_am_meson_crtc(crtc);
+	int ret = 0;
 
-	return -EINVAL;
+	if (property == meson_crtc->hdr_policy) {
+		*val = crtc_state->crtc_hdr_process_policy;
+	} else {
+		DRM_INFO("unsupported crtc property\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
@@ -101,9 +111,19 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 	struct drm_property *property,
 	uint64_t val)
 {
-	DRM_ERROR("unsupported crtc property\n");
+	struct am_meson_crtc_state *crtc_state =
+		to_am_meson_crtc_state(state);
+	struct am_meson_crtc *meson_crtc = to_am_meson_crtc(crtc);
+	int ret = 0;
 
-	return -EINVAL;
+	if (property == meson_crtc->hdr_policy) {
+		crtc_state->crtc_hdr_process_policy = val;
+	} else {
+		DRM_ERROR("unsupported crtc property\n");
+		ret = -EINVAL;
+	}
+
+	return ret;
 }
 
 static void meson_crtc_atomic_print_state(struct drm_printer *p,
@@ -490,6 +510,8 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_atomic_state *old_atomic_state = old_state->state;
 	struct meson_drm *priv = amcrtc->priv;
 	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
+	struct am_meson_crtc_state *old_crtc_state =
+		to_am_meson_crtc_state(old_state);
 	struct am_meson_crtc_state *meson_crtc_state;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	int gamma_lut_size = 0;
@@ -547,6 +569,13 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+	if (meson_crtc_state->crtc_hdr_process_policy !=
+		old_crtc_state->crtc_hdr_process_policy) {
+		set_hdr_policy(meson_crtc_state->crtc_hdr_process_policy);
+	}
+#endif
 }
 
 static const struct drm_crtc_helper_funcs am_crtc_helper_funcs = {
@@ -596,6 +625,20 @@ static int meson_crtc_get_scannout_position(struct am_meson_crtc *crtc,
 	return ret;
 }
 
+static void meson_crtc_init_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "meson.crtc.hdr_policy");
+	if (prop) {
+		amcrtc->hdr_policy = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to UPDATE property\n");
+	}
+}
+
 int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 {
 	struct meson_drm *priv = amcrtc->priv;
@@ -630,7 +673,7 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 #endif
 
 	amcrtc->get_scannout_position = meson_crtc_get_scannout_position;
-
+	meson_crtc_init_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;
