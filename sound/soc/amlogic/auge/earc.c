@@ -851,12 +851,8 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static void earctx_update_clk(struct earc *p_earc,
-			      unsigned int channels,
-			      unsigned int rate)
+static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq)
 {
-	unsigned int multi = audio_multi_clk(p_earc->tx_audio_coding_type);
-	unsigned int freq = rate * 128 * EARC_DMAC_MUTIPLIER * multi;
 	unsigned int mpll_freq = freq *
 		mpll2dmac_clk_ratio_by_type(p_earc->tx_audio_coding_type);
 
@@ -864,12 +860,9 @@ static void earctx_update_clk(struct earc *p_earc,
 	while (mpll_freq > AML_MPLL_FREQ_MAX)
 		mpll_freq = mpll_freq >> 1;
 
-	dev_info(p_earc->dev, "set %dX normal dmac clk, p_earc->tx_dmac_freq:%d\n",
-		multi, p_earc->tx_dmac_freq);
 	dev_info(p_earc->dev,
-		"%s, rate:%d, set freq:%d, get freq:%lu, set src freq:%d, get src freq:%lu\n",
+		"%s, set freq:%d, get freq:%lu, set src freq:%d, get src freq:%lu\n",
 		__func__,
-		rate,
 		freq,
 		clk_get_rate(p_earc->clk_tx_dmac),
 		mpll_freq,
@@ -882,6 +875,18 @@ static void earctx_update_clk(struct earc *p_earc,
 	clk_set_rate(p_earc->clk_tx_dmac_srcpll, mpll_freq);
 	p_earc->tx_dmac_freq = freq;
 	clk_set_rate(p_earc->clk_tx_dmac, freq);
+}
+
+static void earctx_update_clk(struct earc *p_earc,
+			      unsigned int channels,
+			      unsigned int rate)
+{
+	unsigned int multi = audio_multi_clk(p_earc->tx_audio_coding_type);
+	unsigned int freq = rate * 128 * EARC_DMAC_MUTIPLIER * multi;
+
+	dev_info(p_earc->dev, "rate %d, set %dX normal dmac clk, p_earc->tx_dmac_freq:%d\n",
+		rate, multi, p_earc->tx_dmac_freq);
+	earctx_set_dmac_freq(p_earc, freq);
 }
 
 int spdif_codec_to_earc_codec[][2] = {
@@ -1962,6 +1967,37 @@ static int earctx_set_ca(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int earctx_clk_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	ucontrol->value.enumerated.item[0] =
+			clk_get_rate(p_earc->clk_tx_dmac);
+	return 0;
+}
+
+static int earctx_clk_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	int freq = p_earc->tx_dmac_freq;
+	int value = ucontrol->value.enumerated.item[0];
+
+	if (value > 2000000 || value < 0) {
+		pr_err("Fine earctx dmac setting range(0~2000000), %d\n",
+				value);
+		return 0;
+	}
+	value = value - 1000000;
+	freq += value;
+
+	earctx_set_dmac_freq(p_earc, freq);
+	return 0;
+}
+
 static const struct snd_kcontrol_new earc_controls[] = {
 	SOC_SINGLE_BOOL_EXT("eARC ARC Switch",
 			    0,
@@ -2042,6 +2078,9 @@ static const struct snd_kcontrol_new earc_controls[] = {
 		       0, 0, 32, 0,
 		       earcrx_get_word_length,
 		       NULL),
+	SOC_SINGLE_EXT("eARC_TX CLK Fine Setting",
+		       0, 0, 2000000, 0,
+		       earctx_clk_get, earctx_clk_put),
 
 	/* Status cchanel controller */
 	SND_IEC958(SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
