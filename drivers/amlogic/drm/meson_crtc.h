@@ -50,6 +50,8 @@ struct am_meson_crtc {
 	struct drm_pending_vblank_event *event;
 	struct meson_vpu_pipeline *pipeline;
 
+	struct drm_property *hdr_policy;
+
     /*debug*/
 	int dump_enable;
 	int blank_enable;
