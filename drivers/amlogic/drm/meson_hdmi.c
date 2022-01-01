@@ -463,6 +463,9 @@ static int am_hdmitx_connector_atomic_set_property
 		attr->bitdepth = val;
 		hdmitx_state->color_force = true;
 		return 0;
+	} else if (property == am_hdmi->avmute_prop) {
+		hdmitx_state->avmute = val;
+		return 0;
 	}
 
 	return -EINVAL;
@@ -489,6 +492,9 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->color_depth_prop) {
 		*val = attr->bitdepth;
+		return 0;
+	} else if (property == am_hdmi->avmute_prop) {
+		*val = hdmitx_state->avmute;
 		return 0;
 	}
 
@@ -809,8 +815,23 @@ void meson_hdmitx_update_hdcp_locked(void)
 void meson_hdmitx_update(struct drm_connector_state *new_state,
 	struct drm_connector_state *old_state)
 {
+	struct am_hdmitx_connector_state *old_hdmitx_state =
+		to_am_hdmitx_connector_state(old_state);
+	struct am_hdmitx_connector_state *new_hdmitx_state =
+		to_am_hdmitx_connector_state(new_state);
+
 	if (new_state->content_type != old_state->content_type)
 		am_hdmi_info.hdmitx_dev->set_content_type(new_state->content_type);
+
+	if (new_hdmitx_state->avmute != old_hdmitx_state->avmute) {
+		if (new_hdmitx_state->avmute) {
+			am_hdmi_info.hdmitx_dev->avmute(new_hdmitx_state->avmute);
+		} else {
+			am_hdmi_info.hdmitx_dev->set_phy(0);
+			am_hdmi_info.hdmitx_dev->set_phy(1);
+			am_hdmi_info.hdmitx_dev->avmute(new_hdmitx_state->avmute);
+		}
+	}
 
 	if (am_hdmi_info.android_path)
 		return;
@@ -1217,6 +1238,20 @@ static void meson_hdmitx_init_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_avmute_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "MESON_DRM_HDMITX_PROP_AVMUTE");
+	if (prop) {
+		am_hdmi->avmute_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to AVMUTE property\n");
+	}
+}
+
 static void meson_hdmitx_hpd_cb(void *data)
 {
 	struct am_hdmi_tx *am_hdmi = (struct am_hdmi_tx *)data;
@@ -1342,6 +1377,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_property(drm, am_hdmi);
 	meson_hdmitx_init_colordepth_property(drm, am_hdmi);
 	meson_hdmitx_init_colorspace_property(drm, am_hdmi);
+	meson_hdmitx_init_avmute_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

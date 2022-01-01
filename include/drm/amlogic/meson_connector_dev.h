@@ -82,6 +82,7 @@ struct meson_hdmitx_dev {
 	int (*get_hdr_priority)(void);
 
 	void (*avmute)(unsigned char mute);
+	void (*set_phy)(unsigned char en);
 
 	/*hdcp apis*/
 	void (*hdcp_init)(void);
