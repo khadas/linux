@@ -592,6 +592,12 @@ static void do_file_thread(struct video_queue_dev *dev)
 	else
 		dev->need_aisr = false;
 
+	//ATV need static frame
+	if (vf->source_type == VFRAME_SOURCE_TYPE_TUNER)
+		dev->need_keep_frame = true;
+	else
+		dev->need_keep_frame = false;
+
 	vframe_get_delay = (int)div_u64(((jiffies_64 -
 			vf->ready_jiffies64) * 1000), HZ);
 	vframe_get_delay -= vf->duration / 96;
@@ -976,8 +982,12 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	wakeup = 1;
 	wake_up_interruptible(&file_wq);
 
-	videoq_notify_to_amvideo(false);
-
+	if (!dev->need_keep_frame) {
+		vq_print(P_ERROR, "Other source, no need keep frame.\n");
+		videoq_notify_to_amvideo(false);
+	} else {
+		vq_print(P_ERROR, "ATV source need keep frame.\n");
+	}
 	if (dev->file_thread)
 		kthread_stop(dev->file_thread);
 

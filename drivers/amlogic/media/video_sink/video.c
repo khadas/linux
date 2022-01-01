@@ -8164,8 +8164,7 @@ SET_FILTER:
 		source_type = vd_layer[0].dispbuf->source_type;
 		/* TODO: change new flag to detect video tunnel path */
 		if (source_type == VFRAME_SOURCE_TYPE_HDMI ||
-		    source_type == VFRAME_SOURCE_TYPE_CVBS ||
-		    source_type == VFRAME_SOURCE_TYPE_TUNER) {
+		    source_type == VFRAME_SOURCE_TYPE_CVBS) {
 			if (!vd_layer[0].force_disable) {
 				safe_switch_videolayer(0, false, true);
 				atomic_set(&vt_disable_video_done, 0);
