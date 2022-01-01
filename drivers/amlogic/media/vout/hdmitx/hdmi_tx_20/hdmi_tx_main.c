@@ -7620,6 +7620,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdr_info = drm_hdmitx_get_hdr_info,
 	.get_hdr_priority = drm_hdmitx_get_hdr_priority,
 	.avmute = drm_hdmitx_avmute,
+	.set_phy = drm_hdmitx_set_phy,
 
 	/*hdcp apis*/
 	.hdcp_init = meson_hdcp_init,

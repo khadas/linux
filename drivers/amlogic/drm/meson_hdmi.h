@@ -54,6 +54,7 @@ struct am_hdmi_tx {
 	struct drm_property *update_attr_prop;
 	struct drm_property *color_space_prop;
 	struct drm_property *color_depth_prop;
+	struct drm_property *avmute_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
@@ -74,6 +75,7 @@ struct am_hdmitx_connector_state {
 
 	bool update : 1;
 	bool color_force : 1;
+	bool avmute : 1;
 };
 
 #define to_am_hdmitx_connector_state(x)	container_of(x, struct am_hdmitx_connector_state, base)
