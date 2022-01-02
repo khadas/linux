@@ -146,3 +146,4 @@ void get_hist(enum vd_path_e vd_path,
 extern u32 hdr_hist[NUM_HDR_HIST][128];
 extern u32 percentile[9];
 extern u32 disable_flush_flag;
+void hdr_reg_dump(unsigned int offset);

@@ -5462,6 +5462,14 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 			for (i = 0; i < 65; i++)
 				cgain_lut_bypass[i] = curve_val[i];
 		}
+	} else if (!strcmp(parm[0], "reg_dump")) {
+		if (!parm[1]) {
+			hdr_reg_dump(0);
+		} else {
+			if (kstrtoul(parm[1], 16, &val) < 0)
+				goto free_buf;
+			hdr_reg_dump(val);
+		}
 	}
 
 	hdr10_tmo_dbg(parm);

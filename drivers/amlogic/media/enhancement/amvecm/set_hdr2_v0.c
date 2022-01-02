@@ -5113,3 +5113,61 @@ int get_hdr_setting(enum hdr_module_sel module_sel,
 	return ret;
 }
 EXPORT_SYMBOL(get_hdr_setting);
+
+void hdr_reg_dump(unsigned int offset)
+{
+	unsigned int val;
+	unsigned int i;
+	unsigned int reg;
+	unsigned int hdr_ctrl = VD1_HDR2_CTRL + offset;
+	unsigned int eotf_lut_addr_port = VD1_EOTF_LUT_ADDR_PORT + offset;
+	unsigned int eotf_lut_data_port = VD1_EOTF_LUT_DATA_PORT + offset;
+	unsigned int ootf_lut_addr_port = VD1_OGAIN_LUT_ADDR_PORT + offset;
+	unsigned int ootf_lut_data_port = VD1_OGAIN_LUT_DATA_PORT + offset;
+	unsigned int oetf_lut_addr_port = VD1_OETF_LUT_ADDR_PORT + offset;
+	unsigned int oetf_lut_data_port = VD1_OETF_LUT_DATA_PORT + offset;
+	unsigned int cgain_lut_addr_port = VD1_CGAIN_LUT_ADDR_PORT + offset;
+	unsigned int cgain_lut_data_port = VD1_CGAIN_LUT_DATA_PORT + offset;
+
+	pr_info("-------hdr config reg-------\n");
+	for (i = 0; i <= 0x40; i++) {
+		reg = hdr_ctrl + i;
+		/*skip lut*/
+		if ((i >= 0x1e && i <= 0x23) ||
+			i == 0x26 ||
+			i == 0x27)
+			continue;
+
+		val = READ_VPP_REG(reg);
+		pr_info("[0x%4x] = 0x%08x\n", reg, val);
+	}
+
+	pr_info("-------hdr eotf reg = %04x-------\n", eotf_lut_addr_port);
+	WRITE_VPP_REG(eotf_lut_addr_port, 0x0);
+	for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++) {
+		WRITE_VPP_REG(eotf_lut_addr_port, i);
+		val = READ_VPP_REG(eotf_lut_data_port);
+		pr_info("[%04d] = 0x%08x\n", i, val);
+	}
+
+	pr_info("-------hdr ootf reg = %04x-------\n", ootf_lut_addr_port);
+	for (i = 0; i <= HDR2_OOTF_LUT_SIZE / 2; i++) {
+		WRITE_VPP_REG(ootf_lut_addr_port, i);
+		val = READ_VPP_REG(ootf_lut_data_port);
+		pr_info("[%04d] = 0x%08x\n", i, val);
+	}
+
+	pr_info("-------hdr oetf reg = %04x-------\n", oetf_lut_addr_port);
+	for (i = 0; i <= HDR2_OETF_LUT_SIZE / 2; i++) {
+		WRITE_VPP_REG(oetf_lut_addr_port, i);
+		val = READ_VPP_REG(oetf_lut_data_port);
+		pr_info("[%04d] = 0x%08x\n", i, val);
+	}
+
+	pr_info("-------hdr cgain reg = %04x-------\n", cgain_lut_addr_port);
+	for (i = 0; i <= HDR2_CGAIN_LUT_SIZE / 2; i++) {
+		WRITE_VPP_REG(cgain_lut_addr_port, i);
+		val = READ_VPP_REG(cgain_lut_data_port);
+		pr_info("[%04d] = 0x%08x\n", i, val);
+	}
+}
