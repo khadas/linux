@@ -311,7 +311,12 @@ void frc_change_to_state(enum frc_state_e state)
 {
 	struct frc_dev_s *devp = get_frc_devp();
 
-	if (devp->frc_sts.state_transing) {
+	if (devp->in_sts.vf_sts == 0 && state == FRC_STATE_ENABLE) {
+		devp->frc_sts.frame_cnt = 0;
+		devp->frc_sts.state_transing = false;
+		pr_frc(0, "%s %d->%d, no video, can't change\n", __func__,
+				devp->frc_sts.state, state);
+	} else if (devp->frc_sts.state_transing) {
 		pr_frc(0, "%s state_transing busy!\n", __func__);
 		if (state != devp->frc_sts.new_state) {
 			devp->frc_sts.state = devp->frc_sts.new_state;
@@ -323,7 +328,7 @@ void frc_change_to_state(enum frc_state_e state)
 	} else if (devp->frc_sts.state != state) {
 		devp->frc_sts.new_state = state;
 		devp->frc_sts.state_transing = true;
-		pr_frc(1, "%s %d->%d\n", __func__, devp->frc_sts.state, state);
+		pr_frc(0, "%s %d->%d\n", __func__, devp->frc_sts.state, state);
 	}
 }
 
@@ -397,6 +402,9 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		sts_change |= FRC_EVENT_VF_CHG_IN_SIZE;
 	}
 	devp->in_sts.in_vsize = cur_in_sts->in_vsize;
+
+	// if (cur_in_sts.vf_sts == false)  TEST
+	// devp->frc_sts.re_config = 0;
 
 	if (devp->frc_sts.out_put_mode_changed || devp->frc_sts.re_config) {
 		pr_frc(1, "out_put_mode_changed 0x%x re_config:%d\n",
