@@ -806,7 +806,7 @@ static void loopback_mic_src_fifo_reset(struct loopback *p_loopback,
 	case DATAIN_TDMC:
 	case DATAIN_TDMD:
 		aml_tdm_fifo_reset(p_loopback->actrl,
-			stream, p_loopback->datain_src);
+			stream, p_loopback->datain_src, 0);
 		break;
 
 	case DATAIN_SPDIF:

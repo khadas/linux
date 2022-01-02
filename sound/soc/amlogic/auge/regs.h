@@ -1509,6 +1509,10 @@ struct register_table {
 #define EE_AUDIO2_EXCEPTION_IRQ_CLR0       0x093
 #define EE_AUDIO2_EXCEPTION_IRQ_INV0       0x094
 
+/* audio out clkmux registers */
+#define EE_REG_MUX_CTRL0                   0x0E3
+#define EE_REG_MUX_CTRL1                   0x0E4
+
 /* 64 exception irq */
 #define EE_AUDIO_EXCEPTION_IRQ_STS0        0x380
 #define EE_AUDIO_EXCEPTION_IRQ_STS1        0x381

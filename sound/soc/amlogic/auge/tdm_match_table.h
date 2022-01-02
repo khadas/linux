@@ -61,6 +61,7 @@ struct tdm_chipinfo {
 	bool chnum_en;
 	int  gain_ver;
 	bool use_arb;
+	bool use_vadtop;
 };
 
 #define SRC_TDMIN_A     "tdmin_a"
@@ -558,6 +559,23 @@ struct tdm_chipinfo a5_tdmb_chipinfo = {
 	.use_arb = false,
 };
 
+struct tdm_chipinfo a5_tdmc_chipinfo = {
+	.id          = TDM_C,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = false,
+	.adc_fn      = false,
+	.lane_cnt    = LANE_MAX3,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.tdmin_srcs = &tdmin_srcs_v5[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
+	.use_arb = false,
+	.use_vadtop = true,
+};
+
 static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, g12a-snd-tdma",
@@ -668,6 +686,10 @@ static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, a5-snd-tdmb",
 		.data       = &a5_tdmb_chipinfo,
+	},
+		{
+		.compatible = "amlogic, a5-snd-tdmc",
+		.data       = &a5_tdmc_chipinfo,
 	},
 	{}
 };

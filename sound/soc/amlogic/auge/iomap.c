@@ -287,6 +287,14 @@ void vad_top_update_bits(unsigned int reg,
 }
 EXPORT_SYMBOL(vad_top_update_bits);
 
+void clk_mux_update_bits(unsigned int reg,
+			 unsigned int mask,
+			 unsigned int val)
+{
+	aml_snd_update_bits(IO_CLK_MUX, reg, mask, val);
+}
+EXPORT_SYMBOL(clk_mux_update_bits);
+
 static int snd_iomap_probe(struct platform_device *pdev)
 {
 	struct resource res;
