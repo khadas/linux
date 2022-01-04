@@ -4818,6 +4818,111 @@ static struct clk_regmap sm1_vdin_meas_gate = {
 		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
 	},
 };
+
+static const struct clk_parent_data sm1_vipnanoq_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &g12a_gp0_pll.hw },
+	{ .hw = &g12a_hifi_pll.hw },
+	{ .hw = &g12a_fclk_div2p5.hw },
+	{ .hw = &g12a_fclk_div3.hw },
+	{ .hw = &g12a_fclk_div4.hw },
+	{ .hw = &g12a_fclk_div5.hw },
+	{ .hw = &g12a_fclk_div7.hw },
+};
+
+static struct clk_regmap sm1_vipnanoq_core_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vipnanoq_core_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = sm1_vipnanoq_parent_hws,
+		.num_parents = ARRAY_SIZE(sm1_vipnanoq_parent_hws),
+	},
+};
+
+static struct clk_regmap sm1_vipnanoq_core_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vipnanoq_core_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&sm1_vipnanoq_core_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap sm1_vipnanoq_core_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vipnanoq_core_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&sm1_vipnanoq_core_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap sm1_vipnanoq_axi_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vipnanoq_axi_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = sm1_vipnanoq_parent_hws,
+		.num_parents = ARRAY_SIZE(sm1_vipnanoq_parent_hws),
+	},
+};
+
+static struct clk_regmap sm1_vipnanoq_axi_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vipnanoq_axi_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&sm1_vipnanoq_axi_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap sm1_vipnanoq_axi_gate = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VIPNANOQ_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vipnanoq_axi_gate",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&sm1_vipnanoq_axi_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
 #endif
 
 static const struct clk_parent_data g12a_vdec_mux_parent_hws[] = {
@@ -6009,6 +6114,12 @@ static struct clk_hw_onecell_data sm1_hw_onecell_data = {
 		[CLKID_VDIN_MEAS_MUX]		= &sm1_vdin_meas_mux.hw,
 		[CLKID_VDIN_MEAS_DIV]		= &sm1_vdin_meas_div.hw,
 		[CLKID_VDIN_MEAS_GATE]		= &sm1_vdin_meas_gate.hw,
+		[CLKID_VIPNANOQ_CORE_MUX]	= &sm1_vipnanoq_core_mux.hw,
+		[CLKID_VIPNANOQ_CORE_DIV]	= &sm1_vipnanoq_core_div.hw,
+		[CLKID_VIPNANOQ_CORE_GATE]	= &sm1_vipnanoq_core_gate.hw,
+		[CLKID_VIPNANOQ_AXI_MUX]	= &sm1_vipnanoq_axi_mux.hw,
+		[CLKID_VIPNANOQ_AXI_DIV]	= &sm1_vipnanoq_axi_div.hw,
+		[CLKID_VIPNANOQ_AXI_GATE]	= &sm1_vipnanoq_axi_gate.hw,
 #endif
 		[NR_CLKS]			= NULL,
 	},
@@ -6304,6 +6415,12 @@ static struct clk_regmap *const g12a_clk_regmaps[] __initconst = {
 	&g12a_bt656_mux,
 	&g12a_bt656_div,
 	&g12a_bt656_gate,
+	&sm1_vipnanoq_core_mux,
+	&sm1_vipnanoq_core_div,
+	&sm1_vipnanoq_core_gate,
+	&sm1_vipnanoq_axi_mux,
+	&sm1_vipnanoq_axi_div,
+	&sm1_vipnanoq_axi_gate,
 #endif
 };
 
