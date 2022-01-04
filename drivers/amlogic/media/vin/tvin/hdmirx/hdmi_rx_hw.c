@@ -113,6 +113,7 @@ u32 phy_trim_val;
 int phy_term_lel;
 bool phy_tdr_en;
 int hdcp_tee_path;
+int kill_esm_fail;
 
 /* emp buffer */
 char emp_buf[1024];
@@ -2458,11 +2459,16 @@ void hdcp22_clk_en(bool en)
 			/* for arbitrating AXI requests from HDMI TX and RX.*/
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(1, 12), 0x1);
 	} else {
-		hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 3), 0x0);
 		if (rx.chip_id >= CHIP_ID_T5)
 			wr_reg_clk_ctl(HHI_HDCP22_CLK_CNTL, 0);
 		else
 			wr_reg_hhi(HHI_HDCP22_CLK_CNTL, 0);
+		if (rx.chip_id >= CHIP_ID_TL1)
+			/* TL1:esm related clk bit9-11 */
+			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 9), 0x0);
+		else
+			/* TXLX:esm related clk bit3-5 */
+			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 3), 0x0);
 	}
 }
 
@@ -2504,6 +2510,17 @@ void rx_is_hdcp22_support(void)
 		hdcp22_on = 0;
 	}
 	rx_pr("hdcp22 == %d\n", hdcp22_on);
+}
+
+/*
+ * kill esm may not excuted in rx22
+ * kill esm in driver when 2.2 off
+ * refer to ESM_Kill->esm_hostlib_mb_cmd
+ */
+
+void rx_kill_esm(void)
+{
+	rx_hdcp22_wr_reg(0x28, 9);
 }
 
 /*
@@ -2554,6 +2571,7 @@ void hdcp_22_on(void)
 		//TODO..
 	} else {
 		hdcp22_kill_esm = 0;
+		kill_esm_fail = 0;
 		/* switch_set_state(&rx.hpd_sdev, 0x0); */
 		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
 		rx_hdcp22_send_uevent(0);
