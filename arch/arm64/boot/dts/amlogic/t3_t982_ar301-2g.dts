@@ -1200,7 +1200,7 @@
 	};
 
 	loopbacka:loopback@0 {
-		compatible = "amlogic, t5-loopbacka";
+		compatible = "amlogic, p1-loopbacka";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1255,7 +1255,7 @@
 	};
 
 	loopbackb:loopback@1 {
-		compatible = "amlogic, t5-loopbackb";
+		compatible = "amlogic, p1-loopbackb";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1284,7 +1284,7 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
+		datain_chnum = <0>;
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;

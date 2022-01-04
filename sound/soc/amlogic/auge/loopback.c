@@ -599,9 +599,11 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		datalb_cfg.n = datalb_lsb;
 		datalb_cfg.loopback_src = 0; /* todo: tdmin_LB */
 		datalb_cfg.tdmin_lb_srcs = p_loopback->chipinfo->tdmin_lb_srcs;
-		/* get resample B status */
-		datalb_cfg.resample_enable =
-			(unsigned int)get_resample_enable(RESAMPLE_B);
+		/* get resample B status and resample B is only available for loopbacka */
+		if (p_loopback->id == 0)
+			datalb_cfg.resample_enable =
+				(unsigned int)get_resample_enable(RESAMPLE_B);
+
 		lb_set_datalb_cfg(p_loopback->id,
 			&datalb_cfg,
 			p_loopback->chipinfo->multi_bits_lbsrcs,
@@ -1228,11 +1230,33 @@ static const struct snd_kcontrol_new snd_loopback_controls[] = {
 		datalb_tdminlb_set_enum),
 };
 
-static const struct snd_soc_component_driver loopback_component = {
-	.name		  = DRV_NAME,
-	.ops	  = &loopback_ops,
-	.controls	  = snd_loopback_controls,
-	.num_controls = ARRAY_SIZE(snd_loopback_controls),
+static const struct snd_kcontrol_new snd_loopbackb_controls[] = {
+	/* loopback data in source */
+	SOC_ENUM_EXT("Loopbackb datain source",
+		datain_src_enum,
+		datain_src_get_enum,
+		datain_src_set_enum),
+
+	/* loopback data tdmin lb */
+	SOC_ENUM_EXT("Loopbackb tdmin lb source",
+		datalb_tdminlb_enum,
+		datalb_tdminlb_get_enum,
+		datalb_tdminlb_set_enum),
+};
+
+static const struct snd_soc_component_driver loopback_component[] = {
+	{
+		.name		  = DRV_NAME,
+		.ops	  = &loopback_ops,
+		.controls	  = snd_loopback_controls,
+		.num_controls = ARRAY_SIZE(snd_loopback_controls),
+	},
+	{
+		.name		  = DRV_NAME,
+		.ops	  = &loopback_ops,
+		.controls	  = snd_loopbackb_controls,
+		.num_controls = ARRAY_SIZE(snd_loopbackb_controls),
+	},
 };
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -1659,7 +1683,7 @@ static int loopback_platform_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, p_loopback);
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
-				&loopback_component,
+				&loopback_component[p_loopback->id],
 				&loopback_dai[p_loopback->id],
 				1);
 	if (ret) {

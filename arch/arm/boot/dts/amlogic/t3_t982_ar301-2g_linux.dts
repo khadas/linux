@@ -1186,7 +1186,7 @@
 	};
 
 	loopbacka:loopback@0 {
-		compatible = "amlogic, t5-loopbacka";
+		compatible = "amlogic, p1-loopbacka";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1241,7 +1241,7 @@
 	};
 
 	loopbackb:loopback@1 {
-		compatible = "amlogic, t5-loopbackb";
+		compatible = "amlogic, p1-loopbackb";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM

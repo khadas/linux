@@ -2105,6 +2105,8 @@ struct toddr_src_conf toddr_srcs_v3[] = {
 	TODDR_SRC_CONFIG("tdmin_lb", 6, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("loopback_a", 7, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("frhdmirx", 8, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("loopback_b", 9, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
+	TODDR_SRC_CONFIG("spdifin_lb", 10, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("earc_rx_dmac", 11, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f), /* for t7 earcrx */
 	TODDR_SRC_CONFIG("frhdmirx_pao", 12, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
 	TODDR_SRC_CONFIG("resample_a", 13, EE_AUDIO_TODDR_A_CTRL1, 26, 0x1f),
