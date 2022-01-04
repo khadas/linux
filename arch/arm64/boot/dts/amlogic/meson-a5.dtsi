@@ -720,7 +720,8 @@
 				clocks = <&clkc CLKID_PWM_G>,
 						<&clkc CLKID_PWM_H>;
 				clock-names = "clkin0", "clkin1";
-				status = "disabled";
+				//status = "disabled";
+				status = "okay";
 			};
 
 			i2c0: i2c@66000 {
@@ -1019,10 +1020,7 @@
 				 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
-			card_type = <5>;
 			mmc_debug_flag;
-			//cap-sdio-irq;
-			//keep-power-in-suspend;
 			//use_intf3_tuning;
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
@@ -1670,17 +1668,21 @@
 		//dhd_static_buf; /* if use bcm wifi, config dhd_static_buf */
 		//pinctrl-0 = <&pwm_e_pins>;
 		//pinctrl-names = "default";
+		pinctrl-0 = <&pwm_g_pins1>;
+		pinctrl-names = "default";
 		pwm_config = <&wifi_pwm_conf>;
 	};
 
 	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
-			pwms = <&pwm_ef 0 30541 0>;
+			//pwms = <&pwm_ef 0 30541 0>;
+			pwms = <&pwm_gh 0 30541 0>;
 			duty-cycle = <15270>;
 			times = <7>;
 		};
 		pwm_channel2_conf {
-			pwms = <&pwm_ef 2 30500 0>;
+			//pwms = <&pwm_ef 2 30500 0>;
+			pwms = <&pwm_gh 2 30500 0>;
 			duty-cycle = <15250>;
 			times = <10>;
 		};
