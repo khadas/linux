@@ -1476,24 +1476,24 @@
 	};
 
 	meson_cooldev: meson-cooldev@0 {
-			status = "disabled";
-			compatible = "amlogic, meson-cooldev";
-			cooling_devices {
-				cpucore_cool_cluster0 {
-					cluster_id = <0>;
-					node_name = "cpucore_cool0";
-					device_type = "cpucore";
-				};
-				gpufreq_cool {
-					dyn_coeff = <140>;
-					node_name = "bifrost";
-					device_type = "gpufreq";
-				};
+		status = "okay";
+		compatible = "amlogic, meson-cooldev";
+		cooling_devices {
+			cpucore_cool_cluster0 {
+				cluster_id = <0>;
+				node_name = "cpucore_cool0";
+				device_type = "cpucore";
 			};
-			cpucore_cool0:cpucore_cool0 {
-				#cooling-cells = <2>; /* min followed by max */
+			gpufreq_cool {
+				dyn_coeff = <140>;
+				node_name = "bifrost";
+				device_type = "gpufreq";
 			};
-		};/*meson cooling devices end*/
+		};
+		cpucore_cool0:cpucore_cool0 {
+			#cooling-cells = <2>; /* min followed by max */
+		};
+	};/*meson cooling devices end*/
 
 	thermal-zones {
 		soc_thermal: soc_thermal {
@@ -1501,36 +1501,36 @@
 			polling-delay-passive = <100>;
 			sustainable-power = <1160>;
 			thermal-sensors = <&p_tsensor 0>;
-			//trips {
-			//	pswitch_on: trip-point@0 {
-			//		temperature = <85000>;
-			//		hysteresis = <5000>;
-			//		type = "passive";
-			//	};
-			//	pcontrol: trip-point@1 {
-			//		temperature = <95000>;
-			//		hysteresis = <5000>;
-			//		type = "passive";
-			//	};
-			//	pcritical: trip-point@2 {
-			//		temperature = <105000>;
-			//		hysteresis = <1000>;
-			//		type = "critical";
-			//	};
-			//};
+			trips {
+				pswitch_on: trip-point@0 {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				pcontrol: trip-point@1 {
+					temperature = <95000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
+				pcritical: trip-point@2 {
+					temperature = <105000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 
-			//cooling-maps {
-			//	cpufreq_cooling_map {
-			//		trip = <&pcontrol>;
-			//		cooling-device = <&CPU0 0 8>;
-			//		contribution = <1024>;
-			//	};
-			//	gpufreq_cooling_map {
-			//		trip = <&pcontrol>;
-			//		cooling-device = <&gpu 0 3>;
-			//		contribution = <1024>;
-			//	};
-			//};
+			cooling-maps {
+				cpufreq_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&CPU0 0 8>;
+					contribution = <1024>;
+				};
+				gpufreq_cooling_map {
+					trip = <&pcontrol>;
+					cooling-device = <&gpu 0 3>;
+					contribution = <1024>;
+				};
+			};
 		};
 	};/*thermal zone end*/
 
