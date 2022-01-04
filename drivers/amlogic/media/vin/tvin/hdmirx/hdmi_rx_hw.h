@@ -3174,6 +3174,7 @@ extern int i2c_err_cnt;
 extern u32 rx_ecc_err_thres;
 extern u32 rx_ecc_err_frames;
 extern u8 ddc_dbg_en;
+extern int kill_esm_fail;
 
 void rx_get_best_eq_setting(void);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
@@ -3397,4 +3398,5 @@ void rx_aud_fifo_rst(void);
 void rx_esm_reset(int level);
 void hdmirx_hdcp22_reauth(void);
 void rx_earc_hpd_handler(struct work_struct *work);
+void rx_kill_esm(void);
 #endif

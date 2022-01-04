@@ -3233,10 +3233,12 @@ static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 				break;
 			msleep(20);
 		}
-		if (!hdcp22_kill_esm)
+		if (!hdcp22_kill_esm) {
 			rx_pr("hdcp22 kill ok!\n");
-		else
+		} else {
 			rx_pr("hdcp22 kill timeout!\n");
+			kill_esm_fail = 1;
+		}
 		hdcp_22_off();
 	} else if ((event == PM_POST_SUSPEND) && hdcp22_on) {
 		rx_pr("PM_POST_SUSPEND\n");
@@ -3264,6 +3266,15 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	 * div must change togther.
 	 */
 	rx_set_suspend_edid_clk(true);
+	if (rx.chip_id < CHIP_ID_T7) {
+		if (hdcp22_on) {
+			if (kill_esm_fail) {
+				rx_kill_esm();
+				kill_esm_fail = 0;
+				rx_pr("kill esm fail rst\n");
+			}
+		}
+	}
 	rx_pr("hdmirx: suspend success\n");
 	return 0;
 }
