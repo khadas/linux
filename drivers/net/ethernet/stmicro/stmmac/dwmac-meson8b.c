@@ -383,6 +383,7 @@ static int dwmac_meson_disable_analog(struct device *dev)
 {
 	if (support_mac_wol)
 		return 0;
+	/*
 	writel(0x00000000, phy_analog_config_addr + 0x0);
 	writel(0x003e0000, phy_analog_config_addr + 0x4);
 	writel(0x12844008, phy_analog_config_addr + 0x8);
@@ -391,6 +392,7 @@ static int dwmac_meson_disable_analog(struct device *dev)
 	writel(0x031d161c, phy_analog_config_addr + 0x14);
 	writel(0x00001683, phy_analog_config_addr + 0x18);
 	writel(0x09c0040a, phy_analog_config_addr + 0x44);
+	*/
 	return 0;
 }
 
@@ -398,8 +400,10 @@ static int dwmac_meson_recover_analog(struct device *dev)
 {
 	if (support_mac_wol)
 		return 0;
+	/*
 	writel(0x19c0040a, phy_analog_config_addr + 0x44);
 	writel(0x0, phy_analog_config_addr + 0x4);
+	*/
 	return 0;
 }
 
