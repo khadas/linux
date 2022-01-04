@@ -2322,11 +2322,12 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			bool wakeup_bdi = false;
 
 			wb = locked_inode_to_wb_and_lock_list(inode);
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+#else
 			WARN(bdi_cap_writeback_dirty(wb->bdi) &&
 			     !test_bit(WB_registered, &wb->state),
 			     "bdi-%s not registered\n", wb->bdi->name);
-
+#endif
 			inode->dirtied_when = jiffies;
 			if (dirtytime)
 				inode->dirtied_time_when = jiffies;
