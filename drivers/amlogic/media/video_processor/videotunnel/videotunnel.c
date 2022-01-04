@@ -372,10 +372,9 @@ static void vt_instance_destroy(struct kref *kref)
 	if (idr_find(&dev->instance_idr, instance->id))
 		idr_remove(&dev->instance_idr, instance->id);
 
-	/* remove the null ptr idr instance */
 	for (i = 0; i < instance->id; i++) {
-		/* remove the NULL pointer ID */
-		if (!idr_find(&dev->instance_idr, i))
+		/* remove the dummy pointer ID */
+		if (idr_find(&dev->instance_idr, i) == &dummy_instance)
 			idr_remove(&dev->instance_idr, i);
 	}
 
@@ -866,8 +865,8 @@ static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 	}
 
 	for (i = 0; i < MAX_VIDEO_TUNNEL_ID; i++) {
-		/* remove the NULL pointer ID */
-		if (!idr_find(&dev->instance_idr, i))
+		/* remove the dummy pointer ID */
+		if (idr_find(&dev->instance_idr, i) == &dummy_instance)
 			idr_remove(&dev->instance_idr, i);
 	}
 	ret = idr_alloc(&dev->instance_idr, instance, 0, MAX_VIDEO_TUNNEL_ID, GFP_KERNEL);
