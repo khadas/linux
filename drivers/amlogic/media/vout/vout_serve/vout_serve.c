@@ -579,7 +579,13 @@ static ssize_t vout_vinfo_show(struct class *class,
 static ssize_t vout_cap_show(struct class *class,
 			     struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "null\n");
+	int ret;
+
+	ret = get_vout_disp_cap(buf);
+	if (!ret)
+		return sprintf(buf, "null\n");
+
+	return ret;
 }
 
 static ssize_t vout_debug_mode_show(struct class *class,
