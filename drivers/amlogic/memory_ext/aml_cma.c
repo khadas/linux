@@ -1146,17 +1146,29 @@ retry:
 			task_set_lmk_waiting(selected);
 		task_unlock(selected);
 		cs->shrink_timeout = jiffies + HZ / 2;
-		pr_emerg("Killing '%s' (%d) (tgid %d), adj %hd,\n"
-			 "   to free %ldkB on behalf of '%s' (%d) because\n"
-			 "   cache %ldkB is below %ldkB for oom_score_adj %hd\n"
-			 "   Free memory is %ldkB above reserved\n",
-			 selected->comm, selected->pid, selected->tgid,
-			 selected_oom_score_adj,
-			 selected_tasksize * (long)(PAGE_SIZE / 1024),
-			 current->comm, current->pid,
-			 cache_size, cache_limit,
-			 min_score_adj,
-			 free);
+		if (swap_low && !cache_low)
+			pr_emerg("Killing '%s' (%d) (tgid %d), adj %hd,\n"
+				"   to free %ldkB on behalf of '%s' (%d) because\n"
+				"   swap low for oom_score_adj %hd\n"
+				"   Free memory is %ldkB above reserved\n",
+				selected->comm, selected->pid, selected->tgid,
+				selected_oom_score_adj,
+				selected_tasksize * (long)(PAGE_SIZE / 1024),
+				current->comm, current->pid,
+				min_score_adj,
+				free);
+		else
+			pr_emerg("Killing '%s' (%d) (tgid %d), adj %hd,\n"
+				"   to free %ldkB on behalf of '%s' (%d) because\n"
+				"   cache %ldkB is below %ldkB for oom_score_adj %hd\n"
+				"   Free memory is %ldkB above reserved\n",
+				selected->comm, selected->pid, selected->tgid,
+				selected_oom_score_adj,
+				selected_tasksize * (long)(PAGE_SIZE / 1024),
+				current->comm, current->pid,
+				cache_size, cache_limit,
+				min_score_adj,
+				free);
 		/* kill quickly if can't use cma */
 		pr_info("   Free cma:%ldkB, file cma:%ldkB, Global free:%ldkB\n",
 			free_cma * (long)(PAGE_SIZE / 1024),
