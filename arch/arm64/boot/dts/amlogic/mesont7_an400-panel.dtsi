@@ -1219,13 +1219,13 @@
 
 	backlight1{
 		compatible = "amlogic, backlight-t7";
-		status = "okay";
+		status = "disabled";
 		index = <1>;
 		key_valid = <0>;
 		pinctrl-names = "pwm_on",
 				"pwm_off";
-		pinctrl-0 = <&pwm_f_pins>;
-		pinctrl-1 = <&bl1_pwm_off_pins>;
+//		pinctrl-0 = <&pwm_f_pins>;
+//		pinctrl-1 = <&bl1_pwm_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
 		interrupts = <0 197 1
 			0 194 1
