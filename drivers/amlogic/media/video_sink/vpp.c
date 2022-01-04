@@ -1352,6 +1352,10 @@ static int vpp_set_filters_internal
 		video_source_crop_top = input->crop_top;
 		video_source_crop_bottom = input->crop_bottom;
 	}
+	next_frame_par->crop_top = 0;
+	next_frame_par->crop_bottom = 0;
+	next_frame_par->crop_top_adjust = 0;
+	next_frame_par->crop_bottom_adjust = 0;
 
 #ifndef TV_3D_FUNCTION_OPEN
 	next_frame_par->vscale_skip_count = 0;
@@ -1702,6 +1706,7 @@ RESTART:
 				temp = (-start * ratio_y) >> 18;
 				next_frame_par->VPP_vd_end_lines_ =
 					h_in - 1 - temp;
+				next_frame_par->crop_bottom_adjust = temp;
 			} else {
 				next_frame_par->VPP_vd_end_lines_ = h_in - 1;
 			}
@@ -1710,6 +1715,7 @@ RESTART:
 				temp = ((video_top - start) * ratio_y) >> 18;
 				next_frame_par->VPP_vd_end_lines_ =
 					h_in - 1 - temp;
+				next_frame_par->crop_bottom_adjust = temp;
 			} else {
 				next_frame_par->VPP_vd_end_lines_ = h_in - 1;
 			}
@@ -2620,6 +2626,11 @@ void aisr_set_filters(struct disp_info_s *input,
 		next_frame_par->VPP_hd_start_lines_ + 1;
 	h_in = next_frame_par->VPP_vd_end_lines_ -
 		next_frame_par->VPP_vd_start_lines_ + 1;
+
+	aisr_frame_par->crop_top = next_frame_par->crop_top +
+		next_frame_par->crop_top_adjust;
+	aisr_frame_par->crop_bottom = next_frame_par->crop_bottom +
+		next_frame_par->crop_bottom_adjust;
 
 	aisr_frame_par->video_input_w = w_in;
 	aisr_frame_par->video_input_h = h_in;

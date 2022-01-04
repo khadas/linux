@@ -183,6 +183,8 @@ struct vpp_frame_par_s {
 	s64 v_phase[3];
 	u32 crop_top;
 	u32 crop_bottom;
+	u32 crop_top_adjust;
+	u32 crop_bottom_adjust;
 };
 
 struct disp_info_s {
