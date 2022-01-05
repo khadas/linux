@@ -52,14 +52,15 @@ void vad_set_cep(void)
 
 void vad_set_src(int src, bool vad_top)
 {
-	if (vad_top)
+	if (vad_top) {
 		vad_top_update_bits(EE_AUDIO2_TOVAD_CTRL0,
 			    0x1f << 12,
 			    src << 12);
-	else
+	} else {
 		audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
-			0x7 << 12,
+			0x1f << 12,
 			src << 12);
+	}
 }
 
 void vad_set_in(void)

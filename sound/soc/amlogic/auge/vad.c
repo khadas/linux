@@ -41,6 +41,7 @@
 #include "vad.h"
 #include "pdm.h"
 #include "pdm_hw.h"
+#include "aud_sram.h"
 
 #define DRV_NAME "VAD"
 
@@ -318,7 +319,12 @@ static int vad_engine_check(struct vad *p_vad)
 	bitdepth = p_vad->tddr->fmt.bit_depth;
 	rate     = p_vad->tddr->fmt.rate;
 
-	curr_addr = aml_toddr_get_position(p_vad->tddr);
+	if (p_vad->chipinfo &&
+	    p_vad->chipinfo->vad_top &&
+	    p_vad->a2v_buf)
+		curr_addr = toddr_vad_get_status2(p_vad->tddr);
+	else
+		curr_addr = aml_toddr_get_position(p_vad->tddr);
 
 	if (curr_addr < start || curr_addr > end ||
 		last_addr < start || last_addr > end) {
@@ -358,6 +364,16 @@ static int vad_engine_check(struct vad *p_vad)
 		bytes,
 		read_bytes);
 
+	/* sram, do it in dsp actually */
+	if (p_vad->chipinfo &&
+	    p_vad->chipinfo->vad_top &&
+	    p_vad->a2v_buf) {
+		if (last_addr + read_bytes <= end)
+			p_vad->addr = last_addr + read_bytes;
+		else
+			p_vad->addr = start + read_bytes - (end - last_addr);
+		return 0;
+	}
 
 	if (last_addr + read_bytes <= end) {
 		memcpy(p_vad->buf,
@@ -1027,6 +1043,7 @@ static int vad_platform_probe(struct platform_device *pdev)
 	struct vad *p_vad = NULL;
 	struct vad_chipinfo *p_chipinfo;
 	int ret = 0;
+	bool vad_top;
 
 	p_vad = devm_kzalloc(&pdev->dev, sizeof(struct vad), GFP_KERNEL);
 	if (!p_vad)
@@ -1159,16 +1176,22 @@ static int vad_platform_probe(struct platform_device *pdev)
 
 	device_init_wakeup(dev, 1);
 
+	vad_top = (p_vad->chipinfo &&
+		p_vad->chipinfo->vad_top) ? true : false;
 	/* malloc buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
-				p_vad->dev,
-				DMA_BUFFER_BYTES_MAX,
-				&p_vad->dma_buffer);
-	if (ret) {
-		dev_err(p_vad->dev, "Cannot allocate buffer(s)\n");
-		return ret;
+	if (vad_top) {
+		/* force to sram */
+		aud_buffer_force2sram(&p_vad->dma_buffer);
+	} else {
+		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV,
+					p_vad->dev,
+					DMA_BUFFER_BYTES_MAX,
+					&p_vad->dma_buffer);
+		if (ret) {
+			dev_err(p_vad->dev, "Cannot allocate buffer(s)\n");
+			return ret;
+		}
 	}
-
 	return 0;
 }
 

@@ -927,6 +927,17 @@
 			};
 		};/* end of audiobus*/
 
+		/* snd-vad-top buffer */
+		sram:sram@F7000000 {
+			compatible = "amlogic, audio-sram";
+			status = "okay";
+
+			reg = <0x0 0xF7000000 0x0 0x100000>;
+			ranges = <0x0 0x0 0x0 0xF7000000 0x0 0x100000>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+		};
+
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";

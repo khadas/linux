@@ -49,7 +49,7 @@ struct mux_conf lb_srcs_v3[] = {
 	AUDIO_SRC_CONFIG("resample_a", 13, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("resample_b", 13, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("vad", 29, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
-	AUDIO_SRC_CONFIG("tdmin_b", 30, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
+	AUDIO_SRC_CONFIG("tdmin_c", 30, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	AUDIO_SRC_CONFIG("pdmin", 31, EE_AUDIO_LB_A_CTRL2, 20, 0x1f),
 	{ /* sentinel */ }
 };
