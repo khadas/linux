@@ -935,19 +935,19 @@ static u32 _find_fixed_adj_valid_win(struct mmc_host *mmc,
 {
 	struct meson_host *host = mmc_priv(mmc);
 	u32 step = 0, ret = NO_FIXED_ADJ_MID, fir_adj = 0xff;
-	unsigned long cur_map[1] = {0};
-	unsigned long prev_map[1] = {0};
-	unsigned long tmp[1] = {0};
-	unsigned long dst[1] = {0};
-//	struct mmc_phase *mmc_phase_init = &host->sdmmc.init;
+	DECLARE_BITMAP(cur_map, NBITS_FIX_ADJ);
+	DECLARE_BITMAP(prev_map, NBITS_FIX_ADJ);
+	DECLARE_BITMAP(tmp, NBITS_FIX_ADJ);
+	DECLARE_BITMAP(dst, NBITS_FIX_ADJ);
 	u32 cop, vclk;
 
+	bitmap_zero(cur_map, NBITS_FIX_ADJ);
+	bitmap_zero(prev_map, NBITS_FIX_ADJ);
+	bitmap_zero(tmp, NBITS_FIX_ADJ);
+	bitmap_zero(dst, NBITS_FIX_ADJ);
 	vclk = readl(host->regs + SD_EMMC_CLOCK);
 	cop = (vclk & CLK_CORE_PHASE_MASK) >> __ffs(CLK_CORE_PHASE_MASK);
-//	cop = para->hs2.core_phase;
 
-	div = (div == AML_FIXED_ADJ_MIN) ?
-			AML_FIXED_ADJ_MIN : AML_FIXED_ADJ_MAX;
 	*prev_map = *fixed_adj_map;
 	pr_adj_info("prev_map", *prev_map, 0, div);
 	for (; step <= 63;) {
@@ -1121,7 +1121,7 @@ static int meson_mmc_fixadj_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 clk_div, vclk;
 	u32 old_dly, d1_dly, dly;
 	u32 adj_delay_find =  0xff;
-	unsigned long fixed_adj_map[1];
+	DECLARE_BITMAP(fixed_adj_map, NBITS_FIX_ADJ);
 	bool all_flag = false;
 	int best_s = -1, best_sz = 0;
 	char rx_adj[64] = {0};

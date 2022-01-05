@@ -402,9 +402,10 @@ void aml_host_bus_fsm_show(struct mmc_host *mmc, int status);
 #define RETUNING	3
 #define	DATA3_PINMUX_MASK GENMASK(15, 12)
 
+#define NBITS_FIX_ADJ	(64)
 #define TUNING_NUM_PER_POINT 40
 #define MAX_TUNING_RETRY 4
-#define AML_FIXED_ADJ_MAX 6
+#define AML_FIXED_ADJ_MAX 8
 #define AML_FIXED_ADJ_MIN 5
 #define AML_FIXADJ_STEP 4
 #define ADJ_WIN_PRINT_MAXLEN 256

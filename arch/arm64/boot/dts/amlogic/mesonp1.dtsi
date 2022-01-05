@@ -1752,7 +1752,7 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
-			src_clk_rate = <1152000000>;
+			src_clk_rate = <1536000000>;
 			mmc_debug_flag;
 			ignore_desc_busy;
 			tx_delay = <20>;
