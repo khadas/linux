@@ -49,6 +49,14 @@ MODULE_PARM_DESC(vf_log_fe, "enable/disable vframe manager log frontend");
 module_param(vf_log_be, bool, 0664);
 MODULE_PARM_DESC(vf_log_be, "enable/disable vframe manager log backen");
 
+unsigned int vf_list_dbg;
+module_param(vf_list_dbg, uint, 0664);
+MODULE_PARM_DESC(vf_list_dbg, "vf list dbg");
+
+unsigned int vf_move_print_cnt;
+module_param(vf_move_print_cnt, uint, 0664);
+MODULE_PARM_DESC(vf_move_print_cnt, "vf move print cnt");
+
 #ifdef VF_LOG_EN
 void vf_log_init(struct vf_pool *p)
 {
@@ -338,7 +346,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 	bool log_state = true;
 	int i = 0;
 	unsigned long flags;
-	struct vf_entry *master, *slave;
+	struct vf_entry *master = NULL, *slave = NULL;
 	struct vf_entry *pos = NULL, *tmp = NULL;
 
 	if (!p)
@@ -355,6 +363,8 @@ int vf_pool_init(struct vf_pool *p, int size)
 		list_del(&pos->list);
 	}
 	spin_unlock_irqrestore(&p->wr_lock, flags);
+	if (vf_list_dbg & VDIN_VF_DBG_EN)
+		pr_info("--clear write list end--\n");
 
 	/* clear read list */
 	spin_lock_irqsave(&p->rd_lock, flags);
@@ -387,6 +397,7 @@ int vf_pool_init(struct vf_pool *p, int size)
 	p->tmp_list_size = 0;
 	p->last_vfe = NULL;
 	p->last_last_vfe = NULL;
+	p->vf_move_prt_cnt = vf_move_print_cnt;
 	/* initialize provider write list */
 	for (i = 0; i < size; i++) {
 		p->dv_buf_size[i] = 0;
@@ -402,6 +413,16 @@ int vf_pool_init(struct vf_pool *p, int size)
 		spin_lock_irqsave(&p->wr_lock, flags);
 		list_add(&master->list, &p->wr_list);
 		p->wr_list_size++;
+		spin_unlock_irqrestore(&p->wr_lock, flags);
+	}
+
+	if (vf_list_dbg & VDIN_VF_DBG_EN) {
+		pr_info("init wr list:0x%x\n", p->wr_list_size);
+		spin_lock_irqsave(&p->wr_lock, flags);
+		list_for_each_entry_safe(pos, tmp, &p->wr_list, list) {
+			pr_info("entry:0x%p vf:0x%p index:0x%x\n",
+				pos, &pos->vf, pos->vf.index);
+		}
 		spin_unlock_irqrestore(&p->wr_lock, flags);
 	}
 
@@ -548,6 +569,15 @@ struct vf_entry *provider_vf_get(struct vf_pool *p)
 
 	spin_lock_irqsave(&p->wr_lock, flags);
 	vfe = vf_pool_get(&p->wr_list);
+	if (vfe) {
+		p->wr_list_size--;
+		vfe->status = VF_STATUS_WM;
+		if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+			p->vf_move_prt_cnt--;
+			pr_info("del_wr:entry:0x%p wr_size:%x index:%x sta:%x\n",
+				vfe, p->wr_list_size, vfe->vf.index, vfe->status);
+		}
+	}
 	spin_unlock_irqrestore(&p->wr_lock, flags);
 	if (!vfe) {
 		spin_lock_irqsave(&p->log_lock, flags);
@@ -556,8 +586,6 @@ struct vf_entry *provider_vf_get(struct vf_pool *p)
 		return NULL;
 	}
 	spin_lock_irqsave(&p->log_lock, flags);
-	p->wr_list_size--;
-	vfe->status = VF_STATUS_WM;
 	vf_log(p, VF_OPERATION_FGET, true);
 	spin_unlock_irqrestore(&p->log_lock, flags);
 	return vfe;
@@ -568,6 +596,13 @@ void provider_vf_put(struct vf_entry *vfe, struct vf_pool *p)
 	unsigned long flags;
 
 	spin_lock_irqsave(&p->rd_lock, flags);
+	if (vfe->status != VF_STATUS_WM) {
+		if (vf_list_dbg & VDIN_VF_DBG_EN)
+			pr_info("not WM entry:%p index:%x sta:%x\n",
+				vfe, vfe->vf.index, vfe->status);
+		spin_unlock_irqrestore(&p->rd_lock, flags);
+		return;
+	}
 	vfe->status = VF_STATUS_RL;
 	vf_pool_put(vfe, &p->rd_list);
 	p->rd_list_size++;
@@ -633,8 +668,8 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 
 	vfe = vf_pool_get(&p->rd_list);
 	p->rd_list_size--;
-	spin_unlock_irqrestore(&p->rd_lock, flags);
 	vfe->status = VF_STATUS_RM;
+	spin_unlock_irqrestore(&p->rd_lock, flags);
 	spin_lock_irqsave(&p->log_lock, flags);
 	vf_log(p, VF_OPERATION_BGET, true);
 	spin_unlock_irqrestore(&p->log_lock, flags);
@@ -660,7 +695,7 @@ static unsigned int check_vf_put(struct vframe_s *vf, struct vf_pool *p)
 
 void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 {
-	struct vf_entry *master, *slave;
+	struct vf_entry *master = NULL, *slave = NULL;
 	unsigned long flags;
 	struct vf_entry *pos = NULL, *tmp = NULL;
 	int found_in_wt_list = 0;
@@ -691,8 +726,22 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 
 	/* normal vframe */
 	if (master->flag & VF_FLAG_NORMAL_FRAME) {
-		master->status = VF_STATUS_WL;
+		if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
+			p->vf_move_prt_cnt--;
+			pr_info("add_wr:entry:0x%p wr_size:%x index:%x sta:%x\n",
+				master, p->wr_list_size, vf->index, master->status);
+		}
+
 		spin_lock_irqsave(&p->wr_lock, flags);
+		if (master->status == VF_STATUS_WL ||
+		    master->status == VF_STATUS_RL) {
+			if (vf_list_dbg & VDIN_VF_DBG_EN)
+				pr_info("back in list mem vf_addr:0x%p index:%x sta:%x\n",
+					master, vf->index, master->status);
+			spin_unlock_irqrestore(&p->wr_lock, flags);
+			return;
+		}
+		master->status = VF_STATUS_WL;
 		vf_pool_put(master, &p->wr_list);
 		p->wr_list_size++;
 		memset(&master->vf.pic_mode, 0, sizeof(master->vf.pic_mode));

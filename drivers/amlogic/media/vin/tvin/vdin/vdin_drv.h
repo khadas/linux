@@ -71,7 +71,8 @@
 /* 20220308: screen capture 720 and then 1080 fail */
 /* 20220310: vdin and vrr/dlg support */
 /* 20220314: get vdin frontend info */
-#define VDIN_VER "202200314"
+/* 20220328: return the same vf repeat causes crash */
+#define VDIN_VER    "20220328: return the same vf repeat causes crash"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

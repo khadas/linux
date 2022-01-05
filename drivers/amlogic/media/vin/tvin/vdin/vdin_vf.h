@@ -51,6 +51,9 @@
 
 #define VF_LOG_PRINT_MAX_LEN 100
 
+#define VDIN_VF_DBG_EN		BIT(0)
+#define VDIN_VF_MOVE_EN		BIT(1)
+
 enum vf_operation_e {
 	VF_OPERATION_INIT = 0,
 	VF_OPERATION_FPEEK,
@@ -154,6 +157,7 @@ struct vf_pool {
 	/*char *dv_buf_ori[VDIN_CANVAS_MAX_CNT];*/
 	unsigned int disp_index[VFRAME_DISP_MAX_NUM];
 	unsigned int skip_vf_num;/*skip pre vframe num*/
+	unsigned int vf_move_prt_cnt;
 	enum vframe_disp_mode_e	disp_mode[VFRAME_DISP_MAX_NUM];
 };
 
