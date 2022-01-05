@@ -357,6 +357,7 @@ struct vinfo_s {
 	u32 screen_real_height;
 	u32 sync_duration_num;
 	u32 sync_duration_den;
+	u32 std_duration;
 	u32 video_clk;
 	u32 htotal;
 	u32 vtotal;

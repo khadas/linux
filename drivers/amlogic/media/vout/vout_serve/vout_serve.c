@@ -57,6 +57,8 @@ static unsigned int bist_mode;
 
 static struct vout_cdev_s *vout_cdev;
 static struct device *vout_dev;
+static unsigned int vsync_irq;
+static unsigned int vs_meas_en;
 
 static bool disable_modesysfs;
 static bool enable_debugmode;
@@ -190,6 +192,36 @@ static struct vout_server_s nulldisp_vout_server = {
 	},
 	.data = NULL,
 };
+
+/* ********************************************************** */
+static irqreturn_t vout_vsync_irq_handler(int irq, void *data)
+{
+	struct vinfo_s *vinfo = NULL;
+	unsigned int fr;
+
+	if (vs_meas_en == 0)
+		return IRQ_HANDLED;
+
+	vinfo = get_current_vinfo();
+	if (!vinfo)
+		return IRQ_HANDLED;
+	switch (vinfo->mode) {
+	case VMODE_HDMI:
+	case VMODE_CVBS:
+	case VMODE_LCD:
+	case VMODE_DUMMY_ENCP:
+	case VMODE_DUMMY_ENCI:
+	case VMODE_DUMMY_ENCL:
+		fr = vout_frame_rate_measure();
+		vinfo->sync_duration_num = fr;
+		vinfo->sync_duration_den = 1000;
+		break;
+	default:
+		break;
+	}
+
+	return IRQ_HANDLED;
+}
 
 /* ********************************************************** */
 
@@ -505,7 +537,8 @@ static ssize_t vout_vinfo_show(struct class *class,
 		       "    aspect_ratio_den:      %d\n"
 		       "    sync_duration_num:     %d\n"
 		       "    sync_duration_den:     %d\n"
-		       "    (meas_frame_rate:      %d.%3d)\n"
+		       "    (meas_frame_rate:      %d.%03d)\n"
+		       "    std_duration:          %d\n"
 		       "    screen_real_width:     %d\n"
 		       "    screen_real_height:    %d\n"
 		       "    htotal:                %d\n"
@@ -519,7 +552,7 @@ static ssize_t vout_vinfo_show(struct class *class,
 		       info->width, info->height, info->field_height,
 		       info->aspect_ratio_num, info->aspect_ratio_den,
 		       info->sync_duration_num, info->sync_duration_den,
-		       (fr / 1000), (fr % 1000),
+		       (fr / 1000), (fr % 1000), info->std_duration,
 		       info->screen_real_width, info->screen_real_height,
 		       info->htotal, info->vtotal, info->fr_adj_type,
 		       info->video_clk, info->viu_color_fmt, info->viu_mux,
@@ -613,6 +646,31 @@ static ssize_t vout_debug_mode_store(struct class *class,
 	return count;
 }
 
+static ssize_t vout_debug_vs_meas_show(struct class *class,
+				       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", vs_meas_en);
+}
+
+static ssize_t vout_debug_vs_meas_store(struct class *class,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	int ret;
+	int temp;
+
+	ret = kstrtoint(buf, 10, &temp);
+	if (ret)
+		return -EINVAL;
+
+	if (temp > 0)
+		vs_meas_en = 1;
+	else
+		vs_meas_en = 0;
+
+	return count;
+}
+
 static struct class_attribute vout_class_attrs[] = {
 	__ATTR(mode,       0644, vout_mode_show, vout_mode_store),
 	__ATTR(fr_policy,  0644,
@@ -623,6 +681,7 @@ static struct class_attribute vout_class_attrs[] = {
 	__ATTR(vinfo,      0444, vout_vinfo_show, NULL),
 	__ATTR(cap,        0644, vout_cap_show, NULL),
 	__ATTR(debug,      0644, vout_debug_mode_show, vout_debug_mode_store),
+	__ATTR(vs_meas,    0644, vout_debug_vs_meas_show, vout_debug_vs_meas_store),
 };
 
 static int vout_attr_create(void)
@@ -719,8 +778,7 @@ static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			baseinfo.screen_real_height = info->screen_real_height;
 			baseinfo.video_clk = info->video_clk;
 			baseinfo.viu_color_fmt = info->viu_color_fmt;
-			if (copy_to_user(argp, &baseinfo,
-					 sizeof(struct vinfo_base_s)))
+			if (copy_to_user(argp, &baseinfo, sizeof(struct vinfo_base_s)))
 				ret = -EFAULT;
 		}
 		break;
@@ -733,8 +791,7 @@ static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 #ifdef CONFIG_COMPAT
-static long vout_compat_ioctl(struct file *file, unsigned int cmd,
-			      unsigned long arg)
+static long vout_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long ret;
 
@@ -893,8 +950,9 @@ static void aml_vout_late_resume(struct early_suspend *h)
 
 static void aml_vout_get_dt_info(struct platform_device *pdev)
 {
-	int ret;
+	struct resource *res;
 	unsigned int para[2];
+	int ret;
 
 	ret = of_property_read_u32(pdev->dev.of_node, "fr_policy", &para[0]);
 	if (!ret) {
@@ -903,6 +961,23 @@ static void aml_vout_get_dt_info(struct platform_device *pdev)
 			VOUTERR("init fr_policy %d failed\n", para[0]);
 		else
 			VOUTPR("fr_policy:%d\n", para[0]);
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "vs_meas", &para[0]);
+	if (!ret) {
+		vs_meas_en = para[0];
+		VOUTPR("get vs_meas:%d\n", vs_meas_en);
+	}
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
+	if (res) {
+		vsync_irq = res->start;
+		if (request_irq(vsync_irq, vout_vsync_irq_handler, IRQF_SHARED,
+				"vout_vsync", (void *)&vsync_irq)) {
+			VOUTERR("%s: can't request vout_vsync\n", __func__);
+		}
+	} else {
+		VOUTERR("%s: can't get vsync irq\n", __func__);
 	}
 }
 
@@ -918,6 +993,7 @@ static int aml_vout_probe(struct platform_device *pdev)
 	vout_dev = &pdev->dev;
 
 	aml_vout_get_dt_info(pdev);
+	vout_vdo_meas_ctrl_init();
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;
@@ -939,6 +1015,9 @@ static int aml_vout_probe(struct platform_device *pdev)
 
 static int aml_vout_remove(struct platform_device *pdev)
 {
+	if (vsync_irq)
+		free_irq(vsync_irq, (void *)&vsync_irq);
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	unregister_early_suspend(&early_suspend);
 #endif

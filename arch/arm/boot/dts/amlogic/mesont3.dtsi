@@ -1510,6 +1510,9 @@
 	vout: vout {
 		compatible = "amlogic, vout";
 		status = "okay";
+		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vsync";
+		vs_meas=<0>;
 	};
 
 	vout2: vout2 {

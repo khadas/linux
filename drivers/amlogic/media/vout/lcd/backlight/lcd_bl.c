@@ -1925,9 +1925,7 @@ static int bl_lcd_update_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	bl_metrics_conf = &bdrv->bl_metrics_conf;
-	frame_rate = (pdrv->config.timing.sync_duration_num * 100) /
-		      pdrv->config.timing.sync_duration_den;
-	frame_rate = (frame_rate + 50) / 100;
+	frame_rate = pdrv->config.timing.frame_rate;
 
 	bl_metrics_conf->frame_rate = frame_rate;
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)

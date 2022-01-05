@@ -2320,7 +2320,7 @@ void lcd_edp_config_set(struct aml_lcd_drv_s *pdrv)
 	//todo
 }
 
-void lcd_basic_timing_range_update(struct aml_lcd_drv_s *pdrv)
+void lcd_basic_timing_range_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int sync_duration, h_period, v_period, vmin, vmax;
@@ -2332,14 +2332,18 @@ void lcd_basic_timing_range_update(struct aml_lcd_drv_s *pdrv)
 	if (pconf->timing.lcd_clk < 200) { /* regard as frame_rate */
 		sync_duration = pconf->timing.lcd_clk;
 		pconf->timing.lcd_clk = sync_duration * h_period * v_period;
+		pconf->timing.frame_rate = sync_duration;
 		pconf->timing.sync_duration_num = sync_duration;
 		pconf->timing.sync_duration_den = 1;
+		pconf->timing.frac = 0;
 	} else { /* regard as pixel clock */
 		temp = pconf->timing.lcd_clk;
 		temp *= 1000;
 		sync_duration = lcd_do_div(temp, (v_period * h_period));
+		pconf->timing.frame_rate = sync_duration / 1000;
 		pconf->timing.sync_duration_num = sync_duration;
 		pconf->timing.sync_duration_den = 1000;
+		pconf->timing.frac = 0;
 	}
 
 	//for vrr range config
@@ -2698,6 +2702,8 @@ void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	vinfo->screen_real_height = pconf->basic.screen_height;
 	vinfo->sync_duration_num = pconf->timing.sync_duration_num;
 	vinfo->sync_duration_den = pconf->timing.sync_duration_den;
+	vinfo->frac = pconf->timing.frac;
+	vinfo->std_duration = pconf->timing.frame_rate;
 	vinfo->video_clk = pconf->timing.lcd_clk;
 	vinfo->htotal = pconf->basic.h_period;
 	vinfo->vtotal = pconf->basic.v_period;

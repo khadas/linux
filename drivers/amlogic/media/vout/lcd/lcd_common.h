@@ -30,7 +30,8 @@
 /* 20211210: support load tcon bin by ioctl*/
 /* 20211216: support phy adjust by lane*/
 /* 20211229: update multi lut init and switch flow*/
-#define LCD_DRV_VERSION    "20211229"
+/* 20220105: support measure vinfo sync_duration*/
+#define LCD_DRV_VERSION    "20220105"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -73,7 +74,7 @@ void lcd_mlvds_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_p2p_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_mipi_dsi_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_edp_config_set(struct aml_lcd_drv_s *pdrv);
-void lcd_basic_timing_range_update(struct aml_lcd_drv_s *pdrv);
+void lcd_basic_timing_range_init(struct aml_lcd_drv_s *pdrv);
 void lcd_timing_init_config(struct aml_lcd_drv_s *pdrv);
 
 int lcd_fr_is_fixed(struct aml_lcd_drv_s *pdrv);

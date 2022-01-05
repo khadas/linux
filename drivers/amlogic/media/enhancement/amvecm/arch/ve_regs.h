@@ -461,7 +461,6 @@
 #endif
 
 #if defined(CONFIG_ARCH_MESON2)
-/* #define VPP_VDO_MEAS_CTRL                   0x1da8 */
  /* reset bit, high active */
 #define VDO_MEAS_RST_BIT       10
 #define VDO_MEAS_RST_WID        1

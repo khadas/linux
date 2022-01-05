@@ -32,6 +32,7 @@ struct vout_mux_data_s {
 };
 
 static struct vout_mux_data_s *vout_mux_data;
+static int vout_vdo_meas_init;
 
 static inline unsigned int vout_do_div(unsigned long long num, unsigned int den)
 {
@@ -42,32 +43,10 @@ static inline unsigned int vout_do_div(unsigned long long num, unsigned int den)
 	return (unsigned int)val;
 }
 
-unsigned int vout_frame_rate_measure_for_vrr(void)
+void vout_vdo_meas_ctrl_init(void)
 {
-	int clk_mux = 38;
-	unsigned int val[2], fr;
-	unsigned long long msr_clk;
-
-	if (vout_mux_data)
-		clk_mux = vout_mux_data->vdin_meas_id;
-
-	if (clk_mux == -1)
-		return 0;
-	msr_clk = meson_clk_measure(clk_mux);
-
-	val[0] = vout_vcbus_read(VPP_VDO_MEAS_CTRL);
-	if (val[0]) {
-		vout_vcbus_write(VPP_VDO_MEAS_CTRL, 0);
-		//msleep(200);
-	}
-	val[0] = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_HI);
-	val[1] = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_LO);
-	msr_clk *= 1000;
-	if (val[0] & 0xffff)
-		return 0;
-	fr = vout_do_div(msr_clk, val[1]);
-
-	return fr;
+	vout_vcbus_write(VPP_VDO_MEAS_CTRL, 0);
+	vout_vdo_meas_init = 1;
 }
 
 unsigned int vout_frame_rate_measure(void)
@@ -81,13 +60,13 @@ unsigned int vout_frame_rate_measure(void)
 
 	if (clk_mux == -1)
 		return 0;
-	msr_clk = meson_clk_measure(clk_mux);
+	if (vout_vdo_meas_init == 0)
+		return 0;
 
-	val[0] = vout_vcbus_read(VPP_VDO_MEAS_CTRL);
-	if (val[0]) {
-		vout_vcbus_write(VPP_VDO_MEAS_CTRL, 0);
-		msleep(200);
-	}
+	msr_clk = meson_clk_measure(clk_mux);
+	if (msr_clk == 0)
+		return 0;
+
 	val[0] = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_HI);
 	val[1] = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_LO);
 	msr_clk *= 1000;

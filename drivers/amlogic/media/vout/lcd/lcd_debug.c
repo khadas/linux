@@ -542,7 +542,7 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		"driver version: %s\n"
 		"panel_type: %s, chip: %d, mode: %s, status: %d\n"
 		"viu_sel: %d, isr_cnt: %d, resume_type: %d, resume_flag: 0x%x\n"
-		"fr_auto_policy: %d, fr_mode: %d, fr_duration: %d\n"
+		"fr_auto_policy: %d, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
 		"mute_flag: 0x%x, test_flag: 0x%x\n"
 		"key_valid: %d, config_load: %d\n",
 		LCD_DRV_VERSION,
@@ -551,6 +551,7 @@ static int lcd_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 		pdrv->viu_sel, pdrv->vsync_cnt,
 		pdrv->resume_type, pdrv->resume_flag,
 		pdrv->fr_auto_policy, pdrv->fr_mode, pdrv->fr_duration,
+		pconf->timing.frame_rate,
 		pdrv->mute_flag, pdrv->test_flag,
 		pdrv->key_valid, pdrv->config_load);
 
@@ -2534,12 +2535,14 @@ static void lcd_debug_clk_change(struct aml_lcd_drv_s *pdrv)
 	pclk = pconf->timing.lcd_clk;
 	sync_duration = pclk / pconf->basic.h_period;
 	sync_duration = sync_duration * 100 / pconf->basic.v_period;
+	pconf->timing.frame_rate = sync_duration / 100;
 	pconf->timing.sync_duration_num = sync_duration;
 	pconf->timing.sync_duration_den = 100;
 
 	/* update vinfo */
 	pdrv->vinfo.sync_duration_num = sync_duration;
 	pdrv->vinfo.sync_duration_den = 100;
+	pdrv->vinfo.std_duration = sync_duration / 100;
 	pdrv->vinfo.video_clk = pclk;
 
 	switch (pdrv->mode) {
@@ -2832,12 +2835,14 @@ static void lcd_debug_change_clk_change(struct aml_lcd_drv_s *pdrv)
 	pclk = pconf->timing.lcd_clk;
 	sync_duration = pclk / pconf->basic.h_period;
 	sync_duration = sync_duration * 100 / pconf->basic.v_period;
+	pconf->timing.frame_rate = sync_duration / 100;
 	pconf->timing.sync_duration_num = sync_duration;
 	pconf->timing.sync_duration_den = 100;
 
 	/* update vinfo */
 	pdrv->vinfo.sync_duration_num = sync_duration;
 	pdrv->vinfo.sync_duration_den = 100;
+	pdrv->vinfo.std_duration = sync_duration / 100;
 	pdrv->vinfo.video_clk = pclk;
 
 	switch (pdrv->mode) {
@@ -4114,6 +4119,7 @@ static ssize_t lcd_debug_vinfo_show(struct device *dev,
 		      "    aspect_ratio_den:      %d\n"
 		      "    sync_duration_num:     %d\n"
 		      "    sync_duration_den:     %d\n"
+		      "    std_duration:          %d\n"
 		      "    screen_real_width:     %d\n"
 		      "    screen_real_height:    %d\n"
 		      "    htotal:                %d\n"
@@ -4133,6 +4139,7 @@ static ssize_t lcd_debug_vinfo_show(struct device *dev,
 		      pdrv->vinfo.aspect_ratio_den,
 		      pdrv->vinfo.sync_duration_num,
 		      pdrv->vinfo.sync_duration_den,
+		      pdrv->vinfo.std_duration,
 		      pdrv->vinfo.screen_real_width,
 		      pdrv->vinfo.screen_real_height,
 		      pdrv->vinfo.htotal,

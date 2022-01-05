@@ -157,6 +157,8 @@ struct lcd_timing_s {
 
 	unsigned int sync_duration_num;
 	unsigned int sync_duration_den;
+	unsigned int frac;
+	unsigned int frame_rate;
 
 	unsigned short video_on_pixel;
 	unsigned short video_on_line;

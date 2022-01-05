@@ -156,7 +156,6 @@
 #define VPP_VE_H_V_SIZE 0x1da4
 #define VPP_PSR_H_V_SIZE 0x1da5
 #define VPP_OUT_H_V_SIZE 0x1da5
-#define VPP_VDO_MEAS_CTRL 0x1da8
 #define VPP_VDO_MEAS_VS_COUNT_HI 0x1da9
 #define VPP_VDO_MEAS_VS_COUNT_LO 0x1daa
 #define VPP_INPUT_CTRL 0x1dab

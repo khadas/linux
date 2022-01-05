@@ -76,7 +76,6 @@
 #define VPU_SW_RESET 0x2720
 
 /* vpp */
-#define VPP_VDO_MEAS_CTRL 0x1da8
 #define VPP_POSTBLEND_VD1_H_START_END 0x1d1c
 #define VPP_POSTBLEND_VD1_V_START_END 0x1d1d
 

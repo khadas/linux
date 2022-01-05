@@ -1002,20 +1002,14 @@ static void vdin_set_meas_mux(unsigned int offset, enum tvin_port_e port_,
 	/* set VDIN_MEAS in accumulation mode */
 	wr_bits(offset, VDIN_MEAS_CTRL0, 1,
 		MEAS_VS_TOTAL_CNT_EN_BIT, MEAS_VS_TOTAL_CNT_EN_WID);
-	/* set VPP_VDO_MEAS in accumulation mode */
-	wr_bits(0, VPP_VDO_MEAS_CTRL, 1, 8, 1);
-	/* set VPP_MEAS in latch-on-falling-edge mode */
-	wr_bits(0, VPP_VDO_MEAS_CTRL, 1, 9, 1);
 	/* set VDIN_MEAS mux */
 	wr_bits(offset, VDIN_MEAS_CTRL0, meas_mux,
 		MEAS_HS_VS_SEL_BIT, MEAS_HS_VS_SEL_WID);
-	/* manual reset VDIN_MEAS & VPP_VDO_MEAS at the same time,
+	/* manual reset VDIN_MEAS,
 	 * rst = 1 & 0
 	 */
 	wr_bits(offset, VDIN_MEAS_CTRL0, 1, MEAS_RST_BIT, MEAS_RST_WID);
-	W_VCBUS_BIT(VPP_VDO_MEAS_CTRL, 1, 10, 1);
 	wr_bits(offset, VDIN_MEAS_CTRL0, 0, MEAS_RST_BIT, MEAS_RST_WID);
-	W_VCBUS_BIT(VPP_VDO_MEAS_CTRL, 0, 10, 1);
 }
 
 /*function:set VDIN_COM_CTRL0

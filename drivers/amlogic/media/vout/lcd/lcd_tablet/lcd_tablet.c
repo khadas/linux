@@ -219,10 +219,6 @@ static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 
 	LCDPR("%s\n", __func__);
 
-	/* update lcd config sync_duration, for calculate */
-	pdrv->config.timing.sync_duration_num = pdrv->vinfo.sync_duration_num;
-	pdrv->config.timing.sync_duration_den = pdrv->vinfo.sync_duration_den;
-
 	/* update clk & timing config */
 	lcd_tablet_config_update(pdrv);
 	/* update interface timing if needed, current no need */
@@ -293,10 +289,11 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 			return 0;
 		}
 
-		/* update vinfo */
-		info->sync_duration_num = pdrv->cur_duration.duration_num;
-		info->sync_duration_den = pdrv->cur_duration.duration_den;
-		info->frac = 0;
+		/* update frame rate */
+		pdrv->config.timing.frame_rate = pdrv->cur_duration.frame_rate;
+		pdrv->config.timing.sync_duration_num = pdrv->cur_duration.duration_num;
+		pdrv->config.timing.sync_duration_den = pdrv->cur_duration.duration_den;
+		pdrv->config.timing.frac = pdrv->cur_duration.frac;
 		pdrv->fr_mode = 0;
 	} else {
 		for (i = 0; i < n; i++) {
@@ -320,17 +317,18 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 
 		pdrv->fr_duration = duration;
 		/* if the sync_duration is same as current */
-		if (duration_num == info->sync_duration_num &&
-		    duration_den == info->sync_duration_den) {
+		if (duration_num == pdrv->config.timing.sync_duration_num &&
+		    duration_den == pdrv->config.timing.sync_duration_den) {
 			LCDPR("%s: sync_duration is the same, exit\n",
 			      __func__);
 			return 0;
 		}
 
-		/* update vinfo */
-		info->sync_duration_num = duration_num;
-		info->sync_duration_den = duration_den;
-		info->frac = frac;
+		/* update frame rate */
+		pdrv->config.timing.frame_rate = frame_rate;
+		pdrv->config.timing.sync_duration_num = duration_num;
+		pdrv->config.timing.sync_duration_den = duration_den;
+		pdrv->config.timing.frac = frac;
 		pdrv->fr_mode = duration;
 	}
 
@@ -411,9 +409,11 @@ static void lcd_tablet_vinfo_update(struct aml_lcd_drv_s *pdrv)
 
 	pconf = &pdrv->config;
 
-	/* store standard duration */
+	/* store current duration */
+	pdrv->cur_duration.frame_rate = pconf->timing.frame_rate;
 	pdrv->cur_duration.duration_num = pconf->timing.sync_duration_num;
 	pdrv->cur_duration.duration_den = pconf->timing.sync_duration_den;
+	pdrv->cur_duration.frac = pconf->timing.frac;
 
 	pdrv->vinfo.width = pconf->basic.h_active;
 	pdrv->vinfo.height = pconf->basic.v_active;
@@ -424,6 +424,8 @@ static void lcd_tablet_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.screen_real_height = pconf->basic.screen_height;
 	pdrv->vinfo.sync_duration_num = pconf->timing.sync_duration_num;
 	pdrv->vinfo.sync_duration_den = pconf->timing.sync_duration_den;
+	pdrv->vinfo.frac = pconf->timing.frac;
+	pdrv->vinfo.std_duration = pconf->timing.frame_rate;
 	pdrv->vinfo.video_clk = pconf->timing.lcd_clk;
 	pdrv->vinfo.htotal = pconf->basic.h_period;
 	pdrv->vinfo.vtotal = pconf->basic.v_period;
@@ -476,6 +478,8 @@ static void lcd_tablet_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.screen_real_height = pconf->basic.v_active;
 	pdrv->vinfo.sync_duration_num = 60;
 	pdrv->vinfo.sync_duration_den = 1;
+	pdrv->vinfo.frac = 0;
+	pdrv->vinfo.std_duration = 60;
 	pdrv->vinfo.video_clk = 0;
 	pdrv->vinfo.htotal = pconf->basic.h_period;
 	pdrv->vinfo.vtotal = pconf->basic.v_period;
@@ -540,7 +544,7 @@ void lcd_tablet_vout_server_remove(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 {
-	lcd_basic_timing_range_update(pdrv);
+	lcd_basic_timing_range_init(pdrv);
 	lcd_timing_init_config(pdrv);
 
 	lcd_tablet_vinfo_update(pdrv);
@@ -564,9 +568,10 @@ static void lcd_frame_rate_adjust(struct aml_lcd_drv_s *pdrv, int duration)
 
 	lcd_vout_notify_mode_change_pre(pdrv);
 
-	/* update vinfo */
-	pdrv->vinfo.sync_duration_num = duration;
-	pdrv->vinfo.sync_duration_den = 100;
+	/* update frame rate */
+	pdrv->config.timing.frame_rate = duration / 100;
+	pdrv->config.timing.sync_duration_num = duration;
+	pdrv->config.timing.sync_duration_den = 100;
 
 	/* update interface timing */
 	lcd_tablet_config_update(pdrv);

@@ -62,7 +62,7 @@ unsigned int frame_lock_show_vout_framerate(void)
 	unsigned int fr = 0;
 
 	#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	fr = vout_frame_rate_measure_for_vrr();
+	fr = vout_frame_rate_measure();
 	#endif
 
 	return fr;
@@ -290,6 +290,9 @@ static unsigned int frame_lock_check_input_hz(struct vframe_s *vf)
 	   (vrrlock_support & VRRLOCK_SUPPORT_CVBS)) {
 		ret_hz = 0;
 	}
+
+	if (duration == 0)
+		return ret_hz;
 
 	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG) {
 		fr = frame_lock_show_vout_framerate();

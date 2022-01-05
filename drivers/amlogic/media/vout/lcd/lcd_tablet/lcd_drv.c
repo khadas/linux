@@ -767,10 +767,12 @@ void lcd_tablet_config_update(struct aml_lcd_drv_s *pdrv)
 {
 	struct vinfo_s *info;
 
-	/* update lcd config sync_duration */
+	/* update vinfo */
 	info = &pdrv->vinfo;
-	pdrv->config.timing.sync_duration_num = info->sync_duration_num;
-	pdrv->config.timing.sync_duration_den = info->sync_duration_den;
+	info->sync_duration_num = pdrv->config.timing.sync_duration_num;
+	info->sync_duration_den = pdrv->config.timing.sync_duration_den;
+	info->frac = pdrv->config.timing.frac;
+	info->std_duration = pdrv->config.timing.frame_rate;
 
 	/* update clk & timing config */
 	lcd_vmode_change(pdrv);

@@ -456,6 +456,7 @@ static ssize_t vout2_vinfo_show(struct class *class,
 		"    aspect_ratio_den:      %d\n"
 		"    sync_duration_num:     %d\n"
 		"    sync_duration_den:     %d\n"
+		"    std_duration:          %d\n"
 		"    screen_real_width:     %d\n"
 		"    screen_real_height:    %d\n"
 		"    htotal:                %d\n"
@@ -467,6 +468,7 @@ static ssize_t vout2_vinfo_show(struct class *class,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,
 		info->sync_duration_num, info->sync_duration_den,
+		info->std_duration,
 		info->screen_real_width, info->screen_real_height,
 		info->htotal, info->vtotal,
 		info->video_clk, info->viu_color_fmt, info->viu_mux);
@@ -637,8 +639,7 @@ static long vout2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			baseinfo.screen_real_height = info->screen_real_height;
 			baseinfo.video_clk = info->video_clk;
 			baseinfo.viu_color_fmt = info->viu_color_fmt;
-			if (copy_to_user(argp, &baseinfo,
-					 sizeof(struct vinfo_base_s)))
+			if (copy_to_user(argp, &baseinfo, sizeof(struct vinfo_base_s)))
 				ret = -EFAULT;
 		}
 		break;
@@ -651,8 +652,7 @@ static long vout2_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 }
 
 #ifdef CONFIG_COMPAT
-static long vout2_compat_ioctl(struct file *file, unsigned int cmd,
-			       unsigned long arg)
+static long vout2_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	unsigned long ret;
 
