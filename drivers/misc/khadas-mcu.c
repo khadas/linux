@@ -23,6 +23,7 @@
 #define MCU_PWR_OFF_CMD_REG             0x80
 #define MCU_SHUTDOWN_NORMAL_REG         0x2c
 #define MCU_RED_LED_CTRL_REG         	0x28
+#define MCU_AGEING_TEST         		0x16
 
 #define MCU_FAN_TRIG_TEMP_LEVEL0        60	// 50 degree if not set
 #define MCU_FAN_TRIG_TEMP_LEVEL1        80	// 60 degree if not set
@@ -668,10 +669,43 @@ static ssize_t show_wol_enable(struct class *cls,
 	return sprintf(buf, "%d\n", enable);
 }
 
+static ssize_t show_ageing_test(struct class *cls,
+                                struct class_attribute *attr, char *buf)
+{
+        int ret;
+        unsigned char addr[1]={0};
+
+        ret = mcu_i2c_read_regs(g_mcu_data->client, MCU_AGEING_TEST, addr, 1);
+        if (ret < 0)
+                printk("%s: AGEING_TEST failed (%d)",__func__, ret);
+        return sprintf(buf, "%d\n", addr[0]);
+}
+
+static ssize_t store_ageing_test(struct class *cls, struct class_attribute *attr,
+                                const char *buf, size_t count)
+{
+        u8 reg[2];
+        int ret;
+        int enable;
+
+        if (kstrtoint(buf, 0, &enable))
+                return -EINVAL;
+        reg[0] = enable;
+        ret = mcu_i2c_write_regs(g_mcu_data->client, MCU_AGEING_TEST, reg, 1);
+        if (ret < 0) {
+                printk("ageing_test state err\n");
+                return ret;
+        }
+        printk("ageing_test state: %d\n", enable);
+
+        return count;
+}
+
 static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(poweroff, 0644, NULL, store_mcu_poweroff),
 	__ATTR(rst, 0644, NULL, store_mcu_rst),
 	__ATTR(wol_enable, 0644, show_wol_enable, store_wol_enable),
+	__ATTR(ageing_test, 0644, show_ageing_test, store_ageing_test),
 	__ATTR(redled, 0644, show_redled_mode, store_redled_mode),
 };
 
@@ -827,9 +861,11 @@ static int mcu_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		mcu_fan_level_set(&g_mcu_data->fan_data, 0);
 	}
 
+	/*
 	if (is_mcu_redled_control_supported()) {
 		mcu_redled_set(KHADAS_RED_LED_ON);
 	}
+	*/
 
 	create_mcu_attrs();
 
