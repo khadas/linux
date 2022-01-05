@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesont3.dtsi"
+#include "mesont3_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include "mesont3_ar301_linux-panel.dtsi"
 
@@ -966,12 +967,30 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
 	logo_addr = "0x7f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x7f800000";
+};
+
+&drm_amhdmitx {
+	status = "disabled";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "disabled";
+};
+
+&drm_lcd {
+	status = "okay";
 };
 
 &audiobus {
