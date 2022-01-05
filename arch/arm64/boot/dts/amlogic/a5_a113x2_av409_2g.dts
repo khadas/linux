@@ -219,6 +219,24 @@
 			  3300000 0>;
 	};
 
+	avdd33_usb_reg: fixedregulator@10{
+		vin-supply = <&vcc3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "AVDD33_USB";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+	};
+
+	avdd18_usb_reg: fixedregulator@10{
+		vin-supply = <&vcc_1v8_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "AVDD18_USB";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+	};
+
 	codec_mm {
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
@@ -1167,6 +1185,9 @@
 &crg20_otg {
 	status = "okay";
 	controller-type = <3>;
+	usb5v-supply = <&vcc5v_reg>;
+	usb3v3-supply = <&avdd33_usb_reg>;
+	usb1v8-supply = <&avdd18_usb_reg>;
 };
 
 &crg2_drd {

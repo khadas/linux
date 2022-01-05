@@ -23,6 +23,7 @@
 #include "../phy/phy-aml-new-usb-v2.h"
 
 #include <linux/amlogic/gki_module.h>
+#include <linux/regulator/consumer.h>
 #define HOST_MODE	0
 #define DEVICE_MODE	1
 
@@ -41,6 +42,9 @@ struct amlogic_crg_otg {
 	struct delayed_work     work;
 	struct gpio_desc *usb_gpio_desc;
 	int vbus_power_pin;
+	struct regulator *usb_regulator_ao1v8;
+	struct regulator *usb_regulator_ao3v3;
+	struct regulator *usb_regulator_vcc5v;
 };
 
 bool crg_force_device_v2_mode;
@@ -171,7 +175,7 @@ static irqreturn_t amlogic_crgotg_detect_irq(int irq, void *dev)
 
 static int amlogic_crg_otg_v2_probe(struct platform_device *pdev)
 {
-	struct amlogic_crg_otg			*phy;
+	struct amlogic_crg_otg *phy;
 	struct device *dev = &pdev->dev;
 	void __iomem *usb2_phy_base;
 	unsigned int usb2_phy_mem;
@@ -187,12 +191,16 @@ static int amlogic_crg_otg_v2_probe(struct platform_device *pdev)
 	int retval;
 	int len, otg = 0;
 	int controller_type = USB_NORMAL;
+	int regulator_contorl_flag = 0;
 	union usb_r5_v2 reg5;
 	unsigned long reg_addr;
 	const char *udc_name = NULL;
 	const char *gpio_name = NULL;
 	int gpio_vbus_power_pin = -1;
 	struct gpio_desc *usb_gd = NULL;
+	struct regulator *usb_regulator_ao1v8;
+	struct regulator *usb_regulator_ao3v3;
+	struct regulator *usb_regulator_vcc5v;
 	u32 val;
 
 	gpio_name = of_get_property(dev->of_node, "gpio-vbus-power", NULL);
@@ -255,6 +263,78 @@ static int amlogic_crg_otg_v2_probe(struct platform_device *pdev)
 	strncpy(crg_v2_UDC_name, udc_name, len);
 	crg_v2_UDC_name[len] = '\0';
 
+	prop = of_get_property(dev->of_node, "regulator", NULL);
+	if (prop)
+		regulator_contorl_flag = of_read_ulong(prop, 1);
+
+	if (regulator_contorl_flag) {
+		usb_regulator_ao1v8 = devm_regulator_get(dev, "usb1v8");
+		retval = PTR_ERR_OR_ZERO(usb_regulator_ao1v8);
+		if (retval) {
+			if (retval == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator usb1v8 not ready, retry\n");
+				return retval;
+			}
+			dev_err(&pdev->dev, "failed in regulator usb1v8 %ld\n",
+				PTR_ERR(usb_regulator_ao1v8));
+			phy->usb_regulator_ao1v8 = NULL;
+		} else {
+			retval = regulator_enable(usb_regulator_ao1v8);
+			if (retval) {
+				dev_err(&pdev->dev,
+					"regulator usb1v8 enable failed:   %d\n", retval);
+				phy->usb_regulator_ao1v8 = NULL;
+			} else {
+				phy->usb_regulator_ao1v8 = usb_regulator_ao1v8;
+			}
+		}
+
+		usb_regulator_ao3v3 = devm_regulator_get(dev, "usb3v3");
+		retval = PTR_ERR_OR_ZERO(usb_regulator_ao3v3);
+		if (retval) {
+			if (retval == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator usb3v3 not ready, retry\n");
+				return retval;
+			}
+			dev_err(&pdev->dev, "failed in regulator usb3v3 %ld\n",
+				PTR_ERR(usb_regulator_ao3v3));
+			phy->usb_regulator_ao3v3 = NULL;
+		} else {
+			retval = regulator_enable(usb_regulator_ao3v3);
+			if (retval) {
+				dev_err(&pdev->dev,
+					"regulator usb3v3 enable failed:   %d\n", retval);
+				phy->usb_regulator_ao3v3 = NULL;
+			} else {
+				phy->usb_regulator_ao3v3 = usb_regulator_ao3v3;
+			}
+		}
+
+		usb_regulator_vcc5v = devm_regulator_get(dev, "usb5v");
+		retval = PTR_ERR_OR_ZERO(usb_regulator_vcc5v);
+		if (retval) {
+			if (retval == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator usb5v not ready, retry\n");
+				return retval;
+			}
+			dev_err(&pdev->dev, "failed in regulator usb5v %ld\n",
+				PTR_ERR(usb_regulator_vcc5v));
+			phy->usb_regulator_vcc5v = NULL;
+		} else {
+			retval = regulator_enable(usb_regulator_vcc5v);
+			if (retval) {
+				dev_err(&pdev->dev,
+					"regulator usb5v enable failed:   %d\n", retval);
+				phy->usb_regulator_vcc5v = NULL;
+			} else {
+				phy->usb_regulator_vcc5v = usb_regulator_vcc5v;
+			}
+		}
+	} else {
+		phy->usb_regulator_ao1v8 = NULL;
+		phy->usb_regulator_ao3v3 = NULL;
+		phy->usb_regulator_vcc5v = NULL;
+	}
 	if (controller_type == USB_OTG)
 		otg = 1;
 
@@ -307,13 +387,26 @@ static int amlogic_crg_otg_v2_probe(struct platform_device *pdev)
 		writel(val, phy->m31_phy_cfg + 0x8);
 NO_M31:
 		irq = platform_get_irq(pdev, 0);
-		if (irq < 0)
+		if (irq < 0) {
+			if (phy->usb_regulator_vcc5v)
+				regulator_disable(phy->usb_regulator_vcc5v);
+			if (phy->usb_regulator_ao3v3)
+				regulator_disable(phy->usb_regulator_ao3v3);
+			if (phy->usb_regulator_ao1v8)
+				regulator_disable(phy->usb_regulator_ao1v8);
 			return -ENODEV;
+		}
 		retval = request_irq(irq, amlogic_crgotg_detect_irq,
 				 IRQF_SHARED, "amlogic_botg_detect", phy);
 
 		if (retval) {
 			dev_err(&pdev->dev, "request of irq%d failed\n", irq);
+			if (phy->usb_regulator_vcc5v)
+				regulator_disable(phy->usb_regulator_vcc5v);
+			if (phy->usb_regulator_ao3v3)
+				regulator_disable(phy->usb_regulator_ao3v3);
+			if (phy->usb_regulator_ao1v8)
+				regulator_disable(phy->usb_regulator_ao1v8);
 			retval = -EBUSY;
 			return retval;
 		}
@@ -356,11 +449,31 @@ NO_M31:
 
 static int amlogic_crg_otg_v2_remove(struct platform_device *pdev)
 {
+	struct amlogic_crg_otg *phy = platform_get_drvdata(pdev);
+
+	if (phy->usb_regulator_vcc5v)
+		regulator_disable(phy->usb_regulator_vcc5v);
+	if (phy->usb_regulator_ao3v3)
+		regulator_disable(phy->usb_regulator_ao3v3);
+	if (phy->usb_regulator_ao1v8)
+		regulator_disable(phy->usb_regulator_ao1v8);
+
 	return 0;
 }
 
-#ifdef CONFIG_PM_RUNTIME
+static void amlogic_crg_otg_v2_shutdown(struct platform_device *pdev)
+{
+	struct amlogic_crg_otg *phy = platform_get_drvdata(pdev);
 
+	if (phy->usb_regulator_vcc5v)
+		regulator_disable(phy->usb_regulator_vcc5v);
+	if (phy->usb_regulator_ao3v3)
+		regulator_disable(phy->usb_regulator_ao3v3);
+	if (phy->usb_regulator_ao1v8)
+		regulator_disable(phy->usb_regulator_ao1v8);
+}
+
+#ifdef CONFIG_PM
 static int amlogic_crg_otg_v2_runtime_suspend(struct device *dev)
 {
 	return 0;
@@ -373,7 +486,40 @@ static int amlogic_crg_otg_v2_runtime_resume(struct device *dev)
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int amlogic_crg_otg_v2_suspend(struct device *dev)
+{
+	struct amlogic_crg_otg	*phy = dev_get_drvdata(dev);
+
+	if (phy->usb_regulator_vcc5v)
+		regulator_disable(phy->usb_regulator_vcc5v);
+	if (phy->usb_regulator_ao3v3)
+		regulator_disable(phy->usb_regulator_ao3v3);
+	if (phy->usb_regulator_ao1v8)
+		regulator_disable(phy->usb_regulator_ao1v8);
+
+	return 0;
+}
+
+static int amlogic_crg_otg_v2_resume(struct device *dev)
+{
+	struct amlogic_crg_otg	*phy = dev_get_drvdata(dev);
+	int ret = 0;
+
+	if (phy->usb_regulator_vcc5v)
+		ret = regulator_enable(phy->usb_regulator_vcc5v);
+	if (phy->usb_regulator_ao3v3)
+		ret = regulator_enable(phy->usb_regulator_ao3v3);
+	if (phy->usb_regulator_ao1v8)
+		ret = regulator_enable(phy->usb_regulator_ao1v8);
+
+	return ret;
+}
+#endif
+
 static const struct dev_pm_ops amlogic_new_otg_v2_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(amlogic_crg_otg_v2_suspend,
+			amlogic_crg_otg_v2_resume)
 	SET_RUNTIME_PM_OPS(amlogic_crg_otg_v2_runtime_suspend,
 			   amlogic_crg_otg_v2_runtime_resume,
 			   NULL)
@@ -395,6 +541,7 @@ MODULE_DEVICE_TABLE(of, amlogic_crg_otg_id_table);
 static struct platform_driver amlogic_crg_otg_v2_driver = {
 	.probe		= amlogic_crg_otg_v2_probe,
 	.remove		= amlogic_crg_otg_v2_remove,
+	.shutdown	= amlogic_crg_otg_v2_shutdown,
 	.driver		= {
 		.name	= "amlogic-crg-otg-v2",
 		.owner	= THIS_MODULE,
