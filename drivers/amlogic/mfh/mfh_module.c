@@ -55,6 +55,11 @@
 #define MFH_CMD_SEND           _IOWR(MFH_IOC_MAGIC, 2, struct mfh_msg_buf)
 #define MFH_CMD_LISTEN         _IOWR(MFH_IOC_MAGIC, 3, struct mfh_msg_buf)
 #define MFH_FIRMWARE_STOP      _IOWR(MFH_IOC_MAGIC, 5, struct mfh_info)
+
+#define DTS_PARAM_CONFIGED_NO      0
+#define DTS_PARAM_CONFIGED_YES     1
+#define DTS_PARAM_CONFIGED_UNKNOWN 2
+
 struct mfh_info {
 	int cpuid;
 	char name[30];
@@ -72,6 +77,9 @@ struct mfh_struct {
 	struct device *p_dev;
 	void __iomem *vaddr;
 	int addr_offset;
+	int mem_region_configed;
+	int power_domain_configed;
+	int clock_configed;
 };
 
 struct mfh_struct mfh_dev;
@@ -127,23 +135,44 @@ static int mfh_load_firmware(struct mfh_struct *mfh_struct,
 	}
 
 	size = firmware->size;
-	if (cpuid == 0) {
-		if (size > mfh_struct->addr_offset) {
-			pr_err("m4a firmware size overflow\n");
-			ret = -ENOMEM;
-			goto fail;
+
+	if (mfh_struct->mem_region_configed != DTS_PARAM_CONFIGED_NO) {
+		/* defined reserved memory region,
+		 * use its virtual & physical address
+		 */
+		if (cpuid == 0) {
+			if (size > mfh_struct->addr_offset) {
+				pr_err("m4a firmware size overflow\n");
+				ret = -ENOMEM;
+				goto fail;
+			}
+		} else if (cpuid == 1) {
+			if (size > mfh_struct->size - mfh_struct->addr_offset) {
+				pr_err("m4b firmware size overflow\n");
+				ret = -ENOMEM;
+				goto fail;
+			}
+			phy_addr += mfh_struct->addr_offset;
+			vaddr += mfh_struct->addr_offset;
 		}
-	} else if (cpuid == 1) {
-		if (size > mfh_struct->size - mfh_struct->addr_offset) {
-			pr_err("m4b firmware size overflow\n");
-			ret = -ENOMEM;
-			goto fail;
+	} else {
+		/* no reserved memory region ,
+		 * alloc continus physical memory in kernel
+		 */
+		vaddr = devm_kzalloc(mfh_struct->p_dev, size, GFP_KERNEL);
+		if (!vaddr) {
+			release_firmware(firmware);
+			pr_err("memory request fail\n");
+			return -ENOMEM;
 		}
-		phy_addr += mfh_struct->addr_offset;
-		vaddr += mfh_struct->addr_offset;
+		phy_addr = virt_to_phys(vaddr);
+		mfh_struct->vaddr = vaddr;
+		mfh_struct->base = phy_addr;
+		mfh_struct->size = size;
 	}
 
 	memcpy(vaddr, firmware->data, size);
+
 	dma_sync_single_for_cpu(mfh_struct->p_dev,
 				(dma_addr_t)(phy_addr),
 				size, DMA_FROM_DEVICE);
@@ -166,22 +195,35 @@ static int mfh_startup(struct mfh_struct *mfh_struct,
 	int ret = 0;
 
 	pr_debug("mfh id %d\n\n", cpuid);
+
 	/*set mpll clk, or clkm4 can't set 300M*/
-	if (!IS_ERR_OR_NULL(clkm4_pll)) {
-		if (!__clk_is_enabled(clkm4_pll))
-			clk_set_rate(clkm4_pll, pclk_rate);
+	if (mfh_struct->clock_configed != DTS_PARAM_CONFIGED_NO) {
+		if (!IS_ERR_OR_NULL(clkm4_pll)) {
+			if (!__clk_is_enabled(clkm4_pll))
+				clk_set_rate(clkm4_pll, pclk_rate);
+		}
+		if (!__clk_is_enabled(clkm4))
+			clk_set_rate(clkm4, clk_rate);
+		clk_prepare_enable(clkm4);
 	}
-	if (!__clk_is_enabled(clkm4))
-		clk_set_rate(clkm4, clk_rate);
-	clk_prepare_enable(clkm4);
+
 	if (cpuid == 1) {
 		pd_dev = mfh_struct->devb;
 		phy_addr += mfh_struct->addr_offset;
 	}
+
 	/*enable power domain*/
-	ret = pm_runtime_get_sync(pd_dev);
-	arm_smccc_smc(AMLOGIC_MFH_BOOT, cpuid, phy_addr,
-		      AMLOGIC_M4_BANK, PWR_START, 0, 0, 0, &res);
+	if (mfh_struct->power_domain_configed != DTS_PARAM_CONFIGED_NO)
+		ret = pm_runtime_get_sync(pd_dev);
+
+	if (mfh_struct->mem_region_configed != DTS_PARAM_CONFIGED_NO) {
+		arm_smccc_smc(AMLOGIC_MFH_BOOT, cpuid, phy_addr,
+			AMLOGIC_M4_BANK, PWR_START, 0, 0, 0, &res);
+	} else {
+		arm_smccc_smc(AMLOGIC_MFH_BOOTUP, mfh_struct->base,
+		mfh_struct->size, 0, 0, 0, 0, 0, &res);
+		devm_kfree(mfh_struct->p_dev, mfh_struct->vaddr);
+	}
 	return ret;
 }
 
@@ -230,13 +272,22 @@ static long mfh_miscdev_ioctl(struct file *fp, unsigned int cmd,
 	}
 	switch (cmd) {
 	case MFH_FIRMWARE_START:
-		mfh_power_reset(cpuid, PWR_START);
-		ret = mfh_load_firmware(mfh_struct, &mfh_info);
-		if (ret) {
-			pr_err("load firmware error\n");
-			return ret;
+		if (mfh_struct->mem_region_configed != DTS_PARAM_CONFIGED_NO) {
+			mfh_power_reset(cpuid, PWR_START);
+			ret = mfh_load_firmware(mfh_struct, &mfh_info);
+			if (ret) {
+				pr_err("load firmware error\n");
+				return ret;
+			}
+			mfh_startup(mfh_struct, &mfh_info);
+		} else {
+			struct arm_smccc_res res = {0};
+
+			mfh_load_firmware(mfh_struct, &mfh_info);
+			arm_smccc_smc(AMLOGIC_MFH_BOOTUP, mfh_struct->base,
+			      mfh_struct->size, 0, 0, 0, 0, 0, &res);
+			devm_kfree(mfh_struct->p_dev, mfh_struct->vaddr);
 		}
-		mfh_startup(mfh_struct, &mfh_info);
 	break;
 	case MFH_FIRMWARE_STOP:
 		mfh_power_reset(cpuid, PWR_STOP);
@@ -308,32 +359,70 @@ static int mfh_parse_dt(struct device *dev, struct mfh_struct *mfh_struct)
 	struct device *deva;
 	struct device *devb;
 	void __iomem *vaddr;
+	int ret = 0;
 
-	mfh_struct->clkm40 = of_clk_get_by_name(dev->of_node, clk_name[0]);
-	mfh_struct->clkm41 = of_clk_get_by_name(dev->of_node, clk_name[1]);
-	mfh_struct->clkm4 = of_clk_get_by_name(dev->of_node, clk_name[2]);
-	if (IS_ERR_OR_NULL(mfh_struct->clkm4)) {
-		pr_err("invalid m4 clk\n");
-		return -EINVAL;
+	mfh_struct->mem_region_configed = DTS_PARAM_CONFIGED_UNKNOWN;
+	mfh_struct->power_domain_configed = DTS_PARAM_CONFIGED_UNKNOWN;
+	mfh_struct->clock_configed = DTS_PARAM_CONFIGED_UNKNOWN;
+
+	/* get memory region parameter is configed */
+	ret = of_property_read_u32(dev->of_node,
+				   "memory-region-configed",
+				   &mfh_struct->mem_region_configed);
+	if (ret < 0)
+		dev_err(dev, "Can't retrieve memory-region-configed\n");
+
+	/* get power domains parameter is configed */
+	ret = of_property_read_u32(dev->of_node,
+				   "power-domain-configed",
+				   &mfh_struct->power_domain_configed);
+	if (ret < 0)
+		dev_err(dev, "Can't retrieve power-domain-configed\n");
+
+	/* get clocks parameter is configed */
+	ret = of_property_read_u32(dev->of_node,
+				   "clock-configed",
+				   &mfh_struct->clock_configed);
+	if (ret < 0)
+		dev_err(dev, "Can't retrieve clock-configed\n");
+
+	/* attach clocks */
+	if (mfh_struct->clock_configed != DTS_PARAM_CONFIGED_NO) {
+		mfh_struct->clkm40 = of_clk_get_by_name(dev->of_node, clk_name[0]);
+		mfh_struct->clkm41 = of_clk_get_by_name(dev->of_node, clk_name[1]);
+		mfh_struct->clkm4 = of_clk_get_by_name(dev->of_node, clk_name[2]);
+		if (IS_ERR_OR_NULL(mfh_struct->clkm4)) {
+			pr_err("invalid m4 clk\n");
+			return -EINVAL;
+		}
+		mfh_struct->clkm4_pll = of_clk_get_by_name(dev->of_node, clk_name[3]);
 	}
-	mfh_struct->clkm4_pll = of_clk_get_by_name(dev->of_node, clk_name[3]);
-	deva = genpd_dev_pm_attach_by_name(dev, pd_name[0]);
-	if (!deva) {
-		pr_err("power domain a not match\n");
-		return -EINVAL;
+
+	/* attach power domains */
+	if (mfh_struct->power_domain_configed != DTS_PARAM_CONFIGED_NO) {
+		deva = genpd_dev_pm_attach_by_name(dev, pd_name[0]);
+		if (!deva) {
+			pr_err("power domain a not match\n");
+			return -EINVAL;
+		}
+		deva->parent = mfh_struct->p_dev;
+		devb = genpd_dev_pm_attach_by_name(dev, pd_name[1]);
+		if (!devb) {
+			pr_err("power domain b not match\n");
+			return -EINVAL;
+		}
+		devb->parent = mfh_struct->p_dev;
+		mfh_struct->deva = deva;
+		mfh_struct->devb = devb;
 	}
-	deva->parent = mfh_struct->p_dev;
-	devb = genpd_dev_pm_attach_by_name(dev, pd_name[1]);
-	if (!devb) {
-		pr_err("power domain b not match\n");
-		return -EINVAL;
+
+	/* memory region mapping */
+	if (mfh_struct->power_domain_configed != DTS_PARAM_CONFIGED_NO) {
+		vaddr = mfh_get_memory(dev, mfh_struct);
+		if (!vaddr)
+			return -ENOMEM;
 	}
-	devb->parent = mfh_struct->p_dev;
-	mfh_struct->deva = deva;
-	mfh_struct->devb = devb;
-	vaddr = mfh_get_memory(dev, mfh_struct);
-	if (!vaddr)
-		return -ENOMEM;
+
 	return 0;
 }
 
@@ -353,7 +442,8 @@ void mfh_poweron(struct device *dev, int cpuid, bool poweron)
 			strncpy(mfh_info.name, "m4b.bin", 30);
 		else
 			strncpy(mfh_info.name, "m4a.bin", 30);
-		mfh_power_reset(cpuid, poweron);
+		if (mfh_struct->mem_region_configed != DTS_PARAM_CONFIGED_NO)
+			mfh_power_reset(cpuid, poweron);
 		mfh_load_firmware(mfh_struct, &mfh_info);
 		mfh_startup(mfh_struct, &mfh_info);
 	} else {
