@@ -30,6 +30,8 @@ struct dvb_extern_device {
 	int demod_num;
 	int demod_cur;
 	int demod_cur_attached;
+
+	struct work_struct work;
 };
 
 #endif /* __AML_DVB_EXTERN_DRIVER_H__ */

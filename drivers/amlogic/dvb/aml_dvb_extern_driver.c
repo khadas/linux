@@ -21,7 +21,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.07"
+#define AML_DVB_EXTERN_VERSION    "V1.08"
 
 static struct dvb_extern_device *dvb_extern_dev;
 
@@ -79,6 +79,19 @@ static void aml_dvb_extern_set_power(struct gpio_config *pin_cfg, int on)
 		} else {
 			aml_gpio_direction_output(pin_cfg->pin, !(pin_cfg->value));
 		}
+	}
+}
+
+void aml_dvb_extern_work(struct work_struct *work)
+{
+	struct tuner_ops *tops = NULL;
+	struct dvb_tuner *tuner = get_dvb_tuners();
+
+	list_for_each_entry(tops, &tuner->list, list) {
+		if (tops->fe.ops.tuner_ops.resume)
+			tops->fe.ops.tuner_ops.resume(&tops->fe);
+		else if (tops->fe.ops.tuner_ops.init)
+			tops->fe.ops.tuner_ops.init(&tops->fe);
 	}
 }
 
@@ -1261,6 +1274,8 @@ PROPERTY_DEMOD:
 	aml_demod_gpio_config(&dvbdev->dvb_power, "dvb_power");
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
 
+	INIT_WORK(&dvbdev->work, aml_dvb_extern_work);
+
 PROPERTY_DONE:
 	dvb_extern_dev = dvbdev;
 
@@ -1345,20 +1360,13 @@ static int aml_dvb_extern_suspend(struct platform_device *pdev,
 static int aml_dvb_extern_resume(struct platform_device *pdev)
 {
 	struct dvb_extern_device *dvbdev = platform_get_drvdata(pdev);
-	struct tuner_ops *tops = NULL;
-	struct dvb_tuner *tuner = get_dvb_tuners();
 
 	if (IS_ERR_OR_NULL(dvbdev))
 		return -EFAULT;
 
 	aml_dvb_extern_set_power(&dvbdev->dvb_power, 1);
 
-	list_for_each_entry(tops, &tuner->list, list) {
-		if (tops->fe.ops.tuner_ops.resume)
-			tops->fe.ops.tuner_ops.resume(&tops->fe);
-		else if (tops->fe.ops.tuner_ops.init)
-			tops->fe.ops.tuner_ops.init(&tops->fe);
-	}
+	schedule_work(&dvbdev->work);
 
 	return 0;
 }
