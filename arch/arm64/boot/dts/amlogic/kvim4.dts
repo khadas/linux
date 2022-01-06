@@ -8,6 +8,7 @@
 #include "mesont7.dtsi"
 //#include "partition_linux.dtsi"
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include "mesont7_an400-panel.dtsi"
 
 / {
@@ -862,6 +863,17 @@
 		key_code = <116>;
 		key-gpios = <&gpio  GPIOD_4  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led-white {
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_STATUS;
+			gpios = <&gpio GPIOD_6 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
 	};
 
 	sd_3v3: regulator-sd_3v3 {
