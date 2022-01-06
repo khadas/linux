@@ -872,6 +872,8 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 		if (log_level & IRQ_LOG)
 			rx_pr("irq_hdcp1-%x\n", rx_hdcp1x_intr0);
 		if (rx_get_bits(rx_hdcp1x_intr0, _BIT(0))) {
+			if (rx.hdcp.hdcp_version != HDCP_VER_14)
+				skip_frame(skip_frame_cnt);
 			rx.hdcp.hdcp_version = HDCP_VER_14;
 			rx.hdcp.hdcp_source = true;
 			rx_pr("14\n");
@@ -891,6 +893,8 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 		if (log_level & IRQ_LOG)
 			rx_pr("irq1_hdcp2-%x\n", rx_hdcp2x_intr1);
 		if (rx_get_bits(rx_hdcp2x_intr1, _BIT(2))) {
+			if (rx.hdcp.hdcp_version != HDCP_VER_22)
+				skip_frame(skip_frame_cnt);
 			rx.hdcp.hdcp_version = HDCP_VER_22;
 			rx.hdcp.hdcp_source = true;
 			rx_pr("22\n");
