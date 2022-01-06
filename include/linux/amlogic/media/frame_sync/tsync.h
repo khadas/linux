@@ -113,7 +113,11 @@ int pts_cached_time(u8 type);
 
 u32 get_first_pic_coming(void);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 int get_vsync_pts_inc_mode(void);
+#else
+static inline int get_vsync_pts_inc_mode(void);
+#endif
 
 void tsync_avevent_locked(enum avevent_e event, u32 param);
 
@@ -171,7 +175,11 @@ int tsync_set_av_threshold_min(int min);
 
 int tsync_set_av_threshold_max(int max);
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 void set_pts_realign(void);
+#else
+static inline void set_pts_realign(void);
+#endif
 
 int tsync_set_tunnel_mode(int mode);
 

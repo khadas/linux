@@ -230,7 +230,14 @@ static inline int configs_init_devices(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 int video_init(void);
+#else
+static inline int video_init(void)
+{
+	return 0;
+}
+#endif
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 int vout2_init_module(void);
