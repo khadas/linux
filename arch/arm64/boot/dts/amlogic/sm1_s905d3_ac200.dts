@@ -544,68 +544,219 @@
 			0xffff  0x0>; /* ending flag */
 	};
 
-	cpu_opp_table: opp-table {
+	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		opp-100000000 {
+		opp00 {
 			opp-hz = /bits/ 64 <100000000>;
 			opp-microvolt = <760000>;
 		};
-
-		opp-250000000 {
+		opp01 {
 			opp-hz = /bits/ 64 <250000000>;
 			opp-microvolt = <760000>;
 		};
-
-		opp-500000000 {
+		opp02 {
 			opp-hz = /bits/ 64 <500000000>;
 			opp-microvolt = <760000>;
 		};
-
-		opp-667000000 {
-			opp-hz = /bits/ 64 <666666666>;
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
 			opp-microvolt = <780000>;
 		};
-
-		opp-1000000000 {
+		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
 			opp-microvolt = <800000>;
 		};
-
-		opp-1200000000 {
+		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
 			opp-microvolt = <810000>;
 		};
-
-		opp-1404000000 {
+		opp06 {
 			opp-hz = /bits/ 64 <1404000000>;
 			opp-microvolt = <820000>;
 		};
-
-		opp-1512000000 {
+		opp07 {
 			opp-hz = /bits/ 64 <1500000000>;
 			opp-microvolt = <830000>;
 		};
-
-		opp-1608000000 {
+		opp08 {
 			opp-hz = /bits/ 64 <1608000000>;
 			opp-microvolt = <860000>;
 		};
-
-		opp-1704000000 {
+		opp09 {
 			opp-hz = /bits/ 64 <1704000000>;
 			opp-microvolt = <900000>;
 		};
-
-		opp-1800000000 {
+		opp10 {
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <940000>;
 		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <1000000>;
+		};
+	};
 
-		opp-1908000000 {
+	cpu_opp_table1: cpu_opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <760000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <760000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <760000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <780000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <800000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <810000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1404000000>;
+			opp-microvolt = <820000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <830000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <860000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <900000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <940000>;
+		};
+		opp11 {
 			opp-hz = /bits/ 64 <1908000000>;
 			opp-microvolt = <970000>;
+		};
+	};
+
+	cpu_opp_table2: cpu_opp_table2 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <760000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <760000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <760000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <780000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <800000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <810000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1404000000>;
+			opp-microvolt = <820000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <830000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <860000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <900000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <910000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <910000>;
+		};
+	};
+
+	cpu_opp_table3: cpu_opp_table3 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <760000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <760000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <760000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <780000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <800000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <810000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1404000000>;
+			opp-microvolt = <820000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1500000000>;
+			opp-microvolt = <830000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <860000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <860000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <860000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <860000>;
 		};
 	};
 
@@ -758,7 +909,12 @@
 
 &cpu0 {
 	cpu-supply = <&vddcpu>;
-	operating-points-v2 = <&cpu_opp_table>;
+	/*set multi table cpufreq max*/
+	multi_tables_available;
+	operating-points-v2 = <&cpu_opp_table0>,
+			<&cpu_opp_table1>,
+			<&cpu_opp_table2>,
+			<&cpu_opp_table3>;
 	clocks = <&clkc CLKID_CPU_CLK>,
 	       <&clkc CLKID_CPU_CLK_DYN>,
 	       <&clkc CLKID_SYS_PLL>,
@@ -774,7 +930,12 @@
 
 &cpu1 {
 	cpu-supply = <&vddcpu>;
-	operating-points-v2 = <&cpu_opp_table>;
+	/*set multi table cpufreq max*/
+	multi_tables_available;
+	operating-points-v2 = <&cpu_opp_table0>,
+			<&cpu_opp_table1>,
+			<&cpu_opp_table2>,
+			<&cpu_opp_table3>;
 	clocks = <&clkc CLKID_CPU_CLK>,
 	       <&clkc CLKID_CPU_CLK_DYN>,
 	       <&clkc CLKID_SYS_PLL>,
@@ -790,7 +951,12 @@
 
 &cpu2 {
 	cpu-supply = <&vddcpu>;
-	operating-points-v2 = <&cpu_opp_table>;
+	/*set multi table cpufreq max*/
+	multi_tables_available;
+	operating-points-v2 = <&cpu_opp_table0>,
+			<&cpu_opp_table1>,
+			<&cpu_opp_table2>,
+			<&cpu_opp_table3>;
 	clocks = <&clkc CLKID_CPU_CLK>,
 	       <&clkc CLKID_CPU_CLK_DYN>,
 	       <&clkc CLKID_SYS_PLL>,
@@ -806,7 +972,12 @@
 
 &cpu3 {
 	cpu-supply = <&vddcpu>;
-	operating-points-v2 = <&cpu_opp_table>;
+	/*set multi table cpufreq max*/
+	multi_tables_available;
+	operating-points-v2 = <&cpu_opp_table0>,
+			<&cpu_opp_table1>,
+			<&cpu_opp_table2>,
+			<&cpu_opp_table3>;
 	clocks = <&clkc CLKID_CPU_CLK>,
 	       <&clkc CLKID_CPU_CLK_DYN>,
 	       <&clkc CLKID_SYS_PLL>,
