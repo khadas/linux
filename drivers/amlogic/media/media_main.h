@@ -508,15 +508,6 @@ static int cec_init(void)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_BT656
-int amvdec_656in_init_module(void);
-#else
-static int amvdec_656in_init_module(void)
-{
-	return 0;
-}
-#endif
-
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 int vpu_security_init(void);
 #else
