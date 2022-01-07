@@ -1125,10 +1125,21 @@
 };
 
 &spicc1 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins_t>;
-	cs-gpios = <&gpio GPIOT_10 0>;
+	st7789v@0 {
+	       status = "okay";
+	       compatible = "sitronix,st7789v";
+	       spi-max-frequency = <10000000>;
+	       reg = <0>;
+	       buswidth = <8>;
+	       backlight = <1>;
+	       reset-gpios = <&gpio GPIOT_9 GPIO_ACTIVE_HIGH>;
+	       led-gpios = <&gpio GPIOD_7 GPIO_ACTIVE_LOW>;
+	       cs-gpios = <&gpio GPIOT_10 GPIO_ACTIVE_HIGH>;
+	       dc-gpios = <&gpio GPIOT_13 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &spifc {

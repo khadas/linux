@@ -2114,7 +2114,7 @@
 	spicc1_pins_t: spicc1_pins_t {
 		mux {
 			groups = "spi_b_mosi_t",
-				 "spi_b_miso_t",
+				/*"spi_b_miso_t", for spi panel miso pin as dc*/
 				 "spi_b_clk_t";
 			function = "spi_b";
 			drive-strength = <2>;

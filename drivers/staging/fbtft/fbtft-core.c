@@ -33,6 +33,8 @@ static unsigned long debug;
 module_param(debug, ulong, 0000);
 MODULE_PARM_DESC(debug, "override device debug level");
 
+#define SPI_4LINE_SERIAL_INTERFACE 1
+
 int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc)
 {
 	int ret;
@@ -44,6 +46,10 @@ int fbtft_write_buf_dc(struct fbtft_par *par, void *buf, size_t len, int dc)
 	if (ret < 0)
 		dev_err(par->info->device,
 			"write() failed and returned %d\n", ret);
+	/*default set dc is high for data tramsmission*/
+	if (par->gpio.dc)
+		gpiod_set_value(par->gpio.dc, 1);
+
 	return ret;
 }
 EXPORT_SYMBOL(fbtft_write_buf_dc);
@@ -106,31 +112,36 @@ static int fbtft_request_gpios_dt(struct fbtft_par *par)
 	ret = fbtft_request_one_gpio(par, "dc", 0, &par->gpio.dc);
 	if (ret)
 		return ret;
+	ret = fbtft_request_one_gpio(par, "cs", 0, &par->gpio.cs);
+	if (ret)
+		return ret;
+
+#ifndef SPI_4LINE_SERIAL_INTERFACE
 	ret = fbtft_request_one_gpio(par, "rd", 0, &par->gpio.rd);
 	if (ret)
 		return ret;
 	ret = fbtft_request_one_gpio(par, "wr", 0, &par->gpio.wr);
 	if (ret)
 		return ret;
-	ret = fbtft_request_one_gpio(par, "cs", 0, &par->gpio.cs);
-	if (ret)
-		return ret;
 	ret = fbtft_request_one_gpio(par, "latch", 0, &par->gpio.latch);
 	if (ret)
 		return ret;
+#endif
 	for (i = 0; i < 16; i++) {
-		ret = fbtft_request_one_gpio(par, "db", i,
-					     &par->gpio.db[i]);
-		if (ret)
-			return ret;
 		ret = fbtft_request_one_gpio(par, "led", i,
 					     &par->gpio.led[i]);
+		if (ret)
+			return ret;
+#ifndef SPI_4LINE_SERIAL_INTERFACE
+		ret = fbtft_request_one_gpio(par, "db", i,
+					     &par->gpio.db[i]);
 		if (ret)
 			return ret;
 		ret = fbtft_request_one_gpio(par, "aux", i,
 					     &par->gpio.aux[i]);
 		if (ret)
 			return ret;
+#endif
 	}
 
 	return 0;
@@ -232,9 +243,11 @@ static void fbtft_reset(struct fbtft_par *par)
 		return;
 	fbtft_par_dbg(DEBUG_RESET, par, "%s()\n", __func__);
 	gpiod_set_value_cansleep(par->gpio.reset, 1);
-	usleep_range(20, 40);
+	mdelay(200);
 	gpiod_set_value_cansleep(par->gpio.reset, 0);
-	msleep(120);
+	mdelay(200);
+	gpiod_set_value_cansleep(par->gpio.reset, 1);
+	mdelay(200);
 }
 
 static void fbtft_update_display(struct fbtft_par *par, unsigned int start_line,
@@ -819,6 +832,11 @@ int fbtft_register_framebuffer(struct fb_info *fb_info)
 			goto reg_fail;
 	}
 
+	par->fbtftops.reset(par);
+	mdelay(500);
+	if (par->gpio.cs)
+		gpiod_set_value(par->gpio.cs, 0);  /* Activate chip */
+
 	ret = par->fbtftops.init_display(par);
 	if (ret < 0)
 		goto reg_fail;
@@ -1108,7 +1126,6 @@ EXPORT_SYMBOL(fbtft_init_display);
 static int fbtft_verify_gpios(struct fbtft_par *par)
 {
 	struct fbtft_platform_data *pdata = par->pdata;
-	int i;
 
 	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
 
@@ -1122,17 +1139,19 @@ static int fbtft_verify_gpios(struct fbtft_par *par)
 	if (!par->pdev)
 		return 0;
 
+#ifndef SPI_4LINE_SERIAL_INTERFACE
 	if (!par->gpio.wr) {
 		dev_err(par->info->device, "Missing 'wr' gpio. Aborting.\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < pdata->display.buswidth; i++) {
+	for (int i = 0; i < pdata->display.buswidth; i++) {
 		if (!par->gpio.db[i]) {
 			dev_err(par->info->device,
 				"Missing 'db%02d' gpio. Aborting.\n", i);
 			return -EINVAL;
 		}
 	}
+#endif
 
 	return 0;
 }
