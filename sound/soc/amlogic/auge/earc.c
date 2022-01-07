@@ -172,6 +172,7 @@ struct earc {
 	int tx_state;
 	u8 tx_latency;
 	struct work_struct send_uevent;
+	bool tx_mute;
 };
 
 static struct earc *s_earc;
@@ -245,6 +246,15 @@ void aml_earctx_enable_d2a(int enable)
 		return;
 
 	return earctx_enable_d2a(s_earc->tx_top_map, enable);
+}
+
+void aml_earctx_dmac_mute(int enable)
+{
+	if (!s_earc)
+		return;
+	s_earc->tx_mute = enable;
+	if (s_earc->tx_dmac_clk_on)
+		earctx_dmac_mute(s_earc->tx_dmac_map, enable);
 }
 
 static irqreturn_t earc_ddr_isr(int irq, void *data)
@@ -781,7 +791,8 @@ static int earc_dai_prepare(struct snd_pcm_substream *substream,
 				 p_earc->tx_dmac_map,
 				 p_earc->chipinfo->earc_spdifout_lane_mask,
 				 3,
-				 0x10);
+				 0x10,
+				 p_earc->tx_mute);
 		earctx_dmac_set_format(p_earc->tx_dmac_map,
 				       fr->fifo_id,
 				       bit_depth - 1,
@@ -999,7 +1010,8 @@ int sharebuffer_earctx_prepare(struct snd_pcm_substream *substream,
 			 s_earc->tx_dmac_map,
 			 s_earc->chipinfo->earc_spdifout_lane_mask,
 			 chmask,
-			 swap_masks);
+			 swap_masks,
+			 s_earc->tx_mute);
 	earctx_dmac_set_format(s_earc->tx_dmac_map,
 			       fr->fifo_id,
 			       bit_depth - 1,
@@ -2524,6 +2536,9 @@ static int earc_platform_probe(struct platform_device *pdev)
 		else
 			dev_info(dev, "%s, irq_earc_tx:%d\n", __func__, p_earc->irq_earc_tx);
 	}
+
+	/* defaule is mute, need HDMI ARC Switch */
+	p_earc->tx_mute = 1;
 
 	ret = snd_soc_register_component(&pdev->dev,
 				&earc_component,

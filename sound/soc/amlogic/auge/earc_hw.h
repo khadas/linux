@@ -242,6 +242,7 @@ enum pll_rst_src {
 	RST_BY_DMACRX, /* earcrx_dmac_rx_sqvalid */
 };
 
+void earctx_dmac_mute(struct regmap *dmac_map, bool enable);
 void earcrx_pll_refresh(struct regmap *top_map,
 			enum pll_rst_src rst_src,
 			bool level);
@@ -286,7 +287,8 @@ void earctx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
 		      int earc_spdifout_lane_mask,
 		      unsigned int chmask,
-		      unsigned int swap_masks);
+		      unsigned int swap_masks,
+		      bool mute);
 void earctx_dmac_set_format(struct regmap *dmac_map,
 			    int frddr_idx, int msb, int frddr_type);
 int earctx_get_cs_iec958(struct regmap *dmac_map);
