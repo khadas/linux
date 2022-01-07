@@ -1034,6 +1034,8 @@ static int config_ge2d_data(struct composer_dev *dev,
 				| VIDTYPE_VIU_FIELD
 				| VIDTYPE_VIU_NV21;
 		data->plane_num = 2;
+		data->posion_x = info->crop_x;
+		data->posion_y = info->crop_y;
 		data->width = info->crop_w;
 		data->height = info->crop_h;
 		data->is_vframe = false;

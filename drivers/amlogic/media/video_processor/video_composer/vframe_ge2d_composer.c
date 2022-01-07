@@ -555,7 +555,7 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	struct canvas_config_s dst_canvas0_config[3];
 	u32 dst_plane_num;
 	int src_canvas_id, dst_canvas_id;
-	int input_width, input_height;
+	int input_x, input_y, input_width, input_height;
 	int position_left, position_top;
 	int position_width, position_height;
 	struct dump_param para;
@@ -627,6 +627,8 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	}
 	input_width = scr_data->width;
 	input_height = scr_data->height;
+	input_x = scr_data->posion_x;
+	input_y = scr_data->posion_y;
 
 	if (scr_data->type & VIDTYPE_INTERLACE)
 		input_height = scr_data->height >> 1;
@@ -653,10 +655,9 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	ge2d_comp_para->ge2d_config->src_para.fill_mode = 0;
 	ge2d_comp_para->ge2d_config->src_para.x_rev = 0;
 	ge2d_comp_para->ge2d_config->src_para.y_rev = 0;
-	ge2d_comp_para->ge2d_config->src_para.color =
-		0xffffffff;
-	ge2d_comp_para->ge2d_config->src_para.top = 0;
-	ge2d_comp_para->ge2d_config->src_para.left = 0;
+	ge2d_comp_para->ge2d_config->src_para.color = 0xffffffff;
+	ge2d_comp_para->ge2d_config->src_para.top = input_y;
+	ge2d_comp_para->ge2d_config->src_para.left = input_x;
 	ge2d_comp_para->ge2d_config->src_para.width = input_width;
 	ge2d_comp_para->ge2d_config->src_para.height = input_height;
 	ge2d_comp_para->ge2d_config->src_para.canvas_index = src_canvas_id;
@@ -738,8 +739,8 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	position_height = ge2d_comp_para->position_height;
 
 	stretchblt_noalpha(ge2d_comp_para->context,
-			   0,
-			   0,
+			   input_x,
+			   input_y,
 			   input_width,
 			   input_height,
 			   position_left,
