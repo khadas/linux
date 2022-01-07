@@ -326,6 +326,8 @@ void arc_earc_source_select(int src)
 /* this is used from TM2, arc source enable */
 void arc_enable(bool enable, int version)
 {
+	pr_info("%s enable: %d\n", __func__, enable);
+	aml_earctx_dmac_mute(!enable);
 	/*
 	 * 1. can't disable earc as the heartbeat lost
 	 * 2. can't disable earc during reset hpd by earc driver
@@ -334,7 +336,6 @@ void arc_enable(bool enable, int version)
 	    aml_get_earctx_reset_hpd())
 		return;
 
-	pr_info("%s %d\n", __func__, enable);
 	if (is_earc_spdif()) {
 		aml_earctx_enable_d2a(enable);
 	} else {

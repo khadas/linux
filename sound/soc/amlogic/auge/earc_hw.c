@@ -12,6 +12,15 @@
 
 #include "earc_hw.h"
 
+void earctx_dmac_mute(struct regmap *dmac_map, bool enable)
+{
+	int val = 0;
+
+	if (enable)
+		val = 3;
+	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0, 0x3 << 21, val << 21);
+}
+
 void earcrx_pll_refresh(struct regmap *top_map,
 			enum pll_rst_src rst_src,
 			bool level)
@@ -858,7 +867,8 @@ void earctx_dmac_init(struct regmap *top_map,
 		      struct regmap *dmac_map,
 		      int earc_spdifout_lane_mask,
 		      unsigned int chmask,
-		      unsigned int swap_masks)
+		      unsigned int swap_masks,
+		      bool mute)
 {
 	unsigned int lswap_masks, rswap_masks;
 
@@ -923,6 +933,8 @@ void earctx_dmac_init(struct regmap *top_map,
 			 0x1 << 18 |  /* validBit sel, 1: reg_value */
 			 0x1 << 17    /* reg_chst_sel, 1: reg_value */
 			);
+
+	earctx_dmac_mute(dmac_map, mute);
 }
 
 void earctx_dmac_set_format(struct regmap *dmac_map,

@@ -17,6 +17,7 @@ bool get_earcrx_chnum_mult_mode(void);
 enum attend_type aml_get_earctx_connected_device_type(void);
 bool aml_get_earctx_reset_hpd(void);
 void aml_earctx_enable_d2a(int enable);
+void aml_earctx_dmac_mute(int enable);
 
 #endif
 
