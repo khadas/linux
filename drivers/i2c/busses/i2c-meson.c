@@ -367,7 +367,7 @@ static irqreturn_t meson_i2c_irq(int irqno, void *dev_id)
 		 * condition.
 		 */
 		dev_dbg(i2c->dev, "error bit set\n");
-		i2c->error = -ENXIO;
+		i2c->error = -EAGAIN;
 		i2c->state = STATE_IDLE;
 		complete(&i2c->done);
 		goto out;
