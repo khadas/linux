@@ -1707,10 +1707,13 @@ bool rx_edid_set_aud_sad(u_char *sad, u_char len)
 	memset(tmp_sad, 0, sizeof(tmp_sad));
 	if (sad)
 		memcpy(tmp_sad, sad, len);
-	if (tmp_sad_len != len)
+	if (tmp_sad_len != len) {
 		tmp_sad_len = len;
-	else
-		return false;
+	} else {
+		if (!len)
+			return false;
+		tmp_sad_len = len;
+	}
 	hdmi_rx_top_edid_update();
 	if (rx.open_fg && rx.port != rx.arc_port) {
 		if (atmos_edid_update_hpd_en)
