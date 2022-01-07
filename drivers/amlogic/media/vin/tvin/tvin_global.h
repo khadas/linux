@@ -419,6 +419,7 @@ struct tvin_hdr_data_s {
 	struct tvin_hdr_property_s master_lum;/* max min lum */
 	unsigned int mcll;
 	unsigned int mfall;
+	u8 rawdata[32];
 };
 
 struct tvin_hdr_info_s {

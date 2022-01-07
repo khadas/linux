@@ -1128,7 +1128,11 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 				drmpkt->des_u.tp1.max_light_lvl;
 			prop->hdr_info.hdr_data.mfall =
 				drmpkt->des_u.tp1.max_fa_light_lvl;
-
+			prop->hdr_info.hdr_data.rawdata[0] = 0x87;
+			prop->hdr_info.hdr_data.rawdata[1] = 0x1;
+			prop->hdr_info.hdr_data.rawdata[2] = drmpkt->length;
+			memcpy(&prop->hdr_info.hdr_data.rawdata[3],
+				   &drmpkt->des_u.payload, 28);
 			/* vdin can read current hdr data */
 			prop->hdr_info.hdr_state = HDR_STATE_GET;
 		}

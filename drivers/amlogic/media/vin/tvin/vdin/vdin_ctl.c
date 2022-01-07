@@ -5366,6 +5366,12 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	else
 		vf->vsif.size = 0;
 
+	vf->drm_if.addr = &devp->prop.hdr_info.hdr_data.rawdata;
+	if (devp->prop.vdin_hdr_flag)
+		vf->drm_if.size = sizeof(devp->prop.hdr_info.hdr_data.rawdata);
+	else
+		vf->drm_if.size = 0;
+
 	vf->emp.addr = &devp->prop.emp_data.empbuf;
 	vf->emp.size = devp->prop.emp_data.size;
 }
