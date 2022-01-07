@@ -746,6 +746,30 @@
 		};
 	};
 
+	galcore {
+			compatible = "amlogic, galcore";
+			dev_name = "galcore";
+			status = "okay";
+			clocks = <&clkc CLKID_VIPNANOQ_AXI_GATE>,
+					<&clkc CLKID_VIPNANOQ_CORE_GATE>;
+			clock-names = "cts_vipnanoq_axi_clk_composite",
+					"cts_vipnanoq_core_clk_composite";
+			interrupts = <0 186 4>;
+			interrupt-names = "galcore";
+			power-domains = <&pwrc PWRC_SM1_NNA_ID>;
+			reg = <0x0 0xff100000 0x0 0x800
+					0x0 0xff000000 0x0 0x400000
+					0x0 0xff63c118 0x0 0x0
+					0x0 0xff63c11c 0x0 0x0
+					0x0 0xffd01088 0x0 0x0
+					0x0 0xff63c1c8 0x0 0x0
+					>;
+			reg-names = "NN_REG","NN_SRAM","NN_MEM0",
+					"NN_MEM1","NN_RESET","NN_CLK";
+			nn_power_version = <3>;
+			nn_efuse = <0xff63003c 0x20>;
+	};
+
 	aocec: aocec {
 		compatible = "amlogic, aocec-sm1";
 		dev_name = "aocec";
