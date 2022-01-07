@@ -849,7 +849,8 @@
 		io-channels = <&saradc 2>;
 		io-channel-names = "key-chan-2";
 		key_chan = <2 2 2>;
-		key_code = <102>;
+		//key_code = <102>;
+		key_code = <0x1d0>;
 		key_val = <108>; //val=voltage/1800mV*1023
 		key_tolerance = <40>;
 	};
