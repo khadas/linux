@@ -539,7 +539,9 @@ static int update_table_item(u32 vpp_index, u32 addr, u32 val, u8 irq_mode)
 		rdma_end_addr_update(vpp_index, table_paddr[vpp_index],
 				    item_count[vpp_index]);
 		return -1;
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	}
+#endif
 
 	/* pr_debug("%02dth, ctrl: 0x%x, status: 0x%x, auto:0x%x, flag:0x%x\n",
 	 *	item_count, osd_reg_read(RDMA_CTRL),
@@ -1631,6 +1633,7 @@ static int stop_rdma(char channel)
 
 static void osd_rdma_config(u32 vpp_index)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	switch (vpp_index) {
 	case 0:
 		rdma_config(osd_rdma_handle[vpp_index],
@@ -1648,6 +1651,7 @@ static void osd_rdma_config(u32 vpp_index)
 			    RDMA_AUTO_START_MASK);
 		break;
 	}
+#endif
 }
 
 void enable_line_n_rdma(void)
