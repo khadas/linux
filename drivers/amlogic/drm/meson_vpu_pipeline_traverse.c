@@ -178,6 +178,19 @@ static u8 find_out_port(struct meson_vpu_block *in,
 	return 0;
 }
 
+static u8 find_in_port(struct meson_vpu_block *in, struct meson_vpu_block *out)
+{
+	int i;
+	struct meson_vpu_block_link *mvbl;
+
+	for (i = 0; i < in->avail_outputs; i++) {
+		mvbl = &in->outputs[i];
+		if (mvbl->link == out)
+			return mvbl->port;
+	}
+	return 0;
+}
+
 void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 					 struct meson_vpu_pipeline_state *mvps)
 {
@@ -477,6 +490,7 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 			     struct meson_vpu_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
+	u8 in_port, out_port;
 	int i, j, osd_index, ret;
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
@@ -525,6 +539,15 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 			block = mvb[j];
 			if (!block)
 				break;
+
+			if (block->type == MESON_BLK_AFBC) {
+				in_port = find_in_port(mvb[j - 1], block);
+				out_port = find_out_port(block, mvb[j + 1]);
+				if (in_port != out_port) {
+					DRM_DEBUG("afbc prev next not match.\n");
+					return -1;
+				}
+			}
 
 			if (block->ops && block->ops->check_state) {
 				mvbs = meson_vpu_block_get_state(block, state);
