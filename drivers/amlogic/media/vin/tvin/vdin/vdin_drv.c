@@ -2088,9 +2088,10 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				 1000));
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin.%d type:0x%x dur:%u disp:%d\n",
+			pr_info("vdin.%d sig_type:0x%x type:0x%x dur:%u disp:%d\n",
 				devp->index,
 				devp->vfp->last_last_vfe->vf.signal_type,
+				devp->vfp->last_last_vfe->vf.type,
 				devp->vfp->last_last_vfe->vf.duration,
 				devp->vfp->last_last_vfe->vf.index_disp);
 
@@ -2207,6 +2208,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (vdin_isr_drop) {
 		vdin_isr_drop--;
 		vdin_drop_frame_info(devp, "drop debug");
+		return IRQ_HANDLED;
+	}
+
+	if (devp->dbg_force_stop_frame_num &&
+		devp->frame_cnt > devp->dbg_force_stop_frame_num) {
+		vdin_drop_frame_info(devp, "force stop");
 		return IRQ_HANDLED;
 	}
 
@@ -2371,6 +2378,14 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_vf_disp_mode_update(devp->last_wr_vfe, devp->vfp);
 
 		devp->last_wr_vfe = NULL;
+
+		/* debug: force display to skip frame */
+		if (devp->force_disp_skip_num &&
+			devp->frame_cnt <= devp->force_disp_skip_num) {
+			vdin_drop_cnt++;
+			vdin_drop_frame_info(devp, "force disp skip");
+		}
+		/* debug: end */
 	}
 	/*check vs is valid base on the time during continuous vs*/
 	/* if (vdin_check_cycle(devp) &&

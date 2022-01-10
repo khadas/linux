@@ -722,6 +722,8 @@ struct vdin_dev_s {
 
 	unsigned int tx_fmt;
 	unsigned int vd1_fmt;
+	unsigned int dbg_force_stop_frame_num;
+	unsigned int force_disp_skip_num;
 	unsigned int dbg_dump_frames;
 	unsigned int dbg_stop_dec_delay;
 	unsigned int vinfo_std_duration; /* get vinfo fps value */

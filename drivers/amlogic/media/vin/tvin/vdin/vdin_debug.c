@@ -295,8 +295,9 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		count = devp->canvas_h;
 
 	if (highmem_flag == 0) {
-		pr_info("low mem area: one line size (%d, active:%d)\n",
-			devp->canvas_w, devp->canvas_active_w);
+		pr_info("low mem area: one line size (%d, active:%d),vfmem_start[%d]:%lx\n",
+			devp->canvas_w, devp->canvas_active_w, buf_num,
+			devp->vfmem_start[buf_num]);
 		if (devp->cma_config_flag & 0x1)
 			buf = codec_mm_phys_to_virt(devp->vfmem_start[buf_num]);
 		else
@@ -1438,7 +1439,7 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
 
 	if (highmem_flag == 0) {
-		pr_info("low mem area\n");
+		pr_info("low mem area,addr:%lx\n", addr);
 		dts = phys_to_virt(addr);
 		for (j = 0; j < devp->canvas_h; j++) {
 			vfs_read(filp, dts + (devp->canvas_w * j),
@@ -2335,6 +2336,22 @@ start_chk:
 			devp->color_depth_support = val;
 			pr_info("color_depth_support(%d):%d\n\n", devp->index,
 				devp->color_depth_support);
+		}
+	} else if (!strcmp(parm[0], "force_stop_frame_num")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->dbg_force_stop_frame_num = val;
+			pr_info("force_stop_frame_num(%d):%d\n\n", devp->index,
+				devp->dbg_force_stop_frame_num);
+		}
+	} else if (!strcmp(parm[0], "force_disp_skip_num")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->force_disp_skip_num = val;
+			pr_info("force_disp_skip_num(%d):%d\n\n", devp->index,
+				devp->force_disp_skip_num);
 		}
 	} else if (!strcmp(parm[0], "full_pack")) {
 		if (!parm[1]) {
