@@ -5,6 +5,7 @@ dtb-$(CONFIG_ARCH_MESON) += sc2_s905x4_ah219.dtb
 dtb-$(CONFIG_ARCH_MESON) += sc2_s905x4_ah219_drm.dtb
 dtb-$(CONFIG_ARCH_MESON) += sc2_s905x4_ah212.dtb
 dtb-$(CONFIG_ARCH_MESON) += sc2_s905x4_ah212_drm.dtb
+dtb-$(CONFIG_ARCH_MESON) += sc2_s905x4_ah212_drm_s.dtb
 dtb-$(CONFIG_ARCH_MESON) += s4_s905y4_ap222_drm.dtb
 dtb-$(CONFIG_ARCH_MESON) += s4_s805x2_aq222_drm_1g.dtb
 dtb-$(CONFIG_ARCH_MESON) += s4_s805x2_aq222_drm_1.5g.dtb
