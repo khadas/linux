@@ -912,10 +912,15 @@ static int __init init_chip_config(int cpu, struct ddr_bandwidth *band)
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_S4
 	case DMC_TYPE_S4:
 	case DMC_TYPE_T5W:
-	case DMC_TYPE_A5:
 		band->ops = &s4_ddr_bw_ops;
 		aml_db->channels = 8;
 		aml_db->mali_port[0] = 1; /* port1: mali */
+		aml_db->mali_port[1] = -1;
+		break;
+	case DMC_TYPE_A5:
+		band->ops = &s4_ddr_bw_ops;
+		aml_db->channels = 8;
+		aml_db->mali_port[0] = -1; /* port1: mali */
 		aml_db->mali_port[1] = -1;
 		break;
 #endif

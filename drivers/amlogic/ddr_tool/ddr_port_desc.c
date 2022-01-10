@@ -829,7 +829,6 @@ static struct ddr_port_desc ddr_port_desc_t5w[] __initdata = {
   { .port_id = 19, .port_name = "VPU WRITE0"    },
   { .port_id = 20, .port_name = "VPU WRITE1"    },
   { .port_id = 21, .port_name = "VDEC"          },
-  { .port_id = 22, .port_name = "HCODEC"        },
   { .port_id = 23, .port_name = "GE2D"          },
   /* start of each device */
   { .port_id = 32, .port_name = "USB0"          },
