@@ -1010,9 +1010,10 @@ static inline struct buffer_head *ntfs_bread(struct super_block *sb,
 
 	if (bh)
 		return bh;
-
+#ifndef CONFIG_AMLOGIC_MODIFY
 	ntfs_err(sb, "failed to read volume at offset 0x%llx",
 		 (u64)block << sb->s_blocksize_bits);
+#endif
 	return NULL;
 }
 
