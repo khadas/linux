@@ -134,9 +134,9 @@
 				compatible = "arm,idle-state";
 				arm,psci-suspend-param = <0x0010000>;
 				local-timer-stop;
-				entry-latency-us = <5000>;
-				exit-latency-us = <5000>;
-				min-residency-us = <20000>;
+				entry-latency-us = <300>;
+				exit-latency-us = <1200>;
+				min-residency-us = <2000>;
 			};
 			SYSTEM_SLEEP_0: system-sleep-0 {
 				compatible = "arm,idle-state";
