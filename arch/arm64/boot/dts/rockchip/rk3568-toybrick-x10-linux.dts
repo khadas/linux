@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2020 Rockchip Electronics Co., Ltd.
+ *
+ */
+/dts-v1/;
+#include "rk3568.dtsi"
+#include "rk3568-linux.dtsi"
+#include "rk3568-toybrick-x10.dtsi"
+#include "rk3568-toybrick-mipi-tx0-beiqicloud.dtsi"
+
+/delete-node/ &board_id;
+/ {
+	compatible = "rockchip,rk3568-toybrick-dev-linux-x0","rockchip,rk3568";
+};
