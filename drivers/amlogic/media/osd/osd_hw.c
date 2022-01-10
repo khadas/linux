@@ -108,7 +108,9 @@ static int osd_extra_idx[HW_OSD_COUNT][2];
 static bool suspend_flag;
 static int osd_log_out;
 static u32 rdma_dt_cnt;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 static bool update_to_dv;
+#endif
 static void osd_clone_pan(u32 index, u32 yoffset, int debug_flag);
 static void osd_set_dummy_data(u32 index, u32 alpha);
 static void osd_wait_vsync_hw_viux(u32 output_index);
@@ -6355,7 +6357,9 @@ static void check_and_reverse_axis(int start_index, int osd_count,
 		pps_w_den = osd_hw.fix_target_width;
 		pps_h_num = blend_h;
 		pps_h_den = osd_hw.fix_target_height;
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 		get_video_axis_offset(&x_offset, &y_offset);
+#endif
 		if (x_offset < 0)
 			x_offset = 0;
 		if (y_offset < 0)
@@ -12151,7 +12155,9 @@ void osd_init_scan_mode(void)
 
 static int osd_extra_canvas_alloc(void)
 {
+#ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
 	int osd_num = 2;
+#endif
 
 	osd_extra_idx[0][0] = EXTERN1_CANVAS;
 	osd_extra_idx[0][1] = EXTERN2_CANVAS;

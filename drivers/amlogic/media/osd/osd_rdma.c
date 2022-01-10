@@ -1631,9 +1631,9 @@ static int stop_rdma(char channel)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 static void osd_rdma_config(u32 vpp_index)
 {
-#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	switch (vpp_index) {
 	case 0:
 		rdma_config(osd_rdma_handle[vpp_index],
@@ -1651,8 +1651,8 @@ static void osd_rdma_config(u32 vpp_index)
 			    RDMA_AUTO_START_MASK);
 		break;
 	}
-#endif
 }
+#endif
 
 void enable_line_n_rdma(void)
 {
