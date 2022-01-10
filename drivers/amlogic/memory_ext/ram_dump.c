@@ -45,7 +45,7 @@
 
 static unsigned long ramdump_base	__initdata;
 static unsigned long ramdump_size	__initdata;
-static bool ramdump_disable		__initdata;
+static bool ramdump_disable	__initdata	=	1;
 
 #define WAIT_TIMEOUT		(40ULL * 1000 * 1000 * 1000)
 
@@ -77,6 +77,7 @@ static int __init early_ramdump_para(char *buf)
 			pr_err("invalid boot args\n");
 			ramdump_disable = 1;
 		}
+		ramdump_disable = 0;
 		pr_info("%s, base:%lx, size:%lx\n",
 			__func__, ramdump_base, ramdump_size);
 		ret = memblock_reserve(ramdump_base, PAGE_ALIGN(ramdump_size));
