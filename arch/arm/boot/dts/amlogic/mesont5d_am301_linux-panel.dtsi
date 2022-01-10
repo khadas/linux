@@ -93,7 +93,7 @@
 				2 0 0 0 /*signal disable*/
 				0 0 0 100 /*panel power off*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
+			backlight_index = <0>;
 		};
 
 		lvds_1{
