@@ -566,8 +566,13 @@ static void video_hw_init(struct meson_vpu_block *vblk)
 			snprintf(video->vfm_map_chain, VP_MAP_STRUCT_SIZE,
 				 "%s %s", video->base.name,
 				 "videopip");
+		else if (vblk->id == VIDEO3_BLOCK)
+			snprintf(video->vfm_map_chain, VP_MAP_STRUCT_SIZE,
+				"%s %s", video->base.name,
+				"videopip2");
 		else
 			DRM_DEBUG("unsupported block id %d\n", vblk->id);
+
 		snprintf(video->vfm_map_id, VP_MAP_STRUCT_SIZE,
 			 "video-map-%d", vblk->index);
 		vfm_map_add(video->vfm_map_id, video->vfm_map_chain);
