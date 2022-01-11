@@ -429,12 +429,11 @@ int hdmitx21_uboot_audio_en(void)
 {
 	u32 data;
 
-	data = hdmitx21_rd_reg(0);
+	data = hdmitx21_rd_reg(AUD_EN_IVCTX);
 	pr_info("%s[%d] data = 0x%x\n", __func__, __LINE__, data);
-	if ((data & 1) || ((data >> 3) & 1))
+	if (data & 1)
 		return 1;
-	else
-		return 0;
+	return 0;
 }
 
 void hdmitx21_meson_init(struct hdmitx_dev *hdev)
