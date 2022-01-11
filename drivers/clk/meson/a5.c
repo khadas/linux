@@ -1329,6 +1329,7 @@ static struct clk_regmap a5_rtc_32k_xtal = {
 			&a5_rtc_32k_clkin.hw
 		},
 		.num_parents = 1,
+		.flags = CLK_IGNORE_UNUSED,
 	},
 };
 
