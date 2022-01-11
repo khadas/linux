@@ -530,28 +530,31 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	}
 
 	if (vf) {
-		if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+		if ((vf->flag & VFRAME_FLAG_GAME_MODE)  ==
+					VFRAME_FLAG_GAME_MODE) {
 			devp->in_sts.game_mode = true;
 			no_input = true;
 		} else {
 			devp->in_sts.game_mode = false;
 		}
-
-		if (vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
+		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
+				 VFRAME_FLAG_VIDEO_SECURE) {
 			devp->in_sts.secure_mode = true;
 			/*for test secure mode disable memc*/
 			//no_input = true;
 		} else {
 			devp->in_sts.secure_mode = false;
 		}
-
+		if ((vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ==
+				VFRAME_FLAG_HIGH_BANDWIDTH) {
+			no_input = true;
+		}
 		if ((vf->type & VIDTYPE_PIC) == VIDTYPE_PIC) {
 			devp->in_sts.pic_type = true;
 			no_input = true;
 		} else {
 			devp->in_sts.pic_type = false;
 		}
-
 		if (vf->height < FRC_V_LIMIT_SIZE ||
 			vf->width < FRC_H_LIMIT_SIZE) {
 			no_input = true;
