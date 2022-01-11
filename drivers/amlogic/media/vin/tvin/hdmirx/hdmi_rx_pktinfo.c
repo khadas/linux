@@ -1033,6 +1033,7 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 		} else if (vsif_type & VSIF_TYPE_HDMI14) {
 			pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
 			pkt->length = hdmirx_rd_cor(VSIRX_LENGTH_DP3_IVCRX) & 0x1f;
+			pkt->ver_st.version = 1;//hdmirx_rd_cor(VSIRX_VERS_DP3_IVCRX);
 			pkt->ieee = IEEE_VSI14;
 			for (i = 0; i < 24; i++) {
 				tmp = hdmirx_rd_cor(VSIRX_DBYTE4_DP3_IVCRX + i);
