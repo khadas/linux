@@ -1643,7 +1643,17 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 //			dprint("error: header.len is 0, jump\n");
 			return 0;
 		}
-		len = SC2_bufferid_get_data_len(pout->pchan);
+		if (pout->aucpu_handle >= 0) {
+			unsigned int w_offset;
+
+			w_offset = SC2_bufferid_get_wp_offset(pout->pchan);
+			if (w_offset >= pout->aucpu_read_offset)
+				len = w_offset - pout->aucpu_read_offset;
+			else
+				len = pout->aucpu_mem_size - pout->aucpu_read_offset + w_offset;
+		} else {
+			len = SC2_bufferid_get_data_len(pout->pchan);
+		}
 		if (pheader->len > len) {
 			dprint("compute len:%d, es len:%d\n", pheader->len, len);
 			//re read header data again
@@ -1723,6 +1733,11 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 	}
 	return -1;
 error_hande:
+	memcpy(&es_params->last_last_header,
+		&es_params->last_header, 16);
+	memcpy(&es_params->last_header, pcur_header,
+			sizeof(es_params->last_header));
+
 	es_params->header_wp =
 		SC2_bufferid_get_wp_offset(pout->pchan1);
 	es_params->es_error_cn++;
