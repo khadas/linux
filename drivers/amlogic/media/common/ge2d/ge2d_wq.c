@@ -652,6 +652,8 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 				break;
 			}
 		}
+		/*release clut8_data*/
+		kfree(pitem->config.clut8_table.data);
 		spin_lock(&wq->lock);
 		pos = pos->next;
 		list_move_tail(&pitem->list, &wq->free_queue);
@@ -1074,6 +1076,33 @@ static int setup_display_property(struct src_dst_para_s *src_dst, int index)
 	}
 
 	return 0;
+}
+
+int ge2d_set_clut_table(struct ge2d_context_s *context, unsigned long args)
+{
+	struct ge2d_clut8_t clut8_table_t;
+	void __user *argp = (void __user *)args;
+	u32 *data;
+	int ret;
+
+	ret = copy_from_user(&clut8_table_t, (struct ge2d_clut8_t *)argp,
+				 sizeof(struct ge2d_clut8_t));
+	if (ret) {
+		ge2d_log_dbg("ge2d error: clut8_data, copy_from_user fail\n");
+		return -1;
+	}
+	if (clut8_table_t.count > 0 && clut8_table_t.count <= 256) {
+		data = kcalloc(clut8_table_t.count, sizeof(u32), GFP_KERNEL);
+		if (!data)
+			return -1;
+		memcpy(data, &clut8_table_t.data, clut8_table_t.count * sizeof(u32));
+		context->config.clut8_table.data = data;
+		context->config.clut8_table.count = clut8_table_t.count;
+	} else {
+		ge2d_log_dbg("ge2d error: clut8_count, out of range\n");
+		return -1;
+	}
+	return ret;
 }
 
 int ge2d_antiflicker_enable(struct ge2d_context_s *context,
@@ -2663,7 +2692,6 @@ int ge2d_context_config_ex_mem(struct ge2d_context_s *context,
 	/* context->config.src2_dst_data.ddr_burst_size= 3; */
 	memcpy(&context->config.matrix_custom, &ge2d_config_mem->matrix_custom,
 	       sizeof(struct ge2d_matrix_s));
-
 	return  0;
 }
 

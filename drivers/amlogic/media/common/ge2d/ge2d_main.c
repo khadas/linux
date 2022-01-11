@@ -464,6 +464,9 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	}
 #endif
 	switch (cmd) {
+	case GE2D_SET_CLUT:
+	ret = ge2d_set_clut_table(context, args);
+	break;
 	case GE2D_GET_CAP:
 		/* DST_SIGN_MODE   |
 		 * DST_REPEAT      |

@@ -701,6 +701,17 @@ struct ge2d_stride_s {
 	unsigned int dst_stride[MAX_PLANE];
 };
 
+/*temporary strcut to accept data from user*/
+struct ge2d_clut8_t {
+	u32 data[256];
+	u32 count;
+};
+
+struct ge2d_clut8_s {
+	u32 *data;
+	u32 count;
+};
+
 struct ge2d_config_s {
 	struct ge2d_gen_s            gen;
 	struct ge2d_src1_data_s      src1_data;
@@ -718,6 +729,7 @@ struct ge2d_config_s {
 	struct ge2d_dma_cfg_s src2_dma_cfg[MAX_PLANE];
 	struct ge2d_dma_cfg_s dst_dma_cfg[MAX_PLANE];
 	struct ge2d_matrix_s matrix_custom;
+	struct ge2d_clut8_s clut8_table;
 	/* operate on secure memory */
 	int mem_sec;
 };
@@ -1237,6 +1249,7 @@ extern struct ge2d_device_data_s ge2d_meson_dev;
 
 #define GE2D_ATTACH_DMA_FD _IOW(GE2D_IOC_MAGIC, 0x0a, struct ge2d_dmabuf_attach_s)
 #define GE2D_DETACH_DMA_FD _IOW(GE2D_IOC_MAGIC, 0x0b, enum ge2d_data_type_e)
+#define GE2D_SET_CLUT _IOW(GE2D_IOC_MAGIC, 0x0c, struct ge2d_clut8_t)
 
 void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
 void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);
