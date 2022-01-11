@@ -27,6 +27,7 @@
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/aml_key.h>
 #include <linux/amlogic/tee_demux.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include "aml_dvb.h"
 #include "am_key.h"
@@ -142,6 +143,35 @@ ssize_t dsc_setting_show(struct class *class, struct class_attribute *attr,
 	int total = 0;
 
 	total = dsc_dump_info(buf);
+
+	return total;
+}
+
+ssize_t dmx_ver_show(struct class *class, struct class_attribute *attr,
+			 char *buf)
+{
+	int total = 0;
+	int cpu_type = 0;
+	int minor_type = 0;
+
+	cpu_type = get_cpu_type();
+	minor_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
+	dprint("cpu_type:0x%0x, minor_type:0x%0x\n", cpu_type, minor_type);
+
+	if (cpu_type == MESON_CPU_MAJOR_ID_SC2)
+		total = sprintf(buf, "sc2-%x\n", minor_type);
+	else if (cpu_type == MESON_CPU_MAJOR_ID_S4)
+		total = sprintf(buf, "s4-%x\n", minor_type);
+	else if (cpu_type == MESON_CPU_MAJOR_ID_S4D)
+		total = sprintf(buf, "s4d-%x\n", minor_type);
+	else if (cpu_type == MESON_CPU_MAJOR_ID_T3)
+		total = sprintf(buf, "t3-%x\n", minor_type);
+	else if (cpu_type == MESON_CPU_MAJOR_ID_T7)
+		total = sprintf(buf, "t7-%x\n", minor_type);
+	else if (cpu_type == MESON_CPU_MAJOR_ID_T5W)
+		total = sprintf(buf, "t5w-%x\n", minor_type);
+	else
+		total = sprintf(buf, "%x-%x\n", cpu_type, minor_type);
 
 	return total;
 }
@@ -374,6 +404,7 @@ static CLASS_ATTR_RW(ts_setting);
 static CLASS_ATTR_RW(get_pcr);
 static CLASS_ATTR_RO(dmx_setting);
 static CLASS_ATTR_RO(dsc_setting);
+static CLASS_ATTR_RO(dmx_ver);
 
 static CLASS_ATTR_RW(tsn_source);
 static CLASS_ATTR_RW(tso_source);
@@ -389,6 +420,7 @@ static struct attribute *aml_stb_class_attrs[] = {
 	&class_attr_tso_source.attr,
 	&class_attr_tsn_loop.attr,
 	&class_attr_dmc_mem.attr,
+	&class_attr_dmx_ver.attr,
 	NULL
 };
 
