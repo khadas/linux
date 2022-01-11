@@ -1009,6 +1009,16 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 	}
 }
 
+void hdmirx_get_spd_info(struct tvin_sig_property_s *prop)
+{
+	if (!rx_pkt_chk_updated_spd()) {
+		memset(&prop->spd_data, 0, sizeof(struct tvin_spd_data_s));
+	} else {
+		rx_pkt_clr_updated_spd();
+		memcpy(&prop->spd_data, &rx_pkt.spd_info, sizeof(struct tvin_spd_data_s));
+	}
+}
+
 /*
  * hdmirx_get_repetition_info - get repetition info
  */
@@ -1166,6 +1176,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	hdmirx_set_timing_info(prop);
 	hdmirx_get_hdr_info(prop);
 	hdmirx_get_vsi_info(prop);
+	hdmirx_get_spd_info(prop);
 	hdmirx_get_latency_info(prop);
 	hdmirx_get_emp_info(prop);
 	hdmirx_get_vtem_info(prop);

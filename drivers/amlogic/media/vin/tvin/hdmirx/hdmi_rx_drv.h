@@ -591,6 +591,14 @@ struct emp_buff {
 	u8 data_ver;
 };
 
+struct spkts_rcvd_sts {
+	u32 pkt_vsi_rcvd:1;
+	u32 pkt_drm_rcvd:1;
+	u32 pkt_spd_rcvd:1;
+	u32 pkt_vtem_rcvd:1;
+	u32 rsvd:28;
+};
+
 enum hdmirx_event {
 	HDMIRX_NONE_EVENT = 0,
 };
@@ -609,7 +617,7 @@ struct rx_s {
 	enum phy_ver_e phy_ver;
 	struct hdmirx_dev_s *hdmirxdev;
 	/** HDMI RX received signal changed */
-	u8 skip;
+	u32 skip;
 	/*avmute*/
 	u32 avmute_skip;
 	/** HDMI RX input port 0 (A) or 1 (B) (or 2(C) or 3 (D)) */
@@ -671,6 +679,7 @@ struct rx_s {
 	bool vrr_en;
 	u8 vrr_min;
 	u8 vrr_max;
+	u8 free_sync_sts;
 	u8 afifo_sts;
 	u32 ecc_err;
 	u32 ecc_err_frames_cnt;
@@ -685,6 +694,7 @@ struct rx_s {
 	struct rx_var_param var;
 	struct rx_aml_phy aml_phy;
 	u8 last_hdcp22_state;
+	//struct spkts_rcvd_sts pkts_sts;
 };
 
 struct _hdcp_ksv {

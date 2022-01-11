@@ -903,18 +903,20 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	if (intr_2) {
 		if (log_level & IRQ_LOG)
 			rx_pr("irq2-%x\n", intr_2);
+		if (rx_get_bits(intr_2, INTR2_BIT1_SPD))
+			rx_spd_type = 1;
 		if (rx_get_bits(intr_2, INTR2_BIT2_AUD))
-			vsif_type |= VSIF_TYPE_HDR10P;
+			rx_vsif_type |= VSIF_TYPE_HDR10P;
 		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC))
-			vsif_type |= VSIF_TYPE_HDMI21;
+			rx_vsif_type |= VSIF_TYPE_HDMI21;
 	}
 	if (intr_3) {
 		if (log_level & IRQ_LOG)
 			rx_pr("irq3-%x\n", intr_3);
 		if (rx_get_bits(intr_3, INTR3_BIT34_HF_VSI))
-			vsif_type |= VSIF_TYPE_DV15;
+			rx_vsif_type |= VSIF_TYPE_DV15;
 		if (rx_get_bits(intr_3, INTR3_BIT2_VSI))
-			vsif_type |= VSIF_TYPE_HDMI14;
+			rx_vsif_type |= VSIF_TYPE_HDMI14;
 	}
 
 	if (rx_depack2_intr0) {
@@ -926,7 +928,7 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 				rx_pr("HDR\n");
 		}
 		if (rx_get_bits(rx_depack2_intr0, _BIT(3))) {
-			emp_type |= EMP_TYPE_VTEM;
+			rx_emp_type |= EMP_TYPE_VTEM;
 			if (log_level & IRQ_LOG)
 				rx_pr("VTEM\n");
 		}
@@ -935,9 +937,9 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 		if (log_level & IRQ_LOG)
 			rx_pr("dp2-irq2-%x\n", rx_depack2_intr2);
 		if (rx_get_bits(rx_depack2_intr2, _BIT(4)))
-			emp_type |= EMP_TYPE_VSIF;
+			rx_emp_type |= EMP_TYPE_VSIF;
 		if (rx_get_bits(rx_depack2_intr2, _BIT(2)))
-			emp_type |= EMP_TYPE_HDR;
+			rx_emp_type |= EMP_TYPE_HDR;
 	}
 
 	if (hdcp_2x_ecc_intr) {
@@ -1057,13 +1059,17 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			#endif
 			if (rx.state == FSM_SIG_READY) {
 				rx.vsync_cnt++;
-				if (vsif_type) {
+				if (rx_vsif_type) {
 					rx_pkt_handler(PKT_BUFF_SET_VSI);
-					vsif_type = 0;
+					rx_vsif_type = 0;
 				}
-				if (emp_type & EMP_TYPE_VTEM) {
+				if (rx_spd_type) {
+					rx_pkt_handler(PKT_BUFF_SET_SPD);
+					rx_spd_type = 0;
+				}
+				if (rx_emp_type & EMP_TYPE_VTEM) {
 					rx.vrr_en = true;
-					emp_type &= (~EMP_TYPE_VTEM);
+					rx_emp_type &= (~EMP_TYPE_VTEM);
 				} else {
 					rx.vrr_en = false;
 				}
@@ -3552,11 +3558,7 @@ static void dump_video_status(void)
 	rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
 	//rx_pr("VTEM = %d\n", rx.vrr_en);
 	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm());
-	dump_clk_status();
-	if (rx.phy_ver == PHY_VER_TL1)
-		rx_pr("eq=%x\n",
-		      (rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_CNTL1) >> 4) &
-		      0xffff);
+	rx_pr("freesync = %d\n-bit0 supported,bit1:enabled.bit2:active", rx.free_sync_sts);
 	rx_pr("edid_selected_ver: %s\n",
 	      edid_slt == EDID_AUTO ?
 	      "auto" : (edid_slt == EDID_V20 ? "2.0" : "1.4"));
@@ -3607,6 +3609,7 @@ void dump_state(int enable)
 		dump_video_status();
 		dump_audio_status();
 		dump_hdcp_status();
+		dump_pktinfo_status();
 	} else if (enable & RX_DUMP_AUDIO) {
 		/* audio info */
 		dump_audio_status();

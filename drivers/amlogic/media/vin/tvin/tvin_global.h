@@ -460,6 +460,15 @@ struct tvin_vtem_data_s {
 	//u8 base_fr_low;
 };
 
+struct tvin_spd_data_s {
+	u8 pkttype;
+	u8 version;
+	u8 length;
+	u8 checksum;
+	//u8 ieee_oui[3]; //data[0:2]
+	u8 data[28];
+};
+
 struct tvin_hdr10plus_info_s {
 	bool hdr10p_on;
 	struct tvin_hdr10p_data_s hdr10p_data;
@@ -511,6 +520,7 @@ struct tvin_sig_property_s {
 	struct tvin_hdr10plus_info_s hdr10p_info;
 	struct tvin_emp_data_s emp_data;
 	struct tvin_vtem_data_s vtem_data;
+	struct tvin_spd_data_s spd_data;
 	unsigned int cnt;
 
 	/* only use for loopback, 0=positvie, 1=negative */

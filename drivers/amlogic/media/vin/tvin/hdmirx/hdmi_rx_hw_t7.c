@@ -1959,6 +1959,7 @@ void rx_set_irq_t7(bool en)
 		data8 = 0;
 		data8 |= 1 << 4; /* intr_new_unrec en */
 		data8 |= 1 << 2; /* intr_new_aud */
+		data8 |= 1 << 1; /* intr_spd */
 		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8);
 
 		data8 = 0;
@@ -2057,8 +2058,6 @@ void rx_set_irq_t7(bool en)
 		//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3);
 		//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
 		//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00);//[1] reg_intr_polarity, default = 1
-		/* clear enable */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0);//interrupt mask
 		/* clear status */
 		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, 0xff);
 		//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00);//interrupt mask

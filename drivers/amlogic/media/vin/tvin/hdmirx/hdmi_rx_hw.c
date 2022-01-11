@@ -1674,7 +1674,7 @@ int packet_init_t7(void)
 	data8 |= 1 << 4; /* irq is set for any UN-REC */
 	data8 |= 0 << 3; /* irq is set for any MPEG */
 	data8 |= 1 << 2; /* irq is set for any AUD */
-	data8 |= 0 << 1; /* irq is set for any SPD */
+	data8 |= 1 << 1; /* irq is set for any SPD */
 	data8 |= 0 << 0; /* irq is set for any AVI */
 	hdmirx_wr_cor(RX_INT_IF_CTRL_DP2_IVCRX, data8);
 
