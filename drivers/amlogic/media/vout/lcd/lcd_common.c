@@ -1709,6 +1709,7 @@ static int lcd_config_load_from_unifykey_v2(struct lcd_config_s *pconf,
 
 	return 0;
 }
+
 static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_str)
 {
 	unsigned char *para;
