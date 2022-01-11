@@ -2709,14 +2709,17 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 
 	/* t3 have osd1/2/3 and vd1/2, no vd3 */
 	/* t7 have osd1/3 and vd1/2/3, no osd2 */
+	/* t5w do not have osd hdr, but osd1/2/3 hdr matrix is used*/
 	switch (module_sel) {
 	case OSD2_HDR:
-		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3)
+		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3 &&
+			get_cpu_type() != MESON_CPU_MAJOR_ID_T5W)
 			return hdr_process_select;
 		break;
 	case OSD3_HDR:
 		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3 &&
-			get_cpu_type() != MESON_CPU_MAJOR_ID_T7)
+			get_cpu_type() != MESON_CPU_MAJOR_ID_T7 &&
+			get_cpu_type() != MESON_CPU_MAJOR_ID_T5W)
 			return hdr_process_select;
 		break;
 	case VD3_HDR:
@@ -3467,7 +3470,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		(module_sel == OSD2_HDR ||
 		module_sel == OSD3_HDR)) ||
 		(get_cpu_type() == MESON_CPU_MAJOR_ID_T5W &&
-		module_sel == OSD1_HDR)) {
+		(module_sel == OSD1_HDR ||
+		module_sel == OSD2_HDR ||
+		module_sel == OSD3_HDR))) {
 		pr_csc(12, "%s: t3 or t5w osd hdr only have matrix(0x%x)\n",
 	       __func__, module_sel);
 		set_hdr_matrix(module_sel, HDR_IN_MTX,
