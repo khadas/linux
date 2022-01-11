@@ -189,8 +189,10 @@ static void hdcptx_encryption_update(struct hdcp_t *p_hdcp, bool en)
 
 		if (p_hdcp->hdcp_type == HDCP_VER_HDCP1X)
 			hdcptx1_encryption_update(en);
-		else if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X)
+		else if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
+			hdcptx1_encryption_update(en);
 			hdcptx2_encryption_update(en);
+		}
 	}
 }
 
