@@ -580,7 +580,8 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
 		/*TODO: we may need also update other blocks on newer soc.*/
-		if (mvb->type != MESON_BLK_OSD)
+		if (mvb->type != MESON_BLK_OSD &&
+			mvb->type != MESON_BLK_AFBC)
 			continue;
 
 		mvbs = priv_to_block_state(mvb->obj.state);

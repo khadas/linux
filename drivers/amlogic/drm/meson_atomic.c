@@ -28,6 +28,7 @@
 
 #include "meson_drv.h"
 #include "meson_crtc.h"
+#include "meson_plane.h"
 #include "meson_writeback.h"
 
 struct meson_commit_work_item {
@@ -373,7 +374,9 @@ int meson_atomic_commit(struct drm_device *dev,
 		if (ret)
 			return ret;
 
+		ret = drm_atomic_helper_swap_state(state, true);
 		drm_atomic_helper_async_commit(dev, state);
+		meson_osd_plane_async_flush(state);
 		drm_atomic_helper_cleanup_planes(dev, state);
 
 		return 0;

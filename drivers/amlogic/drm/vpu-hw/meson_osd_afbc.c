@@ -870,6 +870,15 @@ static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
 			else
 				DRM_DEBUG("%s, invalid afbc top ctrl index\n", __func__);
 		} else {
+			if (i == 0)
+				meson_vpu_write_reg_bits(VIU_OSD1_PATH_CTRL, 0, 31, 1);
+			else if (i == 1)
+				meson_vpu_write_reg_bits(VIU_OSD2_PATH_CTRL, 0, 31, 1);
+			else if (i == 2)
+				meson_vpu_write_reg_bits(VIU_OSD3_PATH_CTRL, 0, 31, 1);
+			else
+				DRM_DEBUG("%s, invalid afbc top ctrl index\n", __func__);
+
 			t7_osd_afbc_enable(vblk, reg_ops, afbc_stat_reg, i, 0);
 		}
 	}

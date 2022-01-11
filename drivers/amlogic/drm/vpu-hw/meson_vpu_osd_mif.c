@@ -516,6 +516,14 @@ static void osd_afbc_config_v7(struct meson_vpu_block *vblk,
 	osd_mali_src_en_v7(vblk, reg_ops, reg, osd_index, afbc_en);
 }
 
+static void osd_set_dimm_ctrl(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osd_mif_reg_s *reg,
+			       u32 val)
+{
+	reg_ops->rdma_write_reg(reg->viu_osd_dimm_ctrl, val);
+}
+
 /* set osd, video two port */
 void osd_set_two_ports(u32 set)
 {
@@ -598,7 +606,8 @@ static bool osd_check_config(struct meson_vpu_osd_state *mvos,
 		old_mvos->phy_addr != mvos->phy_addr ||
 		old_mvos->pixel_format != mvos->pixel_format ||
 		old_mvos->global_alpha != mvos->global_alpha ||
-		old_mvos->crtc_index != mvos->crtc_index) {
+		old_mvos->crtc_index != mvos->crtc_index ||
+		old_mvos->afbc_en != mvos->afbc_en) {
 		return true;
 	} else {
 		return false;
@@ -825,6 +834,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_global_alpha_set(vblk, reg_ops, reg, global_alpha);
 	osd_scan_mode_config(vblk, reg_ops, reg, pipe->subs[crtc_index].mode.flags &
 				 DRM_MODE_FLAG_INTERLACE);
+	osd_set_dimm_ctrl(vblk, reg_ops, reg, 0);
 	ods_hold_line_config(vblk, reg_ops, reg, osd_hold_line);
 	osd_set_two_ports(mvos->read_ports);
 

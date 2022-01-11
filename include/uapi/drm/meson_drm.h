@@ -40,4 +40,8 @@ struct drm_meson_gem_create {
 #define DRM_IOCTL_MESON_GEM_CREATE	DRM_IOWR(DRM_COMMAND_BASE + \
 		0x00, struct drm_meson_gem_create)
 
+/*KMS related.*/
+#define DRM_IOCTL_MESON_ASYNC_ATOMIC	DRM_IOWR(DRM_COMMAND_BASE + \
+		0x10, struct drm_mode_atomic)
+
 #endif /* _MESON_DRM_H */
