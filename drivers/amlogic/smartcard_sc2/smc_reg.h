@@ -23,7 +23,7 @@
 /*01: clk input from pad*/
 /*10: smc clk generated internally and sent to the smartcard pad*/
 /*11: no clock*/
-#define ETU_CLK_SEL  0
+#define ETU_CLK_SEL  2
 #define ATR_HOLDOFF_EN 1
 #define ATR_CLK_MUX_DEFAULT 4
 #define ATR_HOLDOFF_TCNT_DEFAULT 255

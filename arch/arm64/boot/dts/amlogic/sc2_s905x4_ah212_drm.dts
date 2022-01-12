@@ -321,6 +321,10 @@
 
 		clocks = <&clkc CLKID_SC_CLK_GATE>;
 		clock-names = "smartcard";
+		/* For NSK2 Smartcard
+		 * clocks = <&clkc CLKID_MPLL0>;
+		 * clock-names = "smartcard_mpll0";
+		 */
 	};
 
 	ionvideo {
@@ -890,6 +894,10 @@
 		dai-tdm-lane-slot-mask-in = <0 1>;
 		dai-tdm-lane-slot-mask-out = <1 0>;
 		dai-tdm-clk-sel = <0>;
+		/*For NSK2 Smartcard
+		 * clocks = <&clkaudio CLKID_AUDIO_MCLK_A
+		 *	&clkc CLKID_MPLL3>;
+		 */
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
@@ -910,13 +918,20 @@
 		dai-tdm-lane-slot-mask-in = <0 1 0 0>;
 		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
 		dai-tdm-clk-sel = <1>;
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkaudio CLKID_AUDIO_MCLK_PAD0
-				&clkc CLKID_MPLL1
-				&clkc CLKID_MPLL0
-				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
+		/*For NSK2 Smartcard
+		 * clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+		 *	&clkaudio CLKID_AUDIO_MCLK_PAD0
+		 *	&clkc CLKID_MPLL1>;
+		 * clock-names = "mclk", "mclk_pad", "clk_srcpll";
+		 */
+		 clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+			&clkaudio CLKID_AUDIO_MCLK_PAD0
+			&clkc CLKID_MPLL1
+			&clkc CLKID_MPLL0
+			&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll",
 			"samesource_srcpll", "samesource_clk";
+
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = </*&tdmb_mclk &tdmout_b &tdmin_b*/>;
 
@@ -955,6 +970,9 @@
 	spdifa: spdif@0 {
 		compatible = "amlogic, tm2-revb-snd-spdif-a";
 		#sound-dai-cells = <0>;
+		/* For NSK2 Smartcard
+		 * clocks = <&clkc CLKID_MPLL2
+		 */
 		clocks = <&clkc CLKID_MPLL0
 				&clkc CLKID_FCLK_DIV4
 				&clkaudio CLKID_AUDIO_GATE_SPDIFIN
@@ -979,6 +997,9 @@
 	spdifb: spdif@1 {
 		compatible = "amlogic, tm2-revb-snd-spdif-b";
 		#sound-dai-cells = <0>;
+		/* For NSK2 Smartcard
+		 * clocks = <&clkc CLKID_MPLL3
+		 */
 		clocks = <&clkc CLKID_MPLL2 /*CLKID_HIFI_PLL*/
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_B
 				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
@@ -1078,6 +1099,9 @@
 			&clkc CLKID_MPLL3
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
+			/* For NSK2 Smartcard
+			 * &clkc CLKID_MPLL3
+			 */
 			&clkc CLKID_MPLL0
 			&clkaudio CLKID_AUDIO_MCLK_A>;
 		clock-names = "pdm_gate",
@@ -1133,6 +1157,9 @@
 			&clkc CLKID_MPLL3
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
+			/* For NSK2 Smartcard
+			 * &clkc CLKID_MPLL3
+			 */
 			&clkc CLKID_MPLL0
 			&clkaudio CLKID_AUDIO_MCLK_A>;
 		clock-names = "pdm_gate",

@@ -149,6 +149,7 @@ static int dcnt;
 /*no used reset ctl,need use clk in 4.9 kernel*/
 static struct clk *aml_smartcard_clk;
 static int t5w_smartcard;
+static int smartcard_mpll0;
 
 #define REG_READ 0
 #define REG_WRITE 1
@@ -1024,9 +1025,29 @@ static inline int smc_can_write(struct smc_dev *smc)
 	return ret;
 }
 
+static void smc_mp0_clk_set(int clk)
+{
+	unsigned int data;
+
+#define SMARTCARD_CLK_CTRL (0x26 * 4)
+
+	data = SMC_READ_REG(CLK_CTRL);
+
+	data &= 0xFFFFF900;
+	if (clk == 4500)
+		data |= 0x224;
+	else if (clk == 6750)
+		data |= 0x049;
+	else if (clk == 13500)
+		data |= 0x024;
+
+	SMC_WRITE_REG(CLK_CTRL, data);
+	pr_error("%s data:0x%0x\n", __func__, data);
+}
+
 static void smc_clk_enable(int enable)
 {
-	unsigned long data;
+	unsigned int data;
 
 #define SMARTCARD_CLK_CTRL (0x26 * 4)
 
@@ -1051,7 +1072,10 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	unsigned long freq_cpu = 0;
 
 	pr_error("hw set param\n");
-	if (t5w_smartcard) {
+
+	if (smartcard_mpll0) {
+		smc_mp0_clk_set(smc->param.freq);
+	} else if (t5w_smartcard) {
 //		freq_cpu = clk_get_rate(aml_smartcard_clk) / 1000 * DIV_SMC;
 		switch (clock_source) {
 		case 0:
@@ -1073,6 +1097,7 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	} else {
 		clk_set_rate(aml_smartcard_clk, smc->param.freq * 1000);
 	}
+
 	v = SMC_READ_REG(REG0);
 	reg0 = (struct smccard_hw_reg0 *)&v;
 #if (ETU_CLK_SEL == 0)
@@ -1240,6 +1265,10 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg0->first_etu_offset = 5;
 	SMC_WRITE_REG(REG0, v);
 	smc_clk_enable(reg0->clk_en);
+
+	if (smartcard_mpll0)
+		smc_mp0_clk_set(smc->param.freq);
+
 	pr_error("REG0: 0x%08lx\n", v);
 	pr_error("f	  :%d\n", smc->param.f);
 	pr_error("d	  :%d\n", smc->param.d);
@@ -1718,7 +1747,8 @@ static int smc_hw_reset(struct smc_dev *smc)
 #endif
 			SMC_WRITE_REG(REG0, sc_reg0);
 			smc_clk_enable(sc_reg0_reg->clk_en);
-
+			if (smartcard_mpll0)
+				smc_mp0_clk_set(smc->param.freq);
 #ifdef RST_FROM_PIO
 			_gpio_out(smc->reset_pin,
 				  RESET_ENABLE, SMC_RESET_PIN_NAME);
@@ -1752,6 +1782,10 @@ static int smc_hw_reset(struct smc_dev *smc)
 			sc_reg0_reg->rst_level = RESET_ENABLE;
 			SMC_WRITE_REG(REG0, sc_reg0);
 			smc_clk_enable(sc_reg0_reg->clk_en);
+
+			if (smartcard_mpll0)
+				smc_mp0_clk_set(smc->param.freq);
+
 #ifdef RST_FROM_PIO
 			if (smc->use_enable_pin) {
 				_gpio_out(smc->enable_pin,
@@ -2916,15 +2950,23 @@ static int smc_probe(struct platform_device *pdev)
 	aml_smartcard_clk = devm_clk_get(&pdev->dev, "smartcard");
 	if (IS_ERR_OR_NULL(aml_smartcard_clk)) {
 		dev_err(&pdev->dev, "get smartcard clk fail\n");
-		mutex_unlock(&smc_lock);
-		return -1;
+		aml_smartcard_clk = devm_clk_get(&pdev->dev, "smartcard_mpll0");
+		if (IS_ERR_OR_NULL(aml_smartcard_clk)) {
+			dev_err(&pdev->dev, "get smartcard mpll0 clk fail\n");
+			mutex_unlock(&smc_lock);
+			return -1;
+		}
+		smartcard_mpll0 = 1;
 	}
+
 	ret = clk_prepare_enable(aml_smartcard_clk);
 	if (ret) {
 		pr_error("enable smc_clk fail:%d\n", ret);
 		clk_put(aml_smartcard_clk);
 	} else {
-		if (!t5w_smartcard)
+		if (smartcard_mpll0 == 1)
+			clk_set_rate(aml_smartcard_clk, 166500000);
+		else if (!t5w_smartcard)
 			clk_set_rate(aml_smartcard_clk, 4000000);
 	}
 	if (smc) {
