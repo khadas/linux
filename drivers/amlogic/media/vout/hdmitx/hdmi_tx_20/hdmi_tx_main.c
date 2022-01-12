@@ -3706,6 +3706,16 @@ static ssize_t dv_cap_show(struct device *dev,
 	return _show_dv_cap(dev, attr, buf, dv);
 }
 
+bool dv_support(void)
+{
+	int ret;
+	const struct dv_info *dv = &hdmitx_device.rxcap.dv_info;
+
+	ret = (dv->ieeeoui != DV_IEEE_OUI || hdmitx_device.hdr_priority);
+	return ret;
+}
+EXPORT_SYMBOL(dv_support);
+
 static ssize_t dv_cap2_show(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)

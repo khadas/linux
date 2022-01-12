@@ -37,6 +37,10 @@ struct am_meson_crtc_state {
 	bool crtc_dv_enable;
 	/*hdr core enabled, always on if soc support hdr.*/
 	bool crtc_hdr_enable;
+	/*etof policy update by property*/
+	bool crtc_eotf_by_property_flag;
+	/*etof value by property*/
+	u8 eotf_type_by_property;
 };
 
 struct am_meson_crtc {
@@ -51,6 +55,7 @@ struct am_meson_crtc {
 	struct meson_vpu_pipeline *pipeline;
 
 	struct drm_property *hdr_policy;
+	struct drm_property *hdmi_etof;
 
     /*debug*/
 	int dump_enable;
@@ -83,9 +88,12 @@ void set_dolby_vision_ll_policy(int policy);
 void set_dolby_vision_enable(bool enable);
 int get_dv_support_info(void);
 bool is_dolby_vision_enable(void);
+void set_dolby_vision_mode(int mode);
+int get_dolby_vision_mode(void);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 void set_hdr_policy(int policy);
 int get_hdr_policy(void);
 #endif
+bool dv_support(void);
 #endif

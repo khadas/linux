@@ -9,12 +9,68 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
+#include <../drivers/amlogic/media/enhancement/amvecm/amcsc.h>
+
+#define EOTF_RESERVED 23
 
 #define OSD_DUMP_PATH		"/tmp/osd_dump/"
 
 int crtc_force_hint;
 MODULE_PARM_DESC(crtc_force_hint, "\n force modesetting hint\n");
 module_param(crtc_force_hint, int, 0644);
+
+/*
+ **********TV SUPPROT DV****************
+ *HDR			2
+ *DV			18
+ *SDR			0
+ *DV LL		    19
+ */
+static void set_eotf_by_property(struct am_meson_crtc_state *state)
+{
+	if (state->crtc_eotf_by_property_flag) {
+		if (!dv_support() &&  get_dolby_vision_mode() && is_dolby_vision_enable()) {
+			DRM_INFO("[%s] support DV\n", __func__);
+			if (state->eotf_type_by_property == 2) {
+				set_dolby_vision_ll_policy(0);
+				set_dolby_vision_policy(2);
+				set_dolby_vision_enable(1);
+				set_dolby_vision_mode(2);
+			} else if (state->eotf_type_by_property == 18) {
+				set_dolby_vision_ll_policy(0);
+				set_dolby_vision_policy(2);
+				set_dolby_vision_enable(1);
+				set_dolby_vision_mode(1);
+			} else if (state->eotf_type_by_property == 0) {
+				set_dolby_vision_ll_policy(0);
+				set_dolby_vision_policy(2);
+				set_dolby_vision_enable(1);
+				set_dolby_vision_mode(4);
+			} else if (state->eotf_type_by_property == 19) {
+				set_dolby_vision_ll_policy(1);
+					set_dolby_vision_policy(2);
+				set_dolby_vision_enable(1);
+				set_dolby_vision_mode(1);
+			}
+		} else {
+			DRM_INFO("[%s] can not support DV\n", __func__);
+			if (state->eotf_type_by_property == 0) {
+				set_dolby_vision_policy(2);
+				set_dolby_vision_mode(0);
+				set_dolby_vision_enable(0);
+				set_hdr_policy(2);
+				set_force_output(1);
+			}
+			if (state->eotf_type_by_property == 2) {
+				set_dolby_vision_policy(2);
+				set_dolby_vision_mode(0);
+				set_dolby_vision_enable(0);
+				set_hdr_policy(2);
+				set_force_output(3);
+			}
+		}
+	}
+}
 
 static void meson_crtc_destroy_state(struct drm_crtc *crtc,
 	struct drm_crtc_state *state)
@@ -43,6 +99,8 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->crtc_eotf_type = cur_state->crtc_eotf_type;
 	new_state->crtc_dv_enable = cur_state->crtc_dv_enable;
 	new_state->crtc_hdr_enable = cur_state->crtc_hdr_enable;
+	new_state->crtc_eotf_by_property_flag = cur_state->crtc_eotf_by_property_flag;
+	new_state->eotf_type_by_property = cur_state->eotf_type_by_property;
 
 	/*reset dynamic info.*/
 	new_state->uboot_mode_init = 0;
@@ -96,11 +154,15 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	struct am_meson_crtc *meson_crtc = to_am_meson_crtc(crtc);
 	int ret = 0;
 
+	if (!crtc_state->crtc_eotf_by_property_flag)
+		crtc_state->eotf_type_by_property = EOTF_RESERVED;
+
 	if (property == meson_crtc->hdr_policy) {
 		*val = crtc_state->crtc_hdr_process_policy;
-	} else {
-		DRM_INFO("unsupported crtc property\n");
-		ret = -EINVAL;
+		return 0;
+	} else if (property == meson_crtc->hdmi_etof) {
+		*val = crtc_state->eotf_type_by_property;
+		return 0;
 	}
 
 	return ret;
@@ -118,9 +180,11 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 
 	if (property == meson_crtc->hdr_policy) {
 		crtc_state->crtc_hdr_process_policy = val;
-	} else {
-		DRM_ERROR("unsupported crtc property\n");
-		ret = -EINVAL;
+		return 0;
+	} else if (property == meson_crtc->hdmi_etof) {
+		crtc_state->eotf_type_by_property = val;
+		crtc_state->crtc_eotf_by_property_flag = true;
+		return 0;
 	}
 
 	return ret;
@@ -348,6 +412,9 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	memcpy(&pipeline->subs[crtc->index].mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
+
+	/*force eotf by property*/
+	set_eotf_by_property(meson_crtc_state);
 	drm_crtc_vblank_on(crtc);
 	enable_irq(amcrtc->irq);
 
@@ -481,11 +548,13 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 			crtc_state->mode_changed = true;
 			crtc_force_hint = 0;
 		}
-	new_state->crtc_dv_enable = crtc_dv_enable_value;
-	}
+		new_state->crtc_dv_enable = crtc_dv_enable_value;
+		if (cur_state->crtc_dv_enable != new_state->crtc_dv_enable)
+			crtc_state->mode_changed = true;
 
-	if (cur_state->crtc_dv_enable != new_state->crtc_dv_enable)
-		crtc_state->mode_changed = true;
+		if (cur_state->eotf_type_by_property != new_state->eotf_type_by_property)
+			crtc_state->mode_changed = true;
+	}
 
 	/*check plane-update*/
 	ret = vpu_pipeline_check(amcrtc->pipeline, crtc_state->state);
@@ -625,6 +694,31 @@ static int meson_crtc_get_scannout_position(struct am_meson_crtc *crtc,
 	return ret;
 }
 
+/* Optional eotf properties. */
+static const struct drm_prop_enum_list hdmi_eotf_enum_list[] = {
+	{ HDMI_EOTF_TRADITIONAL_GAMMA_SDR, "SDR" },
+	{ HDMI_EOTF_SMPTE_ST2084, "HDR" },
+	{ HDMI_EOTF_MESON_DOLBYVISION, "HDMI_EOTF_MESON_DOLBYVISION" },
+	{ HDMI_EOTF_MESON_DOLBYVISION_LL, "HDMI_EOTF_MESON_DOLBYVISION_LL" },
+	{ EOTF_RESERVED, "EOTF_RESERVED" }
+};
+
+static void meson_crtc_init_hdmi_eotf_property(struct drm_device *drm_dev,
+						   struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_enum(drm_dev, 0, "EOTF",
+					hdmi_eotf_enum_list,
+					ARRAY_SIZE(hdmi_eotf_enum_list));
+	if (prop) {
+		amcrtc->hdmi_etof = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, EOTF_RESERVED);
+	} else {
+		DRM_ERROR("Failed to ETOF property\n");
+	}
+}
+
 static void meson_crtc_init_property(struct drm_device *drm_dev,
 						  struct am_meson_crtc *amcrtc)
 {
@@ -674,6 +768,7 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 
 	amcrtc->get_scannout_position = meson_crtc_get_scannout_position;
 	meson_crtc_init_property(priv->drm, amcrtc);
+	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;
