@@ -61,7 +61,7 @@
 			reusable;
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x5f800000 0x800000>;
+			alloc-ranges = <0x3f800000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
@@ -69,7 +69,7 @@
 			reusable;
 			size = <0x00800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x5f000000 0x00800000>;
+			alloc-ranges = <0x3f000000 0x00800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -78,10 +78,10 @@
 			/* yuv420(32x3)96M + di(7x4,11x5)84M + workbuf(12M)
 			 * the sum with align 4M then is equal to 192M
 			 */
-			size = <0x9000000>;
+			size = <0xc000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			//alloc-ranges = <0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x3f800000>;
 		};
 
 		/* codec shared reserved */
@@ -105,7 +105,7 @@
 			 */
 			size = <0x04000000>;
 			alignment = <0x400000>;
-			//alloc-ranges = <0x0 0x3f000000>;
+			alloc-ranges = <0x0 0x30000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
