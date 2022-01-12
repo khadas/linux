@@ -263,6 +263,16 @@ int get_vdin_add_delay_num(void)
 }
 EXPORT_SYMBOL(get_vdin_add_delay_num);
 
+unsigned int get_vdin_buffer_num(void)
+{
+	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
+
+	if (vdin0_devp)
+		return vdin0_devp->frame_buff_num;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(get_vdin_buffer_num);
 /*
  * 1. find the corresponding frontend according to the port & save it.
  * 2. set default register, including:

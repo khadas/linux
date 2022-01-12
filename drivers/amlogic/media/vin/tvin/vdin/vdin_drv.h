@@ -64,7 +64,7 @@
 
 /* Ref.2021-0926: t5d/t7 default force yuv422 to yuv444
  */
-#define VDIN_VER "ver:2021-1225: not add vdin0 screenshot will crash"
+#define VDIN_VER "ver:2022-0112: add get vdin buffer num interface"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
