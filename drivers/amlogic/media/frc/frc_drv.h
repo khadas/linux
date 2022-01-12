@@ -51,9 +51,10 @@
 // frc_20211215 sync frc alg and fpp set level 1457
 // frc_20211215 frc change by2dis
 // frc_20211217 frc fixed video flickers
-// frc_20220101 frc build memc interface"
+// frc_20220101 frc build memc interface
+// frc_20220110 frc protected when no video
 
-#define FRC_FW_VER			"2022-0110 frc protected when no video"
+#define FRC_FW_VER			"2022-0112 frc sync frame-rate for alg"
 #define FRC_KERDRV_VER                  1550
 
 #define FRC_DEVNO	1

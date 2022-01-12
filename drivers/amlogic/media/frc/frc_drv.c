@@ -763,13 +763,23 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 void get_vout_info(struct frc_dev_s *frc_devp)
 {
 	struct vinfo_s *vinfo = get_current_vinfo();
+	struct frc_fw_data_s *pfw_data;
 	u32  tmpframterate = 0;
+
+	if (!frc_devp) {
+		PR_ERR("%s: frc_devp is null\n", __func__);
+		return;
+	}
+
+	pfw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	frc_devp->out_sts.vout_height = vinfo->height;
 	frc_devp->out_sts.vout_width = vinfo->width;
 	tmpframterate =
 	(vinfo->sync_duration_num * 100 / vinfo->sync_duration_den) / 100;
 	if (frc_devp->out_sts.out_framerate != tmpframterate) {
 		frc_devp->out_sts.out_framerate = tmpframterate;
+		pfw_data->frc_top_type.frc_other_reserved =
+			frc_devp->out_sts.out_framerate;
 		pr_frc(0, "vout:w-%d,h-%d,rate-%d\n",
 				frc_devp->out_sts.vout_width,
 				frc_devp->out_sts.vout_height,
