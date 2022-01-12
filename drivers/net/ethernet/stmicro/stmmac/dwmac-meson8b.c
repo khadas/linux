@@ -54,6 +54,7 @@
 #define MUX_CLK_NUM_PARENTS		2
 
 unsigned int support_mac_wol;
+unsigned int support_nfx_doze;
 
 struct meson8b_dwmac;
 
@@ -363,8 +364,15 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 			dev_err(&pdev->dev, "Unable to map reset base\n");
 		ee_reset_base = addr;
 	}
+
 	if (of_property_read_u32(np, "mac_wol", &support_mac_wol) != 0)
 		pr_info("no mac_wol\n");
+
+	if (of_property_read_u32(np, "keep-alive", &support_nfx_doze) != 0)
+		pr_info("no keep-alive\n");
+	/*nfx doze setting ASAP WOL, if not set, do nothing*/
+	if (support_nfx_doze)
+		support_mac_wol = support_nfx_doze;
 
 	if (of_property_read_u32(np, "internal_phy", &internal_phy) != 0)
 		pr_info("use default internal_phy as 0\n");
@@ -415,7 +423,11 @@ extern int stmmac_pltfr_suspend(struct device *dev);
 static int aml_dwmac_suspend(struct device *dev)
 {
 	int ret = 0;
-
+	/*nfx doze do nothing for suspend*/
+	if (support_nfx_doze) {
+		pr_info("doze is running\n");
+		return 0;
+	}
 	pr_info("aml_eth_suspend\n");
 	ret = stmmac_pltfr_suspend(dev);
 	/*internal phy only*/
@@ -429,6 +441,12 @@ static int aml_dwmac_resume(struct device *dev)
 {
 	int ret = 0;
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(dev);
+
+	/*nfx doze do nothing for resume*/
+	if (support_nfx_doze) {
+		pr_info("doze is running\n");
+		return 0;
+	}
 
 	pr_info("aml_eth_resume\n");
 	if (internal_phy != 2)
