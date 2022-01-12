@@ -30,6 +30,7 @@
 #include "meson_hdmi.h"
 #include "meson_vpu.h"
 #include "meson_crtc.h"
+#include <../drivers/amlogic/media/enhancement/amvecm/amcsc.h>
 
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12
@@ -253,7 +254,6 @@ static int meson_hdmitx_decide_color_attr
 			}
 		}
 	} while (attr_list++);
-
 	if (attr_list->colorformat == COLORSPACE_RESERVED) {
 		DRM_ERROR("%s no attr found, reset to 444,8bit.\n", __func__);
 		attr->colorformat = COLORSPACE_RGB444;
@@ -1037,7 +1037,10 @@ static int meson_hdmitx_decide_eotf_type
 			__func__, crtc_eotf_type);
 	}
 
-	meson_crtc_state->crtc_eotf_type = crtc_eotf_type;
+	if (!meson_crtc_state->crtc_eotf_by_property_flag)
+		meson_crtc_state->crtc_eotf_type = crtc_eotf_type;
+	else
+		meson_crtc_state->crtc_eotf_type = meson_crtc_state->eotf_type_by_property;
 
 	DRM_DEBUG_KMS("%s: [%u->%u]\n", __func__,
 		hdmitx_state->pref_hdr_policy,
