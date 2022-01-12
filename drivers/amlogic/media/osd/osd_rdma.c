@@ -1952,15 +1952,27 @@ int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
 	    osd_dev_hw.multi_afbc_core) {
-		//if (reset_bit & HW_RESET_MALI_AFBCD_REGS)
-		if (osd_hw.osd_afbcd[0].enable || osd_hw.osd_afbcd[1].enable)
-			wrtie_reg_internal(output_index, VPU_MAFBC_COMMAND, 1);
-		//if (reset_bit & HW_RESET_MALI_AFBCD1_REGS)
-		if (osd_hw.osd_afbcd[2].enable)
-			wrtie_reg_internal(output_index, VPU_MAFBC1_COMMAND, 1);
-		//if (reset_bit & HW_RESET_MALI_AFBCD2_REGS)
-		if (osd_hw.osd_afbcd[3].enable)
-			wrtie_reg_internal(output_index, VPU_MAFBC2_COMMAND, 1);
+		struct hw_osd_reg_s *osd_reg;
+		u32 osd_count = osd_hw.osd_meson_dev.osd_count;
+		int afbc0_started = 0;
+
+		for (i = 0; i < osd_count; i++) {
+			if (get_output_device_id(i) != output_index ||
+			    !osd_hw.osd_afbcd[i].enable)
+				continue;
+			if (i == 1 && afbc0_started)
+				continue;
+
+			osd_reg = &hw_osd_reg_array[i];
+
+			wrtie_reg_internal(output_index,
+					   osd_reg->vpu_mafbc_command, 1);
+			osd_log_dbg2(MODULE_BASE,
+				     "%s, AFBC osd%d start command\n",
+				     __func__, i);
+			if (i == 0)
+				afbc0_started = 1;
+		}
 	}
 
 	if (item_count[output_index] < 500) {
