@@ -64,7 +64,7 @@
 
 /* Ref.2021-0926: t5d/t7 default force yuv422 to yuv444
  */
-#define VDIN_VER "ver:2021-1021: not support set color range when is dv"
+#define VDIN_VER "ver:2022-0112: add get vdin buffer num interface"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
