@@ -225,7 +225,9 @@ static int i2c_slave_probe(struct platform_device *pdev)
 static int __init i2c_auto_test_setup(char *s)
 {
 	if (!s)
-		sprintf(i2c_auto_test_mode, "%s", s);
+		return -EINVAL;
+
+	sprintf(i2c_auto_test_mode, "%s", s);
 
 	return 0;
 }
