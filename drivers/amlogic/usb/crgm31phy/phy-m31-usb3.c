@@ -73,6 +73,10 @@ static int amlogic_usb3_m31_init(struct usb_phy *x)
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
+		writel((val & (~temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		udelay(10);
 		writel((val | (temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
@@ -82,9 +86,14 @@ static int amlogic_usb3_m31_init(struct usb_phy *x)
 		val = readl((void __iomem		*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
+		writel((val & (~temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		udelay(10);
 		writel((val | (temp)), (void __iomem	*)
 			((unsigned long)phy->reset_regs +
 			(phy->reset_level - mask) + shift));
+		dev_info(phy->dev, "m31phy reset\n");
 	}
 
 	if (phy->suspend_flag) {
