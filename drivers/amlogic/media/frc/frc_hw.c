@@ -1951,10 +1951,10 @@ void sys_fw_param_frc_init(u32 frm_hsize, u32 frm_vsize, u32 is_me1mc4)
 	reg_demo_window3_en = (reg_data >> 1) & 0x1;
 	reg_demo_window4_en = (reg_data )     & 0x1;
 	if(reg_demo_window1_en) {
-		WRITE_FRC_BITS(FRC_REG_DEMOWINDOW1_XYXY_ST, frm_hsize >> 1, 16, 16); //reg_demowindow1_xyxy_0
-		WRITE_FRC_BITS(FRC_REG_DEMOWINDOW1_XYXY_ST,              0,  0, 16); //reg_demowindow1_xyxy_1
-		WRITE_FRC_BITS(FRC_REG_DEMOWINDOW1_XYXY_ED,  frm_hsize - 1, 16, 16); //reg_demowindow1_xyxy_2
-		WRITE_FRC_BITS(FRC_REG_DEMOWINDOW1_XYXY_ED,  frm_vsize - 1,  0, 16); //reg_demowindow1_xyxy_3
+	// WRITE_FRC_BITS(FRC_REG_DEMOWINDOW1_XYXY_ST, frm_hsize >> 1, 16, 16);
+	// WRITE_FRC_BITS(FRC_REG_DEMOWINDOW1_XYXY_ST,             0,  0, 16);
+	// WRITE_FRC_BITS(FRC_REG_DEMOWINDOW1_XYXY_ED, frm_hsize - 1, 16, 16);
+	// WRITE_FRC_BITS(FRC_REG_DEMOWINDOW1_XYXY_ED, frm_vsize - 1,  0, 16);
 	}
 	if(reg_demo_window2_en){
 		WRITE_FRC_BITS(FRC_REG_DEMOWINDOW2_XYXY_ST, frm_hsize >> 1, 16, 16); //reg_demowindow2_xyxy_0

@@ -54,8 +54,9 @@
 // frc_20220101 frc build memc interface
 // frc_20220110 frc protected when no video
 // frc_20220112 frc sync frame-rate for alg
+// frc_20220111 frc close in high bandwidth"
 
-#define FRC_FW_VER			"2022-0111 frc close in high bandwidth"
+#define FRC_FW_VER			"2022-0112 frc mark demo setting"
 #define FRC_KERDRV_VER                  1550
 
 #define FRC_DEVNO	1
