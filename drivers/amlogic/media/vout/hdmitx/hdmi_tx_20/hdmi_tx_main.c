@@ -5506,6 +5506,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 		set_disp_mode_auto();
 	} else {
 		pr_info("alread display in uboot\n");
+		update_current_para(&hdmitx_device);
 		edidinfo_attach_to_vinfo(&hdmitx_device);
 	}
 	return 0;
