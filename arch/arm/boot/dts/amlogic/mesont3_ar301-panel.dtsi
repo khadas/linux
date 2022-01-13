@@ -775,7 +775,7 @@
 			ldim_bl_profile_k_bits = <
 				3487 24>; /*profile_k, profile_bits*/
 			ldim_bl_profile_path =
-				"/odm/etc/tvconfig/panel/55R625/bl_profile.bin";
+				"/odm/etc/tvconfig/panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
 
 			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
 				11
