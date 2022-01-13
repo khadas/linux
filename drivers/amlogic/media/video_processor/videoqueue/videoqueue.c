@@ -152,17 +152,18 @@ static void dump_hf(struct vframe_s *vf)
 }
 
 static u64 time_cur;
-static u32 vsync_pts_inc;
+static u64 vsync_pts_inc;
 static u64 vpp_vsync_us;
 static u64 pcr_time;
-static u64 pcr_time64;
-static u32 pcr_margin;
+static u64 pcr_margin;
 static u32 delay_vsync;
 static bool sync_start;
 static u32 vsync_no;
 static bool videoq_start;
 static wait_queue_head_t file_wq;
 static int wakeup;
+//used for 29.97hz or 59.94hz
+static bool is_special_fps;
 
 void vsync_notify_videoqueue(void)
 {
@@ -171,18 +172,32 @@ void vsync_notify_videoqueue(void)
 
 void videoqueue_pcrscr_update(s32 inc, u32 base)
 {
-	vsync_pts_inc = 90000 * inc / base;
-	vpp_vsync_us = vsync_pts_inc * 100 / 9;  //us
-	pcr_margin = vsync_pts_inc / 4;
+	bool is_vlock_locked = false;
+
+	if (sync_start)
+		is_vlock_locked = vlock_get_vlock_flag();
+
+	vsync_pts_inc = div64_u64(90000 * 16 * inc, base);
+	vq_print(P_SYNC, "vlock: %d, special_fps: %d, vsync_pts_inc: %ld.\n",
+		is_vlock_locked,
+		is_special_fps,
+		vsync_pts_inc);
+	if (is_vlock_locked && is_special_fps && vsync_pts_inc == 24000) {
+		vq_print(P_SYNC, "use 59.94 fps.\n");
+		vsync_pts_inc = 24024;
+	}
+
+	// vsync_pts_inc/16 /9us
+	vpp_vsync_us = div64_u64(vsync_pts_inc * 100, 144);
+	pcr_margin = div64_u64(vsync_pts_inc, 4);
+
 	if (sync_start) {
 		pcr_time += vsync_pts_inc;
-		pcr_time64 += vpp_vsync_us;
 		vsync_no++;
 		vq_print(P_SYNC, "vsync: NO=%d, pcr_time=%lld, time=%lld\n",
 			vsync_no, pcr_time, time_cur);
 	} else {
 		pcr_time = 0;
-		pcr_time64 = 0;
 		vsync_no = 0;
 	}
 	if (videoq_start) {
@@ -195,7 +210,7 @@ static inline int DUR2PTS(int x)
 {
 	int var = x;
 
-	var -= var >> 4;
+	var = var * 15;
 	return var;
 }
 
@@ -456,6 +471,16 @@ static void do_file_thread(struct video_queue_dev *dev)
 			vq_print(P_ERROR, "set game mode true err\n");
 	}
 
+	//used to point 29.97 23.976 and 59.94 fps
+	vq_print(P_SYNC, "vf->duration is %d.\n", vf->duration);
+	if (vf->duration == 1601 ||
+	    vf->duration == 3203 ||
+	    vf->duration == 4004) {
+		is_special_fps = true;
+	} else {
+		is_special_fps = false;
+	}
+
 	dev->sync_need_delay = false;
 	dev->sync_need_drop = false;
 	dev->sync_need_drop_count = 0;
@@ -469,7 +494,12 @@ static void do_file_thread(struct video_queue_dev *dev)
 		set_tvin_delay_start(0);
 	}
 
-	vlock_locked = vlock_get_phlock_flag() && vlock_get_vlock_flag();
+	//23.976 && 24 fps only lock frequence
+	if (vf->duration == 4000 || vf->duration == 4004)
+		vlock_locked = vlock_get_vlock_flag();
+	else
+		vlock_locked = vlock_get_phlock_flag() &&
+				vlock_get_vlock_flag();
 
 	if (vlock_locked && !dev->vlock_locked) {
 		need_resync = true;
@@ -920,6 +950,7 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 	game_mode = 0;
 	dev->low_latency_mode = low_latency_mode;
 	dev->vdin_err_crc_count = 0;
+	is_special_fps = false;
 
 	INIT_KFIFO(dev->file_q);
 	INIT_KFIFO(dev->display_q);
