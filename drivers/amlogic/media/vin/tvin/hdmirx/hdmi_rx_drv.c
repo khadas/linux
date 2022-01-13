@@ -2570,6 +2570,8 @@ static int rx_vrr_notify_handler(struct notifier_block *nb,
 		rx_pr("%s: vrrmin=%d, vrrmax=%d\n", __func__, rx.vrr_min, rx.vrr_max);
 		break;
 	default:
+		rx_pr("unsupported vrr notify:%ld, arg:%p\n",
+			value, p);
 		ret = -EINVAL;
 		break;
 	}
@@ -3033,17 +3035,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx.arc_port = 0x1;
 		rx_pr("not find arc_port, portB by default\n");
 	}
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "hdcp_tee_path",
-						&hdcp_tee_path);
-	if (ret) {
-		hdcp_tee_path = 0;
-		rx_pr("not find hdcp_tee_path, hdcp normal path\n");
-	}
-	if (hdcp_tee_path)
-		hdcp22_on = 1;
-	else
+	if (is_rx_unifykey_support())
 		rx_is_hdcp22_support();
+	else
+		hdcp_tee_path = 1;
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "aud_compose_type",
 				   &aud_compose_type);
