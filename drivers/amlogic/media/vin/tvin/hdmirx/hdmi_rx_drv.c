@@ -2566,8 +2566,6 @@ static int rx_vrr_notify_handler(struct notifier_block *nb,
 		rx_pr("%s: vrrmin=%d, vrrmax=%d\n", __func__, rx.vrr_min, rx.vrr_max);
 		break;
 	default:
-		rx_pr("unsupported vrr notify:%ld, arg:%p\n",
-		      value, p);
 		ret = -EINVAL;
 		break;
 	}

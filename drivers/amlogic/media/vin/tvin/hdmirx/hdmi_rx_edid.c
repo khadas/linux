@@ -772,13 +772,6 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 			p_edid[i] = 0;
 		/* dtd offset modify */
 		p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len - 9;
-		rx_pr("len1 = %d", tag_len);
-		if (log_level & EDID_LOG) {
-			rx_pr("++++edid data after vrr change:\n");
-			//for (i = 0; i < EDID_SIZE; i++)
-				//rx_pr("%02x", p_edid[i]);
-			//rx_pr("\n");
-		}
 	}
 }
 
@@ -847,13 +840,14 @@ u_int rx_get_ceadata_offset(u_char *cur_edid, u_char *addition)
 	max_offset = cur_edid[130] + EDID_EXT_BLK_OFF;
 
 	while (i < max_offset) {
-		if (type == rx_get_tag_code(cur_edid + i))
-			break;
+		if (type == rx_get_tag_code(cur_edid + i)) {
+			if (log_level & EDID_LOG)
+				rx_pr("type: %#x, start addr: %#x\n", type, i);
+			return i;
+		}
 		i += (1 + (*(cur_edid + i) & 0x1f));
 	}
-	if (log_level & EDID_LOG)
-		rx_pr("type: %#x, start addr: %#x\n", type, i);
-	return i;
+	return 0;
 }
 
 u_int rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code)
@@ -868,14 +862,17 @@ u_int rx_get_cea_tag_offset(u8 *cur_edid, u16 tag_code)
 	max_offset = cur_edid[130] + EDID_EXT_BLK_OFF;
 
 	while (i < max_offset) {
-		if (tag_code == rx_get_tag_code(cur_edid + i))
-			break;
+		if (tag_code == rx_get_tag_code(cur_edid + i)) {
+			if (log_level & EDID_LOG)
+				rx_pr("tag: %#x, start addr: %#x\n", tag_code, i);
+			return i;
+		}
 		i += (1 + (*(cur_edid + i) & 0x1f));
 	}
 	if (log_level & EDID_LOG)
 		rx_pr("tag: %#x, start addr: %#x\n", tag_code, i);
 
-	return i;
+	return 0;
 }
 
 void rx_mix_edid_hf_vsdb(u8 *cur_data, u8 *addition, int free_size)
@@ -1137,11 +1134,9 @@ void rx_modify_edid(unsigned char *buffer,
 	//coverity fixed
 	//if (addition_size <= 1 || addition_size >= 32)
 		//return;
-	cur_size = (*(buffer + start_addr) & 0x1f) + 1;
-
 	/*get addition block index in local edid*/
 	start_addr = rx_get_ceadata_offset(buffer, addition);
-
+	cur_size = (*(buffer + start_addr) & 0x1f) + 1;
 	if (start_addr < EDID_DEFAULT_START)
 		return;
 	//cur_size = (*(buffer + start_addr) & 0x1f) + 1;
@@ -4410,7 +4405,7 @@ unsigned char *compose_audio_db(u8 *aud_db, u8 *add_buf)
 	/* data blk header */
 	com_aud[0] = (AUDIO_TAG << 5) | payload_len;
 
-	if (log_level & EDID_LOG) {
+	if (log_level & EDID_DATA_LOG) {
 		rx_pr("++++after compose, audio data blk:\n");
 		for (i = 0; i < payload_len + 1; i++)
 			rx_pr("%02x", com_aud[i]);
@@ -4596,10 +4591,10 @@ void splice_data_blk_to_edid(u_char *p_edid, u_char *add_buf,
 		/* copy added data block */
 		memcpy(p_edid + tag_offset, add_data_blk, add_db_len);
 	}
-	if (log_level & EDID_LOG) {
+	if (log_level & EDID_DATA_LOG) {
 		rx_pr("++++edid data after splice:\n");
-		for (i = 0; i < EDID_SIZE; i++)
-			rx_pr("%02x", p_edid[i]);
+		for (i = 128; i < EDID_SIZE; i++)
+			pr_cont("%02x", p_edid[i]);
 		rx_pr("\n");
 	}
 }
@@ -4624,7 +4619,7 @@ void splice_tag_db_to_edid(u8 *p_edid, u8 *add_buf,
 	if (log_level & EDID_LOG) {
 		rx_pr("++++extracted data blk(tag=0x%x):\n", tagid);
 		for (i = 0; i < BLK_LENGTH(tag_data_blk[0]) + 1; i++)
-			rx_pr("%02x", tag_data_blk[i]);
+			pr_cont("%02x", tag_data_blk[i]);
 		rx_pr("\n");
 	}
 	/* if db not exist in edid, then add it to the end */
@@ -4666,10 +4661,10 @@ void edid_rm_db_by_tag(u8 *p_edid, u16 tagid)
 	memset(&p_edid[free_space_off], 0, tag_len);
 	/* dtd offset modify */
 	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len;
-	if (log_level & EDID_LOG) {
-		rx_pr("++++edid data after rm db:\n");
-		for (i = 0; i < EDID_SIZE; i++)
-			rx_pr("%02x", p_edid[i]);
+	if (log_level & EDID_DATA_LOG) {
+		rx_pr("++++edid data after rm db by tag:\n");
+		for (i = 128; i < EDID_SIZE; i++)
+			pr_cont("%02x", p_edid[i]);
 		rx_pr("\n");
 	}
 }
@@ -4715,10 +4710,10 @@ void edid_rm_db_by_idx(u8 *p_edid, u8 blk_idx)
 	memset(&p_edid[free_space_off], 0, tag_len);
 	/* dtd offset modify */
 	p_edid[EDID_BLOCK1_OFFSET + EDID_DESCRIP_OFFSET] -= tag_len;
-	if (log_level & EDID_LOG) {
-		rx_pr("++++edid data after rm db:\n");
-		for (i = 0; i < EDID_SIZE; i++)
-			rx_pr("%02x", p_edid[i]);
+	if (log_level & EDID_DATA_LOG) {
+		rx_pr("++++edid data after rm db by idx:\n");
+		for (i = 128; i < EDID_SIZE; i++)
+			pr_cont("%02x", p_edid[i]);
 		rx_pr("\n");
 	}
 }
@@ -4743,7 +4738,7 @@ void edid_splice_earc_capds(unsigned char *p_edid,
 		rx_pr("earc cap ds parse failed\n");
 		return;
 	}
-	if (log_level & EDID_LOG) {
+	if (log_level & EDID_DATA_LOG) {
 		rx_pr("++++raw cta blks extracted from capds:\n");
 		for (i = 0; i < raw_edid_len; i++)
 			rx_pr("%02x", raw_edid_out[i]);
