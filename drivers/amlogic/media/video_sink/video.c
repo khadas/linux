@@ -4558,6 +4558,7 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	int vdin_keep_count = VDIN_KEEP_COUNT;
 	unsigned int ret_hz = 0;
 	u64 ext_delay = 0;
+	u32 vdin_buf_count = 0;
 
 	if (!tvin_delay_mode)
 		return;
@@ -4627,12 +4628,18 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	 *di keep 1/2 buf, 8/7 left
 	 *count = (7 + 8/7) * vdin_vsync+ 3 * vpp_vsync;
 	 */
+
+	vdin_buf_count = get_vdin_buffer_num();
+	if (vdin_buf_count <= 0) {
+		pr_info("%s:Get count failed, use default value.\n", __func__);
+		vdin_buf_count = VDIN_BUF_COUNT;
+	}
 	if (di_has_vdin_vf || !do_di) {
-		vdin_count = VDIN_BUF_COUNT - 3 - DIS_PATH_DELAY_COUNT - 1;
+		vdin_count = vdin_buf_count - 3 - DIS_PATH_DELAY_COUNT - 1;
 		vpp_count = DIS_PATH_DELAY_COUNT + 1;
 	} else {
 		vdin_count = DI_MAX_OUT_COUNT - 2 +
-			VDIN_BUF_COUNT - 2 - di_keep_count;
+			vdin_buf_count - 2 - di_keep_count;
 		vpp_count = DIS_PATH_DELAY_COUNT + 1;
 	}
 	hdmin_delay_max = vdin_count * vdin_vsync + vpp_count * vpp_vsync;
@@ -4654,6 +4661,7 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	u64 memc_delay = 0;
 	int vdin_keep_count = VDIN_KEEP_COUNT;
 	u64 ext_delay = 0;
+	u32 vdin_buf_count = 0;
 
 	if (!tvin_info->is_dv && tvin_info->width <= 3840 &&
 		tvin_info->cfmt == TVIN_YUV422) {
@@ -4712,12 +4720,17 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	 *di keep 1/2 buf, 8/7 left
 	 *count = (7 + 8/7) * vdin_vsync+ 3 * vpp_vsync;
 	 */
+	vdin_buf_count = get_vdin_buffer_num();
+	if (vdin_buf_count <= 0) {
+		pr_info("%s:Get count failed, use default value.\n", __func__);
+		vdin_buf_count = VDIN_BUF_COUNT;
+	}
 	if (di_has_vdin_vf || !do_di) {
-		vdin_count = VDIN_BUF_COUNT - 3 - DIS_PATH_DELAY_COUNT - 1;
+		vdin_count = vdin_buf_count - 3 - DIS_PATH_DELAY_COUNT - 1;
 		vpp_count = DIS_PATH_DELAY_COUNT + 1;
 	} else {
 		vdin_count = DI_MAX_OUT_COUNT - 2 +
-			VDIN_BUF_COUNT - 2 - di_keep_count;
+			vdin_buf_count - 2 - di_keep_count;
 		vpp_count = DIS_PATH_DELAY_COUNT + 1;
 	}
 	hdmin_delay_max = vdin_count * vdin_vsync + vpp_count * vpp_vsync;
