@@ -5,6 +5,7 @@
 
 #include "meson_crtc.h"
 #include "meson_vpu_pipeline.h"
+
 #include <linux/amlogic/media/vout/vout_notify.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -581,7 +582,7 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 #endif
 
 	amcrtc->get_scannout_position = meson_crtc_get_scannout_position;
-
+	amcrtc->force_crc_chk = 8;
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;

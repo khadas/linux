@@ -20,6 +20,10 @@
 #define VPP_POST_BLEND_BLEND_DUMMY_DATA            0x3968
 #define VPP_POST_BLEND_DUMMY_ALPHA                 0x3969
 
+/* vpp crc */
+#define VPP_RO_CRCSUM           0x1db2
+#define VPP_CRC_CHK             0x1db3
+
 #define VPP_POST_BLEND_REF_ZORDER                  128
 
 struct postblend_reg_s {

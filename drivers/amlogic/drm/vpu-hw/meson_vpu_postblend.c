@@ -6,6 +6,10 @@
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
+
 #include "meson_crtc.h"
 #include "meson_vpu_pipeline.h"
 #include "meson_vpu_util.h"
@@ -99,6 +103,15 @@ static void vpp_osd2_blend_scope_set(struct postblend_reg_s *reg,
 			    (scope.v_start << 16) | scope.v_end);
 }
 
+static void vpp_chk_crc(struct am_meson_crtc *amcrtc)
+{
+	if (amcrtc->force_crc_chk ||
+		(amcrtc->vpp_crc_enable && cpu_after_eq(MESON_CPU_MAJOR_ID_SM1))) {
+		meson_vpu_write_reg(VPP_CRC_CHK, 1);
+		amcrtc->force_crc_chk--;
+	}
+}
+
 static int postblend_check_state(struct meson_vpu_block *vblk,
 				 struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
@@ -182,6 +195,7 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 		vpp_osd2_postblend_mux_set(postblend->reg, VPP_NULL);
 	}
 
+	vpp_chk_crc(amc);
 	osd1_blend_premult_set(reg);
 	if (0)
 		osd2_blend_premult_set(reg);

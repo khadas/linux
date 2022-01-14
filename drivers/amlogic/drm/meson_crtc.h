@@ -58,7 +58,8 @@ struct am_meson_crtc {
 	char osddump_path[64];
 
 	int vpp_crc_enable;
-
+	/*forced to detect crc several times after bootup.*/
+	int force_crc_chk;
 	/*funcs*/
 	int (*get_scannout_position)(struct am_meson_crtc *crtc,
 		bool in_vblank_irq, int *vpos, int *hpos,
