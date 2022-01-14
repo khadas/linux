@@ -1644,7 +1644,8 @@ RESTART:
 		screen_height = video_height * vpp_zoom_ratio / 100;
 
 		ratio_x = (w_in << 18) / screen_width;
-		if (ratio_x * screen_width < (w_in << 18))
+		/* check if overflow 0.5 pixel */
+		if (screen_width * 2  < (w_in << 19) / ratio_x)
 			ratio_x++;
 
 		ratio_y = (height_after_ratio << 18) / screen_height;
