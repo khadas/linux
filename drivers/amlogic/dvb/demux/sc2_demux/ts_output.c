@@ -24,6 +24,8 @@
 #include "../aml_dvb.h"
 #include "../dmx_log.h"
 #include <linux/fs.h>
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DEMUX
+#include <trace/events/meson_atrace.h>
 
 #define MAX_TS_PID_NUM              1024
 #define MAX_SID_NUM                 64
@@ -139,6 +141,7 @@ struct out_elem {
 	struct dump_file dump_file;
 	u8 use_external_mem;
 	unsigned int decoder_rp_offset;
+	char name[32];
 };
 
 struct sid_entry {
@@ -505,6 +508,7 @@ static int section_process(struct out_elem *pout)
 		if (ret != 0) {
 			if (pout->cb_sec_list) {
 				w_size = out_sec_cb_list(pout, pread, ret);
+				ATRACE_COUNTER(pout->name, w_size);
 				pr_dbg("%s send:%d, w:%d wwwwww\n", __func__,
 				       ret, w_size);
 				pout->remain_len = ret - w_size;
@@ -537,6 +541,7 @@ static int section_process(struct out_elem *pout)
 				ret = pout->remain_len;
 				w_size =
 				    out_sec_cb_list(pout, pout->cache, ret);
+				ATRACE_COUNTER(pout->name, w_size);
 				pr_dbg("%s send:%d, w:%d\n", __func__, ret,
 				       w_size);
 				pout->remain_len = ret - w_size;
@@ -877,6 +882,7 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		return -1;
 
 	if (es_params->have_send_header == 0) {
+		ATRACE_COUNTER(pout->name, es_params->header.pts);
 		pr_dbg("%s pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
 		       pout->type == AUDIO_TYPE ? "audio" : "video",
 			   pout->es_pes->pid,
@@ -1300,6 +1306,7 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	}
 
 	if (es_params->have_send_header == 0) {
+		ATRACE_COUNTER(pout->name, es_params->header.pts);
 		pr_dbg("%s pdts_flag:%d, pts:0x%lx, dts:0x%lx, len:%d\n",
 		       pout->type == AUDIO_TYPE ? "audio" : "video",
 		       es_params->header.pts_dts_flag,
@@ -1570,6 +1577,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		pr_dbg("video data start:0x%x,data end:0x%x\n",
 				sec_es_data.data_start, sec_es_data.data_end);
 
+	ATRACE_COUNTER(pout->name, sec_es_data.pts);
 	pr_dbg("video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
 			pout->es_pes->pid,
 			pout->sid,
@@ -2155,7 +2163,6 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 	pout->ref = 0;
 	pout->newest_pts = 0;
 	pout->decoder_rp_offset = INVALID_DECODE_RP;
-
 	memset(&attr, 0, sizeof(struct bufferid_attr));
 	attr.mode = OUTPUT_MODE;
 
@@ -2404,6 +2411,29 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		}
 		tsout_config_es_table(es_pes->buff_id, es_pes->pid,
 				      pout->sid, 1, !drop_dup, pout->format);
+		switch (pout->format) {
+		case ES_FORMAT:
+		case PES_FORMAT:
+			snprintf(pout->name, sizeof(pout->name),
+				"demux_%s_%s_%x_%x",
+				pout->type == AUDIO_TYPE ? "audio" : "video",
+				pout->format == ES_FORMAT ? "es" : "pes",
+				pout->sid,
+				pout->es_pes->pid
+			);
+			ATRACE_COUNTER(pout->name, 0);
+			break;
+		case SECTION_FORMAT:
+			snprintf(pout->name, sizeof(pout->name),
+				"demux_section_%x_%x",
+				pout->sid,
+				pout->es_pes->pid
+			);
+			ATRACE_COUNTER(pout->name, 0);
+			break;
+		default:
+			break;
+		}
 	} else {
 		if (cb_id)
 			*cb_id = dmx_id;
