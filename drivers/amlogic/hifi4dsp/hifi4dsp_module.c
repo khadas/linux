@@ -608,6 +608,11 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 	pr_debug("dsp_start_addr: 0x%llx\n",
 		 (unsigned long long)dsp->dsp_fw->paddr);
 
+	if (dsp->dspstarted == 1) {
+		pr_err("duplicate start dsp\n");
+		return -EPERM;
+	}
+
 	if (!dsp->dsp_clk) {
 		pr_err("dsp_clk=NULL\n");
 		return -EINVAL;
