@@ -259,12 +259,20 @@ void dtmb_initial(struct aml_dtvdemod *demod)
 
 	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
 		clear_ddr_bus_data();
-		dtmb_write_reg(0x7, 0xffffff);
 		//dtmb_write_reg(0x47, 0x133220);
 		dtmb_write_reg_bits(0x47, 0x0, 22, 1);
 		dtmb_write_reg_bits(0x47, 0x0, 23, 1);
 	}
 	dtmb_all_reset(demod);
+
+	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		//dtmb_write_reg(0x7, 0x4ffffff);
+		dtmb_write_reg_bits(0x7, 0x1, 26, 1);
+		dtmb_write_reg_bits(0x7, 0x0, 25, 1);
+		dtmb_write_reg_bits(0x7, 0x0, 24, 1);
+		dtmb_write_reg_bits(0x7, 0x1, 23, 1);
+		dtmb_write_reg(0x19, 0xfffff);
+	}
 }
 
 int check_dtmb_fec_lock(void)
