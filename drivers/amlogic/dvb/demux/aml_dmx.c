@@ -2079,6 +2079,73 @@ static ssize_t dump_ts_store(struct class *class,
 	return size;
 }
 
+static ssize_t dmx_source_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	return dmx_setting_show(class, attr, buf);
+}
+
+static ssize_t dmx_source_store(struct class *class,
+				 struct class_attribute *attr,
+				 const char *buf, size_t size)
+{
+	int dmx_id = 1;
+	char input_str[255];
+	char hw_source_str[255];
+	int s0;
+	int hw_source = 0;
+	struct aml_dvb *advb = aml_get_dvb_device();
+	struct aml_dmx *demux;
+	int input_source = 0;
+
+	dprint_i("%s\n", buf);
+	if (sscanf(buf, "%d %s %s", &dmx_id,
+			(char *)&input_str[0], (char *)&hw_source_str[0]) < 0)
+		goto error_handle;
+	if (dmx_id > 9) {
+		dprint_i("dmx_id:%d fail\n", dmx_id);
+		return size;
+	}
+	demux = &advb->dmx[dmx_id];
+	if (!demux->init) {
+		dprint_i("dmx_id:%d not init\n", dmx_id);
+		return size;
+	}
+	dprint_i("%d %s %s\n", dmx_id, input_str, hw_source_str);
+	if (!strncmp(&input_str[0], "local_sec", 9))
+		input_source = INPUT_LOCAL_SEC;
+	else if (!strncmp(&input_str[0], "local", 5))
+		input_source = INPUT_LOCAL;
+	else if (!strncmp(&input_str[0], "demod", 5))
+		input_source = INPUT_DEMOD;
+	else
+		goto error_handle;
+
+	if (!strncmp(&hw_source_str[0], "dma_", 4)) {
+		s0 = hw_source_str[4] - 0x30;
+		if (hw_source_str[5] == '_')
+			hw_source = DMA_0_1 + s0;
+		else
+			hw_source = DMA_0 + s0;
+	} else if (!strncmp(&hw_source_str[0], "ts_", 3)) {
+		s0 = hw_source_str[3] - 0x30;
+		if (hw_source_str[4] == '_')
+			hw_source = FRONTEND_TS0_1 + s0;
+		else
+			hw_source = FRONTEND_TS0 + s0;
+	} else {
+		goto error_handle;
+	}
+	dprint_i("dmx%d input:%d source:%d\n",
+		demux->id, input_source, hw_source);
+	_dmx_set_input((struct dmx_demux *)demux, input_source);
+	_dmx_set_hw_source((struct dmx_demux *)demux, hw_source);
+	return size;
+error_handle:
+	dprint_i("should dmx_id local/local_sec/demod dma_x/dmx_x_1/ts_x/ts_x_1\n");
+	return size;
+}
+
 #ifdef OPEN_REGISTER_NODE
 static CLASS_ATTR_RW(register_addr);
 static CLASS_ATTR_RW(register_value);
@@ -2088,6 +2155,7 @@ static CLASS_ATTR_RW(dump_filter);
 static CLASS_ATTR_RO(dump_av_level);
 static CLASS_ATTR_RW(cache_status);
 static CLASS_ATTR_RW(dump_ts);
+static CLASS_ATTR_RW(dmx_source);
 
 static struct attribute *aml_dmx_class_attrs[] = {
 #ifdef OPEN_REGISTER_NODE
@@ -2099,6 +2167,7 @@ static struct attribute *aml_dmx_class_attrs[] = {
 	&class_attr_dump_av_level.attr,
 	&class_attr_cache_status.attr,
 	&class_attr_dump_ts.attr,
+	&class_attr_dmx_source.attr,
 	NULL
 };
 

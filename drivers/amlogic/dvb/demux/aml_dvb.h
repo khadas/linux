@@ -70,5 +70,7 @@ void set_dvb_loop_tsn(int flag);
 int get_dvb_loop_tsn(void);
 
 extern int is_security_dmx;
+ssize_t dmx_setting_show(struct class *class,
+	struct class_attribute *attr, char *buf);
 
 #endif
