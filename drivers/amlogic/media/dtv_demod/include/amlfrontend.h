@@ -33,6 +33,7 @@
 /*  V1.1.40  t5w change list check abus audio problem */
 /*  V1.1.41  support auto qam in j83b */
 /*  V1.1.42  optimization of DVBS blind scan  */
+/*  V1.1.43  rebuild dvbc to fix autosr and recovery is slowly */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -49,8 +50,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.42"
-#define DTVDEMOD_VER	"2022/03/23: optimization of DVBS blind scan"
+#define AMLDTVDEMOD_VER "V1.1.43"
+#define DTVDEMOD_VER	"2022/2/16: rebuild dvbc"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
