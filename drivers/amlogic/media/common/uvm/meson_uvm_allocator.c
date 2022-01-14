@@ -354,7 +354,6 @@ static int mua_set_commit_display(int fd, int commit_display)
 static int mua_get_meta_data(int fd, ulong arg)
 {
 	struct dma_buf *dmabuf;
-	struct uvm_handle *handle;
 	struct vframe_s *vfp;
 	struct uvm_meta_data meta;
 
@@ -364,21 +363,28 @@ static int mua_get_meta_data(int fd, ulong arg)
 		return -EINVAL;
 	}
 
-	handle = dmabuf->priv;
-	vfp = &handle->vf;
+	vfp = dmabuf_get_vframe(dmabuf);
 
 	/* check source type. */
 	if (!vfp->meta_data_size ||
 		vfp->meta_data_size > META_DATA_SIZE) {
 		MUA_PRINTK(0, "meta data size: %d is invalid.\n",
 			vfp->meta_data_size);
+		dmabuf_put_vframe(dmabuf);
 		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
 
 	meta.fd = fd;
 	meta.size = vfp->meta_data_size;
+	if (!vfp->meta_data_buf) {
+		MUA_PRINTK(0, "vfp->meta_data_buf is NULL.\n");
+		dmabuf_put_vframe(dmabuf);
+		dma_buf_put(dmabuf);
+		return -EINVAL;
+	}
 	memcpy(meta.data, vfp->meta_data_buf, vfp->meta_data_size);
+	dmabuf_put_vframe(dmabuf);
 
 	if (copy_to_user((void __user *)arg, &meta, sizeof(meta))) {
 		MUA_PRINTK(0, "meta data copy err.\n");
