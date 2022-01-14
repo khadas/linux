@@ -250,23 +250,14 @@ static int meson_rtc_get_calibration(struct device *dev, u32 *calibration)
 
 	reg_val = readl(rtc->reg_base + RTC_SEC_ADJUST_REG);
 	match_counter = reg_val & 0x7ffff;
-	sec_adjust_ctrl = ((reg_val >> 19) & 0x3);
+	sec_adjust_ctrl = (reg_val >> 19) & 3U;
 
-	switch (sec_adjust_ctrl) {
-	case 0:
-	case 1:
+	if (sec_adjust_ctrl == 0 || sec_adjust_ctrl == 1)
 		cal_ops = ADJUST_NONE;
-		break;
-	case 2:
+	else if (sec_adjust_ctrl == 2)
 		cal_ops = ADJUST_DROP;
-		break;
-	case 3:
+	else
 		cal_ops = ADJUST_INSERT;
-		break;
-	default:
-		cal_ops = ADJUST_NONE;
-		break;
-	}
 
 	*calibration = ((cal_ops & 0x3) << 30) | (match_counter & 0x7ffff);
 	return 0;
