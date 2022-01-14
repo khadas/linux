@@ -1629,6 +1629,7 @@
 &aml_wifi{
 	status = "okay";
 	power_on-gpios = <&gpio   GPIOC_11  GPIO_ACTIVE_HIGH>;
+	disable-wifi-32k;
 };
 
 &aml_bt {
