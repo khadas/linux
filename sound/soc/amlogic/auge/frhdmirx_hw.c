@@ -326,14 +326,17 @@ void arc_earc_source_select(int src)
 /* this is used from TM2, arc source enable */
 void arc_enable(bool enable, int version)
 {
-	pr_info("%s enable: %d\n", __func__, enable);
+	enum attend_type type = aml_get_earctx_connected_device_type();
+	bool is_reset_hpd = aml_get_earctx_reset_hpd();
+
+	pr_info("%s enable: %d, type %d, is_reset_hpd %d\n",
+		__func__, enable, type, is_reset_hpd);
 	aml_earctx_dmac_mute(!enable);
 	/*
 	 * 1. can't disable earc as the heartbeat lost
 	 * 2. can't disable earc during reset hpd by earc driver
 	 */
-	if (aml_get_earctx_connected_device_type() == ATNDTYP_EARC ||
-	    aml_get_earctx_reset_hpd())
+	if (type == ATNDTYP_EARC || is_reset_hpd)
 		return;
 
 	if (is_earc_spdif()) {

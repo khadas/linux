@@ -1730,6 +1730,7 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 	if (p_earc->tx_earc_mode) {
 		p_earc->tx_reset_hpd = true;
+		aml_earctx_enable_d2a(true);
 		rx_earc_hpd_cntl(); /* reset hpd */
 	}
 #endif
