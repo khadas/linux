@@ -58,6 +58,7 @@ static int tsn_in;
 static int tsn_out;
 static int print_stc;
 static int print_dmx;
+static int tso_src = -1;
 
 #define MAX_DMX_DEV_NUM      32
 static int sid_info[MAX_DMX_DEV_NUM];
@@ -288,7 +289,10 @@ ssize_t tso_source_show(struct class *class,
 {
 	int r, total = 0;
 
-	r = sprintf(buf, "tso_source:ts1\n");
+	if (tso_src == -1)
+		r = sprintf(buf, "tso_source:undefine\n");
+	else
+		r = sprintf(buf, "tso_source:ts%d\n", tso_src);
 
 	buf += r;
 	total += r;
@@ -300,21 +304,20 @@ ssize_t tso_source_store(struct class *class,
 			 const char *buf, size_t count)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
-	int src = -1;
 
 	if (mutex_lock_interruptible(&advb->mutex))
 		return -ERESTARTSYS;
 
 	if (!strncmp("ts0", buf, 3))
-		src = 0;
+		tso_src = 0;
 	else if (!strncmp("ts1", buf, 3))
-		src = 1;
+		tso_src = 1;
 	else if (!strncmp("ts2", buf, 3))
-		src = 2;
+		tso_src = 2;
 	else if (!strncmp("ts3", buf, 3))
-		src = 3;
+		tso_src = 3;
 
-	tso_set(src);
+	tso_set(tso_src);
 
 	mutex_unlock(&advb->mutex);
 	return count;
