@@ -462,8 +462,8 @@
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
 		pinctrl-2 = <&bl_pwm_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
-		interrupts = <0 197 1>;
-		interrupt-names = "vsync";
+		interrupts-extended = <&gic 0 197 1>,<&gpio_intc 119 1>;
+		interrupt-names = "vsync","ldim_pwm_vs";
 		bl_pwm_config = <&bl_pwm_conf>;
 		memory-region = <&ldc_mem_reserved>;
 
@@ -593,9 +593,9 @@
 			index = <2>;
 			type = <1>; /* 0=normal,1=spi,2=i2c */
 			ldim_dev_name = "iw7027";
-			ldim_pwm_port = "PWM_VS";
+			ldim_pwm_port = "PWM_D";
 			ldim_pwm_attr = <1  /* pol */
-				2 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				120 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				2>;/*default duty(%)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;

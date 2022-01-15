@@ -212,6 +212,7 @@ struct aml_bl_drv_s {
 	struct work_struct        config_probe_work;
 	struct delayed_work       delayed_on_work;
 	struct resource *res_ldim_vsync_irq;
+	struct resource *res_ldim_pwm_vs_irq;
 	struct resource *res_vsync_irq[3];
 	/*struct resource *res_ldim_rdma_irq;*/
 

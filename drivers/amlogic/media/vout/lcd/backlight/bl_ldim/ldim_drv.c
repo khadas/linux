@@ -68,6 +68,7 @@ static struct aml_ldim_driver_s ldim_driver;
 
 static spinlock_t ldim_isr_lock;
 static spinlock_t rdma_ldim_isr_lock;
+static spinlock_t ldim_pwm_vs_isr_lock;
 
 static struct workqueue_struct *ldim_queue;
 static struct work_struct ldim_on_vs_work;
@@ -634,16 +635,46 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 		local_time[1] = sched_clock();
 		local_time[2] = local_time[1] - local_time[0];
 		ldim_time_sort_save(ldim_driver.arithmetic_time, local_time[2]);
+
+		if (bdrv->data->chip_type != LCD_CHIP_T3 &&
+			bdrv->data->chip_type != LCD_CHIP_T7) {
+			ldim_remap_update();
+		}
+	}
+
+	ldim_driver.irq_cnt++;
+	if (ldim_driver.irq_cnt > 0xfffffff)
+		ldim_driver.irq_cnt = 0;
+
+	spin_unlock_irqrestore(&ldim_isr_lock, flags);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ldim_pwm_vs_isr(int irq, void *dev_id)
+{
+	unsigned long flags;
+
+	if (ldim_driver.init_on_flag == 0)
+		return IRQ_HANDLED;
+
+	if (ldim_driver.pwm_vs_irq_cnt == ldim_driver.irq_cnt)
+		return IRQ_HANDLED;
+
+	ldim_driver.pwm_vs_irq_cnt = ldim_driver.irq_cnt;
+
+	spin_lock_irqsave(&ldim_pwm_vs_isr_lock, flags);
+
+	if (ldim_debug_print == 7)
+		LDIMPR("%s: pwm_vs_irq_cnt = %d\n", __func__, ldim_driver.pwm_vs_irq_cnt);
+
+	if (ldim_driver.func_en && ldim_driver.ld_sel) {
 #ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
 		ldim_on_vs_brightness();
 #else
 		/*schedule_work(&ldim_on_vs_work);*/
 		queue_work(ldim_queue, &ldim_on_vs_work);
 #endif
-		if (bdrv->data->chip_type != LCD_CHIP_T3 &&
-			bdrv->data->chip_type != LCD_CHIP_T7) {
-			ldim_remap_update();
-		}
 
 	} else {
 #ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
@@ -654,11 +685,7 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 #endif
 	}
 
-	ldim_driver.irq_cnt++;
-	if (ldim_driver.irq_cnt > 0xfffffff)
-		ldim_driver.irq_cnt = 0;
-
-	spin_unlock_irqrestore(&ldim_isr_lock, flags);
+	spin_unlock_irqrestore(&ldim_pwm_vs_isr_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -1759,6 +1786,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	unsigned int ldim_vsync_irq = 0;
+	unsigned int ldim_pwm_vs_irq = 0;
 	struct ldim_dev_s *devp = &ldim_dev;
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct ldim_fw_s *fw = aml_ldim_get_fw();
@@ -1901,6 +1929,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 
 	spin_lock_init(&ldim_isr_lock);
 	spin_lock_init(&rdma_ldim_isr_lock);
+	spin_lock_init(&ldim_pwm_vs_isr_lock);
 
 	bdrv->res_ldim_vsync_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
 	if (!bdrv->res_ldim_vsync_irq) {
@@ -1912,6 +1941,19 @@ int aml_ldim_probe(struct platform_device *pdev)
 	if (request_irq(ldim_vsync_irq, ldim_vsync_isr, IRQF_SHARED,
 		"ldim_vsync", (void *)"ldim_vsync")) {
 		LDIMERR("can't request ldim_vsync_irq(%d)\n", ldim_vsync_irq);
+	}
+
+	bdrv->res_ldim_pwm_vs_irq = platform_get_resource_byname(pdev,
+		IORESOURCE_IRQ, "ldim_pwm_vs");
+	if (!bdrv->res_ldim_pwm_vs_irq) {
+		ret = -ENODEV;
+		LDIMERR("dim_pwm_vs_irq resource error\n");
+		goto err4;
+	}
+	ldim_pwm_vs_irq = bdrv->res_ldim_pwm_vs_irq->start;
+	if (request_irq(ldim_pwm_vs_irq, ldim_pwm_vs_isr, IRQF_TRIGGER_FALLING,
+		"ldim_pwm_vs", (void *)"ldim_pwm_vs")) {
+		LDIMERR("can't request ldim_pwm_vs_irq(%d)\n", ldim_pwm_vs_irq);
 	}
 
 	ldim_driver.valid_flag = 1;

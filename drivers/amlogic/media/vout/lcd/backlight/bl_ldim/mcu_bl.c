@@ -182,15 +182,12 @@ static int blmcu_smr(struct aml_ldim_driver_s *ldim_drv, unsigned int *buf,
 		return -1;
 	}
 
-	mutex_lock(&dev_mutex);
-
 	ldim_data_mapping(buf, dev_drv->dim_max, dev_drv->dim_min,
 				  dev_drv->zone_num);
 	ldim_vs_debug_info(ldim_drv);
 
 	ret = ldim_spi_write_async(dev_drv->spi_dev, bl_mcu->tbuf, bl_mcu->rbuf,
 		bl_mcu->tbuf_size, bl_mcu->dma_support, bl_mcu->tbuf_size);
-	mutex_unlock(&dev_mutex);
 
 	return ret;
 }

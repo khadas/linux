@@ -354,6 +354,7 @@ struct aml_ldim_driver_s {
 	unsigned int litgain;
 	unsigned int dbg_vs_cnt;
 	unsigned int irq_cnt;
+	unsigned int pwm_vs_irq_cnt;
 	unsigned long long arithmetic_time[10];
 	unsigned long long xfer_time[10];
 
