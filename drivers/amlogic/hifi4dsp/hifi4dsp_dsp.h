@@ -24,6 +24,11 @@ enum dsp_start_mode {
 	MAX_START_MODE,
 };
 
+enum dsp_index {
+	DSPA = 0,
+	DSPB
+};
+
 /*
  * DSP memory offsets and addresses.
  */
@@ -213,5 +218,7 @@ struct hifi4dsp_dsp *hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
 void create_hifi4_syslog(void);
 void hifi4_syslog_reomve(void);
 struct hifi4dsp_addr *hifi4dsp_get_share_memory(void);
-
+unsigned int get_logbuff_loglen(struct dsp_ring_buffer *rb);
+unsigned int show_logbuff_log(struct dsp_ring_buffer *rb, int dspid,
+		unsigned int len);
 #endif /*_HIFI4DSP_DSP_H*/

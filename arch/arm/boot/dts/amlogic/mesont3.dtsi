@@ -360,6 +360,7 @@
 			  <0x0 0x0>,     /*dspb status counter*/
 			  <0x30000000 0x80000>; /*dsp shm region*/
 		dsp-monitor-period-ms = <1000>;
+		logbuff-polling-period-ms = <50>;
 		reg-names = "dspa_top_reg", "dspb_top_reg";
 		clocks = <&clkc CLKID_DSPA>;
 		clock-names = "dspa_clk";

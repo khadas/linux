@@ -40,12 +40,14 @@ struct dsp_ring_buffer {
 	unsigned int magic;
 	unsigned int basepaddr;
 	unsigned int size;
-	unsigned int head;
-	unsigned int tail;
-	char data[4];
+	unsigned int head;   /*buffer head: move forward only when tail reaches head*/
+	unsigned int headr;  /*read position: move forward only when buffer is read/printed*/
+	unsigned int tail;   /*write position:move forward only when writing to buffer*/
+	char buffer[4];
 };
 
 #define DSP_LOGBUFF_MAGIC 0x1234ABCD
+#define DSP_LOGBUFF_PRINT_LEN 256
 
 #define HIFI4DSP_SHM_CLEAN \
 		_IOWR(HIFI4DSP_IOC_MAGIC, 64, struct hifi4_shm_info_t)

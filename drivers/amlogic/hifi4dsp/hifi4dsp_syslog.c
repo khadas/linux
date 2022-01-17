@@ -28,6 +28,7 @@
 #include <linux/mutex.h>
 #include <uapi/linux/psci.h>
 #include <linux/debugfs.h>
+#include <linux/kdebug.h>
 #include <linux/sched/signal.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_reserved_mem.h>
@@ -43,139 +44,99 @@ static struct dentry *hifi4rtos_debug_dir;
 static struct dentry *hifi4alogbuf_file;
 static struct dentry *hifi4blogbuf_file;
 
-struct hifi4syslog hifi4logbuffer[2];
-
-void dumpsyslogbinary(void *base, u32 bytes)
+unsigned int show_logbuff_log(struct dsp_ring_buffer *rb, int dspid,
+		unsigned int len)
 {
-	int i;
-	u32 *buf;
+	char buffer[DSP_LOGBUFF_PRINT_LEN + 1] = {0};
+	unsigned int count = 0;
 
-	buf = (u32 *)base;
-	for (i = 0; i < bytes / 4; i += 2) {
-		pr_info("%u:   %08x     %08x\n",
-			i, buf[i], buf[i + 1]);
+	if (!rb || !len)
+		return 0;
+	else if (len > DSP_LOGBUFF_PRINT_LEN)
+		len = DSP_LOGBUFF_PRINT_LEN;
+
+	while (len--) {
+		buffer[count++] = rb->buffer[rb->headr++];
+		rb->headr %= rb->size;
 	}
+	buffer[count] = '\0';
+	pr_info("[%s-%u]%s", dspid ? "DSPBB" : "DSPAA", count, buffer);
+
+	return count;
 }
 
-static struct page *hifi4mappage(phys_addr_t addr)
+unsigned int get_logbuff_loglen(struct dsp_ring_buffer *rb)
 {
-	struct page *page = pfn_to_page(addr >> PAGE_SHIFT);
-
-	page = pfn_to_page(addr >> PAGE_SHIFT);
-
-	return page;
-}
-
-static int dumphifi4syslog(u32 dspid, struct seq_file *s)
-{
-	int cnt = 0;
-	char *hifi4logdata;
-	char *tmpbuffer;
-	struct page *page = NULL;
-	u32 hifi4rtosinfo_addr;
-	u32 hifi4rtosinfo_size;
-	u32 hifi4rtosinfo_head;
-	u32 hifi4rtosinfo_tail;
-
-	tmpbuffer = NULL;
-	hifi4logdata = NULL;
-
-	if (strncmp(hifi4logbuffer[dspid].syslogstate, "ON", 2) == 0) {
-		hifi4rtosinfo_addr = hifi4logbuffer[dspid].logbaseaddr;
-		pr_info("hifi4rtosinfo_addr=0x%08x\n", hifi4rtosinfo_addr);
-		hifi4rtosinfo_size = hifi4logbuffer[dspid].syslogsize;
-		pr_info("hifi4rtosinfo_size=0x%08x\n", hifi4rtosinfo_size);
-		hifi4rtosinfo_head = hifi4logbuffer[dspid].loghead;
-		hifi4rtosinfo_tail = hifi4logbuffer[dspid].logtail;
-		pr_info("hifi4rtosinfo_head=0x%08x, hifi4rtosinfo_tail:0x%08x\n",
-			hifi4rtosinfo_head, hifi4rtosinfo_tail);
-
-		dma_sync_single_for_device(hifi4dsp_p[0]->dsp->dev,
-					   (phys_addr_t)hifi4rtosinfo_addr,
-					   hifi4rtosinfo_size,
-					   DMA_TO_DEVICE);
-
-		/*Alloc log buffer memory*/
-		hifi4logdata = kmalloc(hifi4rtosinfo_size, GFP_KERNEL);
-		if (!hifi4logdata)
-			return -ENOMEM;
-
-		/*map hifi4 logbuffer to kernel space*/
-		page = hifi4mappage((phys_addr_t)hifi4rtosinfo_addr);
-		tmpbuffer = kmap(page) + (hifi4rtosinfo_addr & ~PAGE_MASK);
-		tmpbuffer[hifi4rtosinfo_addr] = '\0';
-
-		memset(hifi4logdata, 0, hifi4rtosinfo_size);
-
-		if (hifi4rtosinfo_head < hifi4rtosinfo_tail) {
-			pr_info("copy from head - tail to user space\n");
-			cnt = hifi4rtosinfo_tail - hifi4rtosinfo_head;
-			memcpy(hifi4logdata, tmpbuffer, cnt);
-		} else if (hifi4rtosinfo_head > hifi4rtosinfo_tail) {
-			cnt = hifi4rtosinfo_size;
-			pr_debug("\ncopy from head to end\n");
-			memcpy(hifi4logdata, &tmpbuffer[hifi4rtosinfo_head],
-			       cnt - hifi4rtosinfo_head);
-			pr_debug("\ncopy from 0 to tail\n");
-			memcpy(&hifi4logdata[cnt - hifi4rtosinfo_head],
-			       tmpbuffer, hifi4rtosinfo_tail + 1);
-		}
-		seq_printf(s, "%s\n", hifi4logdata);
-		kunmap(page);
-		page = NULL;
-		kfree(hifi4logdata);
-		hifi4logdata = NULL;
-		strcpy(hifi4logbuffer[dspid].syslogstate, "OFF");
-	} else {
-		seq_printf(s, "hifi4[%u], syslogstate: %s, did not get reply ringbuffer information\n",
-			   dspid, hifi4logbuffer[dspid].syslogstate);
-	}
-	return 0;
-}
-
-static int sendrequest(u32 dspid)
-{
-	char requestinfo[] = "AP request";
-	struct hifi4syslog phifilogbuf;
-
-	strcpy(hifi4logbuffer[dspid].syslogstate, "OFF");
-	/*send request cmd to dsp to get syslog args*/
-	if (dspid == 0)
-		scpi_send_data(requestinfo, sizeof(requestinfo),
-			       SCPI_DSPA, SCPI_CMD_HIFI4SYSTLOG,
-			       &phifilogbuf, sizeof(phifilogbuf));
+	if (!rb)
+		return 0;
+	if (rb->tail < rb->headr)
+		return rb->tail + rb->size - rb->headr;
 	else
-		scpi_send_data(requestinfo, sizeof(requestinfo),
-			       SCPI_DSPB, SCPI_CMD_HIFI4SYSTLOG,
-			       &phifilogbuf, sizeof(phifilogbuf));
+		return rb->tail - rb->headr;
+}
 
-	strcpy(hifi4logbuffer[dspid].syslogstate, phifilogbuf.syslogstate);
-	hifi4logbuffer[dspid].logbaseaddr = phifilogbuf.logbaseaddr;
-	hifi4logbuffer[dspid].syslogsize = phifilogbuf.syslogsize;
-	hifi4logbuffer[dspid].loghead = phifilogbuf.loghead;
-	hifi4logbuffer[dspid].logtail = phifilogbuf.logtail;
+static int gethifi4logbufer(struct seq_file *s, void *what)
+{
+	int len, count = 0;
+	struct hifi4dsp_priv *dsp_p = s->private;
+	char *hifi4logdata;
+	unsigned int head, headr, tail, size, magic, basepaddr;
 
+	if (!dsp_p || !dsp_p->dsp || !dsp_p->dsp->logbuff)
+		goto out;
+
+	head = dsp_p->dsp->logbuff->head;
+	tail = dsp_p->dsp->logbuff->tail;
+	size = dsp_p->dsp->logbuff->size;
+	headr = dsp_p->dsp->logbuff->headr;
+	magic = dsp_p->dsp->logbuff->magic;
+	basepaddr = dsp_p->dsp->logbuff->basepaddr;
+
+	pr_debug("head:%u tail:%u size:%u headr:%u magic:0x%x basepaddr:0x%x\n",
+		head, tail, size, headr, magic, basepaddr);
+	if (tail == head)
+		len = 0;
+	else if (tail > head)
+		len = tail - head;
+	else
+		len = size - 1;
+	if (len == 0) {
+		seq_printf(s, "%s", "buffer length is 0\n");
+		goto out;
+	}
+	hifi4logdata = kzalloc(len + 1, GFP_KERNEL);
+	if (!hifi4logdata)
+		return -ENOMEM;
+
+	while (len--) {
+		hifi4logdata[count++] = dsp_p->dsp->logbuff->buffer[head++];
+		head %= size;
+	}
+	hifi4logdata[count] = '\0';
+	seq_printf(s, "%s", hifi4logdata);
+	kfree(hifi4logdata);
+out:
 	return 0;
 }
 
-static int gethifi4alogbufer(struct seq_file *s, void *what)
+static void dsp_logbuff_show(int dspid)
 {
-	int ret;
+	struct hifi4dsp_priv *dsp_p = hifi4dsp_p[dspid];
+	int len;
 
-	ret = sendrequest(0);
-	if (!ret)
-		ret = dumphifi4syslog(0, s);
-	return ret;
-}
+	if (!dsp_p || !dsp_p->dsp || !dsp_p->dsp->logbuff)
+		return;
 
-static int gethifi4blogbufer(struct seq_file *s, void *what)
-{
-	int ret;
-
-	ret = sendrequest(1);
-	if (!ret)
-		ret = dumphifi4syslog(1, s);
-	return ret;
+	len = get_logbuff_loglen(dsp_p->dsp->logbuff);
+	if (len > 0) {
+		pr_info("=========dsp%d log dump begin=========\n", dspid);
+		while (len > DSP_LOGBUFF_PRINT_LEN) {
+			show_logbuff_log(dsp_p->dsp->logbuff, dspid, DSP_LOGBUFF_PRINT_LEN);
+			len -= DSP_LOGBUFF_PRINT_LEN;
+		}
+		show_logbuff_log(dsp_p->dsp->logbuff, dspid, len);
+		pr_info("=========dsp%d log dump end=========\n", dspid);
+	}
 }
 
 static ssize_t logbuf_write(struct file *file, const char __user *userbuf,
@@ -186,12 +147,12 @@ static ssize_t logbuf_write(struct file *file, const char __user *userbuf,
 
 static int hifi4alogbuf_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, gethifi4alogbufer, inode->i_private);
+	return single_open(file, gethifi4logbufer, inode->i_private);
 }
 
 static int hifi4blogbuf_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, gethifi4blogbufer, inode->i_private);
+	return single_open(file, gethifi4logbufer, inode->i_private);
 }
 
 static const struct file_operations logbuf_fops[2] = {
@@ -212,6 +173,18 @@ static const struct file_operations logbuf_fops[2] = {
 
 };
 
+static int die_notify(struct notifier_block *self,
+			unsigned long cmd, void *ptr)
+{
+	dsp_logbuff_show(DSPA);
+	dsp_logbuff_show(DSPB);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block die_notifier = {
+	.notifier_call	= die_notify,
+};
+
 void create_hifi4_syslog(void)
 {
 	hifi4rtos_debug_dir = debugfs_create_dir("hifi4frtos", NULL);
@@ -221,15 +194,17 @@ void create_hifi4_syslog(void)
 	}
 
 	hifi4alogbuf_file = debugfs_create_file("hifi4alogbuf", S_IFREG | 0440,
-						hifi4rtos_debug_dir, NULL,
+						hifi4rtos_debug_dir, hifi4dsp_p[0],
 						&logbuf_fops[0]);
 	if (!hifi4alogbuf_file)
 		pr_err("[%s]debugfs_create_file failed..\n", __func__);
 	hifi4blogbuf_file = debugfs_create_file("hifi4blogbuf", S_IFREG | 0440,
-						hifi4rtos_debug_dir, NULL,
+						hifi4rtos_debug_dir, hifi4dsp_p[1],
 						&logbuf_fops[1]);
-	if (!hifi4alogbuf_file)
+	if (!hifi4blogbuf_file)
 		pr_err("[%s]debugfs_create_file failed..\n", __func__);
+	if (register_die_notifier(&die_notifier))
+		pr_err("%s,register die notifier failed!\n", __func__);
 }
 
 void hifi4_syslog_reomve(void)

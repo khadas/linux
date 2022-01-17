@@ -62,7 +62,7 @@ struct workqueue_struct *dsp_status_wq;
 struct workqueue_struct *dsp_logbuff_wq;
 static unsigned long dsp_online;
 static unsigned int dsp_monitor_period_ms = 2000;
-static unsigned int dsp_logbuff_polling_period_ms = 2000;
+static unsigned int dsp_logbuff_polling_period_ms;
 #define		SUSPEND_CLK_FREQ	24000000
 
 #define MASK_BF(x, mask, shift)			((((x) & (mask)) << (shift)))
@@ -478,10 +478,6 @@ enum dsp_health {
 	DSPAB_HANG
 };
 
-enum dsp_index {
-	DSPA = 0,
-	DSPB
-};
 static enum dsp_health get_dsp_health_status(unsigned long online)
 {
 	enum dsp_health ret = DSP_GOOD;
@@ -562,39 +558,6 @@ static void dsp_health_monitor(struct work_struct *work)
 		msecs_to_jiffies(dsp_monitor_period_ms));
 }
 
-static unsigned int show_logbuff_log(struct dsp_ring_buffer *rb, int dspid,
-		unsigned int len)
-{
-	unsigned char *buffer;
-	unsigned int count = 0;
-
-	if (!rb || !len)
-		return 0;
-
-	buffer = kzalloc(len + 1, GFP_KERNEL);
-	if (!buffer)
-		return 0;
-
-	while (len--) {
-		buffer[count++] = rb->data[rb->head++];
-		rb->head %= rb->size;
-	}
-	pr_info("[%s]%s", dspid ? "DSPBB" : "DSPAA", buffer);
-	kfree(buffer);
-
-	return count;
-}
-
-static unsigned int get_logbuff_loglen(struct dsp_ring_buffer *rb)
-{
-	if (!rb)
-		return 0;
-	if (rb->tail < rb->head)
-		return rb->tail + rb->size - rb->head;
-	else
-		return rb->tail - rb->head;
-}
-
 static void dsp_logbuff_polling(struct work_struct *work)
 {
 	struct dsp_ring_buffer *logbuffa =
@@ -606,7 +569,7 @@ static void dsp_logbuff_polling(struct work_struct *work)
 	if (logbuffa)
 		pr_debug("[%s %d][0x%x 0x%x 0x%x %u %u]\n", __func__, __LINE__,
 			logbuffa->magic, logbuffa->basepaddr, logbuffa->size,
-			logbuffa->head, logbuffa->tail);
+			logbuffa->headr, logbuffa->tail);
 
 	len_a = get_logbuff_loglen(logbuffa);
 	len_b = get_logbuff_loglen(logbuffb);
@@ -635,6 +598,8 @@ static void init_and_start_dsp_log_polling(void)
 static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 {
 	struct  hifi4dsp_info_t *info;
+	struct dsp_ring_buffer *rb;
+	char requestinfo[] = "AP request dsp logbuffer info";
 
 	pr_debug("%s\n", __func__);
 	info = (struct  hifi4dsp_info_t *)dsp->info;
@@ -670,14 +635,33 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 		queue_delayed_work(dsp_status_wq, &dsp_status_work,
 			msecs_to_jiffies(dsp_monitor_period_ms));
 	}
-	if (dsp->logbuff) {
-		msleep(100);
-		scpi_send_data(dsp->logbuff, sizeof(struct dsp_ring_buffer),
-			dsp->id ? SCPI_DSPB : SCPI_DSPA,
-			SCPI_CMD_HIFI5_SYSLOG_START, NULL, 0);
-		init_and_start_dsp_log_polling();
-	}
 
+	if (!dsp_logbuff_polling_period_ms)
+		goto out;
+
+	msleep(100);
+	rb = kzalloc(sizeof(*rb), GFP_KERNEL);
+	if (!rb)
+		goto out;
+	scpi_send_data(requestinfo, sizeof(requestinfo), dsp->id ? SCPI_DSPB : SCPI_DSPA,
+		SCPI_CMD_HIFI5_SYSLOG_START, rb, sizeof(*rb));
+	if (rb->magic == DSP_LOGBUFF_MAGIC) {
+		if (pfn_valid(__phys_to_pfn(rb->basepaddr)))
+			dsp->logbuff =
+			(struct dsp_ring_buffer *)__phys_to_virt(rb->basepaddr);
+		else
+			dsp->logbuff =
+			(struct dsp_ring_buffer *)ioremap_cache(rb->basepaddr,
+			rb->size + sizeof(*rb) - 4);
+		pr_debug("[%s %d][0x%x 0x%x %u %u %u %u]\n", __func__, __LINE__,
+		dsp->logbuff->magic, dsp->logbuff->basepaddr, dsp->logbuff->head,
+		dsp->logbuff->headr, dsp->logbuff->tail, dsp->logbuff->size);
+		init_and_start_dsp_log_polling();
+	} else {
+		dsp->logbuff = NULL;
+	}
+	kfree(rb);
+out:
 	return 0;
 }
 
@@ -700,35 +684,38 @@ static int hifi4dsp_driver_dsp_stop(struct hifi4dsp_dsp *dsp)
 	pr_debug("%s\n", __func__);
 	strcpy(message, "SCPI_CMD_HIFI4STOP");
 
-	if (dsp->dspstarted == 1) {
-		if (hifi4dsp_p[dsp->id]->dsp->status_reg && !dsp->dsphang) {
-			scpi_send_data(message, sizeof(message), dsp->id ? SCPI_DSPB : SCPI_DSPA,
-				SCPI_CMD_HIFI4STOP, NULL, 0);
-			msleep(50);
-		}
-		clear_bit(dsp->id, &dsp_online);
-		soc_dsp_poweroff(info->id);
-		hifi4dsp_driver_dsp_clk_off(dsp);
-		dsp->dspstarted = 0;
-		dsp->info = NULL;
-		pr_warn("[%s]dsp_online=0x%lx\n", __func__, dsp_online);
-		if (!dsp_online && dsp_status_wq) {
-			cancel_delayed_work_sync(&dsp_status_work);
-			flush_workqueue(dsp_status_wq);
-			destroy_workqueue(dsp_status_wq);
-			memset(&dsp_status_work, 0, sizeof(dsp_status_work));
-			dsp_status_wq = NULL;
-		}
-		if (dsp_logbuff_wq &&
-		(hifi4dsp_p[dsp->id ? DSPA : DSPB]->dsp->dspstarted == 0 ||
-		!(hifi4dsp_p[dsp->id ? DSPA : DSPB]->dsp->logbuff))) {
-			cancel_delayed_work_sync(&dsp_logbuff_work);
-			flush_workqueue(dsp_logbuff_wq);
-			destroy_workqueue(dsp_logbuff_wq);
-			memset(&dsp_logbuff_work, 0, sizeof(dsp_logbuff_work));
-			dsp_logbuff_wq = NULL;
-		}
+	if (!dsp->dspstarted)
+		goto out;
+
+	if (hifi4dsp_p[dsp->id]->dsp->status_reg && !dsp->dsphang) {
+		scpi_send_data(message, sizeof(message), dsp->id ? SCPI_DSPB : SCPI_DSPA,
+			SCPI_CMD_HIFI4STOP, NULL, 0);
+		msleep(50);
 	}
+	clear_bit(dsp->id, &dsp_online);
+	soc_dsp_poweroff(info->id);
+	hifi4dsp_driver_dsp_clk_off(dsp);
+	dsp->dspstarted = 0;
+	dsp->info = NULL;
+	pr_warn("[%s]dsp_online=0x%lx\n", __func__, dsp_online);
+	if (!dsp_online && dsp_status_wq) {
+		cancel_delayed_work_sync(&dsp_status_work);
+		flush_workqueue(dsp_status_wq);
+		destroy_workqueue(dsp_status_wq);
+		memset(&dsp_status_work, 0, sizeof(dsp_status_work));
+		dsp_status_wq = NULL;
+	}
+	if (dsp_logbuff_wq &&
+	(hifi4dsp_p[dsp->id ? DSPB : DSPA]->dsp->dspstarted == 0 ||
+	!(hifi4dsp_p[dsp->id ? DSPB : DSPA]->dsp->logbuff))) {
+		cancel_delayed_work_sync(&dsp_logbuff_work);
+		flush_workqueue(dsp_logbuff_wq);
+		destroy_workqueue(dsp_logbuff_wq);
+		memset(&dsp_logbuff_work, 0, sizeof(dsp_logbuff_work));
+		dsp_logbuff_wq = NULL;
+	}
+	dsp->logbuff = NULL;
+out:
 	return 0;
 }
 
@@ -1380,7 +1367,7 @@ static ssize_t resume_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(resume);
 
-static struct dsp_ring_buffer *dsp_init_ring_buffer(unsigned int buffer,
+/*static struct dsp_ring_buffer *dsp_init_ring_buffer(unsigned int buffer,
 	unsigned int size)
 {
 	struct dsp_ring_buffer *b = (struct dsp_ring_buffer *)mm_vmap(buffer,
@@ -1401,6 +1388,7 @@ static struct dsp_ring_buffer *dsp_init_ring_buffer(unsigned int buffer,
 
 	return b;
 }
+*/
 
 static int hifi4dsp_platform_probe(struct platform_device *pdev)
 {
@@ -1417,7 +1405,6 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	u32 optimize_longcall[2];
 	u32 sram_remap_addr[4];
 	u32 pm_support[2];
-	u32 dsp_logbuff[4] = {0};
 
 	phys_addr_t hifi4base;
 	int hifi4size;
@@ -1504,13 +1491,6 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	ret = of_property_read_u32_array(np, "suspend_resume_support", &pm_support[0], 2);
 	if (ret)
 		pr_debug("can't get suspend_resume_support\n");
-	ret = of_property_read_u32_array(np, "dsp_logbuff", &dsp_logbuff[0], 4);
-	if (ret)
-		pr_debug("didn't support dsp log buffer.\n");
-	else
-		pr_debug("[dsp_logbuff][0x%x 0x%x 0x%x 0x%x]\n",
-			dsp_logbuff[0], dsp_logbuff[1],
-			dsp_logbuff[2], dsp_logbuff[3]);
 
 	ret = of_property_read_u32(np, "logbuff-polling-period-ms",
 			&dsp_logbuff_polling_period_ms);
@@ -1592,8 +1572,6 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	else
 		pr_debug("\ndsp_clk_freqs not configed in dtsi.");
 
-	/*init hifi4 syslog*/
-	create_hifi4_syslog();
 	mutex_init(&hifi4dsp_flock);
 
 	for (i = 0; i < dsp_cnt; i++) {
@@ -1695,11 +1673,6 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 		dsp->sram_remap_addr[0] = sram_remap_addr[2 * id];
 		dsp->sram_remap_addr[1] = sram_remap_addr[2 * id + 1];
 		dsp->suspend_resume_support = pm_support[id];
-		if (dsp_logbuff[2 * id])
-			dsp->logbuff = dsp_init_ring_buffer(dsp_logbuff[2 * id],
-			dsp_logbuff[2 * id + 1]);
-		else
-			dsp->logbuff = NULL;
 		priv->dsp = dsp;
 
 		hifi4dsp_p[i] = priv;
@@ -1715,6 +1688,8 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	get_dsp_statusreg(pdev, dsp_cnt, hifi4dsp_p);
 	device_create_file(&pdev->dev, &dev_attr_suspend);
 	device_create_file(&pdev->dev, &dev_attr_resume);
+	/*init hifi4 syslog*/
+	create_hifi4_syslog();
 	pr_info("%s done\n", __func__);
 	return 0;
 
