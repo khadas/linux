@@ -27,7 +27,8 @@
 /* 20220602: call avin read crash after shutdowm */
 /* 20220613: tvafe shutdown not close clk stuck */
 /* 20220708: ntsc-m set 0x2e to default value */
-#define TVAFE_VER "20220708:ntsc-m set 0x2e to default value"
+/* 20220812: avin 0% white cannot detect signal */
+#define TVAFE_VER "20220812:avin 0% white cannot detect signal"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

@@ -39,6 +39,7 @@
 #define TVAFE_AVIN_NAME_CH1  "tvafe_avin_detect_ch1"
 #define TVAFE_AVIN_NAME_CH2  "tvafe_avin_detect_ch2"
 
+#define TVAFE_AVIN_SIG_DEBUG  BIT(1)
 static unsigned int avin_detect_debug_print;
 
 #define AVIN_DETECT_INIT          BIT(0)
@@ -50,6 +51,8 @@ static unsigned int avin_detect_debug_print;
 #define AVIN_DETECT_CH2_EN        BIT(6)   /* 0x2e[15] */
 #define AVIN_DETECT_CH2_SYNC_TIP  BIT(7)   /* 0x2e[18] */
 static unsigned int avin_detect_flag;
+
+#define AVIN_FUNCTION_WHITE0	  BIT(0)
 
 /*0:670mv; 1:727mv; 2:777mv; 3:823mv; 4:865mv; 5:904mv; 6:940mv; 7:972mv*/
 static unsigned int dc_level_adj = 4;
@@ -108,6 +111,14 @@ static unsigned int tvafe_avin_irq_reg_read(unsigned int reg)
 	else
 		val = aml_read_cbus(reg);
 	return val;
+}
+
+static void tvafe_avin_irq_reg_write(unsigned int reg, unsigned int val)
+{
+	if (meson_data->irq_reg_base)
+		writel(val, meson_data->irq_reg_base + (reg << 2));
+	else
+		aml_write_cbus(reg, val);
 }
 
 static void tvafe_avin_irq_update_bit(unsigned int reg,
@@ -210,6 +221,17 @@ static int tvafe_avin_dts_parse(struct platform_device *pdev)
 		}
 		avdev->dts_param.irq[i] = res->start;
 	}
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"function_select", &value);
+	if (ret) {
+		tvafe_pr_info("Failed to get device_mask.\n");
+		goto get_avin_param_failed;
+	} else {
+		avdev->function_select = value;
+		tvafe_pr_info("function_select:0x%x\n", avdev->function_select);
+	}
+
 	return 0;
 get_avin_param_failed:
 fail_get_resource_irq:
@@ -486,6 +508,12 @@ static void tvafe_avin_detect_anlog_config(void)
 			W_HIU_BIT(meson_data->detect_cntl, 1,
 				  AFE_T5_CH2_EN_DC_BIAS_BIT,
 				  AFE_T5_CH2_EN_DC_BIAS_WIDTH);
+			if (!avdev &&
+			    (avdev->function_select & AVIN_FUNCTION_WHITE0)) {
+				W_HIU_BIT(meson_data->detect_cntl, 3,
+					  AFE_CH1_COMP_LEVEL_ADJ_BIT,
+					  AFE_CH1_COMP_LEVEL_ADJ_WIDTH);
+			}
 		} else {
 			/*ch config*/
 			W_HIU_BIT(meson_data->detect_cntl, 1,
@@ -588,7 +616,8 @@ static ssize_t tvafe_avin_read(struct file *file, char __user *buf,
 		(struct tvafe_avin_det_s *)file->private_data;
 
 	if (!avin_data || avin_detect_flag == 0) {
-		tvafe_pr_err("%s avin_data is null\n", __func__);
+		if (avin_detect_debug_print)
+			tvafe_pr_err("%s avin_data is null\n", __func__);
 		return 0;
 	}
 
@@ -701,6 +730,24 @@ static void tvafe_avin_detect_state(struct tvafe_avin_det_s *avdev)
 	tvafe_pr_info("irq_edge_en: %d\n", irq_edge_en);
 	tvafe_pr_info("irq_filter: %d\n", irq_filter);
 	tvafe_pr_info("irq_pol: %d\n", irq_pol);
+}
+
+static void tvafe_avin_reg_print(void)
+{
+	tvafe_pr_info("avin_detect_cntl:  0x%02x=0x%08x\n",
+		meson_data->detect_cntl, R_HIU_REG(meson_data->detect_cntl));
+	tvafe_pr_info("avin_irq0_cntl:  0x%02x=0x%08x\n",
+		meson_data->irq0_cntl,
+		tvafe_avin_irq_reg_read(meson_data->irq0_cntl));
+	tvafe_pr_info("avin_irq1_cntl:  0x%02x=0x%08x\n",
+		meson_data->irq1_cntl,
+		tvafe_avin_irq_reg_read(meson_data->irq1_cntl));
+	tvafe_pr_info("avin_irq0_cnt:  0x%02x=0x%08x\n",
+		meson_data->irq0_cnt,
+		tvafe_avin_irq_reg_read(meson_data->irq0_cnt));
+	tvafe_pr_info("avin_irq1_cnt:  0x%02x=0x%08x\n",
+		meson_data->irq1_cnt,
+		tvafe_avin_irq_reg_read(meson_data->irq1_cnt));
 }
 
 static void tvafe_avin_detect_parse_param(char *buf_orig, char **parm)
@@ -942,7 +989,7 @@ static ssize_t debug_store(struct device *dev,
 		tvafe_avin_detect_state(avdev);
 	} else if (!strcmp(parm[0], "print")) {
 		if (parm[1]) {
-			if (kstrtouint(parm[1], 10, &avin_detect_debug_print)) {
+			if (kstrtouint(parm[1], 16, &avin_detect_debug_print)) {
 				tvafe_pr_info("[%s]:invalid parameter\n",
 					__func__);
 				goto tvafe_avin_detect_store_err;
@@ -950,6 +997,38 @@ static ssize_t debug_store(struct device *dev,
 		}
 		tvafe_pr_info("[%s]: avin_detect_debug_print: %d\n",
 			__func__, avin_detect_debug_print);
+	} else if (!strcmp(parm[0], "reg_print")) {
+		tvafe_avin_reg_print();
+	} else if (!strcmp(parm[0], "w")) {
+		if (!parm[1] || !parm[2]) {
+			tvafe_pr_err("syntax error.\n");
+		} else {
+			if (kstrtouint(parm[2], 16, &val)) {
+				tvafe_pr_info("[%s]:invalid parameter\n",
+						__func__);
+				goto tvafe_avin_detect_store_err;
+			}
+
+			if (!strcmp(parm[1], "detect_cntl"))
+				W_HIU_REG(meson_data->detect_cntl, val);
+			else if (!strcmp(parm[1], "irq0_cntl"))
+				tvafe_avin_irq_reg_write(meson_data->irq0_cntl, val);
+			else if (!strcmp(parm[1], "irq1_cntl"))
+				tvafe_avin_irq_reg_write(meson_data->irq1_cntl, val);
+			else
+				tvafe_pr_err("command error\n");
+
+			tvafe_pr_info("write done 0x%x\n", val);
+		}
+	} else if (!strcmp(parm[0], "white0_detect")) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 16, &avdev->function_select)) {
+				tvafe_pr_info("[%s]:invalid parameter\n", __func__);
+				goto tvafe_avin_detect_store_err;
+			}
+			tvafe_pr_info("[%s]: function_select:0x%x\n",
+					__func__, avdev->function_select);
+		}
 	} else {
 		tvafe_pr_info("[%s]:invalid command.\n", __func__);
 	}
@@ -1028,6 +1107,14 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 			if (s_counter1_last_state != 0)
 				s_irq_counter1_time = 0;
 			s_irq_counter1_time++;
+			if (avport_opened == TVAFE_PORT_AV2 &&
+			    !R_APB_BIT(CVD2_STATUS_REGISTER1, NO_SIGNAL_BIT,
+					NO_SIGNAL_WID) &&
+			    (avdev->function_select & AVIN_FUNCTION_WHITE0))
+				s_irq_counter1_time = 0;
+			if (avport_opened == TVAFE_PORT_AV2 &&
+			    (avin_detect_debug_print & TVAFE_AVIN_SIG_DEBUG))
+				tvafe_pr_info("0x3a:0x%x\n", R_APB_REG(CVD2_STATUS_REGISTER1));
 			if (s_irq_counter1_time >= avin_count_times) {
 				if (avdev->report_data_s[1].status !=
 						TVAFE_AVIN_STATUS_OUT) {
@@ -1075,6 +1162,14 @@ static void tvafe_avin_detect_timer_handler(struct timer_list *avin_detect_timer
 		if (s_counter0_last_state != 0)
 			s_irq_counter0_time = 0;
 		s_irq_counter0_time++;
+		if (avport_opened == TVAFE_PORT_AV1 &&
+		    !R_APB_BIT(CVD2_STATUS_REGISTER1, NO_SIGNAL_BIT,
+				NO_SIGNAL_WID) &&
+		    (avdev->function_select & AVIN_FUNCTION_WHITE0))
+			s_irq_counter0_time = 0;
+		if (avport_opened == TVAFE_PORT_AV1 &&
+		    (avin_detect_debug_print & TVAFE_AVIN_SIG_DEBUG))
+			tvafe_pr_info("0x3a:0x%x\n", R_APB_REG(CVD2_STATUS_REGISTER1));
 		if (s_irq_counter0_time >= avin_count_times) {
 			if (avdev->report_data_s[0].status !=
 						TVAFE_AVIN_STATUS_OUT) {
