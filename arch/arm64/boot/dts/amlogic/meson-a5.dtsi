@@ -1046,16 +1046,17 @@
 			//resets = <&reset RESET_SD_EMMC_A>;
 		};
 
-		mtd_nand: nfc@fe08c800 {
+		mtd_nand: nfc@fe08d000 {
 			compatible = "amlogic,meson-nfc-single-ecc-bl2ex";
 			status = "disabled";
-			reg = <0x0 0xfe08c800 0x0 0x200>;
+			reg = <0x0 0xfe08d000 0x0 0x200>;
 			interrupts = <GIC_SPI 175 IRQ_TYPE_EDGE_RISING>;
-
-			//clocks = <&clkc CLKID_NAND>,
-			//		 <&clkc CLKID_FCLK_DIV2>;
-			//clock-names = "gate", "fdiv2pll";
+			/* share gate of sysclk with EMMC_C */
+			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
+					<&clkc CLKID_FCLK_DIV2>;
+			clock-names = "gate", "fdiv2pll";
 			nand_clk_ctrl = <0xfe08c000>;
+			power-domains = <&pwrdm PDID_A5_EMMC>;
 		};
 
 		ethmac: ethernet@fdc00000 {
