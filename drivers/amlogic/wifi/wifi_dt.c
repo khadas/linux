@@ -156,6 +156,32 @@ static struct wifi_plat_info *wifi_get_driver_data
 #define SHOW_PIN_OWN(pin_str, pin_num)	\
 	WIFI_DEBUG("%s(%d)\n", pin_str, pin_num)
 
+#ifdef CONFIG_PCI
+int is_pcie_wifi(void)
+{
+	struct pci_dev *device = NULL;
+	int n = 0;
+	int i = 0;
+
+	n = (int)(sizeof(pcie_wifi) / sizeof(struct pcie_wifi_chip));
+	for (i = 0; i < n; i++) {
+		device = pci_get_device(pcie_wifi[i].vendor,
+			pcie_wifi[i].device, NULL);
+		if (device) {
+			WIFI_INFO("found device 0x%x:0x%x!\n",
+				pcie_wifi[i].vendor, pcie_wifi[i].device);
+			return 1;
+		}
+	}
+	return 0;
+}
+#else
+int is_pcie_wifi(void)
+{
+	return 0;
+}
+#endif
+
 static int set_power(int value)
 {
 	if (!wifi_info.power_on_pin_OD) {
@@ -254,7 +280,8 @@ static void usb_power_control(int is_power, int shift)
 
 void set_usb_bt_power(int is_power)
 {
-	usb_power_control(is_power, BT_BIT);
+	if (!is_pcie_wifi())
+		usb_power_control(is_power, BT_BIT);
 }
 EXPORT_SYMBOL(set_usb_bt_power);
 
