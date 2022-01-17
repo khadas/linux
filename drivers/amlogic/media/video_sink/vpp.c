@@ -1475,14 +1475,22 @@ RESTART:
 			aspect_factor = 0x155;
 		else
 			aspect_factor = 0xc0;
-		wide_mode = VIDEO_WIDEOPTION_NORMAL;
+		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
+		    (aspect_factor * video_layer_width == video_layer_height << 8))
+			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		else
+			wide_mode = VIDEO_WIDEOPTION_NORMAL;
 		ext_sar = false;
 	} else if (wide_mode == VIDEO_WIDEOPTION_16_9) {
 		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE)
 			aspect_factor = 0x1c7;
 		else
 			aspect_factor = 0x90;
-		wide_mode = VIDEO_WIDEOPTION_NORMAL;
+		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
+		    (aspect_factor * video_layer_width == video_layer_height << 8))
+			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		else
+			wide_mode = VIDEO_WIDEOPTION_NORMAL;
 		ext_sar = false;
 	} else if ((wide_mode >= VIDEO_WIDEOPTION_4_3_IGNORE) &&
 		   (wide_mode <= VIDEO_WIDEOPTION_4_3_COMBINED)) {
