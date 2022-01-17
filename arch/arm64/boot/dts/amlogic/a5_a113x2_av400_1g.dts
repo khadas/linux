@@ -1029,7 +1029,7 @@
 	cap-mmc-highspeed;
 	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
-//	mmc-hs400-1_8v;
+	mmc-hs400-1_8v;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;

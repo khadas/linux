@@ -987,6 +987,7 @@
 				<0x0 0xfe004000 0x0 0x4>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
+			power-domains = <&pwrdm PDID_A5_EMMC>;
 			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCC>,
 				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_C_CLK>,
@@ -1028,6 +1029,7 @@
 				<0x0 0xfe00400c 0x0 0x4>;
 			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
+			power-domains = <&pwrdm PDID_A5_SDIOA>;
 			clocks = <&clkc CLKID_SYS_CLK_SD_EMMCA>,
 				<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_A_CLK>,
