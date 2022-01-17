@@ -908,7 +908,7 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 	} else {
 #endif
 		tee_start = roundup(virt_to_phys((void *)_text), TEE_MEM_ALIGN_SIZE);
-		tee_end = rounddown(virt_to_phys((void *)_end), TEE_MEM_ALIGN_SIZE);
+		tee_end = rounddown(virt_to_phys((void *)__bss_stop), TEE_MEM_ALIGN_SIZE);
 		tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL,
 		  tee_start,
 		  tee_end - tee_start,
