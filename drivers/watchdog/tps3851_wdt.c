@@ -62,6 +62,10 @@ static ssize_t store_enble(struct class *cls, struct class_attribute *attr,
 	}
 	printk("tps3851_enble=%d\n",enable);
 	tps3851_enble = enable;
+	if(tps3851_enble){
+		mytimer.expires = jiffies + hw_margin * HZ/1000;  // 500ms 运行一次
+		mod_timer(&mytimer, mytimer.expires);
+	}
 	return count;
 }
 
