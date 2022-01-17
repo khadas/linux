@@ -62,8 +62,8 @@
 #include "vdin_regs.h"
 #include "vdin_v4l2_if.h"
 
-/* 20220119: tm2 vdin add reconfig when detect low_latency change */
-#define VDIN_VER    "20220119"
+/* 20220124: vf->flag add pc mode flag to bypass aipq aisr */
+#define VDIN_VER "20220124"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

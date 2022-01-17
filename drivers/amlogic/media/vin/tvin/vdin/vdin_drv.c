@@ -547,6 +547,8 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		}
 		if (devp->game_mode != 0)
 			vf->flag |= VFRAME_FLAG_GAME_MODE;
+		if (vdin_pc_mode)
+			vf->flag |= VFRAME_FLAG_PC_MODE;
 		scan_mode = devp->fmt_info_p->scan_mode;
 		if ((scan_mode == TVIN_SCAN_MODE_INTERLACED &&
 		     (!(devp->parm.flag & TVIN_PARM_FLAG_2D_TO_3D) &&

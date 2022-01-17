@@ -112,6 +112,7 @@
 #define VFRAME_FLAG_FIX_TUNNEL			0x8000000 /*source fixtunnel*/
 #define VFRAME_FLAG_MIRROR_H                    0x10000000 /*mirror frame horizontally*/
 #define VFRAME_FLAG_MIRROR_V                    0x20000000 /*mirror frame vertically*/
+#define VFRAME_FLAG_PC_MODE			0x40000000
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
