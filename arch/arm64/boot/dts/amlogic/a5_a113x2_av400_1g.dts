@@ -499,7 +499,7 @@
 };
 
 &i2c3 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins2>;
 	clock-frequency = <300000>;
