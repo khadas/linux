@@ -1554,4 +1554,23 @@ struct register_table {
 #define HDMIRX_EARCTX_CNTL1                0x041
 #define HDMIRX_ARC_CNTL                    0x042
 
+/*pcpd monitor */
+#define EE_AUDIO_PCPD_MON_A_CTRL0          0x3b0
+#define EE_AUDIO_PCPD_MON_A_CTRL1          0x3b1
+#define EE_AUDIO_PCPD_MON_A_CTRL2          0x3b2
+#define EE_AUDIO_PCPD_MON_A_CTRL3          0x3b3
+#define EE_AUDIO_PCPD_MON_A_CTRL4          0x3b4
+#define EE_AUDIO_PCPD_MON_A_CTRL5          0x3b5
+#define EE_AUDIO_PCPD_MON_A_STAT0          0x3b8
+#define EE_AUDIO_PCPD_MON_A_STAT1          0x3b9
+
+#define EE_AUDIO_PCPD_MON_B_CTRL0          0x3c0
+#define EE_AUDIO_PCPD_MON_B_CTRL1          0x3c1
+#define EE_AUDIO_PCPD_MON_B_CTRL2          0x3c2
+#define EE_AUDIO_PCPD_MON_B_CTRL3          0x3c3
+#define EE_AUDIO_PCPD_MON_B_CTRL4          0x3c4
+#define EE_AUDIO_PCPD_MON_B_CTRL5          0x3c5
+#define EE_AUDIO_PCPD_MON_B_STAT0          0x3c8
+#define EE_AUDIO_PCPD_MON_B_STAT1          0x3c9
+
 #endif

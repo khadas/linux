@@ -394,6 +394,18 @@ static char *toddr_src2str(enum toddr_src tsrc)
 	return toddr_src_table[tsrc].name;
 }
 
+int toddr_src_get_reg(struct toddr *to, enum toddr_src src)
+{
+	struct toddr_src_conf *conf;
+	char *src_str = toddr_src2str(src);
+
+	conf = to->chipinfo->to_srcs;
+	for (; conf->name[0]; conf++)
+		if (strncmp(conf->name, src_str, strlen(src_str)) == 0)
+			break;
+	return conf->val;
+}
+
 static char *frddr_src2str(enum frddr_dest fsrc)
 {
 	if (fsrc >= FRDDR_MAX)

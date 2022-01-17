@@ -34,6 +34,7 @@
 #include "spdif.h"
 #include "spdif_match_table.h"
 #include "sharebuffer.h"
+#include "../common/iec_info.h"
 
 #define DRV_NAME "snd_spdif"
 
@@ -423,42 +424,9 @@ static const struct soc_enum spdifin_sample_rate_enum[] = {
 			spdifin_samplerate),
 };
 
-/* spdif in audio format detect: LPCM or NONE-LPCM */
-struct spdif_audio_info {
-	unsigned char aud_type;
-	/*IEC61937 package presamble Pc value*/
-	short pc;
-	char *aud_type_str;
-};
-
-static const char *const spdif_audio_type_texts[] = {
-	"LPCM",
-	"AC3",
-	"EAC3",
-	"DTS",
-	"DTS-HD",
-	"TRUEHD",
-	"PAUSE"
-};
-
-static const struct spdif_audio_info type_texts[] = {
-	{0, 0, "LPCM"},
-	{1, 0x1, "AC3"},
-	{2, 0x15, "EAC3"},
-	{3, 0xb, "DTS-I"},
-	{3, 0x0c, "DTS-II"},
-	{3, 0x0d, "DTS-III"},
-	{3, 0x11, "DTS-IV"},
-	{4, 0, "DTS-HD"},
-	{5, 0x16, "TRUEHD"},
-	{6, 0x103, "PAUSE"},
-	{6, 0x003, "PAUSE"},
-	{6, 0x100, "PAUSE"},
-};
-
 static const struct soc_enum spdif_audio_type_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdif_audio_type_texts),
-			spdif_audio_type_texts);
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_type_texts),
+			audio_type_texts);
 
 static int spdifin_check_audio_type(void)
 {

@@ -40,6 +40,8 @@
 #include "spdif.h"
 #include "../common/misc.h"
 #include "../common/debug.h"
+#include "pcpd_monitor.h"
+#include "../common/iec_info.h"
 
 #define DRV_NAME "snd_tdm"
 
@@ -122,6 +124,8 @@ struct aml_tdm {
 	int tdm_for_speaker;
 	bool tdm_fade_out_enable;
 	unsigned int syssrc_clk_rate;
+	void *pcpd_monitor_src;
+	int pcpd_monitor_enable;
 };
 
 #define TDM_BUFFER_BYTES (512 * 1024)
@@ -694,6 +698,49 @@ static int tdmin_src_enum_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static const struct soc_enum hdmi_audio_type_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_type_texts),
+			audio_type_texts);
+
+static int hdmiin_audio_type_get_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+
+	ucontrol->value.enumerated.item[0] =
+		pcpd_monitor_check_audio_type(pc_pd);
+
+	return 0;
+}
+
+static int tdm_port_pcpd_detect_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.enumerated.item[0] = p_tdm->pcpd_monitor_enable;
+
+	return 0;
+}
+
+static int tdm_port_pcpd_detect_set(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+	int value = ucontrol->value.enumerated.item[0];
+
+	p_tdm->pcpd_monitor_enable = value;
+	if (pc_pd)
+		aml_pcpd_monitor_enable(pc_pd, value);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 	/*TDMOUT_B gain, enable data * gain*/
 	SOC_SINGLE_EXT("TDMOUT_B GAIN",
@@ -708,6 +755,16 @@ static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 				tdmin_source_enum,
 				tdmin_src_enum_get,
 				tdmin_src_enum_put),
+
+	SOC_ENUM_EXT("HDMI TDM Audio Type",
+				hdmi_audio_type_enum,
+				hdmiin_audio_type_get_enum,
+				NULL),
+	SOC_SINGLE_EXT("TDMB_Port PC_PD Detect enable",
+		       0, 0, 1, 0,
+		       tdm_port_pcpd_detect_get,
+		       tdm_port_pcpd_detect_set),
+
 };
 
 static const struct snd_kcontrol_new snd_tdm_c_controls[] = {
@@ -1267,6 +1324,12 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		fmt.rate      = runtime->rate;
 		aml_toddr_select_src(to, src);
 		aml_toddr_set_format(to, &fmt);
+		if (p_tdm->pcpd_monitor_src) {
+			struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+
+			pc_pd->tddr = p_tdm->tddr;
+			aml_pcpd_monitor_init(pc_pd);
+		}
 	}
 
 	return 0;
@@ -1861,6 +1924,8 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	struct aml_audio_controller *actrl = NULL;
 	struct aml_tdm *p_tdm = NULL;
 	struct tdm_chipinfo *p_chipinfo = NULL;
+	struct device_node *np_src = NULL;
+	struct platform_device *dev_src = NULL;
 	int ret = 0;
 
 	p_tdm = devm_kzalloc(dev, sizeof(struct aml_tdm), GFP_KERNEL);
@@ -1893,8 +1958,14 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	actrl = (struct aml_audio_controller *)
 				platform_get_drvdata(pdev_parent);
 	p_tdm->actrl = actrl;
-
-	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+	np_src = of_parse_phandle(node, "pcpd_monitor_src", 0);
+	if (np_src) {
+		dev_src = of_find_device_by_node(np_src);
+		of_node_put(np_src);
+		p_tdm->pcpd_monitor_src = platform_get_drvdata(dev_src);
+		pr_info("%s(), pcpd src found\n", __func__);
+	}
+	ret = of_property_read_u32(dev->of_node, "scrc-clk-freq",
 				   &p_tdm->syssrc_clk_rate);
 	if (ret < 0)
 		p_tdm->syssrc_clk_rate = 0;

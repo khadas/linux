@@ -167,6 +167,42 @@ static const char * const audio_coding_type_names[] = {
 	/* 16 */ "PAUSE",
 };
 
+/* spdif in audio format detect: LPCM or NONE-LPCM */
+struct spdif_audio_info {
+	unsigned char aud_type;
+	/*IEC61937 package presamble Pc value*/
+	short pc;
+	char *aud_type_str;
+};
+
+static const struct spdif_audio_info type_texts[] = {
+	{0, 0, "LPCM"},
+	{1, 0x1, "AC3"},
+	{2, 0x15, "EAC3"},
+	{3, 0xb, "DTS-I"},
+	{3, 0x0c, "DTS-II"},
+	{3, 0x0d, "DTS-III"},
+	{3, 0x11, "DTS-IV"},
+	{4, 0, "DTS-HD"},
+	{5, 0x16, "TRUEHD"},
+	{6, 0x103, "PAUSE"},
+	{6, 0x003, "PAUSE"},
+	{6, 0x100, "PAUSE"},
+};
+
+static const char *const audio_type_texts[] = {
+	"LPCM",
+	"AC3",
+	"EAC3",
+	"DTS",
+	"DTS-HD",
+	"TRUEHD",
+	"PAUSE"
+};
+
+extern const struct spdif_audio_info type_texts[];
+extern const char *const audio_type_texts[];
+
 extern const struct soc_enum audio_coding_type_enum;
 
 bool audio_coding_is_lpcm(enum audio_coding_types coding_type);

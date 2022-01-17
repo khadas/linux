@@ -947,6 +947,8 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 
+		/* pcpd_monitor*/
+		pcpd_monitor_src = <&pcpd_monitor_a>;
 		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */

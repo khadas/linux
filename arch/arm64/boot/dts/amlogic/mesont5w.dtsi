@@ -1141,6 +1141,21 @@
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_d";
 			};
+			pcpd_monitor_a: pcpd_monitor@0 {
+				compatible = "amlogic, pcpda_monitor";
+				interrupts = <GIC_SPI 225
+					IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "irq_pcpd";
+				status = "okay";
+			};
+			pcpd_monitor_b: pcpd_monitor@1 {
+				compatible = "amlogic, pcpdb_monitor";
+				interrupts = <GIC_SPI 224
+					IRQ_TYPE_EDGE_RISING>;
+				interrupt-names = "irq_pcpd";
+				status = "okay";
+			};
+
 
 			pinctrl_audio: pinctrl {
 				compatible = "amlogic, audio-pinctrl";

@@ -39,6 +39,7 @@ static int __init sound_soc_init(void)
 	call_sub_init(audio_clocks_init);
 	call_sub_init(audio_controller_init);
 	call_sub_init(audio_ddr_init);
+	call_sub_init(pcpd_monitor_init);
 	call_sub_init(earc_init);
 	call_sub_init(effect_platform_init);
 	call_sub_init(extn_init);
@@ -62,7 +63,7 @@ static __exit void sound_soc_exit(void)
 	call_sub_exit(aml_card_exit);
 	call_sub_exit(vad_dev_exit);
 	call_sub_exit(vad_drv_exit);
-	 call_sub_exit(loopback_exit);
+	call_sub_exit(loopback_exit);
 	call_sub_exit(tdm_exit);
 	call_sub_exit(audio_pinctrl_exit);
 	call_sub_exit(spdif_exit);
@@ -74,6 +75,7 @@ static __exit void sound_soc_exit(void)
 	call_sub_exit(effect_platform_exit);
 	 call_sub_exit(earc_exit);
 	call_sub_exit(audio_ddr_exit);
+	call_sub_exit(pcpd_monitor_exit);
 	call_sub_exit(audio_controller_exit);
 	call_sub_exit(audio_clocks_exit);
 	call_sub_exit(auge_snd_iomap_exit);

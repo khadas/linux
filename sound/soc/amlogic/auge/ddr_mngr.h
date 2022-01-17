@@ -290,6 +290,7 @@ void aml_toddr_enable(struct toddr *to, bool enable);
 void aml_toddr_set_fifos(struct toddr *to, unsigned int threshold);
 void aml_toddr_force_finish(struct toddr *to);
 void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt);
+int toddr_src_get_reg(struct toddr *to, enum toddr_src src);
 
 unsigned int aml_toddr_get_status(struct toddr *to);
 unsigned int aml_toddr_get_fifo_cnt(struct toddr *to);

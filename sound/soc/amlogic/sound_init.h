@@ -25,6 +25,7 @@ int __init spdif_init(void);
 int __init tdm_init(void);
 int __init vad_drv_init(void);
 int __init vad_dev_init(void);
+int __init pcpd_monitor_init(void);
 
 void __exit vad_dev_exit(void);
 void __exit vad_drv_exit(void);
@@ -45,4 +46,5 @@ void __exit auge_snd_iomap_exit(void);
 void __exit auge_hdmirx_arc_iomap_exit(void);
 void __exit audio_clocks_exit(void);
 void __exit earc_exit(void);
+void __exit pcpd_monitor_exit(void);
 #endif

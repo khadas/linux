@@ -33,6 +33,7 @@
 
 #include "../common/misc.h"
 #include "../common/debug.h"
+#include "../common/iec_info.h"
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
@@ -742,41 +743,10 @@ static int frhdmirx_set_mode(struct snd_kcontrol *kcontrol,
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
-/* spdif in audio format detect: LPCM or NONE-LPCM */
-struct spdif_audio_info {
-	unsigned char aud_type;
-	/*IEC61937 package presamble Pc value*/
-	short pc;
-	char *aud_type_str;
-};
-
-static const char *const spdif_audio_type_texts[] = {
-	"LPCM",
-	"AC3",
-	"EAC3",
-	"DTS",
-	"DTS-HD",
-	"TRUEHD",
-	"PAUSE"
-};
-
-static const struct spdif_audio_info type_texts[] = {
-	{0, 0, "LPCM"},
-	{1, 0x1, "AC3"},
-	{2, 0x15, "EAC3"},
-	{3, 0xb, "DTS-I"},
-	{3, 0x0c, "DTS-II"},
-	{3, 0x0d, "DTS-III"},
-	{4, 0x11, "DTS-IV"},
-	{5, 0x16, "TRUEHD"},
-	{6, 0x103, "PAUSE"},
-	{6, 0x003, "PAUSE"},
-	{6, 0x100, "PAUSE"},
-};
 
 static const struct soc_enum hdmirx_audio_type_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdif_audio_type_texts),
-			spdif_audio_type_texts);
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_type_texts),
+			audio_type_texts);
 
 static int hdmiin_check_audio_type(struct extn *p_extn)
 {
