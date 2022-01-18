@@ -22,6 +22,7 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 #include <linux/clk-provider.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/clk_measure.h>
@@ -126,6 +127,8 @@ struct aml_tdm {
 	unsigned int syssrc_clk_rate;
 	void *pcpd_monitor_src;
 	int pcpd_monitor_enable;
+	struct regulator *regulator_vcc3v3;
+	struct regulator *regulator_vcc5v;
 };
 
 #define TDM_BUFFER_BYTES (512 * 1024)
@@ -2131,6 +2134,45 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	else
 		pr_info("TDM id %d tdm_for_speaker\n", p_tdm->id);
 
+	if (p_tdm->chipinfo->regulator) {
+		p_tdm->regulator_vcc3v3 = devm_regulator_get(dev, "tdm3v3");
+		ret = PTR_ERR_OR_ZERO(p_tdm->regulator_vcc3v3);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator tdm3v3 not ready, retry\n");
+				return ret;
+			}
+			dev_err(&pdev->dev, "failed in regulator tdm3v3 %ld\n",
+				PTR_ERR(p_tdm->regulator_vcc3v3));
+			p_tdm->regulator_vcc3v3 = NULL;
+		} else {
+			ret = regulator_enable(p_tdm->regulator_vcc3v3);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"regulator tdm3v3 enable failed:   %d\n", ret);
+				p_tdm->regulator_vcc3v3 = NULL;
+			}
+		}
+		p_tdm->regulator_vcc5v = devm_regulator_get(dev, "tdm5v");
+		ret = PTR_ERR_OR_ZERO(p_tdm->regulator_vcc5v);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator tdm5v not ready, retry\n");
+				return ret;
+			}
+			dev_err(&pdev->dev, "failed in regulator tdm5v %ld\n",
+				PTR_ERR(p_tdm->regulator_vcc5v));
+			p_tdm->regulator_vcc5v = NULL;
+		} else {
+			ret = regulator_enable(p_tdm->regulator_vcc5v);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"regulator tdm5v enable failed:   %d\n", ret);
+				p_tdm->regulator_vcc5v = NULL;
+			}
+		}
+	}
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	tdm_register_early_suspend_hdr(p_tdm->id, pdev);
 #endif
@@ -2156,6 +2198,11 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 		}
 	}
 
+	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+		regulator_disable(p_tdm->regulator_vcc5v);
+	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+		regulator_disable(p_tdm->regulator_vcc3v3);
+
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
 }
@@ -2163,6 +2210,7 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 static int aml_tdm_platform_resume(struct platform_device *pdev)
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
+	int ret = 0;
 
 	/*set default clk for output*/
 	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
@@ -2175,6 +2223,16 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 			pr_info("%s tdm pins enable!\n", __func__);
 		}
 	}
+
+	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+		ret = regulator_enable(p_tdm->regulator_vcc5v);
+	if (ret)
+		dev_err(&pdev->dev, "regulator tdm5v enable failed:   %d\n", ret);
+
+	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+		ret = regulator_enable(p_tdm->regulator_vcc3v3);
+	if (ret)
+		dev_err(&pdev->dev, "regulator tdm3v3 enable failed:   %d\n", ret);
 
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
@@ -2194,6 +2252,11 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 			pr_info("%s tdm pins disable!\n", __func__);
 		}
 	}
+
+	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+		regulator_disable(p_tdm->regulator_vcc5v);
+	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+		regulator_disable(p_tdm->regulator_vcc3v3);
 
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 }

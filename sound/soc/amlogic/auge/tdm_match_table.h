@@ -62,6 +62,7 @@ struct tdm_chipinfo {
 	int  gain_ver;
 	bool use_arb;
 	bool use_vadtop;
+	bool regulator;
 };
 
 #define SRC_TDMIN_A     "tdmin_a"
@@ -541,6 +542,7 @@ struct tdm_chipinfo a5_tdma_chipinfo = {
 	.chnum_en = false,
 	.gain_ver = GAIN_VER3,
 	.use_arb = false,
+	.regulator = true,
 };
 
 struct tdm_chipinfo a5_tdmb_chipinfo = {
@@ -557,6 +559,7 @@ struct tdm_chipinfo a5_tdmb_chipinfo = {
 	.chnum_en = false,
 	.gain_ver = GAIN_VER3,
 	.use_arb = false,
+	.regulator = true,
 };
 
 struct tdm_chipinfo a5_tdmc_chipinfo = {
@@ -574,6 +577,7 @@ struct tdm_chipinfo a5_tdmc_chipinfo = {
 	.gain_ver = GAIN_VER3,
 	.use_arb = false,
 	.use_vadtop = true,
+	.regulator = true,
 };
 
 static const struct of_device_id aml_tdm_device_id[] = {

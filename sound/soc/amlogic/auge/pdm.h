@@ -51,6 +51,7 @@ struct pdm_chipinfo {
 	bool use_arb;
 	/* vad top */
 	bool vad_top;
+	bool regulator;
 };
 
 struct aml_pdm {
@@ -108,6 +109,8 @@ struct aml_pdm {
 	int pdm_train_debug;
 	struct work_struct debug_work;
 	unsigned int syssrc_clk_rate;
+	struct regulator *regulator_vcc3v3;
+	struct regulator *regulator_vcc5v;
 };
 
 int pdm_get_train_sample_count_from_dts(void);

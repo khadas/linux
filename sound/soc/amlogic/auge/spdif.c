@@ -25,6 +25,8 @@
 #include <sound/pcm_params.h>
 #include <sound/asoundef.h>
 #include <linux/clk-provider.h>
+#include <linux/regulator/consumer.h>
+
 
 #include "ddr_mngr.h"
 #include "spdif_hw.h"
@@ -95,6 +97,9 @@ struct aml_spdif {
 	enum sharebuffer_srcs samesource_sel;
 	unsigned int l_src;
 	unsigned int syssrc_clk_rate;
+	struct regulator *regulator_vcc3v3;
+	struct regulator *regulator_vcc5v;
+
 };
 
 unsigned int get_spdif_source_l_config(int id)
@@ -476,6 +481,12 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 			pinctrl_select_state(p_spdif->pin_ctl, pstate);
 	}
 	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, false);
+
+	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
+		regulator_disable(p_spdif->regulator_vcc5v);
+	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
+		regulator_disable(p_spdif->regulator_vcc3v3);
+
 	pr_info("%s is mute\n", __func__);
 	return 0;
 }
@@ -485,6 +496,7 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 	struct aml_spdif *p_spdif = dev_get_drvdata(&pdev->dev);
 	struct pinctrl_state *state = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
+	int ret = 0;
 
 	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
 		state = pinctrl_lookup_state
@@ -493,6 +505,17 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 			pinctrl_select_state(p_spdif->pin_ctl, state);
 	}
 	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, true);
+
+	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
+		ret = regulator_enable(p_spdif->regulator_vcc5v);
+	if (ret)
+		dev_err(&pdev->dev, "regulator spdif5v enable failed:   %d\n", ret);
+
+	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
+		ret = regulator_enable(p_spdif->regulator_vcc3v3);
+	if (ret)
+		dev_err(&pdev->dev, "regulator spdif3v3 enable failed:   %d\n", ret);
+
 	pr_info("%s is unmute\n", __func__);
 
 	return 0;
@@ -511,6 +534,12 @@ static void aml_spdif_platform_shutdown(struct platform_device *pdev)
 			pinctrl_select_state(p_spdif->pin_ctl, pstate);
 	}
 	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, false);
+
+	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
+		regulator_disable(p_spdif->regulator_vcc5v);
+	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
+		regulator_disable(p_spdif->regulator_vcc3v3);
+
 	pr_info("%s is mute\n", __func__);
 }
 
@@ -1792,7 +1821,6 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 
 		aml_spdif->chipinfo = p_spdif_chipinfo;
 
-
 		if (p_spdif_chipinfo->sample_mode_filter_en)
 			aml_spdifin_sample_mode_filter_en();
 	} else {
@@ -1801,6 +1829,45 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 	}
 
 	pr_debug("%s, spdif ID = %u\n", __func__, aml_spdif->id);
+
+	if (aml_spdif->chipinfo->regulator) {
+		aml_spdif->regulator_vcc3v3 = devm_regulator_get(dev, "spdif3v3");
+		ret = PTR_ERR_OR_ZERO(aml_spdif->regulator_vcc3v3);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator spdif3v3 not ready, retry\n");
+				return ret;
+			}
+			dev_err(&pdev->dev, "failed in regulator spdif3v3 %ld\n",
+				PTR_ERR(aml_spdif->regulator_vcc3v3));
+			aml_spdif->regulator_vcc3v3 = NULL;
+		} else {
+			ret = regulator_enable(aml_spdif->regulator_vcc3v3);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"regulator spdif3v3 enable failed:   %d\n", ret);
+				aml_spdif->regulator_vcc3v3 = NULL;
+			}
+		}
+		aml_spdif->regulator_vcc5v = devm_regulator_get(dev, "spdif5v");
+		ret = PTR_ERR_OR_ZERO(aml_spdif->regulator_vcc5v);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator spdif5v not ready, retry\n");
+				return ret;
+			}
+			dev_err(&pdev->dev, "failed in regulator spdif5v %ld\n",
+				PTR_ERR(aml_spdif->regulator_vcc5v));
+			aml_spdif->regulator_vcc5v = NULL;
+		} else {
+			ret = regulator_enable(aml_spdif->regulator_vcc5v);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"regulator spdif5v enable failed:   %d\n", ret);
+				aml_spdif->regulator_vcc5v = NULL;
+			}
+		}
+	}
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);

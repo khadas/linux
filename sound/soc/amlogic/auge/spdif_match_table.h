@@ -35,6 +35,7 @@ struct spdif_chipinfo {
 	bool sample_mode_filter_en;
 	unsigned int spdifout_lane_mask;
 	bool use_arb;
+	bool regulator;
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -161,6 +162,7 @@ struct spdif_chipinfo a5_spdif_a_chipinfo = {
 	.async_fifo   = true,
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V2,
 	.use_arb      = false,
+	.regulator    = true,
 };
 
 static const struct of_device_id aml_spdif_device_id[] = {

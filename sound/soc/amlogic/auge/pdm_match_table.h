@@ -75,6 +75,7 @@ static struct pdm_chipinfo a5_pdm_chipinfo = {
 	.train_version   = PDM_TRAIN_VERSION_V1,
 	.use_arb         = false,
 	.vad_top         = true,
+	.regulator       = true,
 };
 
 static const struct of_device_id aml_pdm_device_id[] = {

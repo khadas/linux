@@ -14,6 +14,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/clk-provider.h>
+#include <linux/regulator/consumer.h>
 
 #include <sound/soc.h>
 #include <sound/tlv.h>
@@ -1182,6 +1183,45 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 	pr_info("%s pdm train sample count from dts:%d\n",
 		__func__, p_pdm->train_sample_count);
 
+	if (p_pdm->chipinfo->regulator) {
+		p_pdm->regulator_vcc3v3 = devm_regulator_get(dev, "pdm3v3");
+		ret = PTR_ERR_OR_ZERO(p_pdm->regulator_vcc3v3);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator pdm3v3 not ready, retry\n");
+				return ret;
+			}
+			dev_err(&pdev->dev, "failed in regulator pdm3v3 %ld\n",
+				PTR_ERR(p_pdm->regulator_vcc3v3));
+			p_pdm->regulator_vcc3v3 = NULL;
+		} else {
+			ret = regulator_enable(p_pdm->regulator_vcc3v3);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"regulator pdm3v3 enable failed:   %d\n", ret);
+				p_pdm->regulator_vcc3v3 = NULL;
+			}
+		}
+		p_pdm->regulator_vcc5v = devm_regulator_get(dev, "pdm5v");
+		ret = PTR_ERR_OR_ZERO(p_pdm->regulator_vcc5v);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator pdm5v not ready, retry\n");
+				return ret;
+			}
+			dev_err(&pdev->dev, "failed in regulator pdm5v %ld\n",
+				PTR_ERR(p_pdm->regulator_vcc5v));
+			p_pdm->regulator_vcc5v = NULL;
+		} else {
+			ret = regulator_enable(p_pdm->regulator_vcc5v);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"regulator pdm5v enable failed:   %d\n", ret);
+				p_pdm->regulator_vcc5v = NULL;
+			}
+		}
+	}
+
 	s_pdm = p_pdm;
 
 	p_pdm->dev = dev;
@@ -1220,6 +1260,11 @@ static int aml_pdm_platform_remove(struct platform_device *pdev)
 	clk_disable_unprepare(p_pdm->sysclk_srcpll);
 	clk_disable_unprepare(p_pdm->clk_pdm_dclk);
 
+	if (!IS_ERR_OR_NULL(p_pdm->regulator_vcc5v))
+		regulator_disable(p_pdm->regulator_vcc5v);
+	if (!IS_ERR_OR_NULL(p_pdm->regulator_vcc3v3))
+		regulator_disable(p_pdm->regulator_vcc3v3);
+
 	snd_soc_unregister_component(&pdev->dev);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -1244,6 +1289,11 @@ static int pdm_platform_suspend(struct platform_device *pdev, pm_message_t state
 			p_pdm->force_lowpower);
 	}
 
+	if (!IS_ERR_OR_NULL(p_pdm->regulator_vcc5v))
+		regulator_disable(p_pdm->regulator_vcc5v);
+	if (!IS_ERR_OR_NULL(p_pdm->regulator_vcc3v3))
+		regulator_disable(p_pdm->regulator_vcc3v3);
+
 	return 0;
 }
 
@@ -1251,6 +1301,7 @@ static int pdm_platform_resume(struct platform_device *pdev)
 {
 	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
 	int id = p_pdm->chipinfo->id;
+	int ret = 0;
 	/* whether in freeze mode */
 	if (/* is_pm_freeze_mode() && */vad_pdm_is_running()) {
 		pr_info("%s, PDM resume by force_lowpower:%d\n",
@@ -1261,6 +1312,16 @@ static int pdm_platform_resume(struct platform_device *pdev)
 			pdm_set_lowpower_mode(p_pdm, p_pdm->force_lowpower, id);
 		}
 	}
+
+	if (!IS_ERR_OR_NULL(p_pdm->regulator_vcc5v))
+		ret = regulator_enable(p_pdm->regulator_vcc5v);
+	if (ret)
+		dev_err(&pdev->dev, "regulator pdm5v enable failed:   %d\n", ret);
+
+	if (!IS_ERR_OR_NULL(p_pdm->regulator_vcc3v3))
+		ret = regulator_enable(p_pdm->regulator_vcc3v3);
+	if (ret)
+		dev_err(&pdev->dev, "regulator pdm3v3 enable failed:   %d\n", ret);
 
 	return 0;
 }
