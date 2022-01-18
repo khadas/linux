@@ -411,7 +411,3 @@ struct dev_power_governor pm_domain_always_on_gov = {
 	.power_down_ok = always_on_power_down_ok,
 	.suspend_ok = default_suspend_ok,
 };
-
-#ifdef CONFIG_AMLOGIC_BREAK_GKI
-EXPORT_SYMBOL_GPL(pm_domain_always_on_gov);
-#endif
