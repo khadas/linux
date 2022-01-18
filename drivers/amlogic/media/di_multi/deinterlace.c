@@ -8809,8 +8809,8 @@ void dim_post_de_done_buf_config(unsigned int channel)
 		ppost->cur_post_buf->mtncrc = mtncrc;
 		dbg_post_ref("DEINT[=0x%x],NRWR[=0x%x],MTN[=0x%x]\n",
 		     datacrc, ppost->cur_post_buf->nrcrc, mtncrc);
-		dbg_slt_crc_count(pch, datacrc, di_buf->nrcrc, mtncrc);
-		dbg_slt_crc(di_buf);
+		//dbg_slt_crc_count(pch, datacrc, di_buf->nrcrc, mtncrc);
+		//dbg_slt_crc(di_buf);
 	}
 	pch->itf.op_fill_ready(pch, ppost->cur_post_buf);
 	mtask_wake_m();
