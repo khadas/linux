@@ -78,7 +78,7 @@ static int distinguish_module(void)
 	vendor_id = sdio_get_vendor();
 	pr_info("vendor_id = 0x%x\n", vendor_id);
 
-	if (vendor_id == QCA_ID || vendor_id == AML_ID)
+	if (vendor_id == QCA_ID)
 		return 1;
 
 	return 0;
