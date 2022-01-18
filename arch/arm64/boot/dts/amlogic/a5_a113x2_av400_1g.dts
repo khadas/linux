@@ -456,10 +456,10 @@
 			&tdmain_pins
 			&tdm_d0_pins
 			&tdm_d1_pins
-			//&tdm_d8_pins
+			&tdm_d8_pins
 			&tdm_d9_pins
 			&tdm_d10_pins
-			&tdm_d11_pins
+			//&tdm_d11_pins
 			&tdma_clk_pins
 			&tdmain_clk_pins>;
 
@@ -724,10 +724,10 @@
 		mux { /* GPIOT_1, GPIOT_0, GPIOT_2, GPIOT_3, GPIOT_4, GPIOT_5 */
 			groups = "tdm_sclk2_t",
 				"tdm_fs2_t",
-				//"tdm_d8_t",
+				"tdm_d8_t",
 				"tdm_d9_t",
-				"tdm_d10_t",
-				"tdm_d11_t";
+				"tdm_d10_t";
+				//"tdm_d11_t";
 			function = "tdm";
 		};
 	};
@@ -836,12 +836,12 @@
 		};
 	};
 
-	//tdm_d8_pins: tdm_d8_pin {
-	//	mux {
-	//		groups = "tdm_d8";
-	//		function = "tdmina_lane1";
-	//	};
-	//};
+	tdm_d8_pins: tdm_d8_pin {
+		mux {
+			groups = "tdm_d8";
+			function = "tdmina_lane0";
+		};
+	};
 
 	tdm_d9_pins: tdm_d9_pin {
 		mux {
@@ -857,12 +857,12 @@
 		};
 	};
 
-	tdm_d11_pins: tdm_d11_pin {
-		mux {
-			groups = "tdm_d11";
-			function = "tdmina_lane0";
-		};
-	};
+	//tdm_d11_pins: tdm_d11_pin {
+	//	mux {
+	//		groups = "tdm_d11";
+	//		function = "tdmina_lane0";
+	//	};
+	//};
 
 	tdm_d12_pins: tdm_d12_pin {
 		mux {
