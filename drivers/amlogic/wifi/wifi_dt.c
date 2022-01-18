@@ -892,6 +892,14 @@ static int wifi_dev_remove(struct platform_device *pdev)
 {
 	WIFI_INFO("%s\n", __func__);
 	wifi_teardown_dt();
+
+	class_remove_file(wifi_dt_class, &class_attr_power);
+	class_destroy(wifi_dt_class);
+	device_destroy(&wifi_power_class, wifi_power_devno);
+	class_destroy(&wifi_power_class);
+	cdev_del(wifi_power_cdev);
+	unregister_chrdev_region(wifi_power_devno, 1);
+
 	return 0;
 }
 
