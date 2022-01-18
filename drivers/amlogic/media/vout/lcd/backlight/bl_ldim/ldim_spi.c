@@ -262,6 +262,11 @@ int ldim_spi_read_sync(struct spi_device *spi, unsigned char *tbuf,
 	return ret;
 }
 
+void ldim_spi_async_busy_clear(void)
+{
+	ldim_spi_async_busy = 0;
+}
+
 static int ldim_spi_dev_probe(struct spi_device *spi)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();

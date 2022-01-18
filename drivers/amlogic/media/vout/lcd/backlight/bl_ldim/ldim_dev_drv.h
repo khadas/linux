@@ -26,6 +26,7 @@ int ldim_spi_read(struct spi_device *spi, unsigned char *tbuf, int wlen,
 		  unsigned char *rbuf, int rlen);
 int ldim_spi_read_sync(struct spi_device *spi, unsigned char *tbuf,
 		       unsigned char *rbuf, int len);
+void ldim_spi_async_busy_clear(void);
 int ldim_spi_driver_add(struct ldim_dev_driver_s *dev_drv);
 int ldim_spi_driver_remove(struct ldim_dev_driver_s *dev_drv);
 

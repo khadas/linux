@@ -245,6 +245,7 @@ static int blmcu_power_off(struct aml_ldim_driver_s *ldim_drv)
 	mutex_lock(&dev_mutex);
 	bl_mcu->dev_on_flag = 0;
 	blmcu_hw_init_off(ldim_drv->dev_drv);
+	ldim_spi_async_busy_clear();
 	mutex_unlock(&dev_mutex);
 
 	LDIMPR("%s: ok\n", __func__);

@@ -776,6 +776,7 @@ static int iw7027_power_on(struct aml_ldim_driver_s *ldim_drv)
 	}
 
 	mutex_lock(&dev_mutex);
+	ldim_spi_async_busy_clear();
 	iw7027_hw_init_on(ldim_drv->dev_drv);
 	bl_iw7027->dev_on_flag = 1;
 	bl_iw7027->vsync_cnt = 0;
@@ -794,6 +795,7 @@ static int iw7027_power_off(struct aml_ldim_driver_s *ldim_drv)
 	mutex_lock(&dev_mutex);
 	bl_iw7027->dev_on_flag = 0;
 	iw7027_hw_init_off(ldim_drv->dev_drv);
+	ldim_spi_async_busy_clear();
 	mutex_unlock(&dev_mutex);
 
 	LDIMPR("%s: ok\n", __func__);
