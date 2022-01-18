@@ -219,10 +219,6 @@
 	pinctrl-0 = <&pwm_e_pins>, <&pwm_f_clk_pins>;
 };
 
-&sd_emmc_a {
-	max-frequency = <100000000>;
-};
-
 /* This is brought out on the Linux_RX (18) and Linux_TX (19) pins: */
 &uart_AO {
 	status = "okay";
