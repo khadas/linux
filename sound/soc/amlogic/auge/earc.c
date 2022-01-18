@@ -173,6 +173,7 @@ struct earc {
 	u8 tx_latency;
 	struct work_struct send_uevent;
 	bool tx_mute;
+	int same_src_on;
 };
 
 static struct earc *s_earc;
@@ -610,6 +611,16 @@ static int earc_open(struct snd_pcm_substream *substream)
 		dev, EARC_BUFFER_BYTES / 2, EARC_BUFFER_BYTES);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (p_earc->same_src_on) {
+			aml_check_and_release_sharebuffer(NULL, EARCTX_DMAC);
+			earctx_enable(p_earc->tx_top_map,
+				      p_earc->tx_cmdc_map,
+				      p_earc->tx_dmac_map,
+				      p_earc->tx_audio_coding_type,
+				      false,
+				      p_earc->chipinfo->rterm_on);
+		}
+
 		/* select hdmirx arc source from earctx spdif */
 		arc_earc_source_select(EARCTX_SPDIF_TO_HDMIRX);
 		p_earc->fddr = aml_audio_register_frddr(dev,
@@ -1255,6 +1266,7 @@ static int ss_prepare(struct snd_pcm_substream *substream,
 		return 0;
 	}
 	dev_dbg(s_earc->dev, "%s() %d, lvl %d\n", __func__, __LINE__, share_lvl);
+	s_earc->same_src_on = 1;
 	sharebuffer_prepare(substream,
 		pfrddr,
 		samesource_sel,
@@ -1287,6 +1299,7 @@ static int ss_free(struct snd_pcm_substream *substream,
 	}
 	dev_info(s_earc->dev, "%s() samesrc %d, lvl %d\n",
 		__func__, samesource_sel, share_lvl);
+	s_earc->same_src_on = 0;
 	if (aml_check_sharebuffer_valid(pfrddr,
 			samesource_sel)) {
 		sharebuffer_free(substream,
