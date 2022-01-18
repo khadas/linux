@@ -3370,15 +3370,6 @@ static ssize_t valid_mode_show(struct device *dev,
 		}
 		para = hdmi_tst_fmt_name(cvalid_mode, cvalid_mode);
 	}
-	if (para) {
-		if (para->sname)
-			pr_info(SYS "sname = %s\n", para->sname);
-		else
-			pr_info(SYS "name = %s\n", para->name);
-		pr_info(SYS "char_clk = %d\n", para->tmds_clk);
-		pr_info(SYS "cd = %d\n", para->cd);
-		pr_info(SYS "cs = %d\n", para->cs);
-	}
 
 	valid_mode = hdmitx_edid_check_valid_mode(&hdmitx_device, para);
 

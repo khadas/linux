@@ -3102,8 +3102,9 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		}
 	}
 	calc_tmds_clk = calc_tmds_clk / 1000;
-	pr_info("RX tmds clk: %d   Calc clk: %d\n", rx_max_tmds_clk,
-		calc_tmds_clk);
+	/* pr_info("RX tmds clk: %d   Calc clk: %d\n", rx_max_tmds_clk,
+	 *	calc_tmds_clk);
+	 */
 	if (calc_tmds_clk < rx_max_tmds_clk)
 		valid = 1;
 	else
@@ -3234,7 +3235,7 @@ enum hdmi_vic hdmitx_edid_get_VIC(struct hdmitx_dev *hdev,
 		}
 		/* if TV only supports 480p/2, add 480p60hz as well */
 		if (is_sink_only_sd_4x3(hdev, disp_mode, &vic)) {
-			pr_info("hdmitx: find SD only 4x3\n");
+			; /* pr_info("hdmitx: find SD only 4x3\n"); */
 		}
 	}
 	if (vic == HDMI_UNKNOWN && vesa_vic != HDMI_UNKNOWN) {
