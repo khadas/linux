@@ -18,11 +18,15 @@ defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
 
 static int pcpd_monitor_get_audio_type(struct pcpd_monitor *pc_pd)
 {
-	struct aml_audio_controller *actrl = pc_pd->actrl;
-	int id = pc_pd->pcpd_id;
+	struct aml_audio_controller *actrl;
 	unsigned int pc;
 	unsigned int offset, reg;
+	int id;
 
+	if (!pc_pd)
+		return 0;
+	actrl = pc_pd->actrl;
+	id = pc_pd->pcpd_id;
 	offset = EE_AUDIO_PCPD_MON_B_STAT1 - EE_AUDIO_PCPD_MON_A_STAT1;
 	reg = EE_AUDIO_PCPD_MON_A_STAT1 + offset * id;
 	pc = (aml_audiobus_read(actrl, reg) >> 16) & 0xff;

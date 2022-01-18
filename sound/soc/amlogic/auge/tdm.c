@@ -709,6 +709,8 @@ static int hdmiin_audio_type_get_enum(struct snd_kcontrol *kcontrol,
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
 
+	if (!pc_pd)
+		return 0;
 	ucontrol->value.enumerated.item[0] =
 		pcpd_monitor_check_audio_type(pc_pd);
 
