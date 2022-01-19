@@ -267,14 +267,14 @@
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
-			bitclock-master = <&tdma>;
-			frame-master = <&tdma>;
+			// bitclock-master = <&tdma>;
+			// frame-master = <&tdma>;
 			/* slave mode */
-			/*
-			 * bitclock-master = <&tdmacodec>;
-			 * frame-master = <&tdmacodec>;
-			 */
-			suffix-name = "alsaPORT-pcm";
+
+			bitclock-master = <&tdmacodec>;
+			frame-master = <&tdmacodec>;
+
+			suffix-name = "alsaPORT-i2sCapture";
 			tdmacpu: cpu {
 				sound-dai = <&tdma>;
 				dai-tdm-slot-tx-mask =
@@ -322,7 +322,20 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&dummy_codec /* &amlogic_codec */ /*&ad82584f_62*/>;
+				prefix-names = "ad82128_c_30","ad82128_c_31",
+						"ad82128_c_34","ad82128_c_35",
+						"ad82128_d_30","ad82128_d_31",
+						"ad82128_d_34","ad82128_d_35";
+				sound-dai = <
+						&ad82128_c_30
+						&ad82128_c_31
+						&ad82128_c_34
+						&ad82128_c_35
+						&ad82128_d_30
+						&ad82128_d_31
+						&ad82128_d_34
+						&ad82128_d_35
+				>;
 			};
 		};
 
@@ -420,7 +433,7 @@
 
 	gpio_keypad{
 		compatible = "amlogic, gpio_keypad";
-		status = "okay";
+		status = "disabled";
 		scan_period = <20>;
 		key_num = <1>;
 		key_name = "mute";
@@ -1187,4 +1200,68 @@
 	phy-mode = "rgmii";
 	phy-handle = <&external_phy>;
 	amlogic,tx-delay-ns = <2>;
+};
+
+&i2c2 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c2_pins1>;
+	clock-frequency = <100000>;
+	ad82128_c_30: ad82128_c_30@30 {
+		compatible = "ESMT,ad82128";
+		#sound-dai-cells = <0>;
+		reg = <0x30>;
+		status = "okay";
+		reset_pin = <&gpio GPIOD_9 0>;
+	};
+	ad82128_c_31: ad82128_c_31@31 {
+		compatible = "ESMT,ad82128";
+		#sound-dai-cells = <0>;
+		reg = <0x31>;
+		status = "okay";
+	};
+	ad82128_c_34: ad82128_c_34@34 {
+		compatible = "ESMT,ad82128";
+		#sound-dai-cells = <0>;
+		reg = <0x34>;
+		status = "okay";
+	};
+	ad82128_c_35: ad82128_c_35@35 {
+		compatible = "ESMT,ad82128";
+		#sound-dai-cells = <0>;
+		reg = <0x35>;
+		status = "okay";
+	};
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c3_pins2>;
+	clock-frequency = <100000>;
+	ad82128_d_30: ad82128_d_30@30 {
+		compatible = "ESMT,ad82128";
+		#sound-dai-cells = <0>;
+		reg = <0x30>;
+		status = "okay";
+	};
+	ad82128_d_31: ad82128_d_31@31 {
+		compatible = "ESMT,ad82128";
+		#sound-dai-cells = <0>;
+		reg = <0x31>;
+		status = "okay";
+	};
+	ad82128_d_34: ad82128_d_34@34 {
+		compatible = "ESMT,ad82128";
+		#sound-dai-cells = <0>;
+		reg = <0x34>;
+		status = "okay";
+	};
+	ad82128_d_35: ad82128_d_35@35 {
+		compatible = "ESMT,ad82128";
+		#sound-dai-cells = <0>;
+		reg = <0x35>;
+		status = "okay";
+
+	};
 };

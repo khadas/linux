@@ -1,0 +1,17 @@
+ESMT - AD82128 Codec module
+
+The AD82128 serial control bus communicates through I2C protocols
+
+Required properties:
+- compatible: Should be "ESMT,ad82128"
+- reg: I2C slave address
+- reset_pin: reset gpio
+
+Example:
+ad82128_30: ad82128_30@30 {
+	compatible = "ESMT,ad82128";
+	#sound-dai-cells = <0>;
+	reg = <0x30>;
+	reset_pin = <&gpio_ao GPIOAO_4 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};

@@ -301,6 +301,8 @@ patternProperties:
     description: Ecole Polytechnique Fédérale de Lausanne
   "^epson,.*":
     description: Seiko Epson Corp.
+  "^ESMT,.*":
+    description: Elite Semiconductor Memory Technology
   "^esp,.*":
     description: Espressif Systems Co. Ltd.
   "^est,.*":
