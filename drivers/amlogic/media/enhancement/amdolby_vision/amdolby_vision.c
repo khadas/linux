@@ -1421,6 +1421,7 @@ static bool tv_mode;
 static bool mel_mode;
 static bool osd_update;
 static bool enable_fel;
+static bool enable_mel;
 static u32 tv_backlight;
 static bool tv_backlight_changed;
 static bool tv_backlight_force_update;
@@ -9324,6 +9325,8 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			el_flag = 0;
 			dolby_vision_el_disable = true;
 		}
+		if (el_flag && !enable_mel)
+			el_flag = 0;
 		if (src_format != FORMAT_DOVI) {
 			el_flag = 0;
 			mel_flag = 0;
@@ -9651,6 +9654,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		    !vf_changed && input_mode == IN_MODE_HDMI) {
 			run_control_path = false;
 		}
+
 		if (run_control_path) {
 			flag = p_funcs_tv->tv_control_path
 				(src_format, input_mode,
@@ -13604,6 +13608,11 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		enable_fel = val;
 		pr_info("enable_fel %d\n", enable_fel);
+	} else if (!strcmp(parm[0], "enable_mel")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		enable_mel = val;
+		pr_info("enable_mel %d\n", enable_mel);
 	} else if (!strcmp(parm[0], "enable_tunnel")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
