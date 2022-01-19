@@ -1143,7 +1143,7 @@
 	st7789v@0 {
 	       status = "okay";
 	       compatible = "sitronix,st7789v";
-	       spi-max-frequency = <10000000>;
+	       spi-max-frequency = <96000000>;
 	       reg = <0>;
 	       buswidth = <8>;
 	       backlight = <1>;

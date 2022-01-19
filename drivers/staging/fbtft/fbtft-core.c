@@ -242,12 +242,19 @@ static void fbtft_reset(struct fbtft_par *par)
 	if (!par->gpio.reset)
 		return;
 	fbtft_par_dbg(DEBUG_RESET, par, "%s()\n", __func__);
+#ifdef CONFIG_AMLOGIC_MODIFY
 	gpiod_set_value_cansleep(par->gpio.reset, 1);
-	mdelay(200);
+	udelay(10);
 	gpiod_set_value_cansleep(par->gpio.reset, 0);
-	mdelay(200);
+	udelay(10);
 	gpiod_set_value_cansleep(par->gpio.reset, 1);
-	mdelay(200);
+	udelay(10);
+#else
+	gpiod_set_value_cansleep(par->gpio.reset, 1);
+	usleep_range(20, 40);
+	gpiod_set_value_cansleep(par->gpio.reset, 0);
+	msleep(120);
+#endif
 }
 
 static void fbtft_update_display(struct fbtft_par *par, unsigned int start_line,
@@ -832,10 +839,11 @@ int fbtft_register_framebuffer(struct fb_info *fb_info)
 			goto reg_fail;
 	}
 
+#ifdef CONFIG_AMLOGIC_MODIFY
 	par->fbtftops.reset(par);
-	mdelay(500);
 	if (par->gpio.cs)
 		gpiod_set_value(par->gpio.cs, 0);  /* Activate chip */
+#endif
 
 	ret = par->fbtftops.init_display(par);
 	if (ret < 0)

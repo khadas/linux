@@ -77,7 +77,7 @@ enum st7789v_command {
 static int init_display(struct fbtft_par *par)
 {
 	write_reg(par, 0x11);
-	mdelay(120);
+	usleep_range(100, 200);
 	write_reg(par, 0x36, 0x00);
 	write_reg(par, 0x3a, 0x55);
 	write_reg(par, 0xb2, 0x0c, 0x0c, 0x00, 0x33, 0x33);
