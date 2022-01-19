@@ -72,6 +72,9 @@ struct reg_default {
 struct reg_sequence {
 	unsigned int reg;
 	unsigned int def;
+#ifdef CONFIG_AMLOGIC_BREAK_GKI
+	unsigned int mask;
+#endif
 	unsigned int delay_us;
 };
 
