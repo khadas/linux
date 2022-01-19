@@ -6058,6 +6058,14 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 		}
 	} else if (strcmp(parm[0], "multi_lut") == 0) {
 		lcd_tcon_multi_lut_print();
+	} else if (strcmp(parm[0], "multi_update") == 0) {
+		if (!parm[1])
+			goto lcd_tcon_debug_store_err;
+		ret = kstrtouint(parm[1], 10, &temp);
+		if (ret)
+			goto lcd_tcon_debug_store_err;
+		mm_table->multi_lut_update = temp;
+		LCDPR("tcon multi_update: %d\n", temp);
 	} else if (strcmp(parm[0], "save") == 0) { /* save buf to bin */
 		if (!parm[2])
 			goto lcd_tcon_debug_store_err;

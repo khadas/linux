@@ -32,6 +32,7 @@
 /* 20211229: update multi lut init and switch flow*/
 /* 20211230: support lcd driver DLG switch flow*/
 /* 20220105: support measure vinfo sync_duration*/
+/* 20220119: support tcon multi list threshold overlap*/
 /* 20220121: update custom_pinmux and fr_auto_dis support*/
 #define LCD_DRV_VERSION    "20220121"
 

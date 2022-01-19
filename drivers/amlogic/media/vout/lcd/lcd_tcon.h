@@ -82,7 +82,6 @@ struct tcon_rmem_s {
 };
 
 struct tcon_data_list_s {
-	unsigned int dft_flag;
 	unsigned int id;
 	char *block_name;
 	unsigned char *block_vaddr;
@@ -131,6 +130,7 @@ struct tcon_mem_map_table_s {
 	unsigned int *data_size;
 	unsigned char **data_mem_vaddr;
 
+	unsigned int multi_lut_update;
 	unsigned int data_multi_cnt;
 	struct tcon_data_multi_s *data_multi;
 

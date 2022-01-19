@@ -418,6 +418,7 @@ void lcd_tcon_multi_lut_print(void)
 		return;
 	}
 
+	LCDPR("tcon multi_lut_update: %d\n", tcon_mm_table.multi_lut_update);
 	for (i = 0; i < tcon_mm_table.data_multi_cnt; i++) {
 		data_multi = &tcon_mm_table.data_multi[i];
 		LCDPR("data_multi[%d]:\n"
@@ -427,28 +428,17 @@ void lcd_tcon_multi_lut_print(void)
 		if (data_multi->list_cur) {
 			pr_info("data_multi[%d] current:\n"
 				"  sel_id:     %d\n"
-				"  sel_dft:    %d\n"
 				"  sel_name:   %s\n",
 				i, data_multi->list_cur->id,
-				data_multi->list_cur->dft_flag,
 				data_multi->list_cur->block_name);
 		} else {
 			pr_info("data_multi[%d] current: NULL\n", i);
 		}
-		if (data_multi->list_dft) {
-			pr_info("data_multi[%d] defalut:\n"
-				"  dtf_id:     %d\n"
-				"  dtf_name:   %s\n",
-				i, data_multi->list_dft->id,
-				data_multi->list_dft->block_name);
-		} else {
-			pr_info("data_multi[%d] defalut: NULL\n", i);
-		}
 		pr_info("data_multi[%d] list:\n", i);
 		data_list = data_multi->list_header;
 		while (data_list) {
-			pr_info("  block[%d]: dft_flag=%d, %s, vaddr=0x%px\n",
-				data_list->id, data_list->dft_flag,
+			pr_info("  block[%d]: %s, vaddr=0x%px\n",
+				data_list->id,
 				data_list->block_name,
 				data_list->block_vaddr);
 			data_list = data_list->next;
@@ -581,6 +571,7 @@ int lcd_tcon_info_print(char *buf, int offset)
 			}
 		}
 		if (tcon_mm_table.data_multi_cnt > 0 && tcon_mm_table.data_multi) {
+			LCDPR("tcon multi_lut_update: %d\n", tcon_mm_table.multi_lut_update);
 			for (i = 0; i < tcon_mm_table.data_multi_cnt; i++) {
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
@@ -599,12 +590,10 @@ int lcd_tcon_info_print(char *buf, int offset)
 						"  type:      0x%x\n"
 						"  list_cnt:  %d\n"
 						"  sel_id:    %d\n"
-						"  sel_dft:   %d\n"
 						"  sel_name:  %s\n",
 						tcon_mm_table.data_multi[i].block_type,
 						tcon_mm_table.data_multi[i].list_cnt,
 						tcon_mm_table.data_multi[i].list_cur->id,
-						tcon_mm_table.data_multi[i].list_cur->dft_flag,
 						tcon_mm_table.data_multi[i].list_cur->block_name);
 				}
 			}
@@ -853,7 +842,7 @@ static int lcd_tcon_data_multi_match_policy_check(struct aml_lcd_drv_s *pdrv,
 	struct bl_pwm_config_s *bl_pwm = NULL;
 #endif
 	unsigned int data_byte, data_cnt, data, min, max;
-	unsigned int sync_num, sync_den, temp;
+	unsigned int temp;
 	unsigned int j, k;
 
 	if (!ctrl_part)
@@ -873,9 +862,11 @@ static int lcd_tcon_data_multi_match_policy_check(struct aml_lcd_drv_s *pdrv,
 	case LCD_TCON_DATA_CTRL_MULTI_VFREQ:
 		if (data_cnt != 2)
 			goto lcd_tcon_data_multi_match_check_err_data_cnt;
-		sync_num = pdrv->config.timing.sync_duration_num;
-		sync_den = pdrv->config.timing.sync_duration_den;
-		temp = sync_num / sync_den;
+		temp = vout_frame_rate_measure(); //1000 multi
+		if (temp == 0)
+			temp = pdrv->config.timing.frame_rate;
+		else
+			temp /= 1000;
 
 		for (j = 0; j < data_byte; j++)
 			min |= (p[k + j] << (j * 8));
@@ -1070,6 +1061,16 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 		/* bypass LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT for multi lut swich */
 		if (data_multi->block_type == LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT)
 			continue;
+
+		/* step1: check current list first, for threshold overlap*/
+		temp_list = data_multi->list_cur;
+		if (temp_list) {
+			ret = lcd_tcon_data_multi_match_find(pdrv, temp_list->block_vaddr);
+			if (ret == 0) //current range, no need update
+				continue;
+		}
+
+		/* step2: traversing list*/
 		temp_list = data_multi->list_header;
 		match_list = NULL;
 		while (temp_list) {
@@ -1080,9 +1081,7 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 			}
 			temp_list = temp_list->next;
 		}
-		if (!match_list)
-			match_list = data_multi->list_dft;
-		if (!match_list) //no dtf list, no need update setting
+		if (!match_list) //no active list, no need update setting
 			continue;
 
 		if (data_multi->list_cur &&
@@ -1092,8 +1091,9 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 		}
 
 		ret = lcd_tcon_data_common_parse_set(pdrv, match_list->block_vaddr, 0);
-		if (ret == 0)
-			data_multi->list_cur = match_list;
+		if (ret) //list update failed
+			continue;
+		data_multi->list_cur = match_list;
 		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
 			LCDPR("%s: multi[%d]: type=0x%x, id=%d, %s\n",
 				__func__, i,
@@ -1114,9 +1114,11 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 		return;
 
 	if (tcon_mm_table.version) {
-		spin_lock_irqsave(&tcon_local_cfg.multi_list_lock, flags);
-		lcd_tcon_data_multi_update(pdrv, &tcon_mm_table);
-		spin_unlock_irqrestore(&tcon_local_cfg.multi_list_lock, flags);
+		if (tcon_mm_table.multi_lut_update) {
+			spin_lock_irqsave(&tcon_local_cfg.multi_list_lock, flags);
+			lcd_tcon_data_multi_update(pdrv, &tcon_mm_table);
+			spin_unlock_irqrestore(&tcon_local_cfg.multi_list_lock, flags);
+		}
 	}
 }
 
@@ -1331,8 +1333,6 @@ static inline void lcd_tcon_data_list_add(struct tcon_data_multi_s *data_multi,
 	data_multi->list_cnt++;
 
 lcd_tcon_data_list_add_end:
-	if (data_list->dft_flag)
-		data_multi->list_dft = data_list;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("%s: block[%d]: %s\n",
 		      __func__, data_list->id, data_list->block_name);
@@ -1358,71 +1358,6 @@ static inline void lcd_tcon_data_list_remove(struct tcon_data_multi_s *data_mult
 	data_multi->list_cnt = 0;
 	data_multi->list_header = NULL;
 	data_multi->list_cur = NULL;
-	data_multi->list_dft = NULL;
-}
-
-/* return:
- *    0: find
- *   -1: failed
- */
-static int lcd_tcon_data_multi_default_find(unsigned char *data_buf)
-{
-	struct lcd_tcon_data_block_header_s *block_header;
-	struct lcd_tcon_data_block_ext_header_s *ext_header;
-	union lcd_tcon_data_part_u data_part;
-	unsigned char *p, part_type;
-	unsigned int size, data_offset, offset, i;
-	unsigned short part_cnt, block_ctrl_flag, ctrl_data_flag, ctrl_method;
-
-	block_header = (struct lcd_tcon_data_block_header_s *)data_buf;
-	p = data_buf + LCD_TCON_DATA_BLOCK_HEADER_SIZE;
-	ext_header = (struct lcd_tcon_data_block_ext_header_s *)p;
-	part_cnt = ext_header->part_cnt;
-
-	block_ctrl_flag = block_header->block_ctrl;
-	data_offset = LCD_TCON_DATA_BLOCK_HEADER_SIZE + block_header->ext_header_size;
-	size = 0;
-	for (i = 0; i < part_cnt; i++) {
-		p = data_buf + data_offset;
-		part_type = p[LCD_TCON_DATA_PART_NAME_SIZE + 3];
-
-		switch (part_type) {
-		case LCD_TCON_DATA_PART_TYPE_CONTROL:
-			block_ctrl_flag = 0;
-			data_part.ctrl = (struct lcd_tcon_data_part_ctrl_s *)p;
-			offset = LCD_TCON_DATA_PART_CTRL_SIZE_PRE;
-			size = offset + (data_part.ctrl->data_cnt *
-					 data_part.ctrl->data_byte_width);
-			if ((size + data_offset) > block_header->block_size)
-				goto lcd_tcon_data_multi_dft_find_err_size;
-			ctrl_data_flag = data_part.ctrl->ctrl_data_flag;
-			ctrl_method = data_part.ctrl->ctrl_method;
-			if (ctrl_data_flag != LCD_TCON_DATA_CTRL_FLAG_MULTI)
-				break;
-
-			if (ctrl_method == LCD_TCON_DATA_CTRL_DEFAULT) {
-				if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-					LCDPR("%s: %s\n", __func__, block_header->name);
-				return 0;
-			}
-			break;
-		default:
-			if (block_ctrl_flag)
-				goto lcd_tcon_data_multi_dft_find_err_ctrl;
-			return -1;
-		}
-		data_offset += size;
-	}
-
-	return -1;
-
-lcd_tcon_data_multi_dft_find_err_ctrl:
-	LCDERR("%s: block %s need control part\n", __func__, block_header->name);
-	return -1;
-
-lcd_tcon_data_multi_dft_find_err_size:
-	LCDERR("%s: block %s size error\n", __func__, block_header->name);
-	return -1;
 }
 
 static int lcd_tcon_data_multi_add(struct aml_lcd_drv_s *pdrv,
@@ -1458,11 +1393,6 @@ static int lcd_tcon_data_multi_add(struct aml_lcd_drv_s *pdrv,
 	data_list->next = NULL;
 	data_list->id = index;
 	data_list->block_name = block_header->name;
-	ret = lcd_tcon_data_multi_default_find(data_list->block_vaddr);
-	if (ret == 0)
-		data_list->dft_flag = 1;
-	else
-		data_list->dft_flag = 0;
 
 	for (i = 0; i < mm_table->data_multi_cnt; i++) {
 		if (mm_table->data_multi[i].block_type == block_header->block_type) {
@@ -1478,7 +1408,6 @@ static int lcd_tcon_data_multi_add(struct aml_lcd_drv_s *pdrv,
 		data_multi->block_type = block_header->block_type;
 		data_multi->list_header = NULL;
 		data_multi->list_cur = NULL;
-		data_multi->list_dft = NULL;
 		data_multi->list_remove = NULL;
 		data_multi->list_cnt = 0;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -2358,6 +2287,7 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 
 	lcd_tcon_bin_load(pdrv);
 	pdrv->tcon_status = tcon_mm_table.valid_flag;
+	tcon_mm_table.multi_lut_update = 1;
 
 	lcd_tcon_intr_init(pdrv);
 
