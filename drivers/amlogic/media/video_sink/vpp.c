@@ -1983,11 +1983,9 @@ RESTART:
 				goto RESTART;
 			} else {
 				next_frame_par->hscale_skip_count = 1;
-				goto RESTART;
 			}
 		} else if (skip == SPEED_CHECK_HSKIP) {
 			next_frame_par->hscale_skip_count = 1;
-			goto RESTART;
 		}
 	}
 
@@ -4291,11 +4289,9 @@ RESTART:
 				goto RESTART;
 			} else {
 				next_frame_par->hscale_skip_count = 1;
-				goto RESTART;
 			}
 		} else if (skip == SPEED_CHECK_HSKIP) {
 			next_frame_par->hscale_skip_count = 1;
-			goto RESTART;
 		}
 	}
 
