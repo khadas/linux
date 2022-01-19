@@ -242,6 +242,11 @@ int attach_nn_hook_mod_info(int shared_fd,
 					"game mode bypass ai_sr.\n");
 				ai_sr_info->need_do_aisr = 0;
 			}
+			if (vf->flag & VFRAME_FLAG_PC_MODE) {
+				nn_print(PRINT_OTHER,
+					"pc mode bypass ai_sr.\n");
+				ai_sr_info->need_do_aisr = 0;
+			}
 		}
 	}
 
