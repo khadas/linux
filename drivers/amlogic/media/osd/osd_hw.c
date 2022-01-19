@@ -2739,61 +2739,52 @@ void osd_update_scan_mode(void)
 	int index = 0;
 	int viu2_index = osd_hw.osd_meson_dev.viu2_index;
 	int osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
-	int has_osd3 = 0;
-
-	if ((osd_count - 1) == OSD3)
-		has_osd3 = 1;
+	int i;
+	u32 scan_mode[HW_OSD_COUNT];
 
 	output_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	osd_hw.scan_mode[OSD1] = SCAN_MODE_PROGRESSIVE;
-	osd_hw.scan_mode[OSD2] = SCAN_MODE_PROGRESSIVE;
-	if (has_osd3)
-		osd_hw.scan_mode[OSD3] = SCAN_MODE_PROGRESSIVE;
-	osd_hw.scan_mode[viu2_index] = SCAN_MODE_PROGRESSIVE;
+	for (i = 0; i < osd_count; i++)
+		scan_mode[i] = SCAN_MODE_PROGRESSIVE;
+	scan_mode[viu2_index] = SCAN_MODE_PROGRESSIVE;
 	switch (output_type) {
 	case VOUT_ENCP:
 		if (osd_reg_read(ENCP_VIDEO_MODE) & (1 << 12)) {
 			/* 1080i */
-			osd_hw.scan_mode[OSD1] = SCAN_MODE_INTERLACE;
-			osd_hw.scan_mode[OSD2] = SCAN_MODE_INTERLACE;
-			if (has_osd3)
-				osd_hw.scan_mode[OSD3] = SCAN_MODE_INTERLACE;
+			for (i = 0; i < osd_count; i++)
+				scan_mode[i] = SCAN_MODE_INTERLACE;
 		}
 		break;
 	case VOUT_ENCI:
 		if (osd_reg_read(ENCI_VIDEO_EN) & 1) {
-			osd_hw.scan_mode[OSD1] = SCAN_MODE_INTERLACE;
-			osd_hw.scan_mode[OSD2] = SCAN_MODE_INTERLACE;
-			if (has_osd3)
-				osd_hw.scan_mode[OSD3] = SCAN_MODE_INTERLACE;
+			for (i = 0; i < osd_count; i++)
+				scan_mode[i] = SCAN_MODE_INTERLACE;
 		}
 		break;
 	}
 	if (osd_hw.hw_cursor_en) {
 		/* 3 layers osd don't support osd2 cursor */
 		if (osd_hw.free_scale_enable[OSD1])
-			osd_hw.scan_mode[OSD1] = SCAN_MODE_PROGRESSIVE;
+			scan_mode[OSD1] = SCAN_MODE_PROGRESSIVE;
 		if (osd_hw.osd_afbcd[OSD1].enable)
-			osd_hw.scan_mode[OSD1] = SCAN_MODE_PROGRESSIVE;
+			scan_mode[OSD1] = SCAN_MODE_PROGRESSIVE;
 
-		if (osd_hw.scan_mode[OSD1] == SCAN_MODE_INTERLACE)
+		if (scan_mode[OSD1] == SCAN_MODE_INTERLACE)
 			index |= 1 << OSD1;
-		if (osd_hw.scan_mode[OSD2] == SCAN_MODE_INTERLACE)
+		if (scan_mode[OSD2] == SCAN_MODE_INTERLACE)
 			index |= 1 << OSD2;
 	} else {
 		int i;
 
-		for (i = 0; i < osd_hw.osd_meson_dev.viu1_osd_count; i++) {
+		for (i = 0; i < osd_count; i++) {
 			if (osd_hw.free_scale_enable[i])
-				osd_hw.scan_mode[i] = SCAN_MODE_PROGRESSIVE;
+				scan_mode[i] = SCAN_MODE_PROGRESSIVE;
 			if (osd_hw.osd_afbcd[i].enable)
-				osd_hw.scan_mode[i] = SCAN_MODE_PROGRESSIVE;
-			if (osd_hw.scan_mode[i] == SCAN_MODE_INTERLACE)
+				scan_mode[i] = SCAN_MODE_PROGRESSIVE;
+			if (scan_mode[i] == SCAN_MODE_INTERLACE)
 				index |= 1 << i;
 		}
 	}
-	if (osd_hw.scan_mode[OSD1] == SCAN_MODE_INTERLACE ||
-	    osd_hw.scan_mode[OSD2] == SCAN_MODE_INTERLACE)
+	if (index)
 		osd_update_interlace_mode(index);
 }
 
@@ -2834,9 +2825,10 @@ void osd_update_scan_mode_viu2(void)
 	/* only called by vsync irq or rdma irq */
 	unsigned int output_type = 0;
 	int viu2_index = osd_hw.osd_meson_dev.viu2_index;
+	u32 scan_mode[HW_OSD_COUNT];
 
 	output_type = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3;
-	osd_hw.scan_mode[viu2_index] = SCAN_MODE_PROGRESSIVE;
+	scan_mode[viu2_index] = SCAN_MODE_PROGRESSIVE;
 	if (osd_hw.powered[viu2_index]) {
 		output_type = (osd_reg_read(VPU_VIU_VENC_MUX_CTRL)
 			>> 2) & 0x3;
@@ -2844,17 +2836,17 @@ void osd_update_scan_mode_viu2(void)
 		case VOUT_ENCP:
 			if (osd_reg_read(ENCP_VIDEO_MODE) & (1 << 12))
 				/* 1080i */
-				osd_hw.scan_mode[viu2_index] =
+				scan_mode[viu2_index] =
 				SCAN_MODE_INTERLACE;
 			break;
 		case VOUT_ENCI:
 			if (osd_reg_read(ENCI_VIDEO_EN) & 1)
-				osd_hw.scan_mode[viu2_index] =
+				scan_mode[viu2_index] =
 				SCAN_MODE_INTERLACE;
 			break;
 		}
 	}
-	if (osd_hw.scan_mode[viu2_index] == SCAN_MODE_INTERLACE)
+	if (scan_mode[viu2_index] == SCAN_MODE_INTERLACE)
 		osd_update_interlace_mode_viu2();
 }
 
