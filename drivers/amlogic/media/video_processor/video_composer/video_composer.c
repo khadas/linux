@@ -64,6 +64,7 @@ static unsigned int transform;
 static unsigned int vidc_debug;
 static unsigned int vidc_pattern_debug;
 static int last_index[MAX_VD_LAYERS][MXA_LAYER_COUNT];
+static int last_omx_index;
 static u32 print_flag;
 static u32 full_axis = 1;
 static u32 print_close;
@@ -2188,8 +2189,7 @@ static void set_frames_info(struct composer_dev *dev,
 	bool current_is_sideband = false;
 	bool is_dec_vf = false, is_v4l_vf = false;
 	s32 sideband_type = -1;
-	bool is_tvp = false, is_used = false;
-	bool is_repeat = true;
+	bool is_tvp = false;
 	bool need_dw = false;
 	char render_layer[16] = "";
 
@@ -2392,35 +2392,26 @@ static void set_frames_info(struct composer_dev *dev,
 				vc_print(dev->index, PRINT_PATTERN,
 					 "drop cnt reset!!\n");
 			}
-			if (is_repeat &&
-			    last_index[dev->index][j] != vf->omx_index)
-				is_repeat = false;
-			last_index[dev->index][j] = vf->omx_index;
-			if (dev->index == 0) {
-				if (!is_repeat) {
-					if (!is_used) {
-						dev->received_new_count++;
-						is_used = true;
-					}
-					drop_cnt = vf->omx_index + 1
-						- dev->received_new_count;
-					receive_new_count =
-						dev->received_new_count;
-				}
-				receive_count = dev->received_count + 1;
-			} else if (dev->index == 1) {
-				if (!is_repeat) {
-					if (!is_used) {
-						dev->received_new_count++;
-						is_used = true;
-					}
-					drop_cnt_pip = vf->omx_index + 1
-						- dev->received_new_count;
-					receive_new_count_pip =
-						dev->received_new_count;
-				}
-				receive_count_pip = dev->received_count + 1;
+
+			if (last_index[dev->index][j] != vf->omx_index) {
+				dev->received_new_count++;
+				last_index[dev->index][j] = vf->omx_index;
 			}
+
+			if (dev->index == 0) {
+				drop_cnt = vf->omx_index + 1
+					    - dev->received_new_count;
+				receive_new_count = dev->received_new_count;
+				receive_count = dev->received_count + 1;
+				last_omx_index = vf->omx_index;
+			} else if (dev->index == 1) {
+				drop_cnt_pip = vf->omx_index + 1
+						- dev->received_new_count;
+				receive_new_count_pip = dev->received_new_count;
+				receive_count_pip = dev->received_count + 1;
+				last_omx_index = vf->omx_index;
+			}
+
 			if (!is_tvp) {
 				if (vf->flag & VFRAME_FLAG_VIDEO_SECURE)
 					is_tvp = true;
@@ -2501,6 +2492,7 @@ static int video_composer_init(struct composer_dev *dev)
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
 			last_index[i][j] = -1;
 	}
+	last_omx_index = -1;
 	disable_video_layer(dev, 2);
 	video_set_global_output(dev->index, 1);
 
@@ -3160,8 +3152,12 @@ static ssize_t reset_drop_store(struct class *class,
 static ssize_t drop_cnt_show(struct class *class,
 			     struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "rec_cnt: %d, rec_new_cnt: %d, drop_cnt: %d\n",
-		       receive_count, receive_new_count, drop_cnt);
+	return sprintf(buf,
+		"rec_cnt: %d, omx_index: %d, valid_cnt: %d, drop_cnt: %d\n",
+		receive_count,
+		last_omx_index,
+		receive_new_count,
+		drop_cnt);
 }
 
 static ssize_t drop_cnt_pip_show(struct class *class,
@@ -3169,8 +3165,11 @@ static ssize_t drop_cnt_pip_show(struct class *class,
 				 char *buf)
 {
 	return sprintf(buf,
-		       "pip_cnt: %d, pip_new_cnt: %d, drop_cnt_pip: %d\n",
-		       receive_count_pip, receive_new_count_pip, drop_cnt_pip);
+		"pip_cnt:%d,omx_index:%d,valid_cnt_pip:%d,drop_cnt_pip:%d\n",
+		receive_count_pip,
+		last_omx_index,
+		receive_new_count_pip,
+		drop_cnt_pip);
 }
 
 static ssize_t receive_count_show(struct class *class,
