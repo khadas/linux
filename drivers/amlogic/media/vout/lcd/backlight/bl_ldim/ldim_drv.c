@@ -1004,12 +1004,14 @@ static void aml_ldim_pq_update(void)
 	LDIMPR("%s, func_en = %d, remap_en = %d\n", __func__,
 		ldim_config.func_en, ldim_config.remap_en);
 
-	ldim_driver.pq_updating = 1;
-	ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, 0, 14, 1); //set comp_en off first
+	if (ldim_driver.init_on_flag) {
+		ldim_driver.pq_updating = 1;
+		ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, 0, 14, 1); //set comp_en off first
 
 	if (ldim_driver.data->func_ctrl)
 		ldim_driver.data->func_ctrl(&ldim_driver,
 		ldim_config.func_en);
+	}
 }
 
 static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1612,7 +1614,7 @@ static void ldim_remap_update_t3(struct ld_reg_s *nprm,
 			ldim_config.func_en);
 	}
 
-	if (ldim_driver.pq_updating) {
+	if (ldim_driver.pq_updating && ldim_driver.init_on_flag) {
 		if (ldim_driver.pq_updating == 1) {
 			ldim_driver.pq_updating++;
 			return;
