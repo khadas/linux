@@ -58,10 +58,7 @@ static int am_meson_gem_alloc_ion_buff(struct am_meson_gem_object *
 	} else if (flags & MESON_USE_VIDEO_AFBC) {
 		meson_gem_obj->is_uvm = true;
 		meson_gem_obj->is_afbc = true;
-		id = meson_ion_codecmm_heap_id_get();
-		if (id)
-			dmabuf = ion_alloc(meson_gem_obj->base.size, (1 << id),
-						   ION_FLAG_EXTEND_MESON_HEAP);
+		dmabuf = ion_alloc(UVM_FAKE_SIZE, ION_HEAP_SYSTEM, 0);
 	} else {
 		dmabuf = ion_alloc(meson_gem_obj->base.size,
 				   ION_HEAP_SYSTEM, 0);
