@@ -42,5 +42,6 @@ void frc_vpp_vs_ir_chk_film(struct frc_dev_s *frc_devp);
 int frc_tell_alg_vendor(u8 vendor_info);
 int frc_set_memc_fallback(u8 fbvale);
 int frc_set_film_support(u32 filmcnt);
+void frc_mm_secure_set(struct frc_dev_s *devp);
 
 #endif

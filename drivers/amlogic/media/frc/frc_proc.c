@@ -363,6 +363,10 @@ int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 			frc_in_sts->in_vsize = cur_video_sts->nnhf_input_h;
 		}
 	}
+	/*secure mode*/
+	if (devp->in_sts.secure_mode)
+		frc_mm_secure_set(devp);
+
 	//pr_frc(dbg_sts, "in size(%d,%d) sr_out(%d,%d) dbg(%d,%d)\n",
 	//	frc_in_sts->in_hsize, frc_in_sts->in_vsize,
 	//	cur_video_sts->nnhf_input_w, cur_video_sts->nnhf_input_h,
