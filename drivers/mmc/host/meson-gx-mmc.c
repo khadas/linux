@@ -37,6 +37,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/sched/clock.h>
 #include <linux/debugfs.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm_domain.h>
 
 #include "meson-cqhci.h"
 
@@ -4039,6 +4041,68 @@ static int meson_mmc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int meson_mmc_suspend(struct device *dev)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	int ret, i;
+
+	if (!host->ctrl_pwr_flag || !aml_card_type_mmc(host))
+		return 0;
+
+	if (host->debug_flag)
+		pr_info("[%s]%s\n", __func__, dev_name(host->dev));
+
+	for (i = 0; i < 20; i++)
+		host->reg_bak[i] = readl(host->regs + (i * 4));
+
+	host->resume_clk = clk_get_rate(host->mmc_clk);
+
+	ret = clk_set_rate(host->mmc_clk, 400000);
+	if (ret) {
+		dev_err(host->dev, "Unable to set clk to 400k to ret=%d\n",
+			ret);
+		return ret;
+	}
+
+	for (i = 0; i < 20; i++)
+		host->reg_bak[i] = readl(host->regs + (i * 4));
+
+	pinctrl_pm_select_sleep_state(dev);
+
+	pm_runtime_enable(host->dev);
+	pm_runtime_put_sync(host->dev);
+	pm_runtime_disable(host->dev);
+
+	return 0;
+}
+
+static int meson_mmc_resume(struct device *dev)
+{
+	struct meson_host *host = dev_get_drvdata(dev);
+	int i, ret;
+
+	if (!host->ctrl_pwr_flag || !aml_card_type_mmc(host))
+		return 0;
+
+	if (host->debug_flag)
+		pr_info("[%s]%s\n", __func__, dev_name(host->dev));
+
+	pm_runtime_enable(host->dev);
+	pm_runtime_get_sync(host->dev);
+	pm_runtime_disable(host->dev);
+
+	ret = clk_set_rate(host->mmc_clk, host->resume_clk);
+	if (ret) {
+		dev_err(host->dev, "Unable to set resume clk. ret=%d\n", ret);
+		return ret;
+	}
+	pinctrl_pm_select_default_state(dev);
+
+	for (i = 0; i < 20; i++)
+		writel(host->reg_bak[i], (host->regs + (i * 4)));
+	return 0;
+}
+
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct meson_mmc_data meson_gx_data = {
 	.tx_delay_mask	= CLK_V2_TX_DELAY_MASK,
@@ -4067,12 +4131,17 @@ static const struct of_device_id meson_mmc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, meson_mmc_of_match);
 
+const struct dev_pm_ops mmc_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(meson_mmc_suspend, meson_mmc_resume)
+};
+
 static struct platform_driver meson_mmc_driver = {
 	.probe		= meson_mmc_probe,
 	.remove		= meson_mmc_remove,
 	.driver		= {
 		.name = DRIVER_NAME,
 		.of_match_table = of_match_ptr(meson_mmc_of_match),
+		.pm = &mmc_pm_ops,
 	},
 };
 

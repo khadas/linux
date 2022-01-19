@@ -1081,7 +1081,8 @@
 	status = "okay";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
-	pinctrl-names = "default", "clk-gate";
+	pinctrl-2 = <&emmc_pins_sleep>;
+	pinctrl-names = "default", "clk-gate", "sleep";
 
 	bus-width = <8>;
 	cap-mmc-highspeed;

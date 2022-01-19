@@ -179,6 +179,8 @@ struct meson_host {
 	struct meson_mmc_hole hole[3];
 	u8 fix_hole;
 	u64 align[10];
+	u32 reg_bak[20];
+	u32 resume_clk;
 	char cmd_retune;
 	unsigned int win_start;
 	u8 *blk_test;
@@ -203,6 +205,7 @@ struct meson_host {
 	int flags;
 	spinlock_t lock; /* lock for claim and bus ops */
 	bool src_clk_cfg_done;
+	bool ctrl_pwr_flag;
 	struct dentry *debugfs_root;
 };
 

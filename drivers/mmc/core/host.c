@@ -451,6 +451,11 @@ int mmc_of_parse(struct mmc_host *host)
 
 	if (device_property_read_bool(dev, "use-64bit-dma"))
 		mmc->flags |= AML_USE_64BIT_DMA;
+
+	if (device_property_read_bool(dev, "enable-ctrl-power"))
+		mmc->ctrl_pwr_flag = true;
+	else
+		mmc->ctrl_pwr_flag = false;
 #endif
 	return mmc_pwrseq_alloc(host);
 }
