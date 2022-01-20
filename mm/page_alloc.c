@@ -72,6 +72,9 @@
 #include <linux/padata.h>
 #include <linux/khugepaged.h>
 #include <linux/buffer_head.h>
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -1377,6 +1380,9 @@ static __always_inline bool free_pages_prepare(struct page *page,
 
 	debug_pagealloc_unmap_pages(page, 1 << order);
 
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	reset_page_trace(page, order);
+#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 	return true;
 }
 
@@ -5438,6 +5444,9 @@ out:
 	}
 
 	trace_mm_page_alloc(page, order, alloc_gfp, ac.migratetype);
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	set_page_trace(page, order, gfp, NULL);
+#endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 
 	return page;
 }

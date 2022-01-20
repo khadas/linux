@@ -100,6 +100,9 @@
 #include <linux/kcsan.h>
 #include <linux/init_syscalls.h>
 #include <linux/stackdepot.h>
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+#include <linux/amlogic/page_trace.h>
+#endif
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -845,6 +848,10 @@ static void __init mm_init(void)
 	report_meminit();
 	stack_depot_init();
 	mem_init();
+#ifdef CONFIG_AMLOGIC_PAGE_TRACE
+	/* allocate memory before first page allocated */
+	page_trace_mem_init();
+#endif
 	mem_init_print_info();
 	/* page_owner must be initialized after buddy is ready */
 	page_ext_init_flatmem_late();
