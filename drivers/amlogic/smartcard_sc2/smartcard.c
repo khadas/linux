@@ -459,6 +459,31 @@ static int sc2_read_smc(unsigned int reg)
 	return ret;
 }
 
+static void sc2_write_sys(unsigned int reg, unsigned int val)
+{
+	void *ptr = (void *)(p_smc_hw_base - 0x38000 + reg);
+
+	if (t5w_smartcard)
+		return;
+
+	writel(val, ptr);
+	pr_dbg("write addr:%lx, org v:0x%0x, ret v:0x%0x\n",
+	       (unsigned long)ptr, val, readl(ptr));
+}
+
+static int sc2_read_sys(unsigned int reg)
+{
+	void *addr = p_smc_hw_base - 0x38000 + reg;
+	int ret = 0;
+
+	if (t5w_smartcard)
+		return -1;
+
+	ret = readl(addr);
+	pr_dbg("read addr:%lx, value:0x%0x\n", (unsigned long)addr, ret);
+	return ret;
+}
+
 static int sc2_smc_addr(struct platform_device *pdev)
 {
 	struct resource *res;
@@ -1054,12 +1079,12 @@ static void smc_clk_enable(int enable)
 	if (t5w_smartcard)
 		return;
 
-	data = SMC_READ_REG(CLK_CTRL);
+	data = sc2_read_sys(SMARTCARD_CLK_CTRL);
 	if (enable)
 		data |= (1 << 8);
 	else
 		data &= ~(1 << 8);
-	SMC_WRITE_REG(CLK_CTRL, data);
+	sc2_write_sys(SMARTCARD_CLK_CTRL, data);
 }
 
 static int smc_hw_set_param(struct smc_dev *smc)
