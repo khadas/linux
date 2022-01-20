@@ -679,6 +679,7 @@ static struct ddr_port_desc ddr_port_desc_t3[] __initdata = {
 	{ .port_id = 71, .port_name = "JTAG"          },
 	{ .port_id = 72, .port_name = "AUDIO"         },
 	{ .port_id = 73, .port_name = "DMA"           },
+	{ .port_id = 74, .port_name = "DEMOD"         },
 	/* NoC_vpu */
 	{ .port_id = 80, .port_name = "VPU0"          },
 	{ .port_id = 81, .port_name = "VPU1"          },
