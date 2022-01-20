@@ -12,6 +12,9 @@
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
 #include "meson_vpu_pipeline.h"
 #include "meson_crtc.h"
 #include "meson_vpu_reg.h"
@@ -480,6 +483,42 @@ static void osd_afbc_config_v7(struct osd_mif_reg_s *reg,
 	osd_mali_src_en_v7(reg, osd_index, afbc_en);
 }
 
+/* set osd, video two port */
+void osd_set_two_ports(u32 set)
+{
+	static u32 data32[2];
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) {
+		if (is_meson_t3_cpu()) {
+			/* set osd, video two port */
+			if (set == 1) {
+				/*mali afbcd,dolby0, osd1-4 etc->VPU0*/
+				/*aisr reshape, vd1, vd2, tcon p1 read->VPU2*/
+				meson_vpu_write_reg(VPP_RDARB_MODE, 0x10c00000);
+				meson_vpu_write_reg(VPU_RDARB_MODE_L2C1, 0x920000);
+			} else if (set == 0) {
+				meson_vpu_write_reg(VPP_RDARB_MODE, 0xaa0000);
+				meson_vpu_write_reg(VPU_RDARB_MODE_L2C1, 0x900000);
+			}
+		}
+		return;
+	}
+
+	/* set osd, video two port */
+	if (!data32[0] && !data32[1]) {
+		data32[0] = meson_vpu_read_reg(VPP_RDARB_MODE);
+		data32[1] = meson_vpu_read_reg(VPU_RDARB_MODE_L2C1);
+	}
+
+	if (set == 1) {
+		meson_vpu_write_reg_bits(VPP_RDARB_MODE, 2, 20, 8);
+		meson_vpu_write_reg_bits(VPU_RDARB_MODE_L2C1, 2, 16, 8);
+	} else if (set == 0) {
+		meson_vpu_write_reg(VPP_RDARB_MODE, data32[0]);
+		meson_vpu_write_reg(VPU_RDARB_MODE_L2C1, data32[1]);
+	}
+}
+
 static void osd_scan_mode_config(struct osd_mif_reg_s *reg, int scan_mode)
 {
 	if (scan_mode)
@@ -546,6 +585,7 @@ static int osd_check_state(struct meson_vpu_block *vblk,
 	mvos->plane_index = plane_info->plane_index;
 	mvos->global_alpha = plane_info->global_alpha;
 	mvos->crtc_index = plane_info->crtc_index;
+	mvos->read_ports = plane_info->read_ports;
 	return 0;
 }
 
@@ -720,6 +760,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_scan_mode_config(reg, pipe->subs[crtc_index].mode.flags &
 				 DRM_MODE_FLAG_INTERLACE);
 	ods_hold_line_config(reg, osd_hold_line);
+	osd_set_two_ports(mvos->read_ports);
 
 	DRM_DEBUG("plane_index=%d,HW-OSD=%d\n",
 		  mvos->plane_index, vblk->index);

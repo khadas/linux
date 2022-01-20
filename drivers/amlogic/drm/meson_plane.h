@@ -39,6 +39,7 @@ struct am_osd_plane {
 	/*osd extend*/
 	u32 osd_reverse;
 	u32 osd_blend_bypass;
+	u32 osd_read_ports;
 };
 
 struct am_video_plane {

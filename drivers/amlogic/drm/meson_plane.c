@@ -117,6 +117,10 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 			plane_info->rotation = amp->osd_reverse;
 		if (plane_info->blend_bypass != amp->osd_blend_bypass)
 			plane_info->blend_bypass = amp->osd_blend_bypass;
+		if (plane_info->read_ports != amp->osd_read_ports)
+			plane_info->read_ports = amp->osd_read_ports;
+		else
+			plane_info->read_ports = 2;
 	}
 	if (scan_mode_out) {
 		plane_info->dst_y >>= 1;
@@ -788,6 +792,7 @@ static void meson_osd_plane_atomic_print_state(struct drm_printer *p,
 	drm_printf(p, "\t\tblend_bypass=%u\n", plane_info->blend_bypass);
 	drm_printf(p, "\t\tglobal_alpha=%u\n", plane_info->global_alpha);
 	drm_printf(p, "\t\tscaling_filter=%u\n", plane_info->scaling_filter);
+	drm_printf(p, "\t\tread_ports=%u\n", plane_info->read_ports);
 }
 
 static void meson_video_plane_atomic_print_state(struct drm_printer *p,
@@ -1311,6 +1316,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 	osd_plane->drv = priv;
 	osd_plane->plane_index = i;
 	osd_plane->plane_type = OSD_PLANE;
+
 	if (logo.osd_reverse)
 		osd_plane->osd_reverse = DRM_MODE_REFLECT_MASK;
 	else

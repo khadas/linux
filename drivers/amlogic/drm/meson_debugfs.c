@@ -439,6 +439,61 @@ static const struct file_operations meson_osd_blend_bypass_fops = {
 	.write = meson_osd_blend_bypass_write,
 };
 
+static int meson_osd_read_port_show(struct seq_file *sf, void *data)
+{
+	struct drm_plane *plane = sf->private;
+	struct am_osd_plane *amp = to_am_osd_plane(plane);
+
+	seq_puts(sf, "echo 1 > enable read port setting\n");
+	seq_puts(sf, "echo 0 > disable read port setting\n");
+	seq_printf(sf, "\nstatus：%d\n", (amp->osd_read_ports == 1) ? 1 : 0);
+
+	return 0;
+}
+
+static int meson_osd_read_port_open(struct inode *inode, struct file *file)
+{
+	struct drm_plane *plane = inode->i_private;
+
+	return single_open(file, meson_osd_read_port_show, plane);
+}
+
+static ssize_t meson_osd_read_port_write(struct file *file,
+				       const char __user *ubuf,
+				       size_t len, loff_t *offp)
+{
+	char buf[16];
+	long val;
+	struct seq_file *sf = file->private_data;
+	struct drm_plane *plane = sf->private;
+	struct am_osd_plane *amp = to_am_osd_plane(plane);
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+
+	if (kstrtoul(buf, 16, &val) < 0)
+		return -EINVAL;
+
+	val = val >= 1 ? 1 : 0;
+	amp->osd_read_ports = val;
+
+	return len;
+}
+
+static const struct file_operations meson_osd_read_port_fops = {
+	.owner = THIS_MODULE,
+	.open = meson_osd_read_port_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = meson_osd_read_port_write,
+};
+
 u32 overwrite_reg[256];
 u32 overwrite_val[256];
 int overwrite_enable;
@@ -610,9 +665,18 @@ int meson_plane_debugfs_init(struct drm_plane *plane, struct dentry *root)
 		DRM_ERROR("create osd_reverse node error\n");
 		debugfs_remove_recursive(meson_vpu_root);
 	}
+
 	entry = debugfs_create_file("osd_blend_bypass", 0644,
 				    meson_vpu_root, plane,
 				    &meson_osd_blend_bypass_fops);
+	if (!entry) {
+		DRM_ERROR("create osd_blend_bypass node error\n");
+		debugfs_remove_recursive(meson_vpu_root);
+	}
+
+	entry = debugfs_create_file("osd_read_port", 0644,
+				    meson_vpu_root, plane,
+				    &meson_osd_read_port_fops);
 	if (!entry) {
 		DRM_ERROR("create osd_blend_bypass node error\n");
 		debugfs_remove_recursive(meson_vpu_root);

@@ -175,6 +175,7 @@ struct meson_vpu_osd_layer_info {
 	u32 global_alpha;
 	u32 scaling_filter;
 	u32 crtc_index;
+	u32 read_ports;
 };
 
 struct meson_vpu_osd {
@@ -216,6 +217,7 @@ struct meson_vpu_osd_state {
 	u32 rotation;
 	u32 blend_bypass;
 	u32 crtc_index;
+	u32 read_ports;
 };
 
 struct meson_vpu_video_layer_info {
