@@ -1770,15 +1770,18 @@ void vdin_set_matrix(struct vdin_dev_s *devp)
 		} else {
 			maxsel = VDIN_SEL_MATRIX0;
 		}
-		devp->csc_idx =
-		vdin_set_color_matrix(maxsel,
-				      devp->addr_offset,
-				      devp->fmt_info_p,
-				      devp->format_convert,
-				      devp->parm.port,
-				      devp->prop.color_fmt_range,
-				      devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
-				      devp->color_range_mode);
+		if (!devp->dv.dv_flag) {
+			devp->csc_idx = vdin_set_color_matrix(maxsel,
+				devp->addr_offset,
+				devp->fmt_info_p,
+				devp->format_convert,
+				devp->parm.port,
+				devp->prop.color_fmt_range,
+				devp->prop.vdin_hdr_flag | devp->dv.dv_flag,
+				devp->color_range_mode);
+		} else {
+			devp->csc_idx = VDIN_MATRIX_NULL;
+		}
 
 		vdin_set_hdr(devp);
 

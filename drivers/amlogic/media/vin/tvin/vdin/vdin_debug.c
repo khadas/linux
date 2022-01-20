@@ -788,6 +788,8 @@ const char *vdin_trans_matrix_str(enum vdin_matrix_csc_e csc_idx)
 		return "VDIN_MATRIX_RGB_RGBS";
 	case VDIN_MATRIX_RGB2020_YUV2020:
 		return "VDIN_MATRIX_RGB2020_YUV2020";
+	case VDIN_MATRIX_YUV2020F_YUV2020:
+		return "VDIN_MATRIX_YUV2020F_YUV2020";
 	default:
 		return "VDIN_MATRIX_NULL";
 	}
