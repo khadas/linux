@@ -1411,14 +1411,22 @@
 			reg = <0x0 0x1000000>;
 		};
 		partition@6 {
+			label = "factory";
+			reg = <0x0 0x0800000>;
+		};
+		partition@7 {
 			label = "boot";
 			reg = <0x0 0x1000000>;
 		};
-		partition@7 {
-			label = "system";
-			reg = <0x0 0x8800000>;
-		};
 		partition@8 {
+			label = "system";
+			reg = <0x0 0x12000000>;
+		};
+		partition@9 {
+			label = "vendor";
+			reg = <0x0 0x1000000>;
+		};
+		partition@10 {
 			label = "data";
 			reg = <0x0 0xffffffff>;
 		};
