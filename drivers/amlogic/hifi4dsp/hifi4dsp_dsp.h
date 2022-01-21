@@ -152,6 +152,7 @@ struct hifi4dsp_dsp {
 	u32 optimize_longcall;
 	u32 sram_remap_addr[2];
 	struct dsp_ring_buffer *logbuff;
+	struct dentry *debug_dir;
 
 	void *info;
 	void *priv;
@@ -215,10 +216,11 @@ struct hifi4dsp_dsp *hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
 				      struct hifi4dsp_pdata *pdata,
 				      struct hifi4dsp_dsp_device *dsp_dev);
 
-void create_hifi4_syslog(void);
-void hifi4_syslog_reomve(void);
+void create_hifi_debugfs_files(struct hifi4dsp_dsp *dsp);
+void hifi_syslog_reomve(void);
 struct hifi4dsp_addr *hifi4dsp_get_share_memory(void);
 unsigned int get_logbuff_loglen(struct dsp_ring_buffer *rb);
 unsigned int show_logbuff_log(struct dsp_ring_buffer *rb, int dspid,
 		unsigned int len);
+void dsp_logbuff_show(int dspid);
 #endif /*_HIFI4DSP_DSP_H*/

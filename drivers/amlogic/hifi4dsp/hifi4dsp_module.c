@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/reset.h>
+#include <linux/kdebug.h>
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
@@ -861,7 +862,7 @@ static int hifi4dsp_platform_remove(struct platform_device *pdev)
 		goto dsp_cnt_error;
 	}
 
-	hifi4_syslog_reomve();
+	hifi_syslog_reomve();
 
 	priv = hifi4dsp_privdata();
 	for (id = 0; id < dsp_cnt; id++) {
@@ -1394,6 +1395,17 @@ static DEVICE_ATTR_WO(resume);
 	return b;
 }
 */
+static int die_notify(struct notifier_block *self,
+			unsigned long cmd, void *ptr)
+{
+	dsp_logbuff_show(DSPA);
+	dsp_logbuff_show(DSPB);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block die_notifier = {
+	.notifier_call	= die_notify,
+};
 
 static int hifi4dsp_platform_probe(struct platform_device *pdev)
 {
@@ -1688,13 +1700,15 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 			pm_runtime_enable(&pdev->dev);
 			priv->dev_pd = &pdev->dev;
 		}
+		create_hifi_debugfs_files(dsp);
 		pr_info("register dsp-%d done\n", id);
 	}
 	get_dsp_statusreg(pdev, dsp_cnt, hifi4dsp_p);
 	device_create_file(&pdev->dev, &dev_attr_suspend);
 	device_create_file(&pdev->dev, &dev_attr_resume);
-	/*init hifi4 syslog*/
-	create_hifi4_syslog();
+	if (register_die_notifier(&die_notifier))
+		pr_err("%s,register die notifier failed!\n", __func__);
+
 	pr_info("%s done\n", __func__);
 	return 0;
 
