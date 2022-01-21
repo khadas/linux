@@ -837,7 +837,7 @@ int aml_get_audio_edid(struct snd_kcontrol *kcontrol,
 		(int)rx_edid_get_aud_sad(p_extn->user_setting_edid);
 
 	res = copy_to_user(val, p_extn->user_setting_edid,
-			   MAX_AUDIO_EDID_LENGTH);
+			   MAX_AUDIO_EDID_LENGTH - sizeof(*tlv));
 
 	return 0;
 }
