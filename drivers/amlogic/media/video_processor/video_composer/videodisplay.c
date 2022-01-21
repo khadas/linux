@@ -31,13 +31,16 @@ static struct composer_dev *mdev[3];
 static int get_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 static unsigned int countinue_vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 
-#define PATTERN_32_DETECT_RANGE 5
-#define PATTERN_22_DETECT_RANGE 5
+#define PATTERN_32_DETECT_RANGE 7
+#define PATTERN_22_DETECT_RANGE 7
+#define PATTERN_22323_DETECT_RANGE 5
+
 #define PATTERN_41_DETECT_RANGE 2
 
 enum video_refresh_pattern {
 	PATTERN_32 = 0,
 	PATTERN_22,
+	PATTERN_22323,
 	PATTERN_41,
 	MAX_NUM_PATTERNS
 };
@@ -196,7 +199,8 @@ void video_dispaly_push_ready(struct composer_dev *dev, struct vframe_s *vf)
 
 static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct vframe_s *vf)
 {
-	int factor1 = 0, factor2 = 0, pattern_range = 0;
+	int factor1 = 0, factor2 = 0;
+	int pattern_range = 0;
 
 	if (pattern >= MAX_NUM_PATTERNS)
 		return;
@@ -251,10 +255,95 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 	}
 }
 
+static void vd_vsync_video_pattern_22323(struct composer_dev *dev, struct vframe_s *vf)
+{
+	int factor1 = 2;
+	int factor2 = 2;
+	int factor3 = 3;
+	int factor4 = 2;
+	int factor5 = 3;
+	int pattern = PATTERN_22323;
+	int pattern_range = PATTERN_22323_DETECT_RANGE;
+	bool check_ok = false;
+	int i = 0;
+	int index_1;
+	int index_2;
+	int index_3;
+	int index_4;
+	int index_5;
+	int cur_factor_index = dev->patten_factor_index;
+	int vsync_pts_inc = 16 * 90000 * vsync_pts_inc_scale / vsync_pts_inc_scale_base;
+	int vframe_duration = vf->duration * 15;
+
+	if (vsync_pts_inc * 12 != vframe_duration * 5)
+		return;
+
+	for (i = 0; i < PATTEN_FACTOR_MAX; i++) {
+		index_1 = i;
+
+		index_2 = i + 1;
+		if (index_2 >= PATTEN_FACTOR_MAX)
+			index_2 -= PATTEN_FACTOR_MAX;
+
+		index_3 = i + 2;
+		if (index_3 >= PATTEN_FACTOR_MAX)
+			index_3 -= PATTEN_FACTOR_MAX;
+
+		index_4 = i + 3;
+		if (index_4 >= PATTEN_FACTOR_MAX)
+			index_4 -= PATTEN_FACTOR_MAX;
+
+		index_5 = i + 4;
+		if (index_5 >= PATTEN_FACTOR_MAX)
+			index_5 -= PATTEN_FACTOR_MAX;
+
+		if (dev->patten_factor[index_1] == factor1 &&
+			dev->patten_factor[index_2] == factor2 &&
+			dev->patten_factor[index_3] == factor3 &&
+			dev->patten_factor[index_4] == factor4 &&
+			dev->patten_factor[index_5] == factor5) {
+			check_ok = true;
+			if (cur_factor_index == index_1)
+				dev->next_factor = factor2;
+			else if (cur_factor_index == index_2)
+				dev->next_factor = factor3;
+			else if (cur_factor_index == index_3)
+				dev->next_factor = factor4;
+			else if (cur_factor_index == index_4)
+				dev->next_factor = factor5;
+			else if (cur_factor_index == index_5)
+				dev->next_factor = factor1;
+			break;
+		}
+	}
+
+	if (check_ok) {
+		if (dev->pattern[pattern] < pattern_range) {
+			dev->pattern[pattern]++;
+			if (dev->pattern[pattern] == pattern_range) {
+				dev->pattern_enter_cnt++;
+				dev->pattern_detected = pattern;
+				vc_print(dev->index, PRINT_PATTERN,
+					"patten: video 22323 mode detected\n");
+			}
+		}
+	} else if (dev->pattern[pattern] == pattern_range) {
+		dev->pattern[pattern] = 0;
+		dev->pattern_exit_cnt++;
+		vc_print(dev->index, PRINT_PATTERN,
+			"patten: video 22323 mode broken, pre_pat=%d, patten =%d, index=%d, %d\n",
+			dev->pre_pat_trace, patten_trace[dev->index],
+			vf->omx_index, dev->last_vf_index);
+	} else {
+		dev->pattern[pattern] = 0;
+	}
+}
+
 static void vsync_video_pattern(struct composer_dev *dev, struct vframe_s *vf)
 {
 	vd_vsync_video_pattern(dev, PATTERN_32, vf);
 	vd_vsync_video_pattern(dev, PATTERN_22, vf);
+	vd_vsync_video_pattern_22323(dev, vf);
 	/*vd_vsync_video_pattern(dev, PTS_41_PATTERN);*/
 }
 
@@ -299,6 +388,10 @@ static inline int vd_perform_pulldown(struct composer_dev *dev,
 		pattern_range =  PATTERN_22_DETECT_RANGE;
 		expected_prev_interval = 2;
 		expected_curr_interval = 2;
+		break;
+	case PATTERN_22323:
+		pattern_range =  PATTERN_22323_DETECT_RANGE;
+		expected_curr_interval = dev->next_factor;
 		break;
 	case PATTERN_41:
 		/* TODO */
@@ -514,6 +607,11 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 				countinue_vsync_count[dev->index];
 
 		if (dev->enable_pulldown) {
+			dev->patten_factor_index++;
+			if (dev->patten_factor_index == PATTEN_FACTOR_MAX)
+				dev->patten_factor_index = 0;
+			dev->patten_factor[dev->patten_factor_index] = patten_trace[dev->index];
+
 			vsync_video_pattern(dev, vf);
 			dev->pre_pat_trace = patten_trace[dev->index];
 			patten_trace[dev->index] = 0;
@@ -726,6 +824,7 @@ int vd_render_index_get(struct composer_dev *dev)
 
 int video_display_create_path(struct composer_dev *dev)
 {
+	int i = 0;
 	char render_layer[16] = "";
 
 	sprintf(render_layer, "video_render.%d", dev->video_render_index);
@@ -755,6 +854,9 @@ int video_display_create_path(struct composer_dev *dev)
 	dev->last_vsync_index = 0;
 	dev->last_vf_index = 0xffffffff;
 	dev->enable_pulldown = false;
+	for (i = 0; i < PATTEN_FACTOR_MAX; i++)
+		dev->patten_factor[i] = 0;
+	dev->patten_factor_index = 0;
 	if (vd_pulldown_level && frc_get_video_latency() != 0) {
 		dev->enable_pulldown = true;
 		vc_print(dev->index, PRINT_ERROR,

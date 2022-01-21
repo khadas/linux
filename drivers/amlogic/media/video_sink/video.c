@@ -1799,8 +1799,8 @@ static bool last_mvc_status;
 
 struct vframe_s vf_local, vf_local2, vf_local_ext;
 static u32 vsync_pts_inc;
-static u32 vsync_pts_inc_scale;
-static u32 vsync_pts_inc_scale_base = 1;
+u32 vsync_pts_inc_scale;
+u32 vsync_pts_inc_scale_base = 1;
 static u32 vsync_pts_inc_upint;
 static u32 vsync_pts_inc_adj;
 static u32 vsync_pts_125;

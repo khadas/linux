@@ -55,6 +55,7 @@
 #define VIDEO_COMPOSER_ENABLE_NORMAL  1
 #define BUFFER_LEN 4
 #define DMA_BUF_COUNT 4
+#define PATTEN_FACTOR_MAX 5
 
 #define VCOM_MAP_NAME_SIZE 90
 #define VCOM_MAP_STRUCT_SIZE 120
@@ -254,6 +255,9 @@ struct composer_dev {
 	u32 last_vsync_index;
 	u32 last_vf_index;
 	bool enable_pulldown;
+	u32 patten_factor[PATTEN_FACTOR_MAX];
+	u32 patten_factor_index;
+	u32 next_factor;
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'

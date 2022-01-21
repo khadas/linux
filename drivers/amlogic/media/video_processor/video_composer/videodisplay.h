@@ -27,6 +27,8 @@
 
 extern u32 vd_pulldown_level;
 extern u32 vd_max_hold_count;
+extern u32 vsync_pts_inc_scale;
+extern u32 vsync_pts_inc_scale_base;
 
 struct video_display_frame_info_t {
 	struct dma_buf *dmabuf;
