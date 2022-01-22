@@ -2152,6 +2152,10 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			}
 			goto ldim_attr_store_err;
 		}
+		if (!strcmp(parm[1], "reg")) {
+			ldc_gain_lut_get_t3();
+			goto ldim_attr_store_end;
+		}
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &i) < 0)
 				goto ldim_attr_store_err;
@@ -2594,6 +2598,13 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			ldim_drv->duty_update_flag = (unsigned char)val1;
 		}
 		pr_info("duty_update_flag = %d\n", ldim_drv->duty_update_flag);
+	} else if (!strcmp(parm[0], "pq_updating")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				goto ldim_attr_store_err;
+			ldim_drv->pq_updating = (unsigned char)val1;
+		}
+		pr_info("pq_updating = %d\n", ldim_drv->pq_updating);
 	} else if ((!strcmp(parm[0], "alg")) ||
 		   (!strcmp(parm[0], "fw"))) {
 		if (fw->fw_alg_para_print)

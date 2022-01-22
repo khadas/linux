@@ -77,6 +77,7 @@ void ldim_hw_remap_update_tm2b(struct ld_reg_s *nprm, unsigned int avg_update_en
 /*new ldc*/
 void ldc_gain_lut_set_t7(void);
 void ldc_gain_lut_set_t3(void);
+void ldc_gain_lut_get_t3(void);
 void ldc_min_gain_lut_set(void);
 void ldc_dither_lut_set(void);
 void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag);

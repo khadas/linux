@@ -86,6 +86,7 @@ static void ldim_config_print(void);
 
 static struct aml_ldim_info_s ldim_info;
 static struct aml_ldim_pq_s ldim_pq;
+static struct aml_ldim_pq_s ldim_pq_pre;
 
 static struct ldim_config_s ldim_config = {
 	.hsize = 3840,
@@ -942,15 +943,16 @@ static void ldim_remap_lut_print(char *buf, int len)
 	}
 }
 
-static void aml_ldim_pq_update(void)
+static int aml_ldim_pq_update(void)
 {
 	struct fw_ctrl_s *fctrl;
 	struct ldim_comp_s *comp;
 	int i = 0, j = 0;
+	int ret = 0;
 
 	if (!ldim_driver.fw || !ldim_driver.fw->ctrl) {
 		LDIMERR("%s: fw ctrl is null\n", __func__);
-		return;
+		return -EFAULT;
 	}
 
 	ldim_driver.fw->fw_sel = ldim_pq.fw_sel;
@@ -1028,17 +1030,24 @@ static void aml_ldim_pq_update(void)
 
 	ldim_config.remap_en = ldim_pq.remapping_en;
 	ldim_config.func_en = ldim_pq.func_en;
-	LDIMPR("%s, func_en = %d, remap_en = %d\n", __func__,
-		ldim_config.func_en, ldim_config.remap_en);
+	LDIMPR("%s, func_en = %d, remap_en = %d\n",
+		__func__, ldim_config.func_en, ldim_config.remap_en);
 
+	if (ldim_driver.init_on_flag == 0 ||
+		ldim_driver.pq_updating || ldim_driver.switch_ld_cnt) {
+		LDIMERR("%s, init_on_flag = %d, pq_updating = %d, switch_ld_cnt = %d\n",
+		__func__, ldim_driver.init_on_flag, ldim_driver.pq_updating,
+		ldim_driver.switch_ld_cnt);
+		return -EFAULT;
+	}
 	if (ldim_driver.init_on_flag) {
 		ldim_driver.pq_updating = 1;
-		ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, 0, 14, 1); //set comp_en off first
-
-	if (ldim_driver.data->func_ctrl)
-		ldim_driver.data->func_ctrl(&ldim_driver,
-		ldim_config.func_en);
+		if (ldim_driver.data->func_ctrl)
+			ldim_driver.data->func_ctrl(&ldim_driver,
+			ldim_config.func_en);
 	}
+
+	return ret;
 }
 
 static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1154,7 +1163,14 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				   sizeof(struct aml_ldim_pq_s))) {
 			ret = -EFAULT;
 		}
-		aml_ldim_pq_update();
+		if (memcmp(&ldim_pq, &ldim_pq_pre, sizeof(struct aml_ldim_pq_s))) {
+			memset(&ldim_pq_pre, 0, sizeof(struct aml_ldim_pq_s));
+			memcpy(&ldim_pq_pre, &ldim_pq, sizeof(struct aml_ldim_pq_s));
+			LDIMPR("%s pq data is different, do pq update\n", __func__);
+			ret = aml_ldim_pq_update();
+		} else {
+			LDIMPR("%s pq data same as before!! do nothing!\n", __func__);
+		}
 		break;
 	case AML_LDIM_IOC_NR_GET_BL_MAPPING_PATH:
 		LDIMPR("get bl_mapping_path is(%s)\n", ldim_driver.dev_drv->bl_mapping_path);
@@ -1642,10 +1658,6 @@ static void ldim_remap_update_t3(struct ld_reg_s *nprm,
 	}
 
 	if (ldim_driver.pq_updating && ldim_driver.init_on_flag) {
-		if (ldim_driver.pq_updating == 1) {
-			ldim_driver.pq_updating++;
-			return;
-		}
 		ldc_min_gain_lut_set();
 		ldc_dither_lut_set();
 		ldc_gain_lut_set_t3();

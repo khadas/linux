@@ -263,34 +263,52 @@ void ldc_gain_lut_set_t7(void)
 void ldc_gain_lut_set_t3(void)
 {
 	unsigned int *p;
-	unsigned int data_wr, data_rd;
+	unsigned int data_wr;
 	int i, j;
 
-//	LDIMPR("%s\n", __func__);
-
 	//switch to cbus clock for gain lut ram
-	lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 2);
-	lcd_vcbus_write(LDC_GAIN_LUT_ADDR, 0);
+	VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_CTRL0, 2);
+	VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_ADDR, 0);
 
 	for (i = 0; i < 16; i++) {
 		p = ldc_gain_lut_array[i];
 		for (j = 0; j < 64; j = j + 2) {
 			data_wr = ((p[j + 1] << 12) + p[j]);
-			lcd_vcbus_write(LDC_GAIN_LUT_DATA, data_wr);
+			VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_DATA, data_wr);
 		}
 	}
+	//switch to ip clock for gain lut ram
+	VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_CTRL0, 0);
+
+	lcd_vcbus_read(LDC_REG_PANEL_SIZE);
+	lcd_vcbus_read(LDC_REG_PANEL_SIZE);
+}
+
+void ldc_gain_lut_get_t3(void)
+{
+	unsigned int *p;
+	unsigned int data_wr, data_rd;
+	int i, j;
+
+	LDIMPR("%s\n", __func__);
+
+	//switch to cbus clock for gain lut ram
+	lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 2);
 	lcd_vcbus_write(LDC_GAIN_LUT_ADDR, 0);
+	lcd_vcbus_read(LDC_RO_GAIN_SMP_DATA);// for toggle read
 	for (i = 0; i < 16; i++) {
 		p = ldc_gain_lut_array[i];
 		for (j = 0; j < 64; j = j + 2) {
 			data_wr = ((p[j + 1] << 12) + p[j]);
 			data_rd = lcd_vcbus_read(LDC_RO_GAIN_SMP_DATA);
-			if (data_wr != data_rd) {
-				if (ldim_debug_print == 6) {
-					LDIMERR("%s: %d: data_wr=0x%x, data_rd=0x%x\n",
-						__func__, i * 64 + j,
+			if (data_wr == data_rd) {
+				LDIMPR("%d: data_wr=0x%x, data_rd=0x%x\n",
+						i * 64 + j,
 						data_wr, data_rd);
-				}
+			} else {
+				LDIMERR("%d: data_wr=0x%x, data_rd=0x%x\n",
+						i * 64 + j,
+						data_wr, data_rd);
 			}
 		}
 	}
@@ -314,7 +332,7 @@ void ldc_min_gain_lut_set(void)
 		data = 0;
 		for (j = 0; j < 4; j++)
 			data |= ((p[i * 4 + j] & 0xff) << (j * 8));
-		lcd_vcbus_write(LDC_REG_MIN_GAIN_LUT_0 + i, data);
+		VSYNC_WR_MPEG_REG(LDC_REG_MIN_GAIN_LUT_0 + i, data);
 	}
 }
 
@@ -333,7 +351,7 @@ void ldc_dither_lut_set(void)
 			for (k = 0; k < 16; k++)
 				data |= (ldc_dither_lut[index][k] << k);
 			temp = (data << 16) | data;
-			lcd_vcbus_write(LDC_REG_DITHER_LUT_1_0 + offset, temp);
+			VSYNC_WR_MPEG_REG(LDC_REG_DITHER_LUT_1_0 + offset, temp);
 		}
 	}
 }
@@ -839,19 +857,23 @@ static void ldc_rmem_duty_set(struct aml_ldim_driver_s *ldim_drv)
 void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 {
 	unsigned int data;
+	unsigned int wflag;
 
 	data = lcd_vcbus_read(LDC_DGB_CTRL);
-	data = data & 0x3E00;
-	if (flag) {
-		ldim_drv->comp->ldc_comp_en = 1;
-		ldim_drv->state |= LDIM_STATE_REMAP_EN;
-		data = data | (1 << 14);
-	} else {
-		ldim_drv->state &= ~LDIM_STATE_REMAP_EN;
-		ldim_drv->comp->ldc_comp_en = 0;
+	wflag = (data >> 14) & 0x0001;
+	LDIMPR("%s, data = 0x%x, pre = %d, cur = %d\n", __func__, data, wflag, flag);
+	if (wflag != flag) {
+		data = data & 0x3E00;
+		if (flag) {
+			ldim_drv->comp->ldc_comp_en = 1;
+			ldim_drv->state |= LDIM_STATE_REMAP_EN;
+			data = data | (1 << 14);
+		} else {
+			ldim_drv->state &= ~LDIM_STATE_REMAP_EN;
+			ldim_drv->comp->ldc_comp_en = 0;
+		}
+		ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, data, 0, 15);
 	}
-
-	ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, data, 0, 15);
 }
 
 void ldim_config_update_t7(struct aml_ldim_driver_s *ldim_drv)
