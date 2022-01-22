@@ -520,7 +520,7 @@ static void __exit ramdump_uninit(void)
 	platform_driver_unregister(&ramdump_driver);
 }
 
-subsys_initcall(ramdump_init);
+fs_initcall(ramdump_init);
 module_exit(ramdump_uninit);
 MODULE_DESCRIPTION("AMLOGIC ramdump driver");
 MODULE_LICENSE("GPL");
