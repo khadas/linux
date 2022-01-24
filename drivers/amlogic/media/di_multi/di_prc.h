@@ -204,8 +204,8 @@ void sct_sw_on(struct di_ch_s *pch,
 		unsigned int buffer_size);
 void sct_sw_off_rebuild(struct di_ch_s *pch);
 
-void sct_alloc_in_poling(unsigned int ch);
-void sct_mng_working(struct di_ch_s *pch);
+//void sct_alloc_in_poling(unsigned int ch);
+//void sct_mng_working(struct di_ch_s *pch);
 void sct_mng_working_recycle(struct di_ch_s *pch);
 
 void sct_mng_idle(struct di_ch_s *pch);
@@ -463,4 +463,7 @@ void dim_print_hf(struct hf_info_t *phf);
 void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq);
 
 bool dim_dbg_is_force_later(void);
+
+void sct_polling(struct di_ch_s *pch, unsigned int pos);
+void dip_out_ch(void);
 #endif	/*__DI_PRC_H__*/

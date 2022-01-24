@@ -1586,6 +1586,18 @@ void dip_sum_post_ch(void)
 	}
 }
 
+void dip_out_ch(void)
+{
+	int i;
+	struct di_ch_s *pch;
+
+	for (i = 0; i < DI_CHANNEL_NUB; i++) {
+		pch = get_chdata(i);
+
+		if (pch->itf.op_ready_out)
+			pch->itf.op_ready_out(pch);
+	}
+}
 /************************************************
  * new reg and unreg
  ***********************************************/
@@ -1984,8 +1996,9 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			//mem_cfg(pch);
 #endif
 			//mem_cfg_realloc_wait(pch);
-			sct_mng_working(pch);
-			sct_alloc_in_poling(pch->ch_id);
+			//sct_mng_working(pch);
+			//sct_alloc_in_poling(pch->ch_id);
+			sct_polling(pch, 1);
 			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS) &&
 			    pch->itf.etype == EDIM_NIN_TYPE_VFM) {
 				if (get_sum_g(ch) == 0) {

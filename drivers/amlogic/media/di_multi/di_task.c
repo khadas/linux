@@ -185,11 +185,8 @@ void task_polling_cmd_keep(unsigned int ch, unsigned int top_sts)
 		mem_cfg_pst(pch);//2020-12-17
 		//mem_cfg_realloc_wait(pch);
 		pbm = get_bufmng();
-		if (!atomic_read(&pbm->trig_unreg[ch])) {
-			sct_mng_working(pch);
-			sct_mng_working_recycle(pch);
-			sct_alloc_in_poling(pch->ch_id);
-		}
+		if (!atomic_read(&pbm->trig_unreg[ch]))
+			sct_polling(pch, 2);
 	}
 	if (top_sts != EDI_TOP_STATE_IDLE	&&
 	    top_sts != EDI_TOP_STATE_READY	&&
@@ -301,6 +298,7 @@ restart:
 			dip_hw_process();
 
 		di_dbg_task_flg = 0;
+		dip_out_ch();
 		dip_sum_post_ch();
 		task_self_trig();
 	}
@@ -728,7 +726,8 @@ void mtask_wake_m(void)
 	mtask_wakeup(tsk);
 }
 
-static void mtask_polling_sct(struct di_ch_s *pch)
+//static
+void mtask_polling_sct(struct di_ch_s *pch)
 {
 	//sct_alloc_in_poling(ch);
 	if (pch->itf.op_ready_out)
@@ -776,7 +775,7 @@ mrestart:
 			pch = get_chdata(i);
 			mtask_polling_cmd(i);
 			//blk_polling(i);
-			mtask_polling_sct(pch);
+			//mtask_polling_sct(pch);
 		}
 	}
 

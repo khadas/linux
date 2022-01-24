@@ -707,7 +707,7 @@ unsigned int sct_keep(struct di_ch_s *pch, struct dim_sct_s *sct)
 	return 0xff;
 }
 
-void sct_alloc_in_poling(unsigned int ch)
+static void sct_alloc_in_poling(unsigned int ch)
 {
 	struct di_ch_s		*pch;
 	struct dim_mscttop_s	*psct;
@@ -842,7 +842,7 @@ void sct_mng_working_recycle(struct di_ch_s *pch)
 }
 
 #define DIM_SCT_KEEP_READY	(1)
-void sct_mng_working(struct di_ch_s *pch)
+static void sct_mng_working(struct di_ch_s *pch)
 {
 	unsigned int ch;
 	unsigned int cnt_pst_free, cnt_sct_ready, cnt_sct_req;
@@ -922,9 +922,9 @@ void sct_mng_working(struct di_ch_s *pch)
 		//PR_INF("cnt_wait:%d->%d\n", cnt_wait, cnt_sct_ready);
 		//cnt_sct_ready = cnt_wait;
 		ready_set = cnt_wait;
-		if (!cnt_wait)
-			f_no_wbuf = true;
 	}
+	if (!cnt_wait)
+		f_no_wbuf = true;
 
 	if (ready_set) {
 		/* ready to used */
@@ -1200,4 +1200,31 @@ void sct_prob(struct di_ch_s *pch)
 	mutex_init(&psct->lock_ready);
 	di_mmu_box_init();
 	dbg_sct("%s:ch[%d]\n", __func__, pch->ch_id);
+}
+
+void sct_polling(struct di_ch_s *pch, unsigned int pos)
+{
+	struct dim_mscttop_s	*pmsct;
+	struct di_mng_s *pbm = get_bufmng();
+	unsigned int cnt_pst_free;
+
+	if (!pch)
+		return;
+
+	pmsct = &pch->msct_top;
+	if (!pmsct->box)
+		return;
+	if (atomic_read(&pbm->trig_unreg[pch->ch_id]))
+		return;
+
+	cnt_pst_free	= di_que_list_count(pch->ch_id, QUE_POST_FREE);
+	if (cnt_pst_free >= DIM_SCT_KEEP_READY)
+		return;
+
+//	dbg_poll("b:%d:\n", pos);
+	sct_mng_working(pch);
+	sct_alloc_in_poling(pch->ch_id);
+	sct_mng_working(pch);
+//	dbg_poll("b:end:\n");
+	//check:
 }

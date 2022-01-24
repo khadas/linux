@@ -8813,7 +8813,7 @@ void dim_post_de_done_buf_config(unsigned int channel)
 		//dbg_slt_crc(di_buf);
 	}
 	pch->itf.op_fill_ready(pch, ppost->cur_post_buf);
-	mtask_wake_m();
+	//mtask_wake_m();
 	#ifdef MARK_HIS //2020-12-07 move to ndis_fill_ready
 	pw_vf_notify_receiver(channel,
 			      VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);

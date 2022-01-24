@@ -416,6 +416,9 @@ unsigned int dpre_mtotal_set(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 //ary 2020-12-09	ulong flags = 0;
+	struct di_ch_s *pch;
+
+	pch = get_chdata(pre->curr_ch);
 
 	/*dim_print("%s:\n", __func__);*/
 	//trace_printk("%s\n", __func__);
@@ -425,6 +428,7 @@ unsigned int dpre_mtotal_set(void *data)
 //ary 2020-12-09	spin_unlock_irqrestore(&plist_lock, flags);
 	/*begin to count timer*/
 	di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
+	sct_polling(pch, 3);
 
 	return K_DO_R_FINISH;
 }
