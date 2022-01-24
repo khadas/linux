@@ -69,13 +69,6 @@
 			pmsg-size = <0x20000>;
 		};
 
-		linux,above_4g_mem {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x1 0x20000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x1 0x0000000 0x1 0x20000000>;
-		};
 
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
@@ -133,14 +126,12 @@
 			size = <0x0 0x0B000000>;
 			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "shared-dma-pool";
 			size = <0x0 0x0>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		isp_cma_reserved:linux,isp_cma {
@@ -149,7 +140,6 @@
 			status = "okay";
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		adapt_cma_reserved:linux,adapt_cma {
@@ -158,7 +148,6 @@
 			status = "okay";
 			size = <0x0 0x1800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -166,7 +155,6 @@
 			reusable;
 			size = <0x0 0x9800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x8000000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -174,7 +162,6 @@
 			no-map;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
@@ -182,14 +169,12 @@
 			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0 0x09000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
 			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			//no-map;
 		};
 
@@ -212,7 +197,6 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 
