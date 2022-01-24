@@ -510,6 +510,9 @@ struct video_composer_private {
 	struct vframe_s *src_vf;
 	u32 last_disp_count; /*last frame disp vsync count*/
 	u32 vsync_index;
+	/*used to control mbp buffer*/
+	void (*lock_buffer_cb)(void *arg);
+	void (*unlock_buffer_cb)(void *arg);
 };
 
 struct vframe_s {
