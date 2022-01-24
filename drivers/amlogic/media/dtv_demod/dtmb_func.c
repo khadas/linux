@@ -397,6 +397,10 @@ int dtmb_check_cci(void)
 
 int dtmb_bch_check(struct dvb_frontend *fe)
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
+	unsigned int value_before;
 	int fec_bch_add, i, strenth;
 	char *info1 = "fec lock,but bch add ,need reset,wait not to reset";
 	char *info2 = "fec lock,but bch add ,need reset,now is lock";
@@ -406,9 +410,35 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 	msleep(100);
 	if ((dtmb_reg_r_bch()-fec_bch_add) >= 50) {
 		PR_DTMB("%s\n", info1);
-		dtmb_reset();
-		for (i = 0; i < 30; i++) {
-			msleep(100);
+
+		if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+			value_before = dtmb_read_reg(0x7);
+			PR_INFO("dtmb set ddr\n");
+			dtmb_write_reg(0x7, 0x6ffffd);
+			//dtmb_write_reg(0x47, 0xed33221);
+			dtmb_write_reg_bits(0x47, 0x1, 22, 1);
+			dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+		}
+		msleep(20);
+
+		sw_rst.b.ctrl_sw_rst = 1;
+		sw_rst.b.ctrl_sw_rst_noreg = 1;
+		dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
+
+		if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+			clear_ddr_bus_data();
+			dtmb_write_reg(0x7, value_before);
+			dtmb_write_reg_bits(0x47, 0x0, 22, 1);
+			dtmb_write_reg_bits(0x47, 0x0, 23, 1);
+		}
+
+		sw_rst.b.ctrl_sw_rst = 0;
+		sw_rst.b.ctrl_sw_rst_noreg = 0;
+		dtmb_write_reg(DTMB_TOP_CTRL_SW_RST, sw_rst.d32);
+
+		for (i = 0; i < 60; i++) {
+			PR_DTMB("fsm state:0x%x\n", dtmb_read_reg(0xd4));
+			msleep(50);
 			if (check_dtmb_fec_lock() == 1) {
 				PR_DTMB("%s\n", info2);
 				return 0;
