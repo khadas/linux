@@ -113,6 +113,7 @@ struct wifi_plat_info {
 #define WIFI_POWER_UP    _IO('m', 3)
 #define WIFI_POWER_DOWN  _IO('m', 4)
 #define SDIO_GET_DEV_TYPE  _IO('m', 5)
+#define CLR_BT_POWER_BIT   _IO('m', 6)
 static struct wifi_plat_info wifi_info;
 static dev_t wifi_power_devno;
 static struct cdev *wifi_power_cdev;
@@ -438,6 +439,10 @@ static long wifi_power_ioctl(struct file *filp,
 		if (copy_to_user((char __user *)arg,
 				 dev_type, strlen(dev_type)))
 			return -ENOTTY;
+		break;
+	case CLR_BT_POWER_BIT:
+		usb_power &= ~(1 << BT_BIT);
+		WIFI_INFO("CUR status: %d\n", usb_power);
 		break;
 	default:
 		WIFI_INFO("usb %s: default !!!\n", __func__);

@@ -58,6 +58,7 @@ static struct early_suspend bt_early_suspend;
 #define POWER_EVENT_DEF     0
 #define POWER_EVENT_RESET   1
 #define POWER_EVENT_EN      2
+//#define CONTROL_POWER_EN_LINUX
 
 char bt_addr[18] = "";
 char *btmac;
@@ -149,14 +150,14 @@ static void off_def_power(struct bt_dev_data *pdata, unsigned long down_time)
 			msleep(down_time);
 	}
 
-	if (pdata->gpio_en > 0) {
-		if (pdata->power_on_pin_OD &&
-			pdata->power_low_level) {
-			gpio_direction_input(pdata->gpio_en);
-		} else {
-			set_usb_bt_power(0);
-		}
+#ifndef CONTROL_POWER_EN_LINUX
+	if (pdata->gpio_en && pdata->power_on_pin_OD &&
+		pdata->power_low_level) {
+		gpio_direction_input(pdata->gpio_en);
+	} else {
+		set_usb_bt_power(0);
 	}
+#endif
 }
 
 static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
@@ -177,14 +178,14 @@ static void on_def_power(struct bt_dev_data *pdata, unsigned long up_time)
 			msleep(up_time);
 	}
 
-	if (pdata->gpio_en > 0) {
-		if (pdata->power_on_pin_OD &&
-			!pdata->power_low_level) {
-			gpio_direction_input(pdata->gpio_en);
-		} else {
-			set_usb_bt_power(1);
-		}
+#ifndef CONTROL_POWER_EN_LINUX
+	if (pdata->gpio_en && pdata->power_on_pin_OD &&
+		!pdata->power_low_level) {
+		gpio_direction_input(pdata->gpio_en);
+	} else {
+		set_usb_bt_power(1);
 	}
+#endif
 }
 
 static void off_reset_power(struct bt_dev_data *pdata, unsigned long down_time)
