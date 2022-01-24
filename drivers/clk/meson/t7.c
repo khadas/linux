@@ -7061,7 +7061,6 @@ static struct clk_regmap t7_mclk_0_sel = {
 			{ .hw = &t7_mpll_50m.hw },
 		},
 		.num_parents = 3,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -7124,7 +7123,6 @@ static struct clk_regmap t7_mclk_1_sel = {
 			{ .hw = &t7_mpll_50m.hw },
 		},
 		.num_parents = 3,
-		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
