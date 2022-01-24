@@ -125,7 +125,6 @@
 		states = <1800000 1
 			  3300000 0>;
 		regulator-boot-on;
-		regulator-always-on;
 	};
 
 	vddds1v8_reg: fixedregulator@7{
