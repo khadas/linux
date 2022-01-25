@@ -988,6 +988,9 @@ static struct reg_item misc_recovery_table_t7[] = {
 	{MALI_AFBCD1_TOP_CTRL, 0x0, 0x00ffffff, 1},
 	{MALI_AFBCD2_TOP_CTRL, 0x0, 0x00ffffff, 1},
 	{PATH_START_SEL, 0x0, 0xffff0000, 1},
+	{VIU_OSD1_PATH_CTRL, 0x0, 0xb0030017, 1},
+	{VIU_OSD2_PATH_CTRL, 0x0, 0xb0030017, 1},
+	{VIU_OSD3_PATH_CTRL, 0x0, 0xb0030017, 1}
 };
 
 static void recovery_regs_init_old(void)
@@ -1270,6 +1273,12 @@ static int update_recovery_item_old(u32 addr, u32 value)
 	if (!recovery_enable)
 		return ret;
 
+	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
+	     addr == DOLBY_CORE2A_SWAP_CTRL2) &&
+	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
+	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
+		return ret;
+
 	base = addr & 0xfff0;
 	switch (base) {
 	case VIU_OSD1_CTRL_STAT:
@@ -1336,23 +1345,7 @@ static int update_recovery_item_old(u32 addr, u32 value)
 		}
 		break;
 	default:
-		break;
-	}
-	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2) &&
-	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
-	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
-		return ret;
-	if (addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_BLK3_CFG_W4 ||
-	    addr == VPU_RDARB_MODE_L1C2 ||
-	    addr == VIU_MISC_CTRL1 ||
-	    addr ==
-		DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr ==
-		DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[4].table;
 		for (i = 0; i <  gRecovery[4].size; i++) {
 			if (addr == table[i].addr) {
@@ -1363,7 +1356,9 @@ static int update_recovery_item_old(u32 addr, u32 value)
 				break;
 			}
 		}
+		break;
 	}
+
 	return ret;
 }
 
@@ -1378,6 +1373,12 @@ static s32 get_recovery_item_old(u32 addr, u32 *value, u32 *mask)
 	if (!recovery_enable)
 		return ret;
 
+	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
+	     addr == DOLBY_CORE2A_SWAP_CTRL2) &&
+	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
+	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
+		return ret;
+
 	base = addr & 0xfff0;
 	switch (base) {
 	case VIU_OSD1_CTRL_STAT:
@@ -1436,25 +1437,7 @@ static s32 get_recovery_item_old(u32 addr, u32 *value, u32 *mask)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2) &&
-	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
-	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
-		return ret;
-
-	if (addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_BLK3_CFG_W4 ||
-	    addr == VPU_RDARB_MODE_L1C2 ||
-	    addr == VIU_MISC_CTRL1 ||
-	    addr ==
-		DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr ==
-		DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[4].table;
 		for (i = 0; i <  gRecovery[4].size; i++) {
 			if (addr == table[i].addr) {
@@ -1463,7 +1446,9 @@ static s32 get_recovery_item_old(u32 addr, u32 *value, u32 *mask)
 				break;
 			}
 		}
+		break;
 	}
+
 	if (ret == 0 && table) {
 		if (table->recovery == 1) {
 			u32 regmask = table->mask;
@@ -1701,18 +1686,7 @@ static int update_recovery_item_g12a(u32 addr, u32 value)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if (addr == OSD_PATH_MISC_CTRL ||
-	    addr == VIU_OSD1_DIMM_CTRL ||
-	    addr == VIU_OSD2_DIMM_CTRL ||
-	    addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_MALI_UNPACK_CTRL ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[11].table;
 		for (i = 0; i <  gRecovery[11].size; i++) {
 			if (addr == table[i].addr) {
@@ -1723,7 +1697,9 @@ static int update_recovery_item_g12a(u32 addr, u32 value)
 				break;
 			}
 		}
+		break;
 	}
+
 	return ret;
 }
 
@@ -1912,18 +1888,7 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if (addr == OSD_PATH_MISC_CTRL ||
-	    addr == VIU_OSD1_DIMM_CTRL ||
-	    addr == VIU_OSD2_DIMM_CTRL ||
-	    addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_MALI_UNPACK_CTRL ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[11].table;
 		for (i = 0; i <  gRecovery[11].size; i++) {
 			if (addr == table[i].addr) {
@@ -1932,7 +1897,9 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 				break;
 			}
 		}
+		break;
 	}
+
 	if (ret == 0 && table) {
 		if (table->recovery == 1) {
 			u32 regmask = table->mask;
@@ -2235,18 +2202,7 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if (addr == OSD_PATH_MISC_CTRL ||
-	    addr == VIU_OSD1_DIMM_CTRL ||
-	    addr == VIU_OSD2_DIMM_CTRL ||
-	    addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_MALI_UNPACK_CTRL ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[14].table;
 		for (i = 0; i <  gRecovery[14].size; i++) {
 			if (addr == table[i].addr) {
@@ -2257,7 +2213,9 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 				break;
 			}
 		}
+		break;
 	}
+
 	return ret;
 }
 
@@ -2490,18 +2448,7 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if (addr == OSD_PATH_MISC_CTRL ||
-	    addr == VIU_OSD1_DIMM_CTRL ||
-	    addr == VIU_OSD2_DIMM_CTRL ||
-	    addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_MALI_UNPACK_CTRL ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[14].table;
 		for (i = 0; i <  gRecovery[14].size; i++) {
 			if (addr == table[i].addr) {
@@ -2510,7 +2457,9 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 				break;
 			}
 		}
+		break;
 	}
+
 	if (ret == 0 && table) {
 		if (table->recovery == 1) {
 			u32 regmask = table->mask;

@@ -198,6 +198,17 @@ static void osd_debug_dump_register_all(void)
 		osd_log_info("reg[0x%x]: 0x%08x(osd4 csc matrixi ctrl)\n", reg, osd_reg_read(reg));
 		reg = OSD4_HDR2_MATRIXO_EN_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd4 csc matrixo ctrl)\n", reg, osd_reg_read(reg));
+		if (osd_dev_hw.path_ctrl_independ) {
+			reg = VIU_OSD1_PATH_CTRL;
+			osd_log_info("reg[0x%x]: 0x%08x(osd1 path)\n",
+				     reg, osd_reg_read(reg));
+			reg = VIU_OSD2_PATH_CTRL;
+			osd_log_info("reg[0x%x]: 0x%08x(osd2 path)\n",
+				     reg, osd_reg_read(reg));
+			reg = VIU_OSD3_PATH_CTRL;
+			osd_log_info("reg[0x%x]: 0x%08x(osd3 path)\n",
+				     reg, osd_reg_read(reg));
+		}
 	}
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 		reg = OSD_PATH_MISC_CTRL;
