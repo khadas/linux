@@ -23,7 +23,7 @@
 #define DEVICE_NAME "amhdmitx21"
 
 /* HDMITX driver version */
-#define HDMITX_VER "20211230"
+#define HDMITX_VER "20220125"
 
 /* chip type */
 enum amhdmitx_chip_e {

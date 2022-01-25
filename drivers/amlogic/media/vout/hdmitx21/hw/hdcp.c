@@ -78,12 +78,18 @@ void hdcptx_init_reg(void)
 	hdmitx21_set_bit(HDCP_CTRL_IVCTX, BIT(2), false);
 	hdmitx21_set_bit(HDCP_CTRL_IVCTX, BIT(2), true);
 	hdmitx21_wr_reg(CP2TX_TP1_IVCTX, 0x92);
+	hdmitx21_wr_reg(TPI_MISC_IVCTX, 1);
 	hdmitx21_set_bit(CP2TX_CTRL_2_IVCTX, BIT_CP2TX_CTRL_2_RI_SEQNUMM_AUTO, false);
 }
 
 u8 hdcptx1_ds_cap_status_get(void)
 {
 	return hdmitx21_rd_reg(TPI_COPP_DATA1_IVCTX);
+}
+
+u16 hdcptx1_get_prime_ri(void)
+{
+	return hdmitx21_rd_reg(RI_1_IVCTX) + (hdmitx21_rd_reg(RI_2_IVCTX) << 8);
 }
 
 void hdcptx1_ds_bksv_read(u8 *p_bksv, u8 b)
@@ -127,9 +133,6 @@ void hdcptx1_auth_start(void)
 {
 	hdcptx1_load_key();
 
-	hdmitx21_wr_reg(RI_START_IVCTX, 1);
-	hdmitx21_wr_reg(RI_128_COMP_IVCTX, 0x2);
-	hdmitx21_wr_reg(TPI_HW_OPT1_IVCTX, 0);
 	hdmitx21_set_bit(LM_DDC_IVCTX, BIT_LM_DDC_SWTPIEN_B7, true);
 	hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX, BIT_TPI_COPP_DATA2_CANCEL_PROT_EN, false);
 	hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX,
@@ -350,6 +353,11 @@ void hdcptx2_src_auth_start(u8 content_type)
 void hdcptx2_smng_auto(bool en)
 {
 	hdmitx21_set_bit(CP2TX_CTRL_0_IVCTX, BIT_CP2TX_CTRL_0_RI_SMNG_AUTO, en);
+}
+
+u8 hdcp2x_get_state_st(void)
+{
+	return hdmitx21_rd_reg(CP2TX_STATE_IVCTX);
 }
 
 void hdcptx1_query_aksv(struct hdcp_ksv_t *p_val)
