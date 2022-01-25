@@ -3382,6 +3382,7 @@ void rx_hdcp_22_sent_reauth(void);
 void rx_hdcp_14_sent_reauth(void);
 u32 rx_get_ecc_err(void);
 u32 rx_get_ecc_pkt_cnt(void);
+void rx_check_ecc_error(void);
 void hdmirx_output_en(bool en);
 void hdmirx_hbr2spdif(u8 val);
 void rx_hdcp_monitor(void);

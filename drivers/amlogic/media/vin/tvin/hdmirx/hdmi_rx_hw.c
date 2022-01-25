@@ -4718,13 +4718,18 @@ void print_reg(uint start_addr, uint end_addr)
 	for (i = start_addr; i <= end_addr; i += sizeof(uint)) {
 		if ((i - start_addr) % (sizeof(uint) * 4) == 0)
 			pr_cont("[0x%-4x] ", i);
-		if (!is_wr_only_reg(i))
-			if (rx.chip_id >= CHIP_ID_T7)
+		if (!is_wr_only_reg(i)) {
+			if (rx.chip_id >= CHIP_ID_T7) {
 				pr_cont("0x%x,   ", hdmirx_rd_cor(i));
-			else
+				pr_cont("0x%x,   ", hdmirx_rd_cor(i + 1));
+				pr_cont("0x%x,   ", hdmirx_rd_cor(i + 2));
+				pr_cont("0x%x,   ", hdmirx_rd_cor(i + 3));
+			} else {
 				pr_cont("0x%x,   ", hdmirx_rd_dwc(i));
-		else
+			}
+		} else {
 			pr_cont("xxxx,   ");
+		}
 
 		if ((i - start_addr) % (sizeof(uint) * 4) == sizeof(uint) * 3)
 			rx_pr(" ");
@@ -5343,7 +5348,7 @@ void rx_emp_to_ddr_init(void)
 {
 	u32 data32;
 
-	if (rx.chip_id < CHIP_ID_T7)
+	if (rx.chip_id < CHIP_ID_TL1)
 		return;
 
 	if (rx.empbuff.pg_addr) {
@@ -5362,8 +5367,14 @@ void rx_emp_to_ddr_init(void)
 		}
 		/* enable store EMP pkt type */
 		data32 = 0;
-		data32 |= 0x1 << 22;/* ddr_store_drm */
-		data32 |= 0x1 << 15;/* ddr_store_emp */
+		data32 |= 1 << 22;/* ddr_store_drm */
+		data32 |= 0 << 19;/* ddr_store_aif */
+		data32 |= 0 << 18;/* ddr_store_spd */
+		data32 |= 0 << 16;/* ddr_store_vsi */
+		data32 |= 1 << 15;/* ddr_store_emp */
+		data32 |= 0 << 12;/* ddr_store_amp */
+		data32 |= 0 << 8;/* ddr_store_hbr */
+		data32 |= 0 << 1;/* ddr_store_auds */
 		hdmirx_wr_top(TOP_EMP_DDR_FILTER, data32);
 		/* max pkt count */
 		hdmirx_wr_top(TOP_EMP_CNTMAX, EMP_BUFF_MAX_PKT_CNT);
@@ -5822,5 +5833,25 @@ void rx_hdcp_22_sent_reauth(void)
 void rx_hdcp_14_sent_reauth(void)
 {
 	hdmirx_wr_cor(RX_HDCP_DEBUG_HDCP1X_IVCRX, 0x80);
+}
+
+void rx_check_ecc_error(void)
+{
+	u32 ecc_pkt_cnt;
+
+	rx.ecc_err = rx_get_ecc_err();
+	ecc_pkt_cnt = rx_get_ecc_pkt_cnt();
+	if (log_level & ECC_LOG)
+		rx_pr("ecc:%d-%d\n",
+			  rx.ecc_err,
+			  ecc_pkt_cnt);
+	if (rx.ecc_err && ecc_pkt_cnt) {
+		rx.ecc_err_frames_cnt++;
+		if (rx.ecc_err_frames_cnt % 100 == 0)
+			rx_pr("ecc:%d\n", rx.ecc_err);
+		//skip_frame(2);
+	} else {
+		rx.ecc_err_frames_cnt = 0;
+	}
 }
 

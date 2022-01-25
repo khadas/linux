@@ -972,8 +972,6 @@ irqreturn_t irq_handler(int irq, void *params)
 	static u32 irq_err_cnt;
 	int error = 0;
 	u8 tmp = 0;
-	u32 ecc_err_tmp;
-	u32 ecc_pkt_cnt;
 
 	cur_clks = sched_clock();
 	irq_duration = cur_clks - last_clks;
@@ -1065,26 +1063,8 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 				} else {
 					rx.vrr_en = false;
 				}
-				if (rx.chip_id >= CHIP_ID_T7) {
-					ecc_err_tmp = rx_get_ecc_err();
-					ecc_pkt_cnt =
-					rx_get_ecc_pkt_cnt();
-					if (log_level & ECC_LOG)
-						rx_pr("ecc:%d-%d\n",
-						ecc_err_tmp,
-						ecc_pkt_cnt);
-					if (ecc_err_tmp &&
-						ecc_pkt_cnt) {
-						rx.ecc_err_frames_cnt++;
-						rx.ecc_err +=
-						ecc_err_tmp;
-						skip_frame(2);
-					} else {
-						rx.ecc_err = 0;
-						rx.ecc_err_frames_cnt =
-							0;
-					}
-				}
+				if (rx.chip_id >= CHIP_ID_T7)
+					rx_check_ecc_error();
 				rx_update_sig_info();
 			}
 			if (log_level & 0x400)
