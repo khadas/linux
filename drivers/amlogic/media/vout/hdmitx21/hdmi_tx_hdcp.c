@@ -284,12 +284,8 @@ static void hdcp1x_check_bksv_done(struct hdcp_t *p_hdcp)
 
 	if (copp_data1 & 0x02) {
 		hdcp_stop_work(&p_hdcp->timer_bksv_poll_done);
-		if (is_bksv_valid(p_hdcp)) {
-			hdcptx1_protection_enable(true);
-			hdcptx1_intermed_ri_check_enable(1);
-		} else {
-			hdcptx_update_failures(p_hdcp, HDCP_FAIL_BKSV_RXID);
-		}
+		hdcptx1_protection_enable(true);
+		hdcptx1_intermed_ri_check_enable(1);
 	}
 }
 
@@ -421,11 +417,16 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 {
 	u8 hdcp1xcoppst, hdcp1xauthintst;
+	u16 prime_ri;
 
 	hdcp1xauthintst = int_reg[0]; // 0x63d
 	hdcp1xcoppst = hdcptx1_copp_status_get(); // 0x629
-	pr_hdcp_info("%s[%d] hdcp1xauthintst 0x%x hdcp1xcoppst 0x%x\n",
-		__func__, __LINE__, hdcp1xauthintst, hdcp1xcoppst);
+	prime_ri = hdcptx1_get_prime_ri(); // 0x222 0x223
+	pr_hdcp_info("%s[%d] hdcp1xauthintst 0x%x hdcp1xcoppst 0x%x Ri 0x%x\n",
+		__func__, __LINE__, hdcp1xauthintst, hdcp1xcoppst, prime_ri);
+	if ((hdcp1xauthintst & BIT_TPI_INTR_ST0_BKSV_ERR) ||
+		(hdcp1xauthintst & BIT_TPI_INTR_ST0_BKSV_BCAPS_ERR))
+		hdcptx_update_failures(p_hdcp, HDCP_FAIL_BKSV_RXID);
 	if (hdcp1xauthintst & BIT_TPI_INTR_ST0_BKSV_BCAPS_DONE) {
 		p_hdcp->update_topology = false;
 		p_hdcp->update_topo_state = false;
@@ -554,9 +555,10 @@ static void hdcp2x_process_intr(u8 int_reg[])
 	u8 cp2tx_intr1_st = int_reg[1];  // 0x804 msg status
 	u8 cp2tx_intr2_st = int_reg[2];  // 0x805
 	u8 cp2tx_intr3_st = int_reg[3];  // 0x806
+	u8 cp2tx_state = hdcp2x_get_state_st(); // 0x80d
 
-	pr_hdcp_info("%s[%d] 0x%x 0x%x 0x%x 0x%x\n", __func__, __LINE__,
-		int_reg[0], int_reg[1], int_reg[2], int_reg[3]);
+	pr_hdcp_info("%s[%d] 0x%x 0x%x 0x%x 0x%x 0x%x\n", __func__, __LINE__,
+		int_reg[0], int_reg[1], int_reg[2], int_reg[3], cp2tx_state);
 
 	if (cp2tx_intr0_st & BIT_CP2TX_INTR0_AUTH_DONE) {
 		/* intr0 bit7 and bit0 needs to be 1, then start smng xfer */
