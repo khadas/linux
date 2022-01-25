@@ -10353,8 +10353,9 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 	vf->src_fmt.sei_size = size;
 	vf->src_fmt.dual_layer = false;
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME) {
-		pr_info("===update vf %p, sei %p, size %d, dual_layer %d===\n",
-			vf, sei, size, dual_layer);
+		pr_info("===update vf %p, sei %p, size %d, dual_layer %d play_id = %d ===\n",
+			vf, sei, size, dual_layer,
+			vf->src_fmt.play_id);
 		if (sei && size > 15) {
 			p = (char *)sei;
 			for (i = 0; i < size; i += 16)
