@@ -2380,7 +2380,7 @@ void rx_emp_data_capture(void)
 	loff_t pos = 0;
 	void *buf = NULL;
 	char *path = "/data/emp_data.bin";
-	unsigned int offset = 0;
+	static unsigned int offset;
 	mm_segment_t old_fs = get_fs();
 
 	set_fs(KERNEL_DS);
@@ -2391,6 +2391,7 @@ void rx_emp_data_capture(void)
 		return;
 	}
 
+	pos += offset;
 	/*start buffer address*/
 	buf = rx.empbuff.ready;
 	/*write size*/
