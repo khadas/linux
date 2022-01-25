@@ -457,7 +457,7 @@
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
 		dai-tdm-lane-slot-mask-out = <1 1>;
-		dai-tdm-clk-sel = <0>;
+		dai-tdm-clk-sel = <2>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_MPLL0>;
@@ -465,16 +465,13 @@
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <
 			&mclk_2_pins
-			&tdm_a_pins
 			&tdmain_pins
-			&tdm_d0_pins
-			&tdm_d1_pins
 			&tdm_d8_pins
 			&tdm_d9_pins
 			&tdm_d10_pins
-			//&tdm_d11_pins
-			&tdma_clk_pins
-			&tdmain_clk_pins>;
+			&tdm_d11_pins
+			&tdmain_clk_pins
+			>;
 
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
@@ -727,7 +724,7 @@
 		/* max 0xf, each bit for one lane, usually one lane */
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
-		channel_mask = <0x3>;
+		channel_mask = <0xff>;
 		status = "okay";
 	};
 }; /* end of audiobus */
@@ -749,8 +746,8 @@
 				"tdm_fs2_t",
 				"tdm_d8_t",
 				"tdm_d9_t",
-				"tdm_d10_t";
-				//"tdm_d11_t";
+				"tdm_d10_t",
+				"tdm_d11_t";
 			function = "tdm";
 		};
 	};
@@ -862,7 +859,7 @@
 	tdm_d8_pins: tdm_d8_pin {
 		mux {
 			groups = "tdm_d8";
-			function = "tdmina_lane0";
+			function = "tdmina_lane1";
 		};
 	};
 
@@ -880,12 +877,12 @@
 		};
 	};
 
-	//tdm_d11_pins: tdm_d11_pin {
-	//	mux {
-	//		groups = "tdm_d11";
-	//		function = "tdmina_lane0";
-	//	};
-	//};
+	tdm_d11_pins: tdm_d11_pin {
+		mux {
+			groups = "tdm_d11";
+			function = "tdmina_lane0";
+		};
+	};
 
 	tdm_d12_pins: tdm_d12_pin {
 		mux {
@@ -918,7 +915,7 @@
 	tdmain_clk_pins: tdmain_clk_pin {
 		mux {
 			groups = "tdm_sclk2", "tdm_lrclk2";
-			function = "tdm_clk_outa";
+			function = "tdm_clk_in";
 		};
 	};
 
