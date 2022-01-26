@@ -1033,11 +1033,9 @@ static int aml_ldim_pq_update(void)
 	LDIMPR("%s, func_en = %d, remap_en = %d\n",
 		__func__, ldim_config.func_en, ldim_config.remap_en);
 
-	if (ldim_driver.init_on_flag == 0 ||
-		ldim_driver.pq_updating || ldim_driver.switch_ld_cnt) {
-		LDIMERR("%s, init_on_flag = %d, pq_updating = %d, switch_ld_cnt = %d\n",
-		__func__, ldim_driver.init_on_flag, ldim_driver.pq_updating,
-		ldim_driver.switch_ld_cnt);
+	if (ldim_driver.init_on_flag == 0 || ldim_driver.pq_updating) {
+		LDIMERR("%s, init_on_flag = %d, pq_updating = %d\n",
+		__func__, ldim_driver.init_on_flag, ldim_driver.pq_updating);
 		return -EFAULT;
 	}
 	if (ldim_driver.init_on_flag) {

@@ -961,6 +961,12 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 
 void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 {
+	if (ldim_drv->func_en == ldim_drv->conf->func_en) {
+		if (ldim_debug_print)
+			LDIMPR("%s: func_en is same as conf.func_en\n", __func__);
+		return;
+	}
+
 	if (flag) {
 		if (ldim_drv->ld_sel == 0) {
 			if (ldim_debug_print)
@@ -968,15 +974,11 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 			return;
 		}
 
-		if (ldim_drv->func_en == ldim_drv->conf->func_en) {
-			if (ldim_debug_print)
-				LDIMPR("%s: func_en is same as conf.func_en\n", __func__);
-			return;
-		}
-
 		ldim_wr_reg_bits_rdma(LDC_REG_BLOCK_NUM, 1, 20, 1);
 
 		ldim_drv->switch_ld_cnt++;
+		if (ldim_debug_print)
+			LDIMPR("%s: switch_ld_cnt = %d\n", __func__, ldim_drv->switch_ld_cnt);
 		if (ldim_drv->switch_ld_cnt < 4)
 			return;
 		ldim_drv->switch_ld_cnt = 0;
