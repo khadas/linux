@@ -496,6 +496,12 @@ struct amvideo_device_data_s {
 	struct video_device_hw_s dev_property;
 };
 
+struct path_id_s {
+	s32 vd1_path_id;
+	s32 vd2_path_id;
+	s32 vd3_path_id;
+};
+
 /* from video_hw.c */
 extern struct video_layer_s vd_layer[MAX_VD_LAYER];
 extern struct disp_info_s glayer_info[MAX_VD_LAYER];
@@ -762,6 +768,10 @@ int set_vpu_super_urgent(u32 module_id, u32 low_level, u32 high_level);
 void vsync_rdma_process(void);
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+void amvecm_process(struct path_id_s *path_id, struct video_recv_s *p_gvideo_recv,
+			    struct vframe_s *new_frame);
+#endif
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {

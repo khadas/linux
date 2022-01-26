@@ -186,6 +186,11 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	int crop[4];
 	u8 layer_id = 1, vpp_id = 0, recv_id = 0;
 	s32 vd_path_id = 0;
+	struct path_id_s path_id;
+
+	path_id.vd1_path_id = vd_path_id;
+	path_id.vd2_path_id = 0xffff;
+	path_id.vd3_path_id = 0xffff;
 
 	if (video_suspend && video_suspend_cycle >= 1) {
 		if (log_out)
@@ -241,25 +246,8 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 		if (debug_flag1 & 1)
 			pr_info("video_render5/6 dequeue\n");
 		path0_new_frame =
-			gvideo_recv_vpp[recv_id]->func->dequeue_frame(gvideo_recv_vpp[recv_id]);
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-		if (vd_path_id == gvideo_recv_vpp[recv_id]->path_id) {
-			amvecm_on_vs
-				((gvideo_recv_vpp[recv_id]->cur_buf !=
-				 &gvideo_recv_vpp[recv_id]->local_buf)
-				? gvideo_recv_vpp[recv_id]->cur_buf : NULL,
-				path0_new_frame,
-				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				layer_id,
-				vpp_index);
-		}
-#endif
+			gvideo_recv_vpp[recv_id]->func->dequeue_frame(gvideo_recv_vpp[recv_id],
+								      &path_id);
 	}
 	if (!vd_layer_vpp[vpp_id].global_output) {
 		cur_vd_path_id = VFM_PATH_INVALID;

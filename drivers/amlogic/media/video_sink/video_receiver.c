@@ -459,7 +459,8 @@ static s32 recv_common_early_process(struct video_recv_s *ins, u32 op)
 	return 0;
 }
 
-static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins)
+static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
+								struct path_id_s *path_id)
 {
 	struct vframe_s *vf = NULL;
 	struct vframe_s *toggle_vf = NULL;
@@ -538,6 +539,9 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins)
 #endif
 			vf = common_vf_get(ins);
 			if (vf) {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+				amvecm_process(path_id, ins, vf);
+#endif
 				common_toggle_frame(ins, vf);
 				toggle_vf = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION

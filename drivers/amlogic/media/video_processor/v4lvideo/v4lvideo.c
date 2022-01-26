@@ -1234,6 +1234,17 @@ static void v4lvideo_private_data_release(struct file_private_data *data)
 	if (data->is_keep)
 		vf_free(data);
 	v4lvideo_release_sei_data(&data->vf);
+	if (data->md.p_md) {
+		vfree(data->md.p_md);
+		data->md.p_md = NULL;
+	}
+	if (data->md.p_comp) {
+		vfree(data->md.p_comp);
+		data->md.p_comp = NULL;
+	}
+	if (alloc_sei & 2)
+		pr_info("v4lvideo private data release\n");
+
 	memset(data, 0, sizeof(struct file_private_data));
 }
 
@@ -1284,6 +1295,22 @@ struct file_private_data *v4lvideo_get_file_private_data(struct file *file_vf,
 	file_private_data = kzalloc(sizeof(*file_private_data), GFP_KERNEL);
 	if (!file_private_data)
 		return NULL;
+
+	file_private_data->md.p_md  = vmalloc(MD_BUF_SIZE);
+	if (!file_private_data->md.p_md) {
+		kfree((u8 *)file_private_data);
+		return NULL;
+	}
+
+	file_private_data->md.p_comp = vmalloc(COMP_BUF_SIZE);
+	if (!file_private_data->md.p_comp) {
+		if (file_private_data->md.p_md) {
+			vfree(file_private_data->md.p_md);
+			file_private_data->md.p_md = NULL;
+		}
+		kfree((u8 *)file_private_data);
+		return NULL;
+	}
 	info.type = VF_PROCESS_V4LVIDEO;
 	info.arg = file_private_data;
 	info.free = free_fd_private;
@@ -1995,6 +2022,10 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	file_private_data->vf.src_fmt.md_buf = file_private_data->md.p_md;
 	file_private_data->vf.src_fmt.comp_buf = file_private_data->md.p_comp;
 	file_private_data->v4l_inst_id = dev->inst;
+	if ((alloc_sei & 2) && vf)
+		pr_info("vidioc dqbuf: vf %p(index %d), md_buf %p\n",
+			vf, vf->omx_index, file_private_data->vf.src_fmt.md_buf);
+
 	v4lvideo_import_sei_data(vf,
 		&file_private_data->vf,
 		dev->provider_name);

@@ -1464,7 +1464,7 @@ struct tv_input_info_s *tv_input_info;
 static bool enable_vpu_probe;
 static bool module_installed;
 static bool recovery_mode;
-
+static bool force_runmode;
 #define MAX_PARAM   8
 static bool is_meson_gxm(void)
 {
@@ -2513,6 +2513,9 @@ static int tv_dolby_core1_set
 	if (dolby_vision_run_mode != 0xff) {
 		run_mode = dolby_vision_run_mode;
 	} else {
+		if (debug_dolby & 8)
+			pr_dolby_dbg("%s: dolby_vision_on_count %d\n",
+				     __func__, dolby_vision_on_count);
 		run_mode = tv_run_mode(vsize, hdmi, hdr10, el_41_mode);
 		if (dolby_vision_on_count < dolby_vision_run_mode_delay) {
 			run_mode = (run_mode & 0xfffffffc) | 1;
@@ -6373,6 +6376,10 @@ static int dolby_vision_policy_process
 						src_format);
 					*mode = DOLBY_VISION_OUTPUT_MODE_BYPASS;
 					mode_change = 1;
+				} else {
+					if (debug_dolby & 1)
+						pr_dolby_dbg("src=%d, but hdr ON, dv keep BYPASS\n",
+							     src_format);
 				}
 			} else if ((src_format == FORMAT_DOVI) ||
 				(src_format == FORMAT_DOVI_LL) ||
@@ -9093,8 +9100,8 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 
 		}
 		if (debug_dolby & 1)
-			pr_dolby_dbg("%s get vf %p(%d), fmt %d, aux %p %x, el %d\n",
-				     dv_provider, vf, vf->discard_dv_data, fmt,
+			pr_dolby_dbg("%s get vf %p(%d,index %d),fmt %d,aux %p %x,el %d\n",
+				     dv_provider, vf, vf->discard_dv_data, vf->omx_index, fmt,
 				     req.aux_buf,
 				     req.aux_size,
 				     req.dv_enhance_exist);
@@ -9492,6 +9499,9 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 	} else {
 		dolby_vision_target_mode = dolby_vision_mode;
 	}
+	if (vf && (debug_dolby & 8))
+		pr_dolby_dbg("parse_metadata: vf %p(index %d), mode %d\n",
+			      vf, vf->omx_index, dolby_vision_mode);
 
 	if (get_hdr_module_status(VD1_PATH, VPP_TOP0) != HDR_MODULE_ON &&
 	    check_format == FORMAT_SDR) {
@@ -10438,9 +10448,12 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 				vd1_on = true;
 		}
 		/* don't use run mode when sdr -> dv and vd1 not disable */
-		if (dolby_vision_wait_init && vd1_on)
+		if (/*dolby_vision_wait_init && */vd1_on && is_meson_tvmode() && !force_runmode)
 			dolby_vision_on_count =
 				dolby_vision_run_mode_delay + 1;
+		if (debug_dolby & 8)
+			pr_dolby_dbg("dolby_vision_on_count %d, vd1_on %d\n",
+				      dolby_vision_on_count, vd1_on);
 	}
 	if (dolby_vision_wait_init && dolby_vision_wait_count > 0) {
 		if (debug_dolby & 8)
@@ -10466,8 +10479,9 @@ int dolby_vision_wait_metadata(struct vframe_s *vf)
 		dolby_vision_run_mode_delay))
 		ret = 1;
 
-	if (debug_dolby & 8)
-		pr_dolby_dbg("dv wait return %d\n", ret);
+	if (vf && (debug_dolby & 8))
+		pr_dolby_dbg("wait return %d, vf %p(index %d), core1_on %d\n",
+			      ret, vf, vf->omx_index, dolby_vision_core1_on);
 
 	return ret;
 }
@@ -10689,6 +10703,10 @@ int dolby_vision_process(struct vframe_s *vf,
 		if (vf)
 			update_aoi_flag(vf, display_size);
 	}
+	if (vf && (debug_dolby & 0x8))
+		pr_dolby_dbg("%s: vf %p(index %d), mode %d, core1_on %d\n",
+			     __func__, vf, vf->omx_index,
+			     dolby_vision_mode, dolby_vision_core1_on);
 
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME)	{
 		h_size = (display_size >> 16) & 0xffff;
@@ -11354,6 +11372,9 @@ int dolby_vision_process(struct vframe_s *vf,
 		if (dolby_vision_on_count <=
 			dolby_vision_run_mode_delay + 1)
 			dolby_vision_on_count++;
+		if (debug_dolby & 8)
+			pr_dolby_dbg("%s: dolby_vision_on_count %d\n",
+				     __func__, dolby_vision_on_count);
 	} else {
 		dolby_vision_on_count = 0;
 	}
@@ -13688,6 +13709,15 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		debug_dma_start_line = val;
 		pr_info("set debug_dma_start_line %d\n", debug_dma_start_line);
+	} else if (!strcmp(parm[0], "force_runmode")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		if (val == 0)
+			force_runmode = 0;
+		else
+			force_runmode = 1;
+		pr_info("set force_runmode %d\n",
+			force_runmode);
 	} else {
 		pr_info("unsupport cmd\n");
 	}

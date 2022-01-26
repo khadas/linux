@@ -6252,6 +6252,59 @@ static void blend_reg_conflict_detect(void)
 	}
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+void amvecm_process(struct path_id_s *path_id,
+			    struct video_recv_s *p_gvideo_recv,
+			    struct vframe_s *new_frame)
+{
+	if (path_id->vd1_path_id == p_gvideo_recv->path_id)
+		amvecm_on_vs
+			((p_gvideo_recv->cur_buf !=
+			 &p_gvideo_recv->local_buf)
+			? p_gvideo_recv->cur_buf : NULL,
+			new_frame,
+			CSC_FLAG_CHECK_OUTPUT,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			VD1_PATH,
+			VPP_TOP0);
+	else if (path_id->vd2_path_id == p_gvideo_recv->path_id)
+		amvecm_on_vs
+			((p_gvideo_recv->cur_buf !=
+			 &p_gvideo_recv->local_buf)
+			? p_gvideo_recv->cur_buf : NULL,
+			new_frame,
+			CSC_FLAG_CHECK_OUTPUT,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			VD2_PATH,
+			VPP_TOP0);
+	else if (path_id->vd3_path_id == p_gvideo_recv->path_id)
+		amvecm_on_vs
+			((p_gvideo_recv->cur_buf !=
+			 &p_gvideo_recv->local_buf)
+			? p_gvideo_recv->cur_buf : NULL,
+			new_frame,
+			CSC_FLAG_CHECK_OUTPUT,
+			0,
+			0,
+			0,
+			0,
+			0,
+			0,
+			VD3_PATH,
+			VPP_TOP0);
+}
+#endif
+
 static int ai_pq_disable;
 static int ai_pq_debug;
 static int ai_pq_value = -1;
@@ -6301,6 +6354,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	enum vframe_signal_fmt_e fmt;
 	int i, j = 0;
 	int source_type = 0;
+	struct path_id_s path_id;
+
+	path_id.vd1_path_id = vd1_path_id;
+	path_id.vd2_path_id = vd2_path_id;
+	path_id.vd3_path_id = vd3_path_id;
 
 	blend_reg_conflict_detect();
 	if (vd_layer[0].force_disable)
@@ -7617,7 +7675,7 @@ SET_FILTER:
 	/* video_render.0 toggle frame */
 	if (gvideo_recv[0]) {
 		path3_new_frame =
-			gvideo_recv[0]->func->dequeue_frame(gvideo_recv[0]);
+			gvideo_recv[0]->func->dequeue_frame(gvideo_recv[0], &path_id);
 		if (path3_new_frame &&
 			tvin_vf_is_keeped(path3_new_frame)) {
 			new_frame_count = 0;
@@ -7643,163 +7701,18 @@ SET_FILTER:
 				frame_lock_process(NULL, cur_frame_par);
 		}
 #endif
-
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-		if (vd1_path_id == gvideo_recv[0]->path_id) {
-			amvecm_on_vs
-				((gvideo_recv[0]->cur_buf !=
-				 &gvideo_recv[0]->local_buf)
-				? gvideo_recv[0]->cur_buf : NULL,
-				path3_new_frame,
-				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				VD1_PATH,
-				VPP_TOP0);
-		}
-		if (vd2_path_id == gvideo_recv[0]->path_id)
-			amvecm_on_vs
-				((gvideo_recv[0]->cur_buf !=
-				 &gvideo_recv[0]->local_buf)
-				? gvideo_recv[0]->cur_buf : NULL,
-				path3_new_frame,
-				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				VD2_PATH,
-				VPP_TOP0);
-		if (vd3_path_id == gvideo_recv[0]->path_id)
-			amvecm_on_vs
-				((gvideo_recv[0]->cur_buf !=
-				 &gvideo_recv[0]->local_buf)
-				? gvideo_recv[0]->cur_buf : NULL,
-				path3_new_frame,
-				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				VD3_PATH,
-				VPP_TOP0);
-#endif
 	}
 
 	/* video_render.1 toggle frame */
 	if (gvideo_recv[1]) {
 		path4_new_frame =
-			gvideo_recv[1]->func->dequeue_frame(gvideo_recv[1]);
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-		if (vd1_path_id == gvideo_recv[1]->path_id) {
-			amvecm_on_vs
-				((gvideo_recv[1]->cur_buf !=
-				 &gvideo_recv[1]->local_buf)
-				? gvideo_recv[1]->cur_buf : NULL,
-				path4_new_frame,
-				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				VD1_PATH,
-				VPP_TOP0);
-		}
-		if (vd2_path_id == gvideo_recv[1]->path_id)
-			amvecm_on_vs
-				((gvideo_recv[1]->cur_buf !=
-				 &gvideo_recv[1]->local_buf)
-				? gvideo_recv[1]->cur_buf : NULL,
-				path4_new_frame,
-				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				VD2_PATH,
-				VPP_TOP0);
-		if (vd3_path_id == gvideo_recv[1]->path_id)
-			amvecm_on_vs
-				((gvideo_recv[1]->cur_buf !=
-				 &gvideo_recv[1]->local_buf)
-				? gvideo_recv[1]->cur_buf : NULL,
-				path4_new_frame,
-				CSC_FLAG_CHECK_OUTPUT,
-				0,
-				0,
-				0,
-				0,
-				0,
-				0,
-				VD3_PATH,
-				VPP_TOP0);
-#endif
+			gvideo_recv[1]->func->dequeue_frame(gvideo_recv[1], &path_id);
 	}
 
 	/* video_render.2 toggle frame */
 	if (gvideo_recv[2]) {
 		path5_new_frame =
-			gvideo_recv[2]->func->dequeue_frame(gvideo_recv[2]);
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-			if (vd1_path_id == gvideo_recv[2]->path_id) {
-				amvecm_on_vs
-					((gvideo_recv[2]->cur_buf !=
-					 &gvideo_recv[2]->local_buf)
-					? gvideo_recv[2]->cur_buf : NULL,
-					path5_new_frame,
-					CSC_FLAG_CHECK_OUTPUT,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					VD1_PATH,
-					VPP_TOP0);
-			}
-			if (vd2_path_id == gvideo_recv[2]->path_id)
-				amvecm_on_vs
-					((gvideo_recv[2]->cur_buf !=
-					 &gvideo_recv[2]->local_buf)
-					? gvideo_recv[2]->cur_buf : NULL,
-					path5_new_frame,
-					CSC_FLAG_CHECK_OUTPUT,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					VD2_PATH,
-					VPP_TOP0);
-			if (vd3_path_id == gvideo_recv[2]->path_id)
-				amvecm_on_vs
-					((gvideo_recv[2]->cur_buf !=
-					 &gvideo_recv[2]->local_buf)
-					? gvideo_recv[2]->cur_buf : NULL,
-					path5_new_frame,
-					CSC_FLAG_CHECK_OUTPUT,
-					0,
-					0,
-					0,
-					0,
-					0,
-					0,
-					VD3_PATH,
-					VPP_TOP0);
-#endif
+			gvideo_recv[2]->func->dequeue_frame(gvideo_recv[2], &path_id);
 		}
 	/* FIXME: if need enable for vd1 */
 #ifdef CHECK_LATER
@@ -10478,6 +10391,9 @@ enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf)
 	/* invalid src fmt case */
 	if (vf->src_fmt.sei_magic_code != SEI_MAGIC_CODE)
 		return VFRAME_SIGNAL_FMT_INVALID;
+
+	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+		pr_info("[%s]  %d\n", __func__, vf->src_fmt.fmt);
 
 	return vf->src_fmt.fmt;
 }
