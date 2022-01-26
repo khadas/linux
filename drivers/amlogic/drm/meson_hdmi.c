@@ -37,6 +37,7 @@
 
 struct am_hdmi_tx am_hdmi_info;
 bool attr_force_debugfs;
+char attr_debugfs[16];
 
 /*for hw limitiation, limit to 1080p/720p for recovery ui.*/
 static bool hdmitx_set_smaller_pref = true;
@@ -1060,7 +1061,6 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		to_am_hdmitx_connector_state(conn_state);
 	struct hdmitx_color_attr *attr = &hdmitx_state->color_attr_para;
 	bool update_attr = false;
-	char attr_debugfs[HDMITX_ATTR_LEN_MAX];
 
 	if (am_hdmi_info.android_path)
 		return;
@@ -1075,7 +1075,6 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	 */
 	if (attr_force_debugfs) {
 		attr_force_debugfs = false;
-		am_hdmi_info.hdmitx_dev->get_attr(attr_debugfs);
 		convert_attrstr(attr_debugfs, attr);
 		am_hdmi_info.hdmitx_dev->setup_attr(attr_debugfs);
 		DRM_INFO("debugfs attr\n");

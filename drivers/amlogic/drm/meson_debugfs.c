@@ -624,28 +624,22 @@ int meson_plane_debugfs_init(struct drm_plane *plane, struct dentry *root)
 static ssize_t meson_connector_attr_write(struct file *file, const char __user *ubuf,
 				size_t len, loff_t *offp)
 {
-	char buf[16];
-
-	if (len > sizeof(buf) - 1)
+	if (len > sizeof(attr_debugfs) - 1)
 		return -EINVAL;
 
-	if (copy_from_user(buf, ubuf, len))
+	if (copy_from_user(attr_debugfs, ubuf, len))
 		return -EFAULT;
-	if (buf[len - 1] == '\n')
-		buf[len - 1] = '\0';
-	buf[len] = '\0';
+	if (attr_debugfs[len - 1] == '\n')
+		attr_debugfs[len - 1] = '\0';
+	attr_debugfs[len] = '\0';
 
-	am_hdmi_info.hdmitx_dev->setup_attr(buf);
 	attr_force_debugfs = true;
 	return len;
 }
 
 static int meson_connector_attr_show(struct seq_file *sf, void *data)
 {
-	char attr_str[HDMITX_ATTR_LEN_MAX];
-
-	am_hdmi_info.hdmitx_dev->get_attr(attr_str);
-	seq_printf(sf, "hdmitx_attr: %s\n", attr_str);
+	seq_printf(sf, "hdmitx_attr: %s\n", attr_debugfs);
 	return 0;
 }
 
