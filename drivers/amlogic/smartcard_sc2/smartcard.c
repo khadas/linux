@@ -1056,7 +1056,7 @@ static void smc_mp0_clk_set(int clk)
 
 #define SMARTCARD_CLK_CTRL (0x26 * 4)
 
-	data = SMC_READ_REG(CLK_CTRL);
+	data = sc2_read_sys(SMARTCARD_CLK_CTRL);
 
 	data &= 0xFFFFF900;
 	if (clk == 4500)
@@ -1066,7 +1066,7 @@ static void smc_mp0_clk_set(int clk)
 	else if (clk == 13500)
 		data |= 0x024;
 
-	SMC_WRITE_REG(CLK_CTRL, data);
+	sc2_write_sys(SMARTCARD_CLK_CTRL, data);
 	pr_error("%s data:0x%0x\n", __func__, data);
 }
 
@@ -1259,7 +1259,8 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 			break;
 		}
 	} else {
-		clk_set_rate(aml_smartcard_clk, FREQ_DEFAULT * 1000);
+		if (!smartcard_mpll0)
+			clk_set_rate(aml_smartcard_clk, FREQ_DEFAULT * 1000);
 	}
 	pr_error("SMC CLK SOURCE - %luKHz\n", freq_cpu);
 
