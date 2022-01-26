@@ -3343,6 +3343,8 @@ int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
 	struct fft_in_bw_result *in_bw_result, unsigned int fft_frc_range_min,
 	unsigned int fft_frc_range_max, unsigned int range_ini)
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct fft_threadcontrols spectr_ana_data;
 	struct fft_search_result search_result;
 	unsigned int fft_reg_val[60] = {0};
@@ -3372,6 +3374,8 @@ int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
 	msleep(20);
 
 	for (frq = -22; frq <= 22;) {
+		if (devp->blind_scan_stop)
+			break;
 		/* modify range and central frequency to adjust*/
 		/*the last acquisition to the wanted range */
 		search_result.found_ok = 0;
