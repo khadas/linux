@@ -26,7 +26,7 @@ struct video_layer_s;
 
 struct recv_func_s {
 	s32 (*early_proc)(struct video_recv_s *ins, u32 op);
-	struct vframe_s *(*dequeue_frame)(struct video_recv_s *ins);
+	struct vframe_s *(*dequeue_frame)(struct video_recv_s *ins, struct path_id_s *path_id);
 	s32 (*return_frame)(struct video_recv_s *ins, struct vframe_s *vf);
 	s32 (*late_proc)(struct video_recv_s *ins);
 };
