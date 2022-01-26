@@ -36,6 +36,14 @@
 #include <linux/jiffies.h>
 #include <trace/events/cma.h>
 
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/amlogic/aml_cma.h>
+#endif /* CONFIG_AMLOGIC_CMA */
+
+#ifdef CONFIG_AMLOGIC_SEC
+#include <linux/amlogic/secmon.h>
+#endif
+
 #include "cma.h"
 
 struct cma cma_areas[MAX_CMA_AREAS];
@@ -150,9 +158,23 @@ static int __init cma_init_reserved_areas(void)
 	for (i = 0; i < cma_area_count; i++)
 		cma_activate_area(&cma_areas[i]);
 
+#ifdef CONFIG_AMLOGIC_SEC
+	/*
+	 * A73 cache speculate prefetch may cause SError when boot.
+	 * because it may prefetch cache line in secure memory range
+	 * which have already reserved by bootloader. So we must
+	 * clear mmu of secmon range before A73 core boot up
+	 */
+	secmon_clear_cma_mmu();
+#endif
 	return 0;
 }
+
+#ifdef CONFIG_AMLOGIC_CMA
+early_initcall(cma_init_reserved_areas);
+#else
 core_initcall(cma_init_reserved_areas);
+#endif
 
 /**
  * cma_init_reserved_mem() - create custom contiguous area from reserved memory
@@ -439,6 +461,10 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 	int ret = -ENOMEM;
 	int num_attempts = 0;
 	int max_retries = 5;
+#ifdef CONFIG_AMLOGIC_CMA
+	int dummy;
+	unsigned long tick = 0;
+#endif
 
 	if (!cma || !cma->count || !cma->bitmap)
 		goto out;
@@ -459,6 +485,9 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 	if (bitmap_count > bitmap_maxno)
 		goto out;
 
+#ifdef CONFIG_AMLOGIC_CMA
+	aml_cma_alloc_pre_hook(&dummy, count, &tick);
+#endif /* CONFIG_AMLOGIC_CMA */
 	for (;;) {
 		spin_lock_irq(&cma->lock);
 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,
@@ -497,8 +526,13 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 		spin_unlock_irq(&cma->lock);
 
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
+	#ifdef CONFIG_AMLOGIC_CMA
+		ret = aml_cma_alloc_range(pfn, pfn + count, MIGRATE_CMA,
+				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
+	#else
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
 				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
+	#endif
 
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
@@ -514,8 +548,10 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 
 		trace_cma_alloc_busy_retry(cma->name, pfn, pfn_to_page(pfn),
 					   count, align);
+	#ifndef CONFIG_AMLOGIC_CMA
 		/* try again with a bit different memory target */
 		start = bitmap_no + mask + 1;
+	#endif
 	}
 
 	trace_cma_alloc_finish(cma->name, pfn, page, count, align);
@@ -546,6 +582,9 @@ out:
 		if (cma)
 			cma_sysfs_account_fail_pages(cma, count);
 	}
+#ifdef CONFIG_AMLOGIC_CMA
+	aml_cma_alloc_post_hook(&dummy, count, page, tick, ret);
+#endif
 
 	return page;
 }
@@ -578,7 +617,11 @@ bool cma_release(struct cma *cma, const struct page *pages,
 
 	VM_BUG_ON(pfn + count > cma->base_pfn + cma->count);
 
+#ifdef CONFIG_AMLOGIC_CMA
+	aml_cma_free(pfn, count, 1);
+#else
 	free_contig_range(pfn, count);
+#endif
 	cma_clear_bitmap(cma, pfn, count);
 	trace_cma_release(cma->name, pfn, pages, count);
 

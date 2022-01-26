@@ -57,12 +57,19 @@ struct vm_area_struct;
 #define ___GFP_SKIP_KASAN_POISON	0x1000000u
 #ifdef CONFIG_CMA
 #define ___GFP_CMA		0x2000000u
+#ifdef CONFIG_AMLOGIC_CMA
+#define ___GFP_NO_CMA		0x4000000u
+#endif /* CONFIG_AMLOGIC_CMA */
 #else
 #define ___GFP_CMA		0
 #endif
 #ifdef CONFIG_LOCKDEP
 #ifdef CONFIG_CMA
+#ifdef CONFIG_AMLOGIC_CMA
+#define ___GFP_NOLOCKDEP	0x8000000u
+#else
 #define ___GFP_NOLOCKDEP	0x4000000u
+#endif
 #else
 #define ___GFP_NOLOCKDEP	0x2000000u
 #endif
@@ -84,6 +91,9 @@ struct vm_area_struct;
 #define __GFP_DMA32	((__force gfp_t)___GFP_DMA32)
 #define __GFP_MOVABLE	((__force gfp_t)___GFP_MOVABLE)  /* ZONE_MOVABLE allowed */
 #define __GFP_CMA	((__force gfp_t)___GFP_CMA)
+#ifdef CONFIG_AMLOGIC_CMA
+#define __GFP_NO_CMA	((__force gfp_t)___GFP_NO_CMA)
+#endif
 #define GFP_ZONEMASK	(__GFP_DMA|__GFP_HIGHMEM|__GFP_DMA32|__GFP_MOVABLE)
 
 /**
@@ -261,7 +271,11 @@ struct vm_area_struct;
 
 /* Room for N __GFP_FOO bits */
 #ifdef CONFIG_CMA
+#ifdef CONFIG_AMLOGIC_CMA
+#define __GFP_BITS_SHIFT (27 + IS_ENABLED(CONFIG_LOCKDEP))
+#else
 #define __GFP_BITS_SHIFT (26 + IS_ENABLED(CONFIG_LOCKDEP))
+#endif
 #else
 #define __GFP_BITS_SHIFT (25 + IS_ENABLED(CONFIG_LOCKDEP))
 #endif

@@ -2997,13 +2997,25 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		goto oom;
 
 	if (is_zero_pfn(pte_pfn(vmf->orig_pte))) {
+	#ifdef CONFIG_AMLOGIC_CMA
+		gfp_t tmp_flag = GFP_HIGHUSER_MOVABLE |
+				 __GFP_NO_CMA | __GFP_ZERO;
+
+		new_page = alloc_page_vma(tmp_flag, vma, vmaddr);
+	#else
 		new_page = alloc_zeroed_user_highpage_movable(vma,
 							      vmf->address);
+	#endif
 		if (!new_page)
 			goto oom;
 	} else {
+	#ifdef CONFIG_AMLOGIC_CMA
+		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE | __GFP_NO_CMA,
+					  vma, vmf->address);
+	#else
 		new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
 				vmf->address);
+	#endif
 		if (!new_page)
 			goto oom;
 

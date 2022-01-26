@@ -75,6 +75,9 @@
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 #include <linux/amlogic/page_trace.h>
 #endif
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/amlogic/aml_cma.h>
+#endif
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -3908,6 +3911,9 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 			min -= min / 4;
 	}
 
+#ifdef CONFIG_AMLOGIC_CMA
+	check_water_mark(free_pages, min + z->lowmem_reserve[highest_zoneidx]);
+#endif
 	/*
 	 * Check watermarks for an order-0 allocation request. If these
 	 * are not met, then a high-order request also cannot go ahead
@@ -5391,6 +5397,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
 	gfp_t alloc_gfp; /* The gfp_t that was actually used for allocation */
 	struct alloc_context ac = { };
 
+#ifdef CONFIG_AMLOGIC_CMA
+	update_gfp_flags(&gfp);
+#endif
 	/*
 	 * There are several places where we assume that the order value is sane
 	 * so bail out early if the request is out of bound.

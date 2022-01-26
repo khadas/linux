@@ -261,6 +261,9 @@ struct compact_control {
 	bool contended;			/* Signal lock or sched contention */
 	bool rescan;			/* Rescanning the same pageblock */
 	bool alloc_contig;		/* alloc_contig_range allocation */
+#ifdef CONFIG_AMLOGIC_CMA
+	bool forbid_to_cma;             /* Forbit to migrate to cma */
+#endif
 };
 
 /*

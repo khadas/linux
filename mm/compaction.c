@@ -27,6 +27,9 @@
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 #include <linux/amlogic/page_trace.h>
 #endif
+#ifdef CONFIG_AMLOGIC_CMA
+#include <linux/amlogic/aml_cma.h>
+#endif
 
 #ifdef CONFIG_COMPACTION
 static inline void count_compact_event(enum vm_event_item item)
@@ -773,6 +776,9 @@ static bool too_many_isolated(pg_data_t *pgdat)
 	isolated = node_page_state(pgdat, NR_ISOLATED_FILE) +
 			node_page_state(pgdat, NR_ISOLATED_ANON);
 
+#ifdef CONFIG_AMLOGIC_CMA
+	check_cma_isolated(&isolated, active, inactive);
+#endif
 	return isolated > (inactive + active) / 2;
 }
 
@@ -887,6 +893,9 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		nr_scanned++;
 
 		page = pfn_to_page(low_pfn);
+	#ifdef CONFIG_AMLOGIC_CMA
+		check_page_to_cma(cc, page);
+	#endif
 
 		/*
 		 * Check if the pageblock has already been marked skipped.
@@ -1545,6 +1554,9 @@ static void isolate_freepages(struct compact_control *cc)
 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
 	struct list_head *freelist = &cc->freepages;
 	unsigned int stride;
+#ifdef CONFIG_AMLOGIC_CMA
+	int migrate_type;
+#endif /* CONFIG_AMLOGIC_CMA */
 
 	/* Try a small search of the free lists for a candidate */
 	isolate_start_pfn = fast_isolate_freepages(cc);
@@ -1599,6 +1611,15 @@ static void isolate_freepages(struct compact_control *cc)
 		/* If isolation recently failed, do not retry */
 		if (!isolation_suitable(cc, page))
 			continue;
+
+	#ifdef CONFIG_AMLOGIC_CMA
+		/* avoid compact to cma area */
+		migrate_type = get_pageblock_migratetype(page);
+		if (is_migrate_isolate(migrate_type))
+			continue;
+		if (is_migrate_cma(migrate_type) && cc->forbid_to_cma)
+			continue;
+	#endif /* CONFIG_AMLOGIC_CMA */
 
 		/* Found a block suitable for isolating free pages from. */
 		nr_isolated = isolate_freepages_block(cc, &isolate_start_pfn,
@@ -1665,9 +1686,13 @@ static struct page *compaction_alloc(struct page *migratepage,
 			return NULL;
 	}
 
+#ifdef CONFIG_AMLOGIC_CMA
+	freepage = get_compact_page(migratepage, cc);
+#else
 	freepage = list_entry(cc->freepages.next, struct page, lru);
 	list_del(&freepage->lru);
 	cc->nr_freepages--;
+#endif
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 	replace_page_trace(freepage, migratepage);
 #endif
@@ -2355,6 +2380,9 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 	/* lru_add_drain_all could be expensive with involving other CPUs */
 	lru_add_drain();
 
+#ifdef CONFIG_AMLOGIC_CMA
+	cc->forbid_to_cma = false;
+#endif
 	while ((ret = compact_finished(cc)) == COMPACT_CONTINUE) {
 		int err;
 		unsigned long iteration_start_pfn = cc->migrate_pfn;
