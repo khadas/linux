@@ -56,9 +56,10 @@
 // frc_20220112 frc sync frame-rate for alg
 // frc_20220111 frc close in high bandwidth"
 // frc_20220112 frc mark demo setting"
+// frc_20220119 add frc secure mode protection
 
-#define FRC_FW_VER			"2022-0119 add frc secure mode protection"
-#define FRC_KERDRV_VER                  1550
+#define FRC_FW_VER			"2022-0207 frc sync frc_fw glb setting"
+#define FRC_KERDRV_VER                  1715
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"

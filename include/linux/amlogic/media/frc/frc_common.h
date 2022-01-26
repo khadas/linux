@@ -84,6 +84,7 @@ enum dbg_level {
 	dbg_mc = 500,
 	dbg_scene = 600,
 	dbg_vp = 700,
+	dbg_glb = 800,
 };
 
 enum efrc_event {
@@ -118,7 +119,8 @@ enum efrc_memc_dbg_type {
 	MEMC_DBG_SEARCH_RANG      = 0x09,
 	MEMC_DBG_PIXEL_LPF        = 0x0A,
 	MEMC_DBG_ME_RULE          = 0x0B,
-	MEMC_DBG_FILM_CTRL        = 0X0C,
+	MEMC_DBG_FILM_CTRL        = 0x0C,
+	MEMC_DBG_GLB_CTRL	  = 0x0D,
 };
 
 //-----------------------------------------------------------frc top cfg

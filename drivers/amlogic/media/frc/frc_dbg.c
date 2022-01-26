@@ -877,6 +877,32 @@ ssize_t frc_film_ctrl_param_store(struct class *class,
 	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_FILM_CTRL, buf_orig, count);
 	kfree(buf_orig);
 	return count;
+}
 
+ssize_t frc_glb_ctrl_param_show(struct class *class,
+	struct class_attribute *attr,
+	char *buf)
+{
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
+	ssize_t len = 0;
+
+	len = fw_data->frc_alg_dbg_show(fw_data, MEMC_DBG_GLB_CTRL, buf);
+	return len;
+}
+
+ssize_t frc_glb_ctrl_param_store(struct class *class,
+	struct class_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	char *buf_orig;
+	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_fw_data_s *fw_data = (struct frc_fw_data_s *)devp->fw_data;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	count = fw_data->frc_alg_dbg_stor(fw_data, MEMC_DBG_GLB_CTRL, buf_orig, count);
+	kfree(buf_orig);
+	return count;
 }
 

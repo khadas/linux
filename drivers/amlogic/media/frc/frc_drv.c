@@ -178,6 +178,8 @@ static struct class_attribute frc_class_attrs[] = {
 	__ATTR(pixel_lpf_param, 0644, frc_pixel_lpf_param_show, frc_pixel_lpf_param_store),
 	__ATTR(me_rule_param, 0644, frc_me_rule_param_show, frc_me_rule_param_store),
 	__ATTR(film_ctrl_param, 0644, frc_film_ctrl_param_show, frc_film_ctrl_param_store),
+	__ATTR(glb_ctrl_param, 0644, frc_glb_ctrl_param_show, frc_glb_ctrl_param_store),
+
 	__ATTR_NULL
 };
 

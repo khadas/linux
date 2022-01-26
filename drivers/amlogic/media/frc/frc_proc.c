@@ -300,6 +300,8 @@ void frc_output_tasklet_pro(unsigned long arg)
 			pfw_data->mc_ctrl(pfw_data);
 		if (pfw_data->melogo_ctrl)
 			pfw_data->melogo_ctrl(pfw_data);
+		if (pfw_data->frc_fw_ctrl_if)
+			pfw_data->frc_fw_ctrl_if(pfw_data);
 		// if (!devp->power_on_flag)
 		//	devp->power_off_flag++;
 		if (devp->ud_dbg.outud_time_en)
@@ -1135,9 +1137,10 @@ int frc_tell_alg_vendor(u8 vendor_info)
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pfrc_fw_alg_ctrl = (struct frc_fw_alg_ctrl_s *)&pfw_data->frc_fw_alg_ctrl;
 	pr_frc(1, "tell_alg_vendor:0x%x\n", vendor_info);
-	pfrc_fw_alg_ctrl->frc_algctrl_u8vendor = vendor_info;
-	if (pfw_data->frc_fw_ctrl_if)
-		pfw_data->frc_fw_ctrl_if(pfw_data);
+	if (pfrc_fw_alg_ctrl->frc_algctrl_u8vendor != vendor_info)
+		pfrc_fw_alg_ctrl->frc_algctrl_u8vendor = vendor_info;
+	// if (pfw_data->frc_fw_ctrl_if)  // change to output isr
+	//	pfw_data->frc_fw_ctrl_if(pfw_data);
 	return 1;
 }
 
