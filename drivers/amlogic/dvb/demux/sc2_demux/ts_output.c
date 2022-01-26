@@ -3048,6 +3048,22 @@ int ts_output_dump_info(char *buf)
 			count++;
 		}
 	}
+	r = sprintf(buf, "********PCR********\n");
+	buf += r;
+	total += r;
+	count = 0;
+
+	for (i = 0; i < MAX_PCR_NUM; i++) {
+		if (pcr_table[i].turn_on != 1)
+			continue;
+
+		r = sprintf(buf, "%d sid:0x%0x pcr pid:0x%0x\n", count,
+			pcr_table[i].stream_id, pcr_table[i].pcr_pid);
+		buf += r;
+		total += r;
+
+		count++;
+	}
 
 	return total;
 }
