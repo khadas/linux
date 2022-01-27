@@ -182,7 +182,7 @@ int demux_get_stc(int demux_device_index, int index,
 {
 	struct aml_dvb *dvb = aml_get_dvb_device();
 
-	if (demux_device_index >= DMX_DEV_COUNT)
+	if (demux_device_index >= DMX_DEV_COUNT || demux_device_index < 0)
 		return -1;
 
 	dmx_get_stc(&dvb->dmx[demux_device_index].dmx, index, stc, base);
@@ -195,7 +195,7 @@ int demux_get_pcr(int demux_device_index, int index, u64 *pcr)
 {
 	struct aml_dvb *dvb = aml_get_dvb_device();
 
-	if (demux_device_index >= DMX_DEV_COUNT)
+	if (demux_device_index >= DMX_DEV_COUNT || demux_device_index < 0)
 		return -1;
 
 	return dmx_get_pcr(&dvb->dmx[demux_device_index].dmx, index, pcr);

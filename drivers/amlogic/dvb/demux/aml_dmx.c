@@ -1595,17 +1595,24 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 static int _dmx_get_hw_source(struct dmx_demux *dmx, int *hw_source)
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
+	struct aml_dvb *advb = aml_get_dvb_device();
 
 	pr_dbg("%s dmx%d\n", __func__, demux->id);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
 
-	if (demux->source == INPUT_DEMOD)
-		*hw_source = demux->ts_index + FRONTEND_TS0;
-	else
-		*hw_source = demux->local_sid + DMA_0;
-
+	if (demux->source == INPUT_DEMOD) {
+		if (advb->tsn_flag & (1 << demux->id))
+			*hw_source = demux->ts_index + FRONTEND_TS0_1;
+		else
+			*hw_source = demux->ts_index + FRONTEND_TS0;
+	} else {
+		if (demux->local_sid >= 0x20)
+			*hw_source = demux->local_sid - 0x20 + DMA_0_1;
+		else
+			*hw_source = demux->local_sid + DMA_0;
+	}
 	mutex_unlock(demux->pmutex);
 	return 0;
 }
