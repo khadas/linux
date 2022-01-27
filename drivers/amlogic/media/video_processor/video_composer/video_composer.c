@@ -539,6 +539,19 @@ static void ready_q_uninit(struct composer_dev *dev)
 
 	while (kfifo_len(&dev->ready_q) > 0) {
 		if (kfifo_get(&dev->ready_q, &dis_vf)) {
+			if (!dis_vf) {
+				vc_print(dev->index, PRINT_ERROR, "%s: dis_vf is NULL.\n",
+					__func__);
+				break;
+			}
+
+			if (dis_vf->vc_private)
+				if (dis_vf->vc_private->srout_data) {
+					if (dis_vf->vc_private->srout_data->nn_status == NN_DONE)
+						dis_vf->vc_private->srout_data->nn_status =
+							NN_DISPLAYED;
+				}
+
 			if (dis_vf->flag
 			    & VFRAME_FLAG_VIDEO_COMPOSER_BYPASS) {
 				repeat_count = dis_vf->repeat_count[dev->index];
