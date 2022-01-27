@@ -20,6 +20,10 @@
 #include "meson_mhu_fifo.h"
 #include "meson_mhu_sec.h"
 #include "meson_mhu_user.h"
+#if IS_ENABLED(CONFIG_AMLOGIC_GX_SUSPEND)
+#include <linux/amlogic/scpi_protocol.h>
+#include <linux/amlogic/pm.h>
+#endif
 
 static int __init mailbox_init(void)
 {
@@ -28,7 +32,9 @@ static int __init mailbox_init(void)
 	aml_mhu_fifo_init();
 	aml_mhu_sec_init();
 	aml_mhu_user_init();
-
+#if IS_ENABLED(CONFIG_AMLOGIC_GX_SUSPEND)
+	pm_set_private_send_data_callback(scpi_send_data);
+#endif
 	return 0;
 }
 

@@ -72,39 +72,9 @@ static int pm_vad_init(struct platform_device *pdev)
 {
 	struct pm_data *p_data = platform_get_drvdata(pdev);
 	struct device_node *np = pdev->dev.of_node;
-	const char *value;
 	u32 paddr = 0;
 	int ret;
 	int i;
-
-	/* Resolve io pin parameters */
-	// vddio pin
-	ret = of_property_read_string(np, VDDIO_3V3_NAME, &value);
-
-	if (ret) {
-		dev_info(&pdev->dev, "Not detect vddio3v3 pin info.\n");
-		pm_private_data.vddio3v3_en = 0;
-	} else {
-		pm_private_data.vddio3v3_en = of_get_named_gpio_flags(np,
-				VDDIO_3V3_NAME, 0, NULL);
-	}
-
-	if (pm_private_data.vddio3v3_en > 0)
-		gpio_request(pm_private_data.vddio3v3_en, VDDIO_3V3_NAME);
-
-	// 5V pin
-	ret = of_property_read_string(np, P5V_NAME, &value);
-
-	if (ret) {
-		dev_info(&pdev->dev, "Not detect 5V pin info.\n");
-		pm_private_data.p5v_en = 0;
-	} else {
-		pm_private_data.p5v_en = of_get_named_gpio_flags(np,
-				P5V_NAME, 0, NULL);
-	}
-
-	if (pm_private_data.p5v_en > 0)
-		gpio_request(pm_private_data.p5v_en, P5V_NAME);
 
 	/* Resolve clk parameters */
 	pm_private_data.clk81 = devm_clk_get(&pdev->dev, "sys_clk");
@@ -296,15 +266,6 @@ static int pm_vad_suspend(struct platform_device *pdev)
 	dev_info(&pdev->dev, "DDR ready to enter ASR mode\n");
 	power_manage_by_smc(SMCSUBID_PM_DDR_ASR, 0);
 
-	/* suspend power */
-	// [suspend power] 1. Power off vddio 3.3V
-	gpio_direction_output(private_data->vddio3v3_en, 0);
-	dev_info(&pdev->dev, "Power off vddio 3v3!!\n");
-
-	// [suspend power] 2. Power off 5v
-	gpio_direction_output(private_data->p5v_en, 0);
-	dev_info(&pdev->dev, "Power off 5V!!\n");
-
 	/* dump clk and power status */
 	power_manage_by_smc(SMCSUBID_PM_DUMP_INFO, 0);
 
@@ -325,15 +286,6 @@ static int pm_vad_resume(struct platform_device *pdev)
 	/* resume dmc */
 	dev_info(&pdev->dev, "DDR ready to exit ASR mode...\n");
 	power_manage_by_smc(SMCSUBID_PM_DDR_ASR, 1);
-
-	/* resume power */
-	// [resume power] 1. Power on vddio 3.3V
-	gpio_direction_output(private_data->vddio3v3_en, 1);
-	dev_info(&pdev->dev, "Power on vddio 3v3!!\n");
-
-	// [resume power] 2. Power off 5v
-	gpio_direction_output(private_data->p5v_en, 1);
-	dev_info(&pdev->dev, "Power on 5V!!\n");
 
 	/* resume clk */
 	// [resume clk] 1. Ready to close fixpll

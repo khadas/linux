@@ -77,4 +77,15 @@ unsigned int lgcy_early_suspend_init(struct platform_device *pdev);
 
 #endif //CONFIG_AMLOGIC_M8B_SUSPEND
 
+typedef int (*pm_private_send_data_fn_t) (void *data, int size, int channel,
+			int cmd, void *revdata, int revsize);
+#if IS_ENABLED(CONFIG_AMLOGIC_GX_SUSPEND)
+int pm_set_private_send_data_callback(pm_private_send_data_fn_t fn);
+#else
+static inline int pm_set_private_send_data_callback(pm_private_send_data_fn_t fn __maybe_unused)
+{
+	return 0;
+}
+#endif
+
 #endif //__AML_PM_H__

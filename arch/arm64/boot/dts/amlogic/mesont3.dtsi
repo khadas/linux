@@ -194,7 +194,9 @@
 		device_name = "aml_pm";
 		clr_reboot_mode;  /* clr reboot mode in shutdown callback */
 		reg = <0x0 0xfe010288 0x0 0x4>, /*SYSCTRL_STATUS_REG2*/
-			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
+			<0x0 0xfe0102dc 0x0 0x4>, /*SYSCTRL_STICKY_REG7*/
+			/* Workaround: Used to clear interrupt pending bit */
+			<0x0 0xfe0100c8 0x0 0x4>;
 		vad-item-name = "T3";
 		vad_wakeup_disable = <0x1>;
 		meson,dmc_asr-addr = <0xfe036000>,
@@ -211,6 +213,8 @@
 			<&clkc CLKID_DSU_CLK>,
 			<&clkc CLKID_FIXED_PLL_DCO>,
 			<&clkc CLKID_AXI_CLK>;
+		interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "pm_wakeup";
 	};
 
 	aml_reboot {

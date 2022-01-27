@@ -21,6 +21,10 @@
 #include <linux/of_address.h>
 #include <linux/input.h>
 #include <linux/cpuidle.h>
+#include <linux/pm_wakeirq.h>
+#include <linux/pm_wakeup.h>
+#include <linux/interrupt.h>
+#include <linux/amlogic/scpi_protocol.h>
 #include <asm/cpuidle.h>
 #include <uapi/linux/psci.h>
 #include <linux/arm-smccc.h>
@@ -55,10 +59,26 @@ bool is_clr_exit_reg;
  * Avoid run early_suspend/late_resume repeatly.
  */
 unsigned int already_early_suspend;
+
 /*
  * If vrtc device is supported
  */
 static bool vrtc_validation;
+
+static pm_private_send_data_fn_t pm_send_data_fn;
+
+int pm_set_private_send_data_callback(pm_private_send_data_fn_t fn)
+{
+	if (!fn) {
+		pr_err("%s:%d, Pass invalid parameter.\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	pm_send_data_fn = fn;
+
+	return 0;
+}
+EXPORT_SYMBOL(pm_set_private_send_data_callback);
 
 void register_early_suspend(struct early_suspend *handler)
 {
@@ -126,6 +146,7 @@ static inline void late_resume(void)
 			pr_info("%s: %ps\n", __func__, pos->resume);
 			pos->resume(pos);
 		}
+
 	pr_info("%s: done\n", __func__);
 
 end_late_resume:
@@ -301,9 +322,34 @@ static void frz_end(void)
 	pm_state = PM_SUSPEND_ON;
 }
 
+#define FREEZE_ENTRY 0x01
+#define FREEZE_EXIT	0x02
+static int frz_prepare_late(void)
+{
+	u32 data;
+
+	data = FREEZE_ENTRY;
+	if (pm_send_data_fn)
+		pm_send_data_fn((void *)&data, sizeof(data), SCPI_AOCPU,
+			SCPI_CMD_PM_FREEZE, NULL, 0);
+	return 0;
+}
+
+static void frz_restore_early(void)
+{
+	u32 data;
+
+	data = FREEZE_EXIT;
+	if (pm_send_data_fn)
+		pm_send_data_fn((void *)&data, sizeof(data), SCPI_AOCPU,
+			SCPI_CMD_PM_FREEZE, NULL, 0);
+}
+
 static const struct platform_s2idle_ops meson_gx_frz_ops = {
 	.begin = frz_begin,
 	.end = frz_end,
+	.prepare_late = frz_prepare_late,
+	.restore_early = frz_restore_early,
 };
 
 unsigned int is_pm_s2idle_mode(void)
@@ -499,11 +545,23 @@ static int __init gx_pm_init_ops(void)
 	return 0;
 }
 
+static void __iomem  *interrupt_clr;
+
+static irqreturn_t pm_wakeup_isr(int irq, void *data __maybe_unused)
+{
+	pr_info("[PM]Wakeup form bl30\n");
+
+	if (interrupt_clr)
+		writel(0x00, interrupt_clr);
+	return IRQ_HANDLED;
+}
+
 static int meson_pm_probe(struct platform_device *pdev)
 {
 	unsigned int irq_pwrctrl;
 	struct pm_data *p_data;
 	int err;
+	u32 ret;
 
 	pr_info("enter %s!\n", __func__);
 
@@ -547,6 +605,30 @@ static int meson_pm_probe(struct platform_device *pdev)
 		return err;
 
 	vrtc_validation = !check_vrtc_device(&pdev->dev);
+
+	interrupt_clr = of_iomap(pdev->dev.of_node, 2);
+	if (!interrupt_clr) {
+		dev_warn(&pdev->dev,
+				"Read dmc_asr addr fail\n");
+	}
+
+	p_data->pm_wakeup_irq = platform_get_irq_byname(pdev, "pm_wakeup");
+	if (p_data->pm_wakeup_irq < 0) {
+		dev_warn(&pdev->dev, "Failed to get pm_wakeup interrupt source:%d\n",
+			p_data->pm_wakeup_irq);
+	} else {
+		ret = request_irq(p_data->pm_wakeup_irq,
+				pm_wakeup_isr, IRQF_SHARED, "pm_wakeup",
+				p_data);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to claim irq_wakeup\n");
+			return -ENXIO;
+		}
+
+		device_init_wakeup(&pdev->dev, 1);
+		dev_pm_set_wake_irq(&pdev->dev, p_data->pm_wakeup_irq);
+	}
+
 	pr_info("%s done\n", __func__);
 	return 0;
 }
@@ -574,6 +656,8 @@ static int __exit meson_pm_remove(struct platform_device *pdev)
 		iounmap(debug_reg);
 	if (exit_reg)
 		iounmap(exit_reg);
+	if (interrupt_clr)
+		iounmap(interrupt_clr);
 	device_remove_file(&pdev->dev, &dev_attr_suspend_reason);
 	device_remove_file(&pdev->dev, &dev_attr_time_out);
 	device_remove_file(&pdev->dev, &dev_attr_shutdown_alarm);

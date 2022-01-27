@@ -29,6 +29,7 @@ struct pm_ops {
 struct pm_data {
 	struct device *dev;
 	bool vad_wakeup_disable;
+	int pm_wakeup_irq;
 	/* Define platform private data */
 	const char *name;
 	void *data;

@@ -81,6 +81,7 @@ enum scpi_std_cmd {
 	SCPI_CMD_BL4_SEND		= 0xD7,
 	SCPI_CMD_BL4_LISTEN		= 0xD8,
 	SCPI_CMD_LEDS_STATE		= 0xF7,
+	SCPI_CMD_PM_FREEZE		= 0xF9,
 	SCPI_CMD_COUNT
 };
 
