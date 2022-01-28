@@ -128,8 +128,8 @@ struct lcd_basic_s {
 	unsigned short h_period_max;
 	unsigned short v_period_min;
 	unsigned short v_period_max;
-	unsigned short frame_rate_min;
-	unsigned short frame_rate_max;
+	unsigned char frame_rate_min;
+	unsigned char frame_rate_max;
 	unsigned int lcd_clk_min;
 	unsigned int lcd_clk_max;
 
@@ -512,6 +512,8 @@ struct lcd_config_s {
 	unsigned char change_flag;
 	unsigned char retry_enable_flag;
 	unsigned char retry_enable_cnt;
+	unsigned char custom_pinmux;
+	unsigned char fr_auto_dis;
 };
 
 #define LCD_INIT_LEVEL_NORMAL         0

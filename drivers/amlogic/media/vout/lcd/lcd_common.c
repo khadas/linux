@@ -372,6 +372,43 @@ unsigned int lcd_cpu_gpio_get(struct aml_lcd_drv_s *pdrv, unsigned int index)
 	return gpiod_get_value(cpu_gpio->gpio);
 }
 
+static void lcd_custom_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
+{
+	struct lcd_config_s *pconf;
+	unsigned int index;
+	char pinmux_str[35];
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
+
+	pconf = &pdrv->config;
+
+	memset(pinmux_str, 0, sizeof(pinmux_str));
+	if (status) {
+		index = 0;
+		sprintf(pinmux_str, "%s", pconf->basic.model_name);
+	} else {
+		index = 1;
+		sprintf(pinmux_str, "%s_off", pconf->basic.model_name);
+	}
+
+	if (pconf->pinmux_flag == index) {
+		LCDPR("pinmux %s is already selected\n", pinmux_str);
+		return;
+	}
+
+	pconf->pin = devm_pinctrl_get_select(pdrv->dev, pinmux_str);
+	if (IS_ERR(pconf->pin)) {
+		LCDERR("set custom_pinmux %s error\n", pinmux_str);
+	} else {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("set custom_pinmux %s: 0x%p\n",
+			      pinmux_str, pconf->pin);
+		}
+	}
+	pconf->pinmux_flag = index;
+}
+
 static char *lcd_ttl_pinmux_str[] = {
 	"ttl_6bit_hvsync_on",      /* 0 */
 	"ttl_6bit_de_on",          /* 1 */
@@ -489,6 +526,12 @@ void lcd_mlvds_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 
 	if (!pdrv)
 		return;
+
+	if (pdrv->config.custom_pinmux) {
+		lcd_custom_pinmux_set(pdrv, status);
+		return;
+	}
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 
@@ -522,6 +565,12 @@ void lcd_p2p_pinmux_set(struct aml_lcd_drv_s *pdrv, int status)
 
 	if (!pdrv)
 		return;
+
+	if (pdrv->config.custom_pinmux) {
+		lcd_custom_pinmux_set(pdrv, status);
+		return;
+	}
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 
@@ -635,6 +684,9 @@ static void lcd_config_load_print(struct aml_lcd_drv_s *pdrv)
 	LCDPR("ss_mode = %d\n", pconf->timing.ss_mode);
 	LCDPR("clk_auto = %d\n", pconf->timing.clk_auto);
 	LCDPR("pixel_clk = %d\n", pconf->timing.lcd_clk);
+
+	LCDPR("custom_pinmux = %d\n", pconf->custom_pinmux);
+	LCDPR("fr_auto_dis = %d\n", pconf->fr_auto_dis);
 
 	pctrl = &pconf->control;
 	if (pconf->basic.lcd_type == LCD_TTL) {
@@ -1330,6 +1382,35 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		}
 	}
 
+	ret = of_property_read_u32(child, "custom_pinmux", &val);
+	if (ret) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: failed to get custom_pinmux\n", pdrv->index);
+		ret = of_property_read_u32(child, "customer_pinmux", &val);
+		if (ret) {
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+				LCDPR("[%d]: failed to get customer_pinmux\n", pdrv->index);
+		} else {
+			pconf->custom_pinmux = val;
+			LCDPR("[%d]: find custom_pinmux: %d\n",
+				pdrv->index, pconf->custom_pinmux);
+		}
+	} else {
+		pconf->custom_pinmux = val;
+		LCDPR("[%d]: find custom_pinmux: %d\n",
+			pdrv->index, pconf->custom_pinmux);
+	}
+
+	ret = of_property_read_u32(child, "fr_auto_disable", &val);
+	if (ret) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: failed to get fr_auto_disable\n", pdrv->index);
+	} else {
+		pconf->fr_auto_dis = val;
+		LCDPR("[%d]: find fr_auto_dis: %d\n",
+			pdrv->index, pconf->fr_auto_dis);
+	}
+
 	switch (pconf->basic.lcd_type) {
 	case LCD_TTL:
 		ret = of_property_read_u32_array(child, "ttl_attr", &para[0], 5);
@@ -1849,8 +1930,10 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		((*(p + LCD_UKEY_PCLK_MAX + 2)) << 16) |
 		((*(p + LCD_UKEY_PCLK_MAX + 3)) << 24));
 	pconf->basic.frame_rate_min = *(p + LCD_UKEY_FRAME_RATE_MIN);
-	pconf->basic.frame_rate_max = (*(p + LCD_UKEY_FRAME_RATE_MAX) |
-		((*(p + LCD_UKEY_FRAME_RATE_MAX + 1)) << 8));
+	pconf->basic.frame_rate_max = *(p + LCD_UKEY_FRAME_RATE_MAX);
+
+	pconf->custom_pinmux = *(p + LCD_UKEY_CUST_PINMUX);
+	pconf->fr_auto_dis = *(p + LCD_UKEY_FR_AUTO_DIS);
 
 	/* interface: 20byte */
 	switch (pconf->basic.lcd_type) {
@@ -2015,6 +2098,9 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 
 static int lcd_config_load_init(struct aml_lcd_drv_s *pdrv)
 {
+	if (pdrv->config.fr_auto_dis)
+		pdrv->fr_auto_policy = 0xff;
+
 	if (pdrv->status & LCD_STATUS_ENCL_ON)
 		lcd_clk_gate_switch(pdrv, 1);
 
