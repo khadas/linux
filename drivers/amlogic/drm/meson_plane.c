@@ -49,8 +49,6 @@ static const u32 supported_drm_formats[] = {
 	DRM_FORMAT_BGRA8888,
 	DRM_FORMAT_RGB888,
 	DRM_FORMAT_RGB565,
-	DRM_FORMAT_ARGB1555,
-	DRM_FORMAT_ARGB4444,
 };
 
 static u64 video_fbc_modifier[] = {
