@@ -1155,6 +1155,12 @@ static bool recovery_mode;
 static bool force_runmode;
 static unsigned int hdmi_frame_count;/*changed when frame content update*/
 
+static u32 mali_afbcd_top_ctrl;
+static u32 mali_afbcd_top_ctrl_mask;
+static u32 mali_afbcd1_top_ctrl;
+static u32 mali_afbcd1_top_ctrl_mask;
+static bool update_mali_top_ctrl;
+
 #define MAX_PARAM   8
 static bool is_meson_gxm(void)
 {
@@ -10350,6 +10356,50 @@ static void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 	}
 }
 
+static void update_dovi_core2_reg(void)
+{
+	u32 reg_val, reg_val_set, reg1_val, reg1_val_set, reg_changed = 0;
+
+	if (is_meson_t7() && !tv_mode && update_mali_top_ctrl) {
+		reg_val = VSYNC_RD_DV_REG(MALI_AFBCD_TOP_CTRL);
+		reg_val_set = reg_val & (~mali_afbcd_top_ctrl_mask);
+		if (is_dolby_vision_graphic_on())
+			reg_val_set &= ~(1 << 14);
+		else
+			reg_val_set |= 1 << 14;
+		reg_val_set |=
+			(mali_afbcd_top_ctrl & mali_afbcd_top_ctrl_mask);
+		if (reg_val != reg_val_set) {
+			VSYNC_WR_DV_REG(MALI_AFBCD_TOP_CTRL, reg_val_set);
+			reg_changed++;
+		}
+
+		reg1_val = VSYNC_RD_DV_REG(MALI_AFBCD1_TOP_CTRL);
+		reg1_val_set = reg1_val & (~mali_afbcd1_top_ctrl_mask);
+		if (is_dolby_vision_on() &&
+		    (dolby_vision_mask & 2) &&
+		    (core2_sel & 2))
+			reg1_val_set &= ~(1 << 19);
+		else
+			reg1_val_set |= 1 << 19;
+		reg1_val_set |=
+			(mali_afbcd1_top_ctrl & mali_afbcd1_top_ctrl_mask);
+		if (reg1_val != reg1_val_set) {
+			VSYNC_WR_DV_REG(MALI_AFBCD1_TOP_CTRL, reg1_val_set);
+			reg_changed++;
+		}
+		if (reg_changed)
+			pr_dolby_dbg
+				("%s reg changed from: (%04x):%08x->%08x, (%04x):%08x->%08x",
+				__func__,
+				MALI_AFBCD_TOP_CTRL,
+				reg_val, reg_val_set,
+				MALI_AFBCD1_TOP_CTRL,
+				reg1_val, reg1_val_set);
+		update_mali_top_ctrl = false;
+	}
+}
+
 /* toggle mode: 0: not toggle; 1: toggle frame; 2: use keep frame */
 /* pps_state 0: no change, 1: pps enable, 2: pps disable */
 int dolby_vision_process(struct vframe_s *vf,
@@ -10652,6 +10702,7 @@ int dolby_vision_process(struct vframe_s *vf,
 			    !vinfo->vout_device->dv_info &&
 			    vsync_count < FLAG_VSYNC_CNT) {
 				vsync_count++;
+				update_dovi_core2_reg();
 				return 0;
 			}
 		}
@@ -10730,6 +10781,7 @@ int dolby_vision_process(struct vframe_s *vf,
 		}
 		if (sdr_delay == 0)
 			dolby_vision_flags &= ~FLAG_TOGGLE_FRAME;
+		update_dovi_core2_reg();
 		return 0;
 	} else if (sdr_delay != 0) {
 		/* in case mode change to a mode requiring dolby block */
@@ -10745,6 +10797,7 @@ int dolby_vision_process(struct vframe_s *vf,
 		tv_dovi_setting_change_flag = false;
 		new_dovi_setting.video_width = 0;
 		new_dovi_setting.video_height = 0;
+		update_dovi_core2_reg();
 		return 0;
 	}
 	if ((debug_dolby & 2) && force_set &&
@@ -11077,6 +11130,7 @@ int dolby_vision_process(struct vframe_s *vf,
 	} else {
 		dolby_vision_on_count = 0;
 	}
+	update_dovi_core2_reg();
 	return 0;
 }
 EXPORT_SYMBOL(dolby_vision_process);
@@ -11099,6 +11153,14 @@ bool is_dolby_vision_video_on(void)
 	return dolby_vision_core1_on;
 }
 EXPORT_SYMBOL(is_dolby_vision_video_on);
+
+bool is_dolby_vision_graphic_on(void)
+{
+	/* TODO: check (core2_sel & 2) for core2c */
+	return is_dolby_vision_on() && !tv_mode &&
+		(dolby_vision_mask & 2) && (core2_sel & 1);
+}
+EXPORT_SYMBOL(is_dolby_vision_graphic_on);
 
 bool for_dolby_vision_certification(void)
 {
@@ -14151,6 +14213,61 @@ static ssize_t  amdolby_vision_crc_show(struct class *cla,
 	return sprintf(buf, "%s\n", cur_crc);
 }
 
+static int amdv_notify_callback(struct notifier_block *block,
+	unsigned long cmd,
+	void *para)
+{
+	u32 *p, val;
+
+	switch (cmd) {
+	case AMDV_UPDATE_OSD_MODE:
+		p = (u32 *)para;
+		if (!update_mali_top_ctrl) {
+			mali_afbcd_top_ctrl_mask = p[1];
+			mali_afbcd1_top_ctrl_mask = p[3];
+		}
+		val = mali_afbcd_top_ctrl
+			& (~mali_afbcd_top_ctrl_mask);
+		val |= (p[0] & mali_afbcd_top_ctrl_mask);
+		mali_afbcd_top_ctrl = val;
+
+		val = mali_afbcd1_top_ctrl
+			& (~mali_afbcd1_top_ctrl_mask);
+		val |= (p[2] & mali_afbcd1_top_ctrl_mask);
+		mali_afbcd1_top_ctrl = val;
+
+		if (!update_mali_top_ctrl)
+			update_mali_top_ctrl = true;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static struct notifier_block amdv_notifier = {
+	.notifier_call = amdv_notify_callback,
+};
+
+static RAW_NOTIFIER_HEAD(amdv_notifier_list);
+int amdv_register_client(struct notifier_block *nb)
+{
+	return raw_notifier_chain_register(&amdv_notifier_list, nb);
+}
+EXPORT_SYMBOL(amdv_register_client);
+
+int amdv_unregister_client(struct notifier_block *nb)
+{
+	return raw_notifier_chain_unregister(&amdv_notifier_list, nb);
+}
+EXPORT_SYMBOL(amdv_unregister_client);
+
+int amdv_notifier_call_chain(unsigned long val, void *v)
+{
+	return raw_notifier_call_chain(&amdv_notifier_list, val, v);
+}
+EXPORT_SYMBOL_GPL(amdv_notifier_call_chain);
+
 static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(debug, 0644,
 	amdolby_vision_debug_show, amdolby_vision_debug_store),
@@ -14499,12 +14616,14 @@ int __init amdolby_vision_init(void)
 		pr_err("failed to register amdolby_vision module\n");
 		return -ENODEV;
 	}
+	amdv_register_client(&amdv_notifier);
 	return 0;
 }
 
 void __exit amdolby_vision_exit(void)
 {
 	pr_info("%s:module exit\n", __func__);
+	amdv_unregister_client(&amdv_notifier);
 	platform_driver_unregister(&aml_amdolby_vision_driver);
 }
 

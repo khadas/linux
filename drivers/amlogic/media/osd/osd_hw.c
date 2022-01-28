@@ -1118,6 +1118,10 @@ static u32 osd_vpp2_bld_ctrl;
 static u32 osd_vpp2_bld_ctrl_mask = 0x30;
 /* indicates whether vpp1&vpp2 has been notified or not */
 static u32 osd_vpp_bld_ctrl_update_mask = 0x80000000;
+static u32 osd_mali_afbcd_top_ctrl;
+static u32 osd_mali_afbcd_top_ctrl_mask = 0x00ffbfff;
+static u32 osd_mali_afbcd1_top_ctrl;
+static u32 osd_mali_afbcd1_top_ctrl_mask = 0x00f7ffff;
 
 module_param(osd_vpp_misc, uint, 0444);
 MODULE_PARM_DESC(osd_vpp_misc, "osd_vpp_misc");
@@ -3222,6 +3226,30 @@ int notify_preblend_to_amvideo(u32 preblend_en)
 		(AMVIDEO_UPDATE_PREBLEND_MODE,
 		(void *)&preblend_en);
 #endif
+	return 0;
+}
+
+static int notify_to_amdv(void)
+{
+	u32 para[4];
+
+	if (osd_hw.osd_meson_dev.cpu_id != __MESON_CPU_MAJOR_ID_T7)
+		return 0;
+
+	para[0] = osd_mali_afbcd_top_ctrl;
+	para[1] = osd_mali_afbcd_top_ctrl_mask;
+	para[2] = osd_mali_afbcd1_top_ctrl;
+	para[3] = osd_mali_afbcd1_top_ctrl_mask;
+
+	pr_debug("mali_afbcd_top_ctrl:0x%08x, mask:0x%08x,mali_afbcd1_top_ctrl:0x%08x, mask:0x%08x\n",
+		para[0], para[1], para[2], para[3]);
+
+	if (osd_hw.hw_rdma_en) {
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		amdv_notifier_call_chain(AMDV_UPDATE_OSD_MODE,
+					    (void *)&para[0]);
+#endif
+	}
 	return 0;
 }
 
@@ -11036,6 +11064,26 @@ static int osd_setting_order(u32 output_index)
 	set_blend_reg(blending);
 	save_blend_reg(blending);
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
+	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T7) {
+		/* TODO: force to add dv bit set after secure config */
+		if (secure_src & OSD1_INPUT_SECURE)
+			osd_mali_afbcd_top_ctrl |= 1 << 17;
+		else
+			osd_mali_afbcd_top_ctrl &= ~(1 << 17);
+		if (secure_src & OSD2_INPUT_SECURE)
+			osd_mali_afbcd_top_ctrl |= 1 << 22;
+		else
+			osd_mali_afbcd_top_ctrl &= ~(1 << 22);
+		if (secure_src & MALI_AFBCD_SECURE)
+			osd_mali_afbcd_top_ctrl |= 1 << 18;
+		else
+			osd_mali_afbcd_top_ctrl &= ~(1 << 18);
+		if (secure_src & OSD3_INPUT_SECURE)
+			osd_mali_afbcd1_top_ctrl |= 1 << 22;
+		else
+			osd_mali_afbcd1_top_ctrl &= ~(1 << 22);
+		notify_to_amdv();
+	}
 	secure_config(OSD_MODULE, secure_src, output_index);
 #endif
 	/* append RDMA_DETECT_REG at last and detect if rdma missed some regs */
@@ -11578,7 +11626,26 @@ static void osd_setting_viux(u32 output_index)
 	if (secure_src && osd_hw.osd_afbcd[i].enable)
 		secure_src |= MALI_AFBCD_SECURE;
 	osd_hw.secure_src = secure_src;
-
+	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T7) {
+		/* TODO: force to add dv bit set after secure config */
+		if (secure_src & OSD1_INPUT_SECURE)
+			osd_mali_afbcd_top_ctrl |= 1 << 17;
+		else
+			osd_mali_afbcd_top_ctrl &= ~(1 << 17);
+		if (secure_src & OSD2_INPUT_SECURE)
+			osd_mali_afbcd_top_ctrl |= 1 << 22;
+		else
+			osd_mali_afbcd_top_ctrl &= ~(1 << 22);
+		if (secure_src & MALI_AFBCD_SECURE)
+			osd_mali_afbcd_top_ctrl |= 1 << 18;
+		else
+			osd_mali_afbcd_top_ctrl &= ~(1 << 18);
+		if (secure_src & OSD3_INPUT_SECURE)
+			osd_mali_afbcd1_top_ctrl |= 1 << 22;
+		else
+			osd_mali_afbcd1_top_ctrl &= ~(1 << 22);
+		notify_to_amdv();
+	}
 	secure_config(OSD_MODULE, secure_src, output_index);
 #endif
 
@@ -11727,14 +11794,27 @@ static void osd_basic_update_disp_geometry(u32 index)
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x1, 31, 1);
 				} else {
-					if (index == OSD1)
+					if (index == OSD1) {
+						osd_mali_afbcd_top_ctrl |= 1 << 16;
+						notify_to_amdv();
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x1, 16, 1);
-					else
+					} else {
+						osd_mali_afbcd_top_ctrl |= 1 << 21;
+						notify_to_amdv();
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x1, 21, 1);
+					}
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+					if (osd_hw.osd_meson_dev.cpu_id ==
+						__MESON_CPU_MAJOR_ID_T7)
+						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+							(osd_reg->mali_afbcd_top_ctrl,
+							 is_dolby_vision_graphic_on() ? 0 : 1,
+							 14, 1);
+#endif
 				}
 			} else {
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
@@ -11788,14 +11868,27 @@ static void osd_basic_update_disp_geometry(u32 index)
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x0, 31, 1);
 				} else {
-					if (index == OSD1)
+					if (index == OSD1) {
+						osd_mali_afbcd_top_ctrl &= ~(1 << 16);
+						notify_to_amdv();
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x0, 16, 1);
-					else
+					} else {
+						osd_mali_afbcd_top_ctrl &= ~(1 << 21);
+						notify_to_amdv();
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x0, 21, 1);
+					}
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+					if (osd_hw.osd_meson_dev.cpu_id ==
+						__MESON_CPU_MAJOR_ID_T7)
+						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+							(osd_reg->mali_afbcd_top_ctrl,
+							 is_dolby_vision_graphic_on() ? 0 : 1,
+							 14, 1);
+#endif
 				}
 			} else {
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
@@ -12311,6 +12404,16 @@ static void fix_vpu_clk2_default_regs(void)
 	/* t7 eco default setting */
 	if (osd_hw.osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T7) {
 		 /* default: osd byp osd_blend */
+		osd_mali_afbcd_top_ctrl =
+			osd_reg_read(MALI_AFBCD_TOP_CTRL) & osd_mali_afbcd_top_ctrl_mask;
+		osd_mali_afbcd_top_ctrl |= 1 << 19;
+		osd_mali_afbcd_top_ctrl &= ~(1 << 15);
+		osd_mali_afbcd_top_ctrl &= ~(1 << 20);
+		osd_mali_afbcd1_top_ctrl =
+			osd_reg_read(MALI_AFBCD1_TOP_CTRL) & osd_mali_afbcd1_top_ctrl_mask;
+		osd_mali_afbcd1_top_ctrl &= ~(1 << 20);
+		notify_to_amdv();
+
 		osd_reg_set_bits(VPP_OSD1_SCALE_CTRL, 0x2, 0, 3);
 		osd_reg_set_bits(VPP_OSD2_SCALE_CTRL, 0x3, 0, 3);
 		osd_reg_set_bits(VPP_OSD3_SCALE_CTRL, 0x3, 0, 3);
@@ -12320,10 +12423,11 @@ static void fix_vpu_clk2_default_regs(void)
 		osd_reg_set_bits(VPP_VD1_DSC_CTRL, 0x1, 4, 1);
 		osd_reg_set_bits(VPP_VD2_DSC_CTRL, 0x1, 4, 1);
 		osd_reg_set_bits(VPP_VD3_DSC_CTRL, 0x1, 4, 1);
-		osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x1, 14, 1);
+		/* move the control into uboot for osd dolby vision */
+		/* osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x1, 14, 1); */
 		osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x1, 19, 1);
-		osd_reg_set_bits(MALI_AFBCD1_TOP_CTRL, 0x1, 19, 1);
-		osd_reg_set_bits(MALI_AFBCD1_TOP_CTRL, 0x1, 19, 1);
+		/* osd_reg_set_bits(MALI_AFBCD1_TOP_CTRL, 0x1, 19, 1); */
+		osd_reg_set_bits(MALI_AFBCD2_TOP_CTRL, 0x1, 19, 1);
 
 		/* default: osd 12bit path */
 		osd_reg_set_bits(VPP_VD1_DSC_CTRL, 0x0, 5, 1);
@@ -12332,7 +12436,7 @@ static void fix_vpu_clk2_default_regs(void)
 		osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x0, 15, 1);
 		osd_reg_set_bits(MALI_AFBCD_TOP_CTRL, 0x0, 20, 1);
 		osd_reg_set_bits(MALI_AFBCD1_TOP_CTRL, 0x0, 20, 1);
-		osd_reg_set_bits(MALI_AFBCD1_TOP_CTRL, 0x0, 20, 1);
+		osd_reg_set_bits(MALI_AFBCD2_TOP_CTRL, 0x0, 20, 1);
 	}
 }
 
@@ -12600,6 +12704,17 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 				      data32);
 		if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE)
 			osd_setting_default_hwc();
+	} else if (osd_hw.osd_meson_dev.cpu_id ==
+			__MESON_CPU_MAJOR_ID_T7) {
+		osd_mali_afbcd_top_ctrl =
+			osd_reg_read(MALI_AFBCD_TOP_CTRL) & osd_mali_afbcd_top_ctrl_mask;
+		osd_mali_afbcd_top_ctrl |= 1 << 19;
+		osd_mali_afbcd_top_ctrl &= ~(1 << 15);
+		osd_mali_afbcd_top_ctrl &= ~(1 << 20);
+		osd_mali_afbcd1_top_ctrl =
+			osd_reg_read(MALI_AFBCD1_TOP_CTRL) & osd_mali_afbcd1_top_ctrl_mask;
+		osd_mali_afbcd1_top_ctrl &= ~(1 << 20);
+		notify_to_amdv();
 	}
 	if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL) {
 		osd_vpp_misc =

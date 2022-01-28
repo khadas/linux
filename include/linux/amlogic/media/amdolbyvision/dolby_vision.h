@@ -212,6 +212,7 @@ void enable_dolby_vision(int enable);
 bool is_dolby_vision_enable(void);
 bool is_dolby_vision_on(void);
 bool is_dolby_vision_video_on(void);
+bool is_dolby_vision_graphic_on(void);
 bool for_dolby_vision_certification(void);
 void set_dolby_vision_mode(int mode);
 int get_dolby_vision_mode(void);
@@ -284,4 +285,13 @@ bool is_dv_control_backlight(void);
 bool get_force_bypass_from_prebld_to_vadj1(void);
 void update_dvcore2_timing(u32 *hsize, u32 *vsize);
 
+#define AMDV_UPDATE_OSD_MODE 0x00000001
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+int amdv_notifier_call_chain(unsigned long val, void *v);
+#else
+static inline int amdv_notifier_call_chain(unsigned long val, void *v)
+{
+	return 0;
+}
+#endif
 #endif
