@@ -116,6 +116,9 @@ struct tgt_gc_cfg {
 
 # pragma pack(push, 1)
 struct ambient_cfg {
+	u8  reserved[3];
+	u8  dark_detail;
+	u32 dark_detail_complum;
 	u32 ambient;
 	u32 t_front_lux;
 	u32 t_front_lux_scale;
@@ -140,7 +143,7 @@ struct tgt_ab_cfg {
 	u32  ab_delay_msec_hdmi;
 	u32  ab_delay_msec_ott;
 	u32  ab_delay_msec_ll;
-	u32  reserved[3];
+	u32  reserved[1];
 };
 #pragma pack(pop)
 
@@ -152,9 +155,9 @@ struct target_config {
 	u16 max_pq;
 	u16 min_pq;
 	u16 max_pq_dm3;
-	s32 min_lin;
-	s32 max_lin;
-	s32 max_lin_dm3;
+	u32 min_lin;
+	u32 max_lin;
+	u32 max_lin_dm3;
 	s32 t_primaries[8];
 	u16 m_sweight;
 	s16 trim_slope_bias;
@@ -178,7 +181,7 @@ struct target_config {
 	u8 vsvdb[7];
 	u8 dm31_avail;
 	u8 ref_mode_dark_id;
-	u8 apply_l11;
+	u8 apply_l11_wp;
 	u8 reserved1[1];
 	s16 backlight_scaler;
 	struct tgt_out_csc_cfg ocsc_config;
@@ -191,7 +194,7 @@ struct target_config {
 	s16 slope_bias_lut[TUNING_LUT_SIZE];
 	s16 backlight_bias_lut[TUNING_LUT_SIZE];
 	s16 user_brightness_ui_lut[DM4_TUNING_LUT_SIZE];
-	s16 padding2;
+	u16 padding2;
 	s16 blu_pwm[5];
 	s16 blu_light[5];
 	s16 padding[36];
@@ -479,6 +482,7 @@ struct dv_cfg_info_s {
 	s16  colorshift;        /*ColorShift or Tint*/
 	s16  saturation;        /*Saturation or color */
 	u8  vsvdb[7];
+	int dark_detail;        /*dark detail, on or off*/
 };
 
 struct dv_pq_center_value_s {

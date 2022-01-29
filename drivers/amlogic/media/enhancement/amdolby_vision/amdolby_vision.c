@@ -263,21 +263,6 @@ static unsigned int force_best_pq;
 module_param(force_best_pq, uint, 0664);
 MODULE_PARM_DESC(force_best_pq, "\n force_best_pq\n");
 
-/* by default, both std and ll use same cfg: cfg_id=1 */
-
-/*0:cfg 0.005_500_BT1886_2.4_v0.txt    -tid 0 */
-/*1:cfg 0.01_700_POWER_2.4_v1-12.txt   -tid 2 */
-static unsigned int cfg_id = 1;/*dv cert need cfg_id=0*/
-module_param(cfg_id, uint, 0664);
-MODULE_PARM_DESC(cfg_id, "\n cfg_id\n");
-
-/*0:cfg 0.001_6300_POWER_2.4_v2.txt      -tid2*/
-/*1:cfg 0.034_890_BT1886_2.2_v2.txt      -tid2*/
-/*2:cfg 0.01_700_POWER_2.4_v1-12.txt     -tid2*/
-static unsigned int cfg_ll_id = 2;
-module_param(cfg_ll_id, uint, 0664);
-MODULE_PARM_DESC(cfg_ll_id, "\n cfg_ll_id\n");
-
 /*bit0: 0-> efuse, 1->no efuse; */
 /*bit1: 1->ko loaded*/
 /*bit2: 1-> value updated*/
@@ -599,7 +584,8 @@ static const s16 INTER_MAX_PQ = 4095;
 const char *pq_item_str[] = {"brightness",
 			     "contrast",
 			     "colorshift",
-			     "saturation"};
+			     "saturation",
+			     "darkdetail"};
 
 const char *eotf_str[] = {"bt1886", "pq", "power"};
 
@@ -610,187 +596,159 @@ static int debug_tprimary;
 static int set_inter_pq;
 static DEFINE_SPINLOCK(cfg_lock);
 
+/*update flag=>bit0: front,bit1: rear, bit2:whitexy, bit3:mode,bit4:darkdetail*/
 #define AMBIENT_CFG_FRAMES 46
 struct ambient_cfg_s ambient_test_cfg[AMBIENT_CFG_FRAMES] = {
-	/* update_flag, ambient, rear, front, whitex, whitey */
-	{ 12, 65536, 0, 0, 0, 0 },
-	{ 4, 0, 0, 0, 32768, 0 },
-	{ 4, 0, 0, 0, 0, 32768 },
-	{ 4, 0, 0, 0, 32768, 32768 },
-	{ 6, 0, 0, 0, 10246, 10780 },
-	{ 2, 0, 10000, 0, 0, 0 },
-	{ 3, 0, 5, 0, 0, 0 },
-	{ 1, 0, 0, 30000, 0, 0 },
-	{ 8, 0, 0, 0, 0, 0 },
-	{ 8, 65536, 0, 0, 0, 0 },
-	{ 7, 0, 2204, 23229, 589, 30638 },
-	{ 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0 },
-	{ 1, 0, 0, 24942, 0, 0 },
-	{ 7, 0, 4646, 25899, 31686, 9764 },
-	{ 0, 0, 0, 0, 0, 0 },
-	{ 4, 0, 0, 0, 491, 30113 },
-	{ 4, 0, 0, 0, 11632, 13402 },
-	{ 4, 0, 0, 0, 22282, 31162 },
-	{ 6, 0, 6276, 0, 98, 16056 },
-	{ 6, 0, 5276, 0, 8454, 6946 },
-	{ 2, 0, 6558, 0, 0, 0 },
-	{ 2, 0, 355, 0, 0, 0 },
-	{ 7, 0, 6898, 9651, 30539, 17104 },
-	{ 3, 0, 5558, 838, 0, 0 },
-	{ 5, 0, 0, 8462, 7438, 655 },
-	{ 8, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0 },
-	{ 9, 65536, 0, 12792, 0, 0 },
-	{ 4, 0, 0, 0, 30179, 14909 },
-	{ 3, 0, 1287, 16711, 0, 0 },
-	{ 7, 0, 991, 9667, 14450, 9699 },
-	{ 4, 0, 0, 0, 12746, 5636 },
-	{ 2, 0, 1382, 0, 0, 0 },
-	{ 1, 0, 0, 14647, 0, 0 },
-	{ 2, 0, 9080, 0, 0, 0 },
-	{ 4, 0, 0, 0, 21921, 16056 },
-	{ 3, 0, 6840, 13834, 0, 0 },
-	{ 5, 0, 0, 21597, 25755, 26673 },
-	{ 0, 0, 0, 0, 0, 0 },
-	{ 5, 0, 0, 19217, 17825, 17989 },
-	{ 6, 0, 2185, 0, 13828, 5406 },
-	{ 2, 0, 3587, 0, 0, 0 },
-	{ 5, 0, 0, 17788, 3571, 28508 },
-	{ 4, 0, 0, 0, 32636, 5799 }
+	/* update_flag, ambient, rear, front, whitex, whitey,dark_detail */
+	{ 12, 65536, 0, 0, 0, 0, 0},
+	{ 4, 0, 0, 0, 32768, 0, 0},
+	{ 4, 0, 0, 0, 0, 32768, 0},
+	{ 4, 0, 0, 0, 32768, 32768, 0},
+	{ 6, 0, 0, 0, 10246, 10780, 0},
+	{ 2, 0, 10000, 0, 0, 0, 0},
+	{ 3, 0, 5, 0, 0, 0, 0},
+	{ 1, 0, 0, 30000, 0, 0, 0},
+	{ 8, 0, 0, 0, 0, 0, 0},
+	{ 8, 65536, 0, 0, 0, 0, 0},
+	{ 7, 0, 2204, 23229, 589, 30638, 0},
+	{ 0, 0, 0, 0, 0, 0, 0},
+	{ 0, 0, 0, 0, 0, 0, 0},
+	{ 1, 0, 0, 24942, 0, 0, 0},
+	{ 7, 0, 4646, 25899, 31686, 9764, 0},
+	{ 0, 0, 0, 0, 0, 0, 0},
+	{ 4, 0, 0, 0, 491, 30113, 0},
+	{ 4, 0, 0, 0, 11632, 13402, 0},
+	{ 4, 0, 0, 0, 22282, 31162, 0},
+	{ 6, 0, 6276, 0, 98, 16056, 0},
+	{ 6, 0, 5276, 0, 8454, 6946, 0},
+	{ 2, 0, 6558, 0, 0, 0, 0},
+	{ 2, 0, 355, 0, 0, 0, 0},
+	{ 7, 0, 6898, 9651, 30539, 17104, 0},
+	{ 3, 0, 5558, 838, 0, 0, 0},
+	{ 5, 0, 0, 8462, 7438, 655, 0},
+	{ 8, 0, 0, 0, 0, 0, 0},
+	{ 0, 0, 0, 0, 0, 0, 0},
+	{ 0, 0, 0, 0, 0, 0, 0},
+	{ 9, 65536, 0, 12792, 0, 0, 0},
+	{ 4, 0, 0, 0, 30179, 14909, 0},
+	{ 3, 0, 1287, 16711, 0, 0, 0},
+	{ 7, 0, 991, 9667, 14450, 9699, 0},
+	{ 4, 0, 0, 0, 12746, 5636, 0},
+	{ 2, 0, 1382, 0, 0, 0, 0},
+	{ 1, 0, 0, 14647, 0, 0, 0},
+	{ 2, 0, 9080, 0, 0, 0, 0},
+	{ 4, 0, 0, 0, 21921, 16056, 0},
+	{ 3, 0, 6840, 13834, 0, 0, 0},
+	{ 5, 0, 0, 21597, 25755, 26673, 0},
+	{ 0, 0, 0, 0, 0, 0, 0},
+	{ 5, 0, 0, 19217, 17825, 17989, 0},
+	{ 6, 0, 2185, 0, 13828, 5406, 0},
+	{ 2, 0, 3587, 0, 0, 0, 0},
+	{ 5, 0, 0, 17788, 3571, 28508, 0},
+	{ 4, 0, 0, 0, 32636, 5799, 0},
 };
 
-/*tv cert: OTT mode/HDMI MODE(5010~5013 and 5232,5272,5332) use this cfg*/
-struct target_config def_tgt_display_cfg = {
-	39322,
-	0,
-	0,
-	2771,
-	62,
-	2771,
-	1311,
-	131072000,
-	131072000,
-	{
-	42949672,
-	22145926,
-	20132660,
-	40265320,
-	10066330,
-	4026532,
-	20984942,
-	22078816
-	},
-	2048,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	4095,
-	0,
-	0,
-	0,
-	{
-		1,
-		13,
-		131072000,
-		1310720,
-		82897208,
-		4095,
-		2048,
-		0,
-		1,
-		{
-			{5960, 20047, 2023},
-			{-3286, -11052, 14336},
-			{14336, -13022, -1316}
-		},
-		15,
-		1,
-		{2048, 16384, 16384},
-		414486,
-		82897,
-		0,
-		5,
-		2771,
-		1015,
-		0,
-		0,
-		0,
-		4095,
-		4095,
-		0,
-		444596224,
-		{0, 0, 0}
-	},
-	{
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		{0, 0, 0}
-	},
-	{
-		65536,
-		0,
-		4096,
-		5,
-		4096,
-		{10247, 10781},
-		32768,
-		3277,
-		0,
-		1365,
-		1365
-	},
-	/*{0, 0, 0, 68, 124, 49, 230},*/
-	{4, 216, 163, 84, 218, 76, 153},
-	1,
-	2,
-	0,
-	{0},
-	0,
-	{
-		{
-			{22416, -19015, 695},
-			{-4609, 9392, -688},
-			{122, -791, 4765}
-		},
-		12,
-		{0, 0, 0},
-		0,
-		{0, 0, 0}
-	},
-	4096,
-	1,
-	1,
-	{50, 100, 300, 500, 800, 1000, 2000, 3000},
-	{65536, 65536, 65536, 65536, 65536, 65536, 65536, 65536},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0},
-	0,
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0} /* padding */
+struct ambient_cfg_s ambient_test_cfg_2[AMBIENT_CFG_FRAMES] = {
+	/* update_flag, ambient, rear, front, whitex, whitey,dark_detail */
+	{31, 65536, 5, 24942, 32768, 32768, 1},
+	{24, 0, 5, 24942, 32768, 32768, 1},
+	{24, 0, 5, 24942, 32768, 32768, 1},
+	{24, 0, 5, 24942, 32768, 32768, 1},
+	{24, 0, 5, 24942, 32768, 32768, 1},
+	{28, 65536, 5, 24942, 0, 0, 1},
+	{31, 65536, 5, 0, 32768, 0, 1},
+	{31, 65536, 5, 30000, 0, 32768, 1},
+	{31, 65536, 5, 24942, 32768, 32768, 1},
+	{30, 65536, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{31, 65536, 2204, 23229, 589, 30638, 1},
+	{31, 65536, 4646, 25899, 31686, 9764, 1},
+	{28, 65536, 4646, 25899, 491, 30113, 1},
+	{28, 65536, 4646, 25899, 11632, 13402, 1},
+	{31, 65536, 6276, 23229, 98, 16056, 1},
+	{14, 65536, 5276, 23229, 8454, 6946, 1},
+	{18, 65536, 6558, 23229, 8454, 6946, 0},
+	{18, 65536, 355, 23229, 8454, 6946, 1},
+	{31, 65536, 6898, 9651, 30539, 17104, 1},
+	{11, 65536, 5558, 838, 30539, 17104, 1},
+	{29, 65536, 5558, 8462, 7438, 655, 1},
+	{8, 0, 5558, 8462, 7438, 655, 1},
+	{0, 0, 5558, 8462, 7438, 655, 1},
+	{0, 0, 5558, 8462, 7438, 655, 1},
+	{9, 65536, 5558, 12792, 7438, 655, 1},
+	{4, 65536, 5558, 12792, 30179, 14909, 1},
+	{11, 65536, 1287, 16711, 30179, 14909, 1},
+	{15, 65536, 991, 9667, 14450, 9699, 1},
+	{12, 65536, 991, 9667, 12746, 5636, 1},
+	{10, 65536, 1382, 9667, 12746, 5636, 1},
+	{9, 65536, 1382, 14647, 12746, 5636, 1},
+	{10, 65536, 9080, 14647, 12746, 5636, 1},
+	{12, 65536, 9080, 14647, 21921, 16056, 1},
+	{11, 65536, 6840, 13834, 21921, 16056, 1},
+	{13, 65536, 6840, 21597, 25755, 26673, 1},
+	{5, 65536, 6840, 17788, 3571, 28508, 1},
 };
+
+struct ambient_cfg_s ambient_test_cfg_3[AMBIENT_CFG_FRAMES] = {
+	/* update_flag, ambient, rear, front, whitex, whitey,dark_detail */
+	{31, 65536, 5, 24942, 32768, 32768, 1},
+	{24, 0, 5, 24942, 32768, 32768, 1},
+	{24, 0, 5, 24942, 32768, 32768, 0},
+	{24, 0, 5, 24942, 32768, 32768, 1},
+	{24, 0, 5, 24942, 32768, 32768, 1},
+	{28, 65536, 5, 24942, 0, 0, 1},
+	{31, 65536, 5, 0, 32768, 0, 1},
+	{31, 65536, 5, 30000, 0, 32768, 1},
+	{31, 65536, 5, 24942, 32768, 32768, 1},
+	{30, 65536, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 0},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{24, 0, 5276, 24942, 8454, 6946, 1},
+	{31, 65536, 2204, 23229, 589, 30638, 1},
+	{31, 65536, 4646, 25899, 31686, 9764, 1},
+	{28, 65536, 4646, 25899, 491, 30113, 1},
+	{28, 65536, 4646, 25899, 11632, 13402, 1},
+	{31, 65536, 6276, 23229, 98, 16056, 1},
+	{14, 65536, 5276, 23229, 8454, 6946, 1},
+	{18, 65536, 6558, 23229, 8454, 6946, 0},
+	{18, 65536, 355, 23229, 8454, 6946, 1},
+	{31, 65536, 6898, 9651, 30539, 17104, 1},
+	{11, 65536, 5558, 838, 30539, 17104, 1},
+	{29, 65536, 5558, 8462, 7438, 655, 1},
+	{8, 0, 5558, 8462, 7438, 655, 1},
+	{0, 0, 5558, 8462, 7438, 655, 1},
+	{0, 0, 5558, 8462, 7438, 655, 1},
+	{9, 65536, 5558, 12792, 7438, 655, 1},
+	{4, 65536, 5558, 12792, 30179, 14909, 1},
+	{11, 65536, 1287, 16711, 30179, 14909, 1},
+	{15, 65536, 991, 9667, 14450, 9699, 1},
+	{12, 65536, 991, 9667, 12746, 5636, 1},
+	{10, 65536, 1382, 9667, 12746, 5636, 1},
+	{9, 65536, 1382, 14647, 12746, 5636, 1},
+	{10, 65536, 9080, 14647, 12746, 5636, 1},
+	{12, 65536, 9080, 14647, 21921, 16056, 1},
+	{11, 65536, 6840, 13834, 21921, 16056, 1},
+	{13, 65536, 6840, 21597, 25755, 26673, 1},
+	{5, 65536, 6840, 17788, 3571, 28508, 1},
+};
+
+struct ambient_cfg_s ambient_darkdetail = {16, 0, 0, 0, 0, 0, 1};
 
 struct target_config def_tgt_display_cfg_bestpq = {
 	36045,
@@ -870,9 +828,12 @@ struct target_config def_tgt_display_cfg_bestpq = {
 		0,
 		0,
 		0,
-		{0, 0, 0}
+		{0}
 	},
 	{
+		{0, 0, 0},
+		0,
+		0,
 		65536,
 		0,
 		4096,
@@ -921,268 +882,8 @@ struct target_config def_tgt_display_cfg_bestpq = {
 	0, 0, 0, 0} /* padding */
 };
 
-/*tv cert: DV LL case 5053 use this cfg */
-struct target_config def_tgt_display_cfg_ll = {
-	39322,
-	2,
-	0,
-	3895,
-	26,
-	3246,
-	262,
-	1651507200,
-	381117088,
-	{
-	44922672,
-	22152636,
-	17844246,
-	44969648,
-	9489194,
-	3342022,
-	20984942,
-	22078816
-	},
-	2048,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	4095,
-	0,
-	0,
-	0,
-	4095,
-	0,
-	0,
-	0,
-	{
-		1,
-		0,
-		1651507200,
-		1310720,
-		657976192,
-		4095,
-		2048,
-		0,
-		1,
-		{
-			{5967, 20067, 2026},
-			{-3289, -11061, 14350},
-			{14350, -13034, -1316}
-		},
-		15,
-		1,
-		{2048, 16384, 16384},
-		657976,
-		10444,
-		0,
-		0,
-		3895,
-		1015,
-		0,
-		0,
-		0,
-		1400,
-		2940,
-		0,
-		2239627264u,
-		{0, 0, 0}
-	},
-	{
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		{0, 0, 0}
-	},
-	{
-		0,
-		0,
-		4096,
-		5,
-		4096,
-		{10247, 10781},
-		32768,
-		3277,
-		0,
-		1365,
-		1365
-	},
-	{72, 15, 234, 136, 88, 92, 173},
-	1,
-	2,
-	0,
-	{0},
-	0,
-	{
-		{
-			{17486, -13950, 560},
-			{-4081, 8776, -599},
-			{257, -562, 4401}
-		},
-		12,
-		{0, 0, 0},
-		0,
-		{0, 0, 0}
-	},
-	4096,
-	1,
-	1,
-	{50, 100, 300, 500, 800, 1000, 2000, 3000},
-	{65536, 65536, 65536, 65536, 65536, 65536, 65536, 65536},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0},
-	0,
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0} /* padding */
-};
-
-/*tv cert: DV LL case 5052 use this cfg */
-struct target_config def_tgt_display_cfg_ll_1 = {
-	36045,
-	0,
-	0,
-	3027,
-	159,
-	2383,
-	8913,
-	233308160,
-	53840348,
-	{
-	42781900,
-	22434494,
-	20179636,
-	41016936,
-	10153572,
-	3684277,
-	20984942,
-	22078816
-	},
-	2048,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0,
-	4095,
-	0,
-	0,
-	0,
-	4095,
-	0,
-	0,
-	0,
-	{
-		1,
-		50,
-		233308160,
-		1310720,
-		42412656,
-		4095,
-		2048,
-		0,
-		1,
-		{
-			{5961, 20053, 2024},
-			{-3287, -11053, 14340},
-			{14340, -13026, -1313}
-		},
-		15,
-		1,
-		{2048, 16384, 16384},
-		1442030,
-		162025,
-		0,
-		10,
-		3027,
-		1015,
-		0,
-		0,
-		0,
-		4095,
-		4095,
-		0,
-		2567036928u,
-		{0, 0, 0}
-	},
-	{
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-		{0, 0, 0}
-	},
-	{
-		0,
-		0,
-		4096,
-		5,
-		4096,
-		{10247, 10781},
-		32768,
-		3277,
-		0,
-		1365,
-		1365
-	},
-	{72, 63, 122, 154, 56, 31, 182},
-	1,
-	2,
-	0,
-	{0},
-	0,
-	{
-		{
-			{22406, -18942, 632},
-			{-4730, 9453, -627},
-			{81, -650, 4665}
-		},
-		12,
-		{0, 0, 0},
-		0,
-		{0, 0, 0}
-	},
-	4096,
-	1,
-	1,
-	{50, 100, 300, 500, 800, 1000, 2000, 3000},
-	{65536, 65536, 65536, 65536, 65536, 65536, 65536, 65536},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0},
-	0,
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0},
-	{0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0} /* padding */
-};
-
 /*tv cert: DV LL case 5051 and 5055 use this cfg */
-struct target_config def_tgt_display_cfg_ll_2 = {
+struct target_config def_tgt_display_cfg_ll = {
 	36045,
 	2,
 	0,
@@ -1260,9 +961,12 @@ struct target_config def_tgt_display_cfg_ll_2 = {
 		0,
 		0,
 		0,
-		{0, 0, 0}
+		{0}
 	},
 	{
+		{0, 0, 0},
+		0,
+		0,
 		0,
 		0,
 		4096,
@@ -1309,22 +1013,6 @@ struct target_config def_tgt_display_cfg_ll_2 = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0} /* padding */
-};
-
-struct target_config *DV_cfg_ll[3] = {
-	/*tv cert: DV LL case 5053 use this cfg */
-	&def_tgt_display_cfg_ll,
-	/*tv cert: DV LL case 5052 use this cfg */
-	&def_tgt_display_cfg_ll_1,
-	/*tv cert: DV LL case 5051 and 5055 use this cfg */
-	&def_tgt_display_cfg_ll_2
-};
-
-struct target_config *DV_cfg[2] = {
-	/*tv cert: OTT mode/HDMI mode(DV STD)use this cfg*/
-	&def_tgt_display_cfg,
-	/*tv cert: DV LL case 5051 and 5055 use this cfg */
-	&def_tgt_display_cfg_ll_2
 };
 
 unsigned int debug_dolby;
@@ -1465,6 +1153,8 @@ static bool enable_vpu_probe;
 static bool module_installed;
 static bool recovery_mode;
 static bool force_runmode;
+static unsigned int hdmi_frame_count;/*changed when frame content update*/
+
 #define MAX_PARAM   8
 static bool is_meson_gxm(void)
 {
@@ -5718,6 +5408,7 @@ void enable_dolby_vision(int enable)
 		/* clean mute flag for next time dv on */
 		dolby_vision_flags &= ~FLAG_MUTE;
 		force_bypass_from_prebld_to_vadj1 = false;
+		hdmi_frame_count = 0;
 		if (!is_meson_gxm() && !is_meson_txlx()) {
 			hdr_osd_off(VPP_TOP0);
 			hdr_vd1_off(VPP_TOP0);
@@ -8750,6 +8441,7 @@ bool check_vf_changed(struct vframe_s *vf)
 	if (last_vf_valid_crc == 0) {
 		last_vf_valid_crc = vf->crc;
 		changed = true;
+		hdmi_frame_count = 0;
 		pr_dolby_dbg("first frame\n");
 	} else if (vf->crc != last_vf_valid_crc) {
 		if (vf->crc != new_vf_crc)
@@ -8761,6 +8453,7 @@ bool check_vf_changed(struct vframe_s *vf)
 			vf_crc_repeat_cnt = 0;
 			last_vf_valid_crc = vf->crc;
 			changed = true;
+			++hdmi_frame_count;
 			pr_dolby_dbg("new frame\n");
 		}
 	} else {
@@ -8824,6 +8517,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 	bool run_control_path = true;
 	bool vf_changed = true;
 	char *dvel_provider = NULL;
+	struct ambient_cfg_s *p_ambient = NULL;
 
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
@@ -9554,33 +9248,9 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 			if (debug_dolby & 2)
 				pr_dolby_dbg("update def_tgt_display_cfg\n");
 			if (!load_bin_config) {
-				if ((dolby_vision_flags & FLAG_FORCE_DOVI_LL) ||
-				    req.low_latency == 1) {
-					memcpy(&(((struct pq_config *)
-					pq_config_fake)->tdc),
-					DV_cfg_ll[cfg_ll_id],
-
-					sizeof(def_tgt_display_cfg_ll));
-				} else {
-					/* cert: need cfg_id = 0 */
-					if (dolby_vision_flags &
-						FLAG_CERTIFICAION)
-						cfg_id = 0;
-					else
-						cfg_id = 1;
-
-					memcpy(&(((struct pq_config *)
-					pq_config_fake)->tdc),
-					DV_cfg[cfg_id],
-					sizeof(def_tgt_display_cfg));
-					/* cert: need dm31_avail=0*/
-					if (dolby_vision_flags &
-					    FLAG_CERTIFICAION)
-						((struct pq_config *)
-					pq_config_fake)->tdc.dm31_avail =
-					0;
-
-				}
+				memcpy(&(((struct pq_config *)pq_config_fake)->tdc),
+				       &def_tgt_display_cfg_ll,
+				       sizeof(def_tgt_display_cfg_ll));
 			}
 			pq_config_set_flag = true;
 		}
@@ -9697,6 +9367,38 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 		}
 
 		if (run_control_path) {
+			if (ambient_update) {
+				/*only if cfg enables darkdetail we allow the API to set values*/
+				if (((struct pq_config *)pq_config_fake)->
+					tdc.ambient_config.dark_detail) {
+					ambient_config_new.dark_detail =
+					cfg_info[cur_pic_mode].dark_detail;
+				}
+				p_ambient = &ambient_config_new;
+			} else {
+				if (ambient_test_mode == 1 && toggle_mode == 1 &&
+				    frame_count < AMBIENT_CFG_FRAMES) {
+					p_ambient = &ambient_test_cfg[frame_count];
+				} else if (ambient_test_mode == 2 && toggle_mode == 1 &&
+					   frame_count < AMBIENT_CFG_FRAMES) {
+					p_ambient = &ambient_test_cfg_2[frame_count];
+				} else if (ambient_test_mode == 3 && toggle_mode == 1 &&
+					   hdmi_frame_count < AMBIENT_CFG_FRAMES) {
+					p_ambient = &ambient_test_cfg_3[hdmi_frame_count];
+				} else if (((struct pq_config *)pq_config_fake)->
+					tdc.ambient_config.dark_detail) {
+					/*only if cfg enables darkdetail we allow the API to set*/
+					ambient_darkdetail.dark_detail =
+						cfg_info[cur_pic_mode].dark_detail;
+					p_ambient = &ambient_darkdetail;
+				}
+			}
+			if (debug_dolby & 0x200)
+				pr_dolby_dbg("[count %d %d]dark_detail from cfg:%d,from api:%d\n",
+					     hdmi_frame_count, frame_count,
+					     ((struct pq_config *)pq_config_fake)->
+					     tdc.ambient_config.dark_detail,
+					     cfg_info[cur_pic_mode].dark_detail);
 			flag = p_funcs_tv->tv_control_path
 				(src_format, input_mode,
 				comp_buf[current_id],
@@ -9712,11 +9414,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 				&hdr10_param,
 				tv_dovi_setting,
 				vsem_if_buf, vsem_if_size,
-				ambient_update ? &ambient_config_new :
-				((ambient_test_mode != 0 && toggle_mode == 1 &&
-				frame_count < AMBIENT_CFG_FRAMES) ?
-				&ambient_test_cfg[frame_count] :
-				(struct ambient_cfg_s *)NULL),
+				p_ambient,
 				tv_input_info);
 
 			if (debug_dolby & 0x400) {
@@ -11685,6 +11383,8 @@ static void restore_dv_pq_setting(enum pq_reset_e pq_reset)
 			bin_to_cfg[mode].tdc.d_color_shift;
 		cfg_info[mode].saturation =
 			bin_to_cfg[mode].tdc.d_saturation;
+		cfg_info[mode].dark_detail =
+			bin_to_cfg[mode].tdc.ambient_config.dark_detail;
 		memcpy(cfg_info[mode].vsvdb,
 		       bin_to_cfg[mode].tdc.vsvdb,
 		       sizeof(cfg_info[mode].vsvdb));
@@ -12503,6 +12203,7 @@ static ssize_t  amdolby_vision_pq_info_show
 	"echo contrast value     > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo colorshift value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo saturation value   > /sys/class/amdolby_vision/dv_pq_info;\n"
+	"echo darkdetail value   > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo all v1 v2 v3 v4 v5 > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"echo reset value        > /sys/class/amdolby_vision/dv_pq_info;\n"
 	"\n"
@@ -12511,6 +12212,7 @@ static ssize_t  amdolby_vision_pq_info_show
 	"contrast     range: [-256, 256]\n"
 	"colorshift   range: [-256, 256]\n"
 	"saturation   range: [-256, 256]\n"
+	"darkdetail   range: [0, 1]\n"
 	"reset            0: reset pict mode/all pq for all pict mode]\n"
 	"                 1: reset pq for all picture mode]\n"
 	"                 2: reset pq for current picture mode]\n"
@@ -12563,6 +12265,10 @@ static ssize_t  amdolby_vision_pq_info_show
 	pos += sprintf(buf + pos,
 		       "current saturation:        [inter:%d][exter:%d]\n",
 		       inter_value, exter_value);
+
+	pos += sprintf(buf + pos,
+		       "current darkdetail:        [%d]\n",
+		       cfg_info[cur_pic_mode].dark_detail);
 	pos += sprintf(buf + pos, "========================================\n");
 
 	pos += sprintf(buf + pos, "%s\n", pq_usage_str);
@@ -12642,6 +12348,17 @@ static ssize_t amdolby_vision_pq_info_store
 			goto ERR;
 		pq_reset = val;
 		restore_dv_pq_setting(pq_reset);
+	} else if (!strcmp(parm[0], "darkdetail")) {
+		if (kstrtoint(parm[1], 10, &val) != 0)
+			goto ERR;
+		if (debug_dolby & 0x200)
+			pr_info("[DV]: set mode %d darkdetail %d\n",
+				cur_pic_mode, val);
+		val = val > 0 ? 1 : 0;
+		if (val != cfg_info[cur_pic_mode].dark_detail) {
+			need_update_cfg = true;
+			cfg_info[cur_pic_mode].dark_detail = val;
+		}
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -12820,6 +12537,10 @@ static ssize_t amdolby_vision_bin_config_show
 		pr_info("\n");
 
 		pr_info("------- Ambient light configuration ------\n");
+		pr_info("dark_detail:        %d\n",
+			config->ambient_config.dark_detail);
+		pr_info("dark_detail_complum:%d\n",
+			config->ambient_config.dark_detail_complum);
 		pr_info("ambient:            %d\n",
 			config->ambient_config.ambient);
 		pr_info("t_front_lux:        %d\n",
@@ -13350,6 +13071,7 @@ static long amdolby_vision_ioctl(struct file *file,
 	void __user *argp = (void __user *)arg;
 	unsigned char bin_name[MAX_BYTES] = "";
 	unsigned char cfg_name[MAX_BYTES] = "";
+	int dark_detail = 0;
 
 	if (debug_dolby & 0x200)
 		pr_info("[DV]: %s: cmd_nr = 0x%x\n",
@@ -13508,6 +13230,21 @@ static long amdolby_vision_ioctl(struct file *file,
 		if (copy_from_user(&ambient_config_new, argp,
 			sizeof(struct ambient_cfg_s)) == 0) {
 			ambient_update = true;
+		} else {
+			ret = -EFAULT;
+		}
+		break;
+	case DV_IOC_SET_DV_DARK_DETAIL:
+		if (copy_from_user(&dark_detail, argp,
+			sizeof(s32) == 0)) {
+			if (debug_dolby & 0x200)
+				pr_info("[DV]: set mode %d darkdetail %d\n",
+					cur_pic_mode, dark_detail);
+			dark_detail = dark_detail > 0 ? 1 : 0;
+			if (dark_detail != cfg_info[cur_pic_mode].dark_detail) {
+				need_update_cfg = true;
+				cfg_info[cur_pic_mode].dark_detail = dark_detail;
+			}
 		} else {
 			ret = -EFAULT;
 		}
