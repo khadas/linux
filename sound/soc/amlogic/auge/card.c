@@ -31,6 +31,7 @@
 #include "../common/misc.h"
 #include "../common/audio_uevent.h"
 #include "audio_controller.h"
+#include "tdm_hw.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
@@ -334,19 +335,25 @@ static void jack_work_func(struct work_struct *work)
 				flag = (flag) ? 0 : 1;
 
 			if (flag) {
+				/*
+				 * pr_info("headphone is pluged, mute speaker!\n");
+				 * aml_tdmout_mute_speaker(TDM_A, 1);
+				 * aml_tdmout_mute_speaker(TDM_B, 1);
+				 */
 				extcon_set_state_sync(audio_extcon_headphone,
 					EXTCON_JACK_HEADPHONE, 1);
 				snd_soc_jack_report(&card_data->hp_jack.jack,
-					status, SND_JACK_HEADPHONE);
-				audio_send_uevent(card_data->snd_card.dev,
-					HEADPHONE_DETECTION_EVENT, 1);
+					1, SND_JACK_HEADPHONE);
 			} else {
 				extcon_set_state_sync(audio_extcon_headphone,
 					EXTCON_JACK_HEADPHONE, 0);
-				snd_soc_jack_report(&card_data->hp_jack.jack, 0,
-					SND_JACK_HEADPHONE);
-				audio_send_uevent(card_data->snd_card.dev,
-					HEADPHONE_DETECTION_EVENT, 0);
+				snd_soc_jack_report(&card_data->hp_jack.jack,
+					0, SND_JACK_HEADPHONE);
+				/*
+				 * pr_info("headphone is unpluged, unmute speaker!\n");
+				 * aml_tdmout_mute_speaker(TDM_A, 0);
+				 * aml_tdmout_mute_speaker(TDM_B, 0);
+				 */
 			}
 		}
 	}
@@ -404,6 +411,9 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 		}
 		priv->hp_det_enable = 1;
 		gpio_request(det, "hp-det-gpio");
+
+		pr_info("find headphone detection pin success! hp_det_flags:%d\n",
+				priv->hp_det_flags);
 	} else {
 		snprintf(prop, sizeof(prop), "%smic-det-gpio", prefix);
 		pin_name	= "Mic Jack";
@@ -438,9 +448,6 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 		snd_soc_card_jack_new(card, pin_name, mask,
 				      &sjack->jack,
 				      &sjack->pin, 1);
-
-		snd_soc_jack_add_gpios(&sjack->jack, 1,
-				       &sjack->gpio);
 	} else {
 		pr_info("detect gpio is invalid\n");
 	}

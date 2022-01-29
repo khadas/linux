@@ -976,7 +976,7 @@ void aml_tdmout_enable_gain(int tdmout_id, int en, int gain_ver)
 			audiobus_update_bits(reg, 0xFF << 0, 0xFF << 0);
 		else
 			audiobus_update_bits(reg, 0xFF << 0, 0x0 << 0);
-		
+
 		break;
 	}
 }
@@ -1338,3 +1338,17 @@ void aml_tdmin_set_slot_num(struct aml_audio_controller *actrl,
 		aml_audiobus_update_bits(actrl, reg, 0x1f << 8, (slot_num - 1) << 8);
 	}
 }
+
+void aml_tdmout_mute_speaker(int tdmout_id, bool mute)
+{
+	unsigned int reg, offset;
+
+	offset = EE_AUDIO_TDMOUT_B_MUTE0 - EE_AUDIO_TDMOUT_A_MUTE0;
+	reg = EE_AUDIO_TDMOUT_A_MUTE0 + offset * tdmout_id;
+
+	if (mute)
+		audiobus_write(reg, 0xffff);
+	else
+		audiobus_write(reg, 0);
+}
+

@@ -162,4 +162,6 @@ int aml_tdmin_get_status(int tdm_id, bool use_vadtop);
 void aml_tdmin_set_slot_num(struct aml_audio_controller *actrl,
 			    int index, int slot_num, bool use_vadtop);
 void aml_tdmout_gain_step(int index, int enable);
+void aml_tdmout_mute_speaker(int tdmout_id, bool mute);
+
 #endif
