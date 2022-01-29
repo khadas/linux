@@ -91,6 +91,7 @@ struct ambient_cfg_s {
 	u32 t_frontLux;
 	u32 t_whiteX; /* 1<<15 */
 	u32 t_whiteY; /* 1<<15 */
+	u32 dark_detail;
 } __aligned(8);
 
 #define DV_M 'D'
@@ -130,6 +131,9 @@ struct ambient_cfg_s {
 
 /*1: disable dv GD, 0: restore dv GD*/
 #define DV_IOC_CONFIG_DV_BL _IOW((DV_M), 0xb, int)
+
+/*1: enable dv dark detail, 0: disable dv GD*/
+#define DV_IOC_SET_DV_DARK_DETAIL _IOW((DV_M), 0xc, int)
 
 extern unsigned int debug_dolby;
 
