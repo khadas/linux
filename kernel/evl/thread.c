@@ -6,7 +6,7 @@
  * Copyright (C) 2001, 2018 Philippe Gerum  <rpm@xenomai.org>
  */
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/wait.h>
