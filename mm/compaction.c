@@ -884,6 +884,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 				cc->contended = true;
 				ret = -EINTR;
 
+			#ifdef CONFIG_AMLOGIC_CMA
+				if (cc->alloc_contig)
+					cma_debug(1, page, "abort by sig, low_pfn:%lx, swap:%ld\n",
+						  low_pfn, SWAP_CLUSTER_MAX);
+			#endif
 				goto fatal_pending;
 			}
 
@@ -907,6 +912,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			if (!cc->ignore_skip_hint && get_pageblock_skip(page)) {
 				low_pfn = end_pfn;
 				page = NULL;
+			#ifdef CONFIG_AMLOGIC_CMA
+				if (cc->alloc_contig)
+					cma_debug(1, page, "abort by skip, low_pfn:%lx\n",
+						  low_pfn);
+			#endif
 				goto isolate_abort;
 			}
 			valid_page = page;
@@ -924,6 +934,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 				if (ret == -EBUSY)
 					ret = 0;
 				low_pfn += (1UL << compound_order(page)) - 1;
+			#ifdef CONFIG_AMLOGIC_CMA
+				if (cc->alloc_contig)
+					cma_debug(1, page, "abort by huge, low_pfn:%lx\n",
+						  low_pfn);
+			#endif
 				goto isolate_fail;
 			}
 
@@ -976,6 +991,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 			if (likely(order < MAX_ORDER))
 				low_pfn += (1UL << order) - 1;
+		#ifdef CONFIG_AMLOGIC_CMA
+			if (cc->alloc_contig)
+				cma_debug(1, page, "abort by compound, low_pfn:%lx\n",
+					  low_pfn);
+		#endif
 			goto isolate_fail;
 		}
 
@@ -1000,6 +1020,11 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 					goto isolate_success;
 			}
 
+		#ifdef CONFIG_AMLOGIC_CMA
+			if (cc->alloc_contig && page_count(page))
+				cma_debug(1, page, "abort by LRU, low_pfn:%lx\n",
+					  low_pfn);
+		#endif
 			goto isolate_fail;
 		}
 
@@ -1008,31 +1033,77 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		 * so avoid taking lru_lock and isolating it unnecessarily in an
 		 * admittedly racy check.
 		 */
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (!page_mapping(page) &&
+		    page_count(page) > page_mapcount(page)) {
+			if (cc->alloc_contig)
+				cma_debug(1, page, "mc/rc miss match, low_pfn:%lx\n",
+					  low_pfn);
+			goto isolate_fail;
+		}
+	#else
 		if (!page_mapping(page) &&
 		    page_count(page) > page_mapcount(page))
 			goto isolate_fail;
+	#endif
 
 		/*
 		 * Only allow to migrate anonymous pages in GFP_NOFS context
 		 * because those do not depend on fs locks.
 		 */
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (!(cc->gfp_mask & __GFP_FS) && page_mapping(page)) {
+			if (cc->alloc_contig)
+				cma_debug(1, page, "no fs ctx, low_pfn:%lx\n",
+					  low_pfn);
+			goto isolate_fail;
+		}
+	#else
 		if (!(cc->gfp_mask & __GFP_FS) && page_mapping(page))
 			goto isolate_fail;
+	#endif
 
 		/*
 		 * Be careful not to clear PageLRU until after we're
 		 * sure the page is not being freed elsewhere -- the
 		 * page release code relies on it.
 		 */
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (unlikely(!get_page_unless_zero(page))) {
+			if (cc->alloc_contig)
+				cma_debug(1, page, "none zero ref, low_pfn:%lx\n",
+					  low_pfn);
+			goto isolate_fail;
+		}
+	#else
 		if (unlikely(!get_page_unless_zero(page)))
 			goto isolate_fail;
+	#endif
 
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (!__isolate_lru_page_prepare(page, isolate_mode)) {
+			if (cc->alloc_contig)
+				cma_debug(1, page, "isolate fail, low_pfn:%lx, mode:%x\n",
+					  low_pfn, isolate_mode);
+			goto isolate_fail_put;
+		}
+	#else
 		if (!__isolate_lru_page_prepare(page, isolate_mode))
 			goto isolate_fail_put;
+	#endif
 
 		/* Try isolate the page */
+	#ifdef CONFIG_AMLOGIC_CMA
+		if (!TestClearPageLRU(page)) {
+			if (cc->alloc_contig)
+				cma_debug(1, page, "clear lru fail, low_pfn:%lx, mode:%x\n",
+					  low_pfn, isolate_mode);
+			goto isolate_fail_put;
+		}
+	#else
 		if (!TestClearPageLRU(page))
 			goto isolate_fail_put;
+	#endif
 
 		lruvec = mem_cgroup_page_lruvec(page);
 
@@ -1049,8 +1120,17 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			/* Try get exclusive access under lock */
 			if (!skip_updated) {
 				skip_updated = true;
+			#ifdef CONFIG_AMLOGIC_CMA
+				if (test_and_set_skip(cc, page, low_pfn)) {
+					if (cc->alloc_contig)
+						cma_debug(1, page, "skip fail, low_pfn:%lx, mode:%x\n",
+							  low_pfn, isolate_mode);
+					goto isolate_abort;
+				}
+			#else
 				if (test_and_set_skip(cc, page, low_pfn))
 					goto isolate_abort;
+			#endif
 			}
 
 			/*
