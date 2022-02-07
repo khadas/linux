@@ -51,6 +51,7 @@ struct work_cma {
 	struct list_head list;
 	unsigned long pfn;
 	unsigned long count;
+	struct task_struct *host;
 	int ret;
 };
 
@@ -303,7 +304,8 @@ static struct page *get_migrate_page(struct page *page, unsigned long private)
 /* [start, end) must belong to a single zone. */
 static int aml_alloc_contig_migrate_range(struct compact_control *cc,
 					  unsigned long start,
-					  unsigned long end, bool boost)
+					  unsigned long end, bool boost,
+					  struct task_struct *host)
 {
 	/* This function is based on compact_zone() from compaction.c. */
 	unsigned long nr_reclaimed;
@@ -315,7 +317,7 @@ static int aml_alloc_contig_migrate_range(struct compact_control *cc,
 		migrate_prep();
 
 	while (pfn < end || !list_empty(&cc->migratepages)) {
-		if (fatal_signal_pending(current)) {
+		if (fatal_signal_pending(host)) {
 			ret = -EINTR;
 			break;
 		}
@@ -395,7 +397,7 @@ static int cma_boost_work_func(void *cma_data)
 		pfn      = job->pfn;
 		cc.zone  = page_zone(pfn_to_page(pfn));
 		end      = pfn + job->count;
-		ret      = aml_alloc_contig_migrate_range(&cc, pfn, end, 1);
+		ret      = aml_alloc_contig_migrate_range(&cc, pfn, end, 1, job->host);
 		job->ret = ret;
 		if (!ret) {
 			lru_add_drain();
@@ -475,6 +477,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 		job[cpu].pfn   = start_pfn + i * delta;
 		job[cpu].count = delta;
 		job[cpu].ret   = -1;
+		job[cpu].host = current;
 		if (i == cpus - 1)
 			job[cpu].count = count - i * delta;
 		cpumask_set_cpu(cpu, &has_work);
@@ -635,7 +638,7 @@ try_again:
 		put_online_cpus();
 		boost_ok = !ret ? 1 : 0;
 	} else {
-		ret = aml_alloc_contig_migrate_range(&cc, start, end, 0);
+		ret = aml_alloc_contig_migrate_range(&cc, start, end, 0, current);
 	}
 
 	if (ret && ret != -EBUSY) {
