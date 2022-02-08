@@ -772,7 +772,7 @@ static void lcd_vbyone_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 
 static void lcd_mipi_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 {
-	unsigned int flag, data_lane0_aux, data_lane1_aux, data_lane;
+	unsigned int flag, data_lane0_aux, data_lane1_aux, data_lane, temp;
 
 	if (!lcd_phy_ctrl)
 		return;
@@ -808,15 +808,22 @@ static void lcd_mipi_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 		else
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL4, 0x822a0028);
 		lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0x1e406253);
-		lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, 0xffff0000);
-		lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, 0);
+		if (pdrv->index) {
+			temp = 0xffff;
+			lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, temp);
+		} else {
+			temp = (0xffff << 16);
+			lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, temp);
+		}
 	} else {
 		lcd_phy_ctrl->lane_lock &= ~flag;
 		lcd_phy_cntl_set_t7(flag, 0, 0, 0);
 		if (lcd_phy_ctrl->lane_lock == 0)
 			lcd_ana_write(ANACTRL_DIF_PHY_CNTL19, 0);
-		lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, 0);
-		lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, 0);
+		if (pdrv->index)
+			lcd_ana_write(ANACTRL_DIF_PHY_CNTL21, 0);
+		else
+			lcd_ana_write(ANACTRL_DIF_PHY_CNTL20, 0);
 	}
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
