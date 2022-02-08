@@ -225,7 +225,7 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 	struct pcm_setting *setting = &p_tdm->setting;
 	unsigned int lanes, swap_val = 0, swap_val1 = 0;
 	unsigned int lane_mask;
-	unsigned int i;
+	unsigned int i, mask_count;
 
 	/* calc lanes by channels and slots */
 	lanes = (channels - 1) / setting->slots + 1;
@@ -238,19 +238,20 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		unsigned int tx_mask = setting->tx_mask;
 
-		/* suppose mono I2S format */
-		if (channels == 1 && pop_count(tx_mask) > 1)
-			tx_mask = 0x1;
-
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_out;
+		mask_count = pop_count(tx_mask);
 
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
+				if (channels < mask_count && mask_count > 1)
+					tx_mask = (1 << channels) - 1;
 				aml_tdm_set_channel_mask(p_tdm->actrl,
 					stream, p_tdm->id, i, tx_mask,
 					p_tdm->chipinfo->use_vadtop);
 				lanes--;
+				if (channels > mask_count)
+					channels = channels - mask_count;
 			}
 		}
 		swap_val = 0x76543210;
@@ -264,10 +265,8 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 			p_tdm->chipinfo->use_vadtop);
 	} else {
 		unsigned int rx_mask = setting->rx_mask;
+		mask_count = pop_count(rx_mask);
 
-		/* suppose mono I2S format */
-		if (channels == 1 && pop_count(rx_mask) > 1)
-			rx_mask = 0x1;
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_in;
 
@@ -278,10 +277,14 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
+				if (channels < mask_count && mask_count > 1)
+					rx_mask = (1 << channels) - 1;
 				aml_tdm_set_channel_mask(p_tdm->actrl,
 					stream, p_tdm->id, i, rx_mask,
 					p_tdm->chipinfo->use_vadtop);
 				lanes--;
+				if (channels > mask_count)
+					channels = channels - mask_count;
 			}
 		}
 		swap_val = 0x76543210;
