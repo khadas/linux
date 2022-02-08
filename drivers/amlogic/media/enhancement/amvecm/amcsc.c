@@ -8092,8 +8092,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		}
 	}
 	sink_changed = is_sink_cap_changed(vinfo,
-					   &current_hdr_cap[vpp_index],
-					   &current_sink_available[vpp_index],
+					   &current_hdr_cap[vd_path],
+					   &current_sink_available[vd_path],
 					   vpp_index);
 	if (sink_changed) {
 		cap_changed = sink_changed & 0x02;
