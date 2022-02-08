@@ -1210,3 +1210,196 @@
 	phy-handle = <&external_phy>;
 	amlogic,tx-delay-ns = <2>;
 };
+
+&custom_maps{
+		mapnum = <4>;
+		map0 = <&map_0>;
+		map1 = <&map_1>;
+		map2 = <&map_2>;
+		map3 = <&map_3>;
+		map_0: map_0{
+			mapname = "amlogic-remote-1";
+			customcode = <0xfb04>;
+			release_delay = <80>;
+			size  = <50>;   /*keymap size*/
+			keymap = <REMOTE_KEY(0x47, KEY_0)
+				REMOTE_KEY(0x13, KEY_1)
+				REMOTE_KEY(0x10, KEY_2)
+				REMOTE_KEY(0x11, KEY_3)
+				REMOTE_KEY(0x0F, KEY_4)
+				REMOTE_KEY(0x0C, KEY_5)
+				REMOTE_KEY(0x0D, KEY_6)
+				REMOTE_KEY(0x0B, KEY_7)
+				REMOTE_KEY(0x08, KEY_8)
+				REMOTE_KEY(0x09, KEY_9)
+				REMOTE_KEY(0x5C, KEY_RIGHTCTRL)
+				REMOTE_KEY(0x51, KEY_F3)
+				REMOTE_KEY(0x50, KEY_F4)
+				REMOTE_KEY(0x40, KEY_F5)
+				REMOTE_KEY(0x4d, KEY_F6)
+				REMOTE_KEY(0x43, KEY_F7)
+				REMOTE_KEY(0x17, KEY_F8)
+				REMOTE_KEY(0x00, KEY_F9)
+				REMOTE_KEY(0x01, KEY_F10)
+				REMOTE_KEY(0x16, KEY_F11)
+				REMOTE_KEY(0x49, KEY_BACKSPACE)
+				REMOTE_KEY(0x06, KEY_PROPS)
+				REMOTE_KEY(0x14, KEY_UNDO)
+				REMOTE_KEY(0x44, KEY_UP)
+				REMOTE_KEY(0x1D, KEY_DOWN)
+				REMOTE_KEY(0x1C, KEY_LEFT)
+				REMOTE_KEY(0x48, KEY_RIGHT)
+				REMOTE_KEY(0x53, KEY_LEFTMETA)
+				REMOTE_KEY(0x45, KEY_PAGEUP)
+				REMOTE_KEY(0x19, KEY_PAGEDOWN)
+				REMOTE_KEY(0x52, KEY_PAUSE)
+				REMOTE_KEY(0x05, KEY_HANGEUL)
+				REMOTE_KEY(0x59, KEY_HANJA)
+				REMOTE_KEY(0x1b, KEY_SCALE)
+				REMOTE_KEY(0x04, KEY_KPCOMMA)
+				REMOTE_KEY(0x1A, KEY_POWER)
+				REMOTE_KEY(0x0A, KEY_TAB)
+				REMOTE_KEY(0x0e, KEY_MUTE)
+				REMOTE_KEY(0x1F, KEY_HOME)
+				REMOTE_KEY(0x1e, KEY_FRONT)
+				REMOTE_KEY(0x07, KEY_COPY)
+				REMOTE_KEY(0x12, KEY_OPEN)
+				REMOTE_KEY(0x54, KEY_PASTE)
+				REMOTE_KEY(0x02, KEY_FIND)
+				REMOTE_KEY(0x4f, KEY_A)
+				REMOTE_KEY(0x42, KEY_B)
+				REMOTE_KEY(0x5d, KEY_C)
+				REMOTE_KEY(0x4c, KEY_D)
+				REMOTE_KEY(0x58, KEY_CUT)
+				REMOTE_KEY(0x55, KEY_CALC)>;
+		};
+		map_1: map_1{
+			mapname = "amlogic-remote-2";
+			customcode = <0xfe01>;
+			release_delay = <80>;
+			size  = <45>;
+			keymap = <
+				REMOTE_KEY(0x10, 200) /* power */
+				REMOTE_KEY(0x1f, 201) /* eject-->input source */
+				REMOTE_KEY(0x01, 202) /* usb */
+				REMOTE_KEY(0x02, 203) /* bt */
+				REMOTE_KEY(0x03, 204) /* aux */
+				REMOTE_KEY(0x04, 205) /* scan-->hdmi arc */
+				REMOTE_KEY(0x05, 206) /* spdif */
+				REMOTE_KEY(0x06, 207) /* hdmi1 */
+				REMOTE_KEY(0x07, 208) /* hdmi2 */
+				REMOTE_KEY(0x17, 209) /* mute */
+				REMOTE_KEY(0x0c, 210) /* vol+ */
+				REMOTE_KEY(0x0d, 211) /* vol- */
+				REMOTE_KEY(0x53, 212) /* DAP */
+				REMOTE_KEY(0x52, 213) /* BM */
+				REMOTE_KEY(0x49, 214) /* DRC */
+				REMOTE_KEY(0x46, 215) /* POST */
+				REMOTE_KEY(0x58, 216) /* UPMIX */
+				REMOTE_KEY(0x5a, 217) /* VIRT */
+				REMOTE_KEY(0x39, 218) /* VLAMP */
+				REMOTE_KEY(0x40, 219) /* HFILT */
+				REMOTE_KEY(0x42, 220) /* Loundness */
+				REMOTE_KEY(0x1e, 221) /* VMCAL/cspread */
+				REMOTE_KEY(0xb1, 222) /* CD */
+				REMOTE_KEY(0xb4, 223) /* CD */
+				REMOTE_KEY(0xb9, 224) /* CD */
+				REMOTE_KEY(0x08, 225) /* loop */
+				REMOTE_KEY(0x91, 226) /* CD */
+				REMOTE_KEY(0x92, 227) /* CD */
+				REMOTE_KEY(0x89, 228) /* CD */
+				REMOTE_KEY(0x88, 229) /* CD */
+				REMOTE_KEY(0x59, 230) /* Audio_info */
+				REMOTE_KEY(0x84, 231) /* CD */
+				REMOTE_KEY(0x1c, 232) /* DRC X+0.1 */
+				REMOTE_KEY(0x1b, 233) /* DRC X-0.1 */
+				REMOTE_KEY(0x19, 234) /* up/DRC Y+0.1 */
+				REMOTE_KEY(0x1a, 235) /* down/DRC Y-0.1 */
+				REMOTE_KEY(0xa0, 236) /* CD */
+				REMOTE_KEY(0x0b, 237) /* Soft mute */
+				REMOTE_KEY(0x0f, 238) /* soft vol- */
+				REMOTE_KEY(0x0e, 239) /* soft vol+ */
+				REMOTE_KEY(0x11, 240) /* Resume */
+				REMOTE_KEY(0x57, 241) /* Pause */
+				REMOTE_KEY(0x44, 242) /* LEGACY */
+				REMOTE_KEY(0xa7, 243) /* CD */
+				REMOTE_KEY(0x09, 244) /* random */
+				>;
+		};
+		map_2: map_2{
+			mapname = "amlogic-remote-3";
+			customcode = <0xbd02>;
+			release_delay = <80>;
+			size  = <17>;
+			keymap = <REMOTE_KEY(0xca,103)
+			REMOTE_KEY(0xd2,108)
+			REMOTE_KEY(0x99,105)
+			REMOTE_KEY(0xc1,106)
+			REMOTE_KEY(0xce,97)
+			REMOTE_KEY(0x45,116)
+			REMOTE_KEY(0xc5,133)
+			REMOTE_KEY(0x80,113)
+			REMOTE_KEY(0xd0,15)
+			REMOTE_KEY(0xd6,125)
+			REMOTE_KEY(0x95,102)
+			REMOTE_KEY(0xdd,104)
+			REMOTE_KEY(0x8c,109)
+			REMOTE_KEY(0x89,131)
+			REMOTE_KEY(0x9c,130)
+			REMOTE_KEY(0x9a,120)
+			REMOTE_KEY(0xcd,121)>;
+		};
+		map_3: map_3{
+			mapname = "amlogic-remote-3";
+			customcode = <0xa4e8>; /* Reference Remote Control */
+			release_delay = <80>;
+			size  = <45>;
+			keymap = <
+				REMOTE_KEY(0xc7, 200) /* power */
+				REMOTE_KEY(0x93, 201) /* eject-->input source */
+				REMOTE_KEY(0xb2, 202) /* usb */
+				REMOTE_KEY(0xb8, 203) /* bt */
+				REMOTE_KEY(0xb7, 204) /* aux */
+				REMOTE_KEY(0x8a, 205) /* scan-->hdmi arc */
+				REMOTE_KEY(0x96, 206) /* spdif */
+				REMOTE_KEY(0x90, 207) /* hdmi1 */
+				REMOTE_KEY(0xa8, 208) /* hdmi2 */
+				REMOTE_KEY(0x85, 209) /* mute */
+				REMOTE_KEY(0x80, 210) /* vol+ */
+				REMOTE_KEY(0x81, 211) /* vol- */
+				REMOTE_KEY(0x61, 212) /* DAP */
+				REMOTE_KEY(0x62, 213) /* BM */
+				REMOTE_KEY(0x63, 214) /* DRC */
+				REMOTE_KEY(0x64, 215) /* POST */
+				REMOTE_KEY(0x65, 216) /* UPMIX */
+				REMOTE_KEY(0x66, 217) /* VIRT */
+				REMOTE_KEY(0x67, 218) /* VLAMP */
+				REMOTE_KEY(0x68, 219) /* HFILT */
+				REMOTE_KEY(0x69, 220) /* Loundness */
+				REMOTE_KEY(0x60, 221) /* VMCAL/cspread */
+				REMOTE_KEY(0xb1, 222) /* CD */
+				REMOTE_KEY(0xb4, 223) /* CD */
+				REMOTE_KEY(0xb9, 224) /* CD */
+				REMOTE_KEY(0xab, 225) /* loop */
+				REMOTE_KEY(0x91, 226) /* CD */
+				REMOTE_KEY(0x92, 227) /* CD */
+				REMOTE_KEY(0x89, 228) /* CD */
+				REMOTE_KEY(0x88, 229) /* CD */
+				REMOTE_KEY(0xa5, 230) /* Audio_info */
+				REMOTE_KEY(0x84, 231) /* CD */
+				REMOTE_KEY(0x72, 232) /* DRC X+0.1 */
+				REMOTE_KEY(0x73, 233) /* DRC X-0.1 */
+				REMOTE_KEY(0x9a, 234) /* up/DRC Y+0.1 */
+				REMOTE_KEY(0x9b, 235) /* down/DRC Y-0.1 */
+				REMOTE_KEY(0xa0, 236) /* CD */
+				REMOTE_KEY(0x71, 237) /* Soft mute */
+				REMOTE_KEY(0x74, 238) /* soft vol- */
+				REMOTE_KEY(0x75, 239) /* soft vol+ */
+				REMOTE_KEY(0x7e, 240) /* Resume */
+				REMOTE_KEY(0x7f, 241) /* Pause */
+				REMOTE_KEY(0x7a, 242) /* LEGACY */
+				REMOTE_KEY(0xa7, 243) /* CD */
+				REMOTE_KEY(0xa9, 244) /* random */
+				>;
+		};
+};
