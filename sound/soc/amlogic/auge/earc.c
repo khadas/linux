@@ -175,6 +175,12 @@ struct earc {
 	struct work_struct send_uevent;
 	bool tx_mute;
 	int same_src_on;
+	/* ui earc/arc switch */
+	int tx_ui_flag;
+	/* earctx arc port id */
+	int earctx_port;
+	/* get from hdmirx */
+	int earctx_5v;
 };
 
 static struct earc *s_earc;
@@ -268,6 +274,40 @@ void aml_earctx_dmac_mute(int enable)
 	if (s_earc->tx_dmac_clk_on)
 		earctx_dmac_mute(s_earc->tx_dmac_map, enable);
 	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
+}
+
+static void earctx_init(int earc_port, bool st)
+{
+	struct earc *p_earc = s_earc;
+
+	st = st && p_earc->tx_ui_flag;
+	if (!st) {
+		schedule_work(&p_earc->send_uevent);
+		/* set discnnect when cable plugout */
+		p_earc->earctx_connected_device_type = ATNDTYP_DISCNCT;
+		/* release earctx same source when cable plug out */
+		aml_check_and_release_sharebuffer(NULL, EARCTX_DMAC);
+		/* disable arc */
+		earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, st);
+	} else {
+		/* set ARC type as defaule when cable plugin */
+		p_earc->earctx_connected_device_type = ATNDTYP_ARC;
+	}
+	if (!p_earc->tx_bootup_auto_cal) {
+		p_earc->tx_bootup_auto_cal = true;
+		p_earc->event |= EVENT_TX_ANA_AUTO_CAL;
+		schedule_work(&p_earc->work);
+	}
+
+	/* tx cmdc anlog init */
+	earctx_cmdc_init(p_earc->tx_top_map, st, p_earc->chipinfo->rterm_on);
+
+	earctx_cmdc_earc_mode(p_earc->tx_cmdc_map, p_earc->tx_earc_mode);
+	earctx_cmdc_hpd_detect(p_earc->tx_top_map,
+			       p_earc->tx_cmdc_map,
+			       earc_port, st);
+	if (st && !p_earc->tx_earc_mode)
+		schedule_work(&p_earc->send_uevent);
 }
 
 static irqreturn_t earc_ddr_isr(int irq, void *data)
@@ -1774,7 +1814,7 @@ int earctx_set_mute(struct snd_kcontrol *kcontrol,
 
 static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 {
-	if (earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_DISCNCT) {
+	if (!p_earc->earctx_5v) {
 		dev_info(p_earc->dev, "cable is disconnect, no need set\n");
 		return;
 	}
@@ -2071,8 +2111,41 @@ static int earctx_clk_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int arc_get_ui_flag(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	ucontrol->value.integer.value[0] = p_earc->tx_ui_flag;
+
+	return 0;
+}
+
+static int arc_set_ui_flag(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+
+	p_earc->tx_ui_flag = ucontrol->value.integer.value[0];
+
+	if (p_earc->earctx_5v) {
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
+		rx_earc_hpd_cntl(); /* reset hpd */
+#endif
+		/* wait hdp is high */
+		if (p_earc->tx_ui_flag)
+			usleep_range(1000 * 600, 1000 * 650);
+		earctx_init(p_earc->earctx_port, p_earc->tx_ui_flag);
+	}
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new earc_controls[] = {
-	SOC_SINGLE_BOOL_EXT("eARC ARC Switch",
+	SOC_SINGLE_BOOL_EXT("eARC RX ARC Switch",
 			    0,
 			    earcrx_arc_get_enable,
 			    earcrx_arc_set_enable),
@@ -2154,6 +2227,10 @@ static const struct snd_kcontrol_new earc_controls[] = {
 	SOC_SINGLE_EXT("eARC_TX CLK Fine Setting",
 		       0, 0, 2000000, 0,
 		       earctx_clk_get, earctx_clk_put),
+	SOC_SINGLE_BOOL_EXT("ARC eARC TX enable",
+			    0,
+			    arc_get_ui_flag,
+			    arc_set_ui_flag),
 
 	/* Status cchanel controller */
 	SND_IEC958(SNDRV_CTL_NAME_IEC958("", CAPTURE, DEFAULT),
@@ -2359,33 +2436,8 @@ void earc_hdmirx_hpdst(int earc_port, bool st)
 	dev_info(p_earc->dev, "HDMIRX cable port:%d is %s\n",
 		 earc_port,
 		 st ? "plugin" : "plugout");
-	if (!st) {
-		schedule_work(&p_earc->send_uevent);
-		/* set discnnect when cable plugout */
-		p_earc->earctx_connected_device_type = ATNDTYP_DISCNCT;
-		/* release earctx same source when cable plug out */
-		aml_check_and_release_sharebuffer(NULL, EARCTX_DMAC);
-		/* disable arc */
-		earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, st);
-	} else {
-		/* set ARC type as defaule when cable plugin */
-		p_earc->earctx_connected_device_type = ATNDTYP_ARC;
-	}
-	if (!p_earc->tx_bootup_auto_cal) {
-		p_earc->tx_bootup_auto_cal = true;
-		p_earc->event |= EVENT_TX_ANA_AUTO_CAL;
-		schedule_work(&p_earc->work);
-	}
-
-	/* tx cmdc anlog init */
-	earctx_cmdc_init(p_earc->tx_top_map, st, p_earc->chipinfo->rterm_on);
-
-	earctx_cmdc_earc_mode(p_earc->tx_cmdc_map, p_earc->tx_earc_mode);
-	earctx_cmdc_hpd_detect(p_earc->tx_top_map,
-			       p_earc->tx_cmdc_map,
-			       earc_port, st);
-	if (st && !p_earc->tx_earc_mode)
-		schedule_work(&p_earc->send_uevent);
+	p_earc->earctx_5v = st;
+	earctx_init(earc_port, st);
 }
 
 static int earctx_cmdc_setup(struct earc *p_earc)
@@ -2596,6 +2648,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 			dev_err(dev, "platform get irq earc_tx failed\n");
 		else
 			dev_info(dev, "%s, irq_earc_tx:%d\n", __func__, p_earc->irq_earc_tx);
+		of_property_read_u32(dev->of_node, "earctx_port", &p_earc->earctx_port);
 	}
 
 	/* defaule is mute, need HDMI ARC Switch */
@@ -2611,6 +2664,7 @@ static int earc_platform_probe(struct platform_device *pdev)
 		return ret;
 	}
 	p_earc->tx_earc_mode = true;
+	p_earc->tx_ui_flag = 1;
 	s_earc = p_earc;
 
 	/* RX */
