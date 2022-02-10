@@ -11361,9 +11361,14 @@ static void osd_setting_viux(u32 output_index)
 
 		if (osd_hw.enable[index]) {
 			struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
-			enum color_index_e idx =
-				osd_hw.color_info[index]->color_index;
+			enum color_index_e idx = COLOR_INDEX_32_BGRX;
 			bool rgbx = false;
+
+			if (osd_hw.color_info[index])
+				idx = osd_hw.color_info[index]->color_index;
+			else
+				osd_log_err("osd%d color_info is NULL\n",
+					    index);
 
 			/* update = is_freescale_para_changed(i); */
 			if (!osd_hw.osd_afbcd[index].enable) {

@@ -203,6 +203,12 @@ const struct color_bit_define_s default_color_format_array[] = {
 	},
 	/*YUV color*/
 	{COLOR_INDEX_YUV_422, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16},
+	/*32 bit color RGBA 1010102 for mali afbc*/
+	{
+		COLOR_INDEX_RGBA_1010102, 2, 9,
+		0, 10, 0, 10, 10, 0, 20, 10, 0, 30, 2, 0,
+		0, 32
+	},
 };
 
 static struct fb_var_screeninfo fb_def_var[] = {
@@ -468,10 +474,29 @@ static int osddev_setcolreg(unsigned int regno, u16 red, u16 green, u16 blue,
 	return 0;
 }
 
+static int is_colorbit_match_var(const struct color_bit_define_s *color,
+			      struct fb_var_screeninfo *var)
+{
+	int ret = 0;
+
+	if (color->red_length == var->red.length &&
+	    color->green_length == var->green.length &&
+	    color->blue_length == var->blue.length &&
+	    color->transp_length == var->transp.length &&
+	    color->transp_offset == var->transp.offset &&
+	    color->green_offset == var->green.offset &&
+	    color->blue_offset == var->blue.offset &&
+	    color->red_offset == var->red.offset)
+		ret = 1;
+
+	return ret;
+}
+
 const struct color_bit_define_s *
 _find_color_format(struct fb_var_screeninfo *var)
 {
 	u32 upper_margin, lower_margin, i, level;
+	s32 ext_index = -1;
 	const struct color_bit_define_s *found = NULL;
 	const struct color_bit_define_s *color = NULL;
 
@@ -497,6 +522,7 @@ _find_color_format(struct fb_var_screeninfo *var)
 		} else {
 			upper_margin = COLOR_INDEX_32_ARGB;
 			lower_margin = COLOR_INDEX_32_BGRA;
+			ext_index = COLOR_INDEX_RGBA_1010102;
 		}
 		break;
 	case 4:
@@ -511,7 +537,6 @@ _find_color_format(struct fb_var_screeninfo *var)
 	 * if not provide color component length
 	 * then we find the first depth match.
 	 */
-
 	if (var->nonstd != 0 && level == 3 &&
 	    var->transp.length == 0) {
 		/* RGBX Mode */
@@ -527,32 +552,29 @@ _find_color_format(struct fb_var_screeninfo *var)
 				found = color;
 				break;
 			}
-			color--;
 		}
 	} else if ((var->red.length == 0) ||
 		(var->green.length == 0) ||
 		(var->blue.length == 0) ||
 	    var->bits_per_pixel != (var->red.length + var->green.length +
 		    var->blue.length + var->transp.length)) {
-		osd_log_dbg(MODULE_BASE, "not provide color length, use default color\n");
 		found = &default_color_format_array[upper_margin];
 	} else {
 		for (i = upper_margin; i >= lower_margin; i--) {
 			color = &default_color_format_array[i];
-			if (color->red_length == var->red.length &&
-			    color->green_length == var->green.length &&
-			    color->blue_length == var->blue.length &&
-			    color->transp_length == var->transp.length &&
-			    color->transp_offset == var->transp.offset &&
-			    color->green_offset == var->green.offset &&
-			    color->blue_offset == var->blue.offset &&
-			    color->red_offset == var->red.offset) {
+			if (is_colorbit_match_var(color, var)) {
 				found = color;
 				break;
 			}
-			color--;
 		}
 	}
+
+	if (!found && ext_index >= 0) {
+		color = &default_color_format_array[ext_index];
+		if (is_colorbit_match_var(color, var))
+			found = color;
+	}
+
 	return found;
 }
 
