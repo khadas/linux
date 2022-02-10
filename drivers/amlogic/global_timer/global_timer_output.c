@@ -215,6 +215,32 @@ int global_timer_output_start(struct global_timer_output_gpio *gtod,
 }
 EXPORT_SYMBOL_GPL(global_timer_output_start);
 
+/**
+ * global_timer_output_stop
+ *
+ * @gtod: the pointer to struct global_timer_output
+ * @returns: 0 on success and error code on failure
+ */
+int global_timer_output_stop(struct global_timer_output_gpio *gtod)
+{
+	struct meson_glb_timer_output_dev *glb_timer_output;
+	struct regmap *regmap;
+
+	glb_timer_output = gtod->glb_output_dev;
+	regmap = glb_timer_output->regmap[REG_OUTPUT_CTRL];
+
+	if (!gtod)
+		return -EINVAL;
+
+	/* disable output */
+	regmap_update_bits(regmap, OUTPUT_CTRL0, BIT(31), 0);
+
+	/* disable generator and rt */
+	regmap_update_bits(glb_timer_output->regmap[REG_OUTPUT_SEL],
+			   0, BIT(31), 0);
+	return 0;
+}
+
 static int meson_glb_timer_output_probe(struct platform_device *pdev)
 {
 	struct meson_glb_timer_output_dev *glb_timer_output;

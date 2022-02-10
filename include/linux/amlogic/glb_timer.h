@@ -116,6 +116,7 @@ int global_timer_output_start(struct global_timer_output_gpio *gtod,
 int global_timer_output_gpio_setup(struct global_timer_output_gpio *gtod,
 				   bool oneshot, u64 pulse_width, u64 interval,
 				   u8 init_val);
+int global_timer_output_stop(struct global_timer_output_gpio *gtod);
 #else
 unsigned int gpio_irq_get_channel_idx(int irq);
 int glb_timer_mipi_config(u8 srcn, unsigned int trig)
@@ -194,6 +195,10 @@ int global_timer_output_gpio_setup(struct global_timer_output_gpio *gtod,
 	return 0;
 }
 
+int global_timer_output_stop(struct global_timer_output_gpio *gtod)
+{
+	return 0;
+}
 #endif
 
 #endif //__AML_GLB_TIMER_H__
