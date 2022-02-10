@@ -2394,6 +2394,7 @@ static int aml_cec_probe(struct platform_device *pdev)
 	set_bit(KEY_PREVIOUS, cec_dev->cec_info.remote_cec_dev->keybit);
 	set_bit(KEY_NEXTSONG, cec_dev->cec_info.remote_cec_dev->keybit);
 	set_bit(KEY_PREVIOUSSONG, cec_dev->cec_info.remote_cec_dev->keybit);
+	set_bit(KEY_BACK, cec_dev->cec_info.remote_cec_dev->keybit);
 
 	if (input_register_device(cec_dev->cec_info.remote_cec_dev)) {
 		CEC_INFO("Failed to register device\n");
