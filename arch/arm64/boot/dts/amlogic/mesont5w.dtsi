@@ -1485,7 +1485,7 @@
 			status = "okay";
 		};
 
-		multi-di {
+		dim:multi-di {
 			compatible = "amlogic, dim-t3";
 			status = "okay";
 			/* 0:use reserved; 1:use cma; 2:use cma as reserved */
