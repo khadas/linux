@@ -1180,9 +1180,13 @@
 
 	pdmin: pdmin {
 		mux { /* GPIOD_8, GPIOD_9 */
-			groups = "pdm_dclk_d",
-				"pdm_din0_d";
+			groups = "pdm_din0_d";
 			function = "pdm";
+		};
+		mux1 {
+			groups = "pdm_dclk_d";
+			function = "pdm";
+			drive-strength-microamp = <500>;
 		};
 	};
 
