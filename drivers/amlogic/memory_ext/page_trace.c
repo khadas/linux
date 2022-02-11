@@ -326,10 +326,13 @@ static int __init match_common_caller(void *data, const char *name,
 			if (!strcmp(name, s->name)) {	/* strict match */
 				ret = setup_common_caller(addr);
 				s->matched = 1;
+				break;
 			}
 		} else if (!s->full_match) {
-			if (strstr(name, s->name))	/* contians */
+			if (strstr(name, s->name)) {	/* contians */
 				setup_common_caller(addr);
+				break;
+			}
 		}
 	}
 	return 0;
@@ -956,6 +959,7 @@ static int pagetrace_show(struct seq_file *m, void *arg)
 	sum->ticks = sched_clock();
 	for_each_populated_zone(zone) {
 		memset(sum->sum, 0, size);
+		memset(sum->mt_cnt, 0, sizeof(int) * MIGRATE_TYPES);
 		ret = update_page_trace(m, zone, sum->sum, sum->mt_cnt);
 		if (ret) {
 			seq_printf(m, "Error %d in zone %8s\n",
