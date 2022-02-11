@@ -2924,6 +2924,10 @@ static void meson_mmc_cfg_init(struct meson_host *host)
 	/* abort chain on R/W errors */
 
 	writel(cfg, host->regs + SD_EMMC_CFG);
+
+	/* config sdio controller's response error mask */
+	if (aml_card_type_sdio(host))
+		writel(SDIO_RESP_ERR_MASK, host->regs + SD_EMMC_CQRMEM);
 }
 
 static int meson_mmc_card_busy(struct mmc_host *mmc)

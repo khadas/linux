@@ -17,6 +17,8 @@
 
 #include "cqhci.h"
 
+#define SDIO_RESP_ERR_MASK 0x0000CB00
+
 #define SD_EMMC_CQE_REG    0x100
 #define SD_EMMC_CQVER    (SD_EMMC_CQE_REG + 0x0)
 #define SD_EMMC_CQCAP    (SD_EMMC_CQE_REG + 0x4)
