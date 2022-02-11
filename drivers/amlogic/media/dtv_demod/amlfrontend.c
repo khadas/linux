@@ -4730,6 +4730,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	unsigned int fft_frc_range_min;
 	unsigned int fft_frc_range_max;
 	unsigned int freq_one_percent;
+	unsigned int freq_trylock_one_percent;
 	unsigned int symbol_rate_hw;
 	unsigned int freq_offset;
 	unsigned int range_ini;
@@ -4765,8 +4766,8 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 		return;
 	}
 
-	/* map blind scan process */
-	freq_one_percent = (freq_max - freq_min) / 100;
+	/* map blind scan fft process to 0% - 50%*/
+	freq_one_percent = (freq_max - freq_min) / 50;
 	PR_INFO("freq_one_percent : %d\n", freq_one_percent);
 	timer_set_max(demod, D_TIMER_DETECT, 600);
 	fe->ops.info.type = FE_QPSK;
@@ -4828,6 +4829,9 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 				PR_INFO("------TOTAL FIND TP NUM:%d-----\n",
 					total_result.found_tp_num);
 
+			/* map blind scan try lock process */
+			freq_trylock_one_percent = total_result.found_tp_num / 50;
+
 			dvbs_blind_fft_result_handle(&total_result);
 
 			PR_INFO("------Start Try To Lock Test-----\n");
@@ -4852,7 +4856,14 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 				dtvdemod_dvbs_read_status(fe, &status);
 
 				if (status == FE_TIMEDOUT || status == 0) {/* unlock */
+					/*try lock process map to 51% - 99%*/
+					fe->dtv_property_cache.frequency =
+						k / freq_trylock_one_percent + 50;
 					status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
+					PR_DVBS("try to lock search:blind process %d%%\n",
+						fe->dtv_property_cache.frequency);
+					if (fe->dtv_property_cache.frequency < 100)
+						dvb_frontend_add_event(fe, status);
 				} else {/* lock */
 					freq_offset = dvbs_get_freq_offset(&polarity);
 					if (polarity)
