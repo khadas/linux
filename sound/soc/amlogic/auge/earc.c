@@ -1735,6 +1735,10 @@ int earctx_set_mute(struct snd_kcontrol *kcontrol,
 
 static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 {
+	if (earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_DISCNCT) {
+		dev_info(p_earc->dev, "cable is disconnect, no need set\n");
+		return;
+	}
 	/* set arc initiated and arc_enable */
 	earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, !earc_mode);
 	/* set earc mode */
