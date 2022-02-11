@@ -263,6 +263,10 @@ static unsigned int force_best_pq;
 module_param(force_best_pq, uint, 0664);
 MODULE_PARM_DESC(force_best_pq, "\n force_best_pq\n");
 
+static unsigned int force_hdr_tonemapping;
+module_param(force_hdr_tonemapping, uint, 0664);
+MODULE_PARM_DESC(force_hdr_tonemapping, "\n force_hdr_tonemapping\n");
+
 /*bit0: 0-> efuse, 1->no efuse; */
 /*bit1: 1->ko loaded*/
 /*bit2: 1-> value updated*/
@@ -7986,7 +7990,7 @@ static bool send_hdmi_pkt
 		last_dst_format = dst_format;
 		vd_signal.signal_type = SIGNAL_HDR10;
 		notify_vd_signal_to_amvideo(&vd_signal);
-		if (flag && debug_dolby & 8) {
+		if (debug_dolby & 8) {
 			pr_dolby_dbg("Info frame for hdr10 changed:\n");
 			for (i = 0; i < 3; i++)
 				pr_dolby_dbg("\tprimaries[%1d] = %04x, %04x\n",
@@ -8255,24 +8259,38 @@ static int is_video_output_off(struct vframe_s *vf)
 }
 
 static void calculate_panel_max_pq
-	(const struct vinfo_s *vinfo,
+	(enum signal_format_enum src_format,
+	 const struct vinfo_s *vinfo,
 	 struct target_config *config)
 {
 	u32 max_lin = tv_max_lin;
 	u16 max_pq = tv_max_pq;
+	u32 panel_max = tv_max_lin;
 
-	if (use_target_lum_from_cfg)
+	if (use_target_lum_from_cfg &&
+	    !(src_format == FORMAT_HDR10 && force_hdr_tonemapping))
 		return;
 	if (dolby_vision_flags & FLAG_CERTIFICAION)
 		return;
 	if (panel_max_lumin)
-		max_lin = panel_max_lumin;
+		panel_max = panel_max_lumin;
 	else if (vinfo->mode == VMODE_LCD)
-		max_lin = vinfo->hdr_info.lumi_max;
-	if (max_lin < 100)
-		max_lin = 100;
-	else if (max_lin > 4000)
-		max_lin = 4000;
+		panel_max = vinfo->hdr_info.lumi_max;
+	if (panel_max < 100)
+		panel_max = 100;
+	else if (panel_max > 4000)
+		panel_max = 4000;
+	if (src_format == FORMAT_HDR10 && force_hdr_tonemapping) {
+		if (force_hdr_tonemapping >= hdr10_param.max_display_mastering_lum)
+			max_lin = hdr10_param.max_display_mastering_lum;
+		else
+			max_lin = force_hdr_tonemapping;
+	} else {
+		max_lin = panel_max;
+	}
+	if (debug_dolby & 1)
+		pr_dolby_dbg("max_lin %d\n", max_lin);
+
 	if (max_lin != tv_max_lin) {
 		if (max_lin < 500) {
 			max_lin = max_lin - 100 + 10;
@@ -9346,7 +9364,7 @@ int dolby_vision_parse_metadata(struct vframe_s *vf,
 					NULL,
 					NULL);
 		}
-		calculate_panel_max_pq(vinfo,
+		calculate_panel_max_pq(src_format, vinfo,
 				       &(((struct pq_config *)
 				       pq_config_fake)->tdc));
 
