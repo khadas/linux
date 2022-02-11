@@ -1201,7 +1201,7 @@
 };
 
 &uart_A {
-	status = "disabled";
+	status = "okay";
 	uart-has-rtscts;
 };
 
