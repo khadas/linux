@@ -110,7 +110,7 @@
 #define HDMI_PLL_LOCK		BIT(31)
 #define HDMI_PLL_LOCK_G12A	(3 << 30)
 
-#define FREQ_1000_1001(_freq)	DIV_ROUND_CLOSEST(_freq * 1000, 1001)
+#define FREQ_1000_1001(_freq)	DIV_ROUND_CLOSEST(_freq * 1000, 1002)
 
 /* VID PLL Dividers */
 enum {
