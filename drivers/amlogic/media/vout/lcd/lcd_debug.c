@@ -661,9 +661,13 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 	len += snprintf((buf + len), n,
 			"\nlcd cus_ctrl:\n"
 			"ctrl_flag:     0x%x\n"
-			"dlg_flag:      %u\n",
+			"dlg_flag:      %u\n"
+			"attr_0_para0:  %u\n"
+			"attr_0_para1:  %u\n",
 			pdrv->config.cus_ctrl.flag,
-			pdrv->config.cus_ctrl.dlg_flag);
+			pdrv->config.cus_ctrl.dlg_flag,
+			pdrv->config.cus_ctrl.attr_0_para0,
+			pdrv->config.cus_ctrl.attr_0_para1);
 
 	len += lcd_clk_clkmsr_print(pdrv, (buf + len), (len + offset));
 
@@ -4332,8 +4336,12 @@ static ssize_t lcd_debug_cus_ctrl_show(struct device *dev,
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
 
 	return sprintf(buf, "cus_ctrl:\n"
-		"dlg_flag: %d\n",
-		pdrv->config.cus_ctrl.dlg_flag);
+		"dlg_flag: %d\n"
+		"attr_0_para0: %d\n"
+		"attr_0_para1: %d\n",
+		pdrv->config.cus_ctrl.dlg_flag,
+		pdrv->config.cus_ctrl.attr_0_para0,
+		pdrv->config.cus_ctrl.attr_0_para1);
 }
 
 static ssize_t lcd_debug_vinfo_show(struct device *dev,

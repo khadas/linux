@@ -128,6 +128,8 @@ struct lcd_basic_s {
 	unsigned short h_period_max;
 	unsigned short v_period_min;
 	unsigned short v_period_max;
+	unsigned short v_period_min_dft; /* internal used */
+	unsigned short v_period_max_dft; /* internal used */
 	unsigned char frame_rate_min;
 	unsigned char frame_rate_max;
 	unsigned int lcd_clk_min;
@@ -484,6 +486,14 @@ struct phy_config_s {
 struct cus_ctrl_config_s {
 	unsigned int flag;
 	unsigned char dlg_flag;
+	unsigned short attr_0_para0;
+	unsigned short attr_0_para1;
+	unsigned short attr_0_para2;
+	unsigned short attr_0_para3;
+	unsigned short attr_0_para4;
+	unsigned short attr_0_para5;
+	unsigned short attr_0_para6;
+	unsigned short attr_0_para7;
 };
 
 struct lcd_power_ctrl_s {

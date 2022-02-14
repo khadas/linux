@@ -262,6 +262,26 @@ static int lcd_output_vmode_init(struct aml_lcd_drv_s *pdrv)
 	return -1;
 }
 
+static void lcd_cus_ctrl_parm_change(struct aml_lcd_drv_s *pdrv)
+{
+	if (pdrv->config.cus_ctrl.dlg_flag) {
+		if (pdrv->config.basic.v_active == 1080) {
+			if (pdrv->config.cus_ctrl.attr_0_para0) {
+				pdrv->config.basic.v_period_min =
+					pdrv->config.cus_ctrl.attr_0_para0;
+			}
+			if (pdrv->config.cus_ctrl.attr_0_para1) {
+				pdrv->config.basic.v_period_max =
+					pdrv->config.cus_ctrl.attr_0_para1;
+			}
+		} else {
+			pdrv->config.basic.v_period_min = pdrv->config.basic.v_period_min_dft;
+			pdrv->config.basic.v_period_max = pdrv->config.basic.v_period_max_dft;
+		}
+		lcd_vrr_config_update(pdrv);
+	}
+}
+
 static int lcd_outputmode_is_matched(struct aml_lcd_drv_s *pdrv, const char *mode)
 {
 	char temp[30], *p;
@@ -289,6 +309,7 @@ static int lcd_outputmode_is_matched(struct aml_lcd_drv_s *pdrv, const char *mod
 				pdrv->config.basic.h_active = temp_list->info->width;
 				pdrv->config.basic.v_active = temp_list->info->height;
 				pdrv->vmode_update = 1;
+				lcd_cus_ctrl_parm_change(pdrv);
 				if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 					LCDPR("[%d]: %s: %s, h_actvie=%d, v_active=%d\n",
 						pdrv->index, __func__,
@@ -439,6 +460,7 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv, enum vmode_e mode
 	}
 
 	lcd_optical_vinfo_update(pdrv);
+	lcd_vrr_dev_update(pdrv);
 }
 
 static unsigned int lcd_parse_vout_init_name(char *name)
@@ -1164,14 +1186,7 @@ int lcd_mode_tv_init(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->vrr_dev) {
 		sprintf(pdrv->vrr_dev->name, "lcd%d_dev", pdrv->index);
 		pdrv->vrr_dev->output_src = VRR_OUTPUT_ENCL;
-		if (pdrv->config.timing.fr_adjust_type == 2) /* vtotal adj */
-			pdrv->vrr_dev->enable = 1;
-		else
-			pdrv->vrr_dev->enable = 0;
-		pdrv->vrr_dev->vline_max = pdrv->config.basic.v_period_max;
-		pdrv->vrr_dev->vline_min = pdrv->config.basic.v_period_min;
-		pdrv->vrr_dev->vfreq_max = pdrv->config.basic.frame_rate_max;
-		pdrv->vrr_dev->vfreq_min = pdrv->config.basic.frame_rate_min;
+		lcd_vrr_dev_update(pdrv);
 		aml_vrr_register_device(pdrv->vrr_dev, pdrv->index);
 	}
 

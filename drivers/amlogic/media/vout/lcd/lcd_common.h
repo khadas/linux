@@ -34,7 +34,8 @@
 /* 20220105: support measure vinfo sync_duration*/
 /* 20220119: support tcon multi list threshold overlap*/
 /* 20220121: update custom_pinmux and fr_auto_dis support*/
-#define LCD_DRV_VERSION    "20220121"
+/* 20220216: update vrr config when display mode change*/
+#define LCD_DRV_VERSION    "20220216"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -77,6 +78,7 @@ void lcd_mlvds_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_p2p_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_mipi_dsi_config_set(struct aml_lcd_drv_s *pdrv);
 void lcd_edp_config_set(struct aml_lcd_drv_s *pdrv);
+void lcd_vrr_config_update(struct aml_lcd_drv_s *pdrv);
 void lcd_basic_timing_range_init(struct aml_lcd_drv_s *pdrv);
 void lcd_timing_init_config(struct aml_lcd_drv_s *pdrv);
 
@@ -87,6 +89,7 @@ void lcd_if_enable_retry(struct aml_lcd_drv_s *pdrv);
 void lcd_vout_notify_mode_change_pre(struct aml_lcd_drv_s *pdrv);
 void lcd_vout_notify_mode_change(struct aml_lcd_drv_s *pdrv);
 void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv);
+void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv);
 
 void lcd_queue_work(struct work_struct *work);
 inline void lcd_queue_delayed_work(struct delayed_work *delayed_work, int ms);

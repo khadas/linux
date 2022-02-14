@@ -1800,10 +1800,24 @@ static int lcd_config_load_from_unifykey_v2(struct lcd_config_s *pconf,
 	if (cus_ctrl->flag & 0x1) {
 		temp = (*(p + LCD_UKEY_CUS_CTRL_ATTR_0) |
 			*(p + LCD_UKEY_CUS_CTRL_ATTR_0 + 1) << 8);
-		cus_ctrl->dlg_flag = temp & 0x3;
+		cus_ctrl->dlg_flag = temp & 0xf;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 			LCDPR("%s: cus_ctrl dlg_flag=%d\n",
 			      __func__, cus_ctrl->dlg_flag);
+		}
+		temp = (*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM0) |
+			*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM0 + 1) << 8);
+		cus_ctrl->attr_0_para0 = temp;
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("%s: cus_ctrl attr_0_para0=%d\n",
+			      __func__, cus_ctrl->attr_0_para0);
+		}
+		temp = (*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM1) |
+			*(p + LCD_UKEY_CUS_CTRL_ATTR_0_PARM1 + 1) << 8);
+		cus_ctrl->attr_0_para1 = temp;
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("%s: cus_ctrl attr_0_para1=%d\n",
+			      __func__, cus_ctrl->attr_0_para1);
 		}
 	}
 
@@ -2425,10 +2439,26 @@ void lcd_edp_config_set(struct aml_lcd_drv_s *pdrv)
 	//todo
 }
 
+void lcd_vrr_config_update(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_config_s *pconf = &pdrv->config;
+	unsigned int vmin, vmax;
+	unsigned long long temp;
+
+	temp = pconf->timing.sync_duration_num;
+	temp *= pconf->basic.v_period;
+	vmin = pconf->basic.v_period_min * pconf->timing.sync_duration_den;
+	vmax = pconf->basic.v_period_max * pconf->timing.sync_duration_den;
+	if (vmin > 0)
+		pconf->basic.frame_rate_max = lcd_do_div(temp, vmin);
+	if (vmax > 0)
+		pconf->basic.frame_rate_min = lcd_do_div(temp, vmax);
+}
+
 void lcd_basic_timing_range_init(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
-	unsigned int sync_duration, h_period, v_period, vmin, vmax;
+	unsigned int sync_duration, h_period, v_period;
 	unsigned long long temp;
 
 	//for basic timing
@@ -2452,20 +2482,11 @@ void lcd_basic_timing_range_init(struct aml_lcd_drv_s *pdrv)
 	}
 
 	//for vrr range config
-	temp = pconf->timing.sync_duration_num;
-	temp *= v_period;
-	vmin = pconf->basic.v_period_min * pconf->timing.sync_duration_den;
-	vmax = pconf->basic.v_period_max * pconf->timing.sync_duration_den;
-	if (pconf->basic.frame_rate_max == 0) {
-		if (vmin > 0)
-			pconf->basic.frame_rate_max = lcd_do_div(temp, vmin);
-	}
-	if (pconf->basic.frame_rate_min == 0) {
-		if (vmax > 0)
-			pconf->basic.frame_rate_min = lcd_do_div(temp, vmax);
-	}
+	lcd_vrr_config_update(pdrv);
 
 	//save default config
+	pconf->basic.v_period_min_dft = pconf->basic.v_period_min;
+	pconf->basic.v_period_max_dft = pconf->basic.v_period_max;
 	pconf->timing.lcd_clk_dft = pconf->timing.lcd_clk;
 	pconf->timing.h_period_dft = pconf->basic.h_period;
 	pconf->timing.v_period_dft = pconf->basic.v_period;
@@ -2815,3 +2836,20 @@ void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vout_notify_mode_change(pdrv);
 }
+
+void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv)
+{
+	if (!pdrv->vrr_dev)
+		return;
+
+	if (pdrv->config.timing.fr_adjust_type == 2) /* vtotal adj */
+		pdrv->vrr_dev->enable = 1;
+	else
+		pdrv->vrr_dev->enable = 0;
+
+	pdrv->vrr_dev->vline_max = pdrv->config.basic.v_period_max;
+	pdrv->vrr_dev->vline_min = pdrv->config.basic.v_period_min;
+	pdrv->vrr_dev->vfreq_max = pdrv->config.basic.frame_rate_max;
+	pdrv->vrr_dev->vfreq_min = pdrv->config.basic.frame_rate_min;
+}
+
