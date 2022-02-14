@@ -63,7 +63,8 @@
 #include "vdin_v4l2_if.h"
 
 /* 20220124: vf->flag add pc mode flag to bypass aipq aisr */
-#define VDIN_VER "20220124"
+/* 20220214: The desktop screenshot probability gray screen */
+#define VDIN_VER "20220214"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

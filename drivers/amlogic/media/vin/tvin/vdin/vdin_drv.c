@@ -1181,6 +1181,9 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	    vdin0_devp->prop.hdcp_sts) {
 		pr_err("hdmi hdcp en, can't capture\n");
 		devp->matrix_pattern_mode = 4;
+	} else {
+		vdin0_devp->prop.hdcp_sts = 0;
+		devp->matrix_pattern_mode = 0;
 	}
 	pr_info("vdin0 port:0x%x, flag:0x%x, hdcp sts:%d matx:%d\n",
 	       vdin0_devp->parm.port, vdin0_devp->flags,
