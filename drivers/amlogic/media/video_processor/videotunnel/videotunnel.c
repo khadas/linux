@@ -1460,9 +1460,7 @@ static int vt_queue_buffer_process(struct vt_buffer_data *data,
 
 	if (instance->consumer) {
 		wake_up_interruptible(&instance->wait_consumer);
-		/* run in game mode */
-		if (instance->consumer->mode == VT_MODE_GAME)
-			wake_up_interruptible(&instance->consumer->wait_consumer);
+		wake_up_interruptible(&instance->consumer->wait_consumer);
 	}
 	mutex_unlock(&instance->lock);
 
