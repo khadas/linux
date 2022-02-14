@@ -74,6 +74,8 @@ int lcd_extern_dev_index_add(int drv_index, int dev_index)
 		EXTERR("%s: invalid drv_index: %d\n", __func__, drv_index);
 		return -1;
 	}
+	if (dev_index == 0xff)
+		return 0;
 
 	dev_cnt = lcd_ext_dev_cnt[drv_index];
 	if (dev_cnt >= LCD_EXTERN_DEV_MAX) {
@@ -109,6 +111,9 @@ int lcd_extern_dev_index_remove(int drv_index, int dev_index)
 		EXTERR("%s: invalid drv_index: %d\n", __func__, dev_index);
 		return -1;
 	}
+	if (dev_index == 0xff)
+		return 0;
+
 	if (lcd_ext_dev_cnt[drv_index] == 0)
 		return -1;
 
@@ -1502,33 +1507,18 @@ static int lcd_extern_add_dev(struct lcd_extern_driver_s *edrv,
 	}
 
 	if (strcmp(edev->config.name, "ext_default") == 0) {
-		if (edev->config.type == LCD_EXTERN_MIPI) {
-			if (edev->config.cmd_size != LCD_EXT_CMD_SIZE_DYNAMIC) {
-				EXTERR("[%d]: %s: %s(%d): cmd_size %d is invalid\n",
-					edrv->index, __func__,
-					edev->config.name,
-					edev->dev_index,
-					edev->config.cmd_size);
-			} else {
-				ret = lcd_extern_mipi_default_probe(edrv, edev);
-			}
-		} else {
-			if (edev->config.cmd_size < 2) {
-				EXTERR("[%d]: %s: %s(%d): cmd_size %d is invalid\n",
-					edrv->index, __func__,
-					edev->config.name,
-					edev->dev_index,
-					edev->config.cmd_size);
-			} else {
-				ret = lcd_extern_default_probe(edrv, edev);
-			}
-		}
-	} else if (strcmp(edev->config.name, "i2c_CS602") == 0) {
+		if (edev->config.type == LCD_EXTERN_MIPI)
+			ret = lcd_extern_mipi_default_probe(edrv, edev);
+		else
+			ret = lcd_extern_default_probe(edrv, edev);
+	} else if (strcmp(edev->config.name, "mipi_default") == 0) {
+		ret = lcd_extern_mipi_default_probe(edrv, edev);
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_CS602
+	} else if (strcmp(edev->config.name, "i2c_CS602") == 0) {
 		ret = lcd_extern_i2c_CS602_probe(edrv, edev);
 #endif
-	} else if (strcmp(edev->config.name, "i2c_ANX6862_7911") == 0) {
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN_I2C_ANX6862_7911
+	} else if (strcmp(edev->config.name, "i2c_ANX6862_7911") == 0) {
 		ret = lcd_extern_i2c_ANX6862_7911_probe(edrv, edev);
 #endif
 	} else {
