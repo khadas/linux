@@ -25,3 +25,6 @@ dtb-$(CONFIG_ARCH_MESON) += t3_t982_ar301-2g.dtb
 dtb-$(CONFIG_ARCH_MESON) += t3_t982_ar301-2g_linux.dtb
 dtb-$(CONFIG_ARCH_MESON) += t3_t982_ar311-1g.dtb
 dtb-$(CONFIG_ARCH_MESON) += t3_t982_ar311-4g.dtb
+dtb-$(CONFIG_ARCH_MESON) += t5w_t962d4_at301.dtb
+dtb-$(CONFIG_ARCH_MESON) += t5w_t962d4_at301_1.5g.dtb
+dtb-$(CONFIG_ARCH_MESON) += t5w_t962d4_at301_1g.dtb

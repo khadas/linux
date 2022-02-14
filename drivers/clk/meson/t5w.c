@@ -659,8 +659,8 @@ static struct clk_regmap t5w_gp1_pll_dco = {
 		 * do not repeat the operation here, otherwise gp1
 		 * may be closed
 		 */
-		//.init_regs = t5w_gp1_init_regs,
-		//.init_count = ARRAY_SIZE(t5w_gp1_init_regs),
+		.init_regs = t5w_gp1_init_regs,
+		.init_count = ARRAY_SIZE(t5w_gp1_init_regs),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll_dco",
@@ -4451,6 +4451,8 @@ static int meson_t5w_dvfs_setup(struct platform_device *pdev)
 		return ret;
 	}
 
+/* dsu will hang up here in ARM, remove it as soon as it fixes */
+#ifdef CONFIG_ARM64
 	/* set gp1 to 1.2G */
 	clk_set_rate(t5w_gp1_pll.hw.clk, 1200000000);
 	clk_prepare_enable(t5w_gp1_pll.hw.clk);
@@ -4468,7 +4470,7 @@ static int meson_t5w_dvfs_setup(struct platform_device *pdev)
 		pr_err("%s: failed to set dsu parent\n", __func__);
 		return ret;
 	}
-
+#endif
 	ret = clk_notifier_register(t5w_dsu_clk_postmux0.hw.clk,
 				    &t5w_dsu_clk_postmux0_nb_data.nb);
 	if (ret) {
