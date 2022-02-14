@@ -825,6 +825,15 @@ int lcd_extern_default_probe(struct lcd_extern_driver_s *edrv, struct lcd_extern
 		return -1;
 	}
 
+	if (edev->config.cmd_size < 2) {
+		EXTERR("[%d]: %s: %s(%d): cmd_size %d is invalid\n",
+			edrv->index, __func__,
+			edev->config.name,
+			edev->dev_index,
+			edev->config.cmd_size);
+		return -1;
+	}
+
 	switch (edev->config.type) {
 	case LCD_EXTERN_I2C:
 		if (edev->config.i2c_addr < LCD_EXT_I2C_ADDR_INVALID) {

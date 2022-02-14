@@ -1422,7 +1422,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 		pctrl->mipi_cfg.clk_always_hs = para[6];
 		pctrl->mipi_cfg.phy_switch = para[7];
 
-#ifdef CONFIG_AML_LCD_TABLET
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
 		lcd_mipi_dsi_init_table_detect(pdrv, child, 1);
 		lcd_mipi_dsi_init_table_detect(pdrv, child, 0);
 #endif
@@ -1433,8 +1433,8 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			pctrl->mipi_cfg.extern_init = para[0];
 			lcd_extern_dev_index_add(pdrv->index, para[0]);
 		}
-#ifdef CONFIG_AML_LCD_TABLET
-		mipi_dsi_config_init(pconf);
+#ifdef CONFIG_AMLOGIC_LCD_TABLET
+		mipi_dsi_config_init(pdrv);
 #endif
 		break;
 	case LCD_EDP:

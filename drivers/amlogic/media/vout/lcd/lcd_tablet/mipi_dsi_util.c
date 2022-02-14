@@ -276,30 +276,25 @@ int lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv,
 
 	if (on_off) {
 		n_max = DSI_INIT_ON_MAX;
-		dsi_table = kzalloc(n_max, GFP_KERNEL);
-		if (!dsi_table) {
-			LCDERR("%s: Not enough memory\n", __func__);
-			return -1;
-		}
-		dconf->dsi_init_on = dsi_table;
 		sprintf(propname, "dsi_init_on");
 	} else {
 		n_max = DSI_INIT_OFF_MAX;
-		dsi_table = kzalloc(n_max, GFP_KERNEL);
-		if (!dsi_table) {
-			LCDERR("%s: Not enough memory\n", __func__);
-			return -1;
-		}
-		dconf->dsi_init_off = dsi_table;
 		sprintf(propname, "dsi_init_off");
 	}
-	dsi_table[0] = 0xff;
+
+	dsi_table = kzalloc(n_max, GFP_KERNEL);
+	if (!dsi_table) {
+		LCDERR("%s: Not enough memory\n", __func__);
+		return -1;
+	}
 
 	para = kcalloc(n_max, sizeof(unsigned int), GFP_KERNEL);
 	if (!para) {
 		LCDERR("%s: Not enough memory\n", __func__);
+		kfree(dsi_table);
 		return -1;
 	}
+
 	ret = of_property_read_u32_index(m_node, propname, 0, &para[0]);
 	if (ret) {
 		LCDERR("failed to get %s\n", propname);
@@ -373,6 +368,11 @@ int lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv,
 	for (j = 0; j < i; j++)
 		dsi_table[j] = (unsigned char)(para[j] & 0xff);
 
+	if (on_off)
+		dconf->dsi_init_on = dsi_table;
+	else
+		dconf->dsi_init_off = dsi_table;
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		mipi_dsi_init_table_print(dconf, on_off);
 
@@ -381,6 +381,7 @@ int lcd_mipi_dsi_init_table_detect(struct aml_lcd_drv_s *pdrv,
 
 lcd_mipi_dsi_init_table_detect_err:
 	kfree(para);
+	kfree(dsi_table);
 	return ret;
 }
 
