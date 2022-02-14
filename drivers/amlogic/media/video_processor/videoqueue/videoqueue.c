@@ -177,7 +177,8 @@ void videoqueue_pcrscr_update(s32 inc, u32 base)
 	if (sync_start)
 		is_vlock_locked = vlock_get_vlock_flag();
 
-	vsync_pts_inc = div64_u64(90000 * 16 * inc, base);
+	vsync_pts_inc = 90000 * 16 * (u64)inc;
+	vsync_pts_inc = div64_u64(vsync_pts_inc, base);
 	vq_print(P_SYNC, "vlock: %d, special_fps: %d, vsync_pts_inc: %ld.\n",
 		is_vlock_locked,
 		is_special_fps,
@@ -185,7 +186,7 @@ void videoqueue_pcrscr_update(s32 inc, u32 base)
 	if (is_vlock_locked && is_special_fps) {
 		if (vsync_pts_inc == 24000) {
 			vq_print(P_SYNC, "use 59.94 fps.\n");
-			vsync_pts_inc = 24024;
+			vsync_pts_inc = 24015;
 		} else if (vsync_pts_inc == 12000) {
 			vq_print(P_SYNC, "use 119.88 fps.\n");
 			vsync_pts_inc = 12015;
