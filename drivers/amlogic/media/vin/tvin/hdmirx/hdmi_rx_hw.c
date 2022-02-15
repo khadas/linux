@@ -818,9 +818,11 @@ void sec_top_write(unsigned int *addr, unsigned int value)
 	struct arm_smccc_res res;
 
 	if (rx.chip_id >= CHIP_ID_T7)
-		return;
-	arm_smccc_smc(HDMIRX_WR_SEC_TOP, (unsigned long)(uintptr_t)addr,
-	      value, 0, 0, 0, 0, 0, &res);
+		arm_smccc_smc(HDMIRX_WR_SEC_TOP_NEW, (unsigned long)(uintptr_t)addr,
+		      value, 0, 0, 0, 0, 0, &res);
+	else
+		arm_smccc_smc(HDMIRX_WR_SEC_TOP, (unsigned long)(uintptr_t)addr,
+		      value, 0, 0, 0, 0, 0, &res);
 }
 
 /*
@@ -831,9 +833,11 @@ unsigned int sec_top_read(unsigned int *addr)
 	struct arm_smccc_res res;
 
 	if (rx.chip_id >= CHIP_ID_T7)
-		return 0;
-	arm_smccc_smc(HDMIRX_RD_SEC_TOP, (unsigned long)(uintptr_t)addr,
-		      0, 0, 0, 0, 0, 0, &res);
+		arm_smccc_smc(HDMIRX_RD_SEC_TOP_NEW, (unsigned long)(uintptr_t)addr,
+			      0, 0, 0, 0, 0, 0, &res);
+	else
+		arm_smccc_smc(HDMIRX_RD_SEC_TOP, (unsigned long)(uintptr_t)addr,
+			      0, 0, 0, 0, 0, 0, &res);
 
 	return (unsigned int)((res.a0) & 0xffffffff);
 }
@@ -947,18 +951,6 @@ unsigned int rx_set_hdcp14_secure_key(void)
 	 */
 	arm_smccc_smc(HDCP14_RX_SETKEY, 0, 0, 0, 0, 0, 0, 0, &res);
 
-	return (unsigned int)((res.a0) & 0xffffffff);
-}
-
-/*
- * rx_smc_cmd_handler: communicate with bl31
- */
-u32 rx_smc_cmd_handler(u32 index, u32 value)
-{
-	struct arm_smccc_res res;
-
-	arm_smccc_smc(HDMI_RX_SMC_CMD, index,
-				value, 0, 0, 0, 0, 0, &res);
 	return (unsigned int)((res.a0) & 0xffffffff);
 }
 

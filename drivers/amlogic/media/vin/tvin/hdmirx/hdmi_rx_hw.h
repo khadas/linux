@@ -1191,39 +1191,13 @@
 #define HDCP22_RX_SET_DUK_KEY	0x8200002e
 #define HDCP22_RP_SET_DUK_KEY	0x8200002c
 #define HDCP14_RX_SETKEY		0x8200002d
+#define HDMIRX_RD_SEC_TOP_NEW	0x8200008b
+#define HDMIRX_WR_SEC_TOP_NEW	0x8200008c
 #define HDMIRX_RD_AES			0x8200008d
 #define HDMIRX_WR_AES			0x8200008e
 #define HDMIRX_RD_COR			0x8200008f
 #define HDMIRX_WR_COR			0x82000091
 #define HDMI_RX_HDCP_CFG		0x820000aa
-#define HDMI_RX_SMC_CMD			0x8200008b
-#define HDMI_RX_RESERVED		0x8200008c
-
-/* unifykey query id */
-#define HDCP14_RX_QUERY 1
-#define HDCP14_RX_SEC_QUERY 2
-#define HDCP22_RX_FW_QUERY 3
-#define HDCP22_RX_PRIVATE_QUERY 4
-#define HDCP22_RPRX_FW_QUERY	5
-#define HDCP22_RPRP_FW_QUERY	6
-#define HDCP22_RP_PRIVATE_QUERY	7
-/* unifykey definition */
-#define HDCP_RX_KEY_ATTACH_DEV_PATH	"/sys/class/unifykeys/attach"
-#define HDCP_RX_KEY_NAME_DEV_PATH	"/sys/class/unifykeys/name"
-#define HDCP_RX_KEY_DATA_EXIST	"/sys/class/unifykeys/exist"
-#define HDCP_RX_KEY_READ_DEV_PATH	"/sys/class/unifykeys/read"
-#define HDCP_RX_KEY_WRITE_DEV_PATH	"/sys/class/unifykeys/write"
-#define HDCP_RX_KEY_SECURE_DEV_PATH	"/sys/class/unifykeys/secure"
-/* unifykey-hdcp1.4 */
-#define HDCP_RX14_KEY_NAME	"hdcp14_rx"
-#define HDCP_RX14_SEC_KEY_NAME	"hdcp14_rx_sec"
-/* unifykey-hdcp2.2 */
-#define HDCP_RX22_FW_NAME	"hdcp22_rx_fw"
-#define HDCP_RX22_PRIVATE_NAME	"hdcp22_rx_private"
-/* unifykey-hdcp2.2 repeater */
-#define HDCP22_RPRX_FW_NAME "hdcp22_rprx_fw"
-#define HDCP22_RPRP_FW_NAME "hdcp22_rprp_fw"
-#define HDCP22_RP_PRIVATE_NAME "hdcp22_rp_private"
 
 /* COR reg start */
 #define COR_SCDC_TMDS_CFG	0x7820
@@ -3425,10 +3399,4 @@ void rx_esm_reset(int level);
 void hdmirx_hdcp22_reauth(void);
 void rx_earc_hpd_handler(struct work_struct *work);
 void rx_kill_esm(void);
-int is_rx_unifykey_exist(const char *key_type);
-int rx_unifykey_query(int index);
-int is_rx_unifykey_14_support(void);
-int is_rx_unifykey_22_support(void);
-int is_rx_unifykey_support(void);
-u32 rx_smc_cmd_handler(u32 index, u32 value);
 #endif

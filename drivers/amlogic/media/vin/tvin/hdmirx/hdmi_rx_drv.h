@@ -22,8 +22,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-/* add unifykey query interface */
-#define RX_VER0 "ver.2022/01/15"
+/* fix vsif irq issue */
+#define RX_VER0 "ver.2021/07/13"
 
 /*print type*/
 #define	LOG_EN		0x01

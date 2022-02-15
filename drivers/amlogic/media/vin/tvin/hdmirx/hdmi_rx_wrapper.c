@@ -374,8 +374,6 @@ void hdmirx_init_params(void)
 
 void rx_hpd_to_esm_handle(struct work_struct *work)
 {
-	if (rx.chip_id >= CHIP_ID_T7)
-		return;
 	cancel_delayed_work(&esm_dwork);
 	/* switch_set_state(&rx.hpd_sdev, 0x0); */
 	/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
@@ -3851,13 +3849,6 @@ int hdmirx_debug(const char *buf, int size)
 		rx_sec_hdcp_cfg_t7();
 	} else if (strncmp(tmpbuf, "phyoff", 6) == 0) {
 		aml_phy_power_off();
-	} else if (strncmp(tmpbuf, "unifykey", 8) == 0) {
-		is_rx_unifykey_exist(HDCP_RX14_KEY_NAME);
-		is_rx_unifykey_exist(HDCP_RX22_FW_NAME);
-		is_rx_unifykey_exist(HDCP_RX22_PRIVATE_NAME);
-	} else if (strncmp(tmpbuf, "bl31key", 7) == 0) {
-		rx_pr("1.4 key status:%d\n", is_rx_unifykey_14_support());
-		rx_pr("2.2 key status:%d\n", is_rx_unifykey_22_support());
 	}
 	return 0;
 }
