@@ -434,13 +434,13 @@ static struct sec_pm_private_domain a5_pm_domains[] = {
 	[PDID_A5_RSA] = POWER_DOMAIN(rsa, PDID_A5_RSA,
 			DOMAIN_INIT_ON, 0),
 	[PDID_A5_AUDIO_PDM] = POWER_DOMAIN(audio_pdm, PDID_A5_AUDIO_PDM,
-			DOMAIN_INIT_ON, 0),
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_A5_DMC] = POWER_DOMAIN(dmc, PDID_A5_DMC,
 			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_A5_SYS_WRAP] = POWER_DOMAIN(sys_wrap, PDID_A5_SYS_WRAP,
 			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_A5_DSPA] = POWER_DOMAIN(dspa, PDID_A5_DSPA,
-			DOMAIN_INIT_OFF, 0),
+			DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 };
 
 static struct sec_pm_domain_data a5_pm_domain_data = {

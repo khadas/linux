@@ -404,7 +404,7 @@
 		mbox-names = "ao_dev",
 			     "ap_to_ao",
 			     "dsp_dev",
-			     "ap_2_dspa";
+			     "ap_to_dspa";
 		mboxes = <&mhu_fifo A5_AO2REE>,
 			 <&mhu_fifo A5_REE2AO>,
 			 <&mhu_fifo A5_DSP2REE>,
@@ -439,12 +439,14 @@
 		dspaoffset = <0xa0000>;
 		dspboffset = <0x8a0000>;
 		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
-		boot_sram_addr = <0xfff00000>;
-		boot_sram_size = <0x80000>;
+		boot_sram_addr = <0xf7030000>;
+		boot_sram_size = <0x3A0000>;
 		suspend_resume_support = <1 0>;
 		power-domains = <&pwrdm PDID_A5_DSPA>;
 		power-domain-names = "dspa";
 		dsp_clk_freqs = <800000000>;
+		dspsrambase = <0xf7030000>;
+		dspsramsize = <0x3A0000>;
 		status = "okay";
 	};
 
