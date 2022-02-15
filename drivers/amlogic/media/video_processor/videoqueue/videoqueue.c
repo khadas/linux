@@ -162,7 +162,7 @@ static u32 vsync_no;
 static bool videoq_start;
 static wait_queue_head_t file_wq;
 static int wakeup;
-//used for 29.97hz or 59.94hz
+//used for 29.976 59.94 119.88fps
 static bool is_special_fps;
 
 void vsync_notify_videoqueue(void)
@@ -182,9 +182,16 @@ void videoqueue_pcrscr_update(s32 inc, u32 base)
 		is_vlock_locked,
 		is_special_fps,
 		vsync_pts_inc);
-	if (is_vlock_locked && is_special_fps && vsync_pts_inc == 24000) {
-		vq_print(P_SYNC, "use 59.94 fps.\n");
-		vsync_pts_inc = 24024;
+	if (is_vlock_locked && is_special_fps) {
+		if (vsync_pts_inc == 24000) {
+			vq_print(P_SYNC, "use 59.94 fps.\n");
+			vsync_pts_inc = 24024;
+		} else if (vsync_pts_inc == 12000) {
+			vq_print(P_SYNC, "use 119.88 fps.\n");
+			vsync_pts_inc = 12015;
+		} else {
+			vq_print(P_SYNC, "invalid case.\n");
+		}
 	}
 
 	// vsync_pts_inc/16 /9us
@@ -471,11 +478,12 @@ static void do_file_thread(struct video_queue_dev *dev)
 			vq_print(P_ERROR, "set game mode true err\n");
 	}
 
-	//used to point 29.97 23.976 and 59.94 fps
+	//used to point 29.97 23.976 59.94 119.88 fps
 	vq_print(P_SYNC, "vf->duration is %d.\n", vf->duration);
 	if (vf->duration == 1601 ||
 	    vf->duration == 3203 ||
-	    vf->duration == 4004) {
+	    vf->duration == 4004 ||
+	    vf->duration == 801) {
 		is_special_fps = true;
 	} else {
 		is_special_fps = false;
