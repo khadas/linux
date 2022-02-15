@@ -1658,6 +1658,7 @@ static void lcd_set_vclk_crt_t7(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_clk_config_s *cconf;
 	unsigned int reg_vid2_clk_div, reg_vid2_clk_ctrl, reg_vid_clk_ctrl2;
+	unsigned int venc_clk_sel_bit = 0xff;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_CLK)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
@@ -1675,12 +1676,14 @@ static void lcd_set_vclk_crt_t7(struct aml_lcd_drv_s *pdrv)
 		reg_vid2_clk_div = CLKCTRL_VIID_CLK2_DIV;
 		reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK2_CTRL;
 		reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK2_CTRL2;
+		venc_clk_sel_bit = 25;
 		break;
 	case 0:
 	default:
 		reg_vid2_clk_div = CLKCTRL_VIID_CLK0_DIV;
 		reg_vid2_clk_ctrl = CLKCTRL_VIID_CLK0_CTRL;
 		reg_vid_clk_ctrl2 = CLKCTRL_VID_CLK0_CTRL2;
+		venc_clk_sel_bit = 24;
 		break;
 	}
 
@@ -1697,6 +1700,9 @@ static void lcd_set_vclk_crt_t7(struct aml_lcd_drv_s *pdrv)
 		/* select vid_pll_clk */
 		lcd_clk_setb(reg_vid2_clk_ctrl, 7, VCLK2_CLK_IN_SEL, 3);
 	} else {
+		if (venc_clk_sel_bit < 0xff)
+			lcd_clk_setb(CLKCTRL_HDMI_VID_PLL_CLK_DIV, 0, venc_clk_sel_bit, 1);
+
 		/* setup the XD divider value */
 		lcd_clk_setb(reg_vid2_clk_div, (cconf->xd - 1), VCLK2_XD, 8);
 		udelay(5);
