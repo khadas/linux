@@ -1537,6 +1537,22 @@ static int smc_hw_get(struct smc_dev *smc, int cnt, int timeout)
 			usleep_range(10, 20);
 			times--;
 		} else {
+			/*handle overflow*/
+			if (sc_status_reg->recv_fifo_count == 0) {
+				u8 byte = (SMC_READ_REG(FIFO)) & 0xff;
+#ifdef SW_INVERT
+				if (smc->sc_type == SC_INVERSE)
+					byte = inv_table[byte];
+#endif
+				smc->atr.atr[smc->atr.atr_len++] = byte;
+				cnt--;
+				if (cnt == 0) {
+					pr_dbg("read atr bytes ok\n");
+					return 0;
+				}
+				continue;
+			}
+
 			while (sc_status_reg->recv_fifo_count > 0) {
 				u8 byte = (SMC_READ_REG(FIFO)) & 0xff;
 
