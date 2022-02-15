@@ -895,8 +895,7 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		if (es_params->header.pts_dts_flag & 0x2)
 			pout->newest_pts = es_params->header.pts;
 
-		if (!(es_params->header.pts_dts_flag & 0x4 ||
-			(es_params->header.pts_dts_flag & 0x8)))
+		if (!(es_params->header.pts_dts_flag & 0x4))
 			out_ts_cb_list(pout, (char *)&es_params->header,
 				h_len,
 				(h_len + es_params->header.len),
@@ -909,8 +908,7 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
-			if (!(es_params->header.pts_dts_flag & 0x4 ||
-				(es_params->header.pts_dts_flag & 0x8)))
+			if (!(es_params->header.pts_dts_flag & 0x4))
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
 			else
 				; //do nothing
@@ -940,8 +938,7 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
 				if (!es_params->es_overflow)
-					if (!(es_params->header.pts_dts_flag & 0x4 ||
-						(es_params->header.pts_dts_flag & 0x8)))
+					if (!(es_params->header.pts_dts_flag & 0x4))
 						out_ts_cb_list(pout, ptmp, ret, 0, 0);
 					else
 						; //do nothing
@@ -1316,8 +1313,7 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		if (es_params->header.pts_dts_flag & 0x2)
 			pout->newest_pts = es_params->header.pts;
 
-		if (!(es_params->header.pts_dts_flag & 0x4 ||
-			(es_params->header.pts_dts_flag & 0x8)))
+		if (!(es_params->header.pts_dts_flag & 0x4))
 			out_ts_cb_list(pout, (char *)&es_params->header,
 				h_len,
 				(h_len + es_params->header.len),
@@ -1330,8 +1326,7 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
-			if (!(es_params->header.pts_dts_flag & 0x4 ||
-				(es_params->header.pts_dts_flag & 0x8)))
+			if (!(es_params->header.pts_dts_flag & 0x4))
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
 			else
 				; //do nothing
@@ -1402,9 +1397,8 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 		return -1;
 
 	/*s4/s4d, es header will add scb & pscp*/
-	if ((es_params->header.pts_dts_flag & 0x4) ||
-		(es_params->header.pts_dts_flag & 0x8)) {
-		pr_dbg("detect scb/pscp is 1, will discard the es\n");
+	if ((es_params->header.pts_dts_flag & 0x4)) {
+		pr_dbg("detect pscp is 1, will discard the es\n");
 		es_params->data_start = 0;
 		es_params->data_len = 0;
 		return 0;
