@@ -5355,7 +5355,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			struct provider_aux_req_s req;
 			char *provider_name = NULL, *tmp_name = NULL;
 
-			provider_name = vf_get_provider_name(VFM_NAME);
+			provider_name = vf_get_provider_name(pch->itf.dvfm.name);
 			while (provider_name) {
 				tmp_name =
 					vf_get_provider_name(provider_name);
@@ -8421,6 +8421,15 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 
 	vframe_ret = di_buf->vframe;
 	nr_buf = di_buf->di_buf_dup_p[1];
+
+	clear_vframe_src_fmt(vframe_ret);
+	if (di_buf->local_meta &&
+		di_buf->local_meta_used_size)
+		update_vframe_src_fmt(vframe_ret,
+			di_buf->local_meta,
+			di_buf->local_meta_used_size,
+			false, NULL, NULL);
+
 	if ((dimp_get(edi_mp_post_wr_en)	&&
 	     dimp_get(edi_mp_post_wr_support))	&&
 	    di_buf->process_fun_index != PROCESS_FUN_NULL) {
