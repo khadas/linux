@@ -270,7 +270,7 @@ static long frc_ioctl(struct file *file,
 			}
 		} else {
 			devp->frc_sts.auto_ctrl = false;
-			if (devp->frc_sts.state == FRC_STATE_ENABLE)
+			//if (devp->frc_sts.state != FRC_STATE_BYPASS)
 				frc_change_to_state(FRC_STATE_DISABLE);
 		}
 		break;
@@ -774,8 +774,10 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 	}
 
 	pfw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
-	frc_devp->out_sts.vout_height = vinfo->height;
-	frc_devp->out_sts.vout_width = vinfo->width;
+	if (frc_devp->out_sts.vout_height != vinfo->height)
+		frc_devp->out_sts.vout_height = vinfo->height;
+	if (frc_devp->out_sts.vout_width != vinfo->width)
+		frc_devp->out_sts.vout_width = vinfo->width;
 	tmpframterate =
 	(vinfo->sync_duration_num * 100 / vinfo->sync_duration_den) / 100;
 	if (frc_devp->out_sts.out_framerate != tmpframterate) {

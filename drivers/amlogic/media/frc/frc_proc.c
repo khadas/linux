@@ -32,6 +32,7 @@
 #include <asm/div64.h>
 #include <linux/sched/clock.h>
 
+#include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
@@ -385,6 +386,7 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	enum efrc_event sts_change = FRC_EVENT_NO_EVENT;
 	//enum frc_state_e cur_state = devp->frc_sts.state;
 	u32 cur_sig_in;
+	struct vinfo_s *vinfo = get_current_vinfo();
 
 	/*back up*/
 	devp->in_sts.vf_type = cur_in_sts->vf_type;
@@ -410,9 +412,6 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	}
 	devp->in_sts.in_vsize = cur_in_sts->in_vsize;
 
-	// if (cur_in_sts.vf_sts == false)  TEST
-	// devp->frc_sts.re_config = 0;
-
 	if (devp->frc_sts.out_put_mode_changed || devp->frc_sts.re_config) {
 		pr_frc(1, "out_put_mode_changed 0x%x re_config:%d\n",
 			devp->frc_sts.out_put_mode_changed,
@@ -420,6 +419,14 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 		if (devp->frc_sts.out_put_mode_changed ==
 			FRC_EVENT_VF_CHG_IN_SIZE) {
 			devp->frc_sts.re_cfg_cnt = 5;
+		} else if (devp->frc_sts.out_put_mode_changed ==
+			FRC_EVENT_VOUT_CHG) {
+			devp->frc_sts.re_cfg_cnt = 3;
+			pr_frc(1, "out_chg-w(%d->%d)-h(%d->%d)\n",
+				devp->out_sts.vout_width, vinfo->width,
+				devp->out_sts.vout_height, vinfo->height);
+			//devp->out_sts.vout_height = vinfo->height;
+			//devp->out_sts.vout_width = vinfo->width;
 		} else {
 			devp->frc_sts.re_cfg_cnt = frc_re_cfg_cnt;
 		}
@@ -539,10 +546,27 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (vf) {
 		if ((vf->flag & VFRAME_FLAG_GAME_MODE)  ==
 					VFRAME_FLAG_GAME_MODE) {
-			devp->in_sts.game_mode = true;
+			if ((devp->in_sts.game_mode & 0x1) != 0x1) {
+				devp->in_sts.game_mode =
+					devp->in_sts.game_mode | 0x01;
+				pr_frc(1, "video = game mode");
+			}
 			no_input = true;
 		} else {
-			devp->in_sts.game_mode = false;
+			devp->in_sts.game_mode =
+				devp->in_sts.game_mode & 0xFFFFFFFE;
+		}
+		if ((vf->flag & VFRAME_FLAG_PC_MODE)  ==
+					VFRAME_FLAG_PC_MODE) {
+			if ((devp->in_sts.game_mode & 0x2) != 0x2) {
+				devp->in_sts.game_mode =
+					devp->in_sts.game_mode | 0x2;
+				pr_frc(1, "video = pc mode");
+			}
+			no_input = true;
+		} else {
+			devp->in_sts.game_mode =
+				devp->in_sts.game_mode & 0xFFFFFFFD;
 		}
 		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
 				 VFRAME_FLAG_VIDEO_SECURE) {
@@ -850,6 +874,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 				} else if (devp->clk_state == FRC_CLOCK_NOR) {
 					frc_mm_secure_set(devp);
 					// clk_set_rate(devp->clk_frc, 667000000);
+					get_vout_info(devp);
 					frc_hw_initial(devp);
 					//first : set bypass off
 					set_frc_bypass(OFF);
@@ -962,6 +987,7 @@ void frc_state_handle(struct frc_dev_s *devp)
 				} else if (devp->clk_state == FRC_CLOCK_NOR) {
 					//first frame set bypass off
 					frc_mm_secure_set(devp);
+					get_vout_info(devp);
 					frc_hw_initial(devp);
 					set_frc_bypass(OFF);
 					devp->frc_sts.frame_cnt++;

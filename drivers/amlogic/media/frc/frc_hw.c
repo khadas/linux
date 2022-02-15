@@ -228,6 +228,8 @@ void set_frc_enable(u32 en)
 		if (en == 1) {
 			WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0xFFFF, 0, 16);
 			WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0x0, 0, 16);
+			frc_mc_reset(1);
+			frc_mc_reset(0);
 		}
 	}
 }
@@ -344,6 +346,8 @@ void inp_undone_read(struct frc_dev_s *frc_devp)
 		return;
 	if (!frc_devp->probe_ok || !frc_devp->power_on_flag)
 		return;
+	if (frc_devp->frc_sts.re_config)
+		return;
 	inp_ud_flag = READ_FRC_REG(FRC_INP_UE_DBG) & 0x3f;
 	if (inp_ud_flag != 0) {
 		frc_devp->frc_sts.inp_undone_cnt++;
@@ -355,7 +359,7 @@ void inp_undone_read(struct frc_dev_s *frc_devp)
 				inp_ud_flag,
 				frc_devp->frc_sts.inp_undone_cnt,
 				frc_devp->in_sts.vs_cnt);
-		else if ((frc_devp->frc_sts.inp_undone_cnt & 0x10) == 0x10)
+		else if ((frc_devp->frc_sts.inp_undone_cnt % 0x10) == 0)
 			PR_ERR("inp_ud_err=0x%x,err_cnt=%d,vs_cnt=%d\n",
 				inp_ud_flag,
 				frc_devp->frc_sts.inp_undone_cnt,

@@ -71,8 +71,8 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "frs state:%d (%s) new:%d\n", devp->frc_sts.state,
 	       frc_state_ary[devp->frc_sts.state], devp->frc_sts.new_state);
 	pr_frc(0, "input in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
-	pr_frc(0, "frc_memc_level = %d\n", fw_data->frc_top_type.frc_memc_level);
-	pr_frc(0, "game_mode=%d secure_mode=%d pic_type=%d\n", devp->in_sts.game_mode,
+	pr_frc(0, "frc_memc_level=%d\n", fw_data->frc_top_type.frc_memc_level);
+	pr_frc(0, "game/pc_mode=%d secure_mode=%d pic_type=%d\n", devp->in_sts.game_mode,
 		devp->in_sts.secure_mode, devp->in_sts.pic_type);
 	pr_frc(0, "dbg en:%d in_out_ratio=0x%x\n", devp->dbg_force_en, devp->dbg_in_out_ratio);
 	pr_frc(0, "dbg hsize=%d vsize=%d\n", devp->dbg_input_hsize, devp->dbg_input_vsize);

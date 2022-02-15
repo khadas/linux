@@ -87,5 +87,4 @@ void inp_undone_read(struct frc_dev_s *frc_devp);
 void vp_undone_read(struct frc_dev_s *frc_devp);
 u32 vpu_reg_read(u32 addr);
 
-
 #endif
