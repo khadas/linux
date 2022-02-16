@@ -246,7 +246,7 @@ struct composer_dev {
 	u32 video_render_index;
 	u32 vframe_dump_flag;
 	u32 pre_pat_trace;
-	u32 pattern[3];
+	u32 pattern[5];
 	u32 pattern_enter_cnt;
 	u32 pattern_exit_cnt;
 	u32 pattern_detected;

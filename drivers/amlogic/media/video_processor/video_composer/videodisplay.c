@@ -34,14 +34,16 @@ static unsigned int countinue_vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 #define PATTERN_32_DETECT_RANGE 7
 #define PATTERN_22_DETECT_RANGE 7
 #define PATTERN_22323_DETECT_RANGE 5
+#define PATTERN_44_DETECT_RANGE 14
+#define PATTERN_55_DETECT_RANGE 17
 
-#define PATTERN_41_DETECT_RANGE 2
-
+/*if add new patten, need change dev->patten[X]*/
 enum video_refresh_pattern {
 	PATTERN_32 = 0,
 	PATTERN_22,
 	PATTERN_22323,
-	PATTERN_41,
+	PATTERN_44,
+	PATTERN_55,
 	MAX_NUM_PATTERNS
 };
 
@@ -213,8 +215,16 @@ static void vd_vsync_video_pattern(struct composer_dev *dev, int pattern, struct
 		factor1 = 2;
 		factor2 = 2;
 		pattern_range =  PATTERN_22_DETECT_RANGE;
-	} else if (pattern == PATTERN_41) {
-		pr_err("not support 41 pattern\n");
+	}  else if (pattern == PATTERN_44) {
+		factor1 = 4;
+		factor2 = 4;
+		pattern_range =  PATTERN_44_DETECT_RANGE;
+	}  else if (pattern == PATTERN_55) {
+		factor1 = 5;
+		factor2 = 5;
+		pattern_range =  PATTERN_55_DETECT_RANGE;
+	} else if (pattern >= MAX_NUM_PATTERNS) {
+		pr_err("not support pattern %d\n", pattern);
 		return;
 	}
 
@@ -344,6 +354,8 @@ static void vsync_video_pattern(struct composer_dev *dev, struct vframe_s *vf)
 	vd_vsync_video_pattern(dev, PATTERN_32, vf);
 	vd_vsync_video_pattern(dev, PATTERN_22, vf);
 	vd_vsync_video_pattern_22323(dev, vf);
+	vd_vsync_video_pattern(dev, PATTERN_44, vf);
+	vd_vsync_video_pattern(dev, PATTERN_55, vf);
 	/*vd_vsync_video_pattern(dev, PTS_41_PATTERN);*/
 }
 
@@ -393,8 +405,16 @@ static inline int vd_perform_pulldown(struct composer_dev *dev,
 		pattern_range =  PATTERN_22323_DETECT_RANGE;
 		expected_curr_interval = dev->next_factor;
 		break;
-	case PATTERN_41:
-		/* TODO */
+	case PATTERN_44:
+		pattern_range =  PATTERN_44_DETECT_RANGE;
+		expected_prev_interval = 4;
+		expected_curr_interval = 4;
+		break;
+	case PATTERN_55:
+		pattern_range =  PATTERN_55_DETECT_RANGE;
+		expected_prev_interval = 5;
+		expected_curr_interval = 5;
+		break;
 	default:
 		return -1;
 	}
@@ -437,6 +457,57 @@ static inline int vd_perform_pulldown(struct composer_dev *dev,
 		}
 	}
 	return 0;
+}
+
+bool pulldown_support_vf(u32 duration)
+{
+	bool support = false;
+
+	/*duration: 800(120fps) 801(119.88fps) 960(100fps) 1600(60fps) 1920(50fps)*/
+	/*3200(30fps) 3203(29.97) 3840(25fps) 4000(24fps) 4004(23.976fps)*/
+
+	if (vsync_pts_inc_scale == 1 && vsync_pts_inc_scale_base == 48) {
+		/*48hz for 24fps 23.976fps*/
+		if (duration == 4004 || duration == 4000)
+			support = true;
+	} else if (vsync_pts_inc_scale == 1 && vsync_pts_inc_scale_base == 50) {
+		/*50hz for 25fps*/
+		if (duration == 3840)
+			support = true;
+	} else if (vsync_pts_inc_scale == 1001 && vsync_pts_inc_scale_base == 60000) {
+		/*59.94hz for 23.976, 29.97*/
+		if (duration == 4004 ||
+			duration == 3203)
+			support = true;
+	} else if (vsync_pts_inc_scale == 1 && vsync_pts_inc_scale_base == 60) {
+		/*60hz for 23.976, 24, 25, 29.97, 30*/
+		if (duration == 4004 ||
+			duration == 4000 ||
+			duration == 3840 ||  /*22323 patten for projector, that vout always 60*/
+			duration == 3203 ||
+			duration == 3200)
+			support = true;
+	} else if (vsync_pts_inc_scale == 1 && vsync_pts_inc_scale_base == 100) {
+		/*100hz for 25fps, 50fps*/
+		if (duration == 3840 || duration == 1920)
+			support = true;
+	} else if (vsync_pts_inc_scale == 1001 && vsync_pts_inc_scale_base == 120000) {
+		/*119.88hz for 23.976,29.97,59.94*/
+		if (duration == 4004 ||
+			duration == 3203 ||
+			duration == 1601)
+			support = true;
+	} else if (vsync_pts_inc_scale == 1 && vsync_pts_inc_scale_base == 120) {
+		/*120hz for 23.976, 24, 29.97, 30, 59.94, 60*/
+		if (duration == 4004 ||
+			duration == 4000 ||
+			duration == 3203 ||
+			duration == 3200 ||
+			duration == 1601 ||
+			duration == 1600)
+			support = true;
+	}
+	return support;
 }
 
 /* -----------------------------------------------------------------
@@ -488,15 +559,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 		if (!vf)
 			return NULL;
 
-		/*duration: 1600(60fps) 3200(30fps) 3203(29.97) 3840(25fps) */
-		/*4000(24fps) 4004(23.976fps)*/
-
-		if (dev->enable_pulldown &&
-			(vf->duration == 3200 ||
-			vf->duration == 3203 ||
-			vf->duration == 3840 ||
-			vf->duration == 4000 ||
-			vf->duration == 4004)) {
+		if (dev->enable_pulldown && pulldown_support_vf(vf->duration)) {
 			open_pulldown = true;
 			ready_len = kfifo_len(&dev->ready_q);
 			if ((ready_len > 1 && vd_pulldown_level == 1) ||
