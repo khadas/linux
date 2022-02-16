@@ -1022,6 +1022,11 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 				tmp = hdmirx_rd_cor(HF_VSIRX_DBYTE11_DP3_IVCRX + i);
 				pkt->sbpkt.vsi_dobv15.data[i] = tmp;
 			}
+			if (vsif_type & VSIF_TYPE_HDMI21) {
+				tmp = hdmirx_rd_cor(RX_UNREC_BYTE9_DP2_IVCRX);
+				if ((tmp >> 1) & 1)
+					pkt->ieee = IEEE_DV_PLUS_ALLM;
+			}
 		} else if (vsif_type & VSIF_TYPE_HDR10P) {
 			pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
 			pkt->length = hdmirx_rd_cor(AUDRX_TYPE_DP2_IVCRX) & 0x1f;
@@ -1312,6 +1317,37 @@ void rx_get_vsi_info(void)
 		if (tmp == 2)
 			rx.vs_info_details.allm_mode = true;
 		break;
+	//====================for dv5.0 ====================
+	case IEEE_DV_PLUS_ALLM:
+		//same as DV15. but allm is true because vsif21 allm is on
+		//new requirement from dv5.0
+		/* dolbyvision 1.5 */
+		rx.vs_info_details.vsi_state = E_VSI_DV15;
+		if (pkt->length != E_PKT_LENGTH_27) {
+			if (log_level & PACKET_LOG)
+				rx_pr("vsi dv15 length err\n");
+			//dv vsif
+			rx.vs_info_details.dolby_vision_flag = DV_VSIF;
+			break;
+		}
+		tmp = pkt->sbpkt.payload.data[0] & _BIT(1);
+		if (tmp)
+			rx.vs_info_details.dolby_vision_flag = DV_VSIF;
+		tmp = pkt->sbpkt.payload.data[0] & _BIT(0);
+		rx.vs_info_details.low_latency = tmp ? true : false;
+		tmp = pkt->sbpkt.payload.data[0] >> 15 & 0x01;
+		rx.vs_info_details.backlt_md_bit = tmp ? true : false;
+		if (tmp) {
+			tmp = (pkt->sbpkt.payload.data[0] >> 16 & 0xff) |
+			      (pkt->sbpkt.payload.data[0] & 0xf00);
+			rx.vs_info_details.eff_tmax_pq = tmp;
+		}
+		//tmp = (pkt->sbpkt.payload.data[1] >> 16 & 0xf);
+		//if (tmp == 2)
+		rx.vs_info_details.allm_mode = true;
+		pkt->ieee = IEEE_DV15;
+		break;
+	//====================for dv5.0 end=================
 	case IEEE_VSI21:
 		/* hdmi2.1 */
 		rx.vs_info_details.vsi_state = E_VSI_VSI21;
@@ -1779,6 +1815,7 @@ bool is_new_visf_pkt_rcv(union infoframe_u *pktdata)
 {
 	struct vsi_infoframe_st *pkt;
 	enum vsi_state_e new_pkt, old_pkt;
+	bool allm_sts = false;
 
 	pkt = (struct vsi_infoframe_st *)&rx_pkt.vs_info;
 	/* old vsif pkt */
@@ -1794,6 +1831,12 @@ bool is_new_visf_pkt_rcv(union infoframe_u *pktdata)
 	else
 		old_pkt = E_VSI_4K3D;
 
+	//====================for dv5.0=====================
+	if (old_pkt == E_VSI_VSI21) {
+		if (pkt->sbpkt.payload.data[0] & _BIT(9))
+			allm_sts = true;
+	}
+	//====================for dv5.0 end=================
 	pkt = (struct vsi_infoframe_st *)(pktdata);
 	/* new vsif */
 	if (pkt->ieee == IEEE_DV15)
@@ -1807,7 +1850,16 @@ bool is_new_visf_pkt_rcv(union infoframe_u *pktdata)
 		new_pkt = E_VSI_DV10;
 	else
 		new_pkt = E_VSI_4K3D;
-
+	//====================for dv5.0=====================
+	if (new_pkt == E_VSI_VSI21) {
+		if (pkt->sbpkt.payload.data[0] & _BIT(9))
+			allm_sts = true;
+	}
+	if ((old_pkt == E_VSI_VSI21 && new_pkt == E_VSI_DV15) ||
+		(old_pkt == E_VSI_DV15 && new_pkt == E_VSI_VSI21))
+		if (allm_sts)
+			pkt->ieee = IEEE_DV_PLUS_ALLM;
+	//====================for dv5.0 end=================
 	if (new_pkt > old_pkt)
 		return true;
 
