@@ -375,7 +375,7 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv, enum vmode_e mode
 {
 	struct lcd_vmode_info_s *info;
 	struct lcd_config_s *pconf;
-	unsigned int index;
+	unsigned int index, temp;
 
 	if (!pdrv)
 		return;
@@ -431,9 +431,21 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv, enum vmode_e mode
 	pdrv->vinfo.sync_duration_den = pdrv->cur_duration.duration_den;
 	pdrv->vinfo.frac = pdrv->cur_duration.frac;
 	pdrv->vinfo.std_duration = pdrv->cur_duration.frame_rate;
+	pdrv->vinfo.vfreq_max = pconf->basic.frame_rate_max;
+	pdrv->vinfo.vfreq_min = pconf->basic.frame_rate_min;
 	pdrv->vinfo.video_clk = pdrv->config.timing.lcd_clk;
 	pdrv->vinfo.htotal = pconf->basic.h_period;
 	pdrv->vinfo.vtotal = pconf->basic.v_period;
+	pdrv->vinfo.hsw = pconf->timing.hsync_width;
+	pdrv->vinfo.hbp = pconf->timing.hsync_bp;
+	temp = pconf->basic.h_period - pconf->basic.h_active -
+		pconf->timing.hsync_width - pconf->timing.hsync_bp;
+	pdrv->vinfo.hfp = temp;
+	pdrv->vinfo.vsw = pconf->timing.vsync_width;
+	pdrv->vinfo.vbp = pconf->timing.vsync_bp;
+	temp = pconf->basic.v_period - pconf->basic.v_active -
+		pconf->timing.vsync_width - pconf->timing.vsync_bp;
+	pdrv->vinfo.vfp = temp;
 	pdrv->vinfo.viu_mux = VIU_MUX_ENCL;
 	switch (pdrv->config.timing.fr_adjust_type) {
 	case 0:
@@ -721,7 +733,10 @@ struct lcd_vframe_match_s {
 static struct lcd_vframe_match_s lcd_vframe_match_table_1[] = {
 	{6000, 60},
 	{5994, 59},
-	{5000, 50}
+	{5000, 50},
+	{12000, 120},
+	{11988, 119},
+	{10000, 100}
 };
 
 static struct lcd_vframe_match_s lcd_vframe_match_table_2[] = {
@@ -729,21 +744,12 @@ static struct lcd_vframe_match_s lcd_vframe_match_table_2[] = {
 	{5994, 59},
 	{5000, 50},
 	{4800, 48},
-	{4795, 47}
-};
-
-static struct lcd_vframe_match_s lcd_vframe_match_table_high_1[] = {
-	{6000, 120},
-	{5994, 119},
-	{5000, 100}
-};
-
-static struct lcd_vframe_match_s lcd_vframe_match_table_high_2[] = {
-	{6000, 120},
-	{5994, 119},
-	{5000, 100},
-	{4800, 96},
-	{4795, 95}
+	{4795, 47},
+	{12000, 120},
+	{11988, 119},
+	{10000, 100},
+	{9600, 96},
+	{9590, 95}
 };
 
 static int lcd_framerate_auto_std_duration_index(struct aml_lcd_drv_s *pdrv,
@@ -798,8 +804,8 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 	struct vinfo_s *info;
 	unsigned int frame_rate = 60;
 	unsigned int duration_num = 60, duration_den = 1, frac = 0;
-	struct lcd_vframe_match_s *vtable = NULL, *vtable_high = NULL;
-	int n, n_high, find = 0;
+	struct lcd_vframe_match_s *vtable = NULL;
+	int n, find = 0;
 
 	if (!pdrv)
 		return -1;
@@ -831,14 +837,10 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 	case 1:
 		vtable = lcd_vframe_match_table_1;
 		n = ARRAY_SIZE(lcd_vframe_match_table_1);
-		vtable_high = lcd_vframe_match_table_high_1;
-		n_high = ARRAY_SIZE(lcd_vframe_match_table_high_1);
 		break;
 	case 2:
 		vtable = lcd_vframe_match_table_2;
 		n = ARRAY_SIZE(lcd_vframe_match_table_2);
-		vtable_high = lcd_vframe_match_table_high_2;
-		n_high = ARRAY_SIZE(lcd_vframe_match_table_high_2);
 		break;
 	default:
 		LCDPR("[%d]: %s: fr_auto_policy = %d, disabled\n",
@@ -865,12 +867,7 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		pdrv->config.timing.frac = pdrv->cur_duration.frac;
 		pdrv->fr_mode = 0;
 	} else {
-		find = lcd_framerate_auto_std_duration_index(pdrv,
-				vtable, n, duration);
-		if (find >= LCD_STD_FRAME_RATE_MAX) {
-			find = lcd_framerate_auto_std_duration_index(pdrv,
-				vtable_high, n_high, duration);
-		}
+		find = lcd_framerate_auto_std_duration_index(pdrv, vtable, n, duration);
 		if (find >= LCD_STD_FRAME_RATE_MAX) {
 			LCDERR("[%d]: %s: can't support duration %d\n, exit\n",
 			       pdrv->index, __func__, duration);
@@ -1029,6 +1026,8 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.sync_duration_den = pdrv->std_duration[index].duration_den;
 	pdrv->vinfo.frac = pdrv->std_duration[index].frac;
 	pdrv->vinfo.std_duration = pdrv->std_duration[index].frame_rate;
+	pdrv->vinfo.vfreq_max = pdrv->vinfo.std_duration;
+	pdrv->vinfo.vfreq_min = pdrv->vinfo.std_duration;
 	pdrv->vinfo.video_clk = 0;
 	pdrv->vinfo.htotal = pconf->basic.h_period;
 	pdrv->vinfo.vtotal = pconf->basic.v_period;

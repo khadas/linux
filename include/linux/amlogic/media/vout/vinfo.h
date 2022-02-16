@@ -358,9 +358,17 @@ struct vinfo_s {
 	u32 sync_duration_num;
 	u32 sync_duration_den;
 	u32 std_duration;
+	u32 vfreq_max;
+	u32 vfreq_min;
 	u32 video_clk;
 	u32 htotal;
 	u32 vtotal;
+	u32 hsw;
+	u32 hbp;
+	u32 hfp;
+	u32 vsw;
+	u32 vbp;
+	u32 vfp;
 	unsigned char hdmichecksum[10];
 	enum vinfo_3d_e info_3d;
 	enum vout_fr_adj_type_e fr_adj_type;

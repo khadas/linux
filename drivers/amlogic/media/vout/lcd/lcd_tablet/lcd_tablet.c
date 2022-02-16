@@ -396,6 +396,7 @@ static int lcd_resume(void *data)
 static void lcd_tablet_vinfo_update(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf;
+	unsigned int temp;
 
 	if (!pdrv)
 		return;
@@ -419,9 +420,21 @@ static void lcd_tablet_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.sync_duration_den = pconf->timing.sync_duration_den;
 	pdrv->vinfo.frac = pconf->timing.frac;
 	pdrv->vinfo.std_duration = pconf->timing.frame_rate;
+	pdrv->vinfo.vfreq_max = pconf->basic.frame_rate_max;
+	pdrv->vinfo.vfreq_min = pconf->basic.frame_rate_min;
 	pdrv->vinfo.video_clk = pconf->timing.lcd_clk;
 	pdrv->vinfo.htotal = pconf->basic.h_period;
 	pdrv->vinfo.vtotal = pconf->basic.v_period;
+	pdrv->vinfo.hsw = pconf->timing.hsync_width;
+	pdrv->vinfo.hbp = pconf->timing.hsync_bp;
+	temp = pconf->basic.h_period - pconf->basic.h_active -
+		pconf->timing.hsync_width - pconf->timing.hsync_bp;
+	pdrv->vinfo.hfp = temp;
+	pdrv->vinfo.vsw = pconf->timing.vsync_width;
+	pdrv->vinfo.vbp = pconf->timing.vsync_bp;
+	temp = pconf->basic.v_period - pconf->basic.v_active -
+		pconf->timing.vsync_width - pconf->timing.vsync_bp;
+	pdrv->vinfo.vfp = temp;
 	switch (pconf->timing.fr_adjust_type) {
 	case 0:
 		pdrv->vinfo.fr_adj_type = VOUT_FR_ADJ_CLK;
@@ -473,6 +486,8 @@ static void lcd_tablet_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.sync_duration_den = 1;
 	pdrv->vinfo.frac = 0;
 	pdrv->vinfo.std_duration = 60;
+	pdrv->vinfo.vfreq_max = pdrv->vinfo.std_duration;
+	pdrv->vinfo.vfreq_min = pdrv->vinfo.std_duration;
 	pdrv->vinfo.video_clk = 0;
 	pdrv->vinfo.htotal = pconf->basic.h_period;
 	pdrv->vinfo.vtotal = pconf->basic.v_period;

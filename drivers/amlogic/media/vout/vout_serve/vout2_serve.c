@@ -402,6 +402,18 @@ static ssize_t vout2_fr_hint_store(struct class *class,
 	return count;
 }
 
+static ssize_t vout2_fr_range_show(struct class *class,
+				   struct class_attribute *attr, char *buf)
+{
+	const struct vinfo_s *info = NULL;
+
+	info = get_current_vinfo2();
+	if (!info)
+		return sprintf(buf, "current vinfo2 is null\n");
+
+	return sprintf(buf, "%d %d\n", info->vfreq_min, info->vfreq_max);
+}
+
 static ssize_t vout2_bist_show(struct class *class,
 			       struct class_attribute *attr, char *buf)
 {
@@ -454,24 +466,27 @@ static ssize_t vout2_vinfo_show(struct class *class,
 		"    field_height:          %d\n"
 		"    aspect_ratio_num:      %d\n"
 		"    aspect_ratio_den:      %d\n"
+		"    screen_real_width:     %d\n"
+		"    screen_real_height:    %d\n"
 		"    sync_duration_num:     %d\n"
 		"    sync_duration_den:     %d\n"
 		"    std_duration:          %d\n"
-		"    screen_real_width:     %d\n"
-		"    screen_real_height:    %d\n"
+		"    vfreq_max:             %d\n"
+		"    vfreq_min:             %d\n"
 		"    htotal:                %d\n"
 		"    vtotal:                %d\n"
 		"    video_clk:             %d\n"
+		"    fr_adj_type:           %d\n"
 		"    viu_color_fmt:         %d\n"
 		"    viu_mux:               0x%x\n\n",
 		info->name, info->mode, info->frac,
 		info->width, info->height, info->field_height,
 		info->aspect_ratio_num, info->aspect_ratio_den,
-		info->sync_duration_num, info->sync_duration_den,
-		info->std_duration,
 		info->screen_real_width, info->screen_real_height,
-		info->htotal, info->vtotal,
-		info->video_clk, info->viu_color_fmt, info->viu_mux);
+		info->sync_duration_num, info->sync_duration_den,
+		info->std_duration, info->vfreq_max, info->vfreq_min,
+		info->htotal, info->vtotal, info->video_clk,
+		info->fr_adj_type, info->viu_color_fmt, info->viu_mux);
 	len += sprintf(buf + len, "master_display_info:\n"
 		"    present_flag          %d\n"
 		"    features              0x%x\n"
@@ -540,6 +555,7 @@ static struct class_attribute vout2_class_attrs[] = {
 	__ATTR(fr_policy, 0644,
 	       vout2_fr_policy_show, vout2_fr_policy_store),
 	__ATTR(fr_hint,   0644, vout2_fr_hint_show, vout2_fr_hint_store),
+	__ATTR(fr_range,  0644, vout2_fr_range_show, NULL),
 	__ATTR(bist,      0644, vout2_bist_show, vout2_bist_store),
 	__ATTR(vinfo,     0444, vout2_vinfo_show, NULL),
 	__ATTR(cap,       0644, vout2_cap_show, NULL)

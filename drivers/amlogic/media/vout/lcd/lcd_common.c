@@ -2815,6 +2815,7 @@ void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv)
 {
 	struct vinfo_s *vinfo;
 	struct lcd_config_s *pconf;
+	unsigned int temp;
 
 	vinfo = &pdrv->vinfo;
 	pconf = &pdrv->config;
@@ -2830,9 +2831,21 @@ void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	vinfo->sync_duration_den = pconf->timing.sync_duration_den;
 	vinfo->frac = pconf->timing.frac;
 	vinfo->std_duration = pconf->timing.frame_rate;
+	vinfo->vfreq_max = pconf->basic.frame_rate_max;
+	vinfo->vfreq_min = pconf->basic.frame_rate_min;
 	vinfo->video_clk = pconf->timing.lcd_clk;
 	vinfo->htotal = pconf->basic.h_period;
 	vinfo->vtotal = pconf->basic.v_period;
+	vinfo->hsw = pconf->timing.hsync_width;
+	vinfo->hbp = pconf->timing.hsync_bp;
+	temp = pconf->basic.h_period - pconf->basic.h_active -
+		pconf->timing.hsync_width - pconf->timing.hsync_bp;
+	vinfo->hfp = temp;
+	vinfo->vsw = pconf->timing.vsync_width;
+	vinfo->vbp = pconf->timing.vsync_bp;
+	temp = pconf->basic.v_period - pconf->basic.v_active -
+		pconf->timing.vsync_width - pconf->timing.vsync_bp;
+	vinfo->vfp = temp;
 
 	lcd_vout_notify_mode_change(pdrv);
 }
