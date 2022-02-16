@@ -94,7 +94,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x1bc00000>;
+			size = <0x11000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
@@ -1459,7 +1459,7 @@
 	 * total size:(27.5+1.5)x buffernumber
 	 */
 	cma_size = <300>;
-	frame_buff_num = <11>;
+	frame_buff_num = <8>;
 };
 
 &vdin1 {
