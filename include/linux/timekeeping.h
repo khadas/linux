@@ -70,7 +70,15 @@ extern ktime_t ktime_get_coarse_with_offset(enum tk_offsets offs);
 extern ktime_t ktime_mono_to_any(ktime_t tmono, enum tk_offsets offs);
 extern ktime_t ktime_get_raw(void);
 extern u32 ktime_get_resolution_ns(void);
+#ifdef CONFIG_AMLOGIC_MODIFY
+struct timespec64 current_kernel_time64(void);
+static inline struct timespec current_kernel_time(void)
+{
+	struct timespec64 now = current_kernel_time64();
 
+	return timespec64_to_timespec(now);
+}
+#endif
 /**
  * ktime_get_real - get the real (wall-) time in ktime_t format
  */
