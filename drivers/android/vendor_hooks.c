@@ -43,6 +43,9 @@
 #include <trace/hooks/selinux.h>
 #include <trace/hooks/syscall_check.h>
 #include <trace/hooks/logbuf.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_CPU_INFO)
+#include <trace/hooks/cpuinfo.h>
+#endif
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -199,3 +202,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_logbuf);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_logbuf_pr_cont);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_post_init_entity_util_avg);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_find_new_ilb);
+#if IS_ENABLED(CONFIG_AMLOGIC_CPU_INFO)
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_cpu_chipid);
+#endif
