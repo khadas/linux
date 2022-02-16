@@ -15,7 +15,7 @@ else
 	against=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 fi
 
-git diff --cached --stat -p $against -- | ../common/scripts/checkpatch.pl --ignore GERRIT_CHANGE_ID,COMMIT_MESSAGE  --strict --no-signoff -
+git diff --cached --stat -p $against -- | ./scripts/checkpatch.pl --ignore GERRIT_CHANGE_ID,COMMIT_MESSAGE  --strict --no-signoff -
 if [ $? -ne 0 ]
 then
 exit 1;

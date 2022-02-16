@@ -2054,10 +2054,14 @@ PHONY += FORCE
 FORCE:
 	$(Q)cp $(srctree)/scripts/amlogic/pre-commit $(srctree)/.git/hooks/pre-commit
 	$(Q)cp $(srctree)/scripts/amlogic/pre-commit-commn_drivers $(srctree)/../common_drivers/.git/hooks/pre-commit
+	chmod +x $(srctree)/../common_drivers/.git/hooks/pre-commit
 	$(Q)mkdir -p $(srctree)/../common_drivers/scripts/amlogic
 	$(Q)cp $(srctree)/scripts/amlogic/licence_pre.pl $(srctree)/../common_drivers/scripts/amlogic
 	$(Q)cp $(srctree)/scripts/amlogic/licence_check.pl $(srctree)/../common_drivers/scripts/amlogic
 	$(Q)cp $(srctree)/scripts/amlogic/merge_pre_check.pl $(srctree)/../common_drivers/scripts/amlogic
+	$(Q)cp $(srctree)/scripts/checkpatch.pl  $(srctree)/../common_drivers/scripts/
+	$(Q)cp $(srctree)/scripts/spelling.txt  $(srctree)/../common_drivers/scripts/
+	$(Q)cp $(srctree)/scripts/const_structs.checkpatch  $(srctree)/../common_drivers/scripts/
 else
 PHONY += FORCE
 FORCE:
