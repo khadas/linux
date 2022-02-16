@@ -536,13 +536,13 @@ struct aml_dvb *aml_get_dvb_device(void)
 {
 	return &aml_dvb_device;
 }
-EXPORT_SYMBOL(aml_get_dvb_device);
+//EXPORT_SYMBOL(aml_get_dvb_device);
 
 struct dvb_adapter *aml_get_dvb_adapter(void)
 {
 	return &aml_dvb_device.dvb_adapter;
 }
-EXPORT_SYMBOL(aml_get_dvb_adapter);
+//EXPORT_SYMBOL(aml_get_dvb_adapter);
 
 struct device *aml_get_device(void)
 {
