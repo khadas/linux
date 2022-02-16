@@ -5638,7 +5638,8 @@ s32 config_vd_pps(struct video_layer_s *layer,
 	     vpp_filter->vpp_hf_start_phase_step &&
 	    !vpp_filter->vpp_pre_vsc_en &&
 	    !vpp_filter->vpp_pre_hsc_en &&
-	    layer->bypass_pps)
+	    layer->bypass_pps &&
+	    !glayer_info[layer->layer_id].ver_coef_adjust)
 		setting->sc_top_enable = false;
 
 	setting->vinfo_width = info->width;

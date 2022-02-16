@@ -17024,6 +17024,15 @@ static int amvideo_notify_callback(struct notifier_block *block,
 		pr_info("%s vt reg/unreg: id %d, state:%d\n",
 			__func__, val, p[1]);
 		break;
+	case AMVIDEO_UPDATE_FRC_CHAR_FLASH:
+		p = (u32 *)para;
+		val = p[0];
+		if (val)
+			glayer_info[0].ver_coef_adjust = true;
+		else
+			glayer_info[0].ver_coef_adjust = false;
+		vd_layer[0].property_changed = true;
+		break;
 	default:
 		break;
 	}

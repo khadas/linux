@@ -236,6 +236,7 @@ struct disp_info_s {
 	u32 mirror;
 	u32 src_width_max;
 	u32 src_height_max;
+	bool ver_coef_adjust;
 };
 
 enum select_scaler_path_e {

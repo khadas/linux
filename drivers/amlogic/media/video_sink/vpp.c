@@ -133,6 +133,20 @@ const u32 vpp_filter_coefs_bicubic[] = {
 	0xf84848f8
 };
 
+const u32 vpp_filter_coefs_bicubic_high_freq[] = {
+	4,
+	33,
+	0x20402000, 0x007f0100, 0xff7f0200, 0xfe7f0300,
+	0xfd7e0500, 0xfc7e0600, 0xfb7d0800, 0xfb7c0900,
+	0xfa7b0b00, 0xfa7a0dff, 0xf9790fff, 0xf97711ff,
+	0xf87613ff, 0xf87416fe, 0xf87218fe, 0xf8701afe,
+	0xf76f1dfd, 0xf76d1ffd, 0xf76b21fd, 0xf76824fd,
+	0xf76627fc, 0xf76429fc, 0xf7612cfc, 0xf75f2ffb,
+	0xf75d31fb, 0xf75a34fb, 0xf75837fa, 0xf7553afa,
+	0xf8523cfa, 0xf8503ff9, 0xf84d42f9, 0xf84a45f9,
+	0xf84848f8
+};
+
 const u32 vpp_filter_coefs_bilinear[] = {
 	4,
 	33,
@@ -2077,7 +2091,9 @@ RESTART:
 
 	filter->vpp_vert_coeff =
 		filter_table[filter->vpp_vert_filter];
-
+	if (filter->vpp_vert_filter == COEF_BICUBIC &&
+		input->ver_coef_adjust)
+		filter->vpp_vert_coeff = vpp_filter_coefs_bicubic_high_freq;
 	/* when local interlace or AV or ATV */
 	/* TODO: add 420 check for local */
 	if (vert_chroma_filter_force_en ||

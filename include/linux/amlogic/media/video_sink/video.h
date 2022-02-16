@@ -332,6 +332,8 @@ enum vpu_module_e {
 #define AMVIDEO_UPDATE_PREBLEND_MODE	0x00000002
 #define AMVIDEO_UPDATE_SIGNAL_MODE      0x00000003
 #define AMVIDEO_UPDATE_VT_REG      0x00000004
+#define AMVIDEO_UPDATE_FRC_CHAR_FLASH    0x00000005 /*fix High frequency char flicker*/
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 int amvideo_notifier_call_chain(unsigned long val, void *v);
 #else
