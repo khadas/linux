@@ -301,6 +301,14 @@
 		dis_nb_cpus_in_shutdown;
 	};
 
+	ram-dump {
+		compatible = "amlogic, ram_dump";
+		status = "okay";
+		reg = <0x0 0xFE0102D8 0x0 4>;
+		reg-names = "SYSCTRL_STICKY_REG6";
+		store_device = "data";
+	};
+
 	secmon {
 		compatible = "amlogic, secmon";
 		memory-region = <&secmon_reserved>;
@@ -486,6 +494,8 @@
 		power-domains = <&pwrdm PDID_T7_DSPA>,
 						<&pwrdm PDID_T7_DSPB>;
 		power-domain-names = "dspa", "dspb";
+		//dsp_logbuff = <0x40000000 0x1000 0x40002000 0x1000>;
+		logbuff-polling-period-ms = <50>;
 		status = "okay";
 	};
 
@@ -1748,7 +1758,7 @@
 			reg = <0x0 0xfde00000 0x0 0x100000>;
 			interrupts = <0 130 IRQ_TYPE_EDGE_RISING>;
 			clock-src = "usb0"; /** clock src */
-			port-speed = <0>; /** 0: default, high, 1: full */
+			port-speed = <5>; /** 0: default, high, 1: full */
 			phy-reg = <0xfe03a000>;
 			phy-reg-size = <0xa0>;
 			clocks = <&clkc CLKID_USB>;
@@ -1763,7 +1773,7 @@
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
 			interrupts = <0 131 IRQ_TYPE_EDGE_RISING>;
 			clock-src = "usb0"; /** clock src */
-			port-speed = <0>; /** 0: default, high, 1: full */
+			port-speed = <3>; /** 0: default, high, 1: full */
 			phy-reg = <0xfe03a020>;
 			phy-reg-size = <0xa0>;
 			clocks = <&clkc CLKID_USB>;
@@ -2434,6 +2444,17 @@
 			product_desc = "MBox Meson Ref"; /* Max Chars: 16 */
 			/* standards.ieee.org/develop/regauth/oui/oui.txt */
 			vendor_id = <0x000000>;
+		};
+
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				hdmitx_to_drm: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <0>;
+				};
+			};
 		};
 	};
 
@@ -3285,6 +3306,30 @@
 			keyname = "usid";
 			offset = <18>;
 			size = <16>;
+		};
+	};
+	gpu_opp_table: gpu_opp_table {
+		compatible = "operating-points-v2";
+
+		opp-285 {
+			opp-hz = /bits/ 64 <285714281>;
+			opp-microvolt = <1150>;
+		};
+		opp-400 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-500 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1150>;
+		};
+		opp-666 {
+			opp-hz = /bits/ 64 <666666666>;
+			opp-microvolt = <1150>;
+		};
+		opp-800 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <1150>;
 		};
 	};
 };
@@ -4152,6 +4197,7 @@
 };
 
 &gpu{
+	operating-points-v2 = <&gpu_opp_table>;
 	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
 		<0 0xFE002000 0 0x01000>, /*reset register*/
 		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/

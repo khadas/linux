@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesont7_hdmitx_only.dtsi"
-#include "partition_mbox_ab.dtsi"
+#include "partition_normal_PR_32.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
 
@@ -66,7 +66,8 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x20000>;
+			pmsg-size = <0x10000>;
+			bconsole-size = <0x10000>;
 		};
 
 		linux,above_4g_mem {
@@ -156,7 +157,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -180,7 +181,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x0d000000>;
+			size = <0x0 0x6000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -1428,15 +1429,25 @@
 &isp {
 	status = "okay";
 	temper-line-offset = <0x1680>;
-	temper-buf-size = <12>;
+	temper-buf-size = <6>;
 	temper-frame-num = <1>;
-	temper-frame-size = <0xBDD800>;
+	temper-frame-size = <0x5EEC00>;
+	temper-line-offset1 = <0x1680>;
+	temper-buf-size1 = <6>;
+	temper-frame-num1 = <1>;
+	temper-frame-size1 = <0x5EEC00>;
+	temper-line-offset2 = <0x1680>;
+	temper-buf-size2 = <6>;
+	temper-frame-num2 = <1>;
+	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <24>;
+	mem_alloc = <32>;
+	mem_alloc1 = <16>;
+	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
