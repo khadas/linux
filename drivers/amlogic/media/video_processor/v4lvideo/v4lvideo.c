@@ -355,7 +355,15 @@ static void vf_keep(struct v4lvideo_dev *dev,
 		V4LVID_ERR("%s error: file_private_data is NULL", __func__);
 		return;
 	}
-	vf_p = file_private_data->vf_p;
+
+	/*Avoid use freed file_private_data*/
+	if (v4lvideo_file->private_data_freed) {
+		vf_p = NULL;
+		v4l_print(dev->inst, PRINT_OTHER,
+			"keep, but private has been freed\n");
+	} else {
+		vf_p = file_private_data->vf_p;
+	}
 
 	if (!vf_p || vf_p != v4lvideo_file->vf_p) {
 		v4l_print(dev->inst, PRINT_ERROR,
@@ -1228,12 +1236,26 @@ s32 v4lvideo_release_sei_data(struct vframe_s *vf)
 
 static void v4lvideo_private_data_release(struct file_private_data *data)
 {
+	struct v4lvideo_dev *dev = NULL;
+	struct v4lvideo_file_s *v4lvideo_file = NULL;
+
 	if (!data)
 		return;
+
+	v4lvideo_file = (struct v4lvideo_file_s *)data->private;
+	if (v4lvideo_file)
+		dev = v4lvideo_file->dev;
 
 	if (data->is_keep)
 		vf_free(data);
 	v4lvideo_release_sei_data(&data->vf);
+
+	if (dev) {
+		mutex_lock(&dev->mutex_input);
+		v4lvideo_file->private_data_freed = true;
+		mutex_unlock(&dev->mutex_input);
+	}
+
 	if (data->md.p_md) {
 		vfree(data->md.p_md);
 		data->md.p_md = NULL;
@@ -1700,6 +1722,8 @@ static void push_to_display_q(struct v4lvideo_dev *dev,
 	dev->v4lvideo_file[i].flag = file_private_data->flag;
 	dev->v4lvideo_file[i].vf_type = file_private_data->vf_p->type;
 	dev->v4lvideo_file[i].inst_id = file_private_data->v4l_inst_id;
+	dev->v4lvideo_file[i].dev = dev;
+	dev->v4lvideo_file[i].private_data_freed = false;
 
 	v4l2q_push(&dev->display_queue, &dev->v4lvideo_file[i]);
 }
