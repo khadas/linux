@@ -207,6 +207,8 @@ struct v4lvideo_file_s {
 	u32 vf_type;
 	bool free_before_unreg;
 	u32 inst_id;
+	struct v4lvideo_dev *dev;
+	bool private_data_freed;
 };
 
 struct v4lvideo_dev {
