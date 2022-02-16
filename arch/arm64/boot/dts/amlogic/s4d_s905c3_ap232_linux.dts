@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-s4d.dtsi"
+#include "mesons4d_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
 
@@ -184,7 +185,7 @@
 		clk_path = <0>;
 
 		/* performance: reg_address, reg_value */
-		/* tm2 */
+		/* s4d */
 		performance_pal = <0x1bf0  0x9 /* default Matrx625 CTCC value */
 			0x1b12  0x80c0
 			0x1b05  0xfa
@@ -1436,7 +1437,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
 	logo_addr = "0x7f800000";
@@ -1444,8 +1445,28 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x7f800000";
+
+};
 &amhdmitx {
 	status = "okay";
+	/* hdcp ctrl 0: sysctrl, 1: drv, 2: linux app */
+	hdcp_ctl_lvl = <1>;
+};
+
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "okay";
+};
+
+&drm_lcd {
+	status = "disabled";
 };
 
 &vpu {
