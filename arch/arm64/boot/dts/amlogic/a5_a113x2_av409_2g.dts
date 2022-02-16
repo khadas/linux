@@ -495,7 +495,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_PAD1
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins";
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <
 			&mclk_1_pins
 			&tdm_b_pins
@@ -508,6 +508,7 @@
 			&tdm_d12_pins
 			&tdm_d13_pins
 			&tdmb_clk_pins>;
+		pinctrl-1 = <&tdmout_gpio>;
 
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vcc3v3_reg>;
@@ -778,6 +779,22 @@
 		};
 	};
 
+	tdmout_gpio: tdmout_gpio {
+		mux { /* GPIOC_3, GPIOC_2, GPIOC_0, GPIOC_1, GPIOC_5--GPIOC_8, GPIOT12, GPIOT13 */
+			groups ="GPIOC_3",
+				"GPIOC_2",
+				"GPIOC_0",
+				"GPIOC_1",
+				"GPIOC_5",
+				"GPIOC_6",
+				"GPIOC_7",
+				"GPIOC_8",
+				"GPIOT_12",
+				"GPIOT_13";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
 	//tdm_c_pins: tdm_c_pin {
 	//	mux { /* GPIOT_1, GPIOT_0,GPIOT_5 */
 	//		groups = "tdm_sclk2_t",
