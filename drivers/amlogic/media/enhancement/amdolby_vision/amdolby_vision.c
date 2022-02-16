@@ -1834,7 +1834,7 @@ static u32 tv_run_mode(int vsize, bool hdmi, bool hdr10, int el_41_mode)
 	return run_mode;
 }
 
-static void adjust_vpotch(void)
+static void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
 	int sync_duration_num = 60;
@@ -1914,6 +1914,10 @@ static void adjust_vpotch(void)
 				g_vpotch = 0x50;
 			else
 				g_vpotch = 0x20;
+
+			/* for t7 4k fb */
+			if (graphics_h > 1440)
+				g_vpotch = 0x10;
 
 			if (vinfo->width > 1920)
 				htotal_add = 0xc0;
@@ -3744,7 +3748,7 @@ static void apply_stb_core_settings
 		graphics_w = dv_cert_graphic_width;
 		graphics_h = dv_cert_graphic_height;
 	}
-	adjust_vpotch();
+	adjust_vpotch(graphics_w, graphics_h);
 	if (mask & 1) {
 		if (is_meson_txlx_stbmode()) {
 			stb_dolby_core1_set
@@ -12734,6 +12738,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 	unsigned int ko_info_len = 0;
 	int total_name_len = 0;
 	char *get_ko = NULL;
+	u32 graphics_w = osd_graphic_width;
+	u32 graphics_h = osd_graphic_height;
 
 	if (dolby_vision_probe_ok == 0) {
 		pr_info("error:(%s) dv probe fail cannot register\n", __func__);
@@ -12882,7 +12888,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		else
 			dolby_vision_run_mode_delay = RUN_MODE_DELAY;
 
-		adjust_vpotch();
+		adjust_vpotch(graphics_w, graphics_h);
 		adjust_vpotch_tv();
 
 		if ((is_meson_tm2_stbmode() || is_meson_t7_stbmode()) &&
