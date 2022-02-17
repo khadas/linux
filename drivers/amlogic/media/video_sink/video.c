@@ -485,7 +485,7 @@ static int last_mode_3d;
 #endif
 
 bool reverse;
-u32  mirror;
+u32  video_mirror;
 bool vd1_vd2_mux;
 bool aisr_en;
 
@@ -5149,6 +5149,7 @@ void _set_video_mirror(struct disp_info_s *layer, int mirror)
 	if (!layer)
 		return;
 
+	/* 'reverse' and 'video_mirror' are not enabled at the same time */
 #ifdef TV_REVERSE
 	if (reverse) {
 		revser_temp = true;
@@ -5161,6 +5162,34 @@ void _set_video_mirror(struct disp_info_s *layer, int mirror)
 		}
 	}
 #endif
+	if (video_mirror == H_MIRROR) {
+		switch (mirror) {
+		case NO_MIRROR:
+			mirror = H_MIRROR;
+			break;
+		case H_MIRROR:
+			mirror = NO_MIRROR;
+			break;
+		case V_MIRROR:
+			mirror = NO_MIRROR;
+			revser_temp = true;
+			break;
+		}
+	} else if (video_mirror == V_MIRROR) {
+		switch (mirror) {
+		case NO_MIRROR:
+			mirror = V_MIRROR;
+			break;
+		case H_MIRROR:
+			mirror = NO_MIRROR;
+			revser_temp = true;
+			break;
+		case V_MIRROR:
+			mirror = NO_MIRROR;
+			break;
+		}
+	}
+
 	last_mirror = layer->mirror;
 	new_mirror = mirror;
 	layer->mirror = mirror;
@@ -15679,7 +15708,7 @@ static ssize_t mirror_axis_show(struct class *cla,
 				struct class_attribute *attr,
 				char *buf)
 {
-	return snprintf(buf, 40, "%d (1: H_MIRROR 2: V_MIRROR)\n", mirror);
+	return snprintf(buf, 40, "%d (1: H_MIRROR 2: V_MIRROR)\n", video_mirror);
 }
 
 static ssize_t mirror_axis_store(struct class *cla,
@@ -15694,11 +15723,8 @@ static ssize_t mirror_axis_store(struct class *cla,
 		pr_err("kstrtoint err\n");
 		return -EINVAL;
 	}
-	pr_info("mirror: %d->%d (1: H_MIRROR 2: V_MIRROR)\n", mirror, res);
-	mirror = res;
-	_set_video_mirror(&glayer_info[0], mirror);
-	_set_video_mirror(&glayer_info[1], mirror);
-	_set_video_mirror(&glayer_info[2], mirror);
+	pr_info("mirror: %d->%d (1: H_MIRROR 2: V_MIRROR)\n", video_mirror, res);
+	video_mirror = res;
 
 	return count;
 }

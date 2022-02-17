@@ -651,7 +651,6 @@ extern unsigned int force_3d_scaler;
 extern int toggle_3d_fa_frame;
 #endif
 extern bool reverse;
-extern u32  mirror;
 extern struct vframe_s vf_local;
 extern struct vframe_s vf_local2;
 extern struct vframe_s local_pip;

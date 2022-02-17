@@ -55,6 +55,7 @@ extern struct sr_info_s sr_info;
 #define SPEED_CHECK_HSKIP	1
 #define SPEED_CHECK_VSKIP	2
 
+#define NO_MIRROR  0
 #define H_MIRROR   1
 #define V_MIRROR   2
 
