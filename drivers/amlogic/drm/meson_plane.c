@@ -39,6 +39,7 @@ static u64 afbc_modifier[] = {
 };
 
 static const u32 supported_drm_formats[] = {
+	DRM_FORMAT_ABGR2101010,
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_RGBX8888,
@@ -649,6 +650,7 @@ bool am_meson_vpu_check_format_mod(struct drm_plane *plane,
 		fallthrough;
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_ABGR2101010:
 		return true;
 	case DRM_FORMAT_RGB888:
 		/* YTR is forbidden for non XBGR formats */

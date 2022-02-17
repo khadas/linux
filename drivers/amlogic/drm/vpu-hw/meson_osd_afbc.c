@@ -302,7 +302,7 @@ static int afbc_pix_format(u32 fmt_mode)
 	case DRM_FORMAT_BGR888:
 		pix_format = RGB888;
 		break;
-	case DRM_FORMAT_RGBA1010102:
+	case DRM_FORMAT_ABGR2101010:
 		pix_format = RGBA1010102;
 		break;
 	default:

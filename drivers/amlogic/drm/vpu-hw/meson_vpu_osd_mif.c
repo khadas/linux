@@ -207,7 +207,7 @@ const struct meson_drm_format_info *__meson_drm_afbc_format_info(u32 format)
 		{ .format = DRM_FORMAT_RGB565,
 			.hw_blkmode = BLOCK_MODE_RGB565,
 			.alpha_replace = 0 },
-		{ .format = DRM_FORMAT_RGBA1010102,
+		{ .format = DRM_FORMAT_ABGR2101010,
 			.hw_blkmode = BLOCK_MODE_RGBA1010102,
 			.alpha_replace = 0 },
 	};
