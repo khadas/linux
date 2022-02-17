@@ -36,6 +36,11 @@
 EXPORT_TRACEPOINT_SYMBOL_GPL(irq_handler_entry);
 EXPORT_TRACEPOINT_SYMBOL_GPL(irq_handler_exit);
 
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+EXPORT_TRACEPOINT_SYMBOL_GPL(softirq_entry);
+EXPORT_TRACEPOINT_SYMBOL_GPL(softirq_exit);
+#endif
+
 /*
    - No shared variables, all the data are CPU local.
    - If a softirq needs serialization, let it serialize itself

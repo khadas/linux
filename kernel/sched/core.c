@@ -11016,6 +11016,10 @@ void dump_cpu_task(int cpu)
 	sched_show_task(cpu_curr(cpu));
 }
 
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+EXPORT_SYMBOL_GPL(dump_cpu_task);
+#endif
+
 /*
  * Nice levels are multiplicative, with a gentle 10% change for every
  * nice level changed. I.e. when a CPU-bound task goes from nice 0 to
