@@ -70,7 +70,8 @@
 /* 20220301: 119.88 get duration value is 800 not correct */
 /* 20220308: screen capture 720 and then 1080 fail */
 /* 20220310: vdin and vrr/dlg support */
-#define VDIN_VER "202200310"
+/* 20220314: get vdin frontend info */
+#define VDIN_VER "202200314"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

@@ -3558,7 +3558,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TVIN_IOC_G_FRONTEND_INFO: {
 		struct tvin_frontend_info_s info;
 
-		if (!devp || !devp->fmt_info_p || !devp->curr_wr_vfe) {
+		if (!devp || !devp->fmt_info_p ||
+		    !(devp->flags & VDIN_FLAG_DEC_STARTED)) {
+			pr_info("get frontend failure vdin not start\n");
 			ret = -EFAULT;
 			break;
 		}
@@ -3569,8 +3571,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		info.fps = devp->parm.info.fps;
 		info.colordepth = devp->prop.colordepth;
 		info.scan_mode = devp->fmt_info_p->scan_mode;
-		info.height = devp->curr_wr_vfe->vf.height;
-		info.width = devp->curr_wr_vfe->vf.width;
+		info.height = devp->v_active;
+		info.width = devp->h_active;
 		if (copy_to_user(argp, &info,
 				 sizeof(struct tvin_frontend_info_s)))
 			ret = -EFAULT;
