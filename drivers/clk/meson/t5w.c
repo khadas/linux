@@ -676,13 +676,25 @@ static struct clk_regmap t5w_gp1_pll_dco = {
 	},
 };
 
+#ifdef CONFIG_ARM
+static struct clk_regmap t5w_gp1_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "gp1_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&t5w_gp1_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+#else
 static struct clk_regmap t5w_gp1_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = HHI_GP1_PLL_CNTL0,
 		.shift = 12,
 		.width = 3,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+		.flags = CLK_DIVIDER_POWER_OF_TWO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll",
@@ -691,14 +703,10 @@ static struct clk_regmap t5w_gp1_pll = {
 			&t5w_gp1_pll_dco.hw
 		},
 		.num_parents = 1,
-		/*
-		 * gp1 pll is directly used in other modules, and the
-		 * parent rate needs to be modified
-		 * Register has the risk of being directly operated.
-		 */
 		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
+#endif
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table t5w_hifi_pll_table[] = {
@@ -4451,10 +4459,12 @@ static int meson_t5w_dvfs_setup(struct platform_device *pdev)
 		return ret;
 	}
 
-/* dsu will hang up here in ARM, remove it as soon as it fixes */
-#ifdef CONFIG_ARM64
 	/* set gp1 to 1.2G */
-	clk_set_rate(t5w_gp1_pll.hw.clk, 1200000000);
+	ret = clk_set_rate(t5w_gp1_pll.hw.clk, 1200000000);
+	if (ret < 0) {
+		pr_err("%s: failed to init gp1 1.2G\n", __func__);
+		return ret;
+	}
 	clk_prepare_enable(t5w_gp1_pll.hw.clk);
 	/* Switch dsu to gp1 */
 	ret = clk_set_parent(t5w_dsu_clk_premux0.hw.clk,
@@ -4470,7 +4480,6 @@ static int meson_t5w_dvfs_setup(struct platform_device *pdev)
 		pr_err("%s: failed to set dsu parent\n", __func__);
 		return ret;
 	}
-#endif
 	ret = clk_notifier_register(t5w_dsu_clk_postmux0.hw.clk,
 				    &t5w_dsu_clk_postmux0_nb_data.nb);
 	if (ret) {
