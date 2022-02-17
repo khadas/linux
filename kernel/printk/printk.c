@@ -2137,6 +2137,10 @@ int vprintk_store(int facility, int level,
 	reserve_size = vsnprintf(&prefix_buf[0], sizeof(prefix_buf), fmt, args2) + 1;
 	va_end(args2);
 
+#if IS_ENABLED(CONFIG_AMLOGIC_PRINTK)
+	trace_android_vh_printk_modify_len(&reserve_size, irqflags);
+#endif
+
 	if (reserve_size > LOG_LINE_MAX)
 		reserve_size = LOG_LINE_MAX;
 
@@ -2187,6 +2191,9 @@ int vprintk_store(int facility, int level,
 
 	/* fill message */
 	text_len = printk_sprint(&r.text_buf[0], reserve_size, facility, &flags, fmt, args);
+#if IS_ENABLED(CONFIG_AMLOGIC_PRINTK)
+	trace_android_vh_printk_insert_info(&r.text_buf[0], &text_len);
+#endif
 	if (trunc_msg_len)
 		memcpy(&r.text_buf[text_len], trunc_msg, trunc_msg_len);
 	r.info->text_len = text_len + trunc_msg_len;
