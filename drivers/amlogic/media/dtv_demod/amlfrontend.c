@@ -2980,7 +2980,7 @@ void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod)
 	qam_write_reg(demod, 0x3a, 0x0);
 	qam_write_reg(demod, 0x7, qam_read_reg(demod, 0x7) | (1 << 4));
 	qam_write_reg(demod, 0x3a, 0x4);
-	PR_INFO("dvbc reset fsm\n");
+	PR_DVBC("dvbc reset fsm\n");
 }
 
 static enum qam_md_e dvbc_switch_qam(enum qam_md_e qam_mode)
