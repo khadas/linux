@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesont3.dtsi"
-#include "partition_normal_PR_32.dtsi"
+#include "partition_mbox_ab.dtsi"
 #include "mesont3_ar301-panel.dtsi"
 
 / {
@@ -572,6 +572,7 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <1>;
+		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
 		/* MAP_ADDR_MODULE_CBUS */

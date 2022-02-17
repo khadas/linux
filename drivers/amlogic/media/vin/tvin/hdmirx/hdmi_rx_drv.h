@@ -717,6 +717,7 @@ extern struct device *hdmirx_dev;
 extern struct rx_s rx;
 extern struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
+extern int vrr_range_dynamic_update_en;
 void rx_tasklet_handler(unsigned long arg);
 void skip_frame(unsigned int cnt);
 

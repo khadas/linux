@@ -1939,7 +1939,8 @@ bool hdmi_rx_top_edid_update(void)
 		rx_edid_update_vsvdb(pedid_data2,
 				     recv_vsvdb, recv_vsvdb_len);
 	} else if (size == 2 * PORT_NUM * EDID_SIZE) {
-		rx_edid_update_vrr_info(pedid_data2);
+		if (vrr_range_dynamic_update_en)
+			rx_edid_update_vrr_info(pedid_data2);
 		rx_edid_update_hdr_info(pedid_data2);
 		rx_edid_update_sad(pedid_data2);
 		rx_edid_update_vsvdb(pedid_data2,
@@ -1949,8 +1950,8 @@ bool hdmi_rx_top_edid_update(void)
 		rx_edid_update_sad(pedid_data3);
 		rx_edid_update_vsvdb(pedid_data3,
 				     recv_vsvdb, recv_vsvdb_len);
-
-		rx_edid_update_vrr_info(pedid_data4);
+		if (vrr_range_dynamic_update_en)
+			rx_edid_update_vrr_info(pedid_data4);
 		rx_edid_update_hdr_info(pedid_data4);
 		rx_edid_update_sad(pedid_data4);
 		rx_edid_update_vsvdb(pedid_data4,
@@ -1960,8 +1961,8 @@ bool hdmi_rx_top_edid_update(void)
 		rx_edid_update_sad(pedid_data5);
 		rx_edid_update_vsvdb(pedid_data5,
 				     recv_vsvdb, recv_vsvdb_len);
-
-		rx_edid_update_vrr_info(pedid_data6);
+		if (vrr_range_dynamic_update_en)
+			rx_edid_update_vrr_info(pedid_data6);
 		rx_edid_update_hdr_info(pedid_data6);
 		rx_edid_update_sad(pedid_data6);
 		rx_edid_update_vsvdb(pedid_data6,

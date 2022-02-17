@@ -169,6 +169,10 @@ struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
  * 0: keep EDID of hdmirx itself
  */
 int aud_compose_type = 1;
+/*
+ * vrr field VRRmin/max dynamic update enable
+ */
+int vrr_range_dynamic_update_en;
 
 static struct notifier_block aml_hdcp22_pm_notifier = {
 	.notifier_call = aml_hdcp22_pm_notify,
@@ -3012,7 +3016,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 				   "en_4k_timing", &en_4k_timing);
 	if (ret)
 		en_4k_timing = 1;
-
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "vrr_range_dynamic_update_en", &vrr_range_dynamic_update_en);
+	if (ret) {
+		vrr_range_dynamic_update_en = 0;
+		rx_pr("vrr_range_dynamic_update_en not found.\n");
+	}
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "hpd_low_cec_off", &hpd_low_cec_off);
 	if (ret)
