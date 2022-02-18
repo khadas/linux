@@ -1108,6 +1108,7 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	//for cma:
 	struct dim_mm_s omm;
 	bool ret;
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	idat = get_idat(pch);
 
@@ -1137,10 +1138,17 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 		return;
 	}
 	ret = mm_cma_alloc(NULL, idat_size, &omm);
-
+	idat->flg_from = 1;
 	if (!ret) {
-		PR_ERR("%s:cma\n", __func__);
-		return;
+		PR_WARN("%s:try:cma di:\n", __func__);
+		//use cam: buffer:
+		idat->flg_from = 2;
+		ret = mm_cma_alloc(&de_devp->pdev->dev, idat_size, &omm);
+		if (!ret) {
+			PR_ERR("%s:cma\n", __func__);
+			idat->flg_from = 0;
+			return;
+		}
 	}
 	idat->addr_st	= omm.addr;
 	//idat->ppage	= omm.ppage;
@@ -1164,6 +1172,7 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	//for cma:
 	struct dim_mm_s omm;
 	bool ret;
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	pdat = get_pst_afbct(pch);
 
@@ -1196,10 +1205,17 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 		return;
 	}
 	ret = mm_cma_alloc(NULL, dat_size, &omm);
-
+	pdat->flg_from = 1;
 	if (!ret) {
-		PR_ERR("%s:cma\n", __func__);
-		return;
+		PR_WARN("%s:try:cma di:\n", __func__);
+		//use cam: buffer:
+		pdat->flg_from = 2;
+		ret = mm_cma_alloc(&de_devp->pdev->dev, dat_size, &omm);
+		if (!ret) {
+			PR_ERR("%s:cma\n", __func__);
+			pdat->flg_from = 0;
+			return;
+		}
 	}
 	pdat->addr_st	= omm.addr;
 	//pdat->ppage	= omm.ppage;
@@ -1219,15 +1235,21 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 void dim_sec_release(struct di_ch_s *pch)
 {
 	struct di_dat_s *dat;
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	dat = get_idat(pch);
 	if (dat->flg_alloc) {
 #ifdef USE_KALLOC
 		kfree(dat->virt);
 #else
-		dma_release_from_contiguous(NULL,
-					    (struct page *)dat->virt,
-					    dat->cnt);
+		if (dat->flg_from == 2)
+			dma_release_from_contiguous(&de_devp->pdev->dev,
+						    (struct page *)dat->virt,
+						    dat->cnt);
+		else
+			dma_release_from_contiguous(NULL,
+						    (struct page *)dat->virt,
+						    dat->cnt);
 #endif
 
 		dat->virt = NULL;
@@ -1239,7 +1261,12 @@ void dim_sec_release(struct di_ch_s *pch)
 #ifdef USE_KALLOC
 		kfree(dat->virt);
 #else
-		dma_release_from_contiguous(NULL,
+		if (dat->flg_from == 2)
+			dma_release_from_contiguous(&de_devp->pdev->dev,
+						    (struct page *)dat->virt,
+						    dat->cnt);
+		else
+			dma_release_from_contiguous(NULL,
 					    (struct page *)dat->virt,
 					    dat->cnt);
 #endif

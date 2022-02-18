@@ -1145,7 +1145,8 @@ struct di_dat_s {
 	void	*virt; //for cma: (struct page	*)
 	unsigned int cnt; //for cma
 	bool	flg_alloc;
-
+	/* 0 : no mark; 1: from common; 2: from di's cma */
+	unsigned char flg_from;
 	struct blk_flg_s flg;
 	unsigned long addr_st;
 	unsigned long addr_end;

@@ -162,7 +162,8 @@
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
 			//size = <0x0 0x0B000000>;
-			size = <0x0 0x0>;
+			//size = <0x0 0x0>;
+			size = <0x0 0x400000>; //for 4k's afbc
 			alignment = <0x0 0x400000>;
 		};
 		/* codec shared reserved */
