@@ -147,10 +147,10 @@ MODULE_PARM_DESC(other_unstable_in_cnt, "other_unstable_in_cnt");
 
 module_param(nosig_in_cnt, int, 0664);
 MODULE_PARM_DESC(nosig_in_cnt, "nosig_in_cnt");
+#endif
 
 module_param(nosig2_unstable_cnt, int, 0664);
 MODULE_PARM_DESC(nosig2_unstable_cnt, "nosig2_unstable_cnt");
-#endif
 
 static int signal_status = TVIN_SIG_STATUS_NULL;
 module_param(signal_status, int, 0664);
@@ -273,8 +273,6 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						__func__,
 						signal_chg, pre_dv_flag,
 						cur_dv_flag);
-				if (pre_dv_flag == 2)
-					nosig2_unstable_cnt = 150;
 				pre_prop->dolby_vision = prop->dolby_vision;
 				devp->dv.dv_flag = prop->dolby_vision;
 			}
@@ -724,7 +722,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 						nosig2_unstable_cnt);
 				}
 				if (IS_HDMI_SRC(port))
-					nosig2_unstable_cnt = 20;
+					nosig2_unstable_cnt = 5;
 
 				sm_print_nosig  = 0;
 				sm_print_unstable = 0;
