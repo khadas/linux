@@ -63,7 +63,8 @@
 #include "vdin_v4l2_if.h"
 
 /* 20220214: The desktop screenshot probability gray screen */
-#define VDIN_VER "20220214"
+/* 20220301: 119.88 get duration value is 800 not correct */
+#define VDIN_VER "202200301"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
