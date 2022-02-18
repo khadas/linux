@@ -190,7 +190,7 @@ bool get_earcrx_chnum_mult_mode(void)
 	return false;
 }
 
-#define EARC_BUFFER_BYTES (512 * 1024)
+#define EARC_BUFFER_BYTES (512 * 1024 * 2)
 #define EARC_RATES      (SNDRV_PCM_RATE_8000_192000)
 #define EARC_FORMATS    (SNDRV_PCM_FMTBIT_S16_LE |\
 			SNDRV_PCM_FMTBIT_S24_LE |\

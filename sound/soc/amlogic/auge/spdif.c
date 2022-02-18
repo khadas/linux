@@ -107,7 +107,7 @@ unsigned int get_spdif_source_l_config(int id)
 	return spdif_priv[id]->l_src;
 }
 
-#define SPDIF_BUFFER_BYTES (512 * 1024)
+#define SPDIF_BUFFER_BYTES (512 * 1024 * 2)
 static const struct snd_pcm_hardware aml_spdif_hardware = {
 	.info =
 		SNDRV_PCM_INFO_MMAP |
