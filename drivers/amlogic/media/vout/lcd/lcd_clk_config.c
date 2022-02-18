@@ -823,9 +823,6 @@ lcd_prbs_retry_pll_vx1_tl1:
 	}
 
 	/* pll_div */
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
-	usleep_range(5, 10);
-
 	/* Disable the div output clock */
 	lcd_ana_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
 	lcd_ana_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
@@ -882,9 +879,6 @@ lcd_prbs_retry_pll_lvds_tl1:
 	}
 
 	/* pll_div */
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
-	usleep_range(5, 10);
-
 	/* Disable the div output clock */
 	lcd_ana_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
 	lcd_ana_setb(HHI_VID_PLL_CLK_DIV, 0, 15, 1);
@@ -906,8 +900,10 @@ lcd_prbs_retry_pll_lvds_tl1:
 void lcd_prbs_config_clk_tl1(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prbs_mode)
 {
 	if (lcd_prbs_mode == LCD_PRBS_MODE_VX1) {
+		lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
 		lcd_prbs_set_pll_vx1_tl1(pdrv);
 	} else if (lcd_prbs_mode == LCD_PRBS_MODE_LVDS) {
+		lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
 		lcd_prbs_set_pll_lvds_tl1(pdrv);
 	} else {
 		LCDERR("%s: unsupport lcd_prbs_mode %d\n",
@@ -1359,16 +1355,68 @@ static void lcd_prbs_config_clk_t3(struct aml_lcd_drv_s *pdrv, unsigned int lcd_
 		LCDPR("[%d]: %s ok\n", pdrv->index, __func__);
 }
 
-static void lcd_set_vid_pll_div(struct lcd_clk_config_s *cconf)
+static void lcd_prbs_config_clk_t5w(struct aml_lcd_drv_s *pdrv, unsigned int lcd_prbs_mode)
 {
+	unsigned int reg_vid2_clk_div, reg_vid2_clk_ctrl, reg_vid_clk_ctrl2;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	reg_vid2_clk_div = HHI_VIID_CLK0_DIV;
+	reg_vid2_clk_ctrl = HHI_VIID_CLK0_CTRL;
+	reg_vid_clk_ctrl2 = HHI_VID_CLK0_CTRL2;
+
+	if (lcd_prbs_mode == LCD_PRBS_MODE_VX1) {
+		lcd_clk_setb(reg_vid2_clk_ctrl, 0, VCLK2_EN, 1);
+		lcd_prbs_set_pll_vx1_tl1(pdrv);
+	} else if (lcd_prbs_mode == LCD_PRBS_MODE_LVDS) {
+		lcd_clk_setb(reg_vid2_clk_ctrl, 0, VCLK2_EN, 1);
+		lcd_prbs_set_pll_lvds_tl1(pdrv);
+	} else {
+		LCDERR("[%d]: %s: unsupport lcd_prbs_mode %d\n",
+		       pdrv->index, __func__, lcd_prbs_mode);
+		return;
+	}
+
+	lcd_clk_setb(reg_vid2_clk_div, 0, VCLK2_XD, 8);
+	udelay(5);
+
+	/* select vid_pll_clk */
+	lcd_clk_setb(reg_vid2_clk_ctrl, 0, VCLK2_CLK_IN_SEL, 3);
+	lcd_clk_setb(reg_vid2_clk_ctrl, 1, VCLK2_EN, 1);
+	udelay(5);
+
+	/* [15:12] encl_clk_sel, select vclk2_div1 */
+	lcd_clk_setb(reg_vid2_clk_div, 8, ENCL_CLK_SEL, 4);
+	/* release vclk2_div_reset and enable vclk2_div */
+	lcd_clk_setb(reg_vid2_clk_div, 1, VCLK2_XD_EN, 2);
+	udelay(5);
+
+	lcd_clk_setb(reg_vid2_clk_ctrl, 1, VCLK2_DIV1_EN, 1);
+	lcd_clk_setb(reg_vid2_clk_ctrl, 1, VCLK2_SOFT_RST, 1);
+	udelay(5);
+	lcd_clk_setb(reg_vid2_clk_ctrl, 0, VCLK2_SOFT_RST, 1);
+	udelay(5);
+
+	/* enable CTS_ENCL clk gate */
+	lcd_clk_setb(reg_vid_clk_ctrl2, 1, ENCL_GATE_VCLK, 1);
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s ok\n", pdrv->index, __func__);
+}
+
+static void lcd_set_vid_pll_div(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_clk_config_s *cconf;
 	unsigned int shift_val, shift_sel;
 	int i;
 
+	cconf = get_lcd_clk_config(pdrv);
+	if (!cconf)
+		return;
+
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
 		LCDPR("%s\n", __func__);
-
-	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
-	udelay(5);
 
 	/* Disable the div output clock */
 	lcd_ana_setb(HHI_VID_PLL_CLK_DIV, 0, 19, 1);
@@ -2934,26 +2982,16 @@ generate_clk_done_hpll_g12a:
  */
 static void lcd_clk_set_g12a_path0(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_clk_config_s *cconf;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
 	lcd_set_hpll_g12a(pdrv);
-	lcd_set_vid_pll_div(cconf);
+	lcd_set_vid_pll_div(pdrv);
 	lcd_set_dsi_meas_clk();
 	lcd_set_dsi_phy_clk(0);
 }
 
 static void lcd_clk_set_g12a_path1(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_clk_config_s *cconf;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
 	lcd_set_gp0_pll_g12a(pdrv);
 	lcd_set_dsi_meas_clk();
 	lcd_set_dsi_phy_clk(1);
@@ -2961,26 +2999,16 @@ static void lcd_clk_set_g12a_path1(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_clk_set_g12b_path0(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_clk_config_s *cconf;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
 	lcd_set_hpll_g12b(pdrv);
-	lcd_set_vid_pll_div(cconf);
+	lcd_set_vid_pll_div(pdrv);
 	lcd_set_dsi_meas_clk();
 	lcd_set_dsi_phy_clk(0);
 }
 
 static void lcd_clk_set_g12b_path1(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_clk_config_s *cconf;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
 	lcd_set_gp0_pll_g12b(pdrv);
 	lcd_set_dsi_meas_clk();
 	lcd_set_dsi_phy_clk(1);
@@ -2988,14 +3016,9 @@ static void lcd_clk_set_g12b_path1(struct aml_lcd_drv_s *pdrv)
 
 static void lcd_clk_set_tl1(struct aml_lcd_drv_s *pdrv)
 {
-	struct lcd_clk_config_s *cconf;
-
-	cconf = get_lcd_clk_config(pdrv);
-	if (!cconf)
-		return;
-
+	lcd_clk_setb(HHI_VIID_CLK_CNTL, 0, VCLK2_EN, 1);
 	lcd_set_pll_tl1(pdrv);
-	lcd_set_vid_pll_div(cconf);
+	lcd_set_vid_pll_div(pdrv);
 }
 
 static void lcd_clk_set_t7(struct aml_lcd_drv_s *pdrv)
@@ -3014,6 +3037,13 @@ static void lcd_clk_set_t3(struct aml_lcd_drv_s *pdrv)
 {
 	lcd_set_pll_t3(pdrv);
 	lcd_set_vid_pll_div_t3(pdrv);
+}
+
+static void lcd_clk_set_t5w(struct aml_lcd_drv_s *pdrv)
+{
+	lcd_clk_setb(HHI_VIID_CLK0_CTRL, 0, VCLK2_EN, 1);
+	lcd_set_pll_tl1(pdrv);
+	lcd_set_vid_pll_div(pdrv);
 }
 
 static void lcd_clk_disable_dft(struct aml_lcd_drv_s *pdrv)
@@ -4768,7 +4798,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5w = {
 	.set_ss_level = lcd_set_pll_ss_level_tl1,
 	.set_ss_advance = lcd_set_pll_ss_advance_tl1,
 	.clk_ss_enable = lcd_pll_ss_enable_tl1,
-	.clk_set = lcd_clk_set_tl1,
+	.clk_set = lcd_clk_set_t5w,
 	.vclk_crt_set = lcd_set_vclk_crt_t5w,
 	.clk_disable = lcd_clk_disable_dft,
 	.clk_gate_switch = lcd_clk_gate_switch_dft,
@@ -4778,7 +4808,7 @@ static struct lcd_clk_data_s lcd_clk_data_t5w = {
 	.clktree_remove = lcd_clktree_remove_tl1,
 	.clk_config_init_print = lcd_clk_config_init_print_dft,
 	.clk_config_print = lcd_clk_config_print_dft,
-	.prbs_clk_config = lcd_prbs_config_clk_tl1,
+	.prbs_clk_config = lcd_prbs_config_clk_t5w,
 };
 
 static void lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_config_s *cconf)
@@ -4853,6 +4883,7 @@ static void lcd_clk_config_chip_init(struct aml_lcd_drv_s *pdrv, struct lcd_clk_
 		break;
 	case LCD_CHIP_T5W:
 		cconf->data = &lcd_clk_data_t5w;
+		cconf->data->enc_clk_msr_id = -1;
 		break;
 	default:
 		LCDPR("[%d]: %s: invalid chip type\n", pdrv->index, __func__);
