@@ -3681,9 +3681,16 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 	/* dynamic duration update */
 	if (devp->dtdata->hw_ver >= VDIN_HW_T7) {
 		/* vstamp to fps */
-		if (devp->cycle) {
+		if (devp->cycle > 417080 && devp->cycle < 417085) {
+		/* 120 and 119.88 all is 800, set 801 distinguish 119.88 */
+			devp->duration = 801;
+		} else if (devp->cycle > 416660 && devp->cycle < 416667) {
+			devp->duration = 800;
+		} else if (devp->cycle) {
 			fps = devp->cycle * 96;
 			devp->duration = fps / (devp->msr_clk_val / 1000);
+		} else {
+			/* null branch */
 		}
 		curr_wr_vf->duration = devp->duration;
 	} else {
