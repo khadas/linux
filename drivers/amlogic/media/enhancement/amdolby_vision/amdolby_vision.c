@@ -6851,6 +6851,7 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 				p_funcs_tv->metadata_parser_release();
 			metadata_parser = NULL;
 			pr_dolby_dbg("new play, release parser\n");
+			dolby_vision_clear_buf();
 		}
 		last_play_id = vf->src_fmt.play_id;
 		if (debug_dolby & 2)
