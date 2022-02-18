@@ -2362,6 +2362,8 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 	unsigned int length;
 	u8 *tmp_meta;
 	u8 *channel_meta_addr;
+	u8 *tmp_ud;
+	u8 *channel_ud_addr;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	/**********************************************/
@@ -2402,6 +2404,10 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 		((de_devp->local_meta_size / DI_CHANNEL_NUB) * ch);
 	channel_meta_addr = tmp_meta;
 
+	tmp_ud = de_devp->local_ud_addr +
+		((de_devp->local_ud_size / DI_CHANNEL_NUB) * ch);
+	channel_ud_addr = tmp_ud;
+
 	//for (i = 0; i < mm->cfg.num_local; i++) {
 	for (i = 0; i < (MAX_LOCAL_BUF_NUM * 2); i++) {
 		di_buf = &pbuf_local[i];
@@ -2436,11 +2442,23 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 			di_buf->local_meta_total_size = 0;
 		}
 		di_buf->local_meta_used_size = 0;
+
+		if (de_devp->local_ud_addr) {
+			di_buf->local_ud = tmp_ud;
+			di_buf->local_ud_total_size =
+				LOCAL_UD_BUFF_SIZE;
+		} else {
+			di_buf->local_ud = NULL;
+			di_buf->local_ud_total_size = 0;
+		}
+		di_buf->local_ud_used_size = 0;
 		di_que_in(ch, QUE_PRE_NO_BUF, di_buf);
 		dbg_init("buf[%d], addr=0x%lx\n", di_buf->index,
 			 di_buf->nr_adr);
 		if (tmp_meta)
 			tmp_meta += LOCAL_META_BUFF_SIZE;
+		if (tmp_ud)
+			tmp_ud += LOCAL_UD_BUFF_SIZE;
 	}
 
 	/**********************************************/
@@ -2448,6 +2466,8 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 	/**********************************************/
 	tmp_meta = channel_meta_addr +
 			(MAX_LOCAL_BUF_NUM * LOCAL_META_BUFF_SIZE * 2);
+	tmp_ud = channel_ud_addr +
+			(MAX_LOCAL_BUF_NUM * LOCAL_UD_BUFF_SIZE * 2);
 
 	for (i = 0; i < MAX_IN_BUF_NUM; i++) {
 		di_buf = &pbuf_in[i];
@@ -2472,10 +2492,22 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 				di_buf->local_meta_total_size = 0;
 			}
 			di_buf->local_meta_used_size = 0;
+
+			if (de_devp->local_ud_addr) {
+				di_buf->local_ud = tmp_ud;
+				di_buf->local_ud_total_size =
+					LOCAL_UD_BUFF_SIZE;
+			} else {
+				di_buf->local_ud = NULL;
+				di_buf->local_ud_total_size = 0;
+			}
+			di_buf->local_ud_used_size = 0;
 			di_que_in(ch, QUE_IN_FREE, di_buf);
 		}
 		if (tmp_meta)
 			tmp_meta += LOCAL_META_BUFF_SIZE;
+		if (tmp_ud)
+			tmp_ud += LOCAL_UD_BUFF_SIZE;
 	}
 	/**********************************************/
 	/* post buf init */
@@ -2483,6 +2515,9 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 	tmp_meta = channel_meta_addr +
 		((MAX_IN_BUF_NUM + (MAX_LOCAL_BUF_NUM * 2)) *
 		 LOCAL_META_BUFF_SIZE);
+	tmp_ud = channel_ud_addr +
+		((MAX_IN_BUF_NUM + (MAX_LOCAL_BUF_NUM * 2)) *
+		 LOCAL_UD_BUFF_SIZE);
 	cnt = 0;
 	for (i = 0; i < MAX_POST_BUF_NUM; i++) {
 		di_buf = &pbuf_post[i];
@@ -2520,6 +2555,16 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 				di_buf->local_meta_total_size = 0;
 			}
 			di_buf->local_meta_used_size = 0;
+
+			if (de_devp->local_ud_addr) {
+				di_buf->local_ud = tmp_ud;
+				di_buf->local_ud_total_size =
+					LOCAL_UD_BUFF_SIZE;
+			} else {
+				di_buf->local_ud = NULL;
+				di_buf->local_ud_total_size = 0;
+			}
+			di_buf->local_ud_used_size = 0;
 			if (dimp_get(edi_mp_post_wr_en) &&
 			    dimp_get(edi_mp_post_wr_support)) {
 				di_buf->canvas_width[NR_CANVAS] =
@@ -2540,6 +2585,8 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 		}
 		if (tmp_meta)
 			tmp_meta += LOCAL_META_BUFF_SIZE;
+		if (tmp_ud)
+			tmp_ud += LOCAL_UD_BUFF_SIZE;
 	}
 	/* check */
 	length = di_que_list_count(ch, QUE_PST_NO_BUF);
@@ -5350,6 +5397,19 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		di_buf->seq = ppre->in_seq;
 		ppre->in_seq++;
 		di_buf->local_meta_used_size = 0;
+		di_buf->local_ud_used_size = 0;
+
+		if (is_ud_param_valid(vframe->vf_ud_param)) {
+			struct userdata_param_t *ud_p = &vframe->vf_ud_param.ud_param;
+
+			if (ud_p->pbuf_addr &&
+			    ud_p->buf_len > 0 &&
+			    ud_p->buf_len <= di_buf->local_ud_total_size) {
+				memcpy(di_buf->local_ud, ud_p->pbuf_addr,
+				       ud_p->buf_len);
+				di_buf->local_ud_used_size = ud_p->buf_len;
+			}
+		}
 
 		if ((((vframe->signal_type >> 8) & 0xff) == 0x30) &&
 		    ((((vframe->signal_type >> 16) & 0xff) == 9) ||
@@ -6065,6 +6125,19 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	} else {
 		di_buf->local_meta_used_size = 0;
 	}
+
+	if (di_buf->local_ud &&
+	    ppre->di_inp_buf->local_ud &&
+	    ppre->di_inp_buf->local_ud_used_size) {
+		memcpy(di_buf->local_ud,
+			ppre->di_inp_buf->local_ud,
+			ppre->di_inp_buf->local_ud_used_size * sizeof(u8));
+		di_buf->local_ud_used_size =
+			ppre->di_inp_buf->local_ud_used_size;
+	} else {
+		di_buf->local_ud_used_size = 0;
+	}
+
 	if (de_devp->pps_enable && dimp_get(edi_mp_pps_position)) {
 		if (dimp_get(edi_mp_pps_dstw) != di_buf->vframe->width) {
 			di_buf->vframe->width = dimp_get(edi_mp_pps_dstw);
@@ -8442,6 +8515,16 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 			di_buf->local_meta_used_size,
 			false, NULL, NULL);
 
+	/* reset ud_param ptr */
+	if (di_buf->local_ud &&
+		di_buf->local_ud_used_size &&
+		is_ud_param_valid(vframe_ret->vf_ud_param)) {
+		vframe_ret->vf_ud_param.ud_param.pbuf_addr = (void *)di_buf->local_ud;
+		vframe_ret->vf_ud_param.ud_param.buf_len = di_buf->local_ud_used_size;
+	} else {
+		vframe_ret->vf_ud_param.ud_param.pbuf_addr = NULL;
+		vframe_ret->vf_ud_param.ud_param.buf_len = 0;
+	}
 	if ((dimp_get(edi_mp_post_wr_en)	&&
 	     dimp_get(edi_mp_post_wr_support))	&&
 	    di_buf->process_fun_index != PROCESS_FUN_NULL) {
@@ -9333,6 +9416,19 @@ int dim_process_post_vframe(unsigned int channel)
 			} else {
 				di_buf->local_meta_used_size = 0;
 			}
+			if (di_buf->local_ud &&
+			    di_buf->di_buf_dup_p[1]->local_ud &&
+			    di_buf->di_buf_dup_p[1]->local_ud_used_size) {
+				memset(di_buf->local_ud, 0,
+					di_buf->local_ud_total_size);
+				memcpy(di_buf->local_ud,
+					di_buf->di_buf_dup_p[1]->local_ud,
+					di_buf->di_buf_dup_p[1]->local_ud_used_size * sizeof(u8));
+				di_buf->local_ud_used_size =
+					di_buf->di_buf_dup_p[1]->local_ud_used_size;
+			} else {
+				di_buf->local_ud_used_size = 0;
+			}
 			di_buf->vframe->private_data = di_buf;
 			di_buf->afbc_sgn_cfg =
 				di_buf->di_buf_dup_p[1]->afbc_sgn_cfg;
@@ -9493,6 +9589,20 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 			} else {
 				di_buf->local_meta_used_size = 0;
 			}
+			if (di_buf->local_ud &&
+			    di_buf_i->local_ud &&
+			    di_buf_i->local_ud_used_size) {
+				memset(di_buf->local_ud, 0,
+					di_buf->local_ud_total_size);
+				memcpy(di_buf->local_ud,
+					di_buf_i->local_ud,
+					di_buf_i->local_ud_used_size *
+					sizeof(u8));
+				di_buf->local_ud_used_size =
+					di_buf_i->local_ud_used_size;
+			} else {
+				di_buf->local_ud_used_size = 0;
+			}
 
 			di_buf->vframe->width = di_buf_i->width_bk;
 			di_buf->dw_width_bk = ready_di_buf->dw_width_bk;
@@ -9625,6 +9735,19 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 				} else {
 					di_buf->local_meta_used_size = 0;
 				}
+				if (di_buf->local_ud &&
+				    di_buf_i->local_ud &&
+				    di_buf_i->local_ud_used_size) {
+					memset(di_buf->local_ud, 0,
+						di_buf->local_ud_total_size);
+					memcpy(di_buf->local_ud,
+						di_buf_i->local_ud,
+						di_buf_i->local_ud_used_size * sizeof(u8));
+					di_buf->local_ud_used_size =
+						di_buf_i->local_ud_used_size;
+				} else {
+					di_buf->local_ud_used_size = 0;
+				}
 				//ary 0607 di_buf->vframe->width = di_buf_i->width_bk;
 				di_buf->dw_width_bk = ready_di_buf->dw_width_bk;
 				di_buf->dw_height_bk =
@@ -9751,6 +9874,19 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 					di_buf->di_buf_dup_p[0]->local_meta_used_size;
 			} else {
 				di_buf->local_meta_used_size = 0;
+			}
+			if (di_buf->local_ud &&
+			    di_buf->di_buf_dup_p[0]->local_ud &&
+			    di_buf->di_buf_dup_p[0]->local_ud_used_size) {
+				memset(di_buf->local_ud, 0,
+					di_buf->local_ud_total_size);
+				memcpy(di_buf->local_ud,
+					di_buf->di_buf_dup_p[0]->local_ud,
+					di_buf->di_buf_dup_p[0]->local_ud_used_size * sizeof(u8));
+				di_buf->local_ud_used_size =
+					di_buf->di_buf_dup_p[0]->local_ud_used_size;
+			} else {
+				di_buf->local_ud_used_size = 0;
 			}
 
 			di_buf->dw_width_bk = ready_di_buf->dw_width_bk;

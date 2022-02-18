@@ -14936,25 +14936,30 @@ static ssize_t aisr_state_show(char *buf)
 		       _cur_frame_par->VPP_vsc_endp);
 	return len;
 }
+
 static ssize_t vdx_state_show(u32 index, char *buf)
 {
 	ssize_t len = 0;
 	struct vppfilter_mode_s *vpp_filter = NULL;
 	struct vpp_frame_par_s *_cur_frame_par = NULL;
 	struct video_layer_s *_vd_layer = NULL;
+	struct disp_info_s *layer_info = NULL;
 
 	switch (index) {
 	case 0:
 		_cur_frame_par = cur_frame_par;
 		_vd_layer = &vd_layer[0];
+		layer_info = &glayer_info[0];
 		break;
 	case 1:
 		_cur_frame_par = curpip_frame_par;
 		_vd_layer = &vd_layer[1];
+		layer_info = &glayer_info[1];
 		break;
 	case 2:
 		_cur_frame_par = curpip2_frame_par;
 		_vd_layer = &vd_layer[2];
+		layer_info = &glayer_info[2];
 		break;
 	}
 	if (!_cur_frame_par)
@@ -15053,6 +15058,23 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 		       _cur_frame_par->VPP_vsc_endp);
 	if (index == 0)
 		len += aisr_state_show(buf + len);
+	if (layer_info) {
+		if (layer_info->afd_enable) {
+			len += sprintf(buf + len, "afd: enable\n");
+			len += sprintf(buf + len, "afd_pos: %d %d %d %d\n",
+				layer_info->afd_pos.x_start,
+				layer_info->afd_pos.y_start,
+				layer_info->afd_pos.x_end,
+				layer_info->afd_pos.y_end);
+			len += sprintf(buf + len, "afd_crop: %d %d %d %d\n",
+				layer_info->afd_crop.top,
+				layer_info->afd_crop.left,
+				layer_info->afd_crop.bottom,
+				layer_info->afd_crop.right);
+		} else {
+			len += sprintf(buf + len, "afd: disable\n");
+		}
+	}
 	return len;
 }
 
