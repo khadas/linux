@@ -665,8 +665,8 @@ static void rx_pktdump_emp(void *pdata)
 	rx_pr("cnt.vfr=0x%x\n", pktdata->cnt.vfr);
 	rx_pr("cnt.sync=0x%x\n", pktdata->cnt.sync);
 	rx_pr("cnt.or_id=0x%x\n", pktdata->cnt.organization_id);
-	rx_pr("cnt.tag=0x%x\n", pktdata->cnt.data_set_tag);
-	rx_pr("cnt.length=0x%x\n", pktdata->cnt.data_set_length);
+	rx_pr("cnt.tag=0x%x\n", pktdata->cnt.data_set_tag_lo);
+	rx_pr("cnt.length=0x%x\n", pktdata->cnt.data_set_length_lo);
 }
 
 void rx_pkt_dump(enum pkt_type_e typeid)
@@ -2057,10 +2057,17 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 		while (pkt_num) {
 			pkt_num--;
 			/*read one pkt from fifo*/
-			memcpy(pd_fifo_buf, emp_buf + rxpktsts.fifo_pkt_num * 32, 3);
-			memcpy((char *)pd_fifo_buf + 4,
+			if (rx.chip_id >= CHIP_ID_T7) {
+				memcpy(pd_fifo_buf, emp_buf + rxpktsts.fifo_pkt_num * 31, 3);
+				memcpy((char *)pd_fifo_buf + 4,
+				    emp_buf + rxpktsts.fifo_pkt_num * 31 + 3,
+				    28);
+			} else {
+				memcpy(pd_fifo_buf, emp_buf + rxpktsts.fifo_pkt_num * 32, 3);
+				memcpy((char *)pd_fifo_buf + 4,
 				    emp_buf + rxpktsts.fifo_pkt_num * 32 + 3,
 				    28);
+			}
 			rxpktsts.fifo_pkt_num++;
 			if (log_level & PACKET_LOG)
 				rx_pr("PD[%d]=%x\n", rxpktsts.fifo_pkt_num, pd_fifo_buf[0]);
@@ -2091,24 +2098,42 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 	return 0;
 }
 
+#define VTEM_OGI_ID 1
+#define VTEM_TAG_ID	1
 void rx_get_vtem_info(void)
 {
 	u8 tmp;
+	struct emp_pkt_st *pkt;
+
+	pkt = (struct emp_pkt_st *)&rx_pkt.emp_info;
 
 	if (rx.chip_id < CHIP_ID_T7)
 		return;
-	if (rx.vrr_en) {
-		tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE0_DP0B_IVCRX);
+	if (log_level == 0x121) {
+		rx_pr("pkt->pkttype = %d", pkt->pkttype);
+		rx_pr("pkt->cnt.organization_id = %x", pkt->cnt.organization_id);
+		rx_pr("pkt->cnt.data_set_tag_lo = %x", pkt->cnt.data_set_tag_lo);
+		rx_pr("pkt->cnt.md[0] = %d", pkt->cnt.md[0]);
+		rx_pr("pkt->cnt.md[1] = %d", pkt->cnt.md[1]);
+		rx_pr("pkt->cnt.md[2] = %d", pkt->cnt.md[2]);
+		rx_pr("pkt->cnt.md[3] = %d", pkt->cnt.md[3]);
+		log_level = 1;
+	}
+	if (pkt->pkttype == PKT_TYPE_EMP &&
+		pkt->cnt.organization_id == VTEM_OGI_ID &&
+		pkt->cnt.data_set_tag_lo == VTEM_TAG_ID) {
+		tmp = pkt->cnt.md[0];
 		rx.vtem_info.vrr_en = tmp & 1;
 		rx.vtem_info.m_const = (tmp >> 1) & 1;
 		rx.vtem_info.qms_en = (tmp >> 2) & 1;
 		rx.vtem_info.fva_factor_m1 = (tmp >> 4) & 0x0f;
-		tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE1_DP0B_IVCRX);
+		tmp = pkt->cnt.md[1];
 		rx.vtem_info.base_vfront = tmp;
-		tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE2_DP0B_IVCRX);
+		tmp = pkt->cnt.md[2];
 		rx.vtem_info.rb = (tmp > 2) & 1;
-		rx.vtem_info.base_framerate = hdmirx_rd_cor(RX_VT_EMP_DBYTE3_DP0B_IVCRX);
+		rx.vtem_info.base_framerate = pkt->cnt.md[3];
 		rx.vtem_info.base_framerate |= (tmp & 3) << 8;
+		pkt->pkttype = 0;
 	} else {
 		rx.vtem_info.vrr_en = 0;
 		rx.vtem_info.m_const = 0;
@@ -2117,4 +2142,24 @@ void rx_get_vtem_info(void)
 		rx.vtem_info.rb = 0;
 		rx.vtem_info.base_framerate = 0;
 	}
+	//if (rx.vrr_en) {
+		//tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE0_DP0B_IVCRX);
+		//rx.vtem_info.vrr_en = tmp & 1;
+		//rx.vtem_info.m_const = (tmp >> 1) & 1;
+		//rx.vtem_info.qms_en = (tmp >> 2) & 1;
+		//rx.vtem_info.fva_factor_m1 = (tmp >> 4) & 0x0f;
+		//tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE1_DP0B_IVCRX);
+		//rx.vtem_info.base_vfront = tmp;
+		//tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE2_DP0B_IVCRX);
+		//rx.vtem_info.rb = (tmp > 2) & 1;
+		//rx.vtem_info.base_framerate = hdmirx_rd_cor(RX_VT_EMP_DBYTE3_DP0B_IVCRX);
+		//rx.vtem_info.base_framerate |= (tmp & 3) << 8;
+	//} else {
+		//rx.vtem_info.vrr_en = 0;
+		//rx.vtem_info.m_const = 0;
+		//rx.vtem_info.fva_factor_m1 = 0;
+		///rx.vtem_info.base_vfront = 0;
+		///rx.vtem_info.rb = 0;
+		///rx.vtem_info.base_framerate = 0;
+	//}
 }
