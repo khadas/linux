@@ -418,13 +418,15 @@ void lcd_tcon_multi_lut_print(void)
 		return;
 	}
 
-	LCDPR("tcon multi_lut_update: %d\n", tcon_mm_table.multi_lut_update);
+	LCDPR("tcon multi_update: %d\n", tcon_mm_table.multi_lut_update);
 	for (i = 0; i < tcon_mm_table.data_multi_cnt; i++) {
 		data_multi = &tcon_mm_table.data_multi[i];
 		LCDPR("data_multi[%d]:\n"
-			"  type:       0x%x\n"
-			"  list_cnt:   %d\n",
-			i, data_multi->block_type, data_multi->list_cnt);
+			"  type:        0x%x\n"
+			"  list_cnt:    %d\n"
+			"  bypass_flag: %d\n",
+			i, data_multi->block_type, data_multi->list_cnt,
+			data_multi->bypass_flag);
 		if (data_multi->list_cur) {
 			pr_info("data_multi[%d] current:\n"
 				"  sel_id:     %d\n"
@@ -571,11 +573,15 @@ int lcd_tcon_info_print(char *buf, int offset)
 			}
 		}
 		if (tcon_mm_table.data_multi_cnt > 0 && tcon_mm_table.data_multi) {
-			LCDPR("tcon multi_lut_update: %d\n", tcon_mm_table.multi_lut_update);
+			n = lcd_debug_info_len(len + offset);
+			len += snprintf((buf + len), n,
+				"tcon multi_update: %d\n",
+				tcon_mm_table.multi_lut_update);
 			for (i = 0; i < tcon_mm_table.data_multi_cnt; i++) {
 				n = lcd_debug_info_len(len + offset);
 				len += snprintf((buf + len), n,
-					"data_multi[%d] current:\n", i);
+					"data_multi[%d] current (bypass:%d):\n",
+					i, tcon_mm_table.data_multi[i].bypass_flag);
 				if (!tcon_mm_table.data_multi[i].list_cur) {
 					n = lcd_debug_info_len(len + offset);
 					len += snprintf((buf + len), n,
@@ -1041,6 +1047,31 @@ void lcd_tcon_data_multi_current_update(struct tcon_mem_map_table_s *mm_table,
 	}
 }
 
+/* for tcon multi lut update bypass debug */
+void lcd_tcon_data_multi_bypass_set(struct tcon_mem_map_table_s *mm_table,
+				    unsigned int block_type, int flag)
+{
+	struct tcon_data_multi_s *data_multi = NULL;
+	int i;
+
+	if (!mm_table || !mm_table->data_multi)
+		return;
+	if (mm_table->data_multi_cnt == 0)
+		return;
+
+	for (i = 0; i < mm_table->data_multi_cnt; i++) {
+		data_multi = &mm_table->data_multi[i];
+		if (data_multi->block_type == block_type) {
+			data_multi->bypass_flag = flag;
+			LCDPR("tcon multi[%d]: block_type=0x%x, bypass: %d\n",
+			      i, block_type, flag);
+			return;
+		}
+	}
+
+	LCDERR("tcon multi[%d]: block_type=0x%x invalid\n", i, block_type);
+}
+
 /* for tcon vsync switch multi lut dynamiclly,
  * will bypass block_type: LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT
  */
@@ -1060,6 +1091,9 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 		data_multi = &mm_table->data_multi[i];
 		/* bypass LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT for multi lut swich */
 		if (data_multi->block_type == LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT)
+			continue;
+		/* bypass_flag for debug */
+		if (data_multi->bypass_flag)
 			continue;
 
 		/* step1: check current list first, for threshold overlap*/

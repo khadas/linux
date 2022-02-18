@@ -91,7 +91,7 @@ struct tcon_data_list_s {
 struct tcon_data_multi_s {
 	unsigned int block_type;
 	unsigned int list_cnt;
-	unsigned int flag;
+	unsigned int bypass_flag;
 	struct tcon_data_list_s *list_header;
 	struct tcon_data_list_s *list_cur;
 	struct tcon_data_list_s *list_dft;
@@ -242,6 +242,8 @@ int lcd_tcon_disable_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf);
 void lcd_tcon_data_multi_current_update(struct tcon_mem_map_table_s *mm_table,
 		struct lcd_tcon_data_block_header_s *block_header, unsigned int index);
+void lcd_tcon_data_multi_bypass_set(struct tcon_mem_map_table_s *mm_table,
+				    unsigned int block_type, int flag);
 int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 				   unsigned char *data_buf, int init_flag);
 void lcd_tcon_init_data_version_update(char *data_buf);

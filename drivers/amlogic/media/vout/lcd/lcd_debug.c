@@ -6074,6 +6074,16 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 			goto lcd_tcon_debug_store_err;
 		mm_table->multi_lut_update = temp;
 		LCDPR("tcon multi_update: %d\n", temp);
+	} else if (strcmp(parm[0], "multi_bypass") == 0) {
+		if (!parm[2])
+			goto lcd_tcon_debug_store_err;
+		ret = kstrtouint(parm[2], 16, &temp);
+		if (ret)
+			goto lcd_tcon_debug_store_err;
+		if (strcmp(parm[1], "set") == 0)
+			lcd_tcon_data_multi_bypass_set(mm_table, temp, 1);
+		else //clr
+			lcd_tcon_data_multi_bypass_set(mm_table, temp, 0);
 	} else if (strcmp(parm[0], "save") == 0) { /* save buf to bin */
 		if (!parm[2])
 			goto lcd_tcon_debug_store_err;
