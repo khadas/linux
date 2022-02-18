@@ -161,3 +161,6 @@ x509.genkey
 
 # Documentation toolchain
 sphinx_*/
+
+# common_drivers
+common_drivers/

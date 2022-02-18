@@ -245,7 +245,7 @@ config AMLOGIC_DRIVER
 	  drivers, if you want to use amlogic driver
 	  please open it.
 	  Note: All amlogic driver should be placed in
-	  directory ../common_drivers/drivers/
+	  directory $(COMMON_DRIVERS_DIR)/drivers/
 
 if AMLOGIC_DRIVER
 config AMLOGIC_BREAK_GKI
@@ -275,7 +275,7 @@ config AMLOGIC_IN_KERNEL_MODULES
 	  build, should disable
 
 if AMLOGIC_IN_KERNEL_MODULES
-source "../common_drivers/drivers/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
 endif
 endif
 endmenu

@@ -679,7 +679,7 @@ include include/config/auto.conf
 endif
 
 ifdef CONFIG_AMLOGIC_DRIVER
-include $(srctree)/../common_drivers/header_include.mk
+include $(srctree)/$(COMMON_DRIVERS_DIR)/header_include.mk
 KBUILD_CFLAGS += -Werror
 endif
 
@@ -688,7 +688,7 @@ ifeq ($(KBUILD_EXTMOD),)
 core-y		:= init/ usr/ arch/$(SRCARCH)/
 drivers-y	:= drivers/ sound/
 ifdef CONFIG_AMLOGIC_IN_KERNEL_MODULES
-drivers-y	+=../common_drivers/drivers/
+drivers-y	+= $(COMMON_DRIVERS_DIR)/drivers/
 endif
 drivers-$(CONFIG_SAMPLES) += samples/
 drivers-$(CONFIG_NET) += net/
@@ -1184,7 +1184,9 @@ ifeq ($(KBUILD_EXTMOD),)
 endif
 	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)include/uapi
 	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)arch/$(SRCARCH)/include/uapi
-	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)../common_drivers/include/uapi
+ifdef CONFIG_AMLOGIC_DRIVER
+	$(Q)$(MAKE) $(hdr-inst)=$(hdr-prefix)$(COMMON_DRIVERS_DIR)/include/uapi
+endif
 
 ifeq ($(KBUILD_EXTMOD),)
 core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
@@ -1440,7 +1442,7 @@ kselftest-merge:
 
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/boot/dts/),)
 ifdef CONFIG_AMLOGIC_DRIVER
-dtstree := ../common_drivers/arch/$(SRCARCH)/boot/dts
+dtstree := $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts
 else
 # ANDROID: allow this to be overridden by the build environment. This allows
 # one to compile a device tree that is located out-of-tree.
@@ -2055,15 +2057,15 @@ ifdef CONFIG_AMLOGIC_DRIVER
 PHONY += FORCE
 FORCE:
 	$(Q)cp $(srctree)/scripts/amlogic/pre-commit $(srctree)/.git/hooks/pre-commit
-	$(Q)cp $(srctree)/scripts/amlogic/pre-commit-commn_drivers $(srctree)/../common_drivers/.git/hooks/pre-commit
-	chmod +x $(srctree)/../common_drivers/.git/hooks/pre-commit
-	$(Q)mkdir -p $(srctree)/../common_drivers/scripts/amlogic
-	$(Q)cp $(srctree)/scripts/amlogic/licence_pre.pl $(srctree)/../common_drivers/scripts/amlogic
-	$(Q)cp $(srctree)/scripts/amlogic/licence_check.pl $(srctree)/../common_drivers/scripts/amlogic
-	$(Q)cp $(srctree)/scripts/amlogic/merge_pre_check.pl $(srctree)/../common_drivers/scripts/amlogic
-	$(Q)cp $(srctree)/scripts/checkpatch.pl  $(srctree)/../common_drivers/scripts/
-	$(Q)cp $(srctree)/scripts/spelling.txt  $(srctree)/../common_drivers/scripts/
-	$(Q)cp $(srctree)/scripts/const_structs.checkpatch  $(srctree)/../common_drivers/scripts/
+	$(Q)cp $(srctree)/scripts/amlogic/pre-commit-commn_drivers $(srctree)/$(COMMON_DRIVERS_DIR)/.git/hooks/pre-commit
+	chmod +x $(srctree)/$(COMMON_DRIVERS_DIR)/.git/hooks/pre-commit
+	$(Q)mkdir -p $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
+	$(Q)cp $(srctree)/scripts/amlogic/licence_pre.pl $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
+	$(Q)cp $(srctree)/scripts/amlogic/licence_check.pl $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
+	$(Q)cp $(srctree)/scripts/amlogic/merge_pre_check.pl $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/amlogic
+	$(Q)cp $(srctree)/scripts/checkpatch.pl  $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/
+	$(Q)cp $(srctree)/scripts/spelling.txt  $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/
+	$(Q)cp $(srctree)/scripts/const_structs.checkpatch  $(srctree)/$(COMMON_DRIVERS_DIR)/scripts/
 else
 PHONY += FORCE
 FORCE:

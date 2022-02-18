@@ -220,7 +220,7 @@ cpp_flags      = -Wp,-MMD,$(depfile) $(NOSTDINC_FLAGS) $(LINUXINCLUDE)     \
 ld_flags       = $(KBUILD_LDFLAGS) $(ldflags-y) $(LDFLAGS_$(@F))
 
 ifeq ($(CONFIG_AMLOGIC_DRIVER),y)
-DTC_INCLUDE    := $(srctree)/scripts/dtc/include-prefixes $(srctree)/../common_drivers/include
+DTC_INCLUDE    := $(srctree)/scripts/dtc/include-prefixes $(srctree)/$(COMMON_DRIVERS_DIR)/include
 else
 # ANDROID: Allow DTC_INCLUDE to be set by the BUILD_CONFIG. This allows one to
 # compile an out-of-tree device tree.
