@@ -1310,6 +1310,25 @@ static int pdm_platform_resume(struct platform_device *pdev)
 	return 0;
 }
 
+static void pdm_platform_shutdown(struct platform_device *pdev)
+{
+	struct aml_pdm *p_pdm = dev_get_drvdata(&pdev->dev);
+	int id = p_pdm->chipinfo->id;
+
+	pr_info("%s\n", __func__);
+
+	/* whether in freeze */
+	if (/* is_pm_freeze_mode() && */vad_pdm_is_running()) {
+		if (!p_pdm->islowpower) {
+			p_pdm->force_lowpower = true;
+			pdm_set_lowpower_mode(p_pdm, p_pdm->force_lowpower, id);
+		}
+		pr_info("%s, PDM suspend in lowpower mode by force:%d\n",
+			__func__,
+			p_pdm->force_lowpower);
+	}
+}
+
 struct platform_driver aml_pdm_driver = {
 	.driver  = {
 		.name           = DRV_NAME,
@@ -1320,6 +1339,7 @@ struct platform_driver aml_pdm_driver = {
 	.remove  = aml_pdm_platform_remove,
 	.suspend = pdm_platform_suspend,
 	.resume  = pdm_platform_resume,
+	.shutdown = pdm_platform_shutdown,
 };
 
 int __init pdm_init(void)

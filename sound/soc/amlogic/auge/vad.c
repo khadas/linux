@@ -1299,6 +1299,22 @@ static int vad_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void vad_platform_shutdown(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct vad *p_vad = dev_get_drvdata(dev);
+
+	pr_info("%s\n", __func__);
+
+	/* whether in freeze */
+	if (/* is_pm_freeze_mode() && */vad_is_enable()) {
+		pr_info("%s, Entry in freeze\n", __func__);
+
+		if (p_vad->level == LEVEL_USER)
+			dev_pm_set_wake_irq(dev, p_vad->irq_wakeup);
+	}
+}
+
 struct platform_driver vad_driver = {
 	.driver = {
 		.name = DRV_NAME,
@@ -1307,7 +1323,8 @@ struct platform_driver vad_driver = {
 	.probe   = vad_platform_probe,
 	.suspend = vad_platform_suspend,
 	.resume  = vad_platform_resume,
-	.remove  = vad_platform_remove,
+	.remove   = vad_platform_remove,
+	.shutdown = vad_platform_shutdown,
 };
 
 int __init vad_drv_init(void)

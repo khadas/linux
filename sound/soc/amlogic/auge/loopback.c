@@ -1748,6 +1748,27 @@ static int loopback_platform_resume(struct platform_device *pdev)
 	return 0;
 }
 
+static void loopback_platform_shutdown(struct platform_device *pdev)
+{
+	struct loopback *p_loopback = dev_get_drvdata(&pdev->dev);
+
+	pr_info("%s\n", __func__);
+
+	/* whether in freeze */
+	if (/* is_pm_freeze_mode() && */vad_lb_is_running(p_loopback->id)) {
+		if (p_loopback->chipinfo)
+			lb_set_chnum_en(p_loopback->id,
+					true,
+					p_loopback->chipinfo->chnum_en);
+		else
+			lb_set_chnum_en(p_loopback->id, true, true);
+		vad_lb_force_two_channel(true);
+
+		pr_info("%s, Entry in freeze, p_loopback:%p\n",
+			__func__, p_loopback);
+	}
+}
+
 static struct platform_driver loopback_platform_driver = {
 	.driver = {
 		.name			= DRV_NAME,
@@ -1757,6 +1778,7 @@ static struct platform_driver loopback_platform_driver = {
 	.probe	= loopback_platform_probe,
 	.suspend = loopback_platform_suspend,
 	.resume  = loopback_platform_resume,
+	.shutdown = loopback_platform_shutdown,
 };
 
 int __init loopback_init(void)
