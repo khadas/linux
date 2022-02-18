@@ -1067,7 +1067,7 @@ int rx_edid_free_size(u8 *cur_edid, int size)
 		rx_pr("%s block_start:%d\n", __func__, block_start);
 	/*find the empty data index*/
 	while ((cur_edid[block_start] > 0) &&
-	       (block_start < size)) {
+	       (block_start < size - 1)) {
 		if (log_level & EDID_LOG)
 			rx_pr("%s running:%d\n", __func__, block_start);
 		if ((cur_edid[block_start] & 0x1f) == 0)
@@ -1077,7 +1077,7 @@ int rx_edid_free_size(u8 *cur_edid, int size)
 	if (log_level & EDID_LOG)
 		rx_pr("%s block_start end:%d\n", __func__, block_start);
 	/*compute the free size*/
-	if (block_start < (size - 1))
+	if (block_start <= (size - 1))
 		return (size - block_start - 1);
 	else
 		return -1;

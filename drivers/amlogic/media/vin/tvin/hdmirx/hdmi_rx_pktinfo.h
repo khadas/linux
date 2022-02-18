@@ -552,8 +552,10 @@ struct emp_pkt_st {
 		u8 rev_0:1;
 		u8 rev_1;
 		u8 organization_id;
-		u16 data_set_tag;
-		u16 data_set_length;
+		u8 data_set_tag_hi;
+		u8 data_set_tag_lo;
+		u8 data_set_length_hi;
+		u8 data_set_length_lo;
 		u8 md[21];
 	} __packed cnt;
 } __packed;
