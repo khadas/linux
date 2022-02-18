@@ -907,6 +907,20 @@
 		hw-gpios = <&gpio  GPIOD_12  GPIO_ACTIVE_HIGH>;
 	};
 
+	pwmleds {
+		compatible = "pwm-leds";
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm_ao_c_pins1>;
+
+		sys {
+			active-high;
+			label = "pwmled";
+			max-brightness = <255>;
+			pwms = <&pwmao_cd MESON_PWM_0 30040 0>;
+		};
+	};
+
 };
 
 &audiobus {
