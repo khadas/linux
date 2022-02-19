@@ -5078,6 +5078,13 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 	 *? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
 	 *VPU_CLK_GATE_OFF);
 	 */
+	if (vdevp->index && vdevp->set_canvas_manual == 1 &&
+	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5D)) {
+		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 0,
+			VDIN_COMMONINPUT_EN_BIT, VDIN_COMMONINPUT_EN_WID);
+		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 0,
+			VDIN_SEL_BIT, VDIN_SEL_WID);
+	}
 	vdin_clk_onoff(vdevp, false);
 
 	pr_info("%s id:%d ok.\n", __func__, vdevp->index);
@@ -5108,6 +5115,13 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	 *VPU_CLK_GATE_ON);
 	 */
 	vdin_clk_onoff(vdevp, true);
+	if (vdevp->index && vdevp->set_canvas_manual == 1 &&
+	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5D)) {
+		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 7,
+			VDIN_SEL_BIT, VDIN_SEL_WID);
+		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 1,
+			VDIN_COMMONINPUT_EN_BIT, VDIN_COMMONINPUT_EN_WID);
+	}
 
 	//if (vdevp->irq) {
 	//	if (!irq_can_set_affinity(vdevp->irq))
