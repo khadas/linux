@@ -65,7 +65,8 @@
 /* 2023/07/04 --- V2.36 --- add afc enable and state IO control. */
 /*                          add new agc pwm config. */
 /*                          fix nicam bg output again. */
-#define AMLATVDEMOD_VER "V2.36"
+/* 2023/09/11 --- V2.37 --- Fix afc(+/-2MHz). */
+#define AMLATVDEMOD_VER "V2.37"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 

@@ -505,7 +505,7 @@ static struct analog_demod_ops atvdemod_ops = {
 
 unsigned int tuner_status_cnt = 4; /* 4-->16 test on sky mxl661 */
 /* 0: no check, 1: check */
-bool check_rssi = true;
+bool check_rssi;
 /* Less than -85, it means no signal */
 int tuner_rssi = -80;
 
@@ -827,8 +827,7 @@ static void atvdemod_fe_try_signal(struct v4l2_frontend *v4l2_fe,
 		}
 
 		/* Add tuner rssi strength check */
-		if (tuner_id == AM_TUNER_ATBM2040 &&
-			fe->ops.tuner_ops.get_strength && check_rssi) {
+		if (fe->ops.tuner_ops.get_strength && check_rssi) {
 			fe->ops.tuner_ops.get_strength(fe, &strength);
 			if (strength < tuner_rssi) {
 				pr_err("[%s] freq: %d tuner RSSI [%d] less than [%d].\n",
@@ -1014,8 +1013,7 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 				params.mode = p->afc_range;
 				params.audmode = p->audmode;
 				params.std = p->std;
-				fe->ops.tuner_ops.set_analog_params(fe,
-						&params);
+				fe->ops.tuner_ops.set_analog_params(fe, &params);
 			}
 		}
 
@@ -1029,18 +1027,18 @@ static int atvdemod_fe_afc_closer(struct v4l2_frontend *v4l2_fe, int minafcfreq,
 			params.std = p->std;
 			fe->ops.tuner_ops.set_analog_params(fe,
 					&params);
-
-			if (tuner_id == AM_TUNER_MXL661)
-				usleep_range(30 * 1000, 30 * 1000 + 100);
-			else if (tuner_id == AM_TUNER_R840 ||
-					tuner_id == AM_TUNER_R842)
-				usleep_range(40 * 1000, 40 * 1000 + 100);
-			else if (tuner_id == AM_TUNER_ATBM2040 ||
-					tuner_id == AM_TUNER_ATBM253)
-				usleep_range(50 * 1000, 50 * 1000 + 100);
-			else
-				usleep_range(10 * 1000, 10 * 1000 + 100);
 		}
+
+		if (tuner_id == AM_TUNER_MXL661)
+			usleep_range(30 * 1000, 30 * 1000 + 100);
+		else if (tuner_id == AM_TUNER_R840 ||
+				tuner_id == AM_TUNER_R842)
+			usleep_range(40 * 1000, 40 * 1000 + 100);
+		else if (tuner_id == AM_TUNER_ATBM2040 ||
+				tuner_id == AM_TUNER_ATBM253)
+			usleep_range(50 * 1000, 50 * 1000 + 100);
+		else
+			usleep_range(10 * 1000, 10 * 1000 + 100);
 
 		pr_dbg("[%s] get afc %d khz done, freq %u.\n",
 				__func__, afc, p->frequency);

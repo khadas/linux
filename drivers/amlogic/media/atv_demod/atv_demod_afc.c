@@ -60,9 +60,15 @@ static void atv_demod_afc_do_work_pre(struct atv_demod_afc *afc)
 	struct dvb_frontend *fe = afc->fe;
 	struct analog_parameters *param = &priv->atvdemod_param.param;
 	struct analog_parameters p = priv->atvdemod_param.param;
+	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
+	int freq_offset = 0;
 
 	afc->pre_unlock_cnt++;
-	if (!afc->lock) {
+
+	if (afc->lock)
+		retrieve_frequency_offset(&freq_offset);
+
+	if (!afc->lock || (afc->lock && abs(freq_offset) >= (ATV_AFC_400KHZ / 1000))) {
 		afc->pre_lock_cnt = 0;
 		if (afc->status != AFC_LOCK_STATUS_PRE_UNLOCK && afc->offset) {
 			param->frequency -= afc->offset * 1000;
@@ -96,16 +102,29 @@ static void atv_demod_afc_do_work_pre(struct atv_demod_afc *afc)
 		/* tuner config, no need cvbs format, just audio mode. */
 		p.frequency = param->frequency;
 		p.std = (param->std & 0xFF000000) | p.audmode;
-		if (fe->ops.tuner_ops.set_analog_params)
+		if (fe->ops.tuner_ops.set_frequency)
+			fe->ops.tuner_ops.set_frequency(fe, p.frequency);
+		else if (fe->ops.tuner_ops.set_analog_params)
 			fe->ops.tuner_ops.set_analog_params(fe, &p);
 
+		if (tuner_id == AM_TUNER_MXL661)
+			usleep_range(30 * 1000, 30 * 1000 + 100);
+		else if (tuner_id == AM_TUNER_R840 ||
+				tuner_id == AM_TUNER_R842)
+			usleep_range(40 * 1000, 40 * 1000 + 100);
+		else if (tuner_id == AM_TUNER_ATBM2040 ||
+				tuner_id == AM_TUNER_ATBM253)
+			usleep_range(50 * 1000, 50 * 1000 + 100);
+		else
+			usleep_range(10 * 1000, 10 * 1000 + 100);
+
 		afc->pre_unlock_cnt = 0;
-		pr_afc("%s,unlock offset:%d KHz, set freq:%d\n",
-				__func__, afc->offset, param->frequency);
+		pr_afc("%s,unlock, afc offset:%d KHz, freq_offset:%d KHz, set freq:%d\n",
+				__func__, afc->offset, freq_offset, param->frequency);
 	} else {
 		afc->pre_lock_cnt++;
-		pr_afc("%s,afc_pre_lock_cnt:%d\n",
-				__func__, afc->pre_lock_cnt);
+		pr_afc("%s,afc_pre_lock_cnt:%d, freq_offset:%d KHz\n",
+				__func__, afc->pre_lock_cnt, freq_offset);
 		if (afc->pre_lock_cnt >= afc_wave_cnt * 2) {/*100ms*/
 			afc->pre_lock_cnt = 0;
 			afc->pre_unlock_cnt = 0;
@@ -123,6 +142,7 @@ void atv_demod_afc_do_work(struct work_struct *work)
 	struct dvb_frontend *fe = afc->fe;
 	struct analog_parameters *param = &priv->atvdemod_param.param;
 	struct analog_parameters p = priv->atvdemod_param.param;
+	unsigned int tuner_id = priv->atvdemod_param.tuner_id;
 
 	int freq_offset = 100;
 	int tmp = 0;
@@ -151,7 +171,7 @@ void atv_demod_afc_do_work(struct work_struct *work)
 
 	if (++(afc->wave_cnt) <= afc_wave_cnt) {/*40ms*/
 		afc->status = AFC_LOCK_STATUS_POST_PROCESS;
-		pr_afc("%s,wave_cnt:%d is wave,lock:%d,freq_offset:%d ignore\n",
+		pr_afc("%s,wave_cnt:%d is wave, afc lock:%d, freq_offset:%d KHz ignore\n",
 				__func__, afc->wave_cnt, afc->lock,
 				freq_offset);
 		return;
@@ -161,8 +181,8 @@ void atv_demod_afc_do_work(struct work_struct *work)
 	retrieve_field_lock(&tmp);
 	field_lock = tmp;
 
-	pr_afc("%s,freq_offset:%d lock:%d field_lock:%d freq:%d\n",
-			__func__, freq_offset, afc->lock, field_lock,
+	pr_afc("%s,afc offset:%d KHz, freq_offset:%d KHz, afc lock:%d, field_lock:%d, freq:%d\n",
+			__func__, afc->offset, freq_offset, afc->lock, field_lock,
 			param->frequency);
 
 	if (afc->lock && (abs(freq_offset) < AFC_BEST_LOCK &&
@@ -185,13 +205,28 @@ void atv_demod_afc_do_work(struct work_struct *work)
 		/* tuner config, no need cvbs format, just audio mode. */
 		p.frequency = param->frequency;
 		p.std = (param->std & 0xFF000000) | p.audmode;
-		if (fe->ops.tuner_ops.set_analog_params)
+		if (fe->ops.tuner_ops.set_frequency)
+			fe->ops.tuner_ops.set_frequency(fe, p.frequency);
+		else if (fe->ops.tuner_ops.set_analog_params)
 			fe->ops.tuner_ops.set_analog_params(fe, &p);
-		pr_afc("%s,freq_offset:%d , set freq:%d\n",
+
+		if (tuner_id == AM_TUNER_MXL661)
+			usleep_range(30 * 1000, 30 * 1000 + 100);
+		else if (tuner_id == AM_TUNER_R840 ||
+				tuner_id == AM_TUNER_R842)
+			usleep_range(40 * 1000, 40 * 1000 + 100);
+		else if (tuner_id == AM_TUNER_ATBM2040 ||
+				tuner_id == AM_TUNER_ATBM253)
+			usleep_range(50 * 1000, 50 * 1000 + 100);
+		else
+			usleep_range(10 * 1000, 10 * 1000 + 100);
+
+		pr_afc("%s,freq_offset:%d KHz, set freq:%d\n",
 				__func__, freq_offset, param->frequency);
+
 		afc->wave_cnt = 0;
 		afc->offset = 0;
-		pr_afc("%s, [post lock --> unlock] set offset 0.\n", __func__);
+		pr_afc("%s, [post lock --> unlock] set afc offset 0.\n", __func__);
 		return;
 	}
 
@@ -205,8 +240,22 @@ void atv_demod_afc_do_work(struct work_struct *work)
 			/*tuner config, no need cvbs format, just audio mode.*/
 			p.frequency = param->frequency;
 			p.std = (param->std & 0xFF000000) | p.audmode;
-			if (fe->ops.tuner_ops.set_analog_params)
+			if (fe->ops.tuner_ops.set_frequency)
+				fe->ops.tuner_ops.set_frequency(fe, p.frequency);
+			else if (fe->ops.tuner_ops.set_analog_params)
 				fe->ops.tuner_ops.set_analog_params(fe, &p);
+
+			if (tuner_id == AM_TUNER_MXL661)
+				usleep_range(30 * 1000, 30 * 1000 + 100);
+			else if (tuner_id == AM_TUNER_R840 ||
+					tuner_id == AM_TUNER_R842)
+				usleep_range(40 * 1000, 40 * 1000 + 100);
+			else if (tuner_id == AM_TUNER_ATBM2040 ||
+					tuner_id == AM_TUNER_ATBM253)
+				usleep_range(50 * 1000, 50 * 1000 + 100);
+			else
+				usleep_range(10 * 1000, 10 * 1000 + 100);
+
 			afc->wave_cnt = 0;
 			afc->offset = 0;
 			afc->status = AFC_LOCK_STATUS_POST_OVER_RANGE;
@@ -222,11 +271,24 @@ void atv_demod_afc_do_work(struct work_struct *work)
 		/* tuner config, no need cvbs format, just audio mode. */
 		p.frequency = param->frequency;
 		p.std = (param->std & 0xFF000000) | p.audmode;
-		if (fe->ops.tuner_ops.set_analog_params)
+		if (fe->ops.tuner_ops.set_frequency)
+			fe->ops.tuner_ops.set_frequency(fe, p.frequency);
+		else if (fe->ops.tuner_ops.set_analog_params)
 			fe->ops.tuner_ops.set_analog_params(fe, &p);
 
-		pr_afc("%s,freq_offset:%d , set freq:%d\n",
-				__func__, freq_offset, param->frequency);
+		if (tuner_id == AM_TUNER_MXL661)
+			usleep_range(30 * 1000, 30 * 1000 + 100);
+		else if (tuner_id == AM_TUNER_R840 ||
+				tuner_id == AM_TUNER_R842)
+			usleep_range(40 * 1000, 40 * 1000 + 100);
+		else if (tuner_id == AM_TUNER_ATBM2040 ||
+				tuner_id == AM_TUNER_ATBM253)
+			usleep_range(50 * 1000, 50 * 1000 + 100);
+		else
+			usleep_range(10 * 1000, 10 * 1000 + 100);
+
+		pr_afc("%s,afc offset:%d KHz, freq_offset:%d KHz, set freq:%d\n",
+				__func__, afc->offset, freq_offset, param->frequency);
 	}
 
 	afc->wave_cnt = 0;
