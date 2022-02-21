@@ -7904,6 +7904,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		    (vd_path == VD2_PATH &&
 		     !is_video_layer_on(VD1_PATH) &&
 		     is_video_layer_on(VD2_PATH)) ||
+		     (!is_video_layer_on(VD1_PATH) &&
+		     !is_video_layer_on(VD2_PATH)) ||
 		     vpp_index == VPP_TOP1) {
 			para =
 			hdr10p_meta_updated ?
@@ -8048,8 +8050,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 
 	if (vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID) {
-		current_hdr_cap[vd_path] = 0;
-		current_sink_available[vd_path] = 0;
+		current_hdr_cap[vpp_index] = 0;
+		current_sink_available[vpp_index] = 0;
 		return 0;
 	}
 
@@ -8099,15 +8101,15 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		}
 	}
 	sink_changed = is_sink_cap_changed(vinfo,
-					   &current_hdr_cap[vd_path],
-					   &current_sink_available[vd_path],
+					   &current_hdr_cap[vpp_index],
+					   &current_sink_available[vpp_index],
 					   vpp_index);
 	if (sink_changed) {
 		cap_changed = sink_changed & 0x02;
 		pr_csc(4, "sink %s, cap%s 0x%x, vd%d %s %p %p vpp%d\n",
-		       current_sink_available[vd_path] ? "on" : "off",
+		       current_sink_available[vpp_index] ? "on" : "off",
 		       cap_changed ? " changed" : "",
-		       current_hdr_cap[vd_path],
+		       current_hdr_cap[vpp_index],
 		       vd_path + 1,
 		       is_video_layer_on(vd_path) ? "on" : "off",
 		       vf, vf_rpt, vpp_index);
