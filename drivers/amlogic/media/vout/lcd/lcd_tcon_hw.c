@@ -16,6 +16,9 @@
 #include "lcd_common.h"
 #include "lcd_reg.h"
 #include "lcd_tcon.h"
+#ifdef CONFIG_AMLOGIC_TEE
+#include <linux/amlogic/tee.h>
+#endif
 
 static void lcd_tcon_core_reg_pre_od(struct lcd_tcon_config_s *tcon_conf,
 				     struct tcon_mem_map_table_s *mm_table)
@@ -1326,6 +1329,57 @@ lcd_tcon_disable_tl1_next:
 }
 
 int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	int ret;
+
+	ret = lcd_tcon_valid_check();
+	if (ret)
+		return -1;
+	if (!tcon_conf)
+		return -1;
+	if (!mm_table)
+		return -1;
+	if (mm_table->init_load == 0) {
+		if (mm_table->tcon_data_flag == 0)
+			lcd_tcon_bin_load(pdrv);
+	}
+
+	lcd_vcbus_write(ENCL_VIDEO_EN, 0);
+
+	/* step 1: tcon top */
+	lcd_tcon_top_set_t5(pdrv);
+
+	/* step 2: tcon_core_reg_update */
+	lcd_tcon_core_reg_pre_dis_od(tcon_conf, mm_table);
+	if (mm_table->core_reg_header) {
+		if (mm_table->core_reg_header->block_ctrl == 0) {
+			lcd_tcon_core_reg_set(pdrv, tcon_conf,
+				mm_table, mm_table->core_reg_table);
+		}
+	}
+
+	/* step 3: set axi rmem, must before tcon data */
+	lcd_tcon_axi_rmem_set(pdrv, tcon_conf);
+
+	/* step 4: tcon data set */
+	if (mm_table->version)
+		lcd_tcon_data_set(pdrv, mm_table);
+
+	/* step 5: tcon_top_output_set */
+	lcd_tcon_write(pdrv, TCON_OUT_CH_SEL0, 0x76543210);
+	lcd_tcon_write(pdrv, TCON_OUT_CH_SEL1, 0xba98);
+
+	/* step 6: tcon_intr_mask */
+	lcd_tcon_write(pdrv, TCON_INTR_MASKN, TCON_INTR_MASKN_VAL);
+
+	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
+
+	return 0;
+}
+
+int lcd_tcon_enable_t3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();

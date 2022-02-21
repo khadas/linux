@@ -41,6 +41,7 @@ struct lcd_tcon_config_s {
 	unsigned int rsv_mem_size;
 	unsigned int axi_mem_size;
 	unsigned int bin_path_size;
+	unsigned int secure_handle_size;
 	unsigned int vac_size;
 	unsigned int demura_set_size;
 	unsigned int demura_lut_size;
@@ -74,6 +75,7 @@ struct tcon_rmem_s {
 
 	struct tcon_rmem_config_s *axi_rmem;
 	struct tcon_rmem_config_s bin_path_rmem;
+	struct tcon_rmem_config_s secure_handle_rmem;
 
 	struct tcon_rmem_config_s vac_rmem;
 	struct tcon_rmem_config_s demura_set_rmem;
@@ -143,15 +145,16 @@ struct tcon_mem_secure_config_s {
 };
 
 #define TCON_BIN_VER_LEN    9
+#define MEM_FLAG_MAX	    2
 struct lcd_tcon_local_cfg_s {
-	struct tcon_mem_secure_config_s secure_cfg;
+	struct tcon_mem_secure_config_s *secure_cfg;
 	char bin_ver[TCON_BIN_VER_LEN];
 	spinlock_t multi_list_lock; /* for tcon multi lut list change */
 };
 
 #ifdef CONFIG_AMLOGIC_TEE
 int lcd_tcon_mem_tee_get_status(void);
-int lcd_tcon_mem_tee_unprotect(void);
+int lcd_tcon_mem_tee_protect(int mem_flag, int protect_en);
 #endif
 
 struct lcd_tcon_config_s *get_lcd_tcon_config(void);
@@ -236,6 +239,7 @@ int lcd_tcon_enable_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_tl1(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_enable_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t3(struct aml_lcd_drv_s *pdrv);
 
 /* common */

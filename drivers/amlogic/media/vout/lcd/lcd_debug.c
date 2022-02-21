@@ -6269,11 +6269,22 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 			goto lcd_tcon_debug_store_err;
 #ifdef CONFIG_AMLOGIC_TEE
 		if (strcmp(parm[1], "status") == 0) {
-			pr_info("tcon tee secure memory protect status %d\n",
-				lcd_tcon_mem_tee_get_status());
+			lcd_tcon_mem_tee_get_status();
 		} else if (strcmp(parm[1], "off") == 0) {
-			ret = lcd_tcon_mem_tee_unprotect();
-			pr_info("%s: tcon tee unprotect %d\n", __func__, ret);
+			if (!parm[2])
+				goto lcd_tcon_debug_store_err;
+			ret = kstrtouint(parm[2], 10, &temp);
+			if (ret)
+				goto lcd_tcon_debug_store_err;
+			ret = lcd_tcon_mem_tee_protect(temp, 0);
+			pr_info("%s: tcon tee unprotect mem%d %d\n",
+				__func__, temp, ret);
+		} else if (strcmp(parm[1], "on") == 0) {
+			if (!parm[2])
+				goto lcd_tcon_debug_store_err;
+			ret = lcd_tcon_mem_tee_protect(temp, 1);
+			pr_info("%s: tcon tee protect mem%d %d\n",
+				__func__, temp, ret);
 		} else {
 			goto lcd_tcon_debug_store_err;
 		}
