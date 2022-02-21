@@ -1654,6 +1654,11 @@
 		interrupt-names = "vsync";
 	};
 
+	lut_dma:lut_dma {
+		compatible = "amlogic, meson-sc2, lut_dma";
+		status = "okay";
+	};
+
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
