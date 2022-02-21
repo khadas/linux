@@ -228,10 +228,10 @@ int hdmitx21_set_uevent(enum hdmitx_event type, int val)
  */
 static int hdr_status_pos;
 
-static inline void hdmitx_notify_hpd(int hpd)
+static inline void hdmitx_notify_hpd(int hpd, void *p)
 {
 	if (hpd)
-		hdmitx21_event_notify(HDMITX_PLUG, NULL);
+		hdmitx21_event_notify(HDMITX_PLUG, p);
 	else
 		hdmitx21_event_notify(HDMITX_UNPLUG, NULL);
 }
@@ -292,11 +292,13 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		hdev->already_used = 1;
 
 	pr_info("hdmitx hpd state: %d\n", hdev->hpd_state);
-	hdmitx_notify_hpd(hdev->hpd_state);
 
 	/*force to get EDID after resume for Amplifier Power case*/
 	if (hdev->hpd_state)
 		hdmitx_get_edid(hdev);
+	hdmitx_notify_hpd(hdev->hpd_state,
+			  hdev->edid_parsing ?
+			  hdev->edid_ptr : NULL);
 
 	hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	set_disp_mode_auto();
@@ -4152,7 +4154,9 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	if (info && info->mode == VMODE_HDMI)
 		hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
 	hdev->hpd_state = 1;
-	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_notify_hpd(hdev->hpd_state,
+			  hdev->edid_parsing ?
+			  hdev->edid_ptr : NULL);
 
 	/*notify to drm hdmi*/
 	if (hdmitx21_device.drm_hpd_cb.callback)
@@ -4229,7 +4233,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmi_physical_size_update(hdev);
 	hdmitx21_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = 0;
-	hdmitx_notify_hpd(hdev->hpd_state);
+	hdmitx_notify_hpd(hdev->hpd_state, NULL);
 
 	/*notify to drm hdmi*/
 	if (hdmitx21_device.drm_hpd_cb.callback)
@@ -4414,7 +4418,9 @@ int hdmitx21_event_notifier_regist(struct notifier_block *nb)
 	ret = blocking_notifier_chain_register(&hdmitx21_event_notify_list, nb);
 	/* update status when register */
 	if (!ret && nb->notifier_call) {
-		hdmitx_notify_hpd(hdev->hpd_state);
+		hdmitx_notify_hpd(hdev->hpd_state,
+				  hdev->edid_parsing ?
+				  hdev->edid_ptr : NULL);
 		if (hdev->physical_addr != 0xffff)
 			hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID,
 					    &hdev->physical_addr);
@@ -4882,7 +4888,6 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 pr_info("%s[%d]\n", __func__, __LINE__);
 
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
-	hdmitx_notify_hpd(hdev->hpd_state);
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
 pr_info("%s[%d]\n", __func__, __LINE__);
@@ -4925,6 +4930,9 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 		hdev->already_used = 1;
 		hdmitx_get_edid(hdev);
 	}
+	hdmitx_notify_hpd(hdev->hpd_state,
+			  hdev->edid_parsing ?
+			  hdev->edid_ptr : NULL);
 pr_info("%s[%d]\n", __func__, __LINE__);
 	/* Trigger HDMITX IRQ*/
 	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))
@@ -5069,11 +5077,6 @@ void __exit amhdmitx21_exit(void)
 	// TODO stop hdcp
 	platform_driver_unregister(&amhdmitx_driver);
 }
-
-#ifndef MODULE
-subsys_initcall(amhdmitx21_init);
-module_exit(amhdmitx21_exit);
-#endif
 
 //MODULE_DESCRIPTION("AMLOGIC HDMI TX driver");
 //MODULE_LICENSE("GPL");

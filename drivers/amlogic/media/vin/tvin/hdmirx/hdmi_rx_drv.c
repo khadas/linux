@@ -3084,7 +3084,8 @@ static int hdmirx_probe(struct platform_device *pdev)
 	add_timer(&hdevp->timer);
 	rx.boot_flag = true;
 #ifdef CONFIG_AMLOGIC_HDMITX
-	if (rx.chip_id == CHIP_ID_TM2) {
+	if (rx.chip_id == CHIP_ID_TM2 ||
+	    rx.chip_id == CHIP_ID_T7) {
 		rx.tx_notify.notifier_call = rx_hdmi_tx_notify_handler;
 		hdmitx_event_notifier_regist(&rx.tx_notify);
 	}
