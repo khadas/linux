@@ -60,6 +60,7 @@ struct ad82128_data {
 	struct work_struct work;
 	unsigned int last_fault;
 	int reset_pin;
+	int init_done;
 };
 
 static int ad82128_hw_params(struct snd_pcm_substream *substream,
@@ -304,8 +305,8 @@ static void ad82128_init_func(struct work_struct *p_work)
 		AD82128_MUTE, 0);
 	if (ret < 0)
 		goto error_snd_soc_component_update_bits;
-
 	INIT_DELAYED_WORK(&ad82128->fault_check_work, ad82128_fault_check_work);
+	ad82128->init_done = 1;
 	return;
 error_snd_soc_component_update_bits:
 	dev_err(component->dev, "error configuring device registers: %d\n", ret);
@@ -349,7 +350,11 @@ static int ad82128_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct ad82128_data *ad82128 = snd_soc_component_get_drvdata(component);
 	int ret;
-
+	// wait until codec ready
+	while (!ad82128->init_done) {
+		dev_err(component->dev, "wait for ad82128 init done\n");
+		msleep(20);
+	}
 	if (event & SND_SOC_DAPM_POST_PMU) {
 		/*
 		 * Observe codec shutdown-to-active time. The datasheet only
@@ -360,6 +365,7 @@ static int ad82128_dac_event(struct snd_soc_dapm_widget *w,
 		 * so we should always be safe).
 		 */
 		msleep(25);
+
 		ret = snd_soc_component_update_bits(component, AD82128_STATE_CTRL3_REG,
 			AD82128_MUTE, 0);
 		if (ret < 0)
@@ -587,7 +593,7 @@ static int ad82128_probe(struct i2c_client *client,
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-
+	data->init_done = 0;
 	data->ad82128_client = client;
 	data->devtype = id->driver_data;
 	ret = ad82128_parse_dt(data, client->dev.of_node);
