@@ -643,6 +643,10 @@ int frc_vd_notify_callback(struct notifier_block *block, unsigned long cmd, void
 			set_frc_bypass(true);
 			frc_change_to_state(FRC_STATE_DISABLE);
 			frc_state_change_finish(devp);
+			if (devp->frc_sts.frame_cnt) {
+				devp->frc_sts.frame_cnt = 0;
+				pr_frc(1, "interrupt conflicts, reset frame_cnt\n");
+			}
 			pr_frc(1, "VIDEO_SIZE_CHANGE_EVENT\n");
 			devp->frc_sts.out_put_mode_changed = FRC_EVENT_VF_CHG_IN_SIZE;
 		}

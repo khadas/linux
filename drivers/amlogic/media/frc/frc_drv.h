@@ -59,8 +59,9 @@
 // frc_20220119 add frc secure mode protection
 // frc_20220207 frc sync frc_fw glb setting
 // frc_20220215 frc fix char flashing of video
+// frc_20220222 frc bypass pc and check vout
 
-#define FRC_FW_VER			"2022-0222 frc bypass pc and check vout"
+#define FRC_FW_VER			"20220224 frc fix memc state abnormal"
 #define FRC_KERDRV_VER                  1715
 
 #define FRC_DEVNO	1
