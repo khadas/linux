@@ -103,7 +103,11 @@ static inline u64 __arch_counter_get_cntvct(void)
 	u64 cval;
 
 	isb();
+#ifdef CONFIG_ARM
+	asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (cval));
+#else
 	asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (cval));
+#endif
 	return cval;
 }
 
