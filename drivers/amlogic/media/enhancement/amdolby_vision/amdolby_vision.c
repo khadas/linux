@@ -7633,14 +7633,26 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 static int prepare_vsif_pkt
 	(struct dv_vsif_para *vsif,
 	struct dovi_setting_s *setting,
-	const struct vinfo_s *vinfo)
+	const struct vinfo_s *vinfo,
+	enum signal_format_enum src_format)
 {
 	if (!vsif || !vinfo || !setting ||
 	    !vinfo->vout_device || !vinfo->vout_device->dv_info)
 		return -1;
 	vsif->vers.ver2.low_latency =
 		setting->dovi_ll_enable;
-	vsif->vers.ver2.dobly_vision_signal = 1;
+	if (src_format == FORMAT_DOVI || src_format == FORMAT_DOVI_LL)
+		vsif->vers.ver2.dobly_vision_signal = 1;/*0b0001*/
+	else if (src_format == FORMAT_HDR10)
+		vsif->vers.ver2.dobly_vision_signal = 3;/*0b0011*/
+	else if (src_format == FORMAT_HLG)
+		vsif->vers.ver2.dobly_vision_signal = 7;/*0b0111*/
+	else if (src_format == FORMAT_SDR || src_format == FORMAT_SDR_2020)
+		vsif->vers.ver2.dobly_vision_signal = 5;/*0b0101*/
+	if ((debug_dolby & 2))
+		pr_dolby_dbg("src %d, dobly_vision_signal %d\n",
+			     src_format, vsif->vers.ver2.dobly_vision_signal);
+
 	if (vinfo->vout_device->dv_info &&
 	    vinfo->vout_device->dv_info->sup_backlight_control &&
 	    (setting->ext_md.avail_level_mask & EXT_MD_LEVEL_2)) {
@@ -7954,7 +7966,7 @@ static bool send_hdmi_pkt
 		memset(&vsif, 0, sizeof(vsif));
 		if (vinfo) {
 			prepare_vsif_pkt
-				(&vsif, &dovi_setting, vinfo);
+				(&vsif, &dovi_setting, vinfo, src_format);
 			prepare_emp_vsif_pkt
 				(vsif_emp, &dovi_setting, vinfo);
 		}
