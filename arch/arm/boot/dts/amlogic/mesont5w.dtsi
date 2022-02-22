@@ -1102,9 +1102,10 @@
 			line_delay = <500>;
 		};
 
-		vdac {
+		vdac: vdac {
 			compatible = "amlogic, vdac-t5w";
 			status = "okay";
+			cdac_disable = <0>;
 		};
 
 		adc: adc {
@@ -1267,7 +1268,7 @@
 			reg = <0xff632000 0x1c>;
 			tdmout_index = <1>;
 			tdmin_index = <1>;
-			dat0_ch_sel = <1>;
+			dat0_ch_sel = <2>;
 			reset-names = "acodec";
 			resets = <&reset RESET_AUDIO_CODEC>;
 		};
