@@ -14,6 +14,10 @@
 #include <asm/ptrace.h>
 #include <asm/sdei.h>
 
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
+
 enum stack_type {
 	STACK_TYPE_UNKNOWN,
 	STACK_TYPE_TASK,
@@ -21,6 +25,9 @@ enum stack_type {
 	STACK_TYPE_OVERFLOW,
 	STACK_TYPE_SDEI_NORMAL,
 	STACK_TYPE_SDEI_CRITICAL,
+#ifdef CONFIG_AMLOGIC_VMAP
+	STACK_TYPE_VMAP,
+#endif
 	__NR_STACK_TYPES
 };
 
@@ -144,6 +151,13 @@ static inline bool on_accessible_stack(const struct task_struct *tsk,
 		return true;
 	if (on_sdei_stack(sp, size, info))
 		return true;
+#ifdef CONFIG_AMLOGIC_VMAP
+	/*
+	 * keep search stack for task
+	 */
+	if (on_vmap_stack(sp, info))
+		return true;
+#endif
 
 	return false;
 }

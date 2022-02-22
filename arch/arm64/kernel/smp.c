@@ -50,6 +50,9 @@
 #include <asm/tlbflush.h>
 #include <asm/ptrace.h>
 #include <asm/virt.h>
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
@@ -204,6 +207,10 @@ asmlinkage notrace void secondary_start_kernel(void)
 	struct mm_struct *mm = &init_mm;
 	const struct cpu_operations *ops;
 	unsigned int cpu = smp_processor_id();
+
+#ifdef CONFIG_AMLOGIC_VMAP
+	__setup_vmap_stack(my_cpu_offset);
+#endif
 
 	/*
 	 * All kernel threads share the same mm context; grab a
@@ -455,6 +462,9 @@ void __init smp_prepare_boot_cpu(void)
 	 * freed shortly, so we must move over to the runtime per-cpu area.
 	 */
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
+#ifdef CONFIG_AMLOGIC_VMAP
+	__setup_vmap_stack(my_cpu_offset);
+#endif
 	cpuinfo_store_boot_cpu();
 
 	/*

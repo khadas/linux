@@ -16,6 +16,9 @@
 #include <asm/mmu_context.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
 
 /*
  * This is allocated by cpu_suspend_init(), and used to store a pointer to
@@ -43,6 +46,9 @@ void notrace __cpu_suspend_exit(void)
 {
 	unsigned int cpu = smp_processor_id();
 
+#ifdef CONFIG_AMLOGIC_VMAP
+	__setup_vmap_stack(my_cpu_offset);
+#endif
 	/*
 	 * We are resuming from reset with the idmap active in TTBR0_EL1.
 	 * We must uninstall the idmap and restore the expected MMU

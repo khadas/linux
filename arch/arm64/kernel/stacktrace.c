@@ -18,6 +18,9 @@
 #include <asm/stack_pointer.h>
 #include <asm/stacktrace.h>
 
+#ifdef CONFIG_AMLOGIC_VMAP
+#include <linux/amlogic/vmap_stack.h>
+#endif
 /*
  * AArch64 PCS assigns the frame pointer to x29.
  *
@@ -152,10 +155,12 @@ void notrace walk_stackframe(struct task_struct *tsk, struct stackframe *frame,
 }
 NOKPROBE_SYMBOL(walk_stackframe);
 
+#ifndef CONFIG_AMLOGIC_VMAP
 static void dump_backtrace_entry(unsigned long where, const char *loglvl)
 {
 	printk("%s %pSb\n", loglvl, (void *)where);
 }
+#endif
 
 void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 		    const char *loglvl)
@@ -194,7 +199,13 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 	do {
 		/* skip until specified stack frame */
 		if (!skip) {
+		#ifdef CONFIG_AMLOGIC_VMAP
+			dump_backtrace_entry_vmap(frame.pc, frame.fp,
+						  (unsigned long)tsk->stack,
+						  loglvl);
+		#else
 			dump_backtrace_entry(frame.pc, loglvl);
+		#endif
 		} else if (frame.fp == regs->regs[29]) {
 			skip = 0;
 			/*
@@ -204,7 +215,13 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 			 * at which an exception has taken place, use regs->pc
 			 * instead.
 			 */
+		#ifdef CONFIG_AMLOGIC_VMAP
+			dump_backtrace_entry_vmap(regs->pc, frame.fp,
+						  (unsigned long)tsk->stack,
+						  loglvl);
+		#else
 			dump_backtrace_entry(regs->pc, loglvl);
+		#endif
 		}
 	} while (!unwind_frame(tsk, &frame));
 
