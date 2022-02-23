@@ -60,6 +60,7 @@
 /*  V1.1.66  improve dvbs blind scan and support single cable */
 /*  V1.1.67  avoid dvbc missing channel */
 /*  V1.1.68  add a function to invert the spectrum in dvbs blind scan */
+/*  V1.1.69  fixed atsc agc speed test */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -76,8 +77,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.68"
-#define DTVDEMOD_VER	"2022/10/21: add a function to invert the spectrum in dvbs blind scan"
+#define AMLDTVDEMOD_VER "V1.1.69"
+#define DTVDEMOD_VER	"2022/11/09: fixed atsc agc speed test"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

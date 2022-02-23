@@ -1982,6 +1982,12 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			else
 				atsc_write_reg_v4(ATSC_DEMOD_REG_0X56, 0x0);
 
+			if (tuner_find_by_name(fe, "r842")) {
+				/* adjust IF AGC bandwidth, default 0x40208007. */
+				/* for atsc agc speed test >= 85Hz. */
+				atsc_write_reg_v4(ATSC_AGC_REG_0X42, 0x40208003);
+			}
+
 			if (demod->demod_status.adc_freq == ADC_CLK_24M) {
 				atsc_write_reg_v4(ATSC_DEMOD_REG_0X54,
 					0x1aaaaa);
