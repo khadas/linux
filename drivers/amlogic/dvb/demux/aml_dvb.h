@@ -52,8 +52,6 @@ struct aml_dvb {
 	struct aml_ts_input ts[FE_DEV_COUNT];
 	/*protect many user operate*/
 	struct mutex mutex;
-	/*protect register operate*/
-	spinlock_t slock;
 
 	/*1: dsc connect demod
 	 *0: dsc connect local

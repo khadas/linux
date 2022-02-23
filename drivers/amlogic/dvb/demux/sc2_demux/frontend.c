@@ -101,7 +101,6 @@ ssize_t ts_setting_store(struct class *class,
 	int id, ctrl, r, mode;
 	char mname[32];
 	char pname[32];
-	unsigned long flags;
 	struct aml_ts_input *ts;
 	struct aml_dvb *dvb = aml_get_dvb_device();
 
@@ -124,7 +123,8 @@ ssize_t ts_setting_store(struct class *class,
 	} else {
 		mode = AM_TS_DISABLE;
 	}
-	spin_lock_irqsave(&dvb->slock, flags);
+	if (mutex_lock_interruptible(&dvb->mutex))
+		return -ERESTARTSYS;
 
 	ts = &dvb->ts[id];
 
@@ -145,7 +145,7 @@ ssize_t ts_setting_store(struct class *class,
 		demod_config_tsin_invert(id, ctrl);
 	}
 
-	spin_unlock_irqrestore(&dvb->slock, flags);
+	mutex_unlock(&dvb->mutex);
 
 	return count;
 }

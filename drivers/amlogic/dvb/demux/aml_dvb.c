@@ -647,7 +647,6 @@ static int aml_dvb_probe(struct platform_device *pdev)
 		return ret;
 
 	mutex_init(&advb->mutex);
-	spin_lock_init(&advb->slock);
 
 	ret = init_demux_addr(pdev);
 	if (ret != 0)
@@ -696,7 +695,6 @@ static int aml_dvb_probe(struct platform_device *pdev)
 
 		advb->dmx[i].id = i;
 		advb->dmx[i].pmutex = &advb->mutex;
-		advb->dmx[i].pslock = &advb->slock;
 		advb->dmx[i].swdmx = advb->swdmx[i];
 		advb->dmx[i].tsp = advb->tsp[i];
 		advb->dmx[i].source = tsn_in;

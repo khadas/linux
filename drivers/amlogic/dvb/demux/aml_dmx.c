@@ -604,10 +604,8 @@ static int _dmx_ts_feed_start_filtering(struct dmx_ts_feed *ts_feed)
 //              return -EINVAL;
 //      }
 
-	spin_lock_irq(demux->pslock);
 	ts_feed->is_filtering = 1;
 	feed->state = DMX_STATE_GO;
-	spin_unlock_irq(demux->pslock);
 	mutex_unlock(demux->pmutex);
 
 	return 0;
@@ -626,10 +624,8 @@ static int _dmx_ts_feed_stop_filtering(struct dmx_ts_feed *ts_feed)
 		return -EINVAL;
 	}
 
-	spin_lock_irq(demux->pslock);
 	ts_feed->is_filtering = 0;
 	feed->state = DMX_STATE_ALLOCATED;
-	spin_unlock_irq(demux->pslock);
 	mutex_unlock(demux->pmutex);
 
 	return 0;
@@ -659,11 +655,9 @@ static int _dmx_section_feed_allocate_filter(struct dmx_section_feed *feed,
 		return -EBUSY;
 	}
 
-	spin_lock_irq(demux->pslock);
 	*filter = &sec_filter->section_filter;
 	(*filter)->parent = feed;
 //      (*filter)->priv = sec_filter;
-	spin_unlock_irq(demux->pslock);
 	mutex_unlock(demux->pmutex);
 	pr_dbg("%s exit\n", __func__);
 	return 0;
@@ -778,9 +772,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 
 	sec_feed->state = DMX_STATE_GO;
 
-	spin_lock_irq(demux->pslock);
 	feed->is_filtering = 1;
-	spin_unlock_irq(demux->pslock);
 
 	if (sec_feed->sec_out_elem) {
 		mutex_unlock(demux->pmutex);
@@ -894,9 +886,7 @@ static int _dmx_section_feed_stop_filtering(struct dmx_section_feed *feed)
 		return 0;
 	}
 
-	spin_lock_irq(demux->pslock);
 	feed->is_filtering = 0;
-	spin_unlock_irq(demux->pslock);
 	mutex_unlock(demux->pmutex);
 
 	return 0;
