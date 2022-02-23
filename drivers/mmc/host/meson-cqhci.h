@@ -16,8 +16,8 @@
 #include <linux/irqreturn.h>
 
 #include "cqhci.h"
-
-#define SDIO_RESP_ERR_MASK 0x0000CB00
+/* The resp returned by cmd19 and cmd52/3 can't use the same mask */
+#define SDIO_RESP_ERR_MASK 0x0
 
 #define SD_EMMC_CQE_REG    0x100
 #define SD_EMMC_CQVER    (SD_EMMC_CQE_REG + 0x0)
