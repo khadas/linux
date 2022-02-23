@@ -976,6 +976,7 @@
 		dolby_fw: dolby_fw {
 			compatible = "amlogic, dolby_fw";
 			mem_size = <0x100000>;
+			power-domains = <&pwrdm PDID_A5_RSA>;
 			status = "okay";
 		};
 
