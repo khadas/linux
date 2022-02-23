@@ -190,17 +190,10 @@
 		compatible = "arm,armv8-pmuv3";
 		private-interrupts;
 		/* clusterb-enabled; */
-		interrupts = <GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
-
-		reg = <0x0 0xff634680 0x0 0x4>;
-		cpumasks = <0xf>;
-		/* default 10ms */
-		relax-timer-ns = <10000000>;
-		/* default 10000us */
-		max-wait-cnt = <10000>;
+		interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	vbat: fixedregulator0 {
