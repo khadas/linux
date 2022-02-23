@@ -703,6 +703,13 @@ static int set_disp_mode_auto(void)
 
 	para = hdmi_get_fmt_name(mode, hdev->fmt_attr);
 	hdev->para = para;
+
+	if (!hdmitx_edid_check_valid_mode(hdev, para)) {
+		pr_err("check failed vic: %d\n", para->vic);
+		mutex_unlock(&hdmimode_mutex);
+		return -1;
+	}
+
 	vic = hdmitx_edid_get_VIC(hdev, mode, 1);
 	if (strncmp(info->name, "2160p30hz", strlen("2160p30hz")) == 0) {
 		vic = HDMI_4k2k_30;
@@ -2921,24 +2928,63 @@ static int is_4k50_fmt(char *mode)
 	return 0;
 }
 
-static int is_4k_fmt(char *mode)
+/* check the resolution is over 1920x1080 or not */
+static bool is_over_1080p(struct hdmi_format_para *para)
 {
-	int i;
-	static char const *hdmi4k[] = {
-		"2160p",
-		"smpte",
-		NULL
-	};
+	if (!para)
+		return 1;
 
-	for (i = 0; hdmi4k[i]; i++) {
-		if (strstr(mode, hdmi4k[i]))
-			return 1;
-	}
+	if (para->timing.h_active > 1920 || para->timing.v_active > 1080)
+		return 1;
+
 	return 0;
 }
 
-/* below items has feature limited, may need extra judgement */
-static bool hdmitx_limited_1080p(void)
+/* check the fresh rate is over 60hz or not */
+static bool is_over_60hz(struct hdmi_format_para *para)
+{
+	if (!para)
+		return 1;
+
+	if (para->timing.v_freq > 60000)
+		return 1;
+
+	return 0;
+}
+
+/* test current vic is over 150MHz or not */
+static bool is_over_pixel_150mhz(struct hdmi_format_para *para)
+{
+	if (!para)
+		return 1;
+
+	if (para->timing.pixel_freq > 150000)
+		return 1;
+
+	return 0;
+}
+
+bool is_vic_over_limited_1080p(enum hdmi_vic vic)
+{
+	struct hdmi_format_para *para = hdmi_get_fmt_paras(vic);
+
+	/* if the vic equals to HDMI_UNKNOWN or VESA,
+	 * then treate it as over limited
+	 */
+	if (vic == HDMI_UNKNOWN || vic >= HDMITX_VESA_OFFSET)
+		return 1;
+
+	if (is_over_1080p(para) || is_over_60hz(para) ||
+		is_over_pixel_150mhz(para)) {
+		pr_err("over limited vic: %d\n", vic);
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
+/* the hdmitx output limits to 1080p */
+bool hdmitx_limited_1080p(void)
 {
 	return res_1080p;
 }
@@ -2990,9 +3036,11 @@ static ssize_t disp_cap_show(struct device *dev,
 		for (i = 0; disp_mode_t[i]; i++) {
 			memset(mode_tmp, 0, sizeof(mode_tmp));
 			strncpy(mode_tmp, disp_mode_t[i], 31);
-			if (hdmitx_limited_1080p() && is_4k_fmt(mode_tmp))
-				continue;
 			vic = hdmitx_edid_get_VIC(&hdmitx_device, mode_tmp, 0);
+			if (hdmitx_limited_1080p()) {
+				if (is_vic_over_limited_1080p(vic))
+					continue;
+			}
 			/* Handling only 4k420 mode */
 			if (vic == HDMI_UNKNOWN && is_4k50_fmt(mode_tmp)) {
 				strcat(mode_tmp, "420");
@@ -7386,9 +7434,11 @@ static int drm_hdmitx_get_vic_list(int **vics)
 	for (i = 0; disp_mode_t[i]; i++) {
 		memset(mode_tmp, 0, sizeof(mode_tmp));
 		strncpy(mode_tmp, disp_mode_t[i], 31);
-		if (hdmitx_limited_1080p() && is_4k_fmt(mode_tmp))
-			continue;
 		vic = hdmitx_edid_get_VIC(&hdmitx_device, mode_tmp, 0);
+		if (hdmitx_limited_1080p()) {
+			if (is_vic_over_limited_1080p(vic))
+				continue;
+		}
 		/* Handling only 4k420 mode */
 		if (vic == HDMI_UNKNOWN && is_4k50_fmt(mode_tmp)) {
 			strcat(mode_tmp, "420");
