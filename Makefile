@@ -1444,7 +1444,7 @@ kselftest-merge:
 
 ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/boot/dts/),)
 ifdef CONFIG_AMLOGIC_DRIVER
-dtstree := $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts
+dtstree := $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/amlogic
 else
 # ANDROID: allow this to be overridden by the build environment. This allows
 # one to compile a device tree that is located out-of-tree.
