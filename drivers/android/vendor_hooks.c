@@ -51,11 +51,6 @@
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_cpu_chipid);
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_PRINTK)
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_printk_insert_info);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_printk_modify_len);
-#endif
-
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
  * associated with them) to allow external modules to probe them.

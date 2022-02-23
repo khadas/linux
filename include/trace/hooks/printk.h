@@ -10,16 +10,6 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_PRINTK)
-DECLARE_HOOK(android_vh_printk_modify_len,
-	TP_PROTO(u16 *reserve_size, unsigned long irqflags),
-	TP_ARGS(reserve_size, irqflags));
-
-DECLARE_HOOK(android_vh_printk_insert_info,
-	TP_PROTO(char *text_buf, u16 *text_len),
-	TP_ARGS(text_buf, text_len));
-#endif
-
 DECLARE_HOOK(android_vh_printk_hotplug,
 	TP_PROTO(int *flag),
 	TP_ARGS(flag));
