@@ -84,6 +84,9 @@
 #include "internal.h"
 #include "shuffle.h"
 #include "page_reporting.h"
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#include <linux/amlogic/memory.h>
+#endif
 
 /* Free Page Internal flags: for internal, non-pcp variants of free_pages(). */
 typedef int __bitwise fpi_t;
@@ -5487,6 +5490,9 @@ struct page *__alloc_pages(gfp_t gfp, unsigned int order, int preferred_nid,
 	 */
 	alloc_flags |= alloc_flags_nofragment(ac.preferred_zoneref->zone, gfp);
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	should_wakeup_kswap(gfp, order, &ac);
+#endif
 	/* First allocation attempt */
 	page = get_page_from_freelist(alloc_gfp, order, alloc_flags, &ac);
 	if (likely(page))
