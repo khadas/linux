@@ -3439,6 +3439,45 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	return ret;
 }
 
+int dtvdemod_dvbs_blind_check_signal(struct dvb_frontend *fe,
+		unsigned int freq)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+#ifdef DVBS_BLIND_SCAN_DEBUG
+	unsigned int fld_value[2] = { 0 };
+	int i = 0;
+	int agc1_iq_amp = 0, agc1_iq_power = 0;
+#endif
+	/* set tuner */
+	c->frequency = freq; // KHz
+	c->bandwidth_hz = 45000000; //av2018 must 40M
+	c->symbol_rate = 45000000;
+
+	tuner_set_params(fe);
+
+	usleep_range(2 * 1000, 3 * 1000);//msleep(2);
+
+#ifdef DVBS_BLIND_SCAN_DEBUG
+	fld_value[0] = dvbs_rd_byte(0x91a);
+	fld_value[1] = dvbs_rd_byte(0x91b);
+
+	agc1_iq_amp = (int)((fld_value[0] << 8) | fld_value[1]);
+	if (!agc1_iq_amp) {
+		for (i = 0; i < 5; i++) {
+			fld_value[0] = dvbs_rd_byte(0x916);
+			fld_value[1] = dvbs_rd_byte(0x917);
+			agc1_iq_power = agc1_iq_power + fld_value[0] + fld_value[1];
+		}
+
+		agc1_iq_power /= 5;
+	}
+
+	PR_DVBS("agc1_iq_amp: %d, agc1_iq_power: %d.\n", agc1_iq_amp, agc1_iq_power);
+#endif
+
+	return dvbs_blind_check_AGC2_bandwidth();
+}
+
 int dtvdemod_dvbs_blind_set_frontend(struct dvb_frontend *fe,
 	struct fft_in_bw_result *in_bw_result, unsigned int fft_frc_range_min,
 	unsigned int fft_frc_range_max, unsigned int range_ini)
@@ -4840,6 +4879,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	int i = 0;
 	int j = 0;
 	int k = 0;
+	int asperity;
 
 	status = FE_NONE;
 	PR_INFO("a new blind scan thread\n");
@@ -4893,9 +4933,13 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 			break;
 		PR_INFO("------Search From:%dM to %dM-----\n", freq, freq + freq_step);
 
+		asperity = dtvdemod_dvbs_blind_check_signal(fe, freq + 20000);
+
+		PR_INFO("get asperity: %d.\n", asperity);
+
 		fft_frc_range_min = freq / 1000;
 		fft_frc_range_max = (freq / 1000) + (freq_step / 1000);
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < 4 && asperity; i++) {
 			if (devp->blind_scan_stop)
 				break;
 			range_ini = range[i];
