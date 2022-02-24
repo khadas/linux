@@ -565,10 +565,10 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 
 	/* include lcd_vout_mutex */
 	if (flag) {
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_ON, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
 	} else {
-		aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
+		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_OFF, (void *)pdrv);
 	}
 }
 
@@ -589,6 +589,10 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 		LCDPR("[%d]: fixed timing, exit vmode change\n", pdrv->index);
 		return -1;
 	}
+
+	/* clear fint*/
+	pdrv->fr_duration = 0;
+	pdrv->fr_mode = 0;
 
 	mutex_lock(&lcd_power_mutex);
 
@@ -626,7 +630,6 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 
 	pdrv->vmode_update = 0;
 	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
-
 	mutex_unlock(&lcd_power_mutex);
 	return ret;
 }

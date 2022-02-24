@@ -259,6 +259,77 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 		LCDPR("[%d]: %s: %d finished\n", pdrv->index, __func__, status);
 }
 
+static void lcd_dlg_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
+{
+	struct lcd_power_step_s *power_step;
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN
+	struct lcd_extern_driver_s *edrv;
+	struct lcd_extern_dev_s *edev;
+#endif
+	unsigned int i, index;
+
+	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
+	i = 0;
+	while (i < LCD_PWR_STEP_MAX) {
+		if (status)
+			power_step = &pdrv->config.power.power_on_step[i];
+		else
+			power_step = &pdrv->config.power.power_off_step[i];
+
+		if (power_step->type >= LCD_POWER_TYPE_MAX)
+			break;
+		switch (power_step->type) {
+		case LCD_POWER_TYPE_SIGNAL:
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+				LCDPR("[%d]: power_ctrl: %d, step %d\n",
+					pdrv->index, status, i);
+				LCDPR("[%d]: %s: type=%d, index=%d, value=%d, delay=%d\n",
+					pdrv->index, __func__,
+					power_step->type, power_step->index,
+					power_step->value, power_step->delay);
+			}
+			if (status)
+				pdrv->driver_init(pdrv);
+			else
+				pdrv->driver_disable(pdrv);
+			break;
+#ifdef CONFIG_AMLOGIC_LCD_EXTERN
+		case LCD_POWER_TYPE_EXTERN:
+			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+				LCDPR("[%d]: power_ctrl: %d, step %d\n",
+					pdrv->index, status, i);
+				LCDPR("[%d]: %s: type=%d, index=%d, value=%d, delay=%d\n",
+					pdrv->index, __func__,
+					power_step->type, power_step->index,
+					power_step->value, power_step->delay);
+			}
+			index = power_step->index;
+			edrv = lcd_extern_get_driver(pdrv->index);
+			edev = lcd_extern_get_dev(edrv, index);
+			if (!edrv || !edev)
+				break;
+			if (status) {
+				if (edev->power_on)
+					edev->power_on(edrv, edev);
+				else
+					LCDERR("[%d]: no ext_%d power on\n", pdrv->index, index);
+			} else {
+				if (edev->power_off)
+					edev->power_off(edrv, edev);
+				else
+					LCDERR("[%d]: no ext_%d power off\n", pdrv->index, index);
+			}
+			break;
+#endif
+		default:
+			break;
+		}
+		i++;
+	}
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s: %d finished\n", pdrv->index, __func__, status);
+}
+
 static void lcd_power_encl_on(struct aml_lcd_drv_s *pdrv)
 {
 	mutex_lock(&lcd_vout_mutex);
@@ -308,6 +379,42 @@ static void lcd_power_encl_off(struct aml_lcd_drv_s *pdrv)
 		pdrv->vsync_none_timer_flag = 0;
 	}
 
+	mutex_unlock(&lcd_vout_mutex);
+}
+
+static void lcd_dlg_power_if_on(struct aml_lcd_drv_s *pdrv)
+{
+	mutex_lock(&lcd_vout_mutex);
+	if (!(pdrv->status & LCD_STATUS_IF_ON)) {
+		if (pdrv->config.cus_ctrl.dlg_flag) {
+			if (pdrv->config.cus_ctrl.dlg_flag == 1)
+				lcd_power_ctrl(pdrv, 1);
+			else if (pdrv->config.cus_ctrl.dlg_flag == 2)
+				lcd_dlg_power_ctrl(pdrv, 1);
+		} else {
+			lcd_power_ctrl(pdrv, 1);
+		}
+		pdrv->status |= LCD_STATUS_IF_ON;
+	}
+	pdrv->config.change_flag = 0;
+
+	mutex_unlock(&lcd_vout_mutex);
+}
+
+static void lcd_dlg_power_if_off(struct aml_lcd_drv_s *pdrv)
+{
+	mutex_lock(&lcd_vout_mutex);
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		pdrv->status &= ~LCD_STATUS_IF_ON;
+		if (pdrv->config.cus_ctrl.dlg_flag) {
+			if (pdrv->config.cus_ctrl.dlg_flag == 1)
+				lcd_power_ctrl(pdrv, 0);
+			else if (pdrv->config.cus_ctrl.dlg_flag == 2)
+				lcd_dlg_power_ctrl(pdrv, 0);
+		} else {
+			lcd_power_ctrl(pdrv, 0);
+		}
+	}
 	mutex_unlock(&lcd_vout_mutex);
 }
 
@@ -616,6 +723,70 @@ static struct notifier_block lcd_power_encl_off_nb = {
 	.priority = LCD_PRIORITY_POWER_ENCL_OFF,
 };
 
+static int lcd_dlg_power_if_on_notifier(struct notifier_block *nb,
+					unsigned long event, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if ((event & LCD_EVENT_DLG_POWER_ON) == 0)
+		return NOTIFY_DONE;
+	if (!pdrv) {
+		LCDERR("%s: data is null\n", __func__);
+		return NOTIFY_DONE;
+	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
+
+	if (pdrv->status & LCD_STATUS_IF_ON) {
+		LCDPR("[%d]: lcd interface is already enabled\n", pdrv->index);
+		return NOTIFY_OK;
+	}
+
+	if (pdrv->status & LCD_STATUS_ENCL_ON) {
+		lcd_dlg_power_if_on(pdrv);
+	} else {
+		LCDERR("[%d]: %s: can't power on when controller is off\n",
+		       pdrv->index, __func__);
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block lcd_dlg_power_if_on_nb = {
+	.notifier_call = lcd_dlg_power_if_on_notifier,
+	.priority = LCD_PRIORITY_DLG_POWER_IF_ON,
+};
+
+static int lcd_dlg_power_if_off_notifier(struct notifier_block *nb,
+					 unsigned long event, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if ((event & LCD_EVENT_DLG_POWER_OFF) == 0)
+		return NOTIFY_DONE;
+	if (!pdrv) {
+		LCDERR("%s: data is null\n", __func__);
+		return NOTIFY_DONE;
+	}
+	if (pdrv->probe_done == 0)
+		return NOTIFY_DONE;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
+	lcd_dlg_power_if_off(pdrv);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block lcd_dlg_power_if_off_nb = {
+	.notifier_call = lcd_dlg_power_if_off_notifier,
+	.priority = LCD_PRIORITY_DLG_POWER_IF_OFF,
+};
+
 static int lcd_power_if_on_notifier(struct notifier_block *nb,
 				    unsigned long event, void *data)
 {
@@ -779,6 +950,12 @@ static int lcd_notifier_init(void)
 	ret = aml_lcd_notifier_register(&lcd_power_encl_off_nb);
 	if (ret)
 		LCDERR("register lcd_power_encl_off_nb failed\n");
+	ret = aml_lcd_notifier_register(&lcd_dlg_power_if_on_nb);
+	if (ret)
+		LCDERR("register lcd_dlg_power_if_on_nb failed\n");
+	ret = aml_lcd_notifier_register(&lcd_dlg_power_if_off_nb);
+	if (ret)
+		LCDERR("register lcd_dlg_power_if_off_nb failed\n");
 	ret = aml_lcd_notifier_register(&lcd_power_if_on_nb);
 	if (ret)
 		LCDERR("register lcd_power_if_on_nb failed\n");
@@ -802,6 +979,8 @@ static void lcd_notifier_remove(void)
 {
 	aml_lcd_notifier_unregister(&lcd_power_screen_restore_nb);
 	aml_lcd_notifier_unregister(&lcd_power_screen_black_nb);
+	aml_lcd_notifier_unregister(&lcd_dlg_power_if_off_nb);
+	aml_lcd_notifier_unregister(&lcd_dlg_power_if_on_nb);
 	aml_lcd_notifier_unregister(&lcd_power_if_off_nb);
 	aml_lcd_notifier_unregister(&lcd_power_if_on_nb);
 	aml_lcd_notifier_unregister(&lcd_power_encl_off_nb);
