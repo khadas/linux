@@ -35,6 +35,7 @@ obj-$(CONFIG_AMLOGIC_ETH_PRIVE)		+= ethernet/phy/
 obj-$(CONFIG_AMLOGIC_MEDIA_ALGORITHM)	+= algorithm/
 obj-$(CONFIG_AMLOGIC_GLOBAL_TIMER)	+= global_timer/
 obj-$(CONFIG_AMLOGIC_IIO)		+= iio/
+obj-$(CONFIG_AMLOGIC_MKL)		+= mkl/
 
 #Always build in code/modules
 obj-$(CONFIG_AMLOGIC_CPUIDLE)		+= cpuidle/

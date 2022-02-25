@@ -171,6 +171,7 @@ source "drivers/amlogic/aml_hwspinlock/Kconfig"
 source "drivers/amlogic/rtc/Kconfig"
 source "drivers/amlogic/iio/Kconfig"
 source "drivers/amlogic/asr/Kconfig"
+source "drivers/amlogic/mkl/Kconfig"
 
 source "drivers/amlogic/aes_hwkey_gcm/Kconfig"
 

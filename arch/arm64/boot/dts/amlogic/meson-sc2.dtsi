@@ -1838,6 +1838,13 @@
 			opp-microvolt = <1150>;
 		};
 	};
+
+	aml_mkl {
+		compatible = "amlogic,aml_mkl";
+		dev_name = "aml_mkl_dev";
+		status = "okay";
+		reg = <0x0 0xfe440200 0x0 0x80>;
+	};
 };
 
 &periphs_pinctrl {
