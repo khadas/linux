@@ -461,7 +461,7 @@
 				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "mclk_pad", "clk_srcpll";
-		pinctrl-names = "tdm_pins";
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <
 			&mclk_2_pins
 			&tdmain_pins
@@ -471,7 +471,7 @@
 			&tdm_d11_pins
 			&tdmain_clk_pins
 			>;
-
+		pinctrl-1 = <&tdmin_a_gpio>;
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
@@ -499,8 +499,8 @@
 			&tdm_d12_pins
 			&tdm_d13_pins
 			&tdmb_clk_pins>;
-		pinctrl-1 = <&tdmout_gpio>;
-
+		pinctrl-1 = <&tdmout_b_gpio>;
+		start_clk_enable = <1>;
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
@@ -515,13 +515,13 @@
 		clocks = <&clkaudio CLKID_AUDIO2_MCLK_VAD
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk","clk_srcpll";
-		pinctrl-names = "tdm_pins";
+		pinctrl-names = "tdm_pins", "tdmout_a_gpio";
 		pinctrl-0 = <
 			&tdmcin_pins
 			&tdm_d0_pins
 			&tdm_d1_pins
 			&tdmc_clk_pins>;
-
+		pinctrl-1 = <&tdmin_c_gpio>;
 		tdm5v-supply = <&vcc5v_reg>;
 		tdm3v3-supply = <&vddio3v3_reg>;
 		status = "okay";
@@ -731,15 +731,6 @@
 }; /* end of audiobus */
 
 &periphs_pinctrl {
-	tdm_a_pins: tdm_a_pin {
-		mux { /* GPIOX_11, GPIOX_10, GPIOX_9, GPIOX_8 */
-			groups = "tdm_sclk0_x",
-				"tdm_fs0_x",
-				"tdm_d0_x",
-				"tdm_d1_x";
-			function = "tdm";
-		};
-	};
 
 	tdmain_pins: tdmain_pin {
 		mux { /* GPIOT_1, GPIOT_0, GPIOT_2, GPIOT_3, GPIOT_4, GPIOT_5 */
@@ -754,11 +745,11 @@
 	};
 
 	tdm_b_pins: tdm_b_pin {
-		mux { /* GPIOC_3, GPIOC_2, GPIOC_0, GPIOC_1, GPIOC_5--GPIOC_8, GPIOT12, GPIOT13*/
-			groups = "tdm_sclk1_c",
-				"tdm_fs1_c",
-				"tdm_d2_c",
+		mux { /* GPIOC_0, GPIOC_1, GPIOC_2--GPIOC_8, GPIOT7, GPIOT8*/
+			groups = "tdm_d2_c",
 				"tdm_d3_c",
+				"tdm_fs1_c",
+				"tdm_sclk1_c",
 				"tdm_d4_c",
 				"tdm_d5_c",
 				"tdm_d6_c",
@@ -769,37 +760,53 @@
 		};
 	};
 
-	tdmout_gpio: tdmout_gpio {
-		mux { /* GPIOC_3, GPIOC_2, GPIOC_0, GPIOC_1, GPIOC_5--GPIOC_8, GPIOT12, GPIOT13 */
-			groups ="GPIOC_3",
-				"GPIOC_2",
-				"GPIOC_0",
-				"GPIOC_1",
-				"GPIOC_5",
-				"GPIOC_6",
-				"GPIOC_7",
-				"GPIOC_8",
-				"GPIOT_12",
-				"GPIOT_13";
+	tdmin_a_gpio: tdmin_a_gpio {
+		mux {
+			groups ="GPIOT_0",
+				"GPIOT_1",
+				"GPIOT_2",
+				"GPIOT_3",
+				"GPIOT_4",
+				"GPIOT_5",
+				"GPIOT_6";
 			function = "gpio_periphs";
 			output-low;
 		};
 	};
 
+	tdmout_b_gpio: tdmout_b_gpio {
+		mux {
+			groups ="GPIOC_0",
+				"GPIOC_1",
+				"GPIOC_2",
+				"GPIOC_3",
+				"GPIOC_4",
+				"GPIOC_5",
+				"GPIOC_6",
+				"GPIOC_7",
+				"GPIOC_8",
+				"GPIOT_7",
+				"GPIOT_8";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+	tdmin_c_gpio: tdmin_c_gpio {
+		mux {
+			groups ="GPIOX_8",
+				"GPIOX_9",
+				"GPIOX_10",
+				"GPIOX_11";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
 	tdmcin_pins: tdmcin_pin {
 		mux { /* GPIOX_8, GPIOX_9, GPIOX_10, GPIOX_11, */
 			groups = "tdm_sclk0_x",
 				"tdm_fs0_x",
 				"tdm_d0_x",
 				"tdm_d1_x";
-			function = "tdm";
-		};
-	};
-
-	tdmout_c_pins: tdmout_c_pins {
-		mux { /* GPIOX_10, GPIOX_11 */
-			groups = "tdm_sclk0_x",
-				"tdm_fs0_x";
 			function = "tdm";
 		};
 	};
@@ -815,15 +822,6 @@
 		};
 	};
 
-	dvb_s_ts0_pins: dvb_s_ts0_pins {
-		tsin_a {
-			groups = "tsin_a_sop",
-				"tsin_a_valid",
-				"tsin_a_clk",
-				"tsin_a_din0";
-			function = "tsin_a";
-		};
-	};
 }; /* end of periphs_pinctrl */
 
 &pinctrl_audio {
@@ -945,13 +943,6 @@
 			function = "tdm_clk_in";
 		};
 	};
-
-	//tdm_d11_pins: tdm_d11_pin {
-	//	mux {
-	//		groups = "tdm_d11";
-	//		function = "vadtop_tdmin_lane0";
-	//	};
-	//};
 
 	tdmc_clk_pins: tdmc_clk_pin {
 		mux {

@@ -43,6 +43,7 @@
 #include "../common/debug.h"
 #include "pcpd_monitor.h"
 #include "../common/iec_info.h"
+#include "iomap.h"
 
 #define DRV_NAME "snd_tdm"
 
@@ -1249,6 +1250,8 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
+	aml_tdm_hw_setting_init(p_tdm, runtime->rate, runtime->channels, substream->stream);
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_tdm->fddr;
 		enum frddr_dest dst;
@@ -2201,6 +2204,16 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 
+	if (!IS_ERR(p_tdm->mclk2pad)) {
+		while (__clk_is_enabled(p_tdm->mclk2pad))
+			clk_disable_unprepare(p_tdm->mclk2pad);
+	}
+
+	if (!IS_ERR(p_tdm->mclk)) {
+		while (__clk_is_enabled(p_tdm->mclk))
+			clk_disable_unprepare(p_tdm->mclk);
+	}
+
 	/*mute default clk */
 	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
 		struct pinctrl_state *ps = NULL;
@@ -2225,6 +2238,28 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 	int ret = 0;
+	unsigned int out_lanes = 0, in_lanes = 0;
+
+	out_lanes = pop_count(p_tdm->setting.lane_mask_out);
+	in_lanes = pop_count(p_tdm->setting.lane_mask_in);
+
+	audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
+	audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
+
+	if (!IS_ERR(p_tdm->mclk) && !IS_ERR(p_tdm->clk)) {
+		clk_set_parent(p_tdm->mclk, NULL);
+		ret = clk_set_parent(p_tdm->mclk, p_tdm->clk);
+		if (ret)
+			dev_warn(&pdev->dev, "can't set tdm parent clock\n");
+	}
+
+	if (!IS_ERR(p_tdm->mclk2pad)) {
+		clk_set_parent(p_tdm->mclk2pad, NULL);
+		ret = clk_set_parent(p_tdm->mclk2pad, p_tdm->mclk);
+		if (ret)
+			dev_warn(&pdev->dev, "Can't set tdm mclk_pad parent\n");
+		clk_prepare_enable(p_tdm->mclk2pad);
+	}
 
 	/*set default clk for output*/
 	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
@@ -2237,6 +2272,15 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 			pr_info("%s tdm pins enable!\n", __func__);
 		}
 	}
+	if (in_lanes > 0 && in_lanes <= LANE_MAX3)
+		aml_tdm_set_slot_in(p_tdm->actrl,
+			p_tdm->id, p_tdm->id, p_tdm->setting.slot_width,
+			p_tdm->chipinfo->use_vadtop);
+
+	if (out_lanes > 0 && out_lanes <= LANE_MAX3)
+		aml_tdm_set_slot_out(p_tdm->actrl,
+			p_tdm->id, p_tdm->setting.slots, p_tdm->setting.slot_width);
+
 
 	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
 		ret = regulator_enable(p_tdm->regulator_vcc5v);
