@@ -1225,10 +1225,34 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
 	strreplace(fn_name, ' ', '\0');
 
 	list_for_each_entry(entry, &blacklisted_initcalls, next) {
+#ifdef CONFIG_AMLOGIC_DEBUG
+		char *str = strstr(fn_name, entry->buf);
+
+		if (!str)
+			continue;
+		/*
+		 * The judgment condition before "||" is for gcc compiler
+		 * and atfer "||" for clang compiler.
+		 * clang compiler will modify kernel symbol,the first character
+		 * before the kernel symbol is always '_',and the first two
+		 * characters are always numbers. we use this format to check
+		 * blacklisted init method.
+		 *
+		 * for example:
+		 * fn_name = __initstub__kmod_amlogic_debug__289_21_debug_main_init4
+		 * entry->buf = debug_main_init
+		 */
+		if (str == fn_name ||
+		    ((str >= fn_name + 2) && *(str - 1) == '_' && isdigit(*(str - 2)))) {
+			pr_info("initcall %s blacklisted, fn_name: %s\n", entry->buf, fn_name);
+			return true;
+		}
+#else
 		if (!strcmp(fn_name, entry->buf)) {
 			pr_debug("initcall %s blacklisted\n", fn_name);
 			return true;
 		}
+#endif
 	}
 
 	return false;
