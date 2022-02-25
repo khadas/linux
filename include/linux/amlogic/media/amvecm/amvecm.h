@@ -665,6 +665,8 @@ extern unsigned int pq_user_latch_flag;
 extern enum ecm_color_type cm_cur_work_color_md;
 extern int cm2_debug;
 
+extern unsigned int ct_en;
+
 #define CSC_FLAG_TOGGLE_FRAME	1
 #define CSC_FLAG_CHECK_OUTPUT	2
 #define CSC_FLAG_FORCE_SIGNAL	4

@@ -1915,6 +1915,8 @@ int vpp_set_lut3d(int bfromkey,
 	if (!plut3d)
 		return 1;
 
+	mutex_lock(&vpp_lut3d_lock);
+
 	/* load 3d lut from unifykey store */
 	if (bfromkey) {
 		/* allocate a little bit more buffer than required for safety */
@@ -2088,6 +2090,9 @@ int vpp_set_lut3d(int bfromkey,
 
 	WRITE_VPP_REG(VPP_LUT3D_CBUS2RAM_CTRL, 0);
 	WRITE_VPP_REG(VPP_LUT3D_CTRL, ctltemp);
+
+	mutex_unlock(&vpp_lut3d_lock);
+
 	return 0;
 }
 
@@ -2179,8 +2184,6 @@ void vpp_lut3d_table_init(int r, int g, int b)
 	int d0, d1, d2, step, max_val = 4095;
 	unsigned int i, index;
 
-	mutex_lock(&vpp_lut3d_lock);
-
 	plut3d = kmalloc(14739 * sizeof(int), GFP_KERNEL);
 	if (!plut3d)
 		return;
@@ -2227,7 +2230,6 @@ void vpp_lut3d_table_release(void)
 {
 	kfree(plut3d);
 	plut3d = NULL;
-	mutex_unlock(&vpp_lut3d_lock);
 }
 
 void dump_plut3d_table(void)

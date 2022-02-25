@@ -52,6 +52,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #endif
 
+#include <linux/amlogic/media/amvecm/color_tune.h>
 #include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
@@ -308,6 +309,10 @@ MODULE_PARM_DESC(debug_game_mode_1, "\n debug_game_mode_1\n");
 int freerun_en = GAME_MODE;/* 0:game mode;1:freerun mode */
 module_param(freerun_en, int, 0664);
 MODULE_PARM_DESC(freerun_en, "\n enable or disable freerun\n");
+
+unsigned int ct_en;
+module_param(ct_en, uint, 0664);
+MODULE_PARM_DESC(ct_en, "\n color tune\n");
 
 unsigned int pq_user_value;
 enum hdr_type_e hdr_source_type = HDRTYPE_NONE;
@@ -5551,6 +5556,34 @@ static ssize_t amvecm_pc_mode_store(struct class *cla,
 	return count;
 }
 
+static ssize_t amvecm_color_tune_show(struct class *cla,
+				    struct class_attribute *attr, char *buf)
+{
+	return 0;
+}
+
+static ssize_t amvecm_color_tune_store(struct class *cla,
+				     struct class_attribute *attr,
+				     const char *buf, size_t count)
+{
+	int ret;
+	char *buf_orig, *parm[8] = {NULL};
+
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amvecm(buf_orig, (char **)&parm);
+
+	ret = ct_dbg(parm);
+
+	if (ret < 0)
+		pr_info("set parameters failed\n");
+
+	kfree(buf_orig);
+	return count;
+}
+
 void pc_mode_process(void)
 {
 	unsigned int reg_val, drtlpf_config;
@@ -9538,11 +9571,19 @@ static void amvecm_wb_init(bool en)
 
 void amvecm_3dlut_init(bool en)
 {
-	vpp_lut3d_table_init(-1, -1, -1);
-	vpp_set_lut3d(0, 0, 0, 0);
-	vpp_lut3d_table_release();
+	if (ct_en) {
+		lut3d_en = 1;
+		vpp_lut3d_table_init(-1, -1, -1);
+		vpp_set_lut3d(0, 0, 0, 0);
+		color_lut_init(ct_en);
+		vpp_enable_lut3d(ct_en);
+	} else {
+		vpp_lut3d_table_init(-1, -1, -1);
+		vpp_set_lut3d(0, 0, 0, 0);
+		vpp_lut3d_table_release();
 
-	vpp_enable_lut3d(en);
+		vpp_enable_lut3d(en);
+	}
 }
 
 static struct class_attribute amvecm_class_attrs[] = {
@@ -9661,6 +9702,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(frame_lock, 0644,
 	       amvecm_frame_lock_show,
 		amvecm_frame_lock_store),
+	__ATTR(color_tune, 0664,
+		amvecm_color_tune_show,
+		amvecm_color_tune_store),
 	__ATTR_NULL
 };
 
@@ -9859,6 +9903,13 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			pr_info("Can't find  lut3d_en.\n");
 		else
 			lut3d_en = val;
+
+		ret = of_property_read_u32(node, "ct_3dlut", &val);
+		if (ret)
+			pr_info("Can't find  ct_3dlut.\n");
+		else
+			ct_en = val;
+
 		ret = of_property_read_u32(node, "cm_en", &val);
 		if (ret)
 			pr_amvecm_dbg("Can't find  cm_en.\n");
@@ -10230,6 +10281,8 @@ static void amvecm_shutdown(struct platform_device *pdev)
 	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
 #endif
 	lc_free();
+	vpp_lut3d_table_release();
+	lut_release();
 }
 
 static struct platform_driver aml_vecm_driver = {

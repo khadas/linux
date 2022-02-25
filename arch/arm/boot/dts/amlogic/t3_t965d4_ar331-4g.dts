@@ -1529,6 +1529,7 @@
 	cm_en = <1>;/*1:enabel ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
+	ct_3dlut = <0>;
 	vlock_mode = <0x8>;
 	/*vlock work mode:
 	 *bit0:auto ENC
