@@ -6695,7 +6695,8 @@ static struct clk_regmap t7_dsi_a_meas_gate = {
 			&t7_dsi_a_meas_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		/* config it in U-boot, ignore it to avoid display abnormal */
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -6743,7 +6744,8 @@ static struct clk_regmap t7_dsi_b_meas_gate = {
 			&t7_dsi_b_meas_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		/* config it in U-boot, ignore it to avoid display abnormal */
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -6799,7 +6801,8 @@ static struct clk_regmap t7_dsi0_phy_gate = {
 			&t7_dsi0_phy_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT
+		/* config it in U-boot, ignore it to avoid display abnormal */
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -6847,7 +6850,8 @@ static struct clk_regmap t7_dsi1_phy_gate = {
 			&t7_dsi1_phy_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT
+		/* config it in U-boot, ignore it to avoid display abnormal */
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
