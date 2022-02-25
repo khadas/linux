@@ -1878,6 +1878,7 @@ static int hdmin_delay_start_time;
 static int hdmin_delay_duration;
 static int hdmin_delay_min_ms;
 static int hdmin_delay_max_ms = 128;
+static int hdmin_dv_flag;
 static int hdmin_delay_done = true;
 static int hdmin_need_drop_count;
 static int vframe_walk_delay;
@@ -4473,6 +4474,10 @@ static void dmc_adjust_for_mali_vpu(unsigned int width,
 
 static void hdmi_in_delay_maxmin_reset(void)
 {
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s.\n", __func__);
+
+	hdmin_dv_flag = 0;
 	hdmin_delay_min_ms = 0;
 	hdmin_delay_max_ms = 0;
 }
@@ -4542,6 +4547,10 @@ static void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 	hdmin_delay_max = vdin_count * vdin_vsync;
 	hdmin_delay_max_ms = div64_u64(hdmin_delay_max, 1000);
 	hdmin_delay_max_ms += memc_delay;
+
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: range(%d, %d).\n",
+			__func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
 }
 
 static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
@@ -4560,6 +4569,7 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	unsigned int ret_hz = 0;
 	u64 ext_delay = 0;
 	u32 vdin_buf_count = 0;
+	u32 dv_flag = 0;
 
 	if (!tvin_delay_mode)
 		return;
@@ -4577,6 +4587,12 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 		do_di = true;
 		if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM)
 			di_has_vdin_vf = true;
+	}
+
+	dv_flag = vf->dv_input ? 1 : 0;
+	if (dv_flag != hdmin_dv_flag) {
+		hdmin_dv_flag = dv_flag;
+		pr_info("dv_flag changed, new flag is %d.\n", dv_flag);
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
@@ -4646,6 +4662,10 @@ static void hdmi_in_delay_maxmin_new(struct vframe_s *vf)
 	hdmin_delay_max = vdin_count * vdin_vsync + vpp_count * vpp_vsync;
 	hdmin_delay_max_ms = div64_u64(hdmin_delay_max, 1000);
 	hdmin_delay_max_ms += memc_delay;
+
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: range(%d, %d).\n",
+			__func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
 }
 
 static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
@@ -4674,6 +4694,8 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 		else
 			di_keep_count = DI_KEEP_COUNT_P;
 	}
+
+	hdmin_dv_flag = tvin_info->is_dv;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
 	vdin_keep_count += get_vdin_add_delay_num();
@@ -4737,14 +4759,16 @@ static void hdmi_in_delay_maxmin_new1(struct tvin_to_vpp_info_s *tvin_info)
 	hdmin_delay_max = vdin_count * vdin_vsync + vpp_count * vpp_vsync;
 	hdmin_delay_max_ms = div64_u64(hdmin_delay_max, 1000);
 	hdmin_delay_max_ms += memc_delay;
-	pr_info("cfmt=%d, scan=%d,%d*%d, isdv=%d (%d, %d)\n",
+	pr_info("cfmt=%d, scan=%d,%d*%d_%dhz, isdv=%d.\n",
 		tvin_info->cfmt,
 		tvin_info->scan_mode,
 		tvin_info->width,
 		tvin_info->height,
-		tvin_info->is_dv,
-		hdmin_delay_min_ms,
-		hdmin_delay_max_ms);
+		tvin_info->fps,
+		tvin_info->is_dv);
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: range(%d, %d).\n",
+			__func__, hdmin_delay_min_ms, hdmin_delay_max_ms);
 }
 
 void vdin_start_notify_vpp(struct tvin_to_vpp_info_s *tvin_info)
@@ -4757,45 +4781,78 @@ EXPORT_SYMBOL(vdin_start_notify_vpp);
 
 u32 get_tvin_delay_start(void)
 {
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: start value = %d.\n",
+			__func__, hdmin_delay_start);
+
 	return hdmin_delay_start;
 }
 EXPORT_SYMBOL(get_tvin_delay_start);
 
 void set_tvin_delay_start(u32 start)
 {
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: start value = %d.\n", __func__, start);
+
 	hdmin_delay_start = start;
 }
 EXPORT_SYMBOL(set_tvin_delay_start);
 
 u32 get_tvin_delay_duration(void)
 {
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: last required total_delay %d ms.\n",
+			__func__, last_required_total_delay);
+
 	return last_required_total_delay;
 }
 EXPORT_SYMBOL(get_tvin_delay_duration);
 
 void set_tvin_delay_duration(u32 time)
 {
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: audio want vpp delay %d ms.\n", __func__, time);
+
 	last_required_total_delay = time;
 }
 EXPORT_SYMBOL(set_tvin_delay_duration);
 
 u32 get_tvin_delay(void)
 {
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: vframe walk delay%d ms.\n",
+			__func__, vframe_walk_delay);
+
 	return vframe_walk_delay;
 }
 EXPORT_SYMBOL(get_tvin_delay);
 
 u32 get_tvin_delay_max_ms(void)
 {
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: max delay %d ms.\n", __func__, hdmin_delay_max_ms);
+
 	return hdmin_delay_max_ms;
 }
 EXPORT_SYMBOL(get_tvin_delay_max_ms);
 
 u32 get_tvin_delay_min_ms(void)
 {
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: min delay %d ms.\n", __func__, hdmin_delay_min_ms);
+
 	return hdmin_delay_min_ms;
 }
 EXPORT_SYMBOL(get_tvin_delay_min_ms);
+
+u32 get_tvin_dv_flag(void)
+{
+	if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+		pr_info("%s: dv_flag is %d.\n", __func__, hdmin_dv_flag);
+
+	return hdmin_dv_flag;
+}
+EXPORT_SYMBOL(get_tvin_dv_flag);
 
 static bool tvin_vf_is_keeped(struct vframe_s *vf)
 {

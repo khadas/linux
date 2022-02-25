@@ -403,6 +403,7 @@ void set_tvin_delay_duration(u32 time);
 u32 get_tvin_delay(void);
 u32 get_tvin_delay_max_ms(void);
 u32 get_tvin_delay_min_ms(void);
+u32 get_tvin_dv_flag(void);
 
 void vpu_module_clk_enable(u32 vpp_index, u32 module, bool async);
 void vpu_module_clk_disable(u32 vpp_index, u32 module, bool async);
