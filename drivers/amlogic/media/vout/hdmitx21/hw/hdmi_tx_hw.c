@@ -1904,6 +1904,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 	case CONF_CLR_DV_VS10_SIG:
 		break;
 	case CONF_CT_MODE:
+		hdmi_avi_infoframe_config(CONF_AVI_CT_TYPE, argv);
 		break;
 	case CONF_EMP_NUMBER:
 		break;

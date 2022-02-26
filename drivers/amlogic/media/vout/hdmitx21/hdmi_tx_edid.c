@@ -1751,6 +1751,10 @@ static void hdmitx21_edid_parse_hdmi14(struct rx_cap *prxcap,
 			get_ilatency(prxcap, val);
 			idx += 2;
 		}
+		prxcap->cnc0 = (tmp >> 0) & 1;
+		prxcap->cnc1 = (tmp >> 1) & 1;
+		prxcap->cnc2 = (tmp >> 2) & 1;
+		prxcap->cnc3 = (tmp >> 3) & 1;
 		if (tmp & (1 << 5)) {
 			idx += 1;
 			/* valid 4k */
@@ -1893,7 +1897,6 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				hdmitx21_edid_parse_hfscdb(prxcap, offset,
 							 blockbuf, count);
 			}
-
 			offset += count; /* ignore the remaind. */
 			break;
 

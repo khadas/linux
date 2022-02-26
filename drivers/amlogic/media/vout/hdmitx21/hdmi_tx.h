@@ -218,6 +218,7 @@ enum avi_component_conf {
 	CONF_AVI_YQ01,
 	CONF_AVI_VIC,
 	CONF_AVI_AR,
+	CONF_AVI_CT_TYPE,
 };
 
 enum vrr_component_conf {

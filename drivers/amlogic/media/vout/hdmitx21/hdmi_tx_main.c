@@ -53,6 +53,7 @@
 #include <linux/component.h>
 #include <uapi/drm/drm_mode.h>
 #include <drm/amlogic/meson_drm_bind.h>
+#include <../../vin/tvin/tvin_global.h>
 
 #define HDMI_TX_COUNT 32
 #define HDMI_TX_POOL_NUM  6
@@ -2946,6 +2947,7 @@ static ssize_t allm_mode_store(struct device *dev,
 	if (com_str(buf, "1")) {
 		hdev->allm_mode = 1;
 		hdmitx21_construct_vsif(hdev, VT_ALLM, 1, NULL);
+		hdev->ct_mode = 0;
 		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
 	}
 	if (com_str(buf, "-1")) {
@@ -3010,28 +3012,178 @@ static ssize_t contenttype_mode_store(struct device *dev,
 	}
 	if (_is_hdmi14_4k(hdev->cur_VIC))
 		hdmitx21_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
-	hdev->ct_mode = 0;
-	hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
-
+	if (com_str(buf, "0") || com_str(buf, "off")) {
+		hdev->ct_mode = 0;
+		hdev->it_content = 0;
+		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
+	}
 	if (com_str(buf, "1") || com_str(buf, "game")) {
 		hdev->ct_mode = 1;
-		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_GAME);
+		hdev->it_content = 1;
+		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+			SET_CT_GAME | IT_CONTENT << 4);
 	}
 	if (com_str(buf, "2") || com_str(buf, "graphics")) {
 		hdev->ct_mode = 2;
-		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_GRAPHICS);
+		hdev->it_content = 1;
+		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+			SET_CT_GRAPHICS | IT_CONTENT << 4);
 	}
 	if (com_str(buf, "3") || com_str(buf, "photo")) {
 		hdev->ct_mode = 3;
-		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_PHOTO);
+		hdev->it_content = 1;
+		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+			SET_CT_PHOTO | IT_CONTENT << 4);
 	}
 	if (com_str(buf, "4") || com_str(buf, "cinema")) {
 		hdev->ct_mode = 4;
-		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_CINEMA);
+		hdev->it_content = 1;
+		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+			SET_CT_CINEMA | IT_CONTENT << 4);
 	}
 
 	return count;
 }
+
+/* for decoder/hwc or sysctl to control the low latency mode,
+ * as they don't care if sink support ALLM OR HDMI1.X game mode
+ * so need hdmitx driver to decice to send ALLM OR HDMI1.X game
+ * mode according to capability of EDID
+ */
+static ssize_t ll_mode_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->rxcap.allm) {
+		if (hdev->allm_mode == 1)
+			pos += snprintf(buf + pos, PAGE_SIZE, "HDMI2.1_ALLM_ENABLED\n\r");
+		else
+			pos += snprintf(buf + pos, PAGE_SIZE, "HDMI2.1_ALLM_DISABLED\n\r");
+	}
+	if (hdev->rxcap.cnc3) {
+		if (hdev->ct_mode == 1)
+			pos += snprintf(buf + pos, PAGE_SIZE, "HDMI1.x_GAME_MODE_ENABLED\n\r");
+		else
+			pos += snprintf(buf + pos, PAGE_SIZE, "HDMI1.x_GAME_MODE_DISABLED\n\r");
+	}
+
+	if (!hdev->rxcap.allm && !hdev->rxcap.cnc3)
+		pos += snprintf(buf + pos, PAGE_SIZE, "HDMI_LATENCY_MODE_UNKNOWN\n\r");
+	return pos;
+}
+
+/* 1.echo 1 to enalbe ALLM OR HDMI1.X game mode
+ * if sink support ALLM, then output ALLM mode;
+ * else if support HDMI1.X game mode, then output
+ * HDMI1.X game mode; else, do nothing
+ * 2.echo 0 to disable ALLM and HDMI1.X game mode
+ */
+static ssize_t ll_mode_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf,
+			       size_t count)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	pr_info("hdmitx: store ll_mode as %s\n", buf);
+	if (com_str(buf, "1")) {
+		if (hdev->rxcap.allm) {
+			hdev->allm_mode = 1;
+			hdmitx21_construct_vsif(hdev, VT_ALLM, 1, NULL);
+			hdev->ct_mode = 0;
+			hdev->it_content = 0;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
+		} else if (hdev->rxcap.cnc3) {
+			hdev->ct_mode = 1;
+			hdev->it_content = 1;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				SET_CT_GAME | IT_CONTENT << 4);
+		}
+		/* if support neither ALLM nor HDMI1.X game mode, then do nothing */
+	} else {
+		/* disable ALLM */
+		if (hdev->allm_mode == 1) {
+			hdev->allm_mode = 0;
+			hdmitx21_construct_vsif(hdev, VT_ALLM, 0, NULL);
+			if (_is_hdmi14_4k(hdev->cur_VIC))
+				hdmitx21_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
+			/* if not hdmi1.4 4k, need to sent > 4 frames and shorter than 1S
+			 * HF-VSIF with allm_mode = 0, and then disable HF-VSIF according
+			 * 10.2.1 HF-VSIF Transitions in hdmi2.1a. TODO:
+			 */
+		}
+		/* clear content type */
+		if (hdev->ct_mode == 1) {
+			hdev->ct_mode = 0;
+			hdev->it_content = 0;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
+		}
+	}
+	return count;
+}
+
+/* for game console-> hdmirx -> hdmitx -> TV
+ * interface for hdmirx module
+ */
+void hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	bool it_content = false;
+
+	if (!latency_info)
+		return;
+	pr_info("allm_mode: %d, it_content: %d, cn_type: %d\n",
+		latency_info->allm_mode, latency_info->it_content, latency_info->cn_type);
+
+	/* refer to allm_mode_store() */
+	if (latency_info->allm_mode) {
+		if (hdev->rxcap.allm) {
+			hdev->allm_mode = 1;
+			hdmitx21_construct_vsif(hdev, VT_ALLM, 1, NULL);
+			hdev->ct_mode = 0;
+			hdev->it_content = 0;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE, SET_CT_OFF);
+		}
+	} else {
+		/* disable ALLM firstly */
+		if (hdev->allm_mode == 1) {
+			hdev->allm_mode = 0;
+			hdmitx21_construct_vsif(hdev, VT_ALLM, 0, NULL);
+			if (_is_hdmi14_4k(hdev->cur_VIC))
+				hdmitx21_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
+			/* if not hdmi1.4 4k, need to sent > 4 frames and shorter than 1S
+			 * HF-VSIF with allm_mode = 0, and then disable HF-VSIF according
+			 * 10.2.1 HF-VSIF Transitions in hdmi2.1a. TODO:
+			 */
+		}
+		hdev->it_content = latency_info->it_content;
+		it_content = hdev->it_content;
+		if (hdev->rxcap.cnc3 && latency_info->cn_type == GAME) {
+			hdev->ct_mode = 1;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				SET_CT_GAME | it_content << 4);
+		} else if (hdev->rxcap.cnc0 && latency_info->cn_type == GRAPHICS) {
+			hdev->ct_mode = 2;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				SET_CT_GRAPHICS | it_content << 4);
+		} else if (hdev->rxcap.cnc1 && latency_info->cn_type == PHOTO) {
+			hdev->ct_mode = 3;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				SET_CT_PHOTO | it_content << 4);
+		} else if (hdev->rxcap.cnc2 && latency_info->cn_type == CINEMA) {
+			hdev->ct_mode = 4;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				SET_CT_CINEMA | it_content << 4);
+		} else {
+			hdev->ct_mode = 0;
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				SET_CT_OFF | it_content << 4);
+		}
+	}
+}
+EXPORT_SYMBOL(hdmitx_update_latency_info);
 
 /**/
 static ssize_t _hdr_cap_show(struct device *dev,
@@ -4025,6 +4177,7 @@ static DEVICE_ATTR_RO(allm_cap);
 static DEVICE_ATTR_RW(allm_mode);
 static DEVICE_ATTR_RO(contenttype_cap);
 static DEVICE_ATTR_RW(contenttype_mode);
+static DEVICE_ATTR_RW(ll_mode);
 static DEVICE_ATTR_RW(avmute);
 static DEVICE_ATTR_RW(phy);
 static DEVICE_ATTR_RW(sspll);
@@ -5411,6 +5564,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_allm_mode);
 	ret = device_create_file(dev, &dev_attr_contenttype_cap);
 	ret = device_create_file(dev, &dev_attr_contenttype_mode);
+	ret = device_create_file(dev, &dev_attr_ll_mode);
 	ret = device_create_file(dev, &dev_attr_hdmitx21);
 	ret = device_create_file(dev, &dev_attr_def_stream_type);
 	ret = device_create_file(dev, &dev_attr_hdcp_ctl_lvl);
@@ -5558,6 +5712,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_allm_mode);
 	device_remove_file(dev, &dev_attr_contenttype_cap);
 	device_remove_file(dev, &dev_attr_contenttype_mode);
+	device_remove_file(dev, &dev_attr_ll_mode);
 	device_remove_file(dev, &dev_attr_hpd_state);
 	device_remove_file(dev, &dev_attr_hdmi_used);
 	device_remove_file(dev, &dev_attr_fake_plug);
