@@ -5357,22 +5357,30 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		    vframe->source_type != VFRAME_SOURCE_TYPE_HDMI) {
 			struct provider_aux_req_s req;
 			char *provider_name = NULL, *tmp_name = NULL;
-
-			provider_name = vf_get_provider_name(pch->itf.dvfm.name);
-			while (provider_name) {
-				tmp_name =
-					vf_get_provider_name(provider_name);
-				if (!tmp_name)
-					break;
-				provider_name = tmp_name;
-			}
+			u32 sei_size = 0;
 
 			memset(&req, 0, sizeof(struct provider_aux_req_s));
-			if (provider_name) {
-				req.vf = vframe;
-				vf_notify_provider_by_name(provider_name,
-					VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
-					(void *)&req);
+			if (dip_itf_is_vfm(pch)) {
+				/* For vfm path, request aux buffer by notify interface */
+				provider_name = vf_get_provider_name(pch->itf.dvfm.name);
+				while (provider_name) {
+					tmp_name =
+						vf_get_provider_name(provider_name);
+					if (!tmp_name)
+						break;
+					provider_name = tmp_name;
+				}
+
+				if (provider_name) {
+					req.vf = vframe;
+					vf_notify_provider_by_name(provider_name,
+						VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+						(void *)&req);
+				}
+			} else if (get_vframe_src_fmt(vframe) != VFRAME_SIGNAL_FMT_INVALID) {
+				/* for DI interface, v4l dec will update src_fmt */
+				req.aux_buf = (char *)get_sei_from_src_fmt(vframe, &sei_size);
+				req.aux_size = sei_size;
 			}
 			if (req.aux_buf && req.aux_size &&
 			    di_buf->local_meta &&
