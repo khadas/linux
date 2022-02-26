@@ -32,5 +32,6 @@
 	"V03.00.00.00.02.03.03 [20220715] [HDCP] T7 DVI 1080p60 1A-09 test fail\n" \
 	"V03.00.00.00.02.03.04 [20220726] [COMP] add avmute interface\n" \
 	"V03.00.00.00.03.03.04 [20220805] [HDCP] fix hdcp1.4 repeater cts 3C-II-07\n" \
-	"V03.00.00.00.03.03.05 [20220811] [NEWF] hdmitx21 add aspect ratio support\n"
+	"V03.00.00.00.03.03.05 [20220811] [NEWF] hdmitx21 add aspect ratio support\n" \
+	"V03.00.00.00.03.03.06 [20220829] [NEWF] support avi content type\n"
 #endif // __HDMI21_VERSION_H__

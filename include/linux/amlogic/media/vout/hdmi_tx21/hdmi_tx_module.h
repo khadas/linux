@@ -419,6 +419,7 @@ struct hdmitx_dev {
 	struct scdc_locked_st chlocked_st;
 	u32 allm_mode; /* allm_mode: 1/on 0/off */
 	u32 ct_mode; /* 0/off 1/game, 2/graphcis, 3/photo, 4/cinema */
+	bool it_content;
 	u32 sspll;
 	/* if HDMI plugin even once time, then set 1 */
 	/* if never hdmi plugin, then keep as 0 */
@@ -504,6 +505,7 @@ struct hdmitx_dev {
 	#define SET_CT_GRAPHICS	2
 	#define SET_CT_PHOTO	3
 	#define SET_CT_CINEMA	4
+	#define IT_CONTENT	1
 #define CONF_VIDEO_MUTE_OP      (CMD_CONF_OFFSET + 0x1000 + 0x04)
 #define VIDEO_MUTE          0x1
 #define VIDEO_UNMUTE        0x2

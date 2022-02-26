@@ -165,9 +165,10 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 			hdmitx21_construct_vsif(hdev, VT_ALLM, 1, NULL);
 			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
 				SET_CT_OFF);
+		} else {
+			hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
+				hdev->ct_mode | hdev->it_content << 4);
 		}
-		hdev->hwop.cntlconfig(hdev, CONF_CT_MODE,
-			hdev->ct_mode);
 		ret = 0;
 	}
 	hdmitx_set_spd_info(hdev);
