@@ -588,6 +588,22 @@
 
 		};
 
+		pinctrl_analog: pinctrl@ff63448c {
+			compatible = "amlogic,meson-t5w-analog-pinctrl";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			gpio_analog: analog-bank@ff63448c {
+				reg = <0xff634480 0x4>,
+				      <0xff63448c 0x8>;
+				reg-names = "mux", "gpio";
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&pinctrl_analog 0 0 3>;
+			};
+		};
+
 		pinctrl_periphs: pinctrl@ff6346c0 {
 			compatible = "amlogic,meson-t5w-periphs-pinctrl";
 			#address-cells = <1>;
@@ -598,7 +614,7 @@
 				reg = <0xff6346c0 0xb0>,
 				      <0xff6344e8 0x18>,
 				      <0xff634520 0x18>,
-				      <0xff634440 0x4c>;
+				      <0xff634440 0x3c>;
 				reg-names = "mux",
 					"pull",
 					"pull-enable",
