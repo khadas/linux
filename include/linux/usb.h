@@ -77,6 +77,11 @@ struct usb_host_endpoint {
 	int extralen;
 	int enabled;
 	int streams;
+#ifdef CONFIG_AMLOGIC_USB
+	struct work_struct work;
+	struct xhci_hcd *xhci;
+	struct usb_device *udev;
+#endif
 };
 
 /* host-side wrapper for one interface setting's parsed descriptors */

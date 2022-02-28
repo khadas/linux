@@ -4412,6 +4412,31 @@ int xhci_queue_stop_endpoint(struct xhci_hcd *xhci, struct xhci_command *cmd,
 	u32 trb_ep_index = EP_ID_FOR_TRB(ep_index);
 	u32 type = TRB_TYPE(TRB_STOP_RING);
 	u32 trb_suspend = SUSPEND_PORT_FOR_TRB(suspend);
+#ifdef CONFIG_AMLOGIC_USB
+	struct usb_hcd		*hcd;
+#endif
+
+#ifdef CONFIG_AMLOGIC_USB
+	if (xhci->quirks & XHCI_CRG_HOST_011) {
+		struct usb_device	*udev = xhci->devs[slot_id]->udev;
+		struct usb_host_endpoint *endpoint;
+
+		if (ep_index % 2)
+			endpoint = udev->ep_out[(ep_index + 1) / 2];
+		else
+			endpoint = udev->ep_in[(ep_index + 1) / 2];
+
+		hcd = bus_to_hcd(udev->bus);
+		if (endpoint && usb_endpoint_xfer_isoc(&endpoint->desc) &&
+			udev->descriptor.bDeviceClass == 0xef &&
+			udev->speed == USB_SPEED_HIGH) {
+			endpoint->xhci = xhci;
+			endpoint->udev = udev;
+			schedule_work(&endpoint->work);
+			udelay(250);
+		}
+	}
+#endif
 
 	return queue_command(xhci, cmd, 0, 0, 0,
 			trb_slot_id | trb_ep_index | type | trb_suspend, false);

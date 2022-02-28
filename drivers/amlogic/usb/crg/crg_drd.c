@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include <linux/kthread.h>
 
@@ -240,6 +241,11 @@ static int crg_host_init(struct crg_drd *crg)
 
 	if (crg->super_speed_support)
 		props[prop_idx++].name = "super_speed_support";
+	if (((is_meson_s4_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_s4d_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t3_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t5w_cpu()) && (is_meson_rev_a())))
+		props[prop_idx++].name = "xhci-crg-host-011";
 
 	if (prop_idx) {
 		ret = platform_device_add_properties(xhci, props);
