@@ -48,6 +48,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mpu.h>
 
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+#include <linux/amlogic/freertos.h>
+#endif
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
 
@@ -70,6 +74,9 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 	IPI_IRQ_WORK,
 	IPI_COMPLETION,
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+	IPI_FREERTOS = 7,
+#endif
 	NR_IPI,
 	/*
 	 * CPU_BACKTRACE is special and not included in NR_IPI
@@ -669,6 +676,12 @@ static void do_handle_IPI(int ipinr)
 	case IPI_COMPLETION:
 		ipi_complete(cpu);
 		break;
+
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+	case IPI_FREERTOS:
+		freertos_finish();
+		break;
+#endif
 
 	case IPI_CPU_BACKTRACE:
 		printk_deferred_enter();

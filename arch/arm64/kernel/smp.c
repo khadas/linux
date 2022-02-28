@@ -53,6 +53,9 @@
 #ifdef CONFIG_AMLOGIC_VMAP
 #include <linux/amlogic/vmap_stack.h>
 #endif
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+#include <linux/amlogic/freertos.h>
+#endif
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/ipi.h>
@@ -82,6 +85,9 @@ enum ipi_msg_type {
 	IPI_TIMER,
 	IPI_IRQ_WORK,
 	IPI_WAKEUP,
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+	IPI_FREERTOS = 7,
+#endif
 	NR_IPI
 };
 
@@ -947,6 +953,12 @@ static void do_handle_IPI(int ipinr)
 		WARN_ONCE(!acpi_parking_protocol_valid(cpu),
 			  "CPU%u: Wake-up IPI outside the ACPI parking protocol\n",
 			  cpu);
+		break;
+#endif
+
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+	case IPI_FREERTOS:
+		freertos_finish();
 		break;
 #endif
 
