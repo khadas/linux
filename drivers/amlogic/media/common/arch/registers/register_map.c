@@ -826,8 +826,7 @@ static int __init codec_io_probe(struct platform_device *pdev)
 
 	for (i = CODECIO_CBUS_BASE; i < CODECIO_BUS_MAX; i++) {
 		if (of_address_to_resource(pdev->dev.of_node, i, &res)) {
-			pr_err("found resource failed, i=%d\n", i);
-			return -1;
+			pr_debug("i=%d, skip ioremap\n", i);
 		}
 		if (res.start != 0) {
 			codecio_reg_map[i] =
