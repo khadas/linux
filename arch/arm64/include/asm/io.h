@@ -18,6 +18,9 @@
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
 
+#if defined(CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE)
+#include <linux/amlogic/io_64.h>
+#else
 /*
  * Generic IO read/write.  These perform native-endian accesses.
  */
@@ -89,6 +92,7 @@ static inline u64 __raw_readq(const volatile void __iomem *addr)
 		     : "=r" (val) : "r" (addr));
 	return val;
 }
+#endif
 
 /* IO barriers */
 #define __iormb(v)							\

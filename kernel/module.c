@@ -100,6 +100,11 @@ static void do_free_init(struct work_struct *w);
 static DECLARE_WORK(init_free_wq, do_free_init);
 static LLIST_HEAD(init_free_list);
 
+#ifdef CONFIG_AMLOGIC_DEBUG
+static int module_debug;
+core_param(module_debug, module_debug, int, 0644);
+#endif
+
 #ifdef CONFIG_MODULES_TREE_LOOKUP
 
 /*
@@ -982,6 +987,10 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 	/* Store the name of the last unloaded module for diagnostic purposes */
 	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
 
+#ifdef CONFIG_AMLOGIC_DEBUG
+	if (module_debug)
+		pr_info("remove module: %s\n", mod->name);
+#endif
 	free_module(mod);
 	/* someone could wait for the module in add_unformed_module() */
 	wake_up_all(&module_wq);
@@ -3452,6 +3461,12 @@ static int move_module(struct module *mod, struct load_info *info)
 		mod->init_layout.base = NULL;
 
 	/* Transfer each section which specifies SHF_ALLOC */
+#ifdef CONFIG_AMLOGIC_DEBUG
+	if (module_debug)
+		pr_info("module:%s init_base:%px size:%#x core_base:%px size:%#x, final section addresses:\n",
+			mod->name, mod->init_layout.base, mod->init_layout.size,
+			mod->core_layout.base, mod->core_layout.size);
+#endif
 	pr_debug("final section addresses:\n");
 	for (i = 0; i < info->hdr->e_shnum; i++) {
 		void *dest;
@@ -3470,6 +3485,18 @@ static int move_module(struct module *mod, struct load_info *info)
 			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
 		/* Update sh_addr to point to copy in image. */
 		shdr->sh_addr = (unsigned long)dest;
+#ifdef CONFIG_AMLOGIC_DEBUG
+		if (module_debug) {
+			if (!strcmp(info->secstrings + shdr->sh_name, ".bss") ||
+				!strcmp(info->secstrings + shdr->sh_name, ".data") ||
+				!strcmp(info->secstrings + shdr->sh_name, ".rodata") ||
+				!strcmp(info->secstrings + shdr->sh_name, ".text") ||
+				!strcmp(info->secstrings + shdr->sh_name, ".init.text") ||
+				!strcmp(info->secstrings + shdr->sh_name, ".exit.text"))
+				pr_info("\t0x%lx %s\n",
+					(long)shdr->sh_addr, info->secstrings + shdr->sh_name);
+		}
+#endif
 		pr_debug("\t0x%lx %s\n",
 			 (long)shdr->sh_addr, info->secstrings + shdr->sh_name);
 	}
@@ -3804,6 +3831,15 @@ static noinline int do_init_module(struct module *mod)
 	/* .BTF is not SHF_ALLOC and will get removed, so sanitize pointer */
 	mod->btf_data = NULL;
 #endif
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	/*
+	 * let free module init_mem synchronized, so module layout can keep
+	 * consistence after reboot, it's very important for ramoops iodump.
+	 */
+	module_memfree(mod->init_layout.base);
+	kfree(freeinit);
+#else
 	/*
 	 * We want to free module_init, but be aware that kallsyms may be
 	 * walking this with preempt disabled.  In all the failure paths, we
@@ -3819,6 +3855,7 @@ static noinline int do_init_module(struct module *mod)
 	 */
 	if (llist_add(&freeinit->node, &init_free_list))
 		schedule_work(&init_free_wq);
+#endif
 
 	mutex_unlock(&module_mutex);
 	wake_up_all(&module_wq);

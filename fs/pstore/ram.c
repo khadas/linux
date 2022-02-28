@@ -22,6 +22,14 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include "internal.h"
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/workqueue.h>
+
+/* ramoops_io_dump_delay_secs : iotrace dump delayed time, s */
+static int ramoops_io_dump_delay_secs = 10; /* default : 10s */
+core_param(ramoops_io_dump_delay_secs, ramoops_io_dump_delay_secs, int, 0644);
+struct delayed_work pstore_work;
+#endif
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
@@ -704,6 +712,18 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+static struct ramoops_context *cxt_saved;
+static unsigned long ramoops_ftrace_size_saved;
+
+static void pstore_work_func(struct work_struct *work)
+{
+	if (ramoops_ftrace_size_saved)
+		pstore_ftrace_dump_old(cxt_saved->fprzs[0]);
+	cancel_delayed_work(&pstore_work);
+}
+#endif
+
 static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -847,9 +867,19 @@ static int ramoops_probe(struct platform_device *pdev)
 	ramoops_pmsg_size = pdata->pmsg_size;
 	ramoops_ftrace_size = pdata->ftrace_size;
 
-	pr_info("using 0x%lx@0x%llx, ecc: %d\n",
-		cxt->size, (unsigned long long)cxt->phys_addr,
-		cxt->ecc_info.ecc_size);
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	cxt_saved = cxt;
+	ramoops_ftrace_size_saved = ramoops_ftrace_size;
+	if (ramoops_ftrace_size) {
+		ramoops_ftrace_en = 1;
+		pr_info("ramoops_io_en:%d %d old:0x%lx ftrace_size:0x%lx\n",
+			ramoops_io_en, ramoops_ftrace_en,
+			cxt->fprzs[0] ? (unsigned long)persistent_ram_old_size(cxt->fprzs[0]) : 0,
+			ramoops_ftrace_size);
+	}
+	INIT_DELAYED_WORK(&pstore_work, pstore_work_func);
+	schedule_delayed_work(&pstore_work, ramoops_io_dump_delay_secs * HZ);
+#endif
 
 	return 0;
 

@@ -2,7 +2,9 @@
 /*
  * Copyright (C) 2012 Google, Inc.
  */
-
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#define SKIP_IO_TRACE
+#endif
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/device.h>

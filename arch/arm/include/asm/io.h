@@ -50,6 +50,9 @@ void __raw_readsb(const volatile void __iomem *addr, void *data, int bytelen);
 void __raw_readsw(const volatile void __iomem *addr, void *data, int wordlen);
 void __raw_readsl(const volatile void __iomem *addr, void *data, int longlen);
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/amlogic/io_32.h>
+#else
 #if __LINUX_ARM_ARCH__ < 6
 /*
  * Half-word accesses are problematic with RiscPC due to limitations of
@@ -115,7 +118,7 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 		     : "Qo" (*(volatile u32 __force *)addr));
 	return val;
 }
-
+#endif /* CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE */
 /*
  * Architecture ioremap implementation.
  */
@@ -315,6 +318,7 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
 #define writesl(p,d,l)		__raw_writesl(p,d,l)
 
 #ifndef __ARMBE__
+#ifndef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
 static inline void memset_io(volatile void __iomem *dst, unsigned c,
 	size_t count)
 {
@@ -338,12 +342,12 @@ static inline void memcpy_toio(volatile void __iomem *to, const void *from,
 	mmiocpy((void __force *)to, from, count);
 }
 #define memcpy_toio(to,from,count) memcpy_toio(to,from,count)
-
-#else
+#endif /* CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE */
+#else /* __ARMBE__ */
 #define memset_io(c,v,l)	_memset_io(c,(v),(l))
 #define memcpy_fromio(a,c,l)	_memcpy_fromio((a),c,(l))
 #define memcpy_toio(c,a,l)	_memcpy_toio(c,(a),(l))
-#endif
+#endif /*__ARMBE__ */
 
 #endif	/* readl */
 

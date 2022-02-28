@@ -119,6 +119,14 @@ static struct dentry *pstore_ftrace_dir;
 
 void pstore_register_ftrace(void)
 {
+	/*
+	 * Amlogic reuse pstore ftrace for IO(register access) trace,
+	 * original pstore ftrace function is not so helpful, just ignore
+	 */
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	return;
+#endif
+
 	if (!psinfo->write)
 		return;
 
