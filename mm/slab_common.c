@@ -32,6 +32,9 @@
 
 #include "slab.h"
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#include <linux/amlogic/memory.h>
+#endif
 enum slab_state slab_state;
 LIST_HEAD(slab_caches);
 DEFINE_MUTEX(slab_mutex);
@@ -954,11 +957,22 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 		flags = kmalloc_fix_flags(flags);
 
 	flags |= __GFP_COMP;
-	page = alloc_pages(flags, order);
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	if (size < (PAGE_SIZE * (1 << order)))
+		page = aml_slub_alloc_large(size, flags, order);
+	else
+#endif
+		page = alloc_pages(flags, order);
+
 	if (likely(page)) {
 		ret = page_address(page);
+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B,
+				      PAGE_ALIGN(size) / PAGE_SIZE);
+	#else
 		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B,
 				      PAGE_SIZE << order);
+	#endif
 	}
 	ret = kasan_kmalloc_large(ret, size, flags);
 	/* As ret might get tagged, call kmemleak hook after KASAN. */

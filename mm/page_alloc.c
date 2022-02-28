@@ -1128,7 +1128,15 @@ done_merging:
 	else if (is_shuffle_order(order))
 		to_tail = shuffle_pick_tail();
 	else
+	#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+		/*
+		 * always put freed page to tail of buddy system, in order to increase
+		 *  probability of use-after-free for KASAN check.
+		 */
+		to_tail = true;
+	#else
 		to_tail = buddy_merge_likely(pfn, buddy_pfn, page, order);
+	#endif
 
 	if (to_tail)
 		add_to_free_list_tail(page, zone, order, migratetype);
@@ -3483,7 +3491,15 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn,
 	__count_vm_event(PGFREE);
 	pcp = this_cpu_ptr(zone->per_cpu_pageset);
 	pindex = order_to_pindex(migratetype, order);
+#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && defined(CONFIG_KASAN)
+	/*
+	 * always put freed page to tail of buddy system, in  order to
+	 * increase probability of use-after-free for KASAN check.
+	 */
+	list_add_tail(&page->lru, &pcp->lists[pindex]);
+#else
 	list_add(&page->lru, &pcp->lists[pindex]);
+#endif
 	pcp->count += 1 << order;
 	high = nr_pcp_high(pcp, zone);
 	if (pcp->count >= high) {

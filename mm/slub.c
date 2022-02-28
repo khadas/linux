@@ -43,6 +43,9 @@
 
 #include "internal.h"
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#include <linux/amlogic/memory.h>
+#endif
 /*
  * Lock order:
  *   1. slab_mutex (Global Mutex)
@@ -4575,6 +4578,14 @@ size_t __ksize(const void *object)
 
 	if (unlikely(!PageSlab(page))) {
 		WARN_ON(!PageCompound(page));
+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		if (unlikely(PageOwnerPriv1(page))) {
+			pr_debug("%s, obj:%p, page:%p, index:%ld, size:%ld\n",
+				__func__, object, page_address(page),
+				page->index, PAGE_SIZE * page->index);
+			return PAGE_SIZE * page->index;
+		}
+	#endif
 		return page_size(page);
 	}
 
@@ -4594,7 +4605,13 @@ void kfree(const void *x)
 
 	page = virt_to_head_page(x);
 	if (unlikely(!PageSlab(page))) {
+	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		if (aml_free_nonslab_page(page, object))
+			return;
+		__free_pages(page, compound_order(page));
+	#else
 		free_nonslab_page(page, object);
+	#endif /*CONFIG_AMLOGIC_MEMORY_EXTEND */
 		return;
 	}
 	slab_free(page->slab_cache, page, object, NULL, 1, _RET_IP_);
