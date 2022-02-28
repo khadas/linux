@@ -1736,6 +1736,14 @@
 &uart_C {
 	status = "okay";
 	uart-has-rtscts;
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
+		//device-wakeup-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+		max-speed = <2000000>;
+		clock-names = "lpo";
+		//clocks = <&pmic_osc>;
+	};
 };
 
 &uart_E {
