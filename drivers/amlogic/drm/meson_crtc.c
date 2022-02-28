@@ -167,6 +167,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->dv_enable_property) {
 		*val = crtc_state->crtc_dv_enable;
 		return 0;
+	}  else if (property == meson_crtc->bgcolor_property) {
+		*val = crtc_state->crtc_bgcolor;
+		return 0;
 	}
 
 	return ret;
@@ -191,6 +194,9 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	} else if (property == meson_crtc->dv_enable_property) {
 		crtc_state->crtc_dv_enable = val;
+		return 0;
+	} else if (property == meson_crtc->bgcolor_property) {
+		crtc_state->crtc_bgcolor = val;
 		return 0;
 	}
 
@@ -756,6 +762,21 @@ static void meson_crtc_init_dv_enable_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_crtc_add_bgcolor_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "BACKGROUND_COLOR",
+					0, GENMASK_ULL(63, 0));
+	if (prop) {
+		amcrtc->bgcolor_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to background color property\n");
+	}
+}
+
 int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 {
 	struct meson_drm *priv = amcrtc->priv;
@@ -794,6 +815,7 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);
+	meson_crtc_add_bgcolor_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;

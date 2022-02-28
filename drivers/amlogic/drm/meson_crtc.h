@@ -41,6 +41,8 @@ struct am_meson_crtc_state {
 	bool crtc_eotf_by_property_flag;
 	/*etof value by property*/
 	u8 eotf_type_by_property;
+	/*crtc background*/
+	u64 crtc_bgcolor;
 };
 
 struct am_meson_crtc {
@@ -57,6 +59,7 @@ struct am_meson_crtc {
 	struct drm_property *hdr_policy;
 	struct drm_property *hdmi_etof;
 	struct drm_property *dv_enable_property;
+	struct drm_property *bgcolor_property;
 
     /*debug*/
 	int dump_enable;

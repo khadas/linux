@@ -392,6 +392,8 @@ static int meson_video_plane_fb_check(struct drm_plane *plane,
 		plane_info->dmabuf = ubo->dmabuf;
 	} else {
 		plane_info->dmabuf = meson_fb->bufp[0]->base.dma_buf;
+		if (!plane_info->dmabuf)
+			plane_info->dmabuf = meson_fb->bufp[0]->dmabuf;
 	}
 	if (!plane_info->dmabuf)
 		return -EINVAL;
