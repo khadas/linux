@@ -1755,7 +1755,7 @@ static ssize_t hdcp22_onoff_show(struct device *dev,
 {
 	int pos = 0;
 
-	return sprintf(buf, "%d", hdcp22_on);
+	pos += sprintf(buf, "%d", hdcp22_on);
 	return pos;
 }
 
@@ -1781,25 +1781,25 @@ static ssize_t hw_info_store(struct device *dev,
 	return count;
 }
 
-static ssize_t edid_dw_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
-{
-	return 0;
-}
+//static ssize_t edid_dw_show(struct device *dev,
+//			    struct device_attribute *attr,
+//			    char *buf)
+//{
+//	return 0;
+//}
 
-static ssize_t edid_dw_store(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf,
-			     size_t count)
-{
-	int cnt = count;
+//static ssize_t edid_dw_store(struct device *dev,
+//			     struct device_attribute *attr,
+//			     const char *buf,
+///			     size_t count)
+//{
+//	int cnt = count;
 
-	rx_pr("edid store len: %d\n", cnt);
-	rx_set_receiver_edid(buf, cnt);
+//	rx_pr("edid store len: %d\n", cnt);
+//	rx_set_receiver_edid(buf, cnt);
 
-	return count;
-}
+//	return count;
+//}
 
 static ssize_t edid_with_port_show(struct device *dev,
 	struct device_attribute *attr,
@@ -1814,38 +1814,6 @@ static ssize_t edid_with_port_store(struct device *dev,
 	size_t count)
 {
 	hdmirx_fill_edid_with_port_buf(buf, count);
-	return count;
-}
-
-static ssize_t ksvlist_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
-{
-	return 0;
-}
-
-static ssize_t ksvlist_store(struct device *dev,
-			     struct device_attribute *attr,
-			     const char *buf,
-			     size_t count)
-{
-	int cnt;
-	/* unsigned long tmp; */
-	unsigned char *hdcp = rx_get_dw_hdcp_addr();
-	/* unsigned char t_tmp[3]; */
-	cnt = count;
-	/* t_tmp[2] = '\0'; */
-	rx_pr("dw hdcp %d,%lu\n", cnt, sizeof(struct hdcp14_topo_s));
-	/*for(i = 0;i < count/2;i++) {
-	 *	memcpy(t_tmp, buf + i*2, 2);
-	 *	if (kstrtoul(t_tmp, 16, &tmp))
-	 *	rx_pr("ksvlist %s:\n", t_tmp);
-	 *	*(hdcp + i) = (unsigned char)tmp;
-	 *	rx_pr("%#x ", *(hdcp + i));
-	 *}
-	 */
-	memcpy(hdcp, buf, cnt);
-	rx_pr("\n");
 	return count;
 }
 
@@ -1969,11 +1937,6 @@ static ssize_t reset22_store(struct device *dev,
 				  const char *buf,
 				  size_t count)
 {
-	int reset;
-
-	memcpy(&reset, buf, sizeof(reset));
-	rx_pr("%s:%d\n", __func__, reset);
-	rx_reload_firm_reset(reset);
 	return count;
 }
 
@@ -2141,8 +2104,7 @@ static DEVICE_ATTR_RW(arc_aud_type);
 static DEVICE_ATTR_RW(reset22);
 static DEVICE_ATTR_RW(hdcp_version);
 static DEVICE_ATTR_RW(hw_info);
-static DEVICE_ATTR_RW(edid_dw);
-static DEVICE_ATTR_RW(ksvlist);
+//static DEVICE_ATTR_RW(edid_dw);
 static DEVICE_ATTR_RW(earc_cap_ds);
 static DEVICE_ATTR_RW(edid_select);
 static DEVICE_ATTR_RW(audio_blk);
@@ -2511,67 +2473,6 @@ void rx_tmds_data_capture(void)
 	set_fs(old_fs);
 }
 
-/* for HDMIRX/CEC notify */
-#define HDMITX_PLUG                     1
-#define HDMITX_UNPLUG                   2
-#define HDMITX_PHY_ADDR_VALID           3
-#define HDMITX_HDCP14_KSVLIST           4
-
-#ifdef CONFIG_AMLOGIC_HDMITX
-static int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
-				     unsigned long value, void *p)
-{
-	int ret = 0;
-	int phy_addr = 0;
-	struct hdcprp_topo *topo;
-
-	switch (value) {
-	case HDMITX_PLUG:
-		if (log_level & EDID_LOG)
-			rx_pr("%s, HDMITX_PLUG\n", __func__);
-		if (p) {
-			rx_pr("update EDID from HDMITX\n");
-			rx_update_tx_edid_with_audio_block(p, rx_audio_block);
-		}
-		break;
-
-	case HDMITX_UNPLUG:
-		if (log_level & EDID_LOG)
-			rx_pr("%s, HDMITX_UNPLUG, recover primary EDID\n",
-			      __func__);
-		rx_update_tx_edid_with_audio_block(NULL, NULL);
-		break;
-
-	case HDMITX_PHY_ADDR_VALID:
-		phy_addr = *((int *)p);
-		if (log_level & EDID_LOG)
-			rx_pr("%s, HDMITX_PHY_ADDR_VALID %x\n",
-			      __func__, phy_addr & 0xffff);
-		break;
-
-	case HDMITX_HDCP14_KSVLIST:
-		topo = (struct hdcprp_topo *)p;
-
-		if (topo) {
-			memcpy(&receive_hdcp,
-			       &topo->topo.topo14,
-			       MAX_KSV_LIST_SIZE);
-			rx_pr("ksv_update\n");
-			/* get ksv list from struct topo */
-			/* refer to include/linux/amlogic/media/vout/hdmi_tx/hdmi_hdcp.h */
-			;
-		}
-		break;
-	default:
-		rx_pr("unsupported hdmitx notify:%ld, arg:%p\n",
-		      value, p);
-		ret = -EINVAL;
-		break;
-	}
-	return ret;
-}
-#endif
-
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR
 static int rx_vrr_notify_handler(struct notifier_block *nb,
 				     unsigned long value, void *p)
@@ -2760,16 +2661,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("hdmirx: fail to create cur 5v file\n");
 		goto fail_create_hw_info;
 	}
-	ret = device_create_file(hdevp->dev, &dev_attr_edid_dw);
-	if (ret < 0) {
-		rx_pr("hdmirx: fail to create edid_dw file\n");
-		goto fail_create_edid_dw;
-	}
-	ret = device_create_file(hdevp->dev, &dev_attr_ksvlist);
-	if (ret < 0) {
-		rx_pr("hdmirx: fail to create ksvlist file\n");
-		goto fail_create_ksvlist;
-	}
+	//ret = device_create_file(hdevp->dev, &dev_attr_edid_dw);
+	//if (ret < 0) {
+		//rx_pr("hdmirx: fail to create edid_dw file\n");
+		//goto fail_create_edid_dw;
+	//}
 	ret = device_create_file(hdevp->dev, &dev_attr_earc_cap_ds);
 	if (ret < 0) {
 		rx_pr("hdmirx: fail to create earc_cap_ds file\n");
@@ -3150,10 +3046,8 @@ fail_create_vrr_func_ctrl:
 	device_remove_file(hdevp->dev, &dev_attr_vrr_func_ctrl);
 fail_create_earc_cap_ds:
 	device_remove_file(hdevp->dev, &dev_attr_earc_cap_ds);
-fail_create_ksvlist:
-	device_remove_file(hdevp->dev, &dev_attr_ksvlist);
-fail_create_edid_dw:
-	device_remove_file(hdevp->dev, &dev_attr_edid_dw);
+//fail_create_edid_dw:
+//	device_remove_file(hdevp->dev, &dev_attr_edid_dw);
 fail_create_hw_info:
 	device_remove_file(hdevp->dev, &dev_attr_hw_info);
 fail_create_hdcp_version:
@@ -3228,8 +3122,7 @@ static int hdmirx_remove(struct platform_device *pdev)
 	device_remove_file(hdevp->dev, &dev_attr_info);
 	device_remove_file(hdevp->dev, &dev_attr_arc_aud_type);
 	device_remove_file(hdevp->dev, &dev_attr_earc_cap_ds);
-	device_remove_file(hdevp->dev, &dev_attr_ksvlist);
-	device_remove_file(hdevp->dev, &dev_attr_edid_dw);
+	//device_remove_file(hdevp->dev, &dev_attr_edid_dw);
 	device_remove_file(hdevp->dev, &dev_attr_hw_info);
 	device_remove_file(hdevp->dev, &dev_attr_hdcp_version);
 	device_remove_file(hdevp->dev, &dev_attr_reset22);

@@ -2911,7 +2911,7 @@ void hdmitx21_edid_clear(struct hdmitx_dev *hdmitx_device)
 	hdmitx_device->edid_parsing = 0;
 	hdmitx_edid_set_default_aud(hdmitx_device);
 	rx_set_hdr_lumi(&tmp[0], 2);
-	rx_set_receiver_edid(&tmp[0], 2);
+	//rx_set_receiver_edid(&tmp[0], 2);
 }
 
 /*

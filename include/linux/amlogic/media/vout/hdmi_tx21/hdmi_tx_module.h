@@ -447,6 +447,7 @@ struct hdmitx_dev {
 	struct connector_hdcp_cb drm_hdcp_cb;
 
 	struct miscdevice hdcp_comm_device;
+	u8 def_stream_type;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -612,9 +613,9 @@ void hdmitx21_set_avi_vic(enum hdmi_vic vic);
  * RX downstream Information from rptx to rprx
  */
 /* send part raw edid from TX to RX */
-void rx_repeat_hpd_state(u32 st);
+void rx_repeat_hpd_state(bool st);
 /* prevent compile error in no HDMIRX case */
-void __attribute__((weak))rx_repeat_hpd_state(u32 st)
+void __attribute__((weak))rx_repeat_hpd_state(bool st)
 {
 }
 
@@ -665,6 +666,7 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 #define HDMITX_PLUG			1
 #define HDMITX_UNPLUG			2
 #define HDMITX_PHY_ADDR_VALID		3
+#define HDMITX_KSVLIST	4
 
 #define HDMI_SUSPEND    0
 #define HDMI_WAKEUP     1

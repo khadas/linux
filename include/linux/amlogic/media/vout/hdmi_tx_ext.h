@@ -16,6 +16,7 @@
 #define HDMITX_PLUG			1
 #define HDMITX_UNPLUG			2
 #define HDMITX_PHY_ADDR_VALID		3
+#define HDMITX_KSVLIST	4
 
 enum hdcp_ver_e {
 	HDCPVER_NONE = 0,

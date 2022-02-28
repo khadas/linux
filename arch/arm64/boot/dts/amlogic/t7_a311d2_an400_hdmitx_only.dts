@@ -1520,6 +1520,7 @@
 
 &amhdmitx {
 	status = "okay";
+	repeater_tx = <0>;
 	enc_idx = <0>;
 };
 

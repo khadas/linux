@@ -118,7 +118,7 @@ int kill_esm_fail;
 /* emp buffer */
 char emp_buf[1024];
 int i2c_err_cnt;
-u8 ddc_dbg_en;
+u32 ddc_dbg_en;
 /*------------------------variable define end------------------------------*/
 
 static int check_regmap_flag(unsigned int addr)
@@ -1220,7 +1220,7 @@ void hdmirx_irq_hdcp_enable(bool enable)
 			/* encrypted sts changed en */
 			//hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 1);
 			/* AKE init received en */
-			hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 4);
+			hdmirx_wr_cor(CP2PAX_INTR1_MASK_HDCP2X_IVCRX, 0x6);
 		} else {
 			/* clear enable */
 			hdmirx_wr_cor(RX_HDCP1X_INTR0_MASK_HDCP1X_IVCRX, 0);
@@ -3181,46 +3181,6 @@ void rx_hdcp_init(void)
 		hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, ENCRIPTION_ENABLE, 0);
 }
 
-/*type 1 pull down hpd,reset hdcp2.2
- *type 2 only pull down hpd
- */
-void hdmirx_load_firm_reset(int type)
-{
-	int ret = 0;
-
-	rx_pr("%s\n", __func__);
-	rx_pr("3firm_change:%d,repeat_plug:%d,repeat:%d\n",
-	      rx.firm_change, repeat_plug, rx.hdcp.repeat);
-	/*wait the fsm end*/
-	rx.firm_change = 1;
-	msleep(20);
-	/*External_Mute(1);rx_aud_pll_ctl(0);*/
-	rx_set_cur_hpd(0, 4);
-	/*type 2 only pull down hpd*/
-	if (type == 2) {
-		downstream_hpd_flag = 0;
-		fsm_restart();
-		return;
-	}
-	if (!repeat_plug)
-		downstream_hpd_flag = 1;
-	else
-		downstream_hpd_flag = 0;
-	ret = rx_sec_set_duk(hdmirx_repeat_support());
-	rx_pr("ret = %d\n", ret);
-	if (ret) {
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
-		hdmirx_hdcp22_esm_rst();
-		mdelay(100);
-		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x1000);
-		rx_hdcp22_wr_top(TOP_SKP_CNTL_STAT, 0x1);
-		fsm_restart();
-		rx_is_hdcp22_support();
-	}
-	rx_pr("4firm_change:%d,repeat_plug:%d,repeat:%d\n",
-	      rx.firm_change, repeat_plug, rx.hdcp.repeat);
-}
-
 /* need reset bandgap when
  * aud_clk=0 & req_clk!=0
  * according to analog team's request
@@ -3585,48 +3545,6 @@ void cor_init(void)
 	//}
 	hdmirx_wr_cor(RX_3D_SW_OW2_AUD_IVCRX, data8);//duplicate
 
-	//======================================
-	// HDCP 1.X Config ---- RX
-	//======================================
-	hdmirx_wr_cor(RX_SYS_SWTCHC_AON_IVCRX, 0x86);//SYS_SWTCHC,Enable HDCP DDC,SCDC DDC
-
-	//----initial KSV list--------
-	//for(i=0;i<5;i++) //ksv list number
-	//{
-		//for(j=0;j<5;j++) //40bit ksv 5 byte write
-		//{
-			//register address: 0x16a8
-			//hdmirx_wr_cor(RX_KSV_FIFO_HDCP1X_IVCRX,SampleKSVList[i*5+j]);
-		//}
-	//}
-
-	//----clear ksv fifo rdy --------
-	data8  =  0;
-	data8 |= (1 << 3);//bit[  3] reg_hdmi_clr_en
-	data8 |= (7 << 0);//bit[2:0] reg_fifordy_clr_en
-	hdmirx_wr_cor(RX_RPT_RDY_CTRL_PWD_IVCRX, data8);//register address: 0x1010 (0x0f)
-
-	//----BCAPS config-----
-	data8 =  0;
-	data8 |= (0 << 4);//bit[4] reg_fast		 I2C transfers speed.
-	data8 |= (0 << 5);//bit[5] reg_fifo_rdy
-	data8 |= (0 << 6);//bit[6] reg_repeater	 Rx Repeater
-	data8 |= (1 << 7);//bit[7] reg_hdmi_capable	 HDMI capable
-	hdmirx_wr_cor(RX_BCAPS_SET_HDCP1X_IVCRX, data8);//register address: 0x169e (0x80)
-
-	//----BCAPS1 config-----
-	data8 =  0;
-	data8 |= (0 << 0);//bit[6:0] reg_dve_cnt
-	data8 |= (0 << 7);//bit[  7] reg_dve_exceed
-	hdmirx_wr_cor(RX_SHD_BSTATUS1_HDCP1X_IVCRX, data8);//register address: 0x169f (0x00)
-
-	//----Rx Sha length in bytes----
-	//hdmirx_wr_cor(RX_SHA_length1_HDCP1X_IVCRX, 0x0a);//[7:0] 10=2ksv*5byte
-	//hdmirx_wr_cor(RX_SHA_length2_HDCP1X_IVCRX, 0x00);//[9:8]
-
-	//----Rx Sha repeater KSV fifo start addr----
-	//hdmirx_wr_cor(RX_KSV_SHA_start1_HDCP1X_IVCRX, 0x00);//[7:0]
-	//hdmirx_wr_cor(RX_KSV_SHA_start2_HDCP1X_IVCRX, 0x00);//[9:8]
 	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x12);//SRST = 1
 	/* BIT0 AUTO RST AUD FIFO when fifo err */
 	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x01);//SRST = 0
@@ -3649,27 +3567,6 @@ void cor_init(void)
 	//DPLL
 	hdmirx_wr_cor(DPLL_CFG6_DPLL_IVCRX, 0x10);
 	hdmirx_wr_cor(DPLL_HDMI2_DPLL_IVCRX, 0);
-}
-
-void hdcp_init_t7(void)
-{
-	//key config and crc check
-	//rx_sec_hdcp_cfg_t7();
-	//hdcp config
-	hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);//HPD
-	hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x01);//ri_hdcp2x_en
-	//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// irq
-	hdmirx_wr_cor(PWD_SW_CLMP_AUE_OIF_PWD_IVCRX, 0x0);
-	//hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x1);//no use
-	//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3); irq
-	//hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x1); //same as L3309
-	//hdmirx_wr_cor(CP2PA_TP1_HDCP2X_IVCRX, 0x9e);
-	//hdmirx_wr_cor(CP2PA_TP3_HDCP2X_IVCRX, 0x32);
-	//hdmirx_wr_cor(CP2PA_TP5_HDCP2X_IVCRX, 0x32);
-	//hdmirx_wr_cor(CP2PAX_GP_IN1_HDCP2X_IVCRX, 0x2);
-	//hdmirx_wr_cor(CP2PAX_GP_CTL_HDCP2X_IVCRX, 0xdb);
-	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x8);
-	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x2);
 }
 
 void hdmirx_hbr2spdif(u8 val)
@@ -5831,10 +5728,10 @@ u32 rx_get_ecc_err(void)
 
 void rx_hdcp_22_sent_reauth(void)
 {
-	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x0);
-	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x0);
+	hdmirx_wr_bits_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, _BIT(7), 0);
+	hdmirx_wr_bits_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, _BIT(7), 0);
 	//hdmirx_wr_cor(RX_ECC_CTRL_DP2_IVCRX, 3);
-	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0x80);
+	hdmirx_wr_bits_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, _BIT(7), 1);
 }
 
 void rx_hdcp_14_sent_reauth(void)

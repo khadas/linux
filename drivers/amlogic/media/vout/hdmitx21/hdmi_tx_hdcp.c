@@ -31,9 +31,12 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 #include "hw/hdmi_tx_reg.h"
 #include "hdmi_tx.h"
+#include <../../vin/tvin/hdmirx/hdmi_rx_repeater.h>
 
 static int hdmi21_authenticated;
 static struct hdcp_t *p_hdcp;
+/* hdcp_topo info transfrred to upstream, 1.4 & 2.2 */
+struct hdcp_topo_s hdcp_topo;
 
 static int hdcp_verbose;
 
@@ -43,6 +46,12 @@ MODULE_PARM_DESC(hdcp_verbose, "for hdcp debug");
 MODULE_PARM_DESC(hdmi21_authenticated, "\n hdmi21_authenticated\n");
 module_param(hdmi21_authenticated, int, 0444);
 
+static unsigned int delay_ms = 10;
+unsigned long hdcp_reauth_dbg = 1;
+unsigned long streamtype_dbg;
+unsigned long en_fake_rcv_id;
+/* static u8 fake_rcv_id[5] = {0x0}; */
+
 static bool hdcp_schedule_work(struct hdcp_work *work, u32 delay_ms, u32 period_ms);
 static bool hdcp_stop_work(struct hdcp_work *work);
 static void hdcptx_update_failures(struct hdcp_t *p_hdcp, enum hdcp_fail_types_t types);
@@ -50,6 +59,8 @@ static bool hdcp1x_ds_ksv_fifo_ready(struct hdcp_t *p_hdcp, u8 int_reg[]);
 static void hdcp2x_auth_stop(struct hdcp_t *p_hdcp);
 static void hdcptx_send_csm_msg(struct hdcp_t *p_hdcp);
 static void hdcptx_reset(struct hdcp_t *p_hdcp);
+static void bksv_get_ds_list(struct hdcp_t *p_hdcp);
+static void get_ds_rcv_id(struct hdcp_t *p_hdcp);
 
 static void pr_hdcp_info(const char *fmt, ...)
 {
@@ -86,7 +97,7 @@ void hdcp_mode_set(unsigned int mode)
 		p_hdcp->req_hdcp_ver = HDCP_VER_HDCP1X;
 	if (mode == 2)
 		p_hdcp->req_hdcp_ver = HDCP_VER_HDCP2X;
-	hdcp_schedule_work(&p_hdcp->timer_hdcp_start, 250, 0);
+	hdcp_schedule_work(&p_hdcp->timer_hdcp_start, 1, 0);
 }
 
 static bool hdcp1x_ds_ksv_fifo_ready(struct hdcp_t *p_hdcp, u8 int_reg[])
@@ -123,8 +134,12 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 			u8 topoval;
 
 			topoval = hdcptx2_topology_get();
-			topo->rp_depth = hdcptx2_rpt_depth_get();
-			topo->dev_count = hdcptx2_rpt_dev_cnt_get();
+			/* include the count/depth of downstream repeater itself.
+			 * the rcvid list of downstream repeater will be added to notify
+			 * list in assemble_ds_ksv_lists()
+			 */
+			topo->rp_depth = hdcptx2_rpt_depth_get() + 1;
+			topo->dev_count = hdcptx2_rpt_dev_cnt_get() + 1;
 			if (topoval & 0x08 || topo->dev_count > HDCP2X_MAX_DEV)
 				topo->max_devs_exceed = true;
 			else
@@ -154,8 +169,12 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 			u8 max_devices = HDCP1X_MAX_TX_DEV;
 
 			hdcptx1_bstatus_get(bstatus);
-			topo->rp_depth = (bstatus[1] & 0x07);
-			topo->dev_count = (bstatus[0] & 0x7F);
+			/* include the count/depth of downstream repeater itself.
+			 * the bksv of downstream repeater will be added to notify
+			 * list in assemble_ds_ksv_lists()
+			 */
+			topo->rp_depth = (bstatus[1] & 0x07) + 1;
+			topo->dev_count = (bstatus[0] & 0x7F) + 1;
 			if (bstatus[0] & 0x80 || topo->dev_count > max_devices)
 				topo->max_devs_exceed = true;
 			else
@@ -172,12 +191,14 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 			if (topo->max_cas_exceed)
 				topo->rp_depth = HDCP1X_MAX_DEPTH;
 		} else {
+			/* include the depth of repeater itself */
 			topo->rp_depth = 1;
 			topo->dev_count = 1;
 			topo->max_devs_exceed = false;
 			topo->max_cas_exceed = false;
 			topo->ds_hdcp2x_dev = false;
 			topo->ds_hdcp1x_dev = true;
+			/* hdcptx1_ds_bksv_read(p_hdcp->p_ksv_lists, KSV_SIZE); */
 		}
 	}
 }
@@ -209,7 +230,7 @@ static void hdcp_check_ds_csm_status(struct hdcp_t *p_hdcp)
 			update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
 		}
 	} else {
-		if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
+		if (p_hdcp->hdcp_type == HDCP_VER_HDCP1X) {
 			update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
 		} else {
 			if (p_hdcp->csm_valid) {
@@ -236,6 +257,7 @@ static void hdcp_authenticated_handle(struct hdcp_t *p_hdcp)
 		p_hdcp->fail_type = HDCP_FAIL_NONE;
 		hdcptx_encryption_update(p_hdcp, true);
 		hdcp_topology_update(p_hdcp);
+		bksv_get_ds_list(p_hdcp);
 		hdcp_check_ds_csm_status(p_hdcp);
 	} else if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
 		hdcp_stop_work(&p_hdcp->timer_hdcp_rcv_auth);
@@ -245,6 +267,7 @@ static void hdcp_authenticated_handle(struct hdcp_t *p_hdcp)
 		hdcptx_encryption_update(p_hdcp, true);
 		p_hdcp->ds_repeater = false;
 		hdcp_topology_update(p_hdcp);
+		get_ds_rcv_id(p_hdcp);
 		hdcp_check_ds_csm_status(p_hdcp);
 	}
 }
@@ -338,6 +361,9 @@ static void assemble_ds_ksv_lists(struct hdcp_t *p_hdcp)
 		ds_count = ds_bstatus[0] & 0x7F;
 		ds_depth = ds_bstatus[1] & 0x07;
 		hdcptx1_get_ds_ksvlists(&p_hdcp->p_ksv_next, ds_count);
+		/* include the bksv of downstream repeater, add to the
+		 * ksv list which will report to upstream
+		 */
 		bksv_get_ds_list(p_hdcp);
 	} else if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
 		u8 dev_cnt = hdcptx2_rpt_dev_cnt_get();
@@ -414,6 +440,145 @@ static void hdcp_rpt_ready_process(struct hdcp_t *p_hdcp, bool ksv_read_status)
 		p_hdcp->rpt_ready);
 }
 
+static void hdcp_notify_rpt_info(struct work_struct *work)
+{
+	unsigned int ksv_bytes = 0;
+	unsigned int i = 0;
+	unsigned int j = 0;
+	struct hdcp_t *p_hdcp = container_of((struct delayed_work *)work,
+		struct hdcp_t, ksv_notify_wk);
+
+	memset(&hdcp_topo, 0, sizeof(hdcp_topo));
+	hdcp_topo.hdcp_ver = p_hdcp->hdcp_type;
+	pr_hdcp_info("hdcp_type: %d\n", p_hdcp->hdcp_type);
+	hdcp_topo.depth = p_hdcp->hdcp_topology.rp_depth;
+	hdcp_topo.dev_cnt = p_hdcp->hdcp_topology.dev_count;
+	if (en_fake_rcv_id) {
+		/* memcpy(p_hdcp->p_ksv_next, fake_rcv_id, ARRAY_SIZE(fake_rcv_id)); */
+		/* p_hdcp->p_ksv_next += ARRAY_SIZE(fake_rcv_id); */
+		/* hdcp_topo.dev_cnt += 1; */
+	}
+	hdcp_topo.max_cascade_exceeded = p_hdcp->hdcp_topology.max_cas_exceed;
+	hdcp_topo.max_devs_exceeded = p_hdcp->hdcp_topology.max_devs_exceed;
+	hdcp_topo.hdcp1_dev_ds = p_hdcp->hdcp_topology.ds_hdcp1x_dev;
+	hdcp_topo.hdcp2_dev_ds = p_hdcp->hdcp_topology.ds_hdcp2x_dev;
+	ksv_bytes = hdcp_topo.dev_cnt * 5; //p_hdcp->p_ksv_next - p_hdcp->p_ksv_lists;
+	ksv_bytes = ksv_bytes > ARRAY_SIZE(hdcp_topo.ksv_list) ?
+		ARRAY_SIZE(hdcp_topo.ksv_list) : ksv_bytes;
+	memcpy(hdcp_topo.ksv_list, p_hdcp->p_ksv_lists, ksv_bytes);
+	pr_hdcp_info("%s depth:[%d] cnt:[%d] ksv_bytes:[%d] max_cas: [%d], max_dev: [%d]\n",
+		__func__, hdcp_topo.depth, hdcp_topo.dev_cnt, ksv_bytes,
+		hdcp_topo.max_cascade_exceeded, hdcp_topo.max_devs_exceeded);
+	for (i = 0; i < ksv_bytes / 5; i++) {
+		pr_hdcp_info("ksv list[%d]: ", i);
+		for (j = 0; j < 5; j++)
+			pr_hdcp_info("%02x\n", hdcp_topo.ksv_list[5 * i + j]);
+		pr_hdcp_info("\n");
+	}
+	hdmitx21_event_notify(HDMITX_KSVLIST, &hdcp_topo);
+}
+
+static void hdcp_req_reauth_whandler(struct work_struct *work)
+{
+	struct hdcp_t *p_hdcp = container_of((struct delayed_work *)work,
+			struct hdcp_t, req_reauth_wk);
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	/* firstly need to disable current hdcp auth */
+	if (hdcp_reauth_dbg == 1) {
+		hdcp_mode_set(0);
+		mdelay(delay_ms);
+	}
+	if (p_hdcp->req_reauth_ver == 0) {
+		/* auto mode, need to use ds hdcp version */
+		hdmitx21_enable_hdcp(hdev);
+	} else if (p_hdcp->req_reauth_ver == 1) {
+		/* force hdcp1.x mode */
+		if (get_hdcp1_lstore()) {
+			hdev->hdcp_mode = 1;
+			hdcp_mode_set(1);
+		} else {
+			hdev->hdcp_mode = 0;
+		}
+	} else if (p_hdcp->req_reauth_ver == 2) {
+		/* force hdcp2.x mode */
+		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+			hdev->hdcp_mode = 2;
+			hdcp_mode_set(2);
+		} else {
+			hdev->hdcp_mode = 0;
+		}
+	}
+}
+
+void hdmitx21_rst_stream_type(struct hdcp_t *hdcp)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (!hdcp)
+		return;
+	hdcp->csm_message.streamid_type = hdev->def_stream_type;
+}
+
+/* note: it maybe used in timer */
+u8 hdmitx_reauth_request(u8 hdcp_version)
+{
+	u8 upstream_type = 0;
+	u8 cur_content_type = 0;
+	bool ds_repeater = false;
+
+	pr_info("%s[%d] hdcp_ver 0x%x\n", __func__, __LINE__, hdcp_version);
+
+	/* bit4: smng type notify, bit3~0: hdcp ver, 0:auto, 1:hdcp14, 2:hdcp22 */
+	if ((hdcp_version & 0x10) == 0x0) {
+		/* first re-auth */
+		hdcp_version &= 0xF;
+		if (hdcp_version != 0 &&
+			hdcp_version != 1 &&
+			hdcp_version != 2)
+			return 0;
+
+		p_hdcp->req_reauth_ver = hdcp_version;
+		/* recovery default streamid_type, by default stream type = 0 */
+		hdmitx21_rst_stream_type(p_hdcp);
+		schedule_delayed_work(&p_hdcp->req_reauth_wk, 0);
+	} else {
+		/* streamtype_dbg:
+		 * 0: if ds is hdcp22 repeater, then propagate stream type with re-auth
+		 * 1: force to not re-auth, for debug
+		 * 2 or others: don't check ds, if stream type changed, force propagate
+		 * stream type with re-auth, even ds is hdcp receiver or hdcp14 repeater
+		 */
+		if (streamtype_dbg == 1) {
+			return 0;
+		} else if (streamtype_dbg == 0) {
+			ds_repeater = hdcptx_query_ds_repeater(p_hdcp);
+			if (!ds_repeater || p_hdcp->hdcp_type != HDCP_VER_HDCP2X) {
+				pr_hdcp_info("no need propagate stream type, ds_repeater: %d, ds_hdcp_type: %d\n",
+					ds_repeater, p_hdcp->hdcp_type);
+				return 0;
+			}
+		}
+		/* if downstream connect repeater, then propagate stream id to downstream */
+		upstream_type = hdcp_version & 0xF;
+		cur_content_type = p_hdcp->csm_message.streamid_type & 0x00FF;
+		/* if current stream type not consistent with upstream,
+		 * re-auth with new stream type notified by upstream,
+		 * hdcp re-auth version is req_reauth_ver
+		 */
+		if (upstream_type != cur_content_type) {
+			p_hdcp->csm_message.streamid_type =
+				(p_hdcp->csm_message.streamid_type & 0xFF00) |
+				upstream_type;
+			pr_hdcp_info("stream type change from %d to %d\n",
+				cur_content_type, upstream_type);
+			schedule_delayed_work(&p_hdcp->req_reauth_wk, 0);
+		}
+	}
+	return 1;
+}
+EXPORT_SYMBOL(hdmitx_reauth_request);
+
 static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 {
 	u8 hdcp1xcoppst, hdcp1xauthintst;
@@ -442,6 +607,8 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 				p_hdcp->ds_repeater = false;
 				/* R0 == R0' */
 				hdcp_authenticated_handle(p_hdcp);
+				/* ds is receiver case */
+				schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
 			} else {
 				p_hdcp->ds_repeater = true;
 				p_hdcp->ds_auth = true;
@@ -513,6 +680,8 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 				p_hdcp->update_topo_state = false;
 				update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
 			}
+			/* ds is repeater case */
+			schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
 		}
 	}
 }
@@ -523,6 +692,8 @@ void hdcp1x_intr_handler(struct intr_t *intr)
 
 	pr_hdcp_info("%s[%d]\n", __func__, __LINE__);
 	hdcp14_intreg[0] = intr->st_data;
+	/* clear intr state asap instead of clear after process intr */
+	intr->st_data = 0;
 	hdcp1x_process_intr(p_hdcp, hdcp14_intreg);
 }
 
@@ -569,6 +740,8 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		if (hdcptx2_auth_status()) {
 			if (!hdcptx_query_ds_repeater(p_hdcp)) {
 				hdcp_authenticated_handle(p_hdcp);
+				/* ds is receiver case */
+				schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
 			} else {
 				hdcp_stop_work(&p_hdcp->timer_hdcp_rcv_auth);
 				hdcp_stop_work(&p_hdcp->timer_hdcp_rpt_auth);
@@ -602,15 +775,17 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		pr_hdcp_info("hdcptx2: rcv_id changed");
 		hdcp_stop_work(&p_hdcp->timer_hdcp_rpt_auth);
 		hdcp_rpt_ready_process(p_hdcp, true);
+		/* ds is repeater case */
+		schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
 	}
-	if (cp2tx_intr1_st & BIT(2))
+	if (cp2tx_intr1_st & BIT(2)) //BIT__HDCP2X_INTR0__AKE_SEND
 		p_hdcp->reauth_ignored = true;
-	if (cp2tx_intr1_st & BIT(5))
+	if (cp2tx_intr1_st & BIT(5)) //BIT__HDCP2X_INTR0__RPTR_SMNG_TRANS_DONE
 		update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
-	if (cp2tx_intr1_st & BIT(6))
+	if (cp2tx_intr1_st & BIT(6)) //BIT__HDCP2X_INTR0__CERT_RECV
 		p_hdcp->reauth_ignored = false;
 
-	if (cp2tx_intr1_st & BIT(3)) {
+	if (cp2tx_intr1_st & BIT(3)) { //BIT__HDCP2X_INTR0__SKE_SEND
 		p_hdcp->reauth_ignored = false;
 		if (hdcptx_query_ds_repeater(p_hdcp)) {
 			/*
@@ -937,7 +1112,12 @@ static void hdcp_check_update_whandler(struct work_struct *w)
 	pr_hdcp_info("%s[%d] period %d ms\n", __func__, __LINE__,
 		work->period_ms);
 	hdcptx_reset(p_hdcp);
-
+	if (hdcp_reauth_dbg == 2) {
+		mdelay(delay_ms);
+	} else if (hdcp_reauth_dbg == 3) {
+		mdelay(delay_ms);
+		hdcptx_reset(p_hdcp);
+	}
 	if (p_hdcp->hdcptx_enabled) {
 		p_hdcp->hdcp_cap_ds = hdcp_check_ds_hdcp2ver(p_hdcp);
 		if (p_hdcp->hdcp_cap_ds != HDCP_VER_NONE) {
@@ -1053,6 +1233,7 @@ int hdmitx21_hdcp_init(void)
 	p_hdcp->reauth_ignored = false;
 	p_hdcp->encryption_enabled = false;
 	p_hdcp->content_type = HDCP_CONTENT_TYPE_0;
+	hdmitx21_rst_stream_type(p_hdcp);
 	p_hdcp->p_ksv_lists =
 		kmalloc((HDCP1X_MAX_DEPTH + 1) * sizeof(struct hdcp_ksv_t), GFP_KERNEL);
 	p_hdcp->hdcp_wq = alloc_workqueue(DEVICE_NAME, WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
@@ -1066,6 +1247,8 @@ int hdmitx21_hdcp_init(void)
 	init_hdcp_works(&p_hdcp->timer_hdcp_auth_fail_retry,
 		hdcp_check_auth_failretry_whandler, "hdcp_auth_fail_retry");
 	init_hdcp_works(&p_hdcp->timer_update_csm, hdcp_update_csm_whandler, "update_csm");
+	INIT_DELAYED_WORK(&p_hdcp->ksv_notify_wk, hdcp_notify_rpt_info);
+	INIT_DELAYED_WORK(&p_hdcp->req_reauth_wk, hdcp_req_reauth_whandler);
 	hdev->task_hdcp = kthread_run(hdmitx21_hdcp_stat_monitor, (void *)hdev,
 				      "kthread_hdcp");
 
