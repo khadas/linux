@@ -16,6 +16,9 @@
 #define AMLOGIC_JTAG_ON			0x82000040
 #define AMLOGIC_JTAG_OFF		0x82000041
 
+#define AMLOGIC_JTAG_PINMUX_GPIO	1
+#define AMLOGIC_JTAG_PINMUX_JTAG	0
+
 bool is_jtag_disable(void);
 bool is_jtag_a(void);
 bool is_jtag_b(void);

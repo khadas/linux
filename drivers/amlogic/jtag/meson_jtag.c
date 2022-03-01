@@ -47,6 +47,13 @@ static struct jtag_id_desc jtag_id_data[] = {
 	{JTAG_SELECT_ID(AP,   SWD_A,   0), "ap",  "swd_a", "swd_apao"},
 };
 
+static const char * const jtag_pinctrl_name[] = {
+	"jtag_a_pins",		"jtag_a_gpio_pins",
+	"jtag_b_pins",		"jtag_b_gpio_pins",
+	"swd_a_pins",		"swd_a_gpio_pins",
+	"jtag_trace_pins",	"jtag_trace_gpio_pins"
+};
+
 bool is_jtag_disable(void)
 {
 	if (global_select == AMLOGIC_JTAG_DISABLE)
@@ -381,7 +388,7 @@ static irqreturn_t jtag_irq_handler(int irq, void *data)
 
 #endif
 
-static int aml_jtag_setup(struct aml_jtag_dev *jdev)
+static int aml_jtag_setup(struct aml_jtag_dev *jdev, char pinctrl_state)
 {
 	unsigned int old_select = jdev->old_select;
 	unsigned int select = jdev->select;
@@ -400,10 +407,11 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 	/* set pinmux */
 	switch (select) {
 	case JTAG_SELECT_ID(AP, JTAG_A, 0):
-		s = pinctrl_lookup_state(jdev->jtag_pinctrl, "jtag_a_pins");
+		s = pinctrl_lookup_state(jdev->jtag_pinctrl,
+					 jtag_pinctrl_name[0 + pinctrl_state]);
 		if (IS_ERR_OR_NULL(s)) {
-			dev_err(&jdev->pdev->dev,
-				"could not get jtag_a_pins state\n");
+			dev_err(&jdev->pdev->dev, "could not get %s state\n",
+				jtag_pinctrl_name[0 + pinctrl_state]);
 			return -EINVAL;
 		}
 		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
@@ -413,10 +421,11 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 		}
 		break;
 	case JTAG_SELECT_ID(AP, JTAG_B, 0):
-		s = pinctrl_lookup_state(jdev->jtag_pinctrl, "jtag_b_pins");
+		s = pinctrl_lookup_state(jdev->jtag_pinctrl,
+					 jtag_pinctrl_name[2 + pinctrl_state]);
 		if (IS_ERR_OR_NULL(s)) {
-			dev_err(&jdev->pdev->dev,
-				"could not get jtag_b_pins state\n");
+			dev_err(&jdev->pdev->dev, "could not get %s state\n",
+				jtag_pinctrl_name[2 + pinctrl_state]);
 			return -EINVAL;
 		}
 		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
@@ -427,10 +436,10 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 		break;
 	case JTAG_SELECT_ID(AP, SWD_A, 0):
 		s = pinctrl_lookup_state(jdev->jtag_pinctrl,
-					 "swd_a_pins");
+					 jtag_pinctrl_name[4 + pinctrl_state]);
 		if (IS_ERR_OR_NULL(s)) {
-			dev_err(&jdev->pdev->dev,
-				"could not get swd_a_pins state\n");
+			dev_err(&jdev->pdev->dev, "could not get %s state\n",
+				jtag_pinctrl_name[4 + pinctrl_state]);
 			return -EINVAL;
 		}
 		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
@@ -449,11 +458,12 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 
 	ret = of_property_read_bool(jdev->pdev->dev.of_node,
 				    "amlogic,support-jtag-trace");
-	if (ret) {
-		s = pinctrl_lookup_state(jdev->jtag_pinctrl, "jtag_trace_pins");
+	if (ret && !IS_ERR_OR_NULL(s)) {
+		s = pinctrl_lookup_state(jdev->jtag_pinctrl,
+					 jtag_pinctrl_name[6 + pinctrl_state]);
 		if (IS_ERR_OR_NULL(s)) {
-			dev_err(&jdev->pdev->dev,
-				"could not get jtag_trace_pins state\n");
+			dev_err(&jdev->pdev->dev, "could not get %s state\n",
+				jtag_pinctrl_name[6 + pinctrl_state]);
 			return -EINVAL;
 		}
 		ret = pinctrl_select_state(jdev->jtag_pinctrl, s);
@@ -462,6 +472,10 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev)
 			return -EINVAL;
 		}
 	}
+
+	/* in order to save power, select all pinmux to GPIO */
+	if (pinctrl_state == AMLOGIC_JTAG_PINMUX_GPIO)
+		return 0;
 
 	/* save to global */
 	global_select = jdev->select;
@@ -507,7 +521,7 @@ static ssize_t select_store(struct class *cls,
 	aml_jtag_option_parse(tmp, &jtag_select, &jtag_cluster);
 	jdev->select = jtag_select;
 	jdev->cluster = jtag_cluster;
-	ret = aml_jtag_setup(jdev);
+	ret = aml_jtag_setup(jdev, AMLOGIC_JTAG_PINMUX_JTAG);
 	if (ret < 0)
 		return ret;
 
@@ -590,7 +604,7 @@ static int aml_jtag_probe(struct platform_device *pdev)
 	}
 
 	/* setup jtag */
-	ret = aml_jtag_setup(jdev);
+	ret = aml_jtag_setup(jdev, AMLOGIC_JTAG_PINMUX_JTAG);
 	if (ret < 0) {
 		class_unregister(&jdev->cls);
 		return ret;
@@ -609,6 +623,25 @@ static int __exit aml_jtag_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int aml_jtag_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
+
+	jdev->old_select = AMLOGIC_JTAG_DISABLE;
+	aml_jtag_setup(jdev, AMLOGIC_JTAG_PINMUX_GPIO);
+
+	return 0;
+}
+
+static int aml_jtag_resume(struct platform_device *pdev)
+{
+	struct aml_jtag_dev *jdev = platform_get_drvdata(pdev);
+
+	aml_jtag_setup(jdev, AMLOGIC_JTAG_PINMUX_JTAG);
+
+	return 0;
+}
+
 static const struct of_device_id aml_jtag_dt_match[] = {
 	{
 		.compatible = "amlogic, jtag",
@@ -623,6 +656,8 @@ static struct platform_driver aml_jtag_driver = {
 		.of_match_table = aml_jtag_dt_match,
 	},
 	.probe = aml_jtag_probe,
+	.suspend	= aml_jtag_suspend,
+	.resume		= aml_jtag_resume,
 	.remove = __exit_p(aml_jtag_remove),
 };
 
