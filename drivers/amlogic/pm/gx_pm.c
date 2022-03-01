@@ -55,6 +55,10 @@ bool is_clr_exit_reg;
  * Avoid run early_suspend/late_resume repeatly.
  */
 unsigned int already_early_suspend;
+/*
+ * If vrtc device is supported
+ */
+static bool vrtc_validation;
 
 void register_early_suspend(struct early_suspend *handler)
 {
@@ -237,6 +241,14 @@ static unsigned int shutdown_time_out;
 static unsigned int shutdown_set_time;
 
 /*
+ * check_vrtc_device check whether there is vrtc exist.
+ */
+static bool check_vrtc_device(struct device *dev)
+{
+	return of_property_read_bool(dev->of_node, "vrtc_invalid");
+}
+
+/*
  * get_resume_reason always return last resume reason.
  */
 unsigned int get_resume_reason(void)
@@ -342,6 +354,11 @@ ssize_t time_out_show(struct device *dev, struct device_attribute *attr,
 {
 	unsigned int val = 0, len;
 
+	if (!vrtc_validation) {
+		pr_err("%s: cannot operate this node!\n", __func__);
+		return -EINVAL;
+	}
+
 	val = suspend_time_out;
 	len = sprintf(buf, "%d\n", val);
 
@@ -353,6 +370,11 @@ ssize_t time_out_store(struct device *dev, struct device_attribute *attr,
 {
 	unsigned int time_out;
 	int ret;
+
+	if (!vrtc_validation) {
+		pr_err("%s: cannot operate this node!\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = kstrtouint(buf, 10, &time_out);
 	switch (ret) {
@@ -375,8 +397,15 @@ ssize_t shutdown_alarm_show(struct device *dev, struct device_attribute *attr,
 	int val;
 	struct timespec64 boot_time;
 
-	if (shutdown_set_time == 0)
+	if (!vrtc_validation) {
+		pr_err("%s: cannot operate this node!\n", __func__);
+		return -EINVAL;
+	}
+
+	if (shutdown_set_time == 0) {
+		len = sprintf(buf, "%d\n", shutdown_set_time);
 		return len;
+	}
 
 	ktime_get_boottime_ts64(&boot_time);
 	val = shutdown_time_out - boot_time.tv_sec;
@@ -394,6 +423,11 @@ ssize_t shutdown_alarm_store(struct device *dev, struct device_attribute *attr,
 	unsigned int time_out;
 	int ret;
 	struct timespec64 boot_time;
+
+	if (!vrtc_validation) {
+		pr_err("%s: cannot operate this node!\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = kstrtouint(buf, 10, &time_out);
 	switch (ret) {
@@ -512,6 +546,7 @@ static int meson_pm_probe(struct platform_device *pdev)
 	if (unlikely(err))
 		return err;
 
+	vrtc_validation = !check_vrtc_device(&pdev->dev);
 	pr_info("%s done\n", __func__);
 	return 0;
 }
