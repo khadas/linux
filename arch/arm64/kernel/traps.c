@@ -45,6 +45,9 @@
 #include <asm/stacktrace.h>
 #include <asm/system_misc.h>
 #include <asm/sysreg.h>
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+#include <linux/amlogic/user_fault.h>
+#endif
 
 static bool __kprobes __check_eq(unsigned long pstate)
 {
@@ -144,7 +147,11 @@ pstate_check_t * const aarch32_opcode_cond_checks[16] = {
 	__check_gt, __check_le, __check_al, __check_al
 };
 
+#ifndef CONFIG_AMLOGIC_USER_FAULT
 int show_unhandled_signals = 0;
+#else
+int show_unhandled_signals = 1;
+#endif
 
 static void dump_kernel_instr(const char *lvl, struct pt_regs *regs)
 {
@@ -247,9 +254,16 @@ static void arm64_show_signal(int signo, const char *str)
 	struct pt_regs *regs = task_pt_regs(tsk);
 
 	/* Leave if the signal won't be shown */
+#ifndef CONFIG_AMLOGIC_USER_FAULT
 	if (!show_unhandled_signals ||
 	    !unhandled_signal(tsk, signo) ||
 	    !__ratelimit(&rs))
+#else
+	if (!show_unhandled_signals ||
+		(!unhandled_signal(tsk, signo) &&
+		!(show_unhandled_signals & 0xe)) ||
+		!__ratelimit(&rs))
+#endif
 		return;
 
 	pr_info("%s[%d]: unhandled exception: ", tsk->comm, task_pid_nr(tsk));
@@ -260,6 +274,12 @@ static void arm64_show_signal(int signo, const char *str)
 	print_vma_addr(KERN_CONT " in ", regs->pc);
 	pr_cont("\n");
 	__show_regs(regs);
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	pr_info("signo: %d\n", signo);
+	show_all_pfn(current, regs);
+	if (regs && kexec_should_crash(current) && (show_unhandled_signals & 4))
+		crash_kexec(regs);
+#endif
 }
 
 void arm64_force_sig_fault(int signo, int code, unsigned long far,
@@ -853,6 +873,11 @@ void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 	current->thread.fault_address = 0;
 	current->thread.fault_code = esr;
 
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	show_all_pfn(current, regs);
+	_dump_dmc_reg();
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
+
 	arm64_force_sig_fault(SIGILL, ILL_ILLOPC, pc,
 			      "Bad EL0 synchronous exception");
 }
@@ -898,6 +923,9 @@ void __noreturn arm64_serror_panic(struct pt_regs *regs, u32 esr)
 
 	pr_crit("SError Interrupt on CPU%d, code 0x%08x -- %s\n",
 		smp_processor_id(), esr, esr_get_class_string(esr));
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	_dump_dmc_reg();
+#endif
 	if (regs)
 		__show_regs(regs);
 

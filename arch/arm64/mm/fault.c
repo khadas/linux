@@ -41,6 +41,9 @@
 #include <asm/system_misc.h>
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+#include <linux/amlogic/user_fault.h>
+#endif
 
 struct fault_info {
 	int	(*fn)(unsigned long far, unsigned int esr,
@@ -720,6 +723,9 @@ static int do_sea(unsigned long far, unsigned int esr, struct pt_regs *regs)
 		 */
 		siaddr  = untagged_addr(far);
 	}
+#ifdef CONFIG_AMLOGIC_USER_FAULT
+	_dump_dmc_reg();
+#endif /* CONFIG_AMLOGIC_USER_FAULT */
 	arm64_notify_die(inf->name, regs, inf->sig, inf->code, siaddr, esr);
 
 	return 0;
