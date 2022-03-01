@@ -177,12 +177,27 @@ int aml_diseqc_send_burst(struct dvb_frontend *fe,
 				 enum fe_sec_mini_cmd minicmd)
 
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	mutex_lock(&devp->lock);
+
+	if (!demod->inited) {
+		dprintk(1, "%s: demod uninited.\n", __func__);
+
+		mutex_unlock(&devp->lock);
+
+		return 0;
+	}
+
 	dprintk(0, "%s burst-%d\n", __func__, minicmd);
 
 	if (minicmd == SEC_MINI_A)
 		aml_diseqc_toneburst_sa();
 	else
 		aml_diseqc_toneburst_sb();
+
+	mutex_unlock(&devp->lock);
 
 	return 0;
 }
@@ -197,10 +212,26 @@ int aml_diseqc_send_burst(struct dvb_frontend *fe,
  */
 int aml_diseqc_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 {
+	int ret = 0;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
 
-	if (diseqc_cmd_bypass)
+	mutex_lock(&devp->lock);
+
+	if (!demod->inited) {
+		dprintk(1, "%s: demod uninited.\n", __func__);
+
+		mutex_unlock(&devp->lock);
+
+		return 0;
+	}
+
+	if (diseqc_cmd_bypass) {
+		mutex_unlock(&devp->lock);
+
 		return 1;
+	}
 
 	dprintk(1, "%s: %d\n", __func__, tone ? 0 : 1);
 
@@ -220,10 +251,12 @@ int aml_diseqc_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 			mdelay(DISEQC_EN_ON_DELAY);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	mutex_unlock(&devp->lock);
+
+	return ret;
 }
 
 /*
@@ -235,7 +268,20 @@ int aml_diseqc_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 int aml_diseqc_set_voltage(struct dvb_frontend *fe,
 			   enum fe_sec_voltage voltage)
 {
+	int ret = 0;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
+
+	mutex_lock(&devp->lock);
+
+	if (!demod->inited) {
+		dprintk(1, "%s: demod uninited.\n", __func__);
+
+		mutex_unlock(&devp->lock);
+
+		return 0;
+	}
 
 	dprintk(1, "%s: %d\n", __func__, voltage);
 	lnb->voltage = voltage;
@@ -256,10 +302,12 @@ int aml_diseqc_set_voltage(struct dvb_frontend *fe,
 		mdelay(DISEQC_EN_ON_DELAY);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
 	}
 
-	return 0;
+	mutex_unlock(&devp->lock);
+
+	return ret;
 }
 
 /*
@@ -271,15 +319,34 @@ int aml_diseqc_set_voltage(struct dvb_frontend *fe,
 int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 			       struct dvb_diseqc_master_cmd *cmd)
 {
-	int ret;
-	u32 i, size;
+	int ret = 0;
+	u32 i = 0, size = 0;
 	unsigned char log_buf[128] = {0};
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
-	if (diseqc_cmd_bypass)
+	mutex_lock(&devp->lock);
+
+	if (!demod->inited) {
+		dprintk(1, "%s: demod uninited.\n", __func__);
+
+		mutex_unlock(&devp->lock);
+
+		return 0;
+	}
+
+	if (diseqc_cmd_bypass) {
+		mutex_unlock(&devp->lock);
+
 		return 1;
+	}
 
-	if (cmd->msg_len <= 0)
+	if (cmd->msg_len <= 0) {
+		mutex_unlock(&devp->lock);
+
 		return -EINVAL;
+	}
+
 	dprintk(1, "%s\n", __func__);
 
 	size = sprintf(log_buf, "tx len %d:", cmd->msg_len);
@@ -291,7 +358,10 @@ int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	dprintk(1, "%s", log_buf);
 
 	ret = aml_diseqc_send_cmd(cmd);
-	return 0;
+
+	mutex_unlock(&devp->lock);
+
+	return ret;
 }
 
 /*
@@ -303,6 +373,18 @@ int
 aml_diseqc_en_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 {
 	/*struct aml_def_diseqc_lnb *lnb = &aml_lnb;*/
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	mutex_lock(&devp->lock);
+
+	if (!demod->inited) {
+		dprintk(1, "%s: demod uninited.\n", __func__);
+
+		mutex_unlock(&devp->lock);
+
+		return 0;
+	}
 
 	dprintk(1, "%s %d\n", __func__, (u32)arg);
 	if (arg) {
@@ -314,6 +396,8 @@ aml_diseqc_en_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 		aml_def_set_lnb_sel(0);
 	}
 
+	mutex_unlock(&devp->lock);
+
 	return 0;
 }
 
@@ -324,6 +408,14 @@ aml_diseqc_en_high_lnb_voltage(struct dvb_frontend *fe, long arg)
  */
 void aml_diseqc_release_sec(struct dvb_frontend *fe)
 {
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+
+	if (!demod->inited) {
+		dprintk(1, "%s: demod uninited.\n", __func__);
+
+		return;
+	}
+
 	aml_diseqc_set_voltage(fe, SEC_VOLTAGE_OFF);
 	dprintk(1, "diseqc release\n");
 	/* if necessary free memory*/

@@ -4716,7 +4716,8 @@ static struct fft_total_result total_result;
 static struct fft_in_bw_result in_bw_result;
 static void dvbs_blind_scan_new_work(struct work_struct *work)
 {
-	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	struct amldtvdemod_device_s *devp = container_of(work,
+			struct amldtvdemod_device_s, blind_scan_work);
 	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
 	struct dvb_frontend *fe;
 	enum fe_status status;
@@ -4741,7 +4742,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	int k = 0;
 
 	status = FE_NONE;
-	PR_INFO("a new htread\n");
+	PR_INFO("a new blind scan thread\n");
 	if (unlikely(!devp)) {
 		PR_ERR("%s err, devp is NULL\n", __func__);
 		return;
@@ -4775,6 +4776,9 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 	if (fe->ops.tuner_ops.set_config)
 		fe->ops.tuner_ops.set_config(fe, NULL);
 
+	demod->blind_result_frequency = 0;
+	demod->blind_result_symbol_rate = 0;
+
 	fe->dtv_property_cache.symbol_rate = srate;
 	demod->demod_status.symb_rate = srate / 1000;
 	demod->demod_status.is_blind_scan = devp->blind_scan_stop;
@@ -4800,8 +4804,8 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 				fft_frc_range_min, fft_frc_range_max, range_ini);
 
 			if (in_bw_result.found_tp_num != 0)
-				PR_INFO("------In Bw Find Tp Num:%d-----\n",
-					in_bw_result.found_tp_num);
+				PR_INFO("------In Bw(range_ini %d) Find Tp Num:%d-----\n",
+						range_ini, in_bw_result.found_tp_num);
 
 			for (j = 0; j < in_bw_result.found_tp_num; j++) {
 				total_result.total_result_frc[total_result.found_tp_num] =
@@ -4815,6 +4819,9 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 		if (freq < freq_max) {
 			fe->dtv_property_cache.frequency =
 				(freq - freq_min) / freq_one_percent;
+			demod->blind_result_frequency =
+				fe->dtv_property_cache.frequency;
+
 			status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
 			PR_DVBS("fft search:blind process %d%%\n",
 				fe->dtv_property_cache.frequency);
@@ -4825,6 +4832,7 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 		if (freq >= freq_max) {
 			if (devp->blind_scan_stop)
 				break;
+
 			if (total_result.found_tp_num != 0)
 				PR_INFO("------TOTAL FIND TP NUM:%d-----\n",
 					total_result.found_tp_num);
@@ -4859,6 +4867,9 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 					/*try lock process map to 51% - 99%*/
 					fe->dtv_property_cache.frequency =
 						k / freq_trylock_one_percent + 50;
+					demod->blind_result_frequency =
+						fe->dtv_property_cache.frequency;
+
 					status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
 					PR_DVBS("try to lock search:blind process %d%%\n",
 						fe->dtv_property_cache.frequency);
@@ -4897,6 +4908,12 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 						fe->dtv_property_cache.frequency =
 							cur_locked_freq;
 						last_locked_freq = cur_locked_freq;
+
+						demod->blind_result_frequency =
+								fe->dtv_property_cache.frequency;
+						demod->blind_result_symbol_rate =
+								fe->dtv_property_cache.symbol_rate;
+
 						status = BLINDSCAN_UPDATERESULTFREQ |
 							FE_HAS_LOCK;
 
@@ -4913,19 +4930,20 @@ static void dvbs_blind_scan_new_work(struct work_struct *work)
 			}
 
 			if (status == (BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK)) {
-				usleep_range(500000, 600000);
+				//usleep_range(500000, 600000);
 				fe->dtv_property_cache.frequency = 100;
+				demod->blind_result_frequency = 100;
 				PR_DVBS("100%% to upper layer\n");
 				dvb_frontend_add_event(fe, status);
 			}
 		}
-
 	}
 
 	if (status == (BLINDSCAN_UPDATERESULTFREQ | FE_HAS_LOCK)) {
-	/* force process to 100% in case the lock freq is the last one */
-		usleep_range(500000, 600000);
+		/* force process to 100% in case the lock freq is the last one */
+		//usleep_range(500000, 600000);
 		fe->dtv_property_cache.frequency = 100;
+		demod->blind_result_frequency = 100;
 		status = BLINDSCAN_UPDATEPROCESS | FE_HAS_LOCK;
 		PR_DVBS("%s:force 100%% to upper layer\n", __func__);
 		dvb_frontend_add_event(fe, status);
@@ -5568,8 +5586,19 @@ static int aml_dtvdm_get_frontend(struct dvb_frontend *fe,
 	switch (delsys) {
 	case SYS_DVBS:
 	case SYS_DVBS2:
-		PR_DVBS("freq %d,srate %d\n", fe->dtv_property_cache.frequency,
-			fe->dtv_property_cache.symbol_rate);
+		if (!devp->blind_scan_stop) {
+			p->frequency = demod->blind_result_frequency;
+			p->symbol_rate = demod->blind_result_symbol_rate;
+			p->delivery_system = delsys;
+		} else {
+			p->frequency = fe->dtv_property_cache.frequency;
+			p->symbol_rate = fe->dtv_property_cache.symbol_rate;
+			p->delivery_system = delsys;
+		}
+
+		PR_DVBS("%s [id %d] delsys %d,freq %d,srate %d\n",
+				__func__, demod->id, delsys,
+				p->frequency, p->symbol_rate);
 		break;
 
 	case SYS_DVBC_ANNEX_A:
@@ -6152,6 +6181,10 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 		break;
 
 	case DTV_START_BLIND_SCAN:
+		if (!devp->blind_scan_stop) {
+			PR_INFO("blind_scan already started\n");
+			break;
+		}
 		PR_INFO("DTV_START_BLIND_SCAN\n");
 		devp->blind_scan_stop = 0;
 		schedule_work(&devp->blind_scan_work);
@@ -6161,6 +6194,10 @@ static int aml_dtvdm_set_property(struct dvb_frontend *fe,
 	case DTV_CANCEL_BLIND_SCAN:
 		devp->blind_scan_stop = 1;
 		PR_INFO("DTV_CANCEL_BLIND_SCAN\n");
+		/* Normally, need to call cancel_work_sync()
+		 * wait to workqueue exit,
+		 * but this will cause a deadlock.
+		 */
 		break;
 
 	default:

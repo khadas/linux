@@ -29,6 +29,7 @@
 /*  V1.1.36  Stuck during the blindscan process  */
 /*  V1.1.37  dvbt2 change channel will return to home  */
 /*  V1.1.38  Redistribution blind scan progress value reporting  */
+/*  V1.1.39  fixed DVBS blind scan workqueue quit */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -45,8 +46,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.38"
-#define DTVDEMOD_VER	"2021/12/29: dvbt2 change channel will return to home"
+#define AMLDTVDEMOD_VER "V1.1.39"
+#define DTVDEMOD_VER	"2022/03/14: fixed DVBS blind scan workqueue quit"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -289,6 +290,9 @@ struct aml_dtvdemod {
 
 	struct pinctrl *pin_agc;    /*agc pintrcl*/
 	struct pinctrl *pin_diseqc; /*diseqc out pin*/
+
+	u32 blind_result_frequency;
+	u32 blind_result_symbol_rate;
 };
 
 struct amldtvdemod_device_s {
