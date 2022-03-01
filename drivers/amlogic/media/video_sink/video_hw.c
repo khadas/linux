@@ -1059,10 +1059,6 @@ bool is_bandwidth_policy_hit(u8 layer_id)
 				re_trigger = true;
 			}
 		}
-		pr_info("hit_vskip[0/1/2]=%d %d %d\n",
-			hit_vskip[0],
-			hit_vskip[1],
-			hit_vskip[2]);
 
 		if (hit_vskip[0] && (hit_vskip[1] || hit_vskip[2])) {
 			if (layer_id == 0) {
