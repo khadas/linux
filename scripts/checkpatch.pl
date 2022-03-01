@@ -1082,7 +1082,7 @@ sub is_maintained_obsolete {
 sub is_SPDX_License_valid {
 	my ($license) = @_;
 
-	return 1 if (!$tree || which("python3") eq "" || !(-x "$root/scripts/spdxcheck.py") || !(-e "$gitroot"));
+	return 1 if (!$tree || which("python3") eq "" || !(-x "scripts/spdxcheck.py") || !(-e "$gitroot"));
 
 	my $root_path = abs_path($root);
 	my $status = `cd "$root_path"; echo "$license" | scripts/spdxcheck.py -`;
@@ -2795,7 +2795,7 @@ sub process {
 
 			$p1_prefix = $1;
 			if (!$file && $tree && $p1_prefix ne '' &&
-			    -e "$root/$p1_prefix") {
+			    -e "$p1_prefix") {
 				WARN("PATCH_PREFIX",
 				     "patch prefix '$p1_prefix' exists, appears to be a -p0 patch\n");
 			}
@@ -2819,10 +2819,10 @@ sub process {
 		}
 
 		if ($found_file) {
-			if (is_maintained_obsolete($realfile)) {
-				WARN("OBSOLETE",
-				     "$realfile is marked as 'obsolete' in the MAINTAINERS hierarchy.  No unnecessary modifications please.\n");
-			}
+			#if (is_maintained_obsolete($realfile)) {
+			#	WARN("OBSOLETE",
+			#	     "$realfile is marked as 'obsolete' in the MAINTAINERS hierarchy.  No unnecessary modifications please.\n");
+			#}
 			if ($realfile =~ m@^(?:drivers/net/|net/|drivers/staging/)@) {
 				$check = 1;
 			} else {
@@ -3610,10 +3610,10 @@ sub process {
 					     "Missing or malformed SPDX-License-Identifier tag in line $checklicenseline\n" . $herecurr);
 				} elsif ($rawline =~ /(SPDX-License-Identifier: .*)/) {
 					my $spdx_license = $1;
-					if (!is_SPDX_License_valid($spdx_license)) {
-						WARN("SPDX_LICENSE_TAG",
-						     "'$spdx_license' is not supported in LICENSES/...\n" . $herecurr);
-					}
+					#if (!is_SPDX_License_valid($spdx_license)) {
+					#	WARN("SPDX_LICENSE_TAG",
+					#	     "'$spdx_license' is not supported in LICENSES/...\n" . $herecurr);
+					#}
 					if ($realfile =~ m@^Documentation/devicetree/bindings/@ &&
 					    not $spdx_license =~ /GPL-2\.0.*BSD-2-Clause/) {
 						my $msg_level = \&WARN;
