@@ -238,6 +238,7 @@ void set_frc_enable(u32 en)
 			frc_mc_reset(0);
 		} else {
 			gst_frc_param.s2l_en = 0;
+			gst_frc_param.frc_mcfixlines = 0;
 			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
 				pr_frc(0, "frc_off_set maxlnct fail !!!\n");
 			else
@@ -840,6 +841,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 			gst_frc_param.frc_v_porch = frc_v_porch;
 			gst_frc_param.max_lncnt = max_lncnt;
 			gst_frc_param.max_pxcnt = max_pxcnt;
+			gst_frc_param.frc_mcfixlines =
+				mc_frm_dly + mc_hold_line - reg_mc_out_line;
 			gst_frc_param.s2l_en = 1;
 			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
 				pr_frc(0, "frc_on_set maxlnct fail !!!\n");
@@ -859,6 +862,13 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 				vpu_reg_read(ENCL_SYNC_LINE_LENGTH));
 		} else {
 			frc_v_porch = frc_vporch_cal;
+			gst_frc_param.frc_mcfixlines =
+				mc_frm_dly + mc_hold_line - reg_mc_out_line;
+			gst_frc_param.s2l_en = 0;
+			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
+				pr_frc(0, "frc_infrom vlock fail !!!\n");
+			else
+				pr_frc(0, "frc_infrom vlock success!!!\n");
 		}
 		frc_porch_delta = frc_v_porch - frc_vporch_cal;
 		pr_frc(log, "frc_v_porch=%d frc_porch_delta=%d\n",
@@ -876,6 +886,13 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		/*T3 revB*/
 		frc_v_porch = frc_vporch_cal;
 		pr_frc(2, "%s T3 revB chip validation\n", __func__);
+		gst_frc_param.frc_mcfixlines =
+			mc_frm_dly + mc_hold_line - reg_mc_out_line;
+		gst_frc_param.s2l_en = 2; /* rev B chip*/
+		if (vlock_sync_frc_vporch(gst_frc_param) < 0)
+			pr_frc(0, "frc_infrom vlock fail !!!\n");
+		else
+			pr_frc(0, "frc_infrom vlock success!!!\n");
 		vpu_reg_write_bits(ENCL_FRC_CTRL, memc_frm_dly - reg_mc_out_line, 0, 16);
 		WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_post_dly_vofst, 0, 16);
 		WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_me_dly_vofst, 16, 16);

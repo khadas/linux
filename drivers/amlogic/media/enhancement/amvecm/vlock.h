@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2022/0408: resolve vrr stutter issue"
+#define VLOCK_VER "Ref.2022/0425: fix vlock log cost long time"
 
 #define VLOCK_REG_NUM	33
 #define VLOCK_ALL_LOCK_CNT	400
@@ -189,6 +189,7 @@ struct stvlock_frc_param {
 	u32 max_lncnt;
 	u32 max_pxcnt;
 	u32 frc_v_porch;
+	u32 frc_mcfixlines;
 	unsigned char s2l_en;
 };
 
@@ -304,6 +305,7 @@ enum vlock_pll_sel {
 #define VLOCK_DEBUG_FSM_PAUSE (0x40)
 #define VLOCK_DEBUG_FORCE_ON (0x80)
 #define VLOCK_DEBUG_FLASH (0x100)
+#define VLOCK_DEBUG_PROTECT (0x200)
 
 #define VLOCK_DEBUG_INFO_ERR	(BIT(15))
 

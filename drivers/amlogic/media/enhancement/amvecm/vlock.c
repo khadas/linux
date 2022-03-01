@@ -73,7 +73,7 @@ static unsigned int vlock_intput_type;
  */
 static signed int vlock_line_limit = 2;
 
-static signed int vlock_enc_maxtune_line_num = 8;
+static signed int vlock_enc_maxtune_line_num = 12;
 module_param(vlock_enc_maxtune_line_num, uint, 0664);
 MODULE_PARM_DESC(vlock_enc_maxtune_line_num, "\n vlock_enc_maxtune_line_num\n");
 
@@ -192,7 +192,7 @@ u32 loop1_en = 1;	/*0:off, 1:on 2:auto*/
 u32 speed_up_en = 1;
 
 static int vlock_protect_min;
-static int vlock_manual = 15;
+static int vlock_manual;
 
 struct reg_map vlock_reg_maps[REG_MAP_END] = {0};
 
@@ -538,6 +538,7 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param)
 	if (!pvlock)
 		return ret;
 
+	vlock_manual = frc_param.frc_mcfixlines;
 	if (pvlock->dtdata->vlk_ctl_for_frc) {
 		if (pvlock->fsm_sts == VLOCK_STATE_ENABLE_STEP1_DONE ||
 			pvlock->fsm_sts == VLOCK_STATE_ENABLE_STEP2_DONE) {
@@ -1239,6 +1240,18 @@ void vlock_vmode_check(struct stvlock_sig_sts *pvlock)
 	}
 }
 
+static void vlock_lock_status_check(struct stvlock_sig_sts *pvlock)
+{
+	if (vlock_get_phlock_flag() && vlock_get_vlock_flag()) {
+		if (vlock_debug & VLOCK_DEBUG_PROTECT)
+			pr_info("vlock locked success !!!\n");
+	} else {
+		if (vlock_debug & VLOCK_DEBUG_PROTECT)
+			pr_info("vlock locking fsm_sts=%d\n",
+					pvlock->fsm_sts);
+	}
+}
+
 static void vlock_disable_step1(struct stvlock_sig_sts *pvlock)
 {
 	unsigned int m_reg_value, tmp_value;
@@ -1566,7 +1579,7 @@ static void vlock_enable_step3_enc(struct stvlock_sig_sts *pvlock)
 		if (enc_max_line >= vlock_protect_min)
 			WRITE_VPP_REG(pvlock->enc_max_line_addr + offset_enc, enc_max_line);
 		else if ((vlock_debug & VLOCK_DEBUG_FLASH))
-			pr_info("vlock:warning..enc_max_line:%d is limited by prt_min:%d cannot adj contiue\n",
+			pr_info("vlock:WARNING... enc_max_line:%d is limited by prt_min:%d cannot adj contiue\n",
 				enc_max_line, vlock_protect_min);
 		if ((vlock_debug & VLOCK_DEBUG_FLASH)) {
 			pr_info("polity_line_num=%d line_num=%d, org_line=%d\n",
@@ -2022,8 +2035,8 @@ void vlock_enable_step3_auto_enc(struct stvlock_sig_sts *pvlock)
 	stbdec_win0 = READ_VPP_REG(VPU_VLOCK_STBDET_WIN0_WIN1 + offset_vlck) & 0xff;
 	stbdec_win1 = (READ_VPP_REG(VPU_VLOCK_STBDET_WIN0_WIN1 + offset_vlck) >> 8) & 0xff;
 
-	th0 = (oa * stbdec_win0 * 7) / vinfo->vtotal;
-	th1 = (oa * stbdec_win1 * 8) / vinfo->vtotal;
+	th0 = (oa * stbdec_win0 * 10) / vinfo->vtotal;
+	th1 = (oa * stbdec_win1 * 10) / vinfo->vtotal;
 
 	WRITE_VPP_REG(VPU_VLOCK_WIN0_TH + offset_vlck, th0);
 	WRITE_VPP_REG(VPU_VLOCK_WIN1_TH + offset_vlck, th1);
@@ -2496,6 +2509,7 @@ u32 vlock_fsm_input_check(struct stvlock_sig_sts *pvlock, struct vframe_s *vf)
 		vframe_sts = true;
 
 	vlock_vmode_check(pvlock);
+	vlock_lock_status_check(pvlock);
 
 	if (vf) {
 		vinfo = get_current_vinfo();
@@ -2508,7 +2522,7 @@ u32 vlock_fsm_input_check(struct stvlock_sig_sts *pvlock, struct vframe_s *vf)
 		//	pr_info("input_hz:%d duration:%d\n", pvlock->input_hz, pvlock->duration);
 		vlock_protect_min =
 			vinfo->vbp + vinfo->vsw + vinfo->height + vlock_manual;
-		if (vlock_debug & 0x200)
+		if (vlock_debug & VLOCK_DEBUG_PROTECT)
 			pr_info("prt_min:%d org_enc_line_num:%d vbp:%d vsw:%d height:%d vlock_manual:%d\n",
 				vlock_protect_min, pvlock->org_enc_line_num,
 				vinfo->vbp, vinfo->vsw, vinfo->height, vlock_manual);
