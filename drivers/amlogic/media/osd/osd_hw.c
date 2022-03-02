@@ -3260,6 +3260,20 @@ static int notify_to_amdv(void)
 	return 0;
 }
 
+static void update_afbcdx_and_notify_amdv(u32 osd_index,
+					  u32 val, u32 start, u32 len)
+{
+	if (osd_index == OSD1 || osd_index == OSD2) {
+		osd_mali_afbcd_top_ctrl &= ~(((1 << len) - 1) << start);
+		osd_mali_afbcd_top_ctrl |= val << start;
+		notify_to_amdv();
+	} else if (osd_index == OSD3) {
+		osd_mali_afbcd1_top_ctrl &= ~(((1 << len) - 1) << start);
+		osd_mali_afbcd1_top_ctrl |= val << start;
+		notify_to_amdv();
+	}
+}
+
 /*************** end of GXL/GXM hardware alpha bug workaround ***************/
 static void viu2_osd_reg_table_init(void)
 {
@@ -11783,14 +11797,12 @@ static void osd_basic_update_disp_geometry(u32 index)
 							 0x1, 31, 1);
 				} else {
 					if (index == OSD1) {
-						osd_mali_afbcd_top_ctrl |= 1 << 16;
-						notify_to_amdv();
+						update_afbcdx_and_notify_amdv(index, 1, 16, 1);
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x1, 16, 1);
 					} else {
-						osd_mali_afbcd_top_ctrl |= 1 << 21;
-						notify_to_amdv();
+						update_afbcdx_and_notify_amdv(index, 1, 21, 1);
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x1, 21, 1);
@@ -11799,7 +11811,7 @@ static void osd_basic_update_disp_geometry(u32 index)
 					if (osd_hw.osd_meson_dev.cpu_id ==
 						__MESON_CPU_MAJOR_ID_T7)
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
-							(osd_reg->mali_afbcd_top_ctrl,
+							(MALI_AFBCD_TOP_CTRL,
 							 is_dolby_vision_graphic_on() ? 0 : 1,
 							 14, 1);
 #endif
@@ -11857,14 +11869,12 @@ static void osd_basic_update_disp_geometry(u32 index)
 							 0x0, 31, 1);
 				} else {
 					if (index == OSD1) {
-						osd_mali_afbcd_top_ctrl &= ~(1 << 16);
-						notify_to_amdv();
+						update_afbcdx_and_notify_amdv(index, 0, 16, 1);
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x0, 16, 1);
 					} else {
-						osd_mali_afbcd_top_ctrl &= ~(1 << 21);
-						notify_to_amdv();
+						update_afbcdx_and_notify_amdv(index, 0, 21, 1);
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(osd_reg->mali_afbcd_top_ctrl,
 							 0x0, 21, 1);
@@ -11873,7 +11883,7 @@ static void osd_basic_update_disp_geometry(u32 index)
 					if (osd_hw.osd_meson_dev.cpu_id ==
 						__MESON_CPU_MAJOR_ID_T7)
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
-							(osd_reg->mali_afbcd_top_ctrl,
+							(MALI_AFBCD_TOP_CTRL,
 							 is_dolby_vision_graphic_on() ? 0 : 1,
 							 14, 1);
 #endif
