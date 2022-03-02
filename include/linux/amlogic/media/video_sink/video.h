@@ -422,4 +422,5 @@ bool is_vpp0(u8 layer_id);
 bool is_vpp1(u8 layer_id);
 bool is_vpp2(u8 layer_id);
 int get_receiver_id(u8 layer_id);
+int proc_lowlatency_frame(u8 instance_id);
 #endif /* VIDEO_H */

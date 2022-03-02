@@ -57,6 +57,10 @@
 
 #define WAIT_READY_Q_TIMEOUT 100
 
+static u32 use_low_latency;
+MODULE_PARM_DESC(use_low_latency, "\n use_low_latency\n");
+module_param(use_low_latency, uint, 0664);
+
 static u32 video_composer_instance_num;
 static unsigned int force_composer;
 static unsigned int force_composer_pip;
@@ -1981,6 +1985,8 @@ static void video_composer_task(struct composer_dev *dev)
 		}
 		dev->fake_vf = *vf;
 		atomic_set(&received_frames->on_use, false);
+		if (use_low_latency && dev->index == 0)
+			proc_lowlatency_frame(0);
 	} else {
 		vframe_composer(dev);
 		dev->last_file = NULL;

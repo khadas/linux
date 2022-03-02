@@ -623,6 +623,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     const struct vinfo_s *vinfo);
 int detect_vout_type(const struct vinfo_s *vinfo);
 int calc_hold_line(void);
+u32 get_active_start_line(void);
 u32 get_cur_enc_line(void);
 void vpu_work_process(void);
 int vpp_crc_check(u32 vpp_crc_en, u8 vpp_index);
@@ -668,6 +669,7 @@ extern atomic_t video_unreg_flag_vpp[2];
 extern atomic_t video_inirq_flag;
 extern atomic_t video_inirq_flag_vpp[2];
 extern uint load_pps_coef;
+extern atomic_t video_recv_cnt;
 extern struct video_recv_s *gvideo_recv[3];
 extern struct video_recv_s *gvideo_recv_vpp[2];
 extern uint load_pps_coef;

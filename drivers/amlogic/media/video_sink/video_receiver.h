@@ -50,6 +50,7 @@ struct video_recv_s {
 	bool request_exit;
 	bool do_exit;
 	bool exited;
+	bool irq_mode;
 
 	u32 notify_flag;
 	u32 blackout;
