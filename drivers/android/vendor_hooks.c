@@ -51,6 +51,11 @@
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_cpu_chipid);
 #endif
 
+#if IS_ENABLED(CONFIG_AMLOGIC_MMC_MESON_GX)
+#include <trace/hooks/mmc_part.h>
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_amlmmc_dtb_key_init);
+#endif
+
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
  * associated with them) to allow external modules to probe them.

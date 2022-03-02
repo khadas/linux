@@ -49,6 +49,14 @@
 
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_AMLOGIC_MMC_MESON_GX
+#include <trace/hooks/mmc_part.h>
+#endif
+
+#ifdef CONFIG_AMLOGIC_MMC_MESON_GX_MODULE
+#include <trace/hooks/mmc_part.h>
+#endif
+
 #include "queue.h"
 #include "block.h"
 #include "core.h"
@@ -2926,6 +2934,10 @@ static int mmc_blk_probe(struct mmc_card *card)
 		pm_runtime_set_active(&card->dev);
 		pm_runtime_enable(&card->dev);
 	}
+
+	trace_android_vh_amlmmc_dtb_key_init(card, &ret);
+	if (ret)
+		return ret;
 
 	return 0;
 
