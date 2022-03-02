@@ -1472,6 +1472,35 @@ static void dump_tv_setting
 	u64 *p;
 
 	if ((debug_flag & 0x10) && dump_enable) {
+		if (is_meson_txlx_tvmode()) {
+			pr_info("txlx tv core1 reg: 0x1a07 val = 0x%x\n",
+				READ_VPP_DV_REG(VIU_MISC_CTRL1));
+		} else if (is_meson_t7_tvmode()) {
+			pr_info("t7_tv reg: DOLBY SWAP_CTRL1 0x1a70 val = 0x%x\n",
+				READ_VPP_DV_REG(DOLBY_PATH_SWAP_CTRL1));
+			pr_info("t7_tv reg: DOLBY SWAP_CTRL2 0x1a71 val = 0x%x\n",
+				READ_VPP_DV_REG(DOLBY_PATH_SWAP_CTRL2));
+			pr_info("t7_tv reg: DOLBY tv core 0x1a83(bit4) val = 0x%x\n",
+				READ_VPP_DV_REG(VPP_VD1_DSC_CTRL));
+			pr_info("t7_tv reg: vd2 dv 0x1a84(bit4) val = 0x%x\n",
+				READ_VPP_DV_REG(VPP_VD2_DSC_CTRL));
+			pr_info("t7_tv reg: vd3 dv 0x1a85(bit4) val = 0x%x\n",
+				READ_VPP_DV_REG(VPP_VD3_DSC_CTRL));
+		} else if (is_meson_t3_tvmode() ||
+			is_meson_t5w()) {
+			pr_info("t3/5w_tv reg: DOLBY TV select 0x2749(bit16) val = 0x%x\n",
+				READ_VPP_DV_REG(VPP_TOP_VTRL));
+			pr_info("t3/5w_tv reg: DOLBY SWAP_CTRL1 0x1a70 val = 0x%x\n",
+				READ_VPP_DV_REG(DOLBY_PATH_SWAP_CTRL1));
+			pr_info("t3/5w_tv reg: DOLBY SWAP_CTRL2 0x1a71 val = 0x%x\n",
+				READ_VPP_DV_REG(DOLBY_PATH_SWAP_CTRL2));
+			pr_info("t3/5w_tv reg: tv core 0x1a73(bit16) val = 0x%x\n",
+				READ_VPP_DV_REG(VIU_VD1_PATH_CTRL));
+		} else if (is_meson_tm2_tvmode()) {
+			pr_info("tm2_tv reg: tv core 0x1a0c(bit1/0) val = 0x%x\n",
+				READ_VPP_DV_REG(DOLBY_PATH_CTRL));
+		}
+
 		pr_info("\nreg\n");
 		p = (u64 *)&setting->core1_reg_lut[0];
 		for (i = 0; i < 222; i += 2)
@@ -5680,6 +5709,29 @@ static void dump_setting
 	u32 *p;
 
 	if ((debug_flag & 0x10) && dump_enable) {
+		pr_info("path control reg\n");
+		if (is_meson_txlx_stbmode()) {
+			pr_info("txlx dv core1/2 reg: 0x1a07 val = 0x%x\n",
+				READ_VPP_DV_REG(VIU_MISC_CTRL1));
+		} else if (is_meson_g12() || is_meson_sc2() || is_meson_s4d()) {
+			pr_info("g12/sc2/s4d  stb reg: 0x1a0c val = 0x%x\n",
+				READ_VPP_DV_REG(DOLBY_PATH_CTRL));
+		} else if (is_meson_tm2_stbmode()) {
+			pr_info("tm2_stb reg: 0x1a0c val = 0x%x\n",
+				READ_VPP_DV_REG(DOLBY_PATH_CTRL));
+		} else if (is_meson_t7_stbmode()) {
+			pr_info("t7_stb reg: vd1 core1 on 0x1a83 (bit4)val = 0x%x\n",
+				READ_VPP_DV_REG(VPP_VD1_DSC_CTRL));
+			pr_info("t7_stb reg: vd2 dv 0x1a84 val = 0x%x\n",
+				READ_VPP_DV_REG(VPP_VD2_DSC_CTRL));
+			pr_info("t7_stb reg: vd1 dv 0x1a85 val = 0x%x\n",
+				READ_VPP_DV_REG(VPP_VD3_DSC_CTRL));
+			pr_info("t7_stb reg: core2a (osd1_dolby_bypass_en bit14) 0x1a0f val = 0x%x\n",
+				READ_VPP_DV_REG(MALI_AFBCD_TOP_CTRL));
+			pr_info("t7_stb reg: core2c 0x1a55 (osd3_dolby_bypass_en bit19) val = 0x%x\n",
+				READ_VPP_DV_REG(MALI_AFBCD1_TOP_CTRL));
+		}
+
 		pr_info("core1\n");
 		p = (u32 *)&setting->dm_reg1;
 		for (i = 0; i < 27; i++)
