@@ -17,6 +17,8 @@ struct vout_cdev_s {
 	struct device *dev;
 };
 
+extern int vout_debug_print;
+
 void vout_trim_string(char *str);
 
 struct vinfo_s *get_invalid_vinfo(int index, unsigned int flag);

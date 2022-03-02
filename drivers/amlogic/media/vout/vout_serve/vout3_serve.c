@@ -237,6 +237,10 @@ static int set_vout3_mode(char *name)
 	memset(local_name, 0, sizeof(local_name));
 	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", name);
 	frac = vout_parse_vout_name(local_name);
+	if (vout_debug_print) {
+		VOUTPR("vout3: %s: local_name=%s, frac=%d\n",
+			__func__, local_name, frac);
+	}
 
 	mode = validate_vmode3(local_name, frac);
 	if (mode == VMODE_MAX) {

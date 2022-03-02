@@ -179,27 +179,20 @@ void vout_func_set_state(int index, enum vmode_e mode)
 #endif
 
 	if (!p_module) {
-		VOUTERR("vout%d: %s: vout_module is NULL\n", index, __func__);
+		VOUTERR("vout[%d]: %s: vout_module is NULL\n", index, __func__);
 		mutex_unlock(&vout_mutex);
 		return;
 	}
-	/*if (p_module->next_vout_server) {
-	 *	pr_info("%s: next: index=%d, server_name=%s, data=%px\n",
-	 *		__func__, index, p_module->next_vout_server->name,
-	 *		p_module->next_vout_server->data);
-	 *} else {
-	 *	pr_info("%s: index=%d, next_server is null\n",
-	 *		__func__, index);
-	 *}
-	 */
+
 	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
 		data = p_server->data;
 		if (p_module->next_vout_server && p_server->name &&
 		    p_module->next_vout_server->name &&
 		    (strcmp(p_server->name, p_module->next_vout_server->name) == 0)) {
-			/*pr_info("%s: valid: index=%d, server_name=%s, data=%px\n",
-			 *	__func__, index, p_server->name, data);
-			 */
+			if (vout_debug_print) {
+				VOUTPR("vout[%d]: %s: valid: server_name=%s, data=%px\n",
+					index, __func__, p_server->name, data);
+			}
 			if (p_server->op.vmode_is_supported(mode, data)) {
 				p_module->curr_vout_server = p_server;
 				p_module->next_vout_server = NULL;
@@ -385,16 +378,19 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
 	}
 	p_module->next_vout_server = NULL;
 	list_for_each_entry(p_server, &p_module->vout_server_list, list) {
-		/*pr_info("%s: start: index=%d, server_name=%s, data=%px\n",
-		 *	__func__, index, p_server->name,
-		 *	p_server->data);
-		 */
 		data = p_server->data;
+		if (vout_debug_print) {
+			VOUTPR("vout[%d]: %s: list: server_name=%s, data=%px\n",
+				index, __func__, p_server->name, data);
+		}
 		/* check state for another vout */
 		if (p_server->op.get_state) {
 			state = p_server->op.get_state(data);
 			if (vout_func_check_state(index, state, p_server)) {
-			/*	pr_info("check state: %d\n", state);*/
+				if (vout_debug_print) {
+					VOUTPR("vout[%d]: %s: check state: %d\n",
+						index, __func__, state);
+				}
 				continue;
 			}
 		}
@@ -402,11 +398,12 @@ enum vmode_e vout_func_validate_vmode(int index, char *name, unsigned int frac)
 			ret = p_server->op.validate_vmode(name, frac, data);
 			if (ret != VMODE_MAX) { /* valid vmode find. */
 				p_module->next_vout_server = p_server;
-		/* pr_info("%s: next: index=%d, server_name=%s, data=%px\n",
-		 *	__func__, index,
-		 *	p_module->next_vout_server->name,
-		 *	p_module->next_vout_server->data);
-		 */
+				if (vout_debug_print) {
+					VOUTPR("vout[%d]: %s: valid server: name=%s, data=%px\n",
+						index, __func__,
+						p_module->next_vout_server->name,
+						p_module->next_vout_server->data);
+				}
 				break;
 			}
 		}
