@@ -274,9 +274,11 @@ static void lcd_cus_ctrl_parm_change(struct aml_lcd_drv_s *pdrv)
 				pdrv->config.basic.v_period_max =
 					pdrv->config.cus_ctrl.attr_0_para1;
 			}
+			pdrv->config.timing.v_period_dft = 1125;
 		} else {
 			pdrv->config.basic.v_period_min = pdrv->config.basic.v_period_min_dft;
 			pdrv->config.basic.v_period_max = pdrv->config.basic.v_period_max_dft;
+			pdrv->config.timing.v_period_dft = 2250;
 		}
 		lcd_vrr_config_update(pdrv);
 	}

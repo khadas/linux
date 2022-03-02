@@ -162,8 +162,10 @@ struct lcd_timing_s {
 	unsigned int frac;
 	unsigned int frame_rate;
 
-	unsigned short video_on_pixel;
-	unsigned short video_on_line;
+	unsigned int hstart;
+	unsigned int hend;
+	unsigned int vstart;
+	unsigned int vend;
 
 	unsigned short hsync_width;
 	unsigned short hsync_bp;
