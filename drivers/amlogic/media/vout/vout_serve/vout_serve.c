@@ -63,6 +63,8 @@ static unsigned int vs_meas_en;
 static bool disable_modesysfs;
 static bool enable_debugmode;
 
+int vout_debug_print;
+
 /* **********************************************************
  * null display support
  * **********************************************************
@@ -310,9 +312,14 @@ int set_vout_mode(char *name)
 		VOUTPR("don't set the same mode as current, exit\n");
 		return -1;
 	}
+
 	memset(local_name, 0, sizeof(local_name));
 	snprintf(local_name, VMODE_NAME_LEN_MAX, "%s", name);
 	frac = vout_parse_vout_name(local_name);
+	if (vout_debug_print) {
+		VOUTPR("%s: local_name=%s, frac=%d\n",
+			__func__, local_name, frac);
+	}
 
 	mode = validate_vmode(local_name, frac);
 	if (mode == VMODE_MAX) {
@@ -686,6 +693,31 @@ static ssize_t vout_debug_vs_meas_store(struct class *class,
 	return count;
 }
 
+static ssize_t vout_debug_print_show(struct class *class,
+				       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", vout_debug_print);
+}
+
+static ssize_t vout_debug_print_store(struct class *class,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	int ret;
+	int temp;
+
+	ret = kstrtoint(buf, 10, &temp);
+	if (ret)
+		return -EINVAL;
+
+	if (temp > 0)
+		vout_debug_print = 1;
+	else
+		vout_debug_print = 0;
+
+	return count;
+}
+
 static struct class_attribute vout_class_attrs[] = {
 	__ATTR(mode,       0644, vout_mode_show, vout_mode_store),
 	__ATTR(fr_policy,  0644,
@@ -698,6 +730,7 @@ static struct class_attribute vout_class_attrs[] = {
 	__ATTR(cap,        0644, vout_cap_show, NULL),
 	__ATTR(debug,      0644, vout_debug_mode_show, vout_debug_mode_store),
 	__ATTR(vs_meas,    0644, vout_debug_vs_meas_show, vout_debug_vs_meas_store),
+	__ATTR(print,      0644, vout_debug_print_show, vout_debug_print_store),
 };
 
 static int vout_attr_create(void)

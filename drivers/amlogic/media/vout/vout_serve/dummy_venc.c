@@ -72,6 +72,7 @@ struct dummy_venc_driver_s {
 	unsigned char viu_sel;
 
 	unsigned char clk_gate_state;
+	unsigned char projection_state;
 
 	struct clk *top_gate;
 	struct clk *int_gate0;
@@ -411,16 +412,18 @@ static int dummy_encp_set_current_vmode(enum vmode_e mode, void *data)
 
 	dummy_encp_vinfo_update(venc_drv);
 
+	if (venc_drv->projection_state == 0) {
 #ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_clk_request(venc_drv->vpu_dev,
-			    dummy_encp_vinfo[dummy_encp_index].video_clk);
-	vpu_dev_mem_power_on(venc_drv->vpu_dev);
+		vpu_dev_clk_request(venc_drv->vpu_dev,
+				dummy_encp_vinfo[dummy_encp_index].video_clk);
+		vpu_dev_mem_power_on(venc_drv->vpu_dev);
 #endif
-	if (venc_drv->vdata->encp_clk_gate_switch)
-		venc_drv->vdata->encp_clk_gate_switch(venc_drv, 1);
+		if (venc_drv->vdata->encp_clk_gate_switch)
+			venc_drv->vdata->encp_clk_gate_switch(venc_drv, 1);
 
-	dummy_encp_clk_ctrl(venc_drv, 1);
-	dummy_encp_venc_set(venc_drv);
+		dummy_encp_clk_ctrl(venc_drv, 1);
+		dummy_encp_venc_set(venc_drv);
+	}
 
 	venc_drv->status = 1;
 	venc_drv->vout_valid = 1;
@@ -450,6 +453,10 @@ static enum vmode_e dummy_encp_validate_vmode(char *name, unsigned int frac,
 				dummy_encp_infos = &dummy_encp_vinfo_t7[i];
 				vmode = dummy_encp_vinfo_t7[i].mode;
 				dummy_encp_index = i;
+				if (dummy_encp_index == 1)
+					venc_drv->projection_state = 1;
+				else
+					venc_drv->projection_state = 0;
 				break;
 			}
 		}
@@ -492,16 +499,19 @@ static int dummy_encp_disable(enum vmode_e cur_vmod, void *data)
 	venc_drv->status = 0;
 	venc_drv->vout_valid = 0;
 
-	dummy_encp_index = 0xff;
-
-	vout_vcbus_write(ENCP_VIDEO_EN + offset, 0); /* disable encp */
-	dummy_encp_clk_ctrl(venc_drv, 0);
-	if (venc_drv->vdata->encp_clk_gate_switch)
-		venc_drv->vdata->encp_clk_gate_switch(venc_drv, 0);
+	if (venc_drv->projection_state == 0) {
+		vout_vcbus_write(ENCP_VIDEO_EN + offset, 0); /* disable encp */
+		dummy_encp_clk_ctrl(venc_drv, 0);
+		if (venc_drv->vdata->encp_clk_gate_switch)
+			venc_drv->vdata->encp_clk_gate_switch(venc_drv, 0);
 #ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_mem_power_down(venc_drv->vpu_dev);
-	vpu_dev_clk_release(venc_drv->vpu_dev);
+		vpu_dev_mem_power_down(venc_drv->vpu_dev);
+		vpu_dev_clk_release(venc_drv->vpu_dev);
 #endif
+	}
+
+	dummy_encp_index = 0xff;
+	venc_drv->projection_state = 0;
 
 	VOUTPR("%s finished\n", __func__);
 	return 0;
@@ -520,14 +530,16 @@ static int dummy_encp_suspend(void *data)
 
 	venc_drv->status = 0;
 
-	vout_vcbus_write(ENCP_VIDEO_EN + offset, 0); /* disable encp */
-	dummy_encp_clk_ctrl(venc_drv, 0);
-	if (venc_drv->vdata->encp_clk_gate_switch)
-		venc_drv->vdata->encp_clk_gate_switch(venc_drv, 0);
+	if (venc_drv->projection_state == 0) {
+		vout_vcbus_write(ENCP_VIDEO_EN + offset, 0); /* disable encp */
+		dummy_encp_clk_ctrl(venc_drv, 0);
+		if (venc_drv->vdata->encp_clk_gate_switch)
+			venc_drv->vdata->encp_clk_gate_switch(venc_drv, 0);
 #ifdef CONFIG_AMLOGIC_VPU
-	vpu_dev_mem_power_down(venc_drv->vpu_dev);
-	vpu_dev_clk_release(venc_drv->vpu_dev);
+		vpu_dev_mem_power_down(venc_drv->vpu_dev);
+		vpu_dev_clk_release(venc_drv->vpu_dev);
 #endif
+	}
 
 	VOUTPR("%s finished\n", __func__);
 	return 0;
@@ -617,7 +629,7 @@ static struct vout_server_s dummy_encp_vout2_server = {
 
 static void dummy_encp_vout_server_init(void)
 {
-	dummy_encp_vout2_server.data = (void *)dummy_encp_drv;
+	dummy_encp_vout_server.data = (void *)dummy_encp_drv;
 	vout_register_server(&dummy_encp_vout_server);
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	dummy_encp_vout2_server.data = (void *)dummy_encp_drv;
