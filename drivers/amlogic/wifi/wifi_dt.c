@@ -383,10 +383,10 @@ static long wifi_power_ioctl(struct file *filp,
 		WIFI_INFO(KERN_INFO "ioctl Set usb_sdio wifi power down!\n");
 		break;
 	case WIFI_POWER_UP:
-		pci_remove();
+		//pci_remove();
 		set_usb_wifi_power(0);
 		set_usb_wifi_power(1);
-		pci_reinit();
+		//pci_reinit();
 		WIFI_INFO("Set sdio wifi power up!\n");
 		break;
 	case WIFI_POWER_DOWN:
@@ -440,10 +440,10 @@ static ssize_t power_store(struct class *cls,
 	WIFI_INFO("wifi power ctrl: cmd = %d\n", (int)cmd);
 	switch (cmd) {
 	case 1:
-		pci_remove();
+		//pci_remove();
 		set_usb_wifi_power(0);
 		set_usb_wifi_power(1);
-		pci_reinit();
+		//pci_reinit();
 		WIFI_INFO("set wifi power up!\n");
 		break;
 	case 2:

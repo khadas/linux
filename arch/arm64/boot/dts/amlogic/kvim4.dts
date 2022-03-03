@@ -944,6 +944,7 @@
 		fan,trig_temp_level1 = <80>;
 		fan,trig_temp_level2 = <100>;
 		hwver = "VIM4.V11"; /* Will be updated in uboot. */
+		pcie-5g-gpio = <&gpio GPIOT_13 0>;
 	};
 
 	khadas-rtc {
@@ -1388,6 +1389,7 @@
 
 &pcie {
 	reset-gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
+	wake-gpio = <&gpio GPIOT_5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 

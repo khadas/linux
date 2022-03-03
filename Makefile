@@ -482,9 +482,9 @@ KBUILD_CFLAGS   := -Wall -Wundef -Werror=strict-prototypes -Wno-trigraphs \
 		   -Werror=implicit-function-declaration -Werror=implicit-int \
 		   -Werror=return-type -Wno-format-security \
 		   -std=gnu89
-ifndef CONFIG_KASAN
-KBUILD_CFLAGS	+= -Werror
-endif
+#ifndef CONFIG_KASAN
+#KBUILD_CFLAGS	+= -Werror
+#endif
 
 ifdef CONFIG_AMLOGIC_MODIFY
 ifndef CONFIG_DYNAMIC_DEBUG
