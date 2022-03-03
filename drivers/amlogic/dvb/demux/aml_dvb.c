@@ -66,6 +66,20 @@ static int sid_info[MAX_DMX_DEV_NUM];
 
 int is_security_dmx;
 
+static void demux_config_pipeline(int cfg_demod_tsn, int cfg_tsn_out)
+{
+	u32 value = 0;
+	int ret = 0;
+
+	value = cfg_demod_tsn;
+	value += cfg_tsn_out << 1;
+
+	if (get_chip_type() == 1)
+		ret = tee_write_reg_bits(0xff610320, value, 0, 2);
+	else
+		ret = tee_write_reg_bits(0xfe440320, value, 0, 2);
+}
+
 ssize_t get_pcr_show(struct class *class,
 		     struct class_attribute *attr, char *buf)
 {
@@ -220,7 +234,11 @@ ssize_t tsn_source_show(struct class *class,
 
 	buf += r;
 	total += r;
-	ret = tee_read_reg_bits(0xff610320, &value, 0, 2);
+
+	if (get_chip_type() == 1)
+		ret = tee_read_reg_bits(0xff610320, &value, 0, 2);
+	else
+		ret = tee_read_reg_bits(0xfe440320, &value, 0, 2);
 	dprint("tee_read_reg_bits value:%d, ret:%d\n", value, ret);
 
 	return total;
@@ -251,18 +269,7 @@ ssize_t tsn_source_store(struct class *class,
 //	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in_reg, tsn_out);
 	advb->dsc_pipeline = tsn_in_reg;
 	//set demod/local
-	if (get_chip_type() == 1) {
-		u32 value = 0;
-		int ret = 0;
-
-		value = tsn_in_reg;
-		value += tsn_out << 1;
-
-		ret = tee_write_reg_bits(0xff610320, value, 0, 2);
-		dprint("tee_write_reg_bits value:%d, ret:%d\n", value, ret);
-	} else {
-		tee_demux_config_pipeline(tsn_in_reg, tsn_out);
-	}
+	demux_config_pipeline(tsn_in_reg, tsn_out);
 
 	mutex_unlock(&advb->mutex);
 	return count;
@@ -280,7 +287,7 @@ int tsn_set_double_out(int flag)
 	if (tsn_in == INPUT_DEMOD)
 		tsn_in_reg = 1;
 
-	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
+	demux_config_pipeline(tsn_in_reg, tsn_out);
 	return 0;
 }
 
@@ -331,8 +338,10 @@ ssize_t tsn_loop_show(struct class *class,
 	u32 val = 0;
 	int ret = 0;
 
-	ret = tee_read_reg_bits(0xfe440320, &val, 2, 1);
-
+	if (get_chip_type() == 1)
+		ret = tee_read_reg_bits(0xff610320, &val, 2, 1);
+	else
+		ret = tee_read_reg_bits(0xfe440320, &val, 2, 1);
 	r = sprintf(buf, "loop:%d, reg val:%d, ret:%d\n", advb->loop_tsn,
 		val, ret);
 
@@ -663,18 +672,8 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	pr_dbg("tsn_in:%d, tsn_out:%d\n", tsn_in_reg, tsn_out);
 	advb->dsc_pipeline = tsn_in_reg;
 	//set demod/local
-	if (get_chip_type() == 1) {
-		u32 value = 0;
-		int ret = 0;
+	demux_config_pipeline(tsn_in_reg, tsn_out);
 
-		value = tsn_in_reg;
-		value += tsn_out << 1;
-
-		ret = tee_write_reg_bits(0xff610320, value, 0, 2);
-		dprint("tee_write_reg_bits value:%d, ret:%d\n", value, ret);
-	} else {
-		tee_demux_config_pipeline(tsn_in_reg, tsn_out);
-	}
 	sid_num  = get_all_sid_info(dmx_dev_num, advb);
 	dmx_init_hw(sid_num, (int *)&sid_info);
 
@@ -748,7 +747,10 @@ void set_dvb_loop_tsn(int flag)
 
 	// set loop_tsn in tee
 	advb->loop_tsn = flag;
-	ret = tee_write_reg_bits(0xfe440320, (u32)flag, 2, 1);
+	if (get_chip_type() == 1)
+		ret = tee_write_reg_bits(0xff610320, (u32)flag, 2, 1);
+	else
+		ret = tee_write_reg_bits(0xfe440320, (u32)flag, 2, 1);
 }
 
 int get_dvb_loop_tsn(void)
