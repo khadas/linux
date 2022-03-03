@@ -92,6 +92,30 @@ int init_demux_addr(struct platform_device *pdev)
 	} else {
 		dprint("%s base addr error\n", __func__);
 	}
+	/*fix pcr clk gate issue*/
+	if (chip_flag) {
+		struct resource *res1;
+		void *pcr_base;
+		unsigned int value;
+
+		res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (!res1) {
+			dprint("%s base addr fail\n", __func__);
+			return -1;
+		}
+		dprint("%s pcr base addr = %lx\n", __func__,
+				   (unsigned long)res1->start);
+		pcr_base = devm_ioremap_nocache(&pdev->dev, res1->start, resource_size(res1));
+		if (pcr_base) {
+			value = readl(pcr_base + 0x64);
+			value |= (1 << 18);
+			writel(value, pcr_base + 0x64);
+			value = readl(pcr_base + 0x64);
+			dprint("get value from reg:0x%0x\n", value);
+		} else {
+			dprint("can't set pcr clk gate\n");
+		}
+	}
 	return 0;
 }
 

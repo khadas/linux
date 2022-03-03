@@ -757,7 +757,8 @@
 		dev_name = "dvb-demux";
 		status = "okay";
 
-		reg = <0xff610000 0x10000>;
+		reg = <0xff610000 0x10000
+				0xff800000 0x10000>;
 
 		dmxdev_num = <4>;
 
