@@ -1312,12 +1312,10 @@ void rx_get_audinfo(struct aud_info_s *audio_info)
 	if (rx.chip_id >= CHIP_ID_T7) {
 		audio_info->n = hdmirx_rd_top(TOP_ACR_N_STAT);
 		audio_info->cts = hdmirx_rd_top(TOP_ACR_CTS_STAT);
-		//audio_info->channel_count =
-			//hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CHANNEL_COUNT);
+		audio_info->channel_count = rx.aud_info.channel_count;
 		//audio_info->coding_extension =
 			//hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, AIF_DATA_BYTE_3);
-		//audio_info->auds_ch_alloc =
-			//hdmirx_rd_bits_dwc(DWC_PDEC_AIF_PB0, CH_SPEAK_ALLOC);
+		audio_info->auds_ch_alloc = rx.aud_info.auds_ch_alloc;
 		//audio_info->auds_layout =
 			//hdmirx_rd_bits_dwc(DWC_PDEC_STS, PD_AUD_LAYOUT);
 		audio_info->aud_hbr_rcv =
@@ -1391,7 +1389,10 @@ void rx_get_audio_status(struct rx_audio_stat_s *aud_sts)
 		} else {
 			if ((rx.afifo_sts & 3) == 0)
 				aud_sts->aud_stb_flag = true;
+			aud_sts->aud_alloc = rx.aud_info.auds_ch_alloc;
 			aud_sts->aud_rcv_packet = rx.aud_info.aud_packet_received;
+			aud_sts->aud_channel_cnt = rx.aud_info.channel_count;
+			aud_sts->aud_type = rx.aud_info.coding_type;
 			aud_sts->aud_sr = rx.aud_info.real_sr;
 			memcpy(aud_sts->ch_sts, &rx.aud_info.ch_sts, 7);
 		}
@@ -5368,7 +5369,7 @@ void rx_emp_to_ddr_init(void)
 		/* enable store EMP pkt type */
 		data32 = 0;
 		data32 |= 1 << 22;/* ddr_store_drm */
-		data32 |= 0 << 19;/* ddr_store_aif */
+		data32 |= 1 << 19;/* ddr_store_aif */
 		data32 |= 0 << 18;/* ddr_store_spd */
 		data32 |= 0 << 16;/* ddr_store_vsi */
 		data32 |= 1 << 15;/* ddr_store_emp */

@@ -1066,6 +1066,7 @@ void rx_update_sig_info(void)
 {
 	rx_get_vsi_info();
 	rx_get_vtem_info();
+	rx_get_aif_info();
 	rx_set_sig_info();
 }
 

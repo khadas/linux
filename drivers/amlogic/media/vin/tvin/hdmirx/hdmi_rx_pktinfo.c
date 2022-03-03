@@ -2215,3 +2215,18 @@ void rx_get_vtem_info(void)
 		///rx.vtem_info.base_framerate = 0;
 	//}
 }
+
+void rx_get_aif_info(void)
+{
+	struct aud_infoframe_st *pkt;
+
+	pkt = (struct aud_infoframe_st *)&rx_pkt.aud_pktinfo;
+	rx.aud_info.channel_count = pkt->ch_count;
+	/*rx.aud_info.coding_type = pkt->coding_type;*/
+	rx.aud_info.auds_ch_alloc = pkt->ca;
+	/*if (log_level & PACKET_LOG) {*/
+	/*	rx_pr("cc=%x\n", pkt->ch_count);*/
+	/*	rx_pr("ct=%x\n", pkt->coding_type);*/
+	/*	rx_pr("ca=%x\n", pkt->ca);*/
+	/*}*/
+}

@@ -44,8 +44,8 @@
 #define ECC_LOG		0x10000
 #define EDID_DATA_LOG	0x20000
 
-/* sony x700 6g unstable */
-#define RX_VER1 "ver.2021/12/01a"
+/* add aif parsing for t7 */
+#define RX_VER1 "ver.2022/03/04"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 

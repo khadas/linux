@@ -1107,5 +1107,5 @@ void rx_get_pd_fifo_param(enum pkt_type_e pkt_type,
 			  struct pd_infoframe_s *pkt_info);
 void rx_get_avi_info(struct avi_infoframe_st *st_pkt);
 void rx_get_vtem_info(void);
-
+void rx_get_aif_info(void);
 #endif
