@@ -222,10 +222,14 @@ enum audio_coding_types iec_61937_pc_to_coding_type(unsigned int pc)
 		break;
 	case 3:
 		coding_type = AUDIO_CODING_TYPE_PAUSE;
+		pr_debug("get iec_61937 pause package, pc:%#x, data_type:%#x, subdata_type:%#x\n",
+			pc, data_type, subdata_type);
 		break;
 	case 0:
 		/* invalid data */
 		coding_type = AUDIO_CODING_TYPE_PAUSE;
+		pr_debug("get iec_61937 pause package, pc:%#x, data_type:%#x, subdata_type:%#x\n",
+			pc, data_type, subdata_type);
 		break;
 	default:
 		break;
