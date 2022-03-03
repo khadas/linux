@@ -55,9 +55,9 @@
 #include <linux/amlogic/gki_module.h>
 
 uint debug_csc;
-static int cur_mvc_type[2];
-static int cur_rgb_type[2];
-static int rgb_type_proc[2];
+static int cur_mvc_type[VD_PATH_MAX];
+static int cur_rgb_type[VD_PATH_MAX];
+static int rgb_type_proc[VD_PATH_MAX];
 #define FORCE_RGB_PROCESS 1
 
 module_param(debug_csc, uint, 0664);
