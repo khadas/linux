@@ -720,9 +720,11 @@
 			phy-reg-size = <0x2000>;
 			usb2-phy-reg = <0xfe03a000>;
 			usb2-phy-reg-size = <0x80>;
-			clocks = <&clkc CLKID_PCIE_PLL>;
 			interrupts = <0 129 4>;
-			clock-names = "pcie_refpll";
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_PCIE_BGP>;
+			clock-names = "pcie_refpll",
+					"pcie_bgp";
 			power-domains = <&pwrdm PDID_SC2_PCIE>;
 		};
 

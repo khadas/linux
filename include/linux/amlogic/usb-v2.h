@@ -251,6 +251,7 @@ struct amlogic_usb_v2 {
 	struct clk		*gate0_clk;
 	struct clk		*gate1_clk;
 	struct clk		*hcsl_clk;
+	struct clk		*pcie_bgp;
 	u32 portconfig_31;
 	u32 portconfig_30;
 	void __iomem	*usb_phy_trim_reg;

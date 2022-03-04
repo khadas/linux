@@ -90,6 +90,8 @@ static void amlogic_new_usb3phy_shutdown(struct usb_phy *x)
 	struct amlogic_usb_v2 *phy = phy_to_amlusb(x);
 
 	if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
+		if (phy->pcie_bgp)
+			clk_disable_unprepare(phy->pcie_bgp);
 		clk_disable_unprepare(phy->clk);
 		writel(0x1d, phy->phy3_cfg);
 	}
@@ -339,6 +341,8 @@ static int amlogic_new_usb3_init(struct usb_phy *x)
 	if (phy->suspend_flag) {
 		if (phy->phy.flags == AML_USB3_PHY_ENABLE) {
 			clk_prepare_enable(phy->clk);
+			if (phy->pcie_bgp)
+				clk_prepare_enable(phy->pcie_bgp);
 			writel(0x7c, phy->phy3_cfg);
 		}
 		phy->suspend_flag = 0;
@@ -832,6 +836,7 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 	phy->usb_gpio_desc = usb_gd;
 	phy->otg = otg;
 	phy->version = phy_version;
+	phy->pcie_bgp = NULL;
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
@@ -850,6 +855,19 @@ static int amlogic_new_usb3_v2_probe(struct platform_device *pdev)
 			dev_err(dev, "Failed to enable usb3 bus clock\n");
 			ret = PTR_ERR(phy->clk);
 			return ret;
+		}
+
+		phy->pcie_bgp = devm_clk_get(dev, "pcie_bgp");
+		if (IS_ERR(phy->pcie_bgp)) {
+			dev_err(dev, "Failed to get pcie_bgp\n");
+			phy->pcie_bgp = NULL;
+		} else {
+			ret = clk_prepare_enable(phy->pcie_bgp);
+			if (ret) {
+				dev_err(dev, "Failed to enable pcie_bgp\n");
+				ret = PTR_ERR(phy->clk);
+				return ret;
+			}
 		}
 		phy->phy.flags = AML_USB3_PHY_ENABLE;
 	}
