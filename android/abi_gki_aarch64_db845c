@@ -33,7 +33,8 @@
   cfg80211_put_bss
   __cfg80211_send_event_skb
   cfg80211_vendor_cmd_reply
-  __cfi_slowpath_diag
+# amlogic: current kernel does not export this function
+# __cfi_slowpath_diag
   __check_object_size
   clk_bulk_disable
   clk_bulk_enable
@@ -701,7 +702,8 @@
   trace_event_reg
   trace_handle_return
   trace_raw_output_prep
-  __ubsan_handle_cfi_check_fail_abort
+# amlogic: current kernel does not export this function
+# __ubsan_handle_cfi_check_fail_abort
   __udelay
   unregister_chrdev_region
   unregister_reboot_notifier
@@ -934,7 +936,8 @@
   dma_get_sgtable_attrs
   down_read
   find_vma
-  kasan_flag_enabled
+# amlogic: current kernel does not export this function
+# kasan_flag_enabled
   __mmap_lock_do_trace_acquire_returned
   __mmap_lock_do_trace_released
   __mmap_lock_do_trace_start_locking
