@@ -1983,6 +1983,7 @@
 			pcie-hhi-mem-pd-mask = <0xf>;
 			pcie-ctrl-iso-shift = <15>;
 			status = "disabled";
+			dma-ranges = <0x0 0x0 0x0 0x0 0x0 0x0 0xe0000000>;
 		};
 
 		sd_emmc_c: mmc@fe08c000 {
