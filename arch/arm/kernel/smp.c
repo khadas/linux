@@ -74,10 +74,10 @@ enum ipi_msg_type {
 	IPI_CPU_STOP,
 	IPI_IRQ_WORK,
 	IPI_COMPLETION,
-#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
-	IPI_FREERTOS = 7,
-#endif
 	NR_IPI,
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+	IPI_FREERTOS = NR_IPI,
+#endif
 	/*
 	 * CPU_BACKTRACE is special and not included in NR_IPI
 	 * or tracable with trace_ipi_*
@@ -677,13 +677,11 @@ static void do_handle_IPI(int ipinr)
 		ipi_complete(cpu);
 		break;
 
-#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
-	case IPI_FREERTOS:
-		freertos_finish();
-		break;
-#endif
-
 	case IPI_CPU_BACKTRACE:
+#if IS_ENABLED(CONFIG_AMLOGIC_FREERTOS)
+		if (!freertos_finish())
+			break;
+#endif
 		printk_deferred_enter();
 		nmi_cpu_backtrace(get_irq_regs());
 		printk_deferred_exit();
