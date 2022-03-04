@@ -1388,6 +1388,7 @@ static int lcd_config_load_from_dts(struct aml_lcd_drv_s *pdrv)
 			LCDPR("[%d]: failed to get custom_pinmux\n", pdrv->index);
 		ret = of_property_read_u32(child, "customer_pinmux", &val);
 		if (ret) {
+			pconf->custom_pinmux = 0;
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 				LCDPR("[%d]: failed to get customer_pinmux\n", pdrv->index);
 		} else {

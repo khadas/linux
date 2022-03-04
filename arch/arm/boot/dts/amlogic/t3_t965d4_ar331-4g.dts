@@ -7,7 +7,7 @@
 
 #include "mesont3.dtsi"
 #include "partition_mbox_ab.dtsi"
-#include "mesont3_ar301-panel.dtsi"
+#include "mesont3_ar331-panel.dtsi"
 
 / {
 	model = "Amlogic";

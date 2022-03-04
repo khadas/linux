@@ -73,6 +73,7 @@ struct lcd_cdev_s {
 
 static struct lcd_cdev_s *lcd_cdev;
 static char lcd_propname[LCD_MAX_DRV][24] = {"null", "null", "null"};
+static char lcd_panel_name[LCD_MAX_DRV][24] = {"null", "null", "null"};
 
 #define LCD_VSYNC_NONE_INTERVAL     msecs_to_jiffies(500)
 
@@ -123,6 +124,7 @@ static struct aml_lcd_drv_s *lcd_driver_add(int index)
 
 	/* default config */
 	strcpy(pdrv->config.propname, lcd_propname[index]);
+	strcpy(pdrv->config.basic.model_name, lcd_panel_name[index]);
 	pdrv->config.basic.lcd_type = LCD_TYPE_MAX;
 	pdrv->config.power.power_on_step[0].type = LCD_POWER_TYPE_MAX;
 	pdrv->config.power.power_off_step[0].type = LCD_POWER_TYPE_MAX;
@@ -139,6 +141,8 @@ static struct aml_lcd_drv_s *lcd_driver_add(int index)
 	/* boot ctrl */
 	pdrv->boot_ctrl = &lcd_boot_ctrl_config[index];
 	pdrv->debug_ctrl = &lcd_debug_ctrl_config;
+
+	pdrv->config.custom_pinmux = pdrv->boot_ctrl->custom_pinmux;
 
 	return pdrv;
 }
@@ -2171,6 +2175,33 @@ void __exit lcd_exit(void)
 	platform_driver_unregister(&lcd_platform_driver);
 }
 
+static int lcd_panel_name_para_setup(char *str)
+{
+	if (str)
+		sprintf(lcd_panel_name[0], "%s", str);
+
+	LCDPR("panel_name: %s\n", lcd_panel_name[0]);
+	return 0;
+}
+
+static int lcd1_panel_name_para_setup(char *str)
+{
+	if (str)
+		sprintf(lcd_panel_name[1], "%s", str);
+
+	LCDPR("panel_name: %s\n", lcd_panel_name[1]);
+	return 0;
+}
+
+static int lcd2_panel_name_para_setup(char *str)
+{
+	if (str)
+		sprintf(lcd_panel_name[2], "%s", str);
+
+	LCDPR("panel_name: %s\n", lcd_panel_name[2]);
+	return 0;
+}
+
 static int lcd_panel_type_para_setup(char *str)
 {
 	if (str)
@@ -2217,6 +2248,7 @@ static int lcd_boot_ctrl_setup(char *str)
 	boot_ctrl->lcd_type = data32 & 0xf;
 	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
+	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	return 0;
 }
@@ -2240,6 +2272,7 @@ static int lcd1_boot_ctrl_setup(char *str)
 	boot_ctrl->lcd_type = data32 & 0xf;
 	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
+	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	return 0;
 }
@@ -2263,6 +2296,7 @@ static int lcd2_boot_ctrl_setup(char *str)
 	boot_ctrl->lcd_type = data32 & 0xf;
 	boot_ctrl->lcd_bits = (data32 >> 4) & 0xf;
 	boot_ctrl->advanced_flag = (data32 >> 8) & 0xff;
+	boot_ctrl->custom_pinmux = (data32 >> 16) & 0x1;
 	boot_ctrl->init_level = (data32 >> 18) & 0x3;
 	return 0;
 }
@@ -2290,6 +2324,9 @@ static int lcd_debug_ctrl_setup(char *str)
 	return 0;
 }
 
+__setup("panel_name=", lcd_panel_name_para_setup);
+__setup("panel1_name=", lcd1_panel_name_para_setup);
+__setup("panel2_name=", lcd2_panel_name_para_setup);
 __setup("panel_type=", lcd_panel_type_para_setup);
 __setup("panel1_type=", lcd1_panel_type_para_setup);
 __setup("panel2_type=", lcd2_panel_type_para_setup);

@@ -7,7 +7,7 @@
 
 #include "mesont3.dtsi"
 #include "partition_normal_PR_32.dtsi"
-#include "mesont3_ar301-panel.dtsi"
+#include "mesont3_ar311-panel.dtsi"
 
 / {
 	model = "Amlogic";

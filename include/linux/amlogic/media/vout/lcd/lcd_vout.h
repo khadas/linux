@@ -534,7 +534,8 @@ struct lcd_config_s {
 /*
  *bit[31:20]: reserved
  *bit[19:18]: lcd_init_level
- *bit[17:16]: reserved
+ *bit[17]: reserved
+ *bit[16]: custom pinmux flag
  *bit[15:8]: advanced flag(p2p_type when lcd_type=p2p)
  *bit[7:4]: lcd bits
  *bit[3:0]: lcd_type
@@ -543,6 +544,7 @@ struct lcd_boot_ctrl_s {
 	unsigned char lcd_type;
 	unsigned char lcd_bits;
 	unsigned char advanced_flag;
+	unsigned char custom_pinmux;
 	unsigned char init_level;
 };
 

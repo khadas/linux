@@ -17,9 +17,9 @@
 		clock-names = "tcon_gate",
 				"fclk_div5",
 				"clk_tcon";
-		reg = <0x0 0xfe3b0000 0x0 0xd000   /* tcon */
-			0x0 0xfe004000 0x0 0x70    /* periphs */
-			0x0 0xfe002000 0x0 0xa0>;  /* reset */
+		reg = <0xfe3b0000 0xd000   /* tcon */
+			0xfe004000 0x70    /* periphs */
+			0xfe002000 0xa0>;  /* reset */
 		interrupts = <0 197 1
 			0 194 1
 			0 282 1
@@ -27,8 +27,7 @@
 		interrupt-names = "vsync","vsync2","vbyone","tcon";
 		pinctrl-names = "vbyone","vbyone_off",
 				"tcon_p2p","tcon_p2p_usit","tcon_p2p_off",
-				"tcon_mlvds","tcon_mlvds_off",
-				"ST6451D06-3","ST6451D06-3_off";
+				"tcon_mlvds","tcon_mlvds_off";
 		pinctrl-0 = <&lcd_vbyone_a_pins>;
 		pinctrl-1 = <&lcd_vbyone_a_off_pins>;
 		pinctrl-2 = <&lcd_tcon_p2p_pins>;
@@ -36,8 +35,6 @@
 		pinctrl-4 = <&lcd_tcon_p2p_off_pins>;
 		pinctrl-5 = <&lcd_tcon_mlvds_pins>;
 		pinctrl-6 = <&lcd_tcon_mlvds_off_pins>;
-		pinctrl-7 = <&ST6451D06_3_pins>;
-		pinctrl-8 = <&ST6451D06_3_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
 		memory-region = <&lcd_tcon_reserved>;
 
@@ -300,9 +297,9 @@
 				0>; /*pixel_clk(unit in Hz)*/
 			p2p_attr = <
 				0x11  /* p2p_teyp:
-				      *  0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
-				      *  0x10=chpi, 0x11=cspi, 0x12=usit
-				      */
+				       * 0x0=ceds, 0x1=cmpi, 0x2=isp, 0x3=epi,
+				       * 0x10=chpi, 0x11=cspi, 0x12=usit
+				       */
 				12 /* channel_num */
 				0x76543210 /* channel_sel0 */
 				0xba98   /* channel_sel1 */
@@ -806,9 +803,9 @@
 		mode = "tablet";
 		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
-		reg = <0x0 0xfe3b0000 0x0 0xd000   /* tcon */
-			0x0 0xfe004000 0x0 0x70    /* periphs */
-			0x0 0xfe002000 0x0 0xa0>;  /* reset */
+		reg = <0xfe3b0000 0xd000   /* tcon */
+			0xfe004000 0x70    /* periphs */
+			0xfe002000 0xa0>;  /* reset */
 		interrupts = <0 197 1
 			0 194 1
 			0 282 1>;
