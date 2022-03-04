@@ -792,6 +792,11 @@ extern bool hdcp22_esm_reset2;
 extern int esm_recovery_mode;
 extern u32 dbg_pkt;
 
+void hdmitx_update_latency_info(struct tvin_latency_s *latency_info);
+void __attribute__((weak))hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
+{
+}
+
 int rx_set_global_variable(const char *buf, int size);
 void rx_get_global_variable(const char *buf);
 int rx_pr(const char *fmt, ...);
