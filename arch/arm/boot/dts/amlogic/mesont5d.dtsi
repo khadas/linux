@@ -1715,12 +1715,26 @@
 		interrupts = <GIC_SPI 52 IRQ_TYPE_EDGE_RISING>;
 	};
 
+	efusecheck: efusecheck{
+		maincmd = <0x8200003E>;
+		checknum = <1>;
+		check0 = <&check_0>;
+		check_0:check_0{
+			checkname = "aud_id";
+			subcmd = <0x1002>;
+		};
+	};
+
 	efuse: efuse{
 		compatible = "amlogic, efuse";
 		read_cmd = <0x82000030>;
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;
+		mem_in_base_cmd = <0x82000020>;
+		mem_out_base_cmd = <0x82000021>;
+		efuse_pattern_size = <0x400>;
 		key = <&efusekey>;
+		check = <&efusecheck>;
 		clocks = <&clkc CLKID_EFUSE>;
 		clock-names = "efuse_clk";
 		status = "disabled";
