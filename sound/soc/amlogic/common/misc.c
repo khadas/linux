@@ -256,6 +256,17 @@ int aml_get_hdmiin_audio_channels(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+int aml_get_hdmiin_audio_allocation(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol)
+{
+	struct rx_audio_stat_s aud_sts;
+
+	rx_get_audio_status(&aud_sts);
+	ucontrol->value.integer.value[0] = aud_sts.aud_alloc;
+
+	return 0;
+}
+
 int aml_get_hdmiin_audio_format(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {

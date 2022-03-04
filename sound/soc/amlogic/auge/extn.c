@@ -1050,6 +1050,11 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		aml_get_hdmiin_audio_channels,
 		NULL),
 
+	SND_SOC_BYTES_EXT("HDMIIN audio allocation",
+			  1,
+			  aml_get_hdmiin_audio_allocation,
+			  NULL),
+
 	SOC_ENUM_EXT("HDMIIN audio format",
 		hdmi_in_status_enum[3],
 		aml_get_hdmiin_audio_format,

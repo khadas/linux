@@ -49,6 +49,9 @@ int aml_get_hdmiin_audio_samplerate(struct snd_kcontrol *kcontrol,
 int aml_get_hdmiin_audio_channels(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol);
 
+int aml_get_hdmiin_audio_allocation(struct snd_kcontrol *kcontrol,
+				  struct snd_ctl_elem_value *ucontrol);
+
 int aml_get_hdmiin_audio_format(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol);
 
