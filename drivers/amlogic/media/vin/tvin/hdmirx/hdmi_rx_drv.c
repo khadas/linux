@@ -108,6 +108,7 @@ static unsigned int  hdmirx_log_wr_pos;
 static unsigned int  hdmirx_log_rd_pos;
 static unsigned int  hdmirx_log_buf_size;
 unsigned int pwr_sts;
+struct tvin_latency_s latency_info;
 struct tasklet_struct rx_tasklet;
 u32 *pd_fifo_buf;
 static DEFINE_SPINLOCK(rx_pr_lock);
@@ -476,6 +477,13 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	rx.open_fg = 0;
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
+	rx.vs_info_details.allm_mode = 0;
+	rx.cur.cn_type = 0;
+	rx.cur.it_content = 0;
+	latency_info.allm_mode = 0;
+	latency_info.it_content = 0;
+	latency_info.cn_type = 0;
+	hdmitx_update_latency_info(&latency_info);
 	/*del_timer_sync(&devp->timer);*/
 	hdmirx_close_port();
 	parm->info.fmt = TVIN_SIG_FMT_NULL;
@@ -1043,6 +1051,16 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop)
 		rx.vs_info_details.allm_mode;
 	prop->latency.it_content = rx.cur.it_content;
 	prop->latency.cn_type = rx.cur.cn_type;
+
+	if (rx.open_fg  &&
+		(latency_info.allm_mode != rx.vs_info_details.allm_mode ||
+		latency_info.it_content != rx.cur.it_content ||
+		latency_info.cn_type != rx.cur.cn_type)) {
+		latency_info.allm_mode  = rx.vs_info_details.allm_mode;
+		latency_info.it_content = rx.cur.it_content;
+		latency_info.cn_type  = rx.cur.cn_type;
+		hdmitx_update_latency_info(&prop->latency);
+	}
 }
 
 static u32 emp_irq_cnt;
