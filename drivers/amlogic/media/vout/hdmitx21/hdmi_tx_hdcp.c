@@ -1003,6 +1003,34 @@ static void init_hdcp_works(struct hdcp_work *work,
 
 static struct hdcp_t hdcp_hdcp;
 
+static int hdmitx21_get_hdcp_auth_rlt(struct hdmitx_dev *hdev)
+{
+	if (hdev->hdcp_mode == 1)
+		return (int)get_hdcp1_result();
+	if (hdev->hdcp_mode == 2)
+		return (int)get_hdcp2_result();
+	else
+		return 0;
+}
+
+static int  hdmitx21_hdcp_stat_monitor(void *data)
+{
+	static int auth_stat;
+	struct hdmitx_dev *hdev = (struct hdmitx_dev *)data;
+
+	while (hdev->hpd_event != 0xff) {
+		hdmi21_authenticated = hdmitx21_get_hdcp_auth_rlt(hdev);
+		if (auth_stat != hdmi21_authenticated) {
+			hdmitx21_hdcp_status(hdmi21_authenticated);
+			auth_stat = hdmi21_authenticated;
+			pr_info("hdcptx: %d  auth: %d\n", hdev->hdcp_mode,
+				auth_stat);
+		}
+		msleep_interruptible(100);
+	}
+	return 0;
+}
+
 int hdmitx21_hdcp_init(void)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -1033,11 +1061,16 @@ int hdmitx21_hdcp_init(void)
 	init_hdcp_works(&p_hdcp->timer_hdcp_auth_fail_retry,
 		hdcp_check_auth_failretry_whandler, "hdcp_auth_fail_retry");
 	init_hdcp_works(&p_hdcp->timer_update_csm, hdcp_update_csm_whandler, "update_csm");
+	hdev->task_hdcp = kthread_run(hdmitx21_hdcp_stat_monitor, (void *)hdev,
+				      "kthread_hdcp");
 
 	return 0;
 }
 
 void __exit hdmitx21_hdcp_exit(void)
 {
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
 	hdcptx_reset(p_hdcp);
+	kthread_stop(hdev->task_hdcp);
 }

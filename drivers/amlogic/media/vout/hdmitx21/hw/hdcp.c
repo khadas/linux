@@ -55,6 +55,24 @@ bool get_hdcp2_lstore(void)
 	return (unsigned int)((res.a0) & 0xffffffff);
 }
 
+bool get_hdcp1_result(void)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDCPTX_IOOPR, HDCP14_RESULT, 0, 0, 0, 0, 0, 0, &res);
+
+	return (unsigned int)((res.a0) & 0xffffffff);
+}
+
+bool get_hdcp2_result(void)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_RESULT, 0, 0, 0, 0, 0, 0, &res);
+
+	return (unsigned int)((res.a0) & 0xffffffff);
+}
+
 void hdcptx_init_reg(void)
 {
 	hdmitx21_set_bit(HDCP_CTRL_IVCTX, BIT(2), false);
