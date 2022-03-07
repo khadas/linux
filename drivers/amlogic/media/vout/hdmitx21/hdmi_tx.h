@@ -163,6 +163,8 @@ struct hdcp_t {
 
 bool get_hdcp1_lstore(void);
 bool get_hdcp2_lstore(void);
+bool get_hdcp1_result(void);
+bool get_hdcp2_result(void);
 bool is_rx_hdcp2ver(void);
 void hdcp_mode_set(unsigned int mode);
 void hdcp_enable_intrs(bool en);

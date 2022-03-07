@@ -285,6 +285,7 @@ struct hdmitx_dev {
 	struct proc_dir_entry *proc_file;
 	struct task_struct *task;
 	struct task_struct *task_monitor;
+	struct task_struct *task_hdcp;
 	struct workqueue_struct *hdmi_wq;
 	struct workqueue_struct *rxsense_wq;
 	struct workqueue_struct *cedst_wq;
