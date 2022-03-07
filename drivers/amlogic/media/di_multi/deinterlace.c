@@ -10275,8 +10275,12 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 		return reason;
 
 	dim_vf_x_y(vf, &x, &y);
-	/*check vf*/
-	if (vf->type & DIM_BYPASS_VF_TYPE) {
+	/* check vf */
+	/* for v4l decode vframe */
+	if (get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_DOVI ||
+	    get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_DOVI_LL) {
+		reason = 0xb;
+	} else if (vf->type & DIM_BYPASS_VF_TYPE) {
 		reason = 2;
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_PPMGR) {
 		reason = 6;
