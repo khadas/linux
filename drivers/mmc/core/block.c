@@ -2935,7 +2935,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 		pm_runtime_enable(&card->dev);
 	}
 
-	trace_android_vh_amlmmc_dtb_key_init(card, &ret);
+	trace_android_vh_amlmmc_dtb_key_init(&ret);
 	if (ret)
 		return ret;
 

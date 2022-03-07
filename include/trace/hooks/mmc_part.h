@@ -9,11 +9,10 @@
 
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
-#include <linux/mmc/card.h>
 
 DECLARE_HOOK(android_vh_amlmmc_dtb_key_init,
-	TP_PROTO(struct mmc_card *card, int *retp),
-	TP_ARGS(card, retp));
+	TP_PROTO(int *retp),
+	TP_ARGS(retp));
 
 #endif /* _TRACE_HOOK_MMC_PART_H */
 /* This part must be outside protection */
