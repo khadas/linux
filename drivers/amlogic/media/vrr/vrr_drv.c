@@ -672,12 +672,6 @@ static long vrr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_to_user(argp, &temp, sizeof(unsigned int)))
 			ret = -EFAULT;
 		break;
-	case VRR_IOC_ENABLE:
-		vrr_drv_func_en(vdrv, 1);
-		break;
-	case VRR_IOC_DISABLE:
-		vrr_drv_func_en(vdrv, 0);
-		break;
 	case VRR_IOC_GET_EN:
 		if (copy_to_user(argp, &vdrv->enable, sizeof(unsigned int)))
 			ret = -EFAULT;

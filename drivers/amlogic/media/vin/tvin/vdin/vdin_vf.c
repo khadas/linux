@@ -914,8 +914,8 @@ void vdin_dump_vf_state(struct vf_pool *p)
 	struct vf_entry *pos = NULL, *tmp = NULL;
 
 	pr_info("buffers in writeable list:\n");
-	pr_info("wr list:0x%x\n", p->wr_list_size);
 	spin_lock_irqsave(&p->wr_lock, flags);
+	pr_info("wr list:0x%x\n", p->wr_list_size);
 	list_for_each_entry_safe(pos, tmp, &p->wr_list, list) {
 		pr_info("index: %2u,status %u, canvas index0: 0x%x,",
 			pos->vf.index, pos->status, pos->vf.canvas0Addr);
@@ -926,8 +926,8 @@ void vdin_dump_vf_state(struct vf_pool *p)
 	spin_unlock_irqrestore(&p->wr_lock, flags);
 
 	pr_info("buffer in readable list:\n");
-	pr_info("rd list:0x%x\n", p->rd_list_size);
 	spin_lock_irqsave(&p->rd_lock, flags);
+	pr_info("rd list:0x%x\n", p->rd_list_size);
 	list_for_each_entry_safe(pos, tmp, &p->rd_list, list) {
 		pr_info("index: %u,status %u, canvas index0: 0x%x,",
 			pos->vf.index, pos->status, pos->vf.canvas0Addr);

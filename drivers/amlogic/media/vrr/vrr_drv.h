@@ -65,7 +65,6 @@ extern int lcd_venc_sel;
 extern int lcd_vrr_timer_cnt;
 struct aml_vrr_drv_s *vrr_drv_get(int index);
 int vrr_drv_func_en(struct aml_vrr_drv_s *vdrv, int flag);
-
 ssize_t vrr_active_status_show(struct device *dev,
 			       struct device_attribute *attr, char *buf);
 int aml_vrr_if_probe(void);

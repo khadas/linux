@@ -201,7 +201,8 @@ enum tvin_sig_fmt_e {
 	TVIN_SIG_FMT_HDMI_2688X1520_00HZ = 0x453,
 	TVIN_SIG_FMT_HDMI_1920X2160_60HZ = 0x454,
 	TVIN_SIG_FMT_HDMI_960X540_60HZ = 0x455,
-	TVIN_SIG_FMT_HDMI_MAX = 0x456,
+	TVIN_SIG_FMT_HDMI_2560X1440_00HZ = 0x456,
+	TVIN_SIG_FMT_HDMI_MAX,
 	TVIN_SIG_FMT_HDMI_THRESHOLD = 0x600,
 	/* Video Formats */
 	TVIN_SIG_FMT_CVBS_NTSC_M = 0x601,
@@ -526,6 +527,7 @@ bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
 #define TVIN_IOC_SET_COLOR_RANGE	_IOW(_TM_T, 0X4a,\
 	enum tvin_force_color_range_e)
 #define TVIN_IOC_GAME_MODE          _IOW(_TM_T, 0x4b, unsigned int)
+#define TVIN_IOC_VRR_MODE           _IOW(_TM_T, 0x54, unsigned int)
 #define TVIN_IOC_GET_LATENCY_MODE		_IOR(_TM_T, 0x4d,\
 	struct tvin_latency_s)
 #define TVIN_IOC_G_FRONTEND_INFO    _IOR(_TM_T, 0x4e,\
@@ -535,7 +537,7 @@ bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
 #define TVIN_IOC_S_PC_MODE		_IOW(_TM_T, 0x50, unsigned int)
 #define TVIN_IOC_S_FRAME_WR_EN		_IOW(_TM_T, 0x51, unsigned int)
 #define TVIN_IOC_G_INPUT_TIMING		_IOR(_TM_T, 0x52, struct tvin_format_s)
-
+#define TVIN_IOC_G_VRR_STATUS		_IOR(_TM_T, 0x53, struct vdin_vrr_freesync_param_s)
 
 #define TVIN_IOC_S_CANVAS_RECOVERY  _IO(_TM_T, 0x0a)
 /* TVAFE */

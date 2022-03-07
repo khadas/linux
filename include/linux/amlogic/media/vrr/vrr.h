@@ -36,6 +36,9 @@ struct vrr_notifier_data_s {
 	unsigned int target_vfreq_den;
 	unsigned int dev_vfreq_max;
 	unsigned int dev_vfreq_min;
+	unsigned int line_dly;
+
+	unsigned int vrr_mode;
 };
 
 /* **********************************

@@ -862,7 +862,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	else
 		vframe_size = devp->vfmem_size;
 
-	pr_info("flags=0x%x\n", devp->flags);
+	pr_info("flags=0x%x,flags_isr=0x%x\n", devp->flags, devp->flags_isr);
 	pr_info("h_active = %d, v_active = %d\n",
 		devp->h_active, devp->v_active);
 	pr_info("canvas_w = %d, canvas_h = %d\n",
@@ -992,7 +992,11 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
 	pr_info("game_mode cur:  0x%x\n", devp->game_mode);
-	pr_info("vdin_vrr_flag:  %d\n", devp->prop.vdin_vrr_flag);
+	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_mode, devp->vdin_vrr_en_flag);
+	pr_info("vrr_en:  pre=%d,cur:%d\n",
+		devp->pre_prop.vtem_data.vrr_en, devp->prop.vtem_data.vrr_en);
+	pr_info("vdin_vrr_flag:  pre=%d,cur:%d\n", devp->pre_prop.vdin_vrr_flag,
+		devp->prop.vdin_vrr_flag);
 
 	pr_info("afbce_flag: 0x%x\n", devp->afbce_flag);
 	pr_info("afbce_mode: %d, afbce_valid: %d\n", devp->afbce_mode,
@@ -2340,6 +2344,14 @@ start_chk:
 			pr_info("full_pack(%d):%d\n\n", devp->index,
 				devp->full_pack);
 		}
+	} else if (!strcmp(parm[0], "flags_isr")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 16, &val) == 0) {
+			devp->flags_isr = val;
+			pr_info("vdin%d,flags_isr:%#x\n\n", devp->index,
+				devp->flags_isr);
+		}
 	} else if (!strcmp(parm[0], "force_malloc_yuv_422_to_444")) {
 		if (!parm[1]) {
 			pr_err("miss parameters .\n");
@@ -2654,6 +2666,11 @@ start_chk:
 			vdin_force_game_mode = temp;
 			pr_info("set game mode: 0x%x\n", temp);
 		}
+	} else if (!strcmp(parm[0], "vrr_mode")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			devp->vrr_mode = temp;
+			pr_info("set vrr_mode: 0x%x\n", temp);
+		}
 	} else if (!strcmp(parm[0], "matrix_pattern")) {
 		/*
 		 * 0:off 1:enable
@@ -2703,6 +2720,13 @@ start_chk:
 	} else if (!strcmp(parm[0], "rv")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
 			pr_info("addr:0x%x val:0x%x\n", temp, R_VCBUS(temp));
+	} else if (!strcmp(parm[0], "game_mode_chg")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			pr_info("set new game mode to: 0x%x,pre:%#x\n", temp, game_mode);
+			if (game_mode != temp)
+				vdin_game_mode_chg(devp, game_mode, temp);
+			game_mode = temp;
+		}
 	} else {
 		pr_info("unknown command\n");
 	}
