@@ -6205,10 +6205,13 @@ static void post_blend_dummy_data_update(u32 vpp_index)
 	if (!(bg_color & VIDEO_AUTO_POST_BLEND_DUMMY))
 		return;
 
-	if (!legacy_vpp)
+	if (!legacy_vpp) {
 		rdma_wr(VPP_POST_BLEND_BLEND_DUMMY_DATA, bg_color & 0x00ffffff);
-	else
+		rdma_wr(VPP_POST_BLEND_DUMMY_ALPHA,
+			vd_layer[0].dummy_alpha);
+	} else {
 		rdma_wr(VPP_DUMMY_DATA1, bg_color & 0x00ffffff);
+	}
 }
 
 void vpp_blend_update(const struct vinfo_s *vinfo)
@@ -10956,6 +10959,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	vd_layer[0].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[1].misc_reg_offt = 0 + cur_dev->vpp_off;
 	vd_layer[2].misc_reg_offt = 0 + cur_dev->vpp_off;
+	vd_layer[0].dummy_alpha = 0x7fffffff;
 	cur_dev->mif_linear = p_amvideo->mif_linear;
 	cur_dev->t7_display = p_amvideo->t7_display;
 	cur_dev->max_vd_layers = p_amvideo->max_vd_layers;

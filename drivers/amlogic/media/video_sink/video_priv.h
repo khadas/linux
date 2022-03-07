@@ -431,6 +431,7 @@ struct video_layer_s {
 	bool vd1_vd2_mux;
 	u32 video_en_bg_color;
 	u32 video_dis_bg_color;
+	u32 dummy_alpha;
 	u32 compWidth;
 	u32 compHeight;
 	u32 src_width;

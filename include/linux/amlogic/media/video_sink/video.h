@@ -378,6 +378,8 @@ s32 set_video_path_select(const char *recv_name, u8 layer_id);
 s32 set_sideband_type(s32 type, u8 layer_id);
 void vpp_probe_en_set(u32 enable);
 bool is_di_hf_y_reverse(void);
+void set_post_blend_dummy_data(u32 vpp_index,
+	u32 dummy_data, u32 dummy_alpha);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 int tsync_set_tunnel_mode(int mode);
 #endif

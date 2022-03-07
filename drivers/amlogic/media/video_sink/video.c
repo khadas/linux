@@ -10678,6 +10678,19 @@ static void config_hdr_info(const struct vframe_master_display_colour_s p)
 	pr_debug("has_hdr_info %d\n", has_hdr_info);
 }
 #endif
+
+/* dummy_data is ycbcr */
+void set_post_blend_dummy_data(u32 vpp_index,
+	u32 dummy_data, u32 dummy_alpha)
+{
+	if (vpp_index == 0) {
+		vd_layer[0].video_en_bg_color = dummy_data;
+		vd_layer[0].video_dis_bg_color = dummy_data;
+		vd_layer[0].dummy_alpha = dummy_alpha;
+	}
+}
+EXPORT_SYMBOL(set_post_blend_dummy_data);
+
 static void set_omx_pts(u32 *p)
 {
 	u32 tmp_pts = p[0];
