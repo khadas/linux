@@ -5559,6 +5559,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			} else {
 				di_buf->new_format_flag = 0;
 			}
+			dcntr_check_bypass(vframe);
 
 		if (di_bypass_state_get(channel) == 0) {
 			//cnt_rebuild = 0; /*from no bypass to bypass*/

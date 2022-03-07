@@ -337,6 +337,7 @@ void dim_vf_x_y(struct vframe_s *vf, unsigned int *x, unsigned int *y);
 void dcntr_prob(void);
 void dcntr_reg(unsigned int on);
 void dcntr_check(struct vframe_s *vfm);
+void dcntr_check_bypass(struct vframe_s *vfm);
 void dcntr_dis(void);
 void dcntr_set(void);
 void dcntr_pq_tune(struct dim_rpt_s *rpt);
