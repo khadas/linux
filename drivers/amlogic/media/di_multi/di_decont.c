@@ -1310,6 +1310,18 @@ static void linear_info_get(struct vframe_s *vfm, struct linear_para_s *opara)
 		opara->cbcr_swap = 0;
 }
 
+void dcntr_check_bypass(struct vframe_s *vfm)
+{
+	struct dcntr_mem_s	*pdcn;
+
+	pdcn = (struct dcntr_mem_s *)vfm->decontour_pre;
+
+	if (pdcn && get_datal()->dct_op) {
+		get_datal()->dct_op->mem_put_free(pdcn);
+		dbg_dbg("%s:\n", __func__);
+	}
+}
+
 void dcntr_check(struct vframe_s *vfm)
 {
 	struct dcntr_core_s	*pcfg = &di_dcnt;
