@@ -1828,8 +1828,8 @@
 
 		vpu_security {
 			compatible = "amlogic, meson-t3, vpu_security";
-			status = "disabled"; /* disabled for error irq num */
-			interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
+			status = "okay";
+			interrupts = <GIC_SPI 90 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "vpu_security";
 		};
 	};
