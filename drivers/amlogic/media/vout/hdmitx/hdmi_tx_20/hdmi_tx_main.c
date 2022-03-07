@@ -92,6 +92,15 @@ static int meson_hdmitx_bind(struct device *dev,
 static void meson_hdmitx_unbind(struct device *dev,
 				 struct device *master, void *data);
 
+/*
+ * Normally, after the HPD in or late resume, there will reading EDID, and
+ * notify application to select a hdmi mode output. But during the mode
+ * setting moment, there may be HPD out. It will clear the edid data, ..., etc.
+ * To avoid such case, here adds the hdmimode_mutex to let the HPD in, HPD out
+ * handler and mode setting sequentially.
+ */
+static DEFINE_MUTEX(hdmimode_mutex);
+
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data);
 #else
@@ -287,8 +296,14 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	unsigned int mute_us =
 		hdev->debug_param.avmute_frame * hdmitx_get_frame_duration();
 
+	/* Here remove the hpd_lock. Suppose at beginning, the hdmi cable is
+	 * unconnected, and system goes to suspend, during this time, cable
+	 * plugin. In this time, there will be no CEC physical address update
+	 * and must wait the resume.
+	 */
+	mutex_lock(&hdmimode_mutex);
+
 	hdev->ready = 0;
-	hdev->hpd_lock = 1;
 	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 1);
 	usleep_range(10000, 10010);
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
@@ -333,13 +348,8 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 		usleep_range(120000, 120010);
 		hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 0);
 	}
-	/* enable hpd event to get EDID, because phy addr
-	 * needs to be updated for CEC under early suspend. meanwhile
-	 * systemcontrol not respond hpd event under early suspend
-	 * so that hdmitx output will keep disabled.
-	 */
-	hdev->hpd_lock = 0;
 	memcpy(suspend_fmt_attr, hdev->fmt_attr, sizeof(hdev->fmt_attr));
+	mutex_unlock(&hdmimode_mutex);
 }
 
 static int hdmitx_is_hdmi_vmode(char *mode_name)
@@ -357,6 +367,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	const struct vinfo_s *info = hdmitx_get_current_vinfo(NULL);
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
 	u8 hpd_state = 0;
+
+	mutex_lock(&hdmimode_mutex);
 
 	if (info && (hdmitx_is_hdmi_vmode(info->name) == 1))
 		hdev->hwop.cntlmisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
@@ -387,6 +399,15 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	if (info && drm_hdmitx_chk_mode_attr_sup(info->name,
 	    suspend_fmt_attr))
 		setup_attr(suspend_fmt_attr);
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
+	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdev->hpd_state);
+	pr_info("amhdmitx: late resume module %d\n", __LINE__);
+	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
+		HDMITX_LATE_RESUME);
+	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 0);
+	pr_info(SYS "HDMITX: Late Resume\n");
+	mutex_unlock(&hdmimode_mutex);
 	/* hpd plug uevent may not be handled by rdk userspace
 	 * during suspend/resume (such as no plugout uevent is
 	 * triggered, and subsequent plugin event will be ignored)
@@ -396,18 +417,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	if (hdev->hpd_state) {
 		if (hdev->hdcp_ctl_lvl == 0x1)
 			hdev->hwop.am_hdmitx_set_out_mode();
-		else
-			set_disp_mode_auto();
 	}
-
-	hdmitx_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
-	hdmitx_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
-	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, hdev->hpd_state);
-	pr_info("amhdmitx: late resume module %d\n", __LINE__);
-	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
-		HDMITX_LATE_RESUME);
-	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 0);
-	pr_info(SYS "HDMITX: Late Resume\n");
 }
 
 /* Set avmute_set signal to HDMIRX */
@@ -620,13 +630,23 @@ static int set_disp_mode_auto(void)
 	unsigned char mode[32];
 	enum hdmi_vic vic = HDMI_UNKNOWN;
 
+	mutex_lock(&hdmimode_mutex);
+
+	if (hdev->hpd_state == 0) {
+		pr_info("current hpd_state0, exit %s\n", __func__);
+		mutex_unlock(&hdmimode_mutex);
+		return -1;
+	}
+
 	memset(mode, 0, sizeof(mode));
 	hdev->ready = 0;
 
 	/* get current vinfo */
 	info = hdmitx_get_current_vinfo(NULL);
-	if (!info || !info->name)
+	if (!info || !info->name) {
+		mutex_unlock(&hdmimode_mutex);
 		return -1;
+	}
 
 	pr_info(SYS "get current mode: %s\n", info->name);
 
@@ -651,6 +671,7 @@ static int set_disp_mode_auto(void)
 		hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
 		if (hdev->cedst_policy)
 			cancel_delayed_work(&hdev->work_cedst);
+		mutex_unlock(&hdmimode_mutex);
 		return -1;
 	}
 	strncpy(mode, info->name, sizeof(mode));
@@ -735,6 +756,7 @@ static int set_disp_mode_auto(void)
 	/* backup values need to be updated to latest values */
 	memcpy(hdev->backup_fmt_attr, hdev->fmt_attr, 16);
 	hdev->backup_frac_rate_policy = hdev->frac_rate_policy;
+	mutex_unlock(&hdmimode_mutex);
 	return ret;
 }
 
@@ -5559,7 +5581,6 @@ static int hdmitx_module_disable(enum vmode_e cur_vmod, void *data)
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
-	hdmitx_disable_clk(hdev);
 	hdev->para = hdmi_get_fmt_name("invalid", hdev->fmt_attr);
 	hdmitx_validate_vmode("null", 0, NULL);
 	if (hdev->cedst_policy)
@@ -5923,11 +5944,14 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		struct hdmitx_dev, work_hpd_plugin);
 
 	mutex_lock(&setclk_mutex);
+	mutex_lock(&hdmimode_mutex);
 	hdev->already_used = 1;
 	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGIN))) {
+		mutex_unlock(&hdmimode_mutex);
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
+
 	if (hdev->rxsense_policy) {
 		cancel_delayed_work(&hdev->work_rxsense);
 		queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, 0);
@@ -5994,10 +6018,6 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 			  hdev->edid_parsing ?
 			  hdev->edid_ptr : NULL);
 
-	/*notify to drm hdmi*/
-	if (hdmitx_device.drm_hpd_cb.callback)
-		hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
-
 	hdmitx_set_uevent(HDMITX_HPD_EVENT, 1);
 	/* audio uevent is used for android to
 	 * register hdmi audio device, it should
@@ -6011,7 +6031,12 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	cancel_delayed_work(&hdev->work_cedst);
 	if (hdev->cedst_policy)
 		queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, 0);
+	mutex_unlock(&hdmimode_mutex);
 	mutex_unlock(&setclk_mutex);
+
+	/*notify to drm hdmi*/
+	if (hdmitx_device.drm_hpd_cb.callback)
+		hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
 }
 
 static void clear_rx_vinfo(struct hdmitx_dev *hdev)
@@ -6041,7 +6066,9 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		struct hdmitx_dev, work_hpd_plugout);
 
 	mutex_lock(&setclk_mutex);
+	mutex_lock(&hdmimode_mutex);
 	if (!(hdev->hdmitx_event & (HDMI_TX_HPD_PLUGOUT))) {
+		mutex_unlock(&hdmimode_mutex);
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
@@ -6070,13 +6097,14 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		hdev->hpd_state = 0;
 		hdmitx_notify_hpd(hdev->hpd_state, NULL);
 		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
+		hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
+		hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
+		mutex_unlock(&hdmimode_mutex);
+		mutex_unlock(&setclk_mutex);
+
 		/*notify to drm hdmi*/
 		if (hdmitx_device.drm_hpd_cb.callback)
 			hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
-
-		hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
-		hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
-		mutex_unlock(&setclk_mutex);
 		return;
 	}
 	/*after plugout, DV mode can't be supported*/
@@ -6101,14 +6129,14 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->hpd_state = 0;
 	hdmitx_notify_hpd(hdev->hpd_state, NULL);
 
+	hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
+	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
+	mutex_unlock(&hdmimode_mutex);
+	mutex_unlock(&setclk_mutex);
+
 	/*notify to drm hdmi*/
 	if (hdmitx_device.drm_hpd_cb.callback)
 		hdmitx_device.drm_hpd_cb.callback(hdmitx_device.drm_hpd_cb.data);
-
-	hdmitx_set_uevent(HDMITX_HPD_EVENT, 0);
-	hdmitx_set_uevent(HDMITX_AUDIO_EVENT, 0);
-
-	mutex_unlock(&setclk_mutex);
 }
 
 static void hdmitx_internal_intr_handler(struct work_struct *work)
