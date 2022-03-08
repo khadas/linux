@@ -4388,25 +4388,25 @@ bool vdin_is_dolby_signal_in(struct vdin_dev_s *devp)
 
 void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size)
 {
-	unsigned int index, alloc_size;
+	unsigned int index;
 	/*int highmem_flag;*/
 	unsigned int onebuf_size = dolby_size_byte;
 
 	dolby_size_byte = onebuf_size;
 
 	if (devp->dtdata->hw_ver == VDIN_HW_T7)
-		alloc_size = onebuf_size * size + K_DV_META_RAW_BUFF0;
+		devp->dv.dv_dma_size = onebuf_size * size + K_DV_META_RAW_BUFF0;
 	else
-		alloc_size = onebuf_size * size;
+		devp->dv.dv_dma_size = onebuf_size * size;
 	devp->dv.dv_dma_vaddr = dma_alloc_coherent(&devp->this_pdev->dev,
-						   alloc_size,
+						   devp->dv.dv_dma_size,
 						   &devp->dv.dv_dma_paddr,
 						   GFP_KERNEL);
 	if (!devp->dv.dv_dma_vaddr) {
 		pr_info("%s:dmaalloc_coherent fail!!\n", __func__);
 		return;
 	}
-	memset(devp->dv.dv_dma_vaddr, 0, alloc_size);
+	memset(devp->dv.dv_dma_vaddr, 0, devp->dv.dv_dma_size);
 	/*if (devp->cma_config_flag & 0x100)*/
 	/*	highmem_flag = PageHighMem(phys_to_page(devp->vfmem_start[0]));*/
 	/*else*/
@@ -4489,19 +4489,17 @@ void vdin_dolby_addr_alloc(struct vdin_dev_s *devp, unsigned int size)
 
 void vdin_dolby_addr_release(struct vdin_dev_s *devp, unsigned int size)
 {
-	unsigned int alloc_size;
 	/*int highmem_flag;*/
 	/*int index;*/
 
 	if (devp->dv.dv_mem_alloced == 0)
 		return;
 
-	alloc_size = dolby_size_byte * size;
 	if (devp->dv.dv_dma_vaddr)
-		dma_free_coherent(&devp->this_pdev->dev, alloc_size,
-				  devp->dv.dv_dma_vaddr,
-				  devp->dv.dv_dma_paddr);
+		dma_free_coherent(&devp->this_pdev->dev, devp->dv.dv_dma_size,
+				  devp->dv.dv_dma_vaddr, devp->dv.dv_dma_paddr);
 	devp->dv.dv_dma_vaddr = NULL;
+	devp->dv.dv_dma_size = 0;
 	/*
 	 *if (devp->cma_config_flag & 0x100)
 	 *	highmem_flag = PageHighMem(phys_to_page(devp->vfmem_start[0]));

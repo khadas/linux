@@ -64,7 +64,8 @@
 
 /* 20220214: The desktop screenshot probability gray screen */
 /* 20220301: 119.88 get duration value is 800 not correct */
-#define VDIN_VER "202200301"
+/* 20220308: screen capture 720 and then 1080 fail */
+#define VDIN_VER "202200308"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -400,6 +401,7 @@ struct vdin_dv_s {
 	unsigned int dv_cur_index;
 	unsigned int dv_next_index;
 	unsigned int dolby_input;
+	unsigned int dv_dma_size;
 	dma_addr_t dv_dma_paddr;
 	void *dv_dma_vaddr;
 	void *temp_meta_data;
