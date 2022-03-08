@@ -409,12 +409,12 @@ static struct meson_ee_pwrc_domain_desc tm2_pwrc_domains[] = {
 	[PWRC_TM2_ETH_ID] = MEM_PD("ETH", g12a_pwrc_mem_eth, PWRC_TM2_ETH_ID,
 					0),
 	[PWRC_TM2_VDEC_ID] = TOP_PD("VDEC", &tm2_pwrc_vdec, tm2_pwrc_mem_vdec,
-				pwrc_ee_get_power, 0, PWRC_TM2_VDEC_ID, 0),
+				pwrc_ee_get_power, 13, PWRC_TM2_VDEC_ID, 0),
 	[PWRC_TM2_HCODEC_ID] = TOP_PD("HCODEC", &tm2_pwrc_hcodec,
 				      tm2_pwrc_mem_hcodec, pwrc_ee_get_power,
-				      0, PWRC_TM2_HCODEC_ID, 0),
+				      15, PWRC_TM2_HCODEC_ID, 0),
 	[PWRC_TM2_HEVC_ID] = TOP_PD("HEVC", &tm2_pwrc_hevc, tm2_pwrc_mem_hevc,
-				pwrc_ee_get_power, 0, PWRC_TM2_HEVC_ID, 0),
+				pwrc_ee_get_power, 19, PWRC_TM2_HEVC_ID, 0),
 	[PWRC_TM2_WAVE420L_ID] = TOP_PD("WAVE420L", &tm2_pwrc_wave420l,
 				tm2_pwrc_mem_wave420l, pwrc_ee_get_power,
 				0, PWRC_TM2_WAVE420L_ID, 0),
@@ -462,6 +462,7 @@ struct meson_ee_pwrc_domain {
 	int num_clks;
 	struct reset_control *rstc;
 	int num_rstc;
+	atomic_t pwron_count;
 };
 
 struct meson_ee_pwrc {
@@ -500,9 +501,13 @@ static int meson_ee_pwrc_off(struct generic_pm_domain *domain)
 		if (ret)
 			return ret;
 	} else {
-		ret = reset_control_deassert(pwrc_domain->rstc);
-		if (ret)
-			return ret;
+		if (atomic_read(&pwrc_domain->pwron_count) == 0) {
+			ret = reset_control_deassert(pwrc_domain->rstc);
+				if (ret)
+					return ret;
+		} else {
+			atomic_dec(&pwrc_domain->pwron_count);
+		}
 		ret = reset_control_assert(pwrc_domain->rstc);
 		if (ret)
 			return ret;
@@ -559,7 +564,6 @@ static int meson_ee_pwrc_on(struct generic_pm_domain *domain)
 		if (!pwrc_domain->desc.get_power(pwrc_domain))
 			return 0;
 	}
-
 	ret = reset_control_deassert(pwrc_domain->rstc);
 	if (ret)
 		return ret;
@@ -597,7 +601,7 @@ static int meson_ee_pwrc_on(struct generic_pm_domain *domain)
 	ret = reset_control_deassert(pwrc_domain->rstc);
 	if (ret)
 		return ret;
-
+	atomic_inc(&pwrc_domain->pwron_count);
 	return clk_bulk_prepare_enable(pwrc_domain->num_clks,
 				       pwrc_domain->clks);
 }

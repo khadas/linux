@@ -116,6 +116,7 @@ static const struct of_device_id meson_dos_reset_dt_ids[] = {
 	{ .compatible = "amlogic,meson-gxl-dos-reset",	.data = &default_desc},
 	{ .compatible = "amlogic,meson-g12a-dos-reset",	.data = &default_desc},
 	{ .compatible = "amlogic,meson-sm1-dos-reset",	.data = &default_desc},
+	{ .compatible = "amlogic, meson-tm2-dos-reset",	.data = &default_desc},
 	{ },
 };
 
