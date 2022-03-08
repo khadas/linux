@@ -69,14 +69,6 @@
 			pmsg-size = <0x20000>;
 		};
 
-		linux,above_4g_mem {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x20000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x1 0x0000000 0x0 0x20000000>;
-		};
-
 		secmon_reserved:linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
