@@ -2143,6 +2143,7 @@
 		mem_in_base_cmd = <0x82000020>;
 		mem_out_base_cmd = <0x82000021>;
 		efuse_pattern_size = <0x600>;
+		efuse_obj_cmd_status = <0x1>;
 		key = <&efusekey>;
 		clock-names = "efuse_clk";
 		status = "okay";

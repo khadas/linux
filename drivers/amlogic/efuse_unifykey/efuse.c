@@ -38,6 +38,7 @@ struct aml_efuse_cmd efuse_cmd;
 unsigned int efuse_pattern_size;
 void __iomem *sharemem_input_base;
 void __iomem *sharemem_output_base;
+unsigned int efuse_obj_cmd_status;
 
 #define  DEFINE_EFUEKEY_SHOW_ATTR(keyname)	\
 	static ssize_t  keyname##_show(struct class *cla, \
@@ -1271,6 +1272,10 @@ static int efuse_probe(struct platform_device *pdev)
 		pr_debug("efuse_pattern_size:0x%x\n",
 			efuse_pattern_size);
 	}
+
+	ret = of_property_read_u32(np, "efuse_obj_cmd_status", &efuse_obj_cmd_status);
+	if (ret)
+		efuse_obj_cmd_status = 0;
 
 	reg_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!IS_ERR_OR_NULL(reg_mem)) {

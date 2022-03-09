@@ -103,6 +103,7 @@ struct aml_efuse_lockable_check {
 extern struct aml_efuse_cmd efuse_cmd;
 extern void __iomem *sharemem_input_base;
 extern void __iomem *sharemem_output_base;
+extern unsigned int efuse_obj_cmd_status;
 
 ssize_t efuse_get_max(void);
 ssize_t efuse_read_usr(char *buf, size_t count, loff_t *ppos);
