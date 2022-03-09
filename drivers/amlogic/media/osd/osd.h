@@ -524,6 +524,7 @@ struct osd_layers_fence_map_s {
 	unsigned char cmd;
 	struct display_flip_info_s disp_info;
 	struct layer_fence_map_s layer_map[HW_OSD_COUNT];
+	u32 inc_cnt; /* increase timeline count */
 };
 
 struct afbcd_data_s {

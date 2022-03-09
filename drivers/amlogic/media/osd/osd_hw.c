@@ -1052,9 +1052,9 @@ static int osd_timeline_create_fence(u32 output_index)
 	return out_fence_fd;
 }
 
-static void  osd_timeline_increase(u32 output_index)
+static void  osd_timeline_increase(u32 output_index, u32 inc_cnt)
 {
-	aml_sync_inc_timeline(osd_timeline[output_index], 1);
+	aml_sync_inc_timeline(osd_timeline[output_index], inc_cnt);
 	osd_tprintk("osd out timeline %d inc\n", output_index);
 }
 
@@ -1757,20 +1757,72 @@ static void osd_toggle_buffer_single(struct kthread_work *work)
 	}
 }
 
+static void release_fenceobj(struct osd_layers_fence_map_s *fence_map,
+			 u32 output_index)
+{
+	int i = 0;
+	int start_index = 0;
+	int osd_count = 0;
+	struct layer_fence_map_s *layer_map = NULL;
+
+	if (output_index == VIU1) {
+		osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
+		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL)
+			osd_count = 1;
+		start_index = 0;
+	} else if (output_index == VIU2) {
+		if (osd_dev_hw.t7_display) {
+			osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
+			start_index = 0;
+		} else {
+			start_index = osd_hw.osd_meson_dev.viu2_index;
+			osd_count = start_index + 1;
+		}
+	} else {
+		osd_log_err("invalid output_index=%d\n", output_index);
+		return;
+	}
+
+	for (i = start_index; i < osd_count; i++) {
+		if (!validate_osd(i, output_index))
+			continue;
+		layer_map = &fence_map->layer_map[i];
+
+		if (layer_map->in_fence)
+			osd_put_fenceobj(layer_map->in_fence);
+	}
+}
+
 static void osd_toggle_buffer_layers(struct kthread_work *work)
 {
 	struct osd_layers_fence_map_s *data, *next;
 	struct list_head saved_list;
+	u32 game_mode = osd_game_mode[VIU1], timeline_inc = 0;
 
 	mutex_lock(&post_fence_list_lock[VIU1]);
 	saved_list = post_fence_list[VIU1];
 	list_replace_init(&post_fence_list[VIU1], &saved_list);
 	mutex_unlock(&post_fence_list_lock[VIU1]);
+
 	list_for_each_entry_safe(data, next, &saved_list, list) {
-		osd_pan_display_layers_fence(data);
+		if (!game_mode) {
+			data->inc_cnt = 1;
+			osd_pan_display_layers_fence(data);
+		} else {
+			timeline_inc++;
+			if (list_is_last(&data->list, &saved_list)) {
+				data->inc_cnt = timeline_inc;
+				osd_pan_display_layers_fence(data);
+			} else {
+				release_fenceobj(data, VIU1);
+			}
+		}
 		list_del(&data->list);
 		kfree(data);
 	}
+	if (timeline_inc)
+		osd_log_dbg(MODULE_FENCE, "game mode, VIU1 timeline_inc %d\n",
+			    timeline_inc);
 }
 
 static void osd_toggle_buffer(struct kthread_work *work)
@@ -1803,16 +1855,31 @@ static void osd_toggle_buffer_layers_viu2(struct kthread_work *work)
 {
 	struct osd_layers_fence_map_s *data, *next;
 	struct list_head saved_list;
+	u32 game_mode = osd_game_mode[VIU2], timeline_inc = 0;
 
 	mutex_lock(&post_fence_list_lock[VIU2]);
 	saved_list = post_fence_list[VIU2];
 	list_replace_init(&post_fence_list[VIU2], &saved_list);
 	mutex_unlock(&post_fence_list_lock[VIU2]);
 	list_for_each_entry_safe(data, next, &saved_list, list) {
-		osd_pan_display_layers_fence_viu2(data);
+		if (!game_mode) {
+			data->inc_cnt = 1;
+			osd_pan_display_layers_fence_viu2(data);
+		} else {
+			timeline_inc++;
+			if (list_is_last(&data->list, &saved_list)) {
+				data->inc_cnt = timeline_inc;
+				osd_pan_display_layers_fence_viu2(data);
+			} else {
+				release_fenceobj(data, VIU2);
+			}
+		}
 		list_del(&data->list);
 		kfree(data);
 	}
+	if (timeline_inc > 1)
+		osd_log_dbg(MODULE_FENCE, "game mode, VIU2 timeline_inc %d\n",
+			    timeline_inc);
 }
 
 static void osd_toggle_buffer_viu2(struct kthread_work *work)
@@ -5275,7 +5342,7 @@ void osd_set_single_step_mode(u32 index, u32 osd_single_step_mode)
 	if (osd_hw.osd_debug.wait_fence_release &&
 	    osd_hw.osd_debug.osd_single_step_mode == 0) {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
-		osd_timeline_increase(output_index);
+		osd_timeline_increase(output_index, 1);
 #endif
 		osd_hw.osd_debug.wait_fence_release = 0;
 	}
@@ -5292,7 +5359,7 @@ void osd_set_single_step(u32 index, u32 osd_single_step)
 	if (osd_hw.osd_debug.wait_fence_release &&
 	    osd_hw.osd_debug.osd_single_step > 0) {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE
-		osd_timeline_increase(output_index);
+		osd_timeline_increase(output_index, 1);
 #endif
 		osd_hw.osd_debug.wait_fence_release = 0;
 	}
@@ -6157,7 +6224,7 @@ static void osd_pan_display_single_fence(struct osd_fence_map_s *fence_map)
 out:
 	if (timeline_created[output_index]) {
 		if (ret)
-			osd_timeline_increase(output_index);
+			osd_timeline_increase(output_index, 1);
 		else
 			osd_log_err("------NOT signal out_fence ERROR\n");
 	}
@@ -6519,6 +6586,7 @@ static void _osd_pan_display_layers_fence
 	int osd_count = 0;
 	/* osd_count need -1 when VIU2 enable */
 	struct layer_fence_map_s *layer_map = NULL;
+	u32 inc_cnt = fence_map->inc_cnt;
 
 	if (output_index == VIU1) {
 		osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
@@ -6597,14 +6665,14 @@ out:
 		if (osd_hw.osd_debug.osd_single_step_mode) {
 			/* single step mode */
 			if (osd_hw.osd_debug.osd_single_step > 0) {
-				osd_timeline_increase(output_index);
+				osd_timeline_increase(output_index, inc_cnt);
 				osd_log_dbg(MODULE_FENCE, "signal out fence\n");
 				osd_hw.osd_debug.osd_single_step--;
 			} else {
 				osd_hw.osd_debug.wait_fence_release = true;
 			}
 		} else {
-			osd_timeline_increase(output_index);
+			osd_timeline_increase(output_index, inc_cnt);
 		}
 	}
 	/* clear osd layer's order */

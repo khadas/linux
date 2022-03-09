@@ -357,6 +357,7 @@ static int osd_shutdown_flag;
 
 unsigned int osd_log_level;
 unsigned int osd_log_module = 1;
+unsigned int osd_game_mode[VIU_COUNT];
 
 int int_viu_vsync = -ENXIO;
 int int_viu2_vsync = -ENXIO;
@@ -3774,6 +3775,32 @@ static ssize_t show_fence_count(struct device *device,
 			fence_cnt, timeline_cnt);
 }
 
+static ssize_t show_game_mode(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "VIU1:%d VIU2:%d VIU3:%d\n",
+			osd_game_mode[VIU1],
+			osd_game_mode[VIU2],
+			osd_game_mode[VIU3]);
+}
+
+static ssize_t store_game_mode(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 output_index = get_output_device_id(fb_info->node);
+
+	ret = kstrtoint(buf, 0, &res);
+	osd_log_info("VIU%d game_mode: %d->%d\n", output_index + 1,
+		     osd_game_mode[output_index], res);
+	osd_game_mode[output_index] = res;
+	return count;
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -4020,6 +4047,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_display_dev_cnt, store_display_dev_cnt),
 	__ATTR(fence_count, 0440,
 	       show_fence_count, NULL),
+	__ATTR(game_mode, 0644,
+	       show_game_mode, store_game_mode),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
