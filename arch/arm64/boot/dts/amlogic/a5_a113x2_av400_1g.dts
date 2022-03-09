@@ -679,10 +679,10 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
-		datain_chmask = <0xf>;
+		datain_chnum = <8>;
+		datain_chmask = <0xff>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 0 1 0>;
+		datain-lane-mask-in = <1 1 1 1>;
 
 		/* calc mclk for datalb */
 		mclk-fs = <256>;
@@ -699,10 +699,10 @@
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
 		datalb_src = <1>;
-		datalb_chnum = <2>;
-		datalb_chmask = <0x3>;
+		datalb_chnum = <8>;
+		datalb_chmask = <0xff>;
 		/* config which data pin as loopback */
-		datalb-lane-mask-in = <1 0 0 0>;
+		datalb-lane-mask-in = <1 1 1 1>;
 
 		status = "okay";
 	};
