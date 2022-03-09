@@ -918,6 +918,8 @@
 			label = "pwmled";
 			max-brightness = <255>;
 			pwms = <&pwmao_cd MESON_PWM_0 30040 0>;
+			default-state ="on";
+			linux,default-trigger="default-on";
 		};
 	};
 
