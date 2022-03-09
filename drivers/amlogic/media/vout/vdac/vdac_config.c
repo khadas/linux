@@ -22,8 +22,9 @@
 
 static struct meson_vdac_ctrl_s vdac_ctrl_enable_g12ab[] = {
 	{HHI_VDAC_CNTL0_G12A, 0, 9, 1},
-	{HHI_VDAC_CNTL0_G12A, 1, 0, 1},
+	{HHI_VDAC_CNTL0_G12A, 2, 0, 3},
 	{HHI_VDAC_CNTL0_G12A, 0, 16, 5}, /* vref adj */
+	{HHI_VDAC_CNTL0_G12A, 1, 24, 1}, /* clk phase sel */
 	{HHI_VDAC_CNTL1_G12A, 0, 0, 3},  /*gsw */
 	{HHI_VDAC_CNTL1_G12A, 0, 3, 1},
 	{VDAC_REG_MAX, 0, 0, 0},
@@ -31,10 +32,11 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_g12ab[] = {
 
 static struct meson_vdac_ctrl_s vdac_ctrl_enable_tl1[] = {
 	{HHI_VDAC_CNTL0_G12A, 0, 9, 1},
-	{HHI_VDAC_CNTL0_G12A, 1, 0, 1},
+	{HHI_VDAC_CNTL0_G12A, 2, 0, 3},
 	{HHI_VDAC_CNTL1_G12A, 0, 3, 1},
 	{HHI_VDAC_CNTL1_G12A, 0, 7, 1}, /* bandgap */
 	{HHI_VDAC_CNTL0_G12A, 0, 16, 5}, /* vref adj */
+	{HHI_VDAC_CNTL0_G12A, 1, 24, 1}, /* clk phase sel */
 	{HHI_VDAC_CNTL1_G12A, 0, 0, 3},  /*gsw */
 	{HHI_VDAC_CNTL1_G12A, 1, 6, 1}, /* bypass avout */
 	{HHI_VDAC_CNTL1_G12A, 1, 8, 1}, /* bypass avout */
@@ -43,8 +45,9 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_tl1[] = {
 
 static struct meson_vdac_ctrl_s vdac_ctrl_enable_sc2[] = {
 	{ANACTRL_VDAC_CTRL0, 0, 9, 1},
-	{ANACTRL_VDAC_CTRL0, 1, 0, 1},
+	{ANACTRL_VDAC_CTRL0, 2, 0, 3},
 	{ANACTRL_VDAC_CTRL0, 0, 16, 5}, /* vref adj */
+	{ANACTRL_VDAC_CTRL0, 1, 24, 1}, /* clk phase sel */
 	{ANACTRL_VDAC_CTRL1, 0, 0, 3},  /*gsw */
 	{ANACTRL_VDAC_CTRL1, 0, 3, 1},
 	{VDAC_REG_MAX, 0, 0, 0},
@@ -52,7 +55,7 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_sc2[] = {
 
 static struct meson_vdac_ctrl_s vdac_ctrl_enable_t5[] = {
 	{HHI_VDAC_CNTL0_G12A, 0, 9, 1},
-	{HHI_VDAC_CNTL0_G12A, 1, 0, 1},
+	{HHI_VDAC_CNTL0_G12A, 2, 0, 3},
 	{HHI_VDAC_CNTL1_G12A, 0x0, 0, 7}, /*gsw t5 no verf*/
 	{HHI_VDAC_CNTL1_G12A, 1, 7, 1}, /* cdac_pwd */
 	{VDAC_REG_MAX, 0, 0, 0},
@@ -60,7 +63,7 @@ static struct meson_vdac_ctrl_s vdac_ctrl_enable_t5[] = {
 
 static struct meson_vdac_ctrl_s vdac_ctrl_enable_s4[] = {
 	{ANACTRL_VDAC_CTRL0, 0, 9, 1},
-	{ANACTRL_VDAC_CTRL0, 1, 0, 1},
+	{ANACTRL_VDAC_CTRL0, 2, 0, 3},
 	{ANACTRL_VDAC_CTRL1, 1, 7, 1}, /* cdac_pwd */
 	{VDAC_REG_MAX, 0, 0, 0},
 };

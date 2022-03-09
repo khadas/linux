@@ -42,6 +42,9 @@
 
 #define VDAC_CTRL_MAX         10
 
+/* 20220419:adjust cvbsout clk delay */
+#define VDIN_VER "20220419:adjust cvbsout clk delay"
+
 enum vdac_cpu_type {
 	VDAC_CPU_G12AB = 0,
 	VDAC_CPU_TL1 = 1,
