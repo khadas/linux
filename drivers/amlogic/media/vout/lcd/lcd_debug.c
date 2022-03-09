@@ -6974,7 +6974,7 @@ static struct lcd_debug_info_s lcd_debug_info_t5w = {
 
 	.debug_if_ttl = NULL,
 	.debug_if_lvds = &lcd_debug_info_if_lvds,
-	.debug_if_vbyone = &lcd_debug_info_if_vbyone,
+	.debug_if_vbyone = &lcd_debug_info_if_vbyone_t3,
 	.debug_if_mlvds = &lcd_debug_info_if_mlvds,
 	.debug_if_p2p = &lcd_debug_info_if_p2p,
 	.debug_if_mipi = NULL,
