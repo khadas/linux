@@ -3219,6 +3219,7 @@ static struct clk_regmap tm2_vdec_mux = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_data = tm2_vdec_mux_parent_hws,
 		.num_parents = ARRAY_SIZE(tm2_vdec_mux_parent_hws),
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
