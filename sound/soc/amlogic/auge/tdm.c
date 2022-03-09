@@ -2215,7 +2215,7 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 	}
 
 	/*mute default clk */
-	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
+	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
 		struct pinctrl_state *ps = NULL;
 
 		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
@@ -2262,16 +2262,18 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	}
 
 	/*set default clk for output*/
-	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *state = NULL;
-
+	if (p_tdm->start_clk_enable == 1)
 		aml_set_default_tdm_clk(p_tdm);
+
+	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
+		struct pinctrl_state *state = NULL;
 		state = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_pins");
 		if (!IS_ERR_OR_NULL(state)) {
 			pinctrl_select_state(p_tdm->pin_ctl, state);
 			pr_info("%s tdm pins enable!\n", __func__);
 		}
 	}
+
 	if (in_lanes > 0 && in_lanes <= LANE_MAX3)
 		aml_tdm_set_slot_in(p_tdm->actrl,
 			p_tdm->id, p_tdm->id, p_tdm->setting.slot_width,
