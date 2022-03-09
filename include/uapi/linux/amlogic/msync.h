@@ -43,6 +43,16 @@ enum av_sync_mode {
 	AVS_MODE_FREE_RUN
 };
 
+enum av_sync_stat {
+	AVS_STAT_INIT,
+	AVS_STAT_STARTING,
+	AVS_STAT_STARTED,
+	AVS_STAT_PAUSED,
+	AVS_STAT_TRANSITION,
+	AVS_STAT_TRANSITION_V_2_A,
+	AVS_STAT_TRANSITION_A_2_V
+};
+
 enum src_flag {
 	SRC_V = 1,
 	SRC_A = 2,
@@ -59,6 +69,8 @@ struct session_sync_stat {
 	uint32_t audio_switch;
 	/* input: query source src_flag */
 	uint32_t flag;
+	/* enum av_sync_stat */
+	uint32_t stat;
 };
 
 enum avs_event {
