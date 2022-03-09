@@ -22,6 +22,7 @@
 #include "../../mmc/core/mmc_ops.h"
 #include "../../mmc/core/core.h"
 #include <linux/dma-contiguous.h>
+#include "../efuse_unifykey/efuse.h"
 
 #define DTB_NAME		"dtb"
 #define	SZ_1M			0x00100000
@@ -1103,6 +1104,16 @@ __ATTR(store_device, 0444, store_device_flag_get, NULL);
 static struct class_attribute bootloader_offset =
 __ATTR(bl_off_bytes, 0444, get_bootloader_offset, NULL);
 
+static char slot_str[8] = "0";
+static int active_slot_num(char *s)
+{
+	if (s)
+		sprintf(slot_str, "%s", s);
+	pr_info("**********slot_str: %s\n", slot_str);
+	return 0;
+}
+__setup("androidboot.slot_suffix=", active_slot_num);
+
 /* for irq cd dbg */
 /* static struct class_attribute cd_irq_cnt_ =
  *	__ATTR(cdirq_cnt, S_IRUGO, get_cdirq_cnt, NULL);
@@ -1114,12 +1125,60 @@ int add_fake_boot_partition(struct gendisk *disk, char *name, int idx)
 	char fake_name[80];
 	int offset = 1;
 	struct hd_struct *ret = NULL;
+	struct efuse_obj_field_t efuse_field;
+	u8 buff[32];
+	u32 bufflen = sizeof(buff);
+	char *efuse_field_name = "FEAT_DISABLE_EMMC_USER";
+	u32 rc = 0;
 
 	idx ^= 1;
 	sprintf(fake_name, name, idx);
-	ret = add_emmc_each_part(disk, 1, offset, boot_size, 0, fake_name);
-	if (IS_ERR(ret))
-		pr_info("%s added failed\n", fake_name);
+
+	memset(&buff[0], 0, sizeof(buff));
+	memset(&efuse_field, 0, sizeof(efuse_field));
+
+	rc = efuse_obj_read(EFUSE_OBJ_EFUSE_DATA, efuse_field_name, buff, &bufflen);
+
+	if (rc == EFUSE_OBJ_SUCCESS) {
+		memset(&efuse_field, 0, sizeof(efuse_field));
+		strncpy(efuse_field.name, efuse_field_name, sizeof(efuse_field.name));
+		memcpy(efuse_field.data, buff, bufflen);
+		efuse_field.size = bufflen;
+	} else {
+		pr_err("Error gettting eFUSE DATA: %d\n", rc);
+	}
+
+	if (*efuse_field.data == 0) {
+		ret = add_emmc_each_part(disk, 1, offset, boot_size, 0, fake_name);
+		if (IS_ERR(ret))
+			pr_info("%s added failed\n", fake_name);
+	} else {
+		if (strcmp(slot_str, "_a") == 0) {
+			if (idx == 1) {
+				ret = add_emmc_each_part(disk, 1, offset,
+				boot_size, 0, "bootloader0");
+				if (IS_ERR(ret))
+					pr_info("bootloader_nocs_a added failed\n");
+			} else if (idx == 0) {
+				ret = add_emmc_each_part(disk, 1, offset,
+				boot_size, 0, "bootloader1");
+				if (IS_ERR(ret))
+					pr_info("bootloader_nocs_a added failed\n");
+			}
+		} else {
+			if (idx == 0) {
+				ret = add_emmc_each_part(disk, 1, offset,
+				boot_size, 0, "bootloader0");
+				if (IS_ERR(ret))
+					pr_info("bootloader_nocs_a added failed\n");
+			} else if (idx == 1) {
+				ret = add_emmc_each_part(disk, 1, offset,
+				boot_size, 0, "bootloader1");
+				if (IS_ERR(ret))
+					pr_info("bootloader_nocs_a added failed\n");
+			}
+		}
+	}
 
 	return 0;
 }
