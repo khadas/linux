@@ -156,8 +156,10 @@ static int meson_sec_cpu_dyn_set_rate(struct clk_hw *hw, unsigned long rate,
 	unsigned int nrate, i;
 
 	for (i = 0; i < data->table_cnt; i++) {
-		if (rate == table[i].rate)
+		if (rate == table[i].rate) {
 			table = &table[i];
+			break;
+		}
 	}
 	nrate = table->rate;
 
