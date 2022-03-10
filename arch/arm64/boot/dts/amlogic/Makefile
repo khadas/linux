@@ -7,6 +7,7 @@ dtb-y += tm2_t962e2_ab311.dtb
 dtb-y += tm2_t962e2_ab311_drm.dtb
 dtb-y += t7_pxp.dtb
 dtb-y += t7_a311d2_an400_hdmitx_only.dtb
+dtb-y += t7_a311d2_an400_drm_hdmitx_only.dtb
 dtb-y += t7_a311d2_an400.dtb
 dtb-y += t7_a311d2_an400_3g.dtb
 dtb-y += t7_a311d2_an400_4g.dtb
