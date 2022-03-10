@@ -1859,14 +1859,6 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
 			dbg_attr.data = ldim_drv->conf->func_en;
-			if (dbg_attr.chip_type != LCD_CHIP_T7 &&
-				dbg_attr.chip_type != LCD_CHIP_T3) {
-				if (ldim_drv->data &&
-					ldim_drv->data->func_ctrl) {
-					ldim_drv->data->func_ctrl(ldim_drv,
-						ldim_drv->conf->func_en);
-				}
-			}
 		}
 		pr_info("ldim_func_en: %d\n", ldim_drv->conf->func_en);
 	} else if (!strcmp(parm[0], "remap") ||
@@ -1880,17 +1872,10 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			}
 			if (kstrtoul(parm[1], 10, &val1) < 0)
 				goto ldim_attr_store_err;
-			if (val1) {
-				if (ldim_drv->func_en) {
-					ldim_drv->conf->remap_en = 1;
-					ldim_remap_ctrl(1);
-				} else {
-					pr_info("error: ldim_func is disabled\n");
-				}
-			} else {
+			if (val1)
+				ldim_drv->conf->remap_en = 1;
+			else
 				ldim_drv->conf->remap_en = 0;
-				ldim_remap_ctrl(0);
-			}
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
 			dbg_attr.data = ldim_drv->conf->func_en;
@@ -2653,10 +2638,6 @@ static ssize_t ldim_func_en_store(struct class *class,
 	LDIMPR("local diming function: %s\n", (val ? "enable" : "disable"));
 	ldim_drv->conf->func_en = val ? 1 : 0;
 
-	if (ldim_drv->data && ldim_drv->data->func_ctrl)
-		ldim_drv->data->func_ctrl(ldim_drv,
-		ldim_drv->conf->func_en);
-
 	return count;
 }
 
@@ -2682,8 +2663,6 @@ static ssize_t ldim_remap_store(struct class *class,
 	ret = kstrtouint(buf, 10, &val);
 	LDIMPR("local diming remap: %s\n", (val ? "enable" : "disable"));
 	ldim_drv->conf->remap_en = val ? 1 : 0;
-
-	ldim_remap_ctrl(ldim_drv->conf->remap_en);
 
 	return count;
 }
@@ -3390,9 +3369,7 @@ static ssize_t ldim_debug_store(struct class *class, struct class_attribute *att
 			goto ldim_debug_store_err;
 		if (kstrtouint(parm[1], 10, &temp) < 0)
 			goto ldim_debug_store_err;
-		ldim_drv->func_en = temp ? 1 : 0;
-		if (ldim_drv->data && ldim_drv->data->func_ctrl)
-			ldim_drv->data->func_ctrl(ldim_drv, ldim_drv->func_en);
+		ldim_drv->conf->func_en = temp ? 1 : 0;
 	} else if (!strcmp(parm[0], "fw_sel")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &temp) < 0)

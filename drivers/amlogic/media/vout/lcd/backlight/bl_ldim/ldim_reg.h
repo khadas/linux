@@ -314,11 +314,9 @@ static inline void ldim_wr_reg_bits_rdma(unsigned int addr, unsigned int val,
 {
 	unsigned int data;
 
-	data = lcd_vcbus_read(addr);
-	//pr_info("r: 0x%x = 0x%x", addr, data);
+	data = VSYNC_RD_MPEG_REG(addr);
 	data = (data & (~(((1 << len) - 1) << start))) |
 		((val & ((1 << len) - 1)) << start);
-	//pr_info("w: 0x%x = 0x%x", addr, data);
 	VSYNC_WR_MPEG_REG(addr, data);
 }
 

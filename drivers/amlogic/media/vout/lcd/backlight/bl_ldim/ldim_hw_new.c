@@ -859,7 +859,7 @@ void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 	unsigned int data;
 	unsigned int wflag;
 
-	data = lcd_vcbus_read(LDC_DGB_CTRL);
+	data = VSYNC_RD_MPEG_REG(LDC_DGB_CTRL);
 	wflag = (data >> 14) & 0x0001;
 	LDIMPR("%s, data = 0x%x, pre = %d, cur = %d\n", __func__, data, wflag, flag);
 	if (wflag != flag) {
@@ -961,6 +961,12 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv)
 
 void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 {
+	if (ldim_drv->in_vsync_flag == 0) {
+		if (ldim_debug_print)
+			LDIMPR("%s: exit for in_vsync_flag=0\n", __func__);
+		return;
+	}
+
 	if (flag) {
 		if (ldim_drv->ld_sel == 0) {
 			if (ldim_debug_print)
