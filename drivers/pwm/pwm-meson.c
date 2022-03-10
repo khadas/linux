@@ -301,7 +301,6 @@ static void meson_pwm_enable(struct meson_pwm *meson, struct pwm_device *pwm)
 	unsigned long flags;
 	u32 value;
 #ifdef CONFIG_AMLOGIC_MODIFY
-	static u8 clk_div;
 	unsigned long set_clk;
 	u32 err;
 #endif
@@ -328,7 +327,7 @@ static void meson_pwm_enable(struct meson_pwm *meson, struct pwm_device *pwm)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (meson->data->extern_clk) {
 		/*get_clk_rate()not use in Interrupt context*/
-		if (clk_div == channel->pre_div)
+		if (channel->clk_div == channel->pre_div)
 			return;
 
 		set_clk = channel->clk_rate;
@@ -339,7 +338,7 @@ static void meson_pwm_enable(struct meson_pwm *meson, struct pwm_device *pwm)
 		err = clk_set_rate(channel->clk, set_clk);
 		if (err)
 			pr_err("%s: error in setting pwm rate!\n", __func__);
-		clk_div = channel->pre_div;
+		channel->clk_div = channel->pre_div;
 	}
 #endif
 }

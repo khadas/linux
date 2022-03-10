@@ -113,6 +113,7 @@ struct meson_pwm_channel {
 	unsigned int lo;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	unsigned int clk_rate;
+	u8 clk_div;
 #endif
 	u8 pre_div;
 
