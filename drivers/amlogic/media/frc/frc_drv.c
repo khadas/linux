@@ -353,6 +353,7 @@ static const struct of_device_id frc_dts_match[] = {
 		.compatible = "amlogic, t3_frc",
 		.data = &dts_match_t3,
 	},
+	{},
 };
 
 static int frc_attach_pd(struct frc_dev_s *devp)
