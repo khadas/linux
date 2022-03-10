@@ -718,7 +718,7 @@
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <1>;/*1:enabel ;0:disable*/
+		tv_mode = <0>;/*1:enabel ;0:disable*/
 	};
 
     /* SMC */
