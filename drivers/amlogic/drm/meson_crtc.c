@@ -164,6 +164,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->hdmi_etof) {
 		*val = crtc_state->eotf_type_by_property;
 		return 0;
+	} else if (property == meson_crtc->dv_enable_property) {
+		*val = crtc_state->crtc_dv_enable;
+		return 0;
 	}
 
 	return ret;
@@ -185,6 +188,9 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->hdmi_etof) {
 		crtc_state->eotf_type_by_property = val;
 		crtc_state->crtc_eotf_by_property_flag = true;
+		return 0;
+	} else if (property == meson_crtc->dv_enable_property) {
+		crtc_state->crtc_dv_enable = val;
 		return 0;
 	}
 
@@ -371,17 +377,13 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			/*enable/disable dv*/
-			if (meson_crtc_state->crtc_eotf_type
-					== HDMI_EOTF_MESON_DOLBYVISION_LL) {
-				set_dolby_vision_ll_policy(1);
-			} else {
-				set_dolby_vision_ll_policy(0);
-			}
-
-			if (meson_crtc_state->crtc_eotf_type
-					== HDMI_EOTF_MESON_DOLBYVISION ||
-				meson_crtc_state->crtc_eotf_type
-					== HDMI_EOTF_MESON_DOLBYVISION_LL) {
+			if (meson_crtc_state->crtc_dv_enable) {
+				if (meson_crtc_state->crtc_eotf_type
+						== HDMI_EOTF_MESON_DOLBYVISION_LL) {
+					set_dolby_vision_ll_policy(1);
+				} else {
+					set_dolby_vision_ll_policy(0);
+				}
 				set_dolby_vision_enable(true);
 			}
 			#endif
@@ -527,10 +529,6 @@ static void am_meson_crtc2_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG("%s:out\n", __func__);
 }
 
-static bool crtc_dv_enable_value;
-module_param_named(crtc_dv_enable, crtc_dv_enable_value, bool, 0644);
-MODULE_PARM_DESC(crtc_dv_enable, "crtc_dv_enable parameter to set dv");
-
 static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state)
 {
@@ -549,7 +547,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 			crtc_state->mode_changed = true;
 			crtc_force_hint = 0;
 		}
-		new_state->crtc_dv_enable = crtc_dv_enable_value;
+
 		if (cur_state->crtc_dv_enable != new_state->crtc_dv_enable)
 			crtc_state->mode_changed = true;
 
@@ -734,6 +732,20 @@ static void meson_crtc_init_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_crtc_init_dv_enable_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "dv_enable");
+	if (prop) {
+		amcrtc->dv_enable_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to dv_enable property\n");
+	}
+}
+
 int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 {
 	struct meson_drm *priv = amcrtc->priv;
@@ -771,6 +783,7 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 	amcrtc->force_crc_chk = 8;
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
+	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;

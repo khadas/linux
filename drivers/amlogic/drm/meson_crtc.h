@@ -56,6 +56,7 @@ struct am_meson_crtc {
 
 	struct drm_property *hdr_policy;
 	struct drm_property *hdmi_etof;
+	struct drm_property *dv_enable_property;
 
     /*debug*/
 	int dump_enable;
