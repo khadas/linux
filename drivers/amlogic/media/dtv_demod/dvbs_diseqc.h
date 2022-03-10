@@ -29,6 +29,8 @@ struct aml_def_diseqc_lnb {
 	/*unsigned char msg_cmd[DISEQC_MSG_MAX_LEN];*/
 	struct completion rx_msg_ok;
 	struct completion tx_msg_ok;
+
+	bool sar_adc_enable;
 };
 
 extern struct aml_def_diseqc_lnb aml_lnb;

@@ -4322,14 +4322,15 @@ static void set_agc_pinmux(struct aml_dtvdemod *demod,
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	struct pinctrl *pin = NULL;
 	char *agc_name = NULL;
-	char *diseqc_name = NULL;
+	char *diseqc_out_name = NULL, *diseqc_in_name = NULL;
 
 	switch (delsys) {
 	case SYS_DVBS:
 	case SYS_DVBS2:
 		/* dvbs connects to rf agc pin due to no IF */
 		agc_name = "rf_agc_pins";
-		diseqc_name = "diseqc";
+		diseqc_out_name = "diseqc_out";
+		diseqc_in_name = "diseqc_in";
 		break;
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_B:
@@ -4348,17 +4349,25 @@ static void set_agc_pinmux(struct aml_dtvdemod *demod,
 		if (IS_ERR_OR_NULL(demod->pin_agc)) {
 			pin = devm_pinctrl_get_select(devp->dev, agc_name);
 			if (IS_ERR_OR_NULL(pin))
-				PR_ERR("get agc pins fail: %s\n", agc_name);
+				PR_ERR("get pins fail: %s\n", agc_name);
 			else
 				demod->pin_agc = pin;
 		}
 
-		if (diseqc_name && IS_ERR_OR_NULL(demod->pin_diseqc)) {
-			pin = devm_pinctrl_get_select(devp->dev, diseqc_name);
+		if (diseqc_out_name && IS_ERR_OR_NULL(demod->pin_diseqc_out)) {
+			pin = devm_pinctrl_get_select(devp->dev, diseqc_out_name);
 			if (IS_ERR_OR_NULL(pin))
-				PR_ERR("get agc pins fail: %s\n", diseqc_name);
+				PR_ERR("get pins fail: %s\n", diseqc_out_name);
 			else
-				demod->pin_diseqc = pin;
+				demod->pin_diseqc_out = pin;
+		}
+
+		if (diseqc_in_name && IS_ERR_OR_NULL(demod->pin_diseqc_in)) {
+			pin = devm_pinctrl_get_select(devp->dev, diseqc_in_name);
+			if (IS_ERR_OR_NULL(pin))
+				PR_ERR("get pins fail: %s\n", diseqc_in_name);
+			else
+				demod->pin_diseqc_in = pin;
 		}
 	} else {
 		if (!IS_ERR_OR_NULL(demod->pin_agc)) {
@@ -4366,10 +4375,17 @@ static void set_agc_pinmux(struct aml_dtvdemod *demod,
 			demod->pin_agc = NULL;
 		}
 
-		if (diseqc_name) {
-			if (!IS_ERR_OR_NULL(demod->pin_diseqc)) {
-				devm_pinctrl_put(demod->pin_diseqc);
-				demod->pin_diseqc = NULL;
+		if (diseqc_out_name) {
+			if (!IS_ERR_OR_NULL(demod->pin_diseqc_out)) {
+				devm_pinctrl_put(demod->pin_diseqc_out);
+				demod->pin_diseqc_out = NULL;
+			}
+		}
+
+		if (diseqc_in_name) {
+			if (!IS_ERR_OR_NULL(demod->pin_diseqc_in)) {
+				devm_pinctrl_put(demod->pin_diseqc_in);
+				demod->pin_diseqc_in = NULL;
 			}
 		}
 	}

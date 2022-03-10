@@ -2981,7 +2981,7 @@
 		};
 	};
 
-dvb_p_ts2_pins: dvb_p_ts2_pins {
+	dvb_p_ts2_pins: dvb_p_ts2_pins {
 		mux {
 			groups = "tsin_b_din0",
 			"tsin_b_din1",
@@ -3054,6 +3054,14 @@ dvb_p_ts2_pins: dvb_p_ts2_pins {
 		mux {/*only use out, don't support */
 			groups = "diseqc_out_z0";
 			function = "diseqc_out";
+			bias-pull-down;
+		};
+	};
+
+	diseqc_in: diseqc_in {
+		mux {
+			groups = "diseqc_in_z1";
+			function = "diseqc_in";
 			bias-pull-down;
 		};
 	};

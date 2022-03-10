@@ -71,21 +71,21 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	/*{0x305,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISTXFIFO */
 	/*{0x306,    0xc0},*//* REG_RL2A_DVBSX_DISEQC_DISTXF22 */
 	/*{0x307,    0x00},*//* REG_RL2A_DVBSX_DISEQC_DISTXWAIT */
-	{0x308,    0x02},/* REG_RL2A_DVBSX_DISEQC_DISTIMEOCFG */
+	//{0x308,    0x02},/* REG_RL2A_DVBSX_DISEQC_DISTIMEOCFG */
 	{0x309,    0x8c},/* REG_RL2A_DVBSX_DISEQC_DISTIMEOUT */
-	{0x30a,    0x04},/* REG_RL2A_DVBSX_DISEQC_DISRXCFG */
+	//{0x30a,    0x04},/* REG_RL2A_DVBSX_DISEQC_DISRXCFG */
 	{0x30b,    0x04},/* REG_RL2A_DVBSX_DISEQC_DISRXSTAT1 */
 	{0x30c,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISRXSTAT0 */
 	{0x30d,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISRXBYTES */
 	{0x30e,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISRXPARITY1 */
 	{0x30f,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISRXPARITY0 */
-	{0x310,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISRXFIFO */
+	//{0x310,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISRXFIFO */
 	{0x311,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISRXDC1 */
 	{0x312,    0x00},/* REG_RL2A_DVBSX_DISEQC_DISRXDC0 */
 	{0x313,    0x62},/* REG_RL2A_DVBSX_DISEQC_DISRXKOFF */
 	{0x314,    0x01},/* REG_RL2A_DVBSX_DISEQC_DISRXF221 */
-	{0x315,    0x2b},/* REG_RL2A_DVBSX_DISEQC_DISRXF220 */
-	{0x316,    0xa9},/* REG_RL2A_DVBSX_DISEQC_DISRXF100 */
+	//{0x315,    0x2b},/* REG_RL2A_DVBSX_DISEQC_DISRXF220 */
+	//{0x316,    0xa9},/* REG_RL2A_DVBSX_DISEQC_DISRXF100 */
 	{0x317,    0x31},/* REG_RL2A_DVBSX_DISEQC_DISRXK1 */
 	{0x318,    0xb1},/* REG_RL2A_DVBSX_DISEQC_DISRXK2 */
 	{0x319,    0xa8},/* REG_RL2A_DVBSX_DISEQC_DISRXPK */
@@ -1277,15 +1277,27 @@ unsigned int dvbs2_diseqc_irq_check(void)
 	}
 }
 
+unsigned int dvbs2_diseqc_rx_check(void)
+{
+	unsigned char rx_empty = 0;
+	unsigned int len_fifo = 0;
+
+	rx_empty = dvbs_rd_byte(DVBS_REG_DISRXSTAT1) & 0x04;
+	if (!rx_empty)
+		len_fifo = dvbs_rd_byte(DVBS_REG_DISRXBYTES);
+
+	return len_fifo;
+}
+
 void dvbs2_diseqc_reset(void)
 {
 	dvbs_write_bits(DVBS_REG_DISRXCFG, 1, 7, 1);
 	dvbs_write_bits(DVBS_REG_DISRXCFG, 0, 7, 1);
 }
 
-void dvbs2_diseqc_irq_en(unsigned int onoff)
+void dvbs2_diseqc_send_irq_en(bool onoff)
 {
-	char val;
+	unsigned char val = 0;
 
 	if (onoff) {
 		/*
@@ -1297,11 +1309,43 @@ void dvbs2_diseqc_irq_en(unsigned int onoff)
 		 * 1:enable IRQRXFIFO8B interrupt
 		 * 1:enable IRQRXEND interrupt
 		 */
-		dvbs_wr_byte(DVBS_REG_DISIRQCFG, 0xff);
+		dvbs_wr_byte(DVBS_REG_DISIRQCFG, 0x1f);
 		/* Enable diseqc interrupt */
 		val = dvbs_rd_byte(DVBS_REG_SYS_IRQMSK0);
 		dvbs_wr_byte(DVBS_REG_SYS_IRQMSK0, val | 0x1);
 	} else {
+		val = dvbs_rd_byte(DVBS_REG_DISIRQCFG);
+		dvbs_wr_byte(DVBS_REG_DISIRQCFG, val & (~0x1f));
+
+		/* Disable diseqc interrupt*/
+		val = dvbs_rd_byte(DVBS_REG_SYS_IRQMSK0);
+		dvbs_wr_byte(DVBS_REG_SYS_IRQMSK0, val & (~0x1));
+	}
+}
+
+void dvbs2_diseqc_recv_irq_en(bool onoff)
+{
+	unsigned char val = 0;
+
+	if (onoff) {
+		/*
+		 * 1:enable IRQGAPBURST interrupt
+		 * 1:enable IRQFIFO64B interrupt
+		 * 1:enable IRQTXEND interrupt
+		 * 1:enable IRQTIMEOUT interrupt
+		 * 1:enable IRQTRFINISH interrupt
+		 * 1:enable IRQRXFIFO8B interrupt
+		 * 1:enable IRQRXEND interrupt
+		 */
+		val = dvbs_rd_byte(DVBS_REG_DISIRQCFG);
+		dvbs_wr_byte(DVBS_REG_DISIRQCFG, val | 0x60);
+		/* Enable diseqc interrupt */
+		val = dvbs_rd_byte(DVBS_REG_SYS_IRQMSK0);
+		dvbs_wr_byte(DVBS_REG_SYS_IRQMSK0, val | 0x1);
+	} else {
+		val = dvbs_rd_byte(DVBS_REG_DISIRQCFG);
+		dvbs_wr_byte(DVBS_REG_DISIRQCFG, val | (~0x60));
+
 		/* Disable diseqc interrupt*/
 		val = dvbs_rd_byte(DVBS_REG_SYS_IRQMSK0);
 		dvbs_wr_byte(DVBS_REG_SYS_IRQMSK0, val & (~0x1));
@@ -1316,22 +1360,38 @@ void dvbs2_diseqc_init(void)
 	/*dvbs_wr_byte(DVBS_REG_DISTXCFG, 0x2);*/
 	dvbs2_diseqc_continuous_tone(0);
 	/* rx 22k tone, 125Mhz:b0, default 135Mhz:c0*/
-	/*dvbs_wr_byte(DVBS_REG_DISTXF22, 0xb0);*/
+	dvbs_wr_byte(DVBS_REG_DISTXF22, 0xb0);
 	/* number of bit to wait before starting the transmission */
 	dvbs_wr_byte(DVBS_REG_DISTIMEOCFG, 0x84);
 	/* rx 22k tone, 125Mhz:143, default 135Mhz:12b*/
-	/*dvbs_wr_byte(DVBS_REG_DISRXF220, 0x43);*/
+	dvbs_wr_byte(DVBS_REG_DISRXF220, 0xf0);
 	/* 9c for 125Mhz */
-	/*dvbs_wr_byte(DVBS_REG_DISRXF100, 0x9c);*/
+	dvbs_wr_byte(DVBS_REG_DISRXF100, 0x9c);
 	/* for rx : enable rx, glitch, GPIO0  */
-	dvbs_wr_byte(DVBS_REG_DISRXCFG, 0x47);
+
+	dvbs_wr_byte(DVBS_REG_DISRXCFG, 0x84);
+	dvbs_wr_byte(DVBS_REG_DISRXCFG, 0x4);
+
 	/* number of bit to wait before starting the transmission */
 	dvbs_wr_byte(DVBS_REG_DISTXWAIT, 0x1);
+	dvbs_wr_byte(DVBS_REG_DSQADCICFG, 0x67);
+}
+
+void dvbs2_diseqc_recv_en(bool onoff)
+{
+	unsigned char val = 0;
+
+	val = dvbs_rd_byte(DVBS_REG_DISRXCFG);
+
+	if (onoff)
+		dvbs_wr_byte(DVBS_REG_DISRXCFG, val | 0x1);
+	else
+		dvbs_wr_byte(DVBS_REG_DISRXCFG, val & (~0x1));
 }
 
 void dvbs2_diseqc_continuous_tone(unsigned int onoff)
 {
-	char val;
+	unsigned char val = 0;
 
 	val = dvbs_rd_byte(DVBS_REG_DISTXCFG) & 0xfc;
 	if (onoff) {
@@ -1344,11 +1404,11 @@ void dvbs2_diseqc_continuous_tone(unsigned int onoff)
 
 void dvbs2_diseqc_send_msg(unsigned int len, unsigned char *msg)
 {
-	unsigned int i;
-	unsigned int len_fifo;
+	unsigned int i = 0;
+	unsigned int len_fifo = 0;
 
 	dvbs2_diseqc_init();
-	dvbs2_diseqc_irq_en(1);
+	dvbs2_diseqc_send_irq_en(true);
 	for (i = 0; i < len ; i++)
 		dvbs_wr_byte(DVBS_REG_DISTXFIFO, msg[i]);
 		/*PR_INFO("0x%x\n", msg[i]);*/
@@ -1357,21 +1417,21 @@ void dvbs2_diseqc_send_msg(unsigned int len, unsigned char *msg)
 	/*PR_INFO("tx fifo num:0x%x\n", len_fifo);*/
 }
 
-void dvbs2_diseqc_read_msg(unsigned int *len, unsigned char *msg)
+unsigned int dvbs2_diseqc_read_msg(unsigned int len, unsigned char *msg)
 {
-	unsigned int i;
-	unsigned int len_fifo;
+	unsigned int i = 0;
+	unsigned int len_fifo = 0;
 
 	len_fifo = dvbs_rd_byte(DVBS_REG_DISRXBYTES);
-	for (i = 0; i < len_fifo ; i++)
+	for (i = 0; i < len_fifo && i < len ; i++)
 		msg[i] = dvbs_rd_byte(DVBS_REG_DISRXFIFO);
 
-	*len = len_fifo;
+	return i;
 }
 
 void demod_dump_reg_diseqc(void)
 {
-	unsigned int i;
+	unsigned int i = 0;
 
 	for (i = DVBS_REG_SYS_IRQMSK1; i <= DVBS_REG_SYS_IRQFORCE0; i++)
 		PR_INFO(" diseqc reg:0x%x val:0x%x\n", i, dvbs_rd_byte(i));

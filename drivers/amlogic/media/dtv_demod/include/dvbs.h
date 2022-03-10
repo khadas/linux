@@ -131,6 +131,8 @@ struct fft_total_result {
 #define DVBS_REG_ACRPRESC	0x31E
 #define DVBS_REG_ACRDIV		0x31F
 
+#define DVBS_REG_DSQADCICFG	0x121
+
 #define DSTATUS		0x934
 
 /* carrier offset */
@@ -139,10 +141,14 @@ struct fft_total_result {
 #define	CFR10	0x9d1
 
 void dvbs2_diseqc_send_msg(unsigned int len, unsigned char *msg);
-void dvbs2_diseqc_read_msg(unsigned int *len, unsigned char *msg);
+unsigned int dvbs2_diseqc_read_msg(unsigned int len, unsigned char *msg);
 unsigned int dvbs2_diseqc_irq_check(void);
-void dvbs2_diseqc_irq_en(unsigned int onoff);
+unsigned int dvbs2_diseqc_rx_check(void);
+void dvbs2_diseqc_reset(void);
+void dvbs2_diseqc_send_irq_en(bool onoff);
+void dvbs2_diseqc_recv_irq_en(bool onoff);
 void dvbs2_diseqc_init(void);
+void dvbs2_diseqc_recv_en(bool onoff);
 void dvbs2_diseqc_continuous_tone(unsigned int onoff);
 void dvbs_check_status(struct seq_file *seq);
 unsigned int dvbs_get_freq_offset(unsigned int *polarity);

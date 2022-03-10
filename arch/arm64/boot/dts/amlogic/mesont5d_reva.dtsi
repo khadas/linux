@@ -2623,6 +2623,14 @@
 		};
 	};
 
+	diseqc_in: diseqc_in {
+		mux {
+			groups = "diseqc_in_z1";
+			function = "diseqc_in";
+			bias-pull-down;
+		};
+	};
+
 	lcd_tcon_mlvds_pins: lcd_tcon_mlvds_pin {
 		mux {
 			groups = "tcon_0","tcon_1","tcon_2","tcon_3",

@@ -50,6 +50,7 @@
 /*  V1.1.57  fix auto qam(t5w) and sr */
 /*  V1.1.58  fix delsys exit setting and r842 dvbc auto sr */
 /*  V1.1.59  fix dvbs/s2 aft range and different tuner blind window settings */
+/*  V1.1.60  support diseqc2.0 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -66,8 +67,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.59"
-#define DTVDEMOD_VER	"2022/08/23: fix dvbs/s2 aft range and different tuner blind window settings"
+#define AMLDTVDEMOD_VER "V1.1.60"
+#define DTVDEMOD_VER	"2022/08/29: support diseqc2.0"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -318,7 +319,8 @@ struct aml_dtvdemod {
 	struct aml_demod_para_real real_para;
 
 	struct pinctrl *pin_agc;    /*agc pintrcl*/
-	struct pinctrl *pin_diseqc; /*diseqc out pin*/
+	struct pinctrl *pin_diseqc_out; /*diseqc out pin*/
+	struct pinctrl *pin_diseqc_in; /*diseqc in pin*/
 
 	u32 blind_result_frequency;
 	u32 blind_result_symbol_rate;
@@ -389,6 +391,7 @@ struct amldtvdemod_device_s {
 	unsigned int demod_irq_num;
 	unsigned int demod_irq_en;
 	struct mutex mutex_tx_msg;/*pretect tx cec msg*/
+	struct mutex mutex_rx_msg;/*pretect rx cec msg*/
 	unsigned int print_on;
 	int tuner_strength_limit;
 	unsigned int debug_on;

@@ -19,6 +19,22 @@
 static unsigned int dtmb_mode;
 static unsigned int atsc_mode_para;
 
+MODULE_PARM_DESC(testbus_addr, "\n\t\t testbus_addr");
+static unsigned int testbus_addr = 0x1000;
+module_param(testbus_addr, int, 0644);
+
+MODULE_PARM_DESC(testbus_width, "\n\t\t testbus_width");
+static unsigned int testbus_width = 9;
+module_param(testbus_width, int, 0644);
+
+MODULE_PARM_DESC(testbus_vld, "\n\t\t testbus_vld");
+static unsigned int testbus_vld = 0x100000;
+module_param(testbus_vld, int, 0644);
+
+MODULE_PARM_DESC(testbus_read_only, "\n\t\t testbus_read_only");
+static unsigned int testbus_read_only;
+module_param(testbus_read_only, int, 0644);
+
 static void get_chip_name(struct amldtvdemod_device_s *devp, char *str)
 {
 	switch (devp->data->hw_ver) {
@@ -637,7 +653,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		unsigned int test_mode)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	int testbus_addr = 0, width = 0, vld = 0;
+	int addr = 0, width = 0, vld = 0;
 	unsigned int tb_start = 0, tb_depth = 0;
 	unsigned int start_addr = 0;
 	unsigned int top_saved = 0, polling_en = 0;
@@ -668,13 +684,13 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	case 0: /* common fe */
 		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
 			devp->data->hw_ver == DTVDEMOD_HW_S4) {
-			testbus_addr = 0x101b;
+			addr = 0x101b;
 			//tb_depth = 10;
 			/* sample bit width */
 			width = 19;
 			vld = 0x100000;
 		} else {
-			testbus_addr = 0x1000;
+			addr = 0x1000;
 			//tb_depth = 10;
 			/* sample bit width */
 			width = 9;
@@ -683,7 +699,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		break;
 
 	case 3: /* ts stream */
-		testbus_addr = 0x3000;
+		addr = 0x3000;
 		//tb_depth = 100;
 		/* sample bit width */
 		width = 7;
@@ -691,7 +707,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		break;
 
 	case 4: /* T/T2 */
-		testbus_addr = 0x1000;
+		addr = 0x1000;
 		//tb_depth = 10;
 		/* sample bit width */
 		width = 11;
@@ -701,13 +717,13 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	case 5: /* S/S2 */
 		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
 			devp->data->hw_ver == DTVDEMOD_HW_S4) {
-			testbus_addr = 0x101b;
+			addr = 0x101b;
 			//tb_depth = 10;
 			/* sample bit width */
 			width = 19;
 			vld = 0x100000;
 		} else {
-			testbus_addr = 0x1012;
+			addr = 0x1012;
 			//tb_depth = 10;
 			/* sample bit width */
 			width = 19;
@@ -715,14 +731,42 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		}
 		break;
 
+	case 6: /* disqec in */
+		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
+			devp->data->hw_ver == DTVDEMOD_HW_S4) {
+			addr = 0x1000;
+			//tb_depth = 10;
+			/* sample bit width */
+			width = 9;
+			vld = 0x100000;
+		} else {
+			addr = 0x1000;
+			//tb_depth = 10;
+			/* sample bit width */
+			width = 9;
+			vld = 0x100000;
+		}
+		break;
+
+	case 7: /* user define */
+		addr = testbus_addr;
+		//tb_depth = 10;
+		/* sample bit width */
+		width = testbus_width;
+		vld = testbus_vld;
+		break;
+
 	default: /* common fe */
-		testbus_addr = 0x1000;
+		addr = 0x1000;
 		//tb_depth = 10;
 		/* sample bit width */
 		width = 9;
 		vld = 0x100000;
 		break;
 	}
+
+	PR_INFO("%s: testbus addr:0x%x, width:%d, vld:0x%x, read_only:%d.\n",
+			__func__, addr, width, vld, testbus_read_only);
 
 	if (devp->data->hw_ver >= DTVDEMOD_HW_T5D) {
 		polling_en = devp->demod_thread;
@@ -738,7 +782,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	/* Stop cap */
 	front_write_bits(0x3a, 1, 12, 1);
 	/* testbus addr */
-	front_write_bits(0x39, testbus_addr, 0, 16);
+	front_write_bits(0x39, addr, 0, 16);
 
 	/* disable test_mode */
 	if (test_mode)
@@ -775,8 +819,8 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	}
 
 	size = devp->mem_size - offset;
-	PR_INFO("%s:addr offset:%dM, cap_size:%dM\n", __func__,
-		offset / SZ_1M, size / SZ_1M);
+	PR_INFO("%s: capture_mode:%d, test_mode:%d, addr offset:%dM, cap_size:%dM.\n",
+			__func__, capture_mode, test_mode, offset / SZ_1M, size / SZ_1M);
 	start_addr += offset;
 	front_write_reg(0x3c, start_addr);
 	front_write_reg(0x3d, start_addr + size);
@@ -793,12 +837,16 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 	/* collect by system clk */
 	front_write_reg(0x3b, vld);
 	/* disable mask p2 */
-	front_write_bits(0x3a, 0, 10, 1);
-	front_write_bits(0x39, 0, 31, 1);
-	front_write_bits(0x39, 1, 31, 1);
-	/* go tb */
-	front_write_bits(0x3a, 0, 12, 1);
-	wait_capture(0x3f, tb_depth, start_addr);
+	if (!testbus_read_only) {
+		front_write_bits(0x3a, 0, 10, 1);
+		front_write_bits(0x39, 0, 31, 1);
+		front_write_bits(0x39, 1, 31, 1);
+
+		/* go tb */
+		front_write_bits(0x3a, 0, 12, 1);
+		wait_capture(0x3f, tb_depth, start_addr);
+	}
+
 	/* stop tb */
 	front_write_bits(0x3a, 1, 12, 1);
 	tb_start = front_read_reg(0x3f);
@@ -808,18 +856,22 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		devp->demod_thread = polling_en;
 	}
 
-	read_memory_to_file(path, tb_start, size);
+	if (!testbus_read_only)
+		read_memory_to_file(path, tb_start, size);
+	else
+		read_memory_to_file(path, start_addr, size);
+
 	return 0;
 }
 
 unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	int testbus_addr, width, vld;
-	unsigned int tb_start, tb_depth;
+	int testbus_addr = 0, width = 0, vld = 0;
+	unsigned int tb_start = 0, tb_depth = 0;
 	unsigned int start_addr = 0;
-	unsigned int top_saved, polling_en;
-	unsigned int offset, size;
+	unsigned int top_saved = 0, polling_en = 0;
+	unsigned int offset = 0, size = 0;
 
 	if (unlikely(!devp)) {
 		PR_ERR("%s:devp is NULL\n", __func__);
@@ -898,11 +950,11 @@ static void info_show(void)
 	struct aml_demod_sts demod_sts;
 
 	PR_INFO("DTV DEMOD state:\n");
-	PR_INFO("current chip: %d.\n", devp->data->hw_ver);
 	PR_INFO("demod_thread: %d.\n", devp->demod_thread);
 	get_chip_name(devp, chip_name);
 	PR_INFO("hw version chip: %d, %s.\n", devp->data->hw_ver, chip_name);
 	PR_INFO("version: %s.\n", DTVDEMOD_VER);
+	aml_diseqc_status();
 
 	list_for_each_entry(demod, &devp->demod_list, list) {
 		strength = tuner_get_ch_power(&demod->frontend);

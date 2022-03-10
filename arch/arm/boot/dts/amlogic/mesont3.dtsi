@@ -3052,6 +3052,14 @@ dvb_p_ts2_pins: dvb_p_ts2_pins {
 		};
 	};
 
+	diseqc_in: diseqc_in {
+		mux {
+			groups = "diseqc_in_z1";
+			function = "diseqc_in";
+			bias-pull-down;
+		};
+	};
+
 	spicc0_pins_h: spicc0_pins_h {
 		mux {
 			groups = "spi_a_mosi_h10",

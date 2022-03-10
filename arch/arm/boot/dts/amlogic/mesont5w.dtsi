@@ -2742,6 +2742,14 @@
 		};
 	};
 
+	diseqc_in: diseqc_in {
+		mux {
+			groups = "diseqc_in_z1";
+			function = "diseqc_in";
+			bias-pull-down;
+		};
+	};
+
 	lcd_vbyone_a_pins: lcd_vbyone_a_pin {
 		mux {
 			groups = "vx1_a_lockn","vx1_a_htpdn";

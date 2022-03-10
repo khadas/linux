@@ -656,6 +656,7 @@ static const unsigned int diseqc_out_z18_pins[] = {GPIOZ_18};
 
 /* BANK Z func7 */
 static const unsigned int diseqc_out_z0_pins[] = {GPIOZ_0};
+static const unsigned int diseqc_in_z1_pins[] = {GPIOZ_1};
 static const unsigned int s2_demod_gpio0_z_pins[] = {GPIOZ_1};
 static const unsigned int spi0_ss1_z3_pins[] = {GPIOZ_3};
 
@@ -965,6 +966,7 @@ static struct meson_pmx_group meson_t5d_periphs_groups[] __initdata = {
 	GROUP(diseqc_out_z18,	6),
 
 	GROUP(diseqc_out_z0,	7),
+	GROUP(diseqc_in_z1,	7),
 	GROUP(s2_demod_gpio0_z,	7),
 	GROUP(spi0_ss1_z3,	7),
 
@@ -1326,6 +1328,10 @@ static const char * const diseqc_out_groups[] = {
 	"diseqc_out_z0", "diseqc_out_z18"
 };
 
+static const char * const diseqc_in_groups[] = {
+	"diseqc_in_z1"
+};
+
 static const char * const s2_demod_groups[] = {
 	"s2_demod_gpio0_z", "s2_demod_gpio0_m", "s2_demod_gpio1",
 	"s2_demod_gpio2", "s2_demod_gpio3", "s2_demod_gpio4",
@@ -1352,6 +1358,7 @@ static struct meson_pmx_func meson_t5d_periphs_functions[] __initdata = {
 	FUNCTION(cicam),
 	FUNCTION(iso7816),
 	FUNCTION(diseqc_out),
+	FUNCTION(diseqc_in),
 	FUNCTION(s2_demod),
 	FUNCTION(i2c0),
 	FUNCTION(i2c1),

@@ -1146,6 +1146,9 @@ int demod_set_sys(struct aml_dtvdemod *demod, struct aml_demod_sys *demod_sys)
 					AFIFO_NCO_RATE_WID);
 			front_write_reg(SFIFO_OUT_LENS, 0x0);
 			front_write_reg(0x22, 0x7200a06);
+
+			if (devp->data->hw_ver != DTVDEMOD_HW_S4)
+				demod_top_write_reg(DEMOD_TOP_REG0, 0x0);
 		}
 		break;
 
