@@ -3683,6 +3683,72 @@ static int hdmitx_vout_get_disp_cap(char *buf, void *data)
 	return disp_cap_show(NULL, NULL, buf);
 }
 
+static bool drm_hdmitx_get_vrr_cap(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->rxcap.neg_mvrr || hdev->rxcap.fva || hdev->rxcap.vrr_max ||
+				hdev->rxcap.vrr_min) {
+		pr_info("%s support vrr\n", __func__);
+		return true;
+	}
+
+	pr_info("%s not support vrr\n", __func__);
+	return false;
+}
+
+static bool is_vic_supported(enum hdmi_vic brr_vic)
+{
+	int i;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct rx_cap *prxcap = &hdev->rxcap;
+
+	for (i = 0; i < prxcap->VIC_count; i++) {
+		if (brr_vic == prxcap->VIC[i])
+			return 1;
+	}
+
+	return 0;
+}
+
+static void add_vic_to_group(enum hdmi_vic vic, struct drm_vrr_mode_group *group)
+{
+	const struct hdmi_timing *timing;
+
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (timing && is_vic_supported(vic)) {
+		group->brr_vic = vic;
+		group->width = timing->h_active;
+		group->height = timing->v_active;
+		group->vrr_min = 24; /* fixed value */
+		group->vrr_max = timing->v_freq / 1000;
+	}
+}
+
+static int drm_hdmitx_get_vrr_mode_group(struct drm_vrr_mode_group *group, int max_group)
+{
+	int i;
+	enum hdmi_vic brr_vic[] = {
+		HDMI_16_1920x1080p60_16x9,
+		HDMI_63_1920x1080p120_16x9,
+		HDMI_4_1280x720p60_16x9,
+		HDMI_47_1280x720p120_16x9,
+		HDMI_97_3840x2160p60_16x9,
+		HDMI_102_4096x2160p60_256x135,
+	};
+
+	if (!drm_hdmitx_get_vrr_cap())
+		return 0;
+
+	if (!group || max_group == 0)
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(brr_vic); i++)
+		add_vic_to_group(brr_vic[i], group + i);
+
+	return i;
+}
+
 static void hdmitx_set_bist(u32 num, void *data)
 {
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
@@ -5183,6 +5249,7 @@ static int drm_hdmitx_get_vic_list(int **vics)
 		}
 	}
 
+	/* TODO if count is non-zero, viclist will free in drm caller */
 	if (count == 0)
 		kfree(viclist);
 	else
@@ -5453,6 +5520,9 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_tx_hdcp_cap = drm_hdmitx_get_tx_hdcp_cap,
 	.get_rx_hdcp_cap = drm_hdmitx_get_rx_hdcp_cap,
 	.register_hdcp_notify = drm_hdmitx_register_hdcp_notify,
+
+	.get_vrr_cap = drm_hdmitx_get_vrr_cap,
+	.get_vrr_mode_group = drm_hdmitx_get_vrr_mode_group,
 };
 
 static int meson_hdmitx_bind(struct device *dev,
