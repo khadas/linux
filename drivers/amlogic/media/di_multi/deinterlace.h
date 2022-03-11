@@ -409,7 +409,8 @@ struct di_dev_s {
 	unsigned long clkb_max_rate;
 	unsigned long clkb_min_rate;
 	struct list_head   pq_table_list;
-	atomic_t	       pq_flag;
+	atomic_t	       pq_flag; /* 1: idle; 0: busy */
+	atomic_t	       pq_io; /* 1: idle; 0: busy */
 	unsigned char	   di_event;
 	unsigned int	   pre_irq;
 	unsigned int	   post_irq;

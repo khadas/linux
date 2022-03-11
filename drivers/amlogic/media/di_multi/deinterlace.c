@@ -10301,17 +10301,18 @@ static void di_load_pq_table(void)
 	struct di_pq_parm_s *pos = NULL, *tmp = NULL;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 
-	if (atomic_read(&de_devp->pq_flag) == 0 &&
-	    (de_devp->flags & DI_LOAD_REG_FLAG)) {
-		atomic_set(&de_devp->pq_flag, 1);
-		list_for_each_entry_safe(pos, tmp,
-					 &de_devp->pq_table_list, list) {
-			dimh_load_regs(pos);
-			list_del(&pos->list);
-			di_pq_parm_destroy(pos);
+	if (de_devp->flags & DI_LOAD_REG_FLAG) {
+		if (atomic_read(&de_devp->pq_flag) &&
+		    atomic_dec_and_test(&de_devp->pq_flag)) {
+			list_for_each_entry_safe(pos, tmp,
+						 &de_devp->pq_table_list, list) {
+				dimh_load_regs(pos);
+				list_del(&pos->list);
+				di_pq_parm_destroy(pos);
+			}
+			de_devp->flags &= ~DI_LOAD_REG_FLAG;
+			atomic_set(&de_devp->pq_flag, 1); /* to idle*/
 		}
-		de_devp->flags &= ~DI_LOAD_REG_FLAG;
-		atomic_set(&de_devp->pq_flag, 0);
 	}
 }
 
@@ -10934,15 +10935,22 @@ long dim_pq_load_io(unsigned long arg)
 	/*unsigned int channel = 0;*/	/*fix to channel 0*/
 
 	di_devp = de_devp;
-
+	/* check io busy or not*/
+	if (atomic_read(&de_devp->pq_io) < 1 ||
+	    !atomic_dec_and_test(&de_devp->pq_io)) {
+		PR_ERR("%s:busy, do nothing\n", __func__);
+		return -EFAULT;
+	}
 	mm_size = sizeof(struct am_pq_parm_s);
 	if (copy_from_user(&tmp_pq_s, argp, mm_size)) {
 		PR_ERR("set pq parm errors\n");
+		atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	if (tmp_pq_s.table_len >= DIMTABLE_LEN_MAX) {
 		PR_ERR("load 0x%x wrong pq table_len.\n",
 		       tmp_pq_s.table_len);
+		atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	tab_flag = TABLE_NAME_DI | TABLE_NAME_NR | TABLE_NAME_MCDI |
@@ -10950,33 +10958,36 @@ long dim_pq_load_io(unsigned long arg)
 
 	tab_flag |= TABLE_NAME_SMOOTHPLUS;
 	if (tmp_pq_s.table_name & tab_flag) {
-		PR_INF("load 0x%x pq table len %u %s.\n",
+		PR_INF("load 0x%x pq len %u %s.\n",
 		       tmp_pq_s.table_name, tmp_pq_s.table_len,
 		       (!dim_dbg_is_force_later() && get_reg_flag_all()) ? "directly" : "later");
 	} else {
 		PR_ERR("load 0x%x wrong pq table.\n",
 		       tmp_pq_s.table_name);
+		atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	di_pq_ptr = di_pq_parm_create(&tmp_pq_s);
 	if (!di_pq_ptr) {
 		PR_ERR("allocat pq parm struct error.\n");
+		atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	argp = (void __user *)tmp_pq_s.table_ptr;
 	mm_size = tmp_pq_s.table_len * sizeof(struct am_reg_s);
 	if (copy_from_user(di_pq_ptr->regs, argp, mm_size)) {
 		PR_ERR("user copy pq table errors\n");
+		atomic_set(&de_devp->pq_io, 1); /* idle */
 		return -EFAULT;
 	}
 	if (!dim_dbg_is_force_later() &&  get_reg_flag_all()) {
 		dimh_load_regs(di_pq_ptr);
 		di_pq_parm_destroy(di_pq_ptr);
-
+		atomic_set(&de_devp->pq_io, 1); /* idle */
 		return ret;
 	}
-	if (atomic_read(&de_devp->pq_flag) == 0) {
-		atomic_set(&de_devp->pq_flag, 1);
+	if (atomic_read(&de_devp->pq_flag) &&
+	    atomic_dec_and_test(&de_devp->pq_flag)) {
 		if (di_devp->flags & DI_LOAD_REG_FLAG) {
 			struct di_pq_parm_s *pos = NULL, *tmp = NULL;
 
@@ -10995,14 +11006,14 @@ long dim_pq_load_io(unsigned long arg)
 		list_add_tail(&di_pq_ptr->list,
 			      &di_devp->pq_table_list);
 		di_devp->flags |= DI_LOAD_REG_FLAG;
-		atomic_set(&de_devp->pq_flag, 0);
+		atomic_set(&de_devp->pq_flag, 1);/* to idle */
 	} else {
 		PR_ERR("please retry table name 0x%x.\n",
 		       di_pq_ptr->pq_parm.table_name);
 		di_pq_parm_destroy(di_pq_ptr);
 		ret = -EFAULT;
 	}
-
+	atomic_set(&de_devp->pq_io, 1); /* idle */
 	return ret;
 }
 

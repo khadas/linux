@@ -3851,7 +3851,8 @@ static int dim_probe(struct platform_device *pdev)
 	/* mutex_init(&di_devp->cma_mutex); */
 	INIT_LIST_HEAD(&di_devp->pq_table_list);
 
-	atomic_set(&di_devp->pq_flag, 0);
+	atomic_set(&di_devp->pq_flag, 1); /* idle */
+	atomic_set(&di_devp->pq_io, 1); /* idle */
 
 	di_devp->pre_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	PR_INF("pre_irq:%d\n", di_devp->pre_irq);
