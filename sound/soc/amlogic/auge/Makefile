@@ -11,6 +11,7 @@ $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/clks/audio_clks.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_controller.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/audio_io.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pinctrl/pctrl-audio.o
+$(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/pinctrl/pctrl-audio-sm1.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/card_utils.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/tdm.o
 $(SND_MODULE_NAME)-$(CONFIG_AMLOGIC_SND_SOC_AUGE) += auge/tdm_hw.o

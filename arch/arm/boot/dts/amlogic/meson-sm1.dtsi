@@ -782,6 +782,9 @@
 			#clock-cells = <1>;
 			reg = <0x0 0x0 0x0 0xb0>;
 		};
+		pinctrl_audio: pinctrl {
+			compatible = "amlogic, sm1-audio-pinctrl";
+		};
 		ddr_manager {
 			compatible = "amlogic, sm1-audio-ddr-manager";
 			interrupts = <
@@ -823,15 +826,18 @@
 			//dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
 			dai-tdm-clk-sel = <1>;
 			clocks = <&clkaudio CLKID_AUDIO_MCLK_B
+					&clkaudio CLKID_AUDIO_MCLK_PAD1
 					&clkc CLKID_MPLL1
 					&clkc CLKID_MPLL0
 					&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-			clock-names = "mclk", "clk_srcpll",
+			clock-names = "mclk", "mclk_pad", "clk_srcpll",
 				"samesource_srcpll", "samesource_clk";
 			pinctrl-names = "tdm_pins";
 			/*pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;*/
-			//pinctrl-0 = < &tdmout_b &tdmin_b>;
-			//mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
+			pinctrl-0 = <&tdm_b_dout0_pins
+						&tdm_b_sclk_pins
+						&tdm_b_fs_pins
+						&tdm_b_clk_pins>;
 
 			/*
 			 * 0: tdmout_a;
@@ -1284,3 +1290,11 @@
 		     "amlogic,meson-gpio-intc";
 };
 
+&pinctrl_audio {
+	tdm_b_clk_pins: tdm_b_clk_pins {
+		mux {
+			groups = "tdm_sclk1", "tdm_lrclk1";
+			function = "tdm_clk_outb";
+		};
+	};
+};

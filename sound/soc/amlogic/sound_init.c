@@ -49,6 +49,7 @@ static int __init sound_soc_init(void)
 	call_sub_init(resample_drv_init);
 	call_sub_init(spdif_init);
 	call_sub_init(audio_pinctrl_init);
+	call_sub_init(sm1_audio_pinctrl_init);
 	call_sub_init(tdm_init);
 	call_sub_init(loopback_init);
 	call_sub_init(vad_drv_init);
@@ -66,6 +67,7 @@ static __exit void sound_soc_exit(void)
 	call_sub_exit(loopback_exit);
 	call_sub_exit(tdm_exit);
 	call_sub_exit(audio_pinctrl_exit);
+	call_sub_exit(sm1_audio_pinctrl_exit);
 	call_sub_exit(spdif_exit);
 	call_sub_exit(resample_drv_exit);
 	/*call_sub_exit(pwrdet_exit);*/
