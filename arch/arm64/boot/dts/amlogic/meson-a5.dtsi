@@ -2223,9 +2223,10 @@
 		};
 	};
 
-	spdifout_a_mute: spdifout_a_mute {
+	spdif_a_mute: spdif_a_mute {
 		mux { /* GPIOC_9 */
-			groups = "GPIOC_9";
+			groups = "GPIOC_9",
+				 "GPIOC_10";
 			function = "gpio_periphs";
 			output-low;
 		};

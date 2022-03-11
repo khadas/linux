@@ -48,6 +48,8 @@ struct aml_spdif *spdif_priv[2];
 static int aml_dai_set_spdif_sysclk(struct snd_soc_dai *cpu_dai,
 				int clk_id, unsigned int freq, int dir);
 
+static void aml_set_spdifclk(struct aml_spdif *p_spdif);
+
 enum SPDIF_SRC {
 	SPDIFIN_PAD = 0,
 	SPDIFOUT,
@@ -474,6 +476,16 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 	struct pinctrl_state *pstate = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 
+	if (!IS_ERR(p_spdif->clk_spdifout)) {
+		while (__clk_is_enabled(p_spdif->clk_spdifout))
+			clk_disable_unprepare(p_spdif->clk_spdifout);
+	}
+
+	if (!IS_ERR(p_spdif->clk_spdifin)) {
+		while (__clk_is_enabled(p_spdif->clk_spdifin))
+			clk_disable_unprepare(p_spdif->clk_spdifin);
+	}
+
 	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
 		pstate = pinctrl_lookup_state
 		(p_spdif->pin_ctl, "spdif_pins_mute");
@@ -498,12 +510,29 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
 
+	if (!IS_ERR(p_spdif->clk_spdifout)) {
+		clk_set_parent(p_spdif->clk_spdifout, NULL);
+		ret = clk_set_parent(p_spdif->clk_spdifout, p_spdif->sysclk);
+		if (ret)
+			dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
+		clk_prepare_enable(p_spdif->clk_spdifout);
+	}
+
+	if (!IS_ERR(p_spdif->clk_spdifin)) {
+		clk_set_parent(p_spdif->clk_spdifin, NULL);
+		ret = clk_set_parent(p_spdif->clk_spdifin, p_spdif->fixed_clk);
+		if (ret)
+			dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
+		clk_prepare_enable(p_spdif->clk_spdifin);
+	}
+
 	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
 		state = pinctrl_lookup_state
 		(p_spdif->pin_ctl, "spdif_pins");
 		if (!IS_ERR_OR_NULL(state))
 			pinctrl_select_state(p_spdif->pin_ctl, state);
 	}
+	aml_set_spdifclk(p_spdif);
 	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, true);
 
 	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
