@@ -824,6 +824,7 @@ static struct vframe_s *vd_get_vf_from_buf(struct composer_dev *dev,
 						struct dma_buf *buf)
 {
 	struct vframe_s *vf = NULL;
+	struct vframe_s *di_vf = NULL;
 	bool is_dec_vf = false;
 	struct uvm_hook_mod *uhmod;
 	struct file_private_data *temp_file;
@@ -839,6 +840,23 @@ static struct vframe_s *vd_get_vf_from_buf(struct composer_dev *dev,
 	if (is_dec_vf) {
 		vc_print(dev->index, PRINT_OTHER, "vf is from decoder.\n");
 		vf = dmabuf_get_vframe(buf);
+		vc_print(dev->index, PRINT_OTHER,
+			"vframe_type = 0x%x, vframe_flag = 0x%x.\n",
+			vf->type,
+			vf->flag);
+
+		di_vf = vf->vf_ext;
+		if (di_vf && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
+			vc_print(dev->index, PRINT_OTHER,
+				"di_vf->type = 0x%x, di_vf->org = 0x%x.\n",
+				di_vf->type,
+				di_vf->type_original);
+			vc_print(dev->index, PRINT_OTHER, "use di vf.\n");
+			/* link uvm vf into di_vf->vf_ext */
+			if (!di_vf->vf_ext)
+				di_vf->vf_ext = vf;
+			vf = di_vf;
+		}
 		dmabuf_put_vframe(buf);
 	} else {
 		vc_print(dev->index, PRINT_OTHER, "vf is from v4lvideo.\n");
