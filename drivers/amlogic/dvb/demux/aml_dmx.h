@@ -6,6 +6,8 @@
 #ifndef _AML_DMX_H_
 #define _AML_DMX_H_
 
+#include <linux/list.h>
+
 #include "sw_demux/swdemux.h"
 #include "sc2_demux/ts_output.h"
 #include "sc2_demux/ts_input.h"
@@ -48,6 +50,12 @@ struct sw_demux_sec_feed {
 	int check_crc;
 	int type;
 	int state;
+};
+
+struct pid_node {
+	int pid;
+	struct dmx_ts_feed *feed;
+	struct list_head node;
 };
 
 struct aml_dmx {
@@ -100,6 +108,10 @@ struct aml_dmx {
 	 */
 	int reset_init;
 	int video_pid;
+
+	/* pid list */
+	struct list_head pid_head;
+
 };
 
 void dmx_init_hw(int sid_num, int *sid_info);

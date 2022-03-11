@@ -3148,6 +3148,7 @@ static void update_dvr_sid(struct out_elem *pout, int sid, int dmx_no)
 		new_pid_slot->dmx_id = pid_slot->dmx_id;
 		new_pid_slot->ref = pid_slot->ref;
 		new_pid_slot->pout = pout;
+		new_pid_slot->pnext = NULL;
 
 		if (!head_pid_slot)
 			head_pid_slot = new_pid_slot;

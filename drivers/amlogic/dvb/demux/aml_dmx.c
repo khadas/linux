@@ -33,6 +33,7 @@
 #include "sc2_demux/ts_output.h"
 #include "sc2_demux/ts_input.h"
 #include "sc2_demux/dvb_reg.h"
+#include "sw_demux/swdemux_internal.h"
 #include "../aucpu/aml_aucpu.h"
 #include "aml_dsc.h"
 #include "dmx_log.h"
@@ -354,6 +355,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	int cb_id = 0;
 	int pts_level = 0;
 	int ret = 0;
+	struct pid_node *node = NULL;
 
 	pr_dbg("%s pid:0x%0x\n", __func__, pid);
 
@@ -445,6 +447,22 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			mem_size = dvr_buf_size;
 			pr_dbg("%s DVR_FORMAT\n", __func__);
 		}
+	}
+
+	if (format == DVR_FORMAT) {
+		node = kmalloc(sizeof(*node), GFP_KERNEL);
+		if (!node) {
+			mutex_unlock(demux->pmutex);
+			return -ENOMEM;
+		}
+
+		memset(node, 0, sizeof(struct pid_node));
+		INIT_LIST_HEAD(&node->node);
+
+		node->feed = ts_feed;
+		node->pid = pid;
+
+		list_add_tail(&node->node, &demux->pid_head);
 	}
 
 	sec_level = (filter->params.pes.flags >> 10) & 0x7;
@@ -958,24 +976,79 @@ int check_dmx_filter_buff(struct dmx_ts_feed *feed, int req_len)
 	return 0;
 }
 
+static void dvr_filter_pid(const int pid, struct aml_dmx *demux,
+							int req_len,  int *req_ret, u8 *p)
+{
+	struct swdmx_ts_parser *tsp = demux->tsp;
+	struct pid_node *pos2 = NULL;
+	struct pid_node *node_pid = NULL;
+
+	list_for_each_entry_safe(node_pid, pos2, &demux->pid_head, node) {
+		if (node_pid->pid == pid && node_pid->feed &&
+				 ((struct sw_demux_ts_feed *)node_pid->feed)->ts_cb) {
+			/*if found dvb-core buff isn't enough, return*/
+			if (req_len && req_ret) {
+				*req_ret = check_dmx_filter_buff(node_pid->feed,
+										tsp->packet_size);
+				if (*req_ret == 1)
+					return;
+			}
+			((struct sw_demux_ts_feed *)node_pid->feed)->
+								ts_cb(p, tsp->packet_size,
+								NULL, 0, node_pid->feed, NULL);
+			break;
+		}
+	}
+}
+
 static int out_ts_elem_cb(struct out_elem *pout, char *buf,
 			  int count, void *udata, int req_len, int *req_ret)
 {
 	struct dmx_ts_feed *source_feed = (struct dmx_ts_feed *)udata;
 	struct sw_demux_ts_feed *ts_feed = (struct sw_demux_ts_feed *)udata;
+	struct aml_dmx *demux = (struct aml_dmx *)ts_feed->ts_feed.parent->priv;
+
+	struct swdmx_ts_parser *tsp = demux->tsp;
+	int sec_level = 0;
+	struct dmxdev_filter *filter = source_feed->priv;
+
+	u8 *p = buf;
+	int left = count;
+	int pid = 0;
 
 	if (ts_feed->state != DMX_STATE_GO)
 		return 0;
 
-	/*if found dvb-core buff isn't enough, return*/
-	if (req_len && req_ret) {
-		*req_ret = check_dmx_filter_buff(source_feed, req_len);
-		if (*req_ret == 1)
-			return 0;
+	sec_level = (filter->params.pes.flags >> 10) & 0x7;
+	if (ts_feed->format == DVR_FORMAT && !sec_level) {
+		while (left >= tsp->packet_size) {
+			if (*p == 0x47) {
+				pid = ((p[1] & 0x1f) << 8) | p[2];
+				dvr_filter_pid(pid, demux, req_len, req_ret, p);
+				if (req_ret && *req_ret == 1)
+					return 0;
+				p += tsp->packet_size;
+				left -= tsp->packet_size;
+			} else {
+				p++;
+				left--;
+			}
+		}
+		return count - left;
+
+	} else {
+			/*if found dvb-core buff isn't enough, return*/
+		if (req_len && req_ret) {
+			*req_ret = check_dmx_filter_buff(source_feed, req_len);
+			if (*req_ret == 1)
+				return 0;
+		}
+
+		if (ts_feed->ts_cb)
+			ts_feed->ts_cb(buf, count, NULL, 0, source_feed, NULL);
+
+		return count;
 	}
-	if (ts_feed->ts_cb)
-		ts_feed->ts_cb(buf, count, NULL, 0, source_feed, NULL);
-	return count;
 }
 
 static int _dmx_allocate_ts_feed(struct dmx_demux *dmx,
@@ -1023,6 +1096,8 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	int pcr_num = 0;
 	int pcr_index = 0;
 	int ret = 0;
+	struct pid_node *entry = NULL;
+	struct pid_node *tmp = NULL;
 
 	if (!ts_feed)
 		return 0;
@@ -1035,6 +1110,13 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	if (feed->type == VIDEO_TYPE) {
 		demux->video_pid = -1;
 		demux->reset_init = -1;
+	}
+
+	list_for_each_entry_safe(entry, tmp, &demux->pid_head, node) {
+		if (feed->format == DVR_FORMAT && entry->pid == feed->pid) {
+			list_del(&entry->node);
+			kfree(entry);
+		}
 	}
 
 	if (feed->ts_out_elem) {
@@ -1741,6 +1823,8 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 		pdmx->section_feed[i].state = DMX_STATE_FREE;
 
 	INIT_LIST_HEAD(&pdmx->frontend_list);
+
+	INIT_LIST_HEAD(&pdmx->pid_head);
 
 	for (i = 0; i < DMX_PES_OTHER; i++)
 		pdmx->pids[i] = 0xffff;
