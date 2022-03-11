@@ -2141,10 +2141,6 @@ int vprintk_store(int facility, int level,
 	reserve_size = vsnprintf(&prefix_buf[0], sizeof(prefix_buf), fmt, args2) + 1;
 	va_end(args2);
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_PRINTK)
-	debug_printk_modify_len(&reserve_size, irqflags);
-#endif
-
 	if (reserve_size > LOG_LINE_MAX)
 		reserve_size = LOG_LINE_MAX;
 
@@ -2177,6 +2173,10 @@ int vprintk_store(int facility, int level,
 			goto out;
 		}
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_PRINTK)
+	debug_printk_modify_len(&reserve_size, irqflags, LOG_LINE_MAX);
+#endif
 
 	/*
 	 * Explicitly initialize the record before every prb_reserve() call.
