@@ -55,9 +55,9 @@
 #include <linux/amlogic/gki_module.h>
 
 uint debug_csc;
-static int cur_mvc_type[2];
-static int cur_rgb_type[2];
-static int rgb_type_proc[2];
+static int cur_mvc_type[VD_PATH_MAX];
+static int cur_rgb_type[VD_PATH_MAX];
+static int rgb_type_proc[VD_PATH_MAX];
 #define FORCE_RGB_PROCESS 1
 
 module_param(debug_csc, uint, 0664);
@@ -615,17 +615,20 @@ static uint force_csc_type = 0xff;
 module_param(force_csc_type, uint, 0664);
 MODULE_PARM_DESC(force_csc_type, "\n force colour space convert type\n");
 
-static uint cur_hdr_support;
-module_param(cur_hdr_support, uint, 0664);
-MODULE_PARM_DESC(cur_hdr_support, "\n cur_hdr_support\n");
+static uint cur_hdr_support[VPP_TOP_MAX_S];
+module_param_array(cur_hdr_support, uint, &vpp_top_max, 0444);
+MODULE_PARM_DESC(cur_hdr_support, "\n current cur_hdr_support\n");
 
-static uint cur_colorimetry_support;
-module_param(cur_colorimetry_support, uint, 0664);
-MODULE_PARM_DESC(cur_colorimetry_support, "\n cur_colorimetry_support\n");
 
-static uint cur_hlg_support;
-module_param(cur_hlg_support, uint, 0664);
-MODULE_PARM_DESC(cur_hlg_support, "\n cur_hlg_support\n");
+static uint cur_colorimetry_support[VPP_TOP_MAX_S];
+module_param_array(cur_colorimetry_support, uint, &vpp_top_max, 0444);
+MODULE_PARM_DESC(cur_colorimetry_support, "\n current cur_colorimetry_support\n");
+
+
+static uint cur_hlg_support[VPP_TOP_MAX_S];
+module_param_array(cur_hlg_support, uint, &vpp_top_max, 0444);
+MODULE_PARM_DESC(cur_hlg_support, "\n current cur_hlg_support\n");
+
 
 static uint cur_color_fmt[VPP_TOP_MAX_S];
 module_param_array(cur_color_fmt, uint, &vpp_top_max, 0664);
@@ -4142,27 +4145,27 @@ int signal_type_changed(struct vframe_s *vf,
 		}
 	}
 
-	if (cur_hdr_support
+	if (cur_hdr_support[vpp_index]
 	!= (vinfo->hdr_info.hdr_support & 0x4)) {
 		pr_csc(1, "Tx HDR support changed.\n");
 		change_flag |= SIG_HDR_SUPPORT;
-		cur_hdr_support =
+		cur_hdr_support[vpp_index] =
 			vinfo->hdr_info.hdr_support & 0x4;
 	}
-	if (cur_colorimetry_support != vinfo->hdr_info.colorimetry_support) {
+	if (cur_colorimetry_support[vpp_index] != vinfo->hdr_info.colorimetry_support) {
 		pr_csc(1, "Tx colorimetry support changed.\n");
 		change_flag |= SIG_COLORIMETRY_SUPPORT;
-		cur_colorimetry_support = vinfo->hdr_info.colorimetry_support;
+		cur_colorimetry_support[vpp_index] = vinfo->hdr_info.colorimetry_support;
 	}
 	if (cur_color_fmt[vpp_index] != vinfo->viu_color_fmt) {
 		pr_csc(1, "color format changed.\n");
 		change_flag |= SIG_OP_CHG;
 		cur_color_fmt[vpp_index] = vinfo->viu_color_fmt;
 	}
-	if (cur_hlg_support != (vinfo->hdr_info.hdr_support & 0x8)) {
+	if (cur_hlg_support[vpp_index] != (vinfo->hdr_info.hdr_support & 0x8)) {
 		pr_csc(1, "Tx HLG support changed.\n");
 		change_flag |= SIG_HLG_SUPPORT;
-		cur_hlg_support = vinfo->hdr_info.hdr_support & 0x8;
+		cur_hlg_support[vpp_index] = vinfo->hdr_info.hdr_support & 0x8;
 	}
 
 	if (cur_eye_protect_mode != wb_val[0] ||
@@ -6815,9 +6818,11 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path, enum vpp_index vp
 		if (sink_support_hdr10_plus(vinfo) &&
 		    vd_path == VD1_PATH)
 			return HDRTYPE_HDR10PLUS;
-		else if (!sink_support_hdr10_plus(vinfo) &&
+		/* tv chip need not regard hdr10p as hdr10. */
+		else if (vinfo_lcd_support() ||
+			(!sink_support_hdr10_plus(vinfo) &&
 			 !sink_support_hdr(vinfo) &&
-			!is_dolby_vision_enable())
+			 !is_dolby_vision_enable()))
 			return HDRTYPE_HDR10PLUS;
 		else
 			return HDRTYPE_HDR10;
@@ -7897,6 +7902,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		    (vd_path == VD2_PATH &&
 		     !is_video_layer_on(VD1_PATH) &&
 		     is_video_layer_on(VD2_PATH)) ||
+		     (!is_video_layer_on(VD1_PATH) &&
+		     !is_video_layer_on(VD2_PATH)) ||
 		     vpp_index == VPP_TOP1) {
 			para =
 			hdr10p_meta_updated ?
@@ -8041,8 +8048,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 
 	if (vinfo->mode == VMODE_NULL ||
 	    vinfo->mode == VMODE_INVALID) {
-		current_hdr_cap[vd_path] = 0;
-		current_sink_available[vd_path] = 0;
+		current_hdr_cap[vpp_index] = 0;
+		current_sink_available[vpp_index] = 0;
 		return 0;
 	}
 
@@ -8092,15 +8099,15 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		}
 	}
 	sink_changed = is_sink_cap_changed(vinfo,
-					   &current_hdr_cap[vd_path],
-					   &current_sink_available[vd_path],
+					   &current_hdr_cap[vpp_index],
+					   &current_sink_available[vpp_index],
 					   vpp_index);
 	if (sink_changed) {
 		cap_changed = sink_changed & 0x02;
 		pr_csc(4, "sink %s, cap%s 0x%x, vd%d %s %p %p vpp%d\n",
-		       current_sink_available[vd_path] ? "on" : "off",
+		       current_sink_available[vpp_index] ? "on" : "off",
 		       cap_changed ? " changed" : "",
-		       current_hdr_cap[vd_path],
+		       current_hdr_cap[vpp_index],
 		       vd_path + 1,
 		       is_video_layer_on(vd_path) ? "on" : "off",
 		       vf, vf_rpt, vpp_index);
