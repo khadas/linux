@@ -1402,7 +1402,7 @@ static int edid_y420cmdb_fill_all_vic(struct hdmitx_dev *hdmitx_device)
 		memset(&info->y420cmdb_bitmap[0], 0xff, a);
 
 	if (b != 0 && a < Y420CMDB_MAX)
-		info->y420cmdb_bitmap[a] = (((1 << b) - 1) << (8 - b));
+		info->y420cmdb_bitmap[a] = (1 << b) - 1;
 
 	info->bitmap_length = (b == 0) ? a : (a + 1);
 	info->bitmap_valid = (info->bitmap_length != 0) ? 1 : 0;

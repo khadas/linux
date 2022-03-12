@@ -2264,6 +2264,27 @@ static ssize_t debug_store(struct device *dev,
 	return count;
 }
 
+static bool is_vic_support_y420(enum hdmi_vic vic)
+{
+	unsigned int i = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct rx_cap *prxcap = &hdev->rxcap;
+	bool ret = false;
+
+	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
+		if (prxcap->y420_vic[i]) {
+			if (prxcap->y420_vic[i] == vic) {
+				ret = true;
+				break;
+			}
+		} else {
+			ret = false;
+			break;
+		}
+	}
+	return ret;
+}
+
 /**/
 static ssize_t disp_cap_show(struct device *dev,
 			     struct device_attribute *attr,
@@ -2286,7 +2307,13 @@ static ssize_t disp_cap_show(struct device *dev,
 				pos += snprintf(buf + pos, PAGE_SIZE, "*");
 			pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 		}
+		if (is_vic_support_y420(vic)) {
+			/* backup only for old android */
+			/* pos += snprintf(buf + pos, PAGE_SIZE, "%s420\n", */
+				/* timing->sname ? timing->sname : timing->name); */
+		}
 	}
+
 	return pos;
 }
 
@@ -2501,16 +2528,14 @@ static ssize_t dc_cap_show(struct device *dev,
 
 	if (prxcap->dc_36bit_420)
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,12bit\n");
-	if (prxcap->dc_30bit_420) {
+	if (prxcap->dc_30bit_420)
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,10bit\n");
-		pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
-	} else {
-		for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
-			if (prxcap->y420_vic[i]) {
-				pos += snprintf(buf + pos, PAGE_SIZE,
-					"420,8bit\n");
-				break;
-			}
+
+	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
+		if (prxcap->y420_vic[i]) {
+			pos += snprintf(buf + pos, PAGE_SIZE,
+				"420,8bit\n");
+			break;
 		}
 	}
 	if (prxcap->dc_y444) {
