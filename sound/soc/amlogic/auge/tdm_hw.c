@@ -1040,9 +1040,13 @@ void aml_tdm_sclk_pad_select(struct aml_audio_controller *actrl,
 		audiobus_update_bits(reg, mask_offset, val_offset);
 }
 
-void i2s_to_hdmitx_ctrl(int i2s_tohdmitxen_separated, int tdm_index)
+void i2s_to_hdmitx_ctrl(int i2s_tohdmitxen_separated, int tdm_index,
+	int mclk_sel)
 {
 	audiobus_write(EE_AUDIO_TOHDMITX_CTRL0,
+		1 << 20 | /* tohdmitx mclk div */
+		1 << 19 | /* tohdmitx mclk enable */
+		mclk_sel << 16 | /* mclk_sel */
 		tdm_index << 12 /* dat_sel */
 		| tdm_index << 8 /* lrclk_sel */
 		| 1 << 7 /* Bclk_cap_inv */

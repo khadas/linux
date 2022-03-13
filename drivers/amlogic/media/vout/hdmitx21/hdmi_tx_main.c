@@ -2070,7 +2070,7 @@ static ssize_t config_show(struct device *dev,
 	case CT_ONE_BIT_AUDIO:
 		conf = "One Bit Audio";
 		break;
-	case CT_DOLBY_D:
+	case CT_DD_P:
 		conf = "Dobly Digital+";
 		break;
 	case CT_DTS_HD:
@@ -2444,7 +2444,7 @@ static ssize_t aud_cap_show(struct device *dev,
 	for (i = 0; i < prxcap->AUD_count; i++) {
 		pos += snprintf(buf + pos, PAGE_SIZE, "%s",
 			aud_ct[prxcap->RxAudioCap[i].audio_format_code]);
-		if (prxcap->RxAudioCap[i].audio_format_code == CT_DOLBY_D &&
+		if (prxcap->RxAudioCap[i].audio_format_code == CT_DD_P &&
 		    (prxcap->RxAudioCap[i].cc3 & 1))
 			pos += snprintf(buf + pos, PAGE_SIZE, "/ATMOS");
 		pos += snprintf(buf + pos, PAGE_SIZE, ", %d ch, ",
@@ -2471,7 +2471,7 @@ static ssize_t aud_cap_show(struct device *dev,
 				"MaxBitRate %dkHz\n",
 				prxcap->RxAudioCap[i].cc3 * 8);
 			break;
-		case CT_DOLBY_D:
+		case CT_DD_P:
 		case CT_DTS_HD:
 		case CT_MAT:
 		case CT_DST:
@@ -3941,6 +3941,18 @@ static enum hdmi_audio_fs aud_samp_rate_map(u32 rate)
 	return FS_MAX;
 }
 
+u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx)
+{
+	int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(map_fs); i++) {
+		if (map_fs[i].fs == e_sr_idx)
+			return map_fs[i].rate / 1000;
+	}
+	pr_info("wrong idx: %d\n", e_sr_idx);
+	return 1;
+}
+
 static u8 *aud_type_string[] = {
 	"CT_REFER_TO_STREAM",
 	"CT_PCM",
@@ -4000,10 +4012,11 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	hdev->audio_param_update_flag = 0;
 	hdev->audio_notify_flag = 0;
 
-	if (audio_param->sample_rate != n_rate) {
+	/* if (audio_param->sample_rate != n_rate) { */
 		audio_param->sample_rate = n_rate;
 		hdev->audio_param_update_flag = 1;
-	}
+		pr_info("aout notify sample rate: %d\n", n_rate);
+	/* } */
 
 	if (audio_param->type != cmd) {
 		audio_param->type = cmd;
@@ -4015,11 +4028,25 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	if (audio_param->sample_size != n_size) {
 		audio_param->sample_size = n_size;
 		hdev->audio_param_update_flag = 1;
+		pr_info("aout notify sample size: %d\n", n_size);
 	}
 
 	if (audio_param->channel_num != (aud_param->chs - 1)) {
 		audio_param->channel_num = aud_param->chs - 1;
 		hdev->audio_param_update_flag = 1;
+		pr_info("aout notify channel num: %d\n", aud_param->chs);
+	}
+	if (audio_param->aud_src_if != aud_param->aud_src_if) {
+		pr_info("cur aud_src_if %d, new aud_src_if: %d\n",
+			audio_param->aud_src_if, aud_param->aud_src_if);
+		audio_param->aud_src_if = aud_param->aud_src_if;
+		hdev->audio_param_update_flag = 1;
+	}
+	memcpy(audio_param->status, aud_param->status, sizeof(aud_param->status));
+	if (log21_level == 1) {
+		for (i = 0; i < sizeof(audio_param->status); i++)
+			pr_info("%02x", audio_param->status[i]);
+		pr_info("\n");
 	}
 	if (hdev->tx_aud_cfg == 2) {
 		pr_info("auto mode\n");

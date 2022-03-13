@@ -162,7 +162,7 @@ hdmi_tx_construct_aud_packet(struct hdmitx_audpara *audio_param,
 			AUD_DB[3] = 0;
 			AUD_DB[4] = 0;
 		}
-	} else if (audio_param->type == CT_DOLBY_D) {
+	} else if (audio_param->type == CT_DD_P) {
 		pr_info(AUD "Audio Type: Dobly Digital +\n");
 		if (AUD_DB) {
 			AUD_DB[0] = FS_REFER_TO_STREAM << 4 |

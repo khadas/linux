@@ -752,5 +752,5 @@ enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void);
 bool hdmitx21_hdr_en(void);
 bool hdmitx21_dv_en(void);
 bool hdmitx21_hdr10p_en(void);
-
+u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx);
 #endif

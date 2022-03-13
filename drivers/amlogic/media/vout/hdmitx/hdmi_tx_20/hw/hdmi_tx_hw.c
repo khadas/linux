@@ -2550,7 +2550,7 @@ static void set_aud_chnls(struct hdmitx_dev *hdev,
 	}
 	switch (audio_param->type) {
 	case CT_AC_3:
-	case CT_DOLBY_D:
+	case CT_DD_P:
 	case CT_DST:
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS3, 0x01); /* CSB 20 */
 		hdmitx_wr_reg(HDMITX_DWC_FC_AUDSCHNLS5, 0x02); /* CSB 21 */
@@ -2655,7 +2655,7 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 						  hdev->para->cd, char_rate);
 	/* N must mutiples 4 for DD+ */
 	switch (audio_param->type) {
-	case CT_DOLBY_D:
+	case CT_DD_P:
 		aud_n_para *= 4;
 		break;
 	default:
@@ -2733,7 +2733,7 @@ static void set_aud_samp_pkt(struct hdmitx_dev *hdev,
 		}
 		break;
 	case CT_AC_3:
-	case CT_DOLBY_D:
+	case CT_DD_P:
 	case CT_DTS:
 	case CT_DTS_HD:
 	default:

@@ -8,6 +8,7 @@
 
 #include <linux/notifier.h>
 #include <linux/kernel.h>
+#include <sound/asoundef.h>
 
 /* interface for external module: audio/cec/hdmirx/dv... */
 
@@ -97,7 +98,7 @@ enum hdmi_audio_type {
 	CT_DTS,
 	CT_ATRAC,
 	CT_ONE_BIT_AUDIO,
-	CT_DOLBY_D, /* DDP or DD+ */
+	CT_DD_P, /* DD+ */
 	CT_DTS_HD,
 	CT_MAT, /* TrueHD */
 	CT_DST,
@@ -126,6 +127,12 @@ enum hdmi_audio_sampsize {
 	SS_REFER_TO_STREAM = 0, SS_16BITS, SS_20BITS, SS_24BITS, SS_MAX
 };
 
+enum hdmi_audio_source_if {
+	AUD_SRC_IF_SPDIF = 0,
+	AUD_SRC_IF_I2S,
+	AUD_SRC_IF_TDM, /* for T7 only */
+};
+
 /* should sync with sound/soc */
 struct aud_para {
 	enum hdmi_audio_type type;
@@ -133,6 +140,8 @@ struct aud_para {
 	enum hdmi_audio_sampsize size;
 	enum hdmi_audio_chnnum chs;
 	bool fifo_rst;
+	enum hdmi_audio_source_if aud_src_if;
+	unsigned char status[24]; /* AES/IEC958 channel status bits */
 };
 
 typedef void (*pf_callback)(bool st);

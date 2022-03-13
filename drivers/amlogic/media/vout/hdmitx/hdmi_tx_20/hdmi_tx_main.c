@@ -2555,7 +2555,7 @@ static ssize_t config_show(struct device *dev,
 	case CT_ONE_BIT_AUDIO:
 		conf = "One Bit Audio";
 		break;
-	case CT_DOLBY_D:
+	case CT_DD_P:
 		conf = "Dobly Digital+";
 		break;
 	case CT_DTS_HD:
@@ -3132,7 +3132,7 @@ static ssize_t aud_cap_show(struct device *dev,
 	for (i = 0; i < prxcap->AUD_count; i++) {
 		pos += snprintf(buf + pos, PAGE_SIZE, "%s",
 			aud_ct[prxcap->RxAudioCap[i].audio_format_code]);
-		if (prxcap->RxAudioCap[i].audio_format_code == CT_DOLBY_D &&
+		if (prxcap->RxAudioCap[i].audio_format_code == CT_DD_P &&
 		    (prxcap->RxAudioCap[i].cc3 & 1))
 			pos += snprintf(buf + pos, PAGE_SIZE, "/ATMOS");
 		pos += snprintf(buf + pos, PAGE_SIZE, ", %d ch, ",
@@ -3159,7 +3159,7 @@ static ssize_t aud_cap_show(struct device *dev,
 				"MaxBitRate %dkHz\n",
 				prxcap->RxAudioCap[i].cc3 * 8);
 			break;
-		case CT_DOLBY_D:
+		case CT_DD_P:
 		case CT_DTS_HD:
 		case CT_MAT:
 		case CT_DST:

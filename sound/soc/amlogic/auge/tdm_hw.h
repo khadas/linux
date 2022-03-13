@@ -134,7 +134,8 @@ void aml_tdm_mclk_pad_select(struct aml_audio_controller *actrl,
 void aml_tdm_sclk_pad_select(struct aml_audio_controller *actrl,
 			     int mpad_offset, int tdm_index, int clk_sel);
 
-void i2s_to_hdmitx_ctrl(int i2s_tohdmitxen_separated, int tdm_index);
+void i2s_to_hdmitx_ctrl(int i2s_tohdmitxen_separated, int tdm_index,
+		int mclk_sel);
 void aml_tdm_mute_playback(struct aml_audio_controller *actrl,
 		int index,
 		bool mute,

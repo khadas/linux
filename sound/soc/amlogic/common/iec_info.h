@@ -232,7 +232,7 @@ enum aud_codec_types {
 };
 
 static const char * const aud_codec_type_names[] = {
-	/* 0 */"2 CH PCM",
+	/* 0 */"Stereo PCM",
 	/* 1 */"DTS RAW Mode",
 	/* 2 */"Dolby Digital",
 	/* 3 */"DTS",

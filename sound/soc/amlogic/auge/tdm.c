@@ -257,7 +257,8 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		}
 		swap_val = 0x76543210;
 		/* TODO: find why LFE and FC(2ch, 3ch) HDMITX needs swap */
-		if (p_tdm->i2s2hdmitx)
+		if (p_tdm->i2s2hdmitx &&
+			spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
 			swap_val = 0x76542310;
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
@@ -1234,6 +1235,15 @@ static const struct snd_soc_component_driver aml_tdm_component = {
 	.ops            = &aml_tdm_ops,
 };
 
+static void set_aud_param_ch_status(struct iec958_chsts *chsts,
+	struct aud_para *aud_param)
+{
+	aud_param->status[0] = chsts->chstat0_l & 0xff;
+	aud_param->status[1] = (chsts->chstat0_l >> 8) & 0xff;
+	aud_param->status[2] = chsts->chstat1_l & 0xff;
+	aud_param->status[3] = (chsts->chstat1_l >> 8) & 0xff;
+}
+
 static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
 {
@@ -1263,15 +1273,27 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 
 		/* i2s source to hdmix */
 		if (p_tdm->i2s2hdmitx) {
-			separated = p_tdm->chipinfo->separate_tohdmitx_en;
-			i2s_to_hdmitx_ctrl(separated, p_tdm->id);
-			if (spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
-				aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-							 &aud_param);
-			else
-				pr_warn("%s(), i2s2hdmi with wrong fmt,codec_type:%d\n",
-					__func__, spdif_get_codec());
+			enum aud_codec_types codec_type = spdif_get_codec();
+			unsigned int event_type = 0;
+			struct iec958_chsts chsts;
 
+			memset(&chsts, 0, sizeof(chsts));
+			separated = p_tdm->chipinfo->separate_tohdmitx_en;
+			aud_param.aud_src_if = AUD_SRC_IF_I2S;
+			pr_info("notify tdm to hdmitx,id %d codec_type %d",
+				p_tdm->id, codec_type);
+			i2s_to_hdmitx_ctrl(separated, p_tdm->id, p_tdm->clk_sel);
+
+			if (codec_type == AUD_CODEC_TYPE_TRUEHD)
+				event_type = AOUT_EVENT_RAWDATA_MAT_MLP;
+			else if (codec_type == AUD_CODEC_TYPE_DTS_HD_MA)
+				event_type = AOUT_EVENT_RAWDATA_DTS_HD_MA;
+			else
+				event_type = AOUT_EVENT_IEC_60958_PCM;
+			iec_get_channel_status_info(&chsts, codec_type,
+				runtime->rate, 0);
+			set_aud_param_ch_status(&chsts, &aud_param);
+			aout_notifier_call_chain(event_type, &aud_param);
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
@@ -2099,12 +2121,14 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	p_tdm->clk_gate = devm_clk_get(&pdev->dev, "gate_out");
 	if (!IS_ERR(p_tdm->clk_gate))
 		clk_prepare_enable(p_tdm->clk_gate);
-	p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
-	if (IS_ERR(p_tdm->pin_ctl)) {
-		dev_info(dev, "aml_tdm_get_pins error!\n");
-		/*return PTR_ERR(p_tdm->pin_ctl);*/
-	}
 
+	if (!p_tdm->i2s2hdmitx) {
+		p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
+		if (IS_ERR(p_tdm->pin_ctl)) {
+			dev_info(dev, "aml_tdm_get_pins error!\n");
+			/*return PTR_ERR(p_tdm->pin_ctl);*/
+		}
+	}
 	ret = of_property_read_u32(node, "start_clk_enable", &p_tdm->start_clk_enable);
 	if (ret < 0)
 		p_tdm->start_clk_enable = 0;
