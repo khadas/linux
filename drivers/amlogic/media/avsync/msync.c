@@ -29,9 +29,10 @@
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_MSYNC
 #include <trace/events/meson_atrace.h>
 
+#define AVS_DEV_NAME_MAX 20
 #define UNIT90K    (90000)
 #define DEFAULT_WALL_ADJ_THRES (UNIT90K / 10) //100ms
-#define MAX_SESSION_NUM 8
+#define MAX_SESSION_NUM 4
 #define CHECK_INTERVAL ((HZ / 10) * 3) //300ms
 #define WAIT_INTERVAL (2 * (HZ)) //2s
 #define TRANSIT_INTERVAL (HZ) //1s
@@ -83,6 +84,9 @@ struct sync_session {
 	struct list_head node;
 	/* mutext for event handling */
 	struct mutex session_mutex;
+	char *class_name;
+	char *device_name;
+	struct device *session_dev;
 	struct class session_class;
 	struct workqueue_struct *wq;
 	char name[16];
@@ -107,7 +111,6 @@ struct sync_session {
 	bool a_active;
 
 	/* pts wrapping */
-	u32 freerun_period;
 	u32 disc_thres_min;
 	u32 disc_thres_max;
 	bool v_disc;
@@ -143,12 +146,11 @@ struct sync_session {
 	struct pts_tri first_apts;
 	struct pts_tri last_apts;
 
-	struct device *session_dev;
 	/* wait queue for poll */
 	wait_queue_head_t poll_wait;
 	u32  event_pending;
 
-	/* start policy timer */
+	/* timers */
 	bool wait_work_on;
 	struct delayed_work wait_work;
 	bool pcr_work_on;
@@ -185,6 +187,7 @@ struct msync {
 	struct list_head head;
 	struct device *msync_dev;
 	u8 id_pool[MAX_SESSION_NUM];
+	struct sync_session *session[MAX_SESSION_NUM];
 
 	/* callback for vout_register_client() */
 	struct notifier_block msync_notifier;
@@ -1936,38 +1939,45 @@ static void free_session(struct sync_session *session)
 
 	msync_dbg(LOG_INFO, "free session[%d]\n", session->id);
 	mutex_lock(&session->session_mutex);
-	if (session->wait_work_on)
+	if (session->wait_work_on) {
 		cancel_delayed_work_sync(&session->wait_work);
-	if (session->transit_work_on)
+		session->wait_work_on = false;
+	}
+	if (session->transit_work_on) {
 		cancel_delayed_work_sync(&session->transit_work);
-	if (session->pcr_work_on)
+		session->transit_work_on = false;
+	}
+	if (session->pcr_work_on) {
 		cancel_delayed_work_sync(&session->pcr_start_work);
-	if (session->audio_change_work_on)
+		session->pcr_work_on = false;
+	}
+	if (session->audio_change_work_on) {
 		cancel_delayed_work_sync(&session->audio_change_work);
-	if (session->pcr_check_work_added)
+		session->audio_change_work_on = false;
+	}
+	if (session->pcr_check_work_added) {
 		cancel_delayed_work_sync(&session->pcr_check_work);
-	if (session->v_check_work_added)
+		session->pcr_check_work_added = false;
+	}
+	if (session->v_check_work_added) {
 		cancel_delayed_work_sync(&session->v_check_work);
-	if (session->a_check_work_added)
+		session->v_check_work_added = false;
+	}
+	if (session->a_check_work_added) {
 		cancel_delayed_work_sync(&session->a_check_work);
+		session->a_check_work_added = false;
+	}
 
 	mutex_unlock(&session->session_mutex);
 
 	if (session->wq) {
 		flush_workqueue(session->wq);
 		destroy_workqueue(session->wq);
+		session->wq = NULL;
 	}
-
-	device_destroy(&session->session_class,
-		MKDEV(AMSYNC_SESSION_MAJOR, session->id));
-	class_unregister(&session->session_class);
-	vfree(session->session_class.name);
-
 	spin_lock_irqsave(&sync.lock, flags);
 	sync.id_pool[session->id] = 0;
 	spin_unlock_irqrestore(&sync.lock, flags);
-
-	vfree(session);
 }
 
 static int session_release(struct inode *inode, struct file *file)
@@ -2159,44 +2169,16 @@ static struct attribute *session_class_attrs[] = {
 };
 ATTRIBUTE_GROUPS(session_class);
 
-#define AVS_DEV_NAME_MAX 20
 static int create_session(u32 id)
 {
 	int r;
 	unsigned long flags;
-	char device_name[AVS_DEV_NAME_MAX];
-	char *class_name = NULL;
 	struct sync_session *session;
 
-	class_name = vmalloc(AVS_DEV_NAME_MAX);
-	if (!class_name) {
-		r = -ENOMEM;
-		goto err;
-	}
-
-	snprintf(device_name, AVS_DEV_NAME_MAX, "avsync_s%d", id);
-	snprintf(class_name, AVS_DEV_NAME_MAX, "avsync_session%d", id);
-
-	session = vzalloc(sizeof(*session));
+	session = sync.session[id];
 	if (!session) {
-		r = -ENOMEM;
-		goto err;
-	}
-	session->session_class.name = class_name;
-	session->session_class.class_groups = session_class_groups;
-
-	r = class_register(&session->session_class);
-	if (r) {
-		msync_dbg(LOG_ERR, "session %d class fail\n", id);
-		goto err2;
-	}
-
-	session->session_dev = device_create(&session->session_class, NULL,
-		MKDEV(AMSYNC_SESSION_MAJOR, id), NULL, device_name);
-	if (IS_ERR(session->session_dev)) {
-		msync_dbg(LOG_ERR, "Can't create avsync_session device %d\n", id);
-		r = -ENXIO;
-		goto err3;
+		msync_dbg(LOG_ERR, "session %d empty\n", id);
+		return -EFAULT;
 	}
 
 	session->wq = alloc_ordered_workqueue("avs_wq",
@@ -2204,15 +2186,22 @@ static int create_session(u32 id)
 	if (!session->wq) {
 		msync_dbg(LOG_ERR, "session %d create wq fail\n", id);
 		r = -EFAULT;
-		goto err4;
+		goto err;
 	}
 
 	session->id = id;
 	atomic_set(&session->refcnt, 1);
 	init_waitqueue_head(&session->poll_wait);
+	session->clock_start = false;
 	session->rate = 1000;
+	session->wall_clock = 0;
+	session->wall_clock_inc_remainer = 0;
 	session->stat = AVS_STAT_INIT;
-	strncpy(session->name, current->comm, sizeof(session->name));
+	session->v_active = session->a_active = false;
+	session->v_disc = session->a_disc = false;
+	session->event_pending = 0;
+	memset(session->name, 0, sizeof(session->name));
+	strncpy(session->name, current->comm, sizeof(session->name) - 1);
 	session->first_vpts.pts = AVS_INVALID_PTS;
 	session->last_vpts.pts = AVS_INVALID_PTS;
 	session->first_apts.pts = AVS_INVALID_PTS;
@@ -2221,12 +2210,24 @@ static int create_session(u32 id)
 	session->lock = __SPIN_LOCK_UNLOCKED(session->lock);
 	session->disc_thres_min = DISC_THRE_MIN;
 	session->disc_thres_max = DISC_THRE_MAX;
+	session->use_pcr = false;
+	session->clk_dev = 0;
 	session->pcr_clock.pts = AVS_INVALID_PTS;
 	session->last_check_apts = AVS_INVALID_PTS;
 	session->last_check_vpts = AVS_INVALID_PTS;
+	session->last_check_vpts_cnt = 0;
+	session->last_check_apts_cnt = 0;
 	session->last_check_pcr_clock = AVS_INVALID_PTS;
 	session->pcr_disc_clock = AVS_INVALID_PTS;
+	session->pcr_init_flag = session->pcr_init_mode = 0;
+	session->pcr_disc_flag = 0;
+	session->pcr_disc_cnt = session->pcr_cont_cnt = 0;
 	session->d_vsync_last = -1;
+	session->v_timeout = session->start_posted = false;
+	session->debug_freerun = session->audio_switching = false;
+	session->debug_vsync = false;
+	session->audio_drop_cnt = 0;
+	session->audio_drop_start = 0;
 	session->start_policy.policy = AMSYNC_START_ASAP;
 	session->start_policy.timeout = WAIT_INTERVAL;
 	INIT_DELAYED_WORK(&session->wait_work, wait_work_func);
@@ -2243,15 +2244,9 @@ static int create_session(u32 id)
 	msync_dbg(LOG_INFO, "av session %d created\n", id);
 	return 0;
 
-err4:
-	device_destroy(&session->session_class,
-		MKDEV(AMSYNC_SESSION_MAJOR, id));
-err3:
-	class_unregister(&session->session_class);
-err2:
-	vfree(session);
 err:
-	vfree(class_name);
+	if (session->wq)
+		destroy_workqueue(session->wq);
 	return r;
 }
 
@@ -2504,9 +2499,29 @@ static struct class msync_class = {
 	.class_groups = msync_class_groups,
 };
 
+static void session_dev_cleanup(void)
+{
+	int i = 0;
+
+	for (i = 0 ; i < MAX_SESSION_NUM ; i++) {
+		struct sync_session *session = sync.session[i];
+
+		if (!session)
+			continue;
+
+		device_destroy(&session->session_class,
+				MKDEV(AMSYNC_SESSION_MAJOR, i));
+		class_unregister(&session->session_class);
+		vfree(session->class_name);
+		vfree(session->device_name);
+		vfree(session);
+		sync.session[i] = NULL;
+	}
+}
+
 int __init msync_init(void)
 {
-	int r = 0;
+	int r = 0, i;
 
 	r = register_chrdev(AMSYNC_MAJOR, "aml_msync", &msync_fops);
 	if (r < 0) {
@@ -2545,7 +2560,52 @@ int __init msync_init(void)
 	vout_register_client(&sync.msync_notifier);
 	sync.ready = true;
 	sync.start_buf_thres = UNIT90K / 5;
+
+	for (i = 0 ; i < MAX_SESSION_NUM ; i++) {
+		struct sync_session *s = NULL;
+
+		sync.session[i] = vzalloc(sizeof(*s));
+		if (!sync.session[i]) {
+			r = -ENOMEM;
+			goto err4;
+		}
+		s = sync.session[i];
+
+		s->class_name = vmalloc(AVS_DEV_NAME_MAX);
+		if (!s->class_name) {
+			r = -ENOMEM;
+			goto err4;
+		}
+		s->device_name = vmalloc(AVS_DEV_NAME_MAX);
+		if (!s->device_name) {
+			r = -ENOMEM;
+			goto err4;
+		}
+
+		snprintf(s->device_name, AVS_DEV_NAME_MAX, "avsync_s%d", i);
+		snprintf(s->class_name, AVS_DEV_NAME_MAX, "avsync_session%d", i);
+
+		s->session_class.name = s->class_name;
+		s->session_class.class_groups = session_class_groups;
+
+		r = class_register(&s->session_class);
+		if (r) {
+			msync_dbg(LOG_ERR, "session %d class fail\n", i);
+			goto err4;
+		}
+
+		s->session_dev = device_create(&s->session_class, NULL,
+				MKDEV(AMSYNC_SESSION_MAJOR, i), NULL, s->device_name);
+		if (IS_ERR(s->session_dev)) {
+			msync_dbg(LOG_ERR, "Can't create avsync_session device %d\n", i);
+			r = -ENXIO;
+			goto err4;
+		}
+	}
+
 	return 0;
+err4:
+	session_dev_cleanup();
 err3:
 	class_unregister(&msync_class);
 err2:
@@ -2557,6 +2617,7 @@ err:
 
 void __exit msync_exit(void)
 {
+	session_dev_cleanup();
 	if (sync.msync_dev) {
 		class_unregister(&msync_class);
 		device_destroy(&msync_class, MKDEV(AMSYNC_MAJOR, 0));
