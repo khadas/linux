@@ -47,10 +47,11 @@ struct dma_heap_attachment {
 	bool uncached;
 };
 
+#define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP)
+#define MID_ORDER_GFP (LOW_ORDER_GFP | __GFP_NOWARN)
 #define HIGH_ORDER_GFP  (((GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN \
 				| __GFP_NORETRY) & ~__GFP_RECLAIM) \
 				| __GFP_COMP)
-#define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP)
 #ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 #define LOW_ORDER_GFP_NO_WARN (GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP | __GFP_NOWARN)
 static gfp_t order_flags[] = {HIGH_ORDER_GFP,
