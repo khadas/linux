@@ -1530,7 +1530,7 @@
 			"hdmi_vapb_clk",
 			"hdmi_vpu_clk";
 		/* refer to sc2-system-registers.docx */
-		interrupts = <0 204 1
+		interrupts = <0 204 4
 			0 197 1>;
 		interrupt-names = "hdmitx_hpd", "viu1_vsync";
 		/* refer to hdmi_tx_module.h */
