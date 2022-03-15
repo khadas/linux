@@ -15828,6 +15828,17 @@ static ssize_t film_grain_store
 	return strnlen(buf, count);
 }
 
+static ssize_t film_grain_support_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 40, "%d\n",
+		((glayer_info[2].fgrain_support ? 1 : 0) << 2) |
+		((glayer_info[1].fgrain_support ? 1 : 0) << 1) |
+		((glayer_info[0].fgrain_support ? 1 : 0) << 0));
+}
+
 static ssize_t pip_alpha_store
 	(struct class *cla,
 	struct class_attribute *attr,
@@ -17632,6 +17643,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       film_grain_show,
 	       film_grain_store),
+	__ATTR_RO(film_grain_support),
 	__ATTR(pq_default,
 	       0664,
 	       pq_default_show,
