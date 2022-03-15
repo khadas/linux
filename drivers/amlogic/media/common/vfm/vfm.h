@@ -22,6 +22,8 @@ int receiver_list(char *buf);
 
 struct vframe_provider_s *vf_get_provider_by_name(const char *provider_name);
 
+int dump_vfm_state(char *buf);
+
 extern int vfm_mode;
 
 extern int vfm_debug_flag;
