@@ -124,6 +124,7 @@ const s32 num_vp9_videos = ARRAY_SIZE(cts_vp9_videos);
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
 #define PRINT_COUNT		0X0002
+#define PRINT_FILE		0X0004
 #define PRINT_OTHER		0X0040
 
 int v4l_print(int index, int debug_flag, const char *fmt, ...)
@@ -250,6 +251,82 @@ static const struct v4lvideo_fmt *get_format(struct v4l2_format *f)
 	return __get_format(f->fmt.pix.pixelformat);
 }
 
+static void init_active_file_list(struct v4lvideo_dev *dev)
+{
+	int i = 0;
+
+	for (i = 0; i < V4LVIDEO_POOL_SIZE; i++) {
+		dev->active_file[i].index = i;
+		atomic_set(&dev->active_file[i].on_use, false);
+		dev->active_file[i].p = NULL;
+	}
+}
+
+static void active_file_list_push(struct v4lvideo_dev *dev,
+			      struct file_private_data *file_private_data)
+{
+	int i;
+
+	for (i = 0; i < V4LVIDEO_POOL_SIZE; i++) {
+		if (!atomic_read(&dev->active_file[i].on_use))
+			break;
+	}
+
+	if (i == V4LVIDEO_POOL_SIZE) {
+		v4l_print(dev->inst, PRINT_ERROR, "active file full!!!\n");
+		return;
+	}
+
+	v4l_print(dev->inst, PRINT_FILE, "active push %d, %p\n",
+		i, file_private_data);
+	atomic_set(&dev->active_file[i].on_use, true);
+	dev->active_file[i].p = file_private_data;
+}
+
+static void active_file_list_pop(struct v4lvideo_dev *dev,
+	struct file_private_data *file_private_data, bool file_release)
+{
+	int i = 0;
+
+	for (i = 0; i < V4LVIDEO_POOL_SIZE; i++) {
+		if (atomic_read(&dev->active_file[i].on_use) &&
+			dev->active_file[i].p == file_private_data) {
+			dev->active_file[i].p = NULL;
+			atomic_set(&dev->active_file[i].on_use, false);
+			break;
+		}
+	}
+	v4l_print(dev->inst, PRINT_FILE, "active pop %d, %p\n",
+		i, file_private_data);
+
+	if (!file_release && i == V4LVIDEO_POOL_SIZE) {
+		v4l_print(dev->inst, PRINT_ERROR, "file not in active list\n");
+		return;
+	}
+}
+
+static bool active_file_list_check(struct v4lvideo_dev *dev,
+	struct file_private_data *file_private_data)
+{
+	int i = 0;
+
+	v4l_print(dev->inst, PRINT_FILE, "active check %p\n",
+		file_private_data);
+
+	for (i = 0; i < V4LVIDEO_POOL_SIZE; i++) {
+		if (atomic_read(&dev->active_file[i].on_use) &&
+			dev->active_file[i].p == file_private_data) {
+			v4l_print(dev->inst, PRINT_FILE,
+				"active pop ok i=%d\n", i);
+			return true;
+		}
+	}
+
+	v4l_print(dev->inst, PRINT_FILE, "active check: freed\n");
+
+	return false;
+}
+
 static void video_keeper_keep_mem(void *mem_handle, int type, int *id)
 {
 	int ret;
@@ -356,8 +433,7 @@ static void vf_keep(struct v4lvideo_dev *dev,
 		return;
 	}
 
-	/*Avoid use freed file_private_data*/
-	if (v4lvideo_file->private_data_freed) {
+	if (!active_file_list_check(dev, file_private_data)) {
 		vf_p = NULL;
 		v4l_print(dev->inst, PRINT_OTHER,
 			"keep, but private has been freed\n");
@@ -1245,17 +1321,15 @@ static void v4lvideo_private_data_release(struct file_private_data *data)
 	v4lvideo_file = (struct v4lvideo_file_s *)data->private;
 	if (v4lvideo_file)
 		dev = v4lvideo_file->dev;
-
 	if (data->is_keep)
 		vf_free(data);
 	v4lvideo_release_sei_data(&data->vf);
 
 	if (dev) {
 		mutex_lock(&dev->mutex_input);
-		v4lvideo_file->private_data_freed = true;
+		active_file_list_pop(dev, data, true);
 		mutex_unlock(&dev->mutex_input);
 	}
-
 	if (data->md.p_md) {
 		vfree(data->md.p_md);
 		data->md.p_md = NULL;
@@ -1723,7 +1797,6 @@ static void push_to_display_q(struct v4lvideo_dev *dev,
 	dev->v4lvideo_file[i].vf_type = file_private_data->vf_p->type;
 	dev->v4lvideo_file[i].inst_id = file_private_data->v4l_inst_id;
 	dev->v4lvideo_file[i].dev = dev;
-	dev->v4lvideo_file[i].private_data_freed = false;
 
 	v4l2q_push(&dev->display_queue, &dev->v4lvideo_file[i]);
 }
@@ -1793,6 +1866,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 			vf_free(file_private_data);
 		} else {
 			if (pop_specific_from_display_q(dev, v4lvideo_file)) {
+				active_file_list_pop(dev, file_private_data, false);
 				if (dev->receiver_register) {
 					if (flag & V4LVIDEO_FLAG_DI_DEC)
 						vf_p = vf_ext_p;
@@ -2057,6 +2131,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	//pr_err("dqbuf: file_private_data=%p, vf=%p\n", file_private_data, vf);
 
 	push_to_display_q(dev, file_private_data);
+	active_file_list_push(dev, file_private_data);
 
 	fput(file_vf);
 	mutex_unlock(&dev->mutex_input);
@@ -2208,6 +2283,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dev->frame_num = 0;
 		dev->first_frame = 0;
 		dev->last_pts_us64 = U64_MAX;
+		init_active_file_list(dev);
 		mutex_unlock(&dev->mutex_input);
 		get_count[inst_id] = 0;
 		put_count[inst_id] = 0;

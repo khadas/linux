@@ -208,7 +208,12 @@ struct v4lvideo_file_s {
 	bool free_before_unreg;
 	u32 inst_id;
 	struct v4lvideo_dev *dev;
-	bool private_data_freed;
+};
+
+struct v4lvideo_active_file {
+	int index;
+	atomic_t on_use;
+	struct file_private_data *p;
 };
 
 struct v4lvideo_dev {
@@ -244,6 +249,7 @@ struct v4lvideo_dev {
 	char *provider_name;
 	struct v4lvideo_file_s v4lvideo_file[V4LVIDEO_POOL_SIZE];
 	bool opened;
+	struct v4lvideo_active_file active_file[V4LVIDEO_POOL_SIZE];
 };
 
 enum vframe_source_type {
