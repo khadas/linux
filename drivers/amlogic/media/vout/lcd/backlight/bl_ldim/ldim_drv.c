@@ -609,6 +609,17 @@ static void ldim_time_sort_save(unsigned long long *table,
 static void ldim_on_vs_brightness(void);
 static void ldim_off_vs_brightness(void);
 
+atomic_t ldim_inirq_flag = ATOMIC_INIT(0);
+
+int is_in_ldim_vsync_isr(void)
+{
+	if (atomic_read(&ldim_inirq_flag) > 0)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(is_in_ldim_vsync_isr);
+
 static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 {
 	unsigned long long local_time[3];
@@ -616,6 +627,7 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 
 	if (ldim_driver.init_on_flag == 0 && ldim_driver.func_en == 0)
 		return IRQ_HANDLED;
+	atomic_set(&ldim_inirq_flag, 1);
 
 	spin_lock_irqsave(&ldim_isr_lock, flags);
 
@@ -642,6 +654,7 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 	ldim_driver.in_vsync_flag = 0;
 
 	spin_unlock_irqrestore(&ldim_isr_lock, flags);
+	atomic_set(&ldim_inirq_flag, 0);
 
 	return IRQ_HANDLED;
 }

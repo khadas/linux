@@ -38,7 +38,7 @@
 
 #define RDMA_NUM  5
 static int second_rdma_feature;
-static int vsync_rdma_handle[RDMA_NUM];
+int vsync_rdma_handle[RDMA_NUM];
 static int irq_count[RDMA_NUM];
 static int enable[RDMA_NUM];
 static int cur_enable[RDMA_NUM];

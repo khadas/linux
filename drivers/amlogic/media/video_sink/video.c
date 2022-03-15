@@ -10932,6 +10932,15 @@ static int free_layer(u32 layer_id)
 	return ret;
 }
 
+int is_in_vsync_isr(void)
+{
+	if (atomic_read(&video_inirq_flag) > 0)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(is_in_vsync_isr);
+
 /*********************************************************
  * /dev/amvideo APIs
  ********************************************************
