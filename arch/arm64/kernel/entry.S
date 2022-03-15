@@ -381,6 +381,9 @@ alternative_else_nop_endif
 	ldp	x24, x25, [sp, #16 * 12]
 	ldp	x26, x27, [sp, #16 * 13]
 	ldp	x28, x29, [sp, #16 * 14]
+
+	.if	\el == 0
+alternative_if_not ARM64_UNMAP_KERNEL_AT_EL0
 	ldr	lr, [sp, #S_LR]
 #ifdef CONFIG_AMLOGIC_VMAP
 	/* restore context sp and per-cpu vmap stack */
@@ -395,12 +398,11 @@ alternative_else_nop_endif
 	.endif
 #endif /* CONFIG_AMLOGIC_VMAP */
 	add	sp, sp, #S_FRAME_SIZE		// restore sp
-
-	.if	\el == 0
-alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
+	eret
+alternative_else_nop_endif
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	bne	5f
-	msr	far_el1, x30
+	msr	far_el1, x29
 	tramp_alias	x30, tramp_exit_native
 	br	x30
 5:
@@ -408,6 +410,20 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 	br	x30
 #endif
 	.else
+	ldr	lr, [sp, #S_LR]
+#ifdef CONFIG_AMLOGIC_VMAP
+	/* restore context sp and per-cpu vmap stack */
+	.if	\swap == 1
+	stp	x19, x20, [sp]
+	mov	x20, sp
+	add	x19, x20, #S_FRAME_SIZE
+	msr	DBGWVR3_EL1, x19
+	mrs	x19, DBGWVR2_EL1
+	mov	sp,  x19
+	ldp	x19, x20, [x20]
+	.endif
+#endif /* CONFIG_AMLOGIC_VMAP */
+	add	sp, sp, #S_FRAME_SIZE		// restore sp
 	eret
 	.endif
 	sb
@@ -1257,10 +1273,12 @@ alternative_else_nop_endif
 	.macro tramp_exit, regsize = 64
 	adr	x30, tramp_vectors
 	msr	vbar_el1, x30
-	tramp_unmap_kernel	x30
+	ldr	lr, [sp, #S_LR]
+	tramp_unmap_kernel	x29
 	.if	\regsize == 64
-	mrs	x30, far_el1
+	mrs	x29, far_el1
 	.endif
+	add	sp, sp, #S_FRAME_SIZE		// restore sp
 	eret
 	sb
 	.endm
