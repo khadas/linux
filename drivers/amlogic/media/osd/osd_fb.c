@@ -4589,6 +4589,7 @@ static struct osd_device_hw_s legcy_dev_property = {
 	.path_ctrl_independ = 0,
 	.remove_afbc = 0,
 	.remove_pps = 0,
+	.prevsync_support = 0,
 };
 
 static struct osd_device_hw_s t7_dev_property = {
@@ -4600,6 +4601,7 @@ static struct osd_device_hw_s t7_dev_property = {
 	.path_ctrl_independ = 0,
 	.remove_afbc = 0,
 	.remove_pps = 0,
+	.prevsync_support = 0,
 };
 
 static struct osd_device_hw_s t3_dev_property = {
@@ -4611,6 +4613,7 @@ static struct osd_device_hw_s t3_dev_property = {
 	.path_ctrl_independ = 1,
 	.remove_afbc = 0,
 	.remove_pps = 0,
+	.prevsync_support = 1,
 };
 
 static struct osd_device_hw_s t5w_dev_property = {
@@ -4622,6 +4625,7 @@ static struct osd_device_hw_s t5w_dev_property = {
 	.path_ctrl_independ = 1,
 	.remove_afbc = 3,
 	.remove_pps = 3,
+	.prevsync_support = 0,
 };
 
 static struct osd_device_data_s osd_s4 = {
