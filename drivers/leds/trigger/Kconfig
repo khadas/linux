@@ -49,6 +49,15 @@ config LEDS_TRIGGER_MTD
 	  This allows LEDs to be controlled by MTD activity.
 	  If unsure, say N.
 
+config LEDS_TRIGGER_OFF
+    tristate "LED Off Trigger"
+       depends on LEDS_TRIGGERS
+       help
+       This allows LEDs to be initialised in the OFF state.
+       Switch the mode, the LEDs is alway off.
+       For more details read Documentation/leds/leds-class.txt.
+       If unsure, say Y.
+
 config LEDS_TRIGGER_HEARTBEAT
 	tristate "LED Heartbeat Trigger"
 	depends on LEDS_TRIGGERS
