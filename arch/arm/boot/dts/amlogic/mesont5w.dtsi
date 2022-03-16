@@ -595,7 +595,7 @@
 			ranges;
 
 			gpio_analog: analog-bank@ff63448c {
-				reg = <0xff634480 0x4>,
+				reg = <0xff64e08c 0x4>,
 				      <0xff63448c 0x8>;
 				reg-names = "mux", "gpio";
 				gpio-controller;
@@ -614,7 +614,7 @@
 				reg = <0xff6346c0 0xb0>,
 				      <0xff6344e8 0x18>,
 				      <0xff634520 0x18>,
-				      <0xff634440 0x3c>;
+				      <0xff634440 0x4c>;
 				reg-names = "mux",
 					"pull",
 					"pull-enable",
