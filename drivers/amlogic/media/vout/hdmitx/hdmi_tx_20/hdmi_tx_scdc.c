@@ -66,8 +66,8 @@ int scdc_status_flags(struct hdmitx_dev *hdev)
 		scdc_rd_sink(STATUS_FLAGS_0, &locked_st);
 		hdev->chlocked_st.clock_detected = locked_st & (1 << 0);
 		hdev->chlocked_st.ch0_locked = !!(locked_st & (1 << 1));
-		hdev->chlocked_st.ch1_locked = !!(locked_st & (2 << 1));
-		hdev->chlocked_st.ch2_locked = !!(locked_st & (3 << 1));
+		hdev->chlocked_st.ch1_locked = !!(locked_st & (1 << 2));
+		hdev->chlocked_st.ch2_locked = !!(locked_st & (1 << 3));
 	}
 	if (st & CED_UPDATE)
 		scdc_ced_cnt(hdev);
