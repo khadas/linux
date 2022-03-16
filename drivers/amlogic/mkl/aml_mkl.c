@@ -421,7 +421,7 @@ static int aml_mkl_remove(struct platform_device *pdev)
 
 static const struct of_device_id aml_mkl_dt_ids[] = {
 	{
-		.compatible = "amlogic, aml_mkl",
+		.compatible = "amlogic,aml_mkl",
 	},
 	{}
 };
