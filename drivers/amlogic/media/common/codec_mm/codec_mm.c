@@ -992,12 +992,12 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 	if (index == 0) {
 		struct codec_mm_cb_s *cur, *tmp;
 		list_del(&mem->list);
+		spin_unlock_irqrestore(&mgt->lock, flags);
 		list_for_each_entry_safe(cur,
 			tmp, &mem->release_cb_list, node) {
 			list_del_init(&cur->node);
 			cur->func(mem, cur);
 		}
-		spin_unlock_irqrestore(&mgt->lock, flags);
 		codec_mm_free_in(mgt, mem);
 		kfree(mem);
 		return;
