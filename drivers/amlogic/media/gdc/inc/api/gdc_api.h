@@ -127,34 +127,6 @@ enum {
 	GDC_BUFF_TYPE_MAX
 };
 
-/* format type and format bit width mask
- * example: (NV12 | BIT_16) means nv12 16bit.
- */
-#define FORMAT_TYPE_MASK  0xffff
-#define FORMAT_IN_BITW_MASK   0x0f0000
-#define FORMAT_OUT_BITW_MASK  0xf00000
-
-enum {
-	NV12 = 1,
-	YV12,
-	Y_GREY,
-	YUV444_P,
-	RGB444_P,
-	FMT_MAX
-};
-
-enum {
-	IN_BITW_8   = 0, /* default input bit width */
-	IN_BITW_10  = (1 << 16),
-	IN_BITW_12  = (1 << 17),
-	IN_BITW_16  = (1 << 18),
-
-	OUT_BITW_8  = 0, /* default output bit width */
-	OUT_BITW_10 = (1 << 20),
-	OUT_BITW_12 = (1 << 21),
-	OUT_BITW_16 = (1 << 22)
-};
-
 enum {
 	EQUISOLID = 1,
 	CYLINDER,

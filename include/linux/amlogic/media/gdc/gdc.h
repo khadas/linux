@@ -142,11 +142,34 @@ struct gdc_context_s {
 	spinlock_t lock; /* for get and release item. */
 };
 
-/*
- * two ways to load config bin.
- * 1. loaded already, set use_builtin_fw 0, set config_paddr and config_size.
- * 2. load through gdc driver, set use_builtin_fw 1, set config_name.
+/* format type and format bit width mask
+ * example: (NV12 | BIT_16) means nv12 16bit.
  */
+#define FORMAT_TYPE_MASK  0xffff
+#define FORMAT_IN_BITW_MASK   0x0f0000
+#define FORMAT_OUT_BITW_MASK  0xf00000
+
+enum {
+	NV12 = 1,
+	YV12,
+	Y_GREY,
+	YUV444_P,
+	RGB444_P,
+	FMT_MAX
+};
+
+enum {
+	IN_BITW_8   = 0, /* default input bit width */
+	IN_BITW_10  = (1 << 16),
+	IN_BITW_12  = (1 << 17),
+	IN_BITW_16  = (1 << 18),
+
+	OUT_BITW_8  = 0, /* default output bit width */
+	OUT_BITW_10 = (1 << 20),
+	OUT_BITW_12 = (1 << 21),
+	OUT_BITW_16 = (1 << 22)
+};
+
 struct gdc_phy_setting {
 	u32 format;
 	u32 in_width;
@@ -163,9 +186,13 @@ struct gdc_phy_setting {
 	ulong out_paddr[GDC_MAX_PLANE];
 	ulong config_paddr;
 	u32 config_size; /* in 32bit */
-	u32 use_builtin_fw;
 	u32 use_sec_mem; /* secure mem access */
-	char config_name[CONFIG_PATH_LENG];
+};
+
+struct firmware_load_s {
+	u32 size_32bit;
+	phys_addr_t phys_addr;
+	void __iomem *virt_addr;
 };
 
 bool is_gdc_supported(void);
@@ -174,5 +201,7 @@ struct gdc_context_s *create_gdc_work_queue(u32 dev_type);
 int gdc_process_phys(struct gdc_context_s *context,
 		     struct gdc_phy_setting *gs);
 int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue);
+void release_config_firmware(struct firmware_load_s *fw_load);
+int load_firmware_by_name(char *fw_name, struct firmware_load_s *fw_load);
 
 #endif

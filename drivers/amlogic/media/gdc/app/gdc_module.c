@@ -970,31 +970,36 @@ unlock_return:
 	return ret;
 }
 
-static void release_config_firmware(struct fw_info_s *fw_info,
-				    struct gdc_config_s *gdc_config,
-				    u32 dev_type)
+void release_config_firmware(struct firmware_load_s *fw_load)
 {
 	struct device *dev = NULL;
 
-	if (!fw_info || !gdc_config) {
+	if (!fw_load) {
 		gdc_log(LOG_ERR, "NULL param, %s (%d)\n", __func__, __LINE__);
 		return;
 	}
 
-	dev = GDC_DEVICE(dev_type);
+	if (is_aml_gdc_supported()) {
+		dev = GDC_DEVICE(AML_GDC);
+	} else if (is_gdc_supported()) {
+		dev = GDC_DEVICE(ARM_GDC);
+	} else {
+		gdc_log(LOG_ERR, "HW is not supported %s (%d)\n",
+			__func__, __LINE__);
+		return;
+	}
 
-	if (fw_info->virt_addr &&
-	    gdc_config->config_size && gdc_config->config_addr) {
+	if (fw_load->virt_addr &&
+	    fw_load->size_32bit && fw_load->phys_addr) {
 		dma_free_coherent(dev,
-				  gdc_config->config_size * 4,
-				  fw_info->virt_addr,
-				  gdc_config->config_addr);
+				  fw_load->size_32bit * 4,
+				  fw_load->virt_addr,
+				  fw_load->phys_addr);
 	}
 }
+EXPORT_SYMBOL(release_config_firmware);
 
-static int load_firmware_by_name(struct fw_info_s *fw_info,
-				 struct gdc_config_s *gdc_config,
-				 u32 dev_type, phys_addr_t *fw_paddr)
+int load_firmware_by_name(char *fw_name, struct firmware_load_s *fw_load)
 {
 	int ret = -1;
 	const struct firmware *fw = NULL;
@@ -1003,14 +1008,22 @@ static int load_firmware_by_name(struct fw_info_s *fw_info,
 	phys_addr_t phys_addr = 0;
 	struct device *dev = NULL;
 
-	if (!fw_info || !fw_info->fw_name || !gdc_config) {
+	if (!fw_name || !fw_load) {
 		gdc_log(LOG_ERR, "NULL param, %s (%d)\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
-	dev = GDC_DEVICE(dev_type);
+	if (is_aml_gdc_supported()) {
+		dev = GDC_DEVICE(AML_GDC);
+	} else if (is_gdc_supported()) {
+		dev = GDC_DEVICE(ARM_GDC);
+	} else {
+		gdc_log(LOG_ERR, "HW is not supported %s (%d)\n",
+			__func__, __LINE__);
+		return -ENODEV;
+	}
 
-	gdc_log(LOG_DEBUG, "Try to load %s  ...\n", fw_info->fw_name);
+	gdc_log(LOG_DEBUG, "Try to load %s  ...\n", fw_name);
 
 	path = kzalloc(CONFIG_PATH_LENG, GFP_KERNEL);
 	if (!path) {
@@ -1018,7 +1031,7 @@ static int load_firmware_by_name(struct fw_info_s *fw_info,
 		return -ENOMEM;
 	}
 	snprintf(path, (CONFIG_PATH_LENG - 1), "%s/%s",
-		 FIRMWARE_DIR, fw_info->fw_name);
+		 FIRMWARE_DIR, fw_name);
 
 	ret = request_firmware(&fw, path, dev);
 	if (ret < 0) {
@@ -1044,12 +1057,9 @@ static int load_firmware_by_name(struct fw_info_s *fw_info,
 
 	memcpy(virt_addr, (char *)fw->data, fw->size);
 
-	gdc_config->config_addr = phys_addr;
-	gdc_config->config_size = fw->size / 4;
-	fw_info->virt_addr = virt_addr;
-
-	if (fw_paddr)
-		*fw_paddr = phys_addr;
+	fw_load->size_32bit = fw->size / 4;
+	fw_load->phys_addr = phys_addr;
+	fw_load->virt_addr = virt_addr;
 
 	gdc_log(LOG_DEBUG,
 		"current firmware virt_addr: 0x%p, fw->data: 0x%p.\n",
@@ -1064,6 +1074,7 @@ release:
 
 	return ret;
 }
+EXPORT_SYMBOL(load_firmware_by_name);
 
 int gdc_process_with_fw(struct gdc_context_s *context,
 			struct gdc_settings_with_fw *gs_with_fw)
@@ -1072,6 +1083,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 	struct gdc_cmd_s *gdc_cmd = &context->cmd;
 	char *fw_name = NULL;
 	struct gdc_queue_item_s *pitem = NULL;
+	struct firmware_load_s  fw_load;
 
 	if (!context || !gs_with_fw) {
 		gdc_log(LOG_ERR, "Error input param\n");
@@ -1146,7 +1158,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 		default:
 			gdc_log(LOG_ERR, "unsupported gdc format\n");
 			ret = -EINVAL;
-			goto release_fw;
+			goto release_fw_name;
 		}
 		snprintf(in_info, (64 - 1), "%d_%d_%d_%d_%d_%d",
 			 in->with, in->height,
@@ -1200,7 +1212,7 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 			} else {
 				gdc_log(LOG_ERR, "custom fw_name is NULL\n");
 				ret = -EINVAL;
-				goto release_fw;
+				goto release_fw_name;
 			}
 			break;
 		case AFFINE:
@@ -1213,25 +1225,23 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 		default:
 			gdc_log(LOG_ERR, "unsupported FW type\n");
 			ret = -EINVAL;
-			goto release_fw;
+			goto release_fw_name;
 		}
 
 		gs_with_fw->fw_info.fw_name = fw_name;
 	}
-	ret = load_firmware_by_name(&gs_with_fw->fw_info,
-				    &gs_with_fw->gdc_config,
-				    context->cmd.dev_type, NULL);
+
+	ret = load_firmware_by_name(gs_with_fw->fw_info.fw_name,
+				    &fw_load);
 	if (ret <= 0) {
 		gdc_log(LOG_ERR, "line %d,load FW %s failed\n",
 			__LINE__, gs_with_fw->fw_info.fw_name);
 		ret = -EINVAL;
-		goto release_fw;
+		goto release_fw_name;
 	}
 
-	gdc_cmd->gdc_config.config_addr =
-		gs_with_fw->gdc_config.config_addr;
-	gdc_cmd->gdc_config.config_size =
-		gs_with_fw->gdc_config.config_size;
+	gdc_cmd->gdc_config.config_addr = fw_load.phys_addr;
+	gdc_cmd->gdc_config.config_size = fw_load.size_32bit;
 
 	/* set block mode */
 	context->cmd.wait_done_flag = 1;
@@ -1244,13 +1254,11 @@ int gdc_process_with_fw(struct gdc_context_s *context,
 	}
 	mutex_unlock(&context->d_mutext);
 	gdc_wq_add_work(context, pitem);
-	release_config_firmware(&gs_with_fw->fw_info, &gs_with_fw->gdc_config,
-				context->cmd.dev_type);
+	release_config_firmware(&fw_load);
 	kfree(fw_name);
 	return 0;
 release_fw:
-	release_config_firmware(&gs_with_fw->fw_info, &gs_with_fw->gdc_config,
-				context->cmd.dev_type);
+	release_config_firmware(&fw_load);
 
 release_fw_name:
 	mutex_unlock(&context->d_mutext);
@@ -1354,12 +1362,13 @@ int gdc_process_phys(struct gdc_context_s *context,
 	gdc_cmd->gdc_config.output_height = o_height;
 	gdc_cmd->gdc_config.output_y_stride = o_y_stride;
 	gdc_cmd->gdc_config.output_c_stride = o_c_stride;
-	if (!gs->use_builtin_fw) {
-		gdc_cmd->gdc_config.config_addr = gs->config_paddr;
-		gdc_cmd->gdc_config.config_size = gs->config_size;
-	}
+	gdc_cmd->gdc_config.config_addr = (u32)gs->config_paddr;
+	gdc_cmd->gdc_config.config_size = gs->config_size;
 	gdc_cmd->outplane = gs->out_plane_num;
 	gdc_cmd->use_sec_mem = gs->use_sec_mem;
+
+	/* set config_paddr MSB val */
+	context->dma_cfg.config_cfg.paddr_8g_msb = (u64)gs->config_paddr >> 32;
 
 	/* output_addr */
 	plane_number = gs->out_plane_num;
@@ -1435,43 +1444,16 @@ int gdc_process_phys(struct gdc_context_s *context,
 			i, gs->in_paddr[i]);
 	}
 
-	/* config_addr */
-	if (gs->use_builtin_fw) {
-		phys_addr_t fw_paddr;
-
-		fw_info.fw_name = gs->config_name;
-		ret = load_firmware_by_name(&fw_info, &gdc_cmd->gdc_config,
-					    context->cmd.dev_type, &fw_paddr);
-		if (ret <= 0) {
-			gdc_log(LOG_DEBUG, "line %d,load FW %s failed\n",
-				__LINE__, fw_info.fw_name);
-			mutex_unlock(&context->d_mutext);
-			return -EINVAL;
-		}
-		/* set MSB val */
-		context->dma_cfg.config_cfg.paddr_8g_msb =
-							(u64)fw_paddr >> 32;
-	} else {
-		/* set MSB val */
-		context->dma_cfg.config_cfg.paddr_8g_msb =
-						(u64)gs->config_paddr >> 32;
-	}
-
 	/* set block mode */
 	context->cmd.wait_done_flag = 1;
 	pitem = gdc_prepare_item(context);
 	if (!pitem) {
 		gdc_log(LOG_ERR, "get item error\n");
-		ret = -ENOMEM;
 		mutex_unlock(&context->d_mutext);
-		goto release_fw;
+		return -ENOMEM;
 	}
 	mutex_unlock(&context->d_mutext);
 	gdc_wq_add_work(context, pitem);
-release_fw:
-	if (gs->use_builtin_fw)
-		release_config_firmware(&fw_info, &gdc_cmd->gdc_config,
-					context->cmd.dev_type);
 
 	return ret;
 }
