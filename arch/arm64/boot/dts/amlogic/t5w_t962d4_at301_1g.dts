@@ -88,7 +88,7 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x0f800000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -98,7 +98,7 @@
 			size = <0x0 0x11000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x20000000 0x0 0x1f800000>;
+			alloc-ranges = <0x0 0x07400000 0x0 0x11000000>;
 		};
 
 		demod_cma_reserved:linux,demod_cma {
@@ -107,7 +107,7 @@
 			/* 40M */
 			size = <0x0 0x02800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x0f800000>;
 		};
 
 		/*di CMA pool */
@@ -146,7 +146,7 @@
 			 */
 			size = <0x0 0x00400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x0f800000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -155,7 +155,7 @@
 			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x0f800000>;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -163,7 +163,7 @@
 			reusable;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x0f800000>;
 		};
 	};
 
@@ -1259,7 +1259,7 @@
 	 ***************************************************/
 	//clock-range = <334 667>;
 	/***************************************************
-	 * en_4k: dissable 4K
+	 * en_4k: disable 4K
 	 ***************************************************/
 	en_4k = <0>;
 	//keep_dec_vf = <2>;
@@ -1276,7 +1276,7 @@
 	 * bit 1: for 1080p
 	 ***************************************************/
 	alloc_sct = <0>;
-	en_dat	= <0>;
+	en_dat = <0>;
 	/***************************************************
 	 * hf: default is 0 (T7/T3/SC2/S4 new path)
 	 * 0:not enable;
