@@ -987,14 +987,15 @@
 				"pdm_sysclk";
 
 			pinctrl-names = "pdm_pins";
-			pinctrl-0 = <&pdm_din0_z_pins
-					&pdm_din1_z_pins
-					&pdm_din2_z_pins
-					&pdm_din3_z_pins
-					&pdm_dclk_z_pins>;
+			pinctrl-0 = <&pdm_din0_a_pins
+					&pdm_din1_a_pins
+					&pdm_din2_a_pins
+					&pdm_din3_a_pins
+					&pdm_dclk_a_pins>;
 
 			/* mode 0~4, defalut:1 */
 			filter_mode = <1>;
+			train_sample_count = <0x2>;
 
 			status = "okay";
 		};
