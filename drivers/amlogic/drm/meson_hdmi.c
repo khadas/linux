@@ -1082,9 +1082,18 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (hdmitx_state->color_force) {
-		if (!meson_hdmitx_test_color_attr(meson_crtc_state,
-			hdmitx_state, attr))
+		u8 max_bpc = hdmitx_state->base.max_bpc;
+		char attr_char[16];
+		char *name = meson_crtc_state->base.adjusted_mode.name;
+
+		build_hdmitx_attr_str(attr_char, attr->colorformat, attr->bitdepth);
+		if (attr->bitdepth <= max_bpc &&
+			am_hdmi_info.hdmitx_dev->test_attr(name, attr_char)) {
+			DRM_INFO("color property setting successfully\n");
+		} else {
 			hdmitx_state->color_force = false;
+			DRM_INFO("color property setting failed\n");
+		}
 	}
 
 	if (!hdmitx_state->color_force) {
