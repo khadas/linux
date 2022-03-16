@@ -344,6 +344,14 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			mode->hsync_end = timing->h_active + timing->h_front + timing->h_sync;
 
 			mode->htotal = timing->h_total;
+			/* for 480i/576i, horizontal timing is repeated */
+			if (hdmi_para->pixel_repetition_factor == 1) {
+				mode->hdisplay >>= 1;
+				mode->hsync_start >>= 1;
+				mode->hsync_end >>= 1;
+				mode->htotal >>= 1;
+			}
+
 			mode->hskew = 0;
 			mode->flags |= timing->hsync_polarity ?
 				DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
