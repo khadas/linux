@@ -55,6 +55,22 @@ struct gpio_keypad {
 	struct input_dev *input_dev;
 };
 
+static struct input_dev *g_input_dev;
+void send_power_key(int state)
+{
+	if (!g_input_dev)
+		return;
+	if (state) {
+		input_report_key(g_input_dev, KEY_POWER, 1);
+		input_sync(g_input_dev);
+	} else {
+		input_report_key(g_input_dev, KEY_POWER, 0);
+		input_sync(g_input_dev);
+	}
+}
+
+EXPORT_SYMBOL(send_power_key);
+
 static irqreturn_t gpio_irq_handler(int irq, void *data)
 {
 	struct gpio_keypad *keypad;
@@ -252,6 +268,7 @@ static int meson_gpio_kp_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, keypad);
 	keypad->count = 0;
 	keypad->index = -1;
+	g_input_dev = input_dev;
 	setup_timer(&(keypad->polling_timer),
 		polling_timer_handler, (unsigned long) keypad);
 
