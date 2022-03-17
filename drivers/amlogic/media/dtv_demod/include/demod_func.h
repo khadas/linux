@@ -276,6 +276,11 @@ void demod_dvbc_set_qam(struct aml_dtvdemod *demod, unsigned int qam);
 void dvbc_init_reg_ext(struct aml_dtvdemod *demod);
 u32 dvbc_get_ch_sts(struct aml_dtvdemod *demod);
 u32 dvbc_get_qam_mode(struct aml_dtvdemod *demod);
+void dvbc_cfg_sr_cnt(struct aml_dtvdemod *demod, bool force);
+void dvbc_cfg_sr_scan_speed(struct aml_dtvdemod *demod, bool force);
+void dvbc_cfg_tim_sweep_range(struct aml_dtvdemod *demod, bool force);
+void dvbc_cfg_sw_hw_sr_max(struct aml_dtvdemod *demod, unsigned int max_sr);
+unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod);
 
 /* dtmb */
 

@@ -15,6 +15,7 @@ enum qam_md_e {
 	QAM_MODE_NUM
 };
 
+#define QAM_MODE_CFG		0x2
 #define SYMB_CNT_CFG		0x3
 #define SR_OFFSET_ACC		0x8
 #define SR_SCAN_SPEED		0xc

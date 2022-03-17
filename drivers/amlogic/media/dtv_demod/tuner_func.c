@@ -18,7 +18,7 @@ void tuner_set_params(struct dvb_frontend *fe)
 	if (fe->ops.tuner_ops.set_params)
 		ret = fe->ops.tuner_ops.set_params(fe);
 	else
-		PR_ERR("error: no tuner");
+		PR_ERR("error: no tuner, set_params == NULL.\n");
 }
 
 int tuner_get_ch_power(struct dvb_frontend *fe)
