@@ -4044,6 +4044,16 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct xhci_virt_ep *xep;
 	int frame_id;
 
+#ifdef CONFIG_AMLOGIC_USB
+	u64 event_data_ptr;
+
+	if ((xhci->quirks & XHCI_CRG_DRD) || (xhci->quirks & XHCI_CRG_HOST))
+		if ((le16_to_cpu(urb->dev->descriptor.bDeviceClass) == 0xef) &&
+			urb->dev->speed >= USB_SPEED_SUPER) {
+			urb->need_event_data_flag = 1;
+		}
+#endif
+
 	xep = &xhci->devs[slot_id]->eps[ep_index];
 	ep_ring = xhci->devs[slot_id]->eps[ep_index].ring;
 
@@ -4080,6 +4090,10 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 		trbs_per_td = count_isoc_trbs_needed(urb, i);
 
+#ifdef CONFIG_AMLOGIC_USB
+		if (urb->need_event_data_flag)
+			trbs_per_td++;
+#endif
 		ret = prepare_transfer(xhci, xhci->devs[slot_id], ep_index,
 				urb->stream_id, trbs_per_td, urb, i, mem_flags);
 		if (ret < 0) {
@@ -4124,6 +4138,14 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			if (usb_urb_dir_in(urb))
 				field |= TRB_ISP;
 
+#ifdef CONFIG_AMLOGIC_USB
+			if ((j == (trbs_per_td - 2)) &&
+				urb->need_event_data_flag)
+				event_data_ptr = ep_ring->enq_seg->dma +
+					(le64_to_cpu((long)ep_ring->enqueue) -
+					le64_to_cpu((long)ep_ring->enq_seg->trbs));
+#endif
+
 			/* Set the chain bit for all except the last TRB  */
 			if (j < trbs_per_td - 1) {
 				more_trbs_coming = true;
@@ -4131,7 +4153,15 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 			} else {
 				more_trbs_coming = false;
 				td->last_trb = ep_ring->enqueue;
+#ifdef CONFIG_AMLOGIC_USB
+				if (urb->need_event_data_flag)
+					field = TRB_TYPE(TRB_EVENT_DATA) |
+						ep_ring->cycle_state | TRB_IOC;
+				else
+					field |= TRB_IOC;
+#else
 				field |= TRB_IOC;
+#endif
 				/* set BEI, except for the last TD */
 				if (xhci->hci_version >= 0x100 &&
 				    !(xhci->quirks & XHCI_AVOID_BEI) &&
@@ -4158,6 +4188,18 @@ static int xhci_queue_isoc_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 				length_field |= TRB_TD_SIZE(remainder);
 			first_trb = false;
 
+#ifdef CONFIG_AMLOGIC_USB
+			if (urb->need_event_data_flag &&
+				(j == (trbs_per_td - 1))) {
+				addr = event_data_ptr;
+				/* amlogic fix */
+				wmb();
+				/* amlogic fix */
+				wmb();
+				/* amlogic fix */
+				wmb();
+			}
+#endif
 			queue_trb(xhci, ep_ring, more_trbs_coming,
 				lower_32_bits(addr),
 				upper_32_bits(addr),

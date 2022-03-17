@@ -1635,6 +1635,7 @@ struct urb {
 	usb_complete_t complete;	/* (in) completion routine */
 #ifdef CONFIG_AMLOGIC_USB
 	int need_event_data;
+	int need_event_data_flag;
 #endif
 	struct usb_iso_packet_descriptor iso_frame_desc[0];
 					/* (in) ISO ONLY */
