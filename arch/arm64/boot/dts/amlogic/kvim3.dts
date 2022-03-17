@@ -953,7 +953,8 @@
                reg = <0x18>;
                fan,trig_temp_level0 = <50>;
                fan,trig_temp_level1 = <60>;
-               fan,trig_temp_level2 = <70>;
+               fan,trig_temp_level2 = <65>;
+               fan,trig_temp_level3 = <70>;
                hwver = "VIM3.V11";
        };
 
