@@ -957,6 +957,10 @@
                fan,trig_temp_level3 = <70>;
                hwver = "VIM3.V11";
        };
+       khadas-rtc {
+                compatible = "khadas-rtc";
+                reg = <0x51>;
+       };
 
        khadas-tca6408 {
                 compatible = "khadas-tca6408";
