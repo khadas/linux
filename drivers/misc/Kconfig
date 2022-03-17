@@ -804,6 +804,12 @@ config KHADAS_TCA6408
        default y
        help
          This driver is TCA6408A IO expanders.
+
+config KHADAS_RED_LED
+       tristate "Khadas VIM3 Red Led"
+       default y
+       help
+         This driver is for Khadas VIM3 Red Led.
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

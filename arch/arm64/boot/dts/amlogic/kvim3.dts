@@ -363,6 +363,11 @@
                 tca6408status = "okay";
         };
 
+        khadas-redled {
+               compatible = "khadas-redled";
+               status = "okay";
+        };
+
 	unifykey{
 		compatible = "amlogic, unifykey";
 		status = "ok";
