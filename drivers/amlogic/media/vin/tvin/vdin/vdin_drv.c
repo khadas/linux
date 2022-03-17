@@ -375,7 +375,8 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 	vrr_data.input_src = VRR_INPUT_TVIN;
 	vrr_data.target_vfreq_num = devp->parm.info.fps;
 	vrr_data.target_vfreq_den = 1;
-	vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en;
+	vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en |
+			(devp->prop.spd_data.data[5] >> 2 & 0x3);
 
 	if (state) {
 		if (devp->game_mode) {
@@ -872,14 +873,15 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 			vdin_check_hdmi_hdr(devp);
 
 		vdin_update_prop(devp);
-		pr_info("%s dv:%d hdr:%d allm:0x%x fps:%d sg_type:0x%x ratio:%d,vrr:%d prop_vrr:%d\n",
+		pr_info("%s dv:%d hdr:%d allm:0x%x fps:%d sg_type:0x%x ratio:%d,vrr:%d prop_vrr:%d,%d\n",
 			__func__,
 			devp->dv.dv_flag, devp->prop.vdin_hdr_flag,
 			devp->pre_prop.latency.allm_mode, devp->prop.fps,
 			devp->parm.info.signal_type,
 			devp->parm.info.aspect_ratio,
 			devp->vdin_vrr_en_flag,
-			devp->prop.vtem_data.vrr_en);
+			devp->prop.vtem_data.vrr_en,
+			devp->prop.spd_data.data[5]);
 		if (!(devp->flags & VDIN_FLAG_V4L2_DEBUG))
 			devp->parm.info.cfmt = devp->prop.color_format;
 		if (devp->parm.dest_width != 0 ||
@@ -2262,7 +2264,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		if (vdin_get_prop_in_vs_en) {
 			sm_ops->get_sig_property(devp->frontend, &devp->prop);
 			if (vdin_isr_monitor & BIT(6))
-				pr_info("vdin vrr_en:%d\n", devp->prop.vtem_data.vrr_en);
+				pr_info("vdin vrr_en:%d spd:%d\n",
+					devp->prop.vtem_data.vrr_en,
+					devp->prop.spd_data.data[5]);
 		}
 		vdin_vs_proc_monitor(devp);
 		if (devp->dv.chg_cnt) {
@@ -2638,6 +2642,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	vdin_set_drm_data(devp, curr_wr_vf);
 	vdin_set_vframe_prop_info(curr_wr_vf, devp);
+	vdin_set_freesync_data(devp, curr_wr_vf);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_dolby_vision_certification()) {
@@ -3772,7 +3777,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			vdin_frame_lock_check(devp, 1);
 		break;
 	case TVIN_IOC_G_VRR_STATUS:
-		vdin_vrr_status.cur_vrr_status = devp->prop.vtem_data.vrr_en;
+		vdin_vrr_status.cur_vrr_status = devp->prop.vtem_data.vrr_en |
+					(devp->prop.spd_data.data[5] >> 2 & 0x3);
 		vdin_vrr_status.local_dimming_disable = 1;
 		vdin_vrr_status.native_color_en = 0;
 		vdin_vrr_status.tone_mapping_en = 0;
@@ -3784,11 +3790,13 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 
 		if (vdin_dbg_en)
-			pr_info("TVIN_IOC_G_VRR_STATUS,VrrStatus:%d LD_disable:%d NC_en:%d TM_en:%d\n",
+			pr_info("TVIN_IOC_G_VRR_STATUS,VrrSta:%d LD_dis:%d NC_en:%d TM_en:%d vrr:%d %d\n",
 				vdin_vrr_status.cur_vrr_status,
 				vdin_vrr_status.local_dimming_disable,
 				vdin_vrr_status.native_color_en,
-				vdin_vrr_status.tone_mapping_en);
+				vdin_vrr_status.tone_mapping_en,
+				devp->prop.vtem_data.vrr_en,
+				devp->prop.spd_data.data[5]);
 		break;
 	case TVIN_IOC_GET_COLOR_RANGE:
 		if (copy_to_user(argp, &color_range_force,

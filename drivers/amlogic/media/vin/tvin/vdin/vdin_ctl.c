@@ -4656,6 +4656,19 @@ void vdin_dolby_pr_meta_data(void *addr, unsigned int size)
 	}
 }
 
+void vdin_pr_vrr_data(struct vdin_dev_s *devp, struct vframe_s *vf)
+{
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VRR_DATA)
+		pr_info("index:%d en:%d mc:%x ffm:%02x pkt:%02x ver:%02x %02x %02x\n",
+			vf->index, devp->prop.vtem_data.vrr_en,
+			devp->prop.vtem_data.m_const,
+			devp->prop.vtem_data.fva_factor_m1,
+			devp->prop.spd_data.pkttype,
+			devp->prop.spd_data.version,
+			devp->prop.spd_data.length,
+			devp->prop.spd_data.data[5]);
+}
+
 void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 {
 	u32 *p;
@@ -5402,6 +5415,21 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 
 	vf->emp.addr = &devp->prop.emp_data.empbuf;
 	vf->emp.size = devp->prop.emp_data.size;
+}
+
+void vdin_set_freesync_data(struct vdin_dev_s *devp, struct vframe_s *vf)
+{
+	vf->vtem.addr = &devp->prop.vtem_data;
+	vf->spd.addr = &devp->prop.spd_data;
+	if (devp->prop.vtem_data.vrr_en ||
+	    (devp->prop.spd_data.data[5] >> 2 & 0x3)) {
+		vf->vtem.size = sizeof(devp->prop.vtem_data);
+		vf->spd.size = sizeof(devp->prop.spd_data);
+		vdin_pr_vrr_data(devp, vf);
+	} else {
+		vf->vtem.size = 0;
+		vf->spd.size = 0;
+	}
 }
 
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp)

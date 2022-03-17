@@ -244,6 +244,8 @@ void vdin_urgent_patch_resume(unsigned int offset);
 int vdin_hdr_sei_error_check(struct vdin_dev_s *devp);
 void vdin_set_drm_data(struct vdin_dev_s *devp,
 		       struct vframe_s *vf);
+void vdin_set_freesync_data(struct vdin_dev_s *devp,
+			    struct vframe_s *vf);
 u32 vdin_get_curr_field_type(struct vdin_dev_s *devp);
 void vdin_set_source_type(struct vdin_dev_s *devp,
 			  struct vframe_s *vf);

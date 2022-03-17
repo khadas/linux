@@ -405,6 +405,16 @@ struct emp_info {
 	unsigned int size;
 };
 
+struct spd_data {
+	void *addr;
+	unsigned int size;
+};
+
+struct vtem_data {
+	void *addr;
+	unsigned int size;
+};
+
 #define MAX_COMPOSER_COUNT 9
 #define AXIS_INFO_COUNT    4
 
@@ -661,6 +671,8 @@ struct vframe_s {
 	struct vsif_info vsif;
 	struct drm_info_t drm_if;
 	struct emp_info emp;
+	struct spd_data spd;
+	struct vtem_data vtem;
 
 	u32 zorder;
 	u32 repeat_count[2];
