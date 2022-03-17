@@ -790,11 +790,14 @@ static int a5_sys_pll_notifier_cb(struct notifier_block *nb,
 		 *    \- sys_pll
 		 *          \- sys_pll_dco
 		 */
-		/* TODO:  */
-		/* make sure cpu_clk 1G*/
-		//if (clk_set_rate(nb_data->cpu_clk_dyn->clk, 1000000000))
-		//	pr_err("%s in %d\n", __func__, __LINE__);
-		/* Configure cpu_clk to use cpu_clk_dyn */
+
+		/*
+		 * Configure cpu_clk to use cpu_clk_dyn
+		 * Make sure cpu clk is 1G, cpu_clk_dyn may equal 24M
+		 */
+		if (clk_set_rate(nb_data->cpu_clk_dyn->clk, 1000000000))
+			pr_err("%s: set CPU dyn clock to 1G failed\n", __func__);
+
 		clk_hw_set_parent(nb_data->cpu_clk,
 				  nb_data->cpu_clk_dyn);
 

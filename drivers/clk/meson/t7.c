@@ -823,7 +823,6 @@ static struct clk_regmap t7_mclk_pll = {
 
 /*a53 cpu_clk, get the table from ucode */
 static const struct cpu_dyn_table t7_cpu_dyn_table[] = {
-	CPU_LOW_PARAMS(24000000, 0, 0, 0),
 	CPU_LOW_PARAMS(100000000, 1, 1, 9),
 	CPU_LOW_PARAMS(250000000, 1, 1, 3),
 	CPU_LOW_PARAMS(333333333, 2, 1, 1),
@@ -998,10 +997,16 @@ static int t7_sys_pll_notifier_cb(struct notifier_block *nb,
 		 *          \- sys_pll_dco
 		 */
 
-		/* Configure cpu_clk to use cpu_clk_dyn */
+		/*
+		 * Configure cpu_clk to use cpu_clk_dyn
+		 * Make sure cpu clk is 1G, cpu_clk_dyn may equal 24M
+		 */
+
+		if (clk_set_rate(nb_data->cpu_dyn_clk->clk, 1000000000))
+			pr_err("%s: set CPU dyn clock to 1G failed\n", __func__);
+
 		clk_hw_set_parent(nb_data->cpu_clk,
 				  nb_data->cpu_dyn_clk);
-
 		/*
 		 * Now, cpu_clk uses the dyn path
 		 * cpu_clk
@@ -1012,8 +1017,7 @@ static int t7_sys_pll_notifier_cb(struct notifier_block *nb,
 		 *                      \- xtal/fclk_div2/fclk_div3
 		 *                   \- xtal/fclk_div2/fclk_div3
 		 */
-
-		udelay(100);
+		udelay(5);
 
 		return NOTIFY_OK;
 
@@ -1026,8 +1030,7 @@ static int t7_sys_pll_notifier_cb(struct notifier_block *nb,
 		/* Configure cpu_clk to use sys_pll */
 		clk_hw_set_parent(nb_data->cpu_clk,
 				  nb_data->sys_pll);
-
-		udelay(100);
+		udelay(5);
 
 		/* new path :
 		 * cpu_clk
