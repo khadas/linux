@@ -571,6 +571,7 @@ struct osd_device_hw_s {
 	u32 path_ctrl_independ;
 	u32 remove_afbc;
 	u32 remove_pps;
+	u32 prevsync_support;
 };
 
 struct hw_osd_reg_s {

@@ -12489,14 +12489,25 @@ static void osd_set_vpp_path_default(u32 osd_index, u32 vpp_index)
 {
 	if (osd_dev_hw.has_multi_vpp) {
 		/* osd_index is vpp mux input */
-		/* default setting osd2 route to vpp0 vsync */
-		if (osd_index == VPP_OSD3)
+		/* default setting osdx route to vpp0 vsync */
+		switch (osd_index) {
+		case VPP_OSD1:
+			osd_reg_set_bits(PATH_START_SEL,
+					vpp_index, 16, 2);
+			break;
+		case VPP_OSD2:
+			osd_reg_set_bits(PATH_START_SEL,
+					vpp_index, 20, 2);
+			break;
+		case VPP_OSD3:
 			osd_reg_set_bits(PATH_START_SEL,
 					vpp_index, 24, 2);
-		/* default setting osd3 route to vpp0 vsync */
-		if (osd_index == VPP_OSD4)
+			break;
+		case VPP_OSD4:
 			osd_reg_set_bits(PATH_START_SEL,
 					vpp_index, 28, 2);
+			break;
+		}
 	}
 }
 
@@ -12808,12 +12819,40 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		}
 		osd_set_basic_urgent(true);
 		osd_set_two_ports(true);
-		if (osd_hw.osd_meson_dev.osd_count > OSD3)
-			osd_set_vpp_path_default(VPP_OSD3,
-						 get_output_device_id(OSD3));
-		if (osd_hw.osd_meson_dev.osd_count > OSD4)
-			osd_set_vpp_path_default(VPP_OSD4,
-						 get_output_device_id(OSD4));
+		if (osd_dev_hw.prevsync_support) {
+			u32 vpp0_post_go_field = 3;
+			u32 output_index;
+
+			/* for t3 0: vpp0_pre_go_field, 3: vpp0_post_go_field */
+			osd_set_vpp_path_default(VPP_OSD1, vpp0_post_go_field);
+			osd_set_vpp_path_default(VPP_OSD2, vpp0_post_go_field);
+			if (osd_hw.osd_meson_dev.osd_count > OSD3) {
+				output_index = get_output_device_id(OSD3);
+				if (output_index == VIU1)
+					osd_set_vpp_path_default(VPP_OSD3,
+						vpp0_post_go_field);
+				else
+					osd_set_vpp_path_default(VPP_OSD3,
+						output_index);
+			}
+			if (osd_hw.osd_meson_dev.osd_count > OSD4) {
+				output_index = get_output_device_id(OSD4);
+				if (output_index == VIU1)
+					osd_set_vpp_path_default(VPP_OSD4,
+						vpp0_post_go_field);
+				else
+					osd_set_vpp_path_default(VPP_OSD4,
+						output_index);
+			}
+		} else {
+			/* for t7 0: vpp0_post_go_field, no pre go field */
+			if (osd_hw.osd_meson_dev.osd_count > OSD3)
+				osd_set_vpp_path_default(VPP_OSD3,
+							 get_output_device_id(OSD3));
+			if (osd_hw.osd_meson_dev.osd_count > OSD4)
+				osd_set_vpp_path_default(VPP_OSD4,
+							 get_output_device_id(OSD4));
+		}
 	}
 	/* disable deband as default */
 	if (osd_hw.osd_meson_dev.has_deband)
