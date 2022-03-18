@@ -31,42 +31,43 @@ module_param(crtc_force_hint, int, 0644);
 static void set_eotf_by_property(struct am_meson_crtc_state *state)
 {
 	if (state->crtc_eotf_by_property_flag) {
-		if (!dv_support() &&  get_dolby_vision_mode() && is_dolby_vision_enable()) {
+		if (!dv_support() &&  get_amdv_mode() && is_amdv_enable()) {
 			DRM_INFO("[%s] support DV\n", __func__);
 			if (state->eotf_type_by_property == 2) {
-				set_dolby_vision_ll_policy(0);
-				set_dolby_vision_policy(2);
-				set_dolby_vision_enable(1);
-				set_dolby_vision_mode(2);
+				set_amdv_ll_policy(0);
+				set_amdv_policy(2);
+				set_amdv_enable(1);
+				set_amdv_mode(2);
 			} else if (state->eotf_type_by_property == 18) {
-				set_dolby_vision_ll_policy(0);
-				set_dolby_vision_policy(2);
-				set_dolby_vision_enable(1);
-				set_dolby_vision_mode(1);
+				set_amdv_ll_policy(0);
+				set_amdv_policy(2);
+				set_amdv_enable(1);
+				set_amdv_mode(1);
 			} else if (state->eotf_type_by_property == 0) {
-				set_dolby_vision_ll_policy(0);
-				set_dolby_vision_policy(2);
-				set_dolby_vision_enable(1);
-				set_dolby_vision_mode(4);
+				set_amdv_ll_policy(0);
+				set_amdv_policy(2);
+				set_amdv_enable(1);
+				set_amdv_mode(4);
 			} else if (state->eotf_type_by_property == 19) {
-				set_dolby_vision_ll_policy(1);
-				set_dolby_vision_policy(2);
-				set_dolby_vision_enable(1);
-				set_dolby_vision_mode(1);
+				set_amdv_ll_policy(1);
+				set_amdv_policy(2);
+				set_amdv_enable(1);
+				set_amdv_mode(1);
+
 			}
 		} else {
 			DRM_INFO("[%s] can not support DV\n", __func__);
 			if (state->eotf_type_by_property == 0) {
-				set_dolby_vision_policy(2);
-				set_dolby_vision_mode(0);
-				set_dolby_vision_enable(0);
+				set_amdv_policy(2);
+				set_amdv_mode(0);
+				set_amdv_enable(0);
 				set_hdr_policy(2);
 				set_force_output(1);
 			}
 			if (state->eotf_type_by_property == 2) {
-				set_dolby_vision_policy(2);
-				set_dolby_vision_mode(0);
-				set_dolby_vision_enable(0);
+				set_amdv_policy(2);
+				set_amdv_mode(0);
+				set_amdv_enable(0);
 				set_hdr_policy(2);
 				set_force_output(3);
 			}
@@ -115,7 +116,7 @@ static void meson_crtc_init_hdr_preference
 {
 	crtc_state->crtc_hdr_process_policy = MESON_HDR_POLICY_FOLLOW_SINK;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	crtc_state->crtc_dv_enable = is_dolby_vision_enable();
+	crtc_state->crtc_dv_enable = is_amdv_enable();
 #else
 	crtc_state->crtc_dv_enable = false;
 #endif
@@ -392,11 +393,11 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 			if (meson_crtc_state->crtc_dv_enable) {
 				if (meson_crtc_state->crtc_eotf_type
 						== HDMI_EOTF_MESON_DOLBYVISION_LL) {
-					set_dolby_vision_ll_policy(1);
+					set_amdv_ll_policy(1);
 				} else {
-					set_dolby_vision_ll_policy(0);
+					set_amdv_ll_policy(0);
 				}
-				set_dolby_vision_enable(true);
+				set_amdv_enable(true);
 			}
 			#endif
 		}

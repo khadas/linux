@@ -331,7 +331,7 @@ int fw_en_get(void)
 void backlight_update_ctrl(u32 en)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_on())
+	if (is_amdv_on())
 		return;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD
@@ -343,7 +343,7 @@ void backlight_update_ctrl(u32 en)
 static void backlight_setting_update(u32 backlight)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_on())
+	if (is_amdv_on())
 		return;
 #endif
 #ifdef CONFIG_AMLOGIC_LCD

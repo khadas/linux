@@ -29,6 +29,9 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 
 #include "../../common/vfm/vfm.h"
 #include "videoqueue.h"
@@ -668,6 +671,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 		private_data->vf.timestamp = ktime_to_us(ktime_get());
 		private_data->vf.disp_pts_us64 = dev->ready_time;
 	}
+	private_data->vf.src_fmt.dv_id = dev->dv_inst;
 
 #ifdef COPY_META_DATA
 	v4lvideo_import_sei_data(vf, &private_data->vf, dev->provider_name);
@@ -1132,10 +1136,16 @@ static int video_receiver_event_fun(int type, void *data,
 	case VFRAME_EVENT_PROVIDER_LIGHT_UNREG:
 		videoqueue_unreg_provider(dev);
 		pr_info("%s unreg end!!\n", dev->vf_receiver_name);
+		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		dv_inst_unmap(dev->dv_inst);
+		#endif
 		break;
 	case VFRAME_EVENT_PROVIDER_REG:
 		videoqueue_reg_provider(dev);
 		pr_info("%s reg end!!\n", dev->vf_receiver_name);
+		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		dv_inst_map(&dev->dv_inst);
+		#endif
 		break;
 	case VFRAME_EVENT_PROVIDER_QUREY_STATE:
 		ret = RECEIVER_ACTIVE;

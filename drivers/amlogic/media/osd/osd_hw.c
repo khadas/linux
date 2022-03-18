@@ -10848,10 +10848,10 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 		tmp_v = dv_core2_vsize;
 
 		update_dvcore2_timing(&tmp_h, &tmp_v);
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
+		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL1,
 				     ((tmp_h + 0x40) << 16)
 				     | (tmp_v + 0x80 + 0));
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL2,
+		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL2,
 				     (tmp_h << 16) |
 				     (tmp_v + 0));
 		update_graphic_width_height(dv_core2_hsize, dv_core2_vsize);
@@ -11938,7 +11938,7 @@ static void osd_basic_update_disp_geometry(u32 index)
 						__MESON_CPU_MAJOR_ID_T7)
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(MALI_AFBCD_TOP_CTRL,
-							 is_dolby_vision_graphic_on() ? 0 : 1,
+							 is_amdv_graphic_on() ? 0 : 1,
 							 14, 1);
 #endif
 				}
@@ -12010,7 +12010,7 @@ static void osd_basic_update_disp_geometry(u32 index)
 						__MESON_CPU_MAJOR_ID_T7)
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(MALI_AFBCD_TOP_CTRL,
-							 is_dolby_vision_graphic_on() ? 0 : 1,
+							 is_amdv_graphic_on() ? 0 : 1,
 							 14, 1);
 #endif
 				}
@@ -12189,10 +12189,10 @@ static void osd1_basic_update_disp_geometry(void)
 		buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 	}
 	if (osd_hw.osd_meson_dev.has_dolby_vision) {
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
+		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL1,
 				     ((buffer_w + 0x40) << 16)
 				     | (buffer_h + 0x80 + 0));
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL2,
+		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL2,
 				     (buffer_w << 16) | (buffer_h + 0));
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		update_graphic_width_height(buffer_w, buffer_h);

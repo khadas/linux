@@ -139,8 +139,8 @@ static int lowlatency_vsync(u8 instance_id)
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_on())
-		dolby_vision_update_backlight();
+	if (is_amdv_on())
+		amdv_update_backlight();
 #endif
 
 	if (cur_vd1_path_id == 0xff)
@@ -178,15 +178,15 @@ static int lowlatency_vsync(u8 instance_id)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* check video frame before VECM process */
-	if (is_dolby_vision_enable() && vf &&
+	if (is_amdv_enable() && vf &&
 		(vd1_path_id == VFM_PATH_AMVIDEO ||
 		 vd1_path_id == VFM_PATH_DEF ||
 		 vd1_path_id == VFM_PATH_AUTO)) {
-		dolby_vision_check_mvc(vf);
-		dolby_vision_check_hdr10(vf);
-		dolby_vision_check_hdr10plus(vf);
-		dolby_vision_check_hlg(vf);
-		dolby_vision_check_primesl(vf);
+		amdv_check_mvc(vf);
+		amdv_check_hdr10(vf);
+		amdv_check_hdr10plus(vf);
+		amdv_check_hlg(vf);
+		amdv_check_primesl(vf);
 	}
 
 	if (cur_vd1_path_id != vd1_path_id) {
@@ -202,9 +202,9 @@ static int lowlatency_vsync(u8 instance_id)
 					vf_get_provider_name(provider_name);
 			}
 			if (provider_name)
-				dolby_vision_set_provider(provider_name);
+				amdv_set_provider(provider_name, VD2_PATH);
 		} else {
-			dolby_vision_set_provider("dvbldec");
+			amdv_set_provider("dvbldec", VD1_PATH);
 		}
 	}
 #endif
@@ -732,7 +732,7 @@ static int lowlatency_vsync(u8 instance_id)
 			vd_layer[2].force_disable ? "true" : "false");
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_enable() && vd_layer[0].global_output) {
+	if (is_amdv_enable() && vd_layer[0].global_output) {
 		/* no new frame but path switched case, */
 		if (new_frame && !is_local_vf(new_frame) &&
 		    (!path0_new_frame || new_frame != path0_new_frame) &&
@@ -741,11 +741,11 @@ static int lowlatency_vsync(u8 instance_id)
 		    (!path3_new_frame || new_frame != path3_new_frame) &&
 		    (!path4_new_frame || new_frame != path4_new_frame) &&
 		    (!path5_new_frame || new_frame != path5_new_frame))
-			dolby_vision_update_src_format(new_frame, 1);
+			amdv_update_src_format(new_frame, 1, VD1_PATH);
 		else if (!new_frame &&
 			 vd_layer[0].dispbuf &&
 			 !is_local_vf(vd_layer[0].dispbuf))
-			dolby_vision_update_src_format(vd_layer[0].dispbuf, 0);
+			amdv_update_src_format(vd_layer[0].dispbuf, 0, VD1_PATH);
 		/* pause and video off->on case */
 	}
 #endif
@@ -909,8 +909,8 @@ static int lowlatency_vsync(u8 instance_id)
 		};
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (is_dolby_vision_enable())
-			new_src_fmt = get_dolby_vision_src_format();
+		if (is_amdv_enable())
+			new_src_fmt = get_amdv_src_format(VD1_PATH);
 		else
 #endif
 			new_src_fmt =

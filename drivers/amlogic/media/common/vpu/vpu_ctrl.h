@@ -121,14 +121,14 @@ static struct vpu_ctrl_s vpu_iso_sm1[] = {
 /*
  *static struct vpu_ctrl_s vpu_module_init_txlx[] = {
  *	// 0, reg,                       val, bit, len
- *	{0,   DOLBY_TV_CLKGATE_CTRL,     1,   10,  2},
- *	{0,   DOLBY_TV_CLKGATE_CTRL,     1,   2,   2},
- *	{0,   DOLBY_TV_CLKGATE_CTRL,     1,   4,   2},
- *	{0,   DOLBY_CORE2A_CLKGATE_CTRL, 1,   10,  2},
- *	{0,   DOLBY_CORE2A_CLKGATE_CTRL, 1,   2,   2},
- *	{0,   DOLBY_CORE2A_CLKGATE_CTRL, 1,   4,   2},
- *	{0,   DOLBY_CORE3_CLKGATE_CTRL,  0,   1,   1},
- *	{0,   DOLBY_CORE3_CLKGATE_CTRL,  1,   2,   2},
+ *	{0,   AMDV_TV_CLKGATE_CTRL,     1,   10,  2},
+ *	{0,   AMDV_TV_CLKGATE_CTRL,     1,   2,   2},
+ *	{0,   AMDV_TV_CLKGATE_CTRL,     1,   4,   2},
+ *	{0,   AMDV_CORE2A_CLKGATE_CTRL, 1,   10,  2},
+ *	{0,   AMDV_CORE2A_CLKGATE_CTRL, 1,   2,   2},
+ *	{0,   AMDV_CORE2A_CLKGATE_CTRL, 1,   4,   2},
+ *	{0,   AMDV_CORE3_CLKGATE_CTRL,  0,   1,   1},
+ *	{0,   AMDV_CORE3_CLKGATE_CTRL,  1,   2,   2},
  *	{0,   VPU_REG_END,               0,   0,   0},
  *};
  */

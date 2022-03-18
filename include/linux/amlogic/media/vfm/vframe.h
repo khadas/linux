@@ -338,6 +338,7 @@ struct vframe_src_fmt_s {
 	int comp_size;
 	int parse_ret_flags;
 	u32 play_id;
+	int dv_id;
 };
 
 enum pic_mode_provider_e {

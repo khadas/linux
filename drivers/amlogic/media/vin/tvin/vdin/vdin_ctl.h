@@ -297,10 +297,10 @@ bool vdin_is_4k(struct vdin_dev_s *devp);
 void vdin_set_matrix_color(struct vdin_dev_s *devp);
 void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int onoff, unsigned int pat);
 
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
-bool for_dolby_vision_certification(void);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
 
 void vdin_change_matrix0(u32 offset, u32 matrix_csc);
 void vdin_change_matrix1(u32 offset, u32 matrix_csc);

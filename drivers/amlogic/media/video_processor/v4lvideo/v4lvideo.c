@@ -40,7 +40,9 @@
 #include <linux/amlogic/media/di/di.h>
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/am_com.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 #include <linux/amlogic/meson_uvm_core.h>
 
 #define V4LVIDEO_MODULE_NAME "v4lvideo"
@@ -658,6 +660,9 @@ int v4lvideo_alloc_map(int *inst)
 			dev->mapped = true;
 			*inst = dev->inst;
 			v4lvideo_devlist_unlock(flags);
+			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			dv_inst_map(&dev->dv_inst);
+			#endif
 			return 0;
 		}
 	}
@@ -684,6 +689,10 @@ void v4lvideo_release_map(int inst)
 	}
 
 	v4lvideo_devlist_unlock(flags);
+
+	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	dv_inst_unmap(dev->dv_inst);
+	#endif
 }
 
 void v4lvideo_release_map_force(struct v4lvideo_dev *dev)
@@ -698,6 +707,9 @@ void v4lvideo_release_map_force(struct v4lvideo_dev *dev)
 	}
 
 	v4lvideo_devlist_unlock(flags);
+	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	dv_inst_unmap(dev->dv_inst);
+	#endif
 }
 
 static struct ge2d_context_s *context;
@@ -1452,9 +1464,9 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 	if (!vf || !dup_vf || !provider || !alloc_sei)
 		return ret;
 
-	if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) &&
-	    (vf->type & VIDTYPE_DI_PW))
-		return ret;
+	/*if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) &&*/
+	/*    (vf->type & VIDTYPE_DI_PW))*/
+	/*	return ret;*/
 
 	if (!strcmp(provider, "dvbldec") && dup_vf->omx_index < 2)
 		max_count = 10;
@@ -2120,9 +2132,10 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	file_private_data->vf.src_fmt.md_buf = file_private_data->md.p_md;
 	file_private_data->vf.src_fmt.comp_buf = file_private_data->md.p_comp;
 	file_private_data->v4l_inst_id = dev->inst;
+	file_private_data->vf.src_fmt.dv_id = dev->dv_inst;
 	if ((alloc_sei & 2) && vf)
-		pr_info("vidioc dqbuf: vf %p(index %d), md_buf %p\n",
-			vf, vf->omx_index, file_private_data->vf.src_fmt.md_buf);
+		pr_info("vidioc dqbuf: vf %p(index %d), type %x, md_buf %p\n",
+			vf, vf->omx_index, vf->type, file_private_data->vf.src_fmt.md_buf);
 
 	v4lvideo_import_sei_data(vf,
 		&file_private_data->vf,

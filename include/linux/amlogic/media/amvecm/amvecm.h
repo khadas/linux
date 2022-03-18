@@ -33,12 +33,12 @@
 #include <../drivers/amlogic/media/enhancement/amvecm/vlock.h>
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
-bool for_dolby_vision_certification(void);
-bool is_dovi_frame(struct vframe_s *vf);
-void dolby_vision_set_toggle_flag(int flag);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
+bool is_amdv_frame(struct vframe_s *vf);
+void amdv_set_toggle_flag(int flag);
 #endif
 
 #ifndef MAX

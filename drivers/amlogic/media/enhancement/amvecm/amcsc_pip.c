@@ -128,10 +128,10 @@ void hdr_proc(struct vframe_s *vf,
 	int i, index;
 
 	/* RGB / YUV vdin input handling  prepare extra op code or info */
-	if (vf->type & VIDTYPE_RGB_444 && !is_dolby_vision_on())
+	if (vf->type & VIDTYPE_RGB_444 && !is_amdv_on())
 		hdr_process_select |= RGB_VDIN;
 
-	if (limit_full && !is_dolby_vision_on())
+	if (limit_full && !is_amdv_on())
 		hdr_process_select |= FULL_VDIN;
 	/* RGB / YUV input handling */
 
@@ -154,7 +154,7 @@ void hdr_proc(struct vframe_s *vf,
 	       module_str[module_sel],
 	       process_str[index],
 	       vpp_index,
-	       is_dolby_vision_on());
+	       is_amdv_on());
 
 	if (module_sel == 1)
 		process_id[0] = index;
@@ -203,13 +203,13 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 	cur_hdr_policy = get_hdr_policy();
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_enable()) {
+	if (is_amdv_enable()) {
 		/* sync hdr_policy with dolby_vision_policy */
 		/* get current dolby_vision_mode */
-		dv_policy = get_dolby_vision_policy();
-		dv_mode = get_dolby_vision_target_mode();
-		dv_format = get_dolby_vision_src_format();
-		dv_hdr_policy = get_dolby_vision_hdr_policy();
+		dv_policy = get_amdv_policy();
+		dv_mode = get_amdv_target_mode();
+		dv_format = get_amdv_src_format(vd_path);
+		dv_hdr_policy = get_amdv_hdr_policy();
 	}
 #endif
 	pr_csc(32, "%d %s: vd%d  vpp_index = %d hdr status = %d\n",
@@ -239,8 +239,8 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				__func__,
 				vd_path,
 				vpp_index);
-		} else if (is_dolby_vision_enable() &&
-		   !is_dolby_vision_on() &&
+		} else if (is_amdv_enable() &&
+		   !is_amdv_on() &&
 		   ((get_dv_support_info() & 7) == 7) &&
 		   (source_format[vd_path] == HDRTYPE_DOVI ||
 			(source_format[vd_path] == HDRTYPE_HDR10 &&
@@ -255,7 +255,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
 			set_hdr_module_status(vd_path, HDR_MODULE_OFF);
-			dolby_vision_set_toggle_flag(1);
+			amdv_set_toggle_flag(1);
 		} else if ((source_format[vd_path] == HDRTYPE_HLG) &&
 			   (sink_hdr_support(vinfo) & HLG_SUPPORT)) {
 			hlg_process_mode[vd_path] = PROC_BYPASS;
@@ -264,8 +264,8 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 				   hdr10_plus_support) {
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT2020_PQ_DYNAMIC;
-		} else if (is_dolby_vision_on() &&
-			   is_dolby_vision_stb_mode()) {
+		} else if (is_amdv_on() &&
+			   is_amdv_stb_mode()) {
 			hdr_process_mode[vd_path] = PROC_MATCH;
 			hlg_process_mode[vd_path] = PROC_MATCH;
 			sdr_process_mode[vd_path] = PROC_MATCH;
@@ -319,8 +319,8 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr_process_mode[vd_path] = PROC_BYPASS;
 			hlg_process_mode[vd_path] = PROC_BYPASS;
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
-		} else if (is_dolby_vision_enable() &&
-		   !is_dolby_vision_on() &&
+		} else if (is_amdv_enable() &&
+		   !is_amdv_on() &&
 		   ((get_dv_support_info() & 7) == 7) &&
 		   ((source_format[vd_path] == HDRTYPE_DOVI) ||
 			((source_format[vd_path] == HDRTYPE_HDR10) &&
@@ -333,10 +333,10 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
 			set_hdr_module_status(vd_path, HDR_MODULE_OFF);
-			dolby_vision_set_toggle_flag(1);
+			amdv_set_toggle_flag(1);
 		} else if (vd_path == VD2_PATH &&
-			   is_dolby_vision_on() &&
-			   is_dolby_vision_stb_mode()) {
+			   is_amdv_on() &&
+			   is_amdv_stb_mode()) {
 			/* VD2 with VD1 in DV mode */
 			hdr_process_mode[vd_path] = PROC_MATCH;
 			hlg_process_mode[vd_path] = PROC_MATCH;
@@ -426,7 +426,7 @@ void vd2_map_top1_policy_process(struct vinfo_s *vinfo,
 			}
 		}
 	} else if (cur_hdr_policy == 2 &&
-		   !is_dolby_vision_enable()) {
+		   !is_amdv_enable()) {
 		/* dv off, and policy == debug */
 		/* *->force_output */
 		if (vd_path == VD2_PATH &&
@@ -532,13 +532,13 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 	tx_hdr10_plus_support = hdr10_plus_support;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_enable()) {
+	if (is_amdv_enable()) {
 		/* sync hdr_policy with dolby_vision_policy */
 		/* get current dolby_vision_mode */
-		dv_policy = get_dolby_vision_policy();
-		dv_mode = get_dolby_vision_target_mode();
-		dv_format = get_dolby_vision_src_format();
-		dv_hdr_policy = get_dolby_vision_hdr_policy();
+		dv_policy = get_amdv_policy();
+		dv_mode = get_amdv_target_mode();
+		dv_format = get_amdv_src_format(vd_path);
+		dv_hdr_policy = get_amdv_hdr_policy();
 	}
 #endif
 
@@ -570,8 +570,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 				vd_path,
 				vpp_index);
 		} else if (vd_path == VD1_PATH &&
-			   is_dolby_vision_enable() &&
-			   !is_dolby_vision_on() &&
+			   is_amdv_enable() &&
+			   !is_amdv_on() &&
 			   ((get_dv_support_info() & 7) == 7) &&
 			   (source_format[vd_path] == HDRTYPE_DOVI ||
 			    (source_format[vd_path] == HDRTYPE_HDR10 &&
@@ -587,7 +587,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
 			set_hdr_module_status(vd_path, HDR_MODULE_OFF);
-			dolby_vision_set_toggle_flag(1);
+			amdv_set_toggle_flag(1);
 		} else if (vd_path == VD1_PATH &&
 			   (source_format[vd_path] == HDRTYPE_HLG) &&
 			   (sink_hdr_support(vinfo) & HLG_SUPPORT)) {
@@ -602,15 +602,41 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			/* vd1 bypass hdr+ when vd2 off */
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT2020_PQ_DYNAMIC;
-		} else if (vd_path == VD2_PATH &&
-			   is_dolby_vision_on() &&
-			   is_dolby_vision_stb_mode()) {
-			/* vd2 *->ipt when vd1 dolby on */
-			hdr_process_mode[vd_path] = PROC_MATCH;
-			hlg_process_mode[vd_path] = PROC_MATCH;
-			sdr_process_mode[vd_path] = PROC_MATCH;
-			hdr10_plus_process_mode[vd_path] = PROC_MATCH;
-			target_format[vd_path] = BT2100_IPT;
+		} else if ((vd_path == VD2_PATH) &&
+			is_amdv_on() &&
+			is_amdv_stb_mode()) {
+			if (!support_multi_core1()) {
+				/* vd2 *->ipt when vd1 dolby on */
+				hdr_process_mode[vd_path] = PROC_MATCH;
+				hlg_process_mode[vd_path] = PROC_MATCH;
+				sdr_process_mode[vd_path] = PROC_MATCH;
+				hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+				target_format[vd_path] = BT2100_IPT;
+			} else {/*multi dv core1, processed by dv*/
+				if (source_format[vd_path] == HDRTYPE_DOVI ||
+				    (source_format[vd_path] == HDRTYPE_HDR10 &&
+				    (dv_hdr_policy & 1)) ||
+				    (source_format[vd_path] == HDRTYPE_HLG &&
+				    (dv_hdr_policy & 2)) ||
+				    (source_format[vd_path] == HDRTYPE_SDR/* &&*/
+				    /* (dv_hdr_policy & 0x20)*/)) {
+					/* vd2 follow sink: dv handle sdr/hdr/hlg/dovi */
+					sdr_process_mode[vd_path] = PROC_BYPASS;
+					hdr_process_mode[vd_path] = PROC_BYPASS;
+					hlg_process_mode[vd_path] = PROC_BYPASS;
+					hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
+					target_format[vd_path] = BT709;
+					set_hdr_module_status(vd_path, HDR_MODULE_OFF);
+					amdv_set_toggle_flag(1);
+				} else {
+					/* vd2 *->ipt when vd1 dolby on */
+					hdr_process_mode[vd_path] = PROC_MATCH;
+					hlg_process_mode[vd_path] = PROC_MATCH;
+					sdr_process_mode[vd_path] = PROC_MATCH;
+					hdr10_plus_process_mode[vd_path] = PROC_MATCH;
+					target_format[vd_path] = BT2100_IPT;
+				}
+			}
 		} else if (vd_path == VD2_PATH &&
 			   is_video_layer_on(VD1_PATH)) {
 			/* vd1 on and vd2 follow vd1 output */
@@ -704,8 +730,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			}
 			target_format[vd_path] = BT709;
 		} else if (vd_path == VD1_PATH &&
-			   is_dolby_vision_enable() &&
-			   !is_dolby_vision_on() &&
+			   is_amdv_enable() &&
+			   !is_amdv_on() &&
 			   ((get_dv_support_info() & 7) == 7) &&
 			   ((source_format[vd_path] == HDRTYPE_DOVI) ||
 			    ((source_format[vd_path] == HDRTYPE_HDR10) &&
@@ -720,10 +746,10 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			hdr10_plus_process_mode[vd_path] = PROC_BYPASS;
 			target_format[vd_path] = BT709;
 			set_hdr_module_status(vd_path, HDR_MODULE_OFF);
-			dolby_vision_set_toggle_flag(1);
+			amdv_set_toggle_flag(1);
 		} else if (vd_path == VD2_PATH &&
-			   is_dolby_vision_on() &&
-			   is_dolby_vision_stb_mode()) {
+			   is_amdv_on() &&
+			   is_amdv_stb_mode()) {
 			/* VD2 with VD1 in DV mode */
 			hdr_process_mode[vd_path] = PROC_MATCH;
 			hlg_process_mode[vd_path] = PROC_MATCH;
@@ -849,9 +875,9 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			}
 		} else {
 			/* VD2 with VD1 */
-			if (is_dolby_vision_on() &&
+			if (is_amdv_on() &&
 			    (vd_path == VD1_PATH ||
-			     is_dolby_vision_stb_mode())) {
+			     is_amdv_stb_mode())) {
 				/* VD1 is dolby vision */
 				hdr_process_mode[vd_path] = PROC_MATCH;
 				hlg_process_mode[vd_path] = PROC_MATCH;
@@ -940,7 +966,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			}
 		}
 	} else if (cur_hdr_policy == 2 &&
-		   !is_dolby_vision_enable()) {
+		   !is_amdv_enable()) {
 		/* dv off, and policy == debug */
 		/* *->force_output */
 		if (vd_path == VD1_PATH ||
@@ -1007,9 +1033,9 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 			}
 		} else {
 			/* VD2 with VD1 on */
-			if (is_dolby_vision_on() &&
+			if (is_amdv_on() &&
 			    (vd_path == VD1_PATH ||
-			     is_dolby_vision_stb_mode())) {
+			     is_amdv_stb_mode())) {
 				/* VD1 is dolby vision */
 				hdr_process_mode[vd_path] = PROC_MATCH;
 				hlg_process_mode[vd_path] = PROC_MATCH;
@@ -1102,7 +1128,7 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 
 out:
 	/* update change flags */
-	if (is_dolby_vision_on() &&
+	if (is_amdv_on() &&
 	    vd_path == VD1_PATH) {
 		pr_csc(4, "am_vecm: vd%d: (%s) %s->%s.\n",
 		       vd_path + 1,
@@ -1131,22 +1157,24 @@ out:
 			       policy_str[cur_hdr_policy],
 			       input_str[source_format[vd_path]],
 			       output_str[target_format[vd_path]],
-			       is_dolby_vision_on() ?
+			       is_amdv_on() ?
 			       dv_output_str[dv_mode] :
 			       output_str[output_format]);
 	}
 
 	cur_source_format[vd_path] = source_format[vd_path];
-	if (is_dolby_vision_on() &&
-	    is_dolby_vision_stb_mode() &&
+	if (is_amdv_on() &&
+	    is_amdv_stb_mode() &&
 	    vd_path == VD2_PATH &&
 	    is_video_layer_on(VD2_PATH) &&
 	    target_format[vd_path] != BT2100_IPT) {
-		pr_csc(4, "am_vecm: vd%d output mode not match to dolby %s.\n",
-		       vd_path + 1,
-		       output_str[target_format[vd_path]]);
-		change_flag |= SIG_OUTPUT_MODE_CHG;
-	} else if (!is_dolby_vision_on() &&
+		if (!support_multi_core1()) {
+			pr_csc(4, "am_vecm: vd%d output mode not match to dolby %s.\n",
+			       vd_path + 1,
+			       output_str[target_format[vd_path]]);
+			change_flag |= SIG_OUTPUT_MODE_CHG;
+		}
+	} else if (!is_amdv_on() &&
 		   is_video_layer_on(VD1_PATH) &&
 		   (is_video_layer_on(VD2_PATH) &&
 		   !is_vpp1(VD2_PATH)) &&
@@ -1543,8 +1571,8 @@ void video_post_process(struct vframe_s *vf,
 	switch (src_format) {
 	case HDRTYPE_SDR:
 		if (vd_path == VD2_PATH &&
-		    is_dolby_vision_on() &&
-		    is_dolby_vision_stb_mode()) {
+		    is_amdv_on() &&
+		    is_amdv_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, SDR_IPT, vinfo, NULL, vpp_index);
 		} else if (sdr_process_mode[vd_path] == PROC_BYPASS) {
 			if (vd_path == VD1_PATH)
@@ -1647,8 +1675,8 @@ void video_post_process(struct vframe_s *vf,
 	case HDRTYPE_HDR10:
 	case HDRTYPE_PRIMESL:
 		if (vd_path == VD2_PATH &&
-		    is_dolby_vision_on() &&
-		    is_dolby_vision_stb_mode()) {
+		    is_amdv_on() &&
+		    is_amdv_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, HDR_IPT, vinfo, NULL, vpp_index);
 		} else if (hdr_process_mode[vd_path] == PROC_BYPASS) {
 			if (vd_path == VD1_PATH)
@@ -1693,8 +1721,8 @@ void video_post_process(struct vframe_s *vf,
 		break;
 	case HDRTYPE_HLG:
 		if (vd_path == VD2_PATH &&
-		    is_dolby_vision_on() &&
-		    is_dolby_vision_stb_mode()) {
+		    is_amdv_on() &&
+		    is_amdv_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, HLG_IPT, vinfo, NULL, vpp_index);
 		} else if (hlg_process_mode[vd_path] == PROC_BYPASS) {
 			if (vd_path == VD1_PATH)
@@ -1738,8 +1766,8 @@ void video_post_process(struct vframe_s *vf,
 		break;
 	case HDRTYPE_HDR10PLUS:
 		if (vd_path == VD2_PATH &&
-		    is_dolby_vision_on() &&
-		    is_dolby_vision_stb_mode()) {
+		    is_amdv_on() &&
+		    is_amdv_stb_mode()) {
 			hdr_proc(vf, VD2_HDR, HDR_IPT, vinfo, NULL, vpp_index);
 		} else if (hdr10_plus_process_mode[vd_path] == PROC_BYPASS) {
 			if (vd_path == VD1_PATH)

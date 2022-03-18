@@ -341,7 +341,7 @@ void prime_sl_set_reg(const struct prime_sl_t *ps)
 			wbits_PRIMESL_OMAT_OFFSET1(256, 512);
 			wbits_PRIMESL_OMAT_OFFSET2(2048, 2048);
 			/* path select */
-			data32 = SL_VSYNC_RD_MPEG_REG(DOLBY_PATH_CTRL);
+			data32 = SL_VSYNC_RD_MPEG_REG(AMDV_PATH_CTRL);
 			data32 &= ~(3 << 24);
 			data32 &= ~(1 << 22);
 			data32 &= ~(1 << 18);
@@ -350,7 +350,7 @@ void prime_sl_set_reg(const struct prime_sl_t *ps)
 			data32 &= ~(1 << 0);
 			data32 |= 2 << 24;
 			data32 |= 2 << 8;
-			SL_VSYNC_WR_MPEG_REG(DOLBY_PATH_CTRL, data32);
+			SL_VSYNC_WR_MPEG_REG(AMDV_PATH_CTRL, data32);
 		}
 	}
 	wbits_PRIMESL_CTRL0(1, 0, 0, ps->inv_y_ratio,
@@ -364,10 +364,10 @@ void prime_sl_close(void)
 		u32 data32;
 
 		/* path select */
-		data32 = SL_VSYNC_RD_MPEG_REG(DOLBY_PATH_CTRL);
+		data32 = SL_VSYNC_RD_MPEG_REG(AMDV_PATH_CTRL);
 		data32 &= ~(3 << 24);
 		data32 &= ~(3 << 8);
 		data32 |= 1 << 0;
-		SL_VSYNC_WR_MPEG_REG(DOLBY_PATH_CTRL, data32);
+		SL_VSYNC_WR_MPEG_REG(AMDV_PATH_CTRL, data32);
 	}
 }

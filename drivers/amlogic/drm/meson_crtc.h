@@ -96,14 +96,14 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv,
 	int idx);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-void set_dolby_vision_policy(int policy);
-int get_dolby_vision_policy(void);
-void set_dolby_vision_ll_policy(int policy);
-void set_dolby_vision_enable(bool enable);
+void set_amdv_policy(int policy);
+int get_amdv_policy(void);
+void set_amdv_ll_policy(int policy);
+void set_amdv_enable(bool enable);
 int get_dv_support_info(void);
-bool is_dolby_vision_enable(void);
-void set_dolby_vision_mode(int mode);
-int get_dolby_vision_mode(void);
+bool is_amdv_enable(void);
+void set_amdv_mode(int mode);
+int get_amdv_mode(void);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 void set_hdr_policy(int policy);

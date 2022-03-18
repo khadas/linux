@@ -1311,6 +1311,7 @@ static int vpp_set_filters_internal
 	bool afbc_support;
 	bool crop_adjust = false;
 	bool hskip_adjust = false;
+	u32 force_skip_cnt = 0;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1824,6 +1825,19 @@ RESTART:
 			(end >> 1) : end;
 	}
 
+	if (for_amdv_certification()) {
+		force_skip_cnt = get_force_skip_cnt(VD1_PATH);
+		if (input->layer_id == VD1_PATH && force_skip_cnt > 0) {
+			next_frame_par->vscale_skip_count = force_skip_cnt;
+			next_frame_par->hscale_skip_count = force_skip_cnt;
+		}
+		force_skip_cnt = get_force_skip_cnt(VD2_PATH);
+		if (input->layer_id == VD2_PATH && force_skip_cnt > 0) {
+			next_frame_par->vscale_skip_count = force_skip_cnt;
+			next_frame_par->hscale_skip_count = force_skip_cnt;
+		}
+	}
+
 	/* set filter co-efficients */
 	tmp_ratio_y = ratio_y;
 	ratio_y <<= height_shift;
@@ -2001,6 +2015,19 @@ RESTART:
 			}
 		} else if (skip == SPEED_CHECK_HSKIP) {
 			next_frame_par->hscale_skip_count = 1;
+		}
+	}
+
+	if (for_amdv_certification()) {
+		force_skip_cnt = get_force_skip_cnt(VD1_PATH);
+		if (input->layer_id == VD1_PATH && force_skip_cnt > 0) {
+			next_frame_par->vscale_skip_count = force_skip_cnt;
+			next_frame_par->hscale_skip_count = force_skip_cnt;
+		}
+		force_skip_cnt = get_force_skip_cnt(VD2_PATH);
+		if (input->layer_id == VD2_PATH && force_skip_cnt > 0) {
+			next_frame_par->vscale_skip_count = force_skip_cnt;
+			next_frame_par->hscale_skip_count = force_skip_cnt;
 		}
 	}
 

@@ -74,6 +74,7 @@ struct video_queue_dev {
 	bool vlock_locked;
 	int vdin_err_crc_count;
 	bool need_keep_frame;
+	int dv_inst;
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN

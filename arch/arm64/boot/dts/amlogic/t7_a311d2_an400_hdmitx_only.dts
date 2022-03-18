@@ -727,6 +727,7 @@
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
 		tv_mode = <0>;/*1:enabel ;0:disable*/
+		multi_core1 = <1>;/*1:enabel ;0:disable*/
 	};
 
     /* SMC */

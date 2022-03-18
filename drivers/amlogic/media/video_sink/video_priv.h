@@ -21,6 +21,7 @@
 
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include "video_reg.h"
+#include <linux/amlogic/media/amvecm/amvecm.h>
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
@@ -548,11 +549,11 @@ extern int vdec_out_size_threshold_4k;
 extern int vpp_in_size_threshold_4k;
 extern u64 vsync_cnt[VPP_MAX];
 
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
 bool is_dovi_tv_on(void);
-bool for_dolby_vision_certification(void);
+bool for_amdv_certification(void);
 
 struct video_dev_s *get_video_cur_dev(void);
 u32 get_video_enabled(void);
@@ -574,12 +575,12 @@ void safe_switch_videolayer(u8 layer_id,
 			    bool on, bool async);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
-bool for_dolby_vision_certification(void);
-bool is_dovi_frame(struct vframe_s *vf);
-void dolby_vision_set_toggle_flag(int flag);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
+bool is_amdv_frame(struct vframe_s *vf);
+void amdv_set_toggle_flag(int flag);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -726,8 +727,8 @@ int _video_set_disable(u32 val);
 int _videopip_set_disable(u32 index, u32 val);
 struct device *get_video_device(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-struct vframe_s *dvel_toggle_frame(struct vframe_s *vf,
-				   bool new_frame);
+struct vframe_s *dv_toggle_frame(struct vframe_s *vf,
+				enum vd_path_e vd_path, bool new_frame);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
@@ -795,6 +796,8 @@ void vsync_rdma_process(void);
 void amvecm_process(struct path_id_s *path_id, struct video_recv_s *p_gvideo_recv,
 			    struct vframe_s *new_frame);
 #endif
+
+u32 get_force_skip_cnt(enum vd_path_e path);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {

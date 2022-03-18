@@ -514,7 +514,7 @@ void amcm_level_sel(unsigned int cm_level)
 	else
 		am_set_regmap(&cmreg_optimize);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (!is_dolby_vision_enable())
+	if (!is_amdv_enable())
 #endif
 	{
 		if (!(READ_VPP_REG(VPP_MISC) & (0x1 << 28)))

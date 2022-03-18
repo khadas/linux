@@ -379,8 +379,8 @@ static void update_warn_table(struct rdma_warn_array *warn_array,
 {
 	int i;
 
-	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2 ||
+	if ((addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2 ||
 	     addr == VPU_MAFBC_IRQ_CLEAR ||
 	     addr == VPU_MAFBC1_IRQ_CLEAR ||
 	     addr == VPU_MAFBC2_IRQ_CLEAR ||

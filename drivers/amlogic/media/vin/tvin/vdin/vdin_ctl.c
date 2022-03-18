@@ -1235,7 +1235,7 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 	default:
 		break;
 	}
-	if (devp->dv.dv_flag && !(is_dolby_vision_stb_mode() &&
+	if (devp->dv.dv_flag && !(is_amdv_stb_mode() &&
 	    cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) &&
 	    devp->prop.color_format == TVIN_YUV422) {
 		vdin_data_bus_0 = VDIN_MAP_BPB;
@@ -1749,6 +1749,14 @@ void vdin_set_hdr(struct vdin_dev_s *devp)
 		video_format = devp->tx_fmt;
 		break;
 	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (for_amdv_certification()) {
+		/*not modify data*/
+		return;
+	}
+#endif
+
 #ifndef VDIN_BRINGUP_NO_AMLVECM
 	pr_info("%s fmt:%d\n", __func__, video_format);
 	switch (video_format) {
@@ -3109,8 +3117,9 @@ void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 
 	sm_ops = devp->frontend->sm_ops;
 
-	if (devp->dv.dv_flag/* && is_dolby_vision_enable()*/ &&
-	    !(is_dolby_vision_stb_mode() && cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) &&
+	if (devp->dv.dv_flag/* && is_amdv_enable()*/ &&
+	    (!(is_amdv_stb_mode() && cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) ||
+	    (is_amdv_stb_mode() && !is_hdmi_ll_as_hdr10())) &&
 		/*&& (devp->dv.low_latency)*/
 	    devp->prop.color_format == TVIN_YUV422) {
 		offset = devp->addr_offset;

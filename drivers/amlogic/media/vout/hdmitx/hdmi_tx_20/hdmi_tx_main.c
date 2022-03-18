@@ -1988,7 +1988,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 		VEN_DB2[2] = 0x00;
 		if (data->ver2_l11_flag == 1) {
 			VEN_DB2[3] = data->vers.ver2_l11.low_latency |
-				     data->vers.ver2_l11.dobly_vision_signal << 1;
+				     data->vers.ver2_l11.dobly_vision_signal << 1 |
+				     data->vers.ver2_l11.src_dm_version << 5;
 			VEN_DB2[4] = data->vers.ver2_l11.eff_tmax_PQ_hi
 				     | data->vers.ver2_l11.auxiliary_MD_present << 6
 				     | data->vers.ver2_l11.backlt_ctrl_MD_present << 7
@@ -2005,7 +2006,8 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			VEN_DB2[12] = data->vers.ver2_l11.l11_byte3;
 		} else {
 			VEN_DB2[3] = (data->vers.ver2.low_latency) |
-				(data->vers.ver2.dobly_vision_signal << 1);
+				(data->vers.ver2.dobly_vision_signal << 1) |
+				(data->vers.ver2.src_dm_version << 5);
 			VEN_DB2[4] = (data->vers.ver2.eff_tmax_PQ_hi)
 				| (data->vers.ver2.auxiliary_MD_present << 6)
 				| (data->vers.ver2.backlt_ctrl_MD_present << 7);

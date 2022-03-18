@@ -1006,10 +1006,10 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->sup_2160p60hz = (dat[pos] >> 1) & 0x1;
 				pos++;
 				dv->sup_global_dimming = dat[pos] & 0x1;
-				dv->tmaxLUM = dat[pos] >> 1;
+				dv->tmax_lum = dat[pos] >> 1;
 				pos++;
 				dv->colorimetry = dat[pos] & 0x1;
-				dv->tminLUM = dat[pos] >> 1;
+				dv->tmin_lum = dat[pos] >> 1;
 				pos++;
 				dv->low_latency = dat[pos] & 0x3;
 				dv->Bx = 0x20 | ((dat[pos] >> 5) & 0x7);
@@ -1032,10 +1032,10 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->sup_2160p60hz = (dat[pos] >> 1) & 0x1;
 				pos++;
 				dv->sup_global_dimming = dat[pos] & 0x1;
-				dv->tmaxLUM = dat[pos] >> 1;
+				dv->tmax_lum = dat[pos] >> 1;
 				pos++;
 				dv->colorimetry = dat[pos] & 0x1;
-				dv->tminLUM = dat[pos] >> 1;
+				dv->tmin_lum = dat[pos] >> 1;
 				pos += 2; /* byte8 is reserved as 0 */
 				dv->Rx = dat[pos++];
 				dv->Ry = dat[pos++];

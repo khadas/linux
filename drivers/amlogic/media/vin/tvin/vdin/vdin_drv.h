@@ -885,7 +885,7 @@ void vdin_vf_reg(struct vdin_dev_s *devp);
 void vdin_vf_unreg(struct vdin_dev_s *devp);
 void vdin_pause_dec(struct vdin_dev_s *devp);
 void vdin_resume_dec(struct vdin_dev_s *devp);
-bool is_dolby_vision_enable(void);
+bool is_amdv_enable(void);
 
 void vdin_debugfs_init(struct vdin_dev_s *vdevp);
 void vdin_debugfs_exit(struct vdin_dev_s *vdevp);

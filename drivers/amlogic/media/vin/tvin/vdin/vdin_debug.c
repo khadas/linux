@@ -1043,7 +1043,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 			devp->vfp->dv_buf_size[i], devp->vfp->dv_buf_mem[i]);
 
 	pr_info("dvEn:%d,dv_flag:%d;dv_config:%d,dolby_ver:%d,low_latency:(%d,%d,%d) allm:%d\n",
-		is_dolby_vision_enable(),
+		is_amdv_enable(),
 		devp->dv.dv_flag, devp->dv.dv_config, devp->prop.dolby_vision,
 		devp->dv.low_latency, devp->prop.low_latency,
 		devp->vfp->low_latency, devp->pre_prop.latency.allm_mode);

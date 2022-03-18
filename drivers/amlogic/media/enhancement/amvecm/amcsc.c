@@ -523,13 +523,13 @@ int get_hdr_policy(void)
 	int dv_policy = 0;
 	int dv_mode = 0;
 
-	if (is_dolby_vision_enable()) {
+	if (is_amdv_enable()) {
 		/* sync hdr_policy with dolby_vision_policy */
 		/* get current dolby_vision_mode */
-		dv_policy = get_dolby_vision_policy();
-		dv_mode = get_dolby_vision_target_mode();
-		if (dv_policy != DOLBY_VISION_FORCE_OUTPUT_MODE ||
-		    dv_mode != DOLBY_VISION_OUTPUT_MODE_BYPASS) {
+		dv_policy = get_amdv_policy();
+		dv_mode = get_amdv_target_mode();
+		if (dv_policy != AMDV_FORCE_OUTPUT_MODE ||
+		    dv_mode != AMDV_OUTPUT_MODE_BYPASS) {
 			/* use dv policy when not force bypass */
 			return dv_policy;
 		}
@@ -542,8 +542,8 @@ EXPORT_SYMBOL(get_hdr_policy);
 void set_hdr_policy(int policy)
 {
 	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_enable())
-		set_dolby_vision_policy(policy);
+	if (is_amdv_enable())
+		set_amdv_policy(policy);
 	#endif
 	hdr_policy = policy;
 }
@@ -661,8 +661,8 @@ void set_hdr_module_status(enum vd_path_e vd_path, int status)
 	       __LINE__,
 
 	       vd_path + 1, status,
-	       is_dolby_vision_enable() ? "en" : "",
-	       is_dolby_vision_on() ? "on" : "",
+	       is_amdv_enable() ? "en" : "",
+	       is_amdv_on() ? "on" : "",
 	       get_dv_support_info());
 #else
 	pr_csc(4, "%d: set video_process_status[VD%d] = %d\n",
@@ -4113,7 +4113,7 @@ int signal_type_changed(struct vframe_s *vf,
 		change_flag |= SIG_KNEE_FACTOR;
 		cur_knee_factor = knee_factor;
 	}
-	if (!is_dolby_vision_on() || vd_path != VD1_PATH) {
+	if (!is_amdv_on() || vd_path != VD1_PATH) {
 		if (cur_hdr_process_mode[vd_path]
 		    != hdr_process_mode[vd_path]) {
 			pr_csc(1, "vd%d HDR mode changed %d %d.\n", vd_path + 1,
@@ -6738,7 +6738,7 @@ static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path,
 	}
 }
 
-static int sink_support_dolby_vision(const struct vinfo_s *vinfo)
+static int sink_support_dv(const struct vinfo_s *vinfo)
 {
 	if (sink_hdr_support(vinfo) & DV_SUPPORT)
 		return 1;
@@ -6806,8 +6806,8 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path, enum vpp_index vp
 		return HDRTYPE_PRIMESL;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vd_path == VD1_PATH &&
-	    is_dolby_vision_enable() &&
-	    get_dolby_vision_src_format()
+	    is_amdv_enable() &&
+	    get_amdv_src_format(vd_path)
 	    == HDRTYPE_DOVI)
 		return HDRTYPE_DOVI;
 #endif
@@ -6824,7 +6824,7 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path, enum vpp_index vp
 		else if (vinfo_lcd_support() ||
 			(!sink_support_hdr10_plus(vinfo) &&
 			 !sink_support_hdr(vinfo) &&
-			 !is_dolby_vision_enable()))
+			 !is_amdv_enable()))
 			return HDRTYPE_HDR10PLUS;
 		else
 			return HDRTYPE_HDR10;
@@ -6847,9 +6847,9 @@ int get_hdr_module_status(enum vd_path_e vd_path, enum vpp_index vpp_index)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vd_path == VD1_PATH &&
-	    is_dolby_vision_enable() &&
-	    get_dolby_vision_policy()
-	    == DOLBY_VISION_FOLLOW_SOURCE &&
+	    is_amdv_enable() &&
+	    get_amdv_policy()
+	    == AMDV_FOLLOW_SOURCE &&
 	    get_source_type(VD1_PATH, vpp_index)
 	    == HDRTYPE_SDR &&
 	    sdr_process_mode[VD1_PATH]
@@ -6858,6 +6858,16 @@ int get_hdr_module_status(enum vd_path_e vd_path, enum vpp_index vpp_index)
 		       vd_path + 1);
 		return HDR_MODULE_BYPASS;
 	}
+	if (support_multi_core1() &&
+	    vd_path == VD2_PATH &&
+	    is_amdv_enable() &&
+	    get_amdv_policy()
+	    == AMDV_FOLLOW_SOURCE &&
+	    get_source_type(VD2_PATH, vpp_index)
+	    == HDRTYPE_SDR &&
+	    sdr_process_mode[VD2_PATH]
+	    == PROC_BYPASS)
+		return HDR_MODULE_BYPASS;
 #endif
 	pr_csc(16, "get video_process_status[VD%d] = %d\n",
 	       vd_path + 1, video_process_status[vd_path]);
@@ -7052,9 +7062,9 @@ void update_hdr10_plus_pkt(bool enable,
 		if (!vdev)
 			return;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if ((get_dolby_vision_policy() == DOLBY_VISION_FOLLOW_SINK) &&
+		if ((get_amdv_policy() == AMDV_FOLLOW_SINK) &&
 		    sink_support_hdr(vinfo) &&
-		    (!sink_support_dolby_vision(vinfo))) {
+		    (!sink_support_dv(vinfo))) {
 			pr_csc(2, "update hdr10_plus_pkt: DISABLE_VSIF\n");
 			vdev->fresh_tx_hdr10plus_pkt(HDR10_PLUS_DISABLE_VSIF,
 						     &cur_hdr10plus_params);
@@ -7694,7 +7704,7 @@ int is_sink_cap_changed(const struct vinfo_s *vinfo,
 
 	if (vinfo && is_vinfo_available(vinfo)) {
 		hdr_cap = (1 << 0) |
-			(sink_support_dolby_vision(vinfo) << 1) |
+			(sink_support_dv(vinfo) << 1) |
 			(sink_support_hdr10_plus(vinfo) << 2) |
 			(sink_support_hdr(vinfo) << 3) |
 			(sink_support_hlg(vinfo) << 3);
@@ -7795,7 +7805,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	    !(video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS)) {
 		if ((is_video_layer_on(vd_path) ||
 		     video_layer_wait_on[vd_path]) && // TODO  should we add vd3 here
-		    (!is_dolby_vision_on() || vd_path == VD2_PATH || vd_path == VD3_PATH)) {
+		    (!is_amdv_on() || vd_path == VD2_PATH || vd_path == VD3_PATH)) {
 			video_process_status[vd_path] = HDR_MODULE_ON;
 			pr_csc(4,
 			       "%d:set video_process_status[%s] = HDR_MODULE_ON\n",
@@ -7810,7 +7820,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	    (video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS))
 		signal_change_flag |= SIG_FORCE_CHG;
 
-	if (is_dolby_vision_on() &&
+	if (is_amdv_on() &&
 	    (vd_path == VD1_PATH ||
 	    !cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)))
 		return 0;
@@ -7894,7 +7904,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		    (vd_path == VD2_PATH &&
 		     !is_video_layer_on(VD1_PATH) &&
 		     is_video_layer_on(VD2_PATH) &&
-		     !is_dolby_vision_on())) {
+		     !is_amdv_on())) {
 			para =
 			hdr10p_meta_updated ?
 			&hdmitx_hdr10plus_params[vd_path] : NULL;
@@ -7922,7 +7932,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		     is_video_layer_on(VD2_PATH)) ||
 		     (!is_video_layer_on(VD1_PATH) &&
 		     !is_video_layer_on(VD2_PATH) &&
-		     !is_dolby_vision_on()) ||
+		     !is_amdv_on()) ||
 		     vpp_index == VPP_TOP1) {
 			para =
 			hdr10p_meta_updated ?
@@ -8042,7 +8052,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	bool send_fake_frame = false;
 	struct vframe_master_display_colour_s *pa;
 	int dv_hdr_policy = 0;
-	static bool dolby_enable;
+	static bool amdv_enable;
 
 	if (vpp_index == VPP_TOP1)
 		vinfo = get_current_vinfo2();
@@ -8089,7 +8099,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 	}
 
 	if (vd_path == VD1_PATH) {
-		if (is_dolby_vision_on()) {
+		if (is_amdv_on()) {
 			if (!dovi_on)
 				hdr_func(VD1_HDR, HDR_BYPASS,
 					 get_current_vinfo(),
@@ -8304,7 +8314,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				}
 			}
 		}
-		if (!is_dolby_vision_enable() &&
+		if (!is_amdv_enable() &&
 		    get_hdr_policy() != cur_hdr_policy) {
 			null_vf_cnt[vd_path] = 1;
 			toggle_frame = 1;
@@ -8319,7 +8329,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 		} else if (csc_en & 0x10) {
 			toggle_frame = null_vf_max;
 		} else if (vd_path == VD1_PATH &&
-			   dolby_enable && !is_dolby_vision_enable()) {
+			   amdv_enable && !is_amdv_enable()) {
 			/*dv enable->disable*/
 			null_vf_cnt[vd_path] = 1;
 			toggle_frame = 1;
@@ -8328,7 +8338,7 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			toggle_frame = 0;
 		}
 		if (vd_path == VD1_PATH)
-			dolby_enable = is_dolby_vision_enable();
+			amdv_enable = is_amdv_enable();
 
 		if (null_vf_cnt[vd_path] == toggle_frame) {
 			if (null_vf_cnt[vd_path] == 0) {
@@ -8339,9 +8349,9 @@ int amvecm_matrix_process(struct vframe_s *vf,
 			}
 			/* video off */
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (is_dolby_vision_enable()) {
+			if (is_amdv_enable()) {
 				/* dolby enable */
-				dv_hdr_policy = get_dolby_vision_hdr_policy();
+				dv_hdr_policy = get_amdv_hdr_policy();
 				pr_csc(8,
 				       "vd%d: %d %d Fake SDR frame%s, dv on=%d, policy=%d, hdr policy=0x%x\n",
 				       vd_path + 1,
@@ -8349,8 +8359,8 @@ int amvecm_matrix_process(struct vframe_s *vf,
 				       toggle_frame,
 				       is_video_layer_on(vd_path) ?
 				       " " : ", video off",
-				       is_dolby_vision_on(),
-				       get_dolby_vision_policy(),
+				       is_amdv_on(),
+				       get_amdv_policy(),
 				       dv_hdr_policy);
 				if (vd_path == VD2_PATH || // TODO, add vd3??
 				    (vd_path == VD1_PATH &&

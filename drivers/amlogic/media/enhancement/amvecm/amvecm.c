@@ -1935,7 +1935,7 @@ int amvecm_on_vs(struct vframe_s *vf,
 #endif
 	amvecm_overscan_process(vf, toggle_vf, flags, vd_path);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (for_dolby_vision_certification() && vd_path == VD1_PATH)
+	if (for_amdv_certification() && vd_path == VD1_PATH)
 		return 0;
 #endif
 	if (!dnlp_insmod_ok && vd_path == VD1_PATH)
@@ -2032,7 +2032,7 @@ void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf)
 	if (vf || rpt_vf) {
 		vpp_get_vframe_hist_info(vf ? vf : rpt_vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (!for_dolby_vision_certification())
+		if (!for_amdv_certification())
 #endif
 			ve_on_vs(vf ? vf : rpt_vf);
 		if (vf && is_video_layer_on(VD1_PATH)) {
@@ -6475,7 +6475,7 @@ static void amvecm_pq_enable(int enable)
 		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 1, 4, 1);
 		ve_enable_dnlp();
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (!is_dolby_vision_enable())
+		if (!is_amdv_enable())
 #endif
 			amcm_enable(WR_VCB);
 		WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
@@ -10069,12 +10069,12 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 	amvecm_gamma_init(gamma_en);
 	amvecm_3dlut_init(lut3d_en);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (!is_dolby_vision_enable())
+	if (!is_amdv_enable())
 #endif
 		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
 	if (cm_en) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (!is_dolby_vision_enable())
+		if (!is_amdv_enable())
 #endif
 			amcm_enable(WR_VCB);
 	} else {

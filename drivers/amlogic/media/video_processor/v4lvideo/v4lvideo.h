@@ -250,6 +250,7 @@ struct v4lvideo_dev {
 	struct v4lvideo_file_s v4lvideo_file[V4LVIDEO_POOL_SIZE];
 	bool opened;
 	struct v4lvideo_active_file active_file[V4LVIDEO_POOL_SIZE];
+	int dv_inst;
 };
 
 enum vframe_source_type {

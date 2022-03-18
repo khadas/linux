@@ -275,7 +275,8 @@ static int dovi_drop_frame_num;
 
 #define RECEIVER_NAME "amvideo"
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-static char dv_provider[32] = "dvbldec";
+/*amvideo, videopip dv provider*/
+static char dv_provider[2][32] = {"dvbldec", "dvbldec2"};
 #endif
 static s32 amvideo_poll_major;
 /*static s8 dolby_first_delay;*/ /* for bug 145902 */
@@ -1904,6 +1905,13 @@ static u8 enable_hdmi_delay_normal_check = 1;
 /* video_inuse */
 u32 video_inuse;
 
+/*dv instance id, used for tunnel mode*/
+static int dv_inst = -1;
+static int dv_inst_pip = -1;
+
+/*bit0~1 for vd1, bit2~3 for vd2*/
+static u32 force_skip_cnt;
+
 u32 get_playback_delay_duration(void)
 {
 	u32 memc_delay = 0;
@@ -2087,8 +2095,8 @@ static inline int pip2_vf_put(struct vframe_s *vf)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((glayer_info[0].display_path_id
 			== VFM_PATH_PIP2) &&
-			is_dolby_vision_enable())
-			dolby_vision_vf_put(vf);
+			is_amdv_enable())
+			amdv_vf_put(vf);
 #endif
 		/* video_notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT; */
 	} else {
@@ -2100,9 +2108,18 @@ static inline int pip2_vf_put(struct vframe_s *vf)
 
 static inline struct vframe_s *pip_vf_peek(void)
 {
+	struct vframe_s *vf = NULL;
+
 	if (pip_loop && cur_dispbuf != cur_pipbuf)
 		return cur_dispbuf;
-	return vf_peek(RECEIVERPIP_NAME);
+	vf = vf_peek(RECEIVERPIP_NAME);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	/*tunnel mode, add dv_inst to vf*/
+	if (vf && dv_inst_pip >= 0)
+		vf->src_fmt.dv_id = dv_inst_pip;
+#endif
+	return vf;
 }
 
 static inline struct vframe_s *pip_vf_get(void)
@@ -2122,6 +2139,11 @@ static inline struct vframe_s *pip_vf_get(void)
 		}
 		/* video_notify_flag |= VIDEO_NOTIFY_PROVIDER_GET; */
 		atomic_set(&vf->use_cnt_pip, 1);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		/*tunnel mode, add dv_inst to vf*/
+		if (dv_inst_pip >= 0)
+			vf->src_fmt.dv_id = dv_inst_pip;
+#endif
 	}
 	return vf;
 }
@@ -2138,9 +2160,9 @@ static inline int pip_vf_put(struct vframe_s *vf)
 			return -EFAULT;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((glayer_info[0].display_path_id
-			== VFM_PATH_PIP) &&
-			is_dolby_vision_enable())
-			dolby_vision_vf_put(vf);
+			== VFM_PATH_PIP || is_multi_dv_mode()) &&
+			is_amdv_enable())
+			amdv_vf_put(vf);
 #endif
 		/* video_notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT; */
 	} else {
@@ -2186,6 +2208,11 @@ static inline struct vframe_s *video_vf_peek(void)
 		}
 	}
 	#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	/*tunnel mode, add dv_inst to vf*/
+	if (vf && dv_inst >= 0)
+		vf->src_fmt.dv_id = dv_inst;
+#endif
 	return vf;
 }
 
@@ -2280,6 +2307,11 @@ static inline struct vframe_s *video_vf_get(void)
 		}
 		pre_process_for_3d(vf);
 		receive_frame_count++;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		/*tunnel mode, add dv_inst to vf*/
+		if (dv_inst >= 0)
+			vf->src_fmt.dv_id = dv_inst;
+#endif
 	}
 	return vf;
 }
@@ -2313,8 +2345,8 @@ static inline int video_vf_put(struct vframe_s *vf)
 		if (IS_DI_POSTWRTIE(vf->type))
 			put_di_count++;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (is_dolby_vision_enable())
-			dolby_vision_vf_put(vf);
+		if (is_amdv_enable())
+			amdv_vf_put(vf);
 #endif
 		video_notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT;
 	} else {
@@ -2757,15 +2789,15 @@ bool has_enhanced_layer(struct vframe_s *vf)
 	struct provider_aux_req_s req;
 	enum vframe_signal_fmt_e fmt;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_el_disable() &&
-	    !for_dolby_vision_certification())
+	if (is_amdv_el_disable() &&
+	    !for_amdv_certification())
 		return 0;
 #endif
 	if (!vf)
 		return 0;
 	if (vf->source_type != VFRAME_SOURCE_TYPE_OTHERS)
 		return 0;
-	if (!is_dolby_vision_on())
+	if (!is_amdv_on())
 		return 0;
 
 	fmt = get_vframe_src_fmt(vf);
@@ -3860,6 +3892,16 @@ void set_vsync_pts_inc_mode(int inc)
 }
 EXPORT_SYMBOL(set_vsync_pts_inc_mode);
 
+u32 get_force_skip_cnt(enum vd_path_e path)
+{
+	if (path == VD1_PATH)
+		return (force_skip_cnt & 3);
+	else if (path == VD2_PATH)
+		return ((force_skip_cnt >> 2) & 3);
+	else
+		return 0;
+}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void)
 {
@@ -4055,11 +4097,11 @@ static int dolby_vision_need_wait(void)
 {
 	struct vframe_s *vf;
 
-	if (!is_dolby_vision_enable())
+	if (!is_amdv_enable())
 		return 0;
 
 	vf = video_vf_peek();
-	if (!vf || (dolby_vision_wait_metadata(vf) == 1))
+	if (!vf || (amdv_wait_metadata(vf, VD1_PATH) == 1))
 		return 1;
 	return 0;
 }
@@ -4068,11 +4110,11 @@ static int dolby_vision_need_wait_pip(void)
 {
 	struct vframe_s *vf;
 
-	if (!is_dolby_vision_enable())
+	if (!is_amdv_enable())
 		return 0;
 
 	vf = pip_vf_peek();
-	if (!vf || (dolby_vision_wait_metadata(vf) == 1))
+	if (!vf || (amdv_wait_metadata(vf, VD2_PATH) == 1))
 		return 1;
 	return 0;
 }
@@ -4081,11 +4123,11 @@ static int dolby_vision_need_wait_pip2(void)
 {
 	struct vframe_s *vf;
 
-	if (!is_dolby_vision_enable())
+	if (!is_amdv_enable())
 		return 0;
 
 	vf = pip2_vf_peek();
-	if (!vf || (dolby_vision_wait_metadata(vf) == 1))
+	if (!vf || (amdv_wait_metadata(vf, VD3_PATH) == 1))
 		return 1;
 	return 0;
 }
@@ -4100,7 +4142,7 @@ int dvel_swap_frame(struct vframe_s *vf)
 	layer = &vd_layer[0];
 	layer_info = &glayer_info[0];
 
-	if (!is_dolby_vision_enable()) {
+	if (!is_amdv_enable()) {
 		if (dvel_status) {
 			//safe_switch_videolayer(1, false, true);
 			dvel_status = false;
@@ -4206,11 +4248,11 @@ static inline bool dv_vf_crc_check(struct vframe_s *vf)
 	return crc_err;
 }
 
-struct vframe_s *dvel_toggle_frame(struct vframe_s *vf, bool new_frame)
+struct vframe_s *dv_toggle_frame(struct vframe_s *vf, enum vd_path_e vd_path, bool new_frame)
 {
 	struct vframe_s *toggle_vf = NULL;
 
-	if (!is_dolby_vision_enable()) {
+	if (!is_amdv_enable()) {
 		cur_dispbuf2 = NULL;
 		dvel_size = 0;
 		dvel_changed = false;
@@ -4218,129 +4260,231 @@ struct vframe_s *dvel_toggle_frame(struct vframe_s *vf, bool new_frame)
 	}
 
 	if (new_frame) {
-		int ret = dolby_vision_update_metadata(vf, false);
+		int ret = amdv_update_metadata(vf, vd_path, false);
 
-		if (!is_dolby_vision_el_disable() ||
-		    for_dolby_vision_certification())
-			cur_dispbuf2 = dolby_vision_vf_peek_el(vf);
+		if ((!is_amdv_el_disable() ||
+		    for_amdv_certification()) &&
+		    !is_multi_dv_mode())
+			cur_dispbuf2 = amdv_vf_peek_el(vf);
 		if (ret == 0) {
 			/* setting generated for this frame */
 			/* or DOVI in bypass mode */
 			toggle_vf = vf;
-			dolby_vision_set_toggle_flag(1);
+			amdv_set_toggle_flag(1);
 		} else if (ret == 1) {
 			/* both dolby and hdr module bypass */
 			toggle_vf = vf;
-			dolby_vision_set_toggle_flag(0);
+			amdv_set_toggle_flag(0);
 		} else {
 			/* fail generating setting for this frame */
 			toggle_vf = NULL;
-			dolby_vision_set_toggle_flag(0);
+			amdv_set_toggle_flag(0);
 		}
 	} else {
 		/* FIXME: if need the is on condition */
-		/* if (is_dolby_vision_on() && get_video_enabled()) */
-		if (!dolby_vision_parse_metadata(vf, 2, false, false))
-			dolby_vision_set_toggle_flag(1);
+		/* if (is_amdv_on() && get_video_enabled()) */
+		if (!amdv_parse_metadata(vf, vd_path, 2, false, false))
+			amdv_set_toggle_flag(1);
 	}
 	return toggle_vf;
 }
 
-static void dolby_vision_proc(struct video_layer_s *layer,
-			      struct vpp_frame_par_s *cur_frame_par)
+static void amdolby_vision_proc
+	(struct video_layer_s *layer_1,
+	 struct vpp_frame_par_s *cur_frame_par_1,
+	 struct video_layer_s *layer_2,
+	 struct vpp_frame_par_s *cur_frame_par_2)
 {
-	static struct vframe_s *cur_dv_vf;
-	static u32 cur_frame_size;
-	struct vframe_s *disp_vf;
-	u8 toggle_mode;
+	static struct vframe_s *cur_dv_vf_1;/*vd1*/
+	static u32 cur_frame_size_1;/*vd1*/
+	struct vframe_s *disp_vf_1 = NULL;/*vd1*/
+	static struct vframe_s *cur_dv_vf_2;/*vd2*/
+	static u32 cur_frame_size_2;/*vd2*/
+	struct vframe_s *disp_vf_2 = NULL;/*vd2*/
+	u8 toggle_mode_1 = 0;
+	u8 toggle_mode_2 = 0;
+	u8 toggle_mode = 0;
 
-	if (is_dolby_vision_enable()) {
-		u32 frame_size = 0, h_size, v_size;
+	if (is_amdv_enable()) {
+		u32 frame_size_1 = 0, h_size, v_size;
+		u32 frame_size_2 = 0;
 		u8 pps_state = 0; /* pps no change */
 
 /* TODO: check if need */
 #ifdef OLD_DV_FLOW
 		/* force toggle when keeping frame after playing */
-		if (is_local_vf(layer->dispbuf) &&
-		    !layer->new_frame &&
-		    is_dolby_vision_video_on() &&
+		if (is_local_vf(layer_1->dispbuf) &&
+		    !layer_1->new_frame &&
+		    is_amdv_video_on() &&
 		    get_video_enabled()) {
-			if (!dolby_vision_parse_metadata
-				(layer->dispbuf, 2, false, false))
-				dolby_vision_set_toggle_flag(1);
+			if (!amdv_parse_metadata
+				(layer_1->dispbuf, VD1_PATH, 2, false, false))
+				amdv_set_toggle_flag(1);
+		}
+		/* force toggle when keeping frame after playing */
+		if (layer_2) {
+			if (is_local_vf(layer_2->dispbuf) &&
+			    !layer_2->new_frame &&
+			    is_amdv_video_on() &&
+			    get_video_enabled()) {
+				if (!amdv_parse_metadata
+					(layer_2->dispbuf, VD2_PATH, 2, false, false))
+					amdv_set_toggle_flag(1);
+			}
 		}
 #endif
-		if (layer->new_frame)
-			toggle_mode = 1; /* new frame */
-		else if (!layer->dispbuf ||
-			is_local_vf(layer->dispbuf))
-			toggle_mode = 2; /* keep frame */
+		if (layer_1->new_frame)
+			toggle_mode_1 = 1; /* new frame */
+		else if (!layer_1->dispbuf ||
+			is_local_vf(layer_1->dispbuf))
+			toggle_mode_1 = 2; /* keep frame */
 		else
-			toggle_mode = 0; /* pasue frame */
+			toggle_mode_1 = 0; /* pasue frame */
 
-		if (layer->switch_vf && layer->vf_ext)
-			disp_vf = layer->vf_ext;
+		if (layer_2 && layer_2->new_frame)
+			toggle_mode_2 = 1; /* new frame */
+		else if (layer_2 && (!layer_2->dispbuf ||
+			is_local_vf(layer_2->dispbuf)))
+			toggle_mode_2 = 2; /* keep frame */
 		else
-			disp_vf = layer->dispbuf;
+			toggle_mode_2 = 0; /* pasue frame */
 
-		if (cur_frame_par) {
-			if (layer->new_vpp_setting) {
+		/* vd1 toggle_mode priority is high than vd2*/
+		toggle_mode = toggle_mode_1 ? toggle_mode_1 : toggle_mode_2;
+
+		/*************get vd1 disp_vf and frame_size************/
+
+		if (layer_1->switch_vf && layer_1->vf_ext)
+			disp_vf_1 = layer_1->vf_ext;
+		else
+			disp_vf_1 = layer_1->dispbuf;
+
+		if (cur_frame_par_1) {
+			if (layer_1->new_vpp_setting) {
 				struct vppfilter_mode_s *vpp_filter =
-					&cur_frame_par->vpp_filter;
+					&cur_frame_par_1->vpp_filter;
 				if (vpp_filter->vpp_hsc_start_phase_step ==
-					0x1000000 &&
-					vpp_filter->vpp_vsc_start_phase_step ==
-					0x1000000 &&
-					vpp_filter->vpp_hsc_start_phase_step ==
-					vpp_filter->vpp_hf_start_phase_step &&
-					!vpp_filter->vpp_pre_vsc_en &&
-					!vpp_filter->vpp_pre_hsc_en &&
-					!cur_frame_par->supsc0_enable &&
-					!cur_frame_par->supsc1_enable &&
-					layer->bypass_pps)
+				    0x1000000 &&
+				    vpp_filter->vpp_vsc_start_phase_step ==
+				    0x1000000 &&
+				    vpp_filter->vpp_hsc_start_phase_step ==
+				    vpp_filter->vpp_hf_start_phase_step &&
+				    !vpp_filter->vpp_pre_vsc_en &&
+				    !vpp_filter->vpp_pre_hsc_en &&
+				    !cur_frame_par_1->supsc0_enable &&
+					!cur_frame_par_1->supsc1_enable &&
+					layer_1->bypass_pps)
 					pps_state = 2; /* pps disable */
 				else
 					pps_state = 1; /* pps enable */
 			}
-			if (cur_frame_par->VPP_hd_start_lines_
-				>=  cur_frame_par->VPP_hd_end_lines_)
+			if (cur_frame_par_1->VPP_hd_start_lines_
+				>=  cur_frame_par_1->VPP_hd_end_lines_)
 				h_size = 0;
 			else
-				h_size = cur_frame_par->VPP_hd_end_lines_
-				- cur_frame_par->VPP_hd_start_lines_ + 1;
-			h_size /= (cur_frame_par->hscale_skip_count + 1);
-			if (cur_frame_par->VPP_vd_start_lines_
-				>=  cur_frame_par->VPP_vd_end_lines_)
+				h_size = cur_frame_par_1->VPP_hd_end_lines_
+				- cur_frame_par_1->VPP_hd_start_lines_ + 1;
+			h_size /= (cur_frame_par_1->hscale_skip_count + 1);
+			if (cur_frame_par_1->VPP_vd_start_lines_
+				>=  cur_frame_par_1->VPP_vd_end_lines_)
 				v_size = 0;
 			else
-				v_size = cur_frame_par->VPP_vd_end_lines_
-				- cur_frame_par->VPP_vd_start_lines_ + 1;
+				v_size = cur_frame_par_1->VPP_vd_end_lines_
+				- cur_frame_par_1->VPP_vd_start_lines_ + 1;
 			v_size /=
-				(cur_frame_par->vscale_skip_count + 1);
-			frame_size = (h_size << 16) | v_size;
-		} else if (disp_vf) {
-			h_size = (disp_vf->type & VIDTYPE_COMPRESS) ?
-				disp_vf->compWidth : disp_vf->width;
-			v_size = (disp_vf->type & VIDTYPE_COMPRESS) ?
-				disp_vf->compHeight : disp_vf->height;
-			frame_size = (h_size << 16) | v_size;
+				(cur_frame_par_1->vscale_skip_count + 1);
+			frame_size_1 = (h_size << 16) | v_size;
+		} else if (disp_vf_1) {
+			h_size = (disp_vf_1->type & VIDTYPE_COMPRESS) ?
+				disp_vf_1->compWidth : disp_vf_1->width;
+			v_size = (disp_vf_1->type & VIDTYPE_COMPRESS) ?
+				disp_vf_1->compHeight : disp_vf_1->height;
+			frame_size_1 = (h_size << 16) | v_size;
 		}
 
 		/* trigger dv process once when stop playing */
 		/* because disp_vf is not sync with video off */
-		if (cur_dv_vf && !disp_vf)
-			dolby_vision_set_toggle_flag(1);
-		cur_dv_vf = disp_vf;
+		if (cur_dv_vf_1 && !disp_vf_1)
+			amdv_set_toggle_flag(1);
 
-		if (cur_frame_size != frame_size) {
-			cur_frame_size = frame_size;
-			dolby_vision_set_toggle_flag(1);
+		cur_dv_vf_1 = disp_vf_1;
+
+		if (cur_frame_size_1 != frame_size_1) {
+			cur_frame_size_1 = frame_size_1;
+			amdv_set_toggle_flag(1);
 		}
-		dolby_vision_process
-			(disp_vf, frame_size,
-			toggle_mode, pps_state);
-		dolby_vision_update_setting();
+		/**************************************************/
+
+		/*************get vd2 disp_vf and frame_size************/
+		if (layer_2 && cur_frame_par_2) {
+			if (layer_2->switch_vf && layer_2->vf_ext)
+				disp_vf_2 = layer_2->vf_ext;
+			else
+				disp_vf_2 = layer_2->dispbuf;
+
+			if (cur_frame_par_2) {
+				if (layer_2->new_vpp_setting) {
+					struct vppfilter_mode_s *vpp_filter =
+						&cur_frame_par_2->vpp_filter;
+					if (vpp_filter->vpp_hsc_start_phase_step ==
+					    0x1000000 && vpp_filter->vpp_vsc_start_phase_step ==
+					    0x1000000 && vpp_filter->vpp_hsc_start_phase_step ==
+					    vpp_filter->vpp_hf_start_phase_step &&
+					    !vpp_filter->vpp_pre_vsc_en &&
+					    !vpp_filter->vpp_pre_hsc_en &&
+					    !cur_frame_par_2->supsc0_enable &&
+					    !cur_frame_par_2->supsc1_enable &&
+					    layer_2->bypass_pps)
+						pps_state = 2; /* pps disable */
+					else
+						pps_state = 1; /* pps enable */
+				}
+				if (cur_frame_par_2->VPP_hd_start_lines_
+					>=  cur_frame_par_2->VPP_hd_end_lines_)
+					h_size = 0;
+				else
+					h_size = cur_frame_par_2->VPP_hd_end_lines_
+					- cur_frame_par_2->VPP_hd_start_lines_ + 1;
+				h_size /= (cur_frame_par_2->hscale_skip_count + 1);
+				if (cur_frame_par_2->VPP_vd_start_lines_
+					>=  cur_frame_par_2->VPP_vd_end_lines_)
+					v_size = 0;
+				else
+					v_size = cur_frame_par_2->VPP_vd_end_lines_
+					- cur_frame_par_2->VPP_vd_start_lines_ + 1;
+				v_size /=
+					(cur_frame_par_2->vscale_skip_count + 1);
+				frame_size_2 = (h_size << 16) | v_size;
+			} else if (disp_vf_2) {
+				h_size = (disp_vf_2->type & VIDTYPE_COMPRESS) ?
+					disp_vf_2->compWidth : disp_vf_2->width;
+				v_size = (disp_vf_2->type & VIDTYPE_COMPRESS) ?
+					disp_vf_2->compHeight : disp_vf_2->height;
+				frame_size_2 = (h_size << 16) | v_size;
+			}
+
+			/* trigger dv process once when stop playing */
+			/* because disp_vf is not sync with video off */
+			if (cur_dv_vf_2 && !disp_vf_2)
+				amdv_set_toggle_flag(1);
+
+			cur_dv_vf_2 = disp_vf_2;
+
+			if (cur_frame_size_2 != frame_size_2) {
+				cur_frame_size_2 = frame_size_2;
+				amdv_set_toggle_flag(1);
+			}
+		}
+		/*************************************************/
+		amdolby_vision_process
+			(disp_vf_1, frame_size_1,
+			 disp_vf_2, frame_size_2,
+			 toggle_mode_1, toggle_mode_2, pps_state);
+
+		/*update setting according to vd1*/
+		amdv_update_setting(disp_vf_1);
 	}
+
 }
 
 /* 1: drop fail; 0: drop success*/
@@ -4354,12 +4498,14 @@ static int dolby_vision_drop_frame(void)
 		return 1;
 	}
 	vf = video_vf_get();
+	if (!vf)
+		return 1;
 
 	if (vf && (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME))
 		pr_info("drop vf %p, index %d, pts %d\n",
 			vf, vf->omx_index, vf->pts);
 
-	dolby_vision_update_metadata(vf, true);
+	amdv_update_metadata(vf, VD1_PATH, true);
 	if (video_vf_put(vf) < 0)
 		check_dispbuf(vf, true);
 
@@ -4386,7 +4532,7 @@ static void dmc_adjust_for_mali_vpu(unsigned int width,
 	if (width >= 2000 && height >= 1400 &&
 	    ((dmc_config_state != 1 && toggle_same_count < 30) ||
 		force_adjust)) {
-		if (0) {/* if (is_dolby_vision_enable()) { */
+		if (0) {/* if (is_amdv_enable()) { */
 			/* vpu dmc */
 			WRITE_DMCREG
 				(DMC_AM0_CHAN_CTRL,
@@ -5748,7 +5894,7 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 		force_toggle = true;
 	}
 
-	if (is_dolby_vision_enable())
+	if (is_amdv_enable())
 		vf_with_el = has_enhanced_layer(vf);
 
 	/* FIXME: need check the pre seq */
@@ -5946,7 +6092,8 @@ s32 primary_render_frame(struct video_layer_s *layer)
 
 		/* dolby vision process for each vsync */
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		dolby_vision_proc(layer, frame_par);
+		if (!support_multi_core1())
+			amdolby_vision_proc(layer, frame_par, NULL, NULL);
 #endif
 		return 0;
 	}
@@ -5982,7 +6129,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 			(layer, &layer->mif_setting);
 		config_aisr_position(layer, &layer->aisr_mif_setting);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (is_dolby_vision_on() && cur_dispbuf2) {
+		if (is_amdv_on() && cur_dispbuf2) {
 			config_dvel_position
 				(layer,
 				&local_vd2_mif,
@@ -6018,7 +6165,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* work around to cut the last green line */
 	/* when two layer dv display and do vskip */
-	if (is_dolby_vision_on() &&
+	if (is_amdv_on() &&
 	    frame_par->vscale_skip_count > 0 &&
 	    cur_dispbuf2 &&
 	    frame_par->VPP_pic_in_height_ > 0)
@@ -6034,10 +6181,11 @@ s32 primary_render_frame(struct video_layer_s *layer)
 
 	update_vd2 = false;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (for_dolby_vision_certification())
+	if (for_amdv_certification() &&
+	    !is_multi_dv_mode())/*some idk2.6 cert cases need pps scaler*/
 		layer->sc_setting.sc_top_enable = false;
 
-	if (is_dolby_vision_on() && cur_dispbuf2) {
+	if (is_amdv_on() && cur_dispbuf2) {
 		config_dvel_pps
 			(layer, &local_vd2_pps, vinfo);
 		config_dvel_blend
@@ -6070,7 +6218,8 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	/* dolby vision process for each vsync */
 	/* need set after correct_vd1_mif_size_for_DV */
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	dolby_vision_proc(layer, frame_par);
+	if (!support_multi_core1())
+		amdolby_vision_proc(layer, frame_par, NULL, NULL);
 #endif
 	fgrain_setting(layer, &layer->fgrain_setting, dispbuf);
 	alpha_win_set(layer);
@@ -6361,6 +6510,31 @@ static void blend_reg_conflict_detect(void)
 	}
 }
 
+/*tunnel mode, map dv instance when creating amvideo/videopip path*/
+static inline bool is_tunnel_mode(const char *receiver_name)
+{
+	char *provider_name;
+
+	provider_name = vf_get_provider_name(receiver_name);
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name &&
+	    (strstr(provider_name, "dv_vdin") ||
+	    strstr(provider_name, "vdin0") ||
+	    strstr(provider_name, "decoder") ||
+	    strstr(provider_name, "vdec.h265") ||
+	    strstr(provider_name, "vdec.h264") ||
+	    strstr(provider_name, "dvbldec") ||
+	    strstr(provider_name, "dvbldec2"))) {
+		return true;
+	}
+	return false;
+}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 void amvecm_process(struct path_id_s *path_id,
 			    struct video_recv_s *p_gvideo_recv,
@@ -6491,8 +6665,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_on())
-		dolby_vision_update_backlight();
+	if (is_amdv_on())
+		amdv_update_backlight();
 #endif
 
 	if (cur_vd1_path_id == 0xff)
@@ -6612,10 +6786,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_enable()) {
+	if (is_amdv_enable() &&
+	    (is_tunnel_mode(RECEIVER_NAME) || is_tunnel_mode(RECEIVERPIP_NAME))) {
 		char *provider_name = NULL;
 
-		if (vd1_path_id == VFM_PATH_PIP) {
+		if (vd1_path_id == VFM_PATH_PIP || vd2_path_id == VFM_PATH_PIP) {
 			provider_name = vf_get_provider_name(RECEIVERPIP_NAME);
 			while (provider_name) {
 				if (!vf_get_provider_name(provider_name))
@@ -6624,10 +6799,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					vf_get_provider_name(provider_name);
 			}
 			if (provider_name)
-				dolby_vision_set_provider(provider_name);
+				amdv_set_provider(provider_name, VD2_PATH);
 			else
-				dolby_vision_set_provider(dv_provider);
-		} else {
+				amdv_set_provider(dv_provider[1], VD2_PATH);
+		}
+		if (vd1_path_id == VFM_PATH_AMVIDEO || vd2_path_id == VFM_PATH_AMVIDEO) {
 			provider_name = vf_get_provider_name(RECEIVER_NAME);
 			while (provider_name) {
 				if (!vf_get_provider_name(provider_name))
@@ -6636,13 +6812,13 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					vf_get_provider_name(provider_name);
 			}
 			if (provider_name)
-				dolby_vision_set_provider(provider_name);
+				amdv_set_provider(provider_name, VD1_PATH);
 			else
-				dolby_vision_set_provider(dv_provider);
+				amdv_set_provider(dv_provider[0], VD1_PATH);
 		}
 	}
 
-	if (is_dolby_vision_enable() && dovi_drop_flag) {
+	if (is_amdv_enable() && dovi_drop_flag) {
 		struct vframe_s *vf = NULL;
 		unsigned int cnt = 10;
 		int max_drop_index;
@@ -6652,7 +6828,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				dovi_drop_frame_num, omx_run);
 		while (cnt--) {
 			vf = video_vf_peek();
-			if (vf && is_dovi_frame(vf)) {
+			if (vf && is_amdv_frame(vf)) {
 				max_drop_index = omx_run ?
 				omx_need_drop_frame_num : dovi_drop_frame_num;
 
@@ -6685,8 +6861,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			vf = video_vf_peek();
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (is_dolby_vision_enable() &&
-			    vf && is_dovi_frame(vf)) {
+			if (is_amdv_enable() &&
+			    vf && is_amdv_frame(vf)) {
 				break;
 			}
 #endif
@@ -6829,15 +7005,15 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* check video frame before VECM process */
-	if (is_dolby_vision_enable() && vf &&
+	if (is_amdv_enable() && vf &&
 	    (vd1_path_id == VFM_PATH_AMVIDEO ||
 	     vd1_path_id == VFM_PATH_DEF ||
 	     vd1_path_id == VFM_PATH_AUTO)) {
-		dolby_vision_check_mvc(vf);
-		dolby_vision_check_hdr10(vf);
-		dolby_vision_check_hdr10plus(vf);
-		dolby_vision_check_hlg(vf);
-		dolby_vision_check_primesl(vf);
+		amdv_check_mvc(vf);
+		amdv_check_hdr10(vf);
+		amdv_check_hdr10plus(vf);
+		amdv_check_hlg(vf);
+		amdv_check_primesl(vf);
 	}
 #endif
 
@@ -6952,7 +7128,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				pr_info("begin-system_time=%d, omx_pts=%d, diff=%d\n",
 					system_time, omx_pts, diff);
 			timestamp_pcrscr_set(omx_pts + DURATION_GCD);
-		} else if (is_dolby_vision_enable() &&
+		} else if (is_amdv_enable() &&
 			((diff - omx_pts_dv_upper) > 0 ||
 			(diff - omx_pts_dv_lower) < 0) &&
 			video_start_post) {
@@ -7242,8 +7418,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		}
 		if ((omx_continuous_drop_flag && omx_run) &&
 		    !(debug_flag & DEBUG_FLAG_OMX_DISABLE_DROP_FRAME)) {
-			if (is_dolby_vision_enable() && vf &&
-			    is_dovi_frame(vf)) {
+			if (is_amdv_enable() && vf &&
+			    is_amdv_frame(vf)) {
 				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
 					pr_info("dovi ignore continuous drop\n");
 				/* if (omx_run)
@@ -7409,7 +7585,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (vd1_path_id == VFM_PATH_AMVIDEO ||
 			    vd1_path_id == VFM_PATH_DEF ||
 			    vd1_path_id == VFM_PATH_AUTO)
-				dv_new_vf = dvel_toggle_frame(vf, true);
+				dv_new_vf = dv_toggle_frame(vf, VD1_PATH, true);
 			if (hold_video)
 				dv_new_vf = NULL;
 #endif
@@ -7448,7 +7624,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if ((vd1_path_id == VFM_PATH_AMVIDEO ||
 			     vd1_path_id == VFM_PATH_DEF ||
 			     vd1_path_id == VFM_PATH_AUTO) &&
-			    for_dolby_vision_certification() &&
+			    for_amdv_certification() &&
 			    dv_new_vf)
 				break;
 #endif
@@ -7556,7 +7732,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 					    vd1_path_id == VFM_PATH_DEF ||
 					    vd1_path_id == VFM_PATH_AUTO)
 						dv_new_vf =
-						dvel_toggle_frame(vf, true);
+						dv_toggle_frame(vf, VD1_PATH, true);
 					if (hold_video)
 						dv_new_vf = NULL;
 #endif
@@ -7610,12 +7786,12 @@ SET_FILTER:
 	videopip_get_vf_cnt = 0;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* check video frame before VECM process */
-	if (vd1_path_id == VFM_PATH_PIP && vf &&
-	    is_dolby_vision_enable()) {
-		dolby_vision_check_hdr10(vf);
-		dolby_vision_check_hdr10plus(vf);
-		dolby_vision_check_hlg(vf);
-		dolby_vision_check_primesl(vf);
+	if ((vd1_path_id == VFM_PATH_PIP || is_multi_dv_mode()) && vf &&
+	    is_amdv_enable()) {
+		amdv_check_hdr10(vf);
+		amdv_check_hdr10plus(vf);
+		amdv_check_hlg(vf);
+		amdv_check_primesl(vf);
 	}
 #endif
 	while (vf && !video_suspend) {
@@ -7625,7 +7801,7 @@ SET_FILTER:
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (vd1_path_id == VFM_PATH_PIP &&
+			if ((vd1_path_id == VFM_PATH_PIP || is_multi_dv_mode()) &&
 			    dolby_vision_need_wait_pip())
 				break;
 #endif
@@ -7678,8 +7854,8 @@ SET_FILTER:
 				videopip_get_vf_cnt++;
 				path1_new_frame = pip_toggle_frame(vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-				if (vd1_path_id == VFM_PATH_PIP)
-					dv_new_vf = dvel_toggle_frame(vf, true);
+				if (vd1_path_id == VFM_PATH_PIP || is_multi_dv_mode())
+					dv_new_vf = dv_toggle_frame(vf, VD2_PATH, true);
 #endif
 			}
 		} else {
@@ -7706,11 +7882,11 @@ SET_FILTER:
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	/* check video frame before VECM process */
 	if (vd1_path_id == VFM_PATH_PIP2 && vf &&
-	    is_dolby_vision_enable()) {
-		dolby_vision_check_hdr10(vf);
-		dolby_vision_check_hdr10plus(vf);
-		dolby_vision_check_hlg(vf);
-		dolby_vision_check_primesl(vf);
+	    is_amdv_enable()) {
+		amdv_check_hdr10(vf);
+		amdv_check_hdr10plus(vf);
+		amdv_check_hlg(vf);
+		amdv_check_primesl(vf);
 	}
 #endif
 	while (vf && !video_suspend) {
@@ -7773,7 +7949,7 @@ SET_FILTER:
 				path2_new_frame = pip2_toggle_frame(vf);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 				if (vd1_path_id == VFM_PATH_PIP2)
-					dv_new_vf = dvel_toggle_frame(vf, true);
+					dv_new_vf = dv_toggle_frame(vf, VD3_PATH, true);
 #endif
 			}
 		} else {
@@ -8133,7 +8309,7 @@ SET_FILTER:
 			vd_layer[2].force_disable ? "true" : "false");
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_dolby_vision_enable() && vd_layer[0].global_output) {
+	if (is_amdv_enable() && vd_layer[0].global_output) {
 		/* no new frame but path switched case, */
 		if (new_frame && !is_local_vf(new_frame) &&
 		    (!path0_new_frame || new_frame != path0_new_frame) &&
@@ -8142,11 +8318,11 @@ SET_FILTER:
 		    (!path3_new_frame || new_frame != path3_new_frame) &&
 		    (!path4_new_frame || new_frame != path4_new_frame) &&
 		    (!path5_new_frame || new_frame != path5_new_frame))
-			dolby_vision_update_src_format(new_frame, 1);
+			amdv_update_src_format(new_frame, 1, VD1_PATH);
 		else if (!new_frame &&
 			 vd_layer[0].dispbuf &&
 			 !is_local_vf(vd_layer[0].dispbuf))
-			dolby_vision_update_src_format(vd_layer[0].dispbuf, 0);
+			amdv_update_src_format(vd_layer[0].dispbuf, 0, VD1_PATH);
 		/* pause and video off->on case */
 	}
 #endif
@@ -8321,8 +8497,8 @@ SET_FILTER:
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (is_dolby_vision_enable())
-			new_src_fmt = get_dolby_vision_src_format();
+		if (is_amdv_enable())
+			new_src_fmt = get_amdv_src_format(VD1_PATH);
 		else
 #endif
 			new_src_fmt =
@@ -8918,6 +9094,11 @@ SET_FILTER:
 	pip_render_frame(&vd_layer[1], vinfo);
 	pip2_render_frame(&vd_layer[2], vinfo);
 	video_secure_set(VPP0);
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	if (support_multi_core1())
+		amdolby_vision_proc(&vd_layer[0], vd_layer[0].cur_frame_par,
+				  &vd_layer[1], vd_layer[1].cur_frame_par);
+#endif
 
 	if (vd_layer[0].dispbuf &&
 		(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME)) {
@@ -9248,9 +9429,9 @@ int get_current_vscale_skip_count(struct vframe_s *vf)
 	vpp_set_filters
 		(&glayer_info[0],
 		vf, &frame_par, vinfo,
-		(is_dolby_vision_on() &&
-		is_dolby_vision_stb_mode() &&
-		for_dolby_vision_certification()),
+		(is_amdv_on() &&
+		is_amdv_stb_mode() &&
+		for_amdv_certification()),
 		OP_FORCE_NOT_SWITCH_VF);
 	ret = frame_par.vscale_skip_count;
 	if (cur_frame_par && (process_3d_type & MODE_3D_ENABLE))
@@ -9355,7 +9536,7 @@ static void video_vf_unreg_provider(void)
 
 	if (cur_dispbuf2)
 		need_disable_vd2 = true;
-	if (is_dolby_vision_enable()) {
+	if (is_amdv_enable()) {
 		if (cur_dispbuf2 == &vf_local2) {
 			cur_dispbuf2 = NULL;
 		} else if (cur_dispbuf2) {
@@ -9697,6 +9878,7 @@ void init_hdr_info(void)
 	spin_unlock_irqrestore(&omx_hdr_lock, flags);
 }
 #endif
+
 static int video_receiver_event_fun(int type, void *data, void *private_data)
 {
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
@@ -9719,8 +9901,13 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		mutex_unlock(&omx_mutex);
 		atomic_dec(&video_recv_cnt);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (is_dolby_vision_enable())
+		if (is_amdv_enable()) {
 			dv_vf_light_unreg_provider();
+			if (dv_inst >= 0) {/*tunnel mode*/
+				dv_inst_unmap(dv_inst);
+				dv_inst = -1;
+			}
+		}
 #endif
 		update_process_hdmi_avsync_flag(false);
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
@@ -9771,8 +9958,13 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 #endif
 		video_vf_light_unreg_provider(0);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (is_dolby_vision_enable())
+		if (is_amdv_enable()) {
 			dv_vf_light_reg_provider();
+			if (is_tunnel_mode(RECEIVER_NAME)) {
+				dv_inst_map(&dv_inst);
+				pr_info("video receiver map dv_inst %d\n", dv_inst);
+			}
+		}
 #endif
 		update_process_hdmi_avsync_flag(true);
 	} else if (type == VFRAME_EVENT_PROVIDER_FORCE_BLACKOUT) {
@@ -9990,7 +10182,17 @@ static int pip_receiver_event_fun(int type,
 {
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		pip_vf_unreg_provider();
+
 		atomic_dec(&video_recv_cnt);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_amdv_enable()) {
+			if (dv_inst_pip >= 0) {/*tunnel modes*/
+				dv_inst_unmap(dv_inst_pip);
+				dv_inst_pip = -1;
+			}
+		}
+#endif
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		pip_vf_light_unreg_provider(1);
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
@@ -9999,6 +10201,14 @@ static int pip_receiver_event_fun(int type,
 		atomic_inc(&video_recv_cnt);
 		pip_vf_light_unreg_provider(0);
 		videopip_drop_vf_cnt = 0;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		if (is_amdv_enable()) {
+			if (is_tunnel_mode(RECEIVERPIP_NAME)) {
+				dv_inst_map(&dv_inst_pip);
+				pr_info("pip receiver dv_inst_pip %d\n", dv_inst_pip);
+			}
+		}
+#endif
 	}
 	return 0;
 }
@@ -10627,7 +10837,7 @@ int get_md_from_src_fmt(struct vframe_s *vf)
 			ret = 2;
 	}
 	if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
-		pr_info("[%s] ret %d\n", __func__, ret);
+		pr_info("[%s] vf %p, ret %d\n", __func__, vf, ret);
 
 	return ret;
 }
@@ -10652,6 +10862,7 @@ s32 clear_vframe_src_fmt(struct vframe_s *vf)
 	vf->src_fmt.md_buf = NULL;
 	vf->src_fmt.comp_buf = NULL;
 	vf->src_fmt.parse_ret_flags = 0;
+	vf->src_fmt.dv_id = -1;
 
 	return 0;
 }
@@ -10917,8 +11128,8 @@ static void set_omx_pts(u32 *p)
 		while (try_cnt--) {
 			vf = vf_peek(RECEIVER_NAME);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (is_dolby_vision_enable() &&
-			    vf && is_dovi_frame(vf)) {
+			if (is_amdv_enable() &&
+			    vf && is_amdv_frame(vf)) {
 				if (debug_flag &
 					DEBUG_FLAG_OMX_DV_DROP_FRAME)
 					pr_info("dovi will drop %d in vsync\n",
@@ -11276,10 +11487,14 @@ static long amvideo_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		{
 			int axis[4];
 
-			if (copy_from_user(axis, argp, sizeof(axis)) == 0)
-				_set_video_window(layer, axis);
-			else
+			if (!(debug_flag & DEBUG_FLAG_AXIS_NO_UPDATE)) {
+				if (copy_from_user(axis, argp, sizeof(axis)) == 0)
+					_set_video_window(layer, axis);
+				else
+					ret = -EFAULT;
+			} else {
 				ret = -EFAULT;
+			}
 		}
 		break;
 
@@ -12749,10 +12964,18 @@ static ssize_t video_test_screen_store(struct class *cla,
 #endif
 
 	/* show test screen  YUV blend*/
-	if (!legacy_vpp)
-		WRITE_VCBUS_REG
+	/* force as black 0x008080 for dolbyvision stb ipt blend */
+	if (!legacy_vpp) {
+		if (is_amdv_enable() &&
+		    is_amdv_stb_mode())
+			WRITE_VCBUS_REG
 			(VPP_POST_BLEND_BLEND_DUMMY_DATA,
-			test_screen & 0x00ffffff);
+			 0x00008080);
+		else
+			WRITE_VCBUS_REG
+			(VPP_POST_BLEND_BLEND_DUMMY_DATA,
+			 test_screen & 0x00ffffff);
+	}
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	else if (is_meson_gxm_cpu() ||
 		 (get_cpu_type() == MESON_CPU_MAJOR_ID_TXLX))
@@ -14014,7 +14237,7 @@ static ssize_t process_fmt_show
 	enum vframe_signal_fmt_e fmt;
 	char process_name[MAX_VD_LAYER][32];
 	char output_fmt[32];
-	bool dolby_on = false;
+	bool amdv_on = false;
 	bool hdr_bypass = false;
 	int l;
 
@@ -14023,7 +14246,7 @@ static ssize_t process_fmt_show
 		"Dolby Vison", "Dolby Vison Low latency", "MVC"
 	};
 
-	dolby_on = is_dolby_vision_on();
+	amdv_on = is_amdv_on();
 	dispbuf = get_dispbuf(0);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
@@ -14040,7 +14263,7 @@ static ssize_t process_fmt_show
 		    !strncmp(process_name[0], "HLG_BYPASS", l))
 			hdr_bypass = true;
 
-		if (dolby_on) {
+		if (amdv_on) {
 			ret += sprintf(buf + ret, "out_fmt = IPT\n");
 		} else if (hdr_bypass) {
 			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
@@ -14078,7 +14301,7 @@ static ssize_t process_fmt_show
 		    !strncmp(process_name[1], "HLG_BYPASS", l))
 			hdr_bypass = true;
 
-		if (dolby_on) {
+		if (amdv_on) {
 			ret += sprintf(buf + ret, "out_fmt = IPT\n");
 		} else if (hdr_bypass) {
 			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
@@ -14478,7 +14701,7 @@ static ssize_t hist_test_store(struct class *cla,
 		}
 		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, pat_val);
 		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, pat_val);
-		WRITE_VCBUS_REG(DOLBY_PATH_CTRL, 0x3f);
+		WRITE_VCBUS_REG(AMDV_PATH_CTRL, 0x3f);
 		msleep(50);
 		hist_print_count = 0;
 	} else if (hist_test_flag) {
@@ -14487,7 +14710,7 @@ static ssize_t hist_test_store(struct class *cla,
 		free_alloced_hist_test_buffer();
 		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC0, 0x3fffffff);
 		WRITE_VCBUS_REG(VPP_VD1_CLIP_MISC1, 0);
-		WRITE_VCBUS_REG(DOLBY_PATH_CTRL, 0xf);
+		WRITE_VCBUS_REG(AMDV_PATH_CTRL, 0xf);
 		safe_switch_videolayer(0, false, false);
 	}
 	return strnlen(buf, count);
@@ -15229,6 +15452,29 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 	return len;
 }
 
+static ssize_t video_force_skip_cnt_show(struct class *cla, struct class_attribute *attr,
+			       char *buf)
+{
+	return sprintf(buf, "force_skip_cnt:%d, bit0~1 for vd1, bit2~3 for vd2\n",
+		       force_skip_cnt);
+}
+
+static ssize_t video_force_skip_cnt_store(struct class *cla,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	unsigned long cnt;
+	int ret = 0;
+
+	ret = kstrtoul(buf, 0, (unsigned long *)&cnt);
+	if (ret < 0)
+		return -EINVAL;
+
+	force_skip_cnt = cnt;
+
+	return count;
+}
+
 static ssize_t video_state_show(struct class *cla,
 				struct class_attribute *attr,
 				char *buf)
@@ -15329,6 +15575,11 @@ static ssize_t path_select_store(struct class *cla,
 	int parsed[3];
 
 	if (likely(parse_para(buf, 3, parsed) == 3)) {
+		pr_info("VID: cur %d %d %d, set %d %d %d\n",
+				glayer_info[0].display_path_id,
+				glayer_info[1].display_path_id,
+				glayer_info[2].display_path_id,
+				parsed[0], parsed[1], parsed[2]);
 		if (glayer_info[0].display_path_id != parsed[0]) {
 			pr_info("VID: store VD1 path_id changed %d->%d\n",
 				glayer_info[0].display_path_id, parsed[0]);
@@ -17411,7 +17662,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	    0664,
 	    postblend_test_pattern_show,
 	    postblend_test_pattern_store),
-
+	__ATTR(force_skip_count,
+		0644,
+		video_force_skip_cnt_show,
+		video_force_skip_cnt_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -17539,8 +17793,8 @@ int vout_notify_callback(struct notifier_block *block, unsigned long cmd,
 			__func__);
 		/* force send hdmi pkt in dv code */
 		/* to workaround pkt cleaned during hotplug */
-		if (is_dolby_vision_enable())
-			dolby_vision_set_toggle_flag(2);
+		if (is_amdv_enable())
+			amdv_set_toggle_flag(2);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 		else
 			set_cur_hdr_policy(0xff);

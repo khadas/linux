@@ -179,22 +179,22 @@ static int di_dolby_core_set(struct di_dolby_hw_s *hw,
 	if (update_flag & DI_FLAG_CHANGE_TC)
 		set_lut = true;
 
-	DIM_DI_WR(DOLBY_CORE1C_CLKGATE_CTRL, 0);
-	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL1,
+	DIM_DI_WR(AMDV_CORE1C_CLKGATE_CTRL, 0);
+	DIM_DI_WR(AMDV_CORE1C_SWAP_CTRL1,
 		  ((hw->hsize + hw->htotal) << 16) | (hw->vsize + hw->vtotal));
-	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL3,
+	DIM_DI_WR(AMDV_CORE1C_SWAP_CTRL3,
 		  (hw->hwidth << 16) | hw->vwidth);
-	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL4,
+	DIM_DI_WR(AMDV_CORE1C_SWAP_CTRL4,
 		  (hw->hpotch << 16) | hw->vpotch);
-	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL2,
+	DIM_DI_WR(AMDV_CORE1C_SWAP_CTRL2,
 		  (hw->hsize << 16) | hw->vsize);
 
-	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL5,
+	DIM_DI_WR(AMDV_CORE1C_SWAP_CTRL5,
 		  ((hw->el_uv_mode & 3) << 2) | ((hw->bl_uv_mode & 3) << 0));
 
-	DIM_DI_WR(DOLBY_CORE1C_DMA_CTRL, 0x0);
-	DIM_DI_WR(DOLBY_CORE1C_REG_START + 4, 4);
-	DIM_DI_WR(DOLBY_CORE1C_REG_START + 2, 1);
+	DIM_DI_WR(AMDV_CORE1C_DMA_CTRL, 0x0);
+	DIM_DI_WR(AMDV_CORE1C_REG_START + 4, 4);
+	DIM_DI_WR(AMDV_CORE1C_REG_START + 2, 1);
 
 	if (!hw->el_enable)
 		bypass_flag |= 1 << 3;
@@ -205,9 +205,9 @@ static int di_dolby_core_set(struct di_dolby_hw_s *hw,
 	if (hw->el_41_mode)
 		bypass_flag |= 1 << 3;
 
-	DIM_DI_WR(DOLBY_CORE1C_REG_START + 1,
+	DIM_DI_WR(AMDV_CORE1C_REG_START + 1,
 		  0x70 | bypass_flag); // bypass CVM and/or CSC
-	DIM_DI_WR(DOLBY_CORE1C_REG_START + 1,
+	DIM_DI_WR(AMDV_CORE1C_REG_START + 1,
 		  0x70 | bypass_flag); // for delay
 
 	if (dm_count == 0)
@@ -217,7 +217,7 @@ static int di_dolby_core_set(struct di_dolby_hw_s *hw,
 	for (i = 0; i < count; i++)
 		if (reset ||
 		    dm_regs[i] != last_dm[i]) {
-			DIM_DI_WR(DOLBY_CORE1C_REG_START + 6 + i,
+			DIM_DI_WR(AMDV_CORE1C_REG_START + 6 + i,
 				  dm_regs[i]);
 		}
 
@@ -228,11 +228,11 @@ static int di_dolby_core_set(struct di_dolby_hw_s *hw,
 	for (i = 0; i < count; i++)
 		if (reset ||
 		    comp_regs[i] != last_comp[i]) {
-			DIM_DI_WR(DOLBY_CORE1C_REG_START + 6 + 44 + i,
+			DIM_DI_WR(AMDV_CORE1C_REG_START + 6 + 44 + i,
 				  comp_regs[i]);
 		}
 	/* metadata program done */
-	DIM_DI_WR(DOLBY_CORE1C_REG_START + 3, 1);
+	DIM_DI_WR(AMDV_CORE1C_REG_START + 3, 1);
 
 	if (lut_count == 0)
 		count = 256 * 5;
@@ -240,28 +240,28 @@ static int di_dolby_core_set(struct di_dolby_hw_s *hw,
 		count = lut_count;
 	if (count && (set_lut || reset)) {
 		if (op_flag & DIFLAG_CLKGATE_WHEN_LOAD_LUT) {
-			DIM_DI_WR_REG_BITS(DOLBY_CORE1C_CLKGATE_CTRL,
+			DIM_DI_WR_REG_BITS(AMDV_CORE1C_CLKGATE_CTRL,
 					   2, 2, 2);
 		}
-		DIM_DI_WR(DOLBY_CORE1C_DMA_CTRL, 0x1401);
+		DIM_DI_WR(AMDV_CORE1C_DMA_CTRL, 0x1401);
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
-				DIM_DI_WR(DOLBY_CORE1C_DMA_PORT,
+				DIM_DI_WR(AMDV_CORE1C_DMA_PORT,
 					  lut_regs[i + 3]);
-				DIM_DI_WR(DOLBY_CORE1C_DMA_PORT,
+				DIM_DI_WR(AMDV_CORE1C_DMA_PORT,
 					  lut_regs[i + 2]);
-				DIM_DI_WR(DOLBY_CORE1C_DMA_PORT,
+				DIM_DI_WR(AMDV_CORE1C_DMA_PORT,
 					  lut_regs[i + 1]);
-				DIM_DI_WR(DOLBY_CORE1C_DMA_PORT,
+				DIM_DI_WR(AMDV_CORE1C_DMA_PORT,
 					  lut_regs[i]);
 			}
 		} else {
 			for (i = 0; i < count; i++)
-				DIM_DI_WR(DOLBY_CORE1C_DMA_PORT,
+				DIM_DI_WR(AMDV_CORE1C_DMA_PORT,
 					  lut_regs[i]);
 		}
 		if (op_flag & DIFLAG_CLKGATE_WHEN_LOAD_LUT) {
-			DIM_DI_WR_REG_BITS(DOLBY_CORE1C_CLKGATE_CTRL,
+			DIM_DI_WR_REG_BITS(AMDV_CORE1C_CLKGATE_CTRL,
 					   0, 2, 2);
 		}
 	}
@@ -269,7 +269,7 @@ static int di_dolby_core_set(struct di_dolby_hw_s *hw,
 	DIM_DI_WR(DI_HDR_IN_HSIZE, hw->hsize);
 	DIM_DI_WR(DI_HDR_IN_VSIZE, hw->vsize);
 
-	DIM_DI_WR(DOLBY_CORE1C_SWAP_CTRL0,
+	DIM_DI_WR(AMDV_CORE1C_SWAP_CTRL0,
 		  ((hw->roundup_output ? 1 : 0) << 12) |
 		  ((hw->bl_lay_line_delay & 0xf) << 8) |
 		  ((hw->el_lay_line_delay & 0xf) << 4) |

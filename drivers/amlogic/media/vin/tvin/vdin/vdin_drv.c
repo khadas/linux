@@ -2361,7 +2361,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (for_dolby_vision_certification())
+	if (for_amdv_certification())
 		vdin_set_crc_pulse(devp);
 #endif
 
@@ -2765,7 +2765,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	vdin_set_freesync_data(devp, curr_wr_vf);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (for_dolby_vision_certification()) {
+	if (for_amdv_certification()) {
 		vdin_get_crc_val(curr_wr_vf, devp);
 		/*pr_info("vdin_isr get vf %p, crc %x\n", curr_wr_vf, curr_wr_vf->crc);*/
 	}
