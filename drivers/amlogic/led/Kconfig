@@ -23,6 +23,14 @@ config AMLOGIC_LEDS_TLC59116
 	  Choose this option if you want to use the LED on
 	  TLC59116.
 
+config AMLOGIC_LEDS_AW9523B
+	tristate "LED Support for the AW9523B"
+	depends on LEDS_CLASS
+	default n
+	help
+	  Choose this option if you want to use the LED on
+	  AW9523B.
+
 config AMLOGIC_LEDS_STATE
 	tristate "LED state support"
 	depends on LEDS_CLASS
