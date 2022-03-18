@@ -1293,7 +1293,7 @@
 };
 
 &i2c2 {
-	status = "okay";
+	status = "disable";
 	clock-frequency = <100000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_h_pins1>;
@@ -1648,7 +1648,7 @@
 };
 
 &spicc1 {	//for UWB/LocalDimm
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
 	cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;

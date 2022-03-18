@@ -639,6 +639,7 @@ int bl_pwm_init_config_probe(struct bl_data_s *bdata)
 	switch (bdata->chip_type) {
 	case LCD_CHIP_T7:
 	case LCD_CHIP_T3:
+	case LCD_CHIP_T5W:
 		pwm_init_cfg.pwm_vs_reg = pwm_vs_reg_t7;
 		pwm_init_cfg.pwm_vs_reg_cnt = ARRAY_SIZE(pwm_vs_reg_t7);
 		break;

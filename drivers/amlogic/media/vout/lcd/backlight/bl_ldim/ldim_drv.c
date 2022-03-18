@@ -233,7 +233,8 @@ void ldim_remap_ctrl(unsigned char status)
 	temp = ldim_driver.matrix_update_en;
 	if (status) {
 		ldim_driver.matrix_update_en = 0;
-		if (bdrv->data->chip_type == LCD_CHIP_T3 ||
+		if (bdrv->data->chip_type == LCD_CHIP_T5W ||
+			bdrv->data->chip_type == LCD_CHIP_T3 ||
 			bdrv->data->chip_type == LCD_CHIP_T7) {
 			ldim_hw_remap_en_t7(&ldim_driver, 1);
 		} else {
@@ -249,7 +250,8 @@ void ldim_remap_ctrl(unsigned char status)
 	} else {
 		ldim_driver.remap_en = 0;
 		ldim_driver.matrix_update_en = 0;
-		if (bdrv->data->chip_type == LCD_CHIP_T3 ||
+		if (bdrv->data->chip_type == LCD_CHIP_T5W ||
+			bdrv->data->chip_type == LCD_CHIP_T3 ||
 			bdrv->data->chip_type == LCD_CHIP_T7) {
 			ldim_hw_remap_en_t7(&ldim_driver, 0);
 		} else {
@@ -1655,7 +1657,7 @@ static void ldim_remap_update_t3(struct ld_reg_s *nprm,
 	if (ldim_driver.pq_updating && ldim_driver.init_on_flag) {
 		ldc_min_gain_lut_set();
 		ldc_dither_lut_set();
-		ldc_gain_lut_set_t3();
+		ldim_driver.data->remap_lut_update();
 		ldim_config_update_t7(&ldim_driver);
 		ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
 		ldim_driver.pq_updating = 0;
@@ -1826,6 +1828,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 		ldim_driver.data = &ldim_data_t7;
 		break;
 	case LCD_CHIP_T3:
+	case LCD_CHIP_T5W:
 		devp->data = &ldim_data_t3;
 		ldim_driver.data = &ldim_data_t3;
 		break;

@@ -155,6 +155,13 @@
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
+
+		ldc_mem_reserved:linux,ldc_mem {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+		};
 	};
 
 	vcc_3v3_reg: fixedregulator@5{
@@ -1285,7 +1292,7 @@
 };
 
 &i2c2 {
-	status = "okay";
+	status = "disable";
 	clock-frequency = <100000>;
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_h_pins1>;
@@ -1520,6 +1527,41 @@
 			function = "pdm";
 		};
 	};
+
+	/*backlight*/
+	bl_pwm_vs_on_pins:bl_pwm_vs_on_pin {
+		mux {
+			groups = "pwm_vs_h12";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			groups = "GPIOH_12";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+
+	bl_pwm_combo_0_vs_on_pins:bl_pwm_combo_0_vs_on_pin {
+		mux {
+			groups = "pwm_vs_h12";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_combo_1_vs_on_pins:bl_pwm_combo_1_vs_on_pin {
+		mux {
+			groups = "pwm_vs_h13";
+			function = "pwm_vs";
+		};
+	};
+	bl_pwm_combo_off_pins:bl_pwm_combo_off_pin {
+		mux {
+			groups = "GPIOH_12","GPIOH_13";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
 };
 
 &uart_A {
@@ -1545,7 +1587,7 @@
 };
 
 &spicc1 {	//for UWB/LocalDimm
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
 	cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;

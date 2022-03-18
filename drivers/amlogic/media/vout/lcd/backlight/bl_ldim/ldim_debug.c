@@ -582,7 +582,8 @@ static int ldim_gain_lut_dbg_line_print(char *buf, unsigned int index)
 	if (index >= 16)
 		return sprintf(buf, "invalid index: %d", index);
 
-	if (dbg_attr.chip_type == LCD_CHIP_T7 ||
+	if (dbg_attr.chip_type == LCD_CHIP_T5W ||
+		dbg_attr.chip_type == LCD_CHIP_T7 ||
 	    dbg_attr.chip_type == LCD_CHIP_T3) {
 		k = 64;
 		table = ldc_gain_lut_array[index];
@@ -1676,7 +1677,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 	dbg_attr.chip_type = bdrv->data->chip_type;
 	seg_size = ldim_drv->conf->seg_row * ldim_drv->conf->seg_col;
 
-	if (bdrv->data->chip_type == LCD_CHIP_T7 ||
+	if (bdrv->data->chip_type == LCD_CHIP_T5W ||
+		bdrv->data->chip_type == LCD_CHIP_T7 ||
 	    bdrv->data->chip_type == LCD_CHIP_T3) {
 		ret = ldim_attr_tuning_new(ldim_drv, parm);
 		if (ret == 0)
@@ -1688,7 +1690,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			if (!strcmp(parm[1], "rf")) {
 				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
 				dbg_attr.mode = LDIM_DBG_ATTR_MODE_SEG_HIST;
-				if (dbg_attr.chip_type == LCD_CHIP_T7 ||
+				if (dbg_attr.chip_type == LCD_CHIP_T5W ||
+					dbg_attr.chip_type == LCD_CHIP_T7 ||
 				    dbg_attr.chip_type == LCD_CHIP_T3) {
 					ldim_hist_file_save_t7(ldim_drv,
 							       parm[2]);
@@ -1699,13 +1702,15 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			}
 			goto ldim_attr_store_err;
 		}
-		if (dbg_attr.chip_type == LCD_CHIP_T7 ||
+		if (dbg_attr.chip_type == LCD_CHIP_T5W ||
+			dbg_attr.chip_type == LCD_CHIP_T7 ||
 		    dbg_attr.chip_type == LCD_CHIP_T3)
 			ldim_dump_histgram_t7(ldim_drv);
 		else
 			ldim_dump_histgram(ldim_drv);
 	} else if (!strcmp(parm[0], "maxrgb")) {
-		if (dbg_attr.chip_type == LCD_CHIP_T7 ||
+		if (dbg_attr.chip_type == LCD_CHIP_T5W ||
+			dbg_attr.chip_type == LCD_CHIP_T7 ||
 		    dbg_attr.chip_type == LCD_CHIP_T3)
 			goto ldim_attr_store_end;
 
@@ -1720,7 +1725,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 		}
 		ldim_dump_matrix_info_max_rgb(ldim_drv);
 	} else if (!strcmp(parm[0], "stts")) {
-		if (dbg_attr.chip_type == LCD_CHIP_T7 ||
+		if (dbg_attr.chip_type == LCD_CHIP_T5W ||
+			dbg_attr.chip_type == LCD_CHIP_T7 ||
 		    dbg_attr.chip_type == LCD_CHIP_T3)
 			ldim_stts_data_dump_t7(ldim_drv);
 		else
@@ -2116,7 +2122,8 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_RD;
 				dbg_attr.mode = LDIM_DBG_ATTR_MODE_GAIN_LUT;
 				dbg_attr.data = i;
-				if (dbg_attr.chip_type == LCD_CHIP_T7 ||
+				if (dbg_attr.chip_type == LCD_CHIP_T5W ||
+					dbg_attr.chip_type == LCD_CHIP_T7 ||
 				    dbg_attr.chip_type == LCD_CHIP_T3) {
 					k = 64;
 					table = ldc_gain_lut_array[i];
@@ -2708,6 +2715,7 @@ static ssize_t ldim_mem_show(struct class *class,
 		break;
 	case LCD_CHIP_T7:
 	case LCD_CHIP_T3:
+	case LCD_CHIP_T5W:
 		len = sprintf(buf,
 			"rsv_mem_paddr:         0x%lx\n"
 			"rsv_mem_size:          0x%x\n"
@@ -3609,4 +3617,3 @@ void aml_ldim_debug_remove(struct class *ldim_class)
 	for (i = 0; i < ARRAY_SIZE(aml_ldim_class_attrs); i++)
 		class_remove_file(ldim_class, &aml_ldim_class_attrs[i]);
 }
-
