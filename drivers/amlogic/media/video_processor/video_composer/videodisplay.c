@@ -712,6 +712,16 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 vsync_index_diff,
 			 vf->duration);
 
+		vc_print(dev->index, PRINT_DEWARP,
+			 "get:vf_w: %d, vf_h: %d\n", vf->width, vf->height);
+		vc_print(dev->index, PRINT_DEWARP,
+			 "get:crop: %d %d %d %d, axis: %d %d %d %d.\n",
+			 vf->crop[0], vf->crop[1], vf->crop[2], vf->crop[3],
+			 vf->axis[0], vf->axis[1], vf->axis[2], vf->axis[3]);
+		vc_print(dev->index, PRINT_DEWARP,
+			 "get:canvas_w: %d, canvas_h: %d\n",
+			  vf->canvas0_config[0].width, vf->canvas0_config[0].height);
+
 		if (vf->vc_private)
 			vf->vc_private->last_disp_count =
 				countinue_vsync_count[dev->index];

@@ -81,6 +81,8 @@ static u32 pic_mode_max_width = 3840;
 static u32 pic_mode_max_height = 2160;
 static u32 rotate_width = 1280;
 static u32 rotate_height = 720;
+static u32 dewarp_rotate_width = 3840;
+static u32 dewarp_rotate_height = 2160;
 static u32 close_black;
 static u32 debug_axis_pip;
 static u32 debug_crop_pip;
@@ -265,8 +267,13 @@ struct received_frames_t *received_frames_tmp)
 	}
 
 	if (dev->need_rotate && usage != UVM_USAGE_IMAGE_PLAY) {
-		buf_width = rotate_width;
-		buf_height = rotate_height;
+		if (dev->is_dewarp_support) {
+			buf_width = dewarp_rotate_width;
+			buf_height = dewarp_rotate_height;
+		} else {
+			buf_width = rotate_width;
+			buf_height = rotate_height;
+		}
 	}
 
 	if (usage == UVM_USAGE_IMAGE_PLAY) {
@@ -275,10 +282,12 @@ struct received_frames_t *received_frames_tmp)
 		if (buf_height > pic_mode_max_height)
 			buf_height = pic_mode_max_height;
 	} else {
-		if (buf_width > max_width)
-			buf_width = max_width;
-		if (buf_height > max_height)
-			buf_height = max_height;
+		if (!dev->is_dewarp_support) {
+			if (buf_width > max_width)
+				buf_width = max_width;
+			if (buf_height > max_height)
+				buf_height = max_height;
+		}
 	}
 	if (composer_use_444)
 		buf_size = buf_width * buf_height * 3;
@@ -1199,7 +1208,6 @@ static void vframe_composer(struct composer_dev *dev)
 	struct frame_info_t *vframe_info[MXA_LAYER_COUNT];
 	int i, j, tmp;
 	u32 zd1, zd2;
-	struct config_para_ex_s ge2d_config;
 	struct timeval begin_time;
 	struct timeval end_time;
 	int cost_time;
@@ -1220,14 +1228,51 @@ static void vframe_composer(struct composer_dev *dev)
 	bool is_tvp = false;
 	bool need_dw = false;
 	bool is_fixtunnel = false;
+	struct frame_info_t frame_info;
+	struct dewarp_composer_para dewarp_param;
+	struct composer_vf_para vframe_para;
 
 	do_gettimeofday(&begin_time);
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames_tmp))
 		return;
+
 	is_tvp = received_frames_tmp->is_tvp;
 
-	dev->ge2d_para.ge2d_config = &ge2d_config;
+	memset(&vframe_para, 0, sizeof(struct composer_vf_para));
+	memset(&frame_info, 0, sizeof(struct frame_info_t));
+	frame_info = received_frames_tmp->frames_info.frame_info[0];
+	vframe_para.src_vf_width = frame_info.crop_w;
+	vframe_para.src_vf_height = frame_info.crop_h;
+	vframe_para.dst_vf_width = dewarp_rotate_width;
+	vframe_para.dst_vf_height = dewarp_rotate_height;
+	vframe_para.src_vf_angle = frame_info.transform;
+	file_vf = received_frames_tmp->file_vf[0];
+	is_dec_vf =
+	is_valid_mod_type(file_vf->private_data, VF_SRC_DECODER);
+	is_v4l_vf =
+	is_valid_mod_type(file_vf->private_data, VF_PROCESS_V4LVIDEO);
+	if (is_dec_vf || is_v4l_vf) {
+		scr_vf = get_vf_from_file(dev, file_vf, true);
+		if (!scr_vf) {
+			vc_print(dev->index,
+				 PRINT_ERROR, "get vf NULL\n");
+			vframe_para.src_vf_format = NV12;
+		} else {
+			vframe_para.src_vf_format = get_dewarp_format(scr_vf);
+		}
+	} else {
+		vframe_para.src_vf_format = NV12;
+	}
+	memset(&dewarp_param, 0, sizeof(dewarp_param));
+	dewarp_param.vf_para = &vframe_para;
+	dewarp_param.vc_index = dev->index;
+	if (received_frames_tmp->frames_info.frame_count == 1 &&
+		is_dewarp_supported(&dewarp_param))
+		dev->is_dewarp_support = true;
+	else
+		dev->is_dewarp_support = false;
+
 	ret = video_composer_init_buffer(dev, is_tvp, received_frames_tmp);
 	if (ret != 0) {
 		vc_print(dev->index, PRINT_ERROR, "vc: init buffer failed!\n");
@@ -1288,7 +1333,7 @@ static void vframe_composer(struct composer_dev *dev)
 	dev->ge2d_para.phy_addr[0] = dst_buf->phy_addr;
 	dev->ge2d_para.buffer_w = dst_buf->buf_w;
 	dev->ge2d_para.buffer_h = dst_buf->buf_h;
-	dev->ge2d_para.canvas0Addr = -1;
+	dev->ge2d_para.canvas0_addr = -1;
 
 	if (dst_buf->dirty && !close_black) {
 		ret = fill_vframe_black(&dev->ge2d_para);
@@ -1374,7 +1419,7 @@ static void vframe_composer(struct composer_dev *dev)
 				       vframe_info[vf_dev[i]], &src_data);
 		if (ret < 0)
 			continue;
-		cur_transform = vframe_info[vf_dev[i]]->transform;
+
 		dev->ge2d_para.position_left =
 			vframe_info[vf_dev[i]]->dst_x;
 		dev->ge2d_para.position_top =
@@ -1385,6 +1430,7 @@ static void vframe_composer(struct composer_dev *dev)
 			vframe_info[vf_dev[i]]->dst_h;
 
 		dev->ge2d_para.angle = 0;
+		cur_transform = vframe_info[vf_dev[i]]->transform;
 		if (cur_transform == VC_TRANSFORM_FLIP_H)
 			dev->ge2d_para.angle = GE2D_ANGLE_TYPE_FLIP_H;
 		else if (cur_transform == VC_TRANSFORM_FLIP_V)
@@ -1420,11 +1466,24 @@ static void vframe_composer(struct composer_dev *dev)
 		if (max_bottom < (dst_axis.top + dst_axis.height))
 			max_bottom = dst_axis.top + dst_axis.height;
 
-		ret = ge2d_data_composer(&src_data, &dev->ge2d_para);
+		if (dev->is_dewarp_support) {
+			memset(&vframe_para, 0, sizeof(vframe_para));
+			config_dewarp_vframe(dev->index, cur_transform,
+						scr_vf, dst_buf, &vframe_para);
+			dewarp_param.vf_para = &vframe_para;
+			dewarp_param.vc_index = dev->index;
+			init_dewarp_composer(&dewarp_param);
+			ret = dewarp_data_composer(&dewarp_param);
+		} else {
+			ret = ge2d_data_composer(&src_data, &dev->ge2d_para);
+		}
 		if (ret < 0)
 			vc_print(dev->index, PRINT_ERROR,
 				 "ge2d composer failed\n");
 	}
+
+	if (dev->is_dewarp_support)
+		uninit_dewarp_composer(&dewarp_param);
 
 	frames_put_file(dev, received_frames);
 
@@ -1494,12 +1553,19 @@ static void vframe_composer(struct composer_dev *dev)
 		dst_vf->crop[2] = 0;
 		dst_vf->crop[3] = 0;
 	} else {
-		dst_vf->crop[0] = min_top * dst_buf->buf_h / dev->vinfo_h;
-		dst_vf->crop[1] = min_left * dst_buf->buf_w / dev->vinfo_w;
-		dst_vf->crop[2] = dst_buf->buf_h -
-			max_bottom * dst_buf->buf_h / dev->vinfo_h;
-		dst_vf->crop[3] = dst_buf->buf_w -
-			max_right * dst_buf->buf_w / dev->vinfo_w;
+		if (!dev->is_dewarp_support) {
+			dst_vf->crop[0] = min_top *
+				dst_buf->buf_h / dev->vinfo_h;
+			dst_vf->crop[1] = min_left *
+				dst_buf->buf_w / dev->vinfo_w;
+			dst_vf->crop[2] = dst_buf->buf_h -
+				max_bottom * dst_buf->buf_h / dev->vinfo_h;
+			dst_vf->crop[3] = dst_buf->buf_w -
+				max_right * dst_buf->buf_w / dev->vinfo_w;
+		} else {
+			vc_print(dev->index, PRINT_DEWARP,
+				"dewarp no need crop.\n");
+		}
 	}
 	vc_print(dev->index, PRINT_AXIS,
 		 "min_top,min_left,max_bottom,max_right: %d %d %d %d\n",
@@ -1518,6 +1584,8 @@ static void vframe_composer(struct composer_dev *dev)
 	dst_vf->canvas1Addr = -1;
 	dst_vf->width = dst_buf->buf_w;
 	dst_vf->height = dst_buf->buf_h;
+	vc_print(dev->index, PRINT_DEWARP,
+			 "composer:vf_w: %d, vf_h: %d\n", dst_vf->width, dst_vf->height);
 	if (composer_use_444) {
 		dst_vf->canvas0_config[0].phy_addr = dst_buf->phy_addr;
 		dst_vf->canvas0_config[0].width = dst_vf->width * 3;
@@ -1537,7 +1605,9 @@ static void vframe_composer(struct composer_dev *dev)
 		dst_vf->canvas0_config[1].block_mode = 0;
 		dst_vf->plane_num = 2;
 	}
-
+	vc_print(dev->index, PRINT_DEWARP,
+			 "composer:canvas_w: %d, canvas_h: %d\n",
+			 dst_vf->canvas0_config[0].width, dst_vf->canvas0_config[0].height);
 	dst_vf->repeat_count[dev->index] = 0;
 	dst_vf->componser_info = componser_info;
 
@@ -2529,6 +2599,7 @@ static int video_composer_init(struct composer_dev *dev)
 	dev->last_file = NULL;
 	dev->select_path_done = false;
 	dev->vd_prepare_last = NULL;
+	dev->is_dewarp_support = false;
 	init_completion(&dev->task_done);
 	for (i = 0; i < MAX_VD_LAYERS; i++) {
 		for (j = 0; j < MXA_LAYER_COUNT; j++)
@@ -3166,6 +3237,56 @@ static ssize_t rotate_height_store(struct class *cla,
 	return count;
 }
 
+static ssize_t dewarp_rotate_width_show(struct class *cla,
+				 struct class_attribute *attr,
+				 char *buf)
+{
+	return snprintf(buf, 80,
+			"current dewarp_rotate_width is %d\n",
+			dewarp_rotate_width);
+}
+
+static ssize_t dewarp_rotate_width_store(struct class *cla,
+				  struct class_attribute *attr,
+				  const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	dewarp_rotate_width = tmp;
+	return count;
+}
+
+static ssize_t dewarp_rotate_height_show(struct class *cla,
+				 struct class_attribute *attr,
+				 char *buf)
+{
+	return snprintf(buf, 80,
+			"current dewarp_rotate_height is %d\n",
+			dewarp_rotate_height);
+}
+
+static ssize_t dewarp_rotate_height_store(struct class *cla,
+				  struct class_attribute *attr,
+				  const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	dewarp_rotate_height = tmp;
+	return count;
+}
+
 static ssize_t close_black_show(struct class *cla,
 				struct class_attribute *attr,
 				char *buf)
@@ -3438,6 +3559,8 @@ static CLASS_ATTR_RW(max_width);
 static CLASS_ATTR_RW(max_height);
 static CLASS_ATTR_RW(rotate_width);
 static CLASS_ATTR_RW(rotate_height);
+static CLASS_ATTR_RW(dewarp_rotate_width);
+static CLASS_ATTR_RW(dewarp_rotate_height);
 static CLASS_ATTR_RW(close_black);
 static CLASS_ATTR_RW(composer_use_444);
 static CLASS_ATTR_RW(reset_drop);
@@ -3475,6 +3598,8 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_max_height.attr,
 	&class_attr_rotate_width.attr,
 	&class_attr_rotate_height.attr,
+	&class_attr_dewarp_rotate_width.attr,
+	&class_attr_dewarp_rotate_height.attr,
 	&class_attr_close_black.attr,
 	&class_attr_composer_use_444.attr,
 	&class_attr_reset_drop.attr,

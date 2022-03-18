@@ -33,17 +33,6 @@
 #define VIDEOCOM_ERR(fmt, args...)	\
 	pr_err("video_composer: err:" fmt "", ## args)
 
-enum videocom_source_type {
-	DECODER_8BIT_NORMAL = 0,
-	DECODER_8BIT_BOTTOM,
-	DECODER_8BIT_TOP,
-	DECODER_10BIT_NORMAL,
-	DECODER_10BIT_BOTTOM,
-	DECODER_10BIT_TOP,
-	VDIN_8BIT_NORMAL,
-	VDIN_10BIT_NORMAL,
-};
-
 enum ge2d_angle_type {
 	GE2D_ANGLE_TYPE_ROT_90 = 1,
 	GE2D_ANGLE_TYPE_ROT_180,
@@ -66,9 +55,8 @@ struct ge2d_composer_para {
 	int canvas_scr[3];
 	int canvas_dst[3];
 	u32 phy_addr[3];
-	u32 canvas0Addr;
+	u32 canvas0_addr;
 	struct ge2d_context_s *context;
-	struct config_para_ex_s *ge2d_config;
 	int angle;
 	bool is_tvp;
 };
