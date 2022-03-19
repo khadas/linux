@@ -17,7 +17,10 @@ struct evl_work {
 	struct irq_work irq_work;
 	struct work_struct wq_work;
 	struct workqueue_struct *wq;
-	int (*handler)(void *arg);
+	union {
+		int (*handler)(void *arg);
+		void (*handler_noreturn)(void *arg);
+	};
 	struct evl_element *element;
 };
 

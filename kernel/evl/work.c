@@ -12,7 +12,7 @@ static void do_wq_work(struct work_struct *wq_work)
 	struct evl_work *work;
 
 	work = container_of(wq_work, struct evl_work, wq_work);
-	work->handler(work);
+	work->handler_noreturn(work);
 	if (work->element)
 		evl_put_element(work->element);
 }
@@ -41,7 +41,7 @@ void evl_init_work(struct evl_work *work,
 {
 	init_irq_work(&work->irq_work, do_irq_work);
 	INIT_WORK(&work->wq_work, do_wq_work);
-	work->handler = (typeof(work->handler))handler;
+	work->handler_noreturn = (typeof(work->handler_noreturn))handler;
 	work->element = NULL;
 }
 EXPORT_SYMBOL_GPL(evl_init_work);
