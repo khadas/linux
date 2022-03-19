@@ -1192,7 +1192,7 @@ void tsync_avevent(enum avevent_e event, u32 param)
 
 	raw_local_save_flags(fiq_flag);
 
-	local_fiq_disable();
+	//local_fiq_disable();
 
 	tsync_avevent_locked(event, param);
 
