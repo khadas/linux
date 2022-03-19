@@ -41,6 +41,11 @@
 #define RESMAN_VERSION         (3)
 #define SINGLE_SIZE           (64)
 #define EXT_MAX_SIZE     (64 * 1024)
+#define STR_MAX_SIZE     (32)
+
+
+/*resman.json is the common SDK resource json file*/
+/*resmanext.json is project customized json file*/
 #define EXTCONFIGNAME "/vendor/etc/resman.json"
 #define EXTCONFIGNAMELIX "/etc/resman.json"
 #define EXTCONFIGCUSTOMNAME "/vendor/etc/resmanext.json"
@@ -934,8 +939,10 @@ static bool resman_codec_mm_acquire(struct resman_session *sess,
 	char *opt;
 
 	while ((opt = strsep(&arg, ","))) {
-		if (!strncmp(opt, "size", 4))
-			resman_parser_kv(opt, "size", &score);
+		if (!strncmp(opt, "size", 4)) {
+			if (!resman_parser_kv(opt, "size", &score))
+				dprintk(1, "parser size error\n");
+		}
 		else if (!strcmp(opt, "single"))
 		/*single mode, 64M codec mm size is enough*/
 			score = SINGLE_SIZE;
@@ -1138,7 +1145,8 @@ static bool resman_capacity_acquire(struct resman_session *sess,
 
 	while ((opt = strsep(&arg, ","))) {
 		if (!strncmp(opt, "size", 4))
-			resman_parser_kv(opt, "size", &size);
+			if (!resman_parser_kv(opt, "size", &size))
+				return ret;
 	}
 	if (size <= 0) {
 		dprintk(0, "%d size %d parameter format:size:X!\n", sess->id, size);
@@ -1916,6 +1924,36 @@ static long resman_ioctl_checksupportres(struct resman_session *sess,
 	return r;
 }
 
+static long resman_ioctl_load_res(struct resman_session *sess,
+				 unsigned long para)
+{
+	long r = 0;
+	struct res_item __user *argp = (void __user *)para;
+	struct res_item item;
+	int arglen = 0;
+	char *itemarg = NULL;
+
+	mutex_lock(&resource_lock);
+	item.name[sizeof(item.name) - 1] = '\0';
+	item.arg[sizeof(item.arg) - 1] = '\0';
+	if (copy_from_user((void *)&item, argp, sizeof(item))) {
+		dprintk(1, "load res FAIL!!\n");
+	} else {
+		item.name[sizeof(item.name) - 1] = '\0';
+		item.arg[sizeof(item.arg) - 1] = '\0';
+		if (strlen(item.name) > 0 && strlen(item.name) < STR_MAX_SIZE) {
+			if (strlen(item.arg) > 0 && strlen(item.arg) < STR_MAX_SIZE)
+				arglen = strlen(item.arg);
+			if (arglen > 0 && arglen < STR_MAX_SIZE)
+				itemarg = item.arg;
+			if (!resman_create_resource(item.name, item.type, itemarg))
+				r = -1;
+		}
+	}
+	mutex_unlock(&resource_lock);
+	return r;
+}
+
 static long resman_ioctl_release_all(struct resman_session *sess,
 				     unsigned long para)
 {
@@ -2009,8 +2047,6 @@ static ssize_t config_show(struct class *class,
 	return size;
 }
 
-#undef APPEND_ATTR_BUF
-
 static ssize_t config_store(struct class *class,
 			    struct class_attribute *attr,
 			    const char *buf, size_t size)
@@ -2069,9 +2105,43 @@ static ssize_t ver_show(struct class *class,
 			   struct class_attribute *attr,
 			   char *buf)
 {
-	sprintf(buf, "%d\n", RESMAN_VERSION);
+	ssize_t size = 0;
+
+	APPEND_ATTR_BUF("%d\n", RESMAN_VERSION)
 	return RESMAN_VERSION;
 }
+
+static ssize_t res_show(struct class *class,
+			   struct class_attribute *attr,
+			   char *buf)
+{
+	ssize_t size = 0;
+	struct list_head *pos1, *tmp1;
+	struct resman_resource *resource;
+
+	mutex_lock(&resource_lock);
+	APPEND_ATTR_BUF("%-32s", "name")
+	APPEND_ATTR_BUF("%-10s\n", "avail")
+	list_for_each_safe(pos1, tmp1, &resources_head) {
+		resource = list_entry(pos1, struct resman_resource, list);
+		APPEND_ATTR_BUF("%-32s", resource->name)
+		if (resource->type == RESMAN_TYPE_COUNTER)
+			APPEND_ATTR_BUF("%d", resource->d.counter.avail)
+		else if (resource->type == RESMAN_TYPE_CODEC_MM)
+			APPEND_ATTR_BUF("total%d uhd%d fhd%d secure%d, counts%d countnon%d",
+				resource->d.codec_mm.total, resource->d.codec_mm.uhd,
+				resource->d.codec_mm.fhd, resource->d.codec_mm.secure,
+				resource->d.codec_mm.counter_secure.counter,
+				resource->d.codec_mm.counter_nonsecure.counter)
+		else if (resource->type == RESMAN_TYPE_CAPACITY_SIZE)
+			APPEND_ATTR_BUF("%d", resource->d.capacity.total)
+		APPEND_ATTR_BUF("%s", "\n")
+	}
+	mutex_unlock(&resource_lock);
+	return size;
+}
+
+#undef APPEND_ATTR_BUF
 
 /* ------------------------------------------------------------------
  * File operations for the device
@@ -2159,6 +2229,9 @@ long resman_ioctl(struct file *filp, unsigned int cmd, unsigned long para)
 	case RESMAN_IOC_RELEASE_ALL:
 		retval = resman_ioctl_release_all(sess, para);
 		break;
+	case RESMAN_IOC_LOAD_RES:
+		retval = resman_ioctl_load_res(sess, para);
+		break;
 	default:
 		retval = -EINVAL;
 		break;
@@ -2214,6 +2287,7 @@ static struct class_attribute resman_class_attrs[] = {
 	__ATTR_RW(config),
 	__ATTR_RO(ver),
 	__ATTR_RW(extconfig),
+	__ATTR_RO(res),
 	__ATTR_NULL
 };
 

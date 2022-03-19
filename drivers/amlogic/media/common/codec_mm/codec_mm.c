@@ -2418,7 +2418,8 @@ EXPORT_SYMBOL(codec_mm_get_total_size);
 int codec_mm_get_free_size(void)
 {
 	struct codec_mm_mgt_s *mgt = get_mem_mgt();
-
+	if (debug_mode & 0x20)
+		dump_mem_infos(NULL, 0);
 	return codec_mm_get_total_size() -
 		mgt->tvp_pool.total_size  + mgt->tvp_pool.alloced_size -
 		mgt->total_alloced_size;

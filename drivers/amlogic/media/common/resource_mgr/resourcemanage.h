@@ -17,6 +17,8 @@
 #define RESMAN_IOC_SETAPPINFO		_IOW(RESMAN_IOC_MAGIC, 0x04, int)
 #define RESMAN_IOC_SUPPORT_RES		_IOR(RESMAN_IOC_MAGIC, 0x05, int)
 #define RESMAN_IOC_RELEASE_ALL		_IOR(RESMAN_IOC_MAGIC, 0x06, int)
+#define RESMAN_IOC_LOAD_RES			_IOR(RESMAN_IOC_MAGIC, 0x07, int)
+
 #define RESMAN_SUPPORT_PREEMPT		1
 
 struct resman_para {
@@ -43,6 +45,12 @@ struct app_info {
 	char app_name[32];
 	__u32 app_type;
 	int  prio;
+};
+
+struct res_item {
+	char name[32];
+	__u32 type;
+	char arg[32];
 };
 
 enum RESMAN_ID {
