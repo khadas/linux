@@ -13,6 +13,7 @@ struct ddr_cooling_device {
 	int id;
 	struct thermal_cooling_device *cool_dev;
 	u32 ddr_reg;
+	void __iomem *vddr_reg;
 	u32 ddr_status;
 	u32 ddr_bits[2];
 	u32 ddr_data[16];
