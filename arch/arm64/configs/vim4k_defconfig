@@ -977,5 +977,5 @@ CONFIG_MAC80211_LEDS=y
 # CONFIG_MAC80211_DEBUG_MENU is not set
 CONFIG_MAC80211_STA_HASH_MAX_SIZE=0
 
-# small size kernel
-CONFIG_CC_OPTIMIZE_FOR_SIZE=y
+# small size kernel - not stable mmc system - need to check it - why
+# CONFIG_CC_OPTIMIZE_FOR_SIZE=y
