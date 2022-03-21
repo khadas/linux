@@ -462,6 +462,9 @@ static int amlogic_crg_drd_usb2_probe(struct platform_device *pdev)
 					 NULL, 0, GPIOD_OUT_LOW);
 		if (IS_ERR(usb_gd))
 			return -1;
+
+		gpiod_direction_output(usb_gd, 0);
+		usleep_range(50000, 60000);
 	}
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
