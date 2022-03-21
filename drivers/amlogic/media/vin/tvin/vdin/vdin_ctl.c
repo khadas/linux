@@ -3688,7 +3688,7 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 			devp->duration = 800;
 		} else if (devp->cycle) {
 			fps = devp->cycle * 96;
-			devp->duration = fps / (devp->msr_clk_val / 1000);
+			devp->duration = DIV_ROUND_CLOSEST(fps, (devp->msr_clk_val / 1000));
 		} else {
 			/* null branch */
 		}
