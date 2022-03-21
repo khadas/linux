@@ -949,11 +949,16 @@ static void adc_dump_regs(void)
 		reg_offset = 0x10;
 	} else {
 		reg_offset = 0;
-		pr_info("AFE_VAFE_CTRL0:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL0));
-		pr_info("AFE_VAFE_CTRL1:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL1));
-		pr_info("AFE_VAFE_CTRL2:0x%x\n", adc_rd_afe(AFE_VAFE_CTRL2));
+		pr_info("-------- vafe --------\n");
+		pr_info("AFE_VAFE_CTRL0(%x0x):0x%x\n",
+			AFE_VAFE_CTRL0, adc_rd_afe(AFE_VAFE_CTRL0));
+		pr_info("AFE_VAFE_CTRL1(%x0x):0x%x\n",
+			AFE_VAFE_CTRL1, adc_rd_afe(AFE_VAFE_CTRL1));
+		pr_info("AFE_VAFE_CTRL2(%x0x):0x%x\n",
+			AFE_VAFE_CTRL2, adc_rd_afe(AFE_VAFE_CTRL2));
 	}
 
+	pr_info("-------- hiu --------\n");
 	pr_info("HHI_DADC_CNTL(0x%x):0x%x\n", adc_addr->dadc_cntl,
 		adc_rd_hiu(adc_addr->dadc_cntl));
 	pr_info("HHI_DADC_CNTL2(0x%x):0x%x\n", adc_addr->dadc_cntl_2,
@@ -1003,6 +1008,8 @@ static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
 	char *buf_orig, *parm[47] = {NULL};
 	unsigned int val;
 	struct tvin_adc_dev *devp = adc_devp;
+	unsigned int reg_addr;
+	unsigned int reg_val;
 
 	if (!probe_finish || !devp)
 		return -1;
@@ -1022,6 +1029,23 @@ static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
 
 		if (kstrtouint(parm[1], 10, &val) >= 0)
 			devp->print_en = val;
+	} else if (parm[0] && parm[1] && parm[2]) {
+		if (kstrtouint(parm[1], 16, &reg_addr) < 0) {
+			pr_info("reg addr error\n");
+			goto tvin_adc_store_err;
+		}
+
+		if (kstrtouint(parm[2], 16, &reg_val) < 0) {
+			pr_info("reg value error\n");
+			goto tvin_adc_store_err;
+		}
+
+		if (!strcmp(parm[0], "vafe"))
+			adc_wr_afe(reg_addr, reg_val);
+		else if (!strcmp(parm[0], "hiu"))
+			adc_wr_hiu(reg_addr, reg_val);
+		else
+			pr_info("reg not match\n");
 	}
 
 tvin_adc_store_err:
@@ -1036,6 +1060,10 @@ static ssize_t adc_show(struct device *dev,
 		return -1;
 
 	pr_info("debug : %d\n", adc_devp->print_en);
+	pr_info("echo dump_reg > /sys/class/adc/adc/adc\n");
+	pr_info("echo down > /sys/class/adc/adc/adc\n");
+	pr_info("echo vafe reg_addr reg_val >  /sys/class/adc/adc/adc\n");
+	pr_info("echo hiu  reg_addr reg_val >  /sys/class/adc/adc/adc\n");
 	pr_info("version : %s\n", TVDIN_ADC_VER);
 	return 0;
 }

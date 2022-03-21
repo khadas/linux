@@ -6,7 +6,9 @@
 #ifndef __ADC_H_
 #define __ADC_H_
 
-#define TVDIN_ADC_VER "2021/12/16 close adc clk and tvfe top"
+/* 20211216: close adc clk and tvfe top */
+/* 20220320: add write reg debug command */
+#define TVDIN_ADC_VER "2022/03/20 add write reg debug command"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
