@@ -844,6 +844,36 @@ void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 	/*mutex_unlock(&mp);*/
 }
 
+void t3_revb_set_ambus_state(bool enable, bool is_t2)
+{
+	unsigned int reg = 0;
+
+	/* DEMOD_TOP_CFG_REG_4: dvbt2_mode_sel reg.
+	 * bit[15:0] == 0, other demod sel.
+	 * bit[15:0] != 0, dvbt2 sel, bit[15:0] as dvbt2 paddr high 16bit.
+	 */
+	if (is_t2) {
+		reg = demod_top_read_reg(DEMOD_TOP_CFG_REG_4);
+		if (reg)
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0);
+
+		PR_DBG("%s: read DEMOD_TOP_CFG_REG_4(0x%x): 0x%x.\n",
+				__func__, DEMOD_TOP_CFG_REG_4, reg);
+	}
+
+	/* TEST_BUS_VLD[0x36]: bit31: dc_lbrst.
+	 * normal mode to accesses ddr, pull down dc_lbrst.
+	 * single mode to accesses ddr, pull up dc_lbrst.
+	 */
+	front_write_bits(TEST_BUS_VLD, enable ? 1 : 0, 31, 1);
+
+	PR_DBG("%s: read TEST_BUS_VLD(0x%x): 0x%x.\n",
+			__func__, TEST_BUS_VLD, front_read_reg(TEST_BUS_VLD));
+
+	if (is_t2 && reg)
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, reg);
+}
+
 unsigned int t5w_read_ambus_reg(unsigned int addr)
 {
 	unsigned int val = 0;

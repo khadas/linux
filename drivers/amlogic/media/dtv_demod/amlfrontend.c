@@ -1427,8 +1427,18 @@ static int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	param.dat0 = 1;
 	demod->last_lock = -1;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T5W)
+	if (devp->data->hw_ver == DTVDEMOD_HW_T5W) {
 		t5w_write_ambus_reg(0xe138, 0x1, 23, 1);
+	} else if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+		if (is_meson_rev_a()) {
+			dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
+			dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
+			dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
+		} else {
+			// rev_b
+			t3_revb_set_ambus_state(false, false);
+		}
+	}
 
 	tuner_set_params(fe);
 	msleep(20);
@@ -1487,14 +1497,19 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	real_para_clear(&demod->real_para);
 
 	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
-		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-		dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
-		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
-		riscv_ctl_write_reg(0x30, 4);
-		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-		dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
-		dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
-		dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+		if (is_meson_rev_a()) {
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+			dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+			riscv_ctl_write_reg(0x30, 4);
+			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+			dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
+			dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
+			dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+		} else {
+			// rev_b
+			t3_revb_set_ambus_state(false, true);
+		}
 	} else if (devp->data->hw_ver == DTVDEMOD_HW_T5W) {
 		t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
 	}
@@ -2985,10 +3000,15 @@ static int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 
 	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
 		PR_INFO("dtmb set ddr\n");
-		dtmb_write_reg(0x7, 0x6ffffd);
-		//dtmb_write_reg(0x47, 0xed33221);
-		dtmb_write_reg_bits(0x47, 0x1, 22, 1);
-		dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+		if (is_meson_rev_a()) {
+			dtmb_write_reg(0x7, 0x6ffffd);
+			//dtmb_write_reg(0x47, 0xed33221);
+			dtmb_write_reg_bits(0x47, 0x1, 22, 1);
+			dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+		} else {
+			// rev_b
+			t3_revb_set_ambus_state(false, false);
+		}
 	}
 
 	tuner_set_params(fe);	/*aml_fe_analog_set_frontend(fe);*/
@@ -5780,19 +5800,38 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 		if (get_dtvpll_init_flag()) {
 			PR_INFO("delsys not support : %d\n", cdelsys);
 			if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DTMB) {
-				dtmb_write_reg(0x7, 0x6ffffd);
-				//dtmb_write_reg(0x47, 0xed33221);
-				dtmb_write_reg_bits(0x47, 0x1, 22, 1);
-				dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+				if (is_meson_rev_a()) {
+					dtmb_write_reg(0x7, 0x6ffffd);
+					//dtmb_write_reg(0x47, 0xed33221);
+					dtmb_write_reg_bits(0x47, 0x1, 22, 1);
+					dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+				} else {
+					// rev_b
+					t3_revb_set_ambus_state(true, false);
+				}
 			} else if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DVBT2) {
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-				dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
-				riscv_ctl_write_reg(0x30, 4);
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-				dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
-				dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
-				dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+				if (is_meson_rev_a()) {
+					demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+					dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
+					demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+					riscv_ctl_write_reg(0x30, 4);
+					demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+					dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
+					dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
+					dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+				} else {
+					// rev_b
+					t3_revb_set_ambus_state(true, true);
+				}
+			} else if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_ISDBT) {
+				if (is_meson_rev_a()) {
+					dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
+					dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
+					dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
+				} else {
+					// rev_b
+					t3_revb_set_ambus_state(true, false);
+				}
 			} else if (devp->data->hw_ver == DTVDEMOD_HW_T5W &&
 				(ldelsys == SYS_DVBT2 || ldelsys == SYS_ISDBT)) {
 				PR_INFO("before set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
@@ -5804,7 +5843,10 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 				fe->ops.tuner_ops.release(fe);
 
 			if (devp->data->hw_ver == DTVDEMOD_HW_T3 &&
-				(ldelsys == SYS_DTMB || ldelsys == SYS_DVBT2)) {
+				is_meson_rev_a() &&
+				(ldelsys == SYS_DTMB ||
+				ldelsys == SYS_DVBT2 ||
+				ldelsys == SYS_ISDBT)) {
 				if (fe->ops.tuner_ops.set_config)
 					fe->ops.tuner_ops.set_config(fe, NULL);
 				if (fe->ops.tuner_ops.release)
@@ -5812,6 +5854,7 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 				msleep(demod->timeout_ddr_leave);
 				//msleep(50);
 				clear_ddr_bus_data();
+
 				PR_INFO("T3 demod clear ddr data done\n");
 			}
 
@@ -5823,6 +5866,14 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 				PR_INFO("before set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
 				t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
 				PR_INFO("after set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
+			} else if (devp->data->hw_ver == DTVDEMOD_HW_T3 &&
+					is_meson_rev_b() &&
+					(ldelsys == SYS_DTMB ||
+					ldelsys == SYS_DVBT2 ||
+					ldelsys == SYS_ISDBT)) {
+				msleep(20);
+
+				t3_revb_set_ambus_state(false, ldelsys == SYS_DVBT2);
 			}
 		}
 

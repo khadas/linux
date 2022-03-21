@@ -1142,8 +1142,13 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 			 AFIFO_NCO_RATE_WID);
 	front_write_reg(0x22, 0x7200a06);
 	front_write_reg(0x2f, 0x0);
-	front_write_reg(0x39, 0xc0002000);
-	front_write_reg(TEST_BUS_VLD, 0x80000000);
+	if (is_meson_t3_cpu() && is_meson_rev_b()) {
+		front_write_reg(TEST_BUS, 0x40002000);
+	} else {
+		front_write_reg(TEST_BUS, 0xc0002000);
+		front_write_reg(TEST_BUS_VLD, 0x80000000);
+	}
+
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
 	riscv_ctl_write_reg(0x30, 5);
 	riscv_ctl_write_reg(0x30, 4);
@@ -1225,7 +1230,7 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 			 AFIFO_NCO_RATE_WID);
 	front_write_reg(0x22, 0x7200a06);
 	front_write_reg(0x2f, 0x0);
-	front_write_reg(0x39, 0x40001000);
+	front_write_reg(TEST_BUS, 0x40001000);
 	demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
 
 	switch (bw) {
