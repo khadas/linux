@@ -712,6 +712,9 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 			}
 		}
 		if (req.aux_buf && req.aux_size) {
+			u32 count = 0;
+			u32 offest = 0;
+
 			p = req.aux_buf;
 			while (p < req.aux_buf
 				+ req.aux_size - 8) {
@@ -723,9 +726,19 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 				type = (type << 8) | *p++;
 				type = (type << 8) | *p++;
 				type = (type << 8) | *p++;
+				offest += 8;
+				if (offest + size > req.aux_size) {
+					pr_err("%s exception: t:%x, s:%d, p:%px, c:%d, offt:%d, aux:%px, s:%d\n",
+						__func__,
+						type, size, p, count, offest,
+						req.aux_buf, req.aux_size);
+					break;
+				}
 				if (type == 0x02000000)
 					parse_sei(p, size);
 
+				count++;
+				offest += size;
 				p += size;
 			}
 		}

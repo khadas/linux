@@ -336,6 +336,7 @@ void vf_unreg_provider(struct vframe_provider_s *prov)
 		TABLE_LOCK();
 		p = provider_table[i].vframe_provider;
 		if (p && !strcmp(p->name, prov->name)) {
+			receiver = vf_get_receiver(prov->name);
 			provider_table[i].used = false;
 			provider_table[i].vframe_provider = NULL;
 			TABLE_UNLOCK();
@@ -350,9 +351,6 @@ void vf_unreg_provider(struct vframe_provider_s *prov)
 			vf_provider_close(prov);
 			if (vfm_debug_flag & 1)
 				pr_err("%s:%s\n", __func__, prov->name);
-			TABLE_LOCK();
-			receiver = vf_get_receiver(prov->name);
-			TABLE_UNLOCK();
 			if (receiver && receiver->ops &&
 			    receiver->ops->event_cb) {
 				receiver->ops->event_cb
@@ -360,8 +358,10 @@ void vf_unreg_provider(struct vframe_provider_s *prov)
 					 NULL,
 					 receiver->op_arg);
 			} else {
-				pr_err("%s Error to notify receiver\n",
-				       __func__);
+				pr_err("%s Error to notify receiver, prov:%px n:%s, recv:%px n:%s ops:%px\n",
+				       __func__, prov, prov->name,
+					   receiver, receiver ? receiver->name : "invalid",
+					   receiver ? receiver->ops : NULL);
 			}
 			TABLE_LOCK();
 			vf_update_active_map();
