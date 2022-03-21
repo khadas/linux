@@ -713,11 +713,14 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	u32 frc_vporch_cal;
 	u32 frc_porch_delta;
 	u32 adj_mc_dly;
+	enum chip_id chip;
 
+	struct frc_data_s *frc_data;
 	struct frc_fw_data_s *fw_data;
 	struct frc_top_type_s *frc_top;
 	struct stvlock_frc_param frc_param;
 
+	frc_data = (struct frc_data_s *)frc_devp->data;
 	fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	frc_top = &fw_data->frc_top_type;
 
@@ -726,6 +729,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	inp_hold_line = fw_data->holdline_parm.inp_hold_line;
 	reg_post_dly_vofst = fw_data->holdline_parm.reg_post_dly_vofst;
 	reg_mc_dly_vofst0 = fw_data->holdline_parm.reg_mc_dly_vofst0;
+	chip = frc_data->match_data->chip;
 
 	frc_input_init(frc_devp, frc_top);
 	config_phs_lut(frc_top->frc_ratio_mode, frc_top->film_mode);
@@ -788,49 +792,69 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	frc_vporch_cal    = memc_frm_dly - reg_mc_out_line;
 	WRITE_FRC_REG(FRC_REG_TOP_CTRL27, frc_vporch_cal);
 
-	if ((frc_top->out_hsize > 1920 && frc_top->out_vsize > 1080) ||
-		(frc_top->out_hsize == 3840 && frc_top->out_vsize == 1080 &&
-		frc_devp->out_sts.out_framerate > 80)) {
-		/*
-		 * MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
-		 * so need dynamic change this register
-		 */
-		//u32 frc_v_porch = vpu_reg_read(ENCL_FRC_CTRL);/*0x1cdd*/
-		u32 max_lncnt   = vpu_reg_read(ENCL_VIDEO_MAX_LNCNT);/*0x1cbb*/
-		u32 max_pxcnt   = vpu_reg_read(ENCL_VIDEO_MAX_PXCNT);/*0x1cb0*/
+	if (chip == ID_T3 && is_meson_rev_a()) {
+		if ((frc_top->out_hsize > 1920 && frc_top->out_vsize > 1080) ||
+			(frc_top->out_hsize == 3840 && frc_top->out_vsize == 1080 &&
+			frc_devp->out_sts.out_framerate > 80)) {
+			/*
+			 * MEMC 4K ENCL setting, vlock will change the ENCL_VIDEO_MAX_LNCNT,
+			 * so need dynamic change this register
+			 */
+			//u32 frc_v_porch = vpu_reg_read(ENCL_FRC_CTRL);/*0x1cdd*/
+			u32 max_lncnt   = vpu_reg_read(ENCL_VIDEO_MAX_LNCNT);/*0x1cbb*/
+			u32 max_pxcnt   = vpu_reg_read(ENCL_VIDEO_MAX_PXCNT);/*0x1cb0*/
 
-		pr_frc(log, "max_lncnt=%d max_pxcnt=%d\n", max_lncnt, max_pxcnt);
+			pr_frc(log, "max_lncnt=%d max_pxcnt=%d\n", max_lncnt, max_pxcnt);
 
-		//frc_v_porch     = max_lncnt > 1800 ? max_lncnt - 1800 : frc_vporch_cal;
-		frc_v_porch = ((max_lncnt - frc_vporch_cal) <= 1950) ?
-				frc_vporch_cal : (max_lncnt - 1950);
+			//frc_v_porch     = max_lncnt > 1800 ? max_lncnt - 1800 : frc_vporch_cal;
+			frc_v_porch = ((max_lncnt - frc_vporch_cal) <= 1950) ?
+					frc_vporch_cal : (max_lncnt - 1950);
 
-		frc_param.frc_v_porch = frc_v_porch;
-		frc_param.max_lncnt = max_lncnt;
-		frc_param.max_pxcnt = max_pxcnt;
+			frc_param.frc_v_porch = frc_v_porch;
+			frc_param.max_lncnt = max_lncnt;
+			frc_param.max_pxcnt = max_pxcnt;
 
-		if (vlock_sync_frc_vporch(frc_param) < 0)
-			pr_frc(0, "set maxlnct fail !!!\n");
-		else
-			pr_frc(0, "set maxlnct success!!!\n");
+			if (vlock_sync_frc_vporch(frc_param) < 0)
+				pr_frc(0, "set maxlnct fail !!!\n");
+			else
+				pr_frc(0, "set maxlnct success!!!\n");
 
-		//vpu_reg_write(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
-		//vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
-		//vpu_reg_write(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
+			//vpu_reg_write(ENCL_SYNC_TO_LINE_EN,
+			// (1 << 13) | (max_lncnt - frc_v_porch));
+			//vpu_reg_write(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
+			//vpu_reg_write(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
 
-		pr_frc(log, "ENCL_SYNC_TO_LINE_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_TO_LINE_EN));
-		pr_frc(log, "ENCL_SYNC_PIXEL_EN=0x%x\n", vpu_reg_read(ENCL_SYNC_PIXEL_EN));
-		pr_frc(log, "ENCL_SYNC_LINE_LENGTH=0x%x\n", vpu_reg_read(ENCL_SYNC_LINE_LENGTH));
+			pr_frc(log, "ENCL_SYNC_TO_LINE_EN=0x%x\n",
+				vpu_reg_read(ENCL_SYNC_TO_LINE_EN));
+			pr_frc(log, "ENCL_SYNC_PIXEL_EN=0x%x\n",
+				vpu_reg_read(ENCL_SYNC_PIXEL_EN));
+			pr_frc(log, "ENCL_SYNC_LINE_LENGTH=0x%x\n",
+				vpu_reg_read(ENCL_SYNC_LINE_LENGTH));
+		} else {
+			frc_v_porch = frc_vporch_cal;
+		}
+		frc_porch_delta = frc_v_porch - frc_vporch_cal;
+		pr_frc(log, "frc_v_porch=%d frc_porch_delta=%d\n",
+			frc_v_porch, frc_porch_delta);
+		vpu_reg_write_bits(ENCL_FRC_CTRL, frc_v_porch, 0, 16);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL14,
+			(reg_post_dly_vofst + frc_porch_delta), 0, 16);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL14,
+			(reg_me_dly_vofst  + frc_porch_delta), 16, 16);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL15,
+			(reg_mc_dly_vofst0 + frc_porch_delta), 0, 16);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL15,
+			(reg_mc_dly_vofst1 + frc_porch_delta), 16, 16);
 	} else {
+		/*T3 revB*/
 		frc_v_porch = frc_vporch_cal;
+		pr_frc(2, "%s T3 revB chip validation！\n", __func__);
+		vpu_reg_write_bits(ENCL_FRC_CTRL, memc_frm_dly - reg_mc_out_line, 0, 16);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_post_dly_vofst, 0, 16);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_me_dly_vofst, 16, 16);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL15, reg_mc_dly_vofst0, 0, 16);
+		WRITE_FRC_BITS(FRC_REG_TOP_CTRL15, reg_mc_dly_vofst1, 16,  16);
 	}
-	frc_porch_delta = frc_v_porch - frc_vporch_cal;
-	pr_frc(log, "frc_v_porch=%d frc_porch_delta=%d\n", frc_v_porch, frc_porch_delta);
-	vpu_reg_write_bits(ENCL_FRC_CTRL, frc_v_porch, 0, 16);
-	WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, (reg_post_dly_vofst + frc_porch_delta), 0, 16);
-	WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, (reg_me_dly_vofst  + frc_porch_delta), 16, 16);
-	WRITE_FRC_BITS(FRC_REG_TOP_CTRL15, (reg_mc_dly_vofst0 + frc_porch_delta), 0, 16);
-	WRITE_FRC_BITS(FRC_REG_TOP_CTRL15, (reg_mc_dly_vofst1 + frc_porch_delta), 16, 16);
 
 	pr_frc(log, "reg_mc_out_line   = %d\n", reg_mc_out_line);
 	pr_frc(log, "me_hold_line      = %d\n", me_hold_line);
