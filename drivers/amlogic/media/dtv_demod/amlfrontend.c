@@ -1370,6 +1370,7 @@ static int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	/*struct aml_demod_sts demod_sts;*/
 	struct aml_demod_dvbt param;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
 	PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d, modul:%d, invert:%d.\n",
 			__func__, demod->id, c->delivery_system, c->frequency, c->symbol_rate,
@@ -1390,8 +1391,15 @@ static int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	param.dat0 = 1;
 	demod->last_lock = -1;
 
+	if (devp->data->hw_ver == DTVDEMOD_HW_T5W)
+		t5w_write_ambus_reg(0xe138, 0x1, 23, 1);
+
 	tuner_set_params(fe);
+	msleep(20);
 	dvbt_isdbt_set_ch(demod, &param);
+
+	if (devp->data->hw_ver == DTVDEMOD_HW_T5W)
+		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
 
 	return 0;
 }
@@ -1451,6 +1459,8 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 		dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
 		dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
 		dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+	} else if (devp->data->hw_ver == DTVDEMOD_HW_T5W) {
+		t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
 	}
 
 	tuner_set_params(fe);
@@ -1458,6 +1468,9 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	msleep(100);
 	dvbt2_set_ch(demod, fe);
 	demod->time_start = jiffies_to_msecs(jiffies);
+
+	if (devp->data->hw_ver == DTVDEMOD_HW_T5W)
+		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
 
 	return 0;
 }
@@ -5359,7 +5372,6 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	case SYS_ANALOG:
 		if (get_dtvpll_init_flag()) {
 			PR_INFO("delsys not support : %d\n", cdelsys);
-
 			if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DTMB) {
 				dtmb_write_reg(0x7, 0x6ffffd);
 				//dtmb_write_reg(0x47, 0xed33221);
@@ -5374,6 +5386,11 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 				dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
 				dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
 				dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+			} else if (devp->data->hw_ver == DTVDEMOD_HW_T5W &&
+				(ldelsys == SYS_DVBT2 || ldelsys == SYS_ISDBT)) {
+				PR_INFO("before set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
+				t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
+				PR_INFO("after set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
 			}
 
 			if (fe->ops.tuner_ops.release)
@@ -5390,7 +5407,16 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 				clear_ddr_bus_data();
 				PR_INFO("T3 demod clear ddr data done\n");
 			}
+
 			leave_mode(demod, ldelsys);
+
+			if (devp->data->hw_ver == DTVDEMOD_HW_T5W &&
+				(ldelsys == SYS_DVBT2 || ldelsys == SYS_ISDBT)) {
+				msleep(20);
+				PR_INFO("before set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
+				t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
+				PR_INFO("after set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
+			}
 		}
 
 		return 0;

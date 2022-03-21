@@ -844,6 +844,46 @@ void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 	/*mutex_unlock(&mp);*/
 }
 
+unsigned int t5w_read_ambus_reg(unsigned int addr)
+{
+	unsigned int val = 0;
+	void __iomem *vaddr = NULL;
+
+	if (!get_dtvpll_init_flag())
+		return 0;
+
+	vaddr = ioremap((0xffd00000 + (addr << 2)), 0x4);
+	if (vaddr) {
+		/*mutex_lock(&mp);*/
+		val = readl(vaddr);
+
+		iounmap(vaddr);
+	}
+
+	return val;
+}
+
+void t5w_write_ambus_reg(u32 addr,
+	const u32 data, const u32 start, const u32 len)
+{
+	unsigned int val = 0;
+	void __iomem *vaddr = NULL;
+
+	if (!get_dtvpll_init_flag())
+		return;
+
+	vaddr = ioremap((0xffd00000 + (addr << 2)), 0x4);
+	if (vaddr) {
+		/*mutex_lock(&mp);*/
+		val = readl(vaddr);
+		val &= ~(((1L << (len)) - 1) << (start));
+		val |= (((data) & ((1L << (len)) - 1)) << (start));
+		writel(val, vaddr);
+
+		iounmap(vaddr);
+	}
+}
+
 void atsc_write_reg(unsigned int reg_addr, unsigned int reg_data)
 {
 	unsigned int data;

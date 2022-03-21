@@ -620,4 +620,8 @@ unsigned int write_riscv_ram(void);
 unsigned int dvbs_get_quality(void);
 void dvbs2_reg_initial(unsigned int symb_rate, unsigned int is_blind_scan);
 int dvbs_get_signal_strength_off(void);
+void t5w_write_ambus_reg(u32 addr,
+	const u32 data, const u32 start, const u32 len);
+unsigned int t5w_read_ambus_reg(unsigned int addr);
+
 #endif
