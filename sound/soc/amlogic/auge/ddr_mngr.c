@@ -805,7 +805,7 @@ void toddr_vad_set_intrpt(unsigned int intrpt)
 	reg = EE_AUDIO2_TODDR_VAD_INT_ADDR;
 	vad_top_write(reg, intrpt);
 
-	reg = EE_AUDIO2_TODDR_VAD_CTRL0,
+	reg = EE_AUDIO2_TODDR_VAD_CTRL0;
 	vad_top_update_bits(reg, 0xff << 16, 0x34 << 16);
 }
 
