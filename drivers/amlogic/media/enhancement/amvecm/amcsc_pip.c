@@ -516,6 +516,8 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 		is_vpp1(VD2_PATH),
 		vpp_index);
 
+	cur_hdr_policy = get_hdr_policy();
+
 	if (is_vpp1(VD2_PATH) &&
 		vd_path == VD2_PATH &&
 		vpp_index == VPP_TOP1) {
@@ -528,8 +530,6 @@ int hdr_policy_process(struct vinfo_s *vinfo,
 	}
 
 	tx_hdr10_plus_support = hdr10_plus_support;
-
-	cur_hdr_policy = get_hdr_policy();
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (is_dolby_vision_enable()) {
@@ -1145,7 +1145,8 @@ out:
 		change_flag |= SIG_OUTPUT_MODE_CHG;
 	} else if (!is_dolby_vision_on() &&
 		   is_video_layer_on(VD1_PATH) &&
-		   is_video_layer_on(VD2_PATH) &&
+		   (is_video_layer_on(VD2_PATH) &&
+		   !is_vpp1(VD2_PATH)) &&
 		   (target_format[vd_path] != target_format[oth_path])) {
 		pr_csc(4, "am_vecm: vd%d output mode not match %s %s.\n",
 		       vd_path + 1,
