@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 /dts-v1/;
 
 #include "mesont7.dtsi"
-#include "partition_normal_PR_32.dtsi"
+#include "partition_mbox_ab.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t7_a311d2_an400-8g";
+	amlogic-dt-id = "t7_a311d2_an400-3g";
 	compatible = "amlogic, t7";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -50,8 +50,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
-				       0x00000001 0x00000000 0x00000001 0x20000000>;
+		linux,usable-memory = <0x0 0x000000 0x0 0xC0000000>;
 	};
 
 	reserved-memory {
@@ -108,7 +107,6 @@
 			size = <0x0 0x1b000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			clear-map;
 		};
 
@@ -126,14 +124,12 @@
 			size = <0x0 0x0B000000>;
 			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "shared-dma-pool";
 			size = <0x0 0x0>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		isp_cma_reserved:linux,isp_cma {
@@ -142,16 +138,14 @@
 			status = "okay";
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		adapt_cma_reserved:linux,adapt_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -159,7 +153,6 @@
 			reusable;
 			size = <0x0 0x9800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x8000000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -167,22 +160,19 @@
 			no-map;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x1c00000>;
+			size = <0x0 0x6000000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
 			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			//no-map;
 		};
 
@@ -205,7 +195,6 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 
@@ -446,6 +435,8 @@
 		compatible = "soc, sensor";
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name-sub = "imx290sub";
+		sensor-name-ssub = "imx290ssub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -715,47 +706,53 @@
 		status = "okay";
 	};
 
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
+		status = "okay";
+	};
+
 	amdolby_vision {
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <0>;/*1:enabel ;0:disable*/
+		tv_mode = <1>;/*1:enabel ;0:disable*/
 	};
 
     /* SMC */
-//	smartcard {
-//		compatible = "amlogic,smartcard-sc2";
-//		dev_name = "smartcard";
-//		status = "disabled";
-//
-//		reg = <0x0 0xfe000000 0x0 0x480000>;
-//		irq_trigger_type = "GPIO_IRQ_LOW";
-//
-//		reset_pin-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
-//		detect_pin-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
-//		enable_5v3v_pin-gpios = <&gpio GPIOT_11 GPIO_ACTIVE_HIGH>;
-//		enable_pin-gpios = <&gpio GPIOT_12 GPIO_ACTIVE_HIGH>;
-//
-//		interrupts = <0 174 1>;
-//		interrupt-names = "smc0_irq";
-//
-//		//Smc clock source, if change this,
-//		//you must adjust clk and divider in smartcard.c
-//
-//		smc0_clock_source = <0>;
-//		//0: high voltage on detect pin indicates card in.
-//		smc0_det_invert = <0>;
-//		smc0_5v3v_level = <0>;
-//		//Ordinarily,smartcard controller needs a enable pin.
-//		smc_need_enable_pin = "yes";
-//		reset_level = <0>;
-//		smc0_enable_level = <0>;
-//
-//		pinctrl-names = "default";
-//		pinctrl-0 = <&sd_iso7816_pins>;
-//		clocks = <&clkc CLKID_SC_CLK_GATE>;
-//		clock-names = "smartcard";
-//	};
+	smartcard {
+		compatible = "amlogic,smartcard-sc2";
+		dev_name = "smartcard";
+		status = "disabled";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+		irq_trigger_type = "GPIO_IRQ_LOW";
+
+		reset_pin-gpios = <&gpio GPIOH_7 GPIO_ACTIVE_HIGH>;
+		detect_pin-gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
+		enable_5v3v_pin-gpios = <&gpio GPIOT_11 GPIO_ACTIVE_HIGH>;
+		enable_pin-gpios = <&gpio GPIOT_12 GPIO_ACTIVE_HIGH>;
+
+		interrupts = <0 174 1>;
+		interrupt-names = "smc0_irq";
+		/*
+		 *Smc clock source, if change this,
+		 *you must adjust clk and divider in smartcard.c
+		 */
+		smc0_clock_source = <0>;
+		/*0: high voltage on detect pin indicates card in.*/
+		smc0_det_invert = <0>;
+		smc0_5v3v_level = <0>;
+		/*Ordinarily,smartcard controller needs a enable pin.*/
+		smc_need_enable_pin = "yes";
+		reset_level = <0>;
+		smc0_enable_level = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_iso7816_pins>;
+		clocks = <&clkc CLKID_SC_CLK_GATE>;
+		clock-names = "smartcard";
+	};
 
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
@@ -853,18 +850,6 @@
 		key_code = <141 114 115 28>;
 		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40 40>;
-	};
-
-	gpio_keypad{
-		compatible = "amlogic, gpio_keypad";
-		status = "okay";
-		scan_period = <20>;
-		key_num = <1>;
-		key_name = "power";
-		key_code = <KEY_POWER>;
-		key_type = <EV_KEY>;
-		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
-		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 };
 
@@ -1299,6 +1284,16 @@
 	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-ssub";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
 
 	tas5707_36: tas5707_36@1b {
 		compatible = "ti,tas5707";
@@ -1324,6 +1319,22 @@
 	clock-frequency = <100000>; /* default 100k */
 	sensor-i2c@6c {
 		compatible = "arm, i2c-sensor";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-names = "default";//, "sleep"
+	pinctrl-0 = <&i2c3_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-sub";
 		reg = <0x6c>;
 		reg-names = "i2c-sensor";
 		slave-addr = <0x6c>;
@@ -1401,9 +1412,10 @@
 
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	//mmc-ddr-1_8v;
+	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
 	mmc-hs400-1_8v;
+	//mmc-hs400-enhanced-strobe;
 	max-frequency = <200000000>;
 	non-removable;
 	disable-wp;
@@ -1430,15 +1442,25 @@
 &isp {
 	status = "okay";
 	temper-line-offset = <0x1680>;
-	temper-buf-size = <12>;
+	temper-buf-size = <6>;
 	temper-frame-num = <1>;
-	temper-frame-size = <0xBDD800>;
+	temper-frame-size = <0x5EEC00>;
+	temper-line-offset1 = <0x1680>;
+	temper-buf-size1 = <6>;
+	temper-frame-num1 = <1>;
+	temper-frame-size1 = <0x5EEC00>;
+	temper-line-offset2 = <0x1680>;
+	temper-buf-size2 = <6>;
+	temper-frame-num2 = <1>;
+	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <24>;
+	mem_alloc = <32>;
+	mem_alloc1 = <16>;
+	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
 };
 
@@ -1455,17 +1477,40 @@
 	};
 };
 
+&spicc3 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc3_pins>;
+	cs-gpios = <&gpio GPIOT_9 0>;
+	spi-nor@0 {
+		compatible = "jedec,spi-nor";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <16000000>;
+	};
+};
+
 &fb {
 	status = "okay";
-	display_size_default = <1920 1080 1920 2160 32>;
-	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x100000>;
+	display_size_default = <3840 2160 3840 4320 32>;
+	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
+	4k2k_fb = <1>;
+	display_device_cnt = <2>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&amvideom {
+	display_device_cnt = <2>;
+	vpp0_layer_count = <2>;
+	/* number of video layer display on vpp1 */
+	vpp1_layer_count = <1>;
+};
+
 &amhdmitx {
 	status = "okay";
+	enc_idx = <0>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/

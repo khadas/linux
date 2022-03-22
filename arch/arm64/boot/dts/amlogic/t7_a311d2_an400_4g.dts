@@ -12,7 +12,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t7_a311d2_an400_4g";
+	amlogic-dt-id = "t7_a311d2_an400-4g";
 	compatible = "amlogic, t7";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
