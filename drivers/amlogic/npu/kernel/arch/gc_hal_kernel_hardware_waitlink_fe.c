@@ -148,7 +148,7 @@ gckWLFE_WaitLink(
     gctUINT32 bytes;
     gctBOOL useL2;
 
-    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x Offset=0x%08x *Bytes=%lu",
+    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x Offset=0x%08x *Bytes=0x%x",
                    Hardware, Logical, Offset, gcmOPT_VALUE(Bytes));
 
     /* Verify the arguments. */
@@ -288,7 +288,7 @@ gckWLFE_WaitLink(
 
         gcmkTRACE_ZONE(
             gcvLEVEL_INFO, gcvZONE_HARDWARE,
-            "0x%08x: LINK 0x%08x, #%lu",
+            "0x%08x: LINK 0x%08x, #0x%x",
             Address + 8, Address, bytes
             );
 
@@ -320,7 +320,7 @@ gckWLFE_WaitLink(
     }
 
     /* Success. */
-    gcmkFOOTER_ARG("*Bytes=%lu *WaitOffset=0x%x *WaitSize=%lu",
+    gcmkFOOTER_ARG("*Bytes=0x%x *WaitOffset=0x%x *WaitSize=0x%x",
                    gcmOPT_VALUE(Bytes), gcmOPT_VALUE(WaitOffset),
                    gcmOPT_VALUE(WaitSize));
     return gcvSTATUS_OK;
@@ -345,7 +345,7 @@ gckWLFE_InvalidatePipe(
     gctBOOL blt = gcvFALSE;
     gctBOOL multiCluster = gcvFALSE;
 
-    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x *Bytes=%lu",
+    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x *Bytes=0x%x",
                    Hardware, Logical, gcmOPT_VALUE(Bytes));
 
     /* Verify the arguments. */
@@ -634,7 +634,7 @@ gckWLFE_InvalidatePipe(
         }
 
 #if gcdINTERRUPT_STATISTIC
-        if (EVENT_ID_INVALIDATE_PIPE < gcmCOUNTOF(Hardware->kernel->eventObj->queues))
+        if (EVENT_ID_INVALIDATE_PIPE < Hardware->kernel->eventObj->totalQueueCount)
         {
             gckOS_AtomSetMask(Hardware->pendingEvent, 1 << EVENT_ID_INVALIDATE_PIPE);
         }
@@ -673,7 +673,7 @@ gckWLFE_InvalidatePipe(
     }
 
     /* Success. */
-    gcmkFOOTER_ARG("*Bytes=%lu", gcmOPT_VALUE(Bytes));
+    gcmkFOOTER_ARG("*Bytes=0x%x", gcmOPT_VALUE(Bytes));
     return gcvSTATUS_OK;
 
 OnError:
@@ -783,8 +783,8 @@ gckWLFE_Link(
     gctUINT32 link;
     gctUINT32_PTR logical = (gctUINT32_PTR) Logical;
 
-    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x FetchAddress=0x%x FetchSize=%lu "
-                   "*Bytes=%lu",
+    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x FetchAddress=0x%x FetchSize=0x%x "
+                   "*Bytes=0x%x",
                    Hardware, Logical, FetchAddress, FetchSize,
                    gcmOPT_VALUE(Bytes));
 
@@ -859,7 +859,7 @@ gckWLFE_Link(
     }
 
     /* Success. */
-    gcmkFOOTER_ARG("*Bytes=%lu", gcmOPT_VALUE(Bytes));
+    gcmkFOOTER_ARG("*Bytes=0x%x", gcmOPT_VALUE(Bytes));
     return gcvSTATUS_OK;
 
 OnError:
@@ -905,10 +905,10 @@ gckWLFE_End(
     )
 {
     gctUINT32_PTR logical = (gctUINT32_PTR) Logical;
-    gctUINT32 address;
+    gctUINT32 end;
     gceSTATUS status;
 
-    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x *Bytes=%lu",
+    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x *Bytes=0x%x",
                    Hardware, Logical, gcmOPT_VALUE(Bytes));
 
     /* Verify the arguments. */
@@ -926,8 +926,7 @@ gckWLFE_End(
         }
 
         /* Append END. */
-        logical[0] =
-            ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+        end = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  31:27) - (0 ?
  31:27) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ?
@@ -938,9 +937,12 @@ gckWLFE_End(
  31:27) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)));
 
+        gcmkONERROR(
+            gckOS_WriteMemory(Hardware->os, logical, end));
+
         /* Record the count of execution which is finised by this END. */
-        logical[1] =
-            Hardware->executeCount;
+        gcmkONERROR(
+            gckOS_WriteMemory(Hardware->os, logical + 1, Hardware->executeCount));
 
         gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_HARDWARE, "0x%x: END", Logical);
 
@@ -949,9 +951,8 @@ gckWLFE_End(
             gckOS_MemoryBarrier(Hardware->os, Logical));
 
         gcmkASSERT(Address != ~0U);
-        address = Address;
 
-        Hardware->lastEnd = address;
+        Hardware->lastEnd = Address;
     }
 
     if (Bytes != gcvNULL)
@@ -961,7 +962,7 @@ gckWLFE_End(
     }
 
     /* Success. */
-    gcmkFOOTER_ARG("*Bytes=%lu", gcmOPT_VALUE(Bytes));
+    gcmkFOOTER_ARG("*Bytes=0x%x", gcmOPT_VALUE(Bytes));
     return gcvSTATUS_OK;
 
 OnError:
@@ -1005,7 +1006,7 @@ gckWLFE_Nop(
     gctUINT32_PTR logical = (gctUINT32_PTR) Logical;
     gceSTATUS status;
 
-    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x *Bytes=%lu",
+    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x *Bytes=0x%zx",
                    Hardware, Logical, gcmOPT_VALUE(Bytes));
 
     /* Verify the arguments. */
@@ -1044,7 +1045,7 @@ gckWLFE_Nop(
     }
 
     /* Success. */
-    gcmkFOOTER_ARG("*Bytes=%lu", gcmOPT_VALUE(Bytes));
+    gcmkFOOTER_ARG("*Bytes=0x%zx", gcmOPT_VALUE(Bytes));
     return gcvSTATUS_OK;
 
 OnError:
@@ -1103,7 +1104,7 @@ gckWLFE_Event(
     gctBOOL extraEventStates;
     gctBOOL multiCluster;
 
-    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x Event=%u FromWhere=%d *Bytes=%lu",
+    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x Event=%u FromWhere=%d *Bytes=0x%x",
                    Hardware, Logical, Event, FromWhere, gcmOPT_VALUE(Bytes));
 
     /* Verify the arguments. */
@@ -1431,7 +1432,7 @@ gckWLFE_Event(
         }
 
 #if gcdINTERRUPT_STATISTIC
-        if (Event < gcmCOUNTOF(Hardware->kernel->eventObj->queues))
+        if (Event < (gctUINT8)Hardware->kernel->eventObj->totalQueueCount)
         {
             gckOS_AtomSetMask(Hardware->pendingEvent, 1 << Event);
         }
@@ -1445,7 +1446,7 @@ gckWLFE_Event(
     }
 
     /* Success. */
-    gcmkFOOTER_ARG("*Bytes=%lu", gcmOPT_VALUE(Bytes));
+    gcmkFOOTER_ARG("*Bytes=0x%x", gcmOPT_VALUE(Bytes));
     return gcvSTATUS_OK;
 
 OnError:
@@ -1466,7 +1467,7 @@ gckWLFE_ChipEnable(
     gctUINT32_PTR logical = (gctUINT32_PTR) Logical;
     gceSTATUS status;
 
-    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x ChipEnable=0x%x *Bytes=%lu",
+    gcmkHEADER_ARG("Hardware=0x%x Logical=0x%x ChipEnable=0x%x *Bytes=0x%zx",
                    Hardware, Logical, ChipEnable, gcmOPT_VALUE(Bytes));
 
     /* Verify the arguments. */
@@ -1509,7 +1510,7 @@ gckWLFE_ChipEnable(
     }
 
     /* Success. */
-    gcmkFOOTER_ARG("*Bytes=%lu", gcmOPT_VALUE(Bytes));
+    gcmkFOOTER_ARG("*Bytes=0x%zx", gcmOPT_VALUE(Bytes));
     return gcvSTATUS_OK;
 
 OnError:
@@ -1549,18 +1550,37 @@ gckWLFE_Execute(
 {
     gceSTATUS status;
     gctUINT32 control;
+    gctUINT32 eventEnable = 0xFFFFFFFF;
+    gckCOMMAND command = Hardware->kernel->command;
 
-    gcmkHEADER_ARG("Hardware=0x%x Address=0x%x Bytes=%lu",
+    gcmkHEADER_ARG("Hardware=0x%x Address=0x%x Bytes=0x%x",
                    Hardware, Address, Bytes);
 
     /* Verify the arguments. */
     gcmkVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
 
     gcmkASSERT(Hardware->wlFE);
+    gcmkASSERT(command);
+
+    if (command->feType == gcvHW_FE_END)
+    {
+        gctUINT idle = 0;
+
+        /* Make sure FE is idle. */
+        do
+        {
+            gcmkVERIFY_OK(gckOS_ReadRegisterEx(
+                Hardware->os,
+                Hardware->core,
+                0x00004,
+                &idle));
+        }
+        while (idle != 0x7FFFFFFF);
+    }
 
     /* Enable all events. */
     gcmkONERROR(
-        gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x00014, ~0U));
+        gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x00014, eventEnable));
 
     /* Write address register. */
     gcmkONERROR(
@@ -1649,99 +1669,6 @@ gckWLFE_Execute(
 OnError:
     /* Return the status. */
     gcmkFOOTER();
-    return status;
-}
-
-gceSTATUS
-gckWLFE_AtomicExecute(
-    IN gckHARDWARE Hardware,
-    IN gctUINT32 Address,
-    IN gctUINT32 Bytes
-    )
-{
-    gctUINT32 control;
-    gceSTATUS status = gcvSTATUS_OK;
-
-    /* Enable all events. */
-    gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x00014, ~0U));
-
-    /* Write address register. */
-    gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x00654, Address));
-
-    /* Build control register. */
-    control = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 16:16) - (0 ?
- 16:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 16:16) - (0 ?
- 16:16) + 1))))))) << (0 ?
- 16:16))) | (((gctUINT32) (0x1 & ((gctUINT32) ((((1 ?
- 16:16) - (0 ?
- 16:16) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 16:16) - (0 ? 16:16) + 1))))))) << (0 ? 16:16)))
-            | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 15:0) - (0 ?
- 15:0) + 1))))))) << (0 ?
- 15:0))) | (((gctUINT32) ((gctUINT32) ((Bytes + 7) >> 3) & ((gctUINT32) ((((1 ?
- 15:0) - (0 ?
- 15:0) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)));
-
-    /* Set big endian */
-    if (Hardware->bigEndian)
-    {
-        control |= ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
- 21:20) - (0 ?
- 21:20) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ?
- 21:20) - (0 ?
- 21:20) + 1))))))) << (0 ?
- 21:20))) | (((gctUINT32) (0x2 & ((gctUINT32) ((((1 ?
- 21:20) - (0 ?
- 21:20) + 1) == 32) ?
- ~0U : (~(~0U << ((1 ? 21:20) - (0 ? 21:20) + 1))))))) << (0 ? 21:20)));
-    }
-
-    /* Make sure writing to command buffer and previous AHB register is done. */
-    gcmkONERROR(gckOS_MemoryBarrier(Hardware->os, gcvNULL));
-
-    /* Write control register. */
-    switch (Hardware->options.secureMode)
-    {
-    case gcvSECURE_NONE:
-        gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x00658, control));
-        break;
-    case gcvSECURE_IN_NORMAL:
-
-#if defined(__KERNEL__)
-        gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x00658, control));
-#endif
-        gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x003A4, control));
-        break;
-#if gcdENABLE_TRUST_APPLICATION
-    case gcvSECURE_IN_TA:
-        /* Send message to TA. */
-        gcmkONERROR(gckKERNEL_SecurityStartCommand(Hardware->kernel, Address, (gctUINT32)Bytes));
-        break;
-#endif
-    default:
-        break;
-    }
-
-    /* Increase execute count. */
-    Hardware->executeCount++;
-
-    /* Record last execute address. */
-    Hardware->lastExecuteAddress = Address;
-
-    /* Success. */
-    return gcvSTATUS_OK;
-
-OnError:
-    /* Return the status. */
     return status;
 }
 

@@ -53,45 +53,5 @@
 ##############################################################################
 
 
-#
-# Linux build file for architecture dependent kernel HAL layer.
-#
-
-################################################################################
-# Include common definitions.
-
-include $(AQROOT)/makefile.linux.def
-
-################################################################################
-# Define a shortcut for the main target.
-
-STATIC = 1
-TARGET_NAME = libhalarchkernel.a
-
-################################################################################
-# Supply additional include directories.
-
-INCLUDE += -I$(AQROOT)/hal/kernel/inc
-INCLUDE += -I$(AQROOT)/hal/kernel/inc
-INCLUDE += -I$(AQROOT)/hal/kernel
-INCLUDE += -I$(AQROOT)/hal/kernel/arch
-
-ifeq ($(LINUX_EMULATOR),1)
-CFLAGS += $(INCLUDE) -Werror -fPIC
-else
-CFLAGS += $(INCLUDE) -Werror -ansi
-endif
-
-
-################################################################################
-# Describe object files.
-
-OBJECTS = $(OBJ_DIR)/gc_hal_kernel_context.o \
-          $(OBJ_DIR)/gc_hal_kernel_hardware.o \
-          $(OBJ_DIR)/gc_hal_kernel_hardware_func.o \
-          $(OBJ_DIR)/gc_hal_kernel_hardware_func_flop_reset.o \
-          $(OBJ_DIR)/gc_hal_kernel_hardware_async_fe.o \
-          $(OBJ_DIR)/gc_hal_kernel_hardware_mc_fe.o \
-          $(OBJ_DIR)/gc_hal_kernel_hardware_waitlink_fe.o
-
-include $(AQROOT)/common.target
+DIRS = \
+	cebuild \

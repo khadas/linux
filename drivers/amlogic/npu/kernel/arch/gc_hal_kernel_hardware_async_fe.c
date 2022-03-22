@@ -74,6 +74,7 @@ gckASYNC_FE_Construct(
     gceSTATUS status;
     gctUINT32 data;
     gckASYNC_FE fe;
+    gctUINT32 eventEnable = 0xFFFFFFFF;
 
     gcmkHEADER();
 
@@ -98,7 +99,7 @@ gckASYNC_FE_Construct(
     gcmkONERROR(gckOS_AtomSet(Hardware->os, fe->freeDscriptors, data));
 
     /* Enable interrupts. */
-    gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x000D8, ~0U));
+    gcmkONERROR(gckOS_WriteRegisterEx(Hardware->os, Hardware->core, 0x000D8, eventEnable));
 
     *FE = fe;
 
@@ -551,7 +552,7 @@ gckASYNC_FE_Event(
         }
 
 #if gcdINTERRUPT_STATISTIC
-        if (Event < gcmCOUNTOF(Hardware->kernel->eventObj->queues))
+        if (Event < (gctUINT8)Hardware->kernel->eventObj->totalQueueCount)
         {
             gckOS_AtomSetMask(Hardware->pendingEvent, 1 << Event);
         }

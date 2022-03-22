@@ -613,8 +613,7 @@ _GFPAlloc(
             gcmkONERROR(_NonContiguousAlloc(mdlPriv, NumPages, gfp));
         }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (3,6,0) \
-    && (defined(ARCH_HAS_SG_CHAIN) || defined(CONFIG_ARCH_HAS_SG_CHAIN))
+#if gcdUSE_Linux_SG_TABLE_API
         result = sg_alloc_table_from_pages(&mdlPriv->sgt,
                     mdlPriv->nonContiguousPages, NumPages, 0,
                     NumPages << PAGE_SHIFT, GFP_KERNEL);
@@ -654,8 +653,7 @@ _GFPAlloc(
                 _NonContiguousFree(mdlPriv->nonContiguousPages, NumPages);
             }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (3,6,0) \
-    && (defined (ARCH_HAS_SG_CHAIN) || defined (CONFIG_ARCH_HAS_SG_CHAIN))
+#if gcdUSE_Linux_SG_TABLE_API
             sg_free_table(&mdlPriv->sgt);
 #else
             kfree(mdlPriv->sgt.sgl);
@@ -692,7 +690,7 @@ _GFPAlloc(
         }
 
         SetPageReserved(page);
-        
+
         /*for amlogic board, the page phys maybe start from 0x0000-0000*/
         /*BUG_ON(!phys);*/
 
@@ -821,8 +819,7 @@ _GFPFree(
         dma_unmap_sg(galcore_device, mdlPriv->sgt.sgl, mdlPriv->sgt.nents,
                 DMA_FROM_DEVICE);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (3,6,0) \
-    && (defined (ARCH_HAS_SG_CHAIN) || defined (CONFIG_ARCH_HAS_SG_CHAIN))
+#if gcdUSE_Linux_SG_TABLE_API
         sg_free_table(&mdlPriv->sgt);
 #else
         kfree(mdlPriv->sgt.sgl);

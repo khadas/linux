@@ -1411,6 +1411,7 @@ gckOS_AllocateNonPagedMemory(
     gctPOINTER addr;
     gceSTATUS status = gcvSTATUS_NOT_SUPPORTED;
     gckALLOCATOR allocator;
+    gctBOOL zoneDMA32 = gcvFALSE;
 
     gcmkHEADER_ARG("Os=%p InUserSpace=%d *Bytes=0x%zx",
                    Os, InUserSpace, gcmOPT_VALUE(Bytes));
@@ -1436,6 +1437,17 @@ gckOS_AllocateNonPagedMemory(
     }
 
     gcmkASSERT(Flag & gcvALLOC_FLAG_CONTIGUOUS);
+
+#if defined(CONFIG_ZONE_DMA32) || defined(CONFIG_ZONE_DMA)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37)
+    zoneDMA32 = gcvTRUE;
+#endif
+#endif
+
+    if ((Flag & gcvALLOC_FLAG_4GB_ADDR) && !zoneDMA32)
+    {
+        Flag &= ~gcvALLOC_FLAG_4GB_ADDR;
+    }
 
     /* Walk all allocators. */
     list_for_each_entry(allocator, &Os->allocatorList, link)
@@ -7288,7 +7300,7 @@ gckOS_CPUPhysicalToGPUPhysical(
     )
 {
     gcsPLATFORM * platform;
-    gcmkHEADER_ARG("CPUPhysical=%p", CPUPhysical);
+    gcmkHEADER_ARG("CPUPhysical=%llx", CPUPhysical);
 
     platform = Os->device->platform;
 
@@ -7377,59 +7389,67 @@ gckOS_QueryOption(
 
     if (!strcmp(Option, "physBase"))
     {
-        *Value = device->physBase;
+        *Value = (gctUINT64)device->physBase;
     }
     else if (!strcmp(Option, "physSize"))
     {
-        *Value = device->physSize;
+        *Value = (gctUINT64)device->physSize;
     }
     else if (!strcmp(Option, "mmu"))
     {
 #if gcdSECURITY
         *Value = 0;
 #else
-        *Value = device->args.enableMmu;
+        *Value = (gctUINT64)device->args.enableMmu;
 #endif
     }
     else if (!strcmp(Option, "contiguousSize"))
     {
-        *Value = device->contiguousSize;
+        *Value = (gctUINT64)device->contiguousSize;
     }
     else if (!strcmp(Option, "contiguousBase"))
     {
-        *Value = device->contiguousBase;
+        *Value = (gctUINT64)device->contiguousBase;
     }
     else if (!strcmp(Option, "externalSize"))
     {
-        *Value = device->externalSize;
-        return gcvSTATUS_OK;
-    }
-    else if (!strcmp(Option, "exclusiveBase"))
-    {
-        *Value = device->exclusiveBase;
-        return gcvSTATUS_OK;
-    }
-    else if (!strcmp(Option, "exclusiveSize"))
-    {
-        *Value = device->exclusiveSize;
-        return gcvSTATUS_OK;
+        if (gcmSIZEOF(device->externalSize) >= gcmSIZEOF(gctSIZE_T) * gcdPLATFORM_DEVICE_COUNT)
+            memcpy(Value, device->externalSize, gcmSIZEOF(gctSIZE_T) * gcdPLATFORM_DEVICE_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
     }
     else if (!strcmp(Option, "externalBase"))
     {
-        *Value = device->externalBase;
-        return gcvSTATUS_OK;
+        if (gcmSIZEOF(device->externalBase) >= gcmSIZEOF(gctUINT64) * gcdPLATFORM_DEVICE_COUNT)
+            memcpy(Value, device->externalBase, gcmSIZEOF(gctUINT64) * gcdPLATFORM_DEVICE_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
+    }
+    else if (!strcmp(Option, "exclusiveBase"))
+    {
+        if (gcmSIZEOF(device->exclusiveBase) >= gcmSIZEOF(gctUINT64) * gcdPLATFORM_DEVICE_COUNT)
+            memcpy(Value, device->exclusiveBase, gcmSIZEOF(gctUINT64) * gcdPLATFORM_DEVICE_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
+    }
+    else if (!strcmp(Option, "exclusiveSize"))
+    {
+        if (gcmSIZEOF(device->exclusiveSize) >= gcmSIZEOF(gctSIZE_T) * gcdPLATFORM_DEVICE_COUNT)
+            memcpy(Value, device->exclusiveSize, gcmSIZEOF(gctSIZE_T) * gcdPLATFORM_DEVICE_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
     }
     else if (!strcmp(Option, "recovery"))
     {
-        *Value = device->args.recovery;
+        *Value = (gctUINT64)device->args.recovery;
     }
     else if (!strcmp(Option, "stuckDump"))
     {
-        *Value = device->args.stuckDump;
+        *Value = (gctUINT64)device->args.stuckDump;
     }
     else if (!strcmp(Option, "powerManagement"))
     {
-        *Value = device->args.powerManagement;
+        *Value = (gctUINT64)device->args.powerManagement;
     }
     else if (!strcmp(Option, "TA"))
     {
@@ -7437,7 +7457,10 @@ gckOS_QueryOption(
     }
     else if (!strcmp(Option, "userClusterMasks"))
     {
-        memcpy(Value, device->args.userClusterMasks, gcmSIZEOF(gctUINT32) * gcdMAX_MAJOR_CORE_COUNT);
+        if (gcmSIZEOF(device->args.userClusterMasks) >= gcmSIZEOF(gctUINT32) * gcdMAX_MAJOR_CORE_COUNT)
+            memcpy(Value, device->args.userClusterMasks, gcmSIZEOF(gctUINT32) * gcdMAX_MAJOR_CORE_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
     }
     else if (!strcmp(Option, "smallBatch"))
     {
@@ -7445,59 +7468,78 @@ gckOS_QueryOption(
     }
     else if (!strcmp(Option, "sRAMBases"))
     {
-        memcpy(Value, device->args.sRAMBases, gcmSIZEOF(gctUINT64) * gcvSRAM_INTER_COUNT * gcvCORE_COUNT);
+        if (gcmSIZEOF(device->args.sRAMBases) >= gcmSIZEOF(gctUINT64) * gcvSRAM_INTER_COUNT * gcvCORE_COUNT)
+            memcpy(Value, device->args.sRAMBases, gcmSIZEOF(gctUINT64) * gcvSRAM_INTER_COUNT * gcvCORE_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
     }
     else if (!strcmp(Option, "sRAMSizes"))
     {
-        memcpy(Value, device->args.sRAMSizes, gcmSIZEOF(gctUINT32) * gcvSRAM_INTER_COUNT * gcvCORE_COUNT);
+        if (gcmSIZEOF(device->args.sRAMSizes) >= gcmSIZEOF(gctUINT32) * gcvSRAM_INTER_COUNT * gcvCORE_COUNT)
+            memcpy(Value, device->args.sRAMSizes, gcmSIZEOF(gctUINT32) * gcvSRAM_INTER_COUNT * gcvCORE_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
     }
     else if (!strcmp(Option, "extSRAMBases"))
     {
-        memcpy(Value, device->args.extSRAMBases, gcmSIZEOF(gctUINT64) * gcvSRAM_EXT_COUNT);
+        if (gcmSIZEOF(device->args.extSRAMBases) >= gcmSIZEOF(gctUINT64) * gcvSRAM_EXT_COUNT)
+            memcpy(Value, device->args.extSRAMBases, gcmSIZEOF(gctUINT64) * gcvSRAM_EXT_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
     }
     else if (!strcmp(Option, "extSRAMSizes"))
     {
-        memcpy(Value, device->args.extSRAMSizes, gcmSIZEOF(gctUINT32) * gcvSRAM_EXT_COUNT);
+        if (gcmSIZEOF(device->args.extSRAMSizes) >= gcmSIZEOF(gctUINT32) * gcvSRAM_EXT_COUNT)
+            memcpy(Value, device->args.extSRAMSizes, gcmSIZEOF(gctUINT32) * gcvSRAM_EXT_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
     }
     else if (!strcmp(Option, "sRAMRequested"))
     {
-        *Value = device->args.sRAMRequested;
+        *Value = (gctUINT64)device->args.sRAMRequested;
     }
     else if (!strcmp(Option, "sRAMLoopMode"))
     {
-        *Value = device->args.sRAMLoopMode;
+        *Value = (gctUINT64)device->args.sRAMLoopMode;
     }
     else if (!strcmp(Option, "platformFlagBits"))
     {
-        *Value = device->platform->flagBits;
+        *Value = (gctUINT64)device->platform->flagBits;
     }
     else if (!strcmp(Option, "mmuPageTablePool"))
     {
-        *Value = device->args.mmuPageTablePool;
+        *Value = (gctUINT64)device->args.mmuPageTablePool;
     }
     else if (!strcmp(Option, "mmuDynamicMap"))
     {
-        *Value = device->args.mmuDynamicMap;
+        *Value = (gctUINT64)device->args.mmuDynamicMap;
     }
     else if (!strcmp(Option, "allMapInOne"))
     {
-        *Value = device->args.allMapInOne;
+        *Value = (gctUINT64)device->args.allMapInOne;
     }
     else if (!strcmp(Option, "isrPoll"))
     {
-        *Value = device->args.isrPoll;
+        *Value = (gctUINT64)device->args.isrPoll;
     }
     else if (!strcmp(Option, "registerAPB"))
     {
-        *Value = device->args.registerAPB;
+        *Value = (gctUINT64)device->args.registerAPB;
     }
     else if (!strcmp(Option, "enableNN"))
     {
-        *Value = device->args.enableNN;
+        *Value = (gctUINT64)device->args.enableNN;
     }
     else if (!strcmp(Option, "softReset"))
     {
-        *Value = device->args.softReset;
+        *Value = (gctUINT64)device->args.softReset;
+    }
+    else if (!strcmp(Option, "pdevCoreCount"))
+    {
+        if (gcmSIZEOF(device->args.pdevCoreCount) >= gcmSIZEOF(gctUINT32) * gcdPLATFORM_DEVICE_COUNT)
+            memcpy(Value, device->args.pdevCoreCount, gcmSIZEOF(gctUINT32) * gcdPLATFORM_DEVICE_COUNT);
+        else
+            return gcvSTATUS_NOT_SUPPORTED;
     }
     else
     {
@@ -7505,6 +7547,22 @@ gckOS_QueryOption(
     }
 
     return status;
+}
+
+gceSTATUS
+gckOS_QueryKernel(
+    IN gckKERNEL Kernel,
+    IN gctINT index,
+    OUT gckKERNEL * KernelOut
+    )
+{
+    if (Kernel && KernelOut)
+    {
+        gckGALDEVICE device = Kernel->os->device;
+        *KernelOut = device->kernels[index];
+    }
+
+    return gcvSTATUS_OK;
 }
 
 gceSTATUS
@@ -7676,10 +7734,6 @@ gckOS_WrapMemory(
             mdl->wrapFromPhysical = gcvTRUE;
         }
     }
-    else if (Desc->flag & gcvALLOC_FLAG_EXTERNAL_MEMORY)
-    {
-        desc.externalMem.info = Desc->externalMemoryInfo;
-    }
     else
     {
         gcmkONERROR(gcvSTATUS_NOT_SUPPORTED);
@@ -7696,17 +7750,6 @@ gckOS_WrapMemory(
         {
             status = gcvSTATUS_NOT_SUPPORTED;
             continue;
-        }
-
-        if (Desc->flag == gcvALLOC_FLAG_EXTERNAL_MEMORY)
-        {
-            /* Use name to match suitable allocator for external memory. */
-            if (!strncmp(Desc->externalMemoryInfo.allocatorName,
-                         allocator->name, gcdEXTERNAL_MEMORY_NAME_MAX))
-            {
-                status = gcvSTATUS_NOT_SUPPORTED;
-                continue;
-            }
         }
 
         status = gcmALLOCATOR_Attach(allocator, &desc, mdl);

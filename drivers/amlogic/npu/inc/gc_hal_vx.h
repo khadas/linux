@@ -127,6 +127,12 @@ gceSTATUS
     );
 
 gceSTATUS
+    gcoVX_GetImageDescriptor(
+    IN gcsVX_IMAGE_INFO_PTR Info,
+    OUT VSC_ImageDesc *imageDesc
+    );
+
+gceSTATUS
 gcoVX_Commit(
     IN gctBOOL Flush,
     IN gctBOOL Stall,
@@ -143,6 +149,14 @@ gcoVX_Replay(
 gceSTATUS
 gcoVX_InvokeKernel(
     IN gcsVX_KERNEL_PARAMETERS_PTR  Parameters
+    );
+
+gceSTATUS
+gcoVX_AllocateCacheableMemory(
+    IN gctUINT32        Size,
+    OUT gctPOINTER*     Logical,
+    OUT gctUINT32*      Physical,
+    OUT gcsSURF_NODE_PTR* Node
     );
 
 gceSTATUS
@@ -191,7 +205,6 @@ gcoVX_LoadKernelShader(
 
 gceSTATUS
 gcoVX_InvokeKernelShader(
-    IN gcSHADER            Kernel,
     IN gctUINT             WorkDim,
     IN size_t              GlobalWorkOffset[3],
     IN size_t              GlobalWorkScale[3],
@@ -200,7 +213,8 @@ gcoVX_InvokeKernelShader(
     IN gctUINT             ValueOrder,
     IN gctBOOL             BarrierUsed,
     IN gctUINT32           MemoryAccessFlag,
-    IN gctBOOL             bDual16
+    IN gctBOOL             bDual16,
+    IN gctBOOL             bVipSram
     );
 
 gceSTATUS
@@ -217,7 +231,11 @@ gcoVX_TriggerAccelerator(
     IN gctUINT32              noFlush,
     IN gctBOOL                waitEvent,
     IN gctUINT32              coreId,
-    IN gctBOOL                coreSync
+    IN gctBOOL                coreSync,
+    IN gctUINT32                maxCoefSize,
+    IN gctUINT32                maxTransposeChannel,
+    IN gctUINT32                maxInputCount,
+    IN gctUINT32                latencyHidingAtFullAxiBw
     );
 
 gceSTATUS
@@ -288,6 +306,18 @@ gcoVX_AllocateMemoryEx(
     );
 
 gceSTATUS
+gcoVX_AllocateMemoryEx2(
+    IN OUT gctUINT *        Bytes,
+    IN  gctUINT32           Flag,
+    IN  gceSURF_TYPE        Type,
+    IN  gcePOOL             Pool,
+    IN  gctUINT32           alignment,
+    OUT gctUINT32 *         Physical,
+    OUT gctPOINTER *        Logical,
+    OUT gcsSURF_NODE_PTR *  Node
+    );
+
+gceSTATUS
 gcoVX_AllocateMemoryExAddAllocflag(
     IN OUT gctUINT *        Bytes,
     IN  gceSURF_TYPE        Type,
@@ -295,7 +325,7 @@ gcoVX_AllocateMemoryExAddAllocflag(
     IN  gctUINT32           allocflag,
     OUT gctUINT32 *         Physical,
     OUT gctPOINTER *        Logical,
-    OUT gctUINT32 * CpuPhysicalAddress,
+    OUT gctUINT64 * CpuPhysicalAddress,
     OUT gcsSURF_NODE_PTR *  Node
     );
 
@@ -334,11 +364,18 @@ gctBOOL gcoVX_VerifyHardware();
 
 gceSTATUS
 gcoVX_CaptureState(
-    IN OUT gctUINT8 *CaptureBuffer,
+    IN OUT gctUINT8_PTR *CaptureBuffer,
     IN gctUINT32 InputSizeInByte,
     IN OUT gctUINT32 *OutputSizeInByte,
     IN gctBOOL Enabled,
     IN gctBOOL dropCommandEnabled
+    );
+
+gceSTATUS
+gcoVX_GetCaptureBufferInfo(
+    gctUINT32 *reservedSize,
+    gctUINT32 *captureSecCnt,
+    gctUINT32 *captureSecSize
     );
 
 #if gcdUSE_CAPBUF

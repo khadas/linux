@@ -65,7 +65,10 @@ typedef enum _gceOPTION
     gcvOPTION_OVX_ENABLE_NN_ZDP6,
     gcvOPTION_OVX_ENABLE_NN_STRIDE,
     gcvOPTION_OVX_USE_MULTI_DEVICES,
+    gcvOPTION_OVX_ENABLE_NN_DDR_BURST_SIZE_1024B,
+    gcvOPTION_OVX_ENABLE_NN_DDR_BURST_SIZE_512B,
     gcvOPTION_OVX_ENABLE_NN_DDR_BURST_SIZE_256B,
+    gcvOPTION_OVX_ENABLE_NN_DDR_BURST_SIZE_128B,
     gcvOPTION_OVX_ENABLE_NN_DDR_BURST_SIZE_64B,
 #endif
     /* Insert option above this comment only */
@@ -155,6 +158,8 @@ typedef enum _gceSURF_FLAG
     gcvSURF_FLAG_MULTI_NODE          = 0x8,
     /* surface no need do dither when resovle*/
     gcvSURF_FLAG_DITHER_DISABLED     = 0x10,
+    /* surface used a fake hal format */
+    gcvSURF_FLAG_FAKE_FORMAT         = 0x20,
 }
 gceSURF_FLAG;
 
@@ -383,6 +388,7 @@ typedef enum _gce2D_YUV_COLOR_MODE
 {
     gcv2D_YUV_601= 0,
     gcv2D_YUV_709,
+    gcv2D_YUV_2020,
     gcv2D_YUV_USER_DEFINED,
     gcv2D_YUV_USER_DEFINED_CLAMP,
 
@@ -825,6 +831,20 @@ typedef enum _gceTEXTURE_DS_TEX_MODE
     gcvTEXTURE_DS_TEXTURE_MODE_INVALID,
 }gceTEXTURE_DS_TEX_MODE;
 
+/* Texture stage */
+typedef enum _gceTEXTURE_STAGE
+{
+    gcvTEXTURE_STAGE_INVALID = -1,
+    gcvTEXTURE_STAGE_VS   = 0,
+    gcvTEXTURE_STAGE_TCS,
+    gcvTEXTURE_STAGE_TES,
+    gcvTEXTURE_STAGE_GS,
+    gcvTEXTURE_STAGE_FS,
+    gcvTEXTURE_STAGE_CS,
+
+    gcvTEXTURE_STAGE_LAST
+}gceTEXTURE_STAGE;
+
 /* Pixel output swizzle modes. */
 typedef enum _gcePIXEL_SWIZZLE
 {
@@ -936,6 +956,7 @@ typedef enum _gceHW_FE_TYPE
     gcvHW_FE_WAIT_LINK,
     gcvHW_FE_ASYNC,
     gcvHW_FE_MULTI_CHANNEL,
+    gcvHW_FE_END,
 }
 gceHW_FE_TYPE;
 
@@ -1672,6 +1693,8 @@ typedef enum _gceATTRIB_SCHEME
     gcvATTRIB_SCHEME_USHORT_TO_UVEC4,
     gcvATTRIB_SCHEME_UINT_TO_UVEC4,
     gcvATTRIB_SCHEME_DOUBLE_TO_FLOAT,
+    gcvATTRIB_SCHEME_UBYTE_BGRA_TO_UBYTE_RGBA,
+    gcvATTRIB_SCHEME_2_10_10_10_REV_BGRA_TO_FLOAT_RGBA,
 } gceATTRIB_SCHEME;
 
 typedef enum _gceBUFOBJ_TYPE
@@ -1795,17 +1818,17 @@ gcePATHTYPE;
 */
 typedef enum _gceVGCMD
 {
-    gcvVGCMD_END, /*  0: 0x00           */
-    gcvVGCMD_CLOSE, /*  1: 0x01         */
-    gcvVGCMD_MOVE, /*  2: 0x02          */
-    gcvVGCMD_MOVE_REL, /*  3: 0x03      */
-    gcvVGCMD_LINE, /*  4: 0x04          */
-    gcvVGCMD_LINE_REL, /*  5: 0x05      */
-    gcvVGCMD_QUAD, /*  6: 0x06     */
-    gcvVGCMD_QUAD_REL, /*  7: 0x07 */
-    gcvVGCMD_CUBIC, /*  8: 0x08         */
-    gcvVGCMD_CUBIC_REL, /*  9: 0x09     */
-    gcvVGCMD_BREAK, /* 10: 0x0A         */
+    gcvVGCMD_END, /*  0: GCCMD_TS_OPCODE_END           */
+    gcvVGCMD_CLOSE, /*  1: GCCMD_TS_OPCODE_CLOSE         */
+    gcvVGCMD_MOVE, /*  2: GCCMD_TS_OPCODE_MOVE          */
+    gcvVGCMD_MOVE_REL, /*  3: GCCMD_TS_OPCODE_MOVE_REL      */
+    gcvVGCMD_LINE, /*  4: GCCMD_TS_OPCODE_LINE          */
+    gcvVGCMD_LINE_REL, /*  5: GCCMD_TS_OPCODE_LINE_REL      */
+    gcvVGCMD_QUAD, /*  6: GCCMD_TS_OPCODE_QUADRATIC     */
+    gcvVGCMD_QUAD_REL, /*  7: GCCMD_TS_OPCODE_QUADRATIC_REL */
+    gcvVGCMD_CUBIC, /*  8: GCCMD_TS_OPCODE_CUBIC         */
+    gcvVGCMD_CUBIC_REL, /*  9: GCCMD_TS_OPCODE_CUBIC_REL     */
+    gcvVGCMD_BREAK, /* 10: GCCMD_TS_OPCODE_BREAK         */
     gcvVGCMD_HLINE, /* 11: ******* R E S E R V E D *******/
     gcvVGCMD_HLINE_REL, /* 12: ******* R E S E R V E D *******/
     gcvVGCMD_VLINE, /* 13: ******* R E S E R V E D *******/
@@ -2098,6 +2121,7 @@ typedef enum _gceCAPBUF_META_TYPE
     gcvCAPBUF_META_TYPE_SH_INST_ADDRESS,
     gcvCAPBUF_META_TYPE_SH_UNIFORM_ARGS_LOCAL_ADDRESS_SPACE,
     gcvCAPBUF_META_TYPE_SH_UNIFORM_ARGS_CONSTANT_ADDRESS_SPACE,
+    gcvCAPBUF_META_TYPE_NN_TP_INST_ADDRESS,
     /* Keep it at the end of the list. */
     gcvCAPBUF_META_TYPE_COUNT
 }

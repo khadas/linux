@@ -62,6 +62,12 @@
 #include "shared/gc_hal_base_shared.h"
 
 
+#ifdef __QNXNTO__
+#define CHECK_PRINTF_FORMAT(string_index, first_to_check) __attribute__((__format__(__printf__, (string_index), (first_to_check))))
+#else
+#define CHECK_PRINTF_FORMAT(string_index, first_to_check)
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -134,6 +140,7 @@ typedef struct _gcsNN_FIXED_FEATURE
     gctUINT  nnMaxKYSize;
     gctUINT  nnMaxKZSize;
     gctUINT  nnClusterNumForPowerControl;
+    gctUINT  vipMinAxiBurstSizeConfig;
 
     /* add related information for check in/out size */
     gctUINT  outImageXStrideBits;
@@ -149,6 +156,7 @@ typedef struct _gcsNN_FIXED_FEATURE
 /* Features can be customized from outside */
 typedef struct _gcsNN_CUSTOMIZED_FEATURE
 {
+    gctUINT  nnActiveCoreCount;
     gctUINT  nnCoreCount;           /* total nn core count */
     gctUINT  nnCoreCountInt8;       /* total nn core count supporting int8 */
     gctUINT  nnCoreCountInt16;      /* total nn core count supporting int16 */
@@ -655,7 +663,7 @@ gcoOS_AllocateVideoMemory(
     IN gctBOOL InUserSpace,
     IN gctBOOL InCacheable,
     IN OUT gctSIZE_T * Bytes,
-    OUT gctUINT32 * Physical,
+    OUT gctUINT32 * Address,
     OUT gctPOINTER * Logical,
     OUT gctPOINTER * Handle
     );
@@ -800,6 +808,12 @@ gceSTATUS
 gcoHAL_Query3DCoreCount(
     IN gcoHAL       Hal,
     OUT gctUINT32  *Count
+    );
+
+gceSTATUS
+gcoHAL_Query2DCoreCount(
+    IN gcoHAL      Hal,
+    OUT gctUINT32 *Count
     );
 
 gceSTATUS
@@ -956,7 +970,8 @@ gcoHAL_ReadShBuffer(
 /* Config power management to be enabled or disabled. */
 gceSTATUS
 gcoHAL_ConfigPowerManagement(
-    IN gctBOOL Enable
+    IN gctBOOL Enable,
+    OUT gctBOOL *OldValue
     );
 
 gceSTATUS
@@ -1050,7 +1065,6 @@ gcoHAL_WaitFence(
     IN gctUINT32 TimeOut
     );
 
-
 gceSTATUS
 gcoHAL_ScheduleSignal(
     IN gctSIGNAL Signal,
@@ -1111,6 +1125,18 @@ gcoHAL_SwitchMpMode(
     gcoHAL Hal
     );
 #endif
+
+gceSTATUS
+gcoHAL_CommandBufferAutoCommit(
+    gcoHAL Hal,
+    gctBOOL AutoCommit
+    );
+
+gceSTATUS
+gcoHAL_CommandBufferAutoSync(
+    gcoHAL Hal,
+    gctBOOL AutoSync
+    );
 
 /******************************************************************************\
 ********************************** gcoOS Object *********************************
@@ -1236,6 +1262,14 @@ gcoOS_Allocate(
     OUT gctPOINTER * Memory
     );
 
+gceSTATUS
+gcoOS_Realloc(
+    IN gcoOS Os,
+    IN gctSIZE_T Bytes,
+    IN gctSIZE_T OrgBytes,
+    OUT gctPOINTER * Memory
+    );
+
 /* Get allocated memory size. */
 gceSTATUS
 gcoOS_GetMemorySize(
@@ -1271,6 +1305,15 @@ gceSTATUS
 gcoOS_AllocateMemory(
     IN gcoOS Os,
     IN gctSIZE_T Bytes,
+    OUT gctPOINTER * Memory
+    );
+
+/* Realloc memory. */
+gceSTATUS
+gcoOS_ReallocMemory(
+    IN gcoOS Os,
+    IN gctSIZE_T Bytes,
+    IN gctSIZE_T OrgBytes,
     OUT gctPOINTER * Memory
     );
 
@@ -1598,7 +1641,8 @@ gcoOS_PrintStrSafe(
     IN OUT gctUINT * Offset,
     IN gctCONST_STRING Format,
     ...
-    );
+    )
+CHECK_PRINTF_FORMAT(4, 5);
 
 gceSTATUS
 gcoOS_LoadLibrary(
@@ -2370,6 +2414,11 @@ gcoSURF_ConstructWithUserPool(
 /* Destroy an gcoSURF object. */
 gceSTATUS
 gcoSURF_Destroy(
+    IN gcoSURF Surface
+    );
+
+gceSTATUS
+gcoSURF_DestroyForAllHWType(
     IN gcoSURF Surface
     );
 
@@ -3201,17 +3250,19 @@ gcoOS_DebugFatal(
 
 void
 gckOS_DebugTrace(
-    IN gctUINT32 Level,
+    IN gctINT32 Level,
     IN gctCONST_STRING Message,
     ...
-    );
+    )
+CHECK_PRINTF_FORMAT(2, 3);
 
 void
 gcoOS_DebugTrace(
     IN gctUINT32 Level,
     IN gctCONST_STRING Message,
     ...
-    );
+    )
+CHECK_PRINTF_FORMAT(2, 3);
 
 #if gcmIS_DEBUG(gcdDEBUG_TRACE)
 #   define gcmTRACE             gcoOS_DebugTrace
@@ -3264,7 +3315,7 @@ gcoOS_DebugTrace(
 
 void
 gckOS_DebugTraceZone(
-    IN gctUINT32 Level,
+    IN gctINT32 Level,
     IN gctUINT32 Zone,
     IN gctCONST_STRING Message,
     ...
@@ -3779,13 +3830,15 @@ void
 gckOS_Print(
     IN gctCONST_STRING Message,
     ...
-    );
+    )
+CHECK_PRINTF_FORMAT(1, 2);
 
 void
 gcoOS_Print(
     IN gctCONST_STRING Message,
     ...
-    );
+    )
+CHECK_PRINTF_FORMAT(1, 2);
 
 #define gcmPRINT                gcoOS_Print
 #define gcmkPRINT               gckOS_Print
@@ -5255,7 +5308,29 @@ gcoHAL_GetUserDebugOption(
     gcmENDSTATEBATCH_NEW(CommandBuffer, Memory); \
 }
 
+#define gcmSETBLOCKCTRLSTATE_NEW(StateDelta, CommandBuffer, Memory, FixedPoint, \
+                              Address, Data, Count) \
+{ \
+    gctUINT32 c; \
+    gcmBEGINSTATEBATCH_NEW(CommandBuffer, Memory, FixedPoint, Address, Count); \
+    for(c = 0; c < Count; c++)\
+    {\
+        gcmSETCTRLSTATE_NEW(StateDelta, CommandBuffer, Memory, Address, Data); \
+    }\
+    gcmENDSTATEBATCH_NEW(CommandBuffer, Memory); \
+}
 
+#define gcmSETCTRLSTATES_NEW(StateDelta, CommandBuffer, Memory, FixedPoint, \
+                              Address, Data, Count) \
+{ \
+    gctUINT32 c; \
+    gcmBEGINSTATEBATCH_NEW(CommandBuffer, Memory, FixedPoint, Address, Count); \
+    for(c = 0; c < Count; c++)\
+    {\
+        gcmSETCTRLSTATE_NEW(StateDelta, CommandBuffer, Memory, Address, Data[c]); \
+    }\
+    gcmENDSTATEBATCH_NEW(CommandBuffer, Memory); \
+}
 
 #define gcmSETSEMASTALLPIPE_NEW(StateDelta, CommandBuffer, Memory, Data) \
 { \

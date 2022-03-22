@@ -578,6 +578,11 @@ gckKERNEL_CreateProcessDB(
                 gcmkONERROR(gcvSTATUS_INVALID_REQUEST);
             }
 
+            if (database->refs == gcvNULL)
+            {
+                gcmkONERROR(gcvSTATUS_INVALID_ADDRESS);
+            }
+
             gcmkVERIFY_OK(gckOS_AtomIncrement(Kernel->os, database->refs, &oldVal));
             goto OnExit;
         }
@@ -1141,6 +1146,12 @@ gckKERNEL_DestroyProcessDB(
     if (database)
     {
         gctINT32 oldVal = 0;
+
+        if (database->refs == gcvNULL)
+        {
+            gcmkONERROR(gcvSTATUS_INVALID_ADDRESS);
+        }
+
         gcmkONERROR(gckOS_AtomDecrement(Kernel->os, database->refs, &oldVal));
         if (oldVal != 1)
         {

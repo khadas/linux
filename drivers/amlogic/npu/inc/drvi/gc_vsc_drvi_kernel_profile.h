@@ -52,10 +52,11 @@ PROG_CL_UNIFORM_TABLE;
 
 typedef struct PROG_CL_PRV_UNIFORM_COMMON_ENTRY
 {
-    gctCONST_STRING                             name;
+    gctSTRING                                   name;
     gctUINT                                     nameLength;
+    VSC_SHADER_DATA_TYPE                        type;
 
-    SHADER_PRIV_CONSTANT_ENTRY *                hwMapping;
+    SHADER_CONSTANT_SUB_ARRAY_MAPPING *         hwMapping;
 }
 PROG_CL_PRV_UNIFORM_COMMON_ENTRY;
 
@@ -114,6 +115,13 @@ typedef struct PROG_CL_IMAGE_TABLE_ENTRY
     gctUINT                                    constSamplerValue;
 
     SHADER_CONSTANT_SUB_ARRAY_MAPPING *        hwMapping;
+
+    /* Save the same HW image descriptor except for that the addressing mode is NONE. */
+    SHADER_CONSTANT_SUB_ARRAY_MAPPING *        addrModeNoneHwMapping;
+
+    /* Save the image address*/
+    SHADER_CONSTANT_SUB_ARRAY_MAPPING *        imageAddrHwMapping;
+
     VSC_ImageDesc                              imageDesc; /*the assumed value of image descriptor by compiler*/
     gctUINT                                    assumedSamplerValue; /*the assumed value of sampler by compiler*/
     /*SHADER_CONSTANT_ARRAY_MAPPING *            hwMapping;*/

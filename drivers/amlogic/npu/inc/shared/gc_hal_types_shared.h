@@ -118,7 +118,7 @@ extern "C" {
 
 #ifndef gcdDEBUG
 #if (defined(DBG) && DBG) || defined(DEBUG) || defined(_DEBUG)
-#       define gcdDEBUG         gcdDEBUG_ALL
+#       define gcdDEBUG         gcdDEBUG_TRACE
 #   else
 #       define gcdDEBUG         gcdDEBUG_NONE
 #   endif
@@ -294,7 +294,7 @@ gcuFLOAT_UINT32;
 #define gcvALLOC_FLAG_DMABUF                0x00001000
 /* Import USERMEMORY. */
 #define gcvALLOC_FLAG_USERMEMORY            0x00002000
-/* Import an External Buffer. */
+/* Import an External Buffer, this flag is no longer used. */
 #define gcvALLOC_FLAG_EXTERNAL_MEMORY       0x00004000
 /* Import linux reserved memory. */
 #define gcvALLOC_FLAG_LINUX_RESERVED_MEM    0x00008000

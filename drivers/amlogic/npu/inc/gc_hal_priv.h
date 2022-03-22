@@ -32,143 +32,146 @@ typedef enum _gcePATCH_ID
     gcvPATCH_NOTINIT = -1,
     gcvPATCH_INVALID = 0,
 
-    gcvPATCH_DEBUG,
-    gcvPATCH_GTFES30,
-    gcvPATCH_CTGL11,
-    gcvPATCH_CTGL20,
-    gcvPATCH_GLBM11,
-    gcvPATCH_GLBM21,
-    gcvPATCH_GLBM25,
-    gcvPATCH_GLBM27,
-    gcvPATCH_GLBMGUI,
-    gcvPATCH_GFXBENCH,
-    gcvPATCH_ANDROID_GPUTEST,
-    gcvPATCH_ANTUTU, /* Antutu 3.x */
-    gcvPATCH_ANTUTU4X, /* Antutu 4.x */
-    gcvPATCH_ANTUTU5X, /* Antutu 5.x */
-    gcvPATCH_ANTUTUGL3, /* Antutu 3D Rating */
-    gcvPATCH_QUADRANT,
-    gcvPATCH_GPUBENCH,
-    gcvPATCH_GLOFTSXHM,
-    gcvPATCH_XRUNNER,
-    gcvPATCH_BUSPARKING3D,
-    gcvPATCH_SIEGECRAFT,
-    gcvPATCH_PREMIUM,
-    gcvPATCH_RACEILLEGAL,
-    gcvPATCH_MEGARUN,
-    gcvPATCH_BMGUI,
-    gcvPATCH_NENAMARK,
-    gcvPATCH_NENAMARK2,
-    gcvPATCH_FISHNOODLE,
-    gcvPATCH_MM06,
-    gcvPATCH_MM07,
-    gcvPATCH_BM21,
-    gcvPATCH_SMARTBENCH,
-    gcvPATCH_JPCT,
-    gcvPATCH_NEOCORE,
-    gcvPATCH_RTESTVA,
-    gcvPATCH_NBA2013,
-    gcvPATCH_BARDTALE,
-    gcvPATCH_F18,
-    gcvPATCH_CARPARK,
-    gcvPATCH_CARCHALLENGE,
-    gcvPATCH_HEROESCALL,
-    gcvPATCH_GLOFTF3HM,
-    gcvPATCH_CRAZYRACING,
-    gcvPATCH_FIREFOX,
-    gcvPATCH_CHROME,
-    gcvPATCH_MONOPOLY,
-    gcvPATCH_SNOWCOLD,
-    gcvPATCH_BM3,
-    gcvPATCH_BASEMARKX,
-    gcvPATCH_DEQP,
-    gcvPATCH_SF4,
-    gcvPATCH_MGOHEAVEN2,
-    gcvPATCH_SILIBILI,
-    gcvPATCH_ELEMENTSDEF,
-    gcvPATCH_GLOFTKRHM,
-    gcvPATCH_OCLCTS,
-    gcvPATCH_A8HP,
-    gcvPATCH_A8CN,
-    gcvPATCH_WISTONESG,
-    gcvPATCH_SPEEDRACE,
-    gcvPATCH_FSBHAWAIIF,
-    gcvPATCH_AIRNAVY,
-    gcvPATCH_F18NEW,
-    gcvPATCH_CKZOMBIES2,
-    gcvPATCH_EADGKEEPER,
-    gcvPATCH_BASEMARK2V2,
-    gcvPATCH_RIPTIDEGP2,
-    gcvPATCH_OESCTS,
-    gcvPATCH_GANGSTAR,
-    gcvPATCH_TRIAL,
-    gcvPATCH_WHRKYZIXOVAN,
-    gcvPATCH_GMMY16MAPFB,
-    gcvPATCH_UIMARK,
-    gcvPATCH_NAMESGAS,
-    gcvPATCH_AFTERBURNER,
-    gcvPATCH_ANDROID_CTS_MEDIA,
-    gcvPATCH_FM_OES_PLAYER,
-    gcvPATCH_SUMSUNG_BENCH,
-    gcvPATCH_ROCKSTAR_MAXPAYNE,
-    gcvPATCH_TITANPACKING,
-    gcvPATCH_OES20SFT,
-    gcvPATCH_OES30SFT,
-    gcvPATCH_BASEMARKOSIICN,
-    gcvPATCH_ANDROID_WEBGL,
-    gcvPATCH_ANDROID_COMPOSITOR,
-    gcvPATCH_CTS_TEXTUREVIEW,
-    gcePATCH_ANDROID_CTS_GRAPHICS_GLVERSION,
-    gcvPATCH_WATER2_CHUKONG,
-    gcvPATCH_GOOGLEEARTH,
-    gcvPATCH_LEANBACK,
-    gcvPATCH_YOUTUBE_TV,
-    gcvPATCH_NETFLIX,
-    gcvPATCH_ANGRYBIRDS,
-    gcvPATCH_REALRACING,
-    gcvPATCH_TEMPLERUN,
-    gcvPATCH_SBROWSER,
-    gcvPATCH_CLASHOFCLAN,
-    gcvPATCH_YOUILABS_SHADERTEST,
-    gcvPATCH_AXX_SAMPLE,
-    gcvPATCH_3DMARKSS,
-    gcvPATCH_GFXBENCH4,
-    gcvPATCH_BATCHCOUNT,
-    gcvPATCH_SILICONSTUDIOGPUMARK,
-    gcvPATCH_LEANBACKSCROLLING,
-    gcvPATCH_ANTUTU6X, /* Antutu 6.x */
-    gcvPATCH_ANTUTU3DBench,
-    gcvPATCH_ANTUTU_V8_REFINERY,
-    gcvPATCH_CAR_CHASE,
-    gcvPATCH_ANDROID_BROWSER,
-    gcvPATCH_COMPUTBENCH_CL, /* ComputBench 1.5 */
-    gcvPATCH_ANDROID_CTS_UIRENDERING,
-    gcvPATCH_GLU3, /* gfx3.0 glu.*/
-    gcvPATCH_GLU4, /* gfx4.0 glu.*/
-    gcvPATCH_MRVELBM20,
-    gcvPATCH_OPENCV_ATOMIC,
-    gcvPATCH_WESTON,
-    gcvPATCH_SKIA_SKQP,
-    gcvPATCH_SASCHAWILLEMS,
-    gcvPATCH_NATIVEHARDWARE_CTS,
-    gcvPATCH_ANDROID_PHOTOS,
-    gcvPATCH_MUSTANG,
-    gcvPATCH_OVX_CTS,
-    gcvPATCH_DEQP_VK,
-    gcvPATCH_KANZI,
-    gcvPATCH_OPENCV_TEST_PHOTO,
-    gcvPATCH_VKMARK,
-    gcvPATCH_VK_T3DSTRESSTEST,
-    gcvPATCH_VK_HDR02_FBBASICTONEMAPPING,
-    gcvPATCH_VK_BLOOM,
-    gcvPATCH_VK_GFXBENCH5,
-    gcvPATCH_CLBLAST,
-    gcvPATCH_GRAPHICS_BENCHMARKS,
-    gcvPATCH_INTEL_CL_BITONICSORT,
-    gcvPATCH_PIGLIT_CL,
-    gcvPATCH_VK_UNITY,
-    gcvPATCH_VK_UNREAL,
-    gcvPATCH_VK_UNITY_SAMPLEASSETS,
+    gcvPATCH_DEBUG, /* 1 */
+    gcvPATCH_GTFES30, /* 2 */
+    gcvPATCH_CTGL11, /* 3 */
+    gcvPATCH_CTGL20, /* 4 */
+    gcvPATCH_GLBM11, /* 5 */
+    gcvPATCH_GLBM21, /* 6 */
+    gcvPATCH_GLBM25, /* 7 */
+    gcvPATCH_GLBM27, /* 8 */
+    gcvPATCH_GLBMGUI, /* 9 */
+    gcvPATCH_GFXBENCH, /* 10 */
+    gcvPATCH_ANDROID_GPUTEST, /* 11 */
+    gcvPATCH_ANTUTU, /* 12 */ /* Antutu 3.x */
+    gcvPATCH_ANTUTU4X, /* 13 */ /* Antutu 4.x */
+    gcvPATCH_ANTUTU5X, /* 14 */ /* Antutu 5.x */
+    gcvPATCH_ANTUTUGL3, /* 15 */ /* Antutu 3D Rating */
+    gcvPATCH_QUADRANT, /* 16 */
+    gcvPATCH_GPUBENCH, /* 17 */
+    gcvPATCH_GLOFTSXHM, /* 18 */
+    gcvPATCH_XRUNNER, /* 19 */
+    gcvPATCH_BUSPARKING3D, /* 20 */
+    gcvPATCH_SIEGECRAFT, /* 21 */
+    gcvPATCH_PREMIUM, /* 22 */
+    gcvPATCH_RACEILLEGAL, /* 23 */
+    gcvPATCH_MEGARUN, /* 24 */
+    gcvPATCH_BMGUI, /* 25 */
+    gcvPATCH_NENAMARK, /* 26 */
+    gcvPATCH_NENAMARK2, /* 27 */
+    gcvPATCH_FISHNOODLE, /* 28 */
+    gcvPATCH_MM06, /* 29 */
+    gcvPATCH_MM07, /* 30 */
+    gcvPATCH_BM21, /* 31 */
+    gcvPATCH_SMARTBENCH, /* 32 */
+    gcvPATCH_JPCT, /* 33 */
+    gcvPATCH_NEOCORE, /* 34 */
+    gcvPATCH_RTESTVA, /* 35 */
+    gcvPATCH_NBA2013, /* 36 */
+    gcvPATCH_BARDTALE, /* 37 */
+    gcvPATCH_F18, /* 38 */
+    gcvPATCH_CARPARK, /* 39 */
+    gcvPATCH_CARCHALLENGE, /* 40 */
+    gcvPATCH_HEROESCALL, /* 41 */
+    gcvPATCH_GLOFTF3HM, /* 42 */
+    gcvPATCH_CRAZYRACING, /* 43 */
+    gcvPATCH_FIREFOX, /* 44 */
+    gcvPATCH_CHROME, /* 45 */
+    gcvPATCH_MONOPOLY, /* 46 */
+    gcvPATCH_SNOWCOLD, /* 47 */
+    gcvPATCH_BM3, /* 48 */
+    gcvPATCH_BASEMARKX, /* 49 */
+    gcvPATCH_DEQP, /* 50 */
+    gcvPATCH_SF4, /* 51 */
+    gcvPATCH_MGOHEAVEN2, /* 52 */
+    gcvPATCH_SILIBILI, /* 53 */
+    gcvPATCH_ELEMENTSDEF, /* 54 */
+    gcvPATCH_GLOFTKRHM, /* 55 */
+    gcvPATCH_OCLCTS, /* 56 */
+    gcvPATCH_A8HP, /* 57 */
+    gcvPATCH_A8CN, /* 58 */
+    gcvPATCH_WISTONESG, /* 59 */
+    gcvPATCH_SPEEDRACE, /* 60 */
+    gcvPATCH_FSBHAWAIIF, /* 61 */
+    gcvPATCH_AIRNAVY, /* 62 */
+    gcvPATCH_F18NEW, /* 63 */
+    gcvPATCH_CKZOMBIES2, /* 64 */
+    gcvPATCH_EADGKEEPER, /* 65 */
+    gcvPATCH_BASEMARK2V2, /* 66 */
+    gcvPATCH_RIPTIDEGP2, /* 67 */
+    gcvPATCH_OESCTS, /* 68 */
+    gcvPATCH_GANGSTAR, /* 69 */
+    gcvPATCH_TRIAL, /* 70 */
+    gcvPATCH_WHRKYZIXOVAN, /* 71 */
+    gcvPATCH_GMMY16MAPFB, /* 72 */
+    gcvPATCH_UIMARK, /* 73 */
+    gcvPATCH_NAMESGAS, /* 74 */
+    gcvPATCH_AFTERBURNER, /* 75 */
+    gcvPATCH_ANDROID_CTS_MEDIA, /* 76 */
+    gcvPATCH_FM_OES_PLAYER, /* 77 */
+    gcvPATCH_SUMSUNG_BENCH, /* 78 */
+    gcvPATCH_ROCKSTAR_MAXPAYNE, /* 79 */
+    gcvPATCH_TITANPACKING, /* 80 */
+    gcvPATCH_OES20SFT, /* 81 */
+    gcvPATCH_OES30SFT, /* 82 */
+    gcvPATCH_BASEMARKOSIICN, /* 83 */
+    gcvPATCH_ANDROID_WEBGL, /* 84 */
+    gcvPATCH_ANDROID_COMPOSITOR, /* 85 */
+    gcvPATCH_CTS_TEXTUREVIEW, /* 86 */
+    gcePATCH_ANDROID_CTS_GRAPHICS_GLVERSION, /* 87 */
+    gcvPATCH_WATER2_CHUKONG, /* 88 */
+    gcvPATCH_GOOGLEEARTH, /* 89 */
+    gcvPATCH_LEANBACK, /* 90 */
+    gcvPATCH_YOUTUBE_TV, /* 91 */
+    gcvPATCH_NETFLIX, /* 92 */
+    gcvPATCH_ANGRYBIRDS, /* 93 */
+    gcvPATCH_REALRACING, /* 94 */
+    gcvPATCH_TEMPLERUN, /* 95 */
+    gcvPATCH_SBROWSER, /* 96 */
+    gcvPATCH_CLASHOFCLAN, /* 97 */
+    gcvPATCH_YOUILABS_SHADERTEST, /* 98 */
+    gcvPATCH_AXX_SAMPLE, /* 99 */
+    gcvPATCH_3DMARKSS, /* 100 */
+    gcvPATCH_GFXBENCH4, /* 101 */
+    gcvPATCH_BATCHCOUNT, /* 102 */
+    gcvPATCH_SILICONSTUDIOGPUMARK, /* 103 */
+    gcvPATCH_LEANBACKSCROLLING, /* 104 */
+    gcvPATCH_ANTUTU6X, /* 105 */ /* Antutu 6.x */
+    gcvPATCH_ANTUTU3DBench, /* 106 */
+    gcvPATCH_ANTUTU_V8_REFINERY, /* 107 */
+    gcvPATCH_CAR_CHASE, /* 108 */
+    gcvPATCH_ANDROID_BROWSER, /* 109 */
+    gcvPATCH_COMPUTBENCH_CL, /* 110 */ /* ComputBench 1.5 */
+    gcvPATCH_ANDROID_CTS_UIRENDERING, /* 111 */
+    gcvPATCH_GLU3, /* 112 */ /* gfx3.0 glu.*/
+    gcvPATCH_GLU4, /* 113 */ /* gfx4.0 glu.*/
+    gcvPATCH_MRVELBM20, /* 114 */
+    gcvPATCH_WESTON, /* 115 */
+    gcvPATCH_SKIA_SKQP, /* 116 */
+    gcvPATCH_SASCHAWILLEMS, /* 117 */
+    gcvPATCH_NATIVEHARDWARE_CTS, /* 118 */
+    gcvPATCH_ANDROID_PHOTOS, /* 119 */
+    gcvPATCH_MUSTANG, /* 120 */
+    gcvPATCH_OVX_CTS, /* 121 */
+    gcvPATCH_DEQP_VK, /* 122 */
+    gcvPATCH_KANZI, /* 123 */
+    gcvPATCH_OPENCV_TEST_PHOTO, /* 124 */
+    gcvPATCH_VKMARK, /* 125 */
+    gcvPATCH_VK_T3DSTRESSTEST, /* 126 */
+    gcvPATCH_VK_HDR02_FBBASICTONEMAPPING, /* 127 */
+    gcvPATCH_VK_BLOOM, /* 128 */
+    gcvPATCH_VK_GFXBENCH5, /* 129 */
+    gcvPATCH_CLBLAST, /* 130 */
+    gcvPATCH_GRAPHICS_BENCHMARKS, /* 131 */
+    gcvPATCH_INTEL_CL_BITONICSORT, /* 132 */
+    gcvPATCH_PIGLIT_CL, /* 133 */
+    gcvPATCH_VK_UNITY, /* 134 */
+    gcvPATCH_VK_UNREAL, /* 135 */
+    gcvPATCH_VK_UNITY_SAMPLEASSETS, /* 136 */
+    gcvPATCH_GLDEMO_GEOMETRY, /* 137 */
+    gcvPATCH_HP_Nano_Tesla, /* 138 */
+    gcvPATCH_3D_PERF_FLOAT, /* 139 */
+
     gcvPATCH_COUNT
 } gcePATCH_ID;
 

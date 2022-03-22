@@ -76,8 +76,15 @@
 /* 0.0.1.53 Change the layout of VIR_OPERAND_REL_INFO 02/24/2021 */
 /* 0.0.1.54 Save VIR_OPERAND_REL_INFO 02/25/2021 */
 /* 0.0.1.55 Change the value of VIR_SymFlagExt 03/03/2021 */
-#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 55)
-#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 55)
+/* 0.0.1.56 Use 32bit to save the register shift, so we can support the negative shift. 03/17/2021 */
+/* 0.0.1.57 Save the thread memory offset for VIR_Shader. 04/25/2021 */
+/* 0.0.1.58 Save the HW local memory address for VIR_Shader. 05/14/2021 */
+/* 0.0.1.59 Refine the save/load of symbol's u3 and u4. 05/31/2021 */
+/* 0.0.1.60 Save the total workGroup count, which is set by driver. 06/16/2021 */
+/* 0.0.1.61 Add index for VIR_Layout 06/22/2021 */
+/* 0.0.1.62 Add a new enumeration for VIR_InstFlag 06/28/2021 */
+#define gcdVIR_SHADER_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 61)
+#define gcdVIR_PROGRAM_BINARY_FILE_VERSION gcmCC(SHADER_64BITMODE, 0, 1, 61)
 
 /*********************** VIR SHADER BINARY FILE SUB VERSION *********************/
 #define gcdVIR_SHADER_BINARY_SUB_VERSION gcmCC(SHADER_64BITMODE, 0, 0, 0)
@@ -86,11 +93,32 @@
 /* Current vir shader CL/VX library version */
 /* 0.0.0.0 Start to set vir shader cl/vx library version, 12/23/2020 */
 /* 0.0.0.1 Change vir shader cl/vx library version to add long/ulong intrinsic functions, 03/15/2021 */
-#define gcdVIR_SHADER_CL_LIBRARY_FILE_VERSION  gcmCC(SHADER_64BITMODE, 0, 0, 1)
+/* 0.0.0.2 implemented sinh and exp, exp10, cosh, tanh, acosh, atanh, log, log2, log10, log1p, logb, exp10, expm1 intrinsic functions 3/27/2021 */
+/* 0.0.0.3 implemented exp intrinsic function version, 3/29/2021 */
+/* 0.0.0.4 added inclusion of gcLibCLLong_Func functions, 4/21/2021 */
+/* 0.0.0.5 implemented acospi intrinsic function, 4/26/2021 */
+/* 0.0.0.6 implemented sinpi, asinpi, atanpi, atan2pi intrinsic functions, 5/3/2021 */
+/* 0.0.0.7 implemented _viv_fma_z_floatn() functions for FMA with mulZero flag on, 5/5/2021 */
+/* 0.0.0.8 Fixed _viv_atan2pi_float() parameters; refined implementation of _viv_atanpi_float()  5/5/2021 */
+/* 0.0.0.9 added sinpi, cospi, tanpi, exp, exp10, expm1 functions which instantiates viv_*() 5/13/2021 */
+/* 0.0.0.10 implemented rcp intrinsic function 5/17/2021 */
+/* 0.0.0.11 Add more functions for the atomic WAR 5/18/2021 */
+/* 0.0.0.12 added cbrt, hypot, fract, rint, rootn, erfc, erf, lgamma, lgamma_r functions which instantiates viv_*() 5/19/2021 */
+/* 0.0.0.13 Add logb, ilogb, frexp, ldexp, fmod, fma, modf, remquo, powr, pown, mad, nan functions 5/26/2021 */
+/* 0.0.0.14 refine long/ulong "add" function 06/04/2021 */
+/* 0.0.0.15 add long/ulong sub/mul/mad functions 06/04/2021 */
+/* 0.0.0.16 Add tgamma, fdim functions 6/7/2021 */
+/* 0.0.0.17 Add the missing long/ulong "add" functions for vector  6/17/2021 */
+/* 0.0.0.18 Add asinh function 6/17/2021 */
+/* 0.0.0.19 Add long/ulong vector math function 7/15/2021 */
+/* 0.0.0.20 Add long/ulong I2F function 08/04/2021 */
+/* 0.0.0.21 Changed _viv_sin_float3() to get around problem in cpf 08/15/2021 */
+#define gcdVIR_SHADER_CL_LIBRARY_FILE_VERSION  gcmCC(SHADER_64BITMODE, 0, 0, 21)
 
 /* Current vir shader graphic library version */
 /* 0.0.0.0 Start to set vir shader library version, 12/23/2020 */
-#define gcdVIR_SHADER_GRAPHICS_LIBRARY_FILE_VERSION  gcmCC(SHADER_64BITMODE, 0, 0, 0)
+/* 0.0.0.1 Use IMG_ADDR to check inborder directly, 7/7/2021 */
+#define gcdVIR_SHADER_GRAPHICS_LIBRARY_FILE_VERSION  gcmCC(SHADER_64BITMODE, 0, 0, 1)
 
 #if !defined(gcdTARGETHOST_BIGENDIAN)
 #define gcdTARGETHOST_BIGENDIAN 0  /* default host little endian, to change the
@@ -100,7 +128,6 @@
 
 #define gcdSUPPORT_OCL_1_2          1
 #define TREAT_ES20_INTEGER_AS_FLOAT 0
-#define __USE_IMAGE_LOAD_TO_ACCESS_SAMPLER_BUFFER__ 1
 
 BEGIN_EXTERN_C()
 
@@ -531,6 +558,7 @@ typedef enum _VSC_TYQUALIFIER
     VIR_TYQUAL_GLOBAL       = 0x40, /* global address space */
     VIR_TYQUAL_LOCAL        = 0x80, /* local address space */
     VIR_TYQUAL_PRIVATE      = 0x100, /* private address space */
+    VIR_TYQUAL_READ_WRITE   = 0x200, /* the image object may be both read or written*/
 } VSC_TyQualifier;
 
 typedef VSC_AddrSpace        VIR_AddrSpace;
@@ -609,27 +637,31 @@ typedef union _VSC_Image_desc {
         gctUINT   sliceSize;            /* slice size for image 3D */
 
 #if !gcdENDIAN_BIG
-        gctUINT   depth_arraySize : 16; /* depth for image 3D, or array_size for image1D/2D array */
-        gctUINT   imageType       : 16; /* vscImageValueType: 1D: 0, 1D_buffer: 1, 1D_array: 2, 2D: 3, 2D_array: 4, 3D: 5 */
+        gctUINT   depth_arraySize    : 16; /* depth for image 3D, or array_size for image1D/2D array */
+        gctUINT   imageType          : 16; /* vscImageValueType: 1D: 0, 1D_buffer: 1, 1D_array: 2, 2D: 3, 2D_array: 4, 3D: 5 */
 #else
-        gctUINT   imageType       : 16; /* vscImageValueType: 1D: 0, 1D_buffer: 1, 1D_array: 2, 2D: 3, 2D_array: 4, 3D: 5 */
-        gctUINT   depth_arraySize : 16; /* depth for image 3D, or array_size for image1D/2D array */
+        gctUINT   imageType          : 16; /* vscImageValueType: 1D: 0, 1D_buffer: 1, 1D_array: 2, 2D: 3, 2D_array: 4, 3D: 5 */
+        gctUINT   depth_arraySize    : 16; /* depth for image 3D, or array_size for image1D/2D array */
 #endif
 
 #if !gcdENDIAN_BIG
-        gctUINT   channelOrder    : 16; /* image channel order */
-        gctUINT   channelDataType : 16; /* image channel data type */
+        gctUINT   channelOrder       : 16; /* image channel order (CL value)*/
+        gctUINT   channelDataType    : 16; /* image channel data type (CL value)*/
 #else
-        gctUINT   channelDataType : 16; /* image channel data type */
-        gctUINT   channelOrder    : 16; /* image channel order */
+        gctUINT   channelDataType    : 16; /* image channel data type (CL value)*/
+        gctUINT   channelOrder       : 16; /* image channel order (CL value)*/
 #endif
 
 #if !gcdENDIAN_BIG
-        gctUINT   imageValueType  : 2;  /* vscImageValueType (float/int/uint), filled by compiler */
-        gctUINT   reserved2       : 30;
+        gctUINT   imageValueType     : 2;  /* vscImageValueType (float/int/uint), filled by compiler */
+        gctUINT   channelOrderSPV    : 5;  /* image channel order (SPV value)*/
+        gctUINT   channelDataTypeSPV : 5;  /* image channel data type (SPV value)*/
+        gctUINT   reserved2          : 20;
 #else
-        gctUINT   reserved2       : 30;
-        gctUINT   imageValueType  : 2;  /* vscImageValueType (float/int/uint), filled by compiler */
+        gctUINT   reserved2          : 20;
+        gctUINT   channelDataTypeSPV : 5;  /* image channel data type (SPV value)*/
+        gctUINT   channelOrderSPV    : 5;  /* image channel order (SPV value)*/
+        gctUINT   imageValueType     : 2;  /* vscImageValueType (float/int/uint), filled by compiler */
 #endif
     } sd;  /* structured data */
     gctUINT rawbits[8];
@@ -811,7 +843,8 @@ typedef struct _VSC_HW_CONFIG
         gctUINT          supportComplex         : 1;
         gctUINT          supportBigEndianLdSt   : 1;
         gctUINT          supportUSCUnalloc      : 1;
-        gctUINT          supportEndOfBBReissue  : 1;
+        /* The last instruction of a basic block must either be marked EBB or be a flow-control instruction. */
+        gctUINT          supportEndOfBBReissueV1: 1;
         gctUINT          hasDynamicIdxDepFix    : 1;
 
         gctUINT          supportPSCSThrottle    : 1;
@@ -846,7 +879,25 @@ typedef struct _VSC_HW_CONFIG
         gctUINT          supportFP32FMA         : 1;
         gctUINT          hasVec2IntMulMad       : 1;
         gctUINT          hasVec4IntMulMad       : 1;
-        gctUINT          reserved1              : 11;
+        /* Followings are first introduced in v800. */
+        gctUINT          supportHighpVec2V2         : 1;    /* Use .xz for t0, ,yw for t1. */
+        gctUINT          oneOutputPerCompForMfuInst : 1;
+        gctUINT          supportDualTForIModIDiv    : 1;
+        gctUINT          supportVecForMfuIMadIMul   : 1;
+        gctUINT          deprecateLITP              : 1;
+        gctUINT          removeDPAndNormDP          : 1;
+        gctUINT          supportPreNorm             : 1;
+        gctUINT          hasTempRegB0               : 1;
+        gctUINT          supportPerStageLocalMem    : 1;
+        gctUINT          supportDual16ForCallRet    : 1;
+        /* V1 + The last instruction of the program must either be marked EBB or be a flow-control instruction. */
+        gctUINT          supportEndOfBBReissueV2    : 1;
+
+        /* word 4 */
+        gctUINT          hasBigEndianAtomicFix  : 1;
+        gctUINT          requireHpArctrig       : 1;
+        gctUINT          hasBigEndianAttrFix    : 1;
+        gctUINT          reserved1              : 29;
 
         /* Last word */
         /* Followings will be removed after shader programming is removed out of VSC */
@@ -1012,8 +1063,15 @@ typedef gcsGLSLCaps VSC_GL_API_CONFIG, *PVSC_GL_API_CONFIG;
 #define VSC_COMPILER_FLAG_ADD_GLOBAL_OFFSET            0x00100000  /* gl_GlobalInvocationID = gl_GlobalInvocationID + #global_offset. */
 #define VSC_COMPILER_FLAG_ENABLE_DUAL16_FOR_VK         0x00200000  /* It is a temp option to enable dual16 for vulkan. we need to remove after verify all vulkan cases. */
 #define VSC_COMPILER_FLAG_USE_CONST_REG_FOR_UBO        0x00400000
-#define VSC_COMPILER_FLAG_FORCE_GEN_FLOAT_MAD          0x00800000  /* Force generate a floating MAD, no matter if HW can support it. */
+#define VSC_COMPILER_FLAG_FORCE_GEN_FLOAT_MAD          0x00800000  /* Force generate a floating MAD, no matter whether HW can support it. */
 #define VSC_COMPILER_FLAG_ALWAYS_EMIT_OUTPUT           0x01000000
+#define VSC_COMPILER_FLAG_DRIVER_ALLOC_WRITEABLE_MEM   0x02000000  /* Driver will allocate the writable memory, including the register spill mem, thread ID mem and the local memory. */
+#define VSC_COMPILER_FLAG_USE_40BIT_MEM_ADDR           0x04000000  /* Use 40bit memory address. */
+#define VSC_COMPILER_FLAG_USE_ONE_COMP_MEM_OFFSET      0x08000000  /* Use one component offset for the memory instruction, this is valid only when 40bit VA is enabled. */
+#define VSC_COMPILER_FLAG_MSAA_DISABLED                0x10000000  /* MSAA disabled. */
+#define VSC_COMPILER_FLAG_PICK_IMAGE_TO_DUBO           0x20000000  /* Pick images to the DUBO. */
+#define VSC_COMPILER_FLAG_FORCE_FP32_UNIFORM_SINGLE_T  0x40000000  /* If a instruction use any FP32 uniform, force it running under single-t. */
+#define VSC_COMPILER_FLAG_APPLY_MUL_ADD_NAN_WAR        0x80000000  /* Apply the SW WAR for the mul/mad/add nan issue. */
 
 #define VSC_COMPILER_FLAG_COMPILE_FULL_LEVELS          0x0000000F
 
@@ -1058,6 +1116,20 @@ VSC_SHADER_STAGE_BIT;
 #define VSC_GFX_SHADER_STAGE_GS                        VSC_SHADER_STAGE_GS
 #define VSC_GFX_SHADER_STAGE_PS                        VSC_SHADER_STAGE_PS
 #define VSC_CPT_SHADER_STAGE_CS                        0
+
+#define VSC_IS_PERFORMANCE_BENCH_APP(PatchId)               \
+    ((PatchId) == gcvPATCH_GLBM21                       ||  \
+     (PatchId) == gcvPATCH_GLBM25                       ||  \
+     (PatchId) == gcvPATCH_GLBM27                       ||  \
+     (PatchId) == gcvPATCH_GFXBENCH                     ||  \
+     (PatchId) == gcvPATCH_MM07                         ||  \
+     (PatchId) == gcvPATCH_NENAMARK2                    ||  \
+     (PatchId) == gcvPATCH_LEANBACK                     ||  \
+     (PatchId) == gcvPATCH_ANGRYBIRDS)
+
+#define VSC_IS_CONFORMANCE_APP(PatchId)                     \
+    ((PatchId) == gcvPATCH_GTFES30                      ||  \
+     (PatchId) == gcvPATCH_DEQP)
 
 typedef void* SHADER_HANDLE;
 typedef void* PROGRAM_RESOURCE_LAYOUT_HANDLE;
@@ -1372,6 +1444,8 @@ gceSTATUS vscExtractSubShader(SHADER_HANDLE   hMainShader,
 
 gcSHADER_KIND vscGetShaderKindFromShaderHandle(SHADER_HANDLE hShader);
 
+gctUINT vscGetShaderIdFromShaderHandle(SHADER_HANDLE hShader);
+
 /* Link a lib shader to main shader. */
 gceSTATUS vscLinkLibShaderToShader(SHADER_HANDLE              hMainShader,
                                    VSC_SHADER_LIB_LINK_TABLE* pShLibLinkTable);
@@ -1582,6 +1656,12 @@ vscQueryImgLdStSuppport(
 gctBOOL
 vscQueryTexldUSupport(
     IN  VSC_HW_CONFIG*      pHwCfg
+    );
+
+gctBOOL
+vscQueryWorkGroupSize(
+    IN  SHADER_HANDLE       pShaderHandle,
+    IN  gctUINT*            pWorkGroupSize
     );
 
 /****************************************************************************

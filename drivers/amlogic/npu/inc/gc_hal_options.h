@@ -157,13 +157,13 @@ This define enables the use of VM for gckCommand and fence buffers.
 #endif
 
 /*
-    gcdDUMP_TPNN_SUBCOMMAND
+    gcdDUMP_HW_SUBCOMMAND
 
-        Dump for TP/NN command buffer
-        When set to 1, will dump TP/NN command buffer when GPU/VIP hang.
+        Dump for hw command buffer
+        When set to 1, will dump hw command buffer when GPU/VIP hang.
 */
-#ifndef gcdDUMP_TPNN_SUBCOMMAND
-#   define gcdDUMP_TPNN_SUBCOMMAND              1
+#ifndef gcdDUMP_HW_SUBCOMMAND
+#   define gcdDUMP_HW_SUBCOMMAND              1
 #endif
 
 /*
@@ -465,7 +465,7 @@ This define enables the use of VM for gckCommand and fence buffers.
         If the value is 0, no timeout will be checked for.
 */
 #ifndef gcdGPU_2D_TIMEOUT
-#   define gcdGPU_2D_TIMEOUT                4000
+#   define gcdGPU_2D_TIMEOUT                20000
 #endif
 
 
@@ -684,12 +684,12 @@ This define enables the use of VM for gckCommand and fence buffers.
 /*
     gcdSHARED_PAGETABLE
 
-        When non-zero, multiple GPUs in one chip with same MMU use
-        one shared pagetable. So that when accessing same surface,
+        When non-zero, cores with same hardware type in one chip use
+        one shared pagetable. So that when accessing same buffer,
         they can use same GPU virtual address.
 */
 #ifndef gcdSHARED_PAGETABLE
-#   define gcdSHARED_PAGETABLE                  0
+#   define gcdSHARED_PAGETABLE                  1
 #endif
 
 #ifndef gcdUSE_PVR
@@ -1433,6 +1433,32 @@ This define enables the use of VM for gckCommand and fence buffers.
 */
 #ifndef gcdANON_FILE_FOR_ALLOCATOR
 #   define gcdANON_FILE_FOR_ALLOCATOR 0
+#endif
+
+/*
+    gcdWAIT_LINK_FE_MODE
+        0 means always end at the end of commit user command buffer
+          and reset FE for each commit.
+        1 means default wait-link mode.
+*/
+#ifndef gcdWAIT_LINK_FE_MODE
+#   define gcdWAIT_LINK_FE_MODE 1
+#endif
+
+/*
+    gcdENABLE_RECOVERY_ALL_CORES
+        When enabled, will recovery all cores when the gpu hang.
+*/
+#ifndef gcdENABLE_RECOVERY_ALL_CORES
+#   define gcdENABLE_RECOVERY_ALL_CORES 1
+#endif
+
+/*
+    gcdVALID_COMMAND_BUFFER
+        If enabled, will check the validity of the command buffer before commit.
+*/
+#ifndef gcdVALID_COMMAND_BUFFER
+#   define gcdVALID_COMMAND_BUFFER              0
 #endif
 
 #endif /* __gc_hal_options_h_ */

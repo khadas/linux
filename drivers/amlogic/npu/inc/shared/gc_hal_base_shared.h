@@ -18,19 +18,6 @@
 extern "C" {
 #endif
 
-#define gcdEXTERNAL_MEMORY_NAME_MAX 32
-#define gcdEXTERNAL_MEMORY_DATA_MAX 8
-
-typedef struct _gcsEXTERNAL_MEMORY_INFO
-{
-    /* Name of allocator used to attach this memory. */
-    gctCHAR                allocatorName[gcdEXTERNAL_MEMORY_NAME_MAX];
-
-    /* User defined data which will be passed to allocator. */
-    gctUINT32              userData[gcdEXTERNAL_MEMORY_DATA_MAX];
-}
-gcsEXTERNAL_MEMORY_INFO;
-
 #define gcdBINARY_TRACE_MESSAGE_SIZE 240
 
 typedef struct _gcsBINARY_TRACE_MESSAGE * gcsBINARY_TRACE_MESSAGE_PTR;

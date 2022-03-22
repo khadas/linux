@@ -738,6 +738,12 @@ struct _SHADER_CONSTANT_HW_LOCATION_MAPPING
     gctUINT                                          firstValidHwChannel;
 };
 
+typedef enum _SHS_CONST_SUB_ARRAY_MAPPING_FLAG
+{
+    SHS_CONST_SUB_ARRAY_MAPPING_FLAG_NONE       = 0x0000,
+    SHS_CONST_SUB_ARRAY_MAPPING_FLAG_IN_DUBO    = 0x0001,
+} SHS_CONST_SUB_ARRAY_MAPPING_FLAG;
+
 struct _SHADER_CONSTANT_SUB_ARRAY_MAPPING
 {
     /* Start and size of sub array. 'startIdx' is the index within 'arrayRange' of parent */
@@ -746,6 +752,14 @@ struct _SHADER_CONSTANT_SUB_ARRAY_MAPPING
 
     /* Only used by DX, for DX10+, it is the 2nd dimension of cb/icb, otherwise, it is 1st dimension */
     gctUINT                                     firstMSCSharpRegNo;
+
+    SHS_CONST_SUB_ARRAY_MAPPING_FLAG            flags;
+
+    /*
+    ** Only valid when this CONSTANT is in DUBO, so we can get the corresponding member entry from:
+    **  pSEP->defaultUboMapping.pDefaultUboMemberEntries[duboMemberEntryIndex]
+    */
+    gctUINT                                     duboMemberEntryIndex;
 
     /* Which channels are valid for this 4-tuples constant sub array. Note that mapping from validChannelMask
        to validHWChannelMask is not channel-based, so hole is supported. For example, 0011(xy) may be mapped
@@ -1008,9 +1022,12 @@ typedef struct SHADER_EXECUTABLE_NATIVE_HINTS
         gctUINT                                          texldHint         : 1;
 
         /* Active cluster count, 4 bits should be enough. */
-        gctUINT                                          activeClusterCount: 4;
+        gctUINT                                          activeClusterCount: 6;
 
-        gctUINT                                          reserved          : 15;
+        /* Driver will allocate the writable memory, including the register spill mem, thread ID mem and the local memory. */
+        gctUINT                                          bDriverAllocWriteableMem : 1;
+
+        gctUINT                                          reserved          : 12;
     } globalStates;
 
     union
@@ -1061,6 +1078,7 @@ typedef struct SHADER_EXECUTABLE_NATIVE_HINTS
         struct
         {
             gctUINT                                      shareMemSizePerThreadGrpInByte;
+            gctUINT                                      hwShareMemAddr;
             gctUINT                                      currWorkGrpNum;
 
             gctUINT                                      privMemSizePerThreadInByte;
@@ -1073,6 +1091,8 @@ typedef struct SHADER_EXECUTABLE_NATIVE_HINTS
             gctUINT                                      threadGrpDimZ;
 
             gctUINT                                      calculatedWorkGroupSize;
+
+            gctUINT                                      maxRequireLocalMemGroupCount;
         } gps;
     } prvStates;
 }
@@ -1211,7 +1231,16 @@ typedef struct SHADER_EXECUTABLE_DERIVED_HINTS
         /* Whether enable robust out-of-bounds check for memory access . */
         gctUINT                   bEnableRobustCheck              : 1;
 
-        gctUINT                   reserved                        : 2;
+        /* Whether apply the SW WAR for the robust check. */
+        gctUINT                   bApplySwRobustCheck             : 1;
+
+        /* Whether use 40bit memory address. */
+        gctUINT                   bUse40BitMemAddr                : 1;
+
+        /* Whether use user defined Mem. */
+        gctUINT                   bUseUserDefMem                  : 1;
+
+        gctUINT                   reserved                        : 31;
 
         gctUINT                   gprSpillSize;  /* the byte count of register spill mem to be
                                                   * allocated by driver in MultiGPU mode*/
@@ -1298,8 +1327,8 @@ typedef struct SHADER_EXECUTABLE_DERIVED_HINTS
             /* Whether whole thread group needs sync */
             gctUINT               bThreadGroupSync                : 1;
 
-            /* Whether use Local memory. */
-            gctUINT               bUseLocalMemory                 : 1;
+            /* Whether enable HW Local memory. */
+            gctUINT               bEnableHWLocalMemory            : 1;
 
             /* Whether use Private memory. */
             gctUINT               bUsePrivateMemory               : 1;
@@ -1453,16 +1482,19 @@ typedef struct SHADER_IO_LINKAGE_INFO
 typedef enum HW_INST_FETCH_MODE
 {
     /* Fetched from non-unified inst buffer, using 0x1000 and 0x1800 */
-    HW_INST_FETCH_MODE_UNUNIFIED_BUFFER        = 0,
+    HW_INST_FETCH_MODE_UNUNIFIED_BUFFER_0      = 0,
+
+    /* Fetched from non-unified inst buffer, using 0x1000 and 0x2000 */
+    HW_INST_FETCH_MODE_UNUNIFIED_BUFFER_1      = 1,
 
     /* Fetched from unified inst buffer 0, using 0x3000 and 0x2000 */
-    HW_INST_FETCH_MODE_UNIFIED_BUFFER_0        = 1,
+    HW_INST_FETCH_MODE_UNIFIED_BUFFER_0        = 2,
 
     /* Fetched from unified inst buffer 1, using 0x8000 */
-    HW_INST_FETCH_MODE_UNIFIED_BUFFER_1        = 2,
+    HW_INST_FETCH_MODE_UNIFIED_BUFFER_1        = 3,
 
     /* Fetched from I$ */
-    HW_INST_FETCH_MODE_CACHE                   = 3,
+    HW_INST_FETCH_MODE_CACHE                   = 4,
 }HW_INST_FETCH_MODE;
 
 typedef enum HW_CONSTANT_FETCH_MODE
@@ -1485,12 +1517,11 @@ typedef enum HW_SAMPLER_FETCH_MODE
 
 typedef struct SHADER_HW_PROGRAMMING_HINTS
 {
-    /* Word 1*/
     /* Inst fetch mode */
-    gctUINT                                     hwInstFetchMode               : 2;
+    gctUINT                                     hwInstFetchMode               : 3;
 
     /* For HW_INST_FETCH_MODE_UNIFIED_BUFFER_0 and HW_INST_FETCH_MODE_UNIFIED_BUFFER_1
-       it can be non-zero; for HW_INST_FETCH_MODE_UNUNIFIED_BUFFER, must be set to 0 */
+       it can be non-zero; for HW_INST_FETCH_MODE_UNUNIFIED_BUFFER_0/HW_INST_FETCH_MODE_UNUNIFIED_BUFFER_1, must be set to 0 */
     gctUINT                                     hwInstBufferAddrOffset        : 12;
 
     /* Constant fetch mode */
@@ -1507,7 +1538,6 @@ typedef struct SHADER_HW_PROGRAMMING_HINTS
        HW_SAMPLER_FETCH_MODE_UNIFIED_REG_FILE, for other cases, it must be set to 0 */
     gctUINT                                     hwSamplerRegAddrOffset        : 7;
 
-    /* Word 2*/
     /* Result-cache is used to queue missed data streamming from up-stage and release them
        after they are used. This window-size is the size of queue. Note that this result-$
        occupies some space of USC storage (uscSizeInKbyte). The ocuppied space is calc'ed
@@ -1522,7 +1552,6 @@ typedef struct SHADER_HW_PROGRAMMING_HINTS
        maxHwTGThreadCount, i.e, (maxCoreCount * 4) */
     gctUINT                                     maxThreadsPerHwTG             : 7;
 
-    /* Word 3*/
     /* USC is shared by all shader stages, so we need allocate proper size for each stage
        to get best perf of pipeline. The relation between these two members are
        1. minUscSizeInKbyte can not be greater than maxUscSizeInKbyte.
@@ -1537,12 +1566,11 @@ typedef struct SHADER_HW_PROGRAMMING_HINTS
     /* Iteration factor to time 'min parallel shader stage combination' when analyzing USC */
     gctUINT                                     maxParallelFactor             : 16;
 
-    /* Word 4*/
     /* Max patches number. */
     gctUINT                                     tsMaxPatches                  : 7;
 
     /* Reserved bits */
-    gctUINT                                     reserved                      : 25;
+    gctUINT                                     reserved                      : 24;
 }SHADER_HW_PROGRAMMING_HINTS;
 
 typedef struct SHADER_HW_INFO

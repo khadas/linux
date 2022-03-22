@@ -188,20 +188,17 @@ enum gceVPG
     VPHEADER,
     INFO,
     FRAME,
-    TIME,
+    VPTIME,
     ES11,
-    ES20,
     VG11,
     HW,
     MULTI_GPU,
     PROG,
     ES11DRAW,
-    ES20DRAW,
     MEM,
     PVS,
     PPS,
     ES11_TIME,
-    ES20_TIME,
     ES30,
     ES30_DRAW,
     ES30_TIME,
@@ -249,7 +246,7 @@ enum gceVPG
 #define VPC_INFOASICMODE        (VPC_INFOSCREENSIZE + 1)
 
 /* Counter Constants. */
-#define VPC_ELAPSETIME          (VPG(TIME) + 1)
+#define VPC_ELAPSETIME          (VPG(VPTIME) + 1)
 #define VPC_CPUTIME             (VPC_ELAPSETIME + 1)
 
 #define VPC_MEMMAXRES           (VPG(MEM) + 1)
@@ -943,6 +940,12 @@ enum gceVPG
 #define NumOfPerFrameBuf        16
 #define NumOfPerDrawBuf         128
 
+struct _gcsAppInfoCounter
+{
+    gctUINT32                   count[4];
+};
+typedef struct _gcsAppInfoCounter gcsAppInfoCounter;
+
 typedef struct gcsCounterBuffer * gcsCounterBuffer_PTR;
 
 struct gcsCounterBuffer
@@ -954,7 +957,7 @@ struct gcsCounterBuffer
     gctPOINTER                  logicalAddress;
     gceCOUNTER_OPTYPE           opType;
     gctUINT32                   opID;
-    gctUINT32                   opCount[4];
+    gcsAppInfoCounter           opCount;
     gctUINT32                   currentShaderId[6];
     gctUINT32                   startPos;
     gctUINT32                   endPos;
@@ -997,6 +1000,7 @@ struct _gcoPROFILER
     gceProbeMode                probeMode;
 
     gcsCounterBuffer_PTR        counterBuf;
+    gcsAppInfoCounter           currentOpCount;
     gctUINT32                   bufferCount;
 
     gctBOOL                     perDrawMode;
@@ -1052,6 +1056,11 @@ gcoPROFILER_Destroy(
 
 gceSTATUS
 gcoPROFILER_Initialize(
+    IN gcoPROFILER Profiler
+    );
+
+gceSTATUS
+gcoPROFILER_Enable(
     IN gcoPROFILER Profiler
     );
 
@@ -1112,6 +1121,11 @@ gctUINT32 gcoPROFILER_getProbeAddress(
     );
 
 gctUINT32 gcoPROFILER_getCounterBufferSize(
+    IN gcoPROFILER Profiler
+    );
+
+gceSTATUS
+gcoPROFILER_WriteChipInfo(
     IN gcoPROFILER Profiler
     );
 

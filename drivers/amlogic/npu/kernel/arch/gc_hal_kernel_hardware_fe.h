@@ -149,14 +149,6 @@ gckWLFE_Execute(
     IN gctUINT32 Bytes
     );
 
-/* Atomic version or IRQ routine. */
-gceSTATUS
-gckWLFE_AtomicExecute(
-    IN gckHARDWARE Hardware,
-    IN gctUINT32 Address,
-    IN gctUINT32 Bytes
-    );
-
 /******************************************************************************/
 /* ASync FE commands. */
 

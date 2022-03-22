@@ -184,11 +184,14 @@ struct _gckHARDWARE
 
     gctUINT32                   mmuVersion;
 
+#if gcdPOWEROFF_TIMEOUT
     gceCHIPPOWERSTATE           nextPowerState;
     gctPOINTER                  powerStateTimer;
+#endif
 
 #if gcdENABLE_FSCALE_VAL_ADJUST
     gctUINT32                   powerOnFscaleVal;
+    gctUINT32                   powerOnShaderFscaleVal;
 #endif
     gctPOINTER                  pageTableDirty[gcvENGINE_GPU_ENGINE_COUNT];
 
@@ -236,6 +239,10 @@ struct _gckHARDWARE
 	gctUINT32                   powerTimeout;
 
     gctBOOL                     hasQchannel;
+
+    gctUINT32                   powerOffTimeout;
+
+    gctUINT32                   pdevID;
 };
 
 gceSTATUS

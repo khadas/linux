@@ -60,11 +60,11 @@
 
 #define gcvVERSION_MINOR        4
 
-#define gcvVERSION_PATCH        6
+#define gcvVERSION_PATCH        8
 
-#define gcvVERSION_BUILD     345497
+#define gcvVERSION_BUILD     415784
 
-#define gcvVERSION_STRING    "6.4.6.2.5.3.2"
+#define gcvVERSION_STRING    "6.4.8.7.1.1.1"
 
 #endif /* __gc_hal_version_h_ */
 

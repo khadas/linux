@@ -2552,6 +2552,8 @@ _ProgramMMUStates(
     gctBOOL ace;
     gctUINT32 reserveBytes = 0;
     gctBOOL config2D;
+    gctUINT i;
+    gctUINT probeSelectCount = 4;
 
     gcmkHEADER_ARG("Hardware=0x%x", Hardware);
 
@@ -2599,7 +2601,7 @@ _ProgramMMUStates(
         }
     }
 
-    reserveBytes += 8;
+    reserveBytes += 8 + 8 * probeSelectCount;
 
     physical = Mmu->mtlbPhysical;
 
@@ -2945,6 +2947,16 @@ _ProgramMMUStates(
  16:16) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ? 16:16) - (0 ? 16:16) + 1))))))) << (0 ? 16:16))) |
               ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 24:24) - (0 ?
+ 24:24) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 24:24) - (0 ?
+ 24:24) + 1))))))) << (0 ?
+ 24:24))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
+ 24:24) - (0 ?
+ 24:24) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 24:24) - (0 ? 24:24) + 1))))))) << (0 ? 24:24))) |
+              ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  19:19) - (0 ?
  19:19) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ?
@@ -2964,6 +2976,75 @@ _ProgramMMUStates(
  22:22) - (0 ?
  22:22) + 1) == 32) ?
  ~0U : (~(~0U << ((1 ? 22:22) - (0 ? 22:22) + 1))))))) << (0 ? 22:22)));
+
+
+        for (i = 0; i < probeSelectCount; i++)
+        {
+            *buffer++
+                = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1))))))) << (0 ?
+ 31:27))) | (((gctUINT32) (0x01 & ((gctUINT32) ((((1 ?
+ 31:27) - (0 ?
+ 31:27) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 31:27) - (0 ? 31:27) + 1))))))) << (0 ? 31:27)))
+                | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1))))))) << (0 ?
+ 15:0))) | (((gctUINT32) ((gctUINT32) (0x0E1E) & ((gctUINT32) ((((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0)))
+                | ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1))))))) << (0 ?
+ 25:16))) | (((gctUINT32) ((gctUINT32) (1) & ((gctUINT32) ((((1 ?
+ 25:16) - (0 ?
+ 25:16) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 25:16) - (0 ? 25:16) + 1))))))) << (0 ? 25:16)));
+
+
+            *buffer++
+                = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1))))))) << (0 ?
+ 15:0))) | (((gctUINT32) ((gctUINT32) (i) & ((gctUINT32) ((((1 ?
+ 15:0) - (0 ?
+ 15:0) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 15:0) - (0 ? 15:0) + 1))))))) << (0 ? 15:0))) |
+                  ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 20:16) - (0 ?
+ 20:16) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 20:16) - (0 ?
+ 20:16) + 1))))))) << (0 ?
+ 20:16))) | (((gctUINT32) (0x0A & ((gctUINT32) ((((1 ?
+ 20:16) - (0 ?
+ 20:16) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 20:16) - (0 ? 20:16) + 1))))))) << (0 ? 20:16))) |
+                  ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
+ 25:24) - (0 ?
+ 25:24) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ?
+ 25:24) - (0 ?
+ 25:24) + 1))))))) << (0 ?
+ 25:24))) | (((gctUINT32) (0x1 & ((gctUINT32) ((((1 ?
+ 25:24) - (0 ?
+ 25:24) + 1) == 32) ?
+ ~0U : (~(~0U << ((1 ? 25:24) - (0 ? 25:24) + 1))))))) << (0 ? 25:24)));
+        }
 
         do{*buffer++ = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ?
  31:27) - (0 ?
@@ -4325,7 +4406,11 @@ _FuncExecute_MMU_CMD(IN gcsFUNCTION_EXECUTION_PTR Execution)
     /* Wait until MMU configure finishes. */
     do
     {
+#if gcdFPGA_BUILD
+        gckOS_Delay(hardware->os, delay);
+#else
         gckOS_Udelay(hardware->os, delay);
+#endif
 
         gcmkONERROR(gckOS_ReadRegisterEx(
             hardware->os,
@@ -4426,7 +4511,17 @@ OnError:
 static gceSTATUS
 _FuncValidate_Flush(IN gcsFUNCTION_EXECUTION_PTR Execution)
 {
-    Execution->valid = gcvTRUE;
+    gckHARDWARE hardware = (gckHARDWARE)Execution->hardware;
+
+    if (gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_BLT_ENGINE) &&
+        gckHARDWARE_IsFeatureAvailable(hardware, gcvFEATURE_COMPUTE_ONLY))
+    {
+        Execution->valid = gcvFALSE;
+    }
+    else
+    {
+        Execution->valid = gcvTRUE;
+    }
 
     return gcvSTATUS_OK;
 }
@@ -8313,7 +8408,7 @@ _InitializeUSC(
 
 #if gcdRESET_USC_C
     gcsFEATURE_DATABASE * db = (gcsFEATURE_DATABASE *)(hardware->featureDatabase);
-    gctUINT32 sram_size = db->AXI_SRAM_SIZE + db->VIP_SRAM_SIZE;
+    gctUINT32 sram_size = hardware->kernel->device->extSRAMSizes[0] + db->VIP_SRAM_SIZE;
     USC_NN_TYPE hw_type = (db->NN_XYDP0) ? USC_NN_TYPE_V8 :
         (
         (db->VIP_V7)?USC_NN_TYPE_V7:USC_NN_TYPE_V6

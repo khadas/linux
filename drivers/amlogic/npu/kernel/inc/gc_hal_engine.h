@@ -1538,6 +1538,7 @@ typedef struct _gcsTHREAD_WALKER_INFO
     gctUINT32   groupNumberUniformIdx;
     gctUINT32   baseAddress;
     gctBOOL     bDual16;
+    gctBOOL     bVipSram;
 }
 gcsTHREAD_WALKER_INFO;
 
@@ -1913,6 +1914,9 @@ typedef struct _gcsTEXTURE
 
     gcuVALUE                    borderColor[4];
     gctBOOL                     descDirty;
+
+    /* texture stage */
+    gctINT                      stage;
 }
 gcsTEXTURE, * gcsTEXTURE_PTR;
 
@@ -1945,6 +1949,7 @@ gceSTATUS
 gcoTEXTURE_ConstructSized(
     IN gcoHAL Hal,
     IN gceSURF_FORMAT Format,
+    IN gceTILING Tiling,
     IN gctUINT Width,
     IN gctUINT Height,
     IN gctUINT Depth,
@@ -2127,6 +2132,12 @@ gcoTEXTURE_Disable(
     IN gcoHAL Hal,
     IN gctINT Sampler,
     IN gctBOOL DefaultInteger
+    );
+
+gceSTATUS
+gcoTEXTURE_Clear(
+    IN gcoTEXTURE Texture,
+    IN gctINT MipMap
     );
 
 gceSTATUS
@@ -2467,6 +2478,7 @@ typedef struct _gcsATTRIBUTE
 
     /* Index to vertex array */
     gctINT              arrayIdx;
+    gctINT              arrayLoc[32];
 
     gceATTRIB_SCHEME    convertScheme;
 
@@ -2742,9 +2754,16 @@ gcoBUFOBJ_SetBufferEndianHint(
     IN gcoBUFOBJ BufObj
     );
 
-/*  Sets a buffer object as dirty */
+/*  Query a buffer object dirty status */
 gceSTATUS
 gcoBUFOBJ_SetDirty(
+    IN gcoBUFOBJ BufObj,
+    IN gctBOOL Dirty
+    );
+
+/*  Sets a buffer object as dirty */
+gctBOOL
+gcoBUFOBJ_IsDirty(
     IN gcoBUFOBJ BufObj
     );
 

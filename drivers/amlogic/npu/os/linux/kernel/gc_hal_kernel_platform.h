@@ -61,6 +61,10 @@
 #include <linux/pci.h>
 #endif
 
+#if USE_LINUX_PCIE
+#define gcdMAX_PCIE_BAR    6
+#endif
+
 #define POWER_IDLE          0
 #define POWER_ON            1
 #define POWER_SUSPEND       2
@@ -84,12 +88,12 @@ typedef struct _gcsMODULE_PARAMETERS
     gctBOOL                 contiguousRequested;
 
     /* External memory pool. */
-    gctPHYS_ADDR_T          externalBase;
-    gctSIZE_T               externalSize;
+    gctPHYS_ADDR_T          externalBase[gcdPLATFORM_DEVICE_COUNT];
+    gctSIZE_T               externalSize[gcdPLATFORM_DEVICE_COUNT];
 
     /* External memory pool. */
-    gctPHYS_ADDR_T          exclusiveBase;
-    gctSIZE_T               exclusiveSize;
+    gctPHYS_ADDR_T          exclusiveBase[gcdPLATFORM_DEVICE_COUNT];
+    gctSIZE_T               exclusiveSize[gcdPLATFORM_DEVICE_COUNT];
 
     /* Per-core SRAM. */
     gctPHYS_ADDR_T          sRAMBases[gcvCORE_COUNT][gcvSRAM_INTER_COUNT];
@@ -103,6 +107,8 @@ typedef struct _gcsMODULE_PARAMETERS
     gctINT32                sRAMBars[gcvSRAM_EXT_COUNT];
     gctINT32                sRAMOffsets[gcvSRAM_EXT_COUNT];
 #endif
+
+    gctUINT                 pdevCoreCount[gcdPLATFORM_DEVICE_COUNT];
 
     gctBOOL                 sRAMRequested;
     gctUINT32               sRAMLoopMode;
@@ -123,8 +129,8 @@ typedef struct _gcsMODULE_PARAMETERS
 
     /* Debug or other information. */
     gctUINT                 stuckDump;
-	gctINT                  gpuProfiler;
     gctUINT                 softReset;
+    gctINT                  gpuProfiler;
     /* device type, 0 for char device, 1 for misc device. */
     gctUINT                 deviceType;
     gctUINT                 showArgs;
@@ -320,7 +326,7 @@ typedef struct _gcsPLATFORM_OPERATIONS
         IN gctUINT32 Reason
     );
 
-	/*******************************************************************************
+    /*******************************************************************************
     **
     ** getPowerStatus
     **
@@ -331,8 +337,8 @@ typedef struct _gcsPLATFORM_OPERATIONS
         IN gcsPLATFORM *Platform,
         OUT gctUINT32_PTR pstat
 		);
-	
-	/*******************************************************************************
+
+    /*******************************************************************************
     **
     ** setPolicy
     **
@@ -343,7 +349,6 @@ typedef struct _gcsPLATFORM_OPERATIONS
         IN gcsPLATFORM *Platform,
         IN gctUINT32  powerLevel
         );
-
 
     /*******************************************************************************
     **

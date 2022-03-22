@@ -16,6 +16,10 @@
 
 #include "gc_hal_types.h"
 
+#if defined(__QNXNTO__)
+#include <sys/siginfo.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -148,7 +152,7 @@ typedef struct _gcsTASK_SIGNAL
     IN gctSIGNAL                signal;
 
 #if defined(__QNXNTO__)
-    IN gctINT32                 coid;
+    IN struct sigevent          event;
     IN gctINT32                 rcvid;
 #endif
 }

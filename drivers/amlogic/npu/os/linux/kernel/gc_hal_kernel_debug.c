@@ -61,7 +61,7 @@
 \******************************************************************************/
 
 static gceSTATUS _lastError  = gcvSTATUS_OK;
-static gctUINT32 _debugLevel = gcvLEVEL_ERROR;
+static gctINT32 _debugLevel = gcvLEVEL_ERROR;
 extern int aml_debuglevel;
 /*
 _debugZones config value
@@ -536,7 +536,7 @@ gckOS_Print(
 
 void
 gckOS_DebugTrace(
-    IN gctUINT32 Level,
+    IN gctINT32 Level,
     IN gctCONST_STRING Message,
     ...
     )
@@ -577,13 +577,14 @@ gckOS_DebugTrace(
 
 void
 gckOS_DebugTraceZone(
-    IN gctUINT32 Level,
+    IN gctINT32 Level,
     IN gctUINT32 Zone,
     IN gctCONST_STRING Message,
     ...
     )
 {
     _debugLevel = aml_debuglevel;
+
     if ((Level > _debugLevel) || !(Zone & _debugZones))
     {
         return;

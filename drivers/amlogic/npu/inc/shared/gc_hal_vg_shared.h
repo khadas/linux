@@ -14,6 +14,10 @@
 #ifndef __gc_hal_shared_vg_h_
 #define __gc_hal_shared_vg_h_
 
+#if defined(__QNXNTO__)
+#include <sys/siginfo.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -119,7 +123,7 @@ typedef struct _gcsVGCONTEXT
 
 #if defined(__QNXNTO__)
     gctSIGNAL                   userSignal;
-    gctINT32                    coid;
+    struct sigevent             event;
     gctINT32                    rcvid;
 #endif
 }
@@ -163,7 +167,7 @@ typedef struct _gcsTASK_MASTER_TABLE
     gctUINT                     size;
 
 #if defined(__QNXNTO__)
-    gctINT32                    coid;
+    struct sigevent             event;
     gctINT32                    rcvid;
 #endif
 }

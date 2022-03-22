@@ -94,7 +94,7 @@ typedef struct _gcoCL_DEVICE_INFO
 
     /* cluster info */
     gctBOOL             clusterSupport;
-    gctUINT32           clusterCount[gcdMAX_MAJOR_CORE_COUNT];
+    gctUINT32           clusterCount;  /* cluster count per core */
     gctUINT32           clusterAliveMask[gcdMAX_MAJOR_CORE_COUNT];
     gctUINT32           clusterAliveCount[gcdMAX_MAJOR_CORE_COUNT];
     gctUINT32           clusterMinID[gcdMAX_MAJOR_CORE_COUNT];
@@ -138,6 +138,19 @@ gceSTATUS
 gcoCL_ForceRestoreHardwareType(
     IN gceHARDWARE_TYPE savedType
     );
+
+/*******************************************************************************
+**
+**  gcoCL_GetCurrentPhysicalAddr
+**
+*/
+gceSTATUS
+gcoCL_GetCurrentPhysicalAddr(
+    IN gcsSURF_NODE_PTR    Node,
+    IN  gceSURF_TYPE       surfType,
+    OUT gctUINT32  *       Address
+    );
+
 /*******************************************************************************
 **
 **  gcoCL_InitializeHardware
@@ -274,6 +287,15 @@ gcoCL_AllocateMemory(
 */
 gceSTATUS
 gcoCL_FreeMemory(
+    IN gctUINT32            Physical,
+    IN gctPOINTER           Logical,
+    IN gctUINT              Bytes,
+    IN gcsSURF_NODE_PTR     Node,
+    IN gceSURF_TYPE         Type
+    );
+
+gceSTATUS
+gcoCL_SyncFreeMemory(
     IN gctUINT32            Physical,
     IN gctPOINTER           Logical,
     IN gctUINT              Bytes,
@@ -652,7 +674,8 @@ gcoCL_CreateHWWithType(
 
 gceSTATUS
 gcoCL_DestroyHW(
-    gcoHARDWARE  Hardware
+    gcoHARDWARE  Hardware,
+    gctBOOL Stall
     );
 
 gceSTATUS
@@ -877,6 +900,35 @@ gcoCL_coreIdToChip(
     gcoHARDWARE Hardware,
     gctUINT coreId);
 
+gceSTATUS
+gcoCL_MultiGPUSync(
+    IN gcoHARDWARE Hardware,
+    IN gctUINT32_PTR * Memory
+    );
+
+gceSTATUS
+gcoCL_MultiGPUFlushCache(
+    IN gcoHARDWARE Hardware,
+    IN gctUINT32_PTR * Memory
+    );
+
+gceSTATUS
+gcoCL_FlushCache(
+    IN gcoHARDWARE Hardware,
+    IN gctUINT32_PTR * Memory
+    );
+
+gceSTATUS
+gcoCL_SetDefaultHardware(
+    IN gcoHARDWARE hw,
+    OUT gcoHARDWARE *savedHW
+    );
+
+gceSTATUS
+gcoCL_SetTimeOut(
+    IN gcoHARDWARE Hardware,
+    IN gctUINT32 timeOut
+    );
 #ifdef __cplusplus
 }
 #endif

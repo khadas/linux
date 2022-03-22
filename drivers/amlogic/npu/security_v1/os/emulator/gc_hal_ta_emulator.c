@@ -60,7 +60,7 @@
 
 #define _GC_OBJ_ZONE    gcvZONE_OS
 
-gcTA globalTA[16] = { gcvNULL, gcvNULL, gcvNULL, gcvNULL,gcvNULL, gcvNULL, gcvNULL, gcvNULL };
+gcTA globalTA[gcvCORE_COUNT];
 gctaOS globalTAos;
 
 struct _gctaOS {
@@ -98,6 +98,8 @@ gctaOS_ConstructOS(
 
     os = (gctaOS)pointer;
     os->os = Os;
+
+    gcmkONERROR(gckOS_ZeroMemory(globalTA, gcmSIZEOF(gcTA) * gcvCORE_COUNT));
 
     gcmkONERROR(gckOS_CreateMutex(Os, &os->dispatchMutex));
 

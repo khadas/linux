@@ -406,6 +406,7 @@ gckMCFE_Initialize(
 {
     gctUINT32 i;
     gceSTATUS status;
+    gctUINT32 eventEnable = 0xFFFFFFFF;
 
     gcmkHEADER_ARG("Hardware=%p MMUEnabled=%d FE=%p", Hardware, MMUEnabled, FE);
 
@@ -423,7 +424,7 @@ gckMCFE_Initialize(
         gckOS_WriteRegisterEx(Hardware->os,
                               Hardware->core,
                               0x00014,
-                              0xFFFFFFFF));
+                              eventEnable));
 
     FE->mmuEnabled = MMUEnabled;
 
@@ -581,7 +582,7 @@ gckMCFE_Event(
 #endif
 
 #if gcdINTERRUPT_STATISTIC
-        if (Event < gcmCOUNTOF(Hardware->kernel->eventObj->queues))
+        if (Event < (gctUINT8)Hardware->kernel->eventObj->totalQueueCount)
         {
             gckOS_AtomSetMask(Hardware->pendingEvent, 1 << Event);
         }

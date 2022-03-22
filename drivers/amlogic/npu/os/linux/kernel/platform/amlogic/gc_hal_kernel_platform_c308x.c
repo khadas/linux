@@ -1,56 +1,15 @@
 /****************************************************************************
 *
-*    The MIT License (MIT)
+*    Copyright (c) 2005 - 2021 by Vivante Corp.  All rights reserved.
 *
-*    Copyright (c) 2014 - 2018 Vivante Corporation
-*
-*    Permission is hereby granted, free of charge, to any person obtaining a
-*    copy of this software and associated documentation files (the "Software"),
-*    to deal in the Software without restriction, including without limitation
-*    the rights to use, copy, modify, merge, publish, distribute, sublicense,
-*    and/or sell copies of the Software, and to permit persons to whom the
-*    Software is furnished to do so, subject to the following conditions:
-*
-*    The above copyright notice and this permission notice shall be included in
-*    all copies or substantial portions of the Software.
-*
-*    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-*    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-*    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-*    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-*    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-*    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-*    DEALINGS IN THE SOFTWARE.
-*
-*****************************************************************************
-*
-*    The GPL License (GPL)
-*
-*    Copyright (C) 2014 - 2018 Vivante Corporation
-*
-*    This program is free software; you can redistribute it and/or
-*    modify it under the terms of the GNU General Public License
-*    as published by the Free Software Foundation; either version 2
-*    of the License, or (at your option) any later version.
-*
-*    This program is distributed in the hope that it will be useful,
-*    but WITHOUT ANY WARRANTY; without even the implied warranty of
-*    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*    GNU General Public License for more details.
-*
-*    You should have received a copy of the GNU General Public License
-*    along with this program; if not, write to the Free Software Foundation,
-*    Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
-*
-*****************************************************************************
-*
-*    Note: This software is released under dual MIT and GPL licenses. A
-*    recipient may use this file under the terms of either the MIT license or
-*    GPL License. If you wish to use only one license not the other, you can
-*    indicate your decision by deleting one of the above license notices in your
-*    version of this file.
+*    The material in this file is confidential and contains trade secrets
+*    of Vivante Corporation. This is proprietary information owned by
+*    Vivante Corporation. No part of this work may be disclosed,
+*    reproduced, copied, transmitted, or used in any way for any purpose,
+*    without the express written permission of Vivante Corporation.
 *
 *****************************************************************************/
+
 
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -69,7 +28,6 @@
 #include <dt-bindings/clock/amlogic,g12a-clkc.h>
 #endif
 
-#define NN_PD_0X99 16
 /*======== power version 0 hardware reg begin ===========*/
 #define AO_RTI_BASE           0xff800000
 #define AO_RTI_GEN_PWR_SLEEP0 (AO_RTI_BASE + (0x3a<<2))
@@ -80,8 +38,8 @@
 #define P_PWRCTRL_ISO_EN1      0xfe007818
 #define P_PWRCTRL_PWR_OFF1     0xfe00781c
 
-static	uint32_t HHI_NANOQ_MEM_PD_REG0 = 0xff63c10c;
-static	uint32_t HHI_NANOQ_MEM_PD_REG1 = 0xff63c110;
+static    uint32_t HHI_NANOQ_MEM_PD_REG0 = 0xff63c10c;
+static    uint32_t HHI_NANOQ_MEM_PD_REG1 = 0xff63c110;
 static  uint32_t RESET_LEVEL2 = 0xffd01088;
 
 static  uint32_t NN_clk = 0xff63c1c8;
@@ -92,8 +50,6 @@ static int hardwareResetNum = 0;
 module_param(hardwareResetNum, int, 0644);
 static int nanoqFreq = 800000000;
 module_param(nanoqFreq, int, 0644);
-
-static gctUINT32 powerStatus = 0;
 
 gceSTATUS _InitDtsRegValue(IN gcsPLATFORM *Platform)
 {
@@ -106,28 +62,28 @@ gceSTATUS _InitDtsRegValue(IN gcsPLATFORM *Platform)
     if (res)
     {
         HHI_NANOQ_MEM_PD_REG0 = (unsigned long)res->start;
-/*        printk("reg resource 2, start: %lx,end: %lx\n",(unsigned long)res->start,(unsigned long)res->end);*/
+        printk("reg resource 2, start: %lx,end: %lx\n",(unsigned long)res->start,(unsigned long)res->end);
     }
 
     res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
     if (res)
     {
         HHI_NANOQ_MEM_PD_REG1 = (unsigned long)res->start;
-/*        printk("reg resource 3, start: %lx,end: %lx\n",(unsigned long)res->start,(unsigned long)res->end);*/
+        printk("reg resource 3, start: %lx,end: %lx\n",(unsigned long)res->start,(unsigned long)res->end);
     }
 
     res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
     if (res)
     {
         RESET_LEVEL2 = (unsigned long)res->start;
-/*        printk("reg resource 4, start: %lx,end: %lx\n",(unsigned long)res->start,(unsigned long)res->end);*/
+        printk("reg resource 4, start: %lx,end: %lx\n",(unsigned long)res->start,(unsigned long)res->end);
     }
 
     res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "NN_CLK");
     if (res)
     {
         NN_clk = (unsigned long)res->start;
-/*        printk("reg resource NN_CLK, start: %lx,end: %lx\n",(unsigned long)res->start,(unsigned long)res->end);*/
+        printk("reg resource NN_CLK, start: %lx,end: %lx\n",(unsigned long)res->start,(unsigned long)res->end);
     }
 
     ret = of_property_read_u32(pdev->dev.of_node,"nn_power_version",&nn_power_version);
@@ -141,6 +97,8 @@ gceSTATUS _AdjustParam(IN gcsPLATFORM *Platform,OUT gcsMODULE_PARAMETERS *Args)
     struct platform_device *pdev = Platform->device;
     int irqLine = platform_get_irq_byname(pdev, "galcore");
 
+    if (irqLine >= 0)
+        printk("galcore irq number is %d.\n", irqLine);
     if (irqLine < 0) {
         printk("get galcore irq resource error\n");
         irqLine = platform_get_irq(pdev, 0);
@@ -155,7 +113,7 @@ gceSTATUS _AdjustParam(IN gcsPLATFORM *Platform,OUT gcsMODULE_PARAMETERS *Args)
     if (res)
     {
         Args->registerBases[0] = (gctPHYS_ADDR_T)res->start;
-        Args->registerSizes[0] = 0x20000;
+        Args->registerSizes[0] = (gctSIZE_T)(res->end - res->start+1);
     }
     else
     {
@@ -170,7 +128,7 @@ gceSTATUS _AdjustParam(IN gcsPLATFORM *Platform,OUT gcsMODULE_PARAMETERS *Args)
         Args->extSRAMBases[0] = (gctPHYS_ADDR_T)res->start;
 
         Args->contiguousBase = 0;
-        Args->contiguousSize = 0x200000;/*(gctSIZE_T)(res->end - res->start+1);*/
+        Args->contiguousSize = (gctSIZE_T)(res->end - res->start+1);
     }
     else
     {
@@ -292,37 +250,31 @@ void Getpower_88(struct platform_device *pdev)
 }
 void Getpower_99(struct platform_device *pdev)
 {
-	uint32_t readReg = 0;
-	_RegRead(AO_RTI_GEN_PWR_SLEEP0,&readReg);
-	readReg = (readReg & 0xfffeffff);
-	_RegWrite(AO_RTI_GEN_PWR_SLEEP0, readReg);
+    uint32_t readReg = 0;
+    _RegRead(AO_RTI_GEN_PWR_SLEEP0,&readReg);
+    readReg = (readReg & 0xfffeffff);
+    _RegWrite(AO_RTI_GEN_PWR_SLEEP0, readReg);
 
-	_RegWrite(HHI_NANOQ_MEM_PD_REG0, 0x0);
-	_RegWrite(HHI_NANOQ_MEM_PD_REG1, 0x0);
+    _RegWrite(HHI_NANOQ_MEM_PD_REG0, 0x0);
+    _RegWrite(HHI_NANOQ_MEM_PD_REG1, 0x0);
 
-	_RegRead(RESET_LEVEL2,&readReg);
-	readReg = (readReg & 0xffffefff);
-	_RegWrite(RESET_LEVEL2, readReg);
+    _RegRead(RESET_LEVEL2,&readReg);
+    readReg = (readReg & 0xffffefff);
+    _RegWrite(RESET_LEVEL2, readReg);
 
-	_RegRead(AO_RTI_GEN_PWR_ISO0,&readReg);
-	readReg = (readReg & 0xfffeffff);
-	_RegWrite(AO_RTI_GEN_PWR_ISO0, readReg);
+    _RegRead(AO_RTI_GEN_PWR_ISO0,&readReg);
+    readReg = (readReg & 0xfffeffff);
+    _RegWrite(AO_RTI_GEN_PWR_ISO0, readReg);
 
-	_RegRead(RESET_LEVEL2,&readReg);
-	readReg = (readReg | (0x1<<12));
-	_RegWrite(RESET_LEVEL2, readReg);
+    _RegRead(RESET_LEVEL2,&readReg);
+    readReg = (readReg | (0x1<<12));
+    _RegWrite(RESET_LEVEL2, readReg);
 
-	set_clock(pdev);
+    set_clock(pdev);
 }
 void Getpower_a1(struct platform_device *pdev)
 {
     /*C1 added power domain, it will get domain power when prob*/
-    set_clock(pdev);
-    return;
-}
-void Getpower_be(struct platform_device *pdev)
-{
-    /*C2 added power domain, it will get domain power when prob*/
     set_clock(pdev);
     return;
 }
@@ -345,31 +297,26 @@ void Downpower_88(void)
 }
 void Downpower_99(void)
 {
-	unsigned int readReg=0;
+    unsigned int readReg=0;
 
-	_RegRead(RESET_LEVEL2,&readReg);
-	readReg = (readReg & (~(0x1<<12)));
-	_RegWrite(RESET_LEVEL2, readReg);
+    _RegRead(RESET_LEVEL2,&readReg);
+    readReg = (readReg & (~(0x1<<12)));
+    _RegWrite(RESET_LEVEL2, readReg);
 
-	_RegRead(AO_RTI_GEN_PWR_ISO0,&readReg);
-	readReg = (readReg | 0x10000);
-	_RegWrite(AO_RTI_GEN_PWR_ISO0, readReg);
+    _RegRead(AO_RTI_GEN_PWR_ISO0,&readReg);
+    readReg = (readReg | 0x10000);
+    _RegWrite(AO_RTI_GEN_PWR_ISO0, readReg);
 
-	_RegWrite(HHI_NANOQ_MEM_PD_REG0, 0xffffffff);
-	_RegWrite(HHI_NANOQ_MEM_PD_REG1, 0xffffffff);
+    _RegWrite(HHI_NANOQ_MEM_PD_REG0, 0xffffffff);
+    _RegWrite(HHI_NANOQ_MEM_PD_REG1, 0xffffffff);
 
-	_RegRead(AO_RTI_GEN_PWR_SLEEP0,&readReg);
-	readReg = (readReg | 0x10000);
-	_RegWrite(AO_RTI_GEN_PWR_SLEEP0, readReg);
+    _RegRead(AO_RTI_GEN_PWR_SLEEP0,&readReg);
+    readReg = (readReg | 0x10000);
+    _RegWrite(AO_RTI_GEN_PWR_SLEEP0, readReg);
 }
 void Downpower_a1(void)
 {
     /*C1 added power domain, it will down domain power when rmmod */
-    return;
-}
-void Downpower_be(void)
-{
-    /*C2 added power domain, it will down domain power when rmmod */
     return;
 }
 
@@ -404,25 +351,9 @@ void Runtime_downpower_a1(struct platform_device *pdev)
     pm_runtime_disable(&pdev->dev);
 }
 
-void Runtime_getpower_be(struct platform_device *pdev)
-{
-    int ret;
-
-    pm_runtime_enable(&pdev->dev);
-    ret = pm_runtime_get_sync(&pdev->dev);
-    if (ret < 0) printk("===runtime getpower error===\n");
-    set_clock(pdev);
-}
-void Runtime_downpower_be(struct platform_device *pdev)
-{
-
-    pm_runtime_put_sync(&pdev->dev);
-    pm_runtime_disable(&pdev->dev);
-}
 gceSTATUS _GetPower(IN gcsPLATFORM *Platform)
 {
     struct platform_device *pdev = Platform->device;
-    powerStatus = POWER_IDLE;
     _InitDtsRegValue(Platform);
     switch (nn_power_version)
     {
@@ -436,14 +367,9 @@ gceSTATUS _GetPower(IN gcsPLATFORM *Platform)
         case 3:
             Getpower_99(pdev);
             break;
-        case 4:
-            nanoqFreq=666*1024*1024;
-            Getpower_be(pdev);
-            break;
         default:
             printk("not find power_version\n");
     }
-    powerStatus = POWER_ON;
     return gcvSTATUS_OK;
 }
 
@@ -463,14 +389,9 @@ gceSTATUS  _SetPower(IN gcsPLATFORM * Platform,IN gceCORE GPU,IN gctBOOL Enable)
             case 3:
                 Runtime_downpower_99();
                 break;
-            case 4:
-                Runtime_downpower_be(pdev);
-                break;
             default:
                 printk("not find power_version\n");
-                break;
         }
-        powerStatus = POWER_OFF;
     }
     else
     {
@@ -485,14 +406,9 @@ gceSTATUS  _SetPower(IN gcsPLATFORM * Platform,IN gceCORE GPU,IN gctBOOL Enable)
             case 3:
                 Runtime_getpower_99(pdev);
                 break;
-            case 4:
-                Runtime_getpower_be(pdev);
-                break;
             default:
                 printk("not find power_version\n");
-                break;
         }
-        powerStatus = POWER_ON;
     }
     return gcvSTATUS_OK;
 }
@@ -500,7 +416,6 @@ gceSTATUS  _SetPower(IN gcsPLATFORM * Platform,IN gceCORE GPU,IN gctBOOL Enable)
 gceSTATUS _Reset(IN gcsPLATFORM * Platform, IN gceCORE GPU)
 {
     struct platform_device *pdev = Platform->device;
-    powerStatus = POWER_RESET;
     switch (nn_power_version)
     {
         case 1:
@@ -518,14 +433,8 @@ gceSTATUS _Reset(IN gcsPLATFORM * Platform, IN gceCORE GPU)
             mdelay(10);
             Getpower_99(pdev);
             break;
-        case 4:
-            Runtime_downpower_be(pdev);
-            mdelay(10);
-            Runtime_getpower_be(pdev);
-            break;
         default:
             printk("not find power_version\n");
-            break;
     }
     mdelay(2);
     printk("====>>>>npu hardware reset end!\n");
@@ -535,7 +444,6 @@ gceSTATUS _Reset(IN gcsPLATFORM * Platform, IN gceCORE GPU)
         printk("hardwareResetNum is too large over 10000,just set zero\n");
         hardwareResetNum = 0;
     }
-    powerStatus = POWER_ON;
     return gcvSTATUS_OK;
 }
 
@@ -552,55 +460,9 @@ gceSTATUS _DownPower(IN gcsPLATFORM *Platform)
         case 3:
             Downpower_99();
             break;
-        case 4:
-            Downpower_be();
-            break;
         default:
             printk("not find power_version\n");
-            break;
     }
-    powerStatus = POWER_OFF;
-    return gcvSTATUS_OK;
-}
-
-gceSTATUS
-_GetPowerStatus(IN gcsPLATFORM *Platform,OUT gctUINT32_PTR  pstat)
-{
-    *pstat = powerStatus;
-    return gcvSTATUS_OK;
-}
-
-gceSTATUS _SetPolicy(IN gcsPLATFORM *Platform,IN gctUINT32  powerLevel)
-{
-    //printk("nn_power_version:%d\n",nn_power_version);
-    switch (nn_power_version)
-    {
-        case 1:
-            nanoqFreq=666*1024*1024;
-            break;
-        case 2:
-            nanoqFreq=800000000;
-            break;
-        case 3:
-            nanoqFreq=800000000;
-            break;
-        case 4:
-            nanoqFreq=666*1024*1024;
-            break;
-        default:
-            nanoqFreq=800000000;
-            break;
-    }
-
-    if (powerLevel == 2)
-    {
-        nanoqFreq = nanoqFreq/2;
-    }
-    else if(powerLevel == 3)
-    {
-        nanoqFreq = nanoqFreq/4;
-    }
-    printk("nanoqFreq:%d\n",nanoqFreq);
     return gcvSTATUS_OK;
 }
 
@@ -611,8 +473,6 @@ static gcsPLATFORM_OPERATIONS default_ops =
     .reset = _Reset,
     .putPower = _DownPower,
     .setPower = _SetPower,
-    .getPowerStatus = _GetPowerStatus,
-    .setPolicy = _SetPolicy,
 };
 
 static gcsPLATFORM default_platform =

@@ -1644,7 +1644,8 @@ gckKERNEL_CommandCommitPreemption(
             status = gckEVENT_Commit(
                 EventObj,
                 gcmUINT64_TO_PTR(SubCommit->queue),
-                Kernel->hardware->options.powerManagement
+                Kernel->hardware->options.powerManagement,
+                gcvTRUE
                 );
 
             if (status != gcvSTATUS_INTERRUPTED)
@@ -1792,7 +1793,8 @@ gckKERNEL_EventCommitPreemption(
             gcmkONERROR(
                 gckEVENT_Commit(eventObj,
                                 Queue,
-                                gcvFALSE));
+                                gcvFALSE,
+                                gcvTRUE));
 
         }
     }

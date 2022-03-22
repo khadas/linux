@@ -20,6 +20,7 @@
 #define __gc_vsc_old_drvi_interface_h_
 
 #define _SUPPORT_LONG_ULONG_DATA_TYPE  1
+#define _SUPPORT_DOUBLE_DATA_TYPE      0
 #define _OCL_USE_INTRINSIC_FOR_IMAGE   1
 #define _SUPPORT_NATIVE_IMAGE_READ     1
 
@@ -48,7 +49,6 @@ BEGIN_EXTERN_C()
 #define GC_DEFAULT_TESS_LEVEL           0xFFFF
 
 /* For OES. */
-#define _sldSharedVariableStorageBlockName  "#sh_sharedVar"
 #define _sldWorkGroupIndex                  "#sh_workGroupIndex"
 #define _sldModWorkGroupIdName              "#sh_modWorkgroupId"
 #define __INIT_VALUE_FOR_WORK_GROUP_INDEX__ 0x1234
@@ -58,7 +58,6 @@ BEGIN_EXTERN_C()
 #define _sldGlobalSizeName                  "#global_size"
 #define _sldGlobalOffsetName                "#global_offset"
 #define _sldEnqueuedLocalSizeName           "#enqueued_local_size"
-#define _sldLocalStorageAddressName         "#sh_local_address"
 #define _sldWorkGroupCountName              "#workGroupCount"
 #define _sldWorkGroupIdOffsetName           "#workGroupIdOffset"
 #define _sldGlobalIdOffsetName              "#globalIdOffset"
@@ -67,8 +66,12 @@ BEGIN_EXTERN_C()
 /* Shared use. */
 #define _sldLocalInvocationIndexName        "#local_invocation_index"
 #define _sldLocalMemoryAddressName          "#sh_localMemoryAddress"
+#define _sldThreadMemorySBOName             "#sh_threadMemSBO"
+#define _sldThreadMemoryAddressName         "#sh_threadMemAddr"
+#define _sldPrivateMemorySBOName            "#private_address"
 #define _sldThreadIdMemoryAddressName       "#sh_threadIdMemAddr"
 #define _sldWorkThreadCountName             "#sh_workThreadCount"
+#define _sldLocalStorageAddressName         "#sh_local_address"
 
 #define FULL_PROGRAM_BINARY_SIG_1           gcmCC('F', 'U', 'L', 'L')
 #define FULL_PROGRAM_BINARY_SIG_2           gcmCC('P', 'R', 'G', 'M')
@@ -123,6 +126,7 @@ enum gceRecompileKind
     gceRK_PATCH_Y_FLIPPED_SHADER,
     gceRK_PATCH_INVERT_FRONT_FACING,
     gceRK_PATCH_ALPHA_TEST,
+    gceRK_PATCH_POINT_SIZE,
     gceRK_PATCH_SAMPLE_MASK,
     gceRK_PATCH_SIGNEXTENT,
     gceRK_PATCH_TCS_INPUT_COUNT_MISMATCH,
@@ -376,6 +380,12 @@ typedef struct _gcsPatchAlphaTestShader
 }
 gcsPatchAlphaTestShader;
 
+typedef struct _gcsPatchPointSizeShader
+{
+    gcUNIFORM pointSize; /* uniform contains refValue and func. */
+}
+gcsPatchPointSizeShader;
+
 typedef struct _gcsPatchFlippedSamplePosition
 {
     gctFLOAT  value;  /* change gl_SamplePosition to (value - gl_SamplePosition); */
@@ -460,6 +470,7 @@ typedef struct _gcRecompileDirective
         gcsPatchRemoveAssignmentForAlphaChannel * removeOutputAlpha;
         gcsPatchYFlippedShader *  yFlippedShader;
         gcsPatchAlphaTestShader * alphaTestShader;
+        gcsPatchPointSizeShader * addPointSize;
         gcsPatchSampleMask *      sampleMask;
         gcsPatchSignExtent *      signExtent;
         gcsPatchTCSInputCountMismatch *  inputMismatch;
@@ -866,6 +877,12 @@ typedef struct _gcsHINT
 
     gceLOCAL_ID_W_KIND localIdWKind;
 
+    /* Use 40-bit memory address. */
+    gctBOOL     bUse40BitMemAddr;
+
+    /* Whether use user defined Mem. */
+    gctBOOL     bUseUserDefMem;
+
     /* Sampler Base offset. */
     gctBOOL     useGPRSpill[gcvPROGRAM_STAGE_LAST];
 
@@ -884,8 +901,10 @@ typedef struct _gcsHINT
 }gcsHINT;
 
 #if defined(_WINDOWS)
+#if !DX_SHADER
 char _check_shader_vid_nodes_offset[(gcmOFFSETOF(_gcsHINT, shaderVidNodes) % 8) == 0];
 char _check_hint_size[(sizeof(struct _gcsHINT) % 8) == 0];
+#endif
 #endif
 
 #define gcsHINT_isCLShader(Hint)            ((Hint)->clShader)
@@ -914,6 +933,7 @@ typedef enum _gcSHADER_TYPE_KIND
     gceTK_SHORT,
     gceTK_USHORT,
     gceTK_FLOAT16,
+    gceTK_FLOAT64,
     gceTK_OTHER
 } gcSHADER_TYPE_KIND;
 
@@ -1098,8 +1118,13 @@ gceSHADER_FLAGS;
 
 typedef enum _gceSHADER_EXT_FLAGS
 {
-    gcvSHADER_EXTFLAG_NONE                  = 0x00000000,
-    gcvSHADER_EXTFLAG_ALWAYS_EMIT_OUTPUT    = 0x00000001,
+    gcvSHADER_EXTFLAG_NONE                              = 0x00000000,
+    gcvSHADER_EXTFLAG_ALWAYS_EMIT_OUTPUT                = 0x00000001,
+    gcvSHADER_EXTFLAG_USE_40BIT_MEM_ADDR                = 0x00000002,
+    gcvSHADER_EXTFLAG_USE_USE_ONE_COMP_MEM_OFFSET       = 0x00000004,
+    gcvSHADER_EXTFLAG_MSAA_DISABLED                     = 0x00000008,
+    /* Apply the SW WAR for the mul/mad/add nan issue. */
+    gcvSHADER_EXTFLAG_APPLY_MUL_ADD_NAN_WAR             = 0x00000010,
 } gceSHADER_EXT_FLAGS;
 
 typedef struct _gceSHADER_SUB_FLAGS
@@ -1350,7 +1375,7 @@ typedef struct _gcOPTIMIZER_OPTION
     gctBOOL     dumpPPedStr2File;      /* dump FE preprocessed string to file */
     gctBOOL     dumpUniform;           /* dump uniform value when setting uniform */
     gctBOOL     dumpSpirvIR;           /* dump VIR shader convert from SPIRV */
-    gctBOOL     dumpSpirvToFile;       /* dump SPRIV to file */
+    gctBOOL     dumpSpirvToFile;       /* dump SPIRV to file */
     gctBOOL     dumpBinToFile;         /* dump program binary to file when calling gcLoadProgram */
     gctBOOL     dumpHashPerf;          /* dump hash table performance */
     gctINT      _dumpStart;            /* shader id start to dump */
@@ -1917,29 +1942,29 @@ extern gctBOOL gcDoTriageForShaderId(gctINT shaderId, gctINT startId, gctINT end
 
 /* Setters */
 /* feature bits */
-#define FB_LIVERANGE_FIX1                   0x0001
-#define FB_INLINE_RENAMETEMP                0x0002
-#define FB_UNLIMITED_INSTRUCTION            0x0004
-#define FB_DISABLE_PATCH_CODE               0x0008
-#define FB_DISABLE_MERGE_CONST              0x0010
-#define FB_DISABLE_OLD_DCE                  0x0020
-#define FB_INSERT_MOV_INPUT                 0x0040  /* insert MOV Rn, Rn for input to help HW team to debug */
-#define FB_ENABLE_FS_OUT_INIT               0x0080  /* enable Fragment shader output
-                                                       initialization if it is un-initialized */
-#define FB_ENABLE_CONST_BORDER              0x0100  /* enable const border value, driver need to set #constBorderValue uniform */
-#define FB_FORCE_LS_ACCESS                  0x8000  /* triage use: enforce all load/store as local storage access,
-                                                       remove this feature bit once local storage access is supported */
-#define FB_FORCE_USC_UNALLOC                0x10000 /* triage use: enforce all load/store as USC Unalloc  */
-
-#define FB_TREAT_CONST_ARRAY_AS_UNIFORM     0x20000 /* Treat a const array as a uniform,
-                                                       it can decrease the temp registers but increases the constant registers. */
-#define FB_DISABLE_GL_LOOP_UNROLLING        0x40000 /* Disable loop unrolling for GL FE. */
-
-#define FB_GENERATED_OFFLINE_COMPILER       0x80000 /* Enable Offline Compile . */
-
-#define FB_VSIMULATOR_RUNNING_MODE          0x100000 /* VSimulator running mode. */
-
-#define FB_VIV_VX_KERNEL                    0x200000        /* A OVX kernel, we need to replace this by using gceAPI. */
+#define FB_LIVERANGE_FIX1                               0x0001
+#define FB_INLINE_RENAMETEMP                            0x0002
+#define FB_UNLIMITED_INSTRUCTION                        0x0004
+#define FB_DISABLE_PATCH_CODE                           0x0008
+#define FB_DISABLE_MERGE_CONST                          0x0010
+#define FB_DISABLE_OLD_DCE                              0x0020
+#define FB_INSERT_MOV_INPUT                             0x0040  /* insert MOV Rn, Rn for input to help HW team to debug */
+#define FB_ENABLE_FS_OUT_INIT                           0x0080  /* enable Fragment shader output
+                                                                   initialization if it is un-initialized */
+#define FB_ENABLE_CONST_BORDER                          0x0100  /* enable const border value, driver need to set #constBorderValue uniform */
+#define FB_FORCE_LS_ACCESS                              0x8000  /* triage use: enforce all load/store as local storage access,
+                                                                   remove this feature bit once local storage access is supported */
+#define FB_FORCE_USC_UNALLOC                            0x10000 /* triage use: enforce all load/store as USC Unalloc  */
+#define FB_TREAT_CONST_ARRAY_AS_UNIFORM                 0x20000 /* Treat a const array as a uniform,
+                                                                   it can decrease the temp registers but increases the constant registers. */
+#define FB_DISABLE_GL_LOOP_UNROLLING                    0x40000 /* Disable loop unrolling for GL FE. */
+#define FB_GENERATED_OFFLINE_COMPILER                   0x80000 /* Enable Offline Compile . */
+#define FB_VSIMULATOR_RUNNING_MODE                      0x100000 /* VSimulator running mode. */
+#define FB_VIV_VX_KERNEL                                0x200000 /* A OVX kernel, we need to replace this by using gceAPI. */
+#define FB_TREAT_SAMPLER_BUFFER_AS_IMAGE                0x400000
+#define FB_EXE_ONE_ATOMIC_WITHIN_SHADER                 0x800000 /* Makes only one thread active executing an ATOMIC instruction in a certain shader group. */
+#define FB_FORCE_APPLY_EXE_ONE_ATOMIC_WITHIN_SHADER     0x1000000
+#define FB_ENABLE_CS_FOR_430                            0x2000000 /* Enable compute shader for openGL 430 version*/
 
 #define gcmOPT_SetPatchTexld(m,n) (gcmGetOptimizerOption()->patchEveryTEXLDs = (m),\
                                    gcmGetOptimizerOption()->patchDummyTEXLDs = (n))
@@ -2002,6 +2027,10 @@ gcePROVOKING_VERTEX_CONVENSION;
                                                 "GL_EXT_tessellation_point_size "\
                                                 "GL_OES_sample_variables "\
                                                 "GL_OES_shader_multisample_interpolation"
+
+#define __DEFAULT_ENABLED_EXTENSION_STRING__    "GL_ARB_explicit_attrib_location"\
+                                                "GL_ARB_uniform_buffer_object"\
+                                                "GL_ARB_compatibility"
 
 typedef struct _gcsGLSLCaps
 {
@@ -2145,6 +2174,7 @@ typedef struct _gcsGLSLCaps
 
     /* GLSL extension string. */
     gctSTRING extensions;
+    gctSTRING defaultEnabledExtensions;
 } gcsGLSLCaps;
 
 /* PatchID*/
@@ -2195,7 +2225,7 @@ gcSetHWCaps(
 #define GetHWHasTexldUFix()                   (gcGetHWCaps()->hwFeatureFlags.hasTexldUFix)
 #define GetHWSupportTexldUV1()                (GetHWHasUniversalTexldV1())
 #define GetHWSupportTexldUV2()                (GetHWHasUniversalTexldV2() && GetHWHasTexldUFix())
-#define GetHWSupportTexldU()                  (GetHWSupportTexldUV1() && GetHWSupportTexldUV2())
+#define GetHWSupportTexldU()                  (GetHWSupportTexldUV1() || GetHWSupportTexldUV2())
 #define GetHWHasImageOutBoundaryFix()         (gcGetHWCaps()->hwFeatureFlags.hasImageOutBoundaryFix)
 
 /* Get HW caps. */
@@ -2329,6 +2359,7 @@ extern gceSTATUS gcInitGLSLCaps(
 
 /* GLSL extension string. */
 #define GetGLExtensionString()                (gcGetGLSLCaps()->extensions)
+#define GetGLDefaultEnabledExtensionString()  (gcGetGLSLCaps()->defaultEnabledExtensions)
 
 void
 gcGetOptionFromEnv(
@@ -2714,6 +2745,31 @@ gcSHADER_Copy(
     );
 
 /*******************************************************************************
+**  gcSHADER_SaveHeader
+**
+**  Save a gcSHADER object to a binary buffer.
+**
+**  INPUT:
+**
+**      gcSHADER Shader
+**          Pointer to a gcSHADER object.
+**
+**      gctUINT32 Size
+**          The shader size of binary excluding header.
+**
+**  OUTPUT:
+**      gctUINT8** Buffer
+**          Pointer to a binary buffer to be used as storage for the gcSHADER.
+**
+*/
+gceSTATUS
+gcSHADER_SaveHeader(
+    IN gcSHADER        Shader,
+    IN gctUINT32       Size,
+    IN OUT gctUINT8**  Buffer
+    );
+
+/*******************************************************************************
 **  gcSHADER_LoadHeader
 **
 **  Load a gcSHADER object from a binary buffer.  The binary buffer is layed out
@@ -3050,6 +3106,31 @@ gcSHADER_GetBuiltinNameKind(
     IN gcSHADER              Shader,
     IN gctCONST_STRING       Name,
     OUT gctUINT32 *          Kind
+    );
+
+/*******************************************************************************
+**  gcSHADER_GetBuiltinNameUniformKind
+**
+**  Get the uniform kind based on the builtin name string.
+**
+**  INPUT:
+**
+**      gcSHADER Shader
+**          Pointer to a gcSHADER object.
+**
+**      gctCONST_STRING Name
+**          String of the name.
+**
+**  OUTPUT:
+**
+**      gceUNIFORM_FLAGS * UniformKind
+**          Pointer to a UniformKind.
+*/
+gceSTATUS
+gcSHADER_GetBuiltinNameUniformKind(
+    IN gcSHADER              Shader,
+    IN gctCONST_STRING       Name,
+    OUT gceUNIFORM_FLAGS *   UniformKind
     );
 
 /*******************************************************************************
@@ -8116,6 +8197,11 @@ gcCreateFrontFacingDirective(
 
 gceSTATUS
 gcCreateAlphaTestDirective(
+    OUT gcPatchDirective  **   PatchDirectivePtr
+    );
+
+gceSTATUS
+gcCreatePointSizeDirective(
     OUT gcPatchDirective  **   PatchDirectivePtr
     );
 

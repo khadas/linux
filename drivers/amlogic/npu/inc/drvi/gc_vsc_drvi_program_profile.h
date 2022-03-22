@@ -472,7 +472,7 @@ PROG_GL_XFB_OUT_TABLE;
 typedef struct PROG_VK_IMAGE_FORMAT_INFO
 {
     VSC_IMAGE_FORMAT                            imageFormat;
-    gctBOOL                                     bSetInSpriv;
+    gctBOOL                                     bSetInSpirv;
 }
 PROG_VK_IMAGE_FORMAT_INFO;
 
@@ -492,6 +492,20 @@ typedef struct PROG_VK_IMAGE_DERIVED_INFO
        Binding::arraySize array has levelsSamples, so this is the first entry
        of pMipLevel array. */
     SHADER_PRIV_CONSTANT_ENTRY*                 pMipLevel;
+
+    /* For an image, it might need an extra image information constant. As each texel buffer in
+       Binding::arraySize array has levelsSamples, so this is the first entry
+       of pExtraImageInfo1 array. */
+    SHADER_PRIV_CONSTANT_ENTRY*                 pExtraImageInfo1;
+
+    /* For an image, it might need an hw image-size attached.*/
+    SHADER_PRIV_CONSTANT_ENTRY*                 pHWImageSize;
+
+    /* Save the image description with the addressing mode NONE.  */
+    SHADER_PRIV_CONSTANT_ENTRY*                 pAddrModeNoneImage;
+
+    /* Save the address of this image.*/
+    SHADER_PRIV_CONSTANT_ENTRY*                 pImageAddr;
 
     /* ImageFormat, can be NONE. */
     PROG_VK_IMAGE_FORMAT_INFO                   imageFormatInfo;
@@ -910,8 +924,8 @@ PROG_VK_INPUT_ATTACHMENT_TABLE;
    VSC_SHADER_RESOURCE_TYPE_STORAGE_TEXEL_BUFFER
    VSC_SHADER_RESOURCE_TYPE_STORAGE_BUFFER_DYNAMIC
 */
-
-typedef struct PROG_VK_STORAGE_TABLE_ENTRY
+typedef struct _PROG_VK_STORAGE_TABLE_ENTRY PROG_VK_STORAGE_TABLE_ENTRY;
+struct _PROG_VK_STORAGE_TABLE_ENTRY
 {
     /* API resource binding */
     VSC_SHADER_RESOURCE_BINDING                 storageBinding;
@@ -937,8 +951,10 @@ typedef struct PROG_VK_STORAGE_TABLE_ENTRY
 
     /* Different shader stage may have different HW mappings. */
     SHADER_UAV_SLOT_MAPPING                     hwMappings[VSC_MAX_SHADER_STAGE_COUNT];
-}
-PROG_VK_STORAGE_TABLE_ENTRY;
+
+    PROG_VK_STORAGE_TABLE_ENTRY*                pAliasedEntryList;
+    gctUINT                                     countOfAliasedEntries;
+};
 
 typedef struct PROG_VK_STORAGE_TABLE
 {

@@ -91,6 +91,11 @@ typedef enum _VSC_LIB_LINK_TYPE
 
     /* The fixed workGroupSize that application requires. */
     VSC_LIB_LINK_TYPE_SET_FIXED_WORK_GROUP_SIZE     = 8,
+
+    /* The total workGroupCount that application sets. */
+    VSC_LIB_LINK_TYPE_SET_TOTAL_WORK_GROUP_COUNT    = 9,
+
+    VSC_LIB_LINK_TYPE_VK_NULL_DESCRIPTOR            = 10,
 }VSC_LIB_LINK_TYPE;
 
 typedef enum _VSC_RES_OP_BIT
@@ -140,6 +145,8 @@ typedef enum _VSC_LINK_POINT_RESOURCE_SUBTYPE
     VSC_LINK_POINT_RESOURCE_SUBTYPE_NORMALIZE_TEXCOORD              = 7,
     VSC_LINK_POINT_RESOURCE_SUBTYPE_YCBCR_TEXTURE                   = 8,
     VSC_LINK_POINT_RESOURCE_SUBTYPE_UNORM_SNORM_TEXTURE             = 9,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_SAMPLER_FILTER_MIN_MAX          = 10,
+    VSC_LINK_POINT_RESOURCE_SUBTYPE_SAMPLER_MIRROR_CLAMP_TO_EDGE    = 11,
 } VSC_LINK_POINT_RESOURCE_SUBTYPE;
 
 typedef struct _VSC_LIB_LINK_POINT_FUNC_NAME
@@ -223,6 +230,8 @@ typedef struct _VSC_LIB_LINK_POINT
         VSC_LIB_LINK_IMAGE_FORMAT     imageFormat;
         gctUINT                       minWorkGroupSize;
         gctUINT                       maxWorkGroupSize;
+        gctUINT                       totalWorkGroupCount;
+        gctUINT                       workGroupSize[3];
     } u;
 }VSC_LIB_LINK_POINT;
 

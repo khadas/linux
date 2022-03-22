@@ -491,13 +491,6 @@ typedef union _gcsATTACH_DESC
     }
     userMem;
 
-    /* gcvALLOC_FLAG_EXTERNAL_MEMORY */
-    struct
-    {
-        gcsEXTERNAL_MEMORY_INFO info;
-    }
-    externalMem;
-
     /* Reserved memory. */
     struct
     {
@@ -566,8 +559,7 @@ OnError:
     return status;
 }
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION (3,6,0) \
-    || (!defined (ARCH_HAS_SG_CHAIN) && !defined (CONFIG_ARCH_HAS_SG_CHAIN))
+#if !gcdUSE_Linux_SG_TABLE_API
 int
 alloc_sg_list_from_pages(
     struct scatterlist **sgl,

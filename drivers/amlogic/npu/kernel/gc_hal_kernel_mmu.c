@@ -97,24 +97,6 @@ typedef struct _gcsMMU_STLB_CHUNK
     gcsMMU_STLB_CHUNK_PTR next;
 } gcsMMU_STLB_CHUNK;
 
-#if gcdSHARED_PAGETABLE
-typedef struct _gcsSharedPageTable * gcsSharedPageTable_PTR;
-typedef struct _gcsSharedPageTable
-{
-    /* Shared gckMMU object. */
-    gckMMU          mmu;
-
-    /* Hardwares which use this shared pagetable. */
-    gckHARDWARE     hardwares[gcdMAX_GPU_COUNT];
-
-    /* Number of cores use this shared pagetable. */
-    gctUINT32       reference;
-}
-gcsSharedPageTable;
-
-static gcsSharedPageTable_PTR sharedPageTable = gcvNULL;
-#endif
-
 typedef struct _gcsFreeSpaceNode * gcsFreeSpaceNode_PTR;
 typedef struct _gcsFreeSpaceNode
 {
@@ -729,7 +711,7 @@ gckMMU_FillFlatMappingWithPage16M(
         gctUINT32 mEntries;
         gctUINT32 sEntries;
 
-        mEntries = ((physBase + flatSize + gcdMMU_PAGE_16M_SIZE - 1) >> gcdMMU_STLB_16M_SHIFT) - (physBase >> gcdMMU_STLB_16M_SHIFT);
+        mEntries = (((gctUINT64)physBase + flatSize + gcdMMU_PAGE_16M_SIZE - 1) >> gcdMMU_STLB_16M_SHIFT) - (physBase >> gcdMMU_STLB_16M_SHIFT);
 
         gcmkONERROR(_GetMtlbFreeSpace(Mmu, mEntries, &mStart, &mEnd));
 
@@ -2482,10 +2464,10 @@ _Construct(
     gctSIZE_T physSize;
     gctPHYS_ADDR_T contiguousBase;
     gctSIZE_T contiguousSize = 0;
-    gctPHYS_ADDR_T externalBase = 0;
-    gctPHYS_ADDR_T exclusiveBase = 0;
-    gctSIZE_T externalSize = 0;
-    gctSIZE_T exclusiveSize = 0;
+    gctPHYS_ADDR_T externalBase[gcdPLATFORM_DEVICE_COUNT];
+    gctPHYS_ADDR_T exclusiveBase[gcdPLATFORM_DEVICE_COUNT];
+    gctSIZE_T externalSize[gcdPLATFORM_DEVICE_COUNT];
+    gctSIZE_T exclusiveSize[gcdPLATFORM_DEVICE_COUNT];
     gctUINT32 gpuAddress = 0;
     gctPHYS_ADDR_T gpuPhysical;
     gcsADDRESS_AREA_PTR area = gcvNULL;
@@ -2820,41 +2802,41 @@ _Construct(
             }
         }
 
-        status = gckOS_QueryOption(mmu->os, "externalBase", &externalBase);
+        status = gckOS_QueryOption(mmu->os, "externalBase", externalBase);
 
         if (gcmIS_SUCCESS(status))
         {
-            status = gckOS_QueryOption(mmu->os, "externalSize", &data);
-            externalSize = (gctSIZE_T)data;
+            externalSize[Kernel->pdevID] = 0;
+            status = gckOS_QueryOption(mmu->os, "externalSize", (gctUINT64 *)externalSize);
         }
 
-        if (gcmIS_SUCCESS(status) && externalSize)
+        if (gcmIS_SUCCESS(status) && externalSize[Kernel->pdevID])
         {
             gctUINT64 gpuExternalBase;
             gctUINT32 externalBaseAddress = 0;
 
-            gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(mmu->os, externalBase, &gpuExternalBase));
+            gcmkONERROR(gckOS_CPUPhysicalToGPUPhysical(mmu->os, externalBase[Kernel->pdevID], &gpuExternalBase));
 
             /* Setup flat mapping for external memory. */
-            gcmkONERROR(gckMMU_FillFlatMapping(mmu, gpuExternalBase, externalSize, gcvFALSE, gcvTRUE, &externalBaseAddress));
+            gcmkONERROR(gckMMU_FillFlatMapping(mmu, gpuExternalBase, externalSize[Kernel->pdevID], gcvFALSE, gcvTRUE, &externalBaseAddress));
 
             mmu->externalBaseAddress = externalBaseAddress;
         }
 
-        status = gckOS_QueryOption(mmu->os, "exclusiveBase", &exclusiveBase);
+        status = gckOS_QueryOption(mmu->os, "exclusiveBase", exclusiveBase);
 
         if (gcmIS_SUCCESS(status))
         {
-            status = gckOS_QueryOption(mmu->os, "exclusiveSize", &data);
-            exclusiveSize = (gctSIZE_T)data;
+            exclusiveSize[Kernel->pdevID] = 0;
+            status = gckOS_QueryOption(mmu->os, "exclusiveSize", (gctUINT64 *)exclusiveSize);
         }
 
-        if (gcmIS_SUCCESS(status) && exclusiveSize)
+        if (gcmIS_SUCCESS(status) && exclusiveSize[Kernel->pdevID])
         {
             gctUINT32 exclusiveBaseAddress = 0;
 
             /* Setup flat mapping for external memory. */
-            gcmkONERROR(gckMMU_FillFlatMapping(mmu, exclusiveBase, exclusiveSize, gcvFALSE, gcvTRUE, &exclusiveBaseAddress));
+            gcmkONERROR(gckMMU_FillFlatMapping(mmu, exclusiveBase[Kernel->pdevID], exclusiveSize[Kernel->pdevID], gcvFALSE, gcvTRUE, &exclusiveBaseAddress));
 
             mmu->exclusiveBaseAddress = exclusiveBaseAddress;
         }
@@ -3198,52 +3180,7 @@ gckMMU_Construct(
     OUT gckMMU * Mmu
     )
 {
-#if gcdSHARED_PAGETABLE
-    gceSTATUS status;
-    gctPOINTER pointer;
-
-    gcmkHEADER_ARG("Kernel=0x%08x", Kernel);
-
-    if (sharedPageTable == gcvNULL)
-    {
-        gcmkONERROR(
-                gckOS_Allocate(Kernel->os,
-                               sizeof(struct _gcsSharedPageTable),
-                               &pointer));
-        sharedPageTable = pointer;
-
-        gcmkONERROR(
-                gckOS_ZeroMemory(sharedPageTable,
-                    sizeof(struct _gcsSharedPageTable)));
-
-        gcmkONERROR(_Construct(Kernel, MmuSize, &sharedPageTable->mmu));
-    }
-
-    *Mmu = sharedPageTable->mmu;
-
-    sharedPageTable->hardwares[sharedPageTable->reference] = Kernel->hardware;
-
-    sharedPageTable->reference++;
-
-    gcmkFOOTER_ARG("sharedPageTable->reference=%lu", sharedPageTable->reference);
-    return gcvSTATUS_OK;
-
-OnError:
-    if (sharedPageTable)
-    {
-        if (sharedPageTable->mmu)
-        {
-            gcmkVERIFY_OK(gckMMU_Destroy(sharedPageTable->mmu));
-        }
-
-        gcmkVERIFY_OK(gcmkOS_SAFE_FREE(Kernel->os, sharedPageTable));
-    }
-
-    gcmkFOOTER();
-    return status;
-#else
     return _Construct(Kernel, MmuSize, Mmu);
-#endif
 }
 
 gceSTATUS
@@ -3251,25 +3188,7 @@ gckMMU_Destroy(
     IN gckMMU Mmu
     )
 {
-#if gcdSHARED_PAGETABLE
-    gckOS os = Mmu->os;
-
-    sharedPageTable->reference--;
-
-    if (sharedPageTable->reference == 0)
-    {
-        if (sharedPageTable->mmu)
-        {
-            gcmkVERIFY_OK(_Destroy(Mmu));
-        }
-
-        gcmkVERIFY_OK(gcmkOS_SAFE_FREE(os, sharedPageTable));
-    }
-
-    return gcvSTATUS_OK;
-#else
     return _Destroy(Mmu);
-#endif
 }
 
 /*******************************************************************************
@@ -3801,20 +3720,6 @@ gckMMU_Flush(
         mask = gcvPAGE_TABLE_DIRTY_BIT_OTHER;
     }
 
-#if gcdSHARED_PAGETABLE
-    for (i = 0; i < gcdMAX_GPU_COUNT; i++)
-    {
-        gctUINT j;
-        hardware = sharedPageTable->hardwares[i];
-        if (hardware)
-        {
-            for (j = 0; j < gcvENGINE_GPU_ENGINE_COUNT; j++)
-            {
-                gcmkVERIFY_OK(gckOS_AtomSetMask(hardware->pageTableDirty[j], mask));
-            }
-        }
-    }
-#else
     hardware = Mmu->hardware;
 
     for (i = 0 ; i < gcvENGINE_GPU_ENGINE_COUNT; i++)
@@ -3839,7 +3744,6 @@ gckMMU_Flush(
             }
         }
     }
-#endif
 
     return gcvSTATUS_OK;
 }
@@ -4370,10 +4274,11 @@ gckMMU_SetupSRAM(
     gctBOOL needMapInternalSRAM = gcvFALSE;
     gctPHYS_ADDR_T reservedBase = gcvINVALID_PHYSICAL_ADDRESS;
     gctUINT32 reservedSize = 0;
-    gctUINT i = 0;
-    gctUINT j = 0;
+    gctINT i = 0;
+    gctINT j = 0;
     gceSTATUS status = gcvSTATUS_OK;
     gckKERNEL kernel = Hardware->kernel;
+    gctUINT32 extSRAMAddress = 0;
 
     gcmkHEADER_ARG("Mmu=0x%x Hardware=0x%x", Mmu, Hardware);
 
@@ -4389,6 +4294,7 @@ gckMMU_SetupSRAM(
     {
         gctUINT32 address = gcvINVALID_ADDRESS;
         gctUINT32 size    = 0;
+        gctINT32 cursor   = -1;
 
         /* Map all the SRAMs in MMU table. */
         for (i = 0; i < gcvCORE_COUNT; i++)
@@ -4441,7 +4347,13 @@ gckMMU_SetupSRAM(
                      * Reserve the internal SRAM range in first MMU mtlb and set base to gcdRESERVE_START
                      * if internal SRAM range is not specified, which means it is reserve usage.
                      */
-                    Device->sRAMBaseAddresses[i][j] = (address == gcvINVALID_ADDRESS) ? gcdRESERVE_START :
+                    if (cursor == -1)
+                    {
+                        cursor = i;
+                    }
+
+                    Device->sRAMBaseAddresses[i][j] = (i > cursor) ? Device->sRAMBaseAddresses[cursor][j] :
+                                                      (address == gcvINVALID_ADDRESS) ? gcdRESERVE_START :
                                                       address + gcmALIGN(size, gcdRESERVE_ALIGN);
 
                     Device->sRAMBases[i][j] = address = Device->sRAMBaseAddresses[i][j];
@@ -4469,28 +4381,18 @@ gckMMU_SetupSRAM(
                     &Device->extSRAMGPUBases[i]
                     ));
 
-                if ((Device->extSRAMGPUBases[i] + Device->extSRAMSizes[i] - 1 <= gcvINVALID_ADDRESS)
-                    && (Device->extSRAMGPUBases[i] + Device->extSRAMSizes[i] * 2 > gcvINVALID_ADDRESS))
-                {
-                    Device->extSRAMBaseAddresses[i] = 0xFFFF000 - Device->extSRAMSizes[i] * 2;
-                    if (Device->extSRAMBaseAddresses[i] < 0x1000000)
-                    {
-                        gcmkONERROR(gcvSTATUS_OUT_OF_RESOURCES);
-                    }
-                }
-                else
-                {
-                    Device->extSRAMBaseAddresses[i] = 0;
-                }
-
                 gcmkONERROR(gckMMU_FillFlatMapping(
                     Mmu,
                     Device->extSRAMGPUBases[i],
                     Device->extSRAMSizes[i],
                     gcvFALSE,
                     gcvTRUE,
-                    &Device->extSRAMBaseAddresses[i]
+                    &extSRAMAddress
                     ));
+
+                Device->extSRAMBaseAddresses[i] = extSRAMAddress;
+
+                extSRAMAddress += Device->extSRAMSizes[i];
 
                 Device->extSRAMGPUPhysNames[i] = gckKERNEL_AllocateNameFromPointer(kernel, Device->extSRAMPhysical[i]);
             }

@@ -79,12 +79,12 @@ typedef struct _gckGALDEVICE
     gctPOINTER          internalLogical;
     gckVIDMEM           internalVidMem;
 
-    gctPHYS_ADDR_T      externalBase;
-    gctSIZE_T           externalSize;
-    gctPHYS_ADDR        externalPhysical;
-    gctUINT32           externalPhysName;
-    gctPOINTER          externalLogical;
-    gckVIDMEM           externalVidMem;
+    gctPHYS_ADDR_T      externalBase[gcdPLATFORM_DEVICE_COUNT];
+    gctSIZE_T           externalSize[gcdPLATFORM_DEVICE_COUNT];
+    gctPHYS_ADDR        externalPhysical[gcdPLATFORM_DEVICE_COUNT];
+    gctUINT32           externalPhysName[gcdPLATFORM_DEVICE_COUNT];
+    gctPOINTER          externalLogical[gcdPLATFORM_DEVICE_COUNT];
+    gckVIDMEM           externalVidMem[gcdPLATFORM_DEVICE_COUNT];
 
     /* Shared external SRAMs. */
     gctPHYS_ADDR_T      extSRAMBases[gcvSRAM_EXT_COUNT];
@@ -99,12 +99,12 @@ typedef struct _gckGALDEVICE
     gctPOINTER          contiguousLogical;
     gckVIDMEM           contiguousVidMem;
 
-    gctPHYS_ADDR_T      exclusiveBase;
-    gctSIZE_T           exclusiveSize;
-    gctPHYS_ADDR        exclusivePhysical;
-    gctUINT32           exclusivePhysName;
-    gctPOINTER          exclusiveLogical;
-    gckVIDMEM           exclusiveVidMem;
+    gctPHYS_ADDR_T      exclusiveBase[gcdPLATFORM_DEVICE_COUNT];
+    gctSIZE_T           exclusiveSize[gcdPLATFORM_DEVICE_COUNT];
+    gctPHYS_ADDR        exclusivePhysical[gcdPLATFORM_DEVICE_COUNT];
+    gctUINT32           exclusivePhysName[gcdPLATFORM_DEVICE_COUNT];
+    gctPOINTER          exclusiveLogical[gcdPLATFORM_DEVICE_COUNT];
+    gckVIDMEM           exclusiveVidMem[gcdPLATFORM_DEVICE_COUNT];
 
     /* By request_mem_region. */
     gctUINT64           requestedContiguousBase;
@@ -149,6 +149,9 @@ typedef struct _gckGALDEVICE
 
     /* gctsOs object for trust application. */
     gctaOS              taos;
+
+    /* If we are going to shut down. */
+    gctBOOL             gotoShutdown;
 
 #if gcdENABLE_DRM
     void *              drm;

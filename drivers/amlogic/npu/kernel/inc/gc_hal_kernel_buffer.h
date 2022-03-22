@@ -206,6 +206,8 @@ struct _gcoCMDBUF
     /* Mirror command buffer(s). */
     gcoCMDBUF                   *mirrors;
     gctUINT32                   mirrorCount;
+
+    gctUINT32                   captureCommandOffset;
 };
 
 /* Event queue. */

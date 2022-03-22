@@ -1224,8 +1224,8 @@ gceSTATUS
 gckOS_UserSignal(
     IN gckOS Os,
     IN gctSIGNAL Signal,
-    IN gctINT Recvid,
-    IN gctINT Coid
+    IN gctINT Rcvid,
+    IN const struct sigevent *Event
     );
 #else
 gceSTATUS
@@ -1722,6 +1722,14 @@ gckKERNEL_CloseUserData(
     OUT gctPOINTER * KernelPointer
     );
 
+/* Query kernel by core index */
+gceSTATUS
+gckOS_QueryKernel(
+    IN gckKERNEL Kernel,
+    IN gctINT index,
+    OUT gckKERNEL * KernelOut
+    );
+
 gceSTATUS
 gckDVFS_Construct(
     IN gckHARDWARE Hardware,
@@ -1951,6 +1959,12 @@ gckHARDWARE_SetPowerState(
     );
 
 gceSTATUS
+gckHARDWARE_QueryPowerStateUnlocked(
+    IN gckHARDWARE Hardware,
+    OUT gceCHIPPOWERSTATE* State
+    );
+
+gceSTATUS
 gckHARDWARE_QueryPowerState(
     IN gckHARDWARE Hardware,
     OUT gceCHIPPOWERSTATE* State
@@ -1960,6 +1974,12 @@ gceSTATUS
 gckHARDWARE_EnablePowerManagement(
     IN gckHARDWARE Hardware,
     IN gctBOOL Enable
+    );
+
+gceSTATUS
+gckHARDWARE_QueryPowerManagement(
+    IN gckHARDWARE Hardware,
+    OUT gctBOOL *Enable
     );
 
 gceSTATUS

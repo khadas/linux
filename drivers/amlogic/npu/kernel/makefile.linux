@@ -77,8 +77,14 @@ INCLUDE += -I$(AQROOT)/hal/kernel/inc
 INCLUDE += -I$(AQROOT)/hal/kernel/inc
 INCLUDE += -I$(AQROOT)/hal/kernel/arch
 INCLUDE += -I$(AQROOT)/hal/kernel
+ifeq ($(LINUX_EMULATOR),1)
+INCLUDE += -I$(AQROOT)/hal/os/linuxemulator/kernel
+INCLUDE += -I$(AQROOT)/hal/os/linuxemulator/inc
+CFLAGS += $(INCLUDE) -Werror
+else
 INCLUDE += -I$(AQROOT)/hal/os/linux/kernel
 CFLAGS += $(INCLUDE) -Werror -ansi
+endif
 
 
 ################################################################################

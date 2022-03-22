@@ -1125,6 +1125,51 @@ gco2D_SetTargetEndianMode(
     IN gceENDIAN_MODE eEndianMode
     );
 
+gceSTATUS
+gco2D_GetActiveCoreIndex(
+    IN gco2D Engine,
+    OUT gctUINT32 *ActiveCoreIndex
+    );
+
+gceSTATUS
+gco2D_SetActiveCoreIndex(
+    IN gco2D Engine,
+    IN gctUINT32 ActiveCoreIndex
+    );
+
+gceSTATUS
+gco2D_SetMeanValue(
+    IN gco2D Engine,
+    IN gctINT32 R,
+    IN gctINT32 G,
+    IN gctINT32 B
+    );
+
+gceSTATUS
+gco2D_SetStdRerciprocal(
+    IN gco2D Engine,
+    IN gctINT32 R,
+    IN gctINT32 G,
+    IN gctINT32 B
+    );
+
+gceSTATUS
+gco2D_SetInitError(
+    IN gco2D Engine,
+    IN gctBOOL GDIStretch,
+    IN gctUINT currentSrcIndex,
+    IN OUT gcsRECT_PTR SplitSrcRectL,
+    IN OUT gcsRECT_PTR SplitSrcRectR,
+    IN OUT gcsRECT_PTR SplitDstRectL,
+    IN OUT gcsRECT_PTR SplitDstRectR
+    );
+
+gceSTATUS
+gco2D_SetScaleFactor(
+    IN gco2D Engine,
+    IN gctUINT32 ScaleFactor
+    );
+
 #ifdef __cplusplus
 }
 #endif
