@@ -1942,7 +1942,7 @@ static const struct pll_mult_range g12a_hifi_pll_mult_range = {
  * Internal hifi pll emulation configuration parameters
  */
 static const struct reg_sequence g12a_hifi_init_regs[] = {
-	{ .reg = HHI_HIFI_PLL_CNTL1,	.def = 0x00000000 },
+	{ .reg = HHI_HIFI_PLL_CNTL1,	.def = 0x0001374c },
 	{ .reg = HHI_HIFI_PLL_CNTL2,	.def = 0x00000000 },
 	{ .reg = HHI_HIFI_PLL_CNTL3,	.def = 0x6a285c00 },
 	{ .reg = HHI_HIFI_PLL_CNTL4,	.def = 0x65771290 },
@@ -1970,7 +1970,7 @@ static struct clk_regmap g12a_hifi_pll_dco = {
 		.frac = {
 			.reg_off = HHI_HIFI_PLL_CNTL1,
 			.shift   = 0,
-			.width   = 17,
+			.width   = 19,
 		},
 		.l = {
 			.reg_off = HHI_HIFI_PLL_CNTL0,
@@ -1994,6 +1994,7 @@ static struct clk_regmap g12a_hifi_pll_dco = {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -2012,7 +2013,8 @@ static struct clk_regmap g12a_hifi_pll = {
 			&g12a_hifi_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT |
+			CLK_GET_RATE_NOCACHE,
 	},
 };
 
