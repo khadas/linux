@@ -288,5 +288,6 @@ struct vbi_dev_s {
 /*read write cvd acd reg will crash when clk disabled*/
 extern bool tvafe_clk_status;
 extern unsigned int vbi_mem_start;
+void tvafe_vbi_set_wss(void);
 
 #endif /* TVIN_VBI_H_ */

@@ -1344,6 +1344,17 @@ static int vbi_slicer_set(struct vbi_dev_s *vbi_dev,
 	return 0;/* vbi_slicer_start(vbi_dev); */
 }
 
+void tvafe_vbi_set_wss(void)
+{
+	struct vbi_dev_s *devp = vbi_dev_local;
+
+	if (tvafe_clk_status && devp) {
+		devp->slicer->type = VBI_TYPE_WSS625;
+		vbi_slicer_type_set(devp);
+		W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x11);
+	}
+}
+
 static ssize_t vbi_ringbuffer_avail(struct vbi_ringbuffer_s *rbuf)
 {
 	ssize_t avail;
@@ -1598,6 +1609,7 @@ static int vbi_release(struct inode *inode, struct file *file)
 		/*W_VBI_APB_REG(ACD_REG_22, 0x06080000);*/
 		W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 	}
+	tvafe_vbi_set_wss();
 	tvafe_pr_info("[vbi..]%s: device release OK.\n", __func__);
 	return ret;
 }
@@ -1671,6 +1683,7 @@ static long vbi_ioctl(struct file *file,
 			/*WAPB_REG(CVD2_VBI_CC_START, 0x00000054);*/
 			W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 		}
+		tvafe_vbi_set_wss();
 		mutex_unlock(&vbi_slicer->mutex);
 		tvafe_pr_info("%s: stop slicer state:%d\n",
 			__func__, vbi_slicer->state);

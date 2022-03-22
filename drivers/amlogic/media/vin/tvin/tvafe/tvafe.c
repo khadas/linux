@@ -46,6 +46,7 @@
 #include "tvafe_regs.h"
 #include "tvafe_cvd.h"
 #include "tvafe_general.h"
+#include "tvafe_vbi.h"
 #include "tvafe.h"
 #include "tvafe_debug.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
@@ -530,7 +531,7 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 
 	tvafe->parm.info.fmt = fmt;
 	tvafe->parm.info.status = TVIN_SIG_STATUS_STABLE;
-
+	tvafe_vbi_set_wss();
 	devp->flags |= TVAFE_FLAG_DEV_STARTED;
 
 	tvafe_pr_info("%s start fmt:%s ok.\n",
