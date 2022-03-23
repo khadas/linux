@@ -31,6 +31,7 @@
 /*  V1.1.38  Redistribution blind scan progress value reporting  */
 /*  V1.1.39  fixed DVBS blind scan workqueue quit */
 /*  V1.1.40  t5w change list check abus audio problem */
+/*  V1.1.41  support auto qam in j83b */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -47,8 +48,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.40"
-#define DTVDEMOD_VER	"2022/03/17: t5w change list check abus audio problem"
+#define AMLDTVDEMOD_VER "V1.1.41"
+#define DTVDEMOD_VER	"2022/03/22: support auto qam in j83b"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

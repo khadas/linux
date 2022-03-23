@@ -126,6 +126,23 @@ const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys)
 		return "invalid delsys";
 }
 
+const char *qam_name[] = {
+	"QAM_16",
+	"QAM_32",
+	"QAM_64",
+	"QAM_128",
+	"QAM_256",
+	"QAM_UNDEF"
+};
+
+const char *get_qam_name(enum qam_md_e qam)
+{
+	if (qam >= QAM_MODE_16 && qam <= QAM_MODE_256)
+		return qam_name[qam];
+	else
+		return qam_name[5];
+}
+
 static void dvbc_get_qam_name(enum qam_md_e qam_mode, char *str)
 {
 	switch (qam_mode) {
@@ -416,6 +433,25 @@ static int amdemod_qam(enum fe_modulation qam)
 		return 2;
 	}
 	return 2;
+}
+
+static enum fe_modulation amdemod_qam_fe(enum qam_md_e qam)
+{
+	switch (qam) {
+	case QAM_MODE_16:
+		return QAM_16;
+	case QAM_MODE_32:
+		return QAM_32;
+	case QAM_MODE_64:
+		return QAM_64;
+	case QAM_MODE_128:
+		return QAM_128;
+	case QAM_MODE_256:
+	default:
+		return QAM_256;
+	}
+
+	return QAM_256;
 }
 
 static void gxtv_demod_dvbc_release(struct dvb_frontend *fe)
@@ -1882,12 +1918,10 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		param_j83b.ch_freq = c->frequency / 1000;
 		param_j83b.mode = amdemod_qam(c->modulation);
 		PR_ATSC("gxtv_demod_atsc_set_frontend, modulation: %d\n", c->modulation);
-		if (c->modulation == QAM_64)
-			param_j83b.symb_rate = 5057;
-		else if (c->modulation == QAM_256)
+		if (c->modulation == QAM_256)
 			param_j83b.symb_rate = 5361;
 		else
-			param_j83b.symb_rate = 5361;
+			param_j83b.symb_rate = 5057;
 
 		dvbc_set_ch(demod, &param_j83b, fe);
 
@@ -2119,80 +2153,6 @@ module_param(dvb_j83b_count, int, 0644);
 MODULE_PARM_DESC(dvb_atsc_count, "dvb_j83b_count");
 /*come from j83b_speedup_func*/
 
-static int atsc_j83b_detect_first(struct dvb_frontend *fe, enum fe_status *s)
-{
-	int j83b_status, i;
-	/*struct dvb_frontend_private *fepriv = fe->frontend_priv;*/
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int strenth;
-	enum fe_status cs;
-	int cnt;
-	int check_ok;
-
-	j83b_status = 0;
-
-	/*tuner:*/
-	if (dvb_tuner_delay > 9)
-		msleep(dvb_tuner_delay);
-
-	strenth = tuner_get_ch_power(fe);
-
-	/*agc control,fine tune strength*/
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
-		strenth += 18;
-
-	if (strenth < THRD_TUNER_STRENTH_J83) {
-		*s = FE_TIMEDOUT;
-		PR_ATSC("tuner:no signal!j83\n");
-		return 0;
-	}
-	check_ok = 0;
-
-	/*first check signal max time*/
-	#define CNT_FIRST  (10)
-
-	for (cnt = 0; cnt < CNT_FIRST; cnt++) {
-		gxtv_demod_atsc_read_status(fe, &cs);
-
-		if (cs != 0x1f) {
-			/*msleep(200);*/
-			PR_DBG("[j.83b] 1\n");
-			for (i = 0; i < dvb_j83b_count; i++) {
-				msleep(25);
-				gxtv_demod_atsc_read_ber(fe, &j83b_status);
-
-				/*J.83 status >=0x38,has signal*/
-				if (j83b_status >= 0x3)
-					break;
-			}
-			PR_DBG("[rsj]j.83b_status is %x,modulation is %d\n",
-					j83b_status,
-					c->modulation);
-
-			if (j83b_status < 0x3) {
-				*s = FE_TIMEDOUT;
-				check_ok = 1;
-			}
-
-		} else {
-			/*have signal*/
-			*s = cs;
-			check_ok = 1;
-		}
-
-		if (check_ok)
-			break;
-
-		msleep(50);
-	}
-
-
-	if (!check_ok)
-		*s = FE_TIMEDOUT;
-
-	return 0;
-}
-
 static int atsc_j83b_polling(struct dvb_frontend *fe, enum fe_status *s)
 {
 	int j83b_status, i;
@@ -2255,6 +2215,139 @@ void atsc_polling(struct dvb_frontend *fe, enum fe_status *status)
 
 }
 
+static void atsc_j83b_switch_qam(struct dvb_frontend *fe, enum qam_md_e qam)
+{
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+
+	PR_ATSC("switch to %s\n", get_qam_name(qam));
+
+	if (qam == QAM_MODE_64) {
+		qam_write_bits(demod, 0xd, 5057, 0, 16);
+		qam_write_bits(demod, 0x11, 5057, 8, 16);
+	} else {
+		qam_write_bits(demod, 0xd, 5361, 0, 16);
+		qam_write_bits(demod, 0x11, 5361, 8, 16);
+	}
+	demod_dvbc_set_qam(demod, qam);
+	demod_dvbc_fsm_reset(demod);
+}
+
+static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status, bool re_tune)
+{
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	int str = 0;
+	unsigned int s;
+	unsigned int curTime, time_passed_qam;
+	static int peak;
+	static enum qam_md_e qam;
+	static int check_first;
+	static unsigned int time_start_qam;
+
+	if (re_tune) {
+		demod->last_lock = 0;
+		demod->time_start = jiffies_to_msecs(jiffies);
+		time_start_qam = 0;
+		if (c->modulation == QAM_AUTO) {
+			qam = QAM_MODE_64;
+			check_first = 2;
+		} else {
+			check_first = 1;
+		}
+
+		*status = 0;
+
+		return 0;
+	}
+
+	if (unlikely(!devp)) {
+		PR_ERR("dvbt2_tune, devp is NULL\n");
+		return -1;
+	}
+
+	str = tuner_get_ch_power(fe);
+	/*agc control,fine tune strength*/
+	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
+		str += 18;
+
+	if (str < THRD_TUNER_STRENTH_J83) {
+		PR_ATSC("tuner no signal!j83, strength:%d\n", str);
+		*status = FE_TIMEDOUT;
+		real_para_clear(&demod->real_para);
+		time_start_qam = 0;
+
+		return 0;
+	}
+
+	curTime = jiffies_to_msecs(jiffies);
+	demod->time_passed = curTime - demod->time_start;
+	s = qam_read_reg(demod, 0x31) & 0xf;
+	PR_ATSC("s=%d, demod->time_passed=%u\n", s, demod->time_passed);
+
+	if (s != 5)
+		real_para_clear(&demod->real_para);
+
+	if (s == 5) {
+		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
+			FE_HAS_VITERBI | FE_HAS_SYNC;
+		demod->real_para.modulation = amdemod_qam_fe(qam);
+
+		PR_ATSC("locked at Qam:%s\n", get_qam_name(qam));
+	} else if (s < 3) {
+		if (time_start_qam == 0)
+			time_start_qam = curTime;
+		time_passed_qam = curTime - time_start_qam;
+
+		if (time_passed_qam < 125) {
+			*status = 0;
+		} else {
+			if (demod->last_lock == 0 && check_first > 0) {
+				*status = 0;
+				check_first--;
+			} else {
+				*status = FE_TIMEDOUT;
+			}
+
+			if (c->modulation == QAM_AUTO) {
+				qam = qam == QAM_MODE_64 ? QAM_MODE_256 : QAM_MODE_64;
+				atsc_j83b_switch_qam(fe, qam);
+				time_start_qam = 0;
+			}
+		}
+	} else if (s == 4 || s == 7) {
+		*status = 0;
+	} else {
+		if (peak == 0)
+			peak = 1;
+
+		if (demod->last_lock == 0 && demod->time_passed < TIMEOUT_ATSC)
+			*status = 0;
+		else
+			*status = FE_TIMEDOUT;
+	}
+
+	if (*status == 0) {
+		PR_ATSC("!! >> wait << !!\n");
+	} else if (*status == FE_TIMEDOUT) {
+		if (demod->last_lock == -1)
+			PR_ATSC("!! >> lost again << !!\n");
+		else
+			PR_INFO("!! >> UNLOCK << !!, freq=%d, time_passed:%u\n",
+				c->frequency, demod->time_passed);
+		demod->last_lock = -1;
+	} else {
+		if (demod->last_lock == 1)
+			PR_ATSC("!! >> lock continue << !!\n");
+		else
+			PR_INFO("!! >> LOCK << !!, freq=%d, time_passed:%u\n",
+				c->frequency, demod->time_passed);
+		demod->last_lock = 1;
+	}
+
+	return 0;
+}
+
 static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status)
 {
@@ -2285,7 +2378,8 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 			PR_ATSC("[id %d] modulation is QPSK do nothing!", demod->id);
 		} else if (c->modulation <= QAM_AUTO) {
 			PR_ATSC("[id %d] detect modulation is j83 first.\n", demod->id);
-			atsc_j83b_detect_first(fe, status);
+			*delay = HZ / 20;
+			atsc_j83b_read_status(fe, status, re_tune);
 		} else if (c->modulation > QAM_AUTO) {
 			PR_ATSC("[id %d] modulation is 8VSB.\n", demod->id);
 			atsc_detect_first(fe, status, re_tune);
@@ -2303,10 +2397,12 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 	}
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-		if (c->modulation > QAM_AUTO)
+		if (c->modulation > QAM_AUTO) {
 			atsc_detect_first(fe, status, re_tune);
-		else if (c->modulation <= QAM_AUTO &&	(c->modulation !=  QPSK))
-			atsc_j83b_detect_first(fe, status);
+		} else if (c->modulation <= QAM_AUTO &&	(c->modulation !=  QPSK)) {
+			*delay = HZ / 20;
+			atsc_j83b_read_status(fe, status, re_tune);
+		}
 	} else {
 		atsc_polling(fe, status);
 	}
@@ -2985,15 +3081,6 @@ void demod_dvbc_set_fast_search(unsigned int en)
 		demod_dvbc_speedup_en = 1;
 	else
 		demod_dvbc_speedup_en = 0;
-}
-
-void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod)
-{
-	qam_write_reg(demod, 0x7, qam_read_reg(demod, 0x7) & ~(1 << 4));
-	qam_write_reg(demod, 0x3a, 0x0);
-	qam_write_reg(demod, 0x7, qam_read_reg(demod, 0x7) | (1 << 4));
-	qam_write_reg(demod, 0x3a, 0x4);
-	PR_DVBC("dvbc reset fsm\n");
 }
 
 static enum qam_md_e dvbc_switch_qam(enum qam_md_e qam_mode)

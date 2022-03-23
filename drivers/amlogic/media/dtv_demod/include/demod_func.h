@@ -271,6 +271,7 @@ void dvbc_reg_initial_old(struct aml_dtvdemod *demod);
 
 /*txlx*/
 void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
+void demod_dvbc_fsm_reset(struct aml_dtvdemod *demod);
 void demod_dvbc_set_qam(struct aml_dtvdemod *demod, unsigned int qam);
 void dvbc_init_reg_ext(struct aml_dtvdemod *demod);
 u32 dvbc_get_ch_sts(struct aml_dtvdemod *demod);
