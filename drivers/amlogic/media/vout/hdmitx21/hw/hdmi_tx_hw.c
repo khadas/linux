@@ -2314,3 +2314,14 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 
 	config_hdmi21_tx(hdev);
 }
+
+void hdmi21_vframe_write_reg(u32 max_lcnt)
+{
+	u8 *data = NULL;
+	u32 type = 0;
+	u32 size = 0;
+
+	hdmitx_set_emp_pkt(data, type, size);
+
+	hd21_write_reg(ENCP_VIDEO_MAX_LNCNT, max_lcnt);
+}

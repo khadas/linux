@@ -2429,8 +2429,9 @@
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
-		interrupts = <0 204 1>;
-		interrupt-names = "hdmitx_hpd";
+		interrupts = <0 204 1
+			0 197 1>;
+		interrupt-names = "hdmitx_hpd", "vrr_vsync";
 		enc_idx = <0>;
 		reg =	<0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe380000 0x0 0x10000>,

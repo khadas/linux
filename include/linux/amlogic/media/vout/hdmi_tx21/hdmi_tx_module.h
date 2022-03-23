@@ -279,6 +279,11 @@ struct hdmitx_clk_tree_s {
 	struct clk *venci_1_gate;
 };
 
+struct hdmitx_match_frame_table_s {
+	int duration;
+	int max_lncnt;
+};
+
 #define EDID_MAX_BLOCK              8
 struct hdmitx_dev {
 	struct cdev cdev; /* The cdev structure */
@@ -318,6 +323,7 @@ struct hdmitx_dev {
 	struct {
 		int (*setdispmode)(struct hdmitx_dev *hdev);
 		int (*setaudmode)(struct hdmitx_dev *hdev, struct hdmitx_audpara *audio_param);
+		void (*setupirq)(struct hdmitx_dev *hdev);
 		void (*debugfun)(struct hdmitx_dev *hdev, const char *buf);
 		void (*debug_bist)(struct hdmitx_dev *hdev, u32 num);
 		void (*uninit)(struct hdmitx_dev *hdev);
@@ -343,6 +349,9 @@ struct hdmitx_dev {
 	struct hdmi_config_platform_data config_data;
 	enum hdmi_event_t hdmitx_event;
 	u32 irq_hpd;
+	u32 irq_vrr_vsync;
+	u32 old_max_lcnt;
+	u32 new_max_lcnt;
 	/*EDID*/
 	u32 cur_edid_block;
 	u32 cur_phy_block_ptr;
@@ -426,6 +435,7 @@ struct hdmitx_dev {
 	u32 hdr_priority;
 	u32 bist_lock:1;
 	u32 vend_id_hit:1;
+	u32 fr_duration;
 	spinlock_t edid_spinlock; /* edid hdr/dv cap lock */
 	struct vpu_dev_s *hdmitx_vpu_clk_gate_dev;
 
@@ -606,6 +616,7 @@ void __attribute__((weak))rx_repeat_hpd_state(u32 st)
 {
 }
 
+void hdmi21_vframe_write_reg(u32 value);
 void rx_edid_physical_addr(u8 a, u8 b,
 			   u8 c, u8 d);
 void __attribute__((weak))rx_edid_physical_addr(u8 a,

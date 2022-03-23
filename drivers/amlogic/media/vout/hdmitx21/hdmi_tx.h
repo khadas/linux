@@ -51,6 +51,7 @@ void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div);
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev);
 u32 hdcp21_rd_hdcp22_ver(void);
 void hdmitx_infoframe_send(u8 info_type, u8 *body);
+void hdmitx_set_emp_pkt(u8 *data, u32 type, u32 size);
 
 /* there are 2 ways to send out infoframes
  * xxx_infoframe_set() will take use of struct xxx_infoframe_set

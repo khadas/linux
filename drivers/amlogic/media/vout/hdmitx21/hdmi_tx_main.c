@@ -73,9 +73,7 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 				     struct hdr10plus_para *data);
 static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data);
 static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data);
-static void hdmitx_set_emp_pkt(u8 *data,
-			       u32 type,
-			       u32 size);
+
 static int check_fbc_special(u8 *edid_dat);
 static void clear_rx_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev);
@@ -1831,7 +1829,7 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 
 #define  EMP_FIRST 0x80
 #define  EMP_LAST 0x40
-static void hdmitx_set_emp_pkt(u8 *data, u32 type,
+void hdmitx_set_emp_pkt(u8 *data, u32 type,
 			       u32 size)
 {
 	u32 number;
@@ -3859,6 +3857,72 @@ static void hdmitx_set_bist(u32 num, void *data)
 		hdev->hwop.debug_bist(hdev, num);
 }
 
+struct hdmitx_match_frame_table_s hdmitx_match_frame_table_1[] = {
+	{6000, 1125},
+	{5994, 1126},
+	{5000, 1350},
+	{2400, 2813},
+	{2398, 2815},
+	{2500, 2700},
+	{3000, 2250},
+	{2997, 2252}
+};
+
+static int hdmi_duration_match_vframe(struct hdmitx_match_frame_table_s *table,
+		int duration)
+{
+	int max_cnt = 0;
+	int i;
+	int size;
+
+	size = ARRAY_SIZE(hdmitx_match_frame_table_1);
+	for (i = 0; i < size; i++) {
+		if (duration == table[i].duration) {
+			max_cnt = table[i].max_lncnt;
+			break;
+		}
+	}
+	return max_cnt;
+}
+
+static int hdmitx_vout_set_vframe_rate_hint(int duration, void *data)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdmitx_match_frame_table_s *table = NULL;
+	u32 old_max_lcnt;	//duration 0.01 list
+	u32 new_max_lcnt;
+
+	table = hdmitx_match_frame_table_1;
+	if (!hdev)
+		return 0;
+
+	if (hdev->fr_duration != 0)
+		old_max_lcnt = hdmi_duration_match_vframe(table, hdev->fr_duration) - 1;
+	else
+		old_max_lcnt = 1124;	//get from mode
+	new_max_lcnt = hdmi_duration_match_vframe(table, duration);
+	if (!new_max_lcnt)
+		return 1;
+	new_max_lcnt--;
+
+	hdev->old_max_lcnt = old_max_lcnt;
+	hdev->new_max_lcnt = new_max_lcnt;
+	if (new_max_lcnt > 0)
+		hdev->fr_duration = duration;
+
+	return 1;
+}
+
+static int hdmitx_vout_get_vframe_rate_hint(void *data)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (!hdev)
+		return 0;
+
+	return hdev->fr_duration;
+}
+
 static struct vout_server_s hdmitx_vout_server = {
 	.name = "hdmitx_vout_server",
 	.op = {
@@ -3872,8 +3936,8 @@ static struct vout_server_s hdmitx_vout_server = {
 		.clr_state = hdmitx_vout_clr_state,
 		.get_state = hdmitx_vout_get_state,
 		.get_disp_cap = hdmitx_vout_get_disp_cap,
-		.set_vframe_rate_hint = NULL,
-		.get_vframe_rate_hint = NULL,
+		.set_vframe_rate_hint = hdmitx_vout_set_vframe_rate_hint,
+		.get_vframe_rate_hint = hdmitx_vout_get_vframe_rate_hint,
 		.set_bist = hdmitx_set_bist,
 #ifdef CONFIG_PM
 		.vout_suspend = NULL,
@@ -4735,6 +4799,14 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			return -ENXIO;
 	}
 	pr_info("hpd irq = %d\n", hdev->irq_hpd);
+
+	hdev->irq_vrr_vsync = platform_get_irq_byname(pdev, "vrr_vsync");
+	if (hdev->irq_vrr_vsync == -ENXIO) {
+		pr_err("%s: ERROR: hdmitx vrr_vsync irq No not found\n",
+		       __func__);
+			return -ENXIO;
+	}
+	pr_info("vrr vsync irq = %d\n", hdev->irq_vrr_vsync);
 
 	return ret;
 }
