@@ -1927,19 +1927,19 @@ static int lcd_optical_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int off
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
 		"\nlcd optical info:\n"
-		"hdr_support          %d\n"
-		"features             %d\n"
-		"primaries_r_x        %d\n"
-		"primaries_r_y        %d\n"
-		"primaries_g_x        %d\n"
-		"primaries_g_y        %d\n"
-		"primaries_b_x        %d\n"
-		"primaries_b_y        %d\n"
-		"white_point_x        %d\n"
-		"white_point_y        %d\n"
-		"luma_max             %d\n"
-		"luma_min             %d\n"
-		"luma_avg             %d\n\n",
+		"hdr_support      %d\n"
+		"features         %d\n"
+		"primaries_r_x    %d\n"
+		"primaries_r_y    %d\n"
+		"primaries_g_x    %d\n"
+		"primaries_g_y    %d\n"
+		"primaries_b_x    %d\n"
+		"primaries_b_y    %d\n"
+		"white_point_x    %d\n"
+		"white_point_y    %d\n"
+		"luma_max         %d\n"
+		"luma_min         %d\n"
+		"luma_avg         %d\n\n",
 		pconf->optical.hdr_support,
 		pconf->optical.features,
 		pconf->optical.primaries_r_x,
@@ -1953,6 +1953,13 @@ static int lcd_optical_info_print(struct aml_lcd_drv_s *pdrv, char *buf, int off
 		pconf->optical.luma_max,
 		pconf->optical.luma_min,
 		pconf->optical.luma_avg);
+	n = lcd_debug_info_len(len + offset);
+	len += snprintf((buf + len), n,
+		"\nadv_val:\n"
+		"ldim_support     %d\n"
+		"luma_peak        %d\n\n",
+		pconf->optical.ldim_support,
+		pconf->optical.luma_peak);
 
 	return len;
 }

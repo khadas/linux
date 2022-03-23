@@ -603,11 +603,15 @@ static ssize_t vout_vinfo_show(struct class *class,
 		       "    hdr_support           %d\n"
 		       "    lumi_max              %d\n"
 		       "    lumi_avg              %d\n"
-		       "    lumi_min              %d\n",
+		       "    lumi_min              %d\n"
+		       "    ldim_support          %d\n"
+		       "    lumi_peak             %d\n",
 		       info->hdr_info.hdr_support,
 		       info->hdr_info.lumi_max,
 		       info->hdr_info.lumi_avg,
-		       info->hdr_info.lumi_min);
+		       info->hdr_info.lumi_min,
+		       info->hdr_info.ldim_support,
+		       info->hdr_info.lumi_peak);
 	len += sprintf(buf + len, "hdr_dynamic_info:");
 	for (i = 0; i < 4; i++) {
 		len += sprintf(buf + len,
@@ -801,6 +805,8 @@ static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int mcd_nr;
 	struct vinfo_s *info = NULL;
 	struct vinfo_base_s baseinfo;
+	struct optical_base_s optical_info;
+	int i, j;
 
 	mcd_nr = _IOC_NR(cmd);
 	/*VOUTPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n", __func__, _IOC_DIR(cmd), mcd_nr);*/
@@ -829,6 +835,36 @@ static long vout_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (copy_to_user(argp, &baseinfo, sizeof(struct vinfo_base_s)))
 				ret = -EFAULT;
 		}
+		break;
+	case VOUT_IOC_NR_GET_OPTICAL_INFO:
+		info = get_current_vinfo();
+		if (!info) {
+			ret = -EFAULT;
+			break;
+		}
+		if (info->mode == VMODE_INIT_NULL) {
+			ret = -EFAULT;
+			break;
+		}
+
+		memset(&optical_info, 0, sizeof(struct optical_base_s));
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 2; j++) {
+				optical_info.primaries[i][j] =
+					info->master_display_info.primaries[i][j];
+			}
+		}
+		for (i = 0; i < 2; i++) {
+			optical_info.white_point[i] =
+				info->master_display_info.white_point[i];
+		}
+		optical_info.lumi_max = info->hdr_info.lumi_max;
+		optical_info.lumi_min = info->hdr_info.lumi_min;
+		optical_info.lumi_avg = info->hdr_info.lumi_avg;
+		optical_info.lumi_peak = info->hdr_info.lumi_peak;
+		optical_info.ldim_support = info->hdr_info.ldim_support;
+		if (copy_to_user(argp, &optical_info, sizeof(struct optical_base_s)))
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -EINVAL;

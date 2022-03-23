@@ -211,6 +211,12 @@ struct lcd_optical_info_s {
 	unsigned int luma_max;
 	unsigned int luma_min;
 	unsigned int luma_avg;
+
+	unsigned char ldim_support;  //adv_flag_0
+	unsigned char adv_flag_1;
+	unsigned char adv_flag_2;
+	unsigned char adv_flag_3;
+	unsigned int luma_peak;
 };
 
 struct ttl_config_s {
