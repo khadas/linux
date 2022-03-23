@@ -213,6 +213,10 @@ MODULE_PARM_DESC(dump_dvr_ts, "\n\t\t dump dvr ts packet");
 static int dump_dvr_ts;
 module_param(dump_dvr_ts, int, 0644);
 
+MODULE_PARM_DESC(es_count_one_time, "\n\t\t handle es count one time");
+static int es_count_one_time = 10;
+module_param(es_count_one_time, int, 0644);
+
 struct dump_file dvr_dump_file;
 
 #define VIDEOES_DUMP_FILE   "/data/video_dump"
@@ -666,6 +670,7 @@ static int _task_es_out_func(void *data)
 	int timeout = 0;
 	struct ts_out *ptmp;
 	int ret = 0;
+	int count = 0;
 
 	while (es_out_task_tmp.running == TASK_RUNNING) {
 		timeout =
@@ -691,11 +696,13 @@ static int _task_es_out_func(void *data)
 					ret =
 					    _handle_es(ptmp->pout,
 						       ptmp->es_params);
-				} while (ret == 0);
+					count++;
+				} while (ret == 0 && count <= es_count_one_time);
 //				pr_dbg("get %s data done\n",
 //				       ptmp->pout->type == AUDIO_TYPE ?
 //				       "audio" : "video");
 			}
+			count = 0;
 			ptmp = ptmp->pnext;
 		}
 		mutex_unlock(&es_output_mutex);
