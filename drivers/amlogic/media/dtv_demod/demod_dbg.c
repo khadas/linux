@@ -1227,6 +1227,9 @@ static ssize_t attr_store(struct class *cls,
 	} else if (!strcmp(parm[0], "tune")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			fe->ops.tune(fe, val, 0, &delay, &sts);
+	} else if (!strcmp(parm[0], "retune")) {
+		if (fe->ops.tune)
+			fe->ops.tune(fe, true, 0, &delay, &sts);
 	} else if (!strcmp(parm[0], "stop_wr")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			devp->stop_reg_wr = val;
