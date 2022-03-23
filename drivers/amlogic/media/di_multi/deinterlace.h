@@ -77,6 +77,7 @@
 #define DI_PRE_READY_LIMIT			4
 
 #define LOCAL_META_BUFF_SIZE 0x800 /* 2K size */
+#define LOCAL_UD_BUFF_SIZE VF_UD_MAX_SIZE /* 5K size */
 
 /*vframe define*/
 #define vframe_t struct vframe_s
@@ -316,6 +317,10 @@ struct di_buf_s {
 	u8 *local_meta;
 	u32 local_meta_used_size;
 	u32 local_meta_total_size;
+	/* local ud buffer */
+	u8 *local_ud;
+	u32 local_ud_used_size;
+	u32 local_ud_total_size;
 	bool hf_irq;
 	bool dw_have;
 };
@@ -428,6 +433,9 @@ struct di_dev_s {
 	void *data_l;
 	u8 *local_meta_addr;
 	u32 local_meta_size;
+
+	u8 *local_ud_addr;
+	u32 local_ud_size;
 
 	struct vpu_dev_s *dim_vpu_clk_gate_dev;
 	struct vpu_dev_s *dim_vpu_pd_dec;

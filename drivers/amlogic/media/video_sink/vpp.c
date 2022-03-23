@@ -4547,7 +4547,6 @@ RERTY:
 	    !disable_adapted) {
 		if (vf->pic_mode.screen_mode != 0xff)
 			wide_mode = vf->pic_mode.screen_mode;
-
 		if (vf->pic_mode.AFD_enable &&
 		    (vf->ratio_control & DISP_RATIO_INFOFRAME_AVAIL))
 			wide_mode = VIDEO_WIDEOPTION_AFD;
@@ -4558,12 +4557,10 @@ RERTY:
 				local_input.custom_ar =
 					vf->pic_mode.custom_ar;
 		}
-
 		local_input.crop_top = vf->pic_mode.vs;
 		local_input.crop_left = vf->pic_mode.hs;
 		local_input.crop_bottom = vf->pic_mode.ve;
 		local_input.crop_right = vf->pic_mode.he;
-
 	}
 
 	if (!local_input.pps_support)
@@ -4576,6 +4573,23 @@ RERTY:
 		local_input.crop_left = vf->crop[1];
 		local_input.crop_bottom = vf->crop[2];
 		local_input.crop_right = vf->crop[3];
+	}
+
+	if (local_input.afd_enable && !disable_adapted) {
+		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		local_input.crop_top = local_input.afd_crop.top;
+		local_input.crop_left = local_input.afd_crop.left;
+		local_input.crop_bottom = local_input.afd_crop.bottom;
+		local_input.crop_right = local_input.afd_crop.right;
+		local_input.layer_left = local_input.afd_pos.x_start;
+		local_input.layer_top = local_input.afd_pos.y_start;
+		local_input.layer_width =
+			local_input.afd_pos.x_end -
+			local_input.afd_pos.x_start + 1;
+		local_input.layer_height =
+			local_input.afd_pos.y_end -
+			local_input.afd_pos.y_start + 1;
+		vpp_flags |= VPP_FLAG_FORCE_AFD_ENABLE;
 	}
 
 	/* don't restore the wide mode */

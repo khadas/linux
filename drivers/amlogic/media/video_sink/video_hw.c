@@ -7960,6 +7960,85 @@ u32 *get_canvase_tbl(u8 layer_id)
 	return (u32 *)&layer->canvas_tbl[0][0];
 }
 
+static int update_afd_param(u8 id,
+	struct vframe_s *vf,
+	const struct vinfo_s *vinfo)
+{
+	struct afd_in_param in_p;
+	struct afd_out_param out_p;
+	bool is_comp = false;
+	struct disp_info_s *layer_info = NULL;
+	int ret;
+	u32 frame_ar;
+
+	if (id >= MAX_VD_LAYER)
+		return -1;
+
+	if (!vf || !vinfo)
+		return -1;
+
+	layer_info = &glayer_info[id];
+
+	if (vf->type & VIDTYPE_COMPRESS)
+		is_comp = true;
+	memset(&in_p, 0, sizeof(struct afd_in_param));
+	memset(&out_p, 0, sizeof(struct afd_out_param));
+
+	in_p.screen_w = vinfo->width;
+	in_p.screen_h = vinfo->height;
+	in_p.screen_ar.numerator = vinfo->aspect_ratio_num;
+	in_p.screen_ar.denominator = vinfo->aspect_ratio_den;
+
+	in_p.video_w = is_comp ? vf->compWidth : vf->width;
+	in_p.video_h = is_comp ? vf->compHeight : vf->height;
+
+	frame_ar = (vf->ratio_control & DISP_RATIO_ASPECT_RATIO_MASK);
+	frame_ar = frame_ar >> DISP_RATIO_ASPECT_RATIO_BIT;
+	if (frame_ar == DISP_RATIO_ASPECT_RATIO_MAX) {
+		in_p.video_ar.numerator = in_p.video_w * vf->sar_width;
+		in_p.video_ar.denominator = in_p.video_h * vf->sar_height;
+	} else if (frame_ar != 0) {
+		/* frame_width/frame_height = 0x100/ar */
+		in_p.video_ar.numerator = 0x100;
+		in_p.video_ar.denominator = frame_ar;
+	} else {
+		in_p.video_ar.numerator = in_p.video_w;
+		in_p.video_ar.denominator = in_p.video_h;
+	}
+
+	if (in_p.video_ar.numerator * 9 == in_p.video_ar.denominator * 16) {
+		in_p.video_ar.numerator = 16;
+		in_p.video_ar.denominator = 9;
+	} else if (in_p.video_ar.numerator * 3 == in_p.video_ar.denominator * 4) {
+		in_p.video_ar.numerator = 4;
+		in_p.video_ar.denominator = 3;
+	}
+
+	if (is_ud_param_valid(vf->vf_ud_param)) {
+		in_p.ud_param = (void *)&vf->vf_ud_param.ud_param;
+		in_p.ud_param_size = vf->vf_ud_param.ud_param.buf_len; /* data_size? */
+	}
+
+	in_p.disp_info.x_start = layer_info->layer_left;
+	in_p.disp_info.x_end =
+		layer_info->layer_left +
+		layer_info->layer_width - 1;
+	in_p.disp_info.y_start = layer_info->layer_top;
+	in_p.disp_info.y_end =
+		layer_info->layer_top +
+		layer_info->layer_height - 1;
+
+	ret = afd_process(id, &in_p, &out_p);
+	if (ret >= 0) {
+		layer_info->afd_enable = out_p.afd_enable;
+		memcpy(&layer_info->afd_pos, &out_p.dst_pos, sizeof(struct pos_rect_s));
+		memcpy(&layer_info->afd_crop, &out_p.crop_info, sizeof(struct crop_rect_s));
+	} else {
+		layer_info->afd_enable = false;
+	}
+	return ret;
+}
+
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
 		     const struct vinfo_s *vinfo)
@@ -7990,6 +8069,11 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		    layer->new_vframe_count == 1 ||
 		    (is_local_vf(layer->dispbuf)))
 			first_picture = true;
+	}
+
+	if (is_afd_available(layer_id)) {
+		if (update_afd_param(layer_id, vf, vinfo) > 0)
+			layer->property_changed = true;
 	}
 
 	if (layer->property_changed) {
@@ -10952,6 +11036,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 				p_amvideo->src_height_max[i];
 		else
 			glayer_info[i].src_height_max = 2160;
+		glayer_info[i].afd_enable = false;
 	}
 
 	/* only enable vd1 as default */

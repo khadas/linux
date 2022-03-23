@@ -3900,10 +3900,20 @@ static int dim_probe(struct platform_device *pdev)
 			LOCAL_META_BUFF_SIZE * DI_CHANNEL_NUB *
 			(MAX_IN_BUF_NUM + MAX_POST_BUF_NUM +
 			(MAX_LOCAL_BUF_NUM * 2)) * sizeof(u8);
-		di_pdev->local_meta_addr = vmalloc(di_pdev->local_meta_size);
-		if (!di_pdev->local_meta_addr) {
-			pr_info("DI: allocate local meta buffer fail\n");
-			di_pdev->local_meta_size = 0;
+	di_pdev->local_meta_addr = vmalloc(di_pdev->local_meta_size);
+	if (!di_pdev->local_meta_addr) {
+		PR_INF("alloc local meta buffer fail\n");
+		di_pdev->local_meta_size = 0;
+	}
+
+	di_pdev->local_ud_size =
+			LOCAL_UD_BUFF_SIZE * DI_CHANNEL_NUB *
+			(MAX_IN_BUF_NUM + MAX_POST_BUF_NUM +
+			(MAX_LOCAL_BUF_NUM * 2)) * sizeof(u8);
+	di_pdev->local_ud_addr = vmalloc(di_pdev->local_ud_size);
+	if (!di_pdev->local_ud_addr) {
+		PR_INF("alloc local ud buffer fail\n");
+		di_pdev->local_ud_addr = 0;
 	}
 
 	device_create_file(di_devp->dev, &dev_attr_config);
@@ -4068,6 +4078,8 @@ static int dim_remove(struct platform_device *pdev)
 	di_devp->data_l = NULL;
 	vfree(di_pdev->local_meta_addr);
 	di_pdev->local_meta_addr = NULL;
+	vfree(di_pdev->local_ud_addr);
+	di_pdev->local_ud_addr = NULL;
 	kfree(di_pdev);
 	di_pdev = NULL;
 	PR_INF("%s:finish\n", __func__);
