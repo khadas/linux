@@ -303,7 +303,7 @@
 	unifykey{
 		compatible = "amlogic,unifykey";
 		status = "okay";
-		unifykey-num = <19>;
+		unifykey-num = <28>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -326,6 +326,12 @@
 		unifykey-index-19= <&keysn_19>;
 		unifykey-index-20= <&keysn_20>;
 		unifykey-index-21= <&keysn_21>;
+		unifykey-index-22= <&keysn_22>;
+		unifykey-index-23= <&keysn_23>;
+		unifykey-index-24= <&keysn_24>;
+		unifykey-index-25= <&keysn_25>;
+		unifykey-index-26= <&keysn_26>;
+		unifykey-index-27= <&keysn_27>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -437,6 +443,36 @@
 		};
 		keysn_21:key_21{
 			key-name = "backlight";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_22:key_22{
+			key-name = "lcd1";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "lcd1_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_24:key_24{
+			key-name = "backlight1";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_25:key_25{
+			key-name = "lcd2";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_26:key_26{
+			key-name = "lcd2_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_27:key_27{
+			key-name = "backlight2";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
