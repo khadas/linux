@@ -52,6 +52,7 @@ struct pdm_chipinfo {
 	/* vad top */
 	bool vad_top;
 	bool regulator;
+	bool oscin_divide;
 };
 
 struct aml_pdm {

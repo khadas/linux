@@ -31,13 +31,14 @@ static struct pdm_chipinfo sm1_pdm_chipinfo = {
 	.use_arb         = true,
 };
 
-static struct pdm_chipinfo tm2_pdm_chipinfo = {
+static struct pdm_chipinfo tm2_revb_pdm_chipinfo = {
 	.id              = PDM_A,
 	.mute_fn         = true,
 	.truncate_data   = false,
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
 	.use_arb         = true,
+	.oscin_divide    = true,
 };
 
 static struct pdm_chipinfo sc2_pdm_chipinfo = {
@@ -47,6 +48,7 @@ static struct pdm_chipinfo sc2_pdm_chipinfo = {
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V2,
 	.use_arb         = true,
+	.oscin_divide    = true,
 };
 
 static struct pdm_chipinfo p1_pdm_chipinfo_a = {
@@ -56,6 +58,7 @@ static struct pdm_chipinfo p1_pdm_chipinfo_a = {
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
 	.use_arb         = true,
+	.oscin_divide    = true,
 };
 
 static struct pdm_chipinfo p1_pdm_chipinfo_b = {
@@ -65,6 +68,7 @@ static struct pdm_chipinfo p1_pdm_chipinfo_b = {
 	.train           = true,
 	.train_version   = PDM_TRAIN_VERSION_V1,
 	.use_arb         = true,
+	.oscin_divide    = true,
 };
 
 static struct pdm_chipinfo a5_pdm_chipinfo = {
@@ -76,6 +80,7 @@ static struct pdm_chipinfo a5_pdm_chipinfo = {
 	.use_arb         = false,
 	.vad_top         = true,
 	.regulator       = true,
+	.oscin_divide    = true,
 };
 
 static const struct of_device_id aml_pdm_device_id[] = {
@@ -97,8 +102,8 @@ static const struct of_device_id aml_pdm_device_id[] = {
 		.data		= &sm1_pdm_chipinfo,
 	},
 	{
-		.compatible = "amlogic, tm2-snd-pdm",
-		.data		= &tm2_pdm_chipinfo,
+		.compatible = "amlogic, tm2-revb-snd-pdm",
+		.data		= &tm2_revb_pdm_chipinfo,
 	},
 	{
 		.compatible = "amlogic, sc2-snd-pdm",
