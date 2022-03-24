@@ -42,6 +42,14 @@ static int amaudio_release(struct inode *inode, struct file *file);
 static int amaudio_utils_open(struct inode *inode, struct file *file);
 static int amaudio_utils_release(struct inode *inode, struct file *file);
 
+static u32 decoding_errors, decoded_frames;
+static u32 samplerate, ch_num, ch_configuration;
+static u32 bitrate, decoded_drop;
+static const char audio_standards[32] = {"AAC,AML_DDP,DD,MPEG"};
+static const char * const audio_format[] = {"PCM", "CUSTOM_1", "CUSTOM_2",
+	"CUSTOM_3", "DD", "AUTO"};
+static int hdmi_format;
+
 struct amaudio_port_t {
 	const char *name;
 	struct device *dev;
@@ -207,9 +215,66 @@ static ssize_t dolby_enable_show(struct class *class,
 	return sprintf(buf, "0x%x\n", val);
 }
 
+static ssize_t codec_report_info_store(struct class *class,
+				       struct class_attribute *attr,
+				       const char *buf, size_t count)
+{
+	if (strncmp(buf, "decoded_frames", 14) == 0) {
+		if (kstrtoint(buf + 15, 10, (uint32_t *)&decoded_frames)) {
+			pr_info("codec_decoder_frames_store failed\n");
+			return -EINVAL;
+		}
+	} else if (strncmp(buf, "decoded_err", 11) == 0) {
+		if (kstrtoint(buf + 12, 10, (uint32_t *)&decoding_errors)) {
+			pr_info("codec_decoder_errors_store failed\n");
+			return -EINVAL;
+		}
+	} else if (strncmp(buf, "decoded_drop", 12) == 0) {
+		if (kstrtoint(buf + 13, 10, (uint32_t *)&decoded_drop))
+			return -EINVAL;
+	} else if (strncmp(buf, "hdmi_format", 11) == 0) {
+		if (kstrtoint(buf + 12, 10, &hdmi_format))
+			return -EINVAL;
+	} else if (strncmp(buf, "samplerate", 10) == 0) {
+		if (kstrtoint(buf + 11, 10, (uint32_t *)&samplerate))
+			return -EINVAL;
+	} else if (strncmp(buf, "ch_num", 6) == 0) {
+		if (kstrtoint(buf + 7, 10, (uint32_t *)&ch_num))
+			return -EINVAL;
+	} else if (strncmp(buf, "ch_configuration", 16) == 0) {
+		if (kstrtoint(buf + 17, 10, (uint32_t *)&ch_configuration))
+			return -EINVAL;
+	} else if (strncmp(buf, "bitrate", 7) == 0) {
+		if (kstrtoint(buf + 8, 10, (uint32_t *)&bitrate))
+			return -EINVAL;
+	}
+	return count;
+}
+
+static ssize_t codec_report_info_show(struct class *cla,
+				      struct class_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += sprintf(buf + pos, "decoded_frames:%d ", decoded_frames);
+	pos += sprintf(buf + pos, "decoded_err:%d ", decoding_errors);
+	pos += sprintf(buf + pos, "decoded_drop:%d ", decoded_drop);
+	pos += sprintf(buf + pos, "audio_standards:%s ", audio_standards);
+	pos += sprintf(buf + pos, "audio_format:%s ",
+		audio_format[hdmi_format]);
+	pos += sprintf(buf + pos, "samplerate:%d ", samplerate);
+	pos += sprintf(buf + pos, "ch_num:%d ", ch_num);
+	pos += sprintf(buf + pos, "ch_configuration:%d ", ch_configuration);
+	pos += sprintf(buf + pos, "bitrate:%d ", bitrate);
+
+	return pos;
+}
+
 static struct class_attribute amaudio_attrs[] = {
 	__ATTR(debug, 0664,
 	       show_debug, store_debug),
+	__ATTR(codec_report_info, 0664,
+	       codec_report_info_show, codec_report_info_store),
 	__ATTR_RO(dts_enable),
 	__ATTR_RO(dolby_enable),
 	__ATTR_NULL,
@@ -219,6 +284,7 @@ static struct attribute *amaudio_class_attrs[] = {
 	&amaudio_attrs[0].attr,
 	&amaudio_attrs[1].attr,
 	&amaudio_attrs[2].attr,
+	&amaudio_attrs[3].attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(amaudio_class);
