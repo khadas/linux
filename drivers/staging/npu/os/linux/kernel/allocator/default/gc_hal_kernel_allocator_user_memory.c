@@ -316,7 +316,7 @@ static int import_pfn_map(gckOS Os, struct um_desc *um,
     {
         spinlock_t *ptl;
         pgd_t *pgd;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0) && LINUX_VERSION_CODE <= KERNEL_VERSION (5,12,0)
         p4d_t *p4d;
 #endif
         pud_t *pud;
@@ -334,7 +334,9 @@ static int import_pfn_map(gckOS Os, struct um_desc *um,
     && LINUX_VERSION_CODE >= KERNEL_VERSION (4,11,0)
         pud = pud_offset((p4d_t*)pgd, addr);
 #else
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,12,0)
+ 		pud = pud_offset((p4d_t*)pgd, addr);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
         p4d = p4d_offset(pgd, addr);
         if (p4d_none(READ_ONCE(*p4d)))
             goto err;

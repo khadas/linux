@@ -53,7 +53,7 @@
 *****************************************************************************/
 
 
-#include <stdarg.h>
+#include <linux/stdarg.h>
 
 #ifndef __gc_hal_kernel_debugfs_h_
 #define __gc_hal_kernel_debugfs_h_
