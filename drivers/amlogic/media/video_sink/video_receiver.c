@@ -324,11 +324,13 @@ static int common_receiver_event_fun(int type,
 	}
 	if (type == VFRAME_EVENT_PROVIDER_UNREG) {
 		common_vf_unreg_provider(ins);
+		atomic_dec(&video_recv_cnt);
 	} else if (type == VFRAME_EVENT_PROVIDER_RESET) {
 		common_vf_light_unreg_provider(ins);
 	} else if (type == VFRAME_EVENT_PROVIDER_LIGHT_UNREG) {
 		common_vf_light_unreg_provider(ins);
 	} else if (type == VFRAME_EVENT_PROVIDER_REG) {
+		atomic_inc(&video_recv_cnt);
 		common_vf_light_unreg_provider(ins);
 		ins->drop_vf_cnt = 0;
 		ins->active = true;

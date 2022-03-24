@@ -8399,6 +8399,32 @@ int calc_hold_line(void)
 		return READ_VCBUS_REG(ENCP_VFIFO2VD_LINE_TOP_START) >> 1;
 }
 
+u32 get_active_start_line(void)
+{
+	u32 active_line_begin = 0;
+
+	switch (READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
+	case 0:
+		active_line_begin =
+			READ_VCBUS_REG(ENCL_VIDEO_VAVON_BLINE);
+		break;
+	case 1:
+		active_line_begin =
+			READ_VCBUS_REG(ENCI_VFIFO2VD_LINE_TOP_START);
+		break;
+	case 2:
+		active_line_begin =
+			READ_VCBUS_REG(ENCP_VIDEO_VAVON_BLINE);
+		break;
+	case 3:
+		active_line_begin =
+			READ_VCBUS_REG(ENCT_VIDEO_VAVON_BLINE);
+		break;
+	}
+
+	return active_line_begin;
+}
+
 static int get_venc_type(void)
 {
 	u32 venc_type = 0;

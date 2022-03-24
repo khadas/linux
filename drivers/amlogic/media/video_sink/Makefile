@@ -9,3 +9,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/video_multi_vsy
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/vpp_pq_process.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/vpp_afd.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_DUMMY_PROVIDER) += video_sink/dummy_provider.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VIDEO) += video_sink/video_low_latency.o

@@ -101,6 +101,7 @@ struct rdma_instance_s {
 	unsigned char used;
 	int prev_trigger_type;
 	int prev_read_count;
+	int lock_flag;
 };
 
 #define MAX_CONFLICT 32
@@ -553,6 +554,8 @@ int rdma_config(int handle, u32 trigger_type)
 	struct rdma_instance_s *ins = &info->rdma_ins[handle];
 	bool auto_start = false;
 	bool rdma_read = false;
+	int buffer_lock = 0;
+	int trigger_type_backup = trigger_type;
 
 	if (handle <= 0 || handle >= RDMA_NUM) {
 		pr_info
@@ -570,6 +573,9 @@ int rdma_config(int handle, u32 trigger_type)
 		return -1;
 	}
 
+	if (!(trigger_type & RDMA_TRIGGER_OMIT_LOCK))
+		buffer_lock = ins->lock_flag;
+
 	if (trigger_type & RDMA_READ_MASK)
 		rdma_read = true;
 
@@ -579,6 +585,7 @@ int rdma_config(int handle, u32 trigger_type)
 		auto_start = true;
 
 	trigger_type &= ~RDMA_AUTO_START_MASK;
+	trigger_type &= ~RDMA_TRIGGER_OMIT_LOCK;
 	if (auto_start) {
 		WRITE_VCBUS_REG_BITS
 			(ins->rdma_regadr->trigger_mask_reg,
@@ -603,16 +610,20 @@ int rdma_config(int handle, u32 trigger_type)
 			 rdma_meson_dev.trigger_mask_len);
 		ret = 1;
 		ins->rdma_write_count = 0;
-	} else if (ins->rdma_item_count <= 0 || trigger_type == 0) {
+	} else if (ins->rdma_item_count <= 0 ||
+		trigger_type == 0 ||
+		buffer_lock == 1) {
 		if (trigger_type == RDMA_TRIGGER_MANUAL)
 			WRITE_VCBUS_REG
 			(RDMA_ACCESS_MAN,
 			 READ_VCBUS_REG(RDMA_ACCESS_MAN) & (~1));
 			if (debug_flag & 2) {
-				pr_info("%s: trigger_type %d : %d\r\n",
+				pr_info("%s: handle=%d trigger_type %d : %d buffer_lock:%d\r\n",
 					__func__,
-					trigger_type,
-					ins->rdma_item_count);
+					handle,
+					trigger_type_backup,
+					ins->rdma_item_count,
+					buffer_lock);
 			}
 		WRITE_VCBUS_REG_BITS
 		(ins->rdma_regadr->trigger_mask_reg,
@@ -702,8 +713,8 @@ int rdma_config(int handle, u32 trigger_type)
 			} else {
 				/* interrupt input trigger RDMA */
 				if (debug_flag & 2)
-					pr_info("%s: case 3 : %d:\r\n",
-					__func__, ins->rdma_item_count);
+					pr_info("%s: handle=%d case 3 : %d:\r\n",
+					__func__, handle, ins->rdma_item_count);
 				WRITE_VCBUS_REG_BITS
 				(ins->rdma_regadr->trigger_mask_reg,
 				 0,
@@ -797,13 +808,14 @@ int rdma_config(int handle, u32 trigger_type)
 	}
 
 	/* don't reset rdma_item_count for read function */
-	if (handle != get_rdma_handle(VSYNC_RDMA_READ))
+	if (handle != get_rdma_handle(VSYNC_RDMA_READ) &&
+		!buffer_lock)
 		ins->rdma_item_count = 0;
 	spin_unlock_irqrestore(&rdma_lock, flags);
 
 	if (debug_flag & 2)
 		pr_info("%s: (%d 0x%x) ret %d\r\n",
-			__func__, handle, trigger_type, ret);
+			__func__, handle, trigger_type_backup, ret);
 
 	return ret;
 }
@@ -907,6 +919,50 @@ u32 rdma_read_reg(int handle, u32 adr)
 	return read_val;
 }
 EXPORT_SYMBOL(rdma_read_reg);
+
+int rdma_buffer_lock(int handle)
+{
+	int ret = 0;
+	unsigned long flags;
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+
+	spin_lock_irqsave(&rdma_lock, flags);
+	if (handle <= 0 ||
+		handle >= RDMA_NUM ||
+		!ins->op) {
+		spin_unlock_irqrestore(&rdma_lock, flags);
+		pr_info("%s error, handle (%d) not register\n",
+			__func__, handle);
+		return -1;
+	}
+	ins->lock_flag = 1;
+	spin_unlock_irqrestore(&rdma_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(rdma_buffer_lock);
+
+int rdma_buffer_unlock(int handle)
+{
+	int ret = 0;
+	unsigned long flags;
+	struct rdma_device_info *info = &rdma_info;
+	struct rdma_instance_s *ins = &info->rdma_ins[handle];
+
+	spin_lock_irqsave(&rdma_lock, flags);
+	if (handle <= 0 ||
+		handle >= RDMA_NUM ||
+		!ins->op) {
+		spin_unlock_irqrestore(&rdma_lock, flags);
+		pr_info("%s error, handle (%d) not register\n",
+			__func__, handle);
+		return -1;
+	}
+	ins->lock_flag = 0;
+	spin_unlock_irqrestore(&rdma_lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL(rdma_buffer_unlock);
 
 int rdma_watchdog_setting(int flag)
 {
@@ -1503,6 +1559,28 @@ static ssize_t rdma_mgr_trace_reg_stroe(struct class *cla,
 	return count;
 }
 
+static ssize_t show_ex_vsync_rdma(struct class *class,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+			get_ex_vsync_rdma_enable());
+}
+
+static ssize_t store_ex_vsync_rdma(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	pr_info("ex_vsync_rdma_enable: %d->%d\n", get_ex_vsync_rdma_enable(), res);
+	set_ex_vsync_rdma_enable(res);
+
+	return count;
+}
+
 static struct class_attribute rdma_mgr_attrs[] = {
 	__ATTR(debug_flag, 0664,
 	       show_debug_flag, store_debug_flag),
@@ -1518,6 +1596,8 @@ static struct class_attribute rdma_mgr_attrs[] = {
 	       rdma_mgr_trace_enable_show, rdma_mgr_trace_enable_stroe),
 	__ATTR(trace_reg, 0664,
 	       rdma_mgr_trace_reg_show, rdma_mgr_trace_reg_stroe),
+	__ATTR(ex_vsync_rdma, 0664,
+	       show_ex_vsync_rdma, store_ex_vsync_rdma),
 };
 
 static struct class *rdma_mgr_class;
@@ -1635,6 +1715,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 		info->rdma_ins[i].used = 0;
 		info->rdma_ins[i].prev_trigger_type = 0;
 		info->rdma_ins[i].rdma_write_count = 0;
+		info->rdma_ins[i].lock_flag = 0;
 	}
 
 	if (rdma_meson_dev.cpu_type >= CPU_SC2) {
@@ -1678,6 +1759,10 @@ static int __init rdma_probe(struct platform_device *pdev)
 				       NULL, rdma_table_size);
 		set_rdma_handle(VSYNC_RDMA_READ, handle);
 	}
+	handle = rdma_register(get_rdma_ops(EX_VSYNC_RDMA),
+		NULL, RDMA_TABLE_SIZE);
+	set_rdma_handle(EX_VSYNC_RDMA, handle);
+
 	create_rdma_mgr_class();
 
 	rdma_init();
