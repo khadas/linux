@@ -330,6 +330,10 @@ static void lcd_power_ctrl(int status)
 			}
 			break;
 #endif
+		case LCD_POWER_TYPE_EXPANDER_IO:
+			index = power_step->index;
+			lcd_expander_gpio_set(index, power_step->value);
+			break;
 		case LCD_POWER_TYPE_WAIT_GPIO:
 			index = power_step->index;
 			lcd_cpu_gpio_set(index, LCD_GPIO_INPUT);
