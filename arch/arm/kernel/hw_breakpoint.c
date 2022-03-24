@@ -91,7 +91,11 @@ static u8 max_watchpoint_len __ro_after_init;
 	WRITE_WB_REG_CASE(OP2, 14, VAL);	\
 	WRITE_WB_REG_CASE(OP2, 15, VAL)
 
+#ifdef CONFIG_AMLOGIC_WATCHPOINT
+u32 read_wb_reg(int n)
+#else
 static u32 read_wb_reg(int n)
+#endif
 {
 	u32 val = 0;
 
