@@ -320,6 +320,19 @@ static const char * const dbg_timer_name[] = {
 	"3_pre_ready",
 	"1_pst",
 	"2_pst",
+	"1_pst_get",
+	"2_pst_get",
+	"3_pst_get",
+	"a_sec_pre_b",
+	"a_sec_pre_e",
+	"a_sec_pst_b",
+	"a_sec_pst_e",
+	"pre_bypass_0",
+	"pre_bypass_1",
+	"pre_bypass_2",
+	"dctp_0",
+	"dctp_1",
+	"dctp_2",
 };
 
 static const unsigned int crc_value[CRC_COUNT_NUB][CRC_NUB] = {
@@ -443,6 +456,16 @@ void dbg_timer(unsigned int ch, enum EDBG_TIMER item)
 		//dbg_ev("\tb[%llu]:e[%llu]\n",
 		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_B],
 		 //      pch->dbg_data.ms_dbg[EDBG_TIMER_UNREG_E]);
+		break;
+	case EDBG_TIMER_SEC_PRE_E:
+		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PRE_E] -
+			pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PRE_B];
+		dbg_ev("pre_sec:use[%llu]ms\n", udiff);
+		break;
+	case EDBG_TIMER_SEC_PST_E:
+		udiff = pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PST_E] -
+			pch->dbg_data.ms_dbg[EDBG_TIMER_SEC_PST_B];
+		dbg_ev("pst_sec:use[%llu]ms\n", udiff);
 		break;
 	default:
 		break;
@@ -1444,7 +1467,7 @@ static int seq_file_stateb_show(struct seq_file *s, void *v)
 				tcrr = tlast;
 			diff1 = tcrr - treg;
 			diff2 = tcrr - tlast;
-			seq_printf(s, "\t%-20s:%-10llu, %-10llu, %-10llu\n",
+			seq_printf(s, "\t%-20s %-10llu %-10llu %-10llu\n",
 				   dbg_timer_name[i],
 				   tcrr_old,
 				   diff1, diff2);

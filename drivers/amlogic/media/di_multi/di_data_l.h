@@ -278,7 +278,20 @@ enum EDBG_TIMER {
 	EDBG_TIMER_3_PREADY,
 	EDBG_TIMER_1_PSTREADY,
 	EDBG_TIMER_2_PSTREADY,
-
+	/* add 2022-03-16 */
+	EDBG_TIMER_1_PGET,	/* pst get */
+	EDBG_TIMER_2_PGET,
+	EDBG_TIMER_3_PGET,
+	EDBG_TIMER_SEC_PRE_B,
+	EDBG_TIMER_SEC_PRE_E,
+	EDBG_TIMER_SEC_PST_B,
+	EDBG_TIMER_SEC_PST_E,
+	EDBG_TIMER_PRE_BYPASS_0,
+	EDBG_TIMER_PRE_BYPASS_1,
+	EDBG_TIMER_PRE_BYPASS_2,
+	EDBG_TIMER_DCTP_0,
+	EDBG_TIMER_DCTP_1,
+	EDBG_TIMER_DCTP_2,
 	EDBG_TIMER_NUB,
 };
 
@@ -2638,8 +2651,14 @@ static inline unsigned int get_sum_pst_g(unsigned int ch)
 	return get_datal()->ch_data[ch].sum_pst_get;
 }
 
+void dbg_timer(unsigned int ch, enum EDBG_TIMER item);
+
 static inline void sum_pst_g_inc(unsigned int ch)
 {
+	if (get_datal()->ch_data[ch].sum_pst_get < 3) {
+		dbg_timer(ch, EDBG_TIMER_1_PGET +
+			  get_datal()->ch_data[ch].sum_pst_get);
+	}
 	get_datal()->ch_data[ch].sum_pst_get++;
 }
 

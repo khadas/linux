@@ -538,6 +538,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 	struct div2_mm_s *mm;
 	unsigned int size_p;
 	enum EDI_TOP_STATE chst;
+	u64 timer_st, timer_end, diff; //debug only
 
 	//struct di_dev_s *de_devp = get_dim_de_devp();
 
@@ -764,6 +765,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 	case ECMD_BLK_ALLOC:
 		/* alloc */
 		chst = dip_chst_get(ch);
+		dbg_timer(ch, EDBG_TIMER_MEM_1);
 		dbg_mem2("%s:ch[%d] alloc:nub[%d],size[0x%x],top_sts[%d],block[%d]\n",
 			 __func__, ch, cmd->nub, size_p, chst, cmd->block_mode);
 		cnt = 0;
@@ -779,10 +781,14 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 
 			/*alloc*/
 			omm.flg = 0;
+			timer_st = cur_to_msecs();//dbg
 			aret = dim_mm_alloc(cfgg(MEM_FLAG),
 					    size_p,
 					    &omm,
 					    cmd->flg.b.tvp);
+			timer_end = cur_to_msecs();//dbg
+			diff = timer_end - timer_st;
+			dbg_mem2("a:a%d:%ums\n", i, (unsigned int)diff);
 			if (!aret) {
 				PR_ERR("2:%s: alloc failed %d fail.\n",
 				       __func__,
@@ -815,10 +821,14 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 			if (cmd->hf_need && !blk_buf->flg_hf) {
 				memset(&omm, 0, sizeof(omm));
 				//aret = dim_mm_alloc(EDI_MEM_M_CMA,
+				timer_st = cur_to_msecs();//dbg
 				aret = dim_mm_alloc(cfgg(MEM_FLAG),
 						    mm->cfg.size_buf_hf >> PAGE_SHIFT,
 						    &omm,
 						    0);
+				timer_end = cur_to_msecs();//dbg
+				diff = timer_end - timer_st;
+				dbg_mem2("a:b%d:%ums\n", i, (unsigned int)diff);
 				if (!aret) {
 					PR_ERR("2:%s: alloc hf failed %d fail.0x%x;%d\n",
 					       __func__,
@@ -1137,7 +1147,9 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 		dbg_reg("%s:no size\n", __func__);
 		return;
 	}
+	dbg_timer(pch->ch_id, EDBG_TIMER_SEC_PRE_B);
 	ret = mm_cma_alloc(NULL, idat_size, &omm);
+	dbg_timer(pch->ch_id, EDBG_TIMER_SEC_PRE_E);
 	idat->flg_from = 1;
 	if (!ret) {
 		PR_WARN("%s:try:cma di:\n", __func__);
@@ -1204,7 +1216,9 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 		       pdat->flg_alloc, flg);
 		return;
 	}
+	dbg_timer(pch->ch_id, EDBG_TIMER_SEC_PST_B);
 	ret = mm_cma_alloc(NULL, dat_size, &omm);
+	dbg_timer(pch->ch_id, EDBG_TIMER_SEC_PST_E);
 	pdat->flg_from = 1;
 	if (!ret) {
 		PR_WARN("%s:try:cma di:\n", __func__);

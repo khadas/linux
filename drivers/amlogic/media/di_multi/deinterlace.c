@@ -1540,7 +1540,10 @@ unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch)
 	reason = dim_polic_is_bypass(pch, vf_in);
 	if (reason)
 		goto tag_bypass;
-
+	if (pch->rsc_bypass.d32) {
+		reason = 0x89;
+		goto tag_bypass;
+	}
 	if (last_bypass != reason) {
 		dbg_dbg("%s:1:0x%x->0x%x\n", __func__, last_bypass, reason);
 		last_bypass = reason;
@@ -4995,14 +4998,8 @@ unsigned char dim_pre_bypass(struct di_ch_s *pch)
 	if (!nins)
 		return 75;
 
-	if (nins->c.cnt < 3) {
-		if (nins->c.cnt == 0)
-			dbg_timer(ch, EDBG_TIMER_1_PRE_CFG);
-		else if (nins->c.cnt == 1)
-			dbg_timer(ch, EDBG_TIMER_2_PRE_CFG);
-		else if (nins->c.cnt == 2)
-			dbg_timer(ch, EDBG_TIMER_3_PRE_CFG);
-	}
+	if (nins->c.cnt < 3)
+		dbg_timer(ch, EDBG_TIMER_PRE_BYPASS_0 + nins->c.cnt);
 
 	dim_bypass_set(pch, 1, bypassr);
 	ppre = get_pre_stru(ch);

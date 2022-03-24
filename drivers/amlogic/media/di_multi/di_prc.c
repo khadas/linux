@@ -1999,6 +1999,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			//sct_mng_working(pch);
 			//sct_alloc_in_poling(pch->ch_id);
 			sct_polling(pch, 1);
+			PR_INF("s2_1\n");
 			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS) &&
 			    pch->itf.etype == EDIM_NIN_TYPE_VFM) {
 				if (get_sum_g(ch) == 0) {
@@ -2013,6 +2014,8 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			dbg_timer(ch, EDBG_TIMER_READY);
 			dip_chst_set(ch, EDI_TOP_STATE_READY);
 			set_reg_flag(ch, true);
+		} else {
+			PR_INF("s2_wait\n");
 		}
 
 		break;
