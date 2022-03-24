@@ -57,7 +57,7 @@
 # Linux build file for kernel HAL driver.
 #
 
-AQROOT = drivers/amlogic/npu
+AQROOT = drivers/staging/npu
 
 include $(AQROOT)/config
 
@@ -92,7 +92,7 @@ MODULE_NAME ?= galcore
 CUSTOMER_ALLOCATOR_OBJS    ?=
 ALLOCATOR_ARRAY_H_LOCATION ?= $(OS_KERNEL_DIR)/allocator/default/
 
-EXTRA_CFLAGS += -Werror
+EXTRA_CFLAGS += -Werror -Wno-implicit-fallthrough
 
 OBJS := $(OS_KERNEL_DIR)/gc_hal_kernel_device.o \
         $(OS_KERNEL_DIR)/gc_hal_kernel_linux.o \

@@ -67,6 +67,8 @@
 #include <linux/dma-buf.h>
 #include <linux/platform_device.h>
 
+MODULE_IMPORT_NS(DMA_BUF);
+
 #define _GC_OBJ_ZONE gcvZONE_OS
 
 /* Descriptor of a dma_buf imported. */
