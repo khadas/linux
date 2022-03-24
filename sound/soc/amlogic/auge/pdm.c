@@ -836,6 +836,7 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 	unsigned int sysclk_srcpll_freq, dclk_srcpll_freq;
 	unsigned int dclk_idx = p_pdm->dclk_idx;
 	char *clk_name = NULL;
+	int ret = 0;
 	/* lowpower, force dclk to 768k */
 	if (p_pdm->islowpower)
 		dclk_idx = 2;
@@ -858,6 +859,14 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 		clk_set_rate(p_pdm->clk_pdm_dclk,
 			pdm_dclkidx2rate(dclk_idx));
 	}
+
+	ret = clk_prepare_enable(p_pdm->clk_pdm_dclk);
+	if (ret) {
+		pr_err("Can't enable pcm clk_pdm_dclk clock: %d\n", ret);
+		return -EINVAL;
+	}
+
+	p_pdm->clk_on = true;
 
 	pr_info("\n%s, pdm_sysclk:%lu pdm_dclk:%lu, dclk_srcpll:%lu\n",
 		__func__,
@@ -895,14 +904,6 @@ int aml_pdm_dai_startup(struct snd_pcm_substream *substream,
 		pr_err("Can't enable pcm clk_pdm_sysclk clock: %d\n", ret);
 		goto err;
 	}
-
-	ret = clk_prepare_enable(p_pdm->clk_pdm_dclk);
-	if (ret) {
-		pr_err("Can't enable pcm clk_pdm_dclk clock: %d\n", ret);
-		goto err;
-	}
-
-	p_pdm->clk_on = true;
 
 	return 0;
 err:
