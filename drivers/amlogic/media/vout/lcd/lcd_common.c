@@ -2499,7 +2499,7 @@ void lcd_timing_init_config(struct aml_lcd_drv_s *pdrv)
 	unsigned short h_period, v_period, h_active, v_active;
 	unsigned short hsync_bp, hsync_width, vsync_bp, vsync_width;
 	unsigned short de_hstart, de_vstart;
-	unsigned short hstart, hend, vstart, vend;
+	unsigned short hs_start, hs_end, vs_start, vs_end;
 	unsigned short h_delay;
 
 	switch (pconf->basic.lcd_type) {
@@ -2523,27 +2523,29 @@ void lcd_timing_init_config(struct aml_lcd_drv_s *pdrv)
 	de_hstart = hsync_bp + hsync_width;
 	de_vstart = vsync_bp + vsync_width;
 
-	pconf->timing.video_on_pixel = de_hstart - h_delay;
-	pconf->timing.video_on_line = de_vstart;
+	pconf->timing.hstart = de_hstart - h_delay;
+	pconf->timing.vstart = de_vstart;
+	pconf->timing.hend = pconf->basic.h_active + pconf->timing.hstart - 1;
+	pconf->timing.vend = pconf->basic.v_active + pconf->timing.vstart - 1;
 
 	pconf->timing.de_hs_addr = de_hstart;
 	pconf->timing.de_he_addr = de_hstart + h_active;
 	pconf->timing.de_vs_addr = de_vstart;
 	pconf->timing.de_ve_addr = de_vstart + v_active - 1;
 
-	hstart = (de_hstart + h_period - hsync_bp - hsync_width) % h_period;
-	hend = (de_hstart + h_period - hsync_bp) % h_period;
-	pconf->timing.hs_hs_addr = hstart;
-	pconf->timing.hs_he_addr = hend;
+	hs_start = (de_hstart + h_period - hsync_bp - hsync_width) % h_period;
+	hs_end = (de_hstart + h_period - hsync_bp) % h_period;
+	pconf->timing.hs_hs_addr = hs_start;
+	pconf->timing.hs_he_addr = hs_end;
 	pconf->timing.hs_vs_addr = 0;
 	pconf->timing.hs_ve_addr = v_period - 1;
 
-	pconf->timing.vs_hs_addr = (hstart + h_period) % h_period;
+	pconf->timing.vs_hs_addr = (hs_start + h_period) % h_period;
 	pconf->timing.vs_he_addr = pconf->timing.vs_hs_addr;
-	vstart = (de_vstart + v_period - vsync_bp - vsync_width) % v_period;
-	vend = (de_vstart + v_period - vsync_bp) % v_period;
-	pconf->timing.vs_vs_addr = vstart;
-	pconf->timing.vs_ve_addr = vend;
+	vs_start = (de_vstart + v_period - vsync_bp - vsync_width) % v_period;
+	vs_end = (de_vstart + v_period - vsync_bp) % v_period;
+	pconf->timing.vs_vs_addr = vs_start;
+	pconf->timing.vs_ve_addr = vs_end;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: hs_hs_addr=%d, hs_he_addr=%d\n"

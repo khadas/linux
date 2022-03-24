@@ -233,10 +233,10 @@ void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
 
 	offset = pdrv->data->offset_venc[pdrv->index];
-	hstart = pconf->timing.video_on_pixel;
-	hend = pconf->basic.h_active + hstart - 1;
-	vstart = pconf->timing.video_on_line;
-	vend = pconf->basic.v_active + vstart - 1;
+	hstart = pconf->timing.hstart;
+	hend = pconf->timing.hend;
+	vstart = pconf->timing.vstart;
+	vend = pconf->timing.vend;
 
 	lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT + offset, pconf->basic.h_period - 1);
 	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset, pconf->basic.v_period - 1);
@@ -382,8 +382,6 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 	}
 
 	lcd_gamma_init(pdrv);
-
-	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, (void *)pdrv);
 }
 
 void lcd_venc_change(struct aml_lcd_drv_s *pdrv)
@@ -392,21 +390,27 @@ void lcd_venc_change(struct aml_lcd_drv_s *pdrv)
 
 	offset = pdrv->data->offset_venc[pdrv->index];
 
-	htotal = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
-	vtotal = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;
-	if (pdrv->config.basic.h_period != htotal) {
-		lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT + offset,
-				pdrv->config.basic.h_period - 1);
-	}
-	if (pdrv->config.basic.v_period != vtotal) {
-		lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset,
-				pdrv->config.basic.v_period - 1);
-	}
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("[%d]: venc changed: %d,%d\n",
-		      pdrv->index,
-		      pdrv->config.basic.h_period,
-		      pdrv->config.basic.v_period);
+	if (pdrv->vmode_update) {
+		lcd_timing_init_config(pdrv);
+		lcd_set_venc_timing(pdrv);
+	} else {
+		htotal = lcd_vcbus_read(ENCL_VIDEO_MAX_PXCNT + offset) + 1;
+		vtotal = lcd_vcbus_read(ENCL_VIDEO_MAX_LNCNT + offset) + 1;
+
+		if (pdrv->config.basic.h_period != htotal) {
+			lcd_vcbus_write(ENCL_VIDEO_MAX_PXCNT + offset,
+					pdrv->config.basic.h_period - 1);
+		}
+		if (pdrv->config.basic.v_period != vtotal) {
+			lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset,
+					pdrv->config.basic.v_period - 1);
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("[%d]: venc changed: %d,%d\n",
+			      pdrv->index,
+			      pdrv->config.basic.h_period,
+			      pdrv->config.basic.v_period);
+		}
 	}
 
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, (void *)pdrv);

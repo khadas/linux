@@ -606,8 +606,8 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"video_on_line   %d\n\n",
 		pconf->timing.pll_ctrl, pconf->timing.div_ctrl,
 		pconf->timing.clk_ctrl,
-		pconf->timing.video_on_pixel,
-		pconf->timing.video_on_line);
+		pconf->timing.hstart,
+		pconf->timing.vstart);
 
 	return len;
 }
@@ -2001,7 +2001,7 @@ void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 	lcd_queue_work(&pdrv->test_check_work);
 
 	h_active = pdrv->config.basic.h_active;
-	video_on_pixel = pdrv->config.timing.video_on_pixel;
+	video_on_pixel = pdrv->config.timing.hstart;
 	if (num > 0)
 		lcd_gamma_debug_test_en(pdrv, 0);
 	else
@@ -2055,7 +2055,7 @@ static void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
 	lcd_queue_work(&pdrv->test_check_work);
 
 	h_active = pdrv->config.basic.h_active;
-	video_on_pixel = pdrv->config.timing.video_on_pixel;
+	video_on_pixel = pdrv->config.timing.hstart;
 
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, lcd_enc_tst[num][6]);
 	lcd_vcbus_write(ENCL_TST_MDSEL + offset, lcd_enc_tst[num][0]);
