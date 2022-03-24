@@ -2674,6 +2674,7 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 
 	length_keep = ndis_cnt(pch, QBF_NDIS_Q_KEEP);
 	//di_que_list_count(ch, QUE_POST_KEEP);
+	mm->cfg.num_rebuild_alloc = 0;
 
 	if (cfgeq(MEM_FLAG, EDI_MEM_M_CMA)	||
 	    cfgeq(MEM_FLAG, EDI_MEM_M_CODEC_A)	||
@@ -2779,9 +2780,14 @@ bool dim_post_keep_release_one_check(unsigned int ch, unsigned int di_buf_index)
 		}
 		return true;
 	}
+	if (mm->sts.flg_alloced)
+		mm->sts.flg_realloc++;
+	else
+		mm->cfg.num_rebuild_alloc++;
 
-	mm->sts.flg_realloc++;
-	dbg_mem2("%s:stsflg_realloc[%d]\n", __func__, mm->sts.flg_realloc);
+	dbg_mem2("%s:stsflg_realloc[%d][%d]\n",
+		 __func__, mm->sts.flg_realloc,
+		 mm->cfg.num_rebuild_alloc);
 	mem_release_one_inused(pch, ndis->c.blk);
 	ndis_move_keep2idle(pch, ndis);
 	return true;
@@ -4924,7 +4930,8 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 		if (mm->sts.flg_alloced)
 			post_nub = release_post;
 		else
-			post_nub = mm->cfg.num_post - length_keep;
+			post_nub = mm->cfg.num_post - length_keep +
+				   mm->cfg.num_rebuild_alloc;
 
 		PR_INF("%s:allock nub[%d], flg[%d]\n", __func__, post_nub, mm->sts.flg_alloced);
 		blk_cmd.nub = post_nub;//mm->cfg.num_post;
