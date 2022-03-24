@@ -2204,14 +2204,21 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 
-	if (!IS_ERR(p_tdm->mclk2pad)) {
-		while (__clk_is_enabled(p_tdm->mclk2pad))
-			clk_disable_unprepare(p_tdm->mclk2pad);
-	}
+	if (p_tdm->chipinfo->regulator) {
+		if (!IS_ERR(p_tdm->mclk2pad)) {
+			while (__clk_is_enabled(p_tdm->mclk2pad))
+				clk_disable_unprepare(p_tdm->mclk2pad);
+		}
 
-	if (!IS_ERR(p_tdm->mclk)) {
-		while (__clk_is_enabled(p_tdm->mclk))
-			clk_disable_unprepare(p_tdm->mclk);
+		if (!IS_ERR(p_tdm->mclk)) {
+			while (__clk_is_enabled(p_tdm->mclk))
+				clk_disable_unprepare(p_tdm->mclk);
+		}
+
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+			regulator_disable(p_tdm->regulator_vcc5v);
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+			regulator_disable(p_tdm->regulator_vcc3v3);
 	}
 
 	/*mute default clk */
@@ -2224,11 +2231,6 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 			pr_info("%s tdm pins disable!\n", __func__);
 		}
 	}
-
-	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
-		regulator_disable(p_tdm->regulator_vcc5v);
-	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
-		regulator_disable(p_tdm->regulator_vcc3v3);
 
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;
@@ -2243,22 +2245,44 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	out_lanes = pop_count(p_tdm->setting.lane_mask_out);
 	in_lanes = pop_count(p_tdm->setting.lane_mask_in);
 
-	audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
-	audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
+	if (p_tdm->chipinfo->regulator) {
 
-	if (!IS_ERR(p_tdm->mclk) && !IS_ERR(p_tdm->clk)) {
-		clk_set_parent(p_tdm->mclk, NULL);
-		ret = clk_set_parent(p_tdm->mclk, p_tdm->clk);
-		if (ret)
-			dev_warn(&pdev->dev, "can't set tdm parent clock\n");
-	}
+		audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
+		audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
 
-	if (!IS_ERR(p_tdm->mclk2pad)) {
-		clk_set_parent(p_tdm->mclk2pad, NULL);
-		ret = clk_set_parent(p_tdm->mclk2pad, p_tdm->mclk);
+		if (!IS_ERR(p_tdm->mclk) && !IS_ERR(p_tdm->clk)) {
+			clk_set_parent(p_tdm->mclk, NULL);
+			ret = clk_set_parent(p_tdm->mclk, p_tdm->clk);
+			if (ret)
+				dev_warn(&pdev->dev, "can't set tdm parent clock\n");
+		}
+
+		if (!IS_ERR(p_tdm->mclk2pad)) {
+			clk_set_parent(p_tdm->mclk2pad, NULL);
+			ret = clk_set_parent(p_tdm->mclk2pad, p_tdm->mclk);
+			if (ret)
+				dev_warn(&pdev->dev, "Can't set tdm mclk_pad parent\n");
+			clk_prepare_enable(p_tdm->mclk2pad);
+		}
+
+		if (in_lanes > 0 && in_lanes <= LANE_MAX3)
+			aml_tdm_set_slot_in(p_tdm->actrl,
+				p_tdm->id, p_tdm->id, p_tdm->setting.slot_width,
+				p_tdm->chipinfo->use_vadtop);
+
+		if (out_lanes > 0 && out_lanes <= LANE_MAX3)
+			aml_tdm_set_slot_out(p_tdm->actrl,
+				p_tdm->id, p_tdm->setting.slots, p_tdm->setting.slot_width);
+
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+			ret = regulator_enable(p_tdm->regulator_vcc5v);
 		if (ret)
-			dev_warn(&pdev->dev, "Can't set tdm mclk_pad parent\n");
-		clk_prepare_enable(p_tdm->mclk2pad);
+			dev_err(&pdev->dev, "regulator tdm5v enable failed:   %d\n", ret);
+
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+			ret = regulator_enable(p_tdm->regulator_vcc3v3);
+		if (ret)
+			dev_err(&pdev->dev, "regulator tdm3v3 enable failed:   %d\n", ret);
 	}
 
 	/*set default clk for output*/
@@ -2273,26 +2297,6 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 			pr_info("%s tdm pins enable!\n", __func__);
 		}
 	}
-
-	if (in_lanes > 0 && in_lanes <= LANE_MAX3)
-		aml_tdm_set_slot_in(p_tdm->actrl,
-			p_tdm->id, p_tdm->id, p_tdm->setting.slot_width,
-			p_tdm->chipinfo->use_vadtop);
-
-	if (out_lanes > 0 && out_lanes <= LANE_MAX3)
-		aml_tdm_set_slot_out(p_tdm->actrl,
-			p_tdm->id, p_tdm->setting.slots, p_tdm->setting.slot_width);
-
-
-	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
-		ret = regulator_enable(p_tdm->regulator_vcc5v);
-	if (ret)
-		dev_err(&pdev->dev, "regulator tdm5v enable failed:   %d\n", ret);
-
-	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
-		ret = regulator_enable(p_tdm->regulator_vcc3v3);
-	if (ret)
-		dev_err(&pdev->dev, "regulator tdm3v3 enable failed:   %d\n", ret);
 
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 	return 0;

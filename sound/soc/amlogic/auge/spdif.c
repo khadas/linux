@@ -476,14 +476,21 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 	struct pinctrl_state *pstate = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 
-	if (!IS_ERR(p_spdif->clk_spdifout)) {
-		while (__clk_is_enabled(p_spdif->clk_spdifout))
-			clk_disable_unprepare(p_spdif->clk_spdifout);
-	}
+	if (p_spdif->chipinfo->regulator) {
+		if (!IS_ERR(p_spdif->clk_spdifout)) {
+			while (__clk_is_enabled(p_spdif->clk_spdifout))
+				clk_disable_unprepare(p_spdif->clk_spdifout);
+		}
 
-	if (!IS_ERR(p_spdif->clk_spdifin)) {
-		while (__clk_is_enabled(p_spdif->clk_spdifin))
-			clk_disable_unprepare(p_spdif->clk_spdifin);
+		if (!IS_ERR(p_spdif->clk_spdifin)) {
+			while (__clk_is_enabled(p_spdif->clk_spdifin))
+				clk_disable_unprepare(p_spdif->clk_spdifin);
+		}
+
+		if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
+			regulator_disable(p_spdif->regulator_vcc5v);
+		if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
+			regulator_disable(p_spdif->regulator_vcc3v3);
 	}
 
 	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
@@ -494,10 +501,6 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 	}
 	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, false);
 
-	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
-		regulator_disable(p_spdif->regulator_vcc5v);
-	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
-		regulator_disable(p_spdif->regulator_vcc3v3);
 
 	pr_info("%s is mute\n", __func__);
 	return 0;
@@ -510,20 +513,33 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
 
-	if (!IS_ERR(p_spdif->clk_spdifout)) {
-		clk_set_parent(p_spdif->clk_spdifout, NULL);
-		ret = clk_set_parent(p_spdif->clk_spdifout, p_spdif->sysclk);
-		if (ret)
-			dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
-		clk_prepare_enable(p_spdif->clk_spdifout);
-	}
+	if (p_spdif->chipinfo->regulator) {
+		if (!IS_ERR(p_spdif->clk_spdifout)) {
+			clk_set_parent(p_spdif->clk_spdifout, NULL);
+			ret = clk_set_parent(p_spdif->clk_spdifout, p_spdif->sysclk);
+			if (ret)
+				dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
+			clk_prepare_enable(p_spdif->clk_spdifout);
+		}
 
-	if (!IS_ERR(p_spdif->clk_spdifin)) {
-		clk_set_parent(p_spdif->clk_spdifin, NULL);
-		ret = clk_set_parent(p_spdif->clk_spdifin, p_spdif->fixed_clk);
+		if (!IS_ERR(p_spdif->clk_spdifin)) {
+			clk_set_parent(p_spdif->clk_spdifin, NULL);
+			ret = clk_set_parent(p_spdif->clk_spdifin, p_spdif->fixed_clk);
+			if (ret)
+				dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
+			clk_prepare_enable(p_spdif->clk_spdifin);
+		}
+		aml_set_spdifclk(p_spdif);
+
+		if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
+			ret = regulator_enable(p_spdif->regulator_vcc5v);
 		if (ret)
-			dev_warn(&pdev->dev, "Can't set spdif clk_spdifout parent\n");
-		clk_prepare_enable(p_spdif->clk_spdifin);
+			dev_err(&pdev->dev, "regulator spdif5v enable failed:   %d\n", ret);
+
+		if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
+			ret = regulator_enable(p_spdif->regulator_vcc3v3);
+		if (ret)
+			dev_err(&pdev->dev, "regulator spdif3v3 enable failed:   %d\n", ret);
 	}
 
 	if (!IS_ERR_OR_NULL(p_spdif->pin_ctl)) {
@@ -532,18 +548,8 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 		if (!IS_ERR_OR_NULL(state))
 			pinctrl_select_state(p_spdif->pin_ctl, state);
 	}
-	aml_set_spdifclk(p_spdif);
+
 	aml_spdif_enable(p_spdif->actrl, stream, p_spdif->id, true);
-
-	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc5v))
-		ret = regulator_enable(p_spdif->regulator_vcc5v);
-	if (ret)
-		dev_err(&pdev->dev, "regulator spdif5v enable failed:   %d\n", ret);
-
-	if (!IS_ERR_OR_NULL(p_spdif->regulator_vcc3v3))
-		ret = regulator_enable(p_spdif->regulator_vcc3v3);
-	if (ret)
-		dev_err(&pdev->dev, "regulator spdif3v3 enable failed:   %d\n", ret);
 
 	pr_info("%s is unmute\n", __func__);
 
