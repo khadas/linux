@@ -345,6 +345,7 @@ struct hdmitx_dev {
 		union hdmi_infoframe spd;
 		union hdmi_infoframe aud;
 		union hdmi_infoframe drm;
+		union hdmi_infoframe emp;
 	} infoframes;
 	struct hdmi_config_platform_data config_data;
 	enum hdmi_event_t hdmitx_event;
