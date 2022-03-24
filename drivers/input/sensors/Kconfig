@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# all sensors drivers configuration
+#
+
+comment "handle all sensors"
+
+menuconfig SENSOR_DEVICE
+	tristate "handle accel"
+	default n
+
+if SENSOR_DEVICE
+source "drivers/input/sensors/accel/Kconfig"
+
+endif
