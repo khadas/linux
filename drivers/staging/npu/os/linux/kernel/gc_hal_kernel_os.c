@@ -462,7 +462,7 @@ _QueryProcessPageTable(
         struct vm_area_struct *vma;
         spinlock_t *ptl;
         pgd_t *pgd;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0) && LINUX_VERSION_CODE <= KERNEL_VERSION (5,12,0)
         p4d_t *p4d;
 #endif
         pud_t *pud;
@@ -491,7 +491,9 @@ _QueryProcessPageTable(
     && LINUX_VERSION_CODE >= KERNEL_VERSION (4,11,0)
         pud = pud_offset((p4d_t*)pgd, logical);
 #else
-#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION (5,12,0)
+       pud = pud_offset((p4d_t*)pgd, logical);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION (5,9,0)
         p4d = p4d_offset(pgd, logical);
         if (p4d_none(READ_ONCE(*p4d)))
             return gcvSTATUS_NOT_FOUND;
