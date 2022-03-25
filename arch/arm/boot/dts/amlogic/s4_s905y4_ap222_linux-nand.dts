@@ -1407,16 +1407,17 @@
 			reg = <0x0 0x00000000>;
 		};
 		partition@4 {
+			/* Do not modify before the factory partition */
+			label = "factory";
+			reg = <0x0 0x0800000>;
+		};
+		partition@5 {
 			label = "logo";
 			reg = <0x0 0x00200000>;
 		};
-		partition@5 {
+		partition@6 {
 			label = "recovery";
 			reg = <0x0 0x1000000>;
-		};
-		partition@6 {
-			label = "factory";
-			reg = <0x0 0x0800000>;
 		};
 		partition@7 {
 			label = "boot";
