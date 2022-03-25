@@ -1025,6 +1025,9 @@ static int  hdmitx21_hdcp_stat_monitor(void *data)
 			auth_stat = hdmi21_authenticated;
 			pr_info("hdcptx: %d  auth: %d\n", hdev->hdcp_mode,
 				auth_stat);
+			if (hdev->drm_hdcp_cb.hdcp_notify)
+				hdev->drm_hdcp_cb.hdcp_notify(hdev->drm_hdcp_cb.data,
+					hdev->hdcp_mode, auth_stat);
 		}
 		msleep_interruptible(100);
 	}
