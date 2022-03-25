@@ -302,10 +302,22 @@ int __am_meson_drm_set_config(struct drm_mode_set *set,
 	primary_state->crtc_h = vdisplay;
 	primary_state->src_x = set->x << 16;
 	primary_state->src_y = set->y << 16;
-	if (logo.osd_reverse)
+
+	switch (logo.osd_reverse) {
+	case 1:
 		primary_state->rotation = DRM_MODE_REFLECT_MASK;
-	else
+		break;
+	case 2:
+		primary_state->rotation = DRM_MODE_REFLECT_X;
+		break;
+	case 3:
+		primary_state->rotation = DRM_MODE_REFLECT_Y;
+		break;
+	default:
 		primary_state->rotation = DRM_MODE_ROTATE_0;
+		break;
+	}
+
 	if (drm_rotation_90_or_270(primary_state->rotation)) {
 		if (private->ui_config.ui_h)
 			primary_state->src_w = private->ui_config.ui_h << 16;

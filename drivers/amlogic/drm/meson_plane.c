@@ -3,6 +3,9 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
+#include <linux/types.h>
+#include <linux/amlogic/media/osd/osd_logo.h>
+
 #include "meson_plane.h"
 #include "meson_crtc.h"
 #include "meson_vpu.h"
@@ -1298,7 +1301,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 	struct am_osd_plane *osd_plane;
 	struct drm_plane *plane;
 	enum drm_plane_type type = DRM_PLANE_TYPE_OVERLAY;
-	u32  zpos, min_zpos, max_zpos;
+	u32  zpos, min_zpos, max_zpos, osd_index;
 	char plane_name[8];
 	const char *const_plane_name;
 
@@ -1319,10 +1322,22 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 	osd_plane->plane_index = i;
 	osd_plane->plane_type = OSD_PLANE;
 
-	if (logo.osd_reverse)
+	get_logo_osd_reverse(&osd_index, &logo.osd_reverse);
+	switch (logo.osd_reverse) {
+	case 1:
 		osd_plane->osd_reverse = DRM_MODE_REFLECT_MASK;
-	else
+		break;
+	case 2:
+		osd_plane->osd_reverse = DRM_MODE_REFLECT_X;
+		break;
+	case 3:
+		osd_plane->osd_reverse = DRM_MODE_REFLECT_Y;
+		break;
+	default:
 		osd_plane->osd_reverse = DRM_MODE_ROTATE_0;
+		break;
+	}
+
 	zpos = osd_plane->plane_index + min_zpos;
 
 	plane = &osd_plane->base;
