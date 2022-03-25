@@ -10,7 +10,7 @@
 #define VRRLOCK_SUPPORT_HDMI BIT(0)
 #define VRRLOCK_SUPPORT_CVBS BIT(1)
 
-#define FRAME_LOCK_POLICY_VERSION  "20211021"
+#define FRAME_LOCK_POLICY_VERSION  "20220315-01"
 
 #define FRAMELOCK_INVALID    0
 #define FRAMELOCK_VLOCK      1
@@ -45,4 +45,6 @@ ssize_t frame_lock_debug_show(struct class *cla,
 			 struct class_attribute *attr, char *buf);
 int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 			  void *para);
+void frame_lock_mode_chg(unsigned int cmd);
+
 #endif
