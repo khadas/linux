@@ -615,17 +615,19 @@ static uint force_csc_type = 0xff;
 module_param(force_csc_type, uint, 0664);
 MODULE_PARM_DESC(force_csc_type, "\n force colour space convert type\n");
 
-static uint cur_hdr_support;
-module_param(cur_hdr_support, uint, 0664);
-MODULE_PARM_DESC(cur_hdr_support, "\n cur_hdr_support\n");
+static uint cur_hdr_support[VPP_TOP_MAX_S];
+module_param_array(cur_hdr_support, uint, &vpp_top_max, 0444);
+MODULE_PARM_DESC(cur_hdr_support, "\n current cur_hdr_support\n");
 
-static uint cur_colorimetry_support;
-module_param(cur_colorimetry_support, uint, 0664);
-MODULE_PARM_DESC(cur_colorimetry_support, "\n cur_colorimetry_support\n");
 
-static uint cur_hlg_support;
-module_param(cur_hlg_support, uint, 0664);
-MODULE_PARM_DESC(cur_hlg_support, "\n cur_hlg_support\n");
+static uint cur_colorimetry_support[VPP_TOP_MAX_S];
+module_param_array(cur_colorimetry_support, uint, &vpp_top_max, 0444);
+MODULE_PARM_DESC(cur_colorimetry_support, "\n current cur_colorimetry_support\n");
+
+static uint cur_hlg_support[VPP_TOP_MAX_S];
+module_param_array(cur_hlg_support, uint, &vpp_top_max, 0444);
+MODULE_PARM_DESC(cur_hlg_support, "\n current cur_hlg_support\n");
+
 
 static uint cur_color_fmt[VPP_TOP_MAX_S];
 module_param_array(cur_color_fmt, uint, &vpp_top_max, 0664);
@@ -4142,27 +4144,27 @@ int signal_type_changed(struct vframe_s *vf,
 		}
 	}
 
-	if (cur_hdr_support
+	if (cur_hdr_support[vpp_index]
 	!= (vinfo->hdr_info.hdr_support & 0x4)) {
 		pr_csc(1, "Tx HDR support changed.\n");
 		change_flag |= SIG_HDR_SUPPORT;
-		cur_hdr_support =
+		cur_hdr_support[vpp_index] =
 			vinfo->hdr_info.hdr_support & 0x4;
 	}
-	if (cur_colorimetry_support != vinfo->hdr_info.colorimetry_support) {
+	if (cur_colorimetry_support[vpp_index] != vinfo->hdr_info.colorimetry_support) {
 		pr_csc(1, "Tx colorimetry support changed.\n");
 		change_flag |= SIG_COLORIMETRY_SUPPORT;
-		cur_colorimetry_support = vinfo->hdr_info.colorimetry_support;
+		cur_colorimetry_support[vpp_index] = vinfo->hdr_info.colorimetry_support;
 	}
 	if (cur_color_fmt[vpp_index] != vinfo->viu_color_fmt) {
 		pr_csc(1, "color format changed.\n");
 		change_flag |= SIG_OP_CHG;
 		cur_color_fmt[vpp_index] = vinfo->viu_color_fmt;
 	}
-	if (cur_hlg_support != (vinfo->hdr_info.hdr_support & 0x8)) {
+	if (cur_hlg_support[vpp_index] != (vinfo->hdr_info.hdr_support & 0x8)) {
 		pr_csc(1, "Tx HLG support changed.\n");
 		change_flag |= SIG_HLG_SUPPORT;
-		cur_hlg_support = vinfo->hdr_info.hdr_support & 0x8;
+		cur_hlg_support[vpp_index] = vinfo->hdr_info.hdr_support & 0x8;
 	}
 
 	if (cur_eye_protect_mode != wb_val[0] ||
