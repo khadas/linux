@@ -72,6 +72,10 @@
 #define PRINT_OTHER		0X0040
 #define PRINT_NN		0X0080
 
+#define SOURCE_DTV_FIX_TUNNEL		0x1
+#define SOURCE_HWC_CREAT_ION		0x2
+#define SOURCE_PIC_MODE		0x4
+
 enum vc_transform_t {
 	/* flip source image horizontally */
 	VC_TRANSFORM_FLIP_H = 1,
@@ -87,11 +91,6 @@ enum vc_transform_t {
 	VC_TRANSFORM_FLIP_H_ROT_90 = VC_TRANSFORM_FLIP_H | VC_TRANSFORM_ROT_90,
 	/* flip source image vertically, the rotate 90 degrees clock-wise */
 	VC_TRANSFORM_FLIP_V_ROT_90 = VC_TRANSFORM_FLIP_V | VC_TRANSFORM_ROT_90,
-};
-
-enum source_type_t {
-	DTV_FIX_TUNNEL = 1,
-	HWC_CREAT_ION = 2,
 };
 
 struct frame_info_t {

@@ -76,6 +76,8 @@ static u32 receive_wait = 15;
 static u32 margin_time = 2000;
 static u32 max_width = 2560;
 static u32 max_height = 1440;
+static u32 pic_mode_max_width = 3840;
+static u32 pic_mode_max_height = 2160;
 static u32 rotate_width = 1280;
 static u32 rotate_height = 720;
 static u32 close_black;
@@ -222,7 +224,8 @@ static void video_timeline_increase(struct composer_dev *dev,
 		dev->fence_release_count);
 }
 
-static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp)
+static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp,
+struct received_frames_t *received_frames_tmp)
 {
 	int i, ret = 0;
 	u32 buf_width, buf_height;
@@ -250,14 +253,23 @@ static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp)
 	dev->vinfo_h = video_composer_vinfo->height;
 	buf_width = (video_composer_vinfo->width + 0x1f) & ~0x1f;
 	buf_height = video_composer_vinfo->height;
-	if (dev->need_rotate) {
+
+	if (dev->need_rotate && received_frames_tmp->frames_info.frame_info[0]
+		.source_type != SOURCE_PIC_MODE) {
 		buf_width = rotate_width;
 		buf_height = rotate_height;
 	}
-	if (buf_width > max_width)
-		buf_width = max_width;
-	if (buf_height > max_height)
-		buf_height = max_height;
+	if (received_frames_tmp->frames_info.frame_info[0].source_type == SOURCE_PIC_MODE) {
+		if (buf_width > pic_mode_max_width)
+			buf_width = pic_mode_max_width;
+		if (buf_height > pic_mode_max_height)
+			buf_height = pic_mode_max_height;
+	} else {
+		if (buf_width > max_width)
+			buf_width = max_width;
+		if (buf_height > max_height)
+			buf_height = max_height;
+	}
 	if (composer_use_444)
 		buf_size = buf_width * buf_height * 3;
 	else
@@ -1206,7 +1218,7 @@ static void vframe_composer(struct composer_dev *dev)
 	is_tvp = received_frames_tmp->is_tvp;
 
 	dev->ge2d_para.ge2d_config = &ge2d_config;
-	ret = video_composer_init_buffer(dev, is_tvp);
+	ret = video_composer_init_buffer(dev, is_tvp, received_frames_tmp);
 	if (ret != 0) {
 		vc_print(dev->index, PRINT_ERROR, "vc: init buffer failed!\n");
 		video_composer_uninit_buffer(dev);
@@ -1305,9 +1317,8 @@ static void vframe_composer(struct composer_dev *dev)
 		if (vframe_info[i]->transform != 0 || count != 1)
 			need_dw = true;
 
-		if (vframe_info[vf_dev[i]]->source_type == DTV_FIX_TUNNEL) {
+		if (vframe_info[vf_dev[i]]->source_type == SOURCE_DTV_FIX_TUNNEL)
 			is_fixtunnel = true;
-		}
 
 		if (vframe_info[vf_dev[i]]->type == 1) {
 			if (is_dec_vf || is_v4l_vf) {
@@ -1774,7 +1785,7 @@ static void video_composer_task(struct composer_dev *dev)
 			vf->crop[3] = pic_w
 				- frame_info->crop_w
 				- frame_info->crop_x;
-			if (frame_info->source_type == DTV_FIX_TUNNEL) {
+			if (frame_info->source_type == SOURCE_DTV_FIX_TUNNEL) {
 				vf->flag |= VFRAME_FLAG_FIX_TUNNEL;
 				vf->crop[0] = frame_info->crop_x;
 				vf->crop[1] = frame_info->crop_y;
@@ -1827,7 +1838,7 @@ static void video_composer_task(struct composer_dev *dev)
 		vf->disp_pts = 0;
 
 		if (frame_info->type == 1 && !(is_dec_vf || is_v4l_vf)) {
-			if (frame_info->source_type == HWC_CREAT_ION)
+			if (frame_info->source_type == SOURCE_HWC_CREAT_ION)
 				vf->source_type = VFRAME_SOURCE_TYPE_HWC;
 			vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER_DMA;
 			vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
