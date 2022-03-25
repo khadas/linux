@@ -947,7 +947,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		pr_info("current vframe index(%u):\n", vf->index);
 		pr_info("\t buf(w%u, h%u),type(0x%x),flag(0x%x), duration(%d),",
 		vf->width, vf->height, vf->type, vf->flag, vf->duration);
-		pr_info("\t ratio_control(0x%x).\n", vf->ratio_control);
+		pr_info("\t ratio_control(0x%x), signal_type:0x%x\n",
+			vf->ratio_control, vf->signal_type);
 		pr_info("\t trans fmt %u, left_start_x %u,",
 			vf->trans_fmt, vf->left_eye.start_x);
 		pr_info("\t right_start_x %u, width_x %u\n",

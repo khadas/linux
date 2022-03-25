@@ -323,5 +323,6 @@ void vdin_afbce_soft_reset(void);
 void vdin_afbce_mode_init(struct vdin_dev_s *devp);
 void vdin_afbce_mode_update(struct vdin_dev_s *devp);
 bool vdin_chk_is_comb_mode(struct vdin_dev_s *devp);
+void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable);
 #endif
 

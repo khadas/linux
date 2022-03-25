@@ -970,7 +970,8 @@ void vdin_dump_vf_state(struct vf_pool *p)
 			pos->vf.index, pos->status, pos->vf.canvas0Addr);
 		pr_info("\t canvas index1: 0x%x, vframe type: 0x%x.\n",
 			pos->vf.canvas1Addr, pos->vf.type);
-		pr_info("\t ratio_control(0x%x).\n", pos->vf.ratio_control);
+		pr_info("\t ratio_control(0x%x) signal_type(0x%x)\n",
+			pos->vf.ratio_control, pos->vf.signal_type);
 	}
 	spin_unlock_irqrestore(&p->wr_lock, flags);
 
@@ -982,7 +983,8 @@ void vdin_dump_vf_state(struct vf_pool *p)
 			pos->vf.index, pos->status, pos->vf.canvas0Addr);
 		pr_info("\t canvas index1: 0x%x, vframe type: 0x%x.\n",
 			pos->vf.canvas1Addr, pos->vf.type);
-		pr_info("\t ratio_control(0x%x).\n", pos->vf.ratio_control);
+		pr_info("\t ratio_control(0x%x) signal_type(0x%x)\n",
+			pos->vf.ratio_control, pos->vf.signal_type);
 	}
 	spin_unlock_irqrestore(&p->rd_lock, flags);
 

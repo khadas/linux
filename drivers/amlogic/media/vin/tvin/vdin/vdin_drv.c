@@ -2124,8 +2124,8 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				 1000));
 
 		if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
-			pr_info("vdin.%d sig_type:0x%x type:0x%x dur:%u disp:%d\n",
-				devp->index,
+			pr_info("vdin.%d vf:%d sig_type:0x%x type:0x%x dur:%u disp:%d\n",
+				devp->index, devp->vfp->last_last_vfe->vf.index,
 				devp->vfp->last_last_vfe->vf.signal_type,
 				devp->vfp->last_last_vfe->vf.type,
 				devp->vfp->last_last_vfe->vf.duration,
@@ -2193,6 +2193,15 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 
 	if (devp->afbce_mode == 1 || devp->double_wr)
 		vdin_afbce_set_next_frame(devp, rdma_en, vfe);
+}
+
+void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en)
+{
+	if (devp->afbce_mode == 0 || devp->double_wr)
+		vdin_pause_mif_write(devp, rdma_en);
+
+	if (devp->afbce_mode == 1 || devp->double_wr)
+		vdin_pause_afbce_write(devp, rdma_en);
 }
 
 /*
@@ -2270,6 +2279,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		}
 		vdin_vs_proc_monitor(devp);
 		if (devp->dv.chg_cnt) {
+			if (devp->frame_cnt > 2)
+				vdin_pause_hw_write(devp,
+					devp->flags & VDIN_FLAG_RDMA_ENABLE);
 			vdin_drop_frame_info(devp, "dv chg");
 			vdin_vf_skip_all_disp(devp->vfp);
 			return IRQ_HANDLED;
