@@ -148,5 +148,6 @@ void dvbs_fft_reg_term(unsigned int reg_val[60]);
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
 	int frq, struct fft_search_result *search_result);
 void dvbs_blind_fft_result_handle(struct fft_total_result *total_result);
+unsigned int dvbs_blind_check_AGC2_bandwidth(void);
 
 #endif

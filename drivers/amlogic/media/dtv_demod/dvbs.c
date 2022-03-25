@@ -1717,10 +1717,21 @@ void fe_l2a_set_symbol_rate(unsigned int symb_rate)
 	tmp = (symb_rate / 1000) * (1 << 15);
 	tmp = tmp / (135000000 / 1000);
 	tmp = tmp * (1 << 9);
+	PR_DVBS("1 tmp: %d, symb_rate: %d.\n", tmp, symb_rate);
+
+	//tmp = symb_rate / 1000 * ((16777216 + 67500) / 135000);
+	//PR_DVBS("2 tmp: %d, symb_rate: %d.\n", tmp, symb_rate);
 
 	dvbs_wr_byte(0x9f0, (tmp >> 16) & 0xff);
 	dvbs_wr_byte(0x9f1, (tmp >> 8) & 0xff);
 	dvbs_wr_byte(0x9f2, tmp & 0xff);
+
+	// read back from register for checking
+	//tmp = ((dvbs_rd_byte(0x9f0) & 0xff) << 16);
+	//tmp = tmp | ((dvbs_rd_byte(0x9f1) & 0xff) << 8);
+	//tmp = tmp | (dvbs_rd_byte(0x9f2) & 0xff);
+
+	//PR_DVBS("3 tmp: %d, symb_rate: %d.\n", tmp, symb_rate);
 }
 
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
@@ -1822,4 +1833,266 @@ void dvbs_blind_fft_result_handle(struct fft_total_result *total_result)
 			}
 		}
 	}
+}
+
+unsigned int fe_l2a_get_AGC2_accu(void)
+{
+	unsigned int AGC2_accu = 0;
+	unsigned int mantissa = 0;
+	int exponent = 0;
+	unsigned int AGC2I1 = 0, AGC2I0 = 0;
+#ifdef DVBS_BLIND_SCAN_DEBUG
+	unsigned int fld_value[2] = { 0 };
+
+	fld_value[0] = dvbs_rd_byte(0x9a0);
+	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;
+	mantissa = fld_value[1] + (fld_value[0] << 2);
+	fld_value[0] = dvbs_rd_byte(0x9a1) & 0x3f;
+	exponent = (int)(fld_value[0] - 4); //5 - 9
+
+	if (exponent >= 0)
+		AGC2_accu = mantissa * (1 << exponent);
+
+	PR_DVBS("1 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d.\n",
+			AGC2_accu, AGC2_accu, mantissa, exponent);
+
+	/* Georg's method */
+	fld_value[0] = dvbs_rd_byte(0x9a0);
+	fld_value[1] = (dvbs_rd_byte(0x9a1) & 0xc0) >> 6;
+	mantissa = ((fld_value[0] << 8) | fld_value[1]) >> 6;
+	exponent = (int)((dvbs_rd_byte(0x9a1) & 0x3f) - 9);
+
+	if (exponent >= 0)
+		AGC2_accu = mantissa * (1 << exponent);
+
+	PR_DVBS("2 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d.\n",
+			AGC2_accu, AGC2_accu, mantissa, exponent);
+#endif
+	/* Damien's method */
+	/*************** calculate AGC2 **************************/
+	/* Agc2 = (AGC2I1 * 4 + AGC2I1) * 2^X toPowerY (exp - 9) */
+	/* exp min = 5, max = 15                                 */
+	/* so (exp - 9) min = -4, max = 6                        */
+	/*********************************************************/
+	AGC2I1 = dvbs_rd_byte(0x9a0);
+	AGC2I0 = dvbs_rd_byte(0x9a1);
+	mantissa = ((AGC2I1 * 4) + ((AGC2I0 >> 6) & 0x3)) & 0xffff;
+	exponent = AGC2I0 & 0x3f;
+
+	/* divide the mantissa by 2^abs(exponent - 9) */
+	exponent = exponent - 9;
+	if (exponent < 0) {
+		AGC2_accu = 2 << abs(exponent);
+		AGC2_accu = (1000 * mantissa) / AGC2_accu;
+	} else {
+		AGC2_accu = 2 << exponent;
+		AGC2_accu = (1000 * mantissa) * AGC2_accu;
+	}
+
+	PR_DVBS("3 AGC2_accu: %d(0x%x), mantissa: %d, exponent: %d.\n",
+		AGC2_accu, AGC2_accu, mantissa, exponent);
+
+	return AGC2_accu;
+}
+
+unsigned int dvbs_blind_check_AGC2_bandwidth(void)
+{
+#define BLIND_SEARCH_AGC2BANDWIDTH (40)
+#define BLIND_SEARCH_POW_TH        (25000)
+
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	int i = 0, j = 0, k = 0, l = 0;
+	int nb_steps = 0, init_freq = 0, freq_step = 0;
+	unsigned int tmp1 = 0, tmp2 = 0, tmp3 = 0;
+	unsigned int agc2_level = 0, agc2_ratio = 0, accu_level = 0;
+	unsigned int min_agc2_level = 0, max_agc2_level = 0, mid_agc2_level = 0;
+	unsigned int agc2_level_tab[20] = { 0 };
+	unsigned char div = 2, wait_for_fall = 0;
+	unsigned int asperity = 0;
+	//int tmp = 0;
+
+	dvbs_wr_byte(0x924, 0x1c); //demod stop
+	tmp2 = dvbs_rd_byte(0x9b0);
+	dvbs_wr_byte(0x9b0, 0x6);
+
+	tmp3 = dvbs_rd_byte(0x9b5);
+	dvbs_wr_byte(0x9b5, 0x00);
+	dvbs_wr_byte(0x991, 0x40); //default 0x38
+
+	tmp1 = dvbs_rd_byte(0x922);
+	dvbs_write_bits(0x922, 1, 6, 1);
+	dvbs_write_bits(0x922, 1, 7, 1);
+	/* Enable the SR SCAN */
+	dvbs_write_bits(0x922, 0, 4, 1);
+	/* activate the carrier frequency search loop */
+	dvbs_write_bits(0x922, 0, 3, 1);
+
+	/* AGC2 bandwidth * 0.5M */
+	fe_l2a_set_symbol_rate(1000000 / div);
+
+	nb_steps = (45000000 / 2000000) * div;
+	//if (nb_steps <= 0)
+	//	nb_steps = 1;
+
+	/* AGC2 step is 1 / div MHz */
+	//freq_step = 1000 * ((16777216 + 67500) / 135000) / div;
+	//PR_DVBS("1 freq_step: %d\n", freq_step);
+	freq_step = ((1000000 << 8) / (135000000 >> 8)) / div;
+	freq_step = freq_step << 8;
+	PR_DVBS("2 freq_step: %d\n", freq_step);
+
+	init_freq = freq_step * nb_steps;
+
+	for (i = 0; i < nb_steps * 2; ++i) {
+		if (devp->blind_scan_stop)
+			break;
+
+		PR_DVBS("init_freq: %d, freq_step: %d, nb_steps: %d.\n",
+				init_freq, freq_step, nb_steps);
+
+		dvbs_wr_byte(0x924, 0x1c);
+
+		dvbs_wr_byte(0x9c3, (init_freq >> 16) & 0xff);
+		dvbs_wr_byte(0x9c4, (init_freq >> 8) & 0xff);
+		dvbs_wr_byte(0x9c5, init_freq  & 0xff);
+#ifdef DVBS_BLIND_SCAN_DEBUG
+		tmp = ((dvbs_rd_byte(0x9c3) & 0xff) << 16) |
+				((dvbs_rd_byte(0x9c4) & 0xff) << 8) |
+				(dvbs_rd_byte(0x9c5) & 0xff);
+		if (tmp & 0x800000)
+			tmp = (((~tmp) & 0x7fffff) + 1) * (-1);
+
+		PR_DVBS("get hw carrier_freq1 = %d.\n", tmp);
+#endif
+		dvbs_wr_byte(0x924, 0x18); //Warm start
+		usleep_range(5 * 1000, 6 * 1000);//msleep(5);
+
+		agc2_level = fe_l2a_get_AGC2_accu();
+		if (agc2_level > 0x1fffff)
+			agc2_level = 0x1fffff;
+
+		PR_DVBS("agc2_level: %d(0x%x), i: %d, j: %d.\n",
+				agc2_level, agc2_level, i, j);
+
+		if (i == 0) {
+			//min_agc2_level = agc2_level;
+			//max_agc2_level = agc2_level;
+			//mid_agc2_level = agc2_level;
+
+			for (l = 0; l < 5 * div; ++l)
+				agc2_level_tab[l] = agc2_level;
+
+		} else {
+			k = i % (5 * div);
+			agc2_level_tab[k] = agc2_level;
+
+			min_agc2_level = 0x3fffff;
+			max_agc2_level = 0x0000;
+			accu_level = 0;
+
+			/* Min and max detection */
+			for (l = 0; l < 5 * div; ++l) {
+				if (agc2_level_tab[l] < min_agc2_level)
+					min_agc2_level = agc2_level_tab[l];
+
+				if (agc2_level_tab[l] > max_agc2_level)
+					max_agc2_level = agc2_level_tab[l];
+
+				accu_level = accu_level + agc2_level_tab[l];
+			}
+
+			mid_agc2_level = accu_level / (5 * div);
+
+			if (!wait_for_fall) {
+				agc2_ratio = (max_agc2_level - min_agc2_level) * 128;
+				agc2_ratio = agc2_ratio / mid_agc2_level;
+			} else {
+				agc2_ratio = (agc2_level - min_agc2_level) * 128;
+				agc2_ratio = agc2_ratio / mid_agc2_level;
+			}
+
+			if (agc2_ratio > 0xffff)
+				agc2_ratio = 0xffff;
+
+			PR_DVBS("i: %d, j: %d.\n", i, j);
+			PR_DVBS("agc2_level     %d.\n", agc2_level);
+			PR_DVBS("max_agc2_level %d.\n", max_agc2_level);
+			PR_DVBS("min_agc2_level %d.\n", min_agc2_level);
+			PR_DVBS("mid_agc2_level %d.\n", mid_agc2_level);
+			PR_DVBS("agc2_ratio     %d.\n", agc2_ratio);
+
+			if (agc2_ratio > BLIND_SEARCH_AGC2BANDWIDTH &&
+				agc2_level == min_agc2_level &&
+				agc2_level < BLIND_SEARCH_POW_TH) {
+				/* rising edge */
+
+				PR_DVBS("Find first edge is rising ...\n");
+				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x, agc2_level 0x%x).\n",
+						agc2_ratio, min_agc2_level, agc2_level);
+
+				/* The first edge is rising */
+				asperity = 1;
+				wait_for_fall = 1;
+
+				PR_DVBS("rising: i %d, j %d, asperity %d, init_freq %d.\n",
+						i, j, asperity, init_freq);
+
+				for (l = 0; l < 5 * div; l++)
+					agc2_level_tab[l] = agc2_level;
+
+			} else if (agc2_ratio > BLIND_SEARCH_AGC2BANDWIDTH &&
+						min_agc2_level < BLIND_SEARCH_POW_TH) {
+				/* falling edge */
+
+				PR_DVBS("Find first edge is falling ...\n");
+				PR_DVBS("agc2_ratio 0x%x, min_agc2_level 0x%x).\n",
+						agc2_ratio, min_agc2_level);
+
+				/* the first edge is falling */
+				if (!wait_for_fall)
+					asperity = 2;
+				else
+					asperity = 1;
+
+				PR_DVBS("falling: i %d, j %d, asperity %d, init_freq %d.\n",
+						i, j, asperity, init_freq);
+
+				if (j == 1) {
+					for (l = 0; l < 5 * div; l++)
+						agc2_level_tab[l] = agc2_level;
+
+					/* All reset */
+					j = 0;
+					wait_for_fall = 0;
+					asperity = 0;
+				} else {
+					break;
+				}
+			}
+
+			if (wait_for_fall == 1 && j == (5 * div))
+				break;
+
+			if (wait_for_fall == 1)
+				j += 1;
+		}
+
+		init_freq = init_freq - freq_step;
+	}
+
+	dvbs_wr_byte(0x922, tmp1);
+	dvbs_wr_byte(0x9b0, tmp2);
+	dvbs_wr_byte(0x9b5, tmp3);
+
+	/* Demod Stop */
+	dvbs_wr_byte(0x924, 0x1c);
+	dvbs_wr_byte(0x9c4, 0x0);
+	dvbs_wr_byte(0x9c5, 0x0);
+
+	/* asperity == 1, means rising edge followed by a constant level
+	 * or a falling edge.
+	 * others, means falling edge.
+	 */
+
+	return asperity;
 }
