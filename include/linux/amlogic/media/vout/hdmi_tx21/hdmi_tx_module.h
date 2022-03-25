@@ -18,6 +18,7 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vrr/vrr.h>
 #include <drm/amlogic/meson_connector_dev.h>
+#include <linux/miscdevice.h>
 
 #define DEVICE_NAME "amhdmitx21"
 
@@ -431,6 +432,7 @@ struct hdmitx_dev {
 	/*DRM related*/
 	int drm_hdmitx_id;
 	struct connector_hpd_cb drm_hpd_cb;
+	struct miscdevice hdcp_comm_device;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)

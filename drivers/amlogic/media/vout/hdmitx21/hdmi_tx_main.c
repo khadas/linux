@@ -59,6 +59,7 @@
 #define HDMI_TX_RESOURCE_NUM 4
 #define HDMI_TX_PWR_CTRL_NUM	6
 
+#define TEE_HDCP_IOC_START _IOW('P', 0, int)
 static struct class *hdmitx_class;
 static int set_disp_mode_auto(void);
 static void hdmitx_get_edid(struct hdmitx_dev *hdev);
@@ -83,6 +84,9 @@ static int meson_hdmitx_bind(struct device *dev,
 			      struct device *master, void *data);
 static void meson_hdmitx_unbind(struct device *dev,
 				 struct device *master, void *data);
+static void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev);
+static void tee_comm_dev_reg(struct hdmitx_dev *hdev);
+static void tee_comm_dev_unreg(struct hdmitx_dev *hdev);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data);
@@ -249,8 +253,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 	usleep_range(10000, 10010);
 	pr_info("HDMITX: Early Suspend\n");
-	hdev->hdcp_mode = 0;
-	hdcp_mode_set(0);
+	hdmitx21_disable_hdcp(hdev);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
@@ -320,7 +323,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	hdev->ready = 0;
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 	usleep_range(10000, 10010);
-	hdcp_mode_set(0);
+	hdmitx21_disable_hdcp(hdev);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
@@ -490,6 +493,26 @@ static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev)
 	hdmitx_vdev.dv_info = &dv_dummy;
 }
 
+static void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
+{
+	if (get_hdcp2_lstore() & is_rx_hdcp2ver()) {
+		hdev->hdcp_mode = 2;
+		hdcp_mode_set(2);
+	} else {
+		if (get_hdcp1_lstore()) {
+			hdev->hdcp_mode = 1;
+			hdcp_mode_set(1);
+		} else {
+			hdev->hdcp_mode = 0;
+		}
+	}
+}
+
+static void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev)
+{
+	hdev->hdcp_mode = 0;
+	hdcp_mode_set(0);
+}
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -509,8 +532,7 @@ static int set_disp_mode_auto(void)
 		return -1;
 	pr_info("hdmitx: get current mode: %s\n", info->name);
 	if (strncmp(info->name, "invalid", strlen("invalid")) == 0) {
-		hdev->hdcp_mode = 0;
-		hdcp_mode_set(0);
+		hdmitx21_disable_hdcp(hdev);
 		return -1;
 	}
 	/*update hdmi checksum to vout*/
@@ -590,19 +612,10 @@ static int set_disp_mode_auto(void)
 		queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, 0);
 	}
 	hdev->output_blank_flag = 1;
-	hdev->ready = 1;
 	edidinfo_attach_to_vinfo(hdev);
-	if (get_hdcp2_lstore() & is_rx_hdcp2ver()) {
-		hdev->hdcp_mode = 2;
-		hdcp_mode_set(2);
-	} else {
-		if (get_hdcp1_lstore()) {
-			hdev->hdcp_mode = 1;
-			hdcp_mode_set(1);
-		} else {
-			hdev->hdcp_mode = 0;
-		}
-	}
+	hdmitx21_enable_hdcp(hdev);
+	hdev->ready = 1;
+
 	return ret;
 }
 
@@ -4212,8 +4225,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
-	hdev->hdcp_mode = 0;
-	hdcp_mode_set(0);
+	hdmitx21_disable_hdcp(hdev);
 	clear_rx_vinfo(hdev);
 	rx_edid_physical_addr(0, 0, 0, 0);
 	hdmitx21_edid_clear(hdev);
@@ -4926,7 +4938,7 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 
 	/*bind to drm.*/
 	component_add(&pdev->dev, &meson_hdmitx_bind_ops);
-
+	tee_comm_dev_reg(hdev);
 	pr_info("%s end\n", __func__);
 
 	return r;
@@ -4937,6 +4949,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct device *dev = hdev->hdtx_dev;
 
+	tee_comm_dev_unreg(hdev);
 	/*unbind from drm.*/
 	if (hdmitx21_device.drm_hdmitx_id != 0)
 		component_del(&pdev->dev, &meson_hdmitx_bind_ops);
@@ -5475,4 +5488,59 @@ static void meson_hdmitx_unbind(struct device *dev,
 }
 
 /*************DRM connector API end**************/
+
+/****** tee_hdcp key related start ******/
+static long hdcp_comm_ioctl(struct file *file,
+	unsigned int cmd,
+	unsigned long arg)
+{
+	int rtn_val;
+	struct hdmitx_dev *hdev = &hdmitx21_device;
+
+	switch (cmd) {
+	case TEE_HDCP_IOC_START:
+		/* notify by TEE, hdcp key ready */
+		rtn_val = 0;
+		pr_info("tee load hdcp key ready\n");
+		if (hdev->hpd_state == 1 &&
+			hdev->ready &&
+			hdev->hdcp_mode == 0) {
+			pr_info("hdmi ready but hdcp not enabled, enable now\n");
+			hdmitx21_enable_hdcp(hdev);
+		}
+		break;
+	default:
+		rtn_val = -EPERM;
+		break;
+	}
+	return rtn_val;
+}
+
+static const struct file_operations hdcp_comm_file_operations = {
+	.owner = THIS_MODULE,
+	.unlocked_ioctl = hdcp_comm_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = hdcp_comm_ioctl,
+#endif
+};
+
+static void tee_comm_dev_reg(struct hdmitx_dev *hdev)
+{
+	int ret;
+
+	hdev->hdcp_comm_device.minor = MISC_DYNAMIC_MINOR;
+	hdev->hdcp_comm_device.name = "tee_comm_hdcp";
+	hdev->hdcp_comm_device.fops = &hdcp_comm_file_operations;
+
+	ret = misc_register(&hdev->hdcp_comm_device);
+	if (ret < 0)
+		pr_err("%s misc_register fail\n", __func__);
+}
+
+static void tee_comm_dev_unreg(struct hdmitx_dev *hdev)
+{
+	misc_deregister(&hdev->hdcp_comm_device);
+}
+
+/****** tee_hdcp key related end ******/
 

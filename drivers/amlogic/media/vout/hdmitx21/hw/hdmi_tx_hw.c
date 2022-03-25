@@ -288,7 +288,9 @@ static enum hdmi_vic _get_vic_from_vsif(struct hdmitx_dev *hdev)
 	union hdmi_infoframe *infoframe = &hdev->infoframes.vend;
 	struct hdmi_vendor_infoframe *vendor = &infoframe->vendor.hdmi;
 
-	hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	if (ret == -1 || ret == 0)
+		return hdmi4k_vic;
 	ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
 	if (ret < 0) {
 		pr_info("hdmitx21: parsing VEND failed %d\n", ret);
@@ -326,7 +328,12 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 		const char *name;
 		enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
-		hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AVI, body);
+		hdev->ready = 1;
+		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AVI, body);
+		if (ret == -1 || ret == 0) {
+			pr_info("hdmitx21: AVI not enabled %d\n", ret);
+			return;
+		}
 		ret = hdmi_infoframe_unpack(infoframe, body, sizeof(body));
 		if (ret < 0) {
 			pr_info("hdmitx21: parsing AVI failed %d\n", ret);
@@ -343,9 +350,11 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 				if (vic == HDMI_0_UNKNOWN)
 					vic = _get_vic_from_vsif(hdev);
 				tp = hdmitx21_gettiming_from_vic(vic);
-				name = tp->sname ? tp->sname : tp->name;
-				hdev->para = hdmitx21_get_fmtpara(name,
-					hdev->fmt_attr);
+				if (tp) {
+					name = tp->sname ? tp->sname : tp->name;
+					hdev->para = hdmitx21_get_fmtpara(name,
+						hdev->fmt_attr);
+				}
 			} else {
 				pr_info("hdmitx21: failed to get para\n");
 				hdev->para->cs = HDMI_COLORSPACE_YUV444;
@@ -901,7 +910,7 @@ static bool hdmitx_vsif_en(u8 *body)
 	int ret;
 
 	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
-	if (ret != -1 && ret != 0)
+	if (ret == -1 || ret == 0)
 		return 0;
 	else
 		return 1;
