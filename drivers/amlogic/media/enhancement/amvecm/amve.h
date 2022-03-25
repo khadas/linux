@@ -104,6 +104,9 @@ extern struct tcon_gamma_table_s video_gamma_table_r_adj;
 extern struct tcon_gamma_table_s video_gamma_table_g_adj;
 extern struct tcon_gamma_table_s video_gamma_table_b_adj;
 extern struct tcon_rgb_ogo_s     video_rgb_ogo;
+extern struct gm_tbl_s gt;
+extern unsigned int gamma_index;
+extern unsigned int gm_par_idx;
 
 extern spinlock_t vpp_lcd_gamma_lock;
 extern struct mutex vpp_lut3d_lock;
@@ -187,7 +190,6 @@ void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h);
 extern int video_rgb_ogo_xvy_mtx;
 
 #define GAMMA_SIZE 256
-extern unsigned int gamma_index;
 
 extern unsigned int dnlp_sel;
 void ve_dnlp_load_reg(void);

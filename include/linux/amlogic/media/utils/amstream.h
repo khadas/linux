@@ -973,24 +973,6 @@ int get_sub_type(void);
 
 #endif				/**/
 
-struct tcon_gamma_table_s {
-	u16 data[256];
-} /*tcon_gamma_table_t */;
-
-struct tcon_rgb_ogo_s {
-	unsigned int en;
-
-	int r_pre_offset;	/* s11.0, range -1024~+1023, default is 0 */
-	int g_pre_offset;	/* s11.0, range -1024~+1023, default is 0 */
-	int b_pre_offset;	/* s11.0, range -1024~+1023, default is 0 */
-	unsigned int r_gain;   /* u1.10, range 0~2047, default is 1024 (1.0x) */
-	unsigned int g_gain;   /* u1.10, range 0~2047, default is 1024 (1.0x) */
-	unsigned int b_gain;   /* u1.10, range 0~2047, default is 1024 (1.0x) */
-	int r_post_offset;	/* s11.0, range -1024~+1023, default is 0 */
-	int g_post_offset;	/* s11.0, range -1024~+1023, default is 0 */
-	int b_post_offset;	/* s11.0, range -1024~+1023, default is 0 */
-} /*tcon_rgb_ogo_t */;
-
 //#ifndef CONFIG_AMLOGIC_DEBUG_ATRACE
 //static inline void ATRACE_COUNTER(const char *name, int val) { return; }
 //#endif

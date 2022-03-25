@@ -2508,6 +2508,31 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("load same gamma_b table,no need to change\n");
 		}
 		break;
+	case AMVECM_IOC_GAMMA_SET:
+		if (!gamma_en)
+			return -EINVAL;
+
+		if (copy_from_user(&gt, (void __user *)arg,
+			sizeof(struct gm_tbl_s))) {
+			pr_amvecm_dbg("load gamma table fail\n");
+			ret = -EFAULT;
+		} else {
+			memcpy(&video_gamma_table_r,
+				&gt.gm_tb[gm_par_idx][0],
+				sizeof(struct tcon_gamma_table_s));
+			memcpy(&video_gamma_table_g,
+				&gt.gm_tb[gm_par_idx][1],
+				sizeof(struct tcon_gamma_table_s));
+			memcpy(&video_gamma_table_b,
+				&gt.gm_tb[gm_par_idx][2],
+				sizeof(struct tcon_gamma_table_s));
+
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
+			pr_amvecm_dbg(" gm_par_idx = %d, load gm success\n", gm_par_idx);
+		}
+		break;
 	case AMVECM_IOC_S_RGB_OGO:
 		if (!wb_en)
 			return -EINVAL;
@@ -8360,6 +8385,36 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 		pd_det = (uint)val;
 		pr_info("pd_det: %d\n", pd_det);
+	} else if (!strcmp(parm[0], "dyn_gamma")) {
+		u8 dynamic_gamma_num;
+
+		if (!strcmp(parm[1], "gamma_tb")) {
+			if (parm[2]) {
+				if (kstrtoul(parm[2], 10, &val) < 0)
+					goto free_buf;
+			}
+
+			for (i = 0; i < 256; i++)
+				pr_info("vd_gamma_r_data[%d] :%d vd_gamma_g_data[%d] :%d vd_gamma_b_data[%d] :%d\n",
+				i, video_gamma_table_r.data[i],
+				i, video_gamma_table_g.data[i],
+				i, video_gamma_table_b.data[i]);
+		} else if (!strcmp(parm[1], "gamma_gt_tb")) {
+			if (parm[2]) {
+				if (kstrtoul(parm[2], 10, &val) < 0)
+					goto free_buf;
+			}
+			dynamic_gamma_num = (u8)val;
+
+			if (dynamic_gamma_num >= FREESYNC_DYNAMIC_GAMMA_NUM)
+				dynamic_gamma_num = FREESYNC_DYNAMIC_GAMMA_NUM - 1;
+
+			for (i = 0; i < 256; i++)
+				pr_info("gt_gamma_r_data[%d][%d] :%d gt_gamma_g_data[%d][%d] :%d gt_gamma_b_data[%d][%d] :%d\n",
+				dynamic_gamma_num, i, gt.gm_tb[dynamic_gamma_num][0].data[i],
+				dynamic_gamma_num, i, gt.gm_tb[dynamic_gamma_num][1].data[i],
+				dynamic_gamma_num, i, gt.gm_tb[dynamic_gamma_num][2].data[i]);
+		}
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -9534,7 +9589,7 @@ tvchip_pq_setting:
 
 void amvecm_gamma_init(bool en)
 {
-	unsigned int i;
+	unsigned int i, j, k;
 	unsigned short data[256];
 
 	for (i = 0; i < 256; i++) {
@@ -9542,6 +9597,10 @@ void amvecm_gamma_init(bool en)
 		video_gamma_table_r.data[i] = data[i];
 		video_gamma_table_g.data[i] = data[i];
 		video_gamma_table_b.data[i] = data[i];
+
+		for (k = 0; k < FREESYNC_DYNAMIC_GAMMA_NUM; k++)
+			for (j = 0; j < FREESYNC_DYNAMIC_GAMMA_CHANNEL; j++)
+				gt.gm_tb[k][j].data[i] = data[i];
 	}
 
 	if (cpu_after_eq_t7()) {
@@ -10093,14 +10152,31 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 				  unsigned long event, void *data)
 {
+	unsigned int *param;
+
 	if ((event & LCD_EVENT_GAMMA_UPDATE) == 0)
 		return NOTIFY_DONE;
+
+	param = (unsigned int *)data;
+	gamma_index = param[0];
+	gm_par_idx = param[1];
+
+	memcpy(&video_gamma_table_r,
+		&gt.gm_tb[gm_par_idx][0],
+		sizeof(struct tcon_gamma_table_s));
+	memcpy(&video_gamma_table_g,
+		&gt.gm_tb[gm_par_idx][1],
+		sizeof(struct tcon_gamma_table_s));
+	memcpy(&video_gamma_table_b,
+		&gt.gm_tb[gm_par_idx][2],
+		sizeof(struct tcon_gamma_table_s));
 
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 
-	gamma_index = *(unsigned int *)data;
+	pr_amvecm_dbg("%s: gamma_index = %d, gm_par_idx = %d\n",
+		__func__, gamma_index, gm_par_idx);
 	return NOTIFY_OK;
 }
 

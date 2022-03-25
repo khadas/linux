@@ -92,6 +92,9 @@ struct tcon_gamma_table_s video_gamma_table_r_adj;
 struct tcon_gamma_table_s video_gamma_table_g_adj;
 struct tcon_gamma_table_s video_gamma_table_b_adj;
 struct tcon_gamma_table_s video_gamma_table_ioctl_set;
+struct gm_tbl_s gt;
+unsigned int gamma_index;
+unsigned int gm_par_idx;
 
 struct tcon_rgb_ogo_s video_rgb_ogo = {
 	0, /* wb enable */
@@ -166,7 +169,6 @@ static unsigned int sr_adapt_level;
 module_param(sr_adapt_level, uint, 0664);
 MODULE_PARM_DESC(sr_adapt_level, "\n sr_adapt_level\n");
 
-unsigned int gamma_index;
 /* *********************************************************************** */
 /* *** VPP_FIQ-oriented functions **************************************** */
 /* *********************************************************************** */
