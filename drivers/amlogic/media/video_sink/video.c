@@ -16962,11 +16962,30 @@ static int vpp_axis_reverse(char *str)
 	char *ptr = str;
 
 	pr_info("%s: bootargs is %s\n", __func__, str);
-	if (strstr((const char *)ptr, "1"))
+
+	/* Bootargs are defined as follows:
+	 *   "video_reverse=n"
+	 *      n=0: No flip
+	 *      n=1: X and Y flip
+	 *      n=2: X flip
+	 *      n=3: Y flip
+	 * The corresponding global vars:
+	 *   reverse -- 0:No flip  1.X and Y flip
+	 *    mirror -- 0:No flip  1:X flip 2:Y flip
+	 */
+	if (strstr(ptr, "1")) {
 		reverse = true;
-	else
+		video_mirror = 0;
+	} else if (strstr(ptr, "2")) {
 		reverse = false;
-	glayer_info[0].reverse = reverse;
+		video_mirror = 1;
+	} else if (strstr(ptr, "3")) {
+		reverse = false;
+		video_mirror = 2;
+	} else {
+		reverse = false;
+		video_mirror = 0;
+	}
 
 	return 0;
 }
