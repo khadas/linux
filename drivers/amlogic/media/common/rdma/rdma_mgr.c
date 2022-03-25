@@ -841,6 +841,7 @@ int rdma_clear(int handle)
 			     0, ins->rdma_regadr->trigger_mask_reg_bitpos,
 			     rdma_meson_dev.trigger_mask_len);
 	ins->rdma_write_count = 0;
+	ins->rdma_item_count = 0;
 	spin_unlock_irqrestore(&rdma_lock, flags);
 	return ret;
 }
