@@ -231,8 +231,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 	if (port < TVIN_PORT_HDMI0 || port > TVIN_PORT_HDMI7)
 		return signal_chg;
 
-	if ((devp->flags & VDIN_FLAG_DEC_STARTED) &&
-	    sm_ops->get_sig_property) {
+	if (sm_ops->get_sig_property) {
 		/*if (!(devp->flags & VDIN_FLAG_ISR_EN))*/
 		/*	sm_ops->get_sig_property(devp->frontend, prop);*/
 
@@ -244,6 +243,8 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		vdin_hdr_flag = prop->vdin_hdr_flag;
 		pre_vdin_hdr_flag = pre_prop->vdin_hdr_flag;
 		if (vdin_hdr_flag != pre_vdin_hdr_flag) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				prop->hdr_info.hdr_check_cnt++;
 			if (prop->hdr_info.hdr_check_cnt >=
 			    vdin_hdr_chg_cnt) {
 				prop->hdr_info.hdr_check_cnt = 0;
@@ -599,8 +600,20 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 	bool re_cfg = 0;
 
 	/*avoid when doing start dec, hdr or dv change re-config coming*/
-	if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+	if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
+		/* record starting need re_cfg status */
+		if (chg) {
+			devp->starting_chg = chg;
+			pr_info("starting_chg:0X%x\n", devp->starting_chg);
+		}
 		return;
+	}
+
+	if (devp->starting_chg) {
+		pr_info("starting_chg send event:0X%x\n", devp->starting_chg);
+		chg = devp->starting_chg;
+		devp->starting_chg = 0;
+	}
 
 	if (chg & TVIN_SIG_CHG_STS) {
 		devp->event_info.event_sts = TVIN_SIG_CHG_STS;
@@ -918,6 +931,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				devp->prop.vtem_data.vrr_en);
 			vdin_update_prop(devp);
 			devp->csc_cfg = 0;
+			devp->starting_chg = 0;
 			if (sm_debug_enable)
 				pr_info("[smr.%d] %ums prestable --> stable\n",
 					devp->index, jiffies_to_msecs(jiffies));
@@ -1026,7 +1040,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				devp->pre_prop.vtem_data.vrr_en,
 				devp->prop.vtem_data.vrr_en);
 			signal_chg |= vdin_hdmirx_fmt_chg_detect(devp);
-			if (signal_chg)
+			if (signal_chg || devp->starting_chg)
 				tvin_sigchg_event_process(devp, signal_chg);
 		}
 		/* check unreliable vsync interrupt */

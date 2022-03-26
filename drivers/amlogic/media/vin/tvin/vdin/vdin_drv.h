@@ -72,7 +72,8 @@
 /* 20220310: vdin and vrr/dlg support */
 /* 20220314: get vdin frontend info */
 /* 20220328: return the same vf repeat causes crash */
-#define VDIN_VER    "20220328: return the same vf repeat causes crash"
+/* 20220331: starting state chg not send event */
+#define VDIN_VER "20220331: starting state chg not send event"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -491,6 +492,7 @@ struct vdin_dev_s {
 	unsigned int curr_field_type;
 	unsigned int curr_dv_flag;
 	unsigned int drop_hdr_set_sts;
+	unsigned int starting_chg;
 
 	char name[15];
 	/* bit0 TVIN_PARM_FLAG_CAP bit31: TVIN_PARM_FLAG_WORK_ON */
