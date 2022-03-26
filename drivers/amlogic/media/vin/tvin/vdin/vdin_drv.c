@@ -1111,7 +1111,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	/*		       VPU_VIU_VDIN0,*/
 	/*		       VPU_MEM_POWER_DOWN);*/
 	vdin_vpu_clk_mem_pd(devp, 0);
-	memset(&devp->prop, 0, sizeof(struct tvin_sig_property_s));
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	rdma_clear(devp->rdma_handle);
 #endif
@@ -1126,8 +1125,10 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->unreliable_vs_cnt_pre = 0;
 	devp->unreliable_vs_idx = 0;
 	devp->prop.hdcp_sts = 0;
+	devp->starting_chg = 0;
 
 	 /* clear color para*/
+	memset(&devp->pre_prop, 0, sizeof(devp->prop));
 	memset(&devp->prop, 0, sizeof(devp->prop));
 	if (vdin_time_en)
 		pr_info("vdin.%d stop time %ums,run time:%ums.\n",

@@ -65,7 +65,9 @@
 /* 20220214: The desktop screenshot probability gray screen */
 /* 20220301: 119.88 get duration value is 800 not correct */
 /* 20220308: screen capture 720 and then 1080 fail */
-#define VDIN_VER "202200308"
+/* 20220331: starting state chg not send event */
+#define VDIN_VER "20220331: starting state chg not send event"
+
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -481,6 +483,7 @@ struct vdin_dev_s {
 	unsigned int curr_field_type;
 	unsigned int curr_dv_flag;
 	unsigned int drop_hdr_set_sts;
+	unsigned int starting_chg;
 
 	char name[15];
 	/* bit0 TVIN_PARM_FLAG_CAP bit31: TVIN_PARM_FLAG_WORK_ON */
