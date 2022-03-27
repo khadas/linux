@@ -642,6 +642,8 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
 		} else if (chg & TVIN_SIG_CHG_VRR) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
+			vdin_frame_lock_check(devp, 1);
+
 			pr_info("%s vrr chg:(%d->%d)\n", __func__,
 				devp->vdin_vrr_en_flag,
 				devp->prop.vtem_data.vrr_en);

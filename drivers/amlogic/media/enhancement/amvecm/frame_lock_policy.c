@@ -108,7 +108,7 @@ int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 
 	switch (cmd) {
 	case FRAME_LOCK_EVENT_ON:
-		frame_sts.vrr_en = 1;
+		frame_sts.vrr_en = vrr_data->vrr_mode;
 		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
 			FrameLockPR("%s FRAME_LOCK_EVENT_ON vrr_en:%d\n",
 			__func__, frame_sts.vrr_en);

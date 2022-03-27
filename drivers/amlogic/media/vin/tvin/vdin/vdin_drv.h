@@ -841,6 +841,7 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 irqreturn_t vdin_write_done_isr(int irq, void *dev_id);
 void vdin_game_mode_chg(struct vdin_dev_s *devp,
 	unsigned int old_mode, unsigned int new_mode);
+void vdin_frame_lock_check(struct vdin_dev_s *devp, int state);
 
 #endif /* __TVIN_VDIN_DRV_H */
 

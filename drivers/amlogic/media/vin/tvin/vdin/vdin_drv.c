@@ -363,7 +363,7 @@ void vdin_close_fe(struct vdin_dev_s *devp)
 	pr_info("%s ok\n", __func__);
 }
 
-static void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
+void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 {
 	struct vrr_notifier_data_s vrr_data;
 
@@ -373,7 +373,7 @@ static void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 	vrr_data.input_src = VRR_INPUT_TVIN;
 	vrr_data.target_vfreq_num = devp->parm.info.fps;
 	vrr_data.target_vfreq_den = 1;
-	vrr_data.vrr_mode = devp->vrr_mode;
+	vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en;
 
 	if (state) {
 		if (devp->game_mode) {
