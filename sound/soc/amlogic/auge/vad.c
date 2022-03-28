@@ -1286,7 +1286,8 @@ static int vad_platform_resume(struct platform_device *pdev)
 		if (p_vad->level == LEVEL_USER)
 			dev_pm_clear_wake_irq(dev);
 	}
-
+	if (get_resume_method() == VAD_WAKEUP)
+		vad_key_report();
 	return 0;
 }
 
