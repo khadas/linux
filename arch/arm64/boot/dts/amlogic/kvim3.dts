@@ -816,22 +816,6 @@
 	};
 }; /* end of / */
 
-&i2c2 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_master_pins2>;
-	clock-frequency = <100000>; /* default 100k */
-	sensor-i2c@6c {
-		compatible = "arm, i2c-sensor";
-		reg = <0x6c>;
-		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
-		reg-type = <2>;
-		reg-data-type = <1>;
-		link-device = <&phycsi>;
-	};
-};
-
 &isp {
 	status = "okay";
 	temper-line-offset = <0x1E00>;
