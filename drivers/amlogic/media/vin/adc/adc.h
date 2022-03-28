@@ -8,7 +8,8 @@
 
 /* 20211216: close adc clk and tvfe top */
 /* 20220320: add write reg debug command */
-#define TVDIN_ADC_VER "2022/03/20 add write reg debug command"
+/* 20220328: T5 close afe register */
+#define TVDIN_ADC_VER "20220328: T5 close afe register"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
@@ -142,6 +143,7 @@ struct adc_platform_data_s {
 	struct adc_reg_addr adc_addr;
 	struct adc_pll_reg_addr pll_addr;
 	enum adc_chip_ver chip_id;
+	bool is_tv_chip;
 };
 
 struct tvin_adc_dev {

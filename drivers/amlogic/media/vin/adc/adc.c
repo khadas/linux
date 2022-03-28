@@ -867,9 +867,7 @@ void adc_pll_down(void)
 		adc_wr_hiu_bits(adc_addr->vdac_cntl_1, 0, 7, 1);
 		adc_wr_hiu_bits(adc_addr->dadc_cntl_3, 0, 0, 2);
 		adc_wr_hiu_bits(pll_addr->adc_pll_cntl_0, 0, 28, 1);
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5D ||
-		    get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
-		    get_cpu_type() == MESON_CPU_MAJOR_ID_T5W) {
+		if (adc_devp->plat_data->is_tv_chip) {
 			adc_wr_hiu_bits(adc_addr->s2_dadc_cntl_2, 0, 8, 1);
 			adc_wr_afe(AFE_VAFE_CTRL0, 0x0);
 			adc_wr_afe(AFE_VAFE_CTRL1, 0x0);
@@ -942,19 +940,20 @@ static void adc_dump_regs(void)
 	pll_addr = &adc_devp->plat_data->pll_addr;
 	chip_id = adc_devp->plat_data->chip_id;
 
-	pr_info("chip_id=0x%x, pll_flag=0x%x\n",
-			chip_id, adc_devp->pll_flg);
+	pr_info("chip_id=0x%x, pll_flag=0x%x is_tv=0x%x\n",
+			chip_id, adc_devp->pll_flg,
+			adc_devp->plat_data->is_tv_chip);
 
 	if (chip_id == ADC_CHIP_S4 || chip_id == ADC_CHIP_S4D) {
 		reg_offset = 0x10;
 	} else {
 		reg_offset = 0;
 		pr_info("-------- vafe --------\n");
-		pr_info("AFE_VAFE_CTRL0(%x0x):0x%x\n",
+		pr_info("AFE_VAFE_CTRL0(0x%x):0x%x\n",
 			AFE_VAFE_CTRL0, adc_rd_afe(AFE_VAFE_CTRL0));
-		pr_info("AFE_VAFE_CTRL1(%x0x):0x%x\n",
+		pr_info("AFE_VAFE_CTRL1(0x%x):0x%x\n",
 			AFE_VAFE_CTRL1, adc_rd_afe(AFE_VAFE_CTRL1));
-		pr_info("AFE_VAFE_CTRL2(%x0x):0x%x\n",
+		pr_info("AFE_VAFE_CTRL2(0x%x):0x%x\n",
 			AFE_VAFE_CTRL2, adc_rd_afe(AFE_VAFE_CTRL2));
 	}
 
@@ -1201,42 +1200,49 @@ static const struct adc_platform_data_s adc_data_tm2 = {
 	ADC_ADDR_TL1_TO_S4,
 	ADC_PLL_ADDR_TL1,
 	.chip_id = ADC_CHIP_TM2,
+	.is_tv_chip = true,
 };
 
 static const struct adc_platform_data_s adc_data_t5 = {
 	ADC_ADDR_TL1_TO_S4,
 	ADC_PLL_ADDR_TL1,
 	.chip_id = ADC_CHIP_T5,
+	.is_tv_chip = true,
 };
 
 static const struct adc_platform_data_s adc_data_t5d = {
 	ADC_ADDR_TL1_TO_S4,
 	ADC_PLL_ADDR_TL1,
 	.chip_id = ADC_CHIP_T5D,
+	.is_tv_chip = true,
 };
 
 static const struct adc_platform_data_s adc_data_s4 = {
 	ADC_ADDR_TL1_TO_S4,
 	ADC_PLL_ADDR_TL1,
 	.chip_id = ADC_CHIP_S4,
+	.is_tv_chip = false,
 };
 
 static const struct adc_platform_data_s adc_data_t3 = {
 	ADC_ADDR_T3,
 	ADC_PLL_ADDR_T3,
 	.chip_id = ADC_CHIP_T3,
+	.is_tv_chip = true,
 };
 
 static const struct adc_platform_data_s adc_data_s4d = {
 	ADC_ADDR_TL1_TO_S4,
 	ADC_PLL_ADDR_TL1,
 	.chip_id = ADC_CHIP_S4D,
+	.is_tv_chip = false,
 };
 
 static const struct adc_platform_data_s adc_data_t5w = {
 	ADC_ADDR_TL1_TO_S4,
 	ADC_PLL_ADDR_TL1,
 	.chip_id = ADC_CHIP_T5W,
+	.is_tv_chip = true,
 };
 
 static const struct of_device_id adc_dt_match[] = {
