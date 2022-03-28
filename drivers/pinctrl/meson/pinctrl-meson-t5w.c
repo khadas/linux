@@ -1638,6 +1638,7 @@ static struct meson_pmx_func meson_t5w_periphs_functions[] __initdata = {
 	FUNCTION(vsync),
 	FUNCTION(sync_3d_out),
 	FUNCTION(spi0),
+	FUNCTION(spi1),
 	FUNCTION(spi2),
 	FUNCTION(mclk),
 	FUNCTION(spdif_out_a),

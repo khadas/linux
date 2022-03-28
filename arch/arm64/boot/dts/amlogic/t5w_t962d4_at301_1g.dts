@@ -1648,7 +1648,7 @@
 };
 
 &spicc1 {	//for UWB/LocalDimm
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
 	cs-gpios = <&gpio GPIOH_22 GPIO_ACTIVE_HIGH>;
