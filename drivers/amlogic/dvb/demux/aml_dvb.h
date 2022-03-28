@@ -71,4 +71,13 @@ extern int is_security_dmx;
 ssize_t dmx_setting_show(struct class *class,
 	struct class_attribute *attr, char *buf);
 
+enum {
+	SUPPORT_ES_HEADER_NEED_AUCPU,
+	SUPPORT_TSD,
+	SUPPORT_PSCP,
+	SUPPORT_TEMI,
+	SUPPORT_PES_HEADER,
+};
+
+int get_demux_feature(int support_feature);
 #endif

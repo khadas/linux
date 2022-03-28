@@ -472,7 +472,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 				ret = -EINVAL;
 				break;
 			}
-			if (!is_meson_sc2_cpu() &&
+			if (!get_demux_feature(SUPPORT_TSD) &&
 				d->params.alloc_params.dsc_type == CA_DSC_TSD_TYPE) {
 				dprint("not sc2, tsd have removed\n");
 				ret = -EINVAL;

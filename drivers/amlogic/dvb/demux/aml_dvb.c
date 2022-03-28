@@ -59,6 +59,8 @@ static int tsn_out;
 static int print_stc;
 static int print_dmx;
 static int tso_src = -1;
+static int cpu_type;
+static int minor_type;
 
 #define MAX_DMX_DEV_NUM      32
 static int sid_info[MAX_DMX_DEV_NUM];
@@ -74,10 +76,13 @@ static void demux_config_pipeline(int cfg_demod_tsn, int cfg_tsn_out)
 	value = cfg_demod_tsn;
 	value += cfg_tsn_out << 1;
 
-	if (get_chip_type() == 1)
+	if (cpu_type == MESON_CPU_MAJOR_ID_T5W)
 		ret = tee_write_reg_bits(0xff610320, value, 0, 2);
 	else
 		ret = tee_write_reg_bits(0xfe440320, value, 0, 2);
+
+	if (ret != 0)
+		dprint("tee_write_reg_bits value:%d, ret:%d\n", value, ret);
 }
 
 ssize_t get_pcr_show(struct class *class,
@@ -162,16 +167,9 @@ ssize_t dsc_setting_show(struct class *class, struct class_attribute *attr,
 	return total;
 }
 
-ssize_t dmx_ver_show(struct class *class, struct class_attribute *attr,
-			 char *buf)
+static ssize_t get_chip_version(char *buf)
 {
 	int total = 0;
-	int cpu_type = 0;
-	int minor_type = 0;
-
-	cpu_type = get_cpu_type();
-	minor_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
-	dprint("cpu_type:0x%0x, minor_type:0x%0x\n", cpu_type, minor_type);
 
 	if (cpu_type == MESON_CPU_MAJOR_ID_SC2)
 		total = sprintf(buf, "sc2-%x\n", minor_type);
@@ -188,7 +186,15 @@ ssize_t dmx_ver_show(struct class *class, struct class_attribute *attr,
 	else
 		total = sprintf(buf, "%x-%x\n", cpu_type, minor_type);
 
+	dprint("version:%s", buf);
+
 	return total;
+}
+
+ssize_t dmx_ver_show(struct class *class, struct class_attribute *attr,
+			 char *buf)
+{
+	return get_chip_version(buf);
 }
 
 int demux_get_stc(int demux_device_index, int index,
@@ -235,11 +241,12 @@ ssize_t tsn_source_show(struct class *class,
 	buf += r;
 	total += r;
 
-	if (get_chip_type() == 1)
+	if (cpu_type == MESON_CPU_MAJOR_ID_T5W)
 		ret = tee_read_reg_bits(0xff610320, &value, 0, 2);
 	else
 		ret = tee_read_reg_bits(0xfe440320, &value, 0, 2);
-	dprint("tee_read_reg_bits value:%d, ret:%d\n", value, ret);
+	if (ret != 0)
+		dprint("tee_read_reg_bits value:%d, ret:%d\n", value, ret);
 
 	return total;
 }
@@ -338,7 +345,7 @@ ssize_t tsn_loop_show(struct class *class,
 	u32 val = 0;
 	int ret = 0;
 
-	if (get_chip_type() == 1)
+	if (cpu_type == MESON_CPU_MAJOR_ID_T5W)
 		ret = tee_read_reg_bits(0xff610320, &val, 2, 1);
 	else
 		ret = tee_read_reg_bits(0xfe440320, &val, 2, 1);
@@ -634,6 +641,31 @@ static int get_first_valid_ts(struct aml_dvb *advb)
 	return 0;
 }
 
+int get_demux_feature(int support_feature)
+{
+	if (support_feature == SUPPORT_ES_HEADER_NEED_AUCPU) {
+		if (cpu_type == MESON_CPU_MAJOR_ID_SC2 ||
+			cpu_type == MESON_CPU_MAJOR_ID_S4 ||
+			cpu_type == MESON_CPU_MAJOR_ID_T7)
+			return 1;
+		else
+			return 0;
+	} else if (support_feature == SUPPORT_TSD) {
+		if (cpu_type == MESON_CPU_MAJOR_ID_SC2)
+			return 1;
+		else
+			return 0;
+	} else if (support_feature == SUPPORT_PSCP) {
+		return 0;
+	} else if (support_feature == SUPPORT_TEMI) {
+		return 0;
+	} else if (support_feature == SUPPORT_PES_HEADER) {
+		return 0;
+	} else {
+		return 0;
+	}
+}
+
 static int aml_dvb_probe(struct platform_device *pdev)
 {
 	struct aml_dvb *advb;
@@ -641,8 +673,13 @@ static int aml_dvb_probe(struct platform_device *pdev)
 	int tsn_in_reg = 0;
 	int sid_num = 0;
 	int valid_ts = 0;
+	char buf[255];
 
 	dprint("probe amlogic dvb driver [%s].\n", DVB_VERSION);
+	memset(&buf, 0, sizeof(buf));
+	cpu_type = get_cpu_type();
+	minor_type = get_meson_cpu_version(MESON_CPU_VERSION_LVL_MINOR);
+	get_chip_version(buf);
 
 	advb = &aml_dvb_device;
 	memset(advb, 0, sizeof(aml_dvb_device));
@@ -747,7 +784,7 @@ void set_dvb_loop_tsn(int flag)
 
 	// set loop_tsn in tee
 	advb->loop_tsn = flag;
-	if (get_chip_type() == 1)
+	if (cpu_type == MESON_CPU_MAJOR_ID_T5W)
 		ret = tee_write_reg_bits(0xff610320, (u32)flag, 2, 1);
 	else
 		ret = tee_write_reg_bits(0xfe440320, (u32)flag, 2, 1);

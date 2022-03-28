@@ -80,7 +80,7 @@ struct mem_cache {
 #define FIRST_CACHE_ELEM_COUNT    64
 
 #define SECOND_CACHE_ELEM_COUNT    48
-#define SECOND_CACHE_ELEM_SIZE     (188 * 500)
+#define SECOND_CACHE_ELEM_SIZE     (128 * 1024)
 
 static int cache0_count_max = FIRST_CACHE_ELEM_COUNT;
 static int cache1_count_max = SECOND_CACHE_ELEM_COUNT;
@@ -413,6 +413,7 @@ static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 	mem->free_start_phy = buf_start;
 	mem->free_len = len;
 	mem->ref = 0;
+	mem->region_list = NULL;
 	mem->init = 1;
 	return 0;
 }

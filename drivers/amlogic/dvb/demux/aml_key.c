@@ -472,7 +472,7 @@ static int kt_set(u32 handle, unsigned char key[32], unsigned int key_len)
 			usleep_range(10000, 15000);
 		} while (res & (KTE_PENDING << KTE_PENDING_OFFSET));
 	} else {
-		if (get_chip_type() == 1) {
+		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T5W) {
 			if (algo == MKL_USAGE_AES)
 				algo = 2;
 			else if (algo == MKL_USAGE_TDES)

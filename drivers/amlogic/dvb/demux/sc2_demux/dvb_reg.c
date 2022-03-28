@@ -28,8 +28,6 @@ static int debug_rw;
 module_param(debug_rw, int, 0644);
 
 static void *p_hw_base;
-/*1:t5w chip*/
-static int chip_flag;
 
 void aml_write_self(unsigned int reg, unsigned int val)
 {
@@ -68,6 +66,7 @@ int aml_read_self(unsigned int reg)
 int init_demux_addr(struct platform_device *pdev)
 {
 	struct resource *res;
+	int chip_flag = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -117,9 +116,4 @@ int init_demux_addr(struct platform_device *pdev)
 		}
 	}
 	return 0;
-}
-
-int get_chip_type(void)
-{
-	return chip_flag;
 }

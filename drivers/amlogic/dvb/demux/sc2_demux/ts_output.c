@@ -217,11 +217,16 @@ MODULE_PARM_DESC(es_count_one_time, "\n\t\t handle es count one time");
 static int es_count_one_time = 10;
 module_param(es_count_one_time, int, 0644);
 
+MODULE_PARM_DESC(dump_pes, "\n\t\t dump pes packet");
+static int dump_pes;
+module_param(dump_pes, int, 0644);
+
 struct dump_file dvr_dump_file;
 
 #define VIDEOES_DUMP_FILE   "/data/video_dump"
 #define AUDIOES_DUMP_FILE   "/data/audio_dump"
 #define DVR_DUMP_FILE       "/data/dvr_dump"
+#define PES_DUMP_FILE		"/data/pes_dump"
 
 #define READ_CACHE_SIZE      (188)
 #define INVALID_DECODE_RP	(0xFFFFFFFF)
@@ -653,9 +658,22 @@ static int _task_out_func(void *data)
 					ret = SC2_bufferid_read(ptmp->pout->pchan,
 						&pread, len, 0);
 				}
-				if (ret != 0)
+				if (ret != 0) {
+					if (((dump_pes & 0xFFFF)  == ptmp->pout->es_pes->pid &&
+						((dump_pes >> 16) & 0xFFFF) == ptmp->pout->sid) ||
+						dump_pes == 0xFFFFFFFF)
+						dump_file_open(PES_DUMP_FILE,
+							&ptmp->pout->dump_file,
+							ptmp->pout->sid,
+							ptmp->pout->es_pes->pid, 0);
+					if (ptmp->pout->dump_file.file_fp && dump_pes == 0)
+						dump_file_close(&ptmp->pout->dump_file);
+					if (ptmp->pout->dump_file.file_fp)
+						dump_file_write(pread, ret, &ptmp->pout->dump_file);
+
 					out_ts_cb_list(ptmp->pout, pread,
 							ret, 0, 0);
+				}
 			}
 			ptmp = ptmp->pnext;
 		}
@@ -1083,6 +1101,8 @@ static int create_aucpu_inst(struct out_elem *pout)
 		ret = create_aucpu_pts(pout);
 		if (ret != 0)
 			return ret;
+		if (!pout->pchan->sec_level)
+			return 0;
 	}
 	/*now except the video, others will pass by aucpu */
 	if (pout->aucpu_handle < 0) {
@@ -2392,7 +2412,7 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 		pout->es_pes = es_pes;
 
 		/*before pid filter enable */
-		if (pout->pchan->sec_level) {
+		if (pout->pchan->sec_level || (pout->pchan1 && pout->pchan1->sec_level)) {
 			ret = create_aucpu_inst(pout);
 			if (ret != 0)
 				return -1;
@@ -2891,9 +2911,15 @@ int ts_output_dump_info(char *buf)
 			buf += r;
 			total += r;
 
-			r = sprintf(buf,
+			if (es_slot->pout->aucpu_start)
+				r = sprintf(buf,
 				    "free size:0x%0x, rp:0x%0x, wp:0x%0x, ",
-				    free_size, es_slot->pout->pchan->r_offset,
+				    free_size, es_slot->pout->aucpu_read_offset,
+					wp_offset);
+			else
+				r = sprintf(buf,
+					"free size:0x%0x, rp:0x%0x, wp:0x%0x, ",
+					free_size, es_slot->pout->pchan->r_offset,
 					wp_offset);
 			buf += r;
 			total += r;
@@ -2949,16 +2975,28 @@ int ts_output_dump_info(char *buf)
 			buf += r;
 			total += r;
 
-			r = sprintf(buf,
+			if (es_slot->pout->aucpu_start)
+				r = sprintf(buf,
 				    "free size:0x%0x, rp:0x%0x, wp:0x%0x, ",
-				    free_size, es_slot->pout->pchan->r_offset,
+				    free_size, es_slot->pout->aucpu_read_offset,
+					wp_offset);
+			else
+				r = sprintf(buf,
+					"free size:0x%0x, rp:0x%0x, wp:0x%0x, ",
+					free_size, es_slot->pout->pchan->r_offset,
 					wp_offset);
 			buf += r;
 			total += r;
 
-			r = sprintf(buf,
+			if (es_slot->pout->aucpu_pts_start)
+				r = sprintf(buf,
 				    "h rp:0x%0x, h wp:0x%0x, ",
-				    es_slot->pout->pchan1->r_offset,
+				    es_slot->pout->aucpu_pts_r_offset,
+					SC2_bufferid_get_wp_offset(es_slot->pout->pchan1));
+			else
+				r = sprintf(buf,
+					"h rp:0x%0x, h wp:0x%0x, ",
+					es_slot->pout->pchan1->r_offset,
 					SC2_bufferid_get_wp_offset(es_slot->pout->pchan1));
 			buf += r;
 			total += r;

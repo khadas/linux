@@ -492,6 +492,9 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 		}
 	}
 
+	if (!get_demux_feature(SUPPORT_ES_HEADER_NEED_AUCPU))
+		pts_level = 0;
+
 	feed->ts_out_elem = ts_output_open(sid, demux->id, format,
 		type, media_type, output_mode);
 	if (feed->ts_out_elem) {
