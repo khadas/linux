@@ -765,7 +765,7 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 		} else {
 			return -3;
 		}
-		if (pout->running == TASK_DEAD)
+		if (pout->running == TASK_DEAD || !pout->enable)
 			return -1;
 	}
 	pid = (cur_header[1] & 0x1f) << 8 | cur_header[0];
@@ -983,7 +983,7 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 		if (ret != 0)
 			len -= ret;
 
-		if (pout->running == TASK_DEAD)
+		if (pout->running == TASK_DEAD || !pout->enable)
 			return -1;
 	}
 	return 0;
@@ -999,7 +999,7 @@ static int start_aucpu_non_es(struct out_elem *pout)
 		wdma_get_active(pout->pchan->id)) {
 		ret = aml_aucpu_strm_start(pout->aucpu_handle);
 		if (ret >= 0) {
-			pr_dbg("aucpu start success\n");
+			pr_dbg("%s aucpu start success\n", __func__);
 			pout->aucpu_start = 1;
 		} else {
 			pr_dbg("aucpu start fail ret:%d\n", ret);
@@ -1297,7 +1297,7 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		if (wdma_get_active(pout->pchan->id)) {
 			ret = aml_aucpu_strm_start(pout->aucpu_handle);
 			if (ret >= 0) {
-				pr_dbg("aucpu start success\n");
+				pr_dbg("%s aucpu start success\n", __func__);
 				pout->aucpu_start = 1;
 			} else {
 				pr_dbg("aucpu start fail ret:%d\n",
@@ -1382,7 +1382,7 @@ static int write_aucpu_sec_es_data(struct out_elem *pout,
 		if (wdma_get_active(pout->pchan->id)) {
 			ret = aml_aucpu_strm_start(pout->aucpu_handle);
 			if (ret >= 0) {
-				pr_dbg("aucpu start success\n");
+				pr_dbg("%s aucpu start success\n", __func__);
 				pout->aucpu_start = 1;
 			} else {
 				pr_dbg("aucpu start fail ret:%d\n",
@@ -1449,7 +1449,7 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 		if (wdma_get_active(pout->pchan->id)) {
 			ret = aml_aucpu_strm_start(pout->aucpu_handle);
 			if (ret >= 0) {
-				pr_dbg("aucpu start success\n");
+				pr_dbg("%s aucpu start success\n", __func__);
 				pout->aucpu_start = 1;
 			} else {
 				pr_dbg("aucpu start fail ret:%d\n",
@@ -1464,7 +1464,7 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 		if (ret != 0)
 			len -= ret;
 
-		if (pout->running == TASK_DEAD)
+		if (pout->running == TASK_DEAD || !pout->enable)
 			return -1;
 	}
 	return 0;
@@ -2261,6 +2261,8 @@ int ts_output_close(struct out_elem *pout)
 	if (pout->ref)
 		return -1;
 
+	pr_dbg("%s enter, line:%d\n", __func__, __LINE__);
+
 	pout->running = TASK_DEAD;
 
 	if (pout->format == ES_FORMAT) {
@@ -2337,6 +2339,7 @@ int ts_output_close(struct out_elem *pout)
 	pout->use_external_mem = 0;
 
 	pout->used = 0;
+	pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 	return 0;
 }
 
@@ -2696,6 +2699,8 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 	struct cb_entry *tmp_cb = NULL;
 	struct cb_entry *pre_cb = NULL;
 
+	pr_dbg("%s enter\n", __func__);
+
 	if (pout->format == DVR_FORMAT) {
 		tmp_cb = pout->cb_ts_list;
 		while (tmp_cb) {
@@ -2708,15 +2713,18 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 						pre_cb->next = tmp_cb->next;
 					vfree(tmp_cb);
 					pout->ref--;
+					pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 					return 0;
 				}
 				remove_udata(tmp_cb, udata);
 				tmp_cb->ref--;
+				pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 				return 0;
 			}
 			pre_cb = tmp_cb;
 			tmp_cb = tmp_cb->next;
 		}
+		pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 		return 0;
 	}
 	if (is_sec) {
@@ -2730,6 +2738,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 
 				vfree(tmp_cb);
 				pout->ref--;
+				pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 				return 0;
 			}
 			pre_cb = tmp_cb;
@@ -2754,6 +2763,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 				if (pout->type == VIDEO_TYPE ||
 				    pout->type == AUDIO_TYPE)
 					mutex_unlock(&es_output_mutex);
+				pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 				return 0;
 			}
 			pre_cb = tmp_cb;
@@ -2762,6 +2772,7 @@ int ts_output_remove_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 		if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE)
 			mutex_unlock(&es_output_mutex);
 	}
+	pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 	return 0;
 }
 
