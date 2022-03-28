@@ -2073,7 +2073,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		phy_cfg->vswing_level = pctrl->p2p_cfg.phy_vswing & 0xf;
 		phy_cfg->ext_pullup = (pctrl->p2p_cfg.phy_vswing >> 4) & 0x3;
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
-		phy_cfg->preem_level = pctrl->p2p_cfg.phy_vswing;
+		phy_cfg->preem_level = pctrl->p2p_cfg.phy_preem;
 		temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
 			phy_cfg->lane[i].amp = 0;
