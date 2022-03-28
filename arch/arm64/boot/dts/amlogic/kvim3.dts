@@ -804,12 +804,9 @@
 		status = "okay";
 		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 		pinctrl-names="default";
-		pinctrl-0=<&clk12_24_z_pins>;
-		clocks = <&clkc CLKID_24M>;
-		clock-names = "g12a_24m";
-		reset = <&gpio GPIOZ_12 GPIO_ACTIVE_HIGH>;
-		ir_cut_gpio = <&gpio GPIOZ_11 GPIO_ACTIVE_HIGH
-				&gpio GPIOZ_7 GPIO_ACTIVE_HIGH>;
+		pinctrl-0=<&gen_clk_ee_ao>;
+		clocks = <&clkc CLKID_GEN_CLK>;
+		clock-names = "gen_clk";
 	};
 
 	iq: iq {
@@ -936,6 +933,15 @@
                 irq-gpio = <&gpio_ao GPIOAO_9 IRQ_TYPE_EDGE_RISING>;
                 status = "okay";
         };
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
 };
 
 &audiobus {
@@ -1292,6 +1298,13 @@
 		mux { /* gpiao_10 */
 			groups = "GPIOAO_10";
 			function = "gpio_aobus";
+		};
+	};
+	gen_clk_ee_ao: gen_clk_ee_ao {
+		mux {
+			groups="gen_clk_ee_ao";
+			function="gen_clk_ee_ao";
+			drive-strength = <3>;
 		};
 	};
 };  /* end of pinctrl_aobus */
