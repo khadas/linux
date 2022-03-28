@@ -5374,6 +5374,20 @@ static void drm_hdmitx_avmute(unsigned char mute)
 	hdmitx21_device.hwop.cntlmisc(&hdmitx21_device, MISC_AVMUTE_OP, cmd);
 }
 
+static void drm_hdmitx_set_phy(unsigned char en)
+{
+	int cmd = TMDS_PHY_ENABLE;
+
+	if (hdmitx21_device.hdmi_init != 1)
+		return;
+
+	if (en == 0)
+		cmd = TMDS_PHY_DISABLE;
+	else
+		cmd = TMDS_PHY_ENABLE;
+	hdmitx21_device.hwop.cntlmisc(&hdmitx21_device, MISC_TMDS_PHY_OP, cmd);
+}
+
 static void drm_hdmitx_setup_attr(const char *buf)
 {
 	char attr[16] = {0};
@@ -5590,6 +5604,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdr_info = drm_hdmitx_get_hdr_info,
 	.get_hdr_priority = drm_hdmitx_get_hdr_priority,
 	.avmute = drm_hdmitx_avmute,
+	.set_phy = drm_hdmitx_set_phy,
 
 	/*hdcp apis*/
 	.hdcp_init = drm_hdmitx_hdcp_init,
