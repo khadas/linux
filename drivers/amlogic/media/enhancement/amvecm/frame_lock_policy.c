@@ -41,6 +41,10 @@ static unsigned int vrrlock_support = VRRLOCK_SUP_MODE;
 static unsigned int vrr_dis_cnt_no_vf_limit = 5;
 static unsigned int vrr_outof_rge_cnt = 10;
 
+static unsigned int vrr_display_mode_chg_cmd = VOUT_EVENT_MODE_CHANGE;
+static unsigned int vrr_display_mode_chg_cmd_pre;
+static unsigned int vrr_mode_chg_skip_cnt = 10;
+
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = true,
 	.vrr_pre_en = 0,
@@ -66,6 +70,11 @@ unsigned int frame_lock_show_vout_framerate(void)
 	#endif
 
 	return fr;
+}
+
+void frame_lock_mode_chg(unsigned int cmd)
+{
+	vrr_display_mode_chg_cmd = cmd;
 }
 
 void frame_lock_parse_param(char *buf_orig, char **parm)
@@ -185,7 +194,8 @@ int frame_lock_calc_lcnt_variance_val(struct vframe_s *vf)
 	int lcnt_reg_status;
 
 	if (!vf) {
-		FrameLockERR("vf NULL,return!!!\n");
+		//FrameLockERR("vf NULL,return!!!, cur_out_frame_rate:%d\n",
+		//	frame_lock_show_vout_framerate());
 		frame_in_cnt = 0;
 		sum1 = 0;
 		sum2 = 0;
@@ -251,9 +261,12 @@ int frame_lock_frame_rate_check(struct vinfo_s *vinfo)
 		frame_sts.vrr_frame_outof_range_cnt = 0;
 		ret = true;
 	} else {
-		if (frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt)
+		if (frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt) {
 			frame_sts.vrr_frame_outof_range_cnt++;
-		ret = false;
+			ret = true;
+		} else {
+			ret = false;
+		}
 	}
 
 	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
@@ -308,35 +321,62 @@ void vrrlock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts)
 {
 	u16 vrr_en = frame_sts.vrr_en;
+	struct vrr_notifier_data_s vdata;
+	struct vinfo_s *vinfo = NULL;
+
+	memset(&vdata, 0, sizeof(struct vrr_notifier_data_s));
+
+	vinfo = get_current_vinfo();
+	if (!vinfo)
+		return;
+
+	if (vinfo->width == 3840 && vinfo->height == 1080)
+		vdata.line_dly = 200;
+	else
+		vdata.line_dly = 500;
 
 	if (vrr_en)
 		frame_lock_calc_lcnt_variance_val(vf);
 
-	if (frame_sts.vrr_frame_sts != frame_sts.vrr_frame_pre_sts) {
+	if (vrr_display_mode_chg_cmd == VOUT_EVENT_MODE_CHANGE_PRE) {
+		if (vrr_display_mode_chg_cmd_pre != vrr_display_mode_chg_cmd)
+			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vdata);
+
+		vrr_display_mode_chg_cmd_pre = vrr_display_mode_chg_cmd;
+	} else if (vrr_display_mode_chg_cmd == VOUT_EVENT_MODE_CHANGE && vrr_en) {
+		if (vrr_mode_chg_skip_cnt > 0) {
+			vrr_mode_chg_skip_cnt--;
+		} else {
+			vrr_display_mode_chg_cmd = 0;
+			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_ON_MODE, &vdata);
+		}
+	}
+
+	if (frame_sts.vrr_frame_sts != frame_sts.vrr_frame_pre_sts &&
+		vrr_display_mode_chg_cmd == 0 && vrr_en) {
 		if (frame_sts.vrr_frame_sts == FRAMELOCK_VRRLOCK) {
 			vlock_set_sts_by_frame_lock(false);
-			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_ON_MODE, &vrr_en);
+			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_ON_MODE, &vdata);
 		} else {
-			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vrr_en);
+			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vdata);
 			vlock_set_sts_by_frame_lock(true);
 		}
 	}
 
 	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-		FrameLockPR("vrr_frame_sts:%d vrr_frame_pre_sts:%d vlock_en:%d\n",
-			frame_sts.vrr_frame_sts,
-			frame_sts.vrr_frame_pre_sts,
-			vlock_en);
+		FrameLockPR("vrr_frame_sts:%d vrr_frame_pre_sts:%d line_dly:%d mode_chg_cmd:%d\n",
+		frame_sts.vrr_frame_sts,
+		frame_sts.vrr_frame_pre_sts,
+		vdata.line_dly, vrr_display_mode_chg_cmd);
 }
 
 void frame_lock_disable_vrr(bool en)
 {
-	bool vrr_switch = en;
+	struct vrr_notifier_data_s vdata;
 
-	if (!vrr_switch) {
-		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vrr_switch);
-		vlock_set_sts_by_frame_lock(true);
-	}
+	vdata.line_dly = 500;
+	aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vdata);
+	vlock_set_sts_by_frame_lock(true);
 }
 
 u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vframe_s *vf)
@@ -389,7 +429,6 @@ void frame_lock_process(struct vframe_s *vf,
 	u16 lock_type = 0;
 
 	if (probe_ok == 0) {
-		FrameLockERR("amvecm probe_ok = 0, return!!!\n");
 		return;
 	}
 
