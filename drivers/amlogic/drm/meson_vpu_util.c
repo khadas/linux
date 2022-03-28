@@ -17,7 +17,7 @@
 #define MESON_VPU_RDMA_TABLE_SIZE (512 * 8)
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-static int meson_vpu_reg_handle;
+static int meson_vpu_reg_handle = -1;
 static void meson_vpu_vsync_rdma_irq(void *arg)
 {
 	if (meson_vpu_reg_handle == -1)
@@ -33,8 +33,9 @@ static struct rdma_op_s meson_vpu_vsync_rdma_op = {
 
 void meson_vpu_reg_handle_register(void)
 {
-	meson_vpu_reg_handle = rdma_register(&meson_vpu_vsync_rdma_op,
-					     NULL, MESON_VPU_RDMA_TABLE_SIZE);
+	if (meson_vpu_reg_handle == -1)
+		meson_vpu_reg_handle = rdma_register(&meson_vpu_vsync_rdma_op,
+			NULL, MESON_VPU_RDMA_TABLE_SIZE);
 }
 
 /*suggestion: call this after atomic done*/
