@@ -10778,7 +10778,8 @@ int video_hw_init(void)
 
 	/* Temp force set dmc */
 	if (!legacy_vpp) {
-		if (!cur_dev->t7_display)
+		if (!cur_dev->t7_display ||
+			video_is_meson_t5w_cpu())
 			WRITE_DMCREG
 				(DMC_AM0_CHAN_CTRL,
 				0x8ff403cf);

@@ -719,6 +719,7 @@ bool video_is_meson_t7_cpu(void);
 bool video_is_meson_s4_cpu(void);
 bool video_is_meson_t5d_revb_cpu(void);
 bool video_is_meson_t3_cpu(void);
+bool video_is_meson_t5w_cpu(void);
 void set_alpha(struct video_layer_s *layer,
 	       u32 win_en,
 	       struct pip_alpha_scpxn_s *alpha_win);
