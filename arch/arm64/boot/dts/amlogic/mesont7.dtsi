@@ -2015,7 +2015,7 @@
 				<&clkc CLKID_SD_EMMC_B_CLK_MUX>,
 				 <&clkc CLKID_SD_EMMC_B_CLK>,
 				 <&xtal>,
-				 <&clkc CLKID_FCLK_DIV2>;
+				 <&clkc CLKID_FCLK_DIV2P5>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1";
 			card_type = <5>;
