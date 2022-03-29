@@ -12820,29 +12820,53 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_set_basic_urgent(true);
 		osd_set_two_ports(true);
 		if (osd_dev_hw.prevsync_support) {
+			u32 vpp0_pre_go_field = 0;
 			u32 vpp0_post_go_field = 3;
 			u32 output_index;
 
 			/* for t3 0: vpp0_pre_go_field, 3: vpp0_post_go_field */
-			osd_set_vpp_path_default(VPP_OSD1, vpp0_post_go_field);
-			osd_set_vpp_path_default(VPP_OSD2, vpp0_post_go_field);
-			if (osd_hw.osd_meson_dev.osd_count > OSD3) {
-				output_index = get_output_device_id(OSD3);
-				if (output_index == VIU1)
-					osd_set_vpp_path_default(VPP_OSD3,
-						vpp0_post_go_field);
-				else
-					osd_set_vpp_path_default(VPP_OSD3,
-						output_index);
-			}
-			if (osd_hw.osd_meson_dev.osd_count > OSD4) {
-				output_index = get_output_device_id(OSD4);
-				if (output_index == VIU1)
-					osd_set_vpp_path_default(VPP_OSD4,
-						vpp0_post_go_field);
-				else
-					osd_set_vpp_path_default(VPP_OSD4,
-						output_index);
+			if (is_meson_rev_a()) {
+				osd_set_vpp_path_default(VPP_OSD1, vpp0_pre_go_field);
+				osd_set_vpp_path_default(VPP_OSD2, vpp0_pre_go_field);
+				if (osd_hw.osd_meson_dev.osd_count > OSD3) {
+					output_index = get_output_device_id(OSD3);
+					if (output_index == VIU1)
+						osd_set_vpp_path_default(VPP_OSD3,
+							vpp0_pre_go_field);
+					else
+						osd_set_vpp_path_default(VPP_OSD3,
+							output_index);
+				}
+				if (osd_hw.osd_meson_dev.osd_count > OSD4) {
+					output_index = get_output_device_id(OSD4);
+					if (output_index == VIU1)
+						osd_set_vpp_path_default(VPP_OSD4,
+							vpp0_pre_go_field);
+					else
+						osd_set_vpp_path_default(VPP_OSD4,
+							output_index);
+				}
+			} else {
+				osd_set_vpp_path_default(VPP_OSD1, vpp0_post_go_field);
+				osd_set_vpp_path_default(VPP_OSD2, vpp0_post_go_field);
+				if (osd_hw.osd_meson_dev.osd_count > OSD3) {
+					output_index = get_output_device_id(OSD3);
+					if (output_index == VIU1)
+						osd_set_vpp_path_default(VPP_OSD3,
+							vpp0_post_go_field);
+					else
+						osd_set_vpp_path_default(VPP_OSD3,
+							output_index);
+				}
+				if (osd_hw.osd_meson_dev.osd_count > OSD4) {
+					output_index = get_output_device_id(OSD4);
+					if (output_index == VIU1)
+						osd_set_vpp_path_default(VPP_OSD4,
+							vpp0_post_go_field);
+					else
+						osd_set_vpp_path_default(VPP_OSD4,
+							output_index);
+				}
 			}
 		} else {
 			/* for t7 0: vpp0_post_go_field, no pre go field */
