@@ -102,6 +102,9 @@ struct rdma_instance_s {
 	int prev_trigger_type;
 	int prev_read_count;
 	int lock_flag;
+	int irq_count;
+	int rdma_config_count;
+	int rdma_empty_config_count;
 };
 
 #define MAX_CONFLICT 32
@@ -361,6 +364,9 @@ int rdma_register(struct rdma_op_s *rdma_op, void *op_arg, int table_size)
 		if (!info->rdma_ins[i].op &&
 		    info->rdma_ins[i].used == 0) {
 			info->rdma_ins[i].op = rdma_op;
+			info->rdma_ins[i].irq_count = 0;
+			info->rdma_ins[i].rdma_config_count = 0;
+			info->rdma_ins[i].rdma_empty_config_count = 0;
 			break;
 		}
 	}
@@ -507,8 +513,10 @@ QUERY:
 			if (debug_flag & 2)
 				pr_info("%s: process %d\r\n", __func__, i);
 
-			if (ins->op && ins->op->irq_cb)
+			if (ins->op && ins->op->irq_cb) {
 				ins->op->irq_cb(ins->op->arg);
+				ins->irq_count++;
+			}
 
 			WRITE_VCBUS_REG
 				(RDMA_CTRL,
@@ -520,8 +528,12 @@ QUERY:
 	if ((rdma_status & 0xf7000000) && retry_count < 100)
 		goto QUERY;
 #else
-	if ((rdma_status & 0xff000000) && retry_count < 100)
+	if ((rdma_status & 0xff000000) && retry_count < 100) {
+		if (retry_count >= 3)
+			pr_info("rdma_status=0x%x, retry_count=%d\n",
+				rdma_status, retry_count);
 		goto QUERY;
+	}
 #endif
 	for (i = 0; i < MAX_CONFLICT; i++) {
 		if (info->rdma_reg.adr[i]) {
@@ -631,6 +643,7 @@ int rdma_config(int handle, u32 trigger_type)
 		 rdma_meson_dev.trigger_mask_len);
 		ins->rdma_write_count = 0;
 		ins->prev_read_count = 0;
+		ins->rdma_empty_config_count++;
 		ret = 0;
 	} else {
 		memcpy(ins->rdma_table_addr, ins->reg_buf,
@@ -816,7 +829,7 @@ int rdma_config(int handle, u32 trigger_type)
 	if (debug_flag & 2)
 		pr_info("%s: (%d 0x%x) ret %d\r\n",
 			__func__, handle, trigger_type_backup, ret);
-
+	ins->rdma_config_count++;
 	return ret;
 }
 EXPORT_SYMBOL(rdma_config);
@@ -989,6 +1002,7 @@ int rdma_watchdog_setting(int flag)
 		rdma_force_reset = 0;
 		rdma_reset(1);
 		rdma_reset_tigger_flag = 1;
+		set_force_rdma_config();
 		ret = 1;
 	}
 	return ret;
@@ -1081,9 +1095,10 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 	} else {
 		int i;
 
-			pr_info("%s(%d, %x, %x ,%d) buf overflow\n",
+			pr_info("%s(%d, %x, %x ,%d) buf overflow, ins->rdma_item_count=%d\n",
 				__func__, rdma_watchdog_count,
-				handle, adr, val);
+				handle, adr, val,
+				ins->rdma_item_count);
 		for (i = 0; i < ins->rdma_item_count; i++)
 			WRITE_VCBUS_REG(ins->reg_buf[i << 1],
 					ins->reg_buf[(i << 1) + 1]);
@@ -1582,6 +1597,29 @@ static ssize_t store_ex_vsync_rdma(struct class *class,
 	return count;
 }
 
+static ssize_t rdma_irq_count_show(struct class *cla,
+				       struct class_attribute *attr, char *buf)
+{
+	int i;
+	char str_info[1024];
+	char chan_info[128];
+	struct rdma_device_info *info = &rdma_info;
+
+	sprintf(str_info, "rdma_isr_count:%d\n", rdma_isr_count);
+	for (i = 1; i < RDMA_NUM; i++) {
+		sprintf(chan_info,
+			"rdma handle=%d, cb irq_count=%d, empty_config=%d, rdma_config_count=%d",
+			i, info->rdma_ins[i].irq_count,
+			info->rdma_ins[i].rdma_empty_config_count,
+			info->rdma_ins[i].rdma_config_count);
+		strcat(str_info, chan_info);
+		strcat(str_info, "\n");
+	}
+
+	i = snprintf(buf, PAGE_SIZE, "%s\n", str_info);
+	return i;
+}
+
 static struct class_attribute rdma_mgr_attrs[] = {
 	__ATTR(debug_flag, 0664,
 	       show_debug_flag, store_debug_flag),
@@ -1599,6 +1637,8 @@ static struct class_attribute rdma_mgr_attrs[] = {
 	       rdma_mgr_trace_reg_show, rdma_mgr_trace_reg_stroe),
 	__ATTR(ex_vsync_rdma, 0664,
 	       show_ex_vsync_rdma, store_ex_vsync_rdma),
+	__ATTR(irq_count_stat, 0664,
+		   rdma_irq_count_show, NULL),
 };
 
 static struct class *rdma_mgr_class;

@@ -127,10 +127,16 @@ int get_receiver_id(u8 layer_id)
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 static void vsync_rdma_vppx_process(u8 vpp_index)
 {
+	int ret = 0;
+
 	if (vpp_index == VPP1)
-		vsync_rdma_vpp1_config();
+		ret = vsync_rdma_vpp1_config();
 	else if (vpp_index == VPP2)
-		vsync_rdma_vpp2_config();
+		ret = vsync_rdma_vpp2_config();
+	if (ret == 1) {
+		vd_layer_vpp[0].property_changed = true;
+		vd_layer_vpp[1].property_changed = true;
+	}
 }
 
 static bool is_vsync_vppx_rdma_enable(u8 vpp_index)

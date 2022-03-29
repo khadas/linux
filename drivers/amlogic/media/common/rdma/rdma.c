@@ -50,6 +50,7 @@ static bool first_config[RDMA_NUM];
 static bool rdma_done[RDMA_NUM];
 static u32 cur_vsync_handle_id;
 static int ex_vsync_rdma_enable;
+static u32 rdma_reset;
 
 static DEFINE_SPINLOCK(lock);
 static void vsync_rdma_irq(void *arg);
@@ -135,14 +136,20 @@ static void set_rdma_trigger_line(void)
 	aml_write_vcbus(VPP_INT_LINE_NUM, trigger_line);
 }
 
-void _vsync_rdma_config(int rdma_type)
+void set_force_rdma_config(void)
+{
+	rdma_reset = 1;
+}
+EXPORT_SYMBOL(set_force_rdma_config);
+
+int _vsync_rdma_config(int rdma_type)
 {
 	int iret = 0;
 	int enable_ = cur_enable[rdma_type] & 0xf;
 	unsigned long flags;
 
 	if (vsync_rdma_handle[rdma_type] <= 0)
-		return;
+		return -1;
 
 	/* first frame not use rdma */
 	if (!first_config[rdma_type]) {
@@ -150,7 +157,7 @@ void _vsync_rdma_config(int rdma_type)
 		pre_enable_[rdma_type] = enable_;
 		first_config[rdma_type] = true;
 		rdma_done[rdma_type] = false;
-		return;
+		return 0;
 	}
 
 	if (rdma_type == EX_VSYNC_RDMA) {
@@ -182,7 +189,7 @@ void _vsync_rdma_config(int rdma_type)
 		force_rdma_config[rdma_type] = 1;
 
 	iret = 0;
-	if (force_rdma_config[rdma_type]) {
+	if (force_rdma_config[rdma_type] || rdma_reset) {
 		if (enable_ == 1) {
 			if (has_multi_vpp) {
 				if (rdma_type == VSYNC_RDMA) {
@@ -237,48 +244,59 @@ void _vsync_rdma_config(int rdma_type)
 		} else if (enable_ == 6) {
 			;
 		}
-		if (!iret)
+		if (!iret) {
 			force_rdma_config[rdma_type] = 1;
-		else
+			iret = 0;
+		} else {
 			force_rdma_config[rdma_type] = 0;
+			iret = 0;
+			if (rdma_reset) {
+				rdma_reset = 0;
+				iret = 1;
+			}
+		}
 	}
 	pre_enable_[rdma_type] = enable_;
 	cur_enable[rdma_type] = enable[rdma_type];
 	if (rdma_type == EX_VSYNC_RDMA)
 		spin_unlock_irqrestore(&lock, flags);
+	return iret;
 }
 
-void vsync_rdma_config(void)
+int vsync_rdma_config(void)
 {
-	_vsync_rdma_config(cur_vsync_handle_id);
+	int ret;
+
+	ret = _vsync_rdma_config(cur_vsync_handle_id);
 	if (cur_vsync_handle_id == EX_VSYNC_RDMA &&
 		 vsync_rdma_handle[cur_vsync_handle_id] > 0)
 		rdma_buffer_unlock(vsync_rdma_handle[cur_vsync_handle_id]);
 
 	if (!has_multi_vpp) {
-		_vsync_rdma_config(VSYNC_RDMA_READ);
+		ret = _vsync_rdma_config(VSYNC_RDMA_READ);
 		if (second_rdma_feature &&
 		    is_meson_g12b_revb())
-			_vsync_rdma_config(LINE_N_INT_RDMA);
+			ret = _vsync_rdma_config(LINE_N_INT_RDMA);
 	}
+	return ret;
 }
 EXPORT_SYMBOL(vsync_rdma_config);
 
-void vsync_rdma_vpp1_config(void)
+int vsync_rdma_vpp1_config(void)
 {
-	_vsync_rdma_config(VSYNC_RDMA_VPP1);
+	return _vsync_rdma_config(VSYNC_RDMA_VPP1);
 }
 EXPORT_SYMBOL(vsync_rdma_vpp1_config);
 
-void vsync_rdma_vpp2_config(void)
+int vsync_rdma_vpp2_config(void)
 {
-	_vsync_rdma_config(VSYNC_RDMA_VPP2);
+	return _vsync_rdma_config(VSYNC_RDMA_VPP2);
 }
 EXPORT_SYMBOL(vsync_rdma_vpp2_config);
 
-void pre_vsync_rdma_config(void)
+int pre_vsync_rdma_config(void)
 {
-	_vsync_rdma_config(PRE_VSYNC_RDMA);
+	return _vsync_rdma_config(PRE_VSYNC_RDMA);
 }
 EXPORT_SYMBOL(pre_vsync_rdma_config);
 void _vsync_rdma_config_pre(int rdma_type)

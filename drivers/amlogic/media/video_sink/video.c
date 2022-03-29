@@ -3859,7 +3859,15 @@ EXPORT_SYMBOL(set_vsync_pts_inc_mode);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void)
 {
-	vsync_rdma_config();
+	int ret;
+
+	ret = vsync_rdma_config();
+	if (ret == 1) {
+		/* rdma reset case */
+		vd_layer[0].property_changed = true;
+		vd_layer[1].property_changed = true;
+		vd_layer[2].property_changed = true;
+	}
 }
 #endif
 
