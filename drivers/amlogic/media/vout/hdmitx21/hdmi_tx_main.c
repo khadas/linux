@@ -60,6 +60,7 @@
 #define HDMI_TX_PWR_CTRL_NUM	6
 
 static unsigned int hdcp_ctl_lvl;
+static unsigned int rx_hdcp2_ver;
 
 #define TEE_HDCP_IOC_START _IOW('P', 0, int)
 
@@ -246,6 +247,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 {
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)h->param;
 
+	rx_hdcp2_ver = 0;
 	hdev->ready = 0;
 	hdev->hpd_lock = 1;
 	hdmitx_vrr_disable();
@@ -501,8 +503,10 @@ static void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 {
 	if (get_hdcp2_lstore() & is_rx_hdcp2ver()) {
 		hdev->hdcp_mode = 2;
+		rx_hdcp2_ver = 1;
 		hdcp_mode_set(2);
 	} else {
+		rx_hdcp2_ver = 0;
 		if (get_hdcp1_lstore()) {
 			hdev->hdcp_mode = 1;
 			hdcp_mode_set(1);
@@ -3414,6 +3418,19 @@ static int check_fbc_special(u8 *edid_dat)
 		return 0;
 }
 
+static ssize_t hdcp_ver_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	if (rx_hdcp2_ver)
+		pos += snprintf(buf + pos, PAGE_SIZE, "22\n\r");
+	/* Here, must assume RX support HDCP14, otherwise affect 1A-03 */
+	pos += snprintf(buf + pos, PAGE_SIZE, "14\n\r");
+
+	return pos;
+}
+
 static ssize_t hpd_state_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
@@ -3558,6 +3575,7 @@ static DEVICE_ATTR_RW(rxsense_policy);
 static DEVICE_ATTR_RW(cedst_policy);
 static DEVICE_ATTR_RO(cedst_count);
 static DEVICE_ATTR_RW(hdcp_mode);
+static DEVICE_ATTR_RO(hdcp_ver);
 static DEVICE_ATTR_RW(hdcp_type_policy);
 static DEVICE_ATTR_RW(hdcp_lstore);
 static DEVICE_ATTR_RO(hdmi_repeater_tx);
@@ -4120,6 +4138,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	edidinfo_detach_to_vinfo(hdev);
+	rx_hdcp2_ver = 0;
 	pr_debug("plugout\n");
 	if (!!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))) {
 		pr_info("hpd gpio high\n");
@@ -4741,6 +4760,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_cedst_policy);
 	ret = device_create_file(dev, &dev_attr_cedst_count);
 	ret = device_create_file(dev, &dev_attr_hdcp_mode);
+	ret = device_create_file(dev, &dev_attr_hdcp_ver);
 	ret = device_create_file(dev, &dev_attr_hdcp_type_policy);
 	ret = device_create_file(dev, &dev_attr_hdmi_repeater_tx);
 	ret = device_create_file(dev, &dev_attr_hdcp_lstore);
@@ -4918,6 +4938,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmi_repeater_tx);
 	device_remove_file(dev, &dev_attr_hdmi_hdr_status);
 	device_remove_file(dev, &dev_attr_hdmitx21);
+	device_remove_file(dev, &dev_attr_hdcp_ver);
 
 	cdev_del(&hdev->cdev);
 
@@ -5407,10 +5428,13 @@ static unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 {
 	int rxhdcp = 0;
 
-	if (is_rx_hdcp2ver())
+	if (is_rx_hdcp2ver()) {
+		rx_hdcp2_ver = 1;
 		rxhdcp = HDCP_MODE22 | HDCP_MODE14;
-	else
+	} else {
+		rx_hdcp2_ver = 0;
 		rxhdcp = HDCP_MODE14;
+	}
 
 	pr_info("%s rx hdcp [%d]\n", __func__, rxhdcp);
 	return 0;
