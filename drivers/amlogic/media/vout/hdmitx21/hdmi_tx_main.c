@@ -4809,6 +4809,7 @@ static void hdmitx_register_vrr(struct hdmitx_dev *hdev)
 		vrr->vline_min = 0;
 	else
 		vrr->vline_min = vinfo->vtotal;
+	vrr->vline = vinfo->vtotal;
 	if (prxcap->vrr_max < 100 || prxcap->vrr_min > 48)
 		vrr->enable = 0;
 	else

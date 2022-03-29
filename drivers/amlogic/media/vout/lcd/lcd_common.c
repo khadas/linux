@@ -2863,6 +2863,7 @@ void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv)
 	else
 		pdrv->vrr_dev->enable = 0;
 
+	pdrv->vrr_dev->vline = pdrv->config.basic.v_period;
 	pdrv->vrr_dev->vline_max = pdrv->config.basic.v_period_max;
 	pdrv->vrr_dev->vline_min = pdrv->config.basic.v_period_min;
 	pdrv->vrr_dev->vfreq_max = pdrv->config.basic.frame_rate_max;

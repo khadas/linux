@@ -214,10 +214,16 @@ static void vrr_work_disable(struct aml_vrr_drv_s *vdrv)
 
 	offset = vdrv->data->offset[vdrv->index];
 
-	if (vdrv->state & VRR_STATE_ENCL)
+	if (vdrv->state & VRR_STATE_ENCL) {
 		vrr_reg_setb((VENC_VRR_CTRL + offset), 0, 1, 1);
-	if (vdrv->state & VRR_STATE_ENCP)
+		if (vdrv->vrr_dev)
+			vrr_reg_write(ENCL_VIDEO_MAX_LNCNT + offset, vdrv->vrr_dev->vline);
+	}
+	if (vdrv->state & VRR_STATE_ENCP) {
 		vrr_reg_setb((VENP_VRR_CTRL + offset), 0, 1, 1);
+		if (vdrv->vrr_dev)
+			vrr_reg_write(ENCP_VIDEO_MAX_LNCNT + offset, vdrv->vrr_dev->vline);
+	}
 
 	vdrv->state = 0;
 }
@@ -434,6 +440,8 @@ static ssize_t vrr_status_show(struct device *dev,
 				vdrv->vrr_dev->output_src);
 		len += sprintf(buf + len, "dev->enable:     %d\n",
 				vdrv->vrr_dev->enable);
+		len += sprintf(buf + len, "dev->vline:      %d\n",
+				vdrv->vrr_dev->vline);
 		len += sprintf(buf + len, "dev->vline_max:  %d\n",
 				vdrv->vrr_dev->vline_max);
 		len += sprintf(buf + len, "dev->vline_min:  %d\n",

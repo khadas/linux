@@ -24,6 +24,7 @@ struct vrr_device_s {
 	char name[VRR_NAME_LEN_MAX];
 	enum vrr_output_src_e output_src;
 	unsigned int enable;
+	unsigned int vline;
 	unsigned int vline_max;
 	unsigned int vline_min;
 	unsigned int vfreq_max;

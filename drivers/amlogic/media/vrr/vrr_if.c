@@ -54,6 +54,8 @@ ssize_t vrr_active_status_show(struct device *dev,
 				vdrv->vrr_dev->output_src);
 		len += sprintf(buf + len, "dev->enable:     %d\n",
 				vdrv->vrr_dev->enable);
+		len += sprintf(buf + len, "dev->vline:      %d\n",
+				vdrv->vrr_dev->vline);
 		len += sprintf(buf + len, "dev->vline_max:  %d\n",
 				vdrv->vrr_dev->vline_max);
 		len += sprintf(buf + len, "dev->vline_min:  %d\n",

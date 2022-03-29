@@ -47,6 +47,9 @@
 //Bit 30:4   reverse           //R/W, unsigned,
 //Bit 3:0    cfg_vsp_rst_num   //R/W, unsigned,
 
+#define ENCL_VIDEO_MAX_LNCNT                       0x1cbb
+#define ENCP_VIDEO_MAX_LNCNT                       0x1bae
+
 static inline unsigned int vrr_reg_read(unsigned int _reg)
 {
 	unsigned int ret = 0;
