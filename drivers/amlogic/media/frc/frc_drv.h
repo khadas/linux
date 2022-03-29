@@ -62,8 +62,10 @@
 // frc_20220222 frc bypass pc and check vout
 // frc_20220224 frc fix memc state abnormal
 // frc_20220310 fix frc dts_match memory leak
+// frc_20220404 fix frc input not standard
 
-#define FRC_FW_VER			"2022-0404 fix frc input not standard"
+#define FRC_FW_VER			"2022-0401 frc reduce cma buffer alloc"
+
 #define FRC_KERDRV_VER                  1715
 
 #define FRC_DEVNO	1
@@ -86,6 +88,10 @@ extern int frc_dbg_en;
 #define FRC_COMPRESS_RATE_80_SIZE       (276 * 1024 * 1024)    // Need 274.7MB  4MB Align
 #define FRC_COMPRESS_RATE_50_SIZE       (180 * 1024 * 1024)    // Need 176.4MB  4MB Align
 #define FRC_COMPRESS_RATE_55_SIZE       (196 * 1024 * 1024)    // Need 192.7MB  4MB Align
+// mc-y 48%  mc-c 39%  me 60%
+#define FRC_COMPRESS_RATE_MC_Y		48
+#define FRC_COMPRESS_RATE_MC_C		39
+#define FRC_COMPRESS_RATE_ME		60
 
 #define FRC_TOTAL_BUF_NUM		16
 #define FRC_MEMV_BUF_NUM		6
@@ -143,8 +149,15 @@ struct st_frc_buf {
 	u32 cma_mem_size;
 	struct page *cma_mem_paddr_pages;
 	phys_addr_t cma_mem_paddr_start;
-	u32 cma_mem_alloced;
-	u32 secured;
+	u8  cma_mem_alloced;
+	u8  secured;
+	u8  otherflag;
+	u8  otherflag2;
+
+	u8  me_comprate;
+	u8  mc_y_comprate;
+	u8  mc_c_comprate;
+	u8  memc_comprate;
 
 	/*frame size*/
 	u32 in_hsize;
@@ -444,5 +457,6 @@ struct frc_dev_s {
 
 struct frc_dev_s *get_frc_devp(void);
 void get_vout_info(struct frc_dev_s *frc_devp);
+int frc_buf_set(struct frc_dev_s *frc_devp);
 struct frc_fw_data_s *get_fw_data(void);
 #endif

@@ -256,9 +256,12 @@ void frc_buf_dump_memory_size_info(struct frc_dev_s *devp)
 	       devp->buf.lossy_me_x_info_buf_size * 1);
 
 	/*lossy mc data buffer*/
-	pr_frc(log, "lossy_mc_data_buf_size=%d, all:%d\n",
+	pr_frc(log, "lossy_mc_y_data_buf_size=%d, all:%d\n",
+	       devp->buf.lossy_mc_y_data_buf_size[0],
+	       devp->buf.lossy_mc_y_data_buf_size[0] * FRC_TOTAL_BUF_NUM);
+	pr_frc(log, "lossy_mc_c_data_buf_size=%d, all:%d\n",
 	       devp->buf.lossy_mc_c_data_buf_size[0],
-	       devp->buf.lossy_mc_c_data_buf_size[0] * FRC_TOTAL_BUF_NUM * 2);
+	       devp->buf.lossy_mc_c_data_buf_size[0] * FRC_TOTAL_BUF_NUM);
 
 	/*lossy me data buffer*/
 	pr_frc(log, "lossy_me_data_buf_size=%d, all:%d\n",
@@ -518,7 +521,7 @@ int frc_buf_alloc(struct frc_dev_s *devp)
 	if (!devp->buf.cma_mem_paddr_pages) {
 		devp->buf.cma_mem_size = 0;
 		pr_frc(0, "cma_alloc fail\n");
-		return -0;
+		return -1;
 	}
 	/*physical pages address to real address*/
 	devp->buf.cma_mem_paddr_start = page_to_phys(devp->buf.cma_mem_paddr_pages);
@@ -558,6 +561,15 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 
 	if (!devp)
 		return -1;
+
+	if (devp->buf.memc_comprate == 0)
+		devp->buf.memc_comprate = FRC_COMPRESS_RATE;
+	if (devp->buf.me_comprate == 0)
+		devp->buf.me_comprate = FRC_COMPRESS_RATE_ME;
+	if (devp->buf.mc_c_comprate == 0)
+		devp->buf.mc_c_comprate = FRC_COMPRESS_RATE_MC_C;
+	if (devp->buf.mc_y_comprate == 0)
+		devp->buf.mc_y_comprate = FRC_COMPRESS_RATE_MC_Y;
 
 	/*size initial, alloc max support size accordint to vout*/
 	devp->buf.in_hsize = devp->out_sts.vout_width;
@@ -615,6 +627,9 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	       devp->buf.hme_blk_vsize);
 
 	/* ------------ cal buffer start -----------------*/
+	pr_frc(0, "dc_rate:(me:%d,mc_y:%d,mc_c:%d)\n",
+		devp->buf.me_comprate, devp->buf.mc_y_comprate,
+		devp->buf.mc_c_comprate);
 
 	/*mc y/c/v info buffer, address 64 bytes align*/
 	devp->buf.lossy_mc_y_info_buf_size = LOSSY_MC_INFO_LINE_SIZE * FRC_SLICER_NUM;
@@ -640,12 +655,13 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	/*lossy mc data buffer*/
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
 		devp->buf.lossy_mc_y_data_buf_size[i] = ALIGN_4K * ratio +
-			(temp * align_vsize * FRC_COMPRESS_RATE) / 100;
+			(temp * align_vsize * devp->buf.mc_y_comprate) / 100;
 		devp->buf.lossy_mc_c_data_buf_size[i] = ALIGN_4K * ratio +
-			(temp * align_vsize * FRC_COMPRESS_RATE) / 100;
+			(temp * align_vsize * devp->buf.mc_c_comprate) / 100;
 		devp->buf.lossy_mc_v_data_buf_size[i] = 0;//ALIGN_4K * 4 +
 			//(temp * align_vsize * FRC_COMPRESS_RATE) / 100;
-		devp->buf.total_size += devp->buf.lossy_mc_y_data_buf_size[i] * 2;
+		devp->buf.total_size += devp->buf.lossy_mc_y_data_buf_size[i];
+		devp->buf.total_size += devp->buf.lossy_mc_c_data_buf_size[i];
 		devp->buf.total_size += devp->buf.lossy_mc_v_data_buf_size[i];
 	}
 	pr_frc(log, "lossy_mc_data_buf_size=%d, line buf:%d all:%d\n",
@@ -656,7 +672,7 @@ int frc_buf_calculate(struct frc_dev_s *devp)
 	/*lossy me data buffer*/
 	for (i = 0; i < FRC_TOTAL_BUF_NUM; i++) {
 		devp->buf.lossy_me_data_buf_size[i] = ALIGN_4K * ratio +
-			(temp * devp->buf.me_vsize * FRC_COMPRESS_RATE) / 100;
+			(temp * devp->buf.me_vsize * devp->buf.me_comprate) / 100;
 		devp->buf.total_size += devp->buf.lossy_me_data_buf_size[i];
 	}
 	pr_frc(log, "lossy_me_data_buf_size=%d, line buf:%d all:%d\n",

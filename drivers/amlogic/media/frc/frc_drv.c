@@ -796,6 +796,23 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 	}
 }
 
+int frc_buf_set(struct frc_dev_s *frc_devp)
+{
+	if (!frc_devp) {
+		PR_ERR("%s: frc_devp is null\n", __func__);
+		return -1;
+	}
+	if (frc_buf_calculate(frc_devp) != 0)
+		return -1;
+	if (frc_buf_alloc(frc_devp) != 0)
+		return -1;
+	frc_buf_distribute(frc_devp);
+	if (frc_buf_config(frc_devp) != 0)
+		return -1;
+	else
+		return 0;
+}
+
 static int frc_probe(struct platform_device *pdev)
 {
 	int ret = 0, i;
@@ -882,10 +899,12 @@ static int frc_probe(struct platform_device *pdev)
 	frc_init_config(frc_devp);
 
 	/*buffer config*/
-	frc_buf_calculate(frc_devp);
-	frc_buf_alloc(frc_devp);
-	frc_buf_distribute(frc_devp);
-	frc_buf_config(frc_devp);
+	//frc_buf_calculate(frc_devp);
+	//frc_buf_alloc(frc_devp);
+	//frc_buf_distribute(frc_devp);
+	//frc_buf_config(frc_devp);
+	if (frc_buf_set(frc_devp) != 0)
+		goto fail_dev_create;
 
 	frc_hw_initial(frc_devp);
 	frc_internal_initial(frc_devp); /*need after frc_top_init*/

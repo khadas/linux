@@ -867,7 +867,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	} else {
 		/*T3 revB*/
 		frc_v_porch = frc_vporch_cal;
-		pr_frc(2, "%s T3 revB chip validation！\n", __func__);
+		pr_frc(2, "%s T3 revB chip validation\n", __func__);
 		vpu_reg_write_bits(ENCL_FRC_CTRL, memc_frm_dly - reg_mc_out_line, 0, 16);
 		WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_post_dly_vofst, 0, 16);
 		WRITE_FRC_BITS(FRC_REG_TOP_CTRL14, reg_me_dly_vofst, 16, 16);

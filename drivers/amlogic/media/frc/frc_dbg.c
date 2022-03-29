@@ -85,8 +85,9 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "vout sync_duration_num:%d sync_duration_den:%d hz:%d\n",
 		vinfo->sync_duration_num, vinfo->sync_duration_den,
 		vinfo->sync_duration_num / vinfo->sync_duration_den);
-	pr_frc(0, "data_compress_rate:%d, real total size:%d\n",
-		FRC_COMPRESS_RATE, devp->buf.real_total_size);
+	pr_frc(0, "dc_rate:(me:%d,mc_y:%d,mc_c:%d), real total size:%d\n",
+		devp->buf.me_comprate, devp->buf.mc_y_comprate,
+		devp->buf.mc_c_comprate, devp->buf.real_total_size);
 	pr_frc(0, "buf secured:%d\n", devp->buf.secured);
 	pr_frc(0, "vpu int vs_duration:%d timestamp:%ld\n",
 	       devp->vs_duration, (ulong)devp->vs_timestamp);
@@ -473,6 +474,22 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			devp->in_sts.inp_size_adj_en = val1;
+	} else if (!strcmp(parm[0], "dc_set")) { //(me:mc_y:mc_c)
+		if (!parm[3]) {
+			pr_frc(0, "err:input me mc_y mc_c\n");
+			goto exit;
+		}
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->buf.me_comprate = val1;
+		if (kstrtoint(parm[2], 10, &val1) == 0)
+			devp->buf.mc_y_comprate = val1;
+		if (kstrtoint(parm[3], 10, &val1) == 0)
+			devp->buf.mc_c_comprate = val1;
+	} else if (!strcmp(parm[0], "dc_apply")) {
+		if (devp->frc_sts.state == FRC_STATE_BYPASS) {
+			frc_buf_release(devp);
+			frc_buf_set(devp);
+		}
 	}
 exit:
 	kfree(buf_orig);

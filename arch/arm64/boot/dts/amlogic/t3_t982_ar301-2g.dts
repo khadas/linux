@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesont3.dtsi"
-#include "partition_mbox_ab.dtsi"
+#include "partition_normal_PR_32.dtsi"
 #include "mesont3_ar301-panel.dtsi"
 
 / {
@@ -190,7 +190,7 @@
 			 * 384Mhz (0x18000000)
 			 * 368Mhz (0x17000000)
 			 */
-			size = <0x0 0x0d400000>;
+			size = <0x0 0x0a000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
