@@ -362,7 +362,9 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_VPP2(u32 reg,
 static inline void VSYNC_WRITE_VPP_REG_VPP_SEL(u32 reg,
 				       const u32 value, int vpp_sel)
 {
-	if (vpp_sel == 2)
+	if (vpp_sel == 0xff)
+		aml_write_vcbus_s(offset_addr(reg), value);
+	else if (vpp_sel == 2)
 		VSYNC_WR_MPEG_REG_VPP2(offset_addr(reg), value);
 	else if (vpp_sel == 1)
 		VSYNC_WR_MPEG_REG_VPP1(offset_addr(reg), value);
@@ -372,7 +374,9 @@ static inline void VSYNC_WRITE_VPP_REG_VPP_SEL(u32 reg,
 
 static inline u32 VSYNC_READ_VPP_REG_VPP_SEL(u32 reg, int vpp_sel)
 {
-	if (vpp_sel == 2)
+	if (vpp_sel == 0xff)
+		return aml_read_vcbus_s(offset_addr(reg));
+	else if (vpp_sel == 2)
 		return VSYNC_RD_MPEG_REG_VPP2(offset_addr(reg));
 	else if (vpp_sel == 1)
 		return VSYNC_RD_MPEG_REG_VPP1(offset_addr(reg));
@@ -412,7 +416,9 @@ static inline void VSYNC_WRITE_VPP_REG_BITS_VPP_SEL(u32 reg,
 		const u32 start,
 		const u32 len, int vpp_sel)
 {
-	if (vpp_sel == 2)
+	if (vpp_sel == 0xff)
+		aml_vcbus_update_bits_s(offset_addr(reg), value, start, len);
+	else if (vpp_sel == 2)
 		VSYNC_WR_MPEG_REG_BITS_VPP2(offset_addr(reg), value, start, len);
 	else if (vpp_sel == 1)
 		VSYNC_WR_MPEG_REG_BITS_VPP1(offset_addr(reg), value, start, len);
