@@ -647,7 +647,7 @@ static struct clk_regmap p1_gp0_pll_dco = {
 			.width   = 1,
 		},
 		.rst = {
-			.reg_off = CLKCTRL_GP0PLL_STS,
+			.reg_off = CLKCTRL_GP0PLL_CTRL0,
 			.shift   = 29,
 			.width   = 1,
 		},
