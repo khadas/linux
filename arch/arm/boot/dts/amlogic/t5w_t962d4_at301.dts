@@ -55,18 +55,14 @@
 			reusable;
 			/* keep sync with fb */
 			/* fox example:logo_addr = "0x3f800000"*/
-			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3f800000 0x800000>;
+			reg = <0x3f800000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* alloc-ranges start should not be 0x0*/
-			size = <0x00c00000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x3c000000 0x00c00000>;
+			compatible = "amlogic, lcd_tcon";
+			reg = <0x3c000000 0x00c00000>;
+			no-map;
 		};
 
 		/*  vdin0 CMA pool */

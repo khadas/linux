@@ -5578,11 +5578,8 @@ static void lcd_tcon_axi_rmem_save(unsigned int index, char *path)
 	mm_segment_t old_fs = get_fs();
 	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
-	unsigned int span = 0, remain = 0, count = 0;
-	unsigned long paddr, phys;
-	void *vaddr = NULL;
-	unsigned int highmem_flag = 0;
-	int i;
+	unsigned long paddr;
+	unsigned char *vaddr = NULL;
 
 	if (!tcon_rmem || !tcon_rmem->axi_rmem) {
 		pr_info("axi_rmem is NULL\n");
@@ -5595,9 +5592,6 @@ static void lcd_tcon_axi_rmem_save(unsigned int index, char *path)
 		return;
 	}
 
-	mem_size = tcon_rmem->axi_rmem[index].mem_size;
-	pos = 0;
-
 	set_fs(KERNEL_DS);
 	filp = filp_open(path, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR(filp)) {
@@ -5605,36 +5599,15 @@ static void lcd_tcon_axi_rmem_save(unsigned int index, char *path)
 		set_fs(old_fs);
 		return;
 	}
+	pos = 0;
 
 	paddr = tcon_rmem->axi_rmem[index].mem_paddr;
-	highmem_flag = PageHighMem(phys_to_page(paddr));
-	if (highmem_flag == 0) {
-		vaddr = phys_to_virt(paddr);
-		if (!vaddr)
-			goto lcd_tcon_axi_rmem_save_end;
-		vfs_write(filp, vaddr, mem_size, &pos);
-	} else {
-		span = SZ_1M;
-		count = mem_size / PAGE_ALIGN(span);
-		remain = mem_size % PAGE_ALIGN(span);
+	mem_size = tcon_rmem->axi_rmem[index].mem_size;
+	vaddr = lcd_tcon_paddrtovaddr(paddr, mem_size);
+	if (!vaddr)
+		goto lcd_tcon_axi_rmem_save_end;
 
-		for (i = 0; i < count; i++) {
-			phys = paddr + i * span;
-			vaddr = lcd_vmap(phys, span);
-			if (!vaddr)
-				goto lcd_tcon_axi_rmem_save_end;
-			vfs_write(filp, vaddr, span, &pos);
-			lcd_unmap_phyaddr(vaddr);
-		}
-		if (remain) {
-			phys = paddr + count * span;
-			vaddr = lcd_vmap(phys, remain);
-			if (!vaddr)
-				goto lcd_tcon_axi_rmem_save_end;
-			vfs_write(filp, vaddr, remain, &pos);
-			lcd_unmap_phyaddr(vaddr);
-		}
-	}
+	vfs_write(filp, vaddr, mem_size, &pos);
 
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);

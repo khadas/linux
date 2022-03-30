@@ -447,12 +447,8 @@ void lcd_tcon_axi_rmem_lut_load(unsigned int index, unsigned char *buf,
 {
 	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
-	unsigned char *p;
-	unsigned int span = 0, remain = 0, count = 0;
-	unsigned long paddr, phys;
-	void *vaddr = NULL;
-	unsigned int highmem_flag = 0;
-	int i;
+	unsigned long paddr;
+	unsigned char *vaddr = NULL;
 
 	if (!tcon_rmem || !tcon_rmem->axi_rmem) {
 		LCDERR("axi_rmem is NULL\n");
@@ -471,41 +467,17 @@ void lcd_tcon_axi_rmem_lut_load(unsigned int index, unsigned char *buf,
 	}
 
 	paddr = tcon_rmem->axi_rmem[index].mem_paddr;
-	highmem_flag = PageHighMem(phys_to_page(paddr));
-	if (highmem_flag == 0) {
-		vaddr = phys_to_virt(paddr);
-		if (!vaddr)
-			goto lcd_tcon_axi_rmem_lut_load_err;
-		memcpy(vaddr, buf, size);
+	if (!tcon_rmem->axi_rmem[index].mem_vaddr) {
+		vaddr = lcd_tcon_paddrtovaddr(paddr, size);
+		if (!vaddr) {
+			LCDERR("tcon axi_rmem[%d] mapping failed: 0x%lx\n", index, paddr);
+			return;
+		}
 	} else {
-		span = SZ_1M;
-		count = size / PAGE_ALIGN(span);
-		remain = size % PAGE_ALIGN(span);
-
-		for (i = 0; i < count; i++) {
-			phys = paddr + i * span;
-			vaddr = lcd_vmap(phys, span);
-			if (!vaddr)
-				goto lcd_tcon_axi_rmem_lut_load_err;
-			p = buf + i * span;
-			memcpy(vaddr, p, span);
-			lcd_unmap_phyaddr(vaddr);
-		}
-		if (remain) {
-			phys = paddr + count * span;
-			vaddr = lcd_vmap(phys, remain);
-			if (!vaddr)
-				goto lcd_tcon_axi_rmem_lut_load_err;
-			p = buf + count * span;
-			memcpy(vaddr, p, remain);
-			lcd_unmap_phyaddr(vaddr);
-		}
+		vaddr = tcon_rmem->axi_rmem[index].mem_vaddr;
 	}
 
-	return;
-
-lcd_tcon_axi_rmem_lut_load_err:
-	LCDERR("tcon axi_rmem[%d] mapping failed: 0x%lx\n", index, paddr);
+	memcpy(vaddr, buf, size);
 }
 
 static int lcd_tcon_wr_n_data_write(struct aml_lcd_drv_s *pdrv,

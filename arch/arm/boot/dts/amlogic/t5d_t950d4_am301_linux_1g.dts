@@ -59,17 +59,14 @@
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3f800000 0x800000>;
+			reg = <0x3f800000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x00800000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x3f000000 0x00800000>;
+			compatible = "amlogic, lcd_tcon";
+			reg = <0x3f000000 0x00800000>;
+			no-map;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {

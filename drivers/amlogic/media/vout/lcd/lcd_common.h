@@ -35,6 +35,7 @@
 /* 20220119: support tcon multi list threshold overlap*/
 /* 20220121: update custom_pinmux and fr_auto_dis support*/
 /* 20220216: update vrr config when display mode change*/
+/* 20220408: update tcon reserved memory usage*/
 /* 20220421: fix lcd clk mistake for vmode change with fr_adj_type 4*/
 #define LCD_DRV_VERSION    "20220421"
 

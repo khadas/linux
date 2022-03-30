@@ -72,18 +72,14 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* keep sync with fb, fox example:logo_addr = "0x7f8000000"*/
-			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x7f800000 0x800000>;
+			reg = <0x7f800000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* alloc-ranges start should not be 0x0*/
-			size = <0x00c00000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x3ec00000 0x00c00000>;
+			compatible = "amlogic, lcd_tcon";
+			reg = <0x3ec00000 0x00c00000>;
+			no-map;
 		};
 
 		ion_cma_reserved:linux,ion-dev {

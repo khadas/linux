@@ -38,7 +38,11 @@
 /*#include "tcon_ceds.h"*/
 
 static struct lcd_tcon_config_s *lcd_tcon_conf;
-static struct tcon_rmem_s tcon_rmem;
+static struct tcon_rmem_s tcon_rmem = {
+	.flag = 0,
+	.rsv_mem_size = 0,
+	.rsv_mem_paddr = 0,
+};
 static struct tcon_mem_map_table_s tcon_mm_table;
 static struct lcd_tcon_local_cfg_s tcon_local_cfg;
 
@@ -148,8 +152,7 @@ unsigned char lcd_tcon_lrc(unsigned char *buf, unsigned int len)
 	return temp;
 }
 
-static unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr,
-					    unsigned int mem_size)
+unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr, unsigned int mem_size)
 {
 	unsigned int highmem_flag = 0;
 	int max_mem_size = 0;
@@ -160,30 +163,45 @@ static unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr,
 		return NULL;
 	}
 
-	highmem_flag = PageHighMem(phys_to_page(paddr));
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-		LCDPR("%s: paddr 0x%lx highmem_flag:%d\n",
-		      __func__, paddr, highmem_flag);
-	}
-	if (highmem_flag) {
-		max_mem_size = PAGE_ALIGN(mem_size);
-		max_mem_size = roundup(max_mem_size, PAGE_SIZE);
-		vaddr = lcd_vmap(paddr, max_mem_size);
+	if (tcon_rmem.flag == 1) {
+		highmem_flag = PageHighMem(phys_to_page(paddr));
+		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
+			LCDPR("%s: paddr 0x%lx highmem_flag:%d\n",
+				__func__, paddr, highmem_flag);
+		}
+		if (highmem_flag) {
+			max_mem_size = PAGE_ALIGN(mem_size);
+			max_mem_size = roundup(max_mem_size, PAGE_SIZE);
+			vaddr = lcd_vmap(paddr, max_mem_size);
+			if (!vaddr) {
+				LCDPR("tcon paddr mapping error: addr: 0x%lx\n",
+					(unsigned long)paddr);
+				return NULL;
+			}
+			/*LCDPR("tcon vaddr: 0x%p\n", vaddr);*/
+		} else {
+			vaddr = phys_to_virt(paddr);
+			if (!vaddr) {
+				LCDERR("tcon vaddr mapping failed: 0x%lx\n",
+					(unsigned long)paddr);
+				return NULL;
+			}
+			/*LCDPR("tcon vaddr: 0x%p\n", vaddr);*/
+		}
+	} else if (tcon_rmem.flag == 2) {
+		vaddr = ioremap_cache(paddr, mem_size);
 		if (!vaddr) {
-			LCDPR("tcon paddr mapping error: addr: 0x%lx\n",
-				(unsigned long)paddr);
+			LCDERR("tcon vaddr mapping failed: 0x%lx, size: 0x%x\n",
+				(unsigned long)paddr, mem_size);
 			return NULL;
 		}
-		/*LCDPR("tcon vaddr: 0x%p\n", vaddr);*/
-	} else {
-		vaddr = phys_to_virt(paddr);
-		if (!vaddr) {
-			LCDERR("tcon vaddr mapping failed: 0x%lx\n",
-			       (unsigned long)paddr);
-			return NULL;
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("tcon paddr:0x%lx, vaddr:0x%px, size:0x%x\n",
+				(unsigned long)paddr, vaddr, mem_size);
 		}
-		/*LCDPR("tcon vaddr: 0x%p\n", vaddr);*/
 	}
+
 	return (unsigned char *)vaddr;
 }
 
@@ -2166,6 +2184,9 @@ static int lcd_tcon_mem_config(void)
 	unsigned int max_size;
 	int ret;
 
+	if (tcon_rmem.flag == 0)
+		return -1;
+
 	max_size = lcd_tcon_conf->axi_mem_size + lcd_tcon_conf->bin_path_size
 		+ lcd_tcon_conf->secure_handle_size;
 
@@ -2177,16 +2198,18 @@ static int lcd_tcon_mem_config(void)
 
 	tcon_rmem.axi_mem_size = lcd_tcon_conf->axi_mem_size;
 	tcon_rmem.axi_mem_paddr = tcon_rmem.rsv_mem_paddr;
+	tcon_rmem.sw_mem_paddr = tcon_rmem.axi_mem_paddr + tcon_rmem.axi_mem_size;
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("%s: axi_mem paddr: 0x%08x, size: 0x%x\n",
+		LCDPR("%s: axi_mem paddr: 0x%08x, size: 0x%x, sw_mem paddr: 0x%08x\n",
 		      __func__, (unsigned int)tcon_rmem.axi_mem_paddr,
-		      tcon_rmem.axi_mem_size);
+		      tcon_rmem.axi_mem_size,
+		      (unsigned int)tcon_rmem.sw_mem_paddr);
+
 	if (lcd_tcon_conf->tcon_axi_mem_config)
 		lcd_tcon_conf->tcon_axi_mem_config();
 
 	tcon_rmem.bin_path_rmem.mem_size = lcd_tcon_conf->bin_path_size;
-	tcon_rmem.bin_path_rmem.mem_paddr =
-		tcon_rmem.axi_mem_paddr + tcon_rmem.axi_mem_size;
+	tcon_rmem.bin_path_rmem.mem_paddr = tcon_rmem.sw_mem_paddr;
 	tcon_rmem.bin_path_rmem.mem_vaddr =
 		lcd_tcon_paddrtovaddr(tcon_rmem.bin_path_rmem.mem_paddr,
 				      tcon_rmem.bin_path_rmem.mem_size);
@@ -2226,34 +2249,51 @@ static int lcd_tcon_mem_config(void)
 	return ret;
 }
 
-#ifdef CONFIG_CMA
-static int lcd_tcon_cma_mem_config(struct cma *cma)
+static int lcd_tcon_reserved_memory_init(struct aml_lcd_drv_s *pdrv)
 {
-	struct aml_lcd_drv_s *pdrv = aml_lcd_get_driver(0);
-	unsigned int mem_size;
+	struct device_node *mem_node;
+	struct resource res;
+	int ret;
 
-	tcon_rmem.rsv_mem_paddr = cma_get_base(cma);
-	LCDPR("tcon resv_mem base:0x%lx, size:0x%lx\n",
-	      (unsigned long)tcon_rmem.rsv_mem_paddr,
-	      cma_get_size(cma));
-	mem_size = lcd_tcon_conf->rsv_mem_size;
-	if (cma_get_size(cma) < mem_size) {
-		tcon_rmem.flag = 0;
-	} else {
-		tcon_rmem.rsv_mem_vaddr =
-			dma_alloc_from_contiguous(pdrv->dev, (mem_size >> PAGE_SHIFT), 0, 0);
-		if (!tcon_rmem.rsv_mem_vaddr) {
-			LCDERR("tcon resv_mem alloc failed\n");
-		} else {
-			LCDPR("tcon resv_mem dma_alloc=0x%x\n", mem_size);
-			tcon_rmem.rsv_mem_size = mem_size;
-			tcon_rmem.flag = 2; /* cma memory */
-		}
+	mem_node = of_parse_phandle(pdrv->dev->of_node, "memory-region", 0);
+	if (!mem_node) {
+		LCDERR("tcon get memory-region fail\n");
+		return -1;
 	}
+
+	ret = of_address_to_resource(mem_node, 0, &res);
+	if (ret) {
+		LCDERR("tcon reserve memory source fail\n");
+		return -1;
+	}
+
+	tcon_rmem.rsv_mem_paddr = res.start;
+	tcon_rmem.rsv_mem_size = resource_size(&res);
+	if (tcon_rmem.rsv_mem_paddr == 0) {
+		LCDERR("tcon resv_mem paddr 0 error\n");
+		return -1;
+	}
+	if (tcon_rmem.rsv_mem_size == 0) {
+		LCDERR("tcon resv_mem size 0 error\n");
+		return -1;
+	}
+
+	if (tcon_rmem.rsv_mem_size < lcd_tcon_conf->rsv_mem_size) {
+		tcon_rmem.flag = 0;
+		LCDERR("tcon rsv_mem_size 0x%x not enough, need 0x%x!!\n",
+			tcon_rmem.rsv_mem_size,
+			lcd_tcon_conf->rsv_mem_size);
+		return -1;
+	}
+
+	tcon_rmem.flag = 2;
+	LCDPR("tcon resv_mem flag:%d, paddr:0x%lx, size:0x%x\n",
+		tcon_rmem.flag,
+		(unsigned long)tcon_rmem.rsv_mem_paddr,
+		tcon_rmem.rsv_mem_size);
 
 	return 0;
 }
-#endif
 
 static irqreturn_t lcd_tcon_isr(int irq, void *dev_id)
 {
@@ -2646,8 +2686,6 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 
 int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 {
-	struct cma *cma;
-	unsigned int mem_size;
 	int ret = 0;
 
 	lcd_tcon_conf = NULL;
@@ -2690,36 +2728,8 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 	if (lcd_tcon_conf->tcon_valid == 0)
 		return 0;
 
-	/* init reserved memory */
-	ret = of_reserved_mem_device_init(pdrv->dev);
-	if (ret) {
-		LCDERR("tcon: init reserved memory failed\n");
-	} else {
-		if (!(void *)tcon_rmem.rsv_mem_paddr) {
-#ifdef CONFIG_CMA
-			cma = dev_get_cma_area(pdrv->dev);
-			if (cma) {
-				lcd_tcon_cma_mem_config(cma);
-				lcd_tcon_mem_config();
-			} else {
-				LCDERR("tcon: NO CMA\n");
-			}
-#else
-			LCDERR("tcon axi_mem alloc failed\n");
-#endif
-		} else {
-			mem_size = tcon_rmem.rsv_mem_size;
-			if (mem_size < lcd_tcon_conf->rsv_mem_size) {
-				tcon_rmem.flag = 0;
-			} else {
-				tcon_rmem.flag = 1; /* reserved memory */
-				LCDPR("tcon resv_mem base:0x%lx, size:0x%x\n",
-				      (unsigned long)tcon_rmem.rsv_mem_paddr,
-				      mem_size);
-				lcd_tcon_mem_config();
-			}
-		}
-	}
+	lcd_tcon_reserved_memory_init(pdrv);
+	lcd_tcon_mem_config();
 
 	spin_lock_init(&tcon_local_cfg.multi_list_lock);
 	INIT_WORK(&pdrv->tcon_config_work, lcd_tcon_get_config_work);
@@ -2752,26 +2762,27 @@ int lcd_tcon_remove(struct aml_lcd_drv_s *pdrv)
 			kfree(tcon_mm_table.data_mem_vaddr);
 			tcon_mm_table.data_mem_vaddr = NULL;
 		}
-	} else {
-		lcd_unmap_phyaddr(tcon_rmem.vac_rmem.mem_vaddr);
-		lcd_unmap_phyaddr(tcon_rmem.demura_set_rmem.mem_vaddr);
-		lcd_unmap_phyaddr(tcon_rmem.demura_lut_rmem.mem_vaddr);
-		lcd_unmap_phyaddr(tcon_rmem.acc_lut_rmem.mem_vaddr);
-		tcon_rmem.vac_rmem.mem_vaddr = NULL;
-		tcon_rmem.demura_set_rmem.mem_vaddr = NULL;
-		tcon_rmem.demura_lut_rmem.mem_vaddr = NULL;
-		tcon_rmem.acc_lut_rmem.mem_vaddr = NULL;
 	}
 
-	if (tcon_rmem.flag == 2) {
+	if (tcon_rmem.flag == 1) {
+		if (tcon_mm_table.version == 0) {
+			lcd_unmap_phyaddr(tcon_rmem.vac_rmem.mem_vaddr);
+			lcd_unmap_phyaddr(tcon_rmem.demura_set_rmem.mem_vaddr);
+			lcd_unmap_phyaddr(tcon_rmem.demura_lut_rmem.mem_vaddr);
+			lcd_unmap_phyaddr(tcon_rmem.acc_lut_rmem.mem_vaddr);
+			tcon_rmem.vac_rmem.mem_vaddr = NULL;
+			tcon_rmem.demura_set_rmem.mem_vaddr = NULL;
+			tcon_rmem.demura_lut_rmem.mem_vaddr = NULL;
+			tcon_rmem.acc_lut_rmem.mem_vaddr = NULL;
+		}
+		lcd_unmap_phyaddr(tcon_rmem.bin_path_rmem.mem_vaddr);
+	} else {
 		LCDPR("tcon free memory: base:0x%lx, size:0x%x\n",
 			(unsigned long)tcon_rmem.rsv_mem_paddr,
 			tcon_rmem.rsv_mem_size);
-#ifdef CONFIG_CMA
-		dma_release_from_contiguous(pdrv->dev,
-			tcon_rmem.rsv_mem_vaddr,
-			tcon_rmem.rsv_mem_size >> PAGE_SHIFT);
-#endif
+		memunmap(tcon_rmem.rsv_mem_vaddr);
+		tcon_rmem.rsv_mem_vaddr = NULL;
+		tcon_rmem.rsv_mem_paddr = 0;
 	}
 
 	if (lcd_tcon_conf) {

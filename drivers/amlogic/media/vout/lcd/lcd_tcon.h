@@ -73,6 +73,7 @@ struct tcon_rmem_s {
 	void *rsv_mem_vaddr;
 	phys_addr_t rsv_mem_paddr;
 	phys_addr_t axi_mem_paddr;
+	phys_addr_t sw_mem_paddr;
 
 	struct tcon_rmem_config_s *axi_rmem;
 	struct tcon_rmem_config_s bin_path_rmem;
@@ -245,6 +246,7 @@ int lcd_tcon_disable_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv);
 
 /* common */
+unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr, unsigned int mem_size);
 int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf);
 void lcd_tcon_data_multi_current_update(struct tcon_mem_map_table_s *mm_table,
 		struct lcd_tcon_data_block_header_s *block_header, unsigned int index);
