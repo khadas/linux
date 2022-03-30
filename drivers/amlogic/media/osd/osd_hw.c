@@ -11588,6 +11588,7 @@ static void osd_setting_viux(u32 output_index)
 				      CANVAS_ADDR_NOWRAP,
 				      CANVAS_BLKMODE_LINEAR);
 	#endif
+		osd_set_scan_mode(index);
 		osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 		if (count == 1) {
 			/* geometry and freescale need update with ioctl */
