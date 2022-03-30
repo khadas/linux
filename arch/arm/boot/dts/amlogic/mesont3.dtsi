@@ -330,9 +330,10 @@
 		#mbox-cells = <1>;
 	};
 
-	vdac {
+	vdac: vdac {
 		compatible = "amlogic, vdac-t3";
 		status = "okay";
+		cdac_disable = <0>;
 	};
 
 	adc: adc {
@@ -1144,7 +1145,7 @@
 			reg = <0xfe01a000 0x1c>;
 			tdmout_index = <1>;
 			tdmin_index = <1>;
-			dat0_ch_sel = <1>;
+			dat0_ch_sel = <2>;
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
 
