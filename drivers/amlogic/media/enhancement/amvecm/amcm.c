@@ -66,7 +66,7 @@ static unsigned int cm_width_limit = 50;/* vlsi adjust */
 module_param(cm_width_limit, uint, 0664);
 MODULE_PARM_DESC(cm_width_limit, "\n cm_width_limit\n");
 
-int pq_reg_wr_rdma = 1;/* 0:disabel;1:enable */
+int pq_reg_wr_rdma;/* 0:disabel;1:enable */
 module_param(pq_reg_wr_rdma, int, 0664);
 MODULE_PARM_DESC(pq_reg_wr_rdma, "\n pq_reg_wr_rdma\n");
 
@@ -201,19 +201,33 @@ void am_set_regmap(struct am_regs_s *p)
 				}
 			}
 
-			VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, addr);
-			if (mask == 0xffffffff) {
-				VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
-						  val);
+			if (pq_reg_wr_rdma) {
+				VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT, addr);
+				if (mask == 0xffffffff) {
+					VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
+							  val);
+				} else {
+					temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+					VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
+							  addr);
+					VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
+							  (temp & (~mask)) |
+							  (val & mask));
+				}
 			} else {
-				temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-				VSYNC_WR_MPEG_REG(VPP_CHROMA_ADDR_PORT,
-						  addr);
-				VSYNC_WR_MPEG_REG(VPP_CHROMA_DATA_PORT,
-						  (temp & (~mask)) |
-						  (val & mask));
+				WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, addr);
+				if (mask == 0xffffffff) {
+					WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+							  val);
+				} else {
+					temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+					WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+							  addr);
+					WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+							  (temp & (~mask)) |
+							  (val & mask));
+				}
 			}
-
 			default_sat_param(addr, val);
 			break;
 		case REG_TYPE_INDEX_GAMMA:
@@ -323,7 +337,7 @@ void am_set_regmap(struct am_regs_s *p)
 	}
 }
 
-void amcm_disable(void)
+void amcm_disable(enum wr_md_e md)
 {
 	int temp;
 
@@ -335,26 +349,50 @@ void amcm_disable(void)
 
 	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
 	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (temp & 0x1) {
-			VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-					    0x208);
-			VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
-					    temp & 0xfffffffe);
+
+	switch (md) {
+	case WR_VCB:
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			if (temp & 0x1) {
+				WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+						    0x208);
+				WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+						    temp & 0xfffffffe);
+			}
+		} else {
+			if (temp & 0x2) {
+				WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+						    0x208);
+				WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+						    temp & 0xfffffffd);
+			}
 		}
-	} else {
-		if (temp & 0x2) {
-			VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-					    0x208);
-			VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
-					    temp & 0xfffffffd);
+		break;
+	case WR_DMA:
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			if (temp & 0x1) {
+				VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+						    0x208);
+				VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+						    temp & 0xfffffffe);
+			}
+		} else {
+			if (temp & 0x2) {
+				VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+						    0x208);
+				VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+						    temp & 0xfffffffd);
+			}
 		}
+		break;
+	default:
+		break;
 	}
 
 	cm_en_flag = false;
 }
 
-void amcm_enable(void)
+void amcm_enable(enum wr_md_e md)
 {
 	int temp;
 
@@ -362,20 +400,44 @@ void amcm_enable(void)
 		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
 	WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x208);
 	temp = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
-		if (!(temp & 0x1)) {
-			VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-					    0x208);
-			VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
-					    temp | 0x1);
+
+	switch (md) {
+	case WR_VCB:
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			if (!(temp & 0x1)) {
+				WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+						    0x208);
+				WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+						    temp | 0x1);
+			}
+		} else {
+			if (!(temp & 0x2)) {
+				WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+						    0x208);
+				WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+						    temp | 0x2);
+			}
 		}
-	} else {
-		if (!(temp & 0x2)) {
-			VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-					    0x208);
-			VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
-					    temp | 0x2);
+		break;
+	case WR_DMA:
+		if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+			if (!(temp & 0x1)) {
+				VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+							0x208);
+				VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+							temp | 0x1);
+			}
+		} else {
+			if (!(temp & 0x2)) {
+				VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+							0x208);
+				VSYNC_WRITE_VPP_REG(VPP_CHROMA_DATA_PORT,
+							temp | 0x2);
+			}
 		}
+		break;
+	default:
+		break;
 	}
 
 	/* enable CM histogram by default, mode 0 */
@@ -473,9 +535,9 @@ void cm2_frame_size_patch(unsigned int width, unsigned int height)
 	if (!cm_en)
 		return;
 	else if (width < cm_width_limit)
-		amcm_disable();
+		amcm_disable(WR_DMA);
 	else if ((!cm_en_flag) && (!cm_dis_flag))
-		amcm_enable();
+		amcm_enable(WR_DMA);
 	vpp_size = width | (height << 16);
 	if (cm_size != vpp_size) {
 		VSYNC_WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, 0x205);
@@ -540,11 +602,11 @@ void cm_latch_process(void)
 			(get_cpu_type() != MESON_CPU_MAJOR_ID_T7) &&
 			(get_cpu_type() != MESON_CPU_MAJOR_ID_T3))
 			amcm_level_sel(cm_level);
-		amcm_enable();
+		amcm_enable(WR_DMA);
 		pr_amcm_dbg("\n[amcm..] set cm2 load OK!!!\n");
 	} else if ((cm_en == 0) && (cm_level_last != 0xff)) {
 		cm_level_last = 0xff;
-		amcm_disable();/* CM manage disable */
+		amcm_disable(WR_DMA);/* CM manage disable */
 		pr_amcm_dbg("\n[amcm..] set cm disable!!!\n");
 	}
 }

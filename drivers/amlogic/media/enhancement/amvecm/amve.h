@@ -223,7 +223,7 @@ void dump_plut3d_reg_table(void);
 void amvecm_gamma_init(bool en);
 void set_gamma_regs(int en, int sel);
 void amvecm_wb_enable(int enable);
-int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg);
+int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
 void lcd_gamma_api(unsigned int index, u16 *r_data, u16 *g_data,

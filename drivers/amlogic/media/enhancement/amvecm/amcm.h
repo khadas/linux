@@ -35,13 +35,14 @@ extern int cm_en; /* 0:disabel;1:enable */
 extern int dnlp_en;/*0:disabel;1:enable */
 
 extern unsigned int sr1_reg_val[101];
+extern int pq_reg_wr_rdma;
 
 /* *********************************************************************** */
 /* *** IOCTL-oriented functions ****************************************** */
 /* *********************************************************************** */
 void am_set_regmap(struct am_regs_s *p);
-void amcm_disable(void);
-void amcm_enable(void);
+void amcm_disable(enum wr_md_e md);
+void amcm_enable(enum wr_md_e md);
 void amcm_level_sel(unsigned int cm_level);
 void cm2_frame_size_patch(unsigned int width, unsigned int height);
 void cm2_frame_switch_patch(void);

@@ -2842,7 +2842,7 @@ static long amvecm_ioctl(struct file *file,
 				ret = -EFAULT;
 				pr_amvecm_dbg("pq control cp pq_ctrl_s fail\n");
 			} else {
-				vpp_pq_ctrl_config(pq_cfg);
+				pq_user_latch_flag |= PQ_USER_PQ_MODULE_CTL;
 				pr_amvecm_dbg("pq control load success\n");
 			}
 		}
@@ -5977,6 +5977,11 @@ void pq_user_latch_process(void)
 
 		amvecm_set_saturation_hue(sat_hue_val);
 	}
+
+	if (pq_user_latch_flag & PQ_USER_PQ_MODULE_CTL) {
+		pq_user_latch_flag &= ~PQ_USER_PQ_MODULE_CTL;
+		vpp_pq_ctrl_config(pq_cfg, WR_DMA);
+	}
 }
 
 static const char *amvecm_pq_user_usage_str = {
@@ -6425,7 +6430,7 @@ static void amvecm_pq_enable(int enable)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (!is_dolby_vision_enable())
 #endif
-			amcm_enable();
+			amcm_enable(WR_VCB);
 		WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
 				   1, 1, 1);
 		WRITE_VPP_REG_BITS(SRSHARP1_PK_NR_ENABLE,
@@ -6548,7 +6553,7 @@ static void amvecm_pq_enable(int enable)
 		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 4, 1);
 		ve_disable_dnlp();
 
-		amcm_disable();
+		amcm_disable(WR_VCB);
 
 		WRITE_VPP_REG_BITS(SRSHARP0_PK_NR_ENABLE,
 				   0, 1, 1);
@@ -7588,10 +7593,10 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		}
 	} else if (!strcmp(parm[0], "cm")) {
 		if (!strncmp(parm[1], "enable", 6)) {
-			amcm_enable();
+			amcm_enable(WR_VCB);
 			pr_info("enable cm\n");
 		} else if (!strncmp(parm[1], "disable", 7)) {
-			amcm_disable();
+			amcm_disable(WR_VCB);
 			pr_info("disable cm\n");
 		} else if (!strcmp(parm[1], "cur_color_md")) {
 			if (parm[2]) {
@@ -9285,19 +9290,19 @@ static void def_hdr_sdr_mode(void)
 
 void hdr_hist_config_int(void)
 {
-	VSYNC_WRITE_VPP_REG(VD1_HDR2_HIST_CTRL, 0x5510);
-	VSYNC_WRITE_VPP_REG(VD1_HDR2_HIST_H_START_END, 0x10000);
-	VSYNC_WRITE_VPP_REG(VD1_HDR2_HIST_V_START_END, 0x0);
+	WRITE_VPP_REG(VD1_HDR2_HIST_CTRL, 0x5510);
+	WRITE_VPP_REG(VD1_HDR2_HIST_H_START_END, 0x10000);
+	WRITE_VPP_REG(VD1_HDR2_HIST_V_START_END, 0x0);
 
 	if (get_cpu_type() != MESON_CPU_MAJOR_ID_T5 &&
 	    get_cpu_type() != MESON_CPU_MAJOR_ID_T5D) {
-		VSYNC_WRITE_VPP_REG(VD2_HDR2_HIST_CTRL, 0x5510);
-		VSYNC_WRITE_VPP_REG(VD2_HDR2_HIST_H_START_END, 0x10000);
-		VSYNC_WRITE_VPP_REG(VD2_HDR2_HIST_V_START_END, 0x0);
+		WRITE_VPP_REG(VD2_HDR2_HIST_CTRL, 0x5510);
+		WRITE_VPP_REG(VD2_HDR2_HIST_H_START_END, 0x10000);
+		WRITE_VPP_REG(VD2_HDR2_HIST_V_START_END, 0x0);
 
-		VSYNC_WRITE_VPP_REG(OSD1_HDR2_HIST_CTRL, 0x5510);
-		VSYNC_WRITE_VPP_REG(OSD1_HDR2_HIST_H_START_END, 0x10000);
-		VSYNC_WRITE_VPP_REG(OSD1_HDR2_HIST_V_START_END, 0x0);
+		WRITE_VPP_REG(OSD1_HDR2_HIST_CTRL, 0x5510);
+		WRITE_VPP_REG(OSD1_HDR2_HIST_H_START_END, 0x10000);
+		WRITE_VPP_REG(OSD1_HDR2_HIST_V_START_END, 0x0);
 	}
 }
 
@@ -9383,7 +9388,9 @@ void init_pq_setting(void)
 
 		/*kernel sdr2hdr match uboot setting*/
 		def_hdr_sdr_mode();
-		vpp_pq_ctrl_config(pq_cfg);
+		vpp_pq_ctrl_config(pq_cfg, WR_VCB);
+
+		pq_reg_wr_rdma = 1;
 	}
 	return;
 
@@ -9424,7 +9431,7 @@ tvchip_pq_setting:
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 	else
-		VSYNC_WRITE_VPP_REG(VPP_VADJ_CTRL, 0xd);
+		WRITE_VPP_REG(VPP_VADJ_CTRL, 0xd);
 
 	/*probe close sr0 peaking for switch on video*/
 	WRITE_VPP_REG_BITS(VPP_SRSHARP0_CTRL, 1, 0, 1);
@@ -9463,7 +9470,9 @@ tvchip_pq_setting:
 
 	/*dnlp alg parameters init*/
 	dnlp_alg_param_init();
-	vpp_pq_ctrl_config(pq_cfg);
+	vpp_pq_ctrl_config(pq_cfg, WR_VCB);
+
+	pq_reg_wr_rdma = 1;
 }
 
 /* #endif*/
@@ -10013,9 +10022,9 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (!is_dolby_vision_enable())
 #endif
-			amcm_enable();
+			amcm_enable(WR_VCB);
 	} else {
-		amcm_disable();
+		amcm_disable(WR_VCB);
 	}
 	/* WRITE_VPP_REG_BITS(VPP_MISC, cm_en, 28, 1); */
 
@@ -10265,7 +10274,7 @@ static void amvecm_shutdown(struct platform_device *pdev)
 
 	hdr_exit();
 	ve_disable_dnlp();
-	amcm_disable();
+	amcm_disable(WR_VCB);
 	WRITE_VPP_REG(VPP_VADJ_CTRL, 0x0);
 	amvecm_wb_enable(0);
 	/*dnlp cm vadj1 wb gate*/

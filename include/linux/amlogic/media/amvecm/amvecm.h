@@ -119,6 +119,7 @@ void dolby_vision_set_toggle_flag(int flag);
 #define VPP_DEMO_CM_EN              BIT(0)
 
 /*PQ USER LATCH*/
+#define PQ_USER_PQ_MODULE_CTL      BIT(26)
 #define PQ_USER_OVERSCAN_RESET     BIT(25)
 #define PQ_USER_CMS_SAT_HUE        BIT(24)
 #define PQ_USER_CMS_CURVE_HUE_HS   BIT(23)
@@ -181,6 +182,11 @@ enum dv_pq_ctl_e {
 	DV_PQ_BYPASS = 0,
 	DV_PQ_CERT,
 	DV_PQ_REC,
+};
+
+enum wr_md_e {
+	WR_VCB = 0,
+	WR_DMA,
 };
 
 enum pq_table_name_e {
