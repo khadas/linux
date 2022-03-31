@@ -9,8 +9,11 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_FB) += osd/osd_clone.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_FB) += osd/osd_drm.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_FB) += osd/osd_rdma.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_FB) += osd/osd_virtual.o
-$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_FB) += osd/osd_sw_sync.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_INSTABOOT) += osd/osd_progressbar.o
+
+ifdef CONFIG_SYNC_FILE
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_FB) += osd/osd_sw_sync.o
+endif
 
 ccflags-y += -I$(srctree)/drivers/amlogic/media/common/ion_dev/
 ccflags-y += -I$(srctree)/drivers/staging/android/

@@ -791,7 +791,9 @@ int osd_set_debug_hw(u32 index, const char *buf)
 		output_save_info();
 		break;
 	case 'f':
+#ifdef CONFIG_SYNC_FILE
 		output_fence_info();
+#endif
 		break;
 	default:
 		osd_log_err("arg error\n");
