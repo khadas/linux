@@ -83,7 +83,12 @@ static char adj_hue_via_hue[NUM_CM_14_COLOR_MAX][32];
 static char adj_sat_via_hs[NUM_CM_14_COLOR_MAX][3][32];
 static char adj_luma_via_hue[NUM_CM_14_COLOR_MAX][32];
 
+//static char def_sat_via_hs[3][32];
 static char def_sat_via_hs[3][32];
+static char def_hue_via_s[5][32];
+static char def_hue_via_hue[32];
+static char def_luma_via_hue[32];
+
 //static char def_14_color_sat_via_hs[3][32];
 
 module_param_array(lpf_coef, uint,
@@ -319,9 +324,20 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 			if (j == reg_node1) {
 				/*curve 0,1*/
 				val1[j] &= 0x0000ffff;
-				temp = adj_hue_via_s[colormode][0][k];
+				temp = (s8)adj_hue_via_s[colormode][0][k] +
+					(s8)def_hue_via_s[0][k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val1[j] |= (temp << 16) & 0x00ff0000;
-				temp = adj_hue_via_s[colormode][1][k];
+
+				temp = (s8)adj_hue_via_s[colormode][1][k] +
+					(s8)def_hue_via_s[1][k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val1[j] |= (temp << 24) & 0xff000000;
 				continue;
 			}
@@ -340,11 +356,28 @@ void cm2_curve_update_hue_by_hs(struct cm_color_md cm_color_md_hue_by_hs)
 			if (j == reg_node2) {
 				/*curve 2,3,4*/
 				val2[j] &= 0xff000000;
-				val2[j] |= adj_hue_via_s[colormode][2][k]
-					& 0x000000ff;
-				temp = adj_hue_via_s[colormode][3][k];
+				temp = (s8)adj_hue_via_s[colormode][2][k] +
+					(s8)def_hue_via_s[2][k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
+				val2[j] |= temp & 0x000000ff;
+
+				temp = (s8)adj_hue_via_s[colormode][3][k] +
+					(s8)def_hue_via_s[3][k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val2[j] |= (temp << 8) & 0x0000ff00;
-				temp = adj_hue_via_s[colormode][4][k];
+
+				temp = (s8)adj_hue_via_s[colormode][4][k] +
+					(s8)def_hue_via_s[4][k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val2[j] |= (temp << 16) & 0x00ff0000;
 				continue;
 			}
@@ -408,7 +441,12 @@ void cm2_curve_update_hue(struct cm_color_md cm_color_md_hue)
 			if (j == reg_node) {
 				/*curve 0*/
 				val1[j] &= 0xffffff00;
-				temp = adj_hue_via_hue[colormode][k];
+				temp = (s8)adj_hue_via_hue[colormode][k] +
+					(s8)def_hue_via_hue[k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val1[j] |= (temp) & 0x000000ff;
 				continue;
 			}
@@ -484,7 +522,12 @@ void cm2_curve_update_luma(struct cm_color_md cm_color_md_luma)
 			if (j == reg_node) {
 				/*curve 0*/
 				val1[j] &= 0xffffff00;
-				temp = adj_luma_via_hue[colormode][k];
+				temp = (s8)adj_luma_via_hue[colormode][k] +
+					(s8)def_luma_via_hue[i];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val1[j] |= (temp) & 0x000000ff;
 				continue;
 			}
@@ -559,16 +602,30 @@ void cm2_curve_update_sat(struct cm_color_md cm_color_md_sat)
 			if (j == reg_node) {
 				val1[j] &= 0x000000ff;
 				/*curve 0*/
-				temp = adj_sat_via_hs[colormode][0][k] +
-				def_sat_via_hs[0][k];
+				temp = (s8)adj_sat_via_hs[colormode][0][k] +
+					(s8)def_sat_via_hs[0][k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val1[j] |= (temp << 8) & 0x0000ff00;
+
 				/*curve 1*/
-				temp = adj_sat_via_hs[colormode][1][k] +
-				def_sat_via_hs[1][k];
+				temp = (s8)adj_sat_via_hs[colormode][1][k] +
+					(s8)def_sat_via_hs[1][k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val1[j] |= (temp << 16) & 0x00ff0000;
+
 				/*curve 2*/
-				temp = adj_sat_via_hs[colormode][2][k] +
-				def_sat_via_hs[2][k];
+				temp = (s8)adj_sat_via_hs[colormode][2][k] +
+					(s8)def_sat_via_hs[2][k];
+				if (temp > 127)
+					temp = 127;
+				else if (temp < -128)
+					temp = -128;
 				val1[j] |= (temp << 24) & 0xff000000;
 				continue;
 			}
@@ -608,9 +665,28 @@ void default_sat_param(unsigned int reg, unsigned int value)
 
 	if ((reg - CM2_ENH_COEF0_H00) % 8 == 0) {
 		i = (reg - CM2_ENH_COEF0_H00) / 8;
+		def_luma_via_hue[i] = value & 0xff;
 		def_sat_via_hs[0][i] = (value >> 8) & 0xff;
 		def_sat_via_hs[1][i] = (value >> 16) & 0xff;
 		def_sat_via_hs[2][i] = (value >> 24) & 0xff;
+	}
+
+	if ((reg - CM2_ENH_COEF1_H00) % 8 == 0) {
+		i = (reg - CM2_ENH_COEF1_H00) / 8;
+		def_hue_via_hue[i] = value & 0xff;
+	}
+
+	if ((reg - CM2_ENH_COEF2_H00) % 8 == 0) {
+		i = (reg - CM2_ENH_COEF2_H00) / 8;
+		def_hue_via_s[0][i] = (value >> 16) & 0xff;
+		def_hue_via_s[1][i] = (value >> 24) & 0xff;
+	}
+
+	if ((reg - CM2_ENH_COEF3_H00) % 8 == 0) {
+		i = (reg - CM2_ENH_COEF3_H00) / 8;
+		def_hue_via_s[2][i] = value & 0xff;
+		def_hue_via_s[3][i] = (value >> 8) & 0xff;
+		def_hue_via_s[4][i] = (value >> 16) & 0xff;
 	}
 }
 
