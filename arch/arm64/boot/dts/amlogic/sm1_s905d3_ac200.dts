@@ -154,6 +154,11 @@
 			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
 		};
 
+		ramdump_bl33z@00000000 {
+			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
+			status = "disabled";
+		};
+
 		secos_reserved:linux,secos {
 			status = "disable";
 			compatible = "amlogic, aml_secos_memory";
