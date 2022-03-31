@@ -8390,16 +8390,13 @@ static void vd_set_alpha(struct video_layer_s *layer,
 	}
 }
 
-void set_alpha(struct video_layer_s *layer,
-	       u32 win_en,
-	       struct pip_alpha_scpxn_s *alpha_win)
+void alpha_win_set(struct video_layer_s *layer)
 {
 	u8 layer_id = layer->layer_id;
 
 	if (glayer_info[layer_id].alpha_support)
-		vd_set_alpha(layer, win_en, alpha_win);
+		vd_set_alpha(layer, layer->alpha_win_en, &layer->alpha_win);
 }
-
 /*********************************************************
  * vout APIs
  *********************************************************/
@@ -10447,26 +10444,31 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 
 void aisr_demo_enable(void)
 {
-	cur_dev->rdma_func[VPP0].rdma_wr_bits
+	if (!cur_dev->aisr_support)
+		return;
+	/* reshape and aisr demo is mutex */
+	WRITE_VCBUS_REG_BITS
 		(DEMO_MODE_WINDO_CTRL0,
 		cur_dev->aisr_demo_en, 29, 1);
-	cur_dev->rdma_func[VPP0].rdma_wr_bits
+	WRITE_VCBUS_REG_BITS
 		(DEMO_MODE_WINDO_CTRL0,
 		1, 12, 4);
 }
 
 void aisr_demo_axis_set(void)
 {
-	cur_dev->rdma_func[VPP0].rdma_wr_bits
+	if (!cur_dev->aisr_support)
+		return;
+	WRITE_VCBUS_REG_BITS
 		(DEMO_MODE_WINDO_CTRL0,
 		cur_dev->aisr_demo_xstart, 16, 12);
-	cur_dev->rdma_func[VPP0].rdma_wr_bits
+	WRITE_VCBUS_REG_BITS
 		(DEMO_MODE_WINDO_CTRL0,
 		cur_dev->aisr_demo_xend, 0, 12);
-	cur_dev->rdma_func[VPP0].rdma_wr_bits
+	WRITE_VCBUS_REG_BITS
 		(DEMO_MODE_WINDO_CTRL1,
 		cur_dev->aisr_demo_ystart, 16, 12);
-	cur_dev->rdma_func[VPP0].rdma_wr_bits
+	WRITE_VCBUS_REG_BITS
 		(DEMO_MODE_WINDO_CTRL1,
 		cur_dev->aisr_demo_yend, 0, 12);
 }

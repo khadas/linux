@@ -443,6 +443,8 @@ struct video_layer_s {
 	u32 compHeight;
 	u32 src_width;
 	u32 src_height;
+	bool alpha_win_en;
+	struct pip_alpha_scpxn_s alpha_win;
 };
 
 enum {
@@ -737,9 +739,7 @@ bool video_is_meson_s4_cpu(void);
 bool video_is_meson_t5d_revb_cpu(void);
 bool video_is_meson_t3_cpu(void);
 bool video_is_meson_t5w_cpu(void);
-void set_alpha(struct video_layer_s *layer,
-	       u32 win_en,
-	       struct pip_alpha_scpxn_s *alpha_win);
+void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
 		   struct mif_pos_s *mif_setting,
@@ -780,6 +780,7 @@ s32 config_aisr_position(struct video_layer_s *layer,
 			     struct aisr_setting_s *aisr_mif_setting);
 void aisr_demo_enable(void);
 void aisr_demo_axis_set(void);
+void aisr_reshape_output(u32 enable);
 void pre_process_for_3d(struct vframe_s *vf);
 bool tvin_vf_disp_mode_check(struct vframe_s *vf);
 int get_vpu_urgent_info(void);

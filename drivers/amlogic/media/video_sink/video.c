@@ -5503,6 +5503,7 @@ s32 pip2_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 	fgrain_setting(layer,
 		       &layer->fgrain_setting,
 		       dispbuf);
+	alpha_win_set(layer);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -5664,6 +5665,7 @@ s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 	fgrain_setting(layer,
 		       &layer->fgrain_setting,
 		       dispbuf);
+	alpha_win_set(layer);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -6063,7 +6065,7 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	dolby_vision_proc(layer, frame_par);
 #endif
 	fgrain_setting(layer, &layer->fgrain_setting, dispbuf);
-
+	alpha_win_set(layer);
 	layer->new_vpp_setting = false;
 	return 1;
 }
@@ -6300,7 +6302,9 @@ void set_alpha_scpxn(struct video_layer_s *layer,
 		alpha_win.scpxn_end_v[i] = componser_info->axis[i][3];
 		win_en |= 1 << i;
 	}
-	set_alpha(layer, win_en, &alpha_win);
+	layer->alpha_win_en = win_en;
+	memcpy(&layer->alpha_win, &alpha_win,
+		sizeof(struct pip_alpha_scpxn_s));
 }
 
 static void blend_reg_conflict_detect(void)
@@ -15371,7 +15375,10 @@ static ssize_t pip_alpha_store
 			}
 			pr_info("layer_id=%d, win_num=%d, win_en=%d\n",
 				layer_id, win_num, win_en);
-			set_alpha(&vd_layer[layer_id], win_en, &alpha_win);
+			vd_layer[layer_id].alpha_win_en = win_en;
+			memcpy(&vd_layer[layer_id].alpha_win, &alpha_win,
+				sizeof(struct pip_alpha_scpxn_s));
+			vd_layer[0].property_changed = true;
 		}
 	}
 
@@ -16314,8 +16321,10 @@ static ssize_t aisr_en_store(struct class *cla,
 		pr_err("kstrtoint err\n");
 		return -EINVAL;
 	}
-	aisr_en = res;
-	aisr_sr1_nn_enable(aisr_en);
+	if (res != aisr_en) {
+		aisr_en = res;
+		aisr_sr1_nn_enable_sync(aisr_en);
+	}
 	return count;
 }
 
@@ -16581,9 +16590,10 @@ static ssize_t aisr_demo_en_store(struct class *cla,
 		pr_err("kstrtoint err\n");
 		return -EINVAL;
 	}
-
-	cur_dev->aisr_demo_en = res;
-	aisr_demo_enable();
+	if (res != cur_dev->aisr_demo_en) {
+		cur_dev->aisr_demo_en = res;
+		aisr_demo_enable();
+	}
 	return count;
 }
 
@@ -16604,11 +16614,16 @@ static ssize_t aisr_demo_axis_store(struct class *cla,
 	int parsed[4];
 
 	if (likely(parse_para(buf, 4, parsed) == 4)) {
-		cur_dev->aisr_demo_xstart = parsed[0];
-		cur_dev->aisr_demo_ystart = parsed[1];
-		cur_dev->aisr_demo_xend = parsed[2];
-		cur_dev->aisr_demo_yend = parsed[3];
-		aisr_demo_axis_set();
+		if (parsed[0] != cur_dev->aisr_demo_xstart ||
+			parsed[1] != cur_dev->aisr_demo_ystart ||
+			parsed[2] != cur_dev->aisr_demo_xend ||
+			parsed[3] != cur_dev->aisr_demo_yend) {
+			cur_dev->aisr_demo_xstart = parsed[0];
+			cur_dev->aisr_demo_ystart = parsed[1];
+			cur_dev->aisr_demo_xend = parsed[2];
+			cur_dev->aisr_demo_yend = parsed[3];
+			aisr_demo_axis_set();
+		}
 	}
 	return count;
 }

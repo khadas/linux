@@ -386,6 +386,7 @@ int vpp_set_super_scaler_regs
 	int vpp_postblend_out_width,
 	int vpp_postblend_out_height);
 void aisr_sr1_nn_enable(u32 enable);
+void aisr_sr1_nn_enable_sync(u32 enable);
 void aisr_reshape_output(u32 enable);
 void aisr_set_filters(struct disp_info_s *input,
 			struct vpp_frame_par_s *next_frame_par,

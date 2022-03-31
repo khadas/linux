@@ -2808,36 +2808,58 @@ void aisr_sr1_nn_enable(u32 enable)
 			0x0, 13, 2);
 }
 
-void aisr_reshape_output(u32 enable)
+void aisr_sr1_nn_enable_sync(u32 enable)
 {
 	struct sr_info_s *sr;
 	u32 sr_reg_offt2;
 
 	if (!cur_dev->aisr_support)
 		return;
+
+	sr = &sr_info;
+	sr_reg_offt2 = sr->sr_reg_offt2;
+	pr_info("%s, enalbe=%d\n", __func__, enable);
+	if (enable)
+		WRITE_VCBUS_REG_BITS
+			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+			0x3, 13, 2);
+	else
+		WRITE_VCBUS_REG_BITS
+			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+			0x0, 13, 2);
+}
+void aisr_reshape_output(u32 enable)
+{
+	struct sr_info_s *sr;
+	u32 sr_reg_offt2;
+
+	if (!cur_dev->aisr_support ||
+		!cur_dev->aisr_enable)
+		return;
+
 	sr = &sr_info;
 	sr_reg_offt2 = sr->sr_reg_offt2;
 	if (enable) {
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
 			0x5, 9, 4);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
 			0xa, 12, 4);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
 			0x2, 28, 2);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_SHARP_SR2_CTRL + sr_reg_offt2,
 			0x0, 1, 1);
 	} else {
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
 			0x0, 9, 4);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
 			0x4, 12, 4);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
 			0x0, 28, 2);
 		}
