@@ -20,6 +20,7 @@
 #include "ldim_dev_drv.h"
 
 static int ldim_spi_async_busy;
+static int ldim_spi_async_busy_cnt;
 
 int ldim_spi_dma_cycle_align_byte(int size)
 {
@@ -135,11 +136,19 @@ int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
 		spi->bits_per_word = 8;
 	}
 
+	if (ldim_spi_async_busy_cnt > 5) {
+		ldim_spi_async_busy = 0;
+		LDIMPR("%s: ldim spi timeout!! ldim_spi_async_busy_cnt = %d\n",
+			__func__, ldim_spi_async_busy_cnt);
+	}
+
 	if (ldim_spi_async_busy) {
+		ldim_spi_async_busy_cnt++;
 		LDIMERR("%s: spi_async_busy=%d\n", __func__, ldim_spi_async_busy);
 		return -1;
 	}
 
+	ldim_spi_async_busy_cnt = 0;
 	ldim_spi_async_busy = 1;
 	ret = dirspi_async(spi, tbuf, rbuf, xlen,
 		ldim_spi_async_callback, (void *)&ldim_spi_async_busy);
@@ -265,6 +274,7 @@ int ldim_spi_read_sync(struct spi_device *spi, unsigned char *tbuf,
 void ldim_spi_async_busy_clear(void)
 {
 	ldim_spi_async_busy = 0;
+	ldim_spi_async_busy_cnt = 0;
 }
 
 static int ldim_spi_dev_probe(struct spi_device *spi)
@@ -289,6 +299,7 @@ static int ldim_spi_dev_probe(struct spi_device *spi)
 		LDIMERR("spi setup failed\n");
 
 	ldim_spi_async_busy = 0;
+	ldim_spi_async_busy_cnt = 0;
 
 	/* dummy for spi clktree init */
 	ldim_spi_write(spi, NULL, 0);
