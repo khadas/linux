@@ -654,10 +654,12 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		/*return 1;*/
 	}
 
-	if (devp->index == 0)
-		strcpy(vdin_name, "vdin0");
-	else if (devp->index == 1)
-		strcpy(vdin_name, "vdin1");
+	if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
+		if (devp->index == 0)
+			strcpy(vdin_name, "vdin0");
+		else if (devp->index == 1)
+			strcpy(vdin_name, "vdin1");
+	}
 
 	if (devp->set_canvas_manual == 1 || devp->cfg_dma_buf) {
 		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
@@ -722,10 +724,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 				if (j >= 20) {
 					pr_err("vdin%d buf[%d]codec alloc fail!!!\n",
 					       devp->index, i);
-					if (i <= min_buf_num) {
-						devp->cma_mem_alloc = 0;
-						return 1;
-					}
 					/*real buffer number*/
 					max_buffer_num = i;
 					devp->canvas_max_num = i;
@@ -740,10 +738,6 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 								  frame_size >> PAGE_SHIFT, 0, 0);
 				if (!devp->vf_venc_pages[i]) {
 					pr_err("vdin%d cma mem undefined2.\n", devp->index);
-					if (i <= min_buf_num) {
-						devp->cma_mem_alloc = 0;
-						return 1;
-					}
 					/*real buffer number*/
 					max_buffer_num = i;
 					devp->canvas_max_num = i;
@@ -839,6 +833,12 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 
 	pr_info("vdin%d cma alloc %d buffers ok!\n", devp->index,
 		devp->vf_mem_max_cnt);
+	if (devp->vf_mem_max_cnt < min_buf_num) {
+		pr_info("vdin%d cma alloc num too less need release\n", devp->index);
+		vdin_cma_release(devp);
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -863,10 +863,13 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 			       devp->cma_mem_alloc);
 		return;
 	}
-	if (devp->index == 0)
-		strcpy(vdin_name, "vdin0");
-	else if (devp->index == 1)
-		strcpy(vdin_name, "vdin1");
+
+	if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
+		if (devp->index == 0)
+			strcpy(vdin_name, "vdin0");
+		else if (devp->index == 1)
+			strcpy(vdin_name, "vdin1");
+	}
 
 	if (devp->cma_config_flag & MEM_ALLOC_DISCRETE) {
 		if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {

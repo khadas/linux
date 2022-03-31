@@ -1399,6 +1399,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 
 void vdin_self_start_dec(struct vdin_dev_s *devp)
 {
+	int ret;
+
 	if (devp->flags & VDIN_FLAG_DEC_STARTED) {
 		pr_err("already flags\n");
 		return;
@@ -1407,7 +1409,13 @@ void vdin_self_start_dec(struct vdin_dev_s *devp)
 	if (vdin_dbg_en)
 		pr_info("%s in\n", __func__);
 
-	vdin_start_dec(devp);
+	ret = vdin_start_dec(devp);
+	if (ret) {
+		pr_err("%s(%d) error, start dec fail\n",
+			__func__, devp->index);
+		return;
+	}
+
 	devp->flags |= VDIN_FLAG_DEC_STARTED;
 	if (devp->parm.port != TVIN_PORT_VIU1 ||
 	    viu_hw_irq != 0) {

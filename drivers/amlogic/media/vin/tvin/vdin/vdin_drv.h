@@ -123,7 +123,8 @@
 /* 20221109: interlace min buffer and 23.97 send event */
 /* 20221118: add path not lock and filter frame rate */
 /* 20221126: tvafe donot dynamically check aspect ratio */
-#define VDIN_VER "20221126"
+/* 20221129: memory free and id name optimize */
+#define VDIN_VER "20221129"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
