@@ -563,23 +563,46 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 }
 EXPORT_SYMBOL(uvm_attach_hook_mod);
 
-int meson_uvm_getinfo(int shared_fd, int mode_type, char *buf)
+int meson_uvm_get_usage(struct dma_buf *dmabuf, size_t *usage)
 {
 	struct uvm_handle *handle;
-	struct uvm_hook_mod *uhmod = NULL;
-	struct dma_buf *dmabuf = NULL;
-	int ret = 0;
-
-	UVM_PRINTK(1, "uvm_getinfo: shared_fd=%d, mode_type=%d\n", shared_fd, mode_type);
-	dmabuf = dma_buf_get(shared_fd);
 
 	if (IS_ERR_OR_NULL(dmabuf)) {
-		UVM_PRINTK(0, "Invalid dmabuf %s %d\n", __func__, __LINE__);
+		UVM_PRINTK(0, "invalid dmabuf. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
 	if (!dmabuf_is_uvm(dmabuf)) {
-		dma_buf_put(dmabuf);
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	handle = dmabuf->priv;
+	mutex_lock(&handle->lock);
+	*usage = handle->usage;
+	mutex_unlock(&handle->lock);
+
+	UVM_PRINTK(1, "%s :%zu dmabuf:%p\n",
+				__func__, *usage, dmabuf);
+	return 0;
+}
+EXPORT_SYMBOL(meson_uvm_get_usage);
+
+int meson_uvm_getinfo(struct dma_buf *dmabuf,
+			int mode_type, char *buf)
+{
+	struct uvm_handle *handle;
+	struct uvm_hook_mod *uhmod = NULL;
+	int ret = 0;
+
+	UVM_PRINTK(1, "%s: dmabuf=%p, mode_type=%d\n",
+				__func__, dmabuf, mode_type);
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		UVM_PRINTK(0, "invalid dmabuf. %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
@@ -615,14 +638,10 @@ static void meson_uvm_core_setinfo(struct uvm_handle *handle,
 	}
 }
 
-int meson_uvm_setinfo(int shared_fd, int mode_type, char *buf)
+int meson_uvm_set_usage(struct dma_buf *dmabuf, size_t usage)
 {
 	struct uvm_handle *handle;
-	struct uvm_hook_mod *uhmod = NULL;
-	struct dma_buf *dmabuf = NULL;
-	int ret = 0;
 
-	dmabuf = dma_buf_get(shared_fd);
 	if (IS_ERR_OR_NULL(dmabuf)) {
 		UVM_PRINTK(0, "invalid dmabuf. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
@@ -630,7 +649,33 @@ int meson_uvm_setinfo(int shared_fd, int mode_type, char *buf)
 
 	if (!dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
-		dma_buf_put(dmabuf);
+		return -EINVAL;
+	}
+
+	handle = dmabuf->priv;
+	mutex_lock(&handle->lock);
+	handle->usage = usage;
+	mutex_unlock(&handle->lock);
+	UVM_PRINTK(1, "%s :%zu dmabuf:%p\n",
+				__func__, handle->usage, dmabuf);
+	return 0;
+}
+EXPORT_SYMBOL(meson_uvm_set_usage);
+
+int meson_uvm_setinfo(struct dma_buf *dmabuf,
+			int mode_type, char *buf)
+{
+	struct uvm_handle *handle;
+	struct uvm_hook_mod *uhmod = NULL;
+	int ret = 0;
+
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		UVM_PRINTK(0, "invalid dmabuf. %s %d\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
+		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 

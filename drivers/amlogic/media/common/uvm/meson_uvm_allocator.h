@@ -81,6 +81,11 @@ struct uvm_fd_data {
 	int commit_display;
 };
 
+struct uvm_usage_data {
+	int fd;
+	int uvm_data_usage;
+};
+
 struct uvm_meta_data {
 	int fd;
 	int type;
@@ -98,6 +103,7 @@ union uvm_ioctl_arg {
 	struct uvm_alloc_data alloc_data;
 	struct uvm_pid_data pid_data;
 	struct uvm_fd_data fd_data;
+	struct uvm_usage_data usage_data;
 	struct uvm_meta_data meta_data;
 	struct uvm_hook_data hook_data;
 };
@@ -121,5 +127,10 @@ union uvm_ioctl_arg {
 				struct uvm_hook_data)
 #define UVM_IOC_DETATCH _IOWR(UVM_IOC_MAGIC, 8, \
 				struct uvm_hook_data)
+#define UVM_IOC_SET_USAGE _IOWR(UVM_IOC_MAGIC, 9, \
+				struct uvm_usage_data)
+#define UVM_IOC_GET_USAGE _IOWR(UVM_IOC_MAGIC, 10, \
+				struct uvm_usage_data)
+
 #endif
 
