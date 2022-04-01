@@ -73,7 +73,8 @@
 /* 20220314: get vdin frontend info */
 /* 20220328: return the same vf repeat causes crash */
 /* 20220331: starting state chg not send event */
-#define VDIN_VER "20220331: starting state chg not send event"
+/* 20220401: 59.94 duration need set to 1601 */
+#define VDIN_VER    "20220401: 59.94 duration need set to 1601"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
