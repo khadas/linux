@@ -189,7 +189,7 @@
 
 	wireless_bluetooth: wireless-bluetooth {
 		compatible = "bluetooth-platdata";
-		clocks = <&hym8563>;
+		clocks = <&pt7c4363>;
 		clock-names = "ext_clock";
 		uart_rts_gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default", "rts_gpio";
@@ -509,16 +509,12 @@
 		};
 	};
 
-	hym8563: hym8563@51 {
+	pt7c4363: pt7c4363@51 {
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
 		#clock-cells = <0>;
 		clock-frequency = <32768>;
-		clock-output-names = "hym8563";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hym8563_int>;
-		interrupt-parent = <&gpio0>;
-		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
+		clock-output-names = "pt7c4363";
 		wakeup-source;
 	};
 };
