@@ -99,10 +99,10 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x11000000>;
+			size = <0x0 0x14c00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x07400000 0x0 0x11000000>;
+			alloc-ranges = <0x0 0x07400000 0x0 0x14c00000>;
 		};
 
 		demod_cma_reserved:linux,demod_cma {
@@ -148,7 +148,7 @@
 			 * size = 1920 * 1080 * 3 * 4
 			 * (RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x0 0x00400000>;
+			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x30000000 0x0 0x0f800000>;
 		};
