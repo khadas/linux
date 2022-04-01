@@ -3550,7 +3550,7 @@ static void dump_video_status(void)
 	rx_pr("cnt_type = %d\n", rx.cur.cn_type);
 	rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision_flag);
 	rx_pr("dv ll = %d\n", rx.vs_info_details.low_latency);
-	rx_pr("VTEM = %d\n", rx.vrr_en);
+	//rx_pr("VTEM = %d\n", rx.vrr_en);
 	rx_pr("DRM = %d\n", rx_pkt_chk_attach_drm());
 	dump_clk_status();
 	if (rx.phy_ver == PHY_VER_TL1)
