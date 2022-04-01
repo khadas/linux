@@ -245,12 +245,12 @@ void ldc_gain_lut_set_t7(void)
 	for (i = 0; i < 16; i++) {
 		p = ldc_gain_lut_array[i];
 		for (j = 0; j < 64; j = j + 2) {
-			lcd_vcbus_write(LDC_GAIN_LUT_ADDR, ram_base);
+			VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_ADDR, ram_base);
 			data = ((p[j + 1] << 12) + p[j]);
-			lcd_vcbus_write(LDC_GAIN_LUT_DATA, data);
-			lcd_vcbus_write(LDC_GAIN_LUT_CTRL0, 0x1);
-			lcd_vcbus_write(LDC_GAIN_LUT_CTRL1, 0x0);
-			lcd_vcbus_write(LDC_GAIN_LUT_CTRL1, 0x1);
+			VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_DATA, data);
+			VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_CTRL0, 0x1);
+			VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_CTRL1, 0x0);
+			VSYNC_WR_MPEG_REG(LDC_GAIN_LUT_CTRL1, 0x1);
 
 			ram_base = ram_base + 2;
 			lcd_vcbus_read(LDC_REG_PANEL_SIZE);
@@ -1041,10 +1041,8 @@ void ldim_drv_init_t7(struct aml_ldim_driver_s *ldim_drv)
 	lcd_vcbus_write(LDC_REG_BLOCK_NUM, 0);
 	lcd_vcbus_write(LDC_DDR_ADDR_BASE, (ldim_drv->rmem->profile_mem_paddr >> 2));
 
-	ldc_min_gain_lut_set();
-	ldc_dither_lut_set();
 	ldc_set_t7(ldim_drv, width, height, col_num, row_num);
-	ldc_gain_lut_set_t7();
+	ldim_drv->pq_updating = 1;
 
 	LDIMPR("drv_init: col: %d, row: %d, axi paddr: 0x%lx\n",
 		col_num, row_num, (unsigned long)ldim_drv->rmem->rsv_mem_paddr);

@@ -40,8 +40,9 @@
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
 		lcd_cpu-gpios = <&gpio GPIOY_0 GPIO_ACTIVE_HIGH
-			&gpio GPIOY_4 GPIO_ACTIVE_HIGH>;
-		lcd_cpu_gpio_names = "GPIOY_0","GPIOY_4";
+			&gpio GPIOY_4 GPIO_ACTIVE_HIGH
+			&gpio GPIOY_6 GPIO_ACTIVE_HIGH>;
+		lcd_cpu_gpio_names = "GPIOY_0","GPIOY_4","GPIOY_6";
 
 		lvds_0{
 			model_name = "768p-vfreq";
@@ -265,6 +266,51 @@
 				0xff 0 0 0>; /*ending*/
 			backlight_index = <0xff>;
 		};
+		vbyone_4{/*for localdimming*/
+			model_name = "public_2region_ldim";
+			interface = "vbyone"; /*lcd_interface(lvds, vbyone)*/
+			basic_setting = <
+				3840 2160 /*h_active, v_active*/
+				4400 2250 /*h_period, v_period*/
+				10     /*lcd_bits */
+				16 9>; /*screen_widht, screen_height*/
+			range_setting = <
+				4240 4800 /*h_period_min, max*/
+				2200 2760 /*v_period_min, max*/
+				480000000 624000000>; /*pclk_min, max*/
+			lcd_timing = <
+				33 477 0  /*hs_width, hs_bp, hs_pol*/
+				6  65 0>; /*vs_width, vs_bp, vs_pol*/
+			clk_attr = <
+				2 /*fr_adj_type
+				   *(0=clk, 1=htotal, 2=vtotal, 3=auto_range,
+				   * 4=hdmi_mode)
+				   */
+				0 /*clk_ss_level*/
+				1 /*clk_auto_generate*/
+				0>; /*pixel_clk(unit in Hz)*/
+			vbyone_attr = <
+				8 /*lane_count*/
+				2 /*region_num*/
+				4 /*byte_mode*/
+				4>; /*color_fmt*/
+			vbyone_intr_enable = <
+				1 /*vbyone_intr_enable */
+				3>; /*vbyone_vsync_intr_enable*/
+			phy_attr=<0x7 1>; /* vswing_level, preem_level */
+			hw_filter=<0 0>;  /* filter_time, filter_cnt*/
+
+			/* power step: type, index, value, delay(ms) */
+			power_on_step = <
+				0 2 1 200  /*panel power on*/
+				2 0 0 10  /*signal enable*/
+				0xff 0 0 0>; /*ending*/
+			power_off_step = <
+				2 0 0 10 /*signal disable*/
+				0 2 0 500 /*panel power off*/
+				0xff 0 0 0>; /*ending*/
+			backlight_index = <3>;
+		};
 
 		edp_0{
 			model_name = "edp_1080p";
@@ -420,16 +466,17 @@
 		status = "okay";
 		index = <0>;
 		key_valid = <0>;
-		pinctrl-names = "pwm_on",
-				"pwm_off";
-		pinctrl-0 = <&pwm_e_pins>;
-		pinctrl-1 = <&bl_pwm_off_pins>;
+		pinctrl-names = "pwm_on","pwm_off";
+		pinctrl-0 = <&pwm_e_pins>; /* GPIOY_1*/
+		pinctrl-1 = <&bl_pwm_off_pins>; /* GPIOY_1*/
 		pinctrl_version = <2>; /* for uboot */
-		interrupts = <0 197 1
-			0 194 1
-			0 82 1>;
-		interrupt-names = "vsync","vsync2","vsync3";
+		interrupts-extended = <&gic 0 197 1>,
+			<&gic 0 194 1>,
+			<&gic 0 82 1>,
+			<&gpio_intc 143 1>;
+		interrupt-names = "vsync","vsync2","vsync3","ldim_pwm_vs";
 		bl_pwm_config = <&bl_pwm_conf>;
+		memory-region = <&ldc_mem_reserved>;
 
 		/* pwm port: PWM_A, PWM_B, PWM_C, PWM_D, PWM_E, PWM_F, PWM_VS*/
 		/* power index:(point gpios_index, 0xff=invalid) */
@@ -445,7 +492,7 @@
 			bl_level_default_uboot_kernel = <255 255>;
 			bl_level_attr = <255 10 /*max, min*/
 				128 128>; /*mid, mid_mapping*/
-			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
+			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo,3=ldim*/
 			bl_power_attr = <0 /*en_gpio_index*/
 				1 0 /*on_value, off_value*/
 				200 200>; /*on_delay(ms), off_delay(ms)*/
@@ -476,6 +523,38 @@
 				10 10>; /*pwm_on_delay(ms), pwm_off_delay(ms)*/
 			en_sequence_reverse = <0>; /* 1 for reverse */
 		};
+
+		backlight_2{
+			index = <2>;
+			bl_name = "backlight_ld_iw7027";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_attr = <255 10 /*max, min*/
+				128 128>; /*mid, mid_mapping*/
+			bl_ctrl_method = <3>; /*1=pwm,2=pwm_combo,3=ldim*/
+			bl_power_attr = <0  /*en_gpio_index*/
+				1 0 /*on_value, off_value*/
+				200 200>; /* on_delay(ms), off_delay(ms)*/
+			en_sequence_reverse = <0>; /* 1 for reverse */
+			bl_ldim_zone_row_col = <9 5>;
+			bl_ldim_mode = <2>; /* 0=LR, 1=TB, 2=DIRECT */
+			ldim_dev_index = <2>;
+		};
+
+		backlight_3{
+			index = <3>;
+			bl_name = "backlight_ld_blmcu";
+			bl_level_default_uboot_kernel = <100 100>;
+			bl_level_attr = <255 10 /*max, min*/
+				128 128>; /*mid, mid_mapping*/
+			bl_ctrl_method = <3>; /*1=pwm,2=pwm_combo,3=ldim*/
+			bl_power_attr = <0	/*en_gpio_index*/
+				1 0 /*on_value, off_value*/
+				200 200>; /* on_delay(ms), off_delay(ms)*/
+			en_sequence_reverse = <0>; /* 1 for reverse */
+			bl_ldim_zone_row_col = <10 10>;
+			bl_ldim_mode = <2>; /* 0=LR, 1=TB, 2=DIRECT */
+			ldim_dev_index = <3>;
+		};
 	};
 
 	local_dimming_device {
@@ -487,21 +566,19 @@
 			"ldim_pwm_off";
 		pinctrl-0 = <&pwm_e_pins>;
 		pinctrl-1 = <&bl_pwm_vs_on_pins>;
-		pinctrl-2 = <&bl_pwm_off_pins>;
+		pinctrl-2 = <&bl_pwm_vs_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
 		ldim_pwm_config = <&bl_pwm_conf>;
 
 		/* pwm port: PWM_A, PWM_B, PWM_C, PWM_D, PWM_E, PWM_F, PWM_VS*/
-		ldim_dev-gpios = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH
-			&gpio GPIOY_1 GPIO_ACTIVE_HIGH
-			&gpio GPIOY_14 GPIO_ACTIVE_HIGH>;
-		ldim_dev_gpio_names = "GPIOY_12","GPIOY_1","GPIOY_14";
+		ldim_dev-gpios = <&gpio GPIOY_5 GPIO_ACTIVE_HIGH>;
+		ldim_dev_gpio_names = "GPIOY_5";
 
 		ldim_dev_0 {
 			index = <0>;
 			type = <0>; /*0=normal, 1=spi, 2=i2c*/
 			ldim_dev_name = "ob3350";
-			ldim_pwm_port = "PWM_D";
+			ldim_pwm_port = "PWM_E";
 			ldim_pwm_attr = <0 /* pol */
 				200 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				50>;/*default duty(%)*/
@@ -513,7 +590,7 @@
 			index = <1>;
 			type = <0>; /*0=normal, 1=spi, 2=i2c*/
 			ldim_dev_name = "global";
-			ldim_pwm_port = "PWM_D";
+			ldim_pwm_port = "PWM_E";
 			ldim_pwm_attr = <1 /* pol */
 				180 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				50>;/*default duty(%)*/
@@ -530,7 +607,7 @@
 			ldim_pwm_attr = <1  /* pol */
 				2 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
 				50>;/*default duty(%)*/
-			spi_bus_num = <2>;
+			spi_bus_num = <3>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <1000000>; /* unit: hz */
 			spi_mode = <0>; /* mode: 0, 1, 2, 3 */
@@ -676,6 +753,55 @@
 				0xc0 2 0x5e 0x08
 				0xc0 2 0x5f 0x00
 				0xff 0>;
+			init_off = <0xff 0>;
+		};
+
+		ldim_dev_3 {
+			index = <3>;
+			type = <1>; /* 0=normal,1=spi,2=i2c */
+			ldim_dev_name = "blmcu";
+			ldim_pwm_port = "PWM_VS";
+			ldim_pwm_attr = <1  /* pol */
+				1 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				2>;/*default duty(%)*/
+			spi_bus_num = <3>;
+			spi_chip_select = <0>;
+			spi_max_frequency = <3000000>; /* unit: hz */
+			spi_mode = <2>; /* mode: 0, 1, 2, 3 */
+			spi_dma_support = <1>;
+			spi_cs_delay = <10  /* hold_high_delay */
+				100>; /* clk_cs_delay (unit: us) */
+			en_gpio_on_off = <0 /* ldim_dev-gpios index */
+				1 /* on_level */
+				0>; /* off_level */
+			lamp_err_gpio = <0xff>;
+				/* ldim_dev-gpios index, 0xff=invalid */
+			spi_write_check = <0>; /* 0=disable, 1=enable */
+
+			dim_max_min = <0xfff 0x0>; /* dim_max, dim_min */
+			chip_count = <3>;
+			ldim_zone_mapping = <0>;
+			ldim_bl_profile_mode = <2>; /*0=no profile*/
+			ldim_bl_profile_k_bits = <
+				3487 24>; /*profile_k, profile_bits*/
+			ldim_bl_profile_path =
+				"/odm/etc/tvconfig/panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
+
+			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
+				11
+				23
+				>;
+
+			cmd_size = <0xff>;
+			/* init: (type, data...) */
+			/*   type: 0x00=cmd with delay,
+			 *         0xc0=cmd,
+			 *         0xfd=delay,
+			 *         0xff=ending
+			 */
+			/*   data: spi data, fill 0x0 for no use */
+			/*   delay: unit ms */
+			init_on = <	0xff 0>;
 			init_off = <0xff 0>;
 		};
 	};
