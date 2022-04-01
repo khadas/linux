@@ -1159,7 +1159,7 @@
 			power-domains = <&pwrdm PDID_S4_AUDIO>;
 
 			clkaudio: audio_clocks {
-				compatible = "amlogic, sm1-audio-clocks";
+				compatible = "amlogic, sc2-audio-clocks";
 				#clock-cells = <1>;
 				reg = <0x0 0xb0>;
 			};
