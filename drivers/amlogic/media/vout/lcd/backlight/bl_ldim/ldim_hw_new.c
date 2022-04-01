@@ -1069,11 +1069,8 @@ void ldim_drv_init_t3(struct aml_ldim_driver_s *ldim_drv)
 	lcd_vcbus_write(LDC_REG_BLOCK_NUM, 0);
 	lcd_vcbus_write(LDC_DDR_ADDR_BASE, (ldim_drv->rmem->profile_mem_paddr >> 2));
 
-	ldc_min_gain_lut_set();
-	ldc_dither_lut_set();
 	ldc_set_t7(ldim_drv, width, height, col_num, row_num);
-	ldc_gain_lut_set_t3();
-	ldim_config_update_t7(ldim_drv);
+	ldim_drv->pq_updating = 1;
 
 	LDIMPR("drv_init: col: %d, row: %d, axi paddr: 0x%lx\n",
 		col_num, row_num, (unsigned long)ldim_drv->rmem->rsv_mem_paddr);

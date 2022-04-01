@@ -411,9 +411,11 @@ static int ldim_power_on(void)
 	if (ldim_driver.data->drv_init)
 		ldim_driver.data->drv_init(&ldim_driver);
 
+	ldim_driver.init_on_flag = 1;
+
 	if (ldim_driver.dev_drv && ldim_driver.dev_drv->power_on)
 		ldim_driver.dev_drv->power_on(&ldim_driver);
-	ldim_driver.init_on_flag = 1;
+
 	ldim_driver.level_update = 1;
 	ldim_driver.state |= LDIM_STATE_POWER_ON;
 
