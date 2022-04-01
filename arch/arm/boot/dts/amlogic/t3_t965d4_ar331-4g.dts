@@ -79,7 +79,7 @@
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
-			compatible = "amlogic, lcd_tcon-memory";
+			compatible = "shared-dma-pool";
 			reusable;
 			/* alloc-ranges start should not be 0x0*/
 			size = <0x00c00000>;
