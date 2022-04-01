@@ -1,7 +1,7 @@
 /* drivers/input/sensors/access/kxtj9.c
  *
- * Copyright (C) 2012-2015 ROCKCHIP.
- * Author: luowei <lw@rock-chips.com>
+ * Copyright (C) 2022 Khadas.
+ * Author: hlm <goenjoy@khadas.com>
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -32,6 +32,7 @@
 #include <linux/sensor-dev.h>
 
 
+#define KXTJ3_DEVID	0x35	//KXTJ3 id
 #define KXTJ9_DEVID	0x09	//chip id
 #define KXTJ9_RANGE	(2 * 16384)
 
@@ -78,6 +79,7 @@
 /* CONTROL REGISTER 1 BITS */
 #define KXTJ9_DISABLE			0x7F
 #define KXTJ9_ENABLE			(1 << 7)
+#define KXTJ3_INT_ENABLE		(1 << 5)
 /* INPUT_ABS CONSTANTS */
 #define FUZZ			3
 #define FLAT			3
@@ -176,6 +178,8 @@ static int sensor_init(struct i2c_client *client)
 	}
 	
 	sensor->ops->ctrl_data = (KXTJ9_RES_12BIT | KXTJ9_G_2G);
+	if(sensor->pdata->irq_enable)
+		sensor->ops->ctrl_data |= KXTJ3_INT_ENABLE;
 	result = sensor_write_reg(client, sensor->ops->ctrl_reg, sensor->ops->ctrl_data);
 	if(result)
 	{
@@ -192,7 +196,8 @@ static short sensor_convert_data(struct i2c_client *client, char high_byte, char
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
 	//int precision = sensor->ops->precision;
-	switch (sensor->devid) {	
+	switch (sensor->devid) {
+		case KXTJ3_DEVID:
 		case KXTJ9_DEVID:		
 			result = (((short)high_byte << 8) | ((short)low_byte)) >> 4;
 			result *= KXTJ9_GRAVITY_STEP;
@@ -284,7 +289,7 @@ static struct sensor_operate gsensor_kxtj9_ops = {
 	.read_reg			= KXTJ9_XOUT_L,
 	.read_len			= 6,
 	.id_reg			= KXTJ9_WHO_AM_I,
-	.id_data			= KXTJ9_DEVID,
+	.id_data			= KXTJ3_DEVID,
 	.precision			= KXTJ9_PRECISION,
 	.ctrl_reg			= KXTJ9_CTRL_REG1,
 	.int_status_reg	= KXTJ9_INT_REL,
@@ -309,6 +314,7 @@ static int gsensor_kxtj9_remove(struct i2c_client *client)
 
 static const struct i2c_device_id gsensor_kxtj9_id[] = {
 	{"gs_kxtj9", ACCEL_ID_KXTJ9},
+	{"gs_kxtj3", ACCEL_ID_KXTJ9},
 	{}
 };
 
@@ -318,7 +324,7 @@ static struct i2c_driver gsensor_kxtj9_driver = {
 	.shutdown = sensor_shutdown,
 	.id_table = gsensor_kxtj9_id,
 	.driver = {
-		.name = "gsensor_kxtj9",
+		.name = "gsensor_kxtj3",
 	#ifdef CONFIG_PM
 		.pm = &sensor_pm_ops,
 	#endif
@@ -327,6 +333,6 @@ static struct i2c_driver gsensor_kxtj9_driver = {
 
 module_i2c_driver(gsensor_kxtj9_driver);
 
-MODULE_AUTHOR("luowei <lw@rock-chips.com>");
-MODULE_DESCRIPTION("kxtj9 3-Axis accelerometer driver");
+MODULE_AUTHOR("hlm <hlm@khadas.com>");
+MODULE_DESCRIPTION("kxtjx 3-Axis accelerometer driver");
 MODULE_LICENSE("GPL");
