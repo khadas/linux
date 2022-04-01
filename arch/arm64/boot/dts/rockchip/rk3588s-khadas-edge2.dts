@@ -35,73 +35,10 @@
 		vin-supply = <&avcc_1v8_s0>;
 	};
 
-	es7202_sound_micarray: es7202-sound-micarray {
-		status = "okay";
-		compatible = "simple-audio-card";
-		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,sound-micarray";
-		simple-audio-card,mclk-fs = <256>;
-		simple-audio-card,dai-link@0 {
-			format = "pdm";
-			cpu {
-				sound-dai = <&pdm0>;
-			};
-			codec {
-				sound-dai = <&es7202>;
-			};
-		};
-	};
-
-	es8388_sound: es8388-sound {
-		status = "okay";
-		compatible = "rockchip,multicodecs-card";
-		rockchip,card-name = "rockchip-es8388";
-		hp-det-gpio = <&gpio1 RK_PD0 GPIO_ACTIVE_LOW>;
-		io-channels = <&saradc 3>;
-		io-channel-names = "adc-detect";
-		keyup-threshold-microvolt = <1800000>;
-		poll-interval = <100>;
-		spk-con-gpio = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
-		hp-con-gpio = <&gpio4 RK_PA4 GPIO_ACTIVE_HIGH>;
-		rockchip,format = "i2s";
-		rockchip,mclk-fs = <256>;
-		rockchip,cpu = <&i2s0_8ch>;
-		rockchip,codec = <&es8388>;
-		rockchip,audio-routing =
-			"Headphone", "LOUT1",
-			"Headphone", "ROUT1",
-			"Speaker", "LOUT2",
-			"Speaker", "ROUT2",
-			"Headphone", "Headphone Power",
-			"Headphone", "Headphone Power",
-			"Speaker", "Speaker Power",
-			"Speaker", "Speaker Power",
-			"LINPUT1", "Main Mic",
-			"LINPUT2", "Main Mic",
-			"RINPUT1", "Headset Mic",
-			"RINPUT2", "Headset Mic";
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_det>;
-		play-pause-key {
-			label = "playpause";
-			linux,code = <KEY_PLAYPAUSE>;
-			press-threshold-microvolt = <2000>;
-		};
-	};
-
 	fan: pwm-fan {
 		compatible = "pwm-fan";
 		#cooling-cells = <2>;
 		pwms = <&pwm11 0 50000 0>;
-	};
-
-	hall_sensor: hall-mh248 {
-		compatible = "hall-mh248";
-		pinctrl-names = "default";
-		pinctrl-0 = <&mh248_irq_gpio>;
-		irq-gpio = <&gpio0 RK_PD4 IRQ_TYPE_EDGE_BOTH>;
-		hall-active = <1>;
-		status = "disabled";
 	};
 
 	vbus5v0_typec: vbus5v0-typec {
@@ -240,26 +177,6 @@
 &i2c3 {
 	status = "okay";
 
-	es8388: es8388@11 {
-		status = "okay";
-		#sound-dai-cells = <0>;
-		compatible = "everest,es8388", "everest,es8323";
-		reg = <0x11>;
-		clocks = <&cru I2S0_8CH_MCLKOUT>;
-		clock-names = "mclk";
-		assigned-clocks = <&cru I2S0_8CH_MCLKOUT>;
-		assigned-clock-rates = <12288000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2s0_mclk>;
-	};
-
-	es7202: es7202@32 {
-		status = "okay";
-		#sound-dai-cells = <0>;
-		compatible = "ES7202_PDM_ADC_1";
-		power-supply = <&vcc_1v8_s0>;	/* only 1v8 or 3v3, default is 3v3 */
-		reg = <0x32>;
-	};
 };
 
 &i2c4 {
@@ -279,52 +196,6 @@
 
 &i2c5 {
 	status = "disabled";
-
-	ls_stk3332: light@47 {
-		compatible = "ls_stk3332";
-		status = "disabled";
-		reg = <0x47>;
-		type = <SENSOR_TYPE_LIGHT>;
-		irq_enable = <0>;
-		als_threshold_high = <100>;
-		als_threshold_low = <10>;
-		als_ctrl_gain = <2>; /* 0:x1 1:x4 2:x16 3:x64 */
-		poll_delay_ms = <100>;
-	};
-
-	ps_stk3332: proximity@47 {
-		compatible = "ps_stk3332";
-		status = "disabled";
-		reg = <0x47>;
-		type = <SENSOR_TYPE_PROXIMITY>;
-		//pinctrl-names = "default";
-		//pinctrl-0 = <&gpio3_c6>;
-		//irq-gpio = <&gpio3 RK_PC6 IRQ_TYPE_LEVEL_LOW>;
-		//irq_enable = <1>;
-		ps_threshold_high = <0x200>;
-		ps_threshold_low = <0x100>;
-		ps_ctrl_gain = <3>; /* 0:x1 1:x2 2:x5 3:x8 */
-		ps_led_current = <4>; /* 0:3.125mA 1:6.25mA 2:12.5mA 3:25mA 4:50mA 5:100mA*/
-		poll_delay_ms = <100>;
-	};
-
-	mpu6500_acc: mpu_acc@68 {
-		compatible = "mpu6500_acc";
-		reg = <0x68>;
-		irq-gpio = <&gpio3 RK_PB4 IRQ_TYPE_EDGE_RISING>;
-		irq_enable = <0>;
-		poll_delay_ms = <30>;
-		type = <SENSOR_TYPE_ACCEL>;
-		layout = <5>;
-	};
-
-	mpu6500_gyro: mpu_gyro@68 {
-		compatible = "mpu6500_gyro";
-		reg = <0x68>;
-		poll_delay_ms = <30>;
-		type = <SENSOR_TYPE_GYROSCOPE>;
-		layout = <5>;
-	};
 };
 
 &i2c6 {
@@ -428,18 +299,6 @@
 };
 
 &pinctrl {
-	headphone {
-		hp_det: hp-det {
-			rockchip,pins = <1 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	hym8563 {
-		hym8563_int: hym8563-int {
-			rockchip,pins = <0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
-	};
-
 	lcd {
 		lcd_rst_gpio: lcd-rst-gpio {
 			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
@@ -447,9 +306,6 @@
 	};
 
 	sensor {
-		mh248_irq_gpio: mh248_irq_gpio {
-			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_up>;
-		};
 
 		mpu6500_irq_gpio: mpu6500_irq_gpio {
 			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
