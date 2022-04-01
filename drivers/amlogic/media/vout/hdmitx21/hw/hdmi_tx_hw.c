@@ -1083,13 +1083,18 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	hdmitx21_wr_reg(N_SVAL3_IVCTX, (aud_n_para >> 16) & 0xff); //N_SVAL3
 }
 
-static int amute_flag = -1;
+/* flag: 0 means mute */
 static void audio_mute_op(bool flag)
 {
-	if (amute_flag != flag)
-		amute_flag = flag;
-	else
-		return;
+	if (flag == 0) {
+		hdmitx21_wr_reg(AUD_EN_IVCTX, 0);
+		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 1, 7, 1);
+		hdmitx21_set_reg_bits(TPI_AUD_CONFIG_IVCTX, 1, 4, 1);
+	} else {
+		hdmitx21_wr_reg(AUD_EN_IVCTX, 3);
+		hdmitx21_set_reg_bits(AUDP_TXCTRL_IVCTX, 0, 7, 1);
+		hdmitx21_set_reg_bits(TPI_AUD_CONFIG_IVCTX, 0, 4, 1);
+	}
 }
 
 static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
