@@ -1790,8 +1790,8 @@
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, tm2_revb_acodec";
 			reg = <0x0 0xfe01a000 0x0 0x1c>;
-			tdmout_index = <0>;
-			tdmin_index = <0>;
+			tdmout_index = <1>;
+			tdmin_index = <1>;
 			dat0_ch_sel = <1>;
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
