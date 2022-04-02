@@ -769,7 +769,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
 		break;
 	}
 
-	size = devp->cma_mem_size - offset;
+	size = devp->mem_size - offset;
 	PR_INFO("%s:addr offset:%dM, cap_size:%dM\n", __func__,
 		offset / SZ_1M, size / SZ_1M);
 	start_addr += offset;
@@ -807,32 +807,17 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
 	return 0;
 }
 
-unsigned int clear_ddr_bus_data(void)
+unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	int testbus_addr, width, vld;
 	unsigned int tb_start, tb_depth;
 	unsigned int start_addr = 0;
 	unsigned int top_saved, polling_en;
-	//struct dvb_frontend *fe;
-	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
 	unsigned int offset, size;
 
 	if (unlikely(!devp)) {
 		PR_ERR("%s:devp is NULL\n", __func__);
-		return -1;
-	}
-
-	list_for_each_entry(tmp, &devp->demod_list, list) {
-		if (tmp->id == 0) {
-			demod = tmp;
-			PR_ERR("%s:tmp->id == 0\n", __func__);
-			break;
-		}
-	}
-
-	if (unlikely(!demod)) {
-		PR_ERR("%s: demod is NULL\n", __func__);
 		return -1;
 	}
 
@@ -881,7 +866,6 @@ unsigned int clear_ddr_bus_data(void)
 	/* go tb */
 	front_write_bits(0x3a, 0, 12, 1);
 	wait_capture(0x3f, tb_depth, start_addr);
-	PR_INFO("clear done\n");
 	/* stop tb */
 	front_write_bits(0x3a, 1, 12, 1);
 	tb_start = front_read_reg(0x3f);
@@ -890,6 +874,8 @@ unsigned int clear_ddr_bus_data(void)
 		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, top_saved);
 		devp->demod_thread = polling_en;
 	}
+
+	PR_INFO("%s: clear done.\n", __func__);
 
 	return 0;
 }

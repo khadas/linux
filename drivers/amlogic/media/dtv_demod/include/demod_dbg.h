@@ -40,6 +40,6 @@ void aml_demod_dbg_init(void);
 void aml_demod_dbg_exit(void);
 int dtvdemod_create_class_files(struct class *clsp);
 void dtvdemod_remove_class_files(struct class *clsp);
-unsigned int clear_ddr_bus_data(void);
+unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod);
 
 #endif

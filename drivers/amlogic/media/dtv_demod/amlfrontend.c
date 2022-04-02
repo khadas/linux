@@ -80,8 +80,6 @@ struct amldtvdemod_device_s *dtvdd_devp;
 static DEFINE_MUTEX(amldtvdemod_device_mutex);
 
 static int cci_thread;
-static int memstart = 0x1ef00000;/* move to aml_dtv_demod*/
-long *mem_buf;
 
 static int dvb_tuner_delay = 100;
 module_param(dvb_tuner_delay, int, 0644);
@@ -1436,24 +1434,24 @@ static int dvbt_isdbt_set_frontend(struct dvb_frontend *fe)
 	param.dat0 = 1;
 	demod->last_lock = -1;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T5W) {
-		t5w_write_ambus_reg(0xe138, 0x1, 23, 1);
-	} else if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
-		if (is_meson_rev_a()) {
-			dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
-			dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
-			dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
-		} else {
-			// rev_b
+	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+		demod_is_t5d_cpu(devp)) {
+		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
+		dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
+		dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
+
+		if (is_meson_t3_cpu() && is_meson_rev_b())
 			t3_revb_set_ambus_state(false, false);
-		}
+
+		if (is_meson_t5w_cpu())
+			t5w_write_ambus_reg(0xe138, 0x1, 23, 1);
 	}
 
 	tuner_set_params(fe);
 	msleep(20);
 	dvbt_isdbt_set_ch(demod, &param);
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T5W)
+	if (is_meson_t5w_cpu())
 		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
 
 	return 0;
@@ -1505,22 +1503,22 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	demod->p1_peak = 0;
 	real_para_clear(&demod->real_para);
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
-		if (is_meson_rev_a()) {
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-			dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
-			riscv_ctl_write_reg(0x30, 4);
-			demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-			dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
-			dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
-			dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
-		} else {
-			// rev_b
+	if (is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+		demod_is_t5d_cpu(devp)) {
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+		dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+		riscv_ctl_write_reg(0x30, 4);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+		dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
+		dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
+		dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+
+		if (is_meson_t3_cpu() && is_meson_rev_b())
 			t3_revb_set_ambus_state(false, true);
-		}
-	} else if (devp->data->hw_ver == DTVDEMOD_HW_T5W) {
-		t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
+
+		if (is_meson_t5w_cpu())
+			t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
 	}
 
 	tuner_set_params(fe);
@@ -1529,7 +1527,7 @@ static int dvbt2_set_frontend(struct dvb_frontend *fe)
 	dvbt2_set_ch(demod, fe);
 	demod->time_start = jiffies_to_msecs(jiffies);
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T5W)
+	if (is_meson_t5w_cpu())
 		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
 
 	return 0;
@@ -3007,20 +3005,18 @@ static int gxtv_demod_dtmb_set_frontend(struct dvb_frontend *fe)
 
 	demod->last_lock = -1;
 
-	if (devp->data->hw_ver == DTVDEMOD_HW_T3) {
+	if (is_meson_t3_cpu()) {
 		PR_INFO("dtmb set ddr\n");
-		if (is_meson_rev_a()) {
-			dtmb_write_reg(0x7, 0x6ffffd);
-			//dtmb_write_reg(0x47, 0xed33221);
-			dtmb_write_reg_bits(0x47, 0x1, 22, 1);
-			dtmb_write_reg_bits(0x47, 0x1, 23, 1);
-		} else {
-			// rev_b
+		dtmb_write_reg(0x7, 0x6ffffd);
+		//dtmb_write_reg(0x47, 0xed33221);
+		dtmb_write_reg_bits(0x47, 0x1, 22, 1);
+		dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+
+		if (is_meson_t3_cpu() && is_meson_rev_b())
 			t3_revb_set_ambus_state(false, false);
-		}
 	}
 
-	tuner_set_params(fe);	/*aml_fe_analog_set_frontend(fe);*/
+	tuner_set_params(fe);
 	msleep(100);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
@@ -4183,46 +4179,77 @@ static int gxtv_demod_dtmb_tune(struct dvb_frontend *fe, bool re_tune,
 	return ret;
 }
 
-//#endif
-
-#ifdef CONFIG_CMA
-bool dtvdemod_cma_alloc(struct amldtvdemod_device_s *devp)
+bool dtvdemod_cma_alloc(struct amldtvdemod_device_s *devp,
+		enum fe_delivery_system delsys)
 {
-	bool ret;
-
+	bool ret = true;
+#ifdef CONFIG_CMA
 	unsigned int mem_size = devp->cma_mem_size;
-	/*	dma_alloc_from_contiguous*/
-	devp->venc_pages =
-		dma_alloc_from_contiguous(&(devp->this_pdev->dev),
-			mem_size >> PAGE_SHIFT, 0, 0);
-	PR_DBG("[cma]mem_size is %d,%d\n",
-		mem_size, mem_size >> PAGE_SHIFT);
-	if (devp->venc_pages) {
-		devp->mem_start = page_to_phys(devp->venc_pages);
-		devp->mem_size  = mem_size;
-		devp->flg_cma_allc = true;
-		PR_DBG("demod mem_start = 0x%x, mem_size = 0x%x\n",
-			devp->mem_start, devp->mem_size);
-		PR_DBG("demod cma alloc ok!\n");
-		ret = true;
-	} else {
-		PR_DBG("demod cma mem undefined2.\n");
-		ret = false;
+	int flags = CODEC_MM_FLAGS_CMA_FIRST | CODEC_MM_FLAGS_CMA_CLEAR |
+			CODEC_MM_FLAGS_DMA;
+
+	if (!mem_size) {
+		PR_INFO("%s: mem_size == 0.\n", __func__);
+		return false;
 	}
+
+	if (devp->cma_flag) {
+		/*	dma_alloc_from_contiguous*/
+		devp->venc_pages = dma_alloc_from_contiguous(&devp->this_pdev->dev,
+				mem_size >> PAGE_SHIFT, 0, 0);
+		if (devp->venc_pages) {
+			devp->mem_start = page_to_phys(devp->venc_pages);
+			devp->mem_size = mem_size;
+			devp->flg_cma_allc = true;
+			PR_INFO("%s: cma mem_start = 0x%x, mem_size = 0x%x.\n",
+					__func__, devp->mem_start, devp->mem_size);
+		} else {
+			PR_INFO("%s: cma alloc fail.\n", __func__);
+			ret = false;
+		}
+	} else {
+		if (delsys == SYS_ISDBT || delsys == SYS_DTMB) {
+			if (mem_size > 16 * SZ_1M)
+				mem_size = 16 * SZ_1M;
+		} else {
+			if (delsys != SYS_DVBT2 && mem_size > 8 * SZ_1M)
+				mem_size = 8 * SZ_1M;
+		}
+
+		devp->mem_start = codec_mm_alloc_for_dma("dtvdemod",
+			mem_size / PAGE_SIZE, 0, flags);
+		devp->mem_size = mem_size;
+		if (devp->mem_start == 0) {
+			PR_INFO("%s: codec_mm fail.\n", __func__);
+			ret = false;
+		} else {
+			devp->flg_cma_allc = true;
+			PR_INFO("%s: codec_mm mem_start = 0x%x, mem_size = 0x%x.\n",
+					__func__, devp->mem_start, devp->mem_size);
+		}
+	}
+#endif
+
 	return ret;
 }
 
 void dtvdemod_cma_release(struct amldtvdemod_device_s *devp)
 {
-	/*	dma_release_from_contiguous*/
-	dma_release_from_contiguous(&(devp->this_pdev->dev),
-			devp->venc_pages,
-			devp->cma_mem_size>>PAGE_SHIFT);
-		PR_DBG("demod cma release ok!\n");
+#ifdef CONFIG_CMA
+	if (devp->cma_flag)
+		/*	dma_release_from_contiguous*/
+		dma_release_from_contiguous(&devp->this_pdev->dev,
+				devp->venc_pages,
+				devp->cma_mem_size >> PAGE_SHIFT);
+	else
+		codec_mm_free_for_dma("dtvdemod", devp->mem_start);
+
 	devp->mem_start = 0;
 	devp->mem_size = 0;
-}
 #endif
+
+	PR_DBG("demod cma release ok!\n");
+}
 
 static void set_agc_pinmux(struct aml_dtvdemod *demod,
 		enum fe_delivery_system delsys, unsigned int on)
@@ -4405,13 +4432,9 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 	if (cci_thread)
 		if (dvbc_get_cci_task(demod) == 1)
 			dvbc_create_cci_task(demod);
-	/*mem_buf = (long *)phys_to_virt(memstart);*/
 
-	if (devp->cma_flag == 1 && !devp->flg_cma_allc && devp->cma_mem_size) {
-		PR_DBG("CMA MODE, cma flag is %d,mem size is %d",
-				devp->cma_flag, devp->cma_mem_size);
-
-		if (!dtvdemod_cma_alloc(devp)) {
+	if (!devp->flg_cma_allc && devp->cma_mem_size) {
+		if (!dtvdemod_cma_alloc(devp, delsys)) {
 			ret = -ENOMEM;
 			return ret;
 		}
@@ -4588,7 +4611,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		demod_32k_ctrl(0);
 		set_agc_pinmux(demod, delsys, 0);
 
-		if (devp->cma_flag == 1 && devp->flg_cma_allc && devp->cma_mem_size) {
+		if (devp->flg_cma_allc && devp->cma_mem_size) {
 			dtvdemod_cma_release(devp);
 			devp->flg_cma_allc = false;
 		}
@@ -4935,6 +4958,9 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 {
 	u32 value;
 	int ret;
+#ifndef CONFIG_OF
+	struct resource *res = NULL;
+#endif
 	struct amldtvdemod_device_s *devp =
 			(struct amldtvdemod_device_s *)platform_get_drvdata(pdev);
 
@@ -4969,25 +4995,6 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_OF
-	ret = of_property_read_u32(pdev->dev.of_node, "cma_flag", &value);
-	if (!ret) {
-		devp->cma_flag = value;
-		PR_INFO("cma_flag: %d\n", value);
-	} else {
-		devp->cma_flag = 0;
-	}
-#else
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cma_flag");
-	if (res) {
-		int cma_flag = res->start;
-
-		devp->cma_flag = cma_flag;
-	} else {
-		devp->cma_flag = 0;
-	}
-#endif
-
-#ifdef CONFIG_OF
 	ret = of_property_read_u32(pdev->dev.of_node, "atsc_version", &value);
 	if (!ret) {
 		devp->atsc_version = value;
@@ -5007,44 +5014,38 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 	}
 #endif
 
-	if (devp->cma_flag == 1) {
 #ifdef CONFIG_CMA
+	/* Get the actual CMA of Demod in dts. */
+	/* If NULL, get it from the codec CMA. */
+	/* DTMB(8M)/DVB-T2(40M)/ISDB-T(8M) requires CMA, and others do not. */
+	if (of_parse_phandle(pdev->dev.of_node, "memory-region", 0)) {
+		devp->cma_mem_size =
+			dma_get_cma_size_int_byte(&pdev->dev);
+		devp->cma_flag = 1;
+	} else {
+		devp->cma_flag = 0;
 #ifdef CONFIG_OF
 		ret = of_property_read_u32(pdev->dev.of_node,
-					"cma_mem_size", &value);
-		if (!ret) {
-			devp->cma_mem_size = value;
-			PR_INFO("cma_mem_size: %d\n", value);
-		} else {
+				"cma_mem_size", &value);
+		if (!ret)
+			devp->cma_mem_size = value * SZ_1M;
+		else
 			devp->cma_mem_size = 0;
-		}
 #else
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-							"cma_mem_size");
-		if (res) {
-			int cma_mem_size = res->start;
-
-			devp->cma_mem_size = cma_mem_size;
-		} else {
+				"cma_mem_size");
+		if (res)
+			devp->cma_mem_size = res->start * SZ_1M;
+		else
 			devp->cma_mem_size = 0;
-		}
-#endif
-		/* Get the actual CMA of Demod in dts.*/
-		/* If 0, do not get the default value of CMA. */
-		/* DTMB(8M)/DVB-T2(40M)/ISDB-T(8M) requires CMA, and others do not. */
-		if (devp->cma_mem_size)
-			devp->cma_mem_size =
-				dma_get_cma_size_int_byte(&pdev->dev);
-		devp->this_pdev = pdev;
-		devp->cma_mem_alloc = 0;
-		PR_INFO("[cma]demod cma_mem_size = %d MB\n",
-				(u32)devp->cma_mem_size / SZ_1M);
-#endif
-	} else {
-#ifdef CONFIG_OF
-		devp->mem_start = memstart;
 #endif
 	}
+
+	devp->this_pdev = pdev;
+	devp->cma_mem_alloc = 0;
+	PR_INFO("demod cma_flag %d, cma_mem_size %d MB.\n",
+		devp->cma_flag, (u32)devp->cma_mem_size / SZ_1M);
+#endif
 
 	/* diseqc sel */
 	ret = of_property_read_string(pdev->dev.of_node, "diseqc_name",
@@ -5074,57 +5075,7 @@ int dtvdemod_set_iccfg_by_dts(struct platform_device *pdev)
 	}
 
 	return 0;
-
 }
-
-#if (defined CONFIG_AMLOGIC_DTV_DEMOD)	/*move to aml_dtv_demod*/
-static int rmem_demod_device_init(struct reserved_mem *rmem, struct device *dev)
-{
-	unsigned int demod_mem_start;
-	unsigned int demod_mem_size;
-
-	demod_mem_start = rmem->base;
-	demod_mem_size = rmem->size;
-	memstart = demod_mem_start;
-	pr_info("demod reveser memory 0x%x, size %dMB.\n",
-		demod_mem_start, (demod_mem_size >> 20));
-	return 1;
-}
-
-static void rmem_demod_device_release(struct reserved_mem *rmem,
-				      struct device *dev)
-{
-}
-
-static const struct reserved_mem_ops rmem_demod_ops = {
-	.device_init = rmem_demod_device_init,
-	.device_release = rmem_demod_device_release,
-};
-
-static int __init rmem_demod_setup(struct reserved_mem *rmem)
-{
-	/*
-	 * struct cma *cma;
-	 * int err;
-	 * pr_info("%s setup.\n",__func__);
-	 * err = cma_init_reserved_mem(rmem->base, rmem->size, 0, &cma);
-	 * if (err) {
-	 *      pr_err("Reserved memory: unable to setup CMA region\n");
-	 *      return err;
-	 * }
-	 */
-	rmem->ops = &rmem_demod_ops;
-	/* rmem->priv = cma; */
-
-	pr_info
-	    ("DTV demod reserved memory: %pa, size %ld MiB\n",
-	     &rmem->base, (unsigned long)rmem->size / SZ_1M);
-
-	return 0;
-}
-
-RESERVEDMEM_OF_DECLARE(demod, "amlogic, demod-mem", rmem_demod_setup);
-#endif
 
 /* It's a correspondence with enum es_map_addr*/
 
@@ -5939,51 +5890,49 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	case SYS_ANALOG:
 		if (get_dtvpll_init_flag()) {
 			PR_INFO("delsys not support : %d\n", cdelsys);
-			if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DTMB) {
-				if (is_meson_rev_a()) {
-					dtmb_write_reg(0x7, 0x6ffffd);
-					//dtmb_write_reg(0x47, 0xed33221);
-					dtmb_write_reg_bits(0x47, 0x1, 22, 1);
-					dtmb_write_reg_bits(0x47, 0x1, 23, 1);
-				} else {
-					// rev_b
+			if (is_meson_t3_cpu() && ldelsys == SYS_DTMB) {
+				dtmb_write_reg(0x7, 0x6ffffd);
+				//dtmb_write_reg(0x47, 0xed33221);
+				dtmb_write_reg_bits(0x47, 0x1, 22, 1);
+				dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+
+				if (is_meson_t3_cpu() && is_meson_rev_b())
 					t3_revb_set_ambus_state(true, false);
-				}
-			} else if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_DVBT2) {
-				if (is_meson_rev_a()) {
-					demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-					dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
-					demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
-					riscv_ctl_write_reg(0x30, 4);
-					demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-					dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
-					dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
-					dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
-				} else {
-					// rev_b
+			} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+				demod_is_t5d_cpu(devp)) && ldelsys == SYS_DVBT2) {
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+				dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+				riscv_ctl_write_reg(0x30, 4);
+				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+				dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
+				dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
+				dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+
+				if (is_meson_t3_cpu() && is_meson_rev_b())
 					t3_revb_set_ambus_state(true, true);
-				}
-			} else if (devp->data->hw_ver == DTVDEMOD_HW_T3 && ldelsys == SYS_ISDBT) {
-				if (is_meson_rev_a()) {
-					dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
-					dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
-					dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
-				} else {
-					// rev_b
+
+				if (is_meson_t5w_cpu())
+					t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
+			} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+				demod_is_t5d_cpu(devp)) && ldelsys == SYS_ISDBT) {
+				dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
+				dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
+				dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
+
+				if (is_meson_t3_cpu() && is_meson_rev_b())
 					t3_revb_set_ambus_state(true, false);
-				}
-			} else if (devp->data->hw_ver == DTVDEMOD_HW_T5W &&
-				(ldelsys == SYS_DVBT2 || ldelsys == SYS_ISDBT)) {
-				PR_INFO("before set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
-				t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
-				PR_INFO("after set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
+
+				if (is_meson_t5w_cpu())
+					t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
 			}
 
 			if (fe->ops.tuner_ops.release)
 				fe->ops.tuner_ops.release(fe);
 
-			if (devp->data->hw_ver == DTVDEMOD_HW_T3 &&
-				is_meson_rev_a() &&
+			if ((is_meson_t5w_cpu() ||
+				is_meson_t3_cpu() ||
+				demod_is_t5d_cpu(devp)) &&
 				(ldelsys == SYS_DTMB ||
 				ldelsys == SYS_DVBT2 ||
 				ldelsys == SYS_ISDBT)) {
@@ -5992,22 +5941,17 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 				if (fe->ops.tuner_ops.release)
 					fe->ops.tuner_ops.release(fe);
 				msleep(demod->timeout_ddr_leave);
-				//msleep(50);
-				clear_ddr_bus_data();
-
-				PR_INFO("T3 demod clear ddr data done\n");
+				clear_ddr_bus_data(demod);
 			}
 
 			leave_mode(demod, ldelsys);
 
-			if (devp->data->hw_ver == DTVDEMOD_HW_T5W &&
+			if (is_meson_t5w_cpu() &&
 				(ldelsys == SYS_DVBT2 || ldelsys == SYS_ISDBT)) {
 				msleep(20);
-				PR_INFO("before set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
+
 				t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
-				PR_INFO("after set read reg:0x%x\n", t5w_read_ambus_reg(0x3c4e));
-			} else if (devp->data->hw_ver == DTVDEMOD_HW_T3 &&
-					is_meson_rev_b() &&
+			} else if (is_meson_t3_cpu() && is_meson_rev_b() &&
 					(ldelsys == SYS_DTMB ||
 					ldelsys == SYS_DVBT2 ||
 					ldelsys == SYS_ISDBT)) {

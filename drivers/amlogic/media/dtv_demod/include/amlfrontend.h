@@ -36,6 +36,7 @@
 /*  V1.1.43  rebuild dvbc to fix autosr and recovery is slowly */
 /*  V1.1.44  t3 revb change list check abus audio problem */
 /*  V1.1.45  optimize dvb-c auto symbol rate(all) and auto qam(t5w) */
+/*  V1.1.46  use the codec_mm cma for DTMB(8M)/DVB-T2(40M)/ISDB-T(8M) */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -52,8 +53,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.45"
-#define DTVDEMOD_VER	"2022/04/06: optimize dvb-c auto symbol rate(all) and auto qam(t5w)"
+#define AMLDTVDEMOD_VER "V1.1.46"
+#define DTVDEMOD_VER	"2022/04/18: use the codec_mm cma for DTMB(8M)/DVB-T2(40M)/ISDB-T(8M)"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
