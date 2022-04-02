@@ -78,6 +78,36 @@ static int create_gpio_led(const struct gpio_led *template,
 	struct led_init_data init_data = {};
 	int ret, state;
 
+	led_dat->gpiod = template->gpiod;
+	if (!led_dat->gpiod) {
+		/*
+		 * This is the legacy code path for platform code that
+		 * still uses GPIO numbers. Ultimately we would like to get
+		 * rid of this block completely.
+		 */
+		unsigned long flags = GPIOF_OUT_INIT_LOW;
+
+		/* skip leds that aren't available */
+		if (!gpio_is_valid(template->gpio)) {
+			dev_info(parent, "Skipping unavailable LED gpio %d (%s)\n",
+					template->gpio, template->name);
+			return 0;
+		}
+
+		if (template->active_low)
+			flags |= GPIOF_ACTIVE_LOW;
+
+		ret = devm_gpio_request_one(parent, template->gpio, flags,
+					    template->name);
+		if (ret < 0)
+			return ret;
+
+		led_dat->gpiod = gpio_to_desc(template->gpio);
+		if (!led_dat->gpiod)
+			return -EINVAL;
+	}
+
+	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
 	led_dat->can_sleep = gpiod_cansleep(led_dat->gpiod);
 	if (!led_dat->can_sleep)
@@ -125,6 +155,12 @@ struct gpio_leds_priv {
 	struct gpio_led_data leds[];
 };
 
+static inline int sizeof_gpio_leds_priv(int num_leds)
+{
+	return sizeof(struct gpio_leds_priv) +
+		(sizeof(struct gpio_led_data) * num_leds);
+}
+
 static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -144,20 +180,26 @@ static struct gpio_leds_priv *gpio_leds_create(struct platform_device *pdev)
 		struct gpio_led_data *led_dat = &priv->leds[priv->num_leds];
 		struct gpio_led led = {};
 		const char *state = NULL;
+		struct device_node *np = to_of_node(child);
 
-		/*
-		 * Acquire gpiod from DT with uninitialized label, which
-		 * will be updated after LED class device is registered,
-		 * Only then the final LED name is known.
-		 */
+		ret = fwnode_property_read_string(child, "label", &led.name);
+		if (ret && IS_ENABLED(CONFIG_OF) && np)
+			led.name = np->name;
+		if (!led.name) {
+			fwnode_handle_put(child);
+			return ERR_PTR(-EINVAL);
+		}
+
 		led.gpiod = devm_fwnode_get_gpiod_from_child(dev, NULL, child,
 							     GPIOD_ASIS,
-							     NULL);
+							     led.name);
 		if (IS_ERR(led.gpiod)) {
 			fwnode_handle_put(child);
 			return ERR_CAST(led.gpiod);
 		}
 
+		fwnode_property_read_string(child, "linux,default-trigger",
+					    &led.default_trigger);
 		led_dat->gpiod = led.gpiod;
 
 		if (!fwnode_property_read_string(child, "default-state",
