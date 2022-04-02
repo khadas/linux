@@ -256,20 +256,31 @@
 		min_delta_ns=<10>;
 	};
 
-        arm_pmu {
-                compatible = "arm,armv8-pmuv3";
-		/* private-interrupts; */
-                clusterb-enabled;
-                interrupts = <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
-                reg = <0x0 0xfe00e340 0x0 0x4>,
-                        <0x0 0xfe00e280 0x0 0x04>;
-                cpumasks = <0x0f 0xf0>;
-                /* default 10ms */
-                relax-timer-ns = <10000000>;
-                /* default 10000us */
-                max-wait-cnt = <10000>;
-        };
+	pmu-a73 {
+		compatible = "arm,cortex-a73-pmu";
+		private-interrupts;
+		interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU0>,
+					<&CPU1>,
+					<&CPU2>,
+					<&CPU3>;
+	};
+
+	pmu-a53 {
+		compatible = "arm,cortex-a53-pmu";
+		private-interrupts;
+		interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU4>,
+					<&CPU5>,
+					<&CPU6>,
+					<&CPU7>;
+	};
 
 	gic: interrupt-controller@fff01000 {
 		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
