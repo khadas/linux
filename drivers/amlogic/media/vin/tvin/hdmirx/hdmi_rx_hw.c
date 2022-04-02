@@ -5418,7 +5418,7 @@ void rx_emp_field_done_irq(void)
 	unsigned int recv_pkt_cnt, recv_byte_cnt, recv_pagenum;
 	unsigned int emp_pkt_cnt = 0;
 	unsigned char *src_addr = 0;
-	unsigned char *dts_addr;
+	unsigned char *dst_addr;
 	unsigned int i, j, k;
 	unsigned int datacnt = 0;
 	struct page *cur_start_pg_addr;
@@ -5432,9 +5432,9 @@ void rx_emp_field_done_irq(void)
 	recv_pagenum = (recv_byte_cnt >> PAGE_SHIFT) + 1;
 
 	if (rx.empbuff.irqcnt & 0x1)
-		dts_addr = rx.empbuff.store_b;
+		dst_addr = rx.empbuff.store_b;
 	else
-		dts_addr = rx.empbuff.store_a;
+		dst_addr = rx.empbuff.store_a;
 
 	if (recv_pkt_cnt >= EMP_BUFF_MAX_PKT_CNT) {
 		recv_pkt_cnt = EMP_BUFF_MAX_PKT_CNT - 1;
@@ -5453,7 +5453,7 @@ void rx_emp_field_done_irq(void)
 					emp_pkt_cnt++;
 					/*32 bytes per emp pkt*/
 					for (k = 0; k < 32; k++) {
-						dts_addr[datacnt] =
+						dst_addr[datacnt] =
 						src_addr[PAGE_SIZE * i + j + k];
 						datacnt++;
 					}
@@ -5467,7 +5467,7 @@ void rx_emp_field_done_irq(void)
 					emp_pkt_cnt++;
 					/*32 bytes per emp pkt*/
 					for (k = 0; k < 32; k++) {
-						dts_addr[datacnt] =
+						dst_addr[datacnt] =
 						src_addr[PAGE_SIZE * i + j + k];
 						datacnt++;
 					}
@@ -5486,14 +5486,20 @@ void rx_emp_field_done_irq(void)
 			rx_pr("emp buffer overflow!!\n");
 	} else {
 		/*ready address*/
-		rx.empbuff.ready = dts_addr;
+		rx.empbuff.ready = dst_addr;
 		/*ready pkt cnt*/
 		rx.empbuff.emppktcnt = emp_pkt_cnt;
 		for (i = 0; i < rx.empbuff.emppktcnt; i++)
 			memcpy((char *)(emp_buf + 31 * i),
-			       (char *)(dts_addr + 32 * i), 31);
+				   (char *)(dst_addr + 32 * i), 31);
 		/*emp field dont irq counter*/
 		rx.empbuff.irqcnt++;
+		//rx.empbuff.ogi_id = emp_buf[6];
+		//rx.empbuff.emp_tagid = emp_buf[10] +
+			//(emp_buf[11] << 8) +
+			//(emp_buf[12] << 16);
+		//rx.empbuff.data_ver = emp_buf[13];
+		//rx.empbuff.emp_content_type = emp_buf[19];
 	}
 }
 

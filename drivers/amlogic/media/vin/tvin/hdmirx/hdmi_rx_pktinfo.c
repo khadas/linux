@@ -981,6 +981,7 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 	u32 st0;
 	u32 st1;
 	u8 tmp, i;
+	u32 tmp32;
 
 	if (!pktinfo) {
 		rx_pr("pkinfo null\n");
@@ -1027,6 +1028,17 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 				if ((tmp >> 1) & 1)
 					pkt->ieee = IEEE_DV_PLUS_ALLM;
 			}
+			tmp32 = hdmirx_rd_cor(HF_VSIRX_DBYTE4_DP3_IVCRX);
+			tmp32 |= hdmirx_rd_cor(HF_VSIRX_DBYTE5_DP3_IVCRX) << 8;
+			tmp32 |= hdmirx_rd_cor(HF_VSIRX_DBYTE6_DP3_IVCRX) << 16;
+			tmp32 |= hdmirx_rd_cor(HF_VSIRX_DBYTE7_DP3_IVCRX) << 24;
+			pkt->sbpkt.payload.data[0] = tmp32;
+
+			tmp32 = hdmirx_rd_cor(HF_VSIRX_DBYTE8_DP3_IVCRX);
+			tmp32 |= hdmirx_rd_cor(HF_VSIRX_DBYTE9_DP3_IVCRX) << 8;
+			tmp32 |= hdmirx_rd_cor(HF_VSIRX_DBYTE10_DP3_IVCRX) << 16;
+			tmp32 |= hdmirx_rd_cor(HF_VSIRX_DBYTE11_DP3_IVCRX) << 24;
+			pkt->sbpkt.payload.data[1] = tmp32;
 		} else if (vsif_type & VSIF_TYPE_HDR10P) {
 			pkt->pkttype = PKT_TYPE_INFOFRAME_VSI;
 			pkt->length = hdmirx_rd_cor(AUDRX_TYPE_DP2_IVCRX) & 0x1f;
@@ -2008,6 +2020,7 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 	//u32 i = 0;
 	u32 j = 0;
 	u32 pkt_num = 0;
+	bool find_emp_header = false;
 	//u32 pkt_cnt = 0;
 	u8 try_cnt = 3;
 	union infoframe_u *pktdata;
@@ -2125,7 +2138,8 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 				rx_pr("PD[%d]=%x\n", rxpktsts.fifo_pkt_num, pd_fifo_buf[0]);
 			pktdata = (union infoframe_u *)pd_fifo_buf;
 			rx_pkt_fifodecode(prx, pktdata, &rxpktsts);
-			if ((pd_fifo_buf[0] & 0xff) == PKT_TYPE_EMP) {
+			if ((pd_fifo_buf[0] & 0xff) == PKT_TYPE_EMP && !find_emp_header) {
+				find_emp_header = true;
 				rx.empbuff.ogi_id =
 					(pd_fifo_buf[1] >> 16) & 0xff;
 				j = (((pd_fifo_buf[2] >> 24) & 0xff) +
