@@ -483,8 +483,10 @@ static irqreturn_t earc_rx_isr(int irq, void *data)
 
 		if (p_earc->rx_status1 & INT_EARCRX_ERR_CORRECT_C_BCHERR_INT_SET)
 			dev_info(p_earc->dev, "EARCRX_ERR_CORRECT_BCHERR\n");
-		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR)
-			dev_info(p_earc->dev, "ARCRX_R_PARITY_ERR\n");
+		if (p_earc->rx_status1 & INT_ARCRX_BIPHASE_DECODE_R_PARITY_ERR) {
+			dev_info(p_earc->dev, "ARCRX_R_PARITY_ERR reset\n");
+			earcrx_pll_refresh(p_earc->rx_top_map, RST_BY_SELF, true);
+		}
 
 		if (p_earc->rx_status0 & INT_EARCRX_CMDC_HB_STATUS)
 			dev_dbg(p_earc->dev, "EARCRX_CMDC_HB_STATUS\n");

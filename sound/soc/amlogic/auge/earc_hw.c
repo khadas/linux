@@ -336,14 +336,22 @@ static void earcrx_mute_block_enable(struct regmap *dmac_map, bool en)
 	);
 }
 
+static DEFINE_SPINLOCK(earcrx_cs_mutex);
+
 /* Note: mask without offset */
 static unsigned int earcrx_get_cs_bits(struct regmap *dmac_map,
 				       int cs_offset, int mask)
 {
-	int reg_offset = cs_offset / REG_CS_LEN;
-	int bits_offset = cs_offset % REG_CS_LEN;
+	int reg_offset;
+	int bits_offset;
 	enum channel_status_type cs_type;
 	int stats_sel, val, cs_a, cs_b;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&earcrx_cs_mutex, flags);
+
+	reg_offset = cs_offset / REG_CS_LEN;
+	bits_offset = cs_offset % REG_CS_LEN;
 
 	/* channel A status */
 	cs_type = CS_TYPE_A;
@@ -366,7 +374,9 @@ static unsigned int earcrx_get_cs_bits(struct regmap *dmac_map,
 	cs_b = (val >> bits_offset) & mask;
 
 	if (cs_a != cs_b)
-		pr_warn("use CHANNEL A STATUS as default.\n");
+		pr_warn("use CHANNEL A STATUS as default 0x%x, 0x%x .\n", cs_offset, mask);
+
+	spin_unlock_irqrestore(&earcrx_cs_mutex, flags);
 
 	return cs_a;
 }
