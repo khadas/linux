@@ -491,6 +491,8 @@ static unsigned int lcd_parse_vout_init_name(char *name)
 		if (strcmp(frac_str, "frac") == 0)
 			frac = 1;
 	}
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("%s: frac: %d\n", __func__, frac);
 
 	return frac;
 }
@@ -986,6 +988,7 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 	mode = kstrdup(get_vout_mode_uboot(), GFP_KERNEL);
 	if (!mode)
 		return;
+
 	frac = lcd_parse_vout_init_name(mode);
 
 	if (pdrv->status & LCD_STATUS_ENCL_ON)
@@ -998,6 +1001,12 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 		info = &lcd_vmode_info[LCD_VMODE_MAX];
 
 	frame_rate = lcd_outputmode_to_frame_rate(pdrv, mode);
+	if (!frame_rate) {
+		LCDERR("[%d]: %s frame_rate error\n", pdrv->index, __func__);
+		kfree(mode);
+		return;
+	}
+
 	if (frac) {
 		if (frame_rate != 60 && frame_rate != 48 &&
 		    frame_rate != 120 && frame_rate != 96) {
