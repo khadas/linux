@@ -60,9 +60,10 @@
 // frc_20220207 frc sync frc_fw glb setting
 // frc_20220215 frc fix char flashing of video
 // frc_20220222 frc bypass pc and check vout
-// frc_20220224 frc fix memc state abnormal"
+// frc_20220224 frc fix memc state abnormal
+// frc_20220310 fix frc dts_match memory leak
 
-#define FRC_FW_VER			"2022-0310 fix frc dts_match memory leak"
+#define FRC_FW_VER			"2022-0404 fix frc input not standard"
 #define FRC_KERDRV_VER                  1715
 
 #define FRC_DEVNO	1
@@ -265,6 +266,7 @@ struct st_frc_in_sts {
 
 	u32  high_freq_en;
 	u32  high_freq_flash; /*0 default, 1: high freq char flash*/
+	u8  inp_size_adj_en;  /*input non-standard size, default 0 is open*/
 };
 
 struct st_frc_out_sts {

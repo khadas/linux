@@ -44,6 +44,10 @@
 void __iomem *frc_clk_base;
 void __iomem *vpu_base;
 
+int FRC_PARAM_NUM = 8;
+module_param(FRC_PARAM_NUM, int, 0664);
+MODULE_PARM_DESC(FRC_PARAM_NUM, "FRC_PARAM_NUM");
+
 u32 vpu_reg_read(u32 addr)
 {
 	unsigned int value = 0;
@@ -764,6 +768,21 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 0, 1); //16*16 align
 		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 1, 1, 1); //16*16 align
 		pr_frc(log, "me:mc 1:4\n");
+	}
+	/*The resolution of the input is not standard for test
+	 * input size adjust within 8 lines and output size > 1920 * 1080
+	 * default FRC_PARAM_NUM: 8 adjustable
+	 */
+	if (!frc_devp->in_sts.inp_size_adj_en &&
+		frc_top->out_hsize - FRC_PARAM_NUM < frc_top->hsize &&
+		frc_top->hsize <= frc_top->out_hsize &&
+		frc_top->out_vsize - FRC_PARAM_NUM < frc_top->vsize &&
+		frc_top->vsize < frc_top->out_vsize &&
+		frc_top->out_hsize * frc_top->out_vsize >= 1920 * 1080) {
+		frc_top->is_me1mc4 = 1;/*me:mc 1:4*/
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 0, 1); //8*8 align
+		WRITE_FRC_BITS(FRC_INPUT_SIZE_ALIGN, 0, 1, 1); //8*8 align
+		pr_frc(log, " %s The resolution of the input is not standard\n", __func__);
 	}
 
 	if (frc_top->out_hsize == 1920 && frc_top->out_vsize == 1080) {
