@@ -194,9 +194,10 @@ static struct codec_mm_mgt_s *get_mem_mgt(void)
 		 *which mode
 		 */
 		ret = tee_protect_tvp_mem(0, 0, &handle);
-		if (ret == 0xFFFFFFFF)
+		if (ret == 0xFFFFFFFF) {
 			tvp_mode = 0;
-		else
+			tvp_dynamic_increase_disable = 1;
+		} else
 			tvp_mode = 1;
 		mutex_init(&mgt.tvp_protect_lock);
 		inited++;
