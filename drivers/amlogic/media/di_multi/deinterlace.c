@@ -5077,6 +5077,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	unsigned int pps_w, pps_h;
 	u32 typetmp;
 	unsigned char chg_hdr = 0;
+	bool is_hdr10p = false;
 
 	pch = get_chdata(channel);
 
@@ -5420,8 +5421,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		if ((((vframe->signal_type >> 8) & 0xff) == 0x30) &&
 		    ((((vframe->signal_type >> 16) & 0xff) == 9) ||
-		     (((vframe->signal_type >> 16) & 0xff) == 2)) &&
-		    vframe->source_type != VFRAME_SOURCE_TYPE_HDMI) {
+		     (((vframe->signal_type >> 16) & 0xff) == 2)))
+			is_hdr10p = true;
+		if (vframe->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+		    (is_hdr10p ||
+		     get_vframe_src_fmt(vframe) ==
+		     VFRAME_SIGNAL_FMT_HDR10PRIME)) {
 			struct provider_aux_req_s req;
 			char *provider_name = NULL, *tmp_name = NULL;
 			u32 sei_size = 0;

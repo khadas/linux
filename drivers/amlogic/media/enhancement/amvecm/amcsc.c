@@ -58,6 +58,7 @@ uint debug_csc;
 static int cur_mvc_type[VD_PATH_MAX];
 static int cur_rgb_type[VD_PATH_MAX];
 static int rgb_type_proc[VD_PATH_MAX];
+static int cur_primesl_type[VD_PATH_MAX];
 #define FORCE_RGB_PROCESS 1
 
 module_param(debug_csc, uint, 0664);
@@ -6801,6 +6802,8 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path, enum vpp_index vp
 	get_cur_vd_signal_type(vd_path);
 	if (cur_mvc_type[vd_path] == VIDTYPE_MVC)
 		return HDRTYPE_MVC;
+	if (cur_primesl_type[vd_path])
+		return HDRTYPE_PRIMESL;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vd_path == VD1_PATH &&
 	    is_dolby_vision_enable() &&
@@ -7773,10 +7776,20 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		signal_change_flag |= SIG_FORCE_CHG;
 
 	get_cur_vd_signal_type(vd_path);
-	if (force_csc_type != 0xff)
+	if (force_csc_type != 0xff) {
 		csc_type = force_csc_type;
-	else
+		cur_primesl_type[vd_path] = 0;
+	} else {
 		csc_type = get_csc_type();
+		/* force prime sl output as HDR */
+		/* TODO: check if need VD1_PATH */
+		if (get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_HDR10PRIME) {
+			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			cur_primesl_type[vd_path] = 1;
+		} else {
+			cur_primesl_type[vd_path] = 0;
+		}
+	}
 
 	if (video_process_status[vd_path] == HDR_MODULE_BYPASS &&
 	    !(video_process_flags[vd_path] & PROC_FLAG_FORCE_PROCESS)) {
@@ -8513,8 +8526,8 @@ hdr_dump:
 			hlg_process_mode[i]);
 		pr_info("sdr_mode:0x%x, sdr_process_mode:0x%x, cur_sdr_process_mode:0x%x\n",
 			sdr_mode, sdr_process_mode[i], cur_sdr_process_mode[i]);
-		pr_info("cur_signal_type:0x%x, cur_csc_mode:0x%x, cur_csc_type:0x%x\n",
-			cur_signal_type[i], cur_csc_mode, cur_csc_type[i]);
+		pr_info("cur_signal_type:0x%x, cur_csc_mode:0x%x, cur_csc_type:0x%x, cur_primesl_type:%d\n",
+			cur_signal_type[i], cur_csc_mode, cur_csc_type[i], cur_primesl_type[i]);
 		pr_info("hdr10_plus_process_mode = 0x%x\n",
 			hdr10_plus_process_mode[i]);
 	}

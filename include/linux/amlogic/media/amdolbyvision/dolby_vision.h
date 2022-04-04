@@ -240,6 +240,7 @@ void tv_dolby_vision_insert_crc(bool print);
 int dolby_vision_check_hdr10(struct vframe_s *vf);
 int dolby_vision_check_hlg(struct vframe_s *vf);
 int dolby_vision_check_hdr10plus(struct vframe_s *vf);
+int dolby_vision_check_primesl(struct vframe_s *vf);
 void tv_dolby_vision_dma_table_modify
 	(u32 tbl_id, uint64_t value);
 void tv_dolby_vision_efuse_info(void);

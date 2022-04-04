@@ -111,6 +111,9 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 #include <linux/amlogic/media/vpu_secure/vpu_secure.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
+#include <linux/amlogic/media/amprime_sl/prime_sl.h>
+#endif
 
 #include <linux/math64.h>
 #include "video_receiver.h"
@@ -6827,6 +6830,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
 		dolby_vision_check_hlg(vf);
+		dolby_vision_check_primesl(vf);
 	}
 #endif
 
@@ -7604,6 +7608,7 @@ SET_FILTER:
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
 		dolby_vision_check_hlg(vf);
+		dolby_vision_check_primesl(vf);
 	}
 #endif
 	while (vf && !video_suspend) {
@@ -7698,6 +7703,7 @@ SET_FILTER:
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
 		dolby_vision_check_hlg(vf);
+		dolby_vision_check_primesl(vf);
 	}
 #endif
 	while (vf && !video_suspend) {
@@ -8289,6 +8295,9 @@ SET_FILTER:
 		VPP_TOP0);
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
+	prime_sl_process(vd_layer[0].dispbuf);
+#endif
 	/* work around which dec/vdin don't call update src_fmt function */
 	if (vd_layer[0].dispbuf && !is_local_vf(vd_layer[0].dispbuf)) {
 		int new_src_fmt = -1;
@@ -10279,12 +10288,17 @@ EXPORT_SYMBOL(di_unreg_notify);
 #define SUFFIX_SEI_NUT 40
 #define SEI_ITU_T_T35 4
 #define ATSC_T35_PROV_CODE    0x0031
+#define PRIME_SL_T35_PROV_CODE     0x003A
 #define DVB_T35_PROV_CODE     0x003B
 #define ATSC_USER_ID_CODE     0x47413934
 #define DVB_USER_ID_CODE      0x00000000
 #define DM_MD_USER_TYPE_CODE  0x09
+#define FMT_TYPE_DV 0
+#define FMT_TYPE_DV_AV1 1
+#define FMT_TYPE_HDR10_PLUS 2
+#define FMT_TYPE_PRIME 3
 
-static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
+static int check_media_sei(char *sei, u32 sei_size, u32 fmt_type)
 {
 	int ret = 0;
 	char *p;
@@ -10297,6 +10311,17 @@ static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 	u32 provider_code;
 	u32 user_id;
 	u32 user_type_code;
+	u32 sei_type;
+
+	if (fmt_type == FMT_TYPE_DV)
+		sei_type = DV_SEI;
+	else if (fmt_type == FMT_TYPE_DV_AV1)
+		sei_type = DV_AV1_SEI;
+	else if (fmt_type == FMT_TYPE_HDR10_PLUS ||
+		fmt_type == FMT_TYPE_PRIME)
+		sei_type = HDR10P; /* same sei type */
+	else
+		return ret;
 
 	if (!sei || sei_size <= 8)
 		return ret;
@@ -10312,13 +10337,15 @@ static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 		type = (type << 8) | *p++;
 		type = (type << 8) | *p++;
 
-		if (((sei_type == DV_SEI || sei_type == HDR10P) &&
-			sei_type == type) ||
-			(sei_type == DV_AV1_SEI &&
-			sei_type == (type & 0xffff0000))) {
+		if ((sei_type == DV_SEI && sei_type == type) ||
+		    (sei_type == DV_AV1_SEI && sei_type == (type & 0xffff0000))) {
 			ret = 1;
 			break;
-		} else if ((sei_type == DV_SEI) && type == HDR10P) {
+		} else if (fmt_type == FMT_TYPE_HDR10_PLUS && sei_type == type) {
+			/* TODO: double check nal type and payload type */
+			ret = 1;
+			break;
+		} else if (sei_type == DV_SEI && type == HDR10P) {
 			/* check DVB/ATSC as DV */
 			if (p >= sei + sei_size - 12)
 				break;
@@ -10350,6 +10377,28 @@ static int check_media_sei(char *sei, u32 sei_size, u32 sei_type)
 				if (len_2094_sei > 0) {
 					ret = 1;
 					break;
+				}
+			}
+		} else if (fmt_type == FMT_TYPE_PRIME &&
+				sei_type == type) {
+			if (p >= sei + sei_size - 7)
+				break;
+			nal_type = ((*p) & 0x7E) >> 1;
+			if (nal_type == PREFIX_SEI_NUT ||
+			    nal_type == SUFFIX_SEI_NUT) {
+				sei_payload_type = *(p + 2);
+				sei_payload_size = *(p + 3);
+				if (sei_payload_type == SEI_ITU_T_T35 &&
+				    sei_payload_size >= 3) {
+					country_code = *(p + 4);
+					provider_code = (*(p + 5) << 8) |
+							*(p + 6);
+					if (country_code == 0xB5 &&
+					    provider_code ==
+					    PRIME_SL_T35_PROV_CODE) {
+						ret = 1;
+						break;
+					}
 				}
 			}
 		}
@@ -10432,8 +10481,8 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 				pr_info("ignore nonstandard dv\n");
 		}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		else if (dual_layer || check_media_sei(sei, size, DV_SEI) ||
-			   check_media_sei(sei, size, DV_AV1_SEI)) {
+		else if (dual_layer || check_media_sei(sei, size, FMT_TYPE_DV) ||
+			   check_media_sei(sei, size, FMT_TYPE_DV_AV1)) {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_DOVI;
 			vf->src_fmt.dual_layer = dual_layer;
 #if PARSE_MD_IN_ADVANCE
@@ -10478,7 +10527,7 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		} else if ((signal_transfer_characteristic == 0x30) &&
 			     ((signal_color_primaries == 9) ||
 			      (signal_color_primaries == 2))) {
-			if (check_media_sei(sei, size, HDR10P))
+			if (check_media_sei(sei, size, FMT_TYPE_HDR10_PLUS))
 				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10PLUS;
 			else /* TODO: if need switch to HDR10 */
 				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
@@ -10489,6 +10538,13 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		} else {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
 		}
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
+		if (is_prime_sl_enable() && sei && size &&
+		    vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PLUS) {
+			if (check_media_sei(sei, size, FMT_TYPE_PRIME))
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10PRIME;
+		}
+#endif
 	}
 
 	if (vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_DOVI)

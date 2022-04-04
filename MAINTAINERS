@@ -18118,3 +18118,12 @@ F:	*/
 AMLOGIC HWKEY AES GCM
 M:	Lawrence Mok <lawrence.mok@amlogic.com>
 F:	drivers/amlogic/aes_hwkey_gcm/*
+
+AMLOGIC PRIME SL
+M:	Brian.zhu <brian.zhu@amlogic.com>
+F:	drivers/amlogic/media/enhancement/amprime_sl/Kconfig
+F:	drivers/amlogic/media/enhancement/amprime_sl/Makefile
+F:	drivers/amlogic/media/enhancement/amprime_sl/amprime_sl.c
+F:	drivers/amlogic/media/enhancement/amprime_sl/amprime_sl.h
+F:	drivers/amlogic/media/enhancement/amprime_sl/amprime_sl_hw.c
+F:	include/linux/amlogic/media/amprime_sl/prime_sl.h
