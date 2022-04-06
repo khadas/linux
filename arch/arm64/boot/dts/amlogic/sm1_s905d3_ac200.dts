@@ -341,6 +341,12 @@
 		};
 	};
 
+	dolby_fw: dolby_fw {
+		compatible = "amlogic, dolby_fw";
+		mem_size = <0x100000>;
+		status = "okay";
+	};
+
 	cpu_opp_table0: cpu_opp_table0 {
 		compatible = "operating-points-v2";
 		opp-shared;
