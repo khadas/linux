@@ -1109,6 +1109,7 @@ void vdin_send_event(struct vdin_dev_s *devp, enum tvin_sg_chg_flg sts)
 {
 	/*pr_info("%s :0x%x\n", __func__, sts);*/
 	/*devp->extcon_event->state = sts;*/
-	schedule_delayed_work(&devp->event_dwork, 0);
+	if (devp->dbg_v4l_no_vdin_event == 0)
+		schedule_delayed_work(&devp->event_dwork, 0);
 }
 

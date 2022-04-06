@@ -46,6 +46,9 @@
 /* v4l2 header */
 #include <media/v4l2-common.h>
 #include <linux/videodev2.h>
+#include <uapi/linux/v4l2-ext/videodev2-ext.h>
+#include <uapi/linux/v4l2-ext/v4l2-controls-ext.h>
+#include <uapi/linux/linuxtv-ext-ver.h>
 #include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
@@ -60,7 +63,7 @@
 #include "../tvin_frontend.h"
 #include "vdin_vf.h"
 #include "vdin_regs.h"
-#include "vdin_v4l2_if.h"
+//#include "vdin_v4l2_if.h"
 
 /* 20220124: vf->flag add pc mode flag to bypass aipq aisr */
 /* 20220214: The desktop screenshot probability gray screen */
@@ -74,13 +77,15 @@
 /* 20220328: return the same vf repeat causes crash */
 /* 20220331: starting state chg not send event */
 /* 20220401: 59.94 duration need set to 1601 */
-#define VDIN_VER    "20220401: 59.94 duration need set to 1601"
+/* 20220402: add vdin v4l2 feature */
+#define VDIN_VER "20220402: add vdin v4l2 feature"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
 //#define VDIN_BRINGUP_NO_AMLVECM
 //#define VDIN_BRINGUP_BYPASS_COLOR_CNVT
 #define K_FORCE_HV_SHRINK	0
+#define VDIN_V4L2_INPUT_MAX		7
 
 enum vdin_work_mode_e {
 	VDIN_WORK_MD_NORMAL = 0,
@@ -378,6 +383,9 @@ struct vdin_set_canvas_addr_s {
 	struct dma_buf *dmabuff;
 	struct dma_buf_attachment *dmabufattach;
 	struct sg_table *sgtable;
+	unsigned long vfmem_start;
+	int fd;
+	int index;
 };
 extern struct vdin_set_canvas_addr_s vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT];
 
@@ -449,6 +457,21 @@ enum vdin_game_mode_chg_e {
 	VDIN_GAME_MODE_OFF_2_ON,
 	VDIN_GAME_MODE_ON_2_OFF,
 	VDIN_GAME_MODE_NUM
+};
+
+struct vdin_v4l2_stat_s {
+	/* frame drop due to framerate control */
+	unsigned int drop_divide;
+	unsigned int done_cnt;
+	unsigned int que_cnt;
+	unsigned int dque_cnt;
+};
+
+struct vdin_v4l2_s {
+	int divide;
+	unsigned int secure_flg:1;
+	enum v4l2_ext_capture_location l;
+	struct vdin_v4l2_stat_s stats;
 };
 
 struct vdin_dev_s {
@@ -718,10 +741,25 @@ struct vdin_dev_s {
 	bool v4l_support_en;
 
 	/*struct v4l2_fh fh;*/
+	unsigned long vfmem_c_start[VDIN_CANVAS_MAX_CNT];/* Y/C non-contiguous mem */
 	unsigned int dbg_v4l_pause;
-	unsigned int dbg_v4l_done_cnt;
-	unsigned int dbg_v4l_que_cnt;
-	unsigned int dbg_v4l_dque_cnt;
+	unsigned int dbg_v4l_no_vdin_ioctl;
+	unsigned int dbg_v4l_no_vdin_event;
+	struct vdin_set_canvas_addr_s st_vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT][VDIN_MAX_PLANES];
+	bool vdin_set_canvas_flag;
+	enum tvin_port_e v4l2_port_cur;
+	unsigned int v4l2_port_num;
+	enum tvin_port_e v4l2_port[VDIN_V4L2_INPUT_MAX];
+	unsigned int afbce_flag_backup;
+	unsigned int v4l2_req_buf_num;
+	struct vdin_v4l2_s vdin_v4l2;
+	//struct v4l2_ctrl_handler ctrl_handler;
+	//struct v4l2_ctrl *p_ctrl;
+	struct v4l2_ext_capture_capability_info ext_cap_cap_info;
+	struct v4l2_ext_capture_plane_info ext_cap_plane_info;
+	struct v4l2_ext_capture_video_win_info ext_cap_video_win_info;
+	struct v4l2_ext_capture_freeze_mode ext_cap_freezee_mode;
+	struct v4l2_ext_capture_plane_prop ext_cap_plane_prop;
 	/*v4l interface ---- end*/
 
 	unsigned int tx_fmt;
@@ -731,6 +769,7 @@ struct vdin_dev_s {
 	unsigned int dbg_dump_frames;
 	unsigned int dbg_stop_dec_delay;
 	unsigned int vinfo_std_duration; /* get vinfo fps value */
+	unsigned int dbg_no_swap_en:1;
 };
 
 struct vdin_hist_s {
@@ -843,6 +882,7 @@ irqreturn_t vdin_write_done_isr(int irq, void *dev_id);
 void vdin_game_mode_chg(struct vdin_dev_s *devp,
 	unsigned int old_mode, unsigned int new_mode);
 void vdin_frame_lock_check(struct vdin_dev_s *devp, int state);
+void vdin_v4l2_init(struct vdin_dev_s *pdevp, struct platform_device *pldev);
 
 #endif /* __TVIN_VDIN_DRV_H */
 

@@ -915,6 +915,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.pre_he, devp->prop.he,
 		devp->prop.pre_vs, devp->prop.vs,
 		devp->prop.pre_ve, devp->prop.ve);
+	pr_info("scaling4w:%d,scaling4h:%u\n", devp->prop.scaling4w, devp->prop.scaling4h);
 	pr_info("report: hactive %d, vactive:%d, vtotal:%d\n",
 		vdin_get_active_h(offset), vdin_get_active_v(offset),
 		vdin_get_total_v(offset));
@@ -2553,6 +2554,13 @@ start_chk:
 		}
 		pr_info("vdin%d,dbg_dump_frames = %d\n",
 			devp->index, devp->dbg_dump_frames);
+	} else if (!strcmp(parm[0], "no_swap_en")) {
+		if (parm[1]) {
+			if (kstrtol(parm[1], 0, &val) == 0)
+				devp->dbg_no_swap_en = val;
+		}
+		pr_info("vdin%d,dbg_no_swap_en = %d\n",
+			devp->index, devp->dbg_no_swap_en);
 	} else if (!strcmp(parm[0], "dbg_stop_dec_delay")) {
 		if (parm[1]) {
 			if (kstrtol(parm[1], 10, &val) == 0)

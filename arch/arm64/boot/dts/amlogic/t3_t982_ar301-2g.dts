@@ -1386,11 +1386,13 @@
 	 */
 	cma_size = <330>;
 	frame_buff_num = <11>;
+	v4l_support_en = <0>;
 };
 
 &vdin1 {
 	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
+	v4l_support_en = <0>;
 };
 
 /* SDIO */

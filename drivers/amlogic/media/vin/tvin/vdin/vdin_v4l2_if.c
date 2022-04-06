@@ -60,9 +60,12 @@
 #include <linux/amlogic/media/frame_sync/timestamp.h>
 #include <linux/amlogic/media/frame_sync/tsync.h>
 #include <linux/amlogic/meson_uvm_core.h>
+#include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/vout/vout_notify.h>
+
 /* Local Headers */
 /*#include "../tvin_global.h"*/
-/*#include "../tvin_format_table.h"*/
+#include "../tvin_format_table.h"
 /*#include "../tvin_frontend.h"*/
 /*#include "../tvin_global.h"*/
 #include "vdin_regs.h"
@@ -85,18 +88,50 @@ int vdin_v4l_debug;
 			pr_info("vdin-v4l: " fmt, ## arg);	\
 	} while (0)
 
-/*
- * function define
- *
- */
+static struct v4l2_frmsize_discrete vdin_v4l2_frmsize_dis[] = {
+	{320, 240},		{640, 480},		{960, 540},
+	{1280, 720},	{1920, 1080},	{3840, 2160}
+};
+
+static struct v4l2_fract fract_discrete[] = {
+	{.numerator = 1, .denominator = 24,},
+	{.numerator = 1, .denominator = 25,},
+	{.numerator = 1, .denominator = 30,},
+	{.numerator = 1, .denominator = 50,},
+	{.numerator = 1, .denominator = 60,},
+};
+
+static struct vdin_v4l2_pix_fmt pix_formats[] = {
+	{.fourcc = V4L2_PIX_FMT_NV12,
+	 .depth  = 12, },
+
+	{.fourcc = V4L2_PIX_FMT_NV21,
+	 .depth  = 12, },
+
+	{.fourcc = V4L2_PIX_FMT_NV12M,
+	 .depth  = 12, },
+
+	{.fourcc = V4L2_PIX_FMT_NV21M,
+	 .depth  = 12, },
+
+	{.fourcc = V4L2_PIX_FMT_UYVY,
+	 .depth  = 16, },
+};
+
+static struct v4l2_capability g_vdin_v4l2_cap[VDIN_MAX_DEVS] = {
+	{.driver = VDIN_V4L_DRV_NAME,	 .card = VDIN_V4L_CARD_NAME,
+	 .bus_info = VDIN0_V4L_BUS_INFO, .version = VDIN_DEV_VER,
+	 .capabilities = VDIN_DEVICE_CAPS | V4L2_CAP_DEVICE_CAPS,
+	 .device_caps = VDIN_DEVICE_CAPS},
+
+	{.driver = VDIN_V4L_DRV_NAME,	 .card = VDIN_V4L_CARD_NAME,
+	 .bus_info = VDIN1_V4L_BUS_INFO, .version = VDIN_DEV_VER,
+	 .capabilities = VDIN_DEVICE_CAPS | V4L2_CAP_DEVICE_CAPS,
+	 .device_caps = VDIN_DEVICE_CAPS},
+};
+
 int vdin_v4l2_if_isr(struct vdin_dev_s *pdev, struct vframe_s *vfp)
 {
-	/*struct vb2_buffer *vb2_buf = NULL;*/
-	unsigned int num_planes = 0;
-	struct dma_buf *dmabuf;
-	unsigned int i = 0;
-	unsigned int fd, index;
-
 	if (!pdev->vbqueue.streaming) {
 		dprintk(2, "not streaming\n");
 		return -1;
@@ -104,7 +139,13 @@ int vdin_v4l2_if_isr(struct vdin_dev_s *pdev, struct vframe_s *vfp)
 
 	if (pdev->dbg_v4l_pause)
 		return -1;
-
+	/* do framerate control */
+	if (pdev->vdin_v4l2.divide > 1 && (pdev->frame_cnt % pdev->vdin_v4l2.divide) != 0) {
+		pdev->vdin_v4l2.stats.drop_divide++;
+		dprintk(3, "%s,drop_divide:%u\n", __func__,
+			pdev->vdin_v4l2.stats.drop_divide);
+		return -1;
+	}
 	spin_lock(&pdev->qlock);
 
 	if (list_empty(&pdev->buf_list)) {
@@ -116,30 +157,13 @@ int vdin_v4l2_if_isr(struct vdin_dev_s *pdev, struct vframe_s *vfp)
 	pdev->cur_buff = list_first_entry(&pdev->buf_list,
 					  struct vdin_vb_buff, list);
 
-	num_planes = pdev->cur_buff->vb.vb2_buf.num_planes;
-	if (pdev->cur_buff->vb.vb2_buf.memory == V4L2_MEMORY_DMABUF) {
-		for (i = 0; i < num_planes; i++) {
-			fd = pdev->cur_buff->vb.vb2_buf.planes[i].m.fd;
-			index = pdev->cur_buff->vb.vb2_buf.index;
-			dmabuf = pdev->cur_buff->dmabuf[i];
-			if (IS_ERR(dmabuf)) {
-				spin_unlock(&pdev->qlock);
-				dprintk(2, "%s fd:%d get dma buff fail\n",
-					__func__, fd);
-				return -1;
-			}
-			dprintk(2, "vb2_buf idx:%d pl:%d dmabuf:0x%p fd:%d vf:(%d:0x%p)\n",
-				index, i, dmabuf, fd, vfp->index, vfp);
-			if (dmabuf_set_vframe(dmabuf, vfp, VF_SRC_VDIN))
-				dprintk(0, "set vf fail\n");
-		}
-	}
-
+	dprintk(3, "[%s]vf index = %d\n", __func__, vfp->index);
+	pdev->cur_buff->v4l2_vframe_s = vfp;
 	list_del(&pdev->cur_buff->list);
 	spin_unlock(&pdev->qlock);
-	/*dprintk(3, "tag:0x%x\n", pdev->cur_buff->tag);*/
-	pdev->dbg_v4l_done_cnt++;
+	pdev->vdin_v4l2.stats.done_cnt++;
 	vb2_buffer_done(&pdev->cur_buff->vb.vb2_buf, VB2_BUF_STATE_DONE);
+
 	return 0;
 }
 
@@ -162,23 +186,21 @@ char *vb2_buf_sts_to_str(uint32_t state)
 {
 	switch (state) {
 	case VB2_BUF_STATE_DEQUEUED:
-		return "VB2_BUF_STATE_DEQUEUED";
+		return "VB2_BUF_STATE_DEQUEUED(0)";
 	case VB2_BUF_STATE_IN_REQUEST:
-		return "VB2_BUF_STATE_IN_REQUEST";
+		return "VB2_BUF_STATE_PREPARED(1)";
 	case VB2_BUF_STATE_PREPARING:
-		return "VB2_BUF_STATE_PREPARING";
-	/*case VB2_BUF_STATE_PREPARED:*/
-	/*	return "VB2_BUF_STATE_PREPARED";*/
+		return "VB2_BUF_STATE_PREPARING(2)";
 	case VB2_BUF_STATE_QUEUED:
-		return "VB2_BUF_STATE_QUEUED";
-	/*case VB2_BUF_STATE_REQUEUEING:*/
-	/*	return "VB2_BUF_STATE_REQUEUEING";*/
+		return "VB2_BUF_STATE_QUEUED(3)";
 	case VB2_BUF_STATE_ACTIVE:
-		return "VB2_BUF_STATE_ACTIVE";
+		return "VB2_BUF_STATE_ACTIVE(4)";
 	case VB2_BUF_STATE_DONE:
-		return "VB2_BUF_STATE_DONE";
+		return "VB2_BUF_STATE_DONE(5)";
+	case VB2_BUF_STATE_ERROR:
+		return "VB2_BUF_STATE_ERROR(6)";
 	default:
-		return "VB2_BUF_STATE_ERROR";
+		return "VB2_BUF_STATE_UNKNOWN";
 	}
 }
 
@@ -196,10 +218,6 @@ char *vb2_memory_sts_to_str(uint32_t memory)
 	}
 }
 
-/*
- *
- *
- */
 void vdin_fill_pix_format(struct vdin_dev_s *pdev)
 {
 	struct v4l2_format *v4lfmt = NULL;
@@ -209,19 +227,137 @@ void vdin_fill_pix_format(struct vdin_dev_s *pdev)
 		return;
 
 	v4lfmt = &pdev->v4lfmt;
-	/*give a default size*/
+
 	if (v4lfmt->fmt.pix_mp.num_planes == 1) {
-		v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage = VDIN_IMG_SIZE;
-		dprintk(1, "plane 0:sizeimage=%d\n ",
-			v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage);
+		if (v4lfmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_UYVY) {
+			v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage =
+				v4lfmt->fmt.pix_mp.width * v4lfmt->fmt.pix_mp.height * 2;
+			v4lfmt->fmt.pix_mp.plane_fmt[0].bytesperline =
+				(v4lfmt->fmt.pix_mp.width * 16) >> 3;
+		} else if (v4lfmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12 ||
+				   v4lfmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21) {
+			v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage =
+				v4lfmt->fmt.pix_mp.width * v4lfmt->fmt.pix_mp.height * 3 / 2;
+			v4lfmt->fmt.pix_mp.plane_fmt[0].bytesperline =
+				(v4lfmt->fmt.pix_mp.width * 12) >> 3;
+		}
+		v4lfmt->fmt.pix_mp.plane_fmt[1].sizeimage = 0;
+		v4lfmt->fmt.pix_mp.plane_fmt[1].bytesperline = 0;
 	} else if (v4lfmt->fmt.pix_mp.num_planes == 2) {
-		v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage = VDIN_IMG_SIZE;
-		v4lfmt->fmt.pix_mp.plane_fmt[1].sizeimage = VDIN_IMG_SIZE / 2;
-		dprintk(1, "plane 0:sizeimage=%d\n ",
-			v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage);
-		dprintk(1, "plane 1:sizeimage=%d\n ",
-			v4lfmt->fmt.pix_mp.plane_fmt[1].sizeimage);
+		if (v4lfmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV16M ||
+			v4lfmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV61M) {
+			v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage =
+				v4lfmt->fmt.pix_mp.width * v4lfmt->fmt.pix_mp.height;
+			v4lfmt->fmt.pix_mp.plane_fmt[1].sizeimage =
+				v4lfmt->fmt.pix_mp.width * v4lfmt->fmt.pix_mp.height;
+			v4lfmt->fmt.pix_mp.plane_fmt[0].bytesperline =
+				v4lfmt->fmt.pix_mp.width;
+			v4lfmt->fmt.pix_mp.plane_fmt[1].bytesperline =
+				v4lfmt->fmt.pix_mp.width;
+		} else if (v4lfmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12M ||
+				   v4lfmt->fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12M) {
+			v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage =
+				v4lfmt->fmt.pix_mp.width * v4lfmt->fmt.pix_mp.height;
+			v4lfmt->fmt.pix_mp.plane_fmt[1].sizeimage =
+				v4lfmt->fmt.pix_mp.width * v4lfmt->fmt.pix_mp.height / 2;
+			v4lfmt->fmt.pix_mp.plane_fmt[0].bytesperline =
+				v4lfmt->fmt.pix_mp.width;
+			v4lfmt->fmt.pix_mp.plane_fmt[1].bytesperline =
+				v4lfmt->fmt.pix_mp.width / 2;
+		}
+	} else {
+		pr_err("vdin%d,err.not support num_planes=%d\n ",
+			pdev->index, v4lfmt->fmt.pix_mp.num_planes);
+		return;
 	}
+	v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage =
+		PAGE_ALIGN(v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage);
+	v4lfmt->fmt.pix_mp.plane_fmt[1].sizeimage =
+		PAGE_ALIGN(v4lfmt->fmt.pix_mp.plane_fmt[1].sizeimage);
+
+	dprintk(1, "vdin%d,num_planes=%d\n ",
+		pdev->index, v4lfmt->fmt.pix_mp.num_planes);
+	dprintk(1, "plane 0:sizeimage=%x;plane 1:sizeimage=%x\n ",
+		v4lfmt->fmt.pix_mp.plane_fmt[0].sizeimage,
+		v4lfmt->fmt.pix_mp.plane_fmt[1].sizeimage);
+}
+
+static int vdin_v4l2_get_phy_addr(struct vdin_dev_s *devp,
+	struct v4l2_buffer *p, unsigned int plane_no)
+{
+	int idx;
+	int fd;
+	struct page *page;
+	struct vb2_queue *vbque = NULL;
+	struct vb2_buffer *vb2buf = NULL;
+
+	if (p->m.planes[plane_no].m.fd < 0 || p->index >= devp->v4l2_req_buf_num) {
+		dprintk(0, "v4l2 buffer index=%d or fd=%d,out of range!!!\n ",
+			   p->index, p->m.planes[plane_no].m.fd);
+		return -EINVAL;
+	}
+
+	fd		= p->m.planes[0].m.fd;
+	idx		= p->index;
+
+	if (p->memory == V4L2_MEMORY_MMAP) {
+		vbque  = &devp->vbqueue;
+		vb2buf = vbque->bufs[p->index];
+		devp->st_vdin_set_canvas_addr[idx][plane_no].index = idx;
+		devp->st_vdin_set_canvas_addr[idx][plane_no].paddr =
+			vb2_dma_contig_plane_dma_addr(vb2buf, plane_no);
+		devp->st_vdin_set_canvas_addr[idx][plane_no].size  =
+			vb2buf->planes[plane_no].length;
+		devp->vfmem_start[idx] = devp->st_vdin_set_canvas_addr[idx][plane_no].paddr;
+	} else if (p->memory == V4L2_MEMORY_DMABUF) {
+		fd = p->m.planes[plane_no].m.fd;
+		if (fd <= 0) {
+			dprintk(0, "VDIN err plane:%d,buf idx:%d,dmabuff == NULL\n",
+				plane_no, idx);
+			return -EINVAL;
+		}
+		devp->st_vdin_set_canvas_addr[idx][plane_no].fd    = fd;
+		devp->st_vdin_set_canvas_addr[idx][plane_no].index = idx;
+		devp->st_vdin_set_canvas_addr[idx][plane_no].dmabuff = dma_buf_get(fd);
+		if (!devp->st_vdin_set_canvas_addr[idx][plane_no].dmabuff) {
+			dprintk(0, "VDIN err plane:%d,buf idx:%d,dmabuff == NULL\n",
+				plane_no, idx);
+			return -1;
+		}
+		devp->st_vdin_set_canvas_addr[idx][plane_no].dmabufattach =
+			dma_buf_attach(devp->st_vdin_set_canvas_addr[idx][plane_no].dmabuff,
+				devp->dev);
+		devp->st_vdin_set_canvas_addr[idx][plane_no].sgtable =
+			dma_buf_map_attachment(devp->st_vdin_set_canvas_addr[idx][plane_no]
+				.dmabufattach, DMA_BIDIRECTIONAL);
+		page = sg_page(devp->st_vdin_set_canvas_addr[idx][plane_no].sgtable->sgl);
+		devp->st_vdin_set_canvas_addr[idx][plane_no].paddr = PFN_PHYS(page_to_pfn(page));
+		devp->st_vdin_set_canvas_addr[idx][plane_no].size  =
+			devp->st_vdin_set_canvas_addr[idx][plane_no].dmabuff->size;
+		dprintk(2, "vdin%d,fd:%d,phy_addr:%lx,size:%#x\n", devp->index, fd,
+			devp->st_vdin_set_canvas_addr[idx][plane_no].paddr,
+			devp->st_vdin_set_canvas_addr[idx][plane_no].size);
+		if (plane_no == VDIN_PLANES_IDX_Y)
+			devp->vfmem_start[idx] =
+				devp->st_vdin_set_canvas_addr[idx][plane_no].paddr;
+		else
+			devp->vfmem_c_start[idx] =
+				devp->st_vdin_set_canvas_addr[idx][plane_no].paddr;
+	} else {
+		dprintk(0, "err.idx:%d,unsupported memory:%d\n", idx, p->memory);
+		return -1;
+	}
+
+	devp->vfmem_start[idx] =
+		roundup(devp->vfmem_start[idx], devp->canvas_align);
+	devp->vfmem_c_start[idx] =
+		roundup(devp->vfmem_c_start[idx], devp->canvas_align);
+	dprintk(1, "%s vdin%d,paddr[%d][%d] = %lx,size=%x\n", __func__,
+		devp->index, idx, plane_no,
+		devp->st_vdin_set_canvas_addr[idx][plane_no].paddr,
+		devp->st_vdin_set_canvas_addr[idx][plane_no].size);
+
+	return 0;
 }
 
 /*
@@ -236,13 +372,14 @@ static int vdin_vidioc_querycap(struct file *file, void *priv,
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
-	cap->version = VDIN_DEV_VER;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-	dprintk(2, "%s :0x%x\n", __func__, cap->capabilities);
+	cap->version	  = g_vdin_v4l2_cap[pdev->index].version;
+	cap->device_caps  = g_vdin_v4l2_cap[pdev->index].device_caps;
+	cap->capabilities = g_vdin_v4l2_cap[pdev->index].capabilities;
 
-	strlcpy(cap->driver, VDIN_V4L_DV_NAME, sizeof(cap->driver));
-	strlcpy(cap->bus_info, VDIN_V4L_DV_NAME, sizeof(cap->bus_info));
-	strlcpy(cap->card, VDIN_V4L_DV_NAME, sizeof(cap->card));
+	strcpy(cap->driver,	  g_vdin_v4l2_cap[pdev->index].driver);
+	strcpy(cap->bus_info, g_vdin_v4l2_cap[pdev->index].bus_info);
+	strcpy(cap->card,	  g_vdin_v4l2_cap[pdev->index].card);
+
 	return 0;
 }
 
@@ -259,40 +396,32 @@ static int vdin_vidioc_querystd(struct file *file, void *priv,
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
-	if (pdev->work_mode == VDIN_WORK_MD_NORMAL)
-		dprintk(0, "%s err work mode\n", __func__);
-
 	return 0;
 }
 
 /*
- * set current input
+ * enum current input
  * cmd ID: VIDIOC_ENUMINPUT
  */
 static int vdin_vidioc_enum_input(struct file *file,
 				  void *fh, struct v4l2_input *inp)
 {
 	struct vdin_dev_s *pdev = video_drvdata(file);
-	unsigned int ret = 0;
 
-	dprintk(2, "%s -start\n", __func__);
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
-	if (pdev->work_mode == VDIN_WORK_MD_NORMAL)
-		dprintk(0, "%s err work mode\n", __func__);
-
-	mutex_lock(&pdev->lock);
-	/*inp->type = V4L2_INPUT_TYPE_CAMERA;*/
-	inp->std = V4L2_STD_ALL;
-
-	if (ret) {
-		dprintk(0, "open vdin fe error\n");
-		ret = -EFAULT;
+	if (inp->index >= pdev->v4l2_port_num) {
+		dprintk(0, "%s index:%d,v4l2 port num = %d,end\n",
+			__func__, inp->index, pdev->v4l2_port_num);
+		return -EINVAL;
 	}
-	dprintk(2, "%s :%d\n", __func__, inp->index);
-	mutex_unlock(&pdev->lock);
-	return ret;
+
+	inp->std = V4L2_STD_ALL;
+	strcpy(inp->name, tvin_port_str(pdev->v4l2_port[inp->index]));
+
+	dprintk(1, "%s,port[%d]:%s\n", __func__, inp->index, inp->name);
+	return 0;
 }
 
 /*
@@ -303,22 +432,29 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 			       struct v4l2_requestbuffers *reqbufs)
 {
 	struct vdin_dev_s *pdev = video_drvdata(file);
-	unsigned int req_buffs_num = reqbufs->count;
-	unsigned int type = reqbufs->type;
 	int ret = 0;
 	unsigned int i = 0;
 	struct vb2_v4l2_buffer *vbbuf = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
 
-	dprintk(2, "%s type:%d buff_num:%d\n", __func__, type, req_buffs_num);
-
 	if (IS_ERR_OR_NULL(pdev))
 		return -EPERM;
 
-	if (reqbufs->memory != V4L2_MEMORY_DMABUF) {
-		dprintk(0, "err buffer mode, only support dma buf uvm mode\n");
+	if (reqbufs->memory != V4L2_MEMORY_DMABUF &&
+		reqbufs->memory != V4L2_MEMORY_MMAP) {
+		dprintk(0, "%s err,memory=%d,only support DMABUF and MMAP\n",
+			__func__, reqbufs->memory);
 		return -EINVAL;
 	}
+
+	if (reqbufs->count < pdev->vbqueue.min_buffers_needed ||
+		reqbufs->count > VDIN_CANVAS_MAX_CNT) {
+		dprintk(0, "%s err,count=%d,out of range[%d,%d]\n", __func__,
+			reqbufs->count, pdev->vbqueue.min_buffers_needed, VDIN_CANVAS_MAX_CNT);
+		return -EINVAL;
+	}
+
+	dprintk(1, "%s type:%d buff_num:%d\n", __func__, reqbufs->type, reqbufs->count);
 
 	/*need config by input surce type*/
 	pdev->source_bitdepth = VDIN_COLOR_DEEPS_8BIT;
@@ -330,6 +466,8 @@ static int vdin_vidioc_reqbufs(struct file *file, void *priv,
 	ret = vb2_ioctl_reqbufs(file, priv, reqbufs);
 	if (ret < 0)
 		dprintk(0, "vb2_ioctl_reqbufs fail\n");
+
+	pdev->v4l2_req_buf_num = reqbufs->count;
 
 	vbbuf = to_vb2_v4l2_buffer(pdev->vbqueue.bufs[i]);
 	vdin_buf = to_vdin_vb_buf(vbbuf);
@@ -367,43 +505,15 @@ static int vdin_vidioc_querybuf(struct file *file, void *priv,
 	unsigned int ret = 0;
 	struct vb2_buffer *vb2buf = NULL;
 
-	//struct v4l2_plane *planes = NULL;
-	//dma_addr_t dma_addr = 0;
-	//unsigned int i = 0;
-
-	/*struct vb2_buffer *dst_buf = NULL;*/
-
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
-	/*pr_iotrl("%s idx:%d\n", __func__, v4lbuf->index);*/
+	dprintk(1, "%s idx:%d\n", __func__, v4lbuf->index);
 
 	vbque = &pdev->vbqueue;
 	vb2buf = vbque->bufs[v4lbuf->index];
 
 	ret = vb2_ioctl_querybuf(file, priv, v4lbuf);
-
-	//if (!(v4lbuf->index < vbque->num_buffers)) {
-	//	dprintk("err buff idx %d max is %d\n",
-	//		v4lbuf->index, vbque->num_buffers);
-	//	return -EFAULT;
-	//}
-	//dprintk("%s %d is_multiplanar:%d\n", __func__, v4lbuf->index, vbque->is_multiplanar);
-
-	//if (vbque->is_multiplanar && vb2buf->num_planes <= 2) {
-	//	for (i = 0; i < vb2buf->num_planes; i++) {
-	//		dma_addr = vb2_dma_contig_plane_dma_addr(vb2buf, i);
-	//		planes = &v4lbuf->m.planes[0];
-	//		dprintk("L%d:dma_addr:0x%x mem_offset=0x%x bytesused=0x%x\n",
-	//			i, dma_addr, planes->m.mem_offset,
-	//			planes->bytesused);
-	//	}
-
-	//} else {
-	//	/*only one plane, index is 0*/
-	//	dma_addr = vb2_dma_contig_plane_dma_addr(vb2buf, 0);
-	//	pr_vdin("%s dma_addr: 0x%x\n", __func__, dma_addr);
-	//}
 
 	return ret;
 }
@@ -417,61 +527,41 @@ static int vdin_vidioc_qbuf(struct file *file, void *priv,
 {
 	struct vdin_dev_s *pdev = video_drvdata(file);
 	int ret = 0;
-	struct dma_buf *dmabuf;
 	struct vb2_v4l2_buffer *vb = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
-	unsigned int fd, i, planes;
-	struct uvm_handle *handle;
+	int i;
+	unsigned int num_planes;
 
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
 	vb = to_vb2_v4l2_buffer(pdev->vbqueue.bufs[p->index]);
 	vdin_buf = to_vdin_vb_buf(vb);
-	planes = vb->vb2_buf.num_planes;
-	dprintk(3, "%s id:%d planes:%d\n", __func__, p->index, planes);
+	num_planes = vb->vb2_buf.num_planes;
+	dprintk(3, "%s idx:%d planes:%d,streaming:%d\n", __func__,
+		p->index, num_planes, pdev->vbqueue.streaming);
 
-	/*dprintk(1, "streaming:%d\n", pdev->vbqueue.streaming);*/
 	ret = vb2_ioctl_qbuf(file, priv, p);
 	if (ret < 0)
 		dprintk(0, "%s err\n", __func__);
 
 	/* recycle buffer */
-	if (pdev->vbqueue.streaming && p->memory == V4L2_MEMORY_DMABUF) {
-		pdev->dbg_v4l_que_cnt++;
-		for (i = 0; i < planes; i++) {
-			fd = p->m.planes[i].m.fd;
-			dmabuf = dma_buf_get(fd);
-			handle = dmabuf->priv;
-			/*save and backup dmabuf address*/
-			vdin_buf->dmabuf[i] = dmabuf;
-			if (IS_ERR(dmabuf)) {
-				dprintk(0, "%s get dmabuff fail0\n", __func__);
-				return -1;
-			}
-			dprintk(3, "%s dmabuf fd:%d addr:0x%p\n", __func__, fd,
-				dmabuf);
-			if (!IS_ERR(handle->vfp)) {
-				receiver_vf_put(handle->vfp, pdev->vfp);
-				dprintk(3, "vf idx:%d (0x%p) put back to pool\n",
-					handle->vfp->index, handle->vfp);
-			} else {
-				dprintk(2, "err vf null\n");
-			}
+	if (pdev->vbqueue.streaming) {
+		pdev->vdin_v4l2.stats.que_cnt++;
+		if (!IS_ERR(vdin_buf->v4l2_vframe_s)) {
+			receiver_vf_put(vdin_buf->v4l2_vframe_s, pdev->vfp);
+			dprintk(3, "[%s]vf idx:%d (0x%p) put back to pool,fd=%d,canvs0Addr:%#x\n",
+				__func__,
+				vdin_buf->v4l2_vframe_s->index, pdev->vfp, p->m.fd,
+				vdin_buf->v4l2_vframe_s->canvas0Addr);
+
+			vdin_buf->v4l2_vframe_s = NULL;
+		} else {
+			dprintk(0, "err vf null\n");
 		}
-	} else if (p->memory == V4L2_MEMORY_DMABUF) {
-		for (i = 0; i < planes; i++) {
-			fd = p->m.planes[i].m.fd;
-			dmabuf = dma_buf_get(fd);
-			/*save and backup dmabuf address*/
-			vdin_buf->dmabuf[i] = dmabuf;
-			if (IS_ERR(dmabuf)) {
-				dprintk(0, "%s get dmabuff fail1\n", __func__);
-				return -1;
-			}
-			dprintk(3, "%s dmabuf fd:%d addr:0x%p\n", __func__, fd,
-				dmabuf);
-		}
+	} else {
+		for (i = 0; i < num_planes; i++)
+			vdin_v4l2_get_phy_addr(pdev, p, i);
 	}
 
 	return ret;
@@ -487,39 +577,19 @@ static int vdin_vidioc_dqbuf(struct file *file, void *priv,
 	struct vdin_dev_s *pdev = video_drvdata(file);
 	struct vb2_v4l2_buffer *vb = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
-	/*struct vf_entry *vfe;*/
 	unsigned int ret = 0;
-	unsigned int fd, i, planes;
-	struct dma_buf *dmabuf;
-	struct uvm_handle *handle;
-	/*static unsigned int framecnt;*/
-	/*struct vframe_s *vf;*/
 
-	/*pr_iotrl("%s\n", __func__);*/
 	ret = vb2_ioctl_dqbuf(file, priv, p);
 	if (ret) {
-		dprintk(0, "DQ error\n");
+		dprintk(0, "DQ error,ret=%d,%#x\n", ret, file->f_flags);
 		return -1;
 	}
 	/*framecnt++;*/
 	vb = to_vb2_v4l2_buffer(pdev->vbqueue.bufs[p->index]);
 	vdin_buf = to_vdin_vb_buf(vb);
-	planes = vb->vb2_buf.num_planes;
-	if (pdev->vbqueue.streaming && p->memory == V4L2_MEMORY_DMABUF) {
-		pdev->dbg_v4l_dque_cnt++;
-		for (i = 0; i < planes; i++) {
-			fd = p->m.planes[i].m.fd;
-			dmabuf = dma_buf_get(fd);
-			if (!IS_ERR(dmabuf)) {
-				handle = dmabuf->priv;
-				dprintk(3, "dQue idx:%d dmabuf fd:%d vf(%d:0x%p)\n",
-					p->index, fd, handle->vfp->index,
-					handle->vfp);
-			} else {
-				dprintk(0, "%s get dmabuf fail\n", __func__);
-			}
-		}
-	}
+	pdev->vdin_v4l2.stats.dque_cnt++;
+	dprintk(3, "%s index=%d,fd = %d;vf_index:%d,canvas0Addr:%#x\n", __func__, p->index, p->m.fd,
+		vdin_buf->v4l2_vframe_s->index, vdin_buf->v4l2_vframe_s->canvas0Addr);
 
 	return ret;
 }
@@ -533,8 +603,6 @@ static int vdin_vidioc_expbuf(struct file *file, void *priv,
 {
 	struct vdin_dev_s *pdev = video_drvdata(file);
 	struct dma_buf *dmabuf;
-	//struct vb2_v4l2_buffer *vbbuf = NULL;
-	//struct vdin_vb_buff *vdin_buf = NULL;
 	int ret;
 
 	if (IS_ERR_OR_NULL(pdev))
@@ -557,25 +625,14 @@ static int vdin_vidioc_streamon(struct file *file, void *priv,
 	struct vdin_dev_s *pdev = video_drvdata(file);
 	unsigned int ret = 0;
 
+	dprintk(2, "%s\n", __func__);
+
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
-	//vdin_start_dec(devp);
-	//if (devp->parm.port != TVIN_PORT_VIU1 ||
-	//    viu_hw_irq != 0) {
-	//	enable_irq(devp->irq);
-
-	//	dprintk(1, "%s START_DEC vdin.%d enable_irq\n",
-	//		__func__, devp->index);
-	//}
-
-	//devp->flags |= VDIN_FLAG_DEC_STARTED;
-
 	ret = vb2_ioctl_streamon(file, priv, i);
-	pdev->dbg_v4l_done_cnt = 0;
-	pdev->dbg_v4l_que_cnt = 0;
-	pdev->dbg_v4l_dque_cnt = 0;
-
+	vdin_v4l2_start_tvin(pdev);
+	memset(&pdev->vdin_v4l2.stats, 0, sizeof(pdev->vdin_v4l2.stats));
 	dprintk(2, "%s\n", __func__);
 	return 0;
 }
@@ -584,15 +641,19 @@ static int vdin_vidioc_streamoff(struct file *file, void *priv,
 				 enum v4l2_buf_type i)
 {
 	struct vdin_dev_s *pdev = video_drvdata(file);
-	unsigned int ret = 0;
+	int ret = 0;
 
 	dprintk(0, "%s\n", __func__);
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
 	ret = vb2_ioctl_streamoff(file, priv, i);
+	if (ret < 0)
+		dprintk(0, "%s failed with %d\n", __func__, ret);
 
-	return 0;
+	ret = vdin_v4l2_stop_tvin(pdev);
+
+	return ret;
 }
 
 /*
@@ -657,8 +718,8 @@ static int vdin_vidioc_g_fmt_vid_cap_mplane(struct file *file,
 	/* for test set a default value
 	 * mult-planes mode
 	 */
-	pdev->v4lfmt.fmt.pix_mp.width = 320;
-	pdev->v4lfmt.fmt.pix_mp.height = 240;
+	pdev->v4lfmt.fmt.pix_mp.width = 1920;
+	pdev->v4lfmt.fmt.pix_mp.height = 1080;
 	pdev->v4lfmt.fmt.pix_mp.quantization = V4L2_QUANTIZATION_DEFAULT;
 	pdev->v4lfmt.fmt.pix_mp.ycbcr_enc = V4L2_YCBCR_ENC_709;
 	pdev->v4lfmt.fmt.pix_mp.field = V4L2_FIELD_ANY;
@@ -689,18 +750,547 @@ static int vdin_vidioc_s_fmt_vid_cap_mplane(struct file *file,
 	if (IS_ERR_OR_NULL(pdev))
 		return -EFAULT;
 
-	dprintk(1, "width=%d height=%d\n", fmt->fmt.pix_mp.width,
-		fmt->fmt.pix_mp.height);
-	dprintk(1, "pixfmt=0x%x num_planes=0x%x\n",
+	pdev->v4lfmt.fmt.pix_mp.width		 = fmt->fmt.pix_mp.width;
+	pdev->v4lfmt.fmt.pix_mp.height		 = fmt->fmt.pix_mp.height;
+	pdev->v4lfmt.fmt.pix_mp.quantization = fmt->fmt.pix_mp.quantization;
+	pdev->v4lfmt.fmt.pix_mp.ycbcr_enc    = fmt->fmt.pix_mp.ycbcr_enc;
+	pdev->v4lfmt.fmt.pix_mp.field        = fmt->fmt.pix_mp.field;
+	pdev->v4lfmt.fmt.pix_mp.pixelformat  = fmt->fmt.pix_mp.pixelformat;
+	pdev->v4lfmt.fmt.pix_mp.num_planes   = fmt->fmt.pix_mp.num_planes;
+
+	dprintk(2, "width=%d height=%d,quant:%d,enc:%x,\n",
+		fmt->fmt.pix_mp.width, fmt->fmt.pix_mp.height,
+		fmt->fmt.pix_mp.quantization, fmt->fmt.pix_mp.ycbcr_enc);
+	dprintk(2, "field:%x,pixfmt=0x%x num_planes=0x%x\n", fmt->fmt.pix_mp.field,
 		fmt->fmt.pix_mp.pixelformat, fmt->fmt.pix_mp.num_planes);
 
 	return 0;
 }
 
+/* V4L2_CID_EXT_CAPTURE_DIVIDE_FRAMERATE */
+static int vdin_vidioc_s_divid_fr(struct vdin_dev_s *pdev,
+			 struct v4l2_control *ctrl)
+{
+	if (ctrl->value < 0 || ctrl->value > 240) {
+		dprintk(0, "%s divide value=%d,over range\n",
+			__func__, ctrl->value);
+		return -EINVAL;
+	}
+	pdev->vdin_v4l2.divide = ctrl->value;
+	dprintk(2, "%s set divide value to %d\n",
+		__func__, pdev->vdin_v4l2.divide);
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_DONE_USER_PROCESSING */
+static int vdin_vidioc_s_done_user_process(struct vdin_dev_s *pdev,
+			 struct v4l2_control *ctrl)
+{
+	if (ctrl->value < 0 || ctrl->value >= pdev->vfp->size) {
+		dprintk(0, "%s divide value=%d,over range\n",
+			__func__, ctrl->value);
+		return -EINVAL;
+	}
+	/* TODO */
+
+	return -ENOTTY;
+}
+
+/* AML_V4L2_SET_DRMMODE */
+static int vdin_vidioc_s_drm_mode(struct vdin_dev_s *pdev,
+			 struct v4l2_control *ctrl)
+{
+	if (ctrl->value < 0) {
+		dprintk(0, "%s divide value=%d,over range\n",
+			__func__, ctrl->value);
+		return -EINVAL;
+	}
+
+	pdev->vdin_v4l2.secure_flg = !!ctrl->value;
+	dprintk(0, "%s vdin%d,secure flag:%d\n",
+		__func__, pdev->index, pdev->vdin_v4l2.secure_flg);
+
+	return 0;
+}
+
+static int vdin_vidioc_s_ctrl(struct file *file, void *priv,
+			 struct v4l2_control *ctrl)
+{
+	int ret = 0;
+	struct vdin_dev_s *pdev = video_drvdata(file);
+
+	if (ctrl->id == V4L2_CID_EXT_CAPTURE_DIVIDE_FRAMERATE)
+		ret = vdin_vidioc_s_divid_fr(pdev, ctrl);
+	else if (ctrl->id == V4L2_CID_EXT_CAPTURE_DONE_USER_PROCESSING)
+		ret = vdin_vidioc_s_done_user_process(pdev, ctrl);
+	else if (ctrl->id == AML_V4L2_SET_DRMMODE)
+		ret = vdin_vidioc_s_drm_mode(pdev, ctrl);
+
+	return ret;
+}
+
+/* V4L2_CID_EXT_CAPTURE_DIVIDE_FRAMERATE */
+static int vdin_vidioc_g_divid_fr(struct vdin_dev_s *pdev,
+			 struct v4l2_control *ctrl)
+{
+	ctrl->value = pdev->vdin_v4l2.divide;
+	dprintk(2, "%s get divide value %d\n",
+		__func__, ctrl->value);
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_OUTPUT_FRAMERATE */
+static int vdin_vidioc_g_output_fr(struct vdin_dev_s *pdev,
+			 struct v4l2_control *ctrl)
+{
+	ctrl->value = pdev->prop.fps;
+	dprintk(2, "%s get fps value %d\n",
+		__func__, ctrl->value);
+
+	return 0;
+}
+
+static int vdin_vidioc_g_ctrl(struct file *file, void *priv,
+			 struct v4l2_control *ctrl)
+{
+	int ret = 0;
+	struct vdin_dev_s *pdev = video_drvdata(file);
+
+	if (ctrl->id == V4L2_CID_EXT_CAPTURE_DIVIDE_FRAMERATE)
+		ret = vdin_vidioc_g_divid_fr(pdev, ctrl);
+	else if (ctrl->id == V4L2_CID_EXT_CAPTURE_OUTPUT_FRAMERATE)
+		ret = vdin_vidioc_g_output_fr(pdev, ctrl);
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_CAPABILITY_INFO */
+static int vdin_vidioc_g_cid_cap_info(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	if (control->size == sizeof(struct v4l2_ext_capture_capability_info)) {
+		if (copy_to_user(control->ptr, &pdev->ext_cap_cap_info,
+				sizeof(struct v4l2_ext_capture_capability_info)))
+			return -EFAULT;
+	} else {
+		dprintk(0, "%s,vdin%d,invalid args\n", __func__, pdev->index);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_PLANE_INFO */
+static int vdin_vidioc_g_cid_plane_info(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	if (control->size == sizeof(struct v4l2_ext_capture_plane_info)) {
+		if (copy_to_user(control->ptr, &pdev->ext_cap_plane_info,
+				sizeof(struct v4l2_ext_capture_plane_info)))
+			return -EFAULT;
+	} else {
+		dprintk(0, "%s,LINE:%d,invalid args\n", __func__, pdev->index);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_VIDEO_WIN_INFO */
+static int vdin_vidioc_g_cid_video_win_info(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	if (control->size == sizeof(struct v4l2_ext_capture_video_win_info)) {
+		if (copy_to_user(control->ptr, &pdev->ext_cap_video_win_info,
+				sizeof(struct v4l2_ext_capture_video_win_info)))
+			return -EFAULT;
+	} else {
+		dprintk(0, "%s,vdin%d,invalid args\n", __func__, pdev->index);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_FREEZE_MODE */
+static int vdin_vidioc_g_cid_freeze_mode(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	if (control->size == sizeof(struct v4l2_ext_capture_freeze_mode)) {
+		if (copy_to_user(control->ptr, &pdev->ext_cap_freezee_mode,
+				sizeof(struct v4l2_ext_capture_freeze_mode)))
+			return -EFAULT;
+	} else {
+		dprintk(0, "%s,vdin%d,invalid args\n", __func__, pdev->index);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_PHYSICAL_MEMORY_INFO */
+static int vdin_vidioc_g_cid_phy_mem_info(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	int ret = 0;
+	unsigned int chroma_size = 0;
+	struct v4l2_ext_capture_physical_memory_info info;
+
+	if (control->size == sizeof(struct v4l2_ext_capture_physical_memory_info)) {
+		if (copy_from_user(&info, control->ptr,
+				sizeof(struct v4l2_ext_capture_physical_memory_info)))
+			ret = -EFAULT;
+		if (info.buf_index < 0 || info.buf_index >= pdev->vfp->size) {
+			dprintk(0, "%s,LINE:%d,buf_index:%d,over range\n",
+				__func__, __LINE__, info.buf_index);
+			return -EINVAL;
+		}
+
+		switch (pdev->format_convert) {
+		case VDIN_FORMAT_CONVERT_YUV_NV12:
+		case VDIN_FORMAT_CONVERT_YUV_NV21:
+		case VDIN_FORMAT_CONVERT_RGB_NV12:
+		case VDIN_FORMAT_CONVERT_RGB_NV21:
+			chroma_size = pdev->canvas_w * pdev->canvas_h / 2;
+			break;
+		default:
+			break;
+		}
+
+		info.compat_y_data = (unsigned int)pdev->vfmem_start[info.buf_index];
+		info.compat_c_data = info.compat_y_data + chroma_size;
+		info.buf_location = V4L2_EXT_CAPTURE_INPUT_BUF;
+
+		dprintk(1, "%s,index:%d,y:%#x,c:%#x,buf_loc:%d\n", __func__,
+			info.buf_index, info.compat_y_data, info.compat_c_data, info.buf_location);
+		if (copy_to_user(control->ptr, &info,
+				sizeof(struct v4l2_ext_capture_physical_memory_info)))
+			ret = -EFAULT;
+	} else {
+		dprintk(0, "%s,LINE:%d,vdin%d,invalid args\n", __func__, __LINE__, pdev->index);
+	}
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_PLANE_PROP */
+static int vdin_vidioc_g_cid_plane_prop(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	if (control->size == sizeof(struct v4l2_ext_capture_plane_prop)) {
+		if (copy_to_user(control->ptr, &pdev->ext_cap_plane_prop,
+				sizeof(struct v4l2_ext_capture_plane_prop)))
+			return -EFAULT;
+	} else {
+		dprintk(0, "%s,vdin%d,invalid args\n", __func__, pdev->index);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int vdin_vidioc_g_ext_ctrls(struct file *file, void *fh,
+			  struct v4l2_ext_controls *a)
+{
+	int i, ret = 0;
+	struct v4l2_ext_control *ctrl = a->controls;
+	struct vdin_dev_s *pdev = video_drvdata(file);
+
+	/* all controls in the control array must belong
+	 * to the same control class
+	 */
+
+	for (i = 0; i < a->count; ctrl++, i++) {
+		/* check control valid */
+		switch (ctrl->id) {
+		case V4L2_CID_EXT_CAPTURE_CAPABILITY_INFO:
+			ret = vdin_vidioc_g_cid_cap_info(pdev, ctrl);
+			break;
+		case V4L2_CID_EXT_CAPTURE_PLANE_INFO:
+			ret = vdin_vidioc_g_cid_plane_info(pdev, ctrl);
+			break;
+		case V4L2_CID_EXT_CAPTURE_VIDEO_WIN_INFO:
+			ret = vdin_vidioc_g_cid_video_win_info(pdev, ctrl);
+			break;
+		case V4L2_CID_EXT_CAPTURE_FREEZE_MODE:
+			ret = vdin_vidioc_g_cid_freeze_mode(pdev, ctrl);
+			break;
+		case V4L2_CID_EXT_CAPTURE_PHYSICAL_MEMORY_INFO:
+			ret = vdin_vidioc_g_cid_phy_mem_info(pdev, ctrl);
+			break;
+		case V4L2_CID_EXT_CAPTURE_PLANE_PROP:
+			ret = vdin_vidioc_g_cid_plane_prop(pdev, ctrl);
+			break;
+		default:
+			break;
+		}
+		if (ret)
+			break;
+	}
+
+	dprintk(1, "%s,vdin%d exit\n", __func__, pdev->index);
+
+	return ret;
+}
+
+/* V4L2_CID_EXT_CAPTURE_PLANE_PROP */
+static int vdin_vidioc_s_cid_plane_prop(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	struct v4l2_ext_capture_plane_prop prop;
+	enum tvin_port_e v4l2_port = TVIN_PORT_VIU1_WB0_VPP;
+
+	if (control->size == sizeof(struct v4l2_ext_capture_plane_prop)) {
+		if (copy_from_user(&prop, control->ptr,
+				sizeof(struct v4l2_ext_capture_plane_prop)))
+			return -EFAULT;
+
+		if (prop.l <= V4L2_EXT_CAPTURE_SCALER_INPUT ||
+			prop.l > V4L2_EXT_CAPTURE_OSD_OUTPUT)
+			return -ENOTTY;
+		pdev->vdin_v4l2.l = prop.l;
+
+		switch (pdev->vdin_v4l2.l) {
+		case V4L2_EXT_CAPTURE_SCALER_OUTPUT:
+			v4l2_port = TVIN_PORT_VIU1_WB0_VD1;
+			break;
+		case V4L2_EXT_CAPTURE_DISPLAY_OUTPUT:
+			/* no match loopback point */
+			v4l2_port = TVIN_PORT_VIU1_WB0_VD1;
+			break;
+		case V4L2_EXT_CAPTURE_BLENDED_OUTPUT:
+			v4l2_port = TVIN_PORT_VIU1_WB0_VPP;
+			break;
+		case V4L2_EXT_CAPTURE_OSD_OUTPUT:
+			v4l2_port = TVIN_PORT_VIU1_WB0_OSD1;
+			break;
+		default:
+			break;
+		}
+		mutex_lock(&pdev->fe_lock);
+		pdev->parm.index	= pdev->index;
+		pdev->parm.port		= v4l2_port;
+		pdev->v4l2_port_cur = v4l2_port;
+		pdev->unstable_flag = false;
+		mutex_unlock(&pdev->fe_lock);
+
+		dprintk(1, "%s,LINE:%d,location:%#x,cur:%d(%s)\n", __func__, __LINE__,
+			pdev->vdin_v4l2.l, pdev->v4l2_port_cur, tvin_port_str(pdev->v4l2_port_cur));
+	} else {
+		dprintk(0, "%s,LINE:%d,invalid args\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_FREEZE_MODE */
+static int vdin_vidioc_s_cid_freeze_mode(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	struct v4l2_ext_capture_freeze_mode mode;
+
+	if (copy_from_user(&mode, control->ptr, sizeof(struct v4l2_ext_capture_freeze_mode)))
+		return -EFAULT;
+	/* check args valid */
+	//freeze one frame or all capture frames ?
+	pdev->ext_cap_freezee_mode.plane_index = mode.plane_index;
+	pdev->ext_cap_freezee_mode.val = mode.val;
+	//pdev->pause_dec = control->value;
+	dprintk(1, "%s,plane_index:%d,mode.val:%#x\n", __func__,
+		mode.plane_index, mode.val);
+
+	return 0;
+}
+
+/* V4L2_CID_EXT_CAPTURE_VIDEO_WIN_INFO */
+static int vdin_vidioc_s_cid_video_win_info(struct vdin_dev_s *pdev,
+	struct v4l2_ext_control *control)
+{
+	/* LG chip is only supported */
+	return -ENOTTY;
+}
+
+static int vdin_vidioc_s_ext_ctrls(struct file *file, void *fh,
+			  struct v4l2_ext_controls *a)
+{
+	int i;
+	struct v4l2_ext_control *ctrl = a->controls;
+	struct vdin_dev_s *pdev = video_drvdata(file);
+
+	/* all controls in the control array must belong
+	 * to the same control class
+	 */
+
+	for (i = 0; i < a->count; ctrl++, i++) {
+		switch (ctrl->id) {
+		case V4L2_CID_EXT_CAPTURE_PLANE_PROP:
+			vdin_vidioc_s_cid_plane_prop(pdev, ctrl);
+			break;
+		case V4L2_CID_EXT_CAPTURE_FREEZE_MODE:
+			vdin_vidioc_s_cid_freeze_mode(pdev, ctrl);
+			break;
+		case V4L2_CID_EXT_CAPTURE_VIDEO_WIN_INFO:
+			vdin_vidioc_s_cid_video_win_info(pdev, ctrl);
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int vdin_vidioc_try_ext_ctrls(struct file *file, void *fh,
+				    struct v4l2_ext_controls *a)
+{
+	/* struct vdin_dev_s *pdev = video_drvdata(file); */
+	return 0;
+}
+
+static int vdin_vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+{
+	int idx;
+	struct vdin_dev_s *pdev = video_drvdata(file);
+
+	for (idx = 0; idx < pdev->v4l2_port_num; idx++) {
+		if (pdev->v4l2_port_cur == pdev->v4l2_port[idx]) {
+			*i = idx;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/* set input and open vdin fe */
+static int vdin_vidioc_s_input(struct file *file, void *priv, unsigned int i)
+{
+	int ret;
+	struct vdin_dev_s *pdev = video_drvdata(file);
+
+	if (i >= pdev->v4l2_port_num) {
+		dprintk(0, "%s  index(%d) is out of bounds.v4l2_port_num=%d\n",
+			__func__, i, pdev->v4l2_port_num);
+		return -EINVAL;
+	}
+
+	mutex_lock(&pdev->fe_lock);
+	pdev->parm.index    = pdev->index;
+	pdev->parm.port     = pdev->v4l2_port[i];
+	pdev->v4l2_port_cur = pdev->v4l2_port[i];
+	pdev->unstable_flag = false;
+
+	if (pdev->flags & VDIN_FLAG_DEC_OPENED) {
+		dprintk(0, "%s current port:%d is opened alreadly,close it\n",
+			__func__, pdev->v4l2_port_cur);
+		vdin_close_fe(pdev);
+	}
+
+	if (pdev->index == 0) {
+		ret = vdin_open_fe(pdev->parm.port, 0, pdev);
+		if (ret) {
+			pr_err("TVIN_IOC_OPEN(%d) failed to open port 0x%x\n",
+				   pdev->index, pdev->parm.port);
+			mutex_unlock(&pdev->fe_lock);
+			return -EFAULT;
+		}
+	}
+	mutex_unlock(&pdev->fe_lock);
+
+	pr_info("%s current port:%#x(%s)\n", __func__,
+		pdev->v4l2_port_cur, tvin_port_str(pdev->v4l2_port_cur));
+	return 0;
+}
+
+static int vdin_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
+				   struct v4l2_fmtdesc *f)
+{
+	struct vdin_v4l2_pix_fmt *fmt;
+
+	if (f->index >= ARRAY_SIZE(pix_formats))
+		return -EINVAL;
+
+	fmt = &pix_formats[f->index];
+	/* description will be filled by v4l_fill_fmtdesc */
+	f->pixelformat = fmt->fourcc;
+
+	dprintk(0, "%s index:%d pixelformat:%x\n",
+		__func__, f->index, f->pixelformat);
+
+	return 0;
+}
+
+/* This is an experimental interface */
+static int vdin_vidioc_enum_framesizes(struct file *file, void *fh,
+				  struct v4l2_frmsizeenum *fsize)
+{
+	int ret = 0, i = 0;
+	struct vdin_v4l2_pix_fmt *fmt = NULL;
+	struct v4l2_frmsize_discrete *frmsize = NULL;
+
+	for (i = 0; i < ARRAY_SIZE(pix_formats); i++) {
+		if (pix_formats[i].fourcc == fsize->pixel_format) {
+			fmt = &pix_formats[i];
+			break;
+		}
+	}
+	if (!fmt)
+		return -EINVAL;
+	if (fsize->index >= ARRAY_SIZE(vdin_v4l2_frmsize_dis))
+		return -EINVAL;
+
+	frmsize = &vdin_v4l2_frmsize_dis[fsize->index];
+	/* TODO:vdin can only scale down
+	 * width & height should less than real format size.
+	 */
+	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+	fsize->discrete.width  = frmsize->width;
+	fsize->discrete.height = frmsize->height;
+
+	return ret;
+}
+
+static int vdin_vidioc_enum_frameintervals(struct file *file, void *priv,
+				      struct v4l2_frmivalenum *fival)
+{
+	if (fival->index >= ARRAY_SIZE(fract_discrete))
+		return -EINVAL;
+
+	fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	fival->discrete.numerator   = fract_discrete[fival->index].numerator;
+	fival->discrete.denominator = fract_discrete[fival->index].denominator;
+
+	return 0;
+}
+
+static int vdin_vidioc_g_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *parms)
+{
+	return 0;
+}
+
+static int vdin_vidioc_s_parm(struct file *file, void *priv,
+			 struct v4l2_streamparm *parms)
+{
+	return 0;
+}
+
 static const struct v4l2_ioctl_ops vdin_v4l2_ioctl_ops = {
-	.vidioc_querystd = vdin_vidioc_querystd,
-	.vidioc_enum_input = vdin_vidioc_enum_input,
-	.vidioc_querycap = vdin_vidioc_querycap,
+	.vidioc_querystd	= vdin_vidioc_querystd,
+	.vidioc_enum_input	= vdin_vidioc_enum_input,
+	.vidioc_s_input		= vdin_vidioc_s_input,
+	.vidioc_g_input		= vdin_vidioc_g_input,
+	.vidioc_enum_fmt_vid_cap	= vdin_vidioc_enum_fmt_vid_cap,
+	.vidioc_querycap			= vdin_vidioc_querycap,
+	.vidioc_enum_framesizes		= vdin_vidioc_enum_framesizes,
+	.vidioc_enum_frameintervals = vdin_vidioc_enum_frameintervals,
+
+	/* Stream type-dependent parameter ioctls */
+	.vidioc_g_parm = vdin_vidioc_g_parm,
+	.vidioc_s_parm = vdin_vidioc_s_parm,
 
 	/*queue ioctrol*/
 	.vidioc_reqbufs = vdin_vidioc_reqbufs,
@@ -712,16 +1302,22 @@ static const struct v4l2_ioctl_ops vdin_v4l2_ioctl_ops = {
 	.vidioc_streamon = vdin_vidioc_streamon,
 	.vidioc_streamoff = vdin_vidioc_streamoff,
 
+	.vidioc_g_ctrl = vdin_vidioc_g_ctrl,
+	.vidioc_s_ctrl = vdin_vidioc_s_ctrl,
+
+	.vidioc_g_ext_ctrls		= vdin_vidioc_g_ext_ctrls,
+	.vidioc_s_ext_ctrls		= vdin_vidioc_s_ext_ctrls,
+	.vidioc_try_ext_ctrls	= vdin_vidioc_try_ext_ctrls,
+
 	.vidioc_s_fmt_vid_cap_mplane	= vdin_vidioc_s_fmt_vid_cap_mplane,
-	/*VIDIOC_S_FMT*/
-	.vidioc_s_fmt_vid_cap		= vdin_vidioc_s_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap			= vdin_vidioc_s_fmt_vid_cap,
 	.vidioc_s_fmt_vid_out_mplane	= vdin_vidioc_s_fmt_vid_cap_mplane,
-	.vidioc_s_fmt_vid_out		= vdin_vidioc_s_fmt_vid_cap,
+	.vidioc_s_fmt_vid_out			= vdin_vidioc_s_fmt_vid_cap,
 
 	.vidioc_g_fmt_vid_cap_mplane	= vdin_vidioc_g_fmt_vid_cap_mplane,
-	.vidioc_g_fmt_vid_cap		= vdin_vidioc_g_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap			= vdin_vidioc_g_fmt_vid_cap,
 	.vidioc_g_fmt_vid_out_mplane	= vdin_vidioc_g_fmt_vid_cap_mplane,
-	.vidioc_g_fmt_vid_out		= vdin_vidioc_g_fmt_vid_cap,
+	.vidioc_g_fmt_vid_out			= vdin_vidioc_g_fmt_vid_cap,
 };
 
 static void vdin_vdev_release(struct video_device *vdev)
@@ -734,8 +1330,16 @@ static int vdin_v4l2_open(struct file *file)
 	struct vdin_dev_s *pdev = video_drvdata(file);
 
 	if (IS_ERR_OR_NULL(pdev))
-
 		return -EFAULT;
+
+	/*pdev->work_mode = VDIN_WORK_MD_V4L;*/
+	if (pdev->work_mode != VDIN_WORK_MD_V4L) {
+		dprintk(0, "%s err:vdin v4l mode not enabled\n", __func__);
+		return -EPERM;
+	}
+	pdev->afbce_flag_backup = pdev->afbce_flag;
+	pdev->afbce_flag = 0;
+
 	dprintk(0, "%s\n", __func__);
 	/*dump_stack();*/
 
@@ -743,17 +1347,15 @@ static int vdin_v4l2_open(struct file *file)
 
 	INIT_LIST_HEAD(&pdev->buf_list);
 
-	/*pdev->work_mode = VDIN_WORK_MD_V4L;*/
-	if (pdev->work_mode == VDIN_WORK_MD_NORMAL)
-		dprintk(0, "%s err:vdin v4l mode not enable\n", __func__);
-
 	return 0;
 }
 
 static int vdin_v4l2_release(struct file *file)
 {
+	int ret = 0, i = 0;
+	int plane_idx = 0;
 	struct vdin_dev_s *pdev = video_drvdata(file);
-	int ret = 0;
+	struct vdin_set_canvas_addr_s *p_addr = NULL;
 
 	dprintk(0, "%s\n", __func__);
 
@@ -763,8 +1365,23 @@ static int vdin_v4l2_release(struct file *file)
 	/*release que*/
 	ret = vb2_fop_release(file);
 
-	if (pdev->work_mode == VDIN_WORK_MD_NORMAL)
-		dprintk(0, "%s err:vdin v4l mode not enable\n", __func__);
+	if (pdev->work_mode == VDIN_WORK_MD_V4L) {
+		for (i = 0; i < VDIN_CANVAS_MAX_CNT; i++) {
+			for (plane_idx = 0;
+				plane_idx < pdev->v4lfmt.fmt.pix_mp.num_planes;
+				plane_idx++) {
+				p_addr = &pdev->st_vdin_set_canvas_addr[i][plane_idx];
+				if (p_addr->dmabuff == 0)
+					break;
+				dma_buf_unmap_attachment(p_addr->dmabufattach,
+					p_addr->sgtable, DMA_BIDIRECTIONAL);
+				dma_buf_detach(p_addr->dmabuff, p_addr->dmabufattach);
+				dma_buf_put(p_addr->dmabuff);
+			}
+		}
+		memset(pdev->st_vdin_set_canvas_addr, 0, sizeof(pdev->st_vdin_set_canvas_addr));
+	}
+	pdev->afbce_flag = pdev->afbce_flag_backup;
 
 	return ret;
 }
@@ -789,12 +1406,11 @@ static int vdin_v4l2_mmap(struct file *file, struct vm_area_struct *va)
 static long vdin_v4l2_ioctl(struct file *file,
 			    unsigned int cmd, unsigned long arg)
 {
-	struct vdin_dev_s *pdev = video_drvdata(file);
+	/*struct vdin_dev_s *pdev = video_drvdata(file);*/
 	long ret = 0;
 
-	mutex_lock(&pdev->ioctrl_lock);
 	ret = video_ioctl2(file, cmd, arg);
-	mutex_unlock(&pdev->ioctrl_lock);
+
 	return ret;
 }
 
@@ -851,13 +1467,19 @@ static int vdin_vb2ops_queue_setup(struct vb2_queue *vq,
 	 * one for Y, one for UV
 	 * need return the num_planes per buffer
 	 */
-	*num_planes = VDIN_NUM_PLANES;/*NV12 need two*/
+	*num_planes = pdev->v4lfmt.fmt.pix_mp.num_planes;
 	for (i = 0; i < *num_planes; i++) {
 		sizes[i] = pdev->v4lfmt.fmt.pix_mp.plane_fmt[i].sizeimage;
-		dprintk(1, "plane %d, size %d\n", i, sizes[i]);
+		dprintk(1, "plane %d, size %x\n", i, sizes[i]);
+		if (pdev->index == 0)
+			alloc_devs[i] = v4l_get_dev_from_codec_mm();/* codec_mm_cma area */
+			//alloc_devs[i] = &pdev->this_pdev->dev;/* vdin0_cma area */
+			//alloc_devs[i] = &pdev->dev;/* CMA reserved area */
+		else
+			alloc_devs[i] = &pdev->this_pdev->dev;/* vdin1_cma area */
 	}
 
-	dprintk(1, "type: %d, plane: %d, buf cnt: %d, size: [Y: %u, C: %u]\n",
+	dprintk(1, "type: %d, plane: %d, buf cnt: %d, size: [Y: %x, C: %x]\n",
 		vq->type, *num_planes, *num_buffers, sizes[0], sizes[1]);
 	return 0;
 }
@@ -877,7 +1499,7 @@ static int vdin_vb2ops_buffer_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 
 	p_vbque = &pdev->vbqueue;
-	dprintk(1, "buf prepare idx:%d bufs:%d planes:%d quedcnt:%d, bufsts:%s\n",
+	dprintk(3, "buf prepare idx:%d bufs:%d planes:%d quedcnt:%d, bufsts:%s\n",
 		vb->index, p_vbque->num_buffers,
 		vb->num_planes, p_vbque->queued_count,
 		vb2_buf_sts_to_str(vb->state));
@@ -913,7 +1535,7 @@ static void vdin_vb2ops_buffer_queue(struct vb2_buffer *vb)
 	struct vdin_vb_buff *buf = to_vdin_vb_buf(v4lbuf);
 	unsigned long flags = 0;
 
-	dprintk(2, "%s buf:%d, state:%s\n", __func__, vb->index,
+	dprintk(3, "%s buf:%d, state:%s\n", __func__, vb->index,
 		vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
 
 	spin_lock_irqsave(&pdev->qlock, flags);
@@ -921,7 +1543,7 @@ static void vdin_vb2ops_buffer_queue(struct vb2_buffer *vb)
 
 	spin_unlock_irqrestore(&pdev->qlock, flags);
 	/* TODO: Update any DMA pointers if necessary */
-	dprintk(2, "num_buf:%d, qued_cnt:%d, after state:%s\n",
+	dprintk(3, "num_buf:%d, qued_cnt:%d, after state:%s\n",
 		pdev->vbqueue.num_buffers,
 		pdev->vbqueue.queued_count,
 		vb2_buf_sts_to_str(buf->vb.vb2_buf.state));
@@ -944,7 +1566,7 @@ static int vdin_vb2ops_start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct vdin_dev_s *pdev = vb2_get_drv_priv(vq);
 	struct list_head *buf_head = NULL;
 	/*struct vb2_buffer *vb2_buf;*/
-	uint ret = 0;
+	int ret = 0;
 
 	if (IS_ERR_OR_NULL(pdev))
 		return -EINVAL;
@@ -997,22 +1619,13 @@ static void vdin_vb2ops_stop_streaming(struct vb2_queue *vq)
 static int vdin_vb2ops_buf_init(struct vb2_buffer *vb)
 {
 	struct vb2_queue *vb2q = vb->vb2_queue;
-	/*dma_addr_t phy_addr = 0;*/
-	/*unsigned int i = 0;*/
 	struct vb2_v4l2_buffer *vbbuf = NULL;
 	struct vdin_vb_buff *vdin_buf = NULL;
 
 	dprintk(1, "%s idx:%d, type:0x%x, memory:0x%x, num_planes:%d\n",
-		__func__,
-		vb->index, vb->type, vb->memory, vb->num_planes);
-
-	dprintk(2, "vb2q type:0x%x numbuff:%d request id:%d\n", vb2q->type,
+		__func__, vb->index, vb->type, vb->memory, vb->num_planes);
+	dprintk(1, "vb2q type:0x%x numbuff:%d request id:%d\n", vb2q->type,
 		vb2q->num_buffers, vb2q->queued_count);
-
-	//for (i = 0; i < vb->num_planes; i++) {
-	//	phy_addr = vb2_dma_contig_plane_dma_addr(vb, i);
-	//	dprintk(1, "planes %d phy_addr=0x%x\n", i, phy_addr);
-	//}
 
 	vbbuf = to_vb2_v4l2_buffer(vb);
 	vdin_buf = to_vdin_vb_buf(vbbuf);
@@ -1060,10 +1673,10 @@ static void vdin_vb2ops_buf_finish(struct vb2_buffer *vb)
 static struct vb2_ops vdin_vb2ops = {
 	.queue_setup		= vdin_vb2ops_queue_setup,
 	.buf_prepare		= vdin_vb2ops_buffer_prepare,
-	.buf_queue		= vdin_vb2ops_buffer_queue,
+	.buf_queue			= vdin_vb2ops_buffer_queue,
 
-	.buf_init		= vdin_vb2ops_buf_init,
-	.buf_finish		= vdin_vb2ops_buf_finish,
+	.buf_init			= vdin_vb2ops_buf_init,
+	.buf_finish			= vdin_vb2ops_buf_finish,
 
 	.start_streaming	= vdin_vb2ops_start_streaming,
 	.stop_streaming		= vdin_vb2ops_stop_streaming,
@@ -1092,7 +1705,9 @@ static int vdin_v4l2_queue_init(struct vdin_dev_s *devp,
 	que->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	/*que->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;*/
 	que->io_modes = VB2_MMAP | VB2_DMABUF;
-	que->dev = &devp->vdev.dev/*devp->dev*/;
+	/*devp->dev*/
+	//que->dev = &devp->vdev.dev;
+	que->dev = &devp->this_pdev->dev;
 	que->drv_priv = devp;
 	que->buf_struct_size = sizeof(struct vdin_vb_buff);
 	que->ops = &vdin_vb2ops;
@@ -1143,16 +1758,13 @@ int vdin_v4l2_probe(struct platform_device *pldev,
 	struct video_device *video_dev = NULL;
 	//struct vb2_queue *queue = NULL;
 	int ret = 0;
+	int v4l_vd_num;
 
 	if (IS_ERR_OR_NULL(pvdindev)) {
 		ret = -ENODEV;
 		dprintk(0, "[vdin] vdevp err\n");
 		return ret;
 	}
-
-	/*vdin 1 not support v4l2 interface*/
-	if (pvdindev->index == 1)
-		return 0;
 
 	/*dprintk(1, "%s vdin[%d] start\n", __func__, pvdindev->index);*/
 	snprintf(pvdindev->v4l2_dev.name, sizeof(pvdindev->v4l2_dev.name),
@@ -1179,7 +1791,7 @@ int vdin_v4l2_probe(struct platform_device *pldev,
 	INIT_LIST_HEAD(&pvdindev->buf_list);
 	mutex_init(&pvdindev->lock);
 	spin_lock_init(&pvdindev->qlock);
-	mutex_init(&pvdindev->ioctrl_lock);
+	//mutex_init(&pvdindev->ioctrl_lock);
 
 	strlcpy(video_dev->name, VDIN_V4L_DV_NAME, sizeof(video_dev->name));
 	video_dev->fops = &vdin_v4l2_fops,
@@ -1188,7 +1800,7 @@ int vdin_v4l2_probe(struct platform_device *pldev,
 	video_dev->lock = &pvdindev->lock;
 	video_dev->queue = &pvdindev->vbqueue;
 	video_dev->v4l2_dev = &pvdindev->v4l2_dev;/*v4l2_device_register*/
-	video_dev->device_caps = V4L2_CAP_VIDEO_CAPTURE_MPLANE;//V4L2_CAP_VIDEO_CAPTURE;
+	video_dev->device_caps = VDIN_DEVICE_CAPS;
 
 	video_dev->vfl_type = VFL_TYPE_GRABBER;
 	video_dev->vfl_dir   = VFL_DIR_RX;
@@ -1202,8 +1814,15 @@ int vdin_v4l2_probe(struct platform_device *pldev,
 	/*video_dev->dev.init_name = VDIN_V4L_DV_NAME;*/
 	video_set_drvdata(video_dev, pvdindev);
 
-	ret = video_register_device(video_dev, VFL_TYPE_GRABBER,/* -1*/
-				    (VDIN_VD_NUMBER + (pvdindev->index)));
+	ret = of_property_read_u32(pldev->dev.of_node, "v4l_vd_num",
+			&v4l_vd_num);
+	dprintk(0, "vdin%d,ret = %d,v4l_vd_num=%d\n",
+		pvdindev->index, ret, v4l_vd_num);
+	if (ret)
+		v4l_vd_num = VDIN_VD_NUMBER + (pvdindev->index);
+
+	ret = video_register_device(video_dev, VFL_TYPE_GRABBER,
+			v4l_vd_num);
 	if (ret) {
 		dprintk(0, "register dev fail.\n");
 		goto video_register_device_fail;
@@ -1231,15 +1850,11 @@ int vdin_v4l2_probe(struct platform_device *pldev,
 	else
 		dprintk(0, "rev memory resource undefined!!!\n");
 
+	vdin_v4l2_init(pvdindev, pldev);
+
 	dprintk(0, "dev registered as %s\n",
 		video_device_node_name(video_dev));
-
 	dprintk(0, "vdin[%d] %s ok\n", pvdindev->index, __func__);
-	//dprintk(2, "vdin_dev_data p=0x%p\n", pvdindev);
-	//dprintk(2, "video_device p=0x%p\n", video_dev);
-	//dprintk(2, "vbqueue p=0x%p\n", &pvdindev->vbqueue);
-	//dprintk(2, "video_dev vbqueue p=0x%p\n", video_dev->queue);
-	//dprintk(2, "v4l2_dev p=0x%p\n", &pvdindev->v4l2_dev);
 
 	return 0;
 
@@ -1250,3 +1865,266 @@ v4l2_device_register_fail:
 	return ret;
 }
 
+/* Check loopback soruce format */
+int vdin_v4l2_loopback_fmt(struct vdin_dev_s *pdevp)
+{
+	int h, v;
+	int err_range = 10;
+	const struct vinfo_s *vinfo;
+
+	dprintk(1, "%s,fmt:%s,cfmt:%s,status:%#x,fps:%d\n",
+		__func__, tvin_sig_fmt_str(pdevp->parm.info.fmt),
+		tvin_color_fmt_str(pdevp->parm.info.cfmt),
+		pdevp->parm.info.status, pdevp->parm.info.fps);
+#ifdef VDIN_V4L2_GET_LOOPBACK_FMT_BY_VOUT_SERVE
+	vinfo = get_current_vinfo();
+	h = vinfo->width;
+	v = vinfo->height;
+	dprintk(1, "%s,%d; %dx%d,vmode:%d\n", __func__, __LINE__,
+		vinfo->width, vinfo->height, vinfo->mode);
+#else
+	h = vdin_get_active_h(pdevp->addr_offset);
+	v = vdin_get_active_v(pdevp->addr_offset);
+	dprintk(1, "%s,%d; %dx%d\n", __func__, __LINE__, vinfo->width, vinfo->height);
+#endif
+	if (h >= 4096 - err_range && h <= 4096 + err_range &&
+		v >= 2160 - err_range && v <= 2160 + err_range)
+		pdevp->parm.info.fmt = TVIN_SIG_FMT_HDMI_4096_2160_00HZ;
+	else if (h >= 3840 - err_range && h <= 3840 + err_range &&
+			 v >= 2160 - err_range && v <= 2160 + err_range)
+		pdevp->parm.info.fmt = TVIN_SIG_FMT_HDMI_3840_2160_00HZ;
+	else if (h >= 1920 - err_range && h <= 1920 + err_range &&
+			 v >= 1080 - err_range && v <= 1080 + err_range)
+		pdevp->parm.info.fmt = TVIN_SIG_FMT_HDMI_1920X1080P_60HZ;
+	else if (h >= 1280 - err_range && h <= 1280 + err_range &&
+			 v >= 720 - err_range && v <= 720 + err_range)
+		pdevp->parm.info.fmt = TVIN_SIG_FMT_HDMI_1280X720P_60HZ;
+	else
+		pdevp->parm.info.fmt = TVIN_SIG_FMT_NULL;
+
+	dprintk(1, "vdin%d,active,h=%d,v=%d\n", pdevp->index, h, v);
+
+	return 0;
+}
+
+/* start vdin dec for v4l2 */
+int vdin_v4l2_start_tvin(struct vdin_dev_s *pdevp)
+{
+	int ret;
+	struct vdin_parm_s vdin_cap_param;
+	const struct tvin_format_s *fmt_info_p;
+
+	/* TODO:get vd1/osd loopback source fmt */
+	if (pdevp->index)
+		vdin_v4l2_loopback_fmt(pdevp);
+
+	/* Check args */
+	fmt_info_p = tvin_get_fmt_info(pdevp->parm.info.fmt);
+	if (!fmt_info_p) {
+		pr_warn("%s,invalid fmt:%s\n",
+			__func__, tvin_sig_fmt_str(pdevp->parm.info.fmt));
+		return -1;
+	}
+	dprintk(1, "%s,fmt:%s,cfmt:%s,status:%#x,fps:%d,scan_mode:%d,h=%d,v=%d\n",
+		__func__, tvin_sig_fmt_str(pdevp->parm.info.fmt),
+		tvin_color_fmt_str(pdevp->parm.info.cfmt),
+		pdevp->parm.info.status, pdevp->parm.info.fps, fmt_info_p->scan_mode,
+		fmt_info_p->h_active, fmt_info_p->v_active);
+
+	memset(&vdin_cap_param, 0, sizeof(struct vdin_parm_s));
+
+	vdin_cap_param.scan_mode	= fmt_info_p->scan_mode;
+	vdin_cap_param.h_active		= fmt_info_p->h_active;
+	vdin_cap_param.v_active		= fmt_info_p->v_active;
+	vdin_cap_param.fmt			= pdevp->parm.info.fmt;
+	vdin_cap_param.cfmt			= pdevp->parm.info.cfmt;
+	vdin_cap_param.frame_rate   = pdevp->parm.info.fps;
+	vdin_cap_param.port         = pdevp->v4l2_port_cur;
+	vdin_cap_param.dest_hactive = pdevp->v4lfmt.fmt.pix_mp.width;
+	vdin_cap_param.dest_vactive = pdevp->v4lfmt.fmt.pix_mp.height;
+	vdin_cap_param.reserved    |= PARAM_STATE_SCREENCAP;
+
+	if (pdevp->index) {
+		vdin_cap_param.cfmt = TVIN_YUV422;
+		vdin_cap_param.scan_mode  = TVIN_SCAN_MODE_PROGRESSIVE;
+//		vdin_cap_param.fmt  = TVIN_SIG_FMT_HDMI_1920X1080P_60HZ;
+//		vdin_cap_param.h_active   = 1920;
+//		vdin_cap_param.v_active   = 1080;
+//		vdin_cap_param.frame_rate = 60;
+	}
+	if (vdin_cap_param.frame_rate == 0)
+		vdin_cap_param.frame_rate = 60;
+	/* vdin can not do scale up */
+	if (pdevp->v4lfmt.fmt.pix_mp.width > vdin_cap_param.h_active ||
+		pdevp->v4lfmt.fmt.pix_mp.height > vdin_cap_param.v_active) {
+		pr_err("%s,out of range!v4lfmt:%dx%d > active:%dx%d\n",
+			__func__, pdevp->v4lfmt.fmt.pix_mp.width,
+			pdevp->v4lfmt.fmt.pix_mp.height, vdin_cap_param.h_active,
+			vdin_cap_param.v_active);
+		return -EINVAL;
+	}
+
+	if (pdevp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21 ||
+		pdevp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21M)
+		vdin_cap_param.dfmt = TVIN_NV21;
+	else if (pdevp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12 ||
+		pdevp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12M)
+		vdin_cap_param.dfmt = TVIN_NV12;
+	else
+		vdin_cap_param.dfmt = TVIN_YUV422;
+
+	if (vdin_cap_param.h_active && vdin_cap_param.v_active &&
+	   (vdin_cap_param.h_active > vdin_cap_param.dest_hactive ||
+		vdin_cap_param.v_active > vdin_cap_param.dest_vactive)) {
+		pdevp->prop.scaling4w = vdin_cap_param.dest_hactive;
+		pdevp->prop.scaling4h = vdin_cap_param.dest_vactive;
+	}
+
+	dprintk(1, "%s,dest:%dx%d;scaling:%dx%d\n", __func__,
+		vdin_cap_param.dest_hactive, vdin_cap_param.dest_vactive,
+		pdevp->prop.scaling4w, pdevp->prop.scaling4h);
+	ret = start_tvin_service(pdevp->index, &vdin_cap_param);
+
+	return ret;
+}
+
+int vdin_v4l2_stop_tvin(struct vdin_dev_s *pdevp)
+{
+	int ret;
+
+	ret = stop_tvin_service(pdevp->index);
+
+	mutex_lock(&pdevp->fe_lock);
+	vdin_close_fe(pdevp);
+	mutex_unlock(&pdevp->fe_lock);
+
+	return ret;
+}
+
+void vdin_v4l2_init(struct vdin_dev_s *pdevp, struct platform_device *pldev)
+{
+	int fe_ports_num;
+	int i, ret;
+	u32 tmp_u32;
+	const char *str = NULL;
+
+	memset(pdevp->v4l2_port, TVIN_PORT_NULL, sizeof(pdevp->v4l2_port));
+
+	fe_ports_num =
+		of_property_count_u32_elems(pldev->dev.of_node, "fe_ports");
+	if (fe_ports_num < 0) {
+		dprintk(0, "No 'fe_ports' property found\n");
+		if (pdevp->index == 0) {
+			pdevp->v4l2_port[0] = TVIN_PORT_HDMI0;
+			pdevp->v4l2_port[1] = TVIN_PORT_HDMI1;
+			pdevp->v4l2_port[2] = TVIN_PORT_HDMI2;
+			pdevp->v4l2_port[3] = TVIN_PORT_CVBS0;
+			pdevp->v4l2_port_num = 4;
+		} else {
+			pdevp->v4l2_port[0] = TVIN_PORT_VIU1_WB0_VD1;
+			pdevp->v4l2_port[1] = TVIN_PORT_VIU1_WB0_VD2;
+			pdevp->v4l2_port[2] = TVIN_PORT_VIU1_WB0_OSD1;
+			pdevp->v4l2_port[3] = TVIN_PORT_VIU1_WB0_OSD2;
+			pdevp->v4l2_port[4] = TVIN_PORT_VIU1_WB0_VPP;
+			pdevp->v4l2_port[5] = TVIN_PORT_VIU1_WB0_VDIN_BIST;
+			pdevp->v4l2_port[6] = TVIN_PORT_VIU1_WB0_POST_BLEND;
+			pdevp->v4l2_port_num = 7;
+		}
+	} else {
+		pdevp->v4l2_port_num = 0;
+	}
+
+	for (i = 0; i < fe_ports_num; i++) {
+		ret = of_property_read_u32_index(pldev->dev.of_node, "fe_ports", i,
+				&tmp_u32);
+		if (ret || tmp_u32 <= TVIN_PORT_NULL || tmp_u32 >= TVIN_PORT_MAX) {
+			dprintk(0, "Invalid fe_port:%#x in property\n", tmp_u32);
+			continue;
+		}
+		pdevp->v4l2_port[pdevp->v4l2_port_num] = tmp_u32;
+		pdevp->v4l2_port_num++;
+		dprintk(0, "index:%d,fe_port[%d]:%#x\n", i, pdevp->v4l2_port_num,
+			pdevp->v4l2_port[i]);
+	}
+	/* default port */
+	pdevp->v4l2_port_cur = pdevp->v4l2_port[0];
+
+	ret = of_property_read_string(pldev->dev.of_node, "driver", &str);
+	if (ret == 0) {
+		strlcpy(g_vdin_v4l2_cap[pdevp->index].driver, str,
+			sizeof(g_vdin_v4l2_cap[pdevp->index].driver));
+		dprintk(0, "vdin%d,driver:%s\n", pdevp->index, str);
+	}
+
+	ret = of_property_read_string(pldev->dev.of_node, "card", &str);
+	if (ret == 0) {
+		strlcpy(g_vdin_v4l2_cap[pdevp->index].card, str,
+			sizeof(g_vdin_v4l2_cap[pdevp->index].card));
+		dprintk(0, "vdin%d,card:%s\n", pdevp->index, str);
+	}
+
+	ret = of_property_read_string(pldev->dev.of_node, "bus_info", &str);
+	if (ret == 0) {
+		strlcpy(g_vdin_v4l2_cap[pdevp->index].bus_info, str,
+			sizeof(g_vdin_v4l2_cap[pdevp->index].bus_info));
+		dprintk(0, "vdin%d,bus_info:%s\n", pdevp->index, str);
+	}
+
+	ret = of_property_read_u32(pldev->dev.of_node, "version", &tmp_u32);
+	if (ret == 0) {
+		g_vdin_v4l2_cap[pdevp->index].version = tmp_u32;
+		dprintk(0, "vdin%d,version:%#x\n", pdevp->index, tmp_u32);
+	}
+
+	ret = of_property_read_u32(pldev->dev.of_node, "capabilities", &tmp_u32);
+	if (ret == 0) {
+		g_vdin_v4l2_cap[pdevp->index].capabilities = tmp_u32;
+		dprintk(0, "vdin%d,capabilities:%#x\n", pdevp->index, tmp_u32);
+	}
+
+	ret = of_property_read_u32(pldev->dev.of_node, "device_caps", &tmp_u32);
+	if (ret == 0) {
+		g_vdin_v4l2_cap[pdevp->index].device_caps = tmp_u32;
+		dprintk(0, "vdin%d,device_caps:%#x\n", pdevp->index, tmp_u32);
+	}
+	/* fill struct v4l2_ext_capture_capability_info with default value */
+	pdevp->ext_cap_cap_info.flags =
+		V4L2_EXT_CAPTURE_CAP_SCALE_DOWN |
+		V4L2_EXT_CAPTURE_CAP_DIVIDE_FRAMERATE |
+		V4L2_EXT_CAPTURE_CAP_INPUT_VIDEO_DEINTERLACE |
+		V4L2_EXT_CAPTURE_CAP_DISPLAY_VIDEO_DEINTERLACE;
+	pdevp->ext_cap_cap_info.scale_up_limit_w = 3840;
+	pdevp->ext_cap_cap_info.scale_up_limit_h = 2160;
+	pdevp->ext_cap_cap_info.scale_down_limit_w = 360;
+	pdevp->ext_cap_cap_info.scale_down_limit_h = 240;
+	/* LGE chips only */
+	pdevp->ext_cap_cap_info.num_video_frame_buffer = 5;
+	pdevp->ext_cap_cap_info.max_res.x = 0;
+	pdevp->ext_cap_cap_info.max_res.y = 0;
+	pdevp->ext_cap_cap_info.max_res.w = 3840;
+	pdevp->ext_cap_cap_info.max_res.h = 2160;
+	/* LGE chips only end */
+	pdevp->ext_cap_cap_info.num_plane =
+		V4L2_EXT_CAPTURE_VIDEO_FRAME_BUFFER_PLANE_INTERLEAVED;
+	pdevp->ext_cap_cap_info.pixel_format =
+		V4L2_EXT_CAPTURE_VIDEO_FRAME_BUFFER_PIXEL_FORMAT_YUV422_INTERLEAVED;
+	/* fill struct v4l2_ext_capture_plane_info with default value */
+	pdevp->ext_cap_plane_info.stride = 1920;
+	pdevp->ext_cap_plane_info.plane_region.x = 0;
+	pdevp->ext_cap_plane_info.plane_region.y = 0;
+	pdevp->ext_cap_plane_info.plane_region.w = 1920;
+	pdevp->ext_cap_plane_info.plane_region.h = 1080;
+	pdevp->ext_cap_plane_info.active_region.x = 0;
+	pdevp->ext_cap_plane_info.active_region.y = 0;
+	pdevp->ext_cap_plane_info.active_region.w = 1920;
+	pdevp->ext_cap_plane_info.active_region.h = 1080;
+
+	/* fill struct v4l2_ext_capture_freeze_mode with default value */
+	pdevp->ext_cap_freezee_mode.plane_index = 0;
+	pdevp->ext_cap_freezee_mode.val = 0;
+
+	/* fill struct v4l2_ext_capture_plane_prop with default value */
+	pdevp->ext_cap_plane_prop.l = V4L2_EXT_CAPTURE_BLENDED_OUTPUT;
+
+	pdevp->vdin_v4l2.divide = 1;
+}

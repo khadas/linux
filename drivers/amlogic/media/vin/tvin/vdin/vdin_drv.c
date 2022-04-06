@@ -80,6 +80,8 @@
 #include "vdin_afbce.h"
 #include "vdin_v4l2_dbg.h"
 #include "vdin_dv.h"
+#include "vdin_v4l2_if.h"
+
 #include <linux/amlogic/gki_module.h>
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -367,7 +369,7 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 {
 	struct vrr_notifier_data_s vrr_data;
 
-	if (devp->index != 0)
+	if (devp->index != 0 || devp->work_mode == VDIN_WORK_MD_V4L)
 		return;
 
 	vrr_data.input_src = VRR_INPUT_TVIN;
@@ -623,6 +625,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 	enum tvin_scan_mode_e	scan_mode;
 	unsigned int chroma_size = 0;
 	unsigned int luma_size = 0;
+	ulong phy_c_addr;
 
 	index = devp->index;
 	/* const struct tvin_format_s *fmt_info = tvin_get_fmt_info(fmt); */
@@ -696,8 +699,12 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 			/*		vf->canvas0_config[0].height);*/
 
 			if (vf->plane_num == 2) {
-				vf->canvas0_config[1].phy_addr = (u32)
-					(devp->vfmem_start[i] + luma_size);
+				if (devp->work_mode == VDIN_WORK_MD_V4L &&
+					devp->v4lfmt.fmt.pix_mp.num_planes == 2)
+					phy_c_addr = devp->vfmem_c_start[i];
+				else
+					phy_c_addr = (u32)(devp->vfmem_start[i] + luma_size);
+				vf->canvas0_config[1].phy_addr = phy_c_addr;
 				vf->canvas0_config[1].width = devp->canvas_w;
 				vf->canvas0_config[1].height =
 						devp->canvas_h / vf->plane_num;
@@ -1146,7 +1153,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	}
 
 #ifdef CONFIG_CMA
-	if (devp->cma_mem_alloc == 0 && devp->cma_config_en) {
+	if (devp->cma_mem_alloc == 0 && devp->cma_config_en &&
+		/* In vdin v4l2 mode,the process should goes down */
+		devp->work_mode == VDIN_WORK_MD_NORMAL) {
 		pr_info("%s:cma not alloc,don't need do others!\n", __func__);
 		return;
 	}
@@ -1280,10 +1289,14 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	devp->matrix_pattern_mode = 0;
 	/* check input content is pretected */
 	if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
-	    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED) &&
-	    vdin0_devp->prop.hdcp_sts) {
-		pr_err("hdmi hdcp en, can't capture\n");
-		devp->matrix_pattern_mode = 4;
+	    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
+		if (vdin0_devp->prop.hdcp_sts && !(devp->vdin_v4l2.secure_flg)) {
+			pr_err("hdmi hdcp en, non-secure buffer\n");
+			devp->matrix_pattern_mode = 4;
+		} else {
+			pr_err("hdmi hdcp en, secure buffer\n");
+			devp->matrix_pattern_mode = 0;
+		}
 	} else {
 		vdin0_devp->prop.hdcp_sts = 0;
 		devp->matrix_pattern_mode = 0;
@@ -1520,6 +1533,7 @@ EXPORT_SYMBOL(start_tvin_service);
  */
 int stop_tvin_service(int no)
 {
+	int ret;
 	struct vdin_dev_s *devp;
 	unsigned int end_time;
 
@@ -1537,14 +1551,15 @@ int stop_tvin_service(int no)
 
 	if (!(devp->flags & VDIN_FLAG_DEC_STARTED)) {
 		pr_err("vdin%d %s:decode hasn't started flags=0x%x\n",
-		       devp->index, __func__, devp->flags);
+			devp->index, __func__, devp->flags);
 		mutex_unlock(&devp->fe_lock);
 		return -EBUSY;
 	}
 	devp->matrix_pattern_mode = 0;
 	vdin_stop_dec(devp);
 	/*close fe*/
-	if (devp->frontend->dec_ops->close)
+	if (devp->frontend && devp->frontend->dec_ops &&
+		devp->frontend->dec_ops->close)
 		devp->frontend->dec_ops->close(devp->frontend);
 	/*free the memory allocated in start tvin service*/
 	if (devp->parm.info.fmt >= TVIN_SIG_FMT_MAX)
@@ -1554,8 +1569,7 @@ int stop_tvin_service(int no)
 /* #endif */
 	devp->flags &= (~VDIN_FLAG_DEC_OPENED);
 	devp->flags &= (~VDIN_FLAG_DEC_STARTED);
-	if (devp->parm.port != TVIN_PORT_VIU1 ||
-	    viu_hw_irq != 0) {
+	if ((devp->parm.port != TVIN_PORT_VIU1 || viu_hw_irq != 0)) {
 		free_irq(devp->irq, (void *)devp);
 
 		if (vdin_dbg_en)
@@ -1563,6 +1577,25 @@ int stop_tvin_service(int no)
 				devp->index);
 		devp->flags &= (~VDIN_FLAG_ISR_REQ);
 	}
+	/* request isr back for non-v4l2/v4l2 mode switch dynamically */
+	if (devp->work_mode == VDIN_WORK_MD_V4L &&
+		devp->index == 0 && !(devp->flags & VDIN_FLAG_ISR_REQ)) {
+		/* request irq */
+		if (work_mode_simple)
+			ret = request_irq(devp->irq, vdin_isr_simple, IRQF_SHARED,
+					  devp->irq_name, (void *)devp);
+		else
+			ret = request_irq(devp->irq, vdin_isr, IRQF_SHARED,
+					devp->irq_name, (void *)devp);
+		if (ret)
+			pr_err("err:req vs irq fail\n");
+		else
+			pr_info("vdin%d req vs irq %d\n", devp->index, devp->irq);
+		disable_irq(devp->irq);
+		devp->flags |= VDIN_FLAG_ISR_REQ;
+		devp->flags &= (~VDIN_FLAG_ISR_EN);
+	}
+
 	end_time = jiffies_to_msecs(jiffies);
 	if (vdin_time_en)
 		pr_info("[vdin]:vdin start time:%ums,stop time:%ums,run time:%u.\n",
@@ -1617,16 +1650,16 @@ static int vdin_ioctl_fe(int no, struct fe_arg_s *parm)
 		return -1;
 	}
 	if (devp->frontend &&
-	    devp->frontend->dec_ops &&
-	    devp->frontend->dec_ops->ioctl)
+		devp->frontend->dec_ops &&
+		devp->frontend->dec_ops->ioctl)
 		ret = devp->frontend->dec_ops->ioctl(devp->frontend, parm->arg);
 	else if (!devp->frontend) {
 		devp->frontend = tvin_get_frontend(parm->port, parm->index);
 		if (devp->frontend &&
-		    devp->frontend->dec_ops &&
-		    devp->frontend->dec_ops->ioctl)
+			devp->frontend->dec_ops &&
+			devp->frontend->dec_ops->ioctl)
 			ret = devp->frontend->dec_ops->ioctl(devp->frontend,
-							     parm->arg);
+					parm->arg);
 	}
 	return ret;
 }
@@ -2874,7 +2907,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 					    VDIN_VF_PUT);
 		devp->last_wr_vfe = NULL;
 
-		if (devp->set_canvas_manual != 1) {
+		if (devp->set_canvas_manual != 1 &&
+			devp->work_mode != VDIN_WORK_MD_V4L) {
 			vf_notify_receiver(devp->name,
 					   VFRAME_EVENT_PROVIDER_VFRAME_READY,
 					   NULL);
@@ -2969,7 +3003,8 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 
 	devp->curr_wr_vfe = next_wr_vfe;
 
-	if (devp->set_canvas_manual != 1)
+	if (devp->set_canvas_manual != 1 &&
+	    devp->work_mode != VDIN_WORK_MD_V4L)
 		vf_notify_receiver(devp->name,
 			VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 
@@ -3295,6 +3330,11 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	if (devp->index == 1 && devp->dtdata->vdin1_en == 0) {
 		pr_err("%s vdin%d not enable\n", __func__, devp->index);
+		return 0;
+	}
+
+	if (devp->dbg_v4l_no_vdin_ioctl) {
+		pr_err("%s vdin%d debug no vdin ioctl\n", __func__, devp->index);
 		return 0;
 	}
 

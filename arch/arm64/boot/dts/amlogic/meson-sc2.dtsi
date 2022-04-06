@@ -1646,6 +1646,20 @@
 		 *	"vpu_clkb_tmp_mux";
 		 */
 		vdin_id = <0>;
+		/* vdin v4l2 */
+		v4l_support_en = <0>;
+		v4l_vd_num = <70>;
+		/* v4l2 capability */
+		driver   = "vdinvideo";
+		card     = "meson-sc2";
+		bus_info = "vdin0 v4l2";
+		version  = <0x20220120>;
+		/* fe_ports refer to tvin.h */
+		fe_ports = <0x00001001   /* CVBS1 */
+			0x00004000   /* HDMI0 */
+			0x00004001   /* HDMI1 */
+			0x00004002>; /* HDMI2 */
+		/* vdin v4l2 end */
 	};
 	vdin1: vdin1 {
 		compatible = "amlogic, vdin-sc2";
@@ -1660,6 +1674,23 @@
 		 *clock-names = "fclk_div5", "cts_vdin_meas_clk";
 		 */
 		vdin_id = <1>;
+		/* vdin v4l2 */
+		v4l_support_en = <0>;
+		v4l_vd_num = <71>;
+		/* v4l2 capability */
+		driver   = "vdinvideo";
+		card     = "meson-sc2";
+		bus_info = "vdin1 v4l2";
+		version  = <0x20220120>;
+		/* fe_ports refer to tvin.h */
+		fe_ports = <0x0000a002   /* WB0_VD1 */
+			0x0000a003   /* WB0_VD2 */
+			0x0000a004   /* WB0_OSD1 */
+			0x0000a005   /* WB0_OSD2 */
+			0x0000a006   /* WB0_VPP */
+			0x0000a007   /* WB0_VDIN_BIST */
+			0x0000a008>; /* WB0_POST_BLEND */
+		/* vdin v4l2 end */
 	};
 
 	meson-amvideom {

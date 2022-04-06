@@ -281,6 +281,7 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 	int i = 0;
 	int canvas_id;
 	unsigned long canvas_addr;
+	unsigned long chroma_canvas_addr;
 	unsigned int chroma_size = 0;
 	unsigned int canvas_step = 1;
 	unsigned int canvas_num = VDIN_CANVAS_MAX_CNT;
@@ -393,10 +394,18 @@ void vdin_canvas_auto_config(struct vdin_dev_s *devp)
 		canvas_config(canvas_id, canvas_addr,
 			      devp->canvas_w, devp->canvas_h,
 			      CANVAS_ADDR_NOWRAP, CANVAS_BLKMODE_LINEAR);
+		/* vdin v4l2:two non contiguous planes */
+		if (devp->work_mode == VDIN_WORK_MD_V4L &&
+			devp->v4lfmt.fmt.pix_mp.num_planes == 2) {
+			chroma_canvas_addr = devp->vfmem_c_start[i];
+			if (devp->vfmem_c_start[i] == 0)
+				pr_err("vdin%d,addr for chroma is NULL!\n", devp->index);
+		} else {
+			chroma_canvas_addr = canvas_addr + devp->canvas_w * devp->canvas_h;
+		}
 		if (chroma_size)
 			canvas_config(canvas_id + 1,
-				      canvas_addr +
-				      devp->canvas_w * devp->canvas_h,
+				      chroma_canvas_addr,
 				      devp->canvas_w,
 				      devp->canvas_h / 2,
 				      CANVAS_ADDR_NOWRAP,
@@ -676,6 +685,14 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 		return 0;
 	}
 
+	if (devp->work_mode == VDIN_WORK_MD_V4L) {
+		max_buffer_num       = devp->v4l2_req_buf_num;
+		devp->canvas_max_num = devp->v4l2_req_buf_num;
+		devp->vfmem_max_cnt  = devp->v4l2_req_buf_num;
+		pr_info("%s vdin%d max_buffer_num = %d!\n", __func__,
+			devp->index, devp->vfmem_max_cnt);
+		return 0;
+	}
 	if (devp->cma_config_flag & MEM_ALLOC_DISCRETE) {
 		for (i = 0; i < max_buffer_num; i++) {
 			if (devp->cma_config_flag & MEM_ALLOC_FROM_CODEC) {
@@ -828,9 +845,14 @@ void vdin_cma_release(struct vdin_dev_s *devp)
 	unsigned int i;
 
 	if (devp->cma_config_en == 0 || devp->cma_mem_alloc == 0) {
-		pr_err("\nvdin%d %s fail for (%d,%d)!!!\n",
-		       devp->index, __func__, devp->cma_config_en,
-		       devp->cma_mem_alloc);
+		if (devp->work_mode == VDIN_WORK_MD_V4L)
+			pr_err("\nvdin%d %s v4l2 mode do not need do this (%d,%d)!!!\n",
+				   devp->index, __func__, devp->cma_config_en,
+				   devp->cma_mem_alloc);
+		else
+			pr_err("\nvdin%d %s fail for (%d,%d)!!!\n",
+			       devp->index, __func__, devp->cma_config_en,
+			       devp->cma_mem_alloc);
 		return;
 	}
 	if (devp->index == 0)
@@ -929,6 +951,11 @@ void vdin_cma_malloc_mode(struct vdin_dev_s *devp)
 		devp->force_yuv444_malloc = 1;
 	else
 		devp->force_yuv444_malloc = 0;
+
+	if (devp->work_mode == VDIN_WORK_MD_V4L) {
+		pr_info("%s vdin v4l2 mode,set force_yuv444_malloc to 0\n", __func__);
+		devp->force_yuv444_malloc = 0;
+	}
 }
 #endif
 

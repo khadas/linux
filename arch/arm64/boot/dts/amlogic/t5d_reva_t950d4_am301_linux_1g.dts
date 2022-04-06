@@ -613,7 +613,7 @@
 		/*urgent_en*/
 		double_write_en;
 		/* secure_en; */
-		v4l_support_en;
+		v4l_support_en = <0>;
 	};
 
 	vdin@1 {

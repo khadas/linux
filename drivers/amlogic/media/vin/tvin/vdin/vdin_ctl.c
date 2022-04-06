@@ -773,6 +773,31 @@ void vdin_get_format_convert(struct vdin_dev_s *devp)
 	//if (devp->dtdata->ipt444_to_422_12bit && vdin_cfg_444_to_422_wmif_en)
 	//	format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
 
+	/* vdin v4l2 mode */
+	if (devp->work_mode == VDIN_WORK_MD_V4L) {
+		pr_info("%s vdin v4l2 mode,color_format:%#x,pixelformat:%#x\n", __func__,
+			devp->prop.color_format, devp->v4lfmt.fmt.pix_mp.pixelformat);
+		if (devp->prop.color_format == TVIN_RGB444) {
+			if (devp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12 ||
+				devp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12M)
+				format_convert = VDIN_FORMAT_CONVERT_RGB_NV12;
+			else if (devp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21 ||
+				devp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21M)
+				format_convert = VDIN_FORMAT_CONVERT_RGB_NV21;
+			else
+				format_convert = VDIN_FORMAT_CONVERT_RGB_YUV422;
+		} else {
+			if (devp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12 ||
+				devp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV12M)
+				format_convert = VDIN_FORMAT_CONVERT_YUV_NV12;
+			else if (devp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21 ||
+				devp->v4lfmt.fmt.pix_mp.pixelformat == V4L2_PIX_FMT_NV21M)
+				format_convert = VDIN_FORMAT_CONVERT_YUV_NV21;
+			else
+				format_convert = VDIN_FORMAT_CONVERT_YUV_YUV422;
+		}
+	}
+
 	devp->format_convert = format_convert;
 	if (vdin_is_convert_to_422(format_convert))
 		devp->mif_fmt = MIF_FMT_YUV422;
@@ -2169,7 +2194,8 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 		VDIN_WRCTRLREG_PAUSE_BIT, VDIN_WRCTRLREG_PAUSE_WID);
 	/*  swap the 2 64bits word in 128 words */
 	/*if (is_meson_gxbb_cpu())*/
-	if (devp->set_canvas_manual == 1 || devp->cfg_dma_buf) {
+	if (devp->set_canvas_manual == 1 || devp->cfg_dma_buf ||
+		devp->work_mode == VDIN_WORK_MD_V4L || devp->dbg_no_swap_en) {
 		/*not swap 2 64bits words in 128 words */
 		wr_bits(offset, VDIN_WR_CTRL, 0, WORDS_SWAP_BIT, WORDS_SWAP_WID);
 		/*little endian*/
@@ -4000,8 +4026,10 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 	if (K_FORCE_HV_SHRINK)
 		goto set_hvshrink;
 
-	pr_info("[vdin.%d] %s hactive:%u,vactive:%u.\n", devp->index,
-		__func__, devp->h_active, devp->v_active);
+	pr_info("vdin%d %s hactive:%u,vactive:%u.scaling:%dx%d\n", devp->index,
+		__func__, devp->h_active, devp->v_active,
+		devp->prop.scaling4w, devp->prop.scaling4h);
+
 	if (devp->prop.scaling4w < devp->h_active &&
 	    devp->prop.scaling4w > 0) {
 		if (devp->prehsc_en && (devp->prop.scaling4w <=
@@ -4025,8 +4053,6 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 			vdin_set_vscale(devp);
 	}
 
-	pr_info("[vdin.%d] %s hactive:%u,vactive:%u.\n", devp->index,
-		__func__, devp->h_active, devp->v_active);
 set_hvshrink:
 
 	if ((devp->double_wr || K_FORCE_HV_SHRINK) &&
@@ -4150,6 +4176,8 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		break;
 	}
 
+	if (devp->work_mode == VDIN_WORK_MD_V4L)
+		bit_dep = VDIN_COLOR_DEEPS_8BIT;
 	devp->source_bitdepth = bit_dep;
 #ifdef VDIN_BRINGUP_BYPASS_COLOR_CNVT
 	devp->source_bitdepth = devp->prop.colordepth;
