@@ -22,6 +22,8 @@ Digital TV uAPI headers
 
 .. kernel-include:: $BUILDDIR/net.h.rst
 
+.. kernel-include:: $BUILDDIR/key.h.rst
+
 Legacy uAPI
 ***********
 

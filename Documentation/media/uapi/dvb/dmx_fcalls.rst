@@ -35,3 +35,12 @@ Demux Function Calls
     dmx-querybuf
     dmx-expbuf
     dmx-qbuf
+    dmx-get-dvr-mem
+    dmx-get-mem-info
+    dmx-get-filter-mem-info
+    dmx-get-hw-source
+    dmx-set-hw-source
+    dmx-set-input
+    dmx-set-sec-mem
+    dmx-remap-pid
+    dmx-set-decode-info

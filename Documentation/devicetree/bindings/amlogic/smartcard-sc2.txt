@@ -1,0 +1,64 @@
+Device-Tree bindings for smartcard driver
+
+Required properties:
+- compatible: Must be "amlogic,smartcard-sc2".
+- interrupts: Smartcard IRQ.
+- smc0_clock_source: Smartcard module's clock source selection.
+- reset_level: Reset level.
+- smc0_det_invert: Invert the DET level.
+- pinctrl: Pinmux setting of the smartcard.
+- resets: Clock domain of the smartcard.
+
+If you want to use GPIO to replace the DET and RESET pins, the following properties should be set:
+- reset_pin: RESET GPIO.
+- detect_pin: DETECT GPIO.
+
+If you want to switch 5v/3v by a GPIO, the following properties should be set:
+- enable_5v3v_pin: 5v/3v switch GPIO.
+- smc0_5v3v_level: 5v/3v GPIO output.
+
+If you want to disable the CLK output when no card inserted, the following properties should be set:
+- smc0_clk_pinmux_reg: CLK pinmux register address.
+- smc0_clk_pinmux_bit: CLK pinmux bit.
+- smc0_clk_oen_reg: CLK GPIO OEN register.
+- smc0_clk_out_reg: CLK GPIO output register.
+- smc0_clk_bit: CLK GPIO bit.
+- smc0_clk_oebit: CLK GPIO OEN bit.;
+- smc0_clk_oubit: BLK GPIO output bit.
+
+Example:
+	smartcard {
+		compatible = "amlogic,smartcard";
+		dev_name = "smartcard";
+		status = "okay";
+
+		reg = <0x0 0xfe000000 0x0 0x480000>;
+		irq_trigger_type = "GPIO_IRQ_LOW";
+
+		reset_pin-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
+		detect_pin-gpios = <&gpio GPIOC_2 GPIO_ACTIVE_HIGH>;
+		enable_5v3v_pin-gpios = <&gpio GPIOC_4 GPIO_ACTIVE_HIGH>;
+		enable_pin-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+
+		interrupts = <0 37 1>;
+		interrupt-names = "smc0_irq";
+		/*
+		 *Smc clock source, if change this,
+		 *you must adjust clk and divider in smartcard.c
+		 */
+		smc0_clock_source = <0>;
+		smc0_irq = <37>;		//smc irq
+		/*0: high voltage on detect pin indicates card in.*/
+		smc0_det_invert = <0>;
+		smc0_5v3v_level = <0>;
+		/*Ordinarily,smartcard controller needs a enable pin.*/
+		smc_need_enable_pin = "yes";
+		reset_level = <0>;
+		smc0_enable_level = <0>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd_iso7816_pins>;
+		clocks = <&clkc CLKID_SC_CLK_GATE>;
+		clock-names = "smartcard";
+	};
+

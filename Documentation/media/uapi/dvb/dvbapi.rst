@@ -49,11 +49,13 @@ Part II - Digital TV API
     frontend
     demux
     ca
+    key
     net
     legacy_dvb_apis
     examples
     headers
-
+    dts
+    class_node
 
 **********************
 Revision and Copyright

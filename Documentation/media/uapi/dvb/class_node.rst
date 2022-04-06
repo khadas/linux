@@ -7,24 +7,27 @@
 ..
 .. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
-.. _ca_function_calls:
+.. class node:
 
-*****************
-CA Function Calls
-*****************
+####################
+DVB class node
+####################
 
-.. toctree::
-    :maxdepth: 1
+The Digital TV class node for extend the function
 
-    ca-fopen
-    ca-fclose
-    ca-reset
-    ca-get-cap
-    ca-get-slot-info
-    ca-get-descr-info
-    ca-get-msg
-    ca-send-msg
-    ca-set-descr
-    ca-set-pid
-    ca-set-descr-ex
-    ca-sc2-set-descr-ex
+- dmx_setting: get dmx source info.
+
+- dsc_setting: get dsc source info
+
+- ts_setting: get/configure ts setting.
+
+- get_pcr: get pcr info
+
+- tsn_source: get/set tsn source
+
+- tsn_loop: get/set tsn loop
+
+- dmc_mem: get/set dmc memory in dmx
+
+- dmx_ver: get chip version
+
