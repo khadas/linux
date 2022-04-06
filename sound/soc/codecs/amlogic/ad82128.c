@@ -529,7 +529,9 @@ static const struct snd_soc_component_driver soc_component_dev_ad82128 = {
 
 /* Formats supported by AD82128 driver */
 #define AD82128_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
-	SNDRV_PCM_FMTBIT_S20_LE | SNDRV_PCM_FMTBIT_S24_LE)
+	SNDRV_PCM_FMTBIT_S20_LE | \
+	SNDRV_PCM_FMTBIT_S24_LE | \
+	SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops ad82128_speaker_dai_ops = {
 	.hw_params = ad82128_hw_params,
