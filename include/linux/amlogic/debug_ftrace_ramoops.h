@@ -41,6 +41,9 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 
 void pstore_ftrace_dump_old(struct persistent_ram_zone *prz);
 
+void save_iomap_info(unsigned long virt_addr, unsigned long phys_addr,
+		     unsigned int size);
+
 //#define SKIP_IO_TRACE
 #if (defined CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE) && (!defined SKIP_IO_TRACE)
 #define pstore_ftrace_io_wr(reg, val)	\

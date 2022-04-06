@@ -248,10 +248,13 @@ int ioremap_page_range(unsigned long addr,
 
 	flush_cache_vmap(start, end);
 #ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
-	if (need_dump_iomap() && !is_normal_memory(prot))
+	if (need_dump_iomap() && !is_normal_memory(prot)) {
 		pr_err("io__map <va:0x%08lx-0x%08lx> pa:0x%lx,port:0x%lx\n",
 		       start, end, (unsigned long)phys_addr_save,
 		       (unsigned long)pgprot_val(prot));
+
+		save_iomap_info(start, (unsigned long)phys_addr_save, (unsigned int)(end - start));
+	}
 #endif
 	return err;
 }

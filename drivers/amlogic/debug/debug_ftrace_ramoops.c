@@ -33,10 +33,33 @@
 #include <linux/percpu.h>
 #include <linux/moduleparam.h>
 #include <linux/pstore_ram.h>
+#include <linux/io.h>
+#include <linux/printk.h>
+#include <linux/uaccess.h>
+#include <linux/rbtree.h>
+#include <linux/of.h>
+#include <linux/slab.h>
 
 static DEFINE_PER_CPU(int, en);
 
 #define IRQ_D	1
+#define MAX_DETECT_REG 10
+
+static unsigned int check_reg[MAX_DETECT_REG];
+static unsigned int check_mask[MAX_DETECT_REG];
+static unsigned int *virt_addr[MAX_DETECT_REG];
+unsigned long old_val_reg[MAX_DETECT_REG];
+struct rb_root reg_addr_root;
+
+struct reg_addr {
+	struct rb_node node;
+	unsigned long phys_addr;
+	unsigned long virt_addr;
+	unsigned int size;
+};
+
+static int reg_check_panic;
+core_param(reg_check_panic, reg_check_panic, int, 0644);
 
 unsigned int dump_iomap;
 core_param(dump_iomap, dump_iomap, uint, 0664);
@@ -56,6 +79,9 @@ int ramoops_io_skip;
 EXPORT_SYMBOL(ramoops_io_skip);
 core_param(ramoops_io_skip, ramoops_io_skip, int, 0664);
 
+static int dump_phys_addr;
+core_param(dump_phys_addr, dump_phys_addr, int, 0644);
+
 const char *record_name[] = {
 	"NULL",
 	"FUNC",
@@ -65,6 +91,196 @@ const char *record_name[] = {
 	"IO-W-E",
 	"IO-TAG",
 };
+
+void reg_check_init(void)
+{
+	int i;
+	unsigned int *virt_tmp[MAX_DETECT_REG] = {NULL};
+
+	memcpy(virt_tmp, virt_addr, sizeof(virt_addr));
+
+	for (i = 0; i < MAX_DETECT_REG; i++)
+		rcu_assign_pointer(virt_addr[i], NULL);
+
+	synchronize_rcu();
+
+	for (i = 0; i < MAX_DETECT_REG; i++) {
+		if (virt_tmp[i])
+			iounmap(virt_tmp[i]);
+		else
+			break;
+	}
+
+	for (i = 0; i < MAX_DETECT_REG; i++) {
+		if (check_reg[i]) {
+			virt_addr[i] = (unsigned int *)ioremap(check_reg[i], sizeof(unsigned long));
+			if (!virt_addr[i]) {
+				pr_err("Unable to map reg 0x%x\n", check_reg[i]);
+				return;
+			}
+			pr_info("reg 0x%x has been mapped to 0x%px\n", check_reg[i], virt_addr[i]);
+		} else {
+			break;
+		}
+	}
+}
+
+void reg_check_func(void)
+{
+	unsigned int val;
+	unsigned long tmp;
+	unsigned int i = 0;
+	unsigned int *tmp_addr;
+
+	rcu_read_lock();
+	while (i < MAX_DETECT_REG && virt_addr[i]) {
+		tmp_addr = rcu_dereference(virt_addr[i]);
+		if (old_val_reg[i] != -1) {
+			val = *tmp_addr;
+			if ((val & check_mask[i]) != (old_val_reg[i] & check_mask[i])) {
+				tmp = old_val_reg[i];
+				old_val_reg[i] = val;
+				pr_err("phys_addr:0x%x new_val=0x%x old_val=0x%lx\n",
+					check_reg[i], val, tmp);
+				if (!reg_check_panic)
+					dump_stack();
+				else
+					panic("reg_check_panic");
+			}
+		} else {
+			old_val_reg[i] = *tmp_addr;
+		}
+		i++;
+	}
+	rcu_read_unlock();
+}
+
+static int check_reg_setup(const char *ptr, const struct kernel_param *kp)
+{
+	char *str_entry;
+	char *str = (char *)ptr;
+	unsigned int tmp;
+	unsigned int i = 0, ret;
+
+	do {
+		str_entry = strsep(&str, ",");
+		if (str_entry) {
+			ret = kstrtou32(str_entry, 16, &tmp);
+			if (ret)
+				return -1;
+			pr_info("check_reg: 0x%x\n", tmp);
+			check_reg[i] = tmp;
+			old_val_reg[i++] = -1;
+		}
+	} while (str_entry && i < MAX_DETECT_REG);
+
+	reg_check_init();
+
+	return 0;
+}
+
+static int check_reg_show(char *ptr, const struct kernel_param *kp)
+{
+	unsigned int i = 0;
+
+	if (!check_reg[i])
+		pr_info("No check reg\n");
+	while (i < MAX_DETECT_REG && check_reg[i]) {
+		pr_info("check_reg[%u]:0x%x\n", i, check_reg[i]);
+		i++;
+	}
+	return 0;
+}
+
+static const struct kernel_param_ops check_reg_ops = {
+	.set = check_reg_setup,
+	.get = check_reg_show
+};
+
+core_param_cb(check_reg, &check_reg_ops, NULL, 0644);
+
+static int check_mask_setup(const char *ptr, const struct kernel_param *kp)
+{
+	char *str_entry;
+	char *str = (char *)ptr;
+	unsigned int tmp;
+	unsigned int i = 0, ret;
+
+	do {
+		str_entry = strsep(&str, ",");
+		if (str_entry) {
+			ret = kstrtou32(str_entry, 16, &tmp);
+			if (ret)
+				return -1;
+			pr_info("check_mask: 0x%x\n", tmp);
+			check_mask[i++] = tmp;
+		}
+	} while (str_entry && i < MAX_DETECT_REG);
+
+	return 0;
+}
+
+static int check_mask_show(char *ptr, const struct kernel_param *kp)
+{
+	unsigned int i = 0;
+
+	if (!check_mask[i])
+		pr_info("No check mask\n");
+	while (i < MAX_DETECT_REG && check_mask[i]) {
+		pr_info("check_mask[%u]:0x%x\n", i, check_mask[i]);
+		i++;
+	}
+	return 0;
+}
+
+static const struct kernel_param_ops check_mask_ops = {
+	.set = check_mask_setup,
+	.get = check_mask_show
+};
+
+core_param_cb(check_mask, &check_mask_ops, NULL, 0644);
+
+static int reg_addr_insert(struct rb_root *root, struct reg_addr *new)
+{
+	struct rb_node **link = &root->rb_node, *parent = NULL;
+
+	/* Figure out where to put new node */
+	while (*link) {
+		struct reg_addr *this = container_of(*link, struct reg_addr, node);
+		int result = new->virt_addr - this->virt_addr;
+
+		parent = *link;
+		if (result < 0)
+			link = &((*link)->rb_left);
+		else if (result > 0)
+			link = &((*link)->rb_right);
+		else
+			return 0;
+	}
+
+	/* Add new node and rebalance tree */
+	rb_link_node(&new->node, parent, link);
+	rb_insert_color(&new->node, root);
+
+	return 1;
+}
+
+void save_iomap_info(unsigned long virt_addr, unsigned long phys_addr, unsigned int size)
+{
+	struct reg_addr *new;
+
+	if (!dump_phys_addr)
+		return;
+
+	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	if (new) {
+		new->virt_addr = virt_addr;
+		new->phys_addr = phys_addr;
+		new->size = size;
+		reg_addr_insert(&reg_addr_root, new);
+	}
+}
+EXPORT_SYMBOL(save_iomap_info);
 
 void notrace pstore_io_rw_dump(struct pstore_ftrace_record *rec,
 			       struct seq_file *s)
@@ -100,6 +316,31 @@ void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
 	}
 }
 
+static unsigned long virt_convert_phys_addr(unsigned long virt_addr)
+{
+	struct rb_node *node;
+	struct reg_addr *this, *tmp = NULL;
+	unsigned long phys_addr;
+	static unsigned long last_virt_addr, last_phys_addr;
+
+	if ((virt_addr & PAGE_MASK) == (last_virt_addr & PAGE_MASK))
+		return (last_phys_addr & PAGE_MASK) + (virt_addr & ~PAGE_MASK);
+
+	for (node = rb_first(&reg_addr_root); node; node = rb_next(node)) {
+		this = container_of(node, struct reg_addr, node);
+
+		if (virt_addr >= this->virt_addr && virt_addr < this->virt_addr + this->size) {
+			tmp = this;
+			phys_addr = virt_addr - tmp->virt_addr + tmp->phys_addr;
+			last_virt_addr = virt_addr;
+			last_phys_addr = phys_addr;
+			return phys_addr;
+		}
+	}
+	/*No corresponding physical address found*/
+	return -1;
+}
+
 void notrace pstore_io_save(unsigned long reg, unsigned long val,
 			    unsigned long parent, unsigned int flag,
 			    unsigned long *irq_flag)
@@ -118,6 +359,9 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 
 	if ((flag == PSTORE_FLAG_IO_R || flag == PSTORE_FLAG_IO_W) && IRQ_D)
 		local_irq_save(*irq_flag);
+
+	if (flag == PSTORE_FLAG_IO_W_END)
+		reg_check_func();
 
 	switch (ramoops_io_skip) {
 	case 1:
@@ -140,7 +384,25 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 
 	rec.flag = flag;
 	rec.in_irq = !!in_irq();
-	rec.val1 = reg;
+
+	if (dump_phys_addr) {
+		switch (rec.flag) {
+		case PSTORE_FLAG_IO_R:
+		case PSTORE_FLAG_IO_R_END:
+		case PSTORE_FLAG_IO_W:
+		case PSTORE_FLAG_IO_W_END:
+			rec.val1 = virt_convert_phys_addr(reg);
+			break;
+		default:
+			rec.val1 = reg;
+		}
+	} else {
+		rec.val1 = reg;
+	}
+
+	if (dump_phys_addr && rec.val1 == -1)
+		rec.val1 = reg;
+
 	rec.val2 = val;
 
 	cpu = raw_smp_processor_id();
@@ -209,6 +471,39 @@ static int __init reboot_mode_setup(char *s)
 }
 __setup("reboot_mode=", reboot_mode_setup);
 
+static void dump_reg_compatible(void)
+{
+#ifdef CONFIG_ARM64
+	u64 reg[20];
+#else
+	u32 reg[20];
+#endif
+	int reg_size, i;
+	const char *string;
+	struct device_node *node, *tmp_node;
+
+	for_each_node_with_property(node, "reg") {
+		tmp_node = node;
+
+		while (tmp_node) {
+			if (!of_property_read_string(tmp_node, "compatible", &string))
+				break;
+			tmp_node = tmp_node->parent;
+		}
+
+		pr_info("%s:\n", string);
+#ifdef CONFIG_ARM64
+		reg_size = of_property_read_variable_u64_array(node, "reg", reg, 0, 20);
+		for (i = 0; i + 1 < reg_size; i += 2)
+			pr_info("0x%llx_0x%llx\n", reg[i], reg[i + 1]);
+#else
+		reg_size = of_property_read_variable_u32_array(node, "reg", reg, 0, 20);
+		for (i = 0; i + 1 < reg_size; i += 2)
+			pr_info("0x%x_0x%x\n", reg[i], reg[i + 1]);
+#endif
+	}
+}
+
 void notrace pstore_ftrace_dump_old(struct persistent_ram_zone *prz)
 {
 	struct pstore_ftrace_record *rec;
@@ -232,6 +527,9 @@ void notrace pstore_ftrace_dump_old(struct persistent_ram_zone *prz)
 
 	if (!persistent_ram_old_size(prz))
 		return;
+
+	if (dump_phys_addr)
+		dump_reg_compatible();
 
 	rec = (void *)rec + prz->old_log_size % sizeof(*rec);
 
