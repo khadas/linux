@@ -88,12 +88,8 @@ bool legacy_vpp = true;
 
 static bool bypass_cm;
 bool hscaler_8tap_enable[MAX_VD_LAYER];
-int pre_hscaler_ntap_enable[MAX_VD_LAYER];
-int pre_hscaler_ntap_set[MAX_VD_LAYER];
-int pre_hscaler_ntap[MAX_VD_LAYER];
-int pre_vscaler_ntap_enable[MAX_VD_LAYER];
-int pre_vscaler_ntap_set[MAX_VD_LAYER];
-int pre_vscaler_ntap[MAX_VD_LAYER];
+struct pre_scaler_info pre_scaler[MAX_VD_LAYER];
+
 static DEFINE_SPINLOCK(video_onoff_lock);
 static DEFINE_SPINLOCK(video2_onoff_lock);
 static DEFINE_SPINLOCK(video3_onoff_lock);
@@ -2995,53 +2991,92 @@ SKIP_VD1_AFBC:
 
 static void get_pre_hscaler_para(u8 layer_id, int *ds_ratio, int *flt_num)
 {
-	switch (pre_hscaler_ntap[layer_id]) {
+	switch (pre_scaler[layer_id].pre_hscaler_ntap) {
 	case PRE_HSCALER_2TAP:
-		*ds_ratio = 1;
+		*ds_ratio = pre_scaler[layer_id].pre_hscaler_rate;
 		*flt_num = 2;
 		break;
 	case PRE_HSCALER_4TAP:
-		*ds_ratio = 1;
+		*ds_ratio = pre_scaler[layer_id].pre_hscaler_rate;
 		*flt_num = 4;
 		break;
 	case PRE_HSCALER_6TAP:
-		*ds_ratio = 1;
+		*ds_ratio = pre_scaler[layer_id].pre_hscaler_rate;
 		*flt_num = 6;
 		break;
 	case PRE_HSCALER_8TAP:
-		*ds_ratio = 1;
+		*ds_ratio = pre_scaler[layer_id].pre_hscaler_rate;
 		*flt_num = 8;
 		break;
 	}
 }
 
+static void get_pre_vscaler_para(u8 layer_id, int *ds_ratio, int *flt_num)
+{
+	switch (pre_scaler[layer_id].pre_vscaler_ntap) {
+	case PRE_VSCALER_2TAP:
+		*ds_ratio = pre_scaler[layer_id].pre_vscaler_rate;
+		*flt_num = 2;
+		break;
+	case PRE_VSCALER_4TAP:
+		*ds_ratio = pre_scaler[layer_id].pre_vscaler_rate;
+		*flt_num = 4;
+		break;
+	}
+}
 static void get_pre_hscaler_coef(u8 layer_id, int *pre_hscaler_table)
 {
-	switch (pre_hscaler_ntap[layer_id]) {
-	case PRE_HSCALER_2TAP:
-		pre_hscaler_table[0] = 0x100;
-		pre_hscaler_table[1] = 0x0;
-		pre_hscaler_table[2] = 0x0;
-		pre_hscaler_table[3] = 0x0;
-		break;
-	case PRE_HSCALER_4TAP:
-		pre_hscaler_table[0] = 0xc0;
-		pre_hscaler_table[1] = 0x40;
-		pre_hscaler_table[2] = 0x0;
-		pre_hscaler_table[3] = 0x0;
-		break;
-	case PRE_HSCALER_6TAP:
-		pre_hscaler_table[0] = 0x9c;
-		pre_hscaler_table[1] = 0x44;
-		pre_hscaler_table[2] = 0x20;
-		pre_hscaler_table[3] = 0x0;
-		break;
-	case PRE_HSCALER_8TAP:
-		pre_hscaler_table[0] = 0x90;
-		pre_hscaler_table[1] = 0x40;
-		pre_hscaler_table[2] = 0x20;
-		pre_hscaler_table[3] = 0x10;
-		break;
+	if (pre_scaler[layer_id].pre_hscaler_coef_set) {
+		pre_hscaler_table[0] = pre_scaler[layer_id].pre_hscaler_coef[0];
+		pre_hscaler_table[1] = pre_scaler[layer_id].pre_hscaler_coef[1];
+		pre_hscaler_table[2] = pre_scaler[layer_id].pre_hscaler_coef[2];
+		pre_hscaler_table[3] = pre_scaler[layer_id].pre_hscaler_coef[3];
+	} else {
+		switch (pre_scaler[layer_id].pre_hscaler_ntap) {
+		case PRE_HSCALER_2TAP:
+			pre_hscaler_table[0] = 0x100;
+			pre_hscaler_table[1] = 0x0;
+			pre_hscaler_table[2] = 0x0;
+			pre_hscaler_table[3] = 0x0;
+			break;
+		case PRE_HSCALER_4TAP:
+			pre_hscaler_table[0] = 0xc0;
+			pre_hscaler_table[1] = 0x40;
+			pre_hscaler_table[2] = 0x0;
+			pre_hscaler_table[3] = 0x0;
+			break;
+		case PRE_HSCALER_6TAP:
+			pre_hscaler_table[0] = 0x9c;
+			pre_hscaler_table[1] = 0x44;
+			pre_hscaler_table[2] = 0x20;
+			pre_hscaler_table[3] = 0x0;
+			break;
+		case PRE_HSCALER_8TAP:
+			pre_hscaler_table[0] = 0x90;
+			pre_hscaler_table[1] = 0x40;
+			pre_hscaler_table[2] = 0x20;
+			pre_hscaler_table[3] = 0x10;
+			break;
+		}
+	}
+}
+
+static void get_pre_vscaler_coef(u8 layer_id, int *pre_hscaler_table)
+{
+	if (pre_scaler[layer_id].pre_vscaler_coef_set) {
+		pre_hscaler_table[0] = pre_scaler[layer_id].pre_vscaler_coef[0];
+		pre_hscaler_table[1] = pre_scaler[layer_id].pre_vscaler_coef[1];
+	} else {
+		switch (pre_scaler[layer_id].pre_vscaler_ntap) {
+		case PRE_VSCALER_2TAP:
+			pre_hscaler_table[0] = 0x100;
+			pre_hscaler_table[1] = 0x0;
+			break;
+		case PRE_VSCALER_4TAP:
+			pre_hscaler_table[0] = 0xc0;
+			pre_hscaler_table[1] = 0x40;
+			break;
+		}
 	}
 }
 
@@ -3104,7 +3139,7 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 		if (setting->sc_h_enable) {
 			if (has_pre_hscaler_ntap(0)) {
 				/* for sc2/t5 support hscaler 8 tap */
-				if (pre_hscaler_ntap_enable[0]) {
+				if (pre_scaler[0].pre_hscaler_ntap_enable) {
 					sc_misc_val |=
 					(((vpp_filter->vpp_pre_hsc_en & 1)
 					<< VPP_SC_PREHORZ_EN_BIT)
@@ -3491,11 +3526,14 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 		if (has_pre_vscaler_ntap(0)) {
 			int ds_ratio = 1;
 			int flt_num = 4;
+			int pre_vscaler_table[2];
 
+			get_pre_vscaler_para(0, &ds_ratio, &flt_num);
+			get_pre_vscaler_coef(0, pre_vscaler_table);
 			if (has_pre_hscaler_8tap(0)) {
-				int pre_vscaler_table[2] = {0xc0, 0x40};
+				//int pre_vscaler_table[2] = {0xc0, 0x40};
 
-				if (!pre_vscaler_ntap_enable[(0)]) {
+				if (!pre_scaler[0].pre_vscaler_ntap_enable) {
 					pre_vscaler_table[0] = 0x100;
 					pre_vscaler_table[1] = 0x0;
 					flt_num = 2;
@@ -3523,9 +3561,9 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 					VPP_PREVSC_DS_RATIO_BIT_T7,
 					VPP_PREVSC_DS_RATIO_WID_T7);
 			} else {
-				int pre_vscaler_table[2] = {0xf8, 0x48};
+				//int pre_vscaler_table[2] = {0xf8, 0x48};
 
-				if (!pre_vscaler_ntap_enable[0]) {
+				if (!pre_scaler[0].pre_vscaler_ntap_enable) {
 					pre_vscaler_table[0] = 0;
 					pre_vscaler_table[1] = 0x40;
 					flt_num = 2;
@@ -3826,7 +3864,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
 		if (setting->sc_h_enable) {
 			if (has_pre_hscaler_ntap(layer_id)) {
-				if (pre_hscaler_ntap_enable[layer_id]) {
+				if (pre_scaler[layer_id].pre_hscaler_ntap_enable) {
 					sc_misc_val |=
 					(((vpp_filter->vpp_pre_hsc_en & 1)
 					<< VPP_SC_PREHORZ_EN_BIT)
@@ -4111,7 +4149,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			if (has_pre_hscaler_8tap(layer_id)) {
 				int pre_vscaler_table[2] = {0xc0, 0x40};
 
-				if (!pre_vscaler_ntap_enable[(layer_id)]) {
+				if (!pre_scaler[layer_id].pre_vscaler_ntap_enable) {
 					pre_vscaler_table[0] = 0x100;
 					pre_vscaler_table[1] = 0x0;
 					flt_num = 2;
@@ -4142,7 +4180,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			} else {
 				int pre_vscaler_table[2] = {0xf8, 0x48};
 
-				if (!pre_vscaler_ntap_enable[(layer_id)]) {
+				if (!pre_scaler[layer_id].pre_vscaler_ntap_enable) {
 					pre_vscaler_table[0] = 0;
 					pre_vscaler_table[1] = 0x40;
 					flt_num = 2;
@@ -9918,7 +9956,7 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 		sc_misc_val = VPP_SC_TOP_EN | VPP_SC_V1OUT_EN;
 		if (setting->sc_h_enable) {
 			if (has_pre_hscaler_ntap(layer_id)) {
-				if (pre_hscaler_ntap_enable[layer_id]) {
+				if (pre_scaler[layer_id].pre_hscaler_ntap_enable) {
 					sc_misc_val |=
 					(((vpp_filter->vpp_pre_hsc_en & 1)
 					<< VPP_SC_PREHORZ_EN_BIT)
@@ -10194,7 +10232,7 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 			if (has_pre_hscaler_8tap(layer_id)) {
 				int pre_vscaler_table[2] = {0xc0, 0x40};
 
-				if (!pre_vscaler_ntap_enable[(layer_id)]) {
+				if (!pre_scaler[layer_id].pre_vscaler_ntap_enable) {
 					pre_vscaler_table[0] = 0x100;
 					pre_vscaler_table[1] = 0x0;
 					flt_num = 2;
@@ -10225,7 +10263,7 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 			} else {
 				int pre_vscaler_table[2] = {0xf8, 0x48};
 
-				if (!pre_vscaler_ntap_enable[(layer_id)]) {
+				if (!pre_scaler[layer_id].pre_vscaler_ntap_enable) {
 					pre_vscaler_table[0] = 0;
 					pre_vscaler_table[1] = 0x40;
 					flt_num = 2;
@@ -11000,10 +11038,10 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 			glayer_info[i].fgrain_enable = false;
 			glayer_info[i].alpha_support = false;
 			hscaler_8tap_enable[i] = false;
-			pre_hscaler_ntap_enable[i] = false;
-			pre_vscaler_ntap_enable[i] = false;
-			pre_hscaler_ntap_set[i] = 0xff;
-			pre_vscaler_ntap_set[i] = 0xff;
+			pre_scaler[i].pre_hscaler_ntap_enable = false;
+			pre_scaler[i].pre_vscaler_ntap_enable = false;
+			pre_scaler[i].pre_hscaler_ntap_set = 0xff;
+			pre_scaler[i].pre_vscaler_ntap_set = 0xff;
 			continue;
 		}
 		if (legacy_vpp) {
@@ -11048,11 +11086,22 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		glayer_info[i].layer_support = p_amvideo->layer_support[i];
 		glayer_info[i].alpha_support = p_amvideo->alpha_support[i];
 		hscaler_8tap_enable[i] = has_hscaler_8tap(i);
-		pre_hscaler_ntap_enable[i] = has_pre_hscaler_ntap(i);
-		pre_vscaler_ntap_enable[i] = has_pre_vscaler_ntap(i);
-		pre_hscaler_ntap_set[i] = 0xff;
-		pre_vscaler_ntap_set[i] = 0xff;
-		pre_hscaler_ntap[i] = PRE_HSCALER_4TAP;
+		pre_scaler[i].force_pre_scaler = 0;
+		pre_scaler[i].pre_hscaler_ntap_enable =
+			has_pre_hscaler_ntap(i);
+		pre_scaler[i].pre_vscaler_ntap_enable =
+			has_pre_vscaler_ntap(i);
+		pre_scaler[i].pre_hscaler_ntap_set = 0xff;
+		pre_scaler[i].pre_vscaler_ntap_set = 0xff;
+		pre_scaler[i].pre_hscaler_ntap = PRE_HSCALER_4TAP;
+		if (has_pre_hscaler_8tap(i))
+			pre_scaler[i].pre_vscaler_ntap = PRE_VSCALER_4TAP;
+		else
+			pre_scaler[i].pre_vscaler_ntap = PRE_VSCALER_2TAP;
+		pre_scaler[i].pre_hscaler_rate = 1;
+		pre_scaler[i].pre_vscaler_rate = 1;
+		pre_scaler[i].pre_hscaler_coef_set = 0;
+		pre_scaler[i].pre_vscaler_coef_set = 0;
 		if (p_amvideo->src_width_max[i] != 0xff)
 			glayer_info[i].src_width_max =
 				p_amvideo->src_width_max[i];

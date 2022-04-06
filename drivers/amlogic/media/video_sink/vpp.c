@@ -2154,25 +2154,30 @@ RESTART:
 	}
 
 	/*pre hsc&vsc in pps for scaler down*/
-	if (filter->vpp_hf_start_phase_step >= 0x2000000 &&
+	if ((filter->vpp_hf_start_phase_step >= 0x2000000 &&
 	    filter->vpp_vsc_start_phase_step >= 0x2000000 &&
 	    filter->vpp_hsc_start_phase_step == filter->vpp_hf_start_phase_step &&
-	    pre_scaler_en) {
+	    pre_scaler_en) ||
+	    pre_scaler[input->layer_id].force_pre_scaler) {
 		filter->vpp_pre_vsc_en = 1;
-		filter->vpp_vsc_start_phase_step >>= 1;
-		ratio_y >>= 1;
+		filter->vpp_vsc_start_phase_step >>=
+			pre_scaler[input->layer_id].pre_vscaler_rate;
+		ratio_y >>= pre_scaler[input->layer_id].pre_vscaler_rate;
 		f2v_get_vertical_phase(ratio_y, ini_vphase,
 				       next_frame_par->VPP_vf_ini_phase_,
 				       vpp_flags & VPP_FLAG_INTERLACE_OUT);
 	} else {
 		filter->vpp_pre_vsc_en = 0;
 	}
-	if (filter->vpp_hf_start_phase_step >= 0x2000000 &&
+	if ((filter->vpp_hf_start_phase_step >= 0x2000000 &&
 	    filter->vpp_hsc_start_phase_step == filter->vpp_hf_start_phase_step &&
-	    pre_scaler_en) {
+	    pre_scaler_en) ||
+	    pre_scaler[input->layer_id].force_pre_scaler) {
 		filter->vpp_pre_hsc_en = 1;
-		filter->vpp_hf_start_phase_step >>= 1;
-		filter->vpp_hsc_start_phase_step >>= 1;
+		filter->vpp_hf_start_phase_step >>=
+			pre_scaler[input->layer_id].pre_hscaler_rate;
+		filter->vpp_hsc_start_phase_step >>=
+			pre_scaler[input->layer_id].pre_hscaler_rate;
 	} else {
 		filter->vpp_pre_hsc_en = 0;
 
@@ -2212,17 +2217,17 @@ RESTART:
 		    vinfo->sync_duration_den >= 50))
 			is_larger_4k50hz = 1;
 	}
-	if (pre_hscaler_ntap_set[input->layer_id] == 0xff) {
+	if (pre_scaler[input->layer_id].pre_hscaler_ntap_set == 0xff) {
 		if (filter->vpp_pre_hsc_en &&
 		    is_larger_4k50hz &&
 		    (height_in >= 2160 * hscaler_input_h_threshold / 100) &&
 		    filter->vpp_vsc_start_phase_step != 0x1000000)
-			pre_hscaler_ntap_enable[input->layer_id] = 0;
+			pre_scaler[input->layer_id].pre_hscaler_ntap_enable = 0;
 		else
-			pre_hscaler_ntap_enable[input->layer_id] = 1;
+			pre_scaler[input->layer_id].pre_hscaler_ntap_enable = 1;
 	} else {
-		pre_hscaler_ntap_enable[input->layer_id] =
-			pre_hscaler_ntap_set[input->layer_id];
+		pre_scaler[input->layer_id].pre_hscaler_ntap_enable =
+			pre_scaler[input->layer_id].pre_hscaler_ntap_set;
 	}
 	next_frame_par->VPP_hf_ini_phase_ = vpp_zoom_center_x & 0xff;
 

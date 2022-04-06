@@ -143,6 +143,13 @@ enum pre_hscaler_e {
 	PRE_HSCALER_8TAP = 8
 };
 
+enum pre_vscaler_e {
+	PRE_VSCALER_2TAP = 2,
+	PRE_VSCALER_4TAP = 4,
+	PRE_VSCALER_6TAP = 6,
+	PRE_VSCALER_8TAP = 8
+};
+
 enum vpp_type_e {
 	VPP0,
 	VPP1,
@@ -503,18 +510,28 @@ struct path_id_s {
 	s32 vd3_path_id;
 };
 
+struct pre_scaler_info {
+	u32 force_pre_scaler;
+	u32 pre_hscaler_ntap_enable;
+	u32 pre_hscaler_ntap_set;
+	u32 pre_hscaler_ntap;
+	u32 pre_hscaler_rate;
+	u32 pre_hscaler_coef[4];
+	u32 pre_hscaler_coef_set;
+	u32 pre_vscaler_ntap_enable;
+	u32 pre_vscaler_ntap_set;
+	u32 pre_vscaler_ntap;
+	u32 pre_vscaler_rate;
+	u32 pre_vscaler_coef[4];
+	u32 pre_vscaler_coef_set;
+};
 /* from video_hw.c */
 extern struct video_layer_s vd_layer[MAX_VD_LAYER];
 extern struct disp_info_s glayer_info[MAX_VD_LAYER];
 extern struct video_dev_s *cur_dev;
 extern bool legacy_vpp;
 extern bool hscaler_8tap_enable[MAX_VD_LAYER];
-extern int pre_hscaler_ntap_enable[MAX_VD_LAYER];
-extern int pre_hscaler_ntap_set[MAX_VD_LAYER];
-extern int pre_hscaler_ntap[MAX_VD_LAYER];
-extern int pre_vscaler_ntap_enable[MAX_VD_LAYER];
-extern int pre_vscaler_ntap_set[MAX_VD_LAYER];
-extern int pre_vscaler_ntap[MAX_VD_LAYER];
+extern struct pre_scaler_info pre_scaler[MAX_VD_LAYER];
 extern bool vd1_vd2_mux;
 extern bool aisr_en;
 extern u32 vd1_vd2_mux_dts;

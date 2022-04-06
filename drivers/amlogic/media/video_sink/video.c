@@ -15552,6 +15552,7 @@ static ssize_t hscaler_8tap_enable_store(struct class *cla,
 	if (amvideo_meson_dev.has_hscaler_8tap[0] &&
 	    hscaler_8tap_en != hscaler_8tap_enable[0]) {
 		hscaler_8tap_enable[0] = hscaler_8tap_en;
+		vd_layer[0].property_changed = true;
 	}
 	return count;
 }
@@ -15580,6 +15581,12 @@ static ssize_t pip_hscaler_8tap_enable_store
 	if (amvideo_meson_dev.has_hscaler_8tap[1] &&
 	    hscaler_8tap_en != hscaler_8tap_enable[1]) {
 		hscaler_8tap_enable[1] = hscaler_8tap_en;
+		if (vd_layer[1].vpp_index == VPP0) {
+			vd_layer[1].property_changed = true;
+		} else {
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
 	}
 	return count;
 }
@@ -15608,6 +15615,12 @@ static ssize_t pip2_hscaler_8tap_enable_store
 	if (amvideo_meson_dev.has_hscaler_8tap[2] &&
 	    hscaler_8tap_en != hscaler_8tap_enable[2]) {
 		hscaler_8tap_enable[2] = hscaler_8tap_en;
+		if (vd_layer[2].vpp_index == VPP0) {
+			vd_layer[2].property_changed = true;
+		} else {
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
 	}
 	return count;
 }
@@ -15620,14 +15633,14 @@ static ssize_t pre_hscaler_ntap_enable_show
 	int i;
 
 	for (i = 0; i < MAX_VD_LAYER; i++) {
-		if (pre_hscaler_ntap_set[i] == 0xff)
+		if (pre_scaler[i].pre_hscaler_ntap_set == 0xff)
 			pr_info("pre_hscaler_ntap_en[%d](0xff):%d\n",
 				i,
-				pre_hscaler_ntap_enable[i]);
+				pre_scaler[i].pre_hscaler_ntap_enable);
 		else
 			pr_info("pre_hscaler_ntap_en[%d]: %d\n",
 				i,
-				pre_hscaler_ntap_set[i]);
+				pre_scaler[i].pre_hscaler_ntap_set);
 	}
 	return 0;
 }
@@ -15644,8 +15657,16 @@ static ssize_t pre_hscaler_ntap_enable_store
 		if (parsed[0] < MAX_VD_LAYER)
 			layer_id = parsed[0];
 		pre_hscaler_ntap_en = parsed[1];
-		if (pre_hscaler_ntap_en != pre_hscaler_ntap_set[layer_id])
-			pre_hscaler_ntap_set[layer_id] = pre_hscaler_ntap_en;
+		if (pre_hscaler_ntap_en !=
+			pre_scaler[layer_id].pre_hscaler_ntap_set) {
+			pre_scaler[layer_id].pre_hscaler_ntap_set =
+				pre_hscaler_ntap_en;
+			vd_layer[layer_id].property_changed = true;
+			if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+				vd_layer_vpp[0].property_changed = true;
+				vd_layer_vpp[1].property_changed = true;
+			}
+		}
 	}
 	return strnlen(buf, count);
 }
@@ -15656,9 +15677,9 @@ static ssize_t pre_hscaler_ntap_set_show
 	char *buf)
 {
 	return snprintf(buf, 256, "pre_hscaler_ntap: vd1:%d, vd2:%d, vd3:%d\n",
-		pre_hscaler_ntap[0],
-		pre_hscaler_ntap[1],
-		pre_hscaler_ntap[2]);
+		pre_scaler[0].pre_hscaler_ntap,
+		pre_scaler[1].pre_hscaler_ntap,
+		pre_scaler[2].pre_hscaler_ntap);
 }
 
 static ssize_t cur_ai_scenes_show(struct class *cla,
@@ -15698,7 +15719,27 @@ static ssize_t pre_hscaler_ntap_set_store
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
 		if (parsed[0] < MAX_VD_LAYER)
 			layer_id = parsed[0];
-		pre_hscaler_ntap[layer_id] = parsed[1];
+		/* check valid */
+		if (has_pre_hscaler_8tap(layer_id)) {
+			/* only support 2,4,6,8 tap */
+			if (parsed[1] > 8) {
+				pr_info("err(%d):max support tap is 8\n", parsed[1]);
+				parsed[1] = 8;
+			}
+			pre_scaler[layer_id].pre_hscaler_ntap = parsed[1];
+		} else if (has_pre_hscaler_ntap(layer_id)) {
+			/* only support 2,4 tap */
+			if (parsed[1] > 4) {
+				pr_info("err(%d):max support tap is 4\n", parsed[1]);
+				parsed[1] = 4;
+			}
+			pre_scaler[layer_id].pre_hscaler_ntap = parsed[1];
+		}
+		vd_layer[layer_id].property_changed = true;
+		if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
 	}
 	return strnlen(buf, count);
 }
@@ -15711,14 +15752,14 @@ static ssize_t pre_vscaler_ntap_enable_show
 	int i;
 
 	for (i = 0; i < MAX_VD_LAYER; i++) {
-		if (pre_vscaler_ntap_set[i] == 0xff)
+		if (pre_scaler[i].pre_vscaler_ntap_set == 0xff)
 			pr_info("pre_vscaler_ntap_en[%d](0xff):%d\n",
 				i,
-				pre_vscaler_ntap_enable[i]);
+				pre_scaler[i].pre_vscaler_ntap_enable);
 		else
 			pr_info("pre_vscaler_ntap_en[%d]: %d\n",
 				i,
-				pre_vscaler_ntap_set[i]);
+				pre_scaler[i].pre_vscaler_ntap_set);
 	}
 	return 0;
 }
@@ -15735,8 +15776,16 @@ static ssize_t pre_vscaler_ntap_enable_store
 		if (parsed[0] < MAX_VD_LAYER)
 			layer_id = parsed[0];
 		pre_vscaler_ntap_en = parsed[1];
-		if (pre_vscaler_ntap_en != pre_vscaler_ntap_set[layer_id])
-			pre_vscaler_ntap_set[layer_id] = pre_vscaler_ntap_en;
+		if (pre_vscaler_ntap_en !=
+			pre_scaler[layer_id].pre_vscaler_ntap_set) {
+			pre_scaler[layer_id].pre_vscaler_ntap_set =
+				pre_vscaler_ntap_en;
+			vd_layer[layer_id].property_changed = true;
+			if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+				vd_layer_vpp[0].property_changed = true;
+				vd_layer_vpp[1].property_changed = true;
+			}
+		}
 	}
 	return strnlen(buf, count);
 }
@@ -15747,9 +15796,9 @@ static ssize_t pre_vscaler_ntap_set_show
 	char *buf)
 {
 	return snprintf(buf, 256, "pre_vscaler_ntap: vd1:%d, vd2:%d, vd3:%d\n",
-		pre_vscaler_ntap[0],
-		pre_vscaler_ntap[1],
-		pre_vscaler_ntap[2]);
+		pre_scaler[0].pre_vscaler_ntap,
+		pre_scaler[1].pre_vscaler_ntap,
+		pre_scaler[2].pre_vscaler_ntap);
 }
 
 static ssize_t pre_vscaler_ntap_set_store
@@ -15763,7 +15812,215 @@ static ssize_t pre_vscaler_ntap_set_store
 	if (likely(parse_para(buf, 2, parsed) == 2)) {
 		if (parsed[0] < MAX_VD_LAYER)
 			layer_id = parsed[0];
-		pre_vscaler_ntap[layer_id] = parsed[1];
+		if (has_pre_vscaler_ntap(layer_id)) {
+			/* only support 2,4 tap */
+			if (parsed[1] > 4) {
+				pr_info("err(%d):max support tap is 4\n", parsed[1]);
+				parsed[1] = 4;
+			}
+			pre_scaler[layer_id].pre_vscaler_ntap = parsed[1];
+			vd_layer[layer_id].property_changed = true;
+			if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+				vd_layer_vpp[0].property_changed = true;
+				vd_layer_vpp[1].property_changed = true;
+			}
+		}
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t pre_hscaler_rate_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 256, "pre_hscaler_rate: vd1:%d, vd2:%d, vd3:%d\n",
+		pre_scaler[0].pre_hscaler_rate,
+		pre_scaler[1].pre_hscaler_rate,
+		pre_scaler[2].pre_hscaler_rate);
+}
+
+static ssize_t pre_hscaler_rate_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[2];
+	int layer_id = 0;
+
+	/* 0: no scaler;     1: 2 scaler down */
+	/* 2: 4 scaler down; 3: 8 scaler down */
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		if (parsed[1] > 3) {
+			pr_info("err, max support max is 3(8 scaler down)\n");
+			parsed[1] = 3;
+		}
+		pre_scaler[layer_id].pre_hscaler_rate = parsed[1];
+		vd_layer[layer_id].property_changed = true;
+		if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t pre_vscaler_rate_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 256, "pre_vscaler_rate: vd1:%d, vd2:%d, vd3:%d\n",
+		pre_scaler[0].pre_vscaler_rate,
+		pre_scaler[1].pre_vscaler_rate,
+		pre_scaler[2].pre_vscaler_rate);
+}
+
+static ssize_t pre_vscaler_rate_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[2];
+	int layer_id = 0;
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		if (parsed[1] > 3) {
+			pr_info("err, max support max is 3(8 scaler down)\n");
+			parsed[1] = 3;
+		}
+		pre_scaler[layer_id].pre_vscaler_rate = parsed[1];
+		vd_layer[layer_id].property_changed = true;
+		if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t pre_hscaler_coef_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 256,
+		"pre_hscaler_coef: vd1:%x,%x,%x,%x, vd2:%x,%x,%x,%x, vd3:%x,%x,%x,%x\n",
+		pre_scaler[0].pre_hscaler_coef[0],
+		pre_scaler[0].pre_hscaler_coef[1],
+		pre_scaler[0].pre_hscaler_coef[2],
+		pre_scaler[0].pre_hscaler_coef[3],
+		pre_scaler[1].pre_hscaler_coef[0],
+		pre_scaler[1].pre_hscaler_coef[1],
+		pre_scaler[1].pre_hscaler_coef[2],
+		pre_scaler[1].pre_hscaler_coef[3],
+		pre_scaler[2].pre_hscaler_coef[0],
+		pre_scaler[2].pre_hscaler_coef[1],
+		pre_scaler[2].pre_hscaler_coef[2],
+		pre_scaler[2].pre_hscaler_coef[3]);
+}
+
+static ssize_t pre_hscaler_coef_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[5];
+	int layer_id = 0;
+	int i;
+
+	if (likely(parse_para(buf, 5, parsed) == 5)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		for (i = 0; i < 4; i++)
+			pre_scaler[layer_id].pre_hscaler_coef[i] = parsed[i + 1];
+		pre_scaler[layer_id].pre_hscaler_coef_set = 1;
+		vd_layer[layer_id].property_changed = true;
+		if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t pre_vscaler_coef_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 256,
+		"pre_vscaler_coef: vd1:%x,%x,%x,%x, vd2:%x,%x,%x,%x, vd3:%x,%x,%x,%x\n",
+		pre_scaler[0].pre_vscaler_coef[0],
+		pre_scaler[0].pre_vscaler_coef[1],
+		pre_scaler[0].pre_vscaler_coef[2],
+		pre_scaler[0].pre_vscaler_coef[3],
+		pre_scaler[1].pre_vscaler_coef[0],
+		pre_scaler[1].pre_vscaler_coef[1],
+		pre_scaler[1].pre_vscaler_coef[2],
+		pre_scaler[1].pre_vscaler_coef[3],
+		pre_scaler[2].pre_vscaler_coef[0],
+		pre_scaler[2].pre_vscaler_coef[1],
+		pre_scaler[2].pre_vscaler_coef[2],
+		pre_scaler[2].pre_vscaler_coef[3]);
+}
+
+static ssize_t pre_vscaler_coef_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[5];
+	int layer_id = 0;
+	int i;
+
+	if (likely(parse_para(buf, 5, parsed) == 5)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		for (i = 0; i < 4; i++)
+			pre_scaler[layer_id].pre_vscaler_coef[i] = parsed[i + 1];
+		pre_scaler[layer_id].pre_vscaler_coef_set = 1;
+		vd_layer[layer_id].property_changed = true;
+		if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t force_pre_scaler_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 256, "force_pre_scaler: vd1:%d, vd2:%d, vd3:%d\n",
+		pre_scaler[0].force_pre_scaler,
+		pre_scaler[1].force_pre_scaler,
+		pre_scaler[2].force_pre_scaler);
+}
+
+static ssize_t force_pre_scaler_store
+	(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int parsed[2];
+	int layer_id = 0;
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		if (parsed[0] < MAX_VD_LAYER)
+			layer_id = parsed[0];
+		pre_scaler[layer_id].force_pre_scaler = parsed[1];
+		vd_layer[layer_id].property_changed = true;
+		if (layer_id >= 1 && vd_layer[layer_id].vpp_index != VPP0) {
+			vd_layer_vpp[0].property_changed = true;
+			vd_layer_vpp[1].property_changed = true;
+		}
 	}
 	return strnlen(buf, count);
 }
@@ -16822,6 +17079,26 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       pre_vscaler_ntap_set_show,
 	       pre_vscaler_ntap_set_store),
+	__ATTR(pre_hscaler_rate,
+	       0664,
+	       pre_hscaler_rate_show,
+	       pre_hscaler_rate_store),
+	__ATTR(pre_vscaler_rate,
+	       0664,
+	       pre_vscaler_rate_show,
+	       pre_vscaler_rate_store),
+	__ATTR(pre_hscaler_coef,
+	       0664,
+	       pre_hscaler_coef_show,
+	       pre_hscaler_coef_store),
+	__ATTR(pre_vscaler_coef,
+	       0664,
+	       pre_vscaler_coef_show,
+	       pre_vscaler_coef_store),
+	__ATTR(force_pre_scaler,
+	       0664,
+	       force_pre_scaler_show,
+	       force_pre_scaler_store),
 	__ATTR(force_switch_vf,
 	       0644,
 	       force_switch_vf_show,
