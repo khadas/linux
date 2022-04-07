@@ -7366,8 +7366,10 @@ static void osd_update_enable(u32 index)
 		if (osd_hw.osd_afbcd[index].enable == ENABLE &&
 		    osd_hw.enable[index] == ENABLE &&
 		    !osd_hw.dim_layer[index]) {
-			if (!osd_hw.osd_afbcd[index].afbc_start &&
-			    osd_hw.osd_afbcd[index].phy_addr != 0) {
+			if ((!osd_hw.osd_afbcd[index].afbc_start &&
+			    osd_hw.osd_afbcd[index].phy_addr != 0) ||
+			    !(osd_reg_read(osd_reg->vpu_mafbc_surface_cfg) &
+			    (1 << index))) {
 				/* enable mali afbc */
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->vpu_mafbc_irq_mask, 0xf);
