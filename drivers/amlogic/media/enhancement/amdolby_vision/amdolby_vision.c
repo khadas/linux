@@ -11617,9 +11617,11 @@ static bool get_one_line(char **cfg_buf, char *line_buf, bool ignore_comments)
 
 	line_buf[0] = '\0';
 	while (*line_buf == '\0') {
-		line_end = memchr(*cfg_buf, '\n', MAX_READ_SIZE);
-		if (!line_end)
-			line_end = memchr(*cfg_buf, '\r', MAX_READ_SIZE);
+		if (debug_dolby & 0x2)
+			pr_info("*cfg_buf: %s\n", *cfg_buf);
+		line_end = strnchr(*cfg_buf, MAX_READ_SIZE, '\n');
+		if (debug_dolby & 0x2)
+			pr_info("line_end: %s\n", line_end);
 		if (!line_end) {
 			line_len = strlen(*cfg_buf);
 			eof_flag = true;
@@ -11644,7 +11646,7 @@ static bool get_one_line(char **cfg_buf, char *line_buf, bool ignore_comments)
 			break;
 	}
 	if (debug_dolby & 0x200)
-		pr_info("get line %s\n", line_buf);
+		pr_info("get line: %s\n", line_buf);
 	return eof_flag;
 }
 
