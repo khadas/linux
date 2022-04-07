@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
-#include <linux/amlogic/media/codec_mm/secmem.h>
+#include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 
 #define DMA_BUF_CODEC_MM "DMA_BUF"
 
@@ -35,9 +35,9 @@ module_param(dma_buf_debug, int, 0644);
 #define pr_inf(fmt, args ...)		dprintk(8, fmt, ## args)
 #define pr_enter()			pr_inf("enter")
 
-#define SECMEM_DMA_BLOCK_PADDING_SIZE		(256 * 1024)
-#define SECMEM_DMA_BLOCK_MIN_SZIE		(256 * 1024)
-#define SECMEM_DMA_BLOCK_ALIGN_2N		12
+#define SECURE_DMA_BLOCK_PADDING_SIZE		(256 * 1024)
+#define SECURE_DMA_BLOCK_MIN_SZIE		(256 * 1024)
+#define SECURE_DMA_BLOCK_ALIGN_2N		12
 
 struct secure_block_info {
 	__u32 version;
@@ -212,20 +212,20 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 	if (!buffer)
 		return -1;
 	if (buffer->block &&
-		buffer->block->version >= SECMEM_HEAP_SUPPORT_DELAY_ALLOC_VERSION) {
+		buffer->block->version >= SECURE_HEAP_SUPPORT_DELAY_ALLOC_VERSION) {
 		block = buffer->block;
 		switch (block->state) {
 		case 1:
-			if (block->allocsize < SECMEM_DMA_BLOCK_MIN_SZIE)
-				len = SECMEM_DMA_BLOCK_MIN_SZIE;
+			if (block->allocsize < SECURE_DMA_BLOCK_MIN_SZIE)
+				len = SECURE_DMA_BLOCK_MIN_SZIE;
 			else
 				len = secure_align_up2n(block->allocsize,
-					SECMEM_DMA_BLOCK_ALIGN_2N);
-			len += SECMEM_DMA_BLOCK_PADDING_SIZE;
-			if (block->size < len || block->size - len >= SECMEM_DMA_BLOCK_MIN_SZIE) {
+					SECURE_DMA_BLOCK_ALIGN_2N);
+			len += SECURE_DMA_BLOCK_PADDING_SIZE;
+			if (block->size < len || block->size - len >= SECURE_DMA_BLOCK_MIN_SZIE) {
 				if (block->size && block->phyaddr) {
 					if (secure_block_free(block->phyaddr, block->size))
-						pr_err("Secmem free err please fix it");
+						pr_err("Secure buffer free err please fix it");
 					block->phyaddr = 0;
 					block->size = 0;
 				}
@@ -275,7 +275,7 @@ static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 	block = buffer->block;
 	if (block && block->phyaddr && block->size) {
 		if (secure_block_free(block->phyaddr, block->size))
-			pr_err("Secmem release error, please fix it");
+			pr_err("Secure buffer release error, please fix it");
 	}
 	sg_free_table(&buffer->sg_table);
 	if (buffer->block_page)
@@ -333,8 +333,8 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 	if (sg_alloc_table(table, 1, GFP_KERNEL))
 		goto free_priv_buffer;
 
-	buffer->block->version = secmem_get_secure_heap_version();
-	if (buffer->block->version == SECMEM_HEAP_DEFAULT_VERSION) {
+	buffer->block->version = dmabuf_manage_get_secure_heap_version();
+	if (buffer->block->version == SECURE_HEAP_DEFAULT_VERSION) {
 		paddr = secure_block_alloc(len, 0);
 		if (!paddr)
 			goto free_tables;
