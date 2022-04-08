@@ -797,7 +797,7 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		reg_mc_out_line = (frc_top->vfb / 2) * 1;
 		reg_me_dly_vofst = reg_mc_out_line;
 		mevp_frm_dly = 222; // reg readback  under 333MHz
-		mc_frm_dly = 24;   // reg readback (34)  under 333MHz
+		mc_frm_dly = 20;   // reg readback (34)  under 333MHz
 		pr_frc(log, "4k1k_mc_frm_dly:%d\n", mc_frm_dly);
 	} else {
 		mevp_frm_dly = 140;

@@ -756,7 +756,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 
 	fw_data = (struct frc_fw_data_s *)devp->fw_data;
 	fw_data->holdline_parm.me_hold_line = 4;
-	fw_data->holdline_parm.mc_hold_line = 4;
+	fw_data->holdline_parm.mc_hold_line = 1;
 	fw_data->holdline_parm.inp_hold_line = 4;
 	fw_data->holdline_parm.reg_post_dly_vofst = 0;/*fixed*/
 	fw_data->holdline_parm.reg_mc_dly_vofst0 = 1;/*fixed*/

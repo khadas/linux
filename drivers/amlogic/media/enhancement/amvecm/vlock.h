@@ -26,7 +26,8 @@
 
 //Ref.2021/1118: chg frc set max line to vlock module
 
-#define VLOCK_VER "Ref.2021/1207: hdmi black screen low probility"
+// #define VLOCK_VER "Ref.2021/1207: hdmi black screen low probility"
+#define VLOCK_VER "Ref.2022/0401: add vfp protect"
 
 #define VLOCK_REG_NUM	33
 #define VLOCK_ALL_LOCK_CNT	400

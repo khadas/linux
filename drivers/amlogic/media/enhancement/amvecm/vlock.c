@@ -190,6 +190,9 @@ u32 loop0_en = 2;	/*0:off, 1:on 2:auto*/
 u32 loop1_en = 1;	/*0:off, 1:on 2:auto*/
 u32 speed_up_en = 1;
 
+static int vlock_protect_min;
+static int vlock_manual = 15;
+
 struct reg_map vlock_reg_maps[REG_MAP_END] = {0};
 
 struct vlk_reg_map_tab regmap_tab_tm2[] = {
@@ -1555,7 +1558,11 @@ static void vlock_enable_step3_enc(struct stvlock_sig_sts *pvlock)
 		}
 		if (enc_max_pixel > 0x1fff)
 			enc_max_line += 1;
-		WRITE_VPP_REG(pvlock->enc_max_line_addr + offset_enc, enc_max_line);
+		if (enc_max_line >= vlock_protect_min)
+			WRITE_VPP_REG(pvlock->enc_max_line_addr + offset_enc, enc_max_line);
+		else if ((vlock_debug & VLOCK_DEBUG_FLASH))
+			pr_info("vlock:warning..enc_max_line:%d is limited by prt_min:%d cannot adj contiue\n",
+				enc_max_line, vlock_protect_min);
 		if ((vlock_debug & VLOCK_DEBUG_FLASH)) {
 			pr_info("polity_line_num=%d line_num=%d, org_line=%d\n",
 				polity_line_num, line_num, pvlock->org_enc_line_num);
@@ -2494,6 +2501,12 @@ u32 vlock_fsm_input_check(struct stvlock_sig_sts *pvlock, struct vframe_s *vf)
 		pvlock->duration = vf->duration;
 		//if (vlock_debug & VLOCK_DEBUG_INFO)
 		//	pr_info("input_hz:%d duration:%d\n", pvlock->input_hz, pvlock->duration);
+		vlock_protect_min =
+			vinfo->vbp + vinfo->vsw + vinfo->height + vlock_manual;
+		if (vlock_debug & 0x200)
+			pr_info("prt_min:%d org_enc_line_num:%d vbp:%d vsw:%d height:%d vlock_manual:%d\n",
+				vlock_protect_min, pvlock->org_enc_line_num,
+				vinfo->vbp, vinfo->vsw, vinfo->height, vlock_manual);
 	}
 
 	/*check vf exist status*/
@@ -3195,6 +3208,7 @@ void vlock_status(struct stvlock_sig_sts *pvlock)
 	pr_info("lcnt_sts :0x%0x\n", pvlock->vdinsts.lcnt_sts);
 	pr_info("com_sts0 :0x%0x\n", pvlock->vdinsts.com_sts0);
 	pr_info("com_sts1 :0x%0x\n", pvlock->vdinsts.com_sts1);
+	pr_info("vlock_protect_min:%d\n", vlock_protect_min);
 }
 
 void vlock_reg_dump(struct stvlock_sig_sts *pvlock)
@@ -3492,6 +3506,8 @@ ssize_t vlock_debug_show(struct class *cla,
 		"echo log_stop > /sys/class/amvecm/vlock\n");
 	len += sprintf(buf + len,
 		"echo log_print > /sys/class/amvecm/vlock\n");
+	len += sprintf(buf + len,
+		"echo vlock_protect > /sys/class/amvecm/vlock\n");
 	return len;
 }
 
@@ -3677,6 +3693,11 @@ ssize_t vlock_debug_store(struct class *cla,
 			return -EINVAL;
 		loop1_en = val;
 		pr_info("loop1_en:%d\n", loop1_en);
+	} else if (!strncmp(parm[0], "vlock_manual", 12)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vlock_manual = val;
+		pr_info("vlock_manual:%d\n", vlock_manual);
 	} else {
 		pr_info("----cmd list -----\n");
 		pr_info("vlock_mode val\n");
