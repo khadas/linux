@@ -323,6 +323,8 @@ unsigned int pd_detect_en;
 int pd_weak_fix_lvl = PD_LOW_LVL;
 int pd_fix_lvl = PD_HIG_LVL;
 
+unsigned int pd_det;
+
 unsigned int gmv_weak_th = 4;
 unsigned int gmv_th = 17;
 
@@ -1366,6 +1368,10 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 			pd_detect_en = 0;
 		return;
 	}
+
+	if (!pd_det)
+		return;
+
 	gmv = vf->di_gmv / 10000;
 
 	if (vf->height == 1080 &&
@@ -1376,8 +1382,8 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 			return;
 		pd_detect_en = 1;
 		pd_combing_fix_patch(pd_fix_lvl);
-		pr_amvecm_dbg("pd_detect_en1 = %d; level = %d, gmv %d\n",
-			      pd_detect_en, pd_fix_lvl, gmv);
+		pr_amvecm_dbg("pd_detect_en1 = %d; level = %d, vf->di_pulldown = 0x%x, gmv %d\n",
+			      pd_detect_en, pd_fix_lvl, vf->di_pulldown, gmv);
 	} else if ((vf->height == 1080) &&
 		 (vf->width == 1920) &&
 		 (vf->di_pulldown & (1 << 3)) &&
@@ -1387,8 +1393,8 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 		pd_detect_en = 2;
 
 		pd_combing_fix_patch(pd_weak_fix_lvl);
-		pr_amvecm_dbg("pd_detect_en2 = %d; level = %d, gmv %d\n",
-			      pd_detect_en, pd_weak_fix_lvl, gmv);
+		pr_amvecm_dbg("pd_detect_en2 = %d; level = %d, vf->di_pulldown = 0x%x, gmv %d\n",
+			      pd_detect_en, pd_weak_fix_lvl, vf->di_pulldown, gmv);
 	} else if (pd_detect_en) {
 		pd_detect_en = 0;
 		pd_combing_fix_patch(PD_DEF_LVL);
@@ -8346,6 +8352,13 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				pr_info("hist sel: Y hist\n");
 			}
 		}
+	} else if (!strcmp(parm[0], "pd_det")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val) < 0)
+				goto free_buf;
+		}
+		pd_det = (uint)val;
+		pr_info("pd_det: %d\n", pd_det);
 	} else {
 		pr_info("unsupport cmd\n");
 	}
