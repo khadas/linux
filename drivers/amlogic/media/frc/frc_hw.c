@@ -44,6 +44,8 @@
 void __iomem *frc_clk_base;
 void __iomem *vpu_base;
 
+struct stvlock_frc_param gst_frc_param;
+
 int FRC_PARAM_NUM = 8;
 module_param(FRC_PARAM_NUM, int, 0664);
 MODULE_PARM_DESC(FRC_PARAM_NUM, "FRC_PARAM_NUM");
@@ -234,6 +236,13 @@ void set_frc_enable(u32 en)
 			WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0x0, 0, 16);
 			frc_mc_reset(1);
 			frc_mc_reset(0);
+		} else {
+			gst_frc_param.s2l_en = 0;
+			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
+				pr_frc(0, "frc_off_set maxlnct fail !!!\n");
+			else
+				pr_frc(0, "frc_off_set maxlnct success!!!\n");
+
 		}
 	}
 }
@@ -722,7 +731,6 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	struct frc_data_s *frc_data;
 	struct frc_fw_data_s *fw_data;
 	struct frc_top_type_s *frc_top;
-	struct stvlock_frc_param frc_param;
 
 	frc_data = (struct frc_data_s *)frc_devp->data;
 	fw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
@@ -829,14 +837,14 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 			frc_v_porch = ((max_lncnt - frc_vporch_cal) <= 1950) ?
 					frc_vporch_cal : (max_lncnt - 1950);
 
-			frc_param.frc_v_porch = frc_v_porch;
-			frc_param.max_lncnt = max_lncnt;
-			frc_param.max_pxcnt = max_pxcnt;
-
-			if (vlock_sync_frc_vporch(frc_param) < 0)
-				pr_frc(0, "set maxlnct fail !!!\n");
+			gst_frc_param.frc_v_porch = frc_v_porch;
+			gst_frc_param.max_lncnt = max_lncnt;
+			gst_frc_param.max_pxcnt = max_pxcnt;
+			gst_frc_param.s2l_en = 1;
+			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
+				pr_frc(0, "frc_on_set maxlnct fail !!!\n");
 			else
-				pr_frc(0, "set maxlnct success!!!\n");
+				pr_frc(0, "frc_on_set maxlnct success!!!\n");
 
 			//vpu_reg_write(ENCL_SYNC_TO_LINE_EN,
 			// (1 << 13) | (max_lncnt - frc_v_porch));

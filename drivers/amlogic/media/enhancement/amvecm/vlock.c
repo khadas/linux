@@ -39,6 +39,7 @@
 #include "amcm.h"
 #include "reg_helper.h"
 #include <linux/amlogic/gki_module.h>
+#include "frame_lock_policy.h"
 
 /* video lock */
 /* 0:off;
@@ -477,7 +478,7 @@ int __attribute__((weak))frc_is_on(void)
 	return 0;
 }
 
-static void vlock_tune_sync_frc(u32 frc_vporch_cal)
+static void vlock_tune_sync_frc(u32 frc_vporch_cal, unsigned char frc_s2l_en)
 {
 	u32 max_lncnt;
 	u32 max_pxcnt;
@@ -490,11 +491,15 @@ static void vlock_tune_sync_frc(u32 frc_vporch_cal)
 			frc_vporch_cal : (max_lncnt - 1950);
 
 	if ((vlock_debug & VLOCK_DEBUG_FLASH))
-		pr_info("vlock: %s max_lncnt =%d max_pxcnt =%d frc_v_porch =%d\n",
+		pr_info("vlock: %s max_lncnt =%d max_pxcnt =%d frc_v_porch =%d frc_s2l_en=%d\n",
 		__func__,
-		max_lncnt, max_pxcnt, frc_v_porch);
+		max_lncnt, max_pxcnt, frc_v_porch, frc_s2l_en);
 
-	WRITE_VPP_REG(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
+	if (frc_s2l_en)
+		WRITE_VPP_REG(ENCL_SYNC_TO_LINE_EN, (1 << 13) | (max_lncnt - frc_v_porch));
+	else
+		WRITE_VPP_REG_BITS(ENCL_SYNC_TO_LINE_EN, 0, 13, 1);
+
 	WRITE_VPP_REG(ENCL_SYNC_PIXEL_EN, (1 << 15) | (max_pxcnt - 1));
 	WRITE_VPP_REG(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
 }
@@ -543,12 +548,12 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param)
 			ret = 0;
 		} else {
 			pr_info("vlock: vlock is NULL or Disable, frc set max lncnt and ma px cnt!");
-			vlock_tune_sync_frc(frc_param.frc_v_porch);
+			vlock_tune_sync_frc(frc_param.frc_v_porch, frc_param.s2l_en);
 			ret = 0;
 		}
 	} else {
 		pr_info("vlock: vlk_ctl_for_frc = 0 no need vlock avoid flash patch!!!");
-		vlock_tune_sync_frc(frc_param.frc_v_porch);
+		vlock_tune_sync_frc(frc_param.frc_v_porch, frc_param.s2l_en);
 		ret = 0;
 	}
 

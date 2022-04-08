@@ -24,10 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-//Ref.2021/1118: chg frc set max line to vlock module
-
-// #define VLOCK_VER "Ref.2021/1207: hdmi black screen low probility"
-#define VLOCK_VER "Ref.2022/0401: add vfp protect"
+#define VLOCK_VER "Ref.2022/0408: resolve vrr stutter issue"
 
 #define VLOCK_REG_NUM	33
 #define VLOCK_ALL_LOCK_CNT	400
@@ -192,6 +189,7 @@ struct stvlock_frc_param {
 	u32 max_lncnt;
 	u32 max_pxcnt;
 	u32 frc_v_porch;
+	unsigned char s2l_en;
 };
 
 #define diff(a, b) ({ \
