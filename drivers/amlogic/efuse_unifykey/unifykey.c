@@ -934,7 +934,7 @@ static ssize_t name_store(struct class *cla,
 		memcpy(name, buf, count);
 
 	query_name_len = strlen(name);
-	pr_info("%s() %d, name %s, %d\n", __func__, __LINE__,
+	pr_debug("%s() %d, name %s, %d\n", __func__, __LINE__,
 		name, (int)query_name_len);
 
 	curkey = NULL;
@@ -945,7 +945,7 @@ static ssize_t name_store(struct class *cla,
 				     ((strlen(unifykey->name) > query_name_len)
 				     ? strlen(unifykey->name) : query_name_len))
 			) {
-				pr_info("%s() %d\n", __func__, __LINE__);
+				pr_debug("%s() %d\n", __func__, __LINE__);
 				curkey = unifykey;
 				break;
 			}
@@ -1048,7 +1048,7 @@ static ssize_t write_store(struct class *cla,
 				break;
 		/* check '\n' and del while string */
 		if (key_len == count && (buf[count - 1] == '\n')) {
-			pr_err("%s()  is a string\n", __func__);
+			pr_debug("%s()  is a string\n", __func__);
 			memcpy(keydata, buf, count - 1);
 			key_len = count - 1;
 		} else {
