@@ -1969,7 +1969,7 @@
 				0x0 0xfe02a000 0x0 0x2000
 				0x0 0xfe002044 0x0 0x10>;
 			reg-names = "elbi", "cfg", "config", "phy", "reset";
-			interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 			#interrupt-cells = <1>;
 			bus-range = <0x0 0xff>;
 			#address-cells = <3>;
