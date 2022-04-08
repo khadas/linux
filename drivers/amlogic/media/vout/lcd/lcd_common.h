@@ -191,4 +191,7 @@ int lcd_mode_tablet_init(struct aml_lcd_drv_s *pdrv);
 int lcd_mode_tablet_remove(struct aml_lcd_drv_s *pdrv);
 #endif
 
+int lcd_drm_add(struct device *dev);
+void lcd_drm_remove(struct device *dev);
+
 #endif

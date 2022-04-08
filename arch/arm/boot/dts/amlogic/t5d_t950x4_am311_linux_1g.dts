@@ -1703,6 +1703,26 @@
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";
+
+	connectors_dev: port@2 {
+		drm_to_lcd0: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+	};
+};
+
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
 };
 
 &drm_amhdmitx {
@@ -1712,10 +1732,6 @@
 
 &drm_amcvbsout {
 	status = "disabled";
-};
-
-&drm_lcd {
-	status = "okay";
 };
 
 &saradc {

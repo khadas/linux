@@ -4,7 +4,7 @@
  */
 
 / {
-	lcd {
+	lcd:lcd {
 		compatible = "amlogic, lcd-t3";
 		status = "okay";
 		index = <0>;
@@ -407,6 +407,17 @@
 				0 0 0 100 /*panel power off*/
 				0xff 0 0 0>; /*ending*/
 			backlight_index = <0xff>;
+		};
+
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				lcd0_to_drm: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <0>;
+				};
+			};
 		};
 	};
 

@@ -7,11 +7,6 @@
 #include "mesont7.dtsi"
 
 / {
-	drm_amhdmitx: drm-amhdmitx {
-		status = "disabled";
-		hdcp = "disabled";
-	};
-
 	drm_amcvbsout: drm-amcvbsout {
 		status = "disabled";
 		compatible = "amlogic, drm-cvbsout";
@@ -23,60 +18,6 @@
 				cvbs_to_drm: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&drm_to_cvbs>;
-				};
-			};
-		};
-	};
-
-	drm_lcd: drm-lcd {
-		status = "disabled";
-		compatible = "amlogic, drm-lcd";
-		dev_name = "meson-lcd";
-		index = <0>;
-		attach_crtc = <0 1 2>;
-		ports {
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				lcd_in_vpu: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vpu_out_lcd>;
-				};
-			};
-		};
-	};
-
-	drm_lcd1: drm-lcd1 {
-		status = "disabled";
-		compatible = "amlogic, drm-lcd";
-		dev_name = "meson-lcd1";
-		index = <1>;
-		attach_crtc = <0 1 2>;
-		ports {
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				lcd1_in_vpu: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vpu_out_lcd1>;
-				};
-			};
-		};
-	};
-
-	drm_lcd2: drm-lcd2 {
-		status = "disabled";
-		compatible = "amlogic, drm-lcd";
-		dev_name = "meson-lcd2";
-		index = <0>;
-		attach_crtc = <0 1 2>;
-		ports {
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				lcd2_in_vpu: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vpu_out_lcd2>;
 				};
 			};
 		};
@@ -98,25 +39,8 @@
 		clocks = <&clkc CLKID_VPU_CLKC_MUX>;
 		clock-names = "vpu_clkc";
 		dma-coherent;
-		vpu_out: port@1 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			vpu_out_lcd: endpoint@2 {
-				reg = <2>;
-				remote-endpoint = <&lcd_in_vpu>;
-			};
-			vpu_out_lcd1: endpoint@3 {
-				reg = <3>;
-				remote-endpoint = <&lcd1_in_vpu>;
-			};
-			vpu_out_lcd2: endpoint@4 {
-				reg = <4>;
-				remote-endpoint = <&lcd2_in_vpu>;
-			};
-		};
 		/*EXTERNAL port for driver outside of drm.*/
-		connectors_dev: port@2 {
+		connectors_dev: port@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			drm_to_hdmitx: endpoint@0 {
@@ -127,13 +51,25 @@
 				reg = <1>;
 				remote-endpoint = <&cvbs_to_drm>;
 			};
+			drm_to_lcd0: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <0>;
+			};
+			drm_to_lcd1: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <0>;
+			};
+			drm_to_lcd2: endpoint@4 {
+				reg = <4>;
+				remote-endpoint = <0>;
+			};
 		};
 	};
 
 	drm_subsystem: drm-subsystem {
 		status = "okay";
 		compatible = "amlogic, drm-subsystem";
-		ports = <&vpu_out>,<&connectors_dev>;
+		ports = <&connectors_dev>;
 		fbdev_sizes = <1920 1080 1920 2160 32>;
 		osd_ver = /bits/ 8 <OSD_V7>;
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */

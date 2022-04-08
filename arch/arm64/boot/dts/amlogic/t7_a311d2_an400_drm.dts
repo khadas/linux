@@ -6,10 +6,10 @@
 /dts-v1/;
 
 #include "mesont7.dtsi"
-#include "mesont7_drm.dtsi"
-#include "partition_normal_PR_32.dtsi"
-#include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
+#include "mesont7_drm.dtsi"
+#include "partition_mbox_ab.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Amlogic";
@@ -1572,15 +1572,56 @@
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";
+
+	connectors_dev: port@1 {
+		drm_to_lcd0: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+		drm_to_lcd1: endpoint@3 {
+			reg = <3>;
+			remote-endpoint = <&lcd1_to_drm>;
+		};
+		drm_to_lcd2: endpoint@4 {
+			reg = <4>;
+			remote-endpoint = <&lcd2_to_drm>;
+		};
+	};
 };
 
-&drm_amhdmitx {
-	status = "okay";
-	hdcp = "disabled";
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
 };
 
-&drm_lcd {
-	status = "okay";
+&lcd1 {
+	ports {
+		port {
+			lcd1_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd1>;
+			};
+		};
+	};
+};
+
+&lcd2 {
+	ports {
+		port {
+			lcd2_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd2>;
+			};
+		};
+	};
 };
 
 &amvideom {

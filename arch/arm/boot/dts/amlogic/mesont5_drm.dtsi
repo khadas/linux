@@ -39,22 +39,6 @@
 		};
 	};
 
-	drm_lcd: drm-lcd {
-		status = "disabled";
-		compatible = "amlogic, drm-lcd";
-		dev_name = "meson-lcd";
-		ports {
-			port {
-				#address-cells = <1>;
-				#size-cells = <0>;
-				lcd_in_vpu: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vpu_out_lcd>;
-				};
-			};
-		};
-	};
-
 	drm_vpu: drm-vpu@0xff900000  {
 		status = "disabled";
 		compatible = "amlogic, meson-t5-vpu";
@@ -69,7 +53,7 @@
 		clocks = <&clkc CLKID_VPU_CLKC_MUX>;
 		clock-names = "vpu_clkc";
 		dma-coherent;
-		vpu_out: port {
+		vpu_out: port@1 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -81,9 +65,14 @@
 				reg = <1>;
 				remote-endpoint = <&cvbs_in_vpu>;
 			};
-			vpu_out_lcd: endpoint@2 {
+		};
+		/*EXTERNAL port for driver outside of drm.*/
+		connectors_dev: port@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			drm_to_lcd0: endpoint@2 {
 				reg = <2>;
-				remote-endpoint = <&lcd_in_vpu>;
+				remote-endpoint = <0>;
 			};
 		};
 	};
@@ -91,7 +80,7 @@
 	drm_subsystem: drm-subsystem {
 		status = "okay";
 		compatible = "amlogic, drm-subsystem";
-		ports = <&vpu_out>;
+		ports = <&vpu_out>,<&connectors_dev>;
 		fbdev_sizes = <1920 1080 1920 2160 32>;
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;

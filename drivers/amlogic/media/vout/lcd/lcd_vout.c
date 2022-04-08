@@ -2118,6 +2118,8 @@ static int lcd_probe(struct platform_device *pdev)
 
 	LCDPR("[%d]: %s ok, init_state:0x%x\n", index, __func__, lcd_drv_init_state);
 
+	lcd_drm_add(&pdev->dev);
+
 	return 0;
 
 lcd_probe_err_2:
@@ -2141,6 +2143,8 @@ static int lcd_remove(struct platform_device *pdev)
 
 	if (!pdrv)
 		return 0;
+
+	lcd_drm_remove(&pdev->dev);
 
 	index = pdrv->index;
 

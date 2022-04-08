@@ -1508,11 +1508,6 @@
 	logo_addr = "0x3f800000";
 };
 
-&drm_amhdmitx {
-	status = "okay";
-	hdcp = "disabled";
-};
-
 &amvideom {
 	display_device_cnt = <2>;
 };
