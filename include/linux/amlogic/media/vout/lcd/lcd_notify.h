@@ -15,6 +15,7 @@
 
 #define LCD_PRIORITY_DLG_POWER_IF_OFF  5
 #define LCD_PRIORITY_DLG_POWER_IF_ON   2
+#define LCD_PRIORITY_DLG_SWITCH_MODE   2
 #define LCD_PRIORITY_SCREEN_BLACK      7
 #define LCD_PRIORITY_POWER_BL_OFF      6
 #define LCD_PRIORITY_POWER_IF_OFF      5
@@ -35,6 +36,7 @@
 #define LCD_EVENT_SCREEN_RESTORE       BIT(7)
 #define LCD_EVENT_DLG_POWER_ON         BIT(8)
 #define LCD_EVENT_DLG_POWER_OFF        BIT(9)
+#define LCD_EVENT_DLG_SWITCH_MODE      BIT(10)
 
 /* combined event */
 #define LCD_EVENT_POWER_ON             \
