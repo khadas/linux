@@ -1153,7 +1153,7 @@ config ARM64_SSBD
 
 config MITIGATE_SPECTRE_BRANCH_HISTORY
 	bool "Mitigate Spectre style attacks against branch history" if EXPERT
-	default y
+	default n
 	help
 	  Speculation attacks against some high-performance processors can
 	  make use of branch history to influence future speculation.

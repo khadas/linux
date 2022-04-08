@@ -857,7 +857,7 @@ config HARDEN_BRANCH_PREDICTOR
 config HARDEN_BRANCH_HISTORY
 	bool "Harden Spectre style attacks against branch history" if EXPERT
 	depends on CPU_SPECTRE
-	default y
+	default n
 	help
 	  Speculation attacks against some high-performance processors can
 	  make use of branch history to influence future speculation. When
