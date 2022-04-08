@@ -78,7 +78,8 @@
 /* 20220331: starting state chg not send event */
 /* 20220401: 59.94 duration need set to 1601 */
 /* 20220402: add vdin v4l2 feature */
-#define VDIN_VER "20220402: add vdin v4l2 feature"
+/* 20220408: get format convert when started */
+#define VDIN_VER "20220408: get format convert when started"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
