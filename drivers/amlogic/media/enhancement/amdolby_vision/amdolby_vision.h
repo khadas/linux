@@ -18,7 +18,7 @@
 #define _AMDV_H_
 
 /*  driver version */
-#define DRIVER_VER "20181220"
+#define DRIVER_VER "20220409"
 
 #include <linux/types.h>
 
@@ -507,8 +507,14 @@ struct tv_input_info_s {
 
 #define PREFIX_SEI_NUT_NAL 39
 #define SUFFIX_SEI_NUT_NAL 40
-#define SEI_TYPE_USERDATA_REGISTERED_ITUT_T35 4
+#define SEI_ITU_T_T35 4
 #define SEI_TYPE_MASTERING_DISP_COLOUR_VOLUME 137
+#define ATSC_T35_PROV_CODE    0x0031
+#define DVB_T35_PROV_CODE     0x003B
+#define ATSC_USER_ID_CODE     0x47413934
+#define DVB_USER_ID_CODE      0x00000000
+#define DM_MD_USER_TYPE_CODE  0x09
+
 
 #define MAX_LEN_2086_SEI 256
 #define MAX_LEN_2094_SEI 256
