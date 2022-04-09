@@ -499,6 +499,7 @@ static int hym8563_init_device(struct i2c_client *client)
 	return i2c_smbus_write_byte_data(client, HYM8563_CTL2, ret);
 }
 
+#if 0
 #ifdef CONFIG_PM_SLEEP
 static int hym8563_suspend(struct device *dev)
 {
@@ -528,6 +529,7 @@ static int hym8563_resume(struct device *dev)
 #endif
 
 static SIMPLE_DEV_PM_OPS(hym8563_pm_ops, hym8563_suspend, hym8563_resume);
+#endif
 
 static int hym8563_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -621,7 +623,7 @@ MODULE_DEVICE_TABLE(of, hym8563_dt_idtable);
 static struct i2c_driver hym8563_driver = {
 	.driver		= {
 		.name	= "rtc-hym8563",
-		.pm	= &hym8563_pm_ops,
+//		.pm	= &hym8563_pm_ops,
 		.of_match_table	= hym8563_dt_idtable,
 	},
 	.probe		= hym8563_probe,
