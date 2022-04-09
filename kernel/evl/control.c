@@ -247,7 +247,7 @@ static int do_cpu_state(struct evl_cpu_state *cpst)
 	if (is_evl_cpu(cpu))
 		state |= EVL_CPU_OOB;
 
-	if (!housekeeping_cpu(cpu, HK_FLAG_DOMAIN))
+	if (!housekeeping_cpu(cpu, HK_TYPE_DOMAIN))
 		state |= EVL_CPU_ISOL;
 
 	return raw_copy_to_user_ptr64(cpst->state_ptr, &state,
