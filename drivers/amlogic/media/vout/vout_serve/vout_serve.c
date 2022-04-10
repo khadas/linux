@@ -497,7 +497,7 @@ static ssize_t vout_frame_rate_show(struct class *class,
 	int ret = 0;
 
 	fr = vout_frame_rate_measure();
-	ret = sprintf(buf, "%d.%3d\n", (fr / 1000), (fr % 1000));
+	ret = sprintf(buf, "%d.%03d\n", (fr / 1000), (fr % 1000));
 
 	return ret;
 }

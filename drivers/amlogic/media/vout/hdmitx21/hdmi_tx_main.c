@@ -73,14 +73,13 @@ static void hdmitx_set_hdr10plus_pkt(u32 flag,
 				     struct hdr10plus_para *data);
 static void hdmitx_set_cuva_hdr_vsif(struct cuva_hdr_vsif_para *data);
 static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data);
+static void hdmitx_set_emp_pkt(u8 *data, u32 type, u32 size);
 
 static int check_fbc_special(u8 *edid_dat);
 static void clear_rx_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev);
 static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev);
 static void update_current_para(struct hdmitx_dev *hdev);
-static void hdmitx_register_vrr(struct hdmitx_dev *hdev);
-static void hdmitx_unregister_vrr(struct hdmitx_dev *hdev);
 static int meson_hdmitx_bind(struct device *dev,
 			      struct device *master, void *data);
 static void meson_hdmitx_unbind(struct device *dev,
@@ -249,6 +248,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 
 	hdev->ready = 0;
 	hdev->hpd_lock = 1;
+	hdmitx_vrr_disable();
 	hdev->hwop.cntlmisc(hdev, MISC_SUSFLAG, 1);
 	usleep_range(10000, 10010);
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
@@ -324,6 +324,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	struct hdmitx_dev *hdev = container_of(nb, struct hdmitx_dev, nb);
 
 	hdev->ready = 0;
+	hdmitx_vrr_disable();
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 	usleep_range(10000, 10010);
 	hdmitx21_disable_hdcp(hdev);
@@ -534,6 +535,7 @@ static int set_disp_mode_auto(void)
 	if (!info || !info->name)
 		return -1;
 	pr_info("hdmitx: get current mode: %s\n", info->name);
+	hdmitx_vrr_disable();
 	if (strncmp(info->name, "invalid", strlen("invalid")) == 0) {
 		hdmitx21_disable_hdcp(hdev);
 		return -1;
@@ -1154,6 +1156,11 @@ static bool _check_hdmi_mode(void)
 	if (vinfo && vinfo->mode == VMODE_HDMI)
 		return 1;
 	return 0;
+}
+
+bool is_cur_mode_hdmi(void)
+{
+	return _check_hdmi_mode();
 }
 
 #define GET_LOW8BIT(a)	((a) & 0xff)
@@ -1827,41 +1834,9 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
-#define  EMP_FIRST 0x80
-#define  EMP_LAST 0x40
-void hdmitx_set_emp_pkt(u8 *data, u32 type,
-			       u32 size)
+/* reserved,  left blank here, move to hdmi_tx_vrr.c file */
+static void hdmitx_set_emp_pkt(u8 *data, u32 type, u32 size)
 {
-	//struct hdmitx_dev *hdev = get_hdmitx21_device();
-	//struct hdmi_emp_infoframe emp = &hdev->infoframes.emp;
-	u8 emp_hb[3] = {0x7f};
-	u8 emp_db[28] = {0x0};
-	//unsigned long flags = 0;
-
-	//emp_hb[1] = (emp->first << 7 + emp->last << 6);
-	emp_hb[1] = 0xc0;	//first&last = 1
-	emp_hb[2] = 0x0;
-
-	if (!_check_hdmi_mode())
-		return;
-	hdmi_debug();
-
-	//if (!data) {
-	//	pr_info("the data is null\n");
-	//	return;
-	//}
-
-	//pr_info("%s\n", __func__);
-	emp_db[0] = 0x86;	//sync = 1; vfr = 1; end = 1;
-	emp_db[1] = 0x00;
-	emp_db[2] = 0x01;
-	emp_db[3] = 0x00;
-	emp_db[4] = 0x01;
-	emp_db[5] = 0x00;
-	emp_db[6] = 0x04;
-	emp_db[7] = 0x05;	//qms_en = 1; vrr_en = 1;
-
-	hdmi_emp_infoframe_rawset(emp_hb, emp_db);
 }
 
 /*config attr*/
@@ -2874,40 +2849,7 @@ static ssize_t vrr_cap_show(struct device *dev,
 			    struct device_attribute *attr,
 			    char *buf)
 {
-	int pos = 0;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	struct rx_cap *prxcap = &hdev->rxcap;
-	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
-
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"neg_mvrr: %d\n", prxcap->neg_mvrr);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"fva: %d\n", prxcap->fva);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"allm: %d\n", prxcap->allm);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"fapa_start_location: %d\n", prxcap->fapa_start_loc);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"qms: %d\n", prxcap->qms);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"qms_tfr_max: %d\n", prxcap->qms_tfr_max);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"qms_tfr_min: %d\n", prxcap->qms_tfr_min);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"mdelta: %d\n", prxcap->mdelta);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"RX_CAP vrr_max: %d\n", prxcap->vrr_max);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"RX_CAP vrr_min: %d\n", prxcap->vrr_min);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"vrr.vfreq_max: %d\n", vrr->vfreq_max);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"vrr.vfreq_min: %d\n", vrr->vfreq_min);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"vrr.vline_max: %d\n", vrr->vline_max);
-	pos += snprintf(buf + pos, PAGE_SIZE,
-			"vrr.vline_min: %d\n", vrr->vline_min);
-	return pos;
+	return _vrr_cap_show(dev, attr, buf);
 }
 
 static ssize_t _show_dv_cap(struct device *dev,
@@ -3797,60 +3739,9 @@ static void hdmitx_set_bist(u32 num, void *data)
 		hdev->hwop.debug_bist(hdev, num);
 }
 
-struct hdmitx_match_frame_table_s hdmitx_match_frame_table_1[] = {
-	{6000, 1125},
-	{5994, 1126},
-	{5000, 1350},
-	{2400, 2813},
-	{2398, 2815},
-	{2500, 2700},
-	{3000, 2250},
-	{2997, 2252}
-};
-
-static int hdmi_duration_match_vframe(struct hdmitx_match_frame_table_s *table,
-		int duration)
-{
-	int max_cnt = 0;
-	int i;
-	int size;
-
-	size = ARRAY_SIZE(hdmitx_match_frame_table_1);
-	for (i = 0; i < size; i++) {
-		if (duration == table[i].duration) {
-			max_cnt = table[i].max_lncnt;
-			break;
-		}
-	}
-	return max_cnt;
-}
-
 static int hdmitx_vout_set_vframe_rate_hint(int duration, void *data)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	struct hdmitx_match_frame_table_s *table = NULL;
-	u32 old_max_lcnt;	//duration 0.01 list
-	u32 new_max_lcnt;
-
-	table = hdmitx_match_frame_table_1;
-	if (!hdev)
-		return 0;
-
-	if (hdev->fr_duration != 0)
-		old_max_lcnt = hdmi_duration_match_vframe(table, hdev->fr_duration) - 1;
-	else
-		old_max_lcnt = 1124;	//get from mode
-	new_max_lcnt = hdmi_duration_match_vframe(table, duration);
-	if (!new_max_lcnt)
-		return 1;
-	new_max_lcnt--;
-
-	hdev->old_max_lcnt = old_max_lcnt;
-	hdev->new_max_lcnt = new_max_lcnt;
-	if (new_max_lcnt > 0)
-		hdev->fr_duration = duration;
-
-	return 1;
+	return hdmitx_set_fr_hint(duration, data);
 }
 
 static int hdmitx_vout_get_vframe_rate_hint(void *data)
@@ -4273,6 +4164,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
+	hdmitx_vrr_disable();
 	if (hdev->cedst_policy)
 		cancel_delayed_work(&hdev->work_cedst);
 	edidinfo_detach_to_vinfo(hdev);
@@ -4672,6 +4564,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 				hdev->enc_idx = 2;
 		}
 
+		ret = of_property_read_u32(pdev->dev.of_node, "vrr_type", &val);
+		hdev->vrr_type = 0; /* default 0 */
+		if (!ret) {
+			if (val == 1 || val == 2)
+				hdev->vrr_type = val;
+		}
+
 		/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
 		ret = of_property_read_u32(pdev->dev.of_node,
 			   "hdcp_ctl_lvl", &hdcp_ctl_lvl);
@@ -4739,7 +4638,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 			return -ENXIO;
 	}
 	pr_info("hpd irq = %d\n", hdev->irq_hpd);
-
+	tx_vrr_params_init();
 	hdev->irq_vrr_vsync = platform_get_irq_byname(pdev, "vrr_vsync");
 	if (hdev->irq_vrr_vsync == -ENXIO) {
 		pr_err("%s: ERROR: hdmitx vrr_vsync irq No not found\n",
@@ -4818,44 +4717,6 @@ static void amhdmitx_infoframe_init(struct hdmitx_dev *hdev)
 	//	hdev->config_data.vend_data->product_desc);
 	hdmi_audio_infoframe_init(&hdev->infoframes.aud.audio);
 	hdmi_drm_infoframe_init(&hdev->infoframes.drm.drm);
-}
-
-static void hdmitx_unregister_vrr(struct hdmitx_dev *hdev)
-{
-	int ret;
-
-	ret = aml_vrr_unregister_device(hdev->enc_idx);
-	pr_info("%s ret = %d\n", __func__, ret);
-}
-
-static void hdmitx_register_vrr(struct hdmitx_dev *hdev)
-{
-	int ret;
-	char *name = "hdmitx_vrr";
-	struct rx_cap *prxcap = &hdev->rxcap;
-	struct vinfo_s *vinfo;
-	struct vrr_device_s *vrr = &hdev->hdmitx_vrr_dev;
-
-	vinfo = hdmitx_get_current_vinfo(NULL);
-	if (!vinfo || vinfo->mode != VMODE_HDMI)
-		return;
-	vrr->output_src = VRR_OUTPUT_ENCP;
-	vrr->vfreq_max = prxcap->vrr_min;
-	vrr->vfreq_min = prxcap->vrr_max;
-	vrr->vline_max =
-		vinfo->vtotal * (prxcap->vrr_max / prxcap->vrr_min);
-	if (prxcap->vrr_max == 0)
-		vrr->vline_min = 0;
-	else
-		vrr->vline_min = vinfo->vtotal;
-	vrr->vline = vinfo->vtotal;
-	if (prxcap->vrr_max < 100 || prxcap->vrr_min > 48)
-		vrr->enable = 0;
-	else
-		vrr->enable = 1;
-	strncpy(vrr->name, name, VRR_NAME_LEN_MAX);
-	ret = aml_vrr_register_device(vrr, hdev->enc_idx);
-	pr_info("%s ret = %d\n", __func__, ret);
 }
 
 static int amhdmitx_probe(struct platform_device *pdev)

@@ -133,6 +133,8 @@ struct rx_cap {
 	u32 fva:1;
 	u32 allm:1;
 	u32 fapa_start_loc:1;
+	u32 fapa_end_extended:1;
+	u32 cinemavrr:1;
 	u32 vrr_max;
 	u32 vrr_min;
 	struct hdr_info hdr_info;
@@ -351,8 +353,6 @@ struct hdmitx_dev {
 	enum hdmi_event_t hdmitx_event;
 	u32 irq_hpd;
 	u32 irq_vrr_vsync;
-	u32 old_max_lcnt;
-	u32 new_max_lcnt;
 	/*EDID*/
 	u32 cur_edid_block;
 	u32 cur_phy_block_ptr;
@@ -399,6 +399,7 @@ struct hdmitx_dev {
 	u32 rxsense_policy;
 	u32 cedst_policy;
 	u32 enc_idx;
+	u32 vrr_type; /* 1: GAME-VRR, 2: QMS-VRR */
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
 	u32 allm_mode; /* allm_mode: 1/on 0/off */

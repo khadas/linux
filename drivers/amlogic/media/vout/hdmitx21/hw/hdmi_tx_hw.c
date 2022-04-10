@@ -2320,13 +2320,20 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 	config_hdmi21_tx(hdev);
 }
 
-void hdmi21_vframe_write_reg(u32 max_lcnt)
+/* For the ENCP_VIDEO_MAX_LNCNT, it will always start as 0
+ * when set this register, here will minus 1
+ * and get the value, here will plus 1
+ */
+void hdmitx_vrr_set_maxlncnt(u32 max_lcnt)
 {
-	u8 *data = NULL;
-	u32 type = 0;
-	u32 size = 0;
+	/* max_lcnt can't be 0 for VRR */
+	if (!max_lcnt)
+		return;
 
-	hdmitx_set_emp_pkt(data, type, size);
+	hd21_write_reg(ENCP_VIDEO_MAX_LNCNT, max_lcnt - 1);
+}
 
-	hd21_write_reg(ENCP_VIDEO_MAX_LNCNT, max_lcnt);
+u32 hdmitx_vrr_get_maxlncnt(void)
+{
+	return hd21_read_reg(ENCP_VIDEO_MAX_LNCNT) + 1;
 }

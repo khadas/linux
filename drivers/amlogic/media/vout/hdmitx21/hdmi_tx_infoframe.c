@@ -72,20 +72,6 @@ void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info)
 	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, body);
 }
 
-void hdmi_emp_infoframe_rawset(u8 *hb, u8 *pb)
-{
-	u8 body[31] = {0};
-
-	if (!hb || !pb) {
-		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_EMP, NULL);
-		return;
-	}
-
-	memcpy(body, hb, 3);
-	memcpy(&body[3], pb, 28);
-	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_EMP, body);
-}
-
 void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb)
 {
 	u8 body[31] = {0};
@@ -141,6 +127,127 @@ void hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val)
 		break;
 	}
 	hdmi_avi_infoframe_set(info);
+}
+
+/* EMP packets is different as other packets
+ * no checksum, the successive packets in a video frame...
+ */
+void hdmi_emp_infoframe_set(struct emp_packet_st *info)
+{
+	u8 body[31] = {0};
+
+	if (!info) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_EMP, NULL);
+		return;
+	}
+
+	/* head body, 3bytes */
+	body[0] = info->header.header;
+	body[1] = info->header.first << 7 | info->header.last << 6;
+	body[2] = info->header.seq_idx;
+	/* packet body, 28bytes */
+	body[3] = info->body.emp0.new << 7 |
+		info->body.emp0.end << 6 |
+		info->body.emp0.ds_type << 4 |
+		info->body.emp0.afr << 3 |
+		info->body.emp0.vfr << 2 |
+		info->body.emp0.sync << 1;
+	body[4] = 0; /* RSVD */
+	body[5] = info->body.emp0.org_id;
+	body[6] = info->body.emp0.ds_tag >> 8 & 0xff;
+	body[7] = info->body.emp0.ds_tag & 0xff;
+	body[8] = info->body.emp0.ds_length >> 8 & 0xff;
+	body[9] = info->body.emp0.ds_length & 0xff;
+	if (info->type == T_VRR_GAME) {
+		body[10] = info->body.emp0.md.game_md.fva_factor_m1 << 4 |
+			info->body.emp0.md.game_md.vrr_en << 0;
+		body[11] = info->body.emp0.md.game_md.base_vfront;
+		body[12] = info->body.emp0.md.game_md.brr_rate >> 8 & 3;
+		body[13] = info->body.emp0.md.game_md.brr_rate & 0xff;
+	} else { /* QMS-VRR */
+		body[10] = info->body.emp0.md.qms_md.qms_en << 2 |
+			info->body.emp0.md.qms_md.m_const << 1;
+		body[11] = info->body.emp0.md.qms_md.base_vfront;
+		body[12] = info->body.emp0.md.qms_md.next_tfr << 4 |
+			(info->body.emp0.md.qms_md.brr_rate >> 8 & 3);
+		body[13] = info->body.emp0.md.qms_md.brr_rate & 0xff;
+	}
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_EMP, body);
+}
+
+/* this is only configuring the EMP frame body, not send by HW
+ * then call hdmi_emp_infoframe_set to send out
+ */
+void hdmi_emp_frame_set_member(struct emp_packet_st *info,
+	enum vrr_component_conf conf, u32 val)
+{
+	if (!info)
+		return;
+
+	switch (conf) {
+	case CONF_HEADER_INIT:
+		info->header.header = HDMI_INFOFRAME_TYPE_EMP; /* fixed value */
+		break;
+	case CONF_HEADER_LAST:
+		info->header.last = !!val;
+		break;
+	case CONF_HEADER_FIRST:
+		info->header.first = !!val;
+		break;
+	case CONF_HEADER_SEQ_INDEX:
+		info->header.seq_idx = val;
+		break;
+	case CONF_SYNC:
+		info->body.emp0.sync = !!val;
+		break;
+	case CONF_VFR:
+		info->body.emp0.vfr = !!val;
+		break;
+	case CONF_AFR:
+		info->body.emp0.afr = !!val;
+		break;
+	case CONF_DS_TYPE:
+		info->body.emp0.ds_type = val & 3;
+		break;
+	case CONF_END:
+		info->body.emp0.end = !!val;
+		break;
+	case CONF_NEW:
+		info->body.emp0.new = !!val;
+		break;
+	case CONF_ORG_ID:
+		info->body.emp0.org_id = val;
+		break;
+	case CONF_DATA_SET_TAG:
+		info->body.emp0.ds_tag = val;
+		break;
+	case CONF_DATA_SET_LENGTH:
+		info->body.emp0.ds_length = val;
+		break;
+	case CONF_VRR_EN:
+		info->body.emp0.md.game_md.vrr_en = !!val;
+		break;
+	case CONF_FACTOR_M1:
+		info->body.emp0.md.game_md.fva_factor_m1 = val;
+		break;
+	case CONF_QMS_EN:
+		info->body.emp0.md.qms_md.qms_en = !!val;
+		break;
+	case CONF_M_CONST:
+		info->body.emp0.md.qms_md.m_const = !!val;
+		break;
+	case CONF_BASE_VFRONT:
+		info->body.emp0.md.qms_md.base_vfront = val;
+		break;
+	case CONF_NEXT_TFR:
+		info->body.emp0.md.qms_md.next_tfr = val;
+		break;
+	case CONF_BASE_REFRESH_RATE:
+		info->body.emp0.md.qms_md.brr_rate = val & 0x3ff;
+		break;
+	default:
+		break;
+	}
 }
 
 void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info)

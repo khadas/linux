@@ -1592,6 +1592,7 @@
 &amhdmitx {
 	status = "okay";
 	enc_idx = <0>;
+	vrr_type = <2>; /* 1: GAME-VRR, 2: QMS-VRR */
 };
 
 /*if you want to use vdin just modify status to "ok"*/

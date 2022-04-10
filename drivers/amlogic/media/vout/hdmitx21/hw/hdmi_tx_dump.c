@@ -183,9 +183,29 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 
 	reg = VP_FDET_FRAME_RATE_IVCTX;
 	val = CONNECT3REG(reg);
-	if (val)
-		seq_printf(s, "frame_rate [%x] 0x%x 200000000/%d Hz\n",
-			reg, val, val);
+	if (val) {
+		u32 integer;
+		u32 i;
+		u32 reminder;
+		u32 quotient;
+		u32 result = 0;
+
+		/* due to the vframe rate are always with decimals,
+		 * manually calculate the decimal parts
+		 */
+		val--;
+		integer = 200000000 / val;
+		reminder = 200000000 - integer * val;
+		for (i = 0, result = 0; i < 3; i++) {
+			reminder = reminder * 10;
+			result = result * 10;
+			quotient = reminder / val;
+			reminder = reminder - quotient * val;
+			result += quotient;
+		}
+		seq_printf(s, "frame_rate [%x] 0x%x %d %d.%03d Hz\n",
+			reg, val, val, integer, result);
+	}
 
 	reg = VP_FDET_PIXEL_COUNT_IVCTX;
 	val = CONNECT2REG(reg);
@@ -543,6 +563,22 @@ static const struct file_operations dump_audcts_fops = {
 	.release	= single_release,
 };
 
+static int dump_hdmivrr_show(struct seq_file *s, void *p)
+{
+	return hdmitx_dump_vrr_status(s, p);
+}
+
+static int dump_hdmivrr_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_hdmivrr_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmivrr_fops = {
+	.open		= dump_hdmivrr_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
 struct hdmitx_dbg_files_s {
 	const char *name;
 	const umode_t mode;
@@ -555,6 +591,7 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 	{"hdmi_vpfdet", S_IFREG | 0444, &dump_hdmivpfdet_fops},
 	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops},
 	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
+	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops},
 };
 
 static struct dentry *hdmitx_dbgfs;

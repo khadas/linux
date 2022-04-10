@@ -207,26 +207,6 @@ struct hdmi_drm_infoframe {
 	u16 max_fall;
 };
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-struct hdmi_emp_infoframe {
-	/* EMP Header */
-	u8 hb0;	//0x7f
-	u8 first:1;
-	u8 last:1;
-	u8 sequence_index;
-	/* EMP Contents for Sequence_Index=0, First=1 */
-	u8 sync:1;
-	u8 vfr:1;
-	u8 afr:1;
-	u8 ds_type:2;
-	u8 end:1;
-	u8 new:1;
-	u8 organization_id;
-	u16 data_set_tag;
-	u16 data_set_length;
-};
-#endif
-
 int hdmi_avi_infoframe_init(struct hdmi_avi_infoframe *frame);
 ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 				size_t size);
@@ -442,9 +422,6 @@ union hdmi_infoframe {
 	union hdmi_vendor_any_infoframe vendor;
 	struct hdmi_audio_infoframe audio;
 	struct hdmi_drm_infoframe drm;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	struct hdmi_emp_infoframe emp;
-#endif
 };
 
 ssize_t hdmi_infoframe_pack(union hdmi_infoframe *frame, void *buffer,
