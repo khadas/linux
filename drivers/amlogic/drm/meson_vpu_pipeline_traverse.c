@@ -601,7 +601,9 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
+	struct meson_vpu_block_state *mvbs;
 	struct meson_vpu_sub_pipeline_state *sub_state;
+	struct meson_vpu_pipeline *mvp = mvps->pipeline;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
@@ -621,6 +623,9 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 			block = mvb[j];
 			if (!block)
 				break;
+
+			mvbs = meson_vpu_block_get_state(block, mvps->obj.state);
+			mvbs->sub = &mvp->subs[crtc_index];
 			sub_state->enable_blocks |= BIT(block->id);
 		}
 	}

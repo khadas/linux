@@ -21,16 +21,16 @@
 #include <linux/kthread.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
-#include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_common.h>
 #include <linux/miscdevice.h>
 #include <drm/amlogic/meson_connector_dev.h>
+#include <vout/vout_serve/vout_func.h>
+#include <enhancement/amvecm/amcsc.h>
 
 #include "meson_hdmi.h"
 #include "meson_vpu.h"
 #include "meson_crtc.h"
-#include <../drivers/amlogic/media/enhancement/amvecm/amcsc.h>
 
 #define HDMITX_ATTR_LEN_MAX	16
 #define HDMITX_MAX_BPC	12
@@ -278,11 +278,6 @@ static int meson_hdmitx_setup_color_attr(struct hdmitx_color_attr *attr)
 
 	DRM_DEBUG_KMS("%s:[%s]\n", __func__, hdmitx_attr_str);
 	return 0;
-}
-
-char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode)
-{
-	return mode->name;
 }
 
 int meson_hdmitx_get_modes(struct drm_connector *connector)
@@ -1135,7 +1130,6 @@ end:
 void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct drm_atomic_state *state)
 {
-	enum vmode_e vmode = get_current_vmode();
 	struct am_meson_crtc_state *meson_crtc_state =
 		to_am_meson_crtc_state(encoder->crtc->state);
 	struct drm_connector_state *conn_state =
@@ -1143,6 +1137,9 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		&am_hdmi_info.base.connector);
 	struct am_hdmitx_connector_state *meson_conn_state =
 		to_am_hdmitx_connector_state(conn_state);
+	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(encoder->crtc);
+	enum vmode_e vmode = meson_crtc_state->vmode;
 
 	if (vmode == VMODE_HDMI) {
 		DRM_INFO("[%s]\n", __func__);
@@ -1155,9 +1152,12 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		meson_conn_state->update != 1)
 		vmode |= VMODE_INIT_BIT_MASK;
 
-	set_vout_mode_pre_process(vmode);
-	set_vout_vmode(vmode);
-	set_vout_mode_post_process(vmode);
+	meson_vout_notify_mode_change(amcrtc->vout_index,
+		vmode, EVENT_MODE_SET_START);
+	vout_func_set_vmode(amcrtc->vout_index, vmode);
+	meson_vout_notify_mode_change(amcrtc->vout_index,
+		vmode, EVENT_MODE_SET_FINISH);
+	meson_vout_update_mode_name(amcrtc->vout_index, mode->name);
 
 	if (!am_hdmi_info.android_path) {
 		am_hdmi_info.hdmitx_dev->avmute(0);
@@ -1372,7 +1372,8 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 		dev_err(priv->dev, "Failed to init hdmi encoder\n");
 		return ret;
 	}
-	encoder->possible_crtcs = BIT(0);
+	/*Todo: load from dts.*/
+	encoder->possible_crtcs = BIT(0) | BIT(1) | BIT(2);
 	drm_connector_attach_encoder(connector, encoder);
 
 	/*hpd irq moved to amhdmitx, registe call back */

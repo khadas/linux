@@ -33,13 +33,24 @@ struct meson_vpu_data {
 };
 
 extern struct am_meson_logo logo;
-char *am_meson_crtc_get_voutmode(struct drm_display_mode *mode);
-char *am_meson_crtc2_get_voutmode(struct drm_display_mode *mode);
 
 void am_meson_free_logo_memory(void);
-char *am_meson_hdmi_get_voutmode(struct drm_display_mode *mode);
-#ifdef CONFIG_DRM_MESON_CVBS
-char *am_cvbs_get_voutmode(struct drm_display_mode *mode);
-#endif
+
+enum meson_vout_event {
+	EVENT_MODE_SET_START = 0,
+	EVENT_MODE_SET_FINISH = 1,
+};
+
+void meson_vout_notify_mode_change(int idx,
+	enum vmode_e mode, enum meson_vout_event event);
+void meson_vout_update_mode_name(int idx, char *modename);
+
+/*api in vout_server, for android-compatible.*/
+int vout_set_uevent(unsigned int vout_event, int val);
+int vout2_set_uevent(unsigned int vout_event, int val);
+int vout3_set_uevent(unsigned int vout_event, int val);
+int set_vout_mode_name(char *name);
+int set_vout2_mode_name(char *name);
+int set_vout3_mode_name(char *name);
 
 #endif /* __AM_MESON_VPU_H */

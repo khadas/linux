@@ -268,39 +268,49 @@ static unsigned int *osd_scaler_filter_table[] = {
 
 /*********vsc config begin**********/
 /*vsc phase_step=(v_in << 20)/v_out */
-void osd_vsc_phase_step_set(struct osd_scaler_reg_s *reg, u32 phase_step)
+void osd_vsc_phase_step_set(struct meson_vpu_block *vblk,
+			    struct rdma_reg_ops *reg_ops,
+			    struct osd_scaler_reg_s *reg, u32 phase_step)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_phase_step,
-				 phase_step, 0, 28);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_phase_step,
+				     phase_step, 0, 28);
 }
 
 /*vsc init phase*/
-void osd_vsc_init_phase_set(struct osd_scaler_reg_s *reg,
+void osd_vsc_init_phase_set(struct meson_vpu_block *vblk,
+			    struct rdma_reg_ops *reg_ops,
+			    struct osd_scaler_reg_s *reg,
 			    u32 bottom_init_phase, u32 top_init_phase)
 {
-	meson_vpu_write_reg(reg->vpp_osd_vsc_ini_phase,
-			    (bottom_init_phase << 16) |
-			    (top_init_phase << 0));
+	reg_ops->rdma_write_reg(reg->vpp_osd_vsc_ini_phase,
+				(bottom_init_phase << 16) |
+				(top_init_phase << 0));
 }
 
 /*vsc control*/
 /*vsc enable last line repeate*/
-void osd_vsc_repate_last_line_enable_set(struct osd_scaler_reg_s *reg,
+void osd_vsc_repate_last_line_enable_set(struct meson_vpu_block *vblk,
+					 struct rdma_reg_ops *reg_ops,
+					 struct osd_scaler_reg_s *reg,
 					 bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 25, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 25, 1);
 }
 
 /*vsc enable*/
-void osd_vsc_enable_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_vsc_enable_set(struct meson_vpu_block *vblk,
+			struct rdma_reg_ops *reg_ops,
+			struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 24, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 24, 1);
 }
 
 /*vsc input Interlaced or Progressive:0->P;1->I*/
-void osd_vsc_output_format_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_vsc_output_format_set(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 23, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 23, 1);
 }
 
 /*
@@ -308,124 +318,162 @@ void osd_vsc_output_format_set(struct osd_scaler_reg_s *reg, bool flag)
  *bit0:change line buffer becomes 2 lines
  *bit1:double input width and half input height
  */
-void osd_vsc_double_line_mode_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_vsc_double_line_mode_set(struct meson_vpu_block *vblk,
+				  struct rdma_reg_ops *reg_ops,
+				  struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 21, 2);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 21, 2);
 }
 
 /*vsc phase always on*/
-void osd_vsc_phase_always_on_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_vsc_phase_always_on_set(struct meson_vpu_block *vblk,
+				 struct rdma_reg_ops *reg_ops,
+				 struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 20, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 20, 1);
 }
 
 /*vsc nearest en*/
-void osd_vsc_nearest_en_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_vsc_nearest_en_set(struct meson_vpu_block *vblk,
+			    struct rdma_reg_ops *reg_ops,
+			    struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 19, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 19, 1);
 }
 
 /*vsc repeate bottom field line0 num*/
-void osd_vsc_bot_rpt_l0_num_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_vsc_bot_rpt_l0_num_set(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 16, 2);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 16, 2);
 }
 
 /*vsc bottom field init receive num??*/
-void osd_vsc_bot_ini_rcv_num_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_vsc_bot_ini_rcv_num_set(struct meson_vpu_block *vblk,
+				 struct rdma_reg_ops *reg_ops,
+				 struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 11, 4);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 11, 4);
 }
 
 /*vsc repeate top field line0 num*/
-void osd_vsc_top_rpt_l0_num_set(struct osd_scaler_reg_s *reg, u32 flag)
+void osd_vsc_top_rpt_l0_num_set(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osd_scaler_reg_s *reg, u32 flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 8, 2);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, flag, 8, 2);
 }
 
 /*vsc top field init receive num??*/
-void osd_vsc_top_ini_rcv_num_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_vsc_top_ini_rcv_num_set(struct meson_vpu_block *vblk,
+				 struct rdma_reg_ops *reg_ops,
+				 struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 3, 4);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 3, 4);
 }
 
 /*vsc bank length??*/
-void osd_vsc_bank_length_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_vsc_bank_length_set(struct meson_vpu_block *vblk,
+			     struct rdma_reg_ops *reg_ops,
+			     struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 0, 3);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_vsc_ctrl0, data, 0, 3);
 }
 
 /*********vsc config end**********/
 
 /*********hsc config begin**********/
 /*hsc phase_step=(v_in << 20)/v_out */
-void osd_hsc_phase_step_set(struct osd_scaler_reg_s *reg, u32 phase_step)
+void osd_hsc_phase_step_set(struct meson_vpu_block *vblk,
+			    struct rdma_reg_ops *reg_ops,
+			    struct osd_scaler_reg_s *reg, u32 phase_step)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_phase_step,
-				 phase_step, 0, 28);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_phase_step,
+				     phase_step, 0, 28);
 }
 
 /*vsc init phase*/
-void osd_hsc_init_phase_set(struct osd_scaler_reg_s *reg,
+void osd_hsc_init_phase_set(struct meson_vpu_block *vblk,
+			    struct rdma_reg_ops *reg_ops,
+			    struct osd_scaler_reg_s *reg,
 			    u32 init_phase0, u32 init_phase1)
 {
-	meson_vpu_write_reg(reg->vpp_osd_hsc_ini_phase,
-			    (init_phase1 << 16) | (init_phase0 << 0));
+	reg_ops->rdma_write_reg(reg->vpp_osd_hsc_ini_phase,
+				(init_phase1 << 16) | (init_phase0 << 0));
 }
 
 /*hsc control*/
 /*hsc enable*/
-void osd_hsc_enable_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_hsc_enable_set(struct meson_vpu_block *vblk,
+			struct rdma_reg_ops *reg_ops,
+			struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 22, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 22, 1);
 }
 
 /* hsc double pixel mode */
-void osd_hsc_double_line_mode_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_hsc_double_line_mode_set(struct meson_vpu_block *vblk,
+				  struct rdma_reg_ops *reg_ops,
+				  struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 21, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 21, 1);
 }
 
 /*hsc phase always on*/
-void osd_hsc_phase_always_on_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_hsc_phase_always_on_set(struct meson_vpu_block *vblk,
+				 struct rdma_reg_ops *reg_ops,
+				 struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 20, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 20, 1);
 }
 
 /*hsc nearest en*/
-void osd_hsc_nearest_en_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_hsc_nearest_en_set(struct meson_vpu_block *vblk,
+			    struct rdma_reg_ops *reg_ops,
+			    struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 19, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 19, 1);
 }
 
 /*hsc repeate pixel0 num1??*/
-void osd_hsc_rpt_p0_num1_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_hsc_rpt_p0_num1_set(struct meson_vpu_block *vblk,
+			     struct rdma_reg_ops *reg_ops,
+			     struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, data, 16, 2);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, data, 16, 2);
 }
 
 /*hsc init receive num1*/
-void osd_vsc_ini_rcv_num1_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_vsc_ini_rcv_num1_set(struct meson_vpu_block *vblk,
+			      struct rdma_reg_ops *reg_ops,
+			      struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, data, 11, 4);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, data, 11, 4);
 }
 
 /*hsc repeate pixel0 num0*/
-void osd_hsc_rpt_p0_num0_set(struct osd_scaler_reg_s *reg, u32 flag)
+void osd_hsc_rpt_p0_num0_set(struct meson_vpu_block *vblk,
+			     struct rdma_reg_ops *reg_ops,
+			     struct osd_scaler_reg_s *reg, u32 flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 8, 2);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, flag, 8, 2);
 }
 
 /*hsc init receive num0*/
-void osd_hsc_ini_rcv_num0_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_hsc_ini_rcv_num0_set(struct meson_vpu_block *vblk,
+			      struct rdma_reg_ops *reg_ops,
+			      struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, data, 3, 4);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, data, 3, 4);
 }
 
 /*hsc bank length*/
-void osd_hsc_bank_length_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_hsc_bank_length_set(struct meson_vpu_block *vblk,
+			     struct rdma_reg_ops *reg_ops,
+			     struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_hsc_ctrl0, data, 0, 3);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_hsc_ctrl0, data, 0, 3);
 }
 
 /*
@@ -434,9 +482,11 @@ void osd_hsc_bank_length_set(struct osd_scaler_reg_s *reg, u32 data)
  *[6:4]pattern start
  *[2:0]pattern end
  */
-void osd_hsc_ini_pat_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_hsc_ini_pat_set(struct meson_vpu_block *vblk,
+			 struct rdma_reg_ops *reg_ops,
+			 struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg(reg->vpp_osd_hsc_ini_pat_ctrl, data);
+	reg_ops->rdma_write_reg(reg->vpp_osd_hsc_ini_pat_ctrl, data);
 }
 
 /*********hsc config end**********/
@@ -449,15 +499,19 @@ void osd_hsc_ini_pat_set(struct osd_scaler_reg_s *reg, u32 data)
  *[15:8]componet2
  *[7:0]alpha
  */
-void osd_sc_dummy_data_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_sc_dummy_data_set(struct meson_vpu_block *vblk,
+			   struct rdma_reg_ops *reg_ops,
+			   struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg(reg->vpp_osd_sc_dummy_data, data);
+	reg_ops->rdma_write_reg(reg->vpp_osd_sc_dummy_data, data);
 }
 
 /*sc gate clock*/
-void osd_sc_gclk_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_sc_gclk_set(struct meson_vpu_block *vblk,
+		     struct rdma_reg_ops *reg_ops,
+		     struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_sc_ctrl0, data, 16, 12);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_sc_ctrl0, data, 16, 12);
 }
 
 /*
@@ -465,9 +519,11 @@ void osd_sc_gclk_set(struct osd_scaler_reg_s *reg, u32 data)
  *0:(alpha>=128)?alpha-1:alpha
  *1:(alpha>=1)?alpha-1:alpha
  */
-void osd_sc_din_alpha_mode_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_sc_din_alpha_mode_set(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_sc_ctrl0, flag, 13, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_sc_ctrl0, flag, 13, 1);
 }
 
 /*
@@ -475,53 +531,69 @@ void osd_sc_din_alpha_mode_set(struct osd_scaler_reg_s *reg, bool flag)
  *0:(alpha>=128)?alpha+1:alpha
  *1:(alpha>=1)?alpha+1:alpha
  */
-void osd_sc_dout_alpha_mode_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_sc_dout_alpha_mode_set(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_sc_ctrl0, flag, 12, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_sc_ctrl0, flag, 12, 1);
 }
 
 /*sc alpha*/
-void osd_sc_alpha_set(struct osd_scaler_reg_s *reg, u32 data)
+void osd_sc_alpha_set(struct meson_vpu_block *vblk,
+		      struct rdma_reg_ops *reg_ops,
+		      struct osd_scaler_reg_s *reg, u32 data)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_sc_ctrl0, data, 4, 8);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_sc_ctrl0, data, 4, 8);
 }
 
 /*sc path en*/
-void osd_sc_path_en_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_sc_path_en_set(struct meson_vpu_block *vblk,
+			struct rdma_reg_ops *reg_ops,
+			struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_sc_ctrl0, flag, 3, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_sc_ctrl0, flag, 3, 1);
 }
 
 /*sc en*/
-void osd_sc_en_set(struct osd_scaler_reg_s *reg, bool flag)
+void osd_sc_en_set(struct meson_vpu_block *vblk,
+		   struct rdma_reg_ops *reg_ops,
+		   struct osd_scaler_reg_s *reg, bool flag)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_sc_ctrl0, flag, 2, 1);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_sc_ctrl0, flag, 2, 1);
 }
 
 /*sc input width minus 1*/
-void osd_sc_in_w_set(struct osd_scaler_reg_s *reg, u32 size)
+void osd_sc_in_w_set(struct meson_vpu_block *vblk,
+		     struct rdma_reg_ops *reg_ops,
+		     struct osd_scaler_reg_s *reg, u32 size)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_sci_wh_m1, (size - 1), 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_sci_wh_m1, (size - 1), 16, 13);
 }
 
 /*sc input height minus 1*/
-void osd_sc_in_h_set(struct osd_scaler_reg_s *reg, u32 size)
+void osd_sc_in_h_set(struct meson_vpu_block *vblk,
+		     struct rdma_reg_ops *reg_ops,
+		     struct osd_scaler_reg_s *reg, u32 size)
 {
-	meson_vpu_write_reg_bits(reg->vpp_osd_sci_wh_m1, (size - 1), 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->vpp_osd_sci_wh_m1, (size - 1), 0, 13);
 }
 
 /*sc output horizontal size = end - start + 1*/
-void osd_sc_out_horz_set(struct osd_scaler_reg_s *reg, u32 start, u32 end)
+void osd_sc_out_horz_set(struct meson_vpu_block *vblk,
+			 struct rdma_reg_ops *reg_ops,
+			 struct osd_scaler_reg_s *reg, u32 start, u32 end)
 {
-	meson_vpu_write_reg(reg->vpp_osd_sco_h_start_end,
-			    (start & 0xfff << 16) | (end & 0xfff));
+	reg_ops->rdma_write_reg(reg->vpp_osd_sco_h_start_end,
+				(start & 0xfff << 16) | (end & 0xfff));
 }
 
 /*sc output vertical size = end - start + 1*/
-void osd_sc_out_vert_set(struct osd_scaler_reg_s *reg, u32 start, u32 end)
+void osd_sc_out_vert_set(struct meson_vpu_block *vblk,
+			 struct rdma_reg_ops *reg_ops,
+			 struct osd_scaler_reg_s *reg, u32 start, u32 end)
 {
-	meson_vpu_write_reg(reg->vpp_osd_sco_v_start_end,
-			    (start & 0xfff << 16) | (end & 0xfff));
+	reg_ops->rdma_write_reg(reg->vpp_osd_sco_v_start_end,
+				(start & 0xfff << 16) | (end & 0xfff));
 }
 
 /*
@@ -529,18 +601,20 @@ void osd_sc_out_vert_set(struct osd_scaler_reg_s *reg, u32 start, u32 end)
  *1:config horizontal coef
  *0:config vertical coef
  */
-void osd_sc_coef_set(struct osd_scaler_reg_s *reg, bool flag, u32 *coef)
+void osd_sc_coef_set(struct meson_vpu_block *vblk,
+		     struct rdma_reg_ops *reg_ops,
+		     struct osd_scaler_reg_s *reg, bool flag, u32 *coef)
 {
 	u8 i;
 
-	meson_vpu_write_reg(reg->vpp_osd_scale_coef_idx,
-			    (0 << 15) | /*index increment. 1bits*/
-			    (0 << 14) | /*read coef enable, 1bits*/
-			    (0 << 9) | /*coef bit mode 8 or 9. 1bits*/
-			    (flag << 8) |
-			    (0 << 0)/*coef index 7bits*/);
+	reg_ops->rdma_write_reg(reg->vpp_osd_scale_coef_idx,
+				(0 << 15) | /*index increment. 1bits*/
+				(0 << 14) | /*read coef enable, 1bits*/
+				(0 << 9) | /*coef bit mode 8 or 9. 1bits*/
+				(flag << 8) |
+				(0 << 0)/*coef index 7bits*/);
 	for (i = 0; i < 33; i++)
-		meson_vpu_write_reg(reg->vpp_osd_scale_coef, coef[i]);
+		reg_ops->rdma_write_reg(reg->vpp_osd_scale_coef, coef[i]);
 }
 
 /*********sc top ctrl end************/
@@ -587,7 +661,8 @@ static void f2v_get_vertical_phase(u32 zoom_ratio,
 
 void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		       struct meson_vpu_scaler_state *scaler_state,
-	struct meson_vpu_block *vblk)
+		       struct meson_vpu_block *vblk,
+		       struct rdma_reg_ops *reg_ops)
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
 	u32 vsc_top_init_rec_num, vsc_bank_length;
@@ -690,55 +765,55 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 		coef_h = osd_scaler_filter_table[osdscaler_h_filter_mode];
 
 	/*input size config*/
-	osd_sc_in_h_set(reg, height_in);
-	osd_sc_in_w_set(reg, width_in);
+	osd_sc_in_h_set(vblk, reg_ops, reg, height_in);
+	osd_sc_in_w_set(vblk, reg_ops, reg, width_in);
 
 	/*output size config*/
-	osd_sc_out_horz_set(reg, 0, width_out - 1);
-	osd_sc_out_vert_set(reg, 0, height_out - 1);
+	osd_sc_out_horz_set(vblk, reg_ops, reg, 0, width_out - 1);
+	osd_sc_out_vert_set(vblk, reg_ops, reg, 0, height_out - 1);
 
 	/*phase step config*/
-	osd_vsc_phase_step_set(reg, phase_step_v);
-	osd_hsc_phase_step_set(reg, phase_step_h);
+	osd_vsc_phase_step_set(vblk, reg_ops, reg, phase_step_v);
+	osd_hsc_phase_step_set(vblk, reg_ops, reg, phase_step_h);
 
 	/*dummy data config*/
-	osd_sc_dummy_data_set(reg, 0x80808080);
+	osd_sc_dummy_data_set(vblk, reg_ops, reg, 0x80808080);
 
 	/*h/v coef config*/
-	osd_sc_coef_set(reg, OSD_SCALER_COEFF_H, coef_h);
-	osd_sc_coef_set(reg, OSD_SCALER_COEFF_V, coef_v);
+	osd_sc_coef_set(vblk, reg_ops, reg, OSD_SCALER_COEFF_H, coef_h);
+	osd_sc_coef_set(vblk, reg_ops, reg, OSD_SCALER_COEFF_V, coef_v);
 
 	/*init recv line num*/
-	osd_vsc_top_ini_rcv_num_set(reg, vsc_top_init_rec_num);
-	osd_vsc_bot_ini_rcv_num_set(reg, vsc_bot_init_rec_num);
-	osd_hsc_ini_rcv_num0_set(reg, hsc_init_rec_num);
-	osd_vsc_double_line_mode_set(reg, vsc_double_line_mode);
+	osd_vsc_top_ini_rcv_num_set(vblk, reg_ops, reg, vsc_top_init_rec_num);
+	osd_vsc_bot_ini_rcv_num_set(vblk, reg_ops, reg, vsc_bot_init_rec_num);
+	osd_hsc_ini_rcv_num0_set(vblk, reg_ops, reg, hsc_init_rec_num);
+	osd_vsc_double_line_mode_set(vblk, reg_ops, reg, vsc_double_line_mode);
 
 	/*repeate line0 num*/
-	osd_vsc_top_rpt_l0_num_set(reg, vsc_top_rpt_l0_num);
-	osd_vsc_bot_rpt_l0_num_set(reg, vsc_bot_rpt_l0_num);
-	osd_hsc_rpt_p0_num0_set(reg, hsc_init_rpt_p0_num);
+	osd_vsc_top_rpt_l0_num_set(vblk, reg_ops, reg, vsc_top_rpt_l0_num);
+	osd_vsc_bot_rpt_l0_num_set(vblk, reg_ops, reg, vsc_bot_rpt_l0_num);
+	osd_hsc_rpt_p0_num0_set(vblk, reg_ops, reg, hsc_init_rpt_p0_num);
 
 	/*init phase*/
-	osd_vsc_init_phase_set(reg, vsc_bot_init_phase, vsc_top_init_phase);
-	osd_hsc_init_phase_set(reg, 0, 0);
+	osd_vsc_init_phase_set(vblk, reg_ops, reg, vsc_bot_init_phase, vsc_top_init_phase);
+	osd_hsc_init_phase_set(vblk, reg_ops, reg, 0, 0);
 
 	/*vsc bank length*/
-	osd_vsc_bank_length_set(reg, vsc_bank_length);
-	osd_hsc_bank_length_set(reg, hsc_bank_length);
+	osd_vsc_bank_length_set(vblk, reg_ops, reg, vsc_bank_length);
+	osd_hsc_bank_length_set(vblk, reg_ops, reg, hsc_bank_length);
 
 	/*out scan mode*/
-	osd_vsc_output_format_set(reg, scan_mode_out ? 1 : 0);
+	osd_vsc_output_format_set(vblk, reg_ops, reg, scan_mode_out ? 1 : 0);
 
 	/*repeate last line*/
 	if (version >= OSD_V2)
-		osd_vsc_repate_last_line_enable_set(reg, 1);
+		osd_vsc_repate_last_line_enable_set(vblk, reg_ops, reg, 1);
 
 	/*eanble sc*/
-	osd_vsc_enable_set(reg, scaler_enable);
-	osd_hsc_enable_set(reg, scaler_enable);
-	osd_sc_en_set(reg, scaler_enable);
-	osd_sc_path_en_set(reg, scaler_enable);
+	osd_vsc_enable_set(vblk, reg_ops, reg, scaler_enable);
+	osd_hsc_enable_set(vblk, reg_ops, reg, scaler_enable);
+	osd_sc_en_set(vblk, reg_ops, reg, scaler_enable);
+	osd_sc_path_en_set(vblk, reg_ops, reg, scaler_enable);
 }
 
 static void scaler_size_check(struct meson_vpu_block *vblk,
@@ -848,7 +923,7 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 	scaler_filter_mode_check(vblk, scaler_state, mvps);
 	DRM_DEBUG("scaler_state=0x%x\n", scaler_state->state_changed);
 	if (scaler_state->state_changed || osdscaler_force_update) {
-		osd_scaler_config(reg, scaler_state, vblk);
+		osd_scaler_config(reg, scaler_state, vblk, state->sub->reg_ops);
 		scaler_state->state_changed = 0;
 		osdscaler_force_update = 0;
 	}
@@ -858,14 +933,16 @@ static void scaler_set_state(struct meson_vpu_block *vblk,
 		scaler_state->output_width, scaler_state->output_height);
 }
 
-static void scaler_hw_enable(struct meson_vpu_block *vblk)
+static void scaler_hw_enable(struct meson_vpu_block *vblk,
+			     struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
 
 	DRM_DEBUG("%s enable done.\n", scaler->base.name);
 }
 
-static void scaler_hw_disable(struct meson_vpu_block *vblk)
+static void scaler_hw_disable(struct meson_vpu_block *vblk,
+			      struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_scaler *scaler = to_scaler_block(vblk);
 	struct osd_scaler_reg_s *reg = scaler->reg;
@@ -934,7 +1011,8 @@ static void scaler_hw_init(struct meson_vpu_block *vblk)
 		scaler->reg = &osd_scaler_t7_reg[vblk->index];
 	scaler->linebuffer = OSD_SCALE_LINEBUFFER;
 	scaler->bank_length = OSD_SCALE_BANK_LENGTH;
-	scaler_hw_disable(vblk);
+
+	meson_vpu_write_reg(scaler->reg->vpp_osd_sc_ctrl0, 0);
 	DRM_DEBUG("%s hw_init called.\n", scaler->base.name);
 }
 

@@ -32,150 +32,180 @@ static struct osdblend_reg_s osdblend_reg = {
 };
 
 /*0:din0 go through blend0,1:bypass blend0,dirct to Dout0*/
-static void osd_din0_switch_set(struct osdblend_reg_s *reg,
+static void osd_din0_switch_set(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osdblend_reg_s *reg,
 				bool bypass_state)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl,
-				 bypass_state, 26, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl,
+				     bypass_state, 26, 1);
 }
 
 /*0:blend1 out to blend2,1:blend1 out to Dout1*/
-static void osd_blend1_dout_switch_set(struct osdblend_reg_s *reg,
+static void osd_blend1_dout_switch_set(struct meson_vpu_block *vblk,
+				       struct rdma_reg_ops *reg_ops,
+				       struct osdblend_reg_s *reg,
 				       bool bypass_state)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl,
-				 bypass_state, 25, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl,
+				     bypass_state, 25, 1);
 }
 
 /*0:din3 pass through blend1,1:bypass blend1,direct to Dout1*/
-static void osd_din3_switch_set(struct osdblend_reg_s *reg,
+static void osd_din3_switch_set(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osdblend_reg_s *reg,
 				bool bypass_state)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl,
-				 bypass_state, 24, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl,
+				     bypass_state, 24, 1);
 }
 
 /*0:din0 input disable,1:din0 input enable*/
-static void osd_din0_input_enable_set(struct osdblend_reg_s *reg,
+static void osd_din0_input_enable_set(struct meson_vpu_block *vblk,
+				      struct rdma_reg_ops *reg_ops,
+				      struct osdblend_reg_s *reg,
 				      bool input_enable)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl,
-				 input_enable, 20, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl,
+				     input_enable, 20, 1);
 }
 
 /*0:din1 input disable,1:din1 input enable*/
-static void osd_din1_input_enable_set(struct osdblend_reg_s *reg,
+static void osd_din1_input_enable_set(struct meson_vpu_block *vblk,
+				      struct rdma_reg_ops *reg_ops,
+				      struct osdblend_reg_s *reg,
 				      bool input_enable)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl,
-				 input_enable, 21, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl,
+				     input_enable, 21, 1);
 }
 
 /*0:din2 input disable,1:din2 input enable*/
-static void osd_din2_input_enable_set(struct osdblend_reg_s *reg,
+static void osd_din2_input_enable_set(struct meson_vpu_block *vblk,
+				      struct rdma_reg_ops *reg_ops,
+				      struct osdblend_reg_s *reg,
 				      bool input_enable)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl,
-				 input_enable, 22, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl,
+				     input_enable, 22, 1);
 }
 
 /*0:din3 input disable,1:din3 input enable*/
-static void osd_din3_input_enable_set(struct osdblend_reg_s *reg,
+static void osd_din3_input_enable_set(struct meson_vpu_block *vblk,
+				      struct rdma_reg_ops *reg_ops,
+				      struct osdblend_reg_s *reg,
 				      bool input_enable)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl,
-				 input_enable, 23, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl,
+				     input_enable, 23, 1);
 }
 
 /*1/2/3:din0/1/2/3 select osd1/osd2/osd3,else select null*/
-static void osd_din_channel_mux_set(struct osdblend_reg_s *reg,
+static void osd_din_channel_mux_set(struct meson_vpu_block *vblk,
+				    struct rdma_reg_ops *reg_ops,
+				    struct osdblend_reg_s *reg,
 				    enum osd_channel_e osd_channel,
-	enum din_channel_e din_channel)
+				    enum din_channel_e din_channel)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl, osd_channel,
-				 (0 + din_channel * 4), 4);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl, osd_channel,
+				     (0 + din_channel * 4), 4);
 }
 
 /*din0 scope config*/
-static void osd_din0_scope_set(struct osdblend_reg_s *reg,
+static void osd_din0_scope_set(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osdblend_reg_s *reg,
 			       struct osd_scope_s scope)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din0_scope_h,
-				 scope.h_start, 0, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din0_scope_h,
-				 scope.h_end, 16, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din0_scope_v,
-				 scope.v_start, 0, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din0_scope_v,
-				 scope.v_end, 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din0_scope_h,
+				     scope.h_start, 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din0_scope_h,
+				     scope.h_end, 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din0_scope_v,
+				     scope.v_start, 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din0_scope_v,
+				     scope.v_end, 16, 13);
 }
 
 /*din1 scope config*/
-static void osd_din1_scope_set(struct osdblend_reg_s *reg,
+static void osd_din1_scope_set(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osdblend_reg_s *reg,
 			       struct osd_scope_s scope)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din1_scope_h,
-				 scope.h_start, 0, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din1_scope_h,
-				 scope.h_end, 16, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din1_scope_v,
-				 scope.v_start, 0, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din1_scope_v,
-				 scope.v_end, 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din1_scope_h,
+				     scope.h_start, 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din1_scope_h,
+				     scope.h_end, 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din1_scope_v,
+				     scope.v_start, 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din1_scope_v,
+				     scope.v_end, 16, 13);
 }
 
 /*din2 scope config*/
-static void osd_din2_scope_set(struct osdblend_reg_s *reg,
+static void osd_din2_scope_set(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osdblend_reg_s *reg,
 			       struct osd_scope_s scope)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din2_scope_h,
-				 scope.h_start, 0, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din2_scope_h,
-				 scope.h_end, 16, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din2_scope_v,
-				 scope.v_start, 0, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din2_scope_v,
-				 scope.v_end, 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din2_scope_h,
+				     scope.h_start, 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din2_scope_h,
+				     scope.h_end, 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din2_scope_v,
+				     scope.v_start, 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din2_scope_v,
+				     scope.v_end, 16, 13);
 }
 
 /*din3 scope config*/
-static void osd_din3_scope_set(struct osdblend_reg_s *reg,
+static void osd_din3_scope_set(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osdblend_reg_s *reg,
 			       struct osd_scope_s scope)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din3_scope_h,
-				 scope.h_start, 0, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din3_scope_h,
-				 scope.h_end, 16, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din3_scope_v,
-				 scope.v_start, 0, 13);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_din3_scope_v,
-				 scope.v_end, 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din3_scope_h,
+				     scope.h_start, 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din3_scope_h,
+				     scope.h_end, 16, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din3_scope_v,
+				     scope.v_start, 0, 13);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din3_scope_v,
+				     scope.v_end, 16, 13);
 }
 
 /*osd blend dummy data config*/
-static void osd_blend_dummy_data_set(struct osdblend_reg_s *reg,
+static void osd_blend_dummy_data_set(struct meson_vpu_block *vblk,
+				     struct rdma_reg_ops *reg_ops,
+				     struct osdblend_reg_s *reg,
 				     struct osd_dummy_data_s dummy_data)
 {
-	meson_vpu_write_reg(reg->viu_osd_blend_dummy_data0,
-			    ((dummy_data.channel0 & 0xff) << 16) |
-		((dummy_data.channel1 & 0xff) << 8) |
-		(dummy_data.channel2 & 0xff));
+	reg_ops->rdma_write_reg(reg->viu_osd_blend_dummy_data0,
+				((dummy_data.channel0 & 0xff) << 16) |
+				((dummy_data.channel1 & 0xff) << 8) |
+				(dummy_data.channel2 & 0xff));
 }
 
 /*osd blend0 size config*/
-static void osd_blend0_size_set(struct osdblend_reg_s *reg,
+static void osd_blend0_size_set(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osdblend_reg_s *reg,
 				unsigned int h_size, unsigned int v_size)
 {
-	meson_vpu_write_reg(reg->viu_osd_blend0_size,
-			    (v_size << 16) | h_size);
+	reg_ops->rdma_write_reg(reg->viu_osd_blend0_size,
+				(v_size << 16) | h_size);
 }
 
 /*osd blend1 size config*/
-static void osd_blend1_size_set(struct osdblend_reg_s *reg,
+static void osd_blend1_size_set(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osdblend_reg_s *reg,
 				unsigned int h_size, unsigned int v_size)
 {
-	meson_vpu_write_reg(reg->viu_osd_blend1_size,
-			    (v_size << 16) | h_size);
+	reg_ops->rdma_write_reg(reg->viu_osd_blend1_size,
+				(v_size << 16) | h_size);
 }
 
 /*osd blend0 size config*/
@@ -197,38 +227,48 @@ static void osd_dv_core_size_set(u32 h_size, u32 v_size)
 }
 
 /*osd blend0 & blend1 4 din inputs premult flag config as 0 default*/
-void osd_blend01_premult_config(struct osdblend_reg_s *reg)
+void osd_blend01_premult_config(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osdblend_reg_s *reg)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl, 0, 16, 4);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl, 0, 16, 4);
 }
 
 /*osd blend2 2 inputs premult flag config as 1 default*/
-void osd_blend2_premult_config(struct osdblend_reg_s *reg)
+void osd_blend2_premult_config(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osdblend_reg_s *reg)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl, 3, 27, 2);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl, 3, 27, 2);
 }
 
 /*osd blend dout0 output div en config as 1,alpha 9bit default*/
-void osd_blend_dout0_div_config(struct osdblend_reg_s *reg)
+void osd_blend_dout0_div_config(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osdblend_reg_s *reg)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl1, 3, 4, 2);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl1, 1, 0, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl1, 3, 4, 2);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl1, 1, 0, 1);
 }
 
 /*osd blend dout1 output div en config as 1,alpha 9bit default*/
-void osd_blend_dout1_div_config(struct osdblend_reg_s *reg)
+void osd_blend_dout1_div_config(struct meson_vpu_block *vblk,
+				struct rdma_reg_ops *reg_ops,
+				struct osdblend_reg_s *reg)
 {
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl1, 3, 16, 2);
-	meson_vpu_write_reg_bits(reg->viu_osd_blend_ctrl1, 1, 12, 1);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl1, 3, 16, 2);
+	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_ctrl1, 1, 12, 1);
 }
 
 /*osd blend premult config*/
-void osdblend_premult_config(struct osdblend_reg_s *reg)
+void osdblend_premult_config(struct meson_vpu_block *vblk,
+			     struct rdma_reg_ops *reg_ops,
+			     struct osdblend_reg_s *reg)
 {
-	osd_blend01_premult_config(reg);
-	osd_blend2_premult_config(reg);
-	osd_blend_dout0_div_config(reg);
-	osd_blend_dout1_div_config(reg);
+	osd_blend01_premult_config(vblk, reg_ops, reg);
+	osd_blend2_premult_config(vblk, reg_ops, reg);
+	osd_blend_dout0_div_config(vblk, reg_ops, reg);
+	osd_blend_dout1_div_config(vblk, reg_ops, reg);
 }
 
 enum osd_channel_e osd2channel(u8 osd_index)
@@ -243,39 +283,51 @@ enum osd_channel_e osd2channel(u8 osd_index)
 	return din_channel_seq[osd_index];
 }
 
-static void osdblend_hw_update(struct osdblend_reg_s *reg,
+static void osdblend_hw_update(struct meson_vpu_block *vblk,
+			       struct rdma_reg_ops *reg_ops,
+			       struct osdblend_reg_s *reg,
 			       struct meson_vpu_osdblend_state *mvobs)
 {
 	/*din channel mux config*/
-	osd_din_channel_mux_set(reg, mvobs->din_channel_mux[DIN0], DIN0);
-	osd_din_channel_mux_set(reg, mvobs->din_channel_mux[DIN1], DIN1);
-	osd_din_channel_mux_set(reg, mvobs->din_channel_mux[DIN2], DIN2);
-	osd_din_channel_mux_set(reg, mvobs->din_channel_mux[DIN3], DIN3);
+	osd_din_channel_mux_set(vblk, reg_ops, reg,
+				mvobs->din_channel_mux[DIN0], DIN0);
+	osd_din_channel_mux_set(vblk, reg_ops, reg,
+				mvobs->din_channel_mux[DIN1], DIN1);
+	osd_din_channel_mux_set(vblk, reg_ops, reg,
+				mvobs->din_channel_mux[DIN2], DIN2);
+	osd_din_channel_mux_set(vblk, reg_ops, reg,
+				mvobs->din_channel_mux[DIN3], DIN3);
 
 	/*internal channel disable default*/
-	osd_din0_input_enable_set(reg, (mvobs->input_mask >> DIN0) & 0x1);
-	osd_din1_input_enable_set(reg, (mvobs->input_mask >> DIN1) & 0x1);
-	osd_din2_input_enable_set(reg, (mvobs->input_mask >> DIN2) & 0x1);
-	osd_din3_input_enable_set(reg, (mvobs->input_mask >> DIN3) & 0x1);
+	osd_din0_input_enable_set(vblk, reg_ops, reg,
+				  (mvobs->input_mask >> DIN0) & 0x1);
+	osd_din1_input_enable_set(vblk, reg_ops, reg,
+				  (mvobs->input_mask >> DIN1) & 0x1);
+	osd_din2_input_enable_set(vblk, reg_ops, reg,
+				  (mvobs->input_mask >> DIN2) & 0x1);
+	osd_din3_input_enable_set(vblk, reg_ops, reg,
+				  (mvobs->input_mask >> DIN3) & 0x1);
 
 	/*blend switch config*/
-	osd_din0_switch_set(reg, mvobs->din0_switch);
-	osd_din3_switch_set(reg, mvobs->din3_switch);
-	osd_blend1_dout_switch_set(reg, mvobs->blend1_switch);
+	osd_din0_switch_set(vblk, reg_ops, reg, mvobs->din0_switch);
+	osd_din3_switch_set(vblk, reg_ops, reg, mvobs->din3_switch);
+	osd_blend1_dout_switch_set(vblk, reg_ops, reg, mvobs->blend1_switch);
 
 	/*scope config*/
-	osd_din0_scope_set(reg, mvobs->din_channel_scope[DIN0]);
-	osd_din1_scope_set(reg, mvobs->din_channel_scope[DIN1]);
-	osd_din2_scope_set(reg, mvobs->din_channel_scope[DIN2]);
-	osd_din3_scope_set(reg, mvobs->din_channel_scope[DIN3]);
+	osd_din0_scope_set(vblk, reg_ops, reg, mvobs->din_channel_scope[DIN0]);
+	osd_din1_scope_set(vblk, reg_ops, reg, mvobs->din_channel_scope[DIN1]);
+	osd_din2_scope_set(vblk, reg_ops, reg, mvobs->din_channel_scope[DIN2]);
+	osd_din3_scope_set(vblk, reg_ops, reg, mvobs->din_channel_scope[DIN3]);
 
 	/*premult config*/
-	osdblend_premult_config(reg);
+	osdblend_premult_config(vblk, reg_ops, reg);
 
 	/*blend0/blend1 size config*/
-	osd_blend0_size_set(reg, mvobs->input_width[OSD_SUB_BLEND0],
+	osd_blend0_size_set(vblk, reg_ops, reg,
+			    mvobs->input_width[OSD_SUB_BLEND0],
 			    mvobs->input_height[OSD_SUB_BLEND0]);
-	osd_blend1_size_set(reg, mvobs->input_width[OSD_SUB_BLEND1],
+	osd_blend1_size_set(vblk, reg_ops, reg,
+			    mvobs->input_width[OSD_SUB_BLEND1],
 			    mvobs->input_height[OSD_SUB_BLEND1]);
 }
 
@@ -307,7 +359,8 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	num_plane_port1 = 0;
 	DRM_DEBUG("%s check_state called.\n", vblk->name);
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (!mvps->plane_info[i].enable) {
+		if (!mvps->plane_info[i].enable ||
+		    mvps->plane_info[i].crtc_index != 0) {
 			mvobs->input_osd_mask &= ~BIT(i);
 			continue;
 		}
@@ -474,9 +527,10 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 	}
 
 	#ifdef OSDBLEND_CHECK_METHOD_COMBINATION
-	osdblend_layer_set(reg, osdblend, pipeline_state);
+	osdblend_layer_set(vblk, state->sub->reg_ops,
+			   reg, osdblend, pipeline_state);
 	#else
-	osdblend_hw_update(reg, mvobs);
+	osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
 	#endif
 	/*osd dv core size same with blend0 size*/
 	if (vblk->pipeline->osd_version >= OSD_V1)
@@ -486,14 +540,16 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 	DRM_DEBUG("%s set_state done.\n", osdblend->base.name);
 }
 
-static void osdblend_hw_enable(struct meson_vpu_block *vblk)
+static void osdblend_hw_enable(struct meson_vpu_block *vblk,
+			       struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 
 	DRM_DEBUG("%s enable called.\n", osdblend->base.name);
 }
 
-static void osdblend_hw_disable(struct meson_vpu_block *vblk)
+static void osdblend_hw_disable(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 
@@ -569,15 +625,16 @@ static void osdblend_hw_init(struct meson_vpu_block *vblk)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
+	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
 
 	osdblend->reg = &osdblend_reg;
 
 	/*dummy data/alpha config*/
-	osd_blend_dummy_data_set(osdblend->reg, dummy_data);
-	meson_vpu_write_reg(osdblend->reg->viu_osd_blend_dummy_data0, 0);
+	osd_blend_dummy_data_set(vblk, reg_ops, osdblend->reg, dummy_data);
+	reg_ops->rdma_write_reg(osdblend->reg->viu_osd_blend_dummy_data0, 0);
 
 	/*reset blend ctrl hold line*/
-	meson_vpu_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
+	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 0, 29, 3);
 
 	DRM_DEBUG("%s hw_init called.\n", osdblend->base.name);
 }

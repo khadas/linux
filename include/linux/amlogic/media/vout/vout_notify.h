@@ -160,6 +160,10 @@ enum vmode_e validate_vmode2(char *name, unsigned int frac);
 void set_vout2_init(enum vmode_e mode);
 void update_vout2_viu(void);
 
+int set_vout2_vmode(enum vmode_e mode);
+int set_vout2_mode_pre_process(enum vmode_e mode);
+int set_vout2_mode_post_process(enum vmode_e mode);
+
 #else
 static inline int vout2_register_client(struct notifier_block *p)
 {
@@ -223,6 +227,22 @@ static inline int get_vframe2_rate_policy(void)
 
 static inline void set_vout2_bist(unsigned int bist)
 {
+	/*return;*/
+}
+
+static inline int set_vout2_vmode(enum vmode_e mode)
+{
+	return 0;
+}
+
+static inline int set_vout2_mode_pre_process(enum vmode_e mode)
+{
+	return 0;
+}
+
+static inline int set_vout2_mode_post_process(enum vmode_e mode)
+{
+	return 0;
 }
 
 #endif
@@ -265,7 +285,11 @@ void set_vout3_bist(unsigned int bist);
 
 char *get_vout_mode_internal(void);
 char *get_vout_mode_uboot(void);
+char *get_vout2_mode_uboot(void);
+char *get_vout3_mode_uboot(void);
 int get_vout_mode_uboot_state(void);
+int get_vout2_mode_uboot_state(void);
+int get_vout3_mode_uboot_state(void);
 
 int set_vout_mode(char *name);
 void set_vout_init(enum vmode_e mode);

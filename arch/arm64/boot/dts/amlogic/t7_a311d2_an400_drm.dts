@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 /dts-v1/;
 
 #include "mesont7.dtsi"
 #include "mesont7_drm.dtsi"
-#include "partition_normal_linux.dtsi"
+#include "partition_normal_PR_32.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
 
@@ -51,18 +51,14 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x000000 0x0 0x80000000>;
+		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
+				       0x00000001 0x00000000 0x00000000 0x20000000>;
 	};
 
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-
-		ramdump_bl33z@00000000 {
-			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
-			status = "disabled";
-		};
 
 		/* global autoconfigured region for contiguous allocations */
 		ramoops@0x07400000 {
@@ -113,6 +109,7 @@
 			size = <0x0 0x1b000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			clear-map;
 		};
 
@@ -130,12 +127,14 @@
 			size = <0x0 0x0B000000>;
 			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "shared-dma-pool";
 			size = <0x0 0x0>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		isp_cma_reserved:linux,isp_cma {
@@ -144,14 +143,16 @@
 			status = "okay";
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		adapt_cma_reserved:linux,adapt_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -159,6 +160,7 @@
 			reusable;
 			size = <0x0 0x9800000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x8000000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -166,19 +168,22 @@
 			no-map;
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x0000000>;
+			size = <0x0 0x6000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
 			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			//no-map;
 		};
 
@@ -201,6 +206,7 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -270,7 +276,7 @@
 		/***************************************************
 		 * en_4k: t5d not support 4k
 		 ***************************************************/
-		//en_4k = <1>;
+		en_4k = <0>;
 		//keep_dec_vf = <2>;
 		//po_fmt = <6>;
 		/***************************************************
@@ -284,7 +290,7 @@
 		 * bit 0: for 4k
 		 * bit 1: for 1080p
 		 ***************************************************/
-		//alloc_sct = <1>;
+		alloc_sct = <0>;
 		/***************************************************
 		 * hf: default is 0 (T7/T3/SC2/S4 new path)
 		 * 0:not enable;
@@ -293,10 +299,19 @@
 		//hf = <0>;
 	};
 
+	provisionkey {
+		compatible = "amlogic, provisionkey";
+		status = "okay";
+		key-permit-default = "write";
+		//new key not need add dts if started with KEY_PROVISION_
+		KEY_PROVISION_XXX { };
+		//test_my_added_keyname { };
+	};//End provisionkey
+
 	unifykey{
 		compatible = "amlogic,unifykey";
 		status = "okay";
-		unifykey-num = <19>;
+		unifykey-num = <28>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;
@@ -319,6 +334,12 @@
 		unifykey-index-19= <&keysn_19>;
 		unifykey-index-20= <&keysn_20>;
 		unifykey-index-21= <&keysn_21>;
+		unifykey-index-22= <&keysn_22>;
+		unifykey-index-23= <&keysn_23>;
+		unifykey-index-24= <&keysn_24>;
+		unifykey-index-25= <&keysn_25>;
+		unifykey-index-26= <&keysn_26>;
+		unifykey-index-27= <&keysn_27>;
 
 		keysn_0: key_0{
 			key-name = "usid";
@@ -430,6 +451,36 @@
 		};
 		keysn_21:key_21{
 			key-name = "backlight";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_22:key_22{
+			key-name = "lcd1";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_23:key_23{
+			key-name = "lcd1_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_24:key_24{
+			key-name = "backlight1";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_25:key_25{
+			key-name = "lcd2";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_26:key_26{
+			key-name = "lcd2_extern";
+			key-device = "normal";
+			key-permit = "read","write","del";
+		};
+		keysn_27:key_27{
+			key-name = "backlight2";
 			key-device = "normal";
 			key-permit = "read","write","del";
 		};
@@ -664,18 +715,18 @@
 			};
 		};
 /*
-		aml-audio-card,dai-link@7 {
-			mclk-fs = <256>;
-			suffix-name = "alsaPORT-earc";
-			cpu {
-				sound-dai = <&earc>;
-				system-clock-frequency = <12288000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
-*/
+ *		aml-audio-card,dai-link@7 {
+ *			mclk-fs = <256>;
+ *			suffix-name = "alsaPORT-earc";
+ *			cpu {
+ *				sound-dai = <&earc>;
+ *				system-clock-frequency = <12288000>;
+ *			};
+ *			codec {
+ *				sound-dai = <&dummy_codec>;
+ *			};
+ *		};
+ */
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -700,6 +751,12 @@
 		compatible = "amlogic, ppmgr";
 		memory-region = <&ppmgr_reserved>;
 		dev_name = "ppmgr";
+		status = "okay";
+	};
+
+	video_queue {
+		compatible = "amlogic, video_queue";
+		dev_name = "videoqueue";
 		status = "okay";
 	};
 
@@ -914,7 +971,7 @@
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/
-			Spdif_samesource_Channel_Mask = "i2s_0/1";
+			Spdif_samesource_Channel_Mask = "i2s_2/3";
 		};
 	};
 
@@ -981,7 +1038,7 @@
 		pinctrl-0 = <&spdifout_d>;
 		pinctrl-1 = <&spdifout_d_mute>;
 
-		samesource_sel = <4>;
+		//samesource_sel = <4>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
@@ -1488,10 +1545,25 @@
 	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_HIGH>;
 };
 
+&spicc3 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc3_pins>;
+	cs-gpios = <&gpio GPIOT_9 0>;
+	spi-nor@0 {
+		compatible = "jedec,spi-nor";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <16000000>;
+	};
+};
+
 &fb {
 	status = "disabled";
-	display_size_default = <1920 1080 1920 2160 32>;
-	mem_size = <0x00800000 0x1980000 0x100000 0x100000 0x100000>;
+	display_size_default = <3840 2160 3840 4320 32>;
+	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
+	4k2k_fb = <1>;
+	display_device_cnt = <2>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
@@ -1509,6 +1581,13 @@
 
 &drm_lcd {
 	status = "okay";
+};
+
+&amvideom {
+	display_device_cnt = <2>;
+	vpp0_layer_count = <2>;
+	/* number of video layer display on vpp1 */
+	vpp1_layer_count = <1>;
 };
 
 &amhdmitx {
@@ -1713,8 +1792,12 @@
 	status = "okay";
 };
 
+&pwm_ef {
+	status = "okay";
+};
+
 &irblaster {
-	status = "disabled";
+	status = "okay";
 };
 
 &uart_C {
@@ -1811,5 +1894,3 @@
 		<&a53pwm_opp_table2>,
 		<&a53pwm_opp_table3>;
 };
-
-

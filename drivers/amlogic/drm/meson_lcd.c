@@ -906,7 +906,7 @@ static int am_meson_lcd_bind(struct device *dev, struct device *master,
 	}
 
 	/* force possible_crtcs */
-	encoder->possible_crtcs = BIT(0);
+	encoder->possible_crtcs = BIT(0) | BIT(1) | BIT(2);
 
 	drm_connector_attach_encoder(connector, encoder);
 

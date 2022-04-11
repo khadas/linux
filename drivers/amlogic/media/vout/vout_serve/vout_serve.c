@@ -247,7 +247,7 @@ EXPORT_SYMBOL(get_vout_mode_uboot_state);
 
 #define MAX_UEVENT_LEN 64
 
-static int vout_set_uevent(unsigned int vout_event, int val)
+int vout_set_uevent(unsigned int vout_event, int val)
 {
 	char env[MAX_UEVENT_LEN];
 	char *envp[2];
@@ -270,6 +270,7 @@ static int vout_set_uevent(unsigned int vout_event, int val)
 
 	return ret;
 }
+EXPORT_SYMBOL(vout_set_uevent);
 
 int set_vout_mode_pre_process(enum vmode_e mode)
 {

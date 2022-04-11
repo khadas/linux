@@ -25,7 +25,7 @@ MODULE_PARM_DESC(flush_time, "flush time");
 #define MAX_PORT_ID 32
 #define RDMA_DETECT_REG VIU_OSD2_TCOLOR_AG2
 
-static u32 drm_rdma_dt_cnt;
+static u32 drm_rdma_dt_cnt[3];
 static struct meson_vpu_block **vpu_blocks;
 
 struct meson_vpu_link_para {
@@ -232,16 +232,16 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 		pipeline->num_hdrs++;
 		break;
 	case MESON_BLK_DOVI:
-		blk_size = sizeof(struct meson_vpu_dolby);
+		blk_size = sizeof(struct meson_vpu_db);
 		if (pipeline->priv && pipeline->priv->vpu_data)
 			ops = pipeline->priv->vpu_data->dv_ops;
 		else
-			ops = &dolby_ops;
+			ops = &db_ops;
 
 		mvb = create_block(blk_size, para, ops, pipeline);
 
-		pipeline->dolbys[mvb->index] = to_dolby_block(mvb);
-		pipeline->num_dolbys++;
+		pipeline->dbs[mvb->index] = to_db_block(mvb);
+		pipeline->num_dbs++;
 		break;
 	case MESON_BLK_VPPBLEND:
 		blk_size = sizeof(struct meson_vpu_postblend);
@@ -326,14 +326,16 @@ static int populate_vpu_pipeline(struct device_node *vpu_block_node,
 	pipeline->mvbs = vpu_blocks;
 	pipeline->num_blocks = num_blocks;
 
-	/*TODO:read from dts*/
-	pipeline->index = 0;
-
 	populate_block_link();
 
 	for (i = 0; i < MESON_MAX_CRTC; i++) {
-		pipeline->subs[i].index = i;
-		pipeline->subs[i].pipeline = pipeline;
+		if (i < pipeline->num_postblend) {
+			pipeline->subs[i].index = i;
+			pipeline->subs[i].pipeline = pipeline;
+		} else {
+			pipeline->subs[i].index = -1;
+			pipeline->subs[i].pipeline = NULL;
+		}
 	}
 
 	return 0;
@@ -426,19 +428,20 @@ int vpu_pipeline_video_check(struct meson_vpu_pipeline *pipeline,
 	return 0;
 }
 
-void vpu_pipeline_append_finish_reg(void)
+void vpu_pipeline_append_finish_reg(int crtc_index)
 {
-	drm_rdma_dt_cnt++;
-	meson_vpu_write_reg(RDMA_DETECT_REG, drm_rdma_dt_cnt);
+	drm_rdma_dt_cnt[crtc_index]++;
+	meson_vpu_write_reg(RDMA_DETECT_REG, drm_rdma_dt_cnt[crtc_index]);
 }
 
-void vpu_pipeline_check_finish_reg(void)
+void vpu_pipeline_check_finish_reg(int crtc_index)
 {
 	u32  val;
 
 	val = meson_vpu_read_reg(RDMA_DETECT_REG);
-	if (val != drm_rdma_dt_cnt)
-		DRM_ERROR("request drm_rdma_dt_cnt [%d] current [%d]\n", drm_rdma_dt_cnt, val);
+	if (val != drm_rdma_dt_cnt[crtc_index])
+		DRM_ERROR("request crtc%d, drm_rdma_dt_cnt [%d] current [%d]\n",
+			  crtc_index, drm_rdma_dt_cnt[crtc_index], val);
 }
 
 int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
@@ -541,9 +544,9 @@ int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		mvbs = priv_to_block_state(mvb->obj.state);
 		if (new_mvsps->enable_blocks & BIT(id)) {
 			mvb->ops->update_state(mvb, mvbs);
-			mvb->ops->enable(mvb);
+			mvb->ops->enable(mvb, mvbs);
 		} else {
-			mvb->ops->disable(mvb);
+			mvb->ops->disable(mvb, mvbs);
 		}
 	}
 
@@ -582,9 +585,9 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		mvbs = priv_to_block_state(mvb->obj.state);
 		if (new_mvsps->enable_blocks & BIT(id)) {
 			mvb->ops->update_state(mvb, mvbs);
-			mvb->ops->enable(mvb);
+			mvb->ops->enable(mvb, mvbs);
 		} else {
-			mvb->ops->disable(mvb);
+			mvb->ops->disable(mvb, mvbs);
 		}
 	}
 
@@ -595,7 +598,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	}
 #endif
 
-	vpu_pipeline_append_finish_reg();
+	vpu_pipeline_append_finish_reg(crtc_index);
 
 	return 0;
 }
@@ -627,9 +630,9 @@ int vpu_video_plane_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	if (affected_blocks & BIT(mvb->id)) {
 		if (new_mvsps->enable_blocks & BIT(mvb->id)) {
 			mvb->ops->update_state(mvb, mvbs);
-			mvb->ops->enable(mvb);
+			mvb->ops->enable(mvb, mvbs);
 		} else {
-			mvb->ops->disable(mvb);
+			mvb->ops->disable(mvb, mvbs);
 		}
 	}
 
@@ -679,9 +682,9 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 
 		if (new_mvsps->enable_blocks & BIT(id)) {
 			mvb->ops->update_state(mvb, mvbs);
-			mvb->ops->enable(mvb);
+			mvb->ops->enable(mvb, mvbs);
 		} else {
-			mvb->ops->disable(mvb);
+			mvb->ops->disable(mvb, mvbs);
 		}
 	}
 
@@ -692,7 +695,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	}
 #endif
 
-	vpu_pipeline_append_finish_reg();
+	vpu_pipeline_append_finish_reg(crtc_index);
 
 	return 0;
 }
@@ -776,9 +779,9 @@ static int get_venc_type(struct meson_vpu_pipeline *pipeline, u32 viu_type)
 }
 
 int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
-	int *vpos, int *hpos)
+	int *vpos, int *hpos, int crtc_index)
 {
-	int viu_type = 0;
+	int viu_type = crtc_index;
 	unsigned int reg = VPU_VENCI_STAT;
 	unsigned int reg_val = 0;
 	u32 offset = 0;
@@ -896,7 +899,7 @@ static int vpu_pipeline_get_active_begin_line(struct meson_vpu_pipeline *pipelin
 }
 
 void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
-	int vdisplay, int vrefresh)
+	int vdisplay, int vrefresh, int crtc_index)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	int vsync_active_begin, wait_cnt, cur_line, cur_col, line_threshold;
@@ -906,8 +909,8 @@ void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 	 * 2. wait rdma hw flush finish (flush time depends on aps clock.)
 	 * | VSYNC| VBackP | VACTIVE | VFrontP |...
 	 */
-	vsync_active_begin = vpu_pipeline_get_active_begin_line(pipeline, 0);
-	vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col);
+	vsync_active_begin = vpu_pipeline_get_active_begin_line(pipeline, crtc_index);
+	vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col, crtc_index);
 	line_threshold = vdisplay * flush_time * vrefresh / 1000;
 	wait_cnt = 0;
 	while (cur_line >= vdisplay + vsync_active_begin - line_threshold ||
@@ -921,16 +924,16 @@ void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
 			DRM_DEBUG_VBL("%s time out\n", __func__);
 			break;
 		}
-		vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col);
+		vpu_pipeline_read_scanout_pos(pipeline, &cur_line, &cur_col, crtc_index);
 	}
 #endif
 }
 EXPORT_SYMBOL(vpu_pipeline_prepare_update);
 
-void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline)
+void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline, int crtc_index)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_reg_vsync_config();
+	meson_vpu_reg_vsync_config(crtc_index);
 #endif
 }
 EXPORT_SYMBOL(vpu_pipeline_finish_update);

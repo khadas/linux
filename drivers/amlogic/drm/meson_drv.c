@@ -382,7 +382,6 @@ static void am_meson_load_logo(struct drm_device *dev)
 	struct drm_modeset_acquire_ctx *ctx;
 	struct meson_drm *private = dev->dev_private;
 	u32 found, num_modes;
-	char *vmode_name;
 
 	if (!logo.alloc_flag) {
 		DRM_INFO("%s: logo memory is not cma alloc\n", __func__);
@@ -416,8 +415,7 @@ static void am_meson_load_logo(struct drm_device *dev)
 
 		if (num_modes) {
 			list_for_each_entry(mode, &connector->modes, head) {
-				vmode_name = am_meson_crtc_get_voutmode(mode);
-				if (!strcmp(vmode_name, logo.outputmode)) {
+				if (!strcmp(mode->name, logo.outputmode)) {
 					found = 1;
 					break;
 				}

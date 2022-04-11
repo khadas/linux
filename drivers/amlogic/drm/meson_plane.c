@@ -1182,9 +1182,9 @@ void meson_osd_plane_async_update(struct drm_plane *plane,
 	}
 
 	vpu_pipeline_prepare_update(pipeline, plane->crtc->mode.vdisplay,
-								plane->crtc->mode.vrefresh);
+				    plane->crtc->mode.vrefresh, crtc_index);
 	vpu_pipeline_osd_update(sub_pipe, old_state->state);
-	vpu_pipeline_finish_update(pipeline);
+	vpu_pipeline_finish_update(pipeline, crtc_index);
 }
 
 void meson_video_plane_async_update(struct drm_plane *plane,

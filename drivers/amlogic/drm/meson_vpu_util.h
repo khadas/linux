@@ -42,8 +42,8 @@ void meson_drm_canvas_config(u32 index, unsigned long addr, u32 width,
 int meson_drm_canvas_pool_alloc_table(const char *owner, u32 *table, int size,
 				      enum canvas_map_type_e type);
 void set_video_enabled(u32 value, u32 index);
-void meson_vpu_reg_handle_register(void);
-int meson_vpu_reg_vsync_config(void);
+void meson_vpu_reg_handle_register(u32 vpp_index);
+int meson_vpu_reg_vsync_config(u32 vpp_index);
 void meson_vpu_power_config(enum vpu_mod_e mode, bool en);
 void osd_vpu_power_on(void);
 #endif

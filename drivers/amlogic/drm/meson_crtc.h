@@ -28,6 +28,9 @@ enum {
 struct am_meson_crtc_state {
 	struct drm_crtc_state base;
 
+	/*vout mode indicate connector type*/
+	enum vmode_e vmode;
+
 	int uboot_mode_init;
 	/*policy update by y property*/
 	u8 crtc_hdr_process_policy; /*follow sink or follow source*/
@@ -53,6 +56,7 @@ struct am_meson_crtc {
 
 	unsigned int irq;
 	int crtc_index;
+	int vout_index;
 	struct drm_pending_vblank_event *event;
 	struct meson_vpu_pipeline *pipeline;
 
@@ -83,8 +87,8 @@ struct am_meson_crtc {
 #define to_am_meson_crtc_state(x) container_of(x, \
 		struct am_meson_crtc_state, base)
 
-int am_meson_crtc_create(struct am_meson_crtc *amcrtc);
-int am_meson_crtcs_add(struct meson_drm *private, struct device *dev);
+struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv,
+	int idx);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 void set_dolby_vision_policy(int policy);

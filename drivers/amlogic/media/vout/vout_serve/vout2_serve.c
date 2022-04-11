@@ -197,7 +197,7 @@ char *get_vout2_mode_internal(void)
 EXPORT_SYMBOL(get_vout2_mode_internal);
 
 #define MAX_UEVENT_LEN 64
-static int vout2_set_uevent(unsigned int vout_event, int val)
+int vout2_set_uevent(unsigned int vout_event, int val)
 {
 	char env[MAX_UEVENT_LEN];
 	char *envp[2];
@@ -220,6 +220,18 @@ static int vout2_set_uevent(unsigned int vout_event, int val)
 
 	return ret;
 }
+EXPORT_SYMBOL(vout2_set_uevent);
+
+int set_vout2_mode_name(char *name)
+{
+	if (!name)
+		return -EINVAL;
+
+	memset(vout2_mode, 0, sizeof(vout2_mode));
+	snprintf(vout2_mode, VMODE_NAME_LEN_MAX, "%s", name);
+	return 0;
+}
+EXPORT_SYMBOL(set_vout2_mode_name);
 
 static int set_vout2_mode(char *name)
 {

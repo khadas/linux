@@ -487,7 +487,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	DRM_DEBUG("%s set_state done.\n", video->base.name);
 }
 
-static void video_hw_enable(struct meson_vpu_block *vblk)
+static void video_hw_enable(struct meson_vpu_block *vblk,
+			    struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 
@@ -502,7 +503,8 @@ static void video_hw_enable(struct meson_vpu_block *vblk)
 	DRM_DEBUG("%s enable done.\n", video->base.name);
 }
 
-static void video_hw_disable(struct meson_vpu_block *vblk)
+static void video_hw_disable(struct meson_vpu_block *vblk,
+			     struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 
