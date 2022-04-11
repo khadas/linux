@@ -274,6 +274,15 @@ config AMLOGIC_IN_KERNEL_MODULES
 	  to in build, should enable; if want to extra
 	  build, should disable
 
+config AMLOGIC_CPU
+	bool "Amlogic modify for kernel code associated with cpu"
+	depends on AMLOGIC_BREAK_GKI
+	default n
+	help
+	  This option is set up for AMLOGIC modify of standard
+	  kernel source code. All modify of kernel standard code
+	  associated with cpu should be wrapped by this config
+
 if AMLOGIC_IN_KERNEL_MODULES
 source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
 endif

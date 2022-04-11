@@ -647,6 +647,10 @@ int hyp_ffa_init(void *pages)
 		return 0;
 
 	arm_smccc_1_1_smc(FFA_VERSION, FFA_VERSION_1_0, 0, 0, 0, 0, 0, 0, &res);
+#ifdef CONFIG_AMLOGIC_CPU
+	if ((s32)res.a0 == FFA_RET_NOT_SUPPORTED)
+		return 0;
+#endif
 	if (res.a0 == FFA_RET_NOT_SUPPORTED)
 		return 0;
 
