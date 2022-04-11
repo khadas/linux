@@ -187,6 +187,10 @@
 	status = "okay";
 };
 
+&i2s5_8ch {
+	status = "okay";
+};
+
 &i2c3 {
 	status = "okay";
 
@@ -515,24 +519,6 @@
 
 
 &sdmmc {
-	status = "okay";
-};
-
-&spdif_tx1 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spdif1m1_tx>;
-};
-
-&spdif_tx1_dc {
-	status = "okay";
-};
-
-&spdif_tx1_sound {
-	status = "okay";
-};
-
-&spdif_tx2 {
 	status = "okay";
 };
 
