@@ -492,7 +492,7 @@ collect:
 				break;
 			}
 			u_set++;
-			if (++count > maxevents) {
+			if (++count >= maxevents) {
 				count = maxevents;
 				break;
 			}
