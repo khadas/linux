@@ -559,6 +559,12 @@ int hdmitx_ddc_hw_op_g12a(enum ddc_op cmd)
 	case DDC_UNMUX_DDC:
 		pinctrl_select_state(hdev->pdev->pins->p, hdev->pinctrl_i2c);
 		break;
+	case DDC_INIT_DISABLE_PULL_UP_DN:
+		/* For s4/sc2/g12 chips, the pins of DDC is OD(open drain),
+		 * there is no need to configure the internal pull up or down.
+		 * Just left blank here
+		 */
+		break;
 	default:
 		pr_err("error ddc cmd %d\n", cmd);
 	}
