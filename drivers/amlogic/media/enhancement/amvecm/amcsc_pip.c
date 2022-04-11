@@ -1297,8 +1297,8 @@ void hdmi_packet_process(int signal_change_flag,
 		pr_info("vdev->fresh_tx_hdr_pkt is null, return\n");
 		/* continue */
 	}
-	pr_csc(16,
-	       "am_vecm: vd%d %s %s, vd2 %s %s, output_format %s,%s, flag 0x%x\n",
+	pr_csc(12,
+	       "am_vecm: vd%d %s %s, vd2 %s %s, output_format %s,%s, flag 0x%x, hdr_cap = 0x%x\n",
 	       vd_path + 1,
 	       is_video_layer_on(VD1_PATH) ? "on" : "off",
 	       output_str[target_format[VD1_PATH]],
@@ -1306,7 +1306,8 @@ void hdmi_packet_process(int signal_change_flag,
 	       output_str[target_format[VD2_PATH]],
 	       output_str[cur_output_format],
 	       output_str[target_format[vd_path]],
-	       signal_change_flag);
+	       signal_change_flag,
+	       sink_hdr_support(vinfo));
 
 	if (target_format[vd_path] == cur_output_format &&
 	    cur_output_format != BT2020_PQ_DYNAMIC &&

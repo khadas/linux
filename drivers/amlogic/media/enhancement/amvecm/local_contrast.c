@@ -766,6 +766,10 @@ void lc_disable(void)
 	WRITE_VPP_REG_BITS(LC_CURVE_RAM_CTRL, 0, 0, 1);
 	/*lc hist stts enable*/
 	WRITE_VPP_REG_BITS(LC_STTS_HIST_REGION_IDX, 0, 31, 1);
+	if (!lc_malloc_ok) {
+		lc_en_chflg = 0x0;
+		return;
+	}
 	memset(lc_hist, 0, LC_HIST_SIZE * sizeof(int));
 	memset(lc_szcurve, 0, LC_CURV_SIZE * sizeof(int));
 	memset(curve_nodes_cur, 0, LC_CURV_SIZE * sizeof(int));

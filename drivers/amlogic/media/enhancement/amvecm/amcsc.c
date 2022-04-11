@@ -7880,7 +7880,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		if (vd_path == VD1_PATH ||
 		    (vd_path == VD2_PATH &&
 		     !is_video_layer_on(VD1_PATH) &&
-		     is_video_layer_on(VD2_PATH))) {
+		     is_video_layer_on(VD2_PATH) &&
+		     !is_dolby_vision_on())) {
 			para =
 			hdr10p_meta_updated ?
 			&hdmitx_hdr10plus_params[vd_path] : NULL;
@@ -7907,7 +7908,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		     !is_video_layer_on(VD1_PATH) &&
 		     is_video_layer_on(VD2_PATH)) ||
 		     (!is_video_layer_on(VD1_PATH) &&
-		     !is_video_layer_on(VD2_PATH)) ||
+		     !is_video_layer_on(VD2_PATH) &&
+		     !is_dolby_vision_on()) ||
 		     vpp_index == VPP_TOP1) {
 			para =
 			hdr10p_meta_updated ?
@@ -8108,13 +8110,14 @@ int amvecm_matrix_process(struct vframe_s *vf,
 					   vpp_index);
 	if (sink_changed) {
 		cap_changed = sink_changed & 0x02;
-		pr_csc(4, "sink %s, cap%s 0x%x, vd%d %s %p %p vpp%d\n",
+		pr_csc(4, "sink %s, cap%s 0x%x, vd%d %s %p %p vpp%d hdr_cap = 0x%x\n",
 		       current_sink_available[vpp_index] ? "on" : "off",
 		       cap_changed ? " changed" : "",
 		       current_hdr_cap[vpp_index],
 		       vd_path + 1,
 		       is_video_layer_on(vd_path) ? "on" : "off",
-		       vf, vf_rpt, vpp_index);
+		       vf, vf_rpt, vpp_index,
+		       sink_hdr_support(vinfo));
 	}
 
 	if (is_video_turn_on(video_on, vd_path) == 1)
