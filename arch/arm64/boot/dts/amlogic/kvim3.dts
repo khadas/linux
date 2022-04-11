@@ -20,7 +20,6 @@
 #include "partition_mbox_normal_P_64.dtsi"
 #include "mesong12b.dtsi"
 #include "mesong12b_skt-panel.dtsi"
-
 / {
 	model = "Amlogic";
 	amlogic-dt-id = "g12b_w400_b";
@@ -1455,14 +1454,14 @@
 &usb2_phy_v2 {
 	status = "okay";
 	portnum = <2>;
+	gpio-vbus-power = "GPIOA_6";
+	gpios = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
 };
 
 &usb3_phy_v2 {
 	status = "okay";
 	portnum = <1>;
 	otg = <1>;
-	gpio-vbus-power = "GPIOH_6";
-	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;
 };
 
 &dwc2_a {
