@@ -371,14 +371,14 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		vdin_fmt_range = prop->color_fmt_range;
 		pre_vdin_fmt_range = pre_prop->color_fmt_range;
 
-		if (cur_color_fmt != pre_color_fmt ||
-		    /*(vdin_hdr_flag != pre_vdin_hdr_flag) ||*/
-		    vdin_fmt_range != pre_vdin_fmt_range) {
+		if (devp->flags & VDIN_FLAG_DEC_STARTED &&
+		    (cur_color_fmt != pre_color_fmt ||
+		     vdin_fmt_range != pre_vdin_fmt_range)) {
 			if (sm_debug_enable & VDIN_SM_LOG_L_1)
-				pr_info("[smr.%d] fmt(%d->%d), hdr_flag(%d->%d), csc_cfg:0x%x\n",
+				pr_info("[smr.%d] fmt(%d->%d), fmt_range(%d->%d), csc_cfg:0x%x\n",
 					devp->index,
 					pre_color_fmt, cur_color_fmt,
-					pre_vdin_hdr_flag, vdin_hdr_flag,
+					pre_vdin_fmt_range, vdin_fmt_range,
 					devp->csc_cfg);
 			vdin_get_format_convert(devp);
 			devp->csc_cfg = 1;
