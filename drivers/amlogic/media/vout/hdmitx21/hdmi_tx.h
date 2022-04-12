@@ -13,6 +13,7 @@
 #define HDCP_FAILED_RETRY_TIMER 200
 #define HDCP_DS_KSVLIST_RETRY_TIMER 5000
 #define HDCP_RCVIDLIST_CHECK_TIMER 3000
+#define	 HDMI_INFOFRAME_TYPE_EMP 0x7f
 
 #define HDCPTX_IOOPR		0x820000ab
 enum hdcptx_oprcmd {
@@ -60,6 +61,7 @@ void hdmitx_set_emp_pkt(u8 *data, u32 type, u32 size);
  */
 void hdmi_vend_infoframe_set(struct hdmi_vendor_infoframe *info);
 void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb);
+void hdmi_emp_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info);
 void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_spd_infoframe_set(struct hdmi_spd_infoframe *info);
@@ -73,6 +75,10 @@ enum avi_component_conf {
 	CONF_AVI_BT2020,
 	CONF_AVI_Q01,
 	CONF_AVI_YQ01,
+};
+
+enum emp_component_conf {
+	CONF_EMP_VTEM,
 };
 
 /* CONF_AVI_BT2020 */

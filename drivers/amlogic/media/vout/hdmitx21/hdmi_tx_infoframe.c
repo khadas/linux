@@ -72,6 +72,20 @@ void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info)
 	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_AVI, body);
 }
 
+void hdmi_emp_infoframe_rawset(u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!hb || !pb) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_EMP, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_EMP, body);
+}
+
 void hdmi_avi_infoframe_rawset(u8 *hb, u8 *pb)
 {
 	u8 body[31] = {0};

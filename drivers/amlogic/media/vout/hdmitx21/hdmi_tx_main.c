@@ -1832,121 +1832,36 @@ static void hdmitx_set_cuva_hdr_vs_emds(struct cuva_hdr_vs_emds_para *data)
 void hdmitx_set_emp_pkt(u8 *data, u32 type,
 			       u32 size)
 {
-	u32 number;
-	u32 remainder;
-	u8 *virt_ptr;
-	u8 *virt_ptr_align32bit;
-	unsigned long phys_ptr;
-	u32 i;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	u32 ds_type = 0;
-	u8 AFR = 0;
-	u8 VFR = 0;
-	u8 sync = 0;
-	u8  new = 0;
-	u8  end = 0;
-	u32 organzation_id = 0;
-	u32 data_set_tag = 0;
-	u32 data_set_length = 0;
+	//struct hdmitx_dev *hdev = get_hdmitx21_device();
+	//struct hdmi_emp_infoframe emp = &hdev->infoframes.emp;
+	u8 emp_hb[3] = {0x7f};
+	u8 emp_db[28] = {0x0};
+	//unsigned long flags = 0;
+
+	//emp_hb[1] = (emp->first << 7 + emp->last << 6);
+	emp_hb[1] = 0xc0;	//first&last = 1
+	emp_hb[2] = 0x0;
 
 	if (!_check_hdmi_mode())
 		return;
 	hdmi_debug();
 
-	if (!data) {
-		pr_info("the data is null\n");
-		return;
-	}
+	//if (!data) {
+	//	pr_info("the data is null\n");
+	//	return;
+	//}
 
-	if (size <= 21) {
-		number = 1;
-		remainder = size;
-	} else {
-		number = ((size - 21) / 28) + 2;
-		remainder = (size - 21) % 28;
-	}
+	//pr_info("%s\n", __func__);
+	emp_db[0] = 0x86;	//sync = 1; vfr = 1; end = 1;
+	emp_db[1] = 0x00;
+	emp_db[2] = 0x01;
+	emp_db[3] = 0x00;
+	emp_db[4] = 0x01;
+	emp_db[5] = 0x00;
+	emp_db[6] = 0x04;
+	emp_db[7] = 0x05;	//qms_en = 1; vrr_en = 1;
 
-	virt_ptr = kzalloc(sizeof(unsigned char) * (number + 0x1f),
-			   GFP_KERNEL);
-	if (!virt_ptr)
-		return;
-	pr_info("emp_pkt virt_ptr: %p\n", virt_ptr);
-	virt_ptr_align32bit = (u8 *)
-		((((unsigned long)virt_ptr) + 0x1f) & (~0x1f));
-	pr_info("emp_pkt virt_ptr_align32bit: %p\n", virt_ptr_align32bit);
-
-	memset(virt_ptr_align32bit, 0, sizeof(unsigned char) * (number + 0x1f));
-
-	switch (type) {
-	case VENDOR_SPECIFIC_EM_DATA:
-		break;
-	case COMPRESS_VIDEO_TRAMSPORT:
-		break;
-	case HDR_DYNAMIC_METADATA:
-			ds_type = 1;
-			sync = 1;
-			VFR = 1;
-			AFR = 0;
-			new = 0x1; /*todo*/
-			end = 0x1; /*todo*/
-			organzation_id = 2;
-		break;
-	case VIDEO_TIMING_EXTENDED:
-		break;
-	default:
-		break;
-	}
-
-	for (i = 0; i < number; i++) {
-		/*HB[0]-[2]*/
-		virt_ptr_align32bit[i * 32 + 0] = 0x7F;
-		if (i == 0)
-			virt_ptr_align32bit[i * 32 + 1] |=  EMP_FIRST;
-		if (i == number)
-			virt_ptr_align32bit[i * 32 + 1] |= EMP_LAST;
-		virt_ptr_align32bit[i * 32 + 2] = number;
-		/*PB[0]-[6]*/
-		if (i == 0) {
-			virt_ptr_align32bit[3] = (new << 7) | (end << 6) |
-				(ds_type << 4) | (AFR << 3) |
-				(VFR << 2) | (sync << 1);
-			virt_ptr_align32bit[4] = 0;/*Rsvd*/
-			virt_ptr_align32bit[5] = organzation_id;
-			virt_ptr_align32bit[6] = (data_set_tag >> 8) & 0xFF;
-			virt_ptr_align32bit[7] = data_set_tag & 0xFF;
-			virt_ptr_align32bit[8] = (data_set_length >> 8)
-				& 0xFF;
-			virt_ptr_align32bit[9] = data_set_length & 0xFF;
-		}
-		if (number == 1) {
-			memcpy(&virt_ptr_align32bit[10], &data[0],
-			       sizeof(unsigned char) * remainder);
-		} else {
-			if (i == 0) {
-			/*MD: first package need PB[7]-[27]*/
-				memcpy(&virt_ptr_align32bit[10], &data[0],
-				       sizeof(unsigned char) * 21);
-			} else if (i != number) {
-			/*MD: following package need PB[0]-[27]*/
-				memcpy(&virt_ptr_align32bit[i * 32 + 10],
-				       &data[(i - 1) * 28 + 21],
-				       sizeof(unsigned char) * 28);
-			} else {
-			/*MD: the last package need PB[0] to end */
-				memcpy(&virt_ptr_align32bit[0],
-				       &data[(i - 1) * 28 + 21],
-				       sizeof(unsigned char) * remainder);
-			}
-		}
-			/*PB[28]*/
-		virt_ptr_align32bit[i * 32 + 31] = 0;
-	}
-
-	phys_ptr = virt_to_phys(virt_ptr_align32bit);
-	pr_info("emp_pkt phys_ptr: %lx\n", phys_ptr);
-
-	hdev->hwop.cntlconfig(hdev, CONF_EMP_NUMBER, number);
-	hdev->hwop.cntlconfig(hdev, CONF_EMP_PHY_ADDR, phys_ptr);
+	hdmi_emp_infoframe_rawset(emp_hb, emp_db);
 }
 
 /*config attr*/
