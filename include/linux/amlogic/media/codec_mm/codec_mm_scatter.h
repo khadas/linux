@@ -11,12 +11,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 
-/*#define PHY_ADDR_NEED_64BITS*/
-#ifdef PHY_ADDR_NEED_64BITS
-#define phy_addr_type u64
-#else /* */
-#define phy_addr_type u32
-#endif
+#define phy_addr_type ulong
 #define page_sid_type u16
 
 #define PAGE_INDEX(page) ((page) >> PAGE_SHIFT)
