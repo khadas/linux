@@ -941,6 +941,13 @@
 		       0x0 0xFF000000 0x0 0x10000>; /*frc clk reg*/
 		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
 	};
+
+	aml_vpp {
+		compatible = "amlogic, vpp-t3";
+		dev_name = "aml_vpp";
+		status = "disabled";
+		pq_en = <1>;
+	};
 }; /* end of / */
 
 &i2c0 {

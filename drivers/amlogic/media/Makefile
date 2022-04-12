@@ -41,3 +41,5 @@ include drivers/amlogic/media/avsync/Makefile
 include drivers/amlogic/media/frc/Makefile
 
 include drivers/amlogic/media/di_v4l/Makefile
+
+include drivers/amlogic/media/vpp/Makefile

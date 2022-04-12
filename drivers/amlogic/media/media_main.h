@@ -646,4 +646,13 @@ static int amlogic_system_secure_dma_buf_init(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VPP
+int __init vpp_drv_init(void);
+#else
+static int vpp_drv_init(void)
+{
+	return 0;
+}
+#endif
+
 #endif
