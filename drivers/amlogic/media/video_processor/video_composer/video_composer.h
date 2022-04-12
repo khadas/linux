@@ -275,5 +275,9 @@ int vc_print(int index, int debug_flag, const char *fmt, ...);
 void videocomposer_vf_put(struct vframe_s *vf, void *op_arg);
 struct vframe_s *videocomposer_vf_peek(void *op_arg);
 void video_dispaly_push_ready(struct composer_dev *dev, struct vframe_s *vf);
+void vc_private_q_init(struct composer_dev *dev);
+void vc_private_q_recycle(struct composer_dev *dev,
+	struct video_composer_private *vc_private);
+struct video_composer_private *vc_private_q_pop(struct composer_dev *dev);
 
 #endif /* VIDEO_COMPOSER_H */
