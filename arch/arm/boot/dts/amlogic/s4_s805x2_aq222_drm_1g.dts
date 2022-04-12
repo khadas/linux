@@ -12,7 +12,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s4_s805x2_aq222";
+	amlogic-dt-id = "s4_s805x2_aq222_1g";
 	compatible = "amlogic, s4";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
