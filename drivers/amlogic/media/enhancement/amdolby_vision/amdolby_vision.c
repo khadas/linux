@@ -6868,6 +6868,38 @@ static int dolby_vision_vf_check(struct vframe_s *vf)
 	return 1;
 }
 
+static bool check_atsc_dvb(char *p)
+{
+	u32 country_code;
+	u32 provider_code;
+	u32 user_id;
+	u32 user_type_code;
+
+	if (!p)
+		return false;
+
+	country_code = *(p + 4);
+	provider_code = (*(p + 5) << 8) |
+			*(p + 6);
+	user_id = (*(p + 7) << 24) |
+		(*(p + 8) << 16) |
+		(*(p + 9) << 8) |
+		(*(p + 10));
+	user_type_code = *(p + 11);
+	if (country_code == 0xB5 &&
+	    ((provider_code ==
+	    ATSC_T35_PROV_CODE &&
+	    user_id == ATSC_USER_ID_CODE) ||
+	    (provider_code ==
+	    DVB_T35_PROV_CODE &&
+	    user_id == DVB_USER_ID_CODE)) &&
+	    user_type_code ==
+	    DM_MD_USER_TYPE_CODE)
+		return true;
+	else
+		return false;
+}
+
 /*return 0: parse ok; 1,2,3: parse err */
 int parse_sei_and_meta_ext(struct vframe_s *vf,
 	 char *aux_buf,
@@ -7226,10 +7258,9 @@ int parse_sei_and_meta_ext(struct vframe_s *vf,
 							sei_payload_size;
 						memcpy(payload_2086_sei, p + 4,
 						       len_2086_sei);
-					} else if (sei_payload_type ==
-					SEI_TYPE_USERDATA_REGISTERED_ITUT_T35) {
-						len_2094_sei =
-							sei_payload_size;
+					} else if (sei_payload_type == SEI_ITU_T_T35 &&
+						sei_payload_size >= 8 && check_atsc_dvb(p)) {
+						len_2094_sei = sei_payload_size;
 						memcpy(payload_2094_sei, p + 4,
 						       len_2094_sei);
 					}
