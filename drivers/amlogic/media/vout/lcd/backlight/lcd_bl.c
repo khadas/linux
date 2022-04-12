@@ -792,7 +792,7 @@ static inline unsigned int bl_gd_level_map(struct aml_bl_drv_s *bdrv,
 
 	min = bdrv->bconf.level_min;
 	max = bdrv->bconf.level_max;
-	val = (gd_level * (bdrv->bldev->props.brightness - min)) / 4095 + min;
+	val = (gd_level * (bdrv->level_brightness - min)) / 4095 + min;
 
 	return val;
 }
@@ -2142,6 +2142,57 @@ static struct notifier_block bl_gd_sel_nb = {
 	.notifier_call = bl_gd_sel_notifier,
 };
 
+static int bl_brightness_dimming_notifier(struct notifier_block *nb,
+				  unsigned long event, void *data)
+{
+	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
+	unsigned int level;
+
+	/* If we aren't interested in this event, skip it immediately */
+	if (event != LCD_EVENT_BACKLIGHT_BRTNESS_DIM)
+		return NOTIFY_DONE;
+
+	if (aml_bl_check_driver(bdrv))
+		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
+
+	if (((bdrv->state & BL_STATE_LCD_ON) == 0) ||
+		(bdrv->state & BL_STATE_BL_INIT_ON) ||
+		((bdrv->state & BL_STATE_BL_POWER_ON) == 0) ||
+		((bdrv->state & BL_STATE_BL_ON) == 0))
+		return NOTIFY_DONE;
+
+	if (bdrv->debug_force) {
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_ADV)
+			BLPR("[%d]: %s: bypass for debug force\n", bdrv->index, __func__);
+		return NOTIFY_DONE;
+	}
+	if (!data)
+		return NOTIFY_DONE;
+
+	if (*(unsigned int *)data == 0)
+		return NOTIFY_OK;
+
+	/* atomic notifier, can't schedule or sleep */
+	bdrv->bldev->props.brightness = *(unsigned int *)data;
+	bdrv->level_brightness = bl_brightness_level_map(bdrv,
+					bdrv->bldev->props.brightness);
+
+	if ((bdrv->state & BL_STATE_GD_EN) == 0) {
+		aml_bl_set_level(bdrv, bdrv->level_brightness);
+	} else {
+		level = bl_gd_level_map(bdrv, bdrv->level_gd);
+		aml_bl_set_level(bdrv, level);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block bl_bri_dimming_nb = {
+	.notifier_call = bl_brightness_dimming_notifier,
+};
+
 static void bl_notifier_init(void)
 {
 	int ret;
@@ -2164,12 +2215,16 @@ static void bl_notifier_init(void)
 	ret = aml_lcd_atomic_notifier_register(&bl_gd_sel_nb);
 	if (ret)
 		BLERR("register bl_gd_sel_nb failed\n");
+	ret = aml_lcd_atomic_notifier_register(&bl_bri_dimming_nb);
+	if (ret)
+		BLERR("register bl_bri_dimming_nb failed\n");
 }
 
 static void bl_notifier_remove(void)
 {
 	aml_lcd_atomic_notifier_unregister(&bl_gd_sel_nb);
 	aml_lcd_atomic_notifier_unregister(&bl_gd_dimming_nb);
+	aml_lcd_atomic_notifier_unregister(&bl_bri_dimming_nb);
 	aml_lcd_notifier_unregister(&bl_lcd_test_nb);
 	aml_lcd_notifier_unregister(&bl_lcd_update_nb);
 	aml_lcd_notifier_unregister(&bl_lcd_on_nb);
@@ -2212,9 +2267,9 @@ static inline void bl_vsync_handler(struct aml_bl_drv_s *bdrv)
 	}
 
 	if ((bdrv->state & BL_STATE_GD_EN) == 0) {
-		if (bdrv->bldev->props.brightness == bdrv->level)
+		if (bdrv->level_brightness == bdrv->level)
 			return;
-		aml_bl_set_level(bdrv, bdrv->bldev->props.brightness);
+		aml_bl_set_level(bdrv, bdrv->level_brightness);
 	} else {
 		level = bl_gd_level_map(bdrv, bdrv->level_gd);
 		if (level == bdrv->level)

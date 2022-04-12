@@ -74,6 +74,9 @@
 #define LCD_EVENT_BACKLIGHT_GD_SEL     BIT(27)
 /* lcd backlight brightness on/off by local dimming */
 #define LCD_EVENT_BACKLIGHT_LD_SEL     BIT(28)
+/* lcd backlight brightness update by driver api */
+#define LCD_EVENT_BACKLIGHT_BRTNESS_DIM     BIT(29)
+
 
 /* blocking notify */
 int aml_lcd_notifier_register(struct notifier_block *nb);
