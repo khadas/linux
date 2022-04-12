@@ -10,6 +10,7 @@
 #include "rk3588s-khadas-edge2.dtsi"
 #include "rk3588-rk806-single.dtsi"
 #include "rk3588-android.dtsi"
+#include "kedge2-camera.dtsi"
 
 / {
 	model = "Khadas Edge2";
@@ -330,13 +331,6 @@
 	tp {
 		tp_rst_gpio: tp-rst-gpio {
 			rockchip,pins = <1 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
-	};
-
-	sensor {
-
-		mpu6500_irq_gpio: mpu6500_irq_gpio {
-			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
