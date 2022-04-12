@@ -3013,6 +3013,16 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	if (!hdev || !para)
 		return 0;
 
+	/* if current limits to 1080p, here will check the freshrate and
+	 * 4k resolution
+	 */
+	if (hdmitx_limited_1080p()) {
+		if (is_vic_over_limited_1080p(para->vic)) {
+			pr_err("over limited vic%d in %s\n", para->vic, __func__);
+			return 0;
+		}
+	}
+
 	if (para->sname)
 		if (strcmp(para->sname, "invalid") == 0)
 			return 0;
@@ -3079,6 +3089,14 @@ bool hdmitx_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		if (prxcap->Max_TMDS_Clock1 < 0xf)
 			prxcap->Max_TMDS_Clock1 = 0x1e;
 		rx_max_tmds_clk = prxcap->Max_TMDS_Clock1 * 5;
+	}
+	/* if current status already limited to 1080p, so here also needs to
+	 * limit the rx_max_tmds_clk as 150 * 1.5 = 225 to make the valid mode
+	 * checking works
+	 */
+	if (hdmitx_limited_1080p()) {
+		if (rx_max_tmds_clk > 225)
+			rx_max_tmds_clk = 225;
 	}
 
 	calc_tmds_clk = para->tmds_clk;

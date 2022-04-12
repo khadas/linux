@@ -734,6 +734,11 @@ bool is_hdmi4k_420(enum hdmi_vic vic);
 /* set vic to AVI.VIC */
 void hdmitx_set_avi_vic(enum hdmi_vic vic);
 
+/* the hdmitx output limits to 1080p */
+bool hdmitx_limited_1080p(void);
+/* test current vic is over limited or not */
+bool is_vic_over_limited_1080p(enum hdmi_vic vic);
+
 /*
  * HDMI Repeater TX I/F
  * RX downstream Information from rptx to rprx
