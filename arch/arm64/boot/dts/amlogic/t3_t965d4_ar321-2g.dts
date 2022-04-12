@@ -1392,6 +1392,7 @@
 }; /* end of audiobus */
 
 &earc {
+	earctx_port = <1>;
 	status = "okay";
 };
 
