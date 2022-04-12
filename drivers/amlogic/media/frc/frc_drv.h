@@ -63,9 +63,9 @@
 // frc_20220224 frc fix memc state abnormal
 // frc_20220310 fix frc dts_match memory leak
 // frc_20220404 fix frc input not standard
+// frc_20220401 frc reduce cma buffer alloc"
 
-#define FRC_FW_VER			"2022-0401 frc reduce cma buffer alloc"
-
+#define FRC_FW_VER			"2022-0408 frc chg mcdly under 4k1k"
 #define FRC_KERDRV_VER                  1715
 
 #define FRC_DEVNO	1
