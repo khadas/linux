@@ -3090,7 +3090,7 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 	}
 }
 
-void vdin_set_dolby_tunnel(struct vdin_dev_s *devp)
+void vdin_set_dv_tunnel(struct vdin_dev_s *devp)
 {
 	unsigned int vdin_data_bus_0 = VDIN_MAP_BPB;
 	unsigned int vdin_data_bus_1 = VDIN_MAP_Y_G;

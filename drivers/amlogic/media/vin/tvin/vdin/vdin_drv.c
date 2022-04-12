@@ -1046,16 +1046,33 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	/*		       VPU_VIU_VDIN0,*/
 	/*		       VPU_MEM_POWER_ON);*/
 
-	vfe = provider_vf_peek(devp->vfp);
-	if (vfe)
-		vdin_frame_write_ctrl_set(devp, vfe, 0);
-	else
-		pr_info("peek first vframe fail\n");
+	/* screeshot stress test vdin1 hw crash addr need adjust config */
+	if (devp->index == 0) {
+		vfe = provider_vf_peek(devp->vfp);
+		if (vfe)
+			vdin_frame_write_ctrl_set(devp, vfe, 0);
+		else
+			pr_info("vdin%d:peek first vframe fail\n", devp->index);
+		vdin_set_all_regs(devp);
+		vdin_hw_enable(devp);
+		vdin_set_dv_tunnel(devp);
+		vdin_write_mif_or_afbce_init(devp);
+	} else if (devp->index == 1) {
+		vdin_set_all_regs(devp);
+		vdin_hw_enable(devp);
+		vfe = provider_vf_peek(devp->vfp);
+		if (vfe)
+			vdin_frame_write_ctrl_set(devp, vfe, 0);
+		else
+			pr_info("vdin%d:peek first vframe fail\n", devp->index);
+		vdin_set_dv_tunnel(devp);
+		vdin_write_mif_or_afbce_init(devp);
+		/* vdin1 hw crash addr when keystone reboot */
+		if (devp->index == 1 && devp->set_canvas_manual &&
+			cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+			wr_bits(0, VDIN_WRARB_REQEN_SLV, 0x1, 1, 1);
+	}
 
-	vdin_set_all_regs(devp);
-	vdin_hw_enable(devp);
-	vdin_set_dolby_tunnel(devp);
-	vdin_write_mif_or_afbce_init(devp);
 	sts = vdin_is_delay_vfe2rdlist(devp);
 	if (sts) {
 		devp->vdin_delay_vfe2rdlist = vdin_delay_num;
@@ -1387,16 +1404,14 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 
 	mutex_lock(&devp->fe_lock);
 	fmt = devp->parm.info.fmt;
-	if (vdin_dbg_en) {
-		pr_info("[%s]port:0x%x, cfmt:%d;dfmt:%d;dest_hactive:%d;",
-			__func__, para->port, para->cfmt,
-			para->dfmt, para->dest_hactive);
-		pr_info("dest_vactive:%d;frame_rate:%d;h_active:%d,",
-			para->dest_vactive, para->frame_rate,
-			para->h_active);
-		pr_info("v_active:%d;scan_mode:%d**\n",
-			para->v_active, para->scan_mode);
-	}
+	pr_info("[%s]port:0x%x, cfmt:%d;dfmt:%d;dest_hactive:%d;",
+		__func__, para->port, para->cfmt,
+		para->dfmt, para->dest_hactive);
+	pr_info("dest_vactive:%d;frame_rate:%d;h_active:%d,",
+		para->dest_vactive, para->frame_rate,
+		para->h_active);
+	pr_info("v_active:%d;scan_mode:%d**\n",
+		para->v_active, para->scan_mode);
 
 	if (devp->index == 1) {
 		devp->parm.reserved |= para->reserved;
@@ -2260,13 +2275,13 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 				struct vf_entry *vfe, bool rdma_en)
 {
 	if (devp->afbce_mode == 0 || devp->double_wr) {
+		if (devp->dtdata->hw_ver >= VDIN_HW_T7)
+			vdin_set_frame_mif_write_addr(devp, rdma_en, vfe);
+
 		vdin_set_canvas_id(devp, rdma_en, vfe);
 		/* prepare for chroma canvas*/
 		if (vfe->vf.plane_num == 2)
 			vdin_set_chma_canvas_id(devp, rdma_en, vfe);
-
-		if (devp->dtdata->hw_ver >= VDIN_HW_T7)
-			vdin_set_frame_mif_write_addr(devp, rdma_en, vfe);
 	}
 
 	if (devp->afbce_mode == 1 || devp->double_wr)
@@ -2920,7 +2935,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	isr_log(devp->vfp);
 	devp->irq_cnt++;
-
 	if (vdin_isr_drop) {
 		vdin_isr_drop--;
 		vdin_drop_frame_info(devp, "drop debug");
@@ -5353,6 +5367,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/* register vpu clk control interface */
 	vdin_vpu_dev_register(vdevp);
 	/*disable vdin hardware*/
+	if (vdevp->index == 1 && vdevp->set_canvas_manual &&
+		cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+		wr_bits(0, VDIN_WRARB_REQEN_SLV, 0x0, 1, 1);
 	vdin_enable_module(vdevp, false);
 
 	/*enable auto cutwindow for atv*/

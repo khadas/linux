@@ -264,7 +264,7 @@ extern enum tvin_force_color_range_e color_range_force;
 
 //void vdin_vlock_input_sel(unsigned int type,
 //			  enum vframe_source_type_e source_type);
-void vdin_set_dolby_tunnel(struct vdin_dev_s *devp);
+void vdin_set_dv_tunnel(struct vdin_dev_s *devp);
 void vdin_check_hdmi_hdr(struct vdin_dev_s *devp);
 void vdin_dobly_mdata_write_en(unsigned int offset, unsigned int en);
 void vdin_prob_set_xy(unsigned int offset,
