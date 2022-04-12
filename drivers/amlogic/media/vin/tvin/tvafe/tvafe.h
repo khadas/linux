@@ -20,7 +20,9 @@
 /* ************************************************* */
 /* *** macro definitions ********************************************* */
 /* *********************************************************** */
-#define TVAFE_VER "Ref.2021/12/25 tvafe change clamp config"
+/* 20211225: tvafe change clamp config */
+/* 20220415: pq_reg_trust_table add register mask */
+#define TVAFE_VER "20220415 pq_reg_trust_table add register mask"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
