@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+#
+# Amlogic freertos configuration
+#
+
+config AMLOGIC_FREERTOS
+	bool "Amlogic Freertos Support"
+	default n
+	help
+	  Say Y here to enable freertos support.

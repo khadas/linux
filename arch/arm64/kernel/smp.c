@@ -63,6 +63,10 @@
 #undef CREATE_TRACE_POINTS
 #include <trace/hooks/debug.h>
 
+#ifdef CONFIG_AMLOGIC_FREERTOS
+#include <linux/amlogic/freertos.h>
+#endif
+
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 
@@ -85,6 +89,9 @@ enum ipi_msg_type {
 	IPI_WAKEUP,
 #ifdef CONFIG_AMLOGIC_CPUIDLE
 	IPI_SUSPEND_NOTIFIER = 7,
+#endif
+#ifdef CONFIG_AMLOGIC_FREERTOS
+	IPI_FREERTOS = 7,
 #endif
 	NR_IPI
 };
@@ -815,8 +822,11 @@ static const char *ipi_types[NR_IPI] __tracepoint_string = {
 	S(IPI_TIMER, "Timer broadcast interrupts"),
 	S(IPI_IRQ_WORK, "IRQ work interrupts"),
 	S(IPI_WAKEUP, "CPU wake-up interrupts"),
-#if defined(CONFIG_AMLOGIC_FREERTOS) || defined(CONFIG_AMLOGIC_CPUIDLE)
-	S(IPI_SHARE_FUNC, "CPU share func interrupts"),
+#if defined(CONFIG_AMLOGIC_CPUIDLE)
+	S(IPI_SUSPEND_NOTIFIER, "CPU idle interrupts"),
+#endif
+#if defined(CONFIG_AMLOGIC_FREERTOS)
+	S(IPI_FREERTOS, "CPU freertos interrupts"),
 #endif
 };
 
@@ -969,10 +979,16 @@ static void do_handle_IPI(int ipinr)
 #endif
 
 #if defined(CONFIG_AMLOGIC_CPUIDLE)
-	case IPI_SHARE_FUNC:
+	case IPI_SUSPEND_NOTIFIER:
 #ifdef CONFIG_AMLOGIC_CPUIDLE
 		aml_suspend_power_handler();
 #endif
+		break;
+#endif
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+	case IPI_FREERTOS:
+		freertos_finish();
 		break;
 #endif
 

@@ -68,6 +68,7 @@ obj-$(CONFIG_AMLOGIC_HWSPINLOCK)     += aml_hwspinlock/
 obj-$(CONFIG_AMLOGIC_MESON_RTC)     += rtc/
 obj-$(CONFIG_VAD_WAKEUP_ASR) += asr/
 obj-$(CONFIG_AES_HWKEY_GCM) += aes_hwkey_gcm/
+obj-$(CONFIG_AMLOGIC_FREERTOS)         += freertos/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 

@@ -52,6 +52,10 @@
 #ifdef CONFIG_ARM64
 #include <asm/cpufeature.h>
 
+#ifdef CONFIG_AMLOGIC_FREERTOS
+#include <linux/amlogic/freertos.h>
+#endif
+
 static void gic_check_cpu_features(void)
 {
 	WARN_TAINT_ONCE(this_cpu_has_cap(ARM64_HAS_SYSREG_GIC_CPUIF),
@@ -469,6 +473,9 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	u32 cpumask;
 	unsigned int gic_irqs = gic->gic_irqs;
 	void __iomem *base = gic_data_dist_base(gic);
+#ifdef CONFIG_AMLOGIC_FREERTOS
+	u32 tmp;
+#endif
 
 	writel_relaxed(GICD_DISABLE, base + GIC_DIST_CTRL);
 
@@ -478,9 +485,16 @@ static void gic_dist_init(struct gic_chip_data *gic)
 	cpumask = gic_get_cpumask(gic);
 	cpumask |= cpumask << 8;
 	cpumask |= cpumask << 16;
+#ifdef CONFIG_AMLOGIC_FREERTOS
+	for (i = 32; i < gic_irqs; i += 4) {
+		tmp = readl_relaxed(base + GIC_DIST_TARGET + i * 4 / 4);
+		tmp = freertos_get_irqregval(cpumask, tmp, i, 4);
+		writel_relaxed(tmp, base + GIC_DIST_TARGET + i * 4 / 4);
+	}
+#else
 	for (i = 32; i < gic_irqs; i += 4)
 		writel_relaxed(cpumask, base + GIC_DIST_TARGET + i * 4 / 4);
-
+#endif
 	gic_dist_config(base, gic_irqs, NULL);
 
 	writel_relaxed(GICD_ENABLE, base + GIC_DIST_CTRL);
