@@ -211,6 +211,7 @@ static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 		return -1;
 
 	LCDPR("%s\n", __func__);
+	lcd_vout_notify_mode_change_pre(pdrv);
 
 	/* update clk & timing config */
 	lcd_tablet_config_update(pdrv);

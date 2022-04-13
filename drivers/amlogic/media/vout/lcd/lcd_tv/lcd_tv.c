@@ -785,6 +785,7 @@ static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 		return -1;
 
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	lcd_vout_notify_mode_change_pre(pdrv);
 
 	/* update interface timing */
 	lcd_tv_config_update(pdrv);
