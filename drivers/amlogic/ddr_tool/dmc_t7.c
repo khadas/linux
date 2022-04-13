@@ -123,7 +123,7 @@ static size_t t7_dmc_dump_reg(char *buf)
 static void check_violation(struct dmc_monitor *mon, void *io)
 {
 	char rw = 'n';
-	char title[5] = "";
+	char title[10] = "";
 	char id_str[MAX_NAME];
 	int port, subport;
 	unsigned long addr;
@@ -160,7 +160,10 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 	if ((addr & PAGE_MASK) == mon->last_addr &&
 	    status == mon->last_status) {
 		mon->same_page++;
-		return;
+		if (mon->debug & DMC_DEBUG_CMA)
+			sprintf(title, "%s", "_SAME");
+		else
+			return;
 	}
 
 	/* ignore cma driver pages */
