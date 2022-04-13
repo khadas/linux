@@ -3077,6 +3077,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret != 0)
 		rx_pr("warning: no rev cmd mem\n");
 	rx_emp_resource_allocate(&pdev->dev);
+	rx.port = rx.arc_port;
 	aml_phy_get_trim_val();
 	fs_mode_init();
 	hdmirx_hw_probe();
