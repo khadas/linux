@@ -3833,11 +3833,6 @@ static int dvbc_tune(struct dvb_frontend *fe, bool re_tune,
 static int dtvdemod_dvbs_set_ch(struct aml_demod_sta *demod_sta)
 {
 	int ret = 0;
-	unsigned int symb_rate;
-	unsigned int is_blind_scan;
-
-	symb_rate = demod_sta->symb_rate;
-	is_blind_scan = demod_sta->is_blind_scan;
 
 	/* 0:16, 1:32, 2:64, 3:128, 4:256 */
 	demod_sta->agc_mode = 1;
@@ -3845,7 +3840,7 @@ static int dtvdemod_dvbs_set_ch(struct aml_demod_sta *demod_sta)
 	if (demod_sta->ch_if == 0)
 		demod_sta->ch_if = 5000;
 
-	dvbs2_reg_initial(symb_rate, is_blind_scan);
+	dvbs2_reg_initial(demod_sta->symb_rate, demod_sta->is_blind_scan);
 
 	return ret;
 }
@@ -3856,6 +3851,7 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	int ret = 0;
+	unsigned int tmp_sr = 0;
 
 	if (devp->blind_same_frec == 0)
 		PR_INFO("%s [id %d]: delsys:%d, freq:%d, symbol_rate:%d, bw:%d.\n",
@@ -3866,7 +3862,16 @@ int dtvdemod_dvbs_set_frontend(struct dvb_frontend *fe)
 	demod->demod_status.is_blind_scan = devp->blind_scan_stop;
 	demod->last_lock = -1;
 
+	/* for wider frequency offset when low SR. */
+	tmp_sr = c->symbol_rate;
+	if (devp->blind_scan_stop && tmp_sr < 11000000)
+		c->symbol_rate = 2 * c->symbol_rate;
+
 	tuner_set_params(fe);
+
+	if (devp->blind_scan_stop && tmp_sr < 11000000)
+		c->symbol_rate = tmp_sr;
+
 	dtvdemod_dvbs_set_ch(&demod->demod_status);
 	demod->time_start = jiffies_to_msecs(jiffies);
 

@@ -1214,7 +1214,7 @@ static struct fe_lla_lookup_t fe_l2a_s2_cn_lookup = {
 	}
 };
 
-void demod_init_local(unsigned int is_blind_scan)
+void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 {
 	unsigned int reg = 0;
 
@@ -1227,16 +1227,24 @@ void demod_init_local(unsigned int is_blind_scan)
 		else
 			dvbs_wr_byte(l2a_def_val_local[reg].addr,
 				     l2a_def_val_local[reg].value);
+
+		/* for wider frequency offset when low SR. */
+		if (symb_rate_kbs < 11000 && is_blind_scan &&
+			l2a_def_val_local[reg].addr == 0x9b0)
+			dvbs_wr_byte(0x9b0, 0x6);
+		else
+			dvbs_wr_byte(l2a_def_val_local[reg].addr,
+					l2a_def_val_local[reg].value);
 		reg++;
 	} while (1);
 }
 
-void dvbs2_reg_initial(unsigned int symb_rate, unsigned int is_blind_scan)
+void dvbs2_reg_initial(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 {
 	unsigned int tmp = 0;
 
 	/* BW/(1+ROLLOFF)=SYMBOLRATE */
-	tmp = symb_rate * ((16777216 + 67500) / 135000);
+	tmp = symb_rate_kbs * ((16777216 + 67500) / 135000);
 
 	dvbs_wr_byte(0x9fc, (tmp >> 16) & 0xff);
 	dvbs_wr_byte(0x9fd, (tmp >> 8) & 0xff);
@@ -1247,7 +1255,7 @@ void dvbs2_reg_initial(unsigned int symb_rate, unsigned int is_blind_scan)
 	dvbs_wr_byte(0x9f2, tmp & 0xff);
 
 	PR_DVBS("reg initial is_blind_scan:%d\n", is_blind_scan);
-	demod_init_local(is_blind_scan);
+	demod_init_local(symb_rate_kbs, is_blind_scan);
 
 	dvbs_wr_byte(0x110, 0x00);
 	dvbs_wr_byte(0x111, 0x00);
