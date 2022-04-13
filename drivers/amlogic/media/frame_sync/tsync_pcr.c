@@ -275,13 +275,13 @@ int get_stream_buffer_level(int type)
 
 	if (type == 0) {
 		/* video */
-		tsync_get_buf_by_type(PTS_TYPE_VIDEO, pbuf);
+		tsync_get_buf_by_type(PTS_TYPE_VIDEO, &pbuf);
 		if (pbuf && tsync_get_stbuf_level(pbuf, &buf_level) &&
 			pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
 			return buf_level;
 	} else {
 		/* audio */
-		tsync_get_buf_by_type(PTS_TYPE_AUDIO, pbuf);
+		tsync_get_buf_by_type(PTS_TYPE_AUDIO, &pbuf);
 		if (pbuf && tsync_get_stbuf_level(pbuf, &buf_level) &&
 		    pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
 			return stbuf_level_cb(pbuf);
@@ -297,13 +297,13 @@ int get_stream_buffer_size(int type)
 	u32 buf_size = 0;
 	if (type == 0) {
 		/* video */
-		tsync_get_buf_by_type(PTS_TYPE_VIDEO, pbuf);
+		tsync_get_buf_by_type(PTS_TYPE_VIDEO, &pbuf);
 		if (pbuf && tsync_get_stbuf_size(pbuf, &buf_size) &&
 		    pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
 			return buf_size;
 	} else {
 		/* audio */
-		tsync_get_buf_by_type(PTS_TYPE_AUDIO, pbuf);
+		tsync_get_buf_by_type(PTS_TYPE_AUDIO, &pbuf);
 		if (pbuf && tsync_get_stbuf_size(pbuf, &buf_size) &&
 		    pbuf->flag & 0x02/*BUF_FLAG_IN_USE*/)
 			return buf_size;
@@ -1255,6 +1255,7 @@ void tsync_pcr_check_checinpts(void)
 					tsync_video_discontinue = 1;
 					last_discontinue_checkin_vpts = 0;
 					tsync_video_continue_count = 0;
+					last_pcr_checkin_vpts_count = 0;
 					if (tsync_pcr_debug & 0x03)
 						pr_info("v_discontinue,count\n");
 				}
@@ -1624,6 +1625,11 @@ static unsigned long tsync_pcr_check(void)
 	    (!(tsync_pcr_inited_flag & TSYNC_PCR_INITCHECK_APTS))) {
 		u64 cur_system_time =
 			div64_u64((u64)jiffies * TIME_UNIT90K, HZ);
+		if (last_checkin_vpts == 0xffffffff &&
+			last_checkin_apts == 0xffffffff) {
+			first_time_record = cur_system_time;
+			return res;
+		}
 		if (cur_system_time - first_time_record <
 			tsync_pcr_latency_value &&
 			video_pid_valid) {
@@ -1812,6 +1818,19 @@ int tsync_pcr_demux_pcr_used(void)
 	return tsync_use_demux_pcr;
 }
 EXPORT_SYMBOL(tsync_pcr_demux_pcr_used);
+
+void tsync_pcr_mode_reinit(u8 type)
+{
+	if (type == PTS_TYPE_AUDIO) {
+		tsync_audio_state = 0;
+		audio_jumped = false;
+		tsync_pcr_apause_flag = 0;
+		tsync_pcr_astart_flag = 0;
+		last_pcr_checkin_apts = 0;
+		tsync_audio_discontinue = 0;
+	}
+}
+EXPORT_SYMBOL(tsync_pcr_mode_reinit);
 
 void tsync_pcr_stop(void)
 {

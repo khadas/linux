@@ -662,16 +662,16 @@ void tsync_get_buf_by_type_for_newarch(u8 type, struct stream_buf_s *pbuf)
 }
 EXPORT_SYMBOL(tsync_get_buf_by_type_for_newarch);
 
-u8 tsync_get_buf_by_type(u8 type, struct stream_buf_s *pbuf)
+u8 tsync_get_buf_by_type(u8 type, struct stream_buf_s **pbuf)
 {
 	u8 ret = 0;
 
 	if (new_arch) {
-		tsync_get_buf_by_type_for_newarch(type, pbuf);
+		tsync_get_buf_by_type_for_newarch(type, *pbuf);
 		ret = 0;
 	} else {
 		if (get_buf_by_type_cb) {
-			pbuf = get_buf_by_type_cb(type);
+			*pbuf = get_buf_by_type_cb(type);
 			ret = 1;
 		} else {
 			ret = 0;
@@ -800,10 +800,12 @@ void tsync_reset(void)
 	first_demux_pcrscr = 0;
 }
 
-void tsync_mode_reinit(void)
+void tsync_mode_reinit(u8 type)
 {
 	tsync_av_mode = TSYNC_STATE_S;
 	tsync_av_dynamic_duration_ms = 0;
+	if (tsync_mode == TSYNC_MODE_PCRMASTER)
+		tsync_pcr_mode_reinit(type);
 }
 EXPORT_SYMBOL(tsync_mode_reinit);
 void tsync_avevent_locked(enum avevent_e event, u32 param)
@@ -2486,14 +2488,22 @@ static long tsync_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		break;
 
 	case TSYNC_IOC_SET_FIRST_CHECKIN_APTS:
-		if (new_arch && get_user(tmppts, (unsigned int *)arg) >= 0)
+		if (new_arch && get_user(tmppts, (unsigned int *)arg) >= 0) {
 			timestamp_checkin_firstapts_set(tmppts);
+			if (tsync_get_debug_apts() &&
+				tsync_get_debug_pts_checkin())
+				pr_info("first check in apts:%x\n", tmppts);
+		}
 		break;
 
 	case TSYNC_IOC_SET_LAST_CHECKIN_APTS:
-		if (new_arch)
+		if (new_arch) {
 			get_user(checkin_apts_from_audiohal,
 				 (unsigned int *)arg);
+			if (tsync_get_debug_apts() &&
+				tsync_get_debug_pts_checkin())
+				pr_info("check in apts:0x%x\n", checkin_apts_from_audiohal);
+		}
 		break;
 
 	case TSYNC_IOC_SET_DEMUX_INFO:

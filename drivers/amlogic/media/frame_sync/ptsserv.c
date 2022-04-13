@@ -223,18 +223,22 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 		/* #endif */
 		ptable = &pts_table[type];
 
-	if (((ptable->last_checkin_pts == -1) ||
-	     (ptable->last_checkout_pts == -1)) &&
-	     type != PTS_TYPE_AUDIO)
+	if (ptable->last_checkin_pts == -1)
 		return 0;
 
 	if (type == PTS_TYPE_AUDIO) {
-		if (ptable->last_checkin_pts == -1) {
-			return 0;
-		} else if ((ptable->last_checkout_pts == -1) &&
+		if ((ptable->last_checkout_pts == -1) &&
 			   (timestamp_apts_started() == 0)) {
 			timestampe_delayed = (ptable->last_checkin_pts -
 						ptable->first_checkin_pts) / 90;
+			ptable->last_pts_delay_ms = timestampe_delayed;
+			return timestampe_delayed;
+		}
+	} else {
+		if (ptable->last_checkout_pts == -1 &&
+			timestamp_firstvpts_get() == 0) {
+			timestampe_delayed = (ptable->last_checkin_pts -
+				ptable->first_checkin_pts) / 90;
 			ptable->last_pts_delay_ms = timestampe_delayed;
 			return timestampe_delayed;
 		}
@@ -256,13 +260,13 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 	timestampe_delayed = (ptable->last_checkin_pts - outtime) / 90;
 
 	/*calc timestamp from amstream buffer when pts jumped*/
-	if ((tsync_get_buf_by_type(type, tmp_pbuf) &&
+	if ((tsync_get_buf_by_type(type, &tmp_pbuf) &&
 		tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level)) &&
 		((ptable->last_checkin_pts < ptable->last_checkout_pts &&
 		(timestampe_delayed < 10 || timestampe_delayed > (3 * 1000))) ||
 		abs(ptable->last_pts_delay_ms - timestampe_delayed) > 3000)
 		) {
-		tsync_get_buf_by_type(type, tmp_pbuf);
+		tsync_get_buf_by_type(type, &tmp_pbuf);
 		tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level);
 		diff2 = tmp_buf_level;
 		delay_ms = diff2 * 1000 / (1 + ptable->last_avg_bitrate / 8);
@@ -274,7 +278,7 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 		}
 	}
 	ptable->last_pts_delay_ms = timestampe_delayed;
-	if (tsync_get_buf_by_type(type, tmp_pbuf) &&
+	if (tsync_get_buf_by_type(type, &tmp_pbuf) &&
 	    tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level) &&
 	    tsync_get_stbuf_space(tmp_pbuf, &tmp_buf_space)) {
 		if (timestampe_delayed < 10 ||
@@ -286,36 +290,36 @@ int calculation_stream_delayed_ms(u8 type, u32 *latestbitrate,
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		if (has_hevc_vdec()) {
 			if (ptable->hevc) {
-				tsync_get_buf_by_type(PTS_TYPE_HEVC, tmp_pbuf);
+				tsync_get_buf_by_type(PTS_TYPE_HEVC, &tmp_pbuf);
 				tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level);
 				diff2 = tmp_buf_level;
 			} else {
-				tsync_get_buf_by_type(type, tmp_pbuf);
+				tsync_get_buf_by_type(type, &tmp_pbuf);
 				tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level);
 				diff2 = tmp_buf_level;
 			}
 		} else {
 			/* #endif */
-			tsync_get_buf_by_type(type, tmp_pbuf);
+			tsync_get_buf_by_type(type, &tmp_pbuf);
 			tsync_get_stbuf_level(tmp_pbuf, &tmp_buf_level);
 			diff2 = tmp_buf_level;
 		}
 		/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		if (has_hevc_vdec() == 1) {
 			if (ptable->hevc > 0) {
-				tsync_get_buf_by_type(PTS_TYPE_HEVC, tmp_pbuf);
+				tsync_get_buf_by_type(PTS_TYPE_HEVC, &tmp_pbuf);
 				tsync_get_stbuf_space(tmp_pbuf, &tmp_buf_space);
 				if (diff2 > tmp_buf_space)
 					diff = diff2;
 			} else {
-				tsync_get_buf_by_type(type, tmp_pbuf);
+				tsync_get_buf_by_type(type, &tmp_pbuf);
 				tsync_get_stbuf_space(tmp_pbuf, &tmp_buf_space);
 				if (diff2 > tmp_buf_space)
 					diff = diff2;
 			}
 		} else {
 			/* #endif */
-			tsync_get_buf_by_type(type, tmp_pbuf);
+			tsync_get_buf_by_type(type, &tmp_pbuf);
 			tsync_get_stbuf_space(tmp_pbuf, &tmp_buf_space);
 			if (diff2 > tmp_buf_space)
 				diff = diff2;
@@ -429,7 +433,7 @@ static inline void pts_checkin_offset_calc_cached(u32 offset,
 {
 	s32 diff = offset - ptable->last_checkin_offset;
 
-	if (diff > 0) {
+	if (diff >= 0) {
 		if ((val - ptable->last_checkin_pts) > 0) {
 			int newbitrate =
 				diff * 8 * 90 / (1 +
@@ -1619,7 +1623,7 @@ int pts_stop(u8 type)
 		ptable->last_avg_bitrate = 0;
 		ptable->last_bitrate = 0;
 #endif
-		tsync_mode_reinit();
+		tsync_mode_reinit(type);
 		return 0;
 
 	} else {
