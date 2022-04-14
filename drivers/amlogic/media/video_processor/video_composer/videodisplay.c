@@ -567,14 +567,15 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	time2 = vsync_time;
 
 	if (kfifo_peek(&dev->ready_q, &vf)) {
-		if (vf->vc_private) {
+		if (vf->vc_private && vd_set_frame_delay[dev->index] > 0) {
 			vsync_index = vf->vc_private->vsync_index;
 			vc_print(dev->index, PRINT_OTHER,
 				"peek: vsync_index =%d, delay_count=%d, vsync_count=%d\n",
 				vsync_index, vd_set_frame_delay[dev->index],
 				vsync_count[dev->index]);
 			if (vsync_index + vd_set_frame_delay[dev->index] - 1
-				>= vsync_count[dev->index])
+				>= vsync_count[dev->index] &&
+				vsync_index < vsync_count[dev->index])
 				return NULL;
 		} else {
 			vc_print(dev->index, PRINT_OTHER,
