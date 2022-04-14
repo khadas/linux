@@ -151,6 +151,28 @@
 				 VIDTYPE_VIU_422	|	\
 				 VIDTYPE_RGB_444)
 
+#define DIM_BYPASS_VF_TYPE	(VIDTYPE_MVC | VIDTYPE_VIU_444 | \
+				 VIDTYPE_PIC | VIDTYPE_RGB_444)
+#define VFMT_DIPVPP_CHG_MASK	(VIDTYPE_TYPEMASK	|	\
+				 VIDTYPE_VIU_422	|	\
+				 VIDTYPE_VIU_444	|	\
+				 VIDTYPE_VIU_NV21	|	\
+				 VIDTYPE_VIU_NV12	|	\
+				 VIDTYPE_VIU_SINGLE_PLANE |	\
+				 VIDTYPE_VIU_FIELD	|	\
+				 VIDTYPE_COMPRESS	|	\
+				 VIDTYPE_SCATTER	|	\
+				 VIDTYPE_COMB_MODE	|	\
+				 VIDTYPE_DI_PW)
+
+//need add :VFRAME_FLAG_DI_BYPASS
+#define VFMT_FLG_CHG_MASK	(VFRAME_FLAG_DI_PW_VFM	|	\
+				 VFRAME_FLAG_DI_PW_N_LOCAL |	\
+				 VFRAME_FLAG_DI_PW_N_EXT |	\
+				 VFRAME_FLAG_HF	|		\
+				 VFRAME_FLAG_DI_DW	|	\
+				 VFRAME_FLAG_VIDEO_LINEAR)
+
 enum process_fun_index_e {
 	PROCESS_FUN_NULL = 0,
 	PROCESS_FUN_DI,
@@ -570,6 +592,11 @@ struct di_pre_stru_s {
 	struct SHRK_S shrk_cfg;
 	struct dvfm_s dw_wr_dvfm;
 	bool timeout_check;
+	bool used_pps;
+	unsigned int afbc_skip_w;
+	unsigned int afbc_skip_h;
+	unsigned int pps_width;
+	unsigned int pps_height;
 };
 
 struct dim_fmt_s;
@@ -876,4 +903,15 @@ void dpre_vdoing(unsigned int ch);
 //#define TMP_TEST	(1)
 
 //#define TMP_MASK_FOR_T7 (1)
+#define TMP_FOR_S4DW	(1)
+/* dimp_get(edi_mp_mcpre_en) */
+//#define TMP_S4DW_MC_EN	(1)
+//#define DBG_BUFFER_FLOW	(1)
+//#define DBG_CLEAR_MEM	(1)
+#define DBG_BUFFER_EXT	(1)
+#define DBG_VFM_CVS	(1)
+//#define DBG_EXTBUFFER_ONLY_ADDR	(1)
+//#define S4D_OLD_SETTING_KEEP (1)
+//#define S4D_OLD_PQ_KEEP (1)
+
 #endif

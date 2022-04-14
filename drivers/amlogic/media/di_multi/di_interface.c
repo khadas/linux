@@ -320,6 +320,22 @@ void dim_dbg_buffer2(struct di_buffer *buffer, unsigned int id)
 	}
 }
 
+static void cfg_ch_set_for_s4_cp(struct di_ch_s *pch)
+{
+	if (pch->itf.u.dinst.parm.work_mode != WORK_MODE_S4_DCOPY)
+		return;
+	cfgsch(pch, KEEP_DEC_VF, 0); // for all new_interface
+	/* fix out: nv21 */
+	cfgsch(pch, POUT_FMT, 1);
+	cfgsch(pch, IOUT_FMT, 1);
+	cfgsch(pch, ALLOC_SCT, 0);
+	cfgsch(pch, DAT, 0);
+	cfgsch(pch, 4K, 1);
+	cfgsch(pch, HF, 0);
+	cfgsch(pch, DCT, 0);
+	cfgsch(pch, DW_EN, 0);
+}
+
 static void cfg_ch_set(struct di_ch_s *pch)
 {
 	struct di_init_parm *parm;
@@ -406,6 +422,20 @@ int di_create_instance(struct di_init_parm parm)
 	memcpy(&itf->u.dinst.parm, &parm, sizeof(struct di_init_parm));
 
 	itf->tmode = EDIM_TMODE_2_PW_OUT;
+	if (s4dw_test_ins()) {
+		/*used local buffer to check s4 copy */
+		itf->tmode = EDIM_TMODE_3_PW_LOCAL;
+		itf->u.dinst.parm.work_mode = WORK_MODE_S4_DCOPY;
+	}
+	//check ic:
+	if (itf->u.dinst.parm.work_mode == WORK_MODE_S4_DCOPY) {
+		if (!DIM_IS_IC(S4) && !DIM_IS_IC(T3)) {
+			PR_ERR("%s:copy only support for s4\n", __func__);
+			return DI_ERR_UNSUPPORT;
+		}
+		PR_INF("S4 DW\n");
+	}
+
 	if (itf->u.dinst.parm.work_mode == WORK_MODE_PRE_POST) {
 		switch (itf->u.dinst.parm.buffer_mode) {
 		case BUFFER_MODE_ALLOC_BUF:
@@ -419,6 +449,27 @@ int di_create_instance(struct di_init_parm parm)
 			       itf->u.dinst.parm.buffer_mode);
 			break;
 		}
+	} else if (itf->u.dinst.parm.work_mode == WORK_MODE_S4_DCOPY) {
+		#ifndef TMP_FOR_S4DW
+		if (itf->u.dinst.parm.buffer_mode != BUFFER_MODE_USE_BUF)
+			PR_INF("%s:S4_DCOPY: need use exit buffer %d\n",
+			       itf->u.dinst.parm.buffer_mode);
+		/* fix setting */
+		itf->tmode = EDIM_TMODE_2_PW_OUT;
+		#else
+		switch (itf->u.dinst.parm.buffer_mode) {
+		case BUFFER_MODE_ALLOC_BUF:
+			itf->tmode = EDIM_TMODE_3_PW_LOCAL;
+			break;
+		case BUFFER_MODE_USE_BUF:
+			itf->tmode = EDIM_TMODE_2_PW_OUT;
+			break;
+		default:
+			PR_ERR("%s:bmode[%d]\n", __func__,
+			       itf->u.dinst.parm.buffer_mode);
+			break;
+		}
+		#endif
 	} else {
 		PR_ERR("%s:wmode[%d]\n", __func__,
 		       itf->u.dinst.parm.work_mode);
@@ -438,7 +489,16 @@ int di_create_instance(struct di_init_parm parm)
 		itf->op_fill_ready	= ndrd_m1_fill_ready;
 		itf->op_ready_out	= dip_itf_ndrd_ins_m1_out;
 	}
-	itf->op_cfg_ch_set	= cfg_ch_set;
+
+	if (itf->u.dinst.parm.work_mode == WORK_MODE_S4_DCOPY) {
+		itf->op_cfg_ch_set	= cfg_ch_set_for_s4_cp;
+		itf->flg_s4dw	= true;
+		pch->s4dw	= &dim_s4dw_def;
+	} else {
+		itf->op_cfg_ch_set	= cfg_ch_set;
+		itf->flg_s4dw	= false;
+		pch->s4dw	= NULL;
+	}
 	//cfg_ch_set(pch);
 	mutex_unlock(&pch->itf.lock_reg);
 	PR_INF("%s:ch[%d],tmode[%d]\n", "create", ch, itf->tmode);
@@ -522,6 +582,9 @@ enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
 		PR_WARN("%s:ch[%d] not reg\n", __func__, ch);
 		return DI_ERR_INDEX_NOT_ACTIVE;
 	}
+
+	if (pintf->u.dinst.parm.work_mode == WORK_MODE_S4_DCOPY)
+		return s4dw_empty_input(pch, buffer);
 
 	#ifdef MARK_HIS
 	qued_ops.peek(pch, QUED_T_IS_FREE, &buf_index);
@@ -715,10 +778,13 @@ enum DI_ERRORTYPE di_fill_output_buffer(int index, struct di_buffer *buffer)
 		return DI_ERR_INDEX_NOT_ACTIVE;
 	}
 
-	if (pintf->tmode == EDIM_TMODE_2_PW_OUT)
+	if (pintf->tmode == EDIM_TMODE_2_PW_OUT) {
+		//dbg:
+		dim_dbg_buffer_ext(pch, buffer, 1);
 		ret = di_fill_output_buffer_mode2(pch, buffer);
-	else if (pintf->tmode == EDIM_TMODE_3_PW_LOCAL)
+	} else if (pintf->tmode == EDIM_TMODE_3_PW_LOCAL) {
 		ret = di_fill_output_buffer_mode3(pch, buffer);
+	}
 	task_send_ready(21);
 	return ret;
 }
@@ -736,6 +802,7 @@ int di_release_keep_buf(struct di_buffer *buffer)
 		PR_INF("%s:no di data\n", __func__);
 		return -1;
 	}
+
 	ndis1 = (struct dim_ndis_s *)buffer->private_data;
 
 	ch = buffer->mng.ch;

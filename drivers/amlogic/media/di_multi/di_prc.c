@@ -1519,6 +1519,7 @@ void dip_chst_process_ch(void)
 			break;
 		case EDI_TOP_STATE_READY:
 			dip_itf_vf_op_polling(pch);
+			s4dw_parser_infor(pch);
 			dip_itf_back_input(pch);
 //ary 2020-12-09			spin_lock_irqsave(&plist_lock, flags);
 			dim_post_keep_back_recycle(pch);
@@ -1919,6 +1920,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		break;
 	case EDI_TOP_STATE_REG_STEP1:/*wait peek*/
 		dip_itf_vf_op_polling(pch);
+		s4dw_parser_infor(pch);
 		vframe = nins_peekvfm(pch);
 
 		if (vframe) {
@@ -1941,8 +1943,10 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			reflesh = true;
 			break;
 		}
-
-		di_reg_variable(ch, vframe);
+		if (pch->itf.flg_s4dw && pch->s4dw)
+			pch->s4dw->reg_variable(pch, vframe);
+		else
+			di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
 		set_reg_setting(ch, true);
 
@@ -4372,6 +4376,13 @@ void dip_itf_ndrd_ins_m2_out(struct di_ch_s *pch)
 		didbg_vframe_out_save(pch->ch_id, buffer->vf, 1);
 		if (buffer->flag & DI_FLAG_EOS)
 			dbg_reg("%s:ch[%d]:eos\n", __func__, pch->ch_id);
+
+		dim_print("done:0x%px:flag:0x%x\n", buffer, buffer->flag);
+		if (buffer->vf)
+			dim_dbg_vf_cvs(pch, buffer->vf, 10);
+
+		dim_dbg_buffer_ext(pch, buffer, 10);
+
 		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
 		sum_pst_g_inc(pch->ch_id);
 	}
@@ -4410,6 +4421,10 @@ void dip_itf_ndrd_ins_m1_out(struct di_ch_s *pch)
 		didbg_vframe_out_save(pch->ch_id, buffer->vf, 2);
 		if (buffer->flag & DI_FLAG_EOS)
 			PR_INF("%s:ch[%d]:eos\n", __func__, pch->ch_id);
+		dim_print("done:0x%px:flag:0x%x\n", buffer, buffer->flag);
+		if (buffer->vf)
+			dim_dbg_vf_cvs(pch, buffer->vf, 11);
+		dim_dbg_buffer_ext(pch, buffer, 11);
 		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
 		sum_pst_g_inc(pch->ch_id);
 	}
@@ -4953,6 +4968,7 @@ static bool ndrd_m1_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	}
 	memcpy(buffer->vf, di_buf->vframe, sizeof(*buffer->vf));
 	buffer->caller_data = pch->itf.u.dinst.parm.caller_data;
+	buffer->vf->private_data = NULL; //2022-04-14
 	if (di_buf->c.src_is_i)
 		buffer->flag |= DI_FLAG_I;
 	else
@@ -4991,6 +5007,8 @@ static void dip_itf_prob(struct di_ch_s *pch)
 		return;
 	itf = &pch->itf;
 	mutex_init(&itf->lock_reg);
+	mutex_init(&itf->lock_in);
+	//mutex_init(&itf->lock_buffer);
 }
 
 void dip_itf_vf_op_polling(struct di_ch_s *pch)

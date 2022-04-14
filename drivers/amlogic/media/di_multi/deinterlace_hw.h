@@ -451,23 +451,6 @@ struct cfg_mifset_s {
 	//unsigned int bit_mode;
 };
 
-#ifdef MARK_SC2
-struct hw_sc2_ctr_pre_s {
-	unsigned int afbc_en		: 1;	//nrwr_path_sel
-	unsigned int mif_en		: 1; /*nr mif*/
-	unsigned int nr_ch0_en		: 1;
-	unsigned int is_4k		: 1;
-	/*0:internal  1:pre-post link  2:viu  3:vcp(vdin)*/
-	unsigned int pre_frm_sel	: 4;
-
-	unsigned int afbc_nr_en		: 1;
-	unsigned int afbc_inp		: 1;
-	unsigned int afbc_mem		: 1;
-	unsigned int afbc_chan2		: 1;
-
-	unsigned int reserve2		: 20;
-};
-#endif
 union hw_sc2_ctr_pre_s {
 	unsigned int d32;
 	struct {

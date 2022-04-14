@@ -1719,16 +1719,21 @@ static unsigned int afbcd_v5_get_offset(enum EAFBC_DEC dec)
 	return regs_ofst;
 }
 
+/**********************************************
+ * s4dw:
+ * phase_step is replace by vt_ini_phase
+ * 8 or 16 before s4dw
+ **********************************************/
 static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 				   struct AFBCD_CFG_S *cfg)
 {
-	unsigned int r, u, v, w_aligned, h_aligned;
+	unsigned int r, u, v, w_aligned, h_aligned, vfw, vfh;
 	const unsigned int *reg = afbc_get_addrp(dec);
 	unsigned int vfmt_rpt_first = 1, vt_ini_phase = 0;
 	unsigned int out_height = 0;
 	/*ary add*/
 	unsigned int cvfmt_en = 0;
-	unsigned int cvfm_h, rpt_pix, phase_step = 16, hold_line = 8;
+	unsigned int cvfm_h, rpt_pix, /*phase_step = 16, 0322*/hold_line = 8;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
 
 	/* add from sc2 */
@@ -1742,14 +1747,62 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	unsigned int mif_lbuf_depth  ; //12 bits
 //ary tmp	unsigned int fmt_size_h     ; //13 bits
 //ary tmp	unsigned int fmt_size_v     ; //13 bits
+	char vert_skip_y	= 0;//inp_afbcd->v_skip_en;
+	// 2 bits 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
+	char horz_skip_y	= 0;//inp_afbcd->h_skip_en;
+	// 2 bits 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
+	char vert_skip_uv = 0;//inp_afbcd->v_skip_en;
+	// 2 bits 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
+	char horz_skip_uv = 0;//inp_afbcd->h_skip_en;
+	// 2 bits 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
+	u32 fmt_size_h ; //13 bits
+	u32 fmt_size_v; //13 bits
+	u32 hfmt_en	= 0;
+	u32 vfmt_en	= 0;
+	u32 uv_vsize_in	= 0;
+	u32 vt_yc_ratio	= 0;
+	u32 hz_yc_ratio = 0;
+	u32 vt_phase_step;
+	u32 vfmt_w;
+	bool skip_en = false;
+
+	static unsigned int lst_vfw, lst_vfh;
 
 	di_print("afbc_in:[%d]:vf typ[0x%x] 0x%lx, 0x%lx\n",
 		 dec,
 		 vf->type,
 		 vf->compHeadAddr,
 		 vf->compBodyAddr);
+	vfw = vf->width;
+	vfh = vf->height;
+	dbg_copy("afbcdin:0x%px, pulldown[%d]\n", vf, vf->di_pulldown);
 
-	w_aligned = round_up((vf->width), 32);
+	/*use vf->di_pulldown as skip flag */
+	if (dip_cfg_afbc_skip() || vf->di_pulldown == 1)
+		skip_en = true;
+
+	if (skip_en) {
+		vert_skip_y = 1;
+		horz_skip_y = 1;
+		vert_skip_uv = 1;
+		horz_skip_uv = 1;
+	}
+	if (vfw != lst_vfw || vfh != lst_vfh) {//dbg only
+		dbg_copy("afbcd: in<%d,%d> -> <%d,%d>\n",
+			lst_vfw, lst_vfh, vfw, vfh);
+		lst_vfw = vfw;
+		lst_vfh = vfh;
+	}
+	w_aligned = round_up((vfw), 32);
+
+	fmt_size_h   = (((vfw - 1) >> 1) << 1) + 1;
+	//((out_horz_end >> 1) << 1) + 1 - ((out_horz_bgn >> 1) << 1);
+	fmt_size_v   = (((vfh - 1) >> 1) << 1) + 1;
+	//((out_vert_end >> 1) << 1) + 1 - ((out_vert_bgn >> 1) << 1);
+	fmt_size_h   = horz_skip_y != 0 ? (fmt_size_h >> 1) + 1 :
+		fmt_size_h + 1;
+	fmt_size_v   = vert_skip_y != 0 ? (fmt_size_v >> 1) + 1 :
+		fmt_size_v + 1;
 	/* add from sc2 */
 
 	/* TL1 add bit[13:12]: fmt_mode; 0:yuv444; 1:yuv422; 2:yuv420
@@ -1785,15 +1838,19 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	/*if (di_pre_stru.cur_inp_type & VIDTYPE_INTERLACE)*/
 	if (((vf->type & VIDTYPE_INTERLACE) || is_src_i(vf)) &&
 	    (vf->type & VIDTYPE_VIU_422)) /*from vdin and is i */
-		h_aligned = round_up((vf->height / 2), 4);
+		h_aligned = round_up((vfh / 2), 4);
 	else
-		h_aligned = round_up((vf->height), 4);
+		h_aligned = round_up((vfh), 4);
 
 	/*AFBCD working mode config*/
 	r = (3 << 24) |
 	    (hold_line << 16) |		/* hold_line_num : 2020 from 10 to 8*/
 	    (2 << 14) | /*burst1 1:2020:ary change from 1 to 2*/
-	    (vf->bitdepth & BITDEPTH_MASK);
+	    (vf->bitdepth & BITDEPTH_MASK)	|
+	    ((vert_skip_y  & 0x3) << 6) |  // vert_skip_y
+	    ((horz_skip_y  & 0x3) << 4) |  // horz_skip_y
+	    ((vert_skip_uv & 0x3) << 2) |  // vert_skip_uv
+	    ((horz_skip_uv & 0x3) << 0);    // horz_skip_uv;
 
 	if (vf->bitdepth & BITDEPTH_SAVING_MODE)
 		r |= (1 << 28); /* mem_saving_mode */
@@ -1822,7 +1879,7 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 		vt_ini_phase = 0xc;
 		cvfm_h = out_height >> 1;
 		rpt_pix = 1;
-		phase_step = 8;
+		/*phase_step = 8; 0322*/
 	} else {
 		cvfm_h = out_height;
 		rpt_pix = 0;
@@ -1885,24 +1942,111 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	       0x80 << (u + 10)	|
 	       0x80 << v);
 
+	/*******************************************/
+	if (fmt_mode == 2) { //420
+		hfmt_en = ((horz_skip_y != 0) && (horz_skip_uv == 0)) ? 0 : 1;
+		vfmt_en = ((vert_skip_y != 0) && (vert_skip_uv == 0)) ? 0 : 1;
+	} else if (fmt_mode == 1) { //422
+		hfmt_en = ((horz_skip_y != 0) && (horz_skip_uv == 0)) ? 0 : 1;
+		vfmt_en = ((vert_skip_y == 0) && (vert_skip_uv != 0)) ? 1 : 0;
+	} else if (fmt_mode == 0) { //444
+		hfmt_en = ((horz_skip_y == 0) && (horz_skip_uv != 0)) ? 1 : 0;
+		vfmt_en = ((vert_skip_y == 0) && (vert_skip_uv != 0)) ? 1 : 0;
+	}
+
+	if (fmt_mode == 2) { //420
+		if (vfmt_en) {
+			if (vert_skip_uv != 0) {
+				uv_vsize_in = (fmt_size_v >> 2);
+				vt_yc_ratio = vert_skip_y == 0 ? 2 : 1;
+			} else {
+				uv_vsize_in = (fmt_size_v >> 1);
+				vt_yc_ratio = 1;
+			}
+		} else {
+			uv_vsize_in = fmt_size_v;
+			vt_yc_ratio = 0;
+		}
+
+		if (hfmt_en) {
+			if (horz_skip_uv != 0)
+				hz_yc_ratio = horz_skip_y == 0 ? 2 : 1;
+			else
+				hz_yc_ratio = 1;
+		} else {
+			hz_yc_ratio = 0;
+		}
+	} else if (fmt_mode == 1) {//422
+		if (vfmt_en) {
+			if (vert_skip_uv != 0) {
+				uv_vsize_in = (fmt_size_v >> 1);
+				vt_yc_ratio = vert_skip_y == 0 ? 1 : 0;
+			} else {
+				uv_vsize_in = (fmt_size_v >> 1);
+				vt_yc_ratio = 1;
+			}
+		} else {
+			uv_vsize_in = fmt_size_v;
+			vt_yc_ratio = 0;
+		}
+
+		if (hfmt_en) {
+			if (horz_skip_uv != 0)
+				hz_yc_ratio = horz_skip_y == 0 ? 2 : 1;
+			else
+				hz_yc_ratio = 1;
+		} else {
+			hz_yc_ratio = 0;
+		}
+	} else if (fmt_mode == 0) {//444
+		if (vfmt_en) { //vert_skip_y==0,vert_skip_uv!=0
+			uv_vsize_in = (fmt_size_v >> 1);
+			vt_yc_ratio = 1;
+		} else {
+			uv_vsize_in = fmt_size_v;
+			vt_yc_ratio = 0;
+		}
+
+		if (hfmt_en) {//horz_skip_y==0,horz_skip_uv!=0
+			hz_yc_ratio = 1;
+		} else {
+			hz_yc_ratio = 0;
+		}
+	}
+
+	dim_print("===uv_vsize_in= 0x%0x, fmt_mod=%d, fmt_sizeh=%d,%d\n",
+		  uv_vsize_in,
+		  fmt_mode, fmt_size_h, hfmt_en);
+	dim_print("===vt_yc_ratio= 0x%0x\n", vt_yc_ratio);
+	dim_print("===hz_yc_ratio= 0x%0x\n", hz_yc_ratio);
+	//ary below is set_di_afbc_fmt
+
+	vt_phase_step = (16 >> vt_yc_ratio);
+	vfmt_w = (fmt_size_h >> hz_yc_ratio);
+	/*******************************************/
 	/* chroma formatter */
 	reg_wr(reg[EAFBC_VD_CFMT_CTRL],
 	       (rpt_pix << 28)	|
-	       (1 << 21)	| /* HFORMATTER_YC_RATIO_2_1 */
-	       (1 << 20)	| /* HFORMATTER_EN */
+	       (hz_yc_ratio << 21)  |     //hz yc ratio
+	       (hfmt_en << 20)      |     //hz enable
 	       (vfmt_rpt_first << 16)	| /* VFORMATTER_RPTLINE0_EN */
 	       (vt_ini_phase << 8)	|
-	       (phase_step << 1)	| /* VFORMATTER_PHASE_BIT */
+	       (/*phase_step*/vt_phase_step << 1)	| /* VFORMATTER_PHASE_BIT */
 	       cvfmt_en);/* different with inp */
 
 	/*if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) { *//*ary add for g12a*/
 	if (pafd_ctr->fb.ver >= AFBCD_V3) {
-		if (vf->type & VIDTYPE_VIU_444)
+		if (!skip_en) {
+			if (vf->type & VIDTYPE_VIU_444)
+				reg_wr(reg[EAFBC_VD_CFMT_W],
+				       (w_aligned << 16) | (w_aligned / 2));
+			else
+				reg_wr(reg[EAFBC_VD_CFMT_W],
+				       (w_aligned << 16) | (w_aligned));
+		} else {
 			reg_wr(reg[EAFBC_VD_CFMT_W],
-			       (w_aligned << 16) | (w_aligned / 2));
-		else
-			reg_wr(reg[EAFBC_VD_CFMT_W],
-			       (w_aligned << 16) | (w_aligned));
+			       (fmt_size_h << 16) | vfmt_w);
+		}
 	} else {	/*ary add for g12a*/
 		reg_wr(reg[EAFBC_VD_CFMT_W],
 		       (w_aligned << 16) | (w_aligned / 2));
@@ -1913,14 +2057,14 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	       (0 << 16) | ((h_aligned >> 2) - 1));
 
 	reg_wr(reg[EAFBC_PIXEL_HOR_SCOPE],
-	       (0 << 16) | (vf->width - 1));
+	       (0 << 16) | (vfw - 1));
 	reg_wr(reg[EAFBC_PIXEL_VER_SCOPE],
-	       0 << 16 | (vf->height - 1));
+	       0 << 16 | (vfh - 1));
+	/*s4dw: uv_vsize_in replace cvfm_h*/
+	reg_wr(reg[EAFBC_VD_CFMT_H], /*out_height*//*cvfm_h 0322*/uv_vsize_in);
 
-	reg_wr(reg[EAFBC_VD_CFMT_H], /*out_height*/cvfm_h);
-
-	reg_wr(reg[EAFBC_SIZE_IN], (vf->height) | w_aligned << 16);
-	di_print("\t:size:%d\n", vf->height);
+	reg_wr(reg[EAFBC_SIZE_IN], (vfh) | w_aligned << 16);
+	di_print("\t:size:%d\n", vfh);
 	if (pafd_ctr->fb.ver <= AFBCD_V4)
 		reg_wr(reg[EAFBC_SIZE_OUT], out_height | w_aligned << 16);
 
@@ -2107,6 +2251,7 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 		if (pafd_ctr->en_set.b.inp)
 			enable_afbc_input_local(inp_vf2,
 						pafd_ctr->fb.pre_dec, pcfg);
+
 		if (is_src_i(inp_vf2) || VFMT_IS_I(inp_vf2->type))
 			src_i_set(nr_vf);
 			//dim_print("%s:set srci\n", __func__);
@@ -2735,7 +2880,7 @@ static void afbc_sw(bool on)
 			afbc_sw_sc2(on);
 
 		pafd_ctr->b.en = on;
-		pr_info("di:%s:%d\n", __func__, on);
+		//pr_info("di:%s:%d\n", __func__, on);
 	}
 }
 

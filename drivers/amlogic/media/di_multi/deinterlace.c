@@ -160,7 +160,7 @@ static unsigned int hold_video;
 
 DEFINE_SPINLOCK(plist_lock);
 
-static const char version_s[] = "2021-09-01 add dw";
+static const char version_s[] = "2022-04-20 s4dw";
 
 /*1:enable bypass pre,ei only;
  * 2:debug force bypass pre,ei for post
@@ -890,7 +890,7 @@ void di_set_default(unsigned int ch)
 		default_height = 1080;
 	}
 
-	if (dip_cfg_is_pps_4k(ch)) {
+	if (dip_cfg_is_pps_4k(ch) || dip_cfg_afbc_skip()) {
 		default_width = 3840;
 		default_height = 2160;
 	}
@@ -1360,7 +1360,8 @@ static unsigned char is_progressive(vframe_t *vframe)
 	return ret;
 }
 
-static unsigned char is_source_change(vframe_t *vframe, unsigned int channel)
+//static
+unsigned char is_source_change(vframe_t *vframe, unsigned int channel)
 {
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	unsigned int x, y;
@@ -1677,7 +1678,8 @@ void dim_release_canvas(void)
 	PR_INF("%s:finish\n", __func__);
 }
 
-static void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
+//static
+void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
 			      int mtn_canvas_idx)
 {
 	unsigned int height = 0;
@@ -1716,7 +1718,8 @@ static void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
 	}
 }
 
-static void config_canvas_idx_mtn(struct di_buf_s *di_buf,
+//static
+void config_canvas_idx_mtn(struct di_buf_s *di_buf,
 				  int mtn_canvas_idx)
 {
 	if (!di_buf)
@@ -1732,7 +1735,8 @@ static void config_canvas_idx_mtn(struct di_buf_s *di_buf,
 	}
 }
 
-static void config_cnt_canvas_idx(struct di_buf_s *di_buf,
+//static
+void config_cnt_canvas_idx(struct di_buf_s *di_buf,
 				  unsigned int cnt_canvas_idx)
 {
 	if (!di_buf)
@@ -1744,7 +1748,8 @@ static void config_cnt_canvas_idx(struct di_buf_s *di_buf,
 		      di_buf->canvas_height, 0, 0);
 }
 
-static void config_mcinfo_canvas_idx(struct di_buf_s *di_buf,
+//static
+void config_mcinfo_canvas_idx(struct di_buf_s *di_buf,
 				     int mcinfo_canvas_idx)
 {
 	if (!di_buf)
@@ -1756,7 +1761,8 @@ static void config_mcinfo_canvas_idx(struct di_buf_s *di_buf,
 		      di_buf->canvas_height_mc, 2, 0, 0);
 }
 
-static void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
+//static
+void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
 				    int mcvec_canvas_idx)
 {
 	if (!di_buf)
@@ -2600,7 +2606,8 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 	return 0;
 }
 
-static void check_tvp_state(struct di_ch_s *pch)
+//static
+void check_tvp_state(struct di_ch_s *pch)
 {
 #ifdef TMP_TEST /* for ko only */
 	set_flag_tvp(pch->ch_id, 1);
@@ -3117,8 +3124,8 @@ unsigned char dim_check_di_buf(struct di_buf_s *di_buf, int reason,
 /*
  *  di pre process
  */
-static void
-config_di_mcinford_mif(struct DI_MC_MIF_s *di_mcinford_mif,
+//static
+void config_di_mcinford_mif(struct DI_MC_MIF_s *di_mcinford_mif,
 		       struct di_buf_s *di_buf)
 {
 	if (di_buf) {
@@ -3129,8 +3136,8 @@ config_di_mcinford_mif(struct DI_MC_MIF_s *di_mcinford_mif,
 	}
 }
 
-static void
-config_di_pre_mc_mif(struct DI_MC_MIF_s *di_mcinfo_mif,
+//static
+void config_di_pre_mc_mif(struct DI_MC_MIF_s *di_mcinfo_mif,
 		     struct DI_MC_MIF_s *di_mcvec_mif,
 		     struct di_buf_s *di_buf)
 {
@@ -3151,7 +3158,8 @@ config_di_pre_mc_mif(struct DI_MC_MIF_s *di_mcinfo_mif,
 	}
 }
 
-static void config_di_cnt_mif(struct DI_SIM_MIF_s *di_cnt_mif,
+//static
+void config_di_cnt_mif(struct DI_SIM_MIF_s *di_cnt_mif,
 			      struct di_buf_s *di_buf)
 {
 	if (di_buf) {
@@ -3164,8 +3172,8 @@ static void config_di_cnt_mif(struct DI_SIM_MIF_s *di_cnt_mif,
 	}
 }
 
-static void
-config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
+//static
+void config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 		 struct DI_SIM_MIF_s *di_mtnwr_mif,
 		 struct di_buf_s *di_buf, unsigned int channel)
 {
@@ -3201,7 +3209,8 @@ config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
 }
 
 /* move di_hw_v2.c */
-static void config_di_mtnwr_mif(struct DI_SIM_MIF_s *di_mtnwr_mif,
+//static
+void config_di_mtnwr_mif(struct DI_SIM_MIF_s *di_mtnwr_mif,
 				struct di_buf_s *di_buf)
 {
 //	struct di_pre_stru_s *ppre = get_pre_stru(ch);
@@ -3218,7 +3227,8 @@ static void config_di_mtnwr_mif(struct DI_SIM_MIF_s *di_mtnwr_mif,
 }
 
 /*ary move  to di_hw_v2.c */
-static void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
+//static
+void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
 			  unsigned int channel)
 {
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
@@ -3365,17 +3375,9 @@ static void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
 	}
 }
 
-static void di_pre_size_change(unsigned short width,
-			       unsigned short height,
-			       unsigned short vf_type,
-			       unsigned int channel);
-
-#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
-static void pre_inp_canvas_config(struct vframe_s *vf);
-#endif
-
 //static void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf);
-static void dim_canvas_set2(struct vframe_s *vf, u32 *index);
+//static
+//void dim_canvas_set2(struct vframe_s *vf, u32 *index);
 
 void dim_pre_de_process(unsigned int channel)
 {
@@ -3649,6 +3651,7 @@ void dim_pre_de_process(unsigned int channel)
 	}
 	if (IS_ERR_OR_NULL(ppre->di_inp_buf))
 		return;
+	s4dw_hpre_check_pps(); // for add s4cp
 
 	if (/*ppre->di_inp_buf && */ppre->di_inp_buf->vframe)
 		vf_i = ppre->di_inp_buf->vframe;
@@ -3658,6 +3661,9 @@ void dim_pre_de_process(unsigned int channel)
 	if (ppre->di_wr_buf->is_4k) {
 		ppre->pre_top_cfg.b.is_inp_4k = 1;
 		ppre->pre_top_cfg.b.is_mem_4k = 1;
+	} else {
+		ppre->pre_top_cfg.b.is_inp_4k = 0;
+		ppre->pre_top_cfg.b.is_mem_4k = 0;
 	}
 	if (ppre->input_size_change_flag) {
 		if (dim_afds() && dim_afds()->rest_val)
@@ -3769,6 +3775,12 @@ void dim_pre_de_process(unsigned int channel)
 		if (ppre->di_chan2_buf_dup_p &&
 		    ppre->di_chan2_buf_dup_p->vframe)
 			vf_chan2 = ppre->di_chan2_buf_dup_p->vframe;
+		/*use di_pulldown transfer s4cp infor*/
+		vf_i->di_pulldown = 0;
+		if (vf_mem)
+			vf_mem->di_pulldown = 0;
+		if (vf_chan2)
+			vf_chan2->di_pulldown = 0;
 
 		if (/*ppre->di_wr_buf && */ppre->di_wr_buf->vframe)
 			dim_afds()->en_pre_set(vf_i,
@@ -3952,7 +3964,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 	pch = get_chdata(channel);
 	if (ppre->di_wr_buf) {
 		if (flg_timeout) {
-			hpre_timeout_read();
+			//hpre_timeout_read();
 			if (DIM_IS_IC_EF(SC2))
 				opl1()->pre_gl_sw(false);
 			else
@@ -4492,7 +4504,8 @@ static struct di_buf_s *get_free_linked_buf(int idx, unsigned int channel)
 }
 
 #ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
-static void pre_inp_canvas_config(struct vframe_s *vf)
+//static
+void pre_inp_canvas_config(struct vframe_s *vf)
 {
 	struct di_cvs_s *cvss;
 
@@ -5168,7 +5181,6 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 #endif
 		}
 	} else {
-
 		nins = nins_peek_pre(pch);
 		if (!nins)
 			return 10;
@@ -5542,6 +5554,8 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				ppre->cur_width = di_buf->vframe->width;
 				ppre->cur_height = di_buf->vframe->height;
 			}
+			ppre->pps_width = ppre->cur_width;
+			ppre->pps_height = ppre->cur_height;
 			/* pps count */
 			if (dip_cfg_is_pps_4k(channel)) {
 				if (VFMT_IS_I(ppre->cur_inp_type)) {
@@ -5561,6 +5575,40 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 						dimp_set(edi_mp_pps_dstw, pps_w);
 						dimp_set(edi_mp_pps_dsth, pps_h);
 					}
+				}
+			}
+			if (dip_cfg_afbc_skip() && IS_COMP_MODE(vframe->type)) {
+				PR_INF("enable afbc skip\n");
+				pps_w = ppre->cur_width >> 1;
+				pps_h = ppre->cur_height >> 1;
+				//dip_cfg_afbcskip_s(pps_w, pps_h);
+				ppre->afbc_skip_w = pps_w;
+				ppre->afbc_skip_h = pps_h;
+				//dip_cfg_afbcskip_ori_s(ppre->cur_width, ppre->cur_height);
+				ppre->pps_width = pps_w;
+				ppre->pps_height = pps_h;
+
+				if (dip_cfg_afbc_pps()) {
+					PR_INF("en pps\n");
+					de_devp->pps_enable = true;
+					pps_w = pps_w >> 1;
+					pps_h = pps_h >> 1;
+					//dip_cfg_afbcskip_pps_s(pps_w, pps_h);
+					ppre->pps_dstw = pps_w;
+					ppre->pps_dsth = pps_h;
+#ifdef DBG_BUFFER_FLOW
+					/* by hand */
+					if (afbc_skip_pps_w)
+						ppre->pps_dstw = afbc_skip_pps_w;
+					if (afbc_skip_pps_h)
+						ppre->pps_dsth = afbc_skip_pps_h;
+
+#endif
+					dimp_set(edi_mp_pps_position, 1);
+					dimp_set(edi_mp_pps_dstw, ppre->pps_dstw);
+					dimp_set(edi_mp_pps_dsth, ppre->pps_dsth);
+				} else {
+					de_devp->pps_enable = false;
 				}
 			}
 			/* dw */
@@ -6147,7 +6195,16 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		di_buf->local_ud_used_size = 0;
 	}
 
-	if (de_devp->pps_enable && dimp_get(edi_mp_pps_position)) {
+	if (dip_cfg_afbc_skip()) {
+		di_buf->vframe->width = ppre->afbc_skip_w;
+		di_buf->vframe->height = ppre->afbc_skip_h;
+		ppre->width_bk = ppre->afbc_skip_w;
+		if (dip_cfg_afbc_pps()) {
+			di_buf->vframe->width = ppre->pps_dstw;
+			di_buf->vframe->height = ppre->pps_dsth;
+			ppre->width_bk = ppre->pps_dstw;
+		}
+	} else if (de_devp->pps_enable && dimp_get(edi_mp_pps_position)) {
 		if (dimp_get(edi_mp_pps_dstw) != di_buf->vframe->width) {
 			di_buf->vframe->width = dimp_get(edi_mp_pps_dstw);
 			ppre->width_bk = dimp_get(edi_mp_pps_dstw);
@@ -6709,10 +6766,12 @@ void dim_irq_pre(void)
 		ppre->timeout_check = false;
 	}
 	if (flag) {
-		if (DIM_IS_IC_EF(SC2))
+		if (DIM_IS_IC_EF(SC2)) {
 			opl1()->pre_gl_sw(false);
-		else
+			dim_print("c:0x%x:0x%x\n", DI_RO_PRE_DBG, DIM_RDMA_RD(DI_RO_PRE_DBG));
+		} else {
 			hpre_gl_sw(false);
+		}
 		DIM_DI_WR(DI_INTR_CTRL,
 			  (data32 & 0xfffffffb) | (intr_mode << 30));
 	}
@@ -7057,7 +7116,8 @@ bool dim_cfg_pre_nv21(unsigned int cmd)
  *	set vf->canvas0Addr
  *
  **********************************************************/
-static void dim_canvas_set2(struct vframe_s *vf, u32 *index)
+//static
+void dim_canvas_set2(struct vframe_s *vf, u32 *index)
 {
 	int i;
 	u32 *canvas_index = index;
@@ -7076,13 +7136,10 @@ static void dim_canvas_set2(struct vframe_s *vf, u32 *index)
 	vf->canvas0Addr = 0;
 	for (i = 0; i < planes; i++, canvas_index++, cfg++) {
 		canvas_config_config(*canvas_index, cfg);
-		#ifdef CVS_UINT
-		dim_print("\tw[%d],h[%d],cid[%d],0x%x\n",
-			  cfg->width, cfg->height, *canvas_index, cfg->phy_addr);
-		#else
 		dim_print("\tw[%d],h[%d],cid[%d],0x%lx\n",
-			  cfg->width, cfg->height, *canvas_index, cfg->phy_addr);
-		#endif
+			  cfg->width, cfg->height, *canvas_index,
+			  (unsigned long)cfg->phy_addr);
+
 		shift = 8 * i;
 		vf->canvas0Addr |= (*canvas_index << shift);
 		//vf->plane_num = planes;
@@ -7193,22 +7250,15 @@ static void dimpst_fill_outvf(struct vframe_s *vfm,
 		cvsp->block_mode = 0;
 		cvsp->endian = 0;
 	}
-	#ifdef CVS_UINT
-	dim_print("%s:%d:addr0[0x%x], 1[0x%x],w[%d,%d]\n",
-		__func__,
-	ext_buf, vfm->canvas0_config[0].phy_addr,
-		vfm->canvas0_config[1].phy_addr,
-		vfm->canvas0_config[0].width,
-		vfm->canvas0_config[0].height);
-	#else
+
 	dim_print("%s:%d:addr0[0x%lx], 1[0x%lx],w[%d,%d]\n",
 		__func__,
 		ext_buf,
-		vfm->canvas0_config[0].phy_addr,
-		vfm->canvas0_config[1].phy_addr,
+		(unsigned long)vfm->canvas0_config[0].phy_addr,
+		(unsigned long)vfm->canvas0_config[1].phy_addr,
 		vfm->canvas0_config[0].width,
 		vfm->canvas0_config[0].height);
-	#endif
+
 	/* type */
 	if (mode == EDPST_OUT_MODE_NV21 ||
 	    mode == EDPST_OUT_MODE_NV12) {
@@ -10060,6 +10110,7 @@ void di_unreg_setting(void)
 	if (dim_hdr_ops())
 		dim_hdr_ops()->unreg_setting();
 	dim_dw_unreg_setting();
+	dim_pps_disable();//tmp
 
 	dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
 	post_close_new();	/*2018-11-29*/
@@ -10325,7 +10376,8 @@ static void di_load_pq_table(void)
 	}
 }
 
-static void di_pre_size_change(unsigned short width,
+//static
+void di_pre_size_change(unsigned short width,
 			       unsigned short height,
 			       unsigned short vf_type,
 			       unsigned int channel)
@@ -10387,20 +10439,24 @@ static void di_pre_size_change(unsigned short width,
 
 	if (de_devp->nrds_enable)
 		dim_nr_ds_init(width, height);
-	if (de_devp->pps_enable	&& dimp_get(edi_mp_pps_position)) {
-		pps_w = ppre->cur_width;
+	if (ppre->used_pps)
+		dimp_set(edi_mp_pps_position, 1);
+	if ((de_devp->pps_enable	|| ppre->used_pps) &&
+	    dimp_get(edi_mp_pps_position)) {
+		pps_w = ppre->pps_width;
 		if (vf_type & VIDTYPE_TYPEMASK) {
-			pps_h = ppre->cur_height >> 1;
+			pps_h = ppre->pps_height >> 1;
 			dim_pps_config(1, pps_w, pps_h,
 				       dimp_get(edi_mp_pps_dstw),
 				       (dimp_get(edi_mp_pps_dsth) >> 1));
 		} else {
-			pps_h = ppre->cur_height;
+			pps_h = ppre->pps_height;
 			dim_pps_config(1, pps_w, pps_h,
 				       dimp_get(edi_mp_pps_dstw),
 				       (dimp_get(edi_mp_pps_dsth)));
 		}
 	}
+
 	if (is_meson_sm1_cpu() || is_meson_tm2_cpu()	||
 	    DIM_IS_IC(T5)	||
 	    DIM_IS_IC(T5DB)	||
@@ -10458,9 +10514,6 @@ static void di_pre_size_change(unsigned short width,
 		//dim_sc2_contr_pre(sc2_pre_cfg);
 	}
 }
-
-#define DIM_BYPASS_VF_TYPE	(VIDTYPE_MVC | VIDTYPE_VIU_444 | \
-				 VIDTYPE_PIC | VIDTYPE_RGB_444)
 
 void dim_vf_x_y(struct vframe_s *vf, unsigned int *x, unsigned int *y)
 {

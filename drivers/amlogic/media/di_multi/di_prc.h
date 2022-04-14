@@ -467,4 +467,74 @@ bool dim_dbg_is_force_later(void);
 
 void sct_polling(struct di_ch_s *pch, unsigned int pos);
 void dip_out_ch(void);
+bool dip_cfg_afbc_skip(void);
+bool dip_cfg_afbc_pps(void);
+
+void afbcskip_reg_variable(struct di_ch_s *pch, struct vframe_s *vframe);
+bool s4dw_test_ins(void);
+//extern const struct di_mm_cfg_s c_mm_cfg_s4_cp;//check no need;
+extern const struct dim_s4dw_data_s dim_s4dw_def;
+//unsigned char s4dw_pre_buf_config(struct di_ch_s *pch);
+enum DI_ERRORTYPE s4dw_empty_input(struct di_ch_s *pch, struct di_buffer *buffer);
+
+void dim_pps_disable(void);
+
+unsigned char is_source_change(vframe_t *vframe, unsigned int channel);
+#ifdef CONFIG_AMLOGIC_MEDIA_MULTI_DEC
+void pre_inp_canvas_config(struct vframe_s *vf);
+#endif
+void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
+			  unsigned int channel);
+void dim_canvas_set2(struct vframe_s *vf, u32 *index);
+void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
+			      int mtn_canvas_idx);
+void config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
+		 struct DI_SIM_MIF_s *di_mtnwr_mif,
+		 struct di_buf_s *di_buf, unsigned int channel);
+void config_di_mtnwr_mif(struct DI_SIM_MIF_s *di_mtnwr_mif,
+				struct di_buf_s *di_buf);
+
+void di_pre_size_change(unsigned short width,
+			       unsigned short height,
+			       unsigned short vf_type,
+			       unsigned int channel);
+void dim_nr_ds_hw_ctrl(bool enable);
+void config_di_cnt_mif(struct DI_SIM_MIF_s *di_cnt_mif,
+			      struct di_buf_s *di_buf);
+#ifdef S4D_OLD_SETTING_KEEP
+void config_canvas_idx_mtn(struct di_buf_s *di_buf,
+				  int mtn_canvas_idx);
+void config_cnt_canvas_idx(struct di_buf_s *di_buf,
+				  unsigned int cnt_canvas_idx);
+#endif
+#ifdef TMP_S4DW_MC_EN
+void config_mcinfo_canvas_idx(struct di_buf_s *di_buf,
+				     int mcinfo_canvas_idx);
+void config_mcvec_canvas_idx(struct di_buf_s *di_buf,
+				    int mcvec_canvas_idx);
+void config_di_mcinford_mif(struct DI_MC_MIF_s *di_mcinford_mif,
+		       struct di_buf_s *di_buf);
+void config_di_pre_mc_mif(struct DI_MC_MIF_s *di_mcinfo_mif,
+		     struct DI_MC_MIF_s *di_mcvec_mif,
+		     struct di_buf_s *di_buf);
+#endif /* TMP_S4DW_MC_EN */
+
+void dpre_recyc(unsigned int ch);
+
+extern const struct do_table_ops_s s4dw_hw_processt[4];
+void s4dw_parser_infor(struct di_ch_s *pch);
+void check_tvp_state(struct di_ch_s *pch);
+
+void s4dw_hpre_check_pps(void);
+void dim_dbg_buffer_flow(struct di_ch_s *pch,
+			 unsigned long addr,
+			 unsigned long addr2,
+			 unsigned int pos);
+void dim_dbg_buffer_ext(struct di_ch_s *pch,
+			struct di_buffer *buffer,
+			unsigned int pos);
+void dim_dbg_vf_cvs(struct di_ch_s *pch,
+			struct vframe_s *vfm,
+			unsigned int pos);
+
 #endif	/*__DI_PRC_H__*/

@@ -558,7 +558,7 @@ void dim_pps_config(unsigned char path, int src_w, int src_h,
 	   (vert_bank_length << 0)	/* vert scaler bank length */
 	   );
 
-	pr_info("[pps] %s input %d %d output %d %d.\n",
+	dbg_copy("[pps] %s input %d %d output %d %d.\n",
 		path ? "pre" : "post", src_w, src_h, dst_w, dst_h);
 }
 

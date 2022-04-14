@@ -875,6 +875,9 @@ unsigned int dpre_check_mode(unsigned int ch)
 
 	if (!vframe)
 		return EDI_WORK_MODE_NONE;
+	if (pch->itf.flg_s4dw)
+		return EDI_WORK_MODE_S4DW;
+
 	mode = pre_cfg_count_mode(ch, vframe);/*EDI_WORK_MODE_ALL;*/
 
 	return mode;
@@ -923,18 +926,16 @@ bool dpre_step4_check(void)
 		return true;
 	}
 	pre->idle_cnt = 0;
-	if (mode == EDI_WORK_MODE_P_AS_I) {
-		#ifdef MARK_SC2
+	if (mode == EDI_WORK_MODE_S4DW) {
 		do_table_init(&pre->sdt_mode,
-			      &pre_mode_proc[0],
-			      ARRAY_SIZE(pre_mode_proc));
-		pre->sdt_mode.name = "mproc";
-		#else
+			      &s4dw_hw_processt[0],
+			      ARRAY_SIZE(s4dw_hw_processt));
+		pre->sdt_mode.name = "s4dw";
+	} else if (mode == EDI_WORK_MODE_P_AS_I) {
 		do_table_init(&pre->sdt_mode,
 			      &pr_mode_total[0],
 			      ARRAY_SIZE(pr_mode_total));
 		pre->sdt_mode.name = "mtotal";
-		#endif
 
 	} else {
 		do_table_init(&pre->sdt_mode,

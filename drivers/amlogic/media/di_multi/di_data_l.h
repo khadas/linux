@@ -102,6 +102,7 @@
 	| VIDTYPE_RGB_444		\
 	| VIDTYPE_V4L_EOS)
 
+#define DIM_S4DW_REG_BACK_NUB	5
 enum EDI_MEM_M {
 	EDI_MEM_M_REV = 0,
 	EDI_MEM_M_CMA = 1,
@@ -503,6 +504,7 @@ struct dim_wmode_s {
 	unsigned int o_w;
 	unsigned int seq;
 	unsigned int seq_sgn;
+	u32 bypass_reason; //add 2022-04-05
 };
 
 /**************************************/
@@ -571,6 +573,7 @@ struct di_hpre_s {
 	union hw_sc2_ctr_pre_s pre_top_cfg;
 
 	unsigned int self_trig_mask;
+	bool used_pps;
 };
 
 /**************************************/
@@ -1131,6 +1134,7 @@ enum EDI_WORK_MODE {
 	EDI_WORK_MODE_P_AS_P,
 	EDI_WORK_MODE_P_USE_IBUF,
 	EDI_WORK_MODE_NEW_2020, /* ary for test */
+	EDI_WORK_MODE_S4DW,
 	EDI_WORK_MODE_ALL,
 
 };
@@ -1185,6 +1189,14 @@ struct dim_itf_ops_s {
 	void (*put)(void *data, struct di_ch_s *pch);
 };
 
+struct dim_s4dw_data_s {
+	void (*reg_variable)(struct di_ch_s *pch, struct vframe_s *vfm);
+	u32 (*is_bypass)(struct di_ch_s *pch, struct vframe_s *vfm);
+	u32 (*is_bypass_sys)(struct di_ch_s *pch);
+	bool (*fill_2_ready_bynins)(struct di_ch_s *pch,
+				    struct dim_nins_s *nins);
+};
+
 //n struct dim_inter_s {
 struct dim_itf_s {
 	enum EDIM_NIN_TYPE etype;
@@ -1193,8 +1205,11 @@ struct dim_itf_s {
 	unsigned int ch;
 	/*status:*/
 	bool bypass_complete;
+	bool flg_s4dw; /* copy */
 	bool reg;
 	struct mutex lock_reg; /* for reg */
+	struct mutex lock_in; /* for input */
+	//struct mutex lock_buffer; /* for ext buffer*/
 	struct dim_itf_ops_s opsi;
 	struct dim_itf_ops_s opso;
 	void (*op_post_done)(struct di_ch_s *pch);
@@ -1818,50 +1833,6 @@ enum QBF_MEM_Q_TYPE {
  * 2020-06-16 test
  ************************************************/
 
-#ifdef MARK_HIS //move up
-struct dim_wmode_s {
-	//enum EDIM_TMODE		tmode;
-	unsigned int	buf_type;	/*add this to split kinds */
-	unsigned int	is_afbc		:1,
-		is_vdin			:1,
-		is_i			:1,
-		need_bypass		:1,
-		is_bypass		:1,
-		pre_bypass		:1,
-		post_bypass		:1,
-		flg_keep		:1, /*keep buf*/
-
-		trick_mode		:1,
-		prog_proc_config	:1, /*debug only: proc*/
-	/**************************************
-	 *prog_proc_config:	same as p_as_i?
-	 *1: process p from decoder as field
-	 *0: process p from decoder as frame
-	 ***************************************/
-		is_invert_tp		:1,
-		p_as_i			:1,
-		p_as_p			:1,
-		p_use_2i		:1,
-		is_angle		:1,
-		is_top			:1, /*include */
-		is_eos			:1,
-		is_eos_insert		:1, /* this is internal eos */
-		bypass			:1, /* is_bypass | need_bypass*/
-		reserved		:13;
-	unsigned int vtype;	/*vfm->type*/
-	//unsigned int h;	/*taget h*/
-	//unsigned int w;	/*taget w*/
-	unsigned int src_h;
-	unsigned int src_w;
-	unsigned int tgt_h;
-	unsigned int tgt_w;
-	unsigned int o_h;
-	unsigned int o_w;
-	unsigned int seq;
-	unsigned int seq_sgn;
-};
-#endif
-
 enum EDIM_TMODE {
 	EDIM_TMODE_NONE,
 	EDIM_TMODE_1_PW_VFM,
@@ -1983,6 +1954,7 @@ struct di_ch_s {
 	struct qs_cls_s		npst_que; /*new interface */
 	struct dim_itf_s itf;
 	void *dct_pre; /* struct di_pre_dct_s */
+	const struct dim_s4dw_data_s *s4dw;
 	/**/
 	unsigned char sts_mem_pre_cfg;
 	unsigned char sts_mem_2_local;
@@ -1996,6 +1968,7 @@ struct di_ch_s {
 	bool cst_no_dw;
 	bool en_dw;
 	bool en_dw_mem;
+	unsigned int last_bypass;
 };
 
 struct dim_policy_s {
@@ -2229,6 +2202,7 @@ struct di_data_l_s {
 	unsigned char hf_owner;	//
 	bool	hf_busy;//
 	unsigned int ic_sub_ver;
+	struct reg_t s4dw_reg[DIM_S4DW_REG_BACK_NUB];
 };
 
 /**************************************

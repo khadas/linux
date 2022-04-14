@@ -2244,6 +2244,26 @@ static const struct reg_t rtab_sc2_contr_bits_tab[] = {
 	{DI_TOP_CTRL, 19, 3, 0, "",
 			"if2",
 			""},
+	/***********************************************/
+	/*below is for t7:*/
+	{AFBCDM_INP_CTRL0, 14, 1, 0, "AFBCDM_INP_CTRL0",
+			"is_inp_4k",
+			""},
+	{AFBCDM_INP_CTRL0, 13, 1, 0, "",
+			"afbc_inp",
+			"1:afbc_dec 0:nor_rdmif"},
+	{AFBCDM_CHAN2_CTRL0, 14, 1, 0, "AFBCDM_CHAN2_CTRL0",
+			"is_chan2_4k",
+			""},
+	{AFBCDM_CHAN2_CTRL0, 13, 1, 0, "",
+			"afbc_chan2",
+			""},
+	{AFBCDM_MEM_CTRL0, 14, 1, 0, "AFBCDM_MEM_CTRL0",
+			"is_mem_4k",
+			""},
+	{AFBCDM_MEM_CTRL0, 13, 1, 0, "",
+			"afbc_mem",
+			""},
 	{TABLE_FLG_END, 0, 0, 0, "end", "end", ""},
 
 };

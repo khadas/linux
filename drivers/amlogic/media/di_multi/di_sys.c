@@ -266,6 +266,47 @@ bool dim_mm_release(int cma_mode,
 	return ret;
 }
 
+bool cma_alloc_blk_block(struct dim_mm_blk_s *blk_buf,
+		      unsigned int cma_type,
+		      unsigned int tvp,
+		      unsigned int size_page)
+{
+	bool aret;
+	struct dim_mm_s omm;
+
+	aret = dim_mm_alloc_api(cma_type,
+				size_page,
+				&omm, 0); //ary tmp tvp set 0
+	if (!aret) {
+		blk_buf->pages		= NULL;
+		blk_buf->flg_alloc	= false;
+		PR_ERR("%s:fail.\n",	__func__);
+		return false;
+	}
+	blk_buf->pages	= omm.ppage;
+	blk_buf->mem_start	= omm.addr;
+	blk_buf->flg.b.page	= size_page;
+	blk_buf->flg_alloc	= true;
+	return true;
+}
+
+void cma_release_blk_block(struct dim_mm_blk_s *blk_buf,
+				  unsigned int cma_type)
+{
+	if (!blk_buf->pages) {
+		PR_WARN("%s:no pages\n", __func__);
+		return;
+	}
+
+	dim_mm_release_api(cma_type,
+			   blk_buf->pages,
+			   blk_buf->flg.b.page,
+			   blk_buf->mem_start);
+	blk_buf->pages = NULL;
+	blk_buf->flg.d32 = 0;
+	blk_buf->flg_alloc = false;
+}
+
 unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
 {
 	struct dim_mm_t_s *mmt = dim_mmt_get();
@@ -1479,6 +1520,16 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->canvas_width[NR_CANVAS]	= mm->cfg.pst_cvs_w;
 		buf_p->canvas_height	= mm->cfg.pst_cvs_h;
 		buf_p->insert_adr	= 0;
+		#ifdef DBG_CLEAR_MEM
+		afbce_map.tabadd	= buf_p->adr_start;
+		afbce_map.size_tab	= mm->cfg.size_post;
+		dim_int_tab(&devp->pdev->dev,
+							    &afbce_map);
+		PR_INF("%s:addr:0x%lx, canvas_height[%d]\n",
+			__func__,
+			buf_p->nr_adr,
+			buf_p->canvas_height);
+		#endif
 	}
 
 	dbg_mem2("%s:%px,btype[%d]:index[%d]:i[%d]:nr[0x%lx]:hf:[0x%lx]\n", __func__,
