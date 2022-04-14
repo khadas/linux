@@ -43,11 +43,6 @@
 		tsensor1 = &d_tsensor;
 	};
 
-	memory@00000000 {
-		device_type = "memory";
-		linux,usable-memory = <0x0 0x000000 0x0 0x80000000>;
-	};
-
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
