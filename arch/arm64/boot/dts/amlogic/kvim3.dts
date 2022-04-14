@@ -628,7 +628,7 @@
 			};
 			tdmbcodec: codec {
 				sound-dai = <&dummy_codec &dummy_codec
-				&amlogic_codec &ad82584f_62>;
+				&amlogic_codec>;
 			};
 		};
 
@@ -857,30 +857,6 @@
 	pinctrl-0=<&i2c3_master_pins2>;
 	clock-frequency = <100000>; /* default 100k */
 
-	/* for ref board */
-	ad82584f_62: ad82584f_62@62 {
-		compatible = "ESMT, ad82584f";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "okay";
-		reset_pin = <&gpio GPIOA_5 0>;
-		no_mclk;
-	};
-
-	tlv320adc3101_32: tlv320adc3101_32@32 {
-		compatible = "ti,tlv320adc3101";
-		#sound-dai-cells = <0>;
-		reg = <0x19>;
-		differential_pair = <1>;
-		status = "disabled";
-	};
-
-	bl_extern_i2c {
-		compatible = "bl_extern, i2c";
-		dev_name = "lp8556";
-		reg = <0x2c>;
-		status = "disabled";
-	};
 };
 
 &i2c_AO {
