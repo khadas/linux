@@ -49,10 +49,6 @@
 		tsensor5 = &vpu_tsensor;
 	};
 
-	chosen {
-		kaslr-seed = <0x0 0x0>;
-	};
-
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x0 0x000000 0x0 0x80000000>;

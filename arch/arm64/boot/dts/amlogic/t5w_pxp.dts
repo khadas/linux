@@ -24,10 +24,6 @@
 		i2c3 = &i2c3;
 	};
 
-	chosen {
-		kaslr-seed = <0x0 0x0>;
-	};
-
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x0 0x0 0x0 0x40000000>;
