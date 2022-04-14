@@ -1879,6 +1879,10 @@
 		status = "okay";
 		reg = <0x0 0xfe440200 0x0 0x80>;
 	};
+
+	chosen {
+		kaslr-seed = <0x0 0x0>;
+	};
 };
 
 &periphs_pinctrl {

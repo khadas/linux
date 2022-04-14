@@ -1482,6 +1482,10 @@
 			size = <16>;
 		};
 	};
+
+	chosen {
+		kaslr-seed = <0x0 0x0>;
+	};
 };
 
 &periphs_pinctrl {

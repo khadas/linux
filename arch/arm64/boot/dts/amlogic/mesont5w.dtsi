@@ -1863,6 +1863,10 @@
 			interrupt-names = "vpu_security";
 		};
 	};
+
+	chosen {
+		kaslr-seed = <0x0 0x0>;
+	};
 }; /* end of / */
 
 &pinctrl_periphs {

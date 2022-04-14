@@ -813,6 +813,10 @@
 		compatible = "amlogic, vdac-sm1";
 		status = "okay";
 	};
+
+	chosen {
+		kaslr-seed = <0x0 0x0>;
+	};
 };
 
 &soc {

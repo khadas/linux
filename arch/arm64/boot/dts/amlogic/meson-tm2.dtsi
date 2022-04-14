@@ -890,6 +890,10 @@
 			opp-microvolt = <1150>;
 		};
 	};
+
+	chosen {
+		kaslr-seed = <0x0 0x0>;
+	};
 };
 
 &gpu{

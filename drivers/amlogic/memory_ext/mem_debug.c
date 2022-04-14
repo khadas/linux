@@ -71,6 +71,7 @@ void dump_mem_layout(char *buf)
 	pos += sprintf(buf + pos, "    memory  : 0x%16lx - 0x%16lx   (%6ld MB) 0x%lx\n",
 		MLM(__phys_to_virt(memblock_start_of_DRAM()),
 		    (unsigned long)high_memory), (unsigned long)memblock_start_of_DRAM());
+	pos += sprintf(buf + pos, "     offset : 0x%lx\n", kaslr_offset());
 #else
 		sprintf(buf, "Virtual kernel memory layout:\n"
 #ifdef CONFIG_KASAN

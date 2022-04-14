@@ -2234,6 +2234,10 @@
 		compatible = "amlogic,state-led-aocpu";
 		status = "disabled";
 	};
+
+	chosen {
+		kaslr-seed = <0x0 0x0>;
+	};
 };
 
 &periphs_pinctrl {

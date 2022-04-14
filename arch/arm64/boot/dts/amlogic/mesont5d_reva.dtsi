@@ -1894,6 +1894,9 @@
 		//pwm_config = <&wifi_pwm_conf>;
 	};
 
+	chosen {
+		kaslr-seed = <0x0 0x0>;
+	};
 }; /* end of / */
 
 &pinctrl_aobus {
