@@ -22,6 +22,7 @@
 
 #include "system_log.h"
 #include "gdc_dmabuf.h"
+#include "gdc_config.h"
 
 static void clear_dma_buffer(struct aml_dma_buffer *buffer, int index);
 
@@ -105,14 +106,27 @@ static void aml_dma_put(void *buf_priv)
 			__func__, atomic_read(&buf->refcount));
 		return;
 	}
-	cma_pages = phys_to_page(buf->dma_addr);
-	if (_is_vmalloc_or_module_addr(vaddr))
-		vunmap(vaddr);
-	if (!dma_release_from_contiguous(buf->dev, cma_pages,
-					 buf->size >> PAGE_SHIFT)) {
-		pr_err("failed to release cma buffer\n");
+
+	if (buf->sgt_base) {
+		sg_free_table(buf->sgt_base);
+		kfree(buf->sgt_base);
 	}
+
+	if (gdc_smmu_enable) {
+		dma_free_attrs(buf->dev, buf->size, buf->vaddr, buf->dma_addr,
+			       buf->attrs);
+	} else {
+		cma_pages = phys_to_page(buf->dma_addr);
+		if (_is_vmalloc_or_module_addr(vaddr))
+			vunmap(vaddr);
+		if (!dma_release_from_contiguous(buf->dev, cma_pages,
+						 buf->size >> PAGE_SHIFT)) {
+			pr_err("failed to release cma buffer\n");
+		}
+	}
+
 	buf->vaddr = NULL;
+	buf->sgt_base = NULL;
 	if (buf->index < AML_MAX_DMABUF && buf->priv)
 		clear_dma_buffer((struct aml_dma_buffer *)buf->priv,
 				 buf->index);
@@ -140,20 +154,33 @@ static void *aml_dma_alloc(struct device *dev, unsigned long attrs,
 
 	if (attrs)
 		buf->attrs = attrs;
-	cma_pages = dma_alloc_from_contiguous(dev,
-					      size >> PAGE_SHIFT, 0, 0);
-	if (cma_pages) {
-		paddr = page_to_phys(cma_pages);
+
+	if (gdc_smmu_enable) {
+		buf->vaddr = dma_alloc_attrs(dev, size, &buf->dma_addr,
+						gfp_flags, buf->attrs);
+		if (!buf->vaddr) {
+			pr_err("failed to dma_alloc_coherent\n");
+			kfree(buf);
+			return NULL;
+		}
+
 	} else {
-		kfree(buf);
-		pr_err("failed to alloc cma pages.\n");
-		return NULL;
+		cma_pages = dma_alloc_from_contiguous(dev,
+						      size >> PAGE_SHIFT, 0, 0);
+		if (cma_pages) {
+			paddr = page_to_phys(cma_pages);
+		} else {
+			kfree(buf);
+			pr_err("failed to alloc cma pages.\n");
+			return NULL;
+		}
+		buf->vaddr = aml_map_phyaddr_to_virt(paddr, size);
+		buf->dma_addr = paddr;
 	}
-	buf->vaddr = aml_map_phyaddr_to_virt(paddr, size);
+
 	buf->dev = get_device(dev);
 	buf->size = size;
 	buf->dma_dir = dma_dir;
-	buf->dma_addr = paddr;
 	atomic_inc(&buf->refcount);
 	gdc_log(LOG_DEBUG, "aml_dma_buf=0x%p, refcont=%d\n",
 		buf, atomic_read(&buf->refcount));
@@ -168,21 +195,42 @@ static int aml_dma_mmap(void *buf_priv, struct vm_area_struct *vma)
 	unsigned long vsize;
 	int ret = -1;
 
-	if (!buf || !vma) {
-		pr_err("No memory to map\n");
-		return -EINVAL;
-	}
+	if (gdc_smmu_enable) {
+		if (!buf) {
+			pr_err("No buffer to map\n");
+			return -EINVAL;
+		}
 
-	vsize = vma->vm_end - vma->vm_start;
+		/*
+		 * dma_mmap_* uses vm_pgoff as in-buffer offset, but we want to
+		 * map whole buffer
+		 */
+		vma->vm_pgoff = 0;
 
-	pfn = buf->dma_addr >> PAGE_SHIFT;
-	ret = remap_pfn_range(vma, vma->vm_start, pfn,
-			      vsize, vma->vm_page_prot);
-	if (ret) {
-		pr_err("Remapping memory, error: %d\n", ret);
-		return ret;
+		ret = dma_mmap_attrs(buf->dev, vma, buf->vaddr,
+			buf->dma_addr, buf->size, buf->attrs);
+
+		if (ret) {
+			pr_err("Remapping memory failed, error: %d\n", ret);
+			return ret;
+		}
+	} else {
+		if (!buf || !vma) {
+			pr_err("No memory to map\n");
+			return -EINVAL;
+		}
+
+		vsize = vma->vm_end - vma->vm_start;
+
+		pfn = buf->dma_addr >> PAGE_SHIFT;
+		ret = remap_pfn_range(vma, vma->vm_start, pfn,
+				      vsize, vma->vm_page_prot);
+		if (ret) {
+			pr_err("Remapping memory, error: %d\n", ret);
+			return ret;
+		}
+		vma->vm_flags |= VM_DONTEXPAND;
 	}
-	vma->vm_flags |= VM_DONTEXPAND;
 
 	gdc_log(LOG_DEBUG, "mapped dma addr 0x%08lx at 0x%08lx, size %d\n",
 		(unsigned long)buf->dma_addr, vma->vm_start,
@@ -203,10 +251,9 @@ static int aml_dmabuf_ops_attach(struct dma_buf *dbuf,
 {
 	struct aml_attachment *attach;
 	struct aml_dma_buf *buf = dbuf->priv;
-	int num_pages = PAGE_ALIGN(buf->size) / PAGE_SIZE;
+	struct scatterlist *rd, *wr;
 	struct sg_table *sgt;
-	struct scatterlist *sg;
-	phys_addr_t phys = buf->dma_addr;
+	dma_addr_t dev_addr = buf->dma_addr;
 	unsigned int i;
 	int ret;
 
@@ -215,19 +262,21 @@ static int aml_dmabuf_ops_attach(struct dma_buf *dbuf,
 		return -ENOMEM;
 
 	sgt = &attach->sgt;
-	/* Copy the buf->base_sgt scatter list to the attachment, as we can't
-	 * map the same scatter list to multiple attachments at the same time.
-	 */
-	ret = sg_alloc_table(sgt, num_pages, GFP_KERNEL);
+
+	ret = sg_alloc_table(sgt, buf->sgt_base->orig_nents, GFP_KERNEL);
 	if (ret) {
 		kfree(attach);
 		return -ENOMEM;
 	}
-	for_each_sg(sgt->sgl, sg, sgt->nents, i) {
-		struct page *page = phys_to_page(phys);
 
-		sg_set_page(sg, page, PAGE_SIZE, 0);
-		phys += PAGE_SIZE;
+	rd = buf->sgt_base->sgl;
+	wr = sgt->sgl;
+	for (i = 0; i < sgt->orig_nents; i++) {
+		sg_dma_address(wr) = dev_addr;
+		sg_set_page(wr, sg_page(rd), rd->length, rd->offset);
+		dev_addr += rd->length;
+		rd = sg_next(rd);
+		wr = sg_next(wr);
 	}
 
 	attach->dma_dir = DMA_NONE;
@@ -247,10 +296,12 @@ static void aml_dmabuf_ops_detach(struct dma_buf *dbuf,
 
 	sgt = &attach->sgt;
 
-	/* release the scatterlist cache */
-	if (attach->dma_dir != DMA_NONE)
-		dma_unmap_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
-			     attach->dma_dir);
+	if (!gdc_smmu_enable) {
+		/* release the scatterlist cache */
+		if (attach->dma_dir != DMA_NONE)
+			dma_unmap_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
+				     attach->dma_dir);
+	}
 	sg_free_table(sgt);
 	kfree(attach);
 	db_attach->priv = NULL;
@@ -273,22 +324,23 @@ static struct sg_table *aml_dmabuf_ops_map(struct dma_buf_attachment *db_attach,
 		return sgt;
 	}
 
-	/* release any previous cache */
-	if (attach->dma_dir != DMA_NONE) {
-		dma_unmap_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
-			     attach->dma_dir);
-		attach->dma_dir = DMA_NONE;
-	}
+	if (!gdc_smmu_enable) {
+		/* release any previous cache */
+		if (attach->dma_dir != DMA_NONE) {
+			dma_unmap_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
+				     attach->dma_dir);
+			attach->dma_dir = DMA_NONE;
+		}
 
-	/* mapping to the client with new direction */
-	sgt->nents = dma_map_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
-				dma_dir);
-	if (!sgt->nents) {
-		pr_err("failed to map scatterlist\n");
-		mutex_unlock(lock);
-		return (void *)(-EIO);
+		/* mapping to the client with new direction */
+		sgt->nents = dma_map_sg(db_attach->dev, sgt->sgl, sgt->orig_nents,
+					dma_dir);
+		if (!sgt->nents) {
+			pr_err("failed to map scatterlist\n");
+			mutex_unlock(lock);
+			return (void *)(-EIO);
+		}
 	}
-
 	attach->dma_dir = dma_dir;
 
 	mutex_unlock(lock);
@@ -334,17 +386,41 @@ static struct dma_buf_ops gdc_dmabuf_ops = {
 	.map_dma_buf = aml_dmabuf_ops_map,
 	.unmap_dma_buf = aml_dmabuf_ops_unmap,
 	.map = aml_dmabuf_ops_kmap,
-	//.kmap_atomic = aml_dmabuf_ops_kmap, // TODO: jian.cao
 	.vmap = aml_dmabuf_ops_vmap,
 	.mmap = aml_dmabuf_ops_mmap,
 	.release = aml_dmabuf_ops_release,
 };
+
+static struct sg_table *gdc_dma_get_base_sgt(struct aml_dma_buf *buf)
+{
+	int ret;
+	struct sg_table *sgt;
+
+	sgt = kmalloc(sizeof(*sgt), GFP_KERNEL);
+	if (!sgt)
+		return NULL;
+
+	ret = dma_get_sgtable_attrs(buf->dev, sgt, buf->vaddr, buf->dma_addr,
+		buf->size, buf->attrs);
+	if (ret < 0) {
+		pr_err("failed to get scatterlist from DMA API\n");
+		kfree(sgt);
+		return NULL;
+	}
+
+	return sgt;
+}
 
 static struct dma_buf *get_dmabuf(void *buf_priv, unsigned long flags)
 {
 	struct aml_dma_buf *buf = buf_priv;
 	struct dma_buf *dbuf;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+
+	if (!buf->sgt_base)
+		buf->sgt_base = gdc_dma_get_base_sgt(buf);
+	if (WARN_ON(!buf->sgt_base))
+		return NULL;
 
 	exp_info.ops = &gdc_dmabuf_ops;
 	exp_info.size = buf->size;
@@ -461,7 +537,9 @@ int gdc_dma_buffer_alloc(struct aml_dma_buffer *buffer,
 	if (dma_buf->dma_dir == DMA_FROM_DEVICE)
 		dma_sync_single_for_cpu(dma_buf->dev,
 					dma_buf->dma_addr,
-					dma_buf->size, DMA_FROM_DEVICE);
+					dma_buf->size,
+					DMA_FROM_DEVICE);
+
 	return 0;
 }
 
@@ -605,6 +683,7 @@ static int gdc_dma_buffer_get_phys_internal(struct aml_dma_buffer *buffer,
 				cfg->dbuf = dbuf;
 				dma_buf = buffer->gd_buffer[i].mem_priv;
 				*addr = dma_buf->dma_addr;
+				cfg->vaddr = dma_buf->vaddr;
 				ret = 0;
 				break;
 			}
@@ -613,17 +692,25 @@ static int gdc_dma_buffer_get_phys_internal(struct aml_dma_buffer *buffer,
 	return ret;
 }
 
+void gdc_recycle_linear_config(struct aml_dma_cfg *cfg)
+{
+	dma_unmap_single(cfg->dev, cfg->linear_config.dma_addr,
+			 cfg->linear_config.buf_size, DMA_FROM_DEVICE);
+	kfree(cfg->linear_config.buf_vaddr);
+}
+
 int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 			    struct aml_dma_cfg *cfg, unsigned long *addr)
 {
 	struct sg_table *sg_table;
-	struct page *page;
-	int ret = -1;
+	int ret = -1, buf_size = 0, rc = 0;
+	void *buf_vaddr;
 
 	if (!cfg || cfg->fd < 0) {
 		pr_err("%s: error input param\n", __func__);
 		return -EINVAL;
 	}
+
 	ret = gdc_dma_buffer_get_phys_internal(buffer, cfg, addr);
 	if (ret < 0) {
 		gdc_log(LOG_DEBUG, "get_phys(fd=%d) is external.\n", cfg->fd);
@@ -634,11 +721,73 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 		}
 		if (cfg->sg) {
 			sg_table = cfg->sg;
-			page = sg_page(sg_table->sgl);
-			*addr = PFN_PHYS(page_to_pfn(page));
+			if (gdc_smmu_enable)
+				*addr = sg_dma_address(sg_table->sgl);
+			else
+				*addr = sg_phys(sg_table->sgl);
+
 			ret = 0;
 		}
+		/* config(firmware) buffer must be a physically continuous block memory
+		 * for smmu case, copy it to a new linear block.
+		 */
+		if (gdc_smmu_enable && cfg->is_config_buf && cfg->sg) {
+			sg_table = cfg->sg;
+			buf_size = cfg->dbuf->size;
+			buf_vaddr = kmalloc(buf_size, GFP_KERNEL);
+			if (!buf_vaddr) {
+				gdc_log(LOG_ERR, "%s %d, kmalloc err.\n", __func__, __LINE__);
+				return -ENOMEM;
+			}
+			rc = sg_copy_to_buffer(sg_table->sgl,
+					       sg_nents_for_len(sg_table->sgl,
+								buf_size),
+					       buf_vaddr, buf_size);
+			if (!rc) {
+				gdc_log(LOG_ERR, "sg_copy_to_buffer err.\n");
+				gdc_dma_buffer_unmap(cfg);
+				kfree(buf_vaddr);
+				return -ENOMEM;
+			}
+			*addr = dma_map_single(cfg->dev, buf_vaddr, buf_size,
+						DMA_TO_DEVICE);
+			if (dma_mapping_error(cfg->dev, *addr)) {
+				gdc_log(LOG_ERR, "dma_map_single err.\n");
+				gdc_dma_buffer_unmap(cfg);
+				kfree(buf_vaddr);
+				return -ENOMEM;
+			}
+
+			cfg->linear_config.buf_vaddr = buf_vaddr;
+			cfg->linear_config.buf_size = buf_size;
+			cfg->linear_config.dma_addr = *addr;
+		}
 		gdc_dma_buffer_unmap(cfg);
+	} else {
+		/* config(firmware) buffer must be a physically continuous block memory
+		 * for smmu case, copy it to a new linear block.
+		 */
+		if (gdc_smmu_enable && cfg->is_config_buf) {
+			buf_size = cfg->dbuf->size;
+			buf_vaddr = kmalloc(buf_size, GFP_KERNEL);
+			if (!buf_vaddr) {
+				gdc_log(LOG_ERR, "%s %d, kmalloc err.\n", __func__, __LINE__);
+				return -ENOMEM;
+			}
+
+			memcpy(buf_vaddr, cfg->vaddr, buf_size);
+			*addr = dma_map_single(cfg->dev, buf_vaddr, buf_size,
+						DMA_TO_DEVICE);
+			if (dma_mapping_error(cfg->dev, *addr)) {
+				gdc_log(LOG_ERR, "dma_map_single err.\n");
+				kfree(buf_vaddr);
+				return -ENOMEM;
+			}
+
+			cfg->linear_config.buf_vaddr = buf_vaddr;
+			cfg->linear_config.buf_size = buf_size;
+			cfg->linear_config.dma_addr = *addr;
+		}
 	}
 	return ret;
 }

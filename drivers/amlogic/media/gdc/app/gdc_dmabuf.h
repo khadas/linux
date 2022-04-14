@@ -26,6 +26,7 @@ struct aml_dma_buf {
 	/* DMABUF related */
 	struct dma_buf_attachment	*db_attach;
 	void                *priv;
+	struct sg_table			*sgt_base;
 };
 
 struct aml_dma_buf_priv {
@@ -55,4 +56,5 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 			    struct aml_dma_cfg *cfg, unsigned long *addr);
 void gdc_dma_buffer_dma_flush(struct device *dev, int fd);
 void gdc_dma_buffer_cache_flush(struct device *dev, int fd);
+void gdc_recycle_linear_config(struct aml_dma_cfg *cfg);
 #endif

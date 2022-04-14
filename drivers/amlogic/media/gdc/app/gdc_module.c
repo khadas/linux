@@ -39,6 +39,7 @@
 #include "gdc_wq.h"
 
 int gdc_log_level;
+int gdc_smmu_enable;
 struct gdc_manager_s gdc_manager;
 static int kthread_created;
 static struct gdc_irq_handle_wq irq_handle_wq[CORE_NUM];
@@ -49,20 +50,23 @@ static struct gdc_irq_handle_wq irq_handle_wq[CORE_NUM];
 static struct gdc_device_data_s arm_gdc_clk2 = {
 	.dev_type = ARM_GDC,
 	.clk_type = CORE_AXI,
-	.core_cnt = 1
+	.core_cnt = 1,
+	.smmu_support = 0
 };
 
 static struct gdc_device_data_s arm_gdc = {
 	.dev_type = ARM_GDC,
 	.clk_type = MUXGATE_MUXSEL_GATE,
 	.ext_msb_8g = 1,
-	.core_cnt = 1
+	.core_cnt = 1,
+	.smmu_support = 0
 };
 
 static struct gdc_device_data_s aml_gdc = {
 	.dev_type = AML_GDC,
 	.clk_type = MUXGATE_MUXSEL_GATE,
-	.core_cnt = 1
+	.core_cnt = 1,
+	.smmu_support = 0
 };
 
 static struct gdc_device_data_s aml_gdc_v2 = {
@@ -70,7 +74,8 @@ static struct gdc_device_data_s aml_gdc_v2 = {
 	.clk_type = GATE,
 	.bit_width_ext = 1,
 	.gamma_support = 1,
-	.core_cnt = 3
+	.core_cnt = 3,
+	.smmu_support = 1
 };
 
 static const struct of_device_id gdc_dt_match[] = {
@@ -764,6 +769,7 @@ static int gdc_process_input_dma_info(struct gdc_context_s *context,
 		cfg->fd = gdc_get_buffer_fd(i, &gs_ex->input_buffer);
 		cfg->dev = dev;
 		cfg->dir = DMA_TO_DEVICE;
+		cfg->is_config_buf = 0;
 		ret = gdc_buffer_get_phys(cfg, &addr);
 		if (ret < 0) {
 			gdc_log(LOG_ERR,
@@ -842,6 +848,7 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 		cfg->fd = gdc_get_buffer_fd(i, &gs_ex->output_buffer);
 		cfg->dev = dev;
 		cfg->dir = DMA_TO_DEVICE;
+		cfg->is_config_buf = 0;
 		ret = gdc_buffer_get_phys(cfg, &addr);
 		if (ret < 0) {
 			gdc_log(LOG_ERR,
@@ -916,6 +923,7 @@ static int gdc_process_ex_info(struct gdc_context_s *context,
 	cfg->fd = gs_ex->config_buffer.y_base_fd;
 	cfg->dev = dev;
 	cfg->dir = DMA_TO_DEVICE;
+	cfg->is_config_buf = 1;
 	ret = gdc_buffer_get_phys(cfg, &addr);
 	if (ret < 0) {
 		gdc_log(LOG_ERR, "dma import config fd %d failed\n",
@@ -2071,6 +2079,12 @@ static int gdc_platform_probe(struct platform_device *pdev)
 			gdc_log(LOG_ERR, "cannot create irq func gdc\n");
 			goto free_config;
 		}
+	}
+
+	if (gdc_data->smmu_support &&
+	    of_find_property(pdev->dev.of_node, "iommus", NULL)) {
+		gdc_smmu_enable = 1;
+		gdc_log(LOG_DEBUG, "enable smmu_support\n");
 	}
 
 	rc = of_property_read_u32(pdev->dev.of_node, "clk-rate", &clk_rate);
