@@ -189,16 +189,8 @@ static int s4_dmc_mon_set(struct dmc_monitor *mon)
 
 	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL, mon->device | 1 << 24, DMC_WRITE);
 
-	switch (dmc_mon->chip) {
-	case DMC_TYPE_T5W:
-	case DMC_TYPE_A5:
-		value = (1 << 24 | 0xffff);
-		break;
+	value = (1 << 24 | 0xffff);
 
-	default:
-		value = (1 << 24 | 0xff);
-		break;
-	}
 	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL1, value, DMC_WRITE);
 
 	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_IRQ_CTRL, 0x06, DMC_WRITE);

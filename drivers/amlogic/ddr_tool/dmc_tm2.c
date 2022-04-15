@@ -160,7 +160,7 @@ static int tm2_dmc_mon_set(struct dmc_monitor *mon)
 	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_RANGE, value, DMC_WRITE);
 
 	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL, mon->device | 1 << 24, DMC_WRITE);
-	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL1, 1 << 24 | 0xff, DMC_WRITE);
+	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT0_CTRL1, 1 << 24 | 0xffff, DMC_WRITE);
 	dmc_prot_rw(dmc_mon->io_mem1, DMC_PROT_IRQ_CTRL, 0x06, DMC_WRITE);
 
 	pr_emerg("range:%08lx - %08lx, device:%llx\n",
