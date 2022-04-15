@@ -1799,7 +1799,7 @@
 		};
 		acodec:codec {
 			#sound-dai-cells = <0>;
-			compatible = "amlogic, tm2_revb_acodec";
+			compatible = "amlogic, t3_acodec";
 			reg = <0x0 0xfe01a000 0x0 0x1c>;
 			tdmout_index = <1>;
 			tdmin_index = <1>;
