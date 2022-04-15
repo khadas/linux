@@ -3,38 +3,10 @@
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
 
-/* Standard Linux headers */
-#include <linux/types.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/cdev.h>
-#include <linux/platform_device.h>
-#include <linux/of.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/compat.h>
-#include <linux/slab.h>
-#include <linux/stat.h>
-#include <linux/errno.h>
-#include <linux/uaccess.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/ctype.h>/* for parse_para_pq */
-#include <linux/vmalloc.h>
-#include <linux/amlogic/media/vfm/vframe.h>
-#include <linux/amlogic/media/vout/vout_notify.h>
-#include <linux/io.h>
-#include <linux/poll.h>
-#include <linux/workqueue.h>
-#include <linux/sched/clock.h>
-//#include "vlock.h"
-//#include "vpp_hw.h"
 #include "vpp_common.h"
 #include "vpp_drv.h"
-//#include "vpp_data.h"
+#include "vpp_pq_mgr.h"
+#include "vpp_debug.h"
 
 unsigned int pr_lvl;
 struct vpp_dev_s *vpp_dev;
@@ -44,63 +16,52 @@ struct vpp_dev_s *get_vpp_dev(void)
 	return vpp_dev;
 }
 
-void vpp_parse_param(char *buf, char **param)
-{
-	char *ps, *token;
-	unsigned int n = 0;
-	char delim1[3] = " ";
-	char delim2[2] = "\n";
-
-	ps = buf;
-	strcat(delim1, delim2);
-	while (1) {
-		token = strsep(&ps, delim1);
-		if (!token)
-			break;
-		if (*token == '\0')
-			continue;
-		param[n++] = token;
-	}
-}
-
-static ssize_t vpp_debug_show(struct class *class,
-	struct class_attribute *attr,
-	char *buf)
-{
-	pr_info("echo dbg_lvl value > /sys/class/aml_vpp/vpp_debug");
-
-	return 0;
-}
-
-static ssize_t vpp_debug_store(struct class *class,
-	struct class_attribute *attr,
-	const char *buf, size_t count)
-{
-	ulong val;
-	char *buf_org;
-	char *param[8];
-
-	buf_org = kstrdup(buf, GFP_KERNEL);
-	if (!buf_org)
-		return -ENOMEM;
-
-	vpp_parse_param(buf_org, param);
-
-	if (!strcmp(param[0], "dbg_lvl")) {
-		if (kstrtoul(param[0], 10, &val) < 0)
-			goto fr_bf;
-
-		pr_lvl = (uint)val;
-		PR_DRV("pr_lvl = %d\n", pr_lvl);
-	}
-
-fr_bf:
-	kfree(buf_org);
-	return count;
-}
-
 const struct class_attribute vpp_class_attr[] = {
-	__ATTR(vpp_debug, 0644, vpp_debug_show, vpp_debug_store),
+	__ATTR(vpp_debug, 0644,
+		vpp_debug_show,
+		vpp_debug_store),
+	__ATTR(vpp_brightness, 0644,
+		vpp_debug_brightness_show,
+		vpp_debug_brightness_store),
+	__ATTR(vpp_brightness_post, 0644,
+		vpp_debug_brightness_post_show,
+		vpp_debug_brightness_post_store),
+	__ATTR(vpp_contrast, 0644,
+		vpp_debug_contrast_show,
+		vpp_debug_contrast_store),
+	__ATTR(vpp_contrast_post, 0644,
+		vpp_debug_contrast_post_show,
+		vpp_debug_contrast_post_store),
+	__ATTR(vpp_sat, 0644,
+		vpp_debug_saturation_show,
+		vpp_debug_saturation_store),
+	__ATTR(vpp_sat_post, 0644,
+		vpp_debug_saturation_post_show,
+		vpp_debug_saturation_post_store),
+	__ATTR(vpp_hue, 0644,
+		vpp_debug_hue_show,
+		vpp_debug_hue_store),
+	__ATTR(vpp_hue_post, 0644,
+		vpp_debug_hue_post_show,
+		vpp_debug_hue_post_store),
+	__ATTR(vpp_pre_gamma, 0644,
+		vpp_debug_pre_gamma_show,
+		vpp_debug_pre_gamma_store),
+	__ATTR(vpp_gamma, 0644,
+		vpp_debug_gamma_show,
+		vpp_debug_gamma_store),
+	__ATTR(vpp_pre_gamma_pattern, 0644,
+		vpp_debug_pre_gamma_pattern_show,
+		vpp_debug_pre_gamma_pattern_store),
+	__ATTR(vpp_gamma_pattern, 0644,
+		vpp_debug_gamma_pattern_show,
+		vpp_debug_gamma_pattern_store),
+	__ATTR(vpp_white_balance, 0644,
+		vpp_debug_whitebalance_show,
+		vpp_debug_whitebalance_store),
+	__ATTR(vpp_module_ctrl, 0644,
+		vpp_debug_module_ctrl_show,
+		vpp_debug_module_ctrl_store),
 	__ATTR_NULL,
 };
 
@@ -145,6 +106,8 @@ static long vpp_ioctl(struct file *filp,
 	struct vpp_pq_state_s pq_state;
 	void __user *argp;
 
+	memset(&pq_state, 0, sizeof(struct vpp_pq_state_s));
+
 	switch (cmd) {
 	case VPP_IOC_GET_PQ_STATE:
 		pq_state.pq_en = 0;
@@ -186,7 +149,7 @@ const struct file_operations vpp_fops = {
 
 static void fw_align_hw_config(struct vpp_dev_s *devp)
 {
-	enum chip_id_e chip_id;
+	enum vpp_chip_type_e chip_id;
 
 	chip_id = devp->pm_data->chip_id;
 
@@ -229,6 +192,10 @@ static void fw_align_hw_config(struct vpp_dev_s *devp)
 
 void vpp_attach_init(struct vpp_dev_s *devp)
 {
+	PR_DRV("%s attach_init in\n", __func__);
+
+	vpp_pq_mgr_init(devp);
+
 	return;
 	//hw_ops_attach(devp->vpp_ops.hw_ops);
 }
@@ -265,6 +232,8 @@ static int vpp_drv_probe(struct platform_device *pdev)
 	int i;
 	struct vpp_dev_s *vpp_devp = NULL;
 
+	PR_DRV("%s:In\n", __func__);
+
 	vpp_dev = kzalloc(sizeof(*vpp_dev), GFP_KERNEL);
 	if (!vpp_dev) {
 		PR_ERR("vpp dev kzalloc error\n");
@@ -288,7 +257,7 @@ static int vpp_drv_probe(struct platform_device *pdev)
 	}
 
 	for (i = 0; vpp_class_attr[i].attr.name; i++) {
-		ret = class_create_file(vpp_devp->clsp, vpp_class_attr);
+		ret = class_create_file(vpp_devp->clsp, &vpp_class_attr[i]);
 		if (ret < 0) {
 			PR_ERR("vpp class create file failed\n");
 			goto fail_create_class_file;

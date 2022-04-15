@@ -226,7 +226,7 @@ void mod_ctl(enum vpp_module_e mod,
 		break;
 	case MOD_BLS:
 		break;
-	case MOD_CC:
+	case MOD_CCORING:
 		break;
 	case MOD_VADJ1:
 		break;
@@ -247,11 +247,9 @@ void mod_ctl(enum vpp_module_e mod,
 			VSYNC_WR_MPEG_REG(VPP_LUT3D_CTRL, tmp);
 		}
 		break;
-	case MOD_PREGM:
+	case MOD_PREGAMMA:
 		break;
-	case MOD_PREGM:
-		break;
-	case MOD_GAM:
+	case MOD_GAMMA:
 		break;
 	default:
 		break;

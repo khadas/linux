@@ -10,9 +10,7 @@
 #define VPP_NAME        "aml_vpp"
 #define VPP_CLS_NAME    "aml_vpp"
 
-#define VPP_DRV_VER    "vpp-ver: 2021-08-25 first version"
-
-enum chip_id_e {
+enum vpp_chip_type_e {
 	CHIP_TXHD = 1,
 	CHIP_G12A,
 	CHIP_G12B,
@@ -26,7 +24,7 @@ enum chip_id_e {
 	CHIP_S4,
 	CHIP_T3,
 	CHIP_S4D,
-	CHIP_MAX
+	CHIP_MAX,
 };
 
 enum vout_e {
@@ -65,18 +63,18 @@ enum bit_dp_e {
 
 struct vlk_data_s {
 	//enum vlk_chiptype vlk_chip;
-	u32 vlk_support;
-	u32 vlk_new_fsm;
+	unsigned int vlk_support;
+	unsigned int vlk_new_fsm;
 	//enum vlock_hw_ver_e vlk_hwver;
-	u32 vlk_phlock_en;
-	u32 vlk_pll_sel;/*independent panel pll and hdmitx pll*/
-	u32 reg_addr_vlock;
-	u32 reg_addr_hiu;
-	u32 reg_addr_anactr;
+	unsigned int vlk_phlock_en;
+	unsigned int vlk_pll_sel;/*independent panel pll and hdmitx pll*/
+	unsigned int reg_addr_vlock;
+	unsigned int reg_addr_hiu;
+	unsigned int reg_addr_anactr;
 };
 
 struct match_data_s {
-	enum chip_id_e chip_id;
+	enum vpp_chip_type_e chip_id;
 };
 
 struct vpp_cfg_data_s {
