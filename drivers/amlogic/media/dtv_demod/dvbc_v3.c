@@ -621,11 +621,11 @@ int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts, str
 		PR_DVBC("ch_sts is 0x%x, snr %ddB, ber %d, per %d, srate %d, freqoff %dkHz\n",
 			demod_sts->ch_sts, demod_sts->ch_snr / 100, demod_sts->ch_ber,
 			demod_sts->ch_per, demod_sts->symb_rate, demod_sts->freq_off);
-		PR_DVBC("strength %ddb,0xe0 status %u,b4 status %u, dagc_gain %u, power %ddb\n\n",
+		PR_DVBC("strength %ddb,0xe0 status %u,b4 status %u, dagc_gain %u, power %ddb\n",
 			demod_sts->dat1, qam_read_reg(demod, 0x38) & 0xffff,
 			qam_read_reg(demod, 0x2d) & 0xffff, qam_read_reg(demod, 0x29) & 0x7f,
 			demod_sts->ch_pow & 0xffff);
-		PR_DVBC("0x31=0x%x\n", qam_read_reg(demod, 0x31));
+		PR_DVBC("0x31=0x%x\n\n", qam_read_reg(demod, 0x31));
 	}
 
 	return 0;

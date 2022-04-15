@@ -38,6 +38,7 @@
 /*  V1.1.45  optimize dvb-c auto symbol rate(all) and auto qam(t5w) */
 /*  V1.1.46  use the codec_mm cma for DTMB(8M)/DVB-T2(40M)/ISDB-T(8M) */
 /*  V1.1.47  support IRC and HRC in j83b auto qam mode */
+/*  V1.1.48  fixed 16qam/32qam cost long time to lock up or error */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -54,8 +55,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.47"
-#define DTVDEMOD_VER	"2022/04/24: support IRC and HRC in j83b auto qam mode"
+#define AMLDTVDEMOD_VER "V1.1.48"
+#define DTVDEMOD_VER	"2022/04/27: fixed 16qam/32qam cost long time to lock up or error"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -268,6 +269,7 @@ struct aml_dtvdemod {
 	enum qam_md_e auto_qam_mode;
 	enum qam_md_e last_qam_mode;
 	unsigned int auto_times;
+	unsigned int auto_done_times;
 	unsigned int auto_qam_done;
 	unsigned int auto_no_sig_cnt;
 	unsigned int fast_search_finish;
