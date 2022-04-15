@@ -13,6 +13,7 @@
 #include <dvb_frontend.h>
 
 struct tuner_ops {
+	bool dts_cfg; /*to check if tuner_config is from userspace or dts*/
 	bool attached;
 	bool valid; /* There is hardware exist. */
 	bool pre_inited;
@@ -85,6 +86,7 @@ void dvb_tuner_ops_destroy_all(void);
 int dvb_tuner_ops_add(struct tuner_ops *ops);
 void dvb_tuner_ops_remove(struct tuner_ops *ops);
 struct tuner_ops *dvb_tuner_ops_get_byindex(int index);
+int dvb_tuner_ops_get_index(void);
 
 struct dvb_tuner *get_dvb_tuners(void);
 
@@ -148,6 +150,11 @@ static inline __maybe_unused struct tuner_ops *dvb_tuner_ops_get_byindex(
 		int index)
 {
 	return NULL;
+}
+
+static inline __maybe_unused int dvb_tuner_ops_get_index(void)
+{
+	return -ENODEV;
 }
 
 static inline __maybe_unused struct demod_ops *dvb_demod_ops_create(void)

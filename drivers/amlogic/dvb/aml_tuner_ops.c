@@ -10,6 +10,7 @@ static int tuner_attach(struct dvb_tuner *tuner, bool attach)
 {
 	void *fe = NULL;
 	struct tuner_ops *ops = NULL;
+	bool user_cfg = false;
 
 	if (IS_ERR_OR_NULL(tuner))
 		return -EFAULT;
@@ -17,26 +18,35 @@ static int tuner_attach(struct dvb_tuner *tuner, bool attach)
 	mutex_lock(&tuner->mutex);
 
 	list_for_each_entry(ops, &tuner->list, list) {
+		if (ops->dts_cfg)
+			continue;
+		user_cfg = true;
+		break;
+	}
+
+	ops = NULL;
+	list_for_each_entry(ops, &tuner->list, list) {
 		if ((ops->attached && attach) ||
 			(!ops->attached && !attach)) {
 			pr_err("Tuner: tuner%d [id %d] had %s.\n",
 					ops->index, ops->cfg.id,
 					attach ? "attached" : "detached");
-
 			continue;
 		}
 
 		if (attach) {
-			fe = ops->module->attach(ops->module,
-					&ops->fe, &ops->cfg);
-			if (!IS_ERR_OR_NULL(fe))
-				ops->attached = true;
-			else
-				ops->attached = false;
+			if (!user_cfg || (user_cfg && !ops->dts_cfg)) {
+				fe = ops->module->attach(ops->module,
+						&ops->fe, &ops->cfg);
+				if (!IS_ERR_OR_NULL(fe))
+					ops->attached = true;
+				else
+					ops->attached = false;
 
-			pr_err("Tuner: attach tuner%d [id %d] %s.\n",
-					ops->index, ops->cfg.id,
-					ops->attached ? "done" : "fail");
+				pr_err("Tuner: attach tuner%d [id %d] %s.\n",
+						ops->index, ops->cfg.id,
+						ops->attached ? "done" : "fail");
+			}
 		} else {
 			if (tuner->used == ops)
 				tuner->used = NULL;
@@ -53,7 +63,6 @@ static int tuner_attach(struct dvb_tuner *tuner, bool attach)
 					ops->index, ops->cfg.id);
 		}
 	}
-
 	mutex_unlock(&tuner->mutex);
 
 	return 0;
@@ -598,6 +607,7 @@ struct tuner_ops *dvb_tuner_ops_create(void)
 	ops = kzalloc(sizeof(*ops), GFP_KERNEL);
 	if (ops) {
 		ops->attached = false;
+		ops->dts_cfg = true;
 		ops->index = -1;
 		ops->pre_inited = false;
 		ops->delivery_system = SYS_UNDEFINED;
@@ -724,6 +734,26 @@ struct tuner_ops *dvb_tuner_ops_get_byindex(int index)
 	return NULL;
 }
 EXPORT_SYMBOL(dvb_tuner_ops_get_byindex);
+
+int dvb_tuner_ops_get_index(void)
+{
+	struct dvb_tuner *tuner = NULL;
+	struct tuner_ops *ops = NULL;
+	int index = 0;
+
+	mutex_lock(&dvb_tuners_mutex);
+
+	tuner = get_dvb_tuners();
+
+	list_for_each_entry(ops, &tuner->list, list) {
+		index = ops->index;
+	}
+	mutex_unlock(&dvb_tuners_mutex);
+	if (index != 0)
+		index++;
+	return index;
+}
+EXPORT_SYMBOL(dvb_tuner_ops_get_index);
 
 struct dvb_tuner *get_dvb_tuners(void)
 {

@@ -10,9 +10,15 @@
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/fs.h>
+#include <linux/cdev.h>
 #include <linux/amlogic/aml_tuner.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 #include <linux/amlogic/aml_dvb_extern.h>
+
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#endif
 
 #include "aml_dvb_extern_driver.h"
 
@@ -21,7 +27,7 @@
 #define AML_DVB_EXTERN_MODULE_NAME    "aml_dvb_extern"
 #define AML_DVB_EXTERN_CLASS_NAME     "aml_dvb_extern"
 
-#define AML_DVB_EXTERN_VERSION    "V1.08"
+#define AML_DVB_EXTERN_VERSION    "V1.09"
 
 static struct dvb_extern_device *dvb_extern_dev;
 
@@ -1057,6 +1063,128 @@ static const struct file_operations demod_debug_fops = {
 	.release = single_release
 };
 
+static int cfgdev_open(struct inode *inode, struct file *filp)
+{
+	int num = -1;
+
+	num = MINOR(inode->i_rdev);
+	if (num >= DVB_CFGDEV_COUNT)
+		return -ENODEV;
+
+	return 0;
+}
+
+static int dvb_cfgdev_set_tuner(void *pcfg)
+{
+	struct tuner_ops *tops = NULL;
+	int ret = -1;
+
+	if (!pcfg)
+		return ret;
+
+	tops = dvb_tuner_ops_create();
+	if (!tops) {
+		pr_err("create dvb tuner ops fail.\n");
+		return ret;
+	}
+
+	memcpy(&tops->cfg, (struct tuner_config *)pcfg, sizeof(struct tuner_config));
+
+	/*get i2c_adapter*/
+	tops->cfg.i2c_adap = i2c_get_adapter(tops->cfg.i2c_id);
+	tops->dts_cfg = false;
+	tops->index = dvb_tuner_ops_get_index();
+
+	pr_err("add tuner%d, id %d, i2c_addr 0x%x.\n",
+		tops->index, tops->cfg.id, tops->cfg.i2c_addr);
+
+	/* add to tuner */
+	ret = dvb_tuner_ops_add(tops);
+	if (ret)
+		pr_err("add tuner ops fail, ret = %d.\n", ret);
+
+	return ret;
+}
+
+static long cfgdev_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	struct tuner_config cfg_arg;
+	struct compact_tuner_config cpt_arg;
+
+	/*check cmd's validity*/
+	if (_IOC_TYPE(cmd) != DVB_CFGDEV_IOC_MAGIC) {
+		pr_err("check ioc_type error!");
+		return -EINVAL;
+	}
+	if (_IOC_NR(cmd) > DVB_CFGDEV_IOC_MAXNR) {
+		pr_err("check ioc_nr error!");
+		return -EINVAL;
+	}
+
+	if (cmd == DVB_CFGDEV_IOC_SET_PARAM) {
+		pr_err("set param !!");
+		if (copy_from_user(&cfg_arg, (struct tuner_config *)arg,
+			sizeof(struct tuner_config))) {
+			return -EINVAL;
+		}
+		dvb_cfgdev_set_tuner(&cfg_arg);
+	} else if (cmd == COMPAT_DVB_CFGDEV_IOC_SET_PARAM) {
+		pr_err("compat set param !!");
+		if (copy_from_user(&cpt_arg, (struct compact_tuner_config *)arg,
+			sizeof(struct compact_tuner_config))) {
+			return -EINVAL;
+		}
+		cfg_arg.name       = NULL;
+		cfg_arg.code       = cpt_arg.code;
+		cfg_arg.id         = cpt_arg.id;
+		cfg_arg.i2c_addr   = cpt_arg.i2c_addr;
+		cfg_arg.i2c_id     = cpt_arg.i2c_id;
+		cfg_arg.i2c_adap   = NULL;
+		cfg_arg.xtal       = cpt_arg.xtal;
+		cfg_arg.xtal_cap   = cpt_arg.xtal_cap;
+		cfg_arg.xtal_mode  = cpt_arg.xtal_mode;
+		cfg_arg.lt_out     = cpt_arg.lt_out;
+		cfg_arg.dual_power = cpt_arg.dual_power;
+		cfg_arg.if_agc     = cpt_arg.if_agc;
+		cfg_arg.if_hz      = cpt_arg.if_hz;
+		cfg_arg.if_invert  = cpt_arg.if_invert;
+		cfg_arg.if_amp     = cpt_arg.if_amp;
+		cfg_arg.detect     = cpt_arg.detect;
+		cfg_arg.reset      = cpt_arg.reset;
+		cfg_arg.power      = cpt_arg.power;
+		cfg_arg.reserved0  = cpt_arg.reserved0;
+		cfg_arg.reserved1  = cpt_arg.reserved1;
+		dvb_cfgdev_set_tuner(&cfg_arg);
+	} else if (cmd == DVB_CFGDEV_IOC_GET_PARAM) {
+		pr_err("get param !!");
+	} else {
+		pr_err("default.\n");
+		return -EINVAL;
+	}
+	pr_err("%s --\n", __func__);
+	return 0;
+}
+
+#ifdef CONFIG_COMPAT
+static long cfgdev_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+
+	cfgdev_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+
+	return ret;
+}
+#endif
+
+static const struct file_operations cfg_dev_fops = {
+	.owner = THIS_MODULE,
+	.open = cfgdev_open,
+	.unlocked_ioctl = cfgdev_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = cfgdev_compat_ioctl,
+#endif
+};
+
 static CLASS_ATTR_RW(tuner_debug);
 static CLASS_ATTR_RW(demod_debug);
 static CLASS_ATTR_RW(dvb_debug);
@@ -1087,6 +1215,9 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	struct tuner_ops *tops = NULL;
 	struct demod_ops *dops = NULL;
 	struct dvb_extern_device *dvbdev = NULL;
+	struct device *pcfgdev = NULL;
+	static int cdevno_maj;
+	static int cdevno_min;
 
 	if (!IS_ERR_OR_NULL(dvb_extern_dev))
 		goto PROPERTY_DONE;
@@ -1124,6 +1255,20 @@ static int aml_dvb_extern_probe(struct platform_device *pdev)
 	if (class_register(&dvbdev->class)) {
 		pr_err("class register fail.\n");
 		goto fail_class_register;
+	}
+
+	cdevno_maj = register_chrdev(cdevno_maj, AML_DVB_EXTERN_DEVICE_NAME, &cfg_dev_fops);
+	dvbdev->cfgdevno = MKDEV(cdevno_maj, cdevno_min);
+	pr_err("aml_dvb_cfgdev: MAJOR Number %d, MINOR Numbe %d\n",
+		MAJOR(dvbdev->cfgdevno), MINOR(dvbdev->cfgdevno));
+
+	pcfgdev = device_create(&dvbdev->class, NULL, dvbdev->cfgdevno,
+		NULL, AML_DVB_EXTERN_DEVICE_NAME);
+	if (!pcfgdev) {
+		pr_err("%s device create fail.\n", AML_DVB_EXTERN_DEVICE_NAME);
+		unregister_chrdev(MAJOR(dvbdev->cfgdevno), AML_DVB_EXTERN_DEVICE_NAME);
+	} else {
+		dvbdev->cdev = *pcfgdev;
 	}
 
 	/* DVB Power pin. */
@@ -1309,6 +1454,9 @@ static int aml_dvb_extern_remove(struct platform_device *pdev)
 
 	dvb_tuner_ops_destroy_all();
 	dvb_demod_ops_destroy_all();
+
+	unregister_chrdev(MAJOR(dvbdev->cfgdevno), AML_DVB_EXTERN_DEVICE_NAME);
+	device_destroy(&dvbdev->class, dvbdev->cfgdevno);
 
 	class_unregister(&dvbdev->class);
 	if (dvbdev->debug_proc_dir)
