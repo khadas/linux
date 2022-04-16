@@ -235,6 +235,7 @@ struct received_frames_t *received_frames_tmp)
 	struct vinfo_s *video_composer_vinfo;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
 	int flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
+	size_t usage = 0;
 
 	switch (dev->buffer_status) {
 	case UNINITIAL:/*not config*/
@@ -256,12 +257,19 @@ struct received_frames_t *received_frames_tmp)
 	buf_width = (video_composer_vinfo->width + 0x1f) & ~0x1f;
 	buf_height = video_composer_vinfo->height;
 
-	if (dev->need_rotate && received_frames_tmp->frames_info.frame_info[0]
-		.source_type != SOURCE_PIC_MODE) {
+	if (meson_uvm_get_usage(received_frames_tmp->file_vf[0]->private_data,
+		&usage) < 0) {
+		vc_print(dev->index, PRINT_OTHER, "meson_uvm_get_usage fail.\n");
+	} else {
+		vc_print(dev->index, PRINT_OTHER, "usage: %lld\n", usage);
+	}
+
+	if (dev->need_rotate && usage != UVM_USAGE_IMAGE_PLAY) {
 		buf_width = rotate_width;
 		buf_height = rotate_height;
 	}
-	if (received_frames_tmp->frames_info.frame_info[0].source_type == SOURCE_PIC_MODE) {
+
+	if (usage == UVM_USAGE_IMAGE_PLAY) {
 		if (buf_width > pic_mode_max_width)
 			buf_width = pic_mode_max_width;
 		if (buf_height > pic_mode_max_height)
