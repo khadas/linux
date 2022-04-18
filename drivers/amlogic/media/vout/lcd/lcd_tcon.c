@@ -795,6 +795,20 @@ int lcd_tcon_core_update(struct aml_lcd_drv_s *pdrv)
 	return 0;
 }
 
+int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv)
+{
+	int ret;
+
+	ret = lcd_tcon_valid_check();
+	if (ret)
+		return -1;
+
+	if (lcd_tcon_conf->tcon_reload)
+		lcd_tcon_conf->tcon_reload(pdrv);
+
+	return 0;
+}
+
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv)
 {
 	int ret;
@@ -2457,6 +2471,7 @@ static struct lcd_tcon_config_s tcon_data_tl1 = {
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_tl1,
 	.tcon_enable = lcd_tcon_enable_tl1,
 	.tcon_disable = lcd_tcon_disable_tl1,
+	.tcon_reload = NULL,
 };
 
 static struct lcd_tcon_config_s tcon_data_t5 = {
@@ -2500,6 +2515,7 @@ static struct lcd_tcon_config_s tcon_data_t5 = {
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_reload = NULL,
 };
 
 static struct lcd_tcon_config_s tcon_data_t5d = {
@@ -2538,6 +2554,7 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_reload = NULL,
 };
 
 static struct lcd_tcon_config_s tcon_data_t3 = {
@@ -2581,6 +2598,7 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t3,
 	.tcon_disable = lcd_tcon_disable_t3,
+	.tcon_reload = lcd_tcon_reload_t3,
 };
 
 static struct lcd_tcon_config_s tcon_data_t5w = {
@@ -2623,6 +2641,7 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
+	.tcon_reload = lcd_tcon_reload_t3,
 };
 
 int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)

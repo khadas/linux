@@ -1379,6 +1379,27 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	return 0;
 }
 
+int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+
+	if (!mm_table || !tcon_conf)
+		return -1;
+
+	if (mm_table->core_reg_header) {
+		if (mm_table->core_reg_header->block_ctrl == 0) {
+			lcd_tcon_core_reg_set(pdrv, tcon_conf,
+				mm_table, mm_table->core_reg_table);
+		}
+	}
+
+	if (mm_table->version)
+		lcd_tcon_data_set(pdrv, mm_table);
+
+	return 0;
+}
+
 int lcd_tcon_enable_t3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();

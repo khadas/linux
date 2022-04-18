@@ -567,6 +567,14 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 	if (pdrv->vmode_update == 0)
 		return;
 
+	if (pdrv->config.cus_ctrl.dlg_flag == 3) {
+		if (!flag)
+			return;
+		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_SWITCH_MODE,
+					    (void *)pdrv);
+		return;
+	}
+
 	/* include lcd_vout_mutex */
 	if (flag) {
 		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_ON, (void *)pdrv);

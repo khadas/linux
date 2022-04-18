@@ -137,6 +137,7 @@ int lcd_tcon_od_get(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 			  unsigned char *buf, unsigned int size);
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
 
