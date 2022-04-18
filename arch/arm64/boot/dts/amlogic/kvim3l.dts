@@ -1683,6 +1683,10 @@
 	clk_path = <1>;
 };
 
+&irblaster {
+	status = "disable";
+};
+
 &gpu{
 	tbl =  <&dvfs285_cfg
 		&dvfs400_cfg
