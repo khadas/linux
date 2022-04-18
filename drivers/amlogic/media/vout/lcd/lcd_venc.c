@@ -321,13 +321,8 @@ void lcd_set_venc(struct aml_lcd_drv_s *pdrv)
 	lcd_set_venc_timing(pdrv);
 
 	lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
-	/* default black pattern */
-	lcd_vcbus_write(ENCL_TST_MDSEL + offset, 0);
-	lcd_vcbus_write(ENCL_TST_Y + offset, 0);
-	lcd_vcbus_write(ENCL_TST_CB + offset, 0);
-	lcd_vcbus_write(ENCL_TST_CR + offset, 0);
-	lcd_vcbus_write(ENCL_TST_EN + offset, 1);
-	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
+	//restore test pattern
+	lcd_test_pattern_init(pdrv, pdrv->test_state);
 
 	lcd_vcbus_write(ENCL_VIDEO_EN + offset, 1);
 	if (pdrv->data->chip_type == LCD_CHIP_T7 ||

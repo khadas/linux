@@ -527,6 +527,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 	lcd_clk = (pconf->timing.lcd_clk / 1000);
 	sync_duration = pconf->timing.sync_duration_num * 100;
 	sync_duration = sync_duration / pconf->timing.sync_duration_den;
+	pdrv->mute_state = (pdrv->viu_sel == 1) ? get_output_mute() : 0;
 
 	n = lcd_debug_info_len(len + offset);
 	len += snprintf((buf + len), n,
@@ -535,7 +536,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		"viu_sel: %d, isr_cnt: %d, resume_type: %d, resume_flag: 0x%x\n"
 		"fr_auto_policy: %d, fr_mode: %d, fr_duration: %d, frame_rate: %d\n"
 		"fr_auto_dis: %d, custom_pinmux: %d\n"
-		"mute_flag: 0x%x, test_flag: 0x%x\n"
+		"mute_state: %d, test_flag: 0x%x\n"
 		"key_valid: %d, config_load: %d\n",
 		pdrv->index, LCD_DRV_VERSION,
 		pconf->propname, pdrv->data->chip_type,
@@ -545,7 +546,7 @@ static int lcd_info_basic_print(struct aml_lcd_drv_s *pdrv, char *buf, int offse
 		pdrv->fr_auto_policy, pdrv->fr_mode, pdrv->fr_duration,
 		pconf->timing.frame_rate,
 		pconf->fr_auto_dis, pconf->custom_pinmux,
-		pdrv->mute_flag, pdrv->test_flag,
+		pdrv->mute_state, pdrv->test_flag,
 		pdrv->key_valid, pdrv->config_load);
 
 	n = lcd_debug_info_len(len + offset);
@@ -1982,37 +1983,12 @@ void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num)
 		LCDPR("[%d]: disable test pattern\n", pdrv->index);
 }
 
-static void lcd_mute_setting(struct aml_lcd_drv_s *pdrv, unsigned char flag)
-{
-	unsigned int offset;
-
-	offset = pdrv->data->offset_venc[pdrv->index];
-
-	if (flag) {
-		lcd_vcbus_write(ENCL_VIDEO_RGBIN_CTRL + offset, 3);
-		lcd_vcbus_write(ENCL_TST_MDSEL + offset, 0);
-		lcd_vcbus_write(ENCL_TST_Y + offset, 0);
-		lcd_vcbus_write(ENCL_TST_CB + offset, 0);
-		lcd_vcbus_write(ENCL_TST_CR + offset, 0);
-		lcd_vcbus_write(ENCL_TST_EN + offset, 1);
-		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 0, 3, 1);
-	} else {
-		lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, 1, 3, 1);
-		lcd_vcbus_write(ENCL_TST_EN + offset, 0);
-	}
-	LCDPR("[%d]: mute: %d\n", pdrv->index, flag);
-}
-
-static void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
+void lcd_test_pattern_init(struct aml_lcd_drv_s *pdrv, unsigned int num)
 {
 	unsigned int h_active, video_on_pixel, offset;
-	unsigned int num;
 
-	num = pdrv->test_state;
 	num = (num >= LCD_ENC_TST_NUM_MAX) ? 0 : num;
 	offset = pdrv->data->offset_venc[pdrv->index];
-
-	lcd_queue_work(&pdrv->test_check_work);
 
 	h_active = pdrv->config.basic.h_active;
 	video_on_pixel = pdrv->config.timing.hstart;
@@ -2027,12 +2003,23 @@ static void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_write(ENCL_TST_EN + offset, lcd_enc_tst[num][4]);
 	lcd_vcbus_setb(ENCL_VIDEO_MODE_ADV + offset, lcd_enc_tst[num][5], 3, 1);
 	if (num > 0)
-		LCDPR("[%d]: show test pattern: %s\n", pdrv->index, lcd_enc_tst_str[num]);
+		LCDPR("[%d]: init test pattern: %s\n", pdrv->index, lcd_enc_tst_str[num]);
+}
+
+static void lcd_screen_restore(struct aml_lcd_drv_s *pdrv)
+{
+	if (pdrv->viu_sel == 1) {
+		set_output_mute(false);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	}
 }
 
 static void lcd_screen_black(struct aml_lcd_drv_s *pdrv)
 {
-	lcd_mute_setting(pdrv, 1);
+	if (pdrv->viu_sel == 1) {
+		set_output_mute(true);
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+	}
 }
 
 #define CLK_CHK_MAX    2000000  /*Hz*/
@@ -3855,17 +3842,19 @@ static ssize_t lcd_debug_mute_show(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	int flag = 0;
 
-	return sprintf(buf, "get lcd mute state: %d\n", pdrv->mute_state);
+	flag = (pdrv->viu_sel == 1) ? get_output_mute() : 0;
+
+	return sprintf(buf, "get lcd mute state: %d\n", flag);
 }
 
 static ssize_t lcd_debug_mute_store(struct device *dev, struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
 	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
-	unsigned int temp = 0, i = 0;
+	unsigned int temp = 0;
 	int ret = 0;
-	unsigned long flags = 0;
 
 	ret = kstrtouint(buf, 10, &temp);
 	if (ret) {
@@ -3873,17 +3862,11 @@ static ssize_t lcd_debug_mute_store(struct device *dev, struct device_attribute 
 		return -EINVAL;
 	}
 
-	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	temp = temp ? 1 : 0;
-	pdrv->mute_flag = (unsigned char)temp;
-	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
-
-	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, temp);
-	while (i++ < 5000) {
-		if (pdrv->mute_state == temp)
-			break;
-		lcd_delay_us(20);
-	}
+	if (temp)
+		lcd_screen_black(pdrv);
+	else
+		lcd_screen_restore(pdrv);
 
 	return count;
 }
