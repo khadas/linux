@@ -1559,14 +1559,14 @@
 &usb2_phy_v2 {
 	status = "okay";
 	portnum = <2>;
+	gpio-vbus-power = "GPIOA_6";
+	gpios = <&gpio GPIOA_6 GPIO_ACTIVE_HIGH>;
 };
 
 &usb3_phy_v2 {
 	status = "okay";
 	portnum = <1>;
-	/*otg = <1>;
-	gpio-vbus-power = "GPIOH_6";
-	gpios = <&gpio GPIOH_6 GPIO_ACTIVE_HIGH>;*/
+	otg = <1>;
 };
 
 &dwc2_a {
