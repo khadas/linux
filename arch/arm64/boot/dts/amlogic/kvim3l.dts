@@ -938,6 +938,10 @@
 	pinctrl-0=<&ao_i2c_master_pins1>;
 	clock-frequency = <100000>; /* default 100k */
 
+	khadas-rtc {
+		compatible = "khadas-rtc";
+		reg = <0x51>;
+	};
 };
 
 &audiobus {
