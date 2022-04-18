@@ -1576,11 +1576,14 @@
 };
 &ethmac {
 	status = "okay";
-	pinctrl-names = "internal_eth_pins";
-	pinctrl-0 = <&internal_eth_pins>;
-	mc_val = <0x4be04>;
+	pinctrl-names = "external_eth_pins";
+	pinctrl-0 = <&external_eth_pins>;
+	mc_val = <0x1629>;
 
-	internal_phy=<1>;
+	cali_val = <0x60000>;
+	rx_delay = <1>;
+	auto_cali_idx = <0>;
+	internal_phy=<0>;
 };
 
 &uart_A {
