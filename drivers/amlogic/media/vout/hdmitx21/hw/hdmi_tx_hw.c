@@ -1277,9 +1277,9 @@ static int hdmitx_cntl(struct hdmitx_dev *hdev, u32 cmd,
 		if (argv == HDMITX_EARLY_SUSPEND) {
 			u32 pll_cntl = ANACTRL_HDMIPLL_CTRL0;
 
-			hd21_set_reg_bits(pll_cntl, 1, 28, 1);
+			hd21_set_reg_bits(pll_cntl, 1, 29, 1);
 			usleep_range(49, 51);
-			hd21_set_reg_bits(pll_cntl, 0, 30, 1);
+			hd21_set_reg_bits(pll_cntl, 0, 28, 1);
 
 			hdmi_phy_suspend();
 		}
