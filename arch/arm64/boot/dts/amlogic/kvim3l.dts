@@ -1082,7 +1082,7 @@
 
 		interrupt-names = "irq_spdifin";
 		pinctrl-names = "spdif_pins";
-		//pinctrl-0 = <&spdifout>;/* bob remove &spdifin*/
+		pinctrl-0 = <&spdifout>;/* bob remove &spdifin*/
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
