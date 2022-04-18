@@ -342,7 +342,7 @@
 	vrtc: rtc@0xfe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
-		status = "disabled";
+		status = "okay";
 		mboxes = <&mhu_fifo 5>;
 	};
 
@@ -455,12 +455,12 @@
 	dolby_fw: dolby_fw {
 		compatible = "amlogic, dolby_fw";
 		mem_size = <0x100000>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
+		status = "okay";
 		select = "disable"; /* disable/jtag_a/jtag_b */
 		pinctrl-names="jtag_a_pins", "jtag_b_pins";
 		pinctrl-0=<&jtag_a_pins>;
@@ -496,7 +496,7 @@
 		power-domain-names = "dspa", "dspb";
 		//dsp_logbuff = <0x40000000 0x1000 0x40002000 0x1000>;
 		logbuff-polling-period-ms = <50>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	vddcpua: pwmao_d-regulator {
@@ -1784,7 +1784,7 @@
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
+			status = "okay";
 		};
 		acodec:codec {
 			#sound-dai-cells = <0>;
@@ -1796,21 +1796,21 @@
 			reset-names = "acodec";
 			resets = <&reset RESET_ACODEC>;
 
-			status = "disabled";
+			status = "okay";
 		};
 
 		audio_data: audio_data {
 			compatible = "amlogic, audio_data";
 			mem_in_base_cmd = <0x82000020>;
 			query_licence_cmd = <0x82000050>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		amaudio: amaudio {
 			compatible = "amlogic, amaudio";
 			reg = <0x0 0xfe440000 0x0 0x10000>;
 			reg-names = "otp_tee_base";
-			status = "disable";
+			status = "okay";
 		};
 
 		audiobus: audiobus@0xFE330000 {
@@ -1913,7 +1913,7 @@
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
@@ -2174,7 +2174,7 @@
 	mesonstream {
 		compatible = "amlogic, codec, streambuf";
 		dev_name = "mesonstream";
-		status = "disabled";
+		status = "okay";
 		clocks = <&clkc CLKID_DOS
 			&clkc CLKID_VDEC_MUX
 			&clkc CLKID_HCODEC_MUX
@@ -2299,7 +2299,7 @@
 	vdec {
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
@@ -2329,7 +2329,7 @@
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	multi-di {
@@ -2462,7 +2462,7 @@
 	aocec: aocec {
 		compatible = "amlogic, aocec-t7";
 		dev_name = "aocec";
-		status = "disabled";
+		status = "okay";
 		vendor_name = "Amlogic"; /* Max Chars: 8     */
 		/* Refer to the following URL at:
 		 * http://standards.ieee.org/develop/regauth/oui/oui.txt
@@ -2537,7 +2537,7 @@
 
 	codec_io: codec_io {
 		compatible = "amlogic, meson-t7, codec-io";
-		status = "disabled";
+		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;
@@ -2561,7 +2561,7 @@
 	jpegenc{
 		compatible = "amlogic, jpegenc";
 		dev_name = "jpegenc";
-		status = "disabled";
+		status = "okay";
 
 		clocks = <&clkc CLKID_DOS
 			&clkc CLKID_VAPB
@@ -2573,9 +2573,9 @@
 			"clk_jpeg_enc";
 
 		/*
-		 * clocks = <&clkc CLKID_HCODEC_P0>;
-		 * clock-names = "hcodec_p0";
-		 */
+		clocks = <&clkc CLKID_HCODEC_P0>;
+		clock-names = "hcodec_p0";
+		*/
 
 		power-domains = <&pwrdm PDID_T7_DOS_HCODEC>;
 		interrupts = <0 91 1 0 92 1 0 93 1>;
@@ -2586,7 +2586,7 @@
 	aml_enc {
 		compatible = "cnm, MultiEnc";
 		dev_name = "amvenc_multi";
-		status = "disabled";
+		status = "okay";
 		config_mm_sz_mb = <200>;
 		clocks = <&clkc CLKID_DOS
 			&clkc CLKID_VAPB
@@ -2650,7 +2650,7 @@
 
 	rdma{
 		compatible = "amlogic, meson-t7, rdma";
-		status = "okay";
+		status = "disabled";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
@@ -2668,7 +2668,7 @@
 
 	dummy_venc: dummy_venc {
 		compatible = "amlogic, dummy_venc_t7";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vout_mux: vout_mux {
@@ -2693,19 +2693,19 @@
 
 	vrr0: vrr0 {
 		compatible = "amlogic, vrr-t3";
-		status = "disabled";
+		status = "okay";
 		index = <0>;
 	};
 
 	vrr1: vrr1 {
 		compatible = "amlogic, vrr-t3";
-		status = "disabled";
+		status = "okay";
 		index = <1>;
 	};
 
 	vrr2: vrr2 {
 		compatible = "amlogic, vrr-t3";
-		status = "disabled";
+		status = "okay";
 		index = <2>;
 	};
 
@@ -3102,7 +3102,7 @@
 	amlvecm: amlvecm {
 		compatible = "amlogic, vecm-t7";
 		dev_name = "aml_vecm";
-		/*status = "disabled";*/
+		/*status = "okay";*/
 		/*gamma_en = <1>;*/ /*1:enabel ;0:disable*/
 		/*wb_en = <1>;*/ /*1:enabel ;0:disable*/
 		/*cm_en = <1>;*/ /*1:enabel ;0:disable*/
@@ -3136,7 +3136,7 @@
 	vpu_security {
 		compatible = "amlogic, meson-t7, vpu_security";
 		dev_name = "amlogic-vpu-security";
-		status = "disabled";
+		status = "okay";
 		interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "vpu_security";
 	};
@@ -3232,7 +3232,7 @@
 	};
 
 	mhu_fifo: mhu@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";
 		reg = <0x0 0xfe006000 0x0 0x1000>,  /* mhu wr fifo */
 		      <0x0 0xfe007180 0x0 0x80>,   /* mhu set reg */
