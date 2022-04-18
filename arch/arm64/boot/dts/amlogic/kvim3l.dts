@@ -1418,16 +1418,6 @@
 		};
 	};
 
-	/*
-	 *bl_pwm_off_pins:bl_pwm_off_pin {
-	 *	mux {
-	 *		pins = "GPIOH_5";
-	 *		function = "gpio_periphs";
-	 *		output-high;
-	 *	};
-	 *};
-	 */
-
 	clk12_24_z_pins:clk12_24_z_pins {
 		mux {
 			groups = "clk12_24_z";
@@ -1462,6 +1452,14 @@
 		mux { /* GPIOAO_10 */
 			groups = "spdif_out_ao";
 			function = "spdif_out_ao";
+		};
+	};
+
+	bl_pwm_off_pins:bl_pwm_off_pin {
+		mux {
+			pins = "GPIOAO_6";
+			function = "gpio_aobus";
+			output-low;
 		};
 	};
 };  /* end of pinctrl_aobus */
