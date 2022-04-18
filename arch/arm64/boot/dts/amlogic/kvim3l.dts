@@ -410,12 +410,9 @@
 		key_tolerance = <40>;
 	};
 
-	adc_lightsensor {
-		compatible = "amlogic, lightsensor_adc";
+	khadas-hwver {
+		compatible = "khadas-hwver";
 		status = "okay";
-		io-channels = <&saradc SARADC_CH3>;
-		io-channel-names = "key-chan-3";
-		adc_chan = <SARADC_CH3>;
 	};
 
 	unifykey{
