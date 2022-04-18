@@ -983,6 +983,13 @@
 	};
 };
 
+&i2c_AO {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&ao_i2c_master_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+}
+
 &audiobus {
 	tdma: tdm@0 {
 		compatible = "amlogic, sm1-snd-tdma";
