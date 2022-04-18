@@ -410,6 +410,11 @@
 		key_tolerance = <40>;
 	};
 
+	khadas-redled {
+		compatible = "khadas-redled";
+		status = "okay";
+	};
+
 	khadas-hwver {
 		compatible = "khadas-hwver";
 		status = "okay";
