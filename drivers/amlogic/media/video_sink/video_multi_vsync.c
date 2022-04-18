@@ -443,3 +443,22 @@ irqreturn_t vsync_isr_viu3(int irq, void *dev_id)
 	atomic_set(&video_inirq_flag_vpp[1], 0);
 	return ret;
 }
+
+int is_in_vsync_isr_viu2(void)
+{
+	if (atomic_read(&video_inirq_flag_vpp[0]) > 0)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(is_in_vsync_isr_viu2);
+
+int is_in_vsync_isr_viu3(void)
+{
+	if (atomic_read(&video_inirq_flag_vpp[1]) > 0)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(is_in_vsync_isr_viu3);
+

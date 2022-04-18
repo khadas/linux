@@ -46,6 +46,8 @@ int get_ex_vsync_rdma_enable(void);
 void set_ex_vsync_rdma_enable(int enable);
 void set_force_rdma_config(void);
 int is_in_vsync_isr(void);
+int is_in_vsync_isr_viu2(void);
+int is_in_vsync_isr_viu3(void);
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 int is_in_ldim_vsync_isr(void);
 #endif
