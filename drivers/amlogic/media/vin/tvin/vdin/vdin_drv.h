@@ -82,7 +82,8 @@
 /* 20220415: transmit freesync data */
 /* 20220416: dv game mode picture display abnormal */
 /* 20220422: linux system pc mode myself restart dec */
-#define VDIN_VER "20220422:linux system pc mode myself restart dec"
+/* 20220425: keystone function modify */
+#define VDIN_VER "20220425:keystone function modify"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -158,6 +159,7 @@ struct match_data_s {
 	bool de_tunnel_tunnel;
 	/* tm2 verb :444 de-tunnel and wr mif 12 bit mode*/
 	bool ipt444_to_422_12bit;
+	bool vdin1_set_hdr;
 	u32 vdin0_en;
 	u32 vdin1_en;
 	u32 vdin0_line_buff_size;
@@ -413,6 +415,8 @@ struct vdin_debug_s {
 	unsigned short scaler4h;/* for vscaler */
 	unsigned short scaler4w;/* for hscaler */
 	unsigned short dest_cfmt;/* for color fmt conversion */
+	/* vdin1 hdr set bypass */
+	bool vdin1_set_hdr_bypass;
 };
 
 struct vdin_dv_s {
@@ -797,10 +801,21 @@ struct vdin_hist_s {
 	unsigned short hist[64];
 };
 
+enum port_mode {
+	capure_osd_plus_video = 0,
+	capure_only_video,
+};
+
 struct vdin_v4l2_param_s {
 	int width;
 	int height;
 	int fps;
+	enum tvin_color_fmt_e dst_fmt;
+	int dst_width;	/* H scaling down */
+	int dst_height;	/* v scaling down */
+	unsigned int bitorder;	/* raw data bit order(0:none std, 1: std)*/
+	enum port_mode mode;	/*0:osd + video 1:video only*/
+	int bit_dep;
 };
 
 enum vdin_vrr_mode_e {

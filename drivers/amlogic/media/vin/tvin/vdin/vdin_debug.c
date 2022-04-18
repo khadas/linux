@@ -2740,6 +2740,14 @@ start_chk:
 		}
 		pr_info("secure:%d, cma flag:%d\n", devp->secure_en,
 			devp->cma_config_flag);
+	} else if (!strcmp(parm[0], "vdin1_bypass_hdr")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp)
+				devp->debug.vdin1_set_hdr_bypass = true;
+			else
+				devp->debug.vdin1_set_hdr_bypass = false;
+		}
+		pr_info("vdin1_set_bypass:%d\n", devp->debug.vdin1_set_hdr_bypass);
 	} else if (!strcmp(parm[0], "wv")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (parm[1] && (kstrtouint(parm[2], 16, &mode) == 0))

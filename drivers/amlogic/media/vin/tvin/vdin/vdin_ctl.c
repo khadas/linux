@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
+#include <linux/amlogic/media/amvecm/hdr2_ext.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -1717,7 +1718,8 @@ void vdin_set_hdr(struct vdin_dev_s *devp)
 {
 	enum vd_format_e video_format;
 
-	if (devp->index == 0)
+	if (devp->index == 0 || !devp->dtdata->vdin1_set_hdr ||
+		devp->debug.vdin1_set_hdr_bypass)
 		return;
 
 	switch (devp->parm.port) {
@@ -1752,21 +1754,21 @@ void vdin_set_hdr(struct vdin_dev_s *devp)
 	case SIGNAL_HDR10:
 	case SIGNAL_HDR10PLUS:
 		/* parameters:
-		 * 1st, moudle sel: 4=VDIN0_HDR, 5=VDIN1_HDR
+		 * 1st, moudle sel: 6=VDIN0_HDR, 7=VDIN1_HDR
 		 * 2nd, process sel: bit1=HDR_SDR
 		 * bit11=HDR10P_SDR
 		 */
-		hdr_set(5, 2, VPP_TOP0);
+		hdr_set(VDIN1_HDR, HDR_SDR, VPP_TOP0);
 		break;
 
 	case SIGNAL_SDR:
 		/* HDR_BYPASS(bit0) | HLG_BYPASS(bit3) */
-		hdr_set(5, 0x9, VPP_TOP0);
+		hdr_set(VDIN1_HDR, HDR_BYPASS | HLG_BYPASS, VPP_TOP0);
 		break;
 
 	case SIGNAL_HLG:
 		/* HLG_SDR(bit4) */
-		hdr_set(5, 0x10, VPP_TOP0);
+		hdr_set(VDIN1_HDR, HLG_SDR, VPP_TOP0);
 		break;
 
 	/* VDIN DON'T support dv loopback currently */
@@ -4159,7 +4161,12 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		 */
 		if (vdin_is_convert_to_444(devp->format_convert) &&
 		    vdin_is_4k(devp)) {
-			bit_dep = VDIN_COLOR_DEEPS_8BIT;
+			if (cpu_after_eq(MESON_CPU_MAJOR_ID_T3) &&
+			    devp->index && devp->set_canvas_manual &&
+			    devp->prop.colordepth == VDIN_COLOR_DEEPS_10BIT)
+				bit_dep = VDIN_COLOR_DEEPS_10BIT;
+			else
+				bit_dep = VDIN_COLOR_DEEPS_8BIT;
 		} else if (devp->prop.colordepth == VDIN_COLOR_DEEPS_8BIT) {
 			/* hdmi YUV422, 8 or 10 bit valid is unknown*/
 			/* so need vdin 10bit to frame buffer*/
@@ -4214,8 +4221,8 @@ void vdin_set_bitdepth(struct vdin_dev_s *devp)
 		wr_bits(offset, VDIN_WR_CTRL2, MIF_8BIT,
 			VDIN_WR_10BIT_MODE_BIT,	VDIN_WR_10BIT_MODE_WID);
 	if (vdin_dbg_en)
-		pr_info("%s %d cfg:0x%x\n", __func__, devp->source_bitdepth,
-			devp->color_depth_config);
+		pr_info("%s %d cfg:0x%x prop.dep:%x\n", __func__, devp->source_bitdepth,
+			devp->color_depth_config, devp->prop.colordepth);
 }
 
 static void vdin_get_video_format(struct vdin_dev_s *devp)
