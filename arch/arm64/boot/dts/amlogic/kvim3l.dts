@@ -951,6 +951,10 @@
 		fan,trig_temp_level3 = <70>;
 		hwver = "VIM3.V11";
 	};
+	khadas-tca6408 {
+		compatible = "khadas-tca6408";
+		reg = <0x20>;
+	};
 };
 
 &audiobus {
