@@ -670,7 +670,7 @@
 			};
 			tdmbcodec: codec {
 				sound-dai = <&dummy_codec &dummy_codec
-				&amlogic_codec &ad82584f_62>;
+				&amlogic_codec>;
 			};
 		};
 
@@ -697,7 +697,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&dummy_codec  &dummy_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -980,6 +980,7 @@
 		pinctrl-names = "tdm_pins";
 		/*pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;*/
 		pinctrl-0 = < &tdmout_b &tdmin_b>;
+		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		/*
 		 * 0: tdmout_a;
@@ -988,7 +989,7 @@
 		 * 3: spdifout;
 		 * 4: spdifout_b;
 		 */
-		//samesource_sel = <3>;
+		samesource_sel = <3>;
 
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
@@ -1013,6 +1014,7 @@
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmc_mclk &tdmout_c &tdmin_c>;
+		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
 		status = "okay";
 	};
@@ -1087,7 +1089,7 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 	spdifb: spdif@1 {
 		compatible = "amlogic, sm1-snd-spdif-b";
@@ -1098,7 +1100,7 @@
 		clock-names = "sysclk",
 				"gate_spdifout", "clk_spdifout";
 
-		status = "disabled";
+		status = "okay";
 	};
 	pdm: pdm {
 		compatible = "amlogic, sm1-snd-pdm";
@@ -1287,7 +1289,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "okay";
+		status = "disabled";
 	};
 
 	aed:effect {
@@ -1311,7 +1313,7 @@
 		lane_mask = <0x1>;
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0x3>;
-		status = "okay";
+		status = "disabled";
 	};
 }; /* end of audiobus */
 
