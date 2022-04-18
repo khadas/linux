@@ -22,6 +22,7 @@
 #define PDID_T7_ISP			16
 #define PDID_T7_MIPI_ISP	17
 #define PDID_T7_GDC			18
+#define PDID_T7_CVE			18
 #define PDID_T7_DEWARP		19
 #define PDID_T7_SDIO_A		20
 #define PDID_T7_SDIO_B		21
