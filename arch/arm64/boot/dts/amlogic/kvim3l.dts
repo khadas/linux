@@ -400,14 +400,14 @@
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
 		status = "okay";
-		key_name = "play", "vol-", "vol+";
-		key_num = <3>;
+		key_name = "home";
+		key_num = <1>;
 		io-channels = <&saradc SARADC_CH2>;
 		io-channel-names = "key-chan-2";
-		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2 >;
-		key_code = <164 114 115 >;
-		key_val = <175 515 696>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40>;
+		key_chan = <SARADC_CH2 SARADC_CH2 SARADC_CH2>;
+		key_code = <102>;
+		key_val = <108>; //val=voltage/1800mV*1023
+		key_tolerance = <40>;
 	};
 
 	adc_lightsensor {
