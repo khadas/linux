@@ -955,6 +955,17 @@
 		compatible = "khadas-tca6408";
 		reg = <0x20>;
 	};
+
+	khadas-kxtj3 {
+		compatible = "kxtj3";
+		reg = <0x0E>;
+		type = <2>;
+		layout = <0>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		irq-gpio = <&gpio_ao GPIOAO_9 IRQ_TYPE_EDGE_RISING>;
+		status = "okay";
+	};
 };
 
 &audiobus {
