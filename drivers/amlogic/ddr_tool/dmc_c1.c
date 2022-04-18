@@ -87,6 +87,7 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 	unsigned long addr, status;
 	struct page *page;
 	struct page_trace *trace;
+	char title[10] = "";
 
 	for (i = 1; i < 4; i += 2) {
 		status = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
@@ -101,20 +102,27 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 		if ((addr & PAGE_MASK) == mon->last_addr &&
 		    status == mon->last_status) {
 			mon->same_page++;
-			continue;
+			if (mon->debug & DMC_DEBUG_CMA)
+				sprintf(title, "%s", "_SAME");
+			else
+				continue;
 		}
 		/* ignore cma driver pages */
 		page = phys_to_page(addr);
 		trace = find_page_base(page);
-		if (trace && trace->migrate_type == MIGRATE_CMA)
-			continue;
+		if (trace && trace->migrate_type == MIGRATE_CMA) {
+			if (mon->debug & DMC_DEBUG_CMA)
+				sprintf(title, "%s", "_CMA");
+			else
+				continue;
+		}
 
 		port = status & 0x1f;
 		subport = (status >> 9) & 0x7;
 		if (port == 16)
 			port = subport + 9;
-		pr_emerg(DMC_TAG ", addr:%08lx, s:%08lx, ID:%s, sub:%d, c:%ld, d:%p\n",
-			 addr, status, to_ports(port), subport,
+		pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, sub:%d, c:%ld, d:%p\n",
+			 title, addr, status, to_ports(port), subport,
 			 mon->same_page, data);
 		show_violation_mem(addr);
 

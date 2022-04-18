@@ -83,6 +83,7 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 	int i, port, subport;
 	unsigned long addr, status, value;
 	char id_str[MAX_NAME];
+	char title[10] = "";
 	struct page *page;
 	struct page_trace *trace;
 
@@ -115,39 +116,39 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 		if ((addr & PAGE_MASK) == mon->last_addr &&
 		    status == mon->last_status) {
 			mon->same_page++;
-			continue;
+			if (mon->debug & DMC_DEBUG_CMA)
+				sprintf(title, "%s", "_SAME");
+			else
+				continue;
 		}
 		/* ignore cma driver pages */
 		page = phys_to_page(addr);
 		trace = find_page_base(page);
-		if (trace && trace->migrate_type == MIGRATE_CMA)
-			continue;
+		if (trace && trace->migrate_type == MIGRATE_CMA) {
+			if (mon->debug & DMC_DEBUG_CMA)
+				sprintf(title, "%s", "_CMA");
+			else
+				continue;
+		}
 
 		switch (dmc_mon->chip) {
 		case DMC_TYPE_T5W:
 			port = (status >> 9) & 0x1f;
 			subport = (status >> 4) & 0xf;
-			value = (port == 10 && (subport == 6 || subport == 2));
 			break;
 		case DMC_TYPE_A5:
 			port = (status >> 9) & 0x07;
 			subport = (status >> 4) & 0xf;
-			value = (port == 6 && subport == 2);
 			break;
 
 		default:
 			port = (status >> 11) & 0x1f;
 			subport = (status >> 6) & 0xf;
-			value = (port == 7 && (subport == 11 || subport == 4));
 			break;
 		}
 
-		/* ignore sd_emmc in device */
-		if (value)
-			continue;
-
-		pr_emerg(DMC_TAG ", addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p\n",
-			 addr, status, to_ports(port),
+		pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p\n",
+			 title, addr, status, to_ports(port),
 			 to_sub_ports(port, subport, id_str),
 			 mon->same_page, data);
 		show_violation_mem(addr);
