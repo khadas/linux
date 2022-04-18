@@ -390,12 +390,10 @@
 		compatible = "amlogic, gpio_keypad";
 		status = "okay";
 		scan_period = <20>;
-		key_num = <3>;
-		key_name = "power", "mic_mute", "F10";
-		key_code = <116 65 68>;
-		key-gpios = <&gpio_ao  GPIOAO_7  GPIO_ACTIVE_HIGH
-			     &gpio  GPIOA_0  GPIO_ACTIVE_HIGH
-			     &gpio  GPIOA_6  GPIO_ACTIVE_HIGH>;
+		key_num = <1>;
+		key_name = "power";
+		key_code = <116>;
+		key-gpios = <&gpio_ao  GPIOAO_7  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 
