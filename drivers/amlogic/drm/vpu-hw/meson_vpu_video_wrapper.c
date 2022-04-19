@@ -12,6 +12,7 @@
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #endif
+#include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "../../media/video_processor/video_composer/videodisplay.h"
 #include "meson_vpu_pipeline.h"
@@ -157,6 +158,26 @@ static void video_disable_fence(struct meson_vpu_video *video)
 	}
 }
 
+/*background data R[32:47] G[16:31] B[0:15] alpha[48:63]->
+ *dummy data Y[16:23] Cb[8:15] Cr[0:7]
+ */
+static void video_dummy_data_set(struct am_meson_crtc_state *crtc_state)
+{
+	int r, g, b, alpha, y, u, v;
+	u32 vpp_index = 0;
+
+	b = (crtc_state->crtc_bgcolor & 0xffff) / 256;
+	g = ((crtc_state->crtc_bgcolor >> 16) & 0xffff) / 256;
+	r = ((crtc_state->crtc_bgcolor >> 32) & 0xffff) / 256;
+	alpha = ((crtc_state->crtc_bgcolor >> 48) & 0xffff) / 256;
+
+	y = ((47 * r + 157 * g + 16 * b + 128) >> 8) + 16;
+	u = ((-26 * r - 87 * g + 113 * b + 128) >> 8) + 128;
+	v = ((112 * r - 102 * g - 10 * b + 128) >> 8) + 128;
+
+	set_post_blend_dummy_data(vpp_index, 1 << 24 | y << 16 | u << 8 | v, alpha);
+}
+
 /* -----------------------------------------------------------------
  *           provider opeations
  * -----------------------------------------------------------------
@@ -286,6 +307,9 @@ static int video_check_state(struct meson_vpu_block *vblk,
 static void video_set_state(struct meson_vpu_block *vblk,
 			    struct meson_vpu_block_state *state)
 {
+	int crtc_index;
+	struct am_meson_crtc *amc;
+	struct am_meson_crtc_state *meson_crtc_state;
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
 	struct video_display_frame_info_t vf_info;
@@ -300,6 +324,11 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		DRM_DEBUG("set_state break for NULL.\n");
 		return;
 	}
+
+	crtc_index = vblk->index;
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+	meson_crtc_state = to_am_meson_crtc_state(amc->base.state);
+	video_dummy_data_set(meson_crtc_state);
 
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;

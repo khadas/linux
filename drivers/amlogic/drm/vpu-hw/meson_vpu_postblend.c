@@ -5,7 +5,6 @@
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>
-#include <linux/amlogic/media/video_sink/video.h>
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
@@ -182,26 +181,6 @@ static void vpp_chk_crc(struct meson_vpu_block *vblk,
 	}
 }
 
-/*background data R[32:47] G[16:31] B[0:15] alpha[48:63]->
- *dummy data Y[16:23] Cb[8:15] Cr[0:7]
- */
-static void vpp_postblend_dummy_data_set(struct am_meson_crtc_state *crtc_state)
-{
-	int r, g, b, alpha, y, u, v;
-	u32 vpp_index = 0;
-
-	b = (crtc_state->crtc_bgcolor & 0xffff) / 256;
-	g = ((crtc_state->crtc_bgcolor >> 16) & 0xffff) / 256;
-	r = ((crtc_state->crtc_bgcolor >> 32) & 0xffff) / 256;
-	alpha = ((crtc_state->crtc_bgcolor >> 48) & 0xffff) / 256;
-
-	y = ((47 * r + 157 * g + 16 * b + 128) >> 8) + 16;
-	u = ((-26 * r - 87 * g + 113 * b + 128) >> 8) + 128;
-	v = ((112 * r - 102 * g - 10 * b + 128) >> 8) + 128;
-
-	set_post_blend_dummy_data(vpp_index, 1 << 24 | y << 16 | u << 8 | v, alpha);
-}
-
 static int postblend_check_state(struct meson_vpu_block *vblk,
 				 struct meson_vpu_block_state *state,
 				 struct meson_vpu_pipeline_state *mvps)
@@ -301,7 +280,6 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 		}
 
 		vpp_chk_crc(vblk, reg_ops, amc);
-		vpp_postblend_dummy_data_set(meson_crtc_state);
 		osd1_blend_premult_set(vblk, reg_ops, reg);
 		if (0)
 			osd2_blend_premult_set(vblk, reg_ops, reg);
