@@ -2417,7 +2417,7 @@
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
-		interrupts = <0 204 1>;
+		interrupts = <0 204 4>;
 		interrupt-names = "hdmitx_hpd";
 		enc_idx = <0>;
 		reg =	<0x0 0xff000000 0x0 0x40000>,

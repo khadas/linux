@@ -469,7 +469,7 @@
 			"hdmi_vapb_clk",
 			"hdmi_vpu_clk",
 			"cts_hdmi_axi_clk";
-		interrupts = <0 7 IRQ_TYPE_EDGE_RISING
+		interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH
 			0 3 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "hdmitx_hpd", "viu1_vsync";
 		/* HPD, 57 + 32 = 89; CEC, 151 + 32 = 183*/
