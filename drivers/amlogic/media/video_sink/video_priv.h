@@ -115,6 +115,12 @@
 #define OP_FORCE_SWITCH_VF 2
 #define OP_FORCE_NOT_SWITCH_VF 4
 
+enum tvin_surface_type_e {
+	TVIN_SOURCE_TYPE_OTHERS = 0,
+	TVIN_SOURCE_TYPE_DECODER = 1,  /*DTV*/
+	TVIN_SOURCE_TYPE_VDIN = 2,   /*ATV HDMIIN CVBS*/
+};
+
 enum vd_path_id {
 	VFM_PATH_DEF = -1,
 	VFM_PATH_AMVIDEO = 0,

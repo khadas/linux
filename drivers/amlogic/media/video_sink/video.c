@@ -211,6 +211,7 @@ struct video_frame_detect_s {
 	u32 start_receive_count;
 };
 
+static int tvin_source_type;
 static int tvin_delay_mode;
 static int debugflags;
 static int output_fps;
@@ -391,6 +392,36 @@ static bool hist_test_flag;
 static unsigned long hist_buffer_addr;
 static u32 hist_print_count;
 atomic_t gafbc_request = ATOMIC_INIT(0);
+
+static bool check_sideband_type(struct vframe_s *vf, bool *need_force_black)
+{
+	if (!vf)
+		return false;
+
+	pr_info("vpp: sideband vf:%d, surface:%d; type: vf:%d, tvinput:%d\n",
+		vf->sidebind_type,
+		glayer_info[0].sideband_type,
+		vf->source_type,
+		tvin_source_type);
+
+	if (vf->sidebind_type != 0) {
+		if (vf->sidebind_type == glayer_info[0].sideband_type) {
+			/*dtv -> ATV, sidebind is ATV , but vfm is dtv, can not disp*/
+			if (glayer_info[0].sideband_type == 1 &&
+				tvin_source_type == TVIN_SOURCE_TYPE_VDIN &&
+				vf->source_type == VFRAME_SOURCE_TYPE_OTHERS) {
+				pr_info("can not disp now\n");
+				*need_force_black = true;
+				return false;
+			}
+			return true;
+		} else {
+			return false;
+		}
+	} else {
+		return true;
+	}
+}
 
 /* #define DUR2PTS(x) ((x) - ((x) >> 4)) */
 static inline int DUR2PTS(int x)
@@ -6638,6 +6669,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int i, j = 0;
 	int source_type = 0;
 	struct path_id_s path_id;
+	bool need_force_black = false;
 
 	path_id.vd1_path_id = vd1_path_id;
 	path_id.vd2_path_id = vd2_path_id;
@@ -6893,9 +6925,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	if (vf_tmp) {
 		if (glayer_info[0].display_path_id == VFM_PATH_AUTO) {
-			if (vf_tmp->sidebind_type
-				== glayer_info[0].sideband_type ||
-				vf_tmp->sidebind_type == 0) {
+			if (check_sideband_type(vf_tmp, &need_force_black)) {
 				pr_info("VID: path_id %d -> %d\n",
 					glayer_info[0].display_path_id,
 					VFM_PATH_AMVIDEO);
@@ -9101,7 +9131,8 @@ SET_FILTER:
 #endif
 
 	if (vd_layer[0].dispbuf &&
-		(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME)) {
+		(vd_layer[0].dispbuf->flag & VFRAME_FLAG_FAKE_FRAME ||
+		need_force_black)) {
 		if ((vd_layer[0].force_black &&
 			!(debug_flag & DEBUG_FLAG_NO_CLIP_SETTING)) ||
 			!vd_layer[0].force_black) {
@@ -9238,8 +9269,12 @@ exit:
 	pts_trace++;
 #endif
 
-	vd_clip_setting(0, &vd_layer[0].clip_setting);
-	vd_clip_setting(1, &vd_layer[1].clip_setting);
+	if (vd1_vd2_mux) {
+		vd_clip_setting(1, &vd_layer[0].clip_setting);
+	} else {
+		vd_clip_setting(0, &vd_layer[0].clip_setting);
+		vd_clip_setting(1, &vd_layer[1].clip_setting);
+	}
 	if (cur_dev->max_vd_layers == 3)
 		vd_clip_setting(2, &vd_layer[2].clip_setting);
 
@@ -17157,6 +17192,29 @@ static ssize_t postblend_test_pattern_store(struct class *cla,
 	return count;
 }
 
+static ssize_t tvin_source_type_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "tvin_source_type:%d\n", tvin_source_type);
+}
+
+static ssize_t tvin_source_type_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	long tmp;
+
+	int ret = kstrtol(buf, 0, &tmp);
+
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	tvin_source_type = tmp;
+	pr_info("store tvin_source_type=%d\n", tvin_source_type);
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -17666,6 +17724,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0644,
 		video_force_skip_cnt_show,
 		video_force_skip_cnt_store),
+	__ATTR(tvin_source_type,
+		0664,
+		tvin_source_type_show,
+		tvin_source_type_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
