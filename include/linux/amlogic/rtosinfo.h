@@ -22,6 +22,10 @@ struct xrtosinfo_t {
 	u32	flags;
 	u32	logbuf_len;
 	u32	logbuf_phy;
+	u32	rtos_run_flag;
+	u32	android_status;
+	u32	reserved0;
+	u32	reserved1;
 };
 
 #endif
