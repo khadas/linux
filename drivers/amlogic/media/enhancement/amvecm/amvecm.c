@@ -4468,6 +4468,33 @@ static ssize_t amvecm_gamma_show(struct class *cls,
 				 struct class_attribute *attr,
 			char *buf)
 {
+	int i;
+	int len = 0;
+
+	if (vecm_latch_flag2 & GAMMA_READ_R) {
+		for (i = 0; i < 256; i++)
+			len += sprintf(buf + len, "%03x", gamma_data_r[i]);
+		len += sprintf(buf + len, "\n");
+		vecm_latch_flag2 &= ~GAMMA_READ_R;
+		return len;
+	}
+
+	if (vecm_latch_flag2 & GAMMA_READ_G) {
+		for (i = 0; i < 256; i++)
+			len += sprintf(buf + len, "%03x", gamma_data_g[i]);
+		len += sprintf(buf + len, "\n");
+		vecm_latch_flag2 &= ~GAMMA_READ_G;
+		return len;
+	}
+
+	if (vecm_latch_flag2 & GAMMA_READ_B) {
+		for (i = 0; i < 256; i++)
+			len += sprintf(buf + len, "%03x", gamma_data_b[i]);
+		len += sprintf(buf + len, "\n");
+		vecm_latch_flag2 &= ~GAMMA_READ_B;
+		return len;
+	}
+
 	pr_info("Usage:");
 	pr_info("	echo sgr|sgg|sgb xxx...xx > /sys/class/amvecm/gamma\n");
 	pr_info("Notes:\n");
@@ -4490,7 +4517,7 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 {
 	int n = 0;
 	char *buf_orig, *ps, *token;
-	char *parm[4];
+	char *parm[4] = {NULL};
 	unsigned short *gamma_r, *gamma_g, *gamma_b;
 	unsigned int gamma_count;
 	char gamma[4];
@@ -4577,9 +4604,13 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 				pr_info("gamma_r[%d] = %x\n",
 					i, gamma_data_r[i]);
 		} else if (!strcmp(parm[1], "all_str")) {
-			for (i = 0; i < 256; i++)
-				d_convert_str(gamma_data_r[i], i, stemp, 3, 16);
-			pr_info("gamma_r str: %s\n", stemp);
+			if (!parm[2]) {
+				for (i = 0; i < 256; i++)
+					d_convert_str(gamma_data_r[i], i, stemp, 3, 16);
+				pr_info("gamma_r str: %s\n", stemp);
+			} else if (!strcmp(parm[2], "adb")) {
+				vecm_latch_flag2 |= GAMMA_READ_R;
+			}
 		} else {
 			if (kstrtoul(parm[1], 10, &val) < 0) {
 				pr_info("invalid command\n");
@@ -4589,7 +4620,7 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 			if (i >= 0 && i <= 255)
 				pr_info("gamma_r[%d] = %x\n",
 					i, gamma_data_r[i]);
-			}
+		}
 	} else if (!strcmp(parm[0], "ggg")) {
 		vpp_get_lcd_gamma_table(H_SEL_G);
 		if (!strcmp(parm[1], "all")) {
@@ -4597,9 +4628,13 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 				pr_info("gamma_g[%d] = %x\n",
 					i, gamma_data_g[i]);
 		} else if (!strcmp(parm[1], "all_str")) {
-			for (i = 0; i < 256; i++)
-				d_convert_str(gamma_data_g[i], i, stemp, 3, 16);
-			pr_info("gamma_g str: %s\n", stemp);
+			if (!parm[2]) {
+				for (i = 0; i < 256; i++)
+					d_convert_str(gamma_data_g[i], i, stemp, 3, 16);
+				pr_info("gamma_g str: %s\n", stemp);
+			} else if (!strcmp(parm[2], "adb")) {
+				vecm_latch_flag2 |= GAMMA_READ_G;
+			}
 		} else {
 			if (kstrtoul(parm[1], 10, &val) < 0) {
 				pr_info("invalid command\n");
@@ -4618,9 +4653,13 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 				pr_info("gamma_b[%d] = %x\n",
 					i, gamma_data_b[i]);
 		} else if (!strcmp(parm[1], "all_str")) {
-			for (i = 0; i < 256; i++)
-				d_convert_str(gamma_data_b[i], i, stemp, 3, 16);
-			pr_info("gamma_b str: %s\n", stemp);
+			if (!parm[2]) {
+				for (i = 0; i < 256; i++)
+					d_convert_str(gamma_data_b[i], i, stemp, 3, 16);
+				pr_info("gamma_b str: %s\n", stemp);
+			} else if (!strcmp(parm[2], "adb")) {
+				vecm_latch_flag2 |= GAMMA_READ_B;
+			}
 		} else {
 			if (kstrtoul(parm[1], 10, &val) < 0) {
 				pr_info("invalid command\n");
@@ -5511,7 +5550,9 @@ static ssize_t amvecm_hdr_tmo_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
 	hdr10_tmo_parm_show();
-	return 0;
+	hdr_tmo_adb_show(buf);
+	return strlen(buf) + 1;
+
 }
 
 static ssize_t amvecm_hdr_tmo_store(struct class *cla,

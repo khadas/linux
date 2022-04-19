@@ -108,7 +108,9 @@ void dolby_vision_set_toggle_flag(int flag);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
-
+#define GAMMA_READ_B                BIT(10)
+#define GAMMA_READ_G                BIT(9)
+#define GAMMA_READ_R                BIT(8)
 #define VPP_EYE_PROTECT_UPDATE      BIT(7)
 #define VPP_PRE_GAMMA_UPDATE        BIT(6)
 #define VPP_MARTIX_GET              BIT(5)

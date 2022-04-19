@@ -231,6 +231,131 @@ void hdr10_tmo_reg_get(struct hdr_tmo_sw *pre_tmo_reg_s)
 	pre_tmo_reg_s->alpha = tmo_reg.alpha;
 }
 
+static char hdr_tmo_debug_usage_str[33][25] = {
+	"tmo_en = ",
+	"reg_highlight = ",
+	"reg_light_th = ",
+	"reg_hist_th = ",
+	"reg_highlight_th1 = ",
+	"reg_highlight_th2 = ",
+	"reg_display_e = ",
+	"reg_middle_a = ",
+	"reg_middle_a_adj = ",
+	"reg_middle_b = ",
+	"reg_middle_s = ",
+	"reg_max_th1 = ",
+	"reg_middle_th = ",
+	"reg_thold2 = ",
+	"reg_thold3 = ",
+	"reg_thold4 = ",
+	"reg_thold1 = ",
+	"reg_max_th2 = ",
+	"reg_pnum_th = ",
+	"reg_hl0 = ",
+	"reg_hl1 = ",
+	"reg_hl2 = ",
+	"reg_hl3 = ",
+	"reg_display_adj = ",
+	"reg_low_adj = ",
+	"reg_high_en = ",
+	"reg_high_adj1 = ",
+	"reg_high_adj2 = ",
+	"reg_high_maxdiff = ",
+	"reg_high_mindiff = ",
+	"reg_avg_th = ",
+	"reg_avg_adj = ",
+	"alpha = "
+};
+
+void hdr10_tmo_reg_get_arr(int *arry)
+{
+	arry[0] = tmo_reg.tmo_en;
+	arry[1] = tmo_reg.reg_highlight;
+	arry[2] = tmo_reg.reg_light_th;
+	arry[3] = tmo_reg.reg_hist_th;
+	arry[4] = tmo_reg.reg_highlight_th1;
+	arry[5] = tmo_reg.reg_highlight_th2;
+	arry[6] = tmo_reg.reg_display_e;
+	arry[7] = tmo_reg.reg_middle_a;
+	arry[8] = tmo_reg.reg_middle_a_adj;
+	arry[9] = tmo_reg.reg_middle_b;
+	arry[10] = tmo_reg.reg_middle_s;
+	arry[11] = tmo_reg.reg_max_th1;
+	arry[12] = tmo_reg.reg_middle_th;
+	arry[13] = tmo_reg.reg_thold2;
+	arry[14] = tmo_reg.reg_thold3;
+	arry[15] = tmo_reg.reg_thold4;
+	arry[16] = tmo_reg.reg_thold1;
+	arry[17] = tmo_reg.reg_max_th2;
+	arry[18] = tmo_reg.reg_pnum_th;
+	arry[19] = tmo_reg.reg_hl0;
+	arry[20] = tmo_reg.reg_hl1;
+	arry[21] = tmo_reg.reg_hl2;
+	arry[22] = tmo_reg.reg_hl3;
+	arry[23] = tmo_reg.reg_display_adj;
+	arry[24] = tmo_reg.reg_low_adj;
+	arry[25] = tmo_reg.reg_high_en;
+	arry[26] = tmo_reg.reg_high_adj1;
+	arry[27] = tmo_reg.reg_high_adj2;
+	arry[28] = tmo_reg.reg_high_maxdiff;
+	arry[29] = tmo_reg.reg_high_mindiff;
+	arry[30] = tmo_reg.reg_avg_th;
+	arry[31] = tmo_reg.reg_avg_adj;
+	arry[32] = tmo_reg.alpha;
+}
+
+static int arry_int2str(int val, char *str_tmp)
+{
+	int temp;
+	char str[10];
+	int len = 0, count = 0;
+
+	if (val == 0) {
+		str_tmp[count++] = '0';
+		return count;
+	}
+
+	while (val) {
+		temp = val % 10;
+		str[len++] = temp + '0';
+		val /= 10;
+	}
+
+	str[len] = '\0';
+	while (len) {
+		str_tmp[count++] = str[len - 1];
+		len--;
+	}
+	str_tmp[count] = '\0';
+	return count;
+}
+
+void hdr_tmo_adb_show(char *str)
+{
+	int tmo_val[33];
+	int i = 0, j = 0, k = 0;
+	int len1 = 0, len2 = 0;
+	char str_tmp[25];
+
+	hdr10_tmo_reg_get_arr(tmo_val);
+
+	for (i = 0; i < 33; i++) {
+		len1 = strlen(hdr_tmo_debug_usage_str[i]);
+		for (k = 0; k < len1; k++) {
+			/*copy str from hdr_tmo_debug_usage_str*/
+			str[j++] = hdr_tmo_debug_usage_str[i][k];
+		}
+		len2 = arry_int2str(tmo_val[i], str_tmp);
+
+		for (k = 0; k < len2; k++) {
+			/*copy tmo_val*/
+			str[j++] = str_tmp[k];
+		}
+		str[j++] = '\n';
+	}
+	str[j] = '\0';
+}
+
 struct aml_tmo_reg_sw *tmo_fw_param_get(void)
 {
 	return &tmo_reg;
