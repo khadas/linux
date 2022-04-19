@@ -164,6 +164,10 @@ static unsigned int vdin_hdr_chg_cnt = 1;
 module_param(vdin_hdr_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_hdr_chg_cnt, "vdin_hdr_chg_cnt");
 
+static unsigned int vdin_vrr_chg_cnt = 1;
+module_param(vdin_vrr_chg_cnt, uint, 0664);
+MODULE_PARM_DESC(vdin_vrr_chg_cnt, "vdin_vrr_chg_cnt");
+
 enum tvin_color_fmt_range_e
 	tvin_get_force_fmt_range(enum tvin_color_fmt_e color_fmt)
 {
@@ -353,18 +357,24 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (devp->vdin_vrr_en_flag !=
-		    devp->prop.vtem_data.vrr_en ||
-		    ((devp->pre_prop.spd_data.data[5] >> 2 & 0x3) !=
-		     (devp->prop.spd_data.data[5] >> 2 & 0x3))) {
-			signal_chg |= TVIN_SIG_CHG_VRR;
-			if (signal_chg && (sm_debug_enable & VDIN_SM_LOG_L_1))
-				pr_info("%s vrr_chg:(%d->%d) spd:(%d->%d)\n", __func__,
-					devp->vdin_vrr_en_flag, devp->prop.vtem_data.vrr_en,
-					devp->pre_prop.spd_data.data[5],
-					devp->prop.spd_data.data[5]);
-
+		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
+			vdin_check_spd_data_chg(devp)) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				devp->vrr_data.vrr_chg_cnt++;
+			if (devp->vrr_data.vrr_chg_cnt > vdin_vrr_chg_cnt) {
+				devp->vrr_data.vrr_chg_cnt = 0;
+				signal_chg |= TVIN_SIG_CHG_VRR;
+				if (signal_chg && (sm_debug_enable & VDIN_SM_LOG_L_1))
+					pr_info("%s vrr_chg:(%d->%d) spd:([5]%d->%d) [0](%d->%d)\n",
+						__func__,
+						devp->vrr_data.vdin_vrr_en_flag,
+						devp->prop.vtem_data.vrr_en,
+						devp->pre_prop.spd_data.data[5],
+						devp->prop.spd_data.data[5],
+						devp->pre_prop.spd_data.data[0],
+						devp->prop.spd_data.data[0]);
 				devp->pre_prop.spd_data.data[5] = devp->prop.spd_data.data[5];
+			}
 		}
 
 		if (color_range_force)
@@ -647,13 +657,13 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 			vdin_frame_lock_check(devp, 1);
 
 			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)\n", __func__,
-				devp->vdin_vrr_en_flag,
+				devp->vrr_data.vdin_vrr_en_flag,
 				devp->prop.vtem_data.vrr_en,
 				devp->pre_prop.spd_data.data[5],
 				devp->prop.spd_data.data[5]);
 			devp->pre_prop.vtem_data.vrr_en =
 				devp->prop.vtem_data.vrr_en;
-			devp->vdin_vrr_en_flag =
+			devp->vrr_data.vdin_vrr_en_flag =
 				devp->prop.vtem_data.vrr_en;
 		} else {
 			return;
@@ -810,8 +820,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 					unstb_in = sm_p->hdmi_unstable_out_cnt;
 				else
 					unstb_in = other_unstable_out_cnt;
-				/* tcl vrr case */
-				devp->vdin_vrr_en_flag = devp->pre_prop.vtem_data.vrr_en;
 
 				cnt = sizeof(struct tvin_sig_property_s);
 				 /* must wait enough time for cvd signal lock */
@@ -931,6 +939,9 @@ void tvin_smr(struct vdin_dev_s *devp)
 			sm_p->state = TVIN_SM_STATUS_STABLE;
 			info->status = TVIN_SIG_STATUS_STABLE;
 			vdin_update_prop(devp);
+			/* tcl vrr case */
+			devp->vrr_data.vdin_vrr_en_flag =
+				devp->pre_prop.vtem_data.vrr_en;
 			devp->csc_cfg = 0;
 			devp->starting_chg = 0;
 			if (sm_debug_enable)

@@ -4743,13 +4743,16 @@ static void vdin_pr_sei_hdr_data(struct vdin_dev_s *devp)
 void vdin_pr_vrr_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 {
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VRR_DATA)
-		pr_info("index:%d en:%d mc:%x ffm:%02x pkt:%02x ver:%02x %02x %02x\n",
+		pr_info("index:%d en:%d mc:%x ffm:%02x pkt:%02x ver:%02x %02x %02x %02x %02x %02x\n",
 			vf->index, devp->prop.vtem_data.vrr_en,
 			devp->prop.vtem_data.m_const,
 			devp->prop.vtem_data.fva_factor_m1,
 			devp->prop.spd_data.pkttype,
 			devp->prop.spd_data.version,
 			devp->prop.spd_data.length,
+			devp->prop.spd_data.data[0],
+			devp->prop.spd_data.data[1],
+			devp->prop.spd_data.data[2],
 			devp->prop.spd_data.data[5]);
 }
 
@@ -5512,19 +5515,58 @@ void vdin_set_drm_data(struct vdin_dev_s *devp,
 	vdin_pr_emp_data(devp, vf);
 }
 
+bool vdin_check_is_spd_data(struct vdin_dev_s *devp)
+{
+	if (!devp)
+		return false;
+
+	if (devp->prop.spd_data.data[0] == 0x1A &&
+	    devp->prop.spd_data.data[1] == 0x00 &&
+	    devp->prop.spd_data.data[2] == 0x00)
+		return true;
+	else
+		return false;
+}
+
+bool vdin_check_spd_data_chg(struct vdin_dev_s *devp)
+{
+	if (!devp)
+		return false;
+
+	if ((devp->pre_prop.spd_data.data[0] == 0x1a &&
+	     devp->pre_prop.spd_data.data[1] == 0x00 &&
+	     devp->pre_prop.spd_data.data[2] == 0x00) ||
+	    (devp->prop.spd_data.data[0] == 0x1a &&
+	     devp->prop.spd_data.data[1] == 0x00 &&
+	     devp->prop.spd_data.data[2] == 0x00)) {
+		if ((devp->pre_prop.spd_data.data[5] >> 2 & 0x3) !=
+		     (devp->prop.spd_data.data[5] >> 2 & 0x3))
+			return true;
+	} else {
+		return false;
+	}
+
+	return false;
+}
+
 void vdin_set_freesync_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 {
-	vf->vtem.addr = &devp->prop.vtem_data;
-	vf->spd.addr = &devp->prop.spd_data;
-	if (devp->prop.vtem_data.vrr_en ||
-	    (devp->prop.spd_data.data[5] >> 2 & 0x3)) {
+	if (devp->prop.vtem_data.vrr_en) {
+		memcpy(&devp->vrr_data.vtem_data, &devp->prop.vtem_data,
+			sizeof(struct tvin_vtem_data_s));
+		vf->vtem.addr = &devp->vrr_data.vtem_data;
 		vf->vtem.size = sizeof(devp->prop.vtem_data);
+	} else if (vdin_check_is_spd_data(devp) &&
+		(devp->prop.spd_data.data[5] >> 2 & 0x3)) {
+		memcpy(&devp->vrr_data.spd_data, &devp->prop.spd_data,
+			sizeof(struct tvin_spd_data_s));
+		vf->spd.addr = &devp->vrr_data.spd_data;
 		vf->spd.size = sizeof(devp->prop.spd_data);
-		vdin_pr_vrr_data(devp, vf);
 	} else {
 		vf->vtem.size = 0;
 		vf->spd.size = 0;
 	}
+	vdin_pr_vrr_data(devp, vf);
 }
 
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
@@ -5554,14 +5596,22 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 		else
 			devp->sg_chg_afd_cnt = 0;
 
+		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
+			vdin_check_spd_data_chg(devp))
+			devp->vrr_data.vrr_chg_cnt++;
+		else
+			devp->vrr_data.vrr_chg_cnt = 0;
+
 		if (vdin_isr_monitor & BIT(0))
-			pr_info("dv:%d, hdr st:%d eotf:%d fg:%d allm:%d sty:0x%x\n",
+			pr_info("dv:%d, hdr st:%d eotf:%d fg:%d allm:%d sty:0x%x spd:0x%x 0x%x\n",
 				devp->prop.dolby_vision,
 				devp->prop.hdr_info.hdr_state,
 				devp->prop.hdr_info.hdr_data.eotf,
 				devp->prop.vdin_hdr_flag,
 				devp->prop.latency.allm_mode,
-				devp->parm.info.signal_type);
+				devp->parm.info.signal_type,
+				devp->prop.spd_data.data[0],
+				devp->prop.spd_data.data[5]);
 		if (vdin_isr_monitor & BIT(1))
 			pr_info("emp size:%d, data:0x%02x 0x%02x 0x%02x 0x%02x\n",
 				devp->prop.emp_data.size,

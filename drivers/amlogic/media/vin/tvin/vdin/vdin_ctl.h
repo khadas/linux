@@ -319,5 +319,7 @@ void vdin_get_duration_by_fps(struct vdin_dev_s *devp);
 void vdin_set_to_vpp_parm(struct vdin_dev_s *devp);
 void vdin_dmc_ctrl(struct vdin_dev_s *devp, bool onoff);
 void vdin_pause_mif_write(struct vdin_dev_s *devp, unsigned int rdma_enable);
+bool vdin_check_is_spd_data(struct vdin_dev_s *devp);
+bool vdin_check_spd_data_chg(struct vdin_dev_s *devp);
 #endif
 
