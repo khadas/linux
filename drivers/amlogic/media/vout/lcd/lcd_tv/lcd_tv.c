@@ -1208,6 +1208,8 @@ int lcd_mode_tv_init(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->vrr_dev) {
 		sprintf(pdrv->vrr_dev->name, "lcd%d_dev", pdrv->index);
 		pdrv->vrr_dev->output_src = VRR_OUTPUT_ENCL;
+		pdrv->vrr_dev->lfc_switch = lcd_vrr_lfc_switch;
+		pdrv->vrr_dev->dev_data = (void *)pdrv;
 		lcd_vrr_dev_update(pdrv);
 		aml_vrr_register_device(pdrv->vrr_dev, pdrv->index);
 	}

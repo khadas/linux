@@ -36,6 +36,7 @@ struct vrr_data_s {
 };
 
 #define VRR_STATE_EN          BIT(0)
+#define VRR_STATE_LFC         BIT(1)
 #define VRR_STATE_MODE_HW     BIT(4)
 #define VRR_STATE_MODE_SW     BIT(5)
 #define VRR_STATE_ENCL        BIT(8)
@@ -48,6 +49,9 @@ struct aml_vrr_drv_s {
 	unsigned int line_dly;
 	unsigned int sw_timer_cnt;
 	unsigned int sw_timer_flag;
+	unsigned int adj_vline_max;
+	unsigned int adj_vline_min;
+	unsigned int lfc_en;
 
 	struct vrr_device_s *vrr_dev;
 	struct cdev cdev;
@@ -65,6 +69,8 @@ extern int lcd_venc_sel;
 extern int lcd_vrr_timer_cnt;
 struct aml_vrr_drv_s *vrr_drv_get(int index);
 int vrr_drv_func_en(struct aml_vrr_drv_s *vdrv, int flag);
+int vrr_drv_lfc_update(struct aml_vrr_drv_s *vdrv, int flag, int fps);
+
 ssize_t vrr_active_status_show(struct device *dev,
 			       struct device_attribute *attr, char *buf);
 int aml_vrr_if_probe(void);

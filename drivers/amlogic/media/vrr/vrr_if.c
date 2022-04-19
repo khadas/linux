@@ -44,6 +44,11 @@ ssize_t vrr_active_status_show(struct device *dev,
 	unsigned int offset;
 	ssize_t len = 0;
 
+	if (!vdrv) {
+		len = sprintf(buf, "active vrr is null\n");
+		return len;
+	}
+
 	offset = vdrv->data->offset[vdrv->index];
 
 	len += sprintf(buf + len, "active vrr [%d] info\n", vdrv->index);
@@ -120,6 +125,22 @@ int aml_vrr_func_en(int flag)
 	return ret;
 }
 
+int aml_vrr_lfc_update(int flag, int fps)
+{
+	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
+	int ret;
+
+	if (!vdrv_active)
+		return -1;
+
+	if (flag)
+		ret = vrr_drv_lfc_update(vdrv_active, 1, fps);
+	else
+		ret = vrr_drv_lfc_update(vdrv_active, 0, 0);
+
+	return ret;
+}
+
 static int aml_vrr_drv_update(void)
 {
 	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
@@ -173,6 +194,30 @@ static int aml_vrr_switch_notify_callback(struct notifier_block *block,
 	return 0;
 }
 
+static int aml_vrr_lfc_notify_callback(struct notifier_block *block,
+				       unsigned long event, void *para)
+{
+	int fps;
+
+	switch (event) {
+	case VRR_EVENT_LFC_ON:
+		if (!para) {
+			VRRERR("%s: para is null\n", __func__);
+			return 0;
+		}
+		fps = *(int *)para;
+		aml_vrr_lfc_update(1, fps);
+		break;
+	case VRR_EVENT_LFC_OFF:
+		aml_vrr_lfc_update(0, 0);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static struct notifier_block aml_vrr_vout_notifier = {
 	.notifier_call = aml_vrr_vout_notify_callback,
 };
@@ -181,10 +226,15 @@ static struct notifier_block aml_vrr_switch_notifier = {
 	.notifier_call = aml_vrr_switch_notify_callback,
 };
 
+static struct notifier_block aml_vrr_lfc_notifier = {
+	.notifier_call = aml_vrr_lfc_notify_callback,
+};
+
 int aml_vrr_if_probe(void)
 {
 	aml_vrr_atomic_notifier_register(&aml_vrr_vout_notifier);
 	aml_vrr_atomic_notifier_register(&aml_vrr_switch_notifier);
+	aml_vrr_atomic_notifier_register(&aml_vrr_lfc_notifier);
 
 	return 0;
 }
@@ -193,6 +243,7 @@ int aml_vrr_if_remove(void)
 {
 	aml_vrr_atomic_notifier_unregister(&aml_vrr_switch_notifier);
 	aml_vrr_atomic_notifier_unregister(&aml_vrr_vout_notifier);
+	aml_vrr_atomic_notifier_unregister(&aml_vrr_lfc_notifier);
 
 	return 0;
 }

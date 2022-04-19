@@ -2853,6 +2853,29 @@ void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	lcd_vout_notify_mode_change(pdrv);
 }
 
+unsigned int lcd_vrr_lfc_switch(void *dev_data, int fps)
+{
+	struct aml_lcd_drv_s *pdrv;
+	unsigned long long temp;
+	unsigned int h_period, v_period;
+
+	pdrv = (struct aml_lcd_drv_s *)dev_data;
+	if (!pdrv) {
+		LCDERR("%s: vrr dev_data is null\n", __func__);
+		return 0;
+	}
+	h_period = pdrv->config.basic.h_period;
+	v_period = pdrv->config.basic.v_period;
+
+	temp = pdrv->config.timing.lcd_clk;
+	temp *= 100;
+	h_period = h_period * fps * 2;
+	v_period = lcd_do_div(temp, h_period);
+	v_period = (v_period + 99) / 100; /* round off */
+
+	return v_period;
+}
+
 void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv)
 {
 	if (!pdrv->vrr_dev)
