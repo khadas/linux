@@ -14265,6 +14265,15 @@ static ssize_t di_release_count_store(struct class *cla,
 	return count;
 }
 
+static ssize_t limited_win_ratio_show(struct class *cla,
+				     struct class_attribute *attr,
+				     char *buf)
+{
+	int limited_win_ratio = 0;
+
+	return sprintf(buf, "%d\n", limited_win_ratio);
+}
+
 static int free_alloced_hist_test_buffer(void)
 {
 	if (hist_buffer_addr) {
@@ -17030,6 +17039,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       hist_test_show,
 	       hist_test_store),
+	__ATTR(limited_win_ratio,
+		  0664,
+		  limited_win_ratio_show,
+		  NULL),
 	__ATTR_RO(frame_addr),
 	__ATTR_RO(frame_canvas_width),
 	__ATTR_RO(frame_canvas_height),
