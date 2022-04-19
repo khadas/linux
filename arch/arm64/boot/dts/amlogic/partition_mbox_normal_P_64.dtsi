@@ -90,7 +90,7 @@
 		vendor:vendor
 		{
 			pname = "vendor";
-			size = <0x0 0x1D000000>;
+			size = <0x0 0x1F000000>;
 			mask = <1>;
 		};
 		odm:odm
@@ -102,7 +102,7 @@
 		system:system
 		{
 			pname = "system";
-			size = <0x0 0x62C00000>;
+			size = <0x0 0x78800000>;
 			mask = <1>;
 		};
 		product:product{
