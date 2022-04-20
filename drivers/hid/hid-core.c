@@ -53,11 +53,13 @@ MODULE_PARM_DESC(ignore_special_drivers, "Ignore any special drivers and handle 
 struct customer_device {
 	int vid;
 	int pid;
+	char *match;
 };
 
 static struct customer_device cus_hid[] = {
-	{0x046d, 0xb30b},
-	{0x000d, 0x0000},
+	{0x046d, 0xb30b, NULL},
+	{0x000d, 0x0000, NULL},
+	{0x057e, 0x2009, "PXN"},
 	{0x0000, 0x0000}
 };
 
@@ -2427,8 +2429,10 @@ int hid_add_device(struct hid_device *hdev)
 	while (temp_hid->vid != 0 || temp_hid->pid != 0) {
 		if (hdev->vendor == temp_hid->vid &&
 			hdev->product == temp_hid->pid) {
-			hid_ignore_special_drivers = 1;
-			break;
+			if (!temp_hid->match || strstr(hdev->name, temp_hid->match)) {
+				hid_ignore_special_drivers = 1;
+				break;
+			}
 		}
 		temp_hid++;
 	}
