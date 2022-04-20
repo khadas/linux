@@ -51,6 +51,8 @@ struct video_recv_s {
 	bool do_exit;
 	bool exited;
 	bool irq_mode;
+	u8 vpp_id;
+	u64 recv_vsync_cnt;
 
 	u32 notify_flag;
 	u32 blackout;
@@ -61,7 +63,8 @@ struct video_recv_s {
 	struct recv_func_s *func;
 };
 
-struct video_recv_s *create_video_receiver(const char *recv_name, u8 path_id);
+struct video_recv_s *create_video_receiver(const char *recv_name,
+	u8 path_id, u8 vpp_id);
 void destroy_video_receiver(struct video_recv_s *ins);
 void switch_vf(struct video_recv_s *ins, bool switch_flag);
 

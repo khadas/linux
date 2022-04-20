@@ -157,6 +157,7 @@ int video_vsync = -ENXIO;
 int video_vsync_viu2 = -ENXIO;
 int video_vsync_viu3 = -ENXIO;
 int video_pre_vsync = -ENXIO;
+u64 vsync_cnt[VPP_MAX] = {0, 0, 0};
 
 module_param(osd_vpp1_bld_ctrl, uint, 0444);
 MODULE_PARM_DESC(osd_vpp1_bld_ctrl, "osd_vpp1_bld_ctrl");
@@ -9056,7 +9057,7 @@ exit:
 		vd_clip_setting(2, &vd_layer[2].clip_setting);
 
 	vpp_blend_update(vinfo);
-
+	vsync_cnt[VPP0]++;
 	if (gvideo_recv[0])
 		gvideo_recv[0]->func->late_proc(gvideo_recv[0]);
 	if (gvideo_recv[1])
@@ -9148,6 +9149,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 	if (atomic_inc_return(&video_proc_lock) > 1) {
 		vsync_proc_drop++;
 		atomic_dec(&video_proc_lock);
+		vsync_cnt[VPP0]++;
 		return 0;
 	}
 	if (overrun_flag) {
@@ -9155,6 +9157,7 @@ static irqreturn_t vsync_isr(int irq, void *dev_id)
 		vsync_proc_drop++;
 		lowlatency_overrun_recovery_cnt++;
 		atomic_dec(&video_proc_lock);
+		vsync_cnt[VPP0]++;
 		return 0;
 	}
 	atomic_set(&video_inirq_flag, 1);
@@ -18744,17 +18747,18 @@ int __init video_init(void)
 	memset(recycle_buf, 0, sizeof(recycle_buf));
 	memset(recycle_cnt, 0, sizeof(recycle_cnt));
 
+	/* render recvier is fixed to vpp port */
 	gvideo_recv[0] = create_video_receiver
-		("video_render.0", VFM_PATH_VIDEO_RENDER0);
+		("video_render.0", VFM_PATH_VIDEO_RENDER0, VPP0);
 	gvideo_recv[1] = create_video_receiver
-		("video_render.1", VFM_PATH_VIDEO_RENDER1);
+		("video_render.1", VFM_PATH_VIDEO_RENDER1, VPP0);
 	gvideo_recv[2] = create_video_receiver
-		("video_render.2", VFM_PATH_VIDEO_RENDER2);
+		("video_render.2", VFM_PATH_VIDEO_RENDER2, VPP0);
 	/* for multi vpp */
 	gvideo_recv_vpp[0] = create_video_receiver
-		("video_render.5", VFM_PATH_VIDEO_RENDER5);
+		("video_render.5", VFM_PATH_VIDEO_RENDER5, VPP1);
 	gvideo_recv_vpp[1] = create_video_receiver
-		("video_render.6", VFM_PATH_VIDEO_RENDER6);
+		("video_render.6", VFM_PATH_VIDEO_RENDER6, VPP2);
 
 	vsync_fiq_up();
 

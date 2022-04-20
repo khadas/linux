@@ -148,28 +148,33 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	bool layer3_used = false;
 	int i;
 	bool vpp1_used = false, vpp2_used = false;
-	bool wait = false;
+	bool wait = false, force_wait = false;
+	u64 cur_vsync_cnt = 0;
+	u64 recv_vsync_cnt = 0;
+	ulong start_jiffies, end_jiffies;
 
 	if (!ins)
 		return;
-	if (!strcmp(ins->recv_name, "video_render.5"))
+
+	if (ins->vpp_id == VPP1)
 		vpp1_used = true;
-	if (!strcmp(ins->recv_name, "video_render.6"))
+	else if (ins->vpp_id == VPP2)
 		vpp2_used = true;
+
 	/* FIXME: remove the global variable */
-	atomic_inc(&video_unreg_flag);
-	if (vpp1_used)
+	if (vpp1_used) {
 		atomic_inc(&video_unreg_flag_vpp[0]);
-	if (vpp2_used)
-		atomic_inc(&video_unreg_flag_vpp[1]);
-	while (atomic_read(&video_inirq_flag) > 0)
-		schedule();
-	if (vpp1_used)
 		while (atomic_read(&video_inirq_flag_vpp[0]) > 0)
 			schedule();
-	if (vpp2_used)
+	} else if (vpp2_used) {
+		atomic_inc(&video_unreg_flag_vpp[1]);
 		while (atomic_read(&video_inirq_flag_vpp[1]) > 0)
 			schedule();
+	} else { /* vpp0 */
+		atomic_inc(&video_unreg_flag);
+		while (atomic_read(&video_inirq_flag) > 0)
+			schedule();
+	}
 
 	spin_lock_irqsave(&ins->lock, flags);
 	ins->buf_to_put_num = 0;
@@ -199,38 +204,42 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	}
 	spin_unlock_irqrestore(&ins->lock, flags);
 
-	if (vd_layer[0].dispbuf_mapping
-		== &ins->cur_buf) {
-		layer1_used = true;
-	}
-	if (vd_layer_vpp[0].vpp_index != VPP0 && vd_layer_vpp[0].layer_id == 1) {
-		if (vd_layer_vpp[0].dispbuf_mapping
-			== &ins->cur_buf) {
+	if (vpp1_used) {
+		if (vd_layer_vpp[0].vpp_index != VPP0 &&
+		    vd_layer_vpp[0].layer_id == 1) {
+			if (vd_layer_vpp[0].dispbuf_mapping ==
+			    &ins->cur_buf)
+				layer2_used = true;
+		}
+	} else if (vpp2_used) {
+		if (vd_layer_vpp[1].vpp_index != VPP0 &&
+			vd_layer_vpp[1].layer_id == 2) {
+			if (vd_layer_vpp[1].dispbuf_mapping ==
+				&ins->cur_buf)
+				layer3_used = true;
+		}
+	} else { /* vpp0 */
+		if (vd_layer[0].dispbuf_mapping == &ins->cur_buf)
+			layer1_used = true;
+		if (vd_layer[1].dispbuf_mapping == &ins->cur_buf &&
+		    vd_layer[1].vpp_index == VPP0)
 			layer2_used = true;
-		}
-	} else {
-		if (vd_layer[1].dispbuf_mapping
-			== &ins->cur_buf) {
-			layer2_used = true;
-		}
-	}
-
-	if (vd_layer_vpp[1].vpp_index != VPP0 && vd_layer_vpp[1].layer_id == 2) {
-		if (vd_layer_vpp[0].dispbuf_mapping
-			== &ins->cur_buf) {
+		if (vd_layer[2].dispbuf_mapping == &ins->cur_buf &&
+		    vd_layer[2].vpp_index == VPP0)
 			layer3_used = true;
-		}
-	} else {
-		if (vd_layer[2].dispbuf_mapping
-			== &ins->cur_buf) {
-			layer3_used = true;
-		}
 	}
 
 	if (layer1_used || !vd_layer[0].dispbuf_mapping)
 		atomic_set(&primary_src_fmt, VFRAME_SIGNAL_FMT_INVALID);
 
-	if (!layer1_used && !layer2_used) {
+	if (ins->vpp_id < VPP_MAX) {
+		cur_vsync_cnt = vsync_cnt[ins->vpp_id];
+		recv_vsync_cnt = ins->recv_vsync_cnt;
+		if (recv_vsync_cnt + 2 > cur_vsync_cnt)
+			force_wait = true;
+	}
+	if (!layer1_used && !layer2_used &&
+	    !layer3_used && !force_wait) {
 		ins->cur_buf = NULL;
 	} else {
 		ins->request_exit = true;
@@ -246,24 +255,37 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 	if (layer3_used)
 		safe_switch_videolayer(2, false, true);
 
-	pr_info("%s %s: vd1 used: %s, vd2 used: %s, vd3 used: %s, black_out:%d, cur_buf:%p\n",
+	pr_info("%s %s: vd1 used:%s, vd2 used:%s, vd3 used:%s, f_wait:%s (%lld %lld), b_out:%d, cur_buf:%p\n",
 		__func__,
 		ins->recv_name,
 		layer1_used ? "true" : "false",
 		layer2_used ? "true" : "false",
 		layer3_used ? "true" : "false",
+		force_wait ? "true" : "false",
+		recv_vsync_cnt, cur_vsync_cnt,
 		ins->blackout | force_blackout,
 		ins->cur_buf);
 
 	ins->active = false;
-	atomic_dec(&video_unreg_flag);
 	if (vpp1_used)
 		atomic_dec(&video_unreg_flag_vpp[0]);
-	if (vpp2_used)
+	else if (vpp2_used)
 		atomic_dec(&video_unreg_flag_vpp[1]);
+	else
+		atomic_dec(&video_unreg_flag);
 
-	while (wait && (!ins->exited || ins->request_exit) && !video_suspend)
+	/* add 100ms timeout */
+	start_jiffies = jiffies;
+	end_jiffies = start_jiffies + msecs_to_jiffies(100);
+	while (wait && !video_suspend &&
+		(!ins->exited || ins->request_exit) &&
+		time_before(jiffies, end_jiffies)) {
 		schedule();
+	}
+	if (debug_flag & DEBUG_FLAG_BASIC_INFO)
+		pr_info("%s %s: unreg cost %d ms\n",
+			__func__, ins->recv_name,
+			jiffies_to_msecs(jiffies - start_jiffies));
 }
 
 static void common_vf_light_unreg_provider(struct video_recv_s *ins)
@@ -275,24 +297,26 @@ static void common_vf_light_unreg_provider(struct video_recv_s *ins)
 	if (!ins)
 		return;
 
-	if (!strcmp(ins->recv_name, "video_render.5"))
+	if (ins->vpp_id == VPP1)
 		vpp1_used = true;
-	if (!strcmp(ins->recv_name, "video_render.6"))
+	else if (ins->vpp_id == VPP2)
 		vpp2_used = true;
+
 	/* FIXME: remove the global variable */
-	atomic_inc(&video_unreg_flag);
-	if (vpp1_used)
+	if (vpp1_used) {
 		atomic_inc(&video_unreg_flag_vpp[0]);
-	if (vpp2_used)
-		atomic_inc(&video_unreg_flag_vpp[1]);
-	while (atomic_read(&video_inirq_flag) > 0)
-		schedule();
-	if (vpp1_used)
 		while (atomic_read(&video_inirq_flag_vpp[0]) > 0)
 			schedule();
-	if (vpp2_used)
+	} else if (vpp2_used) {
+		atomic_inc(&video_unreg_flag_vpp[1]);
 		while (atomic_read(&video_inirq_flag_vpp[1]) > 0)
 			schedule();
+	} else { /* vpp0 */
+		atomic_inc(&video_unreg_flag);
+		while (atomic_read(&video_inirq_flag) > 0)
+			schedule();
+	}
+
 	spin_lock_irqsave(&ins->lock, flags);
 	ins->buf_to_put_num = 0;
 	for (i = 0; i < DISPBUF_TO_PUT_MAX; i++)
@@ -305,11 +329,12 @@ static void common_vf_light_unreg_provider(struct video_recv_s *ins)
 	}
 	spin_unlock_irqrestore(&ins->lock, flags);
 
-	atomic_dec(&video_unreg_flag);
 	if (vpp1_used)
 		atomic_dec(&video_unreg_flag_vpp[0]);
-	if (vpp2_used)
+	else if (vpp2_used)
 		atomic_dec(&video_unreg_flag_vpp[1]);
+	else
+		atomic_dec(&video_unreg_flag);
 }
 
 static int common_receiver_event_fun(int type,
@@ -637,6 +662,8 @@ static s32 recv_common_return_frame(struct video_recv_s *ins,
 
 static s32 recv_common_late_proc(struct video_recv_s *ins)
 {
+	u64 cur_vsync_cnt;
+
 	if (!ins) {
 		pr_err("%s error, empty ins\n", __func__);
 		return -1;
@@ -644,6 +671,28 @@ static s32 recv_common_late_proc(struct video_recv_s *ins)
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 	ins->rdma_buf = ins->cur_buf;
 #endif
+	if (ins->vpp_id < VPP_MAX)
+		cur_vsync_cnt = vsync_cnt[ins->vpp_id];
+
+	/* sync last render vsync cnt */
+	if (ins->vpp_id == VPP0) {
+		if (vd_layer[0].dispbuf_mapping == &ins->cur_buf)
+			ins->recv_vsync_cnt = cur_vsync_cnt;
+		if (vd_layer[1].dispbuf_mapping == &ins->cur_buf &&
+		    vd_layer[1].vpp_index == VPP0)
+			ins->recv_vsync_cnt = cur_vsync_cnt;
+		if (vd_layer[2].dispbuf_mapping == &ins->cur_buf &&
+			vd_layer[2].vpp_index == VPP0)
+			ins->recv_vsync_cnt = cur_vsync_cnt;
+	}
+	if (ins->vpp_id != VPP0 && ins->vpp_id < VPP_MAX) {
+		if (vd_layer_vpp[0].vpp_index == ins->vpp_id &&
+		    vd_layer_vpp[0].dispbuf_mapping == &ins->cur_buf)
+			ins->recv_vsync_cnt = cur_vsync_cnt;
+		if (vd_layer_vpp[1].vpp_index == ins->vpp_id &&
+			vd_layer_vpp[1].dispbuf_mapping == &ins->cur_buf)
+			ins->recv_vsync_cnt = cur_vsync_cnt;
+	}
 	return 0;
 }
 
@@ -654,7 +703,8 @@ const struct recv_func_s recv_common_ops = {
 	.late_proc = recv_common_late_proc,
 };
 
-struct video_recv_s *create_video_receiver(const char *recv_name, u8 path_id)
+struct video_recv_s *create_video_receiver(const char *recv_name,
+	u8 path_id, u8 vpp_id)
 {
 	struct video_recv_s *ins = NULL;
 
@@ -671,6 +721,7 @@ struct video_recv_s *create_video_receiver(const char *recv_name, u8 path_id)
 	ins->vf_ops = (struct vframe_receiver_op_s *)&common_recv_func;
 	ins->func = (struct recv_func_s *)&recv_common_ops;
 	ins->path_id = path_id;
+	ins->vpp_id = vpp_id;
 	spin_lock_init(&ins->lock);
 	vf_receiver_init(&ins->handle,
 			 ins->recv_name,

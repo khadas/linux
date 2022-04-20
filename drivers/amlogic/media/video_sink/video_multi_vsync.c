@@ -397,6 +397,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 	vd_layer_vpp[vpp_id].new_frame = false;
 exit:
 	vppx_blend_update(info, vpp_index);
+	vsync_cnt[vpp_index]++;
 	if (gvideo_recv_vpp[recv_id])
 		gvideo_recv_vpp[recv_id]->func->late_proc(gvideo_recv_vpp[recv_id]);
 
