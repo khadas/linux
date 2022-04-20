@@ -195,6 +195,18 @@ char *get_vout3_mode_internal(void)
 }
 EXPORT_SYMBOL(get_vout3_mode_internal);
 
+char *get_vout3_mode_uboot(void)
+{
+	return vout3_mode_uboot;
+}
+EXPORT_SYMBOL(get_vout3_mode_uboot);
+
+int get_vout3_mode_uboot_state(void)
+{
+	return uboot_display;
+}
+EXPORT_SYMBOL(get_vout3_mode_uboot_state);
+
 #define MAX_UEVENT_LEN 64
 int vout3_set_uevent(unsigned int vout_event, int val)
 {

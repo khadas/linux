@@ -47,7 +47,6 @@
 	drm_vpu: drm-vpu@0xff900000  {
 		status = "disabled";
 		compatible = "amlogic, meson-s4-vpu";
-		memory-region = <&logo_reserved>;
 		osd_ver = /bits/ 8 <OSD_V4>;
 		reg = <0xff900000 0x40000>,
 			  <0xff63c000 0x2000>,
@@ -91,6 +90,8 @@
 		fbdev_fb_h = <2160>;
 		fbdev_fb_bpp = <32>;
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
+		memory-region = <&logo_reserved>;
+		panel2logo = <0 2 3>;
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

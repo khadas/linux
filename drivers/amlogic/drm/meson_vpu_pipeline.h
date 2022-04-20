@@ -179,6 +179,7 @@ struct meson_vpu_osd_layer_info {
 	u32 scaling_filter;
 	u32 crtc_index;
 	u32 read_ports;
+	u32 logo_show_done;
 };
 
 struct meson_vpu_osd {

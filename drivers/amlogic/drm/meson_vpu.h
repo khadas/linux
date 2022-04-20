@@ -32,10 +32,6 @@ struct meson_vpu_data {
 	struct meson_vpu_block_ops *video_ops;
 };
 
-extern struct am_meson_logo logo;
-
-void am_meson_free_logo_memory(void);
-
 enum meson_vout_event {
 	EVENT_MODE_SET_START = 0,
 	EVENT_MODE_SET_FINISH = 1,

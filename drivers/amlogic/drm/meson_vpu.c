@@ -40,8 +40,6 @@
 #define AM_VOUT_NULL_MODE "null"
 
 static int irq_init_done;
-static struct platform_device *gp_dev;
-static unsigned long gem_mem_start, gem_mem_size;
 
 void meson_vout_notify_mode_change(int idx,
 		enum vmode_e mode, enum meson_vout_event event)
@@ -144,45 +142,6 @@ static irqreturn_t am_meson_vpu_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-void am_meson_free_logo_memory(void)
-{
-	phys_addr_t logo_addr = page_to_phys(logo.logo_page);
-
-	if (logo.size > 0) {
-#ifdef CONFIG_CMA
-		DRM_INFO("%s, free memory: addr:0x%pa,size:0x%x\n",
-			 __func__, &logo_addr, logo.size);
-
-		dma_release_from_contiguous(&gp_dev->dev,
-					    logo.logo_page,
-					    logo.size >> PAGE_SHIFT);
-#endif
-	}
-	logo.alloc_flag = 0;
-}
-
-static int am_meson_logo_info_update(struct meson_drm *priv)
-{
-	logo.start = page_to_phys(logo.logo_page);
-	logo.alloc_flag = 1;
-	/*config 1080p logo as default*/
-	if (!logo.width || !logo.height) {
-		logo.width = 1920;
-		logo.height = 1080;
-	}
-	if (!logo.bpp)
-		logo.bpp = 16;
-	if (!logo.outputmode_t) {
-		strcpy(logo.outputmode, "1080p60hz");
-	} else {
-		strncpy(logo.outputmode, logo.outputmode_t, VMODE_NAME_LEN_MAX);
-		logo.outputmode[VMODE_NAME_LEN_MAX - 1] = '\0';
-	}
-	priv->logo = &logo;
-
-	return 0;
-}
-
 static void am_meson_vpu_power_config(bool en)
 {
 	meson_vpu_power_config(VPU_MAIL_AFBCD, en);
@@ -208,63 +167,9 @@ static int am_meson_vpu_bind(struct device *dev,
 	struct meson_vpu_pipeline *pipeline = private->pipeline;
 	struct am_meson_crtc *amcrtc;
 	struct meson_vpu_data *vpu_data;
-#ifdef CONFIG_CMA
-	struct cma *cma;
-	struct reserved_mem *rmem = NULL;
-	struct device_node *np, *mem_node;
-#endif
 	int i, ret, irq;
 
 	DRM_INFO("[%s] in\n", __func__);
-
-	/* init reserved memory */
-	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret != 0) {
-		dev_err(dev, "failed to init reserved memory\n");
-	} else {
-#ifdef CONFIG_CMA
-		np = pdev->dev.of_node;
-		mem_node = of_parse_phandle(np, "memory-region", 0);
-		if (mem_node) {
-			rmem = of_reserved_mem_lookup(mem_node);
-			of_node_put(mem_node);
-			if (rmem) {
-				logo.size = rmem->size;
-				DRM_INFO("of read reservememsize=0x%x\n",
-					 logo.size);
-			}
-		} else {
-			DRM_ERROR("no memory-region\n");
-		}
-		gp_dev = pdev;
-		cma = dev_get_cma_area(&pdev->dev);
-		if (cma) {
-			if (logo.size > 0) {
-				logo.logo_page =
-				dma_alloc_from_contiguous(&pdev->dev,
-							  logo.size >>
-							  PAGE_SHIFT,
-							  0, 0);
-				if (!logo.logo_page)
-					DRM_INFO("allocate buffer failed\n");
-				else
-					am_meson_logo_info_update(private);
-			}
-		} else {
-			DRM_INFO("------ NO CMA\n");
-		}
-#endif
-		if (gem_mem_start) {
-			dma_declare_coherent_memory(drm_dev->dev,
-						    gem_mem_start,
-						    gem_mem_start,
-						    gem_mem_size);
-			pr_info("meson drm mem_start = 0x%x, size = 0x%x\n",
-				(u32)gem_mem_start, (u32)gem_mem_size);
-		} else {
-			DRM_INFO("------ NO reserved dma\n");
-		}
-	}
 
 	vpu_data = (struct meson_vpu_data *)of_device_get_match_data(dev);
 	private->vpu_data = vpu_data;
@@ -456,36 +361,6 @@ static struct platform_driver am_meson_vpu_platform_driver = {
 		.of_match_table = of_match_ptr(am_meson_vpu_driver_dt_match),
 	},
 };
-
-static int gem_mem_device_init(struct reserved_mem *rmem, struct device *dev)
-{
-	s32 ret = 0;
-
-	if (!rmem) {
-		pr_info("Can't get reverse mem!\n");
-		ret = -EFAULT;
-		return ret;
-	}
-	gem_mem_start = rmem->base;
-	gem_mem_size = rmem->size;
-	pr_info("init gem memsource addr:0x%x size:0x%x\n",
-		(u32)gem_mem_start, (u32)gem_mem_size);
-
-	return 0;
-}
-
-static const struct reserved_mem_ops rmem_gem_ops = {
-	.device_init = gem_mem_device_init,
-};
-
-static int __init gem_mem_setup(struct reserved_mem *rmem)
-{
-	rmem->ops = &rmem_gem_ops;
-	pr_info("gem mem setup\n");
-	return 0;
-}
-
-RESERVEDMEM_OF_DECLARE(gem, "amlogic, gem_memory", gem_mem_setup);
 
 int __init am_meson_vpu_init(void)
 {

@@ -324,6 +324,7 @@ static int meson_plane_fb_check(struct drm_plane *plane,
 		phyaddr = am_meson_gem_object_get_phyaddr(drv,
 							  meson_fb->bufp[0],
 							  &fb_size);
+		plane_info->logo_show_done = 1;
 	} else {
 		phyaddr = 0;
 		DRM_INFO("don't find phyaddr!\n");

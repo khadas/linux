@@ -80,7 +80,6 @@
 	drm_vpu: drm-vpu@0xff900000  {
 		status = "disabled";
 		compatible = "amlogic, meson-sm1-vpu";
-		memory-region = <&logo_reserved>;
 		reg = <0xff900000 0x40000>,
 			  <0xff63c000 0x2000>,
 			  <0xff638000 0x2000>;
@@ -115,6 +114,8 @@
 		compatible = "amlogic, drm-subsystem";
 		ports = <&vpu_out>;
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
+		memory-region = <&logo_reserved>;
+		panel2logo = <0 2 3>;
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

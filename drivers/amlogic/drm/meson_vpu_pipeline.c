@@ -357,11 +357,22 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				     struct meson_vpu_pipeline_state *mvps)
 {
 	u8 i;
-	int crtc_index;
+	int crtc_index, doneflag;
+	u64 phy_addr;
 	struct meson_vpu_sub_pipeline_state *mvsps;
+	struct meson_vpu_pipeline *mvp = mvps->pipeline;
 
 	mvps->num_plane = 0;
 	mvps->num_plane_video = 0;
+	phy_addr = mvp->priv->logo->start;
+	doneflag = 0;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (mvps->plane_info[i].logo_show_done) {
+			doneflag = 1;
+			break;
+		}
+	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (mvps->plane_info[i].enable) {
@@ -371,6 +382,9 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				mvps->plane_info[i].enable = 0;
 				continue;
 			}
+
+			if ((doneflag && mvps->plane_info[i].phy_addr == phy_addr))
+				continue;
 			DRM_DEBUG("osdplane [%d] enable:(%d-%llx, %d-%d)\n",
 				mvps->plane_info[i].plane_index,
 				mvps->plane_info[i].zorder,

@@ -23,6 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/vfm/vfm_ext.h>
+#include "meson_logo.h"
 
 #define MESON_MAX_CRTC		3
 #define MESON_MAX_OSD		4
@@ -69,6 +70,7 @@ struct meson_drm {
 	u32 num_crtcs;
 	struct am_meson_crtc *crtcs[MESON_MAX_CRTC];
 	struct meson_drm_thread commit_thread[MESON_MAX_CRTC];
+	struct am_meson_fb *logos[MESON_MAX_CRTC];
 
 	u32 num_planes;
 	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
@@ -99,6 +101,5 @@ void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state);
 #ifdef CONFIG_DEBUG_FS
 int meson_debugfs_init(struct drm_minor *minor);
 #endif
-int __am_meson_drm_set_config(struct drm_mode_set *set,
-			      struct drm_atomic_state *state);
+
 #endif /* __AM_MESON_DRV_H */
