@@ -493,6 +493,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 			dolby_vision_check_hdr10(vf);
 			dolby_vision_check_hdr10plus(vf);
 			dolby_vision_check_hlg(vf);
+			dolby_vision_check_primesl(vf);
 		}
 
 		fmt = get_vframe_src_fmt(vf);

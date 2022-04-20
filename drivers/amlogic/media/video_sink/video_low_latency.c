@@ -56,6 +56,9 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 #include "linux/amlogic/media/frame_provider/tvin/tvin_v4l2.h"
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
+#include <linux/amlogic/media/amprime_sl/prime_sl.h>
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_MSYNC
 #include <uapi/linux/amlogic/msync.h>
 #endif
@@ -183,6 +186,7 @@ static int lowlatency_vsync(u8 instance_id)
 		dolby_vision_check_hdr10(vf);
 		dolby_vision_check_hdr10plus(vf);
 		dolby_vision_check_hlg(vf);
+		dolby_vision_check_primesl(vf);
 	}
 
 	if (cur_vd1_path_id != vd1_path_id) {
@@ -884,6 +888,10 @@ static int lowlatency_vsync(u8 instance_id)
 		0,
 		VD1_PATH,
 		VPP_TOP0);
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
+	prime_sl_process(vd_layer[0].dispbuf);
 #endif
 
 	/* work around which dec/vdin don't call update src_fmt function */
