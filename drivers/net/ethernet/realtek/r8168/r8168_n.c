@@ -24160,7 +24160,7 @@ rtl8168_set_mac_address(struct net_device *dev,
 
         spin_lock_irqsave(&tp->lock, flags);
 
-        memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+        //memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
         rtl8168_rar_set(tp, dev->dev_addr);
 
