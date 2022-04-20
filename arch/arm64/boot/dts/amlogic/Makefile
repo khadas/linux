@@ -68,6 +68,7 @@ dtb-y += t3_t965d4_ar331-4g.dtb
 dtb-y += t3_t982_ar301-2g.dtb
 dtb-y += t3_t965d4_ar321-2g.dtb
 dtb-y += p1_pxp.dtb
+dtb-y += p1_as400_3g.dtb
 dtb-y += p1_as400_4g.dtb
 dtb-y += p1_skt_8g.dtb
 dtb-y += p1_skt_4g.dtb
