@@ -142,23 +142,6 @@
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
 		};
-
-		/* demod_reserved:linux,demod {
-		 *	compatible = "amlogic, demod-mem";
-		 *	size = <0x0 0x6400000>; //8M //100m 0x6400000
-		 *	alloc-ranges = <0x0 0x0 0x0 0x30000000>;
-		 *	//multi-use;
-		 *	//no-map;
-		 * };
-		 */
-
-		demod_cma_reserved:linux,demod_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 20M */
-			size = <0x0 0x0>;
-			alignment = <0x0 0x400000>;
-		};
 	};
 	codec_mm {
 		compatible = "amlogic, codec, mm";
@@ -393,11 +376,8 @@
 			   0x0 0xffd01000 0x0 0x1000	/* reset */
 			>;
 
-		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
 		spectrum = <1>;
-		cma_flag = <1>;
-		cma_mem_size = <0>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
+		cma_mem_size = <0>; // MB
 		agc_pin_direction;//for S4D av2018 rf agc reverse
 	};
 

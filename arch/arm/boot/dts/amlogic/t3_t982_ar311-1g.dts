@@ -188,16 +188,6 @@
 			/*alloc-ranges = <0x0 0x3f800000>;*/
 		};
 
-		demod_cma_reserved:linux,demod_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 40M */
-			size = <0x00800000>;
-			alignment = <0x400000>;
-			linux,contiguous-region;
-			alloc-ranges = <0x0 0xe0000000>;
-		};
-
 		ldc_mem_reserved:linux,ldc_mem {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -663,11 +653,8 @@
 			   0xfe002000 0x2000	/*reset*/
 			>;
 
-		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
 		spectrum = <1>;
-		cma_flag = <1>;
-		cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
+		cma_mem_size = <40>; // MB
 	};
 
 	/* Audio Related start */

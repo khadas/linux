@@ -101,14 +101,15 @@
 			alloc-ranges = <0x00000000 0x3f800000>;
 		};
 
-		demod_cma_reserved:linux,demod_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			/* 40M */
-			size = <0x02800000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x00000000 0x3f800000>;
-		};
+		/* demod_cma_reserved:linux,demod_cma {
+		 *	compatible = "shared-dma-pool";
+		 *	reusable;
+		 *	// 40M
+		 *	size = <0x02800000>;
+		 *	alignment = <0x400000>;
+		 *	alloc-ranges = <0x00000000 0x3f800000>;
+		 *};
+		 */
 
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
@@ -691,11 +692,9 @@
 			   0xffd01000 0x1000	/*reset*/
 			>;
 
-		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
 		spectrum = <1>;
 		cma_flag = <1>;
-		cma_mem_size = <8>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
+		cma_mem_size = <40>; // MB
 	};
 
 	atv-demod {
