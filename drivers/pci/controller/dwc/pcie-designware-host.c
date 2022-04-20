@@ -297,6 +297,19 @@ void dw_pcie_msi_init(struct pcie_port *pp)
 	struct device *dev = pci->dev;
 	u64 msi_target;
 
+#ifdef CONFIG_AMLOGIC_PCIE
+	if (!pp->msi_page) {
+		pp->msi_page = alloc_page(GFP_KERNEL);
+		pp->msi_data = dma_map_page(dev, pp->msi_page, 0, PAGE_SIZE,
+					    DMA_FROM_DEVICE);
+		if (dma_mapping_error(dev, pp->msi_data)) {
+			dev_err(dev, "Failed to map MSI data\n");
+			__free_page(pp->msi_page);
+			pp->msi_page = NULL;
+			return;
+		}
+	}
+#else
 	pp->msi_page = alloc_page(GFP_KERNEL);
 	pp->msi_data = dma_map_page(dev, pp->msi_page, 0, PAGE_SIZE,
 				    DMA_FROM_DEVICE);
@@ -306,6 +319,7 @@ void dw_pcie_msi_init(struct pcie_port *pp)
 		pp->msi_page = NULL;
 		return;
 	}
+#endif
 	msi_target = (u64)pp->msi_data;
 
 	/* Program the msi_data */
@@ -445,6 +459,13 @@ int dw_pcie_host_init(struct pcie_port *pp)
 		}
 
 		if (!pp->ops->msi_host_init) {
+#ifdef CONFIG_AMLOGIC_PCIE
+			u32 ctrl, num_ctrls;
+
+			num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+			for (ctrl = 0; ctrl < num_ctrls; ctrl++)
+				pp->irq_mask[ctrl] = ~0;
+#endif
 			pp->msi_irq_chip = &dw_pci_msi_bottom_irq_chip;
 
 			ret = dw_pcie_allocate_domains(pp);
@@ -660,7 +681,9 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 
 		/* Initialize IRQ Status array */
 		for (ctrl = 0; ctrl < num_ctrls; ctrl++) {
+#ifndef CONFIG_AMLOGIC_PCIE
 			pp->irq_mask[ctrl] = ~0;
+#endif
 			dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_MASK +
 					    (ctrl * MSI_REG_CTRL_BLOCK_SIZE),
 					    4, pp->irq_mask[ctrl]);
@@ -669,7 +692,9 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 					    4, ~0);
 		}
 	}
-
+#ifdef CONFIG_AMLOGIC_PCIE
+	dw_pcie_msi_init(pp);
+#endif
 	/* Setup RC BARs */
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_0, 0x00000004);
 	dw_pcie_writel_dbi(pci, PCI_BASE_ADDRESS_1, 0x00000000);
