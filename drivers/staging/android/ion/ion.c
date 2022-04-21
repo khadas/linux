@@ -161,7 +161,11 @@ static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+#else
 static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+#endif
 {
 	int ret = 0;
 	union ion_ioctl_arg data;
@@ -218,6 +222,11 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+EXPORT_SYMBOL_GPL(ion_ioctl);
+#endif
+
+#ifndef CONFIG_AMLOGIC_MODIFY
 static const struct file_operations ion_fops = {
 	.owner          = THIS_MODULE,
 	.unlocked_ioctl = ion_ioctl,
@@ -225,6 +234,7 @@ static const struct file_operations ion_fops = {
 	.compat_ioctl	= ion_ioctl,
 #endif
 };
+#endif
 
 static int debug_shrink_set(void *data, u64 val)
 {
@@ -500,6 +510,7 @@ static int ion_device_create(void)
 	if (!idev)
 		return -ENOMEM;
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 	idev->dev.minor = MISC_DYNAMIC_MINOR;
 	idev->dev.name = "ion";
 	idev->dev.fops = &ion_fops;
@@ -509,6 +520,7 @@ static int ion_device_create(void)
 		pr_err("ion: failed to register misc device.\n");
 		goto err_reg;
 	}
+#endif
 
 	ret = ion_init_sysfs();
 	if (ret) {
@@ -524,8 +536,11 @@ static int ion_device_create(void)
 
 err_sysfs:
 	misc_deregister(&idev->dev);
+#ifndef CONFIG_AMLOGIC_MODIFY
 err_reg:
 	kfree(idev);
+#endif
+
 	return ret;
 }
 subsys_initcall(ion_device_create);
