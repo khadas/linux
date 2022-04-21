@@ -681,6 +681,9 @@ static const u8 skip_tab[6] = { 0x24, 0x04, 0x68, 0x48, 0x28, 0x08 };
 static bool video_mute_on;
 /* 0: off, 1: vpp mute 2:dv mute */
 static int video_mute_status;
+static bool output_mute_on;
+/* 0: off, 1: on */
+static int output_mute_status;
 static int debug_flag_3d = 0xf;
 /*********************************************************
  * Utils APIs
@@ -5960,6 +5963,18 @@ int get_video_mute(void)
 }
 EXPORT_SYMBOL(get_video_mute);
 
+void set_output_mute(bool on)
+{
+	output_mute_on = on;
+}
+EXPORT_SYMBOL(set_output_mute);
+
+int get_output_mute(void)
+{
+	return output_mute_status;
+}
+EXPORT_SYMBOL(get_output_mute);
+
 static inline bool is_tv_panel(void)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
@@ -6083,6 +6098,59 @@ static void check_video_mute(void)
 			}
 			video_mute_status = VIDEO_MUTE_OFF;
 		}
+	}
+}
+
+static inline void mute_output(void)
+{
+	u32 black_val;
+	u8 vpp_index = VPP0;
+
+	if (is_tv_panel())
+		black_val = (0x0 << 20) | (0x0 << 10) | 0;
+	else
+		black_val = (0x0 << 20) | (0x200 << 10) | 0x200; /* YUV */
+
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(VPP_CLIP_MISC0,
+		black_val);
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(VPP_CLIP_MISC1,
+		black_val);
+	WRITE_VCBUS_REG(VPP_CLIP_MISC0, black_val);
+	WRITE_VCBUS_REG(VPP_CLIP_MISC1, black_val);
+}
+
+static inline void unmute_output(void)
+{
+	u8 vpp_index = VPP0;
+
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(VPP_CLIP_MISC0,
+		(0x3ff << 20) |
+		(0x3ff << 10) |
+		0x3ff);
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(VPP_CLIP_MISC1,
+		(0x0 << 20) |
+		(0x0 << 10) | 0x0);
+}
+
+static void check_output_mute(void)
+{
+	if (output_mute_on) {
+		if (output_mute_status != VIDEO_MUTE_ON_VPP) {
+			/* vpp black */
+			mute_output();
+			pr_info("%s: VPP OUTPUT_MUTE_ON\n", __func__);
+		}
+		output_mute_status = VIDEO_MUTE_ON_VPP;
+	} else {
+		if (output_mute_status != VIDEO_MUTE_OFF) {
+			unmute_output();
+			pr_info("%s: VPP OUTPUT_MUTE_OFF vpp\n", __func__);
+		}
+		output_mute_status = VIDEO_MUTE_OFF;
 	}
 }
 
@@ -6272,6 +6340,7 @@ void vpp_blend_update(const struct vinfo_s *vinfo)
 		return;
 	}
 	check_video_mute();
+	check_output_mute();
 
 	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
 		mode |= COMPOSE_MODE_3D;
@@ -6741,6 +6810,7 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	u8 vpp_index = VPP0;
 
 	check_video_mute();
+	check_output_mute();
 
 	if (vd_layer[0].enable_3d_mode == mode_3d_mvc_enable)
 		mode |= COMPOSE_MODE_3D;
