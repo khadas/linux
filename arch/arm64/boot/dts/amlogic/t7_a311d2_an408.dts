@@ -180,6 +180,13 @@
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
 		};
+
+		ldc_mem_reserved:linux,ldc_mem {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+		};
 	};
 
 	codec_mm {
@@ -1240,6 +1247,13 @@
 	};
 };
 
+&spicc2 {	//for UWB/LocalDimm
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc2_pins>;
+	cs-gpios = <&gpio GPIOY_3 GPIO_ACTIVE_HIGH>;
+};
+
 &spicc3 {
 	status = "disabled";
 	pinctrl-names = "default";
@@ -1348,6 +1362,14 @@
 		mux {
 			groups = "pwm_vs_y";
 			function = "pwm_vs";
+		};
+	};
+
+	bl_pwm_vs_off_pins:bl_pwm_vs_off_pin {
+		mux {
+			groups = "GPIOY_14";
+			function = "gpio_periphs";
+			output-low;
 		};
 	};
 
