@@ -185,6 +185,7 @@ struct codec_mm_scatter_mgt {
 	int scatter_task_run_num;
 	struct codec_mm_scatter *cache_scs[2];
 	int cached_pages;
+	bool cache_allocating;
 	/* spin lock */
 	spinlock_t list_lock;
 	/* mutex lock */
@@ -1128,6 +1129,13 @@ int codec_mm_page_alloc_from_cache_scatter(struct codec_mm_scatter_mgt *smgt,
 	struct codec_mm_scatter *src_mms;
 	int alloced;
 
+	codec_mm_list_lock(smgt);
+	if (!smgt->cached_pages) {
+		codec_mm_list_unlock(smgt);
+		return 0;
+	}
+	smgt->cache_allocating = true;
+	codec_mm_list_unlock(smgt);
 	src_mms = codec_mm_get_next_cache_scatter(smgt, NULL, 1);
 	alloced = codec_mm_page_alloc_from_free_scatter(smgt,
 							src_mms, pages, num, 0);
@@ -1136,6 +1144,9 @@ int codec_mm_page_alloc_from_cache_scatter(struct codec_mm_scatter_mgt *smgt,
 		alloced += codec_mm_page_alloc_from_free_scatter(smgt,
 			src_mms, &pages[alloced], num - alloced, 1);
 	}
+	codec_mm_list_lock(smgt);
+	smgt->cache_allocating = false;
+	codec_mm_list_unlock(smgt);
 	return alloced;
 }
 
@@ -2503,6 +2514,10 @@ static int codec_mm_scatter_scatter_arrange(struct codec_mm_scatter_mgt *smgt)
 		struct codec_mm_scatter *mms0, *mms1;
 
 		codec_mm_list_lock(smgt);
+		if (smgt->cache_allocating) {
+			codec_mm_list_unlock(smgt);
+			return 0;
+		}
 		mms0 = smgt->cache_scs[0];
 		mms1 = smgt->cache_scs[1];
 		smgt->cache_scs[0] = NULL;
