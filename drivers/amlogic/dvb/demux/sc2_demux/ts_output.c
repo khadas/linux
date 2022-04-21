@@ -2681,7 +2681,7 @@ int ts_output_add_cb(struct out_elem *pout, ts_output_cb cb, void *udata,
 
 	pout->ref++;
 
-	if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE)
+	if ((pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) && ES_FORMAT == format)
 		mod_timer(&es_out_task_tmp.out_timer,
 		  jiffies + msecs_to_jiffies(out_es_flush_time));
 	else
