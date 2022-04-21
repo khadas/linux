@@ -1232,6 +1232,7 @@ static int amlogic_pcie_resume_noirq(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct amlogic_pcie *amlogic_pcie = platform_get_drvdata(pdev);
+	struct pcie_port *pp = &amlogic_pcie->pci->pp;
 	unsigned long rate = 100000000;
 	int ret = 0;
 	u32 val;
@@ -1271,6 +1272,9 @@ static int amlogic_pcie_resume_noirq(struct device *dev)
 		amlogic_pcie->phy->power_state = 1;
 		usleep_range(500, 510);
 	}
+
+	dw_pcie_setup_rc(pp);
+
 	val = amlogic_cfg_readl(amlogic_pcie, PCIE_CFG0);
 	val |= (APP_LTSSM_ENABLE);
 	amlogic_cfg_writel(amlogic_pcie, val, PCIE_CFG0);
