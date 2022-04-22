@@ -95,6 +95,8 @@
 #include <linux/seq_file.h>
 #endif
 
+#include <linux/soc/rockchip/rk_vendor_storage.h>
+
 #define FIRMWARE_8168D_1    "rtl_nic/rtl8168d-1.fw"
 #define FIRMWARE_8168D_2    "rtl_nic/rtl8168d-2.fw"
 #define FIRMWARE_8168E_1    "rtl_nic/rtl8168e-1.fw"
@@ -24055,6 +24057,34 @@ rtl8168_release_board(struct pci_dev *pdev,
         free_netdev(dev);
 }
 
+static void
+__rtl8168_get_mac_address(struct net_device *dev)
+{
+        u8 mac_addr[MAC_ADDR_LEN * 2] = { 0 };
+        int ret;
+
+        ret = rk_vendor_read(LAN_MAC_ID, mac_addr, MAC_ADDR_LEN * 2);
+        if (ret <= 0 || !is_valid_ether_addr(&mac_addr[6])) {
+                printk(KERN_ERR "r8168: Invalid ether addr %pM\n",
+                        &mac_addr[6]);
+
+                eth_hw_addr_random(dev);
+                ether_addr_copy(&mac_addr[6], dev->dev_addr);
+                printk(KERN_INFO "r8168: Random ether addr %pM\n",
+                        dev->dev_addr);
+
+                ret = rk_vendor_write(LAN_MAC_ID, mac_addr, MAC_ADDR_LEN * 2);
+                if (ret != 0)
+                        printk(KERN_ERR "r8168: Write ether addr failed\n");
+
+                ret = rk_vendor_read(LAN_MAC_ID, mac_addr, MAC_ADDR_LEN * 2);
+                if (ret != MAC_ADDR_LEN * 2)
+                        printk(KERN_ERR "r8168: Read ether addr failed\n");
+        } else {
+                ether_addr_copy(dev->dev_addr, &mac_addr[6]);
+        }
+}
+
 static int
 rtl8168_get_mac_address(struct net_device *dev)
 {
@@ -24119,11 +24149,15 @@ rtl8168_get_mac_address(struct net_device *dev)
         if (!is_valid_ether_addr(mac_addr)) {
                 netif_err(tp, probe, dev, "Invalid ether addr %pM\n",
                           mac_addr);
-                eth_hw_addr_random(dev);
+                __rtl8168_get_mac_address(dev);
                 ether_addr_copy(mac_addr, dev->dev_addr);
-                netif_info(tp, probe, dev, "Random ether addr %pM\n",
-                           mac_addr);
-                tp->random_mac = 1;
+                if (!is_valid_ether_addr(mac_addr)) {
+                        eth_hw_addr_random(dev);
+                        ether_addr_copy(mac_addr, dev->dev_addr);
+                        netif_info(tp, probe, dev, "Random ether addr %pM\n",
+                                   mac_addr);
+                        tp->random_mac = 1;
+                }
         }
 
         rtl8168_rar_set(tp, mac_addr);
@@ -24161,6 +24195,8 @@ rtl8168_set_mac_address(struct net_device *dev,
         spin_lock_irqsave(&tp->lock, flags);
 
         //memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+
+        rtl8168_get_mac_address(dev);
 
         rtl8168_rar_set(tp, dev->dev_addr);
 
