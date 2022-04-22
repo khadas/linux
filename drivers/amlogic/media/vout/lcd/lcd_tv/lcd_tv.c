@@ -474,7 +474,6 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv, enum vmode_e mode
 	}
 
 	lcd_optical_vinfo_update(pdrv);
-	lcd_vrr_dev_update(pdrv);
 }
 
 static unsigned int lcd_parse_vout_init_name(char *name)
@@ -639,6 +638,9 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	} else {
 		ret = -EINVAL;
 	}
+
+	/* must update vrr dev after driver change for panel parameters update */
+	lcd_vrr_dev_update(pdrv);
 
 	pdrv->vmode_update = 0;
 	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
