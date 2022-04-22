@@ -1656,10 +1656,6 @@
 	};
 };
 
-&remote{
-	status = "disable";
-};
-
 &pcie_A {
 	reset-gpio = <&gpio GPIOA_8 GPIO_ACTIVE_HIGH>;
 	status = "disable";
