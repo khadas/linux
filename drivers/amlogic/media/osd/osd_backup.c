@@ -1713,6 +1713,9 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 
 	if (!recovery_enable)
 		return ret;
+	if (addr == DOLBY_CORE2A_SWAP_CTRL1 ||
+	     addr == DOLBY_CORE2A_SWAP_CTRL2)
+		return ret;
 
 	base = addr & 0xfff0;
 	switch (base) {
@@ -2227,6 +2230,9 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 	int ret = -1;
 
 	if (!recovery_enable)
+		return ret;
+	if (addr == DOLBY_CORE2A_SWAP_CTRL1 ||
+	     addr == DOLBY_CORE2A_SWAP_CTRL2)
 		return ret;
 
 	base = addr & 0xfff0;
