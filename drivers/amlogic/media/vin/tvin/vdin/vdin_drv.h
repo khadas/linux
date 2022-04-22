@@ -479,6 +479,13 @@ struct vdin_v4l2_s {
 	struct vdin_v4l2_stat_s stats;
 };
 
+struct vdin_vrr_s {
+	unsigned int vdin_vrr_en_flag;
+	struct tvin_vtem_data_s vtem_data;
+	struct tvin_spd_data_s spd_data;
+	unsigned int vrr_chg_cnt;
+};
+
 struct vdin_dev_s {
 	struct cdev cdev;
 	struct device *dev;
@@ -499,6 +506,7 @@ struct vdin_dev_s {
 	struct vdin_event_info pre_event_info;
 	/*struct extcon_dev *extcon_event;*/
 	struct delayed_work event_dwork;
+	struct vdin_vrr_s vrr_data;
 
 	 /* 0:from gpio A,1:from csi2 , 2:gpio B*/
 	enum bt_path_e bt_path;
@@ -666,7 +674,6 @@ struct vdin_dev_s {
 	int game_chg_drop_frame_cnt;
 	unsigned int vrr_mode;
 	unsigned int rdma_enable;
-	unsigned int vdin_vrr_en_flag;
 	/* afbce_mode: (amlogic frame buff compression encoder)
 	 * 0: normal mode, not use afbce
 	 * 1: use afbce non-mmu mode: head/body addr set by code

@@ -995,7 +995,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
 	pr_info("game_mode cur:  0x%x\n", devp->game_mode);
-	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_mode, devp->vdin_vrr_en_flag);
+	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_mode,
+		devp->vrr_data.vdin_vrr_en_flag);
 	pr_info("vrr_en:  pre=%d,cur:%d\n",
 		devp->pre_prop.vtem_data.vrr_en, devp->prop.vtem_data.vrr_en);
 	pr_info("vdin_vrr_flag:  pre=%d,cur:%d\n", devp->pre_prop.vdin_vrr_flag,
