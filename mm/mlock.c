@@ -620,7 +620,8 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 				set_bit(AS_LOCK_MAPPING,
 					&vma->vm_file->f_mapping->flags);
 				atomic_inc(&host->i_count);
-			} else {
+			} else if (test_bit(AS_LOCK_MAPPING,
+				   &vma->vm_file->f_mapping->flags)){
 				atomic_dec(&host->i_count);
 				clear_bit(AS_LOCK_MAPPING,
 					  &vma->vm_file->f_mapping->flags);
