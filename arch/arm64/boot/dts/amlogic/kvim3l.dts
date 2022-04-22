@@ -18,7 +18,7 @@
 /dts-v1/;
 
 #include "mesonsm1.dtsi"
-#include "partition_mbox_normal_P_32.dtsi"
+#include "partition_mbox_normal_P_64.dtsi"
 #include "mesonsm1_skt-panel.dtsi"
 
 / {
@@ -1552,7 +1552,8 @@
 			 "MMC_CAP_ERASE",
 			 "MMC_CAP_CMD23",
 			 "MMC_CAP_DRIVER_TYPE_D";
-		caps2 = "MMC_CAP2_HS200", "MMC_CAP2_HS400";
+		caps2 = "MMC_CAP2_HS200";
+		/*MMC_CAP2_HS400"*/
 		f_min = <400000>;
 		f_max = <200000000>;
 	};
@@ -1561,7 +1562,6 @@
 &sd_emmc_b {
 	status = "okay";
 	sd {
-		gpio_cd_level = <1>;
 		caps = "MMC_CAP_4_BIT_DATA",
 			 "MMC_CAP_MMC_HIGHSPEED",
 			 "MMC_CAP_SD_HIGHSPEED";
