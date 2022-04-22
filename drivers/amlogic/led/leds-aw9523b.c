@@ -40,6 +40,7 @@
  *
  ******************************************************/
 #define AW9523_I2C_NAME "aw9523_led"
+#define MESON_LEDS_CDEV_NAME		"i2c_leds"
 
 #define AW9523_VERSION "v2.0.0"
 
@@ -833,7 +834,7 @@ static int aw9523_parse_led_cdev(struct meson_aw9523 *aw9523,
 		dev_err(aw9523->dev, "Tiger] %s:%d default platform_id=%d\n", __func__,
 				__LINE__, platform_id);
 	dev_info(aw9523->dev, "Tiger] %s:%d set platform_id=%d\n", __func__, __LINE__, platform_id);
-	aw9523->cdev.name = AW9523_I2C_NAME;
+	aw9523->cdev.name = MESON_LEDS_CDEV_NAME;
 	aw9523->cdev.brightness = 0;
 	aw9523->cdev.max_brightness = 255;
 	aw9523->cdev.brightness_set = aw9523_set_brightness;
