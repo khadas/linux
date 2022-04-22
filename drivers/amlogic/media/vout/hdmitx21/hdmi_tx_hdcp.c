@@ -62,7 +62,7 @@ static void hdcptx_reset(struct hdcp_t *p_hdcp);
 static void bksv_get_ds_list(struct hdcp_t *p_hdcp);
 static void get_ds_rcv_id(struct hdcp_t *p_hdcp);
 
-static void pr_hdcp_info(const char *fmt, ...)
+void pr_hdcp_info(const char *fmt, ...)
 {
 	va_list args;
 	int len;
@@ -268,6 +268,8 @@ static void hdcp_authenticated_handle(struct hdcp_t *p_hdcp)
 		p_hdcp->ds_repeater = false;
 		hdcp_topology_update(p_hdcp);
 		get_ds_rcv_id(p_hdcp);
+		/* ds is hdcp2.2 TV */
+		set_hdcp2_topo(1);
 		hdcp_check_ds_csm_status(p_hdcp);
 	}
 }
@@ -777,6 +779,12 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		hdcp_rpt_ready_process(p_hdcp, true);
 		/* ds is repeater case */
 		schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
+		/* if no hdcp1.x or hdcp2.0 legacy devices downstream, then topo 1 */
+		if (p_hdcp->hdcp_topology.ds_hdcp1x_dev == 0 &&
+		    p_hdcp->hdcp_topology.ds_hdcp2x_dev == 0)
+			set_hdcp2_topo(1);
+		else
+			set_hdcp2_topo(0);
 	}
 	if (cp2tx_intr1_st & BIT(2)) //BIT__HDCP2X_INTR0__AKE_SEND
 		p_hdcp->reauth_ignored = true;

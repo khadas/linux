@@ -402,5 +402,9 @@ extern unsigned long hdcp_reauth_dbg;
 extern unsigned long streamtype_dbg;
 extern unsigned long en_fake_rcv_id;
 
+void pr_hdcp_info(const char *fmt, ...);
+void set_hdcp2_topo(u32 topo_type);
+bool get_hdcp2_topo(void);
+
 #endif /* __HDMI_TX_H__ */
 

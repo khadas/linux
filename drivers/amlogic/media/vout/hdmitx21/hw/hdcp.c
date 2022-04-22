@@ -73,6 +73,23 @@ bool get_hdcp2_result(void)
 	return (unsigned int)((res.a0) & 0xffffffff);
 }
 
+bool get_hdcp2_topo(void)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_GET_TOPO, 0, 0, 0, 0, 0, 0, &res);
+
+	return (unsigned int)((res.a0) & 0xffffffff);
+}
+
+void set_hdcp2_topo(u32 topo_type)
+{
+	struct arm_smccc_res res;
+
+	pr_hdcp_info("%s: %d", __func__, topo_type);
+	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_SET_TOPO, topo_type, 0, 0, 0, 0, 0, &res);
+}
+
 void hdcptx_init_reg(void)
 {
 	hdmitx21_set_bit(HDCP_CTRL_IVCTX, BIT(2), false);
