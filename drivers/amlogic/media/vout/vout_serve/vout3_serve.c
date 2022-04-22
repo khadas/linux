@@ -622,8 +622,7 @@ static long vout3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct vinfo_base_s baseinfo;
 
 	mcd_nr = _IOC_NR(cmd);
-	VOUTPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
-	       __func__, _IOC_DIR(cmd), mcd_nr);
+	/*VOUTPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n", __func__, _IOC_DIR(cmd), mcd_nr);*/
 
 	argp = (void __user *)arg;
 	switch (mcd_nr) {
