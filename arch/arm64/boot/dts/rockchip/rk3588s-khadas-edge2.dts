@@ -382,10 +382,6 @@
 	status = "okay";
 };
 
-&pdm0 {
-	status = "okay";
-};
-
 &pinctrl {
 	lcd {
 		lcd_rst_gpio: lcd-rst-gpio {
