@@ -394,10 +394,6 @@
 	status = "okay";
 };
 
-&pdm0 {
-	status = "okay";
-};
-
 &pinctrl {
 
 	lcd {

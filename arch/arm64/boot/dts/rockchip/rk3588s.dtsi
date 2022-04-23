@@ -5739,8 +5739,7 @@
 		pinctrl-names = "default", "idle", "clk";
 		pinctrl-0 = <&pdm0m0_sdi0
 			     &pdm0m0_sdi1
-			     &pdm0m0_sdi2
-			     &pdm0m0_sdi3>;
+			     &pdm0m0_sdi2>;
 		pinctrl-1 = <&pdm0m0_idle>;
 		pinctrl-2 = <&pdm0m0_clk
 			     &pdm0m0_clk1>;
