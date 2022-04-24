@@ -2108,7 +2108,7 @@ static const struct cec_platform_data_s cec_t7_data = {
 	.ceca_sts_reg = 1,
 	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_3,
-	.share_io = false,
+	.share_io = true,
 	.reg_tab_group = cec_reg_group_a1,
 };
 

@@ -2486,15 +2486,16 @@
 		port_num = <4>;
 		output = <1>;
 		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
-		/*ee_cec;*/ /*use cec a or b*/
+		ee_cec; /*use cec a or b*/
 		arc_port_mask = <0x2>;
 		interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING/*0:snps*/
 			GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
+		/* only CEC_A pin on board for CEC */
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
 		pinctrl-0=<&cec_a>;
-		pinctrl-1=<&cec_b>;
-		pinctrl-2=<&cec_b>;
+		pinctrl-1=<&cec_a>;
+		pinctrl-2=<&cec_a>;
 		clocks = <&clkc CLKID_CECA_32K_CLKOUT>,
 			<&clkc CLKID_CECB_32K_CLKOUT>;
 		clock-names = "ceca_clk","cecb_clk";
