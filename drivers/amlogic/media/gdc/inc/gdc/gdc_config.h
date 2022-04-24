@@ -52,6 +52,7 @@ struct gdc_device_data_s {
 	int bit_width_ext; /* 8/10/12/16bit support */
 	int gamma_support; /* gamma support */
 	int core_cnt;      /* total core count */
+	int smmu_support;  /* smmu support */
 };
 
 struct meson_gdc_dev_t {
@@ -106,6 +107,7 @@ struct gdc_irq_data_s {
 };
 
 extern struct gdc_manager_s gdc_manager;
+extern int gdc_smmu_enable;
 
 #define GDC_DEVICE(dev_type) ((dev_type) == ARM_GDC ?             \
 			      &gdc_manager.gdc_dev->pdev->dev :   \
@@ -318,34 +320,56 @@ static inline void gdc_bit_width_write(u32 format, u32 core_id)
 }
 
 // args: data (32-bit)
-static inline void gdc_config_addr_write(u32 msb, u32 data, u32 dev_type,
+static inline void gdc_config_addr_write(struct gdc_dmabuf_cfg_s *cfg, u32 data, u32 dev_type,
 					 u32 core_id)
 {
+	u32 msb = cfg->paddr_8g_msb;
+
 	if (dev_type == ARM_GDC) {
 		system_gdc_write_32(0x10L, data, core_id);
 	} else {
-		ulong fw_addr = ((u64)msb << 32) + data;
-		struct page *page = phys_to_page(fw_addr);
-		void *vaddr = kmap(page);
-		u32 coef_size = *(u32 *)vaddr;
-		u32 mesh_size = *((u32 *)vaddr + 1);
-		u32 fw_offset = *((u32 *)vaddr + 2);
+		if (gdc_smmu_enable) {
+			ulong fw_addr = ((u64)msb << 32) + data;
+			void *vaddr = cfg->dma_cfg.linear_config.buf_vaddr;
+			u32 coef_size = *(u32 *)vaddr;
+			u32 mesh_size = *((u32 *)vaddr + 1);
+			u32 fw_offset = *((u32 *)vaddr + 2);
 
-		fw_addr += fw_offset;
+			fw_addr += fw_offset;
 
-		gdc_coef_addr_write(fw_addr, core_id);
-		gdc_mesh_addr_write(fw_addr + coef_size, core_id);
-		gdc_aml_cfg_addr_write(fw_addr + coef_size + mesh_size,
-				       core_id);
+			gdc_coef_addr_write(fw_addr, core_id);
+			gdc_mesh_addr_write(fw_addr + coef_size, core_id);
+			gdc_aml_cfg_addr_write(fw_addr + coef_size + mesh_size,
+					       core_id);
+			gdc_log(LOG_DEBUG, "   coef_size: 0x%x %u\n",
+				coef_size, coef_size);
+			gdc_log(LOG_DEBUG, "   mesh_size: 0x%x %u\n",
+				mesh_size, mesh_size);
+			gdc_log(LOG_DEBUG, "   fw offset: 0x%x %u\n",
+				fw_offset, fw_offset);
+		} else {
+			ulong fw_addr = ((u64)msb << 32) + data;
+			struct page *page = phys_to_page(fw_addr);
+			void *vaddr = kmap(page);
+			u32 coef_size = *(u32 *)vaddr;
+			u32 mesh_size = *((u32 *)vaddr + 1);
+			u32 fw_offset = *((u32 *)vaddr + 2);
 
-		kunmap(page);
+			fw_addr += fw_offset;
 
-		gdc_log(LOG_DEBUG, "   coef_size: 0x%x %u\n",
-			coef_size, coef_size);
-		gdc_log(LOG_DEBUG, "   mesh_size: 0x%x %u\n",
-			mesh_size, mesh_size);
-		gdc_log(LOG_DEBUG, "   fw offset: 0x%x %u\n",
-			fw_offset, fw_offset);
+			gdc_coef_addr_write(fw_addr, core_id);
+			gdc_mesh_addr_write(fw_addr + coef_size, core_id);
+			gdc_aml_cfg_addr_write(fw_addr + coef_size + mesh_size,
+					       core_id);
+
+			kunmap(page);
+			gdc_log(LOG_DEBUG, "   coef_size: 0x%x %u\n",
+				coef_size, coef_size);
+			gdc_log(LOG_DEBUG, "   mesh_size: 0x%x %u\n",
+				mesh_size, mesh_size);
+			gdc_log(LOG_DEBUG, "   fw offset: 0x%x %u\n",
+				fw_offset, fw_offset);
+		}
 	}
 }
 

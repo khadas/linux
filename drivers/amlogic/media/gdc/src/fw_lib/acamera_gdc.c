@@ -55,7 +55,7 @@ int gdc_init(struct gdc_cmd_s *gdc_cmd, struct gdc_dma_cfg_t *dma_cfg,
 	gdc_secure_set(gdc_cmd->use_sec_mem, dev_type, core_id);
 
 	//set the configuration address and size to the gdc block
-	gdc_config_addr_write(dma_cfg->config_cfg.paddr_8g_msb,
+	gdc_config_addr_write(&dma_cfg->config_cfg,
 			      gdc_cmd->gdc_config.config_addr, dev_type,
 			      core_id);
 	gdc_config_size_write(gdc_cmd->gdc_config.config_size, dev_type,

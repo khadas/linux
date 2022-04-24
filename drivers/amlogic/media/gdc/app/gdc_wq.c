@@ -244,6 +244,9 @@ inline void recycle_resource(struct gdc_queue_item_s *item, u32 core_id)
 	if (!GDC_DEV_T(dev_type)->reg_store_mode_enable)
 		gdc_pwr_config(false, dev_type, core_id);
 
+	if (gdc_smmu_enable)
+		gdc_recycle_linear_config(&item->dma_cfg.config_cfg.dma_cfg);
+
 	spin_lock(&context->lock);
 	list_add_tail(&item->list, &context->free_queue);
 	item->context = NULL;

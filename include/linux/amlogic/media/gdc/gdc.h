@@ -23,6 +23,12 @@ enum {
 	HW_TYPE
 };
 
+struct gdc_linear_config_s {
+	void *buf_vaddr;
+	int buf_size;
+	dma_addr_t dma_addr;
+};
+
 struct aml_dma_cfg {
 	int fd;
 	void *dev;
@@ -31,6 +37,8 @@ struct aml_dma_cfg {
 	struct dma_buf_attachment *attach;
 	struct sg_table *sg;
 	enum dma_data_direction dir;
+	int is_config_buf;
+	struct gdc_linear_config_s linear_config;
 };
 
 struct gdc_dmabuf_cfg_s {
