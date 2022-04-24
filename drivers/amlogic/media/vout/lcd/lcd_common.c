@@ -1144,6 +1144,12 @@ static int lcd_optical_load_from_dts(struct aml_lcd_drv_s *pdrv, struct device_n
 		pdrv->config.optical.luma_min = para[11];
 		pdrv->config.optical.luma_avg = para[12];
 	}
+	ret = of_property_read_u32_array(child, "optical_adv_val", &para[0], 13);
+	if (ret == 0) {
+		LCDPR("[%d]: find optical_adv_val\n", pdrv->index);
+		pdrv->config.optical.ldim_support = para[0];
+		pdrv->config.optical.luma_peak = para[4];
+	}
 
 	lcd_optical_vinfo_update(pdrv);
 
@@ -1257,6 +1263,9 @@ static int lcd_optical_load_from_unifykey(struct aml_lcd_drv_s *pdrv)
 		((*(p + LCD_UKEY_OPT_LUMA_AVG + 1)) << 8) |
 		((*(p + LCD_UKEY_OPT_LUMA_AVG + 2)) << 16) |
 		((*(p + LCD_UKEY_OPT_LUMA_AVG + 3)) << 24));
+
+	opt_info->ldim_support = *(p + LCD_UKEY_OPT_ADV_FLAG0);
+	opt_info->luma_peak = *(unsigned int *)(p + LCD_UKEY_OPT_ADV_VAL1);
 
 	kfree(para);
 
@@ -2209,6 +2218,8 @@ void lcd_optical_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.hdr_info.lumi_max = pconf->optical.luma_max;
 	pdrv->vinfo.hdr_info.lumi_min = pconf->optical.luma_min;
 	pdrv->vinfo.hdr_info.lumi_avg = pconf->optical.luma_avg;
+	pdrv->vinfo.hdr_info.lumi_peak = pconf->optical.luma_peak;
+	pdrv->vinfo.hdr_info.ldim_support = pconf->optical.ldim_support;
 }
 
 static unsigned int vbyone_lane_num[] = {

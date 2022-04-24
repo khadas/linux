@@ -365,7 +365,10 @@ struct aml_lcd_unifykey_header_s {
 #define LCD_UKEY_OPT_LUMA_MIN              (LCD_UKEY_OPT_HDR_SUPPORT + 44)
 #define LCD_UKEY_OPT_LUMA_AVG              (LCD_UKEY_OPT_HDR_SUPPORT + 48)
 /* adv (40Byte) */
-#define LCD_UKEY_OPT_ADV_VAL0              (LCD_UKEY_OPT_HDR_SUPPORT + 52)
+#define LCD_UKEY_OPT_ADV_FLAG0             (LCD_UKEY_OPT_HDR_SUPPORT + 52)
+#define LCD_UKEY_OPT_ADV_FLAG1             (LCD_UKEY_OPT_HDR_SUPPORT + 53)
+#define LCD_UKEY_OPT_ADV_FLAG2             (LCD_UKEY_OPT_HDR_SUPPORT + 54)
+#define LCD_UKEY_OPT_ADV_FLAG3             (LCD_UKEY_OPT_HDR_SUPPORT + 55)
 #define LCD_UKEY_OPT_ADV_VAL1              (LCD_UKEY_OPT_HDR_SUPPORT + 56)
 #define LCD_UKEY_OPT_ADV_VAL2              (LCD_UKEY_OPT_HDR_SUPPORT + 60)
 #define LCD_UKEY_OPT_ADV_VAL3              (LCD_UKEY_OPT_HDR_SUPPORT + 64)
