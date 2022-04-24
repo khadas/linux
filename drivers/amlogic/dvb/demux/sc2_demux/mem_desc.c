@@ -126,16 +126,15 @@ static int cache_init(int cache_level)
 		first_cache->elem_size = sizeof(union mem_desc);
 		first_cache->elem_count = cache0_count_max;
 		total_size = sizeof(union mem_desc) * cache0_count_max;
-		first_cache->start_virt =
-			(unsigned long)kmalloc(total_size, GFP_KERNEL);
+		first_cache->start_virt = (unsigned long)dma_alloc_coherent(aml_get_device(),
+			total_size, (dma_addr_t *)&first_cache->start_phys,
+			GFP_KERNEL | GFP_DMA32);
 		if (!first_cache->start_virt) {
 			vfree(first_cache);
 			first_cache = NULL;
 			dprint("%s first cache fail\n", __func__);
 			return -1;
 		}
-		first_cache->start_phys =
-		(unsigned long)virt_to_phys((void *)first_cache->start_virt);
 	} else if (cache_level == 1 && !second_cache) {
 		second_cache = vmalloc(sizeof(*second_cache));
 		if (!second_cache)
@@ -167,7 +166,10 @@ static int cache_init(int cache_level)
 static void cache_destroy(int cache_level)
 {
 	if (cache_level == 0 && first_cache) {
-		kfree((void *)first_cache->start_virt);
+		dma_free_coherent(aml_get_device(),
+			first_cache->elem_size * first_cache->elem_count,
+			(void *)first_cache->start_virt,
+			first_cache->start_phys);
 		vfree(first_cache);
 		first_cache = NULL;
 		dprint_i("clear first cache done\n");
@@ -611,7 +613,11 @@ int _alloc_buff(unsigned int len, int sec_level,
 
 	iret = cache_malloc(len, &buf_start_virt, &buf_start);
 	if (iret == 0) {
-		pr_dbg("init cache phy:0x%lx, virt:0x%lx, len:%d\n",
+		if (buf_start >= 0xffffffff)
+			dprint_i("error cache phy:0x%lx, virt:0x%lx, len:%d\n",
+				buf_start, buf_start_virt, len);
+		else
+			pr_dbg("init cache phy 11:0x%lx, virt:0x%lx, len:%d\n",
 				buf_start, buf_start_virt, len);
 		memset((char *)buf_start_virt, 0xa5, len);
 		*vir_mem = buf_start_virt;
