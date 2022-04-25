@@ -607,7 +607,7 @@
 			ldim_pwm_port = "PWM_VS";
 			ldim_pwm_attr = <1  /* pol */
 				2 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				2>;/*default duty(%)*/
+				50>;/*default duty(%)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <1000000>; /* unit: hz */
@@ -638,8 +638,8 @@
 			ldim_bl_profile_k_bits = <
 				3487 24>; /*profile_k, profile_bits*/
 			ldim_bl_profile_path =
-				"/mnt/vendor/odm_ext/etc/tvconfig/
-				panel/tcon/HV650QUB-F70_LDIM/bl_profile.bin";
+				"/mnt/vendor/odm_ext/etc/tvconfig/\
+panel/tcon/HV650QUB-F70_LDIM/bl_profile.bin";
 
 			cmd_size = <0xff>;
 			/* init: (type, data...) */
@@ -752,7 +752,7 @@
 			ldim_pwm_port = "PWM_VS";
 			ldim_pwm_attr = <1  /* pol */
 				1 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				2>;/*default duty(%)*/
+				50>;/*default duty(%)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <3000000>; /* unit: hz */
@@ -774,8 +774,8 @@
 			ldim_bl_profile_k_bits = <
 				2827 24>; /*profile_k, profile_bits*/
 			ldim_bl_profile_path =
-				"/mnt/vendor/odm_ext/etc/tvconfig/
-				panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
+				"/mnt/vendor/odm_ext/etc/tvconfig/\
+panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
 
 			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
 				11
