@@ -1129,6 +1129,19 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		#endif
 		pbuf_local = get_buf_local(channel);
 		di_buf = &pbuf_local[indx];
+
+		canvas_w = di_buf->canvas_width[NR_CANVAS];
+		canvas_h = di_buf->canvas_height;
+		//nr_size = canvas_w * canvas_h * 2;
+		dump_adr = di_buf->nr_adr;
+
+		nr_size = canvas_w * canvas_h;
+		if (di_buf->vframe->plane_num == 2)
+			nr_size = nr_size * 2;
+
+		pr_info("w=%d,h=%d,size=%ld,addr=%lx\n",
+			canvas_w, canvas_h, nr_size, dump_adr);
+
 	} else if (strcmp(parm[0], "capture_pready") == 0) {	/*ary add*/
 		#ifdef MARK_HIS
 		if (!di_que_is_empty(channel, QUE_POST_READY)) {
@@ -4544,11 +4557,13 @@ void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf)
 	int i;
 	unsigned long addr[3];
 
-	if (vf->canvas0Addr != (u32)-1)
+	if (vf->canvas0Addr != (u32)-1) {
 		di_mif->canvas_w =
 			canvas_get_width(vf->canvas0Addr & 0xff);
-	else
+		dim_print("%s:cvs_in?w[%d]\n", __func__, di_mif->canvas_w);
+	} else {
 		di_mif->canvas_w = vf->canvas0_config[0].width;
+	}
 
 	if (cfgg(LINEAR)) {
 		for (i = 0; i < vf->plane_num; i++) {

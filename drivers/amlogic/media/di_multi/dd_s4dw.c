@@ -131,14 +131,16 @@ void dim_dbg_buffer_ext(struct di_ch_s *pch,
 			ch, pos, buffer);
 		return;
 	}
-	PR_INF("dbg_buffer_ex:ch[%d],%d,0x%px[0x%px,0x%px]0x%lx,0x%lx,0x%lx<%d %d>\n",
+	PR_INF("dbg_buffer_ex:ch[%d],%d,0x%px[0x%px,0x%px]\n",
 		ch, pos, buffer,
-		buffer->private_data, buffer->vf->private_data,
+		buffer->private_data, buffer->vf->private_data);
+	PR_INF("\t0x%lx,0x%lx,0x%lx<%d %d>:0x%x\n",
 		buffer->phy_addr,
 		buffer->vf->canvas0_config[0].phy_addr,
 		buffer->vf->canvas0_config[1].phy_addr,
 		buffer->vf->canvas0_config[0].width,
-		buffer->vf->canvas0_config[0].height);
+		buffer->vf->canvas0_config[0].height,
+		buffer->vf->canvas0Addr);
 
 	#endif
 }
@@ -157,11 +159,13 @@ void dim_dbg_vf_cvs(struct di_ch_s *pch,
 		ch = pch->ch_id;
 	cvs = &vfm->canvas0_config[0];
 
-	PR_INF("dbg_vf:ch[%d],%d,[%d],0x%px[0x%px]0x%lx,<%d %d>\n",
-		ch, pos, vfm->plane_num, vfm, vfm->private_data,
+	PR_INF("dbg_vf:ch[%d],%d,[%d],0x%px[0x%px]\n",
+		ch, pos, vfm->plane_num, vfm, vfm->private_data);
+	PR_INF("\t0x%lx,<%d %d>,0x%x",
 		cvs->phy_addr,
 		cvs->width,
-		cvs->height);
+		cvs->height,
+		vfm->canvas0Addr);
 	if (vfm->plane_num > 1) {
 		cvs = &vfm->canvas0_config[1];
 		PR_INF("dbg_vf:\t0x%lx,<%d %d>\n",
@@ -704,9 +708,8 @@ static enum DI_ERRORTYPE s4dw_empty_inputl(struct di_ch_s *pch,
 	}
 	pins = (struct dim_nins_s *)pbufq->pbuf[index].qbc;
 	pins->c.ori = buffer;
+	dim_dbg_buffer_ext(pch, buffer, 2);
 
-	if (dip_itf_is_ins(pch) && dim_dbg_new_int(2))
-		dim_dbg_buffer2(buffer, 0);
 	pins->c.cnt = pch->in_cnt;
 	pch->in_cnt++;
 
@@ -1799,6 +1802,7 @@ static void s4dw_pre_set(unsigned int channel)
 		//0925	cvs_nv21[0] = cvss->post_idx[1][1];
 		cvs_nv21[0] = cvss->pre_idx[canvases_idex][4];//0925
 		cvs_nv21[1] = cvss->post_idx[1][2];
+		ppre->di_wr_buf->vframe->canvas0Addr = ((u32)-1);
 		dim_dbg_vf_cvs(pch, ppre->di_wr_buf->vframe, 5);
 		dim_canvas_set2(ppre->di_wr_buf->vframe, &cvs_nv21[0]);
 #ifdef S4D_OLD_SETTING_KEEP
