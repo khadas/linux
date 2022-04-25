@@ -137,7 +137,7 @@
 		camera_cma_reserved:linux,camera_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			status = "disabled";
+			status = "okay";
 			size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
 		};
@@ -262,7 +262,7 @@
 
 	unifykey{
 		compatible = "amlogic,unifykey";
-		status = "disabled";
+		status = "okay";
 		unifykey-num = <19>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
@@ -475,7 +475,7 @@
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
-		status = "disabled";
+		status = "okay";
 
 		aml-audio-card,dai-link@0 {
 			format = "i2s";
@@ -801,7 +801,7 @@
 		&tdm_d0_pins
 		&tdm_d1_pins
 		&tdma_clk_pins>;
-		status = "disabled";
+		status = "okay";
 
 	};
 
@@ -822,7 +822,7 @@
 		&tdm_d2_pins
 		&tdm_d3_pins
 		&tdmb_clk_pins>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	tdmc:tdm@2 {
@@ -842,7 +842,7 @@
 		&tdm_d4_pins
 		&tdm_d5_pins
 		&tdmc_clk_pins>;
-		status = "disabled";
+		status = "okay";
 	};
 	tdmd:tdm@3 {
 		compatible = "amlogic, p1-snd-tdmd";
@@ -866,7 +866,7 @@
 			&tdm_d7_pins
 			&tdmd_clk_pins>;
 		start_clk_enable = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 	pdm:pdm@0 {
 		compatible = "amlogic, p1-snd-pdm-a";
@@ -891,7 +891,7 @@
 
 		train_sample_count = <0xb>;
 
-		status = "disabled";
+		status = "okay";
 	};
 	pdmb:pdm@1 {
 		compatible = "amlogic, p1-snd-pdm-b";
@@ -916,7 +916,7 @@
 
 		train_sample_count = <0xb>;
 
-		status = "disabled";
+		status = "okay";
 	};
 	spdifa:spdif@0 {
 		compatible = "amlogic, tm2-revb-snd-spdif-a";
@@ -989,7 +989,7 @@
 		/* max 0xff, each bit for one channel */
 		channel_mask = <0xff>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	asrca:resample@0 {
@@ -1015,7 +1015,7 @@
 		 */
 		resample_module = <6>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	asrcb:resample@1 {
@@ -1064,7 +1064,7 @@
 		 */
 		level = <1>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbacka:loopback@0 {
@@ -1119,7 +1119,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopbackb:loopback@1 {
@@ -1450,7 +1450,7 @@
 };
 
 &i2c7 {
-	status = "disabled";
+	status = "okay";
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7_pins2>;
@@ -1555,7 +1555,7 @@
 };
 
 &sd_emmc_c {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&emmc_pins>, <&emmc_ds_pins>;
 	pinctrl-1 = <&emmc_clk_gate_pins>;
 	pinctrl-names = "default", "clk-gate";
@@ -1654,7 +1654,7 @@
 	cs-gpios = <&gpio GPIOT_13 0>;
 	spi-nor@0 {
 		compatible = "jedec,spi-nor";
-		status = "disabled";
+		status = "okay";
 		reg = <0>;
 		spi-max-frequency = <16000000>;
 	};

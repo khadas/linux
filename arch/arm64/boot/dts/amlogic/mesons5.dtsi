@@ -321,7 +321,7 @@
 
 	ram-dump {
 		compatible = "amlogic, ram_dump";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xFE0102D8 0x0 4>;
 		reg-names = "SYSCTRL_STICKY_REG6";
 		store_device = "data";
@@ -352,7 +352,7 @@
 
 	smmu: smmu@fe600000 {
 		compatible = "arm,smmu-v3";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe600000 0x0 0x200000
 		       0x0 0xfe098000 0x0 0x80
 		       0x0 0xfe098140 0x0 0x74>;
@@ -364,14 +364,14 @@
 
 	cpu_info {
 		compatible = "amlogic, cpuinfo";
-		status = "disabled";
+		status = "okay";
 		cpuinfo_cmd = <0x82000044>;
 	};
 
 	vrtc: rtc@0xfe010288 {
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
-		status = "disabled";
+		status = "okay";
 		mboxes = <&mhu_fifo P1_REE2AO>;
 	};
 
@@ -495,7 +495,7 @@
 
 	jtag {
 		compatible = "amlogic, jtag";
-		status = "disabled";
+		status = "okay";
 		select = "disable"; /* disable/jtag_a */
 		//amlogic,support-jtag-trace;
 		pinctrl-names="jtag_a_pins", "jtag_trace_pins";
@@ -730,7 +730,7 @@
 
 	cpufreq-meson {
 		compatible = "amlogic, cpufreq-meson";
-		status = "disabled";
+		status = "okay";
 	};
 
 	saradc: saradc@fe026000 {
@@ -760,7 +760,7 @@
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xfe000000 0x0 0x480000>;
-			status = "disabled";
+			status = "okay";
 
 			clkc: clock-controller {
 				compatible = "amlogic,p1-clkc";
@@ -777,12 +777,12 @@
 			meson_clk_msr@48000 {
 				compatible = "amlogic,meson-p1-clk-measure";
 				reg = <0x0 0x48000 0x0 0x1c>;
-				status = "disabled";
+				status = "okay";
 			};
 
 			watchdog@2100 {
 				compatible = "amlogic,meson-sc2-wdt";
-				status = "disabled";
+				status = "okay";
 				/* 0:userspace, 1:kernel */
 				amlogic,feed_watchdog_mode = <1>;
 				reg = <0x0 0x2100 0x0 0x10>;
@@ -1352,7 +1352,7 @@
 		dummy_codec:dummy{
 			#sound-dai-cells = <0>;
 			compatible = "amlogic, aml_dummy_codec";
-			status = "disabled";
+			status = "okay";
 		};
 		acodec:codec {
 			#sound-dai-cells = <0>;
@@ -1380,13 +1380,13 @@
 			ranges = <0x0 0x0 0x0 0xFE330000 0x0 0x3000>;
 
 		//	power-domains = <&pwrdm PDID_T7_AUDIO>;
-			status = "disabled";
+			status = "okay";
 
 			clkaudio: audio_clocks {
 				compatible = "amlogic, p1-audio-clocks";
 				#clock-cells = <1>;
 				reg = <0x0 0x0 0x0 0xb0>;
-				status = "disabled";
+				status = "okay";
 			};
 			ddr_manager {
 				compatible =
@@ -1406,12 +1406,12 @@
 					"toddr_d",
 					"frddr_a", "frddr_b", "frddr_c",
 					"frddr_d";
-				status = "disabled";
+				status = "okay";
 			};
 
 		pinctrl_audio: pinctrl {
 				compatible = "amlogic, audio-pinctrl";
-				status = "disabled";
+				status = "okay";
 			};
 		};/* end of audiobus*/
 
@@ -1472,7 +1472,7 @@
 		/* Sound iomap */
 		aml_snd_iomap {
 			compatible = "amlogic, snd-iomap";
-			status = "disabled";
+			status = "okay";
 			#address-cells=<2>;
 			#size-cells=<2>;
 			ranges;
@@ -1834,7 +1834,7 @@
 	};
 
 	camera0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, camera";
 		index = <0>;
 		csiphy = <&csiphy0>;
@@ -1869,7 +1869,7 @@
 	};
 
 	camera1 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, camera";
 		index = <1>;
 		csiphy = <&csiphy1>;
@@ -1904,7 +1904,7 @@
 	};
 
 	camera2 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, camera";
 		index = <2>;
 		csiphy = <&csiphy2>;
@@ -1939,7 +1939,7 @@
 	};
 
 	camera3 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, camera";
 		index = <3>;
 		csiphy = <&csiphy3>;
@@ -1968,7 +1968,7 @@
 	};
 
 	camera4 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, camera";
 		index = <4>;
 		csiphy = <&csiphy4>;
@@ -2014,7 +2014,7 @@
 
 	ddr_bandwidth {
 		compatible = "amlogic,ddr-bandwidth-p1";
-		status = "disabled";
+		status = "okay";
 		reg = <0 0xfe036000 0 0x200
 		       0 0xfe034000 0 0x200
 		       0 0xfe032000 0 0x200
@@ -2029,7 +2029,7 @@
 
 	dmc_monitor {
 		compatible = "amlogic,dmc_monitor-p1";
-		status = "disabled";
+		status = "okay";
 		reg = <0 0xfe036000 0 0x200
 		       0 0xfe034000 0 0x200
 		       0 0xfe032000 0 0x200
@@ -2116,32 +2116,32 @@
 		compatible = "amlogic,aml_p1_dma";
 		reg = <0x0 0xfe440400 0x0 0x48>;
 		interrupts = <0 24 1>;
-		status = "disabled";
+		status = "okay";
 
 		aml_aes {
 			compatible = "amlogic,aes_g12a_dma";
 			dev_name = "aml_aes_dma";
-			status = "disabled";
+			status = "okay";
 			iv_swap = /bits/ 8 <0x0>;
 		};
 
 		aml_sha {
 			compatible = "amlogic,sha_dma";
 			dev_name = "aml_sha_dma";
-			status = "disabled";
+			status = "okay";
 		};
 
 		aml_tdes {
 			compatible = "amlogic,tdes_dma";
 			dev_name = "aml_tdes_dma";
-			status = "disabled";
+			status = "okay";
 		};
 
 	};
 
 	rng {
 		compatible = "amlogic,meson-rng";
-		status = "disabled";
+		status = "okay";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		reg = <0x0 0xfe440788 0x0 0x0c>;
@@ -2338,7 +2338,7 @@
 
 	a76_tsensor: a76_tsensor@fe020000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe020000 0x0 0x50>;
 		tsensor_id = <1>;
 		cal_type = <0x11>;
@@ -2352,7 +2352,7 @@
 
 	a55_tsensor: a55_tsensor@fe022000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe022000 0x0 0x50>;
 		tsensor_id = <2>;
 		cal_type = <0x11>;
@@ -2366,7 +2366,7 @@
 
 	ddr0_tsensor: ddr0_tsensor@fe01e000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe01e000 0x0 0x50>;
 		tsensor_id = <3>;
 		cal_type = <0x11>;
@@ -2380,7 +2380,7 @@
 
 	ddr1_tsensor: ddr1_tsensor@fe01c000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe01c000 0x0 0x50>;
 		tsensor_id = <4>;
 		cal_type = <0x11>;
@@ -2408,7 +2408,7 @@
 	};
 
 	meson_cooldev: meson-cooldev@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson-cooldev";
 		cooling_devices {
 			cpucore_cool_cluster0 {
@@ -2438,7 +2438,7 @@
 
 	thermal-zones {
 		soc_thermal: soc_thermal {
-			status = "disabled";
+			status = "okay";
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			sustainable-power = <5160>;
@@ -2479,7 +2479,7 @@
 			};
 		};
 		a55_thermal: a55_thermal {
-			status = "disabled";
+			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
 			sustainable-power = <960>;
@@ -2521,7 +2521,7 @@
 
 		};
 		ddr0_thermal: ddr0_thermal {
-			status = "disabled";
+			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
 			sustainable-power = <400>;
@@ -2545,7 +2545,7 @@
 			};
 		};
 		ddr1_thermal: ddr1_thermal {
-			status = "disabled";
+			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
 			sustainable-power = <400>;
@@ -2569,7 +2569,7 @@
 			};
 		};
 		nna_thermal: nna_thermal {
-			status = "disabled";
+			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
 			sustainable-power = <3550>;
@@ -2597,7 +2597,7 @@
 	ion_dev {
 		compatible = "amlogic, ion_dev";
 		memory-region = <&ion_cma_reserved>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	fb: fb {
@@ -2737,7 +2737,7 @@
 		compatible = "amlogic, vecm-t7";
 		status = "disable";
 		dev_name = "aml_vecm";
-		/*status = "disabled";*/
+		/*status = "okay";*/
 		/*gamma_en = <1>;*/ /*1:enabel ;0:disable*/
 		/*wb_en = <1>;*/ /*1:enabel ;0:disable*/
 		/*cm_en = <1>;*/ /*1:enabel ;0:disable*/
@@ -2872,7 +2872,7 @@
 	};
 
 	mhu_fifo: mhu@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";
 		reg = <0x0 0xfe006000 0x0 0x1000>,  /* mhu wr fifo */
 		      <0x0 0xfe00719C 0x0 0x80>,   /* mhu set reg */
@@ -2910,7 +2910,7 @@
 	};
 
 	mbox_user: mbox-user@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson-mbox-user";
 		mbox-nums = <5>;
 		mbox-names = "ree2aocpu",
@@ -2931,7 +2931,7 @@
 	};
 
 	aml_hwlock: aml_hwlock@0 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson-hwspinlock";
 		reg = <0x0 0xfe006a80 0x0 0x80>;
 		bakery-cpus = <5>;
