@@ -1051,7 +1051,7 @@ static struct composer_dev *video_display_getdev(int layer_index)
 
 	if (!mdev[layer_index]) {
 		mutex_lock(&video_display_mutex);
-		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		dev = vmalloc(sizeof(*dev));
 		if (!dev) {
 			mutex_unlock(&video_display_mutex);
 			vc_print(layer_index, PRINT_ERROR,
@@ -1061,6 +1061,7 @@ static struct composer_dev *video_display_getdev(int layer_index)
 		}
 
 		port = video_composer_get_port(layer_index);
+		memset(dev, 0, sizeof(struct composer_dev));
 		dev->port = port;
 		dev->index = port->index;
 		mdev[layer_index] = dev;
@@ -1144,7 +1145,7 @@ static int video_display_uninit(int layer_index)
 		 __func__, dev->fput_count);
 
 	dev->port->open_count--;
-	kfree(dev);
+	vfree(dev);
 	mdev[layer_index] = NULL;
 	return ret;
 }
