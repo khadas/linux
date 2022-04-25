@@ -4609,6 +4609,25 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 	mutex_unlock(&osd_mutex);
 }
 
+void osd_set_src_position_from_reg(u32 index,
+	s32 src_x_start, s32 src_x_end,
+	s32 src_y_start, s32 src_y_end)
+{
+	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
+	u32 data32 = 0x0;
+
+	data32 = osd_reg_read(osd_reg->osd_blk0_cfg_w1);
+	src_x_start = data32 & 0x1fff;
+	src_x_end = (data32 >> 16) & 0x1fff;
+
+	data32 = osd_reg_read(osd_reg->osd_blk0_cfg_w2);
+	src_y_start = data32 & 0x1fff;
+	src_y_end = (data32 >> 16) & 0x1fff;
+
+	osd_set_free_scale_axis_hw(index, src_x_start, src_y_start,
+					src_x_end, src_y_end);
+}
+
 s32 osd_get_position_from_reg(u32 index,
 			      s32 *src_x_start, s32 *src_x_end,
 			      s32 *src_y_start, s32 *src_y_end,

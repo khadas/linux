@@ -2055,6 +2055,13 @@ static void set_default_display_axis(struct fb_var_screeninfo *var,
 		osd_ctrl->disp_end_y = virt_end_y - 1;
 }
 
+static int is_src_size_invalid(u32 index)
+{
+	if (!osd_hw.src_data[index].w && !osd_hw.src_data[index].h)
+		return 1;
+	return 0;
+}
+
 int osd_notify_callback(struct notifier_block *block,
 			unsigned long cmd,
 			void *para)
@@ -2089,6 +2096,10 @@ int osd_notify_callback(struct notifier_block *block,
 				fb_dev = gp_fbdev_list[i];
 				if (!fb_dev)
 					continue;
+				if (is_src_size_invalid(i))
+					osd_set_src_position_from_reg(i,
+							osd_hw.src_data[i].x, osd_hw.src_data[i].w,
+							osd_hw.src_data[i].y, osd_hw.src_data[i].h);
 				set_default_display_axis(&fb_dev->fb_info->var,
 							 &fb_dev->osd_ctl,
 							 vinfo);
