@@ -8,6 +8,7 @@
 
 #include "rk3588s-evb1-lp4x.dtsi"
 #include "rk3588-linux.dtsi"
+#include "rk3588s-evb1-lp4x-v10-camera.dtsi"
 
 / {
 	model = "Rockchip RK3588S EVB1 LP4X V10 Board";
