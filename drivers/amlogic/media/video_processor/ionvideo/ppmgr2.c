@@ -576,8 +576,10 @@ int ppmgr2_process(struct vframe_s *vf, struct ppmgr2_device *ppd, int index)
 
 void ppmgr2_release(struct ppmgr2_device *ppd)
 {
-	if (ppd->context)
+	if (ppd->context) {
 		destroy_ge2d_work_queue(ppd->context);
+		ppd->context = NULL;
+	}
 
 	/* switch_mod_gate_by_name("ge2d", 0); */
 	ppmgr2_printk(2, "%s!\n", __func__);
