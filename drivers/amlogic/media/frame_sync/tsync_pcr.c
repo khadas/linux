@@ -1625,8 +1625,8 @@ static unsigned long tsync_pcr_check(void)
 	    (!(tsync_pcr_inited_flag & TSYNC_PCR_INITCHECK_APTS))) {
 		u64 cur_system_time =
 			div64_u64((u64)jiffies * TIME_UNIT90K, HZ);
-		if (last_checkin_vpts == 0xffffffff &&
-			last_checkin_apts == 0xffffffff) {
+		if ((last_checkin_vpts == -1 || last_checkin_vpts == 0) &&
+			(last_checkin_apts == -1 || last_checkin_apts == 0)) {
 			first_time_record = cur_system_time;
 			return res;
 		}
@@ -1828,6 +1828,7 @@ void tsync_pcr_mode_reinit(u8 type)
 		tsync_pcr_astart_flag = 0;
 		last_pcr_checkin_apts = 0;
 		tsync_audio_discontinue = 0;
+		timestamp_apts_start(0);
 	}
 }
 EXPORT_SYMBOL(tsync_pcr_mode_reinit);
