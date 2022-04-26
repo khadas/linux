@@ -2642,9 +2642,13 @@ unsigned int skip_pq_ctrl_load(struct am_reg_s *p)
 	unsigned int ret = 0;
 	struct pq_ctrl_s cfg;
 
-	if (dv_pq_bypass == 2) {
+	if (dv_pq_bypass == 3) {
 		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
 		cfg.vadj1_en = pq_cfg.vadj1_en;
+	} else if (dv_pq_bypass == 2) {
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+		cfg.sharpness0_en = pq_cfg.sharpness0_en;
+		cfg.sharpness1_en = pq_cfg.sharpness1_en;
 	} else if (dv_pq_bypass == 1) {
 		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
 	} else {
@@ -2733,13 +2737,22 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 	struct pq_ctrl_s cfg;
 
 	switch (ctl) {
-	case DV_PQ_BYPASS:
+	case DV_PQ_TV_BYPASS:
 		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
 		cfg.vadj1_en = pq_cfg.vadj1_en;
 		vpp_pq_ctrl_config(cfg, WR_DMA);
-		dv_pq_bypass = 2;
-		pr_amve_dbg("dv enable, pq disable, dv_pq_bypass = %d\n",
+		dv_pq_bypass = 3;
+		pr_amve_dbg("dv enable, for TV pq disable, dv_pq_bypass = %d\n",
 			    dv_pq_bypass);
+		break;
+	case DV_PQ_STB_BYPASS:
+		memcpy(&cfg, &dv_cfg_bypass, sizeof(struct pq_ctrl_s));
+		cfg.sharpness0_en = pq_cfg.sharpness0_en;
+		cfg.sharpness1_en = pq_cfg.sharpness1_en;
+		vpp_pq_ctrl_config(cfg, WR_DMA);
+		dv_pq_bypass = 2;
+		pr_amve_dbg("dv enable, for STB pq disable, dv_pq_bypass = %d\n",
+				dv_pq_bypass);
 		break;
 	case DV_PQ_CERT:
 		vpp_pq_ctrl_config(dv_cfg_bypass, WR_DMA);

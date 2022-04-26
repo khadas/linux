@@ -3961,19 +3961,20 @@ static void video_effect_bypass(int bypass)
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 	return;
 #endif
-
 	if (is_meson_tvmode()) {
-		/*only bypass vpp pq for IDK cert or debug mode*/
+		/*TV: only bypass vpp pq for IDK cert or debug mode*/
 		if (!debug_bypass_vpp_pq &&
 		    !(dolby_vision_flags & FLAG_CERTIFICAION))
 			return;
 	}
 	if (debug_bypass_vpp_pq == 1) {
 		if ((dolby_vision_flags & FLAG_CERTIFICAION) ||
-		    bypass_all_vpp_pq || is_meson_tvmode())
+		    bypass_all_vpp_pq)
 			dv_pq_ctl(DV_PQ_CERT);
+		else if (is_meson_tvmode())
+			dv_pq_ctl(DV_PQ_TV_BYPASS);
 		else
-			dv_pq_ctl(DV_PQ_BYPASS);
+			dv_pq_ctl(DV_PQ_STB_BYPASS);
 		return;
 	} else if (debug_bypass_vpp_pq == 2) {
 		dv_pq_ctl(DV_PQ_REC);
@@ -4001,25 +4002,29 @@ static void video_effect_bypass(int bypass)
 					VSYNC_RD_DV_REG(VPP_GAINOFF_CTRL0);
 #endif
 			}
+			if (is_meson_txlx()) {
+#ifndef CONFIG_AMLOGIC_REMOVE_OLD
+				VSYNC_WR_DV_REG(VIU_EOTF_CTL, 0);
+				VSYNC_WR_DV_REG(XVYCC_LUT_CTL, 0);
+				VSYNC_WR_DV_REG(XVYCC_INV_LUT_CTL, 0);
+				VSYNC_WR_DV_REG(VPP_VADJ_CTRL, 0);
+				VSYNC_WR_DV_REG(XVYCC_VD1_RGB_CTRST, 0);
+				VSYNC_WR_DV_REG(VPP_VE_ENABLE_CTRL, 0);
+				VSYNC_WR_DV_REG(VPP_GAINOFF_CTRL0, 0);
+#endif
+			} else {
+				if ((dolby_vision_flags & FLAG_CERTIFICAION) ||
+				    bypass_all_vpp_pq)
+					dv_pq_ctl(DV_PQ_CERT);
+				else if (is_meson_tvmode())
+					dv_pq_ctl(DV_PQ_TV_BYPASS);
+				else
+					dv_pq_ctl(DV_PQ_STB_BYPASS);
+			}
+
 			is_video_effect_bypass = true;
 		}
-		if (is_meson_txlx()) {
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
-			VSYNC_WR_DV_REG(VIU_EOTF_CTL, 0);
-			VSYNC_WR_DV_REG(XVYCC_LUT_CTL, 0);
-			VSYNC_WR_DV_REG(XVYCC_INV_LUT_CTL, 0);
-			VSYNC_WR_DV_REG(VPP_VADJ_CTRL, 0);
-			VSYNC_WR_DV_REG(XVYCC_VD1_RGB_CTRST, 0);
-			VSYNC_WR_DV_REG(VPP_VE_ENABLE_CTRL, 0);
-			VSYNC_WR_DV_REG(VPP_GAINOFF_CTRL0, 0);
-#endif
-		} else {
-			if ((dolby_vision_flags & FLAG_CERTIFICAION) ||
-			    bypass_all_vpp_pq || is_meson_tvmode())
-				dv_pq_ctl(DV_PQ_CERT);
-			else
-				dv_pq_ctl(DV_PQ_BYPASS);
-		}
+
 	} else if (is_video_effect_bypass) {
 		if (is_meson_txlx()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -13557,7 +13562,7 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo debug_bypass_vpp_pq 0 > /sys/class/amdolby_vision/debug; not debug mode\n"
 	"echo debug_bypass_vpp_pq 1 > /sys/class/amdolby_vision/debug; force disable vpp pq\n"
 	"echo debug_bypass_vpp_pq 2 > /sys/class/amdolby_vision/debug; force enable vpp pq\n"
-	"echo bypass_all_vpp_pq 1 > /sys/class/amdolby_vision/debug; force bypass vpp pq in cert mode\n"
+	"echo force_cert_bypass_vpp_pq 1 > /sys/class/amdolby_vision/debug; force bypass vpp pq in cert mode\n"
 	"echo enable_vpu_probe 1 > /sys/class/amdolby_vision/debug; enable vpu probe\n"
 	"echo ko_info > /sys/class/amdolby_vision/debug; query ko info\n"
 	"echo enable_vf_check 1 > /sys/class/amdolby_vision/debug;\n"
