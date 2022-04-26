@@ -2163,10 +2163,13 @@ static int gdc_platform_probe(struct platform_device *pdev)
 			}
 		}
 	}
-	/* 8g memory support */
-	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
-	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 
+	/* for smmu: default dma_mask has been set in of_dma_configure */
+	if (!gdc_smmu_enable) {
+		/* 8g memory support */
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	}
 	rc = misc_register(&gdc_dev->misc_dev);
 	if (rc < 0) {
 		gdc_log(LOG_ERR, "misc_register() for minor %d failed\n",
