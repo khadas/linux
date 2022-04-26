@@ -6,7 +6,7 @@
 #include <dt-bindings/clock/p1-clkc.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/power/p1-pd.h>
+#include <dt-bindings/power/s5-pd.h>
 #include <dt-bindings/clock/amlogic,p1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/meson-p1-gpio.h>
@@ -376,9 +376,9 @@
 	};
 
 	pwrdm: power-domains {
-		compatible = "amlogic,p1-power-domain";
+		compatible = "amlogic,s5-power-domain";
 		#power-domain-cells = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	nna_top_ports_wrapper_0: nna_top_ports_wrapper@fe370000 {
@@ -393,9 +393,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 148 1>;
 		minor-number = <0>;
-		power-domains = <&pwrdm PDID_P1_NNA_A>,
-				<&pwrdm PDID_P1_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_P1_NNA_A>,
+		//		<&pwrdm PDID_P1_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe370000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -412,9 +412,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 149 1>;
 		minor-number = <1>;
-		power-domains = <&pwrdm PDID_P1_NNA_B>,
-				<&pwrdm PDID_P1_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_P1_NNA_B>,
+		//		<&pwrdm PDID_P1_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe371000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -431,9 +431,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 150 1>;
 		minor-number = <2>;
-		power-domains = <&pwrdm PDID_P1_NNA_C>,
-				<&pwrdm PDID_P1_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_P1_NNA_C>,
+		//		<&pwrdm PDID_P1_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe372000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -450,9 +450,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 151 1>;
 		minor-number = <3>;
-		power-domains = <&pwrdm PDID_P1_NNA_D>,
-				<&pwrdm PDID_P1_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_P1_NNA_D>,
+		//		<&pwrdm PDID_P1_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe373000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -468,9 +468,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 152 1>;
 		minor-number = <4>;
-		power-domains = <&pwrdm PDID_P1_NNA_E>,
-				<&pwrdm PDID_P1_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_P1_NNA_E>,
+		//		<&pwrdm PDID_P1_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe374000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -486,9 +486,9 @@
 		interrupt-names = "nna_interrupt";
 		interrupts = <0 153 1>;
 		minor-number = <5>;
-		power-domains = <&pwrdm PDID_P1_NNA_F>,
-				<&pwrdm PDID_P1_NNA_TOP>;
-		power-domain-names = "pwrc-core","pwrc-top";
+		//power-domains = <&pwrdm PDID_P1_NNA_F>,
+		//		<&pwrdm PDID_P1_NNA_TOP>;
+		//power-domain-names = "pwrc-core","pwrc-top";
 		reg = <0x0 0xfe375000 0x0 0x1000>;
 		reg-names = "nna_irq_wrapper";
 	};
@@ -524,9 +524,9 @@
 		boot_sram_size = <0x80000>;
 		//dspsrambase = <0xf7100000>;
 		//dspsramsize = <0x100000>;
-		power-domains = <&pwrdm PDID_P1_DSPA>,
-						<&pwrdm PDID_P1_DSPB>;
-		power-domain-names = "dspa", "dspb";
+		//power-domains = <&pwrdm PDID_P1_DSPA>,
+		//				<&pwrdm PDID_P1_DSPB>;
+		//power-domain-names = "dspa", "dspb";
 		status = "disabled";
 	};
 
@@ -1570,7 +1570,7 @@
 			pcie-a-rst-bit = <12>;
 			pcie-rst-bit = <12>;
 			pcie-rst-mask = <0xff>;
-			power-domains = <&pwrdm PDID_P1_PCIE>;
+			//power-domains = <&pwrdm PDID_P1_PCIE>;
 			status = "disabled";
 			iommu-map = <0x100 &smmu P1_SID_PCIE 0x10>;
 			dma-ranges = <0x0 0x0 0x0 0x0 0x0 0x0 0x80000000>;
@@ -1615,7 +1615,7 @@
 			pcie-a-rst-bit = <12>;
 			pcie-rst-bit = <12>;
 			pcie-rst-mask = <0xff>;
-			power-domains = <&pwrdm PDID_P1_PCIE>;
+			//power-domains = <&pwrdm PDID_P1_PCIE>;
 			status = "disabled";
 		};
 
@@ -1673,7 +1673,7 @@
 			      <0x0 0xfe024000 0x0 0x8>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
-			power-domains = <&pwrdm PDID_P1_ETH>;
+			//power-domains = <&pwrdm PDID_P1_ETH>;
 			clocks = <&clkc CLKID_SYS_CLK_ETH>,
 				 <&clkc CLKID_FCLK_DIV2>,
 				 <&clkc CLKID_MPLL2>;
@@ -1812,7 +1812,7 @@
 		reg = <0x0 0xff918000 0x0 0x3000>,
 				<0x0 0xff9a0000 0x0 0x400>;
 		reg-names = "csi_phy","csi_aphy";
-		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		//power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
 		clocks = <&clkc CLKID_CSIPHY0>;
 		clock-names = "cts_mipi_csi_phy_clk";
 	};
@@ -1827,7 +1827,7 @@
 		compatible = "amlogic, isp";
 		reg = <0x0 0xff900000 0x0 0x10000>;
 		/* interrupt-parent = <&intc>; */
-		power-domains = <&pwrdm PDID_P1_ISP_A>;
+		//power-domains = <&pwrdm PDID_P1_ISP_A>;
 		clocks = <&clkc CLKID_ISP0>;
 		clock-names = "cts_mipi_isp_clk";
 		interrupts = <0 97 1>;
@@ -1847,7 +1847,7 @@
 		reg = <0x0 0xff938000 0x0 0x3000>,
 				<0x0 0xff9a0000 0x0 0x400>;
 		reg-names = "csi_phy","csi_aphy";
-		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		//power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
 		clocks = <&clkc CLKID_CSIPHY1>;
 		clock-names = "cts_mipi_csi_phy_clk";
 	};
@@ -1862,7 +1862,7 @@
 		compatible = "amlogic, isp";
 		reg = <0x0 0xff920000 0x0 0x10000>;
 		/* interrupt-parent = <&intc>; */
-		power-domains = <&pwrdm PDID_P1_ISP_B>;
+		//power-domains = <&pwrdm PDID_P1_ISP_B>;
 		clocks = <&clkc CLKID_ISP1>;
 		clock-names = "cts_mipi_isp_clk";
 		interrupts = <0 105 1>;
@@ -1882,7 +1882,7 @@
 		reg = <0x0 0xff958000 0x0 0x3000>,
 				<0x0 0xff9a0000 0x0 0x400>;
 		reg-names = "csi_phy","csi_aphy";
-		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		//power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
 		clocks = <&clkc CLKID_CSIPHY2>;
 		clock-names = "cts_mipi_csi_phy_clk";
 	};
@@ -1897,7 +1897,7 @@
 		compatible = "amlogic, isp";
 		reg = <0x0 0xff940000 0x0 0x10000>;
 		/* interrupt-parent = <&intc>; */
-		power-domains = <&pwrdm PDID_P1_ISP_C>;
+		//power-domains = <&pwrdm PDID_P1_ISP_C>;
 		clocks = <&clkc CLKID_ISP2>;
 		clock-names = "cts_mipi_isp_clk";
 		interrupts = <0 113 1>;
@@ -1917,7 +1917,7 @@
 		reg = <0x0 0xff978000 0x0 0x3000>,
 				<0x0 0xff9a0000 0x0 0x400>;
 		reg-names = "csi_phy","csi_aphy";
-		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		//power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
 		clocks = <&clkc CLKID_CSIPHY3>;
 		clock-names = "cts_mipi_csi_phy_clk";
 	};
@@ -1932,7 +1932,7 @@
 		compatible = "amlogic, isp";
 		reg = <0x0 0xff960000 0x0 0x10000>;
 		/* interrupt-parent = <&intc>; */
-		power-domains = <&pwrdm PDID_P1_ISP_D>;
+		//power-domains = <&pwrdm PDID_P1_ISP_D>;
 		clocks = <&clkc CLKID_ISP3>;
 		clock-names = "cts_mipi_isp_clk";
 		interrupts = <0 121 1>;
@@ -1952,7 +1952,7 @@
 		reg = <0x0 0xff998000 0x0 0x3000>,
 				<0x0 0xff9a0000 0x0 0x400>;
 		reg-names = "csi_phy","csi_aphy";
-		power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
+		//power-domains = <&pwrdm PDID_P1_MIPI_ISP_TOP>;
 		clocks = <&clkc CLKID_CSIPHY4>;
 		clock-names = "cts_mipi_csi_phy_clk";
 	};
@@ -2404,7 +2404,7 @@
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
-		power-domains = <&pwrdm PDID_P1_NNA_TOP>;
+		//power-domains = <&pwrdm PDID_P1_NNA_TOP>;
 	};
 
 	meson_cooldev: meson-cooldev@0 {
@@ -2800,7 +2800,7 @@
 		clock-names = "clk_vapb_0",
 			"clk_ge2d_gate";
 		reg = <0x0 0xff840000 0x0 0x100>;
-		power-domains = <&pwrdm PDID_P1_GE2D>;
+		//power-domains = <&pwrdm PDID_P1_GE2D>;
 	};
 
 	aml_bt: aml_bt {
@@ -2866,9 +2866,9 @@
 				"clk_gate1",
 				"clk_gate2";
 		clk-rate = <800000000>;
-		power-domains = <&pwrdm PDID_P1_DEWA>,
-				<&pwrdm PDID_P1_DEWB>,
-				<&pwrdm PDID_P1_DEWC>;
+		//power-domains = <&pwrdm PDID_P1_DEWA>,
+		//		<&pwrdm PDID_P1_DEWB>,
+		//		<&pwrdm PDID_P1_DEWC>;
 	};
 
 	mhu_fifo: mhu@0 {
@@ -2995,8 +2995,8 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		memory-region = <&mfh_fw_reserved>;
-		power-domains = <&pwrdm PDID_P1_M4A>,
-				<&pwrdm PDID_P1_M4B>;
+		//power-domains = <&pwrdm PDID_P1_M4A>,
+		//		<&pwrdm PDID_P1_M4B>;
 		power-domain-names = "m4a-core","m4b-core";
 		clocks = <&clkc CLKID_M4_CLK_0>,
 			 <&clkc CLKID_M4_CLK_1>,
