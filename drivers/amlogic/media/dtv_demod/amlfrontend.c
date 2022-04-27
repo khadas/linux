@@ -1883,7 +1883,6 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_demod_atsc param_atsc;
 	struct aml_demod_dvbc param_j83b;
-	int temp_freq = 0;
 	union ATSC_DEMOD_REG_0X6A_BITS Val_0x6a;
 	union atsc_cntl_reg_0x20 val;
 	int nco_rate;
@@ -2013,72 +2012,38 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 		}
 	}
 
-	if ((auto_search_std == 1) && ((c->modulation <= QAM_AUTO)
-	&& (c->modulation != QPSK))) {
-		unsigned char s = 0;
-
-		msleep(std_lock_timeout);
-		s = amdemod_stat_islock(demod, SYS_DVBC_ANNEX_A);
-		if (s == 1) {
-			PR_DBG("atsc std mode is %d locked\n", demod->atsc_mode);
-
-			return 0;
-		}
-		if ((c->frequency == 79000000) || (c->frequency == 85000000)) {
-			temp_freq = (c->frequency + 2000000) / 1000;
-			param_j83b.ch_freq = temp_freq;
-			PR_DBG("irc fre:%d\n", param_j83b.ch_freq);
-			c->frequency = param_j83b.ch_freq * 1000;
-
-			tuner_set_params(fe);
-			demod_set_mode_ts(SYS_DVBC_ANNEX_A);
-			param_j83b.mode = amdemod_qam(c->modulation);
-			if (c->modulation == QAM_64)
-				param_j83b.symb_rate = 5057;
-			else if (c->modulation == QAM_256)
-				param_j83b.symb_rate = 5361;
-			else
-				param_j83b.symb_rate = 5361;
-			dvbc_set_ch(demod, &param_j83b, fe);
-
-			msleep(std_lock_timeout);
-			s = amdemod_stat_islock(demod, SYS_DVBC_ANNEX_A);
-			if (s == 1) {
-				PR_DBG("irc mode is %d locked\n", demod->atsc_mode);
-			} else {
-				temp_freq = (c->frequency - 1250000) / 1000;
-				param_j83b.ch_freq = temp_freq;
-				PR_DBG("hrc fre:%d\n", param_j83b.ch_freq);
-				c->frequency = param_j83b.ch_freq * 1000;
-
-				tuner_set_params(fe);
-				demod_set_mode_ts(SYS_DVBC_ANNEX_A);
-				param_j83b.mode = amdemod_qam(c->modulation);
-				if (c->modulation == QAM_64)
-					param_j83b.symb_rate = 5057;
-				else if (c->modulation == QAM_256)
-					param_j83b.symb_rate = 5361;
-				else
-					param_j83b.symb_rate = 5361;
-				dvbc_set_ch(demod, &param_j83b, fe);
-			}
-		} else {
-			param_j83b.ch_freq = (c->frequency - 1250000) / 1000;
-			PR_DBG("hrc fre:%d\n", param_j83b.ch_freq);
-			c->frequency = param_j83b.ch_freq * 1000;
-
-			demod_set_mode_ts(SYS_DVBC_ANNEX_A);
-			param_j83b.mode = amdemod_qam(c->modulation);
-			if (c->modulation == QAM_64)
-				param_j83b.symb_rate = 5057;
-			else if (c->modulation == QAM_256)
-				param_j83b.symb_rate = 5361;
-			else
-				param_j83b.symb_rate = 5361;
-			dvbc_set_ch(demod, &param_j83b, fe);
-		}
-	}
 	PR_DBG("atsc_mode is %d\n", demod->atsc_mode);
+	return 0;
+}
+
+static int atsc_j83b_set_frontend_mode(struct dvb_frontend *fe, int mode)
+{
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct aml_demod_dvbc param_j83b;
+	int temp_freq = 0;
+
+	PR_INFO("%s [id %d]: freq:%d, mode:%d\n", __func__, demod->id, c->frequency, mode);
+
+	memset(&param_j83b, 0, sizeof(param_j83b));
+	if (mode == 2 && (c->frequency == 79000000 || c->frequency == 85000000))//IRC
+		temp_freq = c->frequency + 2000000;
+	else if (mode == 1)//HRC
+		temp_freq = c->frequency - 1250000;
+	else
+		return -1;
+
+	c->frequency = temp_freq;
+	tuner_set_params(fe);
+	demod_set_mode_ts(SYS_DVBC_ANNEX_A);
+	param_j83b.ch_freq = temp_freq / 1000;
+	param_j83b.mode = amdemod_qam(c->modulation);
+	if (c->modulation == QAM_256)
+		param_j83b.symb_rate = 5361;
+	else
+		param_j83b.symb_rate = 5057;
+	dvbc_set_ch(demod, &param_j83b, fe);
+
 	return 0;
 }
 
@@ -2383,6 +2348,9 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	static unsigned int s_j83b_mode;//2:HRC,1:IRC
+	int lastlock;
+	int ret;
 
 	*delay = HZ / 4;
 
@@ -2390,6 +2358,7 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 		return 0;
 
 	if (re_tune) {
+		s_j83b_mode = auto_search_std == 0 ? 0 : 2;
 		demod->en_detect = 1; /*fist set*/
 		gxtv_demod_atsc_set_frontend(fe);
 
@@ -2423,7 +2392,15 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 			atsc_detect_first(fe, status, re_tune);
 		} else if (c->modulation <= QAM_AUTO &&	(c->modulation !=  QPSK)) {
 			*delay = HZ / 20;
+			lastlock = demod->last_lock;
 			atsc_j83b_read_status(fe, status, re_tune);
+			if (s_j83b_mode > 0 && *status == FE_TIMEDOUT && lastlock == 0) {
+				ret = atsc_j83b_set_frontend_mode(fe, s_j83b_mode--);
+				if (ret < 0 && s_j83b_mode > 0)
+					ret = atsc_j83b_set_frontend_mode(fe, s_j83b_mode--);
+				if (ret == 0)
+					atsc_j83b_read_status(fe, status, true);
+			}
 		}
 	} else {
 		atsc_polling(fe, status);
