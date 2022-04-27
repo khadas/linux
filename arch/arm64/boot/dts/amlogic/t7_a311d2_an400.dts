@@ -585,7 +585,7 @@
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
-			mclk-fs = <512>;
+			mclk-fs = <64>;
 			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -607,7 +607,7 @@
 							<1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				system-clock-frequency = <256000>;
+				system-clock-frequency = <512000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -923,12 +923,21 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
-		dai-tdm-lane-slot-mask-out = <1 1>;
+		dai-tdm-lane-slot-mask-out = <0 1>;
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
+
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
+
+		/*enable default mclk(12.288M), before extern codec start*/
+		//start_clk_enable = <1>;
 
 		status = "okay";
 	};
@@ -951,7 +960,7 @@
 			&tdm_b_pins
 			&tdm_d4_pins
 			&tdm_d5_pins
-			&tdm_clk_pins>;
+			&tdmb_clk_pins>;
 
 		/*
 		 * 0: tdmout_a;
@@ -1621,6 +1630,16 @@
 		};
 	};
 
+	tdm_a_pins: tdm_a_pin {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+			groups = "tdm_sclk0",
+				"tdm_fs0",
+				"tdm_d0",
+				"tdm_d1";
+			function = "tdm";
+		};
+	};
+
 	tdm_b_pins: tdm_b_pin {
 		mux { /* GPIOT_1, GPIOT_2, GPIOT_5, GPIOT_6 */
 			groups = "tdm_sclk1",
@@ -1716,6 +1735,20 @@
 };
 
 &pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmouta_lane1";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdmina_lane0";
+		};
+	};
+
 	tdm_d4_pins: tdm_d4_pin {
 		mux {
 			groups = "tdm_d4";
@@ -1730,7 +1763,14 @@
 		};
 	};
 
-	tdm_clk_pins: tdm_clk_pin {
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+
+	tdmb_clk_pins: tdmb_clk_pin {
 		mux {
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
