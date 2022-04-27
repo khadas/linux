@@ -40,6 +40,7 @@
 #define RTOS_ALLOW_COREUP		1
 #define SMC_UNK				0xffffffff
 #define RSVED_MAX_IRQ			1024
+#define RTOS_RUN_FLAG			0xA5A5A5A5
 
 #define LOGBUF_RDFLG	0x80000000
 struct logbuf_t {
@@ -101,6 +102,29 @@ static unsigned long freertos_request_info(void)
 	pr_debug("rtos base:%lx, info offset:%x\n", info_base, info_offset);
 
 	return (info_base + info_offset);
+}
+
+static unsigned int freertos_is_run(void)
+{
+	unsigned long phy;
+	struct xrtosinfo_t *info;
+
+	phy = freertos_request_info();
+	if (!phy)
+		return 0;
+
+	info = (struct xrtosinfo_t *)ioremap(phy, sizeof(struct xrtosinfo_t));
+	if (info) {
+		if (info->rtos_run_flag != RTOS_RUN_FLAG) {
+			pr_debug("rtos_run_flag:%x\n", info->rtos_run_flag);
+			return 0;
+		}
+	} else {
+		pr_err("%s,map freertos info failed\n", __func__);
+		return 0;
+	}
+	iounmap(info);
+	return 1;
 }
 
 /*T7 need not update info to bl31
@@ -182,7 +206,7 @@ static void freertos_coreup(int cpu, int bootup)
 {
 	if (bootup) {
 		pr_debug("cpu %u power on start\n", cpu);
-		if (device_online(get_cpu_device(cpu)))
+		if (!device_online(get_cpu_device(cpu)))
 			pr_info("cpu %u power on success\n", cpu);
 		else
 			pr_err("cpu %u power on failed\n", cpu);
@@ -410,6 +434,45 @@ static void aml_rtos_logbuf_deinit(void)
 	}
 }
 
+static ssize_t android_status_store(struct class *cla,
+			  struct class_attribute *attr,
+			  const char *buf, size_t count)
+{
+	long val = 0;
+
+	if (kstrtoul(buf, 0, &val)) {
+		pr_err("invalid input:%s\n", buf);
+		return count;
+	}
+
+	pr_info("set android_status is %ld\n", val);
+	rtosinfo->android_status = val;
+
+	return count;
+}
+
+static ssize_t android_status_show(struct class *cla,
+			 struct class_attribute *attr, char *buf)
+{
+	int cnt = 0;
+
+	cnt =  sprintf(buf, "%d\n", rtosinfo->android_status);
+
+	return cnt;
+}
+static CLASS_ATTR_RW(android_status);
+
+static struct attribute *freertos_attrs[] = {
+	&class_attr_android_status.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(freertos);
+
+static struct class freertos_class = {
+	.name = "freertos",
+	.class_groups = freertos_groups,
+};
+
 static int aml_rtos_probe(struct platform_device *pdev)
 {
 	rtos_debug_dir = debugfs_create_dir("freertos", NULL);
@@ -420,7 +483,7 @@ static int aml_rtos_probe(struct platform_device *pdev)
 		return 0;
 
 	rtosinfo = (struct xrtosinfo_t *)
-		   ioremap(rtosinfo_phy,
+		   ioremap_cache(rtosinfo_phy,
 			   sizeof(struct xrtosinfo_t));
 	if (rtosinfo) {
 		freertos_do_finish(1);
@@ -429,6 +492,12 @@ static int aml_rtos_probe(struct platform_device *pdev)
 		goto finish;
 	}
 
+	if (rtosinfo->rtos_run_flag == RTOS_RUN_FLAG) {
+		if (class_register(&freertos_class)) {
+			pr_err("regist freertos_class failed\n");
+			return -EINVAL;
+		}
+	}
 	aml_rtos_logbuf_init();
 
 finish:
@@ -467,7 +536,7 @@ static void freertos_get_irqrsved(void)
 	struct device_node *np;
 	const __be32 *irqrsv;
 	u32 len, irq;
-	unsigned long tmp;
+	unsigned int tmp;
 	int i;
 
 	mutex_lock(&freertos_lock);
@@ -475,9 +544,8 @@ static void freertos_get_irqrsved(void)
 		goto exit;
 	freertos_irqrsv_inited = 1;
 
-	tmp = freertos_request_info();
-	if (tmp == 0 ||
-	    tmp == SMC_UNK)
+	tmp = freertos_is_run();
+	if (!tmp)
 		goto exit;
 
 	np = of_find_matching_node_and_match(NULL,
