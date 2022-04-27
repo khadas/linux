@@ -3580,57 +3580,9 @@ static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
 	return &hdev->para->hdmitx_vinfo;
 }
 
-/* fr_tab[]
- * 1080p24hz, 24:1
- * 1080p23.976hz, 2997:125
- * 25/50/100/200hz, no change
- */
-static struct frac_rate_table fr_tab[] = {
-	{"24hz", 24, 1, 2997, 125},
-	{"30hz", 30, 1, 2997, 100},
-	{"60hz", 60, 1, 2997, 50},
-	{"120hz", 120, 1, 2997, 25},
-	{"240hz", 120, 1, 5994, 25},
-	{NULL},
-};
-
-static void recalc_vinfo_sync_duration(struct vinfo_s *info, u32 frac)
-{
-	struct frac_rate_table *fr = &fr_tab[0];
-
-	pr_info("hdmitx: recalc before %s %d %d, frac %d\n", info->name,
-		info->sync_duration_num, info->sync_duration_den, info->frac);
-
-	while (fr->hz) {
-		if (strstr(info->name, fr->hz)) {
-			if (frac) {
-				info->sync_duration_num = fr->sync_num_dec;
-				info->sync_duration_den = fr->sync_den_dec;
-				info->frac = 1;
-			} else {
-				info->sync_duration_num = fr->sync_num_int;
-				info->sync_duration_den = fr->sync_den_int;
-				info->frac = 0;
-			}
-			break;
-		}
-		fr++;
-	}
-
-	pr_info("recalc after %s %d %d, frac %d\n", info->name,
-		info->sync_duration_num, info->sync_duration_den, info->frac);
-}
-
 static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 {
-	struct vinfo_s *vinfo;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	/* get current vinfo and refesh */
-	vinfo = hdmitx_get_current_vinfo(NULL);
-	if (vinfo && vinfo->name)
-		recalc_vinfo_sync_duration(vinfo,
-					   hdev->frac_rate_policy);
 
 	hdmitx_register_vrr(hdev);
 	if (!(mode & VMODE_INIT_BIT_MASK)) {
