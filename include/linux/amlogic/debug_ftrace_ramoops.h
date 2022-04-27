@@ -21,6 +21,7 @@
 #define __DEBUG_FTRACE_RAMOOPS_H__
 #include <linux/ftrace.h>
 #include <linux/pstore_ram.h>
+#include <linux/arm-smccc.h>
 
 extern unsigned int ramoops_ftrace_en;
 extern int ramoops_io_en;
@@ -33,6 +34,9 @@ extern unsigned int dump_iomap;
 #define PSTORE_FLAG_IO_R_END	0x4
 #define PSTORE_FLAG_IO_W_END	0x5
 #define PSTORE_FLAG_IO_TAG	0x6
+#define PSTORE_FLAG_IO_SCHED_SWITCH 0x7
+#define PSTORE_FLAG_IO_SMC_IN   0x8
+#define PSTORE_FLAG_IO_SMC_OUT  0x9
 #define PSTORE_FLAG_MASK	0xF
 
 void notrace pstore_io_save(unsigned long reg, unsigned long val,
@@ -64,6 +68,15 @@ pstore_io_save(reg, 0, CALLER_ADDR0, PSTORE_FLAG_IO_R_END, &irqflg)
 #define pstore_ftrace_io_tag(reg, val)	\
 	pstore_io_save(reg, val, CALLER_ADDR0, PSTORE_FLAG_IO_TAG, NULL)
 
+#define pstore_ftrace_sched_switch(next_pid, next_comm)	\
+pstore_io_save(next_pid, next_comm, 0, PSTORE_FLAG_IO_SCHED_SWITCH, NULL)
+
+#define pstore_ftrace_io_smc_in(a0, a1)	\
+pstore_io_save(a0, a1, CALLER_ADDR0, PSTORE_FLAG_IO_SMC_IN, NULL)
+
+#define pstore_ftrace_io_smc_out(a0, a1) \
+pstore_io_save(a0, a1, CALLER_ADDR0, PSTORE_FLAG_IO_SMC_OUT, NULL)
+
 #else
 #define pstore_ftrace_io_wr(reg, val)		do {	} while (0)
 #define pstore_ftrace_io_rd(reg)		do {	} while (0)
@@ -71,6 +84,9 @@ pstore_io_save(reg, 0, CALLER_ADDR0, PSTORE_FLAG_IO_R_END, &irqflg)
 #define pstore_ftrace_io_wr_end(reg, val)	do {	} while (0)
 #define pstore_ftrace_io_rd_end(reg)		do {	} while (0)
 #define pstore_ftrace_io_tag(reg, val)		do {    } while (0)
+#define pstore_ftrace_sched_switch(next_pid, next_comm) do {	} while (0)
+#define pstore_ftrace_io_smc_in(a0, a1)		do {	} while (0)
+#define pstore_ftrace_io_smc_out(a0, a1)	do {	} while (0)
 
 #endif
 

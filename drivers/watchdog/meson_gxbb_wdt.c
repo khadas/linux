@@ -17,6 +17,10 @@
 #include <linux/of_device.h>
 #endif
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/amlogic/debug_ftrace_ramoops.h>
+#endif
+
 #ifdef CONFIG_AMLOGIC_MODIFY
 #define DEFAULT_TIMEOUT 60      /* seconds */
 #else
@@ -51,6 +55,9 @@ static int meson_gxbb_wdt_start(struct watchdog_device *wdt_dev)
 {
 	struct meson_gxbb_wdt *data = watchdog_get_drvdata(wdt_dev);
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	pr_info("%s()\n", __func__);
+#endif
 	writel(readl(data->reg_base + GXBB_WDT_CTRL_REG) | GXBB_WDT_CTRL_EN,
 	       data->reg_base + GXBB_WDT_CTRL_REG);
 
@@ -61,6 +68,9 @@ static int meson_gxbb_wdt_stop(struct watchdog_device *wdt_dev)
 {
 	struct meson_gxbb_wdt *data = watchdog_get_drvdata(wdt_dev);
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	pr_info("%s()\n", __func__);
+#endif
 	writel(readl(data->reg_base + GXBB_WDT_CTRL_REG) & ~GXBB_WDT_CTRL_EN,
 	       data->reg_base + GXBB_WDT_CTRL_REG);
 
@@ -71,6 +81,10 @@ static int meson_gxbb_wdt_ping(struct watchdog_device *wdt_dev)
 {
 	struct meson_gxbb_wdt *data = watchdog_get_drvdata(wdt_dev);
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	if (ramoops_io_en)
+		pr_info("%s()\n", __func__);
+#endif
 	writel(0, data->reg_base + GXBB_WDT_RSET_REG);
 
 	return 0;
@@ -82,6 +96,9 @@ static int meson_gxbb_wdt_set_timeout(struct watchdog_device *wdt_dev,
 	struct meson_gxbb_wdt *data = watchdog_get_drvdata(wdt_dev);
 	unsigned long tcnt = timeout * 1000;
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	pr_info("%s() timeout=%u\n", __func__, timeout);
+#endif
 	if (tcnt > GXBB_WDT_TCNT_SETUP_MASK)
 		tcnt = GXBB_WDT_TCNT_SETUP_MASK;
 

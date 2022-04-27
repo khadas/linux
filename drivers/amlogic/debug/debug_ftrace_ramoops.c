@@ -90,6 +90,9 @@ const char *record_name[] = {
 	"IO-R-E",
 	"IO-W-E",
 	"IO-TAG",
+	"IO-SCHED-SWITCH",
+	"IO-SMC-IN",
+	"IO-SMC-OUT",
 };
 
 void reg_check_init(void)
@@ -300,6 +303,21 @@ void notrace pstore_io_rw_dump(struct pstore_ftrace_record *rec,
 		   (void *)rec->ip, (void *)rec->parent_ip);
 }
 
+void notrace pstore_sched_switch_dump(struct pstore_ftrace_record *rec,
+			       struct seq_file *s)
+{
+	unsigned long sec = 0, us = 0;
+	unsigned long long time = rec->time;
+	unsigned int cpu = pstore_ftrace_decode_cpu(rec);
+
+	do_div(time, 1000);
+	us = (unsigned long)do_div(time, 1000000);
+	sec = (unsigned long)time;
+	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %lu:%s>\n",
+		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
+		   record_name[rec->flag], rec->val1, (char *)&rec->val2);
+}
+
 void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
 				struct seq_file *s)
 {
@@ -309,11 +327,30 @@ void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
 	case PSTORE_FLAG_IO_W_END:
 	case PSTORE_FLAG_IO_R_END:
 	case PSTORE_FLAG_IO_TAG:
+	case PSTORE_FLAG_IO_SMC_IN:
+	case PSTORE_FLAG_IO_SMC_OUT:
 		pstore_io_rw_dump(rec, s);
+		break;
+	case PSTORE_FLAG_IO_SCHED_SWITCH:
+		pstore_sched_switch_dump(rec, s);
 		break;
 	default:
 		seq_printf(s, "Unknown Msg:%x\n", rec->flag);
 	}
+}
+
+void notrace __pstore_sched_switch_dump(struct pstore_ftrace_record *rec)
+{
+	unsigned long sec = 0, us = 0;
+	unsigned long long time = rec->time;
+	unsigned int cpu = pstore_ftrace_decode_cpu(rec);
+
+	do_div(time, 1000);
+	us = (unsigned long)do_div(time, 1000000);
+	sec = (unsigned long)time;
+	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %lu:%s>\n",
+		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
+		   record_name[rec->flag], rec->val1, (char *)&rec->val2);
 }
 
 static unsigned long virt_convert_phys_addr(unsigned long virt_addr)
@@ -415,7 +452,7 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 	}
 	per_cpu(en, cpu) = 1;
 	pstore_ftrace_encode_cpu(&rec, cpu);
-	strlcpy(rec.comm, current->comm, sizeof(rec.comm) - 1);
+	strlcpy(rec.comm, current->comm, sizeof(rec.comm));
 	rec.pid = current->pid;
 	rec.time = trace_clock_local();
 
@@ -454,7 +491,12 @@ static void notrace __pstore_ftrace_dump_old(struct pstore_ftrace_record *rec)
 	case PSTORE_FLAG_IO_W_END:
 	case PSTORE_FLAG_IO_R_END:
 	case PSTORE_FLAG_IO_TAG:
+	case PSTORE_FLAG_IO_SMC_IN:
+	case PSTORE_FLAG_IO_SMC_OUT:
 		__pstore_io_rw_dump(rec);
+		break;
+	case PSTORE_FLAG_IO_SCHED_SWITCH:
+		__pstore_sched_switch_dump(rec);
 		break;
 	default:
 		pr_err("Unknown Msg:%x\n", rec->flag);
@@ -538,3 +580,24 @@ void notrace pstore_ftrace_dump_old(struct persistent_ram_zone *prz)
 		rec++;
 	}
 }
+
+void __arm_smccc_smc_glue(unsigned long a0, unsigned long a1,
+			unsigned long a2, unsigned long a3, unsigned long a4,
+			unsigned long a5, unsigned long a6, unsigned long a7,
+			struct arm_smccc_res *res, struct arm_smccc_quirk *quirk)
+{
+	int not_in_idle = current->pid != 0;
+
+	if (not_in_idle)
+		preempt_disable_notrace();
+
+	pstore_ftrace_io_smc_in(a0, a1);
+
+	__arm_smccc_smc(a0, a1, a2, a3, a4, a5, a6, a7, res, quirk);
+
+	pstore_ftrace_io_smc_out(a0, a1);
+
+	if (not_in_idle)
+		preempt_enable_notrace();
+}
+EXPORT_SYMBOL(__arm_smccc_smc_glue);
