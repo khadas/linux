@@ -622,7 +622,7 @@
 				/* ldim_dev-gpios index, 0xff=invalid */
 			spi_write_check = <0>; /* 0=disable, 1=enable */
 
-			dim_max_min = <0xfff 0x0>; /* dim_max, dim_min */
+			dim_max_min = <0xfff 0x10>; /* dim_max, dim_min */
 			chip_count = <3>;
 			ldim_zone_mapping = <
 				37 38 39 40 41
