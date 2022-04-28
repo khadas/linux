@@ -67,7 +67,7 @@
 #define MAX_IN_BUF_NUM				(15)	/*change 4 to 8*/
 #define MAX_LOCAL_BUF_NUM			(5)//(7)
 #define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
-#define POST_BUF_NUM				(11)
+#define POST_BUF_NUM				(20)
 #define VFRAME_TYPE_IN				1
 #define VFRAME_TYPE_LOCAL			2
 #define VFRAME_TYPE_POST			3

@@ -191,16 +191,16 @@ enum EDIM_NIN_TYPE {
 union di_cfg_tdata_u {
 	unsigned int d32;
 	struct {
-		unsigned int val_df:4,/**/
-		val_dts:4,
-		val_dbg:4,
-		val_c:4,
+		unsigned int val_df:6,/**/
+		val_dts:6,
+		val_dbg:6,
+		val_c:6,
 		dts_en:1,
 		dts_have:1,
 		dbg_have:1,
 		rev_en:1,
-		en_update:4,
-		reserved:8;
+		en_update:4;
+		//reserved:0;
 	} b;
 };
 
@@ -1603,7 +1603,7 @@ struct dim_sub_mem_s {
 	unsigned int	cnt;
 };
 
-#define DIM_BLK_NUB	20 /* buf number*/
+#define DIM_BLK_NUB	32 /* buf number*/
 struct dim_mm_blk_s {
 	struct qs_buf_s	header;
 
@@ -1795,7 +1795,7 @@ enum QBF_NDIS_Q_TYPE {
 	QBF_NDIS_Q_NUB,
 };
 
-#define DIM_NDIS_NUB	(12) /* buf number*/
+#define DIM_NDIS_NUB	(18) /* buf number*/
 
 struct dsub_ndis_s {
 	struct di_buf_s *di_buf;
