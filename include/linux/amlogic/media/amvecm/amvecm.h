@@ -181,7 +181,8 @@ enum cm_hist_e {
 };
 
 enum dv_pq_ctl_e {
-	DV_PQ_BYPASS = 0,
+	DV_PQ_TV_BYPASS = 0,
+	DV_PQ_STB_BYPASS,
 	DV_PQ_CERT,
 	DV_PQ_REC,
 };
