@@ -105,10 +105,10 @@ struct meson_hdmitx_dev {
 	unsigned int (*get_tx_hdcp_cap)(void);
 	unsigned int (*get_rx_hdcp_cap)(void);
 	void (*register_hdcp_notify)(struct connector_hdcp_cb *cb);
-
 	/*vrr apis*/
 	bool (*get_vrr_cap)(void);
 	int (*get_vrr_mode_group)(struct drm_vrr_mode_group *groups, int max_group);
+	int (*get_hdcp_ctl_lvl)(void);
 };
 
 #define to_meson_hdmitx_dev(x)	container_of(x, struct meson_hdmitx_dev, base)
