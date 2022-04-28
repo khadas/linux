@@ -333,13 +333,40 @@ static int meson_drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	return 0;
 }
 
+static bool check_parallel_commit(struct drm_atomic_state *state,
+		struct drm_crtc **dest_crtc)
+{
+	struct drm_connector_state *connector_state;
+	struct drm_connector *connector;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i, num_crtcs = 0;
+
+	/* any connector change, return false */
+	for_each_new_connector_in_state(state, connector, connector_state, i)
+		return false;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		if (drm_atomic_crtc_needs_modeset(crtc_state))
+			return false;
+		if (++num_crtcs > 1)
+			return false;
+		*dest_crtc = crtc;
+	}
+
+	return true;
+}
+
 int meson_atomic_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool nonblock)
 {
-	int ret;
+	int ret, crtc_index;
 	struct meson_commit_work_item *work_item;
+	struct kthread_worker *worker;
+	struct drm_crtc *dest_crtc = NULL;
 	struct meson_drm *priv = dev->dev_private;
+	bool is_parallel = check_parallel_commit(state, &dest_crtc);
 
 	if (state->async_update) {
 		ret = drm_atomic_helper_prepare_planes(dev, state);
@@ -403,9 +430,14 @@ int meson_atomic_commit(struct drm_device *dev,
 
 	drm_atomic_state_get(state);
 	if (nonblock) {
+		crtc_index = 0;
 		work_item->work = &state->commit_work;
 		kthread_init_work(&work_item->kthread_work, meson_commit_work);
-		kthread_queue_work(&priv->commit_thread[0].worker, &work_item->kthread_work);
+		if (is_parallel && dest_crtc)
+			crtc_index = dest_crtc->index;
+
+		worker = &priv->commit_thread[crtc_index].worker;
+		kthread_queue_work(worker, &work_item->kthread_work);
 	} else {
 		commit_tail(state);
 	}

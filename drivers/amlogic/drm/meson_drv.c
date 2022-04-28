@@ -46,6 +46,8 @@
 
 #define DRIVER_NAME "meson"
 #define DRIVER_DESC "Amlogic Meson DRM driver"
+#define MESON_VERSION_MAJOR 2
+#define MESON_VERSION_MINOR 0
 
 #define MAX_CONNECTOR_NUM (3)
 
@@ -180,33 +182,41 @@ static struct drm_driver meson_driver = {
 	.fops			= &fops,
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
-	.date			= "20180321",
-	.major			= 1,
-	.minor			= 0,
+	.date			= "20220613",
+	.major			= MESON_VERSION_MAJOR,
+	.minor			= MESON_VERSION_MINOR,
 };
 
-static int meson_worker_thread_init(struct meson_drm *priv)
+static int meson_worker_thread_init(struct meson_drm *priv,
+				    unsigned int num_crtcs)
 {
-	int ret;
+	int i, ret;
 	struct sched_param param;
+	struct kthread_worker *worker;
+	char thread_name[16];
+	struct meson_drm_thread *drm_thread;
 	struct drm_device *drm = priv->drm;
 
 	param.sched_priority = 16;
 
-	kthread_init_worker(&priv->commit_thread[0].worker);
-	priv->commit_thread[0].dev = drm;
-	priv->commit_thread[0].thread = kthread_run(kthread_worker_fn,
-						    &priv->commit_thread[0].worker,
-						    "crtc_commit");
-	if (IS_ERR(priv->commit_thread[0].thread)) {
-		DRM_ERROR("failed to create commit thread\n");
-		priv->commit_thread[0].thread = NULL;
-		return -1;
-	}
+	for (i = 0; i < num_crtcs; i++) {
+		drm_thread = &priv->commit_thread[i];
+		worker = &drm_thread->worker;
+		kthread_init_worker(worker);
+		drm_thread->dev = drm;
+		snprintf(thread_name, 16, "crtc%d_commit", i);
+		drm_thread->thread = kthread_run(kthread_worker_fn,
+						 worker, thread_name);
+		if (IS_ERR(drm_thread->thread)) {
+			DRM_ERROR("failed to create commit thread\n");
+			priv->commit_thread[0].thread = NULL;
+			return -1;
+		}
 
-	ret = sched_setscheduler(priv->commit_thread[0].thread, SCHED_FIFO, &param);
-	if (ret)
-		DRM_ERROR("failed to set priority\n");
+		ret = sched_setscheduler(drm_thread->thread, SCHED_FIFO, &param);
+		if (ret)
+			DRM_ERROR("failed to set priority\n");
+	}
 
 	return 0;
 }
@@ -271,7 +281,7 @@ static int am_meson_drm_bind(struct device *dev)
 		goto err_gem;
 	DRM_INFO("mode_config crtc number:%d\n", drm->mode_config.num_crtc);
 
-	ret = meson_worker_thread_init(priv);
+	ret = meson_worker_thread_init(priv, drm->mode_config.num_crtc);
 	if (ret)
 		goto err_unbind_all;
 
@@ -669,8 +679,5 @@ module_init(am_meson_drm_init);
 module_exit(am_meson_drm_exit);
 #endif
 
-MODULE_AUTHOR("Jasper St. Pierre <jstpierre@mecheye.net>");
-MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
-MODULE_AUTHOR("MultiMedia Amlogic <multimedia-sh@amlogic.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

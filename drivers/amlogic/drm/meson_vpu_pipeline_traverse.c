@@ -11,28 +11,6 @@
 #include "meson_crtc.h"
 #include "meson_plane.h"
 
-static int get_attached_crtc_index(int osd_index,
-			struct drm_atomic_state *state)
-{
-	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
-	struct drm_crtc *crtc;
-	struct am_meson_crtc *amc;
-	struct meson_drm *priv = state->dev->dev_private;
-
-	plane = &priv->osd_planes[osd_index]->base;
-	plane_state = drm_atomic_get_plane_state(state, plane);
-
-	crtc = plane_state->crtc;
-
-	if (crtc) {
-		amc = to_am_meson_crtc(crtc);
-		return amc->crtc_index;
-	}
-
-	return -EINVAL;
-}
-
 static void stack_init(struct meson_vpu_stack *mvs)
 {
 	mvs->top = 0;
@@ -609,8 +587,7 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 		if (!mvps->plane_info[i].enable)
 			continue;
 		osd_index = mvps->plane_index[i];
-		crtc_index = get_attached_crtc_index(osd_index,
-					mvps->obj.state);
+		crtc_index = mvps->plane_info[i].crtc_index;
 		if (crtc_index == -EINVAL) {
 			DRM_ERROR("%s, overbound crtc index\n", __func__);
 			crtc_index = 0;
@@ -758,7 +735,7 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 		if (!mvps->plane_info[i].enable)
 			continue;
 		osd_index = mvps->plane_index[i];
-		crtc_index = get_attached_crtc_index(osd_index, state);
+		crtc_index = mvps->plane_info[i].crtc_index;
 		if (crtc_index == -EINVAL) {
 			DRM_ERROR("%s, overbound crtc index\n", __func__);
 			crtc_index = 0;
