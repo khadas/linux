@@ -94,6 +94,8 @@ struct meson_hdmitx_dev {
 	unsigned int (*get_tx_hdcp_cap)(void);
 	unsigned int (*get_rx_hdcp_cap)(void);
 	void (*register_hdcp_notify)(struct connector_hdcp_cb *cb);
+	struct hdmitx_dev *(*get_tx_device)(void);
+	int (*get_hdcp_ctl_lvl)(void);
 };
 
 #define to_meson_hdmitx_dev(x)	container_of(x, struct meson_hdmitx_dev, base)

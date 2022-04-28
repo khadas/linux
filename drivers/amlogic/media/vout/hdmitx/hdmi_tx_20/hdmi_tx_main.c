@@ -6305,6 +6305,18 @@ struct hdmitx_dev *get_hdmitx_device(void)
 }
 EXPORT_SYMBOL(get_hdmitx_device);
 
+static struct hdmitx_dev *get_hdmitx_device_to_drm(void)
+{
+	pr_info("%s hdmitx20\n", __func__);
+	return &hdmitx_device;
+}
+
+static int get_hdmitx_hdcp_ctl_lvl_to_drm(void)
+{
+	pr_info("%s hdmitx20_%d\n", __func__, hdmitx_device.hdcp_ctl_lvl);
+	return hdmitx_device.hdcp_ctl_lvl;
+}
+
 int get_hdmitx20_init(void)
 {
 	return hdmitx_device.hdmi_init;
@@ -7754,6 +7766,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdr_priority = drm_hdmitx_get_hdr_priority,
 	.avmute = drm_hdmitx_avmute,
 	.set_phy = drm_hdmitx_set_phy,
+	.get_tx_device = get_hdmitx_device_to_drm,
 
 	/*hdcp apis*/
 	.hdcp_init = meson_hdcp_init,
@@ -7764,6 +7777,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_tx_hdcp_cap = drm_hdmitx_get_hdcp_cap,
 	.get_rx_hdcp_cap = drm_get_rx_hdcp_cap,
 	.register_hdcp_notify = meson_hdcp_reg_result_notify,
+	.get_hdcp_ctl_lvl = get_hdmitx_hdcp_ctl_lvl_to_drm,
 };
 
 static int meson_hdmitx_bind(struct device *dev,

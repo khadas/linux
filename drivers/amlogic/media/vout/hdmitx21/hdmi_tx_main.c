@@ -59,7 +59,7 @@
 #define HDMI_TX_RESOURCE_NUM 4
 #define HDMI_TX_PWR_CTRL_NUM	6
 
-static unsigned int hdcp_ctl_lvl;
+//static unsigned int hdcp_ctl_lvl;
 
 #define TEE_HDCP_IOC_START _IOW('P', 0, int)
 
@@ -132,6 +132,18 @@ struct hdmitx_dev *get_hdmitx21_device(void)
 	return &hdmitx21_device;
 }
 EXPORT_SYMBOL(get_hdmitx21_device);
+
+static struct hdmitx_dev *get_hdmitx_device_to_drm(void)
+{
+	pr_info("%s hdmitx21\n", __func__);
+	return &hdmitx21_device;
+}
+
+static int get_hdmitx_hdcp_ctl_lvl_to_drm(void)
+{
+	pr_info("%s hdmitx21_%d\n", __func__, hdmitx21_device.hdcp_ctl_lvl);
+	return hdmitx21_device.hdcp_ctl_lvl;
+}
 
 int get_hdmitx21_init(void)
 {
@@ -292,6 +304,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	/* update status for hpd and switch/state */
 	hdev->hpd_state = !!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0));
+
 	if (hdev->hpd_state)
 		hdev->already_used = 1;
 
@@ -3346,7 +3359,7 @@ static ssize_t hdcp_mode_show(struct device *dev,
 		break;
 	}
 
-	if (hdcp_ctl_lvl > 0 && hdev->hdcp_mode > 0) {
+	if (hdmitx21_device.hdcp_ctl_lvl > 0 && hdev->hdcp_mode > 0) {
 		if (hdev->hdcp_mode == 1)
 			hdcp_ret = get_hdcp1_result();
 		else if (hdev->hdcp_mode == 2)
@@ -3517,6 +3530,29 @@ static ssize_t support_3d_show(struct device *dev,
 	return pos;
 }
 
+static ssize_t hdcp_ctl_lvl_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\r\n",
+		hdmitx21_device.hdcp_ctl_lvl);
+	return pos;
+}
+
+static ssize_t hdcp_ctl_lvl_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long ctl_lvl = 0xf;
+
+	pr_info("set hdcp_ctl_lvl: %s\n", buf);
+	if (kstrtoul(buf, 10, &ctl_lvl) == 0) {
+		if (ctl_lvl <= 2)
+			hdmitx21_device.hdcp_ctl_lvl = ctl_lvl;
+	}
+	return count;
+}
+
 static ssize_t hdmitx21_show(struct device *dev,
 			       struct device_attribute *attr,
 			       char *buf)
@@ -3569,6 +3605,7 @@ static DEVICE_ATTR_RW(fake_plug);
 static DEVICE_ATTR_RW(ready);
 static DEVICE_ATTR_RO(support_3d);
 static DEVICE_ATTR_RO(hdmitx21);
+static DEVICE_ATTR_RW(hdcp_ctl_lvl);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -4525,11 +4562,11 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 
 		/* hdcp ctrl 0:sysctrl, 1: drv, 2: linux app */
 		ret = of_property_read_u32(pdev->dev.of_node,
-			   "hdcp_ctl_lvl", &hdcp_ctl_lvl);
-		if (!ret) {
-			if (hdcp_ctl_lvl > 2)
-				hdcp_ctl_lvl = 0;
-		}
+			   "hdcp_ctl_lvl", &hdmitx21_device.hdcp_ctl_lvl);
+		pr_info("hdcp_ctl_lvl[%d-%d]\n", hdmitx21_device.hdcp_ctl_lvl, ret);
+
+		if (ret)
+			hdmitx21_device.hdcp_ctl_lvl = 0;
 
 		/* Get vendor information */
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -4757,6 +4794,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_contenttype_cap);
 	ret = device_create_file(dev, &dev_attr_contenttype_mode);
 	ret = device_create_file(dev, &dev_attr_hdmitx21);
+	ret = device_create_file(dev, &dev_attr_hdcp_ctl_lvl);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -4918,6 +4956,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmi_repeater_tx);
 	device_remove_file(dev, &dev_attr_hdmi_hdr_status);
 	device_remove_file(dev, &dev_attr_hdmitx21);
+	device_remove_file(dev, &dev_attr_hdcp_ctl_lvl);
 
 	cdev_del(&hdev->cdev);
 
@@ -5443,6 +5482,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdr_priority = drm_hdmitx_get_hdr_priority,
 	.avmute = drm_hdmitx_avmute,
 	.set_phy = drm_hdmitx_set_phy,
+	.get_tx_device = get_hdmitx_device_to_drm,
 
 	/*hdcp apis*/
 	.hdcp_init = drm_hdmitx_hdcp_init,
@@ -5453,6 +5493,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_tx_hdcp_cap = drm_hdmitx_get_tx_hdcp_cap,
 	.get_rx_hdcp_cap = drm_hdmitx_get_rx_hdcp_cap,
 	.register_hdcp_notify = drm_hdmitx_register_hdcp_notify,
+	.get_hdcp_ctl_lvl = get_hdmitx_hdcp_ctl_lvl_to_drm,
 };
 
 static int meson_hdmitx_bind(struct device *dev,
@@ -5466,7 +5507,7 @@ static int meson_hdmitx_bind(struct device *dev,
 			(bound_data->drm,
 			DRM_MODE_CONNECTOR_HDMIA,
 			&drm_hdmitx_instance.base);
-		pr_err("%s hdmi [%d]\n", __func__, hdev->drm_hdmitx_id);
+		pr_err("%s hdmi21_[%d]\n", __func__, hdev->drm_hdmitx_id);
 	} else {
 		pr_err("no bind func from drm.\n");
 	}
