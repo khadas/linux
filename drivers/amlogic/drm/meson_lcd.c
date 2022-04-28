@@ -391,6 +391,10 @@ static void am_lcd_encoder_enable(struct drm_encoder *encoder,
 	if (meson_crtc_state->uboot_mode_init == 1)
 		vmode |= VMODE_INIT_BIT_MASK;
 
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE_PRE, &vmode);
+	set_vout_vmode(vmode);
+	vout_notifier_call_chain(VOUT_EVENT_MODE_CHANGE, &vmode);
+
 	DRM_DEBUG("am_drm_lcd: %s %d\n", __func__, __LINE__);
 
 	if (lcd->lcd_drv->mode == LCD_MODE_TV &&
