@@ -5911,6 +5911,10 @@ EXPORT_SYMBOL(get_video_mute);
 static inline bool is_tv_panel(void)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
+
+	if (!vinfo || vinfo->mode == VMODE_INVALID)
+		return false;
+
 	/*panel*/
 	if (vinfo->viu_color_fmt == COLOR_FMT_RGB444 &&
 	    (get_cpu_type() == MESON_CPU_MAJOR_ID_TL1 ||
@@ -7514,7 +7518,7 @@ void vpp2_blend_update(u32 vpp_index)
 
 void vppx_blend_update(const struct vinfo_s *vinfo, u32 vpp_index)
 {
-	if (vinfo) {
+	if (vinfo && vinfo->mode != VMODE_INVALID) {
 		u32 read_value;
 
 		read_value = cur_dev->rdma_func[vpp_index].rdma_rd
