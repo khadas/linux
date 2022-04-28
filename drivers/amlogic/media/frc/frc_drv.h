@@ -68,7 +68,7 @@
 // frc_20220421 frc sync memc_alg_ko_1990
 // frc_20220425 frc inform vlock when disable
 
-#define FRC_FW_VER			"2022-0425 frc inform vlock when disable"
+#define FRC_FW_VER			"2022-0426 frc compute mcdly for vlock"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
