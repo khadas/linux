@@ -4527,6 +4527,8 @@ static void hdmi_in_delay_maxmin_old(struct vframe_s *vf)
 #endif
 
 	video_info = get_current_vinfo();
+	if (!video_info || video_info->mode == VMODE_INVALID)
+		return;
 	if (video_info->sync_duration_num > 0) {
 		vpp_vsync = video_info->sync_duration_den;
 		vpp_vsync = vpp_vsync * 1000000;
@@ -5124,6 +5126,8 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 #endif
 
 	if (!layer)
+		return;
+	if (!info || info->mode == VMODE_INVALID)
 		return;
 
 #ifdef TV_REVERSE
@@ -6535,67 +6539,69 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		struct vinfo_s *video_info;
 
 		video_info = get_current_vinfo();
-		if (video_frame_detect.interrupt_count == 0) {
-			interrupt_count = 0;
-			video_frame_detect.interrupt_count =
-				frame_detect_time *
-				video_info->sync_duration_num /
-			    video_info->sync_duration_den;
-			if (debug_flag & DEBUG_FLAG_FRAME_DETECT) {
-				pr_info("sync_duration_num = %d\n",
-					video_info->sync_duration_num);
-				pr_info("sync_duration_den = %d\n",
-					video_info->sync_duration_den);
-			}
-			video_frame_detect.start_receive_count =
-				receive_frame_count;
-		}
-
-		interrupt_count++;
-
-		if (interrupt_count == video_frame_detect.interrupt_count + 1) {
-			u32 receive_count;
-			u32 expect_frame_count;
-
-			receive_count = receive_frame_count -
-				video_frame_detect.start_receive_count;
-			expect_frame_count =
-				video_frame_detect.interrupt_count *
-				frame_detect_fps *
-				video_info->sync_duration_den /
-				video_info->sync_duration_num /
-				1000;
-
-			if (receive_count < expect_frame_count) {
-				frame_detect_drop_count +=
-					expect_frame_count -
-					receive_count;
+		if (video_info && video_info->mode != VMODE_INVALID) {
+			if (video_frame_detect.interrupt_count == 0) {
+				interrupt_count = 0;
+				video_frame_detect.interrupt_count =
+					frame_detect_time *
+					video_info->sync_duration_num /
+				    video_info->sync_duration_den;
 				if (debug_flag & DEBUG_FLAG_FRAME_DETECT) {
-					pr_info("drop_count = %d\n",
-						expect_frame_count -
-						receive_count);
+					pr_info("sync_duration_num = %d\n",
+						video_info->sync_duration_num);
+					pr_info("sync_duration_den = %d\n",
+						video_info->sync_duration_den);
 				}
-				frame_detect_receive_count +=
-					expect_frame_count;
-			} else {
-				frame_detect_receive_count += receive_count;
+				video_frame_detect.start_receive_count =
+					receive_frame_count;
 			}
-			if (debug_flag & DEBUG_FLAG_FRAME_DETECT) {
-				pr_info("expect count = %d\n",
-					expect_frame_count);
-				pr_info("receive_count = %d, time = %ds\n",
-					receive_count,
-					frame_detect_time);
-				pr_info("interrupt_count = %d\n",
-					video_frame_detect.interrupt_count);
-				pr_info("frame_detect_drop_count = %d\n",
-					frame_detect_drop_count);
-				pr_info("frame_detect_receive_count = %d\n",
-					frame_detect_receive_count);
+
+			interrupt_count++;
+
+			if (interrupt_count == video_frame_detect.interrupt_count + 1) {
+				u32 receive_count;
+				u32 expect_frame_count;
+
+				receive_count = receive_frame_count -
+					video_frame_detect.start_receive_count;
+				expect_frame_count =
+					video_frame_detect.interrupt_count *
+					frame_detect_fps *
+					video_info->sync_duration_den /
+					video_info->sync_duration_num /
+					1000;
+
+				if (receive_count < expect_frame_count) {
+					frame_detect_drop_count +=
+						expect_frame_count -
+						receive_count;
+					if (debug_flag & DEBUG_FLAG_FRAME_DETECT) {
+						pr_info("drop_count = %d\n",
+							expect_frame_count -
+							receive_count);
+					}
+					frame_detect_receive_count +=
+						expect_frame_count;
+				} else {
+					frame_detect_receive_count += receive_count;
+				}
+				if (debug_flag & DEBUG_FLAG_FRAME_DETECT) {
+					pr_info("expect count = %d\n",
+						expect_frame_count);
+					pr_info("receive_count = %d, time = %ds\n",
+						receive_count,
+						frame_detect_time);
+					pr_info("interrupt_count = %d\n",
+						video_frame_detect.interrupt_count);
+					pr_info("frame_detect_drop_count = %d\n",
+						frame_detect_drop_count);
+					pr_info("frame_detect_receive_count = %d\n",
+						frame_detect_receive_count);
+				}
+				interrupt_count = 0;
+				memset(&video_frame_detect, 0,
+				       sizeof(struct video_frame_detect_s));
 			}
-			interrupt_count = 0;
-			memset(&video_frame_detect, 0,
-			       sizeof(struct video_frame_detect_s));
 		}
 	}
 #ifdef CONFIG_AMLOGIC_VIDEO_COMPOSER
@@ -9581,7 +9587,8 @@ static int  get_display_info(void *data)
 
 	if (!cur_frame_par || !info)
 		return -1;
-
+	if (info->mode == VMODE_INVALID)
+		return -1;
 	x = layer->layer_left;
 	y = layer->layer_top;
 	w = layer->layer_width;
@@ -13567,10 +13574,10 @@ static ssize_t device_resolution_show(struct class *cla,
 {
 	const struct vinfo_s *info = get_current_vinfo();
 
-	if (info)
-		return sprintf(buf, "%dx%d\n", info->width, info->height);
-	else
+	if (!info || info->mode == VMODE_INVALID)
 		return sprintf(buf, "0x0\n");
+	else
+		return sprintf(buf, "%dx%d\n", info->width, info->height);
 }
 #endif
 
@@ -14363,6 +14370,8 @@ static ssize_t hist_test_store(struct class *cla,
 		frame_height = parsed[1];
 		pat_val = parsed[2];
 	}
+	if (!ginfo || ginfo->mode == VMODE_INVALID)
+		return 0;
 
 	if (cur_dispbuf &&
 	    cur_dispbuf != &vf_local &&
@@ -17440,6 +17449,8 @@ int vout_notify_callback(struct notifier_block *block, unsigned long cmd,
 	switch (cmd) {
 	case VOUT_EVENT_MODE_CHANGE:
 		info = get_current_vinfo();
+		if (!info || info->mode == VMODE_INVALID)
+			return 0;
 		spin_lock_irqsave(&lock, flags);
 		vinfo = info;
 		/* pre-calculate vsync_pts_inc in 90k unit */
@@ -17487,6 +17498,8 @@ static void vout_hook(void)
 #endif
 		vinfo = get_current_vinfo();
 	}
+	if (!vinfo || vinfo->mode == VMODE_INVALID)
+		return;
 
 	if (vinfo) {
 		vsync_pts_inc = 90000 * vinfo->sync_duration_den /
