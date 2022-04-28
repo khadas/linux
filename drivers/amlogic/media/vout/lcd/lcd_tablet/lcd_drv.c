@@ -313,7 +313,8 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		fifo_mode = 0x1;
 
 	if (pdrv->data->chip_type == LCD_CHIP_T7 ||
-	    pdrv->data->chip_type == LCD_CHIP_T3) {
+	    pdrv->data->chip_type == LCD_CHIP_T3 ||
+	    pdrv->data->chip_type == LCD_CHIP_T5W) {
 		reg_lvds_pack_ctrl = LVDS_PACK_CNTL_ADDR_T7 + offset;
 		reg_lvds_gen_ctrl = LVDS_GEN_CNTL_T7 + offset;
 		lcd_vcbus_write(LVDS_SER_EN_T7 + offset, 0xfff);
@@ -373,7 +374,6 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_CHIP_T5:
 	case LCD_CHIP_T5D:
-	case LCD_CHIP_T5W:
 		/* lvds channel:    //tx 12 channels
 		 *    0: d0_a
 		 *    1: d1_a
@@ -441,6 +441,7 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		lcd_vcbus_write(P2P_BIT_REV_T7 + offset, 2);
 		break;
 	case LCD_CHIP_T3:
+	case LCD_CHIP_T5W:
 		/* lvds channel:    //tx 12 channels
 		 *    0: d0_a
 		 *    1: d1_a
@@ -523,6 +524,14 @@ static void lcd_lvds_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 0, 30, 2);
 		/* disable lane */
 		lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL0, 0, 16, 12);
+	} else if (pdrv->data->chip_type == LCD_CHIP_T5W) {
+		/* disable lvds fifo */
+		lcd_vcbus_setb(LVDS_GEN_CNTL_T7, 0, 3, 1);
+		lcd_vcbus_setb(LVDS_GEN_CNTL_T7, 0, 0, 2);
+		/* disable fifo */
+		lcd_clk_setb(HHI_LVDS_TX_PHY_CNTL1, 0, 30, 2);
+		/* disable lane */
+		lcd_clk_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 16, 12);
 	} else {
 		/* disable lvds fifo */
 		lcd_vcbus_setb(LVDS_GEN_CNTL, 0, 3, 1);
@@ -662,6 +671,7 @@ static void lcd_vbyone_control_set(struct aml_lcd_drv_s *pdrv)
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
 	case LCD_CHIP_T3:
+	case LCD_CHIP_T5W:
 		lcd_vbyone_enable_t7(pdrv);
 		break;
 	default:
@@ -721,6 +731,13 @@ static void lcd_vbyone_control_off(struct aml_lcd_drv_s *pdrv)
 		lcd_ana_setb(reg_dphy_tx_ctrl1, 0, 30, 2);
 		/* disable lane */
 		lcd_ana_setb(reg_dphy_tx_ctrl0, 0, 16, 12);
+		break;
+	case LCD_CHIP_T5W:
+		lcd_vbyone_disable_t7(pdrv);
+		/* disable fifo */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 0, 30, 2);
+		/* disable lane */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 16, 12);
 		break;
 	default:
 		lcd_vbyone_disable_dft(pdrv);

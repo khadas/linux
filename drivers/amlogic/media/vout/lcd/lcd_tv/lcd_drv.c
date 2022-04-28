@@ -398,6 +398,14 @@ static void lcd_lvds_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 0, 30, 2);
 		/* disable lane */
 		lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL0, 0, 16, 12);
+	} else if (pdrv->data->chip_type == LCD_CHIP_T5W) {
+		/* disable lvds fifo */
+		lcd_vcbus_setb(LVDS_GEN_CNTL_T7, 0, 3, 1);
+		lcd_vcbus_setb(LVDS_GEN_CNTL_T7, 0, 0, 2);
+		/* disable fifo */
+		lcd_clk_setb(HHI_LVDS_TX_PHY_CNTL1, 0, 30, 2);
+		/* disable lane */
+		lcd_clk_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 16, 12);
 	} else {
 		/* disable lvds fifo */
 		lcd_vcbus_setb(LVDS_GEN_CNTL, 0, 3, 1);
@@ -537,6 +545,7 @@ static void lcd_vbyone_control_set(struct aml_lcd_drv_s *pdrv)
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T7:
 	case LCD_CHIP_T3:
+	case LCD_CHIP_T5W:
 		lcd_vbyone_enable_t7(pdrv);
 		break;
 	default:
@@ -597,6 +606,13 @@ static void lcd_vbyone_control_off(struct aml_lcd_drv_s *pdrv)
 		/* disable lane */
 		lcd_ana_setb(reg_dphy_tx_ctrl0, 0, 16, 12);
 		break;
+	case LCD_CHIP_T5W:
+		lcd_vbyone_disable_t7(pdrv);
+		/* disable fifo */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 0, 30, 2);
+		/* disable lane */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 16, 12);
+		break;
 	default:
 		lcd_vbyone_disable_dft(pdrv);
 		/* disable fifo */
@@ -625,6 +641,9 @@ static void lcd_mlvds_control_set(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
+	channel_sel0 = pdrv->config.control.mlvds_cfg.channel_sel0;
+	channel_sel1 = pdrv->config.control.mlvds_cfg.channel_sel1;
+
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T3:
 		/* fifo_clk_sel[7:6]: 0=div6, 1=div 7, 2=div8, 3=div10 */
@@ -639,8 +658,22 @@ static void lcd_mlvds_control_set(struct aml_lcd_drv_s *pdrv)
 		/* fifo write enable[31] */
 		lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 
-		channel_sel0 = pdrv->config.control.mlvds_cfg.channel_sel0;
-		channel_sel1 = pdrv->config.control.mlvds_cfg.channel_sel1;
+		lcd_vcbus_write(P2P_CH_SWAP0_T7, channel_sel0);
+		lcd_vcbus_write(P2P_CH_SWAP1_T7, channel_sel1);
+		break;
+	case LCD_CHIP_T5W:
+		/* fifo_clk_sel[7:6]: 0=div6, 1=div 7, 2=div8, 3=div10 */
+		lcd_ana_write(HHI_LVDS_TX_PHY_CNTL0, (div_sel << 6));
+		/* serializer_en[27:16] */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0xfff, 16, 12);
+		/* pn swap[2] */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 1, 2, 1);
+
+		/* fifo enable[30], phy_clock gating[24] */
+		lcd_ana_write(HHI_LVDS_TX_PHY_CNTL1, (1 << 30) | (1 << 24));
+		/* fifo write enable[31] */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 1, 31, 1);
+
 		lcd_vcbus_write(P2P_CH_SWAP0_T7, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1_T7, channel_sel1);
 		break;
@@ -657,8 +690,6 @@ static void lcd_mlvds_control_set(struct aml_lcd_drv_s *pdrv)
 		/* fifo write enable[31] */
 		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 
-		channel_sel0 = pdrv->config.control.mlvds_cfg.channel_sel0;
-		channel_sel1 = pdrv->config.control.mlvds_cfg.channel_sel1;
 		lcd_vcbus_write(P2P_CH_SWAP0, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1, channel_sel1);
 		break;
@@ -705,6 +736,9 @@ static void lcd_p2p_control_set(struct aml_lcd_drv_s *pdrv)
 		break;
 	}
 
+	channel_sel0 = pdrv->config.control.p2p_cfg.channel_sel0;
+	channel_sel1 = pdrv->config.control.p2p_cfg.channel_sel1;
+
 	switch (pdrv->data->chip_type) {
 	case LCD_CHIP_T3:
 		/* fifo_clk_sel[7:6]: 0=div6, 1=div 7, 2=div8, 3=div10 */
@@ -719,8 +753,22 @@ static void lcd_p2p_control_set(struct aml_lcd_drv_s *pdrv)
 		/* fifo write enable[31] */
 		lcd_ana_setb(ANACTRL_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 
-		channel_sel0 = pdrv->config.control.p2p_cfg.channel_sel0;
-		channel_sel1 = pdrv->config.control.p2p_cfg.channel_sel1;
+		lcd_vcbus_write(P2P_CH_SWAP0_T7, channel_sel0);
+		lcd_vcbus_write(P2P_CH_SWAP1_T7, channel_sel1);
+		break;
+	case LCD_CHIP_T5W:
+		/* fifo_clk_sel[7:6]: 0=div6, 1=div 7, 2=div8, 3=div10 */
+		lcd_ana_write(HHI_LVDS_TX_PHY_CNTL0, (phy_div << 6));
+		/* serializer_en[27:16] */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0xfff, 16, 12);
+		/* pn swap[2] */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 1, 2, 1);
+
+		/* fifo enable[30], phy_clock gating[24] */
+		lcd_ana_write(HHI_LVDS_TX_PHY_CNTL1, (1 << 30) | (1 << 24));
+		/* fifo write enable[31] */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 1, 31, 1);
+
 		lcd_vcbus_write(P2P_CH_SWAP0_T7, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1_T7, channel_sel1);
 		break;
@@ -737,8 +785,6 @@ static void lcd_p2p_control_set(struct aml_lcd_drv_s *pdrv)
 		/* fifo write enable[31] */
 		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL1, 1, 31, 1);
 
-		channel_sel0 = pdrv->config.control.p2p_cfg.channel_sel0;
-		channel_sel1 = pdrv->config.control.p2p_cfg.channel_sel1;
 		lcd_vcbus_write(P2P_CH_SWAP0, channel_sel0);
 		lcd_vcbus_write(P2P_CH_SWAP1, channel_sel1);
 		break;

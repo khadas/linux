@@ -37,7 +37,8 @@
 /* 20220216: update vrr config when display mode change*/
 /* 20220408: update tcon reserved memory usage*/
 /* 20220421: fix lcd clk mistake for vmode change with fr_adj_type 4*/
-#define LCD_DRV_VERSION    "20220421"
+/* 20220428: fix t5w regs mistake*/
+#define LCD_DRV_VERSION    "20220428"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
