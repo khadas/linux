@@ -92,7 +92,7 @@ static void t5_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 		val = 0xffff;
 		writel(val, db->ddr_reg1 + off + 8);	/* DMC_MON*_CTRL2 */
 	} else {
-		val = (0x1 << 23);	/* select device */
+		val = (0x1 << 7);	/* select device */
 		writel(val, db->ddr_reg1 + off + 4);
 		val = readl(db->ddr_reg1 + off + 8);
 		val |= (1 << subport);

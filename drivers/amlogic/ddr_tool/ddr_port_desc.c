@@ -867,8 +867,8 @@ static struct ddr_port_desc ddr_port_desc_a5[] __initdata = {
 	{ .port_id = 40, .port_name = "SDIO_A"       },
 	{ .port_id = 41, .port_name = "SEC_TOP"      },
 	{ .port_id = 42, .port_name = "EMMC"         },
-	{ .port_id = 42, .port_name = "USB"          },
-	{ .port_id = 42, .port_name = "AUDIO"        }
+	{ .port_id = 43, .port_name = "USB"          },
+	{ .port_id = 44, .port_name = "AUDIO"        }
 };
 
 static struct ddr_port_desc *chip_ddr_port;

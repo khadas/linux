@@ -92,7 +92,16 @@ static void s4_dmc_port_config(struct ddr_bandwidth *db, int channel, int port)
 		val = 0xffff;
 		writel(val, db->ddr_reg1 + off + 8);	/* DMC_MON*_CTRL2 */
 	} else {
-		val = (0x1 << 23);	/* select device */
+		if (db->cpu_type == DMC_TYPE_T5W && subport >= 8) {
+			val = (0x1 << 10);
+			subport = subport - 8;
+		} else if (db->cpu_type == DMC_TYPE_A5 && subport >= 8) {
+			val = (0x1 << 6);
+			subport = subport - 8;
+		} else {
+			val = (0x1 << 7);	/* select device */
+		}
+
 		writel(val, db->ddr_reg1 + off + 4);
 		val = readl(db->ddr_reg1 + off + 8);
 		val |= (1 << subport);
