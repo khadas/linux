@@ -462,8 +462,27 @@ static ssize_t android_status_show(struct class *cla,
 }
 static CLASS_ATTR_RW(android_status);
 
+static ssize_t ipi_send_store(struct class *cla,
+			  struct class_attribute *attr,
+			  const char *buf, size_t count)
+{
+	long cpu = 0;
+
+	if (kstrtoul(buf, 0, &cpu)) {
+		pr_err("invalid input cpu number:%s\n", buf);
+		return count;
+	}
+
+	pr_info("set ipi to cpu%ld\n", cpu);
+	arch_send_ipi_rtos(cpu);
+
+	return count;
+}
+static CLASS_ATTR_WO(ipi_send);
+
 static struct attribute *freertos_attrs[] = {
 	&class_attr_android_status.attr,
+	&class_attr_ipi_send.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(freertos);

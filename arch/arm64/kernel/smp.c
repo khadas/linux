@@ -882,6 +882,13 @@ void arch_suspend_notifier(const struct cpumask *mask)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_FREERTOS
+void arch_send_ipi_rtos(int cpu)
+{
+	smp_cross_call(cpumask_of(cpu), IPI_FREERTOS);
+}
+#endif
+
 static void local_cpu_stop(void)
 {
 	set_cpu_online(smp_processor_id(), false);
