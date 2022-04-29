@@ -3072,12 +3072,22 @@ static void get_pre_vscaler_coef(u8 layer_id, int *pre_hscaler_table)
 	} else {
 		switch (pre_scaler[layer_id].pre_vscaler_ntap) {
 		case PRE_VSCALER_2TAP:
-			pre_hscaler_table[0] = 0x100;
-			pre_hscaler_table[1] = 0x0;
+			if (has_pre_hscaler_8tap(0)) {
+				pre_hscaler_table[0] = 0x100;
+				pre_hscaler_table[1] = 0x0;
+			} else {
+				pre_hscaler_table[0] = 0x40;
+				pre_hscaler_table[1] = 0x0;
+			}
 			break;
 		case PRE_VSCALER_4TAP:
-			pre_hscaler_table[0] = 0xc0;
-			pre_hscaler_table[1] = 0x40;
+			if (has_pre_hscaler_8tap(0)) {
+				pre_hscaler_table[0] = 0xc0;
+				pre_hscaler_table[1] = 0x40;
+			} else {
+				pre_hscaler_table[0] = 0xf8;
+				pre_hscaler_table[1] = 0x48;
+			}
 			break;
 		}
 	}
@@ -11166,7 +11176,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		pre_scaler[i].pre_hscaler_ntap_set = 0xff;
 		pre_scaler[i].pre_vscaler_ntap_set = 0xff;
 		pre_scaler[i].pre_hscaler_ntap = PRE_HSCALER_4TAP;
-		if (has_pre_hscaler_8tap(i))
+		if (has_pre_vscaler_ntap(i))
 			pre_scaler[i].pre_vscaler_ntap = PRE_VSCALER_4TAP;
 		else
 			pre_scaler[i].pre_vscaler_ntap = PRE_VSCALER_2TAP;
