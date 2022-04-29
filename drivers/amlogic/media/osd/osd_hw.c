@@ -1144,7 +1144,7 @@ static int line_threshold = 5;
 static int line_threshold_2 = 90;
 static int vsync_threshold = 10;
 static int vsync_adjust_hit;
-
+static int cur_begine_line[VIU_COUNT];
 module_param_named(osd_vsync_enter_line_max, vsync_enter_line_max, uint, 0664);
 
 module_param_named(osd_vsync_exit_line_max, vsync_exit_line_max, uint, 0664);
@@ -1527,7 +1527,7 @@ static int get_active_begin_line(u32 viu_type)
 	return active_line_begin;
 }
 
-static int get_encp_line(u32 viu_type)
+int get_encp_line(u32 viu_type)
 {
 	int enc_line = 0;
 	unsigned int reg = VPU_VENCI_STAT;
@@ -2953,7 +2953,7 @@ static bool mali_afbc_get_error(void)
 		osd_hw.afbc_err_cnt[0]++;
 		error = true;
 	}
-	status = VSYNCOSD_WR_MPEG_REG(VPU_MAFBC_IRQ_CLEAR, 0x3f);
+	status = VSYNCOSD_IRQ_WR_MPEG_REG(VPU_MAFBC_IRQ_CLEAR, 0x3f);
 	return error;
 }
 
@@ -2979,7 +2979,7 @@ static bool mali_afbcn_get_error(u32 index)
 		}
 		error = true;
 	}
-	status = osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+	status = osd_hw.osd_rdma_func[output_index].osd_rdma_wr_irq
 		(osd_reg->vpu_mafbc_irq_clear, 0x3f);
 	return error;
 }
@@ -10971,6 +10971,11 @@ void osd_secure_cb(u32 arg)
 }
 #endif
 
+u32 get_cur_begine_line(u32 output_index)
+{
+	return cur_begine_line[output_index];
+}
+
 static int osd_setting_order(u32 output_index)
 {
 #define RDMA_DETECT_REG VIU_OSD2_TCOLOR_AG0
@@ -11063,6 +11068,7 @@ static int osd_setting_order(u32 output_index)
 			break;
 		line1 = get_enter_encp_line(VIU1);
 	}
+	cur_begine_line[VIU1] = line1;
 	if (wait_cnt > 0)
 		osd_hw.rdma_delayed_cnt1++;
 	spin_lock_irqsave(&osd_lock, lock_flags);
@@ -11200,8 +11206,9 @@ static int osd_setting_order(u32 output_index)
 	spin_unlock_irqrestore(&osd_lock, lock_flags);
 	line2 = get_exit_encp_line(VIU1);
 	osd_log_dbg(MODULE_RENDER,
-		"%s:encp line1=%d, line2=%d, total_line=%d\n",
-		__func__, line1, line2, total_line);
+		"%s:rdma_done_line=%d, encp line1=%d, line2=%d, total_line=%d\n",
+		__func__, get_rdma_irq_done_line(VIU1),
+		line1, line2, total_line);
 	osd_wait_vsync_hw_viux(output_index);
 	val = osd_reg_read(RDMA_DETECT_REG);
 	if (line2 < line1) {

@@ -3877,6 +3877,22 @@ static ssize_t store_save_frames(struct device *device,
 	return count;
 }
 
+static ssize_t show_rdma_recovery_stat(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	u32 recovery_count, recovery_not_hit_count;
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 output_index = get_output_device_id(fb_info->node);
+
+	recovery_count = get_rdma_recovery_stat(output_index);
+	recovery_not_hit_count = get_rdma_not_hit_recovery_stat(output_index);
+
+	return snprintf(buf, PAGE_SIZE,
+		"recovery_count:%d recovery_not_hit_count:%d\n",
+		recovery_count, recovery_not_hit_count);
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -4129,6 +4145,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_force_dimm, store_force_dimm),
 	__ATTR(save_frames, 0644,
 	       show_save_frames, store_save_frames),
+	__ATTR(rdma_recovery_stat, 0440,
+	       show_rdma_recovery_stat, NULL),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
