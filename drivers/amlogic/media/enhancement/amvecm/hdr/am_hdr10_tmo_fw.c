@@ -49,6 +49,10 @@ static unsigned int eo_lut_28[143] = {
 	231309901, 249155666, 268435456
 };
 
+int init_lut[13] = {
+	0, 128, 256, 384, 512, 576, 640, 704, 768, 832, 896, 960, 1024
+};
+
 struct aml_tmo_reg_sw tmo_reg = {
 	.tmo_en = 1,
 	.reg_highlight = 185,
@@ -83,7 +87,10 @@ struct aml_tmo_reg_sw tmo_reg = {
 	.reg_avg_th = 0,
 	.reg_avg_adj = 150,
 	.alpha = 250,
+	.reg_ratio = 870,
+	.reg_max_th3 = -200,
 	.eo_lut = eo_lut_28,
+	.oo_init_lut = init_lut,
 
 	/*param for alg func*/
 	.w = 3840,
@@ -155,6 +162,17 @@ void hdr10_tmo_reg_set(struct hdr_tmo_sw *pre_tmo_reg)
 	pr_tmo_dbg("reg_avg_th = %d\n", pre_tmo_reg->reg_avg_th);
 	pr_tmo_dbg("reg_avg_adj = %d\n", pre_tmo_reg->reg_avg_adj);
 	pr_tmo_dbg("alpha = %d\n", pre_tmo_reg->alpha);
+	pr_tmo_dbg("reg_ratio = %d\n", pre_tmo_reg->reg_ratio);
+	pr_tmo_dbg("reg_max_th3 = %d\n", pre_tmo_reg->reg_max_th3);
+	pr_tmo_dbg("oo_init_lut = %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+		pre_tmo_reg->oo_init_lut[0], pre_tmo_reg->oo_init_lut[1],
+		pre_tmo_reg->oo_init_lut[2], pre_tmo_reg->oo_init_lut[3],
+		pre_tmo_reg->oo_init_lut[4], pre_tmo_reg->oo_init_lut[5],
+		pre_tmo_reg->oo_init_lut[6], pre_tmo_reg->oo_init_lut[7],
+		pre_tmo_reg->oo_init_lut[8], pre_tmo_reg->oo_init_lut[9],
+		pre_tmo_reg->oo_init_lut[10], pre_tmo_reg->oo_init_lut[11],
+		pre_tmo_reg->oo_init_lut[12]);
+
 
 	if (tmo_reg.tmo_en != pre_tmo_reg->tmo_en)
 		change_param((int)pre_tmo_reg->tmo_en);
@@ -191,9 +209,11 @@ void hdr10_tmo_reg_set(struct hdr_tmo_sw *pre_tmo_reg)
 	tmo_reg.reg_high_maxdiff = pre_tmo_reg->reg_high_maxdiff;
 	tmo_reg.reg_high_mindiff = pre_tmo_reg->reg_high_mindiff;
 	tmo_reg.alpha = pre_tmo_reg->alpha;
+	tmo_reg.reg_ratio = pre_tmo_reg->reg_ratio;
+	tmo_reg.reg_max_th3 = pre_tmo_reg->reg_max_th3;
+	memcpy(tmo_reg.oo_init_lut, pre_tmo_reg->oo_init_lut, 13 * sizeof(int));
 }
 
-// struct hdr_tmo_sw pre_tmo_reg_s;
 void hdr10_tmo_reg_get(struct hdr_tmo_sw *pre_tmo_reg_s)
 {
 	pre_tmo_reg_s->tmo_en = tmo_reg.tmo_en;
@@ -229,9 +249,12 @@ void hdr10_tmo_reg_get(struct hdr_tmo_sw *pre_tmo_reg_s)
 	pre_tmo_reg_s->reg_high_maxdiff = tmo_reg.reg_high_maxdiff;
 	pre_tmo_reg_s->reg_high_mindiff = tmo_reg.reg_high_mindiff;
 	pre_tmo_reg_s->alpha = tmo_reg.alpha;
+	pre_tmo_reg_s->reg_ratio = tmo_reg.reg_ratio;
+	pre_tmo_reg_s->reg_max_th3 = tmo_reg.reg_max_th3;
+	memcpy(pre_tmo_reg_s->oo_init_lut, tmo_reg.oo_init_lut, 13 * sizeof(int));
 }
 
-static char hdr_tmo_debug_usage_str[33][25] = {
+static char hdr_tmo_debug_usage_str[48][25] = {
 	"tmo_en = ",
 	"reg_highlight = ",
 	"reg_light_th = ",
@@ -264,7 +287,22 @@ static char hdr_tmo_debug_usage_str[33][25] = {
 	"reg_high_mindiff = ",
 	"reg_avg_th = ",
 	"reg_avg_adj = ",
-	"alpha = "
+	"alpha = ",
+	"reg_ratio = ",
+	"reg_max_th3 = ",
+	"oo_init_lut[0] = ",
+	"oo_init_lut[1] = ",
+	"oo_init_lut[2] = ",
+	"oo_init_lut[3] = ",
+	"oo_init_lut[4] = ",
+	"oo_init_lut[5] = ",
+	"oo_init_lut[6] = ",
+	"oo_init_lut[7] = ",
+	"oo_init_lut[8] = ",
+	"oo_init_lut[9] = ",
+	"oo_init_lut[10] = ",
+	"oo_init_lut[11] = ",
+	"oo_init_lut[12] = "
 };
 
 void hdr10_tmo_reg_get_arr(int *arry)
@@ -302,58 +340,37 @@ void hdr10_tmo_reg_get_arr(int *arry)
 	arry[30] = tmo_reg.reg_avg_th;
 	arry[31] = tmo_reg.reg_avg_adj;
 	arry[32] = tmo_reg.alpha;
+	arry[33] = tmo_reg.reg_ratio;
+	arry[34] = tmo_reg.reg_max_th3;
+	arry[35] = tmo_reg.oo_init_lut[0];
+	arry[36] = tmo_reg.oo_init_lut[1];
+	arry[37] = tmo_reg.oo_init_lut[2];
+	arry[38] = tmo_reg.oo_init_lut[3];
+	arry[39] = tmo_reg.oo_init_lut[4];
+	arry[40] = tmo_reg.oo_init_lut[5];
+	arry[41] = tmo_reg.oo_init_lut[6];
+	arry[42] = tmo_reg.oo_init_lut[7];
+	arry[43] = tmo_reg.oo_init_lut[8];
+	arry[44] = tmo_reg.oo_init_lut[9];
+	arry[45] = tmo_reg.oo_init_lut[10];
+	arry[46] = tmo_reg.oo_init_lut[11];
+	arry[47] = tmo_reg.oo_init_lut[12];
 }
 
-static int arry_int2str(int val, char *str_tmp)
+int hdr_tmo_adb_show(char *str)
 {
-	int temp;
-	char str[10];
-	int len = 0, count = 0;
-
-	if (val == 0) {
-		str_tmp[count++] = '0';
-		return count;
-	}
-
-	while (val) {
-		temp = val % 10;
-		str[len++] = temp + '0';
-		val /= 10;
-	}
-
-	str[len] = '\0';
-	while (len) {
-		str_tmp[count++] = str[len - 1];
-		len--;
-	}
-	str_tmp[count] = '\0';
-	return count;
-}
-
-void hdr_tmo_adb_show(char *str)
-{
-	int tmo_val[33];
-	int i = 0, j = 0, k = 0;
-	int len1 = 0, len2 = 0;
-	char str_tmp[25];
+	int tmo_val[48];
+	int i = 0;
+	int len1 = 0;
 
 	hdr10_tmo_reg_get_arr(tmo_val);
 
-	for (i = 0; i < 33; i++) {
-		len1 = strlen(hdr_tmo_debug_usage_str[i]);
-		for (k = 0; k < len1; k++) {
-			/*copy str from hdr_tmo_debug_usage_str*/
-			str[j++] = hdr_tmo_debug_usage_str[i][k];
-		}
-		len2 = arry_int2str(tmo_val[i], str_tmp);
-
-		for (k = 0; k < len2; k++) {
-			/*copy tmo_val*/
-			str[j++] = str_tmp[k];
-		}
-		str[j++] = '\n';
+	for (i = 0; i < 48; i++) {
+		len1 += sprintf(str + len1, "%s", hdr_tmo_debug_usage_str[i]);
+		len1 += sprintf(str + len1, "%d\n", tmo_val[i]);
 	}
-	str[j] = '\0';
+
+	return len1;
 }
 
 struct aml_tmo_reg_sw *tmo_fw_param_get(void)
@@ -408,11 +425,22 @@ void hdr10_tmo_parm_show(void)
 	pr_info("reg_avg_th = %d\n", tmo_reg.reg_avg_th);
 	pr_info("reg_avg_adj = %d\n", tmo_reg.reg_avg_adj);
 	pr_info("alpha = %d\n", tmo_reg.alpha);
+	pr_info("reg_ratio = %d\n", tmo_reg.reg_ratio);
+	pr_info("reg_max_th3 = %d\n", tmo_reg.reg_max_th3);
+	pr_info("oo_init_lut = %d %d %d %d %d %d %d %d %d %d %d %d %d\n",
+		tmo_reg.oo_init_lut[0], tmo_reg.oo_init_lut[1],
+		tmo_reg.oo_init_lut[2], tmo_reg.oo_init_lut[3],
+		tmo_reg.oo_init_lut[4], tmo_reg.oo_init_lut[5],
+		tmo_reg.oo_init_lut[6], tmo_reg.oo_init_lut[7],
+		tmo_reg.oo_init_lut[8], tmo_reg.oo_init_lut[9],
+		tmo_reg.oo_init_lut[10], tmo_reg.oo_init_lut[11],
+		tmo_reg.oo_init_lut[12]);
 }
 
 int hdr10_tmo_dbg(char **parm)
 {
 	long val;
+	int idx;
 
 	if (!strcmp(parm[0], "tmo_en"))  {
 		if (kstrtoul(parm[1], 10, &val) < 0)
@@ -613,6 +641,29 @@ int hdr10_tmo_dbg(char **parm)
 			goto error;
 		tmo_reg.alpha = (int)val;
 		pr_tmo_dbg("alpha = %d\n", (int)val);
+		pr_info("\n");
+	} else if (!strcmp(parm[0], "ratio")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto error;
+		tmo_reg.reg_ratio = (int)val;
+		pr_tmo_dbg("reg_ratio = %d\n", (int)val);
+		pr_info("\n");
+	} else if (!strcmp(parm[0], "max_th3")) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			goto error;
+		tmo_reg.reg_max_th3 = (int)val;
+		pr_tmo_dbg("reg_max_th3 = %d\n", (int)val);
+		pr_info("\n");
+	} else if (!strcmp(parm[0], "oo_init_lut")) {
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			goto error;
+		idx = (int)val;
+		if (kstrtoul(parm[2], 10, &val) < 0)
+			goto error;
+		if (idx > 12)
+			goto error;
+		tmo_reg.oo_init_lut[idx] = (int)val;
+		pr_tmo_dbg("oo_init_lut[%d] = %d\n", idx, (int)val);
 		pr_info("\n");
 	} else if (!strcmp(parm[0], "read_param")) {
 		hdr10_tmo_parm_show();

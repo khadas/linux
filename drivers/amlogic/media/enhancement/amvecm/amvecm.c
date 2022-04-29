@@ -5885,9 +5885,11 @@ static ssize_t amvecm_hdr_reg_store(struct class *cla,
 static ssize_t amvecm_hdr_tmo_show(struct class *cla,
 			struct class_attribute *attr, char *buf)
 {
+	int len = 0;
+
 	hdr10_tmo_parm_show();
-	hdr_tmo_adb_show(buf);
-	return strlen(buf) + 1;
+	len = hdr_tmo_adb_show(buf);
+	return len;
 
 }
 

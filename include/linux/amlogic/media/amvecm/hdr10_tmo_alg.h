@@ -75,7 +75,10 @@ struct aml_tmo_reg_sw {
 	int reg_high_maxdiff;    //u7
 	int reg_high_mindiff;    //u7
 	unsigned int alpha;
+	int reg_ratio;           //u10
+	int reg_max_th3;         //s11
 	unsigned int *eo_lut;
+	int *oo_init_lut;        //u10
 
 	/*param for tmo alg*/
 	int w;
@@ -122,6 +125,9 @@ struct hdr_tmo_sw {
 	int reg_high_maxdiff;    //u7
 	int reg_high_mindiff;    //u7
 	unsigned int alpha;
+	int reg_ratio;           //u10
+	int reg_max_th3;         //s11
+	int oo_init_lut[13];        //u10
 };
 
 struct aml_tmo_reg_sw *tmo_fw_param_get(void);
