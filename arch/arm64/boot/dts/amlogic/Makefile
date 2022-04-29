@@ -49,3 +49,4 @@ dtb-y += s4d_s905y4_ap222_drm.dtb
 dtb-y += s4d_s905y4_ap222_drm_1g.dtb
 dtb-y += s4d_s905y4_ap229.dtb
 dtb-y += s4d_s905y4_ap229_drm.dtb
+dtb-y += kvim1s.dtb
