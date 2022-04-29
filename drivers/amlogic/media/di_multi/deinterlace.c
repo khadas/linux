@@ -3688,7 +3688,9 @@ void dim_pre_de_process(unsigned int channel)
 		/*di_async_reset2();*/
 		di_pre_size_change(pre_width, pre_height,
 				   cur_inp_field_type, channel);
+		get_ops_nr()->cue_int(ppre->di_inp_buf->vframe);
 		ppre->input_size_change_flag = false;
+		dbg_reg("%s:input_size_change\n", __func__);
 	}
 
 	if (DIM_IS_IC_EF(SC2)) {
