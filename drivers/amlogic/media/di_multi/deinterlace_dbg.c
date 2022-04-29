@@ -1359,8 +1359,15 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 
 	seq_printf(seq, "%-15s=%d\n", "sum_alloc_release",
 		   get_mtask()->fcmd[channel].sum_alloc);
-	seq_printf(seq, "%-15s=%d\n", "sum_hf",
-		   get_mtask()->fcmd[channel].sum_hf_alloc);
+
+	seq_printf(seq, "%-15s=%u\n", "hf_mng_err",
+		   dim_mng_hf_err());
+	seq_printf(seq, "%-15s=%u\n", "sum_hf",
+		   dim_mng_hf_sum_alloc_get());
+	seq_printf(seq, "%-15s=%u:%u\n", "free/idle",
+		   dim_mng_hf_sum_free_get(),
+		   dim_mng_hf_sum_idle_get());
+
 	seq_printf(seq, "%-15s=%d\n", "npst_cnt",
 		   npst_cnt(pch));
 	dump_state_flag = 0;

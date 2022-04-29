@@ -645,23 +645,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				break;
 			blk_buf = (struct dim_mm_blk_s *)pbufq->pbuf[index].qbc;
 			/* hf */
-			if (blk_buf->flg_hf) {
-				//ret = dim_mm_release(EDI_MEM_M_CMA,
-				ret = dim_mm_release(cfgg(MEM_FLAG),
-					blk_buf->hf_buff.pages,
-					blk_buf->hf_buff.cnt,
-					blk_buf->hf_buff.mem_start);
-				if (ret) {
-					fcmd->sum_hf_psize -= blk_buf->hf_buff.cnt;
-					memset(&blk_buf->hf_buff, 0, sizeof(blk_buf->hf_buff));
-					blk_buf->flg_hf = 0;
-					fcmd->sum_hf_alloc--;
-					dbg_mem2("release:hf:%d\n", blk_buf->header.index);
-				} else {
-					PR_ERR("%s:fail.release hf [%d] 0x%x:\n", __func__,
-					       index, fcmd->sum_hf_psize);
-				}
-			}
+			dim_mng_hf_release_all(pch, blk_buf);
 
 			/* hf end */
 			ret = dim_mm_release(cfgg(MEM_FLAG),
@@ -742,23 +726,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				break;
 			blk_buf = (struct dim_mm_blk_s *)pbufq->pbuf[index].qbc;
 			/* hf */
-			if (blk_buf->flg_hf) {
-				//ret = dim_mm_release(EDI_MEM_M_CMA,
-				ret = dim_mm_release(cfgg(MEM_FLAG),
-					blk_buf->hf_buff.pages,
-					blk_buf->hf_buff.cnt,
-					blk_buf->hf_buff.mem_start);
-				if (ret) {
-					fcmd->sum_hf_psize -= blk_buf->hf_buff.cnt;
-					memset(&blk_buf->hf_buff, 0, sizeof(blk_buf->hf_buff));
-					blk_buf->flg_hf = 0;
-					dbg_mem2("release:hf:%d\n", blk_buf->header.index);
-					fcmd->sum_hf_alloc--;
-				} else {
-					PR_ERR("%s:fail.release hf [%d]\n", __func__,
-					       index);
-				}
-			}
+			dim_mng_hf_release(pch, blk_buf);
 			/* hf end */
 
 			ret = dim_mm_release(cfgg(MEM_FLAG),
@@ -860,34 +828,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				 blk_buf->mem_start, size_p);
 			/*alloc hf */
 			if (cmd->hf_need && !blk_buf->flg_hf) {
-				memset(&omm, 0, sizeof(omm));
-				//aret = dim_mm_alloc(EDI_MEM_M_CMA,
-				timer_st = cur_to_msecs();//dbg
-				aret = dim_mm_alloc(cfgg(MEM_FLAG),
-						    mm->cfg.size_buf_hf >> PAGE_SHIFT,
-						    &omm,
-						    0);
-				timer_end = cur_to_msecs();//dbg
-				diff = timer_end - timer_st;
-				dbg_mem2("a:b%d:%ums\n", i, (unsigned int)diff);
-				if (!aret) {
-					PR_ERR("2:%s: alloc hf failed %d fail.0x%x;%d\n",
-					       __func__,
-						blk_buf->header.index,
-						fcmd->sum_hf_psize,
-						fcmd->sum_hf_alloc);
-					blk_buf->flg_hf = 0;
-				} else {
-					blk_buf->flg_hf = 1;
-					blk_buf->hf_buff.mem_start = omm.addr;
-					blk_buf->hf_buff.cnt = mm->cfg.size_buf_hf >> PAGE_SHIFT;
-					blk_buf->hf_buff.pages = omm.ppage;
-					fcmd->sum_hf_psize += blk_buf->hf_buff.cnt;
-					fcmd->sum_hf_alloc++;
-					dbg_mem2("alloc:hf:%d:0x%x\n",
-						 blk_buf->header.index, fcmd->sum_hf_psize);
-				}
-
+				dim_mng_hf_alloc(pch, blk_buf, mm->cfg.size_buf_hf);
 			} else if (cmd->hf_need && blk_buf->flg_hf) {
 				PR_ERR("%s:have hf?%d\n", __func__, blk_buf->header.index);
 			} else {
@@ -1453,7 +1394,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			buf_p->afbc_adr	= buf_p->adr_start;
 			buf_p->afbct_adr = 0;
 			buf_p->blk_buf->pat_buf = NULL;
-		} else if (mm->cfg.dat_pafbct_flg.b.page) {
+		} else if (/*mm->cfg.dat_pafbct_flg.b.page*/!mm->cfg.dis_afbce) {
 			pat_buf = qpat_out_ready(pch);
 			if (pat_buf) {
 				addr_afbct = pat_buf->mem_start;
@@ -1473,12 +1414,17 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 
 		if (mm->cfg.size_buf_hf) {
 			if (buf_p->blk_buf->flg_hf) {
-				buf_p->hf_adr = buf_p->blk_buf->hf_buff.mem_start;
-				di_hf_set_buffer(buf_p, mm);
+				if (buf_p->blk_buf->hf_buff) {
+					buf_p->hf_adr = buf_p->blk_buf->hf_buff->mem_start;
+					di_hf_set_buffer(buf_p, mm);
+				} else {
+					PR_WARN("%s:%d\n", __func__, buf_p->blk_buf->header.index);
+				}
 			} else {
-				PR_ERR("%s:size:[%d]:flg[%d]\n",
-				       __func__,
-				       mm->cfg.size_buf_hf, buf_p->blk_buf->flg_hf);
+				if (!mm->cfg.is_4k)
+					PR_ERR("%s:size:[%d]:flg[%d]\n",
+					       __func__,
+					       mm->cfg.size_buf_hf, buf_p->blk_buf->flg_hf);
 				buf_p->hf_adr = 0;
 			}
 		} else {
@@ -4040,6 +3986,7 @@ static int dim_probe(struct platform_device *pdev)
 	dim_dw_prob();
 	dip_prob_ch();
 	dim_hdr_prob();
+	dim_mng_hf_prob();
 
 	task_start();
 	mtask_start();

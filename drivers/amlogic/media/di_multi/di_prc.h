@@ -459,6 +459,17 @@ void di_hf_polling_active(struct di_ch_s *pch);
 void di_hf_lock_blend_buffer_pre(struct di_buf_s *di_buf);
 void di_hf_lock_blend_buffer_pst(struct di_buf_s *di_buf);
 void di_hf_lock_irq_flg(void);
+bool dim_mng_hf_release_all(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf);
+bool dim_mng_hf_release(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf);
+bool dim_mng_hf_alloc(struct di_ch_s *pch,
+		      struct dim_mm_blk_s *blk_buf,
+		      unsigned int hf_size);
+unsigned int dim_mng_hf_err(void);
+unsigned int dim_mng_hf_sum_alloc_get(void);
+unsigned int dim_mng_hf_sum_free_get(void);
+unsigned int dim_mng_hf_sum_idle_get(void);
+void dim_mng_hf_prob(void);
+void dim_mng_hf_exit(void);
 
 void dim_print_hf(struct hf_info_t *phf);
 void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq);

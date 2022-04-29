@@ -2187,8 +2187,12 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 	height	= mm->cfg.di_h;
 	canvas_height = roundup(height, 32);
 	width	= mm->cfg.di_w;
-	if (mm->cfg.di_w > 1920)
+	if (mm->cfg.di_w > 1920) {
 		is_4k = true;
+		mm->cfg.is_4k = 1;
+	} else {
+		mm->cfg.is_4k = 0;
+	}
 	mm->cfg.pbuf_hsize = width;
 	nr_width = width;
 	dbg_mem2("%s w[%d]h[%d]\n", __func__, width, height);
@@ -10246,6 +10250,7 @@ void di_unreg_variable(unsigned int channel)
 	dim_sumx_clear(channel);
 	dim_polic_unreg(pch);
 	mm->sts.flg_realloc = 0;
+	mm->cfg.size_buf_hf = 0;
 	if (ppre->prog_proc_type == 0x10 &&
 	    ppre->di_mem_buf_dup_p) {/* set last ref */
 		p_ref_set_buf(ppre->di_mem_buf_dup_p, 0, 0, 5);
