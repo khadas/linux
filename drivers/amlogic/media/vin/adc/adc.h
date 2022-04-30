@@ -9,7 +9,8 @@
 /* 20211216: close adc clk and tvfe top */
 /* 20220320: add write reg debug command */
 /* 20220328: T5 close afe register */
-#define TVDIN_ADC_VER "20220328: T5 close afe register"
+/* 20220430: tm2 close vafe clk */
+#define TVDIN_ADC_VER "tm2 close vafe clk"
 
 #define ADC_CLK_24M       24000
 #define ADC_CLK_25M       25000
