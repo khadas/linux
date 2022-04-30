@@ -20,6 +20,24 @@
 #include "lcd_reg.h"
 #include "lcd_common.h"
 
+inline unsigned int lcd_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int reg, offset, line_cnt;
+
+	if (!pdrv)
+		return 0;
+
+	if (pdrv->data->chip_type >= LCD_CHIP_T7) {
+		offset = pdrv->data->offset_venc[pdrv->index];
+		reg = VPU_VENCP_STAT + offset;
+	} else {
+		reg = ENCL_INFO_READ;
+	}
+
+	line_cnt = lcd_vcbus_getb(reg, 16, 13);
+	return line_cnt;
+}
+
 #define LCD_WAIT_VSYNC_TIMEOUT    50000
 void lcd_wait_vsync(struct aml_lcd_drv_s *pdrv)
 {
@@ -248,6 +266,10 @@ void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_write(ENCL_VIDEO_HAVON_END + offset,   hend);
 	lcd_vcbus_write(ENCL_VIDEO_VAVON_BLINE + offset, vstart);
 	lcd_vcbus_write(ENCL_VIDEO_VAVON_ELINE + offset, vend);
+
+	/*update line_n trigger_line*/
+	lcd_vcbus_write(VPP_INT_LINE_NUM, vend + 1);
+
 	if (pconf->basic.lcd_type == LCD_P2P ||
 	    pconf->basic.lcd_type == LCD_MLVDS) {
 		switch (pdrv->data->chip_type) {

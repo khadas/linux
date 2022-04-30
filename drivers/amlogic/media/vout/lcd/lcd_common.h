@@ -39,7 +39,8 @@
 /* 20220421: fix lcd clk mistake for vmode change with fr_adj_type 4*/
 /* 20220426: update lcd mute control for DLG switch*/
 /* 20220428: fix t5w regs mistake*/
-#define LCD_DRV_VERSION    "20220428"
+/* 20220622: support tcon dynamic gamma*/
+#define LCD_DRV_VERSION    "20220622"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -155,6 +156,7 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_debug_remove(struct aml_lcd_drv_s *pdrv);
 
 /* lcd venc */
+unsigned int lcd_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv);
 void lcd_wait_vsync(struct aml_lcd_drv_s *pdrv);
 void lcd_gamma_check_en(struct aml_lcd_drv_s *pdrv);
 void lcd_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag);
