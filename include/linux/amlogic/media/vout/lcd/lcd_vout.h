@@ -623,6 +623,8 @@ struct aml_lcd_drv_s {
 	unsigned char mute_state;
 	unsigned char mute_flag;
 	unsigned char mute_count;
+	unsigned char tcon_isr_type;
+	unsigned char tcon_isr_bypass;
 	unsigned char probe_done;
 	unsigned char viu_sel;
 	unsigned char gamma_en_flag;
@@ -682,6 +684,7 @@ struct aml_lcd_drv_s {
 	struct resource *res_vsync_irq[3];
 	struct resource *res_vx1_irq;
 	struct resource *res_tcon_irq;
+	struct resource *res_line_n_irq;
 	struct timer_list pll_mnt_timer;
 	struct timer_list vs_none_timer;
 	struct completion vsync_done;

@@ -10318,7 +10318,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	spin_lock_init(&vpp_lcd_gamma_lock);
 	mutex_init(&vpp_lut3d_lock);
 #ifdef CONFIG_AMLOGIC_LCD
-	ret = aml_lcd_notifier_register(&aml_lcd_gamma_nb);
+	ret = aml_lcd_atomic_notifier_register(&aml_lcd_gamma_nb);
 	if (ret)
 		pr_info("register aml_lcd_gamma_notifier failed\n");
 
@@ -10423,7 +10423,7 @@ static int __exit aml_vecm_remove(struct platform_device *pdev)
 	class_destroy(devp->clsp);
 	unregister_chrdev_region(devp->devno, 1);
 #ifdef CONFIG_AMLOGIC_LCD
-	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
+	aml_lcd_atomic_notifier_unregister(&aml_lcd_gamma_nb);
 	cancel_work_sync(&aml_lcd_vlock_param_work);
 #endif
 	vout_unregister_client(&vlock_notifier_nb);
@@ -10474,7 +10474,7 @@ static void amvecm_shutdown(struct platform_device *pdev)
 	class_destroy(devp->clsp);
 	unregister_chrdev_region(devp->devno, 1);
 #ifdef CONFIG_AML_LCD
-	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
+	aml_lcd_atomic_notifier_unregister(&aml_lcd_gamma_nb);
 #endif
 	lc_free();
 	vpp_lut3d_table_release();

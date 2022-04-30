@@ -87,6 +87,11 @@ struct tcon_rmem_s {
 
 struct tcon_data_list_s {
 	unsigned int id;
+	unsigned int ctrl_method;
+	unsigned int max;
+	unsigned int min;
+	unsigned int ctrl_data_cnt;
+	unsigned int *ctrl_data;
 	char *block_name;
 	unsigned char *block_vaddr;
 	struct tcon_data_list_s *next;
@@ -96,10 +101,12 @@ struct tcon_data_multi_s {
 	unsigned int block_type;
 	unsigned int list_cnt;
 	unsigned int bypass_flag;
+	unsigned int switch_flag;
 	struct tcon_data_list_s *list_header;
 	struct tcon_data_list_s *list_cur;
-	struct tcon_data_list_s *list_dft;
+	struct tcon_data_list_s *list_update;
 	struct tcon_data_list_s *list_remove;
+	char dbg_str[64];
 };
 
 struct tcon_data_init_s {
@@ -125,6 +132,7 @@ struct tcon_mem_map_table_s {
 	unsigned int valid_flag;
 	unsigned char demura_cnt;
 	unsigned int block_bit_flag;
+	unsigned int frame_rate;
 
 	unsigned int core_reg_table_size;
 	struct lcd_tcon_init_block_header_s *core_reg_header;
@@ -139,6 +147,9 @@ struct tcon_mem_map_table_s {
 	struct tcon_data_multi_s *data_multi;
 
 	struct tcon_data_init_s *data_init;
+
+	unsigned long long vsync_time[10];
+	unsigned long long list_trave_time[10];
 };
 
 struct tcon_mem_secure_config_s {
@@ -263,5 +274,8 @@ void lcd_tcon_multi_lut_print(void);
 int lcd_tcon_info_print(char *buf, int offset);
 void lcd_tcon_axi_rmem_lut_load(unsigned int index, unsigned char *buf,
 				unsigned int size);
+
+void lcd_tcon_dbg_trace_clear(void);
+void lcd_tcon_dbg_trace_print(unsigned int flag);
 
 #endif
