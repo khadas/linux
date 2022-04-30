@@ -22,7 +22,8 @@
 /* *********************************************************** */
 /* 20211225: tvafe change clamp config */
 /* 20220415: pq_reg_trust_table add register mask */
-#define TVAFE_VER "20220415 pq_reg_trust_table add register mask"
+/* 20220430: PALM CC not display */
+#define TVAFE_VER "20220430 PALM CC not display"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

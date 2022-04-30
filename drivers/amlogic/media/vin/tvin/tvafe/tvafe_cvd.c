@@ -333,7 +333,9 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 {
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int i = 0;
+	unsigned int vbi_ctl_val;
 
+	vbi_ctl_val = R_APB_REG(CVD2_VBI_FRAME_CODE_CTL);
 	/*disable vbi*/
 	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 	W_APB_REG(ACD_REG_22, 0x07080000);
@@ -472,6 +474,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		W_APB_BIT(CVD2_VSYNC_TIME_CONSTANT, 0, 7, 1);
 
 	W_APB_REG(ACD_REG_22, 0x04080000);
+	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, vbi_ctl_val);
 
 	/* for tuner picture quality */
 	if (cvd2->pq_conf) {
@@ -500,6 +503,10 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 			i++;
 		}
 	}
+
+	if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_PAL_M &&
+	    R_APB_BIT(CVD2_VBI_FRAME_CODE_CTL, VBI_EN_BIT, VBI_EN_WID))
+		W_APB_REG(ACD_REG_22, 0x04080000);
 
 	cvd_reg87_pal = R_APB_REG(CVD2_REG_87);
 	acd_vde_config = R_APB_REG(ACD_REG_2E);
