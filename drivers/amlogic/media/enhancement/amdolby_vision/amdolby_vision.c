@@ -4002,6 +4002,9 @@ static void video_effect_bypass(int bypass)
 					VSYNC_RD_DV_REG(VPP_GAINOFF_CTRL0);
 #endif
 			}
+		}
+		/*todo, there is a bug in amvecm, need to call dv_pq_ctl every vsync*/
+		if (1/*!is_video_effect_bypass*/) {
 			if (is_meson_txlx()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 				VSYNC_WR_DV_REG(VIU_EOTF_CTL, 0);
@@ -4021,10 +4024,8 @@ static void video_effect_bypass(int bypass)
 				else
 					dv_pq_ctl(DV_PQ_STB_BYPASS);
 			}
-
-			is_video_effect_bypass = true;
 		}
-
+		is_video_effect_bypass = true;
 	} else if (is_video_effect_bypass) {
 		if (is_meson_txlx()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -4237,6 +4238,7 @@ void enable_dolby_vision(int enable)
 	u64 *dma_data = tv_dovi_setting->core1_reg_lut;
 	u32 core_flag = 0;
 	int gd_en = 0;
+
 	if (enable) {
 		if (!dolby_vision_on) {
 			dolby_vision_wait_on = true;
