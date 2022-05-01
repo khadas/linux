@@ -57,7 +57,7 @@
 # Linux build file for kernel HAL driver.
 #
 
-AQROOT = drivers/staging/npu
+AQROOT = $(VPATH)/drivers/staging/npu
 
 include $(AQROOT)/config
 
