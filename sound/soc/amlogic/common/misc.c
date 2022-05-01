@@ -217,12 +217,13 @@ int get_hdmiin_audio_stable(void)
 {
 	struct rx_audio_stat_s aud_sts;
 	bool audio_packet = 0;
+	bool rx_sample_rate = 0;
 
 	rx_get_audio_status(&aud_sts);
-
+	rx_sample_rate = (aud_sts.aud_sr > 0) ? 1 : 0;
 	audio_packet = (aud_sts.aud_rcv_packet == 0) ? 0 : 1;
 
-	return (aud_sts.aud_stb_flag & audio_packet);
+	return (aud_sts.aud_stb_flag && audio_packet && rx_sample_rate);
 }
 
 int aml_get_hdmiin_audio_stable(struct snd_kcontrol *kcontrol,
