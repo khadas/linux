@@ -124,6 +124,7 @@ enum pcie_bus_config_types pcie_bus_config = PCIE_BUS_DEFAULT;
 
 /* PCIe Max Read Request Size, default 4096 no limit */
 u16 max_pcie_mrrs = 4096;
+EXPORT_SYMBOL(max_pcie_mrrs);
 
 /*
  * The default CLS is used if arch didn't set CLS explicitly and not
