@@ -1672,27 +1672,6 @@
 		};
 	};
 
-	mesonstream {
-		compatible = "amlogic, codec, streambuf";
-		dev_name = "mesonstream";
-		status = "disabled";
-		//clocks = <&clkc CLKID_DOS
-		//	&clkc CLKID_VDEC_MUX
-		//	&clkc CLKID_HCODEC_MUX
-		//	&clkc CLKID_HEVCF_MUX
-		//	&clkc CLKID_HEVCB_MUX>;
-		//clock-names = "vdec",
-		//	"clk_vdec_mux",
-		//	"clk_hcodec_mux",
-		//	"clk_hevcf_mux",
-		//	"clk_hevcb_mux";
-		//assigned-clock-parents = <&clkc CLKID_VDEC_P0>,
-		//	<&clkc CLKID_HEVCF_P0>,
-		//	<&clkc CLKID_HEVCB_P0>;
-		//assigned-clocks = <&clkc CLKID_VDEC_MUX>,
-		//	<&clkc CLKID_HEVCF_MUX>,
-		//	<&clkc CLKID_HEVCB_MUX>;
-	};
 	csiphy0: csiphy0@ff918000 {
 		compatible = "amlogic, csiphy";
 		reg = <0x0 0xff918000 0x0 0x3000>,
@@ -1861,41 +1840,65 @@
 		adapter = <&adapter4>;
 	};
 
+	mesonstream {
+		compatible = "amlogic, codec, streambuf";
+		dev_name = "mesonstream";
+		status = "okay";
+	};
+	vcodec_dos_dev: vcodec_dos_dev {
+		compatible = "amlogic, cpu-major-id-s5";
+		dev_name = "vcodec_dos_dev";
+		status = "okay";
+		reg = <0x0 0xfe320000 0x0 0x10000>,
+			<0x0 0xfe036000 0x0 0x2000>;
+		reg-names = "dosbus",
+			"dmcbus";
+		clocks = <&clkc CLKID_SYS_CLK_DOS
+		    &clkc CLKID_VDEC
+		    &clkc CLKID_HCODEC
+		    &clkc CLKID_HEVC>;
+		clock-names = "vdec",
+		    "clk_vdec_mux",
+		    "clk_hcodec_mux",
+		    "clk_hevc_mux";
+		assigned-clock-parents = <&clkc CLKID_VDEC0>,
+		    <&clkc CLKID_HEVC0>;
+		assigned-clocks = <&clkc CLKID_VDEC>,
+		    <&clkc CLKID_HEVC>;
+	};
+
 	vdec {
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 23 1
 			0 32 1
-			0 91 1
-			0 92 1
-			0 93 1
-			0 72 1>;
+			0 10 1
+			0 17 1
+			0 18 1
+			0 16 1>;
 		interrupt-names = "vsync",
 			"demux",
 			"parser",
 			"mailbox_0",
 			"mailbox_1",
 			"mailbox_2",
-			"parser_b";
-		//power-domains = <&pwrdm PDID_T7_DOS_VDEC>,
-		//	<&pwrdm PDID_T7_DOS_HCODEC>,
-		//	<&pwrdm PDID_T7_DOS_HEVC>,
-		//	<&pwrdm PDID_T7_DOS_WAVE>;
-		//power-domain-names = "pwrc-vdec",
-		//	"pwrc-hcodec",
-		//	"pwrc-hevc",
-		//	"pwrc-wave";
+			"assist_mbox_irq_ee";
+		power-domains = <&pwrdm PDID_S5_DOS_VDEC>,
+			<&pwrdm PDID_S5_DOS_HCODEC>,
+			<&pwrdm PDID_S5_DOS_HEVC_TOP>,
+			<&pwrdm PDID_S5_DOS_HEVC_CORE1>;
+		power-domain-names = "pwrc-vdec",
+			"pwrc-hcodec",
+			"pwrc-hevc",
+			"pwrc-hevcb";
 	};
-	cpu_ver_name {
-		compatible = "amlogic, cpu-major-id-t7";
-		status = "disabled";
-	};
+
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
 		dev_name = "aml-vcodec-dec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ddr_bandwidth {
@@ -2043,8 +2046,8 @@
 	};
 
 	codec_io: codec_io {
-		compatible = "amlogic, meson-t7, codec-io";
-		status = "disabled";
+		compatible = "amlogic, meson-s5, codec-io";
+		status = "okay";
 		#address-cells=<2>;
 		#size-cells=<2>;
 		ranges;

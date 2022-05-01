@@ -325,6 +325,8 @@ struct buf_status {
 #define STAT_VF_HOOK        0x08
 #define STAT_TIMER_ARM      0x10
 #define STAT_VDEC_RUN       0x20
+#define STAT_TIMER_BACK_ARM 0x40
+#define STAT_TIMER_BACK_INIT 0x80
 
 /*struct vdec_status.status on error*/
 
