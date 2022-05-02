@@ -115,6 +115,7 @@ static void osd_clone_pan(u32 index, u32 yoffset, int debug_flag);
 static void osd_set_dummy_data(u32 index, u32 alpha);
 static void osd_wait_vsync_hw_viux(u32 output_index);
 static void osd_setting_default_hwc(void);
+static int save_frame(u32 index, u32 frame_index);
 
 struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 
@@ -6285,10 +6286,14 @@ static void osd_pan_display_update_info(struct layer_fence_map_s *layer_map)
 	osd_hw.blend_mode[index] = layer_map->blend_mode;
 
 	/* Todo: */
-	if (layer_map->dim_layer) {
+	if (layer_map->dim_layer || osd_hw.force_dimm[index]) {
 		/* osd dim layer */
-		osd_hw.dim_layer[index] = layer_map->dim_layer;
-		osd_hw.dim_color[index] = layer_map->dim_color;
+		if (osd_hw.force_dimm[index]) {
+			osd_hw.dim_layer[index] = osd_hw.force_dimm[index];
+		} else {
+			osd_hw.dim_layer[index] = layer_map->dim_layer;
+			osd_hw.dim_color[index] = layer_map->dim_color;
+		}
 		osd_hw.order[index] = layer_map->zorder;
 		switch (layer_map->blend_mode) {
 		case BLEND_MODE_PREMULTIPLIED:
@@ -11211,6 +11216,18 @@ static int osd_setting_order(u32 output_index)
 		osd_log_dbg(MODULE_ENCP_STAT, "osd line stat %d,%d val=0x%x, rdma_dt_cnt=0x%x\n",
 			line1, line2, val, rdma_dt_cnt);
 	}
+	if (osd_hw.force_save_frame) {
+		for (i = 0; i < osd_count; i++) {
+			if (!validate_osd(i, output_index))
+				continue;
+
+			if (osd_hw.enable[i]) {
+				if (osd_hw.cur_frame_count < osd_hw.save_frame_number[i])
+					save_frame(i, osd_hw.cur_frame_count);
+			}
+		}
+	}
+	osd_hw.cur_frame_count++;
 	return 0;
 }
 
@@ -12643,6 +12660,53 @@ static void set_rdma_func_handler(void)
 		VSYNCOSD_IRQ_WR_MPEG_REG_VPP2;
 }
 
+#ifdef DEBUG_FIRSTFRAME
+static void set_force_dimm(u32 index)
+{
+	osd_hw.force_dimm[index] = 1;
+	osd_hw.dim_color[index] = 0x555555ff;
+}
+
+static void set_force_save_frames(u32 index)
+{
+	osd_hw.force_save_frame = 1;
+	osd_hw.save_frame_number[index] = 5;
+}
+#endif
+
+static int save_frame(u32 index, u32 frame_index)
+{
+	struct file *fp;
+	char name_buf[32];
+	int write_size;
+	u8 *data;
+	mm_segment_t fs;
+	loff_t pos;
+
+	snprintf(name_buf, sizeof(name_buf), "/data/tmp/fb%d_%d.raw",
+		index, frame_index);
+	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
+	if (IS_ERR(fp)) {
+		pr_info("%s err:%lx\n", __func__, PTR_ERR(fp));
+		return -1;
+	}
+	write_size = osd_hw.screen_size[index];
+	data = aml_map_phyaddr_to_virt(osd_hw.screen_base[index], write_size);
+	if (!data)
+		return -2;
+
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+	pos = 0;
+	vfs_write(fp, data, write_size, &pos);
+	vfs_fsync(fp, 0);
+	osd_log_info("fb%d: write %u size to %s\n", index, write_size, name_buf);
+	aml_unmap_phyaddr(data);
+	filp_close(fp, NULL);
+	set_fs(fs);
+	return 0;
+}
+
 void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		 struct osd_device_data_s *osd_meson)
 {
@@ -13023,6 +13087,10 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		 */
 		osd_set_dummy_data(idx, 0xff);
 		osd_set_deband(idx, osd_hw.osd_deband_enable[idx]);
+		#ifdef DEBUG_FIRSTFRAME
+		set_force_dimm(idx);
+		set_force_save_frames(idx);
+		#endif
 	}
 	/* hwc_enable == 0 handler */
 #ifdef CONFIG_AMLOGIC_MEDIA_FB_OSD_SYNC_FENCE

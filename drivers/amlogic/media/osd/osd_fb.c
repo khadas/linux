@@ -1207,6 +1207,14 @@ void *aml_map_phyaddr_to_virt(dma_addr_t phys, unsigned long size)
 	return vaddr;
 }
 
+void aml_unmap_phyaddr(u8 *vaddr)
+{
+	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
+
+	if (is_vmalloc_or_module_addr(vaddr))
+		vunmap(addr);
+}
+
 static int malloc_osd_memory(struct fb_info *info)
 {
 	int j = 0;
@@ -3812,6 +3820,63 @@ static ssize_t store_game_mode(struct device *device,
 	return count;
 }
 
+static ssize_t show_force_dimm(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+
+	return snprintf(buf, 40, "force_dimm:%d dim_color:%d\n",
+			osd_hw.force_dimm[fb_info->node],
+			osd_hw.dim_color[fb_info->node]);
+}
+
+static ssize_t store_force_dimm(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		osd_hw.force_dimm[fb_info->node] = parsed[0];
+		osd_hw.dim_color[fb_info->node] = parsed[1];
+	} else {
+		osd_log_err("set fix target size error\n");
+	}
+
+	return count;
+}
+
+static ssize_t show_save_frames(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+
+	return snprintf(buf, 40, "force_save_frame:%d save_frame_number:%d\n",
+			osd_hw.force_save_frame,
+			osd_hw.save_frame_number[fb_info->node]);
+}
+
+static ssize_t store_save_frames(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		osd_hw.force_save_frame = parsed[0];
+		osd_hw.save_frame_number[fb_info->node] = parsed[1];
+		osd_hw.cur_frame_count = 0;
+	} else {
+		osd_log_err("set fix target size error\n");
+	}
+
+	return count;
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -4060,6 +4125,10 @@ static struct device_attribute osd_attrs[] = {
 	       show_fence_count, NULL),
 	__ATTR(game_mode, 0644,
 	       show_game_mode, store_game_mode),
+	__ATTR(force_dim, 0644,
+	       show_force_dimm, store_force_dimm),
+	__ATTR(save_frames, 0644,
+	       show_save_frames, store_save_frames),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {

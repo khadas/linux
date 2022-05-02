@@ -862,6 +862,7 @@ struct hw_para_s {
 	u32 free_scale_mode_backup[HW_OSD_COUNT];
 	u32 osd_reverse[HW_OSD_COUNT];
 	u32 osd_rotate[HW_OSD_COUNT];
+	u32 force_dimm[HW_OSD_COUNT];
 	u32 dim_layer[HW_OSD_COUNT];
 	u32 dim_color[HW_OSD_COUNT];
 	/* struct osd_rotate_s rotate[HW_OSD_COUNT]; */
@@ -939,5 +940,8 @@ struct hw_para_s {
 	u32 blend_mode[HW_OSD_COUNT];
 	bool afbc_support[HW_OSD_COUNT];
 	bool pps_support[HW_OSD_COUNT];
+	u32 force_save_frame;
+	u32 cur_frame_count;
+	u32 save_frame_number[HW_OSD_COUNT];
 };
 #endif /* _OSD_H_ */
