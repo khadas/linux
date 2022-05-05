@@ -115,7 +115,7 @@ u32 efuse_obj_read(u32 obj_id, char *name, u8 *buff, u32 *size);
 /*return: 0:is configurated, -1: don't cfg*/
 int efuse_burn_lockable_is_cfg(char *itemname);
 /*
- * retrun: 1:burned(wrote), 0: not write, -1: fail
+ * return: 1:burned(wrote), 0: not write, -1: fail
  */
 int efuse_burn_check_burned(char *itemname);
 

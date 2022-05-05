@@ -1305,7 +1305,7 @@ static int __init aml_unifykeys_probe(struct platform_device *pdev)
 
 	devp->platform_data = get_unifykeys_drv_data(pdev);
 
-	pr_info("device %s created ok\n", UNIFYKEYS_DEVICE_NAME);
+	pr_debug("device %s created ok\n", UNIFYKEYS_DEVICE_NAME);
 	return 0;
 
 error4:
@@ -1341,7 +1341,7 @@ static int aml_unifykeys_remove(struct platform_device *pdev)
 static const struct of_device_id unifykeys_dt_match[] = {
 	{	.compatible = "amlogic,unifykey",
 	},
-	{},
+	{}
 };
 
 static struct platform_driver unifykey_platform_driver = {

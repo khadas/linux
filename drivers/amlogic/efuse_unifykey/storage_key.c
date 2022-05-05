@@ -75,7 +75,7 @@ int register_unifykey_types(struct unifykey_type *uk_type)
 	}
 
 	if (is_valid_unifykey_storage_type(unifykey_types.storage_type)) {
-		pr_err("alreay registered\n");
+		pr_err("already registered\n");
 		return -EBUSY;
 	}
 
@@ -527,7 +527,7 @@ int __init amlkey_if_init(struct platform_device *pdev)
 		return ret;
 	}
 
-	pr_info("normal key used!\n");
+	pr_debug("normal key used!\n");
 	ret = normal_key_init(pdev);
 	amlkey_if = &amlkey_ifs[IFTYPE_NORMAL_STORAGE];
 

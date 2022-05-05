@@ -108,7 +108,7 @@ int efuse_burn_lockable_is_cfg(char *itemname)
 }
 
 /*
- * retrun: 1:burned(wrote), 0: not write, -1: fail
+ * return: 1:burned(wrote), 0: not write, -1: fail
  */
 int efuse_burn_check_burned(char *itemname)
 {
@@ -1219,7 +1219,7 @@ static int efuse_probe(struct platform_device *pdev)
 
 	efuse_clk = devm_clk_get(&pdev->dev, "efuse_clk");
 	if (IS_ERR(efuse_clk)) {
-		dev_err(&pdev->dev, "can't get efuse clk gate, use default clk\n");
+		dev_dbg(&pdev->dev, "can't get efuse clk gate, use default clk\n");
 	} else {
 		ret = clk_prepare_enable(efuse_clk);
 		if (ret) {
@@ -1334,7 +1334,7 @@ static int efuse_probe(struct platform_device *pdev)
 	sharemem_input_base = get_meson_sm_input_base();
 	sharemem_output_base = get_meson_sm_output_base();
 
-	dev_info(&pdev->dev, "device %s created OK\n", EFUSE_DEVICE_NAME);
+	dev_dbg(&pdev->dev, "device %s created OK\n", EFUSE_DEVICE_NAME);
 	return 0;
 
 error4:
@@ -1365,7 +1365,7 @@ static int efuse_remove(struct platform_device *pdev)
 static const struct of_device_id efuse_dt_match[] = {
 	{	.compatible = "amlogic, efuse",
 	},
-	{},
+	{}
 };
 
 static struct platform_driver efuse_driver = {

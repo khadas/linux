@@ -16,27 +16,12 @@
 #include "efuse.h"
 #include <linux/amlogic/secmon.h>
 
-static DEFINE_MUTEX(efuse_lock);
-
-static unsigned long get_sharemem_info(unsigned long function_id)
-{
-	struct arm_smccc_res res;
-
-	arm_smccc_smc((unsigned long)function_id, 0, 0, 0, 0, 0, 0, 0, &res);
-
-	return res.a0;
-}
-
 static ssize_t meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 {
 	long ret;
 	unsigned int cmd, offset, size;
 	unsigned long *retcnt = (unsigned long *)(arg->retcnt);
 	struct arm_smccc_res res;
-	void *sharemem_in_base = NULL;
-	void *sharemem_out_base;
-	long phy_in_base = 0;
-	long phy_out_base = 0;
 
 	if (arg->cmd == EFUSE_HAL_API_READ)
 		cmd = efuse_cmd.read_cmd;
@@ -48,19 +33,11 @@ static ssize_t meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 	offset = arg->offset;
 	size = arg->size;
 
-	mutex_lock(&efuse_lock);
+	meson_sm_mutex_lock();
 
-	if (arg->cmd == EFUSE_HAL_API_WRITE) {
-		phy_in_base = get_sharemem_info(efuse_cmd.mem_in_base_cmd);
-
-		if (!pfn_valid(__phys_to_pfn(phy_in_base)))
-			sharemem_in_base = ioremap_nocache(phy_in_base, size);
-		else
-			sharemem_in_base = phys_to_virt(phy_in_base);
-
-		memcpy((void *)sharemem_in_base,
+	if (arg->cmd == EFUSE_HAL_API_WRITE)
+		memcpy((void *)sharemem_input_base,
 		       (const void *)arg->buffer, size);
-	}
 
 	asm __volatile__("" : : : "memory");
 
@@ -68,25 +45,11 @@ static ssize_t meson_efuse_fn_smc(struct efuse_hal_api_arg *arg)
 	ret = res.a0;
 	*retcnt = res.a0;
 
-	if (arg->cmd == EFUSE_HAL_API_WRITE) {
-		if (!pfn_valid(__phys_to_pfn(phy_in_base)))
-			iounmap(sharemem_in_base);
-	} else if ((arg->cmd == EFUSE_HAL_API_READ) && (ret != 0)) {
-		phy_out_base = get_sharemem_info(efuse_cmd.mem_out_base_cmd);
-
-		if (!pfn_valid(__phys_to_pfn(phy_out_base)))
-			sharemem_out_base = ioremap_nocache(phy_out_base, ret);
-		else
-			sharemem_out_base = phys_to_virt(phy_out_base);
-
+	if ((arg->cmd == EFUSE_HAL_API_READ) && (ret != 0))
 		memcpy((void *)arg->buffer,
-		       (const void *)sharemem_out_base, ret);
+		       (const void *)sharemem_output_base, ret);
 
-		if (!pfn_valid(__phys_to_pfn(phy_out_base)))
-			iounmap(sharemem_out_base);
-	}
-
-	mutex_unlock(&efuse_lock);
+	meson_sm_mutex_unlock();
 
 	if (!ret)
 		return -1;
@@ -117,21 +80,10 @@ static unsigned long efuse_data_process(unsigned long type,
 					unsigned long option)
 {
 	struct arm_smccc_res res;
-	void *sharemem_in_base;
-	long phy_in_base;
-	struct page *page;
 
-	mutex_lock(&efuse_lock);
+	meson_sm_mutex_lock();
 
-	phy_in_base = get_sharemem_info(efuse_cmd.mem_in_base_cmd);
-	page = pfn_to_page(phy_in_base >> PAGE_SHIFT);
-
-	if (!pfn_valid(__phys_to_pfn(phy_in_base)))
-		sharemem_in_base = ioremap_nocache(phy_in_base, length);
-	else
-		sharemem_in_base = phys_to_virt(phy_in_base);
-
-	memcpy((void *)sharemem_in_base,
+	memcpy((void *)sharemem_input_base,
 	       (const void *)buffer, length);
 
 	asm __volatile__("" : : : "memory");
@@ -139,16 +91,13 @@ static unsigned long efuse_data_process(unsigned long type,
 	do {
 		arm_smccc_smc((unsigned long)AML_DATA_PROCESS,
 			      (unsigned long)type,
-			      (unsigned long)phy_in_base,
+			      (unsigned long)get_secmon_phy_input_base(),
 			      (unsigned long)length,
 			      (unsigned long)option,
 			      0, 0, 0, &res);
 	} while (0);
 
-	if (!pfn_valid(__phys_to_pfn(phy_in_base)))
-		iounmap(sharemem_in_base);
-
-	mutex_unlock(&efuse_lock);
+	meson_sm_mutex_unlock();
 
 	return res.a0;
 }
@@ -162,7 +111,7 @@ int efuse_amlogic_cali_item_read(unsigned int item)
 		item > EFUSE_CALI_SUBITEM_BC)
 		return -EINVAL;
 
-	mutex_lock(&efuse_lock);
+	meson_sm_mutex_lock();
 
 	do {
 		arm_smccc_smc((unsigned long)EFUSE_READ_CALI_ITEM,
@@ -170,13 +119,13 @@ int efuse_amlogic_cali_item_read(unsigned int item)
 			0, 0, 0, 0, 0, 0, &res);
 	} while (0);
 
-	mutex_unlock(&efuse_lock);
+	meson_sm_mutex_unlock();
 	return res.a0;
 }
 EXPORT_SYMBOL_GPL(efuse_amlogic_cali_item_read);
 
 /*
- *retrun: 1: wrote, 0: not write, -1: fail or not support
+ *return: 1: wrote, 0: not write, -1: fail or not support
  */
 int efuse_amlogic_check_lockable_item(unsigned int item)
 {
@@ -187,7 +136,7 @@ int efuse_amlogic_check_lockable_item(unsigned int item)
 		item > EFUSE_LOCK_SUBITEM_MAX)
 		return -EINVAL;
 
-	mutex_lock(&efuse_lock);
+	meson_sm_mutex_lock();
 
 	do {
 		arm_smccc_smc((unsigned long)EFUSE_READ_CALI_ITEM,
@@ -195,7 +144,7 @@ int efuse_amlogic_check_lockable_item(unsigned int item)
 			0, 0, 0, 0, 0, 0, &res);
 	} while (0);
 
-	mutex_unlock(&efuse_lock);
+	meson_sm_mutex_unlock();
 	return res.a0;
 }
 EXPORT_SYMBOL_GPL(efuse_amlogic_check_lockable_item);
@@ -221,7 +170,6 @@ static u32 meson_efuse_obj_read(u32 obj_id, u8 *buff, u32 *size)
 	u32 len = 0;
 	struct arm_smccc_res res;
 
-	mutex_lock(&efuse_lock);
 	meson_sm_mutex_lock();
 
 	memcpy((void *)sharemem_input_base, buff, *size);
@@ -247,7 +195,6 @@ static u32 meson_efuse_obj_read(u32 obj_id, u8 *buff, u32 *size)
 	}
 
 	meson_sm_mutex_unlock();
-	mutex_unlock(&efuse_lock);
 
 	return rc;
 }
@@ -256,7 +203,6 @@ static u32 meson_efuse_obj_write(u32 obj_id, u8 *buff, u32 size)
 {
 	struct arm_smccc_res res;
 
-	mutex_lock(&efuse_lock);
 	meson_sm_mutex_lock();
 
 	memcpy((void *)sharemem_input_base, buff, size);
@@ -270,7 +216,6 @@ static u32 meson_efuse_obj_write(u32 obj_id, u8 *buff, u32 size)
 	} while (0);
 
 	meson_sm_mutex_unlock();
-	mutex_unlock(&efuse_lock);
 
 	return res.a0;
 }
@@ -331,11 +276,15 @@ static ssize_t meson_trustzone_efuse_get_max(struct efuse_hal_api_arg *arg)
 	if (arg->cmd != EFUSE_HAL_API_USER_MAX)
 		return -1;
 
+	meson_sm_mutex_lock();
+
 	cmd = efuse_cmd.get_max_cmd;
 
 	asm __volatile__("" : : : "memory");
 	arm_smccc_smc(cmd, 0, 0, 0, 0, 0, 0, 0, &res);
 	ret = res.a0;
+
+	meson_sm_mutex_unlock();
 
 	if (!ret)
 		return -1;
