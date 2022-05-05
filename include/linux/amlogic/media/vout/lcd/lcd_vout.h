@@ -605,6 +605,7 @@ struct lcd_reg_map_s {
 
 #define LCD_VIU_SEL_NONE         0
 #define EXTERN_MUL_MAX	         10
+#define LCD_VSYNC_COMPLETE	BIT(7)
 struct aml_lcd_drv_s {
 	unsigned int index;
 	unsigned int status;
@@ -621,6 +622,7 @@ struct aml_lcd_drv_s {
 	unsigned char test_flag;
 	unsigned char mute_state;
 	unsigned char mute_flag;
+	unsigned char mute_count;
 	unsigned char probe_done;
 	unsigned char viu_sel;
 	unsigned char gamma_en_flag;
@@ -681,6 +683,7 @@ struct aml_lcd_drv_s {
 	struct resource *res_tcon_irq;
 	struct timer_list pll_mnt_timer;
 	struct timer_list vs_none_timer;
+	struct completion vsync_done;
 	spinlock_t isr_lock; /* for mute and test isr */
 
 #ifdef CONFIG_AMLOGIC_VPU
@@ -707,6 +710,9 @@ struct aml_lcd_tcon_bin_s {
 		long long ptr_length;
 	};
 };
+
+void set_output_mute(bool on);
+int get_output_mute(void);
 
 #define LCD_IOC_TYPE               'C'
 #define LCD_IOC_NR_GET_HDR_INFO    0x0

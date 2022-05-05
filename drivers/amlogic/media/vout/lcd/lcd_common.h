@@ -37,6 +37,7 @@
 /* 20220216: update vrr config when display mode change*/
 /* 20220408: update tcon reserved memory usage*/
 /* 20220421: fix lcd clk mistake for vmode change with fr_adj_type 4*/
+/* 20220426: update lcd mute control for DLG switch*/
 /* 20220428: fix t5w regs mistake*/
 #define LCD_DRV_VERSION    "20220428"
 
@@ -148,6 +149,7 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
 /* lcd debug */
 int lcd_debug_info_len(int num);
 void lcd_debug_test(struct aml_lcd_drv_s *pdrv, unsigned int num);
+void lcd_test_pattern_init(struct aml_lcd_drv_s *pdrv, unsigned int num);
 int lcd_debug_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_debug_remove(struct aml_lcd_drv_s *pdrv);
 
