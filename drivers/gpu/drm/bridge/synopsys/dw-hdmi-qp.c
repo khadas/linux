@@ -33,7 +33,6 @@
 
 #include <uapi/linux/media-bus-format.h>
 #include <uapi/linux/videodev2.h>
-
 #include "dw-hdmi-qp-audio.h"
 #include "dw-hdmi-qp.h"
 #include "dw-hdmi-qp-cec.h"
@@ -2080,6 +2079,12 @@ dw_hdmi_qp_bridge_mode_valid(struct drm_bridge *bridge,
 			     const struct drm_display_info *info,
 			     const struct drm_display_mode *mode)
 {
+    if (mode->hdisplay == 7680) {
+	if (mode->clock == 1186813 || mode->clock == 2373626) {
+                return MODE_ERROR;
+	}
+    }
+
 	return MODE_OK;
 }
 
