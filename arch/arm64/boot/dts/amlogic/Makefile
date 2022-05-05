@@ -82,4 +82,5 @@ dtb-y += t5w_t962d4_at301_1g.dtb
 dtb-y += t5w_t962d4_at301_1.5g.dtb
 dtb-y += a5_pxp.dtb
 dtb-y += a5_a113x2_av400_1g.dtb
+dtb-y += a5_a113x2_av400_1g_spk.dtb
 dtb-y += a5_a113x2_av409_2g.dtb

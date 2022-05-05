@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 /dts-v1/;
@@ -10,7 +10,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "a5_a113x2_av400_1g";
+	amlogic-dt-id = "a5_a113x2_av400_1g_spk";
 	compatible = "amlogic, a5";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -273,7 +273,7 @@
 		};
 
 		aml-audio-card,dai-link@1 {
-			format = "i2s";// "dsp_a";
+			format = "i2s";
 			mclk-fs = <256>;
 			//continuous-clock;
 			//bitclock-inversion;
@@ -304,20 +304,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				prefix-names = "ad82128_c_30","ad82128_c_31",
-						"ad82128_c_34","ad82128_c_35",
-						"ad82128_d_30","ad82128_d_31",
-						"ad82128_d_34","ad82128_d_35";
-				sound-dai = <
-						&ad82128_c_30
-						&ad82128_c_31
-						&ad82128_c_34
-						&ad82128_c_35
-						&ad82128_d_30
-						&ad82128_d_31
-						&ad82128_d_34
-						&ad82128_d_35
-				>;
+				prefix-names = "5707_A", "5707_B";
+				sound-dai = <&tas5707_36 &tas5707_3a>;
 			};
 		};
 
@@ -494,7 +482,7 @@
 	tdmb: tdm@1 {
 		compatible = "amlogic, a5-snd-tdmb";
 		#sound-dai-cells = <0>;
-		dai-tdm-lane-slot-mask-out = <1 1 1 1 1 1 1 1>;
+		dai-tdm-lane-slot-mask-out = <1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 				&clkaudio CLKID_AUDIO_MCLK_PAD1
@@ -506,12 +494,6 @@
 			&tdm_b_pins
 			&tdm_d2_pins
 			&tdm_d3_pins
-			&tdm_d4_pins
-			&tdm_d5_pins
-			&tdm_d6_pins
-			&tdm_d7_pins
-			&tdm_d12_pins
-			&tdm_d13_pins
 			&tdmb_clk_pins>;
 		pinctrl-1 = <&tdmout_b_gpio>;
 		start_clk_enable = <1>;
@@ -855,14 +837,14 @@
 
 	tdm_d2_pins: tdm_d2_pin {
 		mux {
-			groups = "tdm_d2";
+			groups = "tdm_d4";
 			function = "tdmoutb_lane0";
 		};
 	};
 
 	tdm_d3_pins: tdm_d3_pin {
 		mux {
-			groups = "tdm_d3";
+			groups = "tdm_d5";
 			function = "tdmoutb_lane1";
 		};
 	};
@@ -1238,31 +1220,6 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c2_pins1>;
 	clock-frequency = <100000>;
-	ad82128_c_30: ad82128_c_30@30 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x30>;
-		status = "okay";
-		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
-	};
-	ad82128_c_31: ad82128_c_31@31 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "okay";
-	};
-	ad82128_c_34: ad82128_c_34@34 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x34>;
-		status = "okay";
-	};
-	ad82128_c_35: ad82128_c_35@35 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x35>;
-		status = "okay";
-	};
 	aml_pca9557: aml_pca9557@1f {
 		compatible = "aml, ledring";
 		reg = <0x1f>;
@@ -1281,30 +1238,19 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c3_pins2>;
 	clock-frequency = <100000>;
-	ad82128_d_30: ad82128_d_30@30 {
-		compatible = "ESMT,ad82128";
+	tas5707_36: tas5707_36@36 {
+		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
-		reg = <0x30>;
+		reg = <0x1b>;
 		status = "okay";
+		reset_pin = <&gpio GPIOD_9 GPIO_ACTIVE_HIGH>;
 	};
-	ad82128_d_31: ad82128_d_31@31 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x31>;
-		status = "okay";
-	};
-	ad82128_d_34: ad82128_d_34@34 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x34>;
-		status = "okay";
-	};
-	ad82128_d_35: ad82128_d_35@35 {
-		compatible = "ESMT,ad82128";
-		#sound-dai-cells = <0>;
-		reg = <0x35>;
-		status = "okay";
 
+	tas5707_3a: tas5707_3a@3a {
+		compatible = "ti,tas5707";
+		#sound-dai-cells = <0>;
+		reg = <0x1d>;
+		status = "okay";
 	};
 };
 
