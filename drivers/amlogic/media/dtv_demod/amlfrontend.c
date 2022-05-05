@@ -2228,12 +2228,13 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	int str = 0;
 	unsigned int s;
 	unsigned int curTime, time_passed_qam;
-	static int peak;
 	static enum qam_md_e qam;
 	static int check_first;
 	static unsigned int time_start_qam;
+	static unsigned int timeout;
 
 	if (re_tune) {
+		timeout = auto_search_std == 0 ? TIMEOUT_ATSC : TIMEOUT_ATSC / 2;
 		demod->last_lock = 0;
 		demod->time_start = jiffies_to_msecs(jiffies);
 		time_start_qam = 0;
@@ -2306,10 +2307,7 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	} else if (s == 4 || s == 7) {
 		*status = 0;
 	} else {
-		if (peak == 0)
-			peak = 1;
-
-		if (demod->last_lock == 0 && demod->time_passed < TIMEOUT_ATSC)
+		if (demod->last_lock == 0 && demod->time_passed < timeout)
 			*status = 0;
 		else
 			*status = FE_TIMEDOUT;
