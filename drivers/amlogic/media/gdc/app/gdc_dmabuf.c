@@ -534,7 +534,7 @@ int gdc_dma_buffer_alloc(struct aml_dma_buffer *buffer,
 	mutex_unlock(&buffer->lock);
 	gdc_req_buf->index = index;
 	dma_buf = (struct aml_dma_buf *)buf;
-	if (dma_buf->dma_dir == DMA_FROM_DEVICE)
+	if (dma_buf->dma_dir == DMA_FROM_DEVICE && !gdc_smmu_enable)
 		dma_sync_single_for_cpu(dma_buf->dev,
 					dma_buf->dma_addr,
 					dma_buf->size,
@@ -853,6 +853,9 @@ void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 	struct aml_dma_buf *buf;
 
 	gdc_log(LOG_DEBUG, "%s fd=%d\n", __func__, fd);
+	if (gdc_smmu_enable)
+		return;
+
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
 		pr_err("dma_buf_get failed\n");
@@ -875,6 +878,9 @@ void gdc_dma_buffer_cache_flush(struct device *dev, int fd)
 	struct aml_dma_buf *buf;
 
 	gdc_log(LOG_DEBUG, "%s fd=%d\n", __func__, fd);
+	if (gdc_smmu_enable)
+		return;
+
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
 		pr_err("dma_buf_get failed\n");
