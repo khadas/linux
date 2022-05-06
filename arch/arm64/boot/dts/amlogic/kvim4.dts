@@ -937,7 +937,7 @@
 	pinctrl-0=<&i2c0_ao_pins1>;
 	clock-frequency = <100000>; /* default 100k */
 
-	khadas-mcu {
+	khadas-mcu@18 {
 		compatible = "khadas-mcu";
 		reg = <0x18>;
 		fan,trig_temp_level0 = <60>;
@@ -947,12 +947,12 @@
 		pcie-5g-gpio = <&gpio GPIOT_13 0>;
 	};
 
-	khadas-rtc {
+	khadas-rtc@51 {
 		compatible = "khadas-rtc";
 		reg = <0x51>;
 	};
 
-	khadas-kxtj3 {
+	khadas-kxtj3@e {
 		compatible = "kxtj3";
 		reg = <0x0E>;
 		type = <2>;
@@ -1461,7 +1461,7 @@
 	pinctrl-0 = <&i2c5_pins1>;
 	//pinctrl-1 = <&i2c2_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
-	bq25703 {
+	bq25703@6b {
              status = "okay";
              compatible = "bq25703";
              reg = <0x6b>;
@@ -1480,7 +1480,7 @@
              ti,input-current = <500000>;
              pd-charge-only = <0>;
 	};
-	cw201x {
+	cw201x@62 {
              status = "okay";
              compatible = "cw201x";
              reg = <0x62>;
