@@ -90,7 +90,7 @@
 
 		rtos_reserved:linux,rtos_reserved {
 			compatible = "amlogic, aml_rtos_memory";
-			reg = <0x0 0x10000000 0x0 0x20000000>;
+			reg = <0x0 0x80000000 0x0 0x20000000>;
 			no-map;
 		};
 
@@ -736,18 +736,18 @@
 			};
 		};
 /*
- *		aml-audio-card,dai-link@7 {
- *			mclk-fs = <256>;
- *			suffix-name = "alsaPORT-earc";
- *			cpu {
- *				sound-dai = <&earc>;
- *				system-clock-frequency = <12288000>;
- *			};
- *			codec {
- *				sound-dai = <&dummy_codec>;
- *			};
- *		};
- */
+		aml-audio-card,dai-link@7 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+*/
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
@@ -1068,7 +1068,7 @@
 		pinctrl-0 = <&spdifout_d>;
 		pinctrl-1 = <&spdifout_d_mute>;
 
-		samesource_sel = <4>;
+		//samesource_sel = <4>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
