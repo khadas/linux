@@ -490,6 +490,13 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			frc_buf_release(devp);
 			frc_buf_set(devp);
 		}
+	} else if (!strcmp(parm[0], "dbg_ro")) {
+		if (!parm[1]) {
+			pr_frc(0, "err: input check\n");
+			goto exit;
+		}
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_check_hw_stats(devp, val1);
 	}
 exit:
 	kfree(buf_orig);

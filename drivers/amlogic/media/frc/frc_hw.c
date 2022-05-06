@@ -275,6 +275,39 @@ void frc_set_buf_num(u32 frc_fb_num)
 	WRITE_FRC_BITS(FRC_FRAME_BUFFER_NUM, frc_fb_num, 8, 5);//set   frc_fb_num
 }
 
+void frc_check_hw_stats(struct frc_dev_s *frc_devp, u8 checkflag)
+{
+	u32 val = 0;
+	struct  frc_hw_stats_s  *tmpstats;
+
+	tmpstats = &frc_devp->hw_stats;
+	if (checkflag == 0) {
+		tmpstats = &frc_devp->hw_stats;
+		val = READ_FRC_REG(FRC_RO_DBG0_STAT);
+		tmpstats->reg4dh.rawdat = val;
+		val = READ_FRC_REG(FRC_RO_DBG1_STAT);
+		tmpstats->reg4eh.rawdat = val;
+		val = READ_FRC_REG(FRC_RO_DBG2_STAT);
+		tmpstats->reg4fh.rawdat = val;
+	} else if (checkflag == 1) {
+		pr_frc(1, "[0x%x] ref_vs_dly_num = %d, ref_de_dly_num = %d\n",
+			tmpstats->reg4dh.rawdat,
+			tmpstats->reg4dh.bits.ref_vs_dly_num,
+			tmpstats->reg4dh.bits.ref_de_dly_num);
+		pr_frc(1, "[0x%x] mevp_dly_num = %d, mcout_dly_num = %d\n",
+			tmpstats->reg4eh.rawdat,
+			tmpstats->reg4eh.bits.mevp_dly_num,
+			tmpstats->reg4eh.bits.mcout_dly_num);
+		pr_frc(1, "[0x%x] memc_corr_st = %d, corr_dly_num = %d\n",
+			tmpstats->reg4fh.rawdat,
+			tmpstats->reg4fh.bits.memc_corr_st,
+			tmpstats->reg4fh.bits.memc_corr_dly_num);
+		pr_frc(1, "out_dly_err=%d, out_de_dly_num = %d\n",
+			tmpstats->reg4fh.bits.out_dly_err,
+			tmpstats->reg4fh.bits.out_de_dly_num);
+	}
+}
+
 void frc_me_crc_read(struct frc_dev_s *frc_devp)
 {
 	struct frc_crc_data_s *crc_data;

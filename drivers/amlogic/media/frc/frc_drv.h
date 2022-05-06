@@ -67,8 +67,9 @@
 // frc_20220408 frc chg mcdly under 4k1k
 // frc_20220421 frc sync memc_alg_ko_1990
 // frc_20220425 frc inform vlock when disable
+// frc_20220426 frc compute mcdly for vlock
 
-#define FRC_FW_VER			"2022-0426 frc compute mcdly for vlock"
+#define FRC_FW_VER			"2022-0505 frc check dbg roreg"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
@@ -377,6 +378,40 @@ struct frc_force_size_s {
 	u32 force_vsize;
 };
 
+union frc_ro_dbg0_stat_u {
+	u32 rawdat;
+	struct {
+		unsigned ref_de_dly_num:16;  /*15:0*/
+		unsigned ref_vs_dly_num:16;  /*31:16*/
+	} bits;
+};
+
+union frc_ro_dbg1_stat_u {
+	u32 rawdat;
+	struct {
+		unsigned mcout_dly_num:16; /*15:0*/
+		unsigned mevp_dly_num:16;  /*31:16*/
+	} bits;
+};
+
+union frc_ro_dbg2_stat_u {
+	u32 rawdat;
+	struct {
+	    unsigned out_de_dly_num:13;     /*12:0*/
+		unsigned out_dly_err: 1;        /*13*/
+		unsigned reserved2: 2;          /*15:14*/
+		unsigned memc_corr_dly_num :13; /*28:16*/
+		unsigned memc_corr_st:2;        /*30:29*/
+		unsigned reserved1:1;
+	} bits;
+};
+
+struct frc_hw_stats_s {
+	union frc_ro_dbg0_stat_u reg4dh;
+	union frc_ro_dbg1_stat_u reg4eh;
+	union frc_ro_dbg2_stat_u reg4fh;
+};
+
 struct frc_dev_s {
 	dev_t devt;
 	struct cdev cdev;
@@ -456,6 +491,7 @@ struct frc_dev_s {
 	struct frc_crc_data_s frc_crc_data;
 	struct frc_ud_s ud_dbg;
 	struct frc_force_size_s force_size;
+	struct frc_hw_stats_s hw_stats;
 };
 
 struct frc_dev_s *get_frc_devp(void);
