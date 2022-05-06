@@ -633,6 +633,56 @@ struct rga_request *rga_request_lookup(struct rga_pending_request_manager *manag
 	return request;
 }
 
+void rga_request_scheduler_shutdown(struct rga_scheduler_t *scheduler)
+{
+	struct rga_job *job, *job_q;
+	unsigned long flags;
+
+	rga_power_enable(scheduler);
+
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	job = scheduler->running_job;
+	if (job) {
+		if (test_bit(RGA_JOB_STATE_INTR_ERR, &job->state) ||
+		    test_bit(RGA_JOB_STATE_FINISH, &job->state)) {
+			spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+			goto finish;
+		}
+
+		scheduler->running_job = NULL;
+		scheduler->status = RGA_SCHEDULER_ABORT;
+		scheduler->ops->soft_reset(scheduler);
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+		rga_mm_unmap_job_info(job);
+
+		job->ret = -EBUSY;
+		rga_request_release_signal(scheduler, job);
+
+		/*
+		 *  Since the running job was abort, turn off the power here that
+		 * should have been turned off after job done (corresponds to
+		 * power_enable in rga_job_run()).
+		 */
+		rga_power_disable(scheduler);
+	} else {
+		/* Clean up the jobs in the todo list that need to be free. */
+		list_for_each_entry_safe(job, job_q, &scheduler->todo_list, head) {
+			rga_mm_unmap_job_info(job);
+
+			job->ret = -EBUSY;
+			rga_request_release_signal(scheduler, job);
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+	}
+
+finish:
+	rga_power_disable(scheduler);
+}
+
 void rga_request_scheduler_abort(struct rga_scheduler_t *scheduler)
 {
 	struct rga_job *job;

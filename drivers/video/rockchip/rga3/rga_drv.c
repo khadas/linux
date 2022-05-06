@@ -927,6 +927,15 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	if (DEBUGGER_EN(NONUSE))
 		return 0;
 
+	down_read(&rga_drvdata->rwsem);
+
+	if (rga_drvdata->shutdown) {
+		rga_log("driver has been shutdown\n");
+		up_read(&rga_drvdata->rwsem);
+
+		return -EBUSY;
+	}
+
 	switch (cmd) {
 	case RGA_BLIT_SYNC:
 	case RGA_BLIT_ASYNC:
@@ -1052,6 +1061,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 		ret = -EINVAL;
 		break;
 	}
+
+	up_read(&rga_drvdata->rwsem);
 
 	return ret;
 }
@@ -1442,17 +1453,38 @@ pm_disable:
 
 static int rga_drv_remove(struct platform_device *pdev)
 {
+	struct rga_scheduler_t *scheduler = NULL;
+
+	down_write(&rga_drvdata->rwsem);
+	rga_drvdata->shutdown = true;
+
+	scheduler = (struct rga_scheduler_t *)platform_get_drvdata(pdev);
+	if (scheduler)
+		rga_request_scheduler_shutdown(scheduler);
+
 #ifndef RGA_DISABLE_PM
 	device_init_wakeup(&pdev->dev, false);
 	pm_runtime_disable(&pdev->dev);
 #endif /* #ifndef RGA_DISABLE_PM */
 
+	up_write(&rga_drvdata->rwsem);
+
 	return 0;
+}
+
+static void rga_drv_shutdown(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+
+	rga_drv_remove(pdev);
+
+	dev_info(dev, "shutdown success\n");
 }
 
 static struct platform_driver rga3_driver = {
 	.probe = rga_drv_probe,
 	.remove = rga_drv_remove,
+	.shutdown = rga_drv_shutdown,
 	.driver = {
 		 .name = "rga3",
 		 .of_match_table = of_match_ptr(rga3_dt_ids),
@@ -1462,6 +1494,7 @@ static struct platform_driver rga3_driver = {
 static struct platform_driver rga2_driver = {
 	.probe = rga_drv_probe,
 	.remove = rga_drv_remove,
+	.shutdown = rga_drv_shutdown,
 	.driver = {
 		 .name = "rga2",
 		 .of_match_table = of_match_ptr(rga2_dt_ids),
@@ -1479,6 +1512,8 @@ static int __init rga_init(void)
 	}
 
 	mutex_init(&rga_drvdata->lock);
+	init_rwsem(&rga_drvdata->rwsem);
+	rga_drvdata->shutdown = false;
 
 	ret = platform_driver_register(&rga3_driver);
 	if (ret != 0) {
