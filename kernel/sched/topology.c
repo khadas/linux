@@ -1184,7 +1184,11 @@ next:
  * Non-inlined to reduce accumulated stack pressure in build_sched_domains()
  */
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int default_relax_domain_level = 1;
+#else
 static int default_relax_domain_level = -1;
+#endif
 int sched_domain_level_max;
 
 static int __init setup_relax_domain_level(char *str)
@@ -1354,7 +1358,9 @@ sd_init(struct sched_domain_topology_level *tl,
 					| 1*SD_BALANCE_EXEC
 					| 1*SD_BALANCE_FORK
 					| 0*SD_BALANCE_WAKE
+#ifndef CONFIG_AMLOGIC_MODIFY
 					| 1*SD_WAKE_AFFINE
+#endif
 					| 0*SD_SHARE_CPUCAPACITY
 					| 0*SD_SHARE_PKG_RESOURCES
 					| 0*SD_SERIALIZE
