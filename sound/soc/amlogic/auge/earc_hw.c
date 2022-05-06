@@ -875,9 +875,10 @@ void earctx_cmdc_hpd_detect(struct regmap *top_map,
 				 EARC_TX_CMDC_VSM_CTRL1,
 				 0x1 << 8,
 				 0);
+		/* set by register value */
 		mmio_update_bits(top_map, EARCTX_TOP_CTRL0,
 				 0x1 << 11 | 0x3 << 8 | 0x3 << 4,
-				 0);
+				 0x3 << 8 | 0x3 << 4);
 	}
 }
 
