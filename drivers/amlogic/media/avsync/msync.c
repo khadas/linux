@@ -26,6 +26,9 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/major.h>
 #include <uapi/linux/amlogic/msync.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+#include <uapi/linux/amlogic/media_info.h>
+#endif
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_MSYNC
 #include <trace/events/meson_atrace.h>
 
@@ -191,6 +194,10 @@ struct msync {
 
 	/* callback for vout_register_client() */
 	struct notifier_block msync_notifier;
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+	/* callback from minfo */
+	struct notifier_block msync_minfo_notifier;
+#endif
 	/* ready to receive vsync */
 	bool ready;
 
@@ -356,6 +363,22 @@ static int msync_notify_callback(struct notifier_block *block,
 	}
 	return 0;
 }
+
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+static int minfo_notify_callback(struct notifier_block *block,
+		unsigned long cmd, void *para)
+{
+	switch (cmd) {
+	case 0:
+		msync_dbg(LOG_INFO, "msync %d render delay %s", __LINE__, (char *)para);
+		break;
+	default:
+		msync_dbg(LOG_ERR, "msync %d invalid cmd", __LINE__);
+		break;
+	}
+	return 0;
+}
+#endif
 
 static unsigned int session_poll(struct file *file, poll_table *wait_table)
 {
@@ -1795,6 +1818,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	{
 		struct pts_wall wall;
 
+		memset(&wall, 0, sizeof(wall));
 		wall.interval = sync.vsync_pts_inc;
 		if (session->mode != AVS_MODE_PCR_MASTER) {
 			if (session->clock_start)
@@ -2561,6 +2585,11 @@ int __init msync_init(void)
 	sync.ready = true;
 	sync.start_buf_thres = UNIT90K / 5;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+	sync.msync_minfo_notifier.notifier_call = minfo_notify_callback;
+	media_info_register_event("vport/latency", &sync.msync_minfo_notifier);
+#endif
+
 	for (i = 0 ; i < MAX_SESSION_NUM ; i++) {
 		struct sync_session *s = NULL;
 
@@ -2624,6 +2653,9 @@ void __exit msync_exit(void)
 	}
 	unregister_chrdev(AMSYNC_MAJOR, "aml_msync");
 	vout_unregister_client(&sync.msync_notifier);
+#ifdef CONFIG_AMLOGIC_MEDIA_MINFO
+	media_info_unregister_event(&sync.msync_minfo_notifier);
+#endif
 }
 
 #ifndef MODULE

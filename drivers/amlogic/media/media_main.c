@@ -127,6 +127,7 @@ static int __init media_main_init(void)
 	call_sub_init(resman_init);
 	call_sub_init(aml_atvdemod_init);
 	call_sub_init(aml_dtvdemod_init);
+	call_sub_init(minfo_init); /* should called before msync */
 	call_sub_init(msync_init);
 	call_sub_init(frc_init);
 	call_sub_init(amlogic_system_secure_dma_buf_init);
