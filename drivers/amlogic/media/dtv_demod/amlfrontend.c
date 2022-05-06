@@ -4226,7 +4226,7 @@ bool dtvdemod_cma_alloc(struct amldtvdemod_device_s *devp,
 				mem_size = 8 * SZ_1M;
 		}
 
-		devp->mem_start = codec_mm_alloc_for_dma("dtvdemod",
+		devp->mem_start = codec_mm_alloc_for_dma(DEMOD_DEVICE_NAME,
 			mem_size / PAGE_SIZE, 0, flags);
 		devp->mem_size = mem_size;
 		if (devp->mem_start == 0) {
@@ -4245,20 +4245,22 @@ bool dtvdemod_cma_alloc(struct amldtvdemod_device_s *devp,
 
 void dtvdemod_cma_release(struct amldtvdemod_device_s *devp)
 {
+	int ret = 0;
+
 #ifdef CONFIG_CMA
+
 	if (devp->cma_flag)
-		/*	dma_release_from_contiguous*/
-		dma_release_from_contiguous(&devp->this_pdev->dev,
+		ret = dma_release_from_contiguous(&devp->this_pdev->dev,
 				devp->venc_pages,
 				devp->cma_mem_size >> PAGE_SHIFT);
 	else
-		codec_mm_free_for_dma("dtvdemod", devp->mem_start);
+		ret = codec_mm_free_for_dma(DEMOD_DEVICE_NAME, devp->mem_start);
 
 	devp->mem_start = 0;
 	devp->mem_size = 0;
 #endif
 
-	PR_DBG("demod cma release ok!\n");
+	PR_DBG("demod cma release: ret %d.\n", ret);
 }
 
 static void set_agc_pinmux(struct aml_dtvdemod *demod,

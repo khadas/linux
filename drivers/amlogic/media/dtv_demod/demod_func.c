@@ -599,7 +599,7 @@ void clocks_set_sys_defaults(struct aml_dtvdemod *demod, unsigned int adc_clk)
 	PR_ERR("%s:done!\n", __func__);
 }
 
-void dtmb_write_reg(int reg_addr, int reg_data)
+void dtmb_write_reg(unsigned int reg_addr, unsigned int reg_data)
 {
 	if (!get_dtvpll_init_flag())
 		return;
@@ -711,7 +711,7 @@ unsigned int dvbt_isdbt_rd_reg_new(unsigned int addr)
 	return tmp;
 }
 
-void dvbt_t2_wrb(unsigned int addr, char data)
+void dvbt_t2_wrb(unsigned int addr, unsigned char data)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 
@@ -800,7 +800,7 @@ void riscv_ctl_write_reg(unsigned int addr, unsigned int data)
 	dvbt_t2_write_w(addr, data);
 }
 
-void dvbs_wr_byte(unsigned int addr, char data)
+void dvbs_wr_byte(unsigned int addr, unsigned char data)
 {
 	if (!get_dtvpll_init_flag())
 		return;
@@ -812,9 +812,9 @@ void dvbs_wr_byte(unsigned int addr, char data)
 	/*mutex_unlock(&mp);*/
 }
 
-char dvbs_rd_byte(unsigned int addr)
+unsigned char dvbs_rd_byte(unsigned int addr)
 {
-	char tmp = 0;
+	unsigned char tmp = 0;
 
 	if (!get_dtvpll_init_flag())
 		return 0;

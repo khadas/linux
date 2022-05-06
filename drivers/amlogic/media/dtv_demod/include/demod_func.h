@@ -292,7 +292,7 @@ void dtmb_reset(void);
 int dtmb_check_status_gxtv(struct dvb_frontend *fe);
 int dtmb_check_status_txl(struct dvb_frontend *fe);
 int dtmb_bch_check(struct dvb_frontend *fe);
-void dtmb_write_reg(int reg_addr, int reg_data);
+void dtmb_write_reg(unsigned int reg_addr, unsigned int reg_data);
 unsigned int dtmb_read_reg(unsigned int reg_addr);
 void dtmb_write_reg_bits(u32 addr, const u32 data, const u32 start, const u32 len);
 void dtmb_register_reset(void);
@@ -309,7 +309,7 @@ enum REG_DTMB_D9 {
 	DTMB_D9_ALL,
 };
 
-void dtmb_set_mem_st(int mem_start);
+void dtmb_set_mem_st(unsigned int mem_start);
 int dtmb_read_agc(enum REG_DTMB_D9 type, unsigned int *buf);
 unsigned int dtmb_reg_r_che_snr(void);
 unsigned int dtmb_reg_r_fec_lock(void);
@@ -609,7 +609,7 @@ void dvbt_isdbt_wr_bits_new(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
 unsigned int dvbt_isdbt_rd_reg(unsigned int addr);
 unsigned int dvbt_isdbt_rd_reg_new(unsigned int addr);
-void dvbt_t2_wrb(unsigned int addr, char data);
+void dvbt_t2_wrb(unsigned int addr, unsigned char data);
 void dvbt_t2_write_w(unsigned int addr, unsigned int data);
 void dvbt_t2_wr_byte_bits(u32 addr, const u32 data, const u32 start, const u32 len);
 void dvbt_t2_wr_word_bits(u32 addr, const u32 data, const u32 start, const u32 len);
@@ -618,8 +618,8 @@ char dvbt_t2_rdb(unsigned int addr);
 void riscv_ctl_write_reg(unsigned int addr, unsigned int data);
 void dvbs_write_bits(u32 reg_addr, const u32 reg_data,
 		    const u32 start, const u32 len);
-void dvbs_wr_byte(unsigned int addr, char data);
-char dvbs_rd_byte(unsigned int addr);
+void dvbs_wr_byte(unsigned int addr, unsigned char data);
+unsigned char dvbs_rd_byte(unsigned int addr);
 int aml_demod_init(void);
 void aml_demod_exit(void);
 unsigned int write_riscv_ram(void);

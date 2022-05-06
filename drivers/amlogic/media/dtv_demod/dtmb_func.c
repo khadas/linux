@@ -752,7 +752,7 @@ int dtmb_set_ch(struct aml_dtvdemod *demod,
 	return ret;
 }
 
-void dtmb_set_mem_st(int mem_start)
+void dtmb_set_mem_st(unsigned int mem_start)
 {
 	PR_DTMB("[im]memstart is %x\n", mem_start);
 	dtmb_write_reg(DTMB_FRONT_MEM_ADDR, mem_start);

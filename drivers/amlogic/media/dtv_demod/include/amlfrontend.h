@@ -40,6 +40,7 @@
 /*  V1.1.47  support IRC and HRC in j83b auto qam mode */
 /*  V1.1.48  fixed 16qam/32qam cost long time to lock up or error */
 /*  V1.1.49  fix HRC freq of 79M lock failed */
+/*  V1.1.50  fixed data type of memory address and read/write */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -56,8 +57,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.49"
-#define DTVDEMOD_VER	"2022/04/30: fix HRC freq of 79M lock failed"
+#define AMLDTVDEMOD_VER "V1.1.50"
+#define DTVDEMOD_VER	"2022/05/06: fixed data type of memory address and read/write"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -340,10 +341,10 @@ struct amldtvdemod_device_s {
 
 #if 1 /*move to aml_dtv_demod*/
 	/*for mem reserved*/
-	int			mem_start;
-	int			mem_end;
-	int			mem_size;
-	int			cma_flag;
+	unsigned int		mem_start;
+	unsigned int		mem_end;
+	unsigned int		mem_size;
+	unsigned int		cma_flag;
 	bool		flg_cma_allc;
 
 #ifdef CONFIG_CMA
