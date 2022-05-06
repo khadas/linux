@@ -16842,6 +16842,64 @@ static ssize_t video_threshold_4k_store(struct class *cla,
 	return count;
 }
 
+static ssize_t video_test_pattern_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	bool vdx_test_pattern_on[MAX_VD_LAYER];
+	int vdx_color[MAX_VD_LAYER];
+
+	get_vdx_test_pattern(0, &vdx_test_pattern_on[0], &vdx_color[0]);
+	get_vdx_test_pattern(1, &vdx_test_pattern_on[1], &vdx_color[1]);
+	get_vdx_test_pattern(2, &vdx_test_pattern_on[2], &vdx_color[2]);
+	return snprintf(buf, 80, "vdx_test_pattern_on:%d,%d,%d,vd color:0x%x,0x%x,0x%x\n",
+		vdx_test_pattern_on[0],
+		vdx_test_pattern_on[1],
+		vdx_test_pattern_on[2],
+		vdx_color[0],
+		vdx_color[1],
+		vdx_color[2]);
+}
+
+static ssize_t video_test_pattern_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[3];
+	u32 index;
+
+	if (likely(parse_para(buf, 3, parsed) == 3)) {
+		if (parsed[0] < MAX_VD_LAYER) {
+			index = parsed[0];
+			set_vdx_test_pattern(index, parsed[1], parsed[2]);
+		}
+	}
+	return count;
+}
+
+static ssize_t postblend_test_pattern_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	bool postblend_test_pattern_on;
+	u32 postblend_color;
+
+	get_postblend_test_pattern(&postblend_test_pattern_on,
+		&postblend_color);
+	return snprintf(buf, 80, "postblend_test_pattern_on:%d, color:0x%x\n",
+		postblend_test_pattern_on,
+		postblend_color);
+}
+
+static ssize_t postblend_test_pattern_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2))
+		set_postblend_test_pattern(parsed[0], parsed[1]);
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -17339,6 +17397,15 @@ static struct class_attribute amvideo_class_attrs[] = {
 	    0664,
 	    lowlatency_states_show,
 	    lowlatency_states_store),
+	__ATTR(video_test_pattern,
+	    0664,
+	    video_test_pattern_show,
+	    video_test_pattern_store),
+	__ATTR(postblend_test_pattern,
+	    0664,
+	    postblend_test_pattern_show,
+	    postblend_test_pattern_store),
+
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
