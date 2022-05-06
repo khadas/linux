@@ -1884,7 +1884,7 @@
 		};
 	};
 
-	i2c2_h_pins1:i2c2_h {
+	i2c2_h_pins1:i2c2_pins1 {
 		mux {
 			groups = "i2c2_sck_h20",
 				"i2c2_sda_h21";
@@ -1894,7 +1894,7 @@
 		};
 	};
 
-	i2c2_h_pins1_slp_input:i2c2_h_slp_input {
+	i2c2_h_pins1_slp_input:i2c2_pins1_slp_input {
 		mux {
 			groups = "GPIOH_20", "GPIOH_21";
 			function = "gpio_periphs";
@@ -1903,7 +1903,7 @@
 		};
 	};
 
-	i2c2_h_pins1_slp_low:i2c2_h_slp_low {
+	i2c2_h_pins1_slp_low:i2c2_pins1_slp_low {
 		mux {
 			groups = "GPIOH_20", "GPIOH_21";
 			function = "gpio_periphs";
@@ -1911,7 +1911,7 @@
 		};
 	};
 
-	i2c2_h_pins2:i2c2_h {
+	i2c2_h_pins2:i2c2_pins2 {
 		mux {
 			groups = "i2c2_sck_h10",
 				"i2c2_sda_h11";
@@ -1921,7 +1921,7 @@
 		};
 	};
 
-	i2c2_h_pins2_slp_input:i2c2_h_slp_input {
+	i2c2_h_pins2_slp_input:i2c2_pins2_slp_input {
 		mux {
 			groups = "GPIOH_10", "GPIOH_11";
 			function = "gpio_periphs";
@@ -1930,7 +1930,7 @@
 		};
 	};
 
-	i2c2_h_pins2_slp_low:i2c2_h_slp_low {
+	i2c2_h_pins2_slp_low:i2c2_pins2_slp_low {
 		mux {
 			groups = "GPIOH_10", "GPIOH_11";
 			function = "gpio_periphs";
@@ -1938,7 +1938,7 @@
 		};
 	};
 
-	i2c2_h_pins3:i2c2_h {
+	i2c2_h_pins3:i2c2_pins3 {
 		mux {
 			groups = "i2c2_sck_h24",
 				"i2c2_sda_h25";
@@ -1948,7 +1948,7 @@
 		};
 	};
 
-	i2c2_h_pins3_slp_input:i2c2_h_slp_input {
+	i2c2_h_pins3_slp_input:i2c2_pins3_slp_input {
 		mux {
 			groups = "GPIOH_24", "GPIOH_25";
 			function = "gpio_periphs";
@@ -1957,7 +1957,7 @@
 		};
 	};
 
-	i2c2_h_pins3_slp_low:i2c2_h_slp_low {
+	i2c2_h_pins3_slp_low:i2c2_pins3_slp_low {
 		mux {
 			groups = "GPIOH_24", "GPIOH_25";
 			function = "gpio_periphs";
@@ -1992,7 +1992,7 @@
 		};
 	};
 
-	i2c3_h_pins1:i2c3_h {
+	i2c3_h_pins1:i2c3_pins1 {
 		mux {
 			groups = "i2c3_sck_h24",
 				"i2c3_sda_h25";
@@ -2002,7 +2002,7 @@
 		};
 	};
 
-	i2c3_h_pins1_slp_input:i2c3_h_slp_input {
+	i2c3_h_pins1_slp_input:i2c3_pins1_slp_input {
 		mux {
 			groups = "GPIOH_24", "GPIOH_25";
 			function = "gpio_periphs";
@@ -2011,7 +2011,7 @@
 		};
 	};
 
-	i2c3_h_pins1_slp_low:i2c3_h_slp_low {
+	i2c3_h_pins1_slp_low:i2c3_pins1_slp_low {
 		mux {
 			groups = "GPIOH_24", "GPIOH_25";
 			function = "gpio_periphs";
@@ -2019,7 +2019,7 @@
 		};
 	};
 
-	i2c3_h_pins2:i2c3_h {
+	i2c3_h_pins2:i2c3_pins2 {
 		mux {
 			groups = "i2c3_sck_h22",
 				"i2c3_sda_h23";
@@ -2029,7 +2029,7 @@
 		};
 	};
 
-	i2c3_h_pins2_slp_input:i2c3_h_slp_input {
+	i2c3_h_pins2_slp_input:i2c3_pins2_slp_input {
 		mux {
 			groups = "GPIOH_22", "GPIOH_23";
 			function = "gpio_periphs";
@@ -2038,7 +2038,7 @@
 		};
 	};
 
-	i2c3_h_pins2_slp_low:i2c3_h_slp_low {
+	i2c3_h_pins2_slp_low:i2c3_pins2_slp_low {
 		mux {
 			groups = "GPIOH_22", "GPIOH_23";
 			function = "gpio_periphs";
