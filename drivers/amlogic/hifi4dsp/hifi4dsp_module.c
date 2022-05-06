@@ -271,8 +271,10 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 			 usrinfo->fw_name);
 	break;
 	case HIFI4DSP_SHM_CLEAN:
+		if (!strcmp(get_hifi_fw_mem_type(), "sram"))
+			break;
 		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
-		pr_debug("%s clean cache, addr:%u, size:%u\n",
+		pr_debug("%s clean cache, addr:0x%x, size:0x%x\n",
 			 __func__, shminfo.addr, shminfo.size);
 		dma_sync_single_for_device
 								(priv->dev,
@@ -281,8 +283,10 @@ static long hifi4dsp_miscdev_unlocked_ioctl(struct file *fp, unsigned int cmd,
 								 DMA_TO_DEVICE);
 	break;
 	case HIFI4DSP_SHM_INV:
+		if (!strcmp(get_hifi_fw_mem_type(), "sram"))
+			break;
 		ret = copy_from_user(&shminfo, argp, sizeof(shminfo));
-		pr_debug("%s invalidate cache, addr:%u, size:%u\n",
+		pr_debug("%s invalidate cache, addr:0x%x, size:0x%x\n",
 			 __func__, shminfo.addr, shminfo.size);
 		dma_sync_single_for_device(priv->dev,
 					   shminfo.addr,
