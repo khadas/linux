@@ -39,6 +39,7 @@
 /*  V1.1.46  use the codec_mm cma for DTMB(8M)/DVB-T2(40M)/ISDB-T(8M) */
 /*  V1.1.47  support IRC and HRC in j83b auto qam mode */
 /*  V1.1.48  fixed 16qam/32qam cost long time to lock up or error */
+/*  V1.1.49  fix HRC freq of 79M lock failed */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -55,8 +56,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.48"
-#define DTVDEMOD_VER	"2022/04/27: fixed 16qam/32qam cost long time to lock up or error"
+#define AMLDTVDEMOD_VER "V1.1.49"
+#define DTVDEMOD_VER	"2022/04/30: fix HRC freq of 79M lock failed"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
