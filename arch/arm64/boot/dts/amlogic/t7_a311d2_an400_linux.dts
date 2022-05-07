@@ -1516,10 +1516,6 @@
 	hdcp = "disabled";
 };
 
-&drm_lcd {
-	status = "okay";
-};
-
 &amhdmitx {
 	status = "okay";
 	enc_idx = <0>;
