@@ -587,8 +587,12 @@ static int wifi_setup_dt(void)
 	}
 
 	set_wifi_power(0);
+#ifndef CONFIG_WIFI_POWER_INIT_OFF
 	msleep(100);
 	set_wifi_power(1);
+#else
+	WIFI_INFO("%s CONFIG_WIFI_POWER_INIT_OFF defined, wifi power init off\n", __func__);
+#endif
 
 	return 0;
 }
