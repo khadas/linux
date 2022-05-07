@@ -156,11 +156,19 @@ TRACE_EVENT(sched_switch,
 	TP_fast_assign(
 		memcpy(__entry->next_comm, next->comm, TASK_COMM_LEN);
 		__entry->prev_pid	= prev->pid;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		__entry->prev_prio      = __entry->prev_prio < 0 ? 0 : __entry->prev_prio;
+#else
 		__entry->prev_prio	= prev->prio;
+#endif
 		__entry->prev_state	= __trace_sched_switch_state(preempt, prev);
 		memcpy(__entry->prev_comm, prev->comm, TASK_COMM_LEN);
 		__entry->next_pid	= next->pid;
+#ifdef CONFIG_AMLOGIC_MODIFY
+		__entry->next_prio      = __entry->next_prio < 0 ? 0 : __entry->next_prio;
+#else
 		__entry->next_prio	= next->prio;
+#endif
 		/* XXX SCHED_DEADLINE */
 	),
 
