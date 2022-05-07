@@ -587,6 +587,11 @@ static ssize_t tvafe_avin_read(struct file *file, char __user *buf,
 	struct tvafe_avin_det_s *avin_data =
 		(struct tvafe_avin_det_s *)file->private_data;
 
+	if (!avin_data || avin_detect_flag == 0) {
+		tvafe_pr_err("%s avin_data is null\n", __func__);
+		return 0;
+	}
+
 	ret = copy_to_user(buf,
 		(void *)(&avin_data->report_data_s[0]),
 		sizeof(struct tvafe_report_data_s)
@@ -1231,6 +1236,7 @@ static void tvafe_avin_detect_shutdown(struct platform_device *pdev)
 	device_remove_file(avdev->config_dev, &dev_attr_debug);
 	tvafe_pr_info("%s: avin shutdown.\n", __func__);
 	kfree(avdev);
+	avin_detect_flag = 0;
 }
 
 int tvafe_avin_detect_remove(struct platform_device *pdev)

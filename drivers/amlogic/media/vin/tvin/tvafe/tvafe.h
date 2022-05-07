@@ -24,7 +24,8 @@
 /* 20220415: pq_reg_trust_table add register mask */
 /* 20220430: PALM CC not display */
 /* 20220513: add electrical performance debug adjust command */
-#define TVAFE_VER "20220513:add electrical performance adjust command"
+/* 20220602: call avin read crash after shutdowm */
+#define TVAFE_VER "20220602:call avin read crash after shutdowm"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010
