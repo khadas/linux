@@ -1268,7 +1268,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	vdin_dump_frames(devp);
 
 	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
-		!devp->self_stop_start) {
+		devp->self_stop_start) {
+		pr_info("linux system switch pc/game not need stop\n");
+	} else {
 		if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 		    devp->frontend->dec_ops &&
 		    devp->frontend->dec_ops->stop &&
@@ -1277,7 +1279,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			devp->frontend->dec_ops->stop(devp->frontend,
 						devp->parm.port);
 	}
-
 	vdin_hw_disable(devp);
 
 	vdin_set_default_regmap(devp);
@@ -1327,12 +1328,15 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->prop.hdcp_sts = 0;
 	devp->starting_chg = 0;
 
-	if (!(devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
-		!devp->self_stop_start) {
+	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
+		devp->self_stop_start) {
+		//bypass not need handling
+	} else {
 		/* clear color para*/
 		memset(&devp->pre_prop, 0, sizeof(devp->prop));
 		memset(&devp->prop, 0, sizeof(devp->prop));
 	}
+
 	if (vdin_time_en)
 		pr_info("vdin.%d stop time %ums,run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
@@ -2111,7 +2115,7 @@ int vdin_vs_duration_check(struct vdin_dev_s *devp)
 	int cur_time, diff_time;
 	int temp;
 
-	if (devp->game_mode)
+	if (devp->game_mode || !IS_HDMI_SRC(devp->parm.port))
 		return ret;
 
 	cur_time = devp->cycle;
@@ -2391,11 +2395,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		devp->drop_hdr_set_sts = 0;
 	}
 
-	if (vdin_vs_duration_check(devp) < 0) {
-		vdin_drop_frame_info(devp, "duration error");
-		return IRQ_HANDLED;
-	}
-
 	cur_ms = jiffies_to_msecs(jiffies);
 	if (cur_ms - pre_ms <= 1)
 		err_vsync++;
@@ -2432,6 +2431,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	 * this code about system time must be outside of spinlock.
 	 * because the spinlock may affect the system time.
 	 */
+	if (vdin_vs_duration_check(devp) < 0) {
+		vdin_drop_frame_info(devp, "duration error");
+		return IRQ_HANDLED;
+	}
+
 	spin_lock_irqsave(&devp->isr_lock, flags);
 
 	if (devp->afbce_mode == 1) {
