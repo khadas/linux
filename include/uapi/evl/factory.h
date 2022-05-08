@@ -22,11 +22,17 @@ struct evl_element_ids {
 #define EVL_CLONE_PRIVATE	(0 << 16)
 #define EVL_CLONE_OBSERVABLE	(1 << 17)
 #define EVL_CLONE_NONBLOCK	(1 << 18)
-#define EVL_CLONE_MASTER	(1 << 19)
+#define EVL_CLONE_UNICAST	(1 << 19)
 #define EVL_CLONE_INPUT		(1 << 20)
 #define EVL_CLONE_OUTPUT	(1 << 21)
 #define EVL_CLONE_COREDEV	(1 << 31)
 #define EVL_CLONE_MASK		(((__u32)-1 << 16) & ~EVL_CLONE_COREDEV)
+/*
+ * Deprecated: this is a longstanding misnomer. This flag is really
+ * about sending unicast notifications as opposed to broadcasting
+ * events to all observers.
+ */
+#define EVL_CLONE_MASTER	EVL_CLONE_UNICAST
 
 struct evl_clone_req {
 	__u64 name_ptr;		/* (const char __user *name) */
