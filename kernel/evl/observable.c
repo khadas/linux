@@ -20,7 +20,7 @@
 #define EVL_NOTIFY_INITIAL	(1 << 31)
 
 #define EVL_OBSERVABLE_CLONE_FLAGS	\
-	(EVL_CLONE_PUBLIC|EVL_CLONE_OBSERVABLE|EVL_CLONE_MASTER)
+	(EVL_CLONE_PUBLIC|EVL_CLONE_OBSERVABLE|EVL_CLONE_UNICAST)
 
 /*
  * We want any kind of threads to be able to subscribe to an
@@ -184,7 +184,7 @@ static int add_subscription(struct evl_observable *observable,
 	 * the observer and writability tracking to be atomically
 	 * updated, so nested locking is required. Observers are
 	 * linked to the observable's list by order of subscription
-	 * (FIFO) in case users make such assumption for master mode
+	 * (FIFO) in case users make such assumption for unicast mode
 	 * (which undergoes round-robin).
 	 */
 	raw_spin_lock_irqsave(&observable->lock, flags);
@@ -598,9 +598,9 @@ out:
 	return do_flush;
 }
 
-static bool is_pool_master(struct evl_observable *observable)
+static bool is_pool_unicast(struct evl_observable *observable)
 {
-	return !!(observable->element.clone_flags & EVL_CLONE_MASTER);
+	return !!(observable->element.clone_flags & EVL_CLONE_UNICAST);
 }
 
 static bool push_notification(struct evl_observable *observable,
@@ -622,10 +622,10 @@ static bool push_notification(struct evl_observable *observable,
 	nfr.date = date;
 
 	/*
-	 * Feed one observer/worker if master, or broadcast to all
+	 * Feed one observer/worker if unicast, or broadcast to all
 	 * observers.
 	 */
-	if (is_pool_master(observable))
+	if (is_pool_unicast(observable))
 		do_flush = notify_single(observable, &nfr, &len);
 	else
 		do_flush = notify_all(observable, &nfr, &len);
