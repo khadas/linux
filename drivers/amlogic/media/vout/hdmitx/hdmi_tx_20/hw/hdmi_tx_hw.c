@@ -2764,6 +2764,21 @@ static void audio_mute_op(bool flag)
 	}
 }
 
+static bool audio_get_mute_st(void)
+{
+	bool st[4];
+
+	st[0] = hdmitx_get_bit(HDMITX_TOP_CLK_CNTL, 2);
+	st[1] = hdmitx_get_bit(HDMITX_TOP_CLK_CNTL, 3);
+	st[2] = hdmitx_get_bit(HDMITX_DWC_FC_PACKET_TX_EN, 0);
+	st[3] = hdmitx_get_bit(HDMITX_DWC_FC_PACKET_TX_EN, 3);
+
+	if (st[0] && st[1] && st[2] && st[3])
+		return 1;
+
+	return 0;
+}
+
 struct hdmitx_audpara hdmiaud_config_data;
 struct hdmitx_audpara hsty_hdmiaud_config_data[8];
 unsigned int hsty_hdmiaud_config_loc, hsty_hdmiaud_config_num;
@@ -4115,6 +4130,8 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 	case CONF_AUDIO_MUTE_OP:
 		audio_mute_op(argv == AUDIO_MUTE ? 0 : 1);
 		break;
+	case CONF_GET_AUDIO_MUTE_ST:
+		return audio_get_mute_st();
 	case CONF_VIDEO_MUTE_OP:
 		if (argv == VIDEO_MUTE) {
 			if (hdev->data->chip_type < MESON_CPU_ID_SC2)

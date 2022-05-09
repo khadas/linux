@@ -2775,7 +2775,12 @@ void hdmitx20_ext_set_audio_output(int enable)
 
 int hdmitx20_ext_get_audio_status(void)
 {
-	return !!hdmitx_device.tx_aud_cfg;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	int val;
+
+	val = !!(hdev->hwop.cntlconfig(hdev, CONF_GET_AUDIO_MUTE_ST, 0));
+
+	return val;
 }
 
 void hdmitx20_ext_set_i2s_mask(char ch_num, char ch_msk)
