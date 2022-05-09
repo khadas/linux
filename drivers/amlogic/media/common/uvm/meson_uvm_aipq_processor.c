@@ -63,7 +63,7 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 	struct vframe_s *vf = NULL;
 	struct file_private_data *file_private_data = NULL;
 	int shared_fd = aipq_info->shared_fd;
-	int i = 0;
+	int i = 0, di_flag = 0;
 
 	dmabuf = dma_buf_get(shared_fd);
 
@@ -104,16 +104,25 @@ int aipq_vf_set_value(struct uvm_aipq_info *aipq_info, bool enable_aipq)
 	if (vf) {
 		for (i = 0; i < AI_PQ_TOP; i++)
 			vf->nn_value[i] = aipq_info->nn_value[i];
-
 		vf->ai_pq_enable = enable_aipq;
+		di_flag = vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME;
+
 		if (vf->vf_ext) {
-			vf = vf->vf_ext;
-			for (i = 0; i < AI_PQ_TOP; i++)
-				vf->nn_value[i] = aipq_info->nn_value[i];
+			if (!is_dec_vf || (is_dec_vf && di_flag)) {
+				aipq_print(PRINT_OTHER, "set di vf\n");
+				vf = vf->vf_ext;
+			} else {
+				vf = NULL;
+			}
 
-			vf->ai_pq_enable = true;
+			if (vf) {
+				for (i = 0; i < AI_PQ_TOP; i++)
+					vf->nn_value[i] = aipq_info->nn_value[i];
+				vf->ai_pq_enable = enable_aipq;
+			}
+		} else {
+			aipq_print(PRINT_OTHER, "not find di vf\n");
 		}
-		vf->ai_pq_enable = enable_aipq;
 	} else {
 		aipq_print(PRINT_ERROR, "not find vf\n");
 		dma_buf_put(dmabuf);
