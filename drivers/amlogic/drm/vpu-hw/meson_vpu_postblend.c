@@ -223,7 +223,8 @@ static int postblend_check_state(struct meson_vpu_block *vblk,
 }
 
 static void postblend_set_state(struct meson_vpu_block *vblk,
-				struct meson_vpu_block_state *state)
+				struct meson_vpu_block_state *state,
+				struct meson_vpu_block_state *old_state)
 {
 	int i, crtc_index;
 	struct am_meson_crtc *amc;

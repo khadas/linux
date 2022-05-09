@@ -237,6 +237,7 @@ static int am_meson_drm_bind(struct device *dev)
 	priv->bound_data.drm = drm;
 	priv->bound_data.connector_component_bind = meson_connector_dev_bind;
 	priv->bound_data.connector_component_unbind = meson_connector_dev_unbind;
+	priv->osd_occupied_index = -1;
 
 	dev_set_drvdata(dev, priv);
 

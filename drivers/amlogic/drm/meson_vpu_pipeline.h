@@ -92,7 +92,8 @@ struct meson_vpu_block_ops {
 			   struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps);
 	void (*update_state)(struct meson_vpu_block *vblk,
-			     struct meson_vpu_block_state *state);
+			     struct meson_vpu_block_state *state,
+			     struct meson_vpu_block_state *old_state);
 	void (*enable)(struct meson_vpu_block *vblk,
 		       struct meson_vpu_block_state *state);
 	void (*disable)(struct meson_vpu_block *vblk,
@@ -179,7 +180,6 @@ struct meson_vpu_osd_layer_info {
 	u32 scaling_filter;
 	u32 crtc_index;
 	u32 read_ports;
-	u32 logo_show_done;
 };
 
 struct meson_vpu_osd {
@@ -583,6 +583,11 @@ void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline, int crtc_in
 struct meson_vpu_block_state *
 meson_vpu_block_get_state(struct meson_vpu_block *block,
 			  struct drm_atomic_state *state);
+
+struct meson_vpu_block_state *
+meson_vpu_block_get_old_state(struct meson_vpu_block *mvb,
+			struct drm_atomic_state *state);
+
 struct meson_vpu_pipeline_state *
 meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 			     struct drm_atomic_state *state);

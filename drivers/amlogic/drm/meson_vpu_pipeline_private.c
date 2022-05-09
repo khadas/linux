@@ -457,6 +457,24 @@ meson_vpu_block_get_state(struct meson_vpu_block *block,
 	return NULL;
 }
 
+struct meson_vpu_block_state *
+meson_vpu_block_get_old_state(struct meson_vpu_block *mvb,
+			struct drm_atomic_state *state)
+{
+	struct drm_private_obj *obj;
+	struct drm_private_state *old_obj_state;
+	struct meson_vpu_block_state *mvbs = NULL;
+	int i;
+
+	for_each_old_private_obj_in_state(state, obj, old_obj_state, i) {
+		mvbs = priv_to_block_state(old_obj_state);
+		if (mvb == mvbs->pblk)
+			return mvbs;
+	}
+
+	return NULL;
+}
+
 struct meson_vpu_pipeline_state *
 meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 			     struct drm_atomic_state *state)

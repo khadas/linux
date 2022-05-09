@@ -357,22 +357,11 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				     struct meson_vpu_pipeline_state *mvps)
 {
 	u8 i;
-	int crtc_index, doneflag;
-	u64 phy_addr;
+	int crtc_index;
 	struct meson_vpu_sub_pipeline_state *mvsps;
-	struct meson_vpu_pipeline *mvp = mvps->pipeline;
 
 	mvps->num_plane = 0;
 	mvps->num_plane_video = 0;
-	phy_addr = mvp->priv->logo->start;
-	doneflag = 0;
-
-	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (mvps->plane_info[i].logo_show_done) {
-			doneflag = 1;
-			break;
-		}
-	}
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (mvps->plane_info[i].enable) {
@@ -382,9 +371,6 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 				mvps->plane_info[i].enable = 0;
 				continue;
 			}
-
-			if ((doneflag && mvps->plane_info[i].phy_addr == phy_addr))
-				continue;
 			DRM_DEBUG("osdplane [%d] enable:(%d-%llx, %d-%d)\n",
 				mvps->plane_info[i].plane_index,
 				mvps->plane_info[i].zorder,
@@ -536,7 +522,7 @@ int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	int crtc_index;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
-	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_block_state *mvbs, *old_mvbs;
 	struct meson_vpu_pipeline_state *new_mvps;
 	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	unsigned long affected_blocks = 0;
@@ -556,8 +542,9 @@ int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			continue;
 
 		mvbs = priv_to_block_state(mvb->obj.state);
+		old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
 		if (new_mvsps->enable_blocks & BIT(id)) {
-			mvb->ops->update_state(mvb, mvbs);
+			mvb->ops->update_state(mvb, mvbs, old_mvbs);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
 			mvb->ops->disable(mvb, mvbs);
@@ -576,7 +563,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	int crtc_index;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
-	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_block_state *mvbs, *old_mvbs;
 	struct meson_vpu_pipeline_state *new_mvps;
 	struct meson_vpu_sub_pipeline_state *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
@@ -597,8 +584,9 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			continue;
 
 		mvbs = priv_to_block_state(mvb->obj.state);
+		old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
 		if (new_mvsps->enable_blocks & BIT(id)) {
-			mvb->ops->update_state(mvb, mvbs);
+			mvb->ops->update_state(mvb, mvbs, old_mvbs);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
 			mvb->ops->disable(mvb, mvbs);
@@ -624,7 +612,7 @@ int vpu_video_plane_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 {
 	int crtc_index;
 	struct meson_vpu_block *mvb;
-	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_block_state *mvbs, *old_mvbs;
 	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
 	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
@@ -634,6 +622,7 @@ int vpu_video_plane_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	crtc_index = sub_pipeline->index;
 	mvb = &mvv->base;
 	mvbs = priv_to_block_state(mvb->obj.state);
+	old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
 	old_mvps = meson_vpu_pipeline_get_state(pipeline, old_state);
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
 	old_mvsps = &old_mvps->sub_states[crtc_index];
@@ -643,7 +632,7 @@ int vpu_video_plane_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 
 	if (affected_blocks & BIT(mvb->id)) {
 		if (new_mvsps->enable_blocks & BIT(mvb->id)) {
-			mvb->ops->update_state(mvb, mvbs);
+			mvb->ops->update_state(mvb, mvbs, old_mvbs);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
 			mvb->ops->disable(mvb, mvbs);
@@ -664,7 +653,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	int crtc_index;
 	unsigned long id;
 	struct meson_vpu_block *mvb;
-	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_block_state *mvbs, *old_mvbs;
 	struct meson_vpu_pipeline_state *old_mvps, *new_mvps;
 	struct meson_vpu_sub_pipeline_state *old_mvsps, *new_mvsps;
 	struct meson_vpu_pipeline *pipeline = sub_pipeline->pipeline;
@@ -693,9 +682,10 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			continue;
 
 		mvbs = priv_to_block_state(mvb->obj.state);
+		old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
 
 		if (new_mvsps->enable_blocks & BIT(id)) {
-			mvb->ops->update_state(mvb, mvbs);
+			mvb->ops->update_state(mvb, mvbs, old_mvbs);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
 			mvb->ops->disable(mvb, mvbs);

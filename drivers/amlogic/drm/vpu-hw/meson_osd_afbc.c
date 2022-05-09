@@ -412,7 +412,8 @@ static int osd_afbc_check_state(struct meson_vpu_block *vblk,
 }
 
 static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
-				    struct meson_vpu_block_state *state)
+				    struct meson_vpu_block_state *state,
+				    struct meson_vpu_block_state *old_state)
 {
 	u32 pixel_format, line_stride, output_stride;
 	u32 frame_width, frame_height;
@@ -541,7 +542,8 @@ static void g12a_osd_afbc_set_state(struct meson_vpu_block *vblk,
 }
 
 static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
-				  struct meson_vpu_block_state *state)
+				  struct meson_vpu_block_state *state,
+				  struct meson_vpu_block_state *old_state)
 {
 	int i, start, end, core_enable;
 	u32 pixel_format, line_stride, output_stride;
@@ -715,7 +717,8 @@ static void t7_osd_afbc_set_state(struct meson_vpu_block *vblk,
 }
 
 static void t3_osd_afbc_set_state(struct meson_vpu_block *vblk,
-				  struct meson_vpu_block_state *state)
+				  struct meson_vpu_block_state *state,
+				  struct meson_vpu_block_state *old_state)
 {
 	int i, start, end, core_enable;
 	u32 pixel_format, line_stride, output_stride;

@@ -510,7 +510,8 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 }
 
 static void osdblend_set_state(struct meson_vpu_block *vblk,
-			       struct meson_vpu_block_state *state)
+			       struct meson_vpu_block_state *state,
+			       struct meson_vpu_block_state *old_state)
 {
 	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
 	struct meson_vpu_pipeline *pipeline = osdblend->base.pipeline;

@@ -1603,6 +1603,7 @@
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";
+	osd_occupied_index = <1>;
 
 	connectors_dev: port@1 {
 		drm_to_lcd0: endpoint@2 {

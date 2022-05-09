@@ -167,6 +167,7 @@ static int am_meson_vpu_bind(struct device *dev,
 	struct meson_vpu_pipeline *pipeline = private->pipeline;
 	struct am_meson_crtc *amcrtc;
 	struct meson_vpu_data *vpu_data;
+	u32 osd_occupied_index;
 	int i, ret, irq;
 
 	DRM_INFO("[%s] in\n", __func__);
@@ -179,6 +180,11 @@ static int am_meson_vpu_bind(struct device *dev,
 
 	ret = of_property_read_u8(dev->of_node,
 				  "osd_ver", &pipeline->osd_version);
+
+	ret = of_property_read_u32(dev->of_node,
+				"osd_occupied_index", &osd_occupied_index);
+	if (!ret)
+		private->osd_occupied_index = osd_occupied_index;
 
 	ret = am_meson_plane_create(private);
 	if (ret) {

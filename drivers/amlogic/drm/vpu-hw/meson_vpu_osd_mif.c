@@ -588,6 +588,23 @@ static void osd_linear_addr_config(struct meson_vpu_block *vblk,
 				byte_stride, 0, 12);
 }
 
+static bool osd_check_config(struct meson_vpu_osd_state *mvos,
+	struct meson_vpu_osd_state *old_mvos)
+{
+	if (!old_mvos || old_mvos->src_x != mvos->src_x ||
+		old_mvos->src_y != mvos->src_y ||
+		old_mvos->src_w != mvos->src_w ||
+		old_mvos->src_h != mvos->src_h ||
+		old_mvos->phy_addr != mvos->phy_addr ||
+		old_mvos->pixel_format != mvos->pixel_format ||
+		old_mvos->global_alpha != mvos->global_alpha ||
+		old_mvos->crtc_index != mvos->crtc_index) {
+		return true;
+	} else {
+		return false;
+	}
+}
+
 static int osd_check_state(struct meson_vpu_block *vblk,
 			   struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps)
@@ -708,41 +725,52 @@ static u32 line_stride_calc(u32 drm_format,
 }
 
 static void osd_set_state(struct meson_vpu_block *vblk,
-			  struct meson_vpu_block_state *state)
+			  struct meson_vpu_block_state *state,
+			  struct meson_vpu_block_state *old_state)
 {
 	struct meson_vpu_pipeline *pipeline;
 	struct meson_vpu_osd *osd;
-	struct meson_vpu_osd_state *mvos;
+	struct meson_vpu_osd_state *mvos, *old_mvos = NULL;
 	struct meson_vpu_pipeline *pipe;
 	struct rdma_reg_ops *reg_ops;
 	int crtc_index;
-	u32 pixel_format, canvas_index, src_h, byte_stride;
+	u32 pixel_format, canvas_index, src_h, byte_stride, flush_reg;
 	struct osd_scope_s scope_src = {0, 1919, 0, 1079};
 	struct osd_mif_reg_s *reg;
 	bool alpha_div_en = 0, reverse_x, reverse_y, afbc_en;
 	u64 phy_addr;
 	u16 global_alpha = 256; /*range 0~256*/
 
-	pipe = vblk->pipeline;
-
 	if (!vblk || !state) {
 		DRM_DEBUG("set_state break for NULL.\n");
 		return;
 	}
 
+	mvos = to_osd_state(state);
 	osd = to_osd_block(vblk);
 	pipeline = osd->base.pipeline;
-	mvos = to_osd_state(state);
 	crtc_index = mvos->crtc_index;
 	reg_ops = state->sub->reg_ops;
-
+	pipe = vblk->pipeline;
 	reg = osd->reg;
 	if (!reg) {
 		DRM_DEBUG("set_state break for NULL OSD mixer reg.\n");
 		return;
 	}
 
-	DRM_DEBUG("%s - %d %s called.\n", osd->base.name, vblk->index, __func__);
+	if (old_state)
+		old_mvos = to_osd_state(old_state);
+
+	flush_reg = osd_check_config(mvos, old_mvos);
+	DRM_DEBUG("flush_reg-%d index-%d\n", flush_reg, vblk->index);
+	if (!flush_reg) {
+		/*after v7 chips, always linear addr*/
+		if (pipeline->osd_version == OSD_V7)
+			osd_mem_mode(vblk, reg_ops, reg, 1);
+
+		DRM_DEBUG("%s-%d not need to flush mif register.\n", osd->base.name, vblk->index);
+		return;
+	}
 
 	afbc_en = mvos->afbc_en ? 1 : 0;
 	if (mvos->pixel_blend == DRM_MODE_BLEND_PREMULTI)

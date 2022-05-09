@@ -36,6 +36,9 @@ struct am_osd_plane {
 	int plane_index;
 	int plane_type;
 
+	struct drm_property *occupied_property;
+	bool osd_occupied;
+
 	/*osd extend*/
 	u32 osd_reverse;
 	u32 osd_blend_bypass;

@@ -306,7 +306,8 @@ static int video_check_state(struct meson_vpu_block *vblk,
 }
 
 static void video_set_state(struct meson_vpu_block *vblk,
-			    struct meson_vpu_block_state *state)
+			    struct meson_vpu_block_state *state,
+			    struct meson_vpu_block_state *old_state)
 {
 	int crtc_index;
 	struct am_meson_crtc *amc;

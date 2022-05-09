@@ -13,6 +13,7 @@
 #include "meson_vpu_pipeline.h"
 #include "meson_osd_afbc.h"
 #include "meson_gem.h"
+#include "meson_logo.h"
 
 
 static u64 afbc_modifier[] = {
@@ -324,7 +325,6 @@ static int meson_plane_fb_check(struct drm_plane *plane,
 		phyaddr = am_meson_gem_object_get_phyaddr(drv,
 							  meson_fb->bufp[0],
 							  &fb_size);
-		plane_info->logo_show_done = 1;
 	} else {
 		phyaddr = 0;
 		DRM_INFO("don't find phyaddr!\n");
@@ -581,8 +581,15 @@ static int meson_plane_atomic_get_property(struct drm_plane *plane,
 					struct drm_property *property,
 					uint64_t *val)
 {
-	DRM_DEBUG("Not supported prop [%s]", property->name);
-	return -EINVAL;
+	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
+	int ret = 0;
+
+	if (property == osd_plane->occupied_property) {
+		*val = osd_plane->osd_occupied;
+		return 0;
+	}
+
+	return ret;
 }
 
 static int meson_plane_atomic_set_property(struct drm_plane *plane,
@@ -590,9 +597,15 @@ static int meson_plane_atomic_set_property(struct drm_plane *plane,
 					 struct drm_property *property,
 					 uint64_t val)
 {
-	/*nothing to do now*/
-	DRM_DEBUG("Not supported prop [%s]", property->name);
-	return -EINVAL;
+	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
+	int ret = 0;
+
+	if (property == osd_plane->occupied_property) {
+		osd_plane->osd_occupied = val;
+		return 0;
+	}
+
+	return ret;
 }
 
 static struct drm_plane_state *
@@ -1299,6 +1312,20 @@ int meson_plane_create_scaling_filter_property(struct drm_plane *plane,
 	return 0;
 }
 
+static void meson_crtc_add_occupied_property(struct drm_device *drm_dev,
+						  struct am_osd_plane *osd_plane)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "meson.plane.occupied");
+	if (prop) {
+		osd_plane->occupied_property = prop;
+		drm_object_attach_property(&osd_plane->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to occupied property\n");
+	}
+}
+
 static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 {
 	struct am_osd_plane *osd_plane;
@@ -1347,6 +1374,11 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 	sprintf(plane_name, "osd%d", i);
 	const_plane_name = plane_name;
 
+	if (i == priv->osd_occupied_index)
+		osd_plane->osd_occupied = true;
+	else
+		osd_plane->osd_occupied = false;
+
 	drm_universal_plane_init(priv->drm, plane, 0xFF,
 				 &am_osd_plane_funs,
 				 supported_drm_formats,
@@ -1377,7 +1409,8 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 				BIT(DRM_SCALING_FILTER_4POINT_BSPLINE) |
 				BIT(DRM_SCALING_FILTER_3POINT_BSPLINE) |
 				BIT(DRM_SCALING_FILTER_REPEATE));
-	DRM_INFO("osd plane %d create done\n", i);
+	meson_crtc_add_occupied_property(priv->drm, osd_plane);
+	DRM_INFO("osd plane %d create done, occupied-%d\n", i, osd_plane->osd_occupied);
 	return osd_plane;
 }
 
