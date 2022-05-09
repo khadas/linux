@@ -224,12 +224,20 @@ static inline struct page *__page_cache_alloc(gfp_t gfp)
 
 static inline struct page *page_cache_alloc(struct address_space *x)
 {
+#ifdef CONFIG_AMLOGIC_CMA
+	return __page_cache_alloc(mapping_gfp_mask(x) | __GFP_NO_FC_IN_CMA);
+#else
 	return __page_cache_alloc(mapping_gfp_mask(x));
+#endif
 }
 
 static inline gfp_t readahead_gfp_mask(struct address_space *x)
 {
+#ifdef CONFIG_AMLOGIC_CMA
+	return mapping_gfp_mask(x) | __GFP_NO_FC_IN_CMA | __GFP_NORETRY | __GFP_NOWARN;
+#else
 	return mapping_gfp_mask(x) | __GFP_NORETRY | __GFP_NOWARN;
+#endif
 }
 
 typedef int filler_t(void *, struct page *);

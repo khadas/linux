@@ -124,6 +124,7 @@ EXPORT_SYMBOL(cma_page_count_update);
 #define RESTRIC_ANON	0
 #define ANON_RATIO	60
 bool cma_first_wm_low __read_mostly;
+bool no_filecache_in_cma __read_mostly;
 
 static int __init early_cma_first_wm_low_param(char *buf)
 {
@@ -142,6 +143,23 @@ static int __init early_cma_first_wm_low_param(char *buf)
 
 early_param("cma_first_wm_low", early_cma_first_wm_low_param);
 
+static int __init early_no_filecache_in_cma_param(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (strcmp(buf, "off") == 0)
+		no_filecache_in_cma = false;
+	else if (strcmp(buf, "on") == 0)
+		no_filecache_in_cma = true;
+
+	pr_info("no_filecache_in_cma %sabled\n", no_filecache_in_cma ? "en" : "dis");
+
+	return 0;
+}
+
+early_param("no_filecache_in_cma", early_no_filecache_in_cma_param);
+
 bool can_use_cma(gfp_t gfp_flags)
 {
 #if RESTRIC_ANON
@@ -158,6 +176,9 @@ bool can_use_cma(gfp_t gfp_flags)
 		return false;
 
 	if (task_nice(current) > 0)
+		return false;
+
+	if (no_filecache_in_cma && gfp_flags & __GFP_NO_FC_IN_CMA)
 		return false;
 
 #if RESTRIC_ANON

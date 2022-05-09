@@ -3701,6 +3701,11 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 				free_pages,
 				min + z->lowmem_reserve[classzone_idx]);
 		}
+		if (unlikely(no_filecache_in_cma)) {
+			no_filecache_in_cma = false;
+			pr_info("Now filecache can use cma, wm:%ld, cma:%ld\n",
+				min + z->lowmem_reserve[classzone_idx], totalcma_pages);
+		}
 		return false;
 	}
 #else
