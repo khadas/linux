@@ -19,7 +19,7 @@ void sirq_out_hook(unsigned int cpu, unsigned long long tin, void *p);
 void aml_wdt_disable_dbg(void);
 void  notrace __arch_cpu_idle_enter(void);
 void  notrace __arch_cpu_idle_exit(void);
-void notrace smc_trace_start(unsigned long smcid);
-void notrace smc_trace_stop(void);
+void notrace smc_trace_start(unsigned long smcid, unsigned long value, bool noret);
+void notrace smc_trace_stop(unsigned long smcid, unsigned long value);
 int notrace in_irq_trace(void);
 #endif

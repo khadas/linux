@@ -93,6 +93,7 @@ const char *record_name[] = {
 	"IO-SCHED-SWITCH",
 	"IO-SMC-IN",
 	"IO-SMC-OUT",
+	"IO-SMC-NORET-IN",
 };
 
 void reg_check_init(void)
@@ -329,6 +330,7 @@ void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
 	case PSTORE_FLAG_IO_TAG:
 	case PSTORE_FLAG_IO_SMC_IN:
 	case PSTORE_FLAG_IO_SMC_OUT:
+	case PSTORE_FLAG_IO_SMC_NORET_IN:
 		pstore_io_rw_dump(rec, s);
 		break;
 	case PSTORE_FLAG_IO_SCHED_SWITCH:
@@ -493,6 +495,7 @@ static void notrace __pstore_ftrace_dump_old(struct pstore_ftrace_record *rec)
 	case PSTORE_FLAG_IO_TAG:
 	case PSTORE_FLAG_IO_SMC_IN:
 	case PSTORE_FLAG_IO_SMC_OUT:
+	case PSTORE_FLAG_IO_SMC_NORET_IN:
 		__pstore_io_rw_dump(rec);
 		break;
 	case PSTORE_FLAG_IO_SCHED_SWITCH:
@@ -586,18 +589,8 @@ void __arm_smccc_smc_glue(unsigned long a0, unsigned long a1,
 			unsigned long a5, unsigned long a6, unsigned long a7,
 			struct arm_smccc_res *res, struct arm_smccc_quirk *quirk)
 {
-	int not_in_idle = current->pid != 0;
-
-	if (not_in_idle)
-		preempt_disable_notrace();
-
-	pstore_ftrace_io_smc_in(a0, a1);
-
+	smc_trace_start(a0, a1, is_noret_smcid(a0));
 	__arm_smccc_smc(a0, a1, a2, a3, a4, a5, a6, a7, res, quirk);
-
-	pstore_ftrace_io_smc_out(a0, a1);
-
-	if (not_in_idle)
-		preempt_enable_notrace();
+	smc_trace_stop(a0, a1);
 }
 EXPORT_SYMBOL(__arm_smccc_smc_glue);
