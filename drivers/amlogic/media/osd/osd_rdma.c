@@ -1107,6 +1107,11 @@ static unsigned int disable_osd_rdma_reset;
 module_param(disable_osd_rdma_reset, uint, 0664);
 MODULE_PARM_DESC(disable_osd_rdma_reset, "disable_osd_rdma_reset");
 
+int get_rdma_irq_done_line(u32 vpp_index)
+{
+	return rdma_done_line[VIU1];
+}
+
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 static int osd_reset_rdma_handle = -1;
 
@@ -1538,11 +1543,6 @@ static void osd_reset_rdma_func(u32 reset_bit)
 	} else {
 		rdma_clear(osd_reset_rdma_handle);
 	}
-}
-
-int get_rdma_irq_done_line(u32 vpp_index)
-{
-	return rdma_done_line[VIU1];
 }
 
 static void osd_rdma_irq(void *arg)
