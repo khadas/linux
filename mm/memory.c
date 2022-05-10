@@ -4005,7 +4005,7 @@ unlock:
 	return 0;
 }
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 static bool __restore_locked_page(struct page *page, struct vm_area_struct *vma,
 			 unsigned long addr, void *arg)
 {
@@ -4062,11 +4062,11 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		.flags = flags,
 		.pgoff = linear_page_index(vma, address),
 		.gfp_mask = __get_fault_gfp_mask(vma),
-	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 		.pte  = NULL,
 	#endif
 	};
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 	struct address_space *mapping = NULL;
 #endif
 	unsigned int dirty = flags & FAULT_FLAG_WRITE;
@@ -4139,7 +4139,7 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		}
 	}
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 	ret = handle_pte_fault(&vmf);
 	/* Android lock it but not access it */
 	if (vma->vm_file && !(vma->vm_flags & VM_LOCKED))

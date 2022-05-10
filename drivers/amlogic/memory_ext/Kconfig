@@ -108,3 +108,14 @@ config AMLOGIC_MEM_DEBUG
 	help
 		Memory debug which hacking to kernel mm source.
 		Enable if doubt.
+
+config AMLOGIC_PIN_LOCKED_FILE
+	bool "Amlogic pin locked file"
+	depends on AMLOGIC_MEMORY_EXTEND
+	default n
+	help
+		If we pin a file in android, the whole daa of this
+		file will be loaded to DDR, but most of these data
+		may not be used, this caused memory waste.
+		delay mark mlocked flags for unevictable pages until
+		it has been faulted.
