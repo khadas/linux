@@ -1554,6 +1554,7 @@ static int osd_open(struct fb_info *info, int arg)
 	struct osd_fb_dev_s *fbdev;
 	struct fb_fix_screeninfo *fix = NULL;
 	int ret = 0;
+	static int clkc_set;
 
 	fbdev = (struct osd_fb_dev_s *)info->par;
 	fbdev->open_count++;
@@ -1564,17 +1565,17 @@ static int osd_open(struct fb_info *info, int arg)
 
 	fb_index = fbdev->fb_index;
 	if (osd_meson_dev.has_viu2 &&
-	    fb_index == osd_meson_dev.viu2_index) {
+	    fb_index == osd_meson_dev.viu2_index && !clkc_set) {
 		int vpu_clkc_rate;
-		if (osd_get_logo_index() != LOGO_DEV_VIU2_OSD0) {
-			/* select mux0, if select mux1, mux0 must be set */
-			clk_prepare_enable(osd_meson_dev.vpu_clkc);
-			clk_set_rate(osd_meson_dev.vpu_clkc, CUR_VPU_CLKC_CLK);
-			vpu_clkc_rate = clk_get_rate(osd_meson_dev.vpu_clkc);
-			osd_log_info("vpu clkc clock is %d MHZ\n",
-				     vpu_clkc_rate / 1000000);
-		}
+
+		/* select mux0, if select mux1, mux0 must be set */
+		clk_prepare_enable(osd_meson_dev.vpu_clkc);
+		clk_set_rate(osd_meson_dev.vpu_clkc, CUR_VPU_CLKC_CLK);
+		vpu_clkc_rate = clk_get_rate(osd_meson_dev.vpu_clkc);
+		osd_log_info("vpu clkc clock is %d MHZ\n",
+			     vpu_clkc_rate / 1000000);
 		osd_init_viu2();
+		clkc_set = 1;
 	}
 	if (osd_meson_dev.osd_count <= fb_index)
 		return -1;
@@ -1959,8 +1960,12 @@ static int osd_release(struct fb_info *info, int arg)
 	} else if (fbdev->open_count == 1) {
 		osd_log_info("%s:index=%d,open_count=%d\n",
 			     __func__, fbdev->fb_index, fbdev->open_count);
+		/* independent VIU2 and display device count < 2,
+		 * release clkc
+		 */
 		if (osd_meson_dev.has_viu2 &&
-		    fbdev->fb_index == osd_meson_dev.viu2_index)
+		    fbdev->fb_index == osd_meson_dev.viu2_index &&
+		    osd_hw.display_dev_cnt < 2)
 			clk_disable_unprepare(osd_meson_dev.vpu_clkc);
 		osd_hw.powered[fbdev->fb_index] = 0;
 	}
