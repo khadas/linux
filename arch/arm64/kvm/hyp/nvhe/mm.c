@@ -183,8 +183,10 @@ int hyp_map_vectors(void)
 	phys_addr_t phys;
 	void *bp_base;
 
-	if (!cpus_have_const_cap(ARM64_SPECTRE_V3A))
+	if (!kvm_system_needs_idmapped_vectors()) {
+		__hyp_bp_vect_base = __bp_harden_hyp_vecs;
 		return 0;
+	}
 
 	phys = __hyp_pa(__bp_harden_hyp_vecs);
 	bp_base = (void *)__pkvm_create_private_mapping(phys,
@@ -329,6 +331,12 @@ static void *admit_host_page(void *arg)
 int refill_memcache(struct kvm_hyp_memcache *mc, unsigned long min_pages,
 		    struct kvm_hyp_memcache *host_mc)
 {
-	return __topup_hyp_memcache(mc, min_pages, admit_host_page,
-				    hyp_virt_to_phys, host_mc);
+	struct kvm_hyp_memcache tmp = *host_mc;
+	int ret;
+
+	ret =  __topup_hyp_memcache(mc, min_pages, admit_host_page,
+				    hyp_virt_to_phys, &tmp);
+	*host_mc = tmp;
+
+	return ret;
 }

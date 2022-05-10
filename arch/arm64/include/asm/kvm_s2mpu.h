@@ -12,6 +12,10 @@
 #include <asm/kvm_mmu.h>
 
 #define S2MPU_MMIO_SIZE				SZ_64K
+#define SYSMMU_SYNC_MMIO_SIZE			SZ_64K
+#define SYSMMU_SYNC_S2_OFFSET			SZ_32K
+#define SYSMMU_SYNC_S2_MMIO_SIZE		(SYSMMU_SYNC_MMIO_SIZE - \
+						 SYSMMU_SYNC_S2_OFFSET)
 
 #define NR_VIDS					8
 #define NR_CTX_IDS				8
@@ -24,6 +28,7 @@
 #define REG_NS_INTERRUPT_ENABLE_PER_VID_SET	0x20
 #define REG_NS_INTERRUPT_CLEAR			0x2c
 #define REG_NS_VERSION				0x60
+#define REG_NS_INFO				0x64
 #define REG_NS_STATUS				0x68
 #define REG_NS_NUM_CONTEXT			0x100
 #define REG_NS_CONTEXT_CFG_VALID_VID		0x104
@@ -35,6 +40,10 @@
 #define REG_NS_FAULT_PA_LOW(vid)		(0x2004 + ((vid) * 0x20))
 #define REG_NS_FAULT_PA_HIGH(vid)		(0x2008 + ((vid) * 0x20))
 #define REG_NS_FAULT_INFO(vid)			(0x2010 + ((vid) * 0x20))
+#define REG_NS_READ_MPTC			0x3000
+#define REG_NS_READ_MPTC_TAG_PPN		0x3004
+#define REG_NS_READ_MPTC_TAG_OTHERS		0x3008
+#define REG_NS_READ_MPTC_DATA			0x3010
 #define REG_NS_L1ENTRY_L2TABLE_ADDR(vid, gb)	(0x4000 + ((vid) * 0x200) + ((gb) * 0x8))
 #define REG_NS_L1ENTRY_ATTR(vid, gb)		(0x4004 + ((vid) * 0x200) + ((gb) * 0x8))
 
@@ -42,15 +51,30 @@
 #define CTRL0_INTERRUPT_ENABLE			BIT(1)
 #define CTRL0_FAULT_RESP_TYPE_SLVERR		BIT(2) /* for v8 */
 #define CTRL0_FAULT_RESP_TYPE_DECERR		BIT(2) /* for v9 */
+#define CTRL0_MASK				(CTRL0_ENABLE | \
+						 CTRL0_INTERRUPT_ENABLE | \
+						 CTRL0_FAULT_RESP_TYPE_SLVERR | \
+						 CTRL0_FAULT_RESP_TYPE_DECERR)
 
 #define CTRL1_DISABLE_CHK_S1L1PTW		BIT(0)
 #define CTRL1_DISABLE_CHK_S1L2PTW		BIT(1)
 #define CTRL1_ENABLE_PAGE_SIZE_AWARENESS	BIT(2)
 #define CTRL1_DISABLE_CHK_USER_MATCHED_REQ	BIT(3)
+#define CTRL1_MASK				(CTRL1_DISABLE_CHK_S1L1PTW | \
+						 CTRL1_DISABLE_CHK_S1L2PTW | \
+						 CTRL1_ENABLE_PAGE_SIZE_AWARENESS | \
+						 CTRL1_DISABLE_CHK_USER_MATCHED_REQ)
 
 #define CFG_MPTW_CACHE_OVERRIDE			BIT(0)
+#define CFG_MPTW_CACHE_VALUE			GENMASK(7, 4)
 #define CFG_MPTW_QOS_OVERRIDE			BIT(8)
+#define CFG_MPTW_QOS_VALUE			GENMASK(15, 12)
 #define CFG_MPTW_SHAREABLE			BIT(16)
+#define CFG_MASK				(CFG_MPTW_CACHE_OVERRIDE | \
+						 CFG_MPTW_CACHE_VALUE | \
+						 CFG_MPTW_QOS_OVERRIDE | \
+						 CFG_MPTW_QOS_VALUE | \
+						 CFG_MPTW_SHAREABLE)
 
 /* For use with hi_lo_readq_relaxed(). */
 #define REG_NS_FAULT_PA_HIGH_LOW(vid)		REG_NS_FAULT_PA_LOW(vid)
@@ -67,6 +91,8 @@
 #define VERSION_CHECK_MASK			(VERSION_MAJOR_ARCH_VER_MASK | \
 						 VERSION_MINOR_ARCH_VER_MASK | \
 						 VERSION_REV_ARCH_VER_MASK)
+
+#define INFO_NUM_SET_MASK			GENMASK(15, 0)
 
 #define STATUS_BUSY				BIT(0)
 #define STATUS_ON_INVALIDATING			BIT(1)
@@ -90,14 +116,31 @@
 #define FAULT_INFO_LEN_MASK			GENMASK(19, 16)
 #define FAULT_INFO_ID_MASK			GENMASK(15, 0)
 
-#define L1ENTRY_L2TABLE_ADDR(pa)		((pa) >> 4)
+#define L1ENTRY_L2TABLE_ADDR_SHIFT		4
+#define L1ENTRY_L2TABLE_ADDR(pa)		((pa) >> L1ENTRY_L2TABLE_ADDR_SHIFT)
+
+#define READ_MPTC_WAY_MASK			GENMASK(18, 16)
+#define READ_MPTC_SET_MASK			GENMASK(15, 0)
+#define READ_MPTC_MASK				(READ_MPTC_WAY_MASK | READ_MPTC_SET_MASK)
+#define READ_MPTC_WAY(way)			FIELD_PREP(READ_MPTC_WAY_MASK, (way))
+#define READ_MPTC_SET(set)			FIELD_PREP(READ_MPTC_SET_MASK, (set))
+#define READ_MPTC(set, way)			(READ_MPTC_SET(set) | READ_MPTC_WAY(way))
+#define READ_MPTC_TAG_PPN_MASK			GENMASK(23, 0)
+#define READ_MPTC_TAG_OTHERS_VID_MASK		GENMASK(10, 8)
+#define READ_MPTC_TAG_OTHERS_GRAN_MASK		GENMASK(5, 4)
+#define READ_MPTC_TAG_OTHERS_VALID_BIT		BIT(0)
+#define READ_MPTC_TAG_OTHERS_MASK		(READ_MPTC_TAG_OTHERS_VID_MASK | \
+						 READ_MPTC_TAG_OTHERS_GRAN_MASK | \
+						 READ_MPTC_TAG_OTHERS_VALID_BIT)
 
 #define L1ENTRY_ATTR_L2TABLE_EN			BIT(0)
 #define L1ENTRY_ATTR_GRAN_4K			0x0
 #define L1ENTRY_ATTR_GRAN_64K			0x1
 #define L1ENTRY_ATTR_GRAN_2M			0x2
-#define L1ENTRY_ATTR_PROT(prot)			FIELD_PREP(GENMASK(2, 1), prot)
-#define L1ENTRY_ATTR_GRAN(gran)			FIELD_PREP(GENMASK(5, 4), gran)
+#define L1ENTRY_ATTR_PROT_MASK			GENMASK(2, 1)
+#define L1ENTRY_ATTR_GRAN_MASK			GENMASK(5, 4)
+#define L1ENTRY_ATTR_PROT(prot)			FIELD_PREP(L1ENTRY_ATTR_PROT_MASK, prot)
+#define L1ENTRY_ATTR_GRAN(gran)			FIELD_PREP(L1ENTRY_ATTR_GRAN_MASK, gran)
 #define L1ENTRY_ATTR_1G(prot)			L1ENTRY_ATTR_PROT(prot)
 #define L1ENTRY_ATTR_L2(gran)			(L1ENTRY_ATTR_GRAN(gran) | \
 						 L1ENTRY_ATTR_L2TABLE_EN)
@@ -123,9 +166,17 @@ static_assert(SMPT_GRAN <= PAGE_SIZE);
 #define SMPT_ELEMS_PER_WORD			(SMPT_WORD_SIZE * SMPT_ELEMS_PER_BYTE)
 #define SMPT_WORD_BYTE_RANGE			(SMPT_GRAN * SMPT_ELEMS_PER_WORD)
 #define SMPT_NUM_ELEMS				(SZ_1G / SMPT_GRAN)
-#define SMPT_NUM_WORDS				(SMPT_SIZE / SMPT_WORD_SIZE)
 #define SMPT_SIZE				(SMPT_NUM_ELEMS / SMPT_ELEMS_PER_BYTE)
+#define SMPT_NUM_WORDS				(SMPT_SIZE / SMPT_WORD_SIZE)
+#define SMPT_NUM_PAGES				(SMPT_SIZE / PAGE_SIZE)
 #define SMPT_ORDER				get_order(SMPT_SIZE)
+
+/* SysMMU_SYNC registers, relative to SYSMMU_SYNC_S2_OFFSET. */
+#define REG_NS_SYNC_CMD				0x0
+#define REG_NS_SYNC_COMP			0x4
+
+#define SYNC_CMD_SYNC				BIT(0)
+#define SYNC_COMP_COMPLETE			BIT(0)
 
 /*
  * Iterate over S2MPU gigabyte regions. Skip those that cannot be modified
@@ -144,21 +195,6 @@ enum s2mpu_version {
 	S2MPU_VERSION_9 = 0x20000000,
 };
 
-enum s2mpu_power_state {
-	S2MPU_POWER_ALWAYS_ON = 0,
-	S2MPU_POWER_ON,
-	S2MPU_POWER_OFF,
-};
-
-struct s2mpu {
-	phys_addr_t pa;
-	void __iomem *va;
-	u32 version;
-	enum s2mpu_power_state power_state;
-	u32 power_domain_id;
-	u32 context_cfg_valid_vid;
-};
-
 enum mpt_prot {
 	MPT_PROT_NONE	= 0,
 	MPT_PROT_R	= BIT(0),
@@ -174,29 +210,21 @@ static const u64 mpt_prot_doubleword[] = {
 	[MPT_PROT_RW]   = 0xffffffffffffffff,
 };
 
-struct fmpt {
-	u32 *smpt;
-	bool gran_1g;
-	enum mpt_prot prot;
-};
-
-struct mpt {
-	struct fmpt fmpt[NR_GIGABYTES];
-};
-
 enum mpt_update_flags {
 	MPT_UPDATE_L1 = BIT(0),
 	MPT_UPDATE_L2 = BIT(1),
 };
 
-extern size_t kvm_nvhe_sym(kvm_hyp_nr_s2mpus);
-#define kvm_hyp_nr_s2mpus kvm_nvhe_sym(kvm_hyp_nr_s2mpus)
+struct fmpt {
+	u32 *smpt;
+	bool gran_1g;
+	enum mpt_prot prot;
+	enum mpt_update_flags flags;
+};
 
-extern struct s2mpu *kvm_nvhe_sym(kvm_hyp_s2mpus);
-#define kvm_hyp_s2mpus kvm_nvhe_sym(kvm_hyp_s2mpus)
-
-extern struct mpt kvm_nvhe_sym(kvm_hyp_host_mpt);
-#define kvm_hyp_host_mpt kvm_nvhe_sym(kvm_hyp_host_mpt)
+struct mpt {
+	struct fmpt fmpt[NR_GIGABYTES];
+};
 
 /* Set protection bits of SMPT in a given range without using memset. */
 static inline void __set_smpt_range_slow(u32 *smpt, size_t start_gb_byte,
@@ -277,24 +305,28 @@ static inline bool __is_smpt_uniform(u32 *smpt, enum mpt_prot prot)
  * Returns flags specifying whether L1/L2 changes need to be made visible
  * to the device.
  */
-static inline enum mpt_update_flags
-__set_fmpt_range(struct fmpt *fmpt, size_t start_gb_byte, size_t end_gb_byte,
-		 enum mpt_prot prot)
+static inline void __set_fmpt_range(struct fmpt *fmpt, size_t start_gb_byte,
+				    size_t end_gb_byte, enum mpt_prot prot)
 {
 	if (start_gb_byte == 0 && end_gb_byte >= SZ_1G) {
 		/* Update covers the entire GB region. */
-		if (fmpt->gran_1g && fmpt->prot == prot)
-			return 0;
+		if (fmpt->gran_1g && fmpt->prot == prot) {
+			fmpt->flags = 0;
+			return;
+		}
 
 		fmpt->gran_1g = true;
 		fmpt->prot = prot;
-		return MPT_UPDATE_L1;
+		fmpt->flags = MPT_UPDATE_L1;
+		return;
 	}
 
 	if (fmpt->gran_1g) {
 		/* GB region currently uses 1G mapping. */
-		if (fmpt->prot == prot)
-			return 0;
+		if (fmpt->prot == prot) {
+			fmpt->flags = 0;
+			return;
+		}
 
 		/*
 		 * Range has different mapping than the rest of the GB.
@@ -304,19 +336,22 @@ __set_fmpt_range(struct fmpt *fmpt, size_t start_gb_byte, size_t end_gb_byte,
 		__set_smpt_range(fmpt->smpt, 0, start_gb_byte, fmpt->prot);
 		__set_smpt_range(fmpt->smpt, start_gb_byte, end_gb_byte, prot);
 		__set_smpt_range(fmpt->smpt, end_gb_byte, SZ_1G, fmpt->prot);
-		return MPT_UPDATE_L1 | MPT_UPDATE_L2;
+		fmpt->flags = MPT_UPDATE_L1 | MPT_UPDATE_L2;
+		return;
 	}
 
 	/* GB region currently uses PAGE_SIZE mapping. */
 	__set_smpt_range(fmpt->smpt, start_gb_byte, end_gb_byte, prot);
 
 	/* Check if the entire GB region has the same prot bits. */
-	if (!__is_smpt_uniform(fmpt->smpt, prot))
-		return MPT_UPDATE_L2;
+	if (!__is_smpt_uniform(fmpt->smpt, prot)) {
+		fmpt->flags = MPT_UPDATE_L2;
+		return;
+	}
 
 	fmpt->gran_1g = true;
 	fmpt->prot = prot;
-	return MPT_UPDATE_L1;
+	fmpt->flags = MPT_UPDATE_L1;
 }
 
 #endif /* __ARM64_KVM_S2MPU_H__ */

@@ -31,6 +31,7 @@
 #include <linux/tick.h>
 #include <trace/events/power.h>
 #include <trace/hooks/cpufreq.h>
+#include <trace/hooks/thermal.h>
 
 static LIST_HEAD(cpufreq_policy_list);
 
@@ -532,8 +533,10 @@ static unsigned int __resolve_freq(struct cpufreq_policy *policy,
 		unsigned int target_freq, unsigned int relation)
 {
 	unsigned int idx;
+	unsigned int old_target_freq = target_freq;
 
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
+	trace_android_vh_cpufreq_resolve_freq(policy, &target_freq, old_target_freq);
 
 	if (!cpufreq_driver->target_index)
 		return target_freq;
@@ -1528,8 +1531,10 @@ static int cpufreq_online(unsigned int cpu)
 
 	kobject_uevent(&policy->kobj, KOBJ_ADD);
 
-	if (cpufreq_thermal_control_enabled(cpufreq_driver))
+	if (cpufreq_thermal_control_enabled(cpufreq_driver)) {
 		policy->cdev = of_cpufreq_cooling_register(policy);
+		trace_android_vh_thermal_register(policy);
+	}
 
 	pr_debug("initialization complete\n");
 
@@ -1624,6 +1629,7 @@ static int cpufreq_offline(unsigned int cpu)
 
 	if (cpufreq_thermal_control_enabled(cpufreq_driver)) {
 		cpufreq_cooling_unregister(policy->cdev);
+		trace_android_vh_thermal_unregister(policy);
 		policy->cdev = NULL;
 	}
 
@@ -2099,9 +2105,11 @@ unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
 					unsigned int target_freq)
 {
 	unsigned int freq;
+	unsigned int old_target_freq = target_freq;
 	int cpu;
 
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
+	trace_android_vh_cpufreq_fast_switch(policy, &target_freq, old_target_freq);
 	freq = cpufreq_driver->fast_switch(policy, target_freq);
 
 	if (!freq)
@@ -2258,6 +2266,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 		return -ENODEV;
 
 	target_freq = __resolve_freq(policy, target_freq, relation);
+
+	trace_android_vh_cpufreq_target(policy, &target_freq, old_target_freq);
 
 	pr_debug("target for CPU %u: %u kHz, relation %u, requested %u kHz\n",
 		 policy->cpu, target_freq, relation, old_target_freq);

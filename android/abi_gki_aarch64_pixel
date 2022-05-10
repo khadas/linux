@@ -684,7 +684,7 @@
   find_get_pid
   _find_next_bit
   find_task_by_vpid
-  find_vma
+  __find_vma
   finish_wait
   flush_work
   flush_workqueue
@@ -1028,6 +1028,7 @@
   memdup_user_nul
   memmove
   memremap
+  mem_section
   memset
   memstart_addr
   memunmap
@@ -1233,7 +1234,6 @@
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
   pfn_is_map_memory
-  pfn_valid
   phy_init
   phy_power_off
   phy_power_on
@@ -1630,7 +1630,6 @@
   spi_sync
   spi_sync_locked
   spi_unregister_controller
-  split_page
   sprintf
   sprint_symbol
   srcu_init_notifier_head
@@ -1963,9 +1962,6 @@
   v4l2_m2m_release
   vabits_actual
   vb2_buffer_done
-  vb2_common_vm_ops
-  vb2_create_framevec
-  vb2_destroy_framevec
   vb2_dma_sg_memops
   vb2_dqbuf
   vb2_fop_mmap
@@ -2015,9 +2011,6 @@
   vmalloc_user
   vmap
   vmf_insert_pfn_prot
-  vm_map_pages
-  vm_map_ram
-  vm_unmap_ram
   vprintk
   vring_del_virtqueue
   vring_interrupt
@@ -2059,3 +2052,23 @@
   xhci_resume
   xhci_run
   xhci_suspend
+
+# preserved by --additions-only
+  __bitmap_equal
+  down_read_trylock
+  of_devfreq_cooling_register_power
+  pkvm_iommu_finalize
+  pkvm_iommu_resume
+  pkvm_iommu_s2mpu_register
+  pkvm_iommu_suspend
+  pkvm_iommu_sysmmu_sync_register
+  shmem_file_setup
+  split_page
+  system_long_wq
+  thermal_zone_get_temp
+  vb2_common_vm_ops
+  vb2_create_framevec
+  vb2_destroy_framevec
+  vm_map_pages
+  vm_map_ram
+  vm_unmap_ram
