@@ -354,6 +354,10 @@ static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 		if (mpll_freq > AML_MPLL_FREQ_MIN)
 			break;
 	}
+	//Currently for tdmB/spdifab with the samesource while the tdma running
+	//tdmb sysclk 12288000  tdma sysclk 8192000
+	if (freq % 8000 == 0)
+		ratio = 491520000 / freq;
 
 	return ratio;
 }
