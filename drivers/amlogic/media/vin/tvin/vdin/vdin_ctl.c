@@ -3092,10 +3092,10 @@ void vdin_set_all_regs(struct vdin_dev_s *devp)
 			  devp->bt_path);
 
 	/* for t7 vdin2 write meta data */
-	if (devp->dtdata->hw_ver == VDIN_HW_T7) {
+	if (devp->dtdata->hw_ver == VDIN_HW_T7 && devp->index == 0) {
 		vdin_wrmif2_initial(devp);
 		vdin_wrmif2_addr_update(devp);
-		vdin_wrmif2_enable(devp, 0);
+		vdin_wrmif2_enable(devp, 0, 0);
 	}
 }
 
@@ -3516,7 +3516,7 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 	else
 		wr(offset, VDIN_WR_CTRL, 0x0bc01000 | def_canvas);
 
-	vdin_wrmif2_enable(devp, 0);
+	vdin_wrmif2_enable(devp, 0, 0);
 
 	/* disable clock of blackbar, histogram, histogram, line fifo1, matrix,
 	 * hscaler, pre hscaler, clock0
@@ -5645,10 +5645,10 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 	if (color_range_force)
 		devp->prop.color_fmt_range =
 		tvin_get_force_fmt_range(devp->prop.color_format);
-	if (devp->dtdata->hw_ver == VDIN_HW_T7 &&
+	if (devp->dtdata->hw_ver == VDIN_HW_T7 && devp->index == 0 &&
 	    (devp->irq_cnt == 1 || devp->irq_cnt == 10)) {
-		vdin_wrmif2_enable(devp, 0);
-		vdin_wrmif2_enable(devp, 1);
+		vdin_wrmif2_enable(devp, 0, devp->flags & VDIN_FLAG_RDMA_ENABLE);
+		vdin_wrmif2_enable(devp, 1, devp->flags & VDIN_FLAG_RDMA_ENABLE);
 	}
 }
 

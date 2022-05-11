@@ -22,7 +22,7 @@
 extern unsigned int dv_dbg_log;
 extern unsigned int dv_dbg_log_du;
 
-void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en);
+void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enable);
 void vdin_wrmif2_initial(struct vdin_dev_s *devp);
 void vdin_wrmif2_addr_update(struct vdin_dev_s *devp);
 irqreturn_t vdin_wrmif2_dvmeta_wr_done_isr(int irq, void *dev_id);
