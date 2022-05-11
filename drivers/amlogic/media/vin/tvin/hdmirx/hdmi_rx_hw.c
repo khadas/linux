@@ -5751,9 +5751,10 @@ void rx_check_ecc_error(void)
 			  ecc_pkt_cnt);
 	if (rx.ecc_err && ecc_pkt_cnt) {
 		rx.ecc_err_frames_cnt++;
-		if (rx.ecc_err_frames_cnt % 100 == 0)
+		if (rx.ecc_err_frames_cnt % 20 == 0)
 			rx_pr("ecc:%d\n", rx.ecc_err);
-		//skip_frame(2);
+		if (rx.ecc_err == ecc_pkt_cnt)
+			skip_frame(2);
 	} else {
 		rx.ecc_err_frames_cnt = 0;
 	}
