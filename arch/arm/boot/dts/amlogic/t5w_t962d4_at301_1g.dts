@@ -657,8 +657,8 @@
 			0x0 0x0
 			0x0 0x0
 			0xff688000 0x18000
-			0xff646000 0x1fff>;
-		//	0xfe008000 0x280 0x334>;
+			0xff646000 0x1fff
+			0xfe008280 0xb4>;
 	};
 
 	aml_dtv_demod {
@@ -1651,4 +1651,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins>;
 	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
+};
+
+&cma_shrinker {
+	free = <7680 24288 28528 32600 32768 36624>;
 };

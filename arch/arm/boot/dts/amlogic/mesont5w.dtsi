@@ -189,18 +189,10 @@
 	arm_pmu {
 		compatible = "arm,armv8-pmuv3";
 		private-interrupts;
-		/* clusterb-enabled; */
-		interrupts = <GIC_SPI 237 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
-
-		reg = <0xff634680 0x4>;
-		cpumasks = <0xf>;
-		/* default 10ms */
-		relax-timer-ns = <10000000>;
-		/* default 10000us */
-		max-wait-cnt = <10000>;
+		interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 231 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	vbat: fixedregulator0 {
@@ -276,6 +268,13 @@
 		out_base_func = <0x82000021>;
 		inout_size_func = <0x8200002a>;
 		reserve_mem_size = <0x00300000>;
+	};
+
+	cma_shrinker: cma_shrinker {
+		compatible = "amlogic, cma-shrinker";
+		status = "okay";
+		adj  = <0 100 200 250 900 950>;
+		free = <8192 12288 16384 24576 28672 32768>;
 	};
 
 	psci {
@@ -567,7 +566,7 @@
 					<0x40 0x4>;
 				#irblaster-cells = <2>;
 				interrupts = <GIC_SPI 198 IRQ_TYPE_EDGE_RISING>;
-				status = "disabled";
+				status = "okay";
 			};
 
 			pinctrl_aobus: pinctrl@14 {
@@ -1469,7 +1468,20 @@
 			afbce_bit_mode = <0x11>;
 			/* urgent_en; */
 			double_write_en;
-			v4l_support_en;
+			/* vdin v4l2 */
+			v4l_support_en = <0>;
+			v4l_vd_num = <70>;
+			/* v4l2 capability */
+			driver   = "vdinvideo";
+			card     = "mesont5w";
+			bus_info = "vdin0 v4l2";
+			version  = <0x20220120>;
+			/* fe_ports refer to tvin.h */
+			fe_ports = <0x00001001   /* CVBS1 */
+				0x00004000   /* HDMI0 */
+				0x00004001   /* HDMI1 */
+				0x00004002>; /* HDMI2 */
+			/* vdin v4l2 end */
 		};
 
 		vdin1: vdin1 {/*common define*/
@@ -1489,6 +1501,23 @@
 			 */
 			vdin_id = <1>;
 			tv_bit_mode = <0x15>;
+			/* vdin v4l2 */
+			v4l_support_en = <0>;
+			v4l_vd_num = <71>;
+			/* v4l2 capability */
+			driver   = "vdinvideo";
+			card     = "mesont5w";
+			bus_info = "vdin1 v4l2";
+			version  = <0x20220120>;
+			/* fe_ports refer to tvin.h */
+			fe_ports = <0x0000a002   /* WB0_VD1 */
+				0x0000a003   /* WB0_VD2 */
+				0x0000a004   /* WB0_OSD1 */
+				0x0000a005   /* WB0_OSD2 */
+				0x0000a006   /* WB0_VPP */
+				0x0000a007   /* WB0_VDIN_BIST */
+				0x0000a008>; /* WB0_POST_BLEND */
+			/* vdin v4l2 end */
 		};
 
 		di_local {
@@ -1822,10 +1851,14 @@
 
 		vpu_security {
 			compatible = "amlogic, meson-t3, vpu_security";
-			status = "disabled"; /* disabled for error irq num */
-			interrupts = <GIC_SPI 220 IRQ_TYPE_EDGE_RISING>;
+			status = "okay";
+			interrupts = <GIC_SPI 90 IRQ_TYPE_EDGE_RISING>;
 			interrupt-names = "vpu_security";
 		};
+	};
+
+	chosen {
+		kaslr-seed = <0x0 0x0>;
 	};
 }; /* end of / */
 
