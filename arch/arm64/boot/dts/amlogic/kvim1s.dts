@@ -748,8 +748,8 @@
 		status = "okay";
 		scan_period = <20>;
 		key_num = <1>;
-		key_name = "bluetooth";
-		key_code = <600>;
+		key_name = "power";
+		key_code = <116>;
 		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
