@@ -2438,9 +2438,11 @@ static bool dw_dp_video_need_vsc_sdp(struct dw_dp *dp, int stream_id)
 	return false;
 }
 
-static int dw_dp_video_set_msa(struct dw_dp *dp, int stream_id, u8 color_format, u8 bpc,
-			       u16 vstart, u16 hstart)
+static int dw_dp_video_set_msa(struct dw_dp *dp, struct drm_display_mode *mode, int stream_id,
+			       u8 color_format, u8 bpc)
 {
+	u32 vstart = mode->crtc_vtotal - mode->crtc_vsync_start;
+	u32 hstart = mode->crtc_htotal - mode->crtc_hsync_start;
 	u16 misc = 0;
 
 	if (dw_dp_video_need_vsc_sdp(dp, stream_id))
@@ -2481,6 +2483,9 @@ static int dw_dp_video_set_msa(struct dw_dp *dp, int stream_id, u8 color_format,
 	default:
 		return -EINVAL;
 	}
+
+	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) && !(mode->vtotal % 2))
+		misc |= DP_MSA_MISC_INTERLACE_VTOTAL_EVEN;
 
 	regmap_write(dp->regmap, DPTX_VIDEO_MSA1_N(stream_id),
 		     FIELD_PREP(VSTART, vstart) | FIELD_PREP(HSTART, hstart));
@@ -2674,8 +2679,6 @@ static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int s
 	u8 vic;
 	u32 hactive, hblank, h_sync_width, h_front_porch;
 	u32 vactive, vblank, v_sync_width, v_front_porch;
-	u32 vstart = mode->crtc_vtotal - mode->crtc_vsync_start;
-	u32 hstart = mode->crtc_htotal - mode->crtc_hsync_start;
 	u32 hblank_interval;
 	u32 value;
 	int ret;
@@ -2684,7 +2687,7 @@ static int dw_dp_video_enable(struct dw_dp *dp, struct dw_dp_video *video, int s
 	if (ret)
 		return ret;
 
-	ret = dw_dp_video_set_msa(dp, stream_id, color_format, bpc, vstart, hstart);
+	ret = dw_dp_video_set_msa(dp, mode, stream_id, color_format, bpc);
 	if (ret)
 		return ret;
 
@@ -3168,6 +3171,9 @@ dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 
 	if (!dw_dp_bandwidth_ok(dp, &m, min_bpp, link->lanes, link->max_rate))
 		return MODE_CLOCK_HIGH;
+
+	if (m.flags & DRM_MODE_FLAG_DBLCLK)
+		return MODE_H_ILLEGAL;
 
 	return MODE_OK;
 }
@@ -4133,6 +4139,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT |
 				    DRM_CONNECTOR_POLL_DISCONNECT;
 	connector->ycbcr_420_allowed = true;
+	connector->interlace_allowed = true;
 
 	ret = drm_connector_init(bridge->dev, connector,
 				 &dw_dp_connector_funcs,
