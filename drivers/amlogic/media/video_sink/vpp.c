@@ -1306,6 +1306,7 @@ static int vpp_set_filters_internal
 	u32 min_aspect_ratio_out, max_aspect_ratio_out;
 	u32 cur_super_debug = 0;
 	int is_larger_4k50hz = 0;
+	int is_larger_1080p120hz = 0;
 	u32 src_width_max, src_height_max;
 	bool afbc_support;
 	bool crop_adjust = false;
@@ -2210,16 +2211,25 @@ RESTART:
 	 * 4tap pre-hscaler bandwidth issue, need used old pre hscaler
 	 */
 	}
-	if (vinfo->sync_duration_den) {
-		if (vinfo->width >= 3840 &&
-		    vinfo->height >= 2160 &&
-		    (vinfo->sync_duration_num /
-		    vinfo->sync_duration_den >= 50))
-			is_larger_4k50hz = 1;
+	if (is_meson_sc2_cpu() || is_meson_t5_cpu() ||
+		is_meson_t5d_cpu()) {
+		if (vinfo->sync_duration_den) {
+			if (vinfo->width >= 3840 &&
+			    vinfo->height >= 2160 &&
+			    (vinfo->sync_duration_num /
+			    vinfo->sync_duration_den >= 50))
+				is_larger_4k50hz = 1;
+			if (vinfo->width >= 1920 &&
+			    vinfo->height >= 1080 &&
+			    (vinfo->sync_duration_num /
+			    vinfo->sync_duration_den >= 110))
+				is_larger_1080p120hz = 1;
+		}
 	}
+
 	if (pre_scaler[input->layer_id].pre_hscaler_ntap_set == 0xff) {
 		if (filter->vpp_pre_hsc_en &&
-		    is_larger_4k50hz &&
+		    (is_larger_4k50hz || is_larger_1080p120hz) &&
 		    (height_in >= 2160 * hscaler_input_h_threshold / 100) &&
 		    filter->vpp_vsc_start_phase_step != 0x1000000)
 			pre_scaler[input->layer_id].pre_hscaler_ntap_enable = 0;
