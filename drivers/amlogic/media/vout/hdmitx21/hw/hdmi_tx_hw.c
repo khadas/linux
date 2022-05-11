@@ -1527,6 +1527,18 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 				pr_info("prbs clk :%x\n",
 					hd21_read_reg(phy_status));
 		}
+	} else if (strncmp(tmpbuf, "reauth_dbg", 10) == 0) {
+		ret = kstrtoul(tmpbuf + 10, 10, &value);
+		hdcp_reauth_dbg = value;
+		pr_info("set hdcp_reauth_dbg :%lu\n", hdcp_reauth_dbg);
+	} else if (strncmp(tmpbuf, "streamtype_dbg", 14) == 0) {
+		ret = kstrtoul(tmpbuf + 14, 10, &value);
+		streamtype_dbg = value;
+		pr_info("set streamtype_dbg :%lu\n", streamtype_dbg);
+	} else if (strncmp(tmpbuf, "en_fake_rcv_id", 14) == 0) {
+		ret = kstrtoul(tmpbuf + 14, 10, &value);
+		en_fake_rcv_id = value;
+		pr_info("set en_fake_rcv_id :%lu\n", en_fake_rcv_id);
 	}
 }
 

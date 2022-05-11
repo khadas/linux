@@ -257,6 +257,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	usleep_range(10000, 10010);
 	pr_info("HDMITX: Early Suspend\n");
 	hdmitx21_disable_hdcp(hdev);
+	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
@@ -330,6 +331,7 @@ static int hdmitx_reboot_notifier(struct notifier_block *nb,
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
 	usleep_range(10000, 10010);
 	hdmitx21_disable_hdcp(hdev);
+	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hwop.cntl(hdev, HDMITX_EARLY_SUSPEND_RESUME_CNTL,
 		HDMITX_EARLY_SUSPEND);
@@ -499,20 +501,46 @@ static void edidinfo_detach_to_vinfo(struct hdmitx_dev *hdev)
 	hdmitx_vdev.dv_info = &dv_dummy;
 }
 
-static void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
+void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 {
-	if (get_hdcp2_lstore() & is_rx_hdcp2ver()) {
-		hdev->hdcp_mode = 2;
-		rx_hdcp2_ver = 1;
-		hdcp_mode_set(2);
-	} else {
-		rx_hdcp2_ver = 0;
+	/* lstore: 0 by default, 0x11/0x12 for debug usage
+	 * 0: enable hdcp mode based on stored key and downstream hdcp cap
+	 * priority: hdcp2.x > hdcp1.x
+	 * 0x12: force hdcp2.x
+	 * 0x11: force hdcp1.x
+	 */
+	if (hdev->lstore == 0) {
+		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+			hdev->hdcp_mode = 2;
+			rx_hdcp2_ver = 1;
+			hdcp_mode_set(2);
+		} else {
+			rx_hdcp2_ver = 0;
+			if (get_hdcp1_lstore()) {
+				hdev->hdcp_mode = 1;
+				hdcp_mode_set(1);
+			} else {
+				hdev->hdcp_mode = 0;
+			}
+		}
+	} else if (hdev->lstore & 0x2) {
+		if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
+			hdev->hdcp_mode = 2;
+			rx_hdcp2_ver = 1;
+			hdcp_mode_set(2);
+		} else {
+			rx_hdcp2_ver = 0;
+			hdev->hdcp_mode = 0;
+		}
+	} else if (hdev->lstore & 0x1) {
 		if (get_hdcp1_lstore()) {
 			hdev->hdcp_mode = 1;
 			hdcp_mode_set(1);
 		} else {
 			hdev->hdcp_mode = 0;
 		}
+	} else {
+		pr_info("hdmitx: debug: not enable hdcp as no key stored\n");
 	}
 }
 
@@ -622,6 +650,10 @@ static int set_disp_mode_auto(void)
 	}
 	hdev->output_blank_flag = 1;
 	edidinfo_attach_to_vinfo(hdev);
+	/* wait for TV detect signal stable,
+	 * otherwise hdcp may easily auth fail
+	 */
+	msleep(250);
 	hdmitx21_enable_hdcp(hdev);
 	hdev->ready = 1;
 
@@ -3281,22 +3313,23 @@ static ssize_t hdcp_lstore_show(struct device *dev,
 				char *buf)
 {
 	int pos = 0;
-	int lstore = 0;
+	int lstore = hdmitx21_device.lstore;
 
-	if (get_hdcp2_lstore())
-		lstore |= BIT(1);
-	if (get_hdcp1_lstore())
-		lstore |= BIT(0);
-
-	if ((lstore & BIT(1)) && (lstore & BIT(0))) {
-		pos += snprintf(buf + pos, PAGE_SIZE, "22+14\n");
-		return pos;
+	if (lstore < 0x10) {
+		lstore = 0;
+		if (get_hdcp2_lstore())
+			lstore |= BIT(1);
+		if (get_hdcp1_lstore())
+			lstore |= BIT(0);
 	}
-	if (lstore & BIT(1))
-		pos += snprintf(buf + pos, PAGE_SIZE, "22\n");
-	if (lstore & BIT(0))
-		pos += snprintf(buf + pos, PAGE_SIZE, "14\n");
-
+	if ((lstore & 0x3) == 0x3) {
+		pos += snprintf(buf + pos, PAGE_SIZE, "22+14\n");
+	} else {
+		if (lstore & 0x1)
+			pos += snprintf(buf + pos, PAGE_SIZE, "14\n");
+		if (lstore & 0x2)
+			pos += snprintf(buf + pos, PAGE_SIZE, "22\n");
+	}
 	return pos;
 }
 
@@ -3304,6 +3337,27 @@ static ssize_t hdcp_lstore_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
+	/* debug usage for key store check
+	 * echo value > hdcp_lstore. value can be
+	 * -1: automatically check stored key when enable hdcp
+	 * 0: same as no hdcp key stored
+	 * 11: only hdcp1.x key stored
+	 * 12: only hdcp2.x key stored
+	 * 13: both hdcp1.x and hdcp2.x key stored
+	 */
+	pr_info("hdcp: set lstore as %s\n", buf);
+	if (strncmp(buf, "-1", 2) == 0)
+		hdmitx21_device.lstore = 0x0;
+	if (strncmp(buf, "0", 1) == 0 ||
+		strncmp(buf, "10", 2) == 0)
+		hdmitx21_device.lstore = 0x10;
+	if (strncmp(buf, "11", 2) == 0)
+		hdmitx21_device.lstore = 0x11;
+	if (strncmp(buf, "12", 2) == 0)
+		hdmitx21_device.lstore = 0x12;
+	if (strncmp(buf, "13", 2) == 0)
+		hdmitx21_device.lstore = 0x13;
+
 	return count;
 }
 
@@ -3400,6 +3454,39 @@ static ssize_t hdmi_repeater_tx_show(struct device *dev,
 		!!hdev->repeater_tx);
 
 	return pos;
+}
+
+static ssize_t def_stream_type_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		hdev->def_stream_type);
+
+	return pos;
+}
+
+static ssize_t def_stream_type_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf,
+				      size_t count)
+{
+	u8 val = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		pr_info("set def_stream_type as %d\n", val);
+		if (val == 0 || val == 1)
+			hdev->def_stream_type = val;
+		else
+			pr_info("only accept as 0 or 1\n");
+	}
+
+	return count;
 }
 
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_rptx.h>
@@ -3587,6 +3674,7 @@ static DEVICE_ATTR_RW(fake_plug);
 static DEVICE_ATTR_RW(ready);
 static DEVICE_ATTR_RO(support_3d);
 static DEVICE_ATTR_RO(hdmitx21);
+static DEVICE_ATTR_RW(def_stream_type);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -4139,7 +4227,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		cancel_delayed_work(&hdev->work_cedst);
 	edidinfo_detach_to_vinfo(hdev);
 	rx_hdcp2_ver = 0;
-	pr_debug("plugout\n");
+	pr_info("plugout\n");
 	if (!!(hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))) {
 		pr_info("hpd gpio high\n");
 		/*notify to drm hdmi*/
@@ -4160,6 +4248,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdev->hwop.cntlmisc(hdev, MISC_TMDS_PHY_OP, TMDS_PHY_DISABLE);
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
 	hdmitx21_disable_hdcp(hdev);
+	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	clear_rx_vinfo(hdev);
 	rx_edid_physical_addr(0, 0, 0, 0);
 	hdmitx21_edid_clear(hdev);
@@ -4435,7 +4524,7 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdmi_dev)
 	hdev->flag_3dfp = 0;
 	hdev->flag_3dss = 0;
 	hdev->flag_3dtb = 0;
-
+	hdev->def_stream_type = DEFAULT_STREAM_TYPE;
 	if ((init_flag & INIT_FLAG_POWERDOWN) &&
 	    hdev->hpdmode == 2)
 		hdev->mux_hpd_if_pin_high_flag = 0;
@@ -4513,6 +4602,8 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 					   "repeater_tx", &val);
 		if (!ret)
 			hdev->repeater_tx = val;
+		else
+			hdev->repeater_tx = 0;
 
 		ret = of_property_read_u32(pdev->dev.of_node,
 					   "cedst_en", &val);
@@ -4702,8 +4793,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	amhdmitx_infoframe_init(hdev);
 
 	ret = amhdmitx_get_dt_info(pdev);
-	if (ret)
-		return ret;
+	/* if (ret) */
+		/* return ret; */
 
 	amhdmitx_clktree_probe(&pdev->dev);
 
@@ -4777,6 +4868,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_contenttype_cap);
 	ret = device_create_file(dev, &dev_attr_contenttype_mode);
 	ret = device_create_file(dev, &dev_attr_hdmitx21);
+	ret = device_create_file(dev, &dev_attr_def_stream_type);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -4860,7 +4952,6 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 pr_info("%s[%d]\n", __func__, __LINE__);
 
 	hdev->hdmi_init = 1;
-
 	/*bind to drm.*/
 	component_add(&pdev->dev, &meson_hdmitx_bind_ops);
 	tee_comm_dev_reg(hdev);
@@ -4939,6 +5030,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdmi_hdr_status);
 	device_remove_file(dev, &dev_attr_hdmitx21);
 	device_remove_file(dev, &dev_attr_hdcp_ver);
+	device_remove_file(dev, &dev_attr_def_stream_type);
 
 	cdev_del(&hdev->cdev);
 

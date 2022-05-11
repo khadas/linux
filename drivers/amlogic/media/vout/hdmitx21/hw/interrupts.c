@@ -204,12 +204,13 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 	}
 next:
 	/* already called top_intr.callback, next others */
+
 	for (i = 1; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
 		pint++;
+		/* pr_info("-----i = %d, pint->st_data = %x\n", i, pint->st_data); */
 		if (pint->st_data) {
 			val = pint->st_data;
 			pint->callback(pint);
-			pint->st_data = 0;
 		}
 	}
 }
@@ -221,6 +222,8 @@ static void intr_status_save_and_clear(void)
 
 	for (i = 0; i < sizeof(union intr_u) / sizeof(struct intr_t); i++) {
 		pint->st_data = hdmitx21_rd_reg(pint->intr_st_reg);
+		/* if (pint->intr_st_reg == TPI_INTR_ST0_IVCTX) */
+			/* pr_info("TPI_INTR_ST0_IVCTX :0x%x\n", pint->st_data); */
 		hdmitx21_wr_reg(pint->intr_clr_reg, pint->st_data);
 		pint++;
 	}

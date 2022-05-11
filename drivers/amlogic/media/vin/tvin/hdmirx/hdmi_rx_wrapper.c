@@ -72,7 +72,7 @@ int clk_stable_cnt;
 static int clk_stable_max;
 static int unnormal_wait_max = 200;
 static int wait_no_sig_max = 600;
-u8 vrr_func_en = 1;
+u32 vrr_func_en = 1;
 
 typedef void (*pf_callback)(int earc_port, bool st);
 static pf_callback earc_hdmirx_hpdst;
@@ -325,7 +325,7 @@ void hdmirx_fsm_var_init(void)
 		hbr_force_8ch = 1; //use it to enable hdr2spdif
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
-		dwc_rst_wait_cnt_max = 30;
+		dwc_rst_wait_cnt_max = 5; //for repeater
 		clk_unstable_max = 100;
 		esd_phy_rst_max = 8;
 		pll_unlock_max = 30;
@@ -740,6 +740,7 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	u8 rx_hdcp2x_intr0;
 	u8 rx_hdcp2x_intr1;
 	u8 hdcp_2x_ecc_intr;
+	//u8 data8;
 	//bool vsi_handle_flag = false;
 	//bool drm_handle_flag = false;
 	//bool emp_handle_flag = false;
@@ -871,15 +872,29 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	if (rx_hdcp1x_intr0) {
 		if (log_level & IRQ_LOG)
 			rx_pr("irq_hdcp1-%x\n", rx_hdcp1x_intr0);
-		if (rx_get_bits(rx_hdcp1x_intr0, _BIT(0))) {
-			if (rx.hdcp.hdcp_version != HDCP_VER_14)
-				skip_frame(skip_frame_cnt);
+		//if (rx_get_bits(rx_hdcp1x_intr0, _BIT(0))) {
+			//rx.hdcp.hdcp_version = HDCP_VER_14;
+			///rx.hdcp.rpt_reauth_event = HDCP_VER_14;
+			///rx.hdcp.hdcp_source = true;
+			//rx_pr("14\n");
+		///}
+	}
+
+	if (rx_intr_1) {
+		if (log_level & IRQ_LOG)
+			rx_pr("rx_intr_1-%x\n", rx_intr_1);
+		if (rx_get_bits(rx_intr_1, _BIT(1))) {
 			rx.hdcp.hdcp_version = HDCP_VER_14;
+			if (rx.hdcp.repeat)
+				rx.hdcp.rpt_reauth_event = HDCP_VER_14 | HDCP_NEED_REQ_DS_AUTH;
 			rx.hdcp.hdcp_source = true;
 			rx_pr("14\n");
 		}
+		if (rx_get_bits(rx_intr_1, _BIT(0))) {
+			if (rx.hdcp.repeat)
+				rx_pr("auth done\n");
+		}
 	}
-
 	if (rx_hdcp2x_intr0) {
 		if (log_level & IRQ_LOG)
 			rx_pr("irq_hdcp2-%x\n", rx_hdcp2x_intr0);
@@ -892,10 +907,16 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 	if (rx_hdcp2x_intr1) {
 		if (log_level & IRQ_LOG)
 			rx_pr("irq1_hdcp2-%x\n", rx_hdcp2x_intr1);
+		if (rx_get_bits(rx_hdcp2x_intr1, _BIT(1))) {
+			rx_pr("type\n");
+			rx.hdcp.stream_manage_rcvd = true;
+		}
 		if (rx_get_bits(rx_hdcp2x_intr1, _BIT(2))) {
 			if (rx.hdcp.hdcp_version != HDCP_VER_22)
 				skip_frame(skip_frame_cnt);
 			rx.hdcp.hdcp_version = HDCP_VER_22;
+			if (rx.hdcp.repeat)
+				rx.hdcp.rpt_reauth_event = HDCP_VER_22 | HDCP_NEED_REQ_DS_AUTH;
 			rx.hdcp.hdcp_source = true;
 			rx_pr("22\n");
 		}
@@ -953,6 +974,7 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 			}
 		}
 	}
+
 	//if (vsif_type)
 		//rx_pkt_handler(PKT_BUFF_SET_VSI);
 
@@ -2190,7 +2212,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(wait_no_sig_max, i++);
 	pr_var(vrr_func_en, i++);
 	pr_var(receive_edid_len, i++);
-	pr_var(hdcp_array_len, i++);
+	//pr_var(hdcp_array_len, i++);
 	pr_var(hdcp_len, i++);
 	pr_var(hdcp_repeat_depth, i++);
 	pr_var(up_phy_addr, i++);
@@ -2640,10 +2662,10 @@ void hdmirx_open_port(enum tvin_port_e port)
 	i2c_err_cnt = 0;
 	dvi_check_en = true;
 	rx.ddc_filter_en = false;
-	if (hdmirx_repeat_support())
-		rx.hdcp.repeat = repeat_plug;
-	else
-		rx.hdcp.repeat = 0;
+	//if (hdmirx_repeat_support())
+		//rx.hdcp.repeat = repeat_plug;
+	//else
+		//rx.hdcp.repeat = 0;
 	if (is_special_func_en()) {
 		rx.state = FSM_HPD_HIGH;
 	} else if (!rx_need_support_fastswitch() &&
@@ -3068,6 +3090,9 @@ void rx_main_state_machine(void)
 			if (++pll_lock_cnt < pll_lock_max)
 				break;
 			rx_dwc_reset();
+			hdmirx_output_en(true);
+			rx_irq_en(true);
+			hdmirx_top_irq_en(true);
 			rx.err_code = ERR_NONE;
 			rx.state = FSM_SIG_WAIT_STABLE;
 		} else {
@@ -3595,6 +3620,21 @@ static void dump_hdcp_status(void)
 	      rx.cur.hdcp14_state);
 	rx_pr("HDCP22 state:%d\n",
 	      rx.cur.hdcp22_state);
+	if (rx.chip_id != CHIP_ID_T7)
+		return;
+	rx_pr("rpt = %d", rx.hdcp.repeat);
+	rx_pr("up is hdcp%dx", rx.hdcp.hdcp_version);
+	rx_pr("ds is hdcp%dx", rx.hdcp.ds_hdcp_ver);
+	rx_pr("bcaps:%x\n",
+		  hdmirx_rd_cor(RX_BCAPS_SET_HDCP1X_IVCRX));
+	rx_pr("dev cnt:%x\n",
+		  hdmirx_rd_cor(RX_SHD_BSTATUS1_HDCP1X_IVCRX));
+	rx_pr("dev depth:%x\n",
+		  hdmirx_rd_cor(RX_SHD_BSTATUS2_HDCP1X_IVCRX) & 0xf);
+	//rx_pr("sha length:%x\n",
+		 // hdmirx_rd_cor(RX_SHA_length1_HDCP1X_IVCRX));
+	//rx_pr("fifo addr:%x\n",
+		 // hdmirx_rd_cor(RX_KSV_SHA_start1_HDCP1X_IVCRX));
 }
 
 void dump_state(int enable)
@@ -3941,7 +3981,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 	if (rx.open_fg) {
 		rx_nosig_monitor();
 		rx_cable_clk_monitor();
-		if (!hdmirx_repeat_support()) {
+		//if (!hdmirx_repeat_support()) {
 			if (!sm_pause) {
 				rx_clkrate_monitor();
 				rx_afifo_monitor();
@@ -3958,7 +3998,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 				rx_monitor_error_counter();
 			rx_get_best_eq_setting();
 			#endif
-		}
+		//}
 	} else {
 		rx_hpd_monitor();
 	}
