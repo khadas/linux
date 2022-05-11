@@ -2411,7 +2411,7 @@
 		pinctrl-1=<&hdmitx_ddc>;
 		interrupts = <0 204 1>;
 		interrupt-names = "hdmitx_hpd";
-		enc_idx = <0>;
+		enc_idx = <2>;
 		reg =	<0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe380000 0x0 0x10000>,
 			<0x0 0xfe300000 0x0 0x10000>,
@@ -2660,6 +2660,7 @@
 	dummy_venc: dummy_venc {
 		compatible = "amlogic, dummy_venc_t7";
 		status = "okay";
+		default_venc_index = <2>;
 	};
 
 	vout_mux: vout_mux {

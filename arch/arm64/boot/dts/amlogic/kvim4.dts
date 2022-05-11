@@ -1651,7 +1651,7 @@
 
 &amhdmitx {
 	status = "okay";
-	enc_idx = <0>;
+	enc_idx = <2>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
