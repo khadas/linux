@@ -535,8 +535,10 @@ static int am_hdmitx_connector_atomic_get_property
 	} else if (property == am_hdmi->avmute_prop) {
 		*val = hdmitx_state->avmute;
 		return 0;
+	} else if (property == am_hdmi->hdmi_hdr_status_prop) {
+		*val = am_hdmi_info.hdmitx_dev->get_hdmi_hdr_status();
+		return 0;
 	}
-
 	return -EINVAL;
 }
 
@@ -1338,6 +1340,33 @@ static const struct of_device_id am_meson_hdmi_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, am_meson_hdmi_dt_ids);
 
 /* Optional colorspace properties. */
+static const struct drm_prop_enum_list hdmi_hdr_status_enum_list[] = {
+	{ HDR10PLUS_VSIF, "HDR10Plus-VSIF" },
+	{ dolbyvision_std, "DolbyVision-Std" },
+	{ dolbyvision_lowlatency, "DolbyVision-Lowlatency" },
+	{ HDR10_GAMMA_ST2084, "HDR10-GAMMA_ST2084" },
+	{ HDR10_others, "HDR10-others" },
+	{ HDR10_GAMMA_HLG, "HDR10-GAMMA_HLG" },
+	{ SDR, "SDR" }
+};
+
+static void meson_hdmitx_init_hdmi_hdr_status_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_enum(drm_dev, 0, "hdmi_hdr_status",
+					hdmi_hdr_status_enum_list,
+					ARRAY_SIZE(hdmi_hdr_status_enum_list));
+	if (prop) {
+		am_hdmi->hdmi_hdr_status_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to hdmi_hdr_status property\n");
+	}
+}
+
+/* Optional colorspace properties. */
 static const struct drm_prop_enum_list hdmi_color_space_enum_list[] = {
 	{ COLORSPACE_RGB444, "RGB" },
 	{ COLORSPACE_YUV422, "422" },
@@ -1534,6 +1563,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_colordepth_property(drm, am_hdmi);
 	meson_hdmitx_init_colorspace_property(drm, am_hdmi);
 	meson_hdmitx_init_avmute_property(drm, am_hdmi);
+	meson_hdmitx_init_hdmi_hdr_status_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

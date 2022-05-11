@@ -2540,6 +2540,41 @@ static ssize_t hdmi_hdr_status_show(struct device *dev,
 	return pos;
 }
 
+static int hdmi_hdr_status_to_drm(void)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	/* pos = 3 */
+	if (hdr_status_pos == 3 || hdev->hdr10plus_feature)
+		return HDR10PLUS_VSIF;
+
+	/* pos = 2 */
+	if (hdr_status_pos == 2) {
+		if (hdev->hdmi_current_eotf_type == EOTF_T_DOLBYVISION)
+			return dolbyvision_std;
+
+		if (hdev->hdmi_current_eotf_type == EOTF_T_LL_MODE)
+			return dolbyvision_lowlatency;
+	}
+
+	/* pos = 1 */
+	if (hdr_status_pos == 1) {
+		if (hdev->hdr_transfer_feature == T_SMPTE_ST_2084) {
+			if (hdev->hdr_color_feature == C_BT2020)
+				return HDR10_GAMMA_ST2084;
+			else
+				return HDR10_others;
+		}
+		if (hdev->hdr_color_feature == C_BT2020 &&
+		    (hdev->hdr_transfer_feature == T_BT2020_10 ||
+		     hdev->hdr_transfer_feature == T_HLG))
+			return HDR10_GAMMA_HLG;
+	}
+
+	/* default is SDR */
+	return SDR;
+}
+
 /**/
 static ssize_t dc_cap_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
@@ -5666,6 +5701,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.get_hdr_priority = drm_hdmitx_get_hdr_priority,
 	.avmute = drm_hdmitx_avmute,
 	.set_phy = drm_hdmitx_set_phy,
+	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
 
 	/*hdcp apis*/
 	.hdcp_init = drm_hdmitx_hdcp_init,

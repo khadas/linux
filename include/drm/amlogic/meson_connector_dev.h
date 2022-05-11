@@ -109,6 +109,7 @@ struct meson_hdmitx_dev {
 	bool (*get_vrr_cap)(void);
 	int (*get_vrr_mode_group)(struct drm_vrr_mode_group *groups, int max_group);
 	int (*get_hdcp_ctl_lvl)(void);
+	int (*get_hdmi_hdr_status)(void);
 };
 
 #define to_meson_hdmitx_dev(x)	container_of(x, struct meson_hdmitx_dev, base)
