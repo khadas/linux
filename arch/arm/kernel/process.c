@@ -238,6 +238,8 @@ static void show_user_data(unsigned long addr, int nbytes, const char *name)
 		 * each line of the dump < 80 characters
 		 */
 		pr_info("%04lx ", (unsigned long)p & 0xffff);
+		if (irqs_disabled())
+			continue;
 		for (j = 0; j < 8; j++) {
 			u32 data;
 			int bad;
