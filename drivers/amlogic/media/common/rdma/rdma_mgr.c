@@ -853,6 +853,10 @@ int rdma_clear(int handle)
 	WRITE_VCBUS_REG_BITS(ins->rdma_regadr->trigger_mask_reg,
 			     0, ins->rdma_regadr->trigger_mask_reg_bitpos,
 			     rdma_meson_dev.trigger_mask_len);
+	if (debug_flag & 2)
+		pr_info("%s: handle=%d : write count %d item count %d\n",
+			__func__, handle,
+			ins->rdma_write_count, ins->rdma_item_count);
 	ins->rdma_write_count = 0;
 	ins->rdma_item_count = 0;
 	spin_unlock_irqrestore(&rdma_lock, flags);
@@ -1097,6 +1101,12 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		dump_stack();
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
 			handle, ins->rdma_item_count, adr, val);
+	}
+
+	if (adr == 0) {
+		pr_info("rdma_write(%d) write zero addr = %x, count:%d\n",
+			handle, val, ins->rdma_item_count);
+		dump_stack();
 	}
 	if (debug_flag & 1)
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",

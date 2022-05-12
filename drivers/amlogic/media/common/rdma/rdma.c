@@ -154,9 +154,11 @@ int _vsync_rdma_config(int rdma_type)
 	/* first frame not use rdma */
 	if (!first_config[rdma_type]) {
 		cur_enable[rdma_type] = enable[rdma_type];
-		pre_enable_[rdma_type] = enable_;
+		pre_enable_[rdma_type] = cur_enable[rdma_type];
 		first_config[rdma_type] = true;
 		rdma_done[rdma_type] = false;
+		rdma_clear(vsync_rdma_handle[rdma_type]);
+		force_rdma_config[rdma_type] = 1;
 		return 0;
 	}
 
