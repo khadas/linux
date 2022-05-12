@@ -1242,6 +1242,9 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	if (vmode == VMODE_HDMI) {
 		DRM_INFO("[%s]\n", __func__);
 	} else {
+		if (vmode == (VMODE_HDMI | VMODE_INIT_BIT_MASK))
+			am_hdmi_info.hdmitx_on = 1;
+
 		DRM_INFO("[%s] fail! vmode:%d\n", __func__, vmode);
 		return;
 	}
