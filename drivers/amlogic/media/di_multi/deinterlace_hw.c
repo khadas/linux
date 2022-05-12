@@ -211,7 +211,7 @@ void dimh_set_crc_init(int count)
 		DIM_RDMA_WR(DI_PRE_CTRL, 0x0901000c);
 	} else {
 		DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 1, 28, 1);
-		DIM_RDMA_WR_BITS(DI_PRE_CTRL, 1, 17, 1);
+		//DIM_RDMA_WR_BITS(DI_PRE_CTRL, 1, 17, 1);
 		DIM_RDMA_WR(DI_MTN_CTRL1, 0xf014000);
 		if (count == 1)
 			DIM_RDMA_WR(DI_MTN_CTRL1, 0x4f014000);
@@ -1220,10 +1220,7 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 	} else {
 		DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfff7ff : 0));
 	}
-	if (dim_config_crc_ic())
-		DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 1 : 0), 16, 1);
-	else
-		DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 3 : 0), 16, 2);
+	DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 3 : 0), 16, 2);
 
 	DIM_RDMA_WR_BITS(MCINFRD_SCOPE_X, mcinford_mif->size_x, 16, 13);
 	DIM_RDMA_WR_BITS(MCINFRD_SCOPE_Y, mcinford_mif->size_y, 16, 13);
