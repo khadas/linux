@@ -338,6 +338,7 @@ static unsigned int vwidth = 0x8;
 static unsigned int hwidth = 0x8;
 static unsigned int vpotch = 0x10;
 static unsigned int hpotch = 0x8;
+static unsigned int debug_vpotch;
 static unsigned int g_htotal_add = 0x40;
 static unsigned int g_vtotal_add = 0x80;
 static unsigned int g_vsize_add;
@@ -394,7 +395,7 @@ MODULE_PARM_DESC(dma_start_line, "\n dma_start_line\n");
 
 module_param(vtotal_add, uint, 0664);
 MODULE_PARM_DESC(vtotal_add, "\n vtotal_add\n");
-module_param(vpotch, uint, 0664);
+module_param(vpotch, uint, 0444);
 MODULE_PARM_DESC(vpotch, "\n vpotch\n");
 
 /* for core2 timing setup tuning */
@@ -402,7 +403,7 @@ MODULE_PARM_DESC(vpotch, "\n vpotch\n");
 /* | g_vwidth << 8 | g_vpotch */
 static unsigned int g_vtiming;
 module_param(g_vtiming, uint, 0664);
-MODULE_PARM_DESC(g_vtiming, "\n vpotch\n");
+MODULE_PARM_DESC(g_vtiming, "\n g_vtiming\n");
 
 static unsigned int dolby_vision_target_min = 50; /* 0.0001 */
 static unsigned int dolby_vision_target_max[3][3] = {
@@ -1928,7 +1929,6 @@ static void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 		} else {
 			g_vpotch = 0x20;
 		}
-
 	} else if (is_meson_tm2_stbmode() || is_meson_t7_stbmode() ||
 	is_meson_sc2() || is_meson_s4d()) {
 		if (vinfo) {
@@ -1960,6 +1960,10 @@ static void adjust_vpotch(u32 graphics_w, u32 graphics_h)
 			g_vpotch = 0x20;
 		}
 	}
+	if (debug_vpotch)
+		vpotch = debug_vpotch;
+	else
+		vpotch = 0x10;
 }
 
 static void adjust_vpotch_tv(void)
@@ -1977,6 +1981,14 @@ static void adjust_vpotch_tv(void)
 				dma_start_line = 0x400;
 			else
 				dma_start_line = 0x180;
+			if (is_meson_tvmode()) {
+				if (debug_vpotch)
+					vpotch = debug_vpotch;
+				else if (vinfo->vbp >= 30)
+					vpotch = 0x10;
+				else
+					vpotch = 0x8;
+			}
 		}
 	}
 }
@@ -13573,6 +13585,7 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo debug_cp_res value > /sys/class/amdolby_vision/debug; bit0~bit15 h, bit16~bit31 w\n"
 	"echo debug_disable_aoi value > /sys/class/amdolby_vision/debug; 1:disable aoi;>1 not disable\n"
 	"echo debug_dma_start_line value > /sys/class/amdolby_vision/debug;\n"
+	"echo debug_vpotch value > /sys/class/amdolby_vision/debug;\n"
 };
 
 static ssize_t  amdolby_vision_debug_show
@@ -13716,6 +13729,11 @@ static ssize_t amdolby_vision_debug_store
 			return -EINVAL;
 		debug_dma_start_line = val;
 		pr_info("set debug_dma_start_line %d\n", debug_dma_start_line);
+	} else if (!strcmp(parm[0], "debug_vpotch")) {
+		if (kstrtoul(parm[1], 16, &val) < 0)
+			return -EINVAL;
+		debug_vpotch = val;
+		pr_info("set debug_vpotch %d\n", debug_vpotch);
 	} else if (!strcmp(parm[0], "force_runmode")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			return -EINVAL;
