@@ -502,8 +502,8 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 			avmuteflag = rx_get_avmute_sts();
 			if (avmuteflag == 1) {
 				rx.avmute_skip += 1;
-				skip_frame(1);
 				hdmirx_set_video_mute(1);
+				skip_frame(2);
 				/* return TVIN_BUF_SKIP; */
 			} else {
 				hdmirx_set_video_mute(0);
