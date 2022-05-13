@@ -56,6 +56,7 @@ struct am_hdmi_tx {
 	struct drm_property *color_depth_prop;
 	struct drm_property *avmute_prop;
 	struct drm_property *hdmi_hdr_status_prop;
+	struct drm_property *hdr_cap_property;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;

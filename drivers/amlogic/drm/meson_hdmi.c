@@ -482,6 +482,45 @@ static enum drm_connector_status am_hdmitx_connector_detect
 		connector_status_connected : connector_status_disconnected;
 }
 
+static int get_hdr_info(void)
+{
+	static int hdr_cap_value;
+	const struct hdr_info *hdr = am_hdmi_info.hdmitx_dev->get_hdr_info();
+	const struct hdr10_plus_info *hdr10p = &hdr->hdr10plus_info;
+	unsigned int hdr_priority =  am_hdmi_info.hdmitx_dev->get_hdr_priority();
+
+	/*mask rx hdr capability*/
+	if (hdr_priority == 2)
+		return 0;
+
+	/*hdr10plugsupported*/
+	if (hdr10p->ieeeoui == HDR10_PLUS_IEEE_OUI &&
+		hdr10p->application_version != 0xFF)
+		hdr_cap_value |= 1 << 0;
+
+	/*
+	 *HDR Static Metadata:
+	 *Supported EOTF:
+	 */
+
+	/*Traditional SDR*/
+	hdr_cap_value |= (!!(hdr->hdr_support & 0x1)) << 1;
+
+	/*Traditional HDR*/
+	hdr_cap_value |= (!!(hdr->hdr_support & 0x2)) << 2;
+
+	/*SMPTE ST 2084*/
+	hdr_cap_value |= (!!(hdr->hdr_support & 0x4)) << 3;
+
+	/*Hybrid Log-Gamma*/
+	hdr_cap_value |= (!!(hdr->hdr_support & 0x8)) << 4;
+
+	/*Supported SMD type1*/
+	hdr_cap_value |= hdr->static_metadata_type1 << 5;
+
+	return hdr_cap_value;
+}
+
 static int am_hdmitx_connector_atomic_set_property
 	(struct drm_connector *connector,
 	struct drm_connector_state *state,
@@ -537,6 +576,9 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->hdmi_hdr_status_prop) {
 		*val = am_hdmi_info.hdmitx_dev->get_hdmi_hdr_status();
+		return 0;
+	} else if (property == am_hdmi->hdr_cap_property) {
+		*val = get_hdr_info();
 		return 0;
 	}
 	return -EINVAL;
@@ -1407,6 +1449,22 @@ static void meson_hdmitx_init_colordepth_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_hdr_cap_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"hdr_cap", 0, 37);
+
+	if (prop) {
+		am_hdmi->hdr_cap_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to hdr_cap property\n");
+	}
+}
+
 static void meson_hdmitx_init_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -1564,6 +1622,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_colorspace_property(drm, am_hdmi);
 	meson_hdmitx_init_avmute_property(drm, am_hdmi);
 	meson_hdmitx_init_hdmi_hdr_status_property(drm, am_hdmi);
+	meson_hdmitx_init_hdr_cap_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;
