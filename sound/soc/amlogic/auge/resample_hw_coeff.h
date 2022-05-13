@@ -8,7 +8,6 @@
 
 #define SINC8_FILTER_COEF_SIZE (129 * 32)
 
-#ifdef AA_FILTER_DEBUG
 #define AA_FILTER_COEF_SIZE (32)
 
 static s32 aa_coef_a_half[AA_FILTER_COEF_SIZE] = {
@@ -22,6 +21,7 @@ static s32 aa_coef_a_half[AA_FILTER_COEF_SIZE] = {
 	-405433,    3249194,    273329,   -1940211
 };
 
+#ifdef AA_FILTER_DEBUG
 static s32 aa_coef_a_quarter[AA_FILTER_COEF_SIZE] = {
 	536034773,  481655564,   338657708,   158400365,
 	812047,     -90688473,   -104827128,  -62173264,
