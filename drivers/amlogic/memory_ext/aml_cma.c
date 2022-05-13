@@ -202,7 +202,7 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 
 	fun = find_back_trace();
 	if (cma_alloc_trace)
-		pr_info("%s alloc page:%lx, count:%ld, func:%ps\n", __func__,
+		pr_info("c a p:%lx, c:%ld, f:%ps\n",
 			page_to_pfn(page), cnt, (void *)fun);
 	for (i = 0; i < cnt; i++) {
 		set_page_trace(page, 0, __GFP_NO_CMA, (void *)fun);
@@ -239,7 +239,7 @@ void aml_cma_release_hook(int count, struct page *pages)
 {
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 	if (cma_alloc_trace)
-		pr_info("%s free page:%lx, count:%d, func:%ps\n", __func__,
+		pr_info("c f p:%lx, c:%d, f:%ps\n",
 			page_to_pfn(pages), count, (void *)find_back_trace());
 #endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 	atomic_long_sub(count, &nr_cma_allocated);
