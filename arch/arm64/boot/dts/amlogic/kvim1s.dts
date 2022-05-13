@@ -1472,7 +1472,7 @@
 	status = "okay";
 };
 
-&uart_A {
+&uart_D {
 	status = "okay";
 	uart-has-rtscts;
 };
