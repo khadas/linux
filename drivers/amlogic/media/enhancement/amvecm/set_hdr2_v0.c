@@ -1153,7 +1153,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 	int vpp_sel;
 
 	if (vpp_index == VPP_TOP1 &&
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3))
 		vpp_sel = VPP_TOP1;
 	else if (vpp_index == VPP_TOP2 &&
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
@@ -2753,7 +2754,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 
 	if (((module_sel == OSD1_HDR && vpp_index == VPP_TOP1) ||
 		(module_sel == OSD3_HDR && vpp_index == VPP_TOP0)) &&
-		get_cpu_type() == MESON_CPU_MAJOR_ID_T7) {
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T3)) {
 		pr_csc(12, "%s: module_sel = %d vpp_index = %d not match\n",
 			__func__, module_sel, vpp_index);
 		return hdr_process_select;
@@ -2766,7 +2768,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		vpp_index);
 
 	if (vpp_index == VPP_TOP1 &&
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3))
 		vpp_sel = VPP_TOP1;
 	else if (vpp_index == VPP_TOP2 &&
 		get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
@@ -3958,7 +3961,8 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 		vpp_sel = VPP_TOP2;
 	else if (mtx_sel == VPP1_POST2_MTX &&
-	    get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
+	    (get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+	    get_cpu_type() == MESON_CPU_MAJOR_ID_T3))
 		vpp_sel = VPP_TOP1;
 	else
 		vpp_sel = VPP_TOP0;
