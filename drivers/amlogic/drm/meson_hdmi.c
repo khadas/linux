@@ -521,6 +521,97 @@ static int get_hdr_info(void)
 	return hdr_cap_value;
 }
 
+static int get_dv_info(void)
+{
+	unsigned int hdr_priority =  am_hdmi_info.hdmitx_dev->get_hdr_priority();
+	const struct dv_info *dv = am_hdmi_info.hdmitx_dev->get_dv_info();
+	int dv_flag = 0;
+
+	if (dv->ieeeoui != DV_IEEE_OUI || hdr_priority) {
+		/*The Rx don't support DolbyVision*/
+		return 0;
+	}
+
+	/*The Rx don't support DolbyVision*/
+	if (dv->ieeeoui != DV_IEEE_OUI || dv->block_flag != CORRECT)
+		return 0;
+
+	/*DolbyVision RX support list:*/
+
+	if (dv->ver == 0) {
+		/*VSVDB Version:  bit0,1*/
+		dv_flag |= 0 << 0;
+		/*2160p%shz: 1*/
+		dv_flag |= (dv->sup_2160p60hz ? 1 : 0) << 2;
+		/*Support mode:*/
+		/*DV_RGB_444_8BIT*/
+		dv_flag |= 1 << 3;
+		/*DV_YCbCr_422_12BIT*/
+		dv_flag |= (dv->sup_yuv422_12bit ? 1 : 0) << 4;
+	}
+
+	if (dv->ver == 1) {
+		/*VSVDB Version: %d-byte*/
+		dv_flag |= 1 << 0;
+
+		if (dv->length == 0xB) {
+			/*2160p%shz: 1*/
+			dv_flag |= (dv->sup_2160p60hz ? 1 : 0) << 2;
+			/*Support mode:*/
+			/*DV_RGB_444_8BIT*/
+			dv_flag |= 1 << 3;
+			/*DV_YCbCr_422_12BIT*/
+			dv_flag |= (dv->sup_yuv422_12bit ? 1 : 0) << 4;
+			/*LL_YCbCr_422_12BIT*/
+			if (dv->low_latency == 0x01)
+				dv_flag |= 1 << 5;
+		}
+
+		if (dv->length == 0xE) {
+			/*2160p%shz: 1*/
+			dv_flag |= (dv->sup_2160p60hz ? 1 : 0) << 2;
+			/*Support mode:*/
+			/*DV_RGB_444_8BIT*/
+			dv_flag |= 1 << 3;
+			/*DV_YCbCr_422_12BIT*/
+			dv_flag |= (dv->sup_yuv422_12bit ? 1 : 0) << 4;
+		}
+	}
+
+	if (dv->ver == 2) {
+		/*VSVDB Version:*/
+		dv_flag |= 2 << 0;
+
+		/*2160p%shz: 1*/
+		dv_flag |= (dv->sup_2160p60hz ? 1 : 0) << 2;
+		/*Support mode:*/
+
+		if (dv->Interface != 0x00 && dv->Interface != 0x01) {
+			/*DV_RGB_444_8BIT*/
+			dv_flag |= 1 << 3;
+			/*DV_YCbCr_422_12BIT*/
+			if (dv->sup_yuv422_12bit)
+				dv_flag |= (dv->sup_yuv422_12bit ? 1 : 0) << 4;
+		}
+
+		/*LL_YCbCr_422_12BIT*/
+		dv_flag |= 1 << 5;
+
+		if (dv->Interface == 0x01 || dv->Interface == 0x03) {
+			if (dv->sup_10b_12b_444 == 0x1) {
+				/*LL_RGB_444_10BITT*/
+				dv_flag |= 1 << 6;
+			}
+			if (dv->sup_10b_12b_444 == 0x2) {
+				/*LL_RGB_444_12BIT*/
+				dv_flag |= 1 << 7;
+			}
+		}
+	}
+
+	return dv_flag;
+}
+
 static int am_hdmitx_connector_atomic_set_property
 	(struct drm_connector *connector,
 	struct drm_connector_state *state,
@@ -579,6 +670,9 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->hdr_cap_property) {
 		*val = get_hdr_info();
+		return 0;
+	} else if (property == am_hdmi->dv_cap_property) {
+		*val = get_dv_info();
 		return 0;
 	}
 	return -EINVAL;
@@ -1455,13 +1549,29 @@ static void meson_hdmitx_init_hdr_cap_property(struct drm_device *drm_dev,
 	struct drm_property *prop;
 
 	prop = drm_property_create_range(drm_dev, 0,
-			"hdr_cap", 0, 37);
+			"hdr_cap", 0, 1023);
 
 	if (prop) {
 		am_hdmi->hdr_cap_property = prop;
 		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
 	} else {
 		DRM_ERROR("Failed to hdr_cap property\n");
+	}
+}
+
+static void meson_hdmitx_init_dv_cap_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"dv_cap", 0, 1023);
+
+	if (prop) {
+		am_hdmi->dv_cap_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to dv_cap property\n");
 	}
 }
 
@@ -1623,6 +1733,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_avmute_property(drm, am_hdmi);
 	meson_hdmitx_init_hdmi_hdr_status_property(drm, am_hdmi);
 	meson_hdmitx_init_hdr_cap_property(drm, am_hdmi);
+	meson_hdmitx_init_dv_cap_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;
