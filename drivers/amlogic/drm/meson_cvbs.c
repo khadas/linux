@@ -167,10 +167,10 @@ void am_cvbs_encoder_enable(struct drm_encoder *encoder,
 
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_START);
-	vout_func_set_vmode(amcrtc->vout_index, vmode);
+	cvbs_set_current_vmode(vmode, NULL);
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_FINISH);
-	meson_vout_update_mode_name(amcrtc->vout_index, mode->name);
+	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "cvbs");
 }
 
 void am_cvbs_encoder_disable(struct drm_encoder *encoder,

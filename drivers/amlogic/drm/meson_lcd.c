@@ -33,8 +33,10 @@ int meson_panel_get_modes(struct drm_connector *connector)
 		for (i = 0; i < modes_cnt; i++) {
 			DRM_DEBUG("[%s]-[%d] mode_name-%s\n", __func__, __LINE__, modes[i].name);
 			mode = drm_mode_duplicate(connector->dev, &modes[i]);
-			drm_mode_probed_add(connector, mode);
-			drm_mode_debug_printmodeline(mode);
+			if (mode) {
+				drm_mode_probed_add(connector, mode);
+				drm_mode_debug_printmodeline(mode);
+			}
 		}
 		kfree(modes);
 	}
@@ -160,7 +162,7 @@ static void meson_panel_encoder_atomic_enable(struct drm_encoder *encoder,
 	vout_func_set_vmode(amcrtc->vout_index, vmode);
 	meson_vout_notify_mode_change(amcrtc->vout_index,
 		vmode, EVENT_MODE_SET_FINISH);
-	meson_vout_update_mode_name(amcrtc->vout_index, mode->name);
+	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "lcd");
 
 	DRM_DEBUG("[%s]-[%d] exit\n", __func__, __LINE__);
 }
