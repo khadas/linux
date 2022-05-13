@@ -485,7 +485,6 @@ struct hdmitx_dev {
 	/* 0: default setting  1:ch0/1  2:ch2/3  3:ch4/5  4:ch6/7 */
 	unsigned int aud_output_ch;
 	unsigned int hdmi_ch;
-	unsigned int tx_aud_src; /* 0: SPDIF  1: I2S */
 /* if set to 1, then HDMI will output no audio */
 /* In KTV case, HDMI output Picture only, and Audio is driven by other
  * sources.

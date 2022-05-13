@@ -264,10 +264,6 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 			}
 		}
 		swap_val = 0x76543210;
-		/* TODO: find why LFE and FC(2ch, 3ch) HDMITX needs swap */
-		if (p_tdm->i2s2hdmitx &&
-			spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
-			swap_val = 0x76542310;
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
@@ -1406,18 +1402,11 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
 	int bit_depth, separated = 0;
-	struct aud_para aud_param;
 	int audio_inskew = -1;
 	int audio_tdm_index = -1;
-
-	memset(&aud_param, 0, sizeof(aud_param));
-
-	aud_param.rate = runtime->rate;
-	aud_param.size = runtime->sample_bits;
-	aud_param.chs  = runtime->channels;
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
@@ -1427,20 +1416,33 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		struct frddr *fr = p_tdm->fddr;
 		enum frddr_dest dst;
 		unsigned int fifo_id;
-
+		/*  for ss feature,we only disable that configuration
+		 *  for multi-ch to HDMITX,for spdif feature 2 of 8 ch
+		 *  case, we still config spdif module
+		 *  TODO FIXME, consider 8 ch i2s, 2 ch spdif case even hdmitx 8 ch.
+		 */
 		if (p_tdm->samesource_sel != SHAREBUFFER_NONE &&
-			spdif_get_codec() != AUD_CODEC_TYPE_MULTI_LPCM)
+			get_i2s2hdmitx_audio_format(rtd->card) == AUD_CODEC_TYPE_STEREO_PCM)
 			tdm_sharebuffer_prepare(substream, p_tdm);
 
 		/* i2s source to hdmix */
-		if (p_tdm->i2s2hdmitx) {
-			enum aud_codec_types codec_type = spdif_get_codec();
+		if (get_hdmitx_audio_src(rtd->card) == (p_tdm->id + HDMITX_SRC_TDM_A)) {
+			enum aud_codec_types codec_type = get_i2s2hdmitx_audio_format(rtd->card);
 			unsigned int event_type = 0;
 			struct iec958_chsts chsts;
+			struct aud_para aud_param;
+
+			memset(&aud_param, 0, sizeof(aud_param));
+			aud_param.rate = runtime->rate;
+			aud_param.size = runtime->sample_bits;
+			if (codec_type == AUD_CODEC_TYPE_MULTI_LPCM)
+				aud_param.chs  = runtime->channels;
+			else
+				aud_param.chs  = 2;
+			aud_param.aud_src_if = AUD_SRC_IF_I2S;
 
 			memset(&chsts, 0, sizeof(chsts));
 			separated = p_tdm->chipinfo->separate_tohdmitx_en;
-			aud_param.aud_src_if = AUD_SRC_IF_I2S;
 			pr_info("notify tdm to hdmitx,id %d codec_type %d",
 				p_tdm->id, codec_type);
 			i2s_to_hdmitx_ctrl(separated, p_tdm->id, p_tdm->clk_sel);

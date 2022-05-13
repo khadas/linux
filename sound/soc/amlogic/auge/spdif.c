@@ -40,6 +40,7 @@
 #include "sharebuffer.h"
 #include "../common/iec_info.h"
 #include "audio_utils.h"
+#include "card.h"
 
 #define DRV_NAME "snd_spdif"
 
@@ -886,31 +887,6 @@ static int spdif_b_format_set_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static const char * const spdif_select[] = {"Spdif", "Spdif_b"};
-static const struct soc_enum spdif_select_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(spdif_select), spdif_select);
-static int spdif_select_get_enum(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	(void)kcontrol;
-
-	ucontrol->value.enumerated.item[0] = get_spdif_to_hdmitx_id();
-	return 0;
-}
-
-static int spdif_select_set_enum(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	int id = ucontrol->value.enumerated.item[0];
-
-	if (id == 0 || id == 1)
-		set_spdif_to_hdmitx_id(id);
-	else
-		pr_err("inval spdif to hdmitx: %d\n", id);
-
-	return 0;
-}
-
 static const struct snd_kcontrol_new snd_spdif_b_controls[] = {
 	SOC_SINGLE_BOOL_EXT("Audio spdif_b mute",
 				0, aml_audio_get_spdif_mute,
@@ -919,11 +895,6 @@ static const struct snd_kcontrol_new snd_spdif_b_controls[] = {
 		     aud_codec_type_enum,
 		     spdif_b_format_get_enum,
 		     spdif_b_format_set_enum),
-	/* enable only if spdif_b exsits */
-	SOC_ENUM_EXT("Spdif to HDMITX Select",
-		     spdif_select_enum,
-		     spdif_select_get_enum,
-		     spdif_select_set_enum),
 	SOC_SINGLE_EXT("SPDIF_B CLK Fine Setting",
 		       0, 0, 2000000, 0,
 		       spdif_clk_get, spdif_clk_set),
@@ -1361,6 +1332,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct aml_spdif *p_spdif = snd_soc_dai_get_drvdata(cpu_dai);
 	unsigned int bit_depth = 0;
 	unsigned int fifo_id = 0;
@@ -1405,8 +1377,10 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		/* TOHDMITX_CTRL0
 		 * Both spdif_a/spdif_b would notify to hdmitx
 		 */
-		separated = p_spdif->chipinfo->separate_tohdmitx_en;
-		enable_spdifout_to_hdmitx(separated);
+		if (get_hdmitx_audio_src(rtd->card) == p_spdif->id) {
+			separated = p_spdif->chipinfo->separate_tohdmitx_en;
+			enable_spdifout_to_hdmitx(separated);
+		}
 
 		if (p_spdif->codec_type == AUD_CODEC_TYPE_TRUEHD ||
 		    p_spdif->codec_type == AUD_CODEC_TYPE_DTS_HD) {
@@ -1419,7 +1393,7 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 				substream->stream, p_spdif->id, false);
 		}
 
-		if (get_spdif_to_hdmitx_id() == p_spdif->id) {
+		if (get_hdmitx_audio_src(rtd->card) == p_spdif->id) {
 			/* notify to hdmitx */
 			spdif_notify_to_hdmitx(substream, p_spdif->codec_type);
 		}

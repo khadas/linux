@@ -2661,7 +2661,7 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	unsigned int char_rate;
 
 	/* audio packetizer config */
-	hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, hdev->tx_aud_src ? 4 : 0);
+	hdmitx_wr_reg(HDMITX_DWC_AUD_INPUTCLKFS, audio_param->aud_src_if ? 4 : 0);
 
 	if (audio_param->type == CT_MAT ||
 	    audio_param->type == CT_DTS_HD_MA)
@@ -2830,18 +2830,11 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	else
 		hsty_hdmiaud_config_num = 8;
 
-	/* PCM & multi channel use I2S */
-	if (audio_param->type == CT_PCM &&
-	    audio_param->channel_num > 2)
-		hdev->tx_aud_src = 1;
-	else
-		hdev->tx_aud_src = 0;
-
 	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
-	if (hdev->aud_output_ch)
-		hdev->tx_aud_src = 1;
-
-	pr_info(HW "hdmitx tx_aud_src = %d\n", hdev->tx_aud_src);
+	if (hdev->aud_output_ch) {
+		audio_param->aud_src_if = 1;
+		pr_info("hdmitx aud_output_ch %d\n", hdev->aud_output_ch);
+	}
 
 /* config IP */
 /* Configure audio */
@@ -2862,7 +2855,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 /* [  5] 0=select SPDIF; 1=select I2S. */
 	data32 = 0;
 	data32 |= (0 << 7);  /* [  7] sw_audio_fifo_rst */
-	data32 |= (hdev->tx_aud_src << 5);
+	data32 |= (!!audio_param->aud_src_if << 5);
 	data32 |= (0 << 0);  /* [3:0] i2s_in_en: enable it later in test.c */
 /* if enable it now, fifo_overrun will happen, because packet don't get sent
  * out until initial DE detected.
@@ -2901,8 +2894,8 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 
 	set_aud_chnls(hdev, audio_param);
 
-	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, hdev->tx_aud_src, 5, 1);
-	if (hdev->tx_aud_src == 1) {
+	hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0, !!audio_param->aud_src_if, 5, 1);
+	if (audio_param->aud_src_if == 1) {
 		if (GET_OUTCHN_MSK(hdev->aud_output_ch))
 			hdmitx_set_reg_bits(HDMITX_DWC_AUD_CONF0,
 					    GET_OUTCHN_MSK(hdev->aud_output_ch),
@@ -4846,7 +4839,7 @@ static void config_hdmi20_tx(enum hdmi_vic vic,
  */
 	data32  = 0;
 	data32 |= (0 << 7);
-	data32 |= (hdev->tx_aud_src << 5);
+	data32 |= (!!hdev->cur_audio_param.aud_src_if << 5);
 	data32 |= (0 << 0);
 	hdmitx_wr_reg(HDMITX_DWC_AUD_CONF0, data32);
 

@@ -13,6 +13,7 @@
 #include "spdif.h"
 #include "spdif_hw.h"
 #include "earc.h"
+#include "card.h"
 
 struct samesrc_ops *samesrc_ops_table[SHAREBUFFER_SRC_NUM];
 
@@ -38,6 +39,7 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	enum aud_codec_types type, int separated)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	int bit_depth;
 	struct iec958_chsts chsts;
 	struct aud_para aud_param;
@@ -54,8 +56,6 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 				true,
 				lane_i2s);
 
-	/* spdif to hdmitx */
-	enable_spdifout_to_hdmitx(separated);
 	l_src = get_spdif_source_l_config(spdif_id);
 	/* check and set channel status */
 	iec_get_channel_status_info(&chsts,
@@ -69,9 +69,10 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	aud_param.chs = 2;
 
 	/* notify hdmitx audio */
-	if (get_spdif_to_hdmitx_id() == spdif_id)
+	if (get_hdmitx_audio_src(rtd->card) == spdif_id) {
+		enable_spdifout_to_hdmitx(separated);
 		aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM, &aud_param);
-
+	}
 	return 0;
 }
 

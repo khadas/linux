@@ -2671,6 +2671,7 @@ static ssize_t config_show(struct device *dev,
 	int pos = 0;
 	unsigned char *conf;
 	struct hdmitx_dev *hdev = &hdmitx_device;
+	struct hdmitx_audpara *audio_param = &hdmitx_device.cur_audio_param;
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "cur_VIC: %d\n", hdev->cur_VIC);
 	if (hdev->cur_video_param)
@@ -2743,12 +2744,15 @@ static ssize_t config_show(struct device *dev,
 	}
 	pos += snprintf(buf + pos, PAGE_SIZE, "audio on/off: %s\n", conf);
 
-	switch (hdev->tx_aud_src) {
-	case 0:
+	switch (audio_param->aud_src_if) {
+	case AUD_SRC_IF_SPDIF:
 		conf = "SPDIF";
 		break;
-	case 1:
+	case AUD_SRC_IF_I2S:
 		conf = "I2S";
+		break;
+	case AUD_SRC_IF_TDM:
+		conf = "TDM";
 		break;
 	default:
 		conf = "none";
@@ -2975,9 +2979,13 @@ int hdmitx20_ext_get_audio_status(void)
 {
 	struct hdmitx_dev *hdev = &hdmitx_device;
 	int val;
+	static int val_st;
 
 	val = !!(hdev->hwop.cntlconfig(hdev, CONF_GET_AUDIO_MUTE_ST, 0));
-
+	if (val_st != val) {
+		val_st = val;
+		pr_info("%s[%d] val = %d\n", __func__, __LINE__, val);
+	}
 	return val;
 }
 
@@ -6077,6 +6085,9 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	hdev->audio_param_update_flag = 0;
 	hdev->audio_notify_flag = 0;
 
+	pr_info("%s[%d] type:%d rate:%d size:%d chs:%d fifo_rst:%d aud_src_if:%d\n",
+		__func__, __LINE__, aud_param->type, aud_param->rate, aud_param->size,
+		aud_param->chs, aud_param->fifo_rst, aud_param->aud_src_if);
 	if (audio_param->sample_rate != n_rate) {
 		audio_param->sample_rate = n_rate;
 		hdev->audio_param_update_flag = 1;
@@ -6107,6 +6118,14 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 			hdev->aud_output_ch = 0;
 		hdev->audio_param_update_flag = 1;
 	}
+
+	if (audio_param->aud_src_if != aud_param->aud_src_if) {
+		pr_info("cur aud_src_if %d, new aud_src_if: %d\n",
+			audio_param->aud_src_if, aud_param->aud_src_if);
+		audio_param->aud_src_if = aud_param->aud_src_if;
+		hdev->audio_param_update_flag = 1;
+	}
+
 	if (hdev->audio_param_update_flag == 0)
 		;
 	else
@@ -7269,6 +7288,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		audpara->sample_size = SS_16BITS;
 		audpara->channel_num = 2 - 1;
 	}
+	hdmitx20_audio_mute_op(1); /* default audio clock is ON */
 	aout_register_client(&hdmitx_notifier_nb_a);
 #endif
 	spin_lock_init(&hdev->edid_spinlock);

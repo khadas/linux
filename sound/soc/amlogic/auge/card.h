@@ -11,6 +11,16 @@
 
 #include <sound/soc.h>
 #include "card_utils.h"
+#include "../common/iec_info.h"
+
+enum hdmitx_src {
+	HDMITX_SRC_SPDIF,
+	HDMITX_SRC_SPDIF_B,
+	HDMITX_SRC_TDM_A,
+	HDMITX_SRC_TDM_B,
+	HDMITX_SRC_TDM_C,
+	HDMITX_SRC_NUM
+};
 
 struct aml_card_info {
 	const char *name;
@@ -27,5 +37,7 @@ int get_aml_audio_inskew(struct snd_soc_card *card);
 int get_aml_audio_inskew_index(struct snd_soc_card *card);
 int set_aml_audio_inskew(struct snd_soc_card *card, int audio_inskew);
 int set_aml_audio_inskew_index(struct snd_soc_card *card, int inskew_tdm_index);
+enum hdmitx_src get_hdmitx_audio_src(struct snd_soc_card *card);
+enum aud_codec_types get_i2s2hdmitx_audio_format(struct snd_soc_card *card);
 
 #endif /* __SIMPLE_CARD_H */

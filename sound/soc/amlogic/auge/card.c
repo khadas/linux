@@ -35,6 +35,7 @@
 #include "../common/audio_uevent.h"
 #include "audio_controller.h"
 #include "tdm_hw.h"
+#include "spdif_hw.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
@@ -139,6 +140,9 @@ struct aml_card_data {
 	enum audio_hal_format hal_fmt;
 	int inskew_tdm_index;
 	int audio_inskew;
+	/* for I2S to HDMI output audio type */
+	enum aud_codec_types hdmi_audio_type;
+	enum hdmitx_src hdmitx_src;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -155,6 +159,20 @@ struct aml_card_data {
 	aml_card_init_jack(card, sjack, 1, prefix)
 #define aml_card_init_mic(card, sjack, prefix)\
 	aml_card_init_jack(card, sjack, 0, prefix)
+
+enum hdmitx_src get_hdmitx_audio_src(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	return priv->hdmitx_src;
+}
+
+enum aud_codec_types get_i2s2hdmitx_audio_format(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	return priv->hdmi_audio_type;
+}
 
 static const unsigned int headphone_cable[] = {
 	EXTCON_JACK_HEADPHONE,
@@ -252,6 +270,68 @@ static int aml_media_video_delay_get_enum(struct snd_kcontrol *kcontrol,
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_HDMITX
+static int i2s_to_hdmitx_format_get_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *card_data = snd_soc_card_get_drvdata(card);
+
+	ucontrol->value.enumerated.item[0] = card_data->hdmi_audio_type;
+	return 0;
+}
+
+static int i2s_to_hdmitx_format_put_enum(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *card_data = snd_soc_card_get_drvdata(card);
+	int index = ucontrol->value.enumerated.item[0];
+
+	if (index >= AUD_CODEC_TYPE_OBA) {
+		pr_err("bad parameter for i2s2hdmitx format set: %d\n", index);
+		return -EINVAL;
+	}
+
+	card_data->hdmi_audio_type = index;
+
+	return 0;
+}
+
+static const char *const hdmitx_src_select[] = {"Spdif", "Spdif_b",
+		"Tdm_A", "Tdm_B", "Tdm_C"};
+static const struct soc_enum hdmitx_src_select_enum =
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(hdmitx_src_select), hdmitx_src_select);
+static int hdmitx_src_select_get_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *card_data = snd_soc_card_get_drvdata(card);
+
+	ucontrol->value.enumerated.item[0] = card_data->hdmitx_src;
+	return 0;
+}
+
+static int hdmitx_src_select_put_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct aml_card_data *card_data = snd_soc_card_get_drvdata(card);
+	enum hdmitx_src src = ucontrol->value.enumerated.item[0];
+
+	if (src < HDMITX_SRC_SPDIF || src >= HDMITX_SRC_NUM) {
+		pr_err("inval hdmitx src: %d\n", src);
+		return 0;
+	}
+
+	card_data->hdmitx_src = ucontrol->value.enumerated.item[0];
+	if (src <= HDMITX_SRC_SPDIF_B)
+		set_spdif_to_hdmitx_id(card_data->hdmitx_src);
+
+	return 0;
+}
+#endif
+
 static const struct snd_kcontrol_new snd_user_controls[] = {
 	SOC_ENUM_EXT("Audio HAL Format",
 			audio_hal_format_enum,
@@ -266,6 +346,16 @@ static const struct snd_kcontrol_new snd_user_controls[] = {
 			0, 0, 0, 0,
 			aml_media_video_delay_get_enum,
 			NULL),
+#endif
+#ifdef CONFIG_AMLOGIC_HDMITX
+	SOC_ENUM_EXT("Audio I2S to HDMITX Format",
+			aud_codec_type_enum,
+			i2s_to_hdmitx_format_get_enum,
+			i2s_to_hdmitx_format_put_enum),
+	SOC_ENUM_EXT("HDMITX Audio Source Select",
+			hdmitx_src_select_enum,
+			hdmitx_src_select_get_enum,
+			hdmitx_src_select_put_enum),
 #endif
 };
 

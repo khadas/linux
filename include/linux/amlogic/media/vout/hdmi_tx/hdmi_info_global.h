@@ -206,6 +206,7 @@ struct hdmitx_audpara {
 	enum hdmi_audio_chnnum channel_num;
 	enum hdmi_audio_fs sample_rate;
 	enum hdmi_audio_sampsize sample_size;
+	enum hdmi_audio_source_if aud_src_if;
 };
 
 struct hdmitx_supaudinfo {
