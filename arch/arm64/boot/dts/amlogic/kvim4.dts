@@ -873,7 +873,7 @@
 		key_name = "power";
 		key_code = <KEY_POWER>;
 		key_type = <EV_KEY>;
-		key-gpios = <&gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
+		key-gpios = <&gpio  GPIOD_4  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 };
