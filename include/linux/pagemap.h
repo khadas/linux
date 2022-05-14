@@ -29,7 +29,7 @@ enum mapping_flags {
 	AS_EXITING	= 4, 	/* final truncate in progress */
 	/* writeback related tags are not used */
 	AS_NO_WRITEBACK_TAGS = 5,
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 	AS_LOCK_MAPPING	= 6,	/* This mapping contains locked file */
 #endif
 };

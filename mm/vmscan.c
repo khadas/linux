@@ -1353,7 +1353,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		if (page_mapped(page)) {
 			enum ttu_flags flags = ttu_flags | TTU_BATCH_FLUSH;
 
-#if defined(CONFIG_AMLOGIC_MEMORY_EXTEND) && !defined(CONFIG_KASAN)
+#if defined(CONFIG_AMLOGIC_PIN_LOCKED_FILE) && !defined(CONFIG_KASAN)
 			/* shrink pages which not on unevictable list */
 			if (mapping &&
 			    test_bit(AS_LOCK_MAPPING, &mapping->flags) &&
