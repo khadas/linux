@@ -46,6 +46,11 @@ struct am_meson_crtc_state {
 	u8 eotf_type_by_property;
 	/*crtc background*/
 	u64 crtc_bgcolor;
+	/*basic refresh reate*/
+	u32 brr;
+	u32 valid_brr;
+	/*brr mode string*/
+	char brr_mode[DRM_DISPLAY_MODE_LEN];
 };
 
 struct am_meson_crtc {
@@ -65,7 +70,7 @@ struct am_meson_crtc {
 	struct drm_property *dv_enable_property;
 	struct drm_property *bgcolor_property;
 
-    /*debug*/
+	/*debug*/
 	int dump_enable;
 	int blank_enable;
 	int dump_counts;
