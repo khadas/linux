@@ -564,10 +564,6 @@
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
-		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_2 GPIO_ACTIVE_HIGH>;
-		//spk_mute-gpios = <&gpio GPIOD_2 GPIO_ACTIVE_LOW>;
-
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
@@ -627,8 +623,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				prefix-names = "AMP", "AMP1";
-				sound-dai = <&tas5707_36 &tas5707_3a &acodec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -966,8 +961,8 @@
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&mclk_1_pins
 			&tdm_b_pins
-			&tdm_d4_pins
-			&tdm_d5_pins
+			&tdm_d2_pins
+			&tdm_d3_pins
 			&tdmb_clk_pins>;
 
 		/*
@@ -981,7 +976,7 @@
 
 		/* In for ACODEC_ADC */
 		/* tdmin-src-name = "acodec_adc"; */
-		tdmin-src-name = "hdmirx";
+		tdmin-src-name = "tdmin_b";
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
 		ctrl_gain = <1>;
@@ -1383,21 +1378,6 @@
 		reg-data-type = <1>;
 		link-device = <&phycsi>;
 	};
-
-	tas5707_36: tas5707_36@1b {
-		compatible = "ti,tas5707";
-		#sound-dai-cells = <0>;
-		reg = <0x1b>;
-		status = "okay";
-		reset_pin = <&gpio GPIOT_19 GPIO_ACTIVE_HIGH>;
-	};
-
-	tas5707_3a: tas5707_3a@1d {
-		compatible = "ti,tas5707";
-		#sound-dai-cells = <0>;
-		reg = <0x1d>;
-		status = "okay";
-	};
 };
 
 &i2c2 {
@@ -1732,11 +1712,11 @@
 	};
 
 	tdm_b_pins: tdm_b_pin {
-		mux { /* GPIOT_1, GPIOT_2, GPIOT_5, GPIOT_6 */
+		mux { /* GPIOT_1, GPIOT_2, GPIOT_3, GPIOT_4 */
 			groups = "tdm_sclk1",
 				"tdm_fs1",
-				"tdm_d4",
-				"tdm_d5";
+				"tdm_d2",
+				"tdm_d3";
 			function = "tdm";
 		};
 	};
@@ -1850,17 +1830,17 @@
 		};
 	};
 
-	tdm_d4_pins: tdm_d4_pin {
+	tdm_d2_pins: tdm_d2_pin {
 		mux {
-			groups = "tdm_d4";
+			groups = "tdm_d2";
 			function = "tdmoutb_lane0";
 		};
 	};
 
-	tdm_d5_pins: tdm_d5_pin {
+	tdm_d3_pins: tdm_d3_pin {
 		mux {
-			groups = "tdm_d5";
-			function = "tdmoutb_lane1";
+			groups = "tdm_d3";
+			function = "tdminb_lane0";
 		};
 	};
 
