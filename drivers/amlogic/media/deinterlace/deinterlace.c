@@ -6991,9 +6991,30 @@ static void di_pre_size_change(unsigned short width,
 		di_pre_stru.mcdi_enable);
 }
 
+void di_vf_x_y(struct vframe_s *vf, unsigned int *x, unsigned int *y)
+{
+	*x = 0;
+	*y = 0;
+
+	if (!vf)
+		return;
+	*x = vf->width;
+	*y = vf->height;
+
+	if (vf->type & VIDTYPE_COMPRESS) {
+		*x = vf->compWidth;
+		*y = vf->compHeight;
+	}
+}
+
 static bool need_bypass(struct vframe_s *vf)
 {
+	unsigned int x, y;
+
 	needbypass_flag = true;
+
+	di_vf_x_y(vf, &x, &y);
+
 	if (vf->type & VIDTYPE_MVC)
 		return true;
 
@@ -7013,8 +7034,8 @@ static bool need_bypass(struct vframe_s *vf)
 	if (vf->type & VIDTYPE_COMPRESS) {
 		if (!afbc_is_supported())
 			return true;
-		if ((vf->compHeight > (default_height + 8))
-			|| (vf->compWidth > default_width))
+		if ((y > (default_height + 8)) ||
+			x > default_width)
 			return true;
 	}
 #endif
@@ -7024,7 +7045,7 @@ static bool need_bypass(struct vframe_s *vf)
 
 	/*true bypass for 720p above*/
 	if ((vf->flag & VFRAME_FLAG_GAME_MODE) &&
-		(vf->width > 720))
+		(x > 720))
 		return true;
 
 	needbypass_flag = false;

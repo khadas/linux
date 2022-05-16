@@ -10589,7 +10589,7 @@ static unsigned int dim_bypass_check(struct vframe_s *vf)
 #endif//temp bypass p
 	/*true bypass for 720p above*/
 	} else if ((vf->flag & VFRAME_FLAG_GAME_MODE) &&
-		   (vf->width > 720)) {
+		   (x > 720)) {
 		reason = 7;
 	} else if (vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) {
 		reason = 0xa;
