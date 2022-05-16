@@ -426,10 +426,6 @@
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
-		/*avout mute gpio*/
-		avout_mute-gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
-		spk_mute-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_LOW>;
-
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
 			mclk-fs = <512>;
@@ -694,11 +690,11 @@
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
-		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdm_a
-			&tdm_d0_pins
-			&tdm_d1_pins
-			&tdma_clk_pins>;
+//		pinctrl-names = "tdm_pins";
+//		pinctrl-0 = <&tdm_a
+//			&tdm_d0_pins
+//			&tdm_d1_pins
+//			&tdma_clk_pins>;
 
 		status = "okay";
 	};
@@ -706,10 +702,11 @@
 	tdmb: tdm@1 {
 		compatible = "amlogic, t5-snd-tdmb";
 		#sound-dai-cells = <0>;
+		dai-tdm-lane-slot-mask-in = <1 0>;
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkaudio CLKID_AUDIO_MCLK_PAD0
+				&clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "mclk_pad",  "clk_srcpll";
 		/*
@@ -720,6 +717,13 @@
 		 * 4: spdifout_b;
 		 */
 		samesource_sel = <3>;
+
+		pinctrl-names = "tdm_pins";
+			pinctrl-0 = <&mclk_2_pins
+				&tdm_b_pins
+				&tdm_d4_pins
+				&tdm_d5_pins
+				&tdmb_clk_pins>;
 
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
@@ -1009,35 +1013,42 @@
 }; /* end of audiobus */
 
 &pinctrl_audio {
-	tdm_d0_pins: tdm_d0_pin {
-		mux {
-			groups = "tdm_d0";
-			function = "tdmouta_lane0";
+	mclk_2_pins: mclk_2_pin {
+		mux { /* GPIOZ_6 */
+			groups = "mclk2";
+			function = "mclk";
 		};
 	};
 
-	tdm_d1_pins: tdm_d1_pin {
+	tdm_d4_pins: tdm_d4_pin {
 		mux {
-			groups = "tdm_d1";
-			function = "tdmina_lane0";
+			groups = "tdm_d4";
+			function = "tdmoutb_lane0";
 		};
 	};
 
-	tdma_clk_pins: tdm_clk_pin {
+	tdm_d5_pins: tdm_d5_pin {
 		mux {
-			groups = "tdm_sclk0", "tdm_lrclk0";
-			function = "tdm_clk_outa";
+			groups = "tdm_d5";
+			function = "tdminb_lane0";
+		};
+	};
+
+	tdmb_clk_pins: tdm_clk_pin {
+		mux {
+			groups = "tdm_sclk2", "tdm_lrclk2";
+			function = "tdm_clk_outb";
 		};
 	};
 };
 
 &periphs_pinctrl {
-	tdm_a: tdm_a {
+	tdm_b_pins: tdm_b_pin {
 		mux { /* GPIOX_11, GPIOX_10, GPIOX_9, GPIOX_8 */
-			groups = "tdm_sclk0",
-				"tdm_fs0",
-				"tdm_d0",
-				"tdm_d1";
+			groups = "tdm_sclk2",
+				"tdm_fs2",
+				"tdm_d4_z",
+				"tdm_d5_z";
 			function = "tdm";
 		};
 	};
