@@ -94,7 +94,7 @@
 			size = <0x17c00000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x00000000 0x3f800000>;
+			alloc-ranges = <0x20000000 0x1f800000>;
 		};
 
 		/* demod_cma_reserved:linux,demod_cma {
