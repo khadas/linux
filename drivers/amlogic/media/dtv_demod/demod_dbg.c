@@ -1521,30 +1521,40 @@ static ssize_t atsc_para_show(struct class *cls,
 	if (!demod)
 		return 0;
 
-	if (demod->atsc_mode != VSB_8)
-		return 0;
-
-	if (atsc_mode_para == ATSC_READ_STRENGTH) {
-		strength = tuner_get_ch_power(&demod->frontend);
-		return sprintf(buf, "strength is %d\n", strength);
-	} else if (atsc_mode_para == ATSC_READ_SNR) {
-		snr = atsc_read_snr();
-		return sprintf(buf, "snr is %d\n", snr);
-	} else if (atsc_mode_para == ATSC_READ_LOCK) {
-		lock_status =
-			atsc_read_reg(0x0980);
-		return sprintf(buf, "lock_status is %x\n", lock_status);
-	} else if (atsc_mode_para == ATSC_READ_SER) {
-		ser = atsc_read_ser();
-		return sprintf(buf, "ser is %d\n", ser);
-	} else if (atsc_mode_para == ATSC_READ_FREQ) {
-		return sprintf(buf, "freq is %d\n", demod->freq);
-	} else if (atsc_mode_para == ATSC_READ_CK) {
-		ck = atsc_read_ck();
-		return sprintf(buf, "ck=0x%x lock=%d\n",
-						ck, demod->last_status);
-	} else {
-		return sprintf(buf, "atsc_para_show can't match mode\n");
+	if (demod->atsc_mode == QAM_64 || demod->atsc_mode == QAM_256 ||
+		demod->atsc_mode == QAM_AUTO) {
+		if (atsc_mode_para == ATSC_READ_STRENGTH) {
+			strength = tuner_get_ch_power(&demod->frontend);
+			return sprintf(buf, "strength is %d\n", strength);
+		} else if (atsc_mode_para == ATSC_READ_SER) {
+			ser = (unsigned int)dvbc_get_per(demod);
+			return sprintf(buf, "ser is %d\n", ser);
+		} else if (atsc_mode_para == ATSC_READ_FREQ) {
+			return sprintf(buf, "freq is %d\n", demod->freq);
+		} else {
+			return sprintf(buf, "atsc_para_shows can't match mode\n");
+		}
+	} else if (demod->atsc_mode == VSB_8) {
+		if (atsc_mode_para == ATSC_READ_STRENGTH) {
+			strength = tuner_get_ch_power(&demod->frontend);
+			return sprintf(buf, "strength is %d\n", strength);
+		} else if (atsc_mode_para == ATSC_READ_SNR) {
+			snr = atsc_read_snr();
+			return sprintf(buf, "snr is %d\n", snr);
+		} else if (atsc_mode_para == ATSC_READ_LOCK) {
+			lock_status = atsc_read_reg(0x0980);
+			return sprintf(buf, "lock_status is %x\n", lock_status);
+		} else if (atsc_mode_para == ATSC_READ_SER) {
+			ser = atsc_read_ser();
+			return sprintf(buf, "ser is %d\n", ser);
+		} else if (atsc_mode_para == ATSC_READ_FREQ) {
+			return sprintf(buf, "freq is %d\n", demod->freq);
+		} else if (atsc_mode_para == ATSC_READ_CK) {
+			ck = atsc_read_ck();
+			return sprintf(buf, "ck=0x%x lock=%d\n", ck, demod->last_status);
+		} else {
+			return sprintf(buf, "atsc_para_shows can't match mode\n");
+		}
 	}
 
 	return 0;

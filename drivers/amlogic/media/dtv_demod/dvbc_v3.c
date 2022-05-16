@@ -61,7 +61,7 @@ static u32 dvbc_get_ber(struct aml_dtvdemod *demod)
 	return rs_ber;
 }
 
-static u32 dvbc_get_per(struct aml_dtvdemod *demod)
+u32 dvbc_get_per(struct aml_dtvdemod *demod)
 {
 	u32 rs_per;
 	u32 rs_packet_len;
