@@ -194,132 +194,6 @@
 		status = "disabled";
 		tv_mode = <0>;/*1:enabel ;0:disable*/
 	};
-	cvbsout {
-		compatible = "amlogic, cvbsout-s4";
-		status = "okay";
-
-		/* clk path */
-		/* 0:vid_pll vid2_clk */
-		/* 1:gp0_pll vid2_clk */
-		/* 2:vid_pll vid1_clk */
-		/* 3:gp0_pll vid1_clk */
-		clk_path = <0>;
-
-		/* performance: reg_address, reg_value */
-		/* s4 */
-		performance_pal = <0x1bf0  0x9 /* default Matrx625 CTCC value*/
-			0x1b12  0x80c0
-			0x1b05  0xf7
-			0x1b56  0x333
-			0x1c59  0xf25c
-			0xffff  0x0>; /* ending flag */
-		performance = <0x1bf0  0x9 /* ccitt033 SVA value */
-			0x1b12  0x8040
-			0x1b05  0xfd
-			0x1b56  0x333
-			0x1c59  0xf654
-			0xffff  0x0>; /* ending flag */
-		performance_ntsc = <0x1bf0  0x9
-			0x1b12  0x8020
-			0x1b03  0x0
-			0x1b04  0x0
-			0x1b05  0x0
-			0x1b06  0x0
-			0x1b56  0x333
-			0x1c59  0xf850
-			0xffff  0x0>; /* ending flag */
-	};
-
-	dvb-extern {
-		compatible = "amlogic, dvb-extern";
-		dev_name = "dvb-extern";
-		status = "okay";
-
-		/* dvb hardware main power. */
-		dvb_power_gpio = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
-		dvb_power_value = <1>;
-		dvb_power_dir = <0>; /* 0: out, 1: in. */
-
-		fe_num = <3>; /* interal 2 * dvb-c, extern 1 * dvb-s */
-		fe0_demod = "internal";
-		fe0_tuner0 = <0>; /* use tuner0 */
-
-		fe1_demod = "internal";
-		fe1_tuner0 = <1>; /* use tuner1 */
-
-		fe2_demod = "cxd2856";
-		fe2_i2c_adap_id = <&i2c4>;
-		fe2_demod_i2c_addr = <0xD8>;
-		fe2_reset_value = <0>;
-		fe2_reset_gpio = <&gpio GPIOZ_4 GPIO_ACTIVE_HIGH>;
-		fe2_reset_dir = <0>; /* 0: out, 1: in. */
-		fe2_ant_poweron_value = <0>;
-		fe2_ant_power_gpio = <&gpio GPIOH_9 GPIO_ACTIVE_HIGH>;
-		fe2_ts = <0>;
-		fe2_tuner1 = <3>; /* use tuner3, only S. */
-
-		tuner_num = <4>; /* tuner number, multi tuner support */
-		tuner0_name = "r836_tuner";
-		tuner0_i2c_adap = <&i2c3>;
-		tuner0_i2c_addr = <0x1a>; /* 7bit */
-		tuner0_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner0_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner0_xtal_cap = <16>;
-		tuner0_lt_out = <1>;
-
-		tuner1_name = "r836_tuner";
-		tuner1_i2c_adap = <&i2c3>;
-		tuner1_i2c_addr = <0x3a>; /* 7bit */
-		tuner1_xtal = <0>; /* 0: 16MHz, 1: 24MHz */
-		tuner1_xtal_mode = <0>;
-					/* NO_SHARE_XTAL(0)
-					 * SLAVE_XTAL_SHARE(3)
-					 */
-		tuner1_xtal_cap = <16>;
-		tuner1_lt_out = <1>;
-
-		tuner2_name = "av2018_tuner";
-		tuner2_i2c_adap = <&i2c3>;
-		tuner2_i2c_addr = <0xC4>; /* 8bit */
-		tuner2_lt_out = <1>;
-
-		tuner3_name = "av2018_tuner";
-		tuner3_lt_out = <1>;
-	};
-
-	dvb-demux {
-		compatible = "amlogic sc2, dvb-demux";
-		dev_name = "dvb-demux";
-		status = "okay";
-
-		reg = <0x0 0xfe000000 0x0 0x480000>;
-
-		dmxdev_num = <6>;
-
-		tsn_from = "demod";
-
-		/*single demod setting */
-		ts0_sid = <0x10>;
-		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
-		ts0_control = <0x0>;
-		ts0_invert = <0>;
-
-		ts1_sid = <0x11>;
-		ts1 = "parallel";
-		ts1_control = <0x0>;
-		ts1_invert = <0>;
-
-		ts2_sid = <0x12>;
-		ts2 = "parallel";
-		ts2_control = <0x0>;
-		ts2_invert = <0>;
-
-		pinctrl-names = "s_ts0";
-		pinctrl-0 = <&dvb_s_ts0_pins>;
-	};
 
 	ionvideo {
 		compatible = "amlogic, ionvideo";
@@ -384,37 +258,6 @@
 		nr10bit-support = <1>;
 		nrds-enable = <1>;
 		pps-enable = <1>;
-	};
-
-	aml_dtv_demod {
-		compatible = "amlogic, ddemod-s4";
-		dev_name = "aml_dtv_demod";
-		status = "okay";
-		/* diseqc_name = "sgm_41286"; */
-		pinctrl-names="if_agc_pins", "if_agc2_pins";
-		pinctrl-0=<&dtvdemod_if_agc_pins>;
-		pinctrl-1=<&dtvdemod_if_agc2_pins>;
-		/* pinctrl-2=<&diseqc_out>; */
-		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
-		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
-		/* interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>; */
-		/* interrupt-names = "demod_isr"; */
-
-		power-domains = <&pwrdm PDID_S4_DEMOD>;
-		/* clocks = <&clkc CLKID_DAC_CLK>; */
-		/* clock-names = "vdac_clk_gate"; */
-
-		reg = <0x0 0xfe350000 0x0 0x10000	/* dtv demod base */
-			   0x0 0xfe000000 0x0 0x2000	/* div base */
-			   0x0 0xff800000 0x0 0x1000	/* io_aobus_base */
-			   0x0 0xffd01000 0x0 0x1000	/* reset */
-			>;
-
-		dtv_demod0_mem = <0>;	// need move to aml_dtv_demod ?
-		spectrum = <1>;
-		cma_flag = <1>;
-		cma_mem_size = <0>;
-		memory-region = <&demod_cma_reserved>;//<&demod_reserved>;
 	};
 
 	provisionkey {
@@ -1406,10 +1249,6 @@
 &drm_amhdmitx {
 	status = "okay";
 	hdcp = "disabled";
-};
-
-&drm_amcvbsout {
-	status = "okay";
 };
 
 &drm_lcd {
