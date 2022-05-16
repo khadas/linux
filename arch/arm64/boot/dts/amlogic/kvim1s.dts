@@ -1062,15 +1062,15 @@
 	};
 
 	spdifout: spdifout {
-		mux { /* GPIOH_4 */
-			groups = "spdif_out_h";
+		mux { /* GPIOZ_9 */
+			groups = "spdif_out_z";
 			function = "spdif_out";
 		};
 	};
 
 	spdifout_a_mute: spdifout_a_mute {
-		mux { /* GPIOH_4 */
-			groups = "GPIOH_4";
+		mux { /* GPIOZ_9 */
+			groups = "GPIOZ_9";
 			function = "gpio_periphs";
 			output-low;
 		};
