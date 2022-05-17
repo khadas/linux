@@ -359,10 +359,10 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int flm22_comth = pPar->flm22_comth;
 	int flm22_avg_flag = pPar->flm22_avg_flag;
 	int pd22_cnt_pre =
-		RDMA_RD(MCDI_RO_FLD_PD_22_PRE_CNT2);
+		Rd(MCDI_RO_FLD_PD_22_PRE_CNT2);
 	/*mcdi pd 22 ro cnt p2*/
 	int pd22_cnt_cur =
-		RDMA_RD(MCDI_RO_FLD_PD_22_POR_CNT2);
+		Rd(MCDI_RO_FLD_PD_22_POR_CNT2);
 	/*mcdi pd 22 ro cnt cur*/
 	int pd22_pre_cur_dif = 0;
 	int comdif = 0;
