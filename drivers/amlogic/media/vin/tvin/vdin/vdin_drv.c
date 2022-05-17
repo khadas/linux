@@ -4617,12 +4617,14 @@ static bool vdin_set_sig_property(struct tvin_frontend_s *fe)
 		    vdin_get_prop_in_fe_en) {
 			sm_ops->get_sig_property(devp->frontend, &devp->prop);
 			devp->dv.dv_flag = devp->prop.dolby_vision;
+			devp->dv.low_latency = devp->prop.low_latency;
 			devp->pre_prop.latency.allm_mode =
 				devp->prop.latency.allm_mode;
 			devp->prop.cnt++;
 			if (vdin_prop_monitor)
-				pr_info("%s dv:%d hdr:%d allm:%d signal_type:0x%x\n",
+				pr_info("%s dv:%d LL:%d hdr:%d allm:%d signal_type:0x%x\n",
 					__func__, devp->dv.dv_flag,
+					devp->dv.low_latency,
 					devp->prop.vdin_hdr_flag,
 					devp->prop.latency.allm_mode,
 					devp->parm.info.signal_type);

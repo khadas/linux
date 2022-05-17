@@ -196,6 +196,7 @@ void vdin_update_prop(struct vdin_dev_s *devp)
 {
 	/*devp->pre_prop.fps = devp->prop.fps;*/
 	devp->dv.dv_flag = devp->prop.dolby_vision;
+	devp->dv.low_latency = devp->prop.low_latency;
 	/*devp->pre_prop.latency.allm_mode = devp->prop.latency.allm_mode;*/
 	/*devp->pre_prop.aspect_ratio = devp->prop.aspect_ratio;*/
 	devp->parm.info.aspect_ratio = devp->prop.aspect_ratio;
@@ -282,6 +283,24 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 						cur_dv_flag);
 				pre_prop->dolby_vision = prop->dolby_vision;
 				devp->dv.dv_flag = prop->dolby_vision;
+			}
+		}
+
+		if (prop->low_latency != devp->dv.low_latency &&
+		    devp->dv.dv_flag) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				devp->dv.chg_cnt++;
+			if (devp->dv.chg_cnt > vdin_dv_chg_cnt) {
+				devp->dv.chg_cnt = 0;
+				signal_chg |= TVIN_SIG_DV_CHG;
+				if (signal_chg &&
+				    (sm_debug_enable & VDIN_SM_LOG_L_1))
+					pr_info("%s LL chg0x%x:(0x%x->0x%x)\n",
+						__func__,
+						signal_chg, devp->dv.low_latency,
+						prop->low_latency);
+				pre_prop->low_latency = prop->low_latency;
+				devp->dv.low_latency = prop->low_latency;
 			}
 		}
 
@@ -474,18 +493,6 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 		}
 	}
 
-	if (prop->low_latency != devp->dv.low_latency) {
-		devp->dv.low_latency = prop->low_latency;
-		if ((devp->dtdata->hw_ver == VDIN_HW_TM2 ||
-		     devp->dtdata->hw_ver == VDIN_HW_TM2_B) &&
-		    prop->dolby_vision) {
-			signal_chg |= TVIN_SIG_DV_CHG;
-			if (sm_debug_enable & VDIN_SM_LOG_L_1)
-				pr_info("[sm.%d]dv.ll:%d prop.ll:%d\n",
-					devp->index, devp->dv.low_latency,
-					prop->low_latency);
-		}
-	}
 	memcpy(&devp->dv.dv_vsif,
 	       &prop->dv_vsif, sizeof(struct tvin_dv_vsif_s));
 

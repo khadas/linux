@@ -5591,7 +5591,9 @@ void vdin_set_freesync_data(struct vdin_dev_s *devp, struct vframe_s *vf)
 void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 {
 	if (IS_HDMI_SRC(devp->parm.port)) {
-		if (devp->prop.dolby_vision != devp->dv.dv_flag)
+		if (devp->prop.dolby_vision != devp->dv.dv_flag ||
+		    (devp->prop.low_latency != devp->dv.low_latency &&
+		     devp->dv.dv_flag))
 			devp->dv.chg_cnt++;
 		else
 			devp->dv.chg_cnt = 0;
@@ -5622,8 +5624,9 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 			devp->vrr_data.vrr_chg_cnt = 0;
 
 		if (vdin_isr_monitor & BIT(0))
-			pr_info("dv:%d, hdr st:%d eotf:%d fg:%d allm:%d sty:0x%x spd:0x%x 0x%x\n",
+			pr_info("dv:%d, LL:%d hdr st:%d eotf:%d fg:%d allm:%d sty:0x%x spd:0x%x 0x%x\n",
 				devp->prop.dolby_vision,
+				devp->prop.low_latency,
 				devp->prop.hdr_info.hdr_state,
 				devp->prop.hdr_info.hdr_data.eotf,
 				devp->prop.vdin_hdr_flag,
