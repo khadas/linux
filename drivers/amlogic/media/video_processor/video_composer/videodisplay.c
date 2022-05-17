@@ -739,6 +739,7 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 
 		countinue_vsync_count[dev->index] = 0;
 		dev->last_vf_index = vf->omx_index;
+		current_display_vf = vf;
 		return vf;
 	} else {
 		return NULL;
