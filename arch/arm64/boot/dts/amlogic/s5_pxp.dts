@@ -1293,7 +1293,7 @@
 		clock-names = "osc";
 		clock-output-names = "pmic_clk";
 		interrupt-parent = <&gpio_intc>;
-		interrupts = <GPIOE_5 GPIO_ACTIVE_LOW>;
+		//interrupts = <GPIOE_5 GPIO_ACTIVE_LOW>;
 		interrupt-names = "irq";
 		rohm,reset-snvs-powered;
 
@@ -1450,16 +1450,16 @@
 };
 
 &i2c7 {
-	status = "okay";
+	status = "disable";
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7_pins2>;
 	ov9285_2: sensor0@60 {
 		compatible = "omnivision, ov9285";
 		reg = <0x60>;
-		pwr-gpios = <&gpio GPIOC_13 GPIO_ACTIVE_HIGH>;
-		pwdn-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio GPIOC_17 GPIO_ACTIVE_HIGH>;
+		//pwr-gpios = <&gpio GPIOC_13 GPIO_ACTIVE_HIGH>;
+		//pwdn-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
+		//reset-gpios = <&gpio GPIOC_17 GPIO_ACTIVE_HIGH>;
 //		clock-frequency = <24000000>;
 //		clocks = <&clkc CLKID_MCLK_2>;
 //		clock-names = "mclk";
@@ -1475,7 +1475,7 @@
 	ov9285_3: sensor0@10 {
 		compatible = "omnivision, ov9285";
 		reg = <0x10>;
-		pwr-gpios = <&gpio GPIOC_13 GPIO_ACTIVE_HIGH>;
+		//pwr-gpios = <&gpio GPIOC_13 GPIO_ACTIVE_HIGH>;
 		pwdn-gpios = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio GPIOT_0 GPIO_ACTIVE_HIGH>;
 //		clock-frequency = <24000000>;
@@ -1606,14 +1606,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins>;
-	cs-gpios = <&gpio GPIOH_9 0>;
+	//cs-gpios = <&gpio GPIOH_9 0>;
 };
 
 &spicc1 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
-	cs-gpios = <&gpio GPIOH_13 0>;
+	//cs-gpios = <&gpio GPIOH_13 0>;
 };
 
 &sspicc1 {
@@ -1629,14 +1629,14 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins_h>;
-	cs-gpios = <&gpio GPIOH_17 0>;
+	//cs-gpios = <&gpio GPIOH_17 0>;
 };
 
 &spicc3 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc3_pins_k>;
-	cs-gpios = <&gpio GPIOK_3 0>;
+	//cs-gpios = <&gpio GPIOK_3 0>;
 
 };
 
@@ -1644,7 +1644,7 @@
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc4_pins_k>;
-	cs-gpios = <&gpio GPIOK_7 0>;
+	//cs-gpios = <&gpio GPIOK_7 0>;
 };
 
 &spicc5 {

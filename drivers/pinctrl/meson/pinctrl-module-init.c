@@ -32,6 +32,7 @@ static int __init pinctrl_module_init(void)
 	load_pinctrl_module(p1);
 	load_pinctrl_module(t5w);
 	load_pinctrl_module(a5);
+	load_pinctrl_module(s5);
 
 	pr_info("### %s() end\n", __func__);
 

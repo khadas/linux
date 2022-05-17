@@ -9,7 +9,7 @@
 #include <dt-bindings/power/s5-pd.h>
 #include <dt-bindings/clock/amlogic,p1-audio-clk.h>
 #include <dt-bindings/gpio/gpio.h>
-#include <dt-bindings/gpio/meson-p1-gpio.h>
+#include <dt-bindings/gpio/meson-s5-gpio.h>
 #include <dt-bindings/reset/amlogic,meson-s5-reset.h>
 #include <dt-bindings/pwm/pwm.h>
 #include <dt-bindings/pwm/meson.h>
@@ -790,23 +790,23 @@
 			};
 
 			periphs_pinctrl: pinctrl@4008 {
-				compatible = "amlogic,meson-p1-periphs-pinctrl";
+				compatible = "amlogic,meson-s5-periphs-pinctrl";
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges;
 
 				gpio: bank@4008 {
-					reg = <0x0 0x4008 0x0 0x008c>,
-					      <0x0 0x4200 0x0 0x035c>;
+					reg = <0x0 0x4000 0x0 0x008c>,
+					      <0x0 0x4200 0x0 0x016c>;
 					reg-names = "mux", "gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
-					gpio-ranges = <&periphs_pinctrl 0 0 218>;
+					gpio-ranges = <&periphs_pinctrl 0 0 107>;
 				};
 			};
 
 			storage_pinctrl: pinctrl@86000 {
-				compatible = "amlogic,meson-p1-storage-pinctrl";
+				compatible = "amlogic,meson-s5-storage-pinctrl";
 				#address-cells = <2>;
 				#size-cells = <2>;
 				ranges;
