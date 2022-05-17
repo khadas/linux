@@ -67,7 +67,7 @@
 			reusable;
 			size = <0x800000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x3f800000 0x800000>;
+			alloc-ranges = <0x5f800000 0x800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -75,7 +75,6 @@
 			reusable;
 			size = <0x5c00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x39c00000 0x5c00000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
@@ -83,7 +82,6 @@
 			/* 1920x1080x4x4 round up 4M align */
 			size = <0x2400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x37800000 0x2400000>;
 		};
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
@@ -114,7 +112,6 @@
 			size = <0xa800000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x25800000 0xa800000>;
 		};
 
 		/* codec shared reserved */
@@ -123,7 +120,6 @@
 			size = <0x0>;
 			alignment = <0x100000>;
 			//no-map;
-			alloc-ranges = <0x25800000 0x0>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -145,7 +141,6 @@
 			 */
 			size = <0x01400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x24400000 0x01400000>;
 		};
 	};
 	codec_mm {
@@ -268,17 +263,17 @@
 		tsn_from = "demod";
 
 		/*single demod setting */
-		ts0_sid = <0x20>;
+		ts0_sid = <0x10>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
 		ts0_invert = <0>;
 
-		ts1_sid = <0x21>;
+		ts1_sid = <0x11>;
 		ts1 = "parallel";
 		ts1_control = <0x0>;
 		ts1_invert = <0>;
 
-		ts2_sid = <0x22>;
+		ts2_sid = <0x12>;
 		ts2 = "parallel";
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
@@ -798,6 +793,47 @@
 			r_io_number = <3>;
 			g_io_number = <13>;
 			b_io_number = <8>;
+		};
+	};
+	aw9523: aw9523_led@5b {
+		compatible = "amlogic,aw9523b_led";
+		reg = <0x5b>;
+		status = "okay";
+		reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		platform = <4>;
+
+		led1 {
+			default_colors = <0 0 0>;
+			r_io_number = <0>;
+			g_io_number = <10>;
+			b_io_number = <5>;
+		};
+
+		led2 {
+			default_colors = <0 0 0>;
+			r_io_number = <1>;
+			g_io_number = <11>;
+			b_io_number = <6>;
+		};
+
+		led3 {
+			default_colors = <0 0 0>;
+			r_io_number = <2>;
+			g_io_number = <12>;
+			b_io_number = <7>;
+		};
+
+		led4 {
+			default_colors = <0 0 0>;
+			r_io_number = <3>;
+			g_io_number = <13>;
+			b_io_number = <8>;
+		};
+		led9 {
+			default_colors = <0 0 0>;
+			r_io_number = <4>;
+			g_io_number = <14>;
+			b_io_number = <9>;
 		};
 	};
 };
@@ -1453,14 +1489,14 @@
 	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
-	logo_addr = "0x3f800000";
+	logo_addr = "0x5f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
 &drm_vpu {
 	status = "okay";
-	logo_addr = "0x3f800000";
+	logo_addr = "0x5f800000";
 
 };
 

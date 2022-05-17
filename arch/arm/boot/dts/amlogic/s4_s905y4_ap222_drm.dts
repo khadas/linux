@@ -266,17 +266,17 @@
 		tsn_from = "demod";
 
 		/*single demod setting */
-		ts0_sid = <0x20>;
+		ts0_sid = <0x10>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
 		ts0_invert = <0>;
 
-		ts1_sid = <0x21>;
+		ts1_sid = <0x11>;
 		ts1 = "parallel";
 		ts1_control = <0x0>;
 		ts1_invert = <0>;
 
-		ts2_sid = <0x22>;
+		ts2_sid = <0x12>;
 		ts2 = "parallel";
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
@@ -797,6 +797,47 @@
 			b_io_number = <8>;
 		};
 	};
+	aw9523: aw9523_led@5b {
+		compatible = "amlogic,aw9523b_led";
+		reg = <0x5b>;
+		status = "okay";
+		reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		platform = <4>;
+
+		led1 {
+			default_colors = <0 0 0>;
+			r_io_number = <0>;
+			g_io_number = <10>;
+			b_io_number = <5>;
+		};
+
+		led2 {
+			default_colors = <0 0 0>;
+			r_io_number = <1>;
+			g_io_number = <11>;
+			b_io_number = <6>;
+		};
+
+		led3 {
+			default_colors = <0 0 0>;
+			r_io_number = <2>;
+			g_io_number = <12>;
+			b_io_number = <7>;
+		};
+
+		led4 {
+			default_colors = <0 0 0>;
+			r_io_number = <3>;
+			g_io_number = <13>;
+			b_io_number = <8>;
+		};
+		led9 {
+			default_colors = <0 0 0>;
+			r_io_number = <4>;
+			g_io_number = <14>;
+			b_io_number = <9>;
+		};
+	};
 };
 
 &vddcpu0 {
@@ -878,11 +919,8 @@
 		dai-tdm-clk-sel = <2>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkaudio CLKID_AUDIO_MCLK_PAD0
-				&clkc CLKID_MPLL2
-				&clkc CLKID_MPLL0
-				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "mclk", "mclk_pad", "clk_srcpll",
-			"samesource_srcpll", "samesource_clk";
+				&clkc CLKID_MPLL2>;
+		clock-names = "mclk", "mclk_pad", "clk_srcpll";
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1527,6 +1565,7 @@
 &aml_bt {
 	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
+	bt_en-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
