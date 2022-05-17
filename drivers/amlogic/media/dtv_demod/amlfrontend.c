@@ -4642,6 +4642,82 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 	return 0;
 }
 
+static void delsys_exit(struct aml_dtvdemod *demod, unsigned int delsys)
+{
+	struct dvb_frontend *fe = &demod->frontend;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+
+	if (is_meson_t3_cpu() && delsys == SYS_DTMB) {
+		dtmb_write_reg(0x7, 0x6ffffd);
+		//dtmb_write_reg(0x47, 0xed33221);
+		dtmb_write_reg_bits(0x47, 0x1, 22, 1);
+		dtmb_write_reg_bits(0x47, 0x1, 23, 1);
+
+		if (is_meson_t3_cpu() && is_meson_rev_b())
+			t3_revb_set_ambus_state(true, false);
+	} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+		demod_is_t5d_cpu(devp)) && delsys == SYS_DVBT2) {
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+		dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
+		riscv_ctl_write_reg(0x30, 4);
+		demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
+		dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
+		dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
+		dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
+
+		if (is_meson_t3_cpu() && is_meson_rev_b())
+			t3_revb_set_ambus_state(true, true);
+
+		if (is_meson_t5w_cpu())
+			t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
+	} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
+		demod_is_t5d_cpu(devp)) && delsys == SYS_ISDBT) {
+		dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
+		dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
+		dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
+
+		if (is_meson_t3_cpu() && is_meson_rev_b())
+			t3_revb_set_ambus_state(true, false);
+
+		if (is_meson_t5w_cpu())
+			t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
+	}
+
+	if (fe->ops.tuner_ops.release)
+		fe->ops.tuner_ops.release(fe);
+
+	if ((is_meson_t5w_cpu() ||
+		is_meson_t3_cpu() ||
+		demod_is_t5d_cpu(devp)) &&
+		(delsys == SYS_DTMB ||
+				delsys == SYS_DVBT2 ||
+				delsys == SYS_ISDBT)) {
+		if (fe->ops.tuner_ops.set_config)
+			fe->ops.tuner_ops.set_config(fe, NULL);
+		if (fe->ops.tuner_ops.release)
+			fe->ops.tuner_ops.release(fe);
+		msleep(demod->timeout_ddr_leave);
+		clear_ddr_bus_data(demod);
+	}
+
+	leave_mode(demod, delsys);
+
+	if (is_meson_t5w_cpu() &&
+		(delsys == SYS_DVBT2 || delsys == SYS_ISDBT)) {
+		msleep(20);
+
+		t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
+	} else if (is_meson_t3_cpu() && is_meson_rev_b() &&
+			(delsys == SYS_DTMB ||
+			delsys == SYS_DVBT2 ||
+			delsys == SYS_ISDBT)) {
+		msleep(20);
+
+		t3_revb_set_ambus_state(false, delsys == SYS_DVBT2);
+	}
+}
+
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 /* when can't get ic_config by dts, use this*/
 const struct meson_ddemod_data  data_gxtvbb = {
@@ -5665,11 +5741,8 @@ static void aml_dtvdemod_shutdown(struct platform_device *pdev)
 		 * But need to reinitialize it.
 		 */
 		if (devp->state != DTVDEMOD_ST_IDLE) {
-			if (demod->last_delsys != SYS_UNDEFINED) {
-				if (demod->frontend.ops.tuner_ops.release)
-					demod->frontend.ops.tuner_ops.release(&demod->frontend);
-				leave_mode(demod, demod->last_delsys);
-			}
+			if (demod->last_delsys != SYS_UNDEFINED)
+				delsys_exit(demod, demod->last_delsys);
 		}
 	}
 
@@ -5724,11 +5797,8 @@ static int dtvdemod_leave_mode(struct amldtvdemod_device_s *devp)
 		 */
 		delsys = demod->last_delsys;
 		PR_INFO("%s, delsys = %s\n", __func__, name_fe_delivery_system[delsys]);
-		if (delsys != SYS_UNDEFINED) {
-			if (demod->frontend.ops.tuner_ops.release)
-				demod->frontend.ops.tuner_ops.release(&demod->frontend);
-			leave_mode(demod, delsys);
-		}
+		if (delsys != SYS_UNDEFINED)
+			delsys_exit(demod, delsys);
 	}
 
 	return 0;
@@ -5820,21 +5890,13 @@ void __exit aml_dtvdemod_exit(void)
 static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	enum fe_delivery_system ldelsys = demod->last_delsys;
 	enum fe_delivery_system cdelsys = delsys;
-	int ncaps, support;
-	int is_T_T2_switch = 0;
+	int ncaps = 0, support = 0;
 
 	if (ldelsys == cdelsys)
 		return 0;
 
-	if ((cdelsys == SYS_DVBT && ldelsys == SYS_DVBT2) ||
-		(cdelsys == SYS_DVBT2 && ldelsys == SYS_DVBT))
-		is_T_T2_switch = 1;
-
-	ncaps = 0;
-	support = 0;
 	while (ncaps < MAX_DELSYS && fe->ops.delsys[ncaps]) {
 		if (fe->ops.delsys[ncaps] == cdelsys) {
 
@@ -5907,75 +5969,7 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	case SYS_ANALOG:
 		if (get_dtvpll_init_flag()) {
 			PR_INFO("delsys not support : %d\n", cdelsys);
-			if (is_meson_t3_cpu() && ldelsys == SYS_DTMB) {
-				dtmb_write_reg(0x7, 0x6ffffd);
-				//dtmb_write_reg(0x47, 0xed33221);
-				dtmb_write_reg_bits(0x47, 0x1, 22, 1);
-				dtmb_write_reg_bits(0x47, 0x1, 23, 1);
-
-				if (is_meson_t3_cpu() && is_meson_rev_b())
-					t3_revb_set_ambus_state(true, false);
-			} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
-				demod_is_t5d_cpu(devp)) && ldelsys == SYS_DVBT2) {
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-				dvbt_t2_wr_byte_bits(0x09, 1, 4, 1);
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x97);
-				riscv_ctl_write_reg(0x30, 4);
-				demod_top_write_reg(DEMOD_TOP_CFG_REG_4, 0x182);
-				dvbt_t2_wr_byte_bits(0x07, 1, 7, 1);
-				dvbt_t2_wr_byte_bits(0x3613, 0, 4, 3);
-				dvbt_t2_wr_byte_bits(0x3617, 0, 0, 3);
-
-				if (is_meson_t3_cpu() && is_meson_rev_b())
-					t3_revb_set_ambus_state(true, true);
-
-				if (is_meson_t5w_cpu())
-					t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
-			} else if ((is_meson_t5w_cpu() || is_meson_t3_cpu() ||
-				demod_is_t5d_cpu(devp)) && ldelsys == SYS_ISDBT) {
-				dvbt_isdbt_wr_reg((0x2 << 2), 0x111021b);
-				dvbt_isdbt_wr_reg((0x2 << 2), 0x011021b);
-				dvbt_isdbt_wr_reg((0x2 << 2), 0x011001b);
-
-				if (is_meson_t3_cpu() && is_meson_rev_b())
-					t3_revb_set_ambus_state(true, false);
-
-				if (is_meson_t5w_cpu())
-					t5w_write_ambus_reg(0x3c4e, 0x1, 23, 1);
-			}
-
-			if (fe->ops.tuner_ops.release)
-				fe->ops.tuner_ops.release(fe);
-
-			if ((is_meson_t5w_cpu() ||
-				is_meson_t3_cpu() ||
-				demod_is_t5d_cpu(devp)) &&
-				(ldelsys == SYS_DTMB ||
-				ldelsys == SYS_DVBT2 ||
-				ldelsys == SYS_ISDBT)) {
-				if (fe->ops.tuner_ops.set_config)
-					fe->ops.tuner_ops.set_config(fe, NULL);
-				if (fe->ops.tuner_ops.release)
-					fe->ops.tuner_ops.release(fe);
-				msleep(demod->timeout_ddr_leave);
-				clear_ddr_bus_data(demod);
-			}
-
-			leave_mode(demod, ldelsys);
-
-			if (is_meson_t5w_cpu() &&
-				(ldelsys == SYS_DVBT2 || ldelsys == SYS_ISDBT)) {
-				msleep(20);
-
-				t5w_write_ambus_reg(0x3c4e, 0x0, 23, 1);
-			} else if (is_meson_t3_cpu() && is_meson_rev_b() &&
-					(ldelsys == SYS_DTMB ||
-					ldelsys == SYS_DVBT2 ||
-					ldelsys == SYS_ISDBT)) {
-				msleep(20);
-
-				t3_revb_set_ambus_state(false, ldelsys == SYS_DVBT2);
-			}
+			delsys_exit(demod, ldelsys);
 		}
 
 		return 0;
@@ -5983,20 +5977,12 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	}
 
 	if (cdelsys != SYS_UNDEFINED) {
-		if (ldelsys != SYS_UNDEFINED) {
-			if (fe->ops.tuner_ops.release && !is_T_T2_switch)
-				fe->ops.tuner_ops.release(fe);
-
-			leave_mode(demod, ldelsys);
-		}
+		if (ldelsys != SYS_UNDEFINED)
+			delsys_exit(demod, ldelsys);
 
 		if (enter_mode(demod, cdelsys)) {
 			PR_INFO("enter_mode failed,leave!\n");
-
-			if (fe->ops.tuner_ops.release)
-				fe->ops.tuner_ops.release(fe);
-
-			leave_mode(demod, cdelsys);
+			delsys_exit(demod, cdelsys);
 
 			return 0;
 		}
@@ -6004,10 +5990,7 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 
 	if (!get_dtvpll_init_flag()) {
 		PR_INFO("pll is not set!\n");
-		if (fe->ops.tuner_ops.release)
-			fe->ops.tuner_ops.release(fe);
-
-		leave_mode(demod, cdelsys);
+		delsys_exit(demod, cdelsys);
 
 		return 0;
 	}
@@ -6015,7 +5998,7 @@ static int delsys_set(struct dvb_frontend *fe, unsigned int delsys)
 	demod->last_delsys = cdelsys;
 	PR_INFO("[id %d] info fe type:%d.\n", demod->id, fe->ops.info.type);
 
-	if (fe->ops.tuner_ops.set_config && !is_T_T2_switch)
+	if (fe->ops.tuner_ops.set_config)
 		fe->ops.tuner_ops.set_config(fe, NULL);
 
 	return 0;
@@ -6067,12 +6050,9 @@ static int aml_dtvdm_sleep(struct dvb_frontend *fe)
 
 	if (get_dtvpll_init_flag()) {
 		PR_INFO("%s\n", __func__);
-		if (fe->ops.tuner_ops.release)
-			fe->ops.tuner_ops.release(fe);
 
 		if (delsys != SYS_UNDEFINED)
-			leave_mode(demod, delsys);
-
+			delsys_exit(demod, delsys);
 	}
 
 	PR_INFO("%s [id %d] OK.\n", __func__, demod->id);
@@ -6618,10 +6598,8 @@ static void aml_dtvdm_release(struct dvb_frontend *fe)
 
 	if (get_dtvpll_init_flag()) {
 		PR_INFO("%s\n", __func__);
-		if (fe->ops.tuner_ops.release)
-			fe->ops.tuner_ops.release(fe);
 		if (delsys != SYS_UNDEFINED)
-			leave_mode(demod, delsys);
+			delsys_exit(demod, delsys);
 	}
 
 	PR_INFO("%s [id %d] OK.\n", __func__, demod->id);
