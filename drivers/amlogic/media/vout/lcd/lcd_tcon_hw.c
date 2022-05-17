@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/reset.h>
+#include <linux/sched/clock.h>
 #include "lcd_common.h"
 #include "lcd_reg.h"
 #include "lcd_tcon.h"
@@ -1409,19 +1410,24 @@ int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	unsigned long long local_time[3];
 
 	if (!mm_table || !tcon_conf)
 		return -1;
 
+	local_time[0] = sched_clock();
 	if (mm_table->core_reg_header) {
 		if (mm_table->core_reg_header->block_ctrl == 0) {
 			lcd_tcon_core_reg_set(pdrv, tcon_conf,
 				mm_table, mm_table->core_reg_table);
 		}
 	}
-
+	local_time[1] = sched_clock();
 	if (mm_table->version)
 		lcd_tcon_data_set(pdrv, mm_table);
+	local_time[2] = sched_clock();
+	pdrv->config.cus_ctrl.reg_set_time = local_time[1] - local_time[0];
+	pdrv->config.cus_ctrl.data_set_time = local_time[2] - local_time[1];
 
 	return 0;
 }

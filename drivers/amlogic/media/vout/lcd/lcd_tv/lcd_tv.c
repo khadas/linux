@@ -21,6 +21,7 @@
 #include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/sched/clock.h>
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
@@ -566,7 +567,9 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 {
 	unsigned long flags = 0;
 	int ret = 0;
+	unsigned long long local_time[3];
 
+	local_time[0] = sched_clock();
 	if (pdrv->vmode_update == 0)
 		return;
 
@@ -584,12 +587,17 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 							  msecs_to_jiffies(500));
 			if (!ret)
 				LCDPR("wait_for_completion_timeout\n");
+			local_time[1] = sched_clock();
+			pdrv->config.cus_ctrl.mute_time = local_time[1] - local_time[0];
 			return;
 		}
 
 		//vmode switch
 		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_SWITCH_MODE, (void *)pdrv);
 		lcd_queue_work(&pdrv->screen_restore_work);
+		local_time[1] = sched_clock();
+
+		pdrv->config.cus_ctrl.switch_time = local_time[1] - local_time[0];
 		return;
 	}
 
@@ -597,15 +605,42 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 	if (flag) {
 		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_ON, (void *)pdrv);
 		lcd_if_enable_retry(pdrv);
+		local_time[1] = sched_clock();
+		pdrv->config.cus_ctrl.switch_time = local_time[1] - local_time[0];
 	} else {
 		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_IF_POWER_OFF, (void *)pdrv);
+		local_time[1] = sched_clock();
+		pdrv->config.cus_ctrl.power_off_time = local_time[1] - local_time[0];
 	}
+}
+
+static void lcd_dlg_time_init(struct aml_lcd_drv_s *pdrv)
+{
+	if (!pdrv)
+		return;
+
+	pdrv->config.cus_ctrl.mute_time = 0;
+	pdrv->config.cus_ctrl.unmute_time = 0;
+	pdrv->config.cus_ctrl.switch_time = 0;
+	pdrv->config.cus_ctrl.power_off_time = 0;
+	pdrv->config.cus_ctrl.bl_off_time = 0;
+	pdrv->config.cus_ctrl.bl_on_time = 0;
+	pdrv->config.cus_ctrl.driver_change_time = 0;
+	pdrv->config.cus_ctrl.driver_disable_time = 0;
+	pdrv->config.cus_ctrl.driver_init_time = 0;
+	pdrv->config.cus_ctrl.tcon_reload_time = 0;
+	pdrv->config.cus_ctrl.level_shift_time = 0;
+	pdrv->config.cus_ctrl.dlg_time = 0;
 }
 
 static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 {
 	int ret = 0;
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	unsigned long long local_time[3];
+
+	lcd_dlg_time_init(pdrv);
+	local_time[0] = sched_clock();
 
 	if (!pdrv)
 		return -1;
@@ -664,6 +699,9 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	pdrv->vmode_update = 0;
 	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;
 	mutex_unlock(&lcd_power_mutex);
+	local_time[1] = sched_clock();
+	pdrv->config.cus_ctrl.dlg_time = local_time[1] - local_time[0];
+
 	return ret;
 }
 

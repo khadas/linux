@@ -24,6 +24,7 @@
 #include <linux/of_device.h>
 #include <linux/compat.h>
 #include <linux/workqueue.h>
+#include <linux/sched/clock.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
@@ -272,6 +273,7 @@ static void lcd_dlg_switch_mode(struct aml_lcd_drv_s *pdrv)
 	struct lcd_extern_dev_s *edev;
 #endif
 	unsigned int i = 0, index;
+	unsigned long long local_time[3];
 
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 	while (i < LCD_PWR_STEP_MAX) {
@@ -281,11 +283,17 @@ static void lcd_dlg_switch_mode(struct aml_lcd_drv_s *pdrv)
 			break;
 		switch (power_step->type) {
 		case LCD_POWER_TYPE_SIGNAL:
-			if (pdrv->config.basic.lcd_type == LCD_P2P)
+			if (pdrv->config.basic.lcd_type == LCD_P2P) {
+				local_time[0] = sched_clock();
 				lcd_tcon_reload(pdrv);
+				local_time[1] = sched_clock();
+				pdrv->config.cus_ctrl.tcon_reload_time =
+					local_time[1] - local_time[0];
+			}
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
+			local_time[0] = sched_clock();
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: power_ctrl step %d\n",
 					pdrv->index, i);
@@ -303,6 +311,8 @@ static void lcd_dlg_switch_mode(struct aml_lcd_drv_s *pdrv)
 				edev->power_on(edrv, edev);
 			else
 				LCDERR("[%d]: no ext_%d power on\n", pdrv->index, index);
+			local_time[1] = sched_clock();
+			pdrv->config.cus_ctrl.level_shift_time = local_time[1] - local_time[0];
 			break;
 #endif
 		default:
@@ -322,6 +332,7 @@ static void lcd_dlg_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 	struct lcd_extern_dev_s *edev;
 #endif
 	unsigned int i, index;
+	unsigned long long local_time[3];
 
 	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 	i = 0;
@@ -350,6 +361,7 @@ static void lcd_dlg_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
+			local_time[0] = sched_clock();
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: power_ctrl: %d, step %d\n",
 					pdrv->index, status, i);
@@ -374,6 +386,8 @@ static void lcd_dlg_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 				else
 					LCDERR("[%d]: no ext_%d power off\n", pdrv->index, index);
 			}
+			local_time[1] = sched_clock();
+			pdrv->config.cus_ctrl.level_shift_time = local_time[1] - local_time[0];
 			break;
 #endif
 		default:
@@ -538,7 +552,9 @@ static void lcd_screen_restore_work(struct work_struct *work)
 	unsigned long flags = 0;
 	int ret = 0;
 	struct aml_lcd_drv_s *pdrv;
+	unsigned long long local_time[3];
 
+	local_time[0] = sched_clock();
 	pdrv = container_of(work, struct aml_lcd_drv_s, screen_restore_work);
 
 	mutex_lock(&lcd_power_mutex);
@@ -553,6 +569,8 @@ static void lcd_screen_restore_work(struct work_struct *work)
 		LCDPR("vmode switch: wait_for_completion_timeout\n");
 	pdrv->lcd_screen_restore(pdrv);
 	mutex_unlock(&lcd_power_mutex);
+	local_time[1] = sched_clock();
+	pdrv->config.cus_ctrl.unmute_time = local_time[1] - local_time[0];
 }
 
 static void lcd_lata_resume_work(struct work_struct *work)
@@ -952,6 +970,9 @@ static int lcd_power_screen_black_notifier(struct notifier_block *nb,
 					   unsigned long event, void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	unsigned long long local_time[3];
+
+	local_time[0] = sched_clock();
 
 	if ((event & LCD_EVENT_SCREEN_BLACK) == 0)
 		return NOTIFY_DONE;
@@ -965,7 +986,9 @@ static int lcd_power_screen_black_notifier(struct notifier_block *nb,
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
 	lcd_power_screen_black(pdrv);
+	local_time[1] = sched_clock();
 
+	pdrv->config.cus_ctrl.mute_time = local_time[1] - local_time[0];
 	return NOTIFY_OK;
 }
 
@@ -978,6 +1001,9 @@ static int lcd_power_screen_restore_notifier(struct notifier_block *nb,
 					     unsigned long event, void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	unsigned long long local_time[3];
+
+	local_time[0] = sched_clock();
 
 	if ((event & LCD_EVENT_SCREEN_RESTORE) == 0)
 		return NOTIFY_DONE;
@@ -991,6 +1017,9 @@ static int lcd_power_screen_restore_notifier(struct notifier_block *nb,
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
 	lcd_power_screen_restore(pdrv);
+	local_time[1] = sched_clock();
+
+	pdrv->config.cus_ctrl.unmute_time = local_time[1] - local_time[0];
 
 	return NOTIFY_OK;
 }
