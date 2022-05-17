@@ -162,7 +162,14 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x8000000>;
+			size = <0x6400000>;
+			alignment = <0x400000>;
+		};
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1920x1080x4x3 round up 4M align */
+			size = <0x1c00000>;
 			alignment = <0x400000>;
 		};
 
@@ -193,7 +200,6 @@
 			size = <0x13400000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x30000000 0x50000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -1028,7 +1034,7 @@
 	bl_mode = <1>;
 	fip_copies = <4>;
 	fip_size = <0x200000>;
-
+	ship_bad_block = <1>;
 	nand@bootloader {
 		reg = <0>;
 		#address-cells = <1>;
