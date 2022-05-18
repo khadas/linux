@@ -5139,6 +5139,7 @@ static struct clk_regmap s5_vpuclk_1 = {
 			&s5_vpuclk_1_div.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5187,6 +5188,7 @@ static struct clk_regmap s5_vpuclk_0 = {
 			&s5_vpuclk_0_div.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -5204,6 +5206,7 @@ static struct clk_regmap s5_vpu_clk = {
 			&s5_vpuclk_1.hw
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 

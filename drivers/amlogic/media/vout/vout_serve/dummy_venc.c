@@ -32,9 +32,10 @@
 
 enum dummy_venc_chip_e {
 	DUMMY_VENC_DFT = 0,
-	DUMMY_VENC_SC2, /* 1 */
-	DUMMY_VENC_T7,  /* 2 */
-	DUMMY_VENC_T5W,	/* 3 */
+	DUMMY_VENC_SC2, /* 1, stb single display */
+	DUMMY_VENC_T7,  /* 2, triple display */
+	DUMMY_VENC_T5W, /* 3, tv dual display */
+	DUMMY_VENC_S5,  /* 4, stb new single display */
 	DUMMY_VENC_MAX,
 };
 
@@ -1940,6 +1941,20 @@ static struct dummy_venc_data_s dummy_venc_match_data_t5w = {
 	.venc_sel = dummy_venc_sel_t7,
 };
 
+static struct dummy_venc_data_s dummy_venc_match_data_s5 = {
+	.vconf = &dummy_venc_conf_t7_0,
+
+	.chip_type = DUMMY_VENC_S5,
+	.default_venc_index = 0,
+	.projection_valid = 0,
+
+	.clktree_probe = NULL,
+	.clktree_remove = NULL,
+	.encp_clk_gate_switch = NULL,
+	.enci_clk_gate_switch = NULL,
+	.encl_clk_gate_switch = NULL,
+};
+
 static const struct of_device_id dummy_venc_dt_match_table[] = {
 	{
 		.compatible = "amlogic, dummy_venc",
@@ -1964,6 +1979,10 @@ static const struct of_device_id dummy_venc_dt_match_table[] = {
 	{
 		.compatible = "amlogic, dummy_venc_t5w",
 		.data = &dummy_venc_match_data_t5w,
+	},
+	{
+		.compatible = "amlogic, dummy_venc_s5",
+		.data = &dummy_venc_match_data_s5,
 	},
 	{}
 };

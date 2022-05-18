@@ -31,6 +31,7 @@
 /* v20201118: add t7 support */
 /* v20211102: add t5w support */
 /* v20220803: add axg support */
+/* v20220517: add s5 support */
 #define VPU_VERION        "v20220803"
 
 int vpu_debug_print_flag;
@@ -1397,7 +1398,6 @@ static ssize_t vpu_dev_debug(struct class *class, struct class_attribute *attr,
 static unsigned int vcbus_reg[] = {
 	0x1b7f, /* VENC_VDAC_TST_VAL */
 	0x1c30, /* ENCP_DVI_HSO_BEGIN */
-	0x1d00, /* VPP_DUMMY_DATA */
 	0x2730, /* VPU_VPU_PWM_V0 */
 };
 
@@ -2281,6 +2281,42 @@ static struct vpu_data_s vpu_data_s4d = {
 	.mempd_get = vpu_vmod_mem_pd_get_new,
 };
 
+static struct vpu_data_s vpu_data_s5 = {
+	.chip_type = VPU_CHIP_S5,
+	.chip_name = "s5",
+
+	.clk_level_dft = CLK_LEVEL_DFT_G12A,
+	.clk_level_max = CLK_LEVEL_MAX_G12A,
+	.fclk_div_table = fclk_div_table_g12a,
+	.reg_map_table = vpu_reg_table_new,
+
+	.vpu_clk_reg = CLKCTRL_VPU_CLK_CTRL,
+	.vapb_clk_reg = CLKCTRL_VAPBCLK_CTRL,
+
+	.gp_pll_valid = 0,
+	.mem_pd_reg[0] = PWRCTRL_MEM_PD5_SC2,
+	.mem_pd_reg[1] = PWRCTRL_MEM_PD6_SC2,
+	.mem_pd_reg[2] = PWRCTRL_MEM_PD7_SC2,
+	.mem_pd_reg[3] = PWRCTRL_MEM_PD8_SC2,
+	.mem_pd_reg[4] = PWRCTRL_MEM_PD9_SC2,
+	.mem_pd_reg_flag = 1,
+
+	.pwrctrl_id_table = vpu_pwrctrl_id_table_t7,
+
+	.power_table = NULL,
+	.iso_table = NULL,
+	.reset_table = NULL,
+	.module_init_table = NULL,
+
+	.mem_pd_table = vpu_mem_pd_sc2,
+	.clk_gate_table = NULL,
+
+	.power_on = vpu_power_on_new,
+	.power_off = vpu_power_off_new,
+	.mempd_switch = vpu_vmod_mem_pd_switch_new,
+	.mempd_get = vpu_vmod_mem_pd_get_new,
+};
+
 static const struct of_device_id vpu_of_table[] = {
 	{
 		.compatible = "amlogic, vpu-axg",
@@ -2343,6 +2379,10 @@ static const struct of_device_id vpu_of_table[] = {
 	{
 		.compatible = "amlogic, vpu-t5w",
 		.data = &vpu_data_t5w,
+	},
+	{
+		.compatible = "amlogic, vpu-s5",
+		.data = &vpu_data_s5,
 	},
 	{}
 };
