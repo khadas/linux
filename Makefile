@@ -431,6 +431,14 @@ ifneq ($(SRCARCH),$(SUBARCH))
 cross_compiling := 1
 endif
 
+# ifdef CONFIG_AMLOGIC_DRIVER
+# config cannot be used here to mark AMLOGIC modifications
+# If these three variables are not set externally, set their default values
+export COMMON_DRIVERS_DIR ?= common_drivers
+dtstree ?= $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/boot/dts/amlogic
+export DTC_INCLUDE ?= $(srctree)/$(COMMON_DRIVERS_DIR)/include
+# endif
+
 KCONFIG_CONFIG	?= .config
 export KCONFIG_CONFIG
 

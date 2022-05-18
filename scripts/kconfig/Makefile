@@ -91,7 +91,15 @@ else
 endif
 
 %_defconfig: $(obj)/conf
-	$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
+# ifdef CONFIG_AMLOGIC_DRIVER
+# config cannot be used here to mark AMLOGIC modifications
+# support two config directory, arch/$(SRCARCH)/configs/ and $(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/configs/
+	$(if $(wildcard $(srctree)/arch/$(SRCARCH)/configs/$@), \
+		$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig), \
+		$(Q)$< $(silent) --defconfig=$(COMMON_DRIVERS_DIR)/arch/$(SRCARCH)/configs/$@ $(Kconfig))
+# else
+#	$(Q)$< $(silent) --defconfig=arch/$(SRCARCH)/configs/$@ $(Kconfig)
+# endif
 
 configfiles=$(wildcard $(srctree)/kernel/configs/$@ $(srctree)/arch/$(SRCARCH)/configs/$@)
 
