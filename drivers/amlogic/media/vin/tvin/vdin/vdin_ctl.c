@@ -1455,8 +1455,8 @@ void vdin_change_matrix0(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
-
-	pr_info("%s id:%d\n", __func__, matrix_csc);
+	if (vdin_dbg_en & BIT(1))
+		pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 void vdin_change_matrix1(u32 offset, u32 matrix_csc)
@@ -1492,7 +1492,8 @@ void vdin_change_matrix1(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX1_EN_BIT, VDIN_MATRIX1_EN_WID);
 	}
-	pr_info("%s id:%d\n", __func__, matrix_csc);
+	if (vdin_dbg_en & BIT(1))
+		pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 /*
@@ -1538,8 +1539,8 @@ void vdin_change_matrixhdr(u32 offset, u32 matrix_csc)
 		wr_bits(offset, VDIN_MATRIX_CTRL, 1,
 			VDIN_MATRIX_EN_BIT, VDIN_MATRIX_EN_WID);
 	}
-
-	pr_info("%s id:%d\n", __func__, matrix_csc);
+	if (vdin_dbg_en & BIT(1))
+		pr_info("%s id:%d\n", __func__, matrix_csc);
 }
 
 static enum vdin_matrix_csc_e
@@ -6093,7 +6094,8 @@ void vdin_set_matrix_color(struct vdin_dev_s *devp)
 		wr(offset, VDIN_MATRIX_CTRL, 0x6);
 	else
 		wr(offset, VDIN_MATRIX_CTRL, 0x0);
-	pr_info("%s offset:%d, md:%d\n", __func__, offset, mode);
+	if (vdin_dbg_en)
+		pr_info("%s offset:%d, md:%d\n", __func__, offset, mode);
 }
 
 /* only active under vdi6 loopback case */

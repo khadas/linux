@@ -2597,7 +2597,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	/* change color matrix */
 	if (devp->csc_cfg != 0) {
-		devp->csc_cfg = 0;
 		prop = &devp->prop;
 		pre_prop = &devp->pre_prop;
 		if (prop->color_format != pre_prop->color_format ||
@@ -2606,7 +2605,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_set_matrix(devp);
 			/*vdin_drop_frame_info(devp, "color fmt chg");*/
 		}
-		/*if (prop->dest_cfmt != pre_prop->dest_cfmt) */{
+		if (prop->color_format != pre_prop->color_format ||
+		    prop->vdin_hdr_flag != pre_prop->vdin_hdr_flag) {
 			vdin_set_bitdepth(devp);
 			vdin_source_bitdepth_reinit(devp);
 			vdin_set_wr_ctrl_vsync(devp, devp->addr_offset,
@@ -2622,15 +2622,24 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 			/*vdin_drop_frame_info(devp, "dest fmt chg");*/
 		}
-		pre_prop->color_format = prop->color_format;
-		pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
-		pre_prop->color_fmt_range = prop->color_fmt_range;
 		pre_prop->dest_cfmt = prop->dest_cfmt;
-		devp->ignore_frames = 0;
-		devp->vdin_irq_flag = VDIN_IRQ_FLG_CSC_CHG;
-		vdin_drop_frame_info(devp, "csc chg");
-		vdin_drop_cnt++;
-		goto irq_handled;
+		if (prop->color_format != pre_prop->color_format ||
+		    prop->vdin_hdr_flag != pre_prop->vdin_hdr_flag) {
+			pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
+			pre_prop->color_format = prop->color_format;
+			pre_prop->color_fmt_range = prop->color_fmt_range;
+			devp->csc_cfg = 0;
+			devp->ignore_frames = 0;
+			devp->vdin_irq_flag = VDIN_IRQ_FLG_CSC_CHG;
+			vdin_drop_frame_info(devp, "csc chg");
+			vdin_drop_cnt++;
+			goto irq_handled;
+		} else {
+			pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
+			pre_prop->color_format = prop->color_format;
+			pre_prop->color_fmt_range = prop->color_fmt_range;
+			devp->csc_cfg = 0;
+		}
 	}
 	/* change cutwindow */
 	if (devp->cutwindow_cfg != 0 && devp->auto_cutwindow_en == 1) {

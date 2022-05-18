@@ -84,7 +84,8 @@
 /* 20220422: linux system pc mode myself restart dec */
 /* 20220425: keystone function modify */
 /* 20220513: add game mode lock debug */
-#define VDIN_VER "20220513:add game mode lock debug"
+/* 20220516: csc chg flash and dv chg not event */
+#define VDIN_VER "20220516:csc chg flash and dv chg not event"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
