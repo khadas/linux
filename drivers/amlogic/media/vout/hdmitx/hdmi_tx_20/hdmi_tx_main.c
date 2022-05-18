@@ -1921,8 +1921,11 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM,
 				NULL, NULL);
 			hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB1, VEN_HB);
+			/* Dolby Vision Source System-on-Chip Platform Kit Version 2.6:
+			 * 4.4.1 Expected AVI-IF for Dolby Vision output, need BT2020 for DV
+			 */
 			hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
-				CLR_AVI_BT2020);/*BT709*/
+				SET_AVI_BT2020);/*BT.2020*/
 			if (tunnel_mode == RGB_8BIT) {
 				hdev->hwop.cntlconfig(hdev,
 					CONF_AVI_RGBYCC_INDIC,
@@ -2022,8 +2025,11 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM,
 				NULL, NULL);
 			hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
+			/* Dolby Vision Source System-on-Chip Platform Kit Version 2.6:
+			 * 4.4.1 Expected AVI-IF for Dolby Vision output, need BT2020 for DV
+			 */
 			hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
-				CLR_AVI_BT2020);/*BT709*/
+				SET_AVI_BT2020);/*BT.2020*/
 			if (tunnel_mode == RGB_8BIT) {/*RGB444*/
 				hdev->hwop.cntlconfig(hdev,
 					CONF_AVI_RGBYCC_INDIC,
@@ -2044,13 +2050,12 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			hdmitx_device.hwop.setpacket(HDMI_PACKET_DRM,
 				NULL, NULL);
 			hdev->hwop.setpacket(HDMI_PACKET_VEND, VEN_DB2, VEN_HB);
-			if (hdev->rxcap.colorimetry_data & 0xe0)
-				/*if RX support BT2020, then output BT2020*/
-				hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
-					SET_AVI_BT2020);/*BT2020*/
-			else
-				hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
-					CLR_AVI_BT2020);/*BT709*/
+			/* Dolby vision HDMI Signaling Case25,
+			 * UCD323 not declare bt2020 colorimetry,
+			 * need to forcely send BT.2020
+			 */
+			hdev->hwop.cntlconfig(hdev, CONF_AVI_BT2020,
+				SET_AVI_BT2020);/*BT2020*/
 			if (tunnel_mode == RGB_10_12BIT) {/*10/12bit RGB444*/
 				hdev->hwop.cntlconfig(hdev,
 					CONF_AVI_RGBYCC_INDIC,
