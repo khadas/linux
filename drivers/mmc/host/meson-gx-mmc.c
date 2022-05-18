@@ -1301,6 +1301,9 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	case MMC_TIMING_SD_HS:
+		val = readl(host->regs + SD_EMMC_V3_ADJUST);
+		val |= CFG_ADJUST_ENABLE;
+		writel(val, host->regs + SD_EMMC_V3_ADJUST);
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	default:
