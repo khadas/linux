@@ -623,7 +623,7 @@ void ofdm_initial(int bandwidth,
 	if (mode == 0)		/* DVBT */
 		dvbt_isdbt_wr_reg((0x5c << 2), 0x00001011);	/*  */
 	else
-		dvbt_isdbt_wr_reg((0x5c << 2), 0x00000753);
+		dvbt_isdbt_wr_reg((0x5c << 2), 0x00000453); // Q_threshold
 	/* ICFO_EST_CTRL ISDBT ICFO thres = 2 */
 
 	dvbt_isdbt_wr_reg((0x5f << 2), 0x0ffffe10);
@@ -1172,7 +1172,23 @@ void dvbt2_riscv_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		dvbt_t2_wrb(0x2835, 0x07);
 		break;
 
+	case BANDWIDTH_6_MHZ:
+		dvbt_t2_wrb(0x1c, 0x6);
+		dvbt_t2_wrb(0x2835, 0x0e);
+		break;
+
+	case BANDWIDTH_5_MHZ:
+		dvbt_t2_wrb(0x1c, 0x5);
+		dvbt_t2_wrb(0x2835, 0x0e);
+		break;
+
+	case BANDWIDTH_1_712_MHZ:
+		dvbt_t2_wrb(0x1c, 0x1);
+		dvbt_t2_wrb(0x2835, 0x0e);
+		break;
+
 	default:
+		/* default 8M */
 		dvbt_t2_wrb(0x1c, 0x8);
 		dvbt_t2_wrb(0x2835, 0x0e);
 		break;

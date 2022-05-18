@@ -41,6 +41,7 @@
 /*  V1.1.48  fixed 16qam/32qam cost long time to lock up or error */
 /*  V1.1.49  fix HRC freq of 79M lock failed */
 /*  V1.1.50  fixed data type of memory address and read/write */
+/*  V1.1.51  fixed dvbs/s2/isdbt aft test and support dvbt2 5/6/1.7M */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -57,8 +58,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.50"
-#define DTVDEMOD_VER	"2022/05/06: fixed data type of memory address and read/write"
+#define AMLDTVDEMOD_VER "V1.1.51"
+#define DTVDEMOD_VER	"2022/05/18: fixed dvbs/s2/isdbt aft test and support dvbt2 5/6/1.7M"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
