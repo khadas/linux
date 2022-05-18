@@ -204,4 +204,5 @@
 #define DI_V4L_MAJOR            (27 + (AML_BASE))
 #define PTSSERVER_MAJOR		(28 + (AML_BASE))
 #define AFD_MAJOR			(29 + (AML_BASE))
+#define AMEDIA_INFO_MAJOR     (30 + (AML_BASE))
 #endif

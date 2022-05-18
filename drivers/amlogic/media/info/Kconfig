@@ -1,0 +1,8 @@
+#
+# Amlogic multimedia information
+#
+config AMLOGIC_MEDIA_INFO
+	bool "Multimedia Information"
+	default n
+	help
+		Amlogic multimedia information support

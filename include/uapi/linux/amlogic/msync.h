@@ -33,6 +33,7 @@ struct pcr_pair {
 struct pts_wall {
 	uint32_t wall_clock;
 	uint32_t interval;
+	uint32_t dis_delay;
 };
 
 enum av_sync_mode {
