@@ -25,6 +25,7 @@ void bl_pwm_set_duty(struct aml_bl_drv_s *bdrv, struct bl_pwm_config_s *bl_pwm);
 void bl_pwm_set_level(struct aml_bl_drv_s *bdrv,
 		      struct bl_pwm_config_s *bl_pwm, unsigned int level);
 void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm);
+void bl_pwm_mapping_init(struct aml_bl_drv_s *bdrv);
 int bl_pwm_channel_register(struct device *dev, phandle pwm_phandle,
 			    struct bl_pwm_config_s *bl_pwm);
 
