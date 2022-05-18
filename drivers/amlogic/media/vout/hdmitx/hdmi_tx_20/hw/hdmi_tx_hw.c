@@ -4156,6 +4156,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		}
 		break;
 	case CONF_CLR_AVI_PACKET:
+		pr_info("%s ***clr avi***\n", __func__);
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
@@ -4166,6 +4167,11 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
 		break;
 	case CONF_CLR_AUDINFO_PACKET:
+		break;
+	case CONF_ASPECT_RATIO:
+		pr_info("%s argv = %d\n", __func__, argv);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, argv & 0x3, 4, 2);	//aspect_ratio
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVIVID, argv >> 2, 0, 7);	//vic
 		break;
 	case CONF_AVI_BT2020:
 		if (argv == SET_AVI_BT2020) {
