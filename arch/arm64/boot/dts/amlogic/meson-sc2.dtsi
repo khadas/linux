@@ -990,6 +990,7 @@
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
+			tx_delay = <22>;
 			mmc_debug_flag;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
