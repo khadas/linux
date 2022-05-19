@@ -1175,7 +1175,6 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 		} else {
 			update_attr = true;
 		}
-
 		if (update_attr) {
 			meson_hdmitx_decide_color_attr(meson_crtc_state,
 				hdmitx_state->base.max_bpc, attr);
@@ -1424,19 +1423,19 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 #ifdef CONFIG_CEC_NOTIFIER
 	struct edid *pedid;
 #endif
-	struct hdmitx_dev *hdmitx_dev = get_hdmitx_device();
 	struct connector_hdcp_cb hdcp_cb;
+	int hdcp_ctl_lvl;
 
 	DRM_INFO("[%s] in\n", __func__);
 	memset(&am_hdmi_info, 0, sizeof(am_hdmi_info));
-
 	am_hdmi_info.hdmitx_dev = to_meson_hdmitx_dev(intf);
-
-	if (hdmitx_dev->hdcp_ctl_lvl == 0) {
+	hdcp_ctl_lvl = am_hdmi_info.hdmitx_dev->get_hdcp_ctl_lvl();
+	DRM_INFO("hdcp_ctl_lvl=%d\n", hdcp_ctl_lvl);
+	if (hdcp_ctl_lvl == 0) {
 		am_hdmi_info.android_path = true;
 	} else if (am_hdmi_info.hdmitx_dev->hdcp_init) {
 		am_hdmi_info.hdmitx_dev->hdcp_init();
-		if (hdmitx_dev->hdcp_ctl_lvl == 1) {
+		if (hdcp_ctl_lvl == 1) {
 			/*TODO: for westeros start hdcp by driver, will move to userspace.*/
 			am_hdmi_info.hdcp_request_content_type =
 				DRM_MODE_HDCP_CONTENT_TYPE0;
