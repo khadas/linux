@@ -4902,6 +4902,8 @@ void vdin_dolby_buffer_update(struct vdin_dev_s *devp, unsigned int index)
 						break;
 					}
 				}
+				if (rpt_cnt == 0)
+					break;
 				if (((cnt % dv_dbg_log_du) == 0) &&
 				    (dv_dbg_log & BIT(0)))
 					pr_info("data idx %d:0x%x\n",

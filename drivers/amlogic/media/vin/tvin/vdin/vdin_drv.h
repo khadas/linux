@@ -85,7 +85,8 @@
 /* 20220425: keystone function modify */
 /* 20220513: add game mode lock debug */
 /* 20220516: csc chg flash and dv chg not event */
-#define VDIN_VER "20220516:csc chg flash and dv chg not event"
+/* 20220518: dv data abnormal cause reboot */
+#define VDIN_VER "20220518:dv data abnormal cause reboot"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
