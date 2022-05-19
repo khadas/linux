@@ -90,6 +90,7 @@ static int meson_vrtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 		vrtc->alarm_time = 0;
 	}
 
+	vrtc->enabled = alarm->enabled;
 	dev_dbg(dev, "%s: alarm->enabled=%d alarm=0x%llx vrtc=0x%llx\n", __func__,
 		alarm->enabled, rtc_tm_to_time64(&alarm->time), vrtc->alarm_time);
 #else
@@ -134,13 +135,14 @@ static int meson_vrtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	struct meson_vrtc_data *vrtc = dev_get_drvdata(dev);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	if (enabled)
-		add_timer(&vrtc->alarm);
-	else
-		del_timer(&vrtc->alarm);
+	if (vrtc->enabled != enabled) {
+		vrtc->enabled = enabled;
+		if (enabled)
+			add_timer(&vrtc->alarm);
+		else
+			del_timer(&vrtc->alarm);
+	}
 #endif
-
-	vrtc->enabled = enabled;
 	return 0;
 }
 
