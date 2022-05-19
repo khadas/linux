@@ -42,6 +42,7 @@ allowed_warnings = set([
     "file.c:3010", # fs/f2fs/file.c:3010:12: warning: unused function 'f2fs_ioctl_check_project'
     "configfs.c:1488", # drivers/usb/gadget/configfs.c:1488:12: warning: unused function 'configfs_composite_setup'
     "configfs.c:1513", # drivers/usb/gadget/configfs.c:1513:13: warning: unused function 'configfs_composite_disconnect'
+    "hw.c:1297" # drivers/media/platform/rockchip/cif/hw.c:1297:13: warning: 'rkcif_hw_shutdown' defined but not used [-Wunused-function]
  ])
 
 # Capture the name of the object file, can find it.
