@@ -54,7 +54,7 @@ struct data_cfg {
 	struct mux_conf *tdmin_lb_srcs;
 };
 
-void tdminlb_set_clk(enum datalb_src lb_src, int sclk_div, int ratio, bool enable);
+void tdminlb_set_clk(enum datalb_src lb_src, int mclk_sel, bool enable);
 void tdminlb_set_format(int i2s_fmt);
 void tdminlb_set_ctrl(enum datalb_src src);
 void tdminlb_enable(int tdm_index, int in_enable);

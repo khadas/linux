@@ -17,37 +17,20 @@ static unsigned int get_tdmin_id_from_lb_src(enum datalb_src lb_src)
 	return lb_src % TDMINLB_PAD_TDMINA;
 }
 
-void tdminlb_set_clk(enum datalb_src lb_src,
-		     int sclk_div, int ratio, bool enable)
+void tdminlb_set_clk(enum datalb_src lb_src, int mclk_sel, bool enable)
 {
-	unsigned int bclk_sel, fsclk_sel;
 	unsigned int tdmin_src;
 
 	/* config for external codec */
 	if (lb_src >= TDMINLB_PAD_TDMINA) {
 		unsigned int id = get_tdmin_id_from_lb_src(lb_src);
-		unsigned int offset, reg;
-		unsigned int fsclk_hi;
-
-		fsclk_hi = ratio / 2;
-		bclk_sel = id;
-		fsclk_sel = id;
-
-		/*sclk, lrclk*/
-		offset = EE_AUDIO_MST_B_SCLK_CTRL0 - EE_AUDIO_MST_A_SCLK_CTRL0;
-		reg = EE_AUDIO_MST_A_SCLK_CTRL0 + offset * id;
-		audiobus_update_bits(reg,
-				     0x3 << 30 | 0x3ff << 20 |
-				     0x3ff << 10 | 0x3ff,
-				     (enable ? 0x3 : 0x0) << 30 |
-				     sclk_div << 20 | fsclk_hi << 10 |
-				     ratio);
-
 		tdmin_src = id;
 	} else {
 		tdmin_src = lb_src;
 	}
-
+	if (mclk_sel > 0) {
+		tdmin_src = mclk_sel;
+	}
 	audiobus_update_bits(EE_AUDIO_CLK_TDMIN_LB_CTRL,
 			     0x3 << 30 | 1 << 29 | 0xf << 24 | 0xf << 20,
 			     (enable ? 0x3 : 0x0) << 30 |

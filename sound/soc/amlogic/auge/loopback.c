@@ -149,6 +149,9 @@ struct loopback {
 	void *mic_src;
 	enum trigger_state loopback_trigger_state;
 	unsigned int syssrc_clk_rate;
+	void *ref_src;
+	/*tdm_in lb select mclk*/
+	int tdmlb_mclk_sel;
 };
 
 static struct loopback *loopback_priv[2];
@@ -480,24 +483,9 @@ static void loopback_dai_shutdown(struct snd_pcm_substream *ss,
 	}
 }
 
-static void loopback_set_clk(struct loopback *p_loopback,
-	int rate, bool enable)
+static void loopback_set_clk(struct loopback *p_loopback, bool enable)
 {
-	/* unsigned int mul = 2; */
-	/* unsigned int mpll_freq, mclk_freq; */
-	/* assume datain_lb in i2s format, 2ch, 32bit */
-	unsigned int bit_depth = 32, i2s_ch = 2;
-	unsigned int sclk_div = 4 - 1;
-	unsigned int ratio = i2s_ch * bit_depth - 1;
-
-	/* lb_datain clk is set
-	 * prepare clocks for tdmin_lb
-	 */
-#ifdef __PTM_TDM_CLK__
-	ratio = 18 * 2;
-#endif
-
-	tdminlb_set_clk(p_loopback->datalb_src, sclk_div, ratio, enable);
+	tdminlb_set_clk(p_loopback->datalb_src, p_loopback->tdmlb_mclk_sel, enable);
 }
 
 static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
@@ -747,6 +735,7 @@ static int loopback_dai_prepare(struct snd_pcm_substream *ss,
 		case TDMINLB_PAD_TDMINB:
 		case TDMINLB_PAD_TDMINC:
 		case TDMINLB_PAD_TDMIND:
+			aml_tdmin_set_src(p_loopback->ref_src);
 			break;
 		case TDMINLB_PAD_TDMINA_D:
 		case TDMINLB_PAD_TDMINB_D:
@@ -797,6 +786,21 @@ static void loopback_mic_src_trigger(struct loopback *p_loopback,
 	}
 }
 
+static void loopback_ref_src_trigger(struct loopback *p_loopback,
+				int stream, bool enable)
+{
+	switch (p_loopback->datalb_src) {
+	case TDMINLB_PAD_TDMINA:
+	case TDMINLB_PAD_TDMINB:
+	case TDMINLB_PAD_TDMINC:
+		aml_tdm_trigger(p_loopback->ref_src,
+		stream, enable);
+		break;
+	default:
+		break;
+	}
+}
+
 static void loopback_mic_src_fifo_reset(struct loopback *p_loopback,
 				   int stream)
 {
@@ -826,6 +830,28 @@ static void loopback_mic_src_fifo_reset(struct loopback *p_loopback,
 	}
 }
 
+static void loopback_ref_src_fifo_reset(struct loopback *p_loopback, int stream)
+{
+	int index;
+
+	switch (p_loopback->datalb_src) {
+	case TDMINLB_PAD_TDMINA:
+		index = 0;
+		break;
+	case TDMINLB_PAD_TDMINB:
+		index = 1;
+		break;
+	case TDMINLB_PAD_TDMINC:
+		index = 2;
+		break;
+	default:
+		index = 0;
+		break;
+	}
+	if (p_loopback->ref_src)
+		aml_tdm_fifo_reset(p_loopback->actrl,
+		stream, index, 0);
+}
 static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 		int cmd, struct snd_soc_dai *dai)
 {
@@ -846,6 +872,8 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 			if (p_loopback->datain_chnum > 0)
 				loopback_mic_src_fifo_reset(p_loopback,
 							    ss->stream);
+			if (p_loopback->datalb_chnum > 0)
+				loopback_ref_src_fifo_reset(p_loopback, ss->stream);
 
 			tdminlb_fifo_enable(true);
 
@@ -863,7 +891,9 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 			if (p_loopback->datain_chnum > 0)
 				loopback_mic_src_trigger(p_loopback,
 					ss->stream, true);
-		}
+			if (p_loopback->datalb_chnum > 0)
+				loopback_ref_src_trigger(p_loopback, ss->stream, true);
+			}
 		p_loopback->loopback_trigger_state = TRIGGER_START_ALSA_BUF;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -887,6 +917,8 @@ static int loopback_dai_trigger(struct snd_pcm_substream *ss,
 		if (p_loopback->datain_chnum > 0)
 			loopback_mic_src_trigger(p_loopback,
 				ss->stream, false);
+		if (p_loopback->datalb_chnum > 0)
+			loopback_ref_src_trigger(p_loopback, ss->stream, false);
 
 		/* loopback */
 		if (p_loopback->chipinfo)
@@ -996,16 +1028,19 @@ static int loopback_dai_hw_params(struct snd_pcm_substream *ss,
 	/* datalb */
 	if (p_loopback->datalb_chnum > 0) {
 		switch (p_loopback->datalb_src) {
-		case TDMINLB_TDMOUTA ... TDMINLB_PAD_TDMINC_D:
-			/*datalb_tdminlb_set_clk(p_loopback);*/
-			break;
 		case SPDIFINLB_SPDIFOUTA ... SPDIFINLB_SPDIFOUTB:
+			break;
+		case TDMINLB_PAD_TDMINA:
+		case TDMINLB_PAD_TDMINB:
+		case TDMINLB_PAD_TDMINC:
+			aml_tdm_hw_setting_init(p_loopback->ref_src, rate,
+				p_loopback->datalb_chnum, ss->stream);
 			break;
 		default:
 			break;
 		}
 	}
-	loopback_set_clk(p_loopback, rate, true);
+	loopback_set_clk(p_loopback, true);
 
 	return ret;
 }
@@ -1035,7 +1070,18 @@ int loopback_dai_hw_free(struct snd_pcm_substream *ss,
 			break;
 		}
 	}
-
+	if (p_loopback->datalb_chnum > 0) {
+		switch (p_loopback->datalb_src) {
+		case TDMINLB_PAD_TDMINA:
+		case TDMINLB_PAD_TDMINB:
+		case TDMINLB_PAD_TDMINC:
+			aml_tdm_hw_setting_free(p_loopback->ref_src,
+						ss->stream);
+			break;
+		default:
+			break;
+		}
+	}
 	return 0;
 }
 
@@ -1085,7 +1131,17 @@ static int loopback_dai_mute_stream(struct snd_soc_dai *dai,
 			break;
 		}
 	}
-
+	if (p_loopback->datalb_chnum > 0) {
+		switch (p_loopback->datalb_src) {
+		case TDMINLB_PAD_TDMINA:
+		case TDMINLB_PAD_TDMINB:
+		case TDMINLB_PAD_TDMINC:
+			tdm_mute_capture(p_loopback->ref_src, mute);
+			break;
+		default:
+			break;
+		}
+	}
 	return 0;
 }
 
@@ -1644,6 +1700,13 @@ static int loopback_platform_probe(struct platform_device *pdev)
 		p_loopback->mic_src = platform_get_drvdata(dev_src);
 		pr_debug("%s(), mic_src found\n", __func__);
 	}
+	np_src = of_parse_phandle(node, "ref-src", 0);
+	if (np_src) {
+		dev_src = of_find_device_by_node(np_src);
+		of_node_put(np_src);
+		p_loopback->ref_src = platform_get_drvdata(dev_src);
+		pr_debug("%s(), mic_src found\n", __func__);
+	}
 
 	/* match data */
 	p_chipinfo = (struct loopback_chipinfo *)
@@ -1660,6 +1723,14 @@ static int loopback_platform_probe(struct platform_device *pdev)
 	else
 		pr_info("%s sys-src clk rate from dts:%d\n",
 			__func__, p_loopback->syssrc_clk_rate);
+
+	ret = of_property_read_u32(dev->of_node, "tdmlb-mclk-sel",
+				   &p_loopback->tdmlb_mclk_sel);
+	if (ret < 0)
+		p_loopback->tdmlb_mclk_sel = -1;
+	else
+		pr_info("%s tdmlb_mclk_sel :%d\n",
+			__func__, p_loopback->tdmlb_mclk_sel);
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);
