@@ -109,7 +109,7 @@ static int picdec_buffer_status;
 #define GE2D_BIG_ENDIAN             (0 << GE2D_ENDIAN_SHIFT)
 #define GE2D_LITTLE_ENDIAN          BIT(GE2D_ENDIAN_SHIFT)
 
-#define PROVIDER_NAME "decoder.pic"
+#define PROVIDER_NAME "pic_dec"
 static DEFINE_SPINLOCK(lock);
 static struct vframe_receiver_op_s *picdec_stop(void);
 static inline void ptr_atomic_wrap_inc(u32 *ptr)
