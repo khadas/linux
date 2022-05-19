@@ -10243,6 +10243,12 @@ u32 set_blackout_pip2_policy(int policy)
 }
 EXPORT_SYMBOL(set_blackout_pip2_policy);
 
+u32 get_video_hold_state(void)
+{
+	return hold_video;
+}
+EXPORT_SYMBOL(get_video_hold_state);
+
 u8 is_vpp_postblend(void)
 {
 	if (cur_dev->t7_display) {
