@@ -60,12 +60,12 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			alignment = <0x400000>;
-			reg = <0x3f800000 0x800000>;
+			reg = <0x5f800000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "amlogic, lcd_tcon";
-			reg = <0x3f000000 0x0>;
+			reg = <0x5f000000 0x0>;
 			no-map;
 		};
 
@@ -75,10 +75,10 @@
 			/* yuv420(32x3)96M + di(7x4,11x5)84M + workbuf(12M)
 			 * the sum with align 4M then is equal to 192M
 			 */
-			size = <0xc000000>;
+			size = <0x9000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x3f800000>;
+			//alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
 		};
 
 		/* codec shared reserved */
@@ -87,7 +87,7 @@
 			size = <0x0>;
 			/*alignment = <0x100000>;*/
 			//no-map;
-			alloc-ranges = <0x0 0x3f000000>;
+			//alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -102,7 +102,7 @@
 			 */
 			size = <0x04000000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x0 0x30000000>;
+			//alloc-ranges = <0x0 0x0 0x0 0x3f000000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
@@ -1786,27 +1786,7 @@
 
 &drm_vpu {
 	status = "okay";
-	logo_addr = "0x3f800000";
-
-	connectors_dev: port@2 {
-		drm_to_lcd0: endpoint@2 {
-			reg = <2>;
-			remote-endpoint = <&lcd0_to_drm>;
-		};
-	};
-};
-
-&lcd {
-	ports {
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			lcd0_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd0>;
-			};
-		};
-	};
+	logo_addr = "0x5f800000";
 };
 
 &drm_amhdmitx {
@@ -1816,6 +1796,10 @@
 
 &drm_amcvbsout {
 	status = "disabled";
+};
+
+&drm_lcd {
+	status = "okay";
 };
 
 &saradc {
