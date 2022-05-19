@@ -1055,6 +1055,8 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	plane_info->enable = 1;
+	if (state->crtc)
+		plane_info->crtc_index = state->crtc->index;
 	DRM_DEBUG("VIDOE PLANE index=%d, zorder=%d\n",
 		  plane_info->plane_index, plane_info->zorder);
 	DRM_DEBUG("src_x/y/w/h=%d/%d/%d/%d\n",
