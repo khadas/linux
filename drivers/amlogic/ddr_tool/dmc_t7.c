@@ -126,32 +126,30 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 	char title[10] = "";
 	char id_str[MAX_NAME];
 	int port, subport;
-	unsigned long addr;
-	unsigned long status;
+	unsigned long addr = 0;
+	unsigned long status = 0, irqreg;
 	struct page *page;
 	struct page_trace *trace;
 
-	/* irq write */
-	status = dmc_prot_rw(io, DMC_PROT_VIO_1, 0, DMC_READ);
-	if ((status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1))) {
+	irqreg = dmc_prot_rw(io, DMC_PROT_IRQ_CTRL_STS, 0, DMC_READ);
+	if (irqreg & DMC_WRITE_VIOLATION) {
+		status = dmc_prot_rw(io, DMC_PROT_VIO_1, 0, DMC_READ);
 		/* combine address */
 		addr  = (status >> 15) & 0x03;
 		addr  = (addr << 32ULL);
 		addr |= dmc_prot_rw(io, DMC_PROT_VIO_0, 0, DMC_READ);
 		rw = 'w';
-	} else {
-		/* irq read */
-		status = dmc_prot_rw(io, DMC_PROT_VIO_3, 0, DMC_READ);
-		if ((status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1))) {
-			/* combine address */
-			addr  = (status >> 15) & 0x03;
-			addr  = (addr << 32ULL);
-			addr |= dmc_prot_rw(io, DMC_PROT_VIO_2, 0, DMC_READ);
-			rw = 'r';
-		} else {
-			return;
-		}
 	}
+	if (irqreg & DMC_READ_VIOLATION) {
+		status = dmc_prot_rw(io, DMC_PROT_VIO_3, 0, DMC_READ);
+		addr  = (status >> 15) & 0x03;
+		addr  = (addr << 32ULL);
+		addr |= dmc_prot_rw(io, DMC_PROT_VIO_2, 0, DMC_READ);
+		rw = 'r';
+	}
+
+	if (!(status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1)))
+		return;
 
 	if (addr > mon->addr_end)
 		return;
