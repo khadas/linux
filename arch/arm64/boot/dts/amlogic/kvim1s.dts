@@ -633,6 +633,10 @@
 		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
+	khadas-hwver {
+		compatible = "khadas-hwver";
+		status = "okay";
+        };
 };
 
 &pwm_ij {
