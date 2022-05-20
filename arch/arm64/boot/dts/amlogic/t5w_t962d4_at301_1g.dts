@@ -1619,7 +1619,7 @@
 };
 
 &spicc0 {	//for TCON/SPINOR
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
