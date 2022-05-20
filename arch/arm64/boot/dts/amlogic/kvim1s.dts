@@ -1383,6 +1383,7 @@
 &pwm_ef {
 	pinctrl-0 = <&pwm_e_pins1>;
 	pinctrl-names = "default";
+        status = "okay";
 };
 
 &state_led {
