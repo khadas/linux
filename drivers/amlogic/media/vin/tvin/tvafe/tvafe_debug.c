@@ -195,6 +195,22 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		tvafe_pr_info("cutwindow_val_v[%d]:%d\n",
 			i, user_param->cutwindow_val_v[i]);
 	}
+	for (i = 0; i < 5; i++) {
+		tvafe_pr_info("horizontal_dir0[%d]:%d\n",
+			i, user_param->horizontal_dir0[i]);
+	}
+	for (i = 0; i < 5; i++) {
+		tvafe_pr_info("horizontal_dir1[%d]:%d\n",
+			i, user_param->horizontal_dir1[i]);
+	}
+	for (i = 0; i < 5; i++) {
+		tvafe_pr_info("horizontal_stp0[%d]:%d\n",
+			i, user_param->horizontal_stp0[i]);
+	}
+	for (i = 0; i < 5; i++) {
+		tvafe_pr_info("horizontal_stp1[%d]:%d\n",
+			i, user_param->horizontal_stp1[i]);
+	}
 	tvafe_pr_info("cutwindow_val_vs_ve:%d\n",
 		user_param->cutwindow_val_vs_ve);
 	tvafe_pr_info("cdto_adj_hcnt_th:0x%x\n", user_param->cdto_adj_hcnt_th);
@@ -206,6 +222,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		      user_param->cdto_adj_offset_n);
 	tvafe_pr_info("auto_adj_en:0x%x\n", user_param->auto_adj_en);
 	tvafe_pr_info("vline_chk_cnt:%d\n", user_param->vline_chk_cnt);
+	tvafe_pr_info("hline_chk_cnt:%d\n", user_param->hline_chk_cnt);
 	tvafe_pr_info("nostd_vs_th:0x%x\n", user_param->nostd_vs_th);
 	tvafe_pr_info("nostd_no_vs_th:0x%x\n", user_param->nostd_no_vs_th);
 	tvafe_pr_info("nostd_vs_cntl:0x%x\n", user_param->nostd_vs_cntl);
@@ -446,6 +463,15 @@ static ssize_t debug_store(struct device *dev,
 		}
 		pr_info("[tvafe..]%s: vline_chk_cnt = 0x%x\n",
 			__func__, user_param->vline_chk_cnt);
+	} else if (!strncmp(buff, "hline_chk_cnt",
+		strlen("hline_chk_cnt"))) {
+		if (parm[1]) {
+			if (kstrtouint(parm[1], 10,
+				&user_param->hline_chk_cnt) < 0)
+				goto tvafe_store_err;
+		}
+		pr_info("[tvafe..]%s: hline_chk_cnt = 0x%x\n",
+			__func__, user_param->hline_chk_cnt);
 	} else if (!strncmp(buff, "nostd_dmd_clp_step",
 		strlen("nostd_dmd_clp_step"))) {
 		if (parm[1]) {
@@ -905,7 +931,7 @@ static void tvafe_cutwindow_info_print(void)
 	unsigned int pr_len;
 	int i;
 
-	pr_buf = kzalloc(sizeof(char) * 100, GFP_KERNEL);
+	pr_buf = kzalloc(sizeof(char) * 400, GFP_KERNEL);
 	if (!pr_buf)
 		return;
 	pr_len = 0;
@@ -918,6 +944,26 @@ static void tvafe_cutwindow_info_print(void)
 	for (i = 0; i < 5; i++) {
 		pr_len += sprintf(pr_buf + pr_len,
 			" %d", user_param->cutwindow_val_v[i]);
+	}
+	pr_len += sprintf(pr_buf + pr_len, "\nhorizontal_dir0:");
+	for (i = 0; i < 5; i++) {
+		pr_len += sprintf(pr_buf + pr_len,
+			" %d", user_param->horizontal_dir0[i]);
+	}
+	pr_len += sprintf(pr_buf + pr_len, "\nhorizontal_dir1:");
+	for (i = 0; i < 5; i++) {
+		pr_len += sprintf(pr_buf + pr_len,
+			" %d", user_param->horizontal_dir1[i]);
+	}
+	pr_len += sprintf(pr_buf + pr_len, "\nhorizontal_stp0:");
+	for (i = 0; i < 5; i++) {
+		pr_len += sprintf(pr_buf + pr_len,
+			" %d", user_param->horizontal_stp0[i]);
+	}
+	pr_len += sprintf(pr_buf + pr_len, "\nhorizontal_stp1:");
+	for (i = 0; i < 5; i++) {
+		pr_len += sprintf(pr_buf + pr_len,
+			" %d", user_param->horizontal_stp1[i]);
 	}
 	pr_info("%s\n", pr_buf);
 	kfree(pr_buf);
@@ -962,6 +1008,66 @@ static ssize_t cutwin_store(struct device *dev,
 				goto tvafe_cutwindow_store_err;
 			user_param->cutwindow_val_v[index] = val;
 			pr_info("set cutwindow_v[%d] = %d\n", index, val);
+		} else {
+			pr_info("error: invalid index %d\n", index);
+		}
+	} else if (!strcmp(parm[0], "hor0")) {
+		if (!parm[1]) {
+			tvafe_cutwindow_info_print();
+			goto tvafe_cutwindow_store_err;
+		}
+		if (kstrtouint(parm[1], 10, &index) < 0)
+			goto tvafe_cutwindow_store_err;
+		if (index < 5) {
+			if (kstrtouint(parm[2], 10, &val) < 0)
+				goto tvafe_cutwindow_store_err;
+			user_param->horizontal_dir0[index] = val;
+			pr_info("set horizontal0[%d] = %d\n", index, val);
+		} else {
+			pr_info("error: invalid index %d\n", index);
+		}
+	} else if (!strcmp(parm[0], "hor1")) {
+		if (!parm[1]) {
+			tvafe_cutwindow_info_print();
+			goto tvafe_cutwindow_store_err;
+		}
+		if (kstrtouint(parm[1], 10, &index) < 0)
+			goto tvafe_cutwindow_store_err;
+		if (index < 5) {
+			if (kstrtouint(parm[2], 10, &val) < 0)
+				goto tvafe_cutwindow_store_err;
+			user_param->horizontal_dir1[index] = val;
+			pr_info("set horizontal1[%d] = %d\n", index, val);
+		} else {
+			pr_info("error: invalid index %d\n", index);
+		}
+	} else if (!strcmp(parm[0], "stp0")) {
+		if (!parm[1]) {
+			tvafe_cutwindow_info_print();
+			goto tvafe_cutwindow_store_err;
+		}
+		if (kstrtouint(parm[1], 10, &index) < 0)
+			goto tvafe_cutwindow_store_err;
+		if (index < 5) {
+			if (kstrtouint(parm[2], 10, &val) < 0)
+				goto tvafe_cutwindow_store_err;
+			user_param->horizontal_stp0[index] = val;
+			pr_info("set horizontal stp0[%d] = %d\n", index, val);
+		} else {
+			pr_info("error: invalid index %d\n", index);
+		}
+	} else if (!strcmp(parm[0], "stp1")) {
+		if (!parm[1]) {
+			tvafe_cutwindow_info_print();
+			goto tvafe_cutwindow_store_err;
+		}
+		if (kstrtouint(parm[1], 10, &index) < 0)
+			goto tvafe_cutwindow_store_err;
+		if (index < 5) {
+			if (kstrtouint(parm[2], 10, &val) < 0)
+				goto tvafe_cutwindow_store_err;
+			user_param->horizontal_stp1[index] = val;
+			pr_info("set horizontal stp1[%d] = %d\n", index, val);
 		} else {
 			pr_info("error: invalid index %d\n", index);
 		}
