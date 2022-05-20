@@ -160,7 +160,7 @@ static unsigned int hold_video;
 
 DEFINE_SPINLOCK(plist_lock);
 
-static const char version_s[] = "2022-04-20 s4dw";
+static const char version_s[] = "2022-05-17 s4dw";
 
 /*1:enable bypass pre,ei only;
  * 2:debug force bypass pre,ei for post
@@ -5255,6 +5255,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 			if (dip_itf_is_vfm(pch))
 				nins_used_some_to_recycle(pch, nins);
+			task_send_ready(16);
 
 			/*debug only*/
 			//pre_run_flag = DI_RUN_FLAG_PAUSE;
@@ -9304,10 +9305,9 @@ int dim_process_post_vframe(unsigned int channel)
 #endif
 	/*add : for now post buf only 3.*/
 	//if (list_count(channel, QUEUE_POST_DOING) > 2)
-	if (di_que_list_count(channel, QUE_POST_DOING) > 2)
-		return 0;
-
 	if (ready_count == 0)
+		return 0;
+	if (di_que_list_count(channel, QUE_POST_DOING) > 2)
 		return 0;
 
 	ready_di_buf = di_que_peek(channel, QUE_PRE_READY);

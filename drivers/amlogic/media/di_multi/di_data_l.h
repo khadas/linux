@@ -1603,7 +1603,7 @@ struct dim_sub_mem_s {
 	unsigned int	cnt;
 };
 
-#define DIM_BLK_NUB	32 /* buf number*/
+#define DIM_BLK_NUB	25 /* buf number*/
 struct dim_mm_blk_s {
 	struct qs_buf_s	header;
 
