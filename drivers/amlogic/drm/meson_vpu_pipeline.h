@@ -274,6 +274,7 @@ struct meson_vpu_video_state {
 	u32 dimm_enable;
 	u32 mode_3d_enable;
 
+	u32 crtc_index;
 	u32 color_key;
 	u32 alpha;
 	u32 global_alpha;

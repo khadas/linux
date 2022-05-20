@@ -289,6 +289,7 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	mvvs->is_uvm = plane_info->is_uvm;
 	video->vfm_mode = plane_info->vfm_mode;
 	mvvs->dmabuf = plane_info->dmabuf;
+	mvvs->crtc_index = plane_info->crtc_index;
 
 	if (!video->vfm_mode && !video->video_path_reg) {
 		kfifo_reset(&video->ready_q);
@@ -325,7 +326,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		return;
 	}
 
-	crtc_index = vblk->index;
+	crtc_index = mvvs->crtc_index;
 	amc = vblk->pipeline->priv->crtcs[crtc_index];
 	meson_crtc_state = to_am_meson_crtc_state(amc->base.state);
 	video_dummy_data_set(meson_crtc_state);
