@@ -563,6 +563,12 @@ static void do_file_thread(struct video_queue_dev *dev)
 	if (!vf)
 		return;
 
+	if (get_video_hold_state()) {
+		vq_print(P_ERROR, "hold video need drop.\n");
+		videoqueue_drop_vf(dev);
+		return;
+	}
+
 	vframe_disp_mode = vf_disp_mode_get(dev, vf);
 	if (vframe_disp_mode != VFRAME_DISP_MODE_OK &&
 		vframe_disp_mode != VFRAME_DISP_MODE_NULL)

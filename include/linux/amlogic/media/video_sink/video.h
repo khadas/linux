@@ -369,6 +369,7 @@ u32 get_blackout_pip_policy(void);
 u32 get_blackout_pip2_policy(void);
 void set_video_angle(u32 s_value);
 u32 get_video_angle(void);
+u32 get_video_hold_state(void);
 unsigned int DI_POST_REG_RD(unsigned int addr);
 int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 void DI_POST_UPDATE_MC(void);
