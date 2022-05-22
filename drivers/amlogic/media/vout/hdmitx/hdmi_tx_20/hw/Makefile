@@ -15,3 +15,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hw_g1
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hw_sm1.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hw_tm2.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hw_sc2.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_HDMITX) += vout/hdmitx/hdmi_tx_20/hw/hdmi_tx_debug_reg.o

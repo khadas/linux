@@ -86,5 +86,6 @@ int hdmitx_uboot_audio_en(void);
 void hdmitx_debugfs_init(void);
 
 struct dentry *hdmitx_get_dbgfsdentry(void);
+int hdmitx_debug_reg_dump(struct hdmitx_dev *hdev, char *buf, int len);
 
 #endif

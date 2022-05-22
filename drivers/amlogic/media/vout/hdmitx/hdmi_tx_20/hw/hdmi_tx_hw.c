@@ -47,6 +47,7 @@
 #endif
 #include "checksha.h"
 #include "reg_sc2.h"
+#include "hdmi_tx_debug_reg.h"
 
 static void mode420_half_horizontal_para(void);
 static void hdmi_phy_suspend(void);
@@ -3110,6 +3111,44 @@ static void hdmitx_set_fake_vic(struct hdmitx_dev *hdev)
 	hdev->para->cs = COLORSPACE_YUV444;
 	hdev->cur_VIC = HDMI_VIC_FAKE;
 	set_vmode_clk(hdev);
+}
+
+int hdmitx_debug_reg_dump(struct hdmitx_dev *hdev, char *buf, int len)
+{
+	int i, pos = 0;
+	int cnt;
+	unsigned int val;
+	const struct hdmitx_dbgreg_s **reg;
+
+	if (!hdev || !hdev->data || !buf || !len)
+		return pos;
+	reg = hdmitx_get_dbgregs(hdev->data->chip_type);
+
+	if (!reg)
+		return pos;
+
+	for (; *reg; reg++) {
+		if (!(*reg)->rd_reg_func || !(*reg)->get_reg_paddr ||
+			!(*reg)->name || !(*reg)->reg) {
+			pr_err("hdmitx: lack dump reg member\n");
+			continue;
+		}
+		cnt = snprintf(buf + pos, len - pos, "%s\n", (*reg)->name);
+		if (cnt < 0)
+			return cnt;
+		pos += cnt;
+		for (i = 0; (*reg)->reg[i] != REGS_END; i++) {
+			val = (*reg)->rd_reg_func((*reg)->reg[i]);
+			cnt = snprintf(buf + pos, len - pos,
+				"[0x%08x]0x%08x\n",
+				(*reg)->get_reg_paddr((*reg)->reg[i]), val);
+			if (cnt < 0)
+				return cnt;
+			pos += cnt;
+		}
+	}
+
+	return pos;
 }
 
 #undef pr_fmt

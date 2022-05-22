@@ -4249,6 +4249,12 @@ static ssize_t phy_show(struct device *dev,
 	return pos;
 }
 
+static ssize_t dump_debug_reg_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	return hdmitx_debug_reg_dump(get_hdmitx_device(), buf, PAGE_SIZE);
+}
+
 static ssize_t rxsense_policy_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
@@ -5779,6 +5785,7 @@ static DEVICE_ATTR_RW(sysctrl_enable);
 static DEVICE_ATTR_RW(hdcp_ctl_lvl);
 static DEVICE_ATTR_RO(hdmitx_drm_flag);
 static DEVICE_ATTR_RW(hdr_mute_frame);
+static DEVICE_ATTR_RO(dump_debug_reg);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -7255,6 +7262,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdcp_ctl_lvl);
 	ret = device_create_file(dev, &dev_attr_hdmitx_drm_flag);
 	ret = device_create_file(dev, &dev_attr_hdr_mute_frame);
+	ret = device_create_file(dev, &dev_attr_dump_debug_reg);
 
 #ifdef CONFIG_AMLOGIC_VPU
 	hdmitx_device.encp_vpu_dev = vpu_dev_register(VPU_VENCP, DEVICE_NAME);
@@ -7443,6 +7451,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdcp_ctl_lvl);
 	device_remove_file(dev, &dev_attr_hdmitx_drm_flag);
 	device_remove_file(dev, &dev_attr_hdr_mute_frame);
+	device_remove_file(dev, &dev_attr_dump_debug_reg);
 
 	cdev_del(&hdmitx_device.cdev);
 
