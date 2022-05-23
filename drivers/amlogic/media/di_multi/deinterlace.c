@@ -160,7 +160,7 @@ static unsigned int hold_video;
 
 DEFINE_SPINLOCK(plist_lock);
 
-static const char version_s[] = "2022-05-17 s4dw";
+static const char version_s[] = "2022-05-23a";
 
 /*1:enable bypass pre,ei only;
  * 2:debug force bypass pre,ei for post
