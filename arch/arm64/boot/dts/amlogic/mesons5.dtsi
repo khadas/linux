@@ -797,7 +797,7 @@
 
 				gpio: bank@4008 {
 					reg = <0x0 0x4000 0x0 0x008c>,
-					      <0x0 0x4200 0x0 0x016c>;
+					      <0x0 0x4200 0x0 0x026c>;
 					reg-names = "mux", "gpio";
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -822,7 +822,7 @@
 			};
 
 			gpio_intc: interrupt-controller@40c0 {
-				compatible = "amlogic,meson-p1-gpio-intc",
+				compatible = "amlogic,meson-s5-gpio-intc",
 					     "amlogic,meson-gpio-intc";
 				reg = <0x0 0x40c0 0x0 0x50>;
 				interrupt-controller;
