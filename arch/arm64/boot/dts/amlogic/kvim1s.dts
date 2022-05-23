@@ -664,10 +664,10 @@
 	status = "okay";
 };
 
-&i2c3 {
+&i2c2 {
 	status = "okay";
 	pinctrl-names="default";
-	pinctrl-0=<&i2c3_pins2>;
+	pinctrl-0=<&i2c2_pins2>;
 	clock-frequency = <300000>;
 };
 
