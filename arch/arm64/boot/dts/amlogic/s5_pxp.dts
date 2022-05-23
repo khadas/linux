@@ -31,11 +31,6 @@
 		i2c3 = &i2c3;
 		i2c4 = &i2c4;
 		i2c5 = &i2c5;
-		i2c6 = &i2c6;
-		i2c7 = &i2c7;
-		i2c8 = &i2c8;
-		i2c9 = &i2c9;
-		i2c10 = &i2c10;
 		spi0 = &spifc;
 		spi1 = &spicc0;
 		spi2 = &spicc1;
@@ -1241,10 +1236,10 @@
 	status = "disabled";
 };
 
-&i2c9 {
+&i2c4 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c9_pins1>;
+	pinctrl-0 = <&i2c4_pins1>;
 	status = "disabled";
 	#address-cells = <1>;
     #size-cells = <0>;
@@ -1449,11 +1444,11 @@
 	};
 };
 
-&i2c7 {
+&i2c5 {
 	status = "disable";
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2c7_pins2>;
+	pinctrl-0 = <&i2c5_pins2>;
 	ov9285_2: sensor0@60 {
 		compatible = "omnivision, ov9285";
 		reg = <0x60>;
