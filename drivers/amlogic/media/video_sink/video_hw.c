@@ -5681,6 +5681,7 @@ s32 config_vd_pps(struct video_layer_s *layer,
 {
 	struct vppfilter_mode_s *vpp_filter;
 	struct vpp_frame_par_s *cur_frame_par;
+	s32 src_w, src_h, dst_w, dst_h;
 
 	if (!layer || !layer->cur_frame_par || !setting || !info)
 		return -1;
@@ -5700,10 +5701,16 @@ s32 config_vd_pps(struct video_layer_s *layer,
 	else
 		setting->last_line_fix = false;
 
+	src_w = cur_frame_par->video_input_w << cur_frame_par->supsc0_hori_ratio;
+	src_h = cur_frame_par->video_input_h << cur_frame_par->supsc0_vert_ratio;
+	dst_w = cur_frame_par->VPP_hsc_endp - cur_frame_par->VPP_hsc_startp + 1;
+	dst_h = cur_frame_par->VPP_vsc_endp - cur_frame_par->VPP_vsc_startp + 1;
 	if (vpp_filter->vpp_hsc_start_phase_step == 0x1000000 &&
 	    vpp_filter->vpp_vsc_start_phase_step == 0x1000000 &&
 	    vpp_filter->vpp_hsc_start_phase_step ==
 	     vpp_filter->vpp_hf_start_phase_step &&
+	    src_w == dst_w &&
+	    src_h == dst_h &&
 	    !vpp_filter->vpp_pre_vsc_en &&
 	    !vpp_filter->vpp_pre_hsc_en &&
 	    layer->bypass_pps &&
