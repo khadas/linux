@@ -51,5 +51,8 @@ int frc_set_memc_fallback(u8 fbvale);
 int frc_set_film_support(u32 filmcnt);
 void frc_mm_secure_set(struct frc_dev_s *devp);
 void frc_char_flash_check(void);
+void frc_chk_vd_sts_chg(struct frc_dev_s *frc_devp,
+				struct vframe_s *vf);
+extern struct work_struct frc_mem_dyc_proc;
 
 #endif

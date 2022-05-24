@@ -67,8 +67,9 @@
 
 // static struct frc_dev_s *frc_dev; // for SWPL-53056:KASAN: use-after-free
 static struct frc_dev_s frc_dev;
+struct work_struct frc_mem_dyc_proc;
 
-int frc_dbg_en;
+int frc_dbg_en = 2;
 EXPORT_SYMBOL(frc_dbg_en);
 module_param(frc_dbg_en, int, 0664);
 MODULE_PARM_DESC(frc_dbg_en, "frc debug level");
@@ -807,6 +808,8 @@ int frc_buf_set(struct frc_dev_s *frc_devp)
 		return -1;
 	if (frc_buf_alloc(frc_devp) != 0)
 		return -1;
+	if (frc_devp->buf.cma_buf_alloc && frc_devp->buf.cma_buf_alloc2)
+		frc_devp->buf.cma_mem_alloced = 1;
 	frc_buf_distribute(frc_devp);
 	if (frc_buf_config(frc_devp) != 0)
 		return -1;
@@ -919,6 +922,7 @@ static int frc_probe(struct platform_device *pdev)
 		enable_irq(frc_devp->rdma_irq);
 #endif
 	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
+	INIT_WORK(&frc_mem_dyc_proc, frc_mem_dynamic_proc);
 
 	frc_devp->probe_ok = true;
 	frc_devp->power_off_flag = false;
@@ -955,6 +959,7 @@ static int __exit frc_remove(struct platform_device *pdev)
 	PR_FRC("%s:module remove\n", __func__);
 	// frc_devp = platform_get_drvdata(pdev);
 	cancel_work_sync(&frc_devp->frc_clk_work);
+	cancel_work_sync(&frc_mem_dyc_proc);
 	tasklet_kill(&frc_devp->input_tasklet);
 	tasklet_kill(&frc_devp->output_tasklet);
 	tasklet_disable(&frc_devp->input_tasklet);
