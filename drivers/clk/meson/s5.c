@@ -3682,7 +3682,7 @@ static struct clk_regmap s5_sd_emmc_b_div = {
 static struct clk_regmap s5_sd_emmc_b = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = CLKCTRL_SD_EMMC_CLK_CTRL,
-		.bit_idx = 24,
+		.bit_idx = 23,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sd_emmc_b",

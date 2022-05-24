@@ -1626,14 +1626,14 @@
 				<0x0 0xfe086000 0x0 0x4>;
 			interrupts = <GIC_SPI 178 IRQ_TYPE_EDGE_RISING>;
 			status = "disabled";
-//			clocks = <&clkc CLKID_SYS_CLK_SD_EMMC_C>,
-//				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
-//				 <&clkc CLKID_SD_EMMC_C_CLK>,
-//				 <&xtal>,
-//				 <&clkc CLKID_GP0_PLL>,
-//				 <&clkc CLKID_GP0_PLL>;
-//			clock-names = "core", "mux0", "mux1",
-//					"clkin0", "clkin1", "clkin2";
+			clocks = <&clkc CLKID_SYS_CLK_SD_EMMC_C>,
+				<&clkc CLKID_SD_EMMC_C_CLK_SEL>,
+				 <&clkc CLKID_SD_EMMC_C_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_GP0_PLL>,
+				 <&clkc CLKID_GP0_PLL>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
 			src_clk_rate = <1536000000>;
 			mmc_debug_flag;
@@ -1644,20 +1644,39 @@
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 
+		sd_emmc_b: sd@fe08a000 {
+			compatible = "amlogic,meson-axg-mmc";
+			reg = <0x0 0xfe08a000 0x0 0x800>,
+				<0x0 0xfe00016c 0x0 0x4>,
+				<0x0 0xfe00400c 0x0 0x4>;
+			interrupts = <GIC_SPI 239 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+			clocks = <&clkc CLKID_SYS_CLK_SD_EMMC_B>,
+				<&clkc CLKID_SD_EMMC_B_CLK_SEL>,
+				 <&clkc CLKID_SD_EMMC_B_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
+			card_type = <5>;
+			mmc_debug_flag;
+			//resets = <&reset RESET_SD_EMMC_B>;
+		};
+
 		sd_emmc_a: sdio@fe088000 {
 			compatible = "amlogic,meson-axg-mmc";
 			reg = <0x0 0xfe088000 0x0 0x800>,
 				<0x0 0xfe00016c 0x0 0x4>,
-				<0x0 0xfe004030 0x0 0x4>;
+				<0x0 0xfe004038 0x0 0x4>;
 			interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
-//			clocks = <&clkc CLKID_SYS_CLK_SD_EMMC_A>,
-//				<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
-//				 <&clkc CLKID_SD_EMMC_A_CLK>,
-//				 <&xtal>,
-//				 <&clkc CLKID_FCLK_DIV2>;
-//			clock-names = "core", "mux0", "mux1",
-//					"clkin0", "clkin1";
+			clocks = <&clkc CLKID_SYS_CLK_SD_EMMC_A>,
+				<&clkc CLKID_SD_EMMC_A_CLK_SEL>,
+				 <&clkc CLKID_SD_EMMC_A_CLK>,
+				 <&xtal>,
+				 <&clkc CLKID_FCLK_DIV2>;
+			clock-names = "core", "mux0", "mux1",
+					"clkin0", "clkin1";
 			card_type = <3>;
 			cap-sdio-irq;
 			keep-power-in-suspend;
@@ -3387,114 +3406,93 @@
 	};
 
 	/* sdemmc portB */
-	sd_clk_cmd_pins:sd_clk_cmd_pins {
+	sd_to_ao_uart_clr_pins: sd_to_ao_uart_clr_pins {
 		mux {
-			groups = "sdcard_cmd";
-			function = "sdcard";
-			bias-pull-up;
-			drive-strength-microamp = <4000>;
-		};
-		mux1 {
-			groups = "sdcard_clk";
-			function = "sdcard";
-			bias-pull-up;
-			drive-strength-microamp = <4000>;
+			groups = "GPIOD_0",
+				   "GPIOD_1";
+			function = "gpio_periphs";
 		};
 	};
 
-	sd_all_pins:sd_all_pins {
+	sdcard_pins: sdcard_pins {
 		mux {
 			groups = "sdcard_d0",
-				   "sdcard_d1",
-				   "sdcard_d2",
-				   "sdcard_d3",
-				   "sdcard_cmd";
-			function = "sdcard";
-			bias-pull-up;
-			drive-strength-microamp = <4000>;
-		};
-		mux1 {
-			groups = "sdcard_clk";
+				 "sdcard_d1",
+				 "sdcard_d2",
+				 "sdcard_d3",
+				 "sdcard_clk",
+				 "sdcard_cmd";
 			function = "sdcard";
 			bias-pull-up;
 			drive-strength-microamp = <4000>;
 		};
 	};
 
-	sd_clk_gate_pins: sd_clk_gate {
+	ao_to_sd_uart_pins: ao_to_sd_uart_pins {
 		mux {
-			groups = "GPIOC_4";
-			function = "gpio_periphs";
-			bias-pull-down;
-			drive-strength-microamp = <4000>;
-		};
-	};
-
-	sd_all_pd_pins:sd_all_pd_pins {
-		mux {
-			groups = "GPIOC_0",
-				   "GPIOC_1",
-				   "GPIOC_2",
-				   "GPIOC_3",
-				   "GPIOC_4",
-				   "GPIOC_5";
-			function = "gpio_periphs";
-			bias-pull-down;
-			output-low;
-		};
-	};
-
-	sd_1bit_pins:sd_1bit_pins {
-		mux {
-			groups = "sdcard_d0",
-					"sdcard_cmd";
-			function = "sdcard";
-			bias-pull-up;
-			drive-strength-microamp = <4000>;
-		};
-		mux1 {
-			groups = "sdcard_clk";
-			function = "sdcard";
-			bias-pull-up;
-			drive-strength-microamp = <4000>;
-		};
-	};
-
-	sd_clr_all_pins:sd_clr_all_pins {
-		mux {
-			groups = "GPIOC_0",
-				   "GPIOC_1",
-				   "GPIOC_2",
-				   "GPIOC_3",
-				   "GPIOC_5";
-			function = "gpio_periphs";
-			output-high;
-		};
-		mux1 {
-			groups = "GPIOC_4";
-			function = "gpio_periphs";
-			output-low;
-		};
-	};
-
-	sd_clr_noall_pins:sd_clr_noall_pins {
-		mux {
-			groups = "GPIOC_0",
-				   "GPIOC_1",
-				   "GPIOC_4",
-				   "GPIOC_5";
-			function = "gpio_periphs";
-			output-high;
-		};
-	};
-
-	ao_to_sd_uart_pins:ao_to_sd_uart_pins {
-		mux {
-			groups = "uart_ao_tx_a_c3",
-					"uart_ao_rx_a_c2";
-			function = "uart_ao_a_ee";
+			groups = "uart_a_tx_c",
+				"uart_a_rx_c";
+			function = "uart_a";
 			bias-pull-up;
 			input-enable;
+		};
+	};
+
+	ao_uart_pins: ao_uart_pins {
+		mux {
+			groups = "uart_a_tx_d",
+				"uart_a_rx_d";
+			function = "uart_a";
+			bias-pull-up;
+			input-enable;
+		};
+	};
+
+	sd_clr_all_pins: sd_clr_all_pins {
+		mux {
+			groups = "GPIOC_0",
+				   "GPIOC_1",
+				   "GPIOC_2",
+				   "GPIOC_3",
+				   "GPIOC_5";
+			function = "gpio_periphs";
+			output-high;
+		};
+		mux1 {
+			groups = "GPIOC_4";
+			function = "gpio_periphs";
+			output-low;
+		};
+	};
+
+	sd_clr_noall_pins: sd_clr_noall_pins {
+		mux {
+			groups = "GPIOC_0",
+				   "GPIOC_1",
+				   "GPIOC_4",
+				   "GPIOC_5";
+			function = "gpio_periphs";
+			output-high;
+		};
+	};
+
+	sd_1bit_pins: sd_1bit_pins {
+		mux {
+			groups = "sdcard_d0",
+				 "sdcard_clk",
+				 "sdcard_cmd";
+			function = "sdcard";
+			bias-pull-up;
+			drive-strength-microamp = <4000>;
+		};
+	};
+
+	sdcard_clk_gate_pins: sdcard_clk_gate_pins {
+		mux {
+			groups = "GPIOC_4";
+			function = "gpio_periphs";
+			bias-pull-down;
+			drive-strength-microamp = <4000>;
 		};
 	};
 
