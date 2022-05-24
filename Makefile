@@ -696,7 +696,7 @@ ifeq ($(KBUILD_EXTMOD),)
 core-y		:= init/ usr/ arch/$(SRCARCH)/
 drivers-y	:= drivers/ sound/
 ifdef CONFIG_AMLOGIC_IN_KERNEL_MODULES
-drivers-y	+= $(COMMON_DRIVERS_DIR)/drivers/
+drivers-y	+= $(COMMON_DRIVERS_DIR)/drivers/ $(COMMON_DRIVERS_DIR)/sound/
 endif
 drivers-$(CONFIG_SAMPLES) += samples/
 drivers-$(CONFIG_NET) += net/

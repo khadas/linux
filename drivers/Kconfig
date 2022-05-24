@@ -285,6 +285,7 @@ config AMLOGIC_CPU
 
 if AMLOGIC_IN_KERNEL_MODULES
 source "$(COMMON_DRIVERS_DIR)/drivers/Kconfig"
+source "$(COMMON_DRIVERS_DIR)/sound/Kconfig"
 endif
 endif
 endmenu
