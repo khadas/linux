@@ -1492,6 +1492,7 @@ RESTART:
 		else
 			aspect_factor = 0xc0;
 		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
+		    video_layer_width > 1 && video_layer_height > 1 &&
 		    (aspect_factor * video_layer_width == video_layer_height << 8))
 			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		else
@@ -1503,6 +1504,7 @@ RESTART:
 		else
 			aspect_factor = 0x90;
 		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
+		    video_layer_width > 1 && video_layer_height > 1 &&
 		    (aspect_factor * video_layer_width == video_layer_height << 8))
 			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
 		else
