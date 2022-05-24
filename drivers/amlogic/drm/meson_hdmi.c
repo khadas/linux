@@ -668,7 +668,8 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 		to_am_hdmitx_connector_state(state);
 
 	drm_printf(p, "\tdrm hdmitx state:\n");
-	drm_printf(p, "\t\t VRR_CAP:[%u]\n", am_hdmi_info.hdmitx_dev->get_vrr_cap());
+	drm_printf(p, "\t\t VRR_CAP:[%u]\n", am_hdmi_info.hdmitx_dev->get_vrr_cap ?
+		am_hdmi_info.hdmitx_dev->get_vrr_cap() : 0);
 	drm_printf(p, "\t\t android_path:[%d]\n", am_hdmi_info.android_path);
 	drm_printf(p, "\t\t hdcp_state:[%d]\n", am_hdmi_info.hdcp_state);
 	drm_printf(p, "\t\t color attr:[%d,%d], hdr_policy[%d]\n",
