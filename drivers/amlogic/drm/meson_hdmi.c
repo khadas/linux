@@ -721,6 +721,7 @@ static int am_hdmitx_connector_atomic_get_property
 		*val = get_hdcp_mode();
 		return 0;
 	}
+
 	return -EINVAL;
 }
 
@@ -925,6 +926,7 @@ void meson_hdmitx_atomic_print_state(struct drm_printer *p,
 		hdmitx_state->color_attr_para.colorformat,
 		hdmitx_state->color_attr_para.bitdepth,
 		hdmitx_state->pref_hdr_policy);
+	drm_printf(p, "\t\t picture_aspect_ratio:[%d]\n", state->picture_aspect_ratio);
 }
 
 static bool meson_hdmitx_is_hdcp_running(void)
@@ -1114,6 +1116,14 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 
 	if (am_hdmi_info.android_path)
 		return;
+
+	/*update aspect_ratio*/
+	if (new_state->picture_aspect_ratio != old_state->picture_aspect_ratio) {
+		am_hdmi_info.hdmitx_dev->set_aspect_ratio(new_state->picture_aspect_ratio);
+		new_state->picture_aspect_ratio = am_hdmi_info.hdmitx_dev->get_aspect_ratio();
+		DRM_INFO("set picture_aspect_ratio = %d by property",
+			 new_state->picture_aspect_ratio);
+	}
 
 	/*Linux only implement*/
 	if (old_state->hdcp_content_type
@@ -1554,6 +1564,7 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	}
 
 	am_hdmi_info.hdmitx_on = 1;
+	conn_state->picture_aspect_ratio = am_hdmi_info.hdmitx_dev->get_aspect_ratio();
 }
 
 void meson_hdmitx_encoder_atomic_disable(struct drm_encoder *encoder,
@@ -1794,6 +1805,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	struct drm_encoder *encoder;
 	struct meson_connector *mesonconn;
 	struct connector_hpd_cb hpd_cb;
+	struct drm_property *aspect_ratio_property;
 	int ret;
 #ifdef CONFIG_CEC_NOTIFIER
 	struct edid *pedid;
@@ -1837,6 +1849,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	mesonconn->update = meson_hdmitx_update;
 	encoder = &am_hdmi->encoder;
 	connector = &am_hdmi->base.connector;
+	aspect_ratio_property = connector->dev->mode_config.aspect_ratio_property;
 
 	/* Connector */
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
@@ -1891,6 +1904,10 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_dv_cap_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_ver_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_mode_property(drm, am_hdmi);
+	if (!drm_mode_create_aspect_ratio_property(connector->dev))
+		drm_object_attach_property(&connector->base,
+					   aspect_ratio_property,
+					   DRM_MODE_PICTURE_ASPECT_NONE);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;
