@@ -22,7 +22,9 @@
 #include <linux/sched/task_stack.h>
 #include <linux/spi/flash.h>
 #include <linux/mtd/spi-nor.h>
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include <linux/gpio.h>
+#endif
 /* Define max times to check status register before we give up. */
 
 /*
@@ -4995,6 +4997,9 @@ static int spi_nor_probe(struct spi_mem *spimem)
 	struct spi_device *spi = spimem->spi;
 	struct flash_platform_data *data = dev_get_platdata(&spi->dev);
 	struct spi_nor *nor;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct pinctrl *pc;
+#endif
 	/*
 	 * Enable all caps by default. The core will mask them after
 	 * checking what's really supported using spi_mem_supports_op().
@@ -5033,8 +5038,17 @@ static int spi_nor_probe(struct spi_mem *spimem)
 		flash_name = spi->modalias;
 
 	ret = spi_nor_scan(nor, flash_name, &hwcaps);
-	if (ret)
+	if (ret) {
+#ifdef CONFIG_AMLOGIC_MODIFY
+		if (gpio_is_valid(spi->cs_gpio))
+			gpio_free(spi->cs_gpio);
+		pc = spi->controller->dev.parent->pins->p;
+		/* put twice here if get pc with devm_pinctrl_get */
+		if (pc)
+			devm_pinctrl_put(pc);
+#endif
 		return ret;
+	}
 
 	/*
 	 * None of the existing parts have > 512B pages, but let's play safe
