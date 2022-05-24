@@ -255,7 +255,7 @@
 };
 
 &dp0_sound{
-	status = "okay";
+	status = "disabled";
 };
 
 &dp1 {
