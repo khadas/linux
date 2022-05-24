@@ -46,6 +46,7 @@
 /*  V1.1.53  fixed dvb-c auto qam unlock when 16qam/32qam */
 /*  V1.1.54  rebuild atsc to improve signal locking performance */
 /*  V1.1.55  improve atsc cci */
+/*  V1.1.56  add dvbt2 fef info */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -62,9 +63,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.55"
-#define DTVDEMOD_VER	"2022/06/24: improve atsc cci"
-#define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
+#define AMLDTVDEMOD_VER "V1.1.56"
+#define DTVDEMOD_VER	"2022/07/11: add dvbt2 fef info"
+#define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -210,6 +211,7 @@ struct aml_demod_para_real {
 	u32_t symbol;
 	u32_t snr;
 	u32_t plp_num;
+	u32_t fef_info;
 };
 
 #define CAP_NAME_LEN	100

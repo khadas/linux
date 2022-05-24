@@ -212,6 +212,7 @@ static void real_para_clear(struct aml_demod_para_real *para)
 	para->symbol = 0;
 	para->snr = 0;
 	para->plp_num = 0;
+	para->fef_info = 0;
 }
 
 //static void dtvdemod_do_8vsb_rst(void)
@@ -1116,7 +1117,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	unsigned int p1_peak, val;
 	static int no_signal_cnt, unlock_cnt;
 	int snr, modu, cr, l1post, ldpc;
-	unsigned int plp_num;
+	unsigned int plp_num, fef_info = 0;
 
 	if (!devp->demod_thread) {
 		real_para_clear(&demod->real_para);
@@ -1160,7 +1161,8 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	if (demod_is_t5d_cpu(devp)) {
 		cr = (val >> 2) & 0x7;
 		modu = (val >> 5) & 0x3;
-		ldpc = (val >> 7) & 0x3F;
+		fef_info = (val >> 7) & 0x1;
+		ldpc = (val >> 7) & 0x3E;
 		snr = val >> 13;
 		l1post = (val >> 30) & 0x1;
 		plp_num = (val >> 24) & 0x3f;
@@ -1228,6 +1230,7 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		demod->real_para.modulation = modu;
 		demod->real_para.coderate = cr;
 		demod->real_para.plp_num = plp_num;
+		demod->real_para.fef_info = fef_info;
 	} else if (demod->last_lock == -CONTINUE_TIMES_UNLOCK) {
 		*status = FE_TIMEDOUT;
 		real_para_clear(&demod->real_para);
@@ -6904,6 +6907,8 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 				tvp->reserved[1] = FEC_5_6;
 			else
 				tvp->reserved[1] = 0xFF;
+
+			tvp->reserved[2] = demod->real_para.fef_info;
 		} else if (demod->last_delsys == SYS_DVBT &&
 			demod->last_status == 0x1F) {
 			modulation = demod->real_para.modulation;
@@ -6931,8 +6936,8 @@ static int aml_dtvdm_get_property(struct dvb_frontend *fe,
 			else
 				tvp->reserved[1] = 0xFF;
 		}
-		PR_DVBT("[id %d] get delivery system : %d,modulation:0x%x\n",
-			demod->id, tvp->u.data, tvp->reserved[0]);
+		PR_DVBT("[id %d] get delivery system:%d,modulation:0x%x,fef_info:%d.\n",
+			demod->id, tvp->u.data, tvp->reserved[0], tvp->reserved[2]);
 		break;
 
 	case DTV_DVBT2_PLP_ID:
