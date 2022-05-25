@@ -857,6 +857,7 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 	struct timeval nn_start_time;
 	u64 nn_used_time;
 	bool canbe_peek = true;
+	u32 nn_status;
 
 	if (kfifo_peek(&dev->ready_q, &vf)) {
 		if (!vf)
@@ -871,6 +872,8 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 		if ((vf->vc_private->flag & VC_FLAG_AI_SR) == 0)
 			return vf;
 
+		nn_status = vf->vc_private->srout_data->nn_status;
+
 		vc_print(dev->index, PRINT_NN,
 			"peek:nn_status=%d, nn_index=%d, nn_mode=%d, PHY=%llx, nn out:%d*%d, hf:%d*%d,hf_align:%d*%d\n",
 			vf->vc_private->srout_data->nn_status,
@@ -883,9 +886,13 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 			vf->vc_private->srout_data->hf_height,
 			vf->vc_private->srout_data->hf_align_w,
 			vf->vc_private->srout_data->hf_align_h);
-		if (vf->vc_private->srout_data->nn_status != NN_DONE) {
-			if (vf->vc_private->srout_data->nn_status
-				== NN_WAIT_DOING) {
+		if (nn_status != NN_DONE) {
+			if (nn_status == NN_INVALID) {
+				vf->vc_private->flag &= ~VC_FLAG_AI_SR;
+				vc_print(dev->index, PRINT_NN | PRINT_OTHER,
+					"nn status is invalid, need bypass");
+				return vf;
+			} else if (nn_status == NN_WAIT_DOING) {
 				vc_print(dev->index, PRINT_FENCE | PRINT_NN,
 					"peek: nn wait doing, nn_index =%d, omx_index=%d, nn_status=%d,srout_data=%px\n",
 					vf->vc_private->srout_data->nn_index,
@@ -893,8 +900,7 @@ struct vframe_s *videocomposer_vf_peek(void *op_arg)
 					vf->vc_private->srout_data->nn_status,
 					vf->vc_private->srout_data);
 				return NULL;
-			} else if (vf->vc_private->srout_data->nn_status
-				== NN_DISPLAYED) {
+			} else if (nn_status == NN_DISPLAYED) {
 				vc_print(dev->index, PRINT_ERROR,
 					"peek: nn_status err, nn_index =%d, omx_index=%d, nn_status=%d\n",
 					vf->vc_private->srout_data->nn_index,
