@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/pid.h>
+#include <linux/compat.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/major.h>
 #include <uapi/linux/amlogic/msync.h>

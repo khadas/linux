@@ -24,6 +24,7 @@
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/jiffies.h>
+#include <linux/compat.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 
 #include "resourcemanage.h"

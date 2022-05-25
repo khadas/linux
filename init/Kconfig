@@ -44,6 +44,10 @@ config CLANG_VERSION
 	int
 	default $(shell,$(srctree)/scripts/clang-version.sh $(CC))
 
+config LLD_VERSION
+	int
+	default $(shell,$(srctree)/scripts/lld-version.sh $(LD))
+
 config CC_CAN_LINK
 	def_bool $(success,$(srctree)/scripts/cc-can-link.sh $(CC))
 
@@ -1660,7 +1664,6 @@ config BPF_JIT_ALWAYS_ON_AMLOGIC
 	help
 	  real effective config for Amlogic
 	  we should disable it in arm
-
 
 config BPF_UNPRIV_DEFAULT_OFF
 	bool "Disable unprivileged BPF by default"

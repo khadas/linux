@@ -16,6 +16,7 @@
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
 #include <linux/hashtable.h>
+#include <linux/android_kabi.h>
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 #include <net/flow_offload.h>
@@ -113,6 +114,8 @@ struct Qdisc {
 	/* for NOLOCK qdisc, true if there are no enqueued skbs */
 	bool			empty;
 	struct rcu_head		rcu;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 static inline void qdisc_refcount_inc(struct Qdisc *qdisc)
@@ -160,6 +163,12 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 		if (spin_trylock(&qdisc->seqlock))
 			goto nolock_empty;
 
+		/* Paired with smp_mb__after_atomic() to make sure
+		 * STATE_MISSED checking is synchronized with clearing
+		 * in pfifo_fast_dequeue().
+		 */
+		smp_mb__before_atomic();
+
 		/* If the MISSED flag is set, it means other thread has
 		 * set the MISSED flag before second spin_trylock(), so
 		 * we can return false here to avoid multi cpus doing
@@ -176,6 +185,12 @@ static inline bool qdisc_run_begin(struct Qdisc *qdisc)
 		 * dequeuing.
 		 */
 		set_bit(__QDISC_STATE_MISSED, &qdisc->state);
+
+		/* spin_trylock() only has load-acquire semantic, so use
+		 * smp_mb__after_atomic() to ensure STATE_MISSED is set
+		 * before doing the second spin_trylock().
+		 */
+		smp_mb__after_atomic();
 
 		/* Retry again in case other CPU may not see the new flag
 		 * after it releases the lock at the end of qdisc_run_end().
@@ -256,6 +271,8 @@ struct Qdisc_class_ops {
 					struct sk_buff *skb, struct tcmsg*);
 	int			(*dump_stats)(struct Qdisc *, unsigned long,
 					struct gnet_dump *);
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /* Qdisc_class_ops flag values */
@@ -299,6 +316,8 @@ struct Qdisc_ops {
 	u32			(*egress_block_get)(struct Qdisc *sch);
 
 	struct module		*owner;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 
@@ -1248,6 +1267,7 @@ struct psched_ratecfg {
 	u64	rate_bytes_ps; /* bytes per second */
 	u32	mult;
 	u16	overhead;
+	u16	mpu;
 	u8	linklayer;
 	u8	shift;
 };
@@ -1256,6 +1276,9 @@ static inline u64 psched_l2t_ns(const struct psched_ratecfg *r,
 				unsigned int len)
 {
 	len += r->overhead;
+
+	if (len < r->mpu)
+		len = r->mpu;
 
 	if (unlikely(r->linklayer == TC_LINKLAYER_ATM))
 		return ((u64)(DIV_ROUND_UP(len,48)*53) * r->mult) >> r->shift;
@@ -1279,6 +1302,7 @@ static inline void psched_ratecfg_getrate(struct tc_ratespec *res,
 	res->rate = min_t(u64, r->rate_bytes_ps, ~0U);
 
 	res->overhead = r->overhead;
+	res->mpu = r->mpu;
 	res->linklayer = (r->linklayer & TC_LINKLAYER_MASK);
 }
 

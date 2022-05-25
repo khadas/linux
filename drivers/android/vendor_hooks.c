@@ -21,6 +21,9 @@
 #include <trace/hooks/cgroup.h>
 #include <trace/hooks/sys.h>
 #include <trace/hooks/ufshcd.h>
+#include <trace/hooks/usb.h>
+#include <trace/hooks/psci.h>
+#include <trace/hooks/ion.h>
 
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
@@ -48,6 +51,10 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rwsem_write_wait_finish);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sched_show_task);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ptype_head);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_kfree_skb);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sk_alloc);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sk_free);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_nf_conn_alloc);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_nf_conn_free);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_arch_set_freq_scale);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_transaction_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_set_priority);
@@ -73,3 +80,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_compl_command);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_send_uic_command);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_send_tm_command);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ufs_check_int_errors);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_usb_persist_overwrite);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_psci_tos_resident_on);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_psci_cpu_suspend);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ion_buffer_release);

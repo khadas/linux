@@ -20,6 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/pid.h>
+#include <linux/compat.h>
 #include <linux/amlogic/major.h>
 #include <linux/platform_device.h>
 #include <uapi/linux/amlogic/media_info.h>
