@@ -58,7 +58,7 @@ static unsigned long sirq_thr = LONG_SIRQ;
 core_param(sirq_thr, sirq_thr, ulong, 0644);
 static int irq_check_en;
 core_param(irq_check_en, irq_check_en, int, 0644);
-static int isr_check_en = 1;
+static int isr_check_en = 0;
 core_param(isr_check_en, isr_check_en, int, 0644);
 static unsigned long out_thr = OUT_WIN;
 core_param(out_thr, out_thr, ulong, 0644);
