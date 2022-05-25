@@ -54,8 +54,7 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000
-				       0x00000001 0x00000000 0x00000000 0x20000000>;
+		linux,usable-memory = <0x00000000 0x00000000 0x00000000 0xE0000000>;
 	};
 
 	reserved-memory {
@@ -86,6 +85,7 @@
 		dsp_fw_reserved:linux,dsp_fw {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			size = <0x0 0x1000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x40000000 0x0 0x1000000>;
@@ -100,6 +100,7 @@
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
@@ -108,6 +109,7 @@
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			/* ion_codec_mm max can alloc size 80M*/
 			size = <0x0 0x1b000000>;
 			alignment = <0x0 0x400000>;
@@ -127,6 +129,7 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
+			 status = "disabled";
 			size = <0x0 0x0B000000>;
 			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
@@ -136,6 +139,7 @@
 		/*  POST PROCESS MANAGER */
 		ppmgr_reserved:linux,ppmgr {
 			compatible = "shared-dma-pool";
+			status = "disabled";
 			size = <0x0 0x0>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -143,7 +147,7 @@
 		isp_cma_reserved:linux,isp_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			status = "okay";
+			status = "disabled";
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -152,7 +156,7 @@
 		adapt_cma_reserved:linux,adapt_cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			status = "okay";
+			status = "disabled";
 			size = <0x0 0x4000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -161,6 +165,7 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			size = <0x0 0x9800000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -169,6 +174,7 @@
 		ion_secure_reserved:linux,ion-secure {
 			compatible = "amlogic, ion-secure-mem";
 			no-map;
+			status = "disabled";
 			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -176,6 +182,7 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0 0x6000000>;
 			alignment = <0x0 0x400000>;
@@ -184,6 +191,7 @@
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
+			status = "disabled";
 			size = <0x0 0x0>;
 			alignment = <0x0 0x100000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -204,6 +212,7 @@
 		vdin1_cma_reserved:linux,vdin1_cma {
 			compatible = "shared-dma-pool";
 			reusable;
+			status = "disabled";
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
@@ -217,7 +226,7 @@
 		compatible = "amlogic, codec, mm";
 		memory-region = <&codec_mm_cma &codec_mm_reserved>;
 		dev_name = "codec_mm";
-		status = "okay";
+		status = "disabled";
 	};
 
 	cvbsout {
@@ -573,7 +582,7 @@
 		interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "audio_exception64";
 
-		status = "okay";
+		status = "disabled";
 
 		aml-audio-card,dai-link@0 {
 			format = "i2s";
