@@ -4103,12 +4103,12 @@
 		};
 	};
 
-//	mclk_2_pins: mclk_2_pin {
-//		mux { /* GPIOT_13 */
-//			groups = "mclk2";
-//			function = "mclk";
-//		};
-//	};
+	mclk_2_pins: mclk_2_pin {
+		mux { /* GPIOT_13 */
+			groups = "mclk2";
+			function = "mclk";
+		};
+	};
 
 	lcd_vbyone_a_pins: lcd_vbyone_a_pin {
 		mux {

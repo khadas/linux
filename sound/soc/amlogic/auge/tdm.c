@@ -374,13 +374,13 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 
 /* capture: */
 	/* update skew for ACODEC_ADC */
-	if (capture_active &&
-	    p_tdm->chipinfo->adc_fn &&
-	    strncmp(p_tdm->tdmin_src_name, SRC_ACODEC,
-		    strlen(p_tdm->tdmin_src_name)) == 0) {
-		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, 4);
-		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, 0);
-	}
+//	if (capture_active &&
+//	    p_tdm->chipinfo->adc_fn &&
+//	    strncmp(p_tdm->tdmin_src_name, SRC_ACODEC,
+//		    strlen(p_tdm->tdmin_src_name)) == 0) {
+//		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, 4);
+//		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, 0);
+//	}
 
 	return 0;
 }
