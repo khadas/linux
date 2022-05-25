@@ -410,3 +410,14 @@ void lcd_venc_change(struct aml_lcd_drv_s *pdrv)
 
 	aml_lcd_notifier_call_chain(LCD_EVENT_BACKLIGHT_UPDATE, (void *)pdrv);
 }
+
+void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int vtotal, offset;
+
+	offset = pdrv->data->offset_venc[pdrv->index];
+
+	vtotal = pdrv->config.basic.v_period;
+
+	lcd_vcbus_write(ENCL_VIDEO_MAX_LNCNT + offset, vtotal);
+}

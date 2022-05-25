@@ -32,6 +32,7 @@ struct vrr_device_s {
 
 	void *dev_data;
 	unsigned int (*lfc_switch)(void *dev_data, int fps);
+	int (*disable_cb)(void *dev_data);
 };
 
 struct vrr_notifier_data_s {

@@ -2889,6 +2889,20 @@ unsigned int lcd_vrr_lfc_switch(void *dev_data, int fps)
 	return v_period;
 }
 
+int lcd_vrr_disable_cb(void *dev_data)
+{
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = (struct aml_lcd_drv_s *)dev_data;
+	if (!pdrv) {
+		LCDERR("%s: vrr dev_data is null\n", __func__);
+		return -1;
+	}
+	lcd_venc_vrr_recovery(pdrv);
+
+	return 0;
+}
+
 void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv)
 {
 	if (!pdrv->vrr_dev)

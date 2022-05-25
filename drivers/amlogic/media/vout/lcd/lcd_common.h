@@ -94,6 +94,7 @@ void lcd_vout_notify_mode_change_pre(struct aml_lcd_drv_s *pdrv);
 void lcd_vout_notify_mode_change(struct aml_lcd_drv_s *pdrv);
 void lcd_vinfo_update(struct aml_lcd_drv_s *pdrv);
 unsigned int lcd_vrr_lfc_switch(void *dev_data, int fps);
+int lcd_vrr_disable_cb(void *dev_data);
 void lcd_vrr_dev_update(struct aml_lcd_drv_s *pdrv);
 
 void lcd_queue_work(struct work_struct *work);
@@ -160,6 +161,7 @@ void lcd_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_set_venc_timing(struct aml_lcd_drv_s *pdrv);
 void lcd_set_venc(struct aml_lcd_drv_s *pdrv);
 void lcd_venc_change(struct aml_lcd_drv_s *pdrv);
+void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv);
 
 /* lcd driver */
 #ifdef CONFIG_AMLOGIC_LCD_TV
