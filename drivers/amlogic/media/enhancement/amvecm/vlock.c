@@ -193,6 +193,7 @@ u32 speed_up_en = 1;
 
 static int vlock_protect_min;
 static int vlock_manual;
+static int vlock_frc_is_on;
 
 struct reg_map vlock_reg_maps[REG_MAP_END] = {0};
 
@@ -539,6 +540,7 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param)
 		return ret;
 
 	vlock_manual = frc_param.frc_mcfixlines;
+	vlock_frc_is_on = frc_param.s2l_en;
 	if (pvlock->dtdata->vlk_ctl_for_frc) {
 		if (pvlock->fsm_sts == VLOCK_STATE_ENABLE_STEP1_DONE ||
 			pvlock->fsm_sts == VLOCK_STATE_ENABLE_STEP2_DONE) {
@@ -576,8 +578,8 @@ static void vlock_tune_sync(struct stvlock_sig_sts *pvlock)
 			u32 max_pxcnt = pvlock->enc_frc_max_pixel;
 
 			if ((vlock_debug & VLOCK_DEBUG_FLASH))
-				pr_info("vlock: frc_v_porch =%d max_lncnt =%d max_pxcnt =%d\n",
-					frc_v_porch, max_lncnt, max_pxcnt);
+				pr_info("vlock: frc_v_porch =%d max_lncnt =%d max_pxcnt =%d vlock_frc_is_on:%d\n",
+					frc_v_porch, max_lncnt, max_pxcnt, vlock_frc_is_on);
 
 			if (!frc_is_on())
 				return;
@@ -2892,6 +2894,8 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 	vlock_vmd_input_check(pvlock);
 	switch (pvlock->fsm_sts) {
 	case VLOCK_STATE_NULL:
+		if (vlock_frc_is_on)
+			vlock_tune_sync(pvlock);
 		if (pvlock->vf_sts) {
 			/*have frame in*/
 			pvlock->frame_cnt_no = 0;
@@ -2920,6 +2924,8 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 		break;
 
 	case VLOCK_STATE_ENABLE_STEP1_DONE:
+		if (vlock_frc_is_on)
+			vlock_tune_sync(pvlock);
 		if (pvlock->vf_sts) {
 			pvlock->frame_cnt_in++;
 			pvlock->frame_cnt_no = 0;
