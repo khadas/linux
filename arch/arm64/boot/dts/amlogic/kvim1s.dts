@@ -722,8 +722,6 @@
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 		        &clkaudio CLKID_AUDIO_MCLK_PAD2
 				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "clk_srcpll";
-		pinctrl-names = "tdm_pins";
 		clock-names = "mclk", "mclk_pad",  "clk_srcpll";
         /*
 		 * 0: tdmout_a;
