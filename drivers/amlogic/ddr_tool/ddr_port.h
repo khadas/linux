@@ -38,7 +38,7 @@
 #define DMC_TYPE_T5W			0x3B
 #define DMC_TYPE_A5			0x3C
 #define DMC_TYPE_C3			0x3D
-#define DMC_TYPE_S5			0x40
+#define DMC_TYPE_S5			0x3E
 
 #define DUAL_DMC			BIT(0)
 #define QUAD_DMC			BIT(2)

@@ -1899,7 +1899,7 @@
 	};
 
 	ddr_bandwidth {
-		compatible = "amlogic,ddr-bandwidth-p1";
+		compatible = "amlogic,ddr-bandwidth-s5";
 		status = "okay";
 		reg = <0 0xfe036000 0 0x200
 		       0 0xfe034000 0 0x200
@@ -1914,7 +1914,7 @@
 	};
 
 	dmc_monitor {
-		compatible = "amlogic,dmc_monitor-p1";
+		compatible = "amlogic,dmc_monitor-s5";
 		status = "okay";
 		reg = <0 0xfe036000 0 0x200
 		       0 0xfe034000 0 0x200

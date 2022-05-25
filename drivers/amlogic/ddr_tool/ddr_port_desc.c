@@ -871,6 +871,48 @@ static struct ddr_port_desc ddr_port_desc_a5[] __initdata = {
 	{ .port_id = 44, .port_name = "AUDIO"        }
 };
 
+static struct ddr_port_desc ddr_port_desc_s5[] __initdata = {
+	/* TOP*/
+	{ .port_id =  2, .port_name = "A76/A55_CLUSER"},
+	{ .port_id =  4, .port_name = "MALI"          },
+	/* NIC_NPU */
+	{ .port_id =  8, .port_name = "ADLA_4T_0"     },
+	{ .port_id =  9, .port_name = "ADLA_4T_1"     },
+	/* NIC_SYS */
+	{ .port_id = 16, .port_name = "AOCPU"         },
+	{ .port_id = 24, .port_name = "SPICC0"        },
+	{ .port_id = 25, .port_name = "SPICC1"        },
+	{ .port_id = 26, .port_name = "SPICC2"        },
+	{ .port_id = 28, .port_name = "AUDMA"         },
+	{ .port_id = 29, .port_name = "ETHERNET"      },
+	{ .port_id = 33, .port_name = "AUDIO"         },
+	{ .port_id = 35, .port_name = "SDEMMCA"       },
+	{ .port_id = 36, .port_name = "SDEMMCB"       },
+	{ .port_id = 37, .port_name = "SDEMMCC"       },
+	{ .port_id = 38, .port_name = "DMA"           },
+	{ .port_id = 54, .port_name = "DEMUX"         },
+	{ .port_id = 56, .port_name = "USB3_A"        },
+	{ .port_id = 57, .port_name = "USB3_B"        },
+	{ .port_id = 58, .port_name = "USB2"          },
+	{ .port_id = 59, .port_name = "PCIE0"         },
+	{ .port_id = 60, .port_name = "PCIE1"         },
+	/* NIC_VPU */
+	{ .port_id = 64, .port_name = "VPU0"          },
+	{ .port_id = 66, .port_name = "VPU1"          },
+	{ .port_id = 68, .port_name = "VPU2"          },
+	{ .port_id = 70, .port_name = "VPU3"          },
+	/* NIC_DOS*/
+	{ .port_id = 72, .port_name = "HEVC0_F"       },
+	{ .port_id = 80, .port_name = "HEVC1_B0"      },
+	{ .port_id = 81, .port_name = "HEVC2_B1"      },
+	{ .port_id = 88, .port_name = "VDEC"          },
+	{ .port_id = 96, .port_name = "HCODEC"        },
+	/* NIC_VGE*/
+	{ .port_id = 104, .port_name = "GE2D"          },
+	{ .port_id = 106, .port_name = "VIDEO_CMPR"    },
+	{ .port_id = 108, .port_name = "VC9000E"       }
+};
+
 static struct ddr_port_desc *chip_ddr_port;
 static unsigned int chip_ddr_port_num __initdata;
 
@@ -1005,6 +1047,11 @@ int __init ddr_find_port_desc(int cpu_type, struct ddr_port_desc **desc)
 	case DMC_TYPE_A5:
 		*desc = ddr_port_desc_a5;
 		desc_size = ARRAY_SIZE(ddr_port_desc_a5);
+		break;
+
+	case DMC_TYPE_S5:
+		*desc = ddr_port_desc_s5;
+		desc_size = ARRAY_SIZE(ddr_port_desc_s5);
 		break;
 
 	default:
