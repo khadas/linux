@@ -1539,6 +1539,16 @@ struct qs_cls_s {
 	struct qs_err_log_s *plog;
 };
 
+enum EBUF_QUE_ID {
+	EBUF_QUE_ID_BLK = 1,
+	EBUF_QUE_ID_MEM,
+	EBUF_QUE_ID_PAT,
+	EBUF_QUE_ID_IAT,
+	EBUF_QUE_ID_SCT,
+	EBUF_QUE_ID_NIN,
+	EBUF_QUE_ID_NDIS
+};
+
 struct buf_que_s;
 
 struct qb_ops_s {
@@ -1558,6 +1568,7 @@ struct buf_que_s {
 	struct qs_cls_s	*pque[MAX_FIFO_SIZE];/**/
 	bool	rflg;	/*resource flg*/
 	char	*name;
+	unsigned int	bque_id; /* 05/26 dbg only */
 	unsigned int	nub_que;
 	unsigned int	nub_buf;
 	struct qs_err_log_s log;
@@ -1582,6 +1593,7 @@ struct qbuf_creat_s {
 	unsigned int nub_que;
 	unsigned int nub_buf;
 	unsigned int code;
+	unsigned int que_id;
 };
 
 /* di_que_buf end */
@@ -1635,7 +1647,7 @@ enum QBF_PAT_Q_TYPE {
 	QBF_PAT_Q_NUB,
 };
 
-#define DIM_PAT_NUB	16 /* buf number*/
+#define DIM_PAT_NUB	POST_BUF_NUM	//16 /* buf number*/
 struct dim_pat_s {
 	struct qs_buf_s	header;
 

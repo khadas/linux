@@ -449,7 +449,7 @@ static int s4dw_buf_init(struct di_ch_s *pch)
 		if ((mm->cfg.pbuf_flg.b.typ & 0x8) ==
 			   EDIM_BLK_TYP_POUT) {
 			//move all to wait:
-			di_buf_no2wait(pch);
+			di_buf_no2wait(pch, mm->cfg.num_post);
 		} else if (mm->cfg.pbuf_flg.b.page) {//@ary_note: ??
 			/* post */
 			blk_cmd.cmd = ECMD_BLK_ALLOC;

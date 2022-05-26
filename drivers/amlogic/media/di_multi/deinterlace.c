@@ -2149,7 +2149,8 @@ static void di_cnt_pst_afbct(struct di_ch_s *pch)
 	afbc_tab_size =
 		dim_afds()->cnt_tab_size(tsize);
 
-	mm->cfg.nub_pafbct	= DIM_PAT_NUB - 1;/*pcfg->num_post*/
+	mm->cfg.nub_pafbct	= mm->cfg.num_post;//DIM_PAT_NUB - 1;
+	PR_INF("%s:cfg post nub:%d\n", __func__, mm->cfg.num_post);
 	mm->cfg.size_pafbct_all = afbc_tab_size * mm->cfg.nub_pafbct;
 	mm->cfg.size_pafbct_one = afbc_tab_size;
 
@@ -2617,9 +2618,9 @@ static int di_init_buf_simple(struct di_ch_s *pch)
 	/* check */
 	length = di_que_list_count(ch, QUE_PST_NO_BUF);
 
-	di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
-	dbg_mem2("%s:ch[%d]:pst_no_buf:%d, indx[%d]\n", __func__,
-		 ch, length, di_buf->index);
+	//test only: di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
+	dbg_mem2("%s:ch[%d]:pst_no_buf:%d\n", __func__,
+		 ch, length/*, di_buf->index*/);
 	return 0;
 }
 
@@ -2754,7 +2755,7 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 		} else if ((mm->cfg.pbuf_flg.b.typ & 0x8) ==
 			   EDIM_BLK_TYP_POUT) {
 			//move all to wait:
-			di_buf_no2wait(pch);
+			di_buf_no2wait(pch, mm->cfg.num_post);
 		}
 
 		mm->sts.flg_alloced = true;

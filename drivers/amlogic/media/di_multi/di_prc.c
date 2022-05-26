@@ -148,7 +148,7 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	/* 5: dynamic: 4k: nv21, other yuv422 10bit */
 	/* 6: dynamic: like 4: 4k: afbce yuv420, other:yuv422 10 */
 			EDI_CFG_POUT_FMT,
-			3,
+			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_DAT]  = {"en_dat",/*bit 0: pst dat; bit 1: idat */
 			EDI_CFG_DAT,
@@ -2150,7 +2150,7 @@ static const struct di_mm_cfg_s c_mm_cfg_normal = {
 	.di_h	=	1088,
 	.di_w	=	1920,
 	.num_local	=	MAX_LOCAL_BUF_NUM,
-	.num_post	=	POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM_DEF,
 	.num_step1_post = 1,
 };
 
@@ -2158,7 +2158,7 @@ static const struct di_mm_cfg_s c_mm_cfg_normal_ponly = {
 	.di_h	=	1088,
 	.di_w	=	1920,
 	.num_local	=	0,
-	.num_post	=	POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM_DEF,
 	.num_step1_post = 1,
 };
 
@@ -2166,7 +2166,7 @@ static const struct di_mm_cfg_s c_mm_cfg_4k = {
 	.di_h	=	2160,
 	.di_w	=	3840,
 	.num_local	=	0,
-	.num_post	=	POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM_DEF,
 	.num_step1_post = 1,
 };
 
@@ -2174,7 +2174,7 @@ static const struct di_mm_cfg_s c_mm_cfg_fix_4k = {
 	.di_h	=	2160,
 	.di_w	=	3840,
 	.num_local	=	MAX_LOCAL_BUF_NUM,
-	.num_post	=	POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM_DEF,
 	.num_step1_post = 1,
 };
 
@@ -3000,7 +3000,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		mm->cfg.num_local = 0;
 
 	post_nub = cfggch(pch, POST_NUB);
-	if ((post_nub) && post_nub < POST_BUF_NUM)
+	if ((post_nub) && post_nub <= POST_BUF_NUM)
 		mm->cfg.num_post = post_nub;
 
 	PR_INF("%s:ch[%d]:fix_buf:%d;ponly <%d,%d>\n",
@@ -3279,6 +3279,7 @@ static const struct qbuf_creat_s qbf_nin_cfg_qbuf = {
 	.nub_que	= QBF_NINS_Q_NUB,
 	.nub_buf	= DIM_NINS_NUB,
 	.code		= CODE_NIN,
+	.que_id		= EBUF_QUE_ID_NIN
 };
 
 void bufq_nin_int(struct di_ch_s *pch)
@@ -3712,6 +3713,7 @@ static const struct qbuf_creat_s qbf_ndis_cfg_qbuf = {
 	.nub_que	= QBF_NDIS_Q_NUB,
 	.nub_buf	= DIM_NDIS_NUB,
 	.code		= CODE_NDIS,
+	.que_id		= EBUF_QUE_ID_NDIS
 };
 
 void bufq_ndis_int(struct di_ch_s *pch)
@@ -4363,16 +4365,7 @@ void dip_itf_ndrd_ins_m2_out(struct di_ch_s *pch)
 			if (ndis1 != ndis2)
 				PR_ERR("%s:\n", __func__);
 		}
-		#ifdef MARK_HIS
-		if (dip_itf_is_ins_exbuf(pch)) {
-			buffer->private_data = NULL;
-			ndis1->c.pbuff = NULL;
-			task_send_cmd2(pch->ch_id,
-			LCMD2(ECMD_RL_KEEP,
-			     pch->ch_id,
-			     ndis1->header.index));
-		}
-		#endif
+
 		didbg_vframe_out_save(pch->ch_id, buffer->vf, 1);
 		if (buffer->flag & DI_FLAG_EOS)
 			dbg_reg("%s:ch[%d]:eos\n", __func__, pch->ch_id);
@@ -6028,7 +6021,7 @@ void cvsi_cfg(struct dim_cvsi_s	*pcvsi)
 /************************************************
  * mng for hf buffer
  ************************************************/
-#define DIM_MNG_HF_NUB		(30) /* < 64 */
+#define DIM_MNG_HF_NUB		((POST_BUF_NUM << 1) + 5) /* < 64 */
 #define DIM_MNG_HF_QUE_NUB	(2)
 
 enum EMNG_Q {
@@ -6227,7 +6220,9 @@ bool dim_mng_hf_alloc(struct di_ch_s *pch,
 	unsigned char cnt_free;
 	struct div2_mm_s *mm;
 
-	if (!pch || !blk_buf || !hf_size || !dim_mng_is_act()) {
+	hmng = dim_mng_is_act();
+
+	if (!pch || !blk_buf || !hf_size || !hmng) {
 		PR_ERR("%s:\n", __func__);
 		return false;
 	}
@@ -6235,9 +6230,7 @@ bool dim_mng_hf_alloc(struct di_ch_s *pch,
 		PR_ERR("%s:hf[%d] exist\n", __func__, blk_buf->hf_buff->index);
 		return false;
 	}
-	hmng = dim_mng_is_act();
-	if (!hmng)
-		return false;
+
 	mm = dim_mm_get(pch->ch_id);
 	/* check if have free */
 	if (mm->cfg.num_post <= hmng->cnt_alloc) {
@@ -6265,7 +6258,7 @@ bool dim_mng_hf_alloc(struct di_ch_s *pch,
 		PR_ERR("%s:no hf_buff idle?\n", __func__);
 		return false;
 	}
-	hmng = (struct dim_mng_hf_s *)get_datal()->mng_hf_buf;
+	//hmng = (struct dim_mng_hf_s *)get_datal()->mng_hf_buf;
 
 	memset(&omm, 0, sizeof(omm));
 
@@ -6391,6 +6384,7 @@ void dim_mng_hf_prob(void)
 	int i;
 	int ret;
 	unsigned char dd;
+	unsigned int check;
 
 	//to-do not support return;
 	if (!cfgg(HF))
@@ -6413,7 +6407,13 @@ void dim_mng_hf_prob(void)
 		hmng->flg_fifo[i] = 1;
 	}
 	//move all to que 0, idle;
-	for (dd = 0; dd < DIM_MNG_HF_NUB; dd++) {
+	check = DIM_MNG_HF_NUB;
+	if (DIM_MNG_HF_NUB > 64) {
+		PR_ERR("%s:DIM_MNG_HF_NUB is overflow\n", __func__);
+		check = 63;
+	}
+
+	for (dd = 0; dd < check; dd++) {
 		kfifo_put(&hmng->fifo[EMNG_Q_IDLE], dd);
 		hmng->hf_buf[dd].index = dd;
 	}

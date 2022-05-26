@@ -142,7 +142,7 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg);
 int codec_mm_keeper_unmask_keeper(int keep_id, int delayms);
 bool dim_blk_tvp_is_sct(struct dim_mm_blk_s *blk_buf);
 bool dim_blk_tvp_is_out(struct dim_mm_blk_s *blk_buf);
-void di_buf_no2wait(struct di_ch_s *pch);
+void di_buf_no2wait(struct di_ch_s *pch, unsigned int post_nub);
 bool mem_cfg_pst(struct di_ch_s *pch);
 void mem_resize_buf(struct di_ch_s *pch, struct di_buf_s *di_buf);
 
