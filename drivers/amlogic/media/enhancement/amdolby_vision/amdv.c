@@ -3726,10 +3726,10 @@ static void amdvdolby_vision_vf_add(struct vframe_s *vf, struct vframe_s *el_vf)
 				dv_inst[dv_id].dv_vf[i][0] = vf;
 				dv_inst[dv_id].dv_vf[i][1] = el_vf;
 				if (debug_dolby & 2) {
-					if (el_vf)
+					if (el_vf && vf)
 						pr_dv_dbg("--#%d: add bl(%p-%lld) with el %p --\n",
 							     dv_id, vf, vf->pts_us64, el_vf);
-					else
+					else if (vf)
 						pr_dv_dbg("--#%d: add bl(%p-%lld --\n",
 							     dv_id, vf, vf->pts_us64);
 				}
@@ -3758,14 +3758,14 @@ static int amdv_vf_check(struct vframe_s *vf)
 		for (i = 0; i < 16; i++) {
 			if (dv_inst[dv_id].dv_vf[i][0] == vf) {
 				if (debug_dolby & 2) {
-					if (dv_inst[dv_id].dv_vf[i][1])
+					if (dv_inst[dv_id].dv_vf[i][1] && vf)
 						pr_dv_dbg("== #%d: bl(%p-%lld) with el(%p-%lld) toggled ==\n",
 							dv_id,
 							vf,
 							vf->pts_us64,
 							dv_inst[dv_id].dv_vf[i][1],
 							dv_inst[dv_id].dv_vf[i][1]->pts_us64);
-					else
+					else if (vf)
 						pr_dv_dbg("== #%d:bl(%p-%lld) toggled ==\n",
 							dv_id,
 							vf,
@@ -3778,13 +3778,13 @@ static int amdv_vf_check(struct vframe_s *vf)
 		for (i = 0; i < 16; i++) {
 			if (dv_vf[i][0] == vf) {
 				if (debug_dolby & 2) {
-					if (dv_vf[i][1])
+					if (dv_vf[i][1] && vf)
 						pr_dv_dbg("=== bl(%p-%lld) with el(%p-%lld) toggled ===\n",
 							vf,
 							vf->pts_us64,
 							dv_vf[i][1],
 							dv_vf[i][1]->pts_us64);
-					else
+					else if (vf)
 						pr_dv_dbg("=== bl(%p-%lld) toggled ===\n",
 							vf,
 							vf->pts_us64);
@@ -4108,7 +4108,7 @@ int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 
 	/*continue to check atsc/dvb dv */
 	if (atsc_sei && *src_format != FORMAT_DOVI) {
-		struct dv_vui_parameters vui_param;
+		struct dv_vui_parameters vui_param = {0};
 		static u32 len_2086_sei;
 		u32 len_2094_sei = 0;
 		static u8 payload_2086_sei[MAX_LEN_2086_SEI];
@@ -5139,7 +5139,7 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 		/*case 1: cp return output_vsif with L11 that is from content metadata */
 		/*case 2: cp return content_info with L11 and sink_dm_ver >=2*/
 		if (m_setting->dovi_ll_enable && (m_setting->output_vsif.l11_md_present ||
-		    (src_content_flag && vinfo->vout_device->dv_info->dm_version))) {
+		    (src_content_flag && vinfo->vout_device->dv_info->dm_version >= 2))) {
 			vsif->ver2_l11_flag = 1;
 			vsif->vers.ver2_l11.low_latency = m_setting->dovi_ll_enable;
 
@@ -9723,8 +9723,10 @@ int amdv_update_src_format_v2(struct vframe_s *vf, u8 toggle_mode, enum vd_path_
 		pr_err("[%s]err inst %d\n", __func__, dv_id);
 		dv_id = 0;
 	}
-	if (vd_path < VD_PATH_MAX)
+	if (vd_path < NUM_IPCORE1)
 		layer_id = vd_path;
+	else
+		pr_dv_dbg("[%s]not support vd_path %d\n", __func__, vd_path);
 
 	/* src_format is valid, need not re-init */
 	if (dv_inst[dv_id].amdv_src_format != 0)
@@ -12203,7 +12205,7 @@ int unregister_dv_functions(void)
 
 		if (multi_dv_mode) {
 			for (i = 0; i < NUM_IPCORE1; i++) {
-				if (dv_inst[i].metadata_parser) {
+				if (dv_inst[i].metadata_parser && p_funcs_stb) {
 					p_funcs_stb->multi_mp_release
 						(&dv_inst[i].metadata_parser);
 					dv_inst[i].metadata_parser = NULL;
@@ -13562,10 +13564,13 @@ static ssize_t amdolby_vision_src_format_show
 	if (multi_dv_mode) {
 		for (i = 0; i < NUM_IPCORE1; i++) {
 			fmt = dv_inst[i].amdv_src_format;
-			if (fmt < 0 || fmt >= sizeof(debug_format_str))
+			if (fmt < 0 || fmt >= sizeof(debug_format_str) /
+				sizeof(debug_format_str[0]))
 				fmt = 0;
 			fmt_inside = m_dovi_setting.input[i].src_format + 1;
-			if (fmt_inside < 0 || fmt_inside >= sizeof(signal_format_str))
+			if (fmt_inside < 0 ||
+				fmt_inside >= sizeof(signal_format_str) /
+				sizeof(signal_format_str[0]))
 				fmt_inside = 0;
 			len += sprintf(buf + len, "inst%d: %s %s\n", i + 1,
 				       debug_format_str[fmt],
@@ -13573,7 +13578,8 @@ static ssize_t amdolby_vision_src_format_show
 		}
 		fmt = graphic_fmt + 1;
 		if (fmt < 0 ||
-		    fmt >= sizeof(signal_format_str))
+		    fmt >= sizeof(signal_format_str) /
+		    sizeof(signal_format_str[0]))
 			fmt = 0;
 		len += sprintf(buf + len, "graphic: %s\n",
 			       signal_format_str[fmt]);
@@ -13632,7 +13638,8 @@ static ssize_t amdolby_vision_inst_status_show
 	len += sprintf(buf + len, "%s\n", str1);
 	for (i = 0; i < NUM_IPCORE1; i++) {
 		fmt = dv_inst[i].amdv_src_format;
-		if (fmt < 0 || fmt >= sizeof(debug_format_str))
+		if (fmt < 0 || fmt >= sizeof(debug_format_str) /
+			sizeof(debug_format_str[0]))
 			fmt = 0;
 		len += sprintf(buf + len, "[inst%d]:mapped %d,valid %d,fmt %s,size %dx%d\n",
 			       i + 1, dv_inst[i].mapped, new_m_dovi_setting.input[i].valid,
@@ -13687,7 +13694,8 @@ static ssize_t amdolby_vision_graphic_fmt_show
 
 	fmt = graphic_fmt + 1;
 	if (fmt < 0 ||
-	    fmt >= sizeof(signal_format_str))
+	    fmt >= sizeof(signal_format_str) /
+	    sizeof(signal_format_str[0]))
 		fmt = 0;
 	len += sprintf(buf + len, "%s\n",
 		       signal_format_str[fmt]);
