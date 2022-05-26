@@ -1231,8 +1231,11 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	0,	0,	2880,	576,	HDMI_2880x576p50},
 	/* vesa format*/
 	{0,	0,	0,	640,	480,	HDMI_640x480p60},
+	{0,	0,	0,	640,	350,	HDMI_640_350},
+	{0,	0,	0,	640,	400,	HDMI_640_400},
 	{0,	0,	0,	720,	400,	HDMI_720_400},
 	{0,	0,	0,	800,	600,	HDMI_800_600},
+	{0,	0,	0,	848,	480,	HDMI_848_480},
 	{0,	0,	0,	1024,	768,	HDMI_1024_768},
 	{0,	0,	0,	1280,	768,	HDMI_1280_768},
 	{0,	0,	0,	1280,	800,	HDMI_1280_800},
@@ -1245,8 +1248,13 @@ static const struct freq_ref_s freq_ref[] = {
 	{0,	0,	0,	1600,	900,	HDMI_1600_900},
 	{0,	0,	0,	1600,	1200,	HDMI_1600_1200},
 	{0,	0,	0,	1680,	1050,	HDMI_1680_1050},
+	{0,	0,	0,	1792,	1344,	HDMI_1792_1344},
+	{0,	0,	0,	1856,	1392,	HDMI_1856_1392},
 	{0,	0,	0,	1920,	1200,	HDMI_1920_1200},
+	{0,	0,	0,	1920,	1440,	HDMI_1920_1440},
 	{0,	0,	0,	1152,	864,	HDMI_1152_864},
+	{0,	0,	0,	2048,	1152,	HDMI_2048_1152},
+	{0,	0,	0,	2560,	1600,	HDMI_2560_1600},
 	{0,	0,	0,	3840,	600,	HDMI_3840_600},
 	{0, 0,	0,	2688,	1520,	HDMI_2688_1520},
 	/* 4k2k mode */
@@ -1349,6 +1357,12 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_640x480p60:
 		fmt = TVIN_SIG_FMT_HDMI_640X480P_60HZ;
 		break;
+	case HDMI_640_350:
+		fmt = TVIN_SIG_FMT_HDMI_640X350_85HZ;
+		break;
+	case HDMI_640_400:
+		fmt = TVIN_SIG_FMT_HDMI_640X400_85HZ;
+		break;
 	case HDMI_480p60:	/*2 */
 	case HDMI_480p60_16x9:	/*3 */
 	case HDMI_480p120:	/* 48 */
@@ -1363,6 +1377,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 		break;
 	case HDMI_480p_FRAMEPACKING:
 		fmt = TVIN_SIG_FMT_HDMI_720X480P_60HZ_FRAME_PACKING;
+		break;
+	case HDMI_848_480:
+		fmt = TVIN_SIG_FMT_HDMI_848X480_60HZ;
 		break;
 	case HDMI_720p24:	/* 60 */
 	case HDMI_720p25:	/* 61 */
@@ -1544,8 +1561,20 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 	case HDMI_1600_900:
 		fmt = TVIN_SIG_FMT_HDMI_1600X900_60HZ;
 		break;
+	case HDMI_1792_1344:
+		fmt = TVIN_SIG_FMT_HDMI_1792X1344_85HZ;
+		break;
+	case HDMI_1856_1392:
+		fmt = TVIN_SIG_FMT_HDMI_1856X1392_00HZ;
+		break;
 	case HDMI_1920_1200:
 		fmt = TVIN_SIG_FMT_HDMI_1920X1200_00HZ;
+		break;
+	case HDMI_1920_1440:
+		fmt = TVIN_SIG_FMT_HDMI_1920X1440_00HZ;
+		break;
+	case HDMI_2048_1152:
+		fmt = TVIN_SIG_FMT_HDMI_2048X1152_60HZ;
 		break;
 	case HDMI_1440_900:
 		fmt = TVIN_SIG_FMT_HDMI_1440X900_00HZ;
@@ -1561,6 +1590,9 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 		break;
 	case HDMI_3840_600:
 		fmt = TVIN_SIG_FMT_HDMI_3840X600_00HZ;
+		break;
+	case HDMI_2560_1600:
+		fmt = TVIN_SIG_FMT_HDMI_2560X1600_00HZ;
 		break;
 	case HDMI_2688_1520:
 		fmt = TVIN_SIG_FMT_HDMI_2688X1520_00HZ;
@@ -1597,7 +1629,7 @@ enum tvin_sig_fmt_e hdmirx_hw_get_fmt(void)
 			fmt = TVIN_SIG_FMT_NULL;
 		break;
 	case HDMI_2560_1440:
-		fmt = TVIN_SIG_FMT_HDMI_1920X1200_00HZ;
+		fmt = TVIN_SIG_FMT_HDMI_2560X1440_00HZ;
 		break;
 	case HDMI_1920x2160p60_16x9:
 		fmt = TVIN_SIG_FMT_HDMI_1920X2160_60HZ;
