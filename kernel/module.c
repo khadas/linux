@@ -1360,6 +1360,7 @@ bad_version:
 	       info->name, symname);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+	WARN_ON(!ignore_check_version);
 	return ignore_check_version;
 #else
 	return 0;
