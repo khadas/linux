@@ -2371,6 +2371,14 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (sm_ops && sm_ops->get_sig_property) {
 		if (vdin_get_prop_in_vs_en) {
 			sm_ops->get_sig_property(devp->frontend, &devp->prop);
+			/* 100 to 120 rx not change need to send event */
+			if (!devp->game_mode && IS_HDMI_SRC(devp->parm.port) &&
+			    devp->dtdata->hw_ver >= VDIN_HW_T7) {
+				if (devp->duration == 800)
+					devp->prop.fps = 120;
+				if (devp->duration == 960)
+					devp->prop.fps = 100;
+			}
 			if (vdin_isr_monitor & BIT(6))
 				pr_info("vdin vrr_en:%d spd:%d %d\n",
 					devp->prop.vtem_data.vrr_en,

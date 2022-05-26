@@ -88,7 +88,8 @@
 /* 20220518: dv data abnormal cause reboot */
 /* 20220519: dv register isr not rdma write */
 /* 20220525: source-led switch to sink-led problem */
-#define VDIN_VER "20220525:source-led switch to sink-led problem"
+/* 20220602: 100 and 120 switch send event */
+#define VDIN_VER "20220602:100 and 120 switch send event"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
