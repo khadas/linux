@@ -1518,6 +1518,7 @@
 	vlock_en = <1>;/*1:enable;0:disable*/
 	ct_3dlut = <0>;
 	vlock_mode = <0x8>;
+	vrr_priority = <1>;/*1:game mode vrr always on;0:vrr on depend on vrr signal*/
 	/*vlock work mode:
 	 *bit0:auto ENC
 	 *bit1:auto PLL

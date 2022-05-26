@@ -10377,6 +10377,9 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 		vlock_clk_config(&pdev->dev);
 
 		vlock_status_init();
+
+		/*vrr param config*/
+		frame_lock_param_config(node);
 	}
 	/* init module status */
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE

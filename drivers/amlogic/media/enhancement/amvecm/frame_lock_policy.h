@@ -18,9 +18,14 @@
 
 struct vrr_sig_sts {
 	bool vrr_support;
+	bool vrr_lfc_mode;
+	bool vrr_cinema_flg;
+	bool vrr_m_const_flg;
 	u16 vrr_pre_en;
 	u16 vrr_en;
 	u16 vrr_switch_off;
+	u16 vrr_policy;
+	u16 vrr_policy_pre;
 	u16 vrr_frame_sts;
 	u16 vrr_frame_pre_sts;
 	u16 vrr_frame_lock_type;
@@ -50,5 +55,6 @@ void frame_lock_vrr_off_done_init(void);
 void frame_lock_mode_chg(unsigned int cmd);
 u16 frame_lock_get_vrr_status(void);
 void frame_lock_set_vrr_support_flag(bool support_flag);
+void frame_lock_param_config(struct device_node *node);
 
 #endif

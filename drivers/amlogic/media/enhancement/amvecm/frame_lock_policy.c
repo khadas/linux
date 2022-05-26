@@ -15,7 +15,7 @@
 #include "reg_helper.h"
 #include "frame_lock_policy.h"
 
-#define FrameLockPR(fmt, args...)      pr_info("FrameLock: " fmt "", ## args)
+#define framelock_pr_info(fmt, args...)      pr_info("FrameLock: " fmt "", ## args)
 #define FrameLockERR(fmt, args...)     pr_err("FrameLock ERR: " fmt "", ## args)
 
 #define VRR_VARIANCE_CNT 10
@@ -36,10 +36,13 @@ int avg_val;
 int frame_in_cnt, vrr_lcnt_variance;
 int lcnt_reg_val[VRR_VARIANCE_CNT] = {0};
 unsigned int frame_lock_en = 1;
+unsigned int vrr_priority;
+unsigned int vrr_delay_line = 200;
 
 static unsigned int vrrlock_support = VRRLOCK_SUP_MODE;
 static unsigned int vrr_dis_cnt_no_vf_limit = 5;
 static unsigned int vrr_outof_rge_cnt = 10;
+static unsigned int vrr_skip_frame_cnt = 15;
 
 static unsigned int vrr_display_mode_chg_cmd;
 //static unsigned int vrr_display_mode_chg_cmd_pre;
@@ -49,8 +52,13 @@ static struct completion vrr_off_done;
 
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = false,
+	.vrr_lfc_mode = false,
+	.vrr_cinema_flg = true,
+	.vrr_m_const_flg = false,
 	.vrr_pre_en = 0,
 	.vrr_en = 0,
+	.vrr_policy = 0,
+	.vrr_policy_pre = 0,
 	.vrr_frame_sts = FRAMELOCK_INVALID,
 	.vrr_frame_pre_sts = FRAMELOCK_INVALID,
 	.vrr_frame_lock_type = 0,
@@ -66,6 +74,16 @@ struct vrr_sig_sts frame_sts = {
 void frame_lock_set_vrr_support_flag(bool support_flag)
 {
 	frame_sts.vrr_support = support_flag;
+}
+
+void frame_lock_param_config(struct device_node *node)
+{
+	unsigned int val;
+	int ret;
+
+	ret = of_property_read_u32(node, "vrr_priority", &val);
+	if (!ret)
+		vrr_priority = val;
 }
 
 unsigned int frame_lock_show_vout_framerate(void)
@@ -97,7 +115,7 @@ void frame_lock_mode_chg(unsigned int cmd)
 			reinit_completion(&vrr_off_done);
 			ret = wait_for_completion_timeout(&vrr_off_done, msecs_to_jiffies(100));
 			if (!ret)
-				FrameLockPR("%s: wait_for_completion_timeout\n", __func__);
+				framelock_pr_info("%s: wait_for_completion_timeout\n", __func__);
 		}
 	}
 }
@@ -133,28 +151,35 @@ int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 
 	switch (cmd) {
 	case FRAME_LOCK_EVENT_ON:
-		if (frame_sts.vrr_support)
-			frame_sts.vrr_en = vrr_data->vrr_mode;
-		else
+		if (frame_sts.vrr_support) {
+			frame_sts.vrr_policy = vrr_data->vrr_mode;
+			frame_sts.vrr_en = vrr_priority ? 1 : vrr_data->vrr_mode;
+		} else {
 			frame_sts.vrr_en = 0;
+		}
 
 		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-			FrameLockPR("%s FRAME_LOCK_EVENT_ON vrr_en:%d\n",
-			__func__, frame_sts.vrr_en);
+			framelock_pr_info("%s FRAME_LOCK_EVENT_ON vrr_en:%d, line_dly:%d\n",
+			__func__, frame_sts.vrr_en, vrr_data->line_dly);
+
 		break;
 	case FRAME_LOCK_EVENT_OFF:
 		frame_sts.vrr_en = 0;
+
 		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-			FrameLockPR("%s FRAME_LOCK_EVENT_OFF vrr_en:%d\n",
+			framelock_pr_info("%s FRAME_LOCK_EVENT_OFF vrr_en:%d\n",
 			__func__, frame_sts.vrr_en);
+
 		break;
 	case VRR_EVENT_UPDATE:
 		frame_sts.vrr_frame_out_fps_min = vrr_data->dev_vfreq_min;
 		frame_sts.vrr_frame_out_fps_max = vrr_data->dev_vfreq_max;
+
 		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-			FrameLockPR("%s vrr_frame_out_fps_min:%d  vrr_frame_out_fps_max:%d\n",
+			framelock_pr_info("%s vrr_frame_out_fps_min:%d  vrr_frame_out_fps_max:%d\n",
 			__func__, frame_sts.vrr_frame_out_fps_min,
 			frame_sts.vrr_frame_out_fps_max);
+
 		break;
 	default:
 		break;
@@ -202,7 +227,7 @@ bool frame_lock_check_freerun_mode(struct vinfo_s *vinfo)
 
 	if ((frame_lock_debug & VRR_POLICY_DEBUG_FREERUN_FLAG) &&
 		vinfo->fr_adj_type == VOUT_FR_ADJ_FREERUN)
-		FrameLockPR("%s vrr_frame_cur:%d fr_adj_type:%d ret:%d\n",
+		framelock_pr_info("%s vrr_frame_cur:%d fr_adj_type:%d ret:%d\n",
 			__func__, frame_sts.vrr_frame_cur,
 			vinfo->fr_adj_type, ret);
 
@@ -217,7 +242,40 @@ bool frame_lock_vrr_lock_status(void)
 		ret = true;
 
 	if (frame_lock_debug & VRR_POLICY_LOCK_STATUS_DEBUG_FLAG)
-		FrameLockPR("lock_status = %d\n", ret);
+		framelock_pr_info("lock_status = %d\n", ret);
+
+	return ret;
+}
+
+bool frame_lock_lfc_mode_check(void)
+{
+	bool ret = false;
+
+	if (frame_sts.vrr_cinema_flg)
+		if (frame_sts.vrr_m_const_flg)
+			ret = true;
+		else if (frame_sts.vrr_policy)
+			ret = false;
+		else
+			ret = vrr_priority ? true : false;
+	else if (frame_sts.vrr_policy)
+		ret = false;
+	else
+		ret = vrr_priority ? true : false;
+
+	return ret;
+}
+
+bool frame_lock_lfc_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
+{
+	bool ret = false;
+
+	if (!vf || !vinfo)
+		return ret;
+
+	if ((frame_sts.vrr_frame_cur == 50 && vinfo->std_duration == 100) ||
+		(frame_sts.vrr_frame_cur == 60 && vinfo->std_duration == 120))
+		ret = true;
 
 	return ret;
 }
@@ -243,7 +301,7 @@ int frame_lock_calc_lcnt_variance_val(struct vframe_s *vf)
 		vrr_lcnt_variance = 0;
 
 	if (frame_lock_debug & VRR_POLICY_VARIANCE_FLAG)
-		FrameLockPR("lcnt_reg_val:0x%x  lcnt_reg_status[%d] = %d\n",
+		framelock_pr_info("lcnt_reg_val:0x%x  lcnt_reg_status[%d] = %d\n",
 			lcnt_reg_status, frame_in_cnt, lcnt_reg_val[frame_in_cnt]);
 
 	if (frame_in_cnt >= VRR_VARIANCE_CNT - 1) {
@@ -262,7 +320,7 @@ int frame_lock_calc_lcnt_variance_val(struct vframe_s *vf)
 		frame_in_cnt = 0;
 
 		if (frame_lock_debug & VRR_POLICY_VARIANCE_FLAG)
-			FrameLockPR("avg_val:%d vrr_lcnt_variance = %d\n",
+			framelock_pr_info("avg_val:%d vrr_lcnt_variance = %d\n",
 				avg_val, vrr_lcnt_variance);
 		return 0;
 	}
@@ -271,11 +329,11 @@ int frame_lock_calc_lcnt_variance_val(struct vframe_s *vf)
 	return 0;
 }
 
-int frame_lock_frame_rate_check(struct vinfo_s *vinfo)
+int frame_lock_frame_rate_check(struct vframe_s *vf, struct vinfo_s *vinfo)
 {
-	int ret = false;
+	bool ret = false;
 
-	if (!vinfo)
+	if (!vinfo || !vf)
 		return ret;
 
 	if (frame_lock_check_freerun_mode(vinfo)) {
@@ -283,35 +341,43 @@ int frame_lock_frame_rate_check(struct vinfo_s *vinfo)
 		frame_sts.vrr_frame_outof_range_cnt = 0;
 
 		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-			FrameLockPR("%s freerun mode fps_cur:%d  fr_adj_type:%d\n",
+			framelock_pr_info("%s freerun mode fps_cur:%d  fr_adj_type:%d\n",
 				__func__, frame_sts.vrr_frame_cur,
 				vinfo->fr_adj_type);
 
 		return ret;
 	}
 
-	if (frame_sts.vrr_frame_cur >= frame_sts.vrr_frame_out_fps_min &&
-		frame_sts.vrr_frame_cur <= frame_sts.vrr_frame_out_fps_max) {
-		if (frame_sts.vrr_frame_outof_range_cnt == vrr_outof_rge_cnt)
-			ret = false;
-		else
-			ret = true;
-
+	if (frame_lock_lfc_mode_check() && frame_lock_lfc_rate_check(vf, vinfo)) {
 		frame_sts.vrr_frame_outof_range_cnt = 0;
+		frame_sts.vrr_lfc_mode = true;
+		ret =  true;
 	} else {
-		if (frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt) {
-			frame_sts.vrr_frame_outof_range_cnt++;
-			ret = true;
-		} else {
-			ret = false;
-		}
-	}
+		if (frame_sts.vrr_frame_cur >= frame_sts.vrr_frame_out_fps_min &&
+			frame_sts.vrr_frame_cur <= frame_sts.vrr_frame_out_fps_max) {
+			if (frame_sts.vrr_frame_outof_range_cnt == vrr_outof_rge_cnt)
+				ret = false;
+			else
+				ret = true;
 
-	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-		FrameLockPR("%s fps_cur:%d out_min:%d out_max:%d outof_cnt:%d fr_adj_type:%d\n",
-			__func__, frame_sts.vrr_frame_cur,
-			frame_sts.vrr_frame_out_fps_min, frame_sts.vrr_frame_out_fps_max,
-			frame_sts.vrr_frame_outof_range_cnt, vinfo->fr_adj_type);
+			frame_sts.vrr_frame_outof_range_cnt = 0;
+		} else {
+			if (frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt) {
+				frame_sts.vrr_frame_outof_range_cnt++;
+				ret = true;
+			} else {
+				ret = false;
+			}
+			frame_sts.vrr_lfc_mode = false;
+		}
+
+		if (frame_lock_debug & VRR_POLICY_DEBUG_RANGE_FLAG)
+			framelock_pr_info("%s fps_cur:%d o_min:%d o_max:%d outof_cnt:%d f_a_t:%d lfc:%d\n",
+				__func__, frame_sts.vrr_frame_cur,
+				frame_sts.vrr_frame_out_fps_min, frame_sts.vrr_frame_out_fps_max,
+				frame_sts.vrr_frame_outof_range_cnt, vinfo->fr_adj_type,
+				frame_sts.vrr_lfc_mode);
+	}
 
 	return ret;
 }
@@ -336,7 +402,7 @@ static unsigned int frame_lock_check_input_hz(struct vframe_s *vf)
 	else if (vf->source_type == VFRAME_SOURCE_TYPE_HDMI &&
 		 (vrrlock_support & VRRLOCK_SUP_MODE)) {
 		if (duration != 0)
-			ret_hz = (96000 + duration / 2) / duration;
+			ret_hz = (96000 + 100) / duration;
 	} else if (vf->source_type == VFRAME_SOURCE_TYPE_CVBS &&
 	   (vrrlock_support & VRRLOCK_SUPPORT_CVBS)) {
 		ret_hz = 0;
@@ -347,8 +413,8 @@ static unsigned int frame_lock_check_input_hz(struct vframe_s *vf)
 
 	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG) {
 		fr = frame_lock_show_vout_framerate();
-		FrameLockPR("in_fps: %d.%3d out_fps: %d.%3d duration: %d  no_vf_limit: %d\n",
-		((96000 + duration / 2) / duration), ((96000 + duration / 2) % duration),
+		framelock_pr_info("in_fps: %d.%3d out_fps: %d.%3d duration: %d  no_vf_limit: %d\n",
+		(96000 / duration), ((96000 * 100) / duration) % 100,
 		(fr / 1000), (fr % 1000), duration, vrr_dis_cnt_no_vf_limit);
 	}
 
@@ -363,10 +429,59 @@ static void frame_lock_vrr_ctrl(bool en, struct vrr_notifier_data_s *data)
 		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, data);
 }
 
+void frame_lock_disable_vrr(bool en)
+{
+	struct vrr_notifier_data_s vdata;
+
+	vdata.line_dly = 500;
+
+	aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vdata);
+	vlock_set_sts_by_frame_lock(true);
+}
+
+u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vframe_s *vf)
+{
+	int ret = FRAMELOCK_VLOCK;
+	struct vinfo_s *vinfo = NULL;
+
+	vinfo = get_current_vinfo();
+	if (!vinfo)
+		return FRAMELOCK_VLOCK;
+
+	if (frame_lock_chk_is_small_win(cur_video_sts, vinfo)) {
+		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
+			framelock_pr_info("%s small window, VRR disable!!!\n",
+			__func__);
+
+		return FRAMELOCK_VLOCK;
+	}
+
+	frame_sts.vrr_frame_cur = frame_lock_check_input_hz(vf);
+
+	if (frame_sts.vrr_en) {
+		if (frame_lock_frame_rate_check(vf, vinfo) &&
+			frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt &&
+			vrr_skip_frame_cnt == 0) {
+			ret = FRAMELOCK_VRRLOCK;
+		} else {
+			if (vrr_skip_frame_cnt != 0)
+				vrr_skip_frame_cnt--;
+			ret = FRAMELOCK_VLOCK;
+		}
+	} else {
+		ret = FRAMELOCK_VLOCK;
+		vrr_skip_frame_cnt = 15;
+	}
+	frame_sts.vrr_frame_sts = ret;
+
+	return ret;
+}
+
 void vrrlock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts)
 {
 	u16 vrr_en = frame_sts.vrr_en;
+	u32 cur_frame_rate = frame_sts.vrr_frame_cur;
 	struct vrr_notifier_data_s vdata;
 	struct vinfo_s *vinfo = NULL;
 	int state;
@@ -377,10 +492,7 @@ void vrrlock_process(struct vframe_s *vf,
 	if (!vinfo)
 		return;
 
-	if (vinfo->width == 3840 && vinfo->height == 1080)
-		vdata.line_dly = 200;
-	else
-		vdata.line_dly = 500;
+	vdata.line_dly = vrr_delay_line;
 
 	if (vrr_en) {
 		frame_lock_calc_lcnt_variance_val(vf);
@@ -416,96 +528,70 @@ void vrrlock_process(struct vframe_s *vf,
 		}
 	}
 
-	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-		FrameLockPR("vrr_frame_sts:%d vrr_frame_pre_sts:%d line_dly:%d mode_chg_cmd:%d\n",
-		frame_sts.vrr_frame_sts,
-		frame_sts.vrr_frame_pre_sts,
-		vdata.line_dly, vrr_display_mode_chg_cmd);
-}
+	if (frame_sts.vrr_lfc_mode) {
+		vdata.vrr_policy = 0;
 
-void frame_lock_disable_vrr(bool en)
-{
-	struct vrr_notifier_data_s vdata;
+		if (frame_sts.vrr_frame_sts != frame_sts.vrr_frame_pre_sts ||
+			frame_sts.vrr_policy_pre != frame_sts.vrr_policy) {
+			if (frame_sts.vrr_frame_sts == FRAMELOCK_VRRLOCK) {
+				vlock_set_sts_by_frame_lock(false);
 
-	vdata.line_dly = 500;
-	aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vdata);
-	vlock_set_sts_by_frame_lock(true);
-}
+				aml_vrr_atomic_notifier_call_chain(VRR_EVENT_LFC_ON,
+					&cur_frame_rate);
 
-u16 frame_lock_check_lock_type(struct vpp_frame_par_s *cur_video_sts, struct vframe_s *vf)
-{
-	int ret = FRAMELOCK_VLOCK;
-	struct vinfo_s *vinfo = NULL;
+				aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_ON_MODE,
+					&vdata);
+			} else {
+				aml_vrr_atomic_notifier_call_chain(VRR_EVENT_LFC_OFF,
+					&cur_frame_rate);
 
-	vinfo = get_current_vinfo();
-	if (!vinfo)
-		return FRAMELOCK_VLOCK;
+				aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE,
+					&vdata);
 
-	if (frame_lock_chk_is_small_win(cur_video_sts, vinfo)) {
-		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG)
-			FrameLockPR("%s small window, VRR disable!!!\n",
-			__func__);
-		return FRAMELOCK_VLOCK;
-	}
-
-	if (frame_sts.vrr_en) {
-		frame_sts.vrr_frame_cur = frame_lock_check_input_hz(vf);
-
-		if (frame_lock_frame_rate_check(vinfo) &&
-			frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt) {
-			ret = FRAMELOCK_VRRLOCK;
-		} else {
-			ret = FRAMELOCK_VLOCK;
+				vlock_set_sts_by_frame_lock(true);
+			}
 		}
-	} else {
-		ret = FRAMELOCK_VLOCK;
 	}
-	frame_sts.vrr_frame_sts = ret;
 
-	return ret;
+	if (frame_lock_debug & VRR_POLICY_LOCK_STATUS_DEBUG_FLAG)
+		framelock_pr_info("vrr_frame_sts:%d vrr_frame_pre_sts:%d vlock_en:%d lfc:%d policy_pre:%d policy:%d",
+			frame_sts.vrr_frame_sts,
+			frame_sts.vrr_frame_pre_sts,
+			vlock_en,
+			frame_sts.vrr_lfc_mode,
+			frame_sts.vrr_policy_pre,
+			frame_sts.vrr_policy);
 }
-
-/*
- * Summary:
- *
- * Parameters:
- *
- * Returns:
- *
- * Remarks:
- *
- */
 
 void frame_lock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts)
 {
-	u16 lock_type = 0;
-
 	if (probe_ok == 0) {
 		return;
 	}
 
 	if (!frame_lock_en) {
 		if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG) {
-			FrameLockPR("%s frame_lock_en:%d\n",
+			framelock_pr_info("%s frame_lock_en:%d\n",
 				__func__, frame_lock_en);
 		}
 		return;
 	}
 
-	lock_type = frame_lock_check_lock_type(cur_video_sts, vf);
+	frame_sts.vrr_frame_lock_type =
+		frame_lock_check_lock_type(cur_video_sts, vf);
 
-	if (frame_lock_debug & VRR_POLICY_DEBUG_FLAG) {
-		FrameLockPR("%s lock_type:%d\n",
-			__func__, lock_type);
+	if (frame_lock_debug & VRR_POLICY_LOCK_STATUS_DEBUG_FLAG) {
+		framelock_pr_info("%s lock_type:%d vrr_skip_frame_cnt:%d\n",
+			__func__, frame_sts.vrr_frame_lock_type, vrr_skip_frame_cnt);
 	}
 
-	switch (lock_type) {
+	switch (frame_sts.vrr_frame_lock_type) {
 	case FRAMELOCK_VRRLOCK:
 		vrrlock_process(vf, cur_video_sts);
 		break;
 	case FRAMELOCK_VLOCK:
-		if (frame_sts.vrr_frame_pre_sts != lock_type)
+		if (frame_sts.vrr_frame_pre_sts != frame_sts.vrr_frame_lock_type)
 			frame_lock_disable_vrr(false);
 		vlock_process(vf, cur_video_sts);
 		break;
@@ -513,7 +599,8 @@ void frame_lock_process(struct vframe_s *vf,
 		break;
 	}
 
-	frame_sts.vrr_frame_pre_sts = lock_type;
+	frame_sts.vrr_frame_pre_sts = frame_sts.vrr_frame_lock_type;
+	frame_sts.vrr_policy_pre = frame_sts.vrr_policy;
 }
 
 ssize_t frame_lock_debug_store(struct class *cla,
@@ -534,6 +621,22 @@ ssize_t frame_lock_debug_store(struct class *cla,
 			return -EINVAL;
 		frame_lock_en = val;
 		pr_info("\n frame_lock_en = %d\n", frame_lock_en);
+	} else if (!strncmp(parm[0], "cinemavrr", 9)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		frame_sts.vrr_cinema_flg = val;
+		pr_info("\n vrr_cinema_flg = %d\n", frame_sts.vrr_cinema_flg);
+	}  else if (!strncmp(parm[0], "m_const", 7)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		frame_sts.vrr_m_const_flg = val;
+		pr_info("\n vrr_m_const_flg = %d\n", frame_sts.vrr_m_const_flg);
+	} else if (!strncmp(parm[0], "delay_line", 10)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vrr_delay_line = val;
+		frame_sts.vrr_frame_lock_type = FRAMELOCK_INVALID;
+		pr_info("\n vrr_delay_line = %d\n", vrr_delay_line);
 	} else {
 		pr_info("\n frame lock debug cmd invalid\n");
 	}
@@ -547,15 +650,21 @@ ssize_t frame_lock_debug_show(struct class *cla,
 	ssize_t len = 0;
 
 	frame_sts.vrr_frame_in_fps_max = frame_sts.vrr_frame_out_fps_max;
-	pr_info("\n frame_lock_version = %s", FRAME_LOCK_POLICY_VERSION);
-	pr_info("\n vrr_support = %d", frame_sts.vrr_support);
-	pr_info("\n frame_lock_en = %d", frame_lock_en);
-	pr_info("\n vrr_support = %d", frame_sts.vrr_support);
-	pr_info("\n vrr_en = %d", frame_sts.vrr_en);
-	pr_info("\n vrr_frame_in_fps_min = %d", frame_sts.vrr_frame_in_fps_min);
-	pr_info("\n vrr_frame_in_fps_max = %d", frame_sts.vrr_frame_in_fps_max);
-	pr_info("\n vrr_frame_out_fps_min = %d", frame_sts.vrr_frame_out_fps_min);
-	pr_info("\n vrr_frame_out_fps_maxs = %d", frame_sts.vrr_frame_out_fps_max);
+	pr_info("frame_lock_version = %s", FRAME_LOCK_POLICY_VERSION);
+	pr_info("frame_lock_en = %d", frame_lock_en);
+	pr_info("vrr_support = %d", frame_sts.vrr_support);
+	pr_info("vrr_en = %d", frame_sts.vrr_en);
+	pr_info("vrr_frame_in_fps_min = %d", frame_sts.vrr_frame_in_fps_min);
+	pr_info("vrr_frame_in_fps_max = %d", frame_sts.vrr_frame_in_fps_max);
+	pr_info("vrr_frame_out_fps_min = %d", frame_sts.vrr_frame_out_fps_min);
+	pr_info("vrr_frame_out_fps_maxs = %d", frame_sts.vrr_frame_out_fps_max);
+	pr_info("vrr_cinema_flg = %d", frame_sts.vrr_cinema_flg);
+	pr_info("vrr_m_const_flg = %d", frame_sts.vrr_m_const_flg);
+	pr_info("vrr_lfc_mode = %d", frame_sts.vrr_lfc_mode);
+	pr_info("vrr_frame_sts = %d", frame_sts.vrr_frame_sts);
+	pr_info("vrr_frame_lock_type = %d", frame_sts.vrr_frame_lock_type);
+	pr_info("vrr_frame_cur = %d", frame_sts.vrr_frame_cur);
+	pr_info("\n");
 
 	return len;
 }
