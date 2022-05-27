@@ -8376,6 +8376,7 @@ static int update_afd_param(u8 id,
 	struct afd_out_param out_p;
 	bool is_comp = false;
 	struct disp_info_s *layer_info = NULL;
+	struct video_layer_s *layer = NULL;
 	int ret;
 	u32 frame_ar;
 
@@ -8385,6 +8386,7 @@ static int update_afd_param(u8 id,
 	if (!vf || !vinfo)
 		return -1;
 
+	layer = &vd_layer[id];
 	layer_info = &glayer_info[id];
 
 	if (vf->type & VIDTYPE_COMPRESS)
@@ -8444,6 +8446,16 @@ static int update_afd_param(u8 id,
 	} else {
 		layer_info->afd_enable = false;
 	}
+	if (layer->global_debug & DEBUG_FLAG_AFD_INFO)
+		pr_info("%s: ret:%d; layer%d(%d %d %d %d) afd pos(%d %d %d %d) crop(%d %d %d %d) %s\n",
+			__func__, ret, id,
+			layer_info->layer_left, layer_info->layer_top,
+			layer_info->layer_width, layer_info->layer_height,
+			layer_info->afd_pos.x_start, layer_info->afd_pos.y_start,
+			layer_info->afd_pos.x_end, layer_info->afd_pos.y_end,
+			layer_info->afd_crop.top, layer_info->afd_crop.left,
+			layer_info->afd_crop.bottom, layer_info->afd_crop.right,
+			layer_info->afd_enable ? "enable" : "disable");
 	return ret;
 }
 
@@ -9308,6 +9320,7 @@ void enable_vpp_crc_viu2(u32 vpp_crc_en)
 		WRITE_VCBUS_REG_BITS(VPP2_CRC_CHK, 1, 0, 1);
 }
 
+#ifdef TMP_DISABLE
 int get_osd_reverse(void)
 {
 	u8 vpp_index = VPP0;
@@ -9316,6 +9329,7 @@ int get_osd_reverse(void)
 		(VIU_OSD1_BLK0_CFG_W0) >> 28) & 3;
 }
 EXPORT_SYMBOL(get_osd_reverse);
+#endif
 
 void dump_pps_coefs_info(u8 layer_id, u8 bit9_mode, u8 coef_type)
 {

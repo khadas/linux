@@ -663,10 +663,27 @@ int video_property_notify(int flag)
 
 void get_video_axis_offset(s32 *x_offset, s32 *y_offset)
 {
+	s32 x_end, y_end;
 	struct disp_info_s *layer = &glayer_info[0];
+	const struct vinfo_s *info = get_current_vinfo();
 
-	*x_offset = layer->layer_left;
-	*y_offset = layer->layer_top;
+	if (!info) {
+		*x_offset = 0;
+		*y_offset = 0;
+		return;
+	}
+
+	/* TODO: mirror case */
+	if (layer->reverse) {
+		/* reverse x/y start */
+		x_end = layer->layer_left + layer->layer_width - 1;
+		*x_offset = info->width - x_end - 1;
+		y_end = layer->layer_top + layer->layer_height - 1;
+		*y_offset = info->height - y_end - 1;
+	} else {
+		*x_offset = layer->layer_left;
+		*y_offset = layer->layer_top;
+	}
 }
 
 #if defined(PTS_LOGGING)
@@ -5298,18 +5315,18 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 	int *parsed = p;
 	int last_x, last_y, last_w, last_h;
 	int new_x, new_y, new_w, new_h;
-#ifdef TV_REVERSE
-	int temp, temp1;
 	const struct vinfo_s *info = get_current_vinfo();
-#endif
 
 	if (!layer)
 		return;
 	if (!info || info->mode == VMODE_INVALID)
 		return;
 
-#ifdef TV_REVERSE
+	/* move the invert logic to vpp.c */
+#ifdef TMP_DISABLE /* TV_REVERSE */
 	if (reverse) {
+		int temp, temp1;
+
 		temp = parsed[0];
 		temp1 = parsed[1];
 		if (get_osd_reverse() & 1) {
@@ -9867,6 +9884,7 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 static int  get_display_info(void *data)
 {
 	s32 w, h, x, y;
+	s32 x_end, y_end;
 	struct vdisplay_info_s  *info_para = (struct vdisplay_info_s *)data;
 	const struct vinfo_s *info = get_current_vinfo();
 	struct disp_info_s *layer = &glayer_info[0];
@@ -9879,6 +9897,15 @@ static int  get_display_info(void *data)
 	y = layer->layer_top;
 	w = layer->layer_width;
 	h = layer->layer_height;
+
+	/* TODO: mirror case */
+	if (layer->reverse) {
+		/* reverse x/y start */
+		x_end = x + w - 1;
+		x = info->width - x_end - 1;
+		y_end = y + h - 1;
+		y = info->height - y_end - 1;
+	}
 
 	if (w == 0 || w  > info->width)
 		w =  info->width;
@@ -15543,6 +15570,10 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 	if (index == 0)
 		len += aisr_state_show(buf + len);
 	if (layer_info) {
+		len += sprintf(buf + len, "mirror: %d\n",
+			layer_info->mirror);
+		len += sprintf(buf + len, "reverse: %s\n",
+			layer_info->reverse ? "true" : "false");
 		if (layer_info->afd_enable) {
 			len += sprintf(buf + len, "afd: enable\n");
 			len += sprintf(buf + len, "afd_pos: %d %d %d %d\n",
