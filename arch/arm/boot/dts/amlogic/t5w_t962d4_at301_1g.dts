@@ -8,6 +8,7 @@
 #include "mesont5w.dtsi"
 #include "partition_mbox_ab.dtsi"
 #include "mesont5w_at301-panel.dtsi"
+#include "mesont5w_drm.dtsi"
 
 / {
 	model = "Amlogic T5W AT301 1G";
@@ -1480,13 +1481,47 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
 	logo_addr = "0x3f800000";
 	/* display_device_cnt = <2>; */ /* for dual screen upport */
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
+};
+
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x3f800000";
+
+	connectors_dev: port@2 {
+		drm_to_lcd0: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+	};
+};
+
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
+};
+
+&drm_amhdmitx {
+	status = "disabled";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "disabled";
 };
 
 &crg {
