@@ -7763,6 +7763,8 @@ void vpp1_blend_update(u32 vpp_index)
 		vpp1_blend_ctrl =
 			cur_dev->rdma_func[vpp_index].rdma_rd
 				(vppx_blend_reg_array[0].vpp_bld_ctrl);
+		/*should reset video control.*/
+		vpp1_blend_ctrl &= 0xfffe;
 		vpp1_blend_ctrl |= bld_src1_sel;
 	}
 
@@ -7900,6 +7902,9 @@ void vpp2_blend_update(u32 vpp_index)
 		vpp2_blend_ctrl =
 			cur_dev->rdma_func[vpp_index].rdma_rd
 				(vppx_blend_reg_array[1].vpp_bld_ctrl);
+
+		/*should reset video control.*/
+		vpp2_blend_ctrl &= 0xfffe;
 		vpp2_blend_ctrl |= bld_src1_sel;
 	}
 

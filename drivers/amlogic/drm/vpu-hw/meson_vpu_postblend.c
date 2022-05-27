@@ -287,7 +287,7 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 	} else {
 		/* 1:vd1-din0, 2:osd1-din1 */
 
-		u32 val;
+		u32 val, vpp1_bld;
 		u32 bld_src2_sel = 2;
 		u32 scaler_index = 2;
 		u32 bld_w, bld_h;
@@ -312,8 +312,12 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 		vpp1_osd1_blend_scope_set(vblk, reg_ops, reg1, scope);
 		reg_ops->rdma_write_reg(reg1->vpp_bld_out_size,
 					bld_w | (bld_h << 16));
-		val = bld_src2_sel << 4 | 1 << 31;
-		reg_ops->rdma_write_reg(reg1->vpp_bld_ctrl, val);
+
+		vpp1_bld = reg_ops->rdma_read_reg(reg1->vpp_bld_ctrl);
+		val = vpp1_bld | bld_src2_sel << 4 | 1 << 31;
+		if (vpp1_bld != val)
+			reg_ops->rdma_write_reg(reg1->vpp_bld_ctrl, val);
+
 		if (bld_src2_sel == 2) {
 			reg_ops->rdma_write_reg(VPP_OSD3_SCALE_CTRL, 0x7);
 			reg_ops->rdma_write_reg_bits(PATH_START_SEL, crtc_index, 24, 2);
