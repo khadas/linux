@@ -80,7 +80,7 @@
 #define REG_DIM14           0x2e
 #define REG_DIM15           0x2f
 #define REG_SWRST           0x7F
-
+#define REGISTER_OFFSET     0x20
 /* aw9523 register read/write access*/
 #define REG_NONE_ACCESS                 0
 #define REG_RD_ACCESS                   BIT(0)
@@ -728,11 +728,49 @@ static ssize_t led3_show(struct device *dev, struct device_attribute *attr, char
 	return len;
 }
 
+static int meson_aw9523_set_singlecolors(u32 ledid, u32 led_color)
+{
+	struct meson_aw9523_colors color;
+	struct meson_aw9523_io *io;
+
+	if (ledid > 3) {
+		pr_info(" Exceed the maximum number of leds!\n");
+		return 0;
+	}
+	io = &aw9523->io[ledid];
+	color.blue = led_color & 0xff;
+	color.green = (led_color >> 8) & 0xff;
+	color.red = (led_color >> 16) & 0xff;
+	aw9523_i2c_write(aw9523, io->r_io + REGISTER_OFFSET, color.red);
+	aw9523_i2c_write(aw9523, io->g_io + REGISTER_OFFSET, color.green);
+	aw9523_i2c_write(aw9523, io->b_io + REGISTER_OFFSET, color.blue);
+
+	return 0;
+}
+
+static ssize_t single_colors_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	u32 ledid, color;
+	int ret;
+
+	ret = sscanf(buf, "%d %x", &ledid, &color);
+		if (ret != 2) {
+			pr_info(" enter,Line:...set led colors fail!\n");
+			return count;
+		}
+	meson_aw9523_set_singlecolors(ledid, color);
+
+	return count;
+}
+
 static DEVICE_ATTR_RW(reg);
 static DEVICE_ATTR_RW(hwen);
 static DEVICE_ATTR_RW(mode);
 static DEVICE_ATTR_RW(isel);
 static DEVICE_ATTR_RW(colors);
+static DEVICE_ATTR_WO(single_colors);
 
 static DEVICE_ATTR_RW(led1);
 static DEVICE_ATTR_RW(led2);
@@ -747,6 +785,7 @@ static struct attribute *aw9523_attributes[] = {
 	&dev_attr_led1.attr,
 	&dev_attr_led2.attr,
 	&dev_attr_led3.attr,
+	&dev_attr_single_colors.attr,
 	NULL
 };
 
