@@ -724,13 +724,18 @@ static bool __maybe_unused cec_service_suspended(void)
 	return false;
 }
 
+/* pre_setting called under freeze mode,
+ * only consider 1 logic addr case;
+ * if multi-addr used under freeze in the
+ * future, then need save/restore multi-addr
+ */
 static void cec_save_pre_setting(void)
 {
 	unsigned int config_data;
 
 	/* AO_DEBUG_REG1
 	 * 0-15 : phy addr
-	 * 16-20: logical address
+	 * 16-19: logical address
 	 * 21-23: device type
 	 */
 	config_data = cec_dev->cec_info.log_addr;
@@ -757,12 +762,13 @@ static void cec_restore_pre_setting(void)
 	/*get device type*/
 	/* AO_DEBUG_REG1+
 	 * 0-15 : phy addr+
-	 * 16-20: logical address+
+	 * 16-19: logical address+
 	 * 21-23: device type+
 	 */
 	/*data32 = cec_config2_logaddr(0, 0);*/
-	 logaddr = cec_config2_logaddr(0, 0);/*(data32 >> 16) & 0xf;*/
-	 devtype = cec_config2_devtype(0, 0);/*(data32 >> 20) & 0xf;*/
+	/* here not consider multi-addr case */
+	logaddr = cec_config2_logaddr(0, 0);/*(data32 >> 16) & 0xf;*/
+	devtype = cec_config2_devtype(0, 0);/*(data32 >> 20) & 0xf;*/
 
 	/*get logical address*/
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
@@ -1124,10 +1130,12 @@ static ssize_t fun_cfg_store(struct class *cla, struct class_attribute *attr,
 	if (cnt < 0 || val > 0xff)
 		return -EINVAL;
 	cec_config(val, 1);
-	if (val == 0)
+	if (val == 0) {
 		cec_clear_all_logical_addr(ee_cec);/*cec_keep_reset();*/
-	else
+		cec_clear_saved_logic_addr();
+	} else {
 		cec_pre_init();
+	}
 	return count;
 }
 
@@ -1283,10 +1291,12 @@ static ssize_t dbg_store(struct class *cla, struct class_attribute *attr,
 	} else if (token && strncmp(token, "clraddr", 7) == 0) {
 		cec_dev->cec_info.addr_enable = 0;
 		cec_clear_all_logical_addr(ee_cec);
+		cec_clear_saved_logic_addr();
 	} else if (token && strncmp(token, "clralladdr", 10) == 0) {
 		cec_dev->cec_info.addr_enable = 0;
 		cec_clear_all_logical_addr(CEC_A);
 		cec_clear_all_logical_addr(CEC_B);
+		cec_clear_saved_logic_addr();
 	} else if (token && strncmp(token, "addaddr", 7) == 0) {
 		token = strsep(&cur, delim);
 		/*string to int*/
@@ -1679,6 +1689,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 			/*CEC_INFO("disable CEC\n");*/
 			/*cec_keep_reset();*/
 			cec_clear_all_logical_addr(ee_cec);
+			cec_clear_saved_logic_addr();
 		}
 		break;
 
@@ -1741,6 +1752,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 
 	case CEC_IOC_CLR_LOGICAL_ADDR:
 		cec_ap_clear_logical_addr();
+		cec_clear_saved_logic_addr();
 		break;
 
 	case CEC_IOC_SET_DEV_TYPE:
@@ -2864,11 +2876,13 @@ static int aml_cec_suspend_noirq(struct device *dev)
 	} else {
 	#endif
 	{
+		/* uboot use logic addr saved in AO_DEBUG_REG1
+		 * or transferred by mailbox
+		 */
 		if (cec_dev->cec_num > ENABLE_ONE_CEC)
 			cec_clear_all_logical_addr(CEC_B);
 		else
 			cec_clear_all_logical_addr(ee_cec);
-
 		if (!IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
 			ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);
 	}
@@ -2941,6 +2955,7 @@ static int aml_cec_resume_noirq(struct device *dev)
 	#endif
 	{
 		cec_clear_all_logical_addr(ee_cec);
+		cec_clear_saved_logic_addr();
 		cec_get_wakeup_reason();
 		/* since SC2, it uses uboot2019
 		 * for previous chips, uboot2015, still use stick regs

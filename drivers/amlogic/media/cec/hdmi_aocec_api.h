@@ -34,6 +34,7 @@ inline void hdmirx_set_bits_dwc(u32 reg, u32 bits,
 				       u32 start, u32 len);
 unsigned int read_ao(unsigned int addr);
 void write_ao(unsigned int addr, unsigned int data);
+void cec_clear_saved_logic_addr(void);
 
 void ceca_rx_buf_clear(void);
 int ceca_trigle_tx(const unsigned char *msg, int len);
