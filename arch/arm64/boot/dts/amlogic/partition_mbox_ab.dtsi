@@ -163,7 +163,7 @@
 		super:super
 		{
 			pname = "super";
-			size = <0x0 0x70800000>;
+			size = <0x0 0x80000000>;
 			mask = <1>;
 		};
 		userdata:userdata
