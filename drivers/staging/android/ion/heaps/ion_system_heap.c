@@ -167,7 +167,7 @@ static void ion_system_heap_free(struct ion_buffer *buffer)
 	if (!(buffer->private_flags & ION_PRIV_FLAG_SHRINKER_FREE))
 		ion_buffer_zero(buffer);
 
-	for_each_sg(table->sgl, sg, table->nents, i)
+	for_each_sg(table->sgl, sg, table->orig_nents, i)
 		free_buffer_page(sys_heap, buffer, sg_page(sg));
 	sg_free_table(table);
 	kfree(table);
@@ -238,6 +238,14 @@ static int ion_system_heap_create_pools(struct ion_page_pool **pools)
 		struct ion_page_pool *pool;
 		gfp_t gfp_flags = low_order_gfp_flags;
 
+		/*
+		 * Enable NOWARN on larger order allocations, as
+		 * we will fall back to 0-order if things fail.
+		 * This avoids warning noise in dmesg.
+		 */
+		if (orders[i] > 0)
+			gfp_flags |= __GFP_NOWARN;
+
 #ifdef CONFIG_AMLOGIC_MODIFY
 		if (orders[i] >= 4)
 #else
@@ -289,6 +297,6 @@ static void __exit ion_system_heap_exit(void)
 	ion_system_heap_destroy_pools(system_heap.pools);
 }
 
-module_init(ion_system_heap_init);
+subsys_initcall(ion_system_heap_init);
 module_exit(ion_system_heap_exit);
 MODULE_LICENSE("GPL v2");

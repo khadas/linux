@@ -105,6 +105,8 @@ struct tls_device {
 	void (*unhash)(struct tls_device *device, struct sock *sk);
 	void (*release)(struct kref *kref);
 	struct kref kref;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 enum {
@@ -138,6 +140,9 @@ struct tls_rec {
 	char aad_space[TLS_AAD_SPACE_SIZE];
 	u8 iv_data[MAX_IV_SIZE];
 	struct aead_request aead_req;
+
+	ANDROID_KABI_RESERVE(1);
+
 	u8 aead_req_ctx[];
 };
 
@@ -166,6 +171,8 @@ struct tls_sw_context_tx {
 #define BIT_TX_SCHEDULED	0
 #define BIT_TX_CLOSING		1
 	unsigned long tx_bitmask;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct tls_sw_context_rx {
@@ -183,6 +190,8 @@ struct tls_sw_context_rx {
 	/* protect crypto_wait with decrypt_pending*/
 	spinlock_t decrypt_compl_lock;
 	bool async_notify;
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 struct tls_record_info {
@@ -367,6 +376,7 @@ int tls_sk_query(struct sock *sk, int optname, char __user *optval,
 		int __user *optlen);
 int tls_sk_attach(struct sock *sk, int optname, char __user *optval,
 		  unsigned int optlen);
+void tls_err_abort(struct sock *sk, int err);
 
 int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx);
 void tls_sw_strparser_arm(struct sock *sk, struct tls_context *ctx);
@@ -472,12 +482,6 @@ static inline bool tls_is_sk_tx_device_offloaded(struct sock *sk)
 #endif
 }
 
-static inline void tls_err_abort(struct sock *sk, int err)
-{
-	sk->sk_err = err;
-	sk->sk_error_report(sk);
-}
-
 static inline bool tls_bigint_increment(unsigned char *seq, int len)
 {
 	int i;
@@ -506,7 +510,7 @@ static inline void tls_advance_record_sn(struct sock *sk,
 					 struct cipher_context *ctx)
 {
 	if (tls_bigint_increment(ctx->rec_seq, prot->rec_seq_size))
-		tls_err_abort(sk, EBADMSG);
+		tls_err_abort(sk, -EBADMSG);
 
 	if (prot->version != TLS_1_3_VERSION)
 		tls_bigint_increment(ctx->iv + TLS_CIPHER_AES_GCM_128_SALT_SIZE,

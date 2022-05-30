@@ -1,30 +1,20 @@
-#BRANCH=android12-5.4
-#KMI_GENERATION=5
-#
-#LLVM=1
-#DEPMOD=depmod
-#CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r416183b/bin
-#BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
-#
-#EXTRA_CMDS=''
-#STOP_SHIP_TRACEPRINTK=1
-#IN_KERNEL_MODULES=1
-#DO_NOT_STRIP_MODULES=1
-
-#This config from amlogic-5.4-dev
 BRANCH=android12-5.4
-KMI_GENERATION=2
+KMI_GENERATION=9
 
-CC=clang
-LD=ld.lld
-NM=llvm-nm
-OBJCOPY=llvm-objcopy
+LLVM=1
 DEPMOD=depmod
 CLANG_PREBUILT_BIN=prebuilts-master/clang/host/linux-x86/clang-r416183/bin
 BUILDTOOLS_PREBUILT_BIN=build/build-tools/path/linux-x86
 
+KCFLAGS="${KCFLAGS} -D__ANDROID_COMMON_KERNEL__"
 EXTRA_CMDS=''
 STOP_SHIP_TRACEPRINTK=1
 IN_KERNEL_MODULES=1
 DO_NOT_STRIP_MODULES=1
 
+### Amlogic begin
+### these 4 args for wifi_bt compatible
+CC=clang
+LD=ld.lld
+NM=llvm-nm
+OBJCOPY=llvm-objcopy

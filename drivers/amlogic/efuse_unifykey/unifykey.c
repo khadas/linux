@@ -14,6 +14,7 @@
 #include <linux/uaccess.h>
 #include <linux/of.h>
 #include <linux/ctype.h>
+#include <linux/compat.h>
 #if defined(CONFIG_AMLOGIC_EFUSE)
 #include <linux/amlogic/efuse.h>
 #endif

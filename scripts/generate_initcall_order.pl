@@ -9,7 +9,7 @@ use strict;
 use warnings;
 use IO::Handle;
 
-my $nm = $ENV{'LLVM_NM'} || "llvm-nm";
+my $nm = $ENV{'NM'} || "llvm-nm";
 my $ar = $ENV{'AR'}	 || "llvm-ar";
 my $objtree = $ENV{'objtree'} || ".";
 
@@ -41,7 +41,7 @@ sub find_initcalls {
 
 	die "$0: object file $object doesn't exist?" if (! -f $object);
 
-	open(my $fh, "\"$nm\" -just-symbol-name -defined-only \"$object\" 2>/dev/null |")
+	open(my $fh, "\"$nm\" --just-symbol-name --defined-only \"$object\" 2>/dev/null |")
 		or die "$0: failed to execute \"$nm\": $!";
 
 	my $initcalls = {};

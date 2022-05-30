@@ -342,6 +342,7 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 		goto out;
 	}
 #endif
+	page = compound_head(page);
 
 	/*
 	 * Once page cache replacement of page migration started, page_count
