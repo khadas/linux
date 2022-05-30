@@ -3893,6 +3893,21 @@ static ssize_t show_rdma_recovery_stat(struct device *device,
 		recovery_count, recovery_not_hit_count);
 }
 
+static ssize_t show_file_info(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "fget cnt:%d %d %d %d fput cnt:%d %d %d %d\n",
+			osd_hw.file_info_debug[0].fget_count,
+			osd_hw.file_info_debug[1].fget_count,
+			osd_hw.file_info_debug[2].fget_count,
+			osd_hw.file_info_debug[3].fget_count,
+			osd_hw.file_info_debug[0].fput_count,
+			osd_hw.file_info_debug[1].fput_count,
+			osd_hw.file_info_debug[2].fput_count,
+			osd_hw.file_info_debug[3].fput_count);
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -4147,6 +4162,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_save_frames, store_save_frames),
 	__ATTR(rdma_recovery_stat, 0440,
 	       show_rdma_recovery_stat, NULL),
+	__ATTR(file_info, 0440,
+	       show_file_info, NULL),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {

@@ -1789,6 +1789,10 @@ static void release_fenceobj(struct osd_layers_fence_map_s *fence_map,
 			continue;
 		layer_map = &fence_map->layer_map[i];
 
+		if (layer_map->buf_file) {
+			fput(layer_map->buf_file);
+			osd_hw.file_info_debug[i].fput_count++;
+		}
 		if (layer_map->in_fence)
 			osd_put_fenceobj(layer_map->in_fence);
 	}
@@ -2104,10 +2108,12 @@ static int sync_render_layers_fence(u32 index, u32 yres,
 	/* layer_map[index].enable will update if have blank ioctl */
 	fence_map->layer_map[index].enable = request->op;
 	fence_map->layer_map[index].in_fd = request->in_fen_fd;
-	if (request->shared_fd < 0)
+	if (request->shared_fd < 0) {
 		fence_map->layer_map[index].buf_file = NULL;
-	else
+	} else {
 		fence_map->layer_map[index].buf_file = fget(request->shared_fd);
+		osd_hw.file_info_debug[index].fget_count++;
+	}
 	fence_map->layer_map[index].ext_addr = phys_addr;
 	fence_map->layer_map[index].format = request->format;
 	fence_map->layer_map[index].compose_type = request->type;
@@ -6706,6 +6712,7 @@ out:
 		layer_map = &fence_map->layer_map[i];
 		if (displayed_bufs[i]) {
 			fput(displayed_bufs[i]);
+			osd_hw.file_info_debug[i].fput_count++;
 			displayed_bufs[i] = NULL;
 		}
 		if (layer_map->buf_file)
