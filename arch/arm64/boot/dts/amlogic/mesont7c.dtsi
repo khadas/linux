@@ -2614,7 +2614,7 @@
 
 	vpu: vpu {
 		compatible = "amlogic, vpu-t7";
-		status = "disabled";
+		status = "okay";
 		reg =	<0x0 0xfe000000 0x0 0x100    /* clk */
 			 0x0 0xfe00c000 0x0 0x70     /* pwrctrl */
 			 0x0 0xff000000 0x0 0xa000>; /* vcbus */
@@ -2674,38 +2674,38 @@
 
 	vout_mux: vout_mux {
 		compatible = "amlogic, vout_mux-t7";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vout: vout {
 		compatible = "amlogic, vout";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vout2: vout2 {
 		compatible = "amlogic, vout2";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vout3: vout3 {
 		compatible = "amlogic, vout3";
-		status = "disabled";
+		status = "okay";
 	};
 
 	vrr0: vrr0 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <0>;
 	};
 
 	vrr1: vrr1 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <1>;
 	};
 
 	vrr2: vrr2 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <2>;
 	};
