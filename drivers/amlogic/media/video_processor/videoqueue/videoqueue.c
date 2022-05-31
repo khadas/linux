@@ -17,6 +17,7 @@
 #include <linux/amlogic/major.h>
 #include <linux/platform_device.h>
 #include <linux/time.h>
+#include <linux/compat.h>
 #include <linux/delay.h>
 #include <uapi/linux/sched/types.h>
 #include <linux/amlogic/cpu_version.h>

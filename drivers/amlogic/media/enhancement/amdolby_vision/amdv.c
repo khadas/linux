@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/errno.h>

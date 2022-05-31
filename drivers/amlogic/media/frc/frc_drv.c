@@ -29,6 +29,7 @@
 #include <linux/of_device.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/compat.h>
 #include <linux/of_irq.h>
 #include <linux/of_clk.h>
 #include <linux/string.h>

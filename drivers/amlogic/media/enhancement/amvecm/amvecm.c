@@ -32,6 +32,7 @@
 #include <linux/stat.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 /* #include <linux/amlogic/aml_common.h> */

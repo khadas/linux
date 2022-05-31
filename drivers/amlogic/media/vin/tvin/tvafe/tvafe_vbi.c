@@ -20,6 +20,7 @@
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/dma-mapping.h>
+#include <linux/compat.h>
 #include <linux/of_irq.h>
 
 /* #include <linux/mutex.h> */

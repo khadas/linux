@@ -22,6 +22,7 @@
 #include <linux/reboot.h>
 #include <linux/clk.h>
 #include <linux/of_device.h>
+#include <linux/compat.h>
 #include <linux/workqueue.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>

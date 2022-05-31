@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/string.h>
 #include <linux/mm.h>
+#include <linux/compat.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/errno.h>

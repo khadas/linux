@@ -27,6 +27,7 @@
 #include <linux/of_platform.h>
 #include <linux/arm-smccc.h>
 #include <linux/aml_crypto.h>
+#include <linux/compat.h>
 #include "aml-crypto-dma.h"
 
 #define USE_BUSY_POLLING (0)

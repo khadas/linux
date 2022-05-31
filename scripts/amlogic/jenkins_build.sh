@@ -71,7 +71,7 @@ function build_kernel_arm64_with_clang()
 
 	#build meson64_a64_R_defconfig + diff_config with clang
 	export PATH=/opt/clang-r377782b/bin/:$PATH
-	clang_flags="ARCH=arm64 CC=clang HOSTCC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu-"
+	clang_flags="ARCH=arm64 LLVM=1 CC=clang HOSTCC=clang LD=ld.lld NM=llvm-nm OBJCOPY=llvm-objcopy CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu-"
 	cat arch/arm64/configs/meson64_gki_module_config arch/arm64/configs/meson64_a64_R_defconfig scripts/amlogic/meson64_a64_r_user_diffconfig > arch/arm64/configs/meson64_gki_r_diff_defconfig
 	cmd "make ${clang_flags} meson64_gki_r_diff_defconfig"
 	rm arch/arm64/configs/meson64_gki_r_diff_defconfig

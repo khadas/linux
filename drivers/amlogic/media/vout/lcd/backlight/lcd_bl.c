@@ -25,6 +25,7 @@
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#include <linux/compat.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 #include <linux/amlogic/media/vout/lcd/aml_bl_extern.h>

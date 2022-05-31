@@ -26,6 +26,7 @@
 #include <linux/cdev.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/compat.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>

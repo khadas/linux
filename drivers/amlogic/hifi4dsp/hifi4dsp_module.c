@@ -40,7 +40,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_domain.h>
 #include <linux/amlogic/scpi_protocol.h>
-
+#include <linux/compat.h>
 #include "hifi4dsp_api.h"
 #include "hifi4dsp_priv.h"
 #include "hifi4dsp_firmware.h"

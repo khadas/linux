@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/compat.h>
 #include <linux/mutex.h>
 #include <linux/dma-mapping.h>
 #include <linux/of_fdt.h>

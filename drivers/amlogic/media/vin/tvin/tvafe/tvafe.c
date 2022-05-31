@@ -31,6 +31,7 @@
 #include <linux/of_irq.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/dma-contiguous.h>
+#include <linux/compat.h>
 #include <linux/clk.h>
 /* Amlogic headers */
 #include <linux/amlogic/media/canvas/canvas.h>

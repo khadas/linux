@@ -24,6 +24,7 @@
 #include <linux/major.h>
 #include <linux/uaccess.h>
 #include <linux/cdev.h>
+#include <linux/compat.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>

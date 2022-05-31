@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/genalloc.h>
 #include <linux/list.h>
+#include <linux/compat.h>
 #include <linux/amlogic/tee.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/secmem.h>

@@ -25,6 +25,7 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/poll.h>
 #include <linux/io.h>
+#include <linux/compat.h>
 #include <linux/suspend.h>
 /* #include <linux/earlysuspend.h> */
 #include <linux/delay.h>

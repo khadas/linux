@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/compat.h>
 #include <linux/clk.h>
 #include <linux/of_device.h>
 #include <linux/amlogic/iomap.h>

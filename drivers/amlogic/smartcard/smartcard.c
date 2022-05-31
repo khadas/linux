@@ -23,6 +23,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/amlogic/cpu_version.h>
 #include <linux/sched/clock.h>
+#include <linux/compat.h>
 #include <linux/of.h>
 #ifndef MESON_CPU_TYPE
 #define MESON_CPU_TYPE 0x50

@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
+#include <linux/compat.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>

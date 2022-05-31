@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
+#include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
 #include <linux/fs.h>

@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/amlogic/gki_module.h>
+#include <linux/compat.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/vout/vout_notify.h>

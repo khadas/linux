@@ -17,6 +17,7 @@
 #include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/major.h>
+#include <linux/compat.h>
 /* Amlogic headers */
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
