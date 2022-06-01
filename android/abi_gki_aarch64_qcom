@@ -114,10 +114,13 @@
   cdev_init
   cfg80211_gtk_rekey_notify
   cfg80211_register_netdevice
+  cfg80211_rx_control_port
   cfg80211_rx_unprot_mlme_mgmt
   cfg80211_stop_iface
   cfg80211_update_owe_info_event
+  cfg80211_vendor_cmd_get_sender
   __cfi_slowpath_diag
+  cgroup_path_ns
   cgroup_taskset_first
   cgroup_taskset_next
   __check_object_size
@@ -340,6 +343,7 @@
   devm_clk_hw_register
   devm_clk_register
   devm_device_remove_group
+  devm_drm_panel_bridge_add
   devm_extcon_dev_allocate
   devm_extcon_dev_register
   devm_extcon_dev_unregister
@@ -563,6 +567,7 @@
   drm_dp_update_payload_part1
   drm_dp_update_payload_part2
   drm_edid_duplicate
+  drm_edid_is_valid
   drm_event_reserve_init_locked
   drm_framebuffer_lookup
   drm_framebuffer_remove
@@ -779,6 +784,7 @@
   i2c_get_dma_safe_msg_buf
   i2c_put_dma_safe_msg_buf
   i2c_register_driver
+  i2c_smbus_read_i2c_block_data
   i3c_generic_ibi_alloc_pool
   i3c_generic_ibi_free_pool
   i3c_generic_ibi_get_free_slot
@@ -803,6 +809,7 @@
   icc_put
   icc_set_bw
   icc_set_tag
+  icc_sync_state
   ida_alloc_range
   ida_free
   idr_alloc
@@ -924,6 +931,7 @@
   irq_domain_set_info
   irq_domain_update_bus_token
   irq_domain_xlate_twocell
+  irq_do_set_affinity
   irq_find_matching_fwspec
   irq_get_irqchip_state
   irq_get_irq_data
@@ -1138,6 +1146,10 @@
   netdev_alert
   netdev_rss_key_fill
   netif_receive_skb_list
+  nla_find
+  nla_reserve
+  nla_reserve_64bit
+  __nla_validate
   no_llseek
   nonseekable_open
   nr_cpu_ids
@@ -1293,6 +1305,7 @@
   pci_store_saved_state
   pci_walk_bus
   pci_write_config_dword
+  pcpu_nr_pages
   __percpu_down_read
   percpu_down_write
   percpu_free_rwsem
@@ -1362,6 +1375,7 @@
   phy_write_mmd
   pick_highest_pushable_task
   pick_migrate_task
+  pid_nr_ns
   pinconf_generic_dt_node_to_map
   pinctrl_dev_get_drvdata
   pinctrl_force_default
@@ -1615,6 +1629,7 @@
   resched_curr
   reset_control_assert
   reset_control_deassert
+  __reset_control_get
   root_task_group
   round_jiffies_relative
   rpmsg_get_signals
@@ -1726,6 +1741,7 @@
   sg_free_table
   sg_init_table
   sg_miter_next
+  sg_miter_skip
   sg_miter_start
   sg_miter_stop
   sg_next
@@ -1751,6 +1767,7 @@
   skb_append_pagefrags
   skb_clone
   skb_copy_bits
+  skb_copy_datagram_from_iter
   skb_copy_datagram_iter
   skb_dequeue
   skb_free_datagram
@@ -1781,6 +1798,7 @@
   snd_soc_info_multi_ext
   snd_soc_lookup_component
   snd_soc_rtdcom_lookup
+  snd_timer_interrupt
   snd_usb_autoresume
   snd_usb_autosuspend
   snd_usb_endpoint_close
@@ -1789,6 +1807,7 @@
   snprintf
   soc_device_register
   soc_device_unregister
+  sock_alloc_send_pskb
   sock_alloc_send_skb
   sock_create_kern
   sock_gettstamp
@@ -1939,7 +1958,8 @@
   trace_event_raw_init
   trace_event_reg
   trace_handle_return
-  __tracepoint_android_rvh_account_irq
+  __tracepoint_android_rvh_account_irq_end
+  __tracepoint_android_rvh_account_irq_start
   __tracepoint_android_rvh_after_dequeue_task
   __tracepoint_android_rvh_after_enqueue_task
   __tracepoint_android_rvh_audio_usb_offload_disconnect
@@ -1963,6 +1983,7 @@
   __tracepoint_android_rvh_sched_cpu_starting
   __tracepoint_android_rvh_sched_exec
   __tracepoint_android_rvh_sched_fork_init
+  __tracepoint_android_rvh_sched_getaffinity
   __tracepoint_android_rvh_sched_newidle_balance
   __tracepoint_android_rvh_sched_nohz_balancer_kick
   __tracepoint_android_rvh_sched_setaffinity
@@ -2000,6 +2021,7 @@
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
   __tracepoint_android_vh_gic_resume
+  __tracepoint_android_vh_gic_v3_set_affinity
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_kswapd_per_node
@@ -2007,6 +2029,7 @@
   __tracepoint_android_vh_logbuf_pr_cont
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_rproc_recovery
+  __tracepoint_android_vh_rproc_recovery_set
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
@@ -2022,6 +2045,7 @@
   __tracepoint_cpu_idle
   __tracepoint_ipi_entry
   __tracepoint_ipi_raise
+  __tracepoint_irq_handler_entry
   tracepoint_probe_register
   tracepoint_probe_register_prio
   tracepoint_probe_unregister
@@ -2118,6 +2142,8 @@
   usb_bus_idr
   usb_bus_idr_lock
   usb_composite_setup_continue
+  usb_control_msg_recv
+  usb_control_msg_send
   usb_debug_root
   usb_decode_ctrl
   usb_ep_alloc_request
@@ -2154,10 +2180,14 @@
   uuid_parse
   v4l2_compat_ioctl32
   v4l2_ctrl_find
+  v4l2_ctrl_get_name
+  __v4l2_ctrl_modify_range
+  __v4l2_ctrl_s_ctrl
   __v4l2_device_register_subdev_nodes
   v4l2_event_dequeue
   v4l2_event_pending
   v4l2_fh_release
+  v4l2_s_ctrl
   v4l2_subdev_call_wrappers
   vabits_actual
   vb2_create_bufs
@@ -2183,6 +2213,7 @@
   vhost_vq_init_access
   vhost_vring_ioctl
   vmalloc
+  vmalloc_nr_pages
   vmalloc_to_page
   vmalloc_to_pfn
   vmap
