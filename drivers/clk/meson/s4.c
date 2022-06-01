@@ -785,7 +785,7 @@ static const struct pll_params_table s4_hifi_pll_table[] = {
  * Internal hifi pll emulation configuration parameters
  */
 static const struct reg_sequence s4_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x00010e56 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x0001ae14 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
@@ -837,6 +837,7 @@ static struct clk_regmap s4_hifi_pll_dco = {
 		.init_regs = s4_hifi_init_regs,
 		.init_count = ARRAY_SIZE(s4_hifi_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
+		.new_frac = 1,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
@@ -874,6 +875,121 @@ static struct clk_regmap s4_hifi_pll = {
 		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&s4_hifi_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+	},
+};
+#endif
+
+#ifdef CONFIG_ARM
+static const struct pll_params_table s4d_hifi_pll_table[] = {
+	PLL_PARAMS(163, 1, 1), /* DCO = 3932.16M */
+	/*PLL_PARAMS(150, 1, 1),  DCO = 1806.336M OD = 1 */
+	{ /* sentinel */  }
+};
+#else
+static const struct pll_params_table s4d_hifi_pll_table[] = {
+	PLL_PARAMS(163, 1), /* DCO = 3932.16M */
+	/*PLL_PARAMS(150, 1),  DCO = 1806.336M */
+	{ /* sentinel */  }
+};
+#endif
+
+/*
+ * Internal hifi pll emulation configuration parameters
+ */
+static const struct reg_sequence s4d_hifi_init_regs[] = {
+	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x00014820 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL5,	.def = 0x39272000 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL6,	.def = 0x56540000 }
+};
+
+static struct clk_regmap s4d_hifi_pll_dco = {
+	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.m = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift   = 0,
+			.width   = 8,
+		},
+		.n = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift   = 10,
+			.width   = 5,
+		},
+#ifdef CONFIG_ARM
+		/* for 32bit */
+		.od = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift	 = 16,
+			.width	 = 2,
+		},
+#endif
+		.frac = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL1,
+			.shift   = 0,
+			.width   = 19,
+		},
+		.l = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = ANACTRL_HIFIPLL_CTRL0,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = s4d_hifi_pll_table,
+		.init_regs = s4d_hifi_init_regs,
+		.init_count = ARRAY_SIZE(s4d_hifi_init_regs),
+		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
+		.new_frac = 1,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hifi_pll_dco",
+		.ops = &meson_clk_pll_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", }
+		},
+		.num_parents = 1,
+	},
+};
+
+#ifdef CONFIG_ARM
+static struct clk_regmap s4d_hifi_pll = {
+	.hw.init = &(struct clk_init_data){
+		.name = "hifi_pll",
+		.ops = &meson_pll_clk_no_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4d_hifi_pll_dco.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+#else
+static struct clk_regmap s4d_hifi_pll = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = ANACTRL_HIFIPLL_CTRL0,
+		.shift = 16,
+		.width = 2,
+		.flags = (CLK_DIVIDER_POWER_OF_TWO |
+			  CLK_DIVIDER_ROUND_CLOSEST),
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "hifi_pll",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s4d_hifi_pll_dco.hw
 		},
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
@@ -5192,8 +5308,8 @@ static struct clk_hw_onecell_data s4d_hw_onecell_data = {
 		[CLKID_CPU_CLK_DYN]		= &s4_cpu_dyn_clk.hw,
 		[CLKID_CPU_CLK]			= &s4_cpu_clk.hw,
 
-		[CLKID_HIFI_PLL_DCO]		= &s4_hifi_pll_dco.hw,
-		[CLKID_HIFI_PLL]		= &s4_hifi_pll.hw,
+		[CLKID_HIFI_PLL_DCO]		= &s4d_hifi_pll_dco.hw,
+		[CLKID_HIFI_PLL]		= &s4d_hifi_pll.hw,
 		[CLKID_HDMI_PLL_DCO]		= &s4_hdmi_pll_dco.hw,
 		[CLKID_HDMI_PLL_OD]		= &s4_hdmi_pll_od.hw,
 		[CLKID_HDMI_PLL]		= &s4_hdmi_pll.hw,
@@ -5761,6 +5877,8 @@ static struct clk_regmap *const s4_pll_clk_regmaps[] __initconst = {
 
 	&s4_hifi_pll_dco,
 	&s4_hifi_pll,
+	&s4d_hifi_pll_dco,
+	&s4d_hifi_pll,
 	&s4_hdmi_pll_dco,
 	&s4_hdmi_pll_od,
 	&s4_hdmi_pll,

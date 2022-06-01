@@ -1058,12 +1058,12 @@ static struct t7_sys_pll_nb_data t7_sys_pll_nb_data = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table t7_hifi_pll_table[] = {
-	PLL_PARAMS(150, 1, 1), /* DCO = 1806.336M OD = 1 */
+	PLL_PARAMS(163, 1, 1), /* DCO = 3932.16M */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table t7_hifi_pll_table[] = {
-	PLL_PARAMS(150, 1), /* DCO = 1806.336M */
+	PLL_PARAMS(163, 1), /* DCO = 3932.16M */
 	{ /* sentinel */  }
 };
 #endif
@@ -1072,7 +1072,7 @@ static const struct pll_params_table t7_hifi_pll_table[] = {
  * Internal hifi pll emulation configuration parameters
  */
 static const struct reg_sequence t7_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x00010e56 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x00014820 }, /*frac = 20.16M */
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },
@@ -1116,6 +1116,7 @@ static struct clk_regmap t7_hifi_pll_dco = {
 		.init_regs = t7_hifi_init_regs,
 		.init_count = ARRAY_SIZE(t7_hifi_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,
+		.new_frac = 1,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "hifi_pll_dco",
