@@ -269,6 +269,66 @@
 		};
 	};
 
+	backlight{
+		compatible = "amlogic, backlight-t7";
+		status = "okay";
+		index = <0>;
+		key_valid = <0>;
+		pinctrl-names = "pwm_on";
+		pinctrl-0 = <&pwm_e_pins>;
+		pinctrl_version = <2>; /* for uboot */
+		interrupts = <0 197 1
+			0 194 1
+			0 82 1>;
+		interrupt-names = "vsync","vsync2","vsync3";
+		bl_pwm_config = <&bl_pwm_conf>;
+
+		/* pwm port: PWM_A, PWM_B, PWM_C, PWM_D, PWM_E, PWM_F, PWM_VS*/
+		/* power index:(point gpios_index, 0xff=invalid) */
+		/* power value:(0=output low, 1=output high, 2=input) */
+		/* power delay:(unit in ms) */
+		bl-gpios = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH>;
+		bl_gpio_names = "GPIOY_12";
+
+		backlight_0{
+			index = <0>;
+			bl_name = "backlight_pwm";
+			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_attr = <255 10 /*max, min*/
+				128 128>; /*mid, mid_mapping*/
+			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
+			bl_power_attr = <0 /*en_gpio_index*/
+				1 0 /*on_value, off_value*/
+				200 200>; /*on_delay(ms), off_delay(ms)*/
+			bl_pwm_port = "PWM_E";
+			bl_pwm_attr = <1 /*pwm_method(0=negative, 1=positvie)*/
+				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				100 25>; /*duty_max(%), duty_min(%)*/
+			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
+				10 10>; /*pwm_on_delay(ms), pwm_off_delay(ms)*/
+			en_sequence_reverse = <0>; /* 1 for reverse */
+		};
+
+		backlight_1{
+			index = <1>;
+			bl_name = "backlight_pwm";
+			bl_level_default_uboot_kernel = <255 255>;
+			bl_level_attr = <255 10 /*max, min*/
+				128 128>; /*mid, mid_mapping*/
+			bl_ctrl_method = <1>; /*1=pwm,2=pwm_combo*/
+			bl_power_attr = <0 /*en_gpio_index*/
+				1 0 /*on_value, off_value*/
+				200 200>; /*on_delay(ms), off_delay(ms)*/
+			bl_pwm_port = "PWM_E";
+			bl_pwm_attr = <0 /*pwm_method(0=negative, 1=positvie)*/
+				180 /*pwm_freq(pwm:Hz, pwm_vs:multiple of vs)*/
+				100 25>; /*duty_max(%), duty_min(%)*/
+			bl_pwm_power = <1 0 /*pwm_gpio_index, pwm_gpio_off*/
+				10 10>; /*pwm_on_delay(ms), pwm_off_delay(ms)*/
+			en_sequence_reverse = <0>; /* 1 for reverse */
+		};
+	};
+
 	lcd1 {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
