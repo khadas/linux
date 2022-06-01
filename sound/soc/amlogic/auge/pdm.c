@@ -846,7 +846,7 @@ static int aml_pdm_dai_set_sysclk(struct snd_soc_dai *cpu_dai,
 	clk_set_rate(p_pdm->clk_pdm_sysclk, 133333351);
 
 	clk_name = (char *)__clk_get_name(p_pdm->dclk_srcpll);
-	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		pr_info("%s:set hifi pll\n", __func__);
 		if (p_pdm->syssrc_clk_rate)
 			clk_set_rate(p_pdm->dclk_srcpll, p_pdm->syssrc_clk_rate);

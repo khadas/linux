@@ -121,7 +121,7 @@ static int eqdrc_clk_set(struct audioeffect *p_effect)
 	}
 
 	clk_name = (char *)__clk_get_name(p_effect->srcpll);
-	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		if (p_effect->syssrc_clk_rate)
 			clk_set_rate(p_effect->srcpll, p_effect->syssrc_clk_rate);
 		else

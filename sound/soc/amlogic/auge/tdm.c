@@ -370,7 +370,7 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 	p_tdm->setting.sysclk = freq;
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
-	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll"))
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll"))
 		if (p_tdm->syssrc_clk_rate)
 			mpll_freq = p_tdm->syssrc_clk_rate;
 		else
@@ -1745,7 +1745,7 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 		p_tdm->chipinfo->use_vadtop);
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
-	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		if (p_tdm->syssrc_clk_rate)
 			pll = p_tdm->syssrc_clk_rate;
 		else
@@ -2013,7 +2013,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		p_tdm->pcpd_monitor_src = platform_get_drvdata(dev_src);
 		pr_info("%s(), pcpd src found\n", __func__);
 	}
-	ret = of_property_read_u32(dev->of_node, "scrc-clk-freq",
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
 				   &p_tdm->syssrc_clk_rate);
 	if (ret < 0)
 		p_tdm->syssrc_clk_rate = 0;

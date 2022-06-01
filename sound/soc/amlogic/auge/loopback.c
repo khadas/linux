@@ -930,8 +930,8 @@ static void datain_pdm_set_clk(struct loopback *p_loopback)
 	clk_set_rate(p_loopback->pdm_sysclk, 133333351);
 
 	clk_name = (char *)__clk_get_name(p_loopback->pdm_dclk_srcpll);
-	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
-		pr_info("hifipll set 1806336*1000\n");
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		pr_info("hifi_pll set 1806336*1000\n");
 		if (p_loopback->syssrc_clk_rate)
 			clk_set_rate(p_loopback->pdm_dclk_srcpll, p_loopback->syssrc_clk_rate);
 		else

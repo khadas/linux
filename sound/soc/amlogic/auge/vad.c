@@ -494,7 +494,7 @@ static int vad_set_clks(struct vad *p_vad, bool enable)
 
 		/* enable clock gate */
 		ret = clk_prepare_enable(p_vad->gate);
-		if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 			if (p_vad->syssrc_clk_rate)
 				clk_set_rate(p_vad->pll, p_vad->syssrc_clk_rate);
 			else
