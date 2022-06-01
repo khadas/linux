@@ -1772,14 +1772,6 @@
 		};
 	};
 
-	bl1_pwm_off_pins:bl1_pwm_off_pin {
-		mux {
-			groups = "GPIOY_8";
-			function = "gpio_periphs";
-			output-low;
-		};
-	};
-
 	e_uart_pins_no_cts_rts:e_uart {
 		mux {
 			groups = "uart_e_tx",
