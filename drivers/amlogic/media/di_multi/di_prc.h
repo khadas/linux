@@ -102,7 +102,7 @@ void di_cfgt_show_item_all(struct seq_file *s);
 void di_cfgt_show_val_sel(struct seq_file *s);
 void di_cfgt_show_val_all(struct seq_file *s);
 void di_cfgt_set_sel(unsigned int dbg_mode, unsigned int id);
-void di_cfg_cp_ch(struct di_ch_s *pch);
+void di_cfg_cp_ch(/*struct di_ch_s *pch*/ unsigned char *cfg_cp);
 unsigned char di_cfg_cp_get(struct di_ch_s *pch,
 			enum EDI_CFG_TOP_IDX id);
 void di_cfg_cp_set(struct di_ch_s *pch,
@@ -172,6 +172,8 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason);
 void dim_polic_prob(void);
 void dim_polic_unreg(struct di_ch_s *pch);
 unsigned int dim_polic_is_bypass(struct di_ch_s *pch, struct vframe_s *vf);
+unsigned int dim_polic_is_prvpp_bypass(void);//for pvpp link
+
 void dim_polic_cfg_local(unsigned int cmd, bool on);
 
 unsigned int dim_get_trick_mode(void);
@@ -385,6 +387,11 @@ void dim_dw_pre_para_init(struct di_ch_s *pch, struct dim_nins_s *nins);
 void dw_pre_sync_addr(struct dvfm_s *wdvfm, struct di_buf_s *di_buf);
 
 /*************************************************/
+struct vframe_s *vf_get_dpost_by_indx(unsigned int ch, unsigned int indx);
+struct vframe_s *vf_get_nin_by_indx(unsigned int ch, unsigned int indx);
+bool vf_2_subvf(struct dsub_vf_s *vfms, struct vframe_s *vfm);
+bool vf_from_subvf(struct vframe_s *vfm, struct dsub_vf_s *vfms);
+void vfs_print(struct dsub_vf_s *pvfs, char *name);
 
 void dbg_regs_tab(struct seq_file *s, const struct regs_t *pregtab,
 		  const unsigned int *padd);//debug only
@@ -434,6 +441,8 @@ bool dim_dbg_cfg_disable_arb(void);
 void dbg_vfm_w(struct vframe_s *vfm, unsigned int dbgid);
 bool dbg_is_trig_eos(unsigned int ch);
 void pre_inp_mif_w(struct DI_MIF_S *di_mif, struct vframe_s *vf);
+unsigned int get_intr_mode(void);
+void pp_unreg_hw(void);
 void di_reg_setting_working(struct di_ch_s *pch,
 			    struct vframe_s *vfm);
 void dim_slt_init(void);
@@ -449,11 +458,11 @@ bool di_hf_set_buffer(struct di_buf_s *di_buf, struct div2_mm_s *mm);
 bool di_hf_hw_try_alloc(unsigned int who);
 void di_hf_hw_release(unsigned int who);
 bool di_hf_hw_is_busy(void);
-bool di_hf_buf_size_set(struct DI_SIM_MIF_s *hf_mif);
+bool di_hf_buf_size_set(struct DI_SIM_MIF_S *hf_mif);
 bool di_hf_t_try_alloc(struct di_ch_s *pch);
 void di_hf_t_release(struct di_ch_s *pch);
 void di_hf_reg(struct di_ch_s *pch);
-bool di_hf_size_check(struct DI_SIM_MIF_s *w_mif);
+bool di_hf_size_check(struct DI_SIM_MIF_S *w_mif);
 void di_hf_polling_active(struct di_ch_s *pch);
 
 void di_hf_lock_blend_buffer_pre(struct di_buf_s *di_buf);
@@ -472,6 +481,7 @@ void dim_mng_hf_prob(void);
 void dim_mng_hf_exit(void);
 
 void dim_print_hf(struct hf_info_t *phf);
+void mtask_wake_m(void);
 void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq);
 
 bool dim_dbg_is_force_later(void);
@@ -499,10 +509,10 @@ void config_di_mif(struct DI_MIF_S *di_mif, struct di_buf_s *di_buf,
 void dim_canvas_set2(struct vframe_s *vf, u32 *index);
 void config_canvas_idx(struct di_buf_s *di_buf, int nr_canvas_idx,
 			      int mtn_canvas_idx);
-void config_di_wr_mif(struct DI_SIM_MIF_s *di_nrwr_mif,
-		 struct DI_SIM_MIF_s *di_mtnwr_mif,
+void config_di_wr_mif(struct DI_SIM_MIF_S *di_nrwr_mif,
+		 struct DI_SIM_MIF_S *di_mtnwr_mif,
 		 struct di_buf_s *di_buf, unsigned int channel);
-void config_di_mtnwr_mif(struct DI_SIM_MIF_s *di_mtnwr_mif,
+void config_di_mtnwr_mif(struct DI_SIM_MIF_S *di_mtnwr_mif,
 				struct di_buf_s *di_buf);
 
 void di_pre_size_change(unsigned short width,
@@ -510,7 +520,7 @@ void di_pre_size_change(unsigned short width,
 			       unsigned short vf_type,
 			       unsigned int channel);
 void dim_nr_ds_hw_ctrl(bool enable);
-void config_di_cnt_mif(struct DI_SIM_MIF_s *di_cnt_mif,
+void config_di_cnt_mif(struct DI_SIM_MIF_S *di_cnt_mif,
 			      struct di_buf_s *di_buf);
 #ifdef S4D_OLD_SETTING_KEEP
 void config_canvas_idx_mtn(struct di_buf_s *di_buf,
@@ -547,5 +557,31 @@ void dim_dbg_buffer_ext(struct di_ch_s *pch,
 void dim_dbg_vf_cvs(struct di_ch_s *pch,
 			struct vframe_s *vfm,
 			unsigned int pos);
+bool dim_get_overturn(void);
+int dim_pre_vpp_link_display(struct vframe_s *vfm,
+			  struct pvpp_dis_para_in_s *in_para, void *out_para);
+enum DI_ERRORTYPE dpvpp_fill_output_buffer(int index, struct di_buffer *buffer);
+enum DI_ERRORTYPE dpvpp_empty_input_buffer(int index, struct di_buffer *buffer);
+int dpvpp_destroy_instance(int index);
+int dpvpp_create_instance(struct di_init_parm *parm);
+int dpvpp_check_vf(struct vframe_s *vfm);
+int dpvpp_check_di_act(void);
+int dpvpp_sw(bool on);
+unsigned int dpvpp_get_ins_id(void);
 
+void dpvpp_prob(void);
+bool dpvpp_is_allowed(void);
+bool dpvpp_is_insert(void);
+bool dpvpp_is_en_polling(void);
+bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm);
+int dpvpp_destroy_internal(int index);
+const struct vframe_operations_s *dpvpp_vf_ops(void);
+
+const struct dimn_pvpp_ops_s *dpvpp_ops(void);
+const struct dimn_pvpp_ops_api_s *dpvpp_ops_api(void);
+void cvs_link(struct dim_cvspara_s *pcvsi, char *name);
+unsigned int cvs_nub_get(unsigned int idx, char *name);
+bool dim_check_exit_process(void);
+bool dim_is_creat_p_vpp_link(void);
+void dvpp_dbg_trig_sw(unsigned int cmd);
 #endif	/*__DI_PRC_H__*/

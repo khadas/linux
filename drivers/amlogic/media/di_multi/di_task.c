@@ -96,7 +96,8 @@ static void task_self_trig(void)
 		task_send_ready(8);
 	}
 }
-bool task_get_cmd(unsigned int *cmd)
+
+static bool task_get_cmd(unsigned int *cmd)
 {
 	struct di_task *tsk = get_task();
 	unsigned int val;
@@ -120,9 +121,17 @@ void task_polling_cmd(void)
 	for (i = 0; i < MAX_KFIFO_L_CMD_NUB; i++) {
 		if (!task_get_cmd(&cmdbyte.cmd32))
 			break;
-		if (cmdbyte.b.id == ECMD_RL_KEEP) {
-			/*dim_post_keep_cmd_proc(cmdbyte.b.ch, cmdbyte.b.p2);*/
-			/*continue;*/
+		switch (cmdbyte.b.id) {
+		case ECMD_PV_LINK_REG:
+			if (get_datal()->dvs_prevpp.ops)
+				get_datal()->dvs_prevpp.ops->reg(NULL);
+			break;
+		case ECMD_PV_LINK_UNREG:
+			if (get_datal()->dvs_prevpp.ops)
+				get_datal()->dvs_prevpp.ops->unreg(NULL);
+			break;
+		default:
+			break;
 		}
 		//dip_chst_process_reg(cmdbyte.b.ch);
 	}
@@ -293,6 +302,11 @@ restart:
 		task_polling_cmd();
 		di_dbg_task_flg = 3;
 		dip_chst_process_ch();
+
+		if (dpvpp_ops()		&&
+		    dpvpp_is_allowed()	&&
+		    (!dpvpp_is_insert() || dpvpp_is_en_polling()))
+			dpvpp_ops()->parser(NULL);
 		di_dbg_task_flg = 4;
 		if (get_reg_flag_all())
 			dip_hw_process();

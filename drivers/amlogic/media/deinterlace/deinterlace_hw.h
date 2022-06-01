@@ -19,6 +19,9 @@
 #ifndef _DI_HW_H
 #define _DI_HW_H
 #include <linux/amlogic/media/amvecm/amvecm.h>
+#include <linux/amlogic/media/di/di.h>
+#include <linux/amlogic/media/di/di_interface.h>
+
 #include "di_pqa.h"
 #include "nr_drv.h"
 
@@ -277,5 +280,6 @@ enum eDI_DBG_MOD {
 };
 
 extern void ddbg_mod_save(unsigned int mod, unsigned int ch, unsigned int cnt);
+extern const struct reg_acc dio_pre_regset;
 
 #endif

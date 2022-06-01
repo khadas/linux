@@ -185,6 +185,55 @@ void dim_polic_cfg(unsigned int cmd, bool on)
 EXPORT_SYMBOL(dim_polic_cfg);
 
 /***************************************
+ * new interface *
+ **************************************/
+
+int pvpp_display(struct vframe_s *vfm,
+			    struct pvpp_dis_para_in_s *in_para,
+			    void *out_para)
+{
+	int ret = -1;
+
+	if (dil_api && dil_api->pre_vpp_link_display)
+		ret = dil_api->pre_vpp_link_display(vfm, in_para, out_para);
+	//PR_ERR("%s:not attach\n", __func__);
+	return ret;
+}
+EXPORT_SYMBOL(pvpp_display);
+
+int pvpp_check_vf(struct vframe_s *vfm)
+{
+	if (dil_api && dil_api->pre_vpp_link_check_vf)
+		return dil_api->pre_vpp_link_check_vf(vfm);
+	return -1;
+}
+EXPORT_SYMBOL(pvpp_check_vf);
+
+int pvpp_check_act(void)
+{
+	if (dil_api && dil_api->pre_vpp_link_check_act)
+		return dil_api->pre_vpp_link_check_act();
+	return -1;
+}
+EXPORT_SYMBOL(pvpp_check_act);
+
+int pvpp_sw(bool on)
+{
+	if (dil_api && dil_api->pre_vpp_link_sw)
+		return dil_api->pre_vpp_link_sw(on);
+	return -1;
+}
+EXPORT_SYMBOL(pvpp_sw);
+
+u32 di_api_get_plink_instance_id(void)
+{
+	if (dil_api && dil_api->pre_vpp_get_ins_id)
+		return dil_api->pre_vpp_get_ins_id();
+	return 0;
+}
+EXPORT_SYMBOL(di_api_get_plink_instance_id);
+
+/***************************************
  * reserved mem for di *
  **************************************/
 void dil_get_rev_mem(unsigned long *mstart, unsigned int *msize)
@@ -336,6 +385,7 @@ static int dil_remove(struct platform_device *pdev)
 
 	/*data*/
 	kfree(pdv);
+	pdv = NULL;
 
 	PR_INF("%s ok.\n", __func__);
 	return 0;

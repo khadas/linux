@@ -23,6 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
+#include <linux/amlogic/media/di/di.h>
 
 #include <linux/device.h>
 #include "../deinterlace/pulldown_drv.h"
@@ -97,7 +98,7 @@ struct nr_op_s {
 	void (*nr_drv_init)(struct device *dev);
 	void (*nr_drv_uninit)(struct device *dev);
 	void (*nr_process_in_irq)(void);
-	void (*nr_all_config)(unsigned short nCol, unsigned short nRow,
+	void (*nr_all_config)(unsigned short ncol, unsigned short nrow,
 			      unsigned short type);
 	bool (*set_nr_ctrl_reg_table)(unsigned int addr, unsigned int value);
 	void (*cue_int)(struct vframe_s *vf);
@@ -110,6 +111,31 @@ struct nr_op_s {
 };
 
 bool di_attach_ops_nr(const struct nr_op_s **ops);
+
+struct nr_opr_s {
+	void (*nr_hw_init)(const struct reg_acc *op);
+	void (*nr_gate_control)(bool gate,
+				const struct reg_acc *op);
+	void (*nr_drv_init)(struct device *dev);
+	void (*nr_drv_uninit)(struct device *dev);
+	void (*nr_process_in_irq)(const struct reg_acc *op);
+	void (*nr_all_config)(unsigned short ncol, unsigned short nrow,
+			      unsigned short type,
+				const struct reg_acc *op);
+	bool (*set_nr_ctrl_reg_table)(unsigned int addr,
+				      unsigned int value); //same
+	void (*cue_int)(struct vframe_s *vf,
+				const struct reg_acc *op);
+	void (*adaptive_cue_adjust)(unsigned int frame_diff,
+				    unsigned int field_diff,
+				const struct reg_acc *op);
+	void (*secam_cfr_adjust)(unsigned int sig_fmt,
+				 unsigned int frame_type,
+				const struct reg_acc *op);
+	int (*module_para)(struct seq_file *seq);
+};
+
+bool di_attach_opr_nr(const struct nr_opr_s **ops);
 
 /**************************
  * deinterlace_mtn
@@ -206,16 +232,6 @@ static inline bool is_ic_before(unsigned int crr_id, unsigned int ic_id)
 #define IS_IC(cid, cc)		is_ic_named(cid, DI_IC_ID_##cc)
 #define IS_IC_EF(cid, cc)	is_ic_after_eq(cid, DI_IC_ID_##cc)
 #define IS_IC_BF(cid, cc)	is_ic_before(cid, DI_IC_ID_##cc)
-
-struct reg_acc {
-	void (*wr)(unsigned int adr, unsigned int val);
-	unsigned int (*rd)(unsigned int adr);
-	unsigned int (*bwr)(unsigned int adr, unsigned int val,
-			    unsigned int start, unsigned int len);
-	unsigned int (*brd)(unsigned int adr, unsigned int start,
-			    unsigned int len);
-
-};
 
 /************************************************
  * afbc
@@ -526,6 +542,11 @@ struct afd_ops_s {
 	void (*sgn_mode_set)(unsigned char *sgn_mode, enum EAFBC_SNG_SET cmd);
 	unsigned char (*cnt_sgn_mode)(unsigned int sgn);
 	void (*cfg_mode_set)(unsigned int mode, union afbc_blk_s *en_cfg);
+	/* for pvpp_link */
+	void (*reg_sw_op)(bool on, const struct reg_acc *op);
+	void (*pvpp_sw_setting_op)(bool on, const struct reg_acc *op);
+	void (*pvpp_pre_check_dvfm)(void *ds_in, void *vfm);
+	u32 (*pvpp_en_pre_set)(void *ds_in, void *vfm, const struct reg_acc *op);
 };
 
 enum EDI_MIFSM {

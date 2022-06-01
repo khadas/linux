@@ -285,7 +285,7 @@ void dump_mif_state_seq(struct DI_MIF_S *mif,
 		   mif->reg_swap);
 }
 
-static void dump_simple_mif_state(struct DI_SIM_MIF_s *simp_mif)
+static void dump_simple_mif_state(struct DI_SIM_MIF_S *simp_mif)
 {
 	pr_info("<%u %u> <%u %u>.\n",
 		simp_mif->start_x, simp_mif->end_x,
@@ -296,7 +296,7 @@ static void dump_simple_mif_state(struct DI_SIM_MIF_s *simp_mif)
 
 /*2018-08-17 add debugfs*/
 /*same as dump_simple_mif_state*/
-void dump_simple_mif_state_seq(struct DI_SIM_MIF_s *simp_mif,
+void dump_simple_mif_state_seq(struct DI_SIM_MIF_S *simp_mif,
 			       struct seq_file *seq)
 {
 	seq_printf(seq, "\t<%u %u> <%u %u>.\n",

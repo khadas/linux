@@ -23,6 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/di/di.h>
+#include <linux/amlogic/media/di/di_interface.h>
 
 #include "../di_local/di_local.h"
 //#include "di_local.h"
@@ -43,6 +44,10 @@
  ************************************************/
 //#define CVS_UINT	(1)
 
+/************************************************
+ * pre-vpp link
+ ************************************************/
+#define VPP_LINK_USED_FUNC	(1)
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ			'i'
@@ -101,6 +106,8 @@
 #define VSYNC_RD_MPEG_REG(adr) aml_read_vcbus(adr)
 #endif
 #endif
+#define DIM_BYPASS_VF_TYPE	(VIDTYPE_MVC | VIDTYPE_VIU_444 | \
+				 VIDTYPE_PIC | VIDTYPE_RGB_444)
 
 #define IS_I_SRC(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM)
 #define IS_FIELD_I_SRC(vftype) ((vftype) & VIDTYPE_INTERLACE_BOTTOM && \
@@ -133,6 +140,7 @@
 
 #define VFMT_IS_TOP(vfm)	(((vfm) & VIDTYPE_TYPEMASK) ==	\
 				VIDTYPE_INTERLACE_TOP)
+#define VFMT_IS_EOS(vftype) ((vftype) & VIDTYPE_V4L_EOS)
 
 #define IS_NV21_12(vftype) ((vftype) & (VIDTYPE_VIU_NV12 | VIDTYPE_VIU_NV21))
 
@@ -143,8 +151,11 @@
 				 VIDTYPE_VIU_NV21	|	\
 				 VIDTYPE_MVC		|	\
 				 VIDTYPE_VIU_SINGLE_PLANE |	\
+				 VIDTYPE_VIU_FIELD	|	\
 				 VIDTYPE_PIC		|	\
 				 VIDTYPE_RGB_444	|	\
+				 VIDTYPE_SCATTER	|	\
+				 VIDTYPE_COMB_MODE	|	\
 				 VIDTYPE_COMPRESS)
 
 #define VFMT_COLOR_MSK		(VIDTYPE_VIU_NV12	|	\
@@ -173,7 +184,8 @@
 				 VFRAME_FLAG_DI_PW_N_EXT |	\
 				 VFRAME_FLAG_HF	|		\
 				 VFRAME_FLAG_DI_DW	|	\
-				 VFRAME_FLAG_VIDEO_LINEAR)
+				 VFRAME_FLAG_VIDEO_LINEAR	|	\
+				 VFRAME_FLAG_DI_BYPASS)
 
 enum process_fun_index_e {
 	PROCESS_FUN_NULL = 0,
@@ -198,13 +210,14 @@ enum EDI_SGN {
 	EDI_SGN_OTHER,
 };
 
+#ifdef HIS_CODE	// move to di_interlace.h
 struct di_win_s {
 	unsigned int x_size;
 	unsigned int y_size;
 	unsigned int x_st;
 	unsigned int y_st;
 };
-
+#endif
 #define pulldown_mode_t enum pulldown_mode_e
 
 struct dsub_bufv_s {
@@ -483,14 +496,14 @@ struct di_pre_stru_s {
 	struct di_buf_s *di_mem_buf_dup_p;
 	struct di_buf_s *di_chan2_buf_dup_p;
 /* pre output */
-	struct DI_SIM_MIF_s	di_nrwr_mif;
-	struct DI_SIM_MIF_s	di_mtnwr_mif;
+	struct DI_SIM_MIF_S	di_nrwr_mif;
+	struct DI_SIM_MIF_S	di_mtnwr_mif;
 	struct di_buf_s *di_wr_buf;
 	struct di_buf_s *di_post_wr_buf;
-	struct DI_SIM_MIF_s	di_contp2rd_mif;
-	struct DI_SIM_MIF_s	di_contprd_mif;
-	struct DI_SIM_MIF_s	di_contwr_mif;
-	struct DI_SIM_MIF_s	hf_mif;
+	struct DI_SIM_MIF_S	di_contp2rd_mif;
+	struct DI_SIM_MIF_S	di_contprd_mif;
+	struct DI_SIM_MIF_S	di_contwr_mif;
+	struct DI_SIM_MIF_S	hf_mif;
 	int		field_count_for_cont;
 /*
  * 0 (f0,null,f0)->nr0,
@@ -607,9 +620,9 @@ struct di_post_stru_s {
 	struct DI_MIF_S	di_buf0_mif;
 	struct DI_MIF_S	di_buf1_mif;
 	struct DI_MIF_S	di_buf2_mif;
-	struct DI_SIM_MIF_s di_diwr_mif;
-	struct DI_SIM_MIF_s hf_mif;
-	struct DI_SIM_MIF_s	di_mtnprd_mif;
+	struct DI_SIM_MIF_S di_diwr_mif;
+	struct DI_SIM_MIF_S hf_mif;
+	struct DI_SIM_MIF_S	di_mtnprd_mif;
 	struct DI_MC_MIF_s	di_mcvecrd_mif;
 	/*post doing buf and write buf to post ready*/
 	struct di_buf_s *cur_post_buf;
@@ -627,6 +640,7 @@ struct di_post_stru_s {
 	int		buf_type;
 	int de_post_process_done;
 	int post_de_busy;
+	bool process_doing;/* for pre-vpp-link sw */
 	int di_post_num;
 	unsigned int post_peek_underflow;
 	unsigned int di_post_process_cnt;
@@ -825,6 +839,7 @@ void dbg_h_w(unsigned int ch, unsigned int nub);
 void di_set_default(unsigned int ch);
 //bool dim_dbg_is_cnt(void);
 bool pre_dbg_is_run(void);
+irqreturn_t dpvpp_irq(int irq, void *dev_instance);
 
 /*---------------------*/
 const struct afd_ops_s *dim_afds(void);
@@ -856,6 +871,7 @@ store_kpi_frame_num(struct device *dev, struct device_attribute *attr,
 		    const char *buf, size_t len);
 
 ssize_t dim_read_log(char *buf);
+void di_load_pq_table(void);
 
 /*---------------------*/
 void test_display(void);
@@ -903,7 +919,7 @@ void dpre_vdoing(unsigned int ch);
 //#define TST_NEW_INS_INTERFACE		(1)
 
 //#define TMP_TEST	(1)
-
+#define VPP_LINK_NEED_CHECK	(1)
 //#define TMP_MASK_FOR_T7 (1)
 #define TMP_FOR_S4DW	(1)
 /* dimp_get(edi_mp_mcpre_en) */

@@ -6,6 +6,19 @@
 #ifndef __DI_INTERLACE_H__
 #define __DI_INTERLACE_H__
 
+/**********************************************************
+ * get di driver's version:
+ *	DI_DRV_OLD_DEINTERLACE	: old deinterlace
+ *	DI_DRV_MULTI		: di_multi
+ **********************************************************/
+#define DI_DRV_DEINTERLACE	(0)
+#define DI_DRV_MULTI		(1)
+
+unsigned int dil_get_diffver_flag(void);
+
+/**********************************************************
+ * di new interface
+ **********************************************************/
 enum di_work_mode {
 	WORK_MODE_PRE = 0,
 	WORK_MODE_POST,
@@ -13,6 +26,7 @@ enum di_work_mode {
 	/*copy for decoder 1/4 * 1/4 */
 	/*  */
 	WORK_MODE_S4_DCOPY,
+	WORK_MODE_PRE_VPP_LINK,
 	WORK_MODE_MAX
 };
 
@@ -207,5 +221,60 @@ int di_get_output_buffer_num(int index);
  * @return      number or fail type
  */
 int di_get_input_buffer_num(int index);
+
+/**************************************
+ * pre-vpp link define
+ **************************************/
+enum EPVPP_DISPLAY_MODE {
+	EPVPP_DISPLAY_MODE_BYPASS = 0,
+	EPVPP_DISPLAY_MODE_NR,
+};
+
+enum EPVPP_ERROR {
+	EPVPP_ERROR_DI_NOT_REG = 0x80000001,
+	EPVPP_ERROR_VPP_OFF,	/*ref to pvpp_sw*/
+	EPVPP_ERROR_DI_OFF,
+	EPVPP_ERROR_VFM_NOT_ACT,
+};
+
+enum EPVPP_STATS {
+	EPVPP_REG_BY_DI		= 0x00000001,
+	EPVPP_REG_BY_VPP	= 0x00000002,/*ref to pvpp_sw*/
+	EPVPP_VFM_ACT		= 0x00000010,
+};
+
+struct di_win_s {
+	unsigned int x_size;
+	unsigned int y_size;
+	unsigned int x_st;
+	unsigned int y_st;
+	unsigned int x_end;
+	unsigned int y_end;
+};
+
+struct pvpp_dis_para_in_s {
+	enum EPVPP_DISPLAY_MODE dmode;
+	bool unreg_bypass; //for unreg bypass: set 1; other, set 0;
+	struct di_win_s win;
+};
+
+int pvpp_display(struct vframe_s *vfm,
+			    struct pvpp_dis_para_in_s *in_para,
+			    void *out_para);
+
+int pvpp_check_vf(struct vframe_s *vfm);
+int pvpp_check_act(void);
+
+int pvpp_sw(bool on);
+
+/************************************************
+ * di_api_get_plink_instance_id
+ *	only for pre-vpp link
+ *	get current pre-vpp link instance_id
+ ************************************************/
+u32 di_api_get_plink_instance_id(void);
+
+void di_disable_prelink_notify(bool async);
+void di_prelink_state_changed_notify(void);
 
 #endif	/*__DI_INTERLACE_H__*/
