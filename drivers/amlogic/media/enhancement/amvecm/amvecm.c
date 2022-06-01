@@ -4496,6 +4496,32 @@ static ssize_t amvecm_write_reg_store(struct class *cls,
 	return count;
 }
 
+static unsigned int cal_crc32(unsigned int crc, const unsigned char *buf, int buf_len)
+{
+	unsigned int crcu32 = crc;
+	unsigned char b;
+	unsigned int s_crc32[16] = {
+		0, 0x1db71064, 0x3b6e20c8, 0x26d930ac,
+		0x76dc4190, 0x6b6b51f4, 0x4db26158, 0x5005713c,
+		0xedb88320, 0xf00f9344, 0xd6d6a3e8, 0xcb61b38c,
+		0x9b64c2b0, 0x86d3d2d4, 0xa00ae278, 0xbdbdf21c,
+	};
+
+	if (buf_len <= 0)
+		return 0;
+	if (!buf)
+		return 0;
+
+	crcu32 = ~crcu32;
+	while (buf_len--) {
+		b = *buf++;
+		crcu32 = (crcu32 >> 4) ^ s_crc32[(crcu32 & 0xf) ^ (b & 0xf)];
+		crcu32 = (crcu32 >> 4) ^ s_crc32[(crcu32 & 0xf) ^ (b >> 4)];
+	}
+
+	return ~crcu32;
+}
+
 static ssize_t amvecm_gamma_show(struct class *cls,
 				 struct class_attribute *attr,
 			char *buf)
@@ -4527,6 +4553,18 @@ static ssize_t amvecm_gamma_show(struct class *cls,
 		return len;
 	}
 
+	if (vecm_latch_flag2 & GAMMA_CRC_PASS) {
+		len += sprintf(buf + len, "gamma set crc pass\n");
+		vecm_latch_flag2 &= ~GAMMA_CRC_PASS;
+		return len;
+	}
+
+	if (vecm_latch_flag2 & GAMMA_CRC_FAIL) {
+		len += sprintf(buf + len, "gamma set crc fail\n");
+		vecm_latch_flag2 &= ~GAMMA_CRC_FAIL;
+		return len;
+	}
+
 	pr_info("Usage:");
 	pr_info("	echo sgr|sgg|sgb xxx...xx > /sys/class/amvecm/gamma\n");
 	pr_info("Notes:\n");
@@ -4550,7 +4588,7 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	int n = 0;
 	char *buf_orig, *ps, *token;
 	char *parm[4] = {NULL};
-	unsigned short *gamma_r, *gamma_g, *gamma_b;
+	unsigned short *gamma_r;
 	unsigned int gamma_count;
 	char gamma[4];
 	int i = 0;
@@ -4558,6 +4596,8 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	char delim1[3] = " ";
 	char delim2[2] = "\n";
 	char *stemp = NULL;
+	unsigned int len;
+	unsigned int crc_data;
 
 	stemp = kmalloc(600, GFP_KERNEL);
 	if (!stemp)
@@ -4566,19 +4606,6 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	gamma_r = kmalloc(256 * sizeof(unsigned short), GFP_KERNEL);
 	if (!gamma_r) {
 		kfree(stemp);
-		return -ENOMEM;
-	}
-	gamma_g = kmalloc(256 * sizeof(unsigned short), GFP_KERNEL);
-	if (!gamma_g) {
-		kfree(stemp);
-		kfree(gamma_r);
-		return -ENOMEM;
-	}
-	gamma_b = kmalloc(256 * sizeof(unsigned short), GFP_KERNEL);
-	if (!gamma_b) {
-		kfree(stemp);
-		kfree(gamma_r);
-		kfree(gamma_g);
 		return -ENOMEM;
 	}
 
@@ -4595,10 +4622,43 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 			continue;
 		parm[n++] = token;
 	}
-	if (!gamma_r || !gamma_g || !gamma_b || !stemp || n == 0)
+	if (!gamma_r || !stemp || n == 0)
 		goto free_buf;
 
-	if ((parm[0][0] == 's') && (parm[0][1] == 'g')) {
+	// parm[0] sgr/sgg/sgb/ggr/ggg/ggb
+	if ((parm[0][0] == 's') && (parm[0][1] == 'g') &&
+		((parm[0][2] == 'r') || (parm[0][2] == 'g') || (parm[0][2] == 'b'))) {
+		// parm[1] gamma data (256 * 3 Bytes --- 10bit, need 3 ASCII Bytes)
+		len = strlen(parm[1]);
+		if (len != 768) {
+			vecm_latch_flag2 |= GAMMA_CRC_FAIL;
+			pr_info("data length is not 768 Bytes.\n");
+			goto free_buf;
+		}
+
+		//gamma data should be hex character
+		for (i = 0; i < len; i++) {
+			if ((parm[1][i] - '0') < 10 || (parm[1][i] | 0x20) - 'a' < 6)
+				continue;
+
+			pr_info("error char\n");
+			goto free_buf;
+		}
+
+		//parm[2] crc value
+		if (parm[2]) {
+			crc_data = cal_crc32(0, parm[1], len);
+			if (kstrtoul(parm[2], 16, &val) < 0) {
+				pr_info("cmd crc error\n");
+				goto free_buf;
+			}
+			if (crc_data == val) {
+				vecm_latch_flag2 |= GAMMA_CRC_PASS;
+			} else {
+				vecm_latch_flag2 |= GAMMA_CRC_FAIL;
+				goto free_buf;
+			}
+		}
 		memset(gamma_r, 0, 256 * sizeof(unsigned short));
 		gamma_count = (strlen(parm[1]) + 2) / 3;
 		if (gamma_count > 256)
@@ -4709,15 +4769,11 @@ static ssize_t amvecm_gamma_store(struct class *cls,
 	kfree(buf_orig);
 	kfree(stemp);
 	kfree(gamma_r);
-	kfree(gamma_g);
-	kfree(gamma_b);
 	return count;
 free_buf:
 	kfree(buf_orig);
 	kfree(stemp);
 	kfree(gamma_r);
-	kfree(gamma_g);
-	kfree(gamma_b);
 	return -EINVAL;
 }
 

@@ -108,6 +108,8 @@ void amdv_set_toggle_flag(int flag);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
+#define GAMMA_CRC_FAIL              BIT(12)
+#define GAMMA_CRC_PASS              BIT(11)
 #define GAMMA_READ_B                BIT(10)
 #define GAMMA_READ_G                BIT(9)
 #define GAMMA_READ_R                BIT(8)
