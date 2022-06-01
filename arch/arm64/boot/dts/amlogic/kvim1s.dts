@@ -458,7 +458,7 @@
 		aml-audio-card,dai-link@1 {
 			format = "i2s";// "dsp_a";
 			mclk-fs = <256>;
-			//continuous-clock;
+			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
 			/* master mode */
@@ -470,7 +470,7 @@
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
 			 */
-			suffix-name = "alsaPORT-i2s2hdmi";
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -487,7 +487,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 
@@ -504,7 +504,6 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -514,7 +513,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&amlogic_codec /*&ad82584f_62*/>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -704,7 +703,7 @@
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
-		pinctrl-names = "tdm_pins";
+		//pinctrl-names = "tdm_pins";
 		//pinctrl-0 = <&tdm_a
 			//&tdm_d0_pins
 			//&tdm_d1_pins
