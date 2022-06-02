@@ -402,6 +402,7 @@ static void crg_shutdown(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
+	crg_core_exit(crg);
 	crg_host_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
