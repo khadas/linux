@@ -628,6 +628,24 @@ static int hdcp_rx_ver(void)
 	return 0;
 }
 
+/*like hdmitx hdcp_mode node*/
+static int get_hdcp_mode(void)
+{
+	int hdcp_mode_flag = 0;
+
+	if (am_hdmi_info.hdcp_mode) {
+		hdcp_mode_flag |= am_hdmi_info.hdcp_mode;
+		if (am_hdmi_info.hdcp_state == HDCP_STATE_SUCCESS)
+			hdcp_mode_flag |= 1 << 3;
+		else if (am_hdmi_info.hdcp_state == HDCP_STATE_FAIL)
+			hdcp_mode_flag |= 0 << 3;
+	} else {
+		return 0;
+	}
+
+	return hdcp_mode_flag;
+}
+
 static int am_hdmitx_connector_atomic_set_property
 	(struct drm_connector *connector,
 	struct drm_connector_state *state,
@@ -692,6 +710,9 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->hdcp_ver_prop) {
 		*val = hdcp_rx_ver();
+		return 0;
+	} else if (property == am_hdmi->hdcp_mode_property) {
+		*val = get_hdcp_mode();
 		return 0;
 	}
 	return -EINVAL;
@@ -1541,6 +1562,22 @@ static void meson_hdmitx_init_hdcp_ver_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_hdcp_mode_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"hdcp_mode", 0, 36);
+
+	if (prop) {
+		am_hdmi->hdcp_mode_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to hdcp_mode property\n");
+	}
+}
+
 /* Optional colorspace properties. */
 static const struct drm_prop_enum_list hdmi_color_space_enum_list[] = {
 	{ COLORSPACE_RGB444, "RGB" },
@@ -1774,6 +1811,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_hdr_cap_property(drm, am_hdmi);
 	meson_hdmitx_init_dv_cap_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_ver_property(drm, am_hdmi);
+	meson_hdmitx_init_hdcp_mode_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;
