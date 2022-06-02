@@ -119,8 +119,10 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		}
 		rx_irq_en(false);
 		rx_set_cur_hpd(0, 4);
-		if (hdmirx_repeat_support())
-			rx.hdcp.repeat = true;
+		if (!rx.open_fg)
+			port_hpd_rst_flag = 7;
+		//if (hdmirx_repeat_support())
+		rx.hdcp.repeat = true;
 		fsm_restart();
 		ret = NOTIFY_OK;
 		break;
@@ -128,9 +130,13 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		if (log_level & EDID_LOG)
 			rx_pr("%s, HDMITX_UNPLUG, recover primary EDID\n",
 			      __func__);
-		rx_update_tx_edid_with_audio_block(NULL, NULL);
-		hdmi_rx_top_edid_update();
 		rx.hdcp.repeat = false;
+		if (rpt_only_mode == 1)
+			rx_force_hpd_rxsense_cfg(0);
+		else
+			rx_update_tx_edid_with_audio_block(NULL, NULL);
+		hdmi_rx_top_edid_update();
+		hdcp_init_t7();
 		//rx_irq_en(false);
 		//rx_set_cur_hpd(0, 4);
 		//fsm_restart();

@@ -2127,7 +2127,7 @@ void hdcp_init_t7(void)
 	hdmirx_wr_cor(PWD_SW_CLMP_AUE_OIF_PWD_IVCRX, 0x0);
 
 	data8 = 0;
-	data8 |= rx.hdcp.repeat << 1;
+	data8 |= 0 << 1;
 	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, data8);
 	//depth
 	hdmirx_wr_cor(CP2PAX_RPT_DEPTH_HDCP2X_IVCRX, 0);
@@ -2159,7 +2159,7 @@ void hdcp_init_t7(void)
 	data8 = 0;
 	data8 |= (0 << 4);//bit[4] reg_fast I2C transfers speed.
 	data8 |= (0 << 5);//bit[5] reg_fifo_rdy
-	data8 |= (rx.hdcp.repeat << 6);//bit[6] reg_repeater	 Rx Repeater
+	data8 |= (0 << 6);//bit[6] reg_repeater	 Rx Repeater
 	data8 |= (1 << 7);//bit[7] reg_hdmi_capable  HDMI capable
 	hdmirx_wr_cor(RX_BCAPS_SET_HDCP1X_IVCRX, data8);//register address: 0x169e (0x80)
 

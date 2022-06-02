@@ -771,6 +771,7 @@ extern bool hdmi_cec_en;
 extern int hdmi_yuv444_enable;
 extern int vdin_drop_frame_cnt;
 extern int aud_compose_type;
+extern int rpt_only_mode;
 extern u32 vrr_func_en;
 /* debug */
 extern bool hdcp_enable;

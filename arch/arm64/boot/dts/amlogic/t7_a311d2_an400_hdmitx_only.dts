@@ -509,6 +509,7 @@
 		arc_port = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
+		rpt_only_mode = <0x0>;
 		/* MAP_ADDR_MODULE_CBUS */
 		/* MAP_ADDR_MODULE_HIU */
 		/* MAP_ADDR_MODULE_HDMIRX_CAPB3 */

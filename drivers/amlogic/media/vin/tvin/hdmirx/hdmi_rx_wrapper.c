@@ -885,13 +885,13 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 			rx_pr("rx_intr_1-%x\n", rx_intr_1);
 		if (rx_get_bits(rx_intr_1, _BIT(1))) {
 			rx.hdcp.hdcp_version = HDCP_VER_14;
-			if (rx.hdcp.repeat)
+			if (rx.hdcp.repeat && hdmirx_repeat_support())
 				rx.hdcp.rpt_reauth_event = HDCP_VER_14 | HDCP_NEED_REQ_DS_AUTH;
 			rx.hdcp.hdcp_source = true;
 			rx_pr("14\n");
 		}
 		if (rx_get_bits(rx_intr_1, _BIT(0))) {
-			if (rx.hdcp.repeat)
+			if (rx.hdcp.repeat && hdmirx_repeat_support())
 				rx_pr("auth done\n");
 		}
 	}
@@ -915,7 +915,7 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 			if (rx.hdcp.hdcp_version != HDCP_VER_22)
 				skip_frame(skip_frame_cnt);
 			rx.hdcp.hdcp_version = HDCP_VER_22;
-			if (rx.hdcp.repeat)
+			if (rx.hdcp.repeat && hdmirx_repeat_support())
 				rx.hdcp.rpt_reauth_event = HDCP_VER_22 | HDCP_NEED_REQ_DS_AUTH;
 			rx.hdcp.hdcp_source = true;
 			rx_pr("22\n");
@@ -3660,7 +3660,7 @@ static void dump_hdcp_status(void)
 	      rx.cur.hdcp22_state);
 	if (rx.chip_id != CHIP_ID_T7)
 		return;
-	rx_pr("rpt = %d", rx.hdcp.repeat);
+	rx_pr("rpt = %d", hdmirx_repeat_support());
 	rx_pr("up is hdcp%dx", rx.hdcp.hdcp_version);
 	rx_pr("ds is hdcp%dx", rx.hdcp.ds_hdcp_ver);
 	rx_pr("bcaps:%x\n",
@@ -4019,7 +4019,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 	if (rx.open_fg) {
 		rx_nosig_monitor();
 		rx_cable_clk_monitor();
-		//if (!hdmirx_repeat_support()) {
+		if (!(rpt_only_mode && !rx.hdcp.repeat)) {
 			if (!sm_pause) {
 				rx_clkrate_monitor();
 				rx_afifo_monitor();
@@ -4036,7 +4036,7 @@ void hdmirx_timer_handler(struct timer_list *t)
 				rx_monitor_error_counter();
 			rx_get_best_eq_setting();
 			#endif
-		//}
+		}
 	} else {
 		rx_hpd_monitor();
 	}

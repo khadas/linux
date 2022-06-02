@@ -162,6 +162,11 @@ static bool early_suspend_flag;
 
 struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 
+//RPT_RX's behavior when RPT_TX is disconnected:
+//1.  HPD pulled down.
+//2.  works on receiver mode
+int rpt_only_mode;
+
 /* audio block compose method for hdmitx/rx:
  * 1: for soundbar:
  * EDID = downstream TV's video + soundbar's audio capability.
@@ -2969,6 +2974,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret) {
 		aud_compose_type = 1;
 		rx_pr("not find aud_compose_type, soundbar by default\n");
+	}
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "rpt_only_mode",
+				   &rpt_only_mode);
+	if (ret) {
+		rpt_only_mode = 0;
+		rx_pr("not find rpt_only_mode, soundbar by default\n");
 	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
