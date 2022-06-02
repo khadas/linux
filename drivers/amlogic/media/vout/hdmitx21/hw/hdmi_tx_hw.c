@@ -32,6 +32,7 @@
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_ddc.h>
 #include <linux/arm-smccc.h>
 #include "common.h"
+#include "../hdmi_tx_ext.h"
 
 #define MESON_CPU_ID_T7 0
 static void hdmi_phy_suspend(void);
@@ -1138,7 +1139,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		//pr_info("Error:no audio clk setting for sample rate: %d\n",
 			//audio_param->sample_rate);
 	hdmitx21_set_audioclk(hdmitx_aud_clk_div);
-	audio_mute_op(hdev->tx_aud_cfg);
+	//audio_mute_op(hdev->tx_aud_cfg);
 	//pr_info("audio_param->type = %d\n", audio_param->type);
 	pr_info("audio_param->channel_num = %d\n", audio_param->channel_num);
 	/* I2S: hbr and lpcm 2~8ch
@@ -1252,6 +1253,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	hdmitx21_wr_reg(AUD_EN_IVCTX, 0x03);           //AUD_EN
 
 	set_aud_info_pkt(hdev, audio_param);
+	audio_mute_op(hdev->tx_aud_cfg);
 	return 1;
 }
 
@@ -1539,6 +1541,10 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		ret = kstrtoul(tmpbuf + 14, 10, &value);
 		en_fake_rcv_id = value;
 		pr_info("set en_fake_rcv_id :%lu\n", en_fake_rcv_id);
+	} else if (strncmp(tmpbuf, "aud_mute", 8) == 0) {
+		ret = kstrtoul(tmpbuf + 8, 10, &value);
+		hdmitx21_ext_set_audio_output(value);
+		pr_info("aud_mute :%lu\n", value);
 	}
 }
 

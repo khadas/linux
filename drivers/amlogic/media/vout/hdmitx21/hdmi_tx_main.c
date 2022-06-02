@@ -309,7 +309,8 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	/*force to get EDID after resume for Amplifier Power case*/
 	if (hdev->hpd_state)
 		hdmitx_get_edid(hdev);
-	hdmitx_notify_hpd(hdev->hpd_state,
+	if (hdev->tv_usage == 0)
+		hdmitx_notify_hpd(hdev->hpd_state,
 			  hdev->edid_parsing ?
 			  hdev->edid_ptr : NULL);
 
@@ -2199,6 +2200,7 @@ static ssize_t config_store(struct device *dev,
 void hdmitx21_ext_set_audio_output(int enable)
 {
 	hdmitx21_audio_mute_op(enable);
+	pr_info("%s enable:%d\n", __func__, enable);
 }
 
 int hdmitx21_ext_get_audio_status(void)
@@ -4313,9 +4315,10 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	if (info && info->mode == VMODE_HDMI)
 		hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
 	hdev->hpd_state = 1;
-	hdmitx_notify_hpd(hdev->hpd_state,
-			  hdev->edid_parsing ?
-			  hdev->edid_ptr : NULL);
+	if (hdev->tv_usage == 0)
+		hdmitx_notify_hpd(hdev->hpd_state,
+				  hdev->edid_parsing ?
+				  hdev->edid_ptr : NULL);
 
 	/*notify to drm hdmi*/
 	if (hdmitx21_device.drm_hpd_cb.callback)
@@ -4389,13 +4392,14 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx21_disable_hdcp(hdev);
 	hdmitx21_rst_stream_type(hdev->am_hdcp);
 	clear_rx_vinfo(hdev);
-	rx_edid_physical_addr(0, 0, 0, 0);
 	hdmitx21_edid_clear(hdev);
 	hdmi_physical_size_update(hdev);
 	hdmitx21_edid_ram_buffer_clear(hdev);
 	hdev->hpd_state = 0;
-	hdmitx_notify_hpd(hdev->hpd_state, NULL);
-
+	if (hdev->tv_usage == 0) {
+		rx_edid_physical_addr(0, 0, 0, 0);
+		hdmitx_notify_hpd(hdev->hpd_state, NULL);
+	}
 	/*notify to drm hdmi*/
 	if (hdmitx21_device.drm_hpd_cb.callback)
 		hdmitx21_device.drm_hpd_cb.callback(hdmitx21_device.drm_hpd_cb.data);
@@ -4579,12 +4583,15 @@ int hdmitx21_event_notifier_regist(struct notifier_block *nb)
 	ret = blocking_notifier_chain_register(&hdmitx21_event_notify_list, nb);
 	/* update status when register */
 	if (!ret && nb->notifier_call) {
-		hdmitx_notify_hpd(hdev->hpd_state,
+		if (hdev->tv_usage == 0)
+			hdmitx_notify_hpd(hdev->hpd_state,
 				  hdev->edid_parsing ?
 				  hdev->edid_ptr : NULL);
-		if (hdev->physical_addr != 0xffff)
-			hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID,
+		if (hdev->physical_addr != 0xffff) {
+			if (hdev->tv_usage == 0)
+				hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID,
 					    &hdev->physical_addr);
+		}
 	}
 
 	return ret;
@@ -4742,6 +4749,16 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		if (!ret)
 			hdev->repeater_tx = val;
 		else
+			hdev->repeater_tx = 0;
+		/* Get repeater_tx information */
+		ret = of_property_read_u32(pdev->dev.of_node,
+					   "tv_usage", &val);
+		if (!ret)
+			hdev->tv_usage = val;
+		else
+			hdev->tv_usage = 0;
+		/* if for tv usage, then should not support hdcp repeater */
+		if (hdev->tv_usage == 1)
 			hdev->repeater_tx = 0;
 
 		ret = of_property_read_u32(pdev->dev.of_node,
@@ -5082,7 +5099,8 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 		hdev->already_used = 1;
 		hdmitx_get_edid(hdev);
 	}
-	hdmitx_notify_hpd(hdev->hpd_state,
+	if (hdev->tv_usage == 0)
+		hdmitx_notify_hpd(hdev->hpd_state,
 			  hdev->edid_parsing ?
 			  hdev->edid_ptr : NULL);
 pr_info("%s[%d]\n", __func__, __LINE__);

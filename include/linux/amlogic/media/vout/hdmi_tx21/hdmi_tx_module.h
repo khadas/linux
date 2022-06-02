@@ -450,6 +450,7 @@ struct hdmitx_dev {
 
 	struct miscdevice hdcp_comm_device;
 	u8 def_stream_type;
+	u8 tv_usage;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)

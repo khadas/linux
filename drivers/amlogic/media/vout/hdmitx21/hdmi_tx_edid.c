@@ -384,7 +384,8 @@ static void set_vsdb_phy_addr(struct hdmitx_dev *hdev,
 		   ((vsdb->c & 0xf) <<  4) |
 		   ((vsdb->d & 0xf) << 0);
 	hdev->physical_addr = phy_addr;
-	hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID, &phy_addr);
+	if (hdev->tv_usage == 0)
+		hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID, &phy_addr);
 }
 
 static void set_vsdb_dc_cap(struct rx_cap *prxcap)
@@ -437,14 +438,15 @@ static int edid_parse_check_hdmi_vsdb(struct hdmitx_dev *hdev,
 
 	set_vsdb_phy_addr(hdev, &info->vsdb_phy_addr, &buff[blockaddr]);
 	if ((check_fbc_special(&hdev->EDID_buf[0])) ||
-	    (check_fbc_special(&hdev->EDID_buf1[0])))
+	    (check_fbc_special(&hdev->EDID_buf1[0]))) {
 		rx_edid_physical_addr(0, 0, 0, 0);
-	else
-		rx_edid_physical_addr(info->vsdb_phy_addr.a,
+	} else {
+		if (hdev->tv_usage == 0)
+			rx_edid_physical_addr(info->vsdb_phy_addr.a,
 				      info->vsdb_phy_addr.b,
 				      info->vsdb_phy_addr.c,
 				      info->vsdb_phy_addr.d);
-
+	}
 	if (temp_addr >= VSpecificBoundary) {
 		ret = -1;
 	} else {
