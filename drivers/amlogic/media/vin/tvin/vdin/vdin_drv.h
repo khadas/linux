@@ -90,7 +90,8 @@
 /* 20220525: source-led switch to sink-led problem */
 /* 20220602: 100 and 120 switch send event */
 /* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
-#define VDIN_VER "20220608:t7 screenshot picture abnormal when width greater than vdin1_line_buff_size"
+/* 20220609: add get low_latency and dv_vision */
+#define VDIN_VER "20220609:add get low_latency and dv_vision"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

@@ -399,6 +399,14 @@ struct tvin_info_s {
 	 */
 	unsigned int signal_type;
 	enum tvin_aspect_ratio_e aspect_ratio;
+	/*
+	 * 0:no dv 1:visf 2:emp
+	 */
+	u8 dolby_vision;
+	/*
+	 * 0:sink-led 1:source-led
+	 */
+	u8 low_latency;
 };
 
 struct tvin_frontend_info_s {

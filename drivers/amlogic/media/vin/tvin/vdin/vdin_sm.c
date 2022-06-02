@@ -605,6 +605,12 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 		signal_type &= ~(1 << 31);
 	/* check vrr end */
 
+	devp->parm.info.dolby_vision = devp->prop.dolby_vision;
+	if (devp->prop.dolby_vision)
+		devp->parm.info.low_latency = devp->prop.low_latency;
+	else
+		devp->parm.info.low_latency = 0;
+
 	devp->parm.info.signal_type = signal_type;
 
 	return signal_chg;

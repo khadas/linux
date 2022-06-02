@@ -512,7 +512,7 @@ struct tvin_sig_property_s {
 	struct tvin_hdr_info_s hdr_info;
 	struct tvin_dv_vsif_s dv_vsif;/*dolby vsi info*/
 	struct tvin_dv_vsif_raw_s dv_vsif_raw;
-	u8 dolby_vision;/*is signal dolby version*/
+	u8 dolby_vision;/*is signal dolby version 1:vsif 2:emp */
 	bool low_latency;/*is low latency dolby mode*/
 	u8 fps;
 	unsigned int skip_vf_num;/*skip pre vframe num*/
