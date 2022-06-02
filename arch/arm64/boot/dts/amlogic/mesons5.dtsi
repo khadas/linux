@@ -372,7 +372,7 @@
 		compatible = "amlogic,meson-vrtc";
 		reg = <0x0 0xfe010288 0x0 0x4>;
 		status = "disabled";
-		mboxes = <&mhu_fifo P1_REE2AO>;
+		mboxes = <&mhu_fifo S5_REE2AO>;
 	};
 
 	pwrdm: power-domains {
@@ -2743,28 +2743,12 @@
 		mbox-irqmax = <64>;
 		mbox-irqctlr = <2>;
 		mbox-irqclr = <1>;
-		mbox-nums = <10>;
-		mbox-names = "dsp_dev",
-			     "ap_to_dspa",
-			     "dspb_dev",
-			     "ap_to_dspb",
-			     "ao_to_ap",
-			     "ap_to_ao",
-			     "ree2bl40a",
-			     "ree2bl40a_send",
-			     "ree2bl40b",
-			     "ree2bl40b_send";
-		mboxes = <&mhu_fifo P1_DSPA2REE>,
-			 <&mhu_fifo P1_REE2DSPA>,
-			 <&mhu_fifo P1_DSPB2REE>,
-			 <&mhu_fifo P1_REE2DSPB>,
-			 <&mhu_fifo P1_AO2REE>,
-			 <&mhu_fifo P1_REE2AO>,
-			 <&mhu_fifo P1_BL40A2REE>,
-			 <&mhu_fifo P1_REE2BL40A>,
-			 <&mhu_fifo P1_BL40B2REE>,
-			 <&mhu_fifo P1_REE2BL40B>;
-		mbox-id = <0x0 0x1 0x6 0x7 0x2 0x3 0xe 0xf 0x12 0x13>;
+		mbox-nums = <2>;
+		mbox-names = "ao_to_ap",
+			     "ap_to_ao";
+		mboxes = <&mhu_fifo S5_AO2REE>,
+			 <&mhu_fifo S5_REE2AO>;
+		mbox-id = <0x2 0x3>;
 		mbox-wr-rd = <1>;
 		#mbox-cells = <1>;
 	};
@@ -2772,22 +2756,10 @@
 	mbox_user: mbox-user@0 {
 		status = "okay";
 		compatible = "amlogic, meson-mbox-user";
-		mbox-nums = <5>;
-		mbox-names = "ree2aocpu",
-			     "tree2dspa",
-			     "tree2dspb",
-			     "tree2mfa",
-			     "tree2mfb";
-		mboxes = <&mhu_fifo P1_REE2AO>,
-			 <&mhu_fifo P1_REE2DSPA>,
-			 <&mhu_fifo P1_REE2DSPB>,
-			 <&mhu_fifo P1_REE2BL40A>,
-			 <&mhu_fifo P1_REE2BL40B>;
-		mbox-dests = <MAILBOX_AOCPU>,
-			     <MAILBOX_DSP>,
-			     <MAILBOX_DSP>,
-			     <MAILBOX_MF>,
-			     <MAILBOX_MF>;
+		mbox-nums = <1>;
+		mbox-names = "ree2aocpu";
+		mboxes = <&mhu_fifo S5_REE2AO>;
+		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
 	aml_hwlock: aml_hwlock@0 {
