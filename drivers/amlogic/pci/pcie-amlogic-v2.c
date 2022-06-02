@@ -1116,11 +1116,42 @@ static int __exit amlogic_pcie_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_phywrite_v2);
 	device_remove_file(&pdev->dev, &dev_attr_phyread_v2);
 
+	if (amlogic_pcie->pcie_num == 1) {
+		if (!amlogic_pcie->phy->phy_type)
+			writel(0x1d, pcie_aml_regs_v2.pcie_phy_r[0]);
+		amlogic_pcie->phy->power_state = 0;
+	}
+
+	clk_disable_unprepare(amlogic_pcie->dev_clk);
 	clk_disable_unprepare(amlogic_pcie->clk);
-	clk_disable_unprepare(amlogic_pcie->bus_clk);
 	clk_disable_unprepare(amlogic_pcie->phy_clk);
+	clk_disable_unprepare(amlogic_pcie->bus_clk);
 
 	return 0;
+}
+
+static void amlogic_pcie_shutdown(struct platform_device *pdev)
+{
+	struct amlogic_pcie *amlogic_pcie = platform_get_drvdata(pdev);
+
+	if (amlogic_pcie->phy->power_state == 0) {
+		dev_info(&pdev->dev, "PCIE phy power off, no shutdown\n");
+		return;
+	}
+
+	device_remove_file(&pdev->dev, &dev_attr_phywrite_v2);
+	device_remove_file(&pdev->dev, &dev_attr_phyread_v2);
+
+	if (amlogic_pcie->pcie_num == 1) {
+		if (!amlogic_pcie->phy->phy_type)
+			writel(0x1d, pcie_aml_regs_v2.pcie_phy_r[0]);
+		amlogic_pcie->phy->power_state = 0;
+	}
+
+	clk_disable_unprepare(amlogic_pcie->dev_clk);
+	clk_disable_unprepare(amlogic_pcie->clk);
+	clk_disable_unprepare(amlogic_pcie->phy_clk);
+	clk_disable_unprepare(amlogic_pcie->bus_clk);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1304,6 +1335,7 @@ static const struct of_device_id amlogic_pcie_of_match[] = {
 
 static struct platform_driver amlogic_pcie_driver = {
 	.remove		= __exit_p(amlogic_pcie_remove),
+	.shutdown = amlogic_pcie_shutdown,
 	.driver = {
 		.name	= "amlogic-pcie",
 		.of_match_table = amlogic_pcie_of_match,
