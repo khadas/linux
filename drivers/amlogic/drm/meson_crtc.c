@@ -604,16 +604,22 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			#endif
 		}
 	}
-	vpu_pipeline_prepare_update(amcrtc->pipeline,
-		crtc->mode.vdisplay, crtc->mode.vrefresh, crtc_index);
-	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	//vpu_pipeline_prepare_update(amcrtc->pipeline,
+	//	crtc->mode.vdisplay, crtc->mode.vrefresh, crtc_index);
 	if (!meson_crtc_state->uboot_mode_init) {
 		vpu_osd_pipeline_update(sub_pipe, old_atomic_state);
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
 		vpu_pipeline_finish_update(pipeline, crtc_index);
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 	}
 
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (crtc->state->event) {
-		amcrtc->event = crtc->state->event;
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, crtc->state->event);
+		else
+			amcrtc->event = crtc->state->event;
+
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
