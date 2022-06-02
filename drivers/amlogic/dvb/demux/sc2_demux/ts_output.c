@@ -998,9 +998,12 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 
 	while (len) {
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
-		if (ret != 0)
+		if (ret != 0) {
 			len -= ret;
-
+		} else {
+			dprint("%s ret:%d\n", __func__, len);
+			return -1;
+		}
 		if (pout->running == TASK_DEAD || !pout->enable)
 			return -1;
 	}
@@ -1520,9 +1523,12 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 
 	while (len) {
 		ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
-		if (ret != 0)
+		if (ret != 0) {
 			len -= ret;
-
+		} else {
+			dprint("%s ret:%d\n", __func__, len);
+			return -1;
+		}
 		if (pout->running == TASK_DEAD || !pout->enable)
 			return -1;
 	}
