@@ -109,10 +109,19 @@ static struct amhdmitx_data_s amhdmitx_data_t7 = {
 	.chip_name = "t7",
 };
 
+static struct amhdmitx_data_s amhdmitx_data_s5 = {
+	.chip_type = MESON_CPU_ID_S5,
+	.chip_name = "s5",
+};
+
 static const struct of_device_id meson_amhdmitx_of_match[] = {
 	{
 		.compatible	 = "amlogic, amhdmitx-t7",
 		.data = &amhdmitx_data_t7,
+	},
+	{
+		.compatible	 = "amlogic, amhdmitx-s5",
+		.data = &amhdmitx_data_s5,
 	},
 	{},
 };
@@ -4935,7 +4944,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	 * NOTE: TV maybe changed(such as DV <-> non-DV)
 	 */
 	if (!hdev->systemcontrol_on &&
-		hdmitx21_uboot_already_display()) {
+		hdmitx21_uboot_already_display(hdev)) {
 		plugout_mute_flg = true;
 		/* edidinfo_detach_to_vinfo(hdev); */
 		clear_rx_vinfo(hdev);
@@ -5322,6 +5331,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {
 		int dongle_mode = 0;
+		int pxp_mode = 0;
 
 		memset(&hdev->config_data, 0,
 		       sizeof(struct hdmi_config_platform_data));
@@ -5337,6 +5347,13 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		pr_info("chip_type:%d chip_name:%s\n",
 			hdev->data->chip_type,
 			hdev->data->chip_name);
+
+		/* Get pxp_mode information */
+		ret = of_property_read_u32(pdev->dev.of_node, "pxp_mode",
+					   &pxp_mode);
+		hdev->pxp_mode = !!pxp_mode;
+		if (!ret)
+			pr_info("hdev->pxp_mode: %d\n", hdev->pxp_mode);
 
 		/* Get dongle_mode information */
 		ret = of_property_read_u32(pdev->dev.of_node, "dongle_mode",
@@ -5510,7 +5527,7 @@ static void amhdmitx_clktree_probe(struct device *hdmitx_dev)
 
 	venci_1_gate = devm_clk_get(hdmitx_dev, "venci_1_gate");
 	if (IS_ERR(venci_1_gate))
-		pr_warn("venci_0_gate failed to probe\n");
+		pr_warn("venci_1_gate failed to probe\n");
 	else
 		hdev->hdmitx_clk_tree.venci_1_gate = venci_1_gate;
 }
@@ -5555,8 +5572,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		/* return ret; */
 
 	amhdmitx_clktree_probe(&pdev->dev);
-
-	amhdmitx21_vpu_dev_regiter(hdev);
+	if (0) /* TODO */
+		amhdmitx21_vpu_dev_regiter(hdev);
 
 	r = alloc_chrdev_region(&hdev->hdmitx_id, 0, HDMI_TX_COUNT,
 				DEVICE_NAME);
@@ -5650,7 +5667,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	vout3_register_server(&hdmitx_vout3_server);
 #endif
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
-	if (hdmitx21_uboot_audio_en()) {
+	if (!hdev->pxp_mode && hdmitx21_uboot_audio_en()) {
 		struct hdmitx_audpara *audpara = &hdev->cur_audio_param;
 
 		audpara->sample_rate = FS_48K;
@@ -5658,9 +5675,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 		audpara->sample_size = SS_16BITS;
 		audpara->channel_num = 2 - 1;
 	}
-	aout_register_client(&hdmitx_notifier_nb_a);
+	if (!hdev->pxp_mode)
+		aout_register_client(&hdmitx_notifier_nb_a);
 #endif
-
 	/* update fmt_attr */
 	hdmitx_init_fmt_attr(hdev);
 

@@ -33,6 +33,7 @@
 #include <linux/arm-smccc.h>
 #include "common.h"
 #include "../hdmi_tx_ext.h"
+#include <linux/amlogic/clk_measure.h>
 
 #define MESON_CPU_ID_T7 0
 static void hdmi_phy_suspend(void);
@@ -253,8 +254,11 @@ void hdmitx21_sys_reset(void)
 	}
 }
 
-bool hdmitx21_uboot_already_display(void)
+bool hdmitx21_uboot_already_display(struct hdmitx_dev *hdev)
 {
+	if (hdev->pxp_mode)
+		return 0;
+
 	if (hd21_read_reg(ANACTRL_HDMIPHY_CTRL0))
 		return 1;
 	return 0;
@@ -328,7 +332,14 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 {
 	u32 data32;
 
-	if (hdmitx21_uboot_already_display()) {
+	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
+	hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 20, 1);
+	hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 12, 1);
+	hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 4, 1);
+	hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 7, 8, 3);
+	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 24, 1);
+
+	if (hdmitx21_uboot_already_display(hdev)) {
 		int ret;
 		u8 body[32] = {0};
 		union hdmi_infoframe *infoframe = &hdev->infoframes.avi;
@@ -440,7 +451,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	data32 = 0;
 	data32 |= (1 << 24); // [26:24] infilter_ddc_intern_clk_divide
 	data32 |= (0 << 16); // [23:16] infilter_ddc_sample_clk_divide
-	hdmitx21_wr_reg(HDMITX_TOP_INFILTER, data32);
+	hdmitx21_wr_reg(hdev->data->chip_type == MESON_CPU_ID_T7 ?
+		HDMITX_T7_TOP_INFILTER : HDMITX_S5_TOP_INFILTER, data32);
 	hdmitx21_set_reg_bits(AON_CYP_CTL_IVCTX, 2, 0, 2);
 }
 
@@ -887,6 +899,8 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 		 (((para->cs == HDMI_COLORSPACE_YUV420) ? 1 : 0) << 20) |
 		 (0 << 24);
 	hd21_write_reg(VPU_HDMI_SETTING, data32);
+	if (hdev->para->cs == HDMI_COLORSPACE_RGB)
+		hd21_set_reg_bits(VPU_HDMI_SETTING, 4, 16, 3);
 	// [    1] src_sel_encp: Enable ENCI or ENCP output to HDMI
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 1, (hdev->enc_idx == 0) ? 0 : 1, 1);
 
@@ -1397,6 +1411,49 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdev->cur_VIC = value;
 		hdmitx21_set_clk(hdev);
 		return;
+	} else if (strncmp(tmpbuf, "clkmsr", 6) == 0) {
+		struct _hdmi_clkmsr {
+			int idx;
+			char *name;
+		};
+		const static struct _hdmi_clkmsr hdmiclkmsr[] = {
+			{4, "fpll_tmds_clk"},
+			{8, "fpll_pixel_clk"},
+			{16, "vid_pll0_clk"},
+			{63, "cts_vpu_clk"},
+			{64, "cts_vpu_clkb"},
+			{66, "cts_vapbclk"},
+			{68, "cts_hdmi_tx_pixel_clk"},
+			{69, "cts_hdmi_tx_pnx_clk"},
+			{70, "cts_hdmi_tx_fe_clk"},
+			{71, "cts_hdmitx_aud_clk"},
+			{72, "cts_hdmitx_200m_clk"},
+			{73, "cts_hdmitx_prif_clk"},
+			{74, "cts_hdmitx_sys_clk"},
+			{75, "audio_tohdmitx_mclk"},
+			{76, "audio_tohdmi_spdif_clk"},
+			{79, "htx_aes_clk"},
+			{82, "audio_tohdmitx_bclk"},
+			{89, "htx_tmds20_clk"},
+			{90, "htx_ch_clk"},
+			{91, "htx_phy_clk1618"},
+			{92, "cts_htx_tmds_clk"},
+			{93, "hdmi_clk_todig"},
+			{94, "hdmi_clk_out2"},
+			{95, "htx_spll_ref_clk_in"},
+		};
+		if (tmpbuf[6] == 'p') {
+			for (i = 0; i < ARRAY_SIZE(hdmiclkmsr); i++)
+				pr_info("[%d] %d %s\n", hdmiclkmsr[i].idx,
+					meson_clk_measure_with_precision(hdmiclkmsr[i].idx, 32),
+					hdmiclkmsr[i].name);
+			return;
+		}
+		for (i = 0; i < ARRAY_SIZE(hdmiclkmsr); i++)
+			pr_info("[%d] %d %s\n", hdmiclkmsr[i].idx,
+				meson_clk_measure(hdmiclkmsr[i].idx),
+				hdmiclkmsr[i].name);
+		return;
 	} else if (strncmp(tmpbuf, "testedid", 8) == 0) {
 		hdev->hwop.cntlddc(hdev, DDC_RESET_EDID, 0);
 		hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
@@ -1749,7 +1806,7 @@ static void hdmitx_set_scdc_div40(u32 div40)
 	hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 100); //i2c done
 }
 
-static void set_top_div40(u32 div40)
+static void set_t7_top_div40(u32 div40)
 {
 	u32 data32;
 
@@ -1758,17 +1815,17 @@ static void set_top_div40(u32 div40)
 		data32 = 0;
 		data32 |= (0 << 16); // [25:16] tmds_clk_pttn[19:10]
 		data32 |= (0 << 0);  // [ 9: 0] tmds_clk_pttn[ 9: 0]
-		hdmitx21_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_01, data32);
+		hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_01, data32);
 
 		data32 = 0;
 		data32 |= (0x3ff << 16); // [25:16] tmds_clk_pttn[39:30]
 		data32 |= (0x3ff << 0);  // [ 9: 0] tmds_clk_pttn[29:20]
-		hdmitx21_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_23, data32);
+		hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_23, data32);
 	} else {
-		hdmitx21_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_01, 0x001f001f);
-		hdmitx21_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_23, 0x001f001f);
+		hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_01, 0x001f001f);
+		hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_23, 0x001f001f);
 	}
-	hdmitx21_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_CNTL, 0x1);
+	hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_CNTL, 0x1);
 	// [14:12] tmds_sel: 0=output 0; 1=output normal data;
 	//                   2=output PRBS; 4=output shift pattn
 	// [11: 8] shift_pttn
@@ -1780,7 +1837,51 @@ static void set_top_div40(u32 div40)
 	hdmitx21_wr_reg(HDMITX_TOP_BIST_CNTL, data32);
 
 	if (div40)
-		hdmitx21_wr_reg(HDMITX_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
+		hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
+}
+
+static void set_s5_top_div40(u32 div40)
+{
+	u32 data32;
+
+	// Enable normal output to PHY
+	if (div40) {
+		data32 = 0;
+		data32 |= (0 << 16); // [25:16] tmds_clk_pttn[19:10]
+		data32 |= (0 << 0);  // [ 9: 0] tmds_clk_pttn[ 9: 0]
+		hdmitx21_wr_reg(HDMITX_S5_TOP_TMDS_CLK_PTTN_01, data32);
+
+		data32 = 0;
+		data32 |= (0x3ff << 16); // [25:16] tmds_clk_pttn[39:30]
+		data32 |= (0x3ff << 0);  // [ 9: 0] tmds_clk_pttn[29:20]
+		hdmitx21_wr_reg(HDMITX_S5_TOP_TMDS_CLK_PTTN_23, data32);
+	} else {
+		hdmitx21_wr_reg(HDMITX_S5_TOP_TMDS_CLK_PTTN_01, 0x001f001f);
+		hdmitx21_wr_reg(HDMITX_S5_TOP_TMDS_CLK_PTTN_23, 0x001f001f);
+	}
+	hdmitx21_wr_reg(HDMITX_S5_TOP_TMDS_CLK_PTTN_CNTL, 0x1);
+	// [18:16] tmds_sel: 0=output 0; 1=output normal data;
+	//                   2=output PRBS; 4=output shift pattn
+	// [11: 8] shift_pttn
+	// [ 4: 0] prbs_pttn
+	data32 = 0;
+	data32 |= (1 << 16);
+	data32 |= (0 << 8);
+	data32 |= (0 << 0);
+	hdmitx21_wr_reg(HDMITX_TOP_BIST_CNTL, data32);
+
+	if (div40)
+		hdmitx21_wr_reg(HDMITX_S5_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
+}
+
+static void set_top_div40(u32 div40)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->data->chip_type == MESON_CPU_ID_T7)
+		set_t7_top_div40(div40);
+	else
+		set_s5_top_div40(div40);
 }
 
 static void hdmitx_set_div40(u32 div40)
@@ -1803,6 +1904,9 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 		memset(hdev->tmp_edid_buf, 0, ARRAY_SIZE(hdev->tmp_edid_buf));
 		break;
 	case DDC_EDID_READ_DATA:
+		/* if running on pxp, then skip EDID reading */
+		if (hdev->pxp_mode)
+			return 0;
 		hdmitx21_read_edid(hdev->tmp_edid_buf);
 		break;
 	case DDC_EDID_GET_DATA:
@@ -2041,6 +2145,12 @@ static void hdmi_phy_suspend(void)
 	u32 phy_cntl0 = ANACTRL_HDMIPHY_CTRL0;
 	u32 phy_cntl3 = ANACTRL_HDMIPHY_CTRL3;
 	u32 phy_cntl5 = ANACTRL_HDMIPHY_CTRL5;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->data->chip_type == MESON_CPU_ID_T7)
+		phy_cntl5 = ANACTRL_HDMIPHY_CTRL5;
+	else
+		phy_cntl5 = ANACTRL_HDMIPHY_CTRL6;
 
 	hd21_write_reg(phy_cntl0, 0x0);
 	/* keep PHY_CNTL3 bit[1:0] as 0b11,

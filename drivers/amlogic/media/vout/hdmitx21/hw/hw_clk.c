@@ -81,6 +81,8 @@ void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div)
 {
 	u32 data32;
 
+	if (hdmitx_aud_clk_div == 0)
+		hdmitx_aud_clk_div = 1;
 	// Enable hdmitx_aud_clk
 	// [10: 9] clk_sel for cts_hdmitx_aud_clk: 2=fclk_div3
 	// [    8] clk_en for cts_hdmitx_aud_clk
@@ -89,7 +91,7 @@ void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div)
 	data32 |= (2 << 9);
 	data32 |= (0 << 8);
 	data32 |= ((hdmitx_aud_clk_div - 1) << 0);
-	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL1, data32);
+	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, data32, 0, 12);
 	// [    8] clk_en for cts_hdmitx_aud_clk
 	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 8, 1);
 }
@@ -123,7 +125,7 @@ void hdmitx21_set_default_clk(void)
 	data32 |= (1 << 8); // [    8] clk_en for cts_hdmitx_prif_clk
 	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL0, data32);
 
-	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 0, 5);
+	//hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 0, 5);
 
 	// wire    wr_enable = control[3];
 	// wire    fifo_enable = control[2];
@@ -632,6 +634,9 @@ static void hdmitx21_set_clk_(struct hdmitx_dev *hdev)
 	enum hdmi_colorspace cs = hdev->para->cs;
 	enum hdmi_color_depth cd = hdev->para->cd;
 	struct hw_enc_clk_val_group tmp_clk = {0};
+
+	if (hdev->pxp_mode) /* skip VCO setting */
+		return;
 
 	/* YUV 422 always use 24B mode */
 	if (cs == HDMI_COLORSPACE_YUV422)

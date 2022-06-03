@@ -1931,7 +1931,7 @@
 	};
 
 	amhdmitx: amhdmitx{
-		compatible = "amlogic, amhdmitx-t7";
+		compatible = "amlogic, amhdmitx-s5";
 		dev_name = "amhdmitx";
 		status = "disabled";
 		//power-domains = <&pwrdm PDID_T7_VI_CLK2>;
@@ -1939,11 +1939,13 @@
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
-		interrupts = <0 204 1>;
-		interrupt-names = "hdmitx_hpd";
-		reg =	<0x0 0xff000000 0x0 0x40000>,
-			<0x0 0xfe380000 0x0 0x10000>,
-			<0x0 0xfe300000 0x0 0x10000>,
+		interrupts = <0 80 4
+			0 115 1>;
+		interrupt-names = "hdmitx_hpd", "vrr_vsync";
+		enc_idx = <0>;
+		reg =	<0x0 0xff800000 0x0 0x40000>,
+			<0x0 0xfe3a0000 0x0 0x10000>,
+			<0x0 0xfe390000 0x0 0x10000>,
 			<0x0 0xfe010000 0x0 0x2000>,
 			<0x0 0xfe00c000 0x0 0x2000>,
 			<0x0 0xfe008000 0x0 0x2000>,
@@ -3204,7 +3206,7 @@
 
 	hdmitx_hpd_gpio: hdmitx_hpd_gpio {
 		mux {
-			groups = "GPIOW_15";
+			groups = "hdmitx_hpd_in";
 			function = "gpio_periphs";
 			bias-disable;
 		};
@@ -3212,8 +3214,8 @@
 
 	hdmitx_ddc: hdmitx_ddc {
 		mux {
-			groups = "hdmitx_sda_w13",
-				"hdmitx_sck_w14";
+			groups = "hdmitx_sda",
+				"hdmitx_sck";
 			function = "hdmitx";
 			bias-disable;
 			drive-strength-microamp = <3000>;

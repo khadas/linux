@@ -348,23 +348,31 @@ void hdmitx21_phy_bandgap_en_t7(void)
 
 void set21_phy_by_mode_t7(u32 mode)
 {
+	unsigned int phyctrl5;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (hdev->data->chip_type == MESON_CPU_ID_T7)
+		phyctrl5 = ANACTRL_HDMIPHY_CTRL5;
+	else
+		phyctrl5 = ANACTRL_HDMIPHY_CTRL6;
+
 	switch (mode) {
 	case HDMI_PHYPARA_6G: /* 5.94/4.5/3.7Gbps */
 	case HDMI_PHYPARA_4p5G:
 	case HDMI_PHYPARA_3p7G:
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x0000080b);
+		hd21_write_reg(phyctrl5, 0x0000080b);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x37eb65c4);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
 		break;
 	case HDMI_PHYPARA_3G: /* 2.97Gbps */
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x00000003);
+		hd21_write_reg(phyctrl5, 0x00000003);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x33eb42a2);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
 		break;
 	case HDMI_PHYPARA_270M: /* 1.485Gbps, and below */
 	case HDMI_PHYPARA_DEF:
 	default:
-		hd21_write_reg(ANACTRL_HDMIPHY_CTRL5, 0x00000003);
+		hd21_write_reg(phyctrl5, 0x00000003);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL0, 0x33eb4252);
 		hd21_write_reg(ANACTRL_HDMIPHY_CTRL3, 0x2ab0ff3b);
 		break;

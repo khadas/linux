@@ -23,11 +23,12 @@
 #define DEVICE_NAME "amhdmitx21"
 
 /* HDMITX driver version */
-#define HDMITX_VER "20220125"
+#define HDMITX_VER "20220601"
 
 /* chip type */
 enum amhdmitx_chip_e {
 	MESON_CPU_ID_T7,
+	MESON_CPU_ID_S5,
 	MESON_CPU_ID_MAX,
 };
 
@@ -449,6 +450,7 @@ struct hdmitx_dev {
 	u32 flag_3dtb:1;
 	u32 flag_3dss:1;
 	u32 dongle_mode:1;
+	u32 pxp_mode:1;
 	u32 cedst_en:1; /* configure in DTS */
 	u32 hdr_priority;
 	u32 bist_lock:1;
@@ -792,5 +794,5 @@ bool hdmitx21_hdr_en(void);
 bool hdmitx21_dv_en(void);
 bool hdmitx21_hdr10p_en(void);
 u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx);
-bool hdmitx21_uboot_already_display(void);
+bool hdmitx21_uboot_already_display(struct hdmitx_dev *hdev);
 #endif
