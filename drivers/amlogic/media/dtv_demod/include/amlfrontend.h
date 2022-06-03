@@ -44,6 +44,7 @@
 /*  V1.1.51  fixed dvbs/s2/isdbt aft test and support dvbt2 5/6/1.7M */
 /*  V1.1.52  add ambus exit processing when switching mode */
 /*  V1.1.53  fixed dvb-c auto qam unlock when 16qam/32qam */
+/*  V1.1.54  rebuild atsc to improve signal locking performance */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -60,8 +61,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.53"
-#define DTVDEMOD_VER	"2022/06/01: fixed dvb-c auto qam unlock when 16qam/32qam"
+#define AMLDTVDEMOD_VER "V1.1.54"
+#define DTVDEMOD_VER	"2022/06/03: rebuild atsc to improve signal locking performance"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -72,7 +73,7 @@
 #define THRD_TUNER_STRENTH_DVBS (-79)
 #define THRD_TUNER_STRENTH_DTMB (-92)
 
-#define TIMEOUT_ATSC		2000
+#define TIMEOUT_ATSC		3000
 #define TIMEOUT_DVBT		3000
 #define TIMEOUT_DVBS		2000
 #define TIMEOUT_DVBC		3000

@@ -64,6 +64,14 @@ MODULE_PARM_DESC(std_lock_timeout, "\n\t\t atsc-c std lock timeout");
 static unsigned int std_lock_timeout = 1000;
 module_param(std_lock_timeout, int, 0644);
 
+MODULE_PARM_DESC(atsc_t_lock_continuous_cnt, "\n\t\t atsc-t lock signal continuous counting");
+static unsigned int atsc_t_lock_continuous_cnt = 1;
+module_param(atsc_t_lock_continuous_cnt, int, 0644);
+
+MODULE_PARM_DESC(atsc_t_lost_continuous_cnt, "\n\t\t atsc-t lost signal continuous counting");
+static unsigned int atsc_t_lost_continuous_cnt = 1;
+module_param(atsc_t_lost_continuous_cnt, int, 0644);
+
 /*use this flag to mark the new method for dvbc channel fast search
  *it's disabled as default, can be enabled if needed
  *we can make it always enabled after all testing are passed
@@ -2056,86 +2064,6 @@ static int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status, unsigned int re_tune)
-{
-	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
-	unsigned int ucblocks;
-	unsigned int atsc_status;
-	enum fe_status s;
-	int strength;
-	int cnt;
-	int check_ok;
-	static unsigned int times;
-	enum ATSC_SYS_STA sys_sts;
-
-	strength = tuner_get_ch_power(fe);
-
-	/*agc control,fine tune strength*/
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
-		strength += 15;
-		if (strength <= -80)
-			strength = atsc_get_power_strength(
-				atsc_read_reg_v4(0x44) & 0xfff, strength);
-	}
-
-	PR_ATSC("tuner strength: %d\n", strength);
-	if (strength < THRD_TUNER_STRENTH_ATSC) {
-		*status = FE_TIMEDOUT;
-		demod->last_status = *status;
-		PR_ATSC("tuner:no signal!\n");
-		return;
-	}
-
-	sys_sts = (atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) >> 4) & 0xf;
-	if (re_tune || sys_sts < ATSC_SYS_STA_DETECT_CFO_USE_PILOT)
-		times = 0;
-	else
-		times++;
-
-	#define CNT_FIRST_ATSC  (2)
-	check_ok = 0;
-
-	for (cnt = 0; cnt < CNT_FIRST_ATSC; cnt++) {
-		if (!cpu_after_eq(MESON_CPU_MAJOR_ID_TL1))
-			gxtv_demod_atsc_read_ucblocks(fe, &ucblocks);
-
-		if (gxtv_demod_atsc_read_status(fe, &s) == 2)
-			times = 0;
-
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
-			/* detect pn after detect cfo after 375 ms */
-			if (times == 2 && sys_sts < ATSC_SYS_STA_DETECT_PN_IN_EQ_OUT) {
-				*status = FE_TIMEDOUT;
-				PR_INFO("can't detect pn, not atsc sig\n");
-			} else {
-				*status = s;
-			}
-
-			demod->last_status = *status;
-
-			break;
-		}
-
-		if (s != 0x1f) {
-			gxtv_demod_atsc_read_ber(fe, &atsc_status);
-			if ((atsc_status < 0x60)) {
-				*status = FE_TIMEDOUT;
-				check_ok = 1;
-			}
-		} else {
-			check_ok = 1;
-			*status = s;
-		}
-
-		if (check_ok)
-			break;
-
-	}
-
-	PR_DBGL("%s,detect=0x%x,cnt=%d\n", __func__, (unsigned int)*status, cnt);
-}
-
-
 static int dvb_j83b_count = 5;
 module_param(dvb_j83b_count, int, 0644);
 MODULE_PARM_DESC(dvb_atsc_count, "dvb_j83b_count");
@@ -2334,6 +2262,136 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 	return 0;
 }
 
+//It is a timeout which is used for check atsc signal
+#define ATSC_TIME_CHECK_SIGNAL 600
+#define ATSC_TIME_START_CCI 1500
+static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, unsigned int re_tune)
+{
+	int fms_status;//0:none;1:lock;-1:lost
+	int strenth;
+	unsigned int sys_sts;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	static int lock_status;
+	static int peak;
+	//Threshold value of times of continuous lock and lost
+	int lock_continuous_cnt = atsc_t_lock_continuous_cnt > 1 ? atsc_t_lock_continuous_cnt : 1;
+	int lost_continuous_cnt = atsc_t_lost_continuous_cnt > 1 ? atsc_t_lost_continuous_cnt : 1;
+
+	if (!unlikely(devp)) {
+		PR_ERR("%s, devp is NULL\n", __func__);
+		return;
+	}
+
+	if (re_tune) {
+		lock_status = 0;
+		demod->last_status = 0;
+		peak = 0;
+		demod->time_start = jiffies_to_msecs(jiffies);
+		*status = 0;
+		return;
+	}
+
+	if (!get_dtvpll_init_flag())
+		return;
+
+	strenth = tuner_get_ch_power(fe);
+
+	/*agc control,fine tune strength*/
+	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+		strenth += 15;
+		if (strenth <= -80)
+			strenth = atsc_get_power_strength(atsc_read_reg_v4(0x44) & 0xfff, strenth);
+	}
+
+	PR_ATSC("tuner strength: %d\n", strenth);
+	if (strenth < THRD_TUNER_STRENTH_ATSC) {
+		*status = FE_TIMEDOUT;
+		demod->last_status = *status;
+		PR_ATSC("tuner:no signal!\n");
+		return;
+	}
+
+	atsc_check_fsm_status();
+
+	demod->time_passed = jiffies_to_msecs(jiffies) - demod->time_start;
+	sys_sts = atsc_read_reg_v4(ATSC_CNTR_REG_0X2E) & 0xff;
+	PR_ATSC("fsm=0x%x, time_passed=%d\n", sys_sts, demod->time_passed);
+	if (sys_sts >= ATSC_SYNC_LOCK) {
+		fms_status = 1;
+		peak = 1;//atsc signal
+	} else if (sys_sts >= (CR_PEAK_LOCK & 0xf0)) {
+		peak = 1;//atsc signal
+		if (demod->time_passed >= TIMEOUT_ATSC)
+			fms_status = -1;
+		else
+			fms_status = 0;
+
+		if (demod->time_passed >= ATSC_TIME_START_CCI)
+			atsc_check_cci(devp);
+	} else {
+		if (demod->time_passed <= ATSC_TIME_CHECK_SIGNAL) {
+			fms_status = 0;
+		} else {
+			fms_status = -1;
+
+			//If the fsm value read within check time cannot reach 0x60 or above,
+			//it means that the signal is not an ATSC signal.
+			if (peak == 0) {//not atsc signal
+				*status = FE_TIMEDOUT;
+				PR_ATSC("not atsc signal\n");
+
+				goto finish;
+			}
+		}
+	}
+
+	//The status is updated only when the status continuously reaches the threshold of times
+	if (fms_status == -1) {
+		if (lock_status >= 0) {
+			lock_status = -1;
+			PR_ATSC("==> lost signal first\n");
+		} else if (lock_status <= -lost_continuous_cnt) {
+			lock_status = -lost_continuous_cnt;
+			PR_ATSC("==> lost signal continue\n");
+		} else {
+			lock_status--;
+			PR_ATSC("==> lost signal times%d\n", lock_status);
+		}
+
+		if (lock_status <= -lost_continuous_cnt)
+			*status = FE_TIMEDOUT;
+		else
+			*status = 0;
+	} else if (fms_status == 1) {
+		if (lock_status <= 0) {
+			lock_status = 1;
+			PR_ATSC("==> lock signal first\n");
+		} else if (lock_status >= lock_continuous_cnt) {
+			lock_status = lock_continuous_cnt;
+			PR_ATSC("==> lock signal continue\n");
+		} else {
+			lock_status++;
+			PR_ATSC("==> lock signal times:%d\n", lock_status);
+		}
+
+		if (lock_status >= lock_continuous_cnt)
+			*status = FE_HAS_LOCK | FE_HAS_SIGNAL |
+				FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
+		else
+			*status = 0;
+	} else {
+		*status = 0;
+	}
+
+finish:
+	if (demod->last_status != *status && *status != 0) {
+		PR_INFO("!!  >> %s << !!, freq=%d\n", *status == FE_TIMEDOUT ? "UNLOCK" : "LOCK",
+			fe->dtv_property_cache.frequency);
+		demod->last_status = *status;
+	}
+}
+
 static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 	unsigned int mode_flags, unsigned int *delay, enum fe_status *status)
 {
@@ -2351,7 +2409,7 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 	int lastlock;
 	int ret;
 
-	*delay = HZ / 4;
+	*delay = HZ / 20;
 
 	if (!devp->demod_thread)
 		return 0;
@@ -2368,11 +2426,10 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 			PR_ATSC("[id %d] modulation is QPSK do nothing!", demod->id);
 		} else if (c->modulation <= QAM_AUTO) {
 			PR_ATSC("[id %d] detect modulation is j83 first.\n", demod->id);
-			*delay = HZ / 20;
 			atsc_j83b_read_status(fe, status, re_tune);
 		} else if (c->modulation > QAM_AUTO) {
 			PR_ATSC("[id %d] modulation is 8VSB.\n", demod->id);
-			atsc_detect_first(fe, status, re_tune);
+			atsc_read_status(fe, status, re_tune);
 		} else {
 			PR_ATSC("[id %d] modulation is %d unsupported!\n",
 					demod->id, c->modulation);
@@ -2388,9 +2445,8 @@ static int gxtv_demod_atsc_tune(struct dvb_frontend *fe, bool re_tune,
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (c->modulation > QAM_AUTO) {
-			atsc_detect_first(fe, status, re_tune);
+			atsc_read_status(fe, status, re_tune);
 		} else if (c->modulation <= QAM_AUTO &&	(c->modulation !=  QPSK)) {
-			*delay = HZ / 20;
 			lastlock = demod->last_lock;
 			atsc_j83b_read_status(fe, status, re_tune);
 			if (s_j83b_mode > 0 && *status == FE_TIMEDOUT && lastlock == 0) {
