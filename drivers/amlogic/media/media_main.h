@@ -230,6 +230,14 @@ static inline int ge2d_init_module(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VICP
+int vicp_init_module(void);
+#else
+static inline int vicp_init_module(void)
+{
+	return 0;
+}
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_CODEC_MM
 int configs_init_devices(void);
 #else

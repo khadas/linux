@@ -27,3 +27,4 @@ include drivers/amlogic/media/common/resource_mgr/Makefile
 
 include drivers/amlogic/media/common/dma-buf-heaps/Makefile
 
+include drivers/amlogic/media/common/vicp/Makefile

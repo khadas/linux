@@ -1,0 +1,13 @@
+#
+# vicp driver configuration
+#
+
+menu "Amlogic VICP Module"
+
+config  AMLOGIC_MEDIA_VICP
+	tristate "Amlogic vicp driver"
+	default n
+	help
+		Select to enable vicp driver.
+
+endmenu

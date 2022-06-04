@@ -3663,15 +3663,16 @@ static void vd_proc_param_set_vd2(struct vd_proc_s *vd_proc)
 	vd2_proc->bypass_dv = vd_proc->bypass_dv;
 	vd2_proc->bypass_detunnel = vd_proc->bypass_detunnel;
 	vd2_proc->bypass_hdr = vd_proc->bypass_hdr;
-	//vd2_proc->dolby_en = 0;
-	pr_info("%s: din size: %d, %d, dout size: %d, %d, x/y start: %d, %d\n",
-		__func__,
-		vd2_proc->din_hsize,
-		vd2_proc->din_vsize,
-		vd2_proc->dout_hsize,
-		vd2_proc->dout_vsize,
-		vd2_proc->vd2_dout_x_start,
-		vd2_proc->vd2_dout_y_start);
+	if (debug_flag_s5 & DEBUG_VD_PROC) {
+		pr_info("%s: din size: %d, %d, dout size: %d, %d, x/y start: %d, %d\n",
+			__func__,
+			vd2_proc->din_hsize,
+			vd2_proc->din_vsize,
+			vd2_proc->dout_hsize,
+			vd2_proc->dout_vsize,
+			vd2_proc->vd2_dout_x_start,
+			vd2_proc->vd2_dout_y_start);
+	}
 }
 
 static void vd_proc_param_set(struct vd_proc_s *vd_proc)

@@ -748,6 +748,8 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 "get:canvas_w: %d, canvas_h: %d\n",
 			  vf->canvas0_config[0].width, vf->canvas0_config[0].height);
 
+		vc_print(dev->index, PRINT_VICP, "vf_type: 0x%x.\n", vf->type);
+
 		if (vf->vc_private) {
 			vf->vc_private->last_disp_count =
 				countinue_vsync_count[dev->index];

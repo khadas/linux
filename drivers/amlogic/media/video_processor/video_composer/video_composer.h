@@ -47,6 +47,7 @@
 #include <linux/amlogic/media/video_sink/video.h>
 #include "vframe_ge2d_composer.h"
 #include "vframe_dewarp_composer.h"
+#include "vframe_vicp_composer.h"
 
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO_COMPOSER
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
@@ -78,7 +79,9 @@
 #define PRINT_PATTERN	        0X0020
 #define PRINT_OTHER		0X0040
 #define PRINT_NN		0X0080
-#define PRINT_DEWARP	0X0100
+#define PRINT_DEWARP		0X0100
+#define PRINT_VICP		0X0200
+
 
 #define SOURCE_DTV_FIX_TUNNEL		0x1
 #define SOURCE_HWC_CREAT_ION		0x2

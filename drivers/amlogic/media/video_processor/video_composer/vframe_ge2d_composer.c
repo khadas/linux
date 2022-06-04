@@ -198,6 +198,26 @@ static int get_input_format(struct src_data_para *src_data)
 	return format;
 }
 
+static enum ge2d_angle_type config_ge2d_rotation(int vf_transform)
+{
+	int ge2d_angle = 0;
+
+	if (vf_transform == 1)
+		ge2d_angle = GE2D_ANGLE_TYPE_FLIP_H;
+	else if (vf_transform == 2)
+		ge2d_angle = GE2D_ANGLE_TYPE_FLIP_V;
+	else if (vf_transform == 4)
+		ge2d_angle = GE2D_ANGLE_TYPE_ROT_90;
+	else if (vf_transform == 3)
+		ge2d_angle = GE2D_ANGLE_TYPE_ROT_180;
+	else if (vf_transform == 7)
+		ge2d_angle = GE2D_ANGLE_TYPE_ROT_270;
+	else if (vf_transform != 0)
+		VIDEOCOM_INFO("%s: not support transform=%d\n", __func__, vf_transform);
+
+	return ge2d_angle;
+}
+
 static int alloc_src_canvas(struct ge2d_composer_para *ge2d_comp_para)
 {
 	const char *keep_owner = "ge2d_composer";
@@ -543,6 +563,94 @@ int fill_vframe_black(struct ge2d_composer_para *ge2d_comp_para)
 	return 0;
 }
 
+int config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w, int buf_h,
+	int data_w, int data_h, int crop_x, int crop_y, int crop_w, int crop_h,
+	struct src_data_para *data)
+{
+	struct vframe_s *vf = NULL;
+
+	if (IS_ERR_OR_NULL(data)) {
+		pr_info("%s: invalid param.\n", __func__);
+		return -1;
+	}
+
+	if (src_vf) {
+		if (src_vf->canvas0_config[0].phy_addr == 0) {
+			if ((src_vf->flag &  VFRAME_FLAG_DOUBLE_FRAM) && src_vf->vf_ext) {
+				vf = src_vf->vf_ext;
+			} else {
+				VIDEOCOM_ERR("%s: vf no yuv data, composer fail\n", __func__);
+				return -1;
+			}
+		} else {
+			vf = src_vf;
+		}
+		data->canvas0Addr = vf->canvas0Addr;
+		data->canvas1Addr = vf->canvas1Addr;
+		data->canvas0_config[0] = vf->canvas0_config[0];
+		data->canvas0_config[1] = vf->canvas0_config[1];
+		data->canvas0_config[2] = vf->canvas0_config[2];
+		data->canvas1_config[0] = vf->canvas1_config[0];
+		data->canvas1_config[1] = vf->canvas1_config[1];
+		data->canvas1_config[2] = vf->canvas1_config[2];
+		data->bitdepth = vf->bitdepth;
+		data->source_type = vf->source_type;
+		data->type = vf->type;
+		data->plane_num = vf->plane_num;
+		data->width = vf->width;
+		data->height = vf->height;
+		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
+			data->is_vframe = false;
+		else
+			data->is_vframe = true;
+	} else {
+		data->canvas0Addr = -1;
+		data->canvas1Addr = -1;
+		data->canvas0_config[0].phy_addr = addr;
+
+		VIDEOCOM_INFO("buffer_w(%d), data_w(%d)\n", buf_w, data_w);
+		if (buf_w > data_w)
+			data->canvas0_config[0].width = buf_w;
+		else
+			data->canvas0_config[0].width = data_w;
+		VIDEOCOM_INFO("buffer_h(%d), data_h(%d)\n", buf_h, data_h);
+		if (buf_h > data_h)
+			data->canvas0_config[0].height = buf_h;
+		else
+			data->canvas0_config[0].height = data_h;
+
+		data->canvas0_config[0].block_mode = CANVAS_BLKMODE_LINEAR;
+		data->canvas0_config[0].endian = 0;
+		data->canvas0_config[1].phy_addr =
+			(u32)(addr + (data->canvas0_config[0].width)
+			      * (data->canvas0_config[0].height));
+		data->canvas0_config[1].width =
+			data->canvas0_config[0].width;
+		data->canvas0_config[1].height =
+			data->canvas0_config[0].height / 2;
+		data->canvas0_config[1].block_mode =
+			CANVAS_BLKMODE_LINEAR;
+		data->canvas0_config[1].endian = 0;
+		data->bitdepth = BITDEPTH_Y8
+				    | BITDEPTH_U8
+				    | BITDEPTH_V8;
+		data->source_type = 0;
+		data->type = VIDTYPE_PROGRESSIVE
+				| VIDTYPE_VIU_FIELD
+				| VIDTYPE_VIU_NV21;
+		data->plane_num = 2;
+
+		VIDEOCOM_INFO("crop %d %d %d %d\n", crop_x, crop_y, crop_w, crop_h);
+		data->position_x = crop_x;
+		data->position_y = crop_y;
+		data->width = crop_w;
+		data->height = crop_h;
+		data->is_vframe = false;
+	}
+
+	return 0;
+}
+
 int ge2d_data_composer(struct src_data_para *scr_data,
 		       struct ge2d_composer_para *ge2d_comp_para)
 {
@@ -555,6 +663,7 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	int position_left, position_top;
 	int position_width, position_height;
 	struct dump_param para;
+	enum ge2d_angle_type ge2d_angle;
 	bool result = false;
 
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -657,21 +766,22 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	ge2d_config.dst_para.x_rev = 0;
 	ge2d_config.dst_para.y_rev = 0;
 	ge2d_config.dst_xy_swap = 0;
+	ge2d_angle = config_ge2d_rotation(ge2d_comp_para->angle);
 
-	if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_ROT_90) {
+	if (ge2d_angle == GE2D_ANGLE_TYPE_ROT_90) {
 		ge2d_config.dst_xy_swap = 1;
 		ge2d_config.dst_para.x_rev = 1;
-	} else if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_ROT_180) {
+	} else if (ge2d_angle == GE2D_ANGLE_TYPE_ROT_180) {
 		ge2d_config.dst_para.x_rev = 1;
 		ge2d_config.dst_para.y_rev = 1;
-	} else if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_ROT_270) {
+	} else if (ge2d_angle == GE2D_ANGLE_TYPE_ROT_270) {
 		ge2d_config.dst_xy_swap = 1;
 		ge2d_config.dst_para.y_rev = 1;
-	} else if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_FLIP_H) {
+	} else if (ge2d_angle == GE2D_ANGLE_TYPE_FLIP_H) {
 		ge2d_config.dst_xy_swap = 0;
 		ge2d_config.dst_para.x_rev = 1;
 		ge2d_config.dst_para.y_rev = 0;
-	} else if (ge2d_comp_para->angle == GE2D_ANGLE_TYPE_FLIP_V) {
+	} else if (ge2d_angle == GE2D_ANGLE_TYPE_FLIP_V) {
 		ge2d_config.dst_xy_swap = 0;
 		ge2d_config.dst_para.x_rev = 0;
 		ge2d_config.dst_para.y_rev = 1;

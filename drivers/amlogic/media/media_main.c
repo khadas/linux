@@ -84,6 +84,7 @@ static int __init media_main_init(void)
 	call_sub_init(mua_init);
 	call_sub_init(vfm_class_init);
 	call_sub_init(ge2d_init_module);
+	call_sub_init(vicp_init_module);
 	call_sub_init(configs_init_devices);
 	call_sub_init(lut_dma_init);
 	call_sub_init(video_init);
