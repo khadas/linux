@@ -17,7 +17,7 @@
 #include <dt-bindings/input/meson_ir.h>
 #include <dt-bindings/mailbox/amlogic,mbox.h>
 #include "meson-ir-map.dtsi"
-#include "mesong12a-bifrost.dtsi"
+#include "meson-valhall.dtsi"
 #include <dt-bindings/memory/meson-p1-sid-map.h>
 #include <dt-bindings/hwspinlock/amlogic,hwspinlock.h>
 / {
@@ -3745,53 +3745,47 @@
 };
 
 &gpu{
-	status = "disabled";
+	status = "okay";
 	reg =   <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
-		<0 0xFE002000 0 0x01000>, /*reset register*/
-		<0 0xFF800000 0 0x01000>, /*aobus TODO update*/
-		<0 0xFE000000 0 0x01000>, /*hiubus for clk cntl*/
 		<0 0xFE002000 0 0x01000>; /*reset register*/
 
-	interrupts = <0 144 4>, <0 145 4>, <0 146 4>;
+	interrupts = <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>;
 	interrupt-names = "GPU", "MMU", "JOB";
-//	power-domains = <&pwrdm PDID_T7_MALI_TOP>;
-	num_of_pp = <4>;
-	system-coherency = <0>;
-//	clocks = <&clkc CLKID_MALI_MUX>;
-//	clock-names = "gpu_mux";
+	power-domains = <&pwrdm PDID_S5_MALI_TOP>;
+	num_of_pp = <2>;
+	system-coherency = <31>;
+	clocks = <&clkc CLKID_MALI>;
+	clock-names = "gpu_mux";
 
 	/*
 	 * Mali clocking is provided by two identical clock paths
 	 * MALI_0 and MALI_1 muxed to a single clock by a glitch
 	 * free mux to safely change frequency while running.
 	 */
-//	assigned-clocks = <&clkc CLKID_MALI_0_SEL>,
-//			  <&clkc CLKID_MALI_0>,
-//			  <&clkc CLKID_MALI_MUX>; /* Glitch free mux */
-//	assigned-clock-parents = <&clkc CLKID_FCLK_DIV2P5>,
-//				 <0>, /* Do Nothing */
-//				 <&clkc CLKID_MALI_0>;
-//	assigned-clock-rates = <0>, /* Do Nothing */
-//			       <800000000>,
-//			       <0>; /* Do Nothing */
+	assigned-clocks = <&clkc CLKID_MALI0_SEL>,
+			  <&clkc CLKID_MALI0>,
+			  <&clkc CLKID_MALI>; /* Glitch free mux */
+	assigned-clock-parents = <&clkc CLKID_SYS2_PLL>,
+				 <0>, /* Do Nothing */
+				 <&clkc CLKID_MALI0>;
+	assigned-clock-rates = <0>, /* Do Nothing */
+			       <800000000>,
+			       <0>; /* Do Nothing */
 
 	tbl =  <&dvfs250_cfg
 		&dvfs400_cfg
 		&dvfs500_cfg
 		&dvfs666_cfg
-		&dvfs800_cfg
-		&dvfs800_cfg>;
+		&dvfs850_cfg
+		&dvfs850_cfg>;
 
 	reset_cfg:reset_cfg {
-		reg_level = <0x11>;
-		reg_mask = <0x21>;
-		reg_bit = <2>;
+		reg_level = <0x16>;
+		reg_mask = <0x26>;
+		reg_bit = <10>;
 	};
 
-	capb_reset:capb_reset {
-		reg_level = <0x11>;
-		reg_mask = <0x21>;
-		reg_bit = <1>;
-	};
 };
 

@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+/ {
+
+	gpu:valhall {
+		compatible = "arm,malit60x", "arm,malit6xx", "arm,mali-midgard";
+		#cooling-cells = <2>;		/* min followed by max */
+		reg = <0 0xFE400000 0 0x04000>, /*mali APB bus base address*/
+			<0 0xFE002000 0 0x01000>; /*reset register*/
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 272 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 273 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 271 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "GPU", "MMU", "JOB";
+		/* ACE-Lite = 0; ACE = 1; No-coherency = 31; */
+		/* system-coherency = <31>; */
+
+		num_of_pp = <2>;
+		sc_mpp = <1>; /* number of shader cores used most of time. */
+
+		tbl =  <&dvfs285_cfg
+			&dvfs400_cfg
+			&dvfs500_cfg
+			&dvfs666_cfg
+			&dvfs850_cfg
+			&dvfs850_cfg>;
+
+		dvfs125_cfg:clk125_cfg {
+			clk_freq = <125000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			clk_reg = <0xA03>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <30 120>;
+		};
+
+		dvfs250_cfg:dvfs250_cfg {
+			clk_freq = <250000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			clk_reg = <0xA01>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <0 76>;
+		};
+
+		dvfs285_cfg:dvfs285_cfg {
+			clk_freq = <285714285>;
+			clk_parent = "fclk_div7";
+			clkp_freq = <285714285>;
+			clk_reg = <0xE00>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <0 76>;
+		};
+
+		dvfs400_cfg:dvfs400_cfg {
+			clk_freq = <400000000>;
+			clk_parent = "fclk_div5";
+			clkp_freq = <400000000>;
+			clk_reg = <0xC00>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <80 120>;
+		};
+
+		dvfs500_cfg:dvfs500_cfg {
+			clk_freq = <500000000>;
+			clk_parent = "fclk_div4";
+			clkp_freq = <500000000>;
+			clk_reg = <0xA00>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <80 120>;
+		};
+
+		dvfs666_cfg:dvfs666_cfg {
+			clk_freq = <666666666>;
+			clk_parent = "fclk_div3";
+			clkp_freq = <666666666>;
+			clk_reg = <0x800>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <80 120>;
+		};
+
+		dvfs800_cfg:dvfs800_cfg {
+			clk_freq = <800000000>;
+			clk_parent = "fclk_div2p5";
+			clkp_freq = <800000000>;
+			clk_reg = <0x600>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <80 255>;
+		};
+
+		dvfs850_cfg:dvfs850_cfg {
+			clk_freq = <846000000>;
+			clk_parent = "sys2_pll";
+			clkp_freq = <846000000>;
+			clk_reg = <0x200>;
+			voltage = <1150>;
+			keep_count = <5>;
+			threshold = <80 255>;
+		};
+	};
+
+};/* end of / */
