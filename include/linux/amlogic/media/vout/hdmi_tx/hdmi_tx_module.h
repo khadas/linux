@@ -945,4 +945,6 @@ bool hdmitx_find_vendor_6g(struct hdmitx_dev *hdev);
 bool hdmitx_find_vendor_ratio(struct hdmitx_dev *hdev);
 
 int hdmitx_uboot_already_display(int type);
+
+int read_phy_status(void);
 #endif

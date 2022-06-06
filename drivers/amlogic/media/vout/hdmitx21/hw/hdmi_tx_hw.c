@@ -2361,3 +2361,12 @@ u32 hdmitx_vrr_get_maxlncnt(void)
 {
 	return hd21_read_reg(ENCP_VIDEO_MAX_LNCNT) + 1;
 }
+
+int hdmitx21_read_phy_status(void)
+{
+	int phy_value = 0;
+
+	phy_value = !!(hd21_read_reg(ANACTRL_HDMIPHY_CTRL0) & 0xffff);
+
+	return phy_value;
+}

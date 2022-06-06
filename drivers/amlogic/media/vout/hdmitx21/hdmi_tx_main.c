@@ -3189,7 +3189,12 @@ static ssize_t phy_store(struct device *dev,
 static ssize_t phy_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return 0;
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		hdmitx21_read_phy_status());
+
+		return pos;
 }
 
 static ssize_t rxsense_policy_store(struct device *dev,

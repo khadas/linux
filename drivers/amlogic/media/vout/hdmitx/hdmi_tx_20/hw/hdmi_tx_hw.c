@@ -5491,3 +5491,23 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 			 TX_INPUT_COLOR_FORMAT,
 			 hdev->para->cs);
 }
+
+int read_phy_status(void)
+{
+	int phy_val = 0;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	switch (hdev->data->chip_type) {
+	case MESON_CPU_ID_SC2:
+		phy_val = !!(hd_read_reg(P_ANACTRL_HDMIPHY_CTRL0) & 0xffff);
+		break;
+	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
+		phy_val = !!(hd_read_reg(P_TM2_HHI_HDMI_PHY_CNTL0) & 0xffff);
+		break;
+	default:
+		phy_val = !!(hd_read_reg(P_HHI_HDMI_PHY_CNTL0) & 0xffff);
+		break;
+	}
+	return phy_val;
+}
