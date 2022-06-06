@@ -41,6 +41,22 @@
 		};
 	};
 
+	drm_lcd: drm-lcd {
+		status = "disabled";
+		compatible = "amlogic, drm-lcd";
+		dev_name = "meson-lcd";
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				lcd_in_vpu: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vpu_out_lcd>;
+				};
+			};
+		};
+	};
+
 	drm_vpu: drm-vpu@0xff900000  {
 		status = "disabled";
 		compatible = "amlogic, meson-t3-vpu";
@@ -53,7 +69,7 @@
 			<GIC_SPI 194 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "viu-vsync", "viu2-vsync";
 		dma-coherent;
-		vpu_out: port@1 {
+		vpu_out: port {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
@@ -65,14 +81,9 @@
 				reg = <1>;
 				remote-endpoint = <&cvbs_in_vpu>;
 			};
-		};
-		/*EXTERNAL port for driver outside of drm.*/
-		connectors_dev: port@2 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			drm_to_lcd0: endpoint@2 {
+			vpu_out_lcd: endpoint@2 {
 				reg = <2>;
-				remote-endpoint = <0>;
+				remote-endpoint = <&lcd_in_vpu>;
 			};
 		};
 	};
@@ -80,7 +91,7 @@
 	drm_subsystem: drm-subsystem {
 		status = "okay";
 		compatible = "amlogic, drm-subsystem";
-		ports = <&vpu_out>,<&connectors_dev>;
+		ports = <&vpu_out>;
 		fbdev_sizes = <1920 1080 1920 2160 32>;
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;

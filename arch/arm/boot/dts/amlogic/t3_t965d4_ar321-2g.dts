@@ -89,6 +89,13 @@
 			size = <0x8000000>;
 			alignment = <0x400000>;
 		};
+		/* secure ion for gpu,advice size is 0x8000000 */
+		ion_secure_reserved:linux,ion-secure {
+			compatible = "amlogic, ion-secure-mem";
+			no-map;
+			size = <0x0000000>;
+			alignment = <0x400000>;
+		};
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -537,6 +544,7 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <1>;
+		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
 		/* MAP_ADDR_MODULE_CBUS */
@@ -1057,6 +1065,7 @@
 		samesource_sel = <3>;
 
 		/* In for ACODEC_ADC */
+		/* tdmin-src-name = "acodec_adc"; */
 		tdmin-src-name = "hdmirx";
 		/*enable default mclk(12.288M), before extern codec start*/
 		start_clk_enable = <1>;
@@ -1531,7 +1540,6 @@
 	cm_en = <1>;/*1:enabel ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
-	ct_3dlut = <0>;
 	vlock_mode = <0x8>;
 	/*vlock work mode:
 	 *bit0:auto ENC
@@ -1688,4 +1696,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins>;
 	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
+};
+
+&meson_suspend {
+	vad_wakeup_disable = <0x0>;
+	vddio3v3_en = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+	p5v_en = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
 };

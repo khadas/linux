@@ -321,7 +321,7 @@
 		compatible = "amlogic,unifykey";
 		status = "okay";
 
-		unifykey-num = <25>;
+		unifykey-num = <26>;
 		unifykey-index-0 = <&keysn_0>;
 		unifykey-index-1 = <&keysn_1>;
 		unifykey-index-2 = <&keysn_2>;

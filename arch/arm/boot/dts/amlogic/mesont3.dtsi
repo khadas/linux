@@ -194,7 +194,27 @@
 		device_name = "aml_pm";
 		clr_reboot_mode;  /* clr reboot mode in shutdown callback */
 		reg = <0xfe010288 0x4>, /*SYSCTRL_STATUS_REG2*/
-			<0xfe0102dc 0x4>; /*SYSCTRL_STICKY_REG7*/
+			<0xfe0102dc 0x4>, /*SYSCTRL_STICKY_REG7*/
+			/* Workaround: Used to clear interrupt pending bit */
+			<0xfe0100c8 0x4>;
+		vad-item-name = "T3";
+		vad_wakeup_disable = <0x1>;
+		meson,dmc_asr-addr = <0xfe036000>,
+				<0xfe034000>; /* dmc_asr */
+		meson,dmc_asr-val = <0x0007fe00>,
+				<0x0007fe00>;
+		clock-names = "sys_clk",
+			"cpu_clk",
+			"dsu_clk",
+			"fixed_pll_dco",
+			"axi_clk";
+		clocks = <&clkc CLKID_SYS_CLK>,
+			<&clkc CLKID_CPU_CLK>,
+			<&clkc CLKID_DSU_CLK>,
+			<&clkc CLKID_FIXED_PLL_DCO>,
+			<&clkc CLKID_AXI_CLK>;
+		interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "pm_wakeup";
 	};
 
 	aml_reboot {
@@ -1639,7 +1659,8 @@
 	ion_dev {
 		compatible = "amlogic, ion_dev";
 		memory-region = <&ion_cma_reserved
-				&ion_fb_reserved>;
+				&ion_fb_reserved
+				&ion_secure_reserved>;
 	};
 
 	fb: fb {
