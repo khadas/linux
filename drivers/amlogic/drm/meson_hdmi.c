@@ -683,6 +683,10 @@ static int am_hdmitx_connector_atomic_set_property
 	} else if (property == am_hdmi->avmute_prop) {
 		hdmitx_state->avmute = val;
 		return 0;
+	} else if (property == am_hdmi->hdcp_content_type0_pri_prop) {
+		am_hdmi_info.hdcp_content_type0_pri = val;
+		hdmitx_state->hdcp_force = true;
+		return 0;
 	}
 
 	return -EINVAL;
@@ -736,6 +740,9 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->lumi_avg_property) {
 		*val = hdr->lumi_avg;
+		return 0;
+	} else if (property == am_hdmi->hdcp_content_type0_pri_prop) {
+		*val = am_hdmi_info.hdcp_content_type0_pri;
 		return 0;
 	}
 
@@ -892,6 +899,7 @@ struct drm_connector_state *meson_hdmitx_atomic_duplicate_state
 	new_state->color_force = false;
 	new_state->color_attr_para.colorformat = cur_state->color_attr_para.colorformat;
 	new_state->color_attr_para.bitdepth = cur_state->color_attr_para.bitdepth;
+	new_state->hdcp_force = false;
 	new_state->pref_hdr_policy = cur_state->pref_hdr_policy;
 
 	return &new_state->base;
@@ -1089,6 +1097,11 @@ void meson_hdmitx_update_hdcp(void)
 	else
 		hdcp_request_mask = HDCP_MODE22;
 
+	if (am_hdmi_info.hdcp_request_content_type == DRM_MODE_HDCP_CONTENT_TYPE0) {
+		if (am_hdmi_info.hdcp_content_type0_pri)
+			hdcp_request_mask = HDCP_MODE14;
+	}
+
 	hdcp_request_mode = meson_hdmitx_get_hdcp_request(&am_hdmi_info, hdcp_request_mask);
 
 	/*mode is same, try to re-use last state*/
@@ -1153,7 +1166,8 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 		(old_state->content_protection !=
 			new_state->content_protection &&
 		new_state->content_protection !=
-			DRM_MODE_CONTENT_PROTECTION_ENABLED)) {
+			DRM_MODE_CONTENT_PROTECTION_ENABLED) ||
+			new_hdmitx_state->hdcp_force) {
 		/*check hdcp property update*/
 		am_hdmi_info.hdcp_request_content_type =
 			new_state->hdcp_content_type;
@@ -1815,6 +1829,20 @@ static void meson_hdmitx_init_dv_cap_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_hdcp_content_type0_pri_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "HDCP_CONTENT_TYPE0_PRIORITY");
+	if (prop) {
+		am_hdmi->hdcp_content_type0_pri_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to HDCP_CONTENT_TYPE0_PRIORITY property\n");
+	}
+}
+
 static void meson_hdmitx_init_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -1991,6 +2019,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 					   aspect_ratio_property,
 					   DRM_MODE_PICTURE_ASPECT_NONE);
 	}
+	meson_hdmitx_init_hdcp_content_type0_pri_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;
