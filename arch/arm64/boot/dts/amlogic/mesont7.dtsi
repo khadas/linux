@@ -319,7 +319,7 @@
 		out_base_func = <0x82000021>;
 		inout_size_func = <0x8200002a>;
 		reserve_mem_size = <0x03300000>;
-		clear_range = <0x05100000 0x200000>;
+		clear_range = <0x05100000 0x2a00000>;
 	};
 
 	cma_shrinker: cma_shrinker {
