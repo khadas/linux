@@ -38,7 +38,7 @@
 #define MAX_MC_Y_VRANG   64  // one side of Luma range(under MC scale)
 #define MAX_MC_C_VRANG   64  // one side of Chroma range
 
-#define MAX_INP_UNDONE_CNT         1
+#define MAX_INP_UNDONE_CNT         0x3F // 1
 #define MAX_ME_UNDONE_CNT          1
 #define MAX_MC_UNDONE_CNT          1
 #define MAX_VP_UNDONE_CNT          1

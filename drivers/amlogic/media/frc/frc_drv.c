@@ -69,7 +69,7 @@
 static struct frc_dev_s frc_dev;
 struct work_struct frc_mem_dyc_proc;
 
-int frc_dbg_en = 2;
+int frc_dbg_en;
 EXPORT_SYMBOL(frc_dbg_en);
 module_param(frc_dbg_en, int, 0664);
 MODULE_PARM_DESC(frc_dbg_en, "frc debug level");

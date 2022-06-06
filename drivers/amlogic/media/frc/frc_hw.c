@@ -227,24 +227,21 @@ void frc_mc_reset(u32 onoff)
 
 void set_frc_enable(u32 en)
 {
-	struct frc_dev_s *devp = get_frc_devp();
+	// struct frc_dev_s *devp = get_frc_devp();
 	WRITE_FRC_BITS(FRC_TOP_CTRL, 0, 8, 1);
 	WRITE_FRC_BITS(FRC_TOP_CTRL, en, 0, 1);
-	if (devp->ud_dbg.res1_time_en == 0 || devp->ud_dbg.res1_time_en == 3) {
-		if (en == 1) {
-			WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0xFFFF, 0, 16);
-			WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0x0, 0, 16);
-			frc_mc_reset(1);
-			frc_mc_reset(0);
-		} else {
-			gst_frc_param.s2l_en = 0;
-			gst_frc_param.frc_mcfixlines = 0;
-			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
-				pr_frc(0, "frc_off_set maxlnct fail !!!\n");
-			else
-				pr_frc(0, "frc_off_set maxlnct success!!!\n");
-
-		}
+	if (en == 1) {
+		frc_mc_reset(1);
+		WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0xFFFF, 0, 16);
+		frc_mc_reset(0);
+		WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0x0, 0, 16);
+	} else {
+		gst_frc_param.s2l_en = 0;
+		gst_frc_param.frc_mcfixlines = 0;
+		if (vlock_sync_frc_vporch(gst_frc_param) < 0)
+			pr_frc(0, "frc_off_set maxlnct fail !!!\n");
+		else
+			pr_frc(0, "frc_off_set maxlnct success!!!\n");
 	}
 }
 
@@ -395,57 +392,47 @@ void inp_undone_read(struct frc_dev_s *frc_devp)
 		return;
 	if (frc_devp->frc_sts.re_config)
 		return;
+	if (frc_devp->frc_sts.state != FRC_STATE_ENABLE ||
+		frc_devp->frc_sts.new_state != FRC_STATE_ENABLE)
+		return;
 	inp_ud_flag = READ_FRC_REG(FRC_INP_UE_DBG) & 0x3f;
 	if (inp_ud_flag != 0) {
-		frc_devp->frc_sts.inp_undone_cnt++;
-		frc_devp->ud_dbg.inp_undone_err = inp_ud_flag;
 		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x3f, 0, 6);
 		WRITE_FRC_BITS(FRC_INP_UE_CLR, 0x0, 0, 6);
-		if (frc_devp->frc_sts.inp_undone_cnt < 10)
-			PR_ERR("inp_ud_err=0x%x,err_cnt=%d,vs_cnt=%d\n",
-				inp_ud_flag,
-				frc_devp->frc_sts.inp_undone_cnt,
-				frc_devp->in_sts.vs_cnt);
-		else if ((frc_devp->frc_sts.inp_undone_cnt % 0x10) == 0)
-			PR_ERR("inp_ud_err=0x%x,err_cnt=%d,vs_cnt=%d\n",
-				inp_ud_flag,
-				frc_devp->frc_sts.inp_undone_cnt,
-				frc_devp->in_sts.vs_cnt);
+		frc_devp->ud_dbg.inp_undone_err = inp_ud_flag;
+		frc_devp->frc_sts.inp_undone_cnt++;
+		if (frc_devp->ud_dbg.inpud_dbg_en != 0) {
+			if (frc_devp->frc_sts.inp_undone_cnt % 0x30 == 0) {
+				PR_ERR("inp_ud_err=0x%x,err_cnt=%d,vs_cnt=%d\n",
+					inp_ud_flag,
+					frc_devp->frc_sts.inp_undone_cnt,
+					frc_devp->in_sts.vs_cnt);
+			}
+		}
 		timeout = 0;
 		do {
 			readval = READ_FRC_BITS(FRC_INP_UE_CLR, 0, 6);
 			if (readval == 0)
 				break;
 		} while (timeout++ < 100);
-		if (frc_devp->ud_dbg.res1_time_en == 0) {
+		if (frc_devp->ud_dbg.res1_time_en == 1) {
 			if (frc_devp->frc_sts.inp_undone_cnt ==
-						MAX_INP_UNDONE_CNT) {
-				if (frc_devp->frc_sts.retrycnt++ < 10) {
-					frc_devp->frc_sts.re_config = true;
-					PR_ERR("frc will reopen\n");
-				}
-			}
-		} else if (frc_devp->ud_dbg.res1_time_en == 1) {
-			if (frc_devp->frc_sts.inp_undone_cnt ==
-						MAX_INP_UNDONE_CNT * 3) {
-				if (frc_devp->frc_sts.retrycnt++ < 10) {
-					frc_devp->frc_sts.re_config = true;
-					PR_ERR("frc will reopen\n");
-				}
+					0x30 * 2) {
+				frc_devp->frc_sts.re_config = true;
+				PR_ERR("frc will reopen\n");
 			}
 		} else if (frc_devp->ud_dbg.res1_time_en == 2) {
+			if (frc_devp->frc_sts.inp_undone_cnt ==
+					0x30 * 3) {
+				frc_devp->frc_sts.re_config = true;
+				PR_ERR("frc will reopen\n");
+			}
+		} else if (frc_devp->ud_dbg.res1_time_en == 0) {
 			frc_devp->frc_sts.re_config = false;
 		}
 	} else {
+		frc_devp->ud_dbg.inp_undone_err = 0;
 		frc_devp->frc_sts.inp_undone_cnt = 0;
-		frc_devp->ud_dbg.inp_undone_err = inp_ud_flag;
-		frc_devp->frc_sts.retrycnt = 0;
-	}
-	if (frc_devp->ud_dbg.inpud_dbg_en &&
-		frc_devp->ud_dbg.inp_undone_err > 0 &&
-		frc_devp->frc_sts.inp_undone_cnt > 0) {
-		PR_ERR("inp_ud_err=0x%x, err_cnt = %d\n",
-			inp_ud_flag, frc_devp->frc_sts.inp_undone_cnt);
 	}
 }
 

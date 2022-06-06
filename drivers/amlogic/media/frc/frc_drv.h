@@ -69,8 +69,9 @@
 // frc_20220425 frc inform vlock when disable
 // frc_20220426 frc compute mcdly for vlock
 // frc_20220505 frc check dbg roreg
+// frc_20220524 frc memory optimize
 
-#define FRC_FW_VER			"2022-0524 frc memory optimize"
+#define FRC_FW_VER			"2022-0608 optimize video flag check"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
@@ -116,8 +117,8 @@ extern int frc_dbg_en;
 
 #define FRC_HVSIZE_ALIGN_SIZE		16
 
-#define FRC_V_LIMIT_SIZE		144
-#define FRC_H_LIMIT_SIZE		128
+#define FRC_V_LIMIT			144
+#define FRC_H_LIMIT			128
 
 /*bit number config*/
 #define FRC_MC_BITS_NUM			10
@@ -138,7 +139,6 @@ extern int frc_dbg_en;
 #define FRC_CLOCK_2OFF               7
 
 //------------------------------------------------------- clock defined end
-
 // vd fps
 #define FRC_VD_FPS_DEF    0
 #define FRC_VD_FPS_60    60
@@ -147,6 +147,15 @@ extern int frc_dbg_en;
 #define FRC_VD_FPS_30    30
 #define FRC_VD_FPS_25    25
 #define FRC_VD_FPS_24    24
+
+// frc flag define
+#define FRC_FLAG_NORM_VIDEO		0x00
+#define FRC_FLAG_GAME_MODE		0x01
+#define FRC_FLAG_PC_MODE		0x02
+#define FRC_FLAG_PIC_MODE		0x04
+#define FRC_FLAG_HIGH_BW		0x08
+#define FRC_FLAG_LIMIT_SIZE		0x10
+#define FRC_FLAG_OTHER_MODE		0x20
 
 enum chip_id {
 	ID_NULL = 0,
@@ -296,9 +305,8 @@ struct st_frc_in_sts {
 	u32 have_vf_cnt;
 	u32 no_vf_cnt;
 
-	u32 game_mode;
 	u32 secure_mode;
-	u32 pic_type;
+	u32 st_flag;
 
 	u32  high_freq_en;
 	u32  high_freq_flash; /*0 default, 1: high freq char flash*/

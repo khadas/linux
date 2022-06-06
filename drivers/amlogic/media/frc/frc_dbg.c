@@ -70,10 +70,10 @@ void frc_status(struct frc_dev_s *devp)
 		devp->probe_ok, devp->power_on_flag, devp->frc_hw_pos, devp->frc_fw_pause);
 	pr_frc(0, "frs state:%d (%s) new:%d\n", devp->frc_sts.state,
 	       frc_state_ary[devp->frc_sts.state], devp->frc_sts.new_state);
-	pr_frc(0, "input in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
 	pr_frc(0, "frc_memc_level=%d\n", fw_data->frc_top_type.frc_memc_level);
-	pr_frc(0, "game/pc_mode=%d secure_mode=%d pic_type=%d\n", devp->in_sts.game_mode,
-		devp->in_sts.secure_mode, devp->in_sts.pic_type);
+	pr_frc(0, "frc_secure_mode=%d\n", devp->in_sts.secure_mode);
+	pr_frc(0, "frc_get_vd_flag=0x%X(game:b0/pc:b1/pic:b2/hbw:b3/limsz:b4)\n",
+				devp->in_sts.st_flag);
 	pr_frc(0, "dbg en:%d in_out_ratio=0x%x\n", devp->dbg_force_en, devp->dbg_in_out_ratio);
 	pr_frc(0, "dbg hsize=%d vsize=%d\n", devp->dbg_input_hsize, devp->dbg_input_vsize);
 	pr_frc(0, "vf_sts:%d, vf_type:0x%x, signal_type=0x%x, source_type=0x%x\n",
@@ -108,6 +108,7 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "frc_prot_mode = %d\n", devp->prot_mode);
 	pr_frc(0, "film_mode = %d\n", devp->film_mode);
 	pr_frc(0, "film_mode_det = %d\n", devp->film_mode_det);
+	pr_frc(0, "frc in_hsize=%d in_vsize=%d\n", devp->in_sts.in_hsize, devp->in_sts.in_vsize);
 	pr_frc(0, "frc in hsize = %d\n", fw_data->frc_top_type.hsize);
 	pr_frc(0, "frc in vsize = %d\n", fw_data->frc_top_type.vsize);
 	pr_frc(0, "vfb = %d\n", fw_data->frc_top_type.vfb);

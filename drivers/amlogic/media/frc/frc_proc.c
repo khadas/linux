@@ -445,8 +445,8 @@ enum efrc_event frc_input_sts_check(struct frc_dev_s *devp,
 	if (devp->frc_sts.re_cfg_cnt) {
 		devp->frc_sts.re_cfg_cnt--;
 		cur_sig_in = false;
-	} else if (devp->in_sts.in_hsize < FRC_H_LIMIT_SIZE ||
-			devp->in_sts.in_vsize < FRC_V_LIMIT_SIZE) {
+	} else if (devp->in_sts.in_hsize < FRC_H_LIMIT ||
+			devp->in_sts.in_vsize < FRC_V_LIMIT) {
 		cur_sig_in = false;
 	} else {
 		cur_sig_in = cur_in_sts->vf_sts;
@@ -546,28 +546,65 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	if (vf) {
 		if ((vf->flag & VFRAME_FLAG_GAME_MODE)  ==
 					VFRAME_FLAG_GAME_MODE) {
-			if ((devp->in_sts.game_mode & 0x1) != 0x1) {
-				devp->in_sts.game_mode =
-					devp->in_sts.game_mode | 0x01;
-				pr_frc(1, "video = game mode");
+			if ((devp->in_sts.st_flag & FRC_FLAG_GAME_MODE) !=
+						FRC_FLAG_GAME_MODE) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_GAME_MODE;
+				pr_frc(1, "video = game_mode");
 			}
 			no_input = true;
-		} else {
-			devp->in_sts.game_mode =
-				devp->in_sts.game_mode & 0xFFFFFFFE;
-		}
-		if ((vf->flag & VFRAME_FLAG_PC_MODE)  ==
+		} else if ((vf->flag & VFRAME_FLAG_PC_MODE)  ==
 					VFRAME_FLAG_PC_MODE) {
-			if ((devp->in_sts.game_mode & 0x2) != 0x2) {
-				devp->in_sts.game_mode =
-					devp->in_sts.game_mode | 0x2;
-				pr_frc(1, "video = pc mode");
+			if ((devp->in_sts.st_flag & FRC_FLAG_PC_MODE) !=
+						FRC_FLAG_PC_MODE) {
+				devp->in_sts.st_flag =
+					devp->in_sts.st_flag | FRC_FLAG_PC_MODE;
+				pr_frc(1, "video = pc_mode");
+			}
+			no_input = true;
+		} else if ((vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ==
+				VFRAME_FLAG_HIGH_BANDWIDTH) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_HIGH_BW) !=
+						FRC_FLAG_HIGH_BW) {
+				devp->in_sts.st_flag =
+					devp->in_sts.st_flag | FRC_FLAG_HIGH_BW;
+				pr_frc(1, "video = high_bw");
 			}
 			no_input = true;
 		} else {
-			devp->in_sts.game_mode =
-				devp->in_sts.game_mode & 0xFFFFFFFD;
+			devp->in_sts.st_flag =
+				devp->in_sts.st_flag &
+					(~(FRC_FLAG_GAME_MODE +
+						FRC_FLAG_HIGH_BW +
+						FRC_FLAG_PC_MODE));
 		}
+
+		if ((vf->type & VIDTYPE_PIC) == VIDTYPE_PIC) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_PIC_MODE) !=
+						FRC_FLAG_PIC_MODE) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_PIC_MODE;
+				pr_frc(1, "video = pic_mode");
+			}
+			no_input = true;
+		} else {
+			devp->in_sts.st_flag =
+				devp->in_sts.st_flag & (~FRC_FLAG_PIC_MODE);
+		}
+
+		if (vf->height < FRC_V_LIMIT || vf->width < FRC_H_LIMIT) {
+			if ((devp->in_sts.st_flag & FRC_FLAG_LIMIT_SIZE) !=
+						FRC_FLAG_LIMIT_SIZE) {
+				devp->in_sts.st_flag =
+				devp->in_sts.st_flag | FRC_FLAG_LIMIT_SIZE;
+				pr_frc(1, "video = limit_size");
+			}
+			no_input = true;
+		} else {
+			devp->in_sts.st_flag =
+				devp->in_sts.st_flag & (~FRC_FLAG_LIMIT_SIZE);
+		}
+
 		if ((vf->flag & VFRAME_FLAG_VIDEO_SECURE) ==
 				 VFRAME_FLAG_VIDEO_SECURE) {
 			devp->in_sts.secure_mode = true;
@@ -576,22 +613,9 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 		} else {
 			devp->in_sts.secure_mode = false;
 		}
-		if ((vf->flag & VFRAME_FLAG_HIGH_BANDWIDTH) ==
-				VFRAME_FLAG_HIGH_BANDWIDTH) {
-			no_input = true;
-		}
-		if ((vf->type & VIDTYPE_PIC) == VIDTYPE_PIC) {
-			devp->in_sts.pic_type = true;
-			no_input = true;
-		} else {
-			devp->in_sts.pic_type = false;
-		}
-		if (vf->height < FRC_V_LIMIT_SIZE ||
-			vf->width < FRC_H_LIMIT_SIZE) {
-			no_input = true;
-		}
 		/*check vd status change*/
-		frc_chk_vd_sts_chg(devp, vf);
+		if (!no_input)
+			frc_chk_vd_sts_chg(devp, vf);
 	}
 
 	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
@@ -1361,7 +1385,7 @@ void frc_chk_vd_sts_chg(struct frc_dev_s *devp, struct vframe_s *vf)
 		//1000 * 1000 / (dur2pts(vf->duration) * 100 / 9)
 
 	if (frc_vf_rate_s != devp->in_sts.frc_vf_rate) {
-		pr_frc(1, "input vf rate changed [%d->%d].\n", frc_source_chg_s,
+		pr_frc(3, "input vf rate changed [%d->%d].\n", frc_vf_rate_s,
 			devp->in_sts.frc_vf_rate);
 		frc_vf_rate_s = devp->in_sts.frc_vf_rate;
 	}
