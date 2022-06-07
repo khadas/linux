@@ -46,7 +46,7 @@ static unsigned int vrr_drv_init_state;
 static struct aml_vrr_drv_s *vrr_drv[VRR_MAX_DRV];
 static struct mutex vrr_mutex;
 
-static unsigned int vrr_debug_print;
+unsigned int vrr_debug_print;
 
 struct aml_vrr_drv_s *vrr_drv_get(int index)
 {

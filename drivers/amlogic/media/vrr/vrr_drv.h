@@ -65,8 +65,8 @@ struct aml_vrr_drv_s {
 //===========================================================================
 #define VRR_ENC_INDEX                              0
 
-extern int lcd_venc_sel;
-extern int lcd_vrr_timer_cnt;
+extern unsigned int vrr_debug_print;
+
 struct aml_vrr_drv_s *vrr_drv_get(int index);
 int vrr_drv_func_en(struct aml_vrr_drv_s *vdrv, int flag);
 int vrr_drv_lfc_update(struct aml_vrr_drv_s *vdrv, int flag, int fps);
