@@ -1605,3 +1605,8 @@
 &amlogic_codec {
 	status = "disabled";
 };
+
+&aocec {
+	hdmi-phandle = <&drm_amhdmitx>;
+	ee_cec = <1>;
+};

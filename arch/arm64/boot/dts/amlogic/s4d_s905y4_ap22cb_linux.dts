@@ -1555,3 +1555,8 @@
 &vdac {
 	compatible = "amlogic, vdac-s4";
 };
+
+&aocec {
+	hdmi-phandle = <&drm_amhdmitx>;
+	ee_cec = <1>;
+};
