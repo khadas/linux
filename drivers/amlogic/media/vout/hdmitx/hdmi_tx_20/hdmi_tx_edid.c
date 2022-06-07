@@ -1930,7 +1930,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				prxcap->RxAudioCap[idx + i].freq_cc =
 					blockbuf[offset + i * 3 + 1] & 0x7f;
 				prxcap->RxAudioCap[idx + i].cc3 =
-					blockbuf[offset + i * 3 + 2] & 0x7;
+					blockbuf[offset + i * 3 + 2];
 			}
 			offset += count;
 			break;

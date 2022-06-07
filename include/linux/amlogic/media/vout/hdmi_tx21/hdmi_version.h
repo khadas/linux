@@ -22,6 +22,6 @@
 /****************************************************************/
 
 #define HDMITX21_VERSIONS_LOG \
-	"\n"
+	"V03.00.00.00.00.01.00 [20220616] [EDID] add MPEG-H edid parse\n"
 
 #endif // __HDMI21_VERSION_H__

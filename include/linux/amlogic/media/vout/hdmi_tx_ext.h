@@ -104,6 +104,7 @@ enum hdmi_audio_type {
 	CT_MAT, /* TrueHD */
 	CT_DST,
 	CT_WMA,
+	CT_CXT = 0xf, /* Audio Coding Extension Type */
 	CT_DTS_HD_MA = CT_DTS_HD + (DTS_HD_MA),
 	CT_MAX,
 };

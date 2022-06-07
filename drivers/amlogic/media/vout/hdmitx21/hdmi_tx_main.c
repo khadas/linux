@@ -2409,13 +2409,26 @@ static ssize_t aud_cap_show(struct device *dev,
 	pos += snprintf(buf + pos, PAGE_SIZE,
 		"CodingType MaxChannels SamplingFreq SampleSize\n");
 	for (i = 0; i < prxcap->AUD_count; i++) {
+		if (prxcap->RxAudioCap[i].audio_format_code == CT_CXT) {
+			if ((prxcap->RxAudioCap[i].cc3 >> 3) == 0xb) {
+				pos += snprintf(buf + pos, PAGE_SIZE, "MPEG-H, 8ch, ");
+				for (j = 0; j < 7; j++) {
+					if (prxcap->RxAudioCap[i].freq_cc & (1 << j))
+						pos += snprintf(buf + pos, PAGE_SIZE, "%s/",
+							aud_sampling_frequency[j + 1]);
+				}
+				pos += snprintf(buf + pos - 1, PAGE_SIZE, " kHz\n");
+			}
+			continue;
+		}
 		pos += snprintf(buf + pos, PAGE_SIZE, "%s",
 			aud_ct[prxcap->RxAudioCap[i].audio_format_code]);
 		if (prxcap->RxAudioCap[i].audio_format_code == CT_DD_P &&
 		    (prxcap->RxAudioCap[i].cc3 & 1))
 			pos += snprintf(buf + pos, PAGE_SIZE, "/ATMOS");
-		pos += snprintf(buf + pos, PAGE_SIZE, ", %d ch, ",
-			prxcap->RxAudioCap[i].channel_num_max + 1);
+		if (prxcap->RxAudioCap[i].audio_format_code != CT_CXT)
+			pos += snprintf(buf + pos, PAGE_SIZE, ", %d ch, ",
+				prxcap->RxAudioCap[i].channel_num_max + 1);
 		for (j = 0; j < 7; j++) {
 			if (prxcap->RxAudioCap[i].freq_cc & (1 << j))
 				pos += snprintf(buf + pos, PAGE_SIZE, "%s/",
