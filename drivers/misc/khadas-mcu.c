@@ -31,6 +31,7 @@
 #define MCU_WOL_REG		0x21
 #define MCU_FAN_CTRL	0x88
 #define MCU_RST_REG             0x2c
+#define MCU_RED_LED_CTRL_REG         	0x28
 #define MCU_PORT_MODE_REG       0x33
 #define MCU_VERSION_H_REG       0x12
 #define MCU_VERSION_L_REG       0x13
@@ -72,6 +73,14 @@ enum khadas_fan_level {
 	KHADAS_FAN_LEVEL_5,
 };
 
+enum khadas_redled_mode {
+	KHADAS_RED_LED_OFF = 0,
+	KHADAS_RED_LED_ON,
+	KHADAS_RED_LED_BREATH,
+	KHADAS_RED_LED_HEARTBEAT
+};
+
+
 enum khadas_fan_enable {
 	KHADAS_FAN_DISABLE = 0,
 	KHADAS_FAN_ENABLE,
@@ -91,6 +100,15 @@ enum khadas_ethernet_mode {
         KHADAS_ETHERNET_MODE_INTERNAL = 0,
         KHADAS_ETHERNET_MODE_M2X
 };
+
+enum khadas_board_hwver {
+	KHADAS_BOARD_HWVER_NONE = 0,
+	KHADAS_BOARD_HWVER_V10,
+	KHADAS_BOARD_HWVER_V11,
+	KHADAS_BOARD_HWVER_V12,
+	KHADAS_BOARD_HWVER_V13
+};
+
 
 struct khadas_fan_data {
 	struct platform_device *pdev;
@@ -115,6 +133,8 @@ struct mcu_data {
 	int portmode;
 	int version;
 	struct khadas_fan_data fan_data;
+	enum khadas_board_hwver hwver;
+	enum khadas_redled_mode redled_mode;
 };
 
 struct mcu_data *g_mcu_data;
@@ -288,6 +308,35 @@ static void khadas_fan_level_set(struct khadas_fan_data *fan_data, int level)
 		}
 	}
 }
+
+static int is_mcu_redled_control_supported(void)
+{
+	// MCU Red LED control is supported for:
+	// 1. Khadas VIM1S V10 and later
+		if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V10)
+			return 1;
+		else
+			return 0;
+}
+
+
+static void mcu_redled_set(int mode)
+{
+	int ret;
+	char reg;
+
+	if (mode >= 0 && mode <= 3) {
+		g_mcu_data->redled_mode = mode;
+		reg = (char)mode;
+		if (is_mcu_redled_control_supported()) {
+			ret = mcu_i2c_write_regs(g_mcu_data->client,MCU_RED_LED_CTRL_REG,&reg, 1);
+			if (ret < 0) {
+				pr_debug("write red led cmd error\n");
+			}
+		}
+	}
+}
+
 
 static void fan_test_work_func(struct work_struct *_work)
 {
@@ -522,9 +571,33 @@ static ssize_t store_ageing_test(struct class *cls, struct class_attribute *attr
 	return count;
 }
 
+static ssize_t show_redled_mode(struct class *cls,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf,
+			"Red LED mode:%d\n",
+			g_mcu_data->redled_mode);
+}
+
+static ssize_t store_redled_mode(struct class *cls,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int mode;
+
+	if (kstrtoint(buf, 0, &mode))
+		return -EINVAL;
+
+	mcu_redled_set(mode);
+
+	return count;
+}
+
+
 static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(rst, 0644, NULL, store_rst_mcu),
 	__ATTR(ageing_test, 0644, show_ageing_test, store_ageing_test),
+	__ATTR(redled, 0644, show_redled_mode, store_redled_mode),
 };
 
 
@@ -576,8 +649,10 @@ static int mcu_parse_dt(struct device *dev)
 	printk("mcu_parse_dt hwver:%d\n",hwver);
 	if(hwver == HW_VERSION_VIM1S_V10){
 		  g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_VIM1S_V10;
+		  g_mcu_data->hwver = KHADAS_BOARD_HWVER_V10;
 	}else {
             g_mcu_data->fan_data.hwver = KHADAS_FAN_HWVER_NONE;
+			g_mcu_data->hwver = KHADAS_BOARD_HWVER_NONE;
 	}
 	ret = of_property_read_u32(dev->of_node, "fan,trig_temp_level0", &g_mcu_data->fan_data.trig_temp_level0);
 	if (ret < 0)
