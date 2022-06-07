@@ -144,7 +144,7 @@ char *to_ports(int id)
  */
 char *to_sub_ports_name(int mid, int sid, char *id_str, char rw)
 {
-	int i, s_port;
+	int i, s_port = -1;
 
 	/* 7 is device port id */
 	/* t5w 7 and 10 is device port id */
@@ -510,6 +510,7 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 {
 	/* set default parameters */
 	mon->debug = 0x01;
+	mon->mon_number = 1;
 
 	switch (chip) {
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_G12
@@ -518,13 +519,11 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_SM1:
 	case DMC_TYPE_TL1:
 		mon->ops = &g12_dmc_mon_ops;
-		mon->mon_number = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_C1
 	case DMC_TYPE_C1:
 		mon->ops = &c1_dmc_mon_ops;
-		mon->mon_number = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_GX
@@ -538,7 +537,6 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_GXLX:
 	case DMC_TYPE_TXHD:
 		mon->ops = &gx_dmc_mon_ops;
-		mon->mon_number = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_TM2
@@ -551,7 +549,6 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 		#else
 			#error need support for revA
 		#endif
-		mon->mon_number = 1;
 		break;
 
 	case DMC_TYPE_SC2:
@@ -561,7 +558,6 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_T5:
 	case DMC_TYPE_T5D:
 		mon->ops = &tm2_dmc_mon_ops;
-		mon->mon_number = 1;
 		break;
 #endif
 #ifdef CONFIG_AMLOGIC_DMC_MONITOR_T7
@@ -584,7 +580,6 @@ static void __init get_dmc_ops(int chip, struct dmc_monitor *mon)
 	case DMC_TYPE_T5W:
 	case DMC_TYPE_A5:
 		mon->ops = &s4_dmc_mon_ops;
-		mon->mon_number = 1;
 		break;
 #endif
 	default:
