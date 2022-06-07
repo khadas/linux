@@ -775,7 +775,15 @@ static void output_axis_adjust(int src_w, int src_h, int *dst_w, int *dst_h,
 		return;
 	}
 
+	if (amlvideo2_dbg_en & 4) {
+		pr_info("%s:src_w = %d, src_h = %d, angle = %d.\n",
+			__func__, src_w, src_h, angle);
+	}
+
 	if (output) {
+		if (amlvideo2_dbg_en & 4) {
+			pr_info("output->info.mode = %d.\n", output->info.mode);
+		}
 		if (output->info.mode == AML_SCREEN_MODE_RATIO) {
 			if (angle % 180 != 0) {
 				h = min_t(int, (int)src_w, disp_h);
@@ -842,6 +850,9 @@ static void output_axis_adjust(int src_w, int src_h, int *dst_w, int *dst_h,
 		*dst_w = w;
 		*dst_h = h;
 	}
+
+	if (amlvideo2_dbg_en & 4)
+		pr_info("%s: dst_w = %d, dst_h = %d.\n", __func__, *dst_w, *dst_h);
 }
 #endif
 
@@ -3244,12 +3255,12 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 			vf->width, vf->height);
 		pr_info("vf->type = %x, vf->src_canvas = %x\n",
 			vf->type, vf->canvas0Addr);
-		pr_info("crop_enable = %d\n",
-			node->crop_info.capture_crop_enable);
+		pr_info("crop_enable = %d, node->has_amvideo_node = %d.\n",
+			node->crop_info.capture_crop_enable, node->has_amvideo_node);
 		pr_info("crop_top = %d, crop_left = %d\n",
 			node->crop_info.source_top_crop,
 			node->crop_info.source_left_crop);
-		pr_info("crop_width = %d, crop_height = %d\n\n",
+		pr_info("crop_width = %d, crop_height = %d.\n",
 			node->crop_info.source_width_crop,
 			node->crop_info.source_height_crop);
 		pr_info("output->angle=%d\n", output->angle);
@@ -3280,6 +3291,13 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 			src_height = node->crop_info.source_height_crop;
 		else
 			src_height = vf->height - src_top;
+
+		if (amlvideo2_dbg_en & 4) {
+			pr_info("src_width = %d, src_left = %d\n",
+				src_width, src_left);
+			pr_info("src_height = %d, src_top = %d\n",
+				src_height, src_top);
+		}
 	} else {
 		if (node->has_amvideo_node) {
 			src_axis_adjust(&src_top, &src_left,
@@ -3554,7 +3572,7 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 			pr_info("src2_addr = %lx, w = %d, h = %d\n",
 				cs2.addr, cs2.width, cs2.height);
 		}
-		pr_info("output: w = %d, h = %d, output_canvas = %x\n\n",
+		pr_info("output: w = %d, h = %d, output_canvas = %x\n",
 			output->width, output->height, output_canvas);
 
 		pr_info("%s:node->id = %d ,src_left = %d ,src_top = %d\n",
@@ -5099,8 +5117,10 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 	if (node->r_type != AML_RECEIVER_NONE)
 		goto start;
 
-	if (amlvideo2_dbg_en)
+	if (amlvideo2_dbg_en) {
 		pr_info("Enter %s .\n", __func__);
+		pr_info("vinfo->w: %d, vinfo->h: %d.\n", vinfo->width, vinfo->height);
+	}
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
 	memset(&para, 0, sizeof(para));
 	para.port = node->porttype;
@@ -5388,11 +5408,13 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 	}
 #endif
 	if (amlvideo2_dbg_en) {
-		pr_info("amlvideo2--%s .\n", __func__);
-		pr_info("crop_enable = %d\n",
-			node->crop_info.capture_crop_enable);
+		pr_info("enter %s.\n", __func__);
+		pr_info("crop_enable = %d, node->porttype = 0x%x.\n",
+			node->crop_info.capture_crop_enable, node->porttype);
 		pr_info("node->r_type=%d, node->p_type=%d\n",
 			node->r_type, node->p_type);
+		pr_info("vinfo->w=%d, vinfo->h=%d, vinfo->field_height=%d.\n",
+			vinfo->width, vinfo->height, vinfo->field_height);
 	}
 
 	if (!node->start_vdin_flag || node->r_type != AML_RECEIVER_NONE)

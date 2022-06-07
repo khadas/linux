@@ -9916,12 +9916,10 @@ static int  get_display_info(void *data)
 	info_para->frame_hd_end_lines_ = cur_frame_par->VPP_hd_end_lines_;
 	info_para->frame_vd_start_lines_ = cur_frame_par->VPP_vd_start_lines_;
 	info_para->frame_vd_end_lines_ = cur_frame_par->VPP_vd_end_lines_;
-	info_para->display_hsc_startp = cur_frame_par->VPP_hsc_startp - x;
-	info_para->display_hsc_endp =
-	cur_frame_par->VPP_hsc_endp + (info->width - x - w);
-	info_para->display_vsc_startp = cur_frame_par->VPP_vsc_startp - y;
-	info_para->display_vsc_endp =
-	cur_frame_par->VPP_vsc_endp + (info->height - y - h);
+	info_para->display_hsc_startp = cur_frame_par->VPP_hsc_startp;
+	info_para->display_hsc_endp = cur_frame_par->VPP_hsc_endp;
+	info_para->display_vsc_startp = cur_frame_par->VPP_vsc_startp;
+	info_para->display_vsc_endp = cur_frame_par->VPP_vsc_endp;
 	info_para->screen_vd_h_start_ =
 	cur_frame_par->VPP_post_blend_vd_h_start_;
 	info_para->screen_vd_h_end_ =
