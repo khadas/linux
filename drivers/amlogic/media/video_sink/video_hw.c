@@ -2430,6 +2430,8 @@ static void vdx_set_dcu(struct video_layer_s *layer,
 			    (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
 			    !IS_DI_POSTWRTIE(vf->type)))
 				r |= (1 << 19); /* dos_uncomp */
+			if (type & VIDTYPE_COMB_MODE)
+				r |= (1 << 20);
 		}
 		cur_dev->rdma_func[vpp_index].rdma_wr(vd_afbc_reg->afbc_enable, r);
 
