@@ -533,6 +533,28 @@ static void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
 	mutex_unlock(&lcd_vout_mutex);
 }
 
+static void lcd_screen_restore_work(struct work_struct *work)
+{
+	unsigned long flags = 0;
+	int ret = 0;
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = container_of(work, struct aml_lcd_drv_s, screen_restore_work);
+
+	mutex_lock(&lcd_power_mutex);
+	reinit_completion(&pdrv->vsync_done);
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->mute_count = 0;
+	pdrv->mute_flag = 1;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+	ret = wait_for_completion_timeout(&pdrv->vsync_done,
+					  msecs_to_jiffies(500));
+	if (!ret)
+		LCDPR("vmode switch: wait_for_completion_timeout\n");
+	pdrv->lcd_screen_restore(pdrv);
+	mutex_unlock(&lcd_power_mutex);
+}
+
 static void lcd_lata_resume_work(struct work_struct *work)
 {
 	struct aml_lcd_drv_s *pdrv;
@@ -2110,6 +2132,7 @@ static int lcd_probe(struct platform_device *pdev)
 	spin_lock_init(&pdrv->isr_lock);
 	INIT_WORK(&pdrv->config_probe_work, lcd_config_probe_work);
 	INIT_WORK(&pdrv->late_resume_work, lcd_lata_resume_work);
+	INIT_WORK(&pdrv->screen_restore_work, lcd_screen_restore_work);
 	INIT_DELAYED_WORK(&pdrv->test_delayed_work, lcd_auto_test_delayed);
 
 	ret = lcd_cdev_add(pdrv, &pdev->dev);
@@ -2151,6 +2174,7 @@ static int lcd_remove(struct platform_device *pdev)
 
 	cancel_work_sync(&pdrv->config_probe_work);
 	cancel_work_sync(&pdrv->late_resume_work);
+	cancel_work_sync(&pdrv->screen_restore_work);
 	if (lcd_workqueue)
 		destroy_workqueue(lcd_workqueue);
 

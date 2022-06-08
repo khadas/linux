@@ -677,6 +677,7 @@ struct aml_lcd_drv_s {
 	struct work_struct test_check_work;
 	struct work_struct late_resume_work;
 	struct work_struct vx1_reset_work;
+	struct work_struct screen_restore_work;
 	struct delayed_work test_delayed_work;
 	struct resource *res_vsync_irq[3];
 	struct resource *res_vx1_irq;
