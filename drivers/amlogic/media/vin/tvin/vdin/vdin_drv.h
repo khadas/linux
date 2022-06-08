@@ -89,7 +89,8 @@
 /* 20220519: dv register isr not rdma write */
 /* 20220525: source-led switch to sink-led problem */
 /* 20220602: 100 and 120 switch send event */
-#define VDIN_VER "20220602:100 and 120 switch send event"
+/* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
+#define VDIN_VER "20220608:t7 screenshot picture abnormal when width greater than vdin1_line_buff_size"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -423,6 +424,7 @@ struct vdin_debug_s {
 	unsigned short dest_cfmt;/* for color fmt conversion */
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;
+	unsigned short vdin1_line_buff;
 };
 
 struct vdin_dv_s {

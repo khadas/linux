@@ -4042,6 +4042,49 @@ static void vdin_set_vshrink(struct vdin_dev_s *devp)
 	pr_info("vdin.%d set_vshrink done!\n", devp->index);
 }
 
+int vdin_scaling_adjust(struct vdin_dev_s *devp)
+{
+	unsigned short		scaling4w;
+	unsigned short		scaling4h;
+
+	if (devp->index == 0)
+		return 0;
+
+	scaling4w = rounddown(devp->prop.scaling4w, devp->canvas_align);
+	if (devp->prop.scaling4w != scaling4w) {
+		pr_info("vdin1,%s.scaling4w=%d rounddown to %d\n",
+			__func__, devp->prop.scaling4w, scaling4w);
+		devp->prop.scaling4w = scaling4w;
+	}
+
+	scaling4h = rounddown(devp->prop.scaling4h, 2);
+	if (devp->prop.scaling4h != scaling4h) {
+		pr_info("vdin1,%s.scaling4h=%d rounddown to %d\n",
+			__func__, devp->prop.scaling4h, scaling4h);
+		devp->prop.scaling4h = scaling4h;
+	}
+
+	/* for debug */
+	if (devp->debug.vdin1_line_buff && devp->prop.scaling4h != devp->v_active &&
+		devp->prop.scaling4w > devp->debug.vdin1_line_buff) {
+		pr_info("dbg:vdin1,%s.scaling:%dx%d,active:%dx%d,dbg_line_buff:%d\n",
+			__func__, devp->prop.scaling4w, devp->prop.scaling4h,
+			devp->h_active, devp->v_active, devp->debug.vdin1_line_buff);
+		devp->prop.scaling4w = devp->debug.vdin1_line_buff;
+		return 0;
+	}
+
+	if (devp->prop.scaling4h != devp->v_active &&
+		devp->prop.scaling4w > devp->dtdata->vdin1_line_buff_size) {
+		pr_info("vdin1,%s.scaling:%dx%d,active:%dx%d,line_buff:%d\n",
+			__func__, devp->prop.scaling4w, devp->prop.scaling4h,
+			devp->h_active, devp->v_active, devp->dtdata->vdin1_line_buff_size);
+		devp->prop.scaling4w = devp->dtdata->vdin1_line_buff_size;
+	}
+
+	return 0;
+}
+
 /*function:set horizontal and veritical scale
  *vdin scaler path:
  *	vdin0:prehsc-->hscaler-->vscaler;
@@ -4057,6 +4100,8 @@ void vdin_set_hvscale(struct vdin_dev_s *devp)
 
 	if (K_FORCE_HV_SHRINK)
 		goto set_hvshrink;
+
+	vdin_scaling_adjust(devp);
 
 	pr_info("vdin%d %s hactive:%u,vactive:%u.scaling:%dx%d\n", devp->index,
 		__func__, devp->h_active, devp->v_active,
