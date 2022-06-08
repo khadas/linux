@@ -194,6 +194,7 @@ MODULE_PARM_DESC(amdv_run_mode, "\n amdv_run_mode\n");
 /* number of fake frame (run mode = 1) */
 #define RUN_MODE_DELAY 2
 #define RUN_MODE_DELAY_GXM 3
+#define RUN_MODE_DELAY_G12 1
 
 uint amdv_run_mode_delay = RUN_MODE_DELAY;
 module_param(amdv_run_mode_delay, uint, 0664);
@@ -12143,10 +12144,12 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 
 		/*stb core doesn't need run mode*/
 		/*TV core need run mode and the value is 2*/
-		if (is_aml_g12() || is_aml_txlx_stbmode() ||
+		if (is_aml_txlx_stbmode() ||
 		    is_aml_tm2_stbmode() || is_aml_t7_stbmode() ||
 		    is_aml_sc2() || is_aml_s4d())
 			amdv_run_mode_delay = 0;
+		else if (is_aml_g12())
+			amdv_run_mode_delay = RUN_MODE_DELAY_G12;
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		else if (is_aml_gxm())
 			amdv_run_mode_delay = RUN_MODE_DELAY_GXM;

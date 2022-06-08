@@ -243,7 +243,7 @@ static void amdv_core_reset(enum core_type type)
 		if (is_aml_txlx())
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 10);
 		else if (is_aml_g12())
-			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 2);
+			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 1);
 		else if (is_aml_tm2() || is_aml_sc2() ||
 			 is_aml_s4d() || is_aml_t7() ||
 			 is_aml_t3())
@@ -269,14 +269,16 @@ static void amdv_core_reset(enum core_type type)
 		break;
 	case AMDV_CORE2A:
 		if (is_aml_tm2() || is_aml_sc2() ||
-		    is_aml_s4d() || is_aml_t7() || is_aml_t3()) {
+		    is_aml_s4d() || is_aml_t7() ||
+		    is_aml_t3() || is_aml_g12()) {
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 2);
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
 		}
 		break;
 	case AMDV_CORE2B:
 		if (is_aml_tm2() || is_aml_sc2() ||
-		    is_aml_s4d() || is_aml_t7() || is_aml_t3()) {
+		    is_aml_s4d() || is_aml_t7() ||
+		    is_aml_t3() || is_aml_g12()) {
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 1 << 3);
 			VSYNC_WR_DV_REG(VIU_SW_RESET, 0);
 		}
