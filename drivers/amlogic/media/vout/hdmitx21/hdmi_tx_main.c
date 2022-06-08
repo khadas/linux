@@ -330,7 +330,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 			  hdev->edid_ptr : NULL);
 
 	hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
-	set_disp_mode_auto();
+	/* set_disp_mode_auto(); */
 
 	hdmitx21_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
@@ -568,9 +568,24 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 
 static void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev)
 {
+	cancel_delayed_work(&hdev->work_start_hdcp);
 	hdev->hdcp_mode = 0;
 	hdcp_mode_set(0);
 }
+
+static void hdmitx_start_hdcp_handler(struct work_struct *work)
+{
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
+		struct hdmitx_dev, work_start_hdcp);
+
+	if (hdcp_need_control_by_upstream(hdev)) {
+		pr_info("hdmitx: currently hdcp should started by upstream, eixt\n");
+	} else {
+		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, CLR_AVMUTE);
+		hdmitx21_enable_hdcp(hdev);
+	}
+}
+
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -675,12 +690,8 @@ static int set_disp_mode_auto(void)
 	/* wait for TV detect signal stable,
 	 * otherwise hdcp may easily auth fail
 	 */
-	msleep(250);
-	if (hdcp_need_control_by_upstream(hdev))
-		pr_info("hdmitx: currently hdcp should started by upstream, eixt\n");
-	else
-		hdmitx21_enable_hdcp(hdev);
 	hdev->ready = 1;
+	queue_delayed_work(hdev->hdmi_wq, &hdev->work_start_hdcp, HZ / 4);
 
 	return ret;
 }
@@ -5309,6 +5320,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 					WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
 	INIT_DELAYED_WORK(&hdev->work_hpd_plugin, hdmitx_hpd_plugin_handler);
 	INIT_DELAYED_WORK(&hdev->work_hpd_plugout, hdmitx_hpd_plugout_handler);
+	INIT_DELAYED_WORK(&hdev->work_start_hdcp, hdmitx_start_hdcp_handler);
 	INIT_DELAYED_WORK(&hdev->work_aud_hpd_plug,
 			  hdmitx_aud_hpd_plug_handler);
 	INIT_DELAYED_WORK(&hdev->work_internal_intr, hdmitx_top_intr_handler);

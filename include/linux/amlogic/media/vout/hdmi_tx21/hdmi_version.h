@@ -29,5 +29,6 @@
 	"V03.00.00.00.01.02.02 [20220711] [COMP] add hdcp version protect for drm\n" \
 	"V03.00.00.00.01.03.02 [20220711] [EDID] HF1-23 add the ddc delay to 20ms\n" \
 	"V03.00.00.00.01.03.03 [20220713] [SYSFS] add phy show sysfs\n" \
-	"V03.00.00.00.02.03.03 [20220715] [HDCP] T7 DVI 1080p60 1A-09 test fail\n"
+	"V03.00.00.00.02.03.03 [20220715] [HDCP] T7 DVI 1080p60 1A-09 test fail\n" \
+	"V03.00.00.00.02.03.04 [20220726] [COMP] add avmute interface\n"
 #endif // __HDMI21_VERSION_H__
