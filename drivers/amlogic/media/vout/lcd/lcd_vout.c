@@ -180,6 +180,11 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int i, index, wait;
 	int value = -1;
 
+	if (pdrv->lcd_pxp) {
+		LCDPR("[%d]: %s: lcd_pxp bypass\n", pdrv->index, __func__);
+		return;
+	}
+
 	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
