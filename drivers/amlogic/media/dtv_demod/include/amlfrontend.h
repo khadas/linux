@@ -49,6 +49,7 @@
 /*  V1.1.56  add dvbt2 fef info */
 /*  V1.1.57  fix auto qam(t5w) and sr */
 /*  V1.1.58  fix delsys exit setting and r842 dvbc auto sr */
+/*  V1.1.59  fix dvbs/s2 aft range and different tuner blind window settings */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -65,8 +66,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.58"
-#define DTVDEMOD_VER	"2022/07/26: fix delsys exit setting and r842 dvbc auto sr"
+#define AMLDTVDEMOD_VER "V1.1.59"
+#define DTVDEMOD_VER	"2022/08/23: fix dvbs/s2 aft range and different tuner blind window settings"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -76,6 +77,7 @@
 #define THRD_TUNER_STRENTH_DVBT (-101)
 #define THRD_TUNER_STRENTH_DVBS (-79)
 #define THRD_TUNER_STRENTH_DTMB (-100)
+#define THRD_TUNER_STRENTH_DVBC (-87)
 
 #define TIMEOUT_ATSC		3000
 #define TIMEOUT_DVBT		3000

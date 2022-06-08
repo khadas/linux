@@ -707,48 +707,6 @@ void calculate_cordic_para(void)
 	dvbt_isdbt_wr_reg(0x0c, 0x00000040);
 }
 
-static int dvbt_get_status(void)
-{
-	return dvbt_isdbt_rd_reg(0x0) >> 12 & 1;
-}
-
-static int dvbt_get_ber(void)
-{
-	return dvbt_isdbt_rd_reg((0xbf << 2));
-}
-
-static int dvbt_get_snr(struct aml_demod_sta *demod_sta)
-{
-	return ((dvbt_isdbt_rd_reg((0x0a << 2))) >> 20) & 0x3ff;
-	/*dBm: bit0~bit2=decimal */
-}
-
-static int dvbt_get_strength(struct aml_demod_sta *demod_sta)
-{
-/* int dbm = dvbt_get_ch_power(demod_sta, demod_i2c); */
-/* return dbm; */
-	return 0;
-}
-
-static int dvbt_get_ucblocks(struct aml_demod_sta *demod_sta)
-{
-	return 0;
-/* return dvbt_get_per(); */
-}
-
-struct demod_status_ops *dvbt_get_status_ops(void)
-{
-	static struct demod_status_ops ops = {
-		.get_status = dvbt_get_status,
-		.get_ber = dvbt_get_ber,
-		.get_snr = dvbt_get_snr,
-		.get_strength = dvbt_get_strength,
-		.get_ucblocks = dvbt_get_ucblocks,
-	};
-
-	return &ops;
-}
-
 struct st_chip_register_t {
 	unsigned short addr;/* Address */
 	char value;/* Current value */
