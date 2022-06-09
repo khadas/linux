@@ -439,7 +439,7 @@ static unsigned int collect_syscall_args(struct pt_regs *regs,
 	 * and prctl(@nr | __OOB_SYSCALL_BIT, args...). If none is
 	 * matched, this is an in-band syscall.
 	 */
-	if (nr != __NR_prctl || !(args[0] & __OOB_SYSCALL_BIT))
+	if (!arch_dovetail_is_syscall(nr) || !(args[0] & __OOB_SYSCALL_BIT))
 		return nr;
 
 	/*
