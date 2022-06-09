@@ -115,7 +115,7 @@ static const char *dv_output_str[6] = {
 	"BYPASS"
 };
 
-static int process_id[2];
+static int process_id[VD_PATH_MAX];
 void hdr_proc(struct vframe_s *vf,
 	      enum hdr_module_sel module_sel,
 	      u32 hdr_process_select,
@@ -156,17 +156,19 @@ void hdr_proc(struct vframe_s *vf,
 	       vpp_index,
 	       is_amdv_on());
 
-	if (module_sel == 1)
+	if (module_sel == VD1_HDR)
 		process_id[0] = index;
-	else if (module_sel == 2)
+	else if (module_sel == VD2_HDR)
 		process_id[1] = index;
+	else if (module_sel == VD3_HDR)
+		process_id[2] = index;
 }
 
 void get_hdr_process_name(int id, char *name, char *output_fmt)
 {
 	int index;
 
-	if (id > 1)
+	if (id > VD_PATH_MAX - 1)
 		return;
 	index = process_id[id];
 	memcpy(name, process_str[index], strlen(process_str[index]) + 1);

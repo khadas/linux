@@ -14522,6 +14522,49 @@ static ssize_t process_fmt_show
 				process_name[1]);
 		}
 	}
+
+	if (!cur_dev || cur_dev->max_vd_layers <= 2)
+		goto show_end;
+
+	hdr_bypass = false;
+	dispbuf = get_dispbuf(2);
+	if (dispbuf) {
+		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+			ret += sprintf(buf + ret, "vd3: src_fmt = %s; ",
+				fmt_str[fmt]);
+		else
+			ret += sprintf(buf + ret, "vd3: src_fmt = null; ");
+
+		get_hdr_process_name(2, process_name[2], output_fmt);
+
+		l = strlen("HDR_BYPASS");
+		if (!strncmp(process_name[2], "HDR_BYPASS", l) ||
+		    !strncmp(process_name[2], "HLG_BYPASS", l))
+			hdr_bypass = true;
+
+		if (amdv_on) {
+			ret += sprintf(buf + ret, "out_fmt = IPT\n");
+		} else if (hdr_bypass) {
+			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+				if ((!strcmp(fmt_str[fmt], "HDR10") ||
+				     !strcmp(fmt_str[fmt], "HDR10+")) &&
+				    (!strcmp(output_fmt, "HDR") ||
+				     !strcmp(output_fmt, "HDR+")))
+					ret += sprintf(buf + ret,
+						"out_fmt = %s_%s\n",
+						fmt_str[fmt], output_fmt);
+				else
+					ret += sprintf(buf + ret,
+						"out_fmt = %s\n", fmt_str[fmt]);
+			else
+				ret += sprintf(buf + ret, "out_fmt = src!\n");
+		} else {
+			ret += sprintf(buf + ret, "process = %s\n",
+				process_name[2]);
+		}
+	}
+show_end:
 	return ret;
 }
 
