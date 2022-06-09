@@ -532,9 +532,6 @@ int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
 	new_mvsps = &new_mvps->sub_states[crtc_index];
 
-	#ifdef MESON_DRM_VERSION_V0
-	meson_vpu_pipeline_atomic_backup_state(new_mvps);
-	#endif
 	affected_blocks = new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
@@ -547,7 +544,7 @@ int vpu_pipeline_video_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 			mvb->ops->update_state(mvb, mvbs, old_mvbs);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
-			mvb->ops->disable(mvb, mvbs);
+			mvb->ops->disable(mvb, old_mvbs);
 		}
 	}
 
@@ -573,9 +570,6 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	new_mvps = priv_to_pipeline_state(pipeline->obj.state);
 	new_mvsps = &new_mvps->sub_states[crtc_index];
 
-	#ifdef MESON_DRM_VERSION_V0
-	meson_vpu_pipeline_atomic_backup_state(new_mvps);
-	#endif
 	affected_blocks = new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
@@ -673,9 +667,6 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 
 	arm_fbc_check_error();
 
-	#ifdef MESON_DRM_VERSION_V0
-	meson_vpu_pipeline_atomic_backup_state(new_mvps);
-	#endif
 	affected_blocks = old_mvsps->enable_blocks | new_mvsps->enable_blocks;
 	for_each_set_bit(id, &affected_blocks, 32) {
 		mvb = vpu_blocks[id];
@@ -686,10 +677,21 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 		old_mvbs = meson_vpu_block_get_old_state(mvb, old_state);
 
 		if (new_mvsps->enable_blocks & BIT(id)) {
+			DRM_DEBUG("Enable block %s: mvbs new-%p, old-%p\n",
+				mvb->name, mvbs, old_mvbs);
+
 			mvb->ops->update_state(mvb, mvbs, old_mvbs);
 			mvb->ops->enable(mvb, mvbs);
 		} else {
-			mvb->ops->disable(mvb, mvbs);
+			DRM_DEBUG("Disable block %s: mvbs new-%p, old-%p\n",
+				mvb->name, mvbs, old_mvbs);
+
+			if (!old_mvbs || !old_mvbs->sub) {
+				DRM_ERROR("old_mvbs or sub is invalid.\n");
+				continue;
+			}
+
+			mvb->ops->disable(mvb, old_mvbs);
 		}
 	}
 

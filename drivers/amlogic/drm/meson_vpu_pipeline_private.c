@@ -385,9 +385,6 @@ meson_vpu_postblend_state_init(struct meson_drm *private,
 
 /*postblend block state ops end
  */
-#ifdef MESON_DRM_VERSION_V0
-static struct meson_vpu_pipeline_state last_mvps;
-#endif
 static struct drm_private_state *
 meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 {
@@ -411,14 +408,6 @@ meson_vpu_pipeline_atomic_destroy_state(struct drm_private_obj *obj,
 
 	kfree(mvps);
 }
-
-#ifdef MESON_DRM_VERSION_V0
-void
-meson_vpu_pipeline_atomic_backup_state(struct meson_vpu_pipeline_state *mvps)
-{
-	memcpy(&last_mvps, mvps, sizeof(*mvps));
-}
-#endif
 
 static const struct drm_private_state_funcs meson_vpu_pipeline_obj_funcs = {
 	.atomic_duplicate_state = meson_vpu_pipeline_atomic_duplicate_state,

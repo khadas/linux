@@ -725,6 +725,19 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 	struct meson_vpu_block *start, *end;
 	int path[MESON_MAX_OSDS] = {0};
 	struct meson_vpu_pipeline *mvp = mvps->pipeline;
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_state *mvbs;
+
+	/* to dup new state for all blocks.The duped state is empty/disable state.
+	 */
+	for (i = 0; i < BLOCK_ID_MAX; i++) {
+		mvb = mvp->mvbs[i];
+
+		if (!mvb)
+			continue;
+
+		mvbs = meson_vpu_block_get_state(mvb, state);
+	}
 
 	num_planes = mvps->num_plane;
 	if (!num_planes)
