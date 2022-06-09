@@ -7,7 +7,6 @@
 
 #include "meson-s4.dtsi"
 #include "mesons4_drm.dtsi"
-#include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -1433,26 +1432,30 @@
 			reg = <0x0 0x0800000>;
 		};
 		partition@5 {
+			label = "tee";
+			reg = <0x0 0x200000>;
+		};
+		partition@6 {
 			label = "logo";
 			reg = <0x0 0x00200000>;
 		};
-		partition@6 {
+		partition@7 {
 			label = "recovery";
 			reg = <0x0 0x1000000>;
 		};
-		partition@7 {
+		partition@8 {
 			label = "boot";
 			reg = <0x0 0x1000000>;
 		};
-		partition@8 {
-			label = "system";
-			reg = <0x0 0x12000000>;
-		};
 		partition@9 {
+			label = "system";
+			reg = <0x0 0x14000000>;
+		};
+		partition@10 {
 			label = "vendor";
 			reg = <0x0 0x1000000>;
 		};
-		partition@10 {
+		partition@11 {
 			label = "data";
 			reg = <0x0 0xffffffff>;
 		};
