@@ -296,12 +296,11 @@ void notrace pstore_io_rw_dump(struct pstore_ftrace_record *rec,
 	do_div(time, 1000);
 	us = (unsigned long)do_div(time, 1000000);
 	sec = (unsigned long)time;
-	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %08lx-%8lx>  <%ps <- %pS>\n",
+	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %s%08lx-%8lx>  <%ps <- %pS>\n",
 		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
-		   record_name[rec->flag], rec->val1,
-		   (rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ?
-		   rec->val2 : 0,
-		   (void *)rec->ip, (void *)rec->parent_ip);
+		   record_name[rec->flag], rec->phys_addr ? "p:" : "",
+		   rec->val1, (rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ?
+		   rec->val2 : 0, (void *)rec->ip, (void *)rec->parent_ip);
 }
 
 void notrace pstore_sched_switch_dump(struct pstore_ftrace_record *rec,
@@ -385,6 +384,7 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 			    unsigned long *irq_flag)
 {
 	int cpu;
+	unsigned long ret;
 	struct pstore_ftrace_record rec = {};
 	struct pstore_record record = {
 		.type = PSTORE_TYPE_FTRACE,
@@ -423,6 +423,9 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 
 	rec.flag = flag;
 	rec.in_irq = !!in_irq();
+	rec.phys_addr = 0;
+	rec.val1 = reg;
+	rec.val2 = val;
 
 	if (dump_phys_addr) {
 		switch (rec.flag) {
@@ -430,22 +433,18 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 		case PSTORE_FLAG_IO_R_END:
 		case PSTORE_FLAG_IO_W:
 		case PSTORE_FLAG_IO_W_END:
-			rec.val1 = virt_convert_phys_addr(reg);
+			ret = virt_convert_phys_addr(reg);
+			if (ret != -1) {
+				rec.val1 = ret;
+				rec.phys_addr = 1;
+			}
 			break;
 		default:
-			rec.val1 = reg;
+			break;
 		}
-	} else {
-		rec.val1 = reg;
 	}
 
-	if (dump_phys_addr && rec.val1 == -1)
-		rec.val1 = reg;
-
-	rec.val2 = val;
-
 	cpu = raw_smp_processor_id();
-
 	if (unlikely(oops_in_progress) || unlikely(per_cpu(en, cpu))) {
 		if ((flag == PSTORE_FLAG_IO_R || flag == PSTORE_FLAG_IO_W) && IRQ_D)
 			local_irq_restore(*irq_flag);
@@ -476,11 +475,11 @@ static void notrace __pstore_io_rw_dump(struct pstore_ftrace_record *rec)
 	do_div(time, 1000);
 	us = (unsigned long)do_div(time, 1000000);
 	sec = (unsigned long)time;
-	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %08lx-%8lx>  <%pS <- %pS>\n",
+	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %s%08lx-%8lx>  <%pS <- %pS>\n",
 		sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
-		record_name[rec->flag], rec->val1,
-		(rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ? rec->val2 : 0,
-		(void *)rec->ip, (void *)rec->parent_ip);
+		record_name[rec->flag], rec->phys_addr ? "p:" : "",
+		rec->val1, (rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ?
+		rec->val2 : 0, (void *)rec->ip, (void *)rec->parent_ip);
 }
 
 static void notrace __pstore_ftrace_dump_old(struct pstore_ftrace_record *rec)

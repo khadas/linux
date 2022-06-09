@@ -224,8 +224,9 @@ struct pstore_ftrace_record {
 	unsigned long long time;
 	unsigned char comm[8];
 	struct {
-		unsigned int flag:31;
+		unsigned int flag:30;
 		unsigned int in_irq:1;
+		unsigned int phys_addr:1;
 	};
 #endif
 };
