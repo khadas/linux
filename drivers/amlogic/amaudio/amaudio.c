@@ -221,12 +221,12 @@ static ssize_t codec_report_info_store(struct class *class,
 {
 	if (strncmp(buf, "decoded_frames", 14) == 0) {
 		if (kstrtoint(buf + 15, 10, (uint32_t *)&decoded_frames)) {
-			pr_info("codec_decoder_frames_store failed\n");
+			pr_debug("codec_decoder_frames_store failed\n");
 			return -EINVAL;
 		}
 	} else if (strncmp(buf, "decoded_err", 11) == 0) {
 		if (kstrtoint(buf + 12, 10, (uint32_t *)&decoding_errors)) {
-			pr_info("codec_decoder_errors_store failed\n");
+			pr_debug("codec_decoder_errors_store failed\n");
 			return -EINVAL;
 		}
 	} else if (strncmp(buf, "decoded_drop", 12) == 0) {
