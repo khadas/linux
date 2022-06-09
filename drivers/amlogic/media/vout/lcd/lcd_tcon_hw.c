@@ -538,6 +538,7 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 	unsigned int data_offset, offset, i, j, k, d, m, n, step = 0;
 	unsigned int reg_cnt, reg_byte, data_cnt, data_byte;
 	unsigned short block_ctrl_flag;
+	unsigned char exe_in_isr = 0, exe_ignore = 0;
 	int ret;
 
 	if (tcon_conf)
@@ -548,7 +549,7 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 	ext_header = (struct lcd_tcon_data_block_ext_header_s *)p;
 	part_cnt = ext_header->part_cnt;
 	if (((lcd_debug_print_flag & LCD_DBG_PR_NORMAL) && init_flag) ||
-	    (lcd_debug_print_flag & LCD_DBG_PR_ISR)) {
+	    (lcd_debug_print_flag & LCD_DBG_PR_ADV)) {
 		LCDPR("%s: %s, part_cnt: %d\n", __func__, block_header->name, part_cnt);
 	}
 
@@ -558,10 +559,16 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 	for (i = 0; i < part_cnt; i++) {
 		p = data_buf + data_offset;
 		part_type = p[LCD_TCON_DATA_PART_NAME_SIZE + 3];
-		if ((lcd_debug_print_flag & LCD_DBG_PR_ADV) && init_flag) {
+		exe_in_isr = p[LCD_TCON_DATA_PART_NAME_SIZE + 2];
+		exe_ignore = (exe_in_isr & LCD_TCON_DATA_PART_FLAG_CMD_IGNORE_ISR) &&
+					(init_flag == 0);
+		if (((lcd_debug_print_flag & LCD_DBG_PR_ADV) && init_flag == 1) ||
+			((lcd_debug_print_flag & LCD_DBG_PR_ADV) &&
+			(lcd_debug_print_flag & LCD_DBG_PR_ISR) && init_flag == 0)) {
 			LCDPR("%s: start step %d, %s, type = 0x%02x,\n",
 			      __func__, step, p, part_type);
 		}
+
 		switch (part_type) {
 		case LCD_TCON_DATA_PART_TYPE_CONTROL:
 			block_ctrl_flag = 0;
@@ -571,6 +578,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 					 data_part.ctrl->data_byte_width);
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			if (block_header->block_ctrl == 0)
 				break;
 			if (((lcd_debug_print_flag & LCD_DBG_PR_NORMAL) && init_flag) ||
@@ -592,6 +604,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 					 data_part.wr_n->reg_data_byte);
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			reg_cnt = data_part.wr_n->reg_cnt;
 			reg_byte = data_part.wr_n->reg_addr_byte;
 			m = offset; /*for reg*/
@@ -618,6 +635,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 			size = offset + m;
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			n = data_part.wr_ddr->axi_buf_id;
 			lcd_tcon_axi_rmem_lut_load(n, &p[offset], m);
 			break;
@@ -630,6 +652,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 				(2 * data_part.wr_mask->reg_data_byte);
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			reg_byte = data_part.wr_mask->reg_addr_byte;
 			data_byte = data_part.wr_mask->reg_data_byte;
 			m = offset; /* for reg */
@@ -665,6 +692,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 				data_part.rd_mask->reg_data_byte;
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			reg_byte = data_part.rd_mask->reg_addr_byte;
 			data_byte = data_part.rd_mask->reg_data_byte;
 			m = offset; /* for reg */
@@ -705,6 +737,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 				(data_part.chk_wr_mask->data_chk_cnt + 2);
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			reg_byte = data_part.chk_wr_mask->reg_chk_addr_byte;
 			data_cnt = data_part.chk_wr_mask->data_chk_cnt;
 			data_byte = data_part.chk_wr_mask->reg_chk_data_byte;
@@ -774,6 +811,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 				(2 * data_part.chk_exit->reg_data_byte);
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			reg_byte = data_part.chk_exit->reg_addr_byte;
 			data_byte = data_part.chk_exit->reg_data_byte;
 			m = offset; /* for reg */
@@ -808,6 +850,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 			size = LCD_TCON_DATA_PART_DELAY_SIZE;
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			if (init_flag == 0) /* calling by vsync isr */
 				break;
 			if (data_part.delay->delay_us > 20000) {
@@ -834,6 +881,11 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 			size = offset + data_part.param->param_size;
 			if ((size + data_offset) > block_header->block_size)
 				goto lcd_tcon_data_common_parse_set_err_size;
+			if (exe_ignore) {
+				if ((lcd_debug_print_flag & LCD_DBG_PR_ADV))
+					LCDPR("%s step %d ignored\n", __func__, step);
+				break;
+			}
 			break;
 		default:
 			if (block_ctrl_flag)
@@ -842,7 +894,9 @@ int lcd_tcon_data_common_parse_set(struct aml_lcd_drv_s *pdrv,
 			       __func__, part_type);
 			break;
 		}
-		if ((lcd_debug_print_flag & LCD_DBG_PR_ADV) && init_flag) {
+		if (((lcd_debug_print_flag & LCD_DBG_PR_ADV) && init_flag == 1) ||
+			((lcd_debug_print_flag & LCD_DBG_PR_ADV) &&
+			(lcd_debug_print_flag & LCD_DBG_PR_ISR) && init_flag == 0)) {
 			LCDPR("%s: end step %d, %s, type=0x%02x, size=%d\n",
 			      __func__, step, p, part_type, size);
 		}
