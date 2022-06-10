@@ -1199,6 +1199,16 @@ enum tvafe_cvbs_video_e tvafe_cvd2_get_lock_status(struct tvafe_cvd2_s *cvd2)
 int tvafe_cvd2_get_atv_format(void)
 {
 	int format;
+	struct tvafe_dev_s *devp = NULL;
+
+	devp = tvafe_get_dev();
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+					devp->flags);
+		return 0;
+	}
 
 	format = R_APB_REG(CVD2_STATUS_REGISTER3) & 0x7;
 	return format;
@@ -1208,6 +1218,16 @@ EXPORT_SYMBOL(tvafe_cvd2_get_atv_format);
 int tvafe_cvd2_get_hv_lock(void)
 {
 	int lock_status;
+	struct tvafe_dev_s *devp = NULL;
+
+	devp = tvafe_get_dev();
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+					devp->flags);
+		return 0;
+	}
 
 	lock_status = R_APB_REG(CVD2_STATUS_REGISTER1) & 0x6;
 	return lock_status;
@@ -3010,6 +3030,16 @@ void tvafe_snow_config(unsigned int onoff)
 
 void tvafe_snow_config_clamp(unsigned int onoff)
 {
+	struct tvafe_dev_s *devp = NULL;
+
+	devp = tvafe_get_dev();
+	if (!devp || (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+	    (devp->flags & TVAFE_POWERDOWN_IN_IDLE))) {
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+			pr_info("[tvafe..] %s not opened or idle\n", __func__);
+		return;
+	}
+
 	if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && onoff) {
 		/* 0x6d is tm2 adjust snow gain */
 		W_APB_REG(ACD_REG_6D, 0x03000000);

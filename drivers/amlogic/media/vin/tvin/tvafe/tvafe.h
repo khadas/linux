@@ -25,7 +25,8 @@
 /* 20220430: PALM CC not display */
 /* 20220513: add electrical performance debug adjust command */
 /* 20220602: call avin read crash after shutdowm */
-#define TVAFE_VER "20220602:call avin read crash after shutdowm"
+/* 20220613: tvafe shutdown not close clk stuck */
+#define TVAFE_VER "20220613:tvafe shutdown not close clk stuck"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

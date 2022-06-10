@@ -341,6 +341,16 @@ static int tvafe_work_mode(bool mode)
 static int tvafe_get_v_fmt(void)
 {
 	int fmt = 0;
+	struct tvafe_dev_s *devp = NULL;
+
+	devp = tvafe_get_dev();
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+					devp->flags);
+		return 0;
+	}
 
 	if (tvin_get_sm_status(0) != TVIN_SM_STATUS_STABLE)
 		return 0;
@@ -729,7 +739,8 @@ static int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe_pr_err("tvafe havn't opened, isr error!!!\n");
+		if (tvafe_dbg_print & TVAFE_DBG_ISR)
+			tvafe_pr_err("tvafe havn't opened, isr error!!!\n");
 		return TVIN_BUF_SKIP;
 	}
 
@@ -911,8 +922,9 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
-			devp->flags);
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
+			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+					devp->flags);
 		return true;
 	}
 	if (force_stable)
@@ -1153,8 +1165,9 @@ static void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe_pr_err("%s tvafe not opened OR suspend:flags:0x%x!\n",
-			__func__, devp->flags);
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+			tvafe_pr_err("%s tvafe not opened OR suspend:flags:0x%x!\n",
+					__func__, devp->flags);
 		return;
 	}
 
@@ -2040,10 +2053,37 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 
 static void tvafe_drv_shutdown(struct platform_device *pdev)
 {
+	struct tvafe_dev_s *tdevp = NULL;
+	struct tvafe_info_s *tvafe;
+
 	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1) {
 		W_APB_BIT(TVFE_VAFE_CTRL0, 0, 19, 1);
 		W_APB_BIT(TVFE_VAFE_CTRL1, 0, 8, 1);
 	}
+
+	tdevp = platform_get_drvdata(pdev);
+	if (!tdevp) {
+		tvafe_pr_info("tdevp is null\n");
+		return;
+	}
+
+	tvafe = &tdevp->tvafe;
+	mutex_lock(&tdevp->afe_mutex);
+	/* close afe port first */
+	if (tdevp->flags & TVAFE_FLAG_DEV_OPENED) {
+		tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED);
+		tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
+		tdevp->flags &= (~TVAFE_FLAG_DEV_STARTED);
+		tvafe_clk_status = false;
+		tvafe_pr_info("shutdown close afe port first\n");
+		tvafe_cvd2_hold_rst();
+		/**disable av out**/
+		tvafe_enable_avout(tvafe->parm.port, false);
+		/*disable and reset tvafe clock*/
+		tvafe_enable_module(false);
+	}
+	mutex_unlock(&tdevp->afe_mutex);
+
 	tvafe_pr_info("%s: tvafe sutdown ok.\n", __func__);
 }
 
