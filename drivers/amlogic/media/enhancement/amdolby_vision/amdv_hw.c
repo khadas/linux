@@ -1439,8 +1439,8 @@ static int dv_core1a_set(u32 dm_count,
 		dv_core1[0].core1_on_cnt++;
 	}
 	if (debug_dolby & 2)
-		pr_dv_dbg("core1a cnt %d, reset %d\n",
-			     dv_core1[0].core1_on_cnt, vsize);
+		pr_dv_dbg("core1a cnt %d, reset %d, size %dx%d\n",
+			     dv_core1[0].core1_on_cnt, reset, hsize, vsize);
 	//if (reset)
 		//update_core2_reg = true;
 
@@ -1967,8 +1967,8 @@ static int dv_core1b_set(u32 dm_count,
 		dv_core1[1].core1_on_cnt++;
 	}
 	if (debug_dolby & 2)
-		pr_dv_dbg("core1b cnt %d, reset %d\n",
-			     dv_core1[1].core1_on_cnt, vsize);
+		pr_dv_dbg("core1b cnt %d, reset %d, size %dx%d\n",
+			     dv_core1[1].core1_on_cnt, reset, hsize, vsize);
 	//if (reset)
 		//update_core2_reg = true;
 
@@ -2683,9 +2683,9 @@ static int dv_core3_set
 
 		if (is_amdv_stb_mode()) {
 			if (diagnostic_enable)
-				diag_mode = 3;
+				diag_mode = 3;/*LL rgb*/
 			else
-				diag_mode = 0x20;
+				diag_mode = 0x20;/*LL yuv*/
 		} else {
 			diag_mode = 3;
 		}
@@ -2933,11 +2933,19 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 			enable_core1b = 0;
 
 		for (i = 0; i < NUM_IPCORE1; i++) {
-			p_comp1[i] = &new_m_dovi_setting.core1[i].comp_reg;
-			p_dm_reg1[i] = &new_m_dovi_setting.core1[i].dm_reg;
-			p_dm_lut1[i] = &new_m_dovi_setting.core1[i].dm_lut;
-			last_dm[i] = (u32 *)&m_dovi_setting.core1[i].dm_reg;
-			last_comp[i] = (u32 *)&m_dovi_setting.core1[i].comp_reg;
+			if (cur_valid_video_num <= 1) {
+				p_comp1[i] = &new_m_dovi_setting.core1[0].comp_reg;
+				p_dm_reg1[i] = &new_m_dovi_setting.core1[0].dm_reg;
+				p_dm_lut1[i] = &new_m_dovi_setting.core1[0].dm_lut;
+				last_dm[i] = (u32 *)&m_dovi_setting.core1[0].dm_reg;
+				last_comp[i] = (u32 *)&m_dovi_setting.core1[0].comp_reg;
+			} else {
+				p_comp1[i] = &new_m_dovi_setting.core1[i].comp_reg;
+				p_dm_reg1[i] = &new_m_dovi_setting.core1[i].dm_reg;
+				p_dm_lut1[i] = &new_m_dovi_setting.core1[i].dm_lut;
+				last_dm[i] = (u32 *)&m_dovi_setting.core1[i].dm_reg;
+				last_comp[i] = (u32 *)&m_dovi_setting.core1[i].comp_reg;
+			}
 		}
 		p_dm_lut2 = &new_m_dovi_setting.dm_lut2;
 		p_dm_lut2_last = &m_dovi_setting.dm_lut2;
@@ -4771,7 +4779,7 @@ void enable_amdv_v2_stb(int enable)
 	u32 core_flag = 0;
 	u32 diagnostic_enable = m_dovi_setting.diagnostic_enable;
 	bool dovi_ll_enable = m_dovi_setting.dovi_ll_enable;
-	int dv_id = 0;
+	/*int dv_id = 0;*/
 
 	if (enable) {
 		if (!dolby_vision_on) {
@@ -5219,7 +5227,7 @@ void enable_amdv_v2_stb(int enable)
 				} else {
 					VSYNC_WR_DV_REG_BITS
 						(AMDV_PATH_CTRL,
-						 /* disable vd1 vd1 dv */
+						 /* disable vd1 vd2 dv */
 						 3, 0, 2);
 				}
 				/* core1a */
@@ -5253,10 +5261,18 @@ void enable_amdv_v2_stb(int enable)
 				dv_inst[1].frame_count = 0;
 				pr_dv_dbg("DV core1 turn off\n");
 			} else if (dv_core1[0].core1_on &&
-				!dv_core1[0].amdv_setting_video_flag) {
+				(!(amdv_mask & 1) ||
+				!dv_core1[0].amdv_setting_video_flag)) {
 				/* core1a */
-				VSYNC_WR_DV_REG_BITS
-				(AMDV_PATH_CTRL, 1, 0, 1);
+				if (is_aml_t7_stbmode()) {
+					VSYNC_WR_DV_REG_BITS
+						(VPP_VD1_DSC_CTRL,
+						 /* disable vd1 dv */
+						 1, 4, 1);
+				} else {
+					VSYNC_WR_DV_REG_BITS
+					(AMDV_PATH_CTRL, 1, 0, 1);
+				}
 				dv_mem_power_off(VPU_DOLBY1A);
 				dv_mem_power_off(VPU_PRIME_DOLBY_RAM);
 				VSYNC_WR_DV_REG
@@ -5264,13 +5280,20 @@ void enable_amdv_v2_stb(int enable)
 					 0x55555455);
 				dv_core1[0].core1_on = false;
 				dv_core1[0].core1_on_cnt = 0;
-				dv_id = layer_id_to_dv_id(VD1_PATH);
-				dv_inst[dv_id].frame_count = 0;
 				pr_dv_dbg("DV core1a turn off\n");
 			} else if (dv_core1[1].core1_on &&
 				(!(amdv_mask & 1) ||
 				!dv_core1[1].amdv_setting_video_flag)) {
 				if (is_aml_tm2_stbmode() || is_aml_t7_stbmode()) {
+					if (is_aml_t7_stbmode()) {
+						VSYNC_WR_DV_REG_BITS
+						(VPP_VD2_DSC_CTRL,
+						 /* disable vd2 dv */
+						 1, 4, 1);
+					} else {
+						VSYNC_WR_DV_REG_BITS
+						(AMDV_PATH_CTRL, 1, 1, 1);
+					}
 					/* core1b */
 					dv_mem_power_off(VPU_DOLBY1B);
 					VSYNC_WR_DV_REG
@@ -5278,8 +5301,6 @@ void enable_amdv_v2_stb(int enable)
 					 0x55555455);
 					dv_core1[1].core1_on = false;
 					dv_core1[1].core1_on_cnt = 0;
-					dv_id = layer_id_to_dv_id(VD2_PATH);
-					dv_inst[dv_id].frame_count = 0;
 					pr_dv_dbg("DV core1b turn off\n");
 				}
 			}
