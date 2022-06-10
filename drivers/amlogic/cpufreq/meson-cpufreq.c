@@ -921,12 +921,14 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 		       PTR_ERR(cpu_reg));
 		cpu_reg = NULL;
 	}
-	dsu_reg = regulator_get_optional(cpu_dev, DSU_SUPPLY);
-	if (IS_ERR(dsu_reg)) {
-		pr_info("[cluster%d]get dsu_regulator failed.\n", cur_cluster);
-		dsu_reg = NULL;
-	} else {
-		pr_info("[cluster%d]get dsu_regulator succeed.\n", cur_cluster);
+	if (of_get_child_by_name(np, "dsu-supply")) {
+		dsu_reg = regulator_get_optional(cpu_dev, DSU_SUPPLY);
+		if (IS_ERR(dsu_reg)) {
+			pr_info("[cluster%d]get dsu_regulator failed.\n", cur_cluster);
+			dsu_reg = NULL;
+		} else {
+			pr_info("[cluster%d]get dsu_regulator succeed.\n", cur_cluster);
+		}
 	}
 
 	cpu_supply_external_used = of_property_read_bool(np, "cpu_supply_external_used");

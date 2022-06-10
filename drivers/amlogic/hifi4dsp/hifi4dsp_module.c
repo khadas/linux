@@ -1003,6 +1003,8 @@ void get_dsp_baseaddr(struct platform_device *pdev)
 	g_regbases.dspa_addr = devm_ioremap_resource(&pdev->dev, res);
 	g_regbases.rega_size = resource_size(res);
 
+	if (pdev->num_resources < 2)
+		return;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get dspb base address\n");
@@ -1010,14 +1012,6 @@ void get_dsp_baseaddr(struct platform_device *pdev)
 	}
 	g_regbases.dspb_addr = devm_ioremap_resource(&pdev->dev, res);
 	g_regbases.regb_size = resource_size(res);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	if (!res) {
-		dev_err(&pdev->dev, "failed to get dsp hiu address\n");
-		return;
-	}
-	//g_regbases.hiu_addr = devm_ioremap_resource(&pdev->dev, res);
-	g_regbases.hiu_addr = ioremap_nocache(res->start, resource_size(res));
 }
 
 void get_dsp_statusreg(struct platform_device *pdev, int dsp_cnt,
@@ -1026,6 +1020,8 @@ void get_dsp_statusreg(struct platform_device *pdev, int dsp_cnt,
 	struct resource *res;
 	int i;
 
+	if (pdev->num_resources < 3)
+		return;
 	for (i = 0; i < dsp_cnt; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 2 + i);
 		if (!res) {
@@ -1086,12 +1082,11 @@ static int get_hifi_firmware_mem(struct reserved_mem *fwmem, struct platform_dev
 	struct page *cma_pages = NULL;
 	u32 dspsrambase = 0, dspsramsize = 0;
 
-	/*parse sram fwmem*/
+	/*parse sram fwmem preferentially*/
 	ret = of_property_read_u32(pdev->dev.of_node, "dspsrambase", &dspsrambase);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Can't retrieve srambase\n");
+	if (ret < 0)
 		goto parse_cma;
-	}
+
 	pr_debug("of read dspsrambase=0x%08x\n", dspsrambase);
 
 	ret = of_property_read_u32(pdev->dev.of_node, "dspsramsize", &dspsramsize);
@@ -1144,6 +1139,8 @@ static int get_hifi_share_mem(struct reserved_mem *shmem, struct platform_device
 {
 	struct resource *dsp_shm_res;
 
+	if (pdev->num_resources < 5)
+		return -1;
 	/*parse shmem*/
 	dsp_shm_res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
 	if (!dsp_shm_res) {
@@ -1472,8 +1469,8 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	pr_debug("%s of read dspboffset=0x%08x\n", __func__, dspboffset);
 
 	ret = of_property_read_u32(np, "dsp-monitor-period-ms", &dsp_monitor_period_ms);
-	if (ret < 0)
-		dev_err(&pdev->dev, "Can't retrieve dsp-monitor-period-ms\n");
+	if (ret && ret != -EINVAL)
+		dev_err(&pdev->dev, "of get dsp-monitor-period-ms property failed\n");
 
 	/*boot from DDR or SRAM or ...*/
 	ret = of_property_read_u32(np, "bootlocation", &bootlocation);
@@ -1504,19 +1501,19 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	}
 
 	ret = of_property_read_u32_array(np, "optimize_longcall", &optimize_longcall[0], 2);
-	if (ret)
-		pr_debug("can't get optimize_longcall\n");
+	if (ret && ret != -EINVAL)
+		dev_err(&pdev->dev, "of get optimize_longcall property failed\n");
 	ret = of_property_read_u32_array(np, "sram_remap_addr", &sram_remap_addr[0], 4);
-	if (ret)
-		pr_debug("can't get sram_remap_addr\n");
+	if (ret && ret != -EINVAL)
+		dev_err(&pdev->dev, "of get sram_remap_addr property failed\n");
 	ret = of_property_read_u32_array(np, "suspend_resume_support", &pm_support[0], 2);
-	if (ret)
-		pr_debug("can't get suspend_resume_support\n");
+	if (ret && ret != -EINVAL)
+		dev_err(&pdev->dev, "of get suspend_resume_support property failed\n");
 
 	ret = of_property_read_u32(np, "logbuff-polling-period-ms",
 			&dsp_logbuff_polling_period_ms);
-	if (ret < 0)
-		dev_err(&pdev->dev, "Can't retrieve logbuff-polling-period-ms\n");
+	if (ret && ret != -EINVAL)
+		dev_err(&pdev->dev, "of get logbuff-polling-period-ms property failed\n");
 
 	/*init hifi4dsp_dsp*/
 	dsp = kcalloc(dsp_cnt, sizeof(*dsp), GFP_KERNEL);
