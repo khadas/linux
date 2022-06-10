@@ -32,6 +32,7 @@
 #define	REMOTE_CUS_WAKEUP		9
 #define ETH_PHY_WAKEUP      10
 #define WOL_WAKEUP          13
+#define TP_WAKEUP           14
 extern unsigned int get_resume_method(void);
 extern unsigned int is_pm_freeze_mode(void);
 #ifdef CONFIG_AMLOGIC_ADC_KEYPADS
