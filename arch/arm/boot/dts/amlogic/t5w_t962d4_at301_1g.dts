@@ -141,7 +141,7 @@
 			 * size = 1920 * 1080 * 3 * 4
 			 * (RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x8000000>;
+			size = <0x400000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x30000000 0x0f800000>;
 		};
