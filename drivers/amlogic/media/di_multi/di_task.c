@@ -791,6 +791,7 @@ mrestart:
 			//blk_polling(i);
 			//mtask_polling_sct(pch);
 		}
+		dim_mng_hf_s_act();
 	}
 
 	tsk->thread = NULL;

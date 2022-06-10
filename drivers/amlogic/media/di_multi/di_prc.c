@@ -6403,6 +6403,7 @@ static int hf_release_clear_one_buf(struct dim_mng_hf_s *hmng,
 	return ret;
 }
 
+/* note: pch is no use !!! */
 static bool hf_release_from_free(struct di_ch_s *pch)
 {
 	struct dim_mng_hf_s *hmng;
@@ -6621,6 +6622,23 @@ bool dim_mng_hf_release_all(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf)
 		ret = true;
 	}
 	return ret;
+}
+
+/* after unreg, release free hf */
+bool dim_mng_hf_s_act(void)
+{
+	struct dim_mng_hf_s *hmng;
+
+	hmng = dim_mng_is_act();
+	if (!hmng)
+		return false;
+	if (!get_reg_flag_all() &&
+	    dim_mng_hf_sum_free_get()) {
+		hf_release_from_free(NULL);
+		PR_INF("%s:\n", __func__);
+		return true;
+	}
+	return false;
 }
 
 void dim_mng_hf_exit(void)
