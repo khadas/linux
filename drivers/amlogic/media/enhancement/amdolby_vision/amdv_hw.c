@@ -2909,7 +2909,7 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 				    u32 graphics_h)
 {
 	const struct vinfo_s *vinfo = get_current_vinfo();
-	u32 h_size[NUM_IPCORE1];
+	u32 h_size[NUM_IPCORE1];/*core1a core1b input size*/
 	u32 v_size[NUM_IPCORE1];
 	u32 v_height;
 	u32 core1_dm_count = 27;
@@ -2953,10 +2953,17 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 		p_dm_reg3 = &new_m_dovi_setting.dm_reg3;
 		p_md_reg3 = &new_m_dovi_setting.md_reg3;
 	}
-	h_size[0] = (frame_size >> 16) & 0xffff;
-	v_size[0] = frame_size & 0xffff;
-	h_size[1] = (frame_size_2 >> 16) & 0xffff;
-	v_size[1] = frame_size_2 & 0xffff;
+	if (get_core1a_core1b_switch()) {
+		h_size[1] = (frame_size >> 16) & 0xffff;
+		v_size[1] = frame_size & 0xffff;
+		h_size[0] = (frame_size_2 >> 16) & 0xffff;
+		v_size[0] = frame_size_2 & 0xffff;
+	} else {
+		h_size[0] = (frame_size >> 16) & 0xffff;
+		v_size[0] = frame_size & 0xffff;
+		h_size[1] = (frame_size_2 >> 16) & 0xffff;
+		v_size[1] = frame_size_2 & 0xffff;
+	}
 
 	for (i = 0; i < NUM_IPCORE1; i++) {
 		if (h_size[i] == 0xffff)
@@ -3028,8 +3035,8 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 						 (uint32_t *)p_dm_lut1[1],
 						 last_dm[1],
 						 last_comp[1],
-						 h_size[1],
-						 v_size[1],
+						 h_size[0],
+						 v_size[0],
 						/* core1a enable */
 						 enable_core1a,
 						 dolby_vision_mode ==
@@ -3048,8 +3055,8 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 						 (uint32_t *)p_dm_lut1[0],
 						 last_dm[0],
 						 last_comp[0],
-						 h_size[0],
-						 v_size[0],
+						 h_size[1],
+						 v_size[1],
 						/* core1b enable */
 						 enable_core1b,
 						 dolby_vision_mode ==

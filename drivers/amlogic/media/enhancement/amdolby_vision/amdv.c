@@ -2588,7 +2588,7 @@ int layer_id_to_dv_id(enum vd_path_e vd_path)
 		else if (dv_inst[1].layer_id == vd_path)
 			return 1;
 		if (debug_dolby & 1)
-			pr_dv_dbg("inst0 on vd%d, inst1 on vd%d, not found vd%d\n",
+			pr_dv_dbg("inst1 on vd%d, inst2 on vd%d, not found vd%d\n",
 				dv_inst[0].layer_id + 1, dv_inst[1].layer_id + 1, vd_path + 1);
 
 		/*If no dv inst display on vd_path, */
