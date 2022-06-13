@@ -422,6 +422,12 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 			pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_ON);
 			pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_ON);
 #endif
+			// alloc frc buf according to status of alloced
+			if (!devp->buf.cma_mem_alloced) {
+				frc_buf_alloc(devp);
+				if (devp->buf.cma_buf_alloc && devp->buf.cma_buf_alloc2)
+					devp->buf.cma_mem_alloced = 1;
+			}
 			devp->power_on_flag = true;
 			frc_init_config(devp);
 			frc_buf_config(devp);

@@ -70,8 +70,9 @@
 // frc_20220426 frc compute mcdly for vlock
 // frc_20220505 frc check dbg roreg
 // frc_20220524 frc memory optimize
+// frc_20220608 optimize video flag check
 
-#define FRC_FW_VER			"2022-0608 optimize video flag check"
+#define FRC_FW_VER			"2022-0613 fix frc memory resume abnormal"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
