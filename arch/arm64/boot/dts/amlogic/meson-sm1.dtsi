@@ -351,12 +351,12 @@
 			status = "disabled";
 		};
 
-		spdifout_a: audio-controller@480 {
+		spdifout: audio-controller@480 {
 			compatible = "amlogic,g12a-spdifout",
-				     "amlogic,axg-spdifout";
+			"amlogic,axg-spdifout";
 			reg = <0x0 0x480 0x0 0x50>;
 			#sound-dai-cells = <0>;
-			sound-name-prefix = "SPDIFOUT_A";
+			sound-name-prefix = "SPDIFOUT";
 			clocks = <&clkc_audio AUD_CLKID_SPDIFOUT>,
 			<&clkc_audio AUD_CLKID_SPDIFOUT_CLK>;
 			clock-names = "pclk", "mclk";
