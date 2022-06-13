@@ -507,12 +507,20 @@ static int vidioc_open(struct file *file)
 {
 	struct ionvideo_dev *dev = video_drvdata(file);
 
-	if (dev->fd_num > 0 || ppmgr2_init(&dev->ppmgr2_dev) < 0) {
+	mutex_lock(&dev->mutex_opened);
+	if (dev->fd_num > 0) {
 		pr_err("%s error\n", __func__);
 		return -EBUSY;
 	}
-
 	dev->fd_num++;
+	mutex_unlock(&dev->mutex_opened);
+
+	if (ppmgr2_init(&dev->ppmgr2_dev) < 0) {
+		pr_err("%s error2\n", __func__);
+		dev->fd_num--;
+		return -EBUSY;
+	}
+
 	dev->pts = 0;
 	dev->c_width = 0;
 	dev->c_height = 0;
@@ -540,15 +548,24 @@ static int vidioc_close(struct file *file)
 
 	struct ionvideo_dmaqueue *dma_q = &dev->vidq;
 
+	IONVID_DBG("%s!!!!\n", __func__);
+
+	mutex_lock(&dev->mutex_opened);
+	if (dev->fd_num > 0) {
+		dev->fd_num--;
+	} else {
+		pr_err("%s more than one time\n", __func__);
+		mutex_unlock(&dev->mutex_opened);
+		return 0;
+	}
+	mutex_unlock(&dev->mutex_opened);
+
 	if (dma_q->kthread)
 		vidioc_streamoff(file, NULL, 0);
 
-	IONVID_DBG("%s!!!!\n", __func__);
 	ppmgr2_release(&dev->ppmgr2_dev);
-	//dprintk(dev, 2, "vidioc_close\n");
+
 	IONVID_DBG("%s\n", __func__);
-	if (dev->fd_num > 0)
-		dev->fd_num--;
 
 	dev->once_record = 0;
 	return 0;
@@ -949,6 +966,7 @@ static int ionvideo_create_instance(int inst,
 
 	mutex_init(&dev->mutex_input);
 	mutex_init(&dev->mutex_output);
+	mutex_init(&dev->mutex_opened);
 
 	return 0;
 unreg_dev:

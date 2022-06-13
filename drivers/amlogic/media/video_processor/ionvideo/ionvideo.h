@@ -306,6 +306,8 @@ struct ionvideo_dev {
 	struct v4l2_buffer ionvideo_input[IONVIDEO_POOL_SIZE + 1];
 	bool wait_ge2d_timeout;
 	struct v4l2_amlogic_parm am_parm;
+	/* mutex_opened */
+	struct mutex mutex_opened;
 };
 
 int get_ionvideo_debug(void);
