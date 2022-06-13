@@ -933,7 +933,8 @@ int amlvideo2_ge2d_interlace_two_canvasaddr_process(struct vframe_s *vf,
 		    (src_height + src_top) > vf->height ||
 		    src_top < 0 || src_left < 0 ||
 		    src_width <= 0 || src_height <= 0) {
-			pr_info("amlvideo2:parameters is not match\n");
+			if (amlvideo2_dbg_en & 4)
+				pr_info("%s: parameters is not match.\n", __func__);
 			src_width = vf->width;
 			src_height = vf->height;
 			src_top = 0;
@@ -1742,7 +1743,8 @@ int amlvideo2_ge2d_interlace_vdindata_process(struct vframe_s *vf,
 		    (src_height + src_top) > vf->height ||
 		    src_top < 0 || src_left < 0 ||
 		    src_width <= 0 || src_height <= 0) {
-			pr_info("amlvideo2:parameters is not match\n");
+			if (amlvideo2_dbg_en & 4)
+				pr_info("%s: parameters is not match.\n", __func__);
 			src_width = vf->width;
 			src_height = vf->height;
 			src_top = 0;
@@ -2182,7 +2184,8 @@ int amlvideo2_ge2d_interlace_one_canvasaddr_process(struct vframe_s *vf,
 		    (src_height + src_top) > vf->height ||
 		    src_top < 0 || src_left < 0 ||
 		    src_width <= 0 || src_height <= 0) {
-			pr_info("amlvideo2:parameters is not match\n");
+			if (amlvideo2_dbg_en & 4)
+				pr_info("%s: parameters is not match.\n", __func__);
 			src_width = vf->width;
 			src_height = vf->height;
 			src_top = 0;
@@ -3313,7 +3316,8 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 		    (src_height + src_top) > vf->height ||
 		    src_top < 0 || src_left < 0 ||
 		    src_width <= 0 || src_height <= 0) {
-			pr_info("amlvideo2:parameters is not match\n");
+			if (amlvideo2_dbg_en & 4)
+				pr_info("%s: parameters is not match.\n", __func__);
 			src_width = vf->width;
 			src_height = vf->height;
 			src_top = 0;
