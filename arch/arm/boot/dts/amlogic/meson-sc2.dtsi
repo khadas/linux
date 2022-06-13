@@ -1112,6 +1112,7 @@
 			clock-names = "clk_uart",
 						"clk_gate";
 			fifosize = < 64 >;
+			uart_for_bt = <1>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&e_uart_pins>;
 		};

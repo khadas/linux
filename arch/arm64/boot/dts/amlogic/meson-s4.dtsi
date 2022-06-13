@@ -1407,6 +1407,7 @@
 			clock-names = "clk_uart",
 				"clk_gate";
 			xtal_tick_en = <3>;
+			uart_for_bt = <1>;
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&a_uart_pins>;
