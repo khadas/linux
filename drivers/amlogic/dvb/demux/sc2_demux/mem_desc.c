@@ -1059,6 +1059,36 @@ int SC2_bufferid_read_header_again(struct chan_id *pchan, char **pread)
 	return 0;
 }
 
+int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
+{
+	unsigned int w_offset = 0;
+	unsigned int w_offset_org = 0;
+	unsigned int buf_len = 16;
+	int overflow = 0;
+	int pts_mem_offset = 0;
+
+	w_offset_org = wdma_get_wr_len(pchan->id, &overflow);
+	w_offset = w_offset_org % pchan->mem_size;
+	w_offset = w_offset / buf_len * buf_len;
+
+	if (w_offset != pchan->pts_newest_r_offset) {
+//		dprint("%s w:0x%0x, r:0x%0x, wr_len:0x%0x\n", __func__,
+//		       (u32)w_offset, (u32)(pchan->pts_newest_r_offset),
+//		       (u32)w_offset_org);
+		if (w_offset == 0)
+			pts_mem_offset = pchan->mem_size - buf_len;
+		else
+			pts_mem_offset = w_offset - buf_len;
+		dma_sync_single_for_cpu(aml_get_device(),
+				(dma_addr_t)(pchan->mem_phy + pts_mem_offset),
+				buf_len, DMA_FROM_DEVICE);
+		*pread = (char *)pchan->mem + pts_mem_offset;
+		pchan->pts_newest_r_offset = w_offset;
+		return buf_len;
+	}
+	return 0;
+}
+
 /**
  * chan read
  * \param pchan:struct chan_id handle
