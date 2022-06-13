@@ -22,6 +22,7 @@ dtb-y += t7_pop1_t319.dtb
 dtb-y += sc2_s905x4_ah212.dtb
 dtb-y += sc2_s905x4_ah212_drm.dtb
 dtb-y += sc2_s905x4_ah212_drm_s.dtb
+dtb-y += sc2_s905x4_ah212_drm_s_1g.dtb
 dtb-y += sc2_s905x4_ah212_mxl258c.dtb
 dtb-y += sc2_s905x4_ah212_mxl258c_drm.dtb
 dtb-y += sc2_s905x4_ah212_mxl258c_drm_s.dtb
