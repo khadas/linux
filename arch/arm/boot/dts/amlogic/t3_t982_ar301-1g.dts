@@ -1476,8 +1476,7 @@
 			groups = "tcon_1","tcon_2","tcon_3",
 				"tcon_4","tcon_5","tcon_6",
 				"tcon_9","tcon_10","tcon_11",
-				"tcon_12","tcon_14",
-				"tcon_lock";
+				"tcon_14", "tcon_lock";
 			function = "tcon";
 		};
 	};
@@ -1486,8 +1485,7 @@
 			groups = "GPIOH_1","GPIOH_2","GPIOH_3",
 				"GPIOH_4","GPIOH_5","GPIOH_6",
 				"GPIOH_9","GPIOH_10","GPIOH_11",
-				"GPIOH_12","GPIOH_14",
-				"GPIOH_0";
+				"GPIOH_14", "GPIOH_0";
 				function = "gpio_periphs";
 			input-enable;
 		};
