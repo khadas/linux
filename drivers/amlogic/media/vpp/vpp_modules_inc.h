@@ -13,6 +13,7 @@
 #include "modules/vpp_module_meter.h"
 #include "modules/vpp_module_ve.h"
 #include "modules/vpp_module_dnlp.h"
+#include "modules/vpp_module_lc.h"
 
 #endif
 

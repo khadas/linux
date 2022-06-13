@@ -87,6 +87,14 @@ extern unsigned int pr_lvl;
 	})
 #endif
 
+#ifndef XOR
+#define XOR(a, b) \
+	({typeof(a) x = (a);\
+	typeof(b) y = (b);\
+	(y & (~x)) + ((~y) & x);\
+	})
+#endif
+
 /*Commom enum*/
 enum vpp_rgb_mode_e {
 	MODE_R = 0,

@@ -19,3 +19,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_gamma
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_meter.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_ve.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_dnlp.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_lc.o
