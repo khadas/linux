@@ -753,12 +753,12 @@ static void src_axis_adjust(int  *src_top,  int  *src_left,
 			    int  *src_w,  int  *src_h,
 			    struct amlvideo2_output *output)
 {
-	*src_top = output->info.display_info.frame_vd_start_lines_;
-	*src_left = output->info.display_info.frame_hd_start_lines_;
-	*src_w = output->info.display_info.frame_hd_end_lines_ -
-	output->info.display_info.frame_hd_start_lines_ + 1;
-	*src_h = output->info.display_info.frame_vd_end_lines_ -
-	output->info.display_info.frame_vd_start_lines_ + 1;
+	*src_top = output->info.display_info.display_vsc_startp;
+	*src_left = output->info.display_info.display_hsc_startp;
+	*src_w = output->info.display_info.display_hsc_endp -
+	output->info.display_info.display_hsc_startp + 1;
+	*src_h = output->info.display_info.display_vsc_endp -
+	output->info.display_info.display_vsc_startp + 1;
 }
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
