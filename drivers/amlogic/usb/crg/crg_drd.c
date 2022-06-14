@@ -170,7 +170,7 @@ static void crg_host_exit(struct crg_drd *crg)
 
 static int crg_host_init(struct crg_drd *crg)
 {
-	struct property_entry	props[4];
+	struct property_entry	props[5];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	struct resource		*res;
@@ -248,6 +248,12 @@ static int crg_host_init(struct crg_drd *crg)
 		props[prop_idx++].name = "xhci-crg-host-011";
 
 	props[prop_idx++].name = "xhci-crg-drd";
+
+	if (((is_meson_t7_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t7_cpu()) && (is_meson_rev_b())) ||
+		((is_meson_t3_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t3_cpu()) && (is_meson_rev_b())))
+		props[prop_idx++].name = "xhci-crg-host-010";
 
 	if (prop_idx) {
 		ret = platform_device_add_properties(xhci, props);

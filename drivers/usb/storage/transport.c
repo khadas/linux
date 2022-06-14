@@ -427,6 +427,11 @@ static int usb_stor_bulk_transfer_sglist(struct us_data *us, unsigned int pipe,
 		return USB_STOR_XFER_ERROR;
 	}
 
+#ifdef CONFIG_AMLOGIC_USB
+	if (us->pusb_dev->level != 1 && us->pusb_dev->speed == USB_SPEED_SUPER &&
+		pipe == us->recv_bulk_pipe && us->pusb_dev->bus->sg_tablesize > 0)
+		us->current_sg.urbs[0]->need_div = 1;
+#endif
 	/*
 	 * since the block has been initialized successfully, it's now
 	 * okay to cancel it

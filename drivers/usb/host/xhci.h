@@ -1922,6 +1922,7 @@ struct xhci_hcd {
 #define XHCI_CRG_HOST          BIT_ULL(42)
 #define XHCI_CRG_HOST_011      BIT_ULL(43)
 #define XHCI_CRG_DRD           BIT_ULL(44)
+#define XHCI_CRG_HOST_010      BIT_ULL(45)
 #endif
 
 	unsigned int		num_active_eps;

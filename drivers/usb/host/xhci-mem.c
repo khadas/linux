@@ -1500,6 +1500,17 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	virt_dev->eps[ep_index].skip = false;
 	ep_ring = virt_dev->eps[ep_index].new_ring;
 
+#ifdef CONFIG_AMLOGIC_USB
+	if (xhci->quirks & XHCI_CRG_HOST_010) {
+		if (udev->speed == USB_SPEED_SUPER) {
+			if (endpoint_type == BULK_IN_EP) {
+				max_burst = 0;
+				xhci_warn(xhci, "##### crg set max_burst 0\n");
+			}
+		}
+	}
+#endif
+
 	/* Fill the endpoint context */
 	ep_ctx->ep_info = cpu_to_le32(EP_MAX_ESIT_PAYLOAD_HI(max_esit_payload) |
 				      EP_INTERVAL(interval) |
