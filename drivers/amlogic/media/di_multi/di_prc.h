@@ -415,6 +415,7 @@ void dbg_buffer_print(void *in);
 bool tst_tmp_is_extbuf(void);
 bool dim_is_dbg_tabe(void);
 void dip_sum_post_ch(void);
+bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf);
 
 void dbg_hd(struct seq_file *s, struct qs_buf_s *header);
 void dbg_hd_print(struct qs_buf_s *header);

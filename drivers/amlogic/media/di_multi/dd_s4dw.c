@@ -131,16 +131,17 @@ void dim_dbg_buffer_ext(struct di_ch_s *pch,
 			ch, pos, buffer);
 		return;
 	}
-	PR_INF("dbg_buffer_ex:ch[%d],%d,0x%px[0x%px,0x%px]\n",
-		ch, pos, buffer,
+	PR_INF("dbg_buffer_ex:ch[%d],%d,0x%px,0x%x,[0x%px,0x%px]\n",
+		ch, pos, buffer, buffer->flag,
 		buffer->private_data, buffer->vf->private_data);
-	PR_INF("\t0x%lx,0x%lx,0x%lx<%d %d>:0x%x\n",
+	PR_INF("\t0x%lx,0x%lx,0x%lx<%d %d>:0x%x:0x%x\n",
 		buffer->phy_addr,
 		buffer->vf->canvas0_config[0].phy_addr,
 		buffer->vf->canvas0_config[1].phy_addr,
 		buffer->vf->canvas0_config[0].width,
 		buffer->vf->canvas0_config[0].height,
-		buffer->vf->canvas0Addr);
+		buffer->vf->canvas0Addr,
+		buffer->vf->type);
 
 	#endif
 }
@@ -593,6 +594,8 @@ enum ES4DW_BYPASS_ID {
 	ES4DW_BYPASS_TYP,
 	ES4DW_BYPASS_SRC_PPMGR,
 	ES4DW_BYPASS_SIZE_UP_4K,
+	ES4DW_BYPASS_SIZE_DOWN,
+	ES4DW_BYPASS_EOS,
 };
 
 static unsigned int s4dw_bypasse_checkvf(struct vframe_s *vf)
@@ -607,12 +610,17 @@ static unsigned int s4dw_bypasse_checkvf(struct vframe_s *vf)
 		return ES4DW_BYPASS_I;
 	if (vf->type & DIM_BYPASS_VF_TYPE)
 		return ES4DW_BYPASS_TYP;
+	if (vf->type & VIDTYPE_V4L_EOS)
+		return ES4DW_BYPASS_EOS;
 	if (vf->source_type == VFRAME_SOURCE_TYPE_PPMGR)
 		return ES4DW_BYPASS_SRC_PPMGR;
 
 	dim_vf_x_y(vf, &x, &y);
 	if (x > 3840 || y > 2160)
 		return ES4DW_BYPASS_SIZE_UP_4K;
+
+	if (x < 128 || y < 16)
+		return ES4DW_BYPASS_SIZE_DOWN;
 
 	return 0;
 }
@@ -650,7 +658,8 @@ static bool s4dw_bypass_2_ready_bynins(struct di_ch_s *pch,
 {
 	void *in_ori;
 //	struct dim_nins_s	*nins =NULL;
-	struct di_buffer *buffer;
+	struct di_buffer *buffer, *buffer_o;
+	struct di_buf_s *buf_pst;
 
 	if (!nins) {
 		PR_ERR("%s:no in ori ?\n", __func__);
@@ -668,8 +677,32 @@ static bool s4dw_bypass_2_ready_bynins(struct di_ch_s *pch,
 		buffer = (struct di_buffer *)in_ori;
 		buffer->flag |= DI_FLAG_BUF_BY_PASS;
 	}
+	if (dip_itf_is_ins_exbuf(pch)) {
+		/* get out buffer */
+		buf_pst = di_que_out_to_di_buf(pch->ch_id, QUE_POST_FREE);
+		if (!buf_pst) {
+			PR_ERR("%s:no post free\n", __func__);
+			return true;
+		}
 
-	ndrd_qin(pch, in_ori);
+		buffer_o = buf_pst->c.buffer;
+		if (!buffer_o) {
+			PR_ERR("%s:no buffer_o\n", __func__);
+			return true;
+		}
+		di_buf_clear(pch, buf_pst);
+		di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, buf_pst);
+		if (buffer->flag & DI_FLAG_EOS ||
+		    (buffer->vf && buffer->vf->type & VIDTYPE_V4L_EOS))
+			buffer_o->flag |= DI_FLAG_EOS;
+		if (buffer_o->vf)
+			buffer_o->vf->vf_ext = buffer->vf;
+		buffer_o->flag |= DI_FLAG_BUF_BY_PASS;
+		ndrd_qin(pch, buffer_o);
+	} else {
+		ndrd_qin(pch, in_ori);
+	}
+
 	return true;
 }
 
@@ -2213,8 +2246,7 @@ static void s4dw_done_config(unsigned int channel, bool flg_timeout)
 			opl1()->pre_gl_sw(false);
 		else
 			hpre_gl_sw(false);
-
-		ppre->timeout_check = true;
+		//for cp disable ppre->timeout_check = true;
 	}
 	if (ppre->di_wr_buf->field_count < 3) {
 		if (!ppre->di_wr_buf->field_count)

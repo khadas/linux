@@ -3753,7 +3753,7 @@ void dbg_nins_check_id(struct di_ch_s *pch)
 	qbuf_dbg_checkid(pbufq, 10);
 }
 
-static bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf);
+//static bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf);
 
 /************************************************
  * new display
@@ -4736,7 +4736,8 @@ void dbg_log_pst_buffer(struct di_buf_s *di_buf, unsigned int dbgid)
 		PR_INF("log_pst:%d:no\n", dbgid);
 }
 
-static bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf)
+//static
+bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf)
 {
 	struct vframe_s *vfm;
 	int index;
