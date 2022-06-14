@@ -179,6 +179,7 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp);
 void vdin_set_def_wr_canvas(struct vdin_dev_s *devp);
 void vdin_hw_enable(struct vdin_dev_s *devp);
 void vdin_hw_disable(struct vdin_dev_s *devp);
+void vdin_hw_close(struct vdin_dev_s *devp);
 unsigned int vdin_get_field_type(unsigned int offset);
 int vdin_vsync_reset_mif(int index);
 bool vdin_check_vdi6_afifo_overflow(unsigned int offset);
@@ -311,9 +312,9 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 void vdin_dv_pr_meta_data(void *addr, unsigned int size, unsigned int index);
 bool vdin_is_dv_meta_data_case(struct vdin_dev_s *devp);
 void vdin_dv_detunel_tunel_set(struct vdin_dev_s *devp);
-void vdin_dolby_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
+void vdin_dv_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
 				   unsigned int onoff);
-void vdin_dolby_desc_to_4448bit(struct vdin_dev_s *devp,
+void vdin_dv_desc_to_4448bit(struct vdin_dev_s *devp,
 			       unsigned int onoff);
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp);
 void vdin_set_to_vpp_parm(struct vdin_dev_s *devp);

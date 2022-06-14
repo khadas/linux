@@ -3475,8 +3475,8 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp)
 
 	/*hw verify:de-tunnel 444 to 422 12bit*/
 	/*if (devp->dtdata->de_tunnel_tunnel) */{
-		vdin_dolby_de_tunnel_to_44410bit(devp, false);
-		vdin_dolby_desc_to_4448bit(devp, false);
+		vdin_dv_de_tunnel_to_44410bit(devp, false);
+		vdin_dv_desc_to_4448bit(devp, false);
 	}
 }
 
@@ -3536,8 +3536,57 @@ void vdin_hw_disable(struct vdin_dev_s *devp)
 	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x5554); */
 
 	/*if (devp->dtdata->de_tunnel_tunnel) */{
-		vdin_dolby_desc_to_4448bit(devp, 0);
-		vdin_dolby_de_tunnel_to_44410bit(devp, 0);
+		vdin_dv_desc_to_4448bit(devp, 0);
+		vdin_dv_de_tunnel_to_44410bit(devp, 0);
+	}
+}
+
+void vdin_hw_close(struct vdin_dev_s *devp)
+{
+	unsigned int offset = devp->addr_offset;
+	unsigned int def_canvas;
+
+	def_canvas = offset ? vdin_canvas_ids[1][0] : vdin_canvas_ids[0][0];
+	/* disable cm2 */
+	wr_bits(offset, VDIN_CM_BRI_CON_CTRL, 0, CM_TOP_EN_BIT, CM_TOP_EN_WID);
+	/* disable video data input */
+	/* [    4]  top.datapath_en  = 0 */
+	wr_bits(offset, VDIN_COM_CTRL0, 0,
+		VDIN_COMMONINPUT_EN_BIT, VDIN_COMMONINPUT_EN_WID);
+
+	/* mux null input */
+	/* [ 3: 0]  top.mux  = 0/(null, mpeg, 656, tvfe, cvd2, hdmi, dvin) */
+	wr_bits(offset, VDIN_COM_CTRL0, 0, VDIN_SEL_BIT, VDIN_SEL_WID);
+	wr(offset, VDIN_COM_CTRL0, 0x00000910);
+	vdin_delay_line(delay_line_num, offset);
+	if (enable_reset)
+		wr(offset, VDIN_WR_CTRL, 0x0b401000 | def_canvas);
+	else
+		wr(offset, VDIN_WR_CTRL, 0x0bc01000 | def_canvas);
+
+	vdin_wrmif2_enable(devp, 0, 0);
+
+	/* disable clock of blackbar, histogram, histogram, line fifo1, matrix,
+	 * hscaler, pre hscaler, clock0
+	 */
+	/* [15:14]  Disable blackbar clock      = 01/(auto, off, on, on) */
+	/* [13:12]  Disable histogram clock     = 01/(auto, off, on, on) */
+	/* [11:10]  Disable line fifo1 clock    = 01/(auto, off, on, on) */
+	/* [ 9: 8]  Disable matrix clock        = 01/(auto, off, on, on) */
+	/* [ 7: 6]  Disable hscaler clock       = 01/(auto, off, on, on) */
+	/* [ 5: 4]  Disable pre hscaler clock   = 01/(auto, off, on, on) */
+	/* [ 3: 2]  Disable clock0              = 01/(auto, off, on, on) */
+	/* [    0]  Enable register clock       = 00/(auto, off!!!!!!!!) */
+	/*switch_vpu_clk_gate_vmod(offset == 0 ? VPU_VIU_VDIN0:VPU_VIU_VDIN1,
+	 *VPU_CLK_GATE_OFF);
+	 */
+	if (!devp->index || devp->dtdata->hw_ver < VDIN_HW_T7)
+		vdin_clk_onoff(devp, false);
+	/* wr(offset, VDIN_COM_GCLK_CTRL, 0x5554); */
+
+	/*if (devp->dtdata->de_tunnel_tunnel) */{
+		vdin_dv_desc_to_4448bit(devp, 0);
+		vdin_dv_de_tunnel_to_44410bit(devp, 0);
 	}
 }
 
@@ -5128,7 +5177,7 @@ void vdin_dobly_mdata_write_en(unsigned int offset, unsigned int en)
  * parm: devp
  * on:1 off:0
  */
-void vdin_dolby_desc_to_4448bit(struct vdin_dev_s *devp,
+void vdin_dv_desc_to_4448bit(struct vdin_dev_s *devp,
 			       unsigned int onoff)
 {
 	unsigned int offset = devp->addr_offset;
@@ -5201,7 +5250,7 @@ void vdin_dolby_desc_to_4448bit(struct vdin_dev_s *devp,
 /*
  * yuv format, DV descramble 422 12bit TO 444 10bit
  */
-void vdin_dolby_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
+void vdin_dv_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
 				   unsigned int onoff)
 {
 	u32 data32;
@@ -5251,12 +5300,12 @@ void vdin_dv_detunel_tunel_set(struct vdin_dev_s *devp)
 	/* h shrink on*/
 	if (devp->h_shrink_out < devp->h_active) {
 		/*hw verify:de-tunnel 444 to 422 12bit*/
-		vdin_dolby_de_tunnel_to_44410bit(devp, true);
+		vdin_dv_de_tunnel_to_44410bit(devp, true);
 		/*vdin de tunnel and tunnel for vdin scaling*/
-		vdin_dolby_desc_to_4448bit(devp, true);
+		vdin_dv_desc_to_4448bit(devp, true);
 	} else {
-		vdin_dolby_de_tunnel_to_44410bit(devp, false);
-		vdin_dolby_desc_to_4448bit(devp, false);
+		vdin_dv_de_tunnel_to_44410bit(devp, false);
+		vdin_dv_desc_to_4448bit(devp, false);
 	}
 }
 

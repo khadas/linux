@@ -92,7 +92,8 @@
 /* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
 /* 20220609: add get low_latency and dv_vision */
 /* 20220610: vdin add dump data debug */
-#define VDIN_VER "20220610:vdin add dump data debug"
+/* 20220615: vdin1 crash addr when str */
+#define VDIN_VER "20220615:vdin1 crash addr when str"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

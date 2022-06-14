@@ -1063,12 +1063,17 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_set_all_regs(devp);
 		vdin_hw_enable(devp);
 		vfe = provider_vf_peek(devp->vfp);
-		if (vfe)
+		if (vfe) {
 			vdin_frame_write_ctrl_set(devp, vfe, 0);
-		else
+			if (devp->index == 1 && devp->set_canvas_manual &&
+			    cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+				usleep_range(16000, 17000);
+		} else {
 			pr_info("vdin%d:peek first vframe fail\n", devp->index);
+		}
 		vdin_set_dv_tunnel(devp);
 		vdin_write_mif_or_afbce_init(devp);
+		pr_info("0x12c1:0x%x\n", rd(0, VDIN_WRARB_REQEN_SLV));
 		/* vdin1 hw crash addr when keystone reboot */
 		if (devp->index == 1 && devp->set_canvas_manual &&
 			cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
@@ -1281,7 +1286,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			devp->frontend->dec_ops->stop(devp->frontend,
 						devp->parm.port);
 	}
-	vdin_hw_disable(devp);
+	/* after T7 mif write vdin1 hw crash addr so vdin_hw_disable change to vdin_hw_close */
+	//vdin_hw_disable(devp);
+	vdin_hw_close(devp);
 
 	vdin_set_default_regmap(devp);
 	/*only for vdin0*/
@@ -2457,7 +2464,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 	if ((devp->flags & VDIN_FLAG_DEC_STOP_ISR) &&
 	    (!(vdin_isr_flag & VDIN_BYPASS_STOP_CHECK))) {
-		vdin_hw_disable(devp);
+		vdin_hw_close(devp);
 		devp->flags &= ~VDIN_FLAG_DEC_STOP_ISR;
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_IRQ_STOP;
 		vdin_drop_frame_info(devp, "stop isr");
@@ -5522,13 +5529,15 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 	 *VPU_CLK_GATE_OFF);
 	 */
 	if (vdevp->index && vdevp->set_canvas_manual == 1 &&
-	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5D)) {
+	    is_meson_t5d_cpu()) {
 		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 0,
 			VDIN_COMMONINPUT_EN_BIT, VDIN_COMMONINPUT_EN_WID);
 		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 0,
 			VDIN_SEL_BIT, VDIN_SEL_WID);
 	}
-	vdin_clk_onoff(vdevp, false);
+	/* Restarting vdin1 clock will crash */
+	if (!vdevp->index || vdevp->dtdata->hw_ver < VDIN_HW_T7)
+		vdin_clk_onoff(vdevp, false);
 
 	pr_info("%s id:%d ok.\n", __func__, vdevp->index);
 	return 0;
@@ -5557,9 +5566,12 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	 *? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
 	 *VPU_CLK_GATE_ON);
 	 */
-	vdin_clk_onoff(vdevp, true);
+	/* Restarting vdin1 clock will crash */
+	if (!vdevp->index || vdevp->dtdata->hw_ver < VDIN_HW_T7)
+		vdin_clk_onoff(vdevp, true);
+
 	if (vdevp->index && vdevp->set_canvas_manual == 1 &&
-	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5D)) {
+	    is_meson_t5d_cpu()) {
 		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 7,
 			VDIN_SEL_BIT, VDIN_SEL_WID);
 		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 1,
