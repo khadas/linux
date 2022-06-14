@@ -71,8 +71,9 @@
 // frc_20220505 frc check dbg roreg
 // frc_20220524 frc memory optimize
 // frc_20220608 optimize video flag check
+// frc_20220613 fix frc memory resume abnormal"
 
-#define FRC_FW_VER			"2022-0613 fix frc memory resume abnormal"
+#define FRC_FW_VER			"2022-0620 integrated frc status"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
@@ -141,7 +142,7 @@ extern int frc_dbg_en;
 
 //------------------------------------------------------- clock defined end
 // vd fps
-#define FRC_VD_FPS_DEF    0
+#define FRC_VD_FPS_00    0
 #define FRC_VD_FPS_60    60
 #define FRC_VD_FPS_50    50
 #define FRC_VD_FPS_48    48
@@ -169,6 +170,11 @@ struct dts_match_data {
 
 struct frc_data_s {
 	const struct dts_match_data *match_data;
+};
+
+struct vf_rate_table {
+	u16 duration;
+	u16 framerate;
 };
 
 struct st_frc_buf {
@@ -316,7 +322,7 @@ struct st_frc_in_sts {
 	/*vd status sync*/
 	u8 frc_is_tvin;
 	u8 frc_source_chg;
-	u32 frc_vf_rate;
+	u16 frc_vf_rate;
 	u32 frc_last_disp_count;
 };
 

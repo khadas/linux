@@ -87,5 +87,6 @@ void inp_undone_read(struct frc_dev_s *frc_devp);
 void vp_undone_read(struct frc_dev_s *frc_devp);
 u32 vpu_reg_read(u32 addr);
 void frc_check_hw_stats(struct frc_dev_s *frc_devp, u8 checkflag);
+u16 frc_check_vf_rate(u16 duration, struct frc_dev_s *frc_devp);
 
 #endif

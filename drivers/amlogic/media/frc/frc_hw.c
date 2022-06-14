@@ -50,6 +50,18 @@ int FRC_PARAM_NUM = 8;
 module_param(FRC_PARAM_NUM, int, 0664);
 MODULE_PARM_DESC(FRC_PARAM_NUM, "FRC_PARAM_NUM");
 
+const struct vf_rate_table vf_rate_table[9] = {
+	{1600,  FRC_VD_FPS_60},
+	{1601,	FRC_VD_FPS_60},
+	{1920,  FRC_VD_FPS_50},
+	{2000,  FRC_VD_FPS_48},
+	{3200,	FRC_VD_FPS_30},
+	{3840,	FRC_VD_FPS_25},
+	{4000,	FRC_VD_FPS_24},
+	{4004,	FRC_VD_FPS_24},
+	{0000,	FRC_VD_FPS_00},
+};
+
 u32 vpu_reg_read(u32 addr)
 {
 	unsigned int value = 0;
@@ -232,8 +244,8 @@ void set_frc_enable(u32 en)
 	WRITE_FRC_BITS(FRC_TOP_CTRL, en, 0, 1);
 	if (en == 1) {
 		frc_mc_reset(1);
-		WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0xFFFF, 0, 16);
 		frc_mc_reset(0);
+		WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0xFFFF, 0, 16);
 		WRITE_FRC_BITS(FRC_TOP_SW_RESET, 0x0, 0, 16);
 	} else {
 		gst_frc_param.s2l_en = 0;
@@ -738,10 +750,10 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 	u32 reg_mc_dly_vofst0 ;//fixed
 	u32 reg_mc_out_line;
 	u32 reg_me_dly_vofst;
-	u32 mevp_frm_dly        ;//Read RO ro_mevp_dly_num
-	u32 mc_frm_dly          ;//Read RO ro_mc2out_dly_num
-	u32 memc_frm_dly        ;//total delay
-	u32 reg_mc_dly_vofst1   ;
+	u32 mevp_frm_dly;//Read RO ro_mevp_dly_num
+	u32 mc_frm_dly;//Read RO ro_mc2out_dly_num
+	u32 memc_frm_dly;//total delay
+	u32 reg_mc_dly_vofst1;
 	u32 log = 2;
 	u32 frc_v_porch;
 	u32 frc_vporch_cal;
@@ -863,6 +875,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 			gst_frc_param.max_pxcnt = max_pxcnt;
 			gst_frc_param.frc_mcfixlines =
 				mc_frm_dly + mc_hold_line - reg_mc_out_line;
+			if (mc_frm_dly + mc_hold_line < reg_mc_out_line)
+				gst_frc_param.frc_mcfixlines = 0;
 			gst_frc_param.s2l_en = 1;
 			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
 				pr_frc(0, "frc_on_set maxlnct fail !!!\n");
@@ -884,6 +898,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 			frc_v_porch = frc_vporch_cal;
 			gst_frc_param.frc_mcfixlines =
 				mc_frm_dly + mc_hold_line - reg_mc_out_line;
+			if (mc_frm_dly + mc_hold_line < reg_mc_out_line)
+				gst_frc_param.frc_mcfixlines = 0;
 			gst_frc_param.s2l_en = 0;
 			if (vlock_sync_frc_vporch(gst_frc_param) < 0)
 				pr_frc(0, "frc_infrom vlock fail !!!\n");
@@ -908,6 +924,8 @@ void frc_top_init(struct frc_dev_s *frc_devp)
 		pr_frc(2, "%s T3 revB chip validation\n", __func__);
 		gst_frc_param.frc_mcfixlines =
 			mc_frm_dly + mc_hold_line - reg_mc_out_line;
+		if (mc_frm_dly + mc_hold_line < reg_mc_out_line)
+			gst_frc_param.frc_mcfixlines = 0;
 		gst_frc_param.s2l_en = 2; /* rev B chip*/
 		if (vlock_sync_frc_vporch(gst_frc_param) < 0)
 			pr_frc(0, "frc_infrom vlock fail !!!\n");
@@ -2344,5 +2362,26 @@ void frc_frame_forcebuf_count(u8 forceidx)
 {
 	UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7,
 	(forceidx | forceidx << 4 | forceidx << 8), 0xFFF);//0-11bit
+}
+
+u16 frc_check_vf_rate(u16 duration, struct frc_dev_s *frc_devp)
+{
+	int i = 0;
+	u16 framerate = 0;
+
+	/*duration: 1600(60fps) 1920(50fps) 3200(30fps) 3203(29.97)*/
+	/*3840(25fps) 4000(24fps) 4004(23.976fps)*/
+	while (i++ < 8) {
+		if (vf_rate_table[i].duration == duration) {
+			framerate = vf_rate_table[i].framerate;
+			break;
+		}
+	}
+	if (framerate != frc_devp->in_sts.frc_vf_rate) {
+		pr_frc(3, "input vf rate changed [%d->%d].\n",
+			frc_devp->in_sts.frc_vf_rate, framerate);
+		frc_devp->in_sts.frc_vf_rate = framerate;
+	}
+	return frc_devp->in_sts.frc_vf_rate;
 }
 

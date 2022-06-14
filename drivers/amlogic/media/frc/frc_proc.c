@@ -1320,7 +1320,6 @@ void frc_char_flash_check(void)
 void frc_chk_vd_sts_chg(struct frc_dev_s *devp, struct vframe_s *vf)
 {
 	static u8 frc_is_tvin_s, frc_source_chg_s;
-	static u32 frc_vf_rate_s;
 
 	if (!vf)
 		return;
@@ -1365,28 +1364,16 @@ void frc_chk_vd_sts_chg(struct frc_dev_s *devp, struct vframe_s *vf)
 		devp->in_sts.frc_last_disp_count =
 			vf->vc_private->last_disp_count;
 	}
-
-	/*duration: 1600(60fps) 1920(50fps) 3200(30fps) 3203(29.97)*/
-	/*3840(25fps) 4000(24fps) 4004(23.976fps)*/
-	if (vf->duration == 1600)
-		devp->in_sts.frc_vf_rate = FRC_VD_FPS_60;
-	else if (vf->duration == 1920)
-		devp->in_sts.frc_vf_rate = FRC_VD_FPS_50;
-	else if (vf->duration == 2000)
-		devp->in_sts.frc_vf_rate = FRC_VD_FPS_48;
-	else if (vf->duration == 3200 || vf->duration == 3203)
-		devp->in_sts.frc_vf_rate = FRC_VD_FPS_30;
-	else if (vf->duration == 3840)
-		devp->in_sts.frc_vf_rate = FRC_VD_FPS_25;
-	else if (vf->duration == 4000 || vf->duration == 4004)
-		devp->in_sts.frc_vf_rate = FRC_VD_FPS_24;
-	else
-		devp->in_sts.frc_vf_rate = FRC_VD_FPS_DEF; // default 0
-		//1000 * 1000 / (dur2pts(vf->duration) * 100 / 9)
-
-	if (frc_vf_rate_s != devp->in_sts.frc_vf_rate) {
-		pr_frc(3, "input vf rate changed [%d->%d].\n", frc_vf_rate_s,
-			devp->in_sts.frc_vf_rate);
-		frc_vf_rate_s = devp->in_sts.frc_vf_rate;
-	}
+	// every vframe detect frame rate
+	frc_check_vf_rate(vf->duration, devp);
 }
+
+u16 frc_check_film_mode(struct frc_dev_s *frc_devp)
+{
+	if (frc_devp->frc_sts.state == FRC_STATE_ENABLE)
+		frc_devp->film_mode = READ_FRC_REG(FRC_REG_PHS_TABLE) >> 8 & 0xFF;
+	else
+		frc_devp->film_mode = EN_VIDEO;
+	return (u16)(frc_devp->film_mode);
+}
+
