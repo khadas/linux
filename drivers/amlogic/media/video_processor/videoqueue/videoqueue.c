@@ -1036,6 +1036,10 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	if (!dev->need_keep_frame) {
 		vq_print(P_ERROR, "Other source, no need keep frame.\n");
 		videoq_notify_to_amvideo(false);
+		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
+			VT_VIDEO_SET_STATUS, 1);
+		if (ret < 0)
+			vq_print(P_ERROR, "set VT_VIDEO_SET_STATUS err\n");
 	} else {
 		vq_print(P_ERROR, "ATV source need keep frame.\n");
 	}
