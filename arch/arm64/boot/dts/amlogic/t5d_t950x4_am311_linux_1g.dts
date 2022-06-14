@@ -1171,6 +1171,9 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
@@ -1248,6 +1251,10 @@
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
+
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		status = "okay";
 	};
 
@@ -1264,6 +1271,9 @@
 			"spdif_pins_mute";
 		pinctrl-0 = <&spdifout_b>;
 		pinctrl-1 = <&spdifout_b_mute>;
+
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 
 		status = "okay";
 	};
