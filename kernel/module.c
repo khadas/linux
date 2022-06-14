@@ -88,7 +88,7 @@ EXPORT_SYMBOL_GPL(module_mutex);
 static LIST_HEAD(modules);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-static int ignore_check_version;
+static int ignore_check_version = 1;
 core_param(ignore_check_version, ignore_check_version, int, 0644);
 
 static int module_debug;
@@ -1360,7 +1360,7 @@ bad_version:
 	       info->name, symname);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
-	WARN_ON(!ignore_check_version);
+	pr_err("please rebuild ko: %s\n", info->name);
 	return ignore_check_version;
 #else
 	return 0;
