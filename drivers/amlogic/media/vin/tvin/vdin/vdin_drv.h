@@ -96,8 +96,9 @@
 /* 20220617: allm and vrr all come in not send vrr */
 /* 20220618: use game mode global variable in vdin_isr cause abnormal and
  * fix video lag in old video path caused by unkonw disp_mode flag
+ * 20220622: loopback implementation
  */
-#define VDIN_VER "20220618:use current game mode variable and fix video lag in old path"
+#define VDIN_VER "20220622:loopback implementation"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -236,7 +237,8 @@ struct match_data_s {
 /* size for rdma table */
 #define RDMA_TABLE_SIZE			(PAGE_SIZE >> 3)
 /* #define VDIN_DEBUG */
-#define VDIN_SELF_STOP_START		(BIT0)
+#define VDIN_SELF_STOP_START		BIT(0)
+#define VDIN_VADJ1_TO_VD1		BIT(3)
 
 
 #define IS_HDMI_SRC(src)	\
@@ -432,6 +434,7 @@ struct vdin_debug_s {
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;
 	unsigned short vdin1_line_buff;
+	unsigned int vdin_recycle_num;/* debug for vdin recycle frame byself */
 };
 
 struct vdin_dv_s {

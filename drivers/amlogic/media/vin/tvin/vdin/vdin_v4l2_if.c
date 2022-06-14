@@ -2026,7 +2026,7 @@ void vdin_v4l2_init(struct vdin_dev_s *pdevp, struct platform_device *pldev)
 			pdevp->v4l2_port[2] = TVIN_PORT_VIU1_WB0_OSD1;
 			pdevp->v4l2_port[3] = TVIN_PORT_VIU1_WB0_OSD2;
 			pdevp->v4l2_port[4] = TVIN_PORT_VIU1_WB0_VPP;
-			pdevp->v4l2_port[5] = TVIN_PORT_VIU1_WB0_VDIN_BIST;
+			pdevp->v4l2_port[5] = TVIN_PORT_VIU1_WB1_VDIN_BIST;
 			pdevp->v4l2_port[6] = TVIN_PORT_VIU1_WB0_POST_BLEND;
 			pdevp->v4l2_port_num = 7;
 		}

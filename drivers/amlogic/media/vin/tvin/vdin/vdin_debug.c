@@ -322,7 +322,6 @@ static void vdin_dump_more_mem(char *path, struct vdin_dev_s *devp,
 			pos = mem_size * k;
 			pre_put_frames = devp->puted_frame_cnt;
 			rec_dum_frme[k] = pre_put_frames;
-
 			vf_phy_addr = devp->vfp->last_last_vfe->vf.canvas0_config[0].phy_addr;
 			if (devp->cma_config_flag == 0x1)
 				buf = codec_mm_phys_to_virt(vf_phy_addr);
@@ -1793,6 +1792,34 @@ static void vdin_dump_histgram_ldim(struct vdin_dev_s *devp,
 }
 #endif
 
+static void vdin_write_back_reg(struct vdin_dev_s *devp)
+{
+	pr_info("VPU_VIU_VENC_MUX_CTRL(0x%x):0x%x\n", 0x271a, R_VCBUS(0x271a));
+	pr_info("VPU_VIU2VDIN_HDN_CTRL(0x%x):0x%x\n", 0x2780, R_VCBUS(0x2780));
+	pr_info("VPU_VDIN_MISC_CTRL(0x%x):0x%x\n", 0x2782, R_VCBUS(0x2782));
+	pr_info("VPU_VIU_VDIN_IF_MUX_CTRL(0x%x):0x%x\n", 0x2783, R_VCBUS(0x2783));
+	pr_info("VIU_MISC_CTRL1(0x%x):0x%x\n", 0x1a07, R_VCBUS(0x1a07));
+	pr_info("WR_BACK_MISC_CTRL(0x%x):0x%x\n", 0x1a0d, R_VCBUS(0x1a0d));
+	pr_info("VIU_FRM_CTRL(0x%x):0x%x\n", 0x1a51, R_VCBUS(0x1a51));
+	pr_info("VIU1_FRM_CTRL(0x%x):0x%x\n", 0x1a8d, R_VCBUS(0x1a8d));
+	pr_info("VIU2_FRM_CTRL(0x%x):0x%x\n", 0x1a8e, R_VCBUS(0x1a8e));
+	pr_info("VPP_VE_H_V_SIZE(0x%x):0x%x\n", 0x1da4, R_VCBUS(0x1da4));
+	pr_info("VPP_OUT_H_V_SIZE(0x%x):0x%x\n", 0x1da5, R_VCBUS(0x1da5));
+	pr_info("VPP_WRBAK_CTRL(0x%x):0x%x\n", 0x1df9, R_VCBUS(0x1df9));
+	if (R_VCBUS_BIT(0x2783, 0, 6) == 0x20)
+		pr_info("VPP1_WRBAK_CTRL(0x%x):0x%x\n", 0x5981, R_VCBUS(0x5981));
+	else if (R_VCBUS_BIT(0x2783, 0, 6) == 0x40)
+		pr_info("VPP2_WRBAK_CTRL(0x%x):0x%x\n", 0x59c1, R_VCBUS(0x59c1));
+	else
+		pr_info("if has VPP1/VPP2 check VPP1/VPP2_WRBAK_CTRL(0x5981 0x59c1)\n");
+	pr_info("VDIN_COM_CTRL0:(0x%x):0x%x\n",
+		(VDIN_COM_CTRL0 + devp->addr_offset),
+		rd(devp->addr_offset, VDIN_COM_CTRL0));
+	pr_info("VDIN_ASFIFO_CTRL3:(0x%x):0x%x\n",
+		(VDIN_ASFIFO_CTRL3 + devp->addr_offset),
+		rd(devp->addr_offset, VDIN_ASFIFO_CTRL3));
+}
+
 static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 {
 	unsigned int reg;
@@ -1880,12 +1907,10 @@ static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 	}
 	reg = VDIN_MISC_CTRL;
 	pr_info("0x%04x = 0x%08x\n", (reg), R_VCBUS(reg));
-	pr_info("\nwrite back reg ---\n");
-	pr_info("0x%04x = 0x%08x\n", 0x271a, R_VCBUS(0x271a));
-	pr_info("0x%04x = 0x%08x\n", 0x1a0d, R_VCBUS(0x1a0d));
-	pr_info("0x%04x = 0x%08x\n", 0x1a51, R_VCBUS(0x1a51));
-	pr_info("0x%04x = 0x%08x\n", 0x1df9, R_VCBUS(0x1df9));
-	pr_info("0x%04x = 0x%08x\n", 0x2783, R_VCBUS(0x2783));
+	if (devp->index) {
+		pr_info("\nwrite back reg ---\n");
+		vdin_write_back_reg(devp);
+	}
 }
 
 void vdin_test_front_end(void)
@@ -1964,6 +1989,14 @@ static ssize_t attr_store(struct device *dev,
 				dump_num = val;
 			vdin_dump_more_mem(parm[1], devp, dump_num, 0);
 		}
+	} else if (!strcmp(parm[0], "vdin_recycle_num")) {
+		if (!parm[1])
+			pr_err("miss parameters .\n");
+		else if (kstrtoul(parm[1], 16, &val) == 0) {
+			devp->debug.vdin_recycle_num = val;
+			pr_info("vdin_recycle_num(%d):0x%x\n\n", devp->index,
+				devp->debug.vdin_recycle_num);
+		}
 	} else if (!strcmp(parm[0], "dump_start_pic")) {
 		if (parm[1]) {
 			unsigned int dump_num = 0;
@@ -1971,6 +2004,14 @@ static ssize_t attr_store(struct device *dev,
 			if (kstrtol(parm[2], 10, &val) == 0)
 				dump_num = val;
 			vdin_dump_more_mem(parm[1], devp, dump_num, 1);
+		}
+	} else if (!strcmp(parm[0], "cma_config_flag")) {
+		if (!parm[1])
+			pr_err("miss parameters .\n");
+		else if (kstrtoul(parm[1], 16, &val) == 0) {
+			devp->cma_config_flag = val;
+			pr_info("cma_config_flag(%d):0x%x\n\n", devp->index,
+				devp->cma_config_flag);
 		}
 	} else if  (!strcmp(parm[0], "request_irq")) {
 		snprintf(devp->irq_name, sizeof(devp->irq_name),
@@ -2174,7 +2215,7 @@ start_chk:
 			pr_info(" port is TVIN_PORT_VIU\n");
 		} else if (!strcmp(parm[1], "video")) {
 			param.port = TVIN_PORT_VIU1_VIDEO;
-			pr_info(" port is TVIN_PORT_VIU_VIDEO\n");
+			pr_info(" port is TVIN_PORT_VIU1_VIDEO\n");
 		} else if (!strcmp(parm[1], "viu_wb0_vpp")) {
 			param.port = TVIN_PORT_VIU1_WB0_VPP;
 			pr_info(" port is TVIN_PORT_VIU1_WB0_VPP\n");
@@ -2212,8 +2253,8 @@ start_chk:
 			param.port = TVIN_PORT_VIU1_WB1_POST_BLEND;
 			pr_info(" port is TVIN_PORT_VIU_WB1_POST_BLEND\n");
 		} else if (!strcmp(parm[1], "viu_wb1_vdinbist")) {
-			param.port = TVIN_PORT_VIU1_WB0_VDIN_BIST;
-			pr_info(" port is viu_wb1_vdinbist\n");
+			param.port = TVIN_PORT_VIU1_WB1_VDIN_BIST;
+			pr_info(" port is TVIN_PORT_VIU1_WB1_VDIN_BIST\n");
 		} else if (!strcmp(parm[1], "viuin2")) {
 			param.port = TVIN_PORT_VIU2;
 			pr_info(" port is TVIN_PORT_VIU\n");
@@ -2226,6 +2267,33 @@ start_chk:
 		} else if (!strcmp(parm[1], "viu2_encp")) {
 			param.port = TVIN_PORT_VIU2_ENCP;
 			pr_info(" port is TVIN_PORT_VIU2_ENCP\n");
+		} else if (!strcmp(parm[1], "viu2_vd1")) {
+			param.port = TVIN_PORT_VIU2_VD1;
+			pr_info(" port is TVIN_PORT_VIU2_VD1\n");
+		} else if (!strcmp(parm[1], "viu2_osd1")) {
+			param.port = TVIN_PORT_VIU2_OSD1;
+			pr_info(" port is TVIN_PORT_VIU2_OSD\n");
+		} else if (!strcmp(parm[1], "viu2_vpp")) {
+			param.port = TVIN_PORT_VIU2_VPP;
+			pr_info(" port is TVIN_PORT_VIU2_VPP\n");
+		} else if (!strcmp(parm[1], "viu3_vd1")) {
+			param.port = TVIN_PORT_VIU3_VD1;
+			pr_info(" port is TVIN_PORT_VIU3_VD1\n");
+		} else if (!strcmp(parm[1], "viu3_osd1")) {
+			param.port = TVIN_PORT_VIU3_OSD1;
+			pr_info(" port is TVIN_PORT_VIU3_OSD\n");
+		} else if (!strcmp(parm[1], "viu3_vpp")) {
+			param.port = TVIN_PORT_VIU3_VPP;
+			pr_info(" port is TVIN_PORT_VIU3_VPP\n");
+		} else if (!strcmp(parm[1], "venc0")) {
+			param.port = TVIN_PORT_VENC0;
+			pr_info(" port is TVIN_PORT_VENC0\n");
+		} else if (!strcmp(parm[1], "venc1")) {
+			param.port = TVIN_PORT_VENC1;
+			pr_info(" port is TVIN_PORT_VENC1\n");
+		} else if (!strcmp(parm[1], "venc2")) {
+			param.port = TVIN_PORT_VENC2;
+			pr_info(" port is TVIN_PORT_VENC2\n");
 		} else if (!strcmp(parm[1], "isp")) {
 			param.port = TVIN_PORT_ISP;
 			pr_info(" port is TVIN_PORT_ISP\n");

@@ -1145,19 +1145,14 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 			VDI5_ASFIFO_CTRL_BIT, VDI5_ASFIFO_CTRL_WID);
 		break;
 	case 0xa0:/* viu1 */
-		if (port >= TVIN_PORT_VIU1_WB0_VD1 && port <= TVIN_PORT_VIU1_WB0_POST_BLEND)
+		if (port >= TVIN_PORT_VIU1_VIDEO &&
+		    port <= TVIN_PORT_VIU1_WB1_POST_BLEND)
 			vdin_mux = VDIN_MUX_VIU1_WB0;
-		else if ((port >= TVIN_PORT_VIU1_WB1_VD1) &&
-			 (port <= TVIN_PORT_VIU1_WB1_POST_BLEND))
-			vdin_mux = VDIN_MUX_VIU1_WB1;
 
 		if (port != TVIN_PORT_VIU1) {
 			if (vdin_mux == VDIN_MUX_VIU1_WB0)
 				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
 					VDI6_ASFIFO_CTRL_BIT, VDI_ASFIFO_CTRL_WID);
-			else if (vdin_mux == VDIN_MUX_VIU1_WB1)
-				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
-					VDI8_ASFIFO_CTRL_BIT, VDI_ASFIFO_CTRL_WID);
 		} else {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
 				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xd4,
@@ -1171,29 +1166,32 @@ void vdin_set_top(struct vdin_dev_s *devp, unsigned int offset,
 		break;
 
 	case 0xc0: /* viu2 */
-		/* don't need set this actually, need confirm by experiment */
-		vdin_mux = VDIN_MUX_VIU1_WB1;
+	case 0xd0: /* viu3 */
+		vdin_mux = VDIN_MUX_VIU1_WB0;
 		if (port != TVIN_PORT_VIU2) {
 			if (devp->prop.polarity_vs == 0) /* positive */
 				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
-					VDI8_ASFIFO_CTRL_BIT,
-					VDI_ASFIFO_CTRL_WID);
-			else if (devp->prop.polarity_vs == 1) /* negative */
-				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
-					VDI8_ASFIFO_CTRL_BIT,
-					VDI_ASFIFO_CTRL_WID);
-		} else {
-			if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B))
-				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xd4,
 					VDI6_ASFIFO_CTRL_BIT,
 					VDI_ASFIFO_CTRL_WID);
-			else
+			else if (devp->prop.polarity_vs == 1) /* negative */
 				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
 					VDI6_ASFIFO_CTRL_BIT,
 					VDI_ASFIFO_CTRL_WID);
 		}
 		break;
-
+	case 0xe0: /* vecn */
+		vdin_mux = VDIN_MUX_VIU1_WB0;
+		if (port != TVIN_PORT_VENC) {
+			if (devp->prop.polarity_vs == 0) /* positive */
+				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe4,
+					VDI6_ASFIFO_CTRL_BIT,
+					VDI_ASFIFO_CTRL_WID);
+			else if (devp->prop.polarity_vs == 1) /* negative */
+				wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xf4,
+					VDI6_ASFIFO_CTRL_BIT,
+					VDI_ASFIFO_CTRL_WID);
+		}
+		break;
 	case 0x100:/* mipi in mybe need modify base on truth */
 		vdin_mux = VDIN_MUX_MIPI;
 		wr_bits(offset, VDIN_ASFIFO_CTRL3, 0xe0,
@@ -1724,6 +1722,7 @@ void vdin_set_hdr(struct vdin_dev_s *devp)
 		return;
 
 	switch (devp->parm.port) {
+	case TVIN_PORT_VIU1_VIDEO:
 	case TVIN_PORT_VIU1_WB0_VD1:
 	case TVIN_PORT_VIU1_WB0_VD2:
 	case TVIN_PORT_VIU1_WB0_POST_BLEND:
@@ -4779,7 +4778,7 @@ void vdin_dv_pr_meta_data(void *addr, unsigned int size, unsigned int index)
 	char *c = addr;
 
 	for (i = 0; i < size; i += 16) {
-		pr_info("meta0:%d\t%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+		pr_info("meta0:%d %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
 			index, c[i], c[i + 1], c[i + 2], c[i + 3],
 			c[i + 4], c[i + 5], c[i + 6], c[i + 7],
 			c[i + 8], c[i + 9], c[i + 10], c[i + 11],

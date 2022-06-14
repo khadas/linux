@@ -1468,6 +1468,14 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	}
 
 	devp->parm.port = para->port;
+	if (devp->vdin_function_sel & VDIN_VADJ1_TO_VD1) {
+		if (para->port == TVIN_PORT_VIU1_WB0_VD1) {
+			devp->parm.port = TVIN_PORT_VIU1_VIDEO;
+			devp->flags |= VDIN_FLAG_V4L2_DEBUG;
+			pr_info("[%s]port:0x%x function_sel:%x\n",
+				__func__, devp->parm.port, devp->vdin_function_sel);
+		}
+	}
 	devp->parm.info.fmt = para->fmt;
 	fmt = devp->parm.info.fmt;
 	/* add for camera random resolution */
@@ -1517,14 +1525,14 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 
 	if ((is_meson_gxbb_cpu()) && para->bt_path == BT_PATH_GPIO_B) {
 		devp->bt_path = para->bt_path;
-		fe = tvin_get_frontend(para->port, 1);
+		fe = tvin_get_frontend(devp->parm.port, 1);
 	} else {
-		fe = tvin_get_frontend(para->port, 0);
+		fe = tvin_get_frontend(devp->parm.port, 0);
 	}
 
 	if (fe) {
 		fe->private_data = para;
-		fe->port         = para->port;
+		fe->port         = devp->parm.port;
 		devp->frontend   = fe;
 
 		/* vdin msr clock gate enable */
@@ -1535,14 +1543,15 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 			fe->dec_ops->open(fe, fe->port);
 	} else {
 		pr_err("%s(%d): not supported port 0x%x\n",
-		       __func__, no, para->port);
+		       __func__, no, devp->parm.port);
 		mutex_unlock(&devp->fe_lock);
 		return -1;
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	/* config secure_en by loopback port */
-	switch (para->port) {
+	switch (devp->parm.port) {
+	case TVIN_PORT_VIU1_VIDEO:
 	case TVIN_PORT_VIU1_WB0_VD1:
 	case TVIN_PORT_VIU1_WB1_VD1:
 		devp->secure_en = get_secure_state(VD1_OUT);
@@ -1589,7 +1598,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	devp->flags |= VDIN_FLAG_DEC_STARTED;
 
 	/* vdin bist pattern */
-	if (devp->parm.port == TVIN_PORT_VIU1_WB0_VDIN_BIST)
+	if (devp->parm.port == TVIN_PORT_VIU1_WB1_VDIN_BIST)
 		vdin_set_bist_pattern(devp, 1, 1);
 	else
 		vdin_set_bist_pattern(devp, 0, 1);
@@ -1600,7 +1609,7 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		devp->flags &= ~VDIN_FLAG_ISR_REQ;
 	}
 
-	if (para->port != TVIN_PORT_VIU1 || viu_hw_irq != 0) {
+	if (devp->parm.port != TVIN_PORT_VIU1 || viu_hw_irq != 0) {
 		if (!(devp->flags & VDIN_FLAG_ISR_REQ)) {
 			ret = request_irq(devp->irq, vdin_v4l2_isr, IRQF_SHARED,
 				devp->irq_name, (void *)devp);
@@ -1675,6 +1684,8 @@ int stop_tvin_service(int no)
 /* #ifdef CONFIG_ARCH_MESON6 */
 /* switch_mod_gate_by_name("vdin", 0); */
 /* #endif */
+	if (devp->parm.port == TVIN_PORT_VIU1_VIDEO)
+		devp->flags &= (~VDIN_FLAG_V4L2_DEBUG);
 	devp->flags &= (~VDIN_FLAG_DEC_OPENED);
 	devp->flags &= (~VDIN_FLAG_DEC_STARTED);
 	if ((devp->parm.port != TVIN_PORT_VIU1 || viu_hw_irq != 0)) {
@@ -2214,6 +2225,11 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 				return -1;
 			}
 			devp->puted_frame_cnt++;
+		} else if (devp->debug.vdin_recycle_num) {
+			/* debug for dump more mem or drop frame */
+			receiver_vf_put(&devp->vfp->last_last_vfe->vf, devp->vfp);
+			devp->puted_frame_cnt++;
+			devp->debug.vdin_recycle_num--;
 		} else {
 			provider_vf_put(devp->vfp->last_last_vfe, devp->vfp);
 			devp->puted_frame_cnt++;
@@ -4991,6 +5007,7 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 
 		/* config secure_en by loopback port */
 		switch (devp->parm.port) {
+		case TVIN_PORT_VIU1_VIDEO:
 		case TVIN_PORT_VIU1_WB0_VD1:
 		case TVIN_PORT_VIU1_WB1_VD1:
 			devp->secure_en = vd_secure[VD1_OUT].secure_enable;
@@ -5244,6 +5261,8 @@ static int vdin_drv_probe(struct platform_device *pdev)
 
 	if (ret)
 		vdevp->set_canvas_manual = 0;
+	if (vdevp->set_canvas_manual == 1)
+		vdevp->cma_config_flag = 0x100;
 
 	vdevp->urgent_en = of_property_read_bool(pdev->dev.of_node,
 		"urgent_en");
