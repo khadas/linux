@@ -5384,16 +5384,17 @@ int vdin_event_cb(int type, void *data, void *op_arg)
 					__func__, index_disp);
 			return -1;
 		}
-		if (game_mode || devp->skip_disp_md_check)
+		if (devp->game_mode || devp->skip_disp_md_check)
 			req->disp_mode = VFRAME_DISP_MODE_NULL;
 		else
 			req->disp_mode = p->disp_mode[index_disp];
 		if (req->req_mode == 1 && p->skip_vf_num)
 			p->disp_mode[index_disp] = VFRAME_DISP_MODE_UNKNOWN;
 		if (vdin_ctl_dbg & BIT(5))
-			pr_info("%s(type 0x%x vf index 0x%x)=>disp_mode %d,req_mode:%d\n",
-				__func__, type, index_disp, req->disp_mode,
-				req->req_mode);
+			pr_info("%s(type 0x%x vf index 0x%x)=>disp_mode %d,req_mode:%d;[%d]=%d,[%d]=%d\n",
+				__func__, type, index_disp, req->disp_mode, req->req_mode,
+				p->disp_index[0], p->disp_mode[p->disp_index[0]],
+				p->disp_index[1], p->disp_mode[p->disp_index[1]]);
 	} else if (type & VFRAME_EVENT_RECEIVER_NEED_NO_COMP) {
 		unsigned int *cnt;
 

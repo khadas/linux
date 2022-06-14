@@ -467,7 +467,7 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 
 static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 {
-	if (!game_mode)
+	if (!devp->game_mode)
 		return;
 
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
@@ -2536,11 +2536,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->last_wr_vfe->vf.dv_crc_sts =
 				devp->dv.dv_crc_check;
 
-		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe, put_md);
-
 		/*skip policy process*/
 		if (devp->vfp->skip_vf_num > 0)
 			vdin_vf_disp_mode_update(devp->last_wr_vfe, devp->vfp);
+
+		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe, put_md);
 
 		devp->last_wr_vfe = NULL;
 
@@ -2854,11 +2854,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			curr_wr_vfe->vf.dv_crc_sts =
 				devp->dv.dv_crc_check;
 
-		vdin_vframe_put_and_recycle(devp, curr_wr_vfe, put_md);
-
 		/*skip policy process*/
 		if (devp->vfp->skip_vf_num > 0)
 			vdin_vf_disp_mode_update(curr_wr_vfe, devp->vfp);
+
+		vdin_vframe_put_and_recycle(devp, curr_wr_vfe, put_md);
 	}
 
 	vdin_game_mode_transfer(devp);

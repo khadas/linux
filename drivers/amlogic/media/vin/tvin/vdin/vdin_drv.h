@@ -94,7 +94,10 @@
 /* 20220610: vdin add dump data debug */
 /* 20220615: vdin1 crash addr when str */
 /* 20220617: allm and vrr all come in not send vrr */
-#define VDIN_VER "20220617:allm and vrr all come in not send vrr"
+/* 20220618: use game mode global variable in vdin_isr cause abnormal and
+ * fix video lag in old video path caused by unkonw disp_mode flag
+ */
+#define VDIN_VER "20220618:use current game mode variable and fix video lag in old path"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
