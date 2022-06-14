@@ -758,58 +758,38 @@
 		dividor = <49>; /* locker's parent */
 		status = "disabled";
 	};/* Audio Related end */
-
-	cpu_opp_table0: cpu_opp_table0 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <779000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <779000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <779000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <667000000>;
-			opp-microvolt = <799000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <799000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <809000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <839000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <849000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <879000>;
-		};
-	};
-
-	cpufreq-meson {
-		compatible = "amlogic, cpufreq-meson";
-		status = "okay";
-	};
 };
 
 &pwm_ij {
 	status = "okay";
+};
+
+&CPU0 {
+	operating-points-v2 = <&cpu_opp_table0_c2l>,
+		<&cpu_opp_table1_c2l>,
+		<&cpu_opp_table2_c2l>,
+		<&cpu_opp_table3_c2l>;
+};
+
+&CPU1 {
+	operating-points-v2 = <&cpu_opp_table0_c2l>,
+		<&cpu_opp_table1_c2l>,
+		<&cpu_opp_table2_c2l>,
+		<&cpu_opp_table3_c2l>;
+};
+
+&CPU2 {
+	operating-points-v2 = <&cpu_opp_table0_c2l>,
+		<&cpu_opp_table1_c2l>,
+		<&cpu_opp_table2_c2l>,
+		<&cpu_opp_table3_c2l>;
+};
+
+&CPU3 {
+	operating-points-v2 = <&cpu_opp_table0_c2l>,
+		<&cpu_opp_table1_c2l>,
+		<&cpu_opp_table2_c2l>,
+		<&cpu_opp_table3_c2l>;
 };
 
 &i2c2 {
