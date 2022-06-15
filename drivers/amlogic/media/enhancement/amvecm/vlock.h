@@ -24,10 +24,11 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2022/0425: fix vlock log cost long time"
+#define VLOCK_VER "Ref.2022/0615: fix T3 Rev B black screen"
 
-#define VLOCK_REG_NUM	33
-#define VLOCK_ALL_LOCK_CNT	400
+#define VLOCK_REG_NUM					33
+#define VLOCK_ALL_LOCK_CNT				400
+#define VLOCK_V_FRONT_PORCH_REV_B		2	/*T3 evB chip*/
 
 struct vdin_sts {
 	unsigned int lcnt_sts;

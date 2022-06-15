@@ -574,6 +574,10 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param)
 
 	vlock_manual = frc_param.frc_mcfixlines;
 	vlock_frc_is_on = frc_param.s2l_en;
+
+	if (vlock_frc_is_on == VLOCK_V_FRONT_PORCH_REV_B)
+		return 0;
+
 	if (pvlock->dtdata->vlk_ctl_for_frc) {
 		if (pvlock->fsm_sts == VLOCK_STATE_ENABLE_STEP1_DONE ||
 			pvlock->fsm_sts == VLOCK_STATE_ENABLE_STEP2_DONE) {
@@ -614,7 +618,7 @@ static void vlock_tune_sync(struct stvlock_sig_sts *pvlock)
 				pr_info("vlock: frc_v_porch =%d max_lncnt =%d max_pxcnt =%d vlock_frc_is_on:%d\n",
 					frc_v_porch, max_lncnt, max_pxcnt, vlock_frc_is_on);
 
-			if (!frc_is_on())
+			if (!frc_is_on() || vlock_frc_is_on == VLOCK_V_FRONT_PORCH_REV_B)
 				return;
 
 			/*shdow register*/
