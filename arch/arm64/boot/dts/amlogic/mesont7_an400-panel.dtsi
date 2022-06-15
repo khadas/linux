@@ -822,7 +822,7 @@
 		status = "okay";
 		index = <1>;
 		mode = "tablet";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
 		clocks = <&clkc CLKID_MIPI_DSI_B
 			&clkc CLKID_DSI1_PHY_GATE
