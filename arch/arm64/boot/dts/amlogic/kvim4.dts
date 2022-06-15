@@ -229,9 +229,9 @@
 			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			gpio = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
+			regulator-boot-on;
 			enable-active-low;
 			regulator-always-on;
-
 	};
 
 	vddio_card: gpio-regulator {

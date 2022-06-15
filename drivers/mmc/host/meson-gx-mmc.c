@@ -3164,7 +3164,7 @@ static int mmc_intf3_win_tuning(struct mmc_host *mmc, u32 opcode)
 
 	vclk = readl(host->regs + SD_EMMC_CLOCK);
 
-	if ((vclk & CLK_DIV_MASK) > 8) {
+	if ((vclk & CLK_DIV_MASK) > 10) {
 		pr_err("clk div is too big.\n");
 		return -1;
 	}
