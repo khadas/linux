@@ -482,7 +482,10 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				phase_lock_flag = 0;
 
 			if (phase_lock_flag >= game_mode_phlock_switch_frames) {
-				if ((devp->parm.info.fps >= 25 &&
+				if (devp->vinfo_std_duration > devp->parm.info.fps * 2) {
+					devp->game_mode &= ~VDIN_GAME_MODE_1;
+					devp->game_mode &= ~VDIN_GAME_MODE_2;
+				} else if ((devp->parm.info.fps >= 25 &&
 				    devp->parm.info.fps < 48) ||
 				    (devp->parm.info.fps == 50 &&
 				     devp->vinfo_std_duration == 100) ||
