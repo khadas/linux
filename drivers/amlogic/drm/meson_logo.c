@@ -113,8 +113,7 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 {
 	struct am_meson_fb *meson_fb;
 	struct am_meson_logo *slogo;
-	u32 sizes[3] = {0, 2, 3};
-	int ret = 0;
+	struct meson_drm *priv = dev->dev_private;
 
 	slogo = kzalloc(sizeof(*slogo), GFP_KERNEL);
 	if (!slogo)
@@ -142,13 +141,8 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_array(dev->dev->of_node,
-				   "panel2logo", sizes, 3);
-	if (ret)
-		DRM_ERROR("get panel2logo fail!\n");
-
 	slogo->logo_page = logo.logo_page;
-	slogo->panel_index = sizes[idx];
+	slogo->panel_index = priv->primary_plane_index[idx];
 	slogo->vpp_index = idx;
 
 	DRM_INFO("logo%d width=%d,height=%d,start_addr=0x%pa,size=%d\n",
@@ -160,7 +154,7 @@ static int am_meson_logo_init_fb(struct drm_device *dev,
 	meson_fb = to_am_meson_fb(fb);
 	meson_fb->logo = slogo;
 
-	return ret;
+	return 0;
 }
 
 /*copy from update_output_state,
@@ -174,9 +168,9 @@ static int am_meson_update_output_state(struct drm_atomic_state *state,
 	struct drm_crtc_state *new_crtc_state;
 	struct drm_connector *connector;
 	struct drm_connector_state *new_conn_state;
+	struct am_hdmitx_connector_state *hdmitx_state;
 	int ret, i;
 	char hdmitx_attr[16];
-	struct am_hdmitx_connector_state *hdmitx_state;
 
 	ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
 			       state->acquire_ctx);
@@ -636,10 +630,9 @@ void am_meson_logo_init(struct drm_device *dev)
 		for (i = 0; i < MESON_MAX_CRTC; i++)
 			am_meson_load_logo(dev, fb, i);
 
-	if (drm_framebuffer_read_refcount(fb) > 1)
-		drm_framebuffer_put(fb);
-	DRM_INFO("drm_fb[id:%d,ref:%d]\n", fb->base.id,
-	 kref_read(&fb->base.refcount));
+	drm_framebuffer_put(fb);
+	DRM_INFO("logo_drm_fb[id:%d,ref:%d]\n", fb->base.id,
+		kref_read(&fb->base.refcount));
 
 	private->logo_show_done = true;
 

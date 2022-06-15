@@ -14,6 +14,7 @@
 #include "meson_vpu.h"
 #include "meson_drv.h"
 #include "meson_fb.h"
+#include "meson_plane.h"
 
 enum {
 	MESON_HDR_POLICY_FOLLOW_SINK = 0,

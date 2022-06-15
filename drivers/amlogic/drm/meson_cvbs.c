@@ -191,6 +191,7 @@ static const struct drm_encoder_funcs am_cvbs_encoder_funcs = {
 int meson_cvbs_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
 {
+	struct meson_drm *priv = drm->dev_private;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	int ret = 0;
@@ -207,6 +208,7 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 	connector = &am_drm_cvbs->base.connector;
 
 	/* Encoder */
+	encoder->possible_crtcs = priv->crtc_masks[ENCODER_CVBS];
 	drm_encoder_helper_add(encoder, &am_cvbs_encoder_helper_funcs);
 
 	ret = drm_encoder_init(drm, encoder, &am_cvbs_encoder_funcs,
@@ -215,8 +217,6 @@ int meson_cvbs_dev_bind(struct drm_device *drm,
 		DRM_ERROR("Failed to init cvbs encoder\n");
 		goto cvbs_err;
 	}
-
-	encoder->possible_crtcs = BIT(0);
 
 	/* Connector */
 	drm_connector_helper_add(connector,

@@ -743,10 +743,11 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	struct am_meson_crtc *amcrtc;
 	struct drm_crtc *crtc;
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
+	struct drm_plane *primary_plane;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	int gamma_lut_size = 0;
 #endif
-	int ret;
+	int ret, plane_index;
 	char crtc_name[64];
 
 	DRM_INFO("%s\n", __func__);
@@ -761,11 +762,13 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	amcrtc->crtc_index = idx;
 	amcrtc->vout_index = idx + 1;/*vout index start from 1.*/
 	crtc = &amcrtc->base;
+	plane_index = priv->primary_plane_index[idx];
+	primary_plane = &priv->osd_planes[plane_index]->base;
 
 	snprintf(crtc_name, 64, "%s-%d", "VPP", amcrtc->crtc_index);
 
 	ret = drm_crtc_init_with_planes(priv->drm, crtc,
-					priv->primary_plane, priv->cursor_plane,
+					primary_plane, priv->cursor_plane,
 					&am_meson_crtc_funcs, crtc_name);
 	if (ret) {
 		dev_err(amcrtc->drm_dev->dev, "Failed to init CRTC\n");

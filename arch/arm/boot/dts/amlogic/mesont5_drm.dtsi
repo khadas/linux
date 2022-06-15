@@ -84,7 +84,8 @@
 		fbdev_sizes = <1920 1080 1920 2160 32>;
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;
-		panel2logo = <0 2 3>;
+		primary_plane_index = <0>; /* primary plane index for crtcs */
+		crtc_masks = <1 1 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {
