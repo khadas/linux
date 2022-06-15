@@ -93,7 +93,8 @@
 /* 20220609: add get low_latency and dv_vision */
 /* 20220610: vdin add dump data debug */
 /* 20220615: vdin1 crash addr when str */
-#define VDIN_VER "20220615:vdin1 crash addr when str"
+/* 20220617: allm and vrr all come in not send vrr */
+#define VDIN_VER "20220617:allm and vrr all come in not send vrr"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
