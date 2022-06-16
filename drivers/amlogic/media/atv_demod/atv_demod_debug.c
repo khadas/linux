@@ -79,6 +79,7 @@
 	DEBUGFS_CREATE_NODE(audio_thd_en, 0640, dentry, bool)\
 	DEBUGFS_CREATE_NODE(pwm_kp, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_gain_val, 0640, dentry, u32)\
+	DEBUGFS_CREATE_NODE(audio_ov_gain_val, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_a2_threshold, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_a2_delay, 0640, dentry, u32)\
 	DEBUGFS_CREATE_NODE(audio_nicam_delay, 0640, dentry, u32)\

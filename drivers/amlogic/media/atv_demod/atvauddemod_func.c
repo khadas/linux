@@ -1236,6 +1236,8 @@ void set_btsc_outputmode(uint32_t outmode)
 			&& last_mode == outmode)
 		return;
 
+	set_output_left_right_exchange(0);
+
 	/* priority: Stereo > MONO > SAP */
 	/* signal_audmode: 0:MONO 1:Stereo 2:MONO+SAP 3:Stereo+SAP */
 	switch (signal_audmode) {
@@ -1283,6 +1285,7 @@ void set_btsc_outputmode(uint32_t outmode)
 			reg_value = adec_rd_reg(ADDR_LPR_COMP_CTRL);
 			tmp_value1 = (reg_value & 0xffff);
 			adec_wr_reg(ADDR_LPR_COMP_CTRL, tmp_value1);
+			set_output_left_right_exchange(1);
 		} else {
 			tmp_value = (reg_value & 0xf) | (0 << 4);
 			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);
@@ -1307,6 +1310,7 @@ void set_btsc_outputmode(uint32_t outmode)
 			reg_value = adec_rd_reg(ADDR_LPR_COMP_CTRL);
 			tmp_value1 = (reg_value & 0xffff);
 			adec_wr_reg(ADDR_LPR_COMP_CTRL, tmp_value1);
+			set_output_left_right_exchange(1);
 		} else {
 			tmp_value = (reg_value & 0xf) | (0 << 4);
 			adec_wr_reg(ADDR_ADEC_CTRL, tmp_value);

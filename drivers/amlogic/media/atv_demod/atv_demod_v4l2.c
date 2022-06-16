@@ -1195,17 +1195,17 @@ int v4l2_frontend_resume(struct v4l2_frontend *v4l2_fe)
 	int ret = 0;
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 	struct dvb_frontend *fe = &v4l2_fe->fe;
-	struct dvb_tuner_ops tuner_ops = fe->ops.tuner_ops;
+	//struct dvb_tuner_ops tuner_ops = fe->ops.tuner_ops;
 	struct analog_demod_ops analog_ops = fe->ops.analog_ops;
 	int priv_cfg = AML_ATVDEMOD_RESUME;
 
 	fepriv->exit = V4L2_FE_DEVICE_RESUME;
 	if (analog_ops.set_config)
 		analog_ops.set_config(fe, &priv_cfg);
-
+#if 0 /* dvb_extern will done */
 	if (tuner_ops.resume)
 		tuner_ops.resume(fe);
-
+#endif
 	fepriv->exit = V4L2_FE_NO_EXIT;
 	fepriv->state = V4L2FE_STATE_RETUNE;
 	v4l2_frontend_wakeup(v4l2_fe);

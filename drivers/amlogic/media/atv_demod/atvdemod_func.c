@@ -81,6 +81,7 @@ unsigned int atvdemod_afc_offset = 500;
 
 unsigned int pwm_kp = 0x19;
 unsigned int audio_gain_val = 512;
+unsigned int audio_ov_gain_val = 512;
 unsigned int audio_a2_threshold = 0x800;
 unsigned int audio_a2_delay = 10;
 unsigned int audio_nicam_delay = 100;
@@ -1946,9 +1947,10 @@ int atvauddemod_init(void)
 		if (audio_thd_en)
 			audio_thd_init();
 
-		if (aud_auto)
+		if (aud_auto) {
 			aud_std = amlfmt_aud_standard(broad_std);
-		else {
+		} else {
+			aud_mode = AUDIO_OUTMODE_MONO;
 			configure_adec(aud_std);
 			adec_soft_reset();
 		}
@@ -2055,6 +2057,7 @@ void atv_dmd_set_std(unsigned long std, unsigned long audmode)
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG;
 		if_freq = 3250000;
 		gde_curve = 2;
+		aud_std = AUDIO_STANDARD_A2_BG;
 	} else if (((std & V4L2_COLOR_STD_PAL)
 			|| (std & V4L2_COLOR_STD_SECAM))
 			&& (audmode & V4L2_STD_DK)) {
@@ -2063,6 +2066,7 @@ void atv_dmd_set_std(unsigned long std, unsigned long audmode)
 		if_freq = 3250000;
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_DK;
 		gde_curve = 3;
+		aud_std = AUDIO_STANDARD_A2_DK1;
 	} else if (((std & V4L2_COLOR_STD_PAL)
 			|| (std & V4L2_COLOR_STD_SECAM))
 			&& ((audmode & V4L2_STD_PAL_M)
@@ -2077,12 +2081,14 @@ void atv_dmd_set_std(unsigned long std, unsigned long audmode)
 		}
 		if_freq = 4250000;
 		gde_curve = 0;
+		aud_std = AUDIO_STANDARD_A2_K;
 	} else if ((std & V4L2_COLOR_STD_PAL) && (audmode & V4L2_STD_PAL_I)) {
 		amlatvdemod_devp->fre_offset = 2750000;
 		freq_hz_cvrt = AML_ATV_DEMOD_FREQ_50HZ_VERT;
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_I;
 		if_freq = 3250000;
 		gde_curve = 4;
+		aud_std = AUDIO_STANDARD_MONO_I;
 	} else if ((std & V4L2_COLOR_STD_NTSC) && ((audmode & V4L2_STD_NTSC_M)
 			|| (audmode & V4L2_STD_PAL_M))) {
 		amlatvdemod_devp->fre_offset = 1750000;
@@ -2090,18 +2096,21 @@ void atv_dmd_set_std(unsigned long std, unsigned long audmode)
 		if_freq = 4250000;
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC;
 		gde_curve = 0;
+		aud_std = AUDIO_STANDARD_A2_K;
 	} else if ((std & V4L2_COLOR_STD_NTSC) && (audmode & V4L2_STD_DK)) {
 		amlatvdemod_devp->fre_offset = 1750000;
 		freq_hz_cvrt = AML_ATV_DEMOD_FREQ_60HZ_VERT;
 		if_freq = 4250000;
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_DK;
 		gde_curve = 0;
+		aud_std = AUDIO_STANDARD_A2_DK1;
 	} else if ((std & V4L2_COLOR_STD_NTSC) && (audmode & V4L2_STD_BG)) {
 		amlatvdemod_devp->fre_offset = 1750000;
 		freq_hz_cvrt = AML_ATV_DEMOD_FREQ_60HZ_VERT;
 		if_freq = 4250000;
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_BG;
 		gde_curve = 0;
+		aud_std = AUDIO_STANDARD_A2_BG;
 	} else if ((std & V4L2_COLOR_STD_NTSC) &&
 		(audmode & V4L2_STD_NTSC_M_JP)) {
 		amlatvdemod_devp->fre_offset = 1750000;
@@ -2109,17 +2118,20 @@ void atv_dmd_set_std(unsigned long std, unsigned long audmode)
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_J;
 		if_freq = 4250000;
 		gde_curve = 0;
+		aud_std = AUDIO_STANDARD_EIAJ;
 	} else if ((std & V4L2_COLOR_STD_NTSC) && (audmode & V4L2_STD_PAL_I)) {
 		amlatvdemod_devp->fre_offset = 2750000;
 		freq_hz_cvrt = AML_ATV_DEMOD_FREQ_60HZ_VERT;
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_NTSC_I;
 		if_freq = 3250000;
 		gde_curve = 4;
+		aud_std = AUDIO_STANDARD_MONO_I;
 	} else if (audmode & (V4L2_STD_SECAM_L | V4L2_STD_SECAM_LC)) {
 		amlatvdemod_devp->fre_offset = 2750000;
 		freq_hz_cvrt = AML_ATV_DEMOD_FREQ_50HZ_VERT;
 		broad_std = AML_ATV_DEMOD_VIDEO_MODE_PROP_SECAM_L;
 		gde_curve = 4;
+		aud_std = AUDIO_STANDARD_MONO_L;
 	}
 
 	/* Tuner returns the if and signal inverted states */
@@ -2505,7 +2517,8 @@ void aml_audio_overmodulation(int enable)
 
 			audio_source_select(0);
 
-			aml_audio_valume_gain_set(audio_gain_val);
+			/* val = 0x200 * (1 + Vstd/Vo) */
+			aml_audio_valume_gain_set(audio_ov_gain_val);
 
 			audio_atv_ov_flag = 1;
 			pr_info("tmp_v[0x%lx] > 0x%x && audio_atv_ov_flag == 0.\n",
