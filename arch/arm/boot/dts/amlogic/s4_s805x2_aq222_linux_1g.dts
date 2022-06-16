@@ -74,7 +74,13 @@
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x8000000>;
+			/* device/amlogic/xxx/BoardConfig.mk
+			 *        |HWC_PRIMARY_FRAMEBUFFER_WIDTH := 1920
+			 *        |      |HWC_PRIMARY_FRAMEBUFFER_HEIGHT := 1080
+			 *        |      |      |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
+			 * size = 1920 * 1080 * 3 * 4(RGBA: 4bytes/pixel) + 4M(10%*afbc) + 8M(extra)
+			 */
+			size = <0x2400000>;
 			alignment = <0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
