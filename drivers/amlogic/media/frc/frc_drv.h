@@ -72,8 +72,9 @@
 // frc_20220524 frc memory optimize
 // frc_20220608 optimize video flag check
 // frc_20220613 fix frc memory resume abnormal"
+// frc_20220620 integrated frc status
 
-#define FRC_FW_VER			"2022-0620 integrated frc status"
+#define FRC_FW_VER			"2022-0623 add frc debug control "
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1

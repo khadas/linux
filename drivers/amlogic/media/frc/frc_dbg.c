@@ -39,6 +39,10 @@
 #include "frc_hw.h"
 #include "frc_proc.h"
 
+int frc_dbg_ctrl;
+module_param(frc_dbg_ctrl, int, 0664);
+MODULE_PARM_DESC(frc_dbg_ctrl, "frc_dbg_ctrl");
+
 static void frc_debug_parse_param(char *buf_orig, char **parm)
 {
 	char *ps, *token;
@@ -225,6 +229,13 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 		if (!parm[1])
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			if (frc_dbg_ctrl) {
+				if (val1 < 100) {
+					pr_frc(0, "ctrl test..\n");
+					goto exit;
+				}
+				val1 = val1 - 100;
+			}
 			if (val1 < FRC_STATE_NULL) {
 				frc_set_mode((u32)val1);
 			}
@@ -380,8 +391,16 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "auto_ctrl")) {
 		if (!parm[1])
 			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			if (frc_dbg_ctrl) {
+				if (val1 < 100) {
+					pr_frc(0, "ctrl test..\n");
+					goto exit;
+				}
+				val1 = val1 - 100;
+			}
 			devp->frc_sts.auto_ctrl = val1;
+		}
 	} else if (!strcmp(parm[0], "osdbit_fcolr")) {
 		if (!parm[1])
 			goto exit;
@@ -422,8 +441,16 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 	} else if (!strcmp(parm[0], "memc_level")) {
 		if (!parm[1])
 			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0)
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			if (frc_dbg_ctrl) {
+				if (val1 < 100) {
+					pr_frc(0, "ctrl test..\n");
+					goto exit;
+				}
+				val1 = val1 - 100;
+			}
 			frc_memc_set_level((u8)val1);
+		}
 	} else if (!strcmp(parm[0], "set_seg")) {
 		if (!parm[1])
 			goto exit;

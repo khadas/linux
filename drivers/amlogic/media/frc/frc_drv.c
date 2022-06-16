@@ -218,6 +218,11 @@ static long frc_ioctl(struct file *file,
 	if (!devp->probe_ok)
 		return -EFAULT;
 
+	if (frc_dbg_ctrl) {
+		pr_frc(0, "return frc ioc\n");
+		return 0;
+	}
+
 	switch (cmd) {
 	case FRC_IOC_GET_FRC_EN:
 		data = devp->frc_en;
