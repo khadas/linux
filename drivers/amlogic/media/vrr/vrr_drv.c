@@ -142,6 +142,8 @@ static int vrr_config_load(struct aml_vrr_drv_s *vdrv,
 		VRRERR("%s: can't get vsync irq\n", __func__);
 	}
 
+	vdrv->lfc_shift = 10;
+
 	return 0;
 }
 
@@ -161,7 +163,7 @@ static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 	spin_lock_irqsave(&vdrv->vrr_isr_lock, flags);
 	vdrv->state &= ~VRR_STATE_SWITCH_OFF;
 
-	if (vdrv->state & VRR_STATE_EN) {
+	if ((vdrv->state & VRR_STATE_EN) && ((vdrv->state & VRR_STATE_RESET) == 0)) {
 		if (vdrv->state & VRR_STATE_TRACE)
 			vrr_drv_trace(vdrv, "vrr enable, bypass\n");
 		spin_unlock_irqrestore(&vdrv->vrr_isr_lock, flags);
@@ -194,6 +196,11 @@ static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 		vsp_sel = 1;  //hdmi input
 		vdrv->state |= VRR_STATE_MODE_HW;
 	}
+	if (vdrv->policy)
+		vdrv->state |= VRR_STATE_POLICY;
+	else
+		vdrv->state &= ~VRR_STATE_POLICY;
+	vdrv->state &= ~VRR_STATE_RESET;
 
 	//vrr setting
 	vrr_reg_write((VENC_VRR_CTRL + offset),
@@ -235,7 +242,7 @@ static void vrr_hdmi_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 	spin_lock_irqsave(&vdrv->vrr_isr_lock, flags);
 	vdrv->state &= ~VRR_STATE_SWITCH_OFF;
 
-	if (vdrv->state & VRR_STATE_EN) {
+	if ((vdrv->state & VRR_STATE_EN) && ((vdrv->state & VRR_STATE_RESET) == 0)) {
 		if (vdrv->state & VRR_STATE_TRACE)
 			vrr_drv_trace(vdrv, "vrr enable, bypass\n");
 		spin_unlock_irqrestore(&vdrv->vrr_isr_lock, flags);
@@ -268,6 +275,11 @@ static void vrr_hdmi_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 		vsp_sel = 1;  //hdmi input
 		vdrv->state |= VRR_STATE_MODE_HW;
 	}
+	if (vdrv->policy)
+		vdrv->state |= VRR_STATE_POLICY;
+	else
+		vdrv->state &= ~VRR_STATE_POLICY;
+	vdrv->state &= ~VRR_STATE_RESET;
 
 	//vrr setting
 	vrr_reg_write(VENP_VRR_CTRL + offset,
@@ -443,18 +455,38 @@ int vrr_drv_lfc_update(struct aml_vrr_drv_s *vdrv, int flag, int fps)
 			       vdrv->index, __func__, fps);
 		}
 		vdrv->adj_vline_max = vdrv->vrr_dev->lfc_switch(vdrv->vrr_dev->dev_data, fps);
+		vdrv->adj_vline_min = vdrv->adj_vline_max - vdrv->lfc_shift;
 		if (vdrv->adj_vline_max)
 			vdrv->lfc_en = 1;
 	} else {
 		vdrv->lfc_en = 0;
 		vdrv->adj_vline_max = vdrv->vrr_dev->vline_max;
+		vdrv->adj_vline_min = vdrv->vrr_dev->vline_min;
 	}
 
 	return 0;
 }
 
+/* return: 0:need restart, 1:no need restart */
+static int vrr_restart_check(struct aml_vrr_drv_s *vdrv)
+{
+	unsigned int mode;
+
+	if (vdrv->enable == 0)
+		return 0;
+	mode = (vdrv->state & VRR_STATE_POLICY) ? 1 : 0;
+	if (vdrv->policy != mode) {
+		vdrv->state |= VRR_STATE_RESET;
+		return 0;
+	}
+
+	return -1;
+}
+
 int vrr_drv_func_en(struct aml_vrr_drv_s *vdrv, int flag)
 {
+	int ret;
+
 	VRRPR("[%d]: %s, flag=%d\n", vdrv->index, __func__, flag);
 	if (!vdrv->vrr_dev) {
 		VRRERR("[%d]: %s: invalid vrr_dev\n",
@@ -470,7 +502,8 @@ int vrr_drv_func_en(struct aml_vrr_drv_s *vdrv, int flag)
 			       vdrv->vrr_dev->output_src);
 			return -1;
 		}
-		if (vdrv->enable)
+		ret = vrr_restart_check(vdrv);
+		if (ret)
 			return 0;
 
 		vdrv->enable = 1;
@@ -649,12 +682,14 @@ static ssize_t vrr_status_show(struct device *dev,
 		len += sprintf(buf + len, "dev->vfreq_min:  %d\n",
 				vdrv->vrr_dev->vfreq_min);
 	}
+	len += sprintf(buf + len, "vrr_policy:      %d\n", vdrv->policy);
+	len += sprintf(buf + len, "lfc_en:          %d\n", vdrv->lfc_en);
+	len += sprintf(buf + len, "lfc_shift:       %d\n", vdrv->lfc_shift);
+	len += sprintf(buf + len, "adj_vline_max:   %d\n", vdrv->adj_vline_max);
+	len += sprintf(buf + len, "adj_vline_min:   %d\n", vdrv->adj_vline_min);
 	len += sprintf(buf + len, "line_dly:        %d\n", vdrv->line_dly);
 	len += sprintf(buf + len, "state:           0x%x\n", vdrv->state);
 	len += sprintf(buf + len, "enable:          0x%x\n", vdrv->enable);
-	len += sprintf(buf + len, "lfc_en:          %d\n", vdrv->lfc_en);
-	len += sprintf(buf + len, "adj_vline_max:   %d\n", vdrv->adj_vline_max);
-	len += sprintf(buf + len, "adj_vline_min:   %d\n", vdrv->adj_vline_min);
 
 	/** vrr reg info **/
 	len += sprintf(buf + len, "VENC_VRR_CTRL: 0x%x\n",
@@ -736,6 +771,12 @@ static ssize_t vrr_debug_store(struct device *dev,
 		ret = sscanf(buf, "lfc %d %d", &temp, &fps);
 		if (ret == 1)
 			vrr_drv_lfc_update(vdrv, temp, fps);
+		VRRPR("[%d]: lfc_en: %d\n", vdrv->index, vdrv->lfc_en);
+		break;
+	case 's':
+		ret = sscanf(buf, "shift %d", &temp);
+		if (ret == 1)
+			vdrv->lfc_shift = temp;
 		VRRPR("[%d]: lfc_en: %d\n", vdrv->index, vdrv->lfc_en);
 		break;
 	default:

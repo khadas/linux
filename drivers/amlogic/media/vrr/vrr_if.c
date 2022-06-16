@@ -70,6 +70,10 @@ ssize_t vrr_active_status_show(struct device *dev,
 		len += sprintf(buf + len, "dev->vfreq_min:  %d\n",
 				vdrv->vrr_dev->vfreq_min);
 	}
+	len += sprintf(buf + len, "vrr_policy:      %d\n", vdrv->policy);
+	len += sprintf(buf + len, "lfc_en:          %d\n", vdrv->lfc_en);
+	len += sprintf(buf + len, "adj_vline_max:   %d\n", vdrv->adj_vline_max);
+	len += sprintf(buf + len, "adj_vline_min:   %d\n", vdrv->adj_vline_min);
 	len += sprintf(buf + len, "line_dly:        %d\n", vdrv->line_dly);
 	len += sprintf(buf + len, "state:           0x%x\n", vdrv->state);
 	len += sprintf(buf + len, "enable:          0x%x\n", vdrv->enable);
@@ -132,7 +136,7 @@ int aml_vrr_func_en(int flag)
 	return ret;
 }
 
-int aml_vrr_lfc_update(int flag, int fps)
+static int aml_vrr_lfc_update(int flag, int fps)
 {
 	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
 	int ret;
@@ -194,8 +198,10 @@ static int aml_vrr_switch_notify_callback(struct notifier_block *block,
 		if (!para)
 			break;
 		vdata = (struct vrr_notifier_data_s *)para;
-		if (vdrv_active)
+		if (vdrv_active) {
 			vdrv_active->line_dly = vdata->line_dly;
+			vdrv_active->policy = vdata->vrr_policy;
+		}
 		aml_vrr_func_en(1);
 		break;
 	case FRAME_LOCK_EVENT_VRR_OFF_MODE:
