@@ -810,7 +810,7 @@ void meson_hdmitx_reset(struct drm_connector *connector)
 	hdmitx_state->base.hdcp_content_type = am_hdmi_info.hdcp_request_content_type;
 	hdmitx_state->base.content_protection = am_hdmi_info.hdcp_request_content_protection;
 
-	hdmitx_state->pref_hdr_policy = MESON_PREF_SDR;
+	hdmitx_state->pref_hdr_policy = MESON_PREF_DV;
 
 	/*drm api need update state, so need delay attch when create state.*/
 	if (!connector->max_bpc_property)
@@ -1182,6 +1182,11 @@ static int meson_hdmitx_decide_eotf_type
 	u8 crtc_eotf_type = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	int ret = 0;
 	struct drm_display_mode *mode = &meson_crtc_state->base.adjusted_mode;
+
+	/*If the HDMI cable is not plugin before starting the board,pref_hdr_policy
+	 *may not be available in am_meson_update_output_state() function
+	 */
+	hdmitx_state->pref_hdr_policy = am_hdmi_info.hdmitx_dev->get_hdr_priority();
 
 	/* TODO:hdr priority handled by hdmitx, and dont support dynamic set.
 	 * Currently checking is to confirm crtc_eotf_type == dv/dv_ll mode,
