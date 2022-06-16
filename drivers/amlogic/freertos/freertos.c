@@ -104,7 +104,7 @@ static unsigned long freertos_request_info(void)
 	return (info_base + info_offset);
 }
 
-static unsigned int freertos_is_run(void)
+unsigned int freertos_is_run(void)
 {
 	unsigned long phy;
 	struct xrtosinfo_t *info;
@@ -126,6 +126,7 @@ static unsigned int freertos_is_run(void)
 	iounmap(info);
 	return 1;
 }
+EXPORT_SYMBOL(freertos_is_run);
 
 /*T7 need not update info to bl31
  * static unsigned long freertos_allow_coreup(void)

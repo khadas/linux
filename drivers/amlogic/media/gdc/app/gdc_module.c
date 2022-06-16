@@ -21,8 +21,13 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/dma-buf.h>
 #include <linux/pm_runtime.h>
-
 #include <linux/of_address.h>
+#include <linux/timer.h>
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+#include <linux/amlogic/freertos.h>
+#endif
+
 #include <api/gdc_api.h>
 #include "system_log.h"
 
@@ -37,6 +42,18 @@
 #include "gdc_config.h"
 #include "gdc_dmabuf.h"
 #include "gdc_wq.h"
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+struct timer_data_s {
+	u32 dev_type;
+	struct meson_gdc_dev_t *gdc_dev;
+	struct timer_list timer;
+	struct work_struct work;
+};
+
+static struct timer_data_s timer_data[HW_TYPE];
+#define TIMER_MS (2000)
+#endif
 
 int gdc_log_level;
 int gdc_smmu_enable;
@@ -1999,9 +2016,79 @@ irqreturn_t gdc_interrupt_handler(int irq, void *param)
 	return IRQ_HANDLED;
 }
 
+static void gdc_irq_init(struct meson_gdc_dev_t *gdc_dev, u32 dev_type)
+{
+	int i, rc = 0, irq;
+
+	if (!gdc_dev || !gdc_dev->pdev) {
+		gdc_log(LOG_ERR, "%s, wrong param\n", __func__);
+		return;
+	}
+	/* irq init */
+	for (i = 0; i < gdc_dev->core_cnt; i++) {
+		irq = platform_get_irq(gdc_dev->pdev, i);
+		if (irq < 0) {
+			gdc_log(LOG_ERR, "cannot find %d irq for gdc\n", i);
+			return;
+		}
+
+		gdc_log(LOG_DEBUG, "request irq:%s\n",
+			irq_name[dev_type][i]);
+		irq_data[dev_type][i].dev_type = dev_type;
+		irq_data[dev_type][i].core_id = i;
+		rc = devm_request_irq(&gdc_dev->pdev->dev, irq,
+				      gdc_interrupt_handler,
+				      IRQF_SHARED,
+				      irq_name[dev_type][i],
+				      &irq_data[dev_type][i]);
+		if (rc != 0) {
+			gdc_log(LOG_ERR, "cannot create %d irq func gdc\n", i);
+			return;
+		}
+	}
+}
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+static void work_func(struct work_struct *w)
+{
+	struct timer_data_s *timer_data =
+		container_of(w, struct timer_data_s, work);
+	u32 dev_type = timer_data->dev_type;
+
+	if (dev_type == ARM_GDC)
+		gdc_log(LOG_DEBUG, "gdc %s enter\n", __func__);
+	else
+		gdc_log(LOG_DEBUG, "amlgdc %s enter\n", __func__);
+
+	gdc_runtime_pwr_all(dev_type, 0);
+	gdc_clk_config_all(dev_type, 0);
+	gdc_irq_init(timer_data->gdc_dev, dev_type);
+}
+
+static void timer_expire(struct timer_list *t)
+{
+	struct timer_data_s *timer_data = from_timer(timer_data, t, timer);
+	u32 dev_type = timer_data->dev_type;
+
+	if (dev_type == ARM_GDC)
+		gdc_log(LOG_DEBUG, "gdc %s enter\n", __func__);
+	else
+		gdc_log(LOG_DEBUG, "amlgdc %s enter\n", __func__);
+
+	if (freertos_is_finished()) {
+		del_timer(&timer_data->timer);
+		/* might sleep, use work to process */
+		schedule_work(&timer_data->work);
+	} else {
+		mod_timer(&timer_data->timer,
+			  jiffies + msecs_to_jiffies(TIMER_MS));
+	}
+}
+#endif
+
 static int gdc_platform_probe(struct platform_device *pdev)
 {
-	int rc = -1, clk_rate = 0, i = 0, irq;
+	int rc = -1, clk_rate = 0, i = 0;
 	struct resource *gdc_res;
 	struct meson_gdc_dev_t *gdc_dev = NULL;
 	const struct of_device_id *match;
@@ -2072,29 +2159,9 @@ static int gdc_platform_probe(struct platform_device *pdev)
 		goto free_config;
 	}
 
-	/* irq init */
-	for (i = 0; i < gdc_dev->core_cnt; i++) {
-		irq = platform_get_irq(pdev, i);
-		if (gdc_dev->irq < 0) {
-			gdc_log(LOG_DEBUG, "cannot find irq for gdc\n");
-			rc = -EINVAL;
-			goto free_config;
-		}
-
-		gdc_log(LOG_DEBUG, "request irq:%s\n",
-			irq_name[dev_type][i]);
-		irq_data[dev_type][i].dev_type = dev_type;
-		irq_data[dev_type][i].core_id = i;
-		rc = devm_request_irq(&pdev->dev, irq,
-				      gdc_interrupt_handler,
-				      IRQF_SHARED,
-				      irq_name[dev_type][i],
-				      &irq_data[dev_type][i]);
-		if (rc != 0) {
-			gdc_log(LOG_ERR, "cannot create irq func gdc\n");
-			goto free_config;
-		}
-	}
+#ifndef CONFIG_AMLOGIC_FREERTOS
+	gdc_irq_init(gdc_dev, dev_type);
+#endif
 
 	if (gdc_data->smmu_support &&
 	    of_find_property(pdev->dev.of_node, "iommus", NULL)) {
@@ -2203,16 +2270,8 @@ static int gdc_platform_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gdc_dev);
 	dev_set_drvdata(gdc_dev->misc_dev.this_device, gdc_dev);
 
-	for (i = 0; i < gdc_dev->core_cnt; i++) {
-		if (gdc_data->clk_type == CORE_AXI) {
-			clk_disable_unprepare(gdc_dev->clk_core[i]);
-			clk_disable_unprepare(gdc_dev->clk_axi[i]);
-		} else if (gdc_data->clk_type == MUXGATE_MUXSEL_GATE ||
-			   gdc_data->clk_type == GATE) {
-			clk_disable_unprepare(gdc_dev->clk_gate[i]);
-		}
+	for (i = 0; i < gdc_dev->core_cnt; i++)
 		GDC_DEV_T(dev_type)->is_idle[i] = 1;
-	}
 
 	/* power domain init */
 	rc = gdc_pwr_init(&pdev->dev, gdc_dev->pd, dev_type);
@@ -2223,6 +2282,30 @@ static int gdc_platform_probe(struct platform_device *pdev)
 			rc);
 		goto free_config;
 	}
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+	/* To avoid interfering with RTOS clock/power/interrupt resources,
+	 * turn on and keep power/clk first.
+	 * Poll the status of rtos,
+	 * then turn off power/clk and register interrupt.
+	 */
+	if (freertos_is_run() && !freertos_is_finished()) {
+		INIT_WORK(&timer_data[dev_type].work, work_func);
+		timer_setup(&timer_data[dev_type].timer, timer_expire, 0);
+		timer_data[dev_type].timer.expires =
+					jiffies + msecs_to_jiffies(TIMER_MS);
+		timer_data[dev_type].gdc_dev = gdc_dev;
+		timer_data[dev_type].dev_type = dev_type;
+		add_timer(&timer_data[dev_type].timer);
+
+		gdc_runtime_pwr_all(dev_type, 1);
+	} else {
+		gdc_irq_init(gdc_dev, dev_type);
+		gdc_clk_config_all(dev_type, 0);
+	}
+#else
+	gdc_clk_config_all(dev_type, 0);
+#endif
 
 	if (!kthread_created) {
 		gdc_wq_init();

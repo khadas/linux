@@ -235,7 +235,7 @@
 	freertos {
 		compatible = "amlogic,freertos";
 		status = "okay";
-		irqs_rsv = <32 227>;
+		irqs_rsv = <32 227 249 91>;
 		info_offset = <0x1000>;
 	};
 
