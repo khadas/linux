@@ -39,7 +39,7 @@ video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	vf_info->crop_y = mvvs->src_y;
 	vf_info->crop_w = mvvs->src_w;
 	vf_info->crop_h = mvvs->src_h;
-	vf_info->buffer_w = mvvs->src_w;
+	vf_info->buffer_w = mvvs->byte_stride;
 	vf_info->buffer_h = mvvs->src_h;
 	vf_info->zorder = mvvs->zorder;
 
@@ -442,6 +442,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		if (video->vfm_mode) {
 			vf_info.release_fence = video->fence;
 			video_vfm_convert_to_vfminfo(mvvs, &vf_info);
+			vf_info.reserved[0] = video_type_get(pixel_format);
 			dma_resv_add_excl_fence(vf_info.dmabuf->resv, vf_info.release_fence);
 			video_display_setframe(vblk->index, &vf_info, 0);
 		} else {
@@ -527,6 +528,12 @@ static void video_hw_enable(struct meson_vpu_block *vblk,
 		DRM_DEBUG("enable break for NULL.\n");
 		return;
 	}
+
+	if (video->vfm_mode) {
+		DRM_DEBUG("skip, %s enable by video_composer.\n", video->base.name);
+		return;
+	}
+
 	if (!video->video_enabled) {
 		set_video_enabled(1, vblk->index);
 		video->video_enabled = 1;
@@ -545,10 +552,8 @@ static void video_hw_disable(struct meson_vpu_block *vblk,
 	}
 
 	if (video->vfm_mode) {
-		if (video->video_enabled) {
-			video_display_setenable(vblk->index, 0);
-			video->video_enabled = 0;
-		}
+		video_display_setenable(vblk->index, 0);
+		video->video_enabled = 0;
 	} else {
 		video_disable_fence(video);
 		video->fence = NULL;
