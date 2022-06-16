@@ -632,8 +632,12 @@ error_pclk_get:
 void stmmac_remove_config_dt(struct platform_device *pdev,
 			     struct plat_stmmacenet_data *plat)
 {
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+/*these clk operation will report warning when rmmod*/
+#else
 	clk_disable_unprepare(plat->stmmac_clk);
 	clk_disable_unprepare(plat->pclk);
+#endif
 	of_node_put(plat->phy_node);
 	of_node_put(plat->mdio_node);
 }
