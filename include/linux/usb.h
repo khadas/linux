@@ -701,6 +701,9 @@ struct usb_device {
 	unsigned lpm_disable_count;
 
 	u16 hub_delay;
+#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+	struct delayed_work		portstatus_work;
+#endif
 	unsigned use_generic_driver:1;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)

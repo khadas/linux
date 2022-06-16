@@ -699,8 +699,10 @@ static void xhci_port_set_test_mode(struct xhci_hcd *xhci,
 	temp |= test_mode << PORT_TEST_MODE_SHIFT;
 	writel(temp, port->addr + PORTPMSC);
 	xhci->test_mode = test_mode;
+  #if !IS_ENABLED(CONFIG_AMLOGIC_USB)
 	if (test_mode == USB_TEST_FORCE_ENABLE)
 		xhci_start(xhci);
+  #endif
 }
 
 static int xhci_enter_test_mode(struct xhci_hcd *xhci,
@@ -1178,6 +1180,97 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	return status;
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+static int xhci_test_suspend_resume(struct usb_hcd *hcd,
+				    u16 wIndex)
+{
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	unsigned long flags = 0;
+	u32 temp;
+	int slot_id;
+	//__le32 __iomem **port_array = xhci->usb2_ports;
+	struct xhci_port *port;
+
+	/* xhci only supports test mode for usb2 ports */
+	port = xhci->usb2_rhub.ports[wIndex];
+	//temp = readl(port->addr + PORTPMSC);
+
+	/* 15 second delay per the test spec */
+	xhci_err(xhci, "into suspend\n");
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/*suspend*/
+	temp = readl(port->addr);
+	if ((temp & PORT_PLS_MASK) != XDEV_U0) {
+		/* Resume the port to U0 first */
+		xhci_set_link_state(xhci, port, XDEV_U0);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		usleep_range(10000 - 1, 10000);
+		spin_lock_irqsave(&xhci->lock, flags);
+	}
+	/* In spec software should not attempt to suspend
+	 * a port unless the port reports that it is in the
+	 * enabled (PED = ‘1’,PLS < ‘3’) state.
+	 */
+	temp = readl(port->addr);
+	if ((temp & PORT_PE) == 0 || (temp & PORT_RESET) ||
+	    (temp & PORT_PLS_MASK) >= XDEV_U3) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_warn(xhci, "USB core suspending device not in U0/U1/U2.\n");
+		return -1;
+	}
+
+	slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+					    wIndex + 1);
+	if (!slot_id) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_warn(xhci, "slot_id is zero\n");
+		return -1;
+	}
+	/* unlock to execute stop endpoint commands */
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	xhci_stop_device(xhci, slot_id, 1);
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	xhci_set_link_state(xhci, port, XDEV_U3);
+
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	usleep_range(10000 - 1, 10000); /* wait device to enter */
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	/* 15 second delay per the test spec */
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	xhci_err(xhci, "wait 15s\n");
+	msleep(15000);
+	xhci_err(xhci, "into resume\n");
+	spin_lock_irqsave(&xhci->lock, flags);
+
+	temp = readl(port->addr);
+	xhci_dbg(xhci, "clear USB_PORT_FEAT_SUSPEND\n");
+	xhci_dbg(xhci, "PORTSC %04x\n", temp);
+	if (temp & PORT_RESET) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -1;
+	}
+	if ((temp & PORT_PLS_MASK) == XDEV_U3) {
+		if ((temp & PORT_PE) == 0) {
+			spin_unlock_irqrestore(&xhci->lock, flags);
+			return -1;
+		}
+
+		xhci_set_link_state(xhci, port, XDEV_RESUME);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		msleep(20);
+		spin_lock_irqsave(&xhci->lock, flags);
+		xhci_set_link_state(xhci, port, XDEV_U0);
+	}
+
+	xhci_ring_device(xhci, slot_id);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+	return 0;
+}
+#endif
+
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
@@ -1512,6 +1605,28 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			temp |= PORT_U2_TIMEOUT(timeout);
 			writel(temp, ports[wIndex]->addr + PORTPMSC);
 			break;
+#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+		case USB_PORT_FEAT_TEST:
+			/* 4.19.6 Port Test Modes (USB2 Test Mode) */
+			if (hcd->speed != HCD_USB2)
+				goto error;
+			if (test_mode > 6 || test_mode < 1)
+				goto error;
+
+			if (test_mode >= 1 && test_mode <= 4) {
+				retval = xhci_enter_test_mode(xhci,
+								  test_mode,
+								  wIndex, &flags);
+			} else if (test_mode == 5) {
+				xhci_port_set_test_mode(xhci,
+							test_mode, wIndex);
+			} else {
+				spin_unlock_irqrestore(&xhci->lock, flags);
+				retval = xhci_test_suspend_resume(hcd, wIndex);
+				spin_lock_irqsave(&xhci->lock, flags);
+			}
+			break;
+#else
 		case USB_PORT_FEAT_TEST:
 			/* 4.19.6 Port Test Modes (USB2 Test Mode) */
 			if (hcd->speed != HCD_USB2)
@@ -1522,6 +1637,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			retval = xhci_enter_test_mode(xhci, test_mode, wIndex,
 						      &flags);
 			break;
+#endif
 		default:
 			goto error;
 		}
