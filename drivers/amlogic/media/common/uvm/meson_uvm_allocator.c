@@ -442,9 +442,9 @@ static int mua_attach(int fd, int type, char *buf)
 		return -EINVAL;
 	}
 
-	MUA_PRINTK(1, "core_attach: type:%d buf:%s.\n",
-		type, buf);
 	dmabuf = dma_buf_get(fd);
+	MUA_PRINTK(1, "core_attach: type:%d dmabuf:%p.\n",
+		type, dmabuf);
 
 	if (IS_ERR_OR_NULL(dmabuf)) {
 		MUA_PRINTK(0, "Invalid dmabuf %s %d\n", __func__, __LINE__);
