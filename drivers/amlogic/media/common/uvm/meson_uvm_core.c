@@ -147,10 +147,14 @@ static void meson_uvm_release(struct dma_buf *dmabuf)
 	if (ua->free)
 		ua->free(ua->obj);
 
-	list_for_each_entry_safe(uhmod, uhtmp, &handle->mod_attached, list)
+	list_for_each_entry_safe(uhmod, uhtmp, &handle->mod_attached, list) {
+		UVM_PRINTK(1, "%s uhmod:%p uhmod_ref:%u n_attached_mod:%zu\n",
+			__func__, uhmod, kref_read(&uhmod->ref), handle->n_mod_attached);
 		kref_put(&uhmod->ref, uvm_hook_mod_release);
+		handle->n_mod_attached--;
+	}
 
-	UVM_PRINTK(1, "%s called, %u\n", __func__, kref_read(&handle->ref));
+	UVM_PRINTK(1, "%s handle->ref %u\n", __func__, kref_read(&handle->ref));
 	kref_put(&handle->ref, uvm_handle_destroy);
 }
 
@@ -298,7 +302,6 @@ static struct uvm_handle *uvm_handle_alloc(size_t len, size_t align,
 
 	kref_init(&handle->ref);
 	mutex_init(&handle->lock);
-	mutex_init(&handle->detachlock);
 	handle->size = len;
 	handle->align = align;
 	handle->flags = flags;
@@ -550,14 +553,15 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 	uhmod->acquire_fence = info->acquire_fence;
 
 	mutex_lock(&handle->lock);
+	UVM_PRINTK(1, "attach: type:%d uhmod:%p uhmod->free:%px dmabuf =%p\n",
+				info->type, uhmod, uhmod->free, dmabuf);
 	list_add_tail(&uhmod->list, &handle->mod_attached);
 	handle->flags &= ~BIT(UVM_DETACH_FLAG);
 	handle->n_mod_attached++;
 	handle->mod_attached_mask |= 1 << (uhmod->type);
+	UVM_PRINTK(1, "attach: dmabuf =%p uhmod->arg=%p n_attached_mod:%zu\n",
+				dmabuf, uhmod->arg, handle->n_mod_attached);
 	mutex_unlock(&handle->lock);
-
-	UVM_PRINTK(1, "info->type:%d attach ok! dmabuf =%p, handle=%p\n",
-				info->type, dmabuf, handle);
 
 	return 0;
 }
@@ -609,7 +613,10 @@ int meson_uvm_getinfo(struct dma_buf *dmabuf,
 
 	handle = dmabuf->priv;
 
+	mutex_lock(&handle->lock);
 	uhmod = uvm_find_hook_mod(handle, mode_type);
+	mutex_unlock(&handle->lock);
+
 	if (uhmod) {
 		ret = uhmod->getinfo(uhmod->arg, buf);
 		dma_buf_put(dmabuf);
@@ -685,7 +692,9 @@ int meson_uvm_setinfo(struct dma_buf *dmabuf,
 		dma_buf_put(dmabuf);
 		return 0;
 	}
+	mutex_lock(&handle->lock);
 	uhmod = uvm_find_hook_mod(handle, mode_type);
+	mutex_unlock(&handle->lock);
 	if (uhmod) {
 		ret = uhmod->setinfo(uhmod->arg, buf);
 		dma_buf_put(dmabuf);
@@ -701,7 +710,7 @@ EXPORT_SYMBOL(meson_uvm_setinfo);
 
 int uvm_detach_hook_mod(struct dma_buf *dmabuf, int type)
 {
-	UVM_PRINTK(1, "%s called.\n", __func__);
+	UVM_PRINTK(1, "%s %s called.\n", __func__, current->comm);
 	return uvm_put_hook_mod(dmabuf, type);
 }
 EXPORT_SYMBOL(uvm_detach_hook_mod);
@@ -712,9 +721,8 @@ static struct uvm_hook_mod *uvm_find_hook_mod(struct uvm_handle *handle,
 	struct uvm_hook_mod *ret = NULL;
 	struct uvm_hook_mod *uhmod = NULL;
 
-	UVM_PRINTK(1, "%s called, type-%d.\n", __func__, type);
+	UVM_PRINTK(1, "%s, type-%d %s called\n", __func__, type, current->comm);
 
-	mutex_lock(&handle->lock);
 	if (!list_empty(&handle->mod_attached)) {
 		list_for_each_entry(uhmod, &handle->mod_attached, list) {
 			if (uhmod->type == type) {
@@ -723,7 +731,6 @@ static struct uvm_hook_mod *uvm_find_hook_mod(struct uvm_handle *handle,
 			}
 		}
 	}
-	mutex_unlock(&handle->lock);
 
 	if (!ret) {
 		UVM_PRINTK(1, "%s fail.\n", __func__);
@@ -745,11 +752,18 @@ struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 	}
 
 	handle = dmabuf->priv;
+	mutex_lock(&handle->lock);
 	uhmod = uvm_find_hook_mod(handle, type);
-	if (uhmod)
+	if (uhmod) {
 		kref_get(&uhmod->ref);
+		UVM_PRINTK(1, "%s uhmod:%p, ref:%u type:%d. %s called\n",
+			__func__, uhmod, kref_read(&uhmod->ref), type, current->comm);
+	} else {
+		UVM_PRINTK(1, "%s uhmod is NULL! can not find the match uhmod\n", __func__);
+	}
+	mutex_unlock(&handle->lock);
 
-	UVM_PRINTK(1, "%s %px, %d.\n", __func__, uhmod, type);
+	UVM_PRINTK(1, "%s return uhmod:%p dmabuf:%p\n", __func__, uhmod, dmabuf);
 	return uhmod;
 }
 EXPORT_SYMBOL(uvm_get_hook_mod);
@@ -759,9 +773,15 @@ static void uvm_hook_mod_release(struct kref *kref)
 	struct uvm_hook_mod *uhmod;
 
 	uhmod = container_of(kref, struct uvm_hook_mod, ref);
+
+	UVM_PRINTK(1, "%s called, entry=%px, uhmod:%px\n",
+		__func__, &uhmod->list, uhmod);
+
 	list_del(&uhmod->list);
-	UVM_PRINTK(1, "%s called, %px.\n", __func__, uhmod);
+
+	UVM_PRINTK(1, "call uhmod->free:%p start\n", uhmod->free);
 	uhmod->free(uhmod->arg);
+	UVM_PRINTK(1, "call uhmod->free end and free uhomd\n");
 	kfree(uhmod);
 }
 
@@ -771,7 +791,7 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 	struct uvm_hook_mod *uhmod = NULL;
 	int ret = 0;
 
-	UVM_PRINTK(1, "%s called, mod_type%d.\n", __func__, type);
+	UVM_PRINTK(1, "%s, mod_type%d %s called.\n", __func__, type, current->comm);
 
 	if (IS_ERR_OR_NULL(dmabuf) || !dmabuf_is_uvm(dmabuf)) {
 		UVM_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
@@ -780,14 +800,20 @@ int uvm_put_hook_mod(struct dma_buf *dmabuf, int type)
 
 	handle = dmabuf->priv;
 
-	mutex_lock(&handle->detachlock);
+	mutex_lock(&handle->lock);
+
 	uhmod = uvm_find_hook_mod(handle, type);
 
-	if (uhmod)
+	if (uhmod) {
+		UVM_PRINTK(1, "%s before kref_put uhmod:%p, dmabuf:%p ref:%u\n",
+			__func__, uhmod, dmabuf, kref_read(&uhmod->ref));
 		ret = kref_put(&uhmod->ref, uvm_hook_mod_release);
-	else
+	} else {
+		UVM_PRINTK(1, "%s, uhmod is NULL! can not find the match uhmod\n", __func__);
 		ret = -EINVAL;
-	mutex_unlock(&handle->detachlock);
+	}
+
+	mutex_unlock(&handle->lock);
 	return ret;
 }
 EXPORT_SYMBOL(uvm_put_hook_mod);
