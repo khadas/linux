@@ -3401,6 +3401,12 @@ void rx_main_state_machine(void)
 					rx_pr("update audio-err:%d\n", aud_sts);
 				rx.aud_sr_unstable_cnt = 0;
 			}
+		} else if (is_aud_fifo_error()) {
+			rx.aud_sr_unstable_cnt++;
+			if (rx.aud_sr_unstable_cnt > aud_sr_stb_max) {
+				hdmirx_audio_fifo_rst();
+				rx.aud_sr_unstable_cnt = 0;
+			}
 		} else {
 			rx.aud_sr_unstable_cnt = 0;
 		}

@@ -1182,6 +1182,11 @@ void rx_set_irq_t5(bool enable)
 			data32 |= 0 << 0; /* PD_FIFO_TH_MIN_PASS */
 			data32 |= pdec_ists_en;
 		}
+		/* clear status */
+		hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_AUD_CEC_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
 		hdmirx_wr_dwc(DWC_PDEC_IEN_SET, data32);
 		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL | UNDERFL);
 	} else {
@@ -3703,12 +3708,16 @@ void rx_acr_info_sw_update(void)
  *
  * return true if afifo under/over flow, false otherwise.
  */
-bool is_afifo_error(void)
+bool is_aud_fifo_error(void)
 {
 	bool ret = false;
 
+	if (rx.chip_id >= CHIP_ID_T7)
+		return ret;
+
 	if ((hdmirx_rd_dwc(DWC_AUD_FIFO_STS) &
-		(OVERFL_STS | UNDERFL_STS)) != 0) {
+		(OVERFL_STS | UNDERFL_STS)) &&
+		rx.aud_info.aud_packet_received) {
 		ret = true;
 		if (log_level & AUDIO_LOG)
 			rx_pr("afifo err\n");
