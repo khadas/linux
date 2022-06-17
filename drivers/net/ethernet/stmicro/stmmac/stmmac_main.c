@@ -4790,7 +4790,12 @@ int stmmac_suspend(struct device *dev)
 	if (!ndev || !netif_running(ndev))
 		return 0;
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	if (!device_may_wakeup(priv->device))
+		phylink_mac_change(priv->phylink, false);
+#else
 	phylink_mac_change(priv->phylink, false);
+#endif
 
 	mutex_lock(&priv->lock);
 
@@ -4813,11 +4818,14 @@ int stmmac_suspend(struct device *dev)
 	if (device_may_wakeup(priv->device)) {
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 		pr_info("wzh setup wol\n");
-		stmmac_pmt(priv, priv->hw, 0x1 << 5);
+		if (priv->plat->mdns_wkup)
+			stmmac_pmt(priv, priv->hw, 0x120);
+		else
+			stmmac_pmt(priv, priv->hw, 0x1 << 5);
 #else
 		stmmac_pmt(priv, priv->hw, priv->wolopts);
-#endif
 		priv->irq_wake = 1;
+#endif
 	} else {
 		mutex_unlock(&priv->lock);
 		rtnl_lock();

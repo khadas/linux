@@ -441,6 +441,8 @@ static int aml_dwmac_resume(struct device *dev)
 {
 	int ret = 0;
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
 
 	/*nfx doze do nothing for resume*/
 	if (support_nfx_doze) {
@@ -455,13 +457,18 @@ static int aml_dwmac_resume(struct device *dev)
 	ret = stmmac_pltfr_resume(dev);
 	if (support_mac_wol) {
 		if (get_resume_method() == ETH_PHY_WAKEUP) {
-			pr_info("evan---wol rx--KEY_POWER\n");
-			input_event(dwmac->input_dev,
-				EV_KEY, KEY_POWER, 1);
-			input_sync(dwmac->input_dev);
-			input_event(dwmac->input_dev,
-				EV_KEY, KEY_POWER, 0);
-			input_sync(dwmac->input_dev);
+			if (!priv->plat->mdns_wkup) {
+				pr_info("evan---wol rx--KEY_POWER\n");
+				input_event(dwmac->input_dev,
+					EV_KEY, KEY_POWER, 1);
+				input_sync(dwmac->input_dev);
+				input_event(dwmac->input_dev,
+					EV_KEY, KEY_POWER, 0);
+				input_sync(dwmac->input_dev);
+			} else {
+				pr_info("evan---wol rx--pm event\n");
+				pm_wakeup_event(dev, 2000);
+			}
 		}
 	}
 	return 0;
@@ -558,6 +565,8 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	aml_custom_setting(pdev, dwmac);
 	if (support_mac_wol) {
+		if (of_property_read_u32(pdev->dev.of_node, "mdns_wkup", &plat_dat->mdns_wkup) == 0)
+			pr_info("feature mdns_wkup\n");
 		set_wol_notify_bl31();
 		device_init_wakeup(&pdev->dev, 1);
 
