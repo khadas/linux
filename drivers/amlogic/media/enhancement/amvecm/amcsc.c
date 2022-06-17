@@ -8098,6 +8098,10 @@ int amvecm_matrix_process(struct vframe_s *vf,
 					    CSC_ON);
 	}
 
+	pr_csc(16, "amvecm process vd%d %s %p %p, %d, %d\n",
+	       vd_path + 1,
+	       is_video_layer_on(vd_path) ? "on" : "off",
+	       vf, vf_rpt, is_amdv_on(), dovi_on);
 	if (vd_path == VD1_PATH) {
 		if (is_amdv_on()) {
 			if (!dovi_on)

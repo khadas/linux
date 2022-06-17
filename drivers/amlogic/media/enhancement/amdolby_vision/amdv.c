@@ -6857,17 +6857,28 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 		(&current_mode, check_format)) {
 		if (!amdv_wait_init)
 			amdv_set_toggle_flag(1);
-		pr_info("[%s]output change from %d to %d\n",
-			__func__, dolby_vision_mode, current_mode);
+		pr_dv_dbg("[%s]output change from %d to %d(%d, %p, %d)\n",
+			     __func__, dolby_vision_mode, current_mode,
+			     toggle_mode, vf, src_format);
 		amdv_target_mode = current_mode;
 		dolby_vision_mode = current_mode;
 		if (is_amdv_stb_mode())
 			new_dovi_setting.mode_changed = 1;
-		pr_dv_dbg("[%s]output change from %d to %d(%d, %p, %d)\n",
-			     __func__, dolby_vision_mode, current_mode,
-			     toggle_mode, vf, src_format);
 	} else {
-		amdv_target_mode = dolby_vision_mode;
+		/*not clear target mode when:*/
+		/*no mode change && no vf && target is not bypass */
+		if ((!vf && amdv_target_mode != dolby_vision_mode &&
+		    amdv_target_mode !=
+		    AMDV_OUTPUT_MODE_BYPASS)) {
+			if (debug_dolby & 8)
+				pr_dv_dbg("not update target mode %d\n",
+					     amdv_target_mode);
+		} else {
+			amdv_target_mode = dolby_vision_mode;
+			if (debug_dolby & 8)
+				pr_dv_dbg("update target mode %d\n",
+					     amdv_target_mode);
+		}
 	}
 
 	if (vf && (debug_dolby & 8))
@@ -6902,7 +6913,12 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 		new_dovi_setting.video_width = 0;
 		new_dovi_setting.video_height = 0;
 		new_dovi_setting.mode_changed = 0;
-		amdv_wait_on = false;
+		if (amdv_target_mode == AMDV_OUTPUT_MODE_BYPASS)
+			amdv_wait_on = false;
+		if (debug_dolby & 8)
+			pr_dv_dbg("now bypass mode, target %d, wait %d\n",
+				  amdv_target_mode,
+				  amdv_wait_on);
 		if (get_hdr_module_status(VD1_PATH, VPP_TOP0) == HDR_MODULE_BYPASS)
 			return 1;
 		return -1;
@@ -8515,18 +8531,28 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			(&current_mode, check_format)) {
 			if (!dv_inst[pri_input].amdv_wait_init)
 				amdv_set_toggle_flag(1);
-			pr_info("[%s] output change from %d to %d\n",
-				 __func__, dolby_vision_mode, current_mode);
+			pr_info("[%s] output change from %d to %d(%d, %p, %d)\n",
+				__func__, dolby_vision_mode, current_mode,
+				toggle_mode, vf, src_format);
 			amdv_target_mode = current_mode;
 			dolby_vision_mode = current_mode;
 			if (is_amdv_stb_mode())
 				new_m_dovi_setting.mode_changed = 1;
-
-			pr_info("[%s] output change from %d to %d(%d, %p, %d)\n",
-				__func__, dolby_vision_mode, current_mode,
-				toggle_mode, vf, src_format);
 		} else {
-			amdv_target_mode = dolby_vision_mode;
+			/*not clear target mode when:*/
+			/*no mode change && no vf && target is not bypass */
+			if ((!vf && amdv_target_mode != dolby_vision_mode &&
+			    amdv_target_mode !=
+			    AMDV_OUTPUT_MODE_BYPASS)) {
+				if (debug_dolby & 8)
+					pr_dv_dbg("not update target mode %d\n",
+						  amdv_target_mode);
+			} else {
+				amdv_target_mode = dolby_vision_mode;
+				if (debug_dolby & 8)
+					pr_dv_dbg("update target mode %d\n",
+						  amdv_target_mode);
+			}
 		}
 	}
 
@@ -8563,8 +8589,12 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			new_m_dovi_setting.input[i].video_height = 0;
 		}
 		new_m_dovi_setting.mode_changed = 0;
-
-		amdv_wait_on = false;
+		if (amdv_target_mode == AMDV_OUTPUT_MODE_BYPASS)
+			amdv_wait_on = false;
+		if (debug_dolby & 8)
+			pr_dv_dbg("now bypass mode, target %d, wait %d\n",
+				     amdv_target_mode,
+				     amdv_wait_on);
 		if (get_hdr_module_status(VD1_PATH, VPP_TOP0) == HDR_MODULE_BYPASS)
 			return 1;
 		return -1;

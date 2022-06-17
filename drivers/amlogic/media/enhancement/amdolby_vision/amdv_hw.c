@@ -3567,6 +3567,10 @@ void enable_amdv_v1(int enable)
 	u32 diagnostic_enable = dovi_setting.diagnostic_enable;
 	bool dovi_ll_enable = dovi_setting.dovi_ll_enable;
 
+	if (debug_dolby & 8)
+		pr_dv_dbg("enable %d, dv on %d, mode %d %d\n",
+			  enable, dolby_vision_on, dolby_vision_mode,
+			  get_amdv_target_mode());
 	if (enable) {
 		if (!dolby_vision_on) {
 			set_amdv_wait_on();
@@ -4787,6 +4791,11 @@ void enable_amdv_v2_stb(int enable)
 	u32 diagnostic_enable = m_dovi_setting.diagnostic_enable;
 	bool dovi_ll_enable = m_dovi_setting.dovi_ll_enable;
 	/*int dv_id = 0;*/
+
+	if (debug_dolby & 8)
+		pr_dv_dbg("enable %d, dv on %d, mode %d %d\n",
+			  enable, dolby_vision_on, dolby_vision_mode,
+			  get_amdv_target_mode());
 
 	if (enable) {
 		if (!dolby_vision_on) {
