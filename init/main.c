@@ -1516,5 +1516,5 @@ static noinline void __init kernel_init_freeable(void)
 	integrity_load_keys();
 }
 
-int ignore_a_flag = 1;
+int ignore_a_flag;
 core_param(ignore_a_flag, ignore_a_flag, int, 0644);
