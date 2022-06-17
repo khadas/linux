@@ -355,10 +355,9 @@
 				status = "okay";
 			};
 
-			meson_clk_msr {
-				compatible = "amlogic, gxl_measure";
-				reg = <0x0 0x18004 0x0 0x4
-		       0x0 0x1800c 0x0 0x4>;
+			clk_msr: clock-measure@18000 {
+				compatible = "amlogic,meson-axg-clk-measure";
+				reg = <0x0 0x18000 0x0 0x10>;
 			};
 
 			/*i2c-A*/
@@ -453,10 +452,17 @@
 				reg=<0x0 0x220 0x0 0x4>;
 			};
 
-			aoclkc: clock-controller@0 {
-				compatible = "amlogic,axg-aoclkc";
-				#clock-cells = <1>;
-				reg = <0x0 0x0 0x0 0x320>;
+			sysctrl_AO: sys-ctrl@0 {
+				compatible = "amlogic,meson-axg-ao-sysctrl", "simple-mfd", "syscon";
+				reg =  <0x0 0x0 0x0 0x100>;
+
+				clkc_AO: clock-controller {
+					compatible = "amlogic,meson-axg-aoclkc";
+					#clock-cells = <1>;
+					#reset-cells = <1>;
+					clocks = <&xtal>, <&clkc CLKID_CLK81>;
+					clock-names = "xtal", "mpeg-clk";
+				};
 			};
 
 			i2c_AO: i2c@5000 {
@@ -498,10 +504,17 @@
 			#size-cells = <2>;
 			ranges = <0x0 0x0 0x0 0xff63c000 0x0 0x10000>;
 
-			clkc: clock-controller@0 {
-				compatible = "amlogic,axg-clkc";
-				#clock-cells = <1>;
-				reg = <0x0 0x0 0x0 0x320>;
+			sysctrl: system-controller@0 {
+				compatible = "amlogic,meson-axg-hhi-sysctrl",
+				      "simple-mfd", "syscon";
+				reg = <0 0 0 0x400>;
+
+				clkc: clock-controller@0 {
+					compatible = "amlogic,axg-clkc";
+					#clock-cells = <1>;
+					clocks = <&xtal>;
+					clock-names = "xtal";
+				};
 			};
 		};/* end of hiubus*/
 

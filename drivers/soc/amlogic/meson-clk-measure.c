@@ -178,6 +178,7 @@ static struct meson_msr_id clk_msr_gx[] __initdata = {
 	CLK_MSR_ID(81, "vapb"),
 	CLK_MSR_ID(82, "ge2d"),
 };
+#endif
 
 static struct meson_msr_id clk_msr_axg[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee_0"),
@@ -252,7 +253,6 @@ static struct meson_msr_id clk_msr_axg[] __initdata = {
 	CLK_MSR_ID(108, "audio_locker_out"),
 	CLK_MSR_ID(109, "audio_locker_in"),
 };
-#endif
 
 static struct meson_msr_id clk_msr_g12a[] __initdata = {
 	CLK_MSR_ID(0, "ring_osc_out_ee_0"),
@@ -2238,6 +2238,7 @@ static struct meson_msr_data meson_m8_data __initdata = {
 	.reg1_offset = 0x8,
 	.reg2_offset = 0xc,
 };
+#endif
 
 static struct meson_msr_data meson_axg_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_axg,
@@ -2247,7 +2248,6 @@ static struct meson_msr_data meson_axg_data __initdata = {
 	.reg1_offset = 0x8,
 	.reg2_offset = 0xc,
 };
-#endif
 
 static struct meson_msr_data meson_g12a_data __initdata = {
 	.msr_table = (struct meson_msr_id *)&clk_msr_g12a,
@@ -2364,11 +2364,11 @@ static const struct of_device_id meson_msr_match_table[] = {
 		.compatible = "amlogic,meson8b-clk-measure",
 		.data = &meson_m8_data,
 	},
+#endif
 	{
 		.compatible = "amlogic,meson-axg-clk-measure",
 		.data = &meson_axg_data,
 	},
-#endif
 	{
 		.compatible = "amlogic,meson-g12a-clk-measure",
 		.data = &meson_g12a_data,

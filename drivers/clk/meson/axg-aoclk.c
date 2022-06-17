@@ -335,4 +335,12 @@ static struct platform_driver axg_aoclkc_driver = {
 	},
 };
 
+#ifndef CONFIG_AMLOGIC_MODIFY
 builtin_platform_driver(axg_aoclkc_driver);
+#else
+static int axg_aoclkc_init(void)
+{
+	return platform_driver_register(&axg_aoclkc_driver);
+}
+arch_initcall_sync(axg_aoclkc_init);
+#endif

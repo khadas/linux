@@ -843,6 +843,42 @@ const struct clk_ops meson_clk_pll_ro_ops = {
 };
 EXPORT_SYMBOL_GPL(meson_clk_pll_ro_ops);
 
+static unsigned long meson_clk_axg_pll_recalc_rate(struct clk_hw *hw,
+					       unsigned long parent_rate)
+{
+	struct clk_regmap *clk = to_clk_regmap(hw);
+	struct meson_clk_pll_data *pll = meson_clk_pll_data(clk);
+	unsigned int m, n, frac;
+	u64 rate;
+
+	n = meson_parm_read(clk->map, &pll->n);
+
+	if (n == 0)
+		return 0;
+
+	m = meson_parm_read(clk->map, &pll->m);
+	rate = (u64)parent_rate * m;
+
+	frac = MESON_PARM_APPLICABLE(&pll->frac) ?
+		meson_parm_read(clk->map, &pll->frac) :
+		0;
+
+	if (frac && MESON_PARM_APPLICABLE(&pll->frac)) {
+		u64 frac_rate = (u64)parent_rate * frac;
+
+		rate += DIV_ROUND_UP_ULL(frac_rate,
+					 (1 << pll->frac.width));
+	}
+
+	return DIV_ROUND_UP_ULL(rate, n);
+}
+
+const struct clk_ops meson_clk_axg_pll_ro_ops = {
+	.recalc_rate	= meson_clk_axg_pll_recalc_rate,
+	.is_enabled	= meson_clk_pll_is_enabled,
+};
+EXPORT_SYMBOL_GPL(meson_clk_axg_pll_ro_ops);
+
 MODULE_DESCRIPTION("Amlogic PLL driver");
 MODULE_AUTHOR("Carlo Caione <carlo@endlessm.com>");
 MODULE_AUTHOR("Jerome Brunet <jbrunet@baylibre.com>");

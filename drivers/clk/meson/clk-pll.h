@@ -69,6 +69,7 @@ struct meson_clk_pll_data {
 };
 
 extern const struct clk_ops meson_clk_pll_ro_ops;
+extern const struct clk_ops meson_clk_axg_pll_ro_ops;
 extern const struct clk_ops meson_clk_pll_ops;
 extern const struct clk_ops meson_clk_pcie_pll_ops;
 extern const struct clk_ops meson_secure_pll_v2_ops;
