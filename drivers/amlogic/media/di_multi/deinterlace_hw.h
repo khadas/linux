@@ -23,6 +23,8 @@
 #include "../deinterlace/di_pqa.h"
 //#include "di_pqa.h"
 
+#define DI_NOP_REG1	(0x2fcb)
+#define DI_NOP_REG2	(0x2fcd)
 
 /* if post size < 80, filter of ei can't work */
 #define MIN_POST_WIDTH	80

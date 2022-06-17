@@ -3770,7 +3770,7 @@ static int dim_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct di_data_l_s *pdata;
 
-	PR_INF("%s:\n", __func__);
+	dbg_mem("%s:\n", __func__);
 
 	/*move from init to here*/
 	di_pdev = kzalloc(sizeof(*di_pdev), GFP_KERNEL);
@@ -3841,12 +3841,12 @@ static int dim_probe(struct platform_device *pdev)
 	else
 		pdata->ic_sub_ver = DI_IC_REV_MAJOR;
 
-	PR_INF("match name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
+	dbg_mem("match name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
 	       pdata->mdata->ic_id, pdata->ic_sub_ver);
 
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
-		PR_INF("no reserved mem.\n");
+		dbg_mem("no reserved mem.\n");
 
 	di_cfg_top_dts();
 
@@ -3875,17 +3875,17 @@ static int dim_probe(struct platform_device *pdev)
 	atomic_set(&di_devp->pq_io, 1); /* idle */
 
 	di_devp->pre_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
-	PR_INF("pre_irq:%d\n", di_devp->pre_irq);
+	dbg_mem("pre_irq:%d\n", di_devp->pre_irq);
 	di_devp->post_irq = irq_of_parse_and_map(pdev->dev.of_node, 1);
-	PR_INF("post_irq:%d\n",	di_devp->post_irq);
+	dbg_mem("post_irq:%d\n",	di_devp->post_irq);
 
 	di_devp->aisr_irq = -ENXIO;
 
 	di_devp->aisr_irq = platform_get_irq_byname(pdev, "aisr_irq");
 	if (di_devp->aisr_irq  == -ENXIO)
-		PR_INF("no aisr_irq\n");
+		dbg_mem("no aisr_irq\n");
 	else
-		PR_INF("aisr_irq:%d\n", di_devp->aisr_irq);
+		dbg_mem("aisr_irq:%d\n", di_devp->aisr_irq);
 
 	//di_pr_info("%s allocate rdma channel %d.\n", __func__,
 	//	   di_devp->rdma_handle);
@@ -3893,7 +3893,7 @@ static int dim_probe(struct platform_device *pdev)
 		dim_get_vpu_clkb(&pdev->dev, di_devp);
 		#ifdef CLK_TREE_SUPPORT
 		clk_prepare_enable(di_devp->vpu_clkb);
-		PR_INF("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
+		dbg_mem("vpu clkb =%ld.\n", clk_get_rate(di_devp->vpu_clkb));
 		#else
 		aml_write_hiubus(HHI_VPU_CLKB_CNTL, 0x1000100);
 		#endif
@@ -3916,14 +3916,14 @@ static int dim_probe(struct platform_device *pdev)
 		dimp_set(edi_mp_nr10bit_support, 0);/*nr10bit_support = 0;*/
 	else	/*nr10bit_support = di_devp->nr10bit_support;*/
 		dimp_set(edi_mp_nr10bit_support, di_devp->nr10bit_support);
-
+#ifdef DIM_EN_UD_USED
 	di_pdev->local_meta_size =
 			LOCAL_META_BUFF_SIZE * DI_CHANNEL_NUB *
 			(MAX_IN_BUF_NUM + MAX_POST_BUF_NUM +
 			(MAX_LOCAL_BUF_NUM * 2)) * sizeof(u8);
 	di_pdev->local_meta_addr = vmalloc(di_pdev->local_meta_size);
 	if (!di_pdev->local_meta_addr) {
-		PR_INF("alloc local meta buffer fail\n");
+		PR_WARN("alloc local meta buffer fail\n");
 		di_pdev->local_meta_size = 0;
 	}
 
@@ -3933,10 +3933,10 @@ static int dim_probe(struct platform_device *pdev)
 			(MAX_LOCAL_BUF_NUM * 2)) * sizeof(u8);
 	di_pdev->local_ud_addr = vmalloc(di_pdev->local_ud_size);
 	if (!di_pdev->local_ud_addr) {
-		PR_INF("alloc local ud buffer fail\n");
+		PR_WARN("alloc local ud buffer fail\n");
 		di_pdev->local_ud_addr = 0;
 	}
-
+#endif /* DIM_EN_UD_USED */
 	device_create_file(di_devp->dev, &dev_attr_config);
 	device_create_file(di_devp->dev, &dev_attr_debug);
 	device_create_file(di_devp->dev, &dev_attr_dump_pic);

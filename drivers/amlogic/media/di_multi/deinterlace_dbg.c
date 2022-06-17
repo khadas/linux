@@ -1009,7 +1009,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	struct di_buf_s *p = NULL, *keep_buf;/* ptmp; */
 	struct di_pre_stru_s *di_pre_stru_p;
 	struct di_post_stru_s *di_post_stru_p;
-	const char *version_s = dim_get_version_s();
+	//const char *version_s = dim_get_version_s();
 	int dump_state_flag = dim_get_dump_state_flag();
 	unsigned char recovery_flag = dim_vcry_get_flg();
 	unsigned int recovery_log_reason = dim_vcry_get_log_reason();
@@ -1037,8 +1037,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 
 	dump_state_flag = 1;
 	seq_printf(seq, "%s:ch[%d]\n", __func__, channel);
-	seq_printf(seq, "version %s, init_flag %d, dw[%d:%d:%d:%d]\n",
-		   version_s,
+	seq_printf(seq, "init_flag %d, dw[%d:%d:%d:%d]\n",
 		   get_init_flag(channel),
 		   get_datal()->dw_d.state_en,
 		   get_datal()->dw_d.state_cfg_by_dbg,

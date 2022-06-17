@@ -396,7 +396,7 @@ static void cfg_ch_set(struct di_ch_s *pch)
  * @param[in]  parm    Pointer of parm structure
  * @return      di index for success, or fail type if < 0
  **********************************************************/
-int di_create_instance(struct di_init_parm parm)
+int new_create_instance(struct di_init_parm parm)
 {
 	int ret;
 	unsigned int ch;
@@ -506,7 +506,6 @@ int di_create_instance(struct di_init_parm parm)
 	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);
 	return ch;
 }
-EXPORT_SYMBOL(di_create_instance);
 
 /**********************************************************
  **
@@ -517,7 +516,7 @@ EXPORT_SYMBOL(di_create_instance);
  * @return      0 for success, or fail type if < 0
  *
  **********************************************************/
-int di_destroy_instance(int index)
+int new_destroy_instance(int index)
 {
 	struct dim_itf_s *pintf;
 	unsigned int ch;
@@ -548,7 +547,6 @@ int di_destroy_instance(int index)
 	PR_INF("%s:ch[%d]:end\n", __func__, ch);
 	return 0;
 }
-EXPORT_SYMBOL(di_destroy_instance);
 
 /**********************************************************
  **
@@ -559,7 +557,7 @@ EXPORT_SYMBOL(di_destroy_instance);
  *
  * @return      Success or fail type
  **********************************************************/
-enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
+enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 {
 	struct dim_itf_s *pintf;
 	unsigned int ch;
@@ -672,7 +670,6 @@ enum DI_ERRORTYPE di_empty_input_buffer(int index, struct di_buffer *buffer)
 	task_send_ready(20);
 	return DI_ERR_NONE;
 }
-EXPORT_SYMBOL(di_empty_input_buffer);
 
 //@ary_note mem alloc by outside
 static enum DI_ERRORTYPE di_fill_output_buffer_mode2(struct di_ch_s *pch,
@@ -761,7 +758,7 @@ static enum DI_ERRORTYPE di_fill_output_buffer_mode3(struct di_ch_s *pch,
  *
  * @return      Success or fail type
  *********************************************************/
-enum DI_ERRORTYPE di_fill_output_buffer(int index, struct di_buffer *buffer)
+enum DI_ERRORTYPE new_fill_output_buffer(int index, struct di_buffer *buffer)
 {
 	struct dim_itf_s *pintf;
 	unsigned int ch;
@@ -794,9 +791,8 @@ enum DI_ERRORTYPE di_fill_output_buffer(int index, struct di_buffer *buffer)
 	task_send_ready(21);
 	return ret;
 }
-EXPORT_SYMBOL(di_fill_output_buffer);
 
-int di_release_keep_buf(struct di_buffer *buffer)
+int new_release_keep_buf(struct di_buffer *buffer)
 {
 	/*back buf to di */
 //	struct dim_itf_s *pintf;
@@ -825,7 +821,6 @@ int di_release_keep_buf(struct di_buffer *buffer)
 			     ndis1->header.index));
 	return 0;
 }
-EXPORT_SYMBOL(di_release_keep_buf);
 
 /**********************************************************
  * @brief  di_get_output_buffer_num  get output buffer num
@@ -835,7 +830,7 @@ EXPORT_SYMBOL(di_release_keep_buf);
  *
  * @return      number or fail type
  *********************************************************/
-int di_get_output_buffer_num(int index)
+int new_get_output_buffer_num(int index)
 {
 	struct dim_itf_s *pintf;
 	unsigned int ch = 0;
@@ -856,7 +851,6 @@ int di_get_output_buffer_num(int index)
 	dbg_reg("%s:end\n", __func__);
 	return ret;
 }
-EXPORT_SYMBOL(di_get_output_buffer_num);
 
 /**********************************************************
  * @brief  di_get_input_buffer_num  get inptut buffer num
@@ -866,7 +860,7 @@ EXPORT_SYMBOL(di_get_output_buffer_num);
  *
  * @return      number or fail type
  *********************************************************/
-int di_get_input_buffer_num(int index)
+int new_get_input_buffer_num(int index)
 {
 	struct dim_itf_s *pintf;
 	unsigned int ch = 0;
@@ -887,7 +881,7 @@ int di_get_input_buffer_num(int index)
 	dbg_reg("%s:end\n", __func__);
 	return ret;
 }
-EXPORT_SYMBOL(di_get_input_buffer_num);
+
 /*di_display_pre_vpp_link*/
 int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			  struct pvpp_dis_para_in_s *in_para, void *out_para)
@@ -927,7 +921,7 @@ int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			dbg_link("\tm[%d]:\n", in->dmode);
 
 		if (last_sts != ret) {
-			PR_INF("%s:%d->%d\n", __func__, last_sts, ret);
+			dbg_mem("%s:%d->%d\n", __func__, last_sts, ret);
 			last_sts = ret;
 		}
 	}

@@ -190,6 +190,8 @@ enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe);
 const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k,
 					struct di_ch_s *pch);
 
+bool dim_config_crc_icl(void);
+
 /************************************************
  * sct
  ************************************************/
@@ -559,6 +561,14 @@ void dim_dbg_buffer_ext(struct di_ch_s *pch,
 void dim_dbg_vf_cvs(struct di_ch_s *pch,
 			struct vframe_s *vfm,
 			unsigned int pos);
+int new_create_instance(struct di_init_parm parm);
+
+int new_destroy_instance(int index);
+enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer);
+enum DI_ERRORTYPE new_fill_output_buffer(int index, struct di_buffer *buffer);
+int new_release_keep_buf(struct di_buffer *buffer);
+int new_get_output_buffer_num(int index);
+int new_get_input_buffer_num(int index);
 bool dim_get_overturn(void);
 int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			  struct pvpp_dis_para_in_s *in_para, void *out_para);

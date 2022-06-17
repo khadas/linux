@@ -27,6 +27,7 @@
 #include "deinterlace.h"
 #include "deinterlace_dbg.h"
 #include "deinterlace_hw.h"
+#include "di_hw_v3.h"
 #include "di_data_l.h"
 #include "di_que.h"
 #include "di_task.h"
@@ -773,23 +774,23 @@ int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	seq_printf(seq, "%-15s:%lld\n", "timestamp", pvfm->timestamp);
 	seq_printf(seq, "%-15s:0x%x\n", "flag", pvfm->flag);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DOUBLE_FRAM",
-		   pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM);
+		   (pvfm->flag & VFRAME_FLAG_DOUBLE_FRAM) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_P_ONLY",
-		   pvfm->flag & VFRAME_FLAG_DI_P_ONLY);
+		   (pvfm->flag & VFRAME_FLAG_DI_P_ONLY) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_VFM",
-		   pvfm->flag & VFRAME_FLAG_DI_PW_VFM);
+		   (pvfm->flag & VFRAME_FLAG_DI_PW_VFM) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VFRAME_FLAG_DI_PW_N_LOCAL",
-		   pvfm->flag & VFRAME_FLAG_DI_PW_N_LOCAL);
+		   (pvfm->flag & VFRAME_FLAG_DI_PW_N_LOCAL) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_PW_N_EXT",
-		   pvfm->flag & VFRAME_FLAG_DI_PW_N_EXT);
+		   (pvfm->flag & VFRAME_FLAG_DI_PW_N_EXT) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:_HF",
-		   pvfm->flag & VFRAME_FLAG_HF);
+		   (pvfm->flag & VFRAME_FLAG_HF) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_DW",
-		   pvfm->flag & VFRAME_FLAG_DI_DW);
+		   (pvfm->flag & VFRAME_FLAG_DI_DW) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:_DI_BYPASS",
 		   (pvfm->flag & VFRAME_FLAG_DI_BYPASS) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VIDTYPE_PRE_INTERLACE",
-		   (pvfm->flag & VIDTYPE_PRE_INTERLACE) ? true : false);
+		   (pvfm->type & VIDTYPE_PRE_INTERLACE) ? true : false);
 	seq_printf(seq, "%-15s:%d\n", "ins_id", pvfm->di_instance_id);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);
@@ -1972,6 +1973,49 @@ ssize_t keep_buf_clear_store(struct file *file, const char __user *userbuf,
 	return count;
 }
 
+static int cfgtop_show(struct seq_file *s, void *what)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+	struct di_data_l_s *pdata;
+
+	seq_printf(s, "version:%s\n", dim_get_version_s());
+
+	if (!de_devp) {
+		seq_puts(s, "no de_devp\n");
+		return 0;
+	}
+	seq_printf(s, "irq:%d:%d:%d\n",
+		   de_devp->pre_irq,
+		   de_devp->post_irq,
+		   de_devp->aisr_irq);
+#ifdef CLK_TREE_SUPPORT
+	seq_printf(s, "vpu clkb =%ld.\n",
+		   clk_get_rate(de_devp->vpu_clkb));
+#endif
+	seq_printf(s, "vpu clkb <%lu, %lu>\n",
+		   de_devp->clkb_min_rate,
+		   de_devp->clkb_max_rate);
+	pdata = get_datal();
+	if (!pdata) {
+		seq_puts(s, "no datal\n");
+		return 0;
+	}
+	if (pdata && pdata->mdata && pdata->mdata->name)
+		seq_printf(s, "ic_name:%s;0x%x;0x%x\n",
+			   pdata->mdata->name,
+			   pdata->mdata->ic_id,
+			   pdata->mdata->support);
+	if (opl1())
+		seq_printf(s, "op1:%s\n", opl1()->info.name);
+	if (opl2())
+		seq_printf(s, "op2:%s\n", opl2()->info.name);
+	seq_puts(s, "size\n");
+	seq_printf(s, "\t%s:0x%zx K\n",
+		   "dv_prevpp", (sizeof(struct dim_dvs_prevpp_s) >> 10));
+
+	return 0;
+}
+
 static int cfgt_help_show(struct seq_file *s, void *what)
 {
 	seq_puts(s, "cat list\n");
@@ -2876,6 +2920,7 @@ static int hdr_di_reg_show(struct seq_file *s, void *v)
 	return 0;
 }
 
+DEFINE_SEQ_SHOW_ONLY(cfgtop);
 /**********************/
 DEFINE_SEQ_SHOW_ONLY(dim_reg_cue_int);
 DEFINE_SEQ_SHOW_ONLY(policy);
@@ -3016,6 +3061,7 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"mw_mtn", S_IFREG | 0644, &mpw_mtn_fops},
 	{"buf_cnt", S_IFREG | 0644, &buf_cnt_fops},
 	{"keep_clear", S_IFREG | 0644, &keep_buf_clear_fops},
+	{"cfg_top", S_IFREG | 0644, &cfgtop_fops},
 	{"cfghelp", S_IFREG | 0644, &cfgt_help_fops},
 	{"cfgr_ai", S_IFREG | 0644, &cfgt_itme_all_fops},
 	{"cfgr_av", S_IFREG | 0644, &cfgt_val_all_fops},

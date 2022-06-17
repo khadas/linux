@@ -2676,6 +2676,7 @@ struct di_data_l_s {
 #define DBG_M_HDR		DI_BIT27
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
+
 extern unsigned int di_dbg;
 
 #define dbg_m(mark, fmt, args ...)		\
@@ -2720,6 +2721,7 @@ extern unsigned int di_dbg;
 #define dbg_tst(fmt, args ...)		dbg_m(DBG_M_TST, fmt, ##args)
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 #define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
+
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
 void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);

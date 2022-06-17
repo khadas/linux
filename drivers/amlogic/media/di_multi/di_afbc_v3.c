@@ -873,6 +873,8 @@ static void dbg_afbc_blk(struct seq_file *s, union afbc_blk_s *blk, char *name)
 	seq_printf(s, "\t%5s:[%d],\n", "enc_wr", blk->b.enc_wr);
 }
 
+static const char *afbc_get_version(void);
+
 int dbg_afbc_cfg_v3_show(struct seq_file *s, void *v)
 {
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
@@ -880,7 +882,9 @@ int dbg_afbc_cfg_v3_show(struct seq_file *s, void *v)
 	if (!pafd_ctr)
 		return 0;
 
-	seq_printf(s, "%10s:%d\n", "version", pafd_ctr->fb.ver);
+	seq_printf(s, "%10s:%d:%s\n",
+		   "version", pafd_ctr->fb.ver,
+		   afbc_get_version());
 
 	dbg_afbc_blk(s, &pafd_ctr->fb.sp, "support");
 
@@ -1402,7 +1406,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	}
 
 	//afbc_cfg = BITS_EAFBC_CFG_DISABLE;
-	PR_INF("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
+	dbg_mem("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
 	       afbc_get_version(), pafd_ctr->fb.mode);
 }
 

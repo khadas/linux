@@ -118,7 +118,7 @@ void ma_di_init(void)
 	/* 420->422 chrome difference is large motion is large,flick */
 	DIM_DI_WR(DI_MTN_1_CTRL4, 0x01800880);
 	DIM_DI_WR(DI_MTN_1_CTRL7, 0x0a800480);
-	if (dim_config_crc_ic()) {//add for crc @2k22-0102
+	if (dim_config_crc_icl()) {//add for crc @2k22-0102
 		DIM_DI_WR(DI_MTN_1_CTRL3, 0x15200a0a);
 		DIM_DI_WR(DI_MTN_1_CTRL5, 0x74000d0d);
 		DIM_DI_WR(DI_MTN_1_CTRL7, 0xa800480);
@@ -1208,7 +1208,7 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 		if (mcdi_en) {
 			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xf7ff, 0, 16);
 			//add for crc @2k22-0102
-			if (dim_config_crc_ic()) {
+			if (dim_config_crc_icl()) {
 				DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xdff, 17, 11);
 				DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0, 29, 3);
 			} else {
@@ -4249,9 +4249,6 @@ void di_async_reset2(void)/*2019-04-05 add for debug*/
 	DIM_DI_WR(VIUB_SW_RESET, val3);
 	pr_info("%s:0x%x,0x%x,0x%x\n", __func__, val1, val2, val3);
 }
-
-#define DI_NOP_REG1	(0x2fcb)
-#define DI_NOP_REG2	(0x2fcd)
 
 void h_dbg_reg_set(unsigned int val)
 {

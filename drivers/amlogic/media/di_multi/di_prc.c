@@ -224,7 +224,7 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_T5DB_P_NOTNR_THD,
 			0,
 			K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_DCT]  = {"dct", /* only define */
+	[EDI_CFG_DCT]  = {"dct",
 			/* 0:not en;	*/
 			/* 1:en;		*/
 			EDI_CFG_DCT,
@@ -237,20 +237,20 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			EDI_CFG_T5DB_AFBCD_EN,
 			0,
 			K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_HDR_EN]  = {"hdr_en",	/*only define*/
+	[EDI_CFG_HDR_EN]  = {"hdr_en",
 			/* 0:disable;	*/
 			/* 1:enable;	*/
 			EDI_CFG_HDR_EN,
 			0,
 			K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_DW_EN]  = {"dw_en",	/*only define*/
+	[EDI_CFG_DW_EN]  = {"dw_en",
 			/* 0:disable;	*/
 			/* bit 1:enable for 4k */
 			/* bit 2:enable for 1080p to-do */
 			EDI_CFG_DW_EN,
 			0,
 			K_DI_CFG_T_FLG_DTS},
-	[EDI_CFG_SUB_V]  = {"sub_v",	/*only define*/
+	[EDI_CFG_SUB_V]  = {"sub_v",
 			/* 0:major;	*/
 			/* 1:sub */
 			EDI_CFG_SUB_V,
@@ -260,7 +260,11 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 			/* 0:disable;	*/
 			/* 1:enable */
 			EDI_CFG_EN_PRE_LINK,
+#ifdef TMP_EN_PLINK
+			1,
+#else
 			0,
+#endif
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
@@ -5229,7 +5233,7 @@ void dip_init_pq_ops(void)
 	} else {
 		get_datal()->hop_l1 = opl1_v2();
 	}
-	PR_INF("%s:%d:%s\n", "init ops", ic_id, opl1()->info.name);
+	dbg_mem("%s:%d:%s\n", "init ops", ic_id, opl1()->info.name);
 	pq_sv_db_ini();
 	dpvpp_prob();
 }
@@ -5310,7 +5314,7 @@ void dim_slt_init(void)
  * ic list for support crc cts test
  ***********************************************/
 
-bool dim_config_crc_ic(void)
+bool dim_config_crc_icl(void)
 {
 	struct di_dev_s  *de_devp = get_dim_de_devp();
 
@@ -5319,7 +5323,7 @@ bool dim_config_crc_ic(void)
 	else
 		return de_devp->is_crc_ic;
 }
-EXPORT_SYMBOL(dim_config_crc_ic);
+
 /************************************************
  * aisr lrhf
  ************************************************/
