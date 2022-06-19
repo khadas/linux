@@ -820,7 +820,6 @@ int evl_set_period(struct evl_clock *clock,
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
-	int ret = 0;
 
 	if (curr == NULL)
 		return -EPERM;
@@ -849,7 +848,7 @@ int evl_set_period(struct evl_clock *clock,
 
 	raw_spin_unlock_irqrestore(&curr->lock, flags);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_set_period);
 
