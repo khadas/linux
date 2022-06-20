@@ -1941,17 +1941,17 @@
 			thermal-sensors = <&cpu_tsensor 0>;
 			trips {
 				cpuswitch_on: trip-point@0 {
-					temperature = <80000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				cpucontrol: trip-point@1 {
-					temperature = <90000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				cpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -1976,17 +1976,17 @@
 			thermal-sensors = <&nna_tsensor 1>;
 			trips {
 				nnaswitch_on: trip-point@0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				nnacontrol: trip-point@1 {
-					temperature = <100000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				nnacritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -1999,17 +1999,17 @@
 			thermal-sensors = <&vpu_tsensor 2>;
 			trips {
 				vpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				vpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				vpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				vpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};

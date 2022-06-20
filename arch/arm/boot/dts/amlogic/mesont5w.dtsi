@@ -1779,17 +1779,17 @@
 				thermal-sensors = <&p_tsensor 0>;
 				trips {
 					pswitch_on: trip-point@0 {
-						temperature = <85000>;
-						hysteresis = <5000>;
-						type = "passive";
-					};
-					pcontrol: trip-point@1 {
 						temperature = <95000>;
 						hysteresis = <5000>;
 						type = "passive";
 					};
+					pcontrol: trip-point@1 {
+						temperature = <105000>;
+						hysteresis = <5000>;
+						type = "passive";
+					};
 					pcritical: trip-point@2 {
-						temperature = <110000>;
+						temperature = <115000>;
 						hysteresis = <1000>;
 						type = "critical";
 					};
