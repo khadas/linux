@@ -1042,7 +1042,7 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 
 /**
  * goodix_ts_threadirq_func - Bottom half of interrupt
- * This functions is excuted in thread context,
+ * This functions is executed in thread context,
  * sleep in this function is permit.
  *
  * @core_data: pointer to touch core data

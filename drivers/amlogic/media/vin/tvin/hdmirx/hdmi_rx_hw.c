@@ -1211,7 +1211,7 @@ void rx_irq_en(bool enable)
 }
 
 /*
- * hdmirx_irq_hdcp_enable - hdcp irq enalbe
+ * hdmirx_irq_hdcp_enable - hdcp irq enable
  */
 void hdmirx_irq_hdcp_enable(bool enable)
 {
@@ -2514,7 +2514,7 @@ void rx_is_hdcp22_support(void)
 }
 
 /*
- * kill esm may not excuted in rx22
+ * kill esm may not executed in rx22
  * kill esm in driver when 2.2 off
  * refer to ESM_Kill->esm_hostlib_mb_cmd
  */

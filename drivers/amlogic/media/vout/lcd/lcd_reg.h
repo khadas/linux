@@ -1533,7 +1533,7 @@
  * [2]  force data byte lane 0 in receiver mode.
  * [1]  write 1 to sync the txclkesc input. the internal logic have to
  *	use txclkesc to decide Txvalid and Txready.
- * [0]  enalbe the MIPI DSI PHY TxDDRClk.
+ * [0]  enable the MIPI DSI PHY TxDDRClk.
  */
 #define MIPI_DSI_PHY_CTRL       0x0
 /* [31] clk lane tx_hs_en control selection.

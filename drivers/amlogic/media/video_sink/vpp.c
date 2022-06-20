@@ -2857,7 +2857,7 @@ void aisr_sr1_nn_enable_sync(u32 enable)
 
 	sr = &sr_info;
 	sr_reg_offt2 = sr->sr_reg_offt2;
-	pr_info("%s, enalbe=%d\n", __func__, enable);
+	pr_info("%s, enable=%d\n", __func__, enable);
 	if (enable)
 		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,

@@ -58,7 +58,7 @@ static int cm_level = 1;/* 0:optimize;1:enhancement */
 module_param(cm_level, int, 0664);
 MODULE_PARM_DESC(cm_level, "\n selcet cm lever\n");
 
-int cm_en;/* 0:disabel;1:enable */
+int cm_en;/* 0:disable;1:enable */
 module_param(cm_en, int, 0664);
 MODULE_PARM_DESC(cm_en, "\n enable or disable cm\n");
 
@@ -66,7 +66,7 @@ static unsigned int cm_width_limit = 50;/* vlsi adjust */
 module_param(cm_width_limit, uint, 0664);
 MODULE_PARM_DESC(cm_width_limit, "\n cm_width_limit\n");
 
-int pq_reg_wr_rdma;/* 0:disabel;1:enable */
+int pq_reg_wr_rdma;/* 0:disable;1:enable */
 module_param(pq_reg_wr_rdma, int, 0664);
 MODULE_PARM_DESC(pq_reg_wr_rdma, "\n pq_reg_wr_rdma\n");
 

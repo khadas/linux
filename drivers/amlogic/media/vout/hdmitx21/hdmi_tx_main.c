@@ -5647,7 +5647,7 @@ static void drm_hdmitx_hdcp_enable(int hdcp_type)
 
 	switch (hdcp_type) {
 	case HDCP_NULL:
-		pr_err("%s enabld HDCP_NULL\n", __func__);
+		pr_err("%s enabled HDCP_NULL\n", __func__);
 		break;
 	case HDCP_MODE14:
 		hdev->hdcp_mode = 0x11;

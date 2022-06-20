@@ -892,7 +892,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			*rFlmPstMod = 0;
 		}
 	}
-	/*add 22224 repleace 22 for pulldown_drv mot_row patch */
+	/*add 22224 replace 22 for pulldown_drv mot_row patch */
 		if (pd22_cnt > pd22_th && pd22_en && (((pPar->quit_th_en >> 6) & 0x1) == 0 || pRDat.mcdi22_quit_cnt == 0)) {
 			if (pRDat.quit_cnt[3] == 0 || ((pPar->quit_th_en >> 1) & 0x1) == 0) {
 				*rFlmPstMod = 1;

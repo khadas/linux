@@ -552,7 +552,7 @@ static int gxtv_demod_dvbc_read_status_timer
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	struct aml_demod_sts demod_sts;
-	int strenth = 0;
+	int strength = 0;
 	int ilock = 0;
 
 	if (unlikely(!devp)) {
@@ -562,19 +562,19 @@ static int gxtv_demod_dvbc_read_status_timer
 
 	/*check tuner*/
 	if (!timer_tuner_not_enough(demod)) {
-		strenth = tuner_get_ch_power(fe);
+		strength = tuner_get_ch_power(fe);
 
 		/*agc control,fine tune strength*/
 		if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
-			strenth += 22;
+			strength += 22;
 
-			if (strenth <= -80)
-				strenth = dvbc_get_power_strength(
-					qam_read_reg(demod, 0x27) & 0x7ff, strenth);
+			if (strength <= -80)
+				strength = dvbc_get_power_strength(
+					qam_read_reg(demod, 0x27) & 0x7ff, strength);
 		}
 
-		if (strenth < -87) {
-			PR_DVBC("tuner no signal, strength:%d\n", strenth);
+		if (strength < -87) {
+			PR_DVBC("tuner no signal, strength:%d\n", strength);
 			*status = FE_TIMEDOUT;
 			return 0;
 		}
@@ -915,22 +915,22 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ilock;
 	unsigned char s = 0;
-	int strenth;
+	int strength;
 	int strength_limit = THRD_TUNER_STRENTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	unsigned int tps_coderate, ts_fifo_cnt = 0, ts_cnt = 0, fec_rate = 0;
 
-	strenth = tuner_get_ch_power(fe);
+	strength = tuner_get_ch_power(fe);
 	if (devp->tuner_strength_limit)
 		strength_limit = devp->tuner_strength_limit;
 
-	if (strenth < strength_limit) {
+	if (strength < strength_limit) {
 		*status = FE_TIMEDOUT;
 		demod->last_lock = -1;
 		demod->last_status = *status;
 		real_para_clear(&demod->real_para);
-		PR_DVBT("tuner:no signal! strength:%d\n", strenth);
+		PR_DVBT("tuner:no signal! strength:%d\n", strength);
 
 		return 0;
 	}
@@ -1101,7 +1101,7 @@ static int dvbt_read_status(struct dvb_frontend *fe, enum fe_status *status)
 static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	unsigned char s = 0;
-	int strenth;
+	int strength;
 	int strength_limit = THRD_TUNER_STRENTH_DVBT;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
@@ -1116,11 +1116,11 @@ static int dvbt2_read_status(struct dvb_frontend *fe, enum fe_status *status)
 		return 0;
 	}
 
-	strenth = tuner_get_ch_power(fe);
+	strength = tuner_get_ch_power(fe);
 	if (devp->tuner_strength_limit)
 		strength_limit = devp->tuner_strength_limit;
 
-	if (strenth < strength_limit) {
+	if (strength < strength_limit) {
 		if (!(no_signal_cnt++ % 20))
 			dvbt2_reset(demod, fe);
 		unlock_cnt = 0;
@@ -2062,24 +2062,24 @@ void atsc_detect_first(struct dvb_frontend *fe, enum fe_status *status, unsigned
 	unsigned int ucblocks;
 	unsigned int atsc_status;
 	enum fe_status s;
-	int strenth;
+	int strength;
 	int cnt;
 	int check_ok;
 	static unsigned int times;
 	enum ATSC_SYS_STA sys_sts;
 
-	strenth = tuner_get_ch_power(fe);
+	strength = tuner_get_ch_power(fe);
 
 	/*agc control,fine tune strength*/
 	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
-		strenth += 15;
-		if (strenth <= -80)
-			strenth = atsc_get_power_strength(
-				atsc_read_reg_v4(0x44) & 0xfff, strenth);
+		strength += 15;
+		if (strength <= -80)
+			strength = atsc_get_power_strength(
+				atsc_read_reg_v4(0x44) & 0xfff, strength);
 	}
 
-	PR_ATSC("tuner strength: %d\n", strenth);
-	if (strenth < THRD_TUNER_STRENTH_ATSC) {
+	PR_ATSC("tuner strength: %d\n", strength);
+	if (strength < THRD_TUNER_STRENTH_ATSC) {
 		*status = FE_TIMEDOUT;
 		demod->last_status = *status;
 		PR_ATSC("tuner:no signal!\n");
@@ -2146,11 +2146,11 @@ static int atsc_j83b_polling(struct dvb_frontend *fe, enum fe_status *s)
 	int j83b_status, i;
 	/*struct dvb_frontend_private *fepriv = fe->frontend_priv;*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int strenth;
+	int strength;
 
 	j83b_status = 0;
-	strenth = tuner_get_ch_power(fe);
-	if (strenth < THRD_TUNER_STRENTH_J83) {
+	strength = tuner_get_ch_power(fe);
+	if (strength < THRD_TUNER_STRENTH_J83) {
 		*s = FE_TIMEDOUT;
 		PR_DBGL("tuner:no signal!j83\n");
 		return 0;
@@ -3998,21 +3998,21 @@ int dtvdemod_dvbs_read_status(struct dvb_frontend *fe, enum fe_status *status)
 {
 	int ilock = 0;
 	unsigned char s = 0;
-	int strenth = 0;
+	int strength = 0;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 
-	strenth = tuner_get_ch_power(fe);
+	strength = tuner_get_ch_power(fe);
 
-	PR_DVBS("tuner strength: %d\n", strenth);
-	if (strenth <= -50) {
-		strenth = (5 * 100) / 17;
-		strenth *= dvbs_rd_byte(0x91a);
-		strenth /= 100;
-		strenth -= 122;
+	PR_DVBS("tuner strength: %d\n", strength);
+	if (strength <= -50) {
+		strength = (5 * 100) / 17;
+		strength *= dvbs_rd_byte(0x91a);
+		strength /= 100;
+		strength -= 122;
 	}
-	//PR_DVBS("strength: %d\n", strenth);
+	//PR_DVBS("strength: %d\n", strength);
 
-//	if (strenth < THRD_TUNER_STRENTH_DVBS) {
+//	if (strength < THRD_TUNER_STRENTH_DVBS) {
 //		*status = FE_TIMEDOUT;
 //		demod->last_lock = -1;
 //		PR_DVBS("[id %d] tuner:no signal!\n", demod->id);

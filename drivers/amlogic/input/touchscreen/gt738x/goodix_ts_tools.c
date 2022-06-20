@@ -487,7 +487,7 @@ static int goodix_tools_release(struct inode *inode, struct file *filp)
 
 /**
  * goodix_tools_module_irq - goodix tools Irq handle
- * This functions is excuted when interrupt happended
+ * This functions is executed when interrupt happended
  *
  * @core_data: pointer to touch core data
  * @module: pointer to goodix_ext_module struct

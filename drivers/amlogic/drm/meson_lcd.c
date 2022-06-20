@@ -274,7 +274,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 			break;
 		};
 
-		DRM_INFO("%s: bind %d -> connector-%s-%d,endcoder-%d\n",
+		DRM_INFO("%s: bind %d -> connector-%s-%d,encoder-%d\n",
 			__func__, type, connector_name, connector_type, encoder_type);
 	}
 
@@ -310,7 +310,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 
 	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret != 0) {
-		DRM_ERROR("%s-%d: attch failed.\n",
+		DRM_ERROR("%s-%d: attach failed.\n",
 			__func__, __LINE__);
 		goto free_resource;
 	}

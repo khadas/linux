@@ -111,12 +111,12 @@ struct tcon_rgb_ogo_s video_rgb_ogo = {
 
 #define FLAG_LVDS_FREQ_SW1       BIT(6)
 
-int dnlp_en;/* 0:disabel;1:enable */
+int dnlp_en;/* 0:disable;1:enable */
 module_param(dnlp_en, int, 0664);
 MODULE_PARM_DESC(dnlp_en, "\n enable or disable dnlp\n");
 static int dnlp_status = 1;/* 0:done;1:todo */
 
-int dnlp_en_2;/* 0:disabel;1:enable */
+int dnlp_en_2;/* 0:disable;1:enable */
 module_param(dnlp_en_2, int, 0664);
 MODULE_PARM_DESC(dnlp_en_2, "\n enable or disable dnlp\n");
 

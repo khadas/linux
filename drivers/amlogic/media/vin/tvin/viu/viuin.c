@@ -41,7 +41,7 @@
 #define ENCT_INFO_READ 0x271e
 #define ENCL_INFO_READ 0x271f
 #define VPU_VIU2VDIN_HDN_CTRL 0x2780
-/* t7 enalbe hsync reg */
+/* t7 enable hsync reg */
 #define VIU_FRM_CTRL   0x1a51
 
 /* ENCL/ENCT polarity, positive:begin > end, negative: begin < end */

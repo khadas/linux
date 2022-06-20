@@ -110,7 +110,7 @@ extern unsigned int gm_par_idx;
 
 extern spinlock_t vpp_lcd_gamma_lock;
 extern struct mutex vpp_lut3d_lock;
-extern int lut3d_en;/*0:disabel;1:enable */
+extern int lut3d_en;/*0:disable;1:enable */
 extern int lut3d_order;/* 0 RGB 1 GBR */
 extern int lut3d_debug;
 

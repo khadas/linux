@@ -30,11 +30,11 @@
 //Bit 15:13        reserved
 //Bit 12:0         reg_frc_probe_pt_x    // unsigned ,   RW, default = 100  reg_mc_probe_pt_x mc_probe positon registers
 #define FRC_INP_HOLD_CTRL                          0x0002
-//Bit 31           pls_inp_frm_start     // unsigned ,   RW, default = 0,start by write high in pluse start mode
+//Bit 31           pls_inp_frm_start     // unsigned ,   RW, default = 0,start by write high in pulse start mode
 //Bit 30:21        reserved
-//Bit 20           reg_frc_win_en        // unsigned ,   RW, default = 1,0:auto start mode 1:pluse start mode
+//Bit 20           reg_frc_win_en        // unsigned ,   RW, default = 1,0:auto start mode 1:pulse start mode
 //Bit 19:17        reserved
-//Bit 16           reg_inp_frm_start_sel // unsigned ,   RW, default = 0,0:auto start mode 1:pluse start mode
+//Bit 16           reg_inp_frm_start_sel // unsigned ,   RW, default = 0,0:auto start mode 1:pulse start mode
 //Bit 15:13        reserved
 //Bit 12:0         reg_inp_hold_line     // unsigned ,   RW, default = 6,inp start reg_inp_hold_line after go_field in auto start mode
 #define FRC_OUT_HOLD_CTRL                          0x0003
@@ -786,39 +786,39 @@
 //Bit  1: 0        reg_debug_false_color_mv_show_mode // unsigned ,    RW, default = 0  0, mvx on cb mvy on cr, 1 mvx on luma,2 mvy on luma, 3 abs mvx + abs mvy avg on luma, default 0
 #define FRC_REG_ME_DEBUG1                          0x013d
 //Bit 31           reg_debug_path_en         // unsigned ,    RW, default = 0
-//Bit 30           reg_me_debug_cn_fs_en     // unsigned ,    RW, default = 0  enable signal of debug cn full search mv, 0: disabel, 1:enable
-//Bit 29           reg_me_debug_nc_fs_en     // unsigned ,    RW, default = 0  enable signal of debug nc full search mv, 0: disabel, 1:enable
+//Bit 30           reg_me_debug_cn_fs_en     // unsigned ,    RW, default = 0  enable signal of debug cn full search mv, 0: disable, 1:enable
+//Bit 29           reg_me_debug_nc_fs_en     // unsigned ,    RW, default = 0  enable signal of debug nc full search mv, 0: disable, 1:enable
 //Bit 28:26        reg_me_debug_pc_prj_mode  // unsigned ,    RW, default = 0  enanle signal of debug pc proj mv , 0: disable, 1: prj mv0, 2: prj mv1, 3: prj mv2, 4: prj mv3
 //Bit 25:23        reg_me_debug_cp_prj_mode  // unsigned ,    RW, default = 0  enable signal of debug cp proj mv , 0: disable, 1: prj mv0, 2: prj mv1, 3: prj mv2, 4: prj mv3
 //Bit 22:20        reg_me_debug_pc_sad_mode  // unsigned ,    RW, default = 0  enable signal of debug sad, 0: disable ,1:pc_phs_mv sad,2:weighted sad_dc, 3:weighted sad_ac,4:pc_phs_mv.sad_4x4
 //Bit 19:17        reg_me_debug_cn_sad_mode  // unsigned ,    RW, default = 0  enable signal of debug sad, 0: disable ,1:cn_uni_mv sad,2:weighted sad_dc, 3:weighted sad_ac,4:cn_uni_mv.sad_4x4
 //Bit 16:14        reg_me_debug_nc_sad_mode  // unsigned ,    RW, default = 0  enable signal of debug sad, 0: disable ,1:nc_uni_mv sad,2:weighted sad_dc, 3:weighted sad_ac,4:nc_uni_mv.sad_4x4
 //Bit 13:11        reg_me_debug_sad_div      // unsigned ,    RW, default = 2  the bits to clip,0:255 clip,1:511 clip,2:1023 clip
-//Bit 10           reg_me_debug_pc_acdc_flg_en // unsigned ,    RW, default = 0  enable signal of debug acdc flag, 0: disabel, 1:enable
-//Bit  9           reg_me_debug_cn_acdc_flg_en // unsigned ,    RW, default = 0  enable signal of debug acdc flag, 0: disabel, 1:enable
-//Bit  8           reg_me_debug_nc_acdc_flg_en // unsigned ,    RW, default = 0  enable signal of debug acdc flag, 0: disabel, 1:enable
+//Bit 10           reg_me_debug_pc_acdc_flg_en // unsigned ,    RW, default = 0  enable signal of debug acdc flag, 0: disable, 1:enable
+//Bit  9           reg_me_debug_cn_acdc_flg_en // unsigned ,    RW, default = 0  enable signal of debug acdc flag, 0: disable, 1:enable
+//Bit  8           reg_me_debug_nc_acdc_flg_en // unsigned ,    RW, default = 0  enable signal of debug acdc flag, 0: disable, 1:enable
 //Bit  7            reserved
-//Bit  6           reg_me_debug_pc_smooth0_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth0 func, 0: disabel, 1:enable
-//Bit  5           reg_me_debug_cn_smooth0_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth0 func, 0: disabel, 1:enable
-//Bit  4           reg_me_debug_nc_smooth0_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth0 func, 0: disabel, 1:enable
+//Bit  6           reg_me_debug_pc_smooth0_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth0 func, 0: disable, 1:enable
+//Bit  5           reg_me_debug_cn_smooth0_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth0 func, 0: disable, 1:enable
+//Bit  4           reg_me_debug_nc_smooth0_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth0 func, 0: disable, 1:enable
 //Bit  3            reserved
-//Bit  2           reg_me_debug_pc_smooth1_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth1 func, 0: disabel, 1:enable
-//Bit  1           reg_me_debug_cn_smooth1_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth1 func, 0: disabel, 1:enable
-//Bit  0           reg_me_debug_nc_smooth1_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth1 func, 0: disabel, 1:enable
+//Bit  2           reg_me_debug_pc_smooth1_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth1 func, 0: disable, 1:enable
+//Bit  1           reg_me_debug_cn_smooth1_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth1 func, 0: disable, 1:enable
+//Bit  0           reg_me_debug_nc_smooth1_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth1 func, 0: disable, 1:enable
 #define FRC_REG_ME_DEBUG2                          0x013e
 //Bit 31:24        reserved
-//Bit 23           reg_me_debug_pc_smooth2_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disabel, 1:enable
-//Bit 22           reg_me_debug_cn_smooth2_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disabel, 1:enable
-//Bit 21           reg_me_debug_nc_smooth2_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disabel, 1:enable
-//Bit 20           reg_me_debug_pc_smobj_en  // unsigned ,    RW, default = 0  enable signal of debug limit func, 0: disabel, 1:enable
+//Bit 23           reg_me_debug_pc_smooth2_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disable, 1:enable
+//Bit 22           reg_me_debug_cn_smooth2_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disable, 1:enable
+//Bit 21           reg_me_debug_nc_smooth2_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disable, 1:enable
+//Bit 20           reg_me_debug_pc_smobj_en  // unsigned ,    RW, default = 0  enable signal of debug limit func, 0: disable, 1:enable
 //Bit 19            reserved
-//Bit 18           reg_me_debug_pc_smooth3_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disabel, 1:enable
-//Bit 17           reg_me_debug_cn_smooth3_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disabel, 1:enable
-//Bit 16           reg_me_debug_nc_smooth3_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disabel, 1:enable
+//Bit 18           reg_me_debug_pc_smooth3_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disable, 1:enable
+//Bit 17           reg_me_debug_cn_smooth3_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disable, 1:enable
+//Bit 16           reg_me_debug_nc_smooth3_en // unsigned ,    RW, default = 0  enable signal of debug mv_smooth2 func, 0: disable, 1:enable
 //Bit 15            reserved
-//Bit 14           reg_me_debug_pc_limit_en  // unsigned ,    RW, default = 0  enable signal of debug limit func, 0: disabel, 1:enable
-//Bit 13           reg_me_debug_cn_limit_en  // unsigned ,    RW, default = 0  enable signal of debug limit func, 0: disabel, 1:enable
-//Bit 12           reg_me_debug_nc_limit_en  // unsigned ,    RW, default = 0  enable signal of debug limit func, 0: disabel, 1:enable
+//Bit 14           reg_me_debug_pc_limit_en  // unsigned ,    RW, default = 0  enable signal of debug limit func, 0: disable, 1:enable
+//Bit 13           reg_me_debug_cn_limit_en  // unsigned ,    RW, default = 0  enable signal of debug limit func, 0: disable, 1:enable
+//Bit 12           reg_me_debug_nc_limit_en  // unsigned ,    RW, default = 0  enable signal of debug limit func, 0: disable, 1:enable
 //Bit 11            reserved
 //Bit 10: 8        reg_me_debug_raw_rp_flg_mode // unsigned ,    RW, default = 0  enable signal of debug raw_rp_flg, 0: disable,1:flg,2:t1_flg,3:t2_flg_strict,4:t2_flg,5:t3_flg
 //Bit  7           reg_me_debug_fine_rp_flg_en // unsigned ,    RW, default = 0  enable signal of debug fine_rp_flg, 0: disable , 1:enable
@@ -1747,7 +1747,7 @@
 //Bit  5: 4        reg_ip_pat_sel            // unsigned ,    RW, default = 2  selection ip pattern generation, 0: static dot-by-dot check pattern, 1: ramp or purely color, 2or3: moving blocks  with cadences;
 //Bit  3           reg_ip_pat_xrmp_mode      // unsigned ,    RW, default = 0  0: ramp-up; 1: 256 gain for this direction
 //Bit  2           reg_ip_pat_yrmp_mode      // unsigned ,    RW, default = 1  0: ramp-up; 1: 256 gain for this direction
-//Bit  1           reg_ip_pat_xinvt          // unsigned ,    RW, default = 0  enalbe x index invert
+//Bit  1           reg_ip_pat_xinvt          // unsigned ,    RW, default = 0  enable x index invert
 //Bit  0           reg_ip_pat_yinvt          // unsigned ,    RW, default = 0  enable y index invert
 #define FRC_IP_PAT_XY_SCL                          0x0481
 //Bit 31:29        reserved
@@ -9113,8 +9113,8 @@
 //Bit  7: 0        reg_fg_mv_length_th       // unsigned ,    RW, default = 12  threshold to foreground mv length for bgmv check
 #define FRC_VP_DEHALO_RULE_EN                      0x1e4c
 //Bit 31:11        reserved
-//Bit 10           reg_dehalo_pht_replace    // unsigned ,    RW, default = 1  enalbe for replace mc_mv with pht, 0 disable, 1: enable
-//Bit  9           reg_dehalo_oct_replace    // unsigned ,    RW, default = 1  enalbe for replace mc_oct with oct, 0 disable, 1: enable
+//Bit 10           reg_dehalo_pht_replace    // unsigned ,    RW, default = 1  enable for replace mc_mv with pht, 0 disable, 1: enable
+//Bit  9           reg_dehalo_oct_replace    // unsigned ,    RW, default = 1  enable for replace mc_oct with oct, 0 disable, 1: enable
 //Bit  8           reg_dehalo_basic_en       // unsigned ,    RW, default = 1  enable for 2.1.1 of basic rule, 0 disable, 1: enable
 //Bit  7           reg_dehalo_track_en       // unsigned ,    RW, default = 1  enable for 2.1.2 of double fg rule, 0 disable, 1: enable
 //Bit  6           reg_dehalo_mvchk1_en      // unsigned ,    RW, default = 1  enable for 2.1.3 of mvchk1 rule, 0 disable, 1: enable

@@ -1998,7 +1998,7 @@ static bool dpvpp_unreg_val(void *para)
 		dpvpp_dbg_print = true;
 		spin_unlock_irqrestore(&lock_pvpp, irq_flag);
 
-		PR_INF("enabel dbg print\n");
+		PR_INF("enable dbg print\n");
 		ds = get_datal()->dvs_prevpp.ds;
 		dpvpp_reg_link_sw(itf, ds, false); //block;
 	}

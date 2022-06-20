@@ -1019,7 +1019,7 @@ static ssize_t enable_store(struct class *class,
 
 	if (likely(parse_para(buf, RDMA_NUM, enable) == RDMA_NUM)) {
 		for (i = 0; i < RDMA_NUM; i++)
-			pr_info("enalbe[%d]: %d\n", i, enable[i]);
+			pr_info("enable[%d]: %d\n", i, enable[i]);
 	} else {
 		pr_err("set enable error\n");
 	}
@@ -1043,7 +1043,7 @@ static ssize_t store_irq_count(struct class *class,
 
 	if (likely(parse_para(buf, RDMA_NUM, irq_count) == RDMA_NUM)) {
 		for (i = 0; i < RDMA_NUM; i++)
-			pr_info("enalbe[%d]: %d\n", i, irq_count[i]);
+			pr_info("enable[%d]: %d\n", i, irq_count[i]);
 	} else {
 		pr_err("set irq_count error\n");
 	}

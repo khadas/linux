@@ -532,9 +532,9 @@
 		compatible = "amlogic, vecm-t5d";
 		dev_name = "aml_vecm";
 		status = "okay";
-		gamma_en = <1>;/*1:enabel ;0:disable*/
-		wb_en = <1>;/*1:enabel ;0:disable*/
-		cm_en = <1>;/*1:enabel ;0:disable*/
+		gamma_en = <1>;/*1:enable ;0:disable*/
+		wb_en = <1>;/*1:enable ;0:disable*/
+		cm_en = <1>;/*1:enable ;0:disable*/
 		wb_sel = <0>;/*1:mtx ;0:gainoff*/
 		hist_sel = <1>;/*1:vd2 ;0:vd1*/
 		vlock_en = <1>;/*1:enable;0:disable*/

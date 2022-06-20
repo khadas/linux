@@ -3343,7 +3343,7 @@ void set_vpp_lut(enum vpp_lut_sel_e lut_sel,
 /* extern unsigned int cm2_patch_flag; */
 /* extern struct ve_dnlp_s am_ve_dnlp; */
 /* extern struct ve_dnlp_table_s am_ve_new_dnlp; */
-/* extern int cm_en; //0:disabel;1:enable */
+/* extern int cm_en; //0:disable;1:enable */
 /* extern struct tcon_gamma_table_s video_gamma_table_r; */
 /* extern struct tcon_gamma_table_s video_gamma_table_g; */
 /* extern struct tcon_gamma_table_s video_gamma_table_b; */
