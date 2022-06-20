@@ -109,9 +109,18 @@ static struct gdc_device_data_s aml_gdc_v3 = {
 	.fw_version = AMLGDC_FW_V2
 };
 
+static struct gdc_device_data_s aml_gdc_v3 = {
+	.dev_type = AML_GDC,
+	.clk_type = GATE,
+	.bit_width_ext = 1,
+	.gamma_support = 0,
+	.core_cnt = 1
+};
+
 static const struct of_device_id gdc_dt_match[] = {
 	{.compatible = "amlogic, g12b-gdc", .data = &arm_gdc_clk2},
 	{.compatible = "amlogic, arm-gdc",  .data = &arm_gdc},
+	{.compatible = "amlogic, aml-gdc-v3",  .data = &aml_gdc_v3},
 	{} };
 
 MODULE_DEVICE_TABLE(of, gdc_dt_match);
