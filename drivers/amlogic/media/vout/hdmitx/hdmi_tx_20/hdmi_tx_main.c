@@ -387,7 +387,6 @@ static void hdmitx_late_resume(struct early_suspend *h)
 			  hdev->edid_parsing ?
 			  hdev->edid_ptr : NULL);
 
-	hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	/* recover attr (especially for HDR case) */
 	if (info && drm_hdmitx_chk_mode_attr_sup(info->name,
 	    suspend_fmt_attr))
@@ -522,8 +521,6 @@ static void hdmitx_pre_display_init(void)
 {
 	hdmitx_device.cur_VIC = HDMI_UNKNOWN;
 	hdmitx_device.auth_process_timer = AUTH_PROCESS_TIME;
-	hdmitx_device.hwop.cntlconfig(&hdmitx_device,
-		CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_MUX_INIT, 1);
 	hdmitx_device.hwop.cntlddc(&hdmitx_device, DDC_HDCP_OP, HDCP14_OFF);
 	/* msleep(10); */
@@ -2910,6 +2907,7 @@ static ssize_t config_store(struct device *dev,
 
 void hdmitx20_ext_set_audio_output(int enable)
 {
+	pr_info("%s[%d] enable = %d\n", __func__, __LINE__, enable);
 	hdmitx_audio_mute_op(enable);
 }
 
@@ -5943,9 +5941,7 @@ static struct notifier_block hdmitx_notifier_nb_a = {
 static int hdmitx_notify_callback_a(struct notifier_block *block,
 				    unsigned long cmd, void *para)
 {
-	int i, audio_check = 0;
 	struct hdmitx_dev *hdev = &hdmitx_device;
-	struct rx_cap *prxcap = &hdev->rxcap;
 	struct aud_para *aud_param = (struct aud_para *)para;
 	struct hdmitx_audpara *audio_param = &hdev->cur_audio_param;
 	enum hdmi_audio_fs n_rate = aud_samp_rate_map(aud_param->rate);
@@ -5983,22 +5979,6 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 		else
 			hdev->aud_output_ch = 0;
 		hdev->audio_param_update_flag = 1;
-	}
-	if (hdev->tx_aud_cfg == 2) {
-		pr_info(AUD "auto mode\n");
-		/* Detect whether Rx is support current audio format */
-		for (i = 0; i < prxcap->AUD_count; i++) {
-			if (prxcap->RxAudioCap[i].audio_format_code == cmd)
-				audio_check = 1;
-		}
-		/* sink don't support current audio mode */
-		if (!audio_check && cmd != CT_PCM) {
-			pr_info("Sink not support this audio format %lu\n",
-				cmd);
-			hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP,
-					      AUDIO_MUTE);
-			hdev->audio_param_update_flag = 0;
-		}
 	}
 	if (hdev->audio_param_update_flag == 0)
 		;
