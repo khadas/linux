@@ -672,7 +672,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 {
 	unsigned int game_mode_backup;
 
-	if (!devp->game_mode)
+	if (!devp->game_mode || devp->vdin_function_sel & VDIN_GAME_NOT_TANSFER)
 		return;
 
 	game_mode_backup = devp->game_mode;
@@ -874,7 +874,7 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		}
 		if (devp->game_mode != 0)
 			vf->flag |= VFRAME_FLAG_GAME_MODE;
-		if (vdin_pc_mode)
+		if (devp->vdin_pc_mode)
 			vf->flag |= VFRAME_FLAG_PC_MODE;
 		scan_mode = devp->fmt_info_p->scan_mode;
 		if ((scan_mode == TVIN_SCAN_MODE_INTERLACED &&
@@ -1149,6 +1149,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	if (devp->dts_config.urgent_en && devp->index == 0)
 		vdin_urgent_patch_resume(devp->addr_offset);
 
+	devp->vdin_pc_mode = vdin_pc_mode;
 	vdin_get_format_convert(devp);
 	devp->curr_wr_vfe = NULL;
 	devp->frame_drop_num = 0;
@@ -2747,8 +2748,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		err_vsync++;
 	else
 		err_vsync = 0;
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && err_vsync >= 10 &&
-	    IS_HDMI_SRC(devp->parm.port)) {
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && IS_HDMI_SRC(devp->parm.port) &&
+	    err_vsync >= 10 && devp->parm.info.status == TVIN_SIG_STATUS_STABLE) {
 		err_vsync = 0;
 		if (sm_ops && sm_ops->hdmi_clr_vsync)
 			sm_ops->hdmi_clr_vsync(devp->frontend);
@@ -2791,11 +2792,10 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&devp->isr_lock, flags);
 
-	if (devp->dv.chg_cnt) {
+	if (devp->dv.chg_cnt || devp->dv.allm_chg_cnt) {
 		if (devp->game_mode)
-			vdin_pause_hw_write(devp,
-				devp->flags & VDIN_FLAG_RDMA_ENABLE);
-		vdin_drop_frame_info(devp, "dv chg");
+			vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
+		vdin_drop_frame_info(devp, "dv or allm chg");
 		vdin_vf_skip_all_disp(devp->vfp);
 		vdin_drop_cnt++;
 		goto irq_handled;
@@ -3040,6 +3040,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	dec_ops = devp->frontend->dec_ops;
 	if (dec_ops->decode_isr(devp->frontend, devp->h_cnt64) == TVIN_BUF_SKIP) {
+		if (devp->game_mode)
+			vdin_pause_hw_write(devp, devp->flags & VDIN_FLAG_RDMA_ENABLE);
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_BUFF_SKIP;
 		vdin_drop_frame_info(devp, "buf skip flg");
 		vdin_drop_cnt++;
@@ -4617,9 +4619,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
+		mutex_lock(&devp->fe_lock);
 		if (vdin_pc_mode != tmp &&
 		    (devp->vdin_function_sel & VDIN_SELF_STOP_START)) {
-			mutex_lock(&devp->fe_lock);
 			if (devp->flags & VDIN_FLAG_DEC_STARTED) {
 				_video_set_disable(1);
 				vdin_pc_mode = tmp;
@@ -4630,9 +4632,9 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				/* 1:disable video 0:open video 2:open video when new frame */
 				_video_set_disable(2);
 			}
-			mutex_unlock(&devp->fe_lock);
 		}
 		vdin_pc_mode = tmp;
+		mutex_unlock(&devp->fe_lock);
 
 		if (vdin_dbg_en)
 			pr_info("TVIN_IOC_S_PC_MODE:%d tmp:%d func_sel:0x%x\n",

@@ -119,6 +119,7 @@
 /* 20221028: rx calls interface notify information */
 /* 20221029: update prop info */
 /* 20221101: vdin1 crash when screen recording and keystone */
+/* 20221103: change pc mode variable to local */
 
 #define VDIN_VER "20221101"
 
@@ -264,6 +265,7 @@ struct match_data_s {
 #define VDIN_VADJ1_TO_VD1		BIT(3)
 #define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_PROP_RX_UPDATE		BIT(5)
+#define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
 
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \
@@ -768,6 +770,7 @@ struct vdin_dev_s {
 	/* game mode state before ioctl change game mode */
 	unsigned int game_mode_bak;
 	int game_chg_drop_frame_cnt;
+	unsigned int vdin_pc_mode;
 	unsigned int vrr_mode;
 	unsigned int vrr_on_add_cnt;
 	unsigned int vrr_off_add_cnt;
