@@ -521,6 +521,11 @@ static void do_file_thread(struct video_queue_dev *dev)
 		need_resync = true;
 	}
 
+	if (dev->game_mode) {
+		need_resync = false;
+		dev->need_check_delay_count = 0;
+	}
+
 	if (dev->frame_num > HDMI_DELAY_CHECK_INDEX &&
 		dev->need_check_delay_count == 0 &&
 		need_resync) {
@@ -560,7 +565,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 		dev->need_check_delay_count--;
 	}
 
-	if (dev->sync_need_delay)
+	if (dev->sync_need_delay && !dev->game_mode)
 		return;
 
 	vf = vf_peek(dev->vf_receiver_name);
