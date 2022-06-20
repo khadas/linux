@@ -99,12 +99,16 @@ void lcd_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag)
 
 static void lcd_gamma_init(struct aml_lcd_drv_s *pdrv)
 {
-	int index = pdrv->index;
+	unsigned int data[2];
+	unsigned int index = pdrv->index;
 
 	if (pdrv->lcd_pxp)
 		return;
 
-	aml_lcd_notifier_call_chain(LCD_EVENT_GAMMA_UPDATE, &index);
+	data[0] = index;
+	data[1] = 0xff; //default gamma lut
+
+	aml_lcd_atomic_notifier_call_chain(LCD_EVENT_GAMMA_UPDATE, (void *)data);
 	lcd_gamma_check_en(pdrv);
 }
 
