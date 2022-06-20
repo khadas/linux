@@ -408,7 +408,7 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 
 		if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
 			qam_write_reg(demod, 0x25,
-				(qam_read_reg(demod, 0x25) & 0xFFFFFFF0) | 0xe);
+				(qam_read_reg(demod, 0x25) & 0xFFFFFFF0) | 0x8);
 		}
 	}
 
@@ -644,13 +644,35 @@ void dvbc_enable_irq(struct aml_dtvdemod *demod, int dvbc_irq)
 
 void dvbc_init_reg_ext(struct aml_dtvdemod *demod)
 {
+	struct dvb_frontend *fe = &demod->frontend;
+
 	/*ary move from amlfrontend.c */
-	qam_write_reg(demod, 0x7, 0xf33);
+	// qam_write_reg(demod, 0x7, 0xf33);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		/* set min sr to 3000 for cover 3500 ~ 7000 */
 		qam_write_reg(demod, 0x12, 0x50bb800);//0x50e1000 -->0x50bb800
 		qam_write_reg(demod, 0x30, 0x41f2f69);
+	}
+
+	/* reg: 0x7.
+	 * bit0: sw_qam_enable.
+	 * bit1: qam_imq_cfg.
+	 * bit4: fsm_en.
+	 * bit5: fast_agc.
+	 * bit16: qam_fec_mode.
+	 */
+	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+		qam_write_reg(demod, 0x7, 0xf13);
+
+		/* agc slow */
+		qam_write_reg(demod, 0x3d, 0xf22);
+		qam_write_reg(demod, 0x30, 0x41fff69);
+	} else {
+		qam_write_reg(demod, 0x7, 0xf33);
+
+		/* default value. */
+		qam_write_reg(demod, 0x3d, 0xf24);
 	}
 }
 

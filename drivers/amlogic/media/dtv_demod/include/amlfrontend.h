@@ -48,6 +48,7 @@
 /*  V1.1.55  improve atsc cci */
 /*  V1.1.56  add dvbt2 fef info */
 /*  V1.1.57  fix auto qam(t5w) and sr */
+/*  V1.1.58  fix delsys exit setting and r842 dvbc auto sr */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -64,8 +65,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.57"
-#define DTVDEMOD_VER	"2022/07/15: fix auto qam(t5w) and sr"
+#define AMLDTVDEMOD_VER "V1.1.58"
+#define DTVDEMOD_VER	"2022/07/26: fix delsys exit setting and r842 dvbc auto sr"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
