@@ -10214,18 +10214,24 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	param = (unsigned int *)data;
+	/*gamma_index: select which vpp,  vpp0/vpp1/vpp2 gamma*/
 	gamma_index = param[0];
+	/*freesync 10 groups gamma table index, index:0~10
+	 *0xff: default(not tcon) gamma
+	 */
 	gm_par_idx = param[1];
 
-	memcpy(&video_gamma_table_r,
-		&gt.gm_tb[gm_par_idx][0],
-		sizeof(struct tcon_gamma_table_s));
-	memcpy(&video_gamma_table_g,
-		&gt.gm_tb[gm_par_idx][1],
-		sizeof(struct tcon_gamma_table_s));
-	memcpy(&video_gamma_table_b,
-		&gt.gm_tb[gm_par_idx][2],
-		sizeof(struct tcon_gamma_table_s));
+	if (gm_par_idx != 0xff) {
+		memcpy(&video_gamma_table_r,
+			&gt.gm_tb[gm_par_idx][0],
+			sizeof(struct tcon_gamma_table_s));
+		memcpy(&video_gamma_table_g,
+			&gt.gm_tb[gm_par_idx][1],
+			sizeof(struct tcon_gamma_table_s));
+		memcpy(&video_gamma_table_b,
+			&gt.gm_tb[gm_par_idx][2],
+			sizeof(struct tcon_gamma_table_s));
+	}
 
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
