@@ -1845,6 +1845,8 @@
 			pinctrl-0=<&aocecb_mux>;
 			pinctrl-1=<&aocecb_mux>;
 			pinctrl-2=<&aocecb_mux>;
+			clocks = <&clkc_AO CLKID_CECB_32K_CLKOUT>;
+			clock-names = "cecb_clk";
 			reg = <0x0 0xFF800000 0x0 0x400>;
 			reg-names = "ao";
 		};
