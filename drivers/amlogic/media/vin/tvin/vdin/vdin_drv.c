@@ -3938,9 +3938,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			vdin_frame_lock_check(devp, 1);
 		break;
 	case TVIN_IOC_G_VRR_STATUS:
-		if (vdin_check_is_spd_data(devp))
-			vdin_vrr_status.cur_vrr_status = devp->prop.vtem_data.vrr_en |
-					(devp->prop.spd_data.data[5] >> 2 & 0x3);
+		if (vdin_check_is_spd_data(devp) &&
+			(devp->prop.spd_data.data[5] >> 2 & 0x3))
+			vdin_vrr_status.cur_vrr_status =
+				((devp->prop.spd_data.data[5] >> 2 & 0x3) + 1);
 		else
 			vdin_vrr_status.cur_vrr_status =
 				devp->prop.vtem_data.vrr_en;

@@ -96,9 +96,10 @@
 /* 20220617: allm and vrr all come in not send vrr */
 /* 20220618: use game mode global variable in vdin_isr cause abnormal and
  * fix video lag in old video path caused by unkonw disp_mode flag
- * 20220622: loopback implementation
  */
-#define VDIN_VER "20220622:loopback implementation"
+/* 20220622: loopback implementation */
+/* 20220628: send Freesync type */
+#define VDIN_VER "20220628:send Freesync type"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
