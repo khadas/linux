@@ -234,6 +234,36 @@ static inline void start_process(struct gdc_queue_item_s *pitem)
 	}
 }
 
+static void gdc_detach_dmabuf(struct gdc_queue_item_s *item)
+{
+	int i;
+
+	if (!item) {
+		pr_err("%s: error input param\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < GDC_MAX_PLANE; i++) {
+		if (item->dma_cfg.input_cfg[i].dma_used) {
+			gdc_dma_buffer_unmap_info
+				(gdc_manager.buffer,
+				 &item->dma_cfg.input_cfg[i].dma_cfg);
+			item->dma_cfg.input_cfg[i].dma_used = 0;
+		}
+		if (item->dma_cfg.output_cfg[i].dma_used) {
+			gdc_dma_buffer_unmap_info
+				(gdc_manager.buffer,
+				 &item->dma_cfg.output_cfg[i].dma_cfg);
+			item->dma_cfg.output_cfg[i].dma_used = 0;
+		}
+	}
+	if (item->dma_cfg.config_cfg.dma_used) {
+		gdc_dma_buffer_unmap_info(gdc_manager.buffer,
+					  &item->dma_cfg.config_cfg.dma_cfg);
+		item->dma_cfg.config_cfg.dma_used = 0;
+	}
+}
+
 inline void recycle_resource(struct gdc_queue_item_s *item, u32 core_id)
 {
 	struct gdc_context_s *context = item->context;
@@ -246,6 +276,9 @@ inline void recycle_resource(struct gdc_queue_item_s *item, u32 core_id)
 
 	if (gdc_smmu_enable)
 		gdc_recycle_linear_config(&item->dma_cfg.config_cfg.dma_cfg);
+
+	/* if dma buf detach it */
+	gdc_detach_dmabuf(item);
 
 	spin_lock(&context->lock);
 	list_add_tail(&item->list, &context->free_queue);

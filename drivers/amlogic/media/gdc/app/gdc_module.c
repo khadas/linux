@@ -864,7 +864,7 @@ static int gdc_process_output_dma_info(struct gdc_context_s *context,
 		cfg = &context->dma_cfg.output_cfg[i].dma_cfg;
 		cfg->fd = gdc_get_buffer_fd(i, &gs_ex->output_buffer);
 		cfg->dev = dev;
-		cfg->dir = DMA_TO_DEVICE;
+		cfg->dir = DMA_FROM_DEVICE;
 		cfg->is_config_buf = 0;
 		ret = gdc_buffer_get_phys(cfg, &addr);
 		if (ret < 0) {

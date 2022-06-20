@@ -762,7 +762,6 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 			cfg->linear_config.buf_size = buf_size;
 			cfg->linear_config.dma_addr = *addr;
 		}
-		gdc_dma_buffer_unmap(cfg);
 	} else {
 		/* config(firmware) buffer must be a physically continuous block memory
 		 * for smmu case, copy it to a new linear block.
@@ -790,6 +789,29 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 		}
 	}
 	return ret;
+}
+
+int gdc_dma_buffer_unmap_info(struct aml_dma_buffer *buffer,
+			      struct aml_dma_cfg *cfg)
+{
+	int i, found = 0;
+
+	if (!cfg || cfg->fd < 0) {
+		pr_err("%s: error input param\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < AML_MAX_DMABUF; i++) {
+		if (buffer->gd_buffer[i].alloc) {
+			if (cfg->dbuf == buffer->gd_buffer[i].dbuf) {
+				found = 1;
+				break;
+			}
+		}
+	}
+	if (!found)
+		gdc_dma_buffer_unmap(cfg);
+	return 0;
 }
 
 void gdc_dma_buffer_unmap(struct aml_dma_cfg *cfg)
