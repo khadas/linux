@@ -809,7 +809,7 @@
 	};
 
 	ddr_bandwidth {
-		compatible = "amlogic, ddr-bandwidth";
+		compatible = "amlogic,ddr-bandwidth-axg";
 		status = "okay";
 		reg = <0x0 0xff638000 0x0 0x100
 		       0x0 0xff637000 0x0 0x100>;
@@ -818,7 +818,7 @@
 		interrupt-names = "ddr_bandwidth";
 	};
 	dmc_monitor {
-		compatible = "amlogic, dmc_monitor";
+		compatible = "amlogic,dmc_monitor-axg";
 		status = "okay";
 		reg_base = <0xff638800>;
 		interrupts = <0 51 1>;
