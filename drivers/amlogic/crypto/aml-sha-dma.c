@@ -109,6 +109,7 @@ struct aml_sha_dev {
 	struct ahash_request	*req;
 	void	*descriptor;
 	dma_addr_t	dma_descript_tab;
+	u8 set_key_iv_separately;
 };
 
 struct aml_sha_drv {
@@ -783,6 +784,12 @@ static int aml_sha_state_restore(struct ahash_request *req)
 	s32 len = AML_DIGEST_BUFSZ;
 	u8 status = 0;
 	int err = 0;
+	/* Basically, 1 dsc is enough for setting both key and iv
+	 * into full internal storage(48 bytes).
+	 * If platform (ex: AXG) cannot set full internal storage with
+	 * 1 dsc, then we need 2 ~ 3(with iv) dscs to achieve this.
+	 */
+	u32 num_of_dsc = 1;
 
 	if (!ctx->digcnt[0] && !ctx->digcnt[1] && !tctx->is_hmac)
 		return err;
@@ -794,18 +801,36 @@ static int aml_sha_state_restore(struct ahash_request *req)
 		return -ENOMEM;
 	}
 
-	dsc[0].src_addr = (u32)dma_ctx;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = len;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
+	if (!dd->set_key_iv_separately) {
+		dsc[0].src_addr = (u32)dma_ctx;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.length = len;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.eoc = 1;
+		dsc[0].dsc_cfg.b.owner = 1;
+	} else {
+		s32 i = 0;
 
+		while (len > 0) {
+			dsc[i].src_addr = (u32)(dma_ctx + 16 * i);
+			dsc[i].tgt_addr = 16 * i;
+			dsc[i].dsc_cfg.d32 = 0;
+			dsc[i].dsc_cfg.b.length = len > 16 ? 16 : len;
+			dsc[i].dsc_cfg.b.mode = MODE_KEY;
+			dsc[i].dsc_cfg.b.owner = 1;
+			len -= 16;
+			i++;
+		}
+		WARN_ON(i < 1);
+		/* Mark last dsc as EOC */
+		dsc[i - 1].dsc_cfg.b.eoc = 1;
+		num_of_dsc = i;
+	}
 #if DMA_IRQ_MODE
 	aml_write_crypto_reg(dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+	aml_dma_debug(dsc, num_of_dsc, __func__, dd->thread, dd->status);
 	while (aml_read_crypto_reg(dd->status) == 0)
 		;
 	status = aml_read_crypto_reg(dd->status);
@@ -815,13 +840,13 @@ static int aml_sha_state_restore(struct ahash_request *req)
 	}
 	aml_write_crypto_reg(dd->status, 0xf);
 #else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, dsc, num_of_dsc, dd->dma_descript_tab,
 								  1, DMA_FLAG_SHA_IN_USE);
 	if (status & DMA_STATUS_KEY_ERROR) {
 		dev_err(dd->dev, "hw crypto failed.\n");
 		err = -EINVAL;
 	}
-	aml_dma_debug(dsc, 1, "end restore", dd->thread, dd->status);
+	aml_dma_debug(dsc, num_of_dsc, "end restore", dd->thread, dd->status);
 #endif
 
 	dma_unmap_single(dd->parent, dma_ctx,
@@ -1576,6 +1601,7 @@ static int aml_sha_probe(struct platform_device *pdev)
 	struct aml_sha_dev *sha_dd;
 	struct device *dev = &pdev->dev;
 	int err = -EPERM;
+	u8 set_key_iv_separately = 0;
 
 	sha_dd = devm_kzalloc(dev, sizeof(struct aml_sha_dev), GFP_KERNEL);
 	if (!sha_dd) {
@@ -1583,12 +1609,16 @@ static int aml_sha_probe(struct platform_device *pdev)
 		goto sha_dd_err;
 	}
 
+	of_property_read_u8(pdev->dev.parent->of_node, "set_key_iv_separately",
+			&set_key_iv_separately);
+
 	sha_dd->dev = dev;
 	sha_dd->parent = dev->parent;
 	sha_dd->dma = dev_get_drvdata(dev->parent);
 	sha_dd->thread = sha_dd->dma->thread;
 	sha_dd->status = sha_dd->dma->status;
 	sha_dd->irq = sha_dd->dma->irq;
+	sha_dd->set_key_iv_separately = set_key_iv_separately;
 
 	platform_set_drvdata(pdev, sha_dd);
 

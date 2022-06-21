@@ -115,6 +115,7 @@ struct aml_aes_dev {
 	dma_addr_t	dma_sg_dsc_out;
 
 	u8  iv_swap;
+	u8  set_key_iv_separately;
 };
 
 struct aml_aes_drv {
@@ -212,10 +213,15 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 	struct dma_dsc *dsc = dd->descriptor;
 	u32 *key_iv = kzalloc(DMA_KEY_IV_BUF_SIZE, GFP_ATOMIC);
 
-	s32 len = keylen;
 	dma_addr_t dma_addr_key = 0;
 	u8 status = 0;
 	int err = 0;
+	/* Basically, 1 dsc is enough for setting both key and iv
+	 * into full internal storage(48 bytes).
+	 * If platform (ex: AXG) cannot set full internal storage with
+	 * 1 dsc, then we need 2 ~ 3(with iv) dscs to achieve this.
+	 */
+	u32 num_of_dsc = 1;
 
 	if (!key_iv) {
 		dev_err(dev, "error allocating key_iv buffer\n");
@@ -238,8 +244,6 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		}
 	}
 
-	len = DMA_KEY_IV_BUF_SIZE; /* full key storage */
-
 	dma_addr_key = dma_map_single(dd->parent, key_iv,
 				      DMA_KEY_IV_BUF_SIZE, DMA_TO_DEVICE);
 
@@ -249,15 +253,46 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 		return -EINVAL;
 	}
 
-	dsc[0].src_addr = (u32)dma_addr_key;
-	dsc[0].tgt_addr = 0;
-	dsc[0].dsc_cfg.d32 = 0;
-	dsc[0].dsc_cfg.b.length = len;
-	dsc[0].dsc_cfg.b.mode = MODE_KEY;
-	dsc[0].dsc_cfg.b.eoc = 1;
-	dsc[0].dsc_cfg.b.owner = 1;
+	if (!dd->set_key_iv_separately) {
+		dsc[0].src_addr = (u32)dma_addr_key;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.owner = 1;
+		dsc[0].dsc_cfg.b.length = DMA_KEY_IV_BUF_SIZE;
+		dsc[0].dsc_cfg.b.eoc = 1;
+	} else {
+		dsc[0].src_addr = (u32)dma_addr_key;
+		dsc[0].tgt_addr = 0;
+		dsc[0].dsc_cfg.d32 = 0;
+		dsc[0].dsc_cfg.b.mode = MODE_KEY;
+		dsc[0].dsc_cfg.b.owner = 1;
+		dsc[0].dsc_cfg.b.length = 16;
 
-	aml_dma_debug(dsc, 1, __func__, dd->thread, dd->status);
+		dsc[1].src_addr = (u32)(dma_addr_key + 16);
+		dsc[1].tgt_addr = 16;
+		dsc[1].dsc_cfg.d32 = 0;
+		dsc[1].dsc_cfg.b.mode = MODE_KEY;
+		dsc[1].dsc_cfg.b.owner = 1;
+		dsc[1].dsc_cfg.b.length = 16;
+
+		if (iv) {
+			dsc[2].src_addr = (u32)(dma_addr_key + 32);
+			dsc[2].tgt_addr = 32;
+			dsc[2].dsc_cfg.d32 = 0;
+			dsc[2].dsc_cfg.b.length = 16;
+			dsc[2].dsc_cfg.b.mode = MODE_KEY;
+			dsc[2].dsc_cfg.b.owner = 1;
+			dsc[2].dsc_cfg.b.eoc = 1;
+			num_of_dsc = 3;
+		} else {
+			/* If there is no iv, make last dsc as EOC */
+			dsc[1].dsc_cfg.b.eoc = 1;
+			num_of_dsc = 2;
+		}
+	}
+
+	aml_dma_debug(dsc, num_of_dsc, __func__, dd->thread, dd->status);
 #if DMA_IRQ_MODE
 	aml_write_crypto_reg(dd->thread,
 			     (uintptr_t)dd->dma_descript_tab | 2);
@@ -270,9 +305,9 @@ static int set_aes_key_iv(struct aml_aes_dev *dd, u32 *key,
 	}
 	aml_write_crypto_reg(dd->status, 0xf);
 #else
-	status = aml_dma_do_hw_crypto(dd->dma, dsc, 1, dd->dma_descript_tab,
+	status = aml_dma_do_hw_crypto(dd->dma, dsc, num_of_dsc, dd->dma_descript_tab,
 			     1, DMA_FLAG_AES_IN_USE);
-	aml_dma_debug(dsc, 1, "end aes keyiv", dd->thread, dd->status);
+	aml_dma_debug(dsc, num_of_dsc, "end aes keyiv", dd->thread, dd->status);
 	if (status & DMA_STATUS_KEY_ERROR) {
 		dev_err(dev, "hw crypto failed.\n");
 		err = -EINVAL;
@@ -1463,6 +1498,7 @@ static int aml_aes_probe(struct platform_device *pdev)
 	 * It can be modified by sepcifying iv_swap in dts.
 	 */
 	u8 iv_swap = 1;
+	u8 set_key_iv_separately = 0;
 
 	aes_dd = devm_kzalloc(dev, sizeof(struct aml_aes_dev), GFP_KERNEL);
 	if (!aes_dd) {
@@ -1478,6 +1514,8 @@ static int aml_aes_probe(struct platform_device *pdev)
 	}
 
 	of_property_read_u8(pdev->dev.of_node, "iv_swap", &iv_swap);
+	of_property_read_u8(pdev->dev.parent->of_node, "set_key_iv_separately",
+			&set_key_iv_separately);
 
 	aes_info = match->data;
 	aes_dd->dev = dev;
@@ -1488,6 +1526,7 @@ static int aml_aes_probe(struct platform_device *pdev)
 	aes_dd->link_mode = aes_dd->dma->link_mode;
 	aes_dd->irq = aes_dd->dma->irq;
 	aes_dd->iv_swap = iv_swap;
+	aes_dd->set_key_iv_separately = set_key_iv_separately;
 	platform_set_drvdata(pdev, aes_dd);
 
 	INIT_LIST_HEAD(&aes_dd->list);

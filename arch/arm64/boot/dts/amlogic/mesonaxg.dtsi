@@ -755,6 +755,7 @@
 		compatible = "amlogic,aml_txlx_dma";
 		reg = <0x0 0xff63e000 0x0 0x48>;
 		interrupts = <0 180 1>;
+		set_key_iv_separately = /bits/ 8 <0x1>;
 
 		aml_aes {
 			compatible = "amlogic,aes_dma";
@@ -765,6 +766,12 @@
 		aml_sha {
 			compatible = "amlogic,sha_dma";
 			dev_name = "aml_sha_dma";
+			status = "okay";
+		};
+
+		aml_tdes {
+			compatible = "amlogic,tdes_dma,no_kl";
+			dev_name = "aml_tdes_dma";
 			status = "okay";
 		};
 	};
