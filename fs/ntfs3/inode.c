@@ -1279,7 +1279,15 @@ struct inode *ntfs_create_inode(struct inode *dir, struct dentry *dentry,
 	}
 	inode = &ni->vfs_inode;
 	inode_init_owner(inode, dir, mode);
-	mode = inode->i_mode;
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	/* uid need to be mounting uid */
+	inode->i_uid = sbi->options->fs_uid;
+	inode->i_gid = sbi->options->fs_gid;
+
+	/* set r mode for gid */
+	mode = inode->i_mode | 0040;
+#endif
 
 	inode->i_atime = inode->i_mtime = inode->i_ctime = ni->i_crtime =
 		current_time(inode);
