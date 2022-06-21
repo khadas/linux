@@ -826,8 +826,7 @@ static u32 session_audio_start(struct sync_session *session,
 	mutex_lock(&session->session_mutex);
 	if (session->audio_switching) {
 		update_f_apts(session, pts);
-		if (session->wall_clock > pts ||
-		    session->start_policy.policy != AMSYNC_START_ALIGN) {
+		if (session->wall_clock > pts) {
 			/* audio start immediately pts to small */
 			/* (need drop) or no wait */
 			session->stat = AVS_STAT_STARTED;
@@ -835,12 +834,11 @@ static u32 session_audio_start(struct sync_session *session,
 				"[%d]%d audio immediate start %u clock %u\n",
 				session->id, __LINE__, pts,
 				session->wall_clock);
-			if (session->start_policy.policy == AMSYNC_START_ALIGN &&
-					!session->start_posted) {
+			if (!session->start_posted) {
 				session->start_posted = true;
 				wakeup = true;
 			}
-		} else if (session->start_policy.policy == AMSYNC_START_ALIGN) {
+		} else {
 			// normal case, wait audio start point
 			u32 diff_ms =  (pts - session->wall_clock) / 90;
 			u32 delay_jiffies = msecs_to_jiffies(diff_ms);
