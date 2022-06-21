@@ -45,6 +45,7 @@
 /*  V1.1.52  add ambus exit processing when switching mode */
 /*  V1.1.53  fixed dvb-c auto qam unlock when 16qam/32qam */
 /*  V1.1.54  rebuild atsc to improve signal locking performance */
+/*  V1.1.55  improve atsc cci */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -61,8 +62,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.54"
-#define DTVDEMOD_VER	"2022/06/03: rebuild atsc to improve signal locking performance"
+#define AMLDTVDEMOD_VER "V1.1.55"
+#define DTVDEMOD_VER	"2022/06/24: improve atsc cci"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -401,7 +402,7 @@ struct amldtvdemod_device_s {
 
 	bool vdac_enable;
 	bool dvbc_inited;
-	int peak[2048];
+	unsigned int peak[2048];
 	unsigned int ber_base;
 	unsigned int atsc_cr_step_size_dbg;
 	unsigned char index;
