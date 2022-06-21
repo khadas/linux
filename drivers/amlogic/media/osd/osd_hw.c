@@ -11508,6 +11508,7 @@ static void osd_setting_viux(u32 output_index)
 			osd_hw.free_scale[index].h_enable = 0;
 			osd_hw.free_scale[index].v_enable = 0;
 		}
+		osd_set_scan_mode(index);
 		osd_hw.free_src_data[index].x_start =
 			osd_hw.src_data[index].x;
 		osd_hw.free_src_data[index].x_end =
@@ -11568,7 +11569,6 @@ static void osd_setting_viux(u32 output_index)
 						      CANVAS_BLKMODE_LINEAR);
 	#endif
 			}
-			osd_set_scan_mode(index);
 			osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 			if (!osd_hw.dim_layer[index]) {
 				rdma_wr(osd_reg->osd_dimm_ctrl, 0x00000000);
