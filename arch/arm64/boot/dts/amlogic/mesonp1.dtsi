@@ -1270,6 +1270,13 @@
 				};
 			};
 
+			gpio_mclk: bank-mclk@8310 {
+					reg = <0x0 0x8310 0x0 0x2c>;
+					compatible = "amlogic,meson-mclk-gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
+			};
+
 			gpio_intc: interrupt-controller@40c0 {
 				compatible = "amlogic,meson-p1-gpio-intc",
 					     "amlogic,meson-gpio-intc";

@@ -239,4 +239,10 @@
 #define	GPIOB_11		11
 #define	GPIOB_12		12
 
+#define	GPIOQ_0			0
+#define	GPIOQ_1			1
+#define	GPIOQ_2			2
+#define	GPIOQ_3			3
+#define	GPIOQ_4			4
+
 #endif /* _DT_BINDINGS_M_P1_GPIO_H */
