@@ -2391,7 +2391,8 @@ static int video_composer_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = vmalloc(sizeof(*dev));
+	memset(dev, 0, sizeof(*dev));
 	if (!dev) {
 		mutex_unlock(&video_composer_mutex);
 		pr_err("video_composer: instance %d alloc dev failed",
@@ -2490,7 +2491,7 @@ static int video_composer_release(struct inode *inode, struct file *file)
 			break;
 		}
 	}
-	kfree(dev);
+	vfree(dev);
 	return 0;
 }
 
