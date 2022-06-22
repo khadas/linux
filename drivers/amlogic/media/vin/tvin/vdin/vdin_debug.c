@@ -2596,6 +2596,14 @@ start_chk:
 			pr_info("force_disp_skip_num(%d):%d\n\n", devp->index,
 				devp->force_disp_skip_num);
 		}
+	} else if (!strcmp(parm[0], "force_one_buffer")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->dbg_force_one_buffer = val;
+			pr_info("dbg_force_one_buffer(%d):%d\n\n", devp->index,
+				devp->dbg_force_one_buffer);
+		}
 	} else if (!strcmp(parm[0], "full_pack")) {
 		if (!parm[1]) {
 			pr_err("miss parameters .\n");

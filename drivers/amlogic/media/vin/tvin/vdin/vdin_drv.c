@@ -382,7 +382,8 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 			(devp->prop.spd_data.data[5] >> 2 & 0x3);
 	else
 		vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en;
-
+	/* save vrr_mode status */
+	devp->vrr_data.vrr_mode = vrr_data.vrr_mode;
 	if (state) {
 		if (devp->game_mode) {
 			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON,
@@ -2412,11 +2413,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 					devp->prop.spd_data.data[5]);
 		}
 		vdin_vs_proc_monitor(devp);
-		if (devp->dv.chg_cnt || devp->vrr_data.vrr_chg_cnt) {
+		if (devp->dv.chg_cnt) {
 			if (devp->frame_cnt > 2)
 				vdin_pause_hw_write(devp,
 					devp->flags & VDIN_FLAG_RDMA_ENABLE);
-			vdin_drop_frame_info(devp, "dv or vrr chg");
+			vdin_drop_frame_info(devp, "dv chg");
 			vdin_vf_skip_all_disp(devp->vfp);
 			return IRQ_HANDLED;
 		}
@@ -2748,8 +2749,14 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		}
 	}
 
-	/* prepare for next input data */
-	next_wr_vfe = provider_vf_get(devp->vfp);
+	/* hdmi in signal is VRR or Freesync,and game mode 2 */
+	if (((devp->game_mode & VDIN_GAME_MODE_2) && devp->vrr_data.vrr_mode) &&
+		 devp->dbg_force_one_buffer) {
+		next_wr_vfe = devp->curr_wr_vfe;
+	} else {
+		/* prepare for next input data */
+		next_wr_vfe = provider_vf_get(devp->vfp);
+	}
 	if (!next_wr_vfe) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_NO_NEXT_FE;
 		vdin_drop_frame_info(devp, "no next wr vfe-2");
@@ -5439,6 +5446,9 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdevp->vdin_dev_ssize = sizeof(struct vdin_dev_s);
 	vdevp->canvas_config_mode = canvas_config_mode;
 	vdevp->dv.dv_config = false;
+	/* Game mode 2 use one buffer by default */
+	vdevp->dbg_force_one_buffer = 1;
+
 	INIT_DELAYED_WORK(&vdevp->dv.dv_dwork, vdin_dv_dwork);
 	INIT_DELAYED_WORK(&vdevp->vlock_dwork, vdin_vlock_dwork);
 	/*vdin event*/

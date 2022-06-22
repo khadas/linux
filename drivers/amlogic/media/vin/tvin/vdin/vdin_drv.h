@@ -510,6 +510,7 @@ struct vdin_vrr_s {
 	struct tvin_vtem_data_s vtem_data;
 	struct tvin_spd_data_s spd_data;
 	unsigned int vrr_chg_cnt;
+	unsigned int vrr_mode;
 };
 
 struct vdin_dev_s {
@@ -808,6 +809,7 @@ struct vdin_dev_s {
 	unsigned int dbg_stop_dec_delay;
 	unsigned int vinfo_std_duration; /* get vinfo fps value */
 	unsigned int dbg_no_swap_en:1;
+	unsigned int dbg_force_one_buffer:1;
 	unsigned int vdin_function_sel;
 	unsigned int self_stop_start;
 };
