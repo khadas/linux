@@ -8367,8 +8367,13 @@ SET_FILTER:
 			gvideo_recv[0]->cur_buf->flag & VFRAME_FLAG_FAKE_FRAME)
 			vd_layer[0].dispbuf = gvideo_recv[0]->cur_buf;
 
-		if (new_frame || cur_dispbuf)
-			vd_layer[0].dispbuf_mapping = &cur_dispbuf;
+		if (new_frame || cur_dispbuf) {
+			if (new_frame && path3_new_frame == new_frame)
+				vd_layer[0].dispbuf_mapping =
+					&gvideo_recv[0]->cur_buf;
+			else
+				vd_layer[0].dispbuf_mapping = &cur_dispbuf;
+		}
 		cur_blackout = blackout | force_blackout;
 	} else {
 		cur_blackout = 1;
