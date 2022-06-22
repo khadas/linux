@@ -76,5 +76,13 @@
 #define CLKID_PCIE_CML_EN0			79
 #define CLKID_PCIE_CML_EN1			80
 #define CLKID_GEN_CLK				84
+#define CLKID_CPU_CLK_DYN0_SEL			91
+#define CLKID_CPU_CLK_DYN0_DIV			92
+#define CLKID_CPU_CLK_DYN0			93
+#define CLKID_CPU_CLK_DYN1_SEL			94
+#define CLKID_CPU_CLK_DYN1_DIV			95
+#define CLKID_CPU_CLK_DYN1			96
+#define CLKID_CPU_CLK_DYN			97
+#define CLKID_CPU_CLK				98
 
 #endif /* __AXG_CLKC_H */

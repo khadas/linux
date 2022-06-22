@@ -136,7 +136,7 @@
 #define CLKID_PCIE_PLL_DCO			89
 #define CLKID_PCIE_PLL_OD			90
 
-#define NR_CLKS					91
+#define NR_CLKS					99
 
 /* include the CLKIDs that have been made part of the DT binding */
 #include <dt-bindings/clock/axg-clkc.h>

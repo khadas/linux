@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 
 #include "clk-regmap.h"
 #include "clk-pll.h"
@@ -86,6 +87,21 @@ static struct clk_regmap axg_fixed_pll = {
 	},
 };
 
+static const struct pll_params_table axg_sys_pll_params_table[] = {
+	PLL_PARAMS(67, 1), /*DCO=1608M OD=1608MM*/
+	PLL_PARAMS(71, 1), /*DCO=1704MM OD=1704M*/
+	PLL_PARAMS(75, 1), /*DCO=1800M OD=1800M*/
+	PLL_PARAMS(126, 1), /*DCO=3024 OD=1512M*/
+	PLL_PARAMS(116, 1), /*DCO=2784 OD=1392M*/
+	PLL_PARAMS(118, 1), /*DCO=2832M OD=1416M*/
+	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
+	PLL_PARAMS(79, 1), /*DCO=1896M OD=1896M*/
+	PLL_PARAMS(80, 1), /*DCO=1920M OD=1920M*/
+	PLL_PARAMS(84, 1), /*DCO=2016M OD=2016M*/
+	PLL_PARAMS(92, 1), /*DCO=2208M OD=2208M*/
+	{ /* sentinel */ }
+};
+
 static struct clk_regmap axg_sys_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
@@ -113,14 +129,16 @@ static struct clk_regmap axg_sys_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
+		.table = axg_sys_pll_params_table,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll_dco",
-		.ops = &meson_clk_pll_ro_ops,
+		.ops = &meson_clk_pll_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
+		.flags = CLK_IGNORE_UNUSED
 	},
 };
 
@@ -133,7 +151,7 @@ static struct clk_regmap axg_sys_pll = {
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "sys_pll",
-		.ops = &clk_regmap_divider_ro_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&axg_sys_pll_dco.hw
 		},
@@ -1090,6 +1108,333 @@ static struct clk_regmap axg_gen_clk = {
 	},
 };
 
+static struct clk_regmap axg_cpu_clk_premux0 = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SYS_CPU_CLK_CNTL0,
+		.mask = 0x3,
+		.shift = 0,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk_dyn0_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", },
+			{ .hw = &axg_fclk_div2.hw },
+			{ .hw = &axg_fclk_div3.hw },
+		},
+		.num_parents = 3,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_cpu_clk_premux1 = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SYS_CPU_CLK_CNTL0,
+		.mask = 0x3,
+		.shift = 16,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk_dyn1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = (const struct clk_parent_data []) {
+			{ .fw_name = "xtal", },
+			{ .hw = &axg_fclk_div2.hw },
+			{ .hw = &axg_fclk_div3.hw },
+		},
+		.num_parents = 3,
+		/* This sub-tree is used a parking clock */
+		.flags = CLK_SET_RATE_NO_REPARENT
+	},
+};
+
+static struct clk_regmap axg_cpu_clk_mux0_div = {
+	.data = &(struct meson_clk_cpu_dyndiv_data){
+		.div = {
+			.reg_off = HHI_SYS_CPU_CLK_CNTL0,
+			.shift = 4,
+			.width = 6,
+		},
+		.dyn = {
+			.reg_off = HHI_SYS_CPU_CLK_CNTL0,
+			.shift = 26,
+			.width = 1,
+		},
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk_dyn0_div",
+		.ops = &meson_clk_cpu_dyndiv_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_cpu_clk_premux0.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_cpu_clk_postmux0 = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SYS_CPU_CLK_CNTL0,
+		.mask = 0x1,
+		.shift = 2,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk_dyn0",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_cpu_clk_premux0.hw,
+			&axg_cpu_clk_mux0_div.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_cpu_clk_mux1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SYS_CPU_CLK_CNTL0,
+		.shift = 20,
+		.width = 6,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk_dyn1_div",
+		.ops = &clk_regmap_divider_ro_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_cpu_clk_premux1.hw
+		},
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap axg_cpu_clk_postmux1 = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SYS_CPU_CLK_CNTL0,
+		.mask = 0x1,
+		.shift = 18,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk_dyn1",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_cpu_clk_premux1.hw,
+			&axg_cpu_clk_mux1_div.hw,
+		},
+		.num_parents = 2,
+		/* This sub-tree is used a parking clock */
+		.flags = CLK_SET_RATE_NO_REPARENT,
+	},
+};
+
+static struct clk_regmap axg_cpu_clk_dyn = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SYS_CPU_CLK_CNTL0,
+		.mask = 0x1,
+		.shift = 10,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk_dyn",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_cpu_clk_postmux0.hw,
+			&axg_cpu_clk_postmux1.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_cpu_clk = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SYS_CPU_CLK_CNTL0,
+		.mask = 0x1,
+		.shift = 11,
+		.flags = CLK_MUX_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "cpu_clk",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_cpu_clk_dyn.hw,
+			&axg_sys_pll.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+struct axg_cpu_clk_postmux_nb_data {
+	struct notifier_block nb;
+	struct clk_hw *fclk_div2;
+	struct clk_hw *cpu_clk_dyn;
+	struct clk_hw *cpu_clk_postmux0;
+	struct clk_hw *cpu_clk_postmux1;
+	struct clk_hw *cpu_clk_premux1;
+};
+
+static int axg_cpu_clk_postmux_notifier_cb(struct notifier_block *nb,
+					   unsigned long event, void *data)
+{
+	struct axg_cpu_clk_postmux_nb_data *nb_data =
+		container_of(nb, struct axg_cpu_clk_postmux_nb_data, nb);
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		/*
+		 * This notifier means cpu_clk_postmux0 clock will be changed
+		 * to feed cpu_clk, this is the current path :
+		 * cpu_clk
+		 *    \- cpu_clk_dyn
+		 *          \- cpu_clk_postmux0
+		 *                \- cpu_clk_muxX_div
+		 *                      \- cpu_clk_premux0
+		 *				\- fclk_div3 or fclk_div2
+		 *		OR
+		 *                \- cpu_clk_premux0
+		 *			\- fclk_div3 or fclk_div2
+		 */
+
+		/* Setup cpu_clk_premux1 to fclk_div2 */
+		clk_hw_set_parent(nb_data->cpu_clk_premux1,
+				  nb_data->fclk_div2);
+
+		/* Setup cpu_clk_postmux1 to bypass divider */
+		clk_hw_set_parent(nb_data->cpu_clk_postmux1,
+				  nb_data->cpu_clk_premux1);
+
+		/* Switch to parking clk on cpu_clk_postmux1 */
+		clk_hw_set_parent(nb_data->cpu_clk_dyn,
+				  nb_data->cpu_clk_postmux1);
+
+		/*
+		 * Now, cpu_clk is 1G in the current path :
+		 * cpu_clk
+		 *    \- cpu_clk_dyn
+		 *          \- cpu_clk_postmux1
+		 *                \- cpu_clk_premux1
+		 *                      \- fclk_div2
+		 */
+
+		udelay(10);
+
+		return NOTIFY_OK;
+
+	case POST_RATE_CHANGE:
+		/*
+		 * The cpu_clk_postmux0 has ben updated, now switch back
+		 * cpu_clk_dyn to cpu_clk_postmux0 and take the changes
+		 * in account.
+		 */
+
+		/* Configure cpu_clk_dyn back to cpu_clk_postmux0 */
+		clk_hw_set_parent(nb_data->cpu_clk_dyn,
+				  nb_data->cpu_clk_postmux0);
+
+		/*
+		 * new path :
+		 * cpu_clk
+		 *    \- cpu_clk_dyn
+		 *          \- cpu_clk_postmux0
+		 *                \- cpu_clk_muxX_div
+		 *                      \- cpu_clk_premux0
+		 *				\- fclk_div3 or fclk_div2
+		 *		OR
+		 *                \- cpu_clk_premux0
+		 *			\- fclk_div3 or fclk_div2
+		 */
+
+		udelay(10);
+
+		return NOTIFY_OK;
+
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct axg_cpu_clk_postmux_nb_data axg_cpu_clk_postmux0_nb_data = {
+	.cpu_clk_dyn = &axg_cpu_clk_dyn.hw,
+	.cpu_clk_postmux0 = &axg_cpu_clk_postmux0.hw,
+	.cpu_clk_postmux1 = &axg_cpu_clk_postmux1.hw,
+	.cpu_clk_premux1 = &axg_cpu_clk_premux1.hw,
+	.nb.notifier_call = axg_cpu_clk_postmux_notifier_cb,
+};
+
+struct axg_sys_pll_nb_data {
+	struct notifier_block nb;
+	struct clk_hw *sys_pll;
+	struct clk_hw *cpu_clk;
+	struct clk_hw *cpu_clk_dyn;
+};
+
+static int axg_sys_pll_notifier_cb(struct notifier_block *nb,
+				   unsigned long event, void *data)
+{
+	struct axg_sys_pll_nb_data *nb_data =
+		container_of(nb, struct axg_sys_pll_nb_data, nb);
+
+	switch (event) {
+	case PRE_RATE_CHANGE:
+		/*
+		 * This notifier means sys_pll clock will be changed
+		 * to feed cpu_clk, this the current path :
+		 * cpu_clk
+		 *    \- sys_pll
+		 *          \- sys_pll_dco
+		 */
+
+		/* Configure cpu_clk to use cpu_clk_dyn */
+		clk_hw_set_parent(nb_data->cpu_clk,
+				  nb_data->cpu_clk_dyn);
+
+		/*
+		 * Now, cpu_clk uses the dyn path
+		 * cpu_clk
+		 *    \- cpu_clk_dyn
+		 *          \- cpu_clk_dynX
+		 *                \- cpu_clk_dynX_sel
+		 *		     \- cpu_clk_dynX_div
+		 *                      \- xtal/fclk_div2/fclk_div3
+		 *                   \- xtal/fclk_div2/fclk_div3
+		 */
+
+		udelay(10);
+
+		return NOTIFY_OK;
+
+	case POST_RATE_CHANGE:
+		/*
+		 * The sys_pll has ben updated, now switch back cpu_clk to
+		 * sys_pll
+		 */
+
+		/* Configure cpu_clk to use sys_pll */
+		clk_hw_set_parent(nb_data->cpu_clk,
+				  nb_data->sys_pll);
+
+		udelay(10);
+
+		/* new path :
+		 * cpu_clk
+		 *    \- sys_pll
+		 *          \- sys_pll_dco
+		 */
+
+		return NOTIFY_OK;
+
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static struct axg_sys_pll_nb_data axg_sys_pll_nb_data = {
+	.sys_pll = &axg_sys_pll.hw,
+	.cpu_clk = &axg_cpu_clk.hw,
+	.cpu_clk_dyn = &axg_cpu_clk_dyn.hw,
+	.nb.notifier_call = axg_sys_pll_notifier_cb,
+};
+
 #define MESON_GATE(_name, _reg, _bit) \
 	MESON_PCLK(_name, _reg, _bit, &axg_clk81.hw)
 
@@ -1240,6 +1585,14 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 		[CLKID_HIFI_PLL_DCO]		= &axg_hifi_pll_dco.hw,
 		[CLKID_PCIE_PLL_DCO]		= &axg_pcie_pll_dco.hw,
 		[CLKID_PCIE_PLL_OD]		= &axg_pcie_pll_od.hw,
+		[CLKID_CPU_CLK_DYN0_SEL]	= &axg_cpu_clk_premux0.hw,
+		[CLKID_CPU_CLK_DYN0_DIV]	= &axg_cpu_clk_mux0_div.hw,
+		[CLKID_CPU_CLK_DYN0]		= &axg_cpu_clk_postmux0.hw,
+		[CLKID_CPU_CLK_DYN1_SEL]	= &axg_cpu_clk_premux1.hw,
+		[CLKID_CPU_CLK_DYN1_DIV]	= &axg_cpu_clk_mux1_div.hw,
+		[CLKID_CPU_CLK_DYN1]		= &axg_cpu_clk_postmux1.hw,
+		[CLKID_CPU_CLK_DYN]		= &axg_cpu_clk_dyn.hw,
+		[CLKID_CPU_CLK]			= &axg_cpu_clk.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -1335,22 +1688,88 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_hifi_pll_dco,
 	&axg_pcie_pll_dco,
 	&axg_pcie_pll_od,
+	&axg_cpu_clk_premux0,
+	&axg_cpu_clk_mux0_div,
+	&axg_cpu_clk_postmux0,
+	&axg_cpu_clk_premux1,
+	&axg_cpu_clk_mux1_div,
+	&axg_cpu_clk_postmux1,
+	&axg_cpu_clk_dyn,
+	&axg_cpu_clk
 };
 
-static const struct meson_eeclkc_data axg_clkc_data = {
-	.regmap_clks = axg_clk_regmaps,
-	.regmap_clk_num = ARRAY_SIZE(axg_clk_regmaps),
-	.hw_onecell_data = &axg_hw_onecell_data,
+static int meson_axg_dvfs_setup(struct platform_device *pdev)
+{
+	struct clk *notifier_clk;
+	int ret;
+
+	/* Setup clock notifier for cpu_clk_postmux0 */
+	axg_cpu_clk_postmux0_nb_data.fclk_div2 = &axg_fclk_div2.hw;
+	notifier_clk = axg_cpu_clk_postmux0.hw.clk;
+	ret = clk_notifier_register(notifier_clk,
+				    &axg_cpu_clk_postmux0_nb_data.nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register the cpu_clk_postmux0 notifier\n");
+		return ret;
+	}
+
+	/* Setup clock notifier for sys_pll */
+	notifier_clk = axg_sys_pll.hw.clk;
+	ret = clk_notifier_register(notifier_clk, &axg_sys_pll_nb_data.nb);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register the sys_pll notifier\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+struct meson_axg_data {
+	const struct meson_eeclkc_data eeclkc_data;
+	int (*dvfs_setup)(struct platform_device *pdev);
 };
 
+static int meson_axg_probe(struct platform_device *pdev)
+{
+	const struct meson_eeclkc_data *eeclkc_data;
+	const struct meson_axg_data *axg_data;
+	int ret;
+
+	eeclkc_data = of_device_get_match_data(&pdev->dev);
+	if (!eeclkc_data)
+		return -EINVAL;
+
+	ret = meson_eeclkc_probe(pdev);
+	if (ret)
+		return ret;
+
+	axg_data = container_of(eeclkc_data, struct meson_axg_data,
+				 eeclkc_data);
+
+	if (axg_data->dvfs_setup)
+		return axg_data->dvfs_setup(pdev);
+
+	return 0;
+}
+
+static const struct meson_axg_data axg_clkc_data = {
+	.eeclkc_data = {
+		.regmap_clks = axg_clk_regmaps,
+		.regmap_clk_num = ARRAY_SIZE(axg_clk_regmaps),
+		.hw_onecell_data = &axg_hw_onecell_data,
+		//.init_regs = axg_init_regs,
+		//.init_count = ARRAY_SIZE(axg_init_regs),
+	},
+	.dvfs_setup = meson_axg_dvfs_setup,
+};
 
 static const struct of_device_id clkc_match_table[] = {
-	{ .compatible = "amlogic,axg-clkc", .data = &axg_clkc_data },
+	{ .compatible = "amlogic,axg-clkc", .data = &axg_clkc_data.eeclkc_data },
 	{}
 };
 
 static struct platform_driver axg_driver = {
-	.probe		= meson_eeclkc_probe,
+	.probe		= meson_axg_probe,
 	.driver		= {
 		.name	= "axg-clkc",
 		.of_match_table = clkc_match_table,
