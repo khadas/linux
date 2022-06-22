@@ -15,7 +15,7 @@
 
 struct efuse_burn_info {
 	char itemname[32];
-	int  status;  //1:wrote, 0:not write, -1:fail.
+	int  status;  //1:written, 0:not write, -1:fail.
 };
 
 struct aml_efuse_burn_dev {

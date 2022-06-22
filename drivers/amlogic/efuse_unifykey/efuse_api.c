@@ -125,7 +125,7 @@ int efuse_amlogic_cali_item_read(unsigned int item)
 EXPORT_SYMBOL_GPL(efuse_amlogic_cali_item_read);
 
 /*
- *return: 1: wrote, 0: not write, -1: fail or not support
+ *return: 1: written, 0: not write, -1: fail or not support
  */
 int efuse_amlogic_check_lockable_item(unsigned int item)
 {
