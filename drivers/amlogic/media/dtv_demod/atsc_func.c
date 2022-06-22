@@ -668,8 +668,7 @@ void atsc_reset(void)
 	atsc_write_reg(0x0900, 0x00);
 }
 
-
-int atsc_read_snr(void)
+int atsc_read_snr_10(void)
 {
 	int snr;
 	int snr_db;
@@ -681,20 +680,13 @@ int atsc_read_snr(void)
 
 	snr_db = SNR_dB_table[atsc_find(snr, SNR_table, 56)];
 
-	return snr_db / 10;
+	return snr_db;
 }
 
-int atsc_read_snr_10(void)
+int atsc_read_snr(void)
 {
-	int SNR;
-	int SNR_dB;
-
-	SNR = (atsc_read_reg(0x0511) << 8) +
-			atsc_read_reg(0x0512);
-	SNR_dB = SNR_dB_table[atsc_find(SNR, SNR_table, 56)];
-	return SNR_dB;
+	return atsc_read_snr_10() / 10;
 }
-
 
 int check_snr_ser(int ser_threshholds)
 {

@@ -2060,7 +2060,7 @@ static int gxtv_demod_atsc_get_frontend(struct dvb_frontend *fe)
 {                               /*these content will be writed into eeprom .*/
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
-	PR_DBG("c->frequency is %d\n", c->frequency);
+	PR_ATSC("c->frequency is %d\n", c->frequency);
 	return 0;
 }
 
