@@ -65,7 +65,13 @@ static u32 video_type_get(u32 pixel_format)
 		break;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
 		vframe_type = VIDTYPE_VIU_422 | VIDTYPE_VIU_FIELD |
+				VIDTYPE_VIU_SINGLE_PLANE;
+		break;
+	case DRM_FORMAT_VUY888:
+		vframe_type = VIDTYPE_VIU_444 | VIDTYPE_VIU_FIELD |
 				VIDTYPE_VIU_SINGLE_PLANE;
 		break;
 	default:
