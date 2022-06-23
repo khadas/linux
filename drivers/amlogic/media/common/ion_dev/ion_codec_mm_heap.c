@@ -76,7 +76,7 @@ static phys_addr_t ion_secure_allocate(struct ion_heap *heap,
 		container_of(heap, struct ion_cma_heap, heap);
 	phys_addr_t paddr;
 
-	paddr = secure_block_alloc(size, flags);
+	paddr = secure_block_alloc(size, size, 0);
 	if (!paddr) {
 		pr_err("%s failed out size %d\n", __func__, (int)size);
 		return ION_CODEC_MM_ALLOCATE_FAIL;

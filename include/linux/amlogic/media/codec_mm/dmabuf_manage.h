@@ -72,10 +72,13 @@ struct dmabuf_manage_block {
 
 #define SECURE_HEAP_DEFAULT_VERSION			1
 #define SECURE_HEAP_SUPPORT_DELAY_ALLOC_VERSION		2
-#define SECURE_HEAP_MAX_VERSION				3
+#define SECURE_HEAP_SUPPORT_MULTI_POOL_VERSION		3
+#define SECURE_HEAP_MAX_VERSION				4
 
-phys_addr_t secure_block_alloc(unsigned long size, unsigned long flags);
+phys_addr_t secure_block_alloc(unsigned long size, unsigned long maxsize, unsigned long id);
 unsigned long secure_block_free(phys_addr_t addr, unsigned long size);
+unsigned long secure_get_pool_freesize(phys_addr_t addr, unsigned long id, unsigned long maxsize);
+unsigned int dmabuf_manage_get_blocknum(unsigned long id);
 unsigned int dmabuf_manage_get_secure_heap_version(void);
 unsigned int dmabuf_manage_get_type(unsigned int fd);
 void *dmabuf_manage_get_info(unsigned int fd, unsigned int type);
