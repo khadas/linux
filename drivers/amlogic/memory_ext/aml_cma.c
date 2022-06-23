@@ -491,7 +491,7 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	if (allow_cma_tasks)
 		cpus = allow_cma_tasks;
 	else
-		cpus = num_online_cpus();
+		cpus = num_online_cpus() - 1;
 	cnt   = count;
 	delta = count / cpus;
 	atomic_set(&ok, 0);
@@ -659,15 +659,15 @@ try_again:
 	/*
 	 * try to use more cpu to do this job when alloc count is large
 	 */
+	get_online_cpus();
 	if ((num_online_cpus() > 1) && can_boost &&
 	    ((end - start) >= pageblock_nr_pages / 2)) {
-		get_online_cpus();
 		ret = cma_alloc_contig_boost(start, end - start);
-		put_online_cpus();
 		boost_ok = !ret ? 1 : 0;
 	} else {
 		ret = aml_alloc_contig_migrate_range(&cc, start, end, 0, current);
 	}
+	put_online_cpus();
 
 	if (ret && ret != -EBUSY) {
 		cma_debug(1, NULL, "ret:%d\n", ret);
