@@ -532,6 +532,13 @@ static int meson_ir_rca_get_scancode(struct meson_ir_chip *chip)
 	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME, &code);
 	meson_ir_dbg(chip->r_dev, "framecode=0x%x\n", code);
 	chip->r_dev->cur_hardcode = code;
+
+	if ((~(code >> 12) & 0xfff) != (code & 0xfff)) {
+		pr_err("%s: rca verification check error code=0x%x\n",
+		       DRIVER_NAME, code);
+		return 0;
+	}
+
 	code = (code >> 12) & 0xff;
 	return code;
 }
