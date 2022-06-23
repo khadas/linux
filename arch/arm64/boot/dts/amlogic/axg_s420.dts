@@ -65,9 +65,9 @@
 		pinctrl-1 = <&all_nand_pins>;
 		pinctrl-2 = <&nand_cs_pins>;
 		device_id = <0>;
-		clocks = <&clkc CLKID_SD_EMMC_C>,
-			<&clkc CLKID_FCLK_DIV2>;
-		clock-names = "gate", "fdiv2pll";
+		//clocks = <&clkc CLKID_SD_EMMC_C>,
+		//	<&clkc CLKID_FCLK_DIV2>;
+		//clock-names = "gate", "fdiv2pll";
 
 		/*fip/tpl configurations, must be same
 		 * with uboot if bl_mode was set as 1
@@ -230,8 +230,8 @@
 		usb-phy = <&usb2_phy>, <&usb3_phy>;
 		cpu-type = "gxl";
 		clock-src = "usb3.0";
-		clocks = <&clkc CLKID_USB_GENERAL>;
-		clock-names = "dwc_general";
+		//clocks = <&clkc CLKID_USB_GENERAL>;
+		//clock-names = "dwc_general";
 	};
 
 	usb2_phy: usb2phy@ffe09000 {
@@ -274,12 +274,12 @@
 		controller-type = <3>;
 		phy-reg = <0xffe09000>;
 		phy-reg-size = <0xa0>;
-		clocks = <&clkc CLKID_USB_GENERAL
-			&clkc CLKID_USB1_TO_DDR
-			&clkc CLKID_USB1>;
-		clock-names = "usb_general",
-			"usb1",
-			"usb1_to_ddr";
+		//clocks = <&clkc CLKID_USB_GENERAL
+		//	&clkc CLKID_USB1_TO_DDR
+		//	&clkc CLKID_USB1>;
+		//clock-names = "usb_general",
+		//	"usb1",
+		//	"usb1_to_ddr";
 	};
 
 	uart_A: serial@ffd24000 {
@@ -287,10 +287,10 @@
 		reg = <0x0 0xffd24000 0x0 0x18>;
 		interrupts = <0 26 1>;
 		status = "disabled";
-		clocks = <&xtal
-			&clkc CLKID_UART0>;
-		clock-names = "clk_uart",
-			"clk_gate";
+		//clocks = <&xtal
+		//	&clkc CLKID_UART0>;
+		//clock-names = "clk_uart",
+		//	"clk_gate";
 		fifosize = < 128 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&a_uart_pins>;
@@ -301,10 +301,10 @@
 		reg = <0x0 0xffd23000 0x0 0x18>;
 		interrupts = <0 75 1>;
 		status = "disable";
-		clocks = <&xtal
-			&clkc CLKID_UART1>;
-		clock-names = "clk_uart",
-			"clk_gate";
+		//clocks = <&xtal
+		//	&clkc CLKID_UART1>;
+		//clock-names = "clk_uart",
+		//	"clk_gate";
 		fifosize = < 64 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&b_uart_pins>;
@@ -477,12 +477,12 @@
 		pinctrl-names = "emmc_clk_cmd_pins", "emmc_all_pins";
 		pinctrl-0 = <&emmc_clk_cmd_pins>;
 		pinctrl-1 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
-		clocks = <&clkc CLKID_SD_EMMC_C>,
-			   <&clkc CLKID_SD_EMMC_C_P0_COMP>,
-			   <&clkc CLKID_FCLK_DIV2>,
-			   <&clkc CLKID_FCLK_DIV5>,
-			   <&xtal>;
-		clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
+		//clocks = <&clkc CLKID_SD_EMMC_C>,
+		//	   <&clkc CLKID_SD_EMMC_C_P0_COMP>,
+		//	   <&clkc CLKID_FCLK_DIV2>,
+		//	   <&clkc CLKID_FCLK_DIV5>,
+		//	   <&xtal>;
+		//clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
 
 		bus-width = <8>;
 		cap-sd-highspeed;
@@ -525,10 +525,10 @@
 		pinctrl-names = "sdio_clk_cmd_pins", "sdio_all_pins";
 		pinctrl-0 = <&sdio_clk_cmd_pins>;
 		pinctrl-1 = <&sdio_all_pins>;
-		clocks = <&clkc CLKID_SD_EMMC_B>,
-			   <&clkc CLKID_SD_EMMC_B_P0_COMP>,
-			   <&clkc CLKID_FCLK_DIV2>;
-		clock-names = "core", "clkin0", "clkin1";
+		//clocks = <&clkc CLKID_SD_EMMC_B>,
+		//	   <&clkc CLKID_SD_EMMC_B_P0_COMP>,
+		//	   <&clkc CLKID_FCLK_DIV2>;
+		//clock-names = "core", "clkin0", "clkin1";
 
 		bus-width = <4>;
 		cap-sd-highspeed;

@@ -4,7 +4,8 @@
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
-#include <dt-bindings/clock/amlogic,axg-clkc.h>
+#include <dt-bindings/clock/axg-clkc.h>
+#include <dt-bindings/clock/axg-aoclkc.h>
 #include <dt-bindings/clock/amlogic,axg-audio-clk.h>
 #include <dt-bindings/iio/adc/amlogic-saradc.h>
 #include <dt-bindings/gpio/meson-axg-gpio.h>
@@ -41,8 +42,6 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
-			clocks = <&scpi_dvfs 0>;
-			clock-names = "cpu-cluster.0";
 			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
@@ -51,8 +50,6 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
-			clocks = <&scpi_dvfs 0>;
-			clock-names = "cpu-cluster.0";
 			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 		CPU2:cpu@2 {
@@ -70,8 +67,6 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
-			clocks = <&scpi_dvfs 0>;
-			clock-names = "cpu-cluster.0";
 			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
@@ -369,7 +364,7 @@
 					<GIC_SPI 47 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_I2C>;
+				clocks = <&clkc CLKID_CLK81_I2C>;
 				clock-names = "clk_i2c";
 				clock-frequency = <100000>;
 			};
@@ -383,7 +378,7 @@
 					<GIC_SPI 48 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_I2C>;
+				clocks = <&clkc CLKID_CLK81_I2C>;
 				clock-names = "clk_i2c";
 				clock-frequency = <100000>;
 			};
@@ -397,7 +392,7 @@
 					<GIC_SPI 49 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_I2C>;
+				clocks = <&clkc CLKID_CLK81_I2C>;
 				clock-names = "clk_i2c";
 				clock-frequency = <100000>;
 			};
@@ -411,7 +406,7 @@
 					<GIC_SPI 50 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_I2C>;
+				clocks = <&clkc CLKID_CLK81_I2C>;
 				clock-names = "clk_i2c";
 				clock-frequency = <100000>;
 			};
@@ -420,9 +415,9 @@
 				compatible = "amlogic,meson-axg-spicc";
 				reg = <0x0 0x13000 0x0 0x40>;
 				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clkc CLKID_SPICC0>,
-					 <&clkc CLKID_SPICC_COMP>;
-				clock-names = "core", "comp";
+				//clocks = <&clkc CLKID_CLK81_SPICC0>;
+					 //<&clkc CLKID_SPICC_COMP>;
+				//clock-names = "core", "comp";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -432,9 +427,9 @@
 				compatible = "amlogic,meson-axg-spicc";
 				reg = <0x0 0x15000 0x0 0x40>;
 				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
-				clocks = <&clkc CLKID_SPICC1>,
-					 <&clkc CLKID_SPICC_COMP>;
-				clock-names = "core", "comp";
+				//clocks = <&clkc CLKID_CLK81_SPICC0>;
+					 //<&clkc CLKID_SPICC_COMP>;
+				//nclock-names = "core", "comp";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
@@ -472,7 +467,7 @@
 				interrupts = <GIC_SPI 195 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				clocks = <&clkc CLKID_I2C>;
+				clocks = <&clkc CLKID_CLK81_I2C>;
 				clock-names = "clk_i2c";
 				clock-frequency = <100000>;
 			};
@@ -780,7 +775,7 @@
 		compatible = "amlogic,meson-axg-saradc";
 		status = "okay";
 		#io-channel-cells = <1>;
-		clocks = <&xtal>, <&clkc CLKID_SARADC_GATE>;
+		//clocks = <&xtal>, <&clkc CLKID_SARADC_GATE>;
 		clock-names = "xtal", "saradc_clk";
 		interrupts = <GIC_SPI 73 IRQ_TYPE_EDGE_RISING>;
 		reg = <0x0 0xff809000 0x0 0x38>;
@@ -791,7 +786,7 @@
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;
 		key = <&efusekey>;
-		clocks = <&clkc CLKID_EFUSE>;
+		clocks = <&clkc CLKID_CLK81_EFUSE>;
 		clock-names = "efuse_clk";
 		status = "disabled";
 	};

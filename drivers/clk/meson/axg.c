@@ -95,6 +95,7 @@ static const struct pll_params_table axg_sys_pll_params_table[] = {
 	PLL_PARAMS(116, 1), /*DCO=2784 OD=1392M*/
 	PLL_PARAMS(118, 1), /*DCO=2832M OD=1416M*/
 	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
+	PLL_PARAMS(108, 1), /*DCO=2592M OD=1296M*/
 	PLL_PARAMS(79, 1), /*DCO=1896M OD=1896M*/
 	PLL_PARAMS(80, 1), /*DCO=1920M OD=1920M*/
 	PLL_PARAMS(84, 1), /*DCO=2016M OD=2016M*/
@@ -1128,6 +1129,367 @@ static struct clk_regmap axg_cpu_clk_premux0 = {
 	},
 };
 
+static u32 mux_table_vpu_sel[] = { 0, 1, 2, 3 };
+
+static const struct clk_hw *axg_vpu_parent_hws[] = {
+	&axg_fclk_div4.hw,
+	&axg_fclk_div3.hw,
+	&axg_fclk_div5.hw,
+	&axg_fclk_div7.hw,
+};
+
+static struct clk_regmap axg_vpu_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+		.table = mux_table_vpu_sel
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu_0_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = axg_vpu_parent_hws,
+		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_vpu_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu_0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) { &axg_vpu_0_sel.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_vpu_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &axg_vpu_0_div.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+
+static struct clk_regmap axg_vpu_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu_1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = axg_vpu_parent_hws,
+		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.flags = CLK_SET_RATE_NO_REPARENT,
+	},
+};
+
+static struct clk_regmap axg_vpu_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu_1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) { &axg_vpu_1_sel.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_vpu_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vpu_1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &axg_vpu_1_div.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+
+static struct clk_regmap axg_vpu = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VPU_CLK_CNTL,
+		.mask = 1,
+		.shift = 31,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vpu",
+		.ops = &clk_regmap_mux_ops,
+		/*
+		 * bit 31 selects from 2 possible parents:
+		 * vpu_0 or vpu_1
+		 */
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_vpu_0.hw,
+			&axg_vpu_1.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_NO_REPARENT,
+	},
+};
+
+static struct clk_regmap axg_vapb_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.mask = 0x3,
+		.shift = 9,
+		.table = mux_table_vpu_sel
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vapb_0_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = axg_vpu_parent_hws,
+		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.flags = CLK_SET_RATE_NO_REPARENT,
+	},
+};
+
+static struct clk_regmap axg_vapb_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vapb_0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_vapb_0_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_vapb_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vapb_0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_vapb_0_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+
+static struct clk_regmap axg_vapb_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.mask = 0x3,
+		.shift = 25,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vapb_1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = axg_vpu_parent_hws,
+		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.flags = CLK_SET_RATE_NO_REPARENT,
+	},
+};
+
+static struct clk_regmap axg_vapb_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vapb_1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_vapb_1_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_vapb_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vapb_1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_vapb_1_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+
+static struct clk_regmap axg_vapb_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.mask = 1,
+		.shift = 31,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "vapb_sel",
+		.ops = &clk_regmap_mux_ops,
+		/*
+		 * bit 31 selects from 2 possible parents:
+		 * vapb_0 or vapb_1
+		 */
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_vapb_0.hw,
+			&axg_vapb_1.hw,
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_vapb = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VAPBCLK_CNTL,
+		.bit_idx = 30,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "vapb",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &axg_vapb_sel.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+
+static u32 mux_table_means_sel[] = { 0, 1, 2, 3, 6, 7 };
+
+static const struct clk_parent_data axg_meas_parent_hws[] = {
+	{ .fw_name = "xtal", },
+	{ .hw = &axg_fclk_div4.hw },
+	{ .hw = &axg_fclk_div3.hw },
+	{ .hw = &axg_fclk_div5.hw },
+	{ .hw = &axg_fclk_div2.hw },
+	{ .hw = &axg_fclk_div7.hw },
+};
+
+static struct clk_regmap axg_dsi_meas_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 21,
+		.table = mux_table_means_sel
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dsi_meas_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_data = axg_meas_parent_hws,
+		.num_parents = ARRAY_SIZE(axg_meas_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap axg_dsi_meas_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.shift = 12,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "dsi_meas_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_dsi_meas_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_dsi_meas = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_VDIN_MEAS_CLK_CNTL,
+		.bit_idx = 20,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "dsi_meas",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_dsi_meas_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_spicc_mux = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_SPICC_HCLK_CNTL,
+		.mask = 0x3,
+		.shift = 8,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "spicc_mux",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = axg_vpu_parent_hws,
+		.num_parents = ARRAY_SIZE(axg_vpu_parent_hws),
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap axg_spicc_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_SPICC_HCLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "spicc_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_spicc_mux.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap axg_spicc = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_SPICC_HCLK_CNTL,
+		.bit_idx = 15,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "spicc",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&axg_spicc_div.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT,
+	},
+};
+
 static struct clk_regmap axg_cpu_clk_premux1 = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = HHI_SYS_CPU_CLK_CNTL0,
@@ -1593,6 +1955,27 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 		[CLKID_CPU_CLK_DYN1]		= &axg_cpu_clk_postmux1.hw,
 		[CLKID_CPU_CLK_DYN]		= &axg_cpu_clk_dyn.hw,
 		[CLKID_CPU_CLK]			= &axg_cpu_clk.hw,
+		[CLKID_VPU_0_SEL]		= &axg_vpu_0_sel.hw,
+		[CLKID_VPU_0_DIV]		= &axg_vpu_0_div.hw,
+		[CLKID_VPU_0]			= &axg_vpu_0.hw,
+		[CLKID_VPU_1_SEL]		= &axg_vpu_1_sel.hw,
+		[CLKID_VPU_1_DIV]		= &axg_vpu_1_div.hw,
+		[CLKID_VPU_1]			= &axg_vpu_1.hw,
+		[CLKID_VPU]			= &axg_vpu.hw,
+		[CLKID_VAPB_0_SEL]		= &axg_vapb_0_sel.hw,
+		[CLKID_VAPB_0_DIV]		= &axg_vapb_0_div.hw,
+		[CLKID_VAPB_0]			= &axg_vapb_0.hw,
+		[CLKID_VAPB_1_SEL]		= &axg_vapb_1_sel.hw,
+		[CLKID_VAPB_1_DIV]		= &axg_vapb_1_div.hw,
+		[CLKID_VAPB_1]			= &axg_vapb_1.hw,
+		[CLKID_VAPB_SEL]		= &axg_vapb_sel.hw,
+		[CLKID_VAPB]			= &axg_vapb.hw,
+		[CLKID_SPICC_MUX]		= &axg_spicc_mux.hw,
+		[CLKID_SPICC_DIV]		= &axg_spicc_div.hw,
+		[CLKID_SPICC]			= &axg_spicc.hw,
+		[CLKID_DSI_MEAS_MUX]		= &axg_dsi_meas_mux.hw,
+		[CLKID_DSI_MEAS_DIV]		= &axg_dsi_meas_div.hw,
+		[CLKID_DSI_MEAS]		= &axg_dsi_meas.hw,
 		[NR_CLKS]			= NULL,
 	},
 	.num = NR_CLKS,
@@ -1695,7 +2078,28 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_cpu_clk_mux1_div,
 	&axg_cpu_clk_postmux1,
 	&axg_cpu_clk_dyn,
-	&axg_cpu_clk
+	&axg_cpu_clk,
+	&axg_vpu_0_sel,
+	&axg_vpu_0_div,
+	&axg_vpu_0,
+	&axg_vpu_1_sel,
+	&axg_vpu_1_div,
+	&axg_vpu_1,
+	&axg_vpu,
+	&axg_vapb_0_sel,
+	&axg_vapb_0_div,
+	&axg_vapb_0,
+	&axg_vapb_1_sel,
+	&axg_vapb_1_div,
+	&axg_vapb_1,
+	&axg_vapb_sel,
+	&axg_vapb,
+	&axg_spicc_mux,
+	&axg_spicc_div,
+	&axg_spicc,
+	&axg_dsi_meas_mux,
+	&axg_dsi_meas_div,
+	&axg_dsi_meas
 };
 
 static int meson_axg_dvfs_setup(struct platform_device *pdev)
