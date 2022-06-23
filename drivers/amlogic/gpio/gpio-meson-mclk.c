@@ -195,7 +195,7 @@ static int meson_mclk_gpio_probe(struct platform_device *pdev)
 	if (!mgpio->reg_base)
 		return -EIO;
 
-	dev_info(&pdev->dev, "get reg start at  0x%lx, end 0x%lx\n",
+	dev_info(&pdev->dev, "get reg start at  0x%llx, end 0x%llx\n",
 		 res_reg->start, res_reg->end);
 
 	err = devm_gpiochip_add_data(&pdev->dev, &mgpio->chip, mgpio);
