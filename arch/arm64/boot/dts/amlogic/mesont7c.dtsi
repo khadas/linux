@@ -2250,7 +2250,7 @@
 			"pwrc-wave";
 	};
 	cpu_ver_name {
-		compatible = "amlogic, cpu-major-id-t7";
+		compatible = "amlogic, cpu-major-id-t7c";
 	};
 	vcodec_dec {
 		compatible = "amlogic, vcodec-dec";
