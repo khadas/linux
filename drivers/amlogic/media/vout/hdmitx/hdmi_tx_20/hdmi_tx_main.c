@@ -3364,7 +3364,7 @@ static ssize_t aud_cap_show(struct device *dev,
 	static const char * const aud_ct[] =  {
 		"ReferToStreamHeader", "PCM", "AC-3", "MPEG1", "MP3",
 		"MPEG2", "AAC", "DTS", "ATRAC",	"OneBitAudio",
-		"Dobly_Digital+", "DTS-HD", "MAT", "DST", "WMA_Pro",
+		"Dolby_Digital+", "DTS-HD", "MAT", "DST", "WMA_Pro",
 		"Reserved", NULL};
 	static const char * const aud_sampling_frequency[] = {
 		"ReferToStreamHeader", "32", "44.1", "48", "88.2", "96",
@@ -3421,7 +3421,7 @@ static ssize_t aud_cap_show(struct device *dev,
 		case CT_DTS_HD:
 		case CT_MAT:
 		case CT_DST:
-			pos += snprintf(buf + pos, PAGE_SIZE, "DepVaule 0x%x\n",
+			pos += snprintf(buf + pos, PAGE_SIZE, "DepValue 0x%x\n",
 				prxcap->RxAudioCap[i].cc3);
 			break;
 		case CT_WMA:
