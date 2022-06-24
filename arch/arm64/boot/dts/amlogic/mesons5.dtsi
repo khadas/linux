@@ -995,7 +995,7 @@
 			i2c0: i2c@66000 {
 				compatible = "amlogic,meson-i2c";
 				reg = <0x0 0x66000 0x0 0x48>;
-				interrupts = <GIC_SPI 128 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 160 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_SYS_CLK_I2C_M_A>;
@@ -1004,7 +1004,7 @@
 			i2c1: i2c@68000 {
 				compatible = "amlogic,meson-i2c";
 				reg = <0x0 0x68000 0x0 0x48>;
-				interrupts = <GIC_SPI 129 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 161 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_SYS_CLK_I2C_M_B>;
@@ -1013,7 +1013,7 @@
 			i2c2: i2c@6a000 {
 				compatible = "amlogic,meson-i2c";
 				reg = <0x0 0x6a000 0x0 0x48>;
-				interrupts = <GIC_SPI 130 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 162 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_SYS_CLK_I2C_M_C>;
@@ -1022,7 +1022,7 @@
 			i2c3: i2c@6c000 {
 				compatible = "amlogic,meson-i2c";
 				reg = <0x0 0x6c000 0x0 0x48>;
-				interrupts = <GIC_SPI 131 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 163 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_SYS_CLK_I2C_M_D>;
@@ -1031,7 +1031,7 @@
 			i2c4: i2c@6e000 {
 				compatible = "amlogic,meson-i2c";
 				reg = <0x0 0x6e000 0x0 0x48>;
-				interrupts = <GIC_SPI 132 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 164 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_SYS_CLK_I2C_M_E>;
@@ -1040,7 +1040,7 @@
 			i2c5: i2c@70000 {
 				compatible = "amlogic,meson-i2c";
 				reg = <0x0 0x070000 0x0 0x48>;
-				interrupts = <GIC_SPI 133 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 165 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_SYS_CLK_I2C_M_F>;
