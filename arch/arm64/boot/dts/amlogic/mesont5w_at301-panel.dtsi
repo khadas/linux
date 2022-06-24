@@ -9,7 +9,7 @@
 		status = "okay";
 		index = <0>;
 		mode = "tv";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <1>;
 		clocks = <&clkc CLKID_CLK81_VCLK2_ENCL
 			&clkc CLKID_CLK81_VCLK2_VENCL
