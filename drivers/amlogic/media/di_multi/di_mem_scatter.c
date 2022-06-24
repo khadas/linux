@@ -689,14 +689,16 @@ unsigned int sct_keep(struct di_ch_s *pch, struct dim_sct_s *sct)
 	int ret;
 
 	if (!pch || !sct)
-		return 0xff;
+		return DIM_KEEP_NONE;
 	psct = &pch->msct_top;
 
 	mem_handle =
 		di_mmu_box_get_mem_handle
 			(psct->box, sct->header.index);
+	dbg_mem2("scta:keep:0x%px\n", mem_handle);
 	ret = codec_mm_keeper_mask_keep_mem(mem_handle,
 		MEM_TYPE_CODEC_MM_SCATTER);
+	dbg_mem2("scta:keep:nub:%d\n", ret);
 	#ifdef HIS_CODE
 	vf->mem_head_handle =
 		decoder_bmmu_box_get_mem_handle
@@ -704,7 +706,8 @@ unsigned int sct_keep(struct di_ch_s *pch, struct dim_sct_s *sct)
 	#endif
 	if (ret >= 0)
 		return ret;
-	return 0xff;
+	PR_WARN("%s:overflow:%d\n", __func__, ret);
+	return DIM_KEEP_NONE;
 }
 
 static void sct_alloc_in_poling(unsigned int ch)

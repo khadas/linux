@@ -102,6 +102,8 @@
 	| VIDTYPE_RGB_444		\
 	| VIDTYPE_V4L_EOS)
 
+#define DIM_KEEP_NONE	(0xfffffff0)
+
 #define DIM_S4DW_REG_BACK_NUB	5
 enum EDI_MEM_M {
 	EDI_MEM_M_REV = 0,

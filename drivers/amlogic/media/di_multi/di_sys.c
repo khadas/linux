@@ -671,7 +671,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				blk_buf->flg_alloc	= false;
 				blk_buf->flg.d32	= 0;
 				blk_buf->sct		= NULL;
-				blk_buf->sct_keep	= 0xff;
+				blk_buf->sct_keep	= DIM_KEEP_NONE;
 				qbuf_in(pbufq, QBF_BLK_Q_IDLE, index);
 				cnt++;
 				fcmd->sum_alloc--;
@@ -752,7 +752,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				blk_buf->flg_alloc	= false;
 				blk_buf->flg.d32	= 0;
 				blk_buf->sct		= NULL;
-				blk_buf->sct_keep	= 0xff;
+				blk_buf->sct_keep	= DIM_KEEP_NONE;
 				atomic_set(&blk_buf->p_ref_mem, 0);
 				qbuf_in(pbufq, QBF_BLK_Q_IDLE, index);
 				cnt++;
@@ -820,7 +820,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 			blk_buf->flg_alloc	= true;
 			blk_buf->reg_cnt	= pch->sum_reg_cnt;
 			blk_buf->sct		= NULL;
-			blk_buf->sct_keep	= 0xff;
+			blk_buf->sct_keep	= DIM_KEEP_NONE;
 			blk_buf->pat_buf	= NULL;
 			if (blk_buf->flg.b.is_i)
 				mm->sts.num_local++;
@@ -2256,10 +2256,10 @@ void mem_release_one_inused(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf)
 		return;
 	}
 
-	if (blk_buf->sct_keep != 0xff) {
+	if (blk_buf->sct_keep != DIM_KEEP_NONE) {
 		codec_mm_keeper_unmask_keeper(blk_buf->sct_keep, 1);
-		PR_INF("%s:sct_keep[0x%x]\n", "release", blk_buf->sct_keep);
-		blk_buf->sct_keep = 0xff;
+		dbg_mem2("scta:release:%d]\n", (int)blk_buf->sct_keep);
+		blk_buf->sct_keep = DIM_KEEP_NONE;
 		f_sctkeep = true;
 	}
 
@@ -2272,7 +2272,7 @@ void mem_release_one_inused(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf)
 	} else if (blk_buf->pat_buf) {
 		/* recycl pat*/
 		pat_buf = (struct dim_pat_s *)blk_buf->pat_buf;
-		if (blk_buf->sct_keep) {
+		if (blk_buf->sct_keep) { //need check??
 			pat_buf->flg_mode = 0;
 			pat_release_vaddr(pat_buf);
 		}
