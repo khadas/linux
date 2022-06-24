@@ -252,8 +252,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 1;
-		clk_unstable_max = 100;
-		esd_phy_rst_max = 8;
+		clk_unstable_max = 50;
+		esd_phy_rst_max = 16;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7cf;
 		pll_lock_max = 5;
@@ -277,8 +277,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 30;
-		clk_unstable_max = 100;
-		esd_phy_rst_max = 8;
+		clk_unstable_max = 50;
+		esd_phy_rst_max = 16;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7cf;
 		pll_lock_max = 5;
@@ -326,8 +326,8 @@ void hdmirx_fsm_var_init(void)
 		sig_stable_err_max = 5;
 		sig_stable_max = 10;
 		dwc_rst_wait_cnt_max = 5; //for repeater
-		clk_unstable_max = 100;
-		esd_phy_rst_max = 8;
+		clk_unstable_max = 50;
+		esd_phy_rst_max = 16;
 		pll_unlock_max = 30;
 		stable_check_lvl = 0x7d3;
 		pll_lock_max = 2;
