@@ -245,7 +245,7 @@ void hdmitx21_sys_reset(void)
 	}
 }
 
-static bool hdmitx_uboot_already_display(void)
+bool hdmitx21_uboot_already_display(void)
 {
 	if (hd21_read_reg(ANACTRL_HDMIPHY_CTRL0))
 		return 1;
@@ -320,7 +320,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 {
 	u32 data32;
 
-	if (hdmitx_uboot_already_display()) {
+	if (hdmitx21_uboot_already_display()) {
 		int ret;
 		u8 body[32] = {0};
 		union hdmi_infoframe *infoframe = &hdev->infoframes.avi;
@@ -350,6 +350,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 				vic = avi->video_code;
 				if (vic == HDMI_0_UNKNOWN)
 					vic = _get_vic_from_vsif(hdev);
+				hdev->cur_VIC = vic;
 				tp = hdmitx21_gettiming_from_vic(vic);
 				if (tp) {
 					name = tp->sname ? tp->sname : tp->name;
@@ -361,8 +362,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 				hdev->para->cs = HDMI_COLORSPACE_YUV444;
 				hdev->para->cd = COLORDEPTH_24B;
 			}
-			pr_info("hdmitx21: parsing AVI CS%d CD%d\n",
-				avi->colorspace, hdev->para->cd);
+			pr_info("hdmitx21: parsing AVI CS%d CD%d VIC%d\n",
+				avi->colorspace, hdev->para->cd, hdev->cur_VIC);
 		}
 		return;
 	}
@@ -1715,7 +1716,7 @@ static void hdmitx_getediddata(u8 *des, u8 *src)
 		des[i] = src[i];
 }
 
-void hdmitx_set_scdc_div40(u32 div40)
+static void hdmitx_set_scdc_div40(u32 div40)
 {
 	u32 addr = 0x20;
 	u32 data;
@@ -1815,7 +1816,8 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 	case DDC_EDID_CLEAR_RAM:
 		break;
 	case DDC_SCDC_DIV40_SCRAMB:
-		hdmitx_set_div40(argv == 1);
+		hdmitx_set_scdc_div40(argv == 1);
+		hdev->div40 = (argv == 1);
 		break;
 	default:
 		break;
@@ -1945,7 +1947,10 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 	case MISC_HPD_GPI_ST:
 		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
 	case MISC_TRIGGER_HPD:
-		hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
+		if (argv == 1)
+			hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
+		else
+			hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 2);
 		return 0;
 		break;
 	case MISC_TMDS_PHY_OP:
@@ -2092,6 +2097,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	pr_info("configure hdmitx21\n");
 	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
 	hdmitx_set_div40(para->tmds_clk_div40);
+	hdev->div40 = para->tmds_clk_div40;
 
 	//--------------------------------------------------------------------------
 	// Glitch-filter HPD and RxSense

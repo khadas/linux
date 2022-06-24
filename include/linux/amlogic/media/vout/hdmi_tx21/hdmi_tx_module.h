@@ -451,6 +451,7 @@ struct hdmitx_dev {
 	struct miscdevice hdcp_comm_device;
 	u8 def_stream_type;
 	u8 tv_usage;
+	bool systemcontrol_on;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -771,4 +772,5 @@ bool hdmitx21_hdr_en(void);
 bool hdmitx21_dv_en(void);
 bool hdmitx21_hdr10p_en(void);
 u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx);
+bool hdmitx21_uboot_already_display(void);
 #endif
