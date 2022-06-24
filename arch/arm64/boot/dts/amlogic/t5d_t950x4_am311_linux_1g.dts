@@ -1349,7 +1349,7 @@
 
 		/*this resample is only used for loopback_A.*/
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {
