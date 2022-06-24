@@ -99,7 +99,9 @@
  */
 /* 20220622: loopback implementation */
 /* 20220628: send Freesync type */
-#define VDIN_VER "20220628:send Freesync type"
+/* 20220628: use one buffer in game mode 2 when vrr/freesync signal */
+/* 20220701: use reality in and out fps check mode */
+#define VDIN_VER "20220701:use reality in and out fps check mode"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -807,7 +809,8 @@ struct vdin_dev_s {
 	unsigned int force_disp_skip_num;
 	unsigned int dbg_dump_frames;
 	unsigned int dbg_stop_dec_delay;
-	unsigned int vinfo_std_duration; /* get vinfo fps value */
+	unsigned int vinfo_std_duration; /* get vinfo out fps value */
+	unsigned int vdin_std_duration; /* get in fps value */
 	unsigned int dbg_no_swap_en:1;
 	unsigned int dbg_force_one_buffer:1;
 	unsigned int vdin_function_sel;

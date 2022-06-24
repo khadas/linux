@@ -466,6 +466,8 @@ struct tvin_spd_data_s {
 	u8 length;
 	u8 checksum;
 	//u8 ieee_oui[3]; //data[0:2]
+	//data[5]:bit2 bit3 is freesync type,1:VDIN_VRR_FREESYNC
+	//2:VDIN_VRR_FREESYNC_PREMIUM 3:VDIN_VRR_FREESYNC_PREMIUM_PRO
 	u8 data[28];
 };
 

@@ -401,22 +401,45 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 	}
 }
 
-static int vdin_check_vinfo_out(struct vdin_dev_s *devp)
+static inline void vdin_get_in_out_fps(struct vdin_dev_s *devp)
 {
-/*
- *	if ((devp->parm.info.fps == 60 && devp->vinfo_std_duration == 120) ||
- *		(devp->parm.info.fps == 50 && devp->vinfo_std_duration == 100))
- */
-	if (devp->vinfo_std_duration > devp->parm.info.fps)
-		return 1;
-	else
-		return 0;
+	unsigned int vinfo_out_fps = 0;
+	unsigned long long msr_clk = devp->msr_clk_val;
+	const struct vinfo_s *vinfo = NULL;
+
+	if (devp->dtdata->hw_ver >= VDIN_HW_T7 && IS_HDMI_SRC(devp->parm.port)) {
+		/* get vin fps */
+		if (devp->cycle != 0) {
+			do_div(msr_clk, devp->cycle);
+			devp->vdin_std_duration = (unsigned int)msr_clk;
+		} else {
+			devp->vdin_std_duration = devp->parm.info.fps;
+		}
+		/* get vout fps */
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+		vinfo_out_fps = vout_frame_rate_measure();
+#endif
+		if (vinfo_out_fps != 0) {
+			devp->vinfo_std_duration = vinfo_out_fps / 1000;
+		} else {
+			vinfo = get_current_vinfo();
+			devp->vinfo_std_duration =
+				vinfo->sync_duration_num / vinfo->sync_duration_den;
+		}
+	} else {
+		devp->vdin_std_duration = devp->parm.info.fps;
+		vinfo = get_current_vinfo();
+		devp->vinfo_std_duration =
+			vinfo->sync_duration_num / vinfo->sync_duration_den;
+	}
 }
 
 static void vdin_game_mode_check(struct vdin_dev_s *devp)
 {
 	if (game_mode == 1 && (!IS_TVAFE_ATV_SRC(devp->parm.port))) {
-		if (vdin_check_vinfo_out(devp)) {
+		vdin_get_in_out_fps(devp);
+		/* if vout fps greater than vin fps use mode0 */
+		if (devp->vinfo_std_duration > (devp->vdin_std_duration + 2)) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
 				devp->game_mode = (VDIN_GAME_MODE_0 |
 					VDIN_GAME_MODE_SWITCH_EN);
@@ -463,7 +486,38 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 	if (vdin_isr_monitor & BIT(7))
 		pr_info("%s: game_mode_cfg=0x%x;cur:%#x,force mode:0x%x,fps:%d,vout:%d\n",
 			__func__, game_mode, devp->game_mode, vdin_force_game_mode,
-			devp->parm.info.fps, devp->vinfo_std_duration);
+			devp->vdin_std_duration, devp->vinfo_std_duration);
+}
+
+static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
+{
+	vdin_get_in_out_fps(devp);
+	if (devp->vrr_data.vrr_mode &&
+	    devp->vdin_std_duration >= 25 &&
+	    devp->vdin_std_duration < 48) {
+		devp->game_mode = (VDIN_GAME_MODE_0 |
+			VDIN_GAME_MODE_SWITCH_EN);
+	} else if (devp->vrr_data.vrr_mode &&
+		   devp->vdin_std_duration >= 48) {
+		devp->game_mode = (VDIN_GAME_MODE_0 |
+				VDIN_GAME_MODE_1 |
+				VDIN_GAME_MODE_SWITCH_EN);
+	} else if (devp->vdin_std_duration < 25 ||
+		   (devp->vinfo_std_duration >
+		    (devp->vdin_std_duration + 1) * 2)) {
+		devp->game_mode &= ~VDIN_GAME_MODE_1;
+		devp->game_mode &= ~VDIN_GAME_MODE_2;
+	} else if ((devp->vdin_std_duration >= 25 &&
+		    devp->vdin_std_duration < 48) ||
+		   (devp->vinfo_std_duration >
+		    (devp->vdin_std_duration + 2))) {
+		devp->game_mode = (VDIN_GAME_MODE_0 |
+			VDIN_GAME_MODE_SWITCH_EN);
+	} else {
+		devp->game_mode = (VDIN_GAME_MODE_0 |
+			VDIN_GAME_MODE_1 |
+			VDIN_GAME_MODE_SWITCH_EN);
+	}
 }
 
 static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
@@ -474,6 +528,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN) {
+			vdin_game_mode_dynamic_check(devp);
 			/* phase unlock state, wait ph lock*/
 			/* make sure phase lock for next few frames */
 			if ((vlock_get_phlock_flag() && vlock_get_vlock_flag()) ||
@@ -481,18 +536,26 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				phase_lock_flag++;
 			else
 				phase_lock_flag = 0;
-
 			if (phase_lock_flag >= game_mode_phlock_switch_frames) {
-				if (devp->vinfo_std_duration > devp->parm.info.fps * 2) {
+				/* vrr mode vinfo_std_duration not correct so separate judgment */
+				if (devp->vrr_data.vrr_mode && devp->vdin_std_duration >= 25 &&
+				    devp->vdin_std_duration < 48) {
+					/*1 to 2 need delay more than one vf*/
+					devp->game_mode = (VDIN_GAME_MODE_0 |
+						VDIN_GAME_MODE_1);
+				} else if (devp->vrr_data.vrr_mode &&
+					   devp->vdin_std_duration >= 48) {
+					devp->game_mode = (VDIN_GAME_MODE_0 |
+						VDIN_GAME_MODE_2);
+				} else if (devp->vdin_std_duration < 25 ||
+					   (devp->vinfo_std_duration >
+					    (devp->vdin_std_duration + 1) * 2)) {
 					devp->game_mode &= ~VDIN_GAME_MODE_1;
 					devp->game_mode &= ~VDIN_GAME_MODE_2;
-				} else if ((devp->parm.info.fps >= 25 &&
-				    devp->parm.info.fps < 48) ||
-				    (devp->parm.info.fps == 50 &&
-				     devp->vinfo_std_duration == 100) ||
-				    (devp->parm.info.fps == 60 &&
-				     devp->vinfo_std_duration == 120)) {
-					/*1 to 2 need delay more than one vf*/
+				} else if ((devp->vdin_std_duration >= 25 &&
+					    devp->vdin_std_duration < 48) ||
+					   (devp->vinfo_std_duration >
+					    (devp->vdin_std_duration + 2))) {
 					devp->game_mode = (VDIN_GAME_MODE_0 |
 						VDIN_GAME_MODE_1);
 				} else {
@@ -501,50 +564,35 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				}
 				phase_lock_flag = 0;
 				if (vdin_isr_monitor & BIT(4))
-					pr_info("switch to game mode (0x%x->0x%x), frame_cnt=%d fps:%d\n",
-						devp->game_mode_pre, devp->game_mode,
-						devp->frame_cnt, devp->parm.info.fps);
-			} else if ((devp->vinfo_std_duration > devp->parm.info.fps) &&
-			((devp->game_mode & VDIN_GAME_MODE_1) ||
-			(devp->game_mode & VDIN_GAME_MODE_2))) {
-				devp->game_mode &= ~VDIN_GAME_MODE_1;
-				devp->game_mode &= ~VDIN_GAME_MODE_2;
-				if (vdin_isr_monitor & BIT(4))
-					pr_info("out:%d,in:%d;game mode switch to(0x%x)\n",
-					devp->vinfo_std_duration,
-					devp->parm.info.fps, devp->game_mode);
-				}
+					pr_info("switch to game mode 0x%x, frame_cnt=%d infps:%d outfps:%d\n",
+						devp->game_mode, devp->frame_cnt,
+						devp->vdin_std_duration, devp->vinfo_std_duration);
+			}
 		} else {
 			/* if phase lock fail, exit game mode and re-entry
 			 * after phase lock
 			 */
 			if (!vlock_get_phlock_flag() && !frame_lock_vrr_lock_status()) {
 				if (phase_lock_flag++ > 1) {
+					vdin_game_mode_dynamic_check(devp);
 					if (vdin_isr_monitor & BIT(4))
-						pr_info("game mode switch to (0x%x->0x%x)\n",
-							devp->game_mode,
-							devp->game_mode_pre);
-					devp->game_mode = devp->game_mode_pre;
+						pr_info("game mode switch to 0x%x infps:%d outfps:%d\n",
+							devp->game_mode, devp->vdin_std_duration,
+							devp->vinfo_std_duration);
 					phase_lock_flag = 0;
 					/* vlock need reset automatic,
 					 * vlock will re-lock
 					 */
 				}
-				if (devp->vinfo_std_duration > devp->parm.info.fps &&
-					((devp->game_mode & VDIN_GAME_MODE_1) ||
-					(devp->game_mode & VDIN_GAME_MODE_2))) {
-					devp->game_mode &= ~VDIN_GAME_MODE_1;
-					devp->game_mode &= ~VDIN_GAME_MODE_2;
-					if (vdin_isr_monitor & BIT(4))
-						pr_info("out:%d,in:%d;game mode switch to(0x%x)\n",
-						devp->vinfo_std_duration,
-						devp->parm.info.fps, devp->game_mode);
-				}
 			}
+			/* fps 60 in and 120 out switch to vrr need switch again */
+			if (devp->vrr_data.vrr_mode && !(devp->game_mode & VDIN_GAME_MODE_2))
+				vdin_game_mode_dynamic_check(devp);
 		}
 		if (vdin_isr_monitor & BIT(4) && phase_lock_flag && !(phase_lock_flag % 10))
-			pr_info("lock_cnt:%d, mode:%x pre_mode:0x%x\n",
-				phase_lock_flag, devp->game_mode, devp->game_mode_pre);
+			pr_info("lock_cnt:%d, mode:%x infps:%d outfps:%d\n",
+				phase_lock_flag, devp->game_mode,
+				devp->vdin_std_duration, devp->vinfo_std_duration);
 	} else {
 		if (devp->frame_cnt >= game_mode_switch_frames &&
 		    (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN)) {
@@ -5086,7 +5134,6 @@ static int vdin_get_vinfo_notify_callback(struct notifier_block *block,
 	struct vdin_dev_s *devp = vdin_get_dev(0);
 	const struct vinfo_s *vinfo = get_current_vinfo();
 
-	//devp->vinfo_std_duration = vinfo->std_duration;
 	devp->vinfo_std_duration = vinfo->sync_duration_num / vinfo->sync_duration_den;
 	pr_info("vdin%d,std_dur:%d\n", devp->index, devp->vinfo_std_duration);
 
