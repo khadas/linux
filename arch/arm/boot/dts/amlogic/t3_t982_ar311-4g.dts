@@ -89,7 +89,7 @@
 			alignment = <0x400000>;
 			alloc-ranges = <0x0 0xe0000000>;
 		};
-		/* secure ion for gpu,advice size is 0x8000000 */
+		/* secure ion for gpu, advice size is 80M */
 		ion_secure_reserved:linux,ion-secure {
 			compatible = "amlogic, ion-secure-mem";
 			no-map;
