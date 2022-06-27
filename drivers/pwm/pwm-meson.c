@@ -563,7 +563,7 @@ static struct meson_pwm_data pwm_axg_ee_data __refdata = {
 };
 
 static char *pwm_axg_ao_parent_names[] __initdata = {
-	"aoclk81", "xtal", "fclk_div4", "fclk_div5"
+	"xtal", "aoclk81", "fclk_div4", "fclk_div5"
 };
 
 static struct meson_pwm_data pwm_axg_ao_data __refdata = {
