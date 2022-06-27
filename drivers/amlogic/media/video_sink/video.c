@@ -2964,6 +2964,12 @@ static void process_hdmi_video_sync(struct vframe_s *vf)
 	     hdmin_delay_start == 0) || !vf || last_required_total_delay <= 0)
 		return;
 
+	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+		if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("game mode, not do avsync\n");
+		return;
+	}
+
 	hdmin_delay_duration = 0;
 	while (provider_name) {
 		if (!vf_get_provider_name(provider_name))
