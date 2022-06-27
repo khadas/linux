@@ -189,10 +189,11 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct aml_card_data *p_aml_audio;
 	int hal_format = ucontrol->value.integer.value[0];
+	struct snd_card *snd = card->snd_card;
 
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
-	audio_send_uevent(card->dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
+	audio_send_uevent(&snd->ctl_dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
 	pr_info("update audio atmos flag! audio_type = %d\n", hal_format);
 
 	if (p_aml_audio->hal_fmt != hal_format)
