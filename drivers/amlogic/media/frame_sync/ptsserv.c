@@ -476,6 +476,15 @@ static inline void pts_checkin_offset_calc_cached(u32 offset,
 }
 
 #endif
+
+static int audiocheckinsize = 4096;
+
+int pts_getaudiocheckinsize(void)
+{
+	return audiocheckinsize;
+}
+EXPORT_SYMBOL(pts_getaudiocheckinsize);
+
 static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 us64)
 {
 	ulong flags;
@@ -564,6 +573,9 @@ static int pts_checkin_offset_inline(u8 type, u32 offset, u32 val, u64 us64)
 				offset - ptable->last_checkin_offset;
 		else
 			rec->size = rec_prev ? rec_prev->size : 0;
+
+		if (type == PTS_TYPE_AUDIO)
+			audiocheckinsize = rec->size;
 
 		rec->offset = offset;
 		rec->val = val;
@@ -896,8 +908,9 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 			p2 = p;
 		}
 
-		if (type == PTS_TYPE_VIDEO)
+		if (type == PTS_TYPE_VIDEO || type == PTS_TYPE_AUDIO) {
 			*frame_size = p->size;
+		}
 
 		if ((p2) &&
 		    (OFFSET_DIFF(offset, p2->offset) < lookup_threshold)) {
@@ -924,7 +937,6 @@ static int pts_lookup_offset_inline_locked(u8 type, u32 offset, u32 *val,
 			*val = p2->val;
 			*us64 = p2->pts_us64;
 			*frame_size = p2->size;
-
 #ifdef CALC_CACHED_TIME
 			ptable->last_checkout_pts = p2->val;
 			ptable->last_checkout_offset = offset;

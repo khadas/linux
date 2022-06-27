@@ -951,7 +951,7 @@ struct tsdemux_ops {
 
 	int (*set_reset_flag)(void);
 
-	int (*request_irq)(irq_handler_t handler, void *data);
+	int (*request_irq)(irq_handler_t handler, irq_handler_t thread_handler, void *data);
 
 	int (*free_irq)(void);
 
