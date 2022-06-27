@@ -436,6 +436,8 @@ next:
 	return 0;
 }
 
+DECLARE_BITMAP(online_cpu, sizeof(int));
+
 static int __init init_cma_boost_task(void)
 {
 	int cpu;
@@ -458,7 +460,10 @@ static int __init init_cma_boost_task(void)
 			set_user_nice(task, -17);
 			work->task = task;
 			pr_debug("create cma task%p, for cpu %d\n", task, cpu);
-			wake_up_process(task);
+			if (cpu_online(cpu))
+				wake_up_process(task);
+			else
+				set_bit(cpu, online_cpu);
 		} else {
 			can_boost = 0;
 			pr_err("create task for cpu %d fail:%p\n", cpu, task);
@@ -493,6 +498,8 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	local_irq_save(flags);
 	for_each_online_cpu(cpu) {
 		work = &per_cpu(cma_pcp_thread, cpu);
+		if (test_and_clear_bit(cpu, online_cpu))
+			wake_up_process(work->task);
 		spin_lock(&work->list_lock);
 		INIT_LIST_HEAD(&job[cpu].list);
 		job[cpu].pfn   = start_pfn + i * delta;
