@@ -1299,6 +1299,7 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct meson_host *host = mmc_priv(mmc);
 	u32 bus_width, val;
 	int err;
+	u32 cfg = 0;
 
 	/*
 	 * GPIO regulator, only controls switching between 1v8 and
@@ -1314,6 +1315,8 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->vqmmc_enabled = false;
 		}
 
+		if (aml_card_type_non_sdio(host))
+			msleep(250);
 		break;
 
 	case MMC_POWER_UP:
@@ -1331,6 +1334,11 @@ static void meson_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 					"failed to enable vqmmc regulator\n");
 			else
 				host->vqmmc_enabled = true;
+
+			/* disable auto clock for 400K before cmd0 */
+			cfg = readl(host->regs + SD_EMMC_CFG);
+			cfg &= ~CFG_AUTO_CLK;
+			writel(cfg, host->regs + SD_EMMC_CFG);
 		}
 
 		break;
@@ -2704,7 +2712,7 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	if (WARN_ON(!host))
 		return IRQ_NONE;
 
-	if (!host->cmd && aml_card_type_mmc(host)) {
+	if (!host->cmd && (aml_card_type_mmc(host) || aml_card_type_non_sdio(host))) {
 		pr_debug("ignore irq.[%s]status:0x%x\n",
 			__func__, readl(host->regs + SD_EMMC_STATUS));
 		return IRQ_HANDLED;
@@ -3139,7 +3147,7 @@ static int mmc_intf3_win_tuning(struct mmc_host *mmc, u32 opcode)
 
 	vclk = readl(host->regs + SD_EMMC_CLOCK);
 
-	if ((vclk & CLK_DIV_MASK) > 8) {
+	if ((vclk & CLK_DIV_MASK) > 10) {
 		pr_err("clk div is too big.\n");
 		return -1;
 	}
