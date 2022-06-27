@@ -4125,6 +4125,32 @@ static struct vout_server_s hdmitx_vout2_server = {
 };
 #endif
 
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+static struct vout_server_s hdmitx_vout3_server = {
+	.name = "hdmitx_vout3_server",
+	.op = {
+		.get_vinfo = hdmitx_get_current_vinfo,
+		.set_vmode = hdmitx_set_current_vmode,
+		.validate_vmode = hdmitx_validate_vmode,
+		.check_same_vmodeattr = hdmitx_check_same_vmodeattr,
+		.vmode_is_supported = hdmitx_vmode_is_supported,
+		.disable = hdmitx_module_disable,
+		.set_state = hdmitx_vout_set_state,
+		.clr_state = hdmitx_vout_clr_state,
+		.get_state = hdmitx_vout_get_state,
+		.get_disp_cap = hdmitx_vout_get_disp_cap,
+		.set_vframe_rate_hint = NULL,
+		.get_vframe_rate_hint = NULL,
+		.set_bist = hdmitx_set_bist,
+#ifdef CONFIG_PM
+		.vout_suspend = NULL,
+		.vout_resume = NULL,
+#endif
+	},
+	.data = NULL,
+};
+#endif
+
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 
 #include <linux/soundcard.h>
@@ -5249,6 +5275,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_register_server(&hdmitx_vout2_server);
 #endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	vout3_register_server(&hdmitx_vout3_server);
+#endif
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 	if (hdmitx21_uboot_audio_en()) {
 		struct hdmitx_audpara *audpara = &hdev->cur_audio_param;
@@ -5344,6 +5373,9 @@ static int amhdmitx_remove(struct platform_device *pdev)
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_unregister_server(&hdmitx_vout2_server);
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	vout3_unregister_server(&hdmitx_vout3_server);
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
