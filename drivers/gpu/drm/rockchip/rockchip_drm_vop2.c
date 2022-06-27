@@ -3794,8 +3794,10 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	spin_lock(&vop2->reg_lock);
 
-	if (vcstate->splice_mode)
+	if (vcstate->splice_mode) {
+		VOP_MODULE_SET(vop2, vp, splice_en, 0);
 		VOP_MODULE_SET(vop2, splice_vp, standby, 1);
+	}
 	VOP_MODULE_SET(vop2, vp, standby, 1);
 
 	spin_unlock(&vop2->reg_lock);
