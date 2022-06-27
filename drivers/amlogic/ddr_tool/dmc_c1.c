@@ -157,14 +157,16 @@ static void c1_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 static int c1_dmc_mon_set(struct dmc_monitor *mon)
 {
 	unsigned long add;
+	unsigned int wb;
 
+	wb = mon->addr_start & 0x01;
 	add = mon->addr_start & PAGE_MASK;
 	dmc_prot_rw(NULL, DMC_PROT0_STA, add, DMC_WRITE);
 	add = mon->addr_end & PAGE_MASK;
 	dmc_prot_rw(NULL, DMC_PROT0_EDA, add, DMC_WRITE);
 
 	dmc_prot_rw(NULL, DMC_PROT0_CTRL, mon->device, DMC_WRITE);
-	dmc_prot_rw(NULL, DMC_PROT0_CTRL1, 1 << 24, DMC_WRITE);
+	dmc_prot_rw(NULL, DMC_PROT0_CTRL1, wb << 25 | 1 << 24, DMC_WRITE);
 
 	pr_emerg("range:%08lx - %08lx, device:%llx\n",
 		 mon->addr_start, mon->addr_end, mon->device);
