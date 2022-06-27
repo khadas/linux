@@ -51,12 +51,22 @@
 #endif
 /***************************PART1:ON/OFF define*******************************/
 #define GTP_INCELL_PANEL      0
-#define GTP_DRIVER_SEND_CFG   1	/* send config to TP while initializing (for no config built in TP's flash) */
-#define GTP_CUSTOM_CFG        0	/* customize resolution & interrupt trigger mode */
+#ifdef CONFIG_TOUCHSCREEN_GT1X_SEND_CFG
+#define GTP_DRIVER_SEND_CFG   0	/* send config to TP while initializing (for no config built in TP's flash) */
+#define GTP_CUSTOM_CFG        1	/* customize resolution & interrupt trigger mode */
+#else
+#define GTP_DRIVER_SEND_CFG   1 /* send config to TP while initializing (for no config built in TP's flash) */
+#define GTP_CUSTOM_CFG        0 /* customize resolution & interrupt trigger mode */
+#endif
 
 #define GTP_CHANGE_X2Y        0	/* exchange xy */
+#ifdef CONFIG_TOUCHSCREEN_GT1X_ENABLE_WARP
+#define GTP_WARP_X_ON         1
+#define GTP_WARP_Y_ON         1
+#else
 #define GTP_WARP_X_ON         0
 #define GTP_WARP_Y_ON         0
+#endif
 
 #define GTP_GESTURE_WAKEUP    0	/* gesture wakeup module */
 /* buffer used to store ges track points coor. */
@@ -89,7 +99,11 @@
 #define GTP_PROXIMITY         0	/* proximity module (function as the p-sensor) */
 #define GTP_SMART_COVER       0
 
-#define GTP_ESD_PROTECT       0	/* esd-protection module (with a cycle of 2 seconds) */
+#ifdef CONFIG_TOUCHSCREEN_GT1X_ESD_PROTECT
+#define GTP_ESD_PROTECT       1	/* esd-protection module (with a cycle of 2 seconds) */
+#else
+#define GTP_ESD_PROTECT       0 /* esd-protection module (with a cycle of 2 seconds) */
+#endif
 #define GTP_CHARGER_SWITCH    0
 
 #define GTP_DEBUG_ON          0
@@ -252,7 +266,7 @@
 #if GTP_CUSTOM_CFG
 #define GTP_MAX_HEIGHT   1280
 #define GTP_MAX_WIDTH    720
-#define GTP_INT_TRIGGER  1	/* 0:Rising 1:Falling */
+#define GTP_INT_TRIGGER  0	/* 0:Rising 1:Falling */
 #define GTP_WAKEUP_LEVEL 1
 #else
 #define GTP_MAX_HEIGHT   4096
