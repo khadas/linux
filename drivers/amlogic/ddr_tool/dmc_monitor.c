@@ -37,30 +37,37 @@ struct dmc_monitor *dmc_mon;
 static unsigned long init_dev_mask;
 static unsigned long init_start_addr;
 static unsigned long init_end_addr;
+static unsigned long init_dmc_config;
 
 static int early_dmc_param(char *buf)
 {
-	unsigned long s_addr, e_addr, mask;
+	unsigned long s_addr, e_addr, mask, config = 0;
 	/*
 	 * Patten:  dmc_montiro=[start_addr],[end_addr],[mask]
 	 * Example: dmc_monitor=0x00000000,0x20000000,0x7fce
+	 * config: bit 0 - exclude (t3/t7/p1/c3)
+	 *	   bit 1 - write;
+	 *	   bit 2 - read;
+	 *	   bit 3 - cma print;
 	 */
 	if (!buf)
 		return -EINVAL;
 
-	if (sscanf(buf, "%lx,%lx,%lx", &s_addr, &e_addr, &mask) != 3)
-		return -EINVAL;
+	if (sscanf(buf, "%lx,%lx,%lx,%lx", &s_addr, &e_addr, &mask, &config) != 4) {
+		if (sscanf(buf, "%lx,%lx,%lx", &s_addr, &e_addr, &mask) != 3)
+			return -EINVAL;
+	}
 
 	init_start_addr = s_addr;
 	init_end_addr   = e_addr;
 	init_dev_mask   = mask;
+	init_dmc_config = config;
 
-	pr_info("%s, buf:%s, %lx-%lx, %lx\n",
-		__func__, buf, s_addr, e_addr, mask);
+	pr_info("%s, buf:%s, %lx-%lx, %lx, %lx\n",
+		__func__, buf, s_addr, e_addr, mask, config);
 
 	return 0;
 }
-
 __setup("dmc_monitor=", early_dmc_param);
 
 void show_violation_mem(unsigned long addr)
@@ -717,6 +724,12 @@ static int __init dmc_monitor_probe(struct platform_device *pdev)
 	}
 	INIT_DELAYED_WORK(&dmc_mon->work, clear_irq_work);
 	schedule_delayed_work(&dmc_mon->work, HZ);
+
+	if (init_dmc_config >> 1)
+		dmc_mon->debug = init_dmc_config >> 1;
+
+	if (init_dmc_config & 0x1)
+		dmc_mon->configs &= ~POLICY_INCLUDE;
 
 	if (init_dev_mask)
 		dmc_set_monitor(init_start_addr,
