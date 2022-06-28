@@ -358,6 +358,41 @@ static bool check_parallel_commit(struct drm_atomic_state *state,
 	return true;
 }
 
+void meson_atomic_helper_async_commit(struct drm_device *dev,
+				    struct drm_atomic_state *state)
+{
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
+	const struct drm_plane_helper_funcs *funcs;
+	int i;
+
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
+		struct drm_framebuffer *new_fb = plane_state->fb;
+		struct drm_framebuffer *old_fb = plane->state->fb;
+
+		funcs = plane->helper_private;
+		plane_state->state = state;
+		funcs->atomic_async_update(plane, plane_state);
+
+		/*
+		 * ->atomic_async_update() is supposed to update the
+		 * plane->state in-place, make sure at least common
+		 * properties have been properly updated.
+		 */
+		WARN_ON_ONCE(plane->state->fb != new_fb);
+		WARN_ON_ONCE(plane->state->crtc_x != plane_state->crtc_x);
+		WARN_ON_ONCE(plane->state->crtc_y != plane_state->crtc_y);
+		WARN_ON_ONCE(plane->state->src_x != plane_state->src_x);
+		WARN_ON_ONCE(plane->state->src_y != plane_state->src_y);
+
+		/*
+		 * Make sure the FBs have been swapped so that cleanups in the
+		 * new_state performs a cleanup in the old FB.
+		 */
+		WARN_ON_ONCE(plane_state->fb != old_fb);
+	}
+}
+
 int meson_atomic_commit(struct drm_device *dev,
 			     struct drm_atomic_state *state,
 			     bool nonblock)
@@ -375,8 +410,7 @@ int meson_atomic_commit(struct drm_device *dev,
 			return ret;
 
 		ret = drm_atomic_helper_swap_state(state, true);
-		drm_atomic_helper_async_commit(dev, state);
-		meson_osd_plane_async_flush(state);
+		meson_atomic_helper_async_commit(dev, state);
 		drm_atomic_helper_cleanup_planes(dev, state);
 
 		return 0;

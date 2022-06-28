@@ -1070,6 +1070,18 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 	}
 
 	plane_info = &mvps->video_plane_info[video_plane->plane_index];
+	if ((plane_info->src_w != ((state->src_w >> 16) & 0xffff)) ||
+		(plane_info->src_h != ((state->src_h >> 16) & 0xffff)) ||
+		plane_info->dst_x != state->crtc_x ||
+		plane_info->dst_y != state->crtc_y ||
+		plane_info->dst_w != state->crtc_w ||
+		plane_info->dst_h != state->crtc_h ||
+		plane_info->zorder != state->zpos ||
+		!plane_info->enable)
+		plane_info->status_changed = 1;
+	else
+		plane_info->status_changed = 0;
+
 	plane_info->plane_index = video_plane->plane_index;
 	plane_info->vfm_mode = video_plane->vfm_mode;
 	plane_info->zorder = state->zpos + plane_info->plane_index;
@@ -1173,60 +1185,48 @@ int meson_osd_plane_async_check(struct drm_plane *plane,
 int meson_video_plane_async_check(struct drm_plane *plane,
 	struct drm_plane_state *new_state)
 {
-	return 0;
-}
+	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct meson_vpu_video_layer_info *plane_info;
+	struct meson_vpu_pipeline_state *mvps;
+	struct meson_drm *drv = video_plane->drv;
 
-void meson_osd_plane_async_flush(struct drm_atomic_state *state)
-{
-	int crtc_index;
-	struct meson_vpu_sub_pipeline *sub_pipe;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
-	struct am_meson_crtc *amcrtc;
-	struct meson_vpu_pipeline *pipeline;
-	int i;
+	DRM_DEBUG("plane_index-%d\n", video_plane->plane_index);
 
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
-		amcrtc = to_am_meson_crtc(crtc);
-		pipeline = amcrtc->pipeline;
-		crtc_index = amcrtc->crtc_index;
-		sub_pipe = &pipeline->subs[crtc_index];
-
-		DRM_DEBUG("crtc_index-%d\n", crtc_index);
-		vpu_pipeline_prepare_update(pipeline, crtc->mode.vdisplay,
-			crtc->mode.vrefresh, crtc_index);
-		vpu_pipeline_osd_update(sub_pipe, state);
-		vpu_pipeline_finish_update(pipeline, crtc_index);
+	if (!new_state->state) {
+		DRM_ERROR("atomic state is NULL!\n");
+		return -EINVAL;
 	}
+
+	mvps = meson_vpu_pipeline_get_state(drv->pipeline, new_state->state);
+	if (!mvps) {
+		DRM_ERROR("mvps is NULL.\n");
+		return -EINVAL;
+	}
+
+	plane_info = &mvps->video_plane_info[video_plane->plane_index];
+	if ((plane_info->enable && !new_state->fb) || !plane_info->enable) {
+		DRM_ERROR("plane visible state changed.\n");
+		return -EINVAL;
+	}
+
+	if (plane_info->status_changed) {
+		DRM_ERROR("video%d plane info changed\n", video_plane->plane_index);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 void meson_osd_plane_async_update(struct drm_plane *plane,
 	struct drm_plane_state *new_state)
 {
 	struct am_osd_plane *osd_plane = to_am_osd_plane(plane);
-
-	if (!new_state) {
-		DRM_ERROR("plane state is null.\n");
-		return;
-	}
-
-	DRM_DEBUG("plane_index-%d\n", osd_plane->plane_index);
-	plane->state->fb = new_state->fb;
-	plane->state->src_x = new_state->src_x;
-	plane->state->src_y = new_state->src_y;
-	plane->state->crtc_x = new_state->crtc_x;
-	plane->state->crtc_y = new_state->crtc_y;
-}
-
-void meson_video_plane_async_update(struct drm_plane *plane,
-	struct drm_plane_state *new_state)
-{
 	struct meson_vpu_sub_pipeline *sub_pipe;
 	struct am_meson_crtc *amcrtc;
 	struct meson_vpu_pipeline *pipeline;
 	int crtc_index;
 
-	if (!new_state) {
+	if (!new_state || !new_state->state) {
 		DRM_ERROR("plane state is null.\n");
 		return;
 	}
@@ -1236,12 +1236,50 @@ void meson_video_plane_async_update(struct drm_plane *plane,
 	crtc_index = amcrtc->crtc_index;
 	sub_pipe = &pipeline->subs[crtc_index];
 
+	DRM_DEBUG("plane_index-%d\n", osd_plane->plane_index);
 	plane->state->fb = new_state->fb;
 	plane->state->src_x = new_state->src_x;
 	plane->state->src_y = new_state->src_y;
 	plane->state->crtc_x = new_state->crtc_x;
 	plane->state->crtc_y = new_state->crtc_y;
 
+	vpu_pipeline_prepare_update(pipeline, new_state->crtc->mode.vdisplay,
+			new_state->crtc->mode.vrefresh, crtc_index);
+	vpu_pipeline_osd_update(sub_pipe, new_state->state);
+	vpu_pipeline_finish_update(pipeline, crtc_index);
+}
+
+void meson_video_plane_async_update(struct drm_plane *plane,
+	struct drm_plane_state *new_state)
+{
+	struct am_video_plane *video_plane = to_am_video_plane(plane);
+	struct meson_vpu_sub_pipeline *sub_pipe;
+	struct am_meson_crtc *amcrtc;
+	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_video *mvv;
+	int crtc_index;
+
+	if (!new_state || !new_state->state) {
+		DRM_ERROR("plane state is null.\n");
+		return;
+	}
+
+	DRM_DEBUG("%s plane_index-%d, crtc-%p\n", __func__,
+		video_plane->plane_index, new_state->crtc);
+
+	amcrtc = to_am_meson_crtc(new_state->crtc);
+	pipeline = amcrtc->pipeline;
+	crtc_index = amcrtc->crtc_index;
+	sub_pipe = &pipeline->subs[crtc_index];
+	mvv = pipeline->video[video_plane->plane_index];
+
+	plane->state->fb = new_state->fb;
+	plane->state->src_x = new_state->src_x;
+	plane->state->src_y = new_state->src_y;
+	plane->state->crtc_x = new_state->crtc_x;
+	plane->state->crtc_y = new_state->crtc_y;
+
+	meson_video_prepare_fence(plane, new_state, mvv);
 	vpu_pipeline_video_update(sub_pipe, new_state->state);
 }
 
@@ -1262,7 +1300,7 @@ static const struct drm_plane_helper_funcs am_video_helper_funcs = {
 	.atomic_check	= meson_video_plane_atomic_check,
 	.atomic_disable	= meson_video_plane_atomic_disable,
 	.atomic_async_check = meson_video_plane_async_check,
-	.atomic_async_update = meson_osd_plane_async_update,
+	.atomic_async_update = meson_video_plane_async_update,
 };
 
 struct drm_property *

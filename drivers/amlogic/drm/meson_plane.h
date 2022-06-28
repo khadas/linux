@@ -95,6 +95,5 @@ meson_create_scaling_filter_prop(struct drm_device *dev,
 
 void meson_video_set_vfmmode(struct device_node *of_node,
 	struct meson_drm *priv);
-void meson_osd_plane_async_flush(struct drm_atomic_state *state);
 
 #endif
