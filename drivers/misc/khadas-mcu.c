@@ -798,6 +798,8 @@ static int mcu_parse_dt(struct device *dev)
 		} else if (g_mcu_data->board == KHADAS_BOARD_VIM4) {
 			if (strcmp(hwver, "VIM4.V11") == 0)
 				g_mcu_data->hwver = KHADAS_BOARD_HWVER_V11;
+			else if (strcmp(hwver, "VIM4.V12") == 0)
+				g_mcu_data->hwver = KHADAS_BOARD_HWVER_V12;
 		}
 	}
 
