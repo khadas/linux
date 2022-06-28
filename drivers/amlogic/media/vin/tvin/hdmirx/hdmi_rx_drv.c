@@ -2959,10 +2959,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 		hdcp_tee_path = 0;
 		rx_pr("not find hdcp_tee_path, hdcp normal path\n");
 	}
-	if (hdcp_tee_path)
-		hdcp22_on = 1;
-	else
-		rx_is_hdcp22_support();
+	/*if (hdcp_tee_path)*/
+		/*hdcp22_on = 1;*/
+	/*else*/
+	rx_is_hdcp22_support();
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "aud_compose_type",
 				   &aud_compose_type);
