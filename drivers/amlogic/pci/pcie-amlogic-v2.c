@@ -389,6 +389,8 @@ static void amlogic_pcie_assert_reset(struct amlogic_pcie *amlogic_pcie)
 			gpio_direction_input(
 				amlogic_pcie->reset_gpio);
 		}
+		if (amlogic_pcie->reset_gpio >= 0)
+			devm_gpio_free(dev, amlogic_pcie->reset_gpio);
 	} else {
 		dev_info(dev, "normal gpio\n");
 		if (amlogic_pcie->reset_gpio >= 0) {
@@ -406,6 +408,8 @@ static void amlogic_pcie_assert_reset(struct amlogic_pcie *amlogic_pcie)
 			gpio_set_value_cansleep(
 				amlogic_pcie->reset_gpio, 1);
 		}
+		if (amlogic_pcie->reset_gpio >= 0)
+			devm_gpio_free(dev, amlogic_pcie->reset_gpio);
 	}
 
 }
