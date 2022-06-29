@@ -2771,7 +2771,8 @@ static int lcd_tcon_mem_config(void)
 		      tcon_rmem.secure_handle_rmem.mem_vaddr,
 		      tcon_rmem.secure_handle_rmem.mem_size);
 
-	if (lcd_tcon_conf->tcon_axi_mem_secure)
+	if (lcd_tcon_conf->tcon_axi_mem_secure &&
+		tcon_rmem.secure_handle_rmem.mem_vaddr)
 		lcd_tcon_conf->tcon_axi_mem_secure();
 
 	ret = lcd_tcon_bin_path_update(tcon_rmem.bin_path_rmem.mem_size);
@@ -3246,6 +3247,7 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.rsv_mem_size    = 0x00c00000,
 	.axi_mem_size    = 0x00a00000,
 	.bin_path_size   = 0x00002800,
+	.secure_handle_size   = 0x00000064,
 	.vac_size        = 0,
 	.demura_set_size = 0,
 	.demura_lut_size = 0,
