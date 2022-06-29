@@ -2310,7 +2310,7 @@ static int is_policy_changed(void)
 
 	if (last_dolby_vision_policy != dolby_vision_policy) {
 		/* handle policy change */
-		pr_dv_dbg("policy changed %d->%d\n",
+		pr_dv_dbg("policy changed 0x%x->0x%x\n",
 			last_dolby_vision_policy,
 			dolby_vision_policy);
 		last_dolby_vision_policy = dolby_vision_policy;
@@ -2319,7 +2319,7 @@ static int is_policy_changed(void)
 	if (last_dolby_vision_ll_policy != dolby_vision_ll_policy) {
 		/* handle ll policy change when dolby on */
 		if (dolby_vision_on) {
-			pr_dv_dbg("ll policy changed %d->%d\n",
+			pr_dv_dbg("ll policy changed 0x%x->0x%x\n",
 				     last_dolby_vision_ll_policy,
 				     dolby_vision_ll_policy);
 			last_dolby_vision_ll_policy = dolby_vision_ll_policy;
@@ -2328,7 +2328,7 @@ static int is_policy_changed(void)
 	}
 	if (last_dolby_vision_hdr10_policy != dolby_vision_hdr10_policy) {
 		/* handle policy change */
-		pr_dv_dbg("hdr10 policy changed %d->%d\n",
+		pr_dv_dbg("hdr10 policy changed 0x%x->0x%x\n",
 			last_dolby_vision_hdr10_policy,
 			dolby_vision_hdr10_policy);
 		last_dolby_vision_hdr10_policy = dolby_vision_hdr10_policy;
@@ -7911,6 +7911,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	u32 cur_md_id;
 	int dv_id = -1;
 	char *dvel_provider = NULL;
+	bool res_change = false;
 
 	memset(&req, 0, (sizeof(struct provider_aux_req_s)));
 	memset(&el_req, 0, (sizeof(struct provider_aux_req_s)));
@@ -8019,14 +8020,14 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 						vf->src_fmt.md_size);
 					for (i = 0; i < total_md_size; i += 8)
 						pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
-						md_buf[current_id][i],
-						md_buf[current_id][i + 1],
-						md_buf[current_id][i + 2],
-						md_buf[current_id][i + 3],
-						md_buf[current_id][i + 4],
-						md_buf[current_id][i + 5],
-						md_buf[current_id][i + 6],
-						md_buf[current_id][i + 7]);
+						dv_inst[dv_id].md_buf[cur_md_id][i],
+						dv_inst[dv_id].md_buf[cur_md_id][i + 1],
+						dv_inst[dv_id].md_buf[cur_md_id][i + 2],
+						dv_inst[dv_id].md_buf[cur_md_id][i + 3],
+						dv_inst[dv_id].md_buf[cur_md_id][i + 4],
+						dv_inst[dv_id].md_buf[cur_md_id][i + 5],
+						dv_inst[dv_id].md_buf[cur_md_id][i + 6],
+						dv_inst[dv_id].md_buf[cur_md_id][i + 7]);
 				}
 			} else {  /*no parse or parse failed*/
 				if (get_vframe_src_fmt(vf) ==
@@ -8829,23 +8830,27 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			cur_dst_format = m_dovi_setting.dst_format;
 		}
 		cur_input_mode = new_m_dovi_setting.input[dv_id].input_mode;
+		if (new_m_dovi_setting.input[dv_id].video_width != w ||
+		    new_m_dovi_setting.input[dv_id].video_height != h) {
+			res_change = true;
+			pr_dv_dbg("res changed %dx%d=> %dx%d\n",
+				  new_m_dovi_setting.input[dv_id].video_width,
+				  new_m_dovi_setting.input[dv_id].video_height,
+				  w, h);
+		}
 		if (src_format != cur_src_format ||
 		    dst_format != cur_dst_format ||
-		    input_mode != cur_input_mode) {
-			if (dv_core1[0].core1_on && dv_core1[1].core1_on) {
-				pr_dv_dbg("not reset cp due to core1 on %d %d\n",
-					dv_core1[0].core1_on, dv_core1[1].core1_on);
-			} else {
-				if (vd_path == VD1_PATH || support_multi_core1()) {
-					pr_dv_dbg
-					("[inst%d]reset cp,src:%d-%d,dst:%d-%d,m:%d-%d,c:%d,f:%x\n",
-					dv_id + 1,
-					cur_src_format, src_format,
-					cur_dst_format, dst_format,
-					cur_input_mode, input_mode,
-					dv_inst[dv_id].frame_count, dolby_vision_flags);
-					p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
-				}
+		    input_mode != cur_input_mode ||
+		    res_change) {
+			if (vd_path == VD1_PATH || support_multi_core1()) {
+				pr_dv_dbg
+				("[inst%d]reset cp,src:%d-%d,dst:%d-%d,m:%d-%d,c:%d,f:%x\n",
+				dv_id + 1,
+				cur_src_format, src_format,
+				cur_dst_format, dst_format,
+				cur_input_mode, input_mode,
+				dv_inst[dv_id].frame_count, dolby_vision_flags);
+				p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
 			}
 		}
 		new_m_dovi_setting.input[dv_id].in_md =
@@ -9607,7 +9612,7 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 		ret = 1;
 
 	if (vf && (debug_dolby & 8))
-		pr_dv_dbg("[inst%d] wait return %d, vf %p(index %d), core1_on %d\n",
+		pr_dv_dbg("[inst%d]wait return %d, vf %p(index %d), core1_on %d\n",
 			     dv_id + 1, ret, vf, vf->omx_index,
 			     dv_core1[layer_id].core1_on);
 
