@@ -326,6 +326,23 @@
 		};
 	};
 
+	mtd_nand: nfc@0xFFE07800 {
+		compatible = "amlogic,meson-nfc-single-ecc";
+		status = "disabled";
+		reg = <0x0 0xFFE07800 0x0 0x200>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_EDGE_RISING>;
+
+		pinctrl-names = "nand_norb_mod", "nand_cs_only";
+		pinctrl-0 = <&all_nand_pins>;
+		pinctrl-1 = <&nand_cs_pins>;
+		clocks = <&clkc CLKID_CLK81_SD_EMMC_C>,
+				<&clkc CLKID_FCLK_DIV2>;
+		clock-names = "gate", "fdiv2pll";
+
+		nand_clk_ctrl = <0xFFE07000>;
+		/*partitions defined in dts*/
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
