@@ -7512,8 +7512,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				vf->pts, vf->omx_index,
 				timestamp_pcrscr_get(), timestamp_vpts_get());
 		}
-		if ((omx_continuous_drop_flag && omx_run) &&
-		    !(debug_flag & DEBUG_FLAG_OMX_DISABLE_DROP_FRAME)) {
+		if ((omx_continuous_drop_flag && omx_run)) {
 			if (is_amdv_enable() && vf &&
 			    is_amdv_frame(vf)) {
 				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
@@ -11293,9 +11292,7 @@ static void set_omx_pts(u32 *p)
 	} else {
 		omx_continuous_drop_count++;
 		if (omx_continuous_drop_count >=
-		     OMX_CONTINUOUS_DROP_LEVEL &&
-		    !(debug_flag &
-		       DEBUG_FLAG_OMX_DISABLE_DROP_FRAME)) {
+		     OMX_CONTINUOUS_DROP_LEVEL) {
 			omx_continuous_drop_flag = true;
 			if (debug_flag & DEBUG_FLAG_OMX_DEBUG_DROP_FRAME)
 				pr_info("countinous drop %d\n",

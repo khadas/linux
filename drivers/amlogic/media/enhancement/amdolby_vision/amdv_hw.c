@@ -77,8 +77,9 @@ static u32 debug_bypass_vpp_pq;
 static bool force_reset_core2;/*reset total core2*/
 static bool update_core2_reg;/*only set core2 reg*/
 
-/*bit0:reset core1 reg; bit1:reset core2 reg;bit2:reset core3 reg*/
-/*bit3: reset core1 lut; bit4: reset core2 lut*/
+/*bit0:reset core1a reg; bit1:reset core2 reg;bit2:reset core3 reg*/
+/*bit3: reset core1a lut; bit4: reset core2 lut*/
+/*bit5: reset core1b reg; bit6: reset core1b lut*/
 static unsigned int force_update_reg;
 
 #define CP_FLAG_CHANGE_CFG		0x000001
@@ -1438,14 +1439,17 @@ static int dv_core1a_set(u32 dm_count,
 		reset = true;
 		dv_core1[0].core1_on_cnt++;
 	}
-	if (debug_dolby & 2)
-		pr_dv_dbg("core1a cnt %d, reset %d, size %dx%d\n",
-			     dv_core1[0].core1_on_cnt, reset, hsize, vsize);
 	//if (reset)
 		//update_core2_reg = true;
 
 	if (stb_core_setting_update_flag & CP_FLAG_CHANGE_TC)
 		set_lut = true;
+
+	if (debug_dolby & 2)
+		pr_dv_dbg("core1a cnt %d %d,flag %d,reset %d,size %dx%d,%x\n",
+			     dv_core1[0].core1_on_cnt, core1a_enable,
+			     stb_core_setting_update_flag,
+			     reset, hsize, vsize, p_core1_dm_regs[0]);
 
 	if (is_amdv_stb_mode() && core1a_enable) {
 		if (get_dv_vpu_mem_power_status(VPU_DOLBY1A) == VPU_MEM_POWER_DOWN ||
@@ -1941,16 +1945,16 @@ static int dv_core1b_set(u32 dm_count,
 	    (dolby_vision_flags & FLAG_DISABE_CORE_SETTING))
 		return 0;
 
-	if (force_update_reg & 0x1000)
+	if (force_update_reg & 0x2000)
 		return 0;
 
 	if (dolby_vision_flags & FLAG_DISABLE_COMPOSER)
 		composer_enable = 0;
 
-	if (force_update_reg & 8)
+	if (force_update_reg & 0x20)
 		set_lut = true;
 
-	if (force_update_reg & 1)
+	if (force_update_reg & 0x40)
 		reset = true;
 
 	if ((!dolby_vision_on || reset) && core1b_enable) {
@@ -1967,8 +1971,9 @@ static int dv_core1b_set(u32 dm_count,
 		dv_core1[1].core1_on_cnt++;
 	}
 	if (debug_dolby & 2)
-		pr_dv_dbg("core1b cnt %d, reset %d, size %dx%d\n",
-			     dv_core1[1].core1_on_cnt, reset, hsize, vsize);
+		pr_dv_dbg("core1b cnt %d %d,reset %d,size %dx%d,%x\n",
+			     dv_core1[1].core1_on_cnt, core1b_enable,
+			     reset,  hsize, vsize, p_core1_dm_regs[0]);
 	//if (reset)
 		//update_core2_reg = true;
 
@@ -2927,8 +2932,22 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 	struct dm_reg_ipcore2 *p_dm_reg2 = &new_dovi_setting.dm_reg2;
 	struct dm_reg_ipcore3 *p_dm_reg3 = &new_dovi_setting.dm_reg3;
 	struct md_reg_ipcore3 *p_md_reg3 = &new_dovi_setting.md_reg3;
+	static int last_core_switch;
+	int cur_core_switch = 0;
+	bool dv_unique_drm = false;
+	enum signal_format_enum format[NUM_IPCORE1];/*core1a core1b input fmt*/
 
 	if (multi_dv_mode) {
+		cur_core_switch = get_core1a_core1b_switch();
+		if (cur_core_switch != last_core_switch) {
+			if (debug_dolby & 2)
+				pr_dv_dbg("switch status changed %d->%d\n",
+					  last_core_switch, cur_core_switch);
+			last_core_switch = cur_core_switch;
+			reset_core1a = true;
+			reset_core1b = true;
+		}
+
 		if (!support_multi_core1())
 			enable_core1b = 0;
 
@@ -2953,16 +2972,24 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 		p_dm_reg3 = &new_m_dovi_setting.dm_reg3;
 		p_md_reg3 = &new_m_dovi_setting.md_reg3;
 	}
-	if (get_core1a_core1b_switch()) {
+	if (multi_dv_mode && cur_core_switch) {
 		h_size[1] = (frame_size >> 16) & 0xffff;
 		v_size[1] = frame_size & 0xffff;
 		h_size[0] = (frame_size_2 >> 16) & 0xffff;
 		v_size[0] = frame_size_2 & 0xffff;
+		format[0] = new_m_dovi_setting.input[1].src_format;
+		format[1] = new_m_dovi_setting.input[0].src_format;
+		dv_unique_drm = dv_inst[1].dv_unique_drm;
 	} else {
 		h_size[0] = (frame_size >> 16) & 0xffff;
 		v_size[0] = frame_size & 0xffff;
 		h_size[1] = (frame_size_2 >> 16) & 0xffff;
 		v_size[1] = frame_size_2 & 0xffff;
+		if (multi_dv_mode) {
+			format[0] = new_m_dovi_setting.input[0].src_format;
+			format[1] = new_m_dovi_setting.input[1].src_format;
+			dv_unique_drm = dv_inst[0].dv_unique_drm;
+		}
 	}
 
 	for (i = 0; i < NUM_IPCORE1; i++) {
@@ -3027,7 +3054,7 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 					 1,
 					 reset_core1a);
 			} else {
-				if (get_core1a_core1b_switch() && support_multi_core1()) {
+				if (cur_core_switch && support_multi_core1()) {
 					dv_core1a_set
 						(core1_dm_count, 173, 256 * 5,
 						 (uint32_t *)p_dm_reg1[1],
@@ -3041,11 +3068,11 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 						 enable_core1a,
 						 dolby_vision_mode ==
 						 AMDV_OUTPUT_MODE_IPT_TUNNEL,
-						 new_m_dovi_setting.input[1].src_format ==
+						 format[0] ==
 						 FORMAT_DOVI ||
-						 (new_m_dovi_setting.input[1].src_format ==
+						 (format[0] ==
 						 FORMAT_DOVI_LL &&
-						 !dv_inst[1].dv_unique_drm),
+						 !dv_unique_drm),
 						 1,
 						 reset_core1a);
 					dv_core1b_set
@@ -3061,9 +3088,9 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 						 enable_core1b,
 						 dolby_vision_mode ==
 						 AMDV_OUTPUT_MODE_IPT_TUNNEL,
-						 new_m_dovi_setting.input[0].src_format ==
+						 format[1] ==
 						 FORMAT_DOVI ||
-						 new_m_dovi_setting.input[0].src_format ==
+						 format[1] ==
 						 FORMAT_DOVI_LL,
 						 1,
 						 reset_core1b);
@@ -3081,11 +3108,11 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 						 enable_core1a,
 						 dolby_vision_mode ==
 						 AMDV_OUTPUT_MODE_IPT_TUNNEL,
-						 new_m_dovi_setting.input[0].src_format ==
+						 format[0] ==
 						 FORMAT_DOVI ||
-						 (new_m_dovi_setting.input[0].src_format ==
+						 (format[0] ==
 						 FORMAT_DOVI_LL &&
-						 !dv_inst[0].dv_unique_drm),
+						 !dv_unique_drm),
 						 1,
 						 reset_core1a);
 					dv_core1b_set
@@ -3101,9 +3128,9 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 						 enable_core1b,
 						 dolby_vision_mode ==
 						 AMDV_OUTPUT_MODE_IPT_TUNNEL,
-						 new_m_dovi_setting.input[1].src_format ==
+						 format[1] ==
 						 FORMAT_DOVI ||
-						 new_m_dovi_setting.input[1].src_format ==
+						 format[1] ==
 						 FORMAT_DOVI_LL,
 						 1,
 						 reset_core1b);

@@ -395,12 +395,20 @@ static int dolby_vision_need_wait_common(struct video_recv_s *ins)
 {
 	struct vframe_s *vf;
 	enum vd_path_e vd_path;
+	int layer_info_id = 0;
 
 	if (!is_amdv_enable() || !ins)
 		return 0;
 
 	vf = common_vf_peek(ins);
-	vd_path = ins->path_id == VFM_PATH_VIDEO_RENDER0 ? VD1_PATH : VD2_PATH;
+
+	if (ins->path_id == VFM_PATH_VIDEO_RENDER0)
+		layer_info_id = 0;
+	else if (ins->path_id == VFM_PATH_VIDEO_RENDER1)
+		layer_info_id = 1;
+
+	vd_path = glayer_info[layer_info_id].display_path_id ==
+		VFM_PATH_VIDEO_RENDER0 ? VD1_PATH : VD2_PATH;
 	if (!vf || (amdv_wait_metadata(vf, vd_path) == 1))
 		return 1;
 	return 0;
@@ -497,6 +505,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	enum vframe_signal_fmt_e fmt;
 	enum vd_path_e vd_path;
+	int layer_info_id = 0;
 #endif
 
 	if (!ins) {
@@ -566,8 +575,12 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if ((glayer_info[0].display_path_id == ins->path_id ||
 			    is_multi_dv_mode()) &&
-			    dolby_vision_need_wait_common(ins))
+			    dolby_vision_need_wait_common(ins)) {
+				if (debug_flag & DEBUG_FLAG_RECEIVER_DEBUG)
+					pr_info("ins->path_id %d,%s, wait\n",
+						ins->path_id, ins->recv_name);
 				break;
+			}
 #endif
 			vf = common_vf_get(ins);
 			if (vf) {
@@ -577,8 +590,19 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 				common_toggle_frame(ins, vf);
 				toggle_vf = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-				vd_path = ins->path_id == VFM_PATH_VIDEO_RENDER0 ?
-							VD1_PATH : VD2_PATH;
+
+				if (ins->path_id == VFM_PATH_VIDEO_RENDER0)
+					layer_info_id = 0;
+				else if (ins->path_id == VFM_PATH_VIDEO_RENDER1)
+					layer_info_id = 1;
+
+				if (debug_flag & DEBUG_FLAG_RECEIVER_DEBUG)
+					pr_info("ins->path_id %d,%s, display_path_id %d\n",
+						ins->path_id, ins->recv_name,
+						glayer_info[layer_info_id].display_path_id);
+
+				vd_path = glayer_info[layer_info_id].display_path_id ==
+					VFM_PATH_VIDEO_RENDER0 ? VD1_PATH : VD2_PATH;
 				if (glayer_info[0].display_path_id ==
 				    ins->path_id || is_multi_dv_mode())
 					dv_toggle_frame(vf, vd_path, true);
