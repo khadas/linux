@@ -958,19 +958,26 @@ int fill_black_color_by_ge2d(struct vframe_s *vf,
 
 static int picdec_memset_phyaddr(ulong phys, u32 size, u32 val)
 {
-	u32 i, span = SZ_1M;
-	u32 count = size / PAGE_ALIGN(span);
+	u32 span = SZ_1M, remained_size = size, temp_size;
 	ulong addr = phys;
 	u8 *p;
 
-	for (i = 0; i < count; i++) {
-		addr = phys + i * span;
-		p = codec_mm_vmap(addr, span);
+	aml_pr_info(1, "picdec_memset_phyaddr, size:%d\n", size);
+	while (remained_size > 0) {
+		if (remained_size >= span) {
+			temp_size = span;
+			remained_size -= span;
+		} else {
+			temp_size = remained_size;
+			remained_size = 0;
+		}
+		p = codec_mm_vmap(addr, temp_size);
 		if (!p)
 			return -1;
-		memset(p, val, span);
-		codec_mm_dma_flush(p, span, DMA_TO_DEVICE);
+		memset(p, val, temp_size);
+		codec_mm_dma_flush(p, temp_size, DMA_TO_DEVICE);
 		codec_mm_unmap_phyaddr(p);
+		addr += temp_size;
 	}
 	return 0;
 }
@@ -1483,7 +1490,8 @@ int picdec_buffer_init(void)
 				      canvas_height,
 				      CANVAS_ADDR_NOWRAP,
 				      CANVAS_BLKMODE_LINEAR);
-			offset = canvas_width * canvas_height * 3;
+			offset += canvas_width * canvas_height * 3;
+			offset = PAGE_ALIGN(offset);
 			picdec_canvas_table[i] = canvas_table[i];
 			vfbuf_use[i] = 0;
 		}
@@ -1520,17 +1528,14 @@ int picdec_buffer_init(void)
 			picdec_canvas_table[i] =
 				(canvas_table[2 * i] |
 				(canvas_table[2 * i + 1] << 8));
+			offset = PAGE_ALIGN(offset);
 			vfbuf_use[i] = 0;
 		}
 		picdec_canvas_table[i] = canvas_table[2 * i];
 	}
 
-	if (picdec_device.output_format_mode)
-		picdec_device.assit_buf_start =
-			buf_start + canvas_width * canvas_height * 6;
-	else
-		picdec_device.assit_buf_start =
-			buf_start + canvas_width * canvas_height * 3;
+	picdec_device.assit_buf_start =
+		buf_start + offset;
 exit:
 	return ret;
 }
