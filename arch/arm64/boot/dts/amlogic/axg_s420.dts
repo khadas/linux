@@ -18,6 +18,11 @@
 	aliases {
 		serial0 = &uart_AO;
 		serial1 = &uart_A;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c_AO = &i2c_AO;
 	};
 
 	memory@00000000 {
@@ -377,7 +382,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			codec {
-				sound-dai = <&tas5707_36 &tlv320adc3101_32>;
+				sound-dai = <&tas5707_1b &tlv320adc3101_19>;
 			};
 		};
 
@@ -710,7 +715,7 @@
 	pinctrl-names="default";
 	pinctrl-0=<&b_i2c_master>;
 
-	tlv320adc3101_32: tlv320adc3101_32@30 {
+	tlv320adc3101_19: tlv320adc3101_19@19 {
 		compatible = "ti,tlv320adc3101";
 		#sound-dai-cells = <0>;
 		reg = <0x19>;
@@ -718,7 +723,7 @@
 		status = "disabled";
 	};
 
-	tas5707_36: tas5707_36@36 {
+	tas5707_1b: tas5707_1b@1b {
 		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
 		reg = <0x1b>;
@@ -726,7 +731,7 @@
 		reset_pin = <&gpio_ao GPIOAO_4 0>;
 	};
 
-	tas5707_3a: tas5707_3a@3a {
+	tas5707_1d: tas5707_1d@1d {
 		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
 		reg = <0x1d>;
@@ -740,7 +745,7 @@
 	pinctrl-names="default";
 	pinctrl-0=<&ao_i2c_master_pin2>;
 
-	aml_pca9557: aml_pca9557@0x1f {
+	aml_pca9557: aml_pca9557@1f {
 		compatible = "aml, ledring";
 		reg = <0x1f>;
 		mode = <0>; /*0: 6-led 1: 4key+2led */
@@ -751,19 +756,19 @@
 		key_value = <200 201 202 203>;
 		status = "disabled";
 	};
-	tlv320adc3101_30: tlv320adc3101_30@30 {
+	tlv320adc3101_18: tlv320adc3101_18@18 {
 		compatible = "ti,tlv320adc3101";
 		#sound-dai-cells = <0>;
 		reg = <0x18>;
 		status = "disable";
 	};
-	tlv320adc3101_34: tlv320adc3101_34@30 {
+	tlv320adc3101_1a: tlv320adc3101_1a@1a {
 		compatible = "ti,tlv320adc3101";
 		#sound-dai-cells = <0>;
 		reg = <0x1a>;
 		status = "disable";
 	};
-	tlv320adc3101_36: tlv320adc3101_36@30 {
+	tlv320adc3101_1b: tlv320adc3101_1b@1b {
 		compatible = "ti,tlv320adc3101";
 		#sound-dai-cells = <0>;
 		reg = <0x1b>;
@@ -787,7 +792,7 @@
 		reg = <0x13>;
 		status = "disable";
 	};
-	is31fl3236a: is31f3236a@0x78 {
+	is31fl3236a: is31f3236a@3c {
 			compatible = "issi,is31fl3236";
 			reg = <0x3c>;
 			status = "disable";

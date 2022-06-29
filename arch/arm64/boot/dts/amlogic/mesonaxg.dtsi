@@ -361,60 +361,44 @@
 				#reset-cells = <1>;
 			};
 
-			/*i2c-A*/
 			i2c0: i2c@1f000 {
 				compatible = "amlogic,meson-i2c";
 				status = "disabled";
 				reg = <0x0 0x1f000 0x0 0x20>;
-				interrupts = <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 47 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_CLK81_I2C>;
-				clock-names = "clk_i2c";
-				clock-frequency = <100000>;
 			};
 
-			/*i2c-B*/
 			i2c1: i2c@1e000 {
 				compatible = "amlogic,meson-i2c";
 				status = "disabled";
 				reg = <0x0 0x1e000 0x0 0x20>;
-				interrupts = <GIC_SPI 214 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 48 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 214 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_CLK81_I2C>;
-				clock-names = "clk_i2c";
-				clock-frequency = <100000>;
 			};
 
-			/*i2c-C*/
 			i2c2: i2c@1d000 {
 				compatible = "amlogic,meson-i2c";
 				status = "disabled";
 				reg = <0x0 0x1d000 0x0 0x20>;
-				interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 49 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_CLK81_I2C>;
-				clock-names = "clk_i2c";
-				clock-frequency = <100000>;
 			};
 
-			/*i2c-D*/
 			i2c3: i2c@1c000 {
 				compatible = "amlogic,meson-i2c";
 				status = "disabled";
 				reg = <0x0 0x1c000 0x0 0x20>;
-				interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING>,
-					<GIC_SPI 50 IRQ_TYPE_EDGE_RISING>;
+				interrupts = <GIC_SPI 39 IRQ_TYPE_EDGE_RISING>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_CLK81_I2C>;
-				clock-names = "clk_i2c";
-				clock-frequency = <100000>;
 			};
 
 			spicc0: spi@13000 {
@@ -474,8 +458,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&clkc CLKID_CLK81_I2C>;
-				clock-names = "clk_i2c";
-				clock-frequency = <100000>;
 			};
 
 			irblaster: meson-irblaster@c0 {
