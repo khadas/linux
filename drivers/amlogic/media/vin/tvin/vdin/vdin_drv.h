@@ -101,7 +101,8 @@
 /* 20220628: send Freesync type */
 /* 20220628: use one buffer in game mode 2 when vrr/freesync signal */
 /* 20220701: use reality in and out fps check mode */
-#define VDIN_VER "20220701:use reality in and out fps check mode"
+/* 20220706: probability not into vrr */
+#define VDIN_VER "20220706:probability not into vrr"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -702,6 +703,8 @@ struct vdin_dev_s {
 	unsigned int game_mode_bak;
 	int game_chg_drop_frame_cnt;
 	unsigned int vrr_mode;
+	unsigned int vrr_on_add_cnt;
+	unsigned int vrr_off_add_cnt;
 	unsigned int rdma_enable;
 	/* afbce_mode: (amlogic frame buff compression encoder)
 	 * 0: normal mode, not use afbce

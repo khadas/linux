@@ -200,6 +200,10 @@ enum vdin_vf_put_md vdin_frame_work_mode = VDIN_VF_PUT;
 module_param(vdin_frame_work_mode, uint, 0664);
 MODULE_PARM_DESC(vdin_frame_work_mode, "vdin_frame_work_mode");
 
+unsigned int vdin_vrr_switch_cnt = 3;
+module_param(vdin_vrr_switch_cnt, uint, 0664);
+MODULE_PARM_DESC(vdin_vrr_switch_cnt, "vdin vrr switch cnt");
+
 static unsigned int panel_reverse;
 struct vdin_hist_s vdin1_hist;
 
@@ -377,18 +381,17 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 	vrr_data.input_src = VRR_INPUT_TVIN;
 	vrr_data.target_vfreq_num = devp->parm.info.fps;
 	vrr_data.target_vfreq_den = 1;
-	if (vdin_check_is_spd_data(devp))
-		vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en |
+	vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en |
 			(devp->prop.spd_data.data[5] >> 2 & 0x3);
-	else
-		vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en;
 	/* save vrr_mode status */
 	devp->vrr_data.vrr_mode = vrr_data.vrr_mode;
+
 	if (state) {
 		if (devp->game_mode) {
 			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON,
 						   &vrr_data);
-			pr_info("%s: state =1 and Game, enable framelock\n", __func__);
+			pr_info("%s: state =1 and Game, enable framelock mode:%x\n", __func__,
+				vrr_data.vrr_mode);
 		} else {
 			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF,
 							   &vrr_data);
@@ -923,6 +926,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		return -1;
 	}
 
+	vdin_frame_lock_check(devp, 1);
 	if (devp->frontend && devp->frontend->sm_ops) {
 		sm_ops = devp->frontend->sm_ops;
 		sm_ops->get_sig_property(devp->frontend, &devp->prop);
@@ -1190,8 +1194,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		color_range_force = COLOR_RANGE_AUTO;
 	devp->game_mode_chg = VDIN_GAME_MODE_UNCHG;
 	devp->game_chg_drop_frame_cnt = 0;
-
-	vdin_frame_lock_check(devp, 1);
+	devp->vrr_on_add_cnt = 0;
+	devp->vrr_off_add_cnt = 0;
 
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
@@ -2378,6 +2382,37 @@ void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en)
 		vdin_pause_afbce_write(devp, rdma_en);
 }
 
+static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
+{
+	if (!devp->vrr_data.vrr_mode) {
+		if ((devp->prop.vtem_data.vrr_en |
+		    (devp->prop.spd_data.data[5] >> 2 & 0x3))) {
+			devp->vrr_on_add_cnt++;
+			devp->vrr_off_add_cnt = 0;
+		} else {
+			devp->vrr_on_add_cnt = 0;
+		}
+		if (devp->vrr_on_add_cnt > vdin_vrr_switch_cnt) {
+			vdin_frame_lock_check(devp, 1);
+			devp->vrr_on_add_cnt = 0;
+			devp->vrr_off_add_cnt = 0;
+		}
+	} else {
+		if (!(devp->prop.vtem_data.vrr_en |
+		     (devp->prop.spd_data.data[5] >> 2 & 0x3))) {
+			devp->vrr_off_add_cnt++;
+			devp->vrr_on_add_cnt = 0;
+		} else {
+			devp->vrr_off_add_cnt = 0;
+		}
+		if (devp->vrr_off_add_cnt > vdin_vrr_switch_cnt) {
+			vdin_frame_lock_check(devp, 1);
+			devp->vrr_on_add_cnt = 0;
+			devp->vrr_off_add_cnt = 0;
+		}
+	}
+}
+
 /*
  *VDIN_FLAG_RDMA_ENABLE=1
  *	provider_vf_put(devp->last_wr_vfe, devp->vfp);
@@ -2479,6 +2514,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		}
 		devp->drop_hdr_set_sts = 0;
 	}
+
+	vdin_dynamic_switch_vrr(devp);
 
 	cur_ms = jiffies_to_msecs(jiffies);
 	if (cur_ms - pre_ms <= 1)

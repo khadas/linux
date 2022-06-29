@@ -385,6 +385,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			if (devp->vrr_data.vrr_chg_cnt > vdin_vrr_chg_cnt) {
 				devp->vrr_data.vrr_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_VRR;
+				vdin_frame_lock_check(devp, 1);
 				if (signal_chg && (sm_debug_enable & VDIN_SM_LOG_L_1))
 					pr_info("%s vrr_chg:(%d->%d) spd:([5]%d->%d) [0](%d->%d)\n",
 						__func__,
@@ -647,7 +648,6 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 	} else {
 		if (chg & TVIN_SIG_CHG_VRR) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
-			vdin_frame_lock_check(devp, 1);
 
 			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)\n", __func__,
 				devp->vrr_data.vdin_vrr_en_flag,
