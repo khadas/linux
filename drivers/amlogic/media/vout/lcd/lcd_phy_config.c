@@ -671,13 +671,13 @@ static void lcd_lvds_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 			       pdrv->index);
 			return;
 		}
-		flag = (0x1f << 5);
+		flag = (0x1f << 10);
 		break;
 	case 2:
 		if (lvds_conf->dual_port)
 			flag = (0x3ff << 5);
 		else
-			flag = (0x1f << 10);
+			flag = (0x1f << 5);
 		break;
 	default:
 		LCDERR("invalid drv_index %d for lvds\n", pdrv->index);
