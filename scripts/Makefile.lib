@@ -348,6 +348,9 @@ DTC_FLAGS += $(call dtc-option,-Wnode_name_chars_strict) \
 	$(call dtc-option,-Winterrupt_provider)
 endif
 
+# Enable creation of __symbols__ node
+DTC_FLAGS += -@
+
 DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
 
 # Generate an assembly file to wrap the output of the device tree compiler
