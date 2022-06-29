@@ -42,6 +42,17 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			//cpufreq_voltage_set_skip;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
@@ -50,6 +61,17 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			//cpufreq_voltage_set_skip;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 		CPU2:cpu@2 {
@@ -57,8 +79,17 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
-			clocks = <&scpi_dvfs 0>;
-			clock-names = "cpu-cluster.0";
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			//cpufreq_voltage_set_skip;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
@@ -67,6 +98,17 @@
 			compatible = "arm,cortex-a53","arm,armv8";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
+			clocks = <&clkc CLKID_CPU_CLK>,
+				<&clkc CLKID_CPU_CLK_DYN>,
+				<&clkc CLKID_SYS_PLL>;
+			clock-names = "core_clk",
+				"low_freq_clk_parent",
+				"high_freq_clk_parent";
+			operating-points-v2 = <&cpu_opp_table0>;
+			//cpufreq_voltage_set_skip;
+			cpu-supply = <&vddcpu0>;
+			voltage-tolerance = <0>;
+			clock-latency = <50000>;
 			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
@@ -188,6 +230,7 @@
 
 	scpi_clocks {
 		compatible = "arm, scpi-clks";
+		status = "disabled";
 
 		scpi_dvfs: scpi_clocks@0 {
 			compatible = "arm, scpi-clk-indexed";
@@ -196,6 +239,49 @@
 			clock-output-names = "vcpu";
 		};
 
+	};
+
+	cpu_opp_table0: cpu_opp_table0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <860000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <880000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <890000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <910000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <960000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <990000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1296000000>;
+			opp-microvolt = <1030000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <1100000>;
+		};
+	};
+
+	cpufreq-meson {
+		compatible = "amlogic, cpufreq-meson";
+		status = "okay";
 	};
 
 	cpu_iomap {
