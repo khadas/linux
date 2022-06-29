@@ -270,7 +270,7 @@ static void edid_standardtimingiii(struct rx_cap *prxcap, u8 *data)
 
 static void calc_timing(u8 *data, struct vesa_standard_timing *t)
 {
-	struct hdmi_format_para *para = NULL;
+	const struct hdmi_timing *standard_timing = NULL;
 
 	if (data[0] < 2 && data[1] < 2)
 		return;
@@ -291,15 +291,23 @@ static void calc_timing(u8 *data, struct vesa_standard_timing *t)
 		break;
 	}
 	t->vsync = (data[1] & 0x3f) + 60;
-	para = hdmitx21_get_vesa_paras(t);
-	if (para) {
-		t->vesa_timing = para->timing.vic;
-		if (para->timing.vic < HDMITX_VESA_OFFSET) {
-			struct hdmitx_dev *hdev = get_hdmitx21_device();
-			struct rx_cap *prxcap = &hdev->rxcap;
+	standard_timing = hdmitx21_match_standrd_timing(t);
+	if (standard_timing) {
+		struct hdmitx_dev *hdev = get_hdmitx21_device();
+		struct rx_cap *prxcap = &hdev->rxcap;
 
-			store_cea_idx(prxcap, para->timing.vic);
-		}
+		/* prefer 16x9 mode */
+		if (standard_timing->vic == HDMI_6_720x480i60_4x3 ||
+			standard_timing->vic == HDMI_2_720x480p60_4x3 ||
+			standard_timing->vic == HDMI_21_720x576i50_4x3 ||
+			standard_timing->vic == HDMI_17_720x576p50_4x3)
+			t->vesa_timing = standard_timing->vic + 1;
+		else
+			t->vesa_timing = standard_timing->vic;
+		if (t->vesa_timing < HDMITX_VESA_OFFSET)
+			store_cea_idx(prxcap, t->vesa_timing);
+		else
+			store_vesa_idx(prxcap, t->vesa_timing);
 	}
 }
 
@@ -312,8 +320,6 @@ static void edid_standardtiming(struct rx_cap *prxcap, u8 *data,
 	for (i = 0; i < max_num; i++) {
 		memset(&timing, 0, sizeof(struct vesa_standard_timing));
 		calc_timing(&data[i * 2], &timing);
-		if (timing.vesa_timing)
-			store_vesa_idx(prxcap, timing.vesa_timing);
 	}
 }
 
@@ -2216,7 +2222,7 @@ static void dump_dtd_info(struct dtd *t)
 
 static void edid_dtd_parsing(struct rx_cap *prxcap, u8 *data)
 {
-	struct hdmi_format_para *para = NULL;
+	const struct hdmi_timing *dtd_timing = NULL;
 	struct dtd *t = &prxcap->dtd[prxcap->dtd_idx];
 
 	/* if data[0-2] are zeroes, no need parse, and skip*/
@@ -2235,6 +2241,7 @@ static void edid_dtd_parsing(struct rx_cap *prxcap, u8 *data)
 	t->v_sync = (((data[11] >> 0) & 0x3) << 4) + ((data[10] >> 0) & 0xf);
 	t->h_image_size = (((data[14] >> 4) & 0xf) << 8) + data[12];
 	t->v_image_size = ((data[14] & 0xf) << 8) + data[13];
+	t->flags = data[17];
 /*
  * Special handling of 1080i60hz, 1080i50hz
  */
@@ -2256,19 +2263,30 @@ next:
 		t->v_blank = t->v_blank / 2;
 	}
 /*
- * call hdmitx21_match_dtd_paras() to check t is matched with VIC
+ * call hdmitx21_match_dtd_timing() to check t is matched with VIC
  */
-	para = hdmitx21_match_dtd_paras(t);
-	if (para) {
-		t->vic = para->timing.vic;
+	dtd_timing = hdmitx21_match_dtd_timing(t);
+	if (dtd_timing) {
+		/* diff 4x3 and 16x9 mode */
+		if (dtd_timing->vic == HDMI_6_720x480i60_4x3 ||
+			dtd_timing->vic == HDMI_2_720x480p60_4x3 ||
+			dtd_timing->vic == HDMI_21_720x576i50_4x3 ||
+			dtd_timing->vic == HDMI_17_720x576p50_4x3) {
+			if (abs(t->v_image_size * 100 / t->h_image_size - 3 * 100 / 4) <= 2)
+				t->vic = dtd_timing->vic;
+			else
+				t->vic = dtd_timing->vic + 1;
+		} else {
+			t->vic = dtd_timing->vic;
+		}
 		prxcap->preferred_mode = prxcap->dtd[0].vic; /* Select dtd0 */
 		pr_info(EDID "get dtd%d vic: %d\n",
-			prxcap->dtd_idx, para->timing.vic);
+			prxcap->dtd_idx, t->vic);
 		prxcap->dtd_idx++;
-		if (para->timing.vic < HDMITX_VESA_OFFSET)
-			store_cea_idx(prxcap, para->timing.vic);
+		if (t->vic < HDMITX_VESA_OFFSET)
+			store_cea_idx(prxcap, t->vic);
 		else
-			store_vesa_idx(prxcap, para->timing.vic);
+			store_vesa_idx(prxcap, t->vic);
 	} else {
 		dump_dtd_info(t);
 	}
@@ -2476,6 +2494,7 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	u8 *EDID_buf;
 	int i, j, ret_val;
 	int idx[4];
+	u8 offset;
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
 	struct dv_info *dv = &hdmitx_device->rxcap.dv_info;
 	if (check21_dvi_hdmi_edid_valid(hdmitx_device->EDID_buf)) {
@@ -2542,7 +2561,12 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 			hdmitx_device->rxcap.ieeeoui = HDMI_IEEE_OUI;
 		if (zero_numbers > 120)
 			hdmitx_device->rxcap.ieeeoui = HDMI_IEEE_OUI;
-		hdmitx_edid_set_default_vic(hdmitx_device);
+		edid_standardtiming(prxcap, &EDID_buf[0x26], 8);
+		edid_decodestandardtiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
+		edid_parseceatiming(prxcap, &EDID_buf[0x36]);
+		/* if no matched dtd/standard_timing, use fallback mode */
+		if (prxcap->VIC_count == 0 && prxcap->vesa_timing[0] == 0)
+			hdmitx_edid_set_default_vic(hdmitx_device);
 
 		return 0; /* do nothing. */
 	}
@@ -2555,13 +2579,21 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	/* Note: some DVI monitor have more than 1 block */
 	if (blockcount == 1 && EDID_buf[0x81] == 1) {
 		hdmitx_device->rxcap.ieeeoui = 0;
-		hdmitx_device->rxcap.VIC_count = 0x3;
-		hdmitx_device->rxcap.VIC[0] = HDMI_3_720x480p60_16x9;
-		hdmitx_device->rxcap.VIC[1] = HDMI_4_1280x720p60_16x9;
-		hdmitx_device->rxcap.VIC[2] = HDMI_16_1920x1080p60_16x9;
-		hdmitx_device->rxcap.native_vic = HDMI_3_720x480p60_16x9;
-		hdmitx_device->vic_count = hdmitx_device->rxcap.VIC_count;
-		pr_info(EDID "set default vic\n");
+		edid_standardtiming(prxcap, &EDID_buf[0x26], 8);
+		edid_decodestandardtiming(&hdmitx_device->hdmi_info, &EDID_buf[26], 8);
+		edid_parseceatiming(prxcap, &EDID_buf[0x36]);
+		/* CEA Extension Version 1 only provides a way to supply
+		 * extra Detailed Timing Descriptors. It is still
+		 * permitted to be used for some Sinks (e.g., limited
+		 * format DVI displays). see CEA-861F chapter 7.1.
+		 */
+		/* dtds in extended blocks */
+		offset = EDID_buf[128 + 2];
+		for (; (offset + 18) < 0x7f; offset += 18)
+			edid_dtd_parsing(prxcap, &EDID_buf[128 + offset]);
+		/* if no matched dtd/standard_timing, use fallback mode */
+		if (prxcap->VIC_count == 0 && prxcap->vesa_timing[0] == 0)
+			hdmitx_edid_set_default_vic(hdmitx_device);
 		return 0;
 	} else if (blockcount > EDID_MAX_BLOCK) {
 		blockcount = EDID_MAX_BLOCK;

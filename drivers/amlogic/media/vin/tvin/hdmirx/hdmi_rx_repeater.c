@@ -87,15 +87,18 @@ void rx_start_repeater_auth(void)
 
 void rx_update_rpt_sts(struct hdcp_topo_s *topo)
 {
-	/* todo: only update topo for corresponding hdcp version */
-	//if (rx.hdcp.rpt_reauth_event == HDCP_VER_22)
+	/* only update topo for corresponding hdcp version */
+	if (rx.hdcp.rpt_reauth_event == HDCP_VER_22)
 		rpt_update_hdcp2x(topo);
-	//else
+	else if (rx.hdcp.rpt_reauth_event == HDCP_VER_14)
 		rpt_update_hdcp1x(topo);
 	rx_pr("update ksv, rpt_reauth_event: %d\n", rx.hdcp.rpt_reauth_event);
 }
 
+/* save downstream topo if no hdcp converter */
 static struct hdcp_topo_s pre_topo;
+/* save downstream topo after hdcp converter */
+static struct hdcp_topo_s hdcp_convert_topo;
 
 /* for HDMIRX/CEC notify */
 #define HDMITX_PLUG				1
@@ -108,6 +111,8 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 	int ret = NOTIFY_DONE;
 	int phy_addr = 0;
 	struct hdcp_topo_s *topo;
+	u8 i, j;
+	u8 temp_bype;
 
 	switch (value) {
 	case HDMITX_PLUG:
@@ -158,6 +163,11 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 			rx_pr("ksv_list is empty\n");
 			break;
 		}
+		/* before hdcp auth start on upstream side,
+		 * no need to care ds ksv list
+		 */
+		if (rx.hdcp.rpt_reauth_event == HDCP_VER_NONE)
+			break;
 		/* before request ds re-auth, no need to care ds ksv list */
 		if (rx.hdcp.rpt_reauth_event & HDCP_NEED_REQ_DS_AUTH)
 			break;
@@ -168,8 +178,27 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		}
 		memcpy(&pre_topo, topo, sizeof(pre_topo));
 		rx.hdcp.ds_hdcp_ver = topo->hdcp_ver;
+		/* see hdcp2.3 spec 2.11.1 HDCP2 - HDCP1.X Converters
+		 * and 2.11.2 HDCP1.X-HDCP2 Converters
+		 * receiver ID is in big-endian, KSV is in little-endian
+		 * if hdcp version of downstream and upstream side
+		 * not match, need to do ksv~receiverID convert
+		 */
+		if (rx.hdcp.ds_hdcp_ver != rx.hdcp.rpt_reauth_event) {
+			memcpy(&hdcp_convert_topo, &pre_topo, sizeof(pre_topo));
+			for (i = 0; i < hdcp_convert_topo.dev_cnt; i++) {
+				for (j = 0; j <= 1; j++) {
+					temp_bype = hdcp_convert_topo.ksv_list[5 * i + j];
+					hdcp_convert_topo.ksv_list[5 * i + j] =
+						hdcp_convert_topo.ksv_list[5 * i + 5 - 1 - j];
+					hdcp_convert_topo.ksv_list[5 * i + 5 - 1 - j] = temp_bype;
+				}
+			}
+			rx_update_rpt_sts(&hdcp_convert_topo);
+		} else {
+			rx_update_rpt_sts(&pre_topo);
+		}
 		rx_pr("seq_num_V: 0x%x\n", rx.hdcp.topo_updated);
-		rx_update_rpt_sts(topo);
 		if (rx.hdcp.rpt_reauth_event == HDCP_VER_22) {
 			rx.hdcp.topo_updated++;
 			if (rx.hdcp.topo_updated > 0xFFFFFFUL)
@@ -178,8 +207,8 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		//hdmirx_wr_cor(RX_SHA_ctrl_HDCP1X_IVCRX, 1);
 		mdelay(1);
 		rx_pr("step3\n");
-		/* todo: only update topo for corresponding hdcp version */
-		//if (rx.hdcp.rpt_reauth_event == HDCP_VER_14)
+		/* only update topo for corresponding hdcp version */
+		if (rx.hdcp.rpt_reauth_event == HDCP_VER_14)
 			rx.hdcp.hdcp14_ready = true;
 		ret = NOTIFY_OK;
 		break;
@@ -205,11 +234,12 @@ void rx_check_repeat(void)
 	//topo->dev_cnt = 2;
 	//RX detect hdcp auth from upstream, but not request tx re-auth yet
 	if (rx.hdcp.rpt_reauth_event & HDCP_NEED_REQ_DS_AUTH) {
+		rx.hdcp.rpt_reauth_event &= (~HDCP_NEED_REQ_DS_AUTH);
 		//rx_update_rpt_sts(NULL);
 		memset(&pre_topo, 0, sizeof(pre_topo));
+		memset(&hdcp_convert_topo, 0, sizeof(hdcp_convert_topo));
 		rx.hdcp.topo_updated = 0;
 		hdmitx_reauth_request(0);
-		rx.hdcp.rpt_reauth_event &= (~HDCP_NEED_REQ_DS_AUTH);
 		//rx_start_repeater_auth();
 		//rx.hdcp.rpt_reauth_event = 0;
 	}
@@ -222,6 +252,7 @@ void rx_check_repeat(void)
 	if (rx.hdcp.stream_manage_rcvd) {
 		data8 = rx_get_stream_manage_info();
 		rx_pr("step5-%d\n", data8);
+		rx.hdcp.stream_type = data8;
 		hdmitx_reauth_request(data8 | 0x10);
 		rx.hdcp.stream_manage_rcvd = false;
 	}
@@ -247,6 +278,12 @@ unsigned char *rx_get_dw_edid_addr(void)
 	//new_edid = true;
 	//return true;
 ///}
+
+bool get_rx_active_sts(void)
+{
+	return rx.open_fg;
+}
+EXPORT_SYMBOL(get_rx_active_sts);
 
 void rx_set_repeater_support(bool enable)
 {

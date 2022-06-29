@@ -46,6 +46,9 @@ MODULE_PARM_DESC(hdcp_verbose, "for hdcp debug");
 MODULE_PARM_DESC(hdmi21_authenticated, "\n hdmi21_authenticated\n");
 module_param(hdmi21_authenticated, int, 0444);
 
+/* notify delay in ms, for debug */
+static int notify_delay_ms = 1;
+
 static unsigned int delay_ms = 10;
 unsigned long hdcp_reauth_dbg = 1;
 unsigned long streamtype_dbg;
@@ -61,6 +64,7 @@ static void hdcptx_send_csm_msg(struct hdcp_t *p_hdcp);
 static void hdcptx_reset(struct hdcp_t *p_hdcp);
 static void bksv_get_ds_list(struct hdcp_t *p_hdcp);
 static void get_ds_rcv_id(struct hdcp_t *p_hdcp);
+static void hdcp_update_csm(struct hdcp_t *p_hdcp);
 
 void pr_hdcp_info(const char *fmt, ...)
 {
@@ -77,6 +81,28 @@ void pr_hdcp_info(const char *fmt, ...)
 
 	if (len)
 		pr_info("%s", temp);
+}
+
+/* for hdcp repeater, downstream auth should be controlled
+ * (started) by upstream side, and should not started
+ * until upstream request, otherwise will cause most
+ * of the cts items fail. for example:
+ * when start hdcp1.4 3B-01b, hdmitx detects hpd reset-->
+ * hdmitx read EDID and notify hdmirx to hpd reset-->
+ * hdmitx set mode and enable hdcp1.4 auth-->
+ * hdmirx side detect hdcp1.4 auth from TE source-->
+ * hdmirx notify hdmitx side to re-auth-->
+ * the first hdcp1.4 auth break and then restart-->
+ * TE doesn't respond to this re-auth, timeout and fail.
+ */
+bool hdcp_need_control_by_upstream(struct hdmitx_dev *hdev)
+{
+	if (!hdev->repeater_tx)
+		return false;
+
+	if (!get_rx_active_sts())
+		return false;
+	return true;
 }
 
 void hdcp_mode_set(unsigned int mode)
@@ -128,6 +154,7 @@ static void hdcp2x_reauth_start(struct hdcp_t *p_hdcp)
 static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 {
 	struct hdcp_topo_t *topo = &p_hdcp->hdcp_topology;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
 		if (p_hdcp->ds_repeater) {
@@ -138,8 +165,13 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 			 * the rcvid list of downstream repeater will be added to notify
 			 * list in assemble_ds_ksv_lists()
 			 */
-			topo->rp_depth = hdcptx2_rpt_depth_get() + 1;
-			topo->dev_count = hdcptx2_rpt_dev_cnt_get() + 1;
+			if (hdcp_need_control_by_upstream(hdev)) {
+				topo->rp_depth = hdcptx2_rpt_depth_get() + 1;
+				topo->dev_count = hdcptx2_rpt_dev_cnt_get() + 1;
+			} else {
+				topo->rp_depth = hdcptx2_rpt_depth_get();
+				topo->dev_count = hdcptx2_rpt_dev_cnt_get();
+			}
 			if (topoval & 0x08 || topo->dev_count > HDCP2X_MAX_DEV)
 				topo->max_devs_exceed = true;
 			else
@@ -166,15 +198,21 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 	} else if (p_hdcp->hdcp_type == HDCP_VER_HDCP1X) {
 		if (p_hdcp->ds_repeater) {
 			u8 bstatus[2];
-			u8 max_devices = HDCP1X_MAX_TX_DEV;
+			u8 max_devices = hdev->repeater_tx ?
+				HDCP1X_MAX_TX_DEV_RPT : HDCP1X_MAX_TX_DEV_SRC;
 
 			hdcptx1_bstatus_get(bstatus);
 			/* include the count/depth of downstream repeater itself.
 			 * the bksv of downstream repeater will be added to notify
 			 * list in assemble_ds_ksv_lists()
 			 */
-			topo->rp_depth = (bstatus[1] & 0x07) + 1;
-			topo->dev_count = (bstatus[0] & 0x7F) + 1;
+			if (hdcp_need_control_by_upstream(hdev)) {
+				topo->rp_depth = (bstatus[1] & 0x07) + 1;
+				topo->dev_count = (bstatus[0] & 0x7F) + 1;
+			} else {
+				topo->rp_depth = bstatus[1] & 0x07;
+				topo->dev_count = bstatus[0] & 0x7F;
+			}
 			if (bstatus[0] & 0x80 || topo->dev_count > max_devices)
 				topo->max_devs_exceed = true;
 			else
@@ -322,7 +360,8 @@ static void ksv_reset_fifo(struct hdcp_t *p_hdcp)
 static bool is_topology_correct(struct hdcp_t *p_hdcp)
 {
 	u8 max_depth = HDCP1X_MAX_DEPTH;
-	u8 max_device_count = HDCP1X_MAX_TX_DEV;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	u8 max_device_count = hdev->repeater_tx ? HDCP1X_MAX_TX_DEV_RPT : HDCP1X_MAX_TX_DEV_SRC;
 
 	if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
 		max_device_count = HDCP2X_MAX_DEV;
@@ -574,7 +613,13 @@ u8 hdmitx_reauth_request(u8 hdcp_version)
 				upstream_type;
 			pr_hdcp_info("stream type change from %d to %d\n",
 				cur_content_type, upstream_type);
-			schedule_delayed_work(&p_hdcp->req_reauth_wk, 0);
+			if (p_hdcp->cont_smng_method == 0) {
+				schedule_delayed_work(&p_hdcp->req_reauth_wk, 0);
+			} else if (p_hdcp->cont_smng_method == 1) {
+				p_hdcp->csm_updated = true;
+				hdcp_update_csm(p_hdcp);
+				hdcptx2_rpt_smng_xfer_start();
+			}
 		}
 	}
 	return 1;
@@ -605,6 +650,7 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 		case 0x00:
 			break;
 		case 0x40:
+			/* first part done */
 			if (!hdcptx_query_ds_repeater(p_hdcp)) {
 				p_hdcp->ds_repeater = false;
 				/* R0 == R0' */
@@ -621,15 +667,24 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 			}
 			break;
 		case(0x80 | 0x40):
+			/* second part done */
 			hdcptx_encryption_update(p_hdcp, true);
 			/* g_prot secure -- downstream is repeater */
 			p_hdcp->ds_repeater = true;
+			p_hdcp->hdcp14_second_part_pass = true;
 			pr_hdcp_info("%s[%d] ds_repeater %d  rpt_ready %d\n",
 				__func__, __LINE__,
 				p_hdcp->ds_repeater, p_hdcp->rpt_ready);
 			if (p_hdcp->rpt_ready) {
 				p_hdcp->update_topo_state = false;
 				update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
+				/* ds is repeater case
+				 * if set upstream READY for ksv list even V' invalid,
+				 * it will fail hdcp1.4 repeater CTS 3C-II-05.
+				 * only can notify upstream to set READY after
+				 * downstream side auth pass with downstream repeater
+				 */
+				schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
 			} else {
 				p_hdcp->update_topo_state = true;
 			}
@@ -682,8 +737,18 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 				p_hdcp->update_topo_state = false;
 				update_hdcp_state(p_hdcp, HDCP_STAT_SUCCESS);
 			}
-			/* ds is repeater case */
-			schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
+			/* ds is repeater case, 1.only can notify upstream to set READY
+			 * after second part succeed, otherwise 3C-II-05 will fail;
+			 * 2.but for 1.4 repeater 3B-01b:Regular procedure With Repeater
+			 * - DEVICE_COUNT=0, second part comes first before ksv fifo
+			 * ready, here need to notify upstream side to update topo info
+			 * 3.hdcp1.4 repeatr 3C-II-06~09, still need to notify topo
+			 * info to upstream side even if topo info exceed the maximum
+			 */
+			if (p_hdcp->hdcp14_second_part_pass ||
+				p_hdcp->hdcp_topology.max_cas_exceed ||
+				p_hdcp->hdcp_topology.max_devs_exceed)
+				schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
 		}
 	}
 }
@@ -736,14 +801,17 @@ static void hdcp2x_process_intr(u8 int_reg[])
 	if (cp2tx_intr0_st & BIT_CP2TX_INTR0_AUTH_DONE) {
 		/* intr0 bit7 and bit0 needs to be 1, then start smng xfer */
 		/* otherwise the 1B-09 will fail */
+		/* if csm already update by upstream, don't transfer once more */
 		if ((cp2tx_intr0_st & BIT_CP2TX_INTR0_POLL_INTERVAL) &&
-			p_hdcp->ds_repeater)
+			p_hdcp->ds_repeater &&
+			!p_hdcp->csm_updated)
 			hdcptx2_rpt_smng_xfer_start();
 		if (hdcptx2_auth_status()) {
 			if (!hdcptx_query_ds_repeater(p_hdcp)) {
 				hdcp_authenticated_handle(p_hdcp);
 				/* ds is receiver case */
-				schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
+				schedule_delayed_work(&p_hdcp->ksv_notify_wk,
+					msecs_to_jiffies(notify_delay_ms));
 			} else {
 				hdcp_stop_work(&p_hdcp->timer_hdcp_rcv_auth);
 				hdcp_stop_work(&p_hdcp->timer_hdcp_rpt_auth);
@@ -778,7 +846,7 @@ static void hdcp2x_process_intr(u8 int_reg[])
 		hdcp_stop_work(&p_hdcp->timer_hdcp_rpt_auth);
 		hdcp_rpt_ready_process(p_hdcp, true);
 		/* ds is repeater case */
-		schedule_delayed_work(&p_hdcp->ksv_notify_wk, 0);
+		schedule_delayed_work(&p_hdcp->ksv_notify_wk, msecs_to_jiffies(notify_delay_ms));
 		/* if no hdcp1.x or hdcp2.0 legacy devices downstream, then topo 1 */
 		if (p_hdcp->hdcp_topology.ds_hdcp1x_dev == 0 &&
 		    p_hdcp->hdcp_topology.ds_hdcp2x_dev == 0)
@@ -978,6 +1046,8 @@ static void hdcptx_reset(struct hdcp_t *p_hdcp)
 	p_hdcp->hdcp_state = HDCP_STAT_NONE;
 	p_hdcp->csm_valid = true;
 	p_hdcp->csm_msg_sent = false;
+	p_hdcp->csm_updated = false;
+	p_hdcp->hdcp14_second_part_pass = false;
 
 	hdcp_stop_work(&p_hdcp->timer_hdcp_start);
 	hdcp_stop_work(&p_hdcp->timer_hdcp_rcv_auth);
@@ -1243,7 +1313,7 @@ int hdmitx21_hdcp_init(void)
 	p_hdcp->content_type = HDCP_CONTENT_TYPE_0;
 	hdmitx21_rst_stream_type(p_hdcp);
 	p_hdcp->p_ksv_lists =
-		kmalloc((HDCP1X_MAX_DEPTH + 1) * sizeof(struct hdcp_ksv_t), GFP_KERNEL);
+		kmalloc((HDCP1X_MAX_TX_DEV_SRC + 1) * sizeof(struct hdcp_ksv_t), GFP_KERNEL);
 	p_hdcp->hdcp_wq = alloc_workqueue(DEVICE_NAME, WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
 	init_hdcp_works(&p_hdcp->timer_hdcp_rcv_auth, hdcp_check_ds_auth_whandler, "hdcp_rcv_auth");
 	init_hdcp_works(&p_hdcp->timer_hdcp_rpt_auth, hdcp_check_ds_auth_whandler, "hdcp_rpt_auth");

@@ -2127,7 +2127,7 @@ void hdcp_init_t7(void)
 	hdmirx_wr_cor(PWD_SW_CLMP_AUE_OIF_PWD_IVCRX, 0x0);
 
 	data8 = 0;
-	data8 |= 0 << 1;
+	data8 |= (hdmirx_repeat_support() && rx.hdcp.repeat) << 1;
 	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, data8);
 	//depth
 	hdmirx_wr_cor(CP2PAX_RPT_DEPTH_HDCP2X_IVCRX, 0);
@@ -2159,7 +2159,7 @@ void hdcp_init_t7(void)
 	data8 = 0;
 	data8 |= (0 << 4);//bit[4] reg_fast I2C transfers speed.
 	data8 |= (0 << 5);//bit[5] reg_fifo_rdy
-	data8 |= (0 << 6);//bit[6] reg_repeater	 Rx Repeater
+	data8 |= ((hdmirx_repeat_support() && rx.hdcp.repeat) << 6);//bit[6] reg_repeater
 	data8 |= (1 << 7);//bit[7] reg_hdmi_capable  HDMI capable
 	hdmirx_wr_cor(RX_BCAPS_SET_HDCP1X_IVCRX, data8);//register address: 0x169e (0x80)
 
@@ -2277,6 +2277,7 @@ void rpt_update_hdcp2x(struct hdcp_topo_s *topo)
 	u8 data8 = 0;
 
 	if (!topo) {
+		rx_pr("clear dev_cnt & depth\n");
 		hdmirx_wr_cor(CP2PAX_RPT_DEVCNT_HDCP2X_IVCRX, 0);
 		hdmirx_wr_cor(CP2PAX_RPT_DEPTH_HDCP2X_IVCRX, 0);
 		return;
@@ -2310,12 +2311,12 @@ void rpt_update_hdcp2x(struct hdcp_topo_s *topo)
 	data8 |= topo->max_cascade_exceeded << 2; //max_casc
 	data8 |= topo->max_devs_exceeded << 3; //max_devs
 	hdmirx_wr_cor(CP2PAX_RPT_DETAIL_HDCP2X_IVCRX, data8);
-	//depth
-	hdmirx_wr_cor(CP2PAX_RPT_DEPTH_HDCP2X_IVCRX, topo->depth);
 
 	hdmirx_wr_cor(CP2PAX_RX_SEQ_NUM_V_0_HDCP2X_IVCRX, rx.hdcp.topo_updated & 0xFF);
 	hdmirx_wr_cor(CP2PAX_RX_SEQ_NUM_V_1_HDCP2X_IVCRX, (rx.hdcp.topo_updated >> 8) & 0xFF);
 	hdmirx_wr_cor(CP2PAX_RX_SEQ_NUM_V_2_HDCP2X_IVCRX, (rx.hdcp.topo_updated >> 16) & 0xFF);
+	//depth
+	hdmirx_wr_cor(CP2PAX_RPT_DEPTH_HDCP2X_IVCRX, topo->depth);
 	if (rx.hdcp.topo_updated > 0) {
 		hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe4);
 		hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe0);

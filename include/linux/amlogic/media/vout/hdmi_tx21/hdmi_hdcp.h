@@ -16,8 +16,10 @@ enum hdcp_ver_t {
 };
 
 #define HDCP1X_MAX_DEPTH 7
-/* maximum ksv fifo: 16*5 bytes */
-#define HDCP1X_MAX_TX_DEV 16 //127
+/* for repeater enable case, as maximum ksv fifo 16*5 bytes */
+#define HDCP1X_MAX_TX_DEV_RPT 16 //127
+/* for source case(hdcp repeater disabled) */
+#define HDCP1X_MAX_TX_DEV_SRC 127
 #define HDCP1X_MAX_RPTR_DEV 32
 
 #define HDCP2X_MAX_DEV 31

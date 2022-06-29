@@ -1875,6 +1875,8 @@ static void signal_status_init(void)
 		/*esm_set_stable(0);*/
 	rx.hdcp.hdcp_version = HDCP_VER_NONE;
 	rx.hdcp.hdcp_source = false;
+	rx.hdcp.rpt_reauth_event = HDCP_VER_NONE;
+	rx.hdcp.stream_type = 0;
 	rx.skip = 0;
 	rx.var.mute_cnt = 0;
 	rx.var.de_cnt = 0;
@@ -3660,15 +3662,17 @@ static void dump_hdcp_status(void)
 	      rx.cur.hdcp22_state);
 	if (rx.chip_id != CHIP_ID_T7)
 		return;
-	rx_pr("rpt = %d", hdmirx_repeat_support());
-	rx_pr("up is hdcp%dx", rx.hdcp.hdcp_version);
-	rx_pr("ds is hdcp%dx", rx.hdcp.ds_hdcp_ver);
+	rx_pr("rpt = %d\n", hdmirx_repeat_support());
+	rx_pr("downstream_plug = %d\n", rx.hdcp.repeat);
+	rx_pr("up is hdcp%dx\n", rx.hdcp.hdcp_version);
+	rx_pr("ds is hdcp%dx\n", rx.hdcp.ds_hdcp_ver);
 	rx_pr("bcaps:%x\n",
 		  hdmirx_rd_cor(RX_BCAPS_SET_HDCP1X_IVCRX));
 	rx_pr("dev cnt:%x\n",
 		  hdmirx_rd_cor(RX_SHD_BSTATUS1_HDCP1X_IVCRX));
 	rx_pr("dev depth:%x\n",
 		  hdmirx_rd_cor(RX_SHD_BSTATUS2_HDCP1X_IVCRX) & 0xf);
+	rx_pr("upstream stream_type:%x\n", rx.hdcp.stream_type);
 	//rx_pr("sha length:%x\n",
 		 // hdmirx_rd_cor(RX_SHA_length1_HDCP1X_IVCRX));
 	//rx_pr("fifo addr:%x\n",

@@ -330,6 +330,10 @@ struct hdcp_t {
 	struct delayed_work req_reauth_wk;
 	/* 0: auto hdcp version, 1: hdcp1.4, 2: hdcp2.3 */
 	u8 req_reauth_ver;
+	u8 cont_smng_method;
+	/* flag: csm already updated by single csm message */
+	bool csm_updated;
+	bool hdcp14_second_part_pass;
 };
 
 bool get_hdcp1_lstore(void);
@@ -397,6 +401,7 @@ void hdmitx_vrr_disable(void);
 u8 hdmitx_reauth_request(u8 hdcp_version);
 void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev);
 void hdmitx21_rst_stream_type(struct hdcp_t *hdcp);
+bool hdcp_need_control_by_upstream(struct hdmitx_dev *hdev);
 
 extern unsigned long hdcp_reauth_dbg;
 extern unsigned long streamtype_dbg;

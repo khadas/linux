@@ -676,7 +676,10 @@ static int set_disp_mode_auto(void)
 	 * otherwise hdcp may easily auth fail
 	 */
 	msleep(250);
-	hdmitx21_enable_hdcp(hdev);
+	if (hdcp_need_control_by_upstream(hdev))
+		pr_info("hdmitx: currently hdcp should started by upstream, eixt\n");
+	else
+		hdmitx21_enable_hdcp(hdev);
 	hdev->ready = 1;
 
 	return ret;
@@ -3570,6 +3573,68 @@ static ssize_t def_stream_type_store(struct device *dev,
 	return count;
 }
 
+static ssize_t propagate_stream_type_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+
+	if (p_hdcp->ds_repeater && p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
+		pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+			p_hdcp->csm_message.streamid_type & 0xFF);
+	} else {
+		pr_info("no stream type, as ds_repeater: %d, hdcp_type: %d\n",
+			p_hdcp->ds_repeater, p_hdcp->hdcp_type);
+	}
+	return pos;
+}
+
+static ssize_t cont_smng_method_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		p_hdcp->cont_smng_method);
+
+	return pos;
+}
+
+/* content stream management update method:
+ * when upstream side received new content stream
+ * management message, there're two method to
+ * update content stream type that propagated
+ * to downstream hdcp2.3 repeater:
+ * 0(default): init new re-auth with downstream
+ * 1: only send content stream management message
+ * with new stream type to downstream
+ */
+static ssize_t cont_smng_method_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf,
+				      size_t count)
+{
+	u8 val = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		pr_info("set cont_smng_method as %d\n", val);
+		if (val == 0 || val == 1)
+			p_hdcp->cont_smng_method = val;
+		else
+			pr_info("only accept as 0 or 1\n");
+	}
+
+	return count;
+}
+
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_rptx.h>
 
 void direct21_hdcptx14_opr(enum rptx_hdcp14_cmd cmd, void *args)
@@ -3804,6 +3869,8 @@ static DEVICE_ATTR_RO(hdmitx21);
 static DEVICE_ATTR_RW(def_stream_type);
 static DEVICE_ATTR_RW(hdcp_ctl_lvl);
 static DEVICE_ATTR_RW(sysctrl_enable);
+static DEVICE_ATTR_RO(propagate_stream_type);
+static DEVICE_ATTR_RW(cont_smng_method);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -5166,6 +5233,8 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_def_stream_type);
 	ret = device_create_file(dev, &dev_attr_hdcp_ctl_lvl);
 	ret = device_create_file(dev, &dev_attr_sysctrl_enable);
+	ret = device_create_file(dev, &dev_attr_propagate_stream_type);
+	ret = device_create_file(dev, &dev_attr_cont_smng_method);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -5327,6 +5396,8 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_def_stream_type);
 	device_remove_file(dev, &dev_attr_hdcp_ctl_lvl);
 	device_remove_file(dev, &dev_attr_sysctrl_enable);
+	device_remove_file(dev, &dev_attr_propagate_stream_type);
+	device_remove_file(dev, &dev_attr_cont_smng_method);
 
 	cdev_del(&hdev->cdev);
 
@@ -5937,7 +6008,10 @@ static long hdcp_comm_ioctl(struct file *file,
 			hdev->ready &&
 			hdev->hdcp_mode == 0) {
 			pr_info("hdmi ready but hdcp not enabled, enable now\n");
-			hdmitx21_enable_hdcp(hdev);
+			if (hdcp_need_control_by_upstream(hdev))
+				pr_info("hdmitx: currently hdcp should started by upstream\n");
+			else
+				hdmitx21_enable_hdcp(hdev);
 		}
 		break;
 	default:

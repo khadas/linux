@@ -152,7 +152,7 @@ next:
 	return 1;
 }
 
-struct hdmi_format_para *hdmitx21_match_dtd_paras(struct dtd *t)
+const struct hdmi_timing *hdmitx21_match_dtd_timing(struct dtd *t)
 {
 	int i;
 	const struct hdmi_timing *timing = hdmitx21_get_timing_para0();
@@ -160,6 +160,12 @@ struct hdmi_format_para *hdmitx21_match_dtd_paras(struct dtd *t)
 	if (!t)
 		return NULL;
 
+	/* interlace mode, all vertical timing parameters
+	 * are halved, while vactive/vtotal is doubled
+	 * in timing table. need double vactive before compare
+	 */
+	if (t->flags >> 7 == 0x1)
+		t->v_active = t->v_active * 2;
 	for (i = 0; i < hdmitx21_timing_size(); i++) {
 		if ((abs(timing->pixel_freq / 10 - t->pixel_clock) <=
 			(t->pixel_clock + 1000) / 1000) &&
@@ -171,11 +177,27 @@ struct hdmi_format_para *hdmitx21_match_dtd_paras(struct dtd *t)
 		    t->h_sync == timing->h_sync &&
 		    t->v_sync_offset == timing->v_front &&
 		    t->v_sync == timing->v_sync)
-			return NULL; /* TODO */
+			return timing;
 		timing++;
 	}
-	if (i == hdmitx21_timing_size())
+	return NULL;
+}
+
+const struct hdmi_timing *hdmitx21_match_standrd_timing(struct vesa_standard_timing *t)
+{
+	int i;
+	const struct hdmi_timing *timing = hdmitx21_get_timing_para0();
+
+	if (!t)
 		return NULL;
+
+	for (i = 0; i < hdmitx21_timing_size(); i++) {
+		if (t->hactive == timing->h_active &&
+		    t->vactive == timing->v_active &&
+		    abs(t->vsync - timing->v_freq / 1000) <= 1)
+			return timing;
+		timing++;
+	}
 	return NULL;
 }
 

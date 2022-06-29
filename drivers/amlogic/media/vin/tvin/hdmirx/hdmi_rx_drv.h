@@ -468,6 +468,7 @@ struct hdmi_rx_hdcp {
 	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
 	/* add for dv cts */
 	enum hdcp_version_e hdcp_pre_ver;
+	u8 stream_type;
 	bool hdcp_source;
 	unsigned char hdcp22_exception;/*esm exception code,reg addr :0x60*/
 };
