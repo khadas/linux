@@ -253,6 +253,9 @@ DTC_FLAGS += -Wnode_name_chars_strict \
 	-Wproperty_name_chars_strict
 endif
 
+# Enable creation of __symbols__ node
+DTC_FLAGS += -@
+
 DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
 
 # Generate an assembly file to wrap the output of the device tree compiler
