@@ -294,7 +294,7 @@ static int meson_gpio_kp_resume(struct platform_device *dev)
 	if (!pdata->use_irq)
 		mod_timer(&pdata->polling_timer,
 			  jiffies + msecs_to_jiffies(5));
-	if (get_resume_method() == POWER_KEY_WAKEUP) {
+	if (get_resume_method() == POWER_KEY_WAKEUP || get_resume_method() == TP_WAKEUP || get_resume_method() == WOL_WAKEUP){
 		for (i = 0; i < pdata->key_size; i++) {
 			if (pdata->key[i].code == KEY_POWER) {
 				pr_info("gpio keypad wakeup\n");

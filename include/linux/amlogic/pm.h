@@ -19,10 +19,12 @@
 #define	CEC_WAKEUP		8
 #define	REMOTE_CUS_WAKEUP	9
 #define ETH_PHY_WAKEUP		10
-#define	CECB_WAKEUP	11
+#define	CECB_WAKEUP	16
 #define	ETH_PHY_GPIO	12
 #define	VAD_WAKEUP	13
 #define HDMI_RX_WAKEUP	14
+#define TP_WAKEUP  15
+#define WOL_WAKEUP  11
 unsigned int get_resume_method(void);
 unsigned int get_resume_reason(void);
 unsigned int is_pm_s2idle_mode(void);
