@@ -5127,6 +5127,7 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 	struct m_dovi_setting_s *m_setting;
 	bool src_content_flag = false;
 
+#define NEW_DOLBY_SIGNAL_TYPE 0
 	if (!vsif || !vinfo || !p_setting ||
 	    !vinfo->vout_device || !vinfo->vout_device->dv_info)
 		return -1;
@@ -5151,7 +5152,7 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 		    (src_content_flag && vinfo->vout_device->dv_info->dm_version >= 2))) {
 			vsif->ver2_l11_flag = 1;
 			vsif->vers.ver2_l11.low_latency = m_setting->dovi_ll_enable;
-
+#if NEW_DOLBY_SIGNAL_TYPE
 			if (src_format == FORMAT_DOVI || src_format == FORMAT_DOVI_LL)
 				vsif->vers.ver2_l11.dobly_vision_signal = 1;/*0b0001*/
 			else if (src_format == FORMAT_HDR10)
@@ -5160,7 +5161,9 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 				vsif->vers.ver2_l11.dobly_vision_signal = 7;/*0b0111*/
 			else/* if (src_format == FORMAT_SDR || src_format == FORMAT_SDR_2020)*/
 				vsif->vers.ver2_l11.dobly_vision_signal = 5;/*0b0101*/
-
+#else
+			vsif->vers.ver2_l11.dobly_vision_signal = 1;
+#endif
 			vsif->vers.ver2_l11.src_dm_version = m_setting->output_vsif.src_dm_version;
 
 			if ((debug_dolby & 1))
@@ -5222,7 +5225,7 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 		} else {
 			vsif->ver2_l11_flag = 0;
 			vsif->vers.ver2.low_latency = m_setting->dovi_ll_enable;
-
+#if NEW_DOLBY_SIGNAL_TYPE
 			if (src_format == FORMAT_DOVI || src_format == FORMAT_DOVI_LL)
 				vsif->vers.ver2.dobly_vision_signal = 1;/*0b0001*/
 			else if (src_format == FORMAT_HDR10)
@@ -5231,7 +5234,9 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 				vsif->vers.ver2.dobly_vision_signal = 7;/*0b0111*/
 			else/* if (src_format == FORMAT_SDR || src_format == FORMAT_SDR_2020)*/
 				vsif->vers.ver2.dobly_vision_signal = 5;/*0b0101*/
-
+#else
+			vsif->vers.ver2.dobly_vision_signal = 1;
+#endif
 			vsif->vers.ver2.src_dm_version = m_setting->output_vsif.src_dm_version;
 
 			if ((debug_dolby & 1))
@@ -5274,7 +5279,7 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 		setting = (struct dovi_setting_s *)p_setting;
 		vsif->vers.ver2.low_latency =
 			setting->dovi_ll_enable;
-
+#if NEW_DOLBY_SIGNAL_TYPE
 		if (src_format == FORMAT_DOVI || src_format == FORMAT_DOVI_LL)
 			vsif->vers.ver2.dobly_vision_signal = 1;/*0b0001*/
 		else if (src_format == FORMAT_HDR10)
@@ -5283,7 +5288,9 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 			vsif->vers.ver2.dobly_vision_signal = 7;/*0b0111*/
 		else/* if (src_format == FORMAT_SDR || src_format == FORMAT_SDR_2020)*/
 			vsif->vers.ver2.dobly_vision_signal = 5;/*0b0101*/
-
+#else
+		vsif->vers.ver2.dobly_vision_signal = 1;
+#endif
 		if ((debug_dolby & 2))
 			pr_dv_dbg("src %d, dobly_vision_signal %d\n",
 				     src_format, vsif->vers.ver2.dobly_vision_signal);
