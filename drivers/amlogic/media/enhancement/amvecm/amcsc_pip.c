@@ -1598,6 +1598,7 @@ void video_post_process(struct vframe_s *vf,
 	enum hdr_type_e src_format = cur_source_format[vd_path];
 	/*eo clip select: 0->23bit eo; 1->32 bit eo*/
 	unsigned int eo_sel = 0;
+	enum mtx_csc_e mtx_csc = MATRIX_NULL;
 	struct matrix_s m = {
 		{0, 0, 0},
 		{
@@ -1953,15 +1954,20 @@ void video_post_process(struct vframe_s *vf,
 					source_type[vd_path]);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
+				if (csc_type == VPP_MATRIX_YUV709F_RGB)
+					mtx_csc = MATRIX_YUV709F_RGB;
+				else
+					mtx_csc = MATRIX_YUV709_RGB;
+
 				if (vpp_index == VPP_TOP1)
 					mtx_setting(VPP1_POST2_MTX,
-						MATRIX_YUV709_RGB, MTX_ON);
+						mtx_csc, MTX_ON);
 				else if (vpp_index == VPP_TOP2)
 					mtx_setting(VPP2_POST2_MTX,
-						MATRIX_YUV709_RGB, MTX_ON);
+						mtx_csc, MTX_ON);
 				else
 					mtx_setting(POST2_MTX,
-					    MATRIX_YUV709_RGB, MTX_ON);
+					    mtx_csc, MTX_ON);
 			}
 		}
 	}
