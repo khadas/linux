@@ -2309,7 +2309,7 @@ static void video_composer_wait_event(struct composer_dev *dev)
 {
 	wait_event_interruptible_timeout(dev->wq,
 					 (kfifo_len(&dev->receive_q) > 0 &&
-					  dev->enable_composer) ||
+					  dev->composer_enabled) ||
 					 dev->need_free_buffer ||
 					 dev->need_unint_receive_q ||
 					 dev->need_empty_ready ||
@@ -2915,12 +2915,13 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 		return ret;
 	}
 	dev->enable_composer = val;
-	wake_up_interruptible(&dev->wq);
 
-	if (val == VIDEO_COMPOSER_ENABLE_NORMAL)
+	if (val == VIDEO_COMPOSER_ENABLE_NORMAL) {
 		ret = video_composer_init(dev);
-	else if (val == VIDEO_COMPOSER_ENABLE_NONE)
+	} else if (val == VIDEO_COMPOSER_ENABLE_NONE) {
+		wake_up_interruptible(&dev->wq);
 		ret = video_composer_uninit(dev);
+	}
 
 	if (ret != 0)
 		pr_err("vc: set failed\n");
