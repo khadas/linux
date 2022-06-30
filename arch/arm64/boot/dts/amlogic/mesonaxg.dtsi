@@ -343,6 +343,91 @@
 		/*partitions defined in dts*/
 	};
 
+	vbat: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "12V";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc5v_reg: fixedregulator@1{
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "VCC5V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		//5V_EN, 0R
+		//Ref: Pull Down (Default OFF) test nook
+		//gpio = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	usb_pwr_reg: fixedregulator@1_1{
+		vin-supply = <&vcc5v_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "USB_PWR";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		pinctrl-names = "default";
+		//USB_PWR_EN, 0R, dts usb3_phy have use GPIOAO_5
+		//Ref: Pull Down (Default OFF) no test
+		//gpio = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <70000>;
+		enable-active-high;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddao3v3_reg: fixedregulator@3{
+		vin-supply = <&vbat>;
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vddio_ao18_reg: fixedregulator@3_1{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-name = "VDDIO_AO18";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	vcc3v3_reg: fixedregulator@3_3{
+		compatible = "regulator-fixed";
+		vin-supply = <&vddao3v3_reg>;
+		regulator-name = "VCC_3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		//Ref: L= > POWER_On(default) test ok
+		gpio = <&gpio_ao GPIOAO_12 GPIO_ACTIVE_LOW>;
+		startup-delay-us = <70000>;
+		enable-active-low;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	emmc1v8_reg: fixedregulator@3_3_1{
+		vin-supply = <&vcc3v3_reg>;
+		compatible = "regulator-fixed";
+		regulator-name = "eMMC_1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -562,6 +647,50 @@
 					"frddr_a", "frddr_b", "frddr_c";
 			};
 		};/* end of audiobus*/
+
+		vddcpu0: pwm_b-regulator {
+			compatible = "pwm-regulator";
+			cpu0-supply = <&vbat>;
+			pwms = <&pwm_aoab MESON_PWM_1 1500 0>;
+			regulator-name = "vddcpu0";
+			regulator-min-microvolt = <860000>;
+			regulator-max-microvolt = <1140000>;
+			regulator-always-on;
+			max-duty-cycle = <1500>;
+			/* Voltage Duty-Cycle */
+			voltage-table =
+					<1140000 0>,
+					<1130000 4>,
+					<1120000 7>,
+					<1110000 11>,
+					<1100000 14>,
+					<1090000 18>,
+					<1080000 21>,
+					<1070000 25>,
+					<1060000 29>,
+					<1050000 32>,
+					<1040000 36>,
+					<1030000 39>,
+					<1020000 43>,
+					<1010000 46>,
+					<1000000 50>,
+					<990000 54>,
+					<980000 57>,
+					<970000 61>,
+					<960000 64>,
+					<950000 68>,
+					<940000 71>,
+					<930000 75>,
+					<920000 79>,
+					<910000 82>,
+					<900000 86>,
+					<890000 89>,
+					<880000 93>,
+					<870000 96>,
+					<860000 100>;
+			status = "okay";
+		}; /* end of vddcpu0*/
+
 	}; /* end of soc*/
 
     pwm_ab: pwm@ffd1b000 {
@@ -589,7 +718,7 @@
 		#pwm-cells = <3>;
 		clocks = <&xtal>,<&xtal>,<&xtal>,<&xtal>;
 		clock-names = "clkin0","clkin1","clkin2","clkin3";
-		status = "disabled";
+		status = "okay";
 	};
 
 	pwm_aocd: pwm@ff802000 {

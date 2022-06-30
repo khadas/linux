@@ -544,6 +544,16 @@
 		};
 	};
 
+	vddq1v2_reg: fixedregulator@2 {
+		compatible = "regulator-fixed";
+		vin-supply = <&vbat>;
+		regulator-name = "VDDQ1.2V";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	sd_emmc_c: emmc@ffe07000 {
 		status = "disabled";
 		compatible = "amlogic, meson-mmc-axg";
