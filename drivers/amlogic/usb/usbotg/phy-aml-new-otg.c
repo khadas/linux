@@ -116,6 +116,9 @@ int aml_new_otg_get_mode(void)
 {
 	union usb_r5_v2 r5 = {.d32 = 0};
 
+	if (!g_otg)
+		return 0;
+
 	r5.d32 = readl(usb_otg_aml_regs.usb_r_v2[5]);
 	if (r5.b.iddig_curr == 0)
 		return 0;

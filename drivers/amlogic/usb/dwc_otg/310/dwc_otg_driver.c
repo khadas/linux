@@ -1464,7 +1464,9 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_AMLOGIC_USB3PHY
 	if (dwc_otg_device->core_if->controller_type == USB_OTG) {
-		if (dwc_otg_device->core_if->phy_interface != 1) {
+		if (dwc_otg_device->core_if->phy_interface == 1) {
+			aml_new_usb_init();
+		} else {
 			if (dwc_otg_device->core_if->phy_otg)
 				aml_new_otg_init();
 			else
