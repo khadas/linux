@@ -1314,12 +1314,18 @@
 	bt_en-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	btwakeup-gpios = <&gpio    GPIOX_18 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+	power_down_disable = <1>;
 };
 
 &pwm_ef {
 	pinctrl-0 = <&pwm_f_pins2>;
 	pinctrl-names = "default";
 	status = "okay";
+};
+
+&uart_A {
+	status = "okay";
+	uart-has-rtscts;
 };
 
 &uart_D {
