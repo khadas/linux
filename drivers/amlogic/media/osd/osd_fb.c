@@ -64,9 +64,13 @@
 #include "osd_virtual.h"
 static __u32 var_screeninfo[5];
 static struct osd_device_data_s osd_meson_dev;
+char hdmimode_propname[20] = "null";
 char lcd_exist_propname[20] = "null";
 char hdmichecksum_propname[20] = "null";
+
+char nativeui_propname[20] = "null";
 int recovery_flag;
+
 
 #define MAX_VPU_CLKC_CLK 500000000
 #define CUR_VPU_CLKC_CLK 200000000
@@ -4346,9 +4350,13 @@ static int osd_probe(struct platform_device *pdev)
 	osd_set_free_scale_mode_hw(DEV_OSD0, prop_idx);
 	prop_idx = 0;
 	cpu_type = get_cpu_type();
-	if (prop)
-		prop_idx = of_read_ulong(prop, 1);
-	osd_set_4k2k_fb_mode_hw(prop_idx);
+	if(strncmp(nativeui_propname, "enable", 6) == 0 && strncmp(hdmimode_propname, "2160p", 5) == 0) {
+		if (cpu_type == MESON_CPU_MAJOR_ID_G12B) {
+			prop_idx = 1;
+			osd_set_4k2k_fb_mode_hw(prop_idx);
+		}
+	}
+
 	/* get default display mode from dt */
 	ret = of_property_read_string(pdev->dev.of_node,
 		"display_mode_default", &str);
@@ -4405,21 +4413,145 @@ static int osd_probe(struct platform_device *pdev)
 			if (ret)
 				osd_log_info("not found display_size_default\n");
 			else {
+				printk("nativeui_propname:%s \n",nativeui_propname);
+				if(strncmp(nativeui_propname, "enable", 6) == 0) {
+					if(strncmp(hdmimode_propname, "1024x768p60hz", 13) == 0) {
+						var_screeninfo[0] = 1024;
+						var_screeninfo[1] = 768;
+						var_screeninfo[2] = 1024;
+						var_screeninfo[3] = 1536;
+					} else if(strncmp(hdmimode_propname, "1440x900p60hz", 13) == 0) {
+						var_screeninfo[0] = 1440;
+						var_screeninfo[1] = 900;
+						var_screeninfo[2] = 1440;
+						var_screeninfo[3] = 1800;
+					} else if(strncmp(hdmimode_propname, "640x480p60hz", 12) == 0) {
+						var_screeninfo[0] = 640;
+						var_screeninfo[1] = 480;
+						var_screeninfo[2] = 640;
+						var_screeninfo[3] = 960;
+					} else if(strncmp(hdmimode_propname, "1280x1024p60hz", 14) == 0) {
+						var_screeninfo[0] = 1280;
+						var_screeninfo[1] = 1024;
+						var_screeninfo[2] = 1280;
+						var_screeninfo[3] = 2048;
+					} else if(strncmp(hdmimode_propname, "800x600p60hz", 12) == 0) {
+						var_screeninfo[0] = 800;
+						var_screeninfo[1] = 600;
+						var_screeninfo[2] = 800;
+						var_screeninfo[3] = 1200;
+					} else if(strncmp(hdmimode_propname, "1680x1050p60hz", 14) == 0) {
+						var_screeninfo[0] = 1680;
+						var_screeninfo[1] = 1050;
+						var_screeninfo[2] = 1680;
+						var_screeninfo[3] = 2100;
+					} else if(strncmp(hdmimode_propname, "1024x600p60hz", 13) == 0) {
+						var_screeninfo[0] = 1024;
+						var_screeninfo[1] = 600;
+						var_screeninfo[2] = 1024;
+						var_screeninfo[3] = 1200;
+					} else if(strncmp(hdmimode_propname, "2560x1600p60hz", 14) == 0) {
+						var_screeninfo[0] = 2560;
+						var_screeninfo[1] = 1600;
+						var_screeninfo[2] = 2560;
+						var_screeninfo[3] = 3200;
+					} else if(strncmp(hdmimode_propname, "2560x1440p60hz", 14) == 0) {
+						var_screeninfo[0] = 2560;
+						var_screeninfo[1] = 1440;
+						var_screeninfo[2] = 2560;
+						var_screeninfo[3] = 2880;
+					} else if(strncmp(hdmimode_propname, "2560x1080p60hz", 14) == 0) {
+						var_screeninfo[0] = 2560;
+						var_screeninfo[1] = 1080;
+						var_screeninfo[2] = 2560;
+						var_screeninfo[3] = 2160;
+					} else if(strncmp(hdmimode_propname, "1920x1200p60hz", 14) == 0) {
+						var_screeninfo[0] = 1920;
+						var_screeninfo[1] = 1200;
+						var_screeninfo[2] = 1920;
+						var_screeninfo[3] = 2400;
+					} else if(strncmp(hdmimode_propname, "1600x1200p60hz", 14) == 0) {
+						var_screeninfo[0] = 1600;
+						var_screeninfo[1] = 1200;
+						var_screeninfo[2] = 1600;
+						var_screeninfo[3] = 2400;
+					} else if(strncmp(hdmimode_propname, "1600x900p60hz", 13) == 0) {
+						var_screeninfo[0] = 1600;
+						var_screeninfo[1] = 900;
+						var_screeninfo[2] = 1600;
+						var_screeninfo[3] = 1800;
+					} else if(strncmp(hdmimode_propname, "1360x768p60hz", 13) == 0) {
+						var_screeninfo[0] = 1360;
+						var_screeninfo[1] = 768;
+						var_screeninfo[2] = 1360;
+						var_screeninfo[3] = 1536;
+					} else if(strncmp(hdmimode_propname, "1280x800p60hz", 13) == 0) {
+						var_screeninfo[0] = 1280;
+						var_screeninfo[1] = 800;
+						var_screeninfo[2] = 1280;
+						var_screeninfo[3] = 1600;
+					} else if(strncmp(hdmimode_propname, "480x320p60hz", 12) == 0) {
+						var_screeninfo[0] = 480;
+						var_screeninfo[1] = 320;
+						var_screeninfo[2] = 480;
+						var_screeninfo[3] = 640;
+					} else if(strncmp(hdmimode_propname, "800x480p60hz", 12) == 0) {
+						var_screeninfo[0] = 800;
+						var_screeninfo[1] = 480;
+						var_screeninfo[2] = 800;
+						var_screeninfo[3] = 960;
+					} else if(strncmp(hdmimode_propname, "1280x480p60hz", 13) == 0) {
+						var_screeninfo[0] = 1280;
+						var_screeninfo[1] = 480;
+						var_screeninfo[2] = 1280;
+						var_screeninfo[3] = 960;
+					} else if(strncmp(hdmimode_propname, "720p", 4) == 0) {
+						var_screeninfo[0] = 1280;
+						var_screeninfo[1] = 720;
+						var_screeninfo[2] = 1280;
+						var_screeninfo[3] = 1440;
+					} else if(strncmp(hdmimode_propname, "576p", 4) == 0) {
+						var_screeninfo[0] = 720;
+						var_screeninfo[1] = 576;
+						var_screeninfo[2] = 720;
+						var_screeninfo[3] = 1152;
+					} else if(strncmp(hdmimode_propname, "2160p", 5) == 0) {
+						if ((cpu_type == MESON_CPU_MAJOR_ID_G12B)) {
+							var_screeninfo[0] = 3840;
+							var_screeninfo[1] = 2160;
+							var_screeninfo[2] = 3840;
+							var_screeninfo[3] = 4320;
+						} else {
+							var_screeninfo[0] = 1920;
+							var_screeninfo[1] = 1080;
+							var_screeninfo[2] = 1920;
+							var_screeninfo[3] = 2160;
+						}
+					} else {
+						/* set default fb from dts */
+						var_screeninfo[0] = 1920;
+						var_screeninfo[1] = 1080;
+						var_screeninfo[2] = 1920;
+						var_screeninfo[3] = 2160;
+					}
+
+				}
+
 				if ((cpu_type == MESON_CPU_MAJOR_ID_G12B) || (cpu_type == MESON_CPU_MAJOR_ID_SM1)) {
 					fb_var_set_process(index);
 				} else {
-				fb_def_var[index].xres = var_screeninfo[0];
-				fb_def_var[index].yres = var_screeninfo[1];
-				fb_def_var[index].xres_virtual =
-					var_screeninfo[2];
-				fb_def_var[index].yres_virtual =
-					var_screeninfo[3];
-				fb_def_var[index].bits_per_pixel =
-					var_screeninfo[4];
-				osd_log_info("init fbdev bpp is:%d\n",
-					fb_def_var[index].bits_per_pixel);
-				if (fb_def_var[index].bits_per_pixel > 32)
-					fb_def_var[index].bits_per_pixel = 32;
+					fb_def_var[index].xres = var_screeninfo[0];
+					fb_def_var[index].yres = var_screeninfo[1];
+					fb_def_var[index].xres_virtual =
+						var_screeninfo[2];
+					fb_def_var[index].yres_virtual =
+						var_screeninfo[3];
+					fb_def_var[index].bits_per_pixel =
+						var_screeninfo[4];
+					osd_log_info("init fbdev bpp is:%d\n",
+						fb_def_var[index].bits_per_pixel);
+					if (fb_def_var[index].bits_per_pixel > 32)
+						fb_def_var[index].bits_per_pixel = 32;
 				}
 			}
 		}
@@ -4680,6 +4812,16 @@ static void __exit osd_exit_module(void)
 	platform_driver_unregister(&osd_driver);
 }
 
+static int __init hdmimode_setup(char *str)
+{
+       if (str != NULL)
+               sprintf(hdmimode_propname, "%s", str);
+
+       return 0;
+}
+
+__setup("hdmimode=", hdmimode_setup);
+
 static int __init recovery_part_setup(char *str)
 {
        if (str != NULL){
@@ -4694,6 +4836,7 @@ static int __init recovery_part_setup(char *str)
 }
 
 __setup("recovery_part=", recovery_part_setup);
+
 static int __init hdmichecksum_setup(char *str)
 {
 	if (str != NULL)
@@ -4717,6 +4860,19 @@ static int __init lcd_exist_setup(char *str)
 }
 
 __setup("lcd_exist=", lcd_exist_setup);
+
+
+
+
+static int __init nativeui_setup(char *str)
+{
+       if (str != NULL)
+               sprintf(nativeui_propname, "%s", str);
+
+       return 0;
+}
+
+__setup("nativeui=", nativeui_setup);
 subsys_initcall(osd_init_module);
 module_exit(osd_exit_module);
 
