@@ -114,7 +114,7 @@ static void vrr_lcd_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 	//vrr setting
 	vrr_reg_write((VENC_VRR_CTRL + offset),
 			(line_dly << 8) | //cfg_vsp_dly_num number
-			(0 << 4) |  //cfg_vrr_frm_ths frame delay number
+			(1 << 4) |  //cfg_vrr_frm_ths frame delay number
 			//cfg_vrr_vsp_en  bit[2]=hdmi_in, bit[3]=gpu_in
 			(vsp_in << 2) |
 			(1 << 1) |      //cfg_vrr_mode    0:normal      1:vrr
@@ -172,7 +172,7 @@ static void vrr_hdmi_enable(struct aml_vrr_drv_s *vdrv, unsigned int mode)
 	//vrr setting
 	vrr_reg_write(VENP_VRR_CTRL + offset,
 			(line_dly << 8) | //cfg_vsp_dly_num number
-			(0 << 4) |  //cfg_vrr_frm_ths frame delay number
+			(1 << 4) |  //cfg_vrr_frm_ths frame delay number
 			//cfg_vrr_vsp_en  bit[2]=hdmi_in, bit[3]=gpu_in
 			(vsp_in << 2) |
 			(1 << 1) |    //cfg_vrr_mode    0:normal      1:vrr
