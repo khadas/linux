@@ -128,5 +128,6 @@
 #define CLKID_DSI_MEAS_MUX			117
 #define CLKID_DSI_MEAS_DIV			118
 #define CLKID_DSI_MEAS				119
+#define CLKID_CLK81_MIPI_BANDGAP		120
 
 #endif /* __AXG_CLKC_H */

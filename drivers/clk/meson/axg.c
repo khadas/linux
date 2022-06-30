@@ -1843,6 +1843,7 @@ static MESON_GATE(axg_clk81_vpu_intr, HHI_GCLK_MPEG2, 25);
 static MESON_GATE(axg_clk81_sec_ahb_ahb3_bridge, HHI_GCLK_MPEG2, 26);
 static MESON_GATE(axg_clk81_gic, HHI_GCLK_MPEG2, 30);
 static MESON_GATE(axg_clk81_mipi_enable, HHI_MIPI_CNTL0, 29);
+static MESON_GATE(axg_clk81_mipi_bandgap, HHI_MIPI_CNTL0, 26);
 
 /* Always On (AO) domain gates */
 
@@ -1911,6 +1912,7 @@ static struct clk_hw_onecell_data axg_hw_onecell_data = {
 		[CLKID_CLK81_SEC_AHB_AHB3_BRIDGE]	= &axg_clk81_sec_ahb_ahb3_bridge.hw,
 		[CLKID_CLK81_GIC]		= &axg_clk81_gic.hw,
 		[CLKID_CLK81_MIPI_ENABLE]	= &axg_clk81_mipi_enable.hw,
+		[CLKID_CLK81_MIPI_BANDGAP]	= &axg_clk81_mipi_bandgap.hw,
 		[CLKID_AO_MEDIA_CPU]		= &axg_ao_media_cpu.hw,
 		[CLKID_AO_AHB_SRAM]		= &axg_ao_ahb_sram.hw,
 		[CLKID_AO_AHB_BUS]		= &axg_ao_ahb_bus.hw,
@@ -2024,6 +2026,7 @@ static struct clk_regmap *const axg_clk_regmaps[] = {
 	&axg_clk81_sec_ahb_ahb3_bridge,
 	&axg_clk81_gic,
 	&axg_clk81_mipi_enable,
+	&axg_clk81_mipi_bandgap,
 	&axg_ao_media_cpu,
 	&axg_ao_ahb_sram,
 	&axg_ao_ahb_bus,

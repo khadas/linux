@@ -234,8 +234,8 @@
 			"usb1_to_ddr";
 	};
 
-	pcie_A: pcieA@f9800000 {
-		compatible = "amlogic, amlogic-pcie", "snps,dw-pcie";
+	pcie_A: pcie@f9800000 {
+		compatible = "amlogic, amlogic-pcie";
 		reg = <0x0 0xf9800000 0x0 0x400000
 				0x0 0xff646000 0x0 0x2000
 				0x0 0xf9f00000 0x0 0x100000
@@ -253,26 +253,25 @@
 		device_type = "pci";
 		ranges = <0x82000000 0 0 0x0 0xf9c00000 0 0x00300000>;
 			/* non-prefetchable memory */
-		num-lanes = <1>;
 		pcie-num = <1>;
-		//clocks = <&clkc CLKID_CLK81_USB
-		//&clkc CLKID_PCIE_PLL
-		//&clkc CLKID_MIPI_ENABLE_GATE
-		//&clkc CLKID_MIPI_BANDGAP_GATE
-		//&clkc CLKID_PCIE_A
-		//&clkc CLKID_PCIE_CML_EN0>;
-		//clock-names = "pcie_general",
-		//		"pcie_refpll",
-		//		"pcie_mipi_enable_gate",
-		///		"pcie_mipi_bandgap_gate",
-		//		"pcie",
-		//		"port";
+		clocks = <&clkc CLKID_CLK81_USB
+		&clkc CLKID_PCIE_PLL
+		&clkc CLKID_CLK81_MIPI_ENABLE
+		&clkc CLKID_CLK81_MIPI_BANDGAP
+		&clkc CLKID_CLK81_PCIE_A
+		&clkc CLKID_PCIE_CML_EN0>;
+		clock-names = "pcie_general",
+				"pcie_refpll",
+				"pcie_mipi_enable_gate",
+				"pcie_mipi_bandgap_gate",
+				"pcie",
+				"port";
 		/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
 		gpio-type = <2>;
-		status = "disabled";
+		status = "okay";
 	};
 
-	 pcie_B: pcieB@fa000000 {
+	pcie_B: pcie@fa000000 {
 		compatible = "amlogic, amlogic-pcie", "snps,dw-pcie";
 		reg = <0x0 0xfa000000 0x0 0x400000
 				0x0 0xff648000 0x0 0x2000
@@ -295,12 +294,11 @@
 			/* non-prefetchable memory */
 		num-lanes = <1>;
 		pcie-num = <2>;
-/*
-		clocks = <&clkc CLKID_USB_GENERAL
+		clocks = <&clkc CLKID_CLK81_USB
 				&clkc CLKID_PCIE_PLL
-				&clkc CLKID_MIPI_ENABLE_GATE
-				&clkc CLKID_MIPI_BANDGAP_GATE
-				&clkc CLKID_PCIE_B
+				&clkc CLKID_CLK81_MIPI_ENABLE
+				&clkc CLKID_CLK81_MIPI_BANDGAP
+				&clkc CLKID_CLK81_PCIE_B
 				&clkc CLKID_PCIE_CML_EN1>;
 		clock-names = "pcie_general",
 				"pcie_refpll",
@@ -308,10 +306,9 @@
 				"pcie_mipi_bandgap_gate",
 				"pcie",
 				"port";
-*/
 		/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
 		gpio-type = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	uart_A: serial@ffd24000 {
