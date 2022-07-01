@@ -349,6 +349,23 @@
 		#size-cells = <2>;
 		ranges;
 
+		ethmac: ethernet@ff3f0000 {
+			compatible = "amlogic,meson-axg-dwmac",
+				     "snps,dwmac-3.70a",
+				     "snps,dwmac";
+			reg = <0x0 0xff3f0000 0x0 0x10000>,
+			      <0x0 0xff634540 0x0 0x8>;
+			interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "macirq";
+			clocks = <&clkc CLKID_CLK81_ETH>,
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_MPLL2>;
+			clock-names = "stmmaceth", "clkin0", "clkin1";
+			rx-fifo-depth = <4096>;
+			tx-fifo-depth = <2048>;
+			status = "disabled";
+		};
+
 		cbus: cbus@ffd00000 {
 			compatible = "simple-bus";
 			reg = <0x0 0xffd00000 0x0 0x25000>;
@@ -1324,6 +1341,80 @@
 		mux {
 			groups ="pwm_d_x16";
 			function = "pwm_d";
+		};
+	};
+
+	eth_rgmii_x_pins: eth-x-rgmii {
+		mux {
+			groups = "eth_mdio_x",
+				 "eth_mdc_x",
+				 "eth_rgmii_rx_clk_x",
+				 "eth_rx_dv_x",
+				 "eth_rxd0_x",
+				 "eth_rxd1_x",
+				 "eth_rxd2_rgmii",
+				 "eth_rxd3_rgmii",
+				 "eth_rgmii_tx_clk",
+				 "eth_txen_x",
+				 "eth_txd0_x",
+				 "eth_txd1_x",
+				 "eth_txd2_rgmii",
+				 "eth_txd3_rgmii";
+			function = "eth";
+			bias-disable;
+		};
+	};
+
+	eth_rgmii_y_pins: eth-y-rgmii {
+		mux {
+			groups = "eth_mdio_y",
+				 "eth_mdc_y",
+				 "eth_rgmii_rx_clk_y",
+				 "eth_rx_dv_y",
+				 "eth_rxd0_y",
+				 "eth_rxd1_y",
+				 "eth_rxd2_rgmii",
+				 "eth_rxd3_rgmii",
+				 "eth_rgmii_tx_clk",
+				 "eth_txen_y",
+				 "eth_txd0_y",
+				 "eth_txd1_y",
+				 "eth_txd2_rgmii",
+				 "eth_txd3_rgmii";
+			function = "eth";
+			bias-disable;
+		};
+	};
+
+	eth_rmii_x_pins: eth-x-rmii {
+		mux {
+			groups = "eth_mdio_x",
+				 "eth_mdc_x",
+				 "eth_rgmii_rx_clk_x",
+				 "eth_rx_dv_x",
+				 "eth_rxd0_x",
+				 "eth_rxd1_x",
+				 "eth_txen_x",
+				 "eth_txd0_x",
+				 "eth_txd1_x";
+			function = "eth";
+			bias-disable;
+		};
+	};
+
+	eth_rmii_y_pins: eth-y-rmii {
+		mux {
+			groups = "eth_mdio_y",
+				 "eth_mdc_y",
+				 "eth_rgmii_rx_clk_y",
+				 "eth_rx_dv_y",
+				 "eth_rxd0_y",
+				 "eth_rxd1_y",
+				 "eth_txen_y",
+				 "eth_txd0_y",
+				 "eth_txd1_y";
+			function = "eth";
+			bias-disable;
 		};
 	};
 
