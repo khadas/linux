@@ -585,9 +585,11 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 
 		/*apk/sf drop 0/3 4; vc receive 1 2 5 in one vsync*/
 		/*apk queue 5 and wait 1, it will fence timeout*/
-		if (get_count[dev->index] == 2) {
+		/* dev->video_render_index == 5 means T7 dual screen mode */
+		if (get_count[dev->index] == 2 && dev->video_render_index != 5) {
 			vc_print(dev->index, PRINT_ERROR,
-				 "has already get 2, can not get more\n");
+				 "has already get 2, can not get more, video_render.%d",
+				 dev->video_render_index);
 			return NULL;
 		}
 		if (get_count[dev->index] > 0 &&
