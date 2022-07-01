@@ -74,6 +74,7 @@ struct vrr_notifier_data_s {
 #define VRR_EVENT_UPDATE		BIT(4)
 #define VRR_EVENT_LFC_ON		BIT(5)
 #define VRR_EVENT_LFC_OFF		BIT(6)
+#define VRR_EVENT_GET_STATE		BIT(7)
 
 /* ************************************************************* */
 #ifdef CONFIG_AMLOGIC_MEDIA_VRR

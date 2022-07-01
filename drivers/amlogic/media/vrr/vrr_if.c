@@ -100,13 +100,17 @@ ssize_t vrr_active_status_show(struct device *dev,
 int aml_vrr_state(void)
 {
 	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
+	int ret = 0;
 
 	if (!vdrv_active)
 		return 0;
 
 	if (vdrv_active->state & VRR_STATE_EN)
-		return 1;
-	return 0;
+		ret = 1;
+	else
+		ret = 0;
+
+	return ret;
 }
 
 int aml_vrr_func_en(int flag)
@@ -116,6 +120,9 @@ int aml_vrr_func_en(int flag)
 
 	if (!vdrv_active)
 		return -1;
+
+	if (vrr_debug_print & VRR_DBG_PR_ADV)
+		dump_stack();
 
 	if (flag)
 		ret = vrr_drv_func_en(vdrv_active, 1);
@@ -149,6 +156,9 @@ static int aml_vrr_drv_update(void)
 	vdrv_active = vrr_drv_active_sel();
 	if (!vdrv_active)
 		return -1;
+
+	if (vdrv_active->state & VRR_STATE_TRACE)
+		vrr_drv_trace(vdrv_active, "vrr drv update for mode_change\n");
 
 	if (vdrv_active->vrr_dev) {
 		vdata.dev_vfreq_max = vdrv_active->vrr_dev->vfreq_max;
@@ -222,6 +232,17 @@ static int aml_vrr_lfc_notify_callback(struct notifier_block *block,
 	return 0;
 }
 
+static int aml_vrr_get_state_notify_callback(struct notifier_block *block,
+					     unsigned long event, void *para)
+{
+	if (event != VRR_EVENT_GET_STATE)
+		return 0;
+
+	*(int *)para = aml_vrr_state();
+
+	return 0;
+}
+
 static struct notifier_block aml_vrr_vout_notifier = {
 	.notifier_call = aml_vrr_vout_notify_callback,
 };
@@ -234,11 +255,16 @@ static struct notifier_block aml_vrr_lfc_notifier = {
 	.notifier_call = aml_vrr_lfc_notify_callback,
 };
 
+static struct notifier_block aml_vrr_get_state_notifier = {
+	.notifier_call = aml_vrr_get_state_notify_callback,
+};
+
 int aml_vrr_if_probe(void)
 {
 	vout_register_client(&aml_vrr_vout_notifier);
 	aml_vrr_atomic_notifier_register(&aml_vrr_switch_notifier);
 	aml_vrr_atomic_notifier_register(&aml_vrr_lfc_notifier);
+	aml_vrr_atomic_notifier_register(&aml_vrr_get_state_notifier);
 
 	return 0;
 }
@@ -247,6 +273,7 @@ int aml_vrr_if_remove(void)
 {
 	aml_vrr_atomic_notifier_unregister(&aml_vrr_switch_notifier);
 	aml_vrr_atomic_notifier_unregister(&aml_vrr_lfc_notifier);
+	aml_vrr_atomic_notifier_unregister(&aml_vrr_get_state_notifier);
 	vout_unregister_client(&aml_vrr_vout_notifier);
 
 	return 0;
