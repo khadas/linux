@@ -32,6 +32,8 @@
 		status = "okay";
 		hw_margin_ms = <500>;
 		hw-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wdt_gpio>;
 	};
 
 	leds {
@@ -60,7 +62,7 @@
 		};
 	};
 
-	backlight_mipi0: backlight-mipi0 {
+	backlight_mipi1: backlight-mipi1 {
 		compatible = "pwm-backlight";
 		brightness-levels = <
 			  0  20  20  21  21  22  22  23
@@ -99,7 +101,7 @@
 		default-brightness-level = <200>;
 	};
 
-	backlight_mipi1: backlight-mipi1 {
+	backlight_mipi2: backlight-mipi2 {
 		compatible = "pwm-backlight";
 		brightness-levels = <
 			  0  20  20  21  21  22  22  23
@@ -280,7 +282,7 @@
 		status = "okay";
 		compatible = "simple-panel-dsi";
 		reg = <0>;
-		backlight = <&backlight_mipi0>;
+		backlight = <&backlight_mipi1>;
 		enable-delay-ms = <60>;
 		prepare-delay-ms = <60>;
 		unprepare-delay-ms = <60>;
@@ -873,7 +875,7 @@
 		status = "okay";
 		compatible = "simple-panel-dsi";
 		reg = <0>;
-		backlight = <&backlight_mipi1>;
+		backlight = <&backlight_mipi2>;
 		enable-delay-ms = <60>;
 		prepare-delay-ms = <60>;
 		unprepare-delay-ms = <60>;
