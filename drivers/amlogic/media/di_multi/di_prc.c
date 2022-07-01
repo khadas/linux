@@ -620,18 +620,33 @@ void di_cfgx_init_val(void)
 
 	for (ch = 0; ch < DI_CHANNEL_NUB; ch++) {
 		for (i = EDI_CFGX_BEGIN; i < EDI_DBG_CFGX_END; i++)
-			di_cfgx_set(ch, i, di_cfgx_ctr[i].default_val);
+			di_cfgx_set(ch, i, di_cfgx_ctr[i].default_val, DI_BIT0);
 	}
 }
 
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx)
 {
+	return get_datal()->ch_data[ch].cfgx_en[idx] ? true : false;
+}
+
+unsigned char di_cfgx_getc(unsigned int ch, enum EDI_CFGX_IDX idx)
+{
 	return get_datal()->ch_data[ch].cfgx_en[idx];
 }
 
-void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en)
+/* limit : pos_bit <= DI_BIT7*/
+void di_cfgx_set(unsigned int ch,
+		 enum EDI_CFGX_IDX idx,
+		 bool en,
+		 unsigned char pos_bit)
 {
-	get_datal()->ch_data[ch].cfgx_en[idx] = en;
+	if (!pos_bit)
+		PR_WARN("%s:%d:0x%x\n", __func__, idx, pos_bit);
+
+	if (en)
+		get_datal()->ch_data[ch].cfgx_en[idx] |= pos_bit;
+	else
+		get_datal()->ch_data[ch].cfgx_en[idx] &= ~pos_bit;
 }
 
 /**************************************
@@ -1521,7 +1536,6 @@ void dip_chst_process_ch(void)
 			dim_process_unreg(pch);
 		else if (atomic_read(&pbm->trig_reg[ch]))
 			dim_process_reg(pch);
-
 
 		dip_process_reg_after(pch);
 

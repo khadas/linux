@@ -99,7 +99,8 @@ struct di_operations_s {
 enum di_output_format {
 	DI_OUTPUT_422 = 0,
 	DI_OUTPUT_NV12 = 1,
-	DI_OUTPUT_NV21 = 2,
+	DI_OUTPUT_NV21 = 2,	/* ref to DIM_OUT_FORMAT_FIX_MASK */
+	DI_OUTPUT_BYPASS	= 0x10000000, /*22-06-24*/
 	DI_OUTPUT_TVP		= 0x20000000, /*21-03-02*/
 	DI_OUTPUT_LINEAR	= 0x40000000,
 	/*1:di output must linear, 0: determined by di,may be linear or block*/
@@ -114,6 +115,8 @@ enum di_output_format {
 
 	DI_OUTPUT_MAX = 0x7FFFFFFF,
 };
+
+#define DIM_OUT_FORMAT_FIX_MASK		(0xffff)
 
 struct di_init_parm {
 	enum di_work_mode work_mode;
@@ -276,5 +279,15 @@ u32 di_api_get_plink_instance_id(void);
 
 void di_disable_prelink_notify(bool async);
 void di_prelink_state_changed_notify(void);
+
+/*********************************************************
+ * @brief  di_s_bypass_ch  set channel bypass
+ *
+ * @param[in]  index   instance index
+ * @param[in]  on  1:bypass enable; 0: bypass disable
+ *
+ * @return      number or fail type
+ *********************************************************/
+int di_s_bypass_ch(int index, bool on);
 
 #endif	/*__DI_INTERLACE_H__*/

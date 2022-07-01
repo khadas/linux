@@ -44,6 +44,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vpu/vpu.h>	//VPU_MEM_POWER_ON
 #include "../deinterlace/di_pqa.h"
+#include <linux/amlogic/media/di/di_interface.h>
 
 /*for di_ext_ops*/
 /*#include <linux/amlogic/media/video_sink/video.h> */
@@ -320,6 +321,14 @@ bool dim_config_crc_ic(void)
 	return 0;
 }
 EXPORT_SYMBOL(dim_config_crc_ic);
+
+int di_s_bypass_ch(int index, bool on)
+{
+	if (dil_api && dil_api->s_bypass_ch)
+		return dil_api->s_bypass_ch(index, on);
+	return DI_ERR_UNDEFINED;
+}
+EXPORT_SYMBOL(di_s_bypass_ch);
 
 /***************************************
  * reserved mem for di *

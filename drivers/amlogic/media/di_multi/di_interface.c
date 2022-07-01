@@ -342,7 +342,7 @@ static void cfg_ch_set(struct di_ch_s *pch)
 	unsigned int out_format;
 	bool used_di_define = false;
 	parm = &pch->itf.u.dinst.parm;
-	out_format = parm->output_format & 0xffff;
+	out_format = parm->output_format & DIM_OUT_FORMAT_FIX_MASK;
 
 	if (parm->output_format & DI_OUTPUT_BY_DI_DEFINE &&
 	    pch->itf.tmode == EDIM_TMODE_3_PW_LOCAL)
@@ -477,6 +477,8 @@ int new_create_instance(struct di_init_parm parm)
 
 	//reg:
 	mutex_lock(&pch->itf.lock_reg);
+	if (parm.output_format & DI_OUTPUT_BYPASS)
+		itf->bypass_ext = true;
 	pch->sum_reg_cnt++;
 	dim_api_reg(DIME_REG_MODE_NEW, pch);
 	npst_reset(pch);
@@ -538,7 +540,7 @@ int new_destroy_instance(int index)
 		mutex_unlock(&pch->itf.lock_reg);
 		return 0;
 	}
-
+	pintf->bypass_ext = false;
 	pintf->reg = 0;
 	//dip_event_unreg_chst(ch);
 	dim_trig_unreg(ch);
@@ -989,3 +991,25 @@ unsigned int dpvpp_get_ins_id(void)
 	ret = (unsigned int)atomic_read(&get_datal()->cnt_reg_pre_link);
 	return ret;
 }
+
+int di_ls_bypass_ch(int index, bool on)
+{
+	struct dim_itf_s *pintf;
+	unsigned int ch = 0;
+	struct di_ch_s *pch;
+
+	dbg_reg("%s:\n", __func__);
+	ch = index_2_ch(index);
+	if (ch == ERR_INDEX) {
+		PR_ERR("%s:index overflow\n", __func__);
+		return DI_ERR_INDEX_OVERFLOW;
+	}
+	pch = get_chdata(ch);
+	mutex_lock(&pch->itf.lock_reg);
+	pintf = &pch->itf;
+	pintf->bypass_ext = on;
+	mutex_unlock(&pch->itf.lock_reg);
+	PR_INF("%s:ch[%d]:%d\n", __func__, pch->ch_id, on);
+	return DI_ERR_NONE;
+}
+

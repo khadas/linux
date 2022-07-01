@@ -628,6 +628,10 @@ static u32 s4dw_bypass_checkother(struct di_ch_s *pch)
 {
 	if (dimp_get(edi_mp_di_debug_flag) & 0x100000)
 		return ES4DW_BYPASS_ALL_BYPASS;
+	/* EDI_CFGX_BYPASS_ALL */
+	di_cfgx_set(pch->ch_id,
+		    EDI_CFGX_BYPASS_ALL,
+		    pch->itf.bypass_ext, DI_BIT4);
 	if (di_cfgx_get(pch->ch_id, EDI_CFGX_BYPASS_ALL))
 		return ES4DW_BYPASS_CH;
 	//other

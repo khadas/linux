@@ -863,19 +863,19 @@ struct mtsk_cmd_s {
  * keep same order as di_name_new_que
  **************************************/
 enum QUE_TYPE {	/*mast start from 0 */
-	QUE_IN_FREE,	/*5*/
-	QUE_PRE_READY,	/*6*/
-	QUE_POST_FREE,	/*7*/
-	QUE_POST_READY,	/*8*/
-	QUE_POST_BACK,		/*new*/
-	QUE_POST_DOING,
+	QUE_IN_FREE,	/*5:0*/
+	QUE_PRE_READY,	/*6:1*/
+	QUE_POST_FREE,	/*7:2*/
+	QUE_POST_READY,	/*8:3*/
+	QUE_POST_BACK,	/*9:4*/
+	QUE_POST_DOING, /*10:5*/
 //	QUE_POST_KEEP,	/*below use pw_queue_in*/
 //	QUE_POST_KEEP_BACK,
-	QUE_POST_KEEP_RE_ALLOC, /*need*/
-	QUE_PRE_NO_BUF_WAIT,	//
-	QUE_PST_NO_BUF_WAIT,	//
-	QUE_PRE_NO_BUF, /*ary add before local_free*/
-	QUE_PST_NO_BUF,
+	QUE_POST_KEEP_RE_ALLOC, /*need:11:6*/
+	QUE_PRE_NO_BUF_WAIT,	/*12:7*/
+	QUE_PST_NO_BUF_WAIT,	/*13:8*/
+	QUE_PRE_NO_BUF, /*14:9*/
+	QUE_PST_NO_BUF,	/*15:10*/
 	/*----------------*/
 	QUE_DBG,
 	QUE_NUB,
@@ -1236,6 +1236,7 @@ struct dim_itf_s {
 	struct dev_vfm_s	dvfmc; /* for vfm option */
 	struct dev_instance	dinst;
 	} u;
+	bool bypass_ext; //set 0 when unreg;
 };
 
 struct di_ores_s {
@@ -1883,7 +1884,7 @@ enum EDIM_TMODE {
 /************************************************/
 struct di_ch_s {
 	/*struct di_cfgx_s dbg_cfg;*/
-	bool cfgx_en[K_DI_CFGX_NUB];
+	unsigned char cfgx_en[K_DI_CFGX_NUB];
 	unsigned int mp_uix[K_DI_MP_UIX_NUB];/*module para x*/
 
 	struct di_dbg_datax_s dbg_data;
@@ -2726,7 +2727,11 @@ extern unsigned int di_dbg;
 
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
-void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);
+unsigned char di_cfgx_getc(unsigned int ch, enum EDI_CFGX_IDX idx);
+void di_cfgx_set(unsigned int ch,
+		 enum EDI_CFGX_IDX idx,
+		 bool en,
+		 unsigned char pos);
 
 /****************************************
  *bit control

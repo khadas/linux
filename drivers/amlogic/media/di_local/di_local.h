@@ -50,6 +50,7 @@ struct di_ext_ops {
 	int (*pre_vpp_link_sw)(bool on);
 	u32 (*pre_vpp_get_ins_id)(void);
 	bool (*config_crc_ic)(void);
+	int (*s_bypass_ch)(int index, bool on);
 };
 
 #endif	/*__DI_LOCAL_H__*/

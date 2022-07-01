@@ -108,7 +108,7 @@ unsigned char di_cfg_cp_get(struct di_ch_s *pch,
 void di_cfg_cp_set(struct di_ch_s *pch,
 		   enum EDI_CFG_TOP_IDX id,
 		   unsigned char val);
-
+#ifdef __HIS_CODE__
 /**************************************
  *
  * cfg ctr x
@@ -119,7 +119,7 @@ void di_cfgx_get_info(enum EDI_CFGX_IDX idx, char **name);
 void di_cfgx_init_val(void);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
 void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);
-
+#endif
 /**************************************
  *
  * module para top
@@ -596,4 +596,5 @@ unsigned int cvs_nub_get(unsigned int idx, char *name);
 bool dim_check_exit_process(void);
 bool dim_is_creat_p_vpp_link(void);
 void dvpp_dbg_trig_sw(unsigned int cmd);
+int di_ls_bypass_ch(int index, bool on);
 #endif	/*__DI_PRC_H__*/

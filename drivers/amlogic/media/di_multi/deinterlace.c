@@ -1538,7 +1538,12 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 
 	if (reason)
 		return reason;
+	pch = get_chdata(ch);
 
+	/* EDI_CFGX_BYPASS_ALL */
+	di_cfgx_set(pch->ch_id,
+		    EDI_CFGX_BYPASS_ALL,
+		    pch->itf.bypass_ext, DI_BIT4);
 	if (di_cfgx_get(ch, EDI_CFGX_BYPASS_ALL)) {
 		reason = 0x81;
 	} else if (ppre->cur_prog_flag		&&
@@ -1576,7 +1581,6 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 	if (reason)
 		return reason;
 
-	pch = get_chdata(ch);
 	if (dimp_get(edi_mp_bypass_trick_mode)) {
 		int trick_mode_fffb = 0;
 		int trick_mode_i = 0;
@@ -1619,7 +1623,11 @@ unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch)
 	reason = dim_bypass_check(vf_in);
 	if (reason)
 		goto tag_bypass;
-
+	pch = get_chdata(ch);
+	/* EDI_CFGX_BYPASS_ALL */
+	di_cfgx_set(pch->ch_id,
+		    EDI_CFGX_BYPASS_ALL,
+		    pch->itf.bypass_ext, DI_BIT4);
 	if (di_cfgx_get(ch, EDI_CFGX_BYPASS_ALL)) {	/*bypass_all*/
 		reason = 0x81;
 		goto tag_bypass;
@@ -1648,7 +1656,7 @@ unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch)
 		reason = 0x8b;
 		goto tag_bypass;
 	}
-	pch = get_chdata(ch);
+
 	reason = dim_polic_is_bypass(pch, vf_in);
 	if (reason)
 		goto tag_bypass;
@@ -4401,13 +4409,6 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 				/*bypass_state = 0;*/
 				di_bypass_state_set(channel, false);
 				pch->sumx.flg_rebuild = 0;
-#ifdef DI_BUFFER_DEBUG
-		dim_print("%s:bypass_state->0, is_bypass() %d\n",
-			  __func__, dim_is_bypass(NULL, channel));
-		dim_print("trick_mode %d bypass_all %d\n",
-			  trick_mode,
-			  di_cfgx_get(channel, EDI_CFGX_BYPASS_ALL));
-#endif
 			}
 			if (ppre->di_post_wr_buf)
 				di_que_in(channel, QUE_PRE_READY,
@@ -4474,14 +4475,6 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 				/*bypass_state = 0;*/
 				di_bypass_state_set(channel, false);
 				pch->sumx.flg_rebuild = 0;
-
-#ifdef DI_BUFFER_DEBUG
-		dim_print("%s:bypass_state->0, is_bypass() %d\n",
-			  __func__, dim_is_bypass(NULL, channel));
-		dim_print("trick_mode %d bypass_all %d\n",
-			  trick_mode,
-			  di_cfgx_get(channel, EDI_CFGX_BYPASS_ALL));
-#endif
 			}
 
 			if (ppre->di_post_wr_buf)
@@ -5950,12 +5943,6 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			pch->sumx.need_local = false;
 			dim_print("%s:bypass_state = 1, is_bypass(0x%x)\n",
 				  __func__, dim_is_bypass(NULL, channel));
-#ifdef DI_BUFFER_DEBUG
-
-			dim_print("trick_mode %d bypass_all %d\n",
-				  trick_mode,
-				  di_cfgx_get(channel, EDI_CFGX_BYPASS_ALL));
-#endif
 			}
 
 			top_bot_config(di_buf);

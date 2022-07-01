@@ -1885,9 +1885,9 @@ static int rcfgx_show(struct seq_file *s, void *what)
 	seq_printf(s, "%s:ch[%d]\n", __func__, *pch);
 
 	for (i = EDI_CFGX_BEGIN; i < EDI_DBG_CFGX_END; i++) {
-		seq_printf(s, "\tidx[%2d]:%-15s:%d\n", i,
+		seq_printf(s, "\tidx[%2d]:%-15s:0x%x\n", i,
 			   di_cfgx_get_name(i),
-			   di_cfgx_get(*pch, i));
+			   di_cfgx_getc(*pch, i));
 	}
 
 	return 0;
@@ -1928,7 +1928,7 @@ static ssize_t wcfgx_store(struct file *file, const char __user *userbuf,
 
 		pr_info("change cfg:%s\n", di_cfgx_get_name(item));
 		pr_info("\t%d -> %d\n", di_cfgx_get(*pch, item), val);
-		di_cfgx_set(*pch, item, val);
+		di_cfgx_set(*pch, item, val, DI_BIT1);
 		break;
 	default:
 		pr_info("err:please enter: cfg_item, value(bool)\n");

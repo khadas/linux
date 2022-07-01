@@ -33,6 +33,7 @@ static const struct di_ext_ops di_ext = {
 	.post_update_mc		    = NULL,
 	.post_keep_cmd_release2		= dim_post_keep_cmd_release2_local,//NULL, //
 	.polic_cfg			= dim_polic_cfg_local,
+	.s_bypass_ch		= di_ls_bypass_ch,
 	.new_create_instance	= new_create_instance,
 	.new_destroy_instance	= new_destroy_instance,
 	.new_empty_input_buffer	= new_empty_input_buffer,
