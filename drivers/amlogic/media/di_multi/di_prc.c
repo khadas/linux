@@ -146,7 +146,13 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	/* 0:default; 1: nv21; 2: nv12; 3:afbce */
 	/* 4: dynamic change p out put;	 4k:afbce, other:yuv422 10*/
 	/* 5: dynamic: 4k: nv21, other yuv422 10bit */
-	/* 6: dynamic: like 4: 4k: afbce yuv420, other:yuv422 10 */
+	/****************************************
+	 * 6: dynamic: like 4:
+	 *	4k decoder: afbce yuv420;
+	 *	other(hdmi-in): afbce yuv422 10
+	 ****************************************/
+	/* 7: dynamic: 4k: afbce 420 10 bit	*/
+	/* b: fix p as afbce 420 10 bit		*/
 			EDI_CFG_POUT_FMT,
 			0,
 			K_DI_CFG_T_FLG_DTS},
@@ -379,9 +385,11 @@ void di_cfg_top_dts(void)
 		cfgs(LINEAR, 1);
 		dbg_reg("from t7 linear mode\n");
 	}
-	if (DIM_IS_IC(S4) && (cfgg(POUT_FMT) == 3)) {
+	if (DIM_IS_IC(S4) &&
+	    (cfgg(POUT_FMT) == 3	||
+	     cfgg(POUT_FMT) == 0x0b)) {
 		cfgs(POUT_FMT, 0);
-		dbg_reg("s4 not support AFBCE\n");
+		PR_WARN("s4 not support AFBCE\n");
 	}
 	if (cfgg(HF)) {
 		if (DIM_IS_IC_EF(T3)) {
@@ -2944,6 +2952,9 @@ bool dip_is_support_nv2110(unsigned int ch)
 
 	if ((cfggch(pch, POUT_FMT) == 6) && (!IS_VDIN_SRC(pch->src_type)))
 		return true;
+	if (cfggch(pch, POUT_FMT) == 7 || cfggch(pch, POUT_FMT) == 0x0b)
+		return true;
+
 	return false;
 }
 
@@ -2999,7 +3010,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		    cfggch(pch, IOUT_FMT) < 3 &&
 		    cfggch(pch, ALLOC_SCT)) {
 			cfgsch(pch, ALLOC_SCT, 0);
-			PR_INF("%s:chang alloc_sct\n", __func__);
+			PR_WARN("%s:chang alloc_sct\n", __func__);
 		}
 	}
 
@@ -3060,7 +3071,9 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
 	} else if (sgn <= EDI_SGN_HD) {
 		memcpy(&mm->cfg, &c_mm_cfg_normal, sizeof(struct di_mm_cfg_s));
-		if ((cfggch(pch, POUT_FMT) == 4) || (cfggch(pch, POUT_FMT) == 6))
+		if ((cfggch(pch, POUT_FMT) == 4) ||
+		    (cfggch(pch, POUT_FMT) == 6) ||
+		    (cfggch(pch, POUT_FMT) == 7))
 			mm->cfg.dis_afbce = 1;
 	} else if ((sgn <= EDI_SGN_4K)	&&
 		 dim_afds()		&&

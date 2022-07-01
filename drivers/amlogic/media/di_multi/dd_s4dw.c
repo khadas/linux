@@ -49,8 +49,7 @@
 
 static unsigned int dim_afbc_skip_en;
 module_param_named(dim_afbc_skip_en, dim_afbc_skip_en, uint, 0664);
-//static unsigned int afbc_skip_w, afbc_skip_h;
-//static unsigned int afbc_skip_ori_w, afbc_skip_ori_h;
+
 #ifdef DBG_BUFFER_FLOW
 static unsigned int afbc_skip_pps_w, afbc_skip_pps_h;
 module_param_named(afbc_skip_pps_w, afbc_skip_pps_w, uint, 0664);
@@ -1596,9 +1595,10 @@ static unsigned char s4dw_pre_buf_config(struct di_ch_s *pch)
 		} else if (ppre->prog_proc_type == 0x10 &&
 		    (nv21_flg				||
 		     (cfggch(pch, POUT_FMT) == 0)	||
-		     (((cfggch(pch, POUT_FMT) == 4) ||
-		      (cfggch(pch, POUT_FMT) == 5) ||
-		      (cfggch(pch, POUT_FMT) == 6)) &&
+		     (((cfggch(pch, POUT_FMT) == 4)	||
+		      (cfggch(pch, POUT_FMT) == 5)	||
+		      (cfggch(pch, POUT_FMT) == 6)	||
+		      (cfggch(pch, POUT_FMT) == 7)) &&
 		     (ppre->sgn_lv <= EDI_SGN_HD)))) {
 			if (dim_afds() && dim_afds()->cnt_sgn_mode) {
 				typetmp = ppre->di_inp_buf->vframe->type;

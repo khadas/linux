@@ -5078,7 +5078,9 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 	if (pch->ponly && dip_is_ponly_sct_mem(pch))
 		mm->cfg.dis_afbce = 0;
 	else if ((!is_4k &&
-	     ((cfggch(pch, POUT_FMT) == 4) || (cfggch(pch, POUT_FMT) == 6))))
+	     ((cfggch(pch, POUT_FMT) == 4)	||
+	      (cfggch(pch, POUT_FMT) == 6)	||
+	      (cfggch(pch, POUT_FMT) == 7))))
 		mm->cfg.dis_afbce = 1;
 	else
 		mm->cfg.dis_afbce = 0;
@@ -6261,6 +6263,8 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		if ((dip_is_support_nv2110(channel)) &&
 		    ppre->sgn_lv == EDI_SGN_4K)
 			di_buf->afbce_out_yuv420_10 = 1;
+		else if (cfggch(pch, POUT_FMT) == 0x0b)
+			di_buf->afbce_out_yuv420_10 = 1;
 		else
 			di_buf->afbce_out_yuv420_10 = 0;
 
@@ -6442,9 +6446,10 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		} else if (ppre->prog_proc_type == 0x10 &&
 		    (nv21_flg				||
 		     (cfggch(pch, POUT_FMT) == 0)	||
-		     (((cfggch(pch, POUT_FMT) == 4) ||
-		      (cfggch(pch, POUT_FMT) == 5) ||
-		      (cfggch(pch, POUT_FMT) == 6)) &&
+		     (((cfggch(pch, POUT_FMT) == 4)	||
+		      (cfggch(pch, POUT_FMT) == 5)	||
+		      (cfggch(pch, POUT_FMT) == 6)	||
+		      (cfggch(pch, POUT_FMT) == 7)) &&
 		     (ppre->sgn_lv <= EDI_SGN_HD)))) {
 			if (dim_afds() && dim_afds()->cnt_sgn_mode) {
 				typetmp = ppre->di_inp_buf->vframe->type;
