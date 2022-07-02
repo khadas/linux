@@ -1900,7 +1900,7 @@
 };
 
 &pwm_ef {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_f_pins>;
 };
