@@ -1915,7 +1915,7 @@
 };
 
 &uart_E {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&e_uart_pins_no_cts_rts>;
 };
