@@ -1196,6 +1196,9 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 	if (is_card_emmc(card)) /* not emmc, nothing to do */
 		return 0;
 
+	if (strstr(saved_command_line, "partition_type=generic"))
+		return 0;
+
 	if (!of_find_node_by_path("/partitions"))
 		return 0;
 
