@@ -102,8 +102,10 @@
 /* 20220628: use one buffer in game mode 2 when vrr/freesync signal */
 /* 20220701: use reality in and out fps check mode */
 /* 20220706: probability not into vrr */
+/* 20220714: set secure memory not send frame when keystone */
 /* 20220719: up set not support port crash */
-#define VDIN_VER "20220719:up set not support port crash"
+/* 20220726: add 444 format manual set */
+#define VDIN_VER "20220726:add 444 format manual set"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
