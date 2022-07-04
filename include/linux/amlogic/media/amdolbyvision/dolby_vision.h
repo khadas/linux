@@ -45,7 +45,7 @@ struct vframe_s;
 #define COMP_BUF_SIZE 8196
 
 #define DV_SEI 0x01000000
-#define DV_AV1_SEI 0x14000000
+#define AV1_SEI 0x14000000 /*for both dv and hdr10plus*/
 #define HDR10P 0x02000000
 
 enum pq_item_e {

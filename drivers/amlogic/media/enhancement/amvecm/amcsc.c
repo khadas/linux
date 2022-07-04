@@ -3938,8 +3938,11 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
 	}
 	if (vinfo)
-		pr_csc(32, "%s: mode=%d  hdr_cap = 0x%x\n",
+		pr_csc(32, "%s: support %d %d %d,mode=%d, hdr_cap 0x%x\n",
 			__func__,
+			vinfo->hdr_info.hdr_support,
+			vinfo->hdr_info.hdr10plus_info.ieeeoui,
+			vinfo->hdr_info.hdr10plus_info.application_version,
 			vinfo->mode,
 			hdr_cap);
 	return hdr_cap;

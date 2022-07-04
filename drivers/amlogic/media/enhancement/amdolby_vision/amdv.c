@@ -3497,7 +3497,8 @@ int is_amdv_frame(struct vframe_s *vf)
 			type = (type << 8) | *p++;
 			type = (type << 8) | *p++;
 			if (type == DV_SEI ||
-			    (type & 0xffff0000) == DV_AV1_SEI)
+			    ((type & 0xffff0000) == AV1_SEI &&
+			    !vf_is_hdr10_plus(vf)))
 				return 1;
 			p += size;
 		}
@@ -3910,11 +3911,11 @@ int parse_sei_and_meta_ext_v1(struct vframe_s *vf,
 			goto parse_err;
 		}
 		if (type == DV_SEI || /* hevc t35 sei */
-			(type & 0xffff0000) == DV_AV1_SEI) { /* av1 t35 obu */
+			(type & 0xffff0000) == AV1_SEI) { /* av1 t35 obu */
 			*total_comp_size = 0;
 			*total_md_size = 0;
 
-			if ((type & 0xffff0000) == DV_AV1_SEI &&
+			if ((type & 0xffff0000) == AV1_SEI &&
 			    p[0] == 0xb5 &&
 			    p[1] == 0x00 &&
 			    p[2] == 0x3b &&
@@ -4433,11 +4434,11 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			goto parse_err;
 		}
 		if (type == DV_SEI || /* hevc t35 sei */
-		(type & 0xffff0000) == DV_AV1_SEI) { /* av1 t35 obu */
+		(type & 0xffff0000) == AV1_SEI) { /* av1 t35 obu */
 			*total_comp_size = 0;
 			*total_md_size = 0;
 
-			if ((type & 0xffff0000) == DV_AV1_SEI &&
+			if ((type & 0xffff0000) == AV1_SEI &&
 			    p[0] == 0xb5 &&
 			    p[1] == 0x00 &&
 			    p[2] == 0x3b &&

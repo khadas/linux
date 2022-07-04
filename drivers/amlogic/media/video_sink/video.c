@@ -10681,6 +10681,10 @@ EXPORT_SYMBOL(di_prelink_state_changed_notify);
 #define ATSC_T35_PROV_CODE    0x0031
 #define PRIME_SL_T35_PROV_CODE     0x003A
 #define DVB_T35_PROV_CODE     0x003B
+#define AV1_HDR10P_T35_PROV_CODE   0x003C
+#define AV1_HDR10P_T35_PROV_ORIENTED_CODE   0x0001
+#define AV1_HDR10P_APPLICATION_IDENTIFIER   4
+
 #define ATSC_USER_ID_CODE     0x47413934
 #define DVB_USER_ID_CODE      0x00000000
 #define DM_MD_USER_TYPE_CODE  0x09
@@ -10688,6 +10692,33 @@ EXPORT_SYMBOL(di_prelink_state_changed_notify);
 #define FMT_TYPE_DV_AV1 1
 #define FMT_TYPE_HDR10_PLUS 2
 #define FMT_TYPE_PRIME 3
+#define FMT_TYPE_HDR10_PLUS_AV1 4
+
+bool check_av1_hdr10p(char *p)
+{
+	u32 country_code;
+	u32 provider_code;
+	u32 provider_oriented_code;
+	u32 application_identifier;
+
+	if (!p)
+		return false;
+
+	country_code = *(p);
+	provider_code = (*(p + 1) << 8) |
+			*(p + 2);
+	provider_oriented_code = (*(p + 3) << 8) | *(p + 4);
+	application_identifier = *(p + 5);
+	if (country_code == 0xB5 &&
+	    provider_code ==
+	    AV1_HDR10P_T35_PROV_CODE &&
+	    provider_oriented_code == AV1_HDR10P_T35_PROV_ORIENTED_CODE &&
+	    application_identifier == AV1_HDR10P_APPLICATION_IDENTIFIER)
+		return true;
+	else
+		return false;
+}
+EXPORT_SYMBOL(check_av1_hdr10p);
 
 static int check_media_sei(char *sei, u32 sei_size, u32 fmt_type)
 {
@@ -10707,10 +10738,12 @@ static int check_media_sei(char *sei, u32 sei_size, u32 fmt_type)
 	if (fmt_type == FMT_TYPE_DV)
 		sei_type = DV_SEI;
 	else if (fmt_type == FMT_TYPE_DV_AV1)
-		sei_type = DV_AV1_SEI;
+		sei_type = AV1_SEI;
 	else if (fmt_type == FMT_TYPE_HDR10_PLUS ||
 		fmt_type == FMT_TYPE_PRIME)
 		sei_type = HDR10P; /* same sei type */
+	else if (fmt_type == FMT_TYPE_HDR10_PLUS_AV1)
+		sei_type = AV1_SEI;
 	else
 		return ret;
 
@@ -10728,13 +10761,36 @@ static int check_media_sei(char *sei, u32 sei_size, u32 fmt_type)
 		type = (type << 8) | *p++;
 		type = (type << 8) | *p++;
 
-		if ((sei_type == DV_SEI && sei_type == type) ||
-		    (sei_type == DV_AV1_SEI && sei_type == (type & 0xffff0000))) {
+		if ((sei_type == DV_SEI && sei_type == type)) {/*h264/h265 dv*/
 			ret = 1;
+			break;
+		} else if (fmt_type == FMT_TYPE_DV_AV1 &&
+			   sei_type == (type & 0xffff0000) &&
+			   size > 6) {
+			/*av1 dv, double check nal type and payload type to distinguish hdr10p*/
+			if (!check_av1_hdr10p(p))
+				ret = 1;
+			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+				pr_info("check FMT_TYPE_DV_AV1 %d\n", ret);
 			break;
 		} else if (fmt_type == FMT_TYPE_HDR10_PLUS && sei_type == type) {
 			/* TODO: double check nal type and payload type */
 			ret = 1;
+			break;
+		} else if (fmt_type == FMT_TYPE_HDR10_PLUS_AV1 &&
+			   sei_type == (type & 0xffff0000) &&
+			   size > 6) {
+			/* av1 hdr10p, double check nal type and payload type */
+			/*4 byte size + 4 byte type*/
+			/*1 byte country_code B5*/
+			/*2 byte provider_code 003C*/
+			/*2 byte provider_oriented_code 0001, 2094-40*/
+			/*1 byte app_identifier 4*/
+			/*1 byte app_mode 1*/
+			if (check_av1_hdr10p(p))
+				ret = 1;
+			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+				pr_info("check FMT_TYPE_HDR10_PLUS_AV1 %d\n", ret);
 			break;
 		} else if (sei_type == DV_SEI && type == HDR10P) {
 			/* check DVB/ATSC as DV */
@@ -10918,7 +10974,8 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		} else if ((signal_transfer_characteristic == 0x30) &&
 			     ((signal_color_primaries == 9) ||
 			      (signal_color_primaries == 2))) {
-			if (check_media_sei(sei, size, FMT_TYPE_HDR10_PLUS))
+			if (check_media_sei(sei, size, FMT_TYPE_HDR10_PLUS) ||
+			    check_media_sei(sei, size, FMT_TYPE_HDR10_PLUS_AV1))
 				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10PLUS;
 			else /* TODO: if need switch to HDR10 */
 				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
