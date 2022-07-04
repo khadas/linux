@@ -368,7 +368,8 @@ int frc_update_in_sts(struct frc_dev_s *devp, struct st_frc_in_sts *frc_in_sts,
 		}
 	}
 	/*secure mode*/
-	if (devp->in_sts.secure_mode)
+	if (devp->in_sts.secure_mode &&
+		!secure_tee_handle && devp->buf.cma_mem_alloced)
 		frc_mm_secure_set(devp);
 
 	//pr_frc(dbg_sts, "in size(%d,%d) sr_out(%d,%d) dbg(%d,%d)\n",
@@ -683,7 +684,9 @@ void frc_mm_secure_set(struct frc_dev_s *devp)
 	}
 	/*data buffer set to secure mode*/
 	addr_start = devp->buf.cma_mem_paddr_start + devp->buf.lossy_mc_y_data_buf_paddr[0];
-	addr_size = devp->buf.lossy_mc_y_link_buf_paddr[0] - devp->buf.lossy_mc_y_data_buf_paddr[0];
+	// data buf size: 0x9a30000
+	addr_size = devp->buf.cma_mem_size -
+		devp->buf.lossy_mc_y_data_buf_paddr[0] + devp->buf.cma_mem_size2;
 
 	/*data buffer, me/mc info and link buffer set to secure mode*/
 	//addr_start = devp->buf.cma_mem_paddr_start + devp->buf.lossy_mc_y_info_buf_paddr;
