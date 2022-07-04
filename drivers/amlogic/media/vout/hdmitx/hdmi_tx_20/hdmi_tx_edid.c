@@ -1098,6 +1098,9 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 	/* future: other new VSVDB add here: */
 }
 
+/* hdr_priority = 2, hdr_cap mask dv_info and hdr_info
+ * hdr_priority = 1, hdr_cap mask dv_info
+ */
 static void edid_parsingvendspec(struct hdmitx_dev *hdev,
 				 struct rx_cap *prxcap,
 				 unsigned char *buf)
@@ -1109,10 +1112,28 @@ static void edid_parsingvendspec(struct hdmitx_dev *hdev,
 	struct cuva_info *cuva = &prxcap->hdr_info.cuva_info;
 	struct cuva_info *cuva2 = &prxcap->hdr_info2.cuva_info;
 
-	if (hdev->hdr_priority) { /* skip dv_info parsing */
+	unsigned char pos = 0;
+	unsigned int ieeeoui = 0;
+
+	pos++;
+
+	if (buf[pos] != 1) {
+		pr_info("hdmitx: edid: parsing fail %s[%d]\n", __func__,
+			__LINE__);
+		return;
+	}
+
+	pos++;
+	ieeeoui = buf[pos++];
+	ieeeoui += buf[pos++] << 8;
+	ieeeoui += buf[pos++] << 16;
+
+	if ((hdev->hdr_priority == 1 && ieeeoui == DV_IEEE_OUI) ||
+		hdev->hdr_priority == 2) {
 		_edid_parsingvendspec(dv2, hdr10_plus2, cuva2, buf);
 		return;
 	}
+
 	_edid_parsingvendspec(dv, hdr10_plus, cuva, buf);
 	_edid_parsingvendspec(dv2, hdr10_plus2, cuva2, buf);
 }
