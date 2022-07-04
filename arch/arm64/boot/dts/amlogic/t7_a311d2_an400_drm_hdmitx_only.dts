@@ -1503,6 +1503,13 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&drm_subsystem {
+	/* overwrite the crtc mask of osd plane */
+	overwrite_crtcmask_of_osd = <0 0 0 0>;
+	/* overwrite the crtc mask of video plane */
+	overwrite_crtcmask_of_video = <0 0 0>;
+};
+
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";

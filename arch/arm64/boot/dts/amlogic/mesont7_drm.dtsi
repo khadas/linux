@@ -74,8 +74,9 @@
 		osd_ver = /bits/ 8 <OSD_V7>;
 		vfm_mode = <1>; /** 0:drm mode 1:composer mode */
 		memory-region = <&logo_reserved>;
-		primary_plane_index = <0 2 3>; /* primary plane index for crtcs */
 		crtc_masks = <3 7 1>; /*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+		crtcmask_of_osd = <0 0 1 2>; /* indicate the crtc mask of osd plane */
+		crtcmask_of_video = <0 1 2>; /* indicate the crtc mask of video plane */
 
 		vpu_topology: vpu_topology {
 			vpu_blocks {

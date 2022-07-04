@@ -82,6 +82,8 @@ struct meson_drm {
 	u32 num_planes;
 	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
 	struct am_video_plane *video_planes[MESON_MAX_VIDEO];
+	u32 crtcmask_osd[MESON_MAX_OSD];
+	u32 crtcmask_video[MESON_MAX_VIDEO];
 
 	/*for encoder: 0:hdmi 1:lcd 2:cvbs*/
 	u32 crtc_masks[ENCODER_MAX];
