@@ -287,33 +287,39 @@ static int write_yuv_work(struct pic_check_mgr_t *mgr)
 static int write_crc_work(struct pic_check_mgr_t *mgr)
 {
 	unsigned int wr_size;
-	char *crc_buf, crc_tmp[64*30];
+	char *crc_buf;
+	char *crc_tmp = vmalloc(64*30);
 	mm_segment_t old_fs;
 	struct pic_check_t *check = &mgr->pic_check;
 
-	if (mgr->enable & CRC_MASK) {
-		wr_size = 0;
-		while (kfifo_get(&check->wr_chk_q, &crc_buf) != 0) {
-			wr_size += sprintf(&crc_tmp[wr_size], "%s", crc_buf);
-			if (check->compare_fp != NULL) {
-				if (!fget_crc_str(crc_buf, SIZE_CRC, check)) {
-					dbg_print(0, "%s, can't get more compare crc\n", __func__);
-					filp_close(check->compare_fp, current->files);
-					check->compare_fp = NULL;
+	if (!crc_tmp){
+		pr_err("crc buffer allocation failed.");
+	}else{
+		if (mgr->enable & CRC_MASK) {
+			wr_size = 0;
+			while (kfifo_get(&check->wr_chk_q, &crc_buf) != 0) {
+				wr_size += sprintf(&crc_tmp[wr_size], "%s", crc_buf);
+				if (check->compare_fp != NULL) {
+					if (!fget_crc_str(crc_buf, SIZE_CRC, check)) {
+						dbg_print(0, "%s, can't get more compare crc\n", __func__);
+						filp_close(check->compare_fp, current->files);
+						check->compare_fp = NULL;
+					}
 				}
+				kfifo_put(&check->new_chk_q, crc_buf);
 			}
-			kfifo_put(&check->new_chk_q, crc_buf);
-		}
-		if (check->check_fp && (wr_size != 0)) {
-			old_fs = get_fs();
-			set_fs(KERNEL_DS);
-			if (wr_size != vfs_write(check->check_fp,
-				crc_tmp, wr_size, &check->check_pos)) {
-				dbg_print(FC_ERROR, "failed to check_dump_filp\n");
+			if (check->check_fp && (wr_size != 0)) {
+				old_fs = get_fs();
+				set_fs(KERNEL_DS);
+				if (wr_size != vfs_write(check->check_fp,
+					crc_tmp, wr_size, &check->check_pos)) {
+					dbg_print(FC_ERROR, "failed to check_dump_filp\n");
+				}
+				set_fs(old_fs);
 			}
-			set_fs(old_fs);
 		}
-	}
+		vfree(crc_tmp);
+    }
 	return 0;
 }
 

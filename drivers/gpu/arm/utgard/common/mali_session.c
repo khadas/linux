@@ -132,7 +132,7 @@ void mali_session_memory_tracking(_mali_osk_print_ctx *print_ctx)
 		if (ttask)
 			strncpy(task_comm, ttask->comm, sizeof(ttask->comm));
 		else
-			strncpy(task_comm, task_default, sizeof(task_default));
+			strncpy(task_comm, task_default, sizeof(task_default)-1);
 #ifdef MALI_MEM_SWAP_TRACKING
 		_mali_osk_ctxprintf(print_ctx, "  %-25s  %-10u %-25s %-10u  %-15u  %-15u  %-10u  %-10u %-10u\n",
 				    session->comm, session->pid, task_comm,
