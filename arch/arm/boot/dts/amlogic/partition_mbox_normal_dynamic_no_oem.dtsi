@@ -17,18 +17,18 @@
 		part-1 = <&recovery>;
 		part-2 = <&tee>;
 		part-3 = <&factory>;
-		part-4 = <&vendor_boot>;
-		part-5 = <&frp>;
-		part-6 = <&misc>;
-		part-7 = <&dtbo>;
-		part-8 = <&cri_data>;
-		part-9 = <&param>;
-		part-10 = <&boot>;
+		part-4 = <&misc>;
+		part-5 = <&dtbo>;
+		part-6 = <&cri_data>;
+		part-7 = <&param>;
+		part-8 = <&boot>;
+		part-9 = <&vbmeta>;
+		part-10 = <&vbmeta_system>;
 		part-11 = <&odm_ext>;
-		part-12 = <&metadata>;
-		part-13 = <&rsv>;
-		part-14 = <&vbmeta>;
-		part-15 = <&vbmeta_system>;
+		part-12 = <&rsv2>;
+		part-13 = <&metadata>;
+		part-14 = <&rsv>;
+		part-15 = <&vendor_boot>;
 		part-16 = <&super>;
 		part-17 = <&cache>;
 		part-18 = <&userdata>;
@@ -53,56 +53,21 @@
 			size = <0x0 0x800000>;
 			mask = <0x11>;
 		};
-		vendor_boot:vendor_boot{
-			pname = "vendor_boot";
-			size = <0x0 0x1800000>;
-			mask = <0x101>;
-		};
-		frp:frp{
-			pname = "frp";
-			size = <0x0 0x200000>;
-			mask = <0x101>;
-		};
 		misc:misc{
 			pname = "misc";
 			size = <0x0 0x200000>;
-			mask = <0x101>;
+			mask = <1>;
 		};
 		dtbo:dtbo{
 			pname = "dtbo";
 			size = <0x0 0x200000>;
-			mask = <0x101>;
+			mask = <1>;
 		};
 		cri_data:cri_data
 		{
 			pname = "cri_data";
 			size = <0x0 0x800000>;
-			mask = <0x102>;
-		};
-		odm_ext:odm_ext{
-			pname = "odm_ext";
-			size = <0x0 0x1000000>;
-			mask = <0x101>;
-		};
-		metadata:metadata{
-			pname = "metadata";
-			size = <0x0 0x1000000>;
-			mask = <0x101>;
-		};
-		rsv:rsv{
-			pname = "rsv";
-			size = <0x0 0x1F00000>;
-			mask = <0x101>;
-		};
-		vbmeta:vbmeta{
-			pname = "vbmeta";
-			size = <0x0 0x200000>;
-			mask = <0x101>;
-		};
-		vbmeta_system:vbmeta_system{
-			pname = "vbmeta_system";
-			size = <0x0 0x200000>;
-			mask = <0x101>;
+			mask = <2>;
 		};
 		param:param{
 			pname = "param";
@@ -115,10 +80,45 @@
 			size = <0x0 0x1000000>;
 			mask = <0x101>;
 		};
+		vbmeta:vbmeta{
+			pname = "vbmeta";
+			size = <0x0 0x200000>;
+			mask = <0x101>;
+		};
+		vbmeta_system:vbmeta_system{
+			pname = "vbmeta_system";
+			size = <0x0 0x200000>;
+			mask = <0x101>;
+		};
+		odm_ext:odm_ext{
+			pname = "odm_ext";
+			size = <0x0 0x1000000>;
+			mask = <0x101>;
+		};
+		rsv2:rsv2{
+			pname = "rsv2";
+			size = <0x0 0x0E00000>;
+			mask = <0x101>;
+		};
+		metadata:metadata{
+			pname = "metadata";
+			size = <0x0 0x1000000>;
+			mask = <0x101>;
+		};
+		rsv:rsv{
+			pname = "rsv";
+			size = <0x0 0x1000000>;
+			mask = <0x101>;
+		};
+		vendor_boot:vendor_boot{
+			pname = "vendor_boot";
+			size = <0x0 0x1800000>;
+			mask = <0x101>;
+		};
 		super:super
 		{
 			pname = "super";
-			size = <0x0 0x64000000>;
+			size = <0x0 0x62E00000>;
 			mask = <0x101>;
 		};
 		cache:cache
