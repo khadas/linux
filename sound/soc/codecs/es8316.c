@@ -814,6 +814,7 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 	struct device *dev = &i2c_client->dev;
 	struct es8316_priv *es8316;
 	int ret = -1;
+	int error = -1;
 	enum of_gpio_flags flags;
 	struct device_node *np = i2c_client->dev.of_node;
 
@@ -829,6 +830,10 @@ static int es8316_i2c_probe(struct i2c_client *i2c_client,
 	es8316->regmap = devm_regmap_init_i2c(i2c_client, &es8316_regmap);
 	if (IS_ERR(es8316->regmap))
 		return PTR_ERR(es8316->regmap);
+
+	error = regmap_read(es8316->regmap, ES8316_TEST1, &ret);
+	if (error)
+		return error;
 
 	es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
 						       "spk-con-gpio",
