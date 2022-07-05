@@ -434,11 +434,24 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 	if (vf->width == 0 || vf->height == 0) {
 		vq_print(P_ERROR, "vframe param invalid.\n");
-		vf_get(dev->vf_receiver_name);
-		vf_put(vf, dev->vf_receiver_name);
+		vf = vf_get(dev->vf_receiver_name);
+		if (!vf)
+			vf_put(vf, dev->vf_receiver_name);
 		vf = vf_peek(dev->vf_receiver_name);
 		if (!vf)
 			return;
+	}
+
+	if (get_video_mute_val()) {
+		vq_print(P_ERROR, "video_mute_on need drop.\n");
+		while (1) {
+			vf = vf_get(dev->vf_receiver_name);
+			if (!vf)
+				vf_put(vf, dev->vf_receiver_name);
+			vf = vf_peek(dev->vf_receiver_name);
+			if (!vf)
+				return;
+		}
 	}
 
 	if (dev->provider_name && !(strcmp(dev->provider_name, "dv_vdin"))) {

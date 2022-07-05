@@ -6036,6 +6036,12 @@ void set_video_mute(bool on)
 }
 EXPORT_SYMBOL(set_video_mute);
 
+int get_video_mute_val(void)
+{
+	return video_mute_on;
+}
+EXPORT_SYMBOL(get_video_mute_val);
+
 int get_video_mute(void)
 {
 	return video_mute_status;
