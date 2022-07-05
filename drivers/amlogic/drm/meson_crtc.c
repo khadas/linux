@@ -118,7 +118,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 static void meson_crtc_init_hdr_preference
 	(struct am_meson_crtc_state *crtc_state)
 {
-	crtc_state->crtc_hdr_process_policy = MESON_HDR_POLICY_FOLLOW_SINK;
+	crtc_state->crtc_hdr_process_policy = get_hdr_policy();
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	crtc_state->crtc_dv_enable = is_amdv_enable();
 #else
