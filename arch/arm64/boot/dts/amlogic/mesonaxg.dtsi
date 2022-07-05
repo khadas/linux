@@ -343,17 +343,12 @@
 		status = "okay";
 	};
 
-	wdt_ee: watchdog@0xffd0f0d0 {
-		compatible = "amlogic, meson-wdt";
+	wdt: watchdog@0xffd0f0d0 {
+		compatible = "amlogic,meson-gxbb-wdt";
 		status = "okay";
-		default_timeout=<10>;
-		reset_watchdog_method=<1>; /* 0:sysfs,1:kernel */
-		reset_watchdog_time=<2>;
-		shutdown_timeout=<10>;
-		firmware_timeout=<6>;
-		suspend_timeout=<6>;
+		/* 0:userspace, 1:kernel */
+		amlogic,feed_watchdog_mode = <1>;
 		reg = <0x0 0xffd0f0d0 0x0 0x10>;
-		clock-names = "xtal";
 		clocks = <&xtal>;
 	};
 
