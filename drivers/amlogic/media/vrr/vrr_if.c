@@ -152,7 +152,7 @@ static int aml_vrr_drv_update(void)
 
 	if (vdrv_active->vrr_dev) {
 		vdata.dev_vfreq_max = vdrv_active->vrr_dev->vfreq_max;
-		vdata.dev_vfreq_min = vdrv_active->vrr_dev->vfreq_min;
+		vdata.dev_vfreq_min = vdrv_active->vrr_dev->vfreq_min + 5;
 		if (vrr_debug_print & VRR_DBG_PR_NORMAL) {
 			VRRPR("%s: dev_vfreq max:%d, min:%d\n",
 				__func__, vdata.dev_vfreq_max, vdata.dev_vfreq_min);
