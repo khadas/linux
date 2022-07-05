@@ -82,7 +82,7 @@ static struct sg_table
 					ua->size, ua->scalar);
 		if (ua->gpu_realloc(dmabuf, ua->obj, ua->scalar)) {
 			UVM_PRINTK(1, "gpu_realloc fail\n");
-			return ERR_PTR(-ENOMEM);
+			//return ERR_PTR(-ENOMEM);
 		}
 	}
 

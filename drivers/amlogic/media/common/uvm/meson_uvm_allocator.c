@@ -118,6 +118,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	struct page **page_array;
 	pgprot_t pgprot;
 	void *vaddr;
+	bool skip_fill_buf = false;
 	struct sg_table *src_sgt = NULL;
 	struct scatterlist *sg = NULL;
 	unsigned int id = meson_ion_cma_heap_id_get();
@@ -130,10 +131,12 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	if (!enable_screencap && current->tgid == mdev->pid &&
 	    buffer->commit_display) {
 		MUA_PRINTK(0, "gpu_realloc: screen cap should not access the uvm buffer.\n");
-		return -ENODEV;
+		skip_fill_buf = true;
+		//return -ENODEV;
 	}
 
-	dmabuf->size = buffer->size * scalar * scalar;
+	if (!skip_fill_buf)
+		dmabuf->size = buffer->size * scalar * scalar;
 	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu\n",
 			buffer->size, dmabuf->size);
 	if (!buffer->idmabuf[1]) {
@@ -189,8 +192,18 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	vfree(page_array);
 	MUA_PRINTK(1, "buffer vaddr: %p.\n", vaddr);
 
-	//start to filldata
-	meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
+	if (skip_fill_buf) {
+		size_t buf_size = dmabuf->size * 2 / 3;
+
+		MUA_PRINTK(1, "%s buf size=%zu\n", __func__, buf_size);
+		memset(vaddr, 0x0, buf_size);
+		memset(vaddr + buf_size, 0x80, buf_size / 2);
+
+		vunmap(vaddr);
+	} else {
+		//start to filldata
+		meson_uvm_fill_pattern(buffer, dmabuf, vaddr);
+	}
 
 	return 0;
 }
