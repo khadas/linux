@@ -2350,10 +2350,10 @@ u8 frc_frame_forcebuf_enable(u8 enable)
 	if (enable == 1) {	//frc off->on
 		ro_frc_input_fid = READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
 		//force phase 0
-		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7, 0xD000000, 0xD000000);
+		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7, 0x9000000, 0x9000000);
 		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL8, 0, 0xFFFF);
 	} else {
-		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7, 0x0000000, 0xD000000);
+		UPDATE_FRC_REG_BITS(FRC_REG_TOP_CTRL7, 0x0000000, 0x9000000);
 	}
 	return ro_frc_input_fid;
 }
