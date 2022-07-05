@@ -20,3 +20,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_meter
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_ve.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_dnlp.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_lc.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_VPP) += vpp/modules/vpp_module_cm.o

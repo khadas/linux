@@ -95,7 +95,7 @@ extern unsigned int pr_lvl;
 	})
 #endif
 
-/*Commom enum*/
+/*Common enum*/
 enum vpp_rgb_mode_e {
 	MODE_R = 0,
 	MODE_G,
@@ -104,11 +104,11 @@ enum vpp_rgb_mode_e {
 };
 
 enum vpp_level_mode_e {
-	LEVLE_MODE_OFF = 0,
-	LEVLE_MODE_LOW,
-	LEVLE_MODE_MID,
-	LEVLE_MODE_HIGH,
-	LEVLE_MODE_AUTO,
+	LEVEL_MODE_OFF = 0,
+	LEVEL_MODE_LOW,
+	LEVEL_MODE_MID,
+	LEVEL_MODE_HIGH,
+	LEVEL_MODE_AUTO,
 };
 
 enum vpp_module_e {
@@ -503,9 +503,10 @@ struct vpp_dnlp_curve_param_s {
 	unsigned int param[DNLP_PARAM_MAX];
 };
 
-/*Commom functions*/
+/*Common functions*/
 int vpp_check_range(int val, int down, int up);
 int vpp_mask_int(int val, int start, int len);
+int vpp_insert_int(int src_val, int insert_val, int start, int len);
 
 /*IOCtrl*/
 #define VPP_IOC_GET_PQ_STATE _IOR(_VPP_TYPE, 0x1, struct vpp_pq_state_s)

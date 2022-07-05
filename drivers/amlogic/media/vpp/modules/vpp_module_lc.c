@@ -254,7 +254,7 @@ static struct _sr1_bit_cfg_s sr1_bit_cfg = {
 	{8, 5}
 };
 
-static struct _lc_vs_param_s lc_vs_param;
+static struct lc_vs_param_s lc_vs_param;
 
 static struct _lc_alg_cfg_s lc_alg_cfg = {
 	.lc_bitdepth = 10,
@@ -1243,7 +1243,7 @@ static void _lc_stts_config(int bitdepth,
 }
 
 static void _lc_config(int bitdepth, int *phist,
-	struct _lc_vs_param_s *pvs_param)
+	struct lc_vs_param_s *pvs_param)
 {
 	static unsigned int flag_full_pre;
 	static unsigned int vf_height_pre, vf_width_pre;
@@ -2016,7 +2016,7 @@ void vpp_module_lc_set_isr_use(int val)
 }
 
 void vpp_module_lc_on_vs(int *phist,
-	struct _lc_vs_param_s *pvs_param)
+	struct lc_vs_param_s *pvs_param)
 {
 	int blk_hnum, blk_vnum, tmp;
 	unsigned int addr = 0;
@@ -2025,7 +2025,7 @@ void vpp_module_lc_on_vs(int *phist,
 		!phist || !pvs_param)
 		return;
 
-	memcpy(&lc_vs_param, pvs_param, sizeof(struct _lc_vs_param_s));
+	memcpy(&lc_vs_param, pvs_param, sizeof(struct lc_vs_param_s));
 
 	_lc_config(lc_alg_cfg.lc_bitdepth, phist, pvs_param);
 

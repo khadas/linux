@@ -24,7 +24,7 @@ enum lc_curve_tune_mode_e {
 	EN_LC_TUNE_CORRECT,
 };
 
-struct _lc_vs_param_s {
+struct lc_vs_param_s {
 	unsigned int vf_type;
 	unsigned int vf_signal_type;
 	unsigned int vf_height;
@@ -54,7 +54,7 @@ void vpp_module_lc_set_tune_mode(enum lc_curve_tune_mode_e mode);
 void vpp_module_lc_set_tune_param(struct lc_curve_tune_param_s *pparam);
 void vpp_module_lc_set_isr_def(int val);
 void vpp_module_lc_set_isr_use(int val);
-void vpp_module_lc_on_vs(int *phist, struct _lc_vs_param_s *pvs_param);
+void vpp_module_lc_on_vs(int *phist, struct lc_vs_param_s *pvs_param);
 
 #endif
 
