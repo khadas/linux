@@ -1460,6 +1460,7 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 	u32 try_count = 0;
 	u32 max_count = 1;
 	bool fmt_update = false;
+	u32 sei_size = 0;
 
 	if (!vf || !dup_vf || !provider || !alloc_sei)
 		return ret;
@@ -1467,6 +1468,31 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 	/*if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) &&*/
 	/*    (vf->type & VIDTYPE_DI_PW))*/
 	/*	return ret;*/
+
+	if (vf->type & VIDTYPE_DI_PW &&
+		vf->src_fmt.sei_magic_code == SEI_MAGIC_CODE) {
+		req.aux_buf = (char *)get_sei_from_src_fmt(vf, &sei_size);
+		req.aux_size = sei_size;
+		req.dv_enhance_exist = vf->src_fmt.dual_layer ? 1 : 0;
+		if (req.aux_buf && req.aux_size) {
+			p = vmalloc(req.aux_size);
+			if (p) {
+				memcpy(p, req.aux_buf, req.aux_size);
+				ret = update_vframe_src_fmt(dup_vf, (void *)p,
+					(u32)req.aux_size,
+					vf->src_fmt.dual_layer ? true : false,
+					provider, NULL);
+				if (!ret)
+					atomic_inc(&global_set_cnt);
+				else
+					vfree(p);
+			}
+		} else {
+			ret = update_vframe_src_fmt(dup_vf, NULL, 0,
+				false, provider, NULL);
+		}
+		goto finish_import;
+	}
 
 	if (!strcmp(provider, "dvbldec") && dup_vf->omx_index < 2)
 		max_count = 10;
@@ -1521,6 +1547,7 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 
 	if ((alloc_sei & 2) && max_count > 1)
 		pr_info("sei try_count %d\n", try_count);
+finish_import:
 	if (alloc_sei & 2)
 		pr_info("import sei: provider:%s, vf:%p, dup_vf:%p, req.aux_buf:%p, req.aux_size:%d, req.dv_enhance_exist:%d, vf->src_fmt.fmt:%d\n",
 			provider, vf, dup_vf,
