@@ -2568,6 +2568,14 @@ enum EDIM_WKUP_REASON {
 
 };
 
+struct dim_plink_dbg_s {
+	bool flg_sw;
+	int flg_check_di_act;
+	int flg_check_vf;
+	int display_sts;
+	u32 display_cnt;
+};
+
 struct dim_dvs_prevpp_s {
 	bool allowed;	/* support vpp link */
 	bool insert;
@@ -2585,6 +2593,7 @@ struct dim_dvs_prevpp_s {
 	atomic_t sum_wk_rq;	/*debug: total cal wk */
 	atomic_t sum_wk_real_cnt; /*debug: real wk */
 	const struct vframe_operations_s *vf_ops;
+	struct dim_plink_dbg_s dbgd;
 };
 
 struct di_data_l_s {
@@ -3243,6 +3252,11 @@ static inline void di_set_mem_info(unsigned int ch,
 static inline unsigned int di_get_mem_size(unsigned int ch)
 {
 	return get_datal()->mng.mm[ch].sts.mem_size;
+}
+
+static inline struct dim_plink_dbg_s *di_g_plink_dbg(void)
+{
+	return &get_datal()->dvs_prevpp.dbgd;
 }
 
 void di_tout_int(struct di_time_out_s *tout, unsigned int thd);

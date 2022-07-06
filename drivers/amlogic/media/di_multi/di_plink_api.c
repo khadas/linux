@@ -620,6 +620,9 @@ int dpvpp_show_itf(struct seq_file *s, struct dimn_itf_s *itf)
 	seq_printf(s, "%s\n", "itf");
 	seq_printf(s, "%s:%d:%d\n", "ch", itf->ch, itf->bind_ch);
 	seq_printf(s, "%s:%d:%d\n", "reg", atomic_read(&itf->reg), itf->c.reg_di);
+	seq_printf(s, "%s:%d:%d\n", "linkon",
+		   atomic_read(&itf->link_on_bydi),
+		   atomic_read(&itf->link_on_byvpp));
 	seq_printf(s, "%s:%d\n", "regging_api", atomic_read(&itf->regging_api));
 	seq_printf(s, "%s:%d\n", "unregging_api", atomic_read(&itf->unregging_api));
 	seq_printf(s, "%s:%d\n", "etype:1:vfm", itf->etype);
@@ -655,6 +658,19 @@ int dpvpp_show_itf(struct seq_file *s, struct dimn_itf_s *itf)
 		seq_printf(s, "%s:\n", "ops_vfm");
 	else
 		seq_printf(s, "%s:\n", "ops_vfm null");
+	/* dbg */
+	seq_printf(s, "%s\n", spltb); /*----*/
+	seq_printf(s, "%s\n", "dbg");
+	seq_printf(s, "\t%s:%d\n", "sw",
+		   di_g_plink_dbg()->flg_sw);
+	seq_printf(s, "\t%s:%d\n", "check_di_act",
+		   di_g_plink_dbg()->flg_check_di_act);
+	seq_printf(s, "\t%s:%d\n", "flg_check_vf",
+		   di_g_plink_dbg()->flg_check_vf);
+	seq_printf(s, "\t%s:%d\n", "display_sts",
+		   di_g_plink_dbg()->display_sts);
+	seq_printf(s, "\t%s:%u\n", "display_cnt",
+		   di_g_plink_dbg()->display_cnt);
 	return 0;
 }
 
@@ -1046,6 +1062,15 @@ int dpvpp_all_show(struct seq_file *s, void *what)
 	dbg_cvs_addr_show(s);
 	//mutex_unlock(&itf->lock_dbg);
 
+	return 0;
+}
+
+int dpvpp_itf_show(struct seq_file *s, void *what)
+{
+	struct dimn_itf_s *itf;
+
+	itf = &get_datal()->dvs_prevpp.itf;
+	dpvpp_show_itf(s, itf);
 	return 0;
 }
 
@@ -2158,6 +2183,11 @@ static bool dpvpp_reg(void *para)
 	memset(&itf->c, 0, sizeof(itf->c));
 	itf->c.reg_di = true;
 	itf->c.src_state = itf->src_need;
+	/* dbg */
+	di_g_plink_dbg()->display_sts = -10;
+	di_g_plink_dbg()->flg_check_di_act = -10;
+	di_g_plink_dbg()->flg_check_vf = -10;
+
 	//PR_INF("%s:src_state set[0x%x]\n", __func__, itf->c.src_state);
 	/* alloc */
 	if (get_datal()->dvs_prevpp.ds)
@@ -2261,7 +2291,7 @@ ERR_DPVPP_REG:
 		get_datal()->dvs_prevpp.ds = NULL;
 		itf->bypass_complete = true;
 		itf->c.src_state = itf->src_need;
-		PR_INF("%s:err:src_state[0x%x]\n", __func__, itf->c.src_state);
+		PR_ERR("%s:src_state[0x%x]\n", __func__, itf->c.src_state);
 	}
 
 	return false;
@@ -2660,7 +2690,7 @@ static bool dpvpp_reg_alloc_mem(struct dim_prevpp_ds_s *ds)
 		return false;
 	}
 
-	PR_INF("%s:\n", __func__);
+	dbg_mem2("%s:\n", __func__);
 	itf->c.src_state &= (~EDVPP_SRC_NEED_MEM);
 	return true;
 }
@@ -2901,7 +2931,7 @@ static bool dpvpp_reg_2(struct dimn_itf_s *itf, struct dim_prevpp_ds_s *ds)
 				ds->dbuf_wr[i][1].height	= mm->cfg.pst_cvs_h;
 			}
 			offs += mm->cfg.size_post;
-			PR_INF("addr:[%d]:0x%lx:\n", i,
+			dbg_mem2("addr:[%d]:0x%lx:\n", i,
 				ds->dbuf_wr[i][0].phy_addr);
 		}
 	}
@@ -4040,7 +4070,7 @@ void dpvpp_prob(void)
 		dvframe_prob(itf);
 
 	dv_prevpp->ops_api = &dvpp_api_ops;//NULL;//
-	dbg_mem("%s:size[0x%zx]k\n",
+	PR_INF("%s:size[0x%zx]k\n",
 		__func__, (sizeof(*dv_prevpp) >> 10));
 }
 
@@ -5023,6 +5053,7 @@ static void dpvpp_put_ready_vf(struct dimn_itf_s *itf,
 		qready->ops.put(qready, vfm);
 	} else {
 		buffer = &get_datal()->dvs_prevpp.buf_bf[vfm->index];
+		buffer->flag = 0;
 		qready->ops.put(qready, buffer);
 	}
 }
@@ -5078,7 +5109,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf,
 			PR_INF("dbg change:ppause\n");
 		}
 		/* change */
-		PR_INF("source change:0x%x/%d/%d/%d=>0x%x/%d/%d/%d:%d\n",
+		PR_INF("source change:p:0x%x/%d/%d/%d=>0x%x/%d/%d/%d:%d\n",
 			       ds->in_last.vf_type,
 			       ds->in_last.x_size,
 			       ds->in_last.y_size,
@@ -5169,6 +5200,8 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf,
 			ds->out_dvfm_demo.vfs.flag |= VFRAME_FLAG_VIDEO_LINEAR;
 		else
 			ds->out_dvfm_demo.vfs.flag &= (~VFRAME_FLAG_VIDEO_LINEAR);
+
+		vfm->flag |= VFRAME_FLAG_DI_PVPPLINK;
 		if (cfgg(LINEAR))
 			ds->out_dvfm_demo.is_linear = true;
 		else
@@ -6186,7 +6219,8 @@ void dpvpp_ins_fill_out(struct dimn_itf_s *itf, struct dim_prevpp_ds_s *ds)
 			itf->nitf_parm.ops.fill_output_done(buffer);
 			itf->c.sum_pst_get++;
 			#if defined(DBG_QUE_IN_OUT) || defined(DBG_QUE_INTERFACE)
-			PR_INF("ins:out_done:0x%px\n", buffer);
+			PR_INF("ins:out_done:0x%px,ch[0x%x]:%d\n",
+				buffer, buffer->mng.ch, buffer->mng.index);
 			#endif
 		}
 	}
@@ -6316,7 +6350,9 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm)
 	}
 
 	if (!ponly_enable) {
-		PR_INF("%s:not ponly\n", __func__);
+		PR_INF("%s:not ponly:%d:0x%x\n",
+			__func__,
+			cfgg(PONLY_MODE), vfm->type);
 		return false;
 	}
 	if (dpvpp_create_internal(pch) < 0) {

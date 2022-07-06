@@ -88,6 +88,7 @@ void print_mif_simple(struct DI_SIM_MIF_S *simp_mif, char *name);
 void dbg_slt_crc(struct di_buf_s *di_buf);
 int print_vframe(struct vframe_s *pvfm);
 int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm);
+int dpvpp_itf_show(struct seq_file *s, void *what);
 void dbg_slt_crc_count(struct di_ch_s *pch, unsigned int postcrc,
 		       unsigned int nrcrc, unsigned int mtncrc);
 

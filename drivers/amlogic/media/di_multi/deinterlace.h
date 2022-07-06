@@ -191,6 +191,7 @@
 				 VFRAME_FLAG_HF	|		\
 				 VFRAME_FLAG_DI_DW	|	\
 				 VFRAME_FLAG_VIDEO_LINEAR	|	\
+				 VFRAME_FLAG_DI_PVPPLINK	|	\
 				 VFRAME_FLAG_DI_BYPASS)
 
 enum process_fun_index_e {

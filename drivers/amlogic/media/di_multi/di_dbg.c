@@ -3029,6 +3029,7 @@ DEFINE_SEQ_SHOW_ONLY(dbg_q_nins);
 DEFINE_SEQ_SHOW_ONLY(dbg_nins_peek);
 DEFINE_SEQ_SHOW_ONLY(dbg_q_ndis);
 DEFINE_SEQ_SHOW_ONLY(dbg_q_ndkb);
+DEFINE_SEQ_SHOW_ONLY(dpvpp_itf);
 
 //test:
 #ifdef TST_NEW_INS_INTERFACE
@@ -3109,6 +3110,7 @@ static const struct di_dbgfs_files_t di_debugfs_files_top[] = {
 	{"dct_other", S_IFREG | 0644, &dbg_dct_core_fops},
 	{"dct_preh", S_IFREG | 0644, &dct_pre_fops},
 	{"dct_pre_reg", S_IFREG | 0644, &dct_pre_reg_fops},
+	{"dpvpp_itf", S_IFREG | 0644, &dpvpp_itf_fops},
 #ifdef TST_NEW_INS_INTERFACE
 	{"tst_list_in", S_IFREG | 0644, &dim_dbg_tst_in_fops},
 #endif
