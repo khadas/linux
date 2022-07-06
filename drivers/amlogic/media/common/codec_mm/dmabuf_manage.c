@@ -813,7 +813,7 @@ static int secure_block_pool_init(void)
 		vdec_size = g_vdec_info.vdec_paddr +
 			g_vdec_info.vdec_size - g_vdec_info.vdec_align_paddr;
 		g_vdec_info.vdec_align_size = secure_align_down_2n(vdec_size,
-			SECURE_MM_BLOCK_ALIGNED_2N);
+			SECURE_MM_ALIGNED_2N);
 	}
 	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_STREAM_INPUT,
 				(u32)g_vdec_info.vdec_align_paddr,

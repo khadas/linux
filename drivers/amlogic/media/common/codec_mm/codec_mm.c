@@ -2034,12 +2034,12 @@ static int dump_mem_infos(void *buf, int size)
 	}
 	list_for_each_entry(mem, &mgt->mem_list, list) {
 		s = snprintf(pbuf, size - tsize,
-			     "\t[%d].%d:%s.%d,addr=%p,size=%d,from=%d,cnt=%d,",
+			     "\t[%d].%d:%s.%d,addr=%ld,size=%d,from=%d,cnt=%d,",
 			mem->mem_id,
 			mem->ins_id,
 			mem->owner[0] ? mem->owner[0] : "no",
 			mem->ins_buffer_id,
-			(void *)mem->phy_addr,
+			mem->phy_addr,
 			mem->buffer_size,
 			mem->from_flags,
 			atomic_read(&mem->use_cnt)
