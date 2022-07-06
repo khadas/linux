@@ -95,3 +95,8 @@ void should_wakeup_kswap(gfp_t gfp_mask, int order,
 }
 EXPORT_SYMBOL(should_wakeup_kswap);
 
+unsigned long aml_free_reserved_area(void *start, void *end, int poison, const char *s)
+{
+	return free_reserved_area(start, end, poison, s);
+}
+EXPORT_SYMBOL(aml_free_reserved_area);

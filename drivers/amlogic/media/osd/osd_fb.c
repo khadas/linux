@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/uaccess.h>
 #include <linux/dma-mapping.h>
@@ -55,6 +56,7 @@
 
 static __u32 var_screeninfo[5];
 static struct osd_device_data_s osd_meson_dev;
+static struct resource osd_mem_res;
 
 #define MAX_VPU_CLKC_CLK 500000000
 #define CUR_VPU_CLKC_CLK 200000000
@@ -350,6 +352,7 @@ static int early_resume_flag;
 static bool b_alloc_mem;
 static bool b_reserved_mem;
 static bool fb_map_flag;
+static bool is_cma;
 static struct reserved_mem fb_rmem = {.base = 0, .size = 0};
 
 static struct delayed_work osd_dwork;
@@ -372,7 +375,6 @@ static size_t fb_rmem_size[OSD_COUNT];
 static phys_addr_t fb_rmem_afbc_paddr[OSD_COUNT][OSD_MAX_BUF_NUM];
 static void __iomem *fb_rmem_afbc_vaddr[OSD_COUNT][OSD_MAX_BUF_NUM];
 static size_t fb_rmem_afbc_size[OSD_COUNT][OSD_MAX_BUF_NUM];
-
 int ion_fd[OSD_COUNT][OSD_MAX_BUF_NUM];
 
 static int osd_cursor(struct fb_info *fbi, struct fb_cursor *var);
@@ -1243,11 +1245,16 @@ static int malloc_osd_memory(struct fb_info *info)
 		base = fb_rmem.base;
 		size = fb_rmem.size;
 	} else {
-		cma = dev_get_cma_area(info->device);
-		if (cma) {
-			base = cma_get_base(cma);
-			size = cma_get_size(cma);
-			pr_info("%s, cma:%px\n", __func__, cma);
+		if (is_cma) {
+			cma = dev_get_cma_area(info->device);
+			if (cma) {
+				base = cma_get_base(cma);
+				size = cma_get_size(cma);
+				pr_info("%s, cma:%px\n", __func__, cma);
+			}
+		} else {
+			base = osd_mem_res.start;
+			size = (int)resource_size(&osd_mem_res);
 		}
 	}
 #else
@@ -1255,7 +1262,7 @@ static int malloc_osd_memory(struct fb_info *info)
 	size = fb_rmem.size;
 #endif
 
-	osd_log_info("%s, %d, base:%pa, size:%ld\n",
+	osd_log_info("%s, %d, base:%pa, size:%lx\n",
 		     __func__, __LINE__, &base, size);
 	fbdev = (struct osd_fb_dev_s *)info->par;
 	pdev = fbdev->dev;
@@ -1265,7 +1272,7 @@ static int malloc_osd_memory(struct fb_info *info)
 	fix = &info->fix;
 	var = &info->var;
 	fb_memsize_total += fb_memsize[fb_index + 1];
-	osd_log_info("%s,base:%pa, size:%ld, b_reserved_mem=%d,fb_memsize_total=%lx\n",
+	osd_log_info("%s,base:%pa, size:%lx, b_reserved_mem=%d,fb_memsize_total=%lx\n",
 		     __func__, &base, size,
 		     b_reserved_mem,
 		     fb_memsize_total);
@@ -1306,26 +1313,35 @@ static int malloc_osd_memory(struct fb_info *info)
 						    fb_index);
 				pr_info("%s, reserved mem\n", __func__);
 			} else {
-				osd_page[fb_index + 1] =
-					dma_alloc_from_contiguous
-						(info->device,
-						fb_rmem_size[fb_index]
-						>> PAGE_SHIFT,
-						0, 0);
-				if (!osd_page[fb_index + 1]) {
-					pr_err("allocate buffer failed:%zu\n",
-					       fb_rmem_size[fb_index]);
-					return -ENOMEM;
+				if (is_cma) {
+					osd_page[fb_index + 1] =
+						dma_alloc_from_contiguous
+							(info->device,
+							fb_rmem_size[fb_index]
+							>> PAGE_SHIFT,
+							0, 0);
+					if (!osd_page[fb_index + 1]) {
+						pr_err("allocate buffer failed:%zu\n",
+						       fb_rmem_size[fb_index]);
+						return -ENOMEM;
+					}
+					fb_rmem_paddr[fb_index] =
+						page_to_phys(osd_page[fb_index + 1]);
+					fb_rmem_vaddr[fb_index] =
+						aml_map_phyaddr_to_virt
+							(fb_rmem_paddr[fb_index],
+							fb_rmem_size[fb_index]);
+				} else {
+					fb_rmem_vaddr[fb_index] =
+						memremap
+							(fb_rmem_paddr[fb_index],
+							fb_rmem_size[fb_index],
+							MEMREMAP_WB);
 				}
-				fb_rmem_paddr[fb_index] =
-					page_to_phys(osd_page[fb_index + 1]);
-				fb_rmem_vaddr[fb_index] =
-					aml_map_phyaddr_to_virt
-						(fb_rmem_paddr[fb_index],
-						fb_rmem_size[fb_index]);
 				if (!fb_rmem_vaddr[fb_index])
-					osd_log_err("fb[%d] get page_address error",
+					osd_log_err("fb[%d] vaddr error",
 						    fb_index);
+
 				if (osd_meson_dev.afbc_type &&
 				   osd_get_afbc(fb_index)) {
 					fb_rmem_afbc_size[fb_index][0] =
@@ -4336,53 +4352,106 @@ static int osd_pm_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_64BIT
+static void free_reserved_highmem(unsigned long start, unsigned long end)
+{
+}
+#else
+static void free_reserved_highmem(unsigned long start, unsigned long end)
+{
+	for (; start < end; ) {
+		free_highmem_page(phys_to_page(start));
+	start += PAGE_SIZE;
+	}
+}
+#endif
+
+static void free_reserved_mem(unsigned long start, unsigned long size)
+{
+	unsigned long end = PAGE_ALIGN(start + size);
+	struct page *page, *epage;
+
+	pr_info("%s %d logo start_addr=%lx, end=%lx\n", __func__, __LINE__, start, end);
+	page = phys_to_page(start);
+	if (PageHighMem(page)) {
+		free_reserved_highmem(start, end);
+	} else {
+		epage = phys_to_page(end);
+		if (!PageHighMem(epage)) {
+			aml_free_reserved_area(__va(start),
+					   __va(end), 0, "fb-memory");
+		} else {
+			/* reserved area cross zone */
+			struct zone *zone;
+			unsigned long bound;
+
+			zone  = page_zone(page);
+			bound = zone_end_pfn(zone);
+			aml_free_reserved_area(__va(start),
+					   __va(bound << PAGE_SHIFT),
+					   0, "fb-memory");
+			zone  = page_zone(epage);
+			bound = zone->zone_start_pfn;
+			free_reserved_highmem(bound << PAGE_SHIFT, end);
+		}
+	}
+}
+
 static void mem_free_work(struct work_struct *work)
 {
-	if (fb_memsize[0] > 0) {
+	if (is_cma) {
+		if (fb_memsize[0] > 0) {
 #ifdef CONFIG_CMA
-		osd_log_info("%s, free memory: addr:%x\n",
-			     __func__, fb_memsize[0]);
+			osd_log_info("%s, free fb-memory size:%x\n",
+				     __func__, fb_memsize[0]);
 
-		dma_release_from_contiguous(&gp_fbdev_list[0]->dev->dev,
-					    osd_page[0],
-					    fb_memsize[0] >> PAGE_SHIFT);
+			dma_release_from_contiguous(&gp_fbdev_list[0]->dev->dev,
+						    osd_page[0],
+						    fb_memsize[0] >> PAGE_SHIFT);
 #else
 #ifdef CONFIG_ARM64
-		long r = -EINVAL;
+			long r = -EINVAL;
 #elif defined(CONFIG_ARM) && defined(CONFIG_HIGHMEM)
-		unsigned long r;
+			unsigned long r;
 #endif
-		unsigned long start_addr;
-		unsigned long end_addr;
+			unsigned long start_addr;
+			unsigned long end_addr;
 
 #ifdef CONFIG_ARM64
-		if (fb_rmem.base && fb_map_flag) {
+			if (fb_rmem.base && fb_map_flag) {
 #elif defined(CONFIG_ARM) && defined(CONFIG_HIGHMEM)
-		if (fb_rmem.base) {
+			if (fb_rmem.base) {
 #endif
-			if (fb_rmem.size >= (fb_memsize[0] + fb_memsize[1]
-				+ fb_memsize[2])) {
-				/* logo memory before fb0/fb1 memory, free it*/
-				start_addr = fb_rmem.base;
-				end_addr = fb_rmem.base + fb_memsize[0];
-			} else {
-				/* logo reserved only, free it*/
-				start_addr = fb_rmem.base;
-				end_addr = fb_rmem.base + fb_rmem.size;
-			}
-			osd_log_info("%s, free memory: addr:%lx\n",
-				     __func__, start_addr);
+				if (fb_rmem.size >= (fb_memsize[0] + fb_memsize[1]
+					+ fb_memsize[2])) {
+					/* logo memory before fb0/fb1 memory, free it*/
+					start_addr = fb_rmem.base;
+					end_addr = fb_rmem.base + fb_memsize[0];
+				} else {
+					/* logo reserved only, free it*/
+					start_addr = fb_rmem.base;
+					end_addr = fb_rmem.base + fb_rmem.size;
+				}
+				osd_log_info("%s, free memory: addr:%lx\n",
+					     __func__, start_addr);
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 #ifdef CONFIG_ARM64
-			r = free_reserved_area(__va(start_addr),
-					       __va(end_addr),
-					       0, "fb-memory");
+				r = aml_free_reserved_area(__va(start_addr),
+						       __va(end_addr),
+						       0, "fb-memory");
 #elif defined(CONFIG_ARM) && defined(CONFIG_HIGHMEM)
-			for (r = start_addr; r < end_addr; ) {
-				free_highmem_page(phys_to_page(r));
-				r += PAGE_SIZE;
+				for (r = start_addr; r < end_addr; ) {
+					free_highmem_page(phys_to_page(r));
+					r += PAGE_SIZE;
+				}
+#endif
+#endif
 			}
 #endif
 		}
+	} else {
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		free_reserved_mem(osd_mem_res.start, fb_memsize[0]);
 #endif
 	}
 }
@@ -4968,6 +5037,17 @@ static void config_osd_table(u32 display_device_cnt)
 	}
 }
 
+static int parse_reserve_mem_resource(struct device_node *np,
+				       struct resource *res)
+{
+	int ret;
+
+	ret = of_address_to_resource(np, 0, res);
+	of_node_put(np);
+
+	return ret;
+}
+
 static int __init osd_probe(struct platform_device *pdev)
 {
 	struct fb_info *fbi = NULL;
@@ -4986,6 +5066,9 @@ static int __init osd_probe(struct platform_device *pdev)
 	int i;
 	int ret = 0;
 	int display_device_cnt = 1;
+	struct device_node *mem_node;
+	const char *compatible;
+	const int *reusable;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -5103,18 +5186,39 @@ static int __init osd_probe(struct platform_device *pdev)
 	for (i = 0; i < (HW_OSD_COUNT + 1); i++)
 		osd_log_dbg(MODULE_BASE, "mem_size: 0x%x\n", fb_memsize[i]);
 
+	/* whether to use cma or reserved memory */
+	mem_node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
+	if (!mem_node)
+		return -ENODEV;
+
+	compatible = of_get_property(mem_node, "compatible", NULL);
+	reusable = of_get_property(mem_node, "reusable", NULL);
+	/*
+	 * if compatible is shared-dma-pool and reusable exist
+	 * it means using cma memory, else reserved memory
+	 */
+	if (!strcmp(compatible, "shared-dma-pool") && reusable) {
+		is_cma = true;
+		osd_log_info("%s using cma memory\n", __func__);
+	} else {
+		is_cma = false;
+		osd_log_info("%s using reserved memory\n", __func__);
+	}
+
 	/* init reserved memory */
-	ret = of_reserved_mem_device_init(&pdev->dev);
-	if (ret != 0) {
-		osd_log_err("failed to init reserved memory\n");
+	if (is_cma) {
+		ret = of_reserved_mem_device_init(&pdev->dev);
+		cma = dev_get_cma_area(&pdev->dev);
+	} else {
+		ret = parse_reserve_mem_resource(mem_node, &osd_mem_res);
+	}
+
+	if (ret < 0) {
+		osd_log_err("failed to init memory\n");
 	} else {
 		b_reserved_mem = true;
 #ifdef CONFIG_CMA
-		cma = dev_get_cma_area(&pdev->dev);
-		if (cma) {
-			base_addr = cma_get_base(cma);
-			pr_info("reserved memory base:%pa, size:%lx\n",
-				&base_addr, cma_get_size(cma));
+		if (is_cma) {
 			if (fb_memsize[0] > 0) {
 				osd_page[0] =
 					dma_alloc_from_contiguous
@@ -5123,17 +5227,19 @@ static int __init osd_probe(struct platform_device *pdev)
 						0,
 						0);
 				if (!osd_page[0]) {
-					pr_err("allocate buffer failed:%d\n",
+					pr_err("allocate cma buffer failed:%d\n",
 					       fb_memsize[0]);
 				}
-				osd_log_dbg(MODULE_BASE, "logo dma_alloc=%d\n",
+				osd_log_info("logo dma_alloc=%d\n",
 					    fb_memsize[0]);
-			}
+				}
 		} else {
-			pr_info("------ NO CMA\n");
+			base_addr = osd_mem_res.start;
+			osd_log_info("logo reserved memory size:%d\n",
+				fb_memsize[0]);
 		}
-	}
 #endif
+	}
 
 	/* get meson-fb resource from dt */
 	prop = of_get_property(pdev->dev.of_node, "scale_mode", NULL);
