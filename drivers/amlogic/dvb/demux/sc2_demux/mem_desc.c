@@ -159,6 +159,12 @@ static int cache_init(int cache_level)
 		}
 		second_cache->start_virt =
 		(unsigned long)codec_mm_phys_to_virt(second_cache->start_phys);
+		if (IS_ERR_OR_NULL((const void *)second_cache->start_phys)) {
+			codec_mm_free_for_dma("dmx", second_cache->start_phys);
+			vfree(second_cache);
+			dprint("phys to virt addr failed\n");
+			return -1;
+		}
 	}
 	return 0;
 }
@@ -400,6 +406,11 @@ static int dmc_mem_init(struct dmc_mem *mem, int sec_level)
 		return -1;
 	}
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
+	if (IS_ERR_OR_NULL((const void *)buf_start_virt)) {
+		codec_mm_free_for_dma("dmx", buf_start);
+		dprint("phys to virt addr failed\n");
+		return -1;
+	}
 	pr_dbg("dmc mem init phy:0x%lx, virt:0x%lx, len:%d\n",
 		buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0, len);
@@ -639,6 +650,11 @@ int _alloc_buff(unsigned int len, int sec_level,
 		return -1;
 	}
 	buf_start_virt = (unsigned long)codec_mm_phys_to_virt(buf_start);
+	if (IS_ERR_OR_NULL((const void *)buf_start_virt)) {
+		codec_mm_free_for_dma("dmx", buf_start);
+		dprint("phys to virt addr failed\n");
+		return -1;
+	}
 	pr_dbg("init phy:0x%lx, virt:0x%lx, len:%d\n",
 			buf_start, buf_start_virt, len);
 	memset((char *)buf_start_virt, 0xa5, len);
