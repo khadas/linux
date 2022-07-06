@@ -2661,7 +2661,7 @@
 		status = "okay";
 	};
 
-	rdma{
+	rdma {
 		compatible = "amlogic, meson-t7, rdma";
 		status = "okay";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
