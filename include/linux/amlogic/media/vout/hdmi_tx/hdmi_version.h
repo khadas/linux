@@ -26,6 +26,7 @@
 	"V03.00.00.00.01.01.00 [20220616] [EDID] add MPEG-H edid parse\n" \
 	"V03.00.00.00.01.01.01 [20220623] [NEWFEATURE] add aspect ratio support\n"\
 	"V03.00.00.00.01.02.01 [20220707] [EDID] add hdr_priority  = 1 parse hdr10+\n" \
-	"V03.00.00.00.01.03.01 [20220708] [EDID] parse dtd for dvi case\n"
+	"V03.00.00.00.01.03.01 [20220708] [EDID] parse dtd for dvi case\n" \
+	"V03.00.00.00.01.03.02 [20220711] [COMP] add hdcp version protect for drm\n"
 
 #endif // __HDMI20_VERSION_H__

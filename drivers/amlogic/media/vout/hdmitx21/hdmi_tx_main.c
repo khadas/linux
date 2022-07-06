@@ -5887,11 +5887,11 @@ static void drm_hdmitx_hdcp_enable(int hdcp_type)
 		pr_err("%s enabled HDCP_NULL\n", __func__);
 		break;
 	case HDCP_MODE14:
-		hdev->hdcp_mode = 0x11;
+		hdev->hdcp_mode = 0x1;
 		hdcp_mode_set(1);
 		break;
 	case HDCP_MODE22:
-		hdev->hdcp_mode = 0x12;
+		hdev->hdcp_mode = 0x2;
 		hdcp_mode_set(2);
 		break;
 	default:
@@ -5928,9 +5928,19 @@ static unsigned int drm_hdmitx_get_tx_hdcp_cap(void)
 
 static unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 {
-	int rxhdcp = 0;
+	unsigned int rxhdcp = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	if (is_rx_hdcp2ver()) {
+	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
+	/* note that during hdcp1.4 authentication, read hdcp version
+	 * of connected TV set(capable of hdcp2.2) may cause TV
+	 * switch its hdcp mode, and flash screen. should not
+	 * read hdcp version of sink during hdcp1.4 authentication.
+	 * if hdcp1.4 authentication currently, force return hdcp1.4
+	 */
+	if (hdev->hdcp_mode == 0x1) {
+		rxhdcp = HDCP_MODE14;
+	} else if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
 		rx_hdcp2_ver = 1;
 		rxhdcp = HDCP_MODE22 | HDCP_MODE14;
 	} else {
@@ -5939,7 +5949,7 @@ static unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 	}
 
 	pr_info("%s rx hdcp [%d]\n", __func__, rxhdcp);
-	return 0;
+	return rxhdcp;
 }
 
 static void drm_hdmitx_register_hdcp_notify(struct connector_hdcp_cb *cb)

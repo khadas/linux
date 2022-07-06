@@ -7729,9 +7729,18 @@ unsigned int drm_get_rx_hdcp_cap(void)
 
 	if (hdmitx_device.hdmi_init != 1)
 		return 0;
+
+	/* note that during hdcp1.4 authentication, read hdcp version
+	 * of connected TV set(capable of hdcp2.2) may cause TV
+	 * switch its hdcp mode, and flash screen. should not
+	 * read hdcp version of sink during hdcp1.4 authentication.
+	 * if hdcp1.4 authentication currently, force return hdcp1.4
+	 */
+	if (hdmitx_device.hdcp_mode == 1)
+		return 0x1;
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
 	if (hdmitx_device.hwop.cntlddc(&hdmitx_device,
-		DDC_HDCP_22_LSTORE, 0) == 0)
+		DDC_HDCP_22_LSTORE, 0) == 0 || !hdcp_tx22_daemon_ready())
 		return 0x1;
 
 	/* Detect RX support HDCP22 */
