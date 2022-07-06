@@ -201,7 +201,7 @@
 	dvb-extern {
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
-		status = "disabled";
+		status = "okay";
 
 		/* dvb hardware main power. */
 		dvb_power_gpio = <&gpio GPIOZ_5 GPIO_ACTIVE_HIGH>;
@@ -261,7 +261,7 @@
 	dvb-demux {
 		compatible = "amlogic sc2, dvb-demux";
 		dev_name = "dvb-demux";
-		status = "disabled";
+		status = "okay";
 
 		reg = <0xfe000000 0x480000>;
 
@@ -358,7 +358,7 @@
 	aml_dtv_demod {
 		compatible = "amlogic, ddemod-s4";
 		dev_name = "aml_dtv_demod";
-		status = "disabled";
+		status = "okay";
 		/* diseqc_name = "sgm_41286"; */
 		pinctrl-names="if_agc_pins", "if_agc2_pins";
 		pinctrl-0=<&dtvdemod_if_agc_pins>;
