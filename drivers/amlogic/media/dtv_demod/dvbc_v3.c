@@ -349,7 +349,6 @@ void demod_dvbc_set_qam(struct aml_dtvdemod *demod, enum qam_md_e qam)
 		}
 		break;
 
-	case QAM_MODE_NUM:
 	default:
 		break;
 	}
@@ -706,15 +705,16 @@ unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod)
 	unsigned int idx_00 = 0, idx_77 = 0, idx_all = 0;
 	unsigned int be = 0, bf = 0, c0 = 0, d3 = 0, d4 = 0, d5 = 0;
 	unsigned int aa = 0, bb = 0;
-	unsigned int lock_flag = 0, status = 0;
+	unsigned int lock_flag = 0, eq_state = 0;
 	unsigned int find_qam = 0xf;
+	unsigned int total_64_128_256_acc = 0;
 	int i = 0;
 
 	// 1. wait eq stable.
-	for (i = 0; i < 10; i++) {
-		status = qam_read_reg(demod, 0x5d) & 0xf;
-		PR_DVBC("%s: status: 0x%x.\n", __func__, status);
-		if (status > 0x01)
+	for (i = 0; i < 5; i++) {
+		eq_state = qam_read_reg(demod, 0x5d) & 0xf;
+		PR_DVBC("%s: eq_state: 0x%x.\n", __func__, eq_state);
+		if (eq_state > 0x01)
 			break;
 
 		msleep(50);
@@ -725,7 +725,7 @@ unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod)
 	bf = qam_read_reg(demod, 0xbf);
 	c0 = qam_read_reg(demod, 0xc0);
 
-	if (status > 0x01) {
+	if (eq_state > 0x01) {
 		// 3. get QAM probability distribution.
 		d4 = qam_read_reg(demod, 0xd4);
 		d5 = qam_read_reg(demod, 0xd5);
@@ -760,6 +760,8 @@ unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod)
 		idx_77 = (d3 & 0x7ff0) >> 4;
 		idx_77 = (idx_77 * 10000) >> 2;
 
+		total_64_128_256_acc = idx_64_acc + idx_128_acc + idx_256_acc;
+
 		PR_DVBC("%s: idx_00[0x%x], idx_77[0x%x].\n",
 				__func__, idx_00, idx_77);
 		PR_DVBC("%s: idx_1_acc[0x%x], idx_2_acc[0x%x], idx_4_acc[0x%x].\n",
@@ -768,6 +770,8 @@ unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod)
 				__func__, idx_8_acc, idx_16_acc, idx_32_acc);
 		PR_DVBC("%s: idx_64_acc[0x%x], idx_128_acc[0x%x], idx_256_acc[0x%x].\n",
 				__func__, idx_64_acc, idx_128_acc, idx_256_acc);
+		PR_DVBC("%s: total_64_128_256_acc[0x%x].\n",
+				__func__, total_64_128_256_acc);
 
 		idx_all = idx_256_acc * 256;
 		idx_all += idx_128_acc * 128;
@@ -806,7 +810,7 @@ unsigned int dvbc_auto_qam_process(struct aml_dtvdemod *demod)
 				__func__, lock_flag, aa, bb);
 
 		// 5. get qam.
-		if (bb >= 60) {
+		if (bb >= 60 && total_64_128_256_acc > 4) {
 			if (idx_77 < 2000) {
 				find_qam = QAM_MODE_128;
 				if (idx_00 <= 4) {

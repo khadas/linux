@@ -47,6 +47,7 @@
 /*  V1.1.54  rebuild atsc to improve signal locking performance */
 /*  V1.1.55  improve atsc cci */
 /*  V1.1.56  add dvbt2 fef info */
+/*  V1.1.57  fix auto qam(t5w) and sr */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -63,8 +64,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.56"
-#define DTVDEMOD_VER	"2022/07/11: add dvbt2 fef info"
+#define AMLDTVDEMOD_VER "V1.1.57"
+#define DTVDEMOD_VER	"2022/07/15: fix auto qam(t5w) and sr"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -73,7 +74,7 @@
 /* tested on BTC, sensertivity of demod is -100dBm */
 #define THRD_TUNER_STRENTH_DVBT (-101)
 #define THRD_TUNER_STRENTH_DVBS (-79)
-#define THRD_TUNER_STRENTH_DTMB (-92)
+#define THRD_TUNER_STRENTH_DTMB (-100)
 
 #define TIMEOUT_ATSC		3000
 #define TIMEOUT_DVBT		3000
@@ -254,6 +255,7 @@ struct aml_dtvdemod {
 	unsigned int sr_val_hw;
 	unsigned int sr_val_hw_stable;
 	unsigned int sr_val_hw_count;
+	unsigned int sr_val_uf_count;
 	unsigned int symb_rate_en;
 	unsigned int auto_sr;
 	unsigned int auto_sr_done;

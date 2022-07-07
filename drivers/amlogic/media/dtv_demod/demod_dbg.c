@@ -633,16 +633,17 @@ static int read_memory_to_file(char *path, unsigned int start_addr,
 	return 0;
 }
 
-unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
+unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
+		unsigned int test_mode)
 {
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
-	int testbus_addr, width, vld;
-	unsigned int tb_start, tb_depth;
+	int testbus_addr = 0, width = 0, vld = 0;
+	unsigned int tb_start = 0, tb_depth = 0;
 	unsigned int start_addr = 0;
-	unsigned int top_saved, polling_en;
+	unsigned int top_saved = 0, polling_en = 0;
 	//struct dvb_frontend *fe;
 	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
-	unsigned int offset, size;
+	unsigned int offset = 0, size = 0;
 
 	if (unlikely(!devp)) {
 		PR_ERR("%s:devp is NULL\n", __func__);
@@ -740,7 +741,10 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode)
 	front_write_bits(0x39, testbus_addr, 0, 16);
 
 	/* disable test_mode */
-	front_write_bits(0x3a, 0, 13, 1);
+	if (test_mode)
+		front_write_bits(0x3a, 1, 13, 1);
+	else
+		front_write_bits(0x3a, 0, 13, 1);
 	start_addr = devp->mem_start;
 
 	switch (demod->last_delsys) {
@@ -1103,7 +1107,7 @@ static ssize_t attr_store(struct class *cls,
 	struct dtv_property tvp;
 	unsigned int delay;
 	enum fe_status sts;
-	unsigned int cap_mode;
+	unsigned int cap_mode = 0, test_mode = 0;
 
 	if (!buf)
 		return count;
@@ -1163,10 +1167,14 @@ static ssize_t attr_store(struct class *cls,
 			goto fail_exec_cmd;
 		}
 
-		if (parm[2] && kstrtouint(parm[2], 10, &cap_mode) == 0)
-			capture_adc_data_once(parm[1], cap_mode);
-		else
-			capture_adc_data_once(parm[1], 0);
+		if (parm[2] && kstrtouint(parm[2], 10, &cap_mode) == 0) {
+			if (parm[3] && kstrtouint(parm[3], 10, &test_mode) == 0)
+				capture_adc_data_once(parm[1], cap_mode, test_mode);
+			else
+				capture_adc_data_once(parm[1], cap_mode, 0);
+		} else {
+			capture_adc_data_once(parm[1], 0, 0);
+		}
 	} else if (!strcmp(parm[0], "state")) {
 		info_show();
 	} else if (!strcmp(parm[0], "delsys")) {

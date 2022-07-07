@@ -12,6 +12,7 @@ enum qam_md_e {
 	QAM_MODE_64,
 	QAM_MODE_128,
 	QAM_MODE_256,
+	QAM_MODE_AUTO,
 	QAM_MODE_NUM
 };
 
