@@ -6778,6 +6778,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 			vop2_crtc_enable_dsc(crtc, old_state, vcstate->dsc_id);
 		}
 	}
+	/* disable background as default config to avoid flicker when wake up */
+	VOP_MODULE_SET(vop2, vp, dsp_background, 0);
 	vop2_cfg_done(crtc);
 
 	/*
