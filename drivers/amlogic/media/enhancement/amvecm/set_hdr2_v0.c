@@ -716,6 +716,13 @@ int rgb2lms_ncl2020[9] = {
 	50, 154, 1844
 };
 
+/*hdr rgb2lms match idk2.6*/
+int rgb2lms_ncl2020_idk26[9] = {
+	730, 1259, 194,
+	346, 1558, 279,
+	44, 200, 1939
+};
+
 /* ncl_709_2020 * rgb2lms_ncl2020 */
 /* 606.133 1275.828 166.040 */
 /* 320.411 1489.315 238.273 */
@@ -724,6 +731,13 @@ int rgb709_to_lms2020[9] = {
 	606, 1276, 166,
 	321, 1489, 238,
 	72, 320, 1656
+};
+
+/*sdr rgb2lms match idk2.6*/
+int rgb709_to_lms2020_idk26[9] = {
+	646, 1361, 177,
+	341, 1588, 254,
+	76, 342, 1765
 };
 
 /* 5ccf b0a4 028c */
@@ -872,6 +886,26 @@ int lms2ipt_ncl2020[MTX_NUM_PARAM] = {
 	0, 0, 0,
 	0
 };
+
+/*lsm2ictcp match idk2.6*/
+int lms2ipt_ncl2020_idk26[MTX_NUM_PARAM] = {
+	512,    512,  0,
+	413, -850,  437,
+	2241,  -2173, -67,
+	0, 0, 0,
+	0, 0, 0,
+	0
+};
+
+/*lsm2ictcp idk2.6*/
+//int lms2ipt_ncl2020_idk26[MTX_NUM_PARAM] = {
+//	512,    512,  0,
+//	826, -1701,  875,
+//	4483,  -4347, -135,
+//	0, 0, 0,
+//	0, 0, 0,
+//	0
+//};
 
 /* 7fff 0c7c 1a45 */
 /* 7fff f16d 110d */
@@ -3369,43 +3403,74 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		     !(hdr_process_select & RGB_VDIN)) {
 			coeff_in = ycbcr2rgb_709;
 		}
-
-		for (i = 0; i < MTX_NUM_PARAM; i++) {
-			hdr_mtx_param.mtx_in[i] = coeff_in[i];
-			hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020[i];
-			hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_709[i];
-			hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020[i];
-			if (i < 9)
-				hdr_mtx_param.mtx_gamut[i] =
-					rgb709_to_lms2020[i];
+		if (is_multi_dv_mode()) {/*idk26*/
+			for (i = 0; i < MTX_NUM_PARAM; i++) {
+				hdr_mtx_param.mtx_in[i] = coeff_in[i];
+				hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020_idk26[i];
+				hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_709[i];
+				hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020_idk26[i];
+				if (i < 9)
+					hdr_mtx_param.mtx_gamut[i] =
+						rgb709_to_lms2020_idk26[i];
+			}
+		} else {
+			for (i = 0; i < MTX_NUM_PARAM; i++) {
+				hdr_mtx_param.mtx_in[i] = coeff_in[i];
+				hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020[i];
+				hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_709[i];
+				hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020[i];
+				if (i < 9)
+					hdr_mtx_param.mtx_gamut[i] =
+						rgb709_to_lms2020[i];
+			}
 		}
 		hdr_mtx_param.mtx_on = MTX_ON;
 		hdr_mtx_param.p_sel = SDR_IPT;
 	}  else if (hdr_process_select & HLG_IPT) {
 		hdr_mtx_param.mtx_only = HDR_ONLY;
 		hdr_mtx_param.mtx_gamut_mode = 2;
-
-		for (i = 0; i < MTX_NUM_PARAM; i++) {
-			hdr_mtx_param.mtx_in[i] = coeff_in[i];
-			hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020[i];
-			hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_ncl2020[i];
-			hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020[i];
-			if (i < 9)
-				hdr_mtx_param.mtx_gamut[i] = rgb2lms_ncl2020[i];
+		if (is_multi_dv_mode()) {/*idk26*/
+			for (i = 0; i < MTX_NUM_PARAM; i++) {
+				hdr_mtx_param.mtx_in[i] = coeff_in[i];
+				hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020_idk26[i];
+				hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_ncl2020[i];
+				hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020_idk26[i];
+				if (i < 9)
+					hdr_mtx_param.mtx_gamut[i] = rgb2lms_ncl2020_idk26[i];
+			}
+		} else {
+			for (i = 0; i < MTX_NUM_PARAM; i++) {
+				hdr_mtx_param.mtx_in[i] = coeff_in[i];
+				hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020[i];
+				hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_ncl2020[i];
+				hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020[i];
+				if (i < 9)
+					hdr_mtx_param.mtx_gamut[i] = rgb2lms_ncl2020[i];
+			}
 		}
 		hdr_mtx_param.mtx_on = MTX_ON;
 		hdr_mtx_param.p_sel = HLG_IPT;
 	}  else if (hdr_process_select & HDR_IPT) {
 		hdr_mtx_param.mtx_only = HDR_ONLY;
 		hdr_mtx_param.mtx_gamut_mode = 2;
-
-		for (i = 0; i < MTX_NUM_PARAM; i++) {
-			hdr_mtx_param.mtx_in[i] = coeff_in[i];
-			hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020[i];
-			hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_ncl2020[i];
-			hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020[i];
-			if (i < 9)
-				hdr_mtx_param.mtx_gamut[i] = rgb2lms_ncl2020[i];
+		if (is_multi_dv_mode()) {/*idk26*/
+			for (i = 0; i < MTX_NUM_PARAM; i++) {
+				hdr_mtx_param.mtx_in[i] = coeff_in[i];
+				hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020_idk26[i];
+				hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_ncl2020[i];
+				hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020_idk26[i];
+				if (i < 9)
+					hdr_mtx_param.mtx_gamut[i] = rgb2lms_ncl2020_idk26[i];
+			}
+		} else {
+			for (i = 0; i < MTX_NUM_PARAM; i++) {
+				hdr_mtx_param.mtx_in[i] = coeff_in[i];
+				hdr_mtx_param.mtx_cgain[i] = lms2ipt_ncl2020[i];
+				hdr_mtx_param.mtx_ogain[i] = rgb2ycbcr_ncl2020[i];
+				hdr_mtx_param.mtx_out[i] = lms2ipt_ncl2020[i];
+				if (i < 9)
+					hdr_mtx_param.mtx_gamut[i] = rgb2lms_ncl2020[i];
+			}
 		}
 		hdr_mtx_param.mtx_on = MTX_ON;
 		hdr_mtx_param.p_sel = HDR_IPT;
