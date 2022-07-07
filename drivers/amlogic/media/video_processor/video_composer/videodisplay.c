@@ -31,6 +31,7 @@ static struct composer_dev *mdev[3];
 
 static int get_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 static unsigned int countinue_vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
+int actual_delay_count[MAX_VD_LAYERS];
 
 #define PATTERN_32_DETECT_RANGE 7
 #define PATTERN_22_DETECT_RANGE 7
@@ -50,6 +51,11 @@ enum video_refresh_pattern {
 
 static int patten_trace[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 static int vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
+
+void video_display_para_reset(int layer_index)
+{
+	actual_delay_count[layer_index] = 0;
+}
 
 void vsync_notify_video_composer(void)
 {
@@ -725,9 +731,12 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 "get:canvas_w: %d, canvas_h: %d\n",
 			  vf->canvas0_config[0].width, vf->canvas0_config[0].height);
 
-		if (vf->vc_private)
+		if (vf->vc_private) {
 			vf->vc_private->last_disp_count =
 				countinue_vsync_count[dev->index];
+			actual_delay_count[dev->index] = vsync_count[dev->index]
+				- vf->vc_private->vsync_index + 1;
+		}
 
 		if (dev->enable_pulldown) {
 			dev->patten_factor_index++;
@@ -1150,6 +1159,7 @@ static int video_display_uninit(int layer_index)
 	dev->port->open_count--;
 	vfree(dev);
 	mdev[layer_index] = NULL;
+	video_display_para_reset(layer_index);
 	return ret;
 }
 

@@ -93,4 +93,6 @@ void vd_prepare_data_q_put(struct composer_dev *dev,
 			struct vd_prepare_s *vd_prepare);
 struct vd_prepare_s *vd_prepare_data_q_get(struct composer_dev *dev);
 int vd_render_index_get(struct composer_dev *dev);
+void video_display_para_reset(int layer_index);
+
 #endif

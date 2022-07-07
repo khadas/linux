@@ -2895,7 +2895,7 @@ static int video_composer_uninit(struct composer_dev *dev)
 				- dev->fence_release_count);
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
-
+	video_display_para_reset(dev->index);
 	return ret;
 }
 
@@ -3793,6 +3793,14 @@ static ssize_t vd_dump_vframe_store(struct class *class,
 	return count;
 }
 
+static ssize_t actual_delay_count_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	int val = (actual_delay_count[0] | (actual_delay_count[1] << 4)
+		| (actual_delay_count[2] << 8));
+	return sprintf(buf, "%d\n", val);
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -3831,6 +3839,8 @@ static CLASS_ATTR_RW(vd_pulldown_level);
 static CLASS_ATTR_RW(vd_max_hold_count);
 static CLASS_ATTR_RW(vd_set_frame_delay);
 static CLASS_ATTR_RW(vd_dump_vframe);
+static CLASS_ATTR_RO(actual_delay_count);
+
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -3871,6 +3881,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_vd_max_hold_count.attr,
 	&class_attr_vd_set_frame_delay.attr,
 	&class_attr_vd_dump_vframe.attr,
+	&class_attr_actual_delay_count.attr,
 	NULL
 };
 
