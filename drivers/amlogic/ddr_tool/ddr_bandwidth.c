@@ -313,7 +313,7 @@ static ssize_t port_store(struct class *cla,
 			  struct class_attribute *attr,
 			  const char *buf, size_t count)
 {
-	int ch = 0, port = 0, paras = -1;
+	int ch = 0, port = 0, paras;
 	unsigned long start = 0xffffffff, end;
 
 	paras = sscanf(buf, "%d:%d %lx-%lx", &ch, &port, &start, &end);
@@ -343,13 +343,13 @@ static ssize_t port_store(struct class *cla,
 			if (port < 0) /* clear port set */
 				aml_db->port[ch] = 0;
 			else
-				aml_db->port[ch] |= 1ULL << port;
+				aml_db->port[ch] |= 1ULL << (port & 0x1f);
 			aml_db->ops->config_port(aml_db, ch, port);
 		}
 	}
 
 	if (paras == 4 && aml_db->ops &&
-		aml_db->ops->config_range && start != 0xffffffffffffffffULL) {
+		aml_db->ops->config_range && (start <= end)) {
 		aml_db->ops->config_range(aml_db, ch, start, end);
 		aml_db->range[ch].start = start;
 		aml_db->range[ch].end   = end;
@@ -740,7 +740,7 @@ static ssize_t increase_tool_store(struct class *cla,
 			    struct class_attribute *attr,
 			    const char *buf, size_t count)
 {
-	long width_MB = 0;
+	unsigned long width_MB = 0;
 	u64 min_width = 0;
 	unsigned long t_s, t_e;
 	u64 t_ns;
@@ -764,7 +764,7 @@ static ssize_t increase_tool_store(struct class *cla,
 		if (min_width > width_MB)
 			pr_info("set width_MB too small, min:%lld\n", min_width);
 
-		once_size = width_MB * 1024 * 1024;
+		once_size = width_MB * 1024ULL * 1024;
 		do_div(once_size, min_width);
 
 		if (aml_db->increase_tool.increase_MB == 0) {
@@ -988,7 +988,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	/*struct pinctrl *p;*/
 	struct resource *res;
 	resource_size_t *base;
-	unsigned int sec_base;
+	unsigned int sec_base = 0;
 	int io_idx = 0;
 #endif
 	struct ddr_port_desc *desc = NULL;

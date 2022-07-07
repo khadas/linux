@@ -408,7 +408,7 @@ static ssize_t device_store(struct class *cla,
 				pr_info("bad device:%s\n", buf);
 				return -EINVAL;
 			}
-			dmc_regulation_dev(1 << i, 1);
+			dmc_regulation_dev(1UL << i, 1);
 		}
 	}
 	if (dmc_mon->addr_start < dmc_mon->addr_end && dmc_mon->ops &&
