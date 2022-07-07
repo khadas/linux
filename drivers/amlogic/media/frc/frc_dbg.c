@@ -539,6 +539,21 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			devp->buf.buf_ctrl = val1;
 			schedule_work(&frc_mem_dyc_proc);
 		}
+	} else if (!strcmp(parm[0], "frc_clk_auto")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			devp->clk_chg = val1;
+	} else if (!strcmp(parm[0], "frc_force_in")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_set_enter_forcefilm(devp, val1);
+	} else if (!strcmp(parm[0], "frc_no_tell")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			frc_set_notell_film(devp, val1);
 	}
 exit:
 	kfree(buf_orig);

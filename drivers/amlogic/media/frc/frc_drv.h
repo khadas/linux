@@ -75,8 +75,9 @@
 // frc_20220620 integrated frc status
 // frc_20220623 add frc debug control
 // frc_20220704 fix frc secure mode abnormal
+// frc_20220705 fix frc bypass frame when on
 
-#define FRC_FW_VER			"2022-0705 fix frc bypass frame when on"
+#define FRC_FW_VER			"2022-0708 optimize frc off2on flow"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
@@ -330,7 +331,7 @@ struct st_frc_in_sts {
 };
 
 struct st_frc_out_sts {
-	u32 out_framerate;
+	u16 out_framerate;
 	u32 vout_height;
 	u32 vout_width;
 
@@ -490,6 +491,7 @@ struct frc_dev_s {
 	struct clk *clk_me;
 	u32 clk_me_frq;
 	unsigned int clk_state;
+	u32 clk_chg;
 	u32 rdma_handle;
 
 	/* vframe check */

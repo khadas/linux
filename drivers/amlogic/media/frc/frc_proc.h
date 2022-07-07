@@ -35,6 +35,7 @@ void frc_change_to_state(enum frc_state_e state);
 void frc_state_change_finish(struct frc_dev_s *devp);
 void frc_state_handle_old(struct frc_dev_s *devp);
 void frc_state_handle(struct frc_dev_s *devp);
+void frc_state_handle_new(struct frc_dev_s *devp);
 void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts);
 void frc_dump_monitor_data(struct frc_dev_s *devp);

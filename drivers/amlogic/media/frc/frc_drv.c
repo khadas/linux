@@ -759,7 +759,7 @@ static void frc_drv_initial(struct frc_dev_s *devp)
 	devp->dbg_buf_len = 0;
 
 	devp->loss_ratio = 0;
-	devp->prot_mode = false;
+	devp->prot_mode = true;
 
 	devp->in_out_ratio = FRC_RATIO_1_1;
 	// devp->in_out_ratio = FRC_RATIO_2_5;
@@ -784,7 +784,7 @@ void get_vout_info(struct frc_dev_s *frc_devp)
 {
 	struct vinfo_s *vinfo = get_current_vinfo();
 	struct frc_fw_data_s *pfw_data;
-	u32  tmpframterate = 0;
+	u16  tmpframterate = 0;
 
 	if (!frc_devp) {
 		PR_ERR("%s: frc_devp is null\n", __func__);
@@ -934,6 +934,7 @@ static int frc_probe(struct platform_device *pdev)
 #endif
 	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
 	INIT_WORK(&frc_mem_dyc_proc, frc_mem_dynamic_proc);
+	frc_devp->clk_chg = 1;
 
 	frc_devp->probe_ok = true;
 	frc_devp->power_off_flag = false;
