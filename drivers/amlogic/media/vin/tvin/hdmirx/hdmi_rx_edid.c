@@ -1300,6 +1300,39 @@ bool is_ddc_idle(unsigned char port_id)
 	return false;
 }
 
+bool is_edid_buff_normal(unsigned char port_id)
+{
+	unsigned int edid_sts_temp;
+	unsigned int edid_addr_sts;
+
+	switch (port_id) {
+	case 0:
+		edid_sts_temp = hdmirx_rd_top(TOP_EDID_GEN_STAT);
+		break;
+	case 1:
+		edid_sts_temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_B);
+		break;
+	case 2:
+		edid_sts_temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_C);
+		break;
+	case 3:
+		edid_sts_temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_D);
+		break;
+	default:
+		edid_sts_temp = 0;
+		break;
+	}
+
+	edid_addr_sts = edid_sts_temp & 0xffff;
+	if (edid_addr_sts > 0x200) {
+		if (log_level & 0x100)
+			rx_pr("edid buff flow\n");
+		return false;
+	}
+
+	return true;
+}
+
 enum edid_ver_e rx_parse_edid_ver(u8 *p_edid)
 {
 	if (edid_tag_extract(p_edid, HF_VENDOR_DB_TAG))
@@ -1328,6 +1361,7 @@ enum edid_ver_e get_edid_selection(u8 port)
 
 void rx_edid_fill_to_register(u_char *pedid1,
 			      u_char *pedid2,
+			      u_int *phyaddr_offset,
 			      u_int *pphy_addr,
 			      u_char *pchecksum)
 {
@@ -1388,6 +1422,21 @@ void rx_edid_fill_to_register(u_char *pedid1,
 			hdmirx_wr_top(tmp_addr + 0x100 + i,
 				      pedid[i]);
 		}
+		/* fill first edid*/
+		hdmirx_wr_top(tmp_addr + phyaddr_offset[0],
+				     (pphy_addr[rx.port] & 0xff));
+		hdmirx_wr_top(tmp_addr + phyaddr_offset[0] + 1,
+				     ((pphy_addr[rx.port] >> 8) & 0xFF));
+		hdmirx_wr_top(tmp_addr + 0xff,
+				     pchecksum[rx.port]);
+		/* fill second edid*/
+		hdmirx_wr_top(tmp_addr + phyaddr_offset[0] + 0x100,
+				     (pphy_addr[rx.port] & 0xff));
+		hdmirx_wr_top(tmp_addr + phyaddr_offset[0] + 0x101,
+				     ((pphy_addr[rx.port] >> 8) & 0xFF));
+		hdmirx_wr_top(tmp_addr + 0xff + 0x100,
+				     pchecksum[rx.port]);
+
 		for (i = 0; i < E_PORT_NUM; i++) {
 			pchecksum[i] = (0x100 + checksum -
 				(pphy_addr[i] & 0xFF) -
@@ -2072,7 +2121,7 @@ bool hdmi_rx_top_edid_update(void)
 		}
 		/* write edid to register, and calculate checksum */
 		rx_edid_fill_to_register(pedid_data1, pedid_data2,
-					 phy_addr, checksum);
+					phy_addr_offset, phy_addr, checksum);
 		/* update phy addr and checksum */
 		rx_edid_update_overlay(phy_addr_offset,
 				       phy_addr, checksum);
@@ -2082,7 +2131,7 @@ bool hdmi_rx_top_edid_update(void)
 			phy_addr_offset[i] = phy_addr_off1;
 		/* write edid to register, and calculate checksum */
 		rx_edid_fill_to_register(pedid_data1, pedid_data2,
-					 phy_addr, checksum);
+					phy_addr_offset, phy_addr, checksum);
 		/* update phy addr and checksum */
 		rx_edid_update_overlay(phy_addr_offset,
 				       phy_addr, checksum);

@@ -1141,6 +1141,19 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 			if (log_level & COR_LOG)
 				rx_pr("[isr] ctrl aon\n");
 	}
+	if (rx.chip_id <= CHIP_ID_TL1) {
+		if (hdmirx_top_intr_stat & MSK(4, 17)) {
+			if (!is_edid_buff_normal(rx.port)) {
+				hdmirx_wr_top(TOP_SW_RESET, 0x02);
+				udelay(1);
+				hdmirx_wr_top(TOP_SW_RESET, 0);
+
+				if (log_level & EDID_LOG)
+					rx_pr("[isr] edid addr irq\n");
+			}
+		}
+	}
+
 	if (rx.chip_id < CHIP_ID_TL1) {
 		if (error == 1)
 			goto reisr;

@@ -1297,10 +1297,15 @@ void hdmirx_top_irq_en(bool flag)
 		/* bit27 DE rise */
 		top_intr_maskn_value = 0x28000001;
 	}
-	if (flag)
+	if (flag) {
+		/* for TXLX, cec phy address error issues */
+		if (rx.chip_id <= CHIP_ID_TL1)
+			top_intr_maskn_value |= 0x1e0000;
+
 		hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
-	else
+	} else {
 		hdmirx_wr_top(TOP_INTR_MASKN, 0);
+	}
 }
 
 /*
