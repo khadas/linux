@@ -2043,7 +2043,7 @@
 	canvas: canvas{
 		compatible = "amlogic, meson, canvas";
 		dev_name = "amlogic-canvas";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe036048 0x0 0x2000>;
 	};
 
@@ -2058,7 +2058,7 @@
 			<0x0 0xfe320000 0x0 0x10000>,
 			<0x0 0x0 0x0 0x0>,
 			<0x0 0x0 0x0 0x00>,
-			<0x0 0xff000000 0x0 0x40000>,
+			<0x0 0xff800000 0x0 0x40000>,
 			<0x0 0xfe036000 0x0 0x2000>,
 			<0x0 0x0 0x0 0x0>;
 		reg-names = "cbus",
@@ -2158,13 +2158,13 @@
 	};
 
 	rdma{
-		compatible = "amlogic, meson-t7, rdma";
-		status = "disabled";
-		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
+		compatible = "amlogic, meson-t3, rdma";
+		status = "okay";
+		interrupts = <GIC_SPI 102 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "rdma";
 		/* after sc2 */
-		//reset-names = "rdma";
-		//resets = <&reset RESET_RDMA>;
+		reset-names = "rdma";
+		resets = <&reset RESET_RDMA>;
 		rdma_table_page_count = <16>;
 	};
 
