@@ -205,7 +205,7 @@ struct meson_spicc_data {
 #endif
 
 struct meson_spicc_device {
-	struct spi_master		*master;
+	struct spi_controller		*controller;
 	struct platform_device		*pdev;
 	void __iomem			*base;
 	struct clk			*core;
@@ -315,7 +315,7 @@ static int meson_spicc_set_speed(struct meson_spicc_device *spicc, int hz)
 static int meson_spicc_dma_map(struct meson_spicc_device *spicc,
 			       struct spi_transfer *t)
 {
-	struct device *dev = spicc->master->dev.parent;
+	struct device *dev = spicc->controller->dev.parent;
 
 	if (t->tx_buf) {
 		t->tx_dma = dma_map_single(dev, (void *)t->tx_buf, t->len,
@@ -344,7 +344,7 @@ static int meson_spicc_dma_map(struct meson_spicc_device *spicc,
 static void meson_spicc_dma_unmap(struct meson_spicc_device *spicc,
 				  struct spi_transfer *t)
 {
-	struct device *dev = spicc->master->dev.parent;
+	struct device *dev = spicc->controller->dev.parent;
 
 	if (t->tx_buf)
 		dma_unmap_single(dev, t->tx_dma, t->len, DMA_TO_DEVICE);
@@ -443,7 +443,7 @@ static void meson_spicc_dma_irq(struct meson_spicc_device *spicc)
 		if (!spicc->is_dma_mapped)
 			meson_spicc_dma_unmap(spicc, spicc->xfer);
 		if (spicc->xfer != &spicc->async_xfer) {
-			spi_finalize_current_transfer(spicc->master);
+			spi_finalize_current_transfer(spicc->controller);
 		} else {
 			dirspi_set_cs(spicc->spi, false);
 			if (spicc->complete)
@@ -635,7 +635,7 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	/* Enable TC interrupt since we transferred everything */
 	if (!spicc->xfer_remain) {
 		if (spicc->xfer != &spicc->async_xfer) {
-			spi_finalize_current_transfer(spicc->master);
+			spi_finalize_current_transfer(spicc->controller);
 		} else {
 			dirspi_set_cs(spicc->spi, false);
 			if (spicc->complete)
@@ -657,11 +657,11 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int meson_spicc_transfer_one(struct spi_master *master,
+static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 				    struct spi_device *spi,
 				    struct spi_transfer *xfer)
 {
-	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(ctlr);
 	unsigned int burst_len;
 
 	/* Store current transfer */
@@ -719,10 +719,10 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	return 1;
 }
 
-static int meson_spicc_prepare_message(struct spi_master *master,
+static int meson_spicc_prepare_message(struct spi_controller *ctlr,
 				       struct spi_message *message)
 {
-	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(ctlr);
 	struct spi_device *spi = message->spi;
 
 	/* Store current message */
@@ -738,9 +738,9 @@ static int meson_spicc_prepare_message(struct spi_master *master,
 #endif
 }
 
-static int meson_spicc_unprepare_transfer(struct spi_master *master)
+static int meson_spicc_unprepare_transfer(struct spi_controller *ctlr)
 {
-	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(ctlr);
 
 	/* Disable all IRQs */
 	writel(0, spicc->base + SPICC_INTREG);
@@ -758,12 +758,12 @@ static int meson_spicc_unprepare_transfer(struct spi_master *master)
 static int meson_spicc_setup(struct spi_device *spi)
 {
 #ifdef CONFIG_AMLOGIC_MODIFY
-	struct meson_spicc_device *spicc = spi_master_get_devdata(spi->master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 #endif
 	int ret = 0;
 
 	if (!spi->controller_state)
-		spi->controller_state = spi_master_get_devdata(spi->master);
+		spi->controller_state = spi_controller_get_devdata(spi->controller);
 	else if (gpio_is_valid(spi->cs_gpio))
 		goto out_gpio;
 	else if (spi->cs_gpio == -ENOENT)
@@ -841,7 +841,7 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 	/* For GX/AXG, all registers except CONREG are unavailable if
 	 * SPICC_ENABLE is 0, which will be also reset to default value
 	 * if it changed from 1 to 0.
-	 * Set master mode and enable controller ahead of others here,
+	 * Set controller mode and enable controller ahead of others here,
 	 * and never disable them.
 	 */
 	writel_relaxed(SPICC_ENABLE | SPICC_MODE_MASTER,
@@ -879,7 +879,7 @@ static int dirspi_wait_complete(struct meson_spicc_device *spicc, int times)
 
 int dirspi_xfer(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len)
 {
-	struct meson_spicc_device *spicc = spi_master_get_devdata(spi->master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	unsigned int burst_len, rx_remain;
 	int ret = 0;
 
@@ -948,11 +948,11 @@ static void dirspi_set_cs(struct spi_device *spi, bool enable)
 void dirspi_start(struct spi_device *spi)
 {
 #ifndef CONFIG_AMLOGIC_MODIFY
-	struct meson_spicc_device *spicc = spi_master_get_devdata(spi->master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 #endif
 
-	if (spi->master->auto_runtime_pm)
-		pm_runtime_get_sync(spi->master->dev.parent);
+	if (spi->controller->auto_runtime_pm)
+		pm_runtime_get_sync(spi->controller->dev.parent);
 #ifndef CONFIG_AMLOGIC_MODIFY
 	meson_spicc_hw_prepare(spicc, spi->mode, spi->bits_per_word,
 			       spi->max_speed_hz);
@@ -971,7 +971,7 @@ EXPORT_SYMBOL(dirspi_stop);
 int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 		 void (*complete)(void *context), void *context)
 {
-	struct meson_spicc_device *spicc = spi_master_get_devdata(spi->master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(spi->controller);
 	struct spi_transfer *t = &spicc->async_xfer;
 
 	spicc->spi = spi;
@@ -985,7 +985,7 @@ int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
 	t->len = len;
 
 	dirspi_start(spi);
-	meson_spicc_transfer_one(spi->master, spi, t);
+	meson_spicc_transfer_one(spi->controller, spi, t);
 
 	return 0;
 }
@@ -1034,7 +1034,7 @@ static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 	rx_buf = kzalloc(num, GFP_KERNEL | GFP_DMA);
 	if (IS_ERR(kstr) || IS_ERR(tx_buf) || IS_ERR(rx_buf)) {
 		dev_err(dev, "failed to alloc tx rx buffer\n");
-		return count;
+		goto test_end2;
 	}
 
 	str_temp = kstr;
@@ -1061,7 +1061,7 @@ static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 		tx_buf[i] = tx_buf[i - 1] + 1;
 
 	spi_message_init(&m);
-	m.spi = spi_alloc_device(spicc->master);
+	m.spi = spi_alloc_device(spicc->controller);
 	if (IS_ERR_OR_NULL(m.spi)) {
 		dev_err(dev, "spi alloc failed\n");
 		goto test_end;
@@ -1098,6 +1098,7 @@ static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 
 test_end:
 	spi_dev_put(m.spi);
+test_end2:
 	kfree(kstr);
 	kfree(tx_buf);
 	kfree(rx_buf);
@@ -1275,18 +1276,18 @@ static void meson_spicc_hw_clk_restore(struct meson_spicc_device *spicc)
 
 static int meson_spicc_probe(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *ctlr;
 	struct meson_spicc_data *match;
 	struct meson_spicc_device *spicc;
 	int ret, irq, rate;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*spicc));
-	if (!master) {
-		dev_err(&pdev->dev, "master allocation failed\n");
+	ctlr = spi_alloc_master(&pdev->dev, sizeof(*spicc));
+	if (!ctlr) {
+		dev_err(&pdev->dev, "controller allocation failed\n");
 		return -ENOMEM;
 	}
-	spicc = spi_master_get_devdata(master);
-	spicc->master = master;
+	spicc = spi_controller_get_devdata(ctlr);
+	spicc->controller = ctlr;
 
 	spicc->pdev = pdev;
 	platform_set_drvdata(pdev, spicc);
@@ -1295,7 +1296,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	if (IS_ERR_OR_NULL(spicc->base)) {
 		dev_err(&pdev->dev, "io resource mapping failed\n");
 		ret = PTR_ERR(spicc->base);
-		goto out_master;
+		goto out_controller;
 	}
 
 #ifdef CONFIG_AMLOGIC_MODIFY
@@ -1316,27 +1317,27 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = irq;
-		goto out_master;
+		goto out_controller;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, meson_spicc_irq,
 			       0, NULL, spicc);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request failed\n");
-		goto out_master;
+		goto out_controller;
 	}
 
 	spicc->core = devm_clk_get(&pdev->dev, "core");
 	if (IS_ERR_OR_NULL(spicc->core)) {
 		dev_err(&pdev->dev, "core clock request failed\n");
 		ret = PTR_ERR(spicc->core);
-		goto out_master;
+		goto out_controller;
 	}
 
 	ret = clk_prepare_enable(spicc->core);
 	if (ret) {
 		dev_err(&pdev->dev, "core clock enable failed\n");
-		goto out_master;
+		goto out_controller;
 	}
 	rate = clk_get_rate(spicc->core);
 
@@ -1381,37 +1382,37 @@ static int meson_spicc_probe(struct platform_device *pdev)
 
 	device_reset_optional(&pdev->dev);
 
-	master->num_chipselect = 4;
-	master->dev.of_node = pdev->dev.of_node;
+	ctlr->num_chipselect = 4;
+	ctlr->dev.of_node = pdev->dev.of_node;
 #ifdef CONFIG_AMLOGIC_MODIFY
-	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LOOP;
+	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH | SPI_LOOP;
 #else
-	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
-	master->bits_per_word_mask = SPI_BPW_MASK(32) |
+	ctlr->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
+	ctlr->bits_per_word_mask = SPI_BPW_MASK(32) |
 				     SPI_BPW_MASK(24) |
 				     SPI_BPW_MASK(16) |
 				     SPI_BPW_MASK(8);
-	master->flags = (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX);
+	ctlr->flags = (SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX);
 #endif
-	master->min_speed_hz = rate >> 9;
-	master->setup = meson_spicc_setup;
-	master->cleanup = meson_spicc_cleanup;
-	master->prepare_message = meson_spicc_prepare_message;
-	master->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
-	master->transfer_one = meson_spicc_transfer_one;
+	ctlr->min_speed_hz = rate >> 9;
+	ctlr->setup = meson_spicc_setup;
+	ctlr->cleanup = meson_spicc_cleanup;
+	ctlr->prepare_message = meson_spicc_prepare_message;
+	ctlr->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
+	ctlr->transfer_one = meson_spicc_transfer_one;
 	/* Setup max rate according to the Meson GX datasheet */
 #ifdef CONFIG_AMLOGIC_MODIFY
-	master->max_speed_hz = spicc->data->max_speed_hz;
+	ctlr->max_speed_hz = spicc->data->max_speed_hz;
 #else
 	if ((rate >> 2) > SPICC_MAX_FREQ)
-		master->max_speed_hz = SPICC_MAX_FREQ;
+		ctlr->max_speed_hz = SPICC_MAX_FREQ;
 	else
-		master->max_speed_hz = rate >> 2;
+		ctlr->max_speed_hz = rate >> 2;
 #endif
 
-	ret = devm_spi_register_master(&pdev->dev, master);
+	ret = devm_spi_register_master(&pdev->dev, ctlr);
 	if (ret) {
-		dev_err(&pdev->dev, "spi master registration failed\n");
+		dev_err(&pdev->dev, "spi controller registration failed\n");
 		goto out_clk;
 	}
 
@@ -1419,7 +1420,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 	//pm_runtime_set_autosuspend_delay(&pdev->dev, 500);
 	//pm_runtime_use_autosuspend(&pdev->dev);
-	master->auto_runtime_pm = false;
+	ctlr->auto_runtime_pm = false;
 	//pm_runtime_enable(&pdev->dev);
 	//meson_spicc_hw_clk_save(spicc);
 #endif
@@ -1439,8 +1440,8 @@ out_clk_1:
 #endif
 	clk_disable_unprepare(spicc->core);
 
-out_master:
-	spi_master_put(master);
+out_controller:
+	spi_controller_put(ctlr);
 
 	return ret;
 }
@@ -1469,14 +1470,14 @@ static int meson_spicc_suspend(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
 
-	return spi_master_suspend(spicc->master);
+	return spi_controller_suspend(spicc->controller);
 }
 
 static int meson_spicc_resume(struct device *dev)
 {
 	struct meson_spicc_device *spicc = dev_get_drvdata(dev);
 
-	return spi_master_resume(spicc->master);
+	return spi_controller_resume(spicc->controller);
 }
 #endif /* CONFIG_PM_SLEEP */
 
@@ -1487,7 +1488,7 @@ static int meson_spicc_runtime_suspend(struct device *dev)
 	meson_spicc_hw_clk_save(spicc);
 	meson_spicc_clk_disable(spicc);
 
-	spi_master_put(spicc->master);
+	spi_controller_put(spicc->controller);
 
 	return 0;
 }
