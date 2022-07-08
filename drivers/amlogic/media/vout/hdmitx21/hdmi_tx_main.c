@@ -4258,11 +4258,11 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	hdev->audio_param_update_flag = 0;
 	hdev->audio_notify_flag = 0;
 
-	/* if (audio_param->sample_rate != n_rate) { */
+	if (audio_param->sample_rate != n_rate) {
 		audio_param->sample_rate = n_rate;
 		hdev->audio_param_update_flag = 1;
 		pr_info("aout notify sample rate: %d\n", n_rate);
-	/* } */
+	}
 
 	if (audio_param->type != cmd) {
 		audio_param->type = cmd;
