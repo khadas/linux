@@ -166,6 +166,7 @@ static unsigned int vs_adj_th_level03 = 0x20;
 /*-3.5hz*/
 static unsigned int vs_adj_th_level04 = 0x28;
 static unsigned int cvd_2e = 0x8c;
+static unsigned int ntscm_cvd_2e = 0x82;
 static unsigned int cvd_2e_l1 = 0x5c;
 static unsigned int acd_128 = 0x14;
 static unsigned int acd_128_l1 = 0x1f;
@@ -2771,9 +2772,13 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 						R_APB_REG(ACD_REG_2D), R_APB_REG(ACD_REG_66));
 				}
 			}
+			W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, ntscm_cvd_2e,
+				  HACTIVE_START_BIT, HACTIVE_START_WID);
 		} else {
 			W_APB_REG(ACD_REG_66, ntscm_acd_166);
 			W_APB_REG(ACD_REG_2D, acd_ntscm_h_back);
+			W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, ntscm_cvd_2e,
+				  HACTIVE_START_BIT, HACTIVE_START_WID);
 			cvd2->info.hs_adj_en = 0;
 			cvd2->info.hs_adj_level = 0;
 
@@ -2785,6 +2790,8 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 	} else {
 		W_APB_REG(ACD_REG_66, ntscm_acd_166);
 		W_APB_REG(ACD_REG_2D, acd_ntscm_h_back);
+		W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, ntscm_cvd_2e,
+			  HACTIVE_START_BIT, HACTIVE_START_WID);
 		cvd2->info.hs_adj_en = 0;
 		cvd2->info.hs_adj_level = 0;
 
