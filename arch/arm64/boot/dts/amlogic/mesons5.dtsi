@@ -2179,11 +2179,25 @@
 		};
 
 		aml_tdes {
-			compatible = "amlogic,tdes_dma";
+			compatible = "amlogic,des_dma,tdes_dma";
 			dev_name = "aml_tdes_dma";
 			status = "okay";
 		};
 
+		aml_sm4 {
+			compatible = "amlogic,sm4_dma";
+			dev_name = "aml_sm4_dma";
+			status = "okay";
+			iv_swap = /bits/ 8 <0x0>;
+		};
+
+		crypto {
+			compatible = "amlogic,crypto_s5";
+			dev_name = "aml_crypto_dev";
+			status = "disabled";
+			thread = /bits/ 8 <0x5>;
+			interrupts = <0 29 1>;
+		};
 	};
 
 	rng {

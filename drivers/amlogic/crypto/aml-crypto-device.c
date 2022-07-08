@@ -22,6 +22,7 @@
 #include <linux/random.h>
 #include <linux/crypto.h>
 #include <crypto/aes.h>
+#include <crypto/sm4.h>
 #include <crypto/des.h>
 #include <linux/miscdevice.h>
 #include <linux/of_platform.h>
@@ -76,6 +77,11 @@ struct meson_crypto_dev_data meson_sc2_data = {
 struct meson_crypto_dev_data meson_s4d_data = {
 	.status = TXLX_DMA_STS0,
 	.algo_cap = (CAP_AES | CAP_TDES | CAP_DES | CAP_S17),
+};
+
+struct meson_crypto_dev_data meson_s5_data = {
+	.status = TXLX_DMA_STS0,
+	.algo_cap = (CAP_AES | CAP_TDES | CAP_DES | CAP_SM4),
 };
 
 struct cipher_data {
@@ -188,6 +194,9 @@ static const struct of_device_id aml_crypto_dev_dt_match[] = {
 	{	.compatible = "amlogic,crypto_s4d",
 		.data = &meson_s4d_data,
 	},
+	{	.compatible = "amlogic,crypto_s5",
+		.data = &meson_s5_data,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, aml_crypto_dev_dt_match);
@@ -245,6 +254,15 @@ static int crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 		ses_new->cdata.op_mode = OP_MODE_CBC;
 		break;
 	case CRYPTO_OP_S17_CTR:
+		ses_new->cdata.op_mode = OP_MODE_CTR;
+		break;
+	case CRYPTO_OP_SM4_ECB:
+		ses_new->cdata.op_mode = OP_MODE_ECB;
+		break;
+	case CRYPTO_OP_SM4_CBC:
+		ses_new->cdata.op_mode = OP_MODE_CBC;
+		break;
+	case CRYPTO_OP_SM4_CTR:
 		ses_new->cdata.op_mode = OP_MODE_CTR;
 		break;
 	default:
@@ -316,6 +334,28 @@ static int crypto_create_session(struct fcrypt *fcr, struct session_op *sop)
 					     AES_BLOCK_SIZE) ?  MODE_AES128 :
 					     MODE_AES256;
 		if (!(crypto_dd->algo_cap & CAP_AES)) {
+			dbgp(2, "unsupported algo: %d\n",
+			     ses_new->cdata.cipher);
+			rc = -EINVAL;
+			goto error;
+		}
+		break;
+	case CRYPTO_OP_SM4_ECB:
+		fallthrough;
+	case CRYPTO_OP_SM4_CBC:
+		fallthrough;
+	case CRYPTO_OP_SM4_CTR:
+		ses_new->cdata.blocksize = SM4_BLOCK_SIZE;
+		ses_new->cdata.ivsize = SM4_BLOCK_SIZE;
+		if (sop->keylen != SM4_BLOCK_SIZE) {
+			dbgp(2, "invalid keysize: %d\n", sop->keylen);
+			rc = -EINVAL;
+			goto error;
+		} else {
+			ses_new->cdata.keylen = sop->keylen;
+		}
+		ses_new->cdata.crypt_mode = MODE_SM4;
+		if (!(crypto_dd->algo_cap & CAP_SM4)) {
 			dbgp(2, "unsupported algo: %d\n",
 			     ses_new->cdata.cipher);
 			rc = -EINVAL;

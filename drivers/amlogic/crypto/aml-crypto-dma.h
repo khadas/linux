@@ -50,6 +50,7 @@ enum CRYPTO_ALGO_CAPABILITY {
 	CAP_DES = 0x2,
 	CAP_TDES = 0x4,
 	CAP_S17 = 0x8,
+	CAP_SM4 = 0x10,
 };
 
 #define aml_write_reg(addr, data) \
@@ -80,6 +81,7 @@ enum CRYPTO_ALGO_CAPABILITY {
 #define MODE_SHA224  0x7
 #define MODE_AES128  0x8
 #define MODE_AES192  0x9
+#define MODE_SM4     0x9
 #define MODE_AES256  0xa
 #define MODE_S17     0xb
 #define MODE_DES     0xc
@@ -127,6 +129,7 @@ struct dma_sg_dsc {
 #define DMA_FLAG_TDES_IN_USE   BIT(1)
 #define DMA_FLAG_AES_IN_USE    BIT(2)
 #define DMA_FLAG_SHA_IN_USE    BIT(3)
+#define DMA_FLAG_SM4_IN_USE    BIT(4)
 
 #define DMA_STATUS_KEY_ERROR   BIT(1)
 
@@ -192,3 +195,6 @@ void aml_aes_driver_exit(void);
 
 int __init aml_crypto_device_driver_init(void);
 void aml_crypto_device_driver_exit(void);
+
+int __init aml_sm4_driver_init(void);
+void aml_sm4_driver_exit(void);

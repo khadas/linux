@@ -69,6 +69,7 @@
 #define MKL_USAGE_TDES       (1)
 #define MKL_USAGE_DES        (2)
 #define MKL_USAGE_S17		 (3)
+#define MKL_USAGE_SM4        (4)
 #define MKL_USAGE_NDL        (7)
 #define MKL_USAGE_ND         (8)
 #define MKL_USAGE_CSA3       (9)
@@ -318,6 +319,9 @@ static int kt_config(u32 handle, int key_userid, int key_algo, unsigned int ext_
 						 ext_value);
 				}
 			}
+			break;
+		case KEY_ALGO_SM4:
+			key_table[index].key_algo = MKL_USAGE_SM4;
 			break;
 		default:
 			dprint("%s, %d invalid algo\n",
