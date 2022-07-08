@@ -56,12 +56,12 @@
 			/* keep sync with fb */
 			/* fox example:logo_addr = "0x3f800000"*/
 			alignment = <0x0 0x400000>;
-			reg = <0x0 0x3f800000 0x0 0x800000>;
+			reg = <0x0 0x2f800000 0x0 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "amlogic, lcd_tcon";
-			reg = <0x0 0x3d400000 0x0 0x00c00000>;
+			reg = <0x0 0x2ec00000 0x0 0x00c00000>;
 			no-map;
 		};
 
@@ -84,17 +84,17 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x17c00000>;
+			size = <0x0 0x10000000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x0 0x20000000 0x0 0x1f800000>;
+			alloc-ranges = <0x0 0x30000000 0x0 0x10000000>;
 		};
 
 		/*di CMA pool */
@@ -133,7 +133,7 @@
 			 */
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -142,7 +142,7 @@
 			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -150,7 +150,7 @@
 			reusable;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f800000>;
+			alloc-ranges = <0x0 0x0 0x0 0x30000000>;
 		};
 	};
 
@@ -1475,7 +1475,7 @@
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
-	logo_addr = "0x3f800000";
+	logo_addr = "0x2f800000";
 	/* display_device_cnt = <2>; */ /* for dual screen upport */
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
