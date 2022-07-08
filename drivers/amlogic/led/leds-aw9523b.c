@@ -797,28 +797,18 @@ static struct attribute_group aw9523_attribute_group = {
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 static void aw9523b_early_suspend(struct early_suspend *h)
 {
-	if (platform_id == 3) {
-		init_leds_mode(0);
-		aw9523_i2c_write(aw9523, REG_OUTPUT_P1, 0xF0);
-	} else if (platform_id == 2) {
-		init_leds_mode(6);
-	} else if (platform_id == 8) {
-		init_leds_mode(14);
-	}
+	unsigned char color_data[AW9523_MAX_IO] = { 0 };
+
+	aw9523_i2c_writes(aw9523->i2c, REG_DIM00, AW9523_MAX_IO, color_data);
 	pr_info("Tiger]aw9523b early suspend\n");
 }
 
 static void aw9523b_late_resume(struct early_suspend *h)
 {
-	if (platform_id == 3) {
-		init_leds_mode(12);
-		aw9523_i2c_write(aw9523, REG_OUTPUT_P1, 0x00);
-	} else if (platform_id == 2) {
-		init_leds_mode(11);
-	} else if (platform_id == 8) {
-		meson_aw9523_set_colors(tmp_color, aw9523->led_counts);
-	}
+	unsigned char color_data[AW9523_MAX_IO] = { 0 };
 
+	memset(color_data, 0xaa, AW9523_MAX_IO);
+	aw9523_i2c_writes(aw9523->i2c, REG_DIM00, AW9523_MAX_IO, color_data);
 	pr_info("Tiger]aw9523b early resume\n");
 }
 
