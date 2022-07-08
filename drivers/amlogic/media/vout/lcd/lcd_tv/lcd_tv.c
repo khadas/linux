@@ -34,6 +34,7 @@
 #include "lcd_tv.h"
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
+#include "../lcd_tcon.h"
 
 static int lcd_init_on_flag;
 /* ************************************************** *
@@ -566,8 +567,8 @@ static struct vinfo_s *lcd_get_current_info(void *data)
 static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 {
 	unsigned long flags = 0;
-	int ret = 0;
 	unsigned long long local_time[3];
+	int ret;
 
 	local_time[0] = sched_clock();
 	if (pdrv->vmode_update == 0)
@@ -579,7 +580,10 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 			pdrv->lcd_screen_black(pdrv);
 			reinit_completion(&pdrv->vsync_done);
 			spin_lock_irqsave(&pdrv->isr_lock, flags);
-			pdrv->mute_count = 0;
+			if (pdrv->mute_count_test)
+				pdrv->mute_count = pdrv->mute_count_test;
+			else
+				pdrv->mute_count = 3;
 			pdrv->mute_flag = 1;
 			spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 			//wait for mute apply
@@ -587,6 +591,7 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 							  msecs_to_jiffies(500));
 			if (!ret)
 				LCDPR("wait_for_completion_timeout\n");
+			lcd_tcon_reload_pre(pdrv);
 			local_time[1] = sched_clock();
 			pdrv->config.cus_ctrl.mute_time = local_time[1] - local_time[0];
 			return;

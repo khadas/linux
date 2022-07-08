@@ -1406,6 +1406,36 @@ int lcd_tcon_enable_t5(struct aml_lcd_drv_s *pdrv)
 	return 0;
 }
 
+int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv)
+{
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+
+	//off goa clk after mute enable
+	lcd_tcon_write(pdrv, 0x30e, 0);
+	if (tcon_conf->core_reg_width == 8) {
+		//ddrif off
+		lcd_tcon_setb_byte(pdrv, 0x263, 0, 31, 1);
+		//enc off
+		lcd_tcon_setb_byte(pdrv, 0x26c, 0, 8, 1);
+	} else {
+		//ddrif off
+		lcd_tcon_setb(pdrv, 0x263, 0, 31, 1);
+		//enc off
+		lcd_tcon_setb(pdrv, 0x26c, 0, 8, 1);
+	}
+	mdelay(20);
+	//venc off
+	lcd_vcbus_write(ENCL_VIDEO_EN, 0);
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("%s: read tcon reg_width: %d, goa:0x %x\n",
+		      __func__, tcon_conf->core_reg_width,
+		      lcd_tcon_read(pdrv, 0x30e));
+	}
+
+	return 0;
+}
+
 int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
@@ -1422,6 +1452,9 @@ int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv)
 				mm_table, mm_table->core_reg_table);
 		}
 	}
+	//venc on
+	lcd_vcbus_write(ENCL_VIDEO_EN, 1);
+
 	local_time[1] = sched_clock();
 	if (mm_table->version)
 		lcd_tcon_data_set(pdrv, mm_table);

@@ -560,7 +560,10 @@ static void lcd_screen_restore_work(struct work_struct *work)
 	mutex_lock(&lcd_power_mutex);
 	reinit_completion(&pdrv->vsync_done);
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
-	pdrv->mute_count = 0;
+	if (pdrv->unmute_count_test)
+		pdrv->mute_count = pdrv->unmute_count_test;
+	else
+		pdrv->mute_count = 4;
 	pdrv->mute_flag = 1;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	ret = wait_for_completion_timeout(&pdrv->vsync_done,
@@ -641,11 +644,10 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	if (pdrv->mute_flag) {
-		if (pdrv->mute_count < 2) {
-			pdrv->mute_count++;
-		} else if (pdrv->mute_count == 2) {
+		if (pdrv->mute_count > 0) {
+			pdrv->mute_count--;
+		} else if (pdrv->mute_count == 0) {
 			complete(&pdrv->vsync_done);
-			pdrv->mute_count++;
 			pdrv->mute_flag = 0;
 		}
 	}
@@ -1900,6 +1902,8 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->mute_state = 0;
 	pdrv->mute_flag = 0;
 	pdrv->mute_count = 0;
+	pdrv->mute_count_test = 0;
+	pdrv->unmute_count_test = 0;
 	pdrv->tcon_isr_type = 0;
 	pdrv->tcon_isr_bypass = 0;
 	pdrv->fr_mode = 0;

@@ -54,6 +54,7 @@ struct lcd_tcon_config_s {
 	int (*tcon_gamma_pattern)(struct aml_lcd_drv_s *pdrv,
 				  unsigned int bit_width, unsigned int gamma_r,
 				  unsigned int gamma_g, unsigned int gamma_b);
+	int (*tcon_reload_pre)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_reload)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_enable)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_disable)(struct aml_lcd_drv_s *pdrv);
@@ -255,6 +256,7 @@ int lcd_tcon_disable_t5(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_enable_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_disable_t3(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload_t3(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv);
 
 /* common */
 unsigned char *lcd_tcon_paddrtovaddr(unsigned long paddr, unsigned int mem_size);

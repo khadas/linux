@@ -41,7 +41,8 @@
 /* 20220428: fix t5w regs mistake*/
 /* 20220622: support tcon dynamic gamma*/
 /* 20220719: support t5,t5w,t3 set vswing level in low common type*/
-#define LCD_DRV_VERSION    "20220719"
+/* 20220729: optimize tcon switch flow before dlg timing change*/
+#define LCD_DRV_VERSION    "20220729"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -146,6 +147,7 @@ int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 			  unsigned char *buf, unsigned int size);
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
 
