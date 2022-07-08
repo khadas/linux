@@ -88,6 +88,8 @@
 #include "di_sys.h"
 #include "di_reg_v3.h"
 #include "dolby_sys.h"
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DIM
+#include <trace/events/meson_atrace.h>
 /*2018-07-18 add debugfs*/
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
@@ -4172,6 +4174,8 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 		if (!flg_timeout)
 			dcntr_pq_tune(&ppre->di_wr_buf->pq_rpt);
 		dim_tr_ops.pre_ready(ppre->di_wr_buf->vframe->index_disp);
+		ATRACE_COUNTER("dim_pre_ready", 0);
+		ATRACE_COUNTER("dim_post_ready", 1);
 		ppre->di_wr_buf->flg_nr = 1;
 		if (ppre->pre_throw_flag > 0) {
 			ppre->di_wr_buf->throw_flag = 1;
@@ -5190,6 +5194,9 @@ unsigned char dim_pre_bypass(struct di_ch_s *pch)
 	vframe = &nins->c.vfm_cp;
 	//dbg_save_vf_data(vframe);
 	dim_tr_ops.pre_get(vframe->index_disp);
+	ATRACE_COUNTER("dim_pre_ready", 1);
+	ATRACE_COUNTER("dim_total", 1);
+	ATRACE_COUNTER("dim_index_disp", vframe->index_disp);
 	if (dip_itf_is_vfm(pch))
 		didbg_vframe_in_copy(ch, nins->c.ori);
 	else
@@ -5487,6 +5494,10 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			       vframe->ready_jiffies64));
 		}
 		dim_tr_ops.pre_get(vframe->index_disp);
+		ATRACE_COUNTER("dim_pre_ready", 1);
+		ATRACE_COUNTER("dim_total", 1);
+		ATRACE_COUNTER("dim_index_disp", vframe->index_disp);
+
 		if (dip_itf_is_vfm(pch))
 			didbg_vframe_in_copy(channel, nins->c.ori);
 		else
@@ -9138,6 +9149,10 @@ void dim_post_de_done_buf_config(unsigned int channel)
 	#endif
 	//2020-12-07	di_unlock_irqfiq_restore(irq_flag2);
 	dim_tr_ops.post_ready(di_buf->vframe->index_disp);
+	ATRACE_COUNTER("dim_post_ready", 0);
+	ATRACE_COUNTER("dim_total", 0);
+	ATRACE_COUNTER("dim_index_disp", 0);
+
 	if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
 		if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB) ||
 		    DIM_IS_IC(T5D)) {
