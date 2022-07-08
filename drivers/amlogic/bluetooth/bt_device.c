@@ -54,6 +54,7 @@ static struct early_suspend bt_early_suspend;
 
 #define BT_RFKILL "bt_rfkill"
 #define QCA_ID 0x271
+#define RTK_ID 0x24C
 #define AML_ID 0x8888
 #define POWER_EVENT_DEF     0
 #define POWER_EVENT_RESET   1
@@ -81,7 +82,10 @@ static int distinguish_module(void)
 
 	if (vendor_id == QCA_ID)
 		return 1;
-
+#ifdef CONFIG_AMLOGIC_BT_WAKE_NOT_REPORT
+	if (vendor_id == RTK_ID)
+		return 1;
+#endif
 	return 0;
 }
 
