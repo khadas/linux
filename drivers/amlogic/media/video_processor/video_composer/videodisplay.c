@@ -752,6 +752,10 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		countinue_vsync_count[dev->index] = 0;
 		dev->last_vf_index = vf->omx_index;
 		current_display_vf = vf;
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+		ATRACE_COUNTER("video_composer_get_vf_omx_index", vf->omx_index);
+		ATRACE_COUNTER("video_composer_get_vf_omx_index", 0);
+#endif
 		return vf;
 	} else {
 		return NULL;

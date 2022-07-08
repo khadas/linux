@@ -48,6 +48,11 @@
 #include "vframe_ge2d_composer.h"
 #include "vframe_dewarp_composer.h"
 
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO_COMPOSER
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+#include <trace/events/meson_atrace.h>
+#endif
+
 #define MXA_LAYER_COUNT 9
 #define COMPOSER_READY_POOL_SIZE 32
 #define FRAMES_INFO_POOL_SIZE 32

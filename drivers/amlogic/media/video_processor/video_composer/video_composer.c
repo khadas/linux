@@ -43,11 +43,6 @@
 #include <linux/ctype.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
 
-#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO_COMPOSER
-#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
-#include <trace/events/meson_atrace.h>
-#endif
-
 #include "videodisplay.h"
 #define VIDEO_COMPOSER_VERSION "1.0"
 
@@ -90,6 +85,7 @@ static u32 debug_crop_pip;
 static u32 composer_use_444;
 static u32 reset_drop;
 static u32 drop_cnt;
+static u32 last_drop_cnt;
 static u32 drop_cnt_pip;
 static u32 receive_count;
 static u32 receive_count_pip;
@@ -2738,6 +2734,15 @@ static void set_frames_info(struct composer_dev *dev,
 			if (dev->index == 0) {
 				drop_cnt = vf->omx_index + 1
 					    - dev->received_new_count;
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+				if (drop_cnt == 0)
+					ATRACE_COUNTER("video_composer_drop_cnt", 0);
+				if (drop_cnt != last_drop_cnt) {
+					last_drop_cnt = drop_cnt;
+					ATRACE_COUNTER("video_composer_drop_cnt", drop_cnt);
+					ATRACE_COUNTER("video_composer_drop_cnt", 0);
+				}
+#endif
 				receive_new_count = dev->received_new_count;
 				receive_count = dev->received_count + 1;
 				last_omx_index = vf->omx_index;
@@ -2768,7 +2773,8 @@ static void set_frames_info(struct composer_dev *dev,
 				 vf->index_disp,
 				 vf->pts_us64);
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
-			ATRACE_COUNTER("video_composer", vf->index_disp);
+			ATRACE_COUNTER("video_composer_sf_omx_index", vf->omx_index);
+			ATRACE_COUNTER("video_composer_sf_omx_index", 0);
 #endif
 		} else {
 			vc_print(dev->index, PRINT_ERROR,
