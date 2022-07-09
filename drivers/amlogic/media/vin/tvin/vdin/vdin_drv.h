@@ -743,6 +743,7 @@ struct vdin_dev_s {
 	bool double_wr_10bit_sup;
 	bool black_bar_enable;
 	bool hist_bar_enable;
+	bool rdma_not_register;
 	unsigned int ignore_frames;
 	/*use frame rate to cal duration*/
 	unsigned int use_frame_rate;

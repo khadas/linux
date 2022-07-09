@@ -1971,6 +1971,7 @@
 &vdin1 {
 	memory-region = <&vdin1_cma_reserved>;
 	status = "okay";
+	rdma_not_register;
 };
 
 &periphs_pinctrl {

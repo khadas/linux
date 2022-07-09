@@ -1159,6 +1159,9 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	if (devp->rdma_enable && devp->rdma_handle > 0) {
 		devp->flags |= VDIN_FLAG_RDMA_ENABLE;
 		devp->flags_isr |= VDIN_FLAG_RDMA_DONE;
+	} else {
+		pr_info("vdin%d rdma enable:%d handle:%d\n",
+			devp->index, devp->rdma_enable, devp->rdma_handle);
 	}
 #endif
 
@@ -5240,12 +5243,20 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		}
 	}
 	vdin_devp[devp->index] = devp;
+
+	/* t7 three screen display RDMA not enough remove vdin1 rdma */
+	devp->rdma_not_register = of_property_read_bool(pdev->dev.of_node,
+					"rdma_not_register");
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 	vdin_rdma_op[devp->index].irq_cb = vdin_rdma_irq;
 	vdin_rdma_op[devp->index].arg = devp;
-	devp->rdma_handle = rdma_register(&vdin_rdma_op[devp->index],
-					   NULL, RDMA_TABLE_SIZE);
+	if (!devp->rdma_not_register)
+		devp->rdma_handle = rdma_register(&vdin_rdma_op[devp->index],
+						NULL, RDMA_TABLE_SIZE);
+	else
+		pr_info("vdin%d: rdma not register\n", devp->index);
 #endif
+
 	/* create cdev and register with sysfs */
 	ret = vdin_add_cdev(&devp->cdev, &vdin_fops, devp->index);
 	if (ret) {
@@ -5616,7 +5627,8 @@ static int vdin_drv_remove(struct platform_device *pdev)
 	ret = cancel_delayed_work(&devp->vlock_dwork);
 	ret = cancel_delayed_work(&devp->event_dwork);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	rdma_unregister(devp->rdma_handle);
+	if (!devp->rdma_not_register)
+		rdma_unregister(devp->rdma_handle);
 #endif
 	mutex_destroy(&devp->fe_lock);
 
