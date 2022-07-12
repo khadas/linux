@@ -1264,7 +1264,11 @@ static const struct drm_connector_helper_funcs am_hdmi_connector_helper_funcs = 
 
 static const struct drm_connector_funcs am_hdmi_connector_funcs = {
 	.detect			= am_hdmitx_connector_detect,
+#ifdef CONFIG_AMLOGIC_MODIFY
+	.fill_modes		= meson_probe_single_connector_modes,
+#else
 	.fill_modes		= drm_helper_probe_single_connector_modes,
+#endif
 	.atomic_set_property	= am_hdmitx_connector_atomic_set_property,
 	.atomic_get_property	= am_hdmitx_connector_atomic_get_property,
 	.late_register = am_hdmitx_connector_late_register,

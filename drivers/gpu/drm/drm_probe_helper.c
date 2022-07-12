@@ -546,6 +546,170 @@ prune:
 }
 EXPORT_SYMBOL(drm_helper_probe_single_connector_modes);
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int meson_probe_single_connector_modes(struct drm_connector *connector,
+					    uint32_t maxX, uint32_t maxY)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_display_mode *mode;
+	const struct drm_connector_helper_funcs *connector_funcs =
+		connector->helper_private;
+	int count = 0, ret;
+	int mode_flags = 0;
+	bool verbose_prune = true;
+	enum drm_connector_status old_status;
+	struct drm_modeset_acquire_ctx ctx;
+
+	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
+
+	drm_modeset_acquire_init(&ctx, 0);
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
+			connector->name);
+
+retry:
+	ret = drm_modeset_lock(&dev->mode_config.connection_mutex, &ctx);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	} else
+		WARN_ON(ret < 0);
+
+	/* set all old modes to the stale state */
+	list_for_each_entry(mode, &connector->modes, head)
+		mode->status = MODE_STALE;
+
+	old_status = connector->status;
+
+	if (connector->force) {
+		if (connector->force == DRM_FORCE_ON ||
+		    connector->force == DRM_FORCE_ON_DIGITAL)
+			connector->status = connector_status_connected;
+		else
+			connector->status = connector_status_disconnected;
+		if (connector->funcs->force)
+			connector->funcs->force(connector);
+	} else {
+		ret = drm_helper_probe_detect(connector, &ctx, true);
+
+		if (ret == -EDEADLK) {
+			drm_modeset_backoff(&ctx);
+			goto retry;
+		} else if (WARN(ret < 0, "Invalid return value %i for connector detection\n", ret))
+			ret = connector_status_unknown;
+
+		connector->status = ret;
+	}
+
+	/*
+	 * Normally either the driver's hpd code or the poll loop should
+	 * pick up any changes and fire the hotplug event. But if
+	 * userspace sneaks in a probe, we might miss a change. Hence
+	 * check here, and if anything changed start the hotplug code.
+	 */
+	if (old_status != connector->status) {
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
+			      connector->base.id,
+			      connector->name,
+			      drm_get_connector_status_name(old_status),
+			      drm_get_connector_status_name(connector->status));
+
+		/*
+		 * The hotplug event code might call into the fb
+		 * helpers, and so expects that we do not hold any
+		 * locks. Fire up the poll struct instead, it will
+		 * disable itself again.
+		 */
+		dev->mode_config.delayed_event = true;
+		if (dev->mode_config.poll_enabled)
+			schedule_delayed_work(&dev->mode_config.output_poll_work,
+					      0);
+	}
+
+	/* Re-enable polling in case the global poll config changed. */
+	if (drm_kms_helper_poll != dev->mode_config.poll_running)
+		drm_kms_helper_poll_enable(dev);
+
+	dev->mode_config.poll_running = drm_kms_helper_poll;
+
+	if (connector->status == connector_status_disconnected) {
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
+			connector->base.id, connector->name);
+		drm_connector_update_edid_property(connector, NULL);
+		verbose_prune = false;
+		/* amlogic modify, prevent skipping to prune macro */
+		//goto prune;
+	}
+
+	count = (*connector_funcs->get_modes)(connector);
+
+	/*
+	 * Fallback for when DDC probe failed in drm_get_edid() and thus skipped
+	 * override/firmware EDID.
+	 */
+	if (count == 0 && connector->status == connector_status_connected)
+		count = drm_add_override_edid_modes(connector);
+
+	if (count == 0 && connector->status == connector_status_connected)
+		count = drm_add_modes_noedid(connector, 1024, 768);
+	count += drm_helper_probe_add_cmdline_mode(connector);
+	if (count == 0)
+		goto prune;
+
+	drm_connector_list_update(connector);
+
+	if (connector->interlace_allowed)
+		mode_flags |= DRM_MODE_FLAG_INTERLACE;
+	if (connector->doublescan_allowed)
+		mode_flags |= DRM_MODE_FLAG_DBLSCAN;
+	if (connector->stereo_allowed)
+		mode_flags |= DRM_MODE_FLAG_3D_MASK;
+
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_driver(dev, mode);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_size(mode, maxX, maxY);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_flag(mode, mode_flags);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_pipeline(mode,
+								  connector);
+
+		if (mode->status == MODE_OK)
+			mode->status = drm_mode_validate_ycbcr420(mode,
+								  connector);
+	}
+
+prune:
+	drm_mode_prune_invalid(dev, &connector->modes, verbose_prune);
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+
+	if (list_empty(&connector->modes))
+		return 0;
+
+	list_for_each_entry(mode, &connector->modes, head)
+		mode->vrefresh = drm_mode_vrefresh(mode);
+
+	drm_mode_sort(&connector->modes);
+
+	DRM_DEBUG_KMS("[CONNECTOR:%d:%s] probed modes :\n", connector->base.id,
+			connector->name);
+	list_for_each_entry(mode, &connector->modes, head) {
+		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+		drm_mode_debug_printmodeline(mode);
+	}
+
+	return count;
+}
+EXPORT_SYMBOL(meson_probe_single_connector_modes);
+#endif
+
 /**
  * drm_kms_helper_hotplug_event - fire off KMS hotplug events
  * @dev: drm_device whose connector state changed

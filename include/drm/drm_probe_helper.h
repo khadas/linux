@@ -9,6 +9,11 @@ struct drm_connector;
 struct drm_device;
 struct drm_modeset_acquire_ctx;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+int meson_probe_single_connector_modes(struct drm_connector
+					    *connector, uint32_t maxX,
+					    uint32_t maxY);
+#endif
 int drm_helper_probe_single_connector_modes(struct drm_connector
 					    *connector, uint32_t maxX,
 					    uint32_t maxY);
