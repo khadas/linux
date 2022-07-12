@@ -435,7 +435,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 	if (vf->width == 0 || vf->height == 0) {
 		vq_print(P_ERROR, "vframe param invalid.\n");
 		vf = vf_get(dev->vf_receiver_name);
-		if (!vf)
+		if (vf)
 			vf_put(vf, dev->vf_receiver_name);
 		vf = vf_peek(dev->vf_receiver_name);
 		if (!vf)
@@ -446,7 +446,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 		vq_print(P_ERROR, "video_mute_on need drop.\n");
 		while (1) {
 			vf = vf_get(dev->vf_receiver_name);
-			if (!vf)
+			if (vf)
 				vf_put(vf, dev->vf_receiver_name);
 			vf = vf_peek(dev->vf_receiver_name);
 			if (!vf)
@@ -1061,6 +1061,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	} else {
 		vq_print(P_ERROR, "ATV source need keep frame.\n");
 	}
+
 	if (dev->file_thread)
 		kthread_stop(dev->file_thread);
 
