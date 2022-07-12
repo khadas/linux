@@ -4135,10 +4135,10 @@ void mtx_setting(enum vpp_matrix_e mtx_sel,
 		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_pre_offset2, 0x0, vpp_sel);
 		break;
 	case MATRIX_YUV709_RGB:
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x04A80000, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x072C04A8, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1F261DDD, vpp_sel);
-		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x04A80876, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef00_01, 0x04ac0000, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef02_10, 0x073104ac, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef11_12, 0x1f251ddd, vpp_sel);
+		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef20_21, 0x04ac0879, vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_coef22, 0x0, vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset0_1, 0x0, vpp_sel);
 		VSYNC_WRITE_VPP_REG_VPP_SEL(matrix_offset2, 0x0, vpp_sel);
