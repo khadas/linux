@@ -480,8 +480,7 @@ static void audio_change_work_func(struct work_struct *work)
 		mutex_unlock(&session->session_mutex);
 		return;
 	}
-	if (session->start_policy.policy == AMSYNC_START_ALIGN &&
-			!session->start_posted) {
+	if (!session->start_posted) {
 		session->start_posted = true;
 		session->stat = AVS_STAT_STARTED;
 		msync_dbg(LOG_WARN, "[%d] audio allow start\n",
@@ -826,7 +825,7 @@ static u32 session_audio_start(struct sync_session *session,
 	mutex_lock(&session->session_mutex);
 	if (session->audio_switching) {
 		update_f_apts(session, pts);
-		if (session->wall_clock > pts) {
+		if ((int)(session->wall_clock - pts) >= 0) {
 			/* audio start immediately pts to small */
 			/* (need drop) or no wait */
 			session->stat = AVS_STAT_STARTED;
@@ -840,7 +839,7 @@ static u32 session_audio_start(struct sync_session *session,
 			}
 		} else {
 			// normal case, wait audio start point
-			u32 diff_ms =  (pts - session->wall_clock) / 90;
+			u32 diff_ms =  (int)(pts - session->wall_clock) / 90;
 			u32 delay_jiffies = msecs_to_jiffies(diff_ms);
 
 			msync_dbg(LOG_INFO,
@@ -1011,6 +1010,7 @@ static void session_pause(struct sync_session *session, bool pause)
 			session->stat = AVS_STAT_PAUSED;
 		else
 			session->stat = AVS_STAT_STARTED;
+		session->d_vsync_last  = -1;
 	}
 	mutex_unlock(&session->session_mutex);
 }
