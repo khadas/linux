@@ -63,6 +63,10 @@ MODULE_PARM_DESC(dump_input_ts, "\n\t\t dump input ts packet");
 static int dump_input_ts;
 module_param(dump_input_ts, int, 0644);
 
+MODULE_PARM_DESC(check_ts_alignm, "\n\t\t check input ts alignm");
+static int check_ts_alignm;
+module_param(check_ts_alignm, int, 0644);
+
 static loff_t input_file_pos;
 static struct file *input_dump_fp;
 
@@ -865,6 +869,30 @@ static void check_packet_alignm(unsigned int start, unsigned int end)
 }
 #endif
 
+static void check_packet_alignm_virt(char *mem_start, unsigned int len)
+{
+	int n = 0;
+	char *p = mem_start;
+	unsigned int detect_len = len;
+
+	if (detect_len % 188 != 0) {
+		dprint_i("len:%d not alignm\n", detect_len);
+		return;
+	}
+	if (!p) {
+		dprint_i("mem_start fail\n");
+		return;
+	}
+	//detect packet alignm
+	for (n = 0; n < detect_len / 188; n++) {
+		if (p[n * 188] != 0x47) {
+			dprint_i("packet not alignm at %d,header:0x%0x\n",
+				n * 188, p[n * 188]);
+			break;
+		}
+	}
+}
+
 /**
  * chan init
  * \retval 0: success
@@ -1270,6 +1298,8 @@ int SC2_bufferid_write(struct chan_id *pchan, const char __user *buf,
 				dprint("copy_from user error\n");
 				return -EFAULT;
 			}
+			if (check_ts_alignm)
+				check_packet_alignm_virt((char *)pchan->mem, len);
 			if (dump_input_ts) {
 				dump_file_open(INPUT_DUMP_FILE);
 				dump_file_write((char *)pchan->mem, len);
@@ -1414,7 +1444,7 @@ int SC2_bufferid_write_empty(struct chan_id *pchan, int pid)
 
 	rdma_config_ready(pchan->id);
 	cache_free(len, phys);
-	dprint("%s end\n", __func__);
+	dprint("%s pid:%d end\n", __func__, pid);
 	return len;
 }
 

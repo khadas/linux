@@ -1790,7 +1790,7 @@ static int _dmx_decode_info(struct dmx_demux *dmx, struct decoder_mem_info *info
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 
-	pr_dbg("%s dmx%d\n", __func__, demux->id);
+//	pr_dbg("%s dmx%d\n", __func__, demux->id);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
