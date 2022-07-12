@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "meson-s4d.dtsi"
+#include "mesons4d_drm.dtsi"
 #include "partition_normal_linux.dtsi"
 #include <dt-bindings/input/input.h>
 
@@ -167,7 +168,7 @@
 		clk_path = <0>;
 
 		/* performance: reg_address, reg_value */
-		/* tm2 */
+		/* s4d */
 		performance_pal = <0x1bf0  0x9 /* default Matrx625 CTCC value */
 			0x1b12  0x80c0
 			0x1b05  0xfa
@@ -267,17 +268,17 @@
 		tsn_from = "demod";
 
 		/*single demod setting */
-		ts0_sid = <0x20>;
+		ts0_sid = <0x10>;
 		ts0 = "serial-4wire"; /* tsinA: serial-4wire, serial-3wire */
 		ts0_control = <0x0>;
 		ts0_invert = <0>;
 
-		ts1_sid = <0x21>;
+		ts1_sid = <0x11>;
 		ts1 = "parallel";
 		ts1_control = <0x0>;
 		ts1_invert = <0>;
 
-		ts2_sid = <0x22>;
+		ts2_sid = <0x12>;
 		ts2 = "parallel";
 		ts2_control = <0x0>;
 		ts2_invert = <0>;
@@ -1085,7 +1086,7 @@
 		 * 7: PAD_TDMINB_D*, oe, refer to core pinmux
 		 */
 		/* if tdmin_lb >= 3, use external loopback */
-		datalb_src = <2>;
+		datalb_src = <1>;
 		datalb_chnum = <2>;
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
@@ -1461,7 +1462,7 @@
 };
 
 &fb {
-	status = "okay";
+	status = "disabled";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000>;
 	logo_addr = "0x7f800000";
@@ -1469,8 +1470,28 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&drm_vpu {
+	status = "okay";
+	logo_addr = "0x7f800000";
+
+};
 &amhdmitx {
 	status = "okay";
+	/* hdcp ctrl 0: sysctrl, 1: drv, 2: linux app */
+	hdcp_ctl_lvl = <1>;
+};
+
+&drm_amhdmitx {
+	status = "okay";
+	hdcp = "disabled";
+};
+
+&drm_amcvbsout {
+	status = "okay";
+};
+
+&drm_lcd {
+	status = "disabled";
 };
 
 &vpu {

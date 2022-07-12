@@ -1931,7 +1931,7 @@
 	};
 	efuse: efuse{
 		compatible = "amlogic, efuse";
-		reg=<0x0 0xfe440040 0x0 0x4>;
+		reg=<0xfe440040 0x4>;
 		secureboot_mask = <0x00000c00>;
 		mem_size = <0x100000>;
 		read_cmd = <0x82000030>;
