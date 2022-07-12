@@ -929,8 +929,8 @@ static int es8316_init_regs(struct snd_soc_component *component)
 	snd_soc_component_write(component, ES8316_ADC_DMIC_REG25, 0x08);
 	snd_soc_component_write(component, ES8316_DAC_SET2_REG31, 0x20);
 	snd_soc_component_write(component, ES8316_DAC_SET3_REG32, 0x00);
-	snd_soc_component_write(component, ES8316_DAC_VOLL_REG33, 0x00);
-	snd_soc_component_write(component, ES8316_DAC_VOLR_REG34, 0x00);
+	snd_soc_component_write(component, ES8316_DAC_VOLL_REG33, 0x0f);//0x0
+	snd_soc_component_write(component, ES8316_DAC_VOLR_REG34, 0x0f);//0x0
 	snd_soc_component_write(component, ES8316_SDP_ADCFMT_REG0A, 0x00);
 	snd_soc_component_write(component, ES8316_SDP_DACFMT_REG0B, 0x00);
 	snd_soc_component_write(component, ES8316_SYS_VMIDLOW_REG10, 0x11);
