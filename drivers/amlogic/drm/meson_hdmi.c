@@ -24,6 +24,12 @@
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_common.h>
 #include <linux/miscdevice.h>
+
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+#include <drm/drm_debugfs.h>
+#endif
+
 #include <drm/amlogic/meson_connector_dev.h>
 #include <vout/vout_serve/vout_func.h>
 #include <enhancement/amvecm/amcsc.h>
@@ -718,6 +724,71 @@ static int am_hdmitx_connector_atomic_get_property
 	return -EINVAL;
 }
 
+#ifdef CONFIG_DEBUG_FS
+static ssize_t meson_connector_attr_write(struct file *file, const char __user *ubuf,
+				size_t len, loff_t *offp)
+{
+	if (len > sizeof(attr_debugfs) - 1)
+		return -EINVAL;
+
+	if (copy_from_user(attr_debugfs, ubuf, len))
+		return -EFAULT;
+	if (attr_debugfs[len - 1] == '\n')
+		attr_debugfs[len - 1] = '\0';
+	attr_debugfs[len] = '\0';
+
+	attr_force_debugfs = true;
+	return len;
+}
+
+static int meson_connector_attr_show(struct seq_file *sf, void *data)
+{
+	am_hdmi_info.hdmitx_dev->get_attr(attr_debugfs);
+	seq_printf(sf, "hdmitx_attr: %s\n", attr_debugfs);
+	return 0;
+}
+
+static int meson_connector_attr_open(struct inode *inode, struct file *file)
+{
+	struct drm_connector *connector = inode->i_private;
+
+	return single_open(file, meson_connector_attr_show, connector);
+}
+
+static const struct file_operations meson_connector_attr_fops = {
+	.owner = THIS_MODULE,
+	.open = meson_connector_attr_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.write = meson_connector_attr_write,
+};
+
+static int meson_connector_debugfs_init(struct drm_connector *connector,
+		struct dentry *root)
+{
+	struct dentry *entry;
+
+	entry = debugfs_create_file("hdmitx_attr", 0644, root,
+			connector, &meson_connector_attr_fops);
+	if (!entry) {
+		DRM_ERROR("create attr debugfs node error\n");
+		debugfs_remove_recursive(root);
+	}
+	return 0;
+}
+#endif
+
+static int am_hdmitx_connector_late_register(struct drm_connector *connector)
+{
+	#ifdef CONFIG_DEBUG_FS
+	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
+
+	meson_connector_debugfs_init(&am_hdmitx->base.connector, connector->debugfs_entry);
+	#endif
+	return 0;
+}
+
 static void am_hdmitx_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_unregister(connector);
@@ -1122,6 +1193,7 @@ static const struct drm_connector_funcs am_hdmi_connector_funcs = {
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.atomic_set_property	= am_hdmitx_connector_atomic_set_property,
 	.atomic_get_property	= am_hdmitx_connector_atomic_get_property,
+	.late_register = am_hdmitx_connector_late_register,
 	.destroy		= am_hdmitx_connector_destroy,
 	.reset			= meson_hdmitx_reset,
 	.atomic_duplicate_state	= meson_hdmitx_atomic_duplicate_state,
