@@ -565,10 +565,12 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	bool expired = true;
 	bool expired_tmp = true;
 	bool open_pulldown = false;
+	bool special_case = false;
 	int ready_len;
 	u32 vsync_index = 0;
 	int ret;
 	int max_delay_count = 2;
+	int input_fps, output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 
 	time1 = dev->start_time;
 	time2 = vsync_time;
@@ -589,10 +591,19 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 				"peek: vf->vc_private is NULL\n");
 		}
 
+		input_fps = vf->duration * 15;
+		get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);
+		output_fps = 90000 * 16 * (u64)output_pts_inc_scale;
+		output_fps = div64_u64(output_fps, output_pts_inc_scale_base);
+		vc_print(dev->index, PRINT_OTHER,
+			"peek: input_fps=%d, output_fps=%d.\n", input_fps, output_fps);
 		/*apk/sf drop 0/3 4; vc receive 1 2 5 in one vsync*/
 		/*apk queue 5 and wait 1, it will fence timeout*/
 		/* dev->video_render_index == 5 means T7 dual screen mode */
-		if (get_count[dev->index] == 2 && dev->video_render_index != 5) {
+		/*input 120hz with 60hz output or input 100hz with 50hz output no need check*/
+		if (vd_vf_is_tvin(vf) && (input_fps * 3 < output_fps * 2) && input_fps <= 14400)
+			special_case = true;
+		if (!special_case && (get_count[dev->index] == 2 && dev->video_render_index != 5)) {
 			vc_print(dev->index, PRINT_ERROR,
 				 "has already get 2, can not get more, video_render.%d",
 				 dev->video_render_index);

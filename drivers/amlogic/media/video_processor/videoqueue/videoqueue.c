@@ -369,7 +369,7 @@ void videoqueue_drop_vf(struct video_queue_dev *dev)
 	dev->frame_num++;
 }
 
-static void do_file_thread(struct video_queue_dev *dev)
+static int do_file_thread(struct video_queue_dev *dev)
 {
 	struct vframe_s *vf;
 	int ret = 0;
@@ -394,7 +394,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 	bool vlock_locked = false;
 	bool need_resync = false;
 	u64 vdin_vsync = 0;
-
+	vq_print(P_OTHER, "enter %s.\n", __func__);
 	if (!dev->provider_name) {
 		provider_name = vf_get_provider_name(dev->vf_receiver_name);
 		while (provider_name) {
@@ -409,7 +409,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 	}
 
 	if (!kfifo_peek(&dev->file_q, &ready_file))
-		return;
+		return -1;
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf && !dev->game_mode) {
 		if (dev->low_latency_mode) {
@@ -429,7 +429,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 	if (!vf) {
 		vq_print(P_SYNC, "peek err\n");
-		return;
+		return -1;
 	}
 
 	if (vf->width == 0 || vf->height == 0) {
@@ -439,7 +439,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 			vf_put(vf, dev->vf_receiver_name);
 		vf = vf_peek(dev->vf_receiver_name);
 		if (!vf)
-			return;
+			return -1;
 	}
 
 	if (get_video_mute_val()) {
@@ -450,7 +450,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 				vf_put(vf, dev->vf_receiver_name);
 			vf = vf_peek(dev->vf_receiver_name);
 			if (!vf)
-				return;
+				return -1;
 		}
 	}
 
@@ -476,7 +476,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 						"crc black screen err\n");
 			}
 
-			return;
+			return -1;
 		}
 	}
 
@@ -579,16 +579,16 @@ static void do_file_thread(struct video_queue_dev *dev)
 	}
 
 	if (dev->sync_need_delay && !dev->game_mode)
-		return;
+		return 0;
 
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf)
-		return;
+		return -1;
 
 	if (get_video_hold_state()) {
 		vq_print(P_ERROR, "hold video need drop.\n");
 		videoqueue_drop_vf(dev);
-		return;
+		return 0;
 	}
 
 	vframe_disp_mode = vf_disp_mode_get(dev, vf);
@@ -599,14 +599,14 @@ static void do_file_thread(struct video_queue_dev *dev)
 	if (vframe_disp_mode == VFRAME_DISP_MODE_SKIP) {
 		vq_print(P_ERROR, "SKIP\n");
 		videoqueue_drop_vf(dev);
-		return;
+		return 0;
 	}
 
 	if (!dev->game_mode && !sync_start) {
 		if (dev->delay_vsync_count > 0) {
 			dev->delay_vsync_count--;
 			vq_print(P_SYNC, "delay one vsync\n");
-			return;
+			return 0;
 		}
 	}
 
@@ -627,7 +627,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 	if (dev->low_latency_mode && !dev->game_mode) {
 		if (pts + pcr_margin <= pcr_time) {
-			vq_print(P_ERROR,
+			vq_print(P_SYNC,
 				"delay pts= %lld, pcr=%lld,omx_index=%d\n",
 				pts, pcr_time, dev->frame_num);
 			pcr_time = pts;
@@ -642,18 +642,18 @@ static void do_file_thread(struct video_queue_dev *dev)
 				pts, dev->frame_num);
 		} else if (pts_tmp >= pcr_time + vsync_pts_inc) {
 			vq_print(P_SYNC, "early continue\n");
-			return;
+			return 0;
 		}
 	}
 
 	if (!kfifo_get(&dev->file_q, &ready_file)) {
 		pr_info("task: get failed\n");
-		return;
+		return -1;
 	}
 	private_data = v4lvideo_get_file_private_data(ready_file, true);
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
-		return;
+		return -1;
 	if (vf->hf_info)
 		dev->need_aisr = true;
 	else
@@ -725,7 +725,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 		}
 		if (!kfifo_put(&dev->file_q, ready_file))
 			pr_err("queue error but file_q is full\n");
-		return;
+		return -1;
 	}
 
 	if (!kfifo_put(&dev->display_q, ready_file))
@@ -792,6 +792,8 @@ static void do_file_thread(struct video_queue_dev *dev)
 		vq_print(P_AVSYNC, "drop omx_index=%d\n", dev->frame_num);
 		dev->sync_need_drop_count--;
 	}
+
+	return 1;
 }
 
 static void do_fence_thread(struct video_queue_dev *dev)
@@ -871,10 +873,11 @@ static int vq_file_thread(void *data)
 {
 	struct video_queue_dev *dev = data;
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
+	struct vframe_s *vf = NULL;
+	int ret = 0, tmp_pts = 0;
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	dev->delay_vsync_count = delay_vsync;
-
 	while (1) {
 		if (kthread_should_stop())
 			break;
@@ -886,7 +889,21 @@ static int vq_file_thread(void *data)
 			wakeup | dev->thread_need_stop,
 			msecs_to_jiffies(50));
 		wakeup = 0;
-		do_file_thread(dev);
+
+		vf = vf_peek(dev->vf_receiver_name);
+		if (vf)
+			tmp_pts = DUR2PTS(vf->duration);
+
+		vq_print(P_OTHER, "tmp_pts:%d, vsync_pts_inc:%d\n", tmp_pts, vsync_pts_inc);
+		if (tmp_pts > 0 && tmp_pts < vsync_pts_inc) {
+			vq_print(P_OTHER, "enter new flow.\n");
+			do
+				ret = do_file_thread(dev);
+			while (ret == 1);
+		} else {
+			vq_print(P_OTHER, "enter old flow.\n");
+			do_file_thread(dev);
+		}
 	}
 
 	complete(&dev->file_thread_done);

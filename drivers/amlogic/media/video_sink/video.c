@@ -11204,6 +11204,20 @@ u32 video_get_layer_capability(void)
 	return layer_cap;
 }
 
+int get_output_pcrscr_info(s32 *inc, u32 *base)
+{
+	if (IS_ERR_OR_NULL(inc) || IS_ERR_OR_NULL(base)) {
+		pr_info("%s: param is NULL.\n", __func__);
+		return -1;
+	}
+
+	*inc = vsync_pts_inc_scale;
+	*base = vsync_pts_inc_scale_base;
+
+	return 0;
+}
+EXPORT_SYMBOL(get_output_pcrscr_info);
+
 #if ENABLE_UPDATE_HDR_FROM_USER
 static void config_hdr_info(const struct vframe_master_display_colour_s p)
 {

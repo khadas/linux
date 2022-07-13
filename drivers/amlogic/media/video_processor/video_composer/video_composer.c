@@ -2283,13 +2283,13 @@ static void video_composer_task(struct composer_dev *dev)
 			ready_count = kfifo_len(&dev->ready_q);
 			/* dev->video_render_index == 5 means T7 dual screen mode */
 			if (ready_count > 3 && dev->video_render_index == 5)
-				vc_print(dev->index, PRINT_ERROR,
+				vc_print(dev->index, PRINT_OTHER,
 					 "ready len=%d\n", ready_count);
 			else if (ready_count > 2 && dev->video_render_index != 5)
-				vc_print(dev->index, PRINT_ERROR,
+				vc_print(dev->index, PRINT_OTHER,
 					 "ready len=%d\n", ready_count);
 			else if (ready_count > 1 && dev->video_render_index != 5)
-				vc_print(dev->index, PRINT_PATTERN,
+				vc_print(dev->index, PRINT_OTHER,
 					 "ready len=%d\n", ready_count);
 			vc_print(dev->index, PRINT_QUEUE_STATUS,
 				 "ready len=%d\n", kfifo_len(&dev->ready_q));
