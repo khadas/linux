@@ -174,6 +174,9 @@ static void panic_print_sys_info(void)
  *
  *	This function never returns.
  */
+
+extern int mcu_reboot_boot_mode(void);
+
 void panic(const char *fmt, ...)
 {
 	static char buf[1024];
@@ -324,12 +327,15 @@ void panic(const char *fmt, ...)
 			mdelay(PANIC_TIMER_STEP);
 		}
 	}
+
 	if (panic_timeout != 0) {
 		/*
 		 * This will not be a clean reboot, with everything
 		 * shutting down.  But if there is a chance of
 		 * rebooting the system it will be rebooted.
 		 */
+		mcu_reboot_boot_mode();
+
 		if (panic_reboot_mode != REBOOT_UNDEFINED)
 			reboot_mode = panic_reboot_mode;
 		emergency_restart();
