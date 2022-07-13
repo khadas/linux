@@ -97,6 +97,7 @@ void hdcptx_init_reg(void)
 	hdmitx21_wr_reg(CP2TX_TP1_IVCTX, 0x92);
 	hdmitx21_wr_reg(TPI_MISC_IVCTX, 1);
 	hdmitx21_set_bit(CP2TX_CTRL_2_IVCTX, BIT_CP2TX_CTRL_2_RI_SEQNUMM_AUTO, false);
+	hdmitx21_wr_reg(RI_128_COMP_IVCTX, 0);
 }
 
 u8 hdcptx1_ds_cap_status_get(void)
