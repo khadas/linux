@@ -3092,7 +3092,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	}
 
 	/* protect mem will fail sometimes due to no res from tee module */
-	if (devp->secure_en && !devp->mem_protected) {
+	if (devp->secure_en && !devp->mem_protected && !devp->set_canvas_manual) {
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_SECURE_MD;
 		vdin_drop_frame_info(devp, "secure mode without protect mem");
 		goto irq_handled;
@@ -5141,9 +5141,9 @@ static int vdin_signal_notify_callback(struct notifier_block *block,
 		}
 
 		/* vdin already started, set secure mode dynamically */
-		if (devp->secure_en && !devp->mem_protected) {
+		if (devp->secure_en && !devp->mem_protected && !devp->set_canvas_manual) {
 			vdin_set_mem_protect(devp, 1);
-		} else if (!devp->secure_en && devp->mem_protected) {
+		} else if (!devp->secure_en && devp->mem_protected && !devp->set_canvas_manual) {
 			/* buf already put out,should be exhausted */
 			for (i = 0; i < devp->vfmem_max_cnt; i++)
 				vdin_vframe_put_and_recycle(devp, NULL,
