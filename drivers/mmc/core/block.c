@@ -49,9 +49,7 @@
 
 #include <linux/uaccess.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_MMC_MESON_GX)
-#include <trace/hooks/mmc_part.h>
-#endif
+#include <trace/hooks/mmc.h>
 
 #include "queue.h"
 #include "block.h"
@@ -63,6 +61,10 @@
 #include "mmc_ops.h"
 #include "quirks.h"
 #include "sd_ops.h"
+
+#if IS_ENABLED(CONFIG_AMLOGIC_MMC_MESON_GX)
+#include <trace/hooks/mmc_part.h>
+#endif
 
 MODULE_ALIAS("mmc:block");
 #ifdef MODULE_PARAM_PREFIX
@@ -1013,6 +1015,8 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
 			 */
 			return -ENODEV;
 		}
+
+		trace_android_vh_mmc_blk_reset(host, err);
 	}
 	return err;
 }
@@ -1484,10 +1488,9 @@ void mmc_blk_cqe_recovery(struct mmc_queue *mq)
 	pr_debug("%s: CQE recovery start\n", mmc_hostname(host));
 
 	err = mmc_cqe_recovery(host);
-	if (err)
+	if (err || host->cqe_recovery_reset_always)
 		mmc_blk_reset(mq->blkdata, host, MMC_BLK_CQE_RECOVERY);
-	else
-		mmc_blk_reset_success(mq->blkdata, MMC_BLK_CQE_RECOVERY);
+	mmc_blk_reset_success(mq->blkdata, MMC_BLK_CQE_RECOVERY);
 
 	pr_debug("%s: CQE recovery done\n", mmc_hostname(host));
 }
@@ -1843,6 +1846,7 @@ static void mmc_blk_mq_rw_recovery(struct mmc_queue *mq, struct request *req)
 	    err && mmc_blk_reset(md, card->host, type)) {
 		pr_err("%s: recovery failed!\n", req->rq_disk->disk_name);
 		mqrq->retries = MMC_NO_RETRIES;
+		trace_android_vh_mmc_blk_mq_rw_recovery(card);
 		return;
 	}
 

@@ -220,6 +220,7 @@
   cpu_latency_qos_remove_request
   cpu_latency_qos_update_request
   cpumask_any_but
+  cpumask_any_distribute
   cpumask_next
   cpumask_next_and
   cpu_number
@@ -543,6 +544,7 @@
   down_timeout
   down_trylock
   down_write
+  down_write_killable
   d_path
   dput
   drain_workqueue
@@ -970,6 +972,7 @@
   irq_work_sync
   is_dma_buf_file
   is_vmalloc_addr
+  iterate_dir
   iterate_fd
   jiffies_64_to_clock_t
   jiffies
@@ -1160,6 +1163,7 @@
   mmc_detect_change
   mmc_free_host
   mmc_get_card
+  mmc_get_ext_csd
   mmc_gpio_get_cd
   mmc_gpio_get_ro
   mmc_hw_reset
@@ -1685,6 +1689,7 @@
   sdio_writeb
   sdio_writel
   sdio_writesb
+  security_file_ioctl
   send_sig
   seq_hex_dump
   seq_lseek
@@ -1898,6 +1903,7 @@
   system_wq
   sys_tz
   task_active_pid_ns
+  task_sched_runtime
   __tasklet_hi_schedule
   tasklet_init
   tasklet_kill
@@ -1929,19 +1935,28 @@
   trace_event_reg
   trace_handle_return
   __traceiter_android_rvh_after_enqueue_task
+  __traceiter_android_rvh_can_migrate_task
   __traceiter_android_rvh_commit_creds
   __traceiter_android_rvh_cpu_overutilized
   __traceiter_android_rvh_dequeue_task
+  __traceiter_android_rvh_dequeue_task_fair
   __traceiter_android_rvh_enqueue_task
+  __traceiter_android_rvh_enqueue_task_fair
   __traceiter_android_rvh_exit_creds
   __traceiter_android_rvh_find_busiest_group
+  __traceiter_android_rvh_find_busiest_queue
   __traceiter_android_rvh_find_energy_efficient_cpu
+  __traceiter_android_rvh_find_lowest_rq
+  __traceiter_android_rvh_find_new_ilb
   __traceiter_android_rvh_finish_prio_fork
+  __traceiter_android_rvh_get_nohz_timer_target
+  __traceiter_android_rvh_is_cpu_allowed
   __traceiter_android_rvh_new_task_stats
   __traceiter_android_rvh_override_creds
   __traceiter_android_rvh_prepare_prio_fork
   __traceiter_android_rvh_revert_creds
   __traceiter_android_rvh_rtmutex_prepare_setprio
+  __traceiter_android_rvh_rto_next_cpu
   __traceiter_android_rvh_sched_newidle_balance
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
@@ -1951,6 +1966,8 @@
   __traceiter_android_rvh_selinux_avc_node_replace
   __traceiter_android_rvh_selinux_is_initialized
   __traceiter_android_rvh_setscheduler
+  __traceiter_android_rvh_set_cpus_allowed_ptr_locked
+  __traceiter_android_rvh_set_cpus_allowed_by_task
   __traceiter_android_rvh_set_user_nice
   __traceiter_android_rvh_tick_entry
   __traceiter_android_rvh_update_cpu_capacity
@@ -1988,23 +2005,33 @@
   __traceiter_mmap_lock_released
   __traceiter_mmap_lock_start_locking
   __traceiter_pelt_se_tp
+  __traceiter_sched_update_nr_running_tp
   __traceiter_task_newtask
   __traceiter_xhci_urb_giveback
   trace_output_call
   __tracepoint_android_rvh_after_enqueue_task
+  __tracepoint_android_rvh_can_migrate_task
   __tracepoint_android_rvh_commit_creds
   __tracepoint_android_rvh_cpu_overutilized
   __tracepoint_android_rvh_dequeue_task
+  __tracepoint_android_rvh_dequeue_task_fair
   __tracepoint_android_rvh_enqueue_task
+  __tracepoint_android_rvh_enqueue_task_fair
   __tracepoint_android_rvh_exit_creds
   __tracepoint_android_rvh_find_busiest_group
+  __tracepoint_android_rvh_find_busiest_queue
   __tracepoint_android_rvh_find_energy_efficient_cpu
+  __tracepoint_android_rvh_find_lowest_rq
+  __tracepoint_android_rvh_find_new_ilb
   __tracepoint_android_rvh_finish_prio_fork
+  __tracepoint_android_rvh_get_nohz_timer_target
+  __tracepoint_android_rvh_is_cpu_allowed
   __tracepoint_android_rvh_new_task_stats
   __tracepoint_android_rvh_override_creds
   __tracepoint_android_rvh_prepare_prio_fork
   __tracepoint_android_rvh_revert_creds
   __tracepoint_android_rvh_rtmutex_prepare_setprio
+  __tracepoint_android_rvh_rto_next_cpu
   __tracepoint_android_rvh_sched_newidle_balance
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
@@ -2014,6 +2041,8 @@
   __tracepoint_android_rvh_selinux_avc_node_replace
   __tracepoint_android_rvh_selinux_is_initialized
   __tracepoint_android_rvh_setscheduler
+  __tracepoint_android_rvh_set_cpus_allowed_ptr_locked
+  __tracepoint_android_rvh_set_cpus_allowed_by_task
   __tracepoint_android_rvh_set_user_nice
   __tracepoint_android_rvh_tick_entry
   __tracepoint_android_rvh_update_cpu_capacity
@@ -2053,6 +2082,8 @@
   __tracepoint_pelt_se_tp
   tracepoint_probe_register
   tracepoint_probe_unregister
+  __tracepoint_sched_update_nr_running_tp
+  tracepoint_srcu
   __tracepoint_task_newtask
   __tracepoint_xhci_urb_giveback
   trace_print_array_seq
@@ -2120,6 +2151,7 @@
   ufshcd_suspend_prepare
   ufshcd_system_resume
   ufshcd_system_suspend
+  ufshcd_uic_change_pwr_mode
   ufshcd_uic_hibern8_exit
   ufshcd_update_evt_hist
   unlock_page
@@ -2417,38 +2449,6 @@
 # preserved by --additions-only
   alloc_netdev_mqs
   build_skb
-  __cfg80211_alloc_event_skb
-  __cfg80211_alloc_reply_skb
-  cfg80211_chandef_create
-  cfg80211_ch_switch_notify
-  cfg80211_classify8021d
-  cfg80211_connect_done
-  cfg80211_del_sta_sinfo
-  cfg80211_disconnected
-  cfg80211_external_auth_request
-  cfg80211_find_elem_match
-  cfg80211_ft_event
-  cfg80211_get_bss
-  cfg80211_inform_bss_data
-  cfg80211_inform_bss_frame_data
-  cfg80211_mgmt_tx_status
-  cfg80211_michael_mic_failure
-  cfg80211_new_sta
-  cfg80211_pmksa_candidate_notify
-  cfg80211_put_bss
-  cfg80211_ready_on_channel
-  cfg80211_register_netdevice
-  cfg80211_remain_on_channel_expired
-  cfg80211_roamed
-  cfg80211_rx_mgmt_khz
-  cfg80211_scan_done
-  cfg80211_sched_scan_results
-  cfg80211_sched_scan_stopped
-  __cfg80211_send_event_skb
-  cfg80211_tdls_oper_request
-  cfg80211_unlink_bss
-  cfg80211_unregister_wdev
-  cfg80211_vendor_cmd_reply
   clkdev_add
   clkdev_drop
   clk_register_gate
@@ -2465,9 +2465,6 @@
   hci_unregister_dev
   hdmi_audio_infoframe_init
   hex_dump_to_buffer
-  ieee80211_channel_to_freq_khz
-  ieee80211_get_channel_khz
-  ieee80211_operating_class_to_band
   kthread_cancel_delayed_work_sync
   kthread_delayed_work_timer_fn
   kthread_queue_delayed_work
@@ -2526,9 +2523,4 @@
   strpbrk
   strspn
   unregister_inetaddr_notifier
-  wiphy_apply_custom_regulatory
-  wiphy_free
-  wiphy_new_nm
-  wiphy_register
-  wiphy_unregister
   wireless_send_event
