@@ -7647,6 +7647,7 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 	}
 
 	primaries_type = get_primaries_type(p_mdc);
+
 	if (primaries_type == 2) {
 		/* GBR -> RGB as dolby will swap back to GBR
 		 * in send_hdmi_pkt
@@ -7666,6 +7667,11 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 			flag |= 1;
 			p_hdr10_param->max_display_mastering_lum =
 				p_mdc->luminance[0];
+			if (p_mdc->luminance[0] == 0) {
+				if ((debug_dolby & 1))
+					pr_info("invalid max, use default\n");
+				p_hdr10_param->max_display_mastering_lum = max_lum;
+			}
 			p_hdr10_param->min_display_mastering_lum =
 				p_mdc->luminance[1];
 			p_hdr10_param->r_x = p_mdc->primaries[2][0];
@@ -7696,6 +7702,11 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 			flag |= 1;
 			p_hdr10_param->max_display_mastering_lum =
 				p_mdc->luminance[0];
+			if (p_mdc->luminance[0] == 0) {
+				if ((debug_dolby & 1))
+					pr_info("invalid max, use default\n");
+				p_hdr10_param->max_display_mastering_lum = max_lum;
+			}
 			p_hdr10_param->min_display_mastering_lum =
 				p_mdc->luminance[1];
 			p_hdr10_param->r_x = p_mdc->primaries[0][0];
