@@ -101,6 +101,14 @@ void evl_net_do_tx(void *arg)
 	}
 }
 
+static void skb_xmit_inband(struct sk_buff *skb)
+{
+	evl_uncharge_socket_wmem(skb);
+	skb->prev = NULL;
+	skb->next = NULL;
+	dev_queue_xmit(skb);
+}
+
 /* in-band hook, called upon NET_TX_SOFTIRQ. */
 void skb_inband_xmit_backlog(void)
 {
@@ -108,10 +116,8 @@ void skb_inband_xmit_backlog(void)
 	LIST_HEAD(list);
 
 	if (evl_net_move_skb_queue(this_cpu_ptr(&oob_tx_relay), &list)) {
-		list_for_each_entry_safe(skb, n, &list, list) {
-			evl_uncharge_socket_wmem(skb);
-			dev_queue_xmit(skb);
-		}
+		list_for_each_entry_safe(skb, n, &list, list)
+			skb_xmit_inband(skb);
 	}
 }
 
@@ -188,8 +194,7 @@ int evl_net_transmit(struct sk_buff *skb) /* oob or in-band */
 	 * xmit_inband().
 	 */
 	if (running_inband()) {
-		evl_uncharge_socket_wmem(skb);
-		dev_queue_xmit(skb);
+		skb_xmit_inband(skb);
 		return 0;
 	}
 
