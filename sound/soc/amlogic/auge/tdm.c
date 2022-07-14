@@ -957,7 +957,7 @@ static void tdm_sharebuffer_trigger(struct aml_tdm *p_tdm,
 	if (ops) {
 		int reenable = 0;
 
-		if (channels > 2)
+		if (channels > 2 && !(p_tdm->fddr->chipinfo->chnum_sync))
 			reenable = 1;
 		ops->trigger(cmd,
 			p_tdm->samesource_sel,
@@ -1007,7 +1007,7 @@ static void tdm_sharebuffer_reset(struct aml_tdm *p_tdm, int channels)
 		return;
 
 	ops = get_samesrc_ops(p_tdm->samesource_sel);
-	if (ops && channels > 2)
+	if (ops && channels > 2 && !(p_tdm->fddr->chipinfo->chnum_sync))
 		ops->reset(p_tdm->samesource_sel - 3,
 				offset);
 }
