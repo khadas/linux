@@ -531,7 +531,7 @@
 		};
 	};
 
-	sd_emmc_c: emmc@ffe07000 {
+  sd_emmc_c: emmc@ffe07000 {
 		status = "okay";
 		compatible = "amlogic,meson-axg-mmc";
 		reg = <0x0 0xffe07000 0x0 0x2000>,
@@ -585,26 +585,40 @@
 	};
 
 	sd_emmc_b:sdio@ffe05000 {
-		status = "disabled";
+		status = "okay";
 		compatible = "amlogic, meson-mmc-axg";
-		reg = <0x0 0xffe05000 0x0 0x2000>;
-		interrupts = <0 217 4>;
-		pinctrl-names = "sdio_clk_cmd_pins", "sdio_all_pins";
-		pinctrl-0 = <&sdio_clk_cmd_pins>;
-		pinctrl-1 = <&sdio_all_pins>;
-		//clocks = <&clkc CLKID_SD_EMMC_B>,
-		//	   <&clkc CLKID_SD_EMMC_B_P0_COMP>,
-		//	   <&clkc CLKID_FCLK_DIV2>,
-		//	   <&clkc CLKID_FCLK_DIV5>,
-		//	   <&xtal>;
-		//clock-names = "core", "clkin0", "clkin1", "clkin2", "xtal";
+		reg = <0x0 0xffe05000 0x0 0x2000>,
+			<0x0 0xff63c000 0x0 0x300>,
+			<0x0 0xff634400 0x0 0x400>;
+		interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sdio_clk_cmd_pins>, <&sdio_all_pins>;
+		clocks = <&clkc CLKID_CLK81_SD_EMMC_B>,
+			 <&clkc CLKID_SD_EMMC_B_CLK0_SEL>,
+			<&clkc CLKID_SD_EMMC_B_CLK0>,
+			<&xtal>,
+			<&clkc CLKID_FCLK_DIV2>,
+			<&clkc CLKID_FCLK_DIV5>;
+		clock-names = "core", "mux0", "mux1",  "clkin0", "clkin1", "clkin2";
 
 		bus-width = <4>;
 		cap-sd-highspeed;
 		cap-mmc-highspeed;
+		sd-uhs-sdr12;
+		sd-uhs-sdr25;
+		sd-uhs-sdr50;
+		sd-uhs-sdr104;
+
+		init_core_phase = <3>;
+		init_tx_phase = <0>;
+
 		max-frequency = <100000000>;
 		non-removable;
 		disable-wp;
+		card_type = <3>;
+		no-mmc;
+		no-sd;
+		ocr_avail = <0x200080>;
 		sdio {
 			pinname = "sdio";
 			ocr_avail = <0x200080>; /**VDD voltage 3.3 ~ 3.4 */
