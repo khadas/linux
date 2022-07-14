@@ -138,7 +138,9 @@ int xhci_start(struct xhci_hcd *xhci)
 {
 	u32 temp;
 	int ret;
-
+#ifdef CONFIG_AMLOGIC_USB
+	xhci->xhc_state |= XHCI_STATE_STARTING;
+#endif
 	temp = readl(&xhci->op_regs->command);
 	temp |= (CMD_RUN);
 	xhci_dbg_trace(xhci, trace_xhci_dbg_init, "// Turn on HC, cmd = 0x%x.",

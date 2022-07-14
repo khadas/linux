@@ -2988,6 +2988,9 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 	u64 temp_64;
 	u32 status;
 	int event_loop = 0;
+#ifdef CONFIG_AMLOGIC_USB
+	u32 temp;
+#endif
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* Check if the xHC generated the interrupt, or the irq is shared */
@@ -3034,6 +3037,17 @@ irqreturn_t xhci_irq(struct usb_hcd *hcd)
 		xhci_write_64(xhci, temp_64 | ERST_EHB,
 				&xhci->ir_set->erst_dequeue);
 		ret = IRQ_HANDLED;
+		/* when xhci_start, usb_hcd_irq preempted CPU and
+		 * could cause the xhci_start to get stuck and causing
+		 * soft lockup
+		 */
+#ifdef CONFIG_AMLOGIC_USB
+		if (xhci->xhc_state & XHCI_STATE_STARTING) {
+			temp = readl(&xhci->op_regs->status);
+			if ((temp & 0x1) == 0x0)
+				xhci->xhc_state = 0;
+		}
+#endif
 		goto out;
 	}
 
