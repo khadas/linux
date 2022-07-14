@@ -530,6 +530,7 @@
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
 			status = "disabled";
+			internal_phy = <2>;
 		};
 
 		cbus: cbus@ffd00000 {
