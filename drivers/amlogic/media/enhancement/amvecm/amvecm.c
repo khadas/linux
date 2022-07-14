@@ -2527,9 +2527,6 @@ static long amvecm_ioctl(struct file *file,
 				&gt.gm_tb[gm_par_idx][2],
 				sizeof(struct tcon_gamma_table_s));
 
-			vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
-			vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
-			vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 			pr_amvecm_dbg(" gm_par_idx = %d, load gm success\n", gm_par_idx);
 		}
 		break;
