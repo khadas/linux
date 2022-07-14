@@ -28,6 +28,7 @@
 #include <linux/interrupt.h>
 #include <linux/reset.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 
 /*
  * The Meson SPICC controller could support DMA based transfers, but is not
@@ -139,11 +140,15 @@
 #define SPICC_MI_DELAY_1_CYCLE	1
 #define SPICC_MI_DELAY_2_CYCLE	2
 #define SPICC_MI_DELAY_3_CYCLE	3
+#define SPICC_MI_DELAY_MIN	SPICC_MI_NO_DELAY
+#define SPICC_MI_DELAY_MAX	SPICC_MI_DELAY_3_CYCLE
 #define SPICC_MI_CAP_DELAY_MASK	GENMASK(21, 20) /* Master Capture Delay */
 #define SPICC_CAP_AHEAD_2_CYCLE	0
 #define SPICC_CAP_AHEAD_1_CYCLE	1
 #define SPICC_CAP_NO_DELAY	2
 #define SPICC_CAP_DELAY_1_CYCLE	3
+#define SPICC_CAP_DELAY_MIN	(-2)
+#define SPICC_CAP_DELAY_MAX	1
 #define SPICC_DELAY_MASK	GENMASK(21, 16)
 #define SPICC_FIFORST_MASK	GENMASK(23, 22) /* FIFO Softreset */
 #else
@@ -183,6 +188,26 @@
 #define SPICC_ENH_CS_OEN		BIT(27)
 #define SPICC_ENH_CLK_CS_DELAY_EN	BIT(28)
 #define SPICC_ENH_MAIN_CLK_AO		BIT(29)
+
+#define SPICC_ENH_CTL1	0x3c	/* Enhanced Feature 1 */
+#define SPICC_ENH_MI_CAP_DELAY_EN	BIT(0)
+#define SPICC_ENH_MI_CAP_DELAY_MASK	GENMASK(9, 1)
+#define SPICC_ENH_SI_CAP_DELAY_EN	BIT(14)	/* slave mode */
+#define SPICC_ENH_DELAY_EN		BIT(15)
+#define SPICC_ENH_SI_DELAY_EN		BIT(16)	/* slave mode */
+#define SPICC_ENH_SI_DELAY_MASK		GENMASK(19, 17)	/* slave mode */
+#define SPICC_ENH_MI_DELAY_EN		BIT(20)
+#define SPICC_ENH_MI_DELAY_MASK		GENMASK(23, 21)
+#define SPICC_ENH_MO_DELAY_EN		BIT(24)
+#define SPICC_ENH_MO_DELAY_MASK		GENMASK(27, 25)
+#define SPICC_ENH_MO_OEN_DELAY_EN	BIT(28)
+#define SPICC_ENH_MO_OEN_DELAY_MASK	GENMASK(31, 29)
+
+#define SPICC_ENH_CTL2	0x40	/* Enhanced Feature */
+#define SPICC_ENH_TI_DELAY_MASK		GENMASK(14, 0)
+#define SPICC_ENH_TI_DELAY_EN		BIT(15)
+#define SPICC_ENH_TT_DELAY_MASK		GENMASK(30, 16)
+#define SPICC_ENH_TT_DELAY_EN		BIT(31)
 #endif
 
 #define writel_bits_relaxed(mask, val, addr) \
@@ -222,6 +247,9 @@ struct meson_spicc_device {
 	struct spi_transfer		async_xfer;
 	void				(*complete)(void *context);
 	void				*context;
+	s32				latency;
+	bool				parent_clk_fixed;
+	bool				toggle_cs_every_word;
 #endif
 	//struct spi_message		*message;
 	struct spi_transfer		*xfer;
@@ -241,15 +269,30 @@ static int meson_spicc_runtime_suspend(struct device *dev);
 static int meson_spicc_runtime_resume(struct device *dev);
 static void dirspi_set_cs(struct spi_device *spi, bool enable);
 
+static int xLimitRange(int val, int min, int max)
+{
+	int ret;
+
+	if (val < min)
+		ret = min;
+	else if (val > max)
+		ret = max;
+	else
+		ret = val;
+
+	return ret;
+}
+
 static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
 {
-	u32 div, hz;
-	u32 mi_delay, cap_delay;
-	u32 conf;
+	u32 div, latency;
+	int shift, mi_delay, cap_delay;
+	u32 conf = 0;
 
-	if (spicc->data->has_linear_div) {
-		div = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
-		div &= SPICC_ENH_DATARATE_MASK;
+	if (spicc->data->has_linear_div)
+		conf = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
+	if (conf & SPICC_ENH_DATARATE_EN) {
+		div = conf & SPICC_ENH_DATARATE_MASK;
 		div >>= SPICC_ENH_DATARATE_SHIFT;
 		div++;
 		div <<= 1;
@@ -261,22 +304,16 @@ static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
 		div = 1 << div;
 	}
 
-	mi_delay = SPICC_MI_NO_DELAY;
-	cap_delay = SPICC_CAP_AHEAD_2_CYCLE;
-	hz = clk_get_rate(spicc->clk);
-
 	if (readl_relaxed(spicc->base + SPICC_TESTREG) & SPICC_LBC)
-		cap_delay = SPICC_CAP_AHEAD_1_CYCLE;
-	else if (hz >= 80000000)
-		cap_delay = SPICC_CAP_DELAY_1_CYCLE;
-	else if (hz >= 40000000)
-		cap_delay = SPICC_CAP_NO_DELAY;
-	else if (div >= 16)
-		mi_delay = SPICC_MI_DELAY_3_CYCLE;
-	else if (div >= 8)
-		mi_delay = SPICC_MI_DELAY_2_CYCLE;
-	else if (div >= 6)
-		mi_delay = SPICC_MI_DELAY_1_CYCLE;
+		latency = -2;
+	else
+		latency = spicc->latency;
+
+	shift = (div >> 1) - latency;
+	mi_delay = xLimitRange(shift, SPICC_MI_DELAY_MIN, SPICC_MI_DELAY_MAX);
+	cap_delay = xLimitRange(mi_delay - shift, SPICC_CAP_DELAY_MIN,
+			SPICC_CAP_DELAY_MAX);
+	cap_delay += 2;
 
 	conf = readl_relaxed(spicc->base + SPICC_TESTREG);
 	conf &= ~(SPICC_MO_DELAY_MASK | SPICC_MI_DELAY_MASK
@@ -301,7 +338,8 @@ static int meson_spicc_set_speed(struct meson_spicc_device *spicc, int hz)
 	int ret = 0;
 
 	/* Setup clock speed */
-	if (hz && spicc->speed_hz != hz) {
+	if (!spi_controller_is_slave(spicc->controller) && hz &&
+	    spicc->speed_hz != hz) {
 		spicc->speed_hz = hz;
 		ret = clk_set_rate(spicc->clk, hz);
 		if (ret)
@@ -567,7 +605,9 @@ static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 
 	conf = readl_relaxed(spicc->base + SPICC_CONREG);
 #ifdef CONFIG_AMLOGIC_MODIFY
-	conf &= ~(SPICC_POL | SPICC_PHA | SPICC_SSPOL | SPI_READY);
+	conf &= ~(SPICC_POL | SPICC_PHA | SPICC_SSPOL | SPI_READY | SPICC_SSCTL);
+	if (spicc->toggle_cs_every_word)
+		conf |= SPICC_SSCTL;
 #else
 	/* clear all except following */
 	conf &= SPICC_ENABLE | SPICC_MODE_MASTER | SPICC_DATARATE_MASK;
@@ -710,7 +750,8 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 				  spicc->xfer_remain / spicc->bytes_per_word,
 				  SPICC_FIFO_SIZE);
 		meson_spicc_setup_burst(spicc, burst_len);
-		writel_relaxed(SPICC_TC_EN, spicc->base + SPICC_INTREG);
+		writel_relaxed(spi_controller_is_slave(spicc->controller) ?
+			SPICC_RR_EN : SPICC_TC_EN, spicc->base + SPICC_INTREG);
 		/* Start burst */
 		writel_bits_relaxed(SPICC_XCH, SPICC_XCH,
 				    spicc->base + SPICC_CONREG);
@@ -844,11 +885,17 @@ static int meson_spicc_hw_init(struct meson_spicc_device *spicc)
 	 * Set controller mode and enable controller ahead of others here,
 	 * and never disable them.
 	 */
-	writel_relaxed(SPICC_ENABLE | SPICC_MODE_MASTER,
-		       spicc->base + SPICC_CONREG);
-
-	if (spicc->data->has_oen)
-		writel_relaxed(0xf020000, spicc->base + SPICC_ENH_CTL0);
+	if (!spi_controller_is_slave(spicc->controller)) {
+		writel_relaxed(SPICC_ENABLE | SPICC_MODE_MASTER,
+			       spicc->base + SPICC_CONREG);
+		if (spicc->data->has_oen)
+			writel_relaxed(0xf020000, spicc->base + SPICC_ENH_CTL0);
+	} else {
+		writel_relaxed(SPICC_ENABLE, spicc->base + SPICC_CONREG);
+		writel_relaxed((spicc->latency > 0) ? 0 :
+			SPICC_ENH_DELAY_EN | SPICC_ENH_SI_CAP_DELAY_EN,
+			spicc->base + SPICC_ENH_CTL1);
+	}
 
 	/* Disable all IRQs */
 	writel_relaxed(0, spicc->base + SPICC_INTREG);
@@ -1097,6 +1144,7 @@ static ssize_t test_store(struct device *dev, struct device_attribute *attr,
 	dev_info(dev, "test end @%d\n", (u32)clk_get_rate(spicc->clk));
 
 test_end:
+	meson_spicc_cleanup(m.spi);
 	spi_dev_put(m.spi);
 test_end2:
 	kfree(kstr);
@@ -1177,7 +1225,7 @@ meson_spicc_divider_clk_get(struct meson_spicc_device *spicc, bool is_linear)
 	snprintf(name, sizeof(name), "%s_%s_div", dev_name(dev), which);
 	init.name = name;
 	init.ops = &clk_divider_ops;
-	init.flags = CLK_SET_RATE_PARENT;
+	init.flags = spicc->parent_clk_fixed ? 0 : CLK_SET_RATE_PARENT;
 	init.parent_names = parent_names;
 	init.num_parents = 1;
 	div->hw.init = &init;
@@ -1281,7 +1329,8 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	struct meson_spicc_device *spicc;
 	int ret, irq, rate;
 
-	ctlr = spi_alloc_master(&pdev->dev, sizeof(*spicc));
+	ctlr = __spi_alloc_controller(&pdev->dev, sizeof(*spicc),
+			of_property_read_bool(pdev->dev.of_node, "slave"));
 	if (!ctlr) {
 		dev_err(&pdev->dev, "controller allocation failed\n");
 		return -ENOMEM;
@@ -1342,6 +1391,15 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	rate = clk_get_rate(spicc->core);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+	spicc->latency = 0;
+	spicc->parent_clk_fixed = false;
+	spicc->toggle_cs_every_word = false;
+	of_property_read_s32(pdev->dev.of_node, "latency", &spicc->latency);
+	if (of_property_read_bool(pdev->dev.of_node, "parent_clk_fixed"))
+		spicc->parent_clk_fixed = true;
+	if (of_property_read_bool(pdev->dev.of_node, "toggle_cs_every_word"))
+		spicc->toggle_cs_every_word = true;
+
 	if (spicc->data->has_async_clk) {
 		/* SoCs has async-clk is incapable of using full burst */
 		SPICC_FIFO_SIZE = 15;
@@ -1360,6 +1418,9 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (spi_controller_is_slave(spicc->controller))
+		goto dev_test;
+
 	spicc->clk = meson_spicc_clk_get(spicc);
 	if (IS_ERR_OR_NULL(spicc->clk)) {
 		dev_err(&pdev->dev, "divider clock get failed\n");
@@ -1373,6 +1434,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		goto out_clk_2;
 	}
 
+dev_test:
 	ret = device_create_file(&pdev->dev, &dev_attr_test);
 	if (ret) {
 		dev_err(&pdev->dev, "Create test attribute failed\n");
