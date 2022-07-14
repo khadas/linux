@@ -843,6 +843,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 	enum of_gpio_flags flags;
 	int gpio;
 	bool active_low;
+	unsigned int sleep_time = 500;
 
 	gpio = of_get_named_gpio_flags(node, "spk_mute-gpios", 0, &flags);
 	priv->spk_mute_gpio = gpio;
@@ -879,7 +880,11 @@ static int aml_card_parse_gpios(struct device_node *node,
 	}
 	if (!IS_ERR(priv->avout_mute_desc)) {
 		if (!priv->av_mute_enable) {
-			msleep(500);
+			if (!of_property_read_u32(node,
+				"av_mute_sleep_time", &sleep_time))
+				msleep(sleep_time);
+			else
+				msleep(500);
 			gpiod_direction_output(priv->avout_mute_desc,
 				GPIOF_OUT_INIT_HIGH);
 			pr_info("av out status: %s\n",
