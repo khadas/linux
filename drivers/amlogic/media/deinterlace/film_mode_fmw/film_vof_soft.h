@@ -147,6 +147,11 @@ struct sFlmSftPar {
 	int flm22_diff01_th;
 	int flm22_mcdi_min_th;
 	int flm22_max_th;
+	int flm22_glb_ratio;
+	int flm22_mcdi_dcnt_th;
+	int flm22_diff02_add_th;
+	int flm22_pd12chk_mode;
+	int flm22_diff01_ratio;
 	unsigned int field_count;
 	unsigned short width;
 	unsigned short height;
