@@ -1621,9 +1621,9 @@ int packet_init_t7(void)
 	/* vsif id check en */
 	hdmirx_wr_cor(VSI_CTRL2_DP3_IVCRX, 1);
 	/* vsif pkt id cfg, default is 000c03 */
-	//hdmirx_wr_cor(VSIF_ID1_DP3_IVCRX, 0x03);
-	//hdmirx_wr_cor(VSIF_ID2_DP3_IVCRX, 0x0c);
-	//hdmirx_wr_cor(VSIF_ID3_DP3_IVCRX, 0);
+	hdmirx_wr_cor(VSIF_ID1_DP3_IVCRX, 0xd8);
+	hdmirx_wr_cor(VSIF_ID2_DP3_IVCRX, 0x5d);
+	hdmirx_wr_cor(VSIF_ID3_DP3_IVCRX, 0xc4);
 	//hdmirx_wr_cor(VSIF_ID4_DP3_IVCRX, 0);
 
 	/* hf-vsif id check en */

@@ -60,6 +60,8 @@
 #define HDMI_TX_RESOURCE_NUM 4
 #define HDMI_TX_PWR_CTRL_NUM	6
 
+static u8 hdmi_allm_passthough_en;
+
 static unsigned int rx_hdcp2_ver;
 //static unsigned int hdcp_ctl_lvl;
 
@@ -1241,6 +1243,8 @@ int hdmitx21_get_aspect_ratio(void)
 	struct vinfo_s *info = NULL;
 
 	info = hdmitx_get_current_vinfo(NULL);
+	if (!info)
+		return 0;
 	x = info->aspect_ratio_num;
 	y = info->aspect_ratio_den;
 	if (x == 4 && y == 3)
@@ -2941,7 +2945,9 @@ static ssize_t allm_mode_store(struct device *dev,
 		// disable ALLM
 		hdev->allm_mode = 0;
 		hdmitx21_construct_vsif(hdev, VT_ALLM, 0, NULL);
-		if (_is_hdmi14_4k(hdev->cur_VIC))
+		if (_is_hdmi14_4k(hdev->cur_VIC) &&
+			!hdmitx21_dv_en() &&
+			!hdmitx21_hdr10p_en())
 			hdmitx21_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
 	}
 	if (com_str(buf, "1")) {
@@ -2953,7 +2959,7 @@ static ssize_t allm_mode_store(struct device *dev,
 	if (com_str(buf, "-1")) {
 		if (hdev->allm_mode == 1) {
 			hdev->allm_mode = 0;
-			hdmi_vend_infoframe_set(NULL);
+			hdmi_vend_infoframe2_rawset(NULL, NULL);
 		}
 	}
 	return count;
@@ -3010,7 +3016,9 @@ static ssize_t contenttype_mode_store(struct device *dev,
 		hdev->allm_mode = 0;
 		hdmitx21_construct_vsif(hdev, VT_ALLM, 0, NULL);
 	}
-	if (_is_hdmi14_4k(hdev->cur_VIC))
+	if (_is_hdmi14_4k(hdev->cur_VIC) &&
+		!hdmitx21_dv_en() &&
+		!hdmitx21_hdr10p_en())
 		hdmitx21_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
 	if (com_str(buf, "0") || com_str(buf, "off")) {
 		hdev->ct_mode = 0;
@@ -3107,12 +3115,10 @@ static ssize_t ll_mode_store(struct device *dev,
 		if (hdev->allm_mode == 1) {
 			hdev->allm_mode = 0;
 			hdmitx21_construct_vsif(hdev, VT_ALLM, 0, NULL);
-			if (_is_hdmi14_4k(hdev->cur_VIC))
+			if (_is_hdmi14_4k(hdev->cur_VIC) &&
+				!hdmitx21_dv_en() &&
+				!hdmitx21_hdr10p_en())
 				hdmitx21_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
-			/* if not hdmi1.4 4k, need to sent > 4 frames and shorter than 1S
-			 * HF-VSIF with allm_mode = 0, and then disable HF-VSIF according
-			 * 10.2.1 HF-VSIF Transitions in hdmi2.1a. TODO:
-			 */
 		}
 		/* clear content type */
 		if (hdev->ct_mode == 1) {
@@ -3132,6 +3138,8 @@ void hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	bool it_content = false;
 
+	if (!hdmi_allm_passthough_en)
+		return;
 	if (!latency_info)
 		return;
 	pr_info("allm_mode: %d, it_content: %d, cn_type: %d\n",
@@ -3151,12 +3159,10 @@ void hdmitx_update_latency_info(struct tvin_latency_s *latency_info)
 		if (hdev->allm_mode == 1) {
 			hdev->allm_mode = 0;
 			hdmitx21_construct_vsif(hdev, VT_ALLM, 0, NULL);
-			if (_is_hdmi14_4k(hdev->cur_VIC))
+			if (_is_hdmi14_4k(hdev->cur_VIC) &&
+				!hdmitx21_dv_en() &&
+				!hdmitx21_hdr10p_en())
 				hdmitx21_construct_vsif(hdev, VT_HDMI14_4K, 1, NULL);
-			/* if not hdmi1.4 4k, need to sent > 4 frames and shorter than 1S
-			 * HF-VSIF with allm_mode = 0, and then disable HF-VSIF according
-			 * 10.2.1 HF-VSIF Transitions in hdmi2.1a. TODO:
-			 */
 		}
 		hdev->it_content = latency_info->it_content;
 		it_content = hdev->it_content;
@@ -4904,6 +4910,11 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	/*after plugout, DV mode can't be supported*/
 	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
+	/* stop ALLM packet by hdmitx itself? or stop by upstream
+	 * hdmirx side(in hdmirx channel) / hwc when stop playing
+	 * ALLM video(online stream)?
+	 */
+	/* hdmi_vend_infoframe2_rawset(NULL, NULL); */
 	hdev->ready = 0;
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(0);

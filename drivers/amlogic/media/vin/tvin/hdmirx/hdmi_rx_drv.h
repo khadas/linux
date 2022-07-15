@@ -488,7 +488,8 @@ struct vsi_info_s {
 	bool low_latency;
 	bool backlt_md_bit;
 	unsigned int eff_tmax_pq;
-	bool allm_mode;
+	bool dv_allm;
+	bool hdmi_allm;
 	bool hdr10plus;
 	u8 ccbpc;
 	u8 vsi_state;
@@ -736,6 +737,7 @@ extern struct workqueue_struct	*repeater_wq;
 extern struct tasklet_struct rx_tasklet;
 extern struct device *hdmirx_dev;
 extern struct rx_s rx;
+extern struct tvin_latency_s latency_info;
 extern struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
 extern int vrr_range_dynamic_update_en;

@@ -310,9 +310,6 @@ int hdmitx21_construct_vsif(struct hdmitx_dev *hdev, enum vsif_type type,
 	u8 vsif_db[28] = {0}; /* to be fulfilled */
 	u8 *db = &vsif_db[1]; /* to be fulfilled */
 	u32 ieeeoui = 0;
-	struct hdmi_vendor_infoframe *info;
-
-	info = &hdev->infoframes.vend.vendor.hdmi;
 
 	if (!hdev || type >= VT_MAX)
 		return 0;
@@ -323,33 +320,51 @@ int hdmitx21_construct_vsif(struct hdmitx_dev *hdev, enum vsif_type type,
 	case VT_HDMI14_4K:
 		ieeeoui = HDMI_IEEE_OUI;
 		len = 5;
+		hb[2] = len;
+		db[0] = GET_OUI_BYTE0(ieeeoui);
+		db[1] = GET_OUI_BYTE1(ieeeoui);
+		db[2] = GET_OUI_BYTE2(ieeeoui);
 		if (_is_hdmi14_4k(hdev->cur_VIC)) {
 			fill_hdmi4k_vsif_data(hdev->cur_VIC, db, hb);
 			hdmitx21_set_avi_vic(0);
+			hdmi_vend_infoframe_rawset(hb, vsif_db);
 		}
 		break;
 	case VT_ALLM:
 		ieeeoui = HDMI_FORUM_IEEE_OUI;
 		len = 5;
+		hb[2] = len;
+		db[0] = GET_OUI_BYTE0(ieeeoui);
+		db[1] = GET_OUI_BYTE1(ieeeoui);
+		db[2] = GET_OUI_BYTE2(ieeeoui);
 		db[3] = 0x1; /* Fixed value */
 		if (on) {
 			db[4] |= 1 << 1; /* set bit1, ALLM_MODE */
 			if (_is_hdmi14_4k(hdev->cur_VIC))
 				hdmitx21_set_avi_vic(hdev->cur_VIC);
+			hdmi_vend_infoframe2_rawset(hb, vsif_db);
 		} else {
 			db[4] &= ~(1 << 1); /* clear bit1, ALLM_MODE */
-			/* still send out HS_VSIF, no set AVI.VIC = 0 */
+			/* 1.When the Source stops transmitting the HF-VSIF,
+			 * the Sink shall interpret this as an indication
+			 * that transmission offeatures described in this
+			 * Infoframe has stopped
+			 * 2.When a Source is utilizing the HF-VSIF for ALLM
+			 * signaling only and indicates the Sink should
+			 * revert fromow-latency Mode to its previous mode,
+			 * the Source should send ALLM Mode = 0 to quickly
+			 * and reliably request the change. If a Source
+			 * indicates ALLM Mode = 0 in this manner , the
+			 * Source should transmit an HF-VSIF with ALLM Mode = 0
+			 * for at least 4 frames but for not more than 1 second.
+			 */
+			/* hdmi_vend_infoframe2_rawset(hb, vsif_db); */
+			/* wait for 4frames ~ 1S, then stop send HF-VSIF */
+			hdmi_vend_infoframe2_rawset(NULL, NULL);
 		}
 		break;
 	default:
 		break;
 	}
-
-	hb[2] = len;
-	db[0] = GET_OUI_BYTE0(ieeeoui);
-	db[1] = GET_OUI_BYTE1(ieeeoui);
-	db[2] = GET_OUI_BYTE2(ieeeoui);
-
-	hdmi_vend_infoframe_rawset(hb, vsif_db);
 	return 1;
 }

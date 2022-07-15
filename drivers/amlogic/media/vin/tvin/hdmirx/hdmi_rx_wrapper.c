@@ -931,7 +931,7 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 		if (rx_get_bits(intr_2, INTR2_BIT2_AUD))
 			rx_vsif_type |= VSIF_TYPE_HDR10P;
 		if (rx_get_bits(intr_2, INTR2_BIT4_UNREC))
-			rx_vsif_type |= VSIF_TYPE_HDMI21;
+			rx_vsif_type |= VSIF_TYPE_HDMI14;
 	}
 	if (intr_3) {
 		if (log_level & IRQ_LOG)
@@ -939,7 +939,7 @@ static int hdmi_rx_ctrl_irq_handler_t7(void)
 		if (rx_get_bits(intr_3, INTR3_BIT34_HF_VSI))
 			rx_vsif_type |= VSIF_TYPE_DV15;
 		if (rx_get_bits(intr_3, INTR3_BIT2_VSI))
-			rx_vsif_type |= VSIF_TYPE_HDMI14;
+			rx_vsif_type |= VSIF_TYPE_HDMI21;
 	}
 
 	if (rx_depack2_intr0) {
@@ -1896,6 +1896,14 @@ static void signal_status_init(void)
 	rx.var.mute_cnt = 0;
 	rx.var.de_cnt = 0;
 	rx.var.de_stable = false;
+	rx.vs_info_details.dv_allm = 0;
+	rx.vs_info_details.hdmi_allm = 0;
+	rx.cur.cn_type = 0;
+	rx.cur.it_content = 0;
+	latency_info.allm_mode = 0;
+	latency_info.it_content = 0;
+	latency_info.cn_type = 0;
+	hdmitx_update_latency_info(&latency_info);
 }
 
 bool edid_ver_need_chg(void)
@@ -3631,7 +3639,8 @@ static void dump_video_status(void)
 	rx_pr("ecc cnt:%d\n", rx.ecc_err);
 	rx_pr("****pkts_info_details:*****\n");
 	rx_pr("hdr10plus = %d\n", rx.vs_info_details.hdr10plus);
-	rx_pr("allm_mode = %d\n", rx.vs_info_details.allm_mode);
+	rx_pr("hdmi_allm_mode = %d\n", rx.vs_info_details.hdmi_allm);
+	rx_pr("dv_allm_mode = %d\n", rx.vs_info_details.dv_allm);
 	rx_pr("itcontent = %d\n", rx.cur.it_content);
 	rx_pr("cnt_type = %d\n", rx.cur.cn_type);
 	rx_pr("dolby_vision = %d\n", rx.vs_info_details.dolby_vision_flag);

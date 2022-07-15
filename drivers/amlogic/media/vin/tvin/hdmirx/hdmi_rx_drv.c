@@ -477,7 +477,7 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	rx.open_fg = 0;
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
-	rx.vs_info_details.allm_mode = 0;
+	rx.vs_info_details.hdmi_allm = 0;
 	rx.cur.cn_type = 0;
 	rx.cur.it_content = 0;
 	latency_info.allm_mode = 0;
@@ -1049,18 +1049,18 @@ void hdmirx_get_repetition_info(struct tvin_sig_property_s *prop)
 void hdmirx_get_latency_info(struct tvin_sig_property_s *prop)
 {
 	prop->latency.allm_mode =
-		rx.vs_info_details.allm_mode;
+		rx.vs_info_details.hdmi_allm || rx.vs_info_details.dv_allm;
 	prop->latency.it_content = rx.cur.it_content;
 	prop->latency.cn_type = rx.cur.cn_type;
 #ifdef CONFIG_AMLOGIC_HDMITX
 	if (rx.open_fg  &&
-		(latency_info.allm_mode != rx.vs_info_details.allm_mode ||
+		(latency_info.allm_mode != rx.vs_info_details.hdmi_allm ||
 		latency_info.it_content != rx.cur.it_content ||
 		latency_info.cn_type != rx.cur.cn_type)) {
-		latency_info.allm_mode  = rx.vs_info_details.allm_mode;
+		latency_info.allm_mode  = rx.vs_info_details.hdmi_allm;
 		latency_info.it_content = rx.cur.it_content;
 		latency_info.cn_type  = rx.cur.cn_type;
-		hdmitx_update_latency_info(&prop->latency);
+		hdmitx_update_latency_info(&latency_info);
 	}
 #endif
 }

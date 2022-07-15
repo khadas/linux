@@ -138,6 +138,7 @@ static void config_avmute(u32 val)
 
 void hdmitx21_set_avi_vic(enum hdmi_vic vic)
 {
+	hdmi_avi_infoframe_config(CONF_AVI_VIC, vic & 0xff);
 }
 
 static int read_avmute(void)
