@@ -890,6 +890,9 @@ static int ramoops_probe(struct platform_device *pdev)
 	schedule_delayed_work(&pstore_work, ramoops_io_dump_delay_secs * HZ);
 #endif
 
+#ifdef CONFIG_AMLOGIC_DEBUG_SCRAMBLER_RAMOOPS
+	scrambler_ramoops_init();
+#endif
 	return 0;
 
 fail_buf:

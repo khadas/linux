@@ -302,4 +302,8 @@ pstore_ftrace_write_timestamp(struct pstore_ftrace_record *rec, u64 val)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_DEBUG_SCRAMBLER_RAMOOPS
+int scrambler_ramoops_init(void);
+#endif
+
 #endif /*_LINUX_PSTORE_H*/
