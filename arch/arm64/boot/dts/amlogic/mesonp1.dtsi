@@ -4201,6 +4201,14 @@
 		};
 	};
 
+	spicc0_cs_pins: spicc0_cs_pins {
+		mux {
+			groups = "spi_a_ss0";
+			function = "spi_a";
+			drive-strength-microamp = <2000>;
+		};
+	};
+
 	spicc1_pins: spicc1_pins {
 		mux {
 			groups = "spi_b_mosi",

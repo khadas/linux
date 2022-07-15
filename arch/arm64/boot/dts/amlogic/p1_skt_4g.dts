@@ -1577,24 +1577,26 @@
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins>;
-	cs-gpios = <&gpio GPIOH_9 0>;
+	//pinctrl-0 = <&spicc0_pins>;
+	//cs-gpios = <&gpio GPIOH_9 0>;
+	pinctrl-0 = <&spicc0_pins &spicc0_cs_pins>;
+	assigned-clocks =<&clkc CLKID_SPICC0>;
+	assigned-clock-rates = <200000000>;
+	latency = <4>;
+	parent_clk_fixed;
+	toggle_cs_every_word;
 };
 
 &spicc1 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc1_pins>;
-	cs-gpios = <&gpio GPIOH_13 0>;
-};
-
-&sspicc1 {
-	status = "disabled";
-	pinctrl-names = "default";
+	//pinctrl-0 = <&spicc1_pins>;
+	//cs-gpios = <&gpio GPIOH_13 0>;
 	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
-	cs-num = <0>;
-	spi-mode = <0x0>;
-	vmem-bus-num = <0>;
+	assigned-clocks =<&clkc CLKID_SPICC1>;
+	assigned-clock-rates = <500000000>;
+	latency = <2>;
+	slave;
 };
 
 &spicc2 {
