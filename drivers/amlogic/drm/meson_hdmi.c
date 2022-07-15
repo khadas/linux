@@ -1020,17 +1020,6 @@ void meson_hdmitx_update_hdcp(void)
 		DRM_ERROR("No valid hdcp mode exit, maybe hdcp havenot init.\n");
 }
 
-void meson_hdmitx_update_hdcp_locked(void)
-{
-	struct drm_connector *connector = &am_hdmi_info.base.connector;
-	struct drm_modeset_lock *mode_lock =
-		&connector->dev->mode_config.connection_mutex;
-
-	drm_modeset_lock(mode_lock, NULL);
-	meson_hdmitx_update_hdcp();
-	drm_modeset_unlock(mode_lock);
-}
-
 void meson_hdmitx_update(struct drm_connector_state *new_state,
 	struct drm_connector_state *old_state)
 {
@@ -1075,16 +1064,27 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 
 static void meson_hdmitx_hdcp_notify(void *data, int type, int result)
 {
+	struct drm_connector *connector = &am_hdmi_info.base.connector;
+	struct drm_modeset_lock *mode_lock =
+		&connector->dev->mode_config.connection_mutex;
+	bool locked_outer = drm_modeset_is_locked(mode_lock);
+
+	if (!locked_outer)
+		drm_modeset_lock(mode_lock, NULL);
+
+	if (!am_hdmi_info.hdmitx_on)
+		goto end;
+
 	if (type == HDCP_KEY_UPDATE && result == HDCP_AUTH_UNKNOWN) {
 		DRM_ERROR("HDCP statue changed, need re-run hdcp\n");
-		meson_hdmitx_update_hdcp_locked();
-		return;
+		meson_hdmitx_update_hdcp();
+		goto end;
 	}
 
 	if (type != am_hdmi_info.hdcp_mode) {
 		DRM_DEBUG("notify type is mismatch[%d]-[%d]\n",
 			type, am_hdmi_info.hdcp_mode);
-		return;
+		goto end;
 	}
 
 	if (result == HDCP_AUTH_OK) {
@@ -1104,6 +1104,10 @@ static void meson_hdmitx_hdcp_notify(void *data, int type, int result)
 	} else {
 		DRM_ERROR("HDCP report unknown result [%d-%d]\n", type, result);
 	}
+end:
+	if (!locked_outer)
+		drm_modeset_unlock(mode_lock);
+	return;
 }
 
 static const struct drm_connector_helper_funcs am_hdmi_connector_helper_funcs = {
@@ -1680,14 +1684,19 @@ static void meson_hdmitx_init_avmute_property(struct drm_device *drm_dev,
 static void meson_hdmitx_hpd_cb(void *data)
 {
 	struct am_hdmi_tx *am_hdmi = (struct am_hdmi_tx *)data;
+	struct drm_connector *connector = &am_hdmi_info.base.connector;
+	struct drm_modeset_lock *mode_lock =
+		&connector->dev->mode_config.connection_mutex;
 #ifdef CONFIG_CEC_NOTIFIER
 	struct edid *pedid;
 #endif
 
 	DRM_INFO("drm hdmitx hpd notify\n");
 	if (am_hdmi->hdmitx_dev->detect() == 0 && !am_hdmi->android_path) {
+		drm_modeset_lock(mode_lock, NULL);
 		meson_hdmitx_disconnect_hdcp();
 		am_hdmi_info.hdmitx_on = 0;
+		drm_modeset_unlock(mode_lock);
 	}
 #ifdef CONFIG_CEC_NOTIFIER
 	if (am_hdmi->hdmitx_dev->detect()) {
