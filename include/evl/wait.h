@@ -86,6 +86,10 @@ void evl_add_wait_queue(struct evl_wait_queue *wq,
 			ktime_t timeout,
 			enum evl_tmode timeout_mode);
 
+void evl_add_wait_queue_unchecked(struct evl_wait_queue *wq,
+				  ktime_t timeout,
+				  enum evl_tmode timeout_mode);
+
 int evl_wait_schedule(struct evl_wait_queue *wq);
 
 static inline bool evl_wait_active(struct evl_wait_queue *wq)

@@ -35,18 +35,13 @@ void evl_destroy_wait(struct evl_wait_queue *wq)
 EXPORT_SYMBOL_GPL(evl_destroy_wait);
 
 /* wq->lock held, hard irqs off */
-void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
-			enum evl_tmode timeout_mode)
+static void __evl_add_wait_queue(struct evl_thread *curr,
+				struct evl_wait_queue *wq,
+				ktime_t timeout, enum evl_tmode timeout_mode)
 {
-	struct evl_thread *curr = evl_current();
-
 	assert_hard_lock(&wq->lock);
 
 	trace_evl_wait(wq);
-
-	if ((curr->state & T_WOLI) &&
-		atomic_read(&curr->inband_disable_count) > 0)
-		evl_notify_thread(curr, EVL_HMDIAG_LKSLEEP, evl_nil);
 
 	if (!(wq->flags & EVL_WAIT_PRIO))
 		list_add_tail(&curr->wait_next, &wq->wchan.wait_list);
@@ -55,7 +50,28 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 
 	evl_sleep_on(timeout, timeout_mode, wq->clock, &wq->wchan);
 }
+
+void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
+			enum evl_tmode timeout_mode)
+{
+	struct evl_thread *curr = evl_current();
+
+	if ((curr->state & T_WOLI) &&
+		atomic_read(&curr->inband_disable_count) > 0)
+		evl_notify_thread(curr, EVL_HMDIAG_LKSLEEP, evl_nil);
+
+	__evl_add_wait_queue(curr, wq, timeout, timeout_mode);
+
+}
 EXPORT_SYMBOL_GPL(evl_add_wait_queue);
+
+void evl_add_wait_queue_unchecked(struct evl_wait_queue *wq, ktime_t timeout,
+				enum evl_tmode timeout_mode)
+{
+	struct evl_thread *curr = evl_current();
+
+	__evl_add_wait_queue(curr, wq, timeout, timeout_mode);
+}
 
 /* wq->lock held, hard irqs off */
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,

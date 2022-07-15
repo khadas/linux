@@ -503,7 +503,12 @@ static int wait_monitor(struct file *filp,
 		goto put;
 	}
 
-	evl_add_wait_queue(&event->wait_queue, timeout, tmode);
+	/*
+	 * Since we still hold the mutex until __exit_monitor() is
+	 * called later on, do not perform the WOLI checks when
+	 * enqueuing.
+	 */
+	evl_add_wait_queue_unchecked(&event->wait_queue, timeout, tmode);
 
 	raw_spin_lock(&curr->lock);
 	raw_spin_lock(&curr->rq->lock);
