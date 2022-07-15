@@ -26,6 +26,7 @@
 #define TEE_SHM_REGISTER	BIT(3)  /* Memory registered in secure world */
 #define TEE_SHM_USER_MAPPED	BIT(4)  /* Memory mapped in user space */
 #define TEE_SHM_POOL		BIT(5)  /* Memory allocated from pool */
+#define TEE_SHM_KERNEL_MAPPED	BIT(6)  /* Memory mapped in kernel space */
 #define TEE_SHM_PRIV		BIT(7)  /* Memory private to TEE driver */
 
 struct device;
@@ -47,6 +48,8 @@ struct tee_shm_pool;
  *              and just return with an error code. It is needed for requests
  *              that arises from TEE based kernel drivers that should be
  *              non-blocking in nature.
+ * @cap_memref_null: flag indicating if the TEE Client support shared
+ *                   memory buffer with a NULL pointer.
  */
 struct tee_context {
 	struct tee_device *teedev;
@@ -55,6 +58,7 @@ struct tee_context {
 	struct kref refcount;
 	bool releasing;
 	bool supp_nowait;
+	bool cap_memref_null;
 };
 
 struct tee_param_memref {
@@ -320,6 +324,8 @@ void *tee_get_drvdata(struct tee_device *teedev);
 struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags);
 struct tee_shm *tee_shm_alloc_kernel_buf(struct tee_context *ctx, size_t size);
 
+struct tee_shm *tee_shm_register_kernel_buf(struct tee_context *ctx,
+					    void *addr, size_t length);
 /**
  * tee_shm_priv_alloc() - Allocate shared memory privately
  * @dev:	Device that allocates the shared memory
@@ -578,5 +584,19 @@ struct tee_client_driver {
 
 #define to_tee_client_driver(d) \
 		container_of(d, struct tee_client_driver, driver)
+
+/**
+ * teedev_open() - Open a struct tee_device
+ * @teedev:	Device to open
+ *
+ * @return a pointer to struct tee_context on success or an ERR_PTR on failure.
+ */
+struct tee_context *teedev_open(struct tee_device *teedev);
+
+/**
+ * teedev_close_context() - closes a struct tee_context
+ * @ctx:	The struct tee_context to close
+ */
+void teedev_close_context(struct tee_context *ctx);
 
 #endif /*__TEE_DRV_H*/
