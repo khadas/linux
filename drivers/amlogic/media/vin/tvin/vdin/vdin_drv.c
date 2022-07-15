@@ -382,7 +382,7 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 	vrr_data.target_vfreq_num = devp->parm.info.fps;
 	vrr_data.target_vfreq_den = 1;
 	vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en |
-			(devp->prop.spd_data.data[5] >> 2 & 0x3);
+			(devp->prop.spd_data.data[5] >> 1 & 0x7);
 	/* save vrr_mode status */
 	devp->vrr_data.vrr_mode = vrr_data.vrr_mode;
 
@@ -2386,7 +2386,7 @@ static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 {
 	if (!devp->vrr_data.vrr_mode) {
 		if ((devp->prop.vtem_data.vrr_en |
-		    (devp->prop.spd_data.data[5] >> 2 & 0x3))) {
+		    (devp->prop.spd_data.data[5] >> 1 & 0x7))) {
 			devp->vrr_on_add_cnt++;
 			devp->vrr_off_add_cnt = 0;
 		} else {
@@ -2399,7 +2399,7 @@ static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 		}
 	} else {
 		if (!(devp->prop.vtem_data.vrr_en |
-		     (devp->prop.spd_data.data[5] >> 2 & 0x3))) {
+		     (devp->prop.spd_data.data[5] >> 1 & 0x7))) {
 			devp->vrr_off_add_cnt++;
 			devp->vrr_on_add_cnt = 0;
 		} else {
