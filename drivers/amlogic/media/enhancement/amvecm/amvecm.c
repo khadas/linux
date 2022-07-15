@@ -10330,6 +10330,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	/* register vout client */
 	vout_register_client(&vlock_notifier_nb);
 	/* register vdin vrr en client*/
+	frame_lock_vrr_off_done_init();
 	aml_vrr_atomic_notifier_register(&flock_vdin_vrr_en_notifier_nb);
 
 	init_pattern_detect();

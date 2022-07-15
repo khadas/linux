@@ -20,6 +20,7 @@ struct vrr_sig_sts {
 	bool vrr_support;
 	u16 vrr_pre_en;
 	u16 vrr_en;
+	u16 vrr_switch_off;
 	u16 vrr_frame_sts;
 	u16 vrr_frame_pre_sts;
 	u16 vrr_frame_lock_type;
@@ -45,6 +46,7 @@ ssize_t frame_lock_debug_show(struct class *cla,
 			 struct class_attribute *attr, char *buf);
 int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 			  void *para);
+void frame_lock_vrr_off_done_init(void);
 void frame_lock_mode_chg(unsigned int cmd);
 
 #endif

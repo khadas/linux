@@ -3510,6 +3510,7 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 		pvlock->fsm_pause = true;
 		pvlock->fsm_sts = VLOCK_STATE_NULL;
 		vlock_notify_event = cmd;
+		frame_lock_mode_chg(cmd);
 		if (pvlock->dtdata->vlk_new_fsm &&
 		    pvlock->fsm_sts >= VLOCK_STATE_ENABLE_STEP1_DONE &&
 		    pvlock->fsm_sts <= VLOCK_STATE_DISABLE_STEP1_DONE) {
@@ -3527,6 +3528,7 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 		pvlock->fsm_pause = false;
 		pvlock->fsm_sts = VLOCK_STATE_NULL;
 		vlock_notify_event = cmd;
+		frame_lock_mode_chg(cmd);
 		pr_info("vlock: event MODE_CHANGE\n");
 		break;
 

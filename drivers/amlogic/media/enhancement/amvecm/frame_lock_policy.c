@@ -41,9 +41,11 @@ static unsigned int vrrlock_support = VRRLOCK_SUP_MODE;
 static unsigned int vrr_dis_cnt_no_vf_limit = 5;
 static unsigned int vrr_outof_rge_cnt = 10;
 
-static unsigned int vrr_display_mode_chg_cmd = VOUT_EVENT_MODE_CHANGE;
-static unsigned int vrr_display_mode_chg_cmd_pre;
+static unsigned int vrr_display_mode_chg_cmd;
+//static unsigned int vrr_display_mode_chg_cmd_pre;
 static unsigned int vrr_mode_chg_skip_cnt = 10;
+
+static struct completion vrr_off_done;
 
 struct vrr_sig_sts frame_sts = {
 	.vrr_support = true,
@@ -72,9 +74,27 @@ unsigned int frame_lock_show_vout_framerate(void)
 	return fr;
 }
 
+void frame_lock_vrr_off_done_init(void)
+{
+	init_completion(&vrr_off_done);
+}
+
 void frame_lock_mode_chg(unsigned int cmd)
 {
-	vrr_display_mode_chg_cmd = cmd;
+	int ret;
+
+	if (cmd == VOUT_EVENT_MODE_CHANGE) {
+		vrr_mode_chg_skip_cnt = 10;
+		vrr_display_mode_chg_cmd = cmd;
+	} else if (cmd == VOUT_EVENT_MODE_CHANGE_PRE) {
+		vrr_display_mode_chg_cmd = cmd;
+		if (frame_sts.vrr_en) {
+			reinit_completion(&vrr_off_done);
+			ret = wait_for_completion_timeout(&vrr_off_done, msecs_to_jiffies(100));
+			if (!ret)
+				FrameLockPR("%s: wait_for_completion_timeout\n", __func__);
+		}
+	}
 }
 
 void frame_lock_parse_param(char *buf_orig, char **parm)
@@ -321,12 +341,21 @@ static unsigned int frame_lock_check_input_hz(struct vframe_s *vf)
 	return ret_hz;
 }
 
+static void frame_lock_vrr_ctrl(bool en, struct vrr_notifier_data_s *data)
+{
+	if (en)
+		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_ON_MODE, data);
+	else
+		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, data);
+}
+
 void vrrlock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts)
 {
 	u16 vrr_en = frame_sts.vrr_en;
 	struct vrr_notifier_data_s vdata;
 	struct vinfo_s *vinfo = NULL;
+	int state;
 
 	memset(&vdata, 0, sizeof(struct vrr_notifier_data_s));
 
@@ -339,31 +368,37 @@ void vrrlock_process(struct vframe_s *vf,
 	else
 		vdata.line_dly = 500;
 
-	if (vrr_en)
+	if (vrr_en) {
 		frame_lock_calc_lcnt_variance_val(vf);
 
-	if (vrr_display_mode_chg_cmd == VOUT_EVENT_MODE_CHANGE_PRE) {
-		if (vrr_display_mode_chg_cmd_pre != vrr_display_mode_chg_cmd)
-			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vdata);
-
-		vrr_display_mode_chg_cmd_pre = vrr_display_mode_chg_cmd;
-	} else if (vrr_display_mode_chg_cmd == VOUT_EVENT_MODE_CHANGE && vrr_en) {
-		if (vrr_mode_chg_skip_cnt > 0) {
-			vrr_mode_chg_skip_cnt--;
-		} else {
-			vrr_display_mode_chg_cmd = 0;
-			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_ON_MODE, &vdata);
+		if (frame_sts.vrr_switch_off) {
+			aml_vrr_atomic_notifier_call_chain(VRR_EVENT_GET_STATE, &state);
+			if (state == 0) {
+				frame_sts.vrr_switch_off = 0;
+				complete(&vrr_off_done);
+			}
 		}
-	}
-
-	if (frame_sts.vrr_frame_sts != frame_sts.vrr_frame_pre_sts &&
-		vrr_display_mode_chg_cmd == 0 && vrr_en) {
-		if (frame_sts.vrr_frame_sts == FRAMELOCK_VRRLOCK) {
-			vlock_set_sts_by_frame_lock(false);
-			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_ON_MODE, &vdata);
-		} else {
-			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_VRR_OFF_MODE, &vdata);
-			vlock_set_sts_by_frame_lock(true);
+		if (vrr_display_mode_chg_cmd == VOUT_EVENT_MODE_CHANGE_PRE) {
+			vrr_display_mode_chg_cmd = 0;
+			frame_sts.vrr_switch_off = 1;
+			frame_lock_vrr_ctrl(false, &vdata);
+		} else if (vrr_display_mode_chg_cmd == VOUT_EVENT_MODE_CHANGE) {
+			if (vrr_mode_chg_skip_cnt > 0) {
+				vrr_mode_chg_skip_cnt--;
+			} else {
+				vrr_display_mode_chg_cmd = 0;
+				frame_lock_vrr_ctrl(true, &vdata);
+			}
+		} else if (vrr_display_mode_chg_cmd == 0) {
+			if (frame_sts.vrr_frame_sts != frame_sts.vrr_frame_pre_sts) {
+				if (frame_sts.vrr_frame_sts == FRAMELOCK_VRRLOCK) {
+					vlock_set_sts_by_frame_lock(false);
+					frame_lock_vrr_ctrl(true, &vdata);
+				} else {
+					frame_lock_vrr_ctrl(false, &vdata);
+					vlock_set_sts_by_frame_lock(true);
+				}
+			}
 		}
 	}
 
