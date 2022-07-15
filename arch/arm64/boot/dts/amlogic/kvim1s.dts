@@ -1323,6 +1323,10 @@
 	status = "okay";
 };
 
+&state_led {
+	status = "okay";
+};
+
 &uart_A {
 	status = "okay";
 	uart-has-rtscts;
