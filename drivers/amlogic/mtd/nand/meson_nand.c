@@ -1043,8 +1043,10 @@ static int meson_nfc_boot_read_oob(struct nand_chip *nand, int page)
 
 static bool meson_nfc_is_buffer_dma_safe(const void *buffer)
 {
+#ifndef CONFIG_ARM
 	if (virt_addr_valid(buffer) && (!object_is_on_stack(buffer)))
 		return true;
+#endif
 	return false;
 }
 
