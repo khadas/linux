@@ -96,6 +96,8 @@ struct meson_irblaster_dev {
 	spinlock_t irblaster_lock; /* use to send data */
 	void __iomem	*reg_base;
 	void __iomem	*reset_base;
+	/* discontinuous address */
+	void __iomem	*irq_reg;
 };
 
 #define IROUTDebug(fmt, x...)
@@ -141,9 +143,15 @@ static void blaster_initialize(struct meson_irblaster_dev *dev)
 	 *1. set fifo irq enable
 	 *2. set fifo irq threshold
 	 */
-	writel_relaxed(BLASTER_FIFO_IRQ_ENABLE |
-		BLASTER_FIFO_IRQ_THRESHOLD(8),
-		dev->reg_base + AO_IR_BLASTER_ADDR3);
+	if (dev->irq_reg)
+		writel_relaxed(BLASTER_FIFO_IRQ_ENABLE |
+			BLASTER_FIFO_IRQ_THRESHOLD(8),
+			dev->irq_reg);
+	else
+		writel_relaxed(BLASTER_FIFO_IRQ_ENABLE |
+			BLASTER_FIFO_IRQ_THRESHOLD(8),
+			dev->reg_base + AO_IR_BLASTER_ADDR3);
+
 	/*enable irblaster*/
 	writel_relaxed(readl_relaxed(dev->reg_base + AO_IR_BLASTER_ADDR0) |
 		BLASTER_ENABLE,
@@ -501,10 +509,15 @@ static irqreturn_t meson_blaster_interrupt(int irq, void *dev_id)
 	if (irblaster_debug >= BLASTER_DEBUG_HIGH)
 		IROUTDebug("enter irq count = %d size = %d\n",
 			   dev->count, dev->buffer_size);
+
 	/*clear pending bit*/
-	writel_relaxed(readl_relaxed(dev->reg_base + AO_IR_BLASTER_ADDR3) &
-			(~BLASTER_FIFO_THD_PENDING),
-				dev->reg_base + AO_IR_BLASTER_ADDR3);
+	if (dev->irq_reg)
+		writel_relaxed(readl_relaxed(dev->irq_reg) & (~BLASTER_FIFO_THD_PENDING),
+				dev->irq_reg);
+	else
+		writel_relaxed(readl_relaxed(dev->reg_base + AO_IR_BLASTER_ADDR3) &
+				(~BLASTER_FIFO_THD_PENDING),
+					dev->reg_base + AO_IR_BLASTER_ADDR3);
 
 	if (dev->count >= dev->buffer_size) {
 		complete(&dev->blaster_completion);
@@ -521,6 +534,7 @@ static int  meson_irblaster_probe(struct platform_device *pdev)
 	struct resource *reg_mem = NULL;
 	void __iomem *reg_base = NULL;
 	int err, ret;
+	u32 irq_reg;
 
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "pdev->dev.of_node == NULL!\n");
@@ -553,6 +567,14 @@ static int  meson_irblaster_probe(struct platform_device *pdev)
 	if (!irblaster_dev->irq) {
 		dev_err(&pdev->dev, "irq: Failed to request irq number.\n");
 		return -ENODEV;
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "irblaster_irq_reg", &irq_reg);
+	if (!ret) {
+		/* if get irq reg fail, use default AO_IR_BLASTER_ADDR3 */
+		irblaster_dev->irq_reg = devm_ioremap_nocache(&pdev->dev,
+						 irq_reg,
+						 sizeof(int));
 	}
 
 	init_completion(&irblaster_dev->blaster_completion);
