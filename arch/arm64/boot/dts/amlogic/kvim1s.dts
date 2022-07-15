@@ -641,6 +641,10 @@
 	pinctrl-0=<&i2c1_pins2>;
 	clock-frequency = <300000>; /* default 100k */
 
+	hym8563-rtc {
+		compatible = "haoyu,hym8563";
+		reg = <0x51>;
+	};
 };
 
 &vddcpu0 {
