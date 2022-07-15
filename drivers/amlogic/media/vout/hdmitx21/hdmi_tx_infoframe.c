@@ -59,6 +59,21 @@ void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb)
 	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
 }
 
+/* only used for HF-VSIF */
+void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb)
+{
+	u8 body[31] = {0};
+
+	if (!hb || !pb) {
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		return;
+	}
+
+	memcpy(body, hb, 3);
+	memcpy(&body[3], pb, 28);
+	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+}
+
 void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info)
 {
 	u8 body[31] = {0};
