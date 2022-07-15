@@ -468,6 +468,8 @@ static int dump_di_pre_stru_seq(struct seq_file *seq, void *v,
 		   di_pre_stru_p->bypass_pre ? "true" : "false");
 	seq_printf(seq, "%-25s = %s\n", "invert_flag",
 		   di_pre_stru_p->invert_flag ? "true" : "false");
+	seq_printf(seq, "%-25s = %s\n", "is_disable_nr",
+		   di_pre_stru_p->is_disable_nr ? "true" : "false");
 
 	return 0;
 }
@@ -1070,6 +1072,8 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	seq_printf(seq, "mm:sts:num_local[%d],num_post[%d]\n",
 		   mm->sts.num_local,
 		   mm->sts.num_post);
+	seq_printf(seq, "mem:nub[%d]\n",
+		   di_buf_mem_get_nub(pch));
 	keep_buf = di_post_stru_p->keep_buf;
 	seq_printf(seq, "used_post_buf_index %d(0x%p),",
 		   IS_ERR_OR_NULL(keep_buf) ?

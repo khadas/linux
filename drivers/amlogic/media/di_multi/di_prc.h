@@ -485,6 +485,14 @@ unsigned int dim_mng_hf_sum_free_get(void);
 unsigned int dim_mng_hf_sum_idle_get(void);
 void dim_mng_hf_prob(void);
 void dim_mng_hf_exit(void);
+unsigned int di_buf_mem_get_nub(struct di_ch_s *pch);
+void di_buf_mem_clear(struct di_ch_s *pch);
+void di_buf_mem_save(struct di_ch_s *pch, struct di_buf_s *di_buf);
+void di_q_unreg(struct di_ch_s *pch);
+
+void q32_ch_exit(struct di_ch_s *pch);
+void q32_ch_int(struct di_ch_s *pch);
+void pp_buf_clear(struct di_buf_s *buff);
 
 void dim_print_hf(struct hf_info_t *phf);
 void mtask_wake_m(void);
@@ -528,6 +536,7 @@ void di_pre_size_change(unsigned short width,
 void dim_nr_ds_hw_ctrl(bool enable);
 void config_di_cnt_mif(struct DI_SIM_MIF_S *di_cnt_mif,
 			      struct di_buf_s *di_buf);
+void dimh_nr_disable_set(bool set);
 #ifdef S4D_OLD_SETTING_KEEP
 void config_canvas_idx_mtn(struct di_buf_s *di_buf,
 				  int mtn_canvas_idx);

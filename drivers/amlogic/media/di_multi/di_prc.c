@@ -6174,6 +6174,7 @@ bool dip_prob(void)
 		bufq_mem_int(pch);
 		bufq_pat_int(pch);
 		bufq_iat_int(pch);
+		q32_ch_int(pch); /* dbg only ?*/
 	}
 
 	di_cfgx_init_val();
@@ -6214,6 +6215,7 @@ void dip_exit(void)
 		bufq_ndis_exit(pch);
 		ndrd_exit(pch);
 		npst_exit(pch);
+		q32_ch_exit(pch);
 	}
 	dim_release_canvas();
 //	dip_wq_ext();
@@ -6314,6 +6316,245 @@ void cvsi_cfg(struct dim_cvsi_s	*pcvsi)
 	}
 }
 
+/************************************************
+ * q32
+ ************************************************/
+void q32_ch_exit(struct di_ch_s *pch)
+{
+	int i;
+
+	if (!pch)
+		return;
+
+	for (i = 0; i < DIM_Q_NUB; i++) {
+		if (pch->flg_fifo32[i])
+			kfifo_free(&pch->fifo32[i]);
+		pch->flg_fifo32[i] = 0;
+		PR_INF("%s:\n", __func__);
+	}
+}
+
+void q32_ch_int(struct di_ch_s *pch)
+{
+	int i;
+	int ret;
+
+	if (!pch)
+		return;
+
+	for (i = 0; i < DIM_Q_NUB; i++) {
+		if (i < DIM_Q8_NUB)
+			ret = UFI8_ALLOC(&pch->fifo32[i]);
+		else if (i < DIM_Q8_NUB + DIM_Q16_NUB)
+			ret = UFI16_ALLOC(&pch->fifo32[i]);
+		else if (i < DIM_Q8_NUB + DIM_Q16_NUB + DIM_Q32_NUB)
+			ret = UFI32_ALLOC(&pch->fifo32[i]);
+		else
+			ret = UFI64_ALLOC(&pch->fifo32[i]);
+
+		if (ret < 0) {
+			PR_ERR("%s:%d:can't get kfifo\n", __func__, i);
+			goto q32_int_err;
+		}
+		kfifo_reset(&pch->fifo32[i]);
+		pch->flg_fifo32[i] = 1;
+	}
+	return;
+
+q32_int_err:
+	q32_ch_exit(pch);
+	PR_INF("%s:err\n", __func__);
+}
+
+static struct di_buf_s *q32_get(struct di_ch_s *pch, unsigned int qtype)
+{
+	int ret;
+	unsigned char val;
+	struct di_buf_s *di_buf = NULL;
+
+	if (!pch)
+		return NULL;
+	if (qtype >= DIM_Q_NUB) {
+		PR_ERR("%s:overflow:%d:%d\n", __func__, qtype, DIM_Q_NUB);
+		return NULL;
+	}
+	if (kfifo_is_empty(&pch->fifo32[qtype]))
+		return NULL;
+	ret = kfifo_get(&pch->fifo32[qtype], &val);
+	if (ret != 1) {
+		PR_ERR("%s:get nothing?\n", __func__);
+		return NULL;
+	}
+	if (qtype == EDIM_QID_LMEM) { /* local */
+		if (val >= MAX_LOCAL_BUF_NUM_REAL) {/* */
+			PR_ERR("%s:val overflow:%d:%d\n",
+				__func__, val, MAX_LOCAL_BUF_NUM_REAL);
+			return NULL;
+		}
+		di_buf = &pch->rse_ori.di_buf_local[val];
+	}
+
+	return di_buf;
+}
+
+static struct di_buf_s *q32_peek(struct di_ch_s *pch, unsigned int qtype)
+{
+	int ret;
+	unsigned char val;
+	struct di_buf_s *di_buf = NULL;
+
+	if (!pch)
+		return NULL;
+	if (qtype >= DIM_Q_NUB) {
+		PR_ERR("%s:overflow:%d:%d\n", __func__, qtype, DIM_Q_NUB);
+		return NULL;
+	}
+
+	if (kfifo_is_empty(&pch->fifo32[qtype]))
+		return NULL;
+
+	ret = kfifo_peek(&pch->fifo32[qtype], &val);
+
+	if (ret != 1) {
+		PR_ERR("%s:get nothing?\n", __func__);
+		return NULL;
+	}
+	if (qtype == EDIM_QID_LMEM) { /* local */
+		if (val >= MAX_LOCAL_BUF_NUM_REAL) {/* */
+			PR_ERR("%s:val overflow:%d:%d\n",
+				__func__, val, MAX_LOCAL_BUF_NUM_REAL);
+			return NULL;
+		}
+		di_buf = &pch->rse_ori.di_buf_local[val];
+	}
+
+	return di_buf;
+}
+
+static bool q32_put(struct di_ch_s *pch,
+	     unsigned int qtype,
+	     struct di_buf_s *di_buf)
+{
+	unsigned char dd;
+	int ret;
+
+	if (!pch || !di_buf) {
+		PR_ERR("%s:null?\n", __func__);
+		return false;
+	}
+	if (qtype >= DIM_Q_NUB) {
+		PR_ERR("%s:overflow:%d:%d\n", __func__, qtype, DIM_Q_NUB);
+		return false;
+	}
+	if (kfifo_is_full(&pch->fifo32[qtype])) {
+		PR_ERR("%s:full:%d\n", __func__, qtype);
+		return false;
+	}
+
+	/* check */
+	dd = (unsigned char)di_buf->index;
+	if (qtype == EDIM_QID_LMEM) { /* local */
+		if (di_buf != &pch->rse_ori.di_buf_local[dd]) {
+			/* check index */
+			PR_ERR("%s:idex err:%d:0x%px,0x%px\n",
+				__func__, dd,
+				di_buf,
+				&pch->rse_ori.di_buf_local[dd]);
+			pch->err++;
+			return false;
+		}
+	}
+	ret = kfifo_put(&pch->fifo32[qtype], dd);
+
+	if (ret != 1) {
+		PR_ERR("%s:put q[%d][%d]\n",
+			__func__,
+			qtype, (unsigned int)dd);
+		pch->err++;
+		return false;
+	}
+	return true;
+}
+
+void q32_rst(struct di_ch_s *pch, unsigned int qtype)
+{
+	if (!pch) {
+		PR_ERR("%s:null?\n", __func__);
+		return;
+	}
+	if (qtype >= DIM_Q_NUB) {
+		PR_ERR("%s:overflow:%d:%d\n", __func__, qtype, DIM_Q_NUB);
+		return;
+	}
+	kfifo_reset(&pch->fifo32[qtype]);
+}
+
+void di_q_unreg(struct di_ch_s *pch)
+{
+	unsigned int cnt;
+
+	if (!pch)
+		return;
+	/* mem */
+	cnt = kfifo_len(&pch->fifo32[EDIM_QID_LMEM]);
+	if (cnt) {
+		PR_WARN("%s:mem nub:%d\n", __func__, cnt);
+		kfifo_reset(&pch->fifo32[EDIM_QID_LMEM]);
+	}
+}
+
+void di_buf_mem_save(struct di_ch_s *pch, struct di_buf_s *di_buf)
+{
+	q32_put(pch, EDIM_QID_LMEM, di_buf);
+}
+
+void di_buf_mem_clear(struct di_ch_s *pch)
+{
+	unsigned int cnt;
+	int i;
+	struct di_buf_s *di_buf = NULL;
+
+	if (!pch)
+		return;
+	if (kfifo_is_empty(&pch->fifo32[EDIM_QID_LMEM]))
+		return;
+	cnt = kfifo_len(&pch->fifo32[EDIM_QID_LMEM]);
+
+	for (i = 0; i < cnt; i++) {
+		di_buf = q32_peek(pch, EDIM_QID_LMEM);
+		if (!di_buf)
+			break;
+		if (di_buf->queue_index != -1)
+			break;
+		di_buf = q32_get(pch, EDIM_QID_LMEM);
+
+		if (!di_buf) {
+			PR_WARN("%s:nobuf?\n", __func__);
+			break;
+		}
+		if (di_buf->queue_index != -1) {
+			PR_WARN("%s:peek is diff\n", __func__);
+			q32_put(pch, EDIM_QID_LMEM, di_buf);
+			break;
+		}
+		pp_buf_clear(di_buf);
+		di_que_in(pch->ch_id, QUE_PRE_NO_BUF,
+			  di_buf);
+	}
+	cnt = kfifo_len(&pch->fifo32[EDIM_QID_LMEM]);
+	if (cnt > 0)
+		PR_WARN("%s:%d\n", "mem_buf", cnt);
+}
+
+unsigned int di_buf_mem_get_nub(struct di_ch_s *pch)
+{
+	unsigned int len;
+
+	if (!pch)
+		return 0;
+	len = kfifo_len(&pch->fifo32[EDIM_QID_LMEM]);
+	return len;
+}
 bool dim_check_exit_process(void)
 {
 	unsigned int ch;

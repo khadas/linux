@@ -100,6 +100,13 @@
 #endif
 //#define ENABLE_SPIN_LOCK_ALWAYS
 
+/* move above */
+/* debug only for fg */
+static bool dim_trig_fg;
+module_param_named(dim_trig_fg, dim_trig_fg, bool, 0664);
+
+static bool fg_bypass;
+
 #undef module_param
 #define module_param(x...)
 #undef module_param_named
@@ -1523,10 +1530,6 @@ static int trick_mode;
 
 static unsigned int dim_bypass_check(struct vframe_s *vf);
 //---------------------
-//dbg only for fg:
-static bool dim_trig_fg;
-module_param_named(dim_trig_fg, dim_trig_fg, bool, 0664);
-static bool fg_bypass;
 
 unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 {
@@ -1569,6 +1572,7 @@ unsigned char dim_is_bypass(vframe_t *vf_in, unsigned int ch)
 
 	if (!reason	&&
 	    vf_in	&&
+	    get_datal()->fg_bypass_en	&&
 	    (vf_in->fgs_valid	||
 	     ppre->is_bypass_fg	||
 	     dim_trig_fg)) {
@@ -1654,7 +1658,9 @@ unsigned int is_bypass2(struct vframe_s *vf_in, unsigned int ch)
 		reason = 0x87;
 		goto tag_bypass;
 	}
-	if (vf_in->fgs_valid) {
+
+	if (get_datal()->fg_bypass_en &&
+	    vf_in->fgs_valid) {
 		reason = 0x8b;
 		goto tag_bypass;
 	}
@@ -3867,7 +3873,8 @@ void dim_pre_de_process(unsigned int channel)
 		ppre->input_size_change_flag = false;
 		dbg_reg("%s:input_size_change\n", __func__);
 	}
-
+	if (ppre->is_disable_nr)
+		dimh_nr_disable_set(true);
 	if (DIM_IS_IC_EF(SC2)) {
 		sc2_pre_cfg = &get_hw_pre()->pre_top_cfg;
 		if (sc2_pre_cfg->d32 != ppre->pre_top_cfg.d32) {
@@ -3906,7 +3913,10 @@ void dim_pre_de_process(unsigned int channel)
 			ppre->is_bypass_mem |= 0x02;
 		else
 			ppre->is_bypass_mem &= ~0x02;
-
+		if (ppre->is_disable_nr)
+			ppre->is_bypass_mem |= DI_BIT2;
+		else
+			ppre->is_bypass_mem &= ~DI_BIT2;
 		if (ppre->is_bypass_mem)
 			ppre->di_wr_buf->is_bypass_mem = 1;
 		else
@@ -4133,7 +4143,7 @@ static void top_bot_config(struct di_buf_s *di_buf)
 	}
 }
 
-static void pp_buf_clear(struct di_buf_s *buff);
+//static void pp_buf_clear(struct di_buf_s *buff);
 
 void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 {
@@ -4292,35 +4302,36 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 		if (ppre->prog_proc_type == 0x10) {
 			ppre->di_mem_buf_dup_p->pre_ref_count = 0;
 			/*recycle the progress throw buffer*/
+			if (ppre->is_disable_nr)
+				dimh_nr_disable_set(false);
 
 			if (ppre->di_wr_buf->throw_flag) {
 				ppre->di_wr_buf->pre_ref_count = 0;
 				ppre->di_mem_buf_dup_p = NULL;
-
+#ifdef	_HIS_FG_
 			} else if (ppre->di_wr_buf->is_bypass_mem) {
 				di_que_in(channel, QUE_PRE_READY,
 					  ppre->di_wr_buf);
 				ppre->di_mem_buf_dup_p = NULL;
 				dim_print("mem bypass\n");
+#endif
 			} else {
-				#ifdef HOLD_ONE_FRAME
-				if (ppre->di_mem_buf_dup_p->flg_nr) {
-					di_que_in(channel, QUE_PRE_READY,
-						  ppre->di_mem_buf_dup_p);
-				}
-				ppre->di_mem_buf_dup_p = ppre->di_wr_buf;
-				#else
 				/* clear mem ref */
 				if (ppre->di_mem_buf_dup_p->flg_nr) {
 					p_ref_set_buf(ppre->di_mem_buf_dup_p,
 						      0, 0, 0);
+					#ifdef	_HIS_FG_
 					pp_buf_clear(ppre->di_mem_buf_dup_p);
 					di_que_in(channel, QUE_PRE_NO_BUF,
 						  ppre->di_mem_buf_dup_p);
+					#else
+					di_buf_mem_save(pch, ppre->di_mem_buf_dup_p);
+					#endif
 				}
 
 				ppre->di_mem_buf_dup_p = ppre->di_wr_buf;
-				p_ref_set_buf(ppre->di_mem_buf_dup_p, 1, 0, 1);
+				if (!ppre->di_wr_buf->is_bypass_mem)
+					p_ref_set_buf(ppre->di_mem_buf_dup_p, 1, 0, 1);
 				di_que_in(channel, QUE_PRE_READY,
 						  ppre->di_wr_buf);
 				if (dimp_get(edi_mp_pstcrc_ctrl) == 1) {
@@ -4336,8 +4347,6 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 								   0x1, 31, 1);
 					}
 				}
-
-				#endif
 			}
 
 			ppre->di_wr_buf->seq = ppre->pre_ready_seq++;
@@ -4598,6 +4607,9 @@ static void add_dummy_vframe_type_pre(struct di_buf_s *src_buf,
 				  di_buf_tmp->index);
 			#endif
 		}
+		dbg_reg("%s\n", "insert dummy");
+	} else {
+		PR_WARN("%s:no local free?\n", __func__);
 	}
 }
 
@@ -4912,7 +4924,8 @@ static void pp_buf_cp(struct di_buf_s *buft, struct di_buf_s *buff)
 	buft->buf_hsize	= buff->buf_hsize;
 }
 
-static void pp_buf_clear(struct di_buf_s *buff)
+//static
+void pp_buf_clear(struct di_buf_s *buff)
 {
 	if (!buff) {
 		PR_ERR("%s:no buffer\n", __func__);
@@ -5601,6 +5614,13 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		di_buf->c.in = nins;
 		//dbg_nins_log_buf(di_buf, 1);
+		/* fg for t5dvb */
+		if (!get_datal()->fg_bypass_en	&&
+		    VFMT_IS_P(vframe->type)		&&
+		    (vframe->fgs_valid || dim_trig_fg))
+			ppre->is_disable_nr = true;
+		else
+			ppre->is_disable_nr = false;
 
 		di_buf->seq = ppre->in_seq;
 		ppre->in_seq++;
@@ -5715,11 +5735,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				ppre->di_chan2_buf_dup_p = NULL;
 			}
 
-			PR_INF("%s:ch[%d]:%ums %dth source change:\n",
+			PR_INF("%s:ch[%d]:%ums %dth source change:%d\n",
 			       "pre cfg",
 			       channel,
 			       jiffies_to_msecs(jiffies_64),
-			       ppre->in_seq);
+			       ppre->in_seq,
+			       di_buf->vframe->index_disp);
 			PR_INF("source change:0x%x/%d/%d/%d=>0x%x/%d/%d/%d\n",
 			       ppre->cur_inp_type,
 			       ppre->cur_width,
@@ -5918,15 +5939,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				/*clear last p buf eos */
 				ppre->di_mem_buf_dup_p->pre_ref_count = 0;
 				ppre->di_mem_buf_dup_p->is_lastp = 1;
-				#ifdef HOLD_ONE_FRAME
-				di_que_in(channel, QUE_PRE_READY,
-					  ppre->di_mem_buf_dup_p);
-				#else
+
 				p_ref_set_buf(ppre->di_mem_buf_dup_p, 0, 0, 4);
 				pp_buf_clear(ppre->di_mem_buf_dup_p);
 				di_que_in(channel, QUE_PRE_NO_BUF,
 					  ppre->di_mem_buf_dup_p);
-				#endif
+
 				ppre->di_mem_buf_dup_p = NULL;
 				PR_INF("p to bypass, push mem\n");
 			/*********************************/
@@ -6595,8 +6613,8 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 
 		return 24;
 	}
-
-	di_load_pq_table();
+	if (!ppre->is_disable_nr)
+		di_load_pq_table();
 
 	if (is_meson_tl1_cpu()			&&
 	    ppre->comb_mode			&&
@@ -9879,15 +9897,15 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 			}
 			di_buf->flg_nv21 = di_buf_i->flg_nv21;
 			pp_drop_frame(di_buf, channel);
-			#ifdef HOLD_ONE_FRAME
-			di_que_in(channel, QUE_PRE_NO_BUF, ready_di_buf); //mark
-			#else
+#ifdef _HIS_FG_
 			if (ready_di_buf->is_bypass_mem) {
 				pp_buf_clear(ready_di_buf);
 				di_que_in(channel, QUE_PRE_NO_BUF,
 					  ready_di_buf);
 			}
-			#endif
+#endif
+			di_buf_mem_clear(pch); //07-13
+
 			frame_count++;
 
 			ret = 1;
@@ -10414,13 +10432,6 @@ void di_unreg_variable(unsigned int channel)
 	struct div2_mm_s *mm = dim_mm_get(channel);
 	struct di_mtask *tsk = get_mtask();
 
-#if (defined ENABLE_SPIN_LOCK_ALWAYS)
-//	ulong flags = 0;
-#endif
-
-#if (defined ENABLE_SPIN_LOCK_ALWAYS)
-//ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
-#endif
 	dbg_reg("%s:\n", __func__);
 	if (get_datal()->dct_op)
 		get_datal()->dct_op->unreg(pch);
@@ -10437,15 +10448,14 @@ void di_unreg_variable(unsigned int channel)
 		pp_buf_clear(ppre->di_mem_buf_dup_p);
 		di_que_in(channel, QUE_PRE_NO_BUF, ppre->di_mem_buf_dup_p);
 	}
-
+	di_q_unreg(pch);
 	dim_recycle_post_back(channel);// ?
 	/*mirror_disable = get_blackout_policy();*/
 	if ((cfgg(KEEP_CLEAR_AUTO) == 2) || dip_itf_is_ins_exbuf(pch))
 		mirror_disable = 1;
 	else
 		mirror_disable = 0;
-//ary 2020-12-09	di_lock_irqfiq_save(irq_flag2);
-	//dim_print("%s: dim_uninit_buf\n", __func__);
+
 	pch->src_type = 0;
 	pch->ponly	= 0;
 	dim_uninit_buf(mirror_disable, channel);
@@ -10456,11 +10466,6 @@ void di_unreg_variable(unsigned int channel)
 #endif
 	get_ops_mtn()->adpative_combing_exit();
 
-//ary 2020-12-09	di_unlock_irqfiq_restore(irq_flag2);
-
-#if (defined ENABLE_SPIN_LOCK_ALWAYS)
-//	spin_unlock_irqrestore(&plist_lock, flags);
-#endif
 	dimh_patch_post_update_mc_sw(DI_MC_SW_REG, false);
 	sct_sw_off(pch);
 
@@ -11414,6 +11419,12 @@ void dim_set_di_flag(void)
 		di_cfg_set(ECFG_DIM_BYPASS_P, 0);//for t5 enable p
 
 	get_ops_mtn()->mtn_int_combing_glbmot();
+
+	if (DIM_IS_IC(T5DB))
+		get_datal()->fg_bypass_en = false;
+	else
+		get_datal()->fg_bypass_en = true;
+	dbg_reg("%s:fg_bypass_en:%d\n", __func__, get_datal()->fg_bypass_en);
 }
 
 #ifdef MARK_HIS	/*move to di_sys.c*/

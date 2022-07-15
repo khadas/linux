@@ -104,7 +104,7 @@
 
 #define DIM_KEEP_NONE	(0xfffffff0)
 
-#define DIM_S4DW_REG_BACK_NUB	5
+#define DIM_NRDIS_REG_BACK_NUB	5
 enum EDI_MEM_M {
 	EDI_MEM_M_REV = 0,
 	EDI_MEM_M_CMA = 1,
@@ -888,6 +888,25 @@ enum EDI_BUF_TYPE {
 	EDI_BUF_T_POST,		/*VFRAME_TYPE_POST*/
 };
 
+/**************************************/
+enum EDIM_QID {
+	/*8*/
+	EDIM_QID_LMEM,
+	/*16*/
+	EDIM_QID_TST16,
+	/*32*/
+	EDIM_QID_TST32,
+	/*64*/
+	EDIM_QID_TST64,
+};
+
+/* ref to EDIM_QID */
+#define DIM_Q_NUB	(4)
+#define DIM_Q8_NUB	(1)
+#define DIM_Q16_NUB	(1)
+#define DIM_Q32_NUB	(1)
+#define DIM_Q64_NUB	(1)
+
 #define MAX_FIFO_SIZE	(32)
 
 /**************************************
@@ -1244,7 +1263,7 @@ struct di_ores_s {
 	struct di_pre_stru_s di_pre_stru;
 	struct di_post_stru_s di_post_stru;
 
-	struct di_buf_s di_buf_local[MAX_LOCAL_BUF_NUM * 2];
+	struct di_buf_s di_buf_local[MAX_LOCAL_BUF_NUM_REAL];
 	struct di_buf_s di_buf_in[MAX_IN_BUF_NUM];
 	struct di_buf_s di_buf_post[MAX_POST_BUF_NUM];
 
@@ -1253,7 +1272,7 @@ struct di_ores_s {
 
 	struct vframe_s *vframe_in[MAX_IN_BUF_NUM];
 	struct vframe_s vframe_in_dup[MAX_IN_BUF_NUM];
-	struct vframe_s vframe_local[MAX_LOCAL_BUF_NUM * 2];
+	struct vframe_s vframe_local[MAX_LOCAL_BUF_NUM_REAL];
 	struct vframe_s vframe_post[MAX_POST_BUF_NUM];
 	/* ********** */
 	struct di_dat_s	dat_i;
@@ -1994,6 +2013,9 @@ struct di_ch_s {
 	bool en_dw;
 	bool en_dw_mem;
 	unsigned int last_bypass;
+	struct kfifo	fifo32[DIM_Q_NUB];
+	bool flg_fifo32[DIM_Q_NUB];
+	unsigned int err;
 };
 
 struct dim_policy_s {
@@ -2640,7 +2662,7 @@ struct di_data_l_s {
 	unsigned char hf_owner;	//
 	bool	hf_busy;//
 	unsigned int ic_sub_ver;
-	struct reg_t s4dw_reg[DIM_S4DW_REG_BACK_NUB];
+	struct reg_t s4dw_reg[DIM_NRDIS_REG_BACK_NUB];
 	void *mng_hf_buf;
 	struct dim_dvs_prevpp_s dvs_prevpp;
 	atomic_t	state_cnt_reg;
@@ -2648,6 +2670,7 @@ struct di_data_l_s {
 	bool	pre_vpp_exist;	/* interface */
 	bool	pre_vpp_active; /* interface sw multi wr bypass contr */
 	bool	pre_vpp_set;	/* interface sw other multi wr */
+	bool	fg_bypass_en; /* for t5dvb fg */
 };
 
 /**************************************

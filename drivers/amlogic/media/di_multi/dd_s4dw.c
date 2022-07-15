@@ -1668,57 +1668,6 @@ static unsigned char s4dw_pre_buf_config(struct di_ch_s *pch)
 	return 0; /*ok*/
 }
 
-static void s4dw_dbg_reg(void)
-{
-#ifdef DBG_BUFFER_FLOW
-	int i;
-	struct reg_t *preg;
-
-	if (!dbg_flow())
-		return;
-	preg = &get_datal()->s4dw_reg[0];
-	for (i = 0; i < DIM_S4DW_REG_BACK_NUB; i++) {
-		if (!(preg + i)->add)
-			break;
-		PR_INF("special:0x%x=0x%x\n",
-			(preg + i)->add, (preg + i)->df_val);
-	}
-#endif /*DBG_BUFFER_FLOW*/
-}
-
-static void s4dw_reg_special_set(bool set)
-{
-	int i;
-	struct reg_t *preg;
-
-	preg = &get_datal()->s4dw_reg[0];
-
-	if (set) {
-		//save old data and set new value;
-		i = 0;
-		(preg + i)->add = DNR_CTRL;
-		(preg + i)->df_val = RD(DNR_CTRL);
-		DIM_DI_WR(DNR_CTRL, 0x0);
-		i++;
-		(preg + i)->add = NR4_TOP_CTRL;
-		(preg + i)->df_val = RD(NR4_TOP_CTRL);
-		DIM_DI_WR(NR4_TOP_CTRL, 0x3e03c);
-		i++;
-		for (; i < DIM_S4DW_REG_BACK_NUB; i++)
-			(preg + i)->add = 0;
-
-		s4dw_dbg_reg();
-		return;
-	}
-
-	/* reset: set old data */
-	for (i = 0; i < DIM_S4DW_REG_BACK_NUB; i++) {
-		if (!(preg + i)->add)
-			break;
-		DIM_DI_WR((preg + i)->add, (preg + i)->df_val);
-	}
-}
-
 void s4dw_hpre_check_pps(void)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
@@ -2176,7 +2125,7 @@ static void s4dw_pre_set(unsigned int channel)
 					      ppre->mcdi_enable);
 	}
 #endif
-	s4dw_reg_special_set(true);
+	dimh_nr_disable_set(true);
 	ppre->field_count_for_cont++;
 
 	if (ppre->field_count_for_cont >= 5)
@@ -2238,7 +2187,7 @@ static void s4dw_done_config(unsigned int channel, bool flg_timeout)
 	dim_dbg_pre_cnt(channel, "d1");
 	dim_ddbg_mod_save(EDI_DBG_MOD_PRE_DONEB, channel, ppre->in_seq);/*dbg*/
 	pch = get_chdata(channel);
-	s4dw_reg_special_set(false);
+	dimh_nr_disable_set(false);
 	if (!ppre->di_wr_buf || !ppre->di_inp_buf) {
 		PR_ERR("%s:no key buffer? 0x%px,0x%px\n",
 		       __func__, ppre->di_wr_buf, ppre->di_inp_buf);

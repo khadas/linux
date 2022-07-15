@@ -980,7 +980,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	static bool last_disable_chan2; //dbg only
 
 	if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB)) {
-		mem_bypass = (pre_vdin_link & 0x30) ? true : false;
+		mem_bypass = (pre_vdin_link & 0xf0) ? true : false;
 		chan2_disable = ppre->is_disable_chan2;
 	}
 
@@ -4795,6 +4795,12 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 	PR_INF("load 0x%x pq table len %u.\n",
 	       di_pq_ptr->pq_parm.table_name,
 	       di_pq_ptr->pq_parm.table_len);
+	/* check len for coverity */
+	if (di_pq_ptr->pq_parm.table_len  >= DIMTABLE_LEN_MAX) {
+		PR_WARN("%s:len overflow:%d\n", __func__,
+			di_pq_ptr->pq_parm.table_len);
+		return;
+	}
 	nr_table = TABLE_NAME_NR | TABLE_NAME_DEBLOCK | TABLE_NAME_DEMOSQUITO;
 	regs_p = (struct am_reg_s *)di_pq_ptr->regs;
 	len = di_pq_ptr->pq_parm.table_len;
@@ -4835,6 +4841,57 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		if (dimp_get(edi_mp_pq_load_dbg) == 2)
 			pr_info("[%u][0x%x] = [0x%x] %s\n", i, addr,
 				value, RD(addr) != value ? "fail" : "success");
+	}
+}
+
+static void dbg_nr_reg(void)
+{
+#ifdef DBG_BUFFER_FLOW
+	int i;
+	struct reg_t *preg;
+
+	if (!dbg_flow())
+		return;
+	preg = &get_datal()->s4dw_reg[0];
+	for (i = 0; i < DIM_NRDIS_REG_BACK_NUB; i++) {
+		if (!(preg + i)->add)
+			break;
+		PR_INF("special:0x%x=0x%x\n",
+			(preg + i)->add, (preg + i)->df_val);
+	}
+#endif /*DBG_BUFFER_FLOW*/
+}
+
+void dimh_nr_disable_set(bool set)
+{
+	int i;
+	struct reg_t *preg;
+
+	preg = &get_datal()->s4dw_reg[0];
+
+	if (set) {
+		//save old data and set new value;
+		i = 0;
+		(preg + i)->add = DNR_CTRL;
+		(preg + i)->df_val = RD(DNR_CTRL);
+		DIM_DI_WR(DNR_CTRL, 0x0);
+		i++;
+		(preg + i)->add = NR4_TOP_CTRL;
+		(preg + i)->df_val = RD(NR4_TOP_CTRL);
+		DIM_DI_WR(NR4_TOP_CTRL, 0x3e03c);
+		i++;
+		for (; i < DIM_NRDIS_REG_BACK_NUB; i++)
+			(preg + i)->add = 0;
+
+		dbg_nr_reg();
+		return;
+	}
+
+	/* reset: set old data */
+	for (i = 0; i < DIM_NRDIS_REG_BACK_NUB; i++) {
+		if (!(preg + i)->add)
+			break;
+		DIM_DI_WR((preg + i)->add, (preg + i)->df_val);
 	}
 }
 
