@@ -30,9 +30,9 @@
 #ifdef VF_LOG_EN
 
 #define VF_LOG_LEN		 200
-/* only log frontend opertations */
+/* only log frontend operations */
 #define VF_LOG_FE
-/* only log backend opertations */
+/* only log backend operations */
 #define VF_LOG_BE
 
 #define VDIN_DV_MAX_NUM		        9

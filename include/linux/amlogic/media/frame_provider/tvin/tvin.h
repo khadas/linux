@@ -548,8 +548,8 @@ bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
 #define TVIN_IOC_VF_UNREG           _IO(_TM_T, 0x44)
 #define TVIN_IOC_FREEZE_VF          _IO(_TM_T, 0x45)
 #define TVIN_IOC_UNFREEZE_VF        _IO(_TM_T, 0x46)
-#define TVIN_IOC_SNOWON             _IO(_TM_T, 0x47)
-#define TVIN_IOC_SNOWOFF            _IO(_TM_T, 0x48)
+#define TVIN_IOC_SNOW_ON             _IO(_TM_T, 0x47)
+#define TVIN_IOC_SNOW_OFF            _IO(_TM_T, 0x48)
 #define TVIN_IOC_GET_COLOR_RANGE	_IOR(_TM_T, 0X49,\
 	enum tvin_force_color_range_e)
 #define TVIN_IOC_SET_COLOR_RANGE	_IOW(_TM_T, 0X4a,\

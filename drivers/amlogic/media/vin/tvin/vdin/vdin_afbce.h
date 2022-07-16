@@ -49,15 +49,15 @@
 
 #define AFBCE_SIZE_IN  0x41a2
 //Bit   31:29,    reserved
-//Bit   28:16     hsize_in  default = 1920,pic horz size in.unit: pixel
+//Bit   28:16     hsize_in  default = 1920,pic horizontal size in.unit: pixel
 //Bit   15:13,    reserved
-//Bit   12:0,     vsize_in  default = 1080,pic vert size in.unit: pixel
+//Bit   12:0,     vsize_in  default = 1080,pic vertical size in.unit: pixel
 
 #define AFBCE_BLK_SIZE_IN   0x41a3
 //Bit   31:29,    reserved
-//Bit   28:16     hblk_size default = 60 , pic horz size in.unit: pixel
+//Bit   28:16     h_blk_size default = 60 , pic horizontal size in.unit: pixel
 //Bit   15:13,    reserved
-//Bit   12:0,     vblk_size default = 270, pic vert size in.unit: pixel
+//Bit   12:0,     v_blk_size default = 270, pic vertical size in.unit: pixel
 
 #define AFBCE_HEAD_BADDR    0x41a4
 //Bit   31:0,   head_baddr         unsigned, default = 32'h00;
@@ -68,7 +68,7 @@
 //Bit   27,     reserved
 //Bit   26:24,  cmd_blk_size       unsigned, default = 32'h128;
 //Bit   23:21,  reserved
-//Bit   20:16,  uncmp_size         unsigned, default = 32'h128;
+//Bit   20:16,  uncompress_size    unsigned, default = 32'h128;
 //Bit   15:13,  reserved
 //Bit   12:0,   mmu_page_size      unsigned, default = 32'h4096;
 
@@ -117,26 +117,26 @@
 //  input is with yuv422 instead of 444. 0: yuv444/yuv420; 1:yuv422
 //Bit  8           reg_inp_420  default = 1
 //  input is with yuv420 instead of 444. 0: yuv444/yuv422; 1:yuv420
-//Bit  7: 4        reg_bly      default = 10  luma bitwidth
+//Bit  7: 4        reg_bly      default = 10  luminance bitwidth
 //Bit  3: 0        reg_blc      default = 10  chroma bitwidth
 
 #define AFBCE_MODE_EN               0x41ae
 //Bit 31:28        reserved
 //Bit 27:26        reserved
-//Bit 25           reg_adpt_interleave_ymode
+//Bit 25           reg_adpt_interleave_y_mode
 //  RW, default = 0  force 0 to disable it: no  HW implementation
-//Bit 24           reg_adpt_interleave_cmode
+//Bit 24           reg_adpt_interleave_c_mode
 //  RW, default = 0  force 0 to disable it: not HW implementation
-//Bit 23           reg_adpt_yinterleave_luma_ride
+//Bit 23           reg_adpt_y_interleave_luma_ride
 //  RW, default = 1  vertical interleave piece luma reorder ride;
 //  0: no reorder ride; 1: w/4 as ride
-//Bit 22           reg_adpt_yinterleave_chrm_ride
+//Bit 22           reg_adpt_y_interleave_chrm_ride
 //  RW, default = 1  vertical interleave piece chroma reorder ride;
 //  0: no reorder ride; 1: w/2 as ride
-//Bit 21           reg_adpt_xinterleave_luma_ride
+//Bit 21           reg_adpt_x_interleave_luma_ride
 //  RW, default = 1  vertical interleave piece luma reorder ride;
 //  0: no reorder ride; 1: w/4 as ride
-//Bit 20           reg_adpt_xinterleave_chrm_ride
+//Bit 20           reg_adpt_x_interleave_chrm_ride
 //  RW, default = 1  vertical interleave piece chroma reorder ride;
 //  0: no reorder ride; 1: w/2 as ride
 //Bit 19            reserved
@@ -162,7 +162,7 @@
 //  RW, default = 0  disable order mode0~6: each mode with one
 //  disable bit: 0: no disable, 1: disable
 //Bit 11            reserved
-//Bit 10           reg_minval_yenc_en
+//Bit 10           reg_min_val_y_enc_en
 //  RW, default = 0  force disable,
 //  final decision to remove this ws 1% performance loss
 //Bit  9           reg_16x4block_enable
@@ -173,8 +173,8 @@
 //Bit  5           reg_input_padding_uv128
 //  RW, default = 0  input picture 32x4
 //  block gap mode: 0:  pad uv=0; 1: pad uv=128
-//Bit  4           reg_dwds_padding_uv128
-//  RW, default = 0  downsampled image for double write 32x gap mode
+//Bit  4           reg_dw_ds_padding_uv128
+//  RW, default = 0  down sampled image for double write 32x gap mode
 //  0:  pad uv=0; 1: pad uv=128
 //Bit  3: 1        reg_force_order_mode_value
 //  RW, default = 0  force order mode 0~7
@@ -182,43 +182,43 @@
 //  RW, default = 0  force order mode enable
 //  0: no force; 1: forced to force_value
 
-#define AFBCE_DWSCALAR      0x41af
+#define AFBCE_DW_SCALAR      0x41af
 //Bit 31: 8        reserved
-//Bit  7: 6        reg_dwscalar_w0
+//Bit  7: 6        reg_dw_scalar_w0
 //  RW, default = 3  horizontal 1st step scalar mode
 //  0: 1:1 no scalar; 1: 2:1 data drop (0,2,4, 6)
 //  pixel kept; 2: 2:1 data drop (1, 3, 5,7..) pixels kept; 3: avg
-//Bit  5: 4        reg_dwscalar_w1
+//Bit  5: 4        reg_dw_scalar_w1
 //  RW, default = 0  horizontal 2nd step scalar mode
 //  0: 1:1 no scalar; 1: 2:1 data drop (0,2,4, 6) pixel kept;
 //  2: 2:1 data drop (1, 3, 5,7..) pixels kept; 3: avg
-//Bit  3: 2        reg_dwscalar_h0
+//Bit  3: 2        reg_dw_scalar_h0
 //  RW, default = 2  vertical 1st step scalar mode
 //  0: 1:1 no scalar; 1: 2:1 data drop (0,2,4, 6) pixel kept
 //  2: 2:1 data drop (1, 3, 5,7..) pixels kept; 3: avg
-//Bit  1: 0        reg_dwscalar_h1
+//Bit  1: 0        reg_dw_scalar_h1
 //  RW, default = 3  vertical 2nd step scalar mode
 //  0: 1:1 no scalar; 1: 2:1 data drop (0,2,4, 6) pixel kept
 //  2: 2:1 data drop (1, 3, 5,7..) pixels kept; 3: avg
 
-#define AFBCE_DEFCOLOR_1    0x41b0
+#define AFBCE_DEF_COLOR_1    0x41b0
 //Bit 31:24        reserved
-//Bit 23:12        reg_enc_defalutcolor_3
+//Bit 23:12        reg_enc_default_color_3
 //  RW, default = 4095  Picture wise default color value in [Y Cb Cr]
-//Bit 11: 0        reg_enc_defalutcolor_0
+//Bit 11: 0        reg_enc_default_color_0
 //  RW, default = 4095  Picture wise default color value in [Y Cb Cr]
 
-#define AFBCE_DEFCOLOR_2    0x41b1
+#define AFBCE_DEF_COLOR_2    0x41b1
 //Bit 31:24        reserved
-//Bit 23:12        reg_enc_defalutcolor_2
+//Bit 23:12        reg_enc_default_color_2
 //  RW, default = 2048  wise default color value in [Y Cb Cr]
-//Bit 11: 0        reg_enc_defalutcolor_1
+//Bit 11: 0        reg_enc_default_color_1
 //  RW, default = 2048  wise default color value in [Y Cb Cr]
 
 #define AFBCE_QUANT_ENABLE     0x41b2
 //Bit 31:10        reserved
-//Bit  9: 8        reg_bcleav_ofst
-//  RW, default = 0  bcleave ofset to get lower range,
+//Bit  9: 8        reg_b_cleave_offset
+//  RW, default = 0  b_cleave offset to get lower range,
 //  especially under lossy, for v1/v2, x=0 is equivalent, default = -1;
 //Bit  7: 5        reserved
 //Bit  4           reg_quant_enable_1
@@ -250,7 +250,7 @@
 #define AFBCE_CLR_FLAG              0x41bd
 //Bit 31:0         reg_afbce_clr_flag  default = 0
 
-#define AFBCE_STA_FLAGT             0x41be
+#define AFBCE_STA_FLAG             0x41be
 //Bit 31:0         ro_afbce_sta_flag   default = 0
 
 #define AFBCE_MMU_NUM               0x41bf
@@ -262,7 +262,7 @@
 //Bit 25:24 reg_sync_sel   default = 0, axi canvas id sync with frm rst
 //Bit 23:16 reg_canvas_id  default = 0, axi canvas id num
 //Bit 15    reserved
-//Bit 14:12 reg_cmd_intr_len
+//Bit 14:12 reg_cmd_interrupt_len
 //  default = 1, interrupt send cmd when how many series axi cmd
 //Bit 11:10 reg_cmd_req_size
 //  default = 1, how many room fifo have,
@@ -305,7 +305,7 @@
 //Bit 31:29 reserved
 //Bit 28:16 reg_y_end  default = 0, the canvas ver end pixel position
 //Bit 15:13 reserved
-//Bit 12: 0 reg_y_start default = 0, the canvas ver start pixel positio
+//Bit 12: 0 reg_y_start default = 0, the canvas ver start pixel position
 
 #define AFBCE_MMU_RMIF_RO_STAT    0x41c6
 
@@ -317,8 +317,8 @@ void vdin_afbce_config(struct vdin_dev_s *devp);
 void vdin_afbce_maptable_init(struct vdin_dev_s *devp);
 void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 			       unsigned int rdma_enable, struct vf_entry *vfe);
-void vdin_afbce_clear_writedown_flag(struct vdin_dev_s *devp);
-int vdin_afbce_read_writedown_flag(void);
+void vdin_afbce_clear_write_down_flag(struct vdin_dev_s *devp);
+int vdin_afbce_read_write_down_flag(void);
 void vdin_afbce_soft_reset(void);
 void vdin_afbce_mode_init(struct vdin_dev_s *devp);
 void vdin_afbce_mode_update(struct vdin_dev_s *devp);

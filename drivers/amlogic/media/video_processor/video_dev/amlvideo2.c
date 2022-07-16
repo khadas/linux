@@ -5172,10 +5172,10 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 		output_axis_adjust(vinfo->width, vinfo->height, (int *)&dst_w,
 				   (int *)&dst_h, 0, NULL);
 	}
-	para.dest_hactive = dst_w;
-	para.dest_vactive = dst_h;
+	para.dest_h_active = dst_w;
+	para.dest_v_active = dst_h;
 	if (para.scan_mode == TVIN_SCAN_MODE_INTERLACED)
-		para.dest_vactive = para.dest_vactive / 2;
+		para.dest_v_active = para.dest_v_active / 2;
 
 	if (para.port == TVIN_PORT_VIU1_VIDEO ||
 	    para.port == TVIN_PORT_VIU1_WB0_VD1)
@@ -5187,7 +5187,7 @@ static int amlvideo2_start_tvin_service(struct amlvideo2_node *node)
 		pr_info("para.h_active: %d, para.v_active: %d,",
 			para.h_active, para.v_active);
 		pr_info("para.dest_hactive: %d, para.dest_vactive: %d,",
-			para.dest_hactive, para.dest_vactive);
+			para.dest_h_active, para.dest_v_active);
 		pr_info("fh->width: %d, fh->height: %d,angle=%d\n",
 			fh->width, fh->height, angle);
 		pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
@@ -5479,23 +5479,23 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		output_axis_adjust(vinfo->width, vinfo->height, (int *)&dst_w,
 				   (int *)&dst_h, 0, NULL);
 	}
-	para.dest_hactive = dst_w;
-	para.dest_vactive = dst_h;
+	para.dest_h_active = dst_w;
+	para.dest_v_active = dst_h;
 
 	if (amlvideo2_dest_w != 0)
-		para.dest_hactive = amlvideo2_dest_w;
+		para.dest_h_active = amlvideo2_dest_w;
 
 	if (amlvideo2_dest_h != 0)
-		para.dest_hactive = amlvideo2_dest_h;
+		para.dest_h_active = amlvideo2_dest_h;
 
-	para.reserved |= PARAM_STATE_SCREENCAP;
+	para.reserved |= PARAM_STATE_SCREEN_CAP;
 	if (para.scan_mode == TVIN_SCAN_MODE_INTERLACED)
-		para.dest_vactive = para.dest_vactive / 2;
+		para.dest_v_active = para.dest_v_active / 2;
 	if (para.port == TVIN_PORT_VIU1_VIDEO ||
 	    para.port == TVIN_PORT_VIU1_WB0_VD1) {
 		if (node->ge2d_multi_process_flag) {
-			para.dest_hactive = 384;
-			para.dest_vactive = 216;
+			para.dest_h_active = 384;
+			para.dest_v_active = 216;
 		} else {
 			para.cfmt = 1;
 		}
@@ -5504,7 +5504,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		pr_info("para.h_active: %d, para.v_active: %d,",
 			para.h_active, para.v_active);
 		pr_info("para.dest_hactive: %d, para.dest_vactive: %d,",
-			para.dest_hactive, para.dest_vactive);
+			para.dest_h_active, para.dest_v_active);
 		pr_info("fh->width: %d, fh->height: %d,angle=%d",
 			fh->width, fh->height, angle);
 		pr_info("vinfo->mode: %d,para.scan_mode: %d\n",
@@ -5906,7 +5906,7 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 	int ret;
 	int cma_size = vid_dev->framebuffer_total_size;
 	bool ge2d_multi_process_flag;
-	const char *canvas_owner;
+	const char *canvas_owner = NULL;
 	int page_count;
 
 	if (!vid_dev->use_reserve) {

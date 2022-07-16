@@ -200,7 +200,7 @@ struct tvin_hdr10p_data_s {
 
 /*vdin dolby vsi info param*/
 struct tvin_dv_vsif_s {
-	u8 dobly_vision_signal:1;
+	u8 dolby_vision_signal:1;
 	u8 backlt_ctrl_MD_present:1;
 	u8 auxiliary_MD_present:1;
 	u8 eff_tmax_PQ_hi;

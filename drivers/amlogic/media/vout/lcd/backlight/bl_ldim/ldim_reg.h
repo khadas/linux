@@ -116,8 +116,8 @@
 #define HOVLP_NUM_SEL_WID                    2
 #define LPF_BEFORE_STATISTIC_EN_BIT         20
 #define LPF_BEFORE_STATISTIC_EN_WID          1
-#define BLK_HV_POS_IDXS_BIT                 16
-#define BLK_HV_POS_IDXS_WID                  4
+#define BLK_HV_POS_IDX_BIT                 16
+#define BLK_HV_POS_IDX_WID                  4
 #define RD_INDEX_INC_MODE_BIT               14
 #define RD_INDEX_INC_MODE_WID                2
 #define REGION_RD_SUB_INDEX_BIT              8

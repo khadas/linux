@@ -150,19 +150,19 @@ void vdin_wrmif2_addr_update(struct vdin_dev_s *devp)
 	if (devp->dtdata->hw_ver != VDIN_HW_T7)
 		return;
 
-	baddr = devp->dv.meta_data_raw_pbuff0;
+	baddr = devp->dv.meta_data_raw_p_buffer0;
 	if (!baddr)
-		dprintk(0, "err: meta_data_raw_pbuff0\n");
+		dprintk(0, "err: meta_data_raw_p_buffer0\n");
 	stride_luma = ((hsize * 8) + 511) >> 9;
 
-	/*dprintk(0, "%s baddr:0x%x strid:0x%x\n", __func__,*/
+	/*dprintk(0, "%s baddr:0x%x stride:0x%x\n", __func__,*/
 	/*	baddr, stride_luma);*/
 
 	wr(offset, VDIN2_WR_BADDR_LUMA, baddr >> 4);
 	wr(offset, VDIN2_WR_STRIDE_LUMA, stride_luma << 2);
 }
 
-irqreturn_t vdin_wrmif2_dvmeta_wr_done_isr(int irq, void *dev_id)
+irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
 {
 	/*struct vdin_dev_s *devp = (struct vdin_dev_s *)dev_id;*/
 	irqreturn_t sts = IRQ_HANDLED;
@@ -181,8 +181,8 @@ irqreturn_t vdin_wrmif2_dvmeta_wr_done_isr(int irq, void *dev_id)
 	if (devp->dtdata->hw_ver != VDIN_HW_T7)
 		return sts;
 
-	src_dv_meta_vaddr = devp->dv.meta_data_raw_vbuff0;
-	dst_dv_meta_vaddr = devp->dv.meta_data_raw_buff1;
+	src_dv_meta_vaddr = devp->dv.meta_data_raw_v_buffer0;
+	dst_dv_meta_vaddr = devp->dv.meta_data_raw_buffer1;
 
 	if (IS_ERR_OR_NULL(src_dv_meta_vaddr) ||
 	    IS_ERR_OR_NULL(dst_dv_meta_vaddr)) {
@@ -196,7 +196,7 @@ irqreturn_t vdin_wrmif2_dvmeta_wr_done_isr(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	dma_sync_single_for_device(&devp->this_pdev->dev,
-				   devp->dv.meta_data_raw_pbuff0,
+				   devp->dv.meta_data_raw_p_buffer0,
 				   K_DV_META_RAW_BUFF0,
 				   DMA_TO_DEVICE);
 	/*for debug*/

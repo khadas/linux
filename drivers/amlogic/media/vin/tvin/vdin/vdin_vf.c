@@ -47,7 +47,7 @@ module_param(vf_log_fe, bool, 0664);
 MODULE_PARM_DESC(vf_log_fe, "enable/disable vframe manager log frontend");
 
 module_param(vf_log_be, bool, 0664);
-MODULE_PARM_DESC(vf_log_be, "enable/disable vframe manager log backen");
+MODULE_PARM_DESC(vf_log_be, "enable/disable vframe manager log backend");
 
 unsigned int vf_list_dbg;
 module_param(vf_list_dbg, uint, 0664);
@@ -161,7 +161,7 @@ void vf_log_print(struct vf_pool *p)
 
 	pr_info("%-10s %-10s %-10s %-10s %-10s %-10s %5s\n",
 		"WR_LIST", "RW_MODE", "RD_LIST", "RD_MODE", "WT_LIST",
-		"OPERATIOIN", "TIME");
+		"OPERATION", "TIME");
 
 	for (i = 0; i < log->log_cur; i++) {
 		memset(buf1, 0, sizeof(buf1));
@@ -248,7 +248,7 @@ void isr_log_print(struct vf_pool *p)
 
 	log->isr_log_en = 0;
 	pr_info("%-7s\t%-7s\t%-7s\n",
-		"ID", "ITIME", "OTIME");
+			"ID", "I_TIME", "O_TIME");
 	for (i = 0; i <= log->log_cur; i += 2) {
 		pr_info("%u\t %7ld.%03ld\t%7ld.%03ld\n",
 			i >> 1, (long)log->isr_time[i].tv_sec,
@@ -498,7 +498,7 @@ static inline void vf_pool_put(struct vf_entry *vfe, struct list_head *head)
 }
 
 /*
- * move all vf_entries in tmp list to writable list
+ * move all vf_entry in tmp list to writable list
  */
 void recycle_tmp_vfs(struct vf_pool *p)
 {
@@ -676,7 +676,7 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 	return vfe;
 }
 
-/*check vf point,0:nornal;1:bad*/
+/*check vf point,0:normal;1:bad*/
 static unsigned int check_vf_put(struct vframe_s *vf, struct vf_pool *p)
 {
 	struct vf_entry *master;
@@ -757,7 +757,7 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 			 * if the index to be putted is same
 			 * with one in wt_list, we consider that
 			 * they are the same entry. so the same
-			 * vfrmae hold by receiver should not be
+			 * vframe hold by receiver should not be
 			 *  putted more than one times.
 			 */
 			if (pos->vf.index == vf->index) {
@@ -803,7 +803,7 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 			/*
 			 * put the recycled vframe in wait list
 			 *
-			 * you should put the vframe that you getted,
+			 * you should put the vframe that you got,
 			 * you should not put the copy one.
 			 * because we also compare the address of vframe
 			 * structure to determine it is master or slave.
@@ -962,7 +962,7 @@ void vdin_dump_vf_state(struct vf_pool *p)
 	unsigned long flags;
 	struct vf_entry *pos = NULL, *tmp = NULL;
 
-	pr_info("buffers in writeable list:\n");
+	pr_info("buffers in writable list:\n");
 	spin_lock_irqsave(&p->wr_lock, flags);
 	pr_info("wr list:0x%x\n", p->wr_list_size);
 	list_for_each_entry_safe(pos, tmp, &p->wr_list, list) {
@@ -1018,7 +1018,7 @@ void vdin_dump_vf_state_seq(struct vf_pool *p, struct seq_file *seq)
 	unsigned long flags;
 	struct vf_entry *pos = NULL, *tmp = NULL;
 
-	seq_puts(seq, "buffers in writeable list:\n");
+	seq_puts(seq, "buffers in writable list:\n");
 	spin_lock_irqsave(&p->wr_lock, flags);
 	list_for_each_entry_safe(pos, tmp, &p->wr_list, list) {
 		seq_printf(seq, "index: %2u,status %u, canvas index0: 0x%x,\n",

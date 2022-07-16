@@ -12,11 +12,11 @@
 
 #define VDIN_DEV_VER		0x20220325
 #define VDIN_DEV_VER2		"v4l2 base func ok"
-#define VDIN_V4L_DV_NAME	"vdinvideo"
-#define VDIN1_V4L_DV_NAME	"vdin1video"
+#define VDIN_V4L_DV_NAME	"vdin_video"
+#define VDIN1_V4L_DV_NAME	"vdin1_video"
 
-#define VDIN_V4L_DRV_NAME	"vdinvideo"
-#define VDIN_V4L_CARD_NAME	"mesont3"
+#define VDIN_V4L_DRV_NAME	"vdin_video"
+#define VDIN_V4L_CARD_NAME	"meson_t3"
 #define VDIN0_V4L_BUS_INFO	"vdin0 v4l2"
 #define VDIN1_V4L_BUS_INFO	"vdin1 v4l2"
 
@@ -31,7 +31,7 @@
 
 //sky
 #define V4L2_CID_USER_AMLOGIC_BASE	(V4L2_CID_USER_BASE + 0x1100)
-#define AML_V4L2_SET_DRMMODE		(V4L2_CID_USER_AMLOGIC_BASE + 0)
+#define AML_V4L2_SET_DRM_MODE		(V4L2_CID_USER_AMLOGIC_BASE + 0)
 //sky project end
 
 struct vdin_v4l2_pix_fmt {
@@ -52,6 +52,6 @@ struct vdin_vb_buff {
 #define to_vdin_vb_buf(buf)	container_of(buf, struct vdin_vb_buff, vb)
 
 char *vb2_memory_sts_to_str(uint32_t memory);
-int vdin_v4l2_start_tvin(struct vdin_dev_s *pdevp);
-int vdin_v4l2_stop_tvin(struct vdin_dev_s *pdevp);
+int vdin_v4l2_start_tvin(struct vdin_dev_s *devp);
+int vdin_v4l2_stop_tvin(struct vdin_dev_s *devp);
 #endif

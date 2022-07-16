@@ -637,8 +637,8 @@ static void viuin_sig_property(struct tvin_frontend_s *fe,
 
 	prop->dest_cfmt = devp->parm.dfmt;
 
-	prop->scaling4w = devp->parm.dest_hactive;
-	prop->scaling4h = devp->parm.dest_vactive;
+	prop->scaling4w = devp->parm.dest_h_active;
+	prop->scaling4h = devp->parm.dest_v_active;
 
 	prop->vs = v_cut_offset;
 	prop->ve = 0;

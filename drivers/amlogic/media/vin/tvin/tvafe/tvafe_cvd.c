@@ -3023,19 +3023,19 @@ void tvafe_cvd2_rf_ntsc50_en(bool v)
 	ntsc50_en = v;
 }
 
-void tvafe_snow_config(unsigned int onoff)
+void tvafe_snow_config(unsigned int on_off)
 {
 	if (tvafe_snow_function_flag == 0 ||
 		tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
 		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2)
 		return;
-	if (onoff)
+	if (on_off)
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
 	else
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 0, BLUE_MODE_BIT, BLUE_MODE_WID);
 }
 
-void tvafe_snow_config_clamp(unsigned int onoff)
+void tvafe_snow_config_clamp(unsigned int on_off)
 {
 	struct tvafe_dev_s *devp = NULL;
 
@@ -3047,22 +3047,22 @@ void tvafe_snow_config_clamp(unsigned int onoff)
 		return;
 	}
 
-	if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && onoff) {
+	if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && on_off) {
 		/* 0x6d is tm2 adjust snow gain */
 		W_APB_REG(ACD_REG_6D, 0x03000000);
-	} else if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && !onoff) {
+	} else if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && !on_off) {
 		W_APB_REG(ACD_REG_6D, 0x00000000);
 	}
 
 	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
 	    tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) {
-		if (onoff)
-			vdin_adjust_tvafesnow_brightness();
+		if (on_off)
+			vdin_adjust_tvafe_snow_brightness();
 		return;
 	}
 	if (tvafe_snow_function_flag == 0)
 		return;
-	if (onoff)
+	if (on_off)
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 0, 20, 1);
 	else
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 1, 20, 1);

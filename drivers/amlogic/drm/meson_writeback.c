@@ -152,8 +152,8 @@ int meson_writeback_capture_picture(struct drm_framebuffer *fb, u32 port)
 
 	vdin_pram.h_active = fb->width;
 	vdin_pram.v_active = fb->height;
-	vdin_pram.dest_hactive = fb->width;
-	vdin_pram.dest_vactive = fb->height;
+	vdin_pram.dest_h_active = fb->width;
+	vdin_pram.dest_v_active = fb->height;
 	vdin_pram.scan_mode = 1;
 	vdin_pram.frame_rate = 60;
 	format = fb->format->format;
