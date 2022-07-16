@@ -966,7 +966,9 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 		/* set pixel aspect ratio */
 		vdin_set_pixel_aspect_ratio(devp, vf);
 		/*set display ratio control */
-		if (IS_TVAFE_SRC(devp->parm.port))
+		if (IS_TVAFE_SRC(devp->parm.port) ||
+		    ((devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) &&
+		     (IS_TVAFE_SRC(devp->parm.port) || IS_HDMI_SRC(devp->parm.port))))
 			vdin_set_display_ratio(devp, vf);
 		vdin_set_source_bitdepth(devp, vf);
 		/* init slave vframe */
@@ -1606,6 +1608,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->game_mode_pre = 0;
 	devp->game_mode_bak = 0;
 	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
+	devp->common_divisor = 0;
 
 	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
 		devp->self_stop_start) {
@@ -3250,7 +3253,9 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	    (devp->flags & VDIN_FLAG_SNOW_FLAG))
 		curr_wr_vf->height = 480;
 	curr_wr_vfe->flag |= VF_FLAG_NORMAL_FRAME;
-	if (IS_TVAFE_SRC(devp->parm.port))
+	if (IS_TVAFE_SRC(devp->parm.port) ||
+	    ((devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) &&
+	     (IS_TVAFE_SRC(devp->parm.port) || IS_HDMI_SRC(devp->parm.port))))
 		vdin_set_display_ratio(devp, curr_wr_vf);
 
 	if ((devp->flags & VDIN_FLAG_RDMA_ENABLE) &&

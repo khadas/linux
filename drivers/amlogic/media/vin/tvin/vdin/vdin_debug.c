@@ -2569,6 +2569,23 @@ start_chk:
 		}
 		vdin_dump_histgram_ldim(devp, hnum, vnum);
 #endif
+	} else if (!strcmp(parm[0], "aspect_ratio_sar")) {
+		if (parm[1] && parm[2] && parm[3]) {
+			if (kstrtoul(parm[1], 10, &val) == 0)
+				devp->debug.sar_width = val;
+			if (kstrtoul(parm[2], 10, &val) == 0)
+				devp->debug.sar_height = val;
+			if (kstrtoul(parm[3], 10, &val) == 0)
+				devp->debug.ratio_control = val;
+
+			pr_info("enable manual aspect ratio sar_w=%u sar_h=%u cntl:=%u",
+				devp->debug.sar_width, devp->debug.sar_height,
+				devp->debug.ratio_control);
+		} else {
+			pr_info("disable manual aspect ratio sar_w = %u sar_h = %u cntl:%u",
+				devp->debug.sar_width, devp->debug.sar_height,
+				devp->debug.ratio_control);
+		}
 	} else if (!strcmp(parm[0], "force_recycle")) {
 		devp->flags |= VDIN_FLAG_FORCE_RECYCLE;
 	} else if (!strcmp(parm[0], "read_pic_afbce")) {

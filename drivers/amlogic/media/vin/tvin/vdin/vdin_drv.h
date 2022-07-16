@@ -126,8 +126,8 @@
 /* 20221129: memory free and id name optimize */
 /* 20221209: support aux screen capture */
 /* 20221215: fix s5 loopback venc0 issue */
-
-#define VDIN_VER "20221215"
+/* 20230105: overseas project display ration control */
+#define VDIN_VER "20230105"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -277,6 +277,7 @@ struct match_data_s {
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
 #define VDIN_FORCE_RGB_NOT_CONVERT	BIT(7) //commercial display control
 #define VDIN_NO_TVAFE_ASPECT_RATIO_CHK	BIT(8) //no tvafe aspect_ratio check
+#define VDIN_SET_DISPLAY_RATIO		BIT(9)
 /* vdin_function_sel control bits end */
 
 #define VDIN_2K_SIZE			0x07800438 /* 0x780 = 1920 0x438 = 1080 */
@@ -499,6 +500,9 @@ struct vdin_debug_s {
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;
 	bool dbg_force_shrink_en;
+	unsigned int sar_width;
+	unsigned int sar_height;
+	unsigned int ratio_control;
 };
 
 struct vdin_dv_s {
@@ -917,6 +921,7 @@ struct vdin_dev_s {
 	struct semaphore sem;
 	struct vf_entry *vfe_tmp;
 	struct vdin_dts_config_s dts_config;
+	unsigned int common_divisor;
 };
 
 struct vdin_hist_s {

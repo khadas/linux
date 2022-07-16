@@ -6227,6 +6227,18 @@ void vdin_set_pixel_aspect_ratio(struct vdin_dev_s *devp,
 	}
 }
 
+/* The maximum common divisor is calculated using rolling subtraction */
+unsigned int vdin_calculate_common_divisor(unsigned int x, unsigned int y)
+{
+	while (x != y) {
+		if (x > y)
+			x = x - y;
+		else
+			y = y - x;
+	}
+	return x;
+}
+
 /*
  * based on the bellow parameters:
  * 1.h_active
@@ -6237,16 +6249,36 @@ void vdin_set_display_ratio(struct vdin_dev_s *devp,
 {
 	unsigned int re = 0;
 	enum tvin_aspect_ratio_e aspect_ratio = devp->prop.aspect_ratio;
+	unsigned int calculate_v_active = 0;
 
-	if (vf->width == 0 || vf->height == 0)
+	if (devp->v_active == 0 || devp->h_active == 0 ||
+	    vf->width == 0 || vf->height == 0)
 		return;
-	re = (vf->width * 36) / vf->height;
-	if ((re > 36 && re <= 56) || re == 90 || re == 108)
-		vf->ratio_control = 0xc0 << DISP_RATIO_ASPECT_RATIO_BIT;
-	else if (re > 56)
-		vf->ratio_control = 0x90 << DISP_RATIO_ASPECT_RATIO_BIT;
-	else
-		vf->ratio_control = 0x0 << DISP_RATIO_ASPECT_RATIO_BIT;
+
+	if (devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) {
+		if (IS_HDMI_SRC(devp->parm.port))
+			vf->ratio_control = 0x3ff << DISP_RATIO_ASPECT_RATIO_BIT;
+		else if (IS_TVAFE_SRC(devp->parm.port))
+			vf->ratio_control = 0xc0 << DISP_RATIO_ASPECT_RATIO_BIT;
+		else
+			vf->ratio_control = 0x0 << DISP_RATIO_ASPECT_RATIO_BIT;
+
+		if (devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+			calculate_v_active = devp->v_active << 1;
+		else
+			calculate_v_active = devp->v_active;
+		if (!devp->common_divisor)
+			devp->common_divisor =
+			vdin_calculate_common_divisor(devp->h_active, calculate_v_active);
+	} else {
+		re = (vf->width * 36) / vf->height;
+		if ((re > 36 && re <= 56) || re == 90 || re == 108)
+			vf->ratio_control = 0xc0 << DISP_RATIO_ASPECT_RATIO_BIT;
+		else if (re > 56)
+			vf->ratio_control = 0x90 << DISP_RATIO_ASPECT_RATIO_BIT;
+		else
+			vf->ratio_control = 0x0 << DISP_RATIO_ASPECT_RATIO_BIT;
+	}
 
 	if ((devp->vdin_function_sel & VDIN_NO_TVAFE_ASPECT_RATIO_CHK) &&
 	    IS_TVAFE_SRC(devp->parm.port))
@@ -6254,37 +6286,55 @@ void vdin_set_display_ratio(struct vdin_dev_s *devp,
 
 	switch (aspect_ratio) {
 	case TVIN_ASPECT_4x3_FULL:
-		vf->pic_mode.screen_mode = VIDEO_WIDEOPTION_CUSTOM;
-		vf->pic_mode.provider = PIC_MODE_PROVIDER_WSS;
-		vf->pic_mode.hs = 0;
-		vf->pic_mode.he = 0;
-		vf->pic_mode.vs = 0;
-		vf->pic_mode.ve = 0;
-		/* 3*256/4=0xc0 */
-		vf->pic_mode.custom_ar = 0xc0;
-		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+		/* vf->width*vf->sar_width : vf->height*vf->sar_height = 4 : 3 */
+		if (devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) {
+			vf->sar_width = calculate_v_active * 4 / devp->common_divisor;
+			vf->sar_height = devp->h_active * 3 / devp->common_divisor;
+		} else {
+			vf->pic_mode.screen_mode = VIDEO_WIDEOPTION_CUSTOM;
+			vf->pic_mode.provider = PIC_MODE_PROVIDER_WSS;
+			vf->pic_mode.hs = 0;
+			vf->pic_mode.he = 0;
+			vf->pic_mode.vs = 0;
+			vf->pic_mode.ve = 0;
+			/* 3*256/4=0xc0 */
+			vf->pic_mode.custom_ar = 0xc0;
+			vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+		}
 		break;
 	case TVIN_ASPECT_14x9_FULL:
-		vf->pic_mode.screen_mode = VIDEO_WIDEOPTION_CUSTOM;
-		vf->pic_mode.provider = PIC_MODE_PROVIDER_WSS;
-		vf->pic_mode.hs = 0;
-		vf->pic_mode.he = 0;
-		vf->pic_mode.vs = 0;
-		vf->pic_mode.ve = 0;
-		/* 9*256/14=0xc0 */
-		vf->pic_mode.custom_ar = 0xa4;
-		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+		/* vf->width*vf->sar_width : vf->height*vf->sar_height = 14 : 9 */
+		if (devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) {
+			vf->sar_width = calculate_v_active * 14 / devp->common_divisor;
+			vf->sar_height = devp->h_active * 9 / devp->common_divisor;
+		} else {
+			vf->pic_mode.screen_mode = VIDEO_WIDEOPTION_CUSTOM;
+			vf->pic_mode.provider = PIC_MODE_PROVIDER_WSS;
+			vf->pic_mode.hs = 0;
+			vf->pic_mode.he = 0;
+			vf->pic_mode.vs = 0;
+			vf->pic_mode.ve = 0;
+			/* 9*256/14=0xc0 */
+			vf->pic_mode.custom_ar = 0xa4;
+			vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+		}
 		break;
 	case TVIN_ASPECT_16x9_FULL:
-		vf->pic_mode.screen_mode = VIDEO_WIDEOPTION_CUSTOM;
-		vf->pic_mode.provider = PIC_MODE_PROVIDER_WSS;
-		vf->pic_mode.hs = 0;
-		vf->pic_mode.he = 0;
-		vf->pic_mode.vs = 0;
-		vf->pic_mode.ve = 0;
-		/* 9*256/16=0xc0 */
-		vf->pic_mode.custom_ar = 0x90;
-		vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+		/* vf->width*vf->sar_width : vf->height*vf->sar_height = 16 : 9 */
+		if (devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO) {
+			vf->sar_width = calculate_v_active * 16 / devp->common_divisor;
+			vf->sar_height = devp->h_active * 9 / devp->common_divisor;
+		} else {
+			vf->pic_mode.screen_mode = VIDEO_WIDEOPTION_CUSTOM;
+			vf->pic_mode.provider = PIC_MODE_PROVIDER_WSS;
+			vf->pic_mode.hs = 0;
+			vf->pic_mode.he = 0;
+			vf->pic_mode.vs = 0;
+			vf->pic_mode.ve = 0;
+			/* 9*256/16=0xc0 */
+			vf->pic_mode.custom_ar = 0x90;
+			vf->ratio_control |= DISP_RATIO_ADAPTED_PICMODE;
+		}
 		break;
 	case TVIN_ASPECT_14x9_LB_CENTER:
 		/**720/462=14/9;(576-462)/2=57;57/2=28**/
@@ -6335,6 +6385,21 @@ void vdin_set_display_ratio(struct vdin_dev_s *devp,
 	default:
 		break;
 	}
+
+	if (devp->debug.sar_width || devp->debug.sar_height ||
+	    devp->debug.ratio_control) {
+		vf->sar_width = devp->debug.sar_width;
+		vf->sar_height = devp->debug.sar_height;
+		vf->ratio_control = devp->debug.ratio_control;
+	}
+	if (devp->vdin_function_sel & VDIN_SET_DISPLAY_RATIO &&
+	    vdin_isr_monitor & VDIN_ISR_MONITOR_RATIO)
+		pr_info("aspect:%x ratio_cntl:%u div:%u sar:%u %u debug_sar:%u,%u,%u\n",
+			aspect_ratio, vf->ratio_control,
+			devp->common_divisor,
+			vf->sar_width, vf->sar_height,
+			devp->debug.sar_width, devp->debug.sar_height,
+			devp->debug.ratio_control);
 }
 
 /*function:set source bitdepth

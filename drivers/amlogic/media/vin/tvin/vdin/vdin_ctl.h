@@ -344,5 +344,6 @@ bool vdin_check_is_spd_data(struct vdin_dev_s *devp);
 bool vdin_check_spd_data_chg(struct vdin_dev_s *devp);
 void vdin_sw_reset(struct vdin_dev_s *devp);
 void vdin_bist(struct vdin_dev_s *devp, unsigned int mode);
+unsigned int vdin_calculate_common_divisor(unsigned int x, unsigned int y);
 #endif
 

@@ -856,6 +856,9 @@ static int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	if (++tvafe->aspect_ratio_cnt > TVAFE_RATIO_CNT) {
 		for (i = 0; i < TVIN_ASPECT_MAX; i++) {
 			if (count[i] > 30) {
+				if (tvafe->aspect_ratio != i)
+					pr_info("wss aspect_ratio:%d-%d i:%d\n",
+						tvafe->aspect_ratio, aspect_ratio, i);
 				tvafe->aspect_ratio = i;
 				break;
 			}

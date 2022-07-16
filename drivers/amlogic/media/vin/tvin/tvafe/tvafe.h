@@ -165,14 +165,15 @@ extern bool tvafe_atv_search_channel;
 
 extern unsigned int force_nostd;
 
-#define TVAFE_DBG_NORMAL     BIT(0)
-#define TVAFE_DBG_ISR        BIT(4)
-#define TVAFE_DBG_SMR        BIT(8)
-#define TVAFE_DBG_SMR2       BIT(9)
-#define TVAFE_DBG_NOSTD      BIT(12)
-#define TVAFE_DBG_NOSTD2     BIT(13)
-#define TVAFE_DBG_AUTO_VS    BIT(14)
-#define TVAFE_DBG_AUTO_HS    BIT(15)
+#define TVAFE_DBG_NORMAL	BIT(0)
+#define TVAFE_DBG_ISR		BIT(4)
+#define TVAFE_DBG_SMR		BIT(8)
+#define TVAFE_DBG_SMR2		BIT(9)
+#define TVAFE_DBG_NOSTD		BIT(12)
+#define TVAFE_DBG_NOSTD2	BIT(13)
+#define TVAFE_DBG_AUTO_VS	BIT(14)
+#define TVAFE_DBG_AUTO_HS	BIT(15)
+#define TVAFE_DBG_WSS		BIT(16)
 extern unsigned int tvafe_dbg_print;
 
 #endif  /* _TVAFE_H */

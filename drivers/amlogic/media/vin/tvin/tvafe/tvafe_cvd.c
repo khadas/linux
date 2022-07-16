@@ -3132,6 +3132,10 @@ enum tvin_aspect_ratio_e tvafe_cvd2_get_wss(void)
 	else
 		aspect_ratio = TVIN_ASPECT_NULL;
 
+	if (tvafe_dbg_print & TVAFE_DBG_WSS)
+		tvafe_pr_info("%s full_format:%#x aspect_ratio:%#x\n",
+				__func__, full_format, aspect_ratio);
+
 	return aspect_ratio;
 }
 
