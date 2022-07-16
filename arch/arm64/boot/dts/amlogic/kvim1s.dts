@@ -645,6 +645,16 @@
 		compatible = "haoyu,hym8563";
 		reg = <0x51>;
 	};
+
+	khadas-mcu@18 {
+		compatible = "khadas-mcu";
+		reg = <0x18>;
+		fan,trig_temp_level0 = <50>;
+		fan,trig_temp_level1 = <60>;
+		fan,trig_temp_level2 = <70>;
+		fan,trig_temp_level3 = <80>;
+		hwver = "VIM1S.V10"; /* Will be updated in uboot. */
+	};
 };
 
 &vddcpu0 {
