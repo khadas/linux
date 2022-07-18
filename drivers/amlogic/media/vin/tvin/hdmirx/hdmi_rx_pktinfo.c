@@ -1873,10 +1873,14 @@ bool is_new_visf_pkt_rcv(union infoframe_u *pktdata)
 		if (pkt->sbpkt.payload.data[0] & _BIT(9))
 			allm_sts = true;
 	}
-	if ((old_pkt == E_VSI_VSI21 && new_pkt == E_VSI_DV15) ||
-		(old_pkt == E_VSI_DV15 && new_pkt == E_VSI_VSI21))
-		if (allm_sts)
+	if (allm_sts) {
+		if (old_pkt == E_VSI_VSI21 && new_pkt == E_VSI_DV15) {
 			pkt->ieee = IEEE_DV_PLUS_ALLM;
+		} else if (old_pkt == E_VSI_DV15 && new_pkt == E_VSI_VSI21) {
+			pkt = (struct vsi_infoframe_st *)&rx_pkt.vs_info;
+			pkt->ieee = IEEE_DV_PLUS_ALLM;
+		}
+	}
 	//====================for dv5.0 end=================
 	if (new_pkt > old_pkt)
 		return true;
