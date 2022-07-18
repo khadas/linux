@@ -615,9 +615,29 @@
 			     &gpio  GPIOD_3  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
+
+	pwmleds {
+		compatible = "pwm-leds";
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwm_g_pins1>;
+
+		sys {
+			active-high;
+			label = "pwmled";
+			max-brightness = <255>;
+			pwms = <&pwm_gh MESON_PWM_0 30040 0>;
+			default-state ="on";
+			linux,default-trigger="default-on";
+		};
+	};
 };
 
 &pwm_ij {
+	status = "okay";
+};
+
+&pwm_gh{
 	status = "okay";
 };
 
@@ -1337,7 +1357,7 @@
 };
 
 &state_led {
-	status = "okay";
+	status = "disabled";
 };
 
 &uart_A {
