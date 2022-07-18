@@ -5438,8 +5438,14 @@ static ssize_t lcd_phy_debug_show(struct device *dev,
 	int i = 0;
 
 	phy_cfg = &pdrv->config.phy_cfg;
-	len = sprintf(buf, "vswing_level=0x%x, ext_pullup=%d, preem_level=0x%x\n",
-		      phy_cfg->vswing_level, phy_cfg->ext_pullup, phy_cfg->preem_level);
+	len = sprintf(buf, "vswing_level=0x%x\n"
+					"ext_pullup=%d\n"
+					"preem_level=0x%x\n"
+					"vcm=0x%x\n"
+					"odt=0x%x\n"
+					"ref_bias=0x%x\n",
+		      phy_cfg->vswing_level, phy_cfg->ext_pullup, phy_cfg->preem_level,
+		      phy_cfg->vcm, phy_cfg->odt, phy_cfg->ref_bias);
 	for (i = 0; i < phy_cfg->lane_num; i++) {
 		len += sprintf(buf + len, "lane[%d] amp=0x%x, preem=0x%x\n",
 		      i, phy_cfg->lane[i].amp, phy_cfg->lane[i].preem);
@@ -5476,10 +5482,45 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 			return -EINVAL;
 		}
 	} else if (buf[0] == 'v') {
-		ret = sscanf(buf, "vswing %x", &para[0]);
+		if (buf[1] == 'c')  {//vcm
+			ret = sscanf(buf, "vcm %x", &para[0]);
+			if (ret == 1) {
+				phy_cfg->vcm = para[0];
+				phy_cfg->flag |= (1 << 1);
+				pr_info("%s: update vcm_value=0x%x\n",
+					__func__, para[0]);
+			} else {
+				pr_info("invalid data\n");
+				return -EINVAL;
+			}
+		} else {
+			ret = sscanf(buf, "vswing %x", &para[0]);
+			if (ret == 1) {
+				phy_cfg->vswing = para[0];
+				pr_info("%s: update vswing=0x%x\n", __func__, para[0]);
+			} else {
+				pr_info("invalid data\n");
+				return -EINVAL;
+			}
+		}
+	} else if (buf[0] == 'o') {
+		ret = sscanf(buf, "odt %x", &para[0]);
 		if (ret == 1) {
-			phy_cfg->vswing = para[0];
-			pr_info("%s: update vswing=0x%x\n", __func__, para[0]);
+			phy_cfg->odt = para[0];
+			phy_cfg->flag |= (1 << 3);
+			pr_info("%s: update odt=0x%x\n",
+				__func__, para[0]);
+		} else {
+			pr_info("invalid data\n");
+			return -EINVAL;
+		}
+	} else if (buf[0] == 'r') {
+		ret = sscanf(buf, "ref_bias %x", &para[0]);
+		if (ret == 1) {
+			phy_cfg->ref_bias = para[0];
+			phy_cfg->flag |= (1 << 2);
+			pr_info("%s: update ref_bias=0x%x\n",
+				__func__, para[0]);
 		} else {
 			pr_info("invalid data\n");
 			return -EINVAL;
