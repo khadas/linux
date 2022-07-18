@@ -37,6 +37,8 @@
 #define DMC_TYPE_P1			0x39
 #define DMC_TYPE_T5W			0x3B
 #define DMC_TYPE_A5			0x3C
+#define DMC_TYPE_C3			0x3D
+#define DMC_TYPE_S5			0x40
 
 #define DUAL_DMC			BIT(0)
 #define QUAD_DMC			BIT(2)
@@ -56,6 +58,36 @@ struct vpu_sub_desc {
 	char vpu_w1[MAX_NAME];
 	unsigned char sub_id;
 };
+
+struct ddr_priority {
+	/* default 0: normal mode; 1: secure mode */
+	unsigned char reg_mode;
+	unsigned char port_id;
+	/* priority use bit width:
+	 *	0xf: use 4 bit
+	 *	0x7: use 3 bit
+	 *	0x4: use 2 bit
+	 *	0x1: use 1 bit
+	 */
+	unsigned char w_bit_s;
+	unsigned char r_bit_s;
+
+	unsigned int w_width;
+	unsigned int r_width;
+
+	unsigned int reg_base;
+	unsigned int w_offset;
+	unsigned int r_offset;
+
+	unsigned int reg_config;
+};
+
+int priority_display(char *buf);
+char *priority_find_port_name(int id);
+void ddr_priority_port_list(void);
+int ddr_find_port_priority(int cpu_type, struct ddr_priority **desc);
+int ddr_priority_rw(unsigned char port_id, int *priority_r,
+			int *priority_w, unsigned char control);
 
 int dmc_find_port_sub(int cpu_type, struct vpu_sub_desc **desc);
 char *vpu_to_sub_port(char *name, char rw, int sid, char *id_str);

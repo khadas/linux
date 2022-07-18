@@ -98,6 +98,8 @@
 
 /* data structure */
 #define DDR_BANDWIDTH_DEBUG		1
+#define DDR_PRIORITY_DEBUG		BIT(31)
+#define DDR_PRIORITY_POWER		BIT(30)
 
 struct ddr_bandwidth;
 
@@ -158,6 +160,7 @@ struct ddr_bandwidth {
 	char soc_feature;		/* some special featur of it */
 	int mali_port[2];
 	int stat_flag;
+	unsigned int ddr_priority_num;
 	unsigned int threshold;
 	unsigned int irq_num;
 	unsigned int clock_count;
@@ -178,11 +181,13 @@ struct ddr_bandwidth {
 	void __iomem *pll_reg;
 	struct class *class;
 	struct ddr_port_desc *port_desc;
+	struct ddr_priority *ddr_priority_desc;
 	struct ddr_bandwidth_ops *ops;
 	struct work_struct work_bandwidth;
 	struct ddr_increase_tool increase_tool;
 };
 
+extern struct ddr_bandwidth *aml_db;
 #ifdef CONFIG_AMLOGIC_DDR_BANDWIDTH_G12
 extern struct ddr_bandwidth_ops g12_ddr_bw_ops;
 #endif

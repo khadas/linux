@@ -28,7 +28,7 @@ static struct hrtimer ddr_hrtimer_timer;
 #define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DDR_BW
 #include <trace/events/meson_atrace.h>
 
-static struct ddr_bandwidth *aml_db;
+struct ddr_bandwidth *aml_db;
 static const char chann_names[][50] = {
 	"ddr_bw ch 1 (MB/S)",
 	"ddr_bw ch 2 (MB/S)",
@@ -650,49 +650,62 @@ void dmc_set_urgent(unsigned int port, unsigned int type)
 }
 EXPORT_SYMBOL(dmc_set_urgent);
 
-static ssize_t urgent_show(struct class *cla,
+static ssize_t priority_show(struct class *cla,
 			   struct class_attribute *attr, char *buf)
 {
-	int i, s = 0;
-
-	if (dual_dmc(aml_db) || quad_dmc(aml_db))
+	if (!aml_db->ddr_priority_desc) {
+		pr_info("Current soc not support ddr priority\n");
 		return -EINVAL;
-
-	if (!aml_db->real_ports || !aml_db->port_desc)
-		return -EINVAL;
-
-	s += sprintf(buf + s, "echo port val > /sys/class/aml_ddr/urgent\n"
-			"val:\n\t1: non urgent;\n\t2: urgent;\n\t4: super urgent;\n"
-			"port:   (hex integer)\n");
-	for (i = 0; i < aml_db->real_ports; i++) {
-		if (aml_db->port_desc[i].port_id >= 24)
-			break;
-		s += sprintf(buf + s, "\tbit%d: %s\n",
-				aml_db->port_desc[i].port_id,
-				aml_db->port_desc[i].port_name);
 	}
 
-	return s;
+	return priority_display(buf);
 }
 
-static ssize_t urgent_store(struct class *cla,
+static ssize_t priority_store(struct class *cla,
 			    struct class_attribute *attr,
 			    const char *buf, size_t count)
 {
-	unsigned int port = 0, val, i;
+	unsigned int port = 0, priority;
+	unsigned int priority_r = 0, priority_w = 0;
+	char rw = 0;
+	int ret = 0;
 
-	if (sscanf(buf, "%x %d", &port, &val) != 2) {
-		pr_info("invalid input:%s\n", buf);
+	if (!aml_db->ddr_priority_desc) {
+		pr_info("Current soc not support ddr priority\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < 24; i++) {
-		if (port & 1)
-			dmc_set_urgent(i, val);
-		port >>= 1;
+
+	if (!strncmp(buf, "debug", 5)) {
+		aml_db->ddr_priority_num |= DDR_PRIORITY_DEBUG;
+		return count;
 	}
+
+	if (!strncmp(buf, "power", 5)) {
+		aml_db->ddr_priority_num |= DDR_PRIORITY_POWER;
+		return count;
+	}
+
+	if (sscanf(buf, "%d %x %c", &port, &priority, &rw) != 3) {
+		if (sscanf(buf, "%d %x", &port, &priority) != 2) {
+			pr_info("invalid input:%s\n", buf);
+			return -EINVAL;
+		}
+	}
+	priority_w = priority;
+	priority_r = priority;
+	if (rw == 'r')
+		ret = ddr_priority_rw(port, &priority_r, NULL, 2);
+	else if (rw == 'w')
+		ret = ddr_priority_rw(port, NULL, &priority_w, 3);
+	else
+		ret = ddr_priority_rw(port, &priority_r, &priority_w, DMC_WRITE);
+
+	if (!ret)
+		pr_info("%s priority is set to %x\n", find_port_name(port), priority);
+
 	return count;
 }
-static CLASS_ATTR_RW(urgent);
+static CLASS_ATTR_RW(priority);
 
 #if DDR_BANDWIDTH_DEBUG
 static ssize_t dump_reg_show(struct class *cla,
@@ -816,10 +829,39 @@ static ssize_t increase_tool_show(struct class *cla,
 }
 static CLASS_ATTR_RW(increase_tool);
 
+static unsigned long tmp_smc_reg;
+static ssize_t smc_rw_store(struct class *cla,
+			    struct class_attribute *attr,
+			    const char *buf, size_t count)
+{
+	unsigned long addr, value;
+
+	if (sscanf(buf, "%lx %lx", &addr, &value) != 2) {
+		if (kstrtoul(buf, 0, &addr)) {
+			pr_info("invalid input:%s\n", buf);
+			return -EINVAL;
+		}
+		tmp_smc_reg = addr;
+		pr_info("set addr:%08lx\n", tmp_smc_reg);
+		return count;
+	}
+	tmp_smc_reg = addr;
+	dmc_rw(tmp_smc_reg, value, 1);
+	pr_info("write addr:%08lx, value:%08lx\n", tmp_smc_reg, value);
+	return count;
+}
+
+static ssize_t smc_rw_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "[%lx]:%lx\n", tmp_smc_reg, dmc_rw(tmp_smc_reg, 0, 0));
+}
+static CLASS_ATTR_RW(smc_rw);
+
 static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_port.attr,
 	&class_attr_irq_clock.attr,
-	&class_attr_urgent.attr,
+	&class_attr_priority.attr,
 	&class_attr_threshold.attr,
 	&class_attr_mode.attr,
 	&class_attr_busy.attr,
@@ -831,6 +873,7 @@ static struct attribute *aml_ddr_tool_attrs[] = {
 	&class_attr_increase_tool.attr,
 #if DDR_BANDWIDTH_DEBUG
 	&class_attr_dump_reg.attr,
+	&class_attr_smc_rw.attr,
 #endif
 	NULL
 };
@@ -992,6 +1035,7 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	int io_idx = 0;
 #endif
 	struct ddr_port_desc *desc = NULL;
+	struct ddr_priority *priority_desc = NULL;
 	int pcnt;
 
 	pr_info("%s, %d\n", __func__, __LINE__);
@@ -1014,6 +1058,16 @@ static int __init ddr_bandwidth_probe(struct platform_device *pdev)
 	} else {
 		aml_db->port_desc = desc;
 		aml_db->real_ports = pcnt;
+	}
+
+	ddr_priority_port_list();
+	pcnt = ddr_find_port_priority(aml_db->cpu_type, &priority_desc);
+	if (pcnt < 0) {
+		aml_db->ddr_priority_desc = NULL;
+		aml_db->ddr_priority_num = 0;
+	} else {
+		aml_db->ddr_priority_desc = priority_desc;
+		aml_db->ddr_priority_num = pcnt;
 	}
 
 	if (init_chip_config(aml_db->cpu_type, aml_db)) {
