@@ -84,7 +84,7 @@ void blend(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->wait_done_flag   = 1;
 	ge2d_cmd_cfg->cmd_op           = IS_BLEND;
 
-	ge2d_wq_add_work(wq);
+	ge2d_wq_add_work(wq, 0);
 }
 EXPORT_SYMBOL(blend);
 
@@ -92,7 +92,7 @@ void blend_noblk(struct ge2d_context_s *wq,
 		 int src_x, int src_y, int src_w, int src_h,
 		 int src2_x, int src2_y, int src2_w, int src2_h,
 		 int dst_x, int dst_y, int dst_w, int dst_h,
-		 int op)
+		 int op, int enqueue)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
 
@@ -169,9 +169,10 @@ void blend_noblk(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->wait_done_flag = 0;
 	ge2d_cmd_cfg->cmd_op         = IS_BLEND;
 
-	ge2d_wq_add_work(wq);
+	ge2d_wq_add_work(wq, enqueue);
 }
 EXPORT_SYMBOL(blend_noblk);
+
 void blend_noalpha(struct ge2d_context_s *wq,
 		   int src_x, int src_y, int src_w, int src_h,
 		   int src2_x, int src2_y, int src2_w, int src2_h,
@@ -250,7 +251,7 @@ void blend_noalpha(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->wait_done_flag   = 1;
 	ge2d_cmd_cfg->cmd_op           = IS_BLEND;
 
-	ge2d_wq_add_work(wq);
+	ge2d_wq_add_work(wq, 0);
 }
 EXPORT_SYMBOL(blend_noalpha);
 
@@ -258,7 +259,7 @@ void blend_noalpha_noblk(struct ge2d_context_s *wq,
 			 int src_x, int src_y, int src_w, int src_h,
 			 int src2_x, int src2_y, int src2_w, int src2_h,
 			 int dst_x, int dst_y, int dst_w, int dst_h,
-			 int op)
+			 int op, int enqueue)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
 
@@ -332,6 +333,32 @@ void blend_noalpha_noblk(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->wait_done_flag   = 0;
 	ge2d_cmd_cfg->cmd_op           = IS_BLEND;
 
-	ge2d_wq_add_work(wq);
+	ge2d_wq_add_work(wq, enqueue);
 }
 EXPORT_SYMBOL(blend_noalpha_noblk);
+
+void blend_enqueue(struct ge2d_context_s *wq,
+		   int src_x, int src_y, int src_w, int src_h,
+		   int src2_x, int src2_y, int src2_w, int src2_h,
+		   int dst_x, int dst_y, int dst_w, int dst_h,
+		   int op)
+{
+	blend_noblk(wq, src_x, src_y, src_w, src_h,
+	      src2_x,  src2_y, src2_w, src2_h,
+	      dst_x,  dst_y, dst_w, dst_h,
+	      op, 1);
+}
+EXPORT_SYMBOL(blend_enqueue);
+
+void blend_noalpha_enqueue(struct ge2d_context_s *wq,
+			   int src_x, int src_y, int src_w, int src_h,
+			   int src2_x, int src2_y, int src2_w, int src2_h,
+			   int dst_x, int dst_y, int dst_w, int dst_h,
+			   int op)
+{
+	blend_noalpha_noblk(wq, src_x, src_y, src_w, src_h,
+	      src2_x,  src2_y, src2_w, src2_h,
+	      dst_x,  dst_y, dst_w, dst_h,
+	      op, 1);
+}
+EXPORT_SYMBOL(blend_noalpha_enqueue);

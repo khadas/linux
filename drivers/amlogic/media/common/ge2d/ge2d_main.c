@@ -66,6 +66,11 @@ static DEFINE_MUTEX(ge2d_mutex);
 unsigned int ge2d_log_level;
 unsigned int ge2d_dump_reg_enable;
 unsigned int ge2d_dump_reg_cnt;
+unsigned int max_cmd_cnt = DEFAULT_MAX_GE2D_CMD;
+void __iomem *backup_init_reg_vaddr;
+phys_addr_t backup_init_reg_paddr;
+void __iomem *cmd_queue_vaddr;
+dma_addr_t cmd_queue_paddr;
 
 struct ge2d_device_data_s ge2d_meson_dev;
 
@@ -486,7 +491,8 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	ret = ge2d_set_clut_table(context, args);
 	break;
 	case GE2D_GET_CAP:
-		/* DST_SIGN_MODE   |
+		/* CMD_QUEUE_MODE
+		 * DST_SIGN_MODE   |
 		 * DST_REPEAT      |
 		 * CANVAS_STATUS   |
 		 * HAS_SELF_POWER  |
@@ -495,13 +501,14 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		 * SRC2_REPEAT     |
 		 * SRC2_ALPHA
 		 */
-		cap_mask = ge2d_meson_dev.dst_sign_mode << 8 |
-			   ge2d_meson_dev.dst_repeat << 7    |
-			   ge2d_meson_dev.canvas_status << 5 |
-			   ge2d_meson_dev.has_self_pwr  << 4 |
-			   ge2d_meson_dev.deep_color    << 3 |
-			   ge2d_meson_dev.adv_matrix    << 2 |
-			   ge2d_meson_dev.src2_repeat   << 1 |
+		cap_mask = ge2d_meson_dev.cmd_queue_mode << 9 |
+			   ge2d_meson_dev.dst_sign_mode << 8  |
+			   ge2d_meson_dev.dst_repeat << 7     |
+			   ge2d_meson_dev.canvas_status << 5  |
+			   ge2d_meson_dev.has_self_pwr  << 4  |
+			   ge2d_meson_dev.deep_color    << 3  |
+			   ge2d_meson_dev.adv_matrix    << 2  |
+			   ge2d_meson_dev.src2_repeat   << 1  |
 			   ge2d_meson_dev.src2_alp      << 0;
 		put_user(cap_mask, (int __user *)argp);
 		break;
@@ -995,7 +1002,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 			    para.src2_rect.w, para.src2_rect.h,
 			    para.dst_rect.x, para.dst_rect.y,
 			    para.dst_rect.w, para.dst_rect.h,
-			    para.op);
+			    para.op, 0);
 		break;
 	case GE2D_BLEND_NOALPHA:
 		ge2d_log_dbg("blend_noalpha ...\n");
@@ -1017,7 +1024,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 				    para.src2_rect.w, para.src2_rect.h,
 				    para.dst_rect.x, para.dst_rect.y,
 				    para.dst_rect.w, para.dst_rect.h,
-				    para.op);
+				    para.op, 0);
 		break;
 	case GE2D_BLIT_NOALPHA:
 		/* bitblt_noalpha */
@@ -1089,6 +1096,90 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		break;
 	case GE2D_DETACH_DMA_FD:
 		ge2d_ioctl_detach_dma_fd(context, data_type);
+		break;
+	/* enqueue one cmd */
+	case GE2D_FILLRECTANGLE_ENQUEUE:
+		ge2d_log_dbg("fill rect enqueue\t");
+		ge2d_log_dbg("x=%d,y=%d,w=%d,h=%d,color=0x%x\n",
+			     para.src1_rect.x, para.src1_rect.y,
+			     para.src1_rect.w, para.src1_rect.h,
+			     para.color);
+
+		fillrect_enqueue(context,
+				 para.src1_rect.x, para.src1_rect.y,
+				 para.src1_rect.w, para.src1_rect.h,
+				 para.color);
+		break;
+	case GE2D_BLEND_ENQUEUE:
+		ge2d_log_dbg("blend enqueue ...\n");
+		blend_enqueue(context,
+			      para.src1_rect.x, para.src1_rect.y,
+			      para.src1_rect.w, para.src1_rect.h,
+			      para.src2_rect.x, para.src2_rect.y,
+			      para.src2_rect.w, para.src2_rect.h,
+			      para.dst_rect.x, para.dst_rect.y,
+			      para.dst_rect.w, para.dst_rect.h,
+			      para.op);
+		break;
+	case GE2D_BLEND_NOALPHA_ENQUEUE:
+		ge2d_log_dbg("blend_noalpha  enqueue ...\n");
+		blend_noalpha_enqueue(context,
+				      para.src1_rect.x, para.src1_rect.y,
+				      para.src1_rect.w, para.src1_rect.h,
+				      para.src2_rect.x, para.src2_rect.y,
+				      para.src2_rect.w, para.src2_rect.h,
+				      para.dst_rect.x, para.dst_rect.y,
+				      para.dst_rect.w, para.dst_rect.h,
+				      para.op);
+		break;
+
+	case GE2D_STRETCHBLIT_ENQUEUE:
+		ge2d_log_dbg("stretchblt enqueue\t");
+		ge2d_log_dbg("x=%d,y=%d,w=%d,h=%d,dst.w=%d,dst.h=%d\n",
+			     para.src1_rect.x, para.src1_rect.y,
+			     para.src1_rect.w, para.src1_rect.h,
+			     para.dst_rect.w, para.dst_rect.h);
+
+		stretchblt_enqueue(context,
+				   para.src1_rect.x, para.src1_rect.y,
+				   para.src1_rect.w, para.src1_rect.h,
+				   para.dst_rect.x,  para.dst_rect.y,
+				   para.dst_rect.w,  para.dst_rect.h);
+		break;
+	case GE2D_STRETCHBLIT_NOALPHA_ENQUEUE:
+		ge2d_log_dbg("stretchblt_noalpha  enqueue\t");
+		ge2d_log_dbg("x=%d,y=%d,w=%d,h=%d,dst.w=%d,dst.h=%d\n",
+			     para.src1_rect.x, para.src1_rect.y,
+			     para.src1_rect.w, para.src1_rect.h,
+			     para.dst_rect.w, para.dst_rect.h);
+
+		stretchblt_noalpha_enqueue(context,
+					   para.src1_rect.x, para.src1_rect.y,
+					   para.src1_rect.w, para.src1_rect.h,
+					   para.dst_rect.x,  para.dst_rect.y,
+					   para.dst_rect.w,  para.dst_rect.h);
+		break;
+	case GE2D_BLIT_ENQUEUE:
+		ge2d_log_dbg("blit  enqueue ...\n");
+		bitblt_enqueue(context,
+			       para.src1_rect.x, para.src1_rect.y,
+			       para.src1_rect.w, para.src1_rect.h,
+			       para.dst_rect.x, para.dst_rect.y);
+		break;
+
+	case GE2D_BLIT_NOALPHA_ENQUEUE:
+		ge2d_log_dbg("blit_noalpha enqueue ...\n");
+		bitblt_noalpha_enqueue(context,
+				       para.src1_rect.x, para.src1_rect.y,
+				       para.src1_rect.w, para.src1_rect.h,
+				       para.dst_rect.x, para.dst_rect.y);
+		break;
+	/* post a cmd queue to process */
+	case GE2D_POST_QUEUE:
+		post_queue_to_process(context, 1);
+		break;
+	case GE2D_POST_QUEUE_NOBLOCK:
+		post_queue_to_process(context, 0);
 		break;
 	}
 release1:
@@ -1390,6 +1481,25 @@ static struct ge2d_device_data_s ge2d_t5w = {
 	.blk_stride_mode = 1,
 };
 
+static struct ge2d_device_data_s ge2d_s5 = {
+	.ge2d_rate = 667000000,
+	.src2_alp = 1,
+	.canvas_status = 2,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &runtime_poweron_table,
+	.poweroff_table = &runtime_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_S5,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+	.dst_repeat = 1,
+	.dst_sign_mode = 1,
+	.blk_stride_mode = 1,
+	.cmd_queue_mode = 1,
+};
+
 static const struct of_device_id ge2d_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1457,6 +1567,10 @@ static const struct of_device_id ge2d_dt_match[] = {
 		.compatible = "amlogic, ge2d-t5w",
 		.data = &ge2d_t5w,
 	},
+	{
+		.compatible = "amlogic, ge2d-s5",
+		.data = &ge2d_s5,
+	},
 	{},
 };
 
@@ -1490,6 +1604,49 @@ static void timer_expire(struct timer_list *t)
 }
 #endif
 
+/*  cmd queue buffer layout
+ *
+ * backup_init_reg_paddr --> +---------------------+
+ *                           | backup initial regs |
+ *                           +---------------------+
+ *
+ *       cmd_queue_paddr --> +---------------------+
+ *                           |        cmd 1        |
+ *                           +---------------------+
+ *                           |        cmd 2        |
+ *                           +---------------------+
+ *                           |        cmd 3        |
+ *                           +---------------------+
+ *                           |        .....        |
+ */
+static int alloc_cmd_queue_buffer(struct device *dev, unsigned int cmd_cnt)
+{
+	backup_init_reg_vaddr = dma_alloc_coherent(dev, ONE_CMD_BUF_SIZE,
+						   &backup_init_reg_paddr,
+						   GFP_DMA | GFP_KERNEL);
+	if (!backup_init_reg_vaddr) {
+		ge2d_log_err("alloc backup buffer failed\n");
+		return -ENOMEM;
+	}
+
+	cmd_queue_vaddr = dma_alloc_coherent(dev, cmd_cnt * ONE_CMD_BUF_SIZE,
+					     &cmd_queue_paddr,
+					     GFP_DMA | GFP_KERNEL);
+	if (!cmd_queue_vaddr) {
+		ge2d_log_err("alloc cmd queue buffer failed\n");
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void release_cmd_queue_buffer(struct device *dev, unsigned int cmd_cnt)
+{
+	dma_free_coherent(dev, GE2D_REG_CNT, cmd_queue_vaddr, cmd_queue_paddr);
+	dma_free_coherent(dev, cmd_cnt * ONE_CMD_BUF_SIZE,
+			  cmd_queue_vaddr, cmd_queue_paddr);
+}
+
 static int ge2d_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1499,6 +1656,7 @@ static int ge2d_probe(struct platform_device *pdev)
 	struct clk *clk_vapb0;
 	struct clk *clk;
 	struct resource res;
+	const void *prop;
 
 	init_ge2d_device();
 
@@ -1671,6 +1829,23 @@ static int ge2d_probe(struct platform_device *pdev)
 	/* 8g memory support */
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);
 	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+
+	prop = of_get_property(pdev->dev.of_node, "max_cmd_cnt", NULL);
+	if (prop) {
+		max_cmd_cnt = of_read_ulong(prop, 1);
+		if (!max_cmd_cnt || max_cmd_cnt > 256) {
+			ge2d_log_err("max_cmd_cnt %d is invalid, range[1, 256]\n",
+				     max_cmd_cnt);
+			max_cmd_cnt = DEFAULT_MAX_GE2D_CMD;
+		}
+	}
+	/* cmd queue buffer */
+	if (ge2d_meson_dev.cmd_queue_mode) {
+		ret = alloc_cmd_queue_buffer(&pdev->dev, max_cmd_cnt);
+		if (ret < 0)
+			goto failed1;
+	}
+
 failed1:
 	return ret;
 }
@@ -1678,6 +1853,9 @@ failed1:
 static int ge2d_remove(struct platform_device *pdev)
 {
 	ge2d_log_info("%s\n", __func__);
+
+	if (ge2d_meson_dev.cmd_queue_mode)
+		release_cmd_queue_buffer(&pdev->dev, max_cmd_cnt);
 	ge2d_wq_deinit();
 	remove_ge2d_device();
 	return 0;

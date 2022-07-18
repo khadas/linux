@@ -52,6 +52,7 @@
 static struct ge2d_manager_s ge2d_manager;
 static int ge2d_irq = -ENXIO;
 static struct clk *ge2d_clk;
+static int backup_init_regs = 1;
 
 static const int bpp_type_lut[] = {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
@@ -146,6 +147,11 @@ static void ge2d_pre_init(void)
 	else
 		ge2d_gen_cfg.bytes_per_burst = 1;
 	ge2d_set_gen(&ge2d_gen_cfg);
+
+	if (ge2d_meson_dev.cmd_queue_mode && backup_init_regs) {
+		ge2d_backup_initial_regs(backup_init_reg_vaddr);
+		backup_init_regs = 0;
+	}
 }
 
 void ge2d_runtime_pwr(int enable)
@@ -217,7 +223,7 @@ static int get_queue_member_count(struct list_head *head)
 
 	list_for_each_entry(pitem, head, list) {
 		member_count++;
-		if (member_count > MAX_GE2D_CMD) /* error has occurred */
+		if (member_count > max_cmd_cnt) /* error has occurred */
 			break;
 	}
 
@@ -318,6 +324,10 @@ static void ge2d_dump_cmd(struct ge2d_cmd_s *cfg)
 
 	ge2d_log_info("GE2D_STATUS0=0x%x\n", ge2d_reg_read(GE2D_STATUS0));
 	ge2d_log_info("GE2D_STATUS1=0x%x\n", ge2d_reg_read(GE2D_STATUS1));
+
+	if (ge2d_meson_dev.cmd_queue_mode)
+		ge2d_log_dbg("frame:%d residual in the buffer\n",
+			     ge2d_reg_read(GE2D_AXI2DMA_STATUS));
 }
 
 static void ge2d_set_canvas(struct ge2d_config_s *cfg)
@@ -553,15 +563,145 @@ static void ge2d_update_matrix(struct ge2d_queue_item_s *pitem)
 	}
 }
 
-static int ge2d_process_work_queue(struct ge2d_context_s *wq)
+static int is_cmd_queue(struct ge2d_queue_item_s *pitem)
+{
+	return pitem->flag.cmd_queue_mode;
+}
+
+static int is_cmd_queue_last_item(struct ge2d_queue_item_s *pitem)
+{
+	return pitem->flag.cmd_queue_last_item;
+}
+
+static int is_cmd_item_ready(struct ge2d_queue_item_s *pitem)
+{
+	return pitem->flag.cmd_queue_ready;
+}
+
+static void ge2d_process_cmd(struct ge2d_queue_item_s *pitem,
+			     unsigned int reg_mask)
 {
 	struct ge2d_config_s *cfg;
+	unsigned int mask = 0x1;
+	unsigned int is_queue_item = is_queue(reg_mask);
+	unsigned int queue_item_index = queue_index(reg_mask);
+
+	/* do power on/off or hw cmd queue, all setting should be updated */
+	if (ge2d_meson_dev.has_self_pwr || ge2d_meson_dev.cmd_queue_mode)
+		pitem->config.update_flag = UPDATE_ALL;
+
+	if (is_queue_item)
+		init_cmd_queue_buf(queue_item_index);
+
+	cfg = &pitem->config;
+
+	ge2d_set_canvas(cfg);
+
+	while (cfg->update_flag && mask <= UPDATE_SCALE_COEF) {
+		/* we do not change */
+		switch (cfg->update_flag & mask) {
+		case UPDATE_SRC_DATA:
+			ge2d_set_src1_data(&cfg->src1_data, reg_mask);
+			break;
+		case UPDATE_SRC_GEN:
+			ge2d_set_src1_gen(&cfg->src1_gen, reg_mask);
+			break;
+		case UPDATE_DST_DATA:
+			ge2d_set_src2_dst_data(&cfg->src2_dst_data, reg_mask);
+			break;
+		case UPDATE_DST_GEN:
+			ge2d_set_src2_dst_gen(&cfg->src2_dst_gen,
+					      &pitem->cmd, reg_mask);
+			break;
+		case UPDATE_DP_GEN:
+			ge2d_update_matrix(pitem);
+			ge2d_set_dp_gen(cfg, reg_mask);
+			break;
+		case UPDATE_SCALE_COEF:
+			ge2d_set_src1_scale_coef(cfg->v_scale_coef_type,
+						 cfg->h_scale_coef_type,
+						 0); /* 0: set coef hw reg directly */
+			break;
+		}
+
+		cfg->update_flag &= ~mask;
+		mask = mask << 1;
+	}
+
+	pitem->cmd.hang_flag = 1;
+	ge2d_set_cmd(&pitem->cmd, reg_mask);/* set START_FLAG in this func. */
+
+	if (is_queue_item) {
+		adjust_cmd_queue_buf(queue_item_index);
+		/* disable irq when not the last one */
+		switch_cmd_queue_irq(queue_item_index, 0);
+	}
+}
+
+static struct list_head *ge2d_process_cmd_queue(struct ge2d_context_s *wq,
+				  struct ge2d_queue_item_s *pitem)
+{
+	struct ge2d_queue_item_s *pitem_entry, *tmp;
+	union ge2d_reg_bit_u convert = {.val = 0,};
+	int queue_index = 0, i;
+	struct list_head *ret = NULL;
+
+	convert.reg_bit.is_queue = 1;
+
+	list_for_each_entry_safe(pitem_entry, tmp, pitem->list.prev, list) {
+		convert.reg_bit.queue_index = ++queue_index;
+		ge2d_process_cmd(pitem_entry, convert.val);
+
+		if (is_cmd_queue_last_item(pitem_entry)) {
+			ret = &pitem_entry->list;
+			goto start_process;
+		}
+
+		/* recycle the item to free_queue */
+		kfree(pitem_entry->config.clut8_table.data);
+		spin_lock(&wq->lock);
+		list_move_tail(&pitem_entry->list, &wq->free_queue);
+		spin_unlock(&wq->lock);
+	}
+
+start_process:
+	/* enable irq for last item */
+	switch_cmd_queue_irq(queue_index, 1);
+
+	if ((ge2d_log_level & GE2D_LOG_DUMP_CMD_QUEUE_REGS) &&
+	    ge2d_meson_dev.cmd_queue_mode) {
+		for (i = 1; i <= queue_index; i++)
+			dump_cmd_queue_regs(i);
+	}
+
+	/* start hardware process */
+	start_cmd_queue_process(queue_index);
+
+	return ret;
+}
+
+/* the last item ready means the whole cmd queue is ready */
+static int is_cmd_queue_ready(struct ge2d_queue_item_s *pitem)
+{
+	struct ge2d_queue_item_s *pitem_entry;
+	struct list_head head = {.next = &pitem->list, };
+
+	list_for_each_entry(pitem_entry, &head, list) {
+		if (is_cmd_queue_last_item(pitem_entry) &&
+		    is_cmd_item_ready(pitem_entry))
+			return 1;
+	}
+
+	return 0;
+}
+
+static int ge2d_process_work_queue(struct ge2d_context_s *wq)
+{
 	struct ge2d_queue_item_s *pitem;
-	unsigned int  mask = 0x1;
 	struct list_head  *head = &wq->work_queue, *pos;
 	int ret = 0;
 	unsigned int block_mode;
-	int timeout = 0;
+	int timeout = 0, cmd_queue_mode, residual_cnt0, residual_cnt1;
 
 	if (!wq) {
 		ge2d_log_err("wq is null\n");
@@ -591,46 +731,15 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		goto  exit;
 	}
 
-	/* do power on/off every process, all setting should be updated */
-	if (ge2d_meson_dev.has_self_pwr)
-		pitem->config.update_flag = UPDATE_ALL;
-
 	do {
-		cfg = &pitem->config;
-		ge2d_set_canvas(cfg);
-		mask = 0x1;
-		while (cfg->update_flag && mask <= UPDATE_SCALE_COEF) {
-			/* we do not change */
-			switch (cfg->update_flag & mask) {
-			case UPDATE_SRC_DATA:
-				ge2d_set_src1_data(&cfg->src1_data);
-				break;
-			case UPDATE_SRC_GEN:
-				ge2d_set_src1_gen(&cfg->src1_gen);
-				break;
-			case UPDATE_DST_DATA:
-				ge2d_set_src2_dst_data(&cfg->src2_dst_data);
-				break;
-			case UPDATE_DST_GEN:
-				ge2d_set_src2_dst_gen(&cfg->src2_dst_gen,
-						      &pitem->cmd);
-				break;
-			case UPDATE_DP_GEN:
-				ge2d_update_matrix(pitem);
-				ge2d_set_dp_gen(cfg);
-				break;
-			case UPDATE_SCALE_COEF:
-				ge2d_set_src1_scale_coef(cfg->v_scale_coef_type,
-							 cfg->h_scale_coef_type
-							 );
-				break;
-			}
-
-			cfg->update_flag &= ~mask;
-			mask = mask << 1;
+		/* process a cmd or a cmd queue */
+		cmd_queue_mode = is_cmd_queue(pitem);
+		if (cmd_queue_mode && is_cmd_queue_ready(pitem)) {
+			pos = ge2d_process_cmd_queue(wq, pitem);
+			pitem = (struct ge2d_queue_item_s *)pos;
+		} else {
+			ge2d_process_cmd(pitem, 0);
 		}
-		pitem->cmd.hang_flag = 1;
-		ge2d_set_cmd(&pitem->cmd);/* set START_FLAG in this func. */
 		/* remove item */
 		block_mode = pitem->cmd.wait_done_flag;
 		ge2d_log_dbg("block_mode:%d\n", block_mode);
@@ -639,19 +748,50 @@ static int ge2d_process_work_queue(struct ge2d_context_s *wq)
 		/* list_move_tail(&pitem->list,&wq->free_queue); */
 		/* spin_unlock(&wq->lock); */
 
-		while (ge2d_is_busy()) {
-			timeout = wait_event_interruptible_timeout
+		if (!cmd_queue_mode) {
+			while (ge2d_is_busy()) {
+				timeout = wait_event_interruptible_timeout
 					(ge2d_manager.event.cmd_complete,
 					 !ge2d_is_busy(),
 					 msecs_to_jiffies(1000));
-			if (timeout == 0) {
-				ge2d_log_err("ge2d timeout!!!\n");
-				ge2d_dump_cmd(&pitem->cmd);
-				ge2d_soft_rst();
-				break;
+				if (timeout == 0) {
+					ge2d_log_err("ge2d timeout!!!\n");
+					ge2d_dump_cmd(&pitem->cmd);
+					if (ge2d_meson_dev.cmd_queue_mode) {
+						ge2d_dma_reset();
+						backup_init_regs = 1;
+					}
+					ge2d_soft_rst();
+					break;
+				}
+			}
+		} else {
+			while (!ge2d_queue_empty()) {
+				residual_cnt0 = ge2d_queue_cnt();
+				timeout = wait_event_interruptible_timeout
+					(ge2d_manager.event.cmd_complete,
+					 ge2d_queue_empty(),
+					 msecs_to_jiffies(1000));
+				residual_cnt1 = ge2d_queue_cnt();
+				if (timeout == 0 &&
+				    residual_cnt0 == residual_cnt1 &&
+				    residual_cnt0 != 0) {
+					ge2d_log_err("ge2d timeout!!!\n");
+					ge2d_dump_cmd(&pitem->cmd);
+					if (ge2d_meson_dev.cmd_queue_mode) {
+						ge2d_dma_reset();
+						backup_init_regs = 1;
+					}
+					ge2d_soft_rst();
+					break;
+				}
 			}
 		}
-		/*release clut8_data*/
+
+		if (cmd_queue_mode)
+			stop_cmd_queue_process();
+
+		/* release clut8_data */
 		kfree(pitem->config.clut8_table.data);
 		spin_lock(&wq->lock);
 		pos = pos->next;
@@ -782,7 +922,7 @@ void ge2d_wq_set_scale_coef(struct ge2d_context_s *wq,
 	}
 }
 
-int ge2d_wq_add_work(struct ge2d_context_s *wq)
+int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue)
 {
 	struct ge2d_queue_item_s  *pitem;
 
@@ -794,25 +934,65 @@ int ge2d_wq_add_work(struct ge2d_context_s *wq)
 	}
 
 	pitem = list_entry(wq->free_queue.next, struct ge2d_queue_item_s, list);
-	if (IS_ERR_OR_NULL(pitem))
+	if (IS_ERR_OR_NULL(pitem)) {
+		ge2d_log_err("@@%s:%d, failed\n", __func__, __LINE__);
 		goto error;
+	}
+	memset(&pitem->flag, 0, sizeof(struct ge2d_item_flag_s));
 	memcpy(&pitem->cmd, &wq->cmd, sizeof(struct ge2d_cmd_s));
 	memset(&wq->cmd, 0, sizeof(struct ge2d_cmd_s));
 	memcpy(&pitem->config, &wq->config, sizeof(struct ge2d_config_s));
 	wq->config.update_flag = 0; /* reset config set flag */
+	if (enqueue)
+		pitem->flag.cmd_queue_mode = 1;
+
 	spin_lock(&wq->lock);
 	list_move_tail(&pitem->list, &wq->work_queue);
 	spin_unlock(&wq->lock);
 	ge2d_log_dbg("add new work ok\n");
-	/* only read not need lock */
+
+	if (!enqueue) {
+		/* only read not need lock */
+		if (ge2d_manager.event.cmd_in_com.done == 0)
+			complete(&ge2d_manager.event.cmd_in_com);/* new cmd come in */
+		/* add block mode   if() */
+		if (pitem->cmd.wait_done_flag) {
+			wait_event_interruptible(wq->cmd_complete,
+						 pitem->cmd.wait_done_flag == 0);
+			/* interruptible_sleep_on(&wq->cmd_complete); */
+		}
+	}
+
+	return 0;
+error:
+	return -1;
+}
+
+int post_queue_to_process(struct ge2d_context_s *wq, int block)
+{
+	struct ge2d_queue_item_s *pitem;
+
+	ge2d_log_dbg("post a queue, start\n");
+
+	pitem = list_last_entry(&wq->work_queue, struct ge2d_queue_item_s, list);
+	if (IS_ERR_OR_NULL(pitem))
+		goto error;
+
+	pitem->flag.cmd_queue_last_item = 1;
+	pitem->flag.cmd_queue_ready = 1;
+
+	if (block)
+		pitem->cmd.wait_done_flag = 1;
+
 	if (ge2d_manager.event.cmd_in_com.done == 0)
 		complete(&ge2d_manager.event.cmd_in_com);/* new cmd come in */
-	/* add block mode   if() */
-	if (pitem->cmd.wait_done_flag) {
+
+	if (pitem->cmd.wait_done_flag)
 		wait_event_interruptible(wq->cmd_complete,
 					 pitem->cmd.wait_done_flag == 0);
-		/* interruptible_sleep_on(&wq->cmd_complete); */
-	}
+
+	ge2d_log_dbg("post a queue, done\n");
+
 	return 0;
 error:
 	return -1;
@@ -2842,7 +3022,7 @@ struct ge2d_context_s *create_ge2d_work_queue(void)
 	INIT_LIST_HEAD(&ge2d_work_queue->free_queue);
 	init_waitqueue_head(&ge2d_work_queue->cmd_complete);
 	spin_lock_init(&ge2d_work_queue->lock);  /* for process lock. */
-	for (i = 0; i < MAX_GE2D_CMD; i++) {
+	for (i = 0; i < max_cmd_cnt; i++) {
 		p_item = kcalloc(1,
 				 sizeof(struct ge2d_queue_item_s),
 				 GFP_KERNEL);

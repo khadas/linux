@@ -12,7 +12,7 @@
 
 static void _fillrect(struct ge2d_context_s *wq,
 		      int x, int y, int w, int h,
-		      unsigned int color, int blk)
+		      unsigned int color, int blk, int enqueue)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
 
@@ -53,19 +53,26 @@ static void _fillrect(struct ge2d_context_s *wq,
 	ge2d_cmd_cfg->wait_done_flag   = blk;
 	ge2d_cmd_cfg->cmd_op           = IS_FILLRECT;
 
-	ge2d_wq_add_work(wq);
+	ge2d_wq_add_work(wq, enqueue);
 }
 
 void fillrect(struct ge2d_context_s *wq,
 	      int x, int y, int w, int h, unsigned int color)
 {
-	_fillrect(wq, x, y, w, h, color, 1);
+	_fillrect(wq, x, y, w, h, color, 1, 0);
 }
 EXPORT_SYMBOL(fillrect);
 
 void fillrect_noblk(struct ge2d_context_s *wq,
 		    int x, int y, int w, int h, unsigned int color)
 {
-	_fillrect(wq, x, y, w, h, color, 0);
+	_fillrect(wq, x, y, w, h, color, 0, 0);
 }
 EXPORT_SYMBOL(fillrect_noblk);
+
+void fillrect_enqueue(struct ge2d_context_s *wq,
+		      int x, int y, int w, int h, unsigned int color)
+{
+	_fillrect(wq, x, y, w, h, color, 0, 1);
+}
+EXPORT_SYMBOL(fillrect_enqueue);

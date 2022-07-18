@@ -24,7 +24,7 @@ enum ge2d_memtype_s {
 
 #define MAX_PLANE         4
 #define MAX_BITBLT_WORK_CONFIG 4
-#define MAX_GE2D_CMD  32   /* 64 */
+#define DEFAULT_MAX_GE2D_CMD  32   /* 64 */
 
 #define CONFIG_GE2D_ADV_NUM
 #define CONFIG_GE2D_SRC2
@@ -765,10 +765,17 @@ enum ge2d_src_canvas_type_e {
 	CANVAS_TYPE_INVALID,
 };
 
+struct ge2d_item_flag_s {
+	unsigned int cmd_queue_mode : 1;
+	unsigned int cmd_queue_last_item : 1;
+	unsigned int cmd_queue_ready : 1;
+};
+
 struct ge2d_queue_item_s {
 	struct list_head list;
 	struct ge2d_cmd_s cmd;
 	struct ge2d_config_s config;
+	struct ge2d_item_flag_s flag;
 };
 
 struct ge2d_context_s {
@@ -1198,6 +1205,7 @@ struct ge2d_device_data_s {
 	unsigned int dst_repeat;     /* dst x repeat */
 	unsigned int dst_sign_mode;  /* dst signed matrix */
 	unsigned int blk_stride_mode;     /* block or linear mode*/
+	unsigned int cmd_queue_mode;  /* cmd queue mode */
 };
 
 extern struct ge2d_device_data_s ge2d_meson_dev;
@@ -1251,18 +1259,42 @@ extern struct ge2d_device_data_s ge2d_meson_dev;
 #define GE2D_DETACH_DMA_FD _IOW(GE2D_IOC_MAGIC, 0x0b, enum ge2d_data_type_e)
 #define GE2D_SET_CLUT _IOW(GE2D_IOC_MAGIC, 0x0c, struct ge2d_clut8_t)
 
-void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg);
-void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg);
-void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg);
+/* cmd queue */
+#define	GE2D_FILLRECTANGLE_ENQUEUE \
+	_IOW(GE2D_IOC_MAGIC, 0x0d, struct ge2d_para_s)
+#define	GE2D_BLEND_ENQUEUE         \
+	_IOW(GE2D_IOC_MAGIC, 0x0e, struct ge2d_para_s)
+#define GE2D_BLEND_NOALPHA_ENQUEUE \
+	_IOW(GE2D_IOC_MAGIC, 0x0f, struct ge2d_para_s)
+#define	GE2D_STRETCHBLIT_ENQUEUE   \
+	_IOW(GE2D_IOC_MAGIC, 0x10, struct ge2d_para_s)
+#define	GE2D_STRETCHBLIT_NOALPHA_ENQUEUE   \
+	_IOW(GE2D_IOC_MAGIC, 0x11, struct ge2d_para_s)
+#define	GE2D_BLIT_NOALPHA_ENQUEUE          \
+	_IOW(GE2D_IOC_MAGIC, 0x12, struct ge2d_para_s)
+#define	GE2D_BLIT_ENQUEUE                  \
+	_IOW(GE2D_IOC_MAGIC, 0x13, struct ge2d_para_s)
+#define GE2D_POST_QUEUE            \
+	_IO(GE2D_IOC_MAGIC, 0x14)
+#define GE2D_POST_QUEUE_NOBLOCK    \
+	_IO(GE2D_IOC_MAGIC, 0x15)
+
+void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg, u32 mask);
+void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg, u32 mask);
+void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg, u32 mask);
 void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg,
-			   struct ge2d_cmd_s *cmd);
-void ge2d_set_dp_gen(struct ge2d_config_s *config);
-void ge2d_set_cmd(struct ge2d_cmd_s *cfg);
+			   struct ge2d_cmd_s *cmd, u32 mask);
+void ge2d_set_dp_gen(struct ge2d_config_s *config, u32 mask);
+void ge2d_set_cmd(struct ge2d_cmd_s *cfg, u32 mask);
 void ge2d_wait_done(void);
 void ge2d_set_src1_scale_coef(unsigned int v_filt_type,
-			      unsigned int h_filt_type);
+			      unsigned int h_filt_type,
+			      unsigned int mask);
 void ge2d_set_gen(struct ge2d_gen_s *cfg);
 void ge2d_soft_rst(void);
+void ge2d_dma_reset(void);
+unsigned int ge2d_queue_cnt(void);
+bool ge2d_queue_empty(void);
 bool ge2d_is_busy(void);
 int ge2d_cmd_fifo_full(void);
 
@@ -1291,8 +1323,17 @@ extern struct ge2d_src2_dst_gen_s
 *ge2d_wq_get_dst_gen(struct ge2d_context_s *wq);
 struct ge2d_dp_gen_s *ge2d_wq_get_dp_gen(struct ge2d_context_s *wq);
 struct ge2d_cmd_s *ge2d_wq_get_cmd(struct ge2d_context_s *wq);
-int ge2d_wq_add_work(struct ge2d_context_s *wq);
-void ge2d_canv_config(u32 index, ulong *addr, u32 *stride, u32 *stride_mode);
+int ge2d_wq_add_work(struct ge2d_context_s *wq, int enqueue);
+void ge2d_canv_config(u32 index, ulong *addr, u32 *stride, u32 *stride_mode,
+		      u32 mask);
+void switch_cmd_queue_irq(u32 queue_index, u32 enable);
+void ge2d_backup_initial_regs(void __iomem *to_buf);
+void init_cmd_queue_buf(u32 queue_index);
+void adjust_cmd_queue_buf(u32 queue_index);
+void start_cmd_queue_process(u32 queue_cnt);
+void stop_cmd_queue_process(void);
+void dump_cmd_queue_regs(u32 queue_index);
+
 #include "ge2d_func.h"
 
 #endif
