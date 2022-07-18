@@ -232,7 +232,7 @@ static int get_canvas(u32 index)
 	return aipq_canvas[index];
 }
 
-int ge2d_224_process(struct vframe_s *vf, struct ge2d_output_t *output)
+int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 {
 	struct config_para_ex_s ge2d_config_s;
 	struct config_para_ex_s *ge2d_config = &ge2d_config_s;
@@ -505,7 +505,7 @@ int aipq_setinfo(void *arg, char *buf)
 	return ret;
 }
 
-static void dump_224(struct vframe_s *vf, phys_addr_t addr)
+static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aipq_info *info)
 {
 	struct file *fp;
 	char name_buf[32];
@@ -514,11 +514,16 @@ static void dump_224(struct vframe_s *vf, phys_addr_t addr)
 	mm_segment_t fs;
 	loff_t pos;
 
-	snprintf(name_buf, sizeof(name_buf), "/data/tmp/224.bin");
+	if (IS_ERR_OR_NULL(vf) || IS_ERR_OR_NULL(info)) {
+		aipq_print(PRINT_ERROR, "dump param invalid.\n");
+		return;
+	}
+
+	snprintf(name_buf, sizeof(name_buf), "/data/tmp/ge2dOut.rgb");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
-	write_size = 224 * 224 * 3;
+	write_size = info->nn_input_frame_height * info->nn_input_frame_width * 3;
 	data = codec_mm_vmap(addr, write_size);
 	if (!data)
 		return;
@@ -586,12 +591,12 @@ int aipq_getinfo(void *arg, char *buf)
 			}
 		}
 		memset(&output, 0, sizeof(struct ge2d_output_t));
-		output.width = 224;
-		output.height = 224;
+		output.width = aipq_info->nn_input_frame_width;
+		output.height = aipq_info->nn_input_frame_height;
 		output.format = GE2D_FORMAT_S24_BGR;
 		output.addr = addr;
 		do_gettimeofday(&begin_time);
-		ret = ge2d_224_process(vf, &output);
+		ret = ge2d_vf_process(vf, &output);
 		if (ret < 0) {
 			aipq_print(PRINT_ERROR, "ge2d err\n");
 			return -EINVAL;
@@ -602,7 +607,7 @@ int aipq_getinfo(void *arg, char *buf)
 		aipq_print(PRINT_OTHER, "ge2d cost: %d ms\n", cost_time);
 		if (uvm_aipq_dump) {
 			uvm_aipq_dump = 0;
-			dump_224(vf, addr);
+			dump_vf(vf, addr, aipq_info);
 		}
 	}
 	return 0;

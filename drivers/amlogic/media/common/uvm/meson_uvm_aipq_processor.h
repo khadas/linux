@@ -24,6 +24,8 @@ struct uvm_aipq_info {
 	s32 repeat_frame;
 	s32 dw_width;
 	s32 dw_height;
+	s32 nn_input_frame_width;
+	s32 nn_input_frame_height;
 };
 
 struct ge2d_output_t {
