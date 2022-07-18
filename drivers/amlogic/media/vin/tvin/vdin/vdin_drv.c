@@ -3746,6 +3746,10 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return 0;
 	}
 
+	if (vdin_dbg_en & VDIN_DBG_CNTL_IOCTL)
+		pr_info("vdin%d cmd:0x%x come in\n",
+			devp->index, cmd);
+
 	switch (cmd) {
 	case TVIN_IOC_OPEN: {
 		struct tvin_parm_s parm = {0};
@@ -4022,15 +4026,16 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TVIN_IOC_G_FRONTEND_INFO: {
 		struct tvin_frontend_info_s info;
 
+		mutex_lock(&devp->fe_lock);
 		if (!devp || !devp->fmt_info_p ||
 		    !(devp->flags & VDIN_FLAG_DEC_STARTED)) {
 			pr_info("get frontend failure vdin not start\n");
 			ret = -EFAULT;
+			mutex_unlock(&devp->fe_lock);
 			break;
 		}
 
 		memset(&info, 0, sizeof(struct tvin_frontend_info_s));
-		mutex_lock(&devp->fe_lock);
 		info.cfmt = devp->parm.info.cfmt;
 		info.fps = devp->parm.info.fps;
 		info.colordepth = devp->prop.colordepth;
@@ -4041,6 +4046,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				 sizeof(struct tvin_frontend_info_s)))
 			ret = -EFAULT;
 		mutex_unlock(&devp->fe_lock);
+		if (vdin_dbg_en)
+			pr_info("TVIN_IOC_G_FRONTEND_INFO(%d)\n", devp->index);
 		break;
 	}
 	case TVIN_IOC_G_BUF_INFO: {
@@ -4063,6 +4070,12 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case TVIN_IOC_GET_BUF: {
 		struct tvin_video_buf_s tv_buf;
 		struct vf_entry *vfe;
+
+		if (!devp->vfp->wr_next) {
+			pr_info("not TVIN_IOC_START_GET_BUF wr_next is null\n");
+			ret = -EFAULT;
+			break;
+		}
 
 		memset(&tv_buf, 0, sizeof(tv_buf));
 		vfe = list_entry(devp->vfp->wr_next, struct vf_entry, list);
@@ -4382,8 +4395,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case TVIN_IOC_S_CANVAS_ADDR:
-		if (devp->index == 0) {
-			pr_info("TVIN_IOC_S_CANVAS_ADDR can't be used at vdin0\n");
+		if (devp->index == 0 || !devp->set_canvas_manual) {
+			pr_info("TVIN_IOC_S_CANVAS_ADDR vdin0 or not manual canvas\n");
 			break;
 		}
 
@@ -5405,11 +5418,13 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	}
 	/*got the dt match data*/
 	of_id = of_match_device(vdin_dt_match, &pdev->dev);
-	if (!IS_ERR_OR_NULL(of_id)) {
-		devp->dtdata = of_id->data;
-		pr_info("chip:%s hw_ver:%d\n", devp->dtdata->name,
-			devp->dtdata->hw_ver);
+	if (!of_id) {
+		pr_err("%s: of_match_device get fail\n", __func__);
+		goto fail_create_dev_file;
 	}
+	devp->dtdata = of_id->data;
+	pr_info("chip:%s hw_ver:%d\n", devp->dtdata->name,
+		devp->dtdata->hw_ver);
 
 #ifdef CONFIG_CMA
 	if (!use_reserved_mem) {

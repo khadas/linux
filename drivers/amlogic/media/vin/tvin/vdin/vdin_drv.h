@@ -108,7 +108,8 @@
 /* 20220804: vdin1 crash addr modify */
 /* 20220811: state machine optimization */
 /* 20220829: get correct base framerate */
-#define VDIN_VER "20220829: get correct base framerate"
+/* 20220830: ioctl node need add more protect */
+#define VDIN_VER "20220830:ioctl node need add more protect"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -317,6 +318,8 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_VRR_DATA	BIT(9)
 #define VDIN_ISR_MONITOR_AFBCE		BIT(10)
 #define VDIN_ISR_MONITOR_BUFFER		BIT(11)
+
+#define VDIN_DBG_CNTL_IOCTL	BIT(10)
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
