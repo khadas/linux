@@ -15,8 +15,8 @@
 	amlogic-dt-id = "t5w_at301_2g";
 	compatible = "amlogic, t5w";
 	interrupt-parent = <&gic>;
-	#address-cells = <2>;
-	#size-cells = <2>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	aliases {
 		serial0 = &uart_B;
@@ -31,21 +31,21 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x0 0x0 0x80000000>;
+		linux,usable-memory = <0x0 0x80000000>;
 	};
 
 	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 		ranges;
 		/* global autoconfigured region for contiguous allocations */
 
 		secmon_reserved: linux,secmon {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+			size = <0x400000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x05000000 0x400000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -53,13 +53,13 @@
 			reusable;
 			/* keep sync with fb */
 			/* fox example:logo_addr = "0x3f800000"*/
-			alignment = <0x0 0x400000>;
-			reg = <0x0 0x3f800000 0x0 0x800000>;
+			alignment = <0x400000>;
+			reg = <0x3f800000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "amlogic, lcd_tcon";
-			reg = <0x0 0x3c000000 0x0 0x00c00000>;
+			reg = <0x3ec00000 0x00c00000>;
 			no-map;
 		};
 
@@ -70,8 +70,8 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-		/*	size = <0x0 0x01400000>;*/
-		/*	alignment = <0x0 0x400000>;*/
+		/*	size = <0x01400000>;*/
+		/*	alignment = <0x400000>;*/
 		/*};*/
 		/*  vdin1 CMA pool */
 		vdin1_cma_reserved:linux,vdin1_cma {
@@ -80,16 +80,16 @@
 			/* up to 1920x1080 yuv422 8bit and 5 buffers
 			 * 1920x1080x2x5 = 20 M
 			 */
-			size = <0x0 0x01400000>;
-			alignment = <0x0 0x400000>;
+			size = <0x01400000>;
+			alignment = <0x400000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1bc00000>;
-			alignment = <0x0 0x400000>;
+			size = <0x1bc00000>;
+			alignment = <0x400000>;
 			linux,contiguous-region;
 		};
 
@@ -105,15 +105,15 @@
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
 			//size = <0x0 0x0B000000>;
-			size = <0x0 0x0>;
-			alignment = <0x0 0x400000>;
+			size = <0x0>;
+			alignment = <0x400000>;
 		};
 
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
 			compatible = "amlogic, codec-mm-reserved";
-			size = <0x0 0x0>;
-			alignment = <0x0 0x100000>;
+			size = <0x0>;
+			alignment = <0x100000>;
 			//no-map;
 		};
 
@@ -127,25 +127,25 @@
 			 * size = 1920 * 1080 * 3 * 4
 			 * (RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x0 0x03000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+			size = <0x3000000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x0 0x3f400000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x0000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+			size = <0x0000000>;
+			alignment = <0x400000>;
+			alloc-ranges = <0x0 0x3f400000>;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
 			compatible = "shared-dma-pool";
 			reusable;
-			size = <0x0 0x400000>;
-			alignment = <0x0 0x400000>;
+			size = <0x400000>;
+			alignment = <0x400000>;
 		};
 	};
 
@@ -555,7 +555,7 @@
 		compatible = "amlogic, t5w_tvafe_avin_detect";
 		status = "okay";
 		device_mask = <1>;/*bit0:ch1;bit1:ch2*/
-		reg = <0x0 0xffd00000 0x0 0xf0a0>; /* cvbs irq base */
+		reg = <0xffd00000 0xf0a0>; /* cvbs irq base */
 		interrupts = <0 12 1>,
 				<0 13 1>;
 	};
@@ -566,8 +566,8 @@
 		status = "okay";
 		flag_cma = <1>;/*1:share with codec_mm;0:cma alone*/
 		cma_size = <5>;/*MByte*/
-		reg = <0x0 0xff654000 0x0 0x2000/*tvafe reg base*/
-			0x0 0xff63C000 0x0 0x2000>; /*hiu reg base*/
+		reg = <0xff654000 0x2000/*tvafe reg base*/
+			0xff63C000  0x2000>; /*hiu reg base*/
 		reserve-iomap = "true";
 		tvafe_id = <0>;
 		//pinctrl-names = "default";
@@ -636,15 +636,15 @@
 		/* MAP_ADDR_MODULE_TOP */
 		/* MAP_ADDR_MODULE_CLK_CTRL */
 		/* MAP_ADDR_MODULE_ANA_CTRL */
-		reg = < 0x0 0x0 0x0 0x0
-			0x0 0xff63C000 0x0 0x2000
-			0x0 0xffe0d000 0x0 0x2000
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0x0 0x0 0x0
-			0x0 0xff688000 0x0 0x18000
-			0x0 0xff646000 0x0 0x1fff
-			0x0 0xfe008000 0x280 0x334>;
+		reg = < 0x0 0x0
+			0xff63C000 0x2000
+			0xffe0d000 0x2000
+			0x0 0x0
+			0x0 0x0
+			0x0 0x0
+			0xff688000 0x18000
+			0xff646000 0x1fff
+			0xfe008280 0xb4>;
 	};
 
 	multi-di {
@@ -708,10 +708,10 @@
 		clocks = <&clkc CLKID_DEMOD_32K>;
 		clock-names = "demod_32k";
 
-		reg = <0x0 0xff670000 0x0 0x10000	/*dtv demod base*/
-			   0x0 0xff646000 0x0 0x2000	/*hiu reg base*/
-			   0x0 0xff800000 0x0 0x1000	/*io_aobus_base*/
-			   0x0 0xffd01000 0x0 0x1000	/*reset*/
+		reg = <0xff670000 0x10000	/*dtv demod base*/
+			   0xff646000 0x2000	/*hiu reg base*/
+			   0xff800000 0x1000	/*io_aobus_base*/
+			   0xffd01000 0x1000	/*reset*/
 			>;
 
 		spectrum = <1>;
@@ -725,10 +725,10 @@
 		interrupts = <0 236 1>;
 		/* pinctrl-names="atvdemod_agc_pins"; */
 		/* pinctrl-0=<&atvdemod_agc_pins>; */
-		reg = <0x0 0xff656000 0x0 0x2000 /* demod reg */
-				0x0 0xff646000 0x0 0x2000 /* hiu reg */
-				0x0 0xff634400 0x0 0x400 /* periphs reg */
-				0x0 0xff64a000 0x0 0x2000>; /* audio reg */
+		reg = <0xff656000 0x2000 /* demod reg */
+				0xff646000 0x2000 /* hiu reg */
+				0xff634400 0x400 /* periphs reg */
+				0xff64a000 0x2000>; /* audio reg */
 		reg_23cf = <0x88188832>;
 		/*default:0x88188832;r840 on haier:0x48188832*/
 	};
@@ -767,11 +767,11 @@
 		interrupts = <0 95 1>;
 		interrupt-names = "aucpu_irq";
 
-		#address-cells=<2>;
-		#size-cells=<2>;
+		#address-cells=<1>;
+		#size-cells=<1>;
 		ranges;
 		io_reg_base{
-			reg = <0x0 0xff650080 0x0 0x100>;
+			reg = <0xff650080 0x100>;
 		};
 	};
 
@@ -780,8 +780,8 @@
 		dev_name = "dvb-demux";
 		status = "okay";
 
-		reg = <0x0 0xff610000 0x0 0x10000
-				0x0 0xff800000 0x0 0x10000>;
+		reg = <0xff610000 0x10000
+				0xff800000 0x10000>;
 
 		dmxdev_num = <4>;
 
@@ -809,7 +809,7 @@
 		pinctrl-names= "ci_ts_pins", "ci_addr_pins";
 		pinctrl-0=<&dvb_ci_bus_pins_all &ci_ts_pins &ci_ts_clk_pins>;
 		pinctrl-1=<&dvb_ci_bus_pins &ci_addr_pins &ci_gpio_pins>;
-		reg = <0x0 0xffd20000 0x0 0x1FFF>;
+		reg = <0xffd20000 0x1FFF>;
 		/*irq define*/
 		interrupts = <0 186 1
 				0 187 1>;
@@ -829,7 +829,7 @@
 		dev_name = "smartcard";
 		status = "disabled";
 
-		reg = <0x0 0xffd25000 0x0 0x1000>;
+		reg = <0xffd25000 0x1000>;
 		irq_trigger_type = "GPIO_IRQ_LOW";
 
 		reset_pin-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
