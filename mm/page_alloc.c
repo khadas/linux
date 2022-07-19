@@ -3962,6 +3962,12 @@ retry:
 			if (alloc_flags & ALLOC_NO_WATERMARKS)
 				goto try_this_zone;
 
+#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+			/* alloc harder if under softirq */
+			if (in_serving_softirq() && (gfp_mask & __GFP_ATOMIC))
+				goto try_this_zone;
+#endif
+
 			if (node_reclaim_mode == 0 ||
 			    !zone_allows_reclaim(ac->preferred_zoneref->zone, zone))
 				continue;

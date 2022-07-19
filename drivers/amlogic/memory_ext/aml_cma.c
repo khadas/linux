@@ -172,9 +172,6 @@ bool can_use_cma(gfp_t gfp_flags)
 	if (cma_forbidden_mask(gfp_flags))
 		return false;
 
-	if (cma_alloc_ref())
-		return false;
-
 	if (task_nice(current) > 0)
 		return false;
 
