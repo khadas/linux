@@ -3,6 +3,7 @@
 # Makefile for misc devices that really don't fit anywhere else.
 #
 
+KBUILD_CFLAGS += -Wno-unused-function
 obj-y				+= rk628/
 obj-$(CONFIG_RK803)		+= rk803.o
 obj-y				+= rockchip/
