@@ -573,6 +573,11 @@ static void lcd_p2p_phy_set_t5(struct aml_lcd_drv_s *pdrv, int status)
 				cntl14 = 0xe0600272;
 			else /* default 385mV */
 				cntl14 = 0xfe60027f;
+
+			/* vswing_level */
+			cntl14 &= ~(0xf);
+			cntl14 |= phy->vswing;
+
 			/* vcm */
 			if ((phy->flag & (1 << 1))) {
 				cntl14 &= ~(0x7ff << 4);
@@ -1123,6 +1128,11 @@ static void lcd_p2p_phy_set_t3(struct aml_lcd_drv_s *pdrv, int status)
 				cntl14 = 0xe0600272;
 			else /* default 385mV */
 				cntl14 = 0xfe60027f;
+
+			/* vswing_level */
+			cntl14 &= ~(0xf);
+			cntl14 |= phy->vswing;
+
 			/* vcm */
 			if ((phy->flag & (1 << 1))) {
 				cntl14 &= ~(0x7ff << 4);
@@ -1384,6 +1394,11 @@ static void lcd_p2p_phy_set_t5w(struct aml_lcd_drv_s *pdrv, int status)
 				cntl14 = 0xe0600272;
 			else /* default 385mV */
 				cntl14 = 0xfe60027f;
+
+			/* vswing_level */
+			cntl14 &= ~(0xf);
+			cntl14 |= phy->vswing;
+
 			/* vcm */
 			if ((phy->flag & (1 << 1))) {
 				cntl14 &= ~(0x7ff << 4);

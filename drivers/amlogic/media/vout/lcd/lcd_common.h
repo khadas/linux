@@ -40,7 +40,8 @@
 /* 20220426: update lcd mute control for DLG switch*/
 /* 20220428: fix t5w regs mistake*/
 /* 20220622: support tcon dynamic gamma*/
-#define LCD_DRV_VERSION    "20220622"
+/* 20220719: support t5,t5w,t3 set vswing level in low common type*/
+#define LCD_DRV_VERSION    "20220719"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
