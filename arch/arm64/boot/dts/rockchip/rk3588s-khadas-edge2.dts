@@ -692,6 +692,12 @@
 	status = "okay";
 };
 
+&sfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspim2_pins>;
+	status = "okay";
+};
+
 &u2phy0_otg {
 	rockchip,typec-vbus-det;
 };
