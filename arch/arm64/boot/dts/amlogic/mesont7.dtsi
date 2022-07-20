@@ -2087,8 +2087,7 @@
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
 			/*1:inphy; 2:exphy;*/
-			internal_phy = <2>;
-			cali_val = <0x80000>;
+			internal_phy = <1>;
 			status = "disabled";
 
 			mdio0: mdio {
