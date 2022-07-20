@@ -501,21 +501,9 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		if (ret) {
 			pr_err("failed to scale volt %u %u down: %d\n",
 			       volt_new, volt_tol, ret);
-			freqs.old = freq_new / 1000;
-			freqs.new = freq_old / 1000;
-			freq_new = freqs.new;
-			opp = dev_pm_opp_find_freq_ceil(cpu_dev, &freq_new);
-			volt_new = dev_pm_opp_get_voltage(opp);
-			dev_pm_opp_put(opp);
-			meson_dsu_volt_freq_vote(cpufreq_data, &freqs, volt_new);
-			meson_dsuvolt_adjust(cpufreq_data);
-
-			meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_PRECHANGE);
-			meson_cpufreq_set_rate(policy, cur_cluster, freq_old / 1000);
-			meson_dsufreq_adjust(cpufreq_data, &freqs, CPUFREQ_POSTCHANGE);
-		} else {
-			meson_dsuvolt_adjust(cpufreq_data);
+			return ret;
 		}
+		meson_dsuvolt_adjust(cpufreq_data);
 	}
 
 	freq_new = clk_get_rate(clk[cur_cluster]) / 1000000;
