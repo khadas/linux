@@ -65,6 +65,28 @@ static struct logbuf_t *logbuf;
 static struct dentry *rtos_logbuf_file;
 static DEFINE_MUTEX(freertos_logbuf_lock);
 
+static BLOCKING_NOTIFIER_HEAD(rtos_nofitier_chain);
+
+int register_freertos_notifier(struct notifier_block *nb)
+{
+	int err;
+
+	err = blocking_notifier_chain_register(&rtos_nofitier_chain, nb);
+	return err;
+}
+EXPORT_SYMBOL_GPL(register_freertos_notifier);
+
+int unregister_freertos_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&rtos_nofitier_chain, nb);
+}
+EXPORT_SYMBOL(unregister_freertos_notifier);
+
+static int call_freertos_notifiers(unsigned long val, void *v)
+{
+	return blocking_notifier_call_chain(&rtos_nofitier_chain, val, v);
+}
+
 static unsigned long freertos_request_info(void)
 {
 	struct device_node *rtos_reserved, *freertos;
@@ -246,6 +268,7 @@ static void freertos_do_finish(int bootup)
 					__va(PAGE_ALIGN(res_mem.base + res_mem.size)),
 						   0,
 						   "free_mem");
+				call_freertos_notifiers(1, NULL);
 			}
 		}
 //done:
