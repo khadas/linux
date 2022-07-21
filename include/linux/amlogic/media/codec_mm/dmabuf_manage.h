@@ -16,6 +16,7 @@ enum dmabuf_manage_type {
 	DMA_BUF_TYPE_INVALID,
 	DMA_BUF_TYPE_SECMEM,
 	DMA_BUF_TYPE_DMXES,
+	DMA_BUF_TYPE_DMABUF,
 	DMA_BUF_TYPE_MAX
 };
 
@@ -77,8 +78,9 @@ struct dmabuf_manage_block {
 
 phys_addr_t secure_block_alloc(unsigned long size, unsigned long maxsize, unsigned long id);
 unsigned long secure_block_free(phys_addr_t addr, unsigned long size);
-unsigned long secure_get_pool_freesize(phys_addr_t addr, unsigned long id, unsigned long maxsize);
-unsigned int dmabuf_manage_get_blocknum(unsigned long id);
+unsigned int dmabuf_manage_get_can_alloc_blocknum(unsigned long id, unsigned long maxsize,
+	unsigned long predictedsize, unsigned long paddr);
+unsigned int dmabuf_manage_get_allocated_blocknum(unsigned long id);
 unsigned int dmabuf_manage_get_secure_heap_version(void);
 unsigned int dmabuf_manage_get_type(unsigned int fd);
 void *dmabuf_manage_get_info(unsigned int fd, unsigned int type);
@@ -96,4 +98,6 @@ void *dmabuf_manage_get_info(unsigned int fd, unsigned int type);
 #define DMABUF_MANAGE_EXPORT_DMABUF		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1001, int)
 #define DMABUF_MANAGE_GET_DMABUFINFO	_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1002, int)
 #define DMABUF_MANAGE_SET_FILTERFD		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1003, int)
+#define DMABUF_MANAGE_ALLOCDMABUF		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1004, int)
+#define DMABUF_MANAGE_FREEDMABUF		_IOWR(DMABUF_MANAGE_IOC_MAGIC, 1005, int)
 #endif /* _LINUX_DMABUF_MANAGE_H_ */

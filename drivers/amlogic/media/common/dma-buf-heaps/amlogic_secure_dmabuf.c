@@ -21,7 +21,7 @@
 
 static struct dma_heap *secure_heap;
 
-static int dma_buf_debug;
+static int dma_buf_debug = 1;
 module_param(dma_buf_debug, int, 0644);
 
 #define dprintk(level, fmt, arg...) \
@@ -47,8 +47,8 @@ struct secure_block_info {
 	__u32 state;
 	__u32 id;
 	__u32 bind;
-	__u32 freesize;
-	__u32 blocknum;
+	__u32 allocnum;
+	__u32 freenum;
 };
 
 struct secure_heap_buffer {
@@ -259,10 +259,19 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 					block->phyaddr = 0;
 					block->size = 0;
 				}
-				if (block->id != 0) {
-					block->freesize = secure_get_pool_freesize(paddr,
-						block->id, buffer->len);
-					block->blocknum = dmabuf_manage_get_blocknum(block->id);
+				if (block->id != 0 && block->allocsize > 0) {
+					block->freenum =
+						dmabuf_manage_get_can_alloc_blocknum(block->id,
+						buffer->len,
+						block->allocsize + SECURE_DMA_BLOCK_ALIGN_2N,
+						paddr);
+					block->allocnum =
+						dmabuf_manage_get_allocated_blocknum(block->id);
+					block->allocsize = 0;
+				} else {
+					block->allocnum = 0;
+					block->freenum = 0;
+					block->allocsize = 0;
 				}
 			}
 			block->state = 0;

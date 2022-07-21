@@ -24,7 +24,7 @@
 #include <media/demux.h>
 #include <media/dmxdev.h>
 
-static int dmabuf_manage_debug;
+static int dmabuf_manage_debug = 1;
 module_param(dmabuf_manage_debug, int, 0644);
 
 static int secure_vdec_def_size_bytes;
@@ -346,6 +346,7 @@ static long dmabuf_manage_export(unsigned long args)
 	struct dmabuf_manage_block *block;
 	struct dma_buf *dbuf;
 	int fd;
+	int fd_flags = O_CLOEXEC;
 
 	pr_enter();
 	block = (struct dmabuf_manage_block *)
@@ -361,12 +362,12 @@ static long dmabuf_manage_export(unsigned long args)
 		goto error_copy;
 	}
 	block->type = DMA_BUF_TYPE_SECMEM;
-	dbuf = get_dmabuf(block, 0);
+	dbuf = get_dmabuf(block, fd_flags);
 	if (!dbuf) {
 		pr_error("get_dmabuf failed\n");
 		goto error_export;
 	}
-	fd = dma_buf_fd(dbuf, O_CLOEXEC);
+	fd = dma_buf_fd(dbuf, fd_flags);
 	if (fd < 0) {
 		pr_error("dma_buf_fd failed\n");
 		goto error_fd;
@@ -486,6 +487,7 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 	struct dmabuf_dmx_sec_es_data *dmxes;
 	struct dma_buf *dbuf;
 	int fd = -1;
+	int fd_flags = 0;
 
 	pr_enter();
 	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
@@ -503,7 +505,11 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 		goto error_copy;
 	}
 	switch (info.type) {
+	case DMA_BUF_TYPE_SECMEM:
+		fd_flags = O_CLOEXEC;
+		break;
 	case DMA_BUF_TYPE_DMXES:
+		fd_flags = O_CLOEXEC;
 		dmxes = kzalloc(sizeof(*dmxes), GFP_KERNEL);
 		if (!dmxes) {
 			pr_error("kmalloc failed\n");
@@ -511,6 +517,9 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 		}
 		memcpy(dmxes, &info.buffer.dmxes, sizeof(*dmxes));
 		block->priv = dmxes;
+		break;
+	case DMA_BUF_TYPE_DMABUF:
+		fd_flags = O_RDWR | O_CLOEXEC;
 		break;
 	default:
 		block->priv = NULL;
@@ -520,12 +529,12 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 	block->size = PAGE_ALIGN(info.size);
 	block->handle = info.handle;
 	block->type = info.type;
-	dbuf = get_dmabuf(block, 0);
+	dbuf = get_dmabuf(block, fd_flags);
 	if (!dbuf) {
 		pr_error("get_dmabuf failed\n");
 		goto error_alloc_object;
 	}
-	fd = dma_buf_fd(dbuf, O_CLOEXEC);
+	fd = dma_buf_fd(dbuf, fd_flags);
 	if (fd < 0) {
 		pr_error("dma_buf_fd failed\n");
 		goto error_fd;
@@ -592,9 +601,11 @@ static long dmabuf_manage_set_filterfd(unsigned long args)
 	int found = 0;
 	struct dmx_demux *demux = NULL;
 	decode_info decode_info_func = NULL;
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
 	struct fd f;
 	struct dmxdev_filter *dmxdevfilter = NULL;
 	struct dmxdev *dmxdev = NULL;
+#endif
 
 	pr_enter();
 	if (copy_from_user((void *)&info, (void __user *)args, sizeof(info))) {
@@ -662,6 +673,43 @@ error:
 	return -EFAULT;
 }
 
+static long dmabuf_manage_alloc_dmabuf(unsigned long args)
+{
+	long res = -EFAULT;
+	struct dmabuf_manage_buffer info;
+
+	pr_enter();
+	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
+	if (res) {
+		pr_error("copy_from_user failed\n");
+		goto error_copy;
+	}
+	if (info.size <= 0 || info.size % 4096 != 0) {
+		pr_error("Invalid size isn't 4K align %d", info.size);
+		return -1;
+	}
+	res = codec_mm_alloc_for_dma("dmabuf", info.size / PAGE_SIZE,
+		SECURE_MM_BLOCK_ALIGNED_2N, CODEC_MM_FLAGS_DMA);
+error_copy:
+	return res;
+}
+
+static long dmabuf_manager_free_dmabuf(unsigned long args)
+{
+	long res = -EFAULT;
+	struct dmabuf_manage_buffer info;
+
+	pr_enter();
+	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
+	if (res) {
+		pr_error("copy_from_user failed\n");
+		goto error_copy;
+	}
+	res = codec_mm_free_for_dma("dmabuf", info.paddr);
+error_copy:
+	return res;
+}
+
 unsigned int dmabuf_manage_get_type(unsigned int fd)
 {
 	int ret = DMA_BUF_TYPE_INVALID;
@@ -705,6 +753,9 @@ void *dmabuf_manage_get_info(unsigned int fd, unsigned int type)
 			break;
 		case DMA_BUF_TYPE_DMXES:
 			buf = block->priv;
+			break;
+		case DMA_BUF_TYPE_DMABUF:
+			buf = block;
 			break;
 		default:
 			break;
@@ -1119,50 +1170,44 @@ error_free:
 	return ret;
 }
 
-unsigned long secure_get_pool_freesize(phys_addr_t paddr, unsigned long id, unsigned long maxsize)
+unsigned int dmabuf_manage_get_can_alloc_blocknum(unsigned long id,
+	unsigned long maxsize, unsigned long predictedsize, unsigned long addr)
 {
+	u32 num = 0;
+	phys_addr_t paddr[SECURE_VDEC_BLOCK_NUM_EVERY_POOL] = { 0 };
+	struct secure_pool_info *vdec_pool = NULL;
 	u32 index = 0;
-	struct secure_pool_info *vdec_pool;
-	u32 freesize = 0;
-	u32 new_pool = 0;
+	u32 i = 0;
+	unsigned long alignsize = secure_align_up2n(predictedsize, SECURE_MM_BLOCK_ALIGNED_2N);
 
 	mutex_lock(&g_dmabuf_mutex);
 	pr_enter();
-	if (!g_vdec_info.used)
-		goto error;
-	vdec_pool = &g_vdec_info.vdec_pool[index];
-	if (secure_heap_version > SECURE_HEAP_SUPPORT_DELAY_ALLOC_VERSION && id > 0) {
+	if (g_vdec_info.used && id > 0 && predictedsize > 0) {
 		index = secure_get_vdec_pool_by_instance(id);
-		if (index >= SECURE_MAX_VDEC_POOL_NUM) { //no bind
-			index = secure_get_vdec_pool_by_paddr(paddr);
-			if (index >= SECURE_MAX_VDEC_POOL_NUM) { //all free
-				new_pool = 1;
-			} else {
-				if (g_vdec_info.vdec_pool[index].bind) {
-					index = secure_get_subpoolindex_by_framesize(maxsize, 0);
-					if (index >= SECURE_MAX_VDEC_POOL_NUM) {//no pool
-						new_pool = 1;
-					}
-				}
+		if (index >= SECURE_MAX_VDEC_POOL_NUM)
+			index = secure_get_vdec_pool_by_paddr(addr);
+		if (index < SECURE_MAX_VDEC_POOL_NUM) {
+			vdec_pool = &g_vdec_info.vdec_pool[index];
+			for (i = 0; i < SECURE_VDEC_BLOCK_NUM_EVERY_POOL; i++, num++) {
+				paddr[i] = secure_pool_alloc(vdec_pool->pool, alignsize);
+				if (paddr[i] <= 0)
+					break;
 			}
-			if (new_pool) {
-				freesize = secure_get_subpoolsize_by_framesize(maxsize);
-				goto error;
+			for (i = 0; i < num; i++)
+				secure_pool_free(vdec_pool->pool, paddr[i], alignsize);
+			if (!vdec_pool->bind) {
+				vdec_pool->instance = id;
+				vdec_pool->bind = 1;
 			}
-		}
-		vdec_pool = &g_vdec_info.vdec_pool[index];
-		if (!vdec_pool->bind) {
-			vdec_pool->instance = id;
-			vdec_pool->bind = 1;
+		} else {
+			num = secure_get_subpoolsize_by_framesize(maxsize) / predictedsize;
 		}
 	}
-	freesize = secure_pool_free_size(vdec_pool->pool);
-error:
 	mutex_unlock(&g_dmabuf_mutex);
-	return freesize;
+	return num;
 }
 
-unsigned int dmabuf_manage_get_blocknum(unsigned long id)
+unsigned int dmabuf_manage_get_allocated_blocknum(unsigned long id)
 {
 	u32 num = 0;
 	struct secure_pool_info *vdec_pool;
@@ -1254,6 +1299,12 @@ static long dmabuf_manage_ioctl(struct file *filep, unsigned int cmd,
 		break;
 	case DMABUF_MANAGE_SET_FILTERFD:
 		ret = dmabuf_manage_set_filterfd(args);
+		break;
+	case DMABUF_MANAGE_ALLOCDMABUF:
+		ret = dmabuf_manage_alloc_dmabuf(args);
+		break;
+	case DMABUF_MANAGE_FREEDMABUF:
+		ret = dmabuf_manager_free_dmabuf(args);
 		break;
 	default:
 		break;
