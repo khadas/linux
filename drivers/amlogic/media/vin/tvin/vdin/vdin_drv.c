@@ -2719,10 +2719,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			/* 100 to 120 rx not change need to send event */
 			if (!devp->game_mode && IS_HDMI_SRC(devp->parm.port) &&
 			    devp->dtdata->hw_ver >= VDIN_HW_T7) {
-				if (devp->duration == 800)
+				if (devp->duration == DURATION_VALUE_120_FPS)
 					devp->prop.fps = 120;
-				if (devp->duration == 960)
+				if (devp->duration == DURATION_VALUE_100_FPS)
 					devp->prop.fps = 100;
+				if (devp->duration == DURATION_VALUE_23_97_FPS)
+					devp->prop.fps = FPS_23_97_SET_TO_23;
 			}
 			if (vdin_isr_monitor & VDIN_ISR_MONITOR_VRR_DATA)
 				pr_info("vdin vrr_en:%d spd:%d %d\n",

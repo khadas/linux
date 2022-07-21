@@ -120,8 +120,8 @@
 /* 20221029: update prop info */
 /* 20221101: vdin1 crash when screen recording and keystone */
 /* 20221103: change pc mode variable to local */
-
-#define VDIN_VER "20221101"
+/* 20221109: interlace min buffer and 23.97 send event */
+#define VDIN_VER "20221109"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -266,6 +266,12 @@ struct match_data_s {
 #define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_PROP_RX_UPDATE		BIT(5)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
+
+#define DURATION_VALUE_120_FPS		800
+#define DURATION_VALUE_100_FPS		960
+#define DURATION_VALUE_23_97_FPS	4004
+// 23.97 Set this parameter to 23 to distinguish between 24
+#define FPS_23_97_SET_TO_23		23
 
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \

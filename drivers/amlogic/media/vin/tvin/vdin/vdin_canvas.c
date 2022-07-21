@@ -41,19 +41,19 @@
  *for skip two vframe case,need +2
  */
 static unsigned int max_buf_num = VDIN_CANVAS_MAX_CNT;
-static unsigned int min_buf_num = 4;
+static unsigned int min_buf_num = VDIN_CANVAS_MIN_CNT;
 static unsigned int max_buf_width = VDIN_CANVAS_MAX_WIDTH_HD;
 static unsigned int max_buf_height = VDIN_CANVAS_MAX_HEIGHT;
 /* one frame max metadata size:32x280 bits = 1120bytes(0x460) */
 unsigned int dolby_size_byte = K_DV_META_BUFF_SIZE;
 
-#ifdef DEBUG_SUPPORT
 module_param(max_buf_num, uint, 0664);
 MODULE_PARM_DESC(max_buf_num, "vdin max buf num.\n");
 
 module_param(min_buf_num, uint, 0664);
 MODULE_PARM_DESC(min_buf_num, "vdin min buf num.\n");
 
+#ifdef DEBUG_SUPPORT
 module_param(max_buf_width, uint, 0664);
 MODULE_PARM_DESC(max_buf_width, "vdin max buf width.\n");
 
@@ -451,6 +451,10 @@ unsigned int vdin_cma_alloc(struct vdin_dev_s *devp)
 	if (devp->frame_buff_num >= min_buf_num &&
 	    devp->frame_buff_num <= max_buf_num)
 		max_buffer_num = devp->frame_buff_num;
+
+	if (!devp->index && devp->frame_buff_num < VDIN_CANVAS_INTERLACED_MIN_CNT &&
+	    devp->fmt_info_p->scan_mode == TVIN_SCAN_MODE_INTERLACED)
+		max_buffer_num = VDIN_CANVAS_INTERLACED_MIN_CNT;
 
 	devp->canvas_max_num = max_buffer_num;
 	devp->vf_mem_max_cnt = max_buffer_num;
