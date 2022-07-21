@@ -1374,7 +1374,7 @@
 			mapname = "amlogic-remote-2";
 			customcode = <0xfe01>;
 			release_delay = <80>;
-			size  = <45>;
+			size  = <52>;
 			keymap = <
 				REMOTE_KEY(0x10, 200) /* power */
 				REMOTE_KEY(0x1f, 201) /* eject-->input source */
@@ -1421,6 +1421,13 @@
 				REMOTE_KEY(0x44, 242) /* LEGACY */
 				REMOTE_KEY(0xa7, 243) /* CD */
 				REMOTE_KEY(0x09, 244) /* random */
+				REMOTE_KEY(0x00, 245) /* dtsx direct mode */
+				REMOTE_KEY(0x0a, 246) /* dtsx drc  */
+				REMOTE_KEY(0x5b, 247) /* dtsx imax  */
+				REMOTE_KEY(0x13, 248) /* dtsx dialog gain  */
+				REMOTE_KEY(0x41, 249) /* dtsx dialog norm  */
+				REMOTE_KEY(0x43, 250) /* dtsx spkrout */
+				REMOTE_KEY(0x15, 251) /* pcm surround effect */
 				>;
 		};
 		map_2: map_2{
