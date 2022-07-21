@@ -676,6 +676,7 @@
 		power-domains = <&pwrdm PDID_P1_DSPA>,
 						<&pwrdm PDID_P1_DSPB>;
 		power-domain-names = "dspa", "dspb";
+		dsp_clk_freqs = <800000000 800000000>;
 		status = "okay";
 	};
 
