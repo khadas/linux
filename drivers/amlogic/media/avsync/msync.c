@@ -217,8 +217,8 @@ struct msync_priv {
 
 enum {
 	LOG_ERR = 0,
-	LOG_WARN = 1,
-	LOG_INFO = 2,
+	LOG_WARN = 0,
+	LOG_INFO = 0,
 	LOG_DEBUG = 3,
 	LOG_TRACE = 4,
 };
@@ -1642,9 +1642,9 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		bool wakeup = false;
 
 		get_user(mode, (u32 __user *)argp);
-		msync_dbg(LOG_INFO,
-			"session[%d] mode %d --> %d\n",
-			session->id, session->mode, mode);
+		msync_dbg(LOG_ERR,
+			"session[%d] mode %d --> %d by %s\n",
+			session->id, session->mode, mode, current->comm);
 		mutex_lock(&session->session_mutex);
 		if (session->mode != AVS_MODE_PCR_MASTER &&
 			mode == AVS_MODE_PCR_MASTER &&
@@ -2033,14 +2033,16 @@ static ssize_t session_stat_show(struct class *cla,
 
 	session = container_of(cla, struct sync_session, session_class);
 	return sprintf(buf,
-		"active v/%d a/%d\n"
+		"id: %d\n"
+		"active v/%d a/%d mode %d\n"
 		"first v/%x a/%x\n"
 		"last  v/%x a/%x\n"
 		"diff-ms a-w %d v-w %d a-v %d\n"
 		"start %d r %d\n"
 		"w %x pcr(%c) %x\n"
 		"audio switch %c\n",
-		session->v_active, session->a_active,
+		session->id,
+		session->v_active, session->a_active, session->mode,
 		session->first_vpts.pts,
 		session->first_apts.pts,
 		session->last_vpts.pts - session->last_vpts.delay,
