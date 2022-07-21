@@ -17,29 +17,18 @@
 #include <linux/leds.h>
 #include "../leds.h"
 
-static void off_trig_activate(struct led_classdev *led_cdev)
+static int off_trig_activate(struct led_classdev *led_cdev)
 {
 	led_set_brightness_nosleep(led_cdev, LED_OFF);
+	return 0;
 }
 
 static struct led_trigger off_led_trigger = {
 	.name     = "off",
 	.activate = off_trig_activate,
 };
+module_led_trigger(off_led_trigger);
 
-static int __init off_trig_init(void)
-{
-	return led_trigger_register(&off_led_trigger);
-}
-
-static void __exit off_trig_exit(void)
-{
-	led_trigger_unregister(&off_led_trigger);
-}
-
-module_init(off_trig_init);
-module_exit(off_trig_exit);
-
-MODULE_AUTHOR("Terry <terry@szwesion.com>");
-MODULE_DESCRIPTION("OFF LED trigger");
-MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Nick Forbes <nick.forbes@incepta.com>");
+MODULE_DESCRIPTION("Default-ON LED trigger");
+MODULE_LICENSE("GPL v2");
