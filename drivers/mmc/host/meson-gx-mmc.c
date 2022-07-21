@@ -3883,6 +3883,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	mmc->max_req_size = SD_EMMC_MAX_REQ_SIZE;
 	mmc->max_seg_size = mmc->max_req_size;
 	mmc->ocr_avail = 0x200080;
+	mmc->max_current_180 = 300; /* 300 mA in 1.8V */
+	mmc->max_current_330 = 300; /* 300 mA in 3.3V */
 
 	/*
 	 * At the moment, we don't know how to reliably enable HS400.
