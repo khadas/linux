@@ -800,6 +800,7 @@ irqreturn_t dct_pre_isr(int irq, void *dev_id)
 	if (!atomic_dec_and_test(&dct->irq_wait)) {
 		PR_ERR("%s:%d\n", "irq_dct", atomic_read(&dct->irq_wait));
 		spin_unlock_irqrestore(&dct_pre, flags);
+		task_send_ready(25);
 		return IRQ_HANDLED;
 	}
 	if (dct->curr_nins)
@@ -808,6 +809,7 @@ irqreturn_t dct_pre_isr(int irq, void *dev_id)
 	spin_unlock_irqrestore(&dct_pre, flags);
 
 	dbg_dctp("decontour: isr %d\n", atomic_read(&dct->irq_wait));
+	task_send_ready(24);
 	return IRQ_HANDLED;
 }
 

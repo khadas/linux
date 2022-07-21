@@ -41,6 +41,9 @@
 #include "deinterlace_dbg.h"
 
 #include <linux/amlogic/media/di/di.h>
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DIM
+#include <trace/events/meson_atrace.h>
+
 //#include "../deinterlace/di_pqa.h"
 bool di_forc_pq_load_later = true;
 module_param(di_forc_pq_load_later, bool, 0664);
@@ -1355,8 +1358,10 @@ void dim_sumx_set(struct di_ch_s *pch)
 	psumx->b_pst_free	= di_que_list_count(ch, QUE_POST_FREE);
 	psumx->b_pst_ready	= ndrd_cnt(pch);//di_que_list_count(ch, QUE_POST_READY);
 	psumx->b_recyc		= list_count(ch, QUEUE_RECYCLE);
-	psumx->b_display	= list_count(ch, QUEUE_DISPLAY);
+	psumx->b_display	= ndis_cnt(pch, QBF_NDIS_Q_DISPLAY);
+	//list_count(ch, QUEUE_DISPLAY);
 	psumx->b_nin		= nins_cnt(pch, QBF_NINS_Q_CHECK);
+	psumx->b_dct_in		= nins_cnt(pch, QBF_NINS_Q_DCT);
 	psumx->b_in_free	= di_que_list_count(ch, QUE_IN_FREE);
 
 	if (psumx->b_nin &&
@@ -1377,6 +1382,33 @@ void dim_sumx_set(struct di_ch_s *pch)
 	    psumx->b_in_free) {
 		task_send_ready(30);
 	}
+	if (!pch->itf.reg)
+		return;
+	ATRACE_COUNTER("dim_sum_pst_free", psumx->b_pst_free);
+	ATRACE_COUNTER("dim_sum_display", psumx->b_display);
+	ATRACE_COUNTER("dim_sum_nin", psumx->b_nin);
+	ATRACE_COUNTER("dim_sum_dctin", psumx->b_dct_in);
+}
+
+/* only for pre process */
+void dim_sumx_trig_in_pre(struct di_ch_s *pch)
+{
+	unsigned int nub_c, nub_dct, nub_dis;
+	struct div2_mm_s *mm;
+
+	if (!pch)
+		return;
+	mm = dim_mm_get(pch->ch_id);
+	if (!mm->cfg.is_4k)
+		return;
+	nub_c = nins_cnt(pch, QBF_NINS_Q_CHECK);
+	nub_dct = nins_cnt(pch, QBF_NINS_Q_DCT);
+	nub_dis = qbufp_count(&pch->ndis_qb, QBF_NDIS_Q_DISPLAY);
+	if ((nub_dis < mm->cfg.num_post - 2) && (nub_c || nub_dct))
+		task_send_ready(23);
+	else
+		dbg_tsk("sum:ch[%d]:%u,%u,%u\n",
+			pch->ch_id, nub_dis, nub_c, nub_dct);
 }
 
 /****************************/
@@ -3599,6 +3631,7 @@ struct dim_nins_s *nins_dct_get(struct di_ch_s *pch)
 
 	q_buf = pbufq->pbuf[index];
 	ins = (struct dim_nins_s *)q_buf.qbc;
+	ATRACE_COUNTER("dim_dct", ins->c.vfm_cp.index_disp);
 
 //	qbuf_in(pbufq, QBF_NINS_Q_DCT_DOING, index);
 	//qbuf_dbg_checkid(pbufq, 2);
@@ -3623,8 +3656,9 @@ struct dim_nins_s *nins_dct_get_bypass(struct di_ch_s *pch)
 
 	q_buf = pbufq->pbuf[index];
 	ins = (struct dim_nins_s *)q_buf.qbc;
-
+	ATRACE_COUNTER("dim_dct", ins->c.vfm_cp.index_disp);
 	qbuf_in(pbufq, QBF_NINS_Q_CHECK, index);
+	ATRACE_COUNTER("dim_dct", 0);
 	//qbuf_dbg_checkid(pbufq, 2);
 
 	return ins;
@@ -3638,6 +3672,7 @@ bool nins_dct_2_done(struct di_ch_s *pch, struct dim_nins_s *nins)
 	pbufq = &pch->nin_qb;
 
 	ret = qbuf_in(pbufq, QBF_NINS_Q_CHECK, nins->header.index);
+	ATRACE_COUNTER("dim_dct", 0);
 
 	return ret;
 }

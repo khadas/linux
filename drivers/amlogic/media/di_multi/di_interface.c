@@ -16,6 +16,8 @@
 #include "di_task.h"
 
 #include "di_vframe.h"
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DIM
+#include <trace/events/meson_atrace.h>
 
 #ifdef MARK_HIS
 const struct di_init_parm dim_cfg_parm_default = {
@@ -656,6 +658,7 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 	else
 		flg_q = qbuf_in(pbufq, QBF_NINS_Q_CHECK, bindex);
 	sum_g_inc(ch);
+	ATRACE_COUNTER("dim_in", pins->c.vfm_cp.index_disp);
 	if (!flg_q) {
 		PR_ERR("%s:qin check\n", __func__);
 		qbuf_in(pbufq, QBF_NINS_Q_IDLE, index);

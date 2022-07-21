@@ -271,6 +271,11 @@ static void trace_msct_tail(unsigned int index, unsigned int used_cnt)
 	trace_dim_sct_tail("SCT-TAILX", index, (u64)used_cnt);
 }
 
+static void trace_msct_sts(unsigned int sts)
+{
+	trace_dim_sct_sts("DIM_SCT-STS", 0, (u64)sts);
+}
+
 const struct dim_tr_ops_s dim_tr_ops = {
 	.pre = trace_pre,
 	.post = trace_post,
@@ -288,6 +293,7 @@ const struct dim_tr_ops_s dim_tr_ops = {
 	.post_peek = trace_post_peek,
 	.sct_alloc = trace_msct,
 	.sct_tail  = trace_msct_tail,
+	.sct_sts   = trace_msct_sts,
 	.self_trig = trace_slef_trig,
 	.irq_aisr = trace_irq_aisr,
 	.irq_dct = trace_irq_dct,

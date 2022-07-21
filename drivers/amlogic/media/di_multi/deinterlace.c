@@ -4544,6 +4544,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 			ppre->di_inp_buf = NULL;
 		}
 	}
+	dim_sumx_trig_in_pre(pch);
 	dim_ddbg_mod_save(EDI_DBG_MOD_PRE_DONEE, channel, ppre->in_seq);/*dbg*/
 	dim_dbg_pre_cnt(channel, "d2");
 }
