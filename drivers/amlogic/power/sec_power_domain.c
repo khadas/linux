@@ -523,11 +523,11 @@ static int sec_pd_probe(struct platform_device *pdev)
 		init_status = pwr_ctrl_status_psci_smc(private_pd->pd_index);
 
 		if (init_status == DOMAIN_INIT_OFF && private_pd->pd_status == DOMAIN_INIT_ON) {
-			if (pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
+			if (pd[i].base.flags & GENPD_FLAG_ALWAYS_ON)
 				pwr_ctrl_psci_smc(i, PWR_ON);
 		}
 
-		if (init_status == -1 || pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
+		if (init_status == -1 || pd[i].base.flags & GENPD_FLAG_ALWAYS_ON)
 			init_status = private_pd->pd_status;
 
 		/* Initialize based on pd_status */
