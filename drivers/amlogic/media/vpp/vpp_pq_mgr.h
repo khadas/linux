@@ -19,11 +19,12 @@ struct vpp_pq_mgr_settings {
 	struct vpp_white_balance_s video_rgb_ogo;
 	struct vpp_pre_gamma_table_s cur_pre_gamma_tbl;
 	struct vpp_gamma_table_s cur_gamma_tbl;
-	struct vpp_mtrx_param_s matrix_param[MTRX_MAX];
+	struct vpp_mtrx_param_s matrix_param[EN_MTRX_MAX];
 	struct vpp_dnlp_curve_param_s dnlp_param;
 };
 
 int vpp_pq_mgr_init(struct vpp_dev_s *pdev);
+int vpp_pq_mgr_set_status(struct vpp_pq_state_s *pstatus);
 int vpp_pq_mgr_set_brightness(int val);
 int vpp_pq_mgr_set_brightness_post(int val);
 int vpp_pq_mgr_set_contrast(int val);
@@ -40,7 +41,7 @@ int vpp_pq_mgr_set_matrix_param(struct vpp_mtrx_info_s *pdata);
 int vpp_pq_mgr_set_dnlp_param(struct vpp_dnlp_curve_param_s *pdata);
 int vpp_pq_mgr_set_lc_curve(struct vpp_lc_curve_s *pdata);
 int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable);
-int vpp_pq_mgr_set_pcmode(int val);
+int vpp_pq_mgr_set_pc_mode(int val);
 int vpp_pq_mgr_set_csc_type(int val);
 int vpp_pq_mgr_set_3dlut_data(unsigned int *pdata);
 int vpp_pq_mgr_set_hdr_tmo_curve(struct vpp_hdr_tone_mapping_s *pdata);
@@ -48,6 +49,7 @@ int vpp_pq_mgr_set_hdr_tmo_param(struct vpp_tmo_param_s *pdata);
 int vpp_pq_mgr_set_cabc_param(struct vpp_cabc_param_s *pdata);
 int vpp_pq_mgr_set_aad_param(struct vpp_aad_param_s *pdata);
 
+void vpp_pq_mgr_get_status(struct vpp_pq_state_s *pstatus);
 void vpp_pq_mgr_get_brightness(int *pval);
 void vpp_pq_mgr_get_brightness_post(int *pval);
 void vpp_pq_mgr_get_contrast(int *pval);
@@ -63,11 +65,12 @@ void vpp_pq_mgr_get_gamma_table(struct vpp_gamma_table_s *pdata);
 void vpp_pq_mgr_get_matrix_param(struct vpp_mtrx_info_s *pdata);
 void vpp_pq_mgr_get_dnlp_param(struct vpp_dnlp_curve_param_s *pdata);
 void vpp_pq_mgr_get_module_status(enum vpp_module_e module, bool *penable);
-void vpp_pq_mgr_get_pcmode(int *pval);
+void vpp_pq_mgr_get_pc_mode(int *pval);
 void vpp_pq_mgr_get_csc_type(int *pval);
 void vpp_pq_mgr_get_hdr_tmo_param(struct vpp_tmo_param_s *pdata);
-void vpp_pq_mgr_get_hdr_type(int *pval);
-void vpp_pq_mgr_get_color_primary(int *pval);
+void vpp_pq_mgr_get_hdr_metadata(struct vpp_hdr_metadata_s *pdata);
+void vpp_pq_mgr_get_hdr_type(enum vpp_hdr_type_e *pval);
+void vpp_pq_mgr_get_color_primary(enum vpp_color_primary_e *pval);
 void vpp_pq_mgr_get_histogram_ave(struct vpp_histgm_ave_s *pdata);
 void vpp_pq_mgr_get_histogram(struct vpp_histgm_param_s *pdata);
 

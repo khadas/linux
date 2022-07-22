@@ -1899,9 +1899,9 @@ int vpp_module_lc_init(struct vpp_dev_s *pdev)
 		lc_lmt_type = EN_TYPE_LC_LMT_16;
 
 	if (chip_id < CHIP_TL1)
-		lc_support = true;
-	else
 		lc_support = false;
+	else
+		lc_support = true;
 
 	_lc_mtrx_idx_init(chip_id);
 	_lc_buff_init();
@@ -2013,6 +2013,11 @@ void vpp_module_lc_set_isr_def(int val)
 void vpp_module_lc_set_isr_use(int val)
 {
 	lc_curve_isr_used = val;
+}
+
+bool vpp_module_lc_get_support(void)
+{
+	return lc_support;
 }
 
 void vpp_module_lc_on_vs(int *phist,

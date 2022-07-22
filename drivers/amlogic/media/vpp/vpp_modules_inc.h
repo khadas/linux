@@ -14,6 +14,8 @@
 #include "modules/vpp_module_ve.h"
 #include "modules/vpp_module_dnlp.h"
 #include "modules/vpp_module_lc.h"
+#include "modules/vpp_module_cm.h"
+#include "modules/vpp_module_sr.h"
 
 #endif
 

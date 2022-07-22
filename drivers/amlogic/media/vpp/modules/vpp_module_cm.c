@@ -117,6 +117,19 @@ static struct _cm_bit_cfg_s cm_bit_cfg = {
 	{24, 1}
 };
 
+/*For single color adjustment*/
+static int cur_cm2_luma[CM2_CURVE_SIZE] = {0};
+static int cur_cm2_sat[CM2_CURVE_SIZE * 3] = {0};
+static int cur_cm2_sat_l[9] = {0};
+static int cur_cm2_sat_hl[CM2_CURVE_SIZE * 5] = {0};
+static int cur_cm2_hue[CM2_CURVE_SIZE] = {0};
+static int cur_cm2_hue_hs[CM2_CURVE_SIZE * 5] = {0};
+static int cur_cm2_hue_hl[CM2_CURVE_SIZE * 5] = {0};
+static char cur_cm2_offset_luma[CM2_CURVE_SIZE] = {0};
+static char cur_cm2_offset_sat[CM2_CURVE_SIZE * 3] = {0};
+static char cur_cm2_offset_hue[CM2_CURVE_SIZE] = {0};
+static char cur_cm2_offset_hue_hs[CM2_CURVE_SIZE * 5] = {0};
+
 /*Internal functions*/
 static void _set_cm_reg_by_addr(unsigned int addr, int val)
 {
@@ -466,19 +479,29 @@ int vpp_module_cm_en(bool enable)
 /*input array size is 32 for pdata*/
 void vpp_module_cm_set_cm2_luma(int *pdata)
 {
+	int i = 0;
+
 	if (!pdata)
 		return;
 
-	_set_cm2_luma_by_index(pdata, 0, 31);
+	for (i = 0; i < CM2_CURVE_SIZE; i++)
+		cur_cm2_luma[i] = pdata[i] + cur_cm2_offset_luma[i];
+
+	_set_cm2_luma_by_index(&cur_cm2_luma[0], 0, 31);
 }
 
 /*input array size is 32*3 as curve 0/1/2 for pdata*/
 void vpp_module_cm_set_cm2_sat(int *pdata)
 {
+	int i = 0;
+
 	if (!pdata)
 		return;
 
-	_set_cm2_sat_by_index(pdata, 0, 31);
+	for (i = 0; i < CM2_CURVE_SIZE * 3; i++)
+		cur_cm2_sat[i] = pdata[i] + cur_cm2_offset_sat[i];
+
+	_set_cm2_sat_by_index(&cur_cm2_sat[0], 0, 31);
 }
 
 /*input array size is 9 for pdata*/
@@ -486,43 +509,57 @@ void vpp_module_cm_set_cm2_sat_by_l(int *pdata)
 {
 	unsigned int addr = 0;
 	int val = 0;
+	int i = 0;
 
 	if (!pdata)
 		return;
 
+	for (i = 0; i < 9; i++)
+		cur_cm2_sat_l[i] = pdata[i];
+
 	addr = cm_addr_cfg.addr_sat_byyb_node0;
-	val = pdata[0] & 0x000000ff;
-	val |= pdata[1] & 0x0000ff00;
-	val |= pdata[2] & 0x00ff0000;
-	val |= pdata[3] & 0xff000000;
+	val = cur_cm2_sat_l[0] & 0x000000ff;
+	val |= cur_cm2_sat_l[1] & 0x0000ff00;
+	val |= cur_cm2_sat_l[2] & 0x00ff0000;
+	val |= cur_cm2_sat_l[3] & 0xff000000;
 	_set_cm_reg_by_addr(addr, val);
 
 	addr = cm_addr_cfg.addr_sat_byyb_node1;
-	val = pdata[4] & 0x000000ff;
-	val |= pdata[5] & 0x0000ff00;
-	val |= pdata[6] & 0x00ff0000;
-	val |= pdata[7] & 0xff000000;
+	val = cur_cm2_sat_l[4] & 0x000000ff;
+	val |= cur_cm2_sat_l[5] & 0x0000ff00;
+	val |= cur_cm2_sat_l[6] & 0x00ff0000;
+	val |= cur_cm2_sat_l[7] & 0xff000000;
 	_set_cm_reg_by_addr(addr, val);
 
 	addr = cm_addr_cfg.addr_sat_byyb_node2;
-	val = pdata[8] & 0x000000ff;
+	val = cur_cm2_sat_l[8] & 0x000000ff;
 	_set_cm_reg_by_addr(addr, val);
 }
 
 /*input array size is 32*5 as curve 0/1/2/3/4 for pdata*/
 void vpp_module_cm_set_cm2_sat_by_hl(int *pdata)
 {
+	int i = 0;
+
 	if (!pdata)
 		return;
 
-	_set_cm2_sat_via_y_by_index(pdata, 0, 31);
+	for (i = 0; i < CM2_CURVE_SIZE * 5; i++)
+		cur_cm2_sat_hl[i] = pdata[i];
+
+	_set_cm2_sat_via_y_by_index(&cur_cm2_sat_hl[0], 0, 31);
 }
 
 /*input array size is 32 for pdata*/
 void vpp_module_cm_set_cm2_hue(int *pdata)
 {
+	int i = 0;
+
 	if (!pdata)
 		return;
+
+	for (i = 0; i < CM2_CURVE_SIZE; i++)
+		cur_cm2_hue[i] = pdata[i] + cur_cm2_offset_hue[i];
 
 	_set_cm2_hue_by_index(pdata, 0, 31);
 }
@@ -530,19 +567,29 @@ void vpp_module_cm_set_cm2_hue(int *pdata)
 /*input array size is 32*5 as curve 0/1/2/3/4 for pdata*/
 void vpp_module_cm_set_cm2_hue_by_hs(int *pdata)
 {
+	int i = 0;
+
 	if (!pdata)
 		return;
 
-	_set_cm2_hue_via_s_by_index(pdata, 0, 31);
+	for (i = 0; i < CM2_CURVE_SIZE * 5; i++)
+		cur_cm2_hue_hs[i] = pdata[i] + cur_cm2_offset_hue_hs[i];
+
+	_set_cm2_hue_via_s_by_index(&cur_cm2_hue_hs[0], 0, 31);
 }
 
 /*input array size is 32*5 as curve 0/1/2/3/4 for pdata*/
 void vpp_module_cm_set_cm2_hue_by_hl(int *pdata)
 {
+	int i = 0;
+
 	if (!pdata)
 		return;
 
-	_set_cm2_hue_via_y_by_index(pdata, 0, 31);
+	for (i = 0; i < CM2_CURVE_SIZE * 5; i++)
+		cur_cm2_hue_hl[i] = pdata[i];
+
+	_set_cm2_hue_via_y_by_index(&cur_cm2_hue_hl[0], 0, 31);
 }
 
 void vpp_module_cm_set_demo_mode(bool enable, bool left_side)
@@ -651,6 +698,54 @@ void vpp_module_cm_sub_module_en(enum cm_sub_module_e sub_module,
 	default:
 		break;
 	}
+}
+
+/*input array size is 32 for pdata*/
+void vpp_module_cm_set_cm2_offset_luma(char *pdata)
+{
+	int i = 0;
+
+	if (!pdata)
+		return;
+
+	for (i = 0; i < CM2_CURVE_SIZE; i++)
+		cur_cm2_offset_luma[i] = pdata[i];
+}
+
+/*input array size is 32*3 as curve 0/1/2 for pdata*/
+void vpp_module_cm_set_cm2_offset_sat(char *pdata)
+{
+	int i = 0;
+
+	if (!pdata)
+		return;
+
+	for (i = 0; i < CM2_CURVE_SIZE * 3; i++)
+		cur_cm2_offset_sat[i] = pdata[i];
+}
+
+/*input array size is 32 for pdata*/
+void vpp_module_cm_set_cm2_offset_hue(char *pdata)
+{
+	int i = 0;
+
+	if (!pdata)
+		return;
+
+	for (i = 0; i < CM2_CURVE_SIZE; i++)
+		cur_cm2_offset_hue[i] = pdata[i];
+}
+
+/*input array size is 32*5 as curve 0/1/2/3/4 for pdata*/
+void vpp_module_cm_set_cm2_offset_hue_by_hs(char *pdata)
+{
+	int i = 0;
+
+	if (!pdata)
+		return;
+
+	for (i = 0; i < CM2_CURVE_SIZE * 5; i++)
+		cur_cm2_offset_hue_hs[i] = pdata[i];
 }
 
 void vpp_module_cm_on_vs(void)

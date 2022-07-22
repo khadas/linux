@@ -96,6 +96,12 @@ int vpp_pq_mgr_init(struct vpp_dev_s *pdev)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_init);
 
+int vpp_pq_mgr_set_status(struct vpp_pq_state_s *pstatus)
+{
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_status);
+
 int vpp_pq_mgr_set_brightness(int val)
 {
 	int ret = 0;
@@ -379,20 +385,20 @@ int vpp_pq_mgr_set_matrix_param(struct vpp_mtrx_info_s *pdata)
 	pr_vpp(PR_DEBUG, "[%s] mtrx_sel = %d\n",
 		__func__, pdata->mtrx_sel);
 
-	if (pdata->mtrx_sel < MTRX_MAX)
+	if (pdata->mtrx_sel < EN_MTRX_MAX)
 		mtrx_sel = pdata->mtrx_sel;
 	else
-		mtrx_sel = MTRX_VD1;
+		mtrx_sel = EN_MTRX_VD1;
 
 	switch (mtrx_sel) {
-	case MTRX_VD1:
+	case EN_MTRX_VD1:
 	default:
 		mode = EN_MTRX_MODE_VD1;
 		break;
-	case MTRX_POST:
+	case EN_MTRX_POST:
 		mode = EN_MTRX_MODE_POST;
 		break;
-	case MTRX_POST2:
+	case EN_MTRX_POST2:
 		mode = EN_MTRX_MODE_POST2;
 		break;
 	}
@@ -446,31 +452,31 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_lc_curve);
 int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 {
 	switch (module) {
-	case MODULE_VADJ1:
+	case EN_MODULE_VADJ1:
 		vpp_module_vadj_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.vadj1_en = enable;
 		break;
-	case MODULE_VADJ2:
+	case EN_MODULE_VADJ2:
 		vpp_module_vadj_post_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.vadj2_en = enable;
 		break;
-	case MODULE_PREGAMMA:
+	case EN_MODULE_PREGAMMA:
 		vpp_module_pre_gamma_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.pregamma_en = enable;
 		break;
-	case MODULE_GAMMA:
+	case EN_MODULE_GAMMA:
 		vpp_module_lcd_gamma_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.gamma_en = enable;
 		break;
-	case MODULE_WB:
+	case EN_MODULE_WB:
 		vpp_module_go_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.wb_en = enable;
 		break;
-	case MODULE_DNLP:
+	case EN_MODULE_DNLP:
 		vpp_module_dnlp_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.dnlp_en = enable;
 		break;
-	case MODULE_CCORING:
+	case EN_MODULE_CCORING:
 		vpp_module_ve_ccoring_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.chroma_cor_en = enable;
 		break;
@@ -482,11 +488,11 @@ int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_module_status);
 
-int vpp_pq_mgr_set_pcmode(int val)
+int vpp_pq_mgr_set_pc_mode(int val)
 {
 	return 0;
 }
-EXPORT_SYMBOL(vpp_pq_mgr_set_pcmode);
+EXPORT_SYMBOL(vpp_pq_mgr_set_pc_mode);
 
 int vpp_pq_mgr_set_csc_type(int val)
 {
@@ -523,6 +529,11 @@ int vpp_pq_mgr_set_aad_param(struct vpp_aad_param_s *pdata)
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_aad_param);
+
+void vpp_pq_mgr_get_status(struct vpp_pq_state_s *pstatus)
+{
+}
+EXPORT_SYMBOL(vpp_pq_mgr_get_status);
 
 void vpp_pq_mgr_get_brightness(int *pval)
 {
@@ -613,10 +624,10 @@ void vpp_pq_mgr_get_matrix_param(struct vpp_mtrx_info_s *pdata)
 {
 	enum vpp_mtrx_type_e mtrx_sel;
 
-	if (pdata->mtrx_sel < MTRX_MAX)
+	if (pdata->mtrx_sel < EN_MTRX_MAX)
 		mtrx_sel = pdata->mtrx_sel;
 	else
-		mtrx_sel = MTRX_VD1;
+		mtrx_sel = EN_MTRX_VD1;
 
 	memcpy(&pdata->mtrx_param, &pq_mgr_settings.matrix_param[mtrx_sel],
 		sizeof(struct vpp_mtrx_param_s));
@@ -636,10 +647,10 @@ void vpp_pq_mgr_get_module_status(enum vpp_module_e module, bool *penable)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_module_status);
 
-void vpp_pq_mgr_get_pcmode(int *pval)
+void vpp_pq_mgr_get_pc_mode(int *pval)
 {
 }
-EXPORT_SYMBOL(vpp_pq_mgr_get_pcmode);
+EXPORT_SYMBOL(vpp_pq_mgr_get_pc_mode);
 
 void vpp_pq_mgr_get_csc_type(int *pval)
 {
@@ -651,12 +662,17 @@ void vpp_pq_mgr_get_hdr_tmo_param(struct vpp_tmo_param_s *pdata)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_hdr_tmo_param);
 
-void vpp_pq_mgr_get_hdr_type(int *pval)
+void vpp_pq_mgr_get_hdr_metadata(struct vpp_hdr_metadata_s *pdata)
+{
+}
+EXPORT_SYMBOL(vpp_pq_mgr_get_hdr_metadata);
+
+void vpp_pq_mgr_get_hdr_type(enum vpp_hdr_type_e *pval)
 {
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_hdr_type);
 
-void vpp_pq_mgr_get_color_primary(int *pval)
+void vpp_pq_mgr_get_color_primary(enum vpp_color_primary_e *pval)
 {
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_color_primary);

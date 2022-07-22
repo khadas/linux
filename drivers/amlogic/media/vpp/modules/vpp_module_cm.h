@@ -36,6 +36,12 @@ void vpp_module_cm_set_demo_mode(bool enable, bool left_side);
 void vpp_module_cm_set_cfg_param(struct cm_cfg_param_s *pparam);
 void vpp_module_cm_set_tuning_param(enum cm_tuning_param_e type,
 	int *pdata);
+void vpp_module_cm_sub_module_en(enum cm_sub_module_e sub_module,
+	bool enable);
+void vpp_module_cm_set_cm2_offset_luma(char *pdata);
+void vpp_module_cm_set_cm2_offset_sat(char *pdata);
+void vpp_module_cm_set_cm2_offset_hue(char *pdata);
+void vpp_module_cm_set_cm2_offset_hue_by_hs(char *pdata);
 void vpp_module_cm_on_vs(void);
 
 #endif
