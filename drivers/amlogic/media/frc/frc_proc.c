@@ -31,6 +31,7 @@
 #include <linux/time.h>
 #include <asm/div64.h>
 #include <linux/sched/clock.h>
+#include <linux/amlogic/media/utils/am_com.h>
 
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vpu/vpu.h>
@@ -199,6 +200,7 @@ irqreturn_t frc_input_isr(int irq, void *dev_id)
 
 	devp->in_sts.vs_cnt++;
 	/*update vs time*/
+	timestamp = div64_u64(timestamp, 1000);
 	devp->in_sts.vs_duration = timestamp - devp->in_sts.vs_timestamp;
 	devp->in_sts.vs_timestamp = timestamp;
 
@@ -254,6 +256,7 @@ irqreturn_t frc_output_isr(int irq, void *dev_id)
 
 	devp->out_sts.vs_cnt++;
 	/*update vs time*/
+	timestamp = div64_u64(timestamp, 1000);
 	devp->out_sts.vs_duration = timestamp - devp->out_sts.vs_timestamp;
 	devp->out_sts.vs_timestamp = timestamp;
 
@@ -1604,6 +1607,10 @@ void frc_char_flash_check(void)
 void frc_chk_vd_sts_chg(struct frc_dev_s *devp, struct vframe_s *vf)
 {
 	static u8 frc_is_tvin_s, frc_source_chg_s;
+	struct frc_fw_data_s *pfw_data;
+	bool vlock_locked;
+
+	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 
 	if (!vf)
 		return;
@@ -1650,6 +1657,21 @@ void frc_chk_vd_sts_chg(struct frc_dev_s *devp, struct vframe_s *vf)
 	}
 	// every vframe detect frame rate
 	frc_check_vf_rate(vf->duration, devp);
+
+	if (devp->in_sts.frc_is_tvin) {
+		if (vf->duration == 4000 || vf->duration == 4004)
+			vlock_locked = vlock_get_vlock_flag();
+		else
+			vlock_locked = vlock_get_phlock_flag() &&
+					vlock_get_vlock_flag();
+		if (vlock_locked) {
+			devp->in_sts.st_flag |= FRC_FLAG_VLOCK_ST;
+			pfw_data->frc_top_type.vfp |= BIT_8;
+		} else {
+			devp->in_sts.st_flag &= (~FRC_FLAG_VLOCK_ST);
+			pfw_data->frc_top_type.vfp &= (~BIT_8);
+		}
+	}
 }
 
 u16 frc_check_film_mode(struct frc_dev_s *frc_devp)

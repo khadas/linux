@@ -76,8 +76,9 @@
 // frc_20220623 add frc debug control
 // frc_20220704 fix frc secure mode abnormal
 // frc_20220705 fix frc bypass frame when on
+// frc_20220708 optimize frc off2on flow
 
-#define FRC_FW_VER			"2022-0708 optimize frc off2on flow"
+#define FRC_FW_VER			"2022-0722 add vlock st and time record"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
@@ -161,7 +162,8 @@ extern int frc_dbg_en;
 #define FRC_FLAG_PIC_MODE		0x04
 #define FRC_FLAG_HIGH_BW		0x08
 #define FRC_FLAG_LIMIT_SIZE		0x10
-#define FRC_FLAG_OTHER_MODE		0x20
+#define FRC_FLAG_VLOCK_ST		0x20
+#define FRC_FLAG_OTHER_MODE		0x40
 
 enum chip_id {
 	ID_NULL = 0,

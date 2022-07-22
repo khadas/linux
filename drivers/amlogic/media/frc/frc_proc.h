@@ -31,6 +31,9 @@ void frc_hw_initial(struct frc_dev_s *frc_devp);
 void frc_scene_detect_input(struct frc_fw_data_s *fw_data);
 void frc_scene_detect_output(struct frc_fw_data_s *fw_data);
 
+bool vlock_get_phlock_flag(void);
+bool vlock_get_vlock_flag(void);
+
 void frc_change_to_state(enum frc_state_e state);
 void frc_state_change_finish(struct frc_dev_s *devp);
 void frc_state_handle_old(struct frc_dev_s *devp);

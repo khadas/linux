@@ -80,7 +80,7 @@ void frc_status(struct frc_dev_s *devp)
 					fw_data->frc_top_type.frc_memc_level_1);
 	pr_frc(0, "frc_secure_mode=%d, buf secured:%d\n",
 				devp->in_sts.secure_mode, devp->buf.secured);
-	pr_frc(0, "frc_get_vd_flag=0x%X(game:b0/pc:b1/pic:b2/hbw:b3/limsz:b4)\n",
+	pr_frc(0, "frc_get_vd_flag=0x%X(game:0/pc:1/pic:2/hbw:3/limsz:4/vlock:5)\n",
 				devp->in_sts.st_flag);
 	pr_frc(0, "dc_rate:(me:%d,mc_y:%d,mc_c:%d), real total size:%d\n",
 		devp->buf.me_comprate, devp->buf.mc_y_comprate,
@@ -101,14 +101,14 @@ void frc_status(struct frc_dev_s *devp)
 	       devp->in_sts.vf_type, devp->in_sts.signal_type, devp->in_sts.source_type);
 	pr_frc(0, "vf_rate:%d (duration=%d)\n", frc_check_vf_rate(devp->in_sts.duration, devp),
 					devp->in_sts.duration);
-	pr_frc(0, "vpu_int vs_duration:%d timestamp:%ld\n",
+	pr_frc(0, "vpu_int vs_duration:%dus timestamp:%ld\n",
 	       devp->vs_duration, (ulong)devp->vs_timestamp);
-	pr_frc(0, "frc_in vs_duration:%d timestamp:%ld\n",
+	pr_frc(0, "frc_in vs_duration:%dus timestamp:%ld\n",
 	       devp->in_sts.vs_duration, (ulong)devp->in_sts.vs_timestamp);
 	pr_frc(0, "frc_in isr vs_cnt:%d, vs_tsk_cnt:%d, inp_err:0x%x\n",
 		devp->in_sts.vs_cnt, devp->in_sts.vs_tsk_cnt,
 		devp->ud_dbg.inp_undone_err);
-	pr_frc(0, "frc_out vs_duration:%d timestamp:%ld\n",
+	pr_frc(0, "frc_out vs_duration:%dus timestamp:%ld\n",
 	       devp->out_sts.vs_duration, (ulong)devp->out_sts.vs_timestamp);
 	pr_frc(0, "frc_out isr vs_cnt:%d, vs_tsk_cnt:%d\n",
 		devp->out_sts.vs_cnt, devp->out_sts.vs_tsk_cnt);
