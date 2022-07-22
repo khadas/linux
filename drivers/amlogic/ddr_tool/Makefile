@@ -4,8 +4,8 @@ MODULE_NAME = aml_ddr_tool
 
 obj-$(CONFIG_AMLOGIC_DDR_TOOL) += $(MODULE_NAME).o
 
-$(MODULE_NAME)-y = ddr_tool.o ddr_port_desc.o ddr_priority.o
-$(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_BANDWIDTH)		+= ddr_bandwidth.o
+$(MODULE_NAME)-y = ddr_tool.o ddr_port_desc.o
+$(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_BANDWIDTH)		+= ddr_bandwidth.o ddr_priority.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_BANDWIDTH_GXL) 	+= ddr_band_op_gxl.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_BANDWIDTH_GXL)	+= ddr_band_op_gxl.o
 $(MODULE_NAME)-$(CONFIG_AMLOGIC_DDR_BANDWIDTH_GX)	+= ddr_band_op_gx.o
