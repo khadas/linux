@@ -22,6 +22,8 @@
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
 		i2c_AO = &i2c_AO;
+		spi1 = &spicc0;
+		spi2 = &spicc1;
 	};
 
 	memory@00000000 {
@@ -1478,4 +1480,18 @@
 
 &saradc {
 	status = "okay";
+};
+
+&spicc0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>;
+	cs-gpios = <&gpio GPIOZ_3 0>;
+};
+
+&spicc1 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_x_pins>;
+	cs-gpios = <&gpio GPIOX_16 0>;
 };
