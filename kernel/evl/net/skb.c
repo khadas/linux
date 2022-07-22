@@ -387,7 +387,8 @@ static struct sk_buff *alloc_one_skb(struct net_device *dev)
 
 	if (!netdev_is_oob_capable(dev)) {
 		est = dev->oob_context.dev_state.estate;
-		return __netdev_alloc_oob_skb(dev, est->buf_size, GFP_KERNEL);
+		return __netdev_alloc_oob_skb(dev, est->buf_size,
+					      GFP_KERNEL|GFP_DMA);
 	}
 
 	skb = netdev_alloc_oob_skb(dev, &dma_addr);
