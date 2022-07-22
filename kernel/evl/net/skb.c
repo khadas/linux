@@ -247,7 +247,7 @@ static void free_skb(struct sk_buff *skb)
 	}
 
 	if (!dref) {
-		netdev_reset_oob_skb(dev, skb);
+		netdev_reset_oob_skb(dev, skb, VLAN_HLEN);
 		free_skb_to_dev(skb);
 	}
 }
@@ -387,8 +387,14 @@ static struct sk_buff *alloc_one_skb(struct net_device *dev)
 
 	if (!netdev_is_oob_capable(dev)) {
 		est = dev->oob_context.dev_state.estate;
+		/*
+		 *  Add the length of a VLAN header to the default
+		 *  headroom, so that the lower layers do not need to
+		 *  reallocate because of the 802.1q encapsulation.
+		 */
 		return __netdev_alloc_oob_skb(dev, est->buf_size,
-					      GFP_KERNEL|GFP_DMA);
+					VLAN_HLEN,
+					GFP_KERNEL|GFP_DMA);
 	}
 
 	skb = netdev_alloc_oob_skb(dev, &dma_addr);
