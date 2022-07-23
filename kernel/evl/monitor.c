@@ -527,13 +527,19 @@ static int wait_monitor(struct file *filp,
 	 * be handled asap. So exit to user mode, allowing any pending
 	 * signal to be handled during the transition, then expect
 	 * userland to issue UNWAIT to recover (or exit, whichever
-	 * comes first).
+	 * comes first). Consequently, disable syscall restart from
+	 * kernel upon interrupted wait, because the caller does not
+	 * hold the mutex until UNWAIT happens.
 	 */
 	ret = evl_wait_schedule(&event->wait_queue);
 	if (ret) {
 		untrack_event(event);
-		if (ret == -EINTR)
+		if (ret == -EINTR) {
+			/* Disable syscall restart upon signal (only). */
+			if (signal_pending(current))
+				curr->local_info |= T_NORST;
 			goto put;
+		}
 		op_ret = ret;
 	}
 
