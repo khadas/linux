@@ -165,13 +165,6 @@ static void prepare_for_signal(struct task_struct *p,
 	unsigned long flags;
 
 	/*
-	 * FIXME: no restart mode flag for setting -EINTR instead of
-	 * -ERESTARTSYS should be obtained from curr->local_info on a
-	 * per-invocation basis, not on a per-call one (since we have
-	 * 3 generic calls only).
-	 */
-
-	/*
 	 * @curr == this_evl_rq()->curr over oob so no need to grab
 	 * @curr->lock (i.e. @curr cannot go away under out feet).
 	 */
@@ -187,7 +180,12 @@ static void prepare_for_signal(struct task_struct *p,
 	 */
 	if (curr->info & T_KICKED) {
 		if (signal_pending(p)) {
-			syscall_set_return_value(current, regs, -ERESTARTSYS, 0);
+			int retval = -ERESTARTSYS;
+			if (curr->local_info & T_NORST) {
+				retval = -EINTR;
+				curr->local_info &= ~T_NORST;
+			}
+			syscall_set_return_value(current, regs, retval, 0);
 			curr->info &= ~T_BREAK;
 		}
 		curr->info &= ~T_KICKED;
