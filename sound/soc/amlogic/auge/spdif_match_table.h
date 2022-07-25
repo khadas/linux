@@ -38,7 +38,6 @@ struct spdif_chipinfo {
 	bool regulator;
 };
 
-#ifndef CONFIG_AMLOGIC_REMOVE_OLD
 struct spdif_chipinfo axg_spdif_chipinfo = {
 	.id               = SPDIF_A,
 	.irq_no_papb      = true,
@@ -47,7 +46,7 @@ struct spdif_chipinfo axg_spdif_chipinfo = {
 	.spdifout_lane_mask = SPDIFOUT_LANE_MASK_V1,
 	.use_arb          = true,
 };
-#endif
+
 
 struct spdif_chipinfo g12a_spdif_a_chipinfo = {
 	.id             = SPDIF_A,
@@ -194,6 +193,11 @@ static const struct of_device_id aml_spdif_device_id[] = {
 		.compatible = "amlogic, a5-snd-spdif-a",
 		.data		= &a5_spdif_a_chipinfo,
 	},
+	{
+		.compatible = "amlogic, axg-snd-spdif",
+		.data		= &axg_spdif_chipinfo,
+	},
+
 	{}
 };
 MODULE_DEVICE_TABLE(of, aml_spdif_device_id);

@@ -284,6 +284,11 @@ static const struct of_device_id loopback_device_id[] = {
 		.compatible = "amlogic, a5-loopbacka",
 		.data = &a5_loopbacka_chipinfo,
 	},
+	{
+		.compatible = "amlogic, axg-loopback",
+		.data = &g12a_loopbacka_chipinfo,
+	},
+
 	{}
 };
 MODULE_DEVICE_TABLE(of, loopback_device_id);

@@ -83,11 +83,14 @@ static struct pdm_chipinfo a5_pdm_chipinfo = {
 	.oscin_divide    = true,
 };
 
+static struct pdm_chipinfo axg_pdm_chipinfo = {
+	.id              = PDM_A,
+	.train_version   = PDM_TRAIN_VERSION_V1,
+	.use_arb         = true,
+};
+
 static const struct of_device_id aml_pdm_device_id[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	{
-		.compatible = "amlogic, axg-snd-pdm",
-	},
 	{
 		.compatible = "amlogic, tl1-snd-pdm",
 		.data       = &tl1_pdm_chipinfo,
@@ -120,6 +123,10 @@ static const struct of_device_id aml_pdm_device_id[] = {
 	{
 		.compatible = "amlogic, a5-snd-pdm",
 		.data       = &a5_pdm_chipinfo,
+	},
+	{
+		.compatible = "amlogic, axg-snd-pdm",
+		.data       = &axg_pdm_chipinfo,
 	},
 
 	{}

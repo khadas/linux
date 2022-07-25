@@ -16,6 +16,8 @@
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/clk-provider.h>
+#include <linux/of_platform.h>
+
 
 #include "../common/iomapres.h"
 
@@ -81,8 +83,22 @@ static struct regmap_config aml_audio_regmap_config = {
 	.reg_stride = 4,
 };
 
+struct gate_info {
+	bool clk1_gate_off;
+};
+
+static struct gate_info axg_info = {
+	.clk1_gate_off = true,
+};
+
 static const struct of_device_id amlogic_audio_controller_of_match[] = {
-	{ .compatible = "amlogic, audio-controller" },
+	{
+		.compatible = "amlogic, audio-controller"
+	},
+	{
+		.compatible = "amlogic, axg-audio-controller",
+		.data       = &axg_info,
+	},
 	{},
 };
 
@@ -92,6 +108,7 @@ static int register_audio_controller(struct platform_device *pdev,
 	struct resource *res_mem;
 	void __iomem *regs;
 	struct regmap *regmap;
+	struct gate_info *info = (struct gate_info *)of_device_get_match_data(&pdev->dev);
 
 	/* get platform res from dtb */
 	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -115,7 +132,9 @@ static int register_audio_controller(struct platform_device *pdev,
 
 	/* gate on all clks on bringup stage, need gate separately */
 	aml_audiobus_write(actrl, EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
-	aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
+
+	if (info && !info->clk1_gate_off)
+		aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
 	return 0;
 }
 

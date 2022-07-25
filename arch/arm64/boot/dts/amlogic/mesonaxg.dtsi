@@ -707,7 +707,7 @@
 		};/* end of hiubus*/
 
 		audiobus: audiobus@0xff642000 {
-			compatible = "amlogic, audio-controller", "simple-bus";
+			compatible = "amlogic, axg-audio-controller", "simple-bus";
 			reg = <0x0 0xff642000 0x0 0x2000>;
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -733,6 +733,26 @@
 					"frddr_a", "frddr_b", "frddr_c";
 			};
 		};/* end of audiobus*/
+		/* Sound iomap */
+		aml_snd_iomap {
+			compatible = "amlogic, snd-iomap";
+			status = "okay";
+			#address-cells=<2>;
+			#size-cells=<2>;
+			ranges;
+			pdm_bus {
+				reg = <0x0 0xFF632000 0x0 0x2000>;
+			};
+			audiobus_base {
+				reg = <0x0 0xFF642000 0x0 0x2000>;
+			};
+		};
+
+		dummy_codec:dummy{
+			#sound-dai-cells = <0>;
+			compatible = "amlogic, aml_dummy_codec";
+			status = "okay";
+			};
 
 		vddcpu0: pwm_b-regulator {
 			compatible = "pwm-regulator";

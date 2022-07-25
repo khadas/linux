@@ -597,6 +597,27 @@ struct tdm_chipinfo a5_tdmc_chipinfo = {
 	.regulator = true,
 };
 
+struct tdm_chipinfo axg_tdma_chipinfo = {
+	.id          = TDM_A,
+	.reset_tdmin = true,
+	.use_arb = true,
+	.tdmin_srcs = &tdmin_srcs_v1[0],
+};
+
+struct tdm_chipinfo axg_tdmb_chipinfo = {
+	.id          = TDM_B,
+	.reset_tdmin = true,
+	.use_arb = true,
+	.tdmin_srcs = &tdmin_srcs_v1[0],
+};
+
+struct tdm_chipinfo axg_tdmc_chipinfo = {
+	.id          = TDM_C,
+	.reset_tdmin = true,
+	.use_arb = true,
+	.tdmin_srcs = &tdmin_srcs_v1[0],
+};
+
 static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, g12a-snd-tdma",
@@ -715,6 +736,18 @@ static const struct of_device_id aml_tdm_device_id[] = {
 		{
 		.compatible = "amlogic, a5-snd-tdmc",
 		.data       = &a5_tdmc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, axg-snd-tdma",
+		.data       = &axg_tdma_chipinfo,
+	},
+	{
+		.compatible = "amlogic, axg-snd-tdmb",
+		.data       = &axg_tdmb_chipinfo,
+	},
+		{
+		.compatible = "amlogic, axg-snd-tdmc",
+		.data       = &axg_tdmc_chipinfo,
 	},
 	{}
 };

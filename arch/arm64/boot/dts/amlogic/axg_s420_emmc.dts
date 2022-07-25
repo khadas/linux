@@ -222,46 +222,21 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&b_uart_pins>;
 	};
-
-	/* Sound iomap */
-	aml_snd_iomap {
-		compatible = "amlogic, snd-iomap";
-		status = "disabled";
-		#address-cells=<2>;
-		#size-cells=<2>;
-		ranges;
-		pdm_bus {
-			reg = <0x0 0xFF632000 0x0 0x2000>;
-		};
-		audiobus_base {
-			reg = <0x0 0xFF642000 0x0 0x2000>;
-		};
-	};
-	pdm_codec:dummy{
-		#sound-dai-cells = <0>;
-		compatible = "amlogic, pdm_dummy_codec";
-		status = "disabled";
-	};
-	dummy_codec:dummy{
-		#sound-dai-cells = <0>;
-		compatible = "amlogic, aml_dummy_codec";
-		status = "disabled";
-	};
-
 	auge_sound {
-		compatible = "amlogic, axg-sound-card";
+		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
 
+		status = "okay";
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
 			mclk-fs = <256>;//512
 			//continuous-clock;
 			bitclock-inversion;
 			//frame-inversion;
-			bitclock-master = <&aml_tdma>;
-			frame-master = <&aml_tdma>;
+			bitclock-master = <&tdma>;
+			frame-master = <&tdma>;
 			cpu {
-				sound-dai = <&aml_tdma>;
+				sound-dai = <&tdma>;
 				dai-tdm-slot-tx-mask = <1 1>;
 				dai-tdm-slot-rx-mask = <1 1>;
 				dai-tdm-slot-num = <2>;
@@ -269,7 +244,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			codec {
-				sound-dai = <&dummy_codec &dummy_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -279,10 +254,10 @@
 			//continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
-			bitclock-master = <&aml_tdmb>;
-			frame-master = <&aml_tdmb>;
+			bitclock-master = <&tdmb>;
+			frame-master = <&tdmb>;
 			cpu {
-				sound-dai = <&aml_tdmb>;
+				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
 				dai-tdm-slot-rx-mask = <1 1>;
 				dai-tdm-slot-num = <2>;
@@ -301,10 +276,10 @@
 			/* tdmb clk using tdmc so no bclk-inv */
 			//bitclock-inversion;
 			//frame-inversion;
-			bitclock-master = <&aml_tdmc>;
-			frame-master = <&aml_tdmc>;
+			bitclock-master = <&tdmc>;
+			frame-master = <&tdmc>;
 			cpu {
-				sound-dai = <&aml_tdmc>;
+				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
 				dai-tdm-slot-rx-mask = <1 1>;
 				dai-tdm-slot-num = <2>;
@@ -319,10 +294,10 @@
 		aml-audio-card,dai-link@3 {
 			mclk-fs = <256>;
 			cpu {
-				sound-dai = <&aml_pdm>;
+				sound-dai = <&pdm>;
 			};
 			codec {
-				sound-dai = <&pdm_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -804,7 +779,7 @@
 };
 
 &audiobus {
-	aml_tdma: tdma {
+	tdma: tdma {
 		compatible = "amlogic, axg-snd-tdma";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-in = <1 0>;
@@ -817,7 +792,7 @@
 		pinctrl-0 = <&tdmin_a &tdmout_a  &tdmout_a_data>;
 	};
 
-	aml_tdmb: tdmb {
+	tdmb: tdmb {
 		compatible = "amlogic, axg-snd-tdmb";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-out = <1 0>;
@@ -830,7 +805,7 @@
 		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
 	};
 
-	aml_tdmc: tdmc {
+	tdmc: tdmc {
 		compatible = "amlogic, axg-snd-tdmc";
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-out = <1 0>;
@@ -841,55 +816,6 @@
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdmc_mclk &tdmout_c &tdmin_c>;
-	};
-
-	tdmlb:tdm@3 {
-		compatible = "amlogic, axg-snd-tdmlb";
-		#sound-dai-cells = <0>;
-
-		dai-tdm-lane-lb-slot-mask-in = <1 0 0 0>;
-		dai-tdm-clk-sel = <1>;
-
-		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "clk_srcpll";
-
-		/*
-		 * select tdmin_lb src;
-		 * AXG
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA
-		 *  4: PAD_TDMINB
-		 *  5: PAD_TDMINC
-		 *
-		 * G12A/G12B
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA_DIN*
-		 *  4: PAD_TDMINB_DIN*
-		 *  5: PAD_TDMINC_DIN*
-		 *  6: PAD_TDMINA_D*, oe pin
-		 *  7: PAD_TDMINB_D*, oe pin
-		 *
-		 * TL1
-		 *  0: TDMOUTA
-		 *  1: TDMOUTB
-		 *  2: TDMOUTC
-		 *  3: PAD_TDMINA_DIN*
-		 *  4: PAD_TDMINB_DIN*
-		 *  5: PAD_TDMINC_DIN*
-		 *  6: PAD_TDMINA_D*
-		 *  7: PAD_TDMINB_D*
-		 *  8: PAD_TDMINC_D*
-		 *  9: HDMIRX_I2S
-		 *  10: ACODEC_ADC
-		 */
-		lb-src-sel = <1>;
-
-		status = "disabled";
 	};
 
 	aml_spdif: spdif {
@@ -923,10 +849,10 @@
 		 * 7: "Enable:192K",
 		 */
 		auto_asrc = <0>;
-		status = "disabled";
+		status = "okay";
 	};
 
-	aml_pdm: pdm {
+	pdm: pdm {
 		compatible = "amlogic, axg-snd-pdm";
 		#sound-dai-cells = <0>;
 		clocks = <&clkaudio CLKID_AUDIO_PDM
@@ -942,7 +868,7 @@
 		pinctrl-names = "pdm_pins";
 		pinctrl-0 = <&pdmin>;
 		filter_mode = <1>; /* mode 0~4, defalut:1 */
-		status = "disabled";
+		status = "okay";
 	};
 
 	loopback:loopback@0 {
@@ -997,7 +923,7 @@
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	audioresample: resample {
@@ -1017,7 +943,7 @@
 		 *	LOOPBACK,
 		 */
 		resample_module = <3>;
-		status = "disabled";
+		status = "okay";
 	};
 }; /* end of audiobus */
 
@@ -1217,7 +1143,7 @@
 };
 
 &audio_data{
-	status = "disabled";
+	status = "okay";
 };
 
 &saradc {

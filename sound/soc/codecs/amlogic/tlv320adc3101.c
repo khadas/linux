@@ -252,7 +252,7 @@ static inline int adc3101_get_divs(int mclk, int rate)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(adc3101_divs); i++) {
-		if (dc3101_divs[i].rate == rate && adc3101_divs[i].mclk == mclk)
+		if (adc3101_divs[i].rate == rate && adc3101_divs[i].mclk == mclk)
 			return i;
 	}
 

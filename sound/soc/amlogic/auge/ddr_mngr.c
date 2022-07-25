@@ -757,7 +757,7 @@ static bool aml_toddr_check_fifo_count(struct toddr *to)
 
 		udelay(1);
 		if ((i % 20) == 0)
-			pr_info("delay:[%dus]; FRDDR_STATUS2: [0x%x] [0x%x]\n",
+			pr_info("delay:[%dus]; TODDR_STATUS2: [0x%x] [0x%x]\n",
 				i, addr_request, addr_reply);
 	}
 	pr_err("Error: 200us time out, TODDR_STATUS2: [0x%x] [0x%x]\n",
@@ -2143,16 +2143,6 @@ struct toddr_src_conf toddr_srcs_v4[] = {
 };
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-static struct ddr_chipinfo axg_ddr_chipinfo = {
-	.int_start_same_addr   = true,
-	.asrc_only_left_j      = true,
-	.wakeup                = 1,
-	.toddr_num             = 3,
-	.frddr_num             = 3,
-	.fifo_depth            = FIFO_DEPTH_1K,
-	.to_srcs               = &toddr_srcs_v1[0],
-	.use_arb               = true,
-};
 
 static struct ddr_chipinfo tl1_ddr_chipinfo = {
 	.same_src_fn           = true,
@@ -2179,6 +2169,17 @@ static struct ddr_chipinfo a1_ddr_chipinfo = {
 	.use_arb               = true,
 };
 #endif
+
+static struct ddr_chipinfo axg_ddr_chipinfo = {
+	.int_start_same_addr   = true,
+	.asrc_only_left_j      = true,
+	.wakeup                = 1,
+	.toddr_num             = 3,
+	.frddr_num             = 3,
+	.fifo_depth            = FIFO_DEPTH_1K,
+	.to_srcs               = &toddr_srcs_v1[0],
+	.use_arb               = true,
+};
 
 static struct ddr_chipinfo g12a_ddr_chipinfo = {
 	.same_src_fn           = true,
@@ -2263,10 +2264,7 @@ static struct ddr_chipinfo a5_ddr_chipinfo = {
 
 static const struct of_device_id aml_ddr_mngr_device_id[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-	{
-		.compatible = "amlogic, axg-audio-ddr-manager",
-		.data       = &axg_ddr_chipinfo,
-	},
+
 	{
 		.compatible = "amlogic, tl1-audio-ddr-manager",
 		.data       = &tl1_ddr_chipinfo,
@@ -2276,6 +2274,10 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 		.data       = &a1_ddr_chipinfo,
 	},
 #endif
+	{
+		.compatible = "amlogic, axg-audio-ddr-manager",
+		.data       = &axg_ddr_chipinfo,
+	},
 	{
 		.compatible = "amlogic, g12a-audio-ddr-manager",
 		.data       = &g12a_ddr_chipinfo,
