@@ -574,25 +574,104 @@ void ge2d_set_src2_dst_data(struct ge2d_src2_dst_data_s *cfg)
 void ge2d_set_src2_dst_gen(struct ge2d_src2_dst_gen_s *cfg,
 			   struct ge2d_cmd_s *cmd)
 {
-	unsigned int widtho, heighto;
+	unsigned int widtho, heighto, widthi, heighti;
 	unsigned int is_rotate = cmd->dst_xy_swap ? 1 : 0;
 	unsigned int is_blend = cmd->cmd_op == IS_BLEND ? 1 : 0;
-
-	widtho  = is_rotate ? (cfg->dst_clipy_end - cfg->dst_clipy_start + 1) :
-		  (cfg->dst_clipx_end - cfg->dst_clipx_start + 1);
-	heighto = is_rotate ? (cfg->dst_clipx_end - cfg->dst_clipx_start + 1) :
-		  (cfg->dst_clipy_end - cfg->dst_clipy_start + 1);
+	unsigned int x_rpt = 0, y_rpt = 0;
+	unsigned int x_start = 0, x_end = 0, y_start = 0, y_end = 0;
 
 	/* in blend case, if src2_repeat is support, use output W H to set */
 	if (is_blend && ge2d_meson_dev.src2_repeat) {
+		widtho = is_rotate ?
+			 (cmd->dst_y_end - cmd->dst_y_start + 1) :
+			 (cmd->dst_x_end - cmd->dst_x_start + 1);
+		heighto = is_rotate ?
+			  (cmd->dst_x_end - cmd->dst_x_start + 1) :
+			  (cmd->dst_y_end - cmd->dst_y_start + 1);
+		widthi = cmd->src2_x_end - cmd->src2_x_start + 1;
+		heighti = cmd->src2_y_end - cmd->src2_y_start + 1;
+
+		ge2d_log_dbg("src2_clipx start:%d end:%d\n",
+			     cfg->src2_clipx_start, cfg->src2_clipx_end);
+		ge2d_log_dbg("src2_clipy start:%d end:%d\n",
+			     cfg->src2_clipy_start, cfg->src2_clipy_end);
+
+		ge2d_log_dbg("dst_clipx start:%d end:%d\n",
+			     cfg->dst_clipx_start, cfg->dst_clipx_end);
+		ge2d_log_dbg("dst_clipy start:%d end:%d\n",
+			     cfg->dst_clipy_start, cfg->dst_clipy_end);
+
+		if (widthi == 0 || heighti == 0) {
+			ge2d_log_err("wrong clip parameters, widthi=%d,heighti=%d\n",
+				     widthi, heighti);
+			return;
+		}
+
+		switch (widtho / widthi) {
+		case 0:
+			ge2d_log_err("src2_clipx scale down is not supported\n");
+			x_rpt = 0;
+			break;
+		case 1:
+			x_rpt = 0;
+			break;
+		case 2:
+			x_rpt = 1;
+			break;
+		case 4:
+			x_rpt = 2;
+			break;
+		case 8:
+			x_rpt = 3;
+			break;
+		default:
+			x_rpt = 3;
+			ge2d_log_err("src2_clipx scale up just support 2^n\n");
+			break;
+		}
+
+		switch (heighto / heighti) {
+		case 0:
+			ge2d_log_err("src2_clipy scale down is not supported\n");
+			y_rpt = 0;
+			break;
+		case 1:
+			y_rpt = 0;
+			break;
+		case 2:
+			y_rpt = 1;
+			break;
+		case 4:
+			y_rpt = 2;
+			break;
+		case 8:
+			y_rpt = 3;
+			break;
+		default:
+			y_rpt = 3;
+			ge2d_log_err("src2_clipy scale up just support 2^n\n");
+			break;
+		}
+		ge2d_log_dbg("src2_clipx_repeat(%d)\n", x_rpt);
+		ge2d_log_dbg("src2_clipy_repeat(%d)\n", y_rpt);
+
+		x_start = cfg->src2_clipx_start * (1 << x_rpt);
+		x_end   = x_start + widthi * (1 << x_rpt) - 1;
+		y_start = cfg->src2_clipy_start * (1 << y_rpt);
+		y_end   = y_start + heighti * (1 << y_rpt) - 1;
+
+		ge2d_log_dbg("src2_clipx setting, start:%d end:%d\n",
+			     x_start, x_end);
+		ge2d_log_dbg("src2_clipy setting, start:%d end:%d\n",
+			     y_start, y_end);
 		ge2d_reg_write(GE2D_SRC2_CLIPX_START_END,
-			       (cfg->src2_clipx_start << 16) |
-			       ((widtho - 1) << 0)
+			       (x_start << 16) |
+			       (x_end << 0)
 			       );
 
 		ge2d_reg_write(GE2D_SRC2_CLIPY_START_END,
-			       (cfg->src2_clipy_start << 16) |
-			       ((heighto - 1) << 0)
+			       (y_start << 16) |
+			       (y_end << 0)
 			       );
 	} else {
 		ge2d_reg_write(GE2D_SRC2_CLIPX_START_END,
@@ -1328,14 +1407,27 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 
 	/* in blend case, if src2_repeat is support, use output W H to set */
 	if (cfg->cmd_op == IS_BLEND && ge2d_meson_dev.src2_repeat) {
+		unsigned int x_rpt = src2_x_repeat;
+		unsigned int y_rpt = src2_x_repeat;
+		unsigned int x_start = 0, x_end = 0, y_start = 0, y_end = 0;
+
+		x_start = cfg->src2_x_start * (1 << x_rpt);
+		x_end   = x_start + widthi * (1 << x_rpt) - 1;
+		y_start = cfg->src2_y_start * (1 << y_rpt);
+		y_end   = y_start + heighti * (1 << y_rpt) - 1;
+
+		ge2d_log_dbg("src2_x setting, start:%d end:%d\n",
+			     x_start, x_end);
+		ge2d_log_dbg("src2_y setting, start:%d end:%d\n",
+			     y_start, y_end);
 		ge2d_reg_write(GE2D_SRC2_X_START_END,
-			       (cfg->src2_x_start << 16) |
-			       ((widtho - 1) << 0)
+			       (x_start << 16) |
+			       (x_end << 0)
 			       );
 
 		ge2d_reg_write(GE2D_SRC2_Y_START_END,
-			       (cfg->src2_y_start << 16) |
-			       ((heighto - 1) << 0)
+			       (y_start << 16) |
+			       (y_end << 0)
 			       );
 	} else {
 		ge2d_reg_write(GE2D_SRC2_X_START_END,

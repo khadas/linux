@@ -52,7 +52,8 @@ static uint32_t ge2d_reg_read(unsigned int reg)
 	if (check_map_flag())
 		val = readl(ge2d_reg_map + addr);
 
-	ge2d_log_dbg2("read(0x%x)=0x%x\n", reg, val);
+	if (ge2d_dump_reg_enable && ge2d_dump_reg_cnt > 0)
+		ge2d_log_dbg2("read(0x%x)=0x%x\n", reg, val);
 
 	return val;
 }

@@ -9,6 +9,7 @@
 /* Amlogic Headers */
 #include <linux/amlogic/media/ge2d/ge2d.h>
 #include "ge2d_reg.h"
+#include "ge2d_log.h"
 
 void blend(struct ge2d_context_s *wq,
 	   int src_x, int src_y, int src_w, int src_h,
@@ -17,6 +18,20 @@ void blend(struct ge2d_context_s *wq,
 	   int op)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
+
+	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
+		dump_stack();
+
+	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
+	   src2_x < 0 || src2_y < 0 || src2_w < 0 || src2_h < 0 ||
+	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
+		ge2d_log_err("%s wrong params, %d %d %d %d + %d %d %d %d -> %d %d %d %d\n",
+			     __func__,
+			     src_x, src_y, src_w, src_h,
+			     src2_x, src2_y, src2_w, src2_h,
+			     dst_x, dst_y, dst_w, dst_h);
+		return;
+	}
 
 	ge2d_cmd_cfg->src1_x_start = src_x;
 	ge2d_cmd_cfg->src1_x_end   = src_x + src_w - 1;
@@ -80,6 +95,20 @@ void blend_noblk(struct ge2d_context_s *wq,
 		 int op)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
+
+	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
+		dump_stack();
+
+	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
+	   src2_x < 0 || src2_y < 0 || src2_w < 0 || src2_h < 0 ||
+	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
+		ge2d_log_err("%s wrong params, %d %d %d %d + %d %d %d %d -> %d %d %d %d\n",
+			     __func__,
+			     src_x, src_y, src_w, src_h,
+			     src2_x, src2_y, src2_w, src2_h,
+			     dst_x, dst_y, dst_w, dst_h);
+		return;
+	}
 
 	ge2d_cmd_cfg->src1_x_start = src_x;
 	ge2d_cmd_cfg->src1_x_end   = src_x + src_w - 1;
@@ -151,6 +180,20 @@ void blend_noalpha(struct ge2d_context_s *wq,
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
 
+	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
+		dump_stack();
+
+	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
+	   src2_x < 0 || src2_y < 0 || src2_w < 0 || src2_h < 0 ||
+	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
+		ge2d_log_err("%s wrong params, %d %d %d %d + %d %d %d %d -> %d %d %d %d\n",
+			     __func__,
+			     src_x, src_y, src_w, src_h,
+			     src2_x, src2_y, src2_w, src2_h,
+			     dst_x, dst_y, dst_w, dst_h);
+		return;
+	}
+
 	ge2d_cmd_cfg->src1_x_start = src_x;
 	ge2d_cmd_cfg->src1_x_end   = src_x + src_w - 1;
 	ge2d_cmd_cfg->src1_y_start = src_y;
@@ -218,6 +261,20 @@ void blend_noalpha_noblk(struct ge2d_context_s *wq,
 			 int op)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
+
+	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
+		dump_stack();
+
+	if (src_x < 0 || src_y < 0 || src_w < 0 || src_h < 0 ||
+	   src2_x < 0 || src2_y < 0 || src2_w < 0 || src2_h < 0 ||
+	   dst_x < 0 || dst_y < 0 || dst_w < 0 || dst_h < 0) {
+		ge2d_log_err("%s wrong params, %d %d %d %d + %d %d %d %d -> %d %d %d %d\n",
+			     __func__,
+			     src_x, src_y, src_w, src_h,
+			     src2_x, src2_y, src2_w, src2_h,
+			     dst_x, dst_y, dst_w, dst_h);
+		return;
+	}
 
 	ge2d_cmd_cfg->src1_x_start = src_x;
 	ge2d_cmd_cfg->src1_x_end   = src_x + src_w - 1;

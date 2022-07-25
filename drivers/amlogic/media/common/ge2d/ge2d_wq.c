@@ -254,71 +254,71 @@ static inline int work_queue_no_space(struct ge2d_context_s *queue)
 
 static void ge2d_dump_cmd(struct ge2d_cmd_s *cfg)
 {
-	ge2d_log_dbg("src1_x_start=%d,src1_y_start=%d\n",
-		     cfg->src1_x_start, cfg->src1_y_start);
-	ge2d_log_dbg("src1_x_end=%d,src1_y_end=%d\n",
-		     cfg->src1_x_end, cfg->src1_y_end);
-	ge2d_log_dbg("src1_x_rev=%d,src1_y_rev=%d\n",
-		     cfg->src1_x_rev, cfg->src1_y_rev);
-	ge2d_log_dbg("src1_fill_color_en=%d\n",
-		     cfg->src1_fill_color_en);
+	ge2d_log_info("src1_x_start=%d,src1_y_start=%d\n",
+		      cfg->src1_x_start, cfg->src1_y_start);
+	ge2d_log_info("src1_x_end=%d,src1_y_end=%d\n",
+		      cfg->src1_x_end, cfg->src1_y_end);
+	ge2d_log_info("src1_x_rev=%d,src1_y_rev=%d\n",
+		      cfg->src1_x_rev, cfg->src1_y_rev);
+	ge2d_log_info("src1_fill_color_en=%d\n",
+		      cfg->src1_fill_color_en);
 
-	ge2d_log_dbg("src2_x_start=%d,src2_y_start=%d\n",
-		     cfg->src2_x_start, cfg->src2_y_start);
-	ge2d_log_dbg("src2_x_end=%d,src2_y_end=%d\n",
-		     cfg->src2_x_end, cfg->src2_y_end);
-	ge2d_log_dbg("src2_x_rev=%d,src2_y_rev=%d\n",
-		     cfg->src2_x_rev, cfg->src2_y_rev);
-	ge2d_log_dbg("src2_fill_color_en=%d\n",
-		     cfg->src2_fill_color_en);
+	ge2d_log_info("src2_x_start=%d,src2_y_start=%d\n",
+		      cfg->src2_x_start, cfg->src2_y_start);
+	ge2d_log_info("src2_x_end=%d,src2_y_end=%d\n",
+		      cfg->src2_x_end, cfg->src2_y_end);
+	ge2d_log_info("src2_x_rev=%d,src2_y_rev=%d\n",
+		      cfg->src2_x_rev, cfg->src2_y_rev);
+	ge2d_log_info("src2_fill_color_en=%d\n",
+		      cfg->src2_fill_color_en);
 
-	ge2d_log_dbg("dst_x_start=%d,dst_y_start=%d\n",
-		     cfg->dst_x_start, cfg->dst_y_start);
-	ge2d_log_dbg("dst_x_end=%d,dst_y_end=%d\n",
-		     cfg->dst_x_end, cfg->dst_y_end);
-	ge2d_log_dbg("dst_x_rev=%d,dst_y_rev=%d\n",
-		     cfg->dst_x_rev, cfg->dst_y_rev);
-	ge2d_log_dbg("dst_xy_swap=%d\n",
-		     cfg->dst_xy_swap);
+	ge2d_log_info("dst_x_start=%d,dst_y_start=%d\n",
+		      cfg->dst_x_start, cfg->dst_y_start);
+	ge2d_log_info("dst_x_end=%d,dst_y_end=%d\n",
+		      cfg->dst_x_end, cfg->dst_y_end);
+	ge2d_log_info("dst_x_rev=%d,dst_y_rev=%d\n",
+		      cfg->dst_x_rev, cfg->dst_y_rev);
+	ge2d_log_info("dst_xy_swap=%d\n",
+		      cfg->dst_xy_swap);
 
-	ge2d_log_dbg("color_blend_mode=0x%x\n",
-		     cfg->color_blend_mode);
-	ge2d_log_dbg("color_src_blend_factor=0x%x\n",
-		     cfg->color_src_blend_factor);
-	ge2d_log_dbg("color_dst_blend_factor=0x%x\n",
-		     cfg->color_dst_blend_factor);
-	ge2d_log_dbg("color_logic_op=0x%x\n",
-		     cfg->color_logic_op);
-	ge2d_log_dbg("alpha_blend_mode=0x%x\n",
-		     cfg->alpha_blend_mode);
-	ge2d_log_dbg("alpha_src_blend_factor=0x%x\n",
-		     cfg->alpha_src_blend_factor);
-	ge2d_log_dbg("alpha_src_blend_factor=0x%x\n",
-		     cfg->alpha_dst_blend_factor);
-	ge2d_log_dbg("alpha_logic_op=0x%x\n",
-		     cfg->alpha_logic_op);
+	ge2d_log_info("color_blend_mode=0x%x\n",
+		      cfg->color_blend_mode);
+	ge2d_log_info("color_src_blend_factor=0x%x\n",
+		      cfg->color_src_blend_factor);
+	ge2d_log_info("color_dst_blend_factor=0x%x\n",
+		      cfg->color_dst_blend_factor);
+	ge2d_log_info("color_logic_op=0x%x\n",
+		      cfg->color_logic_op);
+	ge2d_log_info("alpha_blend_mode=0x%x\n",
+		      cfg->alpha_blend_mode);
+	ge2d_log_info("alpha_src_blend_factor=0x%x\n",
+		      cfg->alpha_src_blend_factor);
+	ge2d_log_info("alpha_src_blend_factor=0x%x\n",
+		      cfg->alpha_dst_blend_factor);
+	ge2d_log_info("alpha_logic_op=0x%x\n",
+		      cfg->alpha_logic_op);
 
-	ge2d_log_dbg("sc_prehsc_en=%d\n", cfg->sc_prehsc_en);
-	ge2d_log_dbg("sc_prevsc_en=%d\n", cfg->sc_prevsc_en);
-	ge2d_log_dbg("sc_hsc_en=%d\n", cfg->sc_hsc_en);
-	ge2d_log_dbg("sc_vsc_en=%d\n", cfg->sc_vsc_en);
-	ge2d_log_dbg("vsc_phase_step=%d\n", cfg->vsc_phase_step);
-	ge2d_log_dbg("vsc_phase_slope=%d\n", cfg->vsc_phase_slope);
-	ge2d_log_dbg("vsc_rpt_l0_num=%d\n", cfg->vsc_rpt_l0_num);
-	ge2d_log_dbg("vsc_ini_phase=%d\n", cfg->vsc_ini_phase);
-	ge2d_log_dbg("hsc_phase_step=%d\n", cfg->hsc_phase_step);
-	ge2d_log_dbg("hsc_phase_slope=%d\n", cfg->hsc_phase_slope);
-	ge2d_log_dbg("hsc_rpt_p0_num=%d\n", cfg->hsc_rpt_p0_num);
-	ge2d_log_dbg("hsc_ini_phase=%d\n", cfg->hsc_ini_phase);
-	ge2d_log_dbg("hsc_div_en=%d\n", cfg->hsc_div_en);
-	ge2d_log_dbg("hsc_div_length=%d\n", cfg->hsc_div_length);
-	ge2d_log_dbg("hsc_adv_num=%d\n", cfg->hsc_adv_num);
-	ge2d_log_dbg("hsc_adv_phase=%d\n", cfg->hsc_adv_phase);
-	ge2d_log_dbg("src1_cmult_asel=%d\n", cfg->src1_cmult_asel);
-	ge2d_log_dbg("src2_cmult_asel=%d\n", cfg->src2_cmult_asel);
+	ge2d_log_info("sc_prehsc_en=%d\n", cfg->sc_prehsc_en);
+	ge2d_log_info("sc_prevsc_en=%d\n", cfg->sc_prevsc_en);
+	ge2d_log_info("sc_hsc_en=%d\n", cfg->sc_hsc_en);
+	ge2d_log_info("sc_vsc_en=%d\n", cfg->sc_vsc_en);
+	ge2d_log_info("vsc_phase_step=%d\n", cfg->vsc_phase_step);
+	ge2d_log_info("vsc_phase_slope=%d\n", cfg->vsc_phase_slope);
+	ge2d_log_info("vsc_rpt_l0_num=%d\n", cfg->vsc_rpt_l0_num);
+	ge2d_log_info("vsc_ini_phase=%d\n", cfg->vsc_ini_phase);
+	ge2d_log_info("hsc_phase_step=%d\n", cfg->hsc_phase_step);
+	ge2d_log_info("hsc_phase_slope=%d\n", cfg->hsc_phase_slope);
+	ge2d_log_info("hsc_rpt_p0_num=%d\n", cfg->hsc_rpt_p0_num);
+	ge2d_log_info("hsc_ini_phase=%d\n", cfg->hsc_ini_phase);
+	ge2d_log_info("hsc_div_en=%d\n", cfg->hsc_div_en);
+	ge2d_log_info("hsc_div_length=%d\n", cfg->hsc_div_length);
+	ge2d_log_info("hsc_adv_num=%d\n", cfg->hsc_adv_num);
+	ge2d_log_info("hsc_adv_phase=%d\n", cfg->hsc_adv_phase);
+	ge2d_log_info("src1_cmult_asel=%d\n", cfg->src1_cmult_asel);
+	ge2d_log_info("src2_cmult_asel=%d\n", cfg->src2_cmult_asel);
 
-	ge2d_log_dbg("GE2D_STATUS0=0x%x\n", ge2d_reg_read(GE2D_STATUS0));
-	ge2d_log_dbg("GE2D_STATUS1=0x%x\n", ge2d_reg_read(GE2D_STATUS1));
+	ge2d_log_info("GE2D_STATUS0=0x%x\n", ge2d_reg_read(GE2D_STATUS0));
+	ge2d_log_info("GE2D_STATUS1=0x%x\n", ge2d_reg_read(GE2D_STATUS1));
 }
 
 static void ge2d_set_canvas(struct ge2d_config_s *cfg)

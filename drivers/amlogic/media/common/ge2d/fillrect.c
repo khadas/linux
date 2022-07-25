@@ -8,12 +8,22 @@
 
 /* Local Headers */
 #include "ge2dgen.h"
+#include "ge2d_log.h"
 
 static void _fillrect(struct ge2d_context_s *wq,
 		      int x, int y, int w, int h,
 		      unsigned int color, int blk)
 {
 	struct ge2d_cmd_s *ge2d_cmd_cfg = ge2d_wq_get_cmd(wq);
+
+	if (ge2d_log_level & GE2D_LOG_DUMP_STACK)
+		dump_stack();
+
+	if (x < 0 || y < 0 || w < 0 || h < 0) {
+		ge2d_log_err("%s wrong params, %d %d %d %d\n",
+			     __func__, x, y, w, h);
+		return;
+	}
 
 	ge2dgen_src_color(wq, color);
 
