@@ -5261,7 +5261,9 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	unsigned int pps_w, pps_h;
 	u32 typetmp;
 	unsigned char chg_hdr = 0;
-	bool is_hdr10p = false;
+#ifdef DIM_EN_UD_USED
+	bool need_save_meta = true;
+#endif
 
 	pch = get_chdata(channel);
 
@@ -5608,14 +5610,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 			}
 		}
 
-		if ((((vframe->signal_type >> 8) & 0xff) == 0x30) &&
-		    ((((vframe->signal_type >> 16) & 0xff) == 9) ||
-		     (((vframe->signal_type >> 16) & 0xff) == 2)))
-			is_hdr10p = true;
-		if (vframe->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-		    (is_hdr10p ||
-		     get_vframe_src_fmt(vframe) ==
-		     VFRAME_SIGNAL_FMT_HDR10PRIME)) {
+		if (need_save_meta) {
 			struct provider_aux_req_s req;
 			char *provider_name = NULL, *tmp_name = NULL;
 			u32 sei_size = 0;
@@ -5649,12 +5644,11 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				memcpy(di_buf->local_meta, req.aux_buf,
 				       req.aux_size);
 				di_buf->local_meta_used_size = req.aux_size;
-			} else if (di_buf->local_meta && provider_name) {
-				pr_info("DI:get meta data error aux_buf:%p\n",
-					req.aux_buf);
-				pr_info("DI:get meta data error size:%d (%d)\n",
-					req.aux_size,
-					di_buf->local_meta_total_size);
+			} else if (req.aux_buf && req.aux_size) {
+				pr_info("DI:get meta data error aux_buf:%p, size:%d (%d), %s\n",
+					req.aux_buf, req.aux_size,
+					di_buf->local_meta_total_size,
+					provider_name);
 			}
 		}
 #endif  /* DIM_EN_UD_USED */
