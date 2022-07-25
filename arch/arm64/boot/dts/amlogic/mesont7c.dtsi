@@ -2794,7 +2794,6 @@
 				};
 			};
 		};
-/* owner to do qiufang
 		nna_thermal: nna_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
@@ -2802,23 +2801,22 @@
 			thermal-sensors = <&nna_tsensor 3>;
 			trips {
 				nnaswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				nnacontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				nnacontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				nnacritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
 			};
 		};
-*/
 		hevc_thermal: hevc_thermal {
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
