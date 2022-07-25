@@ -80,13 +80,17 @@ static int distinguish_module(void)
 	vendor_id = sdio_get_vendor();
 	pr_info("vendor_id = 0x%x\n", vendor_id);
 
+#ifdef CONFIG_AMLOGIC_BT_WAKE_NOT_REPORT
+	/* for platform like yocto, suspend wakeup use any-key wakeup, don't
+	 * need to help report key event for all modules
+	 */
+	return 1;
+#else
 	if (vendor_id == QCA_ID)
 		return 1;
-#ifdef CONFIG_AMLOGIC_BT_WAKE_NOT_REPORT
-	if (vendor_id == RTK_ID)
-		return 1;
-#endif
+
 	return 0;
+#endif
 }
 
 static ssize_t value_show(struct class *cls,
