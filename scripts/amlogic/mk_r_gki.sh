@@ -108,10 +108,8 @@ echo KERNEL_SRC=$KERNEL_SRC
 if [[ -z "${SKIP_EXT_MODULES}" ]] && [[ -n "${EXT_MODULES}" ]]; then
 
   for EXT_MOD in ${EXT_MODULES}; do
-    EXT_MOD=`readlink -f $EXT_MOD`
-    M=`echo $KERNEL_SRC | sed 's#/[^/]*#../#g'`$EXT_MOD
     set -ex
-    $MAKE_CLANG -C ${EXT_MOD} M=${M} KERNEL_SRC=${KERNEL_SRC}
+    $MAKE_CLANG -C ${EXT_MOD} M=${EXT_MOD} KERNEL_SRC=${KERNEL_SRC}
     set +ex
   done
 fi
