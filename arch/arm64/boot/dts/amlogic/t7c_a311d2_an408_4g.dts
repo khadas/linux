@@ -141,20 +141,11 @@
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
-		isp_cma_reserved:linux,isp_cma {
-			compatible = "shared-dma-pool";
-			reusable;
-			status = "disabled";
-			size = <0x0 0x8000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
-		};
-
-		adapt_cma_reserved:linux,adapt_cma {
+		camera_cma_reserved:linux,camera_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x4000000>;
+			size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -1361,15 +1352,6 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
 	clock-frequency = <100000>; /* default 100k */
-	sensor-i2c@6c {
-		compatible = "arm, i2c-sensor-ssub";
-		reg = <0x6c>;
-		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
-		reg-type = <2>;
-		reg-data-type = <1>;
-		link-device = <&phycsi>;
-	};
 
 	tas5707_36: tas5707_36@1b {
 		compatible = "ti,tas5707";
@@ -1393,14 +1375,55 @@
 	pinctrl-0 = <&i2c2_pins3>;
 	//pinctrl-1 = <&i2c2_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
-	sensor-i2c@6c {
-		compatible = "arm, i2c-sensor";
-		reg = <0x6c>;
-		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
-		reg-type = <2>;
+	imx290_2: sensor1@1a {
+		compatible = "sony, imx290";
+		index = <0>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
 		reg-data-type = <1>;
-		link-device = <&phycsi>;
+
+		clock-frequency = <37125000>;
+		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_0_PRE>,
+				<&clkc CLKID_MCLK_PLL>,
+				<&xtal>;
+		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
+
+		//pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		//reset = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOE_4 GPIO_ACTIVE_HIGH>;
+		port {
+			imx290_2_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <222750000>;
+				//link-frequencies = /bits/ 64 <445500000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+	ov13b10_0: sensor2@6c {
+		compatible = "sony, ov13b10";
+		index = <0>;
+		reg = <0x6c>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <24000000>;
+		//clocks = <&clkc CLKID_MCLK_1>;
+		clocks = <&clkc CLKID_MCLK_0>;
+		clock-names = "mclk";
+
+		//pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		//reset = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOE_4 GPIO_ACTIVE_HIGH>;
+		port {
+			ov13b10_0_ep: endpoint {
+				data-lanes = <0 1 2 3>;
+				link-frequencies = /bits/ 64 <222750000>;
+				//link-frequencies = /bits/ 64 <445500000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
 	};
 };
 
@@ -1409,15 +1432,6 @@
 	pinctrl-names = "default";//, "sleep"
 	pinctrl-0 = <&i2c3_pins1>;
 	clock-frequency = <100000>; /* default 100k */
-	sensor-i2c@6c {
-		compatible = "arm, i2c-sensor-sub";
-		reg = <0x6c>;
-		reg-names = "i2c-sensor";
-		slave-addr = <0x6c>;
-		reg-type = <2>;
-		reg-data-type = <1>;
-		link-device = <&phycsi>;
-	};
 };
 
 &i2c5 {
@@ -1515,29 +1529,18 @@
 	status = "okay";
 };
 
-&isp {
-	status = "okay";
-	temper-line-offset = <0x1680>;
-	temper-buf-size = <6>;
-	temper-frame-num = <1>;
-	temper-frame-size = <0x5EEC00>;
-	temper-line-offset1 = <0x1680>;
-	temper-buf-size1 = <6>;
-	temper-frame-num1 = <1>;
-	temper-frame-size1 = <0x5EEC00>;
-	temper-line-offset2 = <0x1680>;
-	temper-buf-size2 = <6>;
-	temper-frame-num2 = <1>;
-	temper-frame-size2 = <0x5EEC00>;
-	memory-region = <&isp_cma_reserved>;
+&csiphy0 {
+	port {
+		csiphy0_ep: endpoint {
+			clock-lanes = <4>;
+			data-lanes = <0 1 2 3>;
+			remote-endpoint = <&imx290_2_ep>;
+		};
+	};
 };
 
-&adapter {
-	status = "okay";
-	mem_alloc = <32>;
-	mem_alloc1 = <16>;
-	mem_alloc2 = <16>;
-	memory-region = <&adapt_cma_reserved>;
+&isp0 {
+	memory-region = <&camera_cma_reserved>;
 };
 
 &ir {
