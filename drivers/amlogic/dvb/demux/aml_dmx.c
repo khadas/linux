@@ -164,11 +164,11 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 	struct aml_dmx *pdmx = (struct aml_dmx *)demux->priv;
 	int ret = 0;
 
-	if (pdmx->reset_init == 0 && pdmx->video_pid != -1) {
+	if (pdmx->reset_init == 0 && pdmx->video_pid != -1 && pdmx->sc2_input) {
 		ts_input_write_empty(pdmx->sc2_input, pdmx->video_pid);
 		pdmx->reset_init = 1;
 	}
-	if (pdmx->reset_init_audio == 0 && pdmx->audio_pid != -1) {
+	if (pdmx->reset_init_audio == 0 && pdmx->audio_pid != -1 && pdmx->sc2_input) {
 		ts_input_write_empty(pdmx->sc2_input, pdmx->audio_pid);
 		pdmx->reset_init_audio = 1;
 	}
@@ -189,6 +189,14 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 			return -ERESTARTSYS;
 		}
 	}
+
+	if (!pdmx->sc2_input) {
+		dprint("first set DMX_SET_INPUT to local\n");
+		if (enable_w_mutex)
+			mutex_unlock(pdmx->pmutex);
+		return -1;
+	}
+
 	ret = ts_input_write(pdmx->sc2_input, buf, count);
 	if (enable_w_mutex) {
 		usleep_range(1000, 1500);
@@ -1588,6 +1596,11 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 		wp_offset = 0;
 		newest_pts = 0;
 
+		if (!ts_feed || !ts_feed->ts_out_elem) {
+			dprint("ts_feed or ts_out_elem is NULL\n");
+			continue;
+		}
+
 		ts_output_get_mem_info(ts_feed->ts_out_elem,
 			   &total_mem,
 			   &buf_phy_start,
@@ -1624,6 +1637,11 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 			total_mem = 0;
 			buf_phy_start = 0;
 			wp_offset = 0;
+
+			if (!section_feed || !section_feed->sec_out_elem) {
+				dprint("section_feed or sec_out_elem is NULL\n");
+				continue;
+			}
 
 			ts_output_get_mem_info(section_feed->sec_out_elem,
 				   &total_mem,
