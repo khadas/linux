@@ -91,3 +91,6 @@ config VIDEOBUF_VMALLOC
 config VIDEOBUF_DMA_CONTIG
 	tristate
 	select VIDEOBUF_GEN
+
+config AMLOGIC_V4L2
+	bool "Amlogic V4L2 VENDOR HOORKS"

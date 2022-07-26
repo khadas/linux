@@ -32,6 +32,9 @@
 #include <media/v4l2-fh.h>
 
 #include <media/videobuf2-v4l2.h>
+#if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
+#include <trace/hooks/aml_v4l2.h>
+#endif
 
 static int debug;
 module_param(debug, int, 0644);
@@ -337,6 +340,10 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 		/* Zero last flag, this is a signal from driver to userspace */
 		vbuf->flags &= ~V4L2_BUF_FLAG_LAST;
 	}
+
+#if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
+	trace_android_vh_meta_ptr_update(vbuf, b);
+#endif
 
 	return 0;
 }

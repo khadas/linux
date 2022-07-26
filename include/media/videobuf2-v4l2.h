@@ -53,6 +53,9 @@ struct vb2_v4l2_buffer {
 	bool			is_held;
 	struct vb2_plane	planes[VB2_MAX_PLANES];
 
+	ANDROID_VENDOR_DATA(1);
+	ANDROID_VENDOR_DATA(2);
+
 	ANDROID_KABI_RESERVE(1);
 };
 
