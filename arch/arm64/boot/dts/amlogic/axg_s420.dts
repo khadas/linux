@@ -210,10 +210,10 @@
 		reg = <0x0 0xffd24000 0x0 0x18>;
 		interrupts = <0 26 1>;
 		status = "disabled";
-		//clocks = <&xtal
-		//	&clkc CLKID_UART0>;
-		//clock-names = "clk_uart",
-		//	"clk_gate";
+		clocks = <&xtal
+			&clkc CLKID_CLK81_UART0>;
+		clock-names = "clk_uart",
+			"clk_gate";
 		fifosize = < 128 >;
 		pinctrl-names = "default";
 		pinctrl-0 = <&a_uart_pins>;
@@ -334,39 +334,6 @@
 			codec {
 				sound-dai = <&dummy_codec>;
 			};
-		};
-	};
-
-	bt-dev{
-		compatible = "amlogic, bt-dev";
-		dev_name = "bt-dev";
-		status = "disabled";
-		gpio_reset = <&gpio       GPIOX_21       GPIO_ACTIVE_HIGH>;
-	};
-
-	wifi{
-		compatible = "amlogic, aml_wifi";
-		dev_name = "aml_wifi";
-		status = "disabled";
-		interrupt_pin = <&gpio       GPIOX_6       GPIO_ACTIVE_HIGH>;
-		irq_trigger_type = "GPIO_IRQ_LOW";
-		power_on_pin = <&gpio       GPIOX_7       GPIO_ACTIVE_HIGH>;
-		dhd_static_buf;    //if use bcm wifi, config dhd_static_buf
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_32k_pins>;
-		pwm_config = <&wifi_pwm_conf>;
-	};
-
-	wifi_pwm_conf:wifi_pwm_conf{
-		pwm_channel1_conf {
-			pwms = <&pwm_ab MESON_PWM_0 30541 0>;
-			duty-cycle = <15270>;
-			times = <10>;
-		};
-		pwm_channel2_conf {
-			pwms = <&pwm_ab MESON_PWM_2 30500 0>;
-			duty-cycle = <15250>;
-			times = <12>;
 		};
 	};
 
@@ -1232,4 +1199,28 @@
 		#cooling-cells = <2>;
 		dynamic-power-coefficient = <140>;
 	};
+};
+
+&aml_wifi{
+	status = "okay";
+	interrupt-gpios = <&gpio  GPIOX_6  GPIO_ACTIVE_HIGH>;
+	power_on-gpios = <&gpio   GPIOX_7  GPIO_ACTIVE_HIGH>;
+	power_on_2-gpios= <&gpio  GPIOX_16 GPIO_ACTIVE_HIGH>;
+};
+
+&aml_bt {
+	status = "okay";
+	reset-gpios = <&gpio    GPIOX_21 GPIO_ACTIVE_HIGH>;
+	//hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
+};
+
+&pwm_ab {
+	pinctrl-0 = <&pwm_a_pins3>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&uart_A {
+	status = "okay";
+	uart-has-rtscts;
 };
