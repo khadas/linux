@@ -1894,6 +1894,11 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 		break;
 	case CONF_CLR_AUDINFO_PACKET:
 		break;
+	case CONF_ASPECT_RATIO:
+		pr_info("%s argv = %d\n", __func__, argv);
+		hdmi_avi_infoframe_config(CONF_AVI_VIC, argv >> 2);
+		hdmi_avi_infoframe_config(CONF_AVI_AR, argv & 0x3);
+		break;
 	case CONF_AVI_BT2020:
 		break;
 	case CONF_CLR_DV_VS10_SIG:
@@ -2001,6 +2006,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 static enum hdmi_vic get_vic_from_pkt(void)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+
+	vic = hdmitx21_rd_reg(TPI_AVI_BYTE4_IVCTX) & 0x7f;
 
 	return vic;
 }
