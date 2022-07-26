@@ -763,6 +763,7 @@ static struct clk_regmap t7_mclk_pll_dco = {
 		.table = t7_mclk_pll_table,
 		.init_regs = t7_mclk_init_regs,
 		.init_count = ARRAY_SIZE(t7_mclk_init_regs),
+		.ignore_init = false
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mclk_pll_dco",
@@ -771,7 +772,7 @@ static struct clk_regmap t7_mclk_pll_dco = {
 			.fw_name = "xtal",
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED
 	},
 };
 
@@ -808,7 +809,7 @@ static struct clk_regmap t7_mclk_pll = {
 		.offset = ANACTRL_MCLK_PLL_CNTL4,
 		.shift = 16,
 		.width = 5,
-		.flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ROUND_CLOSEST,
+		.flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ROUND_CLOSEST | CLK_DIVIDER_ALLOW_ZERO,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "mclk_pll",
@@ -8252,6 +8253,11 @@ static struct regmap *t7_regmap_resource(struct device *dev, char *name)
 	return devm_regmap_init_mmio(dev, base, &clkc_regmap_config);
 }
 
+static int ignore_pll_init;
+
+module_param(ignore_pll_init, int, 0664);
+MODULE_PARM_DESC(ignore_pll_init, "ignore_pll_init");
+
 static int __ref meson_t7_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -8259,6 +8265,7 @@ static int __ref meson_t7_probe(struct platform_device *pdev)
 	struct regmap *pll_map;
 	struct regmap *cpu_clk_map;
 	int ret, i;
+	struct meson_clk_pll_data *mclk_data;
 
 	/* Get regmap for different clock area */
 	basic_map = t7_regmap_resource(dev, "basic");
@@ -8289,6 +8296,10 @@ static int __ref meson_t7_probe(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(t7_pll_clk_regmaps); i++)
 		t7_pll_clk_regmaps[i]->map = pll_map;
 	regmap_write(pll_map, ANACTRL_MPLL_CTRL0, 0x00000543);
+
+	mclk_data = t7_mclk_pll_dco.data;
+	if (ignore_pll_init)
+		mclk_data->ignore_init = true;
 
 	for (i = 0; i < t7_hw_onecell_data.num; i++) {
 		/* array might be sparse */
