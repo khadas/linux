@@ -386,12 +386,6 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 				== MESON_HDR_POLICY_FOLLOW_SOURCE ||
 			meson_crtc_state->crtc_hdr_process_policy
 				== MESON_HDR_POLICY_FOLLOW_SINK) {
-			hdrpolicy = (meson_crtc_state->crtc_hdr_process_policy
-				== MESON_HDR_POLICY_FOLLOW_SINK) ? 0 : 1;
-			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-			set_hdr_policy(hdrpolicy);
-			#endif
-
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			/*enable/disable dv*/
 			if (meson_crtc_state->crtc_dv_enable) {
@@ -403,6 +397,12 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 				}
 				set_amdv_enable(true);
 			}
+			#endif
+
+			hdrpolicy = (meson_crtc_state->crtc_hdr_process_policy
+				== MESON_HDR_POLICY_FOLLOW_SINK) ? 0 : 1;
+			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+			set_hdr_policy(hdrpolicy);
 			#endif
 		}
 		/*force eotf by property*/
