@@ -1736,6 +1736,7 @@
 			hf = <0>;
 			dct = <2>;
 			sub_v = <1>;//sub version for t5w
+			afbce_loss_en = <0>;//t5w loss mode enable for DI output
 			/***************************************************
 			 * t5w t3 support 4k ,same with t7 ,no canvas,
 			 * post_nub---default is 11
@@ -1762,6 +1763,7 @@
 			 * hf---0:not enable; 1: enable
 			 * dct---0:not enable; 1: enable 1 ch; 2: enable 2 ch
 			 * sub_v---0:major; 1: sub
+			 * afbce_loss_en---1:check the loss flag in vf and set for di,0:disable
 			 ***************************************************/
 		};
 
