@@ -554,7 +554,7 @@
 
 	sd_emmc_b:sdio@ffe05000 {
 		status = "okay";
-		compatible = "amlogic, meson-mmc-axg";
+		compatible = "amlogic,meson-axg-mmc";
 		reg = <0x0 0xffe05000 0x0 0x2000>,
 			<0x0 0xff63c000 0x0 0x300>,
 			<0x0 0xff634400 0x0 0x400>;
