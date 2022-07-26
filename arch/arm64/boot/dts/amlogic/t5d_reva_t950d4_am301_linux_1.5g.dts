@@ -71,6 +71,7 @@
 
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
+			reusable;
 			alignment = <0x0 0x400000>;
 			reg = <0x0 0x5f800000 0x0 0x800000>;
 		};

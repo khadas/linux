@@ -69,7 +69,7 @@
 		};
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
+			compatible = "amlogic, meson-fb";
 			/* keep sync with fb, fox example:logo_addr = "0x7f8000000"*/
 			alignment = <0x400000>;
 			reg = <0x3f800000 0x800000>;
