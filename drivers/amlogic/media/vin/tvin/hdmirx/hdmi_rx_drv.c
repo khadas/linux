@@ -3207,6 +3207,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 			}
 		}
 	}
+	rx_dig_clk_en(0);
 	rx_pr("hdmirx: suspend success\n");
 	return 0;
 }
@@ -3217,6 +3218,7 @@ static int hdmirx_resume(struct platform_device *pdev)
 
 	hdevp = platform_get_drvdata(pdev);
 	add_timer(&hdevp->timer);
+	rx_dig_clk_en(1);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	/* if early suspend not called, need to pw up phy here */
 	if (!early_suspend_flag)
@@ -3254,6 +3256,7 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 		hdcp_22_off();
 	hdmirx_top_irq_en(false);
 	hdmirx_output_en(false);
+	rx_dig_clk_en(0);
 	rx_pr("%s- success\n", __func__);
 }
 

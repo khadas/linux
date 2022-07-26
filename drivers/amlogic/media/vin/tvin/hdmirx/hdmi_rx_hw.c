@@ -546,6 +546,11 @@ void wr_reg_clk_ctl(unsigned int offset, unsigned int val)
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 }
 
+void hdmirx_wr_bits_clk_ctl(unsigned int addr, unsigned int mask, unsigned int value)
+{
+	wr_reg_clk_ctl(addr, rx_set_bits(rd_reg_clk_ctl(addr), mask, value));
+}
+
 /* For analog modules register rd */
 unsigned int rd_reg_ana_ctl(unsigned int offset)
 {
@@ -2403,6 +2408,22 @@ void control_reset(void)
 	hdmirx_wr_dwc(DWC_DMI_SW_RST,	0x0000001F);
 }
 
+void rx_dig_clk_en(bool en)
+{
+	if (rx.chip_id >= CHIP_ID_T7)
+		return;
+	hdcp22_clk_en(en);
+	/* enable gate of cts_hdmirx_modet_clk */
+	/* enable gate of cts_hdmirx_cfg_clk */
+	if (rx.chip_id >= CHIP_ID_T5) {
+		hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL, MODET_CLK_EN, en);
+		hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN, en);
+	} else {
+		wr_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, MODET_CLK_EN, en);
+		wr_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN, en);
+	}
+}
+
 void rx_esm_tmdsclk_en(bool en)
 {
 	if (rx.chip_id >= CHIP_ID_T7)
@@ -2470,10 +2491,13 @@ void hdcp22_clk_en(bool en)
 			/* for arbitrating AXI requests from HDMI TX and RX.*/
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(1, 12), 0x1);
 	} else {
-		if (rx.chip_id >= CHIP_ID_T5)
+		if (rx.chip_id >= CHIP_ID_T5) {
 			wr_reg_clk_ctl(HHI_HDCP22_CLK_CNTL, 0);
-		else
+			wr_reg_clk_ctl(HHI_AXI_CLK_CTNL, 0);
+		} else {
 			wr_reg_hhi(HHI_HDCP22_CLK_CNTL, 0);
+			wr_reg_hhi(HHI_AXI_CLK_CTNL, 0);
+		}
 		if (rx.chip_id >= CHIP_ID_TL1)
 			/* TL1:esm related clk bit9-11 */
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 9), 0x0);

@@ -3949,6 +3949,11 @@ int hdmirx_debug(const char *buf, int size)
 		rx_sec_hdcp_cfg_t7();
 	} else if (strncmp(tmpbuf, "phyoff", 6) == 0) {
 		aml_phy_power_off();
+	} else if (strncmp(tmpbuf, "clkoff", 6) == 0) {
+		if (tmpbuf[6] == '1')
+			rx_dig_clk_en(1);
+		else
+			rx_dig_clk_en(0);
 	}
 	return 0;
 }

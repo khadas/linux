@@ -23,7 +23,7 @@
 #include "hdmi_rx_drv_ext.h"
 
 /* repeater */
-#define RX_VER0 "ver.2022/02/25"
+#define RX_VER0 "ver.2022/07/26"
 
 /*print type*/
 #define	LOG_EN		0x01
