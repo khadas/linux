@@ -5289,7 +5289,13 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 		val1 = READ_VPP_REG(VPP_PROBE_COLOR);
 	else
 		val1 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+	if (is_meson_t7_cpu()) {
+		val2 = READ_VPP_REG(VPP_PROBE_COLOR1);
+		len += sprintf(buf + len,
+		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
+		((val2 & 0xf) << 8) | ((val1 >> 24) & 0xff),
+		(val1 >> 12) & 0xfff, val1 & 0xfff);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		len += sprintf(buf + len,
 		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
 		(val1 >> 20) & 0x3ff,
