@@ -6884,35 +6884,39 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_amdv_enable() &&
-	    (is_tunnel_mode(RECEIVER_NAME) || is_tunnel_mode(RECEIVERPIP_NAME))) {
-		char *provider_name = NULL;
+	if (is_amdv_enable()) {
+		if (is_tunnel_mode(RECEIVER_NAME) || is_tunnel_mode(RECEIVERPIP_NAME)) {
+			char *provider_name = NULL;
 
-		if (vd1_path_id == VFM_PATH_PIP || vd2_path_id == VFM_PATH_PIP) {
-			provider_name = vf_get_provider_name(RECEIVERPIP_NAME);
-			while (provider_name) {
-				if (!vf_get_provider_name(provider_name))
-					break;
-				provider_name =
-					vf_get_provider_name(provider_name);
+			if (vd1_path_id == VFM_PATH_PIP || vd2_path_id == VFM_PATH_PIP) {
+				provider_name = vf_get_provider_name(RECEIVERPIP_NAME);
+				while (provider_name) {
+					if (!vf_get_provider_name(provider_name))
+						break;
+					provider_name =
+						vf_get_provider_name(provider_name);
+				}
+				if (provider_name)
+					amdv_set_provider(provider_name, VD2_PATH);
+				else
+					amdv_set_provider(dv_provider[1], VD2_PATH);
 			}
-			if (provider_name)
-				amdv_set_provider(provider_name, VD2_PATH);
-			else
-				amdv_set_provider(dv_provider[1], VD2_PATH);
-		}
-		if (vd1_path_id == VFM_PATH_AMVIDEO || vd2_path_id == VFM_PATH_AMVIDEO) {
-			provider_name = vf_get_provider_name(RECEIVER_NAME);
-			while (provider_name) {
-				if (!vf_get_provider_name(provider_name))
-					break;
-				provider_name =
-					vf_get_provider_name(provider_name);
+			if (vd1_path_id == VFM_PATH_AMVIDEO || vd2_path_id == VFM_PATH_AMVIDEO) {
+				provider_name = vf_get_provider_name(RECEIVER_NAME);
+				while (provider_name) {
+					if (!vf_get_provider_name(provider_name))
+						break;
+					provider_name =
+						vf_get_provider_name(provider_name);
+				}
+				if (provider_name)
+					amdv_set_provider(provider_name, VD1_PATH);
+				else
+					amdv_set_provider(dv_provider[0], VD1_PATH);
 			}
-			if (provider_name)
-				amdv_set_provider(provider_name, VD1_PATH);
-			else
-				amdv_set_provider(dv_provider[0], VD1_PATH);
+		} else {
+			amdv_set_provider(dv_provider[0], VD1_PATH);
+			amdv_set_provider(dv_provider[1], VD2_PATH);
 		}
 	}
 

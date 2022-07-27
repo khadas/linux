@@ -352,7 +352,8 @@ int tv_dv_core1_set(u64 *dma_data,
 		return 0;
 
 	/*for stb hdmi in mode*/
-	if (multi_dv_mode && (is_aml_tm2_stbmode() || is_aml_t7_stbmode())) {
+	if (multi_dv_mode && (is_aml_tm2_stbmode() || is_aml_t7_stbmode()) &&
+	    layerid_valid(hdmi_path_id)) {
 		core1_on_flag = dv_core1[0].core1_on || dv_core1[1].core1_on;
 		runmode_cnt = dv_core1[hdmi_path_id].run_mode_count;
 	}
