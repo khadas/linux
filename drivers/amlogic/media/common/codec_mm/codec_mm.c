@@ -458,7 +458,8 @@ void codec_mm_memset(ulong phys, u32 val, u32 size)
 	/*any data lurking in the kernel direct-mapped region is invalidated.*/
 	if (!PageHighMem(page)) {
 		ptr = page_address(page);
-		codec_mm_dma_flush(ptr, size, DMA_FROM_DEVICE);
+		memset(ptr, val, size);
+		codec_mm_dma_flush(ptr, size, DMA_TO_DEVICE);
 		return;
 	}
 
