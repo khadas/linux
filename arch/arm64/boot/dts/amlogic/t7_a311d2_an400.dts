@@ -507,7 +507,7 @@
 		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 		pwdn-sub = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
-		reset-sub = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
+		reset-sub = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
