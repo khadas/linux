@@ -1,3 +1,7 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+ *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
 /* ==========================================================================
  * $File: //dwh/usb_iip/dev/software/otg/linux/drivers/dwc_otg_core_if.h $
  * $Revision: #15 $
