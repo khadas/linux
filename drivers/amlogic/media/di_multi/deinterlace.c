@@ -3558,6 +3558,15 @@ void dbg_cvs_addr(void)
 	dim_print("7:0x%x, 0x%x\n", DI_PRE_CTRL, VSYNC_RD_MPEG_REG(DI_PRE_CTRL));
 }
 
+static bool ext_is_di_hf_y_reverse(void)
+{
+#ifndef DIM_EXT_NO_HF
+	return is_di_hf_y_reverse();
+#else
+	return 0;
+#endif
+}
+
 void dim_pre_de_process(unsigned int channel)
 {
 	ulong irq_flag2 = 0;
@@ -4027,7 +4036,7 @@ void dim_pre_de_process(unsigned int channel)
 		ppre->di_wr_buf->hf.buffer_h =
 			(unsigned int)ppre->hf_mif.addr2;
 		//di_hf_lock_blend_buffer_pre(ppre->di_wr_buf);
-		if (is_di_hf_y_reverse())
+		if (ext_is_di_hf_y_reverse())
 			ppre->di_wr_buf->hf.revert_mode = true;
 		else
 			ppre->di_wr_buf->hf.revert_mode = false;
@@ -7685,11 +7694,7 @@ void dbg_vfm(struct vframe_s *vf, unsigned int dbgpos)
 	for (i = 0; i < vf->plane_num; i++) {
 		PR_INF("%d:\n", i);
 		cvsp = &vf->canvas0_config[i];
-	#ifdef CVS_UINT
-		PR_INF("\tph=0x%x\n", cvsp->phy_addr);
-	#else
-		PR_INF("\tph=0x%lx\n", cvsp->phy_addr);
-	#endif
+		PR_INF("\tph=0x%lx\n", (unsigned long)cvsp->phy_addr);
 		PR_INF("\tw=%d\n", cvsp->width);
 		PR_INF("\th=%d\n", cvsp->height);
 		PR_INF("\tb=%d\n", cvsp->block_mode);
@@ -8434,7 +8439,7 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		di_buf->hf.width = ppost->di_diwr_mif.end_x + 1;
 		di_buf->hf.buffer_w = ppost->hf_mif.buf_hsize;
 		di_buf->hf.buffer_h = (unsigned int)ppost->hf_mif.addr2;
-		if (is_di_hf_y_reverse())
+		if (ext_is_di_hf_y_reverse())
 			di_buf->hf.revert_mode = true;
 		else
 			di_buf->hf.revert_mode = false;
@@ -9006,15 +9011,10 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 				di_buf->type, di_buf->index,
 				di_buf->vframe->width, di_buf->vframe->height,
 				di_buf->vframe->type);
-			#ifdef CVS_UINT
-			PR_INF("\t:0x%x,0x%x\n",
-				di_buf->vframe->canvas0_config[0].phy_addr,
-				di_buf->vframe->canvas0_config[1].phy_addr);
-			#else
+
 			PR_INF("\t:0x%lx,0x%lx\n",
-				di_buf->vframe->canvas0_config[0].phy_addr,
-				di_buf->vframe->canvas0_config[1].phy_addr);
-			#endif
+			       (unsigned long)di_buf->vframe->canvas0_config[0].phy_addr,
+			       (unsigned long)di_buf->vframe->canvas0_config[1].phy_addr);
 			PR_INF("\t:cmp[%d,%d]\n", di_buf->vframe->compWidth,
 				di_buf->vframe->compHeight);
 			PR_INF("\t:0x%lx,0x%lx\n",
@@ -9049,15 +9049,10 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 				vframe_ret->canvas0_config[0].height,
 				vframe_ret->width,
 				vframe_ret->height);
-#ifdef CVS_UINT
-			dbg_ic("\t:0x%x,0x%x\n",
-				di_buf->vframe->canvas0_config[0].phy_addr,
-				di_buf->vframe->canvas0_config[1].phy_addr);
-#else
 			dbg_ic("\t:0x%lx,0x%lx\n",
-				di_buf->vframe->canvas0_config[0].phy_addr,
-				di_buf->vframe->canvas0_config[1].phy_addr);
-#endif
+				(ulong)di_buf->vframe->canvas0_config[0].phy_addr,
+				(ulong)di_buf->vframe->canvas0_config[1].phy_addr);
+
 			dim_print("%s:show dw:old type=0x%x\n", __func__,
 				  vframe_ret->type);
 			vframe_ret->type &= (~DI_VFM_T_MASK_DI_CLEAR);

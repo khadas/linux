@@ -3841,7 +3841,7 @@ static int dim_probe(struct platform_device *pdev)
 	else
 		pdata->ic_sub_ver = DI_IC_REV_MAJOR;
 
-	dbg_mem("match name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
+	PR_INF("name: %s:id[%d]:ver[%d]\n", pdata->mdata->name,
 	       pdata->mdata->ic_id, pdata->ic_sub_ver);
 
 	ret = of_reserved_mem_device_init(&pdev->dev);

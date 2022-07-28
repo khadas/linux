@@ -142,7 +142,7 @@ bool task_send_cmd2(unsigned int ch, unsigned int cmd)
 	struct di_task *tsk = get_task();
 	unsigned int val;
 
-	dbg_reg("%s:cmd[%d]:\n", __func__, cmd);
+	dbg_poll("%s:cmd[%d]:\n", __func__, cmd);
 	if (kfifo_is_full(&tsk->fifo_cmd2[ch])) {
 		if (kfifo_out(&tsk->fifo_cmd2[ch], &val, sizeof(unsigned int))
 		    != sizeof(unsigned int)) {

@@ -40,20 +40,26 @@
 //#define TEST_PIP	(1)
 
 /************************************************
- * from t7 cvs address is ulong
- ************************************************/
-
-//#define CVS_UINT	(1)
-
-/************************************************
  * vframe use ud meta data
  ************************************************/
 #define DIM_EN_UD_USED	(1)
 
 /************************************************
+ * function:hdr
+ ************************************************/
+#define DIM_HAVE_HDR	(1)
+
+/************************************************
  * pre-vpp link
  ************************************************/
 //#define VPP_LINK_USED_FUNC	(1)
+
+/************************************************
+ * ext function:hf
+ *	function:is_di_hf_y_reverse not define
+ ************************************************/
+//#define DIM_EXT_NO_HF	(1)
+
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ			'i'

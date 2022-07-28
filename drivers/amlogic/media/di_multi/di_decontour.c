@@ -2175,6 +2175,10 @@ int dct_pre_reg_show(struct seq_file *s, void *v)
 	int i;
 	const struct reg_acc *op = &di_pre_regset;
 
+	if (!IS_IC_SUPPORT(DECONTOUR)) {
+		seq_printf(s, "%s\n", "no dct");
+		return 0;
+	}
 	for (i = 0x4a00; i < 0x4a12; i++) {
 		value = op->rd(i);
 		seq_printf(s, "reg=%x, value= %x\n", i, value);

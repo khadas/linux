@@ -994,9 +994,12 @@ static int seq_file_module_para_show(struct seq_file *seq, void *v)
 	dim_seq_file_module_para_di(seq);
 	dim_seq_file_module_para_hw(seq);
 	dim_seq_file_module_para_pps(seq);
-	get_ops_mtn()->module_para(seq);
-	get_ops_nr()->module_para(seq);
-	get_ops_pd()->module_para(seq);
+	if (get_ops_mtn()->module_para)
+		get_ops_mtn()->module_para(seq);
+	if (get_ops_nr()->module_para)
+		get_ops_nr()->module_para(seq);
+	if (get_ops_pd()->module_para)
+		get_ops_pd()->module_para(seq);
 
 	return 0;
 }

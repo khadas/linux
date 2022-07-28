@@ -3329,11 +3329,11 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
 #define IC_SUPPORT_DECONTOUR	DI_BIT0
 #define IC_SUPPORT_HDR		DI_BIT1
 #define IC_SUPPORT_DW		DI_BIT2 /* double write */
+#define IC_SUPPORT_PRE_VPP_LINK	DI_BIT3
 
 #define IS_IC_SUPPORT(cc)	(get_datal()->mdata->support & \
 				IC_SUPPORT_##cc ? true : false)
 #define DIM_IS_ICS(T5W)		(DIM_IS_IC(T3) && \
 				cfgg(SUB_V) == 1)
 
-#define IC_SUPPORT_PRE_VPP_LINK		DI_BIT3
 #endif	/*__DI_DATA_L_H__*/

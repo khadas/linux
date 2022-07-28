@@ -876,13 +876,10 @@ int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 	for (i = 0; i < pvfm->plane_num; i++) {
 		pcvs = &pvfm->canvas0_config[i];
 		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);
-	#ifdef CVS_UINT
-		seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
-			   pcvs->phy_addr);
-	#else
+
 		seq_printf(seq, "\t%-15s:0x%lx\n", "phy_addr",
-			   pcvs->phy_addr);
-	#endif
+			   (unsigned long)pcvs->phy_addr);
+
 		seq_printf(seq, "\t%-15s:%d\n", "width",
 			   pcvs->width);
 		seq_printf(seq, "\t%-15s:%d\n", "height",
@@ -1037,13 +1034,9 @@ int print_vframe(struct vframe_s *pvfm)
 	for (i = 0; i < pvfm->plane_num; i++) {
 		pcvs = &pvfm->canvas0_config[i];
 		PR_INF("%-15s:%d\n", "canvas0_cfg", i);
-	#ifdef CVS_UINT
-		PR_INF("\t%-15s:0x%x\n", "phy_addr",
-			   pcvs->phy_addr);
-	#else
-		PR_INF("\t%-15s:0x%lx\n", "phy_addr",
-			   pcvs->phy_addr);
-	#endif
+			PR_INF("\t%-15s:0x%lx\n", "phy_addr",
+			       (unsigned long)pcvs->phy_addr);
+
 		PR_INF("\t%-15s:%d\n", "width",
 			   pcvs->width);
 		PR_INF("\t%-15s:%d\n", "height",
@@ -1096,13 +1089,9 @@ int vf_sub_seq_file(struct seq_file *seq, struct dsub_vf_s *pvfs)
 	for (i = 0; i < pvfs->plane_num; i++) {
 		pcvs = &pvfs->canvas0_config[i];
 		seq_printf(seq, "%-15s:%d\n", "canvas0_cfg", i);
-#ifdef CVS_UINT
-		seq_printf(seq, "\t%-15s:0x%x\n", "phy_addr",
-			   pcvs->phy_addr);
-#else
+
 		seq_printf(seq, "\t%-15s:0x%lx\n", "phy_addr",
-			   pcvs->phy_addr);
-#endif
+			   (unsigned long)pcvs->phy_addr);
 		seq_printf(seq, "\t%-15s:%d\n", "width",
 			   pcvs->width);
 		seq_printf(seq, "\t%-15s:%d\n", "height",
@@ -1162,13 +1151,10 @@ void vfs_print(struct dsub_vf_s *pvfs, char *name)
 	for (i = 0; i < pvfs->plane_num; i++) {
 		pcvs = &pvfs->canvas0_config[i];
 		PR_INF("\t%-15s:%d\n", "canvas0_cfg", i);
-	#ifdef CVS_UINT
-		PR_INF("\t\t%-15s:0x%x\n", "phy_addr",
-			   pcvs->phy_addr);
-	#else
+
 		PR_INF("\t\t%-15s:0x%lx\n", "phy_addr",
-			   pcvs->phy_addr);
-	#endif
+			   (unsigned long)pcvs->phy_addr);
+
 		PR_INF("\t\t%-15s:%d\n", "width",
 			   pcvs->width);
 		PR_INF("\t\t%-15s:%d\n", "height",
@@ -1983,6 +1969,7 @@ static int cfgtop_show(struct seq_file *s, void *what)
 {
 	struct di_dev_s  *de_devp = get_dim_de_devp();
 	struct di_data_l_s *pdata;
+	char *splt = "---------------------------";
 
 	seq_printf(s, "version:%s\n", dim_get_version_s());
 
@@ -2018,6 +2005,18 @@ static int cfgtop_show(struct seq_file *s, void *what)
 	seq_puts(s, "size\n");
 	seq_printf(s, "\t%s:0x%zx K\n",
 		   "dv_prevpp", (sizeof(struct dim_dvs_prevpp_s) >> 10));
+	seq_printf(s, "%s\n", splt);
+	/* h define */
+#ifndef DIM_HAVE_HDR
+	seq_printf(s, "%s:no\n", "DIM_HAVE_HDR");
+#endif
+#ifdef VPP_LINK_USED_FUNC
+	seq_printf(s, "%s:no\n", "plink ext");
+#endif
+#ifdef DIM_EXT_NO_HF
+	seq_printf(s, "%s:no\n", "is_di_hf_y_reverse");
+#endif
+	seq_printf(s, "%s\n", splt);
 
 	return 0;
 }
