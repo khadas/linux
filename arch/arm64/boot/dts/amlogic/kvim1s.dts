@@ -161,15 +161,15 @@
 			alignment = <0x0 0x400000>;
 		};
 	};
-//	sdcard_power: regulator-sdcard {
-//		compatible = "regulator-fixed";
-//		regulator-name = "SDCARD_POWER";
-//		regulator-min-microvolt = <3300000>;
-//		regulator-max-microvolt = <3300000>;
-//		gpio = <&gpio GPIOD_11 GPIO_ACTIVE_LOW>;
-//		enable-active-low;
-//		regulator-always-on;
-//	};
+	sdcard_power: regulator-sdcard {
+		compatible = "regulator-fixed";
+		regulator-name = "SDCARD_POWER";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio GPIOD_4 GPIO_ACTIVE_LOW>;
+		enable-active-low;
+		regulator-always-on;
+	};
 
 	vddio_card: gpio-regulator {
 		compatible = "regulator-gpio";
@@ -421,6 +421,7 @@
 		};
 	};//End efusekey
 	/* Audio Related start */
+
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
@@ -610,7 +611,7 @@
 		key_num = <1>;
 		key_name = "power";
 		key_code = <116>;
-		key-gpios = <&gpio  GPIOD_2  GPIO_ACTIVE_HIGH>;
+		key-gpios = <&gpio  GPIOD_8  GPIO_ACTIVE_LOW>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
 	khadas-hwver {
@@ -649,13 +650,14 @@
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins2>;
 	clock-frequency = <300000>; /* default 100k */
-        khadas-mcu {
+	khadas-mcu@18 {
 		    status = "okay";
 		    compatible = "khadas-mcu";
 		    reg = <0x18>;
 		    fan,trig_temp_level0 = <50>;
 		    fan,trig_temp_level1 = <60>;
 		    fan,trig_temp_level2 = <70>;
+		    fan,trig_temp_level3 = <80>;
 		    hwver = "VIM1S.V10";
         };
         khadas-rtc {
@@ -1233,74 +1235,6 @@
 //	vqmmc-supply = <&vddao_1v8>;
 };
 
-&mtd_nand {
-	status = "disabled";
-	#address-cells = <1>;
-	#size-cells = <0>;
-
-	pinctrl-names = "nand_norb_mod","nand_cs_only";
-	pinctrl-0 = <&all_nand_pins>;
-	pinctrl-1 = <&nand_cs_pins>;
-	bl_mode = <1>;
-	fip_copies = <4>;
-	fip_size = <0x200000>;
-	ship_bad_block = <1>;
-	disa_irq_flag = <1>;
-	nand@bootloader {
-		reg = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		nand-ecc-maximize;
-		partition@0 {
-			label = "bootloader";
-			reg = <0x0 0x00000000>;
-		};
-	};
-	nand@normal {
-		reg = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		nand-ecc-maximize;
-
-		partition@0 {
-			label = "bl2e";
-			reg = <0x0 0x00000000>;
-		};
-		partition@1 {
-			label = "bl2x";
-			reg = <0x0 0x00000000>;
-		};
-		partition@2 {
-			label = "ddrfip";
-			reg = <0x0 0x00000000>;
-		};
-		partition@3 {
-			label = "tpl";
-			reg = <0x0 0x00000000>;
-		};
-		partition@4 {
-			label = "logo";
-			reg = <0x0 0x00200000>;
-		};
-		partition@5 {
-			label = "recovery";
-			reg = <0x0 0x1000000>;
-		};
-		partition@6 {
-			label = "boot";
-			reg = <0x0 0x0F00000>;
-		};
-		partition@7 {
-			label = "system";
-			reg = <0x0 0x11800000>;
-		};
-		partition@8 {
-			label = "data";
-			reg = <0x0 0xffffffff>;
-		};
-	};
-};
-
 &saradc {
 	status = "okay";
 };
@@ -1345,6 +1279,7 @@
 	logo_addr = "0x7f800000";
 
 };
+
 &amhdmitx {
 	status = "okay";
 };
@@ -1418,7 +1353,7 @@
         status = "okay";
 };
 
-&uart_D {
+&uart_C {
 	status = "okay";
 	uart-has-rtscts;
 };
