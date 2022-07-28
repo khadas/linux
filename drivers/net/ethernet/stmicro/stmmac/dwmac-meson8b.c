@@ -20,6 +20,7 @@
 #include <linux/arm-smccc.h>
 
 #include "stmmac_platform.h"
+#include <linux/amlogic/scpi_protocol.h>
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 #include <linux/input.h>
@@ -339,6 +340,19 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 }
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
+void set_wol_notify_bl31(void)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(0x8200009D, support_mac_wol,
+					0, 0, 0, 0, 0, 0, &res);
+}
+
+static void set_wol_notify_bl30(void)
+{
+	scpi_set_ethernet_wol(support_mac_wol);
+}
+
 void __iomem *ee_reset_base;
 unsigned int internal_phy;
 static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac *dwmac)
@@ -423,6 +437,9 @@ extern int stmmac_pltfr_suspend(struct device *dev);
 static int aml_dwmac_suspend(struct device *dev)
 {
 	int ret = 0;
+
+	set_wol_notify_bl31();
+	set_wol_notify_bl30();
 	/*nfx doze do nothing for suspend*/
 	if (support_nfx_doze) {
 		pr_info("doze is running\n");
@@ -482,13 +499,7 @@ void meson8b_dwmac_shutdown(struct platform_device *pdev)
 		dwmac_meson_disable_analog(&pdev->dev);
 }
 
-void set_wol_notify_bl31(void)
-{
-	struct arm_smccc_res res;
 
-	arm_smccc_smc(0x8200009D, 0,
-					0, 0, 0, 0, 0, 0, &res);
-}
 
 #endif
 static int meson8b_dwmac_probe(struct platform_device *pdev)
@@ -567,7 +578,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	if (support_mac_wol) {
 		if (of_property_read_u32(pdev->dev.of_node, "mdns_wkup", &plat_dat->mdns_wkup) == 0)
 			pr_info("feature mdns_wkup\n");
-		set_wol_notify_bl31();
+
 		device_init_wakeup(&pdev->dev, 1);
 
 	/*input device to send virtual pwr key for android*/
