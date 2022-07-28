@@ -699,7 +699,7 @@ static void xhci_port_set_test_mode(struct xhci_hcd *xhci,
 	temp |= test_mode << PORT_TEST_MODE_SHIFT;
 	writel(temp, port->addr + PORTPMSC);
 	xhci->test_mode = test_mode;
-  #if !IS_ENABLED(CONFIG_AMLOGIC_USB)
+  #if !IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	if (test_mode == USB_TEST_FORCE_ENABLE)
 		xhci_start(xhci);
   #endif
@@ -1180,7 +1180,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	return status;
 }
 
-#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 static int xhci_test_suspend_resume(struct usb_hcd *hcd,
 				    u16 wIndex)
 {
@@ -1605,7 +1605,7 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			temp |= PORT_U2_TIMEOUT(timeout);
 			writel(temp, ports[wIndex]->addr + PORTPMSC);
 			break;
-#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 		case USB_PORT_FEAT_TEST:
 			/* 4.19.6 Port Test Modes (USB2 Test Mode) */
 			if (hcd->speed != HCD_USB2)

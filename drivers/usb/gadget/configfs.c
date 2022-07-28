@@ -25,7 +25,7 @@ static struct device *android_device;
 static int index;
 static int gadget_index;
 
-#ifdef CONFIG_AMLOGIC_USB
+#ifdef CONFIG_AMLOGIC_COMMON_USB
 static struct gadget_info *gi_backup;
 #endif
 
@@ -1873,7 +1873,7 @@ static struct config_group *gadgets_make(
 	if (android_device_create(gi) < 0)
 		goto err;
 
-#ifdef CONFIG_AMLOGIC_USB
+#ifdef CONFIG_AMLOGIC_COMMON_USB
 	gi_backup = gi;
 #endif
 
@@ -1923,7 +1923,7 @@ void unregister_gadget_item(struct config_item *item)
 }
 EXPORT_SYMBOL_GPL(unregister_gadget_item);
 
-#ifdef CONFIG_AMLOGIC_USB
+#ifdef CONFIG_AMLOGIC_COMMON_USB
 int crg_otg_write_UDC(const char *udc_name)
 {
 	struct gadget_info *gi = gi_backup;

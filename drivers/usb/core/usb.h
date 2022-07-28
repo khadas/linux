@@ -6,7 +6,7 @@
 #include <linux/pm.h>
 #include <linux/acpi.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 #define USB_HSET_TEST_VID    0x1A0A
 #endif
 

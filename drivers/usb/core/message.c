@@ -31,7 +31,7 @@ struct api_context {
 	int			status;
 };
 
-#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 #define USB_EHTEST_DELAY_TEST
 
 static int usb_test_port;
@@ -1921,7 +1921,7 @@ static void __usb_queue_reset_device(struct work_struct *ws)
 	usb_put_intf(iface);	/* Undo _get_ in usb_queue_reset_device() */
 }
 
-#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 static void usb_eltest_poll_status(struct work_struct *ws)
 {
 	u16 portstatus = 0;
@@ -2410,7 +2410,7 @@ free_interfaces:
 	/* Enable LTM if it was turned off by usb_disable_device. */
 	usb_enable_ltm(dev);
 
-#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 	if (usb_host_test_vid > 0) {
 		if (dev->descriptor.idVendor == USB_HSET_TEST_VID) {
 			usb_host_test_vid = dev->descriptor.idVendor;
@@ -2452,7 +2452,7 @@ free_interfaces:
 			intf->cur_altsetting->desc.bInterfaceNumber);
 		device_enable_async_suspend(&intf->dev);
 		ret = device_add(&intf->dev);
-#if IS_ENABLED(CONFIG_AMLOGIC_USB)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
 		if (!intf->dev.driver) {
 			if (intf->cur_altsetting->desc.bInterfaceClass == 0x09)
 				dev_err(&dev->dev, "Unsupported the hub\n");
