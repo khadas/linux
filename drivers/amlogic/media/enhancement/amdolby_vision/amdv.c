@@ -136,19 +136,22 @@ static unsigned int last_dolby_vision_policy;
 /* bit3: follow sink 0: bypass hlg to vpp, 1: process hlg by dolby core */
 /* bit4: follow source 0: bypass hlg to vpp, 1: process hlg by dolby core */
 /* === SDR === */
-/* bit5: 0: bypass SDR to vpp, 1: process SDR by dolby core */
-/* set by policy_process */
+/* bit5: follow sink 0: bypass SDR to vpp, 1: process SDR by dolby core */
+/* bit6: follow source 0: bypass SDR to vpp, 1: process SDR by dolby core */
 #define HDR_BY_DV_F_SINK 0x1
 #define HDR_BY_DV_F_SRC 0x2
 #define HDRP_BY_DV 0x4
 #define HLG_BY_DV_F_SINK 0x8
 #define HLG_BY_DV_F_SRC 0x10
-#define SDR_BY_DV 0x20
+#define SDR_BY_DV_F_SINK 0x20
+#define SDR_BY_DV_F_SRC 0x40
 
-static unsigned int dolby_vision_hdr10_policy = HDR_BY_DV_F_SINK;
+static unsigned int dolby_vision_hdr10_policy;
 module_param(dolby_vision_hdr10_policy, uint, 0664);
 MODULE_PARM_DESC(dolby_vision_hdr10_policy, "\n dolby_vision_hdr10_policy\n");
-static unsigned int last_dolby_vision_hdr10_policy = HDR_BY_DV_F_SINK;
+static unsigned int last_dolby_vision_hdr10_policy;
+
+static bool enable_amvs12_for_tv;
 
 /* enable hdmi dv std to stb core */
 static uint hdmi_to_stb_policy = 1;
@@ -2790,13 +2793,6 @@ static int amdv_policy_process_v1(int *mode,
 				}
 			}
 		}
-		if (src_format == FORMAT_SDR &&
-		    (mode_change || *mode == dolby_vision_mode)) {
-			if (*mode == AMDV_OUTPUT_MODE_BYPASS)
-				dolby_vision_hdr10_policy &= ~SDR_BY_DV;
-			else
-				dolby_vision_hdr10_policy |= SDR_BY_DV;
-		}
 		return mode_change;
 	}
 
@@ -3059,14 +3055,6 @@ static int amdv_policy_process_v1(int *mode,
 				src_format, dolby_vision_mode, *mode);
 			mode_change = 1;
 		}
-	}
-
-	if (src_format == FORMAT_SDR &&
-	    (mode_change || *mode == dolby_vision_mode)) {
-		if (*mode == AMDV_OUTPUT_MODE_BYPASS)
-			dolby_vision_hdr10_policy &= ~SDR_BY_DV;
-		else
-			dolby_vision_hdr10_policy |= SDR_BY_DV;
 	}
 	return mode_change;
 }
@@ -3390,13 +3378,6 @@ static int amdv_policy_process_v2_stb(int *mode,
 				src_format, dolby_vision_mode, *mode);
 			mode_change = 1;
 		}
-	}
-	if (src_format == FORMAT_SDR &&
-	    (mode_change || *mode == dolby_vision_mode)) {
-		if (*mode == AMDV_OUTPUT_MODE_BYPASS)
-			dolby_vision_hdr10_policy &= ~SDR_BY_DV;
-		else
-			dolby_vision_hdr10_policy |= SDR_BY_DV;
 	}
 	return mode_change;
 }
@@ -11265,7 +11246,8 @@ static int amdolby_vision_process_v2_stb
 			need_cp = false;
 			if ((dolby_vision_flags & FLAG_TOGGLE_FRAME) ||
 			    ((video_status[0] == -1) && dv_core1[0].core1_on)) {
-				pr_dv_dbg("update when vd1 off\n");
+				if (debug_dolby & 8)
+					pr_dv_dbg("update when vd1 off\n");
 				if (!amdv_parse_metadata(NULL, VD1_PATH,
 							 1, false, false)) {
 					amdv_set_toggle_flag(1);
@@ -11847,18 +11829,21 @@ int get_amdv_hdr_policy(void)
 		/* policy == FOLLOW_SRC, check hdr/hlg policy */
 		ret |= (dolby_vision_hdr10_policy & HDR_BY_DV_F_SRC) ? 1 : 0;
 		ret |= (dolby_vision_hdr10_policy & HLG_BY_DV_F_SRC) ? 2 : 0;
+		ret |= (dolby_vision_hdr10_policy & SDR_BY_DV_F_SRC) ? 0x40 : 0;
 	} else if (dolby_vision_policy == AMDV_FOLLOW_SINK) {
 		/* policy == FOLLOW_SINK, check hdr/hlg policy */
 		ret |= (dolby_vision_hdr10_policy & HDR_BY_DV_F_SINK) ? 1 : 0;
 		ret |= (dolby_vision_hdr10_policy & HLG_BY_DV_F_SINK) ? 2 : 0;
+		ret |= (dolby_vision_hdr10_policy & SDR_BY_DV_F_SINK) ? 0x20 : 0;
 	} else {
 		/* policy == FORCE, check hdr/hlg policy */
 		ret |= (dolby_vision_hdr10_policy & HDR_BY_DV_F_SRC) ? 1 : 0;
 		ret |= (dolby_vision_hdr10_policy & HLG_BY_DV_F_SRC) ? 2 : 0;
 		ret |= (dolby_vision_hdr10_policy & HDR_BY_DV_F_SINK) ? 1 : 0;
 		ret |= (dolby_vision_hdr10_policy & HLG_BY_DV_F_SINK) ? 2 : 0;
+		ret |= (dolby_vision_hdr10_policy & SDR_BY_DV_F_SINK) ? 0x20 : 0;
+		ret |= (dolby_vision_hdr10_policy & SDR_BY_DV_F_SRC) ? 0x40 : 0;
 	}
-	//ret |= (dolby_vision_hdr10_policy & SDR_BY_DV) ? 0x20 : 0;
 	return ret;
 }
 EXPORT_SYMBOL(get_amdv_hdr_policy);
@@ -12173,6 +12158,13 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			}
 			hdmi_source_led_as_hdr10 = true;
 			enable_multi_core1 = 0;
+			dolby_vision_hdr10_policy |= SDR_BY_DV_F_SINK;
+			dolby_vision_hdr10_policy |= HDR_BY_DV_F_SINK;
+			last_dolby_vision_hdr10_policy = dolby_vision_hdr10_policy;
+			if (ko_info)
+				pr_info("hdr10_policy %d, ko_info %s\n",
+					dolby_vision_hdr10_policy, ko_info);
+
 		} else if (func->tv_control_path && !p_funcs_tv) {
 			pr_info("*** register_dv_tv_functions\n");
 			if (!ko_info) {
@@ -12213,6 +12205,15 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 				}
 				memset(tv_input_info, 0,
 				       sizeof(struct tv_input_info_s));
+				if (enable_amvs12_for_tv) {
+					dolby_vision_hdr10_policy |= HLG_BY_DV_F_SINK;
+					dolby_vision_hdr10_policy |= HDR_BY_DV_F_SINK;
+				}
+				last_dolby_vision_hdr10_policy = dolby_vision_hdr10_policy;
+				if (ko_info)
+					pr_info("hdr10_policy %d, ko_info %s\n",
+						dolby_vision_hdr10_policy, ko_info);
+
 			}
 		} else if (func->multi_control_path && !p_funcs_stb &&
 			   is_aml_t7_stbmode()) {
@@ -12283,9 +12284,12 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			multi_dv_mode = true;
 			hdmi_source_led_as_hdr10 = false; /*not treat hdmi in LL as hdr10*/
 			dolby_vision_hdr10_policy |= HLG_BY_DV_F_SINK;
+			dolby_vision_hdr10_policy |= HDR_BY_DV_F_SINK;
+			dolby_vision_hdr10_policy |= SDR_BY_DV_F_SINK;
 			last_dolby_vision_hdr10_policy = dolby_vision_hdr10_policy;
 			dolby_vision_flags |= FLAG_RX_EMP_VSEM;
-			pr_info("enable DV HLG when stb v2.6.\n");
+			pr_info("enable DV HLG when stb v2.6. policy %d\n",
+				dolby_vision_hdr10_policy);
 		} else {
 			return ret;
 		}
@@ -14298,8 +14302,6 @@ static int amdolby_vision_probe(struct platform_device *pdev)
 		dv_meson_dev.cpu_id, tv_mode, enable_multi_core1);
 	memset(devp, 0, (sizeof(struct amdolby_vision_dev_s)));
 	if (is_aml_tvmode()) {
-		dolby_vision_hdr10_policy |= HLG_BY_DV_F_SINK;
-		pr_info("enable DV HLG when follow sink.\n");
 		dolby_vision_flags |= FLAG_RX_EMP_VSEM;
 		pr_info("enable DV VSEM.\n");
 	}
