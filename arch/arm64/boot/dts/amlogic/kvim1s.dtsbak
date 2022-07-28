@@ -617,13 +617,6 @@
 		compatible = "khadas-hwver";
 		status = "okay";
         };
-
-	khadas_wdt {
-		compatible = "linux,wdt-khadas";
-		status = "okay";
-		hw_margin_ms = <500>;
-		hw-gpios = <&gpio  GPIOD_10  GPIO_ACTIVE_HIGH>;
-	};
 };
 
 &pwm_ij {
