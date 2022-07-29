@@ -993,6 +993,27 @@ exit:
 	return ret;
 }
 
+static void session_stop_audio_wait(struct sync_session *session)
+{
+	mutex_lock(&session->session_mutex);
+	if (session->start_policy.policy != AMSYNC_START_ALIGN ||
+		session->clock_start)
+		goto exit;
+	if (session->wait_work_on) {
+		cancel_delayed_work_sync(&session->wait_work);
+		session->wait_work_on = false;
+	} else {
+		goto exit;
+	}
+	session->a_active = false;
+
+	mutex_unlock(&session->session_mutex);
+	wakeup_poll(session, WAKE_A);
+	return;
+exit:
+	mutex_unlock(&session->session_mutex);
+}
+
 static void session_pause(struct sync_session *session, bool pause)
 {
 	mutex_lock(&session->session_mutex);
@@ -1910,6 +1931,11 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSYNCS_IOC_GET_CLK_DEV:
 	{
 		put_user(session->clk_dev, (int __user *)argp);
+		break;
+	}
+	case AMSYNCS_IOC_SET_STOP_AUDIO_WAIT:
+	{
+		session_stop_audio_wait(session);
 		break;
 	}
 	default:
