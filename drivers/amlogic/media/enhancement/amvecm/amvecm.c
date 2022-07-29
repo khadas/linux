@@ -2517,16 +2517,6 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("load gamma table fail\n");
 			ret = -EFAULT;
 		} else {
-			memcpy(&video_gamma_table_r,
-				&gt.gm_tb[gm_par_idx][0],
-				sizeof(struct tcon_gamma_table_s));
-			memcpy(&video_gamma_table_g,
-				&gt.gm_tb[gm_par_idx][1],
-				sizeof(struct tcon_gamma_table_s));
-			memcpy(&video_gamma_table_b,
-				&gt.gm_tb[gm_par_idx][2],
-				sizeof(struct tcon_gamma_table_s));
-
 			pr_amvecm_dbg(" gm_par_idx = %d, load gm success\n", gm_par_idx);
 		}
 		break;
@@ -10225,6 +10215,9 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 	gm_par_idx = param[1];
 
 	if (gm_par_idx != 0xff) {
+		if (!frame_lock_get_vrr_status())
+			return NOTIFY_DONE;
+
 		memcpy(&video_gamma_table_r,
 			&gt.gm_tb[gm_par_idx][0],
 			sizeof(struct tcon_gamma_table_s));
