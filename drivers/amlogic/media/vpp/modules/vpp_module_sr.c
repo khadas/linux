@@ -211,6 +211,11 @@ static int fm_nn_coring[FMETER_TUNING_SIZE_MAX] = {
 	10, 8, 6, 4, 3, 2, 1, 1, 1, 1, 1
 };
 
+/*For ai pq*/
+static bool sr_ai_pq_update;
+static struct sr_ai_pq_param_s sr_ai_pq_offset;
+static struct sr_ai_pq_param_s sr_ai_pq_base;
+
 /*Internal functions*/
 static void _set_sr_pk_final_gain(enum sr_mode_e mode, int val,
 	unsigned char start, unsigned char len)
@@ -514,6 +519,10 @@ int vpp_module_sr_init(struct vpp_dev_s *pdev)
 	memset(&fm_report, 0, sizeof(struct sr_fmeter_report_s));
 	memset(&pre_fm_size_cfg, 0, sizeof(struct _sr_fmeter_size_cfg_s));
 
+	sr_ai_pq_update = false;
+	memset(&sr_ai_pq_offset, 0, sizeof(sr_ai_pq_offset));
+	memset(&sr_ai_pq_base, 0, sizeof(sr_ai_pq_base));
+
 	return 0;
 }
 
@@ -724,15 +733,21 @@ void vpp_module_sr_set_demo_mode(bool enable, bool left_side)
 }
 
 /*val range is 0~255*/
-void vpp_module_sr_set_osd_gain(enum sr_mode_e mode, int val)
+void vpp_module_sr_set_osd_gain(enum sr_mode_e mode,
+	int hp_val, int bp_val)
 {
-	_set_sr_pk_final_gain(mode, val,
-		sr_bit_cfg.bit_bp_final_gain.start,
-		sr_bit_cfg.bit_bp_final_gain.len);
+	sr_ai_pq_base.hp_final_gain[mode] = hp_val;
+	sr_ai_pq_base.bp_final_gain[mode] = bp_val;
 
-	_set_sr_pk_final_gain(mode, val,
+	_set_sr_pk_final_gain(mode,
+		hp_val + sr_ai_pq_offset.hp_final_gain[mode],
 		sr_bit_cfg.bit_hp_final_gain.start,
 		sr_bit_cfg.bit_hp_final_gain.len);
+
+	_set_sr_pk_final_gain(mode,
+		bp_val + sr_ai_pq_offset.bp_final_gain[mode],
+		sr_bit_cfg.bit_bp_final_gain.start,
+		sr_bit_cfg.bit_bp_final_gain.len);
 }
 
 bool vpp_module_sr_get_fmeter_support(void)
@@ -777,6 +792,62 @@ void vpp_module_sr_on_vs(struct sr_vs_param_s *pvs_param)
 			pvs_param->sps_w_in, pvs_param->sps_h_in);
 		_set_sr_fmeter_calculate(mode, fmeter_score, pfmeter_hcnt);
 		_set_sr_fmeter_tuning_table(io_mode);
+	}
+
+	if (sr_ai_pq_update) {
+		vpp_module_sr_set_osd_gain(EN_MODE_SR_0,
+			sr_ai_pq_base.hp_final_gain[EN_MODE_SR_0],
+			sr_ai_pq_base.bp_final_gain[EN_MODE_SR_0]);
+
+		vpp_module_sr_set_osd_gain(EN_MODE_SR_1,
+			sr_ai_pq_base.hp_final_gain[EN_MODE_SR_1],
+			sr_ai_pq_base.bp_final_gain[EN_MODE_SR_1]);
+
+		sr_ai_pq_update = false;
+	}
+}
+
+/*For ai pq*/
+void vpp_module_sr_get_ai_pq_base(struct sr_ai_pq_param_s *pparam)
+{
+	if (!pparam)
+		return;
+
+	pparam->hp_final_gain[EN_MODE_SR_0] =
+		sr_ai_pq_base.hp_final_gain[EN_MODE_SR_0];
+	pparam->bp_final_gain[EN_MODE_SR_0] =
+		sr_ai_pq_base.bp_final_gain[EN_MODE_SR_0];
+
+	pparam->hp_final_gain[EN_MODE_SR_1] =
+		sr_ai_pq_base.hp_final_gain[EN_MODE_SR_1];
+	pparam->bp_final_gain[EN_MODE_SR_1] =
+		sr_ai_pq_base.bp_final_gain[EN_MODE_SR_1];
+}
+
+void vpp_module_sr_set_ai_pq_offset(struct sr_ai_pq_param_s *pparam)
+{
+	if (!pparam)
+		return;
+
+	if (sr_ai_pq_offset.hp_final_gain[EN_MODE_SR_0] !=
+			pparam->hp_final_gain[EN_MODE_SR_0] ||
+		sr_ai_pq_offset.bp_final_gain[EN_MODE_SR_0] !=
+			pparam->bp_final_gain[EN_MODE_SR_0] ||
+		sr_ai_pq_offset.hp_final_gain[EN_MODE_SR_1] !=
+			pparam->hp_final_gain[EN_MODE_SR_1] ||
+		sr_ai_pq_offset.bp_final_gain[EN_MODE_SR_1] !=
+			pparam->bp_final_gain[EN_MODE_SR_1]) {
+		sr_ai_pq_update = true;
+
+		sr_ai_pq_offset.hp_final_gain[EN_MODE_SR_0] =
+			pparam->hp_final_gain[EN_MODE_SR_0];
+		sr_ai_pq_offset.bp_final_gain[EN_MODE_SR_0] =
+			pparam->bp_final_gain[EN_MODE_SR_0];
+
+		sr_ai_pq_offset.hp_final_gain[EN_MODE_SR_1] =
+			pparam->hp_final_gain[EN_MODE_SR_1];
+		sr_ai_pq_offset.bp_final_gain[EN_MODE_SR_1] =
+			pparam->bp_final_gain[EN_MODE_SR_1];
 	}
 }
 

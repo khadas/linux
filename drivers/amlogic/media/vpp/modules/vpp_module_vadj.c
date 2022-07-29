@@ -50,6 +50,11 @@ static struct _vadj_bit_cfg_s vadj_bit_cfg = {
 	{0, 8}
 };
 
+/*For ai pq*/
+static bool vadj_ai_pq_update;
+static struct vadj_ai_pq_param_s vadj_ai_pq_offset;
+static struct vadj_ai_pq_param_s vadj_ai_pq_base;
+
 /*Internal functions*/
 static int _set_vadj_ctrl(enum _vadj_mode_e mode, int val,
 	unsigned char start, unsigned char len)
@@ -164,6 +169,10 @@ int vpp_module_vadj_init(struct vpp_dev_s *pdev)
 		vadj_bit_cfg.bit_vadj_contrast.len   = 8;
 	}
 
+	vadj_ai_pq_update = false;
+	memset(&vadj_ai_pq_offset, 0, sizeof(vadj_ai_pq_offset));
+	memset(&vadj_ai_pq_base, 0, sizeof(vadj_ai_pq_base));
+
 	return 0;
 }
 
@@ -210,7 +219,9 @@ int vpp_module_vadj_set_sat_hue(int val)
 	int mab = 0;
 	int mcd = 0;
 
-	mab = val & 0x03ff03ff;
+	vadj_ai_pq_base.sat_hue_mad = val;
+
+	mab = (val + vadj_ai_pq_offset.sat_hue_mad) & 0x03ff03ff;
 
 	mc = (0 - (short)(val & 0x000003ff));    /* mc = -mb */
 	mc = vpp_check_range(mc, (-512), 511);
@@ -241,5 +252,33 @@ int vpp_module_vadj_set_sat_hue_post(int val)
 	_set_vadj_mc_md(EN_MODE_VADJ_02, mcd);
 
 	return 0;
+}
+
+void vpp_module_vadj_on_vs(void)
+{
+	if (vadj_ai_pq_update) {
+		vpp_module_vadj_set_sat_hue(vadj_ai_pq_base.sat_hue_mad);
+		vadj_ai_pq_update = false;
+	}
+}
+
+/*For ai pq*/
+void vpp_module_vadj_get_ai_pq_base(struct vadj_ai_pq_param_s *pparam)
+{
+	if (!pparam)
+		return;
+
+	pparam->sat_hue_mad = vadj_ai_pq_base.sat_hue_mad;
+}
+
+void vpp_module_vadj_set_ai_pq_offset(struct vadj_ai_pq_param_s *pparam)
+{
+	if (!pparam)
+		return;
+
+	if (vadj_ai_pq_offset.sat_hue_mad != pparam->sat_hue_mad) {
+		vadj_ai_pq_offset.sat_hue_mad = pparam->sat_hue_mad;
+		vadj_ai_pq_update = true;
+	}
 }
 

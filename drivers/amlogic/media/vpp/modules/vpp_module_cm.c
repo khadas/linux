@@ -6,7 +6,6 @@
 #include "../vpp_common.h"
 #include "vpp_module_cm.h"
 
-#define CM2_CURVE_SIZE (32)
 #define CM2_DATA_WR_COUNT (5)
 
 enum lc_lmt_type_e {
@@ -129,6 +128,11 @@ static char cur_cm2_offset_luma[CM2_CURVE_SIZE] = {0};
 static char cur_cm2_offset_sat[CM2_CURVE_SIZE * 3] = {0};
 static char cur_cm2_offset_hue[CM2_CURVE_SIZE] = {0};
 static char cur_cm2_offset_hue_hs[CM2_CURVE_SIZE * 5] = {0};
+
+/*For ai pq*/
+static bool cm_ai_pq_update;
+static struct cm_ai_pq_param_s cm_ai_pq_offset;
+static struct cm_ai_pq_param_s cm_ai_pq_base;
 
 /*Internal functions*/
 static void _set_cm_reg_by_addr(unsigned int addr, int val)
@@ -421,6 +425,10 @@ int vpp_module_cm_init(struct vpp_dev_s *pdev)
 	_set_cm_reg_by_addr(cm_addr_cfg.addr_cm_global_gain, 0x02000000);
 	_set_cm_reg_by_addr(cm_addr_cfg.addr_ifo_mode, 0x0);
 
+	cm_ai_pq_update = false;
+	memset(&cm_ai_pq_offset, 0, sizeof(cm_ai_pq_offset));
+	memset(&cm_ai_pq_base, 0, sizeof(cm_ai_pq_base));
+
 	return 0;
 }
 
@@ -480,12 +488,15 @@ int vpp_module_cm_en(bool enable)
 void vpp_module_cm_set_cm2_luma(int *pdata)
 {
 	int i = 0;
+	int tmp = 0;
 
 	if (!pdata)
 		return;
 
-	for (i = 0; i < CM2_CURVE_SIZE; i++)
-		cur_cm2_luma[i] = pdata[i] + cur_cm2_offset_luma[i];
+	for (i = 0; i < CM2_CURVE_SIZE; i++) {
+		tmp = pdata[i] + cur_cm2_offset_luma[i];
+		cur_cm2_luma[i] = vpp_check_range(tmp, (-128), 127);
+	}
 
 	_set_cm2_luma_by_index(&cur_cm2_luma[0], 0, 31);
 }
@@ -494,12 +505,16 @@ void vpp_module_cm_set_cm2_luma(int *pdata)
 void vpp_module_cm_set_cm2_sat(int *pdata)
 {
 	int i = 0;
+	int tmp = 0;
 
 	if (!pdata)
 		return;
 
-	for (i = 0; i < CM2_CURVE_SIZE * 3; i++)
-		cur_cm2_sat[i] = pdata[i] + cur_cm2_offset_sat[i];
+	for (i = 0; i < CM2_CURVE_SIZE * 3; i++) {
+		tmp = pdata[i] + cur_cm2_offset_sat[i] + cm_ai_pq_offset.sat[i];
+		cur_cm2_sat[i] = vpp_check_range(tmp, (-128), 127);
+		cm_ai_pq_base.sat[i] = pdata[i];
+	}
 
 	_set_cm2_sat_by_index(&cur_cm2_sat[0], 0, 31);
 }
@@ -515,24 +530,24 @@ void vpp_module_cm_set_cm2_sat_by_l(int *pdata)
 		return;
 
 	for (i = 0; i < 9; i++)
-		cur_cm2_sat_l[i] = pdata[i];
+		cur_cm2_sat_l[i] = pdata[i] & 0x000000ff;
 
 	addr = cm_addr_cfg.addr_sat_byyb_node0;
-	val = cur_cm2_sat_l[0] & 0x000000ff;
-	val |= cur_cm2_sat_l[1] & 0x0000ff00;
-	val |= cur_cm2_sat_l[2] & 0x00ff0000;
-	val |= cur_cm2_sat_l[3] & 0xff000000;
+	val = cur_cm2_sat_l[0];
+	val |= cur_cm2_sat_l[1] << 8;
+	val |= cur_cm2_sat_l[2] << 16;
+	val |= cur_cm2_sat_l[3] << 24;
 	_set_cm_reg_by_addr(addr, val);
 
 	addr = cm_addr_cfg.addr_sat_byyb_node1;
-	val = cur_cm2_sat_l[4] & 0x000000ff;
-	val |= cur_cm2_sat_l[5] & 0x0000ff00;
-	val |= cur_cm2_sat_l[6] & 0x00ff0000;
-	val |= cur_cm2_sat_l[7] & 0xff000000;
+	val = cur_cm2_sat_l[4];
+	val |= cur_cm2_sat_l[5] << 8;
+	val |= cur_cm2_sat_l[6] << 16;
+	val |= cur_cm2_sat_l[7] << 24;
 	_set_cm_reg_by_addr(addr, val);
 
 	addr = cm_addr_cfg.addr_sat_byyb_node2;
-	val = cur_cm2_sat_l[8] & 0x000000ff;
+	val = cur_cm2_sat_l[8];
 	_set_cm_reg_by_addr(addr, val);
 }
 
@@ -554,12 +569,15 @@ void vpp_module_cm_set_cm2_sat_by_hl(int *pdata)
 void vpp_module_cm_set_cm2_hue(int *pdata)
 {
 	int i = 0;
+	int tmp = 0;
 
 	if (!pdata)
 		return;
 
-	for (i = 0; i < CM2_CURVE_SIZE; i++)
-		cur_cm2_hue[i] = pdata[i] + cur_cm2_offset_hue[i];
+	for (i = 0; i < CM2_CURVE_SIZE; i++) {
+		tmp = pdata[i] + cur_cm2_offset_hue[i];
+		cur_cm2_hue[i] = vpp_check_range(tmp, (-128), 127);
+	}
 
 	_set_cm2_hue_by_index(pdata, 0, 31);
 }
@@ -568,12 +586,15 @@ void vpp_module_cm_set_cm2_hue(int *pdata)
 void vpp_module_cm_set_cm2_hue_by_hs(int *pdata)
 {
 	int i = 0;
+	int tmp = 0;
 
 	if (!pdata)
 		return;
 
-	for (i = 0; i < CM2_CURVE_SIZE * 5; i++)
-		cur_cm2_hue_hs[i] = pdata[i] + cur_cm2_offset_hue_hs[i];
+	for (i = 0; i < CM2_CURVE_SIZE * 5; i++) {
+		tmp = pdata[i] + cur_cm2_offset_hue_hs[i];
+		cur_cm2_hue_hs[i] = vpp_check_range(tmp, (-128), 127);
+	}
 
 	_set_cm2_hue_via_s_by_index(&cur_cm2_hue_hs[0], 0, 31);
 }
@@ -750,5 +771,35 @@ void vpp_module_cm_set_cm2_offset_hue_by_hs(char *pdata)
 
 void vpp_module_cm_on_vs(void)
 {
+	if (cm_ai_pq_update) {
+		vpp_module_cm_set_cm2_sat(&cm_ai_pq_base.sat[0]);
+		cm_ai_pq_update = false;
+	}
+}
+
+/*For ai pq*/
+void vpp_module_cm_get_ai_pq_base(struct cm_ai_pq_param_s *pparam)
+{
+	int i = 0;
+
+	if (!pparam)
+		return;
+
+	for (i = 0; i < CM2_CURVE_SIZE * 3; i++)
+		pparam->sat[i] = cm_ai_pq_base.sat[i];
+}
+
+void vpp_module_cm_set_ai_pq_offset(struct cm_ai_pq_param_s *pparam)
+{
+	int i = 0;
+
+	if (!pparam)
+		return;
+
+	for (i = 0; i < CM2_CURVE_SIZE * 3; i++)
+		if (cm_ai_pq_offset.sat[i] != pparam->sat[i]) {
+			cm_ai_pq_offset.sat[i] = pparam->sat[i];
+			cm_ai_pq_update = true;
+		}
 }
 

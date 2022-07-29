@@ -6,6 +6,8 @@
 #ifndef __VPP_MODULE_CM_H__
 #define __VPP_MODULE_CM_H__
 
+#define CM2_CURVE_SIZE (32)
+
 enum cm_tuning_param_e {
 	EN_PARAM_GLB_HUE = 0,
 	EN_PARAM_GLB_SAT,
@@ -21,6 +23,10 @@ enum cm_sub_module_e {
 struct cm_cfg_param_s {
 	int frm_height;
 	int frm_width;
+};
+
+struct cm_ai_pq_param_s {
+	int sat[CM2_CURVE_SIZE * 3];
 };
 
 int vpp_module_cm_init(struct vpp_dev_s *pdev);
@@ -43,6 +49,9 @@ void vpp_module_cm_set_cm2_offset_sat(char *pdata);
 void vpp_module_cm_set_cm2_offset_hue(char *pdata);
 void vpp_module_cm_set_cm2_offset_hue_by_hs(char *pdata);
 void vpp_module_cm_on_vs(void);
+
+void vpp_module_cm_get_ai_pq_base(struct cm_ai_pq_param_s *pparam);
+void vpp_module_cm_set_ai_pq_offset(struct cm_ai_pq_param_s *pparam);
 
 #endif
 

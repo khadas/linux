@@ -77,6 +77,24 @@ extern unsigned int pr_lvl;
 	})
 #endif
 
+/*ai detected scenes*/
+enum vpp_detect_scene_e {
+	EN_BLUE_SCENE = 0,
+	EN_GREEN_SCENE,
+	EN_SKIN_TONE_SCENE,
+	EN_PEAKING_SCENE,
+	EN_SATURATION_SCENE,
+	EN_DYNAMIC_CONTRAST_SCENE,
+	EN_NOISE_SCENE,
+	EN_SCENE_MAX,
+};
+
+/*detected single scene process*/
+struct vpp_single_scene_s {
+	bool enable;
+	int (*func)(int offset, bool enable);
+};
+
 /*Common functions*/
 int vpp_check_range(int val, int down, int up);
 int vpp_mask_int(int val, int start, int len);

@@ -78,6 +78,10 @@ static struct dnlp_dbg_rw_param_s *pdnlp_dbg_rw_param;
 static struct param_for_dnlp_s *pdnlp_alg_node_param;
 static struct dnlp_dbg_print_s *pdnlp_dbg_printk;
 
+/*For ai pq*/
+static struct dnlp_ai_pq_param_s dnlp_ai_pq_offset;
+static struct dnlp_ai_pq_param_s dnlp_ai_pq_base;
+
 /*Internal functions*/
 static void _set_dnlp_ctrl(enum _dnlp_mode_e mode, int val,
 	unsigned char start, unsigned char len)
@@ -415,6 +419,9 @@ int vpp_module_dnlp_init(struct vpp_dev_s *pdev)
 
 	pre_satur = 0;
 
+	memset(&dnlp_ai_pq_offset, 0, sizeof(dnlp_ai_pq_offset));
+	dnlp_ai_pq_base.final_gain = 8;
+
 	return 0;
 }
 
@@ -559,7 +566,7 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 	pdnlp_alg_node_param->dnlp_clahe_gain_pos =
 		pdata->param[EN_DNLP_CLAHE_GAIN_POS];
 	pdnlp_alg_node_param->dnlp_final_gain =
-		pdata->param[EN_DNLP_FINAL_GAIN];
+		pdata->param[EN_DNLP_FINAL_GAIN] + dnlp_ai_pq_offset.final_gain;
 
 	/*coef of blending between gma_scurv and clahe curves*/
 	pdnlp_alg_node_param->dnlp_mtdbld_rate =
@@ -655,6 +662,8 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 	pdnlp_alg_node_param->dnlp_luma_avg_th =
 		pdata->param[EN_DNLP_LUMA_AVG_TH];
 
+	dnlp_ai_pq_base.final_gain = pdata->param[EN_DNLP_FINAL_GAIN];
+
 	/*update reg data*/
 	_init_dnlp_data(pdnlp_alg_input->ve_dnlp_luma_sum,
 		pdnlp_alg_output->ve_dnlp_tgt,
@@ -662,5 +671,28 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 		&dnlp_lpf[0]);
 	_calculate_dnlp_reg(&dnlp_lpf[0], &dnlp_reg[0]);
 	_set_dnlp_data(cur_mode, &dnlp_reg[0]);
+}
+
+/*For ai pq*/
+void vpp_module_dnlp_get_ai_pq_base(struct dnlp_ai_pq_param_s *pparam)
+{
+	if (!pparam)
+		return;
+
+	pparam->final_gain = dnlp_ai_pq_base.final_gain;
+}
+
+void vpp_module_dnlp_set_ai_pq_offset(struct dnlp_ai_pq_param_s *pparam)
+{
+	int offset = 0;
+
+	if (!pparam)
+		return;
+
+	offset = pparam->final_gain;
+	if (dnlp_ai_pq_offset.final_gain != offset) {
+		dnlp_ai_pq_offset.final_gain = offset;
+		pdnlp_alg_node_param->dnlp_final_gain += offset;
+	}
 }
 

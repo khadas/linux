@@ -41,16 +41,25 @@ struct sr_vs_param_s {
 	unsigned int sps_h_in;
 };
 
+struct sr_ai_pq_param_s {
+	int hp_final_gain[EN_MODE_SR_MAX];
+	int bp_final_gain[EN_MODE_SR_MAX];
+};
+
 int vpp_module_sr_init(struct vpp_dev_s *pdev);
 void vpp_module_sr_en(enum sr_mode_e mode, bool enable);
 void vpp_module_sr_sub_module_en(enum sr_mode_e mode,
 	enum sr_sub_module_e sub_module, bool enable);
 void vpp_module_sr_set_demo_mode(bool enable, bool left_side);
-void vpp_module_sr_set_osd_gain(enum sr_mode_e mode, int val);
+void vpp_module_sr_set_osd_gain(enum sr_mode_e mode,
+	int hp_val, int bp_val);
 bool vpp_module_sr_get_fmeter_support(void);
 void vpp_module_sr_fetch_fmeter_report(void);
 struct sr_fmeter_report_s *vpp_module_sr_get_fmeter_report(void);
 void vpp_module_sr_on_vs(struct sr_vs_param_s *pvs_param);
+
+void vpp_module_sr_get_ai_pq_base(struct sr_ai_pq_param_s *pparam);
+void vpp_module_sr_set_ai_pq_offset(struct sr_ai_pq_param_s *pparam);
 
 #endif
 
