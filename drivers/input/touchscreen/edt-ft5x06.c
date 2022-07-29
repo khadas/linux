@@ -69,6 +69,15 @@
 #define EDT_RAW_DATA_RETRIES		100
 #define EDT_RAW_DATA_DELAY		1000 /* usec */
 
+#define TP_CHANGE_X2Y        1
+#define TP_X_REVERSE_ENABLE     0
+#define TP_Y_REVERSE_ENABLE     1
+#define TP_SWAP(x, y)  do {\
+				typeof(x) z = x;\
+				x = y;\
+				y = z; \
+} while (0)
+
 enum edt_ver {
 	EDT_M06,
 	EDT_M09,
@@ -254,11 +263,23 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 
 		if (!down)
 			continue;
+//printk("---------------------------hlm0 x: %d  y: %d.\n", x,y);
+#if TP_Y_REVERSE_ENABLE
+		y = tsdata->num_y - y;
+#endif
 
-		touchscreen_report_pos(tsdata->input, &tsdata->prop, x, y,
-				       true);
+#if TP_X_REVERSE_ENABLE
+		x = tsdata->num_x -x;
+#endif
+
+#if TP_CHANGE_X2Y
+		TP_SWAP(x, y);
+#endif
+
+		input_report_abs(tsdata->input, ABS_MT_POSITION_X, x);
+		input_report_abs(tsdata->input, ABS_MT_POSITION_Y, y);
+		//printk("hlm x: %d  y: %d.\n", x,y);
 	}
-
 	input_mt_report_pointer_emulation(tsdata->input, true);
 	input_sync(tsdata->input);
 
@@ -1031,11 +1052,17 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
+#if TP_CHANGE_X2Y
+	input_set_abs_params(input, ABS_MT_POSITION_Y,
+				0, tsdata->num_x, 0, 0);
+	input_set_abs_params(input, ABS_MT_POSITION_X,
+				0, tsdata->num_y, 0, 0);
+#else
 	input_set_abs_params(input, ABS_MT_POSITION_X,
 			     0, tsdata->num_x, 0, 0);
 	input_set_abs_params(input, ABS_MT_POSITION_Y,
 			     0, tsdata->num_y, 0, 0);
-
+#endif
 	touchscreen_parse_properties(input, true, &tsdata->prop);
 
 	error = input_mt_init_slots(input, tsdata->max_support_points,
