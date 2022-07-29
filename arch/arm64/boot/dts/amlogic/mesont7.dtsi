@@ -2306,6 +2306,66 @@
 		link-device = <&adapter>;
 	};
 
+	adapter0: adapter0@fe3b0000 {
+		compatible = "amlogic, adapter0";
+		reg = <0x0 0xfe3b0000 0x0 0x00000400>,
+			<0x0 0xfe3b3000 0x0 0x00000800>;
+		reg-names = "adapter", "isp_top";
+		interrupts = <GIC_SPI 0x139 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkc CLKID_MIPI_ISP>;
+		clock-names = "cts_mipi_isp_clk";
+		power-domains = <&pwrdm PDID_T7_ISP>;
+	};
+
+	adapter2: adapter2@fe3b0800 {
+		compatible = "amlogic, adapter2";
+		reg = <0x0 0xfe3b0800 0x0 0x00000400>,
+			<0x0 0xfe3b3000 0x0 0x00000800>;
+		reg-names = "adapter", "isp_top";
+		interrupts = <GIC_SPI 0x137 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkc CLKID_MIPI_ISP>;
+		clock-names = "cts_mipi_isp_clk";
+		power-domains = <&pwrdm PDID_T7_ISP>;
+	};
+	csiphy0: csiphy0@fe3bfc00 {
+		compatible = "amlogic, csiphy0";
+		reg = <0x0 0xfe3bfc00 0x0 0x00000400>,
+			<0x0 0xfe3bdc00 0x0 0x00000100>,
+			<0x0 0xfe3bec00 0x0 0x00000400>;
+		reg-names = "csi_phy","csi_aphy", "csi_host";
+		clocks = <&clkc CLKID_MIPI_CSI_PHY0>;
+		clock-names = "cts_mipi_csi_phy_clk0";
+		assigned-clock-parents = <&clkc CLKID_MIPI_CSI_PHY0>;
+		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
+		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
+	};
+
+	csiphy2: csiphy2@fe3bf400 {
+		compatible = "amlogic, csiphy2";
+		reg = <0x0 0xfe3bf400 0x0 0x00000400>,
+			<0x0 0xfe3bdc00 0x0 0x00000100>,
+			<0x0 0xfe3be400 0x0 0x00000400>;
+		reg-names = "csi_phy","csi_aphy", "csi_host";
+		clocks = <&clkc CLKID_MIPI_CSI_PHY0>;
+		clock-names = "cts_mipi_csi_phy_clk0";
+		assigned-clock-parents = <&clkc CLKID_MIPI_CSI_PHY0>;
+		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
+		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
+	};
+	camera0 {
+		compatible = "amlogic, camera";
+		index = <0>;
+		csiphy = <&csiphy0>;
+		adapter = <&adapter0>;
+	};
+
+	camera1 {
+		compatible = "amlogic, camera";
+		index = <1>;
+		csiphy = <&csiphy2>;
+		adapter = <&adapter2>;
+	};
+
 	vdec {
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";

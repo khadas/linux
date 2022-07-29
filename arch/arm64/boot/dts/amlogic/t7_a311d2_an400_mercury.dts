@@ -169,6 +169,15 @@
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
+		cam_cma_reserved:linux,cam_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			status = "okay";
+			size = <0x0 0x8000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
 		ion_cma_reserved:linux,ion-dev {
 			compatible = "shared-dma-pool";
 			reusable;
@@ -234,7 +243,7 @@
 	freertos {
 		compatible = "amlogic,freertos";
 		status = "okay";
-		irqs_rsv = <32 227 249 91 321>;
+		irqs_rsv = <32 227 249 91 321 343 345>;
 		info_offset = <0x1000>;
 	};
 
@@ -1465,6 +1474,56 @@
 				22 23 24 25 26 27 28 29 2A 00 00
 				00 00 00 00 00 00 00 00 F6 01];
 	};
+
+	imx290_0: sensor0@1a {
+		compatible = "sony, imx290";
+		index = <0>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <37125000>;
+		clocks = <&clkc CLKID_MCLK_0>;
+		clock-names = "mclk";
+
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+
+		port {
+			imx290_0_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <445500000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+
+	ov5640_0: sensor0@3c {
+		compatible = "ov, ov5640";
+		index = <0>;
+		reg = <0x3c>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <24000000>;
+		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_1>,
+				<&clkc CLKID_MCLK_0_PRE>,
+				<&clkc CLKID_MCLK_1_PRE>,
+				<&xtal>;
+		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","xtal";
+
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5640_0_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <672000000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
 };
 
 &i2c3 {
@@ -1529,6 +1588,55 @@
 				22 23 24 25 26 27 28 29 2A 00 00
 				00 00 00 00 00 00 00 00 F6 01];
 	};
+	imx290_2: sensor1@1a {
+		compatible = "sony, imx290";
+		index = <1>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <37125000>;
+		clocks = <&clkc CLKID_MCLK_1>;
+		clock-names = "mclk";
+
+		pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			imx290_2_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <445500000>;
+				remote-endpoint = <&csiphy2_ep>;
+			};
+		};
+	};
+
+	ov5640_2: sensor1@3c {
+		compatible = "ov, ov5640";
+		index = <1>;
+		reg = <0x3c>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <24000000>;
+		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_1>,
+				<&clkc CLKID_MCLK_0_PRE>,
+				<&clkc CLKID_MCLK_1_PRE>,
+				<&xtal>;
+		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","xtal";
+
+		pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5640_2_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <672000000>;
+				remote-endpoint = <&csiphy2_ep>;
+			};
+		};
+	};
 };
 
 &i2c4 {
@@ -1586,6 +1694,27 @@
 		00 00 00 00 00 00 00 00 F6 01];
 	};
 };
+
+&csiphy0 {
+	port {
+		csiphy0_ep: endpoint {
+			clock-lanes = <4>;
+			data-lanes = <0 1>;
+			remote-endpoint = <&ov5640_0_ep>;
+		};
+	};
+};
+
+&csiphy2 {
+	port {
+		csiphy2_ep: endpoint {
+			clock-lanes = <4>;
+			data-lanes = <0 1>;
+			remote-endpoint = <&ov5640_2_ep>;
+		};
+	};
+};
+
 /* SDIO */
 &sd_emmc_a {
 	status = "okay";
@@ -1696,6 +1825,16 @@
 	mem_alloc1 = <16>;
 	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
+};
+
+&adapter0 {
+	status = "okay";
+	memory-region = <&cam_cma_reserved>;
+};
+
+&adapter2 {
+	status = "okay";
+	memory-region = <&cam_cma_reserved>;
 };
 
 &ir {

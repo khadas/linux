@@ -60,8 +60,8 @@ if AMLOGIC_MEDIA_COMMON
 source "drivers/amlogic/media/common/Kconfig"
 endif
 
-if AMLOGIC_MEDIA_DRIVERS
 source "drivers/amlogic/media/camera/Kconfig"
+if AMLOGIC_MEDIA_DRIVERS
 source "drivers/amlogic/media/video_sink/Kconfig"
 source "drivers/amlogic/media/vout/Kconfig"
 source "drivers/amlogic/media/vrr/Kconfig"
