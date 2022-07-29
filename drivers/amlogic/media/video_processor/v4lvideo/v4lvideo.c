@@ -2570,6 +2570,11 @@ static int v4lvideo_fd_link(int src_fd, int dst_fd)
 	struct file_private_data *private_data0 = NULL;
 	struct file_private_data *private_data1 = NULL;
 
+	if (src_fd == dst_fd) {
+		pr_err("%s:invalid param: src_fd:%d, dst_fd:%d.\n", __func__, src_fd, dst_fd);
+		return -EINVAL;
+	}
+
 	file0 = fget(src_fd);
 	if (!file0) {
 		pr_err("v4lvideo: %s source file is NULL\n", __func__);
@@ -2579,6 +2584,13 @@ static int v4lvideo_fd_link(int src_fd, int dst_fd)
 	if (!file1) {
 		fput(file0);
 		pr_err("v4lvideo: %s dst file is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!is_v4lvideo_buf_file(file0) || !is_v4lvideo_buf_file(file1)) {
+		pr_err("%s: file is not v4lvideo.\n", __func__);
+		fput(file0);
+		fput(file1);
 		return -EINVAL;
 	}
 
