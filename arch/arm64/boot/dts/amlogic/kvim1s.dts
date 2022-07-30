@@ -1364,7 +1364,7 @@
 	uart-has-rtscts;
 };
 
-&uart_D {
+&uart_C {
 	status = "okay";
 	uart-has-rtscts;
 };
