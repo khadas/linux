@@ -3377,17 +3377,18 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 	if (!hdev->vinfo)
 		return;
 
+	/*hdev->bist_lock = 1;*/
+	/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
+	 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+	 *			  hdev->para->cs);
+	 */
+	if (hdev->data->chip_type < MESON_CPU_ID_SC2)
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+
 	switch (num) {
 	case 1:
 	case 2:
 	case 3:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_CLRBAR_STRT, 0x112);
 			hd_write_reg(P_ENCI_TST_CLRBAR_WIDTH, 0xb4);
@@ -3413,13 +3414,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 4:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x3ff);
@@ -3438,13 +3432,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 5:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x200);
@@ -3463,13 +3450,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 6:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x200);
@@ -3488,13 +3468,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 7:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x200);
@@ -3513,13 +3486,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 8:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x0);
