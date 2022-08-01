@@ -638,7 +638,6 @@ struct rx_audio_stat_s {
 
 int get_vdin_delay_num(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
-void adc_pll_down(void);
 void adc_set_pll_reset(void);
 int adc_get_pll_flag(void);
 /*ADC_EN_ATV_DEMOD	0x1*/
@@ -649,10 +648,6 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para_);
 void adc_set_ddemod_default(enum fe_delivery_system delsys);/* add for dtv demod */
 int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data);
 #else
-static inline void adc_pll_down(void)
-{
-}
-
 static inline void adc_set_pll_reset(void)
 {
 }
