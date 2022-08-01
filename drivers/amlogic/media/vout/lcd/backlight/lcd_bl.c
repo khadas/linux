@@ -1923,6 +1923,7 @@ static int bl_lcd_update_notifier(struct notifier_block *nb,
 	struct bl_metrics_config_s *bl_metrics_conf;
 	struct bl_pwm_config_s *bl_pwm = NULL;
 	unsigned int frame_rate;
+	unsigned short hactive, vactive;
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 #endif
@@ -1941,6 +1942,8 @@ static int bl_lcd_update_notifier(struct notifier_block *nb,
 
 	bl_metrics_conf = &bdrv->bl_metrics_conf;
 	frame_rate = pdrv->config.timing.frame_rate;
+	hactive = pdrv->config.basic.h_active;
+	vactive = pdrv->config.basic.v_active;
 
 	bl_metrics_conf->frame_rate = frame_rate;
 	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
@@ -1963,7 +1966,18 @@ static int bl_lcd_update_notifier(struct notifier_block *nb,
 		break;
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 	case BL_CTRL_LOCAL_DIMMING:
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+			BLPR("[%d]: %s fr = %d, ha=%d, va=%d\n",
+			bdrv->index, __func__,
+			frame_rate, hactive, vactive);
 		ldim_drv->vsync_change_flag = (unsigned char)(frame_rate);
+		if (hactive != ldim_drv->conf->hsize ||
+			vactive != ldim_drv->conf->vsize) {
+			ldim_drv->conf->hsize = hactive;
+			ldim_drv->conf->vsize = vactive;
+			ldim_drv->resolution_update = 1;
+		}
+
 		if (ldim_drv->pwm_vs_update)
 			ldim_drv->pwm_vs_update();
 		break;

@@ -86,6 +86,7 @@ void ldim_vs_arithmetic_t7(struct aml_ldim_driver_s *ldim_drv);
 void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag);
 void ldim_drv_init_t7(struct aml_ldim_driver_s *ldim_drv);
 void ldim_drv_init_t3(struct aml_ldim_driver_s *ldim_drv);
+void ldc_set_t7(struct aml_ldim_driver_s *ldim_drv);
 
 /*ldim mem*/
 void ldc_mem_dump(unsigned char *vaddr, unsigned int size);

@@ -41,6 +41,7 @@
 
 /* 1: unlocked, 0: locked, negative: locked, possible waiters */
 static struct mutex ldim_dbg_mutex;
+
 /*for dbg reg use*/
 struct ldim_dbg_reg_s {
 	unsigned int rw_mode;
@@ -2603,6 +2604,13 @@ static ssize_t ldim_attr_store(struct class *cla, struct class_attribute *attr,
 			fw->fw_alg_para_print(fw);
 		else
 			pr_info("ldim_fw para_print is null\n");
+	} else if (!strcmp(parm[0], "resolution_update")) {
+		if (parm[1]) {
+			if (kstrtoul(parm[1], 10, &val1) < 0)
+				goto ldim_attr_store_err;
+			ldim_drv->resolution_update = (unsigned char)val1;
+		}
+		pr_info("resolution_update = %d\n", ldim_drv->resolution_update);
 	} else {
 		pr_info("no support cmd!!!\n");
 	}
