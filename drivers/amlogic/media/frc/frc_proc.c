@@ -619,8 +619,11 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 			devp->in_sts.secure_mode = false;
 		}
 		/*check vd status change*/
-		if (!no_input)
+		if (!no_input) {
 			frc_chk_vd_sts_chg(devp, vf);
+			if (!devp->in_sts.frc_is_tvin)
+				frc_char_flash_check();
+		}
 	}
 
 	if (devp->frc_hw_pos == FRC_POS_AFTER_POSTBLEND)
@@ -634,7 +637,6 @@ void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 	frc_event = frc_input_sts_check(devp, &cur_in_sts);
 	if (frc_event)
 		pr_frc(1, "event = 0x%08x\n", frc_event);
-	frc_char_flash_check();
 }
 
 void frc_state_change_finish(struct frc_dev_s *devp)

@@ -77,8 +77,9 @@
 // frc_20220704 fix frc secure mode abnormal
 // frc_20220705 fix frc bypass frame when on
 // frc_20220708 optimize frc off2on flow
+// frc_20220722 add vlock st and time record
 
-#define FRC_FW_VER			"2022-0722 add vlock st and time record"
+#define FRC_FW_VER			"2022-0801 set force_mode and ctrl freq"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1

@@ -935,6 +935,7 @@ static int frc_probe(struct platform_device *pdev)
 	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
 	INIT_WORK(&frc_mem_dyc_proc, frc_mem_dynamic_proc);
 	frc_devp->clk_chg = 1;
+	frc_set_enter_forcefilm(frc_devp, 1);
 
 	frc_devp->probe_ok = true;
 	frc_devp->power_off_flag = false;
