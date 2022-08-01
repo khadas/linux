@@ -241,6 +241,8 @@ struct ldim_dev_driver_s {
 	unsigned char write_check;
 	unsigned char pinmux_flag;
 	unsigned char chip_cnt;
+	unsigned int mcu_header;
+	unsigned int mcu_dim;
 
 	unsigned int bl_row;
 	unsigned int bl_col;

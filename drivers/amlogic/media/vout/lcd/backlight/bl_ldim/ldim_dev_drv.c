@@ -1160,6 +1160,20 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		dev_drv->dim_min = temp[1];
 	}
 
+	ret = of_property_read_u32(child, "mcu_header", &val);
+	if (ret)
+		dev_drv->mcu_header = 0;
+	else
+		dev_drv->mcu_header = (unsigned int)val;
+
+	ret = of_property_read_u32(child, "mcu_dim", &val);
+	if (ret)
+		dev_drv->mcu_dim = 0;
+	else
+		dev_drv->mcu_dim = (unsigned int)val;
+	LDIMPR("mcu_header: 0x%x, mcu_dim: 0x%x\n",
+	dev_drv->mcu_header, dev_drv->mcu_dim);
+
 	ret = of_property_read_u32(child, "chip_count", &val);
 	if (ret)
 		dev_drv->chip_cnt = 1;
@@ -1507,6 +1521,19 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		(*(p + LCD_UKEY_LDIM_DEV_CHIP_COUNT) |
 		((*(p + LCD_UKEY_LDIM_DEV_CHIP_COUNT + 1)) << 8));
 	LDIMPR("chip_count: %d\n", dev_drv->chip_cnt);
+
+	dev_drv->mcu_header =
+		(*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_0) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_0 + 1)) << 8) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_0 + 2)) << 16) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_0 + 3)) << 24));
+	dev_drv->mcu_dim =
+		(*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_1) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_1 + 1)) << 8) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_1 + 2)) << 16) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_1 + 3)) << 24));
+	LDIMPR("mcu_header: 0x%x, mcu_dim: 0x%x\n",
+	dev_drv->mcu_header, dev_drv->mcu_dim);
 
 	str = (const char *)(p + LCD_UKEY_LDIM_DEV_ZONE_MAP_PATH);
 	if (strlen(str) == 0) {
