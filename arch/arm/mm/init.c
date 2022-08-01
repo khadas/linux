@@ -34,6 +34,9 @@
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
 #include <asm/ptdump.h>
+#ifdef CONFIG_AMLOGIC_PCIE
+#include <linux/amlogic/tee.h>
+#endif
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -722,8 +725,15 @@ void free_initmem(void)
 	fix_kernmem_perms();
 
 	poison_init_mem(__init_begin, __init_end - __init_begin);
+#ifdef CONFIG_AMLOGIC_PCIE
+	if (!machine_is_integrator() && !machine_is_cintegrator() && !keep_init)
+		free_initmem_default(-1);
+	else
+		pr_emerg("init section not freed\n");
+#else
 	if (!machine_is_integrator() && !machine_is_cintegrator())
 		free_initmem_default(-1);
+#endif
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
