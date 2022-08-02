@@ -67,6 +67,10 @@ MODULE_PARM_DESC(check_ts_alignm, "\n\t\t check input ts alignm");
 static int check_ts_alignm;
 module_param(check_ts_alignm, int, 0644);
 
+MODULE_PARM_DESC(dmc_keep_alive, "\n\t\t Enable keep dmc alive");
+static int dmc_keep_alive;
+module_param(dmc_keep_alive, int, 0644);
+
 static loff_t input_file_pos;
 static struct file *input_dump_fp;
 
@@ -563,7 +567,7 @@ static int dmc_mem_free(unsigned long buf, unsigned int len, int sec_level)
 	ret = dmc_mem_free_block(&dmc_mem_level[dmc_index], buf);
 	if (ret != 0)
 		return -1;
-	if (!dmc_mem_level[dmc_index].ref)
+	if (!dmc_mem_level[dmc_index].ref && !dmc_keep_alive)
 		ret = dmc_mem_destroy(&dmc_mem_level[dmc_index]);
 
 	return ret;
