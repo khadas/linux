@@ -544,10 +544,10 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 				reg_in = EE_AUDIO_CLK_TDMIN_A_CTRL;
 			aml_audiobus_update_bits(actrl, reg_in,
 				0x3 << 30, 0x3 << 30);
-
+			/* TDM in for all mst/slave mode set bit[29] = 0 */
 			if (master_mode)
 				aml_audiobus_update_bits(actrl, reg_in,
-					0x1 << 29, binv << 29);
+					0x1 << 29, 0 << 29);
 			if (id == 3) {
 				reg_in = EE_AUDIO_TDMIN_D_CTRL;
 			} else if (id < 3) {

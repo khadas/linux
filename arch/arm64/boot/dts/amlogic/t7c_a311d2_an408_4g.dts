@@ -709,6 +709,33 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+
+		aml-audio-card,dai-link@8 {
+			format = "i2s";
+			mclk-fs = <256>;
+			//continuous-clock;
+			//bitclock-inversion;
+			//frame-inversion;
+			/* master mode */
+			bitclock-master = <&tdmd>;
+			frame-master = <&tdmd>;
+			/* slave mode */
+			//bitclock-master = <&tdmccodec>;
+			//frame-master = <&tdmccodec>;
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-tdm-d";
+			cpu {
+				sound-dai = <&tdmd>;
+				dai-tdm-slot-tx-mask = <1 1>;
+				dai-tdm-slot-rx-mask = <1 1>;
+				dai-tdm-slot-num = <2>;
+				dai-tdm-slot-width = <32>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 	};
 	/* Audio Related end */
 
@@ -968,6 +995,30 @@
 		tdmin-src-name = "hdmirx";
 		i2s2hdmi = <1>;
 
+		status = "okay";
+	};
+
+	tdmd:tdm@3 {
+		compatible = "amlogic, t7-snd-tdmd";
+		#sound-dai-cells = <0>;
+
+		dai-tdm-lane-slot-mask-in = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
+		dai-tdm-clk-sel = <3>;
+		clocks = <&clkaudio CLKID_AUDIO_GATE_TDMOUTD
+			&clkaudio CLKID_AUDIO_MCLK_D
+			&clkaudio CLKID_AUDIO_MCLK_PAD3
+			&clkc CLKID_MPLL3>;
+		clock-names = "gate_out","mclk",
+					"mclk_pad","clk_srcpll";
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_d_pins
+			&tdmd_clk_pins>;
+		start_clk_enable = <1>;
+		samesource_sel = <3>;
+		ctrl_gain = <1>;
+		/*tdm clk tuning enable*/
+		clk_tuning_enable = <1>;
 		status = "okay";
 	};
 
@@ -1660,6 +1711,16 @@
 		};
 	};
 
+	tdm_d_pins: tdm_d_pin {
+		mux { /* GPIOM_5, GPIOM_4, GPIOM_3, GPIOM_2 */
+			groups = "tdm_sclk3",
+				"tdm_fs3",
+				"tdm_d14",
+				"tdm_d15";
+			function = "tdm";
+		};
+	};
+
     dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
 			groups = "tsin_a_sop_t",
@@ -1784,6 +1845,13 @@
 		mux {
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
+		};
+	};
+
+	tdmd_clk_pins: tdmd_clk_pin {
+		mux {
+			groups = "tdm_sclk3", "tdm_lrclk3";
+			function = "tdm_clk_outd";
 		};
 	};
 };
