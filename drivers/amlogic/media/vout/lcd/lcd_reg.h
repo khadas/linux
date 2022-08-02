@@ -221,6 +221,14 @@
 #define HHI_DIF_CSI_PHY_CNTL8                      0xec
 #define HHI_DIF_CSI_PHY_CNTL9                      0xed
 
+/* AXG use PLL   0xff63c000 */
+#define HHI_GP0_PLL_CNTL_AXG                       0x10
+#define HHI_GP0_PLL_CNTL2_AXG                      0x11
+#define HHI_GP0_PLL_CNTL3_AXG                      0x12
+#define HHI_GP0_PLL_CNTL4_AXG                      0x13
+#define HHI_GP0_PLL_CNTL5_AXG                      0x14
+#define HHI_GP0_PLL_CNTL1_AXG                      0x16
+
 /* G12A use PLL   0xff63c000 */
 #define HHI_GP0_PLL_CNTL0                          0x10
 #define HHI_GP0_PLL_CNTL1                          0x11
@@ -1671,6 +1679,13 @@ unsigned int lcd_vcbus_getb(unsigned int reg,
 			    unsigned int start, unsigned int len);
 void lcd_vcbus_set_mask(unsigned int reg, unsigned int mask);
 void lcd_vcbus_clr_mask(unsigned int reg, unsigned int mask);
+
+unsigned int lcd_hiu_read(unsigned int reg);
+void lcd_hiu_write(unsigned int reg, unsigned int value);
+void lcd_hiu_setb(unsigned int reg, unsigned int value,
+		  unsigned int start, unsigned int len);
+unsigned int lcd_hiu_getb(unsigned int reg,
+			  unsigned int start, unsigned int len);
 
 unsigned int lcd_clk_read(unsigned int reg);
 void lcd_clk_write(unsigned int reg, unsigned int value);

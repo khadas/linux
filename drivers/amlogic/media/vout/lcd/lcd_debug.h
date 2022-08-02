@@ -54,6 +54,7 @@ struct lcd_debug_info_if_s {
 struct lcd_debug_info_s {
 	unsigned int *reg_pll_table;
 	unsigned int *reg_clk_table;
+	unsigned int *reg_clk_hiu_table;
 	unsigned int *reg_encl_table;
 	unsigned int *reg_pinmux_table;
 	void (*prbs_test)(struct aml_lcd_drv_s *pdrv, unsigned int s,
@@ -67,6 +68,19 @@ struct lcd_debug_info_s {
 	struct lcd_debug_info_if_s *debug_if_mipi;
 	struct lcd_debug_info_if_s *debug_if_edp;
 	struct lcd_debug_info_if_s *debug_if;
+};
+
+static unsigned int lcd_reg_dump_clk_axg[] = {
+	HHI_GP0_PLL_CNTL_AXG,
+	HHI_GP0_PLL_CNTL2_AXG,
+	HHI_GP0_PLL_CNTL3_AXG,
+	HHI_GP0_PLL_CNTL4_AXG,
+	HHI_GP0_PLL_CNTL5_AXG,
+	HHI_GP0_PLL_CNTL1_AXG,
+	HHI_VIID_CLK_DIV,
+	HHI_VIID_CLK_CNTL,
+	HHI_VID_CLK_CNTL2,
+	LCD_DEBUG_REG_END,
 };
 
 static unsigned int lcd_reg_dump_clk_gp0_g12a[] = {

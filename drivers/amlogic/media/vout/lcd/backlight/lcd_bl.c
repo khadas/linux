@@ -3683,6 +3683,12 @@ static int aml_bl_resume(struct platform_device *pdev)
 #endif
 
 #ifdef CONFIG_OF
+static struct bl_data_s bl_data_axg = {
+	.chip_type = LCD_CHIP_AXG,
+	.chip_name = "axg",
+	.pwm_vs_flag = 0,
+};
+
 static struct bl_data_s bl_data_g12a = {
 	.chip_type = LCD_CHIP_G12A,
 	.chip_name = "g12a",
@@ -3752,6 +3758,10 @@ static struct bl_data_s bl_data_t5w = {
 };
 
 static const struct of_device_id bl_dt_match_table[] = {
+	{
+		.compatible = "amlogic, backlight-axg",
+		.data = &bl_data_axg,
+	},
 	{
 		.compatible = "amlogic, backlight-g12a",
 		.data = &bl_data_g12a,

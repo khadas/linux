@@ -89,17 +89,18 @@ enum lcd_mode_e {
 };
 
 enum lcd_chip_e {
-	LCD_CHIP_G12A = 0,
-	LCD_CHIP_G12B,  /* 1 */
-	LCD_CHIP_TL1,   /* 2 */
-	LCD_CHIP_SM1,	/* 3 */
-	LCD_CHIP_TM2,   /* 4 */
-	LCD_CHIP_TM2B,  /* 5 */
-	LCD_CHIP_T5,    /* 6 */
-	LCD_CHIP_T5D,   /* 7 */
-	LCD_CHIP_T7,    /* 8 */
-	LCD_CHIP_T3,	/* 9 */
-	LCD_CHIP_T5W,	/* 10 */
+	LCD_CHIP_AXG = 0,
+	LCD_CHIP_G12A,  /* 1 */
+	LCD_CHIP_G12B,  /* 2 */
+	LCD_CHIP_TL1,   /* 3 */
+	LCD_CHIP_SM1,	/* 4 */
+	LCD_CHIP_TM2,   /* 5 */
+	LCD_CHIP_TM2B,  /* 6 */
+	LCD_CHIP_T5,    /* 7 */
+	LCD_CHIP_T5D,   /* 8 */
+	LCD_CHIP_T7,    /* 9 */
+	LCD_CHIP_T3,	/* 10 */
+	LCD_CHIP_T5W,	/* 11 */
 	LCD_CHIP_MAX,
 };
 

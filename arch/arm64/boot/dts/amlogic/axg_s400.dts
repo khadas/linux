@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesonaxg.dtsi"
+#include "mesonaxg_s400-panel.dtsi"
 / {
 	model = "Amlogic";
 	amlogic-dt-id = "axg_s400_1g";
@@ -1300,12 +1301,6 @@
 		};
 	};
 
-	bl_pwm_on_pins: bl_pwm_on_pin {
-		mux {
-			groups = "pwm_b_z";
-			function = "pwm_b";
-		};
-	};
 	bl_pwm_off_pins:bl_pwm_off_pin {
 		mux {
 			pins = "GPIOZ_4";
@@ -1486,5 +1481,9 @@
 };
 
 &vout {
+	status = "okay";
+};
+
+&pwm_ab {
 	status = "okay";
 };
