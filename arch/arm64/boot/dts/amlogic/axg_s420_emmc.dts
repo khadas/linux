@@ -219,7 +219,8 @@
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
-
+		//interrupts = <GIC_SPI 51 IRQ_TYPE_EDGE_RISING>;
+		//interrupt-names = "audio_exception64";
 		status = "okay";
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
@@ -259,7 +260,8 @@
 				system-clock-frequency = <12288000>;
 			};
 			codec {
-				sound-dai = <&tas5707_1b &tlv320adc3101_19>;
+				sound-dai = <&tlv320adc3101_19>;
+				//sound-dai = <&tas5707_1b>;
 			};
 		};
 
@@ -281,7 +283,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&tas5707_1b>;
 			};
 		};
 
@@ -588,23 +590,23 @@
 /* Audio Related start */
 /* for spk board */
 &i2c1 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&b_i2c_master>;
 
 	tlv320adc3101_19: tlv320adc3101_19@19 {
-		compatible = "ti,tlv320adc3101";
+		compatible = "ti, tlv320adc3101";
 		#sound-dai-cells = <0>;
 		reg = <0x19>;
 		differential_pair = <1>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	tas5707_1b: tas5707_1b@1b {
 		compatible = "ti,tas5707";
 		#sound-dai-cells = <0>;
 		reg = <0x1b>;
-		status = "disabled";
+		status = "okay";
 		reset_pin = <&gpio_ao GPIOAO_4 0>;
 	};
 
@@ -783,7 +785,7 @@
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmin_a &tdmout_a  &tdmout_a_data>;
+		pinctrl-0 = <&tdma_pins>;
 	};
 
 	tdmb: tdmb {
@@ -791,12 +793,12 @@
 		#sound-dai-cells = <0>;
 		dai-tdm-lane-slot-mask-out = <1 0>;
 		dai-tdm-lane-slot-mask-in = <0 1>;
-		dai-tdm-clk-sel = <2>;
+		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 				&clkc CLKID_MPLL1>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmb_mclk &tdmout_b &tdmin_b>;
+		pinctrl-0 = <&tdmb_pins &tdmb_mclk>;
 	};
 
 	tdmc: tdmc {
@@ -809,7 +811,7 @@
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 		pinctrl-names = "tdm_pins";
-		pinctrl-0 = <&tdmc_mclk &tdmout_c &tdmin_c>;
+		pinctrl-0 = <&tdmc_pins &tdmc_mclk>;
 	};
 
 	aml_spdif: spdif {
@@ -942,28 +944,15 @@
 }; /* end of audiobus */
 
 &pinctrl_periphs {
-	tdmout_a: tdmout_a {
+	tdma_pins: tdma {
 		mux {
 			groups = "tdma_sclk",
-				"tdma_fs";
-			function = "tdma_out";
+				"tdma_fs",
+				"tdma_dout1",
+				"tdma_din0";
+			function = "tdma";
 		};
 	};
-
-	tdmout_a_data: tdmout_a_data {
-		mux {
-			groups = "tdma_dout1_x15";
-			function = "tdma_out";
-		};
-	};
-
-	tdmin_a: tdmin_a {
-		mux {
-			groups = "tdma_din0";
-			function = "tdma_in";
-		};
-	};
-
 	tdmb_mclk: tdmb_mclk {
 		mux {
 			groups = "mclk_b";
@@ -971,32 +960,13 @@
 		};
 	};
 
-	tdmout_b: tdmout_b {
+	tdmb_pins: tdmb {
 		mux {
 			groups = "tdmb_sclk",
 				"tdmb_fs",
-				"tdmb_dout0";
-			function = "tdmb_out";
-		};
-	};
-
-	// tdmin and tdmout are the same pins. can't use at same time
-	/*
-	 *tdmin_b:tdmin_b {
-	 *	mux {
-	 *		groups = "tdmb_din0",
-	 *			"tdmb_din1",
-	 *			"tdmb_din2_a12",
-	 *			"tdmb_din3_a13";
-	 *		function = "tdmb_in";
-	 *	};
-	 *};
-	 */
-
-	tdmin_b: tdmin_b {
-		mux {
-			groups = "tdmb_din1";
-			function = "tdmb_in";
+				"tdmb_din0",
+				"tdmb_din1";
+			function = "tdmb";
 		};
 	};
 
@@ -1007,19 +977,13 @@
 		};
 	};
 
-	tdmout_c:tdmout_c {
+	tdmc_pins:tdmc {
 		mux {
 			groups = "tdmc_sclk",
 				"tdmc_fs",
-				"tdmc_dout0";
-			function = "tdmc_out";
-		};
-	};
-
-	tdmin_c:tdmin_c {
-		mux {
-			groups = "tdmc_din1";
-			function = "tdmc_in";
+				"tdmc_dout0",
+				"tdmc_din1";
+			function = "tdmc";
 		};
 	};
 
