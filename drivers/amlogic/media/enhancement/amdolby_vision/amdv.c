@@ -12791,7 +12791,7 @@ static long amdolby_vision_ioctl(struct file *file,
 	case DV_IOC_SET_DV_DARK_DETAIL:
 		mode_id = get_pic_mode();
 		if (copy_from_user(&dark_detail, argp,
-			sizeof(s32) == 0)) {
+			sizeof(s32)) == 0) {
 			if (debug_dolby & 0x200)
 				pr_info("[DV]: set mode %d darkdetail %d\n",
 					mode_id, dark_detail);
