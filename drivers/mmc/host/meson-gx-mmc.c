@@ -2724,7 +2724,7 @@ static irqreturn_t meson_mmc_irq(int irq, void *dev_id)
 	if (WARN_ON(!host))
 		return IRQ_NONE;
 
-	if (!host->cmd && aml_card_type_mmc(host)) {
+	if (!host->cmd && (aml_card_type_mmc(host) || aml_card_type_non_sdio(host))) {
 		pr_debug("ignore irq.[%s]\n",
 			__func__);
 		if (host->mmc->cqe_on) {
