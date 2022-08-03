@@ -101,9 +101,9 @@ bool hpd_to_esm;
 MODULE_PARM_DESC(hpd_to_esm, "\n hpd_to_esm\n");
 module_param(hpd_to_esm, bool, 0664);
 
-bool hdcp22_kill_esm;
+int hdcp22_kill_esm;
 MODULE_PARM_DESC(hdcp22_kill_esm, "\n hdcp22_kill_esm\n");
-module_param(hdcp22_kill_esm, bool, 0664);
+module_param(hdcp22_kill_esm, int, 0664);
 
 bool hdcp_mode_sel;
 MODULE_PARM_DESC(hdcp_mode_sel, "\n hdcp_mode_sel\n");

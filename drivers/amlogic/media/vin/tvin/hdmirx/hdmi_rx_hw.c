@@ -80,6 +80,11 @@ int hdcp22_on;
 MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
 module_param(hdcp22_on, int, 0664);
 
+/* 0: previous hdcp_rx22 ,1: new hdcp_rx22 */
+int rx22_ver;
+MODULE_PARM_DESC(rx22_ver, "\n rx22_ver\n");
+module_param(rx22_ver, int, 0664);
+
 MODULE_PARM_DESC(force_clk_rate, "\n force_clk_rate\n");
 module_param(force_clk_rate, int, 0664);
 
@@ -2515,14 +2520,23 @@ void hdmirx_hdcp22_esm_rst(void)
 	if (rx.chip_id >= CHIP_ID_T7)
 		return;
 
-	/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
-	if (rx.chip_id >= CHIP_ID_TL1)
-		hdmirx_wr_top(TOP_SW_RESET, 0x1000);
-	else
-		/* For txlx and previous chips,the sw_reset_hdcp22 is bit'8 */
-		hdmirx_wr_top(TOP_SW_RESET, 0x100);
-	mdelay(1);
-	hdmirx_wr_top(TOP_SW_RESET, 0x0);
+	rx_pr("before kill\n");
+	rx_kill_esm();
+	mdelay(5);
+	if (hdcp22_kill_esm == 3 || !rx22_ver) {
+		rx_pr("before rst:\n");
+		/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
+		if (rx.chip_id >= CHIP_ID_TL1)
+			hdmirx_wr_top(TOP_SW_RESET, 0x1000);
+		else
+			/* For txlx and previous chips,the sw_reset_hdcp22 is bit'8 */
+			hdmirx_wr_top(TOP_SW_RESET, 0x100);
+		rx_pr("before releas\n");
+		mdelay(1);
+		hdmirx_wr_top(TOP_SW_RESET, 0x0);
+	} else {
+		rx_pr("do not kill\n");
+	}
 	rx_pr("esm rst\n");
 }
 
@@ -2588,11 +2602,11 @@ void hdcp_22_off(void)
 		/* rx_set_cur_hpd(0); */
 		hpd_to_esm = 0;
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
-		if (hdcp22_kill_esm == 0)
-			hdmirx_hdcp22_esm_rst();
-		else
-			hdcp22_kill_esm = 0;
-		hdcp22_clk_en(0);
+	//if (hdcp22_kill_esm == 0)
+	hdmirx_hdcp22_esm_rst();
+	//else
+		//hdcp22_kill_esm = 0;
+	hdcp22_clk_en(0);
 	}
 	rx_pr("hdcp22 off\n");
 }
@@ -2606,7 +2620,6 @@ void hdcp_22_on(void)
 		//TODO..
 	} else {
 		hdcp22_kill_esm = 0;
-		kill_esm_fail = 0;
 		/* switch_set_state(&rx.hpd_sdev, 0x0); */
 		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
 		rx_hdcp22_send_uevent(0);
