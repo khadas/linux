@@ -1146,6 +1146,39 @@
 	chosen {
 		kaslr-seed = <0x0 0x0>;
 	};
+
+	vpu: vpu {
+		compatible = "amlogic, vpu-axg";
+		status = "disabled";
+		reg =	<0x0 0xff63c000 0x0 0x320    /* clk */
+			 0x0 0xff900000 0x0 0xdd00   /* vcbus */
+			 0x0 0xff900000 0x0 0x10a0   /* cbus */
+			 0x0 0xff800000 0x0 0x100>;  /* aobus */
+		clocks = <&clkc CLKID_VAPB>,
+			<&clkc CLKID_CLK81_VPU_INTR>,
+			<&clkc CLKID_VPU_0>,
+			<&clkc CLKID_VPU_1>,
+			<&clkc CLKID_VPU>;
+		clock-names = "vapb_clk",
+			"vpu_intr_gate",
+			"vpu_clk0",
+			"vpu_clk1",
+			"vpu_clk";
+		clk_level = <3>;
+		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
+	};
+
+	vclk_serve: vclk_serve {
+		compatible = "amlogic, vclk_serve";
+		status = "disabled";
+		mode = <0>;
+		reg = <0x0 0xff63c000 0x0 0x320>; /* hiu reg */
+	};
+
+	vout: vout {
+		compatible = "amlogic, vout";
+		status = "disabled";
+	};
 };/* end of / */
 
 &pinctrl_aobus {

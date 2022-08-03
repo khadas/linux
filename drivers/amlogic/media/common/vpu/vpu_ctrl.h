@@ -17,6 +17,11 @@
 
 #define CLK_FPLL_FREQ          2000 /* MHz */
 
+/* AXG */
+/* freq max=250M, default=250M */
+#define CLK_LEVEL_DFT_AXG      3
+#define CLK_LEVEL_MAX_AXG      4
+
 /* G12A */
 /* freq max=666M, default=666M */
 #define CLK_LEVEL_DFT_G12A     7
@@ -38,6 +43,15 @@ enum vpu_mux_e {
 	VID2_PLL_CLK,
 	GPLL_CLK,
 	FCLK_DIV_MAX,
+};
+
+static struct fclk_div_s fclk_div_table_axg[] = {
+	/* id,         mux,  div */
+	{FCLK_DIV4,    0,    4},
+	{FCLK_DIV3,    1,    3},
+	{FCLK_DIV5,    2,    5},
+	{FCLK_DIV7,    3,    7},
+	{FCLK_DIV_MAX, 8,    1},
 };
 
 static struct fclk_div_s fclk_div_table_g12a[] = {
@@ -136,6 +150,15 @@ static struct vpu_ctrl_s vpu_iso_sm1[] = {
 /* ******************************************************* */
 /*              VPU memory power down table                */
 /* ******************************************************* */
+static struct vpu_ctrl_s vpu_mem_pd_axg[] = {
+	/* vpu module,        reg,                  val, bit, len */
+	{VPU_VIU_OSD1,        HHI_VPU_MEM_PD_REG0,  0x3, 0,   2},
+	{VPU_VIU_OFIFO,       HHI_VPU_MEM_PD_REG0,  0x3, 2,   2},
+	{VPU_VPU_ARB,         HHI_VPU_MEM_PD_REG0,  0x3, 4,   2},
+	{VPU_VENCL,           HHI_VPU_MEM_PD_REG0,  0x3, 6,   2},
+	{VPU_MOD_MAX,         VPU_REG_END,          0,   0,   0},
+};
+
 static struct vpu_ctrl_s vpu_mem_pd_g12a[] = {
 	/* vpu module,      reg,                   val,  bit, len */
 	{VPU_VIU_OSD1,        HHI_VPU_MEM_PD_REG0, 0x3,  0,   2},
@@ -590,6 +613,15 @@ static unsigned int vpu_pwrctrl_id_table_t3[] = {
 /* ******************************************************* */
 /*                 VPU clock gate table                    */
 /* ******************************************************* */
+static struct vpu_ctrl_s vpu_clk_gate_axg[] = {
+	/* vpu module,      reg,                  val, bit, len */
+	{VPU_VPU_TOP,       VPU_CLK_GATE,         1,   1,   1},
+	{VPU_VLOCK,         VPU_CLK_GATE,         1,  14,   1},
+	{VPU_MISC,          VPU_CLK_GATE,         1,   6,   1},
+	{VPU_VENCL,         VPU_CLK_GATE,         1,   4,   2},
+	{VPU_MAX,           VPU_REG_END,          0,   0,   0},
+};
+
 static struct vpu_ctrl_s vpu_clk_gate_g12a[] = {
 	/* vpu module,      reg,                  val, bit, len */
 	{VPU_VPU_TOP,       VPU_CLK_GATE,         1,   1,   1}, /*vpu_sys_clk*/

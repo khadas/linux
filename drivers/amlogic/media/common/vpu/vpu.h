@@ -12,7 +12,8 @@
 #define VPUERR(fmt, args ...)    pr_err("vpu: error: " fmt, ## args)
 
 enum vpu_chip_e {
-	VPU_CHIP_G12A = 0,
+	VPU_CHIP_AXG = 0,
+	VPU_CHIP_G12A,
 	VPU_CHIP_G12B,
 	VPU_CHIP_TL1,
 	VPU_CHIP_SM1,

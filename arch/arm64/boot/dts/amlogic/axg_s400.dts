@@ -1465,3 +1465,15 @@
 	status = "okay";
 	uart-has-rtscts;
 };
+
+&vpu {
+	status = "okay";
+};
+
+&vclk_serve {
+	status = "okay";
+};
+
+&vout {
+	status = "okay";
+};

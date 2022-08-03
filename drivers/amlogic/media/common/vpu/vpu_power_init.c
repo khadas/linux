@@ -46,6 +46,7 @@ void vpu_module_init_config(void)
 
 	/* dmc_arb_config */
 	switch (vpu_conf.data->chip_type) {
+	case VPU_CHIP_AXG:
 	case VPU_CHIP_G12A:
 	case VPU_CHIP_G12B:
 	case VPU_CHIP_TL1:
