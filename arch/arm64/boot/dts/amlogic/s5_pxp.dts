@@ -118,7 +118,7 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			size = <0x0 0x0B000000>;
+			//size = <0x0 0x0B000000>;
 			//size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
@@ -222,28 +222,45 @@
 	};
 
 	multi-di {
-		compatible = "amlogic, dim-t7";
-		status = "disabled";
-		/* 0:use reserved; 1:use cma; 2:use cma as reserved */
-		flag_cma = <4>;	//<1>;
-		//memory-region = <&di_reserved>;
-		memory-region = <&di_cma_reserved>;
-		interrupts = <0 203 1
-				0 202 1>;
-		interrupt-names = "pre_irq", "post_irq";
-//		clocks = <&clkc CLKID_VPU_CLKB>,
-//			<&clkc CLKID_VPU>;
-//		clock-names = "vpu_clkb",
-//			"vpu_mux";
-		clock-range = <334 667>;
-		/* buffer-size = <3621952>;(yuv422 8bit) */
-		buffer-size = <4074560>;/*yuv422 fullpack*/
-		/* reserve-iomap = "true"; */
-		/* if enable nr10bit, set nr10bit-support to 1 */
-		post-wr-support = <1>;
-		nr10bit-support = <1>;
-		nrds-enable = <1>;
-		pps-enable = <1>;
+		//status = "okay";
+		/***************************************************
+		 * memory: default is 4
+		 *	0:use reserved;
+		 *	1:use cma;
+		 *	2:use cma as reserved
+		 *  4:use codec mem
+		 ***************************************************/
+		//flag_cma = <4>;//t5d unsupport 4K,di 1CH need 42M
+		//memory-region = <&di_cma_reserved>;
+		/***************************************************
+		 * clock-range: <min max>
+		 *	default: <334 334>
+		 ***************************************************/
+		//clock-range = <334 334>;
+		/***************************************************
+		 * en_4k: t5d not support 4k
+		 ***************************************************/
+		en_4k = <1>;
+		keep_dec_vf = <2>;
+		po_fmt = <6>;
+		/***************************************************
+		 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
+		 * local 7*4075520 = 28
+		 * post 11*5222400 = 56
+		 ***************************************************/
+		post_nub = <11>;
+		/***************************************************
+		 * 0:not support
+		 * bit 0: for 4k
+		 * bit 1: for 1080p
+		 ***************************************************/
+		alloc_sct = <1>;
+		/***************************************************
+		 * hf: default is 0 (T7/T3/SC2/S4 new path)
+		 * 0:not enable;
+		 * 1: enable
+		 ***************************************************/
+		//hf = <1>;
 	};
 
 	provisionkey {
