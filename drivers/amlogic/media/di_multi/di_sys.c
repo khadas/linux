@@ -4147,6 +4147,18 @@ static int di_suspend(struct device *dev)
 	di_devp = dev_get_drvdata(dev);
 	di_devp->flags |= DI_SUSPEND_FLAG;
 
+	/*set clkb to low ratio*/
+		if (DIM_IS_IC(T5)	||
+		   DIM_IS_IC(T5DB)	||
+		   DIM_IS_IC(T5D)) {
+	#ifdef CLK_TREE_SUPPORT
+			if (dimp_get(edi_mp_clock_low_ratio)) {
+				clk_set_rate(di_devp->vpu_clkb,
+					dimp_get(edi_mp_clock_low_ratio));
+			}
+	#endif
+		}
+
 	di_clear_for_suspend(di_devp);
 
 	if (!is_meson_txlx_cpu())
