@@ -161,17 +161,11 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 			u8 topoval;
 
 			topoval = hdcptx2_topology_get();
-			/* include the count/depth of downstream repeater itself.
-			 * the rcvid list of downstream repeater will be added to notify
-			 * list in assemble_ds_ksv_lists()
+			/* should only add depth/count for repeater itself
+			 * when propagate topology information to upstream side.
 			 */
-			if (hdcp_need_control_by_upstream(hdev)) {
-				topo->rp_depth = hdcptx2_rpt_depth_get() + 1;
-				topo->dev_count = hdcptx2_rpt_dev_cnt_get() + 1;
-			} else {
-				topo->rp_depth = hdcptx2_rpt_depth_get();
-				topo->dev_count = hdcptx2_rpt_dev_cnt_get();
-			}
+			topo->rp_depth = hdcptx2_rpt_depth_get();
+			topo->dev_count = hdcptx2_rpt_dev_cnt_get();
 			if (topoval & 0x08 || topo->dev_count > HDCP2X_MAX_DEV)
 				topo->max_devs_exceed = true;
 			else
@@ -202,17 +196,15 @@ static void hdcp_topology_update(struct hdcp_t *p_hdcp)
 				HDCP1X_MAX_TX_DEV_RPT : HDCP1X_MAX_TX_DEV_SRC;
 
 			hdcptx1_bstatus_get(bstatus);
-			/* include the count/depth of downstream repeater itself.
-			 * the bksv of downstream repeater will be added to notify
-			 * list in assemble_ds_ksv_lists()
+			/* for 3C-II-06/07, the maximum cascade and device count actually
+			 * not exceed the maximum, if we add depth/count for repeater itself
+			 * here, it will exceed the maximum by wrong and will retry hdcp
+			 * auth as topology error, hdcp1.4 repeater CTS 3C-II-06/07 will fail
+			 * by this retry. should only add depth/count for repeater itself
+			 * when propagate topology information to upstream side.
 			 */
-			if (hdcp_need_control_by_upstream(hdev)) {
-				topo->rp_depth = (bstatus[1] & 0x07) + 1;
-				topo->dev_count = (bstatus[0] & 0x7F) + 1;
-			} else {
-				topo->rp_depth = bstatus[1] & 0x07;
-				topo->dev_count = bstatus[0] & 0x7F;
-			}
+			topo->rp_depth = bstatus[1] & 0x07;
+			topo->dev_count = bstatus[0] & 0x7F;
 			if (bstatus[0] & 0x80 || topo->dev_count > max_devices)
 				topo->max_devs_exceed = true;
 			else
@@ -488,6 +480,55 @@ static void hdcp_notify_rpt_info(struct work_struct *work)
 	unsigned int j = 0;
 	struct hdcp_t *p_hdcp = container_of((struct delayed_work *)work,
 		struct hdcp_t, ksv_notify_wk);
+	struct hdcp_topo_t *topo = &p_hdcp->hdcp_topology;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	/* note: need calculate the topo info for hdcp repeater
+	 * here instead of in hdcp_topology_update()
+	 */
+	if (p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
+		if (p_hdcp->ds_repeater) {
+			/* include the count/depth of downstream repeater itself.
+			 * the rcvid list of downstream repeater will be added to notify
+			 * list in assemble_ds_ksv_lists()
+			 */
+			if (hdcp_need_control_by_upstream(hdev)) {
+				topo->rp_depth += 1;
+				topo->dev_count += 1;
+			}
+			if (topo->dev_count > HDCP2X_MAX_DEV)
+				topo->max_devs_exceed = true;
+			if (topo->rp_depth > HDCP2X_MAX_DEPTH)
+				topo->max_cas_exceed = true;
+
+			if (topo->max_devs_exceed)
+				topo->dev_count = HDCP2X_MAX_DEV;
+			if (topo->max_cas_exceed)
+				topo->rp_depth = HDCP2X_MAX_DEPTH;
+		}
+	} else if (p_hdcp->hdcp_type == HDCP_VER_HDCP1X) {
+		if (p_hdcp->ds_repeater) {
+			u8 max_devices = hdev->repeater_tx ?
+				HDCP1X_MAX_TX_DEV_RPT : HDCP1X_MAX_TX_DEV_SRC;
+			/* include the count/depth of downstream repeater itself.
+			 * the bksv of downstream repeater will be added to notify
+			 * list in assemble_ds_ksv_lists()
+			 */
+			if (hdcp_need_control_by_upstream(hdev)) {
+				topo->rp_depth += 1;
+				topo->dev_count += 1;
+			}
+			if (topo->dev_count > max_devices)
+				topo->max_devs_exceed = true;
+			if (topo->rp_depth > HDCP1X_MAX_DEPTH)
+				topo->max_cas_exceed = true;
+
+			if (topo->max_devs_exceed)
+				topo->dev_count = max_devices;
+			if (topo->max_cas_exceed)
+				topo->rp_depth = HDCP1X_MAX_DEPTH;
+		}
+	}
 
 	memset(&hdcp_topo, 0, sizeof(hdcp_topo));
 	hdcp_topo.hdcp_ver = p_hdcp->hdcp_type;
