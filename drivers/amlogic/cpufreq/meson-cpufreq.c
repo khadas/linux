@@ -960,6 +960,10 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 
 	if (of_property_read_u32(np, "clock-latency", &transition_latency))
 		policy->cpuinfo.transition_latency = CPUFREQ_ETERNAL;
+	if (of_property_read_u32(np, "suspend-freq", &policy->suspend_freq))
+		policy->suspend_freq = get_table_max(freq_table[cur_cluster]);
+	else
+		policy->suspend_freq = cpufreq_driver_resolve_freq(policy, policy->suspend_freq);
 
 	cpufreq_data->clusterid = cur_cluster;
 	cpufreq_data->cpu_dev = cpu_dev;
@@ -979,7 +983,6 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 	policy->driver_data = cpufreq_data;
 	policy->clk = clk[cur_cluster];
 	policy->cpuinfo.transition_latency = transition_latency;
-	policy->suspend_freq = get_table_max(freq_table[cur_cluster]);
 	policy->cur = clk_get_rate(clk[cur_cluster]) / 1000;
 
 	/*

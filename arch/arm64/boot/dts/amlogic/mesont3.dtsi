@@ -48,6 +48,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			suspend-freq = <1200000>;
 			dynamic-power-coefficient = <230>;
 		};
 
@@ -76,6 +77,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			suspend-freq = <1200000>;
 			dynamic-power-coefficient = <230>;
 		};
 
@@ -104,6 +106,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			suspend-freq = <1200000>;
 			dynamic-power-coefficient = <230>;
 		};
 
@@ -132,6 +135,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			suspend-freq = <1200000>;
 			dynamic-power-coefficient = <230>;
 		};
 
