@@ -145,7 +145,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0xB000000>;
+			size = <0x0 0xF000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -1411,7 +1411,8 @@
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
 		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
-		reset = <&gpio GPIOE_4 GPIO_ACTIVE_HIGH>;
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		ports {
 			port@0 {
 				imx290_2_ep: imx290 {
@@ -1443,7 +1444,8 @@
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
 		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
-		reset = <&gpio GPIOE_4 GPIO_ACTIVE_HIGH>;
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		port {
 			ov08a10_0_ep: ov08a10 {
 				data-lanes = <0 1 2 3>;
