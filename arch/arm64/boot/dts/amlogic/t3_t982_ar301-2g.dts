@@ -1728,8 +1728,9 @@
 &spicc1 {	//for UWB/LocalDimm
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc1_pins>;
-	cs-gpios = <&gpio GPIOH_24 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
+	cs2clk-us = <2>;
+	clk2cs-us = <12>;
 };
 
 &spicc2 {

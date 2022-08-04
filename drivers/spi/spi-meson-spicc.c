@@ -204,10 +204,10 @@
 #define SPICC_ENH_MO_OEN_DELAY_MASK	GENMASK(31, 29)
 
 #define SPICC_ENH_CTL2	0x40	/* Enhanced Feature */
-#define SPICC_ENH_TI_DELAY_MASK		GENMASK(14, 0)
-#define SPICC_ENH_TI_DELAY_EN		BIT(15)
-#define SPICC_ENH_TT_DELAY_MASK		GENMASK(30, 16)
-#define SPICC_ENH_TT_DELAY_EN		BIT(31)
+#define SPICC_ENH_TT_DELAY_MASK		GENMASK(14, 0)
+#define SPICC_ENH_TT_DELAY_EN		BIT(15)
+#define SPICC_ENH_TI_DELAY_MASK		GENMASK(30, 16)
+#define SPICC_ENH_TI_DELAY_EN		BIT(31)
 #endif
 
 #define writel_bits_relaxed(mask, val, addr) \
@@ -248,6 +248,8 @@ struct meson_spicc_device {
 	void				(*complete)(void *context);
 	void				*context;
 	s32				latency;
+	unsigned int			cs2clk_ns;
+	unsigned int			clk2cs_ns;
 	bool				parent_clk_fixed;
 	bool				toggle_cs_every_word;
 #endif
@@ -288,6 +290,8 @@ static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
 	u32 div, latency;
 	int shift, mi_delay, cap_delay;
 	u32 conf = 0;
+	struct clk *clk;
+	u32 period_ns;
 
 	if (spicc->data->has_linear_div)
 		conf = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
@@ -321,6 +325,34 @@ static void meson_spicc_auto_io_delay(struct meson_spicc_device *spicc)
 	conf |= FIELD_PREP(SPICC_MI_DELAY_MASK, mi_delay);
 	conf |= FIELD_PREP(SPICC_MI_CAP_DELAY_MASK, cap_delay);
 	writel_relaxed(conf, spicc->base + SPICC_TESTREG);
+
+	/* get period of parent clk */
+	clk = spicc->data->has_async_clk ? spicc->async_clk : spicc->core;
+	period_ns = DIV_ROUND_UP_ULL((u64)1000000000, clk_get_rate(clk));
+
+	/* set cs-clk delay */
+	conf = readl_relaxed(spicc->base + SPICC_ENH_CTL0);
+	if (spicc->cs2clk_ns) {
+		conf &= ~SPICC_ENH_CLK_CS_DELAY_MASK;
+		conf |= FIELD_PREP(SPICC_ENH_CLK_CS_DELAY_MASK,
+				DIV_ROUND_UP(spicc->cs2clk_ns, period_ns));
+		conf |= SPICC_ENH_CLK_CS_DELAY_EN;
+	} else {
+		conf &= ~SPICC_ENH_CLK_CS_DELAY_EN;
+	}
+	writel_relaxed(conf, spicc->base + SPICC_ENH_CTL0);
+
+	/* set clk-cs delay */
+	conf = readl_relaxed(spicc->base + SPICC_ENH_CTL2);
+	if (spicc->clk2cs_ns) {
+		conf &= ~SPICC_ENH_TT_DELAY_MASK;
+		conf |= FIELD_PREP(SPICC_ENH_TT_DELAY_MASK,
+				DIV_ROUND_UP(spicc->clk2cs_ns, period_ns));
+		conf |= SPICC_ENH_TT_DELAY_EN;
+	} else {
+		conf &= ~SPICC_ENH_TT_DELAY_EN;
+	}
+	writel_relaxed(conf, spicc->base + SPICC_ENH_CTL2);
 }
 
 static void meson_spicc_set_width(struct meson_spicc_device *spicc, int width)
@@ -605,7 +637,10 @@ static void meson_spicc_hw_prepare(struct meson_spicc_device *spicc,
 
 	conf = readl_relaxed(spicc->base + SPICC_CONREG);
 #ifdef CONFIG_AMLOGIC_MODIFY
-	conf &= ~(SPICC_POL | SPICC_PHA | SPICC_SSPOL | SPI_READY | SPICC_SSCTL);
+	/* Setup burst length max */
+	conf |= SPICC_BURSTLENGTH_MASK;
+	conf &= ~(SPICC_POL | SPICC_PHA | SPICC_SSPOL | SPI_READY
+		  | SPICC_SSCTL | SPICC_SMC | SPICC_XCH);
 	if (spicc->toggle_cs_every_word)
 		conf |= SPICC_SSCTL;
 #else
@@ -1399,6 +1434,13 @@ static int meson_spicc_probe(struct platform_device *pdev)
 		spicc->parent_clk_fixed = true;
 	if (of_property_read_bool(pdev->dev.of_node, "toggle_cs_every_word"))
 		spicc->toggle_cs_every_word = true;
+
+	of_property_read_s32(pdev->dev.of_node, "cs2clk-us",
+			     &spicc->cs2clk_ns);
+	of_property_read_s32(pdev->dev.of_node, "clk2cs-us",
+			     &spicc->clk2cs_ns);
+	spicc->cs2clk_ns *= 1000;
+	spicc->clk2cs_ns *= 1000;
 
 	if (spicc->data->has_async_clk) {
 		/* SoCs has async-clk is incapable of using full burst */
