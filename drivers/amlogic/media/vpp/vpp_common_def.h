@@ -14,6 +14,7 @@
 #define VPP_MTRX_OFFSET_LEN       (3)
 #define VPP_HIST_BIN_COUNT        (64)
 #define VPP_COLOR_HIST_BIN_COUNT  (32)
+#define VPP_HDR_HIST_BIN_COUNT    (128)
 
 #define VPP_DNLP_SCURV_LEN             (65)
 #define VPP_DNLP_GAIN_VAR_LUT_LEN      (49)
@@ -44,12 +45,6 @@ enum vpp_level_mode_e {
 enum vpp_pc_mode_e {
 	EN_PC_MODE_OFF = 0,
 	EN_PC_MODE_ON,
-};
-
-enum vpp_page_module_e {
-	EN_MODULE_SHARP_0 = 0,
-	EN_MODULE_SHARP_1,
-	EN_MODULE_INDEX_MAX,
 };
 
 enum vpp_module_e {
@@ -256,6 +251,12 @@ enum vpp_dnlp_param_e {
 	EN_DNLP_PARAM_MAX,
 };
 
+enum vpp_lut3d_data_type_e {
+	EN_LUT3D_INPUT_PARAM = 0,
+	EN_LUT3D_UNIFY_KEY,
+	EN_LUT3D_BIN_FILE,
+};
+
 enum vpp_data_src_e {
 	EN_SRC_VGA = 0,
 	EN_SRC_ATV_NTSC,
@@ -335,6 +336,34 @@ enum vpp_data_src_e {
 	EN_SRC_INDEX_MAX,
 };
 
+/*Settings index sync*/
+enum vpp_lc_param_e {
+	EN_LC_CURVE_NODES_VLPF = 0,
+	EN_LC_CURVE_NODES_HLPF,
+	EN_LC_LMT_RAT_VALID,
+	EN_LC_LMT_RAT_MIN_MAX,
+	EN_LC_CONTRAST_GAIN_HIGH,
+	EN_LC_CONTRAST_GAIN_LOW,   /*5*/
+	EN_LC_CONTRAST_LMT_HIGH_1,
+	EN_LC_CONTRAST_LMT_LOW_1,
+	EN_LC_CONTRAST_LMT_HIGH_0,
+	EN_LC_CONTRAST_LMT_LOW_0,
+	EN_LC_CONTRAST_SCALE_HIGH, /*10*/
+	EN_LC_CONTRAST_SCALE_LOW,
+	EN_LC_CONTRAST_BVN_HIGH,
+	EN_LC_CONTRAST_BVN_LOW,
+	EN_LC_SLOPE_MAX_FACE,
+	EN_LC_NUM_M_CORING,        /*15*/
+	EN_LC_YPKBV_SLOPE_MAX,
+	EN_LC_YPKBV_SLOPE_MIN,
+	EN_LC_PARAM_MAX,
+};
+
+enum vpp_sr_param_e {
+	EN_SR_ENABLE = 0,
+	EN_SR_PARAM_MAX,
+};
+
 /*Commom struct*/
 struct vpp_pq_ctrl_s {
 	unsigned char vadj1_en;    /*control video brightness contrast saturation hue*/
@@ -351,6 +380,7 @@ struct vpp_pq_ctrl_s {
 	unsigned char sharpness0_en;
 	unsigned char sharpness1_en;
 	unsigned char cm_en;
+	unsigned char lut3d_en;
 	unsigned char reserved;
 };
 
@@ -473,6 +503,15 @@ struct vpp_lc_curve_s {
 	unsigned int param[100];
 };
 
+struct vpp_lc_param_s {
+	unsigned int param[EN_LC_PARAM_MAX];
+};
+
+struct vpp_sr_param_s {
+	unsigned char mode; /*0=Sharpness0, 1=Sharpness1*/
+	unsigned int param[EN_SR_PARAM_MAX];
+};
+
 struct vpp_cabc_aad_param_s {
 	unsigned int length;
 	union {
@@ -539,6 +578,21 @@ struct vpp_dnlp_curve_param_s {
 	unsigned int param[EN_DNLP_PARAM_MAX];
 };
 
+struct vpp_lut3d_path_s {
+	enum vpp_lut3d_data_type_e data_type;
+	unsigned char data_count;
+	unsigned char path_length;
+	unsigned char *ppath;
+};
+
+struct vpp_lut3d_table_s {
+	enum vpp_lut3d_data_type_e data_type;
+	unsigned char data_index;
+	unsigned char data_check;
+	unsigned int data_size;
+	unsigned int *pdata;
+};
+
 struct vpp_module_ctrl_s {
 	enum vpp_module_e module_type;
 	int status;
@@ -546,7 +600,8 @@ struct vpp_module_ctrl_s {
 
 struct vpp_pq_tuning_reg_s {
 	unsigned char reg_addr;
-	unsigned char mask_type;
+	unsigned char bit_start;
+	unsigned char bit_end;
 	unsigned int val;
 };
 
@@ -582,8 +637,9 @@ struct vpp_pq_tuning_table_s {
 
 #define VPP_IOC_SET_DNLP_PARAM      _IOW(_VPP_TYPE, 0x11, struct vpp_dnlp_curve_param_s)
 #define VPP_IOC_SET_LC_CURVE        _IOW(_VPP_TYPE, 0x12, struct vpp_lc_curve_s)
-#define VPP_IOC_SET_CSC_TYPE        _IOW(_VPP_TYPE, 0x13 enum vpp_csc_type_e)
-#define VPP_IOC_SET_3DLUT_DATA      _IOW(_VPP_TYPE, 0x14, int)
+#define VPP_IOC_SET_LC_PARAM        _IOW(_VPP_TYPE, 0x13, struct vpp_lc_param_s)
+#define VPP_IOC_SET_CSC_TYPE        _IOW(_VPP_TYPE, 0x14, enum vpp_csc_type_e)
+#define VPP_IOC_SET_3DLUT_DATA      _IOW(_VPP_TYPE, 0x15, struct vpp_lut3d_table_s)
 
 #define VPP_IOC_GET_PC_MODE         _IOR(_VPP_TYPE, 0x80, enum vpp_pc_mode_e)
 #define VPP_IOC_GET_CSC_TYPE        _IOR(_VPP_TYPE, 0x81, enum vpp_csc_type_e)

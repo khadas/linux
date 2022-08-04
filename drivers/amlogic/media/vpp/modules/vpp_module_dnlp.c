@@ -117,7 +117,8 @@ static void _set_dnlp_data(enum _dnlp_mode_e mode, int *pdata)
 	}
 }
 
-static void _calculate_dnlp_tgtx(int hist_luma_sum, int *phist_data)
+static void _calculate_dnlp_tgtx(int hist_luma_sum,
+	unsigned short *phist_data)
 {
 	int i = 0;
 	int same_bin_num = 0;
@@ -437,7 +438,8 @@ void vpp_module_dnlp_en(bool enable)
 		dnlp_bit_cfg.bit_dnlp_ctrl_en.len);
 }
 
-void vpp_module_dnlp_update_data(int hist_luma_sum, int *phist_data)
+void vpp_module_dnlp_update_data(int hist_luma_sum,
+	unsigned short *phist_data)
 {
 	if (!dnlp_alg_insmod_ok)
 		_dnlp_algorithm_init();

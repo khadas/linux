@@ -12,7 +12,7 @@ struct dnlp_ai_pq_param_s {
 
 int vpp_module_dnlp_init(struct vpp_dev_s *pdev);
 void vpp_module_dnlp_en(bool enable);
-void vpp_module_dnlp_update_data(int hist_luma_sum, int *phist_data);
+void vpp_module_dnlp_update_data(int hist_luma_sum, unsigned short *phist_data);
 void vpp_module_dnlp_get_sat_compensation(bool *psat_comp, int *psat_val);
 void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata);
 

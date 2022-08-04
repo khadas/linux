@@ -30,8 +30,10 @@
 #include <linux/poll.h>
 #include <linux/workqueue.h>
 #include <linux/sched/clock.h>
+#include <linux/delay.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 
 #include "vpp_common_def.h"
 #include "vpp_reg_io.h"
@@ -77,6 +79,20 @@ extern unsigned int pr_lvl;
 	})
 #endif
 
+enum vpp_vd_path_e {
+	EN_VD1_PATH = 0,
+	EN_VD2_PATH,
+	EN_VD3_PATH,
+	EN_VD_PATH_MAX,
+};
+
+enum vpp_vf_top_e {
+	EN_VF_TOP0 = 0,
+	EN_VF_TOP1,
+	EN_VF_TOP2,
+	EN_VF_TOP_MAX,
+};
+
 /*ai detected scenes*/
 enum vpp_detect_scene_e {
 	EN_BLUE_SCENE = 0,
@@ -89,7 +105,7 @@ enum vpp_detect_scene_e {
 	EN_SCENE_MAX,
 };
 
-/*detected single scene process*/
+/*ai detected single scene process*/
 struct vpp_single_scene_s {
 	bool enable;
 	int (*func)(int offset, bool enable);

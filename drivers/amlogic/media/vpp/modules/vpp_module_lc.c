@@ -256,6 +256,15 @@ static struct _sr1_bit_cfg_s sr1_bit_cfg = {
 
 static struct lc_vs_param_s lc_vs_param;
 
+static int lc_top_cfg[EN_LC_CFG_PARAM_MAX] = {
+	5,
+	5,
+	1,
+	8,
+	LC_BLK_NUM_MAX_V,
+	LC_BLK_NUM_MAX_H,
+};
+
 static struct _lc_alg_cfg_s lc_alg_cfg = {
 	.lc_bitdepth = 10,
 	.detect_range_mode = 2,
@@ -1162,20 +1171,20 @@ static void _lc_top_config(int h_num, int v_num,
 	unsigned int height, unsigned int width)
 {
 	/*lcinput_ysel and _csel*/
-	_set_sr1_lc_input_mux(5,
+	_set_sr1_lc_input_mux(lc_top_cfg[EN_LC_INPUT_YSEL],
 			sr1_bit_cfg.bit_lc_in_ysel.start,
 			sr1_bit_cfg.bit_lc_in_ysel.len);
 
-	_set_sr1_lc_input_mux(5,
+	_set_sr1_lc_input_mux(lc_top_cfg[EN_LC_INPUT_CSEL],
 		sr1_bit_cfg.bit_lc_in_csel.start,
 		sr1_bit_cfg.bit_lc_in_csel.len);
 
 	/*lc top ctrl*/
-	_set_sr1_lc_top_ctrl(1,
+	_set_sr1_lc_top_ctrl(lc_top_cfg[EN_LC_BLKBLEND_MODE],
 		sr1_bit_cfg.bit_lc_blkbld_mode.start,
 		sr1_bit_cfg.bit_lc_blkbld_mode.len);
 
-	_set_sr1_lc_top_ctrl(8,
+	_set_sr1_lc_top_ctrl(lc_top_cfg[EN_LC_HBLANK],
 		sr1_bit_cfg.bit_lc_hblank.start,
 		sr1_bit_cfg.bit_lc_hblank.len);
 
@@ -1248,8 +1257,8 @@ static void _lc_config(int bitdepth, int *phist,
 	static unsigned int flag_full_pre;
 	static unsigned int vf_height_pre, vf_width_pre;
 	static unsigned int sps_w_in_pre, sps_h_in_pre;
-	int h_num = LC_BLK_NUM_MAX_H;
-	int v_num = LC_BLK_NUM_MAX_V;
+	int h_num = lc_top_cfg[EN_LC_BLK_HNUM];
+	int v_num = lc_top_cfg[EN_LC_BLK_VNUM];
 	unsigned int height, width;
 	unsigned int flag_csc, flag_full;
 	enum lc_csc_type_e csc_type_in = EN_LC_CSC_LINEAR;
@@ -2003,6 +2012,15 @@ void vpp_module_lc_set_tune_param(struct lc_curve_tune_param_s *pparam)
 		return;
 
 	memcpy(&lc_tune_curve, pparam, sizeof(lc_tune_curve));
+}
+
+void vpp_module_lc_set_cfg_param(enum lc_cfg_param_e index,
+	int val)
+{
+	if (index == EN_LC_CFG_PARAM_MAX)
+		return;
+
+	lc_top_cfg[index] = val;
 }
 
 void vpp_module_lc_set_isr_def(int val)

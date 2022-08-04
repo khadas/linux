@@ -24,6 +24,16 @@ enum lc_curve_tune_mode_e {
 	EN_LC_TUNE_CORRECT,
 };
 
+enum lc_cfg_param_e {
+	EN_LC_INPUT_CSEL = 0,
+	EN_LC_INPUT_YSEL,
+	EN_LC_BLKBLEND_MODE,
+	EN_LC_HBLANK,
+	EN_LC_BLK_VNUM,
+	EN_LC_BLK_HNUM,
+	EN_LC_CFG_PARAM_MAX,
+};
+
 struct lc_vs_param_s {
 	unsigned int vf_type;
 	unsigned int vf_signal_type;
@@ -52,6 +62,7 @@ void vpp_module_lc_write_lut(enum lc_lut_type_e type, int *pdata);
 void vpp_module_lc_set_demo_mode(bool enable, bool left_side);
 void vpp_module_lc_set_tune_mode(enum lc_curve_tune_mode_e mode);
 void vpp_module_lc_set_tune_param(struct lc_curve_tune_param_s *pparam);
+void vpp_module_lc_set_cfg_param(enum lc_cfg_param_e index, int val);
 void vpp_module_lc_set_isr_def(int val);
 void vpp_module_lc_set_isr_use(int val);
 bool vpp_module_lc_get_support(void);

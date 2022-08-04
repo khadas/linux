@@ -20,7 +20,7 @@ struct vpp_hist_report_s {
 	unsigned int width;
 	unsigned int luma_max;
 	unsigned int luma_min;
-	unsigned int gamma[HIST_GM_BIN_CNT];
+	unsigned short gamma[HIST_GM_BIN_CNT];
 	unsigned int hue_gamma[HIST_HUE_GM_BIN_CNT];
 	unsigned int sat_gamma[HIST_SAT_GM_BIN_CNT];
 };

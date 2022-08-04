@@ -6,11 +6,16 @@
 #include "vpp_common.h"
 #include "vpp_pq_mgr.h"
 #include "vpp_modules_inc.h"
+#include "vpp_data.h"
 
 #define RET_POINT_FAIL (-1)
 
 static enum vpp_chip_type_e chip_type;
 static struct vpp_pq_mgr_settings pq_mgr_settings;
+
+/*For 3D LUT*/
+static bool lut3d_db_initial;
+static unsigned char *pkey_lut_all;
 
 /*Internal functions*/
 static int _modules_init(struct vpp_dev_s *pdev)
@@ -91,6 +96,8 @@ int vpp_pq_mgr_init(struct vpp_dev_s *pdev)
 
 	_modules_init(pdev);
 	_set_default_settings();
+
+	lut3d_db_initial = false;
 
 	return 0;
 }
@@ -449,6 +456,12 @@ int vpp_pq_mgr_set_lc_curve(struct vpp_lc_curve_s *pdata)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_lc_curve);
 
+int vpp_pq_mgr_set_lc_param(struct vpp_lc_param_s *pdata)
+{
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_lc_param);
+
 int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 {
 	switch (module) {
@@ -500,8 +513,82 @@ int vpp_pq_mgr_set_csc_type(int val)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_csc_type);
 
-int vpp_pq_mgr_set_3dlut_data(unsigned int *pdata)
+int vpp_pq_mgr_load_3dlut_data(struct vpp_lut3d_path_s *pdata)
 {
+	int key_len, tmp;
+	struct file *fp;
+	mm_segment_t fs;
+	loff_t pos;
+
+	if (!pdata || !pdata->ppath ||
+		pdata->data_type == EN_LUT3D_INPUT_PARAM) {
+		lut3d_db_initial = false;
+		return 0;
+	}
+
+	key_len = 17 * 17 * 17 * 3 * pdata->data_count;
+	pkey_lut_all = kmalloc(key_len, GFP_KERNEL);
+	if (!pkey_lut_all) {
+		lut3d_db_initial = false;
+		return 1;
+	}
+
+	if (pdata->data_type == EN_LUT3D_UNIFY_KEY) {
+#ifdef CONFIG_AMLOGIC_LCD
+		tmp = lcd_unifykey_get_no_header(pdata->ppath,
+			(unsigned char *)pkey_lut_all, &key_len);
+
+		if (tmp < 0) {
+			kfree(pkey_lut_all);
+			lut3d_db_initial = false;
+			return 1;
+		}
+#endif
+	} else if (pdata->data_type == EN_LUT3D_BIN_FILE) {
+		fp = filp_open(pdata->ppath, O_RDONLY, 0);
+		if (IS_ERR(fp)) {
+			kfree(pkey_lut_all);
+			lut3d_db_initial = false;
+			return 1;
+		}
+
+		fs = get_fs();
+		set_fs(KERNEL_DS);
+		pos = 0;
+		tmp = vfs_read(fp, pkey_lut_all, key_len, &pos);
+		key_len = tmp;
+
+		if (key_len == 0) {
+			kfree(pkey_lut_all);
+			lut3d_db_initial = false;
+			return 1;
+		}
+
+		filp_close(fp, NULL);
+		set_fs(fs);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_load_3dlut_data);
+
+int vpp_pq_mgr_set_3dlut_data(struct vpp_lut3d_table_s *ptable)
+{
+	if (!ptable)
+		return 0;
+
+	switch (ptable->data_type) {
+	case EN_LUT3D_INPUT_PARAM:
+		vpp_module_lut3d_set_data(ptable->pdata);
+		break;
+	case EN_LUT3D_UNIFY_KEY:
+		break;
+	case EN_LUT3D_BIN_FILE:
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_3dlut_data);
