@@ -105,7 +105,8 @@
 /* 20220714: set secure memory not send frame when keystone */
 /* 20220719: up set not support port crash */
 /* 20220726: add 444 format manual set */
-#define VDIN_VER "20220726:add 444 format manual set"
+/* 20220804: vdin1 crash addr modify */
+#define VDIN_VER "20220804:vdin1 crash addr modify"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -821,6 +822,8 @@ struct vdin_dev_s {
 	unsigned int dbg_force_one_buffer:1;
 	unsigned int vdin_function_sel;
 	unsigned int self_stop_start;
+	unsigned int vdin1_stop_write;
+	unsigned int vdin1_stop_write_count;
 };
 
 struct vdin_hist_s {
