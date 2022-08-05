@@ -1074,10 +1074,12 @@
 		read_cmd = <0x82000030>;
 		write_cmd = <0x82000031>;
 		get_max_cmd = <0x82000033>;
+		mem_in_base_cmd = <0x82000020>;
+		mem_out_base_cmd = <0x82000021>;
 		key = <&efusekey>;
 		clocks = <&clkc CLKID_CLK81_EFUSE>;
 		clock-names = "efuse_clk";
-		status = "disabled";
+		status = "okay";
 	};
 
 	efusekey:efusekey{
@@ -1136,6 +1138,7 @@
 
 	defendkey: defendkey {
 		compatible = "amlogic, defendkey";
+		reg=<0x0 0xff800228 0x0 0x4>;
 		mem_size = <0x0 0x100000>;
 		status = "okay";
 	};
