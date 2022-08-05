@@ -2206,7 +2206,7 @@
 	video_composer {
 		compatible = "amlogic, video_composer";
 		dev_name = "video_composer";
-		status = "disabled";
+		status = "okay";
 	};
 
 	rdma{
