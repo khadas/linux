@@ -24,6 +24,10 @@
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #include "video_reg_s5.h"
 
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+#define ENABLE_PRE_LINK
+#endif
+
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
 #define VIDEO_ENABLE_STATE_ON_PENDING 2

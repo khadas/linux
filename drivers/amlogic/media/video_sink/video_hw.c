@@ -9096,13 +9096,13 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			if (iret >= 0) {
 				memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 				di_in_p.win.x_st =
-					layer->cur_frame_par->VPP_hd_start_lines_;
+					layer->next_frame_par->VPP_hd_start_lines_;
 				di_in_p.win.x_end =
-					layer->cur_frame_par->VPP_hd_end_lines_;
+					layer->next_frame_par->VPP_hd_end_lines_;
 				di_in_p.win.y_st =
-					layer->cur_frame_par->VPP_vd_start_lines_;
+					layer->next_frame_par->VPP_vd_start_lines_;
 				di_in_p.win.y_end =
-					layer->cur_frame_par->VPP_vd_end_lines_;
+					layer->next_frame_par->VPP_vd_end_lines_;
 				di_in_p.win.x_size =
 					di_in_p.win.x_end - di_in_p.win.x_st + 1;
 				di_in_p.win.y_size =
@@ -9204,7 +9204,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 			force_toggle = true;
 			if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 				pr_info
-					("layer%d: force disable switch vf: %p\n",
+					("layer%d: force disable switch vf: %px\n",
 					layer->layer_id, vf);
 		}
 		layer->switch_vf = false;
@@ -9365,7 +9365,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 					layer_info, __LINE__);
 				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info
-						("layer%d: switch the display to vf_ext %p->%p\n",
+						("layer%d: switch to vf_ext %px->%px\n",
 						layer->layer_id, vf, vf->vf_ext);
 			}
 			layer->switch_vf = true;
@@ -9379,7 +9379,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 					layer_info, __LINE__);
 				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info
-						("layer%d: switch the display to orig vf %p->%p\n",
+						("layer%d: switch to orig vf %px->%px\n",
 						layer->layer_id, vf->vf_ext, vf);
 			}
 			layer->switch_vf = false;
@@ -11941,7 +11941,7 @@ int video_hw_init(void)
 		WRITE_VCBUS_REG_BITS(VIU_MISC_CTRL1, 0xff, 16, 8);
 		WRITE_VCBUS_REG(VPP_AMDV_CTRL, 0x22000);
 		/*
-		 *default setting is black for dummy data1& dump data0,
+		 *default setting is black for dummy data1& dummy data0,
 		 *for dummy data1 the y/cb/cr data width is 10bit on gxm,
 		 *for dummy data the y/cb/cr data width is 8bit but
 		 *vpp_dummy_data will be left shift 2bit auto on gxm!!!

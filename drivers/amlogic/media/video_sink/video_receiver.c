@@ -43,6 +43,9 @@
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
 #include <linux/amlogic/media/di/di.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+#include <linux/amlogic/media/di/di_interface.h>
+#endif
 
 #include "video_receiver.h"
 
@@ -626,6 +629,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (toggle_vf && IS_DI_POST(toggle_vf->type) &&
+	    dil_get_diffver_flag() == DI_DRV_DEINTERLACE &&
 	    (toggle_vf->flag & VFRAME_FLAG_DOUBLE_FRAM) &&
 	    glayer_info[0].display_path_id == ins->path_id) {
 		if (toggle_vf->di_instance_id == di_api_get_instance_id()) {
@@ -662,6 +666,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	}
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
 	if (ins->switch_vf &&
+	    dil_get_diffver_flag() == DI_DRV_DEINTERLACE &&
 	    ins->switch_vf != ins->last_switch_state) {
 		di_api_post_disable();
 	}
