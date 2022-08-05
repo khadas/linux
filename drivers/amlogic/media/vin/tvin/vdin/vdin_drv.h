@@ -106,7 +106,8 @@
 /* 20220719: up set not support port crash */
 /* 20220726: add 444 format manual set */
 /* 20220804: vdin1 crash addr modify */
-#define VDIN_VER "20220804:vdin1 crash addr modify"
+/* 20220811: state machine optimization */
+#define VDIN_VER "20220811:state machine optimization"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -828,6 +829,7 @@ struct vdin_dev_s {
 	unsigned int vdin1_stop_write;
 	unsigned int vdin1_stop_write_count;
 	unsigned int quit_flag;
+	unsigned int vdin_stable_cnt;
 	struct task_struct *kthread;
 	struct semaphore sem;
 	struct vf_entry *vfe_tmp;

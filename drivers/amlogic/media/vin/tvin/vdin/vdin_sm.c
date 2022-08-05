@@ -463,6 +463,22 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 	}
 }
 
+static inline bool vdin_is_need_send_event(struct vdin_dev_s *devp,
+					struct tvin_info_s *info)
+{
+	if (IS_HDMI_SRC(devp->parm.port) &&
+	    ((devp->flags & VDIN_FLAG_DEC_STARTED &&
+	      info->status == TVIN_SIG_STATUS_UNSTABLE &&
+	      !(devp->vdin_stable_cnt % 10)) ||
+	     (!(devp->flags & VDIN_FLAG_DEC_STARTED) &&
+	      info->status == TVIN_SIG_STATUS_STABLE &&
+	      devp->vdin_stable_cnt >= VDIN_STABLED_CNT &&
+	      !(devp->vdin_stable_cnt % 10))))
+		return true;
+	else
+		return false;
+}
+
 void tvin_smr_init_counter(int index)
 {
 	sm_dev[index].state_cnt          = 0;
@@ -959,8 +975,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 			/* tcl vrr case */
 			devp->vrr_data.vdin_vrr_en_flag =
 				devp->pre_prop.vtem_data.vrr_en;
-			devp->csc_cfg = 0;
-			devp->starting_chg = 0;
+			/* sometime alloc mem too long signal detected again */
+			if (!mutex_is_locked(&devp->fe_lock)) {
+				devp->starting_chg = 0;
+				devp->csc_cfg = 0;
+			}
 			if (sm_debug_enable)
 				pr_info("[smr.%d] %ums prestable --> stable\n",
 					devp->index, jiffies_to_msecs(jiffies));
@@ -1030,6 +1049,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_fmt_chg = 0;
 				sm_print_prestable = 0;
 				atv_stable_fmt_check_enable = 0;
+				devp->vdin_stable_cnt = 0;
 			}
 		} else {
 			/*add for atv snow*/
@@ -1062,6 +1082,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 					sm_atv_prestable_fmt = stable_fmt;
 				}
 			}
+			devp->vdin_stable_cnt++;
 			sm_p->state_cnt = 0;
 			signal_chg |= vdin_hdmirx_fmt_chg_detect(devp);
 			if (signal_chg || devp->starting_chg)
@@ -1081,8 +1102,14 @@ void tvin_smr(struct vdin_dev_s *devp)
 		break;
 	}
 
+	if (sm_debug_enable & VDIN_SM_LOG_L_5)
+		pr_info("status:%x %x %x\n",
+			sm_p->state, info->status, sm_p->sig_status);
+
 	if (devp->flags & VDIN_FLAG_DEC_OPENED) {
-		if (sm_p->sig_status != info->status) {
+		if ((sm_p->sig_status != info->status ||
+		     vdin_is_need_send_event(devp, info)) &&
+		    !mutex_is_locked(&devp->fe_lock)) {
 			sm_p->sig_status = info->status;
 			devp->event_info.event_sts = TVIN_SIG_CHG_STS;
 			devp->pre_event_info.event_sts =

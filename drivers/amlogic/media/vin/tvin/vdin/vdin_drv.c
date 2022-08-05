@@ -934,7 +934,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXTVBB))
 			vdin_check_hdmi_hdr(devp);
 
-		vdin_update_prop(devp);
+		/* signal maybe change after stabled so not need update here */
+		//vdin_update_prop(devp);
 		pr_info("%s dv:%d hdr:%d allm:0x%x fps:%d sg_type:0x%x ratio:%d,vrr:%d prop_vrr:%d,%d\n",
 			__func__,
 			devp->dv.dv_flag, devp->prop.vdin_hdr_flag,
@@ -1409,13 +1410,14 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->starting_chg = 0;
 	devp->vdin1_stop_write = 0;
 	devp->vdin1_stop_write_count = 0;
+	devp->vdin_stable_cnt = 0;
 
 	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
 		devp->self_stop_start) {
 		//bypass not need handling
 	} else {
 		/* clear color para*/
-		memset(&devp->pre_prop, 0, sizeof(devp->prop));
+		memset(&devp->pre_prop, 0, sizeof(devp->pre_prop));
 		memset(&devp->prop, 0, sizeof(devp->prop));
 	}
 
@@ -2576,6 +2578,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	 */
 	if (vdin_vs_duration_check(devp) < 0) {
 		vdin_drop_frame_info(devp, "duration error");
+		return IRQ_HANDLED;
+	}
+
+	/* 10 is prevent abnormal frame */
+	if (devp->starting_chg && devp->irq_cnt < 10) {
+		vdin_drop_frame_info(devp, "starting chg");
 		return IRQ_HANDLED;
 	}
 
@@ -3895,8 +3903,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 
 		if (vdin_dbg_en)
-			pr_info("%s TVIN_IOC_G_SIG_INFO signal_type: 0x%x\n",
-				__func__, info.signal_type);
+			pr_info("%s TVIN_IOC_G_SIG_INFO signal_type:0x%x status:0x%x\n",
+				__func__, info.signal_type, info.status);
 		mutex_unlock(&devp->fe_lock);
 		break;
 	}

@@ -60,6 +60,8 @@ enum tvin_sg_chg_flg {
 #define RE_CONFIG_HDR_EN	0x02
 #define RE_CONFIG_ALLM_EN	0x04
 
+#define VDIN_STABLED_CNT	500
+
 enum vdin_sm_log_level {
 	VDIN_SM_LOG_L_1 = 0x01,
 	VDIN_SM_LOG_L_2 = 0x02,
