@@ -5,14 +5,14 @@
 
 /dts-v1/;
 
-#include "meson-s4.dtsi"
-#include "mesons4_drm.dtsi"
+#include "meson-s4d.dtsi"
+#include "mesons4d_drm.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s4_s805c3_aq2432_512m_nand";
-	compatible = "amlogic, s4";
+	amlogic-dt-id = "s4d_s805c3_aq2432_512m_nand";
+	compatible = "amlogic, s4d";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -839,38 +839,6 @@
 
 &vddcpu0 {
 	status = "okay";
-};
-
-&CPU0 {
-	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
-};
-
-&CPU1 {
-	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
-};
-
-&CPU2 {
-	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
-};
-
-&CPU3 {
-	multi_tables_available;
-	operating-points-v2 = <&s805x2_opp_table0>,
-		<&s805x2_opp_table1>,
-		<&s805x2_opp_table2>,
-		<&s805x2_opp_table3>;
 };
 
 &audiobus {
