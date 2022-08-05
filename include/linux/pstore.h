@@ -219,8 +219,13 @@ struct pstore_ftrace_record {
 	u64 ts;
 #ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
 	int pid;
-	unsigned long val1;
-	unsigned long val2;
+	union {
+		char name[16];
+		struct {
+			unsigned long val1;
+			unsigned long val2;
+		};
+	};
 	unsigned long long time;
 	unsigned char comm[8];
 	struct {
