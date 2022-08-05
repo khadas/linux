@@ -5596,7 +5596,7 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		layer_info->zorder = vf->zorder;
 	}
 
-	layer_swap_frame(vf, layer, false, vinfo);
+	layer_swap_frame(vf, layer, false, vinfo, 0);
 
 	/* FIXME: free correct keep frame */
 	if (!is_local_vf(layer->dispbuf)) {
@@ -5760,7 +5760,7 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		layer_info->zorder = vf->zorder;
 	}
 
-	layer_swap_frame(vf, layer, false, vinfo);
+	layer_swap_frame(vf, layer, false, vinfo, 0);
 
 	/* FIXME: free correct keep frame */
 	if (!is_local_vf(layer->dispbuf)) {
@@ -5995,7 +5995,8 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 	/* switch buffer */
 	post_canvas = vf->canvas0Addr;
 	ret = layer_swap_frame
-		(vf, layer, force_toggle, vinfo);
+		(vf, layer, force_toggle, vinfo,
+		cur_dispbuf2 ? OP_HAS_DV_EL : 0);
 	if (ret >= vppfilter_success) {
 		amlog_mask
 			(LOG_MASK_FRAMEINFO,
@@ -6196,9 +6197,6 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	}
 	/* VPP one time settings */
 	if (dispbuf) {
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		correct_vd1_mif_size_for_DV(frame_par, cur_dispbuf2);
-#endif
 		/* progressive or decode interlace case height 1:1 */
 		/* vdin afbc and interlace case height 1:1 */
 		zoom_start_y = frame_par->VPP_vd_start_lines_;
@@ -8538,6 +8536,7 @@ SET_FILTER:
 #if defined(CONFIG_AMLOGIC_MEDIA_FRC)
 	frc_input_handle(vd_layer[0].dispbuf, cur_frame_par);
 #endif
+
 	if (atomic_read(&axis_changed)) {
 		video_prop_status |= VIDEO_PROP_CHANGE_AXIS;
 		atomic_set(&axis_changed, 0);

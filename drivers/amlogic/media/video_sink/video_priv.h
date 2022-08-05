@@ -122,6 +122,7 @@
 #define OP_VPP_MORE_LOG 1
 #define OP_FORCE_SWITCH_VF 2
 #define OP_FORCE_NOT_SWITCH_VF 4
+#define OP_HAS_DV_EL 8
 
 enum tvin_surface_type_e {
 	TVIN_SOURCE_TYPE_OTHERS = 0,
@@ -601,25 +602,23 @@ void amdv_set_toggle_flag(int flag);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-void correct_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
-				 struct vframe_s *el_vf);
 void config_dvel_position(struct video_layer_s *layer,
-			  struct mif_pos_s *setting,
-			  struct vframe_s *el_vf);
+			struct mif_pos_s *setting,
+		struct vframe_s *el_vf);
 s32 config_dvel_pps(struct video_layer_s *layer,
 		    struct scaler_setting_s *setting,
 		    const struct vinfo_s *info);
 s32 config_dvel_blend(struct video_layer_s *layer,
-		      struct blend_setting_s *setting,
-		      struct vframe_s *dvel_vf);
+			struct blend_setting_s *setting,
+			struct vframe_s *dvel_vf);
 #endif
 
 #ifdef TV_3D_FUNCTION_OPEN
 void config_3d_vd2_position(struct video_layer_s *layer,
-			    struct mif_pos_s *setting);
+			struct mif_pos_s *setting);
 s32 config_3d_vd2_pps(struct video_layer_s *layer,
-		      struct scaler_setting_s *setting,
-		      const struct vinfo_s *info);
+			struct scaler_setting_s *setting,
+			const struct vinfo_s *info);
 s32 config_3d_vd2_blend(struct video_layer_s *layer,
 			struct blend_setting_s *setting);
 void switch_3d_view_per_vsync(struct video_layer_s *layer);
@@ -660,7 +659,7 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 u32 *get_canvase_tbl(u8 layer_id);
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
-		     const struct vinfo_s *vinfo);
+		     const struct vinfo_s *vinfo, u32 swap_op_flag);
 int detect_vout_type(const struct vinfo_s *vinfo);
 int calc_hold_line(void);
 u32 get_active_start_line(void);

@@ -4820,71 +4820,6 @@ static bool is_sc_enable_before_pps(struct vpp_frame_par_s *par)
 	return ret;
 }
 
-void correct_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
-				 struct vframe_s *el_vf)
-{
-	u32 aligned_mask = 0xfffffffe;
-	u32 old_len;
-
-	if ((is_amdv_on() == true) &&
-	    par->VPP_line_in_length_ > 0 &&
-	    !is_sc_enable_before_pps(par)) {
-		/* work around to skip the size check when sc enable */
-		if (el_vf) {
-			/*
-			 *if (cur_dispbuf2->type
-			 *	& VIDTYPE_COMPRESS)
-			 *	aligned_mask = 0xffffffc0;
-			 *else
-			 */
-			aligned_mask = 0xfffffffc;
-		}
-#ifdef CHECK_LATER /* def TV_REVERSE */
-		if (reverse) {
-			par->VPP_line_in_length_ &=
-				0xfffffffe;
-			par->VPP_hd_end_lines_ &=
-				0xfffffffe;
-			par->VPP_hd_start_lines_ =
-				par->VPP_hd_end_lines_ + 1
-				- (par->VPP_line_in_length_ <<
-				par->hscale_skip_count);
-		} else {
-#endif
-		{
-		par->VPP_line_in_length_ &=
-			aligned_mask;
-		par->VPP_hd_start_lines_ &=
-			aligned_mask;
-		par->VPP_hd_end_lines_ =
-			par->VPP_hd_start_lines_ +
-			(par->VPP_line_in_length_ <<
-			par->hscale_skip_count) - 1;
-		/* if have el layer, need 2 pixel align by height */
-		if (el_vf) {
-			old_len =
-				par->VPP_vd_end_lines_ -
-				par->VPP_vd_start_lines_ + 1;
-			if (old_len & 1)
-				par->VPP_vd_end_lines_--;
-			if (par->VPP_vd_start_lines_ & 1) {
-				par->VPP_vd_start_lines_--;
-				par->VPP_vd_end_lines_--;
-			}
-			old_len =
-				par->VPP_vd_end_lines_ -
-				par->VPP_vd_start_lines_ + 1;
-			old_len = old_len >> par->vscale_skip_count;
-			if (par->VPP_pic_in_height_ < old_len)
-				par->VPP_pic_in_height_ = old_len;
-			}
-		}
-#ifdef CHECK_LATER
-		}
-#endif
-	}
-}
-
 void config_dvel_position(struct video_layer_s *layer,
 			  struct mif_pos_s *setting,
 			  struct vframe_s *el_vf)
@@ -4943,6 +4878,7 @@ void config_dvel_position(struct video_layer_s *layer,
 	setting->start_y_lines = 0;
 	setting->end_y_lines = height_el - 1;
 
+	/* TODO: remove it */
 	if ((is_amdv_on() == true) &&
 	    cur_frame_par->VPP_line_in_length_ > 0 &&
 	    !is_sc_enable_before_pps(cur_frame_par)) {
@@ -8647,7 +8583,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
-		     const struct vinfo_s *vinfo)
+		     const struct vinfo_s *vinfo, u32 swap_op_flag)
 {
 	bool first_picture = false;
 	bool enable_layer = false;
@@ -8802,7 +8738,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	/* enable new config on the new frames */
 	if (first_picture || force_toggle || frame_changed ||
 	    sr_phase_changed || aisr_update) {
-		u32 op_flag = OP_VPP_MORE_LOG;
+		u32 op_flag = OP_VPP_MORE_LOG | swap_op_flag;
 
 		if (layer->next_frame_par == layer->cur_frame_par)
 			layer->next_frame_par =

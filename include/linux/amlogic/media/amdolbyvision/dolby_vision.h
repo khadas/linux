@@ -237,6 +237,7 @@ void amdv_update_pq_config
 	(char *pq_config_buf);
 int amdv_update_setting(struct vframe_s *vf);
 bool is_amdv_stb_mode(void);
+bool is_aml_tvmode(void);
 void amdv_crc_clear(int flag);
 char *amdv_get_crc(u32 *len);
 void amdv_insert_crc(bool print);
