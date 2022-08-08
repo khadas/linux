@@ -4636,6 +4636,8 @@ RERTY:
 	/* check force ratio change flag in display buffer also
 	 * if it exist then it will override the settings in display side
 	 */
+	/* just for test temp */
+	vf->ratio_control = DISP_RATIO_ASPECT_RATIO_MASK;
 	if (vf->ratio_control & DISP_RATIO_FORCECONFIG) {
 		if ((vf->ratio_control & DISP_RATIO_CTRL_MASK) ==
 			DISP_RATIO_KEEPRATIO) {

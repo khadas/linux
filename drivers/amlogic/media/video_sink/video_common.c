@@ -232,3 +232,15 @@ void init_layer_canvas(struct video_layer_s *layer,
 	}
 }
 
+void vframe_canvas_set(struct canvas_config_s *config,
+	u32 planes,
+	u32 *index)
+{
+	int i;
+	u32 *canvas_index = index;
+
+	struct canvas_config_s *cfg = config;
+
+	for (i = 0; i < planes; i++, canvas_index++, cfg++)
+		canvas_config_config(*canvas_index, cfg);
+}

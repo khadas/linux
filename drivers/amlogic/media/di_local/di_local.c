@@ -139,7 +139,7 @@ unsigned int DI_POST_REG_RD(unsigned int addr)
 	if (dil_api && dil_api->di_post_reg_rd)
 		return dil_api->di_post_reg_rd(addr);
 
-	PR_ERR("%s:not attach\n", __func__);
+	//PR_ERR("%s:not attach\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL(DI_POST_REG_RD);

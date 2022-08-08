@@ -571,14 +571,21 @@ struct vd_proc_slice_reg_s vd_proc_slice_reg_s5[SLICE_NUM] = {
 	},
 };
 
+struct vd_proc_pi_reg_s vd_proc_pi_reg_s5 = {
+	VD1_PI_CONTROL,
+};
+
 struct vd_proc_misc_reg_s vd_proc_misc_reg_s5 = {
 	VD_PROC_SR0_CTRL,
 	VD_PROC_BYPASS_CTRL,
+	/* mux to enter pi module */
 	VD1_PI_CTRL,
 };
 
 struct vd2_proc_misc_reg_s vd2_proc_misc_reg_s5 = {
 	VD2_PROC_IN_SIZE,
+	VD2_DETUNL_CTRL,
+	S5_VD2_HDR2_CTRL,
 	VD2_PILITE_CTRL,
 	VD2_PROC_OUT_SIZE,
 	VD2_DV_BYPASS_CTRL,
@@ -644,6 +651,44 @@ struct vd_proc_blend_reg_s vd_proc_blend_reg_s5 = {
 	VD1_S2_BLEND_SRC_CTRL,
 	VD1_S3_BLEND_SRC_CTRL,
 	VPP_VD_BLND_CTRL,
+};
+
+struct vd1_slice_pad_reg_s vd1_slice_pad_size0_reg_s5[SLICE_NUM] = {
+	{
+		VD1_S0_PAD_H_SIZE0,
+		VD1_S0_PAD_V_SIZE0,
+	},
+	{
+		VD1_S1_PAD_H_SIZE0,
+		VD1_S1_PAD_V_SIZE0,
+	},
+	{
+		VD1_S2_PAD_H_SIZE0,
+		VD1_S2_PAD_V_SIZE0,
+	},
+	{
+		VD1_S3_PAD_H_SIZE0,
+		VD1_S3_PAD_V_SIZE0,
+	},
+};
+
+struct vd1_slice_pad_reg_s vd1_slice_pad_size1_reg_s5[SLICE_NUM] = {
+	{
+		VD1_S0_PAD_H_SIZE1,
+		VD1_S0_PAD_V_SIZE1,
+	},
+	{
+		VD1_S1_PAD_H_SIZE1,
+		VD1_S1_PAD_V_SIZE1,
+	},
+	{
+		VD1_S2_PAD_H_SIZE1,
+		VD1_S2_PAD_V_SIZE1,
+	},
+	{
+		VD1_S3_PAD_H_SIZE1,
+		VD1_S3_PAD_V_SIZE1,
+	},
 };
 
 struct vd2_pre_blend_reg_s vd2_pre_blend_reg_s5 = {

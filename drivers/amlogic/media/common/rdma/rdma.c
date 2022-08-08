@@ -977,7 +977,7 @@ struct rdma_op_s *get_rdma_ops(int rdma_type)
 
 void set_rdma_handle(int rdma_type, int handle)
 {
-	if (rdma_type < 6) {
+	if (rdma_type < RDMA_NUM) {
 		vsync_rdma_handle[rdma_type] = handle;
 		pr_info("%s video rdma handle = %d.\n", __func__,
 			vsync_rdma_handle[rdma_type]);

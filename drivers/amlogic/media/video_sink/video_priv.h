@@ -22,10 +22,7 @@
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include "video_reg.h"
 #include <linux/amlogic/media/amvecm/amvecm.h>
-
-#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
-#define ENABLE_PRE_LINK
-#endif
+#include "video_reg_s5.h"
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
@@ -385,6 +382,21 @@ enum mode_3d_e {
 	mode_3d_mvc_enable
 };
 
+struct sub_slice_s {
+	u32 slice_index;
+	u32 src_field;
+	u32 src_fmt;
+	u32 src_mode;
+	u32 src_bits;
+	ulong src_addr;
+	u32 src_hsize;
+	u32 src_vsize;
+	u32 src_x_start;
+	u32 src_x_end;
+	u32 src_y_start;
+	u32 src_y_end;
+};
+
 struct video_layer_s {
 	u8 layer_id;
 	u8 layer_support;
@@ -424,6 +436,7 @@ struct video_layer_s {
 
 	/* struct disp_info_s disp_info; */
 	struct mif_pos_s mif_setting;
+	struct mif_pos_s slice_mif_setting[SLICE_NUM];
 	struct scaler_setting_s sc_setting;
 	struct blend_setting_s bld_setting;
 	struct fgrain_setting_s fgrain_setting;
@@ -474,6 +487,8 @@ struct video_layer_s {
 	bool pre_link_en;
 	bool need_disable_prelink;
 	u8 prelink_skip_cnt;
+	u32 slice_num;
+	struct sub_slice_s sub_slice[SLICE_NUM - 1];
 };
 
 enum {
@@ -666,6 +681,11 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
 			     struct disp_info_s *disp_info, u32 line);
+int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
+			     struct vframe_s *vf,
+			     struct vpp_frame_par_s *cur_frame_par,
+			     struct disp_info_s *disp_info,
+			     u32 slice);
 u32 *get_canvase_tbl(u8 layer_id);
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
@@ -697,8 +717,6 @@ void vd_set_dcu_s5(u8 layer_id,
 		struct video_layer_s *layer,
 		struct vpp_frame_par_s *frame_par,
 		struct vframe_s *vf);
-void vd_mif_setting_s5(struct video_layer_s *layer,
-			struct mif_pos_s *setting);
 void proc_vd_vsc_phase_per_vsync_s5(struct video_layer_s *layer,
 				 struct vpp_frame_par_s *frame_par,
 				 struct vframe_s *vf);

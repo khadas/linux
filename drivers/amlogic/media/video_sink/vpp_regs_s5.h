@@ -19,6 +19,36 @@
 #ifndef VPP_REGS_S5_HEADER_
 #define VPP_REGS_S5_HEADER_
 
+//------------------------------------------------------------------------------
+// VIU registers 0x20 -0x3f
+//------------------------------------------------------------------------------
+#define VIU_VD1_MISC                               0x1a10
+#define VIU_VD2_MISC                               0x1a11
+#define VIU_VD3_MISC                               0x1a12
+#define VIU_VD4_MISC                               0x1a13
+#define VIU_VD5_MISC                               0x1a14
+#define VIU_OSD1_MISC                              0x1a15
+#define VIU_OSD2_MISC                              0x1a16
+#define VIU_OSD3_MISC                              0x1a17
+#define VIU_OSD4_MISC                              0x1a18
+#define VIU_VIU0_MISC                              0x1a19
+#define VIU_VIU1_MISC                              0x1a1a
+#define VIU_VIU2_MISC                              0x1a1b
+#define VIU_FRC_MISC                               0x1a1c
+#define VIU_LINE_INT0                              0x1a1d
+#define VIU_LINE_INT1                              0x1a1e
+#define VIU_LINE_INT2                              0x1a1f
+#define VIU_PROBE_CTRL                             0x1a20
+#define VIU_PROBE_POS                              0x1a21
+#define VIU_PROBE_HL                               0x1a22
+#define VIU_RO_PROBE0                              0x1a23
+#define VIU_RO_PROBE1                              0x1a24
+#define VIU_WRBAK_CTRL                             0x1a25
+#define VIU_RO_CFG_ERR                             0x1a26
+#define VIU_SLEEP_CTRL                             0x1a27
+#define VIU_DMA_CTRL0                              0x1a28
+#define VIU_DMA_CTRL1                              0x1a29
+
 // Closing file:  ./vpu_top_regs.h
 //
 //===========================================================================
@@ -3159,5 +3189,7 @@
 #define S5_OSD2_PROC_HDR2_CTRL                        0x6850
 #define S5_OSD3_PROC_HDR2_CTRL                        0x6c50
 #define S5_OSD_HDR2_CTRL                              0x6000
+
+#define VD1_PI_CONTROL                                0x4c54
 
 #endif

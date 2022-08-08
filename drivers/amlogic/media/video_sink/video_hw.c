@@ -2923,7 +2923,7 @@ void vd_mif_setting(struct video_layer_s *layer,
 	if (!setting)
 		return;
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
-		vd_mif_setting_s5(layer, setting);
+		//vd_mif_setting_s5(layer, setting);
 		return;
 	}
 	layer_id = layer->layer_id;
@@ -5881,12 +5881,12 @@ void vd_set_dcu(u8 layer_id,
 		struct vframe_s *vf)
 {
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		vd_set_dcu_s5(layer_id, layer, frame_par, vf);
+		return;
+
+	if (layer_id == 0)
+		vd1_set_dcu(layer, frame_par, vf);
 	else
-		if (layer_id == 0)
-			vd1_set_dcu(layer, frame_par, vf);
-		else
-			vdx_set_dcu(layer, frame_par, vf);
+		vdx_set_dcu(layer, frame_par, vf);
 }
 
 void vd_scaler_setting(struct video_layer_s *layer,
@@ -5898,12 +5898,12 @@ void vd_scaler_setting(struct video_layer_s *layer,
 		return;
 	layer_id = layer->layer_id;
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		vd_scaler_setting_s5(layer, setting);
+		return;
+
+	if (layer_id == 0)
+		vd1_scaler_setting(layer, setting);
 	else
-		if (layer_id == 0)
-			vd1_scaler_setting(layer, setting);
-		else
-			vdx_scaler_setting(layer, setting);
+		vdx_scaler_setting(layer, setting);
 }
 
 void vd_clip_setting(u8 layer_id,
@@ -7340,6 +7340,7 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo)
 		vd_layer[2].post_blend_en = 0;
 	}
 	//force_flush |= vpp_zorder_check_s5();
+	force_flush |= update_vpp_input_info(vinfo);
 
 	if (force_flush)
 		vpp_post_blend_update_s5(vinfo);
@@ -8194,20 +8195,6 @@ void vppx_blend_update(const struct vinfo_s *vinfo, u32 vpp_index)
 /*********************************************************
  * frame canvas APIs
  *********************************************************/
-static void vframe_canvas_set
-	(struct canvas_config_s *config,
-	u32 planes,
-	u32 *index)
-{
-	int i;
-	u32 *canvas_index = index;
-
-	struct canvas_config_s *cfg = config;
-
-	for (i = 0; i < planes; i++, canvas_index++, cfg++)
-		canvas_config_config(*canvas_index, cfg);
-}
-
 static bool is_vframe_changed
 	(u8 layer_id,
 	struct vframe_s *cur_vf,
@@ -8497,9 +8484,17 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 	struct vd_mif_reg_s *vd_mif_reg;
 	struct vd_mif_reg_s *vd_mif_reg_mvc;
 	struct vd_afbc_reg_s *vd_afbc_reg;
+	int slice = 0;
+
+	if (layer->layer_id == 0 && layer->slice_num > 1) {
+		for (slice = 0; slice < layer->slice_num; slice++)
+			set_layer_slice_display_canvas_s5(layer, vf,
+				cur_frame_par, disp_info, slice);
+		return 0;
+	}
 
 	layer_id = layer->layer_id;
-	if (layer_id >= MAX_VD_LAYER)
+	if (layer_id > MAX_VD_CHAN_S5)
 		return -1;
 	if ((vf->type & VIDTYPE_MVC) && layer_id == 0)
 		is_mvc = true;
@@ -8511,7 +8506,7 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 		&layer->canvas_tbl[cur_canvas_id][0];
 	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_id];
 	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_id];
-	vd_mif_reg_mvc = &vd_proc_reg.vd_mif_reg[layer_id + SLICE_NUM];
+	vd_mif_reg_mvc = &vd_proc_reg.vd_mif_reg[SLICE_NUM];
 
 	/* switch buffer */
 	if (!glayer_info[layer_id].need_no_compress &&
@@ -8585,6 +8580,92 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 					(vd_mif_reg_mvc->vd_if0_canvas1,
 					layer->disp_canvas[cur_canvas_id][1]);
 			}
+		}
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		layer->next_canvas_id = layer->cur_canvas_id ? 0 : 1;
+#endif
+	}
+	return 0;
+}
+
+int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
+			     struct vframe_s *vf,
+			     struct vpp_frame_par_s *cur_frame_par,
+			     struct disp_info_s *disp_info,
+			     u32 slice)
+{
+	u32 *cur_canvas_tbl;
+	u8 cur_canvas_id;
+	bool update_mif = true;
+	u8 vpp_index;
+	u8 layer_id;
+	struct vd_mif_reg_s *vd_mif_reg;
+	struct vd_afbc_reg_s *vd_afbc_reg;
+
+	layer_id = layer->layer_id;
+	if (layer->layer_id != 0 || slice >= SLICE_NUM)
+		return -1;
+	pr_info("%s\n", __func__);
+
+	if ((vf->type & VIDTYPE_MVC) && layer_id == 0) {
+		pr_info("multi slice not support mvc\n");
+		return -1;
+	}
+	vpp_index = layer->vpp_index;
+
+	cur_canvas_id = layer->cur_canvas_id;
+	cur_canvas_tbl =
+		&layer->canvas_tbl[cur_canvas_id][0];
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[slice];
+	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[slice];
+
+	/* switch buffer */
+	if (!glayer_info[layer_id].need_no_compress &&
+	    (vf->type & VIDTYPE_COMPRESS)) {
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_afbc_reg->afbc_head_baddr,
+			vf->compHeadAddr >> 4);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_afbc_reg->afbc_body_baddr,
+			vf->compBodyAddr >> 4);
+	}
+
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	if (layer_id == 0 &&
+	    is_di_post_mode(vf) &&
+	    is_di_post_link_on())
+		update_mif = false;
+#endif
+	if (vf->canvas0Addr == 0)
+		update_mif = false;
+
+	if (update_mif) {
+		canvas_update_for_mif_slice(layer, vf, slice);
+
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_mif_reg->vd_if0_canvas0,
+			layer->disp_canvas[cur_canvas_id][0]);
+
+		if (cur_frame_par &&
+		    cur_frame_par->vpp_2pic_mode == 1) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][0]);
+		} else {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][1]);
+		}
+		if (cur_frame_par && disp_info &&
+		    (disp_info->proc_3d_type & MODE_3D_ENABLE) &&
+		    (disp_info->proc_3d_type & MODE_3D_TO_2D_R) &&
+		    cur_frame_par->vpp_2pic_mode == VPP_SELECT_PIC1) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas0,
+				layer->disp_canvas[cur_canvas_id][1]);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vd_mif_reg->vd_if0_canvas1,
+				layer->disp_canvas[cur_canvas_id][1]);
 		}
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		layer->next_canvas_id = layer->cur_canvas_id ? 0 : 1;
@@ -9073,7 +9154,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		pr_info("first swap picture {%d,%d} pts:%x, switch:%d\n",
 			vf->width, vf->height, vf->pts,
 			layer->switch_vf ? 1 : 0);
-
+	set_video_slice_policy(layer, vf);
 	aisr_update = aisr_update_frame_info(layer, vf);
 	aisr_reshape_addr_set(layer, &layer->aisr_mif_setting);
 	set_layer_display_canvas
@@ -10510,6 +10591,7 @@ bool aisr_update_frame_info(struct video_layer_s *layer,
 	    vf->vc_private->flag & VC_FLAG_AI_SR) {
 		struct vf_nn_sr_t *srout_data = NULL;
 
+		layer->slice_num = 1;
 		layer->aisr_mif_setting.aisr_enable = 1;
 		srout_data = vf->vc_private->srout_data;
 		if (srout_data) {

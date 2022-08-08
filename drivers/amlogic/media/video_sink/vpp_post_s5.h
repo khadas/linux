@@ -157,8 +157,8 @@ struct vpp_post_reg_s {
 int vpp_post_param_set(struct vpp_post_input_s *vpp_input,
 	struct vpp_post_s *vpp_post);
 void vpp_post_set(u32 vpp_index, struct vpp_post_s *vpp_post);
-int update_vpp_input_info(const struct vinfo_s *info,
-	struct vpp_post_input_s *vpp_input);
+int update_vpp_input_info(const struct vinfo_s *info);
+struct vpp_post_input_s *get_vpp_input_info(void);
 void dump_vpp_post_reg(void);
 
 #endif

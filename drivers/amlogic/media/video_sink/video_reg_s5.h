@@ -23,6 +23,7 @@
 
 #define SLICE_NUM 4
 #define MAX_VD_LAYER_S5 5
+#define MAX_VD_CHAN_S5 2
 
 struct vd_mif_reg_s {
 	u32 vd_if0_gen_reg; /* VD1_IF0_GEN_REG */
@@ -147,6 +148,10 @@ struct vd_proc_pps_reg_s {
 	u32 vd_proc_s0_pps_in_size;
 };
 
+struct vd_proc_pi_reg_s {
+	u32 vd_proc_pi_ctrl;
+};
+
 struct vd_proc_misc_reg_s {
 	u32 vd_proc_sr0_ctrl;
 	u32 vd_proc_bypass_ctrl;
@@ -155,6 +160,8 @@ struct vd_proc_misc_reg_s {
 
 struct vd2_proc_misc_reg_s {
 	u32 vd2_proc_in_size;
+	u32 vd2_detunl_ctrl;
+	u32 vd2_hdr_ctrl;
 	u32 vd2_pilite_ctrl;
 	u32 vd2_proc_out_size;
 	u32 vd2_dv_bypass_ctrl;
@@ -207,6 +214,11 @@ struct vd_proc_blend_reg_s {
 	u32 vpp_vd_blnd_ctrl;
 };
 
+struct vd1_slice_pad_reg_s {
+	u32 vd1_slice_pad_h_size;
+	u32 vd1_slice_pad_v_size;
+};
+
 struct vd2_pre_blend_reg_s {
 	u32 vpp_vd_preblnd_h_v_size;
 	u32 vpp_vd_pre_blend_dummy_data;
@@ -246,8 +258,11 @@ extern struct vd_proc_reg_s vd_proc_reg;
 extern struct vd_pps_reg_s pps_reg_s5_array[MAX_VD_LAYER_S5 + 1];
 extern struct vd_proc_sr_reg_s vd_proc_sr_reg_s5;
 extern struct vd_proc_slice_reg_s vd_proc_slice_reg_s5[SLICE_NUM];
+extern struct vd_proc_pi_reg_s vd_proc_pi_reg_s5;
 extern struct vd_proc_misc_reg_s vd_proc_misc_reg_s5;
 extern struct vd_proc_blend_reg_s vd_proc_blend_reg_s5;
+extern struct vd1_slice_pad_reg_s vd1_slice_pad_size0_reg_s5[SLICE_NUM];
+extern struct vd1_slice_pad_reg_s vd1_slice_pad_size1_reg_s5[SLICE_NUM];
 extern struct vd2_proc_misc_reg_s vd2_proc_misc_reg_s5;
 extern struct vd2_pre_blend_reg_s vd2_pre_blend_reg_s5;
 extern struct vd_fg_reg_s fg_reg_s5_array[MAX_VD_LAYER_S5];
