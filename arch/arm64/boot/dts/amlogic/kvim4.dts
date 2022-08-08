@@ -179,7 +179,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* 1920x1080x4x3 round up 4M align */
-			size = <0x0 0x0d000000>;
+			size = <0x0 0x0000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -747,7 +747,7 @@
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <0>;/*1:enabel ;0:disable*/
+		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 
     /* SMC */
@@ -1651,11 +1651,56 @@
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";
+
+	connectors_dev: port@1 {
+		drm_to_lcd0: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&lcd0_to_drm>;
+		};
+		drm_to_lcd1: endpoint@3 {
+			reg = <3>;
+			remote-endpoint = <&lcd1_to_drm>;
+		};
+		drm_to_lcd2: endpoint@4 {
+			reg = <4>;
+			remote-endpoint = <&lcd2_to_drm>;
+		};
+	};
 };
 
-&drm_amhdmitx {
-	status = "okay";
-	hdcp = "disabled";
+&lcd {
+	ports {
+		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			lcd0_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd0>;
+			};
+		};
+	};
+};
+
+&lcd1 {
+	ports {
+		port {
+			lcd1_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd1>;
+			};
+		};
+	};
+};
+
+&lcd2 {
+	ports {
+		port {
+			lcd2_to_drm: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&drm_to_lcd2>;
+			};
+		};
+	};
 };
 
 &amhdmitx {
@@ -1861,9 +1906,9 @@
 
 &amlvecm {
 	status = "okay";
-	gamma_en = <0>;/*1:enabel ;0:disable*/
-	wb_en = <0>;/*1:enabel ;0:disable*/
-	cm_en = <0>;/*1:enabel ;0:disable*/
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	cm_en = <0>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
