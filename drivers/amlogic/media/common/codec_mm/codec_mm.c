@@ -953,7 +953,7 @@ struct codec_mm_s *codec_mm_alloc(const char *owner, int size,
 	spin_unlock_irqrestore(&mgt->lock, flags);
 	mem->alloced_jiffies = get_jiffies_64();
 	if (debug_mode & 0x20)
-		pr_err("%s alloc size %d at %lx from %d,2n:%d,flags:%d\n",
+		pr_err("%s alloc size %d at 0x%lx from %d,2n:%d,flags:%d\n",
 		       owner, size, mem->phy_addr,
 		       mem->from_flags,
 		       align2n,
@@ -2029,7 +2029,7 @@ static int dump_mem_infos(void *buf, int size)
 	}
 	list_for_each_entry(mem, &mgt->mem_list, list) {
 		s = snprintf(pbuf, size - tsize,
-			     "\t[%d].%d:%s.%d,addr=%p,size=%d,from=%d,cnt=%d,",
+			     "\t[%d].%d:%s.%d,addr=0x%lx,size=%d,from=%d,cnt=%d,",
 			mem->mem_id,
 			mem->ins_id,
 			mem->owner[0] ? mem->owner[0] : "no",
