@@ -119,6 +119,7 @@ struct gdc_dmabuf_exp_s {
 #define GDC_SYNC_CPU _IOW(GDC_IOC_MAGIC, 0x0a, int)
 #define GDC_PROCESS_WITH_FW _IOW(GDC_IOC_MAGIC, 0x0b, \
 					struct gdc_settings_with_fw)
+#define GDC_GET_VERSION _IOR(GDC_IOC_MAGIC, 0x0c, int)
 
 enum {
 	INPUT_BUFF_TYPE = 0x1000,
