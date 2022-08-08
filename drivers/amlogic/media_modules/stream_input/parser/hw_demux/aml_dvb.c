@@ -48,6 +48,8 @@
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/clk.h>
 #include <linux/of_irq.h>
+#include <linux/compat.h>
+
 #include "c_stb_define.h"
 #include "c_stb_regs_define.h"
 #include "aml_dvb.h"

@@ -27,6 +27,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/wait.h>
 #include <linux/list.h>
+#include <linux/compat.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>

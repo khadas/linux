@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/of_irq.h>
 #include <linux/irq.h>
+#include <linux/compat.h>
 #include "aml_ci_bus.h"
 #include "aml_ci.h"
 #include "amci.h"

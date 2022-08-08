@@ -62,6 +62,7 @@
 /* exception handing */
 #define V4L2_EVENT_REQUEST_RESET	(1 << 8)
 #define V4L2_EVENT_REQUEST_EXIT		(1 << 9)
+#define V4L2_EVENT_SEND_ERROR		(1 << 10)
 
 /* eos event */
 #define V4L2_EVENT_SEND_EOS		(1 << 16)
@@ -413,6 +414,8 @@ struct aml_vdec_thread {
  * @frame_buffer_size: SG buffer page number from
  * @priv_data use for video composer
  *  struct vdec_comp_buf_info
+ * @used: bit[0]: 0, idle; 1, decoder alloc from mmu_box
+ *        bit[1]: 0, idle; 1, decoder alloc from mmu_box_dw.
  */
 struct internal_comp_buf {
 	u32		index;
@@ -428,6 +431,7 @@ struct internal_comp_buf {
 	ulong	header_dw_addr;
 	void	*mmu_box_dw;
 	void	*bmmu_box_dw;
+	u32     used;
 };
 
 /*
@@ -579,6 +583,14 @@ struct canvas_cache {
 	int			ref;
 	struct canvas_res	res[8];
 	struct mutex		lock;
+};
+
+struct aml_decoder_status_info {
+	u32 error_type;
+	u32 frame_width;
+	u32 frame_height;
+	u32 decoder_count;
+	u32 decoder_error_count;
 };
 
 /*
@@ -746,6 +758,7 @@ struct aml_vcodec_ctx {
 	bool			film_grain_present;
 	void			*bmmu_box_dw;
 	void			*mmu_box_dw;
+	struct aml_decoder_status_info	decoder_status_info;
 };
 
 /**

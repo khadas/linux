@@ -199,6 +199,11 @@ static const struct vframe_operations_s vh265_vf_provider = {
 
 static struct vframe_provider_s vh265_vf_prov;
 
+//0.3.42-g8104942
+#define UCODE_SWAP_VERSION 3
+#define UCODE_SWAP_SUBMIT_COUNT 42
+
+static u32 enable_swap = 1;
 static u32 bit_depth_luma;
 static u32 bit_depth_chroma;
 static u32 video_signal_type;
@@ -2126,6 +2131,9 @@ struct hevc_state_s {
 	struct trace_decoder_name trace;
 	int nal_skip_policy;
 	bool high_bandwidth_flag;
+	bool enable_ucode_swap;
+	int slice_count;
+	int error_slice_count;
 } /*hevc_stru_t */;
 
 #ifdef AGAIN_HAS_THRESHOLD
@@ -5859,12 +5867,6 @@ static void flush_output(struct hevc_state_s *hevc, struct PIC_s *pic)
 					hevc_print_cont(hevc, 0,
 						"Debug mode or error, recycle it\n");
 				}
-				/*
-				 * Here the pic/frame error_mark is 1,
-				 * and it won't be displayed, so increase
-				 * the drop count
-				 */
-				hevc->gvs->drop_frame_count++;
 				if (pic_display->slice_type == I_SLICE) {
 					hevc->gvs->i_lost_frames++;
 				} else if (pic_display->slice_type == P_SLICE) {
@@ -5872,8 +5874,6 @@ static void flush_output(struct hevc_state_s *hevc, struct PIC_s *pic)
 				} else if (pic_display->slice_type == B_SLICE) {
 					hevc->gvs->b_lost_frames++;
 				}
-				/* error frame count also need increase */
-				hevc->gvs->error_frame_count++;
 				if (pic_display->slice_type == I_SLICE) {
 					hevc->gvs->i_concealed_frames++;
 				} else if (pic_display->slice_type == P_SLICE) {
@@ -6160,12 +6160,7 @@ static inline void hevc_pre_pic(struct hevc_state_s *hevc,
 							"decoding index %d ==> ", pic_display->decode_idx);
 						hevc_print_cont(hevc, 0, "Debug or err,recycle it\n");
 					}
-					/*
-					 * Here the pic/frame error_mark is 1,
-					 * and it won't be displayed, so increase
-					 * the drop count
-					 */
-					hevc->gvs->drop_frame_count++;
+
 					if (pic_display->slice_type == I_SLICE) {
 						hevc->gvs->i_lost_frames++;
 					}else if (pic_display->slice_type == P_SLICE) {
@@ -6173,8 +6168,6 @@ static inline void hevc_pre_pic(struct hevc_state_s *hevc,
 					} else if (pic_display->slice_type == B_SLICE) {
 						hevc->gvs->b_lost_frames++;
 					}
-					/* error frame count also need increase */
-					hevc->gvs->error_frame_count++;
 					if (pic_display->slice_type == I_SLICE) {
 						hevc->gvs->i_concealed_frames++;
 					} else if (pic_display->slice_type == P_SLICE) {
@@ -7107,9 +7100,6 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 
 			if (hevc->cur_pic->error_mark
 				&& ((hevc->ignore_bufmgr_error & 0x1) == 0)) {
-				/*count info*/
-				vdec_count_info(hevc->gvs, hevc->cur_pic->error_mark,
-					hevc->cur_pic->stream_offset);
 				if (hevc->cur_pic->slice_type == I_SLICE) {
 					hevc->gvs->i_decoded_frames++;
 				} else if (hevc->cur_pic->slice_type == P_SLICE) {
@@ -7162,9 +7152,6 @@ static int hevc_slice_segment_header_process(struct hevc_state_s *hevc,
 			hevc_print(hevc, 0,
 				"Discard this picture index %d\n",
 				hevc->cur_pic->index);
-		/*count info*/
-		vdec_count_info(hevc->gvs, hevc->cur_pic->error_mark,
-			hevc->cur_pic->stream_offset);
 		if (hevc->cur_pic->slice_type == I_SLICE) {
 			hevc->gvs->i_decoded_frames++;
 		} else if (hevc->cur_pic->slice_type == P_SLICE) {
@@ -7336,7 +7323,7 @@ static void hevc_local_uninit(struct hevc_state_s *hevc)
 	hevc->lmem_ptr = NULL;
 
 #ifdef SWAP_HEVC_UCODE
-	if (hevc->is_swap && get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM) {
+	if (hevc->is_swap) {
 		if (hevc->mc_cpu_addr != NULL) {
 			dma_free_coherent(amports_get_dma_device(),
 				hevc->swap_size, hevc->mc_cpu_addr,
@@ -8011,14 +7998,18 @@ static struct vframe_s *vh265_vf_get(void *op_arg)
 		ATRACE_COUNTER(hevc->trace.get_canvas0_addr, vf->canvas0Addr);
 #endif
 
+		if (hevc->discard_dv_data || (vdec_stream_based(vdec) && (vf->type & VIDTYPE_INTERLACE))) {
+			vf->discard_dv_data = true;
+		}
+
 		if (get_dbg_flag(hevc) & H265_DEBUG_PIC_STRUCT) {
 			hevc_print(hevc, 0,
-				"%s(vf 0x%p type %d index 0x%x poc %d/%d) pts(%d,%d) dur %d\n",
+				"%s(vf 0x%p type %x index 0x%x poc %d/%d) pts(%d,%d) dur %d, discard_dv:%d\n",
 				__func__, vf, vf->type, vf->index,
 				get_pic_poc(hevc, vf->index & 0xff),
 				get_pic_poc(hevc, (vf->index >> 8) & 0xff),
 				vf->pts, vf->pts_us64,
-				vf->duration);
+				vf->duration, vf->discard_dv_data);
 #ifdef MULTI_INSTANCE_SUPPORT
 			hevc_print(hevc, 0, "get canvas0 addr:0x%x\n", vf->canvas0_config[0].phy_addr);
 #else
@@ -8197,6 +8188,12 @@ static int vh265_event_cb(int type, void *data, void *op_arg)
 			req->aux_size = atomic_read(&hevc->vf_put_count);
 			return 0;
 		}
+
+		if (req->vf->discard_dv_data) {
+			req->aux_size = atomic_read(&hevc->vf_put_count);
+			return 0;
+		}
+
 		spin_lock_irqsave(&lock, flags);
 		index = req->vf->index & 0xff;
 		req->aux_buf = NULL;
@@ -8752,9 +8749,6 @@ static int post_video_frame(struct vdec_s *vdec, struct PIC_s *pic)
 			vf->bitdepth |= BITDEPTH_SAVING_MODE;
 
 		set_frame_info(hevc, vf, pic);
-		if (hevc->discard_dv_data) {
-			vf->discard_dv_data = true;
-		}
 
 		if (hevc->high_bandwidth_flag) {
 			vf->flag |= VFRAME_FLAG_HIGH_BANDWIDTH;
@@ -9066,8 +9060,7 @@ static int post_video_frame(struct vdec_s *vdec, struct PIC_s *pic)
 #endif
 		ATRACE_COUNTER(hevc->trace.new_q_name, kfifo_len(&hevc->newframe_q));
 		ATRACE_COUNTER(hevc->trace.disp_q_name, kfifo_len(&hevc->display_q));
-		/*count info*/
-		vdec_count_info(hevc->gvs, 0, stream_offset);
+
 		if (pic->slice_type == I_SLICE) {
 			hevc->gvs->i_decoded_frames++;
 			vf->frame_type |= V4L2_BUF_FLAG_KEYFRAME;
@@ -9442,8 +9435,7 @@ static int hevc_recover(struct hevc_state_s *hevc)
 		   READ_VREG(HEVC_SHIFT_BYTE_COUNT));
 
 #ifdef SWAP_HEVC_UCODE
-	if (!tee_enabled() && hevc->is_swap &&
-		get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM) {
+	if (!tee_enabled() && hevc->is_swap) {
 		WRITE_VREG(HEVC_STREAM_SWAP_BUFFER2, hevc->mc_dma_handle);
 	}
 #endif
@@ -10549,7 +10541,11 @@ force_output:
 			if (hevc->m_ins_flag)
 				start_process_time(hevc);
 #endif
-
+			if (hevc->cur_pic) {
+				hevc->slice_count++;
+				if (hevc->cur_pic->error_mark)
+				hevc->error_slice_count++;
+			}
 #ifdef MULTI_INSTANCE_SUPPORT
 		} else if (hevc->m_ins_flag) {
 			hevc_print(hevc, PRINT_FLAG_VDEC_STATUS,
@@ -10558,6 +10554,11 @@ force_output:
 			hevc->decoded_poc = INVALID_POC;
 			hevc->decoding_pic = NULL;
 			hevc->dec_result = DEC_RESULT_DONE;
+			if (hevc->cur_pic) {
+				hevc->slice_count++;
+				if (hevc->cur_pic->error_mark)
+					hevc->error_slice_count++;
+			}
 			amhevc_stop();
 			reset_process_time(hevc);
 			vdec_schedule_work(&hevc->work);
@@ -11203,8 +11204,7 @@ static void vh265_prot_init(struct hevc_state_s *hevc)
 	config_decode_mode(hevc);
 	config_aux_buf(hevc);
 #ifdef SWAP_HEVC_UCODE
-	if (!tee_enabled() && hevc->is_swap &&
-		get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM) {
+	if (!tee_enabled() && hevc->is_swap) {
 		WRITE_VREG(HEVC_STREAM_SWAP_BUFFER2, hevc->mc_dma_handle);
 		/*pr_info("write swap buffer %x\n", (u32)(hevc->mc_dma_handle));*/
 	}
@@ -11325,28 +11325,39 @@ static s32 vh265_init(struct hevc_state_s *hevc)
 	INIT_WORK(&hevc->notify_work, vh265_notify_work);
 	INIT_WORK(&hevc->set_clk_work, vh265_set_clk);
 
+	if ((get_decoder_firmware_version() <= UCODE_SWAP_VERSION) &&
+		(get_decoder_firmware_submit_count() < UCODE_SWAP_SUBMIT_COUNT)) {
+		hevc->enable_ucode_swap = false;
+		if ((get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM) && (!hevc->is_4k)) {
+			hevc->enable_ucode_swap = true;
+		}
+	} else {
+		if (enable_swap)
+			hevc->enable_ucode_swap = true;
+		else
+			hevc->enable_ucode_swap = false;
+	}
+
+	pr_debug("ucode version %d.%d, swap enable %d\n",
+		get_decoder_firmware_version(), get_decoder_firmware_submit_count(),
+		hevc->enable_ucode_swap);
+
 	fw = vzalloc(sizeof(struct firmware_s) + fw_size);
 	if (IS_ERR_OR_NULL(fw))
 		return -ENOMEM;
 
 	if (hevc->mmu_enable) {
-		if (get_cpu_major_id() > AM_MESON_CPU_MAJOR_ID_GXM)
+		if (hevc->enable_ucode_swap) {
+			size = get_firmware_data(VIDEO_DEC_HEVC_MMU_SWAP, fw->data);
+			if (size < 0) {
+				pr_info("hevc can not get swap fw code\n");
+				size = get_firmware_data(VIDEO_DEC_HEVC_MMU, fw->data);
+				hevc->enable_ucode_swap = false;
+				hevc->is_swap = false;
+			} else if (size)
+				hevc->is_swap = true;	//local fw swap
+		} else {
 			size = get_firmware_data(VIDEO_DEC_HEVC_MMU, fw->data);
-		else {
-			if (!hevc->is_4k) {
-				/* if an older version of the fw was loaded, */
-				/* needs try to load noswap fw because the */
-				/* old fw package dose not contain the swap fw.*/
-				size = get_firmware_data(
-					VIDEO_DEC_HEVC_MMU_SWAP, fw->data);
-				if (size < 0)
-					size = get_firmware_data(
-						VIDEO_DEC_HEVC_MMU, fw->data);
-				else if (size)
-					hevc->is_swap = true;
-			} else
-				size = get_firmware_data(VIDEO_DEC_HEVC_MMU,
-					fw->data);
 		}
 	} else
 		size = get_firmware_data(VIDEO_DEC_HEVC, fw->data);
@@ -11360,8 +11371,7 @@ static s32 vh265_init(struct hevc_state_s *hevc)
 	fw->len = size;
 
 #ifdef SWAP_HEVC_UCODE
-	if (!tee_enabled() && hevc->is_swap &&
-		get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM) {
+	if (!tee_enabled() && hevc->is_swap) {
 		if (hevc->mmu_enable) {
 			hevc->swap_size = (4 * (4 * SZ_1K)); /*max 4 swap code, each 0x400*/
 			hevc->mc_cpu_addr =
@@ -11395,23 +11405,17 @@ static s32 vh265_init(struct hevc_state_s *hevc)
 #endif
 	amhevc_enable();
 
-	if (hevc->mmu_enable)
-		if (get_cpu_major_id() > AM_MESON_CPU_MAJOR_ID_GXM)
-			ret = amhevc_loadmc_ex(VFORMAT_HEVC, "h265_mmu", fw->data);
-		else {
-			if (!hevc->is_4k) {
-				/* if an older version of the fw was loaded, */
-				/* needs try to load noswap fw because the */
-				/* old fw package dose not contain the swap fw. */
-				ret = amhevc_loadmc_ex(VFORMAT_HEVC, "hevc_mmu_swap", fw->data);
-				if (ret < 0)
-					ret = amhevc_loadmc_ex(VFORMAT_HEVC, "h265_mmu", fw->data);
-				else
-					hevc->is_swap = true;
-			} else
+	if (hevc->mmu_enable) {
+		if (hevc->enable_ucode_swap) {
+			ret = amhevc_loadmc_ex(VFORMAT_HEVC, "hevc_mmu_swap", fw->data);
+			if (ret < 0)
 				ret = amhevc_loadmc_ex(VFORMAT_HEVC, "h265_mmu", fw->data);
+			else
+				hevc->is_swap = true;
+		} else {
+			ret = amhevc_loadmc_ex(VFORMAT_HEVC, "h265_mmu", fw->data);
 		}
-	else
+	} else
 		ret = amhevc_loadmc_ex(VFORMAT_HEVC, NULL, fw->data);
 
 	if (ret < 0) {
@@ -11427,8 +11431,7 @@ static s32 vh265_init(struct hevc_state_s *hevc)
 	hevc->stat |= STAT_MC_LOAD;
 
 #ifdef DETREFILL_ENABLE
-	if (hevc->is_swap &&
-		get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM)
+	if (hevc->is_swap && get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM)
 		init_detrefill_buf(hevc);
 #endif
 	/* enable AMRISC side protocol */
@@ -11497,8 +11500,7 @@ static s32 vh265_init(struct hevc_state_s *hevc)
 	}
 
 #ifdef SWAP_HEVC_UCODE
-	if (!tee_enabled() && hevc->is_swap &&
-		get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM) {
+	if (!tee_enabled() && hevc->is_swap) {
 		WRITE_VREG(HEVC_STREAM_SWAP_BUFFER2, hevc->mc_dma_handle);
 	}
 #endif
@@ -11704,8 +11706,10 @@ static void timeout_process(struct hevc_state_s *hevc)
 	check_pic_decoded_error(hevc, hevc->pic_decoded_lcu_idx);
 	/*The current decoded frame is marked
 		error when the decode timeout*/
-	if (hevc->cur_pic != NULL)
+	if (hevc->cur_pic != NULL) {
 		hevc->cur_pic->error_mark = 1;
+		vdec_count_info(hevc->gvs, hevc->cur_pic->error_mark, hevc->cur_pic->stream_offset);
+	}
 	hevc->decoded_poc = hevc->curr_POC;
 	hevc->decoding_pic = NULL;
 	hevc->dec_result = DEC_RESULT_DONE;
@@ -12310,6 +12314,10 @@ static void vh265_work_implement(struct hevc_state_s *hevc,
 
 		check_pic_decoded_error(hevc,
 			hevc->pic_decoded_lcu_idx);
+
+		hevc->gvs->error_frame_count += hevc->error_slice_count;
+		hevc->gvs->frame_count += hevc->slice_count;
+
 		if ((error_handle_policy & 0x100) == 0 && hevc->cur_pic) {
 			for (i = 0; i < MAX_REF_PIC_NUM; i++) {
 				struct PIC_s *pic;
@@ -12807,33 +12815,21 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 		  and not changes to another.
 		  ignore reload.
 		*/
-		if (tee_enabled() && hevc->is_swap &&
-			get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM)
+		if (tee_enabled() && hevc->is_swap)
 			WRITE_VREG(HEVC_STREAM_SWAP_BUFFER2, hevc->swap_addr);
 	} else {
 		if (hevc->mmu_enable) {
-			if (get_cpu_major_id() > AM_MESON_CPU_MAJOR_ID_GXM)
+			if (hevc->enable_ucode_swap) {
 				loadr = amhevc_vdec_loadmc_ex(VFORMAT_HEVC, vdec,
+						"hevc_mmu_swap", hevc->fw->data);
+				if (loadr < 0) {
+					loadr = amhevc_vdec_loadmc_ex(VFORMAT_HEVC, vdec,
 						"h265_mmu", hevc->fw->data);
-			else {
-				if (!hevc->is_4k) {
-					/* if an older version of the fw was loaded, */
-					/* needs try to load noswap fw because the */
-					/* old fw package dose not contain the swap fw.*/
-					loadr = amhevc_vdec_loadmc_ex(
-						VFORMAT_HEVC, vdec,
-						"hevc_mmu_swap",
-						hevc->fw->data);
-					if (loadr < 0)
-						loadr = amhevc_vdec_loadmc_ex(
-							VFORMAT_HEVC, vdec,
-							"h265_mmu",
-							hevc->fw->data);
-					else
-						hevc->is_swap = true;
+					hevc->enable_ucode_swap = false;
 				} else
-					loadr = amhevc_vdec_loadmc_ex(
-						VFORMAT_HEVC, vdec,
+					hevc->is_swap = true;
+			} else {
+				loadr = amhevc_vdec_loadmc_ex(VFORMAT_HEVC, vdec,
 						"h265_mmu", hevc->fw->data);
 			}
 		} else
@@ -12849,12 +12845,10 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 			return;
 		}
 
-		if (tee_enabled() && hevc->is_swap &&
-			get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM)
+		if (tee_enabled() && hevc->is_swap)
 			hevc->swap_addr = READ_VREG(HEVC_STREAM_SWAP_BUFFER2);
 #ifdef DETREFILL_ENABLE
-		if (hevc->is_swap &&
-			get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM)
+		if (hevc->is_swap && get_cpu_major_id() <= AM_MESON_CPU_MAJOR_ID_GXM)
 			init_detrefill_buf(hevc);
 #endif
 		vdec->mc_loaded = 1;
@@ -12905,7 +12899,8 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 		vdec->mvfrm->hw_decode_start = local_clock();
 	amhevc_start();
 	hevc->stat |= STAT_VDEC_RUN;
-
+	hevc->slice_count = 0;
+	hevc->error_slice_count = 0;
 	ATRACE_COUNTER(hevc->trace.decode_time_name, DECODER_RUN_END);
 }
 
@@ -13222,7 +13217,7 @@ static void vh265_dump_state(struct vdec_s *vdec)
 		);
 
 	hevc_print(hevc, 0,
-		"is_framebase(%d), eos %d, dec_result 0x%x dec_frm %d disp_frm %d run %d not_run_ready %d input_empty %d\n",
+		"is_framebase(%d), eos %d, dec_result 0x%x dec_frm %d disp_frm %d run %d not_run_ready %d input_empty %d error_frame_count %d drop_frame_count %d\n",
 		input_frame_based(vdec),
 		hevc->eos,
 		hevc->dec_result,
@@ -13230,7 +13225,9 @@ static void vh265_dump_state(struct vdec_s *vdec)
 		display_frame_count[hevc->index],
 		run_count[hevc->index],
 		not_run_ready[hevc->index],
-		input_empty[hevc->index]
+		input_empty[hevc->index],
+		hevc->gvs->error_frame_count,
+		hevc->gvs->drop_frame_count
 		);
 
 	if (hevc->is_used_v4l && vf_get_receiver(vdec->vf_provider_name)) {
@@ -13974,16 +13971,16 @@ static int __init amvdec_h265_driver_init_module(void)
 			amvdec_h265_profile.profile = "4k";
 		} else if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_SM1) {
 			amvdec_h265_profile.profile =
-				"8k, 8bit, 10bit, dwrite, compressed, frame_dv, fence, v4l-uvm";
+				"8k, 8bit, 10bit, dwrite, compressed, frame_dv, fence, v4l-uvm, multi_frame_dv";
 		}else if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_GXBB) {
 			amvdec_h265_profile.profile =
-				"4k, 8bit, 10bit, dwrite, compressed, frame_dv, fence, v4l-uvm";
+				"4k, 8bit, 10bit, dwrite, compressed, frame_dv, fence, v4l-uvm, multi_frame_dv";
 		} else if (get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_MG9TV)
 			amvdec_h265_profile.profile = "4k";
 	} else {
 		if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5D || is_cpu_s4_s805x2()) {
 				amvdec_h265_profile.profile =
-					"8bit, 10bit, dwrite, compressed, frame_dv, v4l";
+					"8bit, 10bit, dwrite, compressed, frame_dv, v4l, multi_frame_dv";
 		} else {
 				amvdec_h265_profile.profile =
 					"8bit, 10bit, dwrite, compressed, v4l";
@@ -14277,6 +14274,9 @@ MODULE_PARM_DESC(udebug_flag, "\n amvdec_h265 udebug_flag\n");
 
 module_param(udebug_pause_pos, uint, 0664);
 MODULE_PARM_DESC(udebug_pause_pos, "\n udebug_pause_pos\n");
+
+module_param(enable_swap, uint, 0664);
+MODULE_PARM_DESC(enable_swap, "\n enable_swap\n");
 
 module_param(udebug_pause_val, uint, 0664);
 MODULE_PARM_DESC(udebug_pause_val, "\n udebug_pause_val\n");

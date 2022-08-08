@@ -865,6 +865,7 @@ struct AV1HW_s {
 	unsigned *rdma_adr;
 	struct trace_decoder_name trace;
 	bool high_bandwidth_flag;
+	ulong fg_table_handle;
 };
 
 static void av1_dump_state(struct vdec_s *vdec);
@@ -5748,9 +5749,7 @@ static void av1_local_uninit(struct AV1HW_s *hw)
 	hw->fg_ptr = NULL;
 	if (hw->fg_addr) {
 		if (hw->fg_phy_addr)
-			dma_free_coherent(amports_get_dma_device(),
-				FGS_TABLE_SIZE, hw->fg_addr,
-				hw->fg_phy_addr);
+			codec_mm_dma_free_coherent(hw->fg_table_handle);
 		hw->fg_addr = NULL;
 	}
 #endif
@@ -5809,6 +5808,7 @@ static void av1_local_uninit(struct AV1HW_s *hw)
 static int av1_local_init(struct AV1HW_s *hw)
 {
 	int ret = -1;
+	int alloc_num = 1;
 	/*int losless_comp_header_size, losless_comp_body_size;*/
 
 	struct BuffInfo_s *cur_buf_info = NULL;
@@ -5954,13 +5954,23 @@ static int av1_local_init(struct AV1HW_s *hw)
 	//}
 #endif
 #ifdef DUMP_FILMGRAIN
-	hw->fg_addr = dma_alloc_coherent(amports_get_dma_device(),
-			FGS_TABLE_SIZE,
-			&hw->fg_phy_addr, GFP_KERNEL);
+	if ((get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_SC2) ||
+		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) ||
+		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) ||
+		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5W)) {
+		alloc_num = FRAME_BUFFERS;
+	}
+	hw->fg_addr = codec_mm_dma_alloc_coherent(&hw->fg_table_handle,
+		(ulong *)&hw->fg_phy_addr, FGS_TABLE_SIZE * alloc_num,  MEM_NAME);
 	if (hw->fg_addr == NULL) {
 		pr_err("%s: failed to alloc fg buffer\n", __func__);
 	}
 	hw->fg_ptr = hw->fg_addr;
+	if ((get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) ||
+		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) ||
+		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5W)) {
+		cur_buf_info->fgs_table.buf_start = hw->fg_phy_addr;
+	}
 #endif
 	hw->lmem_addr = dma_alloc_coherent(amports_get_dma_device(),
 			LMEM_BUF_SIZE,
@@ -7746,9 +7756,6 @@ int av1_continue_decoding(struct AV1HW_s *hw, int obu_type)
 		else
 			WRITE_VREG(HEVC_PARSER_MEM_RW_DATA, 0);
 
-		av1_print(hw, AOM_DEBUG_HW_MORE, "HEVC_DEC_STATUS_REG <= AOM_AV1_DECODE_SLICE\n");
-		WRITE_VREG(HEVC_DEC_STATUS_REG, AOM_AV1_DECODE_SLICE);
-
 		// Save segment_feature while hardware decoding
 		if (hw->seg_4lf->enabled) {
 			for (i = 0; i < 8; i++) {
@@ -7759,6 +7766,9 @@ int av1_continue_decoding(struct AV1HW_s *hw, int obu_type)
 				cm->cur_frame->segment_feature[i] = (0x80000000 | (i << 22));
 			}
 		}
+
+		av1_print(hw, AOM_DEBUG_HW_MORE, "HEVC_DEC_STATUS_REG <= AOM_AV1_DECODE_SLICE\n");
+		WRITE_VREG(HEVC_DEC_STATUS_REG, AOM_AV1_DECODE_SLICE);
 	} else {
 		av1_print(hw, AOM_DEBUG_HW_MORE, "Sequence head, Search next start code\n");
 		cm->prev_fb_idx = INVALID_IDX;
@@ -10151,8 +10161,8 @@ static void av1_work(struct work_struct *work)
 			vdec_schedule_work(&hw->work);
 		} else {
 			av1_release_bufs(hw);
-			av1_continue_decoding(hw, hw->cur_obu_type);
 			hw->postproc_done = 0;
+			av1_continue_decoding(hw, hw->cur_obu_type);
 			start_process_time(hw);
 		}
 		return;
@@ -11410,11 +11420,11 @@ static int __init amvdec_av1_driver_init_module(void)
 	}
 	if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5D) {
 		amvdec_av1_profile.profile =
-				"10bit, dwrite, compressed, no_head, v4l-uvm";
+				"10bit, dwrite, compressed, no_head, v4l-uvm, multi_frame_dv";
 	} else if (((get_cpu_major_id() > AM_MESON_CPU_MAJOR_ID_TM2) || is_cpu_tm2_revb())
 		&& (get_cpu_major_id() != AM_MESON_CPU_MAJOR_ID_T5)) {
 		amvdec_av1_profile.profile =
-				"8k, 10bit, dwrite, compressed, no_head, frame_dv, v4l-uvm";
+				"8k, 10bit, dwrite, compressed, no_head, frame_dv, v4l-uvm, multi_frame_dv";
 	} else {
 		amvdec_av1_profile.name = "av1_unsupport";
 	}

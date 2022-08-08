@@ -28,6 +28,7 @@
 #include <media/v4l2-mem2mem.h>
 #include <media/videobuf2-dma-contig.h>
 #include <linux/kthread.h>
+#include <linux/compat.h>
 
 #include "aml_vcodec_drv.h"
 #include "aml_vcodec_dec.h"

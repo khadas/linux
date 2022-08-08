@@ -403,6 +403,8 @@ static irqreturn_t vmjpeg_isr_thread_fn(struct vdec_s *vdec, int irq)
 				vmjpeg_get_ps_info(hw, frame_width, frame_height, &ps);
 				hw->v4l_params_parsed = true;
 				vdec_v4l_set_ps_infos(ctx, &ps);
+				ctx->decoder_status_info.frame_height = ps.visible_height;
+				ctx->decoder_status_info.frame_width = ps.visible_width;
 				reset_process_time(hw);
 				hw->dec_result = DEC_RESULT_AGAIN;
 				vdec_schedule_work(&hw->work);
@@ -491,6 +493,7 @@ static irqreturn_t vmjpeg_isr_thread_fn(struct vdec_s *vdec, int irq)
 	ATRACE_COUNTER(hw->new_q_name, kfifo_len(&hw->newframe_q));
 	ATRACE_COUNTER(hw->disp_q_name, kfifo_len(&hw->display_q));
 	hw->frame_num++;
+	v4l2_ctx->decoder_status_info.decoder_count++;
 	mmjpeg_debug_print(DECODE_ID(hw), PRINT_FRAME_NUM,
 		"%s:frame num:%d,pts=%d,pts64=%lld. dur=%d\n",
 		__func__, hw->frame_num,
@@ -827,10 +830,12 @@ static void start_process_time(struct vdec_mjpeg_hw_s *hw)
 
 static void timeout_process(struct vdec_mjpeg_hw_s *hw)
 {
+	struct aml_vcodec_ctx *ctx = hw->v4l2_ctx;
 	amvdec_stop();
 	mmjpeg_debug_print(DECODE_ID(hw), PRINT_FLAG_ERROR,
 		"%s decoder timeout\n", __func__);
 	hw->dec_result = DEC_RESULT_DONE;
+	vdec_v4l_post_error_event(ctx, DECODER_WARNING_DECODER_TIMEOUT);
 	reset_process_time(hw);
 	vdec_schedule_work(&hw->work);
 }
@@ -1281,6 +1286,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 	struct vdec_mjpeg_hw_s *hw =
 		(struct vdec_mjpeg_hw_s *)vdec->private;
 	int ret;
+	struct aml_vcodec_ctx *ctx = hw->v4l2_ctx;
 
 	hw->vdec_cb_arg = arg;
 	hw->vdec_cb = callback;
@@ -1317,6 +1323,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 		if (ret < 0) {
 			pr_err("[%d] MMJPEG: the %s fw loading failed, err: %x\n",
 				vdec->id, tee_enabled() ? "TEE" : "local", ret);
+			vdec_v4l_post_error_event(ctx, DECODER_EMERGENCY_FW_LOAD_ERROR);
 			hw->dec_result = DEC_RESULT_FORCE_EXIT;
 			vdec_schedule_work(&hw->work);
 			return;

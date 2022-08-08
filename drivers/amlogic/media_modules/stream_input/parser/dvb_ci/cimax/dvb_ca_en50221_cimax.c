@@ -33,6 +33,7 @@
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
 #include <linux/kthread.h>
+#include <linux/compat.h>
 
 #include "dvb_ca_en50221_cimax.h"
 #include "dvb_ringbuffer.h"

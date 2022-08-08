@@ -104,6 +104,23 @@ void aml_vdec_pic_info_update(struct aml_vcodec_ctx *ctx)
 		ctx->vdec_pic_info_update(ctx);
 }
 
+int vdec_v4l_post_error_event(struct aml_vcodec_ctx *ctx, u32 type)
+{
+	int ret = 0;
+	u32 event = V4L2_EVENT_SEND_ERROR;
+
+	if (ctx->drv_handle == 0)
+		return -EIO;
+
+	ctx->decoder_status_info.error_type |= type;
+
+	ret = ctx->dec_if->set_param(ctx->drv_handle,
+		SET_PARAM_POST_EVENT, &event);
+
+	return ret;
+}
+EXPORT_SYMBOL(vdec_v4l_post_error_event);
+
 int vdec_v4l_post_evet(struct aml_vcodec_ctx *ctx, u32 event)
 {
 	int ret = 0;

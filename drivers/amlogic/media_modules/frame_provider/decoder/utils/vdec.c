@@ -82,6 +82,9 @@
 #include "vdec_canvas_utils.h"
 #include "../../../amvdec_ports/aml_vcodec_drv.h"
 
+#if 0
+#define PXP_DEBUG
+#endif
 
 #ifdef CONFIG_AMLOGIC_POWER
 #include <linux/amlogic/power_ctrl.h>
@@ -391,6 +394,87 @@ static const int cores_int[VDEC_MAX] = {
 	VDEC_IRQ_0,
 	VDEC_IRQ_HEVC_BACK
 };
+
+static struct vdec_core_s *vdec_core;
+static struct vdec_data_core_s vdec_data_core;
+
+static void vdec_data_core_init(void)
+{
+	spin_lock_init(&vdec_data_core.vdec_data_lock);
+}
+
+int vdec_data_get_index(ulong data)
+{
+	struct vdec_data_info_s *vdata = (struct vdec_data_info_s *)data;
+	int i = 0;
+
+	for (i = 0; i < VDEC_DATA_NUM; i++) {
+		if (atomic_read(&vdata->data[i].use_count) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
+EXPORT_SYMBOL(vdec_data_get_index);
+
+void vdec_data_buffer_count_increase(ulong data, int index, int cb_index)
+{
+	struct vdec_data_info_s *vdata = (struct vdec_data_info_s *)data;
+
+	if (atomic_read(&vdata->data[index].use_count) == 0)
+		atomic_inc(&vdata->buffer_count);
+	atomic_inc(&vdata->data[index].use_count);
+
+	vdata->release_callback[cb_index].private_data = (void *)&vdata->data[index];
+}
+EXPORT_SYMBOL(vdec_data_buffer_count_increase);
+
+struct vdec_data_info_s *vdec_data_get(void)
+{
+	int i, j;
+	struct vdec_data_core_s *core = &vdec_data_core;
+	ulong flags;
+
+	spin_lock_irqsave(&core->vdec_data_lock, flags);
+	for (i = 0; i < VDEC_DATA_MAX_INSTANCE_NUM; i++) {
+		if (atomic_read(&core->vdata[i].use_flag) == 0) {
+			atomic_set(&core->vdata[i].use_flag, 1);
+			for (j = 0; j < VDEC_DATA_NUM; j++) {
+				core->vdata[i].release_callback[j].func = vdec_data_release;
+				core->vdata[i].data[j].private_data = (void *)&core->vdata[i];
+			}
+			spin_unlock_irqrestore(&core->vdec_data_lock, flags);
+			pr_debug("%s:get %dth vdata %p ok\n", __func__, i, &core->vdata[i]);
+			return &core->vdata[i];
+		}
+	}
+	spin_unlock_irqrestore(&core->vdec_data_lock, flags);
+	return 0;
+}
+EXPORT_SYMBOL(vdec_data_get);
+
+void vdec_data_release(struct codec_mm_s *mm, struct codec_mm_cb_s *cb)
+{
+	struct vdec_data_s *data = (struct vdec_data_s *)cb->private_data;
+	struct vdec_data_info_s *vdata = (struct vdec_data_info_s *)data->private_data;
+
+	atomic_dec(&data->use_count);
+	if (atomic_read(&data->use_count) == 0) {
+		if (data->user_data_buf != NULL)
+			vfree(data->user_data_buf);
+		data->user_data_buf = NULL;
+		atomic_dec(&vdata->buffer_count);
+	}
+
+	if (atomic_read(&vdata->buffer_count) == 0) {
+		atomic_set(&vdata->use_flag, 0);
+		pr_debug("%s:release vdata %p\n", __func__, vdata);
+	}
+
+	return ;
+}
+EXPORT_SYMBOL(vdec_data_release);
 
 unsigned long vdec_canvas_lock(void)
 {
@@ -934,8 +1018,8 @@ void  vdec_count_info(struct vdec_info *vs, unsigned int err,
 			/*pr_info("bitrate : %u\n",vs->bit_rate);*/
 			vs->samp_cnt = 0;
 		}
-		vs->frame_count++;
 	}
+		vs->frame_count++;
 	/*pr_info("size : %u, offset : %u, dur : %u, cnt : %u\n",
 		vs->offset,offset,vs->frame_dur,vs->samp_cnt);*/
 	return;
@@ -4509,6 +4593,109 @@ static ssize_t debug_show(struct class *class,
 
 }
 #endif
+
+#ifdef PXP_DEBUG
+static unsigned pxp_buf_alloc_size = 0;
+static void *pxp_buf_addr = NULL;
+static ulong pxp_buf_phy_addr = 0;
+static ulong pxp_buf_mem_handle = 0;
+
+static ssize_t pxp_buf_store(struct class *class,
+		struct class_attribute *attr,
+		const char *buf, size_t size)
+{
+	ssize_t ret;
+	char cbuf[32];
+	unsigned val;
+
+	cbuf[0] = 0;
+	ret = sscanf(buf, "%s %x", cbuf, &val);
+	/*pr_info(
+	"%s(%s)=>ret %ld: %s, %x, %x\n",
+	__func__, buf, ret, cbuf, id, val);*/
+	if (strcmp(cbuf, "alloc") == 0) {
+		if (pxp_buf_addr) {
+			codec_mm_dma_free_coherent(pxp_buf_mem_handle);
+			pxp_buf_addr = NULL;
+			pxp_buf_alloc_size = 0;
+			pxp_buf_phy_addr = 0;
+		}
+		pxp_buf_alloc_size = PAGE_ALIGN(val);
+		if (pxp_buf_alloc_size>0) {
+			pxp_buf_addr = codec_mm_dma_alloc_coherent(&pxp_buf_mem_handle,
+				&pxp_buf_phy_addr, pxp_buf_alloc_size, "pxp_buf");
+			if (!pxp_buf_addr) {
+				pr_err("%s: failed to alloc pxp_buf buf\n", __func__);
+				pxp_buf_alloc_size = 0;
+				return size;
+			}
+		}
+		pr_info("alloc pxp_buf (phy adr 0x%x, size 0x%x)\n",
+			pxp_buf_phy_addr, pxp_buf_alloc_size);
+
+	} else if (strcmp(cbuf, "free") == 0) {
+		if (pxp_buf_addr) {
+			codec_mm_dma_free_coherent(pxp_buf_mem_handle);
+			pxp_buf_addr = NULL;
+		}
+		pxp_buf_alloc_size = 0;
+	} else if (strcmp(cbuf, "fill") == 0) {
+		memset(pxp_buf_addr, val&0xff, pxp_buf_alloc_size);
+	} else if (strcmp(cbuf, "info") == 0) {
+		pr_info("pxp_buf_alloc_size = 0x%x\n", pxp_buf_alloc_size);
+		pr_info("pxp_buf_addr = 0x%p\n", pxp_buf_addr);
+		pr_info("pxp_buf_phy_addr = 0x%p\n", pxp_buf_phy_addr);
+	} else if (strcmp(cbuf, "show") == 0) {
+		unsigned char* ptr = (unsigned char *)pxp_buf_addr;
+		pr_info("0x%x: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
+			val, ptr[val+0], ptr[val+1], ptr[val+2], ptr[val+3], ptr[val+4], ptr[val+5], ptr[val+6], ptr[val+7],
+			ptr[val+8], ptr[val+9], ptr[val+10], ptr[val+11], ptr[val+12], ptr[val+13], ptr[val+14], ptr[val+15]
+			);
+	} else if (strcmp(cbuf, "save") == 0) {
+		unsigned file_size = 0;
+		struct file* fp;
+		loff_t pos;
+		mm_segment_t old_fs;
+		unsigned int wr_size;
+		char path[32];
+		sscanf(buf, "%s %s %d", cbuf, path, &file_size);
+		if (file_size == 0)
+			file_size = pxp_buf_alloc_size;
+		fp = filp_open(path, O_CREAT | O_WRONLY | O_TRUNC, 0666);
+		if (IS_ERR(fp)) {
+			fp = NULL;
+			pr_info("open %s failed\n", path);
+		} else {
+			old_fs = get_fs();
+			set_fs(KERNEL_DS);
+			wr_size = vfs_write(fp,
+					pxp_buf_addr,
+					file_size, &pos);
+			pr_info("write %d to %s\n", wr_size, path);
+			set_fs(old_fs);
+			vfs_fsync(fp, 0);
+			filp_close(fp, current->files);
+		}
+	} else {
+		pr_info("command examples:\n");
+		pr_info("echo info\n");
+		pr_info("echo alloc a0 (size: hex)\n");
+		pr_info("echo free\n");
+		pr_info("echo show 10 (offset: hex)\n");
+		pr_info("echo fill a5\n");
+		pr_info("echo save /streams/aa.tar.gz 512 (size: decimal\n");
+	}
+	return size;
+}
+
+static ssize_t pxp_buf_show(struct class *class,
+		struct class_attribute *attr, char *buf)
+{
+	return 0;
+}
+#endif
+
+
 int show_stream_buffer_status(char *buf,
 	int (*callback) (struct stream_buf_s *, char *))
 {
@@ -5151,7 +5338,6 @@ Please Use The DECODER BASE Version for traceability\n");
 #ifdef UCODE_VERSION
 		pbuf += sprintf(pbuf, "UCODE VERSION: V" xstr(UCODE_VERSION) "\n");
 #endif
-
 	return pbuf - buf;
 }
 
@@ -5437,6 +5623,9 @@ static CLASS_ATTR_RO(dump_decoder_state);
 #ifdef VDEC_DEBUG_SUPPORT
 static CLASS_ATTR_RW(debug);
 #endif
+#ifdef PXP_DEBUG
+static CLASS_ATTR_RW(pxp_buf);
+#endif
 static CLASS_ATTR_RW(vdec_vfm_path);
 #ifdef FRAME_CHECK
 static CLASS_ATTR_RW(dump_yuv);
@@ -5462,6 +5651,9 @@ static struct attribute *vdec_class_attrs[] = {
 	&class_attr_dump_decoder_state.attr,
 #ifdef VDEC_DEBUG_SUPPORT
 	&class_attr_debug.attr,
+#endif
+#ifdef PXP_DEBUG
+	&class_attr_pxp_buf.attr,
 #endif
 	&class_attr_vdec_vfm_path.attr,
 #ifdef FRAME_CHECK
@@ -5682,6 +5874,8 @@ static int vdec_probe(struct platform_device *pdev)
 	/*work queue priority lower than vdec-core.*/
 
 	vdec_post_task_init();
+
+	vdec_data_core_init();
 
 	/* power manager init. */
 	vdec_core->pm = (struct power_manager_s *)

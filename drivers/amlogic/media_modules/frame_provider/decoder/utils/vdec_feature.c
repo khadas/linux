@@ -122,8 +122,10 @@ static int vcodec_feature_dolbyVison(u8 *buf, int size, int vformat)
 			if ((get_cpu_major_id() >= AM_MESON_CPU_MAJOR_ID_GXM) &&
 				(get_cpu_major_id() != AM_MESON_CPU_MAJOR_ID_T5) &&
 				(get_cpu_major_id() != AM_MESON_CPU_MAJOR_ID_T5D) &&
-				(get_cpu_major_id() != AM_MESON_CPU_MAJOR_ID_S4))
+				(get_cpu_major_id() != AM_MESON_CPU_MAJOR_ID_S4)) {
 				pbuf += snprintf(pbuf, size, "        \"DolbyVision\" : \"true\"\n");
+				pbuf += snprintf(pbuf, size, "        \"multi_frame_dv\" : \"true\"\n");
+			}
 			break;
 		default:
 			break;

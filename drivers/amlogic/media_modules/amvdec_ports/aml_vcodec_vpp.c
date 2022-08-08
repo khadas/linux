@@ -572,6 +572,21 @@ static void vpp_vf_put(void *caller, struct vframe_s *vf)
 	up(&vpp->sem_out);
 }
 
+static bool can_vpp_get_buf_from_m2m(struct aml_v4l2_vpp* vpp)
+{
+	struct aml_vcodec_ctx *ctx = vpp->ctx;
+
+	if (ctx->cap_pool.dec >= (ctx->dpb_size - 1) ||
+		ctx->cap_pool.vpp < aml_v4l2_vpp_get_buf_num(ctx->vpp_cfg.mode))
+		return true;
+
+	v4l_dbg(ctx, V4L_DEBUG_VPP_BUFMGR, "%s dec: %d dpb_size: %d vpp: %d\n",
+		__func__, ctx->cap_pool.dec, ctx->dpb_size,
+		aml_v4l2_vpp_get_buf_num(ctx->vpp_cfg.mode));
+
+	return false;
+}
+
 static int aml_v4l2_vpp_thread(void* param)
 {
 	struct aml_v4l2_vpp* vpp = param;
@@ -613,6 +628,14 @@ retry:
 		/* bind v4l2 buffers */
 		if (!vpp->is_prog && !out_buf->aml_buf) {
 			struct vdec_v4l2_buffer *out;
+
+			if (!can_vpp_get_buf_from_m2m(vpp)) {
+				usleep_range(500, 550);
+				mutex_lock(&vpp->output_lock);
+				kfifo_put(&vpp->output, out_buf);
+				mutex_unlock(&vpp->output_lock);
+				goto retry;
+			}
 
 			if (!ctx->fb_ops.query(&ctx->fb_ops, &vpp->fb_token)) {
 				usleep_range(500, 550);

@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/amlogic/media/utils/amstream.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 //#include "amports_priv.h"
 
 //#include "amlog.h"

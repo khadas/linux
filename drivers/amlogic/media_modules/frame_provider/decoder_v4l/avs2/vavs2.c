@@ -859,12 +859,15 @@ static void timeout_process(struct AVS2Decoder_s *dec)
 {
 	struct avs2_decoder *avs2_dec = &dec->avs2_dec;
 	struct avs2_frame_s *cur_pic = avs2_dec->hc.cur_pic;
+	struct aml_vcodec_ctx *ctx = dec->v4l2_ctx;
+
 	dec->timeout_num++;
 	amhevc_stop();
 	avs2_print(dec,
 		0, "%s decoder timeout\n", __func__);
 	if (cur_pic)
 		cur_pic->error_mark = 1;
+	vdec_v4l_post_error_event(ctx, DECODER_WARNING_DECODER_TIMEOUT);
 	dec->dec_result = DEC_RESULT_DONE;
 	update_decoded_pic(dec);
 	reset_process_time(dec);
@@ -4594,6 +4597,8 @@ static int avs2_prepare_display_buf(struct AVS2Decoder_s *dec)
 			avs2_print(dec, AVS2_DBG_BUFMGR_DETAIL,
 				"!!!error pic, skip\n",
 				0);
+			v4l2_ctx->decoder_status_info.decoder_error_count++;
+			vdec_v4l_post_error_event(v4l2_ctx, DECODER_WARNING_DATA_ERROR);
 			continue;
 		}
 
@@ -5415,6 +5420,7 @@ static irqreturn_t vavs2_isr_thread_fn(int irq, void *data)
 	unsigned int dec_status = dec->dec_status;
 	int i, ret;
 	int32_t start_code = 0;
+	struct aml_vcodec_ctx *ctx = dec->v4l2_ctx;
 
 	avs2_print(dec, AVS2_DBG_BUFMGR_MORE,
 		"%s decode_status 0x%x process_state %d lcu 0x%x\n",
@@ -5464,6 +5470,7 @@ static irqreturn_t vavs2_isr_thread_fn(int irq, void *data)
 		debug |= (AVS2_DBG_DIS_LOC_ERROR_PROC |
 			AVS2_DBG_DIS_SYS_ERROR_PROC);
 		dec->fatal_error |= DECODER_FATAL_ERROR_SIZE_OVERFLOW;
+		vdec_v4l_post_error_event(ctx, DECODER_WARNING_DATA_ERROR);
 		if (dec->m_ins_flag)
 			reset_process_time(dec);
 		goto irq_handled_exit;
@@ -5756,6 +5763,8 @@ static irqreturn_t vavs2_isr_thread_fn(int irq, void *data)
 				dec->init_pic_h = dec->frame_height;
 				dec->last_width = dec->frame_width;
 				dec->last_height = dec->frame_height;
+				ctx->decoder_status_info.frame_height = ps.visible_height;
+				ctx->decoder_status_info.frame_width = ps.visible_width;
 				dec->v4l_params_parsed = true;
 				dec->process_busy = 0;
 				dec_again_process(dec);
@@ -5829,10 +5838,12 @@ static irqreturn_t vavs2_isr_thread_fn(int irq, void *data)
 			if (ret >= 0) {
 				dec->cur_fb_idx_mmu =
 					dec->avs2_dec.hc.cur_pic->index;
-			} else
+			} else {
+				vdec_v4l_post_error_event(ctx, DECODER_ERROR_ALLOC_BUFFER_FAIL);
 				pr_err("can't alloc need mmu1,idx %d ret =%d\n",
 					dec->avs2_dec.hc.cur_pic->index,
 					ret);
+			}
 		}
 #endif
 
@@ -5851,9 +5862,10 @@ static irqreturn_t vavs2_isr_thread_fn(int irq, void *data)
 				MV_BUFFER_IDX(i),
 				mv_buf_size,
 				DRIVER_NAME,
-				&buf_addr) < 0)
+				&buf_addr) < 0) {
+				vdec_v4l_post_error_event(ctx, DECODER_ERROR_ALLOC_BUFFER_FAIL);
 				ret = -1;
-			else
+			} else
 				dec->avs2_dec.hc.cur_pic->mpred_mv_wr_start_addr = buf_addr;
 		}
 #endif
@@ -6404,12 +6416,15 @@ static s32 vavs2_init(struct vdec_s *vdec)
 	int fw_size = 0x1000 * 16;
 	struct firmware_s *fw = NULL;
 	struct AVS2Decoder_s *dec = (struct AVS2Decoder_s *)vdec->private;
+	struct aml_vcodec_ctx *ctx = dec->v4l2_ctx;
 
 	timer_setup(&dec->timer, vavs2_put_timer_func, 0);
 
 	dec->stat |= STAT_TIMER_INIT;
-	if (vavs2_local_init(dec) < 0)
+	if (vavs2_local_init(dec) < 0) {
+		vdec_v4l_post_error_event(ctx, DECODER_EMERGENCY_NO_MEM);
 		return -EBUSY;
+	}
 
 	vdec_set_vframe_comm(vdec, DRIVER_NAME);
 
@@ -6439,6 +6454,7 @@ static s32 vavs2_init(struct vdec_s *vdec)
 
 	ret = amhevc_loadmc_ex(VFORMAT_AVS2, NULL, fw->data);
 	if (ret < 0) {
+		vdec_v4l_post_error_event(ctx, DECODER_EMERGENCY_FW_LOAD_ERROR);
 		amhevc_disable();
 		vfree(fw);
 		pr_err("AVS2: the %s fw loading failed, err: %x\n",
@@ -6673,6 +6689,7 @@ static void avs2_work(struct work_struct *work)
 		dec->frame_count++;
 		dec->process_state = PROC_STATE_INIT;
 		decode_frame_count[dec->index] = dec->frame_count;
+		ctx->decoder_status_info.decoder_count++;
 
 #ifdef AVS2_10B_MMU
 		dec->used_4k_num =
@@ -6875,6 +6892,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 	struct AVS2Decoder_s *dec =
 		(struct AVS2Decoder_s *)vdec->private;
 	int r;
+	struct aml_vcodec_ctx *ctx = dec->v4l2_ctx;
 
 	run_count[dec->index]++;
 	dec->vdec_cb_arg = arg;
@@ -6945,6 +6963,7 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 	} else if (amhevc_loadmc_ex(VFORMAT_AVS2, NULL, dec->fw->data) < 0) {
 		vdec->mc_loaded = 0;
 		amhevc_disable();
+		vdec_v4l_post_error_event(ctx, DECODER_EMERGENCY_FW_LOAD_ERROR);
 		avs2_print(dec, 0, "%s: Error amvdec_loadmc fail\n", __func__);
 		dec->dec_result = DEC_RESULT_FORCE_EXIT;
 		vdec_schedule_work(&dec->work);
@@ -7030,6 +7049,7 @@ static void  avs2_decode_ctx_reset(struct AVS2Decoder_s *dec)
 static void reset(struct vdec_s *vdec)
 {
 	struct AVS2Decoder_s *dec = (struct AVS2Decoder_s *)vdec->private;
+	struct aml_vcodec_ctx *ctx = dec->v4l2_ctx;
 
 	cancel_work_sync(&dec->work);
 
@@ -7046,8 +7066,10 @@ static void reset(struct vdec_s *vdec)
 	reset_process_time(dec);
 
 	avs2_local_uninit(dec);
-	if (vavs2_local_init(dec) < 0)
+	if (vavs2_local_init(dec) < 0) {
+		vdec_v4l_post_error_event(ctx, DECODER_EMERGENCY_NO_MEM);
 		avs2_print(dec, 0, "%s local_init failed \r\n", __func__);
+	}
 
 	avs2_decode_ctx_reset(dec);
 	atomic_set(&dec->vf_pre_count, 0);
@@ -7199,6 +7221,7 @@ static int ammvdec_avs2_probe(struct platform_device *pdev)
 	struct vframe_content_light_level_s content_light_level;
 	struct vframe_master_display_colour_s vf_dp;
 	struct AVS2Decoder_s *dec = NULL;
+	struct aml_vcodec_ctx *ctx = NULL;
 
 	pr_info("%s\n", __func__);
 	if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5D) {
@@ -7226,6 +7249,7 @@ static int ammvdec_avs2_probe(struct platform_device *pdev)
 		}
 	}
 	dec->v4l2_ctx = pdata->private;
+	ctx = dec->v4l2_ctx;
 	pdata->private = dec;
 	pdata->dec_status = vavs2_dec_status;
 #ifdef I_ONLY_SUPPORT
@@ -7364,6 +7388,7 @@ static int ammvdec_avs2_probe(struct platform_device *pdev)
 	video_signal_type = dec->video_signal_type;
 
 	if (amvdec_avs2_mmu_init(dec) < 0) {
+		vdec_v4l_post_error_event(ctx, DECODER_EMERGENCY_NO_MEM);
 		pr_err("avs2 alloc bmmu box failed!!\n");
 		/* devm_kfree(&pdev->dev, (void *)dec); */
 		vfree((void *)dec);
@@ -7374,6 +7399,7 @@ static int ammvdec_avs2_probe(struct platform_device *pdev)
 			dec->cma_alloc_count * PAGE_SIZE, DRIVER_NAME,
 			&dec->cma_alloc_addr);
 	if (ret < 0) {
+		vdec_v4l_post_error_event(ctx, DECODER_EMERGENCY_NO_MEM);
 		uninit_mmu_buffers(dec);
 		/* devm_kfree(&pdev->dev, (void *)dec); */
 		vfree((void *)dec);

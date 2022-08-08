@@ -251,6 +251,22 @@ int get_decoder_firmware_data(enum vformat_e format,
 }
 EXPORT_SYMBOL(get_decoder_firmware_data);
 
+int get_decoder_firmware_version(void)
+{
+	int version;
+
+	version = (package_head.version & 0xff);
+
+	return version;
+}
+EXPORT_SYMBOL(get_decoder_firmware_version);
+
+int get_decoder_firmware_submit_count(void)
+{
+	return package_head.submit_count;
+}
+EXPORT_SYMBOL(get_decoder_firmware_submit_count);
+
 static unsigned long fw_mgr_lock(struct fw_mgr_s *mgr)
 {
 	unsigned long flags;

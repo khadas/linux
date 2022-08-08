@@ -2369,7 +2369,7 @@ static void aml_ci_plus_disable(void)
 
 	data = READ_MPEG_REG(STB_TOP_CONFIG);
 	WRITE_MPEG_REG(STB_TOP_CONFIG, data &
-			~((1 << CIPLUS_IN_SEL) | (7 << CIPLUS_OUT_SEL)));
+			~((3 << CIPLUS_IN_SEL) | (7 << CIPLUS_OUT_SEL)));
 }
 
 static int dsc_set_aes_des_sm4_key(struct aml_dsc_channel *ch, int flags,
@@ -4203,11 +4203,11 @@ void dmx_reset_hw_ex(struct aml_dvb *dvb, int reset_irq)
 		}
 	}
 
-	{
-		u32 data;
-		data = READ_MPEG_REG(STB_TOP_CONFIG);
-		ciplus = 0x7C000000 & data;
-	}
+	// {
+	// 	u32 data;
+	// 	data = READ_MPEG_REG(STB_TOP_CONFIG);
+	// 	ciplus = 0x7C000000 & data;
+	// }
 
 	WRITE_MPEG_REG(RESET1_REGISTER, RESET_DEMUXSTB);
 	/*WRITE_MPEG_REG(RESET3_REGISTER, RESET_DEMUX2|RESET_DEMUX1|RESET_DEMUX0|RESET_S2P1|RESET_S2P0|RESET_TOP);*/
@@ -4397,6 +4397,7 @@ void dmx_reset_hw_ex(struct aml_dvb *dvb, int reset_irq)
 void dmx_reset_dmx_hw_ex_unlock(struct aml_dvb *dvb, struct aml_dmx *dmx,
 				int reset_irq)
 {
+	int id;
 	u32 pcr_num = 0;
 	u32 pcr_regs = 0;
 	{
@@ -4423,10 +4424,26 @@ void dmx_reset_dmx_hw_ex_unlock(struct aml_dvb *dvb, struct aml_dmx *dmx,
 	}
 #endif
 
+	// {
+	// 	u32 data;
+	// 	data = READ_MPEG_REG(STB_TOP_CONFIG);
+	// 	ciplus = 0x7C000000 & data;
+	// }
+
+	for (id = 0; id < DSC_DEV_COUNT; id++)
 	{
-		u32 data;
-		data = READ_MPEG_REG(STB_TOP_CONFIG);
-		ciplus = 0x7C000000 & data;
+		struct aml_dsc *dsc = &dvb->dsc[id];
+		int n;
+
+		for (n = 0; n < DSC_COUNT; n++)
+		{
+			struct aml_dsc_channel *ch = &dsc->channel[n];
+			/*if(ch->used)*/
+			{
+				ch->id = n;
+				dsc_get_pid(ch, &ch->pid);
+			}
+		}
 	}
 
 	pr_error("dmx_reset_dmx_hw_ex_unlock into\n");
@@ -4602,7 +4619,6 @@ void dmx_reset_dmx_hw_ex_unlock(struct aml_dvb *dvb, struct aml_dmx *dmx,
 				/*if(ch->used)*/ {
 				ch->id = n;
 				ch->work_mode = -1;
-				dsc_get_pid(ch,&ch->pid);
 				if (ch->pid != 0x1fff && !ch->used) {
 					flag = 1;
 					ch->used = 1;

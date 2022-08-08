@@ -40,6 +40,7 @@
 #include <linux/compat.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/of_address.h>
+#include <linux/compat.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 
 #include <linux/amlogic/media/registers/cpu_version.h>

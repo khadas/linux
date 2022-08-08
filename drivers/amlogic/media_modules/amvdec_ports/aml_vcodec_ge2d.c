@@ -368,6 +368,20 @@ static void ge2d_vf_put(void *caller, struct vframe_s *vf)
 	up(&ge2d->sem_out);
 }
 
+static bool can_ge2d_get_buf_from_m2m(struct aml_v4l2_ge2d* ge2d)
+{
+	struct aml_vcodec_ctx *ctx = ge2d->ctx;
+
+	if (ctx->cap_pool.dec >= (ctx->dpb_size - 1) ||
+		ctx->cap_pool.ge2d < 4)
+		return true;
+
+	v4l_dbg(ctx, V4L_DEBUG_GE2D_BUFMGR, "%s dec: %d dpb_size: %d ge2d: %d\n",
+		__func__, ctx->cap_pool.dec, ctx->dpb_size, ctx->cap_pool.ge2d);
+
+	return false;
+}
+
 static int aml_v4l2_ge2d_thread(void* param)
 {
 	struct aml_v4l2_ge2d* ge2d = param;
@@ -407,6 +421,14 @@ retry:
 		/* bind v4l2 buffers */
 		if (!out_buf->aml_buf) {
 			struct vdec_v4l2_buffer *out;
+
+			if (!can_ge2d_get_buf_from_m2m(ge2d)) {
+				usleep_range(500, 550);
+				mutex_lock(&ge2d->output_lock);
+				kfifo_put(&ge2d->output, out_buf);
+				mutex_unlock(&ge2d->output_lock);
+				goto retry;
+			}
 
 			if (!ctx->fb_ops.query(&ctx->fb_ops, &ge2d->fb_token)) {
 				usleep_range(500, 550);

@@ -25,7 +25,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
-
+#include <linux/compat.h>
 #include <linux/ktime.h>
 #include <linux/timekeeping.h>
 
@@ -63,6 +63,8 @@
 #include <linux/amlogic/power_domain.h>
 
 #include <linux/clk.h>
+#include <linux/err.h>
+
 #define HCODEC_MFDIN_REG17                       0x101f
 #define HCODEC_MFDIN_REG18                       0x1020
 #define HCODEC_MFDIN_REG19                       0x1021
@@ -4396,21 +4398,21 @@ static int enc_dma_buf_map(struct enc_dma_cfg *cfg)
 
     dbuf = dma_buf_get(fd);
 
-    if (dbuf == NULL) {
+    if (IS_ERR_OR_NULL(dbuf)) {
         jenc_pr(LOG_ERROR, "failed to get dma buffer,fd %d\n",fd);
         return -EINVAL;
     }
 
     d_att = dma_buf_attach(dbuf, dev);
 
-    if (d_att == NULL) {
+    if (IS_ERR(d_att)) {
         jenc_pr(LOG_ERROR, "failed to set dma attach\n");
         goto attach_err;
     }
 
     sg = dma_buf_map_attachment(d_att, dir);
 
-    if (sg == NULL) {
+    if (IS_ERR(sg)) {
         jenc_pr(LOG_ERROR, "failed to get dma sg\n");
         goto map_attach_err;
     }

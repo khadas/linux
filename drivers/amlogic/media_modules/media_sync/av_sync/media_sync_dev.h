@@ -1,22 +1,21 @@
-/*
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- *
- * Description:
- */
+/* Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+*
+* This program is free software; you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation; either version 2 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+* more details.
+*
+* You should have received a copy of the GNU General Public License along
+* with this program; if not, write to the Free Software Foundation, Inc.,
+* 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*
+* Description:
+*/
 #ifndef MEDIA_SYNC_DEV_HEAD_HH
 #define MEDIA_SYNC_DEV_HEAD_HH
 
@@ -97,5 +96,11 @@
 #define MEDIASYNC_IOC_GET_FIRST_QUEUE_AUDIO_INFO _IOW(MEDIASYNC_IOC_MAGIC, 0x48, int)
 #define MEDIASYNC_IOC_SET_FIRST_QUEUE_VIDEO_INFO _IOW(MEDIASYNC_IOC_MAGIC, 0x49, int)
 #define MEDIASYNC_IOC_GET_FIRST_QUEUE_VIDEO_INFO _IOW(MEDIASYNC_IOC_MAGIC, 0x4A, int)
+#define MEDIASYNC_IOC_INSTANCE_STATIC_BINDER _IOW(MEDIASYNC_IOC_MAGIC, 0x4B, int)
+
+#define MEDIASYNC_IOC_SET_AUDIO_PACKETC_INFO _IOW(MEDIASYNC_IOC_MAGIC, 0x4C, int)
+#define MEDIASYNC_IOC_GET_AUDIO_CACHE_INFO _IOW(MEDIASYNC_IOC_MAGIC, 0x4D, int)
+#define MEDIASYNC_IOC_SET_VIDEO_PACKETC_INFO _IOW(MEDIASYNC_IOC_MAGIC, 0x4E, int)
+#define MEDIASYNC_IOC_GET_VIDEO_CACHE_INFO _IOW(MEDIASYNC_IOC_MAGIC, 0x4F, int)
 
 #endif

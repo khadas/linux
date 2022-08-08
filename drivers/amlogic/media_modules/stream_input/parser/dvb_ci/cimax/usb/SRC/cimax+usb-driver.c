@@ -46,6 +46,7 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <linux/dvb/ca.h>
+#include <linux/compat.h>
 
 #include "cimax+usb-driver.h"
 #include "cimax+usb_fw.h"

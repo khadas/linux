@@ -633,7 +633,7 @@ static int vdec_hevc_decode(unsigned long h_vdec,
 	struct aml_dec_params *parms)
  {
 	 if (inst->parms.parms_status & V4L2_CONFIG_PARM_DECODE_CFGINFO)
-		 parms->cfg = inst->parms.cfg;
+		parms->cfg = inst->parms.cfg;
 	 if (inst->parms.parms_status & V4L2_CONFIG_PARM_DECODE_PSINFO)
 		 parms->ps = inst->parms.ps;
 	 if (inst->parms.parms_status & V4L2_CONFIG_PARM_DECODE_HDRINFO)
@@ -685,9 +685,9 @@ static int vdec_hevc_get_param(unsigned long h_vdec,
 	case GET_PARAM_DW_MODE:
 	{
 		u32 *mode = out;
-		u32 m = inst->ctx->config.parm.dec.cfg.double_write_mode;
+		u32 m = inst->parms.cfg.double_write_mode;
 		if (m <= 16)
-			*mode = inst->ctx->config.parm.dec.cfg.double_write_mode;
+			*mode = inst->parms.cfg.double_write_mode;
 		else
 			*mode = vdec_get_dw_mode(inst, 0);
 		break;
@@ -760,10 +760,18 @@ static void set_param_ps_info(struct vdec_hevc_inst *inst,
 static void set_cfg_info(struct vdec_hevc_inst *inst,
 	struct aml_vdec_cfg_infos *cfg)
 {
+	struct vdec_pic_info *pic = &inst->vsi->pic;
+	int dw = inst->parms.cfg.double_write_mode;
 	memcpy(&inst->ctx->config.parm.dec.cfg,
 		cfg, sizeof(struct aml_vdec_cfg_infos));
 	memcpy(&inst->parms.cfg,
 		cfg, sizeof(struct aml_vdec_cfg_infos));
+	if (dw != inst->ctx->config.parm.dec.cfg.double_write_mode) {
+		dw = inst->ctx->config.parm.dec.cfg.double_write_mode;
+		pic->y_len_sz	= ALIGN(vdec_pic_scale(inst, pic->coded_width, dw), 64) *
+					ALIGN(vdec_pic_scale(inst, pic->coded_height, dw), 64);
+		pic->c_len_sz	= pic->y_len_sz >> 1;
+	}
 }
 
 static void set_param_comp_buf_info(struct vdec_hevc_inst *inst,

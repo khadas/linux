@@ -67,6 +67,11 @@
 #define AML_V4L2_GET_INPUT_BUFFER_NUM (V4L2_CID_USER_AMLOGIC_BASE + 1)
 #define AML_V4L2_SET_DURATION (V4L2_CID_USER_AMLOGIC_BASE + 2)
 #define AML_V4L2_GET_FILMGRAIN_INFO (V4L2_CID_USER_AMLOGIC_BASE + 3)
+#define AML_V4L2_GET_DECODER_INFO (V4L2_CID_USER_AMLOGIC_BASE + 5)
+
+#define V4L2_EVENT_PRIVATE_EXT_VSC_BASE (V4L2_EVENT_PRIVATE_START + 0x2000)
+#define V4L2_EVENT_PRIVATE_EXT_VSC_EVENT (V4L2_EVENT_PRIVATE_EXT_VSC_BASE + 1)
+#define V4L2_EVENT_PRIVATE_EXT_SEND_ERROR (V4L2_EVENT_PRIVATE_EXT_VSC_BASE + 2)
 
 #define WORK_ITEMS_MAX (32)
 #define MAX_DI_INSTANCE (2)
@@ -358,6 +363,9 @@ void aml_vdec_dispatch_event(struct aml_vcodec_ctx *ctx, u32 changes)
 	case V4L2_EVENT_SEND_EOS:
 		event.type = V4L2_EVENT_EOS;
 		break;
+	case V4L2_EVENT_SEND_ERROR:
+		event.type = V4L2_EVENT_PRIVATE_EXT_SEND_ERROR;
+		break;
 	default:
 		v4l_dbg(ctx, V4L_DEBUG_CODEC_ERROR,
 			"unsupport dispatch event %x\n", changes);
@@ -463,7 +471,8 @@ static bool ge2d_needed(struct aml_vcodec_ctx *ctx, u32* mode)
 			(ctx->output_pix_fmt != V4L2_PIX_FMT_MPEG1) &&
 			(ctx->output_pix_fmt != V4L2_PIX_FMT_MPEG2) &&
 			(ctx->output_pix_fmt != V4L2_PIX_FMT_MPEG4) &&
-			(ctx->output_pix_fmt != V4L2_PIX_FMT_MJPEG)) {
+			(ctx->output_pix_fmt != V4L2_PIX_FMT_MJPEG) &&
+			(ctx->output_pix_fmt != V4L2_PIX_FMT_AVS)) {
 			return false;
 		}
 	} else if (ctx->output_pix_fmt != V4L2_PIX_FMT_MJPEG) {
@@ -2060,6 +2069,12 @@ static int vidioc_decoder_streamon(struct file *file, void *priv,
 	} else
 		ctx->is_out_stream_off = false;
 
+	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
+		memset(&ctx->decoder_status_info, 0,
+			sizeof(ctx->decoder_status_info));
+	}
+
+
 	v4l_dbg(ctx, V4L_DEBUG_CODEC_PROT,
 		"%s, type: %d\n", __func__, q->type);
 
@@ -2399,6 +2414,8 @@ static int vidioc_vdec_subscribe_evt(struct v4l2_fh *fh,
 		return v4l2_event_subscribe(fh, sub, 2, NULL);
 	case V4L2_EVENT_SOURCE_CHANGE:
 		return v4l2_src_change_event_subscribe(fh, sub);
+	case V4L2_EVENT_PRIVATE_EXT_SEND_ERROR:
+		return v4l2_event_subscribe(fh, sub, 5, NULL);
 	default:
 		return v4l2_ctrl_subscribe_event(fh, sub);
 	}
@@ -3188,7 +3205,7 @@ static int init_mmu_bmmu_box(struct aml_vcodec_ctx *ctx)
 
 	if (vdec_if_get_param(ctx, GET_PARAM_DW_MODE, &dw_mode)) {
 		v4l_dbg(ctx, V4L_DEBUG_CODEC_ERROR, "invalid dw_mode\n");
-		return -EINVAL;
+		goto free_comp_bufs;
 	}
 
 	/* init bmmu box */
@@ -3196,9 +3213,8 @@ static int init_mmu_bmmu_box(struct aml_vcodec_ctx *ctx)
 			ctx->id, V4L_CAP_BUFF_MAX,
 			ctx->comp_info.max_size * SZ_1M, mmu_flag);
 	if (!ctx->mmu_box) {
-		vfree(ctx->comp_bufs);
 		v4l_dbg(ctx, V4L_DEBUG_CODEC_ERROR, "fail to create mmu box\n");
-		return -EINVAL;
+		goto free_comp_bufs;
 	}
 
 	/* init mmu box */
@@ -3245,6 +3261,7 @@ static int init_mmu_bmmu_box(struct aml_vcodec_ctx *ctx)
 		buf->bmmu_box = ctx->bmmu_box;
 		buf->mmu_box_dw = ctx->mmu_box_dw;
 		buf->bmmu_box_dw = ctx->bmmu_box_dw;
+		buf->used = 0;
 	}
 	kref_get(&ctx->ctx_ref);
 
@@ -3267,9 +3284,13 @@ free_bmmubox:
 	ctx->bmmu_box = NULL;
 
 free_mmubox:
-	vfree(ctx->comp_bufs);
 	decoder_mmu_box_free(ctx->mmu_box);
 	ctx->mmu_box = NULL;
+
+free_comp_bufs:
+	vfree(ctx->comp_bufs);
+	ctx->comp_bufs = NULL;
+
 	return -1;
 }
 
@@ -4348,6 +4369,7 @@ static void vb2ops_vdec_stop_streaming(struct vb2_queue *q)
 		ctx->cap_pool.out = 0;
 		ctx->cap_pool.dec = 0;
 		ctx->cap_pool.vpp = 0;
+		ctx->cap_pool.ge2d = 0;
 	}
 }
 
@@ -4405,6 +4427,11 @@ static int aml_vdec_g_v_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case AML_V4L2_GET_FILMGRAIN_INFO:
 		ctrl->val = ctx->film_grain_present;
+		break;
+	case AML_V4L2_GET_DECODER_INFO:
+		memcpy(ctrl->p_new.p, &ctx->decoder_status_info,
+			sizeof(struct aml_decoder_status_info));
+		ctx->decoder_status_info.error_type = 0;
 		break;
 	default:
 		ret = -EINVAL;
@@ -4485,6 +4512,19 @@ static const struct v4l2_ctrl_config ctrl_gt_filmgrain_info = {
 	.def	= 0,
 };
 
+static const struct v4l2_ctrl_config ctrl_gt_decoder_info = {
+	.name		= "decoder information",
+	.id		= AML_V4L2_GET_DECODER_INFO,
+	.ops		= &aml_vcodec_dec_ctrl_ops,
+	.type		= V4L2_CTRL_COMPOUND_TYPES,
+	.flags		= V4L2_CTRL_FLAG_VOLATILE,
+	.min		= 0,
+	.max		= sizeof(struct aml_decoder_status_info),
+	.step		= 1,
+	.elem_size	= 1,
+	.dims		= { sizeof(struct aml_decoder_status_info) },
+};
+
 int aml_vcodec_dec_ctrls_setup(struct aml_vcodec_ctx *ctx)
 {
 	int ret;
@@ -4530,6 +4570,12 @@ int aml_vcodec_dec_ctrls_setup(struct aml_vcodec_ctx *ctx)
 	}
 
 	ctrl = v4l2_ctrl_new_custom(&ctx->ctrl_hdl, &ctrl_gt_filmgrain_info, NULL);
+	if ((ctrl == NULL) || (ctx->ctrl_hdl.error)) {
+		ret = ctx->ctrl_hdl.error;
+		goto err;
+	}
+
+	ctrl = v4l2_ctrl_new_custom(&ctx->ctrl_hdl, &ctrl_gt_decoder_info, NULL);
 	if ((ctrl == NULL) || (ctx->ctrl_hdl.error)) {
 		ret = ctx->ctrl_hdl.error;
 		goto err;
@@ -4656,6 +4702,10 @@ static int vidioc_vdec_s_parm(struct file *file, void *fh,
 			if (check_dec_cfginfo(&in->cfg))
 				return -EINVAL;
 			dec->cfg = in->cfg;
+			if (!vdec_if_set_param(ctx, SET_PARAM_CFG_INFO, &dec->cfg) &&
+				!vdec_if_get_param(ctx, GET_PARAM_PIC_INFO, &ctx->picinfo)) {
+				update_ctx_dimension(ctx, dst_vq->type);
+			}
 		}
 		if (in->parms_status & V4L2_CONFIG_PARM_DECODE_PSINFO)
 			dec->ps = in->ps;
