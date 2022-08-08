@@ -1561,25 +1561,25 @@
 &csiphy0 {
 	ports {
 		port@0 {
-			csiphy0_ep_2: endpoint {
+			csiphy0_ep_2: ov08a10 {
 				reg = <0>;
-				status = "disable";
+				status = "okay";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
 				remote-endpoint = <&ov08a10_0_ep>;
 			};
 		};
 		port@1 {
-			csiphy0_ep: endpoint {
+			csiphy0_ep: imx290 {
 				reg = <1>;
-				status = "disable";
+				status = "okay";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
 				remote-endpoint = <&imx290_2_ep>;
 			};
 		};
 		port@2 {
-			csiphy0_ep_4: endpoint {
+			csiphy0_ep_4: imx415 {
 				reg = <2>;
 				status = "okay";
 				clock-lanes = <4>;
