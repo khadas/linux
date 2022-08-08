@@ -1276,6 +1276,12 @@
 	 * 1: enable
 	 ***************************************************/
 	//hf = <0>;
+	afbce_loss_en = <1>;
+	/***************************************************
+	 * loss mode for di out (T5w)
+	 * 0:not set loss mode for di out;
+	 * 1:1:check the loss flag in vf and set for di
+	 ***************************************************/
 };/* end of multi-di */
 
 &i2c0 {
