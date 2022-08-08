@@ -1782,7 +1782,7 @@ static void meson_hdmitx_hpd_cb(void *data)
 					   CEC_PHYS_ADDR_INVALID);
 	}
 #endif
-	drm_helper_hpd_irq_event(am_hdmi->base.connector.dev);
+	drm_kms_helper_hotplug_event(am_hdmi->base.connector.dev);
 }
 
 int meson_hdmitx_dev_bind(struct drm_device *drm,
