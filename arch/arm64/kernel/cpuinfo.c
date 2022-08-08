@@ -24,7 +24,8 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/delay.h>
-#if IS_ENABLED(CONFIG_AMLOGIC_CPU_INFO)
+
+#if IS_ENABLED(CONFIG_AMLOGIC_SHOW_CPU_CHIPID)
 #include <trace/hooks/cpuinfo.h>
 #endif
 
@@ -204,7 +205,7 @@ static int c_show(struct seq_file *m, void *v)
 		seq_printf(m, "CPU revision\t: %d\n\n", MIDR_REVISION(midr));
 	}
 
-#if IS_ENABLED(CONFIG_AMLOGIC_CPU_INFO)
+#if IS_ENABLED(CONFIG_AMLOGIC_SHOW_CPU_CHIPID)
 	trace_android_vh_show_cpu_chipid(m);
 #endif
 
