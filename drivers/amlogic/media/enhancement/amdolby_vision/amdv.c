@@ -6532,6 +6532,7 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 					(dv_provider[0],
 					 VFRAME_EVENT_RECEIVER_DOLBY_BYPASS_EL,
 					 (void *)&req);
+				amdv_el_disable = 1;
 				pr_dv_dbg("bypass mel\n");
 			}
 			if (ret_flags == 1)
