@@ -20,4 +20,13 @@ config AMLOGIC_PWM_32K
 		By default,32K of SOC input is enabled,
 		if not, you can disable it by selecting n.
 
+
+config WIFI_POWER_INIT_OFF
+	bool "wifi power init off"
+	default n
+	help
+		Different OS has some different scenarios. Default wifi power is reset
+		and on for android, but other system like yoctos might not fit this
+		strategy. We add a macro CONFIG_YOCTO_WIFI so WIFI can be inited power off
+		to handle dirrerent scenarios.
 endif

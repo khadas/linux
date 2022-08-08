@@ -55,7 +55,6 @@
  * called in vpp vs ir :vsync_fisr_in
  * defined(CONFIG_AMLOGIC_MEDIA_FRC)
  */
-
 int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 {
 	struct frc_dev_s *devp = get_frc_devp();

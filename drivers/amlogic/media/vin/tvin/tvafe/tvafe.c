@@ -31,6 +31,7 @@
 #include <linux/of_irq.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/dma-contiguous.h>
+#include <linux/compat.h>
 #include <linux/clk.h>
 /* Amlogic headers */
 #include <linux/amlogic/media/canvas/canvas.h>
@@ -117,10 +118,31 @@ static struct tvafe_info_s *g_tvafe_info;
 #endif
 
 static unsigned int vs_adj_val_pre;
+
+//project NTSC-M pass
+//tvin_afe: cutwindow_h: 0 8 16 10 8
+//cutwindow_v: 4 8 14 16 24
+//horizontal_dir0: 136 146 140 150 150
+//horizontal_dir1: 146 154 150 152 154
+//horizontal_stp0: 32 46 46 50 32
+//horizontal_stp1: 18 46 46 50 32
+
+//project PAL-I pass
+//tvin_afe: cutwindow_h: 0 0 0 0 8
+//cutwindow_v: 4 8 14 16 24
+//horizontal_dir0: 136 154 148 150 136
+//horizontal_dir1: 136 154 150 152 154
+//horizontal_stp0: 32 46 46 50 32
+//horizontal_stp1: 32 46 46 50 32
+
 static struct tvafe_user_param_s tvafe_user_param = {
 	.cutwindow_val_h = {0, 10, 18, 20, 62},
 	/*level4: 48-->62 for ntsc-m*/
 	.cutwindow_val_v = {4, 8, 14, 16, 24},
+	.horizontal_dir0 = {148, 148, 148, 148, 148},
+	.horizontal_dir1 = {148, 148, 148, 148, 148},
+	.horizontal_stp0 = {0, 0, 0, 0, 0},
+	.horizontal_stp1 = {0, 0, 0, 0, 0},
 	.cutwindow_val_vs_ve = TVAFE_VS_VE_VAL,
 	.cdto_adj_hcnt_th = 0x260,
 	.cdto_adj_ratio_p = 1019, /* val/1000 */
@@ -139,6 +161,7 @@ static struct tvafe_user_param_s tvafe_user_param = {
 	 */
 	.auto_adj_en = 0x3e,
 	.vline_chk_cnt = 100, /* 100*10ms */
+	.hline_chk_cnt = 300, /* 300*10ms */
 	.low_amp_level = 0,
 
 	.nostd_vs_th = 0x0,
@@ -318,6 +341,16 @@ static int tvafe_work_mode(bool mode)
 static int tvafe_get_v_fmt(void)
 {
 	int fmt = 0;
+	struct tvafe_dev_s *devp = NULL;
+
+	devp = tvafe_get_dev();
+	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
+		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+					devp->flags);
+		return 0;
+	}
 
 	if (tvin_get_sm_status(0) != TVIN_SM_STATUS_STABLE)
 		return 0;
@@ -706,7 +739,8 @@ static int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe_pr_err("tvafe havn't opened, isr error!!!\n");
+		if (tvafe_dbg_print & TVAFE_DBG_ISR)
+			tvafe_pr_err("tvafe havn't opened, isr error!!!\n");
 		return TVIN_BUF_SKIP;
 	}
 
@@ -888,8 +922,9 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
-			devp->flags);
+		if (tvafe_dbg_print & TVAFE_DBG_SMR)
+			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+					devp->flags);
 		return true;
 	}
 	if (force_stable)
@@ -1130,8 +1165,9 @@ static void tvafe_get_sig_property(struct tvin_frontend_s *fe,
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe_pr_err("%s tvafe not opened OR suspend:flags:0x%x!\n",
-			__func__, devp->flags);
+		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+			tvafe_pr_err("%s tvafe not opened OR suspend:flags:0x%x!\n",
+					__func__, devp->flags);
 		return;
 	}
 
@@ -1557,6 +1593,22 @@ static void tvafe_user_parameters_config(struct device_node *of_node)
 			tvafe_user_param.cutwindow_val_v, 5);
 	if (ret)
 		tvafe_pr_err("Can't get cutwindow_val_v\n");
+	ret = of_property_read_u32_array(of_node, "horizontal_dir0",
+			tvafe_user_param.horizontal_dir0, 5);
+	if (ret)
+		tvafe_pr_err("Can't get horizontal_dir0\n");
+	ret = of_property_read_u32_array(of_node, "horizontal_dir1",
+			tvafe_user_param.horizontal_dir1, 5);
+	if (ret)
+		tvafe_pr_err("Can't get horizontal_dir1\n");
+	ret = of_property_read_u32_array(of_node, "horizontal_stp0",
+			tvafe_user_param.horizontal_stp0, 5);
+	if (ret)
+		tvafe_pr_err("Can't get horizontal_stp0\n");
+	ret = of_property_read_u32_array(of_node, "horizontal_stp1",
+			tvafe_user_param.horizontal_stp1, 5);
+	if (ret)
+		tvafe_pr_err("Can't get horizontal_stp1\n");
 
 	ret = of_property_read_u32(of_node, "auto_adj_en", &val[0]);
 	if (ret == 0) {
@@ -2001,10 +2053,37 @@ static int tvafe_drv_resume(struct platform_device *pdev)
 
 static void tvafe_drv_shutdown(struct platform_device *pdev)
 {
+	struct tvafe_dev_s *tdevp = NULL;
+	struct tvafe_info_s *tvafe;
+
 	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1) {
 		W_APB_BIT(TVFE_VAFE_CTRL0, 0, 19, 1);
 		W_APB_BIT(TVFE_VAFE_CTRL1, 0, 8, 1);
 	}
+
+	tdevp = platform_get_drvdata(pdev);
+	if (!tdevp) {
+		tvafe_pr_info("tdevp is null\n");
+		return;
+	}
+
+	tvafe = &tdevp->tvafe;
+	mutex_lock(&tdevp->afe_mutex);
+	/* close afe port first */
+	if (tdevp->flags & TVAFE_FLAG_DEV_OPENED) {
+		tdevp->flags &= (~TVAFE_FLAG_DEV_OPENED);
+		tdevp->flags |= TVAFE_POWERDOWN_IN_IDLE;
+		tdevp->flags &= (~TVAFE_FLAG_DEV_STARTED);
+		tvafe_clk_status = false;
+		tvafe_pr_info("shutdown close afe port first\n");
+		tvafe_cvd2_hold_rst();
+		/**disable av out**/
+		tvafe_enable_avout(tvafe->parm.port, false);
+		/*disable and reset tvafe clock*/
+		tvafe_enable_module(false);
+	}
+	mutex_unlock(&tdevp->afe_mutex);
+
 	tvafe_pr_info("%s: tvafe sutdown ok.\n", __func__);
 }
 

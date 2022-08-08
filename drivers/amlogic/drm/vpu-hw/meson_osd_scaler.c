@@ -900,7 +900,8 @@ static int scaler_check_state(struct meson_vpu_block *vblk,
 }
 
 static void scaler_set_state(struct meson_vpu_block *vblk,
-			     struct meson_vpu_block_state *state)
+			     struct meson_vpu_block_state *state,
+			     struct meson_vpu_block_state *old_state)
 {
 	struct meson_vpu_pipeline_state *mvps;
 

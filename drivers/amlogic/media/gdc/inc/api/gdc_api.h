@@ -356,4 +356,7 @@ int gdc_pwr_config(bool enable, u32 dev_type, u32 core_id);
 
 void gdc_pwr_remove(struct gdc_pd *pd);
 
+void gdc_runtime_pwr_all(u32 dev_type, bool enable);
+
+void gdc_clk_config_all(u32 dev_type, bool enable);
 #endif

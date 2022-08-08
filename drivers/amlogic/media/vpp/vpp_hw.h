@@ -16,24 +16,6 @@ enum mod_ctl_e {
 	ENABLE
 };
 
-enum vpp_module_e {
-	MOD_SR0 = 0,
-	MOD_SR0_DNLP,
-	MOD_SR1,
-	MOD_SR1_DNLP,
-	MOD_LC,
-	MOD_CM,
-	MOD_BLE,
-	MOD_BLS,
-	MOD_CC,
-	MOD_VADJ1,
-	MOD_WB,
-	MOD_VADJ2,
-	MOD_LUT3D,
-	MOD_PREGM,
-	MOD_GAM
-};
-
 struct reg_data1_s {
 	unsigned int reg_addr;
 	unsigned int msk;

@@ -841,6 +841,12 @@ struct hw_viu_misc_reg_s viu_misc_reg = {
 	PATH_START_SEL,
 	VPP_MISC,
 	VPP_MISC1,
+	VPP_VD1_CLIP_MISC0,
+	VPP_VD1_CLIP_MISC1,
+	VPP_VD2_CLIP_MISC0,
+	VPP_VD2_CLIP_MISC1,
+	VPP_VD3_CLIP_MISC0,
+	VPP_VD3_CLIP_MISC1,
 };
 
 struct hw_vpp_path_size_s vpp_path_size_reg = {

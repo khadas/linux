@@ -41,32 +41,53 @@
 			pr_info("vdin:dv " fmt, ## arg); \
 	} while (0)
 
-void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en)
+void vdin_wrmif2_enable(struct vdin_dev_s *devp, u32 en, unsigned int rdma_enable)
 {
-	u32 offset = 0;
-
-	if (devp->dtdata->hw_ver != VDIN_HW_T7)
+	if (devp->dtdata->hw_ver != VDIN_HW_T7 || devp->index)
 		return;
 
-	/*clear int status*/
-	wr_bits(0, VDIN2_WR_CTRL, 1,
-			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
-	wr_bits(0, VDIN2_WR_CTRL, 0,
-			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	if (rdma_enable) {
+		/*clear int status*/
+		rdma_write_reg_bits(devp->rdma_handle, VDIN2_WR_CTRL, 1,
+				DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
+		rdma_write_reg_bits(devp->rdma_handle, VDIN2_WR_CTRL, 0,
+				DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
 
-	/*write mif2 int*/
-	if (en)
-		wr_bits(offset, VDIN_TOP_DOUBLE_CTRL, 0x3,
-			VDIN1_INT_MASK_BIT, 3);
-	else
-		wr_bits(offset, VDIN_TOP_DOUBLE_CTRL, 0x7,
-			VDIN1_INT_MASK_BIT, 3);
+		/*write mif2 int*/
+		if (en)
+			rdma_write_reg_bits(devp->rdma_handle, VDIN_TOP_DOUBLE_CTRL, 0x3,
+				VDIN1_INT_MASK_BIT, 3);
+		else
+			rdma_write_reg_bits(devp->rdma_handle, VDIN_TOP_DOUBLE_CTRL, 0x7,
+				VDIN1_INT_MASK_BIT, 3);
 
-	if (en)
-		wr_bits(offset, VDIN2_WR_CTRL, 1, 8, 1);
-	else
-		wr_bits(offset, VDIN2_WR_CTRL, 0, 8, 1);
+		if (en)
+			rdma_write_reg_bits(devp->rdma_handle, VDIN2_WR_CTRL, 1, 8, 1);
+		else
+			rdma_write_reg_bits(devp->rdma_handle, VDIN2_WR_CTRL, 0, 8, 1);
+	} else {
+#endif
+		/*clear int status*/
+		wr_bits(0, VDIN2_WR_CTRL, 1,
+				DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
+		wr_bits(0, VDIN2_WR_CTRL, 0,
+				DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
+		/*write mif2 int*/
+		if (en)
+			wr_bits(0, VDIN_TOP_DOUBLE_CTRL, 0x3,
+				VDIN1_INT_MASK_BIT, 3);
+		else
+			wr_bits(0, VDIN_TOP_DOUBLE_CTRL, 0x7,
+				VDIN1_INT_MASK_BIT, 3);
 
+		if (en)
+			wr_bits(0, VDIN2_WR_CTRL, 1, 8, 1);
+		else
+			wr_bits(0, VDIN2_WR_CTRL, 0, 8, 1);
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	}
+#endif
 	dprintk(1, "%s %d\n", __func__, en);
 }
 

@@ -59,6 +59,9 @@ static bool nr_ctrl_reg;
 
 bool nr_demo_flag;
 
+static void nr_gate_control(bool gate);
+static void nr_gate_control_op(bool gate, const struct reg_acc *op);
+
 int global_bs_calc_sw(int *pGbsVldCnt,
 			  int *pGbsVldFlg,
 			  int *pGbs,
@@ -320,27 +323,35 @@ static u32 check_dnr_dm_ctrl(u32 org_val, unsigned short width,
 	return org_val;
 }
 
-static void dnr_config(struct DNR_PARM_s *dnr_parm_p,
-		unsigned short width, unsigned short height)
+static void dnr_config_op(struct DNR_PARM_s *dnr_parm_p,
+		unsigned short width, unsigned short height,
+		const struct reg_acc *op)
 {
 	unsigned short border_offset = dnr_parm_p->dnr_stat_coef;
 
-	DI_Wr(DNR_HVSIZE, width<<16|height);
-	DI_Wr(DNR_STAT_X_START_END, (((border_offset<<3)&0x3fff) << 16)
-		|((width-((border_offset<<3)+1))&0x3fff));
-	DI_Wr(DNR_STAT_Y_START_END, (((border_offset<<3)&0x3fff) << 16)
-		|((height-((border_offset<<3)+1))&0x3fff));
-	DI_Wr(DNR_DM_CTRL, Rd(DNR_DM_CTRL)|(1 << 11));
-	DI_Wr_reg_bits(DNR_CTRL, dnr_en ? 1 : 0, 16, 1);
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
+	op->wr(DNR_HVSIZE, (width << 16) | height);
+	op->wr(DNR_STAT_X_START_END,
+	       (((border_offset << 3) & 0x3fff) << 16) |
+	       ((width - ((border_offset << 3) + 1)) & 0x3fff));
+	op->wr(DNR_STAT_Y_START_END,
+	       (((border_offset << 3) & 0x3fff) << 16) |
+	       ((height - ((border_offset << 3) + 1)) & 0x3fff));
+	op->wr(DNR_DM_CTRL, op->rd(DNR_DM_CTRL) | (1 << 11));
+	op->bwr(DNR_CTRL, dnr_en ? 1 : 0, 16, 1);
 	/* dm for sd, hd will slower */
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 	    IS_IC(dil_get_cpuver_flag(), T5)	||
 	    IS_IC(dil_get_cpuver_flag(), T5D)	||
 	    IS_IC(dil_get_cpuver_flag(), T5DB)	||
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)))//from vlsi feijun
-		DI_Wr(DNR_CTRL, 0x1df00 | (0x03 << 18)); //5 line
+		op->wr(DNR_CTRL, 0x1df00 | (0x03 << 18)); //5 line
 	else
-		DI_Wr(DNR_CTRL, 0x1df00);
+		op->wr(DNR_CTRL, 0x1df00);
 
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 	    IS_IC(dil_get_cpuver_flag(), T5)	||
@@ -348,77 +359,91 @@ static void dnr_config(struct DNR_PARM_s *dnr_parm_p,
 	    IS_IC(dil_get_cpuver_flag(), T5DB)  ||
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))) {
 		if (width > 1280)
-			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 8, 1);
+			op->bwr(DNR_DM_CTRL, 0, 8, 1);
 		else
-			DI_Wr_reg_bits(DNR_DM_CTRL, 1, 8, 1);
+			op->bwr(DNR_DM_CTRL, 1, 8, 1);
 		if (width > 1920 || !dnr_dm_en)
-			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
+			op->bwr(DNR_DM_CTRL, 0, 9, 1);
 		else
-			DI_Wr_reg_bits(DNR_DM_CTRL, 1, 9, 1);
+			op->bwr(DNR_DM_CTRL, 1, 9, 1);
 	} else if (is_meson_gxlx_cpu() || is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() || is_meson_sm1_cpu()) {
 		/* disable chroma dm according to baozheng */
-		DI_Wr_reg_bits(DNR_DM_CTRL, 0, 8, 1);
-		DI_Wr(DNR_CTRL, 0x1dd00);
+		op->bwr(DNR_DM_CTRL, 0, 8, 1);
+		op->wr(DNR_CTRL, 0x1dd00);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) || is_meson_gxl_cpu()) {
 		/*disable */
 		if (width > 1280) {
-			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 8, 1);
+			op->bwr(DNR_DM_CTRL, 0, 8, 1);
 			/* disable dm for 1080 which will cause pre timeout*/
-			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
+			op->bwr(DNR_DM_CTRL, 0, 9, 1);
 		} else {
-			DI_Wr_reg_bits(DNR_DM_CTRL, 1, 8, 1);
-			DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+			op->bwr(DNR_DM_CTRL, 1, 8, 1);
+			op->bwr(DNR_DM_CTRL, dnr_dm_en, 9, 1);
 		}
 	} else {
 		if (width >= 1920)
-			DI_Wr_reg_bits(DNR_DM_CTRL, 0, 9, 1);
+			op->bwr(DNR_DM_CTRL, 0, 9, 1);
 		else
-			DI_Wr_reg_bits(DNR_DM_CTRL, dnr_dm_en, 9, 1);
+			op->bwr(DNR_DM_CTRL, dnr_dm_en, 9, 1);
 	}
 }
-static void nr4_config(struct NR4_PARM_s *nr4_parm_p,
-		unsigned short width, unsigned short height)
+
+static void nr4_config_op(struct NR4_PARM_s *nr4_parm_p,
+			unsigned short width,
+			unsigned short height,
+		const struct reg_acc *op)
 {
 	unsigned short val = 0;
 
-	val = nr4_parm_p->border_offset;
-	/* luma enhancement*/
-	DI_Wr(NR4_MCNR_LUMA_STAT_LIMTX, (val<<16) | (width-val-1));
-	DI_Wr(NR4_MCNR_LUMA_STAT_LIMTY, (val<<16) | (height-val-1));
-	if (dim_config_crc_ic()) {
-		DI_Wr(NR4_MCNR_LUMAPRE_CAL_PRAM, 0);
-		DI_Wr(NR4_MCNR_LUMACUR_CAL_PRAM, 0);
-		DI_Wr(NR4_MCNR_MV_CTRL_REG, 0x2408);
-	} //add for crc @2k22-0102
-	/* noise meter */
-	DI_Wr(NR4_NM_X_CFG, (val<<16) | (width-val-1));
-	DI_Wr(NR4_NM_Y_CFG, (val<<16) | (height-val-1));
-	if (IS_IC(dil_get_cpuver_flag(), T3) && nr4ne_en) {
-		DI_Wr(NR4_NE_X, width - 1);
-		DI_Wr(NR4_NE_Y, height - 1);
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
 	}
 
+	val = nr4_parm_p->border_offset;
+	/* luma enhancement*/
+	op->wr(NR4_MCNR_LUMA_STAT_LIMTX, (val << 16) | (width - val - 1));
+	op->wr(NR4_MCNR_LUMA_STAT_LIMTY, (val << 16) | (height - val - 1));
+	if (dim_config_crc_ic()) {
+		op->wr(NR4_MCNR_LUMAPRE_CAL_PRAM, 0);
+		op->wr(NR4_MCNR_LUMACUR_CAL_PRAM, 0);
+		op->wr(NR4_MCNR_MV_CTRL_REG, 0x2408);
+	} //add for crc @2k22-0102
+	/* noise meter */
+	op->wr(NR4_NM_X_CFG, (val << 16) | (width - val - 1));
+	op->wr(NR4_NM_Y_CFG, (val << 16) | (height - val - 1));
+	if (IS_IC(dil_get_cpuver_flag(), T3) && nr4ne_en) {
+		op->wr(NR4_NE_X, width - 1);
+		op->wr(NR4_NE_Y, height - 1);
+	}
 	/* enable nr4 */
-	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 16, 1);
-	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 18, 1);
-	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 3, 1);
-	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 5, 1);
+	op->bwr(NR4_TOP_CTRL, 1, 16, 1);
+	op->bwr(NR4_TOP_CTRL, 1, 18, 1);
+	op->bwr(NR4_TOP_CTRL, 1, 3, 1);
+	op->bwr(NR4_TOP_CTRL, 1, 5, 1);
 	//add for crc @2k22-0102
 	if (dim_config_crc_ic())
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 0, 1);
+		op->bwr(NR4_TOP_CTRL, 0, 0, 1);
 	nr4_parm_p->width = width - val - val - 1;
 	nr4_parm_p->height = height - val - val - 1;
 }
+
 /*
  * line buffer ctrl such as 5 lines or 3 lines
  * yuv444 or yuv422
  */
-static void linebuffer_config(unsigned short width)
+static void linebuffer_config_op(unsigned short width,
+		const struct reg_acc *op)
 {
 	unsigned short val = 0;
 	unsigned short line5_444 = 1368, line5_422 = 2052;
 	unsigned short line3_444 = 2736;
+
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 
 	if (is_meson_txhd_cpu()) {
 		line5_444 = 640;
@@ -434,12 +459,18 @@ static void linebuffer_config(unsigned short width)
 	else
 		val = 0;
 	/* line buffer no gate clock */
-	DI_Wr_reg_bits(LBUF_TOP_CTRL, 0, 20, 6);
-	DI_Wr_reg_bits(LBUF_TOP_CTRL, val, 16, 2);
+	op->bwr(LBUF_TOP_CTRL, 0, 20, 6);
+	op->bwr(LBUF_TOP_CTRL, val, 16, 2);
 }
 
-static void nr2_config(unsigned short width, unsigned short height)
+static void nr2_config_op(unsigned short width, unsigned short height,
+		const struct reg_acc *op)
 {
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() || is_meson_tl1_cpu() ||
 		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
@@ -447,16 +478,16 @@ static void nr2_config(unsigned short width, unsigned short height)
 		IS_IC(dil_get_cpuver_flag(), T5D)	||
 		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 2, 1);
-		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 15, 1);
-		DI_Wr_reg_bits(NR4_TOP_CTRL, nr2_en, 17, 1);
+		op->bwr(NR4_TOP_CTRL, nr2_en, 2, 1);
+		op->bwr(NR4_TOP_CTRL, nr2_en, 15, 1);
+		op->bwr(NR4_TOP_CTRL, nr2_en, 17, 1);
 	} else {
 		/*set max height to disable nfram cnt in cue*/
 		if (is_meson_gxlx_cpu())
-			DI_Wr(NR2_FRM_SIZE, (0xfff<<16)|width);
+			op->wr(NR2_FRM_SIZE, (0xfff << 16) | width);
 		else
-			DI_Wr(NR2_FRM_SIZE, (height<<16)|width);
-		DI_Wr_reg_bits(NR2_SW_EN, nr2_en, 4, 1);
+			op->wr(NR2_FRM_SIZE, (height << 16) |  width);
+		op->bwr(NR2_SW_EN, nr2_en, 4, 1);
 	}
 }
 
@@ -467,50 +498,57 @@ module_param_named(cue_en, cue_en, bool, 0664);
  * indicating error field type in cue
  * from sc2 cure en from 0x1717[b26]->2dff[b26]
  */
-static void cue_config(struct CUE_PARM_s *pcue_parm, unsigned short field_type)
+static void cue_config_op(struct CUE_PARM_s *pcue_parm, unsigned short field_type,
+		const struct reg_acc *op)
 {
 	pcue_parm->field_count = 8;
 	pcue_parm->frame_count = 8;
 	pcue_parm->field_count1 = 8;
 
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2) && (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 	    (!IS_IC(dil_get_cpuver_flag(), T5)) && (!IS_IC(dil_get_cpuver_flag(), T5DB))) {
 		if (field_type != VIDTYPE_PROGRESSIVE) {
-			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 0, 20, 1);
-			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
+			op->bwr(NR2_CUE_PRG_DIF, 0, 20, 1);
+			op->bwr(NR4_TOP_CTRL, 0, 1, 1);
 			/* cur row mode avoid seek error */
-			Wr_reg_bits(NR2_CUE_MODE, 5, 0, 4);
+			op->bwr(NR2_CUE_MODE, 5, 0, 4);
 		} else {
-			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 1, 20, 1);
+			op->bwr(NR2_CUE_PRG_DIF, 1, 20, 1);
 			/* disable cue for progressive issue */
-			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
+			op->bwr(NR4_TOP_CTRL, 0, 1, 1);
 		}
 	} else {
 		if (field_type != VIDTYPE_PROGRESSIVE) {
-			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 0, 20, 1);
-			DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+			op->bwr(NR2_CUE_PRG_DIF, 0, 20, 1);
+			op->bwr(DI_NR_CTRL0, 0, 26, 1);
 			/* cur row mode avoid seek error */
-			Wr_reg_bits(NR2_CUE_MODE, 5, 0, 4);
+			op->bwr(NR2_CUE_MODE, 5, 0, 4);
 		} else {
-			DI_Wr_reg_bits(NR2_CUE_PRG_DIF, 1, 20, 1);
+			op->bwr(NR2_CUE_PRG_DIF, 1, 20, 1);
 			/* disable cue for progressive issue */
-			DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+			op->bwr(DI_NR_CTRL0, 0, 26, 1);
 		}
 	}
 }
 
-void nr_all_config(unsigned short width, unsigned short height,
-	unsigned short field_type)
+static void nr_all_config_op(unsigned short width, unsigned short height,
+	unsigned short field_type,
+		const struct reg_acc *op)
 {
 	nr_param.width = width;
 	nr_param.height = height;
 	nr_param.frame_count = 0;
 	nr_param.prog_flag = field_type?false:true;
-	nr2_config(width, height);
-	dnr_config(nr_param.pdnr_parm, width, height);
+	nr2_config_op(width, height, op);
+	dnr_config_op(nr_param.pdnr_parm, width, height, op);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
-		cue_config(nr_param.pcue_parm, field_type);
+		cue_config_op(nr_param.pcue_parm, field_type, op);
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu() ||
 		is_meson_g12b_cpu() || is_meson_tl1_cpu() ||
 		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
@@ -518,11 +556,11 @@ void nr_all_config(unsigned short width, unsigned short height,
 		IS_IC(dil_get_cpuver_flag(), T5D)	||
 		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-		linebuffer_config(width);
-		nr4_config(nr_param.pnr4_parm, width, height);
+		linebuffer_config_op(width, op);
+		nr4_config_op(nr_param.pnr4_parm, width, height, op);
 	}
 	if (is_meson_txhd_cpu())
-		linebuffer_config(width);
+		linebuffer_config_op(width, op);
 }
 
 bool secam_cfr_en = true;
@@ -573,32 +611,42 @@ secam_store(struct device *dev, struct device_attribute *attr, const char *buf,
 }
 static DEVICE_ATTR(secam, 0664, secam_show, secam_store);
 
-static void secam_cfr_fun(int top)
+static void secam_cfr_fun_op(int top,
+		const struct reg_acc *op)
 {
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 12, 1);/*set cfr_en:1*/
+		op->bwr(NR4_TOP_CTRL, 1, 12, 1);/*set cfr_en:1*/
 	else
-		DI_Wr_reg_bits(NR2_SW_EN, 1, 7, 1);/*set cfr_en:1*/
-	DI_Wr_reg_bits(NR2_CFR_PARA_CFG0, 1, 2, 2);
-	DI_Wr_reg_bits(NR2_CFR_PARA_CFG1, 0x208020, 0, 24);
+		op->bwr(NR2_SW_EN, 1, 7, 1);/*set cfr_en:1*/
+	op->bwr(NR2_CFR_PARA_CFG0, 1, 2, 2);
+	op->bwr(NR2_CFR_PARA_CFG1, 0x208020, 0, 24);
 	if ((gb_flg == 0 && top) || (gb_flg == 1 && !top)) {
 		cfr_phase1 = ~cfr_phase1;
-		DI_Wr_reg_bits(NR2_CFR_PARA_CFG0, cfr_phase1, 6, 1);
+		op->bwr(NR2_CFR_PARA_CFG0, cfr_phase1, 6, 1);
 	}
-	DI_Wr_reg_bits(NR2_CFR_PARA_CFG0, cfr_phase2, 7, 1);
+	op->bwr(NR2_CFR_PARA_CFG0, cfr_phase2, 7, 1);
 }
 
-void secam_cfr_adjust(unsigned int sig_fmt, unsigned int frame_type)
+void secam_cfr_adjust_op(unsigned int sig_fmt, unsigned int frame_type,
+		const struct reg_acc *op)
 {
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 	if (sig_fmt == TVIN_SIG_FMT_CVBS_SECAM && secam_cfr_en) {
-		secam_cfr_fun((frame_type & VIDTYPE_TYPEMASK) ==
-			      VIDTYPE_INTERLACE_TOP);
+		secam_cfr_fun_op((frame_type & VIDTYPE_TYPEMASK) ==
+			      VIDTYPE_INTERLACE_TOP, op);
 	} else {
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
-			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 12, 1);/*set cfr_en:0*/
+			op->bwr(NR4_TOP_CTRL, 0, 12, 1);/*set cfr_en:0*/
 		else
-			DI_Wr_reg_bits(NR2_SW_EN, 0, 7, 1);/*set cfr_en:0*/
-		DI_Wr_reg_bits(NR2_CFR_PARA_CFG0, 2, 2, 2);
+			op->bwr(NR2_SW_EN, 0, 7, 1);/*set cfr_en:0*/
+		op->bwr(NR2_CFR_PARA_CFG0, 2, 2, 2);
 	}
 }
 
@@ -675,19 +723,26 @@ static int find_lut16(unsigned int val, int *pLut)
 	res = ((left*(norm-dist) + right*dist + (norm>>1))>>shft);
 	return res;
 }
-static void noise_meter_process(struct NR4_PARM_s *nr4_param_p,
-		unsigned int field_cnt)
+
+static void noise_meter_process_op(struct NR4_PARM_s *nr4_param_p,
+		unsigned int field_cnt,
+		const struct reg_acc *op)
 {
 	unsigned int val1 = 0, val2 = 0, field_sad = 0, field_var = 0;
 	int val = 0;
 
-	val1 = Rd(NR4_RO_NM_SAD_CNT);
-	val2 = Rd(NR4_RO_NM_SAD_SUM);
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
+	val1 = op->rd(NR4_RO_NM_SAD_CNT);
+	val2 = op->rd(NR4_RO_NM_SAD_SUM);
 
 	field_sad = (val1 == 0 ? 0 : (val2 + (val1>>1)) / val1);
 
-	val1 = Rd(NR4_RO_NM_VAR_SCNT);
-	val2 = Rd(NR4_RO_NM_VAR_SUM);
+	val1 = op->rd(NR4_RO_NM_VAR_SCNT);
+	val2 = op->rd(NR4_RO_NM_VAR_SUM);
 	field_var = (val1 == 0 ? 0 : (val2 + (val1>>1)) / val1);
 	/*
 	 *  field sad based global noise level to gain,
@@ -698,7 +753,7 @@ static void noise_meter_process(struct NR4_PARM_s *nr4_param_p,
 		val1 = find_lut16(val2, &nr4_param_p->sw_nr4_sad2gain_lut[0]);
 	} else
 		val1 = 64;
-	DI_Wr_reg_bits(NR4_MCNR_MV_CTRL_REG, val1, 4, 8);
+	op->bwr(NR4_MCNR_MV_CTRL_REG, val1, 4, 8);
 	/*add for TL1------*/
 	if (nr4_param_p->sw_nr4_noise_ctrl_dm_en == 1) {
 		if (nr4_param_p->sw_nr4_noise_sel == 0) {
@@ -708,7 +763,7 @@ static void noise_meter_process(struct NR4_PARM_s *nr4_param_p,
 			field_sad >= nr4_param_p->sw_nr4_noise_thd ? 1 : 0;
 		}
 
-		DI_Wr_reg_bits(DNR_DM_NR_BLND, val2, 24, 1);
+		op->bwr(DNR_DM_NR_BLND, val2, 24, 1);
 	}
 	/*------------------*/
 	/* scene change processing */
@@ -728,9 +783,9 @@ static void noise_meter_process(struct NR4_PARM_s *nr4_param_p,
 		nr4_param_p->sw_nr4_scene_change_flg[2] = 0;
 	if (nr4_param_p->sw_nr4_scene_change_flg[1] ||
 		nr4_param_p->sw_nr4_scene_change_flg[2])
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 0, 1);
+		op->bwr(NR4_TOP_CTRL, 1, 0, 1);
 	else
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 0, 1);
+		op->bwr(NR4_TOP_CTRL, 0, 0, 1);
 
 	/*fot TL1 **************/
 	if (nr4_param_p->sw_dm_scene_change_en == 1) {
@@ -738,7 +793,7 @@ static void noise_meter_process(struct NR4_PARM_s *nr4_param_p,
 			&& nr4_param_p->sw_nr4_field_sad[1]
 				>= nr4_param_p->sw_nr4_scene_change_thd2;
 
-		DI_Wr_reg_bits(DNR_DM_CTRL, val, 12, 1);
+		op->bwr(DNR_DM_CTRL, val, 12, 1);
 	}
 	/***********************/
 	nr4_param_p->sw_nr4_field_sad[0] = nr4_param_p->sw_nr4_field_sad[1];
@@ -978,45 +1033,53 @@ static void noise_meter2_process(struct NR4_NEPARM_S *nr4_neparm_p,
 	//}
 }
 
-static void luma_enhancement_process(struct NR4_PARM_s *nr4_param_p,
-		unsigned int field_cnt)
+static void luma_enhancement_process_op(struct NR4_PARM_s *nr4_param_p,
+	unsigned int field_cnt,
+		const struct reg_acc *op)
 {
 	unsigned int reg_val = 0, tmp1 = 0;
 
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
 	tmp1 = nr4_param_p->width * nr4_param_p->height;
 	if (field_cnt <= 2) {
-		reg_val = (Rd(NR4_MCNR_RO_U_SUM) + (tmp1>>1))/tmp1;
-		DI_Wr_reg_bits(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 8, 8);
-		reg_val = (Rd(NR4_MCNR_RO_V_SUM) + (tmp1>>1))/tmp1;
-		DI_Wr_reg_bits(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 0, 8);
+		reg_val = (op->rd(NR4_MCNR_RO_U_SUM) + (tmp1 >> 1)) / tmp1;
+		op->bwr(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 8, 8);
+		reg_val = (op->rd(NR4_MCNR_RO_V_SUM) + (tmp1 >> 1)) / tmp1;
+		op->bwr(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 0, 8);
 	} else {
-		reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 8, 8);
-		DI_Wr_reg_bits(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 8, 8);
-		reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 0, 8);
-		DI_Wr_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 0, 8);
+		reg_val = op->brd(NR4_MCNR_LUMACUR_CAL_PRAM, 8, 8);
+		op->bwr(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 8, 8);
+		reg_val = op->brd(NR4_MCNR_LUMACUR_CAL_PRAM, 0, 8);
+		op->bwr(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 0, 8);
 	}
 	if (dim_config_crc_ic())//add for crc @2k22-0102
-		reg_val = field_cnt <= 1 ? 0 : Rd_reg_bits
+		reg_val = field_cnt <= 1 ? 0 : op->brd
 				(NR4_MCNR_LUMACUR_CAL_PRAM, 24, 2);
 	else
-		reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 24, 2);
-	DI_Wr_reg_bits(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 24, 2);
+		reg_val = op->brd(NR4_MCNR_LUMACUR_CAL_PRAM, 24, 2);
+	op->bwr(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 24, 2);
 	if (dim_config_crc_ic())//add for crc @2k22-0102
-		reg_val = field_cnt <= 1 ? 0 : Rd_reg_bits
+		reg_val = field_cnt <= 1 ? 0 : op->brd
 			(NR4_MCNR_LUMACUR_CAL_PRAM, 16, 2);
 	else
-		reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 16, 2);
-	DI_Wr_reg_bits(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 16, 2);
-	reg_val = (Rd(NR4_MCNR_RO_U_SUM) + (tmp1>>1))/tmp1;
-	DI_Wr_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 8, 8);
-	reg_val = (Rd(NR4_MCNR_RO_V_SUM) + (tmp1>>1))/tmp1;
-	DI_Wr_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 0, 8);
-	reg_val = SGN2(Rd(NR4_MCNR_RO_GRDU_SUM));
-	DI_Wr_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 24, 2);
-	reg_val = SGN2(Rd(NR4_MCNR_RO_GRDV_SUM));
-	DI_Wr_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 16, 2);
+		reg_val = op->brd(NR4_MCNR_LUMACUR_CAL_PRAM, 16, 2);
+	op->bwr(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 16, 2);
+	reg_val = (op->rd(NR4_MCNR_RO_U_SUM) + (tmp1 >> 1)) / tmp1;
+	op->bwr(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 8, 8);
+	reg_val = (op->rd(NR4_MCNR_RO_V_SUM) + (tmp1 >> 1)) / tmp1;
+	op->bwr(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 0, 8);
+	reg_val = SGN2((int)(op->rd(NR4_MCNR_RO_GRDU_SUM)));
+	op->bwr(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 24, 2);
+	reg_val = SGN2((int)(op->rd(NR4_MCNR_RO_GRDV_SUM)));
+	op->bwr(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 16, 2);
 }
-static void dnr_process(struct DNR_PARM_s *pDnrPrm)
+
+static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
+			   const struct reg_acc *op)
 {
 	static int ro_gbs_stat_lr = 0, ro_gbs_stat_ll = 0, ro_gbs_stat_rr = 0,
 	ro_gbs_stat_dif = 0, ro_gbs_stat_cnt = 0;
@@ -1028,100 +1091,112 @@ static void dnr_process(struct DNR_PARM_s *pDnrPrm)
 #endif
 	int ll, lr;
 
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 	    IS_IC(dil_get_cpuver_flag(), T5)	||
 	    IS_IC(dil_get_cpuver_flag(), T5D)	||
 	    IS_IC(dil_get_cpuver_flag(), T5DB)) {
-		ll = Rd(DNR_RO_GBS_STAT_LR);
-		lr = Rd(DNR_RO_GBS_STAT_LL);
+		ll = op->rd(DNR_RO_GBS_STAT_LR);
+		lr = op->rd(DNR_RO_GBS_STAT_LL);
 	} else {
-		ll = Rd(DNR_RO_GBS_STAT_LL);
-		lr = Rd(DNR_RO_GBS_STAT_LR);
+		ll = op->rd(DNR_RO_GBS_STAT_LL);
+		lr = op->rd(DNR_RO_GBS_STAT_LR);
 
 	}
 	if (ro_gbs_stat_lr != lr ||
 		ro_gbs_stat_ll != ll ||
-		ro_gbs_stat_rr != Rd(DNR_RO_GBS_STAT_RR) ||
-		ro_gbs_stat_dif != Rd(DNR_RO_GBS_STAT_DIF) ||
-		ro_gbs_stat_cnt != Rd(DNR_RO_GBS_STAT_CNT)) {
+		ro_gbs_stat_rr != op->rd(DNR_RO_GBS_STAT_RR) ||
+		ro_gbs_stat_dif != op->rd(DNR_RO_GBS_STAT_DIF) ||
+		ro_gbs_stat_cnt != op->rd(DNR_RO_GBS_STAT_CNT)) {
 
 		ro_gbs_stat_lr = lr;
 		ro_gbs_stat_ll = ll;
-		ro_gbs_stat_rr = Rd(DNR_RO_GBS_STAT_RR);
-		ro_gbs_stat_dif = Rd(DNR_RO_GBS_STAT_DIF);
-		ro_gbs_stat_cnt = Rd(DNR_RO_GBS_STAT_CNT);
+		ro_gbs_stat_rr = op->rd(DNR_RO_GBS_STAT_RR);
+		ro_gbs_stat_dif = op->rd(DNR_RO_GBS_STAT_DIF);
+		ro_gbs_stat_cnt = op->rd(DNR_RO_GBS_STAT_CNT);
 	} else {
 		return;
 	}
 
-	global_bs_calc_sw(&pDnrPrm->sw_gbs_vld_cnt,
-			  &pDnrPrm->sw_gbs_vld_flg,
-			  &pDnrPrm->sw_gbs,
+	global_bs_calc_sw(&pdnrprm->sw_gbs_vld_cnt,
+			  &pdnrprm->sw_gbs_vld_flg,
+			  &pdnrprm->sw_gbs,
 			  ro_gbs_stat_lr,
 			  ro_gbs_stat_ll,
 			  ro_gbs_stat_rr,
 			  ro_gbs_stat_dif,
 			  ro_gbs_stat_cnt,
-			  pDnrPrm->prm_gbs_vldcntthd, /* prm below */
-			  pDnrPrm->prm_gbs_cnt_min,
-			  pDnrPrm->prm_gbs_ratcalcmod,
-			  pDnrPrm->prm_gbs_ratthd,
-			  pDnrPrm->prm_gbs_difthd,
-			  pDnrPrm->prm_gbs_bsdifthd,
-			  pDnrPrm->prm_gbs_calcmod);
+			  pdnrprm->prm_gbs_vldcntthd, /* prm below */
+			  pdnrprm->prm_gbs_cnt_min,
+			  pdnrprm->prm_gbs_ratcalcmod,
+			  pdnrprm->prm_gbs_ratthd,
+			  pdnrprm->prm_gbs_difthd,
+			  pdnrprm->prm_gbs_bsdifthd,
+			  pdnrprm->prm_gbs_calcmod);
 #ifdef DNR_HV_SHIFT
 	for (i = 0; i < 32; i++)
-		ro_hbof_stat_cnt[i] = Rd(DNR_RO_HBOF_STAT_CNT_0+i);
+		ro_hbof_stat_cnt[i] = op->rd(DNR_RO_HBOF_STAT_CNT_0 + i);
 	for (i = 0; i < 32; i++)
-		ro_vbof_stat_cnt[i] = Rd(DNR_RO_VBOF_STAT_CNT_0+i);
-		hor_blk_ofst_calc_sw(&pDnrPrm->sw_hbof_vld_cnt,
-			 &pDnrPrm->sw_hbof_vld_flg,
-			 &pDnrPrm->sw_hbof,
+		ro_vbof_stat_cnt[i] = op->rd(DNR_RO_VBOF_STAT_CNT_0 + i);
+		hor_blk_ofst_calc_sw(&pdnrprm->sw_hbof_vld_cnt,
+			 &pdnrprm->sw_hbof_vld_flg,
+			 &pdnrprm->sw_hbof,
 			 ro_hbof_stat_cnt,
 			 0,
 			 nCol-1,
-			 pDnrPrm->prm_hbof_minthd,
-			 pDnrPrm->prm_hbof_ratthd0,
-			 pDnrPrm->prm_hbof_ratthd1,
-			 pDnrPrm->prm_hbof_vldcntthd,
+			 pdnrprm->prm_hbof_minthd,
+			 pdnrprm->prm_hbof_ratthd0,
+			 pdnrprm->prm_hbof_ratthd1,
+			 pdnrprm->prm_hbof_vldcntthd,
 			 nRow,
 			 nCol);
 
-	ver_blk_ofst_calc_sw(&pDnrPrm->sw_vbof_vld_cnt,
-			 &pDnrPrm->sw_vbof_vld_flg,
-			 &pDnrPrm->sw_vbof,
+	ver_blk_ofst_calc_sw(&pdnrprm->sw_vbof_vld_cnt,
+			 &pdnrprm->sw_vbof_vld_flg,
+			 &pdnrprm->sw_vbof,
 			 ro_vbof_stat_cnt,
 			 0,
 			 nRow-1,
-			 pDnrPrm->prm_vbof_minthd,
-			 pDnrPrm->prm_vbof_ratthd0,
-			 pDnrPrm->prm_vbof_ratthd1,
-			 pDnrPrm->prm_vbof_vldcntthd,
+			 pdnrprm->prm_vbof_minthd,
+			 pdnrprm->prm_vbof_ratthd0,
+			 pdnrprm->prm_vbof_ratthd1,
+			 pdnrprm->prm_vbof_vldcntthd,
 			 nRow,
 			 nCol);
 #endif
 	/* update hardware registers */
-	if (pDnrPrm->prm_sw_gbs_ctrl == 0) {
-		DI_Wr(DNR_GBS,
-			(pDnrPrm->sw_gbs_vld_flg == 1)?pDnrPrm->sw_gbs : 0);
-	} else if (pDnrPrm->prm_sw_gbs_ctrl == 1) {
-		DI_Wr_reg_bits(DNR_BLK_OFFST,
-		(pDnrPrm->sw_hbof_vld_flg == 1)?pDnrPrm->sw_hbof:0, 4, 3);
-		DI_Wr(DNR_GBS, (pDnrPrm->sw_hbof_vld_flg == 1 &&
-		pDnrPrm->sw_gbs_vld_flg == 1)?pDnrPrm->sw_gbs:0);
-	} else if (pDnrPrm->prm_sw_gbs_ctrl == 2) {
-		DI_Wr_reg_bits(DNR_BLK_OFFST,
-		(pDnrPrm->sw_vbof_vld_flg == 1)?pDnrPrm->sw_vbof:0, 0, 3);
-		DI_Wr(DNR_GBS, (pDnrPrm->sw_vbof_vld_flg == 1 &&
-			pDnrPrm->sw_gbs_vld_flg == 1)?pDnrPrm->sw_gbs:0);
-	} else if (pDnrPrm->prm_sw_gbs_ctrl == 1) {
-		DI_Wr_reg_bits(DNR_BLK_OFFST,
-		pDnrPrm->sw_hbof_vld_flg == 1 ? pDnrPrm->sw_hbof : 0, 4, 3);
-		DI_Wr_reg_bits(DNR_BLK_OFFST,
-		pDnrPrm->sw_vbof_vld_flg == 1 ? pDnrPrm->sw_vbof : 0, 0, 3);
-		DI_Wr(DNR_GBS, (pDnrPrm->sw_hbof_vld_flg == 1 &&
-			pDnrPrm->sw_vbof_vld_flg == 1 &&
-			pDnrPrm->sw_gbs_vld_flg == 1)?pDnrPrm->sw_gbs:0);
+	if (pdnrprm->prm_sw_gbs_ctrl == 0) {
+		op->wr(DNR_GBS,
+		       (pdnrprm->sw_gbs_vld_flg == 1) ? pdnrprm->sw_gbs : 0);
+	} else if (pdnrprm->prm_sw_gbs_ctrl == 1) {
+		op->bwr(DNR_BLK_OFFST,
+			(pdnrprm->sw_hbof_vld_flg == 1) ?
+			pdnrprm->sw_hbof : 0, 4, 3);
+		op->wr(DNR_GBS,
+		       (pdnrprm->sw_hbof_vld_flg == 1 &&
+		       pdnrprm->sw_gbs_vld_flg == 1) ? pdnrprm->sw_gbs : 0);
+	} else if (pdnrprm->prm_sw_gbs_ctrl == 2) {
+		op->bwr(DNR_BLK_OFFST,
+			(pdnrprm->sw_vbof_vld_flg == 1) ?
+			pdnrprm->sw_vbof : 0, 0, 3);
+		op->wr(DNR_GBS,
+		       (pdnrprm->sw_vbof_vld_flg == 1 &&
+			pdnrprm->sw_gbs_vld_flg == 1) ? pdnrprm->sw_gbs : 0);
+	} else if (pdnrprm->prm_sw_gbs_ctrl == 1) {
+		op->bwr(DNR_BLK_OFFST,
+			pdnrprm->sw_hbof_vld_flg == 1 ?
+			pdnrprm->sw_hbof : 0, 4, 3);
+		op->bwr(DNR_BLK_OFFST,
+			pdnrprm->sw_vbof_vld_flg == 1 ?
+			pdnrprm->sw_vbof : 0, 0, 3);
+		op->wr(DNR_GBS,
+		       (pdnrprm->sw_hbof_vld_flg == 1	&&
+		       pdnrprm->sw_vbof_vld_flg == 1	&&
+		       pdnrprm->sw_gbs_vld_flg == 1) ? pdnrprm->sw_gbs : 0);
 	}
 }
 
@@ -1136,13 +1211,17 @@ module_param_named(cue_glb_mot_check_en, cue_glb_mot_check_en, bool, 0644);
 
 /* confirm with vlsi-liuyanling, cue_process_irq is no use */
 /* when CUE disable					*/
-static void cue_process_irq(void)
-{
 
+static void cue_process_irq_op(const struct reg_acc *op)
+{
 	int pre_field_num = 0, cue_invert = 0;
 
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 	if (is_meson_gxlx_cpu()) {
-		pre_field_num = Rd_reg_bits(DI_PRE_CTRL, 29, 1);
+		pre_field_num = op->brd(DI_PRE_CTRL, 29, 1);
 		if (invert_cue_phase)
 			cue_invert = (pre_field_num?3:0);
 		else
@@ -1152,7 +1231,7 @@ static void cue_process_irq(void)
 				pre_field_num, cue_invert);
 			cue_pr_cnt--;
 		}
-		Wr_reg_bits(NR2_CUE_MODE, cue_invert, 10, 2);
+		op->bwr(NR2_CUE_MODE, cue_invert, 10, 2);
 	}
 	if (!nr_param.prog_flag) {
 		if (nr_param.frame_count > 1 && cue_glb_mot_check_en) {
@@ -1160,25 +1239,31 @@ static void cue_process_irq(void)
 			    (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5)) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5DB)))
-				DI_Wr_reg_bits(NR4_TOP_CTRL,
+				op->bwr(NR4_TOP_CTRL,
 					       cue_en ? 1 : 0, 1, 1);
 			else
-				DI_Wr_reg_bits(DI_NR_CTRL0,
+				op->bwr(DI_NR_CTRL0,
 					       cue_en ? 1 : 0, 26, 1);
 			/*confirm with vlsi,fix jira SWPL-31571*/
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5)) &&
 			    (!IS_IC(dil_get_cpuver_flag(), T5DB)))
-				DI_Wr_reg_bits(MCDI_CTRL_MODE,
+				op->bwr(MCDI_CTRL_MODE,
 					       (!cue_en) ? 1 : 0, 16, 1);
 		}
 	}
 	if (nr_param.frame_count == 5)
-		Wr_reg_bits(NR2_CUE_MODE, 7, 0, 4);
+		op->bwr(NR2_CUE_MODE, 7, 0, 4);
 }
-void cue_int(struct vframe_s *vf)
+
+void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 {
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
 	/*confirm with vlsi-liuyanling, G12a cue must be disabled*/
 	if (is_meson_g12a_cpu()) {
 		cue_en = false;
@@ -1197,24 +1282,32 @@ void cue_int(struct vframe_s *vf)
 		    (!IS_IC(dil_get_cpuver_flag(), T5D)) &&
 		    (!IS_IC(dil_get_cpuver_flag(), T5)) &&
 		    (!IS_IC(dil_get_cpuver_flag(), T5DB)))
-			DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 1, 1);
+			op->bwr(NR4_TOP_CTRL, 0, 1, 1);
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
-			DI_Wr_reg_bits(DI_NR_CTRL0, 0, 26, 1);
+			op->bwr(DI_NR_CTRL0, 0, 26, 1);
 	}
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12B)) {
 		if (cue_en)
-			Wr_reg_bits(NR2_CUE_MODE, 3, 10, 2);
+			op->bwr(NR2_CUE_MODE, 3, 10, 2);
 	}
 }
+
 static bool glb_fieldck_en = true;
 module_param_named(glb_fieldck_en, glb_fieldck_en, bool, 0644);
 
 /* confirm with vlsi-liuyanling, cue_process_irq is no use */
 /* when CUE disable					*/
-void adaptive_cue_adjust(unsigned int frame_diff, unsigned int field_diff)
+
+void adaptive_cue_adjust_op(unsigned int frame_diff, unsigned int field_diff,
+				const struct reg_acc *op)
 {
 	struct CUE_PARM_s *pcue_parm = nr_param.pcue_parm;
 	unsigned int mask1, mask2;
+
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 
 	if (!cue_glb_mot_check_en)
 		return;
@@ -1275,11 +1368,13 @@ void adaptive_cue_adjust(unsigned int frame_diff, unsigned int field_diff)
 		/* for clockfuliness clip */
 		if (pcue_parm->field_count >
 				(pcue_parm->glb_mot_fieldnum - 6)) {
-			Wr(NR2_CUE_MODE, mask1|(Rd(NR2_CUE_MODE)&0xc00));
-			Wr(NR2_CUE_CON_MOT_TH, 0x03010e01);
+			op->wr(NR2_CUE_MODE,
+			       mask1 | (op->rd(NR2_CUE_MODE) & 0xc00));
+			op->wr(NR2_CUE_CON_MOT_TH, 0x03010e01);
 		} else {
-			Wr(NR2_CUE_MODE, mask2|(Rd(NR2_CUE_MODE)&0xc00));
-			Wr(NR2_CUE_CON_MOT_TH, 0xa03c8c3c);
+			op->wr(NR2_CUE_MODE,
+			       mask2 | (op->rd(NR2_CUE_MODE) & 0xc00));
+			op->wr(NR2_CUE_CON_MOT_TH, 0xa03c8c3c);
 		}
 	}
 }
@@ -1308,9 +1403,16 @@ bool set_nr_ctrl_reg_table(unsigned int addr, unsigned int value)
 }
 
 /* load nr related ctrl regs */
-static void nr_ctrl_reg_load(struct NR_CTRL_REGS_s *pnr_regs)
+
+static void nr_ctrl_reg_load_op(struct NR_CTRL_REGS_s *pnr_regs,
+				const struct reg_acc *op)
 {
 	unsigned int i = 0;
+
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 
 	for (i = 0; i < pnr_regs->reg_num; i++) {
 		if (atomic_read(&pnr_regs->regs[i].load_flag)) {
@@ -1319,7 +1421,8 @@ static void nr_ctrl_reg_load(struct NR_CTRL_REGS_s *pnr_regs)
 					(pnr_regs->regs[i].value,
 					 nr_param.width,
 					 nr_param.height);
-			DI_Wr(pnr_regs->regs[i].addr,
+
+			op->wr(pnr_regs->regs[i].addr,
 				pnr_regs->regs[i].value);
 			atomic_set(&pnr_regs->regs[i].load_flag, 0);
 			if (nr_ctrl_reg) {
@@ -1331,18 +1434,18 @@ static void nr_ctrl_reg_load(struct NR_CTRL_REGS_s *pnr_regs)
 	}
 }
 
-void nr_process_in_irq(void)
+static void nr_process_in_irq_op(const struct reg_acc *op)
 {
 	nr_param.frame_count++;
-	nr_ctrl_reg_load(nr_param.pnr_regs);
+	nr_ctrl_reg_load_op(nr_param.pnr_regs, op);
 
 	/* confirm with vlsi-liuyanling, cue_process_irq is no use */
 	/* when CUE disable					*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX) &&
 	    cue_glb_mot_check_en)
-		cue_process_irq();
+		cue_process_irq_op(op);
 	if (dnr_en)
-		dnr_process(&dnr_param);
+		dnr_process_op(&dnr_param, op);
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu()
 		|| is_meson_g12a_cpu() || is_meson_tl1_cpu() ||
 		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
@@ -1350,9 +1453,9 @@ void nr_process_in_irq(void)
 		IS_IC(dil_get_cpuver_flag(), T5D)	||
 		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-		noise_meter_process(nr_param.pnr4_parm, nr_param.frame_count);
-		luma_enhancement_process(nr_param.pnr4_parm,
-				nr_param.frame_count);
+		noise_meter_process_op(nr_param.pnr4_parm, nr_param.frame_count, op);
+		luma_enhancement_process_op(nr_param.pnr4_parm,
+				nr_param.frame_count, op);
 	}
 	if (IS_IC(dil_get_cpuver_flag(), T3) && nr4ne_en)
 		noise_meter2_process(nr_param.pnr4_neparm, nr_param.width,
@@ -1659,30 +1762,40 @@ static int dnr_prm_init(DNR_PRM_t *pPrm)
 
 static DEVICE_ATTR(dnr_param, 0664, dnr_param_show, dnr_param_store);
 
-static void nr_all_ctrl(bool enable)
+static void nr_all_ctrl(bool enable, const struct reg_acc *op)
 {
 	unsigned char value = 0;
+
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 
 	value = enable ? 1 : 0;
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX)) {
 		/* nr4 nr2*/
-		DI_Wr_reg_bits(NR4_TOP_CTRL, value, 18, 1);
-		DI_Wr_reg_bits(NR4_TOP_CTRL, value, 2, 1);
+		op->bwr(NR4_TOP_CTRL, value, 18, 1);
+		op->bwr(NR4_TOP_CTRL, value, 2, 1);
 	} else {
-		DI_Wr_reg_bits(NR2_SW_EN, value, 4, 1);
+		op->bwr(NR2_SW_EN, value, 4, 1);
 	}
-	DI_Wr_reg_bits(DNR_CTRL, value, 16, 1);
+	op->bwr(DNR_CTRL, value, 16, 1);
 
 }
 
-static void nr_demo_mode(bool enable)
+static void nr_demo_mode(bool enable, const struct reg_acc *op)
 {
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
+
 	if (enable) {
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 6, 3);
+		op->bwr(NR4_TOP_CTRL, 0, 6, 3);
 		nr_demo_flag = 1;
 	} else {
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 7, 6, 3);
+		op->bwr(NR4_TOP_CTRL, 7, 6, 3);
 		nr_demo_flag = 0;
 	}
 }
@@ -1696,15 +1809,15 @@ static ssize_t nr_dbg_store(struct device *dev,
 	buf_orig = kstrdup(buff, GFP_KERNEL);
 	parse_cmd_params(buf_orig, (char **)(&parm));
 	if (!strcmp(parm[0], "disable"))
-		nr_all_ctrl(false);
+		nr_all_ctrl(false, &dio_pre_regset);
 	else if (!strcmp(parm[0], "enable"))
-		nr_all_ctrl(true);
+		nr_all_ctrl(true, &dio_pre_regset);
 	else if (!strcmp(parm[0], "demo")) {
 		if (!strcmp(parm[1], "enable")) {
-			nr_demo_mode(true);
+			nr_demo_mode(true, &dio_pre_regset);
 			pr_info("nr demo enable\n");
 		} else if (!strcmp(parm[1], "disable")) {
-			nr_demo_mode(false);
+			nr_demo_mode(false, &dio_pre_regset);
 			pr_info("nr demo disable\n");
 		}
 	}
@@ -1730,29 +1843,38 @@ static ssize_t nr_dbg_show(struct device *dev,
 
 static DEVICE_ATTR(nr_debug, 0664, nr_dbg_show, nr_dbg_store);
 
-void nr_hw_init(void)
+void nr_hw_init_op(const struct reg_acc *op)
 {
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 
-	nr_gate_control(true);
+	nr_gate_control_op(true, op);
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
 	    IS_IC(dil_get_cpuver_flag(), T5)	||
 	    IS_IC(dil_get_cpuver_flag(), T5D)	||
 	    IS_IC(dil_get_cpuver_flag(), T5DB)	||
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)))
-		DI_Wr(DNR_CTRL, 0x1df00 | (0x03 << 18));//5 line
+		op->wr(DNR_CTRL, 0x1df00 | (0x03 << 18));//5 line
 	else
-		DI_Wr(DNR_CTRL, 0x1df00);
-	DI_Wr(NR3_MODE, 0x3);
-	DI_Wr(NR3_COOP_PARA, 0x28ff00);
-	DI_Wr(NR3_CNOOP_GAIN, 0x881900);
-	DI_Wr(NR3_YMOT_PARA, 0x0c0a1e);
-	DI_Wr(NR3_CMOT_PARA, 0x08140f);
-	DI_Wr(NR3_SUREMOT_YGAIN, 0x100c4014);
-	DI_Wr(NR3_SUREMOT_CGAIN, 0x22264014);
-	nr_gate_control(false);
+		op->wr(DNR_CTRL, 0x1df00);
+	op->wr(NR3_MODE, 0x3);
+	op->wr(NR3_COOP_PARA, 0x28ff00);
+	op->wr(NR3_CNOOP_GAIN, 0x881900);
+	op->wr(NR3_YMOT_PARA, 0x0c0a1e);
+	op->wr(NR3_CMOT_PARA, 0x08140f);
+	op->wr(NR3_SUREMOT_YGAIN, 0x100c4014);
+	op->wr(NR3_SUREMOT_CGAIN, 0x22264014);
+	nr_gate_control_op(false, op);
 }
-void nr_gate_control(bool gate)
+
+static void nr_gate_control_op(bool gate, const struct reg_acc *op)
 {
+	if (!op) {
+		pr_error("%s:no op\n", __func__);
+		return;
+	}
 	if (!is_meson_txlx_cpu() && !is_meson_g12a_cpu() &&
 		!is_meson_g12b_cpu() && !is_meson_sm1_cpu() &&
 		!is_meson_tl1_cpu() && !is_meson_tm2_cpu() &&
@@ -1763,42 +1885,42 @@ void nr_gate_control(bool gate)
 		return;
 	if (gate) {
 		/* enable nr auto gate */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 0, 2);
+		op->bwr(VIUB_GCLK_CTRL2, 0, 0, 2);
 		/* enable dnr auto gate */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 8, 2);
+		op->bwr(VIUB_GCLK_CTRL2, 0, 8, 2);
 		/* enable nr/dm blend auto gate */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 0, 10, 2);
+		op->bwr(VIUB_GCLK_CTRL2, 0, 10, 2);
 		/* enable nr internal snr gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 30, 2);
+		op->bwr(NR4_TOP_CTRL, 0, 30, 2);
 		/* enable nr internal tnr gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 28, 2);
+		op->bwr(NR4_TOP_CTRL, 0, 28, 2);
 		/* enable nr internal mcnr gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 26, 2);
+		op->bwr(NR4_TOP_CTRL, 0, 26, 2);
 		/* enable nr internal cfr gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 24, 2);
+		op->bwr(NR4_TOP_CTRL, 0, 24, 2);
 		/* enable nr internal det_polar gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 22, 2);
+		op->bwr(NR4_TOP_CTRL, 0, 22, 2);
 		/* enable nr internal 3ddet gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 20, 2);
+		op->bwr(NR4_TOP_CTRL, 0, 20, 2);
 	} else {
 		/* enable nr auto gate */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 0, 2);
+		op->bwr(VIUB_GCLK_CTRL2, 1, 0, 2);
 		/* enable dnr auto gate */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 8, 2);
+		op->bwr(VIUB_GCLK_CTRL2, 1, 8, 2);
 		/* disable nr/dm blend auto gate */
-		DI_Wr_reg_bits(VIUB_GCLK_CTRL2, 1, 10, 2);
+		op->bwr(VIUB_GCLK_CTRL2, 1, 10, 2);
 		/* disable nr internal snr gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 30, 2);
+		op->bwr(NR4_TOP_CTRL, 1, 30, 2);
 		/* disable nr internal tnr gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 28, 2);
+		op->bwr(NR4_TOP_CTRL, 1, 28, 2);
 		/* disable nr internal mcnr gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 26, 2);
+		op->bwr(NR4_TOP_CTRL, 1, 26, 2);
 		/* disable nr internal cfr gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 24, 2);
+		op->bwr(NR4_TOP_CTRL, 1, 24, 2);
 		/* disable nr internal det_polar gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 22, 2);
+		op->bwr(NR4_TOP_CTRL, 1, 22, 2);
 		/* disable nr internal 3ddet gate */
-		DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 20, 2);
+		op->bwr(NR4_TOP_CTRL, 1, 20, 2);
 	}
 }
 /*
@@ -1889,6 +2011,44 @@ void nr_drv_init(struct device *dev)
 		dnr_dm_en = false;
 }
 
+static void nr_hw_init(void)
+{
+	nr_hw_init_op(&dio_pre_regset);
+}
+
+static void nr_gate_control(bool gate)
+{
+	nr_gate_control_op(gate, &dio_pre_regset);
+}
+
+static void nr_process_in_irq(void)
+{
+	nr_process_in_irq_op(&dio_pre_regset);
+}
+
+static void nr_all_config(unsigned short ncol, unsigned short nrow,
+		      unsigned short type)
+{
+	nr_all_config_op(ncol, nrow, type, &dio_pre_regset);
+}
+
+static void cue_int(struct vframe_s *vf)
+{
+	cue_int_op(vf, &dio_pre_regset);
+}
+
+static void adaptive_cue_adjust(unsigned int frame_diff,
+			    unsigned int field_diff)
+{
+	adaptive_cue_adjust_op(frame_diff, field_diff, &dio_pre_regset);
+}
+
+static void secam_cfr_adjust(unsigned int sig_fmt,
+			 unsigned int frame_type)
+{
+	secam_cfr_adjust_op(sig_fmt, frame_type, &dio_pre_regset);
+}
+
 static const struct nr_op_s di_ops_nr = {
 	.nr_hw_init		= nr_hw_init,
 	.nr_gate_control	= nr_gate_control,
@@ -1917,3 +2077,43 @@ bool di_attach_ops_nr(const struct nr_op_s **ops)
 	return true;
 }
 EXPORT_SYMBOL(di_attach_ops_nr);
+
+const struct nr_op_s *di_nr_opl(void)
+{
+	return &di_ops_nr;
+}
+
+static const struct nr_opr_s di_ops_nr_op = {
+	.nr_hw_init		= nr_hw_init_op,
+	.nr_gate_control	= nr_gate_control_op,
+	.nr_drv_init		= nr_drv_init,
+	.nr_drv_uninit		= nr_drv_uninit,
+	.nr_process_in_irq	= nr_process_in_irq_op,
+	.nr_all_config		= nr_all_config_op,
+	.set_nr_ctrl_reg_table	= set_nr_ctrl_reg_table,//same
+	.cue_int		= cue_int_op,
+	.adaptive_cue_adjust	= adaptive_cue_adjust_op,
+	.secam_cfr_adjust	= secam_cfr_adjust_op,
+	/*.module_para = dim_seq_file_module_para_nr,*/
+};
+
+//for local: have op
+const struct nr_opr_s *di_nr_op(void)
+{
+	return &di_ops_nr_op;
+}
+
+bool di_attach_opr_nr(const struct nr_opr_s **ops)
+{
+	#ifdef HIS_CODE
+	if (!ops)
+		return false;
+
+	memcpy(ops, &di_pd_ops, sizeof(struct pulldown_op_s));
+	#else
+	*ops = &di_ops_nr_op;
+	#endif
+
+	return true;
+}
+EXPORT_SYMBOL(di_attach_opr_nr);

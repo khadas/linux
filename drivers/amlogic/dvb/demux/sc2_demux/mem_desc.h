@@ -36,6 +36,7 @@ struct chan_id {
 	union mem_desc *memdescs;
 	unsigned int memdescs_phy;
 	unsigned int r_offset;
+	unsigned int pts_newest_r_offset;
 	unsigned long memdescs_map;
 	unsigned int last_w_addr;
 
@@ -150,6 +151,7 @@ unsigned int SC2_bufferid_get_free_size(struct chan_id *pchan);
 unsigned int SC2_bufferid_get_wp_offset(struct chan_id *pchan);
 unsigned int SC2_bufferid_get_data_len(struct chan_id *pchan);
 int SC2_bufferid_read_header_again(struct chan_id *pchan, char **pread);
+int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread);
 
 int _alloc_buff(unsigned int len, int sec_level,
 		unsigned long *vir_mem, unsigned long *phy_mem);
@@ -161,5 +163,4 @@ int cache_adjust(int cache0_count, int cache1_count);
 
 int dmc_mem_set_size(int sec_level, unsigned int mem_size);
 int dmc_mem_dump_info(char *buf);
-
 #endif

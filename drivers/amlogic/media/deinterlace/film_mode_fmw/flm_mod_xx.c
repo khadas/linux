@@ -101,7 +101,7 @@ int GetMinNIdx(int *nMax4, int *nXId4, int N, int *nQt01, int nLen)
 /* 10: 2-3-3-2 */
 /* 10: 3-2-3-2 */
 /* pulldown pattern number */
-int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
+int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02, int flm2224_cen)
 {
 	int iWidth  = pRDat->iWidth;
 	int iHeight = pRDat->iHeight;
@@ -164,6 +164,9 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
 	int	nMin02 = 0;
 	int	nMax02 = 0;
 	int tModLvl = 0;
+	int ndif021 = 0;
+	int ndif022 = 0;
+	int idx = 0;
 
 	iMxDif = (iMxDif >> 4) + 1;
 
@@ -487,6 +490,17 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
 			/*suggest from vlsi yanling*/
 			if (nMax02 < (1 << 11))
 				nModLvl[tT0] = 0;
+		    if (tT0 == 4) {
+				if (nT4 == 9) {
+					ndif021 = pDif02[29 - 1];
+					ndif022 = pDif02[29 - 8];
+				} else {
+					idx = (min(aXMI02[1], aXMI02[0]) - 1 + 10) % 10;
+					ndif021 = pDif02[29 - idx];
+					idx = (max(aXMI02[1], aXMI02[0]) + 1) % 10;
+					ndif022 = pDif02[29 - idx];
+				}
+			}
 		} /* 2-3-4-5*/
 	}
 
@@ -507,6 +521,11 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
 	if ((nT1 == 4) &&
 		(nMax02 <= (iSIZE >> flm2224_stl_sft)))
 		nModCnt[nT1] = 0;
+	if (nT1 == 4 && flm2224_cen) {
+		if (abs(ndif021 - ndif022) > (iSIZE >> 6) || (max(ndif021, ndif022) / (max(1, min(ndif021, ndif022))) > 10) ||
+			(max(pDif02[29 - aXMI02[0]], pDif02[29 - aXMI02[1]]) / max(1, min(pDif02[29 - aXMI02[0]], pDif02[29 - aXMI02[1]])) > 10 && min(pDif02[29 - aXMI02[0]], pDif02[29 - aXMI02[1]]) > 10))
+			nModCnt[nT1] = 0;
+	}
 
 	pModXx[HISDETNUM - 1] = nT1;
 	pLvlXx[HISDETNUM - 1] = tModLvl;
@@ -536,6 +555,8 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02)
 			tModLvl);
 		pr_info("%s", debug_str);
 	}
+	if (pr_pd & 0x1)
+		pr_info("ndif021 = %d,ndif022 = %d", ndif021, ndif022);
 
 	return nT1;
 }

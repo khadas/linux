@@ -3174,7 +3174,7 @@ extern u32 hdcp22_reauth_enable;
 extern int i2c_err_cnt;
 extern u32 rx_ecc_err_thres;
 extern u32 rx_ecc_err_frames;
-extern u8 ddc_dbg_en;
+extern u32 ddc_dbg_en;
 extern int kill_esm_fail;
 
 void rx_get_best_eq_setting(void);
@@ -3248,8 +3248,6 @@ void hdmirx_hdcp22_hpd(bool value);
 void esm_set_reset(bool reset);
 void esm_set_stable(bool stable);
 void rx_hpd_to_esm_handle(struct work_struct *work);
-void rx_hdcp14_resume(void);
-void hdmirx_load_firm_reset(int type);
 unsigned int hdmirx_packet_fifo_rst(void);
 void rx_afifo_store_all_subpkt(bool all_pkt);
 unsigned int hdmirx_audio_fifo_rst(void);
@@ -3359,6 +3357,10 @@ void aml_phy_get_trim_val_t5(void);
 void hdmirx_irq_hdcp_enable(bool enable);
 u8 rx_get_avmute_sts(void);
 /* T7 */
+u8 rx_get_stream_manage_info(void);
+void rpt_update_hdcp1x(struct hdcp_topo_s *topo);
+void rpt_update_hdcp2x(struct hdcp_topo_s *topo);
+void hdcp_init_t7(void);
 u8 hdmirx_rd_cor(u32 addr);
 void hdmirx_wr_cor(u32 addr, u8 data);
 u8 hdmirx_rd_bits_cor(u32 addr, u32 mask);

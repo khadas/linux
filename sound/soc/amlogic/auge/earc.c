@@ -1001,14 +1001,6 @@ int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 
 	s_earc->tx_audio_coding_type = new_coding_type;
 
-	spin_lock_irqsave(&s_earc->tx_lock, flags);
-	if (!s_earc->tx_dmac_clk_on)
-		goto exit;
-
-	dev_info(s_earc->dev, "tx audio coding type: 0x%02x\n", new_coding_type);
-
-	type = earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
-
 	fr = s_earc->fddr;
 	/* Update dmac clk ? */
 	if (s_earc->earctx_on) {
@@ -1019,6 +1011,14 @@ int aml_earctx_set_audio_coding_type(enum audio_coding_types new_coding_type)
 		rate = s_earc->ss_info.rate;
 	}
 	earctx_update_clk(s_earc, channels, rate);
+
+	spin_lock_irqsave(&s_earc->tx_lock, flags);
+	if (!s_earc->tx_dmac_clk_on)
+		goto exit;
+
+	dev_info(s_earc->dev, "tx audio coding type: 0x%02x\n", new_coding_type);
+
+	type = earctx_cmdc_get_attended_type(s_earc->tx_cmdc_map);
 
 	/* Update ECC enable/disable */
 	earctx_compressed_enable(s_earc->tx_dmac_map,

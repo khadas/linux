@@ -7,6 +7,7 @@
 #define _FREERTOS_H_
 #include <linux/amlogic/rtosinfo.h>
 
+unsigned int freertos_is_run(void);
 int freertos_finish(void);
 int freertos_is_finished(void);
 int freertos_is_irq_rsved(unsigned int irq);

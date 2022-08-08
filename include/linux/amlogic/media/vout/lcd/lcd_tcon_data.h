@@ -44,6 +44,7 @@
 #define LCD_TCON_DATA_PART_FLAG_FIXED_REG       0x11
 #define LCD_TCON_DATA_PART_FLAG_TUNINTG_PARAM   0x0f
 #define LCD_TCON_DATA_PART_FLAG_FIXED_PARAM     0x1f
+#define LCD_TCON_DATA_PART_FLAG_CMD_IGNORE_ISR  0x80
 
 #define LCD_TCON_DATA_BLOCK_HEADER_SIZE         64
 #define LCD_TCON_DATA_BLOCK_NAME_SIZE           36
@@ -57,9 +58,11 @@
 #define LCD_TCON_DATA_CTRL_FLAG_DLG             0xd0
 /* ctrl_method */
 #define LCD_TCON_DATA_CTRL_DEFAULT              0x00
-#define LCD_TCON_DATA_CTRL_MULTI_VFREQ          0x01
+#define LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT   0x01
+#define LCD_TCON_DATA_CTRL_MULTI_VFREQ_NOTIFY   0x02
 #define LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL       0x11
 #define LCD_TCON_DATA_CTRL_MULTI_BL_PWM_DUTY    0x12
+#define LCD_TCON_DATA_CTRL_MULTI_MAX            0xff
 
 struct lcd_tcon_init_block_header_s {
 	unsigned int crc32;

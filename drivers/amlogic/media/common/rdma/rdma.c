@@ -36,7 +36,7 @@
 #define Wr_reg_bits(adr, val, start, len) \
 			WRITE_VCBUS_REG_BITS(adr, val, start, len)
 
-#define RDMA_NUM  5
+#define RDMA_NUM  6
 static int second_rdma_feature;
 int vsync_rdma_handle[RDMA_NUM];
 static int irq_count[RDMA_NUM];
@@ -154,9 +154,11 @@ int _vsync_rdma_config(int rdma_type)
 	/* first frame not use rdma */
 	if (!first_config[rdma_type]) {
 		cur_enable[rdma_type] = enable[rdma_type];
-		pre_enable_[rdma_type] = enable_;
+		pre_enable_[rdma_type] = cur_enable[rdma_type];
 		first_config[rdma_type] = true;
 		rdma_done[rdma_type] = false;
+		rdma_clear(vsync_rdma_handle[rdma_type]);
+		force_rdma_config[rdma_type] = 1;
 		return 0;
 	}
 
@@ -208,6 +210,10 @@ int _vsync_rdma_config(int rdma_type)
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 						RDMA_TRIGGER_VSYNC_INPUT |
 						RDMA_TRIGGER_OMIT_LOCK);
+				} else if (rdma_type == LINE_N_INT_RDMA) {
+					set_rdma_trigger_line();
+					iret = rdma_config(vsync_rdma_handle[rdma_type],
+							   RDMA_TRIGGER_LINE_INPUT);
 				}
 			} else {
 				if (rdma_type == VSYNC_RDMA) {
@@ -277,6 +283,8 @@ int vsync_rdma_config(void)
 		if (second_rdma_feature &&
 		    is_meson_g12b_revb())
 			ret = _vsync_rdma_config(LINE_N_INT_RDMA);
+	} else {
+		ret = _vsync_rdma_config(LINE_N_INT_RDMA);
 	}
 	return ret;
 }
@@ -737,64 +745,53 @@ u32 _VSYNC_RD_MPEG_REG(u32 adr)
 {
 	u32 read_val = 0;
 
-	if (second_rdma_feature && is_meson_g12b_revb()) {
-		int enable_ = cur_enable[LINE_N_INT_RDMA] & 0xf;
+	int enable_ = cur_enable[LINE_N_INT_RDMA] & 0xf;
 
-		read_val = Rd(adr);
+	read_val = Rd(adr);
 
-		if (enable_ != 0 &&
-		    vsync_rdma_handle[LINE_N_INT_RDMA] > 0)
-			read_val = rdma_read_reg
-				(vsync_rdma_handle[LINE_N_INT_RDMA], adr);
-	} else {
-		read_val = VSYNC_RD_MPEG_REG(adr);
-	}
+	if (enable_ != 0 && vsync_rdma_handle[LINE_N_INT_RDMA] > 0)
+		read_val = rdma_read_reg
+			(vsync_rdma_handle[LINE_N_INT_RDMA], adr);
+
 	return read_val;
 }
 EXPORT_SYMBOL(_VSYNC_RD_MPEG_REG);
 
 int _VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 {
-	if (second_rdma_feature && is_meson_g12b_revb()) {
-		int enable_ = cur_enable[LINE_N_INT_RDMA] & 0xf;
+	int enable_ = cur_enable[LINE_N_INT_RDMA] & 0xf;
 
-		if (enable_ != 0 &&
-		    vsync_rdma_handle[LINE_N_INT_RDMA] > 0) {
-			rdma_write_reg
-				(vsync_rdma_handle[LINE_N_INT_RDMA], adr, val);
-		} else {
-			Wr(adr, val);
-			if (debug_flag[LINE_N_INT_RDMA] & 1)
-				pr_info("VSYNC_WR(%x)=%x\n", adr, val);
-		}
+	if (enable_ != 0 &&
+	    vsync_rdma_handle[LINE_N_INT_RDMA] > 0) {
+		rdma_write_reg
+			(vsync_rdma_handle[LINE_N_INT_RDMA], adr, val);
 	} else {
-		VSYNC_WR_MPEG_REG(adr, val);
+		Wr(adr, val);
+		if (debug_flag[LINE_N_INT_RDMA] & 1)
+			pr_info("VSYNC_WR(%x)=%x\n", adr, val);
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL(_VSYNC_WR_MPEG_REG);
 
 int _VSYNC_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
 {
-	if (second_rdma_feature && is_meson_g12b_revb()) {
-		int enable_ = cur_enable[LINE_N_INT_RDMA] & 0xf;
+	int enable_ = cur_enable[LINE_N_INT_RDMA] & 0xf;
 
-		if (enable_ != 0 &&
-		    vsync_rdma_handle[LINE_N_INT_RDMA] > 0) {
-			rdma_write_reg_bits
-				(vsync_rdma_handle[LINE_N_INT_RDMA],
-				adr, val, start, len);
-		} else {
-			u32 read_val = Rd(adr);
-			u32 write_val = (read_val &
-					 ~(((1L << (len)) - 1) << (start)))
-				| ((unsigned int)(val) << (start));
-			Wr(adr, write_val);
-			if (debug_flag[LINE_N_INT_RDMA] & 1)
-				pr_info("VSYNC_WR(%x)<=%x\n", adr, write_val);
-		}
+	if (enable_ != 0 &&
+	    vsync_rdma_handle[LINE_N_INT_RDMA] > 0) {
+		rdma_write_reg_bits
+			(vsync_rdma_handle[LINE_N_INT_RDMA],
+			adr, val, start, len);
 	} else {
-		VSYNC_WR_MPEG_REG_BITS(adr, val, start, len);
+		u32 read_val = Rd(adr);
+		u32 write_val = (read_val &
+				 ~(((1L << (len)) - 1) << (start)))
+			| ((unsigned int)(val) << (start));
+		Wr(adr, write_val);
+		if (debug_flag[LINE_N_INT_RDMA] & 1)
+			pr_info("VSYNC_WR(%x)<=%x\n", adr, write_val);
 	}
 	return 0;
 }
@@ -848,6 +845,7 @@ void enable_rdma_log(int flag)
 			debug_flag[VSYNC_RDMA_VPP1] |= 0x1;
 			debug_flag[VSYNC_RDMA_VPP2] |= 0x1;
 			debug_flag[PRE_VSYNC_RDMA] |= 0x1;
+			debug_flag[LINE_N_INT_RDMA] |= 0x1;
 		} else {
 			debug_flag[LINE_N_INT_RDMA] |= 0x1;
 			debug_flag[VSYNC_RDMA_READ] |= 0x1;
@@ -859,6 +857,7 @@ void enable_rdma_log(int flag)
 			debug_flag[VSYNC_RDMA_VPP1] &= (~0x1);
 			debug_flag[VSYNC_RDMA_VPP2] &= (~0x1);
 			debug_flag[PRE_VSYNC_RDMA] &= (~0x1);
+			debug_flag[LINE_N_INT_RDMA] &= (~0x1);
 		} else {
 			debug_flag[LINE_N_INT_RDMA] &= (~0x1);
 			debug_flag[VSYNC_RDMA_READ] &= (~0x1);
@@ -875,6 +874,7 @@ void enable_rdma(int enable_flag)
 		enable[VSYNC_RDMA_VPP1] = enable_flag;
 		enable[VSYNC_RDMA_VPP2] = enable_flag;
 		enable[PRE_VSYNC_RDMA] = enable_flag;
+		enable[LINE_N_INT_RDMA] = enable_flag;
 	} else {
 		enable[LINE_N_INT_RDMA] = enable_flag;
 		enable[VSYNC_RDMA_READ] = enable_flag;
@@ -909,6 +909,8 @@ struct rdma_op_s *get_rdma_ops(int rdma_type)
 			return &pre_vsync_rdma_op;
 		else if (rdma_type == EX_VSYNC_RDMA)
 			return &ex_vsync_rdma_op;
+		else if (rdma_type == LINE_N_INT_RDMA)
+			return &line_n_int_rdma_op;
 		else
 			return NULL;
 	} else {
@@ -1017,7 +1019,7 @@ static ssize_t enable_store(struct class *class,
 
 	if (likely(parse_para(buf, RDMA_NUM, enable) == RDMA_NUM)) {
 		for (i = 0; i < RDMA_NUM; i++)
-			pr_info("enalbe[%d]: %d\n", i, enable[i]);
+			pr_info("enable[%d]: %d\n", i, enable[i]);
 	} else {
 		pr_err("set enable error\n");
 	}
@@ -1041,7 +1043,7 @@ static ssize_t store_irq_count(struct class *class,
 
 	if (likely(parse_para(buf, RDMA_NUM, irq_count) == RDMA_NUM)) {
 		for (i = 0; i < RDMA_NUM; i++)
-			pr_info("enalbe[%d]: %d\n", i, irq_count[i]);
+			pr_info("enable[%d]: %d\n", i, irq_count[i]);
 	} else {
 		pr_err("set irq_count error\n");
 	}
@@ -1197,6 +1199,10 @@ int rdma_init(void)
 		cur_enable[PRE_VSYNC_RDMA] = 0;
 		enable[PRE_VSYNC_RDMA] = 1;
 		force_rdma_config[PRE_VSYNC_RDMA] = 1;
+
+		cur_enable[LINE_N_INT_RDMA] = 0;
+		enable[LINE_N_INT_RDMA] = 1;
+		force_rdma_config[LINE_N_INT_RDMA] = 1;
 	} else {
 		cur_enable[VSYNC_RDMA_READ] = 0;
 		enable[VSYNC_RDMA_READ] = 1;

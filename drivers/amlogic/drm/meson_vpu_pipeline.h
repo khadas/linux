@@ -49,13 +49,6 @@
  */
 #define MESON_OSD_SCLAE_DOWN_LIMIT 10
 #define MESON_OSD_SCLAE_UP_LIMIT ((1 << 24) - 1)
-/*
- *MESON_DRM_VERSION_V0:support modetest and atomictest,
- *backup last commit state
- *MESON_DRM_VERSION_V1:support atomictest,
- *don't support modetest,don't backup last commit state
- */
-#define MESON_DRM_VERSION_V0 0
 
 #define SCALER_RATIO_X_CALC_DONE BIT(0)
 #define SCALER_RATIO_Y_CALC_DONE BIT(1)
@@ -92,11 +85,12 @@ struct meson_vpu_block_ops {
 			   struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps);
 	void (*update_state)(struct meson_vpu_block *vblk,
-			     struct meson_vpu_block_state *state);
+			     struct meson_vpu_block_state *new_state,
+			     struct meson_vpu_block_state *old_state);
 	void (*enable)(struct meson_vpu_block *vblk,
-		       struct meson_vpu_block_state *state);
+		       struct meson_vpu_block_state *new_state);
 	void (*disable)(struct meson_vpu_block *vblk,
-			struct meson_vpu_block_state *state);
+			struct meson_vpu_block_state *old_state);
 	void (*dump_register)(struct meson_vpu_block *vblk,
 			      struct seq_file *seq);
 	void (*init)(struct meson_vpu_block *vblk);
@@ -118,6 +112,7 @@ struct meson_vpu_block {
 
 	enum meson_vpu_blk_type type;
 	u8 id;
+	/*index in same type objects arry,update to object_index*/
 	u8 index;
 	u8 max_inputs;
 	u8 max_outputs;
@@ -179,7 +174,7 @@ struct meson_vpu_osd_layer_info {
 	u32 scaling_filter;
 	u32 crtc_index;
 	u32 read_ports;
-	u32 logo_show_done;
+	u32 status_changed;
 };
 
 struct meson_vpu_osd {
@@ -274,6 +269,7 @@ struct meson_vpu_video_state {
 	u32 dimm_enable;
 	u32 mode_3d_enable;
 
+	u32 crtc_index;
 	u32 color_key;
 	u32 alpha;
 	u32 global_alpha;
@@ -439,7 +435,9 @@ struct rdma_reg_ops {
 };
 
 struct meson_vpu_sub_pipeline {
+	//todo:update to vpp_index;
 	int index;
+	//todo: update name
 	struct meson_vpu_pipeline *pipeline;
 	struct drm_display_mode mode;
 	struct rdma_reg_ops *reg_ops;
@@ -469,7 +467,6 @@ struct meson_vpu_pipeline {
 	struct meson_drm *priv;
 	struct meson_vpu_block **mvbs;
 	int num_blocks;
-	int index;
 };
 
 struct meson_vpu_common_state {
@@ -582,14 +579,16 @@ void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline, int crtc_in
 struct meson_vpu_block_state *
 meson_vpu_block_get_state(struct meson_vpu_block *block,
 			  struct drm_atomic_state *state);
+
+struct meson_vpu_block_state *
+meson_vpu_block_get_old_state(struct meson_vpu_block *mvb,
+			struct drm_atomic_state *state);
+
 struct meson_vpu_pipeline_state *
 meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 			     struct drm_atomic_state *state);
 int meson_vpu_block_state_init(struct meson_drm *private,
 			       struct meson_vpu_pipeline *pipeline);
-#ifdef MESON_DRM_VERSION_V0
-void meson_vpu_pipeline_atomic_backup_state(struct meson_vpu_pipeline_state *mvps);
-#endif
 
 int combination_traverse(struct meson_vpu_pipeline_state *mvps,
 			 struct drm_atomic_state *state);

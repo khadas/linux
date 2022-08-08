@@ -395,7 +395,7 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev, char pinctrl_state)
 	struct pinctrl_state *s;
 	int ret;
 
-	if (old_select == select)
+	if (old_select == select && jdev->old_cluster == jdev->cluster)
 		return 0;
 	if (!jdev->jtag_pinctrl) {
 		jdev->jtag_pinctrl = devm_pinctrl_get(&jdev->pdev->dev);
@@ -481,6 +481,7 @@ static int aml_jtag_setup(struct aml_jtag_dev *jdev, char pinctrl_state)
 	global_select = jdev->select;
 	aml_jtag_select(jdev->pdev);
 	jdev->old_select = select;
+	jdev->old_cluster = jdev->cluster;
 
 	return 0;
 }

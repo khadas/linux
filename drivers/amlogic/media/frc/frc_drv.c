@@ -29,6 +29,7 @@
 #include <linux/of_device.h>
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
+#include <linux/compat.h>
 #include <linux/of_irq.h>
 #include <linux/of_clk.h>
 #include <linux/string.h>
@@ -66,6 +67,7 @@
 
 // static struct frc_dev_s *frc_dev; // for SWPL-53056:KASAN: use-after-free
 static struct frc_dev_s frc_dev;
+struct work_struct frc_mem_dyc_proc;
 
 int frc_dbg_en;
 EXPORT_SYMBOL(frc_dbg_en);
@@ -420,6 +422,12 @@ void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff)
 			pwr_ctrl_psci_smc(PDID_T3_FRCME, PWR_ON);
 			pwr_ctrl_psci_smc(PDID_T3_FRCMC, PWR_ON);
 #endif
+			// alloc frc buf according to status of alloced
+			if (!devp->buf.cma_mem_alloced) {
+				frc_buf_alloc(devp);
+				if (devp->buf.cma_buf_alloc && devp->buf.cma_buf_alloc2)
+					devp->buf.cma_mem_alloced = 1;
+			}
 			devp->power_on_flag = true;
 			frc_init_config(devp);
 			frc_buf_config(devp);
@@ -806,6 +814,8 @@ int frc_buf_set(struct frc_dev_s *frc_devp)
 		return -1;
 	if (frc_buf_alloc(frc_devp) != 0)
 		return -1;
+	if (frc_devp->buf.cma_buf_alloc && frc_devp->buf.cma_buf_alloc2)
+		frc_devp->buf.cma_mem_alloced = 1;
 	frc_buf_distribute(frc_devp);
 	if (frc_buf_config(frc_devp) != 0)
 		return -1;
@@ -918,6 +928,7 @@ static int frc_probe(struct platform_device *pdev)
 		enable_irq(frc_devp->rdma_irq);
 #endif
 	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
+	INIT_WORK(&frc_mem_dyc_proc, frc_mem_dynamic_proc);
 
 	frc_devp->probe_ok = true;
 	frc_devp->power_off_flag = false;
@@ -954,6 +965,7 @@ static int __exit frc_remove(struct platform_device *pdev)
 	PR_FRC("%s:module remove\n", __func__);
 	// frc_devp = platform_get_drvdata(pdev);
 	cancel_work_sync(&frc_devp->frc_clk_work);
+	cancel_work_sync(&frc_mem_dyc_proc);
 	tasklet_kill(&frc_devp->input_tasklet);
 	tasklet_kill(&frc_devp->output_tasklet);
 	tasklet_disable(&frc_devp->input_tasklet);

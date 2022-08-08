@@ -270,12 +270,10 @@ static void di_mif0_stride_input(struct DI_MIF_S *mif,
 		*stride_cr);
 }
 
-/* DI_MIF0_t -> DI_MIF_S*/
-void di_mif0_linear_rd_cfg(struct DI_MIF_S *mif, int mif_index, const struct reg_acc *ops)
+static void di_mif0_linear_rd_cfg_addr_only(struct DI_MIF_S *mif,
+					    int mif_index,
+					    const struct reg_acc *ops)
 {
-	unsigned int stride_y;
-	unsigned int stride_cb;
-	unsigned int stride_cr;
 	const struct reg_acc *op;
 	unsigned int off;
 
@@ -296,43 +294,63 @@ void di_mif0_linear_rd_cfg(struct DI_MIF_S *mif, int mif_index, const struct reg
 		mif->addr0,
 		mif->addr1,
 		mif->addr2);
-	if (mif_index == DI_MIF0_ID_INP)
+
+	op->bwr(off + RDMIFXN_BADDR_Y, mif->addr0 >> 4, 0, 32);//linear address
+	op->bwr(off + RDMIFXN_BADDR_CB, mif->addr1 >> 4, 0, 32);//linear address
+	op->bwr(off + RDMIFXN_BADDR_CR, mif->addr2 >> 4, 0, 32);//linear address
+}
+
+/* DI_MIF0_t -> DI_MIF_S*/
+void di_mif0_linear_rd_cfg(struct DI_MIF_S *mif,
+			   int mif_index,
+			   const struct reg_acc *ops)
+{
+	unsigned int stride_y;
+	unsigned int stride_cb;
+	unsigned int stride_cr;
+	const struct reg_acc *op;
+	unsigned int off;
+
+	if (!ops)
+		op = &di_pre_regset;
+	else
+		op = ops;
+
+	off = di_mif_add_get_offset_v3(mif_index);
+	if (off == DIM_ERR) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+
+	if (mif_index == DI_MIF0_ID_INP || mif->linear_fromcvs)
 		di_mif0_stride_input(mif, &stride_y, &stride_cb, &stride_cr);
 	else
 		di_mif0_stride(mif, &stride_y, &stride_cb, &stride_cr);
 
 	op->bwr(off + RDMIFXN_STRIDE_1, 1, 16, 1);//linear mode
 
-	op->bwr(off + RDMIFXN_BADDR_Y, mif->addr0 >> 4, 0, 32);//linear address
-	op->bwr(off + RDMIFXN_BADDR_CB, mif->addr1 >> 4, 0, 32);//linear address
-	op->bwr(off + RDMIFXN_BADDR_CR, mif->addr2 >> 4, 0, 32);//linear address
-
+	di_mif0_linear_rd_cfg_addr_only(mif, mif_index, op);
 	dbg_ic("\ty[%d]cb[%d]cr[%d]\n", stride_y, stride_cb, stride_cr);
-	dbg_ic("\ty[0x%lx]cb[0x%lx]cr[0x%lx]\n", mif->addr0, mif->addr1, mif->addr2);
 
 //	op->bwr(off + RDMIFXN_STRIDE_0, stride_y, 0, 13);//stride
 //	op->bwr(off + RDMIFXN_STRIDE_0, stride_cb, 16, 13);//stride
 //	op->bwr(off + RDMIFXN_STRIDE_1, stride_cr, 0, 13);//stride
-	op->bwr(off + RDMIFXN_STRIDE_0, (stride_cb << 16) | stride_y, 0, 32);//stride
+	op->wr(off + RDMIFXN_STRIDE_0, (stride_cb << 16) | stride_y);//stride
 	op->bwr(off + RDMIFXN_STRIDE_1, (1 << 16) | stride_cr, 0, 32);//stride
 
-	dbg_ic("\t:reg:0x%x= 0x%x\n", off + RDMIFXN_BADDR_Y, op->rd(off + RDMIFXN_BADDR_Y));
-	dbg_ic("\t:reg:0x%x= 0x%x\n", off + RDMIFXN_BADDR_CB, op->rd(off + RDMIFXN_BADDR_CB));
-	dbg_ic("\t:reg:0x%x= 0x%x\n", off + RDMIFXN_BADDR_CR, op->rd(off + RDMIFXN_BADDR_CR));
-	dbg_ic("\t:reg:0x%x= 0x%x\n", off + RDMIFXN_STRIDE_0, op->rd(off + RDMIFXN_STRIDE_0));
-	dbg_ic("\t:reg:0x%x= 0x%x\n", off + RDMIFXN_STRIDE_1, op->rd(off + RDMIFXN_STRIDE_1));
+	dbg_ic("\t:reg:0x%x= 0x%x\n",
+	       off + RDMIFXN_STRIDE_0, op->rd(off + RDMIFXN_STRIDE_0));
+	dbg_ic("\t:reg:0x%x= 0x%x\n",
+	       off + RDMIFXN_STRIDE_1, op->rd(off + RDMIFXN_STRIDE_1));
 }
 
-/* DI_MIF0_t -> DI_MIF_S*/
-void di_mif0_linear_wr_cfg(struct DI_MIF_S *mif, int mif_index, const struct reg_acc *ops)
+static void di_mif0_linear_wr_cfg_addr_only(struct DI_MIF_S *mif,
+					    int mif_index,
+					    const struct reg_acc *ops)
 {
 	unsigned int WRMIF_BADDR0;
 	unsigned int WRMIF_BADDR1;
-	unsigned int WRMIF_STRIDE0;
-	unsigned int WRMIF_STRIDE1;
-	unsigned int stride_y;
-	unsigned int stride_cb;
-	unsigned int stride_cr;
+
 	const struct reg_acc *op;
 
 	if (!ops)
@@ -350,27 +368,55 @@ void di_mif0_linear_wr_cfg(struct DI_MIF_S *mif, int mif_index, const struct reg
 	if (mif_index == 0) {
 		WRMIF_BADDR0          = DI_NRWR_BADDR0;
 		WRMIF_BADDR1          = DI_NRWR_BADDR1;
-		WRMIF_STRIDE0         = DI_NRWR_STRIDE0;
-		WRMIF_STRIDE1         = DI_NRWR_STRIDE1;
 	} else if (mif_index == 1) {
 		WRMIF_BADDR0          = DI_DIWR_BADDR0;
 		WRMIF_BADDR1          = DI_DIWR_BADDR1;
+	} else {
+		PR_ERR("ERROR:WR_MIF WRONG!!!\n");
+		return;
+	}
+
+	op->wr(WRMIF_BADDR0, mif->addr0	>> 4);
+	op->wr(WRMIF_BADDR1, mif->addr1 >> 4);
+}
+
+/* DI_MIF0_t -> DI_MIF_S*/
+static void di_mif0_linear_wr_cfg(struct DI_MIF_S *mif,
+				  int mif_index, const struct reg_acc *ops)
+{
+	unsigned int WRMIF_STRIDE0;
+	unsigned int WRMIF_STRIDE1;
+	unsigned int stride_y;
+	unsigned int stride_cb;
+	unsigned int stride_cr;
+	const struct reg_acc *op;
+
+	if (!ops)
+		op = &di_pre_regset;
+	else
+		op = ops;
+
+	if (mif_index == 0) {
+		WRMIF_STRIDE0         = DI_NRWR_STRIDE0;
+		WRMIF_STRIDE1         = DI_NRWR_STRIDE1;
+	} else if (mif_index == 1) {
 		WRMIF_STRIDE0         = DI_DIWR_STRIDE0;
 		WRMIF_STRIDE1         = DI_DIWR_STRIDE1;
 	} else {
 		PR_ERR("ERROR:WR_MIF WRONG!!!\n");
 		return;
 	}
+	if (mif->linear_fromcvs)
+		di_mif0_stride_input(mif, &stride_y, &stride_cb, &stride_cr);
+	else
+		di_mif0_stride(mif, &stride_y, &stride_cb, &stride_cr);
 
-	di_mif0_stride(mif, &stride_y, &stride_cb, &stride_cr);
-
-	op->wr(WRMIF_BADDR0, mif->addr0	>> 4);
-	op->wr(WRMIF_BADDR1, mif->addr1 >> 4);
+	di_mif0_linear_wr_cfg_addr_only(mif, mif_index, op);
 	op->wr(WRMIF_STRIDE0, stride_y);
 	op->wr(WRMIF_STRIDE1, stride_cb);
 }
 
-static void di_mif0_stride2(struct DI_SIM_MIF_s *mif,
+static void di_mif0_stride2(struct DI_SIM_MIF_S *mif,
 			    unsigned int  *stride_y,
 			    unsigned int  *stride_cb,
 			    unsigned int  *stride_cr)
@@ -418,8 +464,8 @@ static void di_mif0_stride2(struct DI_SIM_MIF_s *mif,
 	dbg_ic("\t: y[%d] cb[%d] cr[%d]\n", *stride_y, *stride_cb, *stride_cr);
 }
 
-/* DI_MIF0_t -> DI_SIM_MIF_s*/
-void di_mif0_linear_wr_cfg2(struct DI_SIM_MIF_s *mif, int mif_index)
+/* DI_MIF0_t -> DI_SIM_MIF_S*/
+void di_mif0_linear_wr_cfg2(struct DI_SIM_MIF_S *mif, int mif_index)
 {
 	unsigned int WRMIF_BADDR0;
 	unsigned int WRMIF_BADDR1;
@@ -464,7 +510,7 @@ void di_mif0_linear_wr_cfg2(struct DI_SIM_MIF_s *mif, int mif_index)
 	dbg_ic("\t:reg:0x%x= 0x%x\n", WRMIF_STRIDE1, op->rd(WRMIF_STRIDE1));
 }
 
-/* struct DI_MIF1_t -> DI_SIM_MIF_s*/
+/* struct DI_MIF1_t -> DI_SIM_MIF_S*/
 static void di_mif1_stride2(unsigned int per_bits,
 			unsigned int pic_hsize,
 			unsigned int  *stride)
@@ -479,7 +525,7 @@ static void di_mif1_stride2(unsigned int per_bits,
 	//because of previous data are 32bytes aligned
 }
 
-void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_s *mif,
+void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_S *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,
 			unsigned int BADDR)
@@ -499,7 +545,7 @@ void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_s *mif,
 	dbg_ic("reg[0x%x] = 0x%x\n", BADDR, op->rd(BADDR));
 }
 
-static void di_mif1_linear_wr_cfg(struct DI_SIM_MIF_s *mif,
+static void di_mif1_linear_wr_cfg(struct DI_SIM_MIF_S *mif,
 			   unsigned int STRIDE,
 			   unsigned int BADDR)
 {
@@ -558,10 +604,10 @@ static void di_mcmif_linear_wr_cfg(struct DI_MC_MIF_s *mif,
 static void set_ma_pre_mif_t7(void *pre,
 			       unsigned short urgent)
 {
-	struct DI_SIM_MIF_s *mtnwr_mif;
-	struct DI_SIM_MIF_s *contprd_mif;
-	struct DI_SIM_MIF_s *contp2rd_mif;
-	struct DI_SIM_MIF_s *contwr_mif;
+	struct DI_SIM_MIF_S *mtnwr_mif;
+	struct DI_SIM_MIF_S *contprd_mif;
+	struct DI_SIM_MIF_S *contp2rd_mif;
+	struct DI_SIM_MIF_S *contwr_mif;
 	const struct reg_acc *op = &di_pre_regset;
 	struct di_pre_stru_s *ppre = (struct di_pre_stru_s *)pre;
 
@@ -627,7 +673,7 @@ static void set_ma_pre_mif_t7(void *pre,
 }
 
 //set_post_mtnrd_mif_g12
-static void set_post_mtnrd_mif_t7(struct DI_SIM_MIF_s *mtnprd_mif)
+static void set_post_mtnrd_mif_t7(struct DI_SIM_MIF_S *mtnprd_mif)
 {
 	dbg_ic("%s:", __func__);
 	DIM_VSYNC_WR_MPEG_REG(MTNRD_SCOPE_X,
@@ -1509,7 +1555,7 @@ static void set_shrk_disable(const struct reg_acc *opin)
 	op->bwr(DI_DIWR_SHRK_CTRL, 0, 0, 1);
 }
 
-static void set_mcdi_mif(struct DI_MIF1_S *di_inf_default,
+static void set_mcdi_mif(struct DI_SIM_MIF_S *di_inf_default,
 			 int hsize, int vsize, const struct reg_acc *op)
 {
 	int addr_x = (hsize + 4) / 5 - 1;
@@ -1541,7 +1587,7 @@ static void set_mcdi_mif(struct DI_MIF1_S *di_inf_default,
 		| (0 << 12));           // enable
 }
 
-static void set_mcdi_def(struct DI_MIF1_S *di_inf_default,
+static void set_mcdi_def(struct DI_SIM_MIF_S *di_inf_default,
 			 int hsizem1, int vsizem1,
 			 const struct reg_acc *op)
 {
@@ -1569,37 +1615,56 @@ static void set_mcdi_def(struct DI_MIF1_S *di_inf_default,
 	set_mcdi_mif(di_inf_default, hsize, vsize, op);
 }
 
-static void set_mcdi_pre(struct DI_MIF1_S *di_mcinford_mif,
-			 struct DI_MIF1_S *di_mcvecwr_mif,
-			 struct DI_MIF1_S *di_mcinfowr_mif,
+static void set_mcdi_pre(struct DI_SIM_MIF_S *di_mcinford_mif,
+			 struct DI_SIM_MIF_S *di_mcvecwr_mif,
+			 struct DI_SIM_MIF_S *di_mcinfowr_mif,
 			 const struct reg_acc *op)
 {
-	op->wr(MCINFRD_CTRL1, di_mcinford_mif->canvas_num << 16 | //canvas index
-		2 << 8 | //burst len = 2
-		0 << 6 | //little endian
-		2 << 0);//pack mode
-	op->wr(MCINFWR_CTRL, (op->rd(MCINFWR_CTRL) & 0xffffff00) |
-		di_mcinfowr_mif->canvas_num |  // canvas index.
-		(1 << 12));       // req enable
-	op->wr(MCVECWR_CTRL, (op->rd(MCVECWR_CTRL) & 0xffffff00) |
-		di_mcvecwr_mif->canvas_num |  // canvas index.
-		(1 << 12));       // req enable
+	//op->wr(MCINFRD_CTRL1, di_mcinford_mif->canvas_num << 16 | //canvas index
+	//	2 << 8 | //burst len = 2
+	//	0 << 6 | //little endian
+	//	2 << 0);//pack mode
+	if (!di_mcinford_mif->linear)
+		op->bwr(MCINFRD_CTRL1, di_mcinford_mif->canvas_num, 16, 8);
+	op->bwr(MCINFRD_CTRL1,
+		2 << 8 |
+		0 << 6 |
+		2 << 0,
+		0, 10);
+	//op->wr(MCINFWR_CTRL, (op->rd(MCINFWR_CTRL) & 0xffffff00) |
+	//	di_mcinfowr_mif->canvas_num |  // canvas index.
+	//	(1 << 12));       // req enable
+	if (!di_mcinfowr_mif->linear)
+		op->bwr(MCINFWR_CTRL, di_mcinfowr_mif->canvas_num, 0, 8);
+	op->bwr(MCINFWR_CTRL, 1, 12, 1);
+	//op->wr(MCVECWR_CTRL, (op->rd(MCVECWR_CTRL) & 0xffffff00) |
+	//	di_mcvecwr_mif->canvas_num |  // canvas index.
+	//	(1 << 12));       // req enable
+	if (!di_mcvecwr_mif->linear)
+		op->bwr(MCVECWR_CTRL, di_mcvecwr_mif->canvas_num, 0, 8);
+	op->bwr(MCVECWR_CTRL, 1, 12, 1);
 
 	op->bwr(DI_PRE_CTRL, 3, 16, 2);// me enable; auto enable
 }
 
-static void set_mcdi_post(struct DI_MIF1_S *di_mcvecrd_mif,
+static void set_mcdi_post(struct DI_SIM_MIF_S *di_mcvecrd_mif,
 			  const struct reg_acc *op)
 {
-	op->wr(MCVECRD_CTRL1, di_mcvecrd_mif->canvas_num << 16 | //canvas index
-		2 << 8 | //burst len = 2
-		0 << 6 | //little endian
-		2 << 0);//pack mode
+	//op->wr(MCVECRD_CTRL1, di_mcvecrd_mif->canvas_num << 16 | //canvas index
+	//	2 << 8 | //burst len = 2
+	//	0 << 6 | //little endian
+	//	2 << 0);//pack mode
+	if (!di_mcvecrd_mif->linear)
+		op->bwr(MCVECRD_CTRL1, di_mcvecrd_mif->canvas_num, 16, 8); //canvas index
+	op->bwr(MCVECRD_CTRL1,
+		2 << 8 |
+		0 << 6 |
+		2 << 0, 0, 10);
 }
 
-static void set_cont_mif(struct DI_MIF1_S *di_contprd_mif,
-			 struct DI_MIF1_S *di_contp2rd_mif,
-			 struct DI_MIF1_S *di_contwr_mif,
+static void set_cont_mif(struct DI_SIM_MIF_S *di_contprd_mif,
+			 struct DI_SIM_MIF_S *di_contp2rd_mif,
+			 struct DI_SIM_MIF_S *di_contwr_mif,
 			 const struct reg_acc *op)
 {
 	int contwr_hsize = di_contwr_mif->end_x - di_contwr_mif->start_x + 1;
@@ -1612,8 +1677,11 @@ static void set_cont_mif(struct DI_MIF1_S *di_contprd_mif,
 	       (di_contwr_mif->end_y));   // start_y 0 end_y 239.
 	op->wr(CONTWR_CAN_SIZE, ((contwr_hsize - 1) << 16) |
 	       (contwr_vsize - 1));
-	op->wr(CONTWR_CTRL,  di_contwr_mif->canvas_num |  // canvas index.
-		(1 << 12));       // req_en.
+	//op->wr(CONTWR_CTRL,  di_contwr_mif->canvas_num |  // canvas index.
+	//	(1 << 12));       // req_en.
+	if (!di_contwr_mif->linear)
+		op->bwr(CONTWR_CTRL,  di_contwr_mif->canvas_num, 0, 8);
+	op->bwr(CONTWR_CTRL,  1, 12, 1); //req_en
 
 	op->wr(CONTRD_SCOPE_X, (di_contprd_mif->start_x)  |
 	       (di_contprd_mif->end_x << 16));   // start_x 0 end_x 719.
@@ -1623,16 +1691,31 @@ static void set_cont_mif(struct DI_MIF1_S *di_contprd_mif,
 	       (di_contp2rd_mif->end_x << 16));   // start_x 0 end_x 719.
 	op->wr(CONT2RD_SCOPE_Y, (di_contp2rd_mif->start_y) |
 	       (di_contp2rd_mif->end_y << 16)); // start_y 0 end_y 239.
-	op->wr(CONTRD_CTRL1, di_contprd_mif->canvas_num << 16 |
+
+	//op->wr(CONTRD_CTRL1, di_contprd_mif->canvas_num << 16 |
+	 //      //canvas index
+	 //      2 << 8 | //burst len = 2
+	 //      0 << 6 | //little endian
+	 //      0 << 0);//pack mode
+	if (!di_contprd_mif->linear)
+		op->bwr(CONTRD_CTRL1, di_contprd_mif->canvas_num, 16, 8);
+	op->bwr(CONTRD_CTRL1,
+		2 << 8 |
+		0 << 6 |
+		0 << 0,
+		0, 10);
+	//op->wr(CONT2RD_CTRL1, di_contp2rd_mif->canvas_num << 16 |
 	       //canvas index
-	       2 << 8 | //burst len = 2
-	       0 << 6 | //little endian
-	       0 << 0);//pack mode
-	op->wr(CONT2RD_CTRL1, di_contp2rd_mif->canvas_num << 16 |
-	       //canvas index
-	       2 << 8 | //burst len = 2
-	       0 << 6 | //little endian
-	       0 << 0);//pack mode
+	 //      2 << 8 | //burst len = 2
+	 //      0 << 6 | //little endian
+	 //      0 << 0);//pack mode
+	if (!di_contp2rd_mif->linear)
+		op->bwr(CONT2RD_CTRL1, di_contp2rd_mif->canvas_num, 16, 8);
+	op->bwr(CONT2RD_CTRL1,
+		2 << 8 |
+		0 << 6 |
+		0 << 0,
+		0, 10);
 }
 
 static unsigned int di_mif_add_get_offset_v3(enum DI_MIF0_ID mif_index)
@@ -2329,7 +2412,7 @@ static void set_wrmif_simple
 		(1      << 30));   // 64-bits swap enable
 }
 
-static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
+static void set_wrmif_simple_v3(struct DI_SIM_MIF_S *mif,
 				const struct reg_acc *ops,
 				enum EDI_MIFSM mifsel)
 {
@@ -2402,6 +2485,10 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 		di_mif0_linear_wr_cfg2(mif, mifsel);
 	else
 		op->wr(reg[WRMIF_CANVAS], mif->canvas_num);
+	if (mif->tst_not_setcontr) {
+		dim_print("%s:not set nr ctrl\n", __func__);
+		return;
+	}
 	if (mif->set_separate_en == 2) {
 		op->wr(reg[WRMIF_CTRL],
 			(mif->en << 0) |   // write mif en.
@@ -2446,7 +2533,155 @@ static void set_wrmif_simple_v3(struct DI_SIM_MIF_s *mif,
 	}
 }
 
-bool dim_aisr_test(struct DI_SIM_MIF_s *mif, bool sel)
+static void set_wrmif_simple_pp(struct DI_MIF_S *mif,
+				const struct reg_acc *ops,
+				enum EDI_MIFSM mifsel)
+{
+	const unsigned int *reg;
+	unsigned int bits_mode, rgb_mode;
+	const struct reg_acc *op;
+
+	////////////////////////////
+	//////Afbce addreess mux
+	////////////////////////////
+	if (mifsel > (DIM_WRMIF_MIF_V3_NUB - 1)) {
+		stimulus_print("ERROR:WR_MIF WRONG!!!\n");
+		return;
+	}
+	if (!ops)
+		op = &di_pre_regset;
+	else
+		op = ops;
+
+	if (is_mask(SC2_REG_MSK_nr))
+		op = &sc2reg;
+
+	//mif->en = 1; //ary add temp;
+	bits_mode = mif->bit_mode != 0;
+	//1: 10bits 422(old mode)   0:8bits   2:10bit 444  3:10bit full-pack
+	// rgb_mode	0: 422 to one canvas
+	//1: 444 to one canvas
+	//2: 8bit Y to one canvas, 16bit UV to another canvas
+	//3: 422 full pack mode (10bit)
+
+	if (mif->bit_mode == 3) {
+		rgb_mode = 3;
+	} else {
+		if (mif->set_separate_en == 0) {
+			if (mif->video_mode == 1)
+				rgb_mode = 0;
+			else
+				rgb_mode = 1;
+		} else {
+			if (mif->video_mode == 1)
+				rgb_mode = 3;//2;
+			else
+				rgb_mode = 2;
+		}
+	}
+	reg = &reg_wrmif_v3[mifsel][0];
+
+	//////////////////////////////
+	//////Afbce Write registers
+	/////////////////////////////
+
+	// set wr mif interface.
+	//Wr(WRMIF_X, Rd(WRMIF_X) | (wr_mif->luma_x_start0 <<16) |
+	//(wr_mif->luma_x_end0));   // start_x 0 end_x 719.
+	//Wr(WRMIF_Y, Rd(WRMIF_Y) | (wr_mif->luma_y_start0 <<16) |
+	//(wr_mif->luma_y_end0));   // start_y 0 end_y 239.
+
+	op->wr(reg[WRMIF_X],  (mif->luma_x_start0 << 16) | (mif->luma_x_end0));
+	// start_x 0 end_x 719.
+	op->wr(reg[WRMIF_Y],  (mif->luma_y_start0 << 16) | (mif->luma_y_end0));
+	// start_y 0 end_y 239.
+	//printf("wr_mif_scope = %d %d %d %d",wr_mif->luma_x_start0,
+		 //wr_mif->luma_x_end0,wr_mif->luma_y_start0,
+		 //wr_mif->luma_y_end0);
+	if (mif->linear)
+		di_mif0_linear_wr_cfg(mif, mifsel, op);
+	else
+		op->wr(reg[WRMIF_CANVAS], mif->canvas0_addr0);
+	if (mif->tst_not_setcontr) {
+		dim_print("%s:not set nr ctrl\n", __func__);
+		return;
+	}
+	if (mif->set_separate_en == 2) {
+		op->wr(reg[WRMIF_CTRL],
+			(1 << 0) |   // write mif en.
+			(bits_mode << 1) |   // bit10 mode
+			(mif->l_endian << 2) |   // little endian
+			(1 << 3) |   // data ext enable
+			(3 << 4) |   // word limit ?
+			(mif->urgent << 16) |
+			// urgent // ary default is 0 ?
+			(mif->cbcr_swap << 17) |
+			//swap cbcrworking in rgb mode =2: swap cbcr
+			//(0      << 18) |   // vconv working in rgb mode =2:
+			//(0      << 20) |   // hconv. output even pixel
+			/* vcon working in rgb mode =2: 3 : output all.*/
+		       (((mif->video_mode == 0) ? 0 : 3) << 18) |
+		       /* hconv. output even pixel */
+		       (((mif->video_mode == 2) ? 3 : 0) << 20) |
+			(rgb_mode << 22) |
+			// rgb mode =0, 422 YCBCR to one canvas.
+			(0 << 24) |   // no gate clock
+			(0 << 25) |   // canvas_sync enable
+			(2 << 26) |   // burst lim
+			(mif->reg_swap << 30));   // 64-bits swap enable
+	} else {
+		op->wr(reg[WRMIF_CTRL],
+		       (1 << 0) |   // write mif en.
+		       (bits_mode << 1) |   // bit10 mode
+		       (mif->l_endian << 2) |   // little endian
+		       (0      << 3) |   // data ext enable
+		       (5      << 4) |   // word limit ?
+		       (mif->urgent << 16) |   // urgent // ary default is 0 ?
+		       (mif->cbcr_swap << 17) |
+		       // swap cbcrworking in rgb mode =2: swap cbcr
+		       (0      << 18) |   // vconv working in rgb mode =2:
+		       (0      << 20) |   // hconv. output even pixel
+		       (rgb_mode      << 22) |
+		       // rgb mode =0, 422 YCBCR to one canvas.
+		       (0      << 24) |   // no gate clock
+		       (0      << 25) |   // canvas_sync enable
+		       (2      << 26) |   // burst lim
+		       (mif->reg_swap      << 30));   // 64-bits swap enable
+	}
+}
+
+static void set_wrmif_simple_pp_addr_only(struct DI_MIF_S *mif,
+				const struct reg_acc *ops,
+				enum EDI_MIFSM mifsel)
+{
+	const unsigned int *reg;
+//	unsigned int bits_mode, rgb_mode;
+	const struct reg_acc *op;
+
+	////////////////////////////
+	//////Afbce addreess mux
+	////////////////////////////
+	if (mifsel > (DIM_WRMIF_MIF_V3_NUB - 1)) {
+		stimulus_print("ERROR:WR_MIF WRONG!!!\n");
+		return;
+	}
+	if (!ops)
+		op = &di_pre_regset;
+	else
+		op = ops;
+
+	if (is_mask(SC2_REG_MSK_nr))
+		op = &sc2reg;
+
+	reg = &reg_wrmif_v3[mifsel][0];
+
+	if (mif->linear)
+		di_mif0_linear_wr_cfg_addr_only(mif, mifsel, op);
+	else
+		op->wr(reg[WRMIF_CANVAS], mif->canvas0_addr0);
+}
+
+bool dim_aisr_test(struct DI_SIM_MIF_S *mif, bool sel)
 {
 	dbg_ic("%s:%d\n", __func__, sel);
 	dbg_ic("\t <%d,%d>\n", mif->end_x + 1, mif->end_y + 1);
@@ -2461,7 +2696,7 @@ module_param_named(dim_hf_dbg, dim_hf_dbg, uint, 0644);
 /* ucode: aisr_pre_cfg */
 /* sel: pre: 0; post: 1*/
 /* .aisr_pre */
-bool dim_aisr_pre_cfg(struct DI_SIM_MIF_s *mif, bool sel, bool para)
+bool dim_aisr_pre_cfg(struct DI_SIM_MIF_S *mif, bool sel, bool para)
 {
 	unsigned int wrmif_stride;
 	const struct reg_acc *op = &di_pre_regset;
@@ -2541,7 +2776,7 @@ void dim_aisr_disable(void)
 
 /* ref to config_di_wr_mif */
 //static
-void wr_mif_cfg_v3(struct DI_SIM_MIF_s *wr_mif,
+void wr_mif_cfg_v3(struct DI_SIM_MIF_S *wr_mif,
 		   enum EDI_MIFSM index,
 		   /*struct di_buf_s *di_buf,*/
 		   void *di_vf,
@@ -2613,7 +2848,7 @@ void wr_mif_cfg_v3(struct DI_SIM_MIF_s *wr_mif,
 }
 
 /* for dw 2021-08-25 copy from wr_mif_cfg_v3 */
-void wr_mif_cfg_by_dvfm(struct DI_SIM_MIF_s *wr_mif,
+void wr_mif_cfg_by_dvfm(struct DI_SIM_MIF_S *wr_mif,
 			enum EDI_MIFSM index,
 			struct dvfm_s *dvfm,
 			struct di_win_s *win)
@@ -2623,20 +2858,20 @@ void wr_mif_cfg_by_dvfm(struct DI_SIM_MIF_s *wr_mif,
 	if (!wr_mif || !dvfm)
 		return;
 	wr_mif->canvas_num = dvfm->cvs_nu[0] & 0xff;
-	if (dvfm->plane_num == 2)
+	if (dvfm->vfs.plane_num == 2)
 		wr_mif->canvas_num |= ((dvfm->cvs_nu[1] & 0xff) << 8);
 
-	dim_print("%s:w[%d]\n", __func__, dvfm->width);
+	dim_print("%s:w[%d]\n", __func__, dvfm->vfs.width);
 	wr_mif->start_x = 0;
-	wr_mif->end_x = dvfm->width - 1;
+	wr_mif->end_x = dvfm->vfs.width - 1;
 	wr_mif->start_y = 0;
 	//tmp for t7:
 	wr_mif->buf_crop_en	= 1;
 	//wr_mif->buf_hsize	= 1920;
 	wr_mif->buf_hsize	= dvfm->buf_hsize;
-	bitdepth = dvfm->bitdepth;
+	bitdepth = dvfm->vfs.bitdepth;
 	if (bitdepth & BITDEPTH_Y10) {
-		if (dvfm->type & VIDTYPE_VIU_444) {
+		if (dvfm->vfs.type & VIDTYPE_VIU_444) {
 			wr_mif->bit_mode = (bitdepth & FULL_PACK_422_MODE) ?
 						3 : 2;
 		} else {
@@ -2648,29 +2883,29 @@ void wr_mif_cfg_by_dvfm(struct DI_SIM_MIF_s *wr_mif,
 	}
 
 	/* video mode */
-	if (dvfm->type & (VIDTYPE_VIU_444 | VIDTYPE_RGB_444))
+	if (dvfm->vfs.type & (VIDTYPE_VIU_444 | VIDTYPE_RGB_444))
 		wr_mif->video_mode = 2;
-	else if (dvfm->type & VIDTYPE_VIU_422)
+	else if (dvfm->vfs.type & VIDTYPE_VIU_422)
 		wr_mif->video_mode = 1;
 	else /* nv21 or nv12 */
 		wr_mif->video_mode = 0;
 
 	/* separate */
-	if (dvfm->type & VIDTYPE_VIU_422)
+	if (dvfm->vfs.type & VIDTYPE_VIU_422)
 		wr_mif->set_separate_en = 0;
-	else if (dvfm->type & (VIDTYPE_VIU_NV12 | VIDTYPE_VIU_NV21))
+	else if (dvfm->vfs.type & (VIDTYPE_VIU_NV12 | VIDTYPE_VIU_NV21))
 		wr_mif->set_separate_en = 2; /*nv12 ? nv 21?*/
 
 	if (index == EDI_MIFSM_NR) {
 		if (wr_mif->src_i)
-			wr_mif->end_y = dvfm->height / 2 - 1;
+			wr_mif->end_y = dvfm->vfs.height / 2 - 1;
 		else
-			wr_mif->end_y = dvfm->height - 1;
+			wr_mif->end_y = dvfm->vfs.height - 1;
 	} else {
 		if (dim_dbg_cfg_post_byapss())
-			wr_mif->end_y = dvfm->height / 2 - 1;
+			wr_mif->end_y = dvfm->vfs.height / 2 - 1;
 		else
-			wr_mif->end_y = dvfm->height - 1;
+			wr_mif->end_y = dvfm->vfs.height - 1;
 	}
 }
 
@@ -2765,6 +3000,78 @@ static void set_di_mult_write(struct DI_MULTI_WR_S *mwcfg,
 			  mwcfg->post_mif,//DI_MIF0_t  *pre_mif      ,
 			  mwcfg->post_afbce,//AFBCE_t   *pre_afbce    ,
 			  op);
+}
+
+/************************************************
+ * set_mcdi_mif_pp
+ *	temp for pre-post only
+ *	copy from set_mcdi_mif
+ ************************************************/
+//add for use mif size
+static void set_mcdi_mif_pp(struct DI_SIM_MIF_S *mif_mvw,
+			    struct DI_SIM_MIF_S *mif_mcinfor,
+			    const struct reg_acc *op)
+{
+	unsigned int addr_x, addr_y, addrinfo_x, addrinfo_y;
+
+	//note: end not size
+	addr_x = mif_mvw->end_x;
+	addr_y = mif_mvw->end_y;
+
+	addrinfo_x = mif_mcinfor->end_x;
+	addrinfo_y = mif_mcinfor->end_y;
+	// mcdi canvas
+	op->wr(MCVECWR_X, (2 << 30) | addr_x);
+	op->wr(MCVECWR_Y, addr_y);
+
+	op->wr(MCINFWR_X, (2 << 30) | addrinfo_x);
+	op->wr(MCINFWR_Y, addrinfo_y);
+
+	op->wr(MCVECRD_SCOPE_X, (addr_x) << 16);
+	op->wr(MCVECRD_SCOPE_Y, (addr_y) << 16);
+	op->wr(MCINFRD_SCOPE_X, (addrinfo_x) << 16);
+	op->wr(MCINFRD_SCOPE_Y, (addrinfo_y) << 16);
+	op->wr(MCVECWR_CAN_SIZE, (addr_x << 16) | addr_y);
+	op->wr(MCINFWR_CAN_SIZE, (addrinfo_x << 16) | addrinfo_y);
+
+	op->wr(MCVECWR_CTRL, op->rd(MCVECWR_CTRL) | (0 << 14)
+		// sync latch en
+		| (0 << 12));           // enable
+	op->wr(MCINFWR_CTRL, op->rd(MCINFWR_CTRL) | (0 << 14)
+		// sync latch en
+		| (0 << 12));           // enable
+}
+
+/************************************************
+ * set_mcdi_def_pp
+ *	temp for pre-post only
+ *	copy from set_mcdi_def
+ ************************************************/
+static void set_mcdi_def_pp(int hsizem1, int vsizem1,
+			 const struct reg_acc *op)
+{
+	int hsize = hsizem1 + 1;
+	//(di_inf_default->end_x - di_inf_default->start_x)+ 1;
+	int vsize = vsizem1 + 1;
+	//(di_inf_default->end_y - di_inf_default->start_y)+ 1;
+	int blkhsize = (hsize + 4) / 5;
+
+	op->wr(MCDI_HV_SIZEIN, ((hsize << 16) + vsize));
+	op->wr(MCDI_HV_BLKSIZEIN, ((blkhsize << 16) + vsize));
+	op->wr(MCDI_BLKTOTAL, blkhsize * vsize);
+	op->wr(MCDI_MOTINEN, 1 << 1);
+	//enable motin refinement ary:in dimh_enable_mc_di_pre_g12
+	if (!DIM_IS_IC(SC2))
+		op->wr(MCDI_REF_MV_NUM, 2);
+	//ary : in mc_di_param_init
+	op->wr(MCDI_CTRL_MODE, op->rd(MCDI_CTRL_MODE) |
+	//ary : dimh_mc_pre_mv_irq
+		(0 << 28) |   // close linf
+		(1 << 16) |   // qme
+		(1 << 9));   // ref
+	//stimulus_print("MCDI DEFAULT SETTING\n");
+	op->wr(MCDI_MC_CRTL, op->rd(MCDI_MC_CRTL) & 0xfffffffc);  //close mc
+	//set_mcdi_mif(di_inf_default, hsize, vsize, op);
 }
 
 static void set_di_pre(struct DI_PRE_S *pcfg, const struct reg_acc *opin)
@@ -3315,16 +3622,18 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	int pre_vsize;
 	int hold_line_new;
 	const struct reg_acc *op;
+	bool mc_en;
 
 	if (!opin)
 		op = &di_pre_regset;
 	else
 		op = opin;
-
+	dbg_pp("%s\n", __func__);
 	// clock gate
 	if (ppcfg->link_vpp == 0)
 		op->wr(DI_SC2_PRE_GL_CTRL, 0xc0200001);
 
+	mc_en = ppcfg->mc_en;
 	/**********************************/
 	/****   DI PRE MIF CONFIG  ********/
 	/**********************************/
@@ -3346,10 +3655,19 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	ppcfg->chan2_mif->hold_line = hold_line_new;
 	ppcfg->if1_mif->urgent = 0;
 	ppcfg->if1_mif->hold_line = hold_line_new;
+#ifdef HIS_CODE //03-26 ary:
 	set_di_mif_v1(ppcfg->inp_mif, DI_MIF0_ID_INP, op);
 	set_di_mif_v1(ppcfg->mem_mif, DI_MIF0_ID_MEM, op);
 	set_di_mif_v1(ppcfg->chan2_mif, DI_MIF0_ID_CHAN2, op);
 	set_di_mif_v1(ppcfg->if1_mif, DI_MIF0_ID_IF1, op);
+#else
+	set_di_mif_v3(ppcfg->inp_mif, DI_MIF0_ID_INP, op);
+	set_di_mif_v3(ppcfg->mem_mif, DI_MIF0_ID_MEM, op);
+	set_di_mif_v3(ppcfg->chan2_mif, DI_MIF0_ID_CHAN2, op);
+	set_di_mif_v3(ppcfg->if1_mif, DI_MIF0_ID_IF1, op);
+	#endif
+
+	#ifdef HIS_CODE // pp
 
 	// set nr wr mif interface.
 	op->wr(DI_SC2_NRWR_X, op->rd(DI_SC2_NRWR_X) |
@@ -3376,6 +3694,9 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       (0 << 25) |   // canvas_sync enable
 	       (2 << 26) |   // burst lim
 	       (1 << 30));   // 64-bits swap enable
+	#else
+	set_wrmif_simple_pp(ppcfg->nrwr_mif, op, 0);
+	#endif
 	op->wr(NR4_TOP_CTRL,
 	       (0 << 20) |  //reg_gclk_ctrl             = reg_top_ctrl[31:20];
 	       (1 << 19) |  //reg_text_en               = reg_top_ctrl[19]   ;
@@ -3403,11 +3724,22 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	op->wr(MTNWR_CAN_SIZE,
 	       ((ppcfg->mtnwr_mif->end_x - ppcfg->mtnwr_mif->start_x) << 16) |
 	       (ppcfg->mtnwr_mif->end_y - ppcfg->mtnwr_mif->start_y));
-	op->wr(MTNWR_CTRL, ppcfg->mtnwr_mif->canvas_num |  // canvas index.
-	       (1 << 12));       // req_en.
+	//op->wr(MTNWR_CTRL, ppcfg->mtnwr_mif->canvas_num |  // canvas index.
+	//       (1 << 12));       // req_en.
+	if (!ppcfg->mtnwr_mif->linear) {
+		op->bwr(MTNWR_CTRL, ppcfg->mtnwr_mif->canvas_num, 0, 8);
+	} else {
+		ppcfg->mtnwr_mif->per_bits	= 4;
+		di_mif1_linear_wr_cfg(ppcfg->mtnwr_mif, MTNWR_STRIDE, MTNWR_BADDR);
+	}
+
+	op->bwr(MTNWR_CTRL, 1, 12, 1);
 
 	// config 1bit motion and mcdi mif (PRE)
-	set_mcdi_def(ppcfg->mcvecwr_mif, pre_hsize - 1, pre_vsize - 1, op);
+	//set_mcdi_def(ppcfg->mcvecwr_mif, pre_hsize - 1, pre_vsize - 1, op);
+	set_mcdi_def_pp(pre_hsize - 1, pre_vsize - 1, op);
+	set_mcdi_mif_pp(ppcfg->mcvecwr_mif, ppcfg->mcinfowr_mif, op);
+
 	set_mcdi_pre(ppcfg->mcinford_mif,
 		     ppcfg->mcvecwr_mif, ppcfg->mcinfowr_mif, op);
 	set_cont_mif(ppcfg->contprd_mif,
@@ -3425,15 +3757,59 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	op->wr(MTNRD_SCOPE_Y,
 	       (ppcfg->mtnrd_mif->start_y) | (ppcfg->mtnrd_mif->end_y << 16));
 	       // start_y 0 end_y 239.
-	op->wr(MTNRD_CTRL1, ppcfg->mtnrd_mif->canvas_num << 16 | //canvas index
+	op->bwr(MTNRD_CTRL1,
 		2 << 8 | //burst len = 2
 		0 << 6 | //little endian
-		0 << 0);//pack mode
+		0 << 0,
+		0, 10);//pack mode
+		//op->wr(MTNRD_CTRL1, ppcfg->mtnrd_mif->canvas_num << 16 | //canvas index
+		//	2 << 8 | //burst len = 2
+		//	0 << 6 | //little endian
+		//	0 << 0);//pack mode
+	if (!ppcfg->mtnrd_mif->linear) {
+		op->bwr(MTNRD_CTRL1, ppcfg->mtnrd_mif->canvas_num, 16, 8);
+	} else {
+		ppcfg->mtnrd_mif->per_bits	= 4;
+		di_mif1_linear_rd_cfg(ppcfg->mtnrd_mif, MTNRD_CTRL1, MTNRD_CTRL2, MTNRD_BADDR);
+	}
 
 	//mc vector read mif
 	set_mcdi_post(ppcfg->mcvecrd_mif, op);
+	if (ppcfg->mcvecrd_mif->linear) {
+		ppcfg->mcvecrd_mif->per_bits	= 16;
+		di_mif1_linear_rd_cfg(ppcfg->mcvecrd_mif,
+			      MCVECRD_CTRL1,
+			      MCVECRD_CTRL2,
+			      MCVECRD_BADDR);
+	}
+	if (ppcfg->mcvecwr_mif->linear) {
+		ppcfg->mcinford_mif->per_bits	= 16;
+		ppcfg->mcinfowr_mif->per_bits	= 16;
+		ppcfg->mcvecwr_mif->per_bits	= 16;
+		di_mif1_linear_rd_cfg(ppcfg->mcinford_mif,
+			      MCINFRD_CTRL1,
+			      MCINFRD_CTRL2,
+			      MCINFRD_BADDR);
+		di_mif1_linear_wr_cfg(ppcfg->mcvecwr_mif,
+				MCVECWR_STRIDE, MCVECWR_BADDR);
+		di_mif1_linear_wr_cfg(ppcfg->mcinfowr_mif,
+				MCINFWR_STRIDE, MCINFWR_BADDR);
+		ppcfg->contp2rd_mif->per_bits	= 4;
+		ppcfg->contprd_mif->per_bits	= 4;
+		ppcfg->contwr_mif->per_bits	= 4;
+		di_mif1_linear_rd_cfg(ppcfg->contprd_mif,
+			      CONTRD_CTRL1,
+			      CONTRD_CTRL2,
+			      CONTRD_BADDR);
+		di_mif1_linear_rd_cfg(ppcfg->contp2rd_mif,
+			      CONT2RD_CTRL1,
+			      CONT2RD_CTRL2,
+			      CONT2RD_BADDR);
 
+		di_mif1_linear_wr_cfg(ppcfg->contwr_mif, CONTWR_STRIDE, CONTWR_BADDR);
+	}
 	// di post write
+	#ifdef HIS_CODE
 	op->wr(DI_SC2_DIWR_X, (ppcfg->diwr_mif->luma_x_start0 << 16) |
 	       (ppcfg->diwr_mif->luma_x_end0));   // start_x 0 end_x 719.
 	op->wr(DI_SC2_DIWR_Y, (ppcfg->diwr_mif->luma_y_start0 << 16) |
@@ -3459,6 +3835,9 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       (2 << 26) |   // burst lim
 	       (0 << 30));   // 64-bits swap enable
 
+	#else
+	set_wrmif_simple_pp(ppcfg->diwr_mif, op, 1);
+	#endif
 	/**********************************/
 	/****** control REG config  *******/
 	/**********************************/
@@ -3474,12 +3853,15 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       (1 << 19) |       // mask hist check interrupt.
 	       (0 << 20) |       // mask cont interrupt.
 	       (1 << 21) |       // mask medi interrupt.
-	       (0 << 22) |       // mask vecwr interrupt.
-	       (0 << 23) |       // mask infwr interrupt.
+	       (!mc_en << 22) |       // mask vecwr interrupt.
+	       (!mc_en << 23) |       // mask infwr interrupt.
 	       (1 << 24) |       // mask det3d interrupt.
 	       (1 << 25) |       // mask nrds write.
+			(1 << 26) |       // mask pd det write. //for t7
 	       (1 << 30) |       // mask both pre and post write done
 	       0x3ff);            // clean all pending interrupt bits.
+	dbg_pp("%s:rd:0x%x = 0x%x:\n", __func__,
+	       DI_INTR_CTRL, op->rd(DI_INTR_CTRL));
 
 	op->wr(DI_PRE_CTRL,
 	       (1 << 0)  |  //  nr_en                = pre_ctrl[0];
@@ -3498,7 +3880,7 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       //  nr_wr_by             = pre_ctrl[10];
 	       (2 << 11)  |
 	       //  reg_tfbf_en          = pre_ctrl[12:11];//reg_tfbf_en
-	       (1 << 16)  |
+	       (mc_en << 16)  |
 	       //  reg_me_en            = pre_ctrl[16];//mcdi
 	       (1 << 17)  |
 	       //  reg_me_autoen        = pre_ctrl[17];
@@ -3506,7 +3888,7 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       //  pre_field_num_mcdi   = pre_ctrl[19] ^ pre_field_num;
 	       (0 << 20)  |
 	       //  pre_field_num_pulldow= pre_ctrl[20] ^ pre_field_num;
-	       (0 << 21)  |
+	       (1 << 21)  |	//ary change 2021-04-28 for t3/t7
 	       //  pre_field_num_nr     = pre_ctrl[21] ^ pre_field_num;
 	       (0 << 23)  |
 	       //  mode_422c444         = pre_ctrl[24:23];
@@ -3522,6 +3904,13 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 				0, 32);
 	else
 		op->wr(DI_BLEND_CTRL,  (3 << 20));
+	if (DIM_IS_IC(T7)) {
+		op->bwr(AFBCDM_INP_CTRL0, 0, 13, 2);
+		op->bwr(AFBCDM_MEM_CTRL0, 0, 13, 2);
+		op->bwr(AFBCDM_CHAN2_CTRL0, 0, 13, 2);
+		op->bwr(AFBCDM_IF1_CTRL0, 0, 13, 2);
+	}
+
 	op->wr(DI_POST_CTRL,
 	       (1 << 0) | // di_post_en      = post_ctrl[0];
 	       (1 << 1) | // di_blend_en     = post_ctrl[1];
@@ -3535,7 +3924,7 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 	       (!ppcfg->pre_field_num << 29));
 	       // post_field_num  = post_ctrl[29];
 
-	op->wr(MCDI_MC_CRTL, 0xc0a01);
+	op->wr(MCDI_MC_CRTL, 0xc0a00 | mc_en);
 
 	op->bwr(DI_SC2_PRE_GL_THD, ppcfg->hold_line, 16, 6);
 	op->bwr(DI_SC2_POST_GL_THD, ppcfg->hold_line, 16, 6);
@@ -3569,6 +3958,15 @@ static void enable_prepost_link(struct DI_PREPST_S *ppcfg,
 		op->wr(DI_SC2_PRE_GL_CTRL, 0x80200001);
 }
 
+void pp_unreg_hw(void)
+{
+	const struct reg_acc *op;
+
+	op = &di_pre_regset;
+	PR_INF("%s:\n", __func__);
+	op->bwr(DI_TOP_PRE_CTRL, 0, 30, 2);
+	op->bwr(DI_TOP_POST_CTRL, 1, 30, 2);
+}
 // the input data is 4:2:2,  saved in field mode video.
 static void enable_prepost_link_afbce(struct DI_PREPST_AFBC_S *pafcfg,
 				      const struct reg_acc *opin)
@@ -3833,7 +4231,7 @@ void set_di_memcpy_rot(struct mem_cpy_s *cfg)
 	struct AFBCD_S    *in_afbcd;
 	struct AFBCE_S    *out_afbce;
 	struct DI_MIF_S  *in_rdmif;
-	struct DI_SIM_MIF_s  *out_wrmif;
+	struct DI_SIM_MIF_S  *out_wrmif;
 	bool         afbc_en;
 	bool	afbcd_rot = false;
 //	unsigned int         hold_line = cfg->hold_line;
@@ -4018,7 +4416,7 @@ void set_di_memcpy(struct mem_cpy_s *cfg)
 	struct AFBCD_S    *in_afbcd;
 	struct AFBCE_S    *out_afbce;
 	struct DI_MIF_S  *in_rdmif;
-	struct DI_SIM_MIF_s  *out_wrmif;
+	struct DI_SIM_MIF_S  *out_wrmif;
 	bool         afbc_en	= false;
 	bool	afbcd_rot = false;
 //	unsigned int         hold_line = cfg->hold_line;
@@ -4131,6 +4529,25 @@ void set_di_memcpy(struct mem_cpy_s *cfg)
 		(0		<< 20)	|
 		/* post_frm_sel   =top_post_ctrl[3];//0:viu  1:internal*/
 		(1		<< 30));
+	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
+	    (!IS_ERR_OR_NULL(in_afbcd))) {
+		if (in_afbcd->index == EAFBC_DEC_IF0) {
+			//op->bwr(AFBCDM_IF0_CTRL0,cfg->b.is_if0_4k,14,1);
+			//reg_use_4kram
+			op->bwr(AFBCDM_IF0_CTRL0, 1, 13, 1);
+			//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		} else if (in_afbcd->index == EAFBC_DEC_IF1) {
+			//op->bwr(AFBCDM_IF1_CTRL0,cfg->b.is_if1_4k,14,1);
+			//reg_use_4kram
+			op->bwr(AFBCDM_IF1_CTRL0, 1, 13, 1);
+			//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		} else if (in_afbcd->index == EAFBC_DEC_IF2) {
+			//op->bwr(AFBCDM_IF2_CTRL0,cfg->b.is_if2_4k,14,1);
+			//reg_use_4kram
+			op->bwr(AFBCDM_IF2_CTRL0, 1, 13, 1);
+			//reg_afbc_vd_sel //1:afbc_dec 0:nor_rdmif
+		}
+	}
 
 	if (is_4k)
 		dim_sc2_4k_set(2);
@@ -4401,7 +4818,9 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	}
 	vt_phase_step = (16 >> vt_yc_ratio);
 
-	if (mif->set_separate_en != 0 && mif->src_field_mode == 1 && off == 0) {
+	if (mif->set_separate_en != 0	&&
+	    mif->src_field_mode == 1	&&
+	    (mif->in_dec == 1 || off == 0)) {
 		vfmt_rpt_first = 1;
 		if (mif->output_field_num == 0)
 			vt_ini_phase = 0xe;
@@ -4436,6 +4855,46 @@ void set_di_mif_v3(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
 	op->wr(off + reg[MIF_FMT_W],    (y_length << 16) |
 		//hz format width
 	       (c_length << 0)); //vt format width
+	dim_print("\t%s:end\n", __func__);
+}
+
+void set_di_mif_v3_addr_only(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
+		   const struct reg_acc *opin)
+{
+	unsigned int off;
+	const unsigned int *reg;
+	const struct reg_acc *op;
+
+	if (!opin)
+		op = &di_pre_regset;
+	else
+		op = opin;
+
+	if (is_mask(SC2_REG_MSK_nr)) { /* dbg */
+		op = &sc2reg;
+		PR_INF("%s:%s:\n", __func__, dim_get_mif_id_name(mif_index));
+	}
+
+	reg = mif_reg_get_v3();
+	off = di_mif_add_get_offset_v3(mif_index);
+
+	if (off == DIM_ERR || !reg) {
+		PR_ERR("%s:\n", __func__);
+		return;
+	}
+	dbg_ic("%s:id[%d]\n", __func__, mif_index);
+
+	// ----------------------
+	// Canvas
+	// ----------------------
+	if (mif->linear)
+		di_mif0_linear_rd_cfg_addr_only(mif, mif_index, op);
+	else
+		op->wr(off + reg[MIF_CANVAS0], (mif->canvas0_addr2 << 16) |
+			// cntl_canvas0_addr2
+			(mif->canvas0_addr1 << 8)      | // cntl_canvas0_addr1
+			(mif->canvas0_addr0 << 0)        // cntl_canvas0_addr0
+			);
 }
 
 /**************************************************/
@@ -4541,10 +5000,13 @@ static void hw_init_v3(void)
 	}
 }
 
-static void di_pre_data_mif_ctrl_v3(bool enable)
+static void di_pre_data_mif_ctrl_v3(bool enable, const struct reg_acc *op_in)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	const struct reg_acc *op;
 
+	op = op_in;
+	if (!op)
+		op = &di_pre_regset;
 	if (DIM_IS_IC_BF(SC2)) {
 		PR_ERR("%s:\n", __func__);
 		return;
@@ -5290,9 +5752,9 @@ void dim_sc2_4k_set(unsigned int mode_4k)
 		op->bwr(DI_TOP_CTRL1, 0, 3, 1);
 }
 
-void dim_sc2_afbce_rst(unsigned int ec_nub)
+void dim_sc2_afbce_rst(unsigned int ec_nub, const struct reg_acc *op)
 {
-	const struct reg_acc *op = &di_pre_regset;
+	//const struct reg_acc *op = &di_pre_regset;
 
 	//PR_INF("%s:[%d]\n", __func__, ec_nub);
 	if (ec_nub == 0)  {
@@ -5442,6 +5904,9 @@ const struct dim_hw_opsv_s dim_ops_l1_v3 = {
 		.sub_version	= 1,
 	},
 	.pre_mif_set = set_di_mif_v3,
+	.mif_rd_update_addr = set_di_mif_v3_addr_only,
+	.set_wrmif_pp = set_wrmif_simple_pp,
+	.wrmif_update_addr = set_wrmif_simple_pp_addr_only,
 	.pst_mif_set = set_di_mif_v3,
 	.pst_mif_update_csv	= pst_mif_update_canvasid_v3,
 	.pre_mif_sw	= di_pre_data_mif_ctrl_v3,
@@ -5492,6 +5957,9 @@ const struct dim_hw_opsv_s dim_ops_l1_v4 = { //for t7
 		.sub_version	= 1,
 	},
 	.pre_mif_set = set_di_mif_v3,
+	.mif_rd_update_addr = set_di_mif_v3_addr_only,
+	.set_wrmif_pp = set_wrmif_simple_pp,
+	.wrmif_update_addr = set_wrmif_simple_pp_addr_only,
 	.pst_mif_set = set_di_mif_v3,
 	.pst_mif_update_csv	= pst_mif_update_canvasid_v3,
 	.pre_mif_sw	= di_pre_data_mif_ctrl_v3,

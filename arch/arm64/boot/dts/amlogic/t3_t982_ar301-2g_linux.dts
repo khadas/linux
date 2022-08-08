@@ -870,7 +870,7 @@
 		compatible = "amlogic, t3_frc";
 		dev_name = "aml_frc";
 		status = "okay";
-		frc_en = <1>;/*1:enabel ;0:disable*/
+		frc_en = <1>;/*1:enable ;0:disable*/
 		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
 		interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 287 IRQ_TYPE_EDGE_RISING
@@ -895,6 +895,45 @@
 		pq_en = <1>;
 	};
 }; /* end of / */
+
+&thermal_zones {
+	vpu_thermal {
+		trips {
+			vpuswitch_on: trip-point@0 {
+				temperature = <85000>;
+				hysteresis = <5000>;
+				type = "passive";
+			};
+			vpucontrol: trip-point@1 {
+				temperature = <95000>;
+				hysteresis = <5000>;
+				type = "passive";
+			};
+			ddrhot: trip-point@2 {
+				temperature = <90000>;
+				hysteresis = <10000>;
+				type = "hot";
+			};
+			vpucritical {
+				temperature = <110000>;
+				hysteresis = <1000>;
+				type = "critical";
+			};
+		};
+		cooling-maps {
+			ddr0_cooling_map {
+				trip = <&ddrhot>;
+				cooling-device = <&ddr_cool0 0 2>;
+				contribution = <1024>;
+			};
+			ddr1_cooling_map {
+				trip = <&ddrhot>;
+				cooling-device = <&ddr_cool1 0 2>;
+				contribution = <1024>;
+			};
+		};
+	};
+};
 
 &i2c0 {
 	status = "okay";
@@ -1487,9 +1526,9 @@
 
 &amlvecm {
 	status = "okay";
-	gamma_en = <1>;/*1:enabel ;0:disable*/
-	wb_en = <1>;/*1:enabel ;0:disable*/
-	cm_en = <1>;/*1:enabel ;0:disable*/
+	gamma_en = <1>;/*1:enable ;0:disable*/
+	wb_en = <1>;/*1:enable ;0:disable*/
+	cm_en = <1>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	ct_3dlut = <0>;

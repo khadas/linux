@@ -70,7 +70,6 @@ struct meson_drm {
 	u32 num_crtcs;
 	struct am_meson_crtc *crtcs[MESON_MAX_CRTC];
 	struct meson_drm_thread commit_thread[MESON_MAX_CRTC];
-	struct am_meson_fb *logos[MESON_MAX_CRTC];
 
 	u32 num_planes;
 	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
@@ -83,6 +82,8 @@ struct meson_drm {
 	struct meson_drm_bound_data bound_data;
 
 	bool compat_mode;
+	bool logo_show_done;
+	u32 osd_occupied_index;
 };
 
 /*component bind functions*/

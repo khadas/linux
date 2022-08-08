@@ -213,7 +213,6 @@
 			size = <0x13400000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x30000000 0x50000000>;
 		};
 		/* codec shared reserved */
 		codec_mm_reserved:linux,codec_mm_reserved {
@@ -275,16 +274,16 @@
 		compatible = "amlogic, dolby_vision_sm1";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <0>;/*1:enabel ;0:disable*/
+		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 
 	amlvecm {
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
 		status = "okay";
-		gamma_en = <0>;/*1:enabel ;0:disable*/
-		wb_en = <0>;/*1:enabel ;0:disable*/
-		cm_en = <0>;/*1:enabel ;0:disable*/
+		gamma_en = <0>;/*1:enable ;0:disable*/
+		wb_en = <0>;/*1:enable ;0:disable*/
+		cm_en = <0>;/*1:enable ;0:disable*/
 	};
 
 	multi-di {
@@ -1040,7 +1039,7 @@
 	bl_mode = <1>;
 	fip_copies = <4>;
 	fip_size = <0x200000>;
-
+	ship_bad_block = <1>;
 	nand@bootloader {
 		reg = <0>;
 		#address-cells = <1>;

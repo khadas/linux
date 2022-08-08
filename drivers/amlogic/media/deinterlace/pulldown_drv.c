@@ -90,7 +90,7 @@ module_param_named(pldn_cmb1, pldn_cmb1, uint, 0644);
 /* static unsigned int flmxx_sure_num[7]
  * = {50, 50, 50, 50, 50, 50, 50};
  */
-static unsigned int flmxx_sure_num[7] = {20, 20, 20, 20, 20, 20, 20};
+static unsigned int flmxx_sure_num[8] = {20, 20, 20, 20, 20, 20, 20, 20};
 static unsigned int flmxx_snum_adr = 7;
 module_param_array(flmxx_sure_num, uint, &flmxx_snum_adr, 0664);
 
@@ -407,6 +407,8 @@ static struct pd_param_s pd_params[] = {
 	     &pd_param.flm22_force   },
 	{ "flm22_flag",
 	  &(pd_param.flm22_flag)    },
+	{ "pd22224_en",
+	  &pd_param.pd22224_en    },
 	{ "flm22_avg_flag",
 		&(pd_param.flm22_avg_flag)},
 	{ "flm2224_flag",
@@ -435,6 +437,18 @@ static struct pd_param_s pd_params[] = {
 	  &(pd_param.sF32Dif02M0)   },        /* mpeg-4096, cvbs-8192 */
 	{ "sF32Dif02M1",
 	  &(pd_param.sF32Dif02M1)   },        /* mpeg-4096, cvbs-8192 */
+	{ "quit_th",
+	  &pd_param.quit_th   },
+	{ "quit_th_en",
+	  &pd_param.quit_th_en   },
+	{ "enter_th",
+	  &pd_param.enter_th   },
+	{ "flm22_diff01_th",
+	  &pd_param.flm22_diff01_th   },
+	{ "flm22_mcdi_min_th",
+	  &pd_param.flm22_mcdi_min_th   },
+	{ "flm22_max_th",
+	  &pd_param.flm22_max_th   },
 	{ "",		  NULL          }
 };
 

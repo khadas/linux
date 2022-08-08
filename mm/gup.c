@@ -170,7 +170,7 @@ static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
 		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
 }
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 static int sysctrl_shrink_unevictable = 1;
 static struct ctl_table shrink_unevictable[] = {
 	{
@@ -201,7 +201,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
 	struct page *page;
 	spinlock_t *ptl;
 	pte_t *ptep, pte;
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 	struct address_space *mapping;
 #endif
 
@@ -310,7 +310,7 @@ retry:
 		 * when it attempts to reclaim the page.
 		 */
 		if (page->mapping && trylock_page(page)) {
-		#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+		#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
 			mapping = page_mapping(page);
 			if (mapping &&
 			    test_bit(AS_LOCK_MAPPING, &mapping->flags) &&

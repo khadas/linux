@@ -21,6 +21,7 @@
 #include <linux/sysfs.h>
 #include <linux/random.h>
 #include <linux/amlogic/secmon.h>
+#include <linux/compat.h>
 #include "soc_info.h"
 #ifdef CONFIG_AMLOGIC_CPU_INFO
 #include <linux/amlogic/cpu_info.h>

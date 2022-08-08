@@ -23,8 +23,9 @@
 		interrupts = <0 197 1
 			0 194 1
 			0 282 1
-			0 56 1>;
-		interrupt-names = "vsync","vsync2","vbyone","tcon";
+			0 56 1
+			0 195 1>;
+		interrupt-names = "vsync","vsync2","vbyone","tcon","line_n";
 		pinctrl-names = "vbyone","vbyone_off",
 				"tcon_p2p","tcon_p2p_usit","tcon_p2p_off",
 				"tcon_mlvds","tcon_mlvds_off",

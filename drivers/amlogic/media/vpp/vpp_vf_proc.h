@@ -1,6 +1,6 @@
-/* SPDX-License-Identifier: (GPL-2.0+ OR MIT)*/
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __VPP_VF_PROC_H__

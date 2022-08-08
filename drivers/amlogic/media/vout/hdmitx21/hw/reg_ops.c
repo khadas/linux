@@ -355,5 +355,20 @@ void hdmitx21_seq_rd_reg(u16 offset, u8 *buf, u16 cnt)
 }
 EXPORT_SYMBOL(hdmitx21_seq_rd_reg);
 
+void hdmitx21_fifo_read(u16 offset, u8 *buf, u16 cnt)
+{
+	int i = 0;
+
+	if (!buf)
+		return;
+	for (i = 0; i < cnt; i++) {
+		buf[i] = hdmitx21_rd_reg(offset);
+		i++;
+		usleep_range(5000, 5000 + 10);
+		pr_info("%02x\n", buf[i]);
+	}
+}
+EXPORT_SYMBOL(hdmitx21_fifo_read);
+
 MODULE_PARM_DESC(hdmi_dbg, "\n hdmi_dbg\n");
 module_param(hdmi_dbg, int, 0644);

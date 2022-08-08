@@ -211,7 +211,7 @@ void dimh_set_crc_init(int count)
 		DIM_RDMA_WR(DI_PRE_CTRL, 0x0901000c);
 	} else {
 		DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 1, 28, 1);
-		DIM_RDMA_WR_BITS(DI_PRE_CTRL, 1, 17, 1);
+		//DIM_RDMA_WR_BITS(DI_PRE_CTRL, 1, 17, 1);
 		DIM_RDMA_WR(DI_MTN_CTRL1, 0xf014000);
 		if (count == 1)
 			DIM_RDMA_WR(DI_MTN_CTRL1, 0x4f014000);
@@ -739,10 +739,10 @@ void dimh_hw_uninit(void)
  * mtn wr mif, contprd mif, contp2rd mif,
  * contwr mif config
  */
-static void set_ma_pre_mif(struct DI_SIM_MIF_s *mtnwr_mif,
-			   struct DI_SIM_MIF_s *contprd_mif,
-			   struct DI_SIM_MIF_s *contp2rd_mif,
-			   struct DI_SIM_MIF_s *contwr_mif,
+static void set_ma_pre_mif(struct DI_SIM_MIF_S *mtnwr_mif,
+			   struct DI_SIM_MIF_S *contprd_mif,
+			   struct DI_SIM_MIF_S *contp2rd_mif,
+			   struct DI_SIM_MIF_S *contwr_mif,
 			   unsigned short urgent)
 {
 	/* current field mtn canvas index. */
@@ -784,10 +784,10 @@ static void set_ma_pre_mif(struct DI_SIM_MIF_s *mtnwr_mif,
 		    (urgent << 8));/* urgent. */
 }
 
-static void set_ma_pre_mif_g12(struct DI_SIM_MIF_s *mtnwr_mif,
-			       struct DI_SIM_MIF_s *contprd_mif,
-			       struct DI_SIM_MIF_s *contp2rd_mif,
-			       struct DI_SIM_MIF_s *contwr_mif,
+static void set_ma_pre_mif_g12(struct DI_SIM_MIF_S *mtnwr_mif,
+			       struct DI_SIM_MIF_S *contprd_mif,
+			       struct DI_SIM_MIF_S *contp2rd_mif,
+			       struct DI_SIM_MIF_S *contwr_mif,
 			       unsigned short urgent)
 {
 	DIM_RDMA_WR_BITS(CONTRD_SCOPE_X, contprd_mif->start_x, 0, 13);
@@ -831,7 +831,7 @@ static void set_ma_pre_mif_g12(struct DI_SIM_MIF_s *mtnwr_mif,
 }
 
 #ifdef HIS_CODE	/* move to di_hw_v2.c */
-static void set_di_nrwr_mif(struct DI_SIM_MIF_s *nrwr_mif,
+static void set_di_nrwr_mif(struct DI_SIM_MIF_S *nrwr_mif,
 			    unsigned short urgent)
 {
 	DIM_RDMA_WR_BITS(DI_NRWR_X, nrwr_mif->end_x, 0, 14);
@@ -953,18 +953,18 @@ unsigned int dimh_get_slv_mcvec(void)
 	return DIM_RDMA_RD_BITS(DI_SUB_WRARB_REQEN_SLV, 3, 1);
 }
 
-static void dimh_pre_mif_set(struct DI_SIM_MIF_s *cfg_mif,
+static void dimh_pre_mif_set(struct DI_SIM_MIF_S *cfg_mif,
 			     unsigned int urgent,
 			     unsigned int ddr_en);
 
 void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 			    struct DI_MIF_S *di_mem_mif,
 			    struct DI_MIF_S *di_chan2_mif,
-			    struct DI_SIM_MIF_s *di_nrwr_mif,
-			    struct DI_SIM_MIF_s *di_mtnwr_mif,
-			    struct DI_SIM_MIF_s *di_contp2rd_mif,
-			    struct DI_SIM_MIF_s *di_contprd_mif,
-			    struct DI_SIM_MIF_s *di_contwr_mif,
+			    struct DI_SIM_MIF_S *di_nrwr_mif,
+			    struct DI_SIM_MIF_S *di_mtnwr_mif,
+			    struct DI_SIM_MIF_S *di_contp2rd_mif,
+			    struct DI_SIM_MIF_S *di_contprd_mif,
+			    struct DI_SIM_MIF_S *di_contwr_mif,
 			    unsigned char madi_en,
 			    unsigned char pre_field_num,
 			    unsigned char pre_vdin_link,
@@ -1220,10 +1220,7 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 	} else {
 		DIM_RDMA_WR(MCDI_CTRL_MODE, (mcdi_en ? 0x1bfff7ff : 0));
 	}
-	if (dim_config_crc_ic())
-		DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 1 : 0), 16, 1);
-	else
-		DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 3 : 0), 16, 2);
+	DIM_RDMA_WR_BITS(DI_PRE_CTRL, (mcdi_en ? 3 : 0), 16, 2);
 
 	DIM_RDMA_WR_BITS(MCINFRD_SCOPE_X, mcinford_mif->size_x, 16, 13);
 	DIM_RDMA_WR_BITS(MCINFRD_SCOPE_Y, mcinford_mif->size_y, 16, 13);
@@ -2780,8 +2777,8 @@ static void post_bit_mode_config(unsigned char if0,
 void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 			     struct DI_MIF_S *di_buf1_mif,
 			     struct DI_MIF_S *di_buf2_mif,
-			     struct DI_SIM_MIF_s *di_diwr_mif,
-			     struct DI_SIM_MIF_s *di_mtnprd_mif,
+			     struct DI_SIM_MIF_S *di_diwr_mif,
+			     struct DI_SIM_MIF_S *di_mtnprd_mif,
 			     struct DI_MC_MIF_s *di_mcvecrd_mif,
 			     int ei_en, int blend_en,
 			     int blend_mtn_en, int blend_mode,
@@ -3013,7 +3010,7 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 	}
 }
 
-static void set_post_mtnrd_mif(struct DI_SIM_MIF_s *mtnprd_mif,
+static void set_post_mtnrd_mif(struct DI_SIM_MIF_S *mtnprd_mif,
 			       unsigned char urgent)
 {
 	DIM_VSYNC_WR_MPEG_REG(DI_MTNPRD_X,
@@ -3028,7 +3025,7 @@ static void set_post_mtnrd_mif(struct DI_SIM_MIF_s *mtnprd_mif,
 	 );
 }
 
-static void set_post_mtnrd_mif_g12(struct DI_SIM_MIF_s *mtnprd_mif)
+static void set_post_mtnrd_mif_g12(struct DI_SIM_MIF_S *mtnprd_mif)
 {
 	DIM_VSYNC_WR_MPEG_REG(MTNRD_SCOPE_X,
 			      (mtnprd_mif->end_x << 16) |
@@ -3041,15 +3038,15 @@ static void set_post_mtnrd_mif_g12(struct DI_SIM_MIF_s *mtnprd_mif)
 }
 
 #ifdef DIM_OUT_NV21
-static void dimh_pst_mif_set(struct DI_SIM_MIF_s *cfg_mif,
+static void dimh_pst_mif_set(struct DI_SIM_MIF_S *cfg_mif,
 			     unsigned int urgent,
 			     unsigned int ddr_en);
 #endif
 void dimh_enable_di_post_2(struct DI_MIF_S		   *di_buf0_mif,
 			   struct DI_MIF_S		   *di_buf1_mif,
 			   struct DI_MIF_S		   *di_buf2_mif,
-			   struct DI_SIM_MIF_s    *di_diwr_mif,
-			   struct DI_SIM_MIF_s    *di_mtnprd_mif,
+			   struct DI_SIM_MIF_S    *di_diwr_mif,
+			   struct DI_SIM_MIF_S    *di_mtnprd_mif,
 			   int ei_en, int blend_en, int blend_mtn_en,
 			   int blend_mode,
 			   int di_vpp_en, int di_ddr_en, int post_field_num,
@@ -3511,10 +3508,10 @@ unsigned int dim_rd_mcdi_fldcnt(void)
  * will be reset, so call this function after all
  * data have be fetched
  */
-void dim_pulldown_info_clear_g12a(void)
+void dim_pulldown_info_clear_g12a(const struct reg_acc *op)
 {
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
-		DIM_RDMA_WR_BITS(DI_PRE_CTRL, 1, 30, 1);
+		op->bwr(DI_PRE_CTRL, 1, 30, 1);
 	dbg_ic("%s:\n", __func__);
 }
 
@@ -4304,7 +4301,7 @@ void post_close_new(void)
 		post_mif_sw(false);
 	data32 = RD(DI_INTR_CTRL);
 	/*intr_mode*/
-	DIM_DI_WR(DI_INTR_CTRL, (data32 & 0xffff0004) | (3 << 30));
+	DIM_DI_WR(DI_INTR_CTRL, (data32 & 0xffff0004) | (get_intr_mode() << 30));
 	if (DIM_IS_IC_EF(SC2))
 		opl1()->pst_set_flow(1, EDI_POST_FLOW_STEP1_STOP);
 	else
@@ -4605,7 +4602,7 @@ void dimh_enable_di_pre_mif(bool en, bool mc_enable)
 		ma_pre_mif_ctrl(en);
 	}
 	if (DIM_IS_IC_EF(SC2))
-		opl1()->pre_mif_sw(en);
+		opl1()->pre_mif_sw(en, NULL);
 	else
 		di_pre_data_mif_ctrl(en);
 	atomic_set(&mif_flag, 0);
@@ -4917,7 +4914,7 @@ static const unsigned int reg_mifs[EDI_MIFS_NUB][EDI_MIFS_REG_NUB] = {
 	},
 };
 
-static void dimh_wrmif_switch_buf(struct DI_SIM_MIF_s *cfg_mif,
+static void dimh_wrmif_switch_buf(struct DI_SIM_MIF_S *cfg_mif,
 				  const struct reg_acc *ops,
 				  struct cfg_mifset_s *cfgs,
 				  enum EDI_MIFSM mifsel)
@@ -4960,7 +4957,7 @@ static void dimh_wrmif_switch_buf(struct DI_SIM_MIF_s *cfg_mif,
 	ops->wr(reg[EDI_MIFS_CTRL], ctr);
 }
 
-static void dimh_wrmif_set(struct DI_SIM_MIF_s *cfg_mif,
+static void dimh_wrmif_set(struct DI_SIM_MIF_S *cfg_mif,
 			   const struct reg_acc *ops,
 			   struct cfg_mifset_s *cfgs,
 			   enum EDI_MIFSM mifsel)
@@ -5030,7 +5027,7 @@ const struct reg_acc di_pst_regset = {
 	.brd = NULL,
 };
 
-static void dimh_pst_mif_set(struct DI_SIM_MIF_s *cfg_mif,
+static void dimh_pst_mif_set(struct DI_SIM_MIF_S *cfg_mif,
 			     unsigned int urgent,
 			     unsigned int ddr_en)
 {
@@ -5044,7 +5041,7 @@ static void dimh_pst_mif_set(struct DI_SIM_MIF_s *cfg_mif,
 	dimh_wrmif_set(cfg_mif, &di_pst_regset, NULL, EDI_MIFSM_WR);
 }
 
-static void dimh_pre_mif_set(struct DI_SIM_MIF_s *cfg_mif,
+static void dimh_pre_mif_set(struct DI_SIM_MIF_S *cfg_mif,
 			     unsigned int urgent,
 			     unsigned int ddr_en)
 {
@@ -5058,7 +5055,7 @@ static void dimh_pre_mif_set(struct DI_SIM_MIF_s *cfg_mif,
 	dimh_wrmif_set(cfg_mif, &di_pst_regset, NULL, EDI_MIFSM_NR);
 }
 
-void dimh_pst_mif_update(struct DI_SIM_MIF_s *cfg_mif,
+void dimh_pst_mif_update(struct DI_SIM_MIF_S *cfg_mif,
 			 unsigned int urgent,
 			 unsigned int ddr_en)
 {
@@ -5125,7 +5122,7 @@ void dbg_mif_reg(struct seq_file *s, enum DI_MIF0_ID eidx)
 	const unsigned int *reg;
 	const struct reg_acc *op = &di_pre_regset;
 
-	if (DIM_IS_IC_EF(SC2)) {
+	if (opl1()/*DIM_IS_IC_EF(SC2)*/) {
 		reg = opl1()->reg_mif_tab[eidx];
 		seq_printf(s, "dump reg:%s\n", dim_get_mif_id_name(eidx));
 

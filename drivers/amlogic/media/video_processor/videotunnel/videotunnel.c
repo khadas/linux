@@ -44,6 +44,7 @@
 #include "videotunnel.h"
 
 #define DEVICE_NAME "videotunnel"
+#define MIN_VIDEO_TUNNEL_ID 10
 #define MAX_VIDEO_TUNNEL_ID 64
 #define VT_CMD_FIFO_SIZE 128
 
@@ -844,7 +845,8 @@ static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 		/* no consumer and producer, not new alloced */
 		if (!instance->consumer &&
 		    !instance->producer &&
-		    instance->used) {
+		    instance->used &&
+		    instance->id >= MIN_VIDEO_TUNNEL_ID) {
 			data->tunnel_id = instance->id;
 			instance->used = false;
 			vt_debug(VT_DEBUG_USER, "vt alloc find instance [%d], ref %d\n",
@@ -869,7 +871,10 @@ static int vt_alloc_id_process(struct vt_alloc_id_data *data,
 		if (idr_find(&dev->instance_idr, i) == &dummy_instance)
 			idr_remove(&dev->instance_idr, i);
 	}
-	ret = idr_alloc(&dev->instance_idr, instance, 0, MAX_VIDEO_TUNNEL_ID, GFP_KERNEL);
+
+	/* [0 ~ 9] for hardcode id; [10 ~ 64] for dynamic allocate id */
+	ret = idr_alloc(&dev->instance_idr, instance, MIN_VIDEO_TUNNEL_ID,
+			MAX_VIDEO_TUNNEL_ID, GFP_KERNEL);
 	/* allocate ID failed */
 	if (ret < 0) {
 		mutex_unlock(&dev->instance_lock);

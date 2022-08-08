@@ -314,6 +314,16 @@ enum hdmi_color_space {
 	COLORSPACE_RESERVED,
 };
 
+enum hdmi_hdr_status {
+	HDR10PLUS_VSIF = 0,
+	dolbyvision_std = 1,
+	dolbyvision_lowlatency = 2,
+	HDR10_GAMMA_ST2084 = 3,
+	HDR10_others,
+	HDR10_GAMMA_HLG,
+	SDR,
+};
+
 enum hdmi_color_range {
 	COLORRANGE_LIM,
 	COLORRANGE_FUL,

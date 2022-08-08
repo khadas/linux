@@ -4027,7 +4027,11 @@ EXPORT_SYMBOL(rx_set_hdr_lumi);
 
 void rx_edid_physical_addr(int a, int b, int c, int d)
 {
-	tx_hpd_event = E_RCV;
+	//tx_hpd_event = E_RCV;
+	//if (edid_from_tx & 2) {
+		//rx_pr("whole edid from tx. no need to update physical addr");
+		//return;
+	//}
 	up_phy_addr = ((d & 0xf) << 12) |
 		   ((c & 0xf) <<  8) |
 		   ((b & 0xf) <<  4) |
@@ -4152,18 +4156,17 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 	if (!edid_data || !audio_block) {
 		ret = false;
 		/* recovery primary EDID loaded from bin */
-		memcpy(edid_buf, edid_bin, sizeof(edid_bin));
+		//memcpy(edid_buf, edid_bin, sizeof(edid_bin));
 	} else {
+		if (aud_compose_type == 0)
+			return false;
 		if (edid_from_tx & 2)
 			edid_from_tx |= 1;
 		if (edid_from_tx & 1)
 			edid_select = 0;
 		memcpy(edid_tx, edid_data, EDID_SIZE);
-		/* not mix audio blk */
-		/* rx_modify_edid(edid_tx, EDID_SIZE, audio_block); */
-		if (aud_compose_type == 0) {
-			return false;
-		} else if (aud_compose_type == 1) {
+
+		if (aud_compose_type == 1) {
 			edid_rm_db_by_tag(edid_tx, AUDIO_TAG);
 			/* place aud data blk to blk index = 0x1 */
 			splice_data_blk_to_edid(edid_tx, audio_block, 0x1);
@@ -4174,13 +4177,13 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 		edid_size = 2 * PORT_NUM * EDID_SIZE;
 		ret = true;
 	}
-	hdmi_rx_top_edid_update();
-	if (rx.open_fg) {
-		rx_pr("rx_send_hpd_pulse\n");
-		rx_send_hpd_pulse();
-	} else {
-		pre_port = 0xff;
-	}
+	//hdmi_rx_top_edid_update();
+	//if (rx.open_fg) {
+		//rx_pr("rx_send_hpd_pulse\n");
+		//rx_send_hpd_pulse();
+	//} else {
+		//pre_port = 0xff;
+	//}
 	return ret;
 }
 EXPORT_SYMBOL(rx_update_tx_edid_with_audio_block);

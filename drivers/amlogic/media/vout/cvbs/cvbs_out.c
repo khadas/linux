@@ -39,6 +39,7 @@
 #include <linux/workqueue.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
+#include <linux/compat.h>
 
 /* Amlogic Headers */
 #include <linux/amlogic/media/registers/cpu_version.h>

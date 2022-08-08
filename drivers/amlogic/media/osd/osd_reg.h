@@ -1429,8 +1429,8 @@
 #define VIU_MISC_CTRL1                      0x1a07
 
 /* add for gxm and 962e dv core2 */
-#define DOLBY_CORE2A_SWAP_CTRL1		          0x3434
-#define DOLBY_CORE2A_SWAP_CTRL2		          0x3435
+#define AMDV_CORE2A_SWAP_CTRL1		          0x3434
+#define AMDV_CORE2A_SWAP_CTRL2		          0x3435
 
 /* osd afbc on g12a */
 #define VPU_MAFBC_BLOCK_ID                  0x3a00
@@ -1655,7 +1655,7 @@
 #define VPU_MAFBC2_PAYLOAD_MAX_LOW_S3              0x3c7f
 #define VPU_MAFBC2_PAYLOAD_MAX_HIGH_S3             0x3c80
 
-#define DOLBY_PATH_CTRL                     0x1a0c
+#define AMDV_PATH_CTRL                     0x1a0c
 #define OSD_PATH_MISC_CTRL                  0x1a0e
 #define MALI_AFBCD_TOP_CTRL                 0x1a0f
 

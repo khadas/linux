@@ -30,6 +30,7 @@
 #include <linux/timer.h>
 #include <linux/atomic.h>
 #include <linux/of.h>
+#include <linux/compat.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>

@@ -28,6 +28,7 @@
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
+#include <linux/compat.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
 #include <linux/uaccess.h>
@@ -119,7 +120,7 @@ static bool work_mode_simple;
 static int phase_lock_flag;
 /*game_mode_switch_frames:min num is 5 by 1080p60hz input test*/
 static int game_mode_switch_frames = 10;
-static int game_mode_phlock_switch_frames = 120;
+static int game_mode_phlock_switch_frames = 60;
 static unsigned int dv_work_delby;
 
 unsigned int max_ignore_frame_cnt = 2;
@@ -148,6 +149,7 @@ MODULE_PARM_DESC(dv_work_delby, "dv_work_delby");
 
 module_param(game_mode_switch_frames, int, 0664);
 MODULE_PARM_DESC(game_mode_switch_frames, "game mode switch <n> frames");
+#endif
 
 module_param(game_mode_phlock_switch_frames, int, 0664);
 MODULE_PARM_DESC(game_mode_phlock_switch_frames,
@@ -157,7 +159,6 @@ MODULE_PARM_DESC(game_mode_phlock_switch_frames,
  *MODULE_PARM_DESC(vrr_input_switch_frames,
  *		 "vrr input M_CONST switch <n> frames");
  */
-#endif
 
 int vdin_dbg_en;
 module_param(vdin_dbg_en, int, 0664);
@@ -466,7 +467,7 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 
 static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 {
-	if (!game_mode)
+	if (!devp->game_mode)
 		return;
 
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
@@ -481,12 +482,6 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				phase_lock_flag = 0;
 
 			if (phase_lock_flag >= game_mode_phlock_switch_frames) {
-				if (vdin_dbg_en) {
-					pr_info("switch game mode (0x%x->0x%x), frame_cnt=%d fps:%d\n",
-						devp->game_mode_pre,
-						devp->game_mode,
-						devp->frame_cnt, devp->parm.info.fps);
-				}
 				if ((devp->parm.info.fps >= 25 &&
 				    devp->parm.info.fps < 48) ||
 				    (devp->parm.info.fps == 50 &&
@@ -501,6 +496,10 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 						VDIN_GAME_MODE_2);
 				}
 				phase_lock_flag = 0;
+				if (vdin_isr_monitor & BIT(4))
+					pr_info("switch to game mode (0x%x->0x%x), frame_cnt=%d fps:%d\n",
+						devp->game_mode_pre, devp->game_mode,
+						devp->frame_cnt, devp->parm.info.fps);
 			} else if ((devp->vinfo_std_duration > devp->parm.info.fps) &&
 			((devp->game_mode & VDIN_GAME_MODE_1) ||
 			(devp->game_mode & VDIN_GAME_MODE_2))) {
@@ -518,7 +517,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			if (!vlock_get_phlock_flag() && !frame_lock_vrr_lock_status()) {
 				if (phase_lock_flag++ > 1) {
 					if (vdin_isr_monitor & BIT(4))
-						pr_info("game mode switch (0x%x->0x%x)\n",
+						pr_info("game mode switch to (0x%x->0x%x)\n",
 							devp->game_mode,
 							devp->game_mode_pre);
 					devp->game_mode = devp->game_mode_pre;
@@ -539,11 +538,14 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				}
 			}
 		}
+		if (vdin_isr_monitor & BIT(4) && phase_lock_flag && !(phase_lock_flag % 10))
+			pr_info("lock_cnt:%d, mode:%x pre_mode:0x%x\n",
+				phase_lock_flag, devp->game_mode, devp->game_mode_pre);
 	} else {
 		if (devp->frame_cnt >= game_mode_switch_frames &&
 		    (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN)) {
-			if (vdin_dbg_en) {
-				pr_info("switch game mode (0x%x-->0x5), frame_cnt=%d\n",
+			if (vdin_isr_monitor & BIT(4)) {
+				pr_info("switch to game mode (0x%x-->0x5), frame_cnt=%d\n",
 					devp->game_mode, devp->frame_cnt);
 			}
 			devp->game_mode = (VDIN_GAME_MODE_0 | VDIN_GAME_MODE_2);
@@ -1061,12 +1063,17 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_set_all_regs(devp);
 		vdin_hw_enable(devp);
 		vfe = provider_vf_peek(devp->vfp);
-		if (vfe)
+		if (vfe) {
 			vdin_frame_write_ctrl_set(devp, vfe, 0);
-		else
+			if (devp->index == 1 && devp->set_canvas_manual &&
+			    cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+				usleep_range(16000, 17000);
+		} else {
 			pr_info("vdin%d:peek first vframe fail\n", devp->index);
+		}
 		vdin_set_dv_tunnel(devp);
 		vdin_write_mif_or_afbce_init(devp);
+		pr_info("0x12c1:0x%x\n", rd(0, VDIN_WRARB_REQEN_SLV));
 		/* vdin1 hw crash addr when keystone reboot */
 		if (devp->index == 1 && devp->set_canvas_manual &&
 			cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
@@ -1268,7 +1275,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	vdin_dump_frames(devp);
 
 	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
-		!devp->self_stop_start) {
+		devp->self_stop_start) {
+		pr_info("linux system switch pc/game not need stop\n");
+	} else {
 		if (!(devp->parm.flag & TVIN_PARM_FLAG_CAP) &&
 		    devp->frontend->dec_ops &&
 		    devp->frontend->dec_ops->stop &&
@@ -1277,8 +1286,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 			devp->frontend->dec_ops->stop(devp->frontend,
 						devp->parm.port);
 	}
-
-	vdin_hw_disable(devp);
+	/* after T7 mif write vdin1 hw crash addr so vdin_hw_disable change to vdin_hw_close */
+	//vdin_hw_disable(devp);
+	vdin_hw_close(devp);
 
 	vdin_set_default_regmap(devp);
 	/*only for vdin0*/
@@ -1327,12 +1337,15 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->prop.hdcp_sts = 0;
 	devp->starting_chg = 0;
 
-	if (!(devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
-		!devp->self_stop_start) {
+	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
+		devp->self_stop_start) {
+		//bypass not need handling
+	} else {
 		/* clear color para*/
 		memset(&devp->pre_prop, 0, sizeof(devp->prop));
 		memset(&devp->prop, 0, sizeof(devp->prop));
 	}
+
 	if (vdin_time_en)
 		pr_info("vdin.%d stop time %ums,run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
@@ -2111,7 +2124,7 @@ int vdin_vs_duration_check(struct vdin_dev_s *devp)
 	int cur_time, diff_time;
 	int temp;
 
-	if (devp->game_mode)
+	if (devp->game_mode || !IS_HDMI_SRC(devp->parm.port))
 		return ret;
 
 	cur_time = devp->cycle;
@@ -2356,7 +2369,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (for_dolby_vision_certification())
+	if (for_amdv_certification())
 		vdin_set_crc_pulse(devp);
 #endif
 
@@ -2365,6 +2378,14 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (sm_ops && sm_ops->get_sig_property) {
 		if (vdin_get_prop_in_vs_en) {
 			sm_ops->get_sig_property(devp->frontend, &devp->prop);
+			/* 100 to 120 rx not change need to send event */
+			if (!devp->game_mode && IS_HDMI_SRC(devp->parm.port) &&
+			    devp->dtdata->hw_ver >= VDIN_HW_T7) {
+				if (devp->duration == 800)
+					devp->prop.fps = 120;
+				if (devp->duration == 960)
+					devp->prop.fps = 100;
+			}
 			if (vdin_isr_monitor & BIT(6))
 				pr_info("vdin vrr_en:%d spd:%d %d\n",
 					devp->prop.vtem_data.vrr_en,
@@ -2389,11 +2410,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		}
 		devp->drop_hdr_set_sts = 0;
-	}
-
-	if (vdin_vs_duration_check(devp) < 0) {
-		vdin_drop_frame_info(devp, "duration error");
-		return IRQ_HANDLED;
 	}
 
 	cur_ms = jiffies_to_msecs(jiffies);
@@ -2432,6 +2448,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	 * this code about system time must be outside of spinlock.
 	 * because the spinlock may affect the system time.
 	 */
+	if (vdin_vs_duration_check(devp) < 0) {
+		vdin_drop_frame_info(devp, "duration error");
+		return IRQ_HANDLED;
+	}
+
 	spin_lock_irqsave(&devp->isr_lock, flags);
 
 	if (devp->afbce_mode == 1) {
@@ -2443,7 +2464,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 	if ((devp->flags & VDIN_FLAG_DEC_STOP_ISR) &&
 	    (!(vdin_isr_flag & VDIN_BYPASS_STOP_CHECK))) {
-		vdin_hw_disable(devp);
+		vdin_hw_close(devp);
 		devp->flags &= ~VDIN_FLAG_DEC_STOP_ISR;
 		devp->vdin_irq_flag = VDIN_IRQ_FLG_IRQ_STOP;
 		vdin_drop_frame_info(devp, "stop isr");
@@ -2515,11 +2536,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			devp->last_wr_vfe->vf.dv_crc_sts =
 				devp->dv.dv_crc_check;
 
-		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe, put_md);
-
 		/*skip policy process*/
 		if (devp->vfp->skip_vf_num > 0)
 			vdin_vf_disp_mode_update(devp->last_wr_vfe, devp->vfp);
+
+		vdin_vframe_put_and_recycle(devp, devp->last_wr_vfe, put_md);
 
 		devp->last_wr_vfe = NULL;
 
@@ -2592,7 +2613,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 	/* change color matrix */
 	if (devp->csc_cfg != 0) {
-		devp->csc_cfg = 0;
 		prop = &devp->prop;
 		pre_prop = &devp->pre_prop;
 		if (prop->color_format != pre_prop->color_format ||
@@ -2601,7 +2621,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			vdin_set_matrix(devp);
 			/*vdin_drop_frame_info(devp, "color fmt chg");*/
 		}
-		/*if (prop->dest_cfmt != pre_prop->dest_cfmt) */{
+		if (prop->color_format != pre_prop->color_format ||
+		    prop->vdin_hdr_flag != pre_prop->vdin_hdr_flag) {
 			vdin_set_bitdepth(devp);
 			vdin_source_bitdepth_reinit(devp);
 			vdin_set_wr_ctrl_vsync(devp, devp->addr_offset,
@@ -2617,15 +2638,24 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 
 			/*vdin_drop_frame_info(devp, "dest fmt chg");*/
 		}
-		pre_prop->color_format = prop->color_format;
-		pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
-		pre_prop->color_fmt_range = prop->color_fmt_range;
 		pre_prop->dest_cfmt = prop->dest_cfmt;
-		devp->ignore_frames = 0;
-		devp->vdin_irq_flag = VDIN_IRQ_FLG_CSC_CHG;
-		vdin_drop_frame_info(devp, "csc chg");
-		vdin_drop_cnt++;
-		goto irq_handled;
+		if (prop->color_format != pre_prop->color_format ||
+		    prop->vdin_hdr_flag != pre_prop->vdin_hdr_flag) {
+			pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
+			pre_prop->color_format = prop->color_format;
+			pre_prop->color_fmt_range = prop->color_fmt_range;
+			devp->csc_cfg = 0;
+			devp->ignore_frames = 0;
+			devp->vdin_irq_flag = VDIN_IRQ_FLG_CSC_CHG;
+			vdin_drop_frame_info(devp, "csc chg");
+			vdin_drop_cnt++;
+			goto irq_handled;
+		} else {
+			pre_prop->vdin_hdr_flag = prop->vdin_hdr_flag;
+			pre_prop->color_format = prop->color_format;
+			pre_prop->color_fmt_range = prop->color_fmt_range;
+			devp->csc_cfg = 0;
+		}
 	}
 	/* change cutwindow */
 	if (devp->cutwindow_cfg != 0 && devp->auto_cutwindow_en == 1) {
@@ -2751,7 +2781,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	vdin_set_freesync_data(devp, curr_wr_vf);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (for_dolby_vision_certification()) {
+	if (for_amdv_certification()) {
 		vdin_get_crc_val(curr_wr_vf, devp);
 		/*pr_info("vdin_isr get vf %p, crc %x\n", curr_wr_vf, curr_wr_vf->crc);*/
 	}
@@ -2824,11 +2854,11 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 			curr_wr_vfe->vf.dv_crc_sts =
 				devp->dv.dv_crc_check;
 
-		vdin_vframe_put_and_recycle(devp, curr_wr_vfe, put_md);
-
 		/*skip policy process*/
 		if (devp->vfp->skip_vf_num > 0)
 			vdin_vf_disp_mode_update(curr_wr_vfe, devp->vfp);
+
+		vdin_vframe_put_and_recycle(devp, curr_wr_vfe, put_md);
 	}
 
 	vdin_game_mode_transfer(devp);
@@ -4602,12 +4632,14 @@ static bool vdin_set_sig_property(struct tvin_frontend_s *fe)
 		    vdin_get_prop_in_fe_en) {
 			sm_ops->get_sig_property(devp->frontend, &devp->prop);
 			devp->dv.dv_flag = devp->prop.dolby_vision;
+			devp->dv.low_latency = devp->prop.low_latency;
 			devp->pre_prop.latency.allm_mode =
 				devp->prop.latency.allm_mode;
 			devp->prop.cnt++;
 			if (vdin_prop_monitor)
-				pr_info("%s dv:%d hdr:%d allm:%d signal_type:0x%x\n",
+				pr_info("%s dv:%d LL:%d hdr:%d allm:%d signal_type:0x%x\n",
 					__func__, devp->dv.dv_flag,
+					devp->dv.low_latency,
 					devp->prop.vdin_hdr_flag,
 					devp->prop.latency.allm_mode,
 					devp->parm.info.signal_type);
@@ -5497,13 +5529,15 @@ static int vdin_drv_suspend(struct platform_device *pdev, pm_message_t state)
 	 *VPU_CLK_GATE_OFF);
 	 */
 	if (vdevp->index && vdevp->set_canvas_manual == 1 &&
-	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5D)) {
+	    is_meson_t5d_cpu()) {
 		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 0,
 			VDIN_COMMONINPUT_EN_BIT, VDIN_COMMONINPUT_EN_WID);
 		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 0,
 			VDIN_SEL_BIT, VDIN_SEL_WID);
 	}
-	vdin_clk_onoff(vdevp, false);
+	/* Restarting vdin1 clock will crash */
+	if (!vdevp->index || vdevp->dtdata->hw_ver < VDIN_HW_T7)
+		vdin_clk_onoff(vdevp, false);
 
 	pr_info("%s id:%d ok.\n", __func__, vdevp->index);
 	return 0;
@@ -5532,9 +5566,12 @@ static int vdin_drv_resume(struct platform_device *pdev)
 	 *? VPU_VIU_VDIN0 : VPU_VIU_VDIN1,
 	 *VPU_CLK_GATE_ON);
 	 */
-	vdin_clk_onoff(vdevp, true);
+	/* Restarting vdin1 clock will crash */
+	if (!vdevp->index || vdevp->dtdata->hw_ver < VDIN_HW_T7)
+		vdin_clk_onoff(vdevp, true);
+
 	if (vdevp->index && vdevp->set_canvas_manual == 1 &&
-	    cpu_after_eq(MESON_CPU_MAJOR_ID_T5D)) {
+	    is_meson_t5d_cpu()) {
 		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 7,
 			VDIN_SEL_BIT, VDIN_SEL_WID);
 		wr_bits(vdevp->addr_offset, VDIN_COM_CTRL0, 1,

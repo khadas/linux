@@ -35,6 +35,7 @@
 #include <linux/cma.h>
 #include <linux/dma-contiguous.h>
 #include <linux/dma-mapping.h>
+#include <linux/compat.h>
 #include <linux/sched/clock.h>
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>

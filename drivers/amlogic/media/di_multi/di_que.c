@@ -360,7 +360,7 @@ struct di_buf_s *di_que_out_to_di_buf(unsigned int ch, enum QUE_TYPE qtype)
 	struct di_buf_s *pdi_buf = NULL;
 
 	if (!pw_queue_peek(ch, qtype, &q_index)) {
-		PR_ERR("%s:ch[%d]no buf\n", __func__, ch);
+		PR_ERR("%s:ch[%d]no buf[0x%x]\n", __func__, ch, q_index);
 		return pdi_buf;
 	}
 

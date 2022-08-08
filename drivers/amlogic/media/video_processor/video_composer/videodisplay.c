@@ -18,6 +18,7 @@
  #include <linux/amlogic/meson_uvm_core.h>
  #include <linux/amlogic/media/utils/am_com.h>
  #include <linux/amlogic/media/codec_mm/codec_mm.h>
+ #include <linux/amlogic/media/vfm/vframe.h>
  #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
@@ -739,6 +740,7 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 
 		countinue_vsync_count[dev->index] = 0;
 		dev->last_vf_index = vf->omx_index;
+		current_display_vf = vf;
 		return vf;
 	} else {
 		return NULL;
@@ -1050,7 +1052,7 @@ static struct composer_dev *video_display_getdev(int layer_index)
 
 	if (!mdev[layer_index]) {
 		mutex_lock(&video_display_mutex);
-		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+		dev = vmalloc(sizeof(*dev));
 		if (!dev) {
 			mutex_unlock(&video_display_mutex);
 			vc_print(layer_index, PRINT_ERROR,
@@ -1060,6 +1062,7 @@ static struct composer_dev *video_display_getdev(int layer_index)
 		}
 
 		port = video_composer_get_port(layer_index);
+		memset(dev, 0, sizeof(struct composer_dev));
 		dev->port = port;
 		dev->index = port->index;
 		mdev[layer_index] = dev;
@@ -1143,7 +1146,7 @@ static int video_display_uninit(int layer_index)
 		 __func__, dev->fput_count);
 
 	dev->port->open_count--;
-	kfree(dev);
+	vfree(dev);
 	mdev[layer_index] = NULL;
 	return ret;
 }
@@ -1226,6 +1229,7 @@ int video_display_setframe(int layer_index,
 	int ready_count = 0;
 	bool is_dec_vf = false, is_v4l_vf = false, is_repeat_vf = false;
 	struct vd_prepare_s *vd_prepare = NULL;
+	u64 phy_addr2 = 0;
 
 	if (IS_ERR_OR_NULL(frame_info)) {
 		vc_print(layer_index, PRINT_ERROR,
@@ -1306,32 +1310,39 @@ int video_display_setframe(int layer_index,
 
 	if (!(is_dec_vf || is_v4l_vf)) {
 		vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
+		vf->plane_num = 1;
 		vf->canvas0Addr = -1;
 		vf->canvas0_config[0].phy_addr =
 			get_dma_phy_addr(frame_info->dmabuf, dev);
-			vf->canvas0_config[0].width =
-					frame_info->buffer_w;
-			vf->canvas0_config[0].height =
-					frame_info->buffer_h;
-			vc_print(dev->index, PRINT_PATTERN,
+		vf->canvas0_config[0].width =
+			frame_info->buffer_w;
+		vf->canvas0_config[0].height =
+			frame_info->buffer_h;
+		vc_print(dev->index, PRINT_PATTERN,
 				 "buffer: w %d, h %d.\n",
 				 frame_info->buffer_w,
 				 frame_info->buffer_h);
+		vf->canvas0_config[0].endian = 0;
 		vf->canvas1Addr = -1;
-		vf->canvas0_config[1].phy_addr =
-			get_dma_phy_addr(frame_info->dmabuf, dev)
-			+ vf->canvas0_config[0].width
-			* vf->canvas0_config[0].height;
-		vf->canvas0_config[1].width =
-			vf->canvas0_config[0].width;
-		vf->canvas0_config[1].height =
-			vf->canvas0_config[0].height;
+
+		if ((frame_info->reserved[0] & VIDTYPE_VIU_NV12) ||
+			(frame_info->reserved[0] & VIDTYPE_VIU_NV21)) {
+			phy_addr2 = get_dma_phy_addr(frame_info->dmabuf, dev) +
+				frame_info->buffer_w * frame_info->buffer_h;
+			vf->plane_num = 2;
+			vf->canvas0_config[1].phy_addr = phy_addr2;
+			vf->canvas0_config[1].width = frame_info->buffer_w;
+			vf->canvas0_config[1].height = frame_info->buffer_h / 2;
+			vf->canvas0_config[1].block_mode =
+				CANVAS_BLKMODE_LINEAR;
+			/*big endian default support*/
+			vf->canvas0_config[1].endian = 0;
+			vf->plane_num = 2;
+		}
+
 		vf->width = frame_info->buffer_w;
 		vf->height = frame_info->buffer_h;
-		vf->plane_num = 2;
-		vf->type = VIDTYPE_PROGRESSIVE
-				| VIDTYPE_VIU_FIELD
-				| VIDTYPE_VIU_NV21;
+		vf->type = frame_info->reserved[0];
 		vf->bitdepth =
 			BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 	}

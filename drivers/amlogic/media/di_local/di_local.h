@@ -18,6 +18,8 @@
 
 #ifndef __DI_LOCAL_H__
 #define __DI_LOCAL_H__
+#include <linux/amlogic/media/di/di_interface.h>
+#include <linux/amlogic/media/di/di.h>
 
 int get_current_vscale_skip_count(struct vframe_s *vf);
 
@@ -31,6 +33,12 @@ struct di_ext_ops {
 	void (*post_update_mc)(void);
 	void (*post_keep_cmd_release2)(struct vframe_s *vframe);
 	void (*polic_cfg)(unsigned int cmd, bool on);
+	int (*pre_vpp_link_display)(struct vframe_s *vfm,
+				    struct pvpp_dis_para_in_s *in_para, void *out_para);
+	int (*pre_vpp_link_check_vf)(struct vframe_s *vfm);
+	int (*pre_vpp_link_check_act)(void);
+	int (*pre_vpp_link_sw)(bool on);
+	u32 (*pre_vpp_get_ins_id)(void);
 };
 
 #endif	/*__DI_LOCAL_H__*/

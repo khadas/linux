@@ -1676,7 +1676,12 @@ static const struct dev_pm_ops meson_sar_adc_pm_ops = {
 
 static void meson_sar_adc_shutdown(struct platform_device *pdev)
 {
+	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
+	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
+
 	meson_sar_adc_suspend(&pdev->dev);
+
+	clk_disable_unprepare(priv->core_clk);
 }
 
 static struct platform_driver meson_sar_adc_driver = {

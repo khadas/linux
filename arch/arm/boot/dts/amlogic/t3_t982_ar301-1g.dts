@@ -79,7 +79,7 @@
 
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "amlogic, lcd_tcon";
-			reg = <0x3ec00000 0x00c00000>;
+			reg = <0x3d400000 0x00c00000>;
 			no-map;
 		};
 
@@ -87,6 +87,13 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			size = <0x8000000>;
+			alignment = <0x400000>;
+		};
+		/* secure ion for gpu,advice size is 0x8000000 */
+		ion_secure_reserved:linux,ion-secure {
+			compatible = "amlogic, ion-secure-mem";
+			no-map;
+			size = <0x0000000>;
 			alignment = <0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
@@ -537,6 +544,7 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <1>;
+		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
 		/* MAP_ADDR_MODULE_CBUS */
@@ -863,7 +871,7 @@
 		compatible = "amlogic, t3_frc";
 		dev_name = "aml_frc";
 		status = "okay";
-		frc_en = <1>;/*1:enabel ;0:disable*/
+		frc_en = <1>;/*1:enable ;0:disable*/
 		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
 		interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 287 IRQ_TYPE_EDGE_RISING
@@ -1468,8 +1476,7 @@
 			groups = "tcon_1","tcon_2","tcon_3",
 				"tcon_4","tcon_5","tcon_6",
 				"tcon_9","tcon_10","tcon_11",
-				"tcon_12","tcon_14",
-				"tcon_lock";
+				"tcon_14", "tcon_lock";
 			function = "tcon";
 		};
 	};
@@ -1478,8 +1485,7 @@
 			groups = "GPIOH_1","GPIOH_2","GPIOH_3",
 				"GPIOH_4","GPIOH_5","GPIOH_6",
 				"GPIOH_9","GPIOH_10","GPIOH_11",
-				"GPIOH_12","GPIOH_14",
-				"GPIOH_0";
+				"GPIOH_14", "GPIOH_0";
 				function = "gpio_periphs";
 			input-enable;
 		};
@@ -1502,9 +1508,9 @@
 
 &amlvecm {
 	status = "okay";
-	gamma_en = <1>;/*1:enabel ;0:disable*/
-	wb_en = <1>;/*1:enabel ;0:disable*/
-	cm_en = <1>;/*1:enabel ;0:disable*/
+	gamma_en = <1>;/*1:enable ;0:disable*/
+	wb_en = <1>;/*1:enable ;0:disable*/
+	cm_en = <1>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	ct_3dlut = <0>;

@@ -21,6 +21,11 @@
 
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include "video_reg.h"
+#include <linux/amlogic/media/amvecm/amvecm.h>
+
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+#define ENABLE_PRE_LINK
+#endif
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
@@ -38,6 +43,10 @@
 #define DEBUG_FLAG_BLACKOUT     0x200
 #define DEBUG_FLAG_NO_CLIP_SETTING     0x400
 #define DEBUG_FLAG_VPP_GET_BUFFER_TIME     0x800
+#define DEBUG_FLAG_PRINT_FRAME_DETAIL     0x1000
+#define DEBUG_FLAG_PRELINK			0x2000
+#define DEBUG_FLAG_PRELINK_MORE     0x4000
+#define DEBUG_FLAG_AFD_INFO	        0x8000
 #define DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT  0x10000
 #define DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC    0x20000
 #define DEBUG_FLAG_RDMA_WAIT_1		     0x40000
@@ -113,6 +122,12 @@
 #define OP_VPP_MORE_LOG 1
 #define OP_FORCE_SWITCH_VF 2
 #define OP_FORCE_NOT_SWITCH_VF 4
+
+enum tvin_surface_type_e {
+	TVIN_SOURCE_TYPE_OTHERS = 0,
+	TVIN_SOURCE_TYPE_DECODER = 1,  /*DTV*/
+	TVIN_SOURCE_TYPE_VDIN = 2,   /*ATV HDMIIN CVBS*/
+};
 
 enum vd_path_id {
 	VFM_PATH_DEF = -1,
@@ -446,6 +461,9 @@ struct video_layer_s {
 	u32 src_height;
 	bool alpha_win_en;
 	struct pip_alpha_scpxn_s alpha_win;
+	bool pre_link_en;
+	bool need_disable_prelink;
+	u8 prelink_skip_cnt;
 };
 
 enum {
@@ -548,11 +566,11 @@ extern int vdec_out_size_threshold_4k;
 extern int vpp_in_size_threshold_4k;
 extern u64 vsync_cnt[VPP_MAX];
 
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
 bool is_dovi_tv_on(void);
-bool for_dolby_vision_certification(void);
+bool for_amdv_certification(void);
 
 struct video_dev_s *get_video_cur_dev(void);
 u32 get_video_enabled(void);
@@ -574,12 +592,12 @@ void safe_switch_videolayer(u8 layer_id,
 			    bool on, bool async);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
-bool for_dolby_vision_certification(void);
-bool is_dovi_frame(struct vframe_s *vf);
-void dolby_vision_set_toggle_flag(int flag);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
+bool is_amdv_frame(struct vframe_s *vf);
+void amdv_set_toggle_flag(int flag);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -638,7 +656,7 @@ int get_layer_display_canvas(u8 layer_id);
 int set_layer_display_canvas(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     struct vpp_frame_par_s *cur_frame_par,
-			     struct disp_info_s *disp_info);
+			     struct disp_info_s *disp_info, u32 line);
 u32 *get_canvase_tbl(u8 layer_id);
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
@@ -726,8 +744,8 @@ int _video_set_disable(u32 val);
 int _videopip_set_disable(u32 index, u32 val);
 struct device *get_video_device(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-struct vframe_s *dvel_toggle_frame(struct vframe_s *vf,
-				   bool new_frame);
+struct vframe_s *dv_toggle_frame(struct vframe_s *vf,
+				enum vd_path_e vd_path, bool new_frame);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
@@ -794,6 +812,13 @@ void vsync_rdma_process(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
 void amvecm_process(struct path_id_s *path_id, struct video_recv_s *p_gvideo_recv,
 			    struct vframe_s *new_frame);
+#endif
+
+u32 get_force_skip_cnt(enum vd_path_e path);
+bool is_pre_link_source(struct vframe_s *vf);
+bool is_pre_link_on(struct video_layer_s *layer, struct vframe_s *vf);
+#ifdef ENABLE_PRE_LINK
+bool is_pre_link_available(struct vframe_s *vf);
 #endif
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC

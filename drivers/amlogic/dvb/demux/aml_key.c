@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/aml_key.h>
+#include <linux/compat.h>
 #include "am_key.h"
 #include "sc2_demux/dvb_reg.h"
 #include "key_reg.h"

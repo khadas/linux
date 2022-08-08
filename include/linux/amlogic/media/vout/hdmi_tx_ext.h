@@ -16,6 +16,7 @@
 #define HDMITX_PLUG			1
 #define HDMITX_UNPLUG			2
 #define HDMITX_PHY_ADDR_VALID		3
+#define HDMITX_KSVLIST	4
 
 enum hdcp_ver_e {
 	HDCPVER_NONE = 0,
@@ -103,6 +104,7 @@ enum hdmi_audio_type {
 	CT_MAT, /* TrueHD */
 	CT_DST,
 	CT_WMA,
+	CT_CXT = 0xf, /* Audio Coding Extension Type */
 	CT_DTS_HD_MA = CT_DTS_HD + (DTS_HD_MA),
 	CT_MAX,
 };

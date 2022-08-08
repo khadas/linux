@@ -181,7 +181,7 @@ static int resample_clk_set(struct audioresample *p_resample, int output_sr)
 	char *clk_name;
 
 	clk_name = (char *)__clk_get_name(p_resample->pll);
-	if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 		pr_info("%s:set hifi pll\n", __func__);
 		if (p_resample->syssrc_clk_rate)
 			clk_set_rate(p_resample->pll,

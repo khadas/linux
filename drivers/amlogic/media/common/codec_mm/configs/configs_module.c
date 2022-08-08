@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 #include <linux/amlogic/media/codec_mm/configs.h>
 #include <linux/amlogic/media/codec_mm/configs_api.h>
 #define MAX_OPENED_CNT 65536

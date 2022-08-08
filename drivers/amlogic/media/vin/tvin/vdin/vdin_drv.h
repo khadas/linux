@@ -83,7 +83,21 @@
 /* 20220416: dv game mode picture display abnormal */
 /* 20220422: linux system pc mode myself restart dec */
 /* 20220425: keystone function modify */
-#define VDIN_VER "20220425:keystone function modify"
+/* 20220513: add game mode lock debug */
+/* 20220516: csc chg flash and dv chg not event */
+/* 20220518: dv data abnormal cause reboot */
+/* 20220519: dv register isr not rdma write */
+/* 20220525: source-led switch to sink-led problem */
+/* 20220602: 100 and 120 switch send event */
+/* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
+/* 20220609: add get low_latency and dv_vision */
+/* 20220610: vdin add dump data debug */
+/* 20220615: vdin1 crash addr when str */
+/* 20220617: allm and vrr all come in not send vrr */
+/* 20220618: use game mode global variable in vdin_isr cause abnormal and
+ * fix video lag in old video path caused by unkonw disp_mode flag
+ */
+#define VDIN_VER "20220618:use current game mode variable and fix video lag in old path"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -417,6 +431,7 @@ struct vdin_debug_s {
 	unsigned short dest_cfmt;/* for color fmt conversion */
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;
+	unsigned short vdin1_line_buff;
 };
 
 struct vdin_dv_s {
@@ -882,7 +897,7 @@ void vdin_vf_reg(struct vdin_dev_s *devp);
 void vdin_vf_unreg(struct vdin_dev_s *devp);
 void vdin_pause_dec(struct vdin_dev_s *devp);
 void vdin_resume_dec(struct vdin_dev_s *devp);
-bool is_dolby_vision_enable(void);
+bool is_amdv_enable(void);
 
 void vdin_debugfs_init(struct vdin_dev_s *vdevp);
 void vdin_debugfs_exit(struct vdin_dev_s *vdevp);

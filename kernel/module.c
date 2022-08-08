@@ -1360,6 +1360,7 @@ bad_version:
 	       info->name, symname);
 
 #ifdef CONFIG_AMLOGIC_MODIFY
+	pr_err("please rebuild ko: %s\n", info->name);
 	return ignore_check_version;
 #else
 	return 0;

@@ -42,6 +42,8 @@ bool dim_mm_release_api(int cma_mode,
 			unsigned long addr);
 //bool dim_cma_top_alloc(unsigned int ch);
 //bool dim_cma_top_release(unsigned int ch);
+bool mm_cma_alloc(struct device *dev, size_t count,
+			 struct dim_mm_s *o);
 
 int dpst_cma_re_alloc_re_alloc(unsigned int ch);
 int dpst_cma_re_alloc_unreg(unsigned int ch);
@@ -49,9 +51,9 @@ int dpst_cma_r_back_unreg(unsigned int ch);
 
 bool dim_rev_mem_check(void);
 /*--Different DI versions flag---*/
-void dil_set_diffver_flag(unsigned int para);
+//void dil_set_diffver_flag(unsigned int para);
 
-unsigned int dil_get_diffver_flag(void);
+//unsigned int dil_get_diffver_flag(void);
 void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd);
 
 /* blk and mem 2020-06*/
@@ -142,7 +144,7 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg);
 int codec_mm_keeper_unmask_keeper(int keep_id, int delayms);
 bool dim_blk_tvp_is_sct(struct dim_mm_blk_s *blk_buf);
 bool dim_blk_tvp_is_out(struct dim_mm_blk_s *blk_buf);
-void di_buf_no2wait(struct di_ch_s *pch);
+void di_buf_no2wait(struct di_ch_s *pch, unsigned int post_nub);
 bool mem_cfg_pst(struct di_ch_s *pch);
 void mem_resize_buf(struct di_ch_s *pch, struct di_buf_s *di_buf);
 

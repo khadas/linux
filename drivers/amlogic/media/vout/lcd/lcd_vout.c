@@ -22,6 +22,7 @@
 #include <linux/reboot.h>
 #include <linux/clk.h>
 #include <linux/of_device.h>
+#include <linux/compat.h>
 #include <linux/workqueue.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
@@ -532,6 +533,28 @@ static void lcd_module_reset(struct aml_lcd_drv_s *pdrv)
 	mutex_unlock(&lcd_vout_mutex);
 }
 
+static void lcd_screen_restore_work(struct work_struct *work)
+{
+	unsigned long flags = 0;
+	int ret = 0;
+	struct aml_lcd_drv_s *pdrv;
+
+	pdrv = container_of(work, struct aml_lcd_drv_s, screen_restore_work);
+
+	mutex_lock(&lcd_power_mutex);
+	reinit_completion(&pdrv->vsync_done);
+	spin_lock_irqsave(&pdrv->isr_lock, flags);
+	pdrv->mute_count = 0;
+	pdrv->mute_flag = 1;
+	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
+	ret = wait_for_completion_timeout(&pdrv->vsync_done,
+					  msecs_to_jiffies(500));
+	if (!ret)
+		LCDPR("vmode switch: wait_for_completion_timeout\n");
+	pdrv->lcd_screen_restore(pdrv);
+	mutex_unlock(&lcd_power_mutex);
+}
+
 static void lcd_lata_resume_work(struct work_struct *work)
 {
 	struct aml_lcd_drv_s *pdrv;
@@ -591,7 +614,8 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_MLVDS:
 	case LCD_P2P:
-		lcd_tcon_vsync_isr(pdrv);
+		if (pdrv->tcon_isr_type == 0)
+			lcd_tcon_vsync_isr(pdrv);
 		break;
 	default:
 		break;
@@ -1595,6 +1619,8 @@ static int lcd_mode_probe(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->auto_test)
 		lcd_auto_test_func(pdrv);
 
+	lcd_drm_add(pdrv->dev);
+
 	return 0;
 }
 
@@ -1838,12 +1864,15 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
 	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
 	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
+	pdrv->res_line_n_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "line_n");
 
 	pdrv->test_state = pdrv->debug_ctrl->debug_test_pattern;
 	pdrv->test_flag = 0;
 	pdrv->mute_state = 0;
 	pdrv->mute_flag = 0;
 	pdrv->mute_count = 0;
+	pdrv->tcon_isr_type = 0;
+	pdrv->tcon_isr_bypass = 0;
 	pdrv->fr_mode = 0;
 	pdrv->viu_sel = LCD_VIU_SEL_NONE;
 	pdrv->vsync_none_timer_flag = 0;
@@ -2107,6 +2136,7 @@ static int lcd_probe(struct platform_device *pdev)
 	spin_lock_init(&pdrv->isr_lock);
 	INIT_WORK(&pdrv->config_probe_work, lcd_config_probe_work);
 	INIT_WORK(&pdrv->late_resume_work, lcd_lata_resume_work);
+	INIT_WORK(&pdrv->screen_restore_work, lcd_screen_restore_work);
 	INIT_DELAYED_WORK(&pdrv->test_delayed_work, lcd_auto_test_delayed);
 
 	ret = lcd_cdev_add(pdrv, &pdev->dev);
@@ -2142,10 +2172,13 @@ static int lcd_remove(struct platform_device *pdev)
 	if (!pdrv)
 		return 0;
 
+	lcd_drm_remove(pdrv->dev);
+
 	index = pdrv->index;
 
 	cancel_work_sync(&pdrv->config_probe_work);
 	cancel_work_sync(&pdrv->late_resume_work);
+	cancel_work_sync(&pdrv->screen_restore_work);
 	if (lcd_workqueue)
 		destroy_workqueue(lcd_workqueue);
 

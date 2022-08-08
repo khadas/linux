@@ -157,10 +157,12 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 		fbdma.flags = O_CLOEXEC;
 		ret = copy_to_user(argp, &fbdma, sizeof(fbdma)) ? -EFAULT : 0;
 	} else if (cmd == FBIO_WAITFORVSYNC) {
-		if (plane->crtc)
+		if (plane->crtc) {
 			drm_wait_one_vblank(helper->dev, plane->crtc->index);
-		else
-			DRM_ERROR("crtc is not set for plane [%d]\n", plane->index);
+		} else if (fbdev->modeset.crtc) {
+			drm_wait_one_vblank(helper->dev, fbdev->modeset.crtc->index);
+			DRM_DEBUG("crtc is not set for plane [%d]\n", plane->index);
+		}
 	}
 
 	DRM_DEBUG("am_meson_drm_fbdev_ioctl CMD   [%x] - [%d] OUT\n", cmd, plane->index);
@@ -329,6 +331,7 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 			DRM_DEBUG("%s reallocate success.\n", __func__);
 		}
 	}
+	drm_wait_one_vblank(fb_helper->dev, 0);
 
 	DRM_INFO("%s OUT\n", __func__);
 
@@ -414,6 +417,7 @@ retry:
 		plane_state->zpos, plane_state->crtc_w,
 		plane_state->crtc_h);
 
+	state->legacy_cursor_update = true;
 	ret = drm_atomic_commit(state);
 	if (ret != 0)
 		goto fail;
@@ -686,7 +690,7 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 	struct meson_drm *drmdev = dev->dev_private;
 	struct meson_drm_fbdev *fbdev;
 	struct am_osd_plane *osd_plane;
-	int i, fbdev_cnt = 0;
+	int i, fbdev_cnt = 1;
 	int ret = 0;
 
 	DRM_INFO("%s in\n", __func__);

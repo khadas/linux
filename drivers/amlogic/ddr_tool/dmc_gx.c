@@ -71,18 +71,26 @@ static size_t gx_dmc_dump_reg(char *buf)
 static void check_violation(struct dmc_monitor *mon, void *data)
 {
 	int i, port, subport;
-	unsigned long addr, status;
+	unsigned long addr = 0, status = 0, irqreg;
 	char id_str[MAX_NAME];
 	char title[10] = "";
 	struct page *page;
 	struct page_trace *trace;
 
-	for (i = 1; i < 8; i += 2) {
-		status = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+	for (i = 1; i < 4; i += 2) {
+		irqreg = dmc_prot_rw(NULL, DMC_SEC_STATUS, 0, DMC_READ);
+		if (irqreg & DMC_WRITE_VIOLATION) {
+			status = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + (i << 2), 0, DMC_READ);
+			addr = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + ((i - 1) << 2), 0, DMC_READ);
+		}
+		if (irqreg & DMC_READ_VIOLATION) {
+			status = dmc_prot_rw(NULL, DMC_VIO_ADDR4 + (i << 2), 0, DMC_READ);
+			addr = dmc_prot_rw(NULL, DMC_VIO_ADDR4 + ((i - 1) << 2), 0, DMC_READ);
+		}
+
 		if (!(status & DMC_VIO_PROT_RANGE0))
 			continue;
-		addr = dmc_prot_rw(NULL, DMC_VIO_ADDR0 + ((i - 1) << 2), 0,
-				   DMC_READ);
+
 		if (addr > mon->addr_end)
 			continue;
 

@@ -589,18 +589,7 @@ static inline void lcd_vmode_switch(struct aml_lcd_drv_s *pdrv, int flag)
 
 		//vmode switch
 		aml_lcd_notifier_call_chain(LCD_EVENT_DLG_SWITCH_MODE, (void *)pdrv);
-
-		//wait for panel switch done, unmute
-		reinit_completion(&pdrv->vsync_done);
-		spin_lock_irqsave(&pdrv->isr_lock, flags);
-		pdrv->mute_count = 0;
-		pdrv->mute_flag = 1;
-		spin_unlock_irqrestore(&pdrv->isr_lock, flags);
-		ret = wait_for_completion_timeout(&pdrv->vsync_done,
-						  msecs_to_jiffies(500));
-		if (!ret)
-			LCDPR("vmode switch: wait_for_completion_timeout\n");
-		pdrv->lcd_screen_restore(pdrv);
+		lcd_queue_work(&pdrv->screen_restore_work);
 		return;
 	}
 
@@ -1241,6 +1230,7 @@ int lcd_mode_tv_init(struct aml_lcd_drv_s *pdrv)
 		sprintf(pdrv->vrr_dev->name, "lcd%d_dev", pdrv->index);
 		pdrv->vrr_dev->output_src = VRR_OUTPUT_ENCL;
 		pdrv->vrr_dev->lfc_switch = lcd_vrr_lfc_switch;
+		pdrv->vrr_dev->disable_cb = lcd_vrr_disable_cb;
 		pdrv->vrr_dev->dev_data = (void *)pdrv;
 		lcd_vrr_dev_update(pdrv);
 		aml_vrr_register_device(pdrv->vrr_dev, pdrv->index);

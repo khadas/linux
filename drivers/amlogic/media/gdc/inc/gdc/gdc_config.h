@@ -47,7 +47,7 @@ enum {
 struct gdc_device_data_s {
 	int dev_type;
 	int clk_type;
-	/* use independ reg to set 8g addr MSB */
+	/* use independent reg to set 8g addr MSB */
 	int ext_msb_8g;
 	int bit_width_ext; /* 8/10/12/16bit support */
 	int gamma_support; /* gamma support */

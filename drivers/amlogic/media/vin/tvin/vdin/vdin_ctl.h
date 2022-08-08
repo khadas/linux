@@ -179,6 +179,7 @@ void vdin_set_default_regmap(struct vdin_dev_s *devp);
 void vdin_set_def_wr_canvas(struct vdin_dev_s *devp);
 void vdin_hw_enable(struct vdin_dev_s *devp);
 void vdin_hw_disable(struct vdin_dev_s *devp);
+void vdin_hw_close(struct vdin_dev_s *devp);
 unsigned int vdin_get_field_type(unsigned int offset);
 int vdin_vsync_reset_mif(int index);
 bool vdin_check_vdi6_afifo_overflow(unsigned int offset);
@@ -297,10 +298,10 @@ bool vdin_is_4k(struct vdin_dev_s *devp);
 void vdin_set_matrix_color(struct vdin_dev_s *devp);
 void vdin_set_bist_pattern(struct vdin_dev_s *devp, unsigned int onoff, unsigned int pat);
 
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
-bool for_dolby_vision_certification(void);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
 
 void vdin_change_matrix0(u32 offset, u32 matrix_csc);
 void vdin_change_matrix1(u32 offset, u32 matrix_csc);
@@ -311,9 +312,9 @@ void vdin_set_frame_mif_write_addr(struct vdin_dev_s *devp,
 void vdin_dv_pr_meta_data(void *addr, unsigned int size, unsigned int index);
 bool vdin_is_dv_meta_data_case(struct vdin_dev_s *devp);
 void vdin_dv_detunel_tunel_set(struct vdin_dev_s *devp);
-void vdin_dolby_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
+void vdin_dv_de_tunnel_to_44410bit(struct vdin_dev_s *devp,
 				   unsigned int onoff);
-void vdin_dolby_desc_to_4448bit(struct vdin_dev_s *devp,
+void vdin_dv_desc_to_4448bit(struct vdin_dev_s *devp,
 			       unsigned int onoff);
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp);
 void vdin_set_to_vpp_parm(struct vdin_dev_s *devp);

@@ -68,8 +68,11 @@
 // frc_20220421 frc sync memc_alg_ko_1990
 // frc_20220425 frc inform vlock when disable
 // frc_20220426 frc compute mcdly for vlock
+// frc_20220505 frc check dbg roreg
+// frc_20220524 frc memory optimize
+// frc_20220608 optimize video flag check
 
-#define FRC_FW_VER			"2022-0505 frc check dbg roreg"
+#define FRC_FW_VER			"2022-0613 fix frc memory resume abnormal"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
@@ -98,9 +101,12 @@ extern int frc_dbg_en;
 #define FRC_COMPRESS_RATE_ME		60
 
 #define FRC_TOTAL_BUF_NUM		16
+#define FRC_TOTAL_BUF_NUM_8     8
 #define FRC_MEMV_BUF_NUM		6
 #define FRC_MEMV2_BUF_NUM		7
 #define FRC_MEVP_BUF_NUM		2
+// release buf num (12 / 16)
+#define FRC_RE_BUF_NUM		12
 
 #define FRC_SLICER_NUM			4
 
@@ -112,8 +118,8 @@ extern int frc_dbg_en;
 
 #define FRC_HVSIZE_ALIGN_SIZE		16
 
-#define FRC_V_LIMIT_SIZE		144
-#define FRC_H_LIMIT_SIZE		128
+#define FRC_V_LIMIT			144
+#define FRC_H_LIMIT			128
 
 /*bit number config*/
 #define FRC_MC_BITS_NUM			10
@@ -134,6 +140,23 @@ extern int frc_dbg_en;
 #define FRC_CLOCK_2OFF               7
 
 //------------------------------------------------------- clock defined end
+// vd fps
+#define FRC_VD_FPS_DEF    0
+#define FRC_VD_FPS_60    60
+#define FRC_VD_FPS_50    50
+#define FRC_VD_FPS_48    48
+#define FRC_VD_FPS_30    30
+#define FRC_VD_FPS_25    25
+#define FRC_VD_FPS_24    24
+
+// frc flag define
+#define FRC_FLAG_NORM_VIDEO		0x00
+#define FRC_FLAG_GAME_MODE		0x01
+#define FRC_FLAG_PC_MODE		0x02
+#define FRC_FLAG_PIC_MODE		0x04
+#define FRC_FLAG_HIGH_BW		0x08
+#define FRC_FLAG_LIMIT_SIZE		0x10
+#define FRC_FLAG_OTHER_MODE		0x20
 
 enum chip_id {
 	ID_NULL = 0,
@@ -151,9 +174,15 @@ struct frc_data_s {
 struct st_frc_buf {
 	/*cma memory define*/
 	u32 cma_mem_size;
+	u32 cma_mem_size2;
 	struct page *cma_mem_paddr_pages;
+	struct page *cma_mem_paddr_pages2;
 	phys_addr_t cma_mem_paddr_start;
+	phys_addr_t cma_mem_paddr_start2;
 	u8  cma_mem_alloced;
+	u8  cma_buf_alloc;
+	u8  cma_buf_alloc2;
+	u8  buf_ctrl;  //0: release buf, 1:alloc buf
 	u8  secured;
 	u8  otherflag;
 	u8  otherflag2;
@@ -277,13 +306,18 @@ struct st_frc_in_sts {
 	u32 have_vf_cnt;
 	u32 no_vf_cnt;
 
-	u32 game_mode;
 	u32 secure_mode;
-	u32 pic_type;
+	u32 st_flag;
 
 	u32  high_freq_en;
 	u32  high_freq_flash; /*0 default, 1: high freq char flash*/
 	u8  inp_size_adj_en;  /*input non-standard size, default 0 is open*/
+
+	/*vd status sync*/
+	u8 frc_is_tvin;
+	u8 frc_source_chg;
+	u32 frc_vf_rate;
+	u32 frc_last_disp_count;
 };
 
 struct st_frc_out_sts {

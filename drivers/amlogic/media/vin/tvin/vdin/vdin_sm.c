@@ -196,6 +196,7 @@ void vdin_update_prop(struct vdin_dev_s *devp)
 {
 	/*devp->pre_prop.fps = devp->prop.fps;*/
 	devp->dv.dv_flag = devp->prop.dolby_vision;
+	devp->dv.low_latency = devp->prop.low_latency;
 	/*devp->pre_prop.latency.allm_mode = devp->prop.latency.allm_mode;*/
 	/*devp->pre_prop.aspect_ratio = devp->prop.aspect_ratio;*/
 	devp->parm.info.aspect_ratio = devp->prop.aspect_ratio;
@@ -256,7 +257,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 					TVIN_SIG_CHG_SDR2HDR :
 					TVIN_SIG_CHG_HDR2SDR;
 				if (signal_chg &&
-				    (sm_debug_enable & VDIN_SM_LOG_L_2))
+				    (sm_debug_enable & VDIN_SM_LOG_L_1))
 					pr_info("%s hdr chg 0x%x:(0x%x->0x%x)\n",
 						__func__,
 						signal_chg, pre_vdin_hdr_flag,
@@ -268,18 +269,38 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		cur_dv_flag = prop->dolby_vision;
 		pre_dv_flag = devp->dv.dv_flag;
 		if (cur_dv_flag != pre_dv_flag) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				devp->dv.chg_cnt++;
 			if (devp->dv.chg_cnt > vdin_dv_chg_cnt) {
 				devp->dv.chg_cnt = 0;
 				signal_chg |= cur_dv_flag ? TVIN_SIG_CHG_NO2DV :
 						TVIN_SIG_CHG_DV2NO;
 				if (signal_chg &&
-				    (sm_debug_enable & VDIN_SM_LOG_L_2))
+				    (sm_debug_enable & VDIN_SM_LOG_L_1))
 					pr_info("%s dv chg0x%x:(0x%x->0x%x)\n",
 						__func__,
 						signal_chg, pre_dv_flag,
 						cur_dv_flag);
 				pre_prop->dolby_vision = prop->dolby_vision;
 				devp->dv.dv_flag = prop->dolby_vision;
+			}
+		}
+
+		if (prop->low_latency != devp->dv.low_latency &&
+		    devp->dv.dv_flag) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				devp->dv.chg_cnt++;
+			if (devp->dv.chg_cnt > vdin_dv_chg_cnt) {
+				devp->dv.chg_cnt = 0;
+				signal_chg |= TVIN_SIG_DV_CHG;
+				if (signal_chg &&
+				    (sm_debug_enable & VDIN_SM_LOG_L_1))
+					pr_info("%s LL chg0x%x:(0x%x->0x%x)\n",
+						__func__,
+						signal_chg, devp->dv.low_latency,
+						prop->low_latency);
+				pre_prop->low_latency = prop->low_latency;
+				devp->dv.low_latency = prop->low_latency;
 			}
 		}
 
@@ -472,18 +493,6 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 		}
 	}
 
-	if (prop->low_latency != devp->dv.low_latency) {
-		devp->dv.low_latency = prop->low_latency;
-		if ((devp->dtdata->hw_ver == VDIN_HW_TM2 ||
-		     devp->dtdata->hw_ver == VDIN_HW_TM2_B) &&
-		    prop->dolby_vision) {
-			signal_chg |= TVIN_SIG_DV_CHG;
-			if (sm_debug_enable & VDIN_SM_LOG_L_2)
-				pr_info("[sm.%d]dv.ll:%d prop.ll:%d\n",
-					devp->index, devp->dv.low_latency,
-					prop->low_latency);
-		}
-	}
 	memcpy(&devp->dv.dv_vsif,
 	       &prop->dv_vsif, sizeof(struct tvin_dv_vsif_s));
 
@@ -596,6 +605,12 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 		signal_type &= ~(1 << 31);
 	/* check vrr end */
 
+	devp->parm.info.dolby_vision = devp->prop.dolby_vision;
+	if (devp->prop.dolby_vision)
+		devp->parm.info.low_latency = devp->prop.low_latency;
+	else
+		devp->parm.info.low_latency = 0;
+
 	devp->parm.info.signal_type = signal_type;
 
 	return signal_chg;
@@ -630,6 +645,21 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 	if (chg & TVIN_SIG_CHG_STS) {
 		devp->event_info.event_sts = TVIN_SIG_CHG_STS;
 	} else {
+		if (chg & TVIN_SIG_CHG_VRR) {
+			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
+			vdin_frame_lock_check(devp, 1);
+
+			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)\n", __func__,
+				devp->vrr_data.vdin_vrr_en_flag,
+				devp->prop.vtem_data.vrr_en,
+				devp->pre_prop.spd_data.data[5],
+				devp->prop.spd_data.data[5]);
+			devp->pre_prop.vtem_data.vrr_en =
+				devp->prop.vtem_data.vrr_en;
+			devp->vrr_data.vdin_vrr_en_flag =
+				devp->prop.vtem_data.vrr_en;
+		}
+
 		if (chg & TVIN_SIG_DV_CHG) {
 			devp->event_info.event_sts = (chg & TVIN_SIG_DV_CHG);
 			if (vdin_re_config & RE_CONFIG_DV_EN)
@@ -652,19 +682,6 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 				re_cfg = true;
 		} else if (chg & TVIN_SIG_CHG_AFD) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
-		} else if (chg & TVIN_SIG_CHG_VRR) {
-			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
-			vdin_frame_lock_check(devp, 1);
-
-			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)\n", __func__,
-				devp->vrr_data.vdin_vrr_en_flag,
-				devp->prop.vtem_data.vrr_en,
-				devp->pre_prop.spd_data.data[5],
-				devp->prop.spd_data.data[5]);
-			devp->pre_prop.vtem_data.vrr_en =
-				devp->prop.vtem_data.vrr_en;
-			devp->vrr_data.vdin_vrr_en_flag =
-				devp->prop.vtem_data.vrr_en;
 		} else {
 			return;
 		}

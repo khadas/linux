@@ -14,6 +14,7 @@
 #include <linux/seq_file.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_common.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
+#include <linux/amlogic/media/vout/hdmi_tx/hdmi_version.h>
 #include "mach_reg.h"
 #include "reg_ops.h"
 #include "hdmi_tx_reg.h"
@@ -1411,6 +1412,27 @@ static const struct file_operations dump_hdmipkt_fops = {
 	.release	= single_release,
 };
 
+static int dump_hdmiver_show(struct seq_file *s, void *p)
+{
+	const char *hdmi_ver = HDMITX20_VERSIONS_LOG;
+
+	seq_puts(s, "\n--------HDMITX version log--------\n");
+	seq_printf(s, "%s", hdmi_ver);
+
+	return 0;
+}
+
+static int dump_hdmiver_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_hdmiver_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmiver_fops = {
+	.open		= dump_hdmiver_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
 static inline unsigned int get_msr_cts(void)
 {
 	unsigned int ret = 0;
@@ -1484,6 +1506,7 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 	{"hdmi_reg", S_IFREG | 0444, &dump_hdmireg_fops},
 	{"hdmi_timing", S_IFREG | 0444, &dump_hdmitiming_fops},
 	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops},
+	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops},
 	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
 };
 

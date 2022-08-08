@@ -71,87 +71,18 @@ enum EAFBCE_INDEX_V3 {
 
 #define DIM_ERR		(0xffffffff)
 
-#ifdef MARK_SC2	//ary use DI_MIF_S
-struct DI_MIF0_S {
-	u16  luma_x_start0;
-	u16  luma_x_end0;
-	u16  luma_y_start0;
-	u16  luma_y_end0;
-	u16  chroma_x_start0;
-	u16  chroma_x_end0;
-	u16  chroma_y_start0;
-	u16  chroma_y_end0;
-	u16  set_separate_en : 2;
-	// 00 : one canvas 01 : 3 canvas(old 4:2:0).10: 2 canvas. (NV21).
-	u16  src_field_mode  : 1;   // 1 frame . 0 field.
-	u16  video_mode      : 2;   //00: 4:2:0; 01: 4:2:2; 10: 4:4:4
-	u16  output_field_num: 1;   // 0 top field  1 bottom field.
-	u16  bits_mode       : 2;
-	// 0:8 bits  1:10 bits 422(old mode,12bit)
-	// 2: 10bit 444  3:10bit 422(full pack) or 444
-
-	u16  burst_size_y    : 2;
-	u16  burst_size_cb   : 2;
-	u16  burst_size_cr   : 2;
-	u16  canvas0_addr0 : 8;
-	u16  canvas0_addr1 : 8;
-	u16  canvas0_addr2 : 8;
-	u16  rev_x : 1;
-	u16  rev_y : 1;
-	//ary add----
-	unsigned int urgent;
-	unsigned int hold_line;
-};
-#endif
-
-struct DI_MIF1_S {
-	u16  start_x;
-	u16  end_x;
-	u16  start_y;
-	u16  end_y;
-	u16  canvas_num;
-	u16  rev_x;
-	u16  rev_y;
-#ifdef MARK_SC2
-	//bit_mode 0:8 bits 1:10 bits 422(old mode,12bit)
-	//2:10bit 444
-	//3:10bit 422(full pack) or 444
-	unsigned int    bit_mode	   :4;
-	//set_separate_en
-	//00 : one canvas
-	//01 : 3 canvas(old 4:2:0).
-	//10: 2 canvas. (NV21).
-	unsigned int    set_separate_en :4; //ary add below is only for wr buf
-	//video_mode :
-	//00: 4:2:0;
-	//01: 4:2:2;
-	//10: 4:4:4
-	//2020-06-02 from 1bit to 2bit
-	unsigned int    video_mode	   :4;
-	unsigned int    ddr_en	   :1;
-	unsigned int    urgent	   :1;
-	unsigned int    l_endian	   :1;
-	unsigned int    cbcr_swap	   :1;
-
-	unsigned int    en		   :1; /* add for sc2*/
-	unsigned int    src_i	   :1; /* ary add for sc2 */
-	unsigned int    reserved	   : 15;
-#endif
-	enum DI_MIFS_ID mif_index; /* */
-};
-
 struct DI_PRE_S {
 	struct DI_MIF_S *inp_mif;
 	struct DI_MIF_S *mem_mif;
 	struct DI_MIF_S *chan2_mif;
 	struct DI_MIF_S *nrwr_mif;
-	struct DI_MIF1_S *mtnwr_mif;
-	struct DI_MIF1_S *mcvecwr_mif;
-	struct DI_MIF1_S *mcinfrd_mif;
-	struct DI_MIF1_S *mcinfwr_mif;
-	struct DI_MIF1_S *contp1_mif;
-	struct DI_MIF1_S *contp2_mif;
-	struct DI_MIF1_S *contwr_mif;
+	struct DI_SIM_MIF_S *mtnwr_mif;
+	struct DI_SIM_MIF_S *mcvecwr_mif;
+	struct DI_SIM_MIF_S *mcinfrd_mif;
+	struct DI_SIM_MIF_S *mcinfwr_mif;
+	struct DI_SIM_MIF_S *contp1_mif;
+	struct DI_SIM_MIF_S *contp2_mif;
+	struct DI_SIM_MIF_S *contwr_mif;
 	struct AFBCD_S *inp_afbc;
 	struct AFBCD_S *mem_afbc;
 	struct AFBCD_S *chan2_afbc;
@@ -184,8 +115,8 @@ struct DI_PST_S {
 	struct DI_MIF_S *buf1_mif;
 	struct DI_MIF_S *buf2_mif;
 	struct DI_MIF_S *wr_mif;
-	struct DI_MIF1_S *mtn_mif;
-	struct DI_MIF1_S *mcvec_mif;
+	struct DI_SIM_MIF_S *mtn_mif;
+	struct DI_SIM_MIF_S *mcvec_mif;
 	struct AFBCD_S *buf0_afbc;
 	struct AFBCD_S *buf1_afbc;
 	struct AFBCD_S *buf2_afbc;
@@ -220,17 +151,17 @@ struct DI_PREPST_AFBC_S {
 	struct AFBCD_S     *mem_afbc	    ;	  // PRE  : pre 2 data
 	struct AFBCD_S     *chan2_afbc    ;	  // PRE  : pre 1 data
 	struct AFBCE_S     *nrwr_afbc     ;	  // PRE  : nr write
-	struct DI_MIF1_S   *mtnwr_mif     ;	  // PRE  : motion write
-	struct DI_MIF1_S   *contp2rd_mif  ;	  // PRE  : 1bit motion read p2
-	struct DI_MIF1_S   *contprd_mif   ;	  // PRE  : 1bit motion read p1
-	struct DI_MIF1_S   *contwr_mif    ;	  // PRE  : 1bit motion write
-	struct DI_MIF1_S   *mcinford_mif  ;	  // PRE  : mcdi lmv info read
-	struct DI_MIF1_S   *mcinfowr_mif  ;	  // PRE  : mcdi lmv info write
-	struct DI_MIF1_S   *mcvecwr_mif   ; // PRE  : mcdi motion vector write
+	struct DI_SIM_MIF_S   *mtnwr_mif     ;	  // PRE  : motion write
+	struct DI_SIM_MIF_S   *contp2rd_mif  ;	  // PRE  : 1bit motion read p2
+	struct DI_SIM_MIF_S   *contprd_mif   ;	  // PRE  : 1bit motion read p1
+	struct DI_SIM_MIF_S   *contwr_mif    ;	  // PRE  : 1bit motion write
+	struct DI_SIM_MIF_S   *mcinford_mif  ;	  // PRE  : mcdi lmv info read
+	struct DI_SIM_MIF_S   *mcinfowr_mif  ;	  // PRE  : mcdi lmv info write
+	struct DI_SIM_MIF_S   *mcvecwr_mif   ; // PRE  : mcdi motion vector write
 	struct AFBCD_S     *if1_afbc	    ;	  // POST : pre field data
 	struct AFBCE_S     *diwr_afbc     ;	  // POST : post write
-	struct DI_MIF1_S   *mcvecrd_mif   ;	  // POST : mc vector read
-	struct DI_MIF1_S   *mtnrd_mif     ;	  // POST : motion read
+	struct DI_SIM_MIF_S   *mcvecrd_mif   ;	  // POST : mc vector read
+	struct DI_SIM_MIF_S   *mtnrd_mif     ;	  // POST : motion read
 	int	link_vpp;
 	int	post_wr_en;
 	int	cont_ini_en;
@@ -239,22 +170,23 @@ struct DI_PREPST_AFBC_S {
 	int	hold_line;
 };
 
+#ifdef HIS_CODE	//move from di_hw_v3.h to deinterlace_hw.h
 struct DI_PREPST_S {
 	struct DI_MIF_S   *inp_mif	   ;	 // PRE  : current input date
 	struct DI_MIF_S   *mem_mif       ;     // PRE  : pre 2 data
 	struct DI_MIF_S   *chan2_mif     ;     // PRE  : pre 1 data
 	struct DI_MIF_S   *nrwr_mif      ;     // PRE  : nr write
-	struct DI_MIF1_S   *mtnwr_mif     ;     // PRE  : motion write
-	struct DI_MIF1_S   *contp2rd_mif  ;     // PRE  : 1bit motion read p2
-	struct DI_MIF1_S   *contprd_mif   ;     // PRE  : 1bit motion read p1
-	struct DI_MIF1_S   *contwr_mif    ;     // PRE  : 1bit motion write
-	struct DI_MIF1_S   *mcinford_mif  ;     // PRE  : mcdi lmv info read
-	struct DI_MIF1_S   *mcinfowr_mif  ;     // PRE  : mcdi lmv info write
-	struct DI_MIF1_S   *mcvecwr_mif   ; // PRE  : mcdi motion vector write
+	struct DI_SIM_MIF_S   *mtnwr_mif     ;     // PRE  : motion write
+	struct DI_SIM_MIF_S   *contp2rd_mif  ;     // PRE  : 1bit motion read p2
+	struct DI_SIM_MIF_S   *contprd_mif   ;     // PRE  : 1bit motion read p1
+	struct DI_SIM_MIF_S   *contwr_mif    ;     // PRE  : 1bit motion write
+	struct DI_SIM_MIF_S   *mcinford_mif  ;     // PRE  : mcdi lmv info read
+	struct DI_SIM_MIF_S   *mcinfowr_mif  ;     // PRE  : mcdi lmv info write
+	struct DI_SIM_MIF_S   *mcvecwr_mif   ; // PRE  : mcdi motion vector write
 	struct DI_MIF_S   *if1_mif       ;     // POST : pre field data
 	struct DI_MIF_S   *diwr_mif      ;     // POST : post write
-	struct DI_MIF1_S   *mcvecrd_mif   ;     // POST : mc vector read
-	struct DI_MIF1_S   *mtnrd_mif     ;     // POST : motion read
+	struct DI_SIM_MIF_S   *mcvecrd_mif   ;     // POST : mc vector read
+	struct DI_SIM_MIF_S   *mtnrd_mif     ;     // POST : motion read
 	int link_vpp;
 	int post_wr_en;
 	int cont_ini_en;
@@ -262,6 +194,7 @@ struct DI_PREPST_S {
 	int pre_field_num;     //
 	int hold_line;
 };
+#endif
 
 struct di_hw_ops_info_s {
 	char name[128];
@@ -272,6 +205,7 @@ struct di_hw_ops_info_s {
 
 extern const struct dim_hw_opsv_s dim_ops_l1_v3;
 extern const struct dim_hw_opsv_s dim_ops_l1_v4;
+const struct dim_hw_opsv_s  *opl1_v2(void);
 
 struct hw_ops_s {
 	struct di_hw_ops_info_s info;
@@ -326,8 +260,8 @@ bool is_mask(unsigned int cmd);
 void dim_sc2_contr_pre(union hw_sc2_ctr_pre_s *cfg);
 void dim_sc2_contr_pst(union hw_sc2_ctr_pst_s *cfg);
 void dim_sc2_4k_set(unsigned int mode_4k);
-void dim_sc2_afbce_rst(unsigned int ec_nub);
-void afbce_sw(enum EAFBC_ENC enc, bool on);//tmp
+void dim_sc2_afbce_rst(unsigned int ec_nub, const struct reg_acc *op);
+//20220126 void afbce_sw(enum EAFBC_ENC enc, bool on);//tmp
 unsigned int afbce_read_used(enum EAFBC_ENC enc);//tmp
 
 void hpre_gl_read(void);

@@ -1308,13 +1308,14 @@ struct osd_f2v_vphase_s {
 };
 
 #define COEFF_NORM(a) ((int)((((a) * 2048.0) + 1) / 2))
+#define COEFF_NORM_NE(a) ((int)((((a) * 2048.0) - 1) / 2))
 #define MATRIX_5x3_COEF_SIZE 24
 
 static int RGB709_to_YUV709l_coeff[MATRIX_5x3_COEF_SIZE] = {
 	0, 0, 0, /* pre offset */
-	COEFF_NORM(0.181873),	COEFF_NORM(0.611831),	COEFF_NORM(0.061765),
-	COEFF_NORM(-0.100251),	COEFF_NORM(-0.337249),	COEFF_NORM(0.437500),
-	COEFF_NORM(0.437500),	COEFF_NORM(-0.397384),	COEFF_NORM(-0.040116),
+	COEFF_NORM(0.181873), COEFF_NORM(0.611831), COEFF_NORM(0.061765),
+	COEFF_NORM_NE(-0.100251), COEFF_NORM_NE(-0.337249), COEFF_NORM(0.437500),
+	COEFF_NORM(0.437500), COEFF_NORM_NE(-0.397384), COEFF_NORM_NE(-0.040116),
 	0, 0, 0, /* 10'/11'/12' */
 	0, 0, 0, /* 20'/21'/22' */
 	64, 512, 512, /* offset */
@@ -1789,6 +1790,10 @@ static void release_fenceobj(struct osd_layers_fence_map_s *fence_map,
 			continue;
 		layer_map = &fence_map->layer_map[i];
 
+		if (layer_map->buf_file) {
+			fput(layer_map->buf_file);
+			osd_hw.file_info_debug[i].fput_count++;
+		}
 		if (layer_map->in_fence)
 			osd_put_fenceobj(layer_map->in_fence);
 	}
@@ -2104,10 +2109,12 @@ static int sync_render_layers_fence(u32 index, u32 yres,
 	/* layer_map[index].enable will update if have blank ioctl */
 	fence_map->layer_map[index].enable = request->op;
 	fence_map->layer_map[index].in_fd = request->in_fen_fd;
-	if (request->shared_fd < 0)
+	if (request->shared_fd < 0) {
 		fence_map->layer_map[index].buf_file = NULL;
-	else
+	} else {
 		fence_map->layer_map[index].buf_file = fget(request->shared_fd);
+		osd_hw.file_info_debug[index].fget_count++;
+	}
 	fence_map->layer_map[index].ext_addr = phys_addr;
 	fence_map->layer_map[index].format = request->format;
 	fence_map->layer_map[index].compose_type = request->type;
@@ -6706,6 +6713,7 @@ out:
 		layer_map = &fence_map->layer_map[i];
 		if (displayed_bufs[i]) {
 			fput(displayed_bufs[i]);
+			osd_hw.file_info_debug[i].fput_count++;
 			displayed_bufs[i] = NULL;
 		}
 		if (layer_map->buf_file)
@@ -10848,10 +10856,10 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 		tmp_v = dv_core2_vsize;
 
 		update_dvcore2_timing(&tmp_h, &tmp_v);
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
+		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL1,
 				     ((tmp_h + 0x40) << 16)
 				     | (tmp_v + 0x80 + 0));
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL2,
+		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL2,
 				     (tmp_h << 16) |
 				     (tmp_v + 0));
 		update_graphic_width_height(dv_core2_hsize, dv_core2_vsize);
@@ -11938,7 +11946,7 @@ static void osd_basic_update_disp_geometry(u32 index)
 						__MESON_CPU_MAJOR_ID_T7)
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(MALI_AFBCD_TOP_CTRL,
-							 is_dolby_vision_graphic_on() ? 0 : 1,
+							 is_amdv_graphic_on() ? 0 : 1,
 							 14, 1);
 #endif
 				}
@@ -12010,7 +12018,7 @@ static void osd_basic_update_disp_geometry(u32 index)
 						__MESON_CPU_MAJOR_ID_T7)
 						osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 							(MALI_AFBCD_TOP_CTRL,
-							 is_dolby_vision_graphic_on() ? 0 : 1,
+							 is_amdv_graphic_on() ? 0 : 1,
 							 14, 1);
 #endif
 				}
@@ -12189,10 +12197,10 @@ static void osd1_basic_update_disp_geometry(void)
 		buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 	}
 	if (osd_hw.osd_meson_dev.has_dolby_vision) {
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL1,
+		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL1,
 				     ((buffer_w + 0x40) << 16)
 				     | (buffer_h + 0x80 + 0));
-		VSYNCOSD_WR_MPEG_REG(DOLBY_CORE2A_SWAP_CTRL2,
+		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL2,
 				     (buffer_w << 16) | (buffer_h + 0));
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		update_graphic_width_height(buffer_w, buffer_h);

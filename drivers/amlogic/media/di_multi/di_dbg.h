@@ -78,7 +78,16 @@ extern const struct dim_tr_ops_s dim_tr_ops;
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item);
 void dbg_timer_clear(unsigned int ch);
 void dim_dump_mif_state(struct DI_MIF_S *mif, char *name);
+void dump_mif_state_seq(struct DI_MIF_S *mif,
+			struct seq_file *seq);
+
+int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm);
+void print_dvfm(struct dvfm_s *pvfm, char *name);
+void print_mif(struct DI_MIF_S *mif, char *name);
+void print_mif_simple(struct DI_SIM_MIF_S *simp_mif, char *name);
 void dbg_slt_crc(struct di_buf_s *di_buf);
+int print_vframe(struct vframe_s *pvfm);
+int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm);
 void dbg_slt_crc_count(struct di_ch_s *pch, unsigned int postcrc,
 		       unsigned int nrcrc, unsigned int mtncrc);
 

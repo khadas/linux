@@ -32,6 +32,7 @@ struct aml_jtag_dev {
 	unsigned int old_select;
 	unsigned int select;
 	unsigned int cluster;
+	unsigned int old_cluster;
 
 	const unsigned int *ao_gpios;
 	const unsigned int *ee_gpios;

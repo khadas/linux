@@ -914,7 +914,15 @@ static int __init genpd_power_off_unused(void)
 	mutex_lock(&gpd_list_lock);
 
 	list_for_each_entry(genpd, &gpd_list, gpd_list_node)
+#ifdef CONFIG_AMLOGIC_MODIFY
+	{
+		if (genpd->flags & GENPD_FLAG_IGNORE_UNUSED)
+			continue;
+#endif
 		genpd_queue_power_off_work(genpd);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	}
+#endif
 
 	mutex_unlock(&gpd_list_lock);
 

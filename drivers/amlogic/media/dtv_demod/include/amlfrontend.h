@@ -41,6 +41,9 @@
 /*  V1.1.48  fixed 16qam/32qam cost long time to lock up or error */
 /*  V1.1.49  fix HRC freq of 79M lock failed */
 /*  V1.1.50  fixed data type of memory address and read/write */
+/*  V1.1.51  fixed dvbs/s2/isdbt aft test and support dvbt2 5/6/1.7M */
+/*  V1.1.52  add ambus exit processing when switching mode */
+/*  V1.1.53  fixed dvb-c auto qam unlock when 16qam/32qam */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -57,8 +60,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.50"
-#define DTVDEMOD_VER	"2022/05/06: fixed data type of memory address and read/write"
+#define AMLDTVDEMOD_VER "V1.1.53"
+#define DTVDEMOD_VER	"2022/06/01: fixed dvb-c auto qam unlock when 16qam/32qam"
 #define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -558,6 +561,7 @@ unsigned int dtvdemod_get_atsc_lock_sts(struct aml_dtvdemod *demod);
 const char *dtvdemod_get_cur_delsys(enum fe_delivery_system delsys);
 void aml_dtv_demode_isr_en(struct amldtvdemod_device_s *devp, u32 en);
 u32 dvbc_get_symb_rate(struct aml_dtvdemod *demod);
+u32 dvbc_get_per(struct aml_dtvdemod *demod);
 unsigned int demod_is_t5d_cpu(struct amldtvdemod_device_s *devp);
 int dtmb_information(struct seq_file *seq);
 

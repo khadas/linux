@@ -39,7 +39,7 @@ enum meson_vout_event {
 
 void meson_vout_notify_mode_change(int idx,
 	enum vmode_e mode, enum meson_vout_event event);
-void meson_vout_update_mode_name(int idx, char *modename);
+void meson_vout_update_mode_name(int idx, char *modename, char *ctx);
 
 /*api in vout_server, for android-compatible.*/
 int vout_set_uevent(unsigned int vout_event, int val);

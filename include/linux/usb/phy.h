@@ -13,6 +13,7 @@
 #include <linux/extcon.h>
 #include <linux/notifier.h>
 #include <linux/usb.h>
+#include <linux/android_kabi.h>
 #include <uapi/linux/usb/charger.h>
 
 enum usb_phy_interface {
@@ -159,6 +160,8 @@ struct usb_phy {
 	void (*phy_trim_tuning)(struct usb_phy *x,
 		int port, int default_val);
 #endif
+
+	ANDROID_KABI_RESERVE(1);
 };
 
 /* for board-specific init logic */

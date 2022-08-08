@@ -391,8 +391,8 @@ static struct reg_item misc_recovery_table[] = {
 	{VIU_OSD2_BLK3_CFG_W4, 0x0, 0xffffffff, 0},
 	{VPU_RDARB_MODE_L1C2, 0x0, 0x00010000, 1},
 	{VIU_MISC_CTRL1, 0x0, 0x0000ff00, 1},
-	{DOLBY_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1}
+	{AMDV_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1}
 };
 
 /* After G12A Chip */
@@ -958,7 +958,7 @@ static struct reg_item post_blend_recovery_table_g12a[] = {
 };
 
 static struct reg_item misc_recovery_table_g12a[] = {
-	{DOLBY_PATH_CTRL, 0x0, 0x000000cc, 1},
+	{AMDV_PATH_CTRL, 0x0, 0x000000cc, 1},
 	{OSD_PATH_MISC_CTRL, 0x0, 0x000000ff, 1},
 	{VIU_OSD1_DIMM_CTRL, 0x0, 0x7fffffff, 1},
 	{VIU_OSD2_DIMM_CTRL, 0x0, 0x7fffffff, 1},
@@ -966,12 +966,12 @@ static struct reg_item misc_recovery_table_g12a[] = {
 	{VIU_OSD2_BLK1_CFG_W4, 0x0, 0xffffffff, 1},
 	{VIU_OSD2_BLK2_CFG_W4, 0x0, 0xffffffff, 1},
 	{VIU_OSD2_MALI_UNPACK_CTRL, 0x0, 0x9f01ffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1},
 };
 
 static struct reg_item misc_recovery_table_t7[] = {
-	{DOLBY_PATH_CTRL, 0x0, 0x000000cc, 1},
+	{AMDV_PATH_CTRL, 0x0, 0x000000cc, 1},
 	{OSD_PATH_MISC_CTRL, 0x0, 0xffff0000, 1},
 	{VIU_OSD1_DIMM_CTRL, 0x0, 0x7fffffff, 1},
 	{VIU_OSD2_DIMM_CTRL, 0x0, 0x7fffffff, 1},
@@ -979,8 +979,8 @@ static struct reg_item misc_recovery_table_t7[] = {
 	{VIU_OSD2_BLK1_CFG_W4, 0x0, 0xffffffff, 1},
 	{VIU_OSD2_BLK2_CFG_W4, 0x0, 0xffffffff, 1},
 	{VIU_OSD2_MALI_UNPACK_CTRL, 0x0, 0x9f01ffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1},
 	{OSD1_HDR_IN_SIZE, 0x0, 0x0fff0fff, 1},
 	{OSD2_HDR_IN_SIZE, 0x0, 0x0fff0fff, 1},
 	{OSD3_HDR_IN_SIZE, 0x0, 0x0fff0fff, 1},
@@ -1278,8 +1278,8 @@ static int update_recovery_item_old(u32 addr, u32 value)
 	if (!recovery_enable)
 		return ret;
 
-	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2) &&
+	if ((addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2) &&
 	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
 	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
 		return ret;
@@ -1378,8 +1378,8 @@ static s32 get_recovery_item_old(u32 addr, u32 *value, u32 *mask)
 	if (!recovery_enable)
 		return ret;
 
-	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2) &&
+	if ((addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2) &&
 	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
 	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
 		return ret;
@@ -1718,8 +1718,8 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 
 	if (!recovery_enable)
 		return ret;
-	if (addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2)
+	if (addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2)
 		return ret;
 
 	base = addr & 0xfff0;
@@ -1959,8 +1959,8 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 
 	if (!recovery_enable)
 		return ret;
-	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2))
+	if ((addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2))
 		return ret;
 
 	base = addr & 0xfff0;
@@ -2241,8 +2241,8 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 
 	if (!recovery_enable)
 		return ret;
-	if (addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2)
+	if (addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2)
 		return ret;
 
 	base = addr & 0xfff0;

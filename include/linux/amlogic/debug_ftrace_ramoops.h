@@ -37,6 +37,7 @@ extern unsigned int dump_iomap;
 #define PSTORE_FLAG_IO_SCHED_SWITCH 0x7
 #define PSTORE_FLAG_IO_SMC_IN   0x8
 #define PSTORE_FLAG_IO_SMC_OUT  0x9
+#define PSTORE_FLAG_IO_SMC_NORET_IN  0xA
 #define PSTORE_FLAG_MASK	0xF
 
 void notrace pstore_io_save(unsigned long reg, unsigned long val,
@@ -47,6 +48,8 @@ void pstore_ftrace_dump_old(struct persistent_ram_zone *prz);
 
 void save_iomap_info(unsigned long virt_addr, unsigned long phys_addr,
 		     unsigned int size);
+
+bool notrace is_noret_smcid(unsigned long smcid);
 
 //#define SKIP_IO_TRACE
 #if (defined CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE) && (!defined SKIP_IO_TRACE)
@@ -74,6 +77,9 @@ pstore_io_save(next_pid, next_comm, 0, PSTORE_FLAG_IO_SCHED_SWITCH, NULL)
 #define pstore_ftrace_io_smc_in(a0, a1)	\
 pstore_io_save(a0, a1, CALLER_ADDR0, PSTORE_FLAG_IO_SMC_IN, NULL)
 
+#define pstore_ftrace_io_smc_noret_in(a0, a1)	\
+pstore_io_save(a0, a1, CALLER_ADDR0, PSTORE_FLAG_IO_SMC_NORET_IN, NULL)
+
 #define pstore_ftrace_io_smc_out(a0, a1) \
 pstore_io_save(a0, a1, CALLER_ADDR0, PSTORE_FLAG_IO_SMC_OUT, NULL)
 
@@ -87,6 +93,7 @@ pstore_io_save(a0, a1, CALLER_ADDR0, PSTORE_FLAG_IO_SMC_OUT, NULL)
 #define pstore_ftrace_sched_switch(next_pid, next_comm) do {	} while (0)
 #define pstore_ftrace_io_smc_in(a0, a1)		do {	} while (0)
 #define pstore_ftrace_io_smc_out(a0, a1)	do {	} while (0)
+#define pstore_ftrace_io_smc_noret_in(a0, a1)	do {	} while (0)
 
 #endif
 

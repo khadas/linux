@@ -17,6 +17,7 @@
 #include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/major.h>
+#include <linux/compat.h>
 /* Amlogic headers */
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
@@ -38,7 +39,7 @@ static DEFINE_SPINLOCK(lock);
 #define DEV_NAME    "vfm"
 #define BUS_NAME    "vfm"
 #define CLS_NAME    "vfm"
-#define VFM_NAME_LEN    100
+#define VFM_NAME_LEN    32
 #define VFM_MAP_SIZE    10
 #define VFM_MAP_COUNT   40
 #define DUMP_BUFFER_SIZE 4096
@@ -428,6 +429,8 @@ static void vfm_init(void)
 #endif
 	char def_dvhdmiin_id[VFM_NAME_LEN] = "dvhdmiin";
 	char def_dvhdmiin_chain[] = "dv_vdin amvideo";
+	char pic_id[VFM_NAME_LEN] = "pic_path";
+	char pic_chain[] = "pic_dec ppmgr amvideo";
 	int i;
 
 	for (i = 0; i < VFM_MAP_COUNT; i++)
@@ -450,6 +453,8 @@ static void vfm_init(void)
 	vfm_map_add(def_dvel_id2, def_dvel_chain2);
 #endif
 	vfm_map_add(def_dvhdmiin_id, def_dvhdmiin_chain);
+	vfm_map_add(pic_id, pic_chain);
+
 
 	local_dump_buf = kzalloc(DUMP_BUFFER_SIZE, GFP_KERNEL);
 }

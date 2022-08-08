@@ -25,7 +25,12 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
+#include <linux/timer.h>
+
 /* Amlogic Headers */
+#ifdef CONFIG_AMLOGIC_FREERTOS
+#include <linux/amlogic/freertos.h>
+#endif
 #include <linux/amlogic/media/ge2d/ge2d.h>
 #include <linux/amlogic/media/ge2d/ge2d_cmd.h>
 #ifdef CONFIG_AMLOGIC_VPU
@@ -122,6 +127,18 @@ static struct class ge2d_class = {
 	.name = GE2D_CLASS_NAME,
 	.class_groups = ge2d_class_groups,
 };
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+struct timer_data_s {
+	int irq;
+	struct clk *clk_gate;
+	struct timer_list timer;
+	struct work_struct work;
+};
+
+static struct timer_data_s timer_data;
+#define TIMER_MS (2000)
+#endif
 
 static ssize_t dump_reg_enable_show(struct class *cla,
 				    struct class_attribute *attr,
@@ -1442,6 +1459,36 @@ static const struct of_device_id ge2d_dt_match[] = {
 	{},
 };
 
+#ifdef CONFIG_AMLOGIC_FREERTOS
+static void work_func(struct work_struct *w)
+{
+	struct timer_data_s *timer_data =
+		container_of(w, struct timer_data_s, work);
+
+	ge2d_log_dbg("ge2d %s enter\n", __func__);
+	clk_disable_unprepare(timer_data->clk_gate);
+	if (ge2d_meson_dev.has_self_pwr)
+		ge2d_runtime_pwr(0);
+
+	ge2d_irq_init(timer_data->irq);
+}
+
+static void timer_expire(struct timer_list *t)
+{
+	struct timer_data_s *timer_data = from_timer(timer_data, t, timer);
+
+	ge2d_log_dbg("ge2d %s enter\n", __func__);
+	if (freertos_is_finished()) {
+		del_timer(&timer_data->timer);
+		/* might sleep, use work to process */
+		schedule_work(&timer_data->work);
+	} else {
+		mod_timer(&timer_data->timer,
+			  jiffies + msecs_to_jiffies(TIMER_MS));
+	}
+}
+#endif
+
 static int ge2d_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1589,10 +1636,32 @@ static int ge2d_probe(struct platform_device *pdev)
 
 	ret = ge2d_wq_init(pdev, irq, clk_gate);
 
-	clk_disable_unprepare(clk_gate);
-
 	if (ge2d_meson_dev.has_self_pwr)
 		pm_runtime_enable(&pdev->dev);
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+	/* To avoid interfering with RTOS clock/power/interrupt resources,
+	 * turn on and keep power/clk first.
+	 * Poll the status of rtos,
+	 * then turn off power/clk and register interrupt.
+	 */
+	if (freertos_is_run() && !freertos_is_finished()) {
+		INIT_WORK(&timer_data.work, work_func);
+		timer_setup(&timer_data.timer, timer_expire, 0);
+		timer_data.timer.expires = jiffies + msecs_to_jiffies(TIMER_MS);
+		timer_data.clk_gate = clk_gate;
+		timer_data.irq = irq;
+		add_timer(&timer_data.timer);
+
+		if (ge2d_meson_dev.has_self_pwr)
+			ge2d_runtime_pwr(1);
+	} else {
+		ge2d_irq_init(irq);
+		clk_disable_unprepare(clk_gate);
+	}
+#else
+	clk_disable_unprepare(clk_gate);
+#endif
 
 	/* 8g memory support */
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);

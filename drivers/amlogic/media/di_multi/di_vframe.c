@@ -604,20 +604,31 @@ struct vframe_s *di_vf_l_get(unsigned int channel)
 		return NULL;
 	}
 	/**************************/
+	if (!atomic_dec_and_test(&pch->vf_get_idle)) { /* check */
+		PR_WARN("get busy\n");
+		return NULL;
+	}
+	/**************************/
 	vframe_ret = ndrd_qout(pch);
 	if (!vframe_ret || !vframe_ret->private_data) {
 		dbg_nq("%s:bypass?\n", __func__);
 		didbg_vframe_out_save(channel, vframe_ret, 3);
+		atomic_set(&pch->vf_get_idle, 1); /* check set */
 		return vframe_ret;
 	}
 	ndis1 = (struct dim_ndis_s *)vframe_ret->private_data;
-	if (!ndis1) /*is bypass*/
+	if (!ndis1) {/*is bypass*/
+		atomic_set(&pch->vf_get_idle, 1); /* check set */
 		return vframe_ret;
+	}
 	ndis2 = ndis_move(pch, QBF_NDIS_Q_USED, QBF_NDIS_Q_DISPLAY);
-	if (ndis1 != ndis2)
-		PR_ERR("%s:\n", __func__);
+	if (ndis1 != ndis2) {
+		PR_ERR("%s:ndis1[%d]\n", __func__, ndis1->header.index);
+		PR_ERR("ndis2[%d]\n", ndis2->header.index);
+	}
 	didbg_vframe_out_save(channel, vframe_ret, 4);
 	dim_tr_ops.post_get(vframe_ret->index_disp);
+	atomic_set(&pch->vf_get_idle, 1); /* check set */
 	return vframe_ret;
 }
 
@@ -926,7 +937,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		dev_vframe_reg_first(&pch->itf);
 		pch->sum_reg_cnt++;
 		dbg_ev("reg:%s[%d]\n", provider_name, pch->sum_reg_cnt);
-
+		atomic_set(&pch->vf_get_idle, 1);
 		dim_api_reg(DIME_REG_MODE_VFM, pch);
 
 		dev_vframe_reg(&pch->itf);
@@ -1177,7 +1188,8 @@ static struct vframe_s *di_vf_peek(void *arg)
 
 	if (di_is_pause(ch))
 		return NULL;
-
+	if (pch->itf.pre_vpp_link && dpvpp_vf_ops())
+		return dpvpp_vf_ops()->peek(NULL);
 	if (is_bypss2_complete(ch)) {
 		vfm = dim_nbypass_peek(pch);
 		if (vfm)
@@ -1204,6 +1216,8 @@ static struct vframe_s *di_vf_get(void *arg)
 		return NULL;
 
 	di_pause_step_done(ch);
+	if (pch->itf.pre_vpp_link && dpvpp_vf_ops())
+		return dpvpp_vf_ops()->get(NULL);
 
 	/*pvfm = get_dev_vframe(ch);*/
 
@@ -1230,6 +1244,10 @@ static void di_vf_put(struct vframe_s *vf, void *arg)
 		return;
 	}
 
+	if (pch->itf.pre_vpp_link && dpvpp_vf_ops()) {
+		dpvpp_vf_ops()->put(vf, NULL);
+		return;
+	}
 	if (is_bypss2_complete(ch)) {
 		pw_vf_put(vf, ch);
 		pw_vf_notify_provider(ch,
@@ -1255,9 +1273,15 @@ static int di_event_cb(int type, void *data, void *private_data)
 static int di_vf_states(struct vframe_states *states, void *arg)
 {
 	unsigned int ch = *(int *)arg;
+	struct di_ch_s *pch;
 
 	if (!states)
 		return -1;
+	pch = get_chdata(ch);
+	if (pch->itf.pre_vpp_link && dpvpp_vf_ops()) {
+		dpvpp_vf_ops()->vf_states(states, NULL);
+		return 0;
+	}
 
 	dim_print("%s:ch[%d]\n", __func__, ch);
 

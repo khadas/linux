@@ -21,6 +21,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "film_vof_soft.h"
 #include "../deinterlace.h"
+#include "../register.h"
 
 static int DIweavedetec(struct sFlmSftPar *pPar, int nDif01);
 /* Software parameters (registers) */
@@ -61,6 +62,7 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 	pPar->flm32_en = 1;
 	pPar->flm22_force = 0;
 	pPar->flm22_flag = 1;
+	pPar->pd22224_en = 1;
 	pPar->flm22_avg_flag = 0;
 	pPar->flm2224_flag = 1;
 	pPar->flm22_comlev = 22;
@@ -76,6 +78,15 @@ UINT8 FlmVOFSftInt(struct sFlmSftPar *pPar)
 	pPar->flm32_luma_th = 90;
 	pPar->sF32Dif02M0 = 4096;/* mpeg-4096, cvbs-8192 */
 	pPar->sF32Dif02M1 = 4096;
+
+	pPar->quit_th = 6;
+	pPar->quit_th_en = 126;
+	pPar->enter_th = 1;
+
+	pPar->flm22_diff01_th = 300000;
+	pPar->flm22_mcdi_min_th = 0;
+
+	pPar->flm22_max_th = 80;
 
 	return 0;
 }
@@ -260,6 +271,26 @@ static int dif02_ratio = 20;
 module_param(dif02_ratio,  int, 0644);
 MODULE_PARM_DESC(dif02_ratio, "dif02_ratio");
 
+static int pd22224_th = 24;
+static int old_dif01_flag;
+static int flm22_dif02_ratio = 20;
+static int pd22_cnt_th = 50;
+//static int pd22_cnt_th1 = 10;
+//static int static_Pre_flag;
+static int flm22_dif01_ratio = 60;
+static int pd22224_dif02_reset = 1;
+static int pd_dif02_sel = 17;
+static int pd22224_quit_dif02_th = 50;
+static int pd22_cnt_re_flag = 1;
+static int pd22_en = 1;
+static int pd22_th = 40;
+static int pd22_dif02_sel = 25;
+
+static int pd22_cnt_min_th = 50;
+
+static int max_diff02_num = 7;
+static int mcdi22_quit_th = 20;
+
 int comsum;
 
 int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
@@ -286,6 +317,26 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	static int flag_pre;
 	static int comsumpre;
 	static int nS1pre;
+	static int dif01_flag;
+	static int pre_old_dif01;
+	static int pd22_cur_flag;
+	static int pd22224_mcdi_cnt;
+	static int pd22224_cnt;
+	static int pd22224_dif02_flag;
+	static int pre_flag;
+	static int Pre_flag_pre;
+	static int stop_flag;
+	static int stop_flag_pre;
+	static int pd22_cnt;
+	static int pd22_dif02_out_cnt;    /*pd22 dif02 out th cnt num */
+	int stop_flag_pre2 = 0;
+	int dif01_flag_pre = 0;
+	int pd_dif01_flag = 0;
+	int pd_dif01 = 0;
+	int pd_dif01_pre = 0;
+	int pd22_pre_flag = 0;
+	int pd22224_mcdi_flag = 0;
+	int old_dif01 = 0;
 	int dif01th = 0;
 	int avg_flag = 0;
 	int flm22_min = 0;
@@ -302,10 +353,18 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int flm22 = pPar->flm22_en;
 	int flm32 = pPar->flm32_en;
 	int flm22_flag = pPar->flm22_flag;
+	int flm22_force = pPar->flm22_force;
+	int pd22224_en = pPar->pd22224_en;
 	int flm2224_flag = pPar->flm2224_flag;
 	int flm22_comth = pPar->flm22_comth;
 	int flm22_avg_flag = pPar->flm22_avg_flag;
-	int flm22_force =  pPar->flm22_force;
+	int pd22_cnt_pre =
+		Rd(MCDI_RO_FLD_PD_22_PRE_CNT2);
+	/*mcdi pd 22 ro cnt p2*/
+	int pd22_cnt_cur =
+		Rd(MCDI_RO_FLD_PD_22_POR_CNT2);
+	/*mcdi pd 22 ro cnt cur*/
+	int pd22_pre_cur_dif = 0;
 	int comdif = 0;
 	int dif01avg = 0;
 
@@ -315,6 +374,15 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	int nS1 = 0;
 	int nMod = 0;
 	int difflag = 0;
+	int max_dif02 = 0;
+	int flm22_dif01_th = 0;
+	int pd22_cnt_min = 0;
+	int pd22_diff02_chk = 0;
+	int pd22_mcdi_flag = 1;
+	int pd22_diff12_chk = 0;
+
+	DI_Wr(DI_INFO_ADDR, 2);
+	old_dif01 = (Rd(DI_INFO_DATA) & 0xffffff);   /*old dif01*/
 
 	/* difference */
 	pRDat.rROFrmDif02 = rROFrmDif02;
@@ -353,6 +421,11 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			pRDat.pModXx[nT1] = 0;
 			pRDat.pFlgXx[nT1] = 0; /* pre-1, nxt-0 */
 			pRDat.pLvlXx[nT1] = 0;  /* mode level */
+		}
+		for (nT1 = 0; nT1 < 4; nT1++) {
+			pRDat.quit_cnt[nT1] = 0;
+			pRDat.enter_cnt[nT1] = 0;
+			pRDat.mcdi22_quit_cnt = 0;
 		}
 	} else {
 		for (nT1 = 1; nT1 < HISDETNUM; nT1++) {
@@ -408,11 +481,24 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		nDIF01[nT1] = DIF01[nT1];
 		nDIF02[nT1] = DIF02[nT1];
 	}
+
+	/*for India enter 22224 film patch */
+	for (nT1 = 0; nT1 < max_diff02_num; nT1++) {
+		max_dif02 = max_dif02 < nDIF02[HISDIFNUM - 1 - nT1]
+			? nDIF02[HISDIFNUM - 1 - nT1] : max_dif02;
+	}
+
+   //abc,racing,girl,hqv
+	pd22_diff12_chk = ((max(nDIF01[HISDIFNUM - 1], nDIF01[HISDIFNUM - 2]) < max_dif02 && (abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) > max_dif02 / 2) &&
+		abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < pPar->flm22_diff01_th * 3 && abs(pre_fld_motnum - glb_field_mot_num) < 10000) ||
+		(abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < 190000 && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2]) < nDIF02[HISDIFNUM - 1] * 4 / 5)) ? 1 : 0;
+	if ((pPar->quit_th_en >> 7) & 0x1) //for CVBS_rollingpaper
+		pd22_diff12_chk = 1;
 	/* --------------------------------------------------------- */
 	/* Film-Detection */
 	nS1 = FlmDetSft(&pRDat, nDIF01, nDIF02, nT0, pPar, vf);
 
-	nS0 = FlmModsDet(&pRDat, rROFldDif01[0], rROFrmDif02[0]);
+	nS0 = FlmModsDet(&pRDat, rROFldDif01[0], rROFrmDif02[0], (pPar->quit_th_en >> 4) & 0x1);
 	/* --------------------------------------------------------- */
 
 	/* for panda 2-2 : flag	1, 3 */
@@ -431,11 +517,20 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	else
 		pre22lvl = 0;
 
+	if ((pPar->quit_th_en >> 5) & 0x1 && pd22_diff12_chk == 1) //for CVBS_rollingpaper
+		nS1 = max(pd22_cnt_pre, pd22_cnt_cur) > pPar->flm22_max_th ? nS1 - 30 : nS1;
+
 	/* Current f(t-0) with previous */
 	/* pFMReg->rCmb32Spcl =0; */
 	*rCmb32Spcl = 0;
 	if (pRDat.pMod32[HISDETNUM - 1] == 3) {
+
 		nMod = pRDat.pMod32[HISDETNUM - 1];
+		if (pRDat.enter_cnt[2] < pPar->enter_th)
+			pRDat.enter_cnt[2] = pRDat.enter_cnt[2] < 255 ? pRDat.enter_cnt[2] + 1 : 255;
+		else
+		    pRDat.quit_cnt[2] = 0;
+
 		/* nT0 = pRDat.pFlg32[HISDETNUM - 1] % 2; */
 
 		if (pRDat.mNum32[HISDETNUM - 1] < 255)	/* maximum */
@@ -444,18 +539,49 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		/* 3-2 film combing special precessing (A-A-A) */
 		if (pRDat.pFlg32[HISDETNUM - 1] == (mNDly % 5))
 			*rCmb32Spcl = 1;
+		pRDat.enter_cnt[1] = 0;
+		if (pRDat.quit_cnt[1] > pPar->quit_th || (pPar->quit_th_en & 0x1) == 0) {
+			pRDat.mNum22[HISDETNUM - 1] = 0;
+			pRDat.quit_cnt[1] = 0;
+		} else {
+			pRDat.quit_cnt[1] = pRDat.quit_cnt[2] < 255 ? pRDat.quit_cnt[2] + 1 : 255;
+		}
 	} else if (pRDat.pMod22[HISDETNUM - 1] == 2) {
+
 		nMod = pRDat.pMod22[HISDETNUM - 1];
+		if (pRDat.enter_cnt[1] < pPar->enter_th)
+			pRDat.enter_cnt[1] = pRDat.enter_cnt[1] < 255 ? pRDat.enter_cnt[1] + 1 : 255;
+		else
+		    pRDat.quit_cnt[1] = 0;
+
 		pRDat.mNum32[HISDETNUM - 1] = 0;
 		/* nT0 = pRDat.pFlg22[HISDETNUM - 1] % 2; */
 
 		if (pRDat.mNum22[HISDETNUM - 1] < 255)	/* maximum */
 			pRDat.mNum22[HISDETNUM - 1] += 1;
+		pRDat.enter_cnt[2] = 0;
+		if (pRDat.quit_cnt[2] > pPar->quit_th || (pPar->quit_th_en & 0x1) == 0) {
+			pRDat.mNum32[HISDETNUM - 1] = 0;
+			pRDat.quit_cnt[2] = 0;
+		} else {
+			pRDat.quit_cnt[2] = pRDat.quit_cnt[2] < 255 ? pRDat.quit_cnt[2] + 1 : 255;
+		}
 	} else {
 		nMod = 0;
-
-		pRDat.mNum32[HISDETNUM - 1] = 0;
-		pRDat.mNum22[HISDETNUM - 1] = 0;
+		pRDat.enter_cnt[1] = 0;
+		pRDat.enter_cnt[2] = 0;
+		if (pRDat.quit_cnt[2] > pPar->quit_th || (pPar->quit_th_en & 0x1) == 0) {
+			pRDat.mNum32[HISDETNUM - 1] = 0;
+			pRDat.quit_cnt[2] = 0;
+		} else {
+			pRDat.quit_cnt[2] = pRDat.quit_cnt[2] < 255 ? pRDat.quit_cnt[2] + 1 : 255;
+		}
+		if (pRDat.quit_cnt[1] > pPar->quit_th || (pPar->quit_th_en & 0x1) == 0) {
+			pRDat.mNum22[HISDETNUM - 1] = 0;
+			pRDat.quit_cnt[1] = 0;
+		} else {
+			pRDat.quit_cnt[1] = pRDat.quit_cnt[2] < 255 ? pRDat.quit_cnt[2] + 1 : 255;
+		}
 	}
 
 	/* Only frame (t-1) */
@@ -482,7 +608,11 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		/* Post-processing: film mode,00: global combing,
 		 * 01: 2-2 film, 10: 2-3 film, 11:-others
 		 */
-		 *rFlmPstMod = 2;
+		if (pRDat.quit_cnt[2] == 0 || (pPar->quit_th_en & 0x1) == 0)
+			*rFlmPstMod = 2;
+		else
+			*rFlmPstMod = 0;
+
 		/* param: at least 5 field+5 */
 		if (pRDat.mNum32[HISDETNUM - 1] < flm32_mim_frms ||
 				flm32 == 0) {
@@ -496,7 +626,10 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		/* Post-processing: film mode,
 		 * 00: global combing, 01: 2-2 film, 10: 2-3 film, 11:-others
 		 */
-		 *rFlmPstMod = 1;
+		if (pRDat.quit_cnt[1] == 0 || (pPar->quit_th_en & 0x1) == 0)
+		    *rFlmPstMod = 1;
+		else
+			*rFlmPstMod = 0;
 
 		ntmp = (glb_frame_mot_num + glb_field_mot_num) /
 				(pPar->width + 1);
@@ -573,7 +706,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 
 		/* param: at least 60 field+4 */
 		if (pRDat.mNum22[HISDETNUM - 1] < flm22_mim_numb ||
-				flm22 == 0) {
+				flm22 == 0 || (((pPar->quit_th_en >> 5) & 0x1) == 1 && pd22_cnt < pd22_th / 2 && pd22_diff12_chk == 1)) {
 			*rFlmSltPre = 0;
 			*rFlmPstMod = 0;
 			if (pr_pd)
@@ -594,16 +727,139 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		 * 01: 2-2 film, 10: 2-3 film, 11:-others
 		 */
 		*rFlmPstMod = 1;
-		nS1 = 300; /*increase flm22_force level from vlsi-yanling*/
+		nS1 = 300; /*increase flm22_force level from vlsi-yanling*///test
 	}
-	pre_fld_motnum = glb_field_mot_num;
+	dif01_flag_pre = dif01_flag;
+	flm22_dif01_th = min(flm22_th, 1 << 14);
+	dif01_flag =  (nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM - 2])
+		> min(100000, flm22_dif01_th * flm22_dif01_ratio);
+	pd_dif01_flag = dif01_flag_pre ^ dif01_flag;
 
-	comsum = VOFSftTop(rFlmPstGCm, rFlmSltPre, rFlmPstMod,
-		rPstCYWnd0, rPstCYWnd1, rPstCYWnd2, rPstCYWnd3,
-		nMod, rROCmbInf, &pRDat, pPar, pPar->height,
-		pPar->width, reverse);
-	if (*rFlmPstMod == 1 && *rFlmPstGCm && flm22_flag)
-		*rFlmPstMod = 0;
+	if (pd22224_cnt < pd22224_th)
+		pd_dif01_flag = nDIF02[HISDIFNUM - 1] <
+			(1 << (pd_dif02_sel - 1)) ? 0 : pd_dif01_flag;
+	/* static pd_dif01_flag is invalid */
+
+	pd22_pre_flag = pd22_cur_flag;
+	if (pd22_cnt_re_flag && nDIF02[HISDIFNUM - 1]
+		< (1 << (pd_dif02_sel + 4)))
+		pd22_cur_flag = (pd22_cnt_pre - pd22_cnt_cur)
+			> (pd22_cnt_th - 20);
+	else
+		pd22_cur_flag = (pd22_cnt_pre - pd22_cnt_cur)
+			> pd22_cnt_th;
+
+	if (((pPar->quit_th_en >> 3)&0x1) == 0 || (max_dif02/(max(1, nDIF02[HISDIFNUM - 1])) > 50 &&
+			nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 1))) || pd22_diff12_chk == 0) {
+		pd22_mcdi_flag = 1;
+	} else {
+		if (min(pd22_cnt_pre, pd22_cnt_cur) > pPar->flm22_mcdi_min_th && abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM-2]) < pPar->flm22_diff01_th)
+			pd22_mcdi_flag = 0;
+		else if ((abs(nDIF01[HISDIFNUM - 1] - nDIF01[HISDIFNUM-2]) < pPar->flm22_diff01_th / 6 && nDIF02[HISDIFNUM - 2] > (1 << 10)) || max(pd22_cnt_pre, pd22_cnt_cur) > 1000)
+			pd22_mcdi_flag = 0;
+		else
+			pd22_mcdi_flag = 1;
+	}
+
+	pd22224_mcdi_flag = pd22_mcdi_flag == 0 ? 0 : pd22_cur_flag ^ pd22_pre_flag;
+
+	pd22224_mcdi_flag = min(pd22_cnt_pre, pd22_cnt_cur) > (pd22_cnt_th) || max(pd22_cnt_pre, pd22_cnt_cur) < (pd22_cnt_th - 20) ?
+		0 : pd22224_mcdi_flag;
+
+	if ((pPar->quit_th_en >> 5) & 0x1)
+		pd22224_mcdi_flag = max(pd22_cnt_pre, pd22_cnt_cur) < pPar->flm22_max_th ? pd22224_mcdi_flag : 0;
+
+	pd22_cnt_min = pd22_cnt_pre > pd22_cnt_cur
+		? pd22_cnt_cur : pd22_cnt_pre;
+
+	pd22_pre_cur_dif = pd22_cnt_pre > pd22_cnt_cur
+		? pd22_cnt_pre - pd22_cnt_cur : pd22_cnt_cur
+		- pd22_cnt_pre;
+
+	pd22224_mcdi_cnt = (pd22224_mcdi_cnt + 1) % 12;  /*22224 cycle is 12*/
+
+	if (max_dif02 / (nDIF02[HISDIFNUM - 1] + 1) > flm22_dif02_ratio) {
+		if (pd22224_dif02_flag == 0 && nDIF02[HISDIFNUM - 1]
+			< (1 << (pd_dif02_sel + 1))) {
+			if ((pd22224_cnt < pd22224_th && nDIF02[HISDIFNUM - 1]
+				< (1 << pd_dif02_sel)) || pd22224_dif02_reset)
+				pd22224_mcdi_cnt = 0;
+			pd22224_dif02_flag = 1;
+		}
+	}
+
+	if (pd22224_mcdi_cnt > 1) {
+		pd22224_dif02_flag = 0;
+		if (pd22224_mcdi_flag || pd_dif01_flag ||
+			(nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 1)) &&
+			pd22224_cnt > pd22224_th)) {
+			pd22224_cnt = pd22224_cnt < 255 ? pd22224_cnt + 1 : 255;
+			if (pRDat.enter_cnt[0] < pPar->enter_th)
+				pRDat.enter_cnt[0] = pRDat.enter_cnt[0] < 255 ? pRDat.enter_cnt[0] + 1 : 255;
+			else
+				pRDat.quit_cnt[0] = 0;
+		} else {
+			pRDat.enter_cnt[0] = 0;
+			if (pRDat.quit_cnt[0] > pPar->quit_th || ((pPar->quit_th_en >> 1) & 0x1) == 0 || pd22224_cnt < pd22_cnt_th)
+				pd22224_cnt = 0;
+			else
+				pRDat.quit_cnt[0] = pRDat.quit_cnt[0] < 255 ? pRDat.quit_cnt[0] + 1 : 255;
+		}
+
+	} else {
+		if (pr_pd)
+			pr_info("max_dif02 = %d, pd22_pre_cur_dif = %d\n",
+				max_dif02, pd22_pre_cur_dif);
+		if (max_dif02 / (nDIF02[HISDIFNUM - 1] + 1) >
+			flm22_dif02_ratio ||
+			nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 2)))
+			pd22224_cnt = pd22224_cnt < 255 ? pd22224_cnt + 1 : 255;
+		else if (pd22224_cnt > pd22224_quit_dif02_th &&
+			pd22_pre_cur_dif > pd22_cnt_th)
+			pd22224_cnt = pd22224_cnt < 255 ? pd22224_cnt + 1 : 255;
+		else
+			pd22224_cnt = 0;
+	}
+
+	if (nDIF02[HISDIFNUM - 1] < (3 << pd22_dif02_sel))
+		pd22_dif02_out_cnt = 0;
+	else
+		pd22_dif02_out_cnt = pd22_dif02_out_cnt + 1;
+
+	pd22_diff02_chk = ((pPar->quit_th_en >> 2) & 0x1) == 1 &&
+		(abs(pd22_cnt_pre - pd22_cnt_cur) > (pd22_cnt_th - 30) || (max_dif02 / (max(1, nDIF02[HISDIFNUM - 1])) > 50 &&
+			nDIF02[HISDIFNUM - 1] < (1 << (pd_dif02_sel - 1)))) ? 1 : 0;
+
+	if ((pd22224_mcdi_flag && pd22_dif02_out_cnt < 3) || pd22_diff02_chk == 1) {
+		if (pd22224_mcdi_flag && pd22_dif02_out_cnt < 3)
+		    pd22_cnt = pd22_cnt < 255 ? pd22_cnt + 1 : pd22_cnt;
+		else if (((pPar->quit_th_en >> 4) & 0x1) == 1)
+			pd22_cnt = pd22_cnt < pd22_th ? 0 : pd22_cnt;
+
+		if (pRDat.enter_cnt[3] < pPar->enter_th)
+			pRDat.enter_cnt[3] = pRDat.enter_cnt[3] < 255 ? pRDat.enter_cnt[3] + 1 : 255;
+		else
+			pRDat.quit_cnt[3] = 0;
+	} else {
+		pRDat.enter_cnt[3] = 0;
+		if (pRDat.quit_cnt[3] > pPar->quit_th || ((pPar->quit_th_en >> 1) & 0x1) == 0 || pd22_cnt < pd22_th)
+			pd22_cnt = 0;
+		else
+			pRDat.quit_cnt[3] = pRDat.quit_cnt[3] < 255 ? pRDat.quit_cnt[3] + 1 : 255;
+
+	}
+
+	if (pd22_cnt_min > pd22_cnt_min_th) {
+		pd22_cnt = pd22_cnt < pd22_th ? 0 : pd22_cnt;
+		pd22224_cnt = pd22224_cnt < pd22224_th ? 0 : pd22224_cnt;
+	}
+
+	if (max(pd22_cnt_pre, pd22_cnt_cur) > pPar->flm22_max_th)
+		pRDat.mcdi22_quit_cnt = pRDat.mcdi22_quit_cnt == 255 ? 255 : pRDat.mcdi22_quit_cnt + 1;
+	else
+		pRDat.mcdi22_quit_cnt = 0;
+	if (pRDat.mcdi22_quit_cnt > mcdi22_quit_th && (((pPar->quit_th_en >> 6) & 0x1) == 1))
+		pd22_cnt = 0;
 
 	nT1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	if ((*rFlmPstMod == 0) && (nT1 > flmxx_maybe_num)
@@ -613,6 +869,87 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 		*rFlmPstMod = 4 + pRDat.pModXx[HISDETNUM - 1 - mDly];
 		nS1 = pRDat.pLvlXx[HISDETNUM - 1 - mDly];
 	}
+
+	if ((*rFlmPstMod == 0 || (*rFlmPstMod == 1 && nS1 < (pPar->height*2*100/480 + 2)))/* &&
+		(vf->source_type == VFRAME_SOURCE_TYPE_CVBS)*/) {
+		/*22224*/
+		if (pd22224_cnt > pd22224_th && pd22224_en && (max_dif02 > (pPar->height * pPar->width >> 2))) {
+			if (pRDat.quit_cnt[0] == 0 || ((pPar->quit_th_en >> 1) & 0x1) == 0) {
+			*rFlmPstMod = 11;         /*add 22224*/
+			nS1 = 50;
+			pd_dif01 = old_dif01_flag
+				? old_dif01 : nDIF01[HISDIFNUM - 1];
+			pd_dif01_pre = old_dif01_flag
+				? pre_old_dif01 : nDIF01[HISDIFNUM - 2];
+			*rFlmSltPre = nDIF01[HISDIFNUM - 1] > nDIF01[HISDIFNUM - 2]  ? 1 : 0;/*(pd22_cnt_pre - pd22_cnt_cur)
+				> pd22_cnt_th1
+				? 1 : (pd22_cnt_cur - pd22_cnt_pre)
+				> pd22_cnt_th1
+				? 0 : static_Pre_flag && pre_flag
+				? Pre_flag_pre ^ 1 :  pd_dif01 > pd_dif01_pre
+				? 1 : 0;*/
+		} else {
+			*rFlmPstMod = 0;
+		}
+	}
+	/*add 22224 replace 22 for pulldown_drv mot_row patch */
+		if (pd22_cnt > pd22_th && pd22_en && (((pPar->quit_th_en >> 6) & 0x1) == 0 || pRDat.mcdi22_quit_cnt == 0)) {
+			if (pRDat.quit_cnt[3] == 0 || ((pPar->quit_th_en >> 1) & 0x1) == 0) {
+				*rFlmPstMod = 1;
+				nS1 = 300;
+				*rFlmSltPre = nDIF01[HISDIFNUM - 1] > nDIF01[HISDIFNUM - 2]  ? 1 : 0;//pd22_cnt_pre - pd22_cnt_cur > 5 ||nDIF01[HISDIFNUM - 1] > nDIF01[HISDIFNUM - 2]  ? 1 : 0;
+			} else {
+				*rFlmPstMod = 0;
+			}
+		}
+	}
+	if (pd22_mcdi_flag == 0 && *rFlmPstMod == 1 && pPar->flm22_force == 0)
+		*rFlmPstMod = 0;
+
+	if (pr_pd) {
+		pr_info("tMod = %d, nS1 = %d, *rFlmSltPre = %d,pd22_mcdi_flag=%d,pd22_diff12_chk=%d\n",
+			*rFlmPstMod, nS1, *rFlmSltPre, pd22_mcdi_flag, pd22_diff12_chk);
+	}
+	comsum = VOFSftTop(rFlmPstGCm, rFlmSltPre, rFlmPstMod,
+		rPstCYWnd0, rPstCYWnd1, rPstCYWnd2, rPstCYWnd3,
+		nMod, rROCmbInf, &pRDat, pPar, pPar->height,
+		pPar->width, reverse);
+	if (*rFlmPstMod == 1 && *rFlmPstGCm && flm22_flag)
+		*rFlmPstMod = 0;
+	Pre_flag_pre = *rFlmSltPre;
+	stop_flag_pre2 = stop_flag_pre;
+	stop_flag_pre = stop_flag;
+	if ((pd22_cnt_pre - pd22_cnt_cur) > pd22_cnt_th) {
+		if (nDIF01[HISDIFNUM - 1] > nDIF01[HISDIFNUM - 2])
+			stop_flag = 0;
+		else
+			stop_flag = 1;
+	}
+	if ((pd22_cnt_cur - pd22_cnt_pre) > pd22_cnt_th) {
+		if (nDIF01[HISDIFNUM - 1] < nDIF01[HISDIFNUM - 2])
+			stop_flag = 0;
+		else
+			stop_flag = 1;
+	}
+	if (pr_pd) {
+		pr_info("pd22224_cnt = %d, pd22224_th = %d, pd22224_mcdi_cnt = %d, pd22224_mcdi_flag = %d, pd22224_dif02_flag = %d, pd_dif01_flag = %d\n",
+			pd22224_cnt, pd22224_th, pd22224_mcdi_cnt,
+			pd22224_mcdi_flag, pd22224_dif02_flag,
+			pd_dif01_flag);
+		pr_info("pd22_cnt_pre = %d, pd22_cnt_cur = %d, max_dif02 = %d, stop_flag = %d, stop_flag_pre = %d, stop_flag_pre2 = %d,quit_c=%d,ent_c=%d\n",
+			pd22_cnt_pre, pd22_cnt_cur, max_dif02, stop_flag,
+			stop_flag_pre, stop_flag_pre2, pRDat.quit_cnt[3], pRDat.enter_cnt[3]);
+		pr_info("pd22_cnt = %d, pd22_dif02_out_cnt = %d,mcdi22_cnt=%d, di02_th = %d,pd22_c=%d,en=%d\n",
+			pd22_cnt, pd22_dif02_out_cnt, pRDat.mcdi22_quit_cnt, (3 << pd22_dif02_sel), pd22_diff02_chk, pPar->quit_th_en);
+	}
+	pre_old_dif01 = old_dif01;
+	pre_fld_motnum = glb_field_mot_num;
+
+	if (*rFlmPstMod == 11)
+		pre_flag = 1;
+	else
+		pre_flag = 0;
+
 	*dif01flag = 2;
 	if (*rFlmPstMod == 0)
 		*dif01flag = DIweavedetec(pPar, rROFldDif01[0]);
@@ -654,7 +991,6 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	pPar->field_count++;
 	if (pPar->field_count == 0x7fffffff)
 		pPar->field_count = 3;
-
 	return nS1;
 }
 

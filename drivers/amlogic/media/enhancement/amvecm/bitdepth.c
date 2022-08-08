@@ -199,17 +199,17 @@ static void vpp_vadj2_en(bool flag)
 /*skip:1-->skip;0-->un skip*/
 void vpp_skip_pps(bool skip)
 {
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, skip, 0, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, skip, 0, 1);
 }
 
 void vpp_skip_eotf_matrix3(bool skip)
 {
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, skip, 1, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, skip, 1, 1);
 }
 
 void vpp_skip_vadj2_matrix3(bool skip)
 {
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, skip, 2, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, skip, 2, 1);
 }
 
 /*bypass:1-->bypass;0-->un bypass*/
@@ -278,13 +278,13 @@ void vpp_vd2_if_bits_mode(enum vd_if_bits_mode_e bits_mode)
 
 void vpp_enable_dither(bool enable)
 {
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, enable, 12, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, enable, 12, 1);
 }
 
 /*mode:0:cut high 2 bits;1:cut low 2 bits*/
 void vpp_dither_bits_comp_mode(bool mode)
 {
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, mode, 14, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, mode, 14, 1);
 }
 
 /*g12a new add begin*/
@@ -410,25 +410,25 @@ void vpp_set_vd2_postblend_en(bool flag)
 /*data ext mod==>0:data << 2;1:data << 0*/
 void vpp_set_vd1_ext_mod(bool flag)
 {
-	WRITE_VPP_REG_BITS(DOLBY_PATH_CTRL, flag, 4, 1);
+	WRITE_VPP_REG_BITS(AMDV_PATH_CTRL, flag, 4, 1);
 }
 
 /*vd1 dolby bypass==>0:no bypass;1:bypass*/
 void vpp_set_vd1_bypass_dolby(bool flag)
 {
-	WRITE_VPP_REG_BITS(DOLBY_PATH_CTRL, flag, 0, 1);
+	WRITE_VPP_REG_BITS(AMDV_PATH_CTRL, flag, 0, 1);
 }
 
 /*data ext mod==>0:data << 2;1:data << 0*/
 void vpp_set_vd2_ext_mod(bool flag)
 {
-	WRITE_VPP_REG_BITS(DOLBY_PATH_CTRL, flag, 5, 1);
+	WRITE_VPP_REG_BITS(AMDV_PATH_CTRL, flag, 5, 1);
 }
 
 /*vd2 dolby bypass==>0:no bypass;1:bypass*/
 void vpp_set_vd2_bypass_dolby(bool flag)
 {
-	WRITE_VPP_REG_BITS(DOLBY_PATH_CTRL, flag, 1, 1);
+	WRITE_VPP_REG_BITS(AMDV_PATH_CTRL, flag, 1, 1);
 }
 
 void vpp_set_12bit_datapath_g12a(void)
@@ -561,10 +561,10 @@ void vpp_set_10bit_datapath1(void)
 	vpp_set_post_s2u(U_TO_S_NULL);
 
 	if (is_meson_txhd_cpu()) {
-		WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, 0, 11, 1);
-		WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, 1, 8, 1);
-		WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, 1, 9, 1);
-		WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, 1, 10, 1);
+		WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, 0, 11, 1);
+		WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, 1, 8, 1);
+		WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, 1, 9, 1);
+		WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, 1, 10, 1);
 	}
 }
 
@@ -590,18 +590,18 @@ void  vpp_set_datapath(void)
 	WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 5, 1);
 
 	/*config vpp dolby contrl*/
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vpp_dpath_sel0, 0, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vpp_dpath_sel1, 1, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vpp_dpath_sel2, 2, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vpp_dolby3_en, 3, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, core1_input_data_conv_mode, 6, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, core1_output_data_conv_mode, 7, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vd1_input_clip_mode, 8, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vd2_input_clip_mode, 9, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vpp_output_clip_mode, 10, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vpp_dith_en, 12, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, vpp_dith_mode, 14, 1);
-	WRITE_VPP_REG_BITS(VPP_DOLBY_CTRL, dolby3_path_sel, 16, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vpp_dpath_sel0, 0, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vpp_dpath_sel1, 1, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vpp_dpath_sel2, 2, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vpp_dolby3_en, 3, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, core1_input_data_conv_mode, 6, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, core1_output_data_conv_mode, 7, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vd1_input_clip_mode, 8, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vd2_input_clip_mode, 9, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vpp_output_clip_mode, 10, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vpp_dith_en, 12, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, vpp_dith_mode, 14, 1);
+	WRITE_VPP_REG_BITS(VPP_AMDV_CTRL, dolby3_path_sel, 16, 1);
 
 	/*config u2s & s2u*/
 	if (u2s_mode)
@@ -723,15 +723,15 @@ void vpp_datapath_status(void)
 
 	core1_ext_mode = READ_VPP_REG_BITS(VIU_MISC_CTRL1, 20, 1);
 	core1_bypass = READ_VPP_REG_BITS(VIU_MISC_CTRL1, 16, 1);
-	pre_blend_switch = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 0, 1);
-	dither_mode = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 14, 1);
-	dither_enable = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 12, 1);
+	pre_blend_switch = READ_VPP_REG_BITS(VPP_AMDV_CTRL, 0, 1);
+	dither_mode = READ_VPP_REG_BITS(VPP_AMDV_CTRL, 14, 1);
+	dither_enable = READ_VPP_REG_BITS(VPP_AMDV_CTRL, 12, 1);
 	pre_u2s = READ_VPP_REG_BITS(VPP_DAT_CONV_PARA0, 16, 14);
 	pre_s2u = READ_VPP_REG_BITS(VPP_DAT_CONV_PARA0, 0, 14);
 	post_u2s = READ_VPP_REG_BITS(VPP_DAT_CONV_PARA1, 16, 14);
 	post_s2u = READ_VPP_REG_BITS(VPP_DAT_CONV_PARA1, 0, 14);
-	watermark_switch = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 2, 1);
-	gainoff_switch = READ_VPP_REG_BITS(VPP_DOLBY_CTRL, 1, 1);
+	watermark_switch = READ_VPP_REG_BITS(VPP_AMDV_CTRL, 2, 1);
+	gainoff_switch = READ_VPP_REG_BITS(VPP_AMDV_CTRL, 1, 1);
 	black_ext_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 3, 1);
 	chroma_coring_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 4, 1);
 	bluestretch_en = READ_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, 0, 1);

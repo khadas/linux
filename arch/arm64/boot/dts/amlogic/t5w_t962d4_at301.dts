@@ -139,7 +139,7 @@
 			 * size = 1920 * 1080 * 3 * 4
 			 * (RGBA: 4 bytes/pixel) + 4M(10% * afbc)
 			 */
-			size = <0x0 0x01C00000>;
+			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
 		};
@@ -658,7 +658,7 @@
 			0x0 0x0 0x0 0x0
 			0x0 0xff688000 0x0 0x18000
 			0x0 0xff646000 0x0 0x1fff
-			0x0 0xfe008000 0x280 0x334>;
+			0x0 0xfe008280 0x0 0xb4>;
 	};
 
 	aml_dtv_demod {
@@ -1423,9 +1423,9 @@
 
 &amlvecm {
 	status = "okay";
-	gamma_en = <1>;/*1:enabel ;0:disable*/
-	wb_en = <1>;/*1:enabel ;0:disable*/
-	cm_en = <1>;/*1:enabel ;0:disable*/
+	gamma_en = <1>;/*1:enable ;0:disable*/
+	wb_en = <1>;/*1:enable ;0:disable*/
+	cm_en = <1>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
@@ -1625,7 +1625,7 @@
 };
 
 &spicc0 {	//for TCON/SPINOR
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc0_pins_h>;
 	cs-gpios = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;

@@ -347,10 +347,17 @@ static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
 #define VIDEO_MUTE_OFF		0
 #define VIDEO_MUTE_ON_VPP	1
 #define VIDEO_MUTE_ON_DV	2
+
+#define VIDEO_TESTPATTERN_ON  0
+#define VIDEO_TESTPATTERN_OFF 1
 void set_video_mute(bool on);
 int get_video_mute(void);
 void set_output_mute(bool on);
 int get_output_mute(void);
+void set_vdx_test_pattern(u32 index, bool on, u32 color);
+void get_vdx_test_pattern(u32 index, bool *on, u32 *color);
+void set_postblend_test_pattern(bool on, u32 color);
+void get_postblend_test_pattern(bool *on, u32 *color);
 u32 get_first_pic_coming(void);
 u32 get_toggle_frame_count(void);
 
@@ -362,12 +369,13 @@ u32 get_blackout_pip_policy(void);
 u32 get_blackout_pip2_policy(void);
 void set_video_angle(u32 s_value);
 u32 get_video_angle(void);
+u32 get_video_hold_state(void);
 unsigned int DI_POST_REG_RD(unsigned int addr);
 int DI_POST_WR_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 void DI_POST_UPDATE_MC(void);
 void vsync_notify_videosync(void);
 bool get_video_reverse(void);
-int get_osd_reverse(void);
+/* int get_osd_reverse(void); */
 void vsync_notify_video_composer(void);
 int _video_set_disable(u32 val);
 int _videopip_set_disable(u32 index, u32 val);

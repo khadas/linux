@@ -224,12 +224,12 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 			}
 			nr_isolate_pageblock++;
 		}
+	}
 #ifdef CONFIG_AMLOGIC_CMA
 	if (migratetype == MIGRATE_CMA && page)
 		mod_zone_page_state(page_zone(page), NR_CMA_ISOLATED,
 				    end_pfn - start_pfn);
 #endif /* CONFIG_AMLOGIC_CMA */
-	}
 	return nr_isolate_pageblock;
 undo:
 	for (pfn = start_pfn;

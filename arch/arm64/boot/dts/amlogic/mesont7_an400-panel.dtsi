@@ -4,7 +4,7 @@
  */
 
 / {
-	lcd {
+	lcd:lcd {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
 		index = <0>;
@@ -459,6 +459,17 @@
 					0xff 0 0 0>;
 			backlight_index = <0xff>;
 		};
+
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				lcd0_to_drm: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <0>;
+				};
+			};
+		};
 	};
 
 	backlight{
@@ -806,7 +817,7 @@
 		};
 	};
 
-	lcd1 {
+	lcd1:lcd1 {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
 		index = <1>;
@@ -1215,6 +1226,16 @@
 					0xff 0 0 0>;
 			backlight_index = <0xff>;
 		};
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				lcd1_to_drm: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <0>;
+				};
+			};
+		};
 	};
 
 	backlight1{
@@ -1280,7 +1301,7 @@
 		};
 	};
 
-	lcd2 {
+	lcd2:lcd2 {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
 		index = <2>;

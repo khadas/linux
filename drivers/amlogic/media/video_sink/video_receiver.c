@@ -131,9 +131,9 @@ static inline void common_vf_put(struct video_recv_s *ins,
 	if (vfp && vf) {
 		vf_put(vf, ins->recv_name);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		if (glayer_info[0].display_path_id == ins->path_id &&
-		    is_dolby_vision_enable())
-			dolby_vision_vf_put(vf);
+		if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&
+		    is_amdv_enable())
+			amdv_vf_put(vf);
 #endif
 		ins->notify_flag |= VIDEO_NOTIFY_PROVIDER_PUT;
 	}
@@ -394,12 +394,14 @@ static const struct vframe_receiver_op_s common_recv_func = {
 static int dolby_vision_need_wait_common(struct video_recv_s *ins)
 {
 	struct vframe_s *vf;
+	enum vd_path_e vd_path;
 
-	if (!is_dolby_vision_enable() || !ins)
+	if (!is_amdv_enable() || !ins)
 		return 0;
 
 	vf = common_vf_peek(ins);
-	if (!vf || (dolby_vision_wait_metadata(vf) == 1))
+	vd_path = ins->path_id == VFM_PATH_VIDEO_RENDER0 ? VD1_PATH : VD2_PATH;
+	if (!vf || (amdv_wait_metadata(vf, vd_path) == 1))
 		return 1;
 	return 0;
 }
@@ -494,6 +496,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	s32 drop_count = -1;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	enum vframe_signal_fmt_e fmt;
+	enum vd_path_e vd_path;
 #endif
 
 	if (!ins) {
@@ -508,17 +511,17 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	}
 	vf = common_vf_peek(ins);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (glayer_info[0].display_path_id == ins->path_id &&
-	    is_dolby_vision_enable()) {
+	if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&
+	    is_amdv_enable()) {
 		struct provider_aux_req_s req;
 		u32 i, bl_cnt = 0xffffffff;
 
 		if (vf) {
-			dolby_vision_check_mvc(vf);
-			dolby_vision_check_hdr10(vf);
-			dolby_vision_check_hdr10plus(vf);
-			dolby_vision_check_hlg(vf);
-			dolby_vision_check_primesl(vf);
+			amdv_check_mvc(vf);
+			amdv_check_hdr10(vf);
+			amdv_check_hdr10plus(vf);
+			amdv_check_hlg(vf);
+			amdv_check_primesl(vf);
 		}
 
 		fmt = get_vframe_src_fmt(vf);
@@ -561,7 +564,8 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 	while (vf) {
 		if (!vf->frame_dirty) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-			if (glayer_info[0].display_path_id == ins->path_id &&
+			if ((glayer_info[0].display_path_id == ins->path_id ||
+			    is_multi_dv_mode()) &&
 			    dolby_vision_need_wait_common(ins))
 				break;
 #endif
@@ -573,9 +577,11 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 				common_toggle_frame(ins, vf);
 				toggle_vf = vf;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+				vd_path = ins->path_id == VFM_PATH_VIDEO_RENDER0 ?
+							VD1_PATH : VD2_PATH;
 				if (glayer_info[0].display_path_id ==
-				    ins->path_id)
-					dvel_toggle_frame(vf, true);
+				    ins->path_id || is_multi_dv_mode())
+					dv_toggle_frame(vf, vd_path, true);
 #endif
 			}
 		} else {

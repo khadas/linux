@@ -28,11 +28,16 @@
  * DI api is used for other module
  *********************************/
 static const struct di_ext_ops di_ext = {
-	.di_post_reg_rd             = l_DI_POST_REG_RD,
-	.di_post_wr_reg_bits        = l_DI_POST_WR_REG_BITS,
+	.di_post_reg_rd             = NULL, //l_DI_POST_REG_RD,
+	.di_post_wr_reg_bits        = NULL, //l_DI_POST_WR_REG_BITS,
 	.post_update_mc		    = NULL,
-	.post_keep_cmd_release2		= dim_post_keep_cmd_release2_local,
+	.post_keep_cmd_release2		= dim_post_keep_cmd_release2_local,//NULL, //
 	.polic_cfg			= dim_polic_cfg_local,
+	.pre_vpp_link_display	= dim_pre_vpp_link_display,
+	.pre_vpp_link_check_vf	= dpvpp_check_vf,
+	.pre_vpp_link_check_act = dpvpp_check_di_act,
+	.pre_vpp_link_sw	= dpvpp_sw,
+	.pre_vpp_get_ins_id	= dpvpp_get_ins_id
 };
 
 void dim_attach_to_local(void)

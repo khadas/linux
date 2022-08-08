@@ -589,35 +589,11 @@ void gdc_pwr_remove(struct gdc_pd *pd)
 	}
 }
 
-/**
- *   This function set the GDC power on/off
- *
- *   @param enable - power off/on
- *   @return  0 - success
- *           -1 - fail.
- */
-int gdc_pwr_config(bool enable, u32 dev_type, u32 core_id)
+static void gdc_runtime_pwr(struct meson_gdc_dev_t *gdc_dev,
+			    bool enable, u32 core_id)
 {
-	struct meson_gdc_dev_t *gdc_dev = NULL;
 	struct device *pd_dev;
 	int ret = -1;
-	int clk_type = 0;
-
-	gdc_dev = GDC_DEV_T(dev_type);
-
-	if (!gdc_dev ||
-	    !gdc_dev->clk_core[core_id] ||
-	    !gdc_dev->pdev) {
-		gdc_log(LOG_ERR, "core clk set err or pdev is null.\n");
-		return -1;
-	}
-
-	clk_type = gdc_dev->clk_type;
-
-	if (clk_type == CORE_AXI && !gdc_dev->clk_axi[core_id]) {
-		gdc_log(LOG_ERR, "axi clk set err.\n");
-		return -1;
-	}
 
 	pd_dev = gdc_dev->pd[core_id].dev;
 	/* power */
@@ -629,6 +605,27 @@ int gdc_pwr_config(bool enable, u32 dev_type, u32 core_id)
 		pm_runtime_mark_last_busy(pd_dev);
 		pm_runtime_put_autosuspend(pd_dev);
 	}
+}
+
+static void gdc_clk_config(struct meson_gdc_dev_t *gdc_dev,
+			  bool enable, u32 core_id)
+{
+	int clk_type = 0;
+
+	clk_type = gdc_dev->clk_type;
+
+	if (clk_type == CORE_AXI &&
+	    (!gdc_dev->clk_core[core_id] || !gdc_dev->clk_axi[core_id])) {
+		gdc_log(LOG_ERR, "core-axi clk set err.\n");
+		return;
+	}
+
+	if ((clk_type == MUXGATE_MUXSEL_GATE || clk_type == GATE) &&
+	    !gdc_dev->clk_gate[core_id]) {
+		gdc_log(LOG_ERR, "gate clk set err.\n");
+		return;
+	}
+
 
 	/* clk */
 	if (enable) {
@@ -648,6 +645,53 @@ int gdc_pwr_config(bool enable, u32 dev_type, u32 core_id)
 			clk_disable_unprepare(gdc_dev->clk_gate[core_id]);
 		}
 	}
+}
+
+void gdc_runtime_pwr_all(u32 dev_type, bool enable)
+{
+	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
+	int i;
+
+	if (!gdc_dev) {
+		gdc_log(LOG_ERR, "%s, wrong param\n", __func__);
+		return;
+	}
+	for (i = 0; i < gdc_dev->core_cnt; i++)
+		gdc_runtime_pwr(gdc_dev, enable, i);
+}
+
+void gdc_clk_config_all(u32 dev_type, bool enable)
+{
+	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
+	int i;
+
+	if (!gdc_dev) {
+		gdc_log(LOG_ERR, "%s, wrong param\n", __func__);
+		return;
+	}
+	for (i = 0; i < gdc_dev->core_cnt; i++)
+		gdc_clk_config(gdc_dev, enable, i);
+}
+
+/**
+ *   This function set the GDC power on/off
+ *
+ *   @param enable - power off/on
+ *   @return  0 - success
+ *           -1 - fail.
+ */
+int gdc_pwr_config(bool enable, u32 dev_type, u32 core_id)
+{
+	struct meson_gdc_dev_t *gdc_dev =  GDC_DEV_T(dev_type);
+
+	if (!gdc_dev) {
+		gdc_log(LOG_ERR, "%s, wrong param\n", __func__);
+		return -1;
+	}
+
+	gdc_runtime_pwr(gdc_dev, enable, core_id);
+
+	gdc_clk_config(gdc_dev, enable, core_id);
 
 	gdc_dev->pd[core_id].status = enable;
 

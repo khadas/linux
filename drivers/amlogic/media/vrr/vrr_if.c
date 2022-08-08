@@ -153,6 +153,10 @@ static int aml_vrr_drv_update(void)
 	if (vdrv_active->vrr_dev) {
 		vdata.dev_vfreq_max = vdrv_active->vrr_dev->vfreq_max;
 		vdata.dev_vfreq_min = vdrv_active->vrr_dev->vfreq_min;
+		if (vrr_debug_print & VRR_DBG_PR_NORMAL) {
+			VRRPR("%s: dev_vfreq max:%d, min:%d\n",
+				__func__, vdata.dev_vfreq_max, vdata.dev_vfreq_min);
+		}
 		aml_vrr_atomic_notifier_call_chain(VRR_EVENT_UPDATE, &vdata);
 	}
 
@@ -232,7 +236,7 @@ static struct notifier_block aml_vrr_lfc_notifier = {
 
 int aml_vrr_if_probe(void)
 {
-	aml_vrr_atomic_notifier_register(&aml_vrr_vout_notifier);
+	vout_register_client(&aml_vrr_vout_notifier);
 	aml_vrr_atomic_notifier_register(&aml_vrr_switch_notifier);
 	aml_vrr_atomic_notifier_register(&aml_vrr_lfc_notifier);
 
@@ -242,8 +246,8 @@ int aml_vrr_if_probe(void)
 int aml_vrr_if_remove(void)
 {
 	aml_vrr_atomic_notifier_unregister(&aml_vrr_switch_notifier);
-	aml_vrr_atomic_notifier_unregister(&aml_vrr_vout_notifier);
 	aml_vrr_atomic_notifier_unregister(&aml_vrr_lfc_notifier);
+	vout_unregister_client(&aml_vrr_vout_notifier);
 
 	return 0;
 }

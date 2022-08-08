@@ -967,7 +967,7 @@
 };
 
 &audio_data {
-	status = "disabled";
+	status = "okay";
 };
 
 &crg_udc_2 {

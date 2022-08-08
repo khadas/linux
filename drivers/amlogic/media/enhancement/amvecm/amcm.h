@@ -31,8 +31,8 @@ struct sr1_regs_s {
 extern unsigned int vecm_latch_flag;
 extern unsigned int cm_size;
 extern unsigned int cm2_patch_flag;
-extern int cm_en; /* 0:disabel;1:enable */
-extern int dnlp_en;/*0:disabel;1:enable */
+extern int cm_en; /* 0:disable;1:enable */
+extern int dnlp_en;/*0:disable;1:enable */
 
 extern unsigned int sr1_reg_val[101];
 extern int pq_reg_wr_rdma;

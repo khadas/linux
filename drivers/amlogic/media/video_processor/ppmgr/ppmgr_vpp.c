@@ -2215,7 +2215,10 @@ static void process_vf_rotate(struct vframe_s *vf,
 	pp_vf->angle = cur_angle;
 	new_vf->duration = vf->duration;
 #endif
-
+	new_vf->ready_jiffies64 = vf->ready_jiffies64;
+	new_vf->ready_clock[0] = vf->ready_clock[0];
+	new_vf->ready_clock[1] = vf->ready_clock[1];
+	new_vf->ready_clock[2] = vf->ready_clock[2];
 	new_vf->duration_pulldown = vf->duration_pulldown;
 	new_vf->mem_sec = vf->mem_sec;
 	new_vf->pts = vf->pts;

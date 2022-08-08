@@ -162,6 +162,7 @@ bool dpst_step_set(void)
 	if (di_buf->process_fun_index) {	/*not bypass?*/
 
 		ppost->post_wr_cnt++;
+		ppost->process_doing = true;
 //ary 2020-12-09		spin_lock_irqsave(&plist_lock, flags);
 		dim_post_process(di_buf, 0, vf_p->width - 1,
 				 0, vf_p->height - 1, vf_p);

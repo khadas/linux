@@ -58,6 +58,7 @@
 #define EXTENSION_Y420_VDB_TAG	0xe
 #define EXTENSION_Y420_CMDB_TAG	0xf
 #define EXTENSION_DOLBY_VSADB	0x11
+#define EXTENSION_SCDB_EXT_TAG	0x79
 
 #define EDID_DETAILED_TIMING_DES_BLOCK0_POS 0x36
 #define EDID_DETAILED_TIMING_DES_BLOCK1_POS 0x48
@@ -383,7 +384,8 @@ static void set_vsdb_phy_addr(struct hdmitx_dev *hdev,
 		   ((vsdb->c & 0xf) <<  4) |
 		   ((vsdb->d & 0xf) << 0);
 	hdev->physical_addr = phy_addr;
-	hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID, &phy_addr);
+	if (hdev->tv_usage == 0)
+		hdmitx21_event_notify(HDMITX_PHY_ADDR_VALID, &phy_addr);
 }
 
 static void set_vsdb_dc_cap(struct rx_cap *prxcap)
@@ -436,14 +438,15 @@ static int edid_parse_check_hdmi_vsdb(struct hdmitx_dev *hdev,
 
 	set_vsdb_phy_addr(hdev, &info->vsdb_phy_addr, &buff[blockaddr]);
 	if ((check_fbc_special(&hdev->EDID_buf[0])) ||
-	    (check_fbc_special(&hdev->EDID_buf1[0])))
+	    (check_fbc_special(&hdev->EDID_buf1[0]))) {
 		rx_edid_physical_addr(0, 0, 0, 0);
-	else
-		rx_edid_physical_addr(info->vsdb_phy_addr.a,
+	} else {
+		if (hdev->tv_usage == 0)
+			rx_edid_physical_addr(info->vsdb_phy_addr.a,
 				      info->vsdb_phy_addr.b,
 				      info->vsdb_phy_addr.c,
 				      info->vsdb_phy_addr.d);
-
+	}
 	if (temp_addr >= VSpecificBoundary) {
 		ret = -1;
 	} else {
@@ -1006,10 +1009,10 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->sup_2160p60hz = (dat[pos] >> 1) & 0x1;
 				pos++;
 				dv->sup_global_dimming = dat[pos] & 0x1;
-				dv->tmaxLUM = dat[pos] >> 1;
+				dv->tmax_lum = dat[pos] >> 1;
 				pos++;
 				dv->colorimetry = dat[pos] & 0x1;
-				dv->tminLUM = dat[pos] >> 1;
+				dv->tmin_lum = dat[pos] >> 1;
 				pos++;
 				dv->low_latency = dat[pos] & 0x3;
 				dv->Bx = 0x20 | ((dat[pos] >> 5) & 0x7);
@@ -1032,10 +1035,10 @@ static void _edid_parsingvendspec(struct dv_info *dv,
 				dv->sup_2160p60hz = (dat[pos] >> 1) & 0x1;
 				pos++;
 				dv->sup_global_dimming = dat[pos] & 0x1;
-				dv->tmaxLUM = dat[pos] >> 1;
+				dv->tmax_lum = dat[pos] >> 1;
 				pos++;
 				dv->colorimetry = dat[pos] & 0x1;
-				dv->tminLUM = dat[pos] >> 1;
+				dv->tmin_lum = dat[pos] >> 1;
 				pos += 2; /* byte8 is reserved as 0 */
 				dv->Rx = dat[pos++];
 				dv->Ry = dat[pos++];
@@ -1737,7 +1740,7 @@ static void hdmitx21_edid_parse_hdmi14(struct rx_cap *prxcap,
 	}
 }
 
-static void hdmitx21_edid_parse_hfvsdb(struct rx_cap *prxcap,
+static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 	u8 offset, u8 *blockbuf, u8 count)
 {
 	prxcap->hf_ieeeoui = HDMI_FORUM_IEEE_OUI;
@@ -1746,10 +1749,9 @@ static void hdmitx21_edid_parse_hfvsdb(struct rx_cap *prxcap,
 	prxcap->scdc_rr_capable = !!(blockbuf[offset + 5] & (1 << 6));
 	prxcap->lte_340mcsc_scramble = !!(blockbuf[offset + 5] & (1 << 3));
 	set_vsdb_dc_420_cap(prxcap, &blockbuf[offset]);
-	prxcap->vrr_max = (((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
-				blockbuf[offset + 9];
-	prxcap->vrr_min = (blockbuf[offset + 8] & 0x3f);
-	prxcap->fapa_start_loc = !!(blockbuf[offset + 7] & (1 << 0));
+
+	if (count < 8)
+		return;
 	prxcap->allm = !!(blockbuf[offset + 7] & (1 << 1));
 	prxcap->fva = !!(blockbuf[offset + 7] & (1 << 2));
 	prxcap->neg_mvrr = !!(blockbuf[offset + 7] & (1 << 3));
@@ -1757,6 +1759,16 @@ static void hdmitx21_edid_parse_hfvsdb(struct rx_cap *prxcap,
 	prxcap->mdelta = !!(blockbuf[offset + 7] & (1 << 5));
 	prxcap->qms = !!(blockbuf[offset + 7] & (1 << 6));
 	prxcap->fapa_end_extended = !!(blockbuf[offset + 7] & (1 << 7));
+
+	if (count < 10)
+		return;
+	prxcap->vrr_max = (((blockbuf[offset + 8] & 0xc0) >> 6) << 8) +
+				blockbuf[offset + 9];
+	prxcap->vrr_min = (blockbuf[offset + 8] & 0x3f);
+	prxcap->fapa_start_loc = !!(blockbuf[offset + 7] & (1 << 0));
+
+	if (count < 11)
+		return;
 	prxcap->qms_tfr_min = !!(blockbuf[offset + 10] & (1 << 4));
 	prxcap->qms_tfr_max = !!(blockbuf[offset + 10] & (1 << 5));
 }
@@ -1827,7 +1839,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				prxcap->RxAudioCap[idx + i].freq_cc =
 					blockbuf[offset + i * 3 + 1] & 0x7f;
 				prxcap->RxAudioCap[idx + i].cc3 =
-					blockbuf[offset + i * 3 + 2] & 0x7;
+					blockbuf[offset + i * 3 + 2];
 			}
 			offset += count;
 			break;
@@ -1849,7 +1861,7 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 			} else if ((blockbuf[offset] == 0xd8) &&
 				(blockbuf[offset + 1] == 0x5d) &&
 				(blockbuf[offset + 2] == 0xc4)) {
-				hdmitx21_edid_parse_hfvsdb(prxcap, offset,
+				hdmitx21_edid_parse_hfscdb(prxcap, offset,
 							 blockbuf, count);
 			}
 
@@ -1911,6 +1923,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 				case EXTENSION_DOLBY_VSADB:
 					edid_parsingdolbyvsadb(hdev,
 							     &blockbuf[offset]);
+					break;
+				case EXTENSION_SCDB_EXT_TAG:
+					hdmitx21_edid_parse_hfscdb(prxcap, offset + 1,
+							 blockbuf, count);
 					break;
 				default:
 					break;
@@ -2911,7 +2927,7 @@ void hdmitx21_edid_clear(struct hdmitx_dev *hdmitx_device)
 	hdmitx_device->edid_parsing = 0;
 	hdmitx_edid_set_default_aud(hdmitx_device);
 	rx_set_hdr_lumi(&tmp[0], 2);
-	rx_set_receiver_edid(&tmp[0], 2);
+	//rx_set_receiver_edid(&tmp[0], 2);
 }
 
 /*

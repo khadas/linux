@@ -2920,16 +2920,9 @@ int  destroy_ge2d_work_queue(struct ge2d_context_s *ge2d_work_queue)
 }
 EXPORT_SYMBOL(destroy_ge2d_work_queue);
 
-int ge2d_wq_init(struct platform_device *pdev, int irq, struct clk *clk)
+int ge2d_irq_init(int irq)
 {
-	ge2d_manager.pdev = pdev;
-	ge2d_irq = irq;
-	ge2d_clk = clk;
-
-	ge2d_log_dbg("ge2d: pdev=%p, irq=%d, clk=%p\n",
-		     pdev, irq, clk);
-
-	ge2d_manager.irq_num = request_irq(ge2d_irq,
+	ge2d_manager.irq_num = request_irq(irq,
 					   ge2d_wq_handle,
 					   IRQF_SHARED,
 					   "ge2d",
@@ -2939,6 +2932,22 @@ int ge2d_wq_init(struct platform_device *pdev, int irq, struct clk *clk)
 		return -1;
 	}
 
+	return 0;
+}
+
+int ge2d_wq_init(struct platform_device *pdev, int irq, struct clk *clk)
+{
+	ge2d_manager.pdev = pdev;
+	ge2d_irq = irq;
+	ge2d_clk = clk;
+
+	ge2d_log_dbg("ge2d: pdev=%p, irq=%d, clk=%p\n",
+		     pdev, irq, clk);
+
+#ifndef CONFIG_AMLOGIC_FREERTOS
+	if (ge2d_irq_init(irq) < 0)
+		return -1;
+#endif
 	/* prepare bottom half */
 	spin_lock_init(&ge2d_manager.event.sem_lock);
 	init_completion(&ge2d_manager.event.cmd_in_com);

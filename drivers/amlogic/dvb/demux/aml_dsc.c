@@ -32,6 +32,7 @@
 #include <linux/dvb/dmx.h>
 #include <linux/version.h>
 #include <linux/amlogic/aml_key.h>
+#include <linux/compat.h>
 #include "aml_dvb.h"
 #include "dmx_log.h"
 

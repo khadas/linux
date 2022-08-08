@@ -328,27 +328,34 @@ static unsigned long smcid_skip_list[] = {
 	0x84000008, /* system off */
 	0x84000009, /* system reset */
 	0x8400000E, /* system suspend A32 */
-	0xC4000008, /* system suspend A64 */
+	0xC400000E, /* system suspend A64 */
 };
 
-void notrace smc_trace_start(unsigned long smcid)
+bool notrace is_noret_smcid(unsigned long smcid)
 {
-	unsigned int cpu;
-	int i, ret = 0;
-	unsigned long flags;
-
-	pstore_ftrace_io_tag(0xFFD0, (unsigned long)smcid);
-
-	if (!irq_flg || !irq_check_en || oops_in_progress)
-		return;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(smcid_skip_list); i++) {
-		if (smcid == smcid_skip_list[i]) {
-			ret = 1;
-			break;
-		}
+		if (smcid == smcid_skip_list[i])
+			return true;
 	}
-	if (ret)
+
+	return false;
+}
+
+void notrace smc_trace_start(unsigned long smcid, unsigned long val, bool noret)
+{
+	unsigned int cpu;
+	unsigned long flags;
+
+	if (noret) {
+		pstore_ftrace_io_smc_noret_in(smcid, val);
+		return;
+	}
+
+	pstore_ftrace_io_smc_in(smcid, val);
+
+	if (!irq_flg || !irq_check_en || oops_in_progress)
 		return;
 
 	local_irq_save(flags);
@@ -370,12 +377,12 @@ void notrace smc_trace_start(unsigned long smcid)
 }
 EXPORT_SYMBOL(smc_trace_start);
 
-void notrace smc_trace_stop(void)
+void notrace smc_trace_stop(unsigned long smcid, unsigned long val)
 {
 	unsigned int cpu;
 	unsigned long flags;
 
-	pstore_ftrace_io_tag(0xFFD1, 0);
+	pstore_ftrace_io_smc_out(smcid, val);
 
 	if (!irq_flg || !irq_check_en || oops_in_progress)
 		return;

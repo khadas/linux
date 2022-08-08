@@ -281,7 +281,8 @@ struct DI_MIF_S {
 	unsigned int	canvas_w;
 	/* ary move from parameter to here from sc2 */
 
-	unsigned int hold_line	:8; /*ary: use 6bit*/
+	unsigned int hold_line	:6; /*ary: use 6bit*/
+	unsigned int		reserved	: 1; //for input
 	unsigned int vskip_cnt		:4; /*ary 0~8*/
 	unsigned int urgent		:1;
 	unsigned int wr_en		:1;
@@ -291,6 +292,8 @@ struct DI_MIF_S {
 	unsigned int burst_size_y	:2; //set 3 as default
 	unsigned int burst_size_cb	:2;//set 1 as default
 	unsigned int burst_size_cr	:2;//set 1 as default
+
+	unsigned int linear_fromcvs	: 1; //03-31 for test pre-post link
 	/* ary no use*/
 //	unsigned int nocompress		:1;
 	unsigned int		output_field_num:1;
@@ -301,7 +304,8 @@ struct DI_MIF_S {
 	unsigned int		buf_crop_en : 1;
 	unsigned int		block_mode : 2;
 	unsigned int		dbg_from_dec: 1; //
-	unsigned int reserved		:1;
+	unsigned int		in_dec	: 1; //for input
+	unsigned int	tst_not_setcontr	: 1; //debug for pre-vpp link for di
 	unsigned int	buf_hsize;
 	unsigned int cvs0_w;
 	unsigned int cvs1_w;
@@ -309,9 +313,10 @@ struct DI_MIF_S {
 
 	/**/
 	enum DI_MIF0_ID	mif_index; /* */
+	char *name;
 };
 
-struct DI_SIM_MIF_s {
+struct DI_SIM_MIF_S {
 	unsigned short	start_x;
 	unsigned short	end_x;
 	unsigned short	start_y;
@@ -329,7 +334,9 @@ struct DI_SIM_MIF_s {
 	 *	01 : 3 canvas(old 4:2:0).
 	 *	10: 2 canvas. (NV21).
 	 */
-	unsigned int	set_separate_en	:4; /*ary add below is only for wr buf*/
+	unsigned int	set_separate_en	:2; /*ary add below is only for wr buf*/
+	unsigned int	tst_not_setcontr	: 1; //debug for pre-vpp link for di
+	unsigned int	res3	: 1;
 	/*video_mode :
 	 *	00: 4:2:0;
 	 *	01: 4:2:2;
@@ -348,13 +355,17 @@ struct DI_SIM_MIF_s {
 	unsigned int	linear		: 1;
 	unsigned int	buf_crop_en	: 1;
 	unsigned int	is_dw		: 1;
-	unsigned int	reserved	: 2;
+	unsigned int	rev_x		: 1;	//20220126
+	unsigned int	rev_y		: 1;	//20220126
 	unsigned int	per_bits	: 8; /* for t7 */
 
 	unsigned int	buf_hsize;
 	ulong		addr; //for t7
 	ulong		addr1;
 	ulong		addr2;	// addr2 or hf buffer v_size;
+	//from:struct DI_MC_MIF_s
+	unsigned short blend_en;		//20220126
+	unsigned short vecrd_offset;	//20220126
 	enum DI_MIFS_ID	mif_index; /* */
 };
 
@@ -509,7 +520,7 @@ struct mem_cpy_s {
 	struct AFBCE_S	*out_afbce;
 	struct DI_MIF_S	*in_rdmif;
 	//struct DI_MIF_S	*out_wrmif;
-	struct DI_SIM_MIF_s *out_wrmif;
+	struct DI_SIM_MIF_S *out_wrmif;
 
 	unsigned int hold_line	: 4;
 	unsigned int afbc_en	: 1;
@@ -530,7 +541,7 @@ unsigned int dim_rd_mcdi_fldcnt(void);
 #ifdef MARK_HIS
 void read_new_pulldown_info(struct FlmModReg_t *pFMRegp);
 #endif
-void dim_pulldown_info_clear_g12a(void);
+void dim_pulldown_info_clear_g12a(const struct reg_acc *op);
 void dimh_combing_pd22_window_config(unsigned int width, unsigned int height);
 void dimh_hw_init(bool pulldown_en, bool mc_enable);
 void dimh_hw_uninit(void);
@@ -539,11 +550,11 @@ unsigned int dimh_get_slv_mcvec(void);
 void dimh_enable_di_pre_aml(struct DI_MIF_S	*di_inp_mif,
 			    struct DI_MIF_S	*di_mem_mif,
 			    struct DI_MIF_S	*di_chan2_mif,
-			    struct DI_SIM_MIF_s	*di_nrwr_mif,
-			    struct DI_SIM_MIF_s	*di_mtnwr_mif,
-			    struct DI_SIM_MIF_s	*di_contp2rd_mif,
-			    struct DI_SIM_MIF_s	*di_contprd_mif,
-			    struct DI_SIM_MIF_s	*di_contwr_mif,
+			    struct DI_SIM_MIF_S	*di_nrwr_mif,
+			    struct DI_SIM_MIF_S	*di_mtnwr_mif,
+			    struct DI_SIM_MIF_S	*di_contp2rd_mif,
+			    struct DI_SIM_MIF_S	*di_contprd_mif,
+			    struct DI_SIM_MIF_S	*di_contwr_mif,
 			    unsigned char madi_en,
 			    unsigned char pre_field_num,
 			    unsigned char pre_vdin_link,
@@ -571,8 +582,8 @@ void dimh_initial_di_post_2(int hsize_post, int vsize_post,
 void dimh_enable_di_post_2(struct DI_MIF_S *di_buf0_mif,
 			   struct DI_MIF_S *di_buf1_mif,
 			   struct DI_MIF_S *di_buf2_mif,
-			   struct DI_SIM_MIF_s *di_diwr_mif,
-			   struct DI_SIM_MIF_s *di_mtnprd_mif,
+			   struct DI_SIM_MIF_S *di_diwr_mif,
+			   struct DI_SIM_MIF_S *di_mtnprd_mif,
 			   int ei_en, int blend_en, int blend_mtn_en,
 			   int blend_mode, int di_vpp_en,
 			   int di_ddr_en, int post_field_num,
@@ -583,8 +594,8 @@ void dimh_enable_di_post_2(struct DI_MIF_S *di_buf0_mif,
 void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 			     struct DI_MIF_S *di_buf1_mif,
 			     struct DI_MIF_S *di_buf2_mif,
-			     struct DI_SIM_MIF_s *di_diwr_mif,
-			     struct DI_SIM_MIF_s *di_mtnprd_mif,
+			     struct DI_SIM_MIF_S *di_diwr_mif,
+			     struct DI_SIM_MIF_S *di_mtnprd_mif,
 			     struct DI_MC_MIF_s	*di_mcvecrd_mif,
 			     int ei_en, int blend_en,
 			     int blend_mtn_en, int blend_mode,
@@ -598,8 +609,8 @@ void dimh_post_switch_buffer(struct DI_MIF_S *di_buf0_mif,
 struct pst_cfg_afbc_s {
 	struct di_buf_s *buf_mif[3];
 	struct di_buf_s *buf_o;
-	struct DI_SIM_MIF_s    *di_diwr_mif;
-	struct DI_SIM_MIF_s    *di_mtnprd_mif;
+	struct DI_SIM_MIF_S    *di_diwr_mif;
+	struct DI_SIM_MIF_S    *di_mtnprd_mif;
 	int ei_en;
 	int blend_en;
 	int blend_mtn_en;
@@ -718,29 +729,56 @@ struct regs_t {
 	char *name;
 };
 
-/* use this to replace vframe_s in di */
-struct dvfm_s {
+struct dsub_vf_s {
 	/*from vframe_s */
 	unsigned int type;
 	unsigned int canvas0Addr;
 	unsigned int canvas1Addr;
-	unsigned int compHeadAddr;
-	unsigned int compBodyAddr;
+	unsigned long compHeadAddr;	//afbc_addr
+	unsigned long compBodyAddr;
 	unsigned int plane_num;
-	struct canvas_config_s canvas0_config[2];
+	struct canvas_config_s canvas0_config[3];
 	unsigned int width;
 	unsigned int height;
 	unsigned int bitdepth;
 	unsigned int flag;
 	void *decontour_pre;
+	unsigned int source_type;
+
+	u32 video_angle;
+	u32 signal_type;
+	enum tvin_sig_fmt_e sig_fmt;
+
+	void *mem_handle;	/* di use this for struct dim_mm_blk_s */
+};
+
+/* use this to replace vframe_s in di */
+struct dvfm_s {
+	struct dsub_vf_s vfs;
 
 	/* below is for di */
+	unsigned long afbct_adr;//for afbce;
 	unsigned int nub_in_frm;// 1~ xx
 	unsigned int vfm_type_in;
 	unsigned int sts_di; /* dbg only */
 	unsigned int cvs_nu[2];//tmp
 	unsigned int buf_hsize;
 	bool is_dw;
+	bool is_dec;/* add for mif_cfg_v2 */
+	bool is_prvpp_link;
+	bool is_p_pw;
+	bool is_itf_vfm;//
+	bool is_itf_ins_local;
+	bool	flg_afbce_set;//afbce from di_buf_s
+	bool	afbce_out_yuv420_10; //afbce from di_buf_s
+	bool	is_in_linear;	//tmp for input or out put linear.
+	bool	is_linear;	//for ic is linear or not
+	bool	en_win;	/**/
+	struct di_win_s win;
+	unsigned int src_w;//temp
+	unsigned int src_h; //temp
+	void *vf_ext;
+	unsigned int sum_reg_cnt;
 };
 
 struct di_buf_s;
@@ -752,13 +790,21 @@ struct dim_hw_opsv_s {
 	void (*pre_mif_set)(struct DI_MIF_S *mif,
 			    enum DI_MIF0_ID mif_index,
 			    const struct reg_acc *op);
+	void (*mif_rd_update_addr)(struct DI_MIF_S *mif, enum DI_MIF0_ID mif_index,
+		   const struct reg_acc *opin); /* pre-vpp link */
+	void (*set_wrmif_pp)(struct DI_MIF_S *mif,
+				const struct reg_acc *ops,
+				enum EDI_MIFSM mifsel); /* for pre-vpp link */
+	void (*wrmif_update_addr)(struct DI_MIF_S *mif,
+				const struct reg_acc *ops,
+				enum EDI_MIFSM mifsel); /* for pre-vpp link */
 	void (*pst_mif_set)(struct DI_MIF_S *mif,
 			    enum DI_MIF0_ID mif_index,
 			    const struct reg_acc *op);
 	void (*pst_mif_update_csv)(struct DI_MIF_S *mif,
 				   enum DI_MIF0_ID mif_index,
 				   const struct reg_acc *op);
-	void (*pre_mif_sw)(bool enable);
+	void (*pre_mif_sw)(bool enable, const struct reg_acc *op);
 	void (*pst_mif_sw)(bool on, enum DI_MIF0_SEL sel);
 	void (*pst_mif_rst)(enum DI_MIF0_SEL sel);
 	void (*pst_mif_rev)(bool rev, enum DI_MIF0_SEL sel);
@@ -768,19 +814,19 @@ struct dim_hw_opsv_s {
 				 unsigned char if1,
 				 unsigned char if2,
 				 unsigned char post_wr);
-	void (*wr_cfg_mif)(struct DI_SIM_MIF_s *wr_mif,
+	void (*wr_cfg_mif)(struct DI_SIM_MIF_S *wr_mif,
 			   enum EDI_MIFSM index,
 			   /*struct di_buf_s *di_buf,*/
 			   void *di_vf,
 			   struct di_win_s *win);
-	void (*wr_cfg_mif_dvfm)(struct DI_SIM_MIF_s *wr_mif,
-			enum EDI_MIFSM index,
-			struct dvfm_s *dvfm,
-			struct di_win_s *win);
-	void (*wrmif_set)(struct DI_SIM_MIF_s *cfg_mif,
+	void (*wr_cfg_mif_dvfm)(struct DI_SIM_MIF_S *wr_mif,
+				enum EDI_MIFSM index,
+				struct dvfm_s *dvfm,
+				struct di_win_s *win);
+	void (*wrmif_set)(struct DI_SIM_MIF_S *cfg_mif,
 			  const struct reg_acc *ops,
 			  enum EDI_MIFSM mifsel);
-	void (*wrmif_sw_buf)(struct DI_SIM_MIF_s *cfg_mif,
+	void (*wrmif_sw_buf)(struct DI_SIM_MIF_S *cfg_mif,
 			     const struct reg_acc *ops,
 			     enum EDI_MIFSM mifsel);
 	void (*shrk_set)(struct SHRK_S *srkcfg,
@@ -789,13 +835,13 @@ struct dim_hw_opsv_s {
 	/* for t7 */
 	void (*pre_ma_mif_set)(void *ppre,
 			       unsigned short urgent);
-	void (*post_mtnrd_mif_set)(struct DI_SIM_MIF_s *mtnprd_mif);
+	void (*post_mtnrd_mif_set)(struct DI_SIM_MIF_S *mtnprd_mif);
 	void (*pre_enable_mc)(struct DI_MC_MIF_s *mcinford_mif,
 				       struct DI_MC_MIF_s *mcinfowr_mif,
 				       struct DI_MC_MIF_s *mcvecwr_mif,
 				       unsigned char mcdi_en);
 	/* from t3:*/
-	bool (*aisr_pre)(struct DI_SIM_MIF_s *mif, bool sel, bool para);
+	bool (*aisr_pre)(struct DI_SIM_MIF_S *mif, bool sel, bool para);
 	void (*aisr_disable)(void);
 	void (*wrmif_trig)(enum EDI_MIFSM mifsel);
 	void (*wr_rst_protect)(bool on);
@@ -908,8 +954,63 @@ void dimh_set_crc_init(int count);
 
 void dw_fill_outvf(struct vframe_s *vfm,
 		   struct di_buf_s *di_buf);
+/* hw_v3:*/
+struct DI_PREPST_S {
+	struct DI_MIF_S   *inp_mif;	 // PRE  : current input date
+	struct DI_MIF_S   *mem_mif;     // PRE  : pre 2 data
+	struct DI_MIF_S   *chan2_mif;     // PRE  : pre 1 data
+	struct DI_MIF_S   *nrwr_mif;     // PRE  : nr write
+	struct DI_SIM_MIF_S   *mtnwr_mif;     // PRE  : motion write
+	struct DI_SIM_MIF_S   *contp2rd_mif;     // PRE  : 1bit motion read p2
+	struct DI_SIM_MIF_S   *contprd_mif;     // PRE  : 1bit motion read p1
+	struct DI_SIM_MIF_S   *contwr_mif;     // PRE  : 1bit motion write
+	struct DI_SIM_MIF_S   *mcinford_mif;     // PRE  : mcdi lmv info read
+	struct DI_SIM_MIF_S   *mcinfowr_mif;     // PRE  : mcdi lmv info write
+	struct DI_SIM_MIF_S   *mcvecwr_mif;     // PRE  : mcdi motion vector write
+	struct DI_MIF_S   *if1_mif;     // POST : pre field data
+	struct DI_MIF_S   *diwr_mif;     // POST : post write
+	struct DI_SIM_MIF_S   *mcvecrd_mif;     // POST : mc vector read
+	struct DI_SIM_MIF_S   *mtnrd_mif;     // POST : motion read
 
-void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_s *mif,
+	unsigned int link_vpp	: 1;
+	unsigned int post_wr_en : 1;
+	unsigned int cont_ini_en : 1;
+	unsigned int mcinfo_rd_en : 1;
+	unsigned int pre_field_num : 1;     //
+	unsigned int mc_en	: 1;
+	unsigned int rev1	: 2;
+	unsigned int hold_line : 8;
+	/* ary add:*/
+	unsigned char cvs_nub_inp[2];
+	unsigned char cvs_nub_mem[2];
+	unsigned char cvs_nub_chan2[2];
+	unsigned char cvs_nub_nr[2];
+	unsigned char cvs_nub_wr[2];
+	unsigned char cvs_nub_if1[2];
+	unsigned char cvs_nub_mtnw;
+	unsigned char cvs_nub_contp2rd;
+	unsigned char cvs_nub_contprd;
+	unsigned char cvs_nub_contwr;
+	unsigned char cvs_nub_mcrd;
+	unsigned char cvs_nub_mcwr;
+	unsigned char cvs_nub_mvwr;
+	unsigned char cvs_nub_mvrd;
+	unsigned char cvs_nub_mtnrd;
+
+	struct canvas_config_s *bmtnw;
+	struct canvas_config_s *bmtnr;
+	struct canvas_config_s *bmcwr;
+	struct canvas_config_s *bmcrd;
+	struct canvas_config_s *bmvwr;
+	struct canvas_config_s *bmvrd;
+	struct canvas_config_s *bcontp2rd;
+	struct canvas_config_s *bcontprd;
+	struct canvas_config_s *bcontwr;
+};
+
+unsigned int dw_get_h(void);
+
+void di_mif1_linear_rd_cfg(struct DI_SIM_MIF_S *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,
 			unsigned int BADDR);
@@ -920,7 +1021,7 @@ void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 bool dip_is_linear(void);
 bool dim_dbg_cfg_post_byapss(void);
 void dbg_reg_mem(unsigned int dbgid);
-bool dim_aisr_test(struct DI_SIM_MIF_s *mif, bool sel);//test only
+bool dim_aisr_test(struct DI_SIM_MIF_S *mif, bool sel);//test only
 extern const struct reg_acc di_pst_regset;
 
 void set_sc2overlap_table(unsigned int addr, unsigned int value,

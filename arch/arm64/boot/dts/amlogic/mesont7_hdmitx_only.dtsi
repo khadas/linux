@@ -316,7 +316,7 @@
 		out_base_func = <0x82000021>;
 		inout_size_func = <0x8200002a>;
 		reserve_mem_size = <0x03300000>;
-		clear_range = <0x05100000 0x200000>;
+		clear_range = <0x05100000 0x2a00000>;
 	};
 
 	cma_shrinker: cma_shrinker {
@@ -2417,8 +2417,9 @@
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
-		interrupts = <0 204 4>;
-		interrupt-names = "hdmitx_hpd";
+		interrupts = <0 204 4
+			0 197 1>;
+		interrupt-names = "hdmitx_hpd", "vrr_vsync";
 		enc_idx = <0>;
 		reg =	<0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe380000 0x0 0x10000>,
@@ -2473,15 +2474,16 @@
 		port_num = <4>;
 		output = <1>;
 		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
-		/*ee_cec;*/ /*use cec a or b*/
+		ee_cec; /*use cec a or b*/
 		arc_port_mask = <0x2>;
 		interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING/*0:snps*/
 			GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
+		/* only CEC_A pin on board for CEC */
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
 		pinctrl-0=<&cec_a>;
-		pinctrl-1=<&cec_b>;
-		pinctrl-2=<&cec_b>;
+		pinctrl-1=<&cec_a>;
+		pinctrl-2=<&cec_a>;
 		clocks = <&clkc CLKID_CECA_32K_CLKOUT>,
 			<&clkc CLKID_CECB_32K_CLKOUT>;
 		clock-names = "ceca_clk","cecb_clk";
@@ -3102,9 +3104,9 @@
 		compatible = "amlogic, vecm-t7";
 		dev_name = "aml_vecm";
 		/*status = "okay";*/
-		/*gamma_en = <1>;*/ /*1:enabel ;0:disable*/
-		/*wb_en = <1>;*/ /*1:enabel ;0:disable*/
-		/*cm_en = <1>;*/ /*1:enabel ;0:disable*/
+		/*gamma_en = <1>;*/ /*1:enable ;0:disable*/
+		/*wb_en = <1>;*/ /*1:enable ;0:disable*/
+		/*cm_en = <1>;*/ /*1:enable ;0:disable*/
 		/*wb_sel = <0>;*/ /*1:mtx ;0:gainoff*/
 		/*vlock_en = <1>;*/ /*1:enable;0:disable*/
 		/*vlock_mode = <0x8>;*/

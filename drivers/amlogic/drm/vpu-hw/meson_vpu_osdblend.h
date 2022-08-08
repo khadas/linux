@@ -55,7 +55,7 @@ enum osd_channel_e {
 	OSD_CHANNEL1 = 1,
 	OSD_CHANNEL2,
 	OSD_CHANNEL3,
-	OSD_CHANNEL_NUM
+	OSD_CHANNEL_NUM = 0
 };
 
 struct osd_dummy_data_s {

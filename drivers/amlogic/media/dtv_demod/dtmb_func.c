@@ -401,7 +401,7 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 	union DTMB_TOP_CTRL_SW_RST_BITS sw_rst;
 	unsigned int value_before;
-	int fec_bch_add, i, strenth;
+	int fec_bch_add, i, strength;
 	char *info1 = "fec lock,but bch add ,need reset,wait not to reset";
 	char *info2 = "fec lock,but bch add ,need reset,now is lock";
 
@@ -444,11 +444,11 @@ int dtmb_bch_check(struct dvb_frontend *fe)
 				return 0;
 			}
 			if (i % 2 == 0) {
-				strenth = tuner_get_ch_power(fe);
-				if (strenth < THRD_TUNER_STRENTH_DTMB) {
+				strength = tuner_get_ch_power(fe);
+				if (strength < THRD_TUNER_STRENTH_DTMB) {
 					/*weak signal,return*/
-					PR_DTMB("%s strenth=%d, return\n",
-						 __func__, strenth);
+					PR_DTMB("%s strength=%d, return\n",
+						 __func__, strength);
 					return 0;
 				}
 			}

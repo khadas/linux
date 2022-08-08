@@ -1600,7 +1600,7 @@ static void aml_set_spdifclk(struct aml_spdif *p_spdif)
 		while (mpll_freq > AML_MPLL_FREQ_MAX)
 			mpll_freq = mpll_freq >> 1;
 
-		if (!strcmp(clk_name, "hifipll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
 			if (p_spdif->syssrc_clk_rate)
 				clk_set_rate(p_spdif->sysclk,
 					p_spdif->syssrc_clk_rate);

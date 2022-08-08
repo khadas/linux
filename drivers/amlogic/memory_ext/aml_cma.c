@@ -124,6 +124,7 @@ EXPORT_SYMBOL(cma_page_count_update);
 #define RESTRIC_ANON	0
 #define ANON_RATIO	60
 bool cma_first_wm_low __read_mostly;
+bool no_filecache_in_cma __read_mostly;
 
 static int __init early_cma_first_wm_low_param(char *buf)
 {
@@ -142,6 +143,23 @@ static int __init early_cma_first_wm_low_param(char *buf)
 
 early_param("cma_first_wm_low", early_cma_first_wm_low_param);
 
+static int __init early_no_filecache_in_cma_param(char *buf)
+{
+	if (!buf)
+		return -EINVAL;
+
+	if (strcmp(buf, "off") == 0)
+		no_filecache_in_cma = false;
+	else if (strcmp(buf, "on") == 0)
+		no_filecache_in_cma = true;
+
+	pr_info("no_filecache_in_cma %sabled\n", no_filecache_in_cma ? "en" : "dis");
+
+	return 0;
+}
+
+early_param("no_filecache_in_cma", early_no_filecache_in_cma_param);
+
 bool can_use_cma(gfp_t gfp_flags)
 {
 #if RESTRIC_ANON
@@ -158,6 +176,9 @@ bool can_use_cma(gfp_t gfp_flags)
 		return false;
 
 	if (task_nice(current) > 0)
+		return false;
+
+	if (no_filecache_in_cma && gfp_flags & __GFP_NO_FC_IN_CMA)
 		return false;
 
 #if RESTRIC_ANON
@@ -202,7 +223,7 @@ static void update_cma_page_trace(struct page *page, unsigned long cnt)
 
 	fun = find_back_trace();
 	if (cma_alloc_trace)
-		pr_info("%s alloc page:%lx, count:%ld, func:%ps\n", __func__,
+		pr_info("c a p:%lx, c:%ld, f:%ps\n",
 			page_to_pfn(page), cnt, (void *)fun);
 	for (i = 0; i < cnt; i++) {
 		set_page_trace(page, 0, __GFP_NO_CMA, (void *)fun);
@@ -239,7 +260,7 @@ void aml_cma_release_hook(int count, struct page *pages)
 {
 #ifdef CONFIG_AMLOGIC_PAGE_TRACE
 	if (cma_alloc_trace)
-		pr_info("%s free page:%lx, count:%d, func:%ps\n", __func__,
+		pr_info("c f p:%lx, c:%d, f:%ps\n",
 			page_to_pfn(pages), count, (void *)find_back_trace());
 #endif /* CONFIG_AMLOGIC_PAGE_TRACE */
 	atomic_long_sub(count, &nr_cma_allocated);

@@ -207,7 +207,7 @@
 /*g12a new add reg*/
 #define VD1_AFBCD0_MISC_CTRL 0x1a0a
 #define VD2_AFBCD1_MISC_CTRL 0x1a0b
-#define DOLBY_PATH_CTRL 0x1a0c
+#define AMDV_PATH_CTRL 0x1a0c
 #define WR_BACK_MISC_CTRL 0x1a0d
 
 #define VD1_BLEND_SRC_CTRL 0x1dfb

@@ -17,7 +17,7 @@
 #include <linux/amlogic/efuse.h>
 #include <linux/io.h>
 #include <linux/amlogic/secmon.h>
-
+#include <linux/compat.h>
 #define EFUSE_DEVICE_NAME   "efuse"
 #define EFUSE_CLASS_NAME    "efuse"
 

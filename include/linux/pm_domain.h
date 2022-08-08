@@ -62,6 +62,9 @@
 #define GENPD_FLAG_ACTIVE_WAKEUP (1U << 3)
 #define GENPD_FLAG_CPU_DOMAIN	 (1U << 4)
 #define GENPD_FLAG_RPM_ALWAYS_ON (1U << 5)
+#ifdef CONFIG_AMLOGIC_MODIFY
+#define GENPD_FLAG_IGNORE_UNUSED BIT(6)
+#endif
 
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */

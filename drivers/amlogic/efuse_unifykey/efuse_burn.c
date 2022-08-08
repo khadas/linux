@@ -16,6 +16,7 @@
 #include "efuse.h"
 #include <linux/amlogic/efuse.h>
 #include <linux/io.h>
+#include <linux/compat.h>
 #include "efuse_burn.h"
 
 #define EFUSE_BURN_DEVICE_NAME   "efuse_burn"

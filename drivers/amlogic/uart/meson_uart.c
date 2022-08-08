@@ -89,9 +89,10 @@ unsigned int xtal_tick_en;
 
 struct meson_uart_port {
 	struct uart_port	port;
-	spinlock_t wr_lock;   /* */
+	spinlock_t wr_lock;
 	unsigned long baud;
 	struct pinctrl *p;
+	unsigned long for_bt;
 };
 
 static struct meson_uart_port *meson_ports[AML_UART_PORT_MAX];
@@ -476,6 +477,7 @@ static void meson_uart_release_port(struct uart_port *port)
 static int meson_uart_request_port(struct uart_port *port)
 {
 	struct platform_device *pdev = to_platform_device(port->dev);
+	struct meson_uart_port *mup = to_meson_port(port);
 	struct resource *res;
 	int size, ret;
 	u32 val;
@@ -508,9 +510,16 @@ static int meson_uart_request_port(struct uart_port *port)
 	writel_relaxed(readl_relaxed(port->membase + AML_UART_CONTROL) | UART_CTS_EN,
 			port->membase + AML_UART_CONTROL);
 
-	ret = devm_request_irq(port->dev, port->irq, meson_uart_interrupt,
-							IRQF_SHARED, port->name, port);
-	return 0;
+	if (mup->for_bt)
+		ret = devm_request_threaded_irq(port->dev, port->irq, NULL,
+						meson_uart_interrupt,
+						IRQF_ONESHOT | IRQF_SHARED,
+						meson_uart_type(port), port);
+	else
+		ret = devm_request_irq(port->dev, port->irq,
+				       meson_uart_interrupt,
+				       IRQF_SHARED, port->name, port);
+	return ret;
 
 }
 
@@ -773,6 +782,10 @@ static int meson_uart_probe(struct platform_device *pdev)
 
 	spin_lock_init(&mup->wr_lock);
 	port = &mup->port;
+
+	prop = of_get_property(pdev->dev.of_node, "uart_for_bt", NULL);
+	if (prop)
+		mup->for_bt = of_read_ulong(prop, 1);
 
 //	clk = devm_clk_get(&pdev->dev, "clk_gate");
 //	if (IS_ERR(clk)) {

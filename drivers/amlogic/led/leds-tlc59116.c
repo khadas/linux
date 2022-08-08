@@ -74,6 +74,7 @@
 #include "leds-tlc59116.h"
 
 #define MESON_TLC59116_I2C_NAME			"tlc59116_led"
+#define MESON_LEDS_CDEV_NAME			"i2c_leds"
 #define MESON_TLC59116_VERSION			"v2.0.0"
 
 #define MESON_TLC59116_I2C_RETRIES		5
@@ -709,7 +710,7 @@ static int meson_tlc59116_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, tlc59116);
 	dev_set_drvdata(&i2c->dev, tlc59116);
-	tlc59116->cdev.name = MESON_TLC59116_I2C_NAME;
+	tlc59116->cdev.name = MESON_LEDS_CDEV_NAME;
 	tlc59116->cdev.brightness = 0;
 	tlc59116->cdev.max_brightness = 255;
 	tlc59116->cdev.brightness_set = tlc59116_set_brightness;
@@ -752,7 +753,7 @@ static int meson_tlc59116_suspend(struct device *dev)
 	struct meson_tlc59116 *tlc59116 = i2c_get_clientdata(client);
 
 	if (!tlc59116) {
-		dev_err(tlc59116->dev, "tlc59116 is NULL!\n");
+		dev_err(dev, "tlc59116 is NULL!\n");
 		return -ENXIO;
 	}
 
@@ -774,7 +775,7 @@ static int meson_tlc59116_resume(struct device *dev)
 	struct meson_tlc59116 *tlc59116 = i2c_get_clientdata(client);
 
 	if (!tlc59116) {
-		dev_err(tlc59116->dev, "tlc59116 is NULL!\n");
+		dev_err(dev, "tlc59116 is NULL!\n");
 		return -ENXIO;
 	}
 

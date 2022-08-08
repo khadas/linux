@@ -1067,7 +1067,8 @@ static void aml_card_early_suspend(struct early_suspend *h)
 			bool active_low = priv->spk_mute_active_low;
 			bool value = active_low ? false : true;
 
-			gpio_set_value(gpio, value);
+			if (gpio_is_valid(gpio))
+				gpio_set_value(gpio, value);
 		}
 
 		if (!IS_ERR(priv->avout_mute_desc)) {
@@ -1095,7 +1096,8 @@ static void aml_card_late_resume(struct early_suspend *h)
 			bool active_low = priv->spk_mute_active_low;
 			bool value = active_low ? true : false;
 
-			gpio_set_value(gpio, value);
+			if (gpio_is_valid(gpio))
+				gpio_set_value(gpio, value);
 		}
 
 		if (!IS_ERR(priv->avout_mute_desc)) {

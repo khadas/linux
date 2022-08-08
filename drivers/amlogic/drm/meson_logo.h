@@ -18,7 +18,6 @@ struct am_meson_logo {
 	phys_addr_t start;
 	int panel_index;
 	int vpp_index;
-	int enable;
 	u32 size;
 	u32 width;
 	u32 height;

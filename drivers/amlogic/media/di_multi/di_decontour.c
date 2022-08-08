@@ -794,6 +794,7 @@ irqreturn_t dct_pre_isr(int irq, void *dev_id)
 {
 	struct di_hdct_s  *dct = &get_datal()->hw_dct;
 	ulong flags = 0;
+	unsigned int nub = 0;
 
 	spin_lock_irqsave(&dct_pre, flags);
 	if (!atomic_dec_and_test(&dct->irq_wait)) {
@@ -801,7 +802,9 @@ irqreturn_t dct_pre_isr(int irq, void *dev_id)
 		spin_unlock_irqrestore(&dct_pre, flags);
 		return IRQ_HANDLED;
 	}
-	dim_tr_ops.irq_dct(dct->curr_nins->c.cnt);
+	if (dct->curr_nins)
+		nub = dct->curr_nins->c.cnt;
+	dim_tr_ops.irq_dct(nub);
 	spin_unlock_irqrestore(&dct_pre, flags);
 
 	dbg_dctp("decontour: isr %d\n", atomic_read(&dct->irq_wait));

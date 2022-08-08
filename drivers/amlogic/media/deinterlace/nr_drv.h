@@ -202,19 +202,22 @@ int ver_blk_ofst_calc_sw(int *pVbOfVldCnt,
 			 int nRow,
 			 int nCol);
 /* software parameters initialization before used */
-void adaptive_cue_adjust(unsigned int frame_diff, unsigned int field_diff);
-void nr_hw_init(void);
-void nr_gate_control(bool gate);
-void nr_drv_init(struct device *dev);
-void nr_drv_uninit(struct device *dev);
-void nr_process_in_irq(void);
-void nr_all_config(unsigned short nCol, unsigned short nRow,
-	unsigned short type);
-bool set_nr_ctrl_reg_table(unsigned int addr, unsigned int value);
-void secam_cfr_adjust(unsigned int sig_fmt, unsigned int frame_type);
+//void adaptive_cue_adjust(unsigned int frame_diff, unsigned int field_diff);
+//void nr_hw_init(void);
+//void nr_gate_control(bool gate);
+//void nr_drv_init(struct device *dev);
+//void nr_drv_uninit(struct device *dev);
+//void nr_process_in_irq(void);
+//void nr_all_config(unsigned short nCol, unsigned short nRow,
+//	unsigned short type);
+//bool set_nr_ctrl_reg_table(unsigned int addr, unsigned int value);
+//void secam_cfr_adjust(unsigned int sig_fmt, unsigned int frame_type);
 
-extern void cue_int(struct vframe_s *vf);
+//extern void cue_int(struct vframe_s *vf);
 
 extern bool nr_demo_flag;
+const struct nr_opr_s *di_nr_op(void);
+const struct nr_op_s *di_nr_opl(void);
+
 #endif
 

@@ -14,6 +14,7 @@
 #include <linux/of.h>
 #include <linux/memblock.h>
 #include <linux/random.h>
+#include <linux/compat.h>
 #include "defendkey.h"
 
 #define DEFENDKEY_DEVICE_NAME   "defendkey"

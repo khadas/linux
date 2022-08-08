@@ -16,7 +16,8 @@ enum hdcp_ver_t {
 };
 
 #define HDCP1X_MAX_DEPTH 7
-#define HDCP1X_MAX_TX_DEV 127
+/* maximum ksv fifo: 16*5 bytes */
+#define HDCP1X_MAX_TX_DEV 16 //127
 #define HDCP1X_MAX_RPTR_DEV 32
 
 #define HDCP2X_MAX_DEV 31

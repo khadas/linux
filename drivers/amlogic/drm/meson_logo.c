@@ -108,13 +108,11 @@ static int am_meson_logo_info_update(struct meson_drm *priv)
 	return 0;
 }
 
-static int am_meson_logo_init_fb(struct drm_device *dev, int idx)
+static int am_meson_logo_init_fb(struct drm_device *dev,
+		struct drm_framebuffer *fb, int idx)
 {
-	struct drm_mode_fb_cmd2 mode_cmd;
-	struct drm_framebuffer *fb;
 	struct am_meson_fb *meson_fb;
 	struct am_meson_logo *slogo;
-	struct meson_drm *private = dev->dev_private;
 	u32 sizes[3] = {0, 2, 3};
 	int ret = 0;
 
@@ -140,9 +138,8 @@ static int am_meson_logo_init_fb(struct drm_device *dev, int idx)
 	if (!strcmp("null", slogo->outputmode) ||
 		!strcmp("dummy_l", slogo->outputmode)) {
 		DRM_ERROR("NULL MODE or DUMMY MODE, nothing to do.");
-		slogo->enable = 0;
-		ret = -EINVAL;
-		goto err;
+		kfree(slogo);
+		return -EINVAL;
 	}
 
 	ret = of_property_read_u32_array(dev->dev->of_node,
@@ -153,41 +150,16 @@ static int am_meson_logo_init_fb(struct drm_device *dev, int idx)
 	slogo->logo_page = logo.logo_page;
 	slogo->panel_index = sizes[idx];
 	slogo->vpp_index = idx;
-	slogo->enable = 1;
 
-	DRM_INFO("logo[%d-%d] width=%d,height=%d,start_addr=0x%pa,size=%d\n",
-		 idx, slogo->enable, slogo->width, slogo->height, &slogo->start, slogo->size);
+	DRM_INFO("logo%d width=%d,height=%d,start_addr=0x%pa,size=%d\n",
+		 idx, slogo->width, slogo->height, &slogo->start, slogo->size);
 	DRM_INFO("bpp=%d,alloc_flag=%d, osd_reverse=%d\n",
 		 slogo->bpp, slogo->alloc_flag, slogo->osd_reverse);
 	DRM_INFO("outputmode=%s\n", slogo->outputmode);
 
-	if (slogo->bpp == 16)
-		mode_cmd.pixel_format = DRM_FORMAT_RGB565;
-	else if (slogo->bpp == 24)
-		mode_cmd.pixel_format = DRM_FORMAT_RGB888;
-	else
-		mode_cmd.pixel_format = DRM_FORMAT_XRGB8888;
-
-	mode_cmd.offsets[0] = 0;
-	mode_cmd.width = slogo->width;
-	mode_cmd.height = slogo->height;
-	mode_cmd.modifier[0] = DRM_FORMAT_MOD_LINEAR;
-	/*ToDo*/
-	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * slogo->bpp, 32) / 8;
-	fb = am_meson_fb_alloc(dev, &mode_cmd, NULL);
-	if (IS_ERR_OR_NULL(fb)) {
-		ret = -EFAULT;
-		goto err;
-	}
-
 	meson_fb = to_am_meson_fb(fb);
 	meson_fb->logo = slogo;
-	private->logos[idx] = meson_fb;
 
-	return ret;
-
-err:
-	kfree(slogo);
 	return ret;
 }
 
@@ -272,6 +244,48 @@ static int am_meson_update_output_state(struct drm_atomic_state *state,
 	return 0;
 }
 
+static int _am_meson_occupy_plane_config(struct drm_atomic_state *state,
+					struct drm_mode_set *set)
+{
+	struct drm_crtc *crtc = set->crtc;
+	struct meson_drm *private = crtc->dev->dev_private;
+	struct am_osd_plane *osd_plane;
+	struct drm_plane_state *plane_state;
+	int i, hdisplay, vdisplay, ret;
+
+	for (i = 0; i < MESON_MAX_OSD; i++) {
+		osd_plane = private->osd_planes[i];
+		if (!osd_plane || osd_plane->osd_occupied)
+			break;
+	}
+
+	if (!osd_plane || !osd_plane->osd_occupied)
+		return 0;
+
+	plane_state = drm_atomic_get_plane_state(state, &osd_plane->base);
+	if (IS_ERR(plane_state))
+		return PTR_ERR(plane_state);
+
+	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+	if (ret != 0)
+		return ret;
+
+	drm_mode_get_hv_timing(set->mode, &hdisplay, &vdisplay);
+	drm_atomic_set_fb_for_plane(plane_state, set->fb);
+	plane_state->crtc_x = 0;
+	plane_state->crtc_y = 0;
+	plane_state->crtc_w = hdisplay;
+	plane_state->crtc_h = vdisplay;
+	plane_state->src_x = 0;
+	plane_state->src_y = 0;
+	plane_state->src_w = 1280/*set->fb->width*/ << 16;
+	plane_state->src_h = 720/*set->fb->height*/ << 16;
+	plane_state->alpha = 1;
+	plane_state->zpos = 128;
+
+	return 0;
+}
+
 /*simaler with __drm_atomic_helper_set_config,
  *TODO:sync with __drm_atomic_helper_set_config
  */
@@ -285,8 +299,8 @@ int __am_meson_drm_set_config(struct drm_mode_set *set,
 	struct am_meson_crtc_state *meson_crtc_state;
 	struct am_osd_plane *osd_plane;
 	struct am_meson_fb *meson_fb;
-	int hdisplay, vdisplay;
-	int ret;
+	int hdisplay, vdisplay, ret;
+	unsigned int zpos = OSD_PLANE_BEGIN_ZORDER;
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
 	if (IS_ERR(crtc_state))
@@ -357,6 +371,7 @@ int __am_meson_drm_set_config(struct drm_mode_set *set,
 	plane_state->crtc_h = vdisplay;
 	plane_state->src_x = set->x << 16;
 	plane_state->src_y = set->y << 16;
+	plane_state->zpos = zpos + osd_plane->plane_index;
 
 	switch (logo.osd_reverse) {
 	case 1:
@@ -393,6 +408,9 @@ int __am_meson_drm_set_config(struct drm_mode_set *set,
 			plane_state->src_h = set->fb->height << 16;
 	}
 
+	if (meson_fb->logo->vpp_index == VPP0)
+		_am_meson_occupy_plane_config(state, set);
+
 commit:
 	ret = am_meson_update_output_state(state, set);
 	if (ret)
@@ -427,7 +445,8 @@ fail:
 	return ret;
 }
 
-static void am_meson_load_logo(struct drm_device *dev, int idx)
+static void am_meson_load_logo(struct drm_device *dev,
+	struct drm_framebuffer *fb, int idx)
 {
 	struct drm_mode_set set;
 	struct drm_display_mode *mode;
@@ -445,12 +464,12 @@ static void am_meson_load_logo(struct drm_device *dev, int idx)
 		return;
 	}
 
-	if (am_meson_logo_init_fb(dev, idx)) {
+	if (am_meson_logo_init_fb(dev, fb, idx)) {
 		DRM_INFO("vout%d logo is disabled!\n", idx + 1);
 		return;
 	}
 
-	meson_fb = private->logos[idx];
+	meson_fb = to_am_meson_fb(fb);
 	/*init all connecotr and found matched uboot mode.*/
 	found = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -511,8 +530,6 @@ static void am_meson_load_logo(struct drm_device *dev, int idx)
 	ctx = dev->mode_config.acquire_ctx;
 	if (am_meson_drm_set_config(&set, ctx, meson_fb->logo->panel_index))
 		DRM_INFO("[%s]am_meson_drm_set_config fail\n", __func__);
-	if (drm_framebuffer_read_refcount(&meson_fb->base) > 1)
-		drm_framebuffer_put(&meson_fb->base);
 	drm_modeset_unlock_all(dev);
 
 	kfree(connector_set);
@@ -520,6 +537,8 @@ static void am_meson_load_logo(struct drm_device *dev, int idx)
 
 void am_meson_logo_init(struct drm_device *dev)
 {
+	struct drm_mode_fb_cmd2 mode_cmd;
+	struct drm_framebuffer *fb;
 	struct meson_drm *private = dev->dev_private;
 	struct platform_device *pdev = to_platform_device(private->dev);
 #ifdef CONFIG_CMA
@@ -590,13 +609,39 @@ void am_meson_logo_init(struct drm_device *dev)
 	if (!logo.bpp)
 		logo.bpp = 16;
 
-	/*Todo: the condition may need change according to the boot args*/
-	if (strmode && !strcmp("4", strmode)) {
-		DRM_INFO("current is strmode\n");
-	} else {
-		for (i = 0; i < MESON_MAX_CRTC; i++)
-			am_meson_load_logo(dev, i);
+	if (logo.bpp == 16)
+		mode_cmd.pixel_format = DRM_FORMAT_RGB565;
+	else if (logo.bpp == 24)
+		mode_cmd.pixel_format = DRM_FORMAT_RGB888;
+	else
+		mode_cmd.pixel_format = DRM_FORMAT_XRGB8888;
+
+	mode_cmd.offsets[0] = 0;
+	mode_cmd.width = logo.width;
+	mode_cmd.height = logo.height;
+	mode_cmd.modifier[0] = DRM_FORMAT_MOD_LINEAR;
+	/*ToDo*/
+	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * logo.bpp, 32) / 8;
+	fb = am_meson_fb_alloc(dev, &mode_cmd, NULL);
+	if (IS_ERR_OR_NULL(fb)) {
+		DRM_ERROR("drm fb allocate failed\n");
+		private->logo_show_done = true;
+		return;
 	}
+
+	/*Todo: the condition may need change according to the boot args*/
+	if (strmode && !strcmp("4", strmode))
+		DRM_INFO("current is strmode\n");
+	else
+		for (i = 0; i < MESON_MAX_CRTC; i++)
+			am_meson_load_logo(dev, fb, i);
+
+	if (drm_framebuffer_read_refcount(fb) > 1)
+		drm_framebuffer_put(fb);
+	DRM_INFO("drm_fb[id:%d,ref:%d]\n", fb->base.id,
+	 kref_read(&fb->base.refcount));
+
+	private->logo_show_done = true;
 
 	DRM_INFO("%s end\n", __func__);
 }

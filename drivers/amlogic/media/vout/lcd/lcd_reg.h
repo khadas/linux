@@ -1148,6 +1148,7 @@
 #define ENCL_INBUF_CNT                             0x1cd5
 
 #define VPU_VENC_CTRL                              0x1cef
+#define VPP_INT_LINE_NUM                           0x1dce
 #define VPU_DISP_VIU0_CTRL                         0x2786
 #define VPU_DISP_VIU1_CTRL                         0x2787
 #define VPU_DISP_VIU2_CTRL                         0x2788
@@ -1533,7 +1534,7 @@
  * [2]  force data byte lane 0 in receiver mode.
  * [1]  write 1 to sync the txclkesc input. the internal logic have to
  *	use txclkesc to decide Txvalid and Txready.
- * [0]  enalbe the MIPI DSI PHY TxDDRClk.
+ * [0]  enable the MIPI DSI PHY TxDDRClk.
  */
 #define MIPI_DSI_PHY_CTRL       0x0
 /* [31] clk lane tx_hs_en control selection.

@@ -449,7 +449,7 @@ static int s4dw_buf_init(struct di_ch_s *pch)
 		if ((mm->cfg.pbuf_flg.b.typ & 0x8) ==
 			   EDIM_BLK_TYP_POUT) {
 			//move all to wait:
-			di_buf_no2wait(pch);
+			di_buf_no2wait(pch, mm->cfg.num_post);
 		} else if (mm->cfg.pbuf_flg.b.page) {//@ary_note: ??
 			/* post */
 			blk_cmd.cmd = ECMD_BLK_ALLOC;
@@ -1841,9 +1841,9 @@ static void s4dw_pre_set(unsigned int channel)
 		if (cfgg(LINEAR)) {
 			ppre->di_nrwr_mif.linear = 1;
 			ppre->di_nrwr_mif.addr =
-				ppre->dw_wr_dvfm.canvas0_config[0].phy_addr;
+				ppre->dw_wr_dvfm.vfs.canvas0_config[0].phy_addr;
 			ppre->di_nrwr_mif.addr1 =
-				ppre->dw_wr_dvfm.canvas0_config[1].phy_addr;
+				ppre->dw_wr_dvfm.vfs.canvas0_config[1].phy_addr;
 		}
 
 		dim_dvf_config_canvas(&ppre->dw_wr_dvfm);

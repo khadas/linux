@@ -853,6 +853,10 @@ int rdma_clear(int handle)
 	WRITE_VCBUS_REG_BITS(ins->rdma_regadr->trigger_mask_reg,
 			     0, ins->rdma_regadr->trigger_mask_reg_bitpos,
 			     rdma_meson_dev.trigger_mask_len);
+	if (debug_flag & 2)
+		pr_info("%s: handle=%d : write count %d item count %d\n",
+			__func__, handle,
+			ins->rdma_write_count, ins->rdma_item_count);
 	ins->rdma_write_count = 0;
 	ins->rdma_item_count = 0;
 	spin_unlock_irqrestore(&rdma_lock, flags);
@@ -1097,6 +1101,12 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		dump_stack();
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
 			handle, ins->rdma_item_count, adr, val);
+	}
+
+	if (adr == 0) {
+		pr_info("rdma_write(%d) write zero addr = %x, count:%d\n",
+			handle, val, ins->rdma_item_count);
+		dump_stack();
 	}
 	if (debug_flag & 1)
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
@@ -1700,6 +1710,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 	int handle;
 	const void *prop;
 	struct rdma_device_info *info = &rdma_info;
+	int line_n_rdma_en = 0;
 
 	int_rdma = platform_get_irq_byname(pdev, "rdma");
 	if (int_rdma == -ENXIO) {
@@ -1737,6 +1748,14 @@ static int __init rdma_probe(struct platform_device *pdev)
 		prop = of_get_property(pdev->dev.of_node, "rdma_table_page_count", NULL);
 		if (prop)
 			rdma_table_size = of_read_ulong(prop, 1) * PAGE_SIZE;
+
+		prop = of_get_property(pdev->dev.of_node, "line_n_rdma", NULL);
+		if (prop) {
+			line_n_rdma_en = of_read_ulong(prop, 1);
+			pr_info("line_n_rdma_en = %d\n", line_n_rdma_en);
+		} else {
+			pr_info("line_n_rdma_en = %d\n", line_n_rdma_en);
+		}
 	}
 	pr_info("%s,cpu_type:%d, ver:%d, len:%d,rdma_table_size:%d\n", __func__,
 		rdma_meson_dev.cpu_type,
@@ -1820,6 +1839,12 @@ static int __init rdma_probe(struct platform_device *pdev)
 	handle = rdma_register(get_rdma_ops(EX_VSYNC_RDMA),
 		NULL, RDMA_TABLE_SIZE);
 	set_rdma_handle(EX_VSYNC_RDMA, handle);
+
+	if (line_n_rdma_en) {
+		handle = rdma_register(get_rdma_ops(LINE_N_INT_RDMA),
+			NULL, 2 * rdma_table_size);
+		set_rdma_handle(LINE_N_INT_RDMA, handle);
+	}
 
 	create_rdma_mgr_class();
 

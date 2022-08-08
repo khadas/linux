@@ -203,6 +203,8 @@
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
 		dis_nb_cpus_in_shutdown;
+		reg = <0xfe01037c 0x4>; /* AO_SEC_SD_CFG15 */
+		status = "okay";
 	};
 
 	ram-dump {
@@ -1093,13 +1095,14 @@
 			pll-setting-6 = <0x78000>;
 			pll-setting-7 = <0xe0004>;
 			pll-setting-8 = <0xe000c>;
+			dis-thred-enhance = <0x2>;/**s4-0x38:bit[26-27]**/
 			version = <3>;
 //			power-domains = <&pwrdm PDID_SC2_USB_COMB>;
 			phy20-reset-level-bit = <8>;
 			phy21-reset-level-bit = <9>;
 			usb-reset-bit = <4>;
 			reset-level = <0x40>;
-			//usb-phy-trim-reg = <0xfe010330>;
+			usb-phy-trim-reg = <0xfe010330>;
 		};
 
 		usb3_phy_v2: usb3phy@fe03a080 {
@@ -1404,6 +1407,7 @@
 			clock-names = "clk_uart",
 				"clk_gate";
 			xtal_tick_en = <3>;
+			uart_for_bt = <1>;
 			fifosize = < 64 >;
 			pinctrl-names = "default";
 			pinctrl-0 = <&a_uart_pins>;

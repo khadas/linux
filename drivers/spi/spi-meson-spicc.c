@@ -1314,6 +1314,11 @@ static int meson_spicc_probe(struct platform_device *pdev)
 #endif
 
 	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		ret = irq;
+		goto out_master;
+	}
+
 	ret = devm_request_irq(&pdev->dev, irq, meson_spicc_irq,
 			       0, NULL, spicc);
 	if (ret) {
@@ -1481,6 +1486,8 @@ static int meson_spicc_runtime_suspend(struct device *dev)
 
 	meson_spicc_hw_clk_save(spicc);
 	meson_spicc_clk_disable(spicc);
+
+	spi_master_put(spicc->master);
 
 	return 0;
 }
