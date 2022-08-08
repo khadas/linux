@@ -23,6 +23,13 @@ enum {
 	HW_TYPE
 };
 
+enum {
+	ARMGDC_FW_V1,
+	AMLGDC_FW_V1,
+	AMLGDC_FW_V2,
+	GDC_MAX_FW
+};
+
 struct gdc_linear_config_s {
 	void *buf_vaddr;
 	int buf_size;
