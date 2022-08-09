@@ -7909,7 +7909,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	enum priority_mode_enum pri_mode = V_PRIORITY;
 	enum input_mode_enum cur_input_mode = IN_MODE_OTT;
 	u32 graphic_min = 50; /* 0.0001 */
-	u32 graphic_max = 100; /* 1 */
+	static u32 graphic_max = 100; /* 1 */
 	int ret_flags = 0;
 	static int bypass_frame = -1;
 	static int last_current_format;
