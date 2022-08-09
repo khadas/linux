@@ -42,7 +42,8 @@
 /* 20220622: support tcon dynamic gamma*/
 /* 20220719: support t5,t5w,t3 set vswing level in low common type*/
 /* 20220729: optimize tcon switch flow before dlg timing change*/
-#define LCD_DRV_VERSION    "20220729"
+/* 20220809: fix tcon axi mem mistake for DLG tcon bin*/
+#define LCD_DRV_VERSION    "20220809"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

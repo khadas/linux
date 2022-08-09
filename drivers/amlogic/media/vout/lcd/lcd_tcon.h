@@ -50,6 +50,7 @@ struct lcd_tcon_config_s {
 	unsigned int *axi_reg;
 	void (*tcon_axi_mem_config)(void);
 	void (*tcon_axi_mem_secure)(void);
+	void (*tcon_axi_mem_update)(unsigned int *table);
 	void (*tcon_global_reset)(struct aml_lcd_drv_s *pdrv);
 	int (*tcon_gamma_pattern)(struct aml_lcd_drv_s *pdrv,
 				  unsigned int bit_width, unsigned int gamma_r,
