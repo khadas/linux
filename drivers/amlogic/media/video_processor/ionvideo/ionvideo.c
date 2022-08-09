@@ -571,6 +571,13 @@ static int vidioc_close(struct file *file)
 	return 0;
 }
 
+static ssize_t vidioc_read(struct file *file, char __user *data,
+			   size_t count, loff_t *ppos)
+{
+	pr_info("ionvideo read\n");
+	return 0;
+}
+
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
@@ -701,10 +708,20 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct page *page = NULL;
 	void *phy_addr = NULL;
 
+	if (p->index > IONVIDEO_POOL_SIZE) {
+		pr_err("ionvideo: dbuf: err index=%d\n", p->index);
+		return -EINVAL;
+	}
 	dev->ionvideo_input[p->index] = *p;
 
 	if (!ppmgr2_dev->phy_addr[p->index]) {
 		dbuf = dma_buf_get(p->m.fd);
+
+		if (IS_ERR_OR_NULL(dbuf)) {
+			pr_err("ionvideo: dbuf: dbuf=%px\n", dbuf);
+			return -EINVAL;
+		}
+
 		attach = dma_buf_attach(dbuf, dev->v4l2_dev.dev);
 		if (IS_ERR(attach)) {
 			pr_info("ionvideo: attach err\n");
@@ -769,7 +786,7 @@ static const struct v4l2_file_operations ionvideo_v4l2_fops = {
 	.owner = THIS_MODULE,
 	.open = vidioc_open,
 	.release = vidioc_close,
-	.read = vb2_fop_read,
+	.read = vidioc_read,
 	.poll = vidioc_poll,
 	.unlocked_ioctl = video_ioctl2,/* V4L2 ioctl handler */
 	.mmap = vb2_fop_mmap,
