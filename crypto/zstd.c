@@ -14,7 +14,7 @@
 #include <linux/zstd.h>
 #include <crypto/internal/scompress.h>
 
-#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_AMLOGIC_ZSTD
 static int zstd_def_level = 1;
 #else
 #define ZSTD_DEF_LEVEL	3
@@ -29,7 +29,7 @@ struct zstd_ctx {
 
 static zstd_parameters zstd_params(void)
 {
-#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_AMLOGIC_ZSTD
 	return ZSTD_getParams(zstd_def_level, 0, 0);
 #else
 	return ZSTD_getParams(ZSTD_DEF_LEVEL, 0, 0);
@@ -259,7 +259,7 @@ static void __exit zstd_mod_fini(void)
 
 subsys_initcall(zstd_mod_init);
 module_exit(zstd_mod_fini);
-#ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_AMLOGIC_ZSTD
 module_param_named(zstd_level, zstd_def_level, int, 0644);
 #endif
 
