@@ -96,6 +96,8 @@ const char *record_name[] = {
 	"IO-SMC-NORET-IN",
 	"IO-CLK-EN",
 	"IO-CLK-DIS",
+	"PD_POWER_ON",
+	"PD_POWER_OFF",
 };
 
 void reg_check_init(void)
@@ -320,7 +322,7 @@ void notrace pstore_sched_switch_dump(struct pstore_ftrace_record *rec,
 		   record_name[rec->flag], rec->val1, (char *)&rec->val2);
 }
 
-void notrace pstore_clk_dump(struct pstore_ftrace_record *rec,
+void notrace pstore_clk_pd_dump(struct pstore_ftrace_record *rec,
 			struct seq_file *s)
 {
 	unsigned long sec = 0, us = 0;
@@ -354,7 +356,9 @@ void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
 		break;
 	case PSTORE_FLAG_CLK_ENABLE:
 	case PSTORE_FLAG_CLK_DISABLE:
-		pstore_clk_dump(rec, s);
+	case PSTORE_FLAG_PD_POWER_ON:
+	case PSTORE_FLAG_PD_POWER_OFF:
+		pstore_clk_pd_dump(rec, s);
 		break;
 	default:
 		seq_printf(s, "Unknown Msg:%x\n", rec->flag);
@@ -375,7 +379,7 @@ void notrace __pstore_sched_switch_dump(struct pstore_ftrace_record *rec)
 		   record_name[rec->flag], rec->val1, (char *)&rec->val2);
 }
 
-void notrace __pstore_clk_dump(struct pstore_ftrace_record *rec)
+void notrace __pstore_clk_pd_dump(struct pstore_ftrace_record *rec)
 {
 	unsigned long sec = 0, us = 0;
 	unsigned long long time = rec->time;
@@ -460,11 +464,17 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 	rec.in_irq = !!in_irq();
 	rec.phys_addr = 0;
 
-	if (flag == PSTORE_FLAG_CLK_ENABLE || flag == PSTORE_FLAG_CLK_DISABLE) {
+	switch (rec.flag) {
+	case PSTORE_FLAG_CLK_ENABLE:
+	case PSTORE_FLAG_CLK_DISABLE:
+	case PSTORE_FLAG_PD_POWER_ON:
+	case PSTORE_FLAG_PD_POWER_OFF:
 		strlcpy(rec.name, (char *)val, sizeof(rec.name));
-	} else {
+		break;
+	default:
 		rec.val1 = reg;
 		rec.val2 = val;
+		break;
 	}
 
 	if (dump_phys_addr) {
@@ -542,7 +552,9 @@ static void notrace __pstore_ftrace_dump_old(struct pstore_ftrace_record *rec)
 		break;
 	case PSTORE_FLAG_CLK_ENABLE:
 	case PSTORE_FLAG_CLK_DISABLE:
-		__pstore_clk_dump(rec);
+	case PSTORE_FLAG_PD_POWER_ON:
+	case PSTORE_FLAG_PD_POWER_OFF:
+		__pstore_clk_pd_dump(rec);
 		break;
 	default:
 		pr_err("Unknown Msg:%x\n", rec->flag);

@@ -40,6 +40,8 @@ extern unsigned int dump_iomap;
 #define PSTORE_FLAG_IO_SMC_NORET_IN  0xA
 #define PSTORE_FLAG_CLK_ENABLE 0XB
 #define PSTORE_FLAG_CLK_DISABLE 0XC
+#define PSTORE_FLAG_PD_POWER_ON 0XD
+#define PSTORE_FLAG_PD_POWER_OFF 0XE
 #define PSTORE_FLAG_MASK	0xF
 
 void notrace pstore_io_save(unsigned long reg, unsigned long val,
@@ -91,7 +93,14 @@ pstore_io_save(0, name, CALLER_ADDR0, PSTORE_FLAG_CLK_ENABLE, NULL)
 #define pstore_ftrace_clk_disable(name) \
 pstore_io_save(0, name, CALLER_ADDR0, PSTORE_FLAG_CLK_DISABLE, NULL)
 
+#define pstore_ftrace_pd_power_on(name) \
+pstore_io_save(0, name, CALLER_ADDR0, PSTORE_FLAG_PD_POWER_ON, NULL)
+
+#define pstore_ftrace_pd_power_off(name) \
+pstore_io_save(0, name, CALLER_ADDR0, PSTORE_FLAG_PD_POWER_OFF, NULL)
+
 #else
+
 #define pstore_ftrace_io_wr(reg, val)		do {	} while (0)
 #define pstore_ftrace_io_rd(reg)		do {	} while (0)
 #define need_dump_iomap()			0
@@ -104,6 +113,8 @@ pstore_io_save(0, name, CALLER_ADDR0, PSTORE_FLAG_CLK_DISABLE, NULL)
 #define pstore_ftrace_io_smc_noret_in(a0, a1)	do {	} while (0)
 #define pstore_ftrace_clk_enable(name)		do {	} while (0)
 #define pstore_ftrace_clk_disable(name)		do {	} while (0)
+#define pstore_ftrace_pd_power_on(name)		do {	} while (0)
+#define pstore_ftrace_pd_power_off(name)	do {	} while (0)
 
 #endif
 
