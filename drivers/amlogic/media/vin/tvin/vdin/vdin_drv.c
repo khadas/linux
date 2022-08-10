@@ -1933,7 +1933,7 @@ static int vdin_func(int no, struct vdin_arg_s *arg)
 		vdin_set_vframe_prop_info(&devp->curr_wr_vfe->vf, devp);
 		vdin_backup_histgram(&devp->curr_wr_vfe->vf, devp);
 		vf = (struct vframe_s *)parm->private;
-		if (vf && devp->curr_wr_vfe)
+		if (vf)
 			memcpy(&vf->prop, &devp->curr_wr_vfe->vf.prop,
 			       sizeof(struct vframe_prop_s));
 		break;
@@ -2336,7 +2336,11 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 						   VFRAME_EVENT_PROVIDER_VFRAME_READY,
 						   NULL);
 		}
-
+		/* debug:afbce compression ratio monitor start */
+		if (devp->dbg_afbce_monitor)
+			vdin_afbce_compression_ratio_monitor(devp,
+				devp->vfp->last_last_vfe);
+		/* debug:afbce compression ratio monitor end */
 		if (devp->vdin_delay_vfe2rd_list == 1) {
 			devp->vfp->last_last_vfe = vfe;
 		} else if (devp->vdin_delay_vfe2rd_list == 2) {
@@ -2539,7 +2543,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2) && err_vsync >= 10 &&
 	    IS_HDMI_SRC(devp->parm.port)) {
 		err_vsync = 0;
-		if (sm_ops->hdmi_clr_vsync)
+		if (sm_ops && sm_ops->hdmi_clr_vsync)
 			sm_ops->hdmi_clr_vsync(devp->frontend);
 		else
 			pr_err("hdmi_clr_vsync is NULL\n ");
@@ -5418,6 +5422,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	mutex_init(&devp->fe_lock);
 	spin_lock_init(&devp->isr_lock);
 	spin_lock_init(&devp->hist_lock);
+	sema_init(&devp->sem, 0);
 	devp->frontend = NULL;
 	if (devp->index == 0) {
 		/* reg tv in frontend */

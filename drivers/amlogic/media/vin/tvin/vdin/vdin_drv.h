@@ -310,9 +310,10 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_EMP	BIT(1)
 #define VDIN_ISR_MONITOR_RATIO	BIT(2)
 #define VDIN_ISR_MONITOR_GAME	BIT(4)
-#define VDIN_ISR_MONITOR_VS	BIT(5)
-#define VDIN_ISR_MONITOR_VF	BIT(6)
+#define VDIN_ISR_MONITOR_VS		BIT(5)
+#define VDIN_ISR_MONITOR_VF		BIT(6)
 #define VDIN_ISR_MONITOR_VRR_DATA	BIT(9)
+#define VDIN_ISR_MONITOR_AFBCE	BIT(10)
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
@@ -820,10 +821,15 @@ struct vdin_dev_s {
 	unsigned int vdin_std_duration; /* get in fps value */
 	unsigned int dbg_no_swap_en:1;
 	unsigned int dbg_force_one_buffer:1;
+	unsigned int dbg_afbce_monitor:8;
 	unsigned int vdin_function_sel;
 	unsigned int self_stop_start;
 	unsigned int vdin1_stop_write;
 	unsigned int vdin1_stop_write_count;
+	unsigned int quit_flag;
+	struct task_struct *kthread;
+	struct semaphore sem;
+	struct vf_entry *vfe_tmp;
 };
 
 struct vdin_hist_s {
@@ -950,6 +956,7 @@ void vdin_game_mode_chg(struct vdin_dev_s *devp,
 	unsigned int old_mode, unsigned int new_mode);
 void vdin_frame_lock_check(struct vdin_dev_s *devp, int state);
 void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev);
+int vdin_afbce_compression_ratio_monitor(struct vdin_dev_s *devp, struct vf_entry *vfe);
 
 #endif /* __TVIN_VDIN_DRV_H */
 

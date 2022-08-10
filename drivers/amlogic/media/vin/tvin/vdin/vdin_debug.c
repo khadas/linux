@@ -28,6 +28,10 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/extcon.h>
+#include <linux/kthread.h>
+#include <linux/delay.h>
+#include <linux/sched/rt.h>
+#include <uapi/linux/sched/types.h>
 
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #ifdef CONFIG_AMLOGIC_PIXEL_PROBE
@@ -783,6 +787,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	vfs_fsync(filp, 0);
 	filp_close(filp, NULL);
 	set_fs(old_fs);
+	pr_info("%s done\n", __func__);
 }
 
 static void dump_other_mem(struct vdin_dev_s *devp, char *path,
@@ -1920,6 +1925,127 @@ void vdin_test_front_end(void)
 		fe->sm_ops->vdin_set_property(fe);
 }
 
+int vdin_afbce_compression_ratio_monitor(struct vdin_dev_s *devp, struct vf_entry *vfe)
+{
+	unsigned int mmu_num, mif_size, src_size1, dst_frame_size, ratio1 = 0;
+	unsigned int ratio2 = 0, src_size2;
+
+	mmu_num = rd(devp->addr_offset, AFBCE_MMU_NUM);
+	mif_size = rd_bits(devp->addr_offset, AFBCE_MIF_SIZE, 0, 16);
+	dst_frame_size = mmu_num * mif_size;
+
+	if (devp->prop.color_format == TVIN_RGB444 ||
+		devp->prop.color_format == TVIN_YUV444)
+		src_size1 = devp->h_active * devp->v_active * 3 * devp->prop.colordepth / 8;
+	else if (devp->prop.color_format == TVIN_NV12 ||
+			 devp->prop.color_format == TVIN_NV21)
+		src_size1 =
+			devp->h_active * devp->v_active * 3 / 2 * devp->prop.colordepth / 8;
+	else
+		src_size1 = devp->h_active * devp->v_active * 2 * devp->prop.colordepth / 8;
+
+	if (src_size1)
+		ratio1 = dst_frame_size * 100 / src_size1;
+
+	if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_YUV444 ||
+		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_RGB ||
+		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_GBR ||
+		devp->format_convert == VDIN_FORMAT_CONVERT_YUV_BRG ||
+		devp->format_convert == VDIN_FORMAT_CONVERT_RGB_RGB ||
+		devp->format_convert == VDIN_FORMAT_CONVERT_RGB_YUV444)
+		src_size2 = devp->h_active * devp->v_active * 3 * devp->source_bitdepth / 8;
+	else if (devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV12 ||
+			 devp->format_convert == VDIN_FORMAT_CONVERT_YUV_NV21 ||
+			 devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV12 ||
+			 devp->format_convert == VDIN_FORMAT_CONVERT_RGB_NV21)
+		src_size2 =
+			devp->h_active * devp->v_active * 3 / 2 * devp->source_bitdepth / 8;
+	else
+		src_size2 = devp->h_active * devp->v_active * 2 * devp->source_bitdepth / 8;
+
+	if (src_size2)
+		ratio2 = dst_frame_size * 100 / src_size2;
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_AFBCE)
+		pr_info("ratio_src=%d%%,ratio_afbc_in=%d%%,dst:%d(%ux%u),src1=%d,src2=%d;\n",
+			ratio1, ratio2, dst_frame_size, mmu_num, mif_size, src_size1, src_size2);
+
+	if (devp->dbg_afbce_monitor > 1 &&
+		ratio2 >= devp->dbg_afbce_monitor &&
+		devp->kthread) {
+		devp->vfe_tmp = vfe;
+		devp->dbg_afbce_monitor = 1;
+		up(&devp->sem);
+	}
+
+	return 0;
+}
+
+static int vdin_task(void *data)
+{
+	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
+	struct vdin_dev_s *devp = (struct vdin_dev_s *)(data);
+
+	if (!devp) {
+		pr_info("devp == NULL\n");
+		return -1;
+	}
+	sched_setscheduler(current, SCHED_FIFO, &param);
+	allow_signal(SIGTERM);
+
+	while (down_interruptible(&devp->sem) == 0) {
+		if (kthread_should_stop() || devp->quit_flag) {
+			pr_info("task: quit\n");
+			break;
+		}
+		vdin_pause_dec(devp);
+		if (devp->vfe_tmp) {
+			vdin_dump_one_afbce_mem("/mnt",  devp, devp->vfe_tmp->vf.index);
+			devp->vfe_tmp = NULL;
+		}
+		vdin_resume_dec(devp);
+		pr_info("%s %d,wake up\n", __func__, __LINE__);
+		usleep_range(9000, 10000);
+	}
+
+	while (!kthread_should_stop()) {
+		/* may not call stop, wait..
+		 * it is killed by SIGTERM,eixt on down_interruptible
+		 * if not call stop,this thread may on do_exit and
+		 * kthread_stop may not work good;
+		 */
+		/* msleep(10); */
+		usleep_range(9000, 10000);
+	}
+	return 0;
+}
+
+int vdin_kthread_start(struct vdin_dev_s *devp)
+{
+	devp->quit_flag = false;
+	devp->kthread = kthread_run(vdin_task, devp, "vdin_kthread");
+
+	if (!IS_ERR_OR_NULL(devp->kthread))
+		pr_info("vdin%u,kthread start ok", devp->index);
+	else
+		devp->kthread = NULL;
+
+	return 0;
+}
+
+int vdin_kthread_stop(struct vdin_dev_s *devp)
+{
+	if (!IS_ERR_OR_NULL(devp->kthread)) {
+		devp->quit_flag = true;
+		up(&devp->sem);
+		kthread_stop(devp->kthread);
+		//devp->quit_flag = false;
+		devp->kthread = NULL;
+		pr_info("vdin%u,kthread stop", devp->index);
+	}
+	return 0;
+}
+
 /*
  * 1.show the current frame rate
  * echo fps >/sys/class/vdin/vdinx/attr
@@ -3014,6 +3140,20 @@ start_chk:
 	} else if (!strcmp(parm[0], "vdin_function_sel")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
 			devp->vdin_function_sel = temp;
+	} else if (!strcmp(parm[0], "dmc_ctrl")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			vdin_dmc_ctrl(devp, !!temp);
+			pr_info("set dmc_ctrl on_off:%d\n", !!temp);
+		}
+	} else if (!strcmp(parm[0], "afbce_monitor")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->dbg_afbce_monitor = temp;
+			pr_info("set afbce_monitor:%d\n", devp->dbg_afbce_monitor);
+			if (!devp->kthread && devp->dbg_afbce_monitor > 1)
+				vdin_kthread_start(devp);
+			else if (devp->kthread && !devp->dbg_afbce_monitor)
+				vdin_kthread_stop(devp);
+		}
 	} else {
 		pr_info("unknown command\n");
 	}
