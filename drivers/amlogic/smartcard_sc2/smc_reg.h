@@ -262,4 +262,23 @@ struct smccard_hw_reg6 {
 #endif
 };
 
+/*this register replace recv_fifo_threshold in reg0 and
+ *recv_fifo_count in status
+ */
+struct smccard_hw_reg8 {
+#ifdef __LITTLE_ENDIAN__
+	unsigned lrg_fifo_recv_thr:8;	/* Bit 7:0*/
+	unsigned use_lrg_fifo_recv:1;	/* Bit 8*/
+	unsigned unused1:7;	/* Bit 15:9*/
+	unsigned recv_fifo_count:8;	/* Bit 23:16*/
+	unsigned unused2:8;	/* Bit 31:24*/
+#else
+	unsigned unused2:8;	/* Bit 31:24*/
+	unsigned recv_fifo_count:8;	/* Bit 23:16*/
+	unsigned unused1:7;				/* Bit 15:9*/
+	unsigned use_lrg_fifo_recv:1;	/* Bit 8*/
+	unsigned lrg_fifo_recv_thr:8;	/* Bit 7:0*/
+#endif
+};
+
 #endif
