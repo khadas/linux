@@ -107,6 +107,7 @@
 #define SC_FREE(p) vfree(p)
 
 #endif
+#define MAX_SC_LIST 256
 #define MK_TAG(a, b, c, d) (((a) << 24) | ((b) << 16) |\
 					((c) << 8) | (d))
 #define SMGT_IDENTIFY_TAG MK_TAG('Z', 'S', 'C', 'Z')
@@ -192,7 +193,7 @@ struct codec_mm_scatter_mgt {
 	struct completion complete;
 	struct list_head free_list;	/*slot */
 	struct list_head scatter_list;	/*scatter list */
-	struct list_head scmap_que;/*used for valid check. */
+	struct codec_mm_scatter *scmap[MAX_SC_LIST];/*used for valid check. */
 };
 
 #define is_cache_sc(smgt, mms)  (((smgt)->cache_scs[0] == (mms)) ||\
@@ -1472,27 +1473,33 @@ int codec_mm_scatter_free_all_pages(struct codec_mm_scatter *mms)
 }
 EXPORT_SYMBOL(codec_mm_scatter_free_all_pages);
 
-static bool codec_mm_scatter_map_empty(struct codec_mm_scatter_mgt *smgt)
-{
-	return list_empty(&smgt->scmap_que);
-}
-
 static
 inline int codec_mm_scatter_map_add_locked(struct codec_mm_scatter_mgt *smgt,
 					   struct codec_mm_scatter *mms)
 {
-	list_add_tail(&mms->map_list, &smgt->scmap_que);
+	int i;
 
-	return 0;
+	for (i = 0; i < MAX_SC_LIST; i++) {
+		if (!smgt->scmap[i]) {
+			smgt->scmap[i] = mms;
+			return i;
+		}
+	}
+	return -1;
 }
 
 static
 inline int codec_mm_scatter_map_del_locked(struct codec_mm_scatter_mgt *smgt,
 					   struct codec_mm_scatter *mms)
 {
-	if (!codec_mm_scatter_map_empty(smgt))
-		list_del_init(&mms->map_list);
+	int i;
 
+	for (i = 0; i < MAX_SC_LIST; i++) {
+		if (smgt->scmap[i] == mms) {
+			smgt->scmap[i] = NULL;
+			return i;
+		}
+	}
 	return 0;
 }
 
@@ -1500,18 +1507,15 @@ static
 int codec_mm_scatter_valid_locked(struct codec_mm_scatter_mgt *smgt,
 				  struct codec_mm_scatter *mms)
 {
-	struct codec_mm_scatter *mms_traverse;
+	int i;
 	int valid = 0;
 
-	if (!codec_mm_scatter_map_empty(smgt)) {
-		list_for_each_entry(mms_traverse, &smgt->scmap_que, map_list) {
-			if (mms_traverse == mms)
-				valid = 1;
+	for (i = 0; i < MAX_SC_LIST; i++) {
+		if (smgt->scmap[i] == mms) {
+			valid = 1;
+			break;
 		}
-	} else {
-		ERR_LOG("Invalid mms: %p! scatter map queue is empty!\n", mms);
 	}
-
 	return valid;
 }
 
@@ -1620,7 +1624,6 @@ static int codec_mm_scatter_dec_user_in1(struct codec_mm_scatter_mgt *smgt,
 	codec_mm_list_lock(smgt);
 	if (!codec_mm_scatter_valid_locked(smgt, mms)) {
 		codec_mm_list_unlock(smgt);
-		ERR_LOG("can't find mms %p\n", mms);
 		return -1;
 	}
 	if (atomic_read(&mms->user_cnt) >= 1) {
@@ -2742,7 +2745,6 @@ static int codec_mm_scatter_mgt_alloc_in(struct codec_mm_scatter_mgt **psmgt)
 	init_completion(&smgt->complete);
 	INIT_LIST_HEAD(&smgt->free_list);
 	INIT_LIST_HEAD(&smgt->scatter_list);
-	INIT_LIST_HEAD(&smgt->scmap_que);
 	mutex_init(&smgt->monitor_lock);
 
 	INIT_DELAYED_WORK(&smgt->dealy_work,
