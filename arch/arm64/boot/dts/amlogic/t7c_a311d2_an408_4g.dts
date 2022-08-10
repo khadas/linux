@@ -1563,7 +1563,7 @@
 		port@0 {
 			csiphy0_ep_2: ov08a10 {
 				reg = <0>;
-				status = "okay";
+				status = "disable";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
 				remote-endpoint = <&ov08a10_0_ep>;
@@ -1571,7 +1571,7 @@
 		};
 		port@1 {
 			csiphy0_ep: imx290 {
-				reg = <1>;
+				reg = <0>;
 				status = "okay";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
@@ -1580,8 +1580,8 @@
 		};
 		port@2 {
 			csiphy0_ep_4: imx415 {
-				reg = <2>;
-				status = "okay";
+				reg = <0>;
+				status = "disable";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
 				remote-endpoint = <&imx415_4_ep>;
