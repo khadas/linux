@@ -33,7 +33,7 @@
 
 #include <media/videobuf2-v4l2.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-#include <trace/hooks/aml_v4l2.h>
+#include <trace/hooks/v4l2.h>
 #endif
 
 static int debug;
@@ -342,7 +342,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 	}
 
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-	trace_android_vh_meta_ptr_update(vbuf, b);
+	trace_android_vh_v4l2_meta_ptr_update(vbuf, b);
 #endif
 
 	return 0;

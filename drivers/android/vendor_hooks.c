@@ -70,10 +70,11 @@
 #include <trace/hooks/cfg80211.h>
 
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-#include <trace/hooks/aml_v4l2.h>
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_meta_ptr_update);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_fill_fmtdesc);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_strparm_save);
+#include <trace/hooks/v4l2.h>
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_meta_ptr_update);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_fill_fmtdesc);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_strparm_save);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_strparm_restore);
 #endif
 
 /*

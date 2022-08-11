@@ -30,7 +30,7 @@
 
 #include <trace/events/v4l2.h>
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-#include <trace/hooks/aml_v4l2.h>
+#include <trace/hooks/v4l2.h>
 #endif
 
 /* Zero out the end of the struct pointed to by p.  Everything after, but
@@ -1441,7 +1441,7 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_SUNXI_TILED_NV12: descr = "Sunxi Tiled NV12 Format"; break;
 		default:
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-			trace_android_vh_fill_fmtdesc(fmt);
+			trace_android_vh_v4l2_fill_fmtdesc(fmt);
 #endif
 			if (fmt->description[0])
 				return;
@@ -2126,7 +2126,7 @@ static int v4l_s_parm(const struct v4l2_ioctl_ops *ops,
 		return ret;
 
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-	trace_android_vh_strparm_save(p, 1);
+	trace_android_vh_v4l2_strparm_save(p);
 #endif
 
 	/* Note: extendedmode is never used in drivers */
@@ -2143,7 +2143,7 @@ static int v4l_s_parm(const struct v4l2_ioctl_ops *ops,
 	}
 
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-	trace_android_vh_strparm_save(p, 2);
+	trace_android_vh_v4l2_strparm_restore(p);
 #endif
 
 	return ops->vidioc_s_parm(file, fh, p);
