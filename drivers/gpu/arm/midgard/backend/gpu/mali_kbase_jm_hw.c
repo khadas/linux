@@ -33,6 +33,7 @@
 #include <mali_kbase_hwaccess_jm.h>
 #include <mali_kbase_reset_gpu.h>
 #include <mali_kbase_ctx_sched.h>
+#include <mali_kbase_hwaccess_instr.h>
 #include <mali_kbase_hwcnt_context.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
@@ -183,7 +184,9 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 	u32 cfg;
 	u64 const jc_head = select_job_chain(katom);
 	u64 affinity;
+	struct slot_rb *ptr_slot_rb = &kbdev->hwaccess.backend.slot_rb[js];
 
+	lockdep_assert_held(&kbdev->hwaccess_lock);
 	KBASE_DEBUG_ASSERT(kbdev);
 	KBASE_DEBUG_ASSERT(katom);
 
@@ -210,9 +213,23 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 			!(kbdev->serialize_jobs & KBASE_SERIALIZE_RESET))
 		cfg |= JS_CONFIG_ENABLE_FLUSH_REDUCTION;
 
-	if (0 != (katom->core_req & BASE_JD_REQ_SKIP_CACHE_START))
-		cfg |= JS_CONFIG_START_FLUSH_NO_ACTION;
-	else
+	if (0 != (katom->core_req & BASE_JD_REQ_SKIP_CACHE_START)) {
+		/* Force a cache maintenance operation if the newly submitted
+		 * katom to the slot is from a different kctx. For a JM GPU
+		 * that has the feature BASE_HW_FEATURE_FLUSH_INV_SHADER_OTHER,
+		 * applies a FLUSH_INV_SHADER_OTHER. Otherwise, do a
+		 * FLUSH_CLEAN_INVALIDATE.
+		 */
+		u64 tagged_kctx = ptr_slot_rb->last_kctx_tagged;
+
+		if (tagged_kctx != SLOT_RB_NULL_TAG_VAL && tagged_kctx != SLOT_RB_TAG_KCTX(kctx)) {
+			if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_FLUSH_INV_SHADER_OTHER))
+				cfg |= JS_CONFIG_START_FLUSH_INV_SHADER_OTHER;
+			else
+				cfg |= JS_CONFIG_START_FLUSH_CLEAN_INVALIDATE;
+		} else
+			cfg |= JS_CONFIG_START_FLUSH_NO_ACTION;
+	} else
 		cfg |= JS_CONFIG_START_FLUSH_CLEAN_INVALIDATE;
 
 	if (0 != (katom->core_req & BASE_JD_REQ_SKIP_CACHE_END) &&
@@ -231,15 +248,13 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 
 	if (kbase_hw_has_feature(kbdev,
 				BASE_HW_FEATURE_JOBCHAIN_DISAMBIGUATION)) {
-		if (!kbdev->hwaccess.backend.slot_rb[js].job_chain_flag) {
+		if (!ptr_slot_rb->job_chain_flag) {
 			cfg |= JS_CONFIG_JOB_CHAIN_FLAG;
 			katom->atom_flags |= KBASE_KATOM_FLAGS_JOBCHAIN;
-			kbdev->hwaccess.backend.slot_rb[js].job_chain_flag =
-								true;
+			ptr_slot_rb->job_chain_flag = true;
 		} else {
 			katom->atom_flags &= ~KBASE_KATOM_FLAGS_JOBCHAIN;
-			kbdev->hwaccess.backend.slot_rb[js].job_chain_flag =
-								false;
+			ptr_slot_rb->job_chain_flag = false;
 		}
 	}
 
@@ -277,6 +292,10 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 			katom,
 			&kbdev->gpu_props.props.raw_props.js_features[js],
 			"ctx_nr,atom_nr");
+
+	/* Update the slot's last katom submission kctx */
+	ptr_slot_rb->last_kctx_tagged = SLOT_RB_TAG_KCTX(kctx);
+
 #ifdef CONFIG_GPU_TRACEPOINTS
 	if (!kbase_backend_nr_atoms_submitted(kbdev, js)) {
 		/* If this is the only job on the slot, trace it as starting */
@@ -287,7 +306,6 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 						sizeof(js_string)),
 				ktime_to_ns(katom->start_timestamp),
 				(u32)katom->kctx->id, 0, katom->work_id);
-		kbdev->hwaccess.backend.slot_rb[js].last_context = katom->kctx;
 	}
 #endif
 
@@ -422,7 +440,8 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 				 * allowing any other jobs on the slot to continue. */
 				if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_TTRX_3076)) {
 					if (completion_code == BASE_JD_EVENT_JOB_BUS_FAULT) {
-						if (kbase_prepare_to_reset_gpu_locked(kbdev))
+						if (kbase_prepare_to_reset_gpu_locked(kbdev,
+										      RESET_FLAGS_NONE))
 							kbase_reset_gpu_locked(kbdev);
 					}
 				}
@@ -813,7 +832,7 @@ void kbase_jm_wait_for_zero_jobs(struct kbase_context *kctx)
 	if (timeout != 0)
 		goto exit;
 
-	if (kbase_prepare_to_reset_gpu(kbdev)) {
+	if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_HWC_UNRECOVERABLE_ERROR)) {
 		dev_err(kbdev->dev,
 			"Issueing GPU soft-reset because jobs failed to be killed (within %d ms) as part of context termination (e.g. process exit)\n",
 			ZAP_TIMEOUT);
@@ -1133,6 +1152,13 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 	kbase_pm_metrics_update(kbdev, NULL);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
+	/* Tell hardware counters a reset is about to occur.
+	 * If the instr backend is in an unrecoverable error state (e.g. due to
+	 * HW being unresponsive), this will transition the backend out of
+	 * it, on the assumption a reset will fix whatever problem there was.
+	 */
+	kbase_instr_hwcnt_on_before_reset(kbdev);
+
 	/* Reset the GPU */
 	kbase_pm_init_hw(kbdev, 0);
 
@@ -1261,8 +1287,9 @@ static void kbasep_try_reset_gpu_early(struct kbase_device *kbdev)
 /**
  * kbase_prepare_to_reset_gpu_locked - Prepare for resetting the GPU
  * @kbdev: kbase device
+ * @flags: Bitfield indicating impact of reset (see flag defines)
  *
- * This function just soft-stops all the slots to ensure that as many jobs as
+ * This function soft-stops all the slots to ensure that as many jobs as
  * possible are saved.
  *
  * Return:
@@ -1271,11 +1298,15 @@ static void kbasep_try_reset_gpu_early(struct kbase_device *kbdev)
  *   false - Another thread is performing a reset, kbase_reset_gpu should
  *   not be called.
  */
-bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev)
+bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev,
+				       unsigned int flags)
 {
 	int i;
 
 	KBASE_DEBUG_ASSERT(kbdev);
+
+	if (flags & RESET_FLAGS_HWC_UNRECOVERABLE_ERROR)
+		kbase_instr_hwcnt_on_unrecoverable_error(kbdev);
 
 	if (atomic_cmpxchg(&kbdev->hwaccess.backend.reset_gpu,
 						KBASE_RESET_GPU_NOT_PENDING,
@@ -1293,14 +1324,14 @@ bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev)
 	return true;
 }
 
-bool kbase_prepare_to_reset_gpu(struct kbase_device *kbdev)
+bool kbase_prepare_to_reset_gpu(struct kbase_device *kbdev, unsigned int flags)
 {
-	unsigned long flags;
+	unsigned long lock_flags;
 	bool ret;
 
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	ret = kbase_prepare_to_reset_gpu_locked(kbdev);
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	spin_lock_irqsave(&kbdev->hwaccess_lock, lock_flags);
+	ret = kbase_prepare_to_reset_gpu_locked(kbdev, flags);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, lock_flags);
 
 	return ret;
 }

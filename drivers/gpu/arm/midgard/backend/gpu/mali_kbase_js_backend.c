@@ -254,7 +254,7 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 	if (reset_needed) {
 		dev_err(kbdev->dev, "JS: Job has been on the GPU for too long (JS_RESET_TICKS_SS/DUMPING timeout hit). Issueing GPU soft-reset to resolve.");
 
-		if (kbase_prepare_to_reset_gpu_locked(kbdev))
+		if (kbase_prepare_to_reset_gpu_locked(kbdev, RESET_FLAGS_NONE))
 			kbase_reset_gpu_locked(kbdev);
 	}
 	/* the timer is re-issued if there is contexts in the run-pool */

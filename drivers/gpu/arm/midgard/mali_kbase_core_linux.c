@@ -3801,7 +3801,7 @@ void power_control_term(struct kbase_device *kbdev)
 static void trigger_reset(struct kbase_device *kbdev)
 {
 	kbase_pm_context_active(kbdev);
-	if (kbase_prepare_to_reset_gpu(kbdev))
+	if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_NONE))
 		kbase_reset_gpu(kbdev);
 	kbase_pm_context_idle(kbdev);
 }
@@ -4119,7 +4119,7 @@ static void kbase_logging_started_cb(void *data)
 {
 	struct kbase_device *kbdev = (struct kbase_device *)data;
 
-	if (kbase_prepare_to_reset_gpu(kbdev))
+	if (kbase_prepare_to_reset_gpu(kbdev, RESET_FLAGS_NONE))
 		kbase_reset_gpu(kbdev);
 	dev_info(kbdev->dev, "KBASE - Bus logger restarted\n");
 }

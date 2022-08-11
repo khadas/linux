@@ -27,6 +27,7 @@
 #include <backend/gpu/mali_kbase_device_internal.h>
 #include "mali_kbase_config_platform.h"
 #include "mali_scaling.h"
+#include "mali_clock.h"
 
 void *reg_base_reset = NULL;
 static int first = 1;
@@ -264,8 +265,18 @@ static void pm_callback_resume(struct kbase_device *kbdev)
 {
 	int ret;
 	u32 pwr_override1;
+	struct mali_plat_info_t *mpdata;
+	struct clk *clk_mali;
 
 	dev_info(kbdev->dev, "pm_callback_resume in\n");
+	/* clock resume avoid clk be changed by system */
+	mpdata  = (struct mali_plat_info_t *) kbdev->platform_context;
+	clk_mali = mpdata->clk_mali;
+	dev_dbg(kbdev->dev, "clk_mali = %lu\n", clk_get_rate(clk_mali));
+	if (__clk_is_enabled(clk_mali))
+		clk_disable_unprepare(clk_mali);
+	mali_clock_init_clk_tree(mpdata->pdev);
+	dev_dbg(kbdev->dev, "mali clock resume done\n");
 	if (!pm_runtime_enabled(kbdev->dev)) {
 		pm_runtime_enable(kbdev->dev);
 		dev_info(kbdev->dev, "pm_runtime not enable, enable here\n");

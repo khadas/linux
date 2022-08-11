@@ -24,8 +24,17 @@
 #define _KBASE_RESET_GPU_H_
 
 /**
+ * RESET_FLAGS_NONE - Flags for kbase_prepare_to_reset_gpu
+ */
+#define RESET_FLAGS_NONE (0U)
+
+/* This reset should be treated as an unrecoverable error by HW counter logic */
+#define RESET_FLAGS_HWC_UNRECOVERABLE_ERROR ((unsigned int)(1 << 0))
+
+/**
  * kbase_prepare_to_reset_gpu_locked - Prepare for resetting the GPU.
  * @kbdev: Device pointer
+ * @flags: Bitfield indicating impact of reset (see flag defines)
  *
  * Caller is expected to hold the kbdev->hwaccess_lock.
  *
@@ -34,18 +43,20 @@
  * - false - Another thread is performing a reset, kbase_reset_gpu should
  *           not be called.
  */
-bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev);
+bool kbase_prepare_to_reset_gpu_locked(struct kbase_device *kbdev,
+				       unsigned int flags);
 
 /**
  * kbase_prepare_to_reset_gpu - Prepare for resetting the GPU.
  * @kbdev: Device pointer
+ * @flags: Bitfield indicating impact of reset (see flag defines)
  *
  * Return: a boolean which should be interpreted as follows:
  * - true  - Prepared for reset, kbase_reset_gpu should be called.
  * - false - Another thread is performing a reset, kbase_reset_gpu should
  *           not be called.
  */
-bool kbase_prepare_to_reset_gpu(struct kbase_device *kbdev);
+bool kbase_prepare_to_reset_gpu(struct kbase_device *kbdev, unsigned int flags);
 
 /**
  * kbase_reset_gpu - Reset the GPU

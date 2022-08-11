@@ -536,6 +536,23 @@ static const char *kbase_l2_core_state_to_string(enum kbase_l2_core_state state)
 		return strings[state];
 }
 
+#if !MALI_USE_CSF
+/* On powering on the L2, the tracked kctx becomes stale and can be cleared.
+ * This enables the backend to spare the START_FLUSH.INV_SHADER_OTHER
+ * operation on the first submitted katom after the L2 powering on.
+ */
+static void kbase_pm_l2_clear_backend_slot_submit_kctx(struct kbase_device *kbdev)
+{
+	int js;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	/* Clear the slots' last katom submission kctx */
+	for (js = 0; js < kbdev->gpu_props.num_job_slots; js++)
+		kbdev->hwaccess.backend.slot_rb[js].last_kctx_tagged = SLOT_RB_NULL_TAG_VAL;
+}
+#endif
+
 static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 {
 	struct kbase_pm_backend_data *backend = &kbdev->pm.backend;
@@ -593,6 +610,9 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 					kbase_pm_invoke(kbdev, KBASE_PM_CORE_L2,
 							l2_present & ~1,
 							ACTION_PWRON);
+				/* Clear backend slot submission kctx */
+				kbase_pm_l2_clear_backend_slot_submit_kctx(kbdev);
+
 				backend->l2_state = KBASE_L2_PEND_ON;
 			}
 			break;
@@ -1465,7 +1485,8 @@ static void kbase_pm_timed_out(struct kbase_device *kbdev)
 					L2_PWRTRANS_LO)));
 
 	dev_err(kbdev->dev, "Sending reset to GPU - all running jobs will be lost\n");
-	if (kbase_prepare_to_reset_gpu(kbdev))
+	if (kbase_prepare_to_reset_gpu(kbdev,
+				       RESET_FLAGS_HWC_UNRECOVERABLE_ERROR))
 		kbase_reset_gpu(kbdev);
 }
 
