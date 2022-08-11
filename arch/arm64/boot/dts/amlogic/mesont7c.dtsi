@@ -3122,7 +3122,7 @@
 		#address-cells=<2>;
 		#size-cells=<2>;
 		status = "okay";
-		compatible = "amlogic, aml-gdc";
+		compatible = "amlogic, aml-gdc-v3";
 		reg = <0 0xfe040000 0 0x000015c>;
 		interrupts = <GIC_SPI 59 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "amlgdc";
