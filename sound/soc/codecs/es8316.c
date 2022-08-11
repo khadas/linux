@@ -1131,15 +1131,6 @@ static void es8316_remove(struct snd_soc_component *component)
 	es8316_set_bias_level(component, SND_SOC_BIAS_OFF);
 }
 
-const struct regmap_config es8316_regmap_config = {
-	.reg_bits	= 8,
-	.val_bits	= 8,
-	.max_register	= ES8316_TEST3_REG53,
-	.cache_type	= REGCACHE_RBTREE,
-	.reg_defaults = es8316_reg_defaults,
-	.num_reg_defaults = ARRAY_SIZE(es8316_reg_defaults),
-};
-
 static struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.probe =	es8316_probe,
 	.remove =	es8316_remove,
@@ -1154,6 +1145,23 @@ static struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.num_dapm_routes = ARRAY_SIZE(es8316_dapm_routes),
 };
 
+static const struct regmap_range es8316_volatile_ranges[] = {
+	regmap_reg_range(ES8316_GPIO_FLAG, ES8316_GPIO_FLAG),
+};
+
+static const struct regmap_access_table es8316_volatile_table = {
+	.yes_ranges	= es8316_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(es8316_volatile_ranges),
+};
+
+static const struct regmap_config es8316_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = 0x53,
+	.volatile_table	= &es8316_volatile_table,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 static int es8316_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -1164,28 +1172,26 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 	enum of_gpio_flags flags;
 	struct device_node *np = i2c->dev.of_node;
 
-	es8316 = devm_kzalloc(&i2c->dev, sizeof(*es8316), GFP_KERNEL);
-	if (!es8316)
+	es8316 = devm_kzalloc(&i2c->dev, sizeof(struct es8316_priv),
+			      GFP_KERNEL);
+	if (es8316 == NULL)
 		return -ENOMEM;
 
+	i2c_set_clientdata(i2c, es8316);
 	es8316->debounce_time = 200;
 	es8316->hp_det_invert = 0;
 	es8316->pwr_count = 0;
 	es8316->hp_inserted = false;
 	es8316->muted = true;
 
-	es8316->regmap = devm_regmap_init_i2c(i2c, &es8316_regmap_config);
-	if (IS_ERR(es8316->regmap)) {
-		ret = PTR_ERR(es8316->regmap);
-		dev_err(&i2c->dev, "Failed to init regmap: %d\n", ret);
-		return ret;
-	}
+	es8316->regmap = devm_regmap_init_i2c(i2c, &es8316_regmap);
+	if (IS_ERR(es8316->regmap))
+		return PTR_ERR(es8316->regmap);
 
 	error = regmap_read(es8316->regmap, ES8316_TEST1_REG51, &ret);
 	if (error)
 		return error;
 
-	i2c_set_clientdata(i2c, es8316);
 
 	es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
 						       "spk-con-gpio",
