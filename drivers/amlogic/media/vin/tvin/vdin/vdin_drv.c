@@ -1479,7 +1479,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 			pr_err("hdmi hdcp en, non-secure buffer\n");
 			devp->matrix_pattern_mode = 4;
 		} else {
-			pr_err("hdmi hdcp en, secure buffer\n");
+			pr_err("non-hdcp or hdcp with secure buffer.sts:%d,flg:%d\n",
+				vdin0_devp->prop.hdcp_sts, devp->vdin_v4l2.secure_flg);
 			devp->matrix_pattern_mode = 0;
 		}
 	} else {
