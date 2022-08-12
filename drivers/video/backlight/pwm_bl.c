@@ -69,6 +69,8 @@ static void pwm_backlight_power_on(struct pwm_bl_data *pb)
 	pb->enabled = true;
 }
 
+extern void tp_into_suspend(void);
+
 static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 {
 	struct pwm_state state;
@@ -84,6 +86,8 @@ static void pwm_backlight_power_off(struct pwm_bl_data *pb)
 		msleep(pb->pwm_off_delay);
 
 	state.enabled = false;
+	//printk("pwm_backlight_power_off() tp_into_suspend\n");
+	tp_into_suspend();
 	state.duty_cycle = 0;
 	pwm_apply_state(pb->pwm, &state);
 

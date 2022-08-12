@@ -78,6 +78,9 @@
 				y = z; \
 } while (0)
 
+struct input_dev *wake_key_dev = NULL;
+struct edt_ft5x06_ts_data *ts_hlm = NULL;
+
 enum edt_ver {
 	EDT_M06,
 	EDT_M09,
@@ -100,6 +103,9 @@ struct edt_ft5x06_ts_data {
 	struct touchscreen_properties prop;
 	u16 num_x;
 	u16 num_y;
+
+	bool is_sleeped;
+	int gtp_is_suspend;
 
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *wake_gpio;
@@ -182,6 +188,27 @@ static bool edt_ft5x06_ts_check_crc(struct edt_ft5x06_ts_data *tsdata,
 
 	return true;
 }
+static void wake_system()
+{
+	if(wake_key_dev!=NULL)
+   {
+	input_event(wake_key_dev, EV_KEY, 116, 1);
+	input_sync(wake_key_dev);
+	input_event(wake_key_dev, EV_KEY, 116, 0);
+	input_sync(wake_key_dev);
+	printk("wake system...\n");
+
+	}
+}
+
+void tp_into_suspend(void)
+{
+       if(NULL != ts_hlm){
+               ts_hlm->gtp_is_suspend = 1;
+			   ts_hlm->is_sleeped = true;
+               printk("ts_hlm->gtp_is_suspend=1\n");
+       }
+}
 
 static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 {
@@ -213,6 +240,18 @@ static irqreturn_t edt_ft5x06_ts_isr(int irq, void *dev_id)
 	default:
 		goto out;
 	}
+    /*For externel touch device to wake the device*/
+	if(tsdata->is_sleeped)
+    {
+        if(ts_hlm->gtp_is_suspend == 1){
+            //printk("wake dev\n");
+            wake_system();
+           tsdata->is_sleeped=false;
+        }
+    }else{
+        tsdata->is_sleeped=false;
+    }
+	ts_hlm = tsdata;
 
 	memset(rdbuf, 0, sizeof(rdbuf));
 	datalen = tplen * tsdata->max_support_points + offset + crclen;
@@ -1022,6 +1061,13 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client,
 		dev_err(&client->dev, "failed to allocate input device.\n");
 		return -ENOMEM;
 	}
+
+	wake_key_dev = input_allocate_device();
+	wake_key_dev->name = "touch_key";
+	wake_key_dev->evbit[0] = BIT(EV_KEY);
+	set_bit(116,  wake_key_dev->keybit);
+	error = input_register_device(wake_key_dev);
+	//device_init_wakeup(dev, 1);
 
 	mutex_init(&tsdata->mutex);
 	tsdata->client = client;
