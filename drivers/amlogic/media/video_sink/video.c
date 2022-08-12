@@ -5253,6 +5253,10 @@ bool black_threshold_check(u8 id)
 		return ret;
 
 	frame_par = layer->cur_frame_par;
+	if (frame_par &&
+	    (frame_par->VPP_pic_in_height_ < 2 ||
+	     frame_par->VPP_line_in_length_ < 2))
+		return true;
 	if (layer_info->layer_width <= black_threshold_width ||
 	    layer_info->layer_height <= black_threshold_height) {
 		if (frame_par &&
