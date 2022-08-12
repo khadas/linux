@@ -274,7 +274,7 @@ void osdblend_premult_config(struct meson_vpu_block *vblk,
 enum osd_channel_e osd2channel(u8 osd_index)
 {
 	u8 din_channel_seq[MAX_DIN_NUM] = {OSD_CHANNEL1, OSD_CHANNEL2,
-		OSD_CHANNEL3, OSD_CHANNEL_NUM};
+		OSD_CHANNEL3, OSD_CHANNEL4};
 
 	if (osd_index >= MAX_DIN_NUM) {
 		DRM_DEBUG("osd_index:%d overflow!!.\n", osd_index);
