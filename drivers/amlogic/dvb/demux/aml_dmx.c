@@ -1001,7 +1001,7 @@ static void dvr_filter_pid(const int pid, struct aml_dmx *demux,
 	struct pid_node *node_pid = NULL;
 
 	list_for_each_entry_safe(node_pid, pos2, &demux->pid_head, node) {
-		if (node_pid->pid == pid && node_pid->feed &&
+		if ((node_pid->pid == pid || node_pid->pid == 0x2000) && node_pid->feed &&
 				 ((struct sw_demux_ts_feed *)node_pid->feed)->ts_cb) {
 			/*if found dvb-core buff isn't enough, return*/
 			if (req_len && req_ret) {
