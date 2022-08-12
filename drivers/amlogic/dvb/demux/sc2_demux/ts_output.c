@@ -908,11 +908,15 @@ static int re_get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	return 0;
 }
 
+#ifdef CHECK_AUD_ES
 int find_audio_es_type(char *es_buf, int length)
 {
 	char *p;
 	static int count;
 	int match = 0;
+
+	if (length < 2)
+		return -1;
 
 	p = es_buf;
 
@@ -935,6 +939,7 @@ int find_audio_es_type(char *es_buf, int length)
 	pr_dbg("es error 0x%0x, 0x%0x\n", p[0], p[1]);
 	return -1;
 }
+#endif
 
 static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 {
@@ -976,8 +981,10 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			if (!(es_params->header.pts_dts_flag & 0x4) ||
 				(pout->type == AUDIO_TYPE &&
 				 es_params->header.len < audio_es_len_limit)) {
+#ifdef CHECK_AUD_ES
 				if (pout->type == AUDIO_TYPE)
 					find_audio_es_type(ptmp, ret);
+#endif
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
 			} else {
 				; //do nothing
@@ -1450,7 +1457,9 @@ static int write_aucpu_es_data(struct out_elem *pout,
 			if (!(es_params->header.pts_dts_flag & 0x4) ||
 				(pout->type == AUDIO_TYPE &&
 				 es_params->header.len < audio_es_len_limit)) {
+#ifdef CHECK_AUD_ES
 				find_audio_es_type(ptmp, ret);
+#endif
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
 			} else {
 				; //do nothing
