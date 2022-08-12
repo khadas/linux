@@ -2187,7 +2187,7 @@ RESTART:
 	/* only check vd1 */
 	if (!input->layer_id)
 		align_vd1_mif_size_for_DV(next_frame_par,
-			vpp_flags ? VPP_FLAG_HAS_DV_EL : 0, reverse);
+			(vpp_flags & VPP_FLAG_HAS_DV_EL) ? true : false, reverse);
 
 	next_frame_par->video_input_h = next_frame_par->VPP_vd_end_lines_ -
 		next_frame_par->VPP_vd_start_lines_ + 1;
