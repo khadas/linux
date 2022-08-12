@@ -62,10 +62,6 @@
 #include "quirks.h"
 #include "sd_ops.h"
 
-#if IS_ENABLED(CONFIG_AMLOGIC_MMC_MESON_GX)
-#include <trace/hooks/mmc_part.h>
-#endif
-
 MODULE_ALIAS("mmc:block");
 #ifdef MODULE_PARAM_PREFIX
 #undef MODULE_PARAM_PREFIX
@@ -2972,11 +2968,6 @@ static int mmc_blk_probe(struct mmc_card *card)
 		pm_runtime_set_active(&card->dev);
 		pm_runtime_enable(&card->dev);
 	}
-#if IS_ENABLED(CONFIG_AMLOGIC_MMC_MESON_GX)
-	trace_android_vh_amlmmc_dtb_key_init(&ret);
-	if (ret)
-		return ret;
-#endif
 
 	return 0;
 

@@ -74,11 +74,6 @@
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_cpu_chipid);
 #endif
 
-#if IS_ENABLED(CONFIG_AMLOGIC_MMC_MESON_GX)
-#include <trace/hooks/mmc_part.h>
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_amlmmc_dtb_key_init);
-#endif
-
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
 #include <trace/hooks/aml_v4l2.h>
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_meta_ptr_update);
