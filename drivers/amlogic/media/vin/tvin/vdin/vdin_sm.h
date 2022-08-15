@@ -69,6 +69,8 @@ enum vdin_sm_log_level {
 	VDIN_SM_LOG_L_3 = 0x04,
 	VDIN_SM_LOG_L_4 = 0x08,
 	VDIN_SM_LOG_L_5 = 0x10,
+	VDIN_SM_LOG_L_6 = 0x20,
+	VDIN_SM_LOG_L_7 = 0x40, /* vtem and spd */
 };
 
 struct tvin_sm_s {

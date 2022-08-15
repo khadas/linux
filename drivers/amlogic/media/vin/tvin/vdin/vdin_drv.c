@@ -3904,8 +3904,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 
 		if (vdin_dbg_en)
-			pr_info("%s TVIN_IOC_G_SIG_INFO signal_type:0x%x status:0x%x\n",
-				__func__, info.signal_type, info.status);
+			pr_info("%s signal_type: 0x%x,status:0x%x,fr:%d\n",
+				__func__, info.signal_type, info.status, info.fps);
 		mutex_unlock(&devp->fe_lock);
 		break;
 	}

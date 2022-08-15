@@ -5734,7 +5734,9 @@ void vdin_vs_proc_monitor(struct vdin_dev_s *devp)
 				devp->prop.emp_data.empbuf[2],
 				devp->prop.emp_data.empbuf[3]);
 		if (vdin_isr_monitor & BIT(2))
-			pr_info("aspect_ratio=0x%x\n", devp->prop.aspect_ratio);
+			pr_info("aspect_ratio=0x%x,vrr_en:%d,fr:%d\n",
+				devp->prop.aspect_ratio, devp->prop.vtem_data.vrr_en,
+				devp->prop.vtem_data.base_framerate);
 	}
 
 	if (color_range_force)

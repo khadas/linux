@@ -14,5 +14,6 @@ int cec_set_dev_info(u8 dev_idx);
 int hdmirx_set_cec_cfg(u32 cfg);
 int register_cec_callback(cec_callback callback);
 void unregister_cec_callback(void);
+unsigned int hdmirx_get_base_fps(unsigned int hw_vic);
 
 #endif

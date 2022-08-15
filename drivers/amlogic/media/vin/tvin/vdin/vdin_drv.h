@@ -107,7 +107,8 @@
 /* 20220726: add 444 format manual set */
 /* 20220804: vdin1 crash addr modify */
 /* 20220811: state machine optimization */
-#define VDIN_VER "20220811:state machine optimization"
+/* 20220829: get correct base framerate */
+#define VDIN_VER "20220829: get correct base framerate"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

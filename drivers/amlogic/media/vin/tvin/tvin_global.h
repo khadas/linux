@@ -441,11 +441,13 @@ struct tvin_emp_data_s {
 	u8 tag_id;
 };
 
+/* refer to hdmi_rx_drv.h */
 struct tvin_vtem_data_s {
 	u8 vrr_en;
 	u8 m_const;
+	u8 qms_en;
 	u8 fva_factor_m1;
-	u8 base_vfront;
+	u8 base_v_front;
 	u8 rb;
 	u16 base_framerate;
 	//real structure
@@ -524,7 +526,7 @@ struct tvin_sig_property_s {
 	struct tvin_vtem_data_s vtem_data;
 	struct tvin_spd_data_s spd_data;
 	unsigned int cnt;
-
+	unsigned int hw_vic;
 	/* only use for loopback, 0=positvie, 1=negative */
 	unsigned int polarity_vs;
 	unsigned int hdcp_sts;	/* pretected content src. 1:pretected 0:not*/

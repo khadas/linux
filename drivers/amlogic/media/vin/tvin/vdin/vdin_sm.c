@@ -33,6 +33,7 @@
 #include "vdin_sm.h"
 #include "vdin_ctl.h"
 #include "vdin_drv.h"
+#include "../hdmirx/hdmi_rx_drv_ext.h"
 
 /* Stay in TVIN_SIG_STATE_NOSIG for some
  * cycles => be sure TVIN_SIG_STATE_NOSIG
@@ -93,6 +94,7 @@ static int atv_stable_fmt_check_enable;
  *ensure after prestable into stable,the state is really stable!
  */
 static int atv_prestable_out_cnt = 50;
+static int hdmi_prestable_out_cnt = 3;
 static int other_stable_out_cnt = EXIT_STABLE_MAX_CNT;
 static int other_unstable_out_cnt = BACK_STABLE_MAX_CNT;
 static int manual_unstable_out_cnt = 30;
@@ -192,6 +194,47 @@ enum tvin_color_fmt_range_e
 	return fmt_range;
 }
 
+/*
+ * return:
+ * = 0:get correct base framerate from vrr/freesync
+ * < 0:no correct base framerate from vrr/freesync
+ */
+int vdin_get_base_fr(struct vdin_dev_s *devp)
+{
+	u32 fps = 0;
+	int ret = -1;
+
+	if (!IS_HDMI_SRC(devp->parm.port))
+		return ret;
+
+	if (devp->prop.vtem_data.vrr_en) { /* vrr */
+		if (devp->prop.hw_vic != 0) {
+		#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+			fps = hdmirx_get_base_fps(devp->prop.hw_vic);
+		#endif
+		} else {
+			fps = devp->prop.vtem_data.base_framerate;
+		}
+	} else if (vdin_check_is_spd_data(devp) &&
+		(devp->prop.spd_data.data[5] >> 1 & 0x7)) { /* FreeSync */
+		/* FreeSync Maximum refresh rate (Hz) */
+		fps = devp->prop.spd_data.data[7];
+	}
+
+	if (fps) {
+		devp->parm.info.fps = fps;
+		ret = 0;
+	}
+
+	if (sm_debug_enable & VDIN_SM_LOG_L_6)
+		pr_info("%s vrr_en:%d,vic=%d,base_fr=%d,spd[5]:%#x,spd[7]:%#x,fps:%d\n",
+			__func__, devp->prop.vtem_data.vrr_en, devp->prop.hw_vic,
+			devp->prop.vtem_data.base_framerate, devp->prop.spd_data.data[5],
+			devp->prop.spd_data.data[7], devp->parm.info.fps);
+
+	return ret;
+}
+
 void vdin_update_prop(struct vdin_dev_s *devp)
 {
 	/*devp->pre_prop.fps = devp->prop.fps;*/
@@ -200,6 +243,7 @@ void vdin_update_prop(struct vdin_dev_s *devp)
 	/*devp->pre_prop.latency.allm_mode = devp->prop.latency.allm_mode;*/
 	/*devp->pre_prop.aspect_ratio = devp->prop.aspect_ratio;*/
 	devp->parm.info.aspect_ratio = devp->prop.aspect_ratio;
+	vdin_get_base_fr(devp);
 	memcpy(&devp->pre_prop, &devp->prop,
 	       sizeof(struct tvin_sig_property_s));
 }
@@ -494,6 +538,7 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 	enum tvin_sg_chg_flg signal_chg = TVIN_SIG_CHG_NONE;
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct tvin_sig_property_s *prop;
+	unsigned int i;
 
 	/* need always polling the signal property, if isr enable,
 	 * it be called in isr
@@ -521,6 +566,22 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			devp->prop.hdr_info.hdr_data.eotf,
 			devp->prop.vdin_hdr_flag,
 			devp->prop.vdin_vrr_flag);
+
+	if (sm_debug_enable & VDIN_SM_LOG_L_7) {
+		pr_info("[sm.%d]pkttype:%#x,version:%#x,length:%#x,checksum:%#x\n",
+			devp->index,
+			devp->prop.spd_data.pkttype, devp->prop.spd_data.version,
+			devp->prop.spd_data.length, devp->prop.spd_data.checksum);
+		for (i = 0; i < sizeof(devp->prop.spd_data.data); i += 4)
+			pr_info("data[%d ~ %d]=%#x %#x %#x %#x\n", i, i + 3,
+				devp->prop.spd_data.data[i], devp->prop.spd_data.data[i + 1],
+				devp->prop.spd_data.data[i + 2], devp->prop.spd_data.data[i + 3]);
+		pr_info("vrr_en:%d,const:%#x,qms:%#x,fva:%#x,v_front:%d,rb:%d,fr:%d,vic:%d\n",
+			devp->prop.vtem_data.vrr_en, devp->prop.vtem_data.m_const,
+			devp->prop.vtem_data.qms_en, devp->prop.vtem_data.fva_factor_m1,
+			devp->prop.vtem_data.base_v_front, devp->prop.vtem_data.rb,
+			devp->prop.vtem_data.base_framerate, devp->prop.hw_vic);
+	}
 
 	if (devp->prop.dolby_vision)
 		signal_type |= (1 << 30);
@@ -665,11 +726,13 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 		if (chg & TVIN_SIG_CHG_VRR) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
 
-			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)\n", __func__,
+			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d),vic:%d,fr:%d\n", __func__,
 				devp->vrr_data.vdin_vrr_en_flag,
 				devp->prop.vtem_data.vrr_en,
 				devp->pre_prop.spd_data.data[5],
-				devp->prop.spd_data.data[5]);
+				devp->prop.spd_data.data[5],
+				devp->prop.hw_vic,
+				devp->prop.vtem_data.base_framerate);
 			devp->pre_prop.vtem_data.vrr_en =
 				devp->prop.vtem_data.vrr_en;
 			devp->vrr_data.vdin_vrr_en_flag =
@@ -728,7 +791,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 	struct tvin_frontend_s *fe;
 	struct tvin_sig_property_s *prop, *pre_prop;
 	enum tvin_sg_chg_flg signal_chg = TVIN_SIG_CHG_NONE;
-	unsigned int cnt;
+	unsigned int cnt, tmp;
 
 	if (!devp) {
 		return;
@@ -880,6 +943,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 
 					tvin_smr_init_counter(devp->index);
 					sm_p->state = TVIN_SM_STATUS_PRESTABLE;
+					sm_p->exit_prestable_cnt = 0;
 					sm_atv_prestable_fmt = info->fmt;
 
 					if (sm_debug_enable) {
@@ -968,7 +1032,19 @@ void tvin_smr(struct vdin_dev_s *devp)
 				else
 					sm_p->exit_prestable_cnt = 0;
 			}
-
+			/* spd_data maybe zeros randomly in freesync
+			 * wait hdmi_prestable_out_cnt times for
+			 * spd_data ready
+			 */
+			if (IS_HDMI_SRC(port)) {
+				++sm_p->exit_prestable_cnt;
+				if (sm_p->exit_prestable_cnt <=
+					hdmi_prestable_out_cnt) {
+					tmp = vdin_get_base_fr(devp);
+					if (tmp)
+						break;
+				}
+			}
 			sm_p->state = TVIN_SM_STATUS_STABLE;
 			info->status = TVIN_SIG_STATUS_STABLE;
 			vdin_update_prop(devp);

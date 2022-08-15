@@ -520,6 +520,7 @@ struct tvafe_pin_mux_s {
 bool IS_TVAFE_SRC(enum tvin_port_e port);
 bool IS_TVAFE_ATV_SRC(enum tvin_port_e port);
 bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
+bool IS_HDMI_SRC(enum tvin_port_e port);
 
 /* ************************************************************************* */
 

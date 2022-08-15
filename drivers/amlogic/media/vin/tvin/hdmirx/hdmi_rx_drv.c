@@ -654,6 +654,11 @@ void hdmirx_get_hdcp_sts(struct tvin_sig_property_s *prop)
 
 }
 
+void hdmirx_get_hw_vic(struct tvin_sig_property_s *prop)
+{
+	prop->hw_vic = rx.pre.hw_vic;
+}
+
 /*
  * hdmirx_get_fps_info - get video frame rate info
  */
@@ -787,6 +792,57 @@ int hdmirx_set_cec_cfg(u32 cfg)
 	return 0;
 }
 EXPORT_SYMBOL(hdmirx_set_cec_cfg);
+
+/*
+ * hdmirx_get_base_fps - get base framerate by vic
+ * refer to cta-861-h
+ */
+unsigned int hdmirx_get_base_fps(unsigned int hw_vic)
+{
+	unsigned int fps = 0;
+
+	if ((hw_vic >= 1 && hw_vic <= 16)  ||
+		hw_vic == 35  || hw_vic == 36  ||
+		hw_vic == 69  || hw_vic == 76  ||
+		hw_vic == 83  || hw_vic == 90  ||
+		hw_vic == 97  || hw_vic == 102 ||
+		hw_vic == 107 || hw_vic == 126 ||
+		hw_vic == 199 || hw_vic == 207 ||
+		hw_vic == 215)
+		fps = 60;
+	else if ((hw_vic >= 17 && hw_vic <= 31) ||
+		(hw_vic >= 37 && hw_vic <= 39) ||
+		hw_vic == 68  || hw_vic == 75  ||
+		hw_vic == 82  || hw_vic == 89  ||
+		hw_vic == 96  || hw_vic == 101 ||
+		hw_vic == 106 || hw_vic == 125 ||
+		hw_vic == 198 || hw_vic == 206 ||
+		hw_vic == 214)
+		fps = 50;
+	else if ((hw_vic >= 40 && hw_vic <= 45) ||
+		hw_vic == 64  || hw_vic == 70  ||
+		hw_vic == 77  || hw_vic == 84  ||
+		hw_vic == 91  || hw_vic == 117 ||
+		hw_vic == 119 || hw_vic == 127 ||
+		hw_vic == 200 || hw_vic == 208 ||
+		hw_vic == 216 || hw_vic == 218)
+		fps = 100;
+	else if ((hw_vic >= 46 && hw_vic <= 51) ||
+		hw_vic == 63  || hw_vic == 71  ||
+		hw_vic == 78  || hw_vic == 85  ||
+		hw_vic == 92  || hw_vic == 118 ||
+		hw_vic == 120 || hw_vic == 193 ||
+		hw_vic == 201 || hw_vic == 209 ||
+		hw_vic == 217 || hw_vic == 219)
+		fps = 120;
+	else if (hw_vic >= 52 && hw_vic <= 55)
+		fps = 200;
+	else if (hw_vic >= 56 && hw_vic <= 59)
+		fps = 240;
+
+	return fps;
+}
+EXPORT_SYMBOL(hdmirx_get_base_fps);
 
 /* see CEA-861-F table-12 and chapter 5.1:
  * By default, RGB pixel data values should be assumed to have
@@ -1188,6 +1244,7 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	hdmirx_get_vtem_info(prop);
 	hdmirx_get_active_aspect_ratio(prop);
 	hdmirx_get_hdcp_sts(prop);
+	hdmirx_get_hw_vic(prop);
 	prop->skip_vf_num = vdin_drop_frame_cnt;
 }
 
