@@ -934,6 +934,7 @@ struct vdin_v4l2_param_s {
 	unsigned int bit_order;	/* raw data bit order(0:none std, 1: std)*/
 	enum port_mode mode;	/*0:osd + video 1:video only*/
 	int bit_dep;
+	bool secure_memory_en; /* 0:not secure memory 1:secure memory */
 };
 
 enum vdin_vrr_mode_e {

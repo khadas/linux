@@ -1701,12 +1701,12 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		/* check input content is protected */
 		if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
 		    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
-			if (vdin0_devp->prop.hdcp_sts && !(devp->vdin_v4l2.secure_flg)) {
+			if (vdin0_devp->prop.hdcp_sts && !devp->mem_protected) {
 				pr_err("hdmi hdcp en, non-secure buffer\n");
 				devp->matrix_pattern_mode = 4;
 			} else {
 				pr_err("non-hdcp or hdcp with secure buffer.sts:%d,flg:%d\n",
-					vdin0_devp->prop.hdcp_sts, devp->vdin_v4l2.secure_flg);
+					vdin0_devp->prop.hdcp_sts, devp->mem_protected);
 				devp->matrix_pattern_mode = 0;
 			}
 		} else {
@@ -1976,6 +1976,8 @@ int stop_tvin_service(int no)
 		return -EBUSY;
 	}
 	devp->matrix_pattern_mode = 0;
+	if (devp->set_canvas_manual && devp->mem_protected)
+		devp->mem_protected = 0;
 	vdin_stop_dec(devp);
 	/*close fe*/
 	if (devp->frontend && devp->frontend->dec_ops &&
@@ -3452,7 +3454,7 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (vdin0_devp) { /* May not probe vdin0 */
 		/* check input content is protected */
 		protect_mode = vdin0_devp->prop.hdcp_sts ? 4 : 0;
-		if (protect_mode != devp->matrix_pattern_mode) {
+		if (protect_mode != devp->matrix_pattern_mode && !devp->mem_protected) {
 			devp->matrix_pattern_mode = protect_mode;
 			pr_info("vdin0:hdcp chg to %d\n", vdin0_devp->prop.hdcp_sts);
 			vdin_set_matrix(devp);
@@ -4553,6 +4555,8 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		param.fmt = TVIN_SIG_FMT_MAX;
 		//devp->flags |= VDIN_FLAG_V4L2_DEBUG;
 		devp->hist_bar_enable = 1;
+		if (vdin_v4l2_param.secure_memory_en)
+			devp->mem_protected = 1;
 		start_tvin_service(devp->index, &param);
 		break;
 	}
