@@ -28,6 +28,7 @@ $(MESON_DRM_MODULE_NAME)-y += meson_drv.o meson_plane.o \
                               vpu-hw/meson_vpu_osd_mif.o \
                               vpu-hw/meson_osd_afbc.o \
                               vpu-hw/meson_osd_scaler.o \
+			      vpu-hw/meson_osd_proc.o \
                               vpu-hw/meson_vpu_osdblend.o \
                               vpu-hw/meson_vpu_hdr_dv.o \
                               vpu-hw/meson_vpu_postblend.o \

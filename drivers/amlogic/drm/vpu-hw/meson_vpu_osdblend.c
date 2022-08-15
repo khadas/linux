@@ -10,6 +10,7 @@
 #include "meson_vpu_reg.h"
 #include "meson_vpu_util.h"
 #include "meson_vpu_osdblend.h"
+#include "meson_osd_proc.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
@@ -29,6 +30,23 @@ static struct osdblend_reg_s osdblend_reg = {
 	VIU_OSD_BLEND_BLEND0_SIZE,
 	VIU_OSD_BLEND_BLEND1_SIZE,
 	VIU_OSD_BLEND_CTRL1,
+};
+
+static struct osdblend_reg_s osdblend_s5_reg = {
+	VIU_OSD_BLEND_CTRL_S5,
+	VIU_OSD_BLEND_DIN0_SCOPE_H_S5,
+	VIU_OSD_BLEND_DIN0_SCOPE_V_S5,
+	VIU_OSD_BLEND_DIN1_SCOPE_H_S5,
+	VIU_OSD_BLEND_DIN1_SCOPE_V_S5,
+	VIU_OSD_BLEND_DIN2_SCOPE_H_S5,
+	VIU_OSD_BLEND_DIN2_SCOPE_V_S5,
+	VIU_OSD_BLEND_DIN3_SCOPE_H_S5,
+	VIU_OSD_BLEND_DIN3_SCOPE_V_S5,
+	VIU_OSD_BLEND_DUMMY_DATA0_S5,
+	VIU_OSD_BLEND_DUMMY_ALPHA_S5,
+	VIU_OSD_BLEND_BLEND0_SIZE_S5,
+	VIU_OSD_BLEND_BLEND1_SIZE_S5,
+	VIU_OSD_BLEND_CTRL1_S5,
 };
 
 /*0:din0 go through blend0,1:bypass blend0,dirct to Dout0*/
@@ -119,13 +137,13 @@ static void osd_din0_scope_set(struct meson_vpu_block *vblk,
 			       struct osd_scope_s scope)
 {
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din0_scope_h,
-				     scope.h_start, 0, 13);
+				     scope.h_start, 0, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din0_scope_h,
-				     scope.h_end, 16, 13);
+				     scope.h_end, 16, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din0_scope_v,
-				     scope.v_start, 0, 13);
+				     scope.v_start, 0, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din0_scope_v,
-				     scope.v_end, 16, 13);
+				     scope.v_end, 16, 16);
 }
 
 /*din1 scope config*/
@@ -135,13 +153,13 @@ static void osd_din1_scope_set(struct meson_vpu_block *vblk,
 			       struct osd_scope_s scope)
 {
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din1_scope_h,
-				     scope.h_start, 0, 13);
+				     scope.h_start, 0, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din1_scope_h,
-				     scope.h_end, 16, 13);
+				     scope.h_end, 16, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din1_scope_v,
-				     scope.v_start, 0, 13);
+				     scope.v_start, 0, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din1_scope_v,
-				     scope.v_end, 16, 13);
+				     scope.v_end, 16, 16);
 }
 
 /*din2 scope config*/
@@ -151,13 +169,13 @@ static void osd_din2_scope_set(struct meson_vpu_block *vblk,
 			       struct osd_scope_s scope)
 {
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din2_scope_h,
-				     scope.h_start, 0, 13);
+				     scope.h_start, 0, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din2_scope_h,
-				     scope.h_end, 16, 13);
+				     scope.h_end, 16, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din2_scope_v,
-				     scope.v_start, 0, 13);
+				     scope.v_start, 0, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din2_scope_v,
-				     scope.v_end, 16, 13);
+				     scope.v_end, 16, 16);
 }
 
 /*din3 scope config*/
@@ -167,13 +185,13 @@ static void osd_din3_scope_set(struct meson_vpu_block *vblk,
 			       struct osd_scope_s scope)
 {
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din3_scope_h,
-				     scope.h_start, 0, 13);
+				     scope.h_start, 0, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din3_scope_h,
-				     scope.h_end, 16, 13);
+				     scope.h_end, 16, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din3_scope_v,
-				     scope.v_start, 0, 13);
+				     scope.v_start, 0, 16);
 	reg_ops->rdma_write_reg_bits(reg->viu_osd_blend_din3_scope_v,
-				     scope.v_end, 16, 13);
+				     scope.v_end, 16, 16);
 }
 
 /*osd blend dummy data config*/
@@ -509,6 +527,13 @@ static int osdblend_check_state(struct meson_vpu_block *vblk,
 	return 0;
 }
 
+static int s5_osdblend_check_state(struct meson_vpu_block *vblk,
+				struct meson_vpu_block_state *state,
+		struct meson_vpu_pipeline_state *mvps)
+{
+	return 0;
+}
+
 static void osdblend_set_state(struct meson_vpu_block *vblk,
 			       struct meson_vpu_block_state *state,
 			       struct meson_vpu_block_state *old_state)
@@ -537,6 +562,156 @@ static void osdblend_set_state(struct meson_vpu_block *vblk,
 	if (vblk->pipeline->osd_version >= OSD_V1)
 		osd_dv_core_size_set(mvobs->input_width[OSD_SUB_BLEND0],
 				     mvobs->input_height[OSD_SUB_BLEND0]);
+
+	DRM_DEBUG("%s set_state done.\n", osdblend->base.name);
+}
+
+static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
+			       struct meson_vpu_block_state *state,
+				   struct meson_vpu_block_state *old_state)
+{
+	int i;
+	u32 max_height = 0, max_width = 0;
+	struct meson_vpu_osdblend_state *mvobs;
+	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvsps;
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	struct meson_vpu_pipeline *pipeline = osdblend->base.pipeline;
+	struct osdblend_reg_s *reg = osdblend->reg;
+	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
+	struct osd_scope_s scope_default = {0xffff, 0xffff, 0xffff, 0xffff};
+	struct osd_scope_s scope_default_slice = {0x0, 0xeff, 0x0, 0x86f};
+
+	DRM_DEBUG("%s set_state called.\n", osdblend->base.name);
+	mvobs = to_osdblend_state(state);
+	mvps = priv_to_pipeline_state(pipeline->obj.state);
+	if (!mvps) {
+		DRM_DEBUG("pipeline_state is NULL!!\n");
+		return;
+	}
+
+	mvsps = &mvps->sub_states[0];
+	if (mvsps->more_60) {
+		mvobs->din0_switch = 0;
+		mvobs->din3_switch = 0;
+		mvobs->blend1_switch = 0;
+		mvobs->din_channel_mux[0] = OSD_CHANNEL1;
+		mvobs->din_channel_mux[1] = OSD_CHANNEL_NUM;
+		mvobs->din_channel_mux[2] = OSD_CHANNEL_NUM;
+		mvobs->din_channel_mux[3] = OSD_CHANNEL_NUM;
+		mvobs->input_mask |= 1 << DIN0;
+		memcpy(&mvobs->din_channel_scope[0],
+			       &scope_default_slice,
+				sizeof(struct osd_scope_s));
+	} else {
+		mvobs->din0_switch = 0;
+		mvobs->din3_switch = 0;
+		mvobs->blend1_switch = 0;
+		mvobs->din_channel_mux[0] = OSD_CHANNEL_NUM;
+		mvobs->din_channel_mux[2] = OSD_CHANNEL_NUM;
+
+		if (mvps->plane_info[0].enable) {
+			mvobs->din_channel_mux[DIN1] = OSD_CHANNEL2;
+			mvobs->input_mask |= 1 << DIN1;
+			memcpy(&mvobs->din_channel_scope[DIN1],
+				   &mvps->osd_scope_pre[0],
+				   sizeof(struct osd_scope_s));
+		}
+
+		if (mvps->plane_info[2].enable) {
+			if (mvps->plane_info[2].zorder < mvps->plane_info[0].zorder) {
+				mvobs->din_channel_mux[DIN1] = OSD_CHANNEL4;
+				mvobs->din_channel_mux[DIN3] = OSD_CHANNEL2;
+			} else {
+				mvobs->din_channel_mux[DIN1] = OSD_CHANNEL2;
+				mvobs->din_channel_mux[DIN3] = OSD_CHANNEL4;
+			}
+
+			mvobs->input_mask |= 1 << DIN3;
+			memcpy(&mvobs->din_channel_scope[DIN3],
+			       &mvps->osd_scope_pre[2],
+				sizeof(struct osd_scope_s));
+		}
+	}
+
+	for (i = 0; i < MAX_DIN_NUM; i++) {
+		DRM_DEBUG("%s, scope: %u, %u, %u, %u\n", __func__, mvps->osd_scope_pre[i].h_start,
+			  mvps->osd_scope_pre[i].h_end, mvps->osd_scope_pre[i].v_start,
+			  mvps->osd_scope_pre[i].v_end);
+		if (mvobs->input_mask & BIT(i))
+			DRM_DEBUG("%s, already copy scope para\n", __func__);
+		else
+			memcpy(&mvobs->din_channel_scope[i],
+			       &scope_default,
+				sizeof(struct osd_scope_s));
+
+		if (max_width < mvps->osd_scope_pre[i].h_end + 1)
+			max_width = mvps->osd_scope_pre[i].h_end + 1;
+		if (max_height < mvps->osd_scope_pre[i].v_end + 1)
+			max_height = mvps->osd_scope_pre[i].v_end + 1;
+	}
+	/*sub blend size check*/
+	mvobs->input_width[OSD_SUB_BLEND0] = max_width;
+	mvobs->input_width[OSD_SUB_BLEND1] = max_width;
+	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
+	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
+	mvsps->blend_dout_hsize[OSD_SUB_BLEND0] = max_width;
+	mvsps->blend_dout_vsize[OSD_SUB_BLEND0] = max_height;
+	mvsps->blend_dout_hsize[OSD_SUB_BLEND1] = max_width;
+	mvsps->blend_dout_vsize[OSD_SUB_BLEND1] = max_height;
+
+	osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
+
+	meson_vpu_write_reg(OSD_BLEND_DOUT0_SIZE,
+			    (max_height << 16) | max_width);
+
+	if (mvps->plane_info[0].enable) {
+		reg_ops->rdma_write_reg(OSD1_PROC_IN_SIZE,
+				    (mvsps->scaler_din_vsize[0] << 16) |
+				    mvsps->scaler_din_hsize[0]);
+		reg_ops->rdma_write_reg(OSD1_PROC_OUT_SIZE,
+				    (mvsps->scaler_dout_vsize[0] << 16) |
+				    mvsps->scaler_dout_hsize[0]);
+	}
+
+	if (mvps->plane_info[2].enable) {
+		reg_ops->rdma_write_reg(OSD3_PROC_IN_SIZE,
+				    (mvsps->scaler_din_vsize[2] << 16) |
+				    mvsps->scaler_din_hsize[2]);
+		reg_ops->rdma_write_reg(OSD3_PROC_OUT_SIZE,
+				    (mvsps->scaler_dout_vsize[2] << 16) |
+				    mvsps->scaler_dout_hsize[2]);
+	}
+
+	if (mvsps->more_4k)
+		reg_ops->rdma_write_reg_bits(OSD_PI_BYPASS_EN, 0, 0, 1);
+	else
+		reg_ops->rdma_write_reg_bits(OSD_PI_BYPASS_EN, 1, 0, 1);
+
+	//osd 1
+	if (mvsps->more_60) {
+		reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 1, 0, 2);
+		reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 1, 6, 4);
+	} else {
+		// bypass slice and go blend
+		reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 2, 0, 2);
+	}
+
+	//osd 3
+	if (mvsps->more_60) {
+		reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 1, 4, 2);
+		reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 3, 10, 4);
+	} else {
+		// bypass slice and go blend
+		reg_ops->rdma_write_reg_bits(OSD_PROC_1MUX3_SEL, 2, 4, 2);
+	}
+
+	reg_ops->rdma_write_reg_bits(OSD_SYS_5MUX4_SEL, 0x1, 0, 20);
+	if (mvps->plane_info[0].enable)
+		reg_ops->rdma_write_reg_bits(VIU_OSD1_MISC, 1, 17, 1);
+
+	if (mvps->plane_info[2].enable)
+		reg_ops->rdma_write_reg_bits(VIU_OSD3_MISC, 1, 17, 1);
 
 	DRM_DEBUG("%s set_state done.\n", osdblend->base.name);
 }
@@ -640,6 +815,24 @@ static void osdblend_hw_init(struct meson_vpu_block *vblk)
 	DRM_DEBUG("%s hw_init called.\n", osdblend->base.name);
 }
 
+static void s5_osdblend_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_osdblend *osdblend = to_osdblend_block(vblk);
+	struct osd_dummy_data_s dummy_data = {0x80, 0x80, 0x80};
+	struct rdma_reg_ops *reg_ops = vblk->pipeline->subs[0].reg_ops;
+
+	osdblend->reg = &osdblend_s5_reg;
+
+	/*dummy data/alpha config*/
+	osd_blend_dummy_data_set(vblk, reg_ops, osdblend->reg, dummy_data);
+	reg_ops->rdma_write_reg(osdblend->reg->viu_osd_blend_dummy_data0, 0);
+
+	/*reset blend ctrl hold line*/
+	reg_ops->rdma_write_reg_bits(osdblend->reg->viu_osd_blend_ctrl, 4, 29, 3);
+
+	DRM_DEBUG("%s hw_init called.\n", osdblend->base.name);
+}
+
 struct meson_vpu_block_ops osdblend_ops = {
 	.check_state = osdblend_check_state,
 	.update_state = osdblend_set_state,
@@ -649,3 +842,11 @@ struct meson_vpu_block_ops osdblend_ops = {
 	.init = osdblend_hw_init,
 };
 
+struct meson_vpu_block_ops s5_osdblend_ops = {
+	.check_state = s5_osdblend_check_state,
+	.update_state = s5_osdblend_set_state,
+	.enable = osdblend_hw_enable,
+	.disable = osdblend_hw_disable,
+	.dump_register = osdblend_dump_register,
+	.init = s5_osdblend_hw_init,
+};

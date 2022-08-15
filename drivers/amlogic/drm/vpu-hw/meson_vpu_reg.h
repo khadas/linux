@@ -1167,6 +1167,8 @@
 #define VPU1_VENC_CTRL				0x22ef
 #define VPU2_VENC_CTRL				0x24ef
 
+#define OSD_DOLBY_BYPASS_EN            0x6077
+
 /* reg definition */
 
 #endif

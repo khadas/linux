@@ -196,7 +196,7 @@ static int meson_regdump_show(struct seq_file *sf, void *data)
 	struct am_meson_crtc *amc = to_am_meson_crtc(crtc);
 	struct meson_vpu_pipeline *mvp1 = amc->pipeline;
 
-	for (i = 0; i < mvp1->num_blocks; i++) {
+	for (i = 0; i < MESON_MAX_BLOCKS; i++) {
 		mvb = mvp1->mvbs[i];
 		if (!mvb)
 			continue;

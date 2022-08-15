@@ -224,12 +224,29 @@ static int meson_worker_thread_init(struct meson_drm *priv,
 	return 0;
 }
 
+static void meson_parse_max_config(struct device_node *node, u32 *max_width,
+				   u32 *max_height)
+{
+	int ret;
+	u32 sizes[2];
+
+	ret = of_property_read_u32_array(node, "max_sizes", sizes, 2);
+	if (ret) {
+		*max_width = 4096;
+		*max_height = 4096;
+	} else {
+		*max_width = sizes[0];
+		*max_height = sizes[1];
+	}
+}
+
 static int am_meson_drm_bind(struct device *dev)
 {
 	struct meson_drm *priv;
 	struct drm_device *drm;
 	struct platform_device *pdev = to_platform_device(dev);
 	u32 crtc_masks[ENCODER_MAX];
+	u32 max_width, max_height;
 	int i, ret = 0;
 
 	meson_driver.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
@@ -280,8 +297,9 @@ static int am_meson_drm_bind(struct device *dev)
 	/* init meson config before bind other component,
 	 * other component may use it.
 	 */
-	drm->mode_config.max_width = 4096;
-	drm->mode_config.max_height = 4096;
+	meson_parse_max_config(dev->of_node, &max_width, &max_height);
+	drm->mode_config.max_width = max_width;
+	drm->mode_config.max_height = max_height;
 	drm->mode_config.funcs = &meson_mode_config_funcs;
 	drm->mode_config.helper_private	= &meson_mode_config_helpers;
 	drm->mode_config.allow_fb_modifiers = true;

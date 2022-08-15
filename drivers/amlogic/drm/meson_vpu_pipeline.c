@@ -20,6 +20,10 @@ static int flush_time = 3;
 module_param(flush_time, int, 0664);
 MODULE_PARM_DESC(flush_time, "flush time");
 
+static int osd_slice_mode;
+module_param(osd_slice_mode, int, 0664);
+MODULE_PARM_DESC(osd_slice_mode, "osd_slice_mode");
+
 #define MAX_LINKS 5
 #define MAX_PORTS 6
 #define MAX_PORT_ID 32
@@ -255,6 +259,17 @@ meson_vpu_create_block(struct meson_vpu_block_para *para,
 		pipeline->postblends[mvb->index] = to_postblend_block(mvb);
 		pipeline->num_postblend++;
 		break;
+	case MESON_BLK_SLICE2PPC:
+		blk_size = sizeof(struct meson_vpu_slice2ppc);
+		if (pipeline->priv && pipeline->priv->vpu_data &&
+		    pipeline->priv->vpu_data->slice2ppc_ops)
+			ops = pipeline->priv->vpu_data->slice2ppc_ops;
+		else
+			ops = &slice2ppc_ops;
+
+		mvb = create_block(blk_size, para, ops, pipeline);
+		pipeline->slice2ppc = to_slice2ppc_block(mvb);
+		break;
 	case MESON_BLK_VIDEO:
 		blk_size = sizeof(struct meson_vpu_video);
 		if (pipeline->priv && pipeline->priv->vpu_data)
@@ -359,32 +374,64 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 	u8 i;
 	int crtc_index;
 	struct meson_vpu_sub_pipeline_state *mvsps;
+	struct drm_display_mode *mode;
 
 	mvps->num_plane = 0;
 	mvps->num_plane_video = 0;
 
-	for (i = 0; i < MESON_MAX_OSDS; i++) {
-		if (mvps->plane_info[i].enable) {
-			if (mvps->plane_info[i].src_w >
-				MESON_OSD_INPUT_W_LIMIT ||
-				mvps->plane_info[i].dst_w == 0) {
-				mvps->plane_info[i].enable = 0;
-				continue;
-			}
-			DRM_DEBUG("osdplane [%d] enable:(%d-%llx, %d-%d)\n",
-				mvps->plane_info[i].plane_index,
-				mvps->plane_info[i].zorder,
-				mvps->plane_info[i].phy_addr,
-				mvps->plane_info[i].dst_w,
-				mvps->plane_info[i].dst_h);
-			mvps->num_plane++;
-		} else {
-			DRM_DEBUG("osdplane indx [%d] disable.\n", i);
-		}
+	for (i = 0; i < MESON_MAX_CRTC; i++) {
+		mvsps = &mvps->sub_states[i];
+		mvsps->enable_blocks = 0;
+		mode = &pipeline->subs[i].mode;
+		if (mode->hdisplay > 3840 || mode->vdisplay > 2160)
+			mvsps->more_4k = 1;
+		if (mode->vrefresh > 60 || osd_slice_mode)
+			mvsps->more_60 = 1;
 	}
 
-	for (i = 0; i < MESON_MAX_CRTC; i++)
-		mvps->sub_states[i].enable_blocks = 0;
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		crtc_index = mvps->plane_info[i].crtc_index;
+		if (!mvps->sub_states[crtc_index].more_60) {
+			if (mvps->plane_info[i].enable) {
+				if (mvps->plane_info[i].src_w >
+					MESON_OSD_INPUT_W_LIMIT ||
+					mvps->plane_info[i].dst_w == 0) {
+					mvps->plane_info[i].enable = 0;
+					continue;
+				}
+				DRM_DEBUG("osdplane [%d] enable:(%d-%llx, %d-%d)\n",
+						mvps->plane_info[i].plane_index,
+						mvps->plane_info[i].zorder,
+						mvps->plane_info[i].phy_addr,
+						mvps->plane_info[i].dst_w,
+						mvps->plane_info[i].dst_h);
+				mvps->num_plane++;
+			} else {
+				DRM_DEBUG("osdplane index [%d] disable.\n", i);
+			}
+		} else {
+			if (i == OSD1_SLICE0 && mvps->plane_info[i].enable) {
+				mvps->plane_info[i].src_w = mvps->plane_info[i].src_w / 2;
+				mvps->plane_info[i].dst_w = mvps->plane_info[i].dst_w / 2;
+				mvps->num_plane++;
+			} else if (i == OSD3_SLICE1) {
+				memcpy(&mvps->plane_info[i], &mvps->plane_info[OSD1_SLICE0],
+						sizeof(struct meson_vpu_osd_layer_info));
+				mvps->plane_info[i].src_w = mvps->plane_info[OSD1_SLICE0].src_w;
+				mvps->plane_info[i].dst_w = mvps->plane_info[OSD1_SLICE0].dst_w;
+
+				mvps->plane_info[i].src_x = mvps->plane_info[OSD1_SLICE0].src_x +
+							mvps->plane_info[OSD1_SLICE0].src_w;
+				mvps->plane_info[i].dst_x = mvps->plane_info[OSD1_SLICE0].dst_x +
+							mvps->plane_info[OSD1_SLICE0].dst_w;
+				mvps->plane_info[i].plane_index = i;
+				mvps->plane_index[i] = i;
+				mvps->num_plane++;
+			} else {
+				DRM_DEBUG("slice mode osdplane [%d] disable.\n", i);
+			}
+		}
+	}
 
 	for (i = 0; i < pipeline->num_video; i++) {
 		if (mvps->video_plane_info[i].enable) {
@@ -475,16 +522,21 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 	for (i = 0; i < pipeline->num_afbc_osds; i++)
 		VPU_PIPELINE_HW_INIT(&pipeline->afbc_osds[i]->base);
 
-	for (i = 0; i < pipeline->num_scalers; i++)
-		VPU_PIPELINE_HW_INIT(&pipeline->scalers[i]->base);
+	for (i = 0; i < MESON_MAX_SCALERS; i++) {
+		if (pipeline->scalers[i])
+			VPU_PIPELINE_HW_INIT(&pipeline->scalers[i]->base);
+	}
 
 	VPU_PIPELINE_HW_INIT(&pipeline->osdblend->base);
 
-	for (i = 0; i < pipeline->num_hdrs; i++)
-		VPU_PIPELINE_HW_INIT(&pipeline->hdrs[i]->base);
+	for (i = 0; i < MESON_MAX_HDRS; i++)
+		if (pipeline->hdrs[i])
+			VPU_PIPELINE_HW_INIT(&pipeline->hdrs[i]->base);
 
 	for (i = 0; i < pipeline->num_postblend; i++)
 		VPU_PIPELINE_HW_INIT(&pipeline->postblends[i]->base);
+
+	VPU_PIPELINE_HW_INIT(&pipeline->slice2ppc->base);
 }
 
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
@@ -753,7 +805,7 @@ static int get_venc_type(struct meson_vpu_pipeline *pipeline, u32 viu_type)
 {
 	u32 venc_type = 0;
 
-	if (pipeline->osd_version == OSD_V7) {
+	if (pipeline->priv->vpu_data->enc_method == 1) {
 		u32 venc_mux = 3;
 		u32 venc_addr = VPU_VENC_CTRL;
 
@@ -794,7 +846,7 @@ int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
 	u32 offset = 0;
 	u32 venc_type = get_venc_type(pipeline, viu_type);
 
-	if (pipeline->osd_version == OSD_V7) {
+	if (pipeline->priv->vpu_data->enc_method == 1) {
 		u32 venc_mux = 3;
 
 		venc_mux = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
@@ -853,7 +905,7 @@ static int vpu_pipeline_get_active_begin_line(struct meson_vpu_pipeline *pipelin
 	u32 offset = 0;
 	u32 reg = ENCL_VIDEO_VAVON_BLINE;
 
-	if (pipeline->osd_version == OSD_V7) {
+	if (pipeline->priv->vpu_data->enc_method == 1) {
 		u32 venc_mux = 3;
 
 		venc_mux = aml_read_vcbus(VPU_VIU_VENC_MUX_CTRL) & 0x3f;

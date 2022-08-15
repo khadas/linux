@@ -544,6 +544,78 @@ int vpu_pipeline_check_block(int *combination, int num_planes,
 	return ret;
 }
 
+int s5_check_pipeline_path(int *combination, int num_planes,
+			   struct meson_vpu_pipeline_state *mvps,
+			   struct drm_atomic_state *state)
+{
+	int more_4k;
+	int more_60;
+	int i, j, osd_index, ret;
+	struct meson_vpu_block_state *mvbs;
+	struct meson_vpu_traverse *mvt;
+	struct meson_vpu_block **mvb;
+	struct meson_vpu_block *block;
+	bool have_blend, have_slice2ppc;
+
+	more_4k = mvps->sub_states[0].more_4k;
+	more_60 = mvps->sub_states[0].more_60;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (!mvps->plane_info[i].enable)
+			continue;
+		osd_index = mvps->plane_index[i];
+		mvt = &mvps->osd_traverse[osd_index];
+		mvb = mvt->path[combination[i]];
+		mvps->scaler_cnt[i] = 0;
+		have_blend = 0;
+
+		for (j = 0; j < MESON_MAX_BLOCKS; j++) {
+			block = mvb[j];
+			if (!block)
+				continue;
+			if (block->type == MESON_BLK_OSDBLEND)
+				have_blend = 1;
+			if (block->type == MESON_BLK_SLICE2PPC)
+				have_slice2ppc = 1;
+
+			if (block->ops && block->ops->check_state) {
+				mvbs = meson_vpu_block_get_state(block, state);
+				ret = block->ops->check_state(block, mvbs,
+							      mvps);
+
+				if (ret) {
+					DRM_ERROR("%s block check error.\n",
+						  block->name);
+					return ret;
+				}
+			}
+		}
+
+		if (more_4k && !have_blend)
+			return -1;
+		if (!more_60 && have_slice2ppc)
+			return -1;
+		if (mvps->plane_info[i].blend_bypass && have_blend)
+			return -1;
+	}
+
+	return 0;
+}
+
+int t7_check_pipeline_path(int *combination, int num_planes,
+			     struct meson_vpu_pipeline_state *mvps,
+					struct drm_atomic_state *state)
+{
+	return vpu_pipeline_check_block(combination, num_planes, mvps, state);
+}
+
+int g12a_check_pipeline_path(int *combination, int num_planes,
+			     struct meson_vpu_pipeline_state *mvps,
+					struct drm_atomic_state *state)
+{
+	return vpu_pipeline_check_block(combination, num_planes, mvps, state);
+}
+
 int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 				   struct drm_atomic_state *state)
 {
@@ -610,6 +682,183 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 	//for (i = 0; i < MESON_MAX_VIDEO; i++)
 }
 
+int s5_set_pipeline_para(int *combination, int num_planes,
+			 struct meson_vpu_pipeline_state *mvps,
+			 struct drm_atomic_state *state)
+{
+	int more_4k;
+	int more_60;
+	int i;
+	u32 osd_in_hsize_real, osd_out_hsize_real;
+	u32 osd_pps_din_hsize[MESON_MAX_OSDS];
+	u32 osd_pps_dout_hsize[MESON_MAX_OSDS];
+	u32 osd_pps_din_vsize[MESON_MAX_OSDS];
+	u32 osd_pps_dout_vsize[MESON_MAX_OSDS];
+	u32 osd_slice_dout_hsize[MESON_MAX_OSDS];
+	u32 hwincut_bgn[MESON_MAX_OSDS];
+	u32 hwincut_end[MESON_MAX_OSDS];
+	u32 init_phase[MESON_MAX_OSDS];
+	u32 slice_st[MESON_MAX_OSDS];
+	u32 horz_phase_step, slice1_init_phase_out;
+	struct meson_vpu_sub_pipeline_state *mvsps;
+
+	mvsps = &mvps->sub_states[0];
+	more_4k = mvsps->more_4k;
+	more_60 = mvsps->more_60;
+
+	osd_in_hsize_real = 0;
+	osd_out_hsize_real = 0;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (!mvps->plane_info[i].enable)
+			continue;
+
+		if (more_60) {
+			osd_in_hsize_real += mvps->plane_info[i].src_w;
+			osd_out_hsize_real += mvps->plane_info[i].dst_w;
+		}
+
+		osd_pps_din_hsize[i] = mvps->plane_info[i].src_w;
+		osd_pps_dout_vsize[i] = mvps->plane_info[i].dst_h;
+		osd_pps_din_vsize[i] = mvps->plane_info[i].src_h;
+	}
+
+	mvsps->slice2ppc_hsize = osd_out_hsize_real / 2;
+	mvsps->slice2ppc_vsize = mvps->plane_info[OSD1_SLICE0].dst_h;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (!mvps->plane_info[i].enable)
+			continue;
+
+		if (more_60) {
+			horz_phase_step =
+				(osd_in_hsize_real << 18) / osd_out_hsize_real;
+			horz_phase_step = (horz_phase_step << 6);
+			osd_slice_dout_hsize[i] = osd_out_hsize_real / 2;
+
+			if (osd_in_hsize_real == osd_out_hsize_real) {
+				osd_pps_dout_hsize[i] =
+					osd_slice_dout_hsize[i] +
+					SCALER_OVERLAP;
+				osd_pps_din_hsize[i] = osd_pps_dout_hsize[i];
+				if (i == OSD1_SLICE0) {
+					hwincut_bgn[i] = 0;
+					hwincut_end[i] =
+						osd_slice_dout_hsize[i] - 1;
+				} else if (i == OSD3_SLICE1) {
+					hwincut_bgn[i] = SCALER_OVERLAP;
+					hwincut_end[i] =
+						osd_slice_dout_hsize[i] +
+						SCALER_OVERLAP - 1;
+				}
+			} else {
+				if (i == OSD1_SLICE0) {
+					slice_st[i] = 0;
+					osd_pps_din_hsize[i] =
+						((osd_slice_dout_hsize[i]) *
+						  (horz_phase_step >> 4) /
+						  (1 << 20)) +
+						SCALER_OVERLAP;
+					osd_pps_dout_hsize[i] =
+						((osd_pps_din_hsize[i]) *
+						   (1 << 24)) /
+						  horz_phase_step;
+					hwincut_bgn[i] = 0;
+					hwincut_end[i] =
+						osd_slice_dout_hsize[i] - 1;
+				} else if (i == OSD3_SLICE1) {
+					slice_st[i] =
+						osd_pps_din_hsize[OSD1_SLICE0] -
+						2 * SCALER_OVERLAP;
+					slice1_init_phase_out =
+						slice_st[i]
+						<< 24 / horz_phase_step;
+					osd_pps_din_hsize[i] =
+						osd_in_hsize_real -
+						osd_pps_din_hsize[0] +
+						SCALER_OVERLAP * 2;
+					osd_pps_dout_hsize[i] =
+						osd_out_hsize_real -
+						slice1_init_phase_out;
+					hwincut_bgn[i] =
+						osd_pps_dout_hsize[i] -
+						osd_slice_dout_hsize[i];
+					hwincut_end[i] =
+						osd_pps_dout_hsize[i] - 1;
+				}
+			}
+		} else {
+			osd_pps_din_hsize[i] = mvps->plane_info[i].src_w;
+			osd_pps_din_vsize[i] = mvps->plane_info[i].src_h;
+			slice_st[i] = 0;
+			init_phase[i] = 0;
+			if (more_4k) {
+				osd_pps_dout_hsize[i] =
+					mvps->plane_info[i].dst_w / 2;
+				osd_pps_dout_vsize[i] =
+					mvps->plane_info[i].dst_h / 2;
+			} else {
+				osd_pps_dout_hsize[i] =
+					mvps->plane_info[i].dst_w;
+				osd_pps_dout_vsize[i] =
+					mvps->plane_info[i].dst_h;
+			}
+			horz_phase_step = (osd_pps_din_hsize[i] << 18) /
+					  osd_pps_dout_hsize[i];
+		}
+
+		mvsps->scaler_din_hsize[i] = osd_pps_din_hsize[i];
+		mvsps->scaler_dout_hsize[i] = osd_pps_dout_hsize[i];
+		mvsps->scaler_din_vsize[i] = osd_pps_din_vsize[i];
+		mvsps->scaler_dout_vsize[i] = osd_pps_dout_vsize[i];
+		mvps->scaler_param[i].input_width = osd_pps_din_hsize[i];
+		mvps->scaler_param[i].input_height = osd_pps_din_vsize[i];
+		mvps->scaler_param[i].output_width = osd_pps_dout_hsize[i];
+		mvps->scaler_param[i].output_height = osd_pps_dout_vsize[i];
+		mvps->osd_scope_pre[i].h_start = mvps->plane_info[i].dst_x;
+		mvps->osd_scope_pre[i].h_end = mvps->plane_info[i].dst_x +
+						osd_pps_dout_hsize[i] - 1;
+		mvps->osd_scope_pre[i].v_start = mvps->plane_info[i].dst_y;
+		mvps->osd_scope_pre[i].v_end = mvps->plane_info[i].dst_y +
+						osd_pps_dout_vsize[i] - 1;
+		mvsps->slice_dout_hsize[i] = osd_slice_dout_hsize[i];
+		mvsps->hwincut_bgn[i] = hwincut_bgn[i];
+		mvsps->hwincut_end[i] = hwincut_end[i];
+		mvsps->slice_x_st[i] = slice_st[i];
+		mvsps->slice_x_end[i] = 0;
+		mvsps->init_phase[i] = init_phase[0];
+		mvsps->slice2ppc_hsize = osd_out_hsize_real / 2;
+		DRM_DEBUG("%s, scaler_d:%u, %u, %u, %u, %d\n", __func__, mvsps->scaler_din_hsize[i],
+			  mvsps->scaler_dout_hsize[i], mvsps->scaler_din_vsize[i],
+			  mvsps->scaler_dout_vsize[i], i);
+		DRM_DEBUG("%s, scaler_p:%u, %u, %u, %u\n", __func__,
+			  mvps->scaler_param[i].input_width,
+			  mvps->scaler_param[i].input_height, mvps->scaler_param[i].output_width,
+			  mvps->scaler_param[i].output_height);
+		DRM_DEBUG("%s, osd_scope_pre:%u, %u\n", __func__, mvps->osd_scope_pre[i].h_end,
+			  mvps->osd_scope_pre[i].v_end);
+	}
+
+	vpu_pipeline_enable_block(combination, num_planes, mvps);
+	return 0;
+}
+
+int t7_set_pipeline_para(int *combination, int num_planes,
+			     struct meson_vpu_pipeline_state *mvps,
+					struct drm_atomic_state *state)
+{
+	vpu_pipeline_enable_block(combination, num_planes, mvps);
+	return 0;
+}
+
+int g12a_set_pipeline_para(int *combination, int num_planes,
+			     struct meson_vpu_pipeline_state *mvps,
+					struct drm_atomic_state *state)
+{
+	vpu_pipeline_enable_block(combination, num_planes, mvps);
+	return 0;
+}
+
 void vpu_pipeline_clean_block(int *combination, int num_planes,
 			      struct meson_vpu_pipeline_state *mvps,
 			      struct drm_atomic_state *state)
@@ -663,10 +912,11 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 			 struct meson_vpu_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
-	int i, j, ret, index;
+	int i, j, k, ret, index;
 	bool is_continue = false;
 	/*comb of osd path index or each osd.*/
 	int combination[MESON_MAX_OSDS] = {0};
+	struct meson_vpu_pipeline_ops *ops = mvps->pipeline->ops;
 
 	i = 0;
 	ret = -1;
@@ -680,8 +930,8 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 		DRM_DEBUG("Comb check [%d-%d-%d-%d]\n",
 			combination[0], combination[1], combination[2], combination[3]);
 		// sum the combination result to check osd blend block
-		ret = vpu_pipeline_check_block(combination,
-					       num_planes, mvps, state);
+		ret = ops->check_pipeline_path(combination, num_planes, mvps,
+					       state);
 		if (!ret || ret == -EINVAL)
 			break;
 		vpu_pipeline_clean_block(combination, num_planes, mvps, state);
@@ -695,9 +945,15 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 			if (combination[j] >= path_num_array[j]) {
 				combination[j] = 0;
 				i = 0;
-				if ((j - 1) >= 0)
-					combination[j - 1] =
-						combination[j - 1] + 1;
+
+				for (k = j - 1; k >= 0; k--) {
+					if (mvps->plane_info[k].enable)
+						break;
+				}
+
+				if (k >= 0)
+					combination[k] =
+						combination[k] + 1;
 			}
 		}
 
@@ -713,7 +969,8 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 
 	} while (is_continue);
 	if (!ret)
-		vpu_pipeline_enable_block(combination, num_planes, mvps);
+		ops->set_pipeline_para(combination, num_planes, mvps, state);
+
 	return ret;
 }
 
@@ -787,3 +1044,19 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 	DRM_DEBUG("====> traverse end\n");
 	return ret;
 }
+
+struct meson_vpu_pipeline_ops g12a_vpu_pipeline_ops = {
+	.check_pipeline_path = g12a_check_pipeline_path,
+	.set_pipeline_para = g12a_set_pipeline_para,
+};
+
+struct meson_vpu_pipeline_ops t7_vpu_pipeline_ops = {
+	.check_pipeline_path = t7_check_pipeline_path,
+	.set_pipeline_para = t7_set_pipeline_para,
+};
+
+struct meson_vpu_pipeline_ops s5_vpu_pipeline_ops = {
+	.check_pipeline_path = s5_check_pipeline_path,
+	.set_pipeline_para = s5_set_pipeline_para,
+};
+

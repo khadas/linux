@@ -115,6 +115,97 @@ static struct osd_mif_reg_s osd_mif_reg[HW_OSD_MIF_NUM] = {
 	}
 };
 
+static struct osd_mif_reg_s s5_osd_mif_reg[HW_OSD_MIF_NUM] = {
+	{
+		VIU_OSD1_CTRL_STAT_S5,
+		VIU_OSD1_CTRL_STAT2_S5,
+		VIU_OSD1_COLOR_ADDR_S5,
+		VIU_OSD1_COLOR_S5,
+		VIU_OSD1_TCOLOR_AG0_S5,
+		VIU_OSD1_TCOLOR_AG1_S5,
+		VIU_OSD1_TCOLOR_AG2_S5,
+		VIU_OSD1_TCOLOR_AG3_S5,
+		VIU_OSD1_BLK0_CFG_W0_S5,
+		VIU_OSD1_BLK0_CFG_W1_S5,
+		VIU_OSD1_BLK0_CFG_W2_S5,
+		VIU_OSD1_BLK0_CFG_W3_S5,
+		VIU_OSD1_BLK0_CFG_W4_S5,
+		VIU_OSD1_BLK1_CFG_W4_S5,
+		VIU_OSD1_BLK2_CFG_W4_S5,
+		VIU_OSD1_FIFO_CTRL_STAT_S5,
+		VIU_OSD1_TEST_RDDATA_S5,
+		VIU_OSD1_PROT_CTRL_S5,
+		VIU_OSD1_MALI_UNPACK_CTRL_S5,
+		VIU_OSD1_DIMM_CTRL_S5,
+	},
+	{
+		VIU_OSD2_CTRL_STAT_S5,
+		VIU_OSD2_CTRL_STAT2_S5,
+		VIU_OSD2_COLOR_ADDR_S5,
+		VIU_OSD2_COLOR_S5,
+		VIU_OSD2_TCOLOR_AG0_S5,
+		VIU_OSD2_TCOLOR_AG1_S5,
+		VIU_OSD2_TCOLOR_AG2_S5,
+		VIU_OSD2_TCOLOR_AG3_S5,
+		VIU_OSD2_BLK0_CFG_W0_S5,
+		VIU_OSD2_BLK0_CFG_W1_S5,
+		VIU_OSD2_BLK0_CFG_W2_S5,
+		VIU_OSD2_BLK0_CFG_W3_S5,
+		VIU_OSD2_BLK0_CFG_W4_S5,
+		VIU_OSD2_BLK1_CFG_W4_S5,
+		VIU_OSD2_BLK2_CFG_W4_S5,
+		VIU_OSD2_FIFO_CTRL_STAT_S5,
+		VIU_OSD2_TEST_RDDATA_S5,
+		VIU_OSD2_PROT_CTRL_S5,
+		VIU_OSD2_MALI_UNPACK_CTRL_S5,
+		VIU_OSD2_DIMM_CTRL_S5,
+	},
+	{
+		VIU_OSD3_CTRL_STAT_S5,
+		VIU_OSD3_CTRL_STAT2_S5,
+		VIU_OSD3_COLOR_ADDR_S5,
+		VIU_OSD3_COLOR_S5,
+		VIU_OSD3_TCOLOR_AG0_S5,
+		VIU_OSD3_TCOLOR_AG1_S5,
+		VIU_OSD3_TCOLOR_AG2_S5,
+		VIU_OSD3_TCOLOR_AG3_S5,
+		VIU_OSD3_BLK0_CFG_W0_S5,
+		VIU_OSD3_BLK0_CFG_W1_S5,
+		VIU_OSD3_BLK0_CFG_W2_S5,
+		VIU_OSD3_BLK0_CFG_W3_S5,
+		VIU_OSD3_BLK0_CFG_W4_S5,
+		VIU_OSD3_BLK1_CFG_W4_S5,
+		VIU_OSD3_BLK2_CFG_W4_S5,
+		VIU_OSD3_FIFO_CTRL_STAT_S5,
+		VIU_OSD3_TEST_RDDATA_S5,
+		VIU_OSD3_PROT_CTRL_S5,
+		VIU_OSD3_MALI_UNPACK_CTRL_S5,
+		VIU_OSD3_DIMM_CTRL_S5,
+	},
+	{
+		VIU_OSD4_CTRL_STAT_S5,
+		VIU_OSD4_CTRL_STAT2_S5,
+		VIU_OSD4_COLOR_ADDR_S5,
+		VIU_OSD4_COLOR_S5,
+		VIU_OSD4_TCOLOR_AG0_S5,
+		VIU_OSD4_TCOLOR_AG1_S5,
+		VIU_OSD4_TCOLOR_AG2_S5,
+		VIU_OSD4_TCOLOR_AG3_S5,
+		VIU_OSD4_BLK0_CFG_W0_S5,
+		VIU_OSD4_BLK0_CFG_W1_S5,
+		VIU_OSD4_BLK0_CFG_W2_S5,
+		VIU_OSD4_BLK0_CFG_W3_S5,
+		VIU_OSD4_BLK0_CFG_W4_S5,
+		VIU_OSD4_BLK1_CFG_W4_S5,
+		VIU_OSD4_BLK2_CFG_W4_S5,
+		VIU_OSD4_FIFO_CTRL_STAT_S5,
+		VIU_OSD4_TEST_RDDATA_S5,
+		VIU_OSD4_PROT_CTRL_S5,
+		VIU_OSD4_MALI_UNPACK_CTRL_S5,
+		VIU_OSD4_DIMM_CTRL_S5,
+	},
+};
+
 static unsigned int osd_canvas[3][2];
 static u32 osd_canvas_index[3] = {0, 0, 0};
 
@@ -342,7 +433,7 @@ void osd_mali_src_en(struct meson_vpu_block *vblk,
 				     flag, (osd_index + 4), 1);
 }
 
-void osd_mali_src_en_v7(struct meson_vpu_block *vblk,
+void osd_mali_src_en_linear(struct meson_vpu_block *vblk,
 			struct rdma_reg_ops *reg_ops,
 			struct osd_mif_reg_s *reg, u8 osd_index, bool flag)
 {
@@ -500,7 +591,7 @@ static void osd_afbc_config(struct meson_vpu_block *vblk,
 	osd_mem_mode(vblk, reg_ops, reg, afbc_en);
 }
 
-static void osd_afbc_config_v7(struct meson_vpu_block *vblk,
+static void osd_afbc_config_linear(struct meson_vpu_block *vblk,
 			       struct rdma_reg_ops *reg_ops,
 			       struct osd_mif_reg_s *reg,
 			       u8 osd_index, bool afbc_en)
@@ -513,7 +604,7 @@ static void osd_afbc_config_v7(struct meson_vpu_block *vblk,
 	osd_mali_unpack_enable(vblk, reg_ops, reg, afbc_en);
 	osd_endian_mode(vblk, reg_ops, reg, !afbc_en);
 	osd_mem_mode(vblk, reg_ops, reg, 1);
-	osd_mali_src_en_v7(vblk, reg_ops, reg, osd_index, afbc_en);
+	osd_mali_src_en_linear(vblk, reg_ops, reg, osd_index, afbc_en);
 }
 
 static void osd_set_dimm_ctrl(struct meson_vpu_block *vblk,
@@ -737,10 +828,11 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 			  struct meson_vpu_block_state *state,
 			  struct meson_vpu_block_state *old_state)
 {
-	struct meson_vpu_pipeline *pipeline;
 	struct meson_vpu_osd *osd;
 	struct meson_vpu_osd_state *mvos, *old_mvos = NULL;
 	struct meson_vpu_pipeline *pipe;
+	struct meson_vpu_sub_pipeline_state *mvsps;
+	struct meson_vpu_pipeline_state *mvps;
 	struct rdma_reg_ops *reg_ops;
 	int crtc_index;
 	u32 pixel_format, canvas_index, src_h, byte_stride, flush_reg;
@@ -757,10 +849,11 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	mvos = to_osd_state(state);
 	osd = to_osd_block(vblk);
-	pipeline = osd->base.pipeline;
 	crtc_index = mvos->crtc_index;
 	reg_ops = state->sub->reg_ops;
 	pipe = vblk->pipeline;
+	mvps = priv_to_pipeline_state(pipe->obj.state);
+	mvsps = &mvps->sub_states[0];
 	reg = osd->reg;
 	if (!reg) {
 		DRM_DEBUG("set_state break for NULL OSD mixer reg.\n");
@@ -774,7 +867,7 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	DRM_DEBUG("flush_reg-%d index-%d\n", flush_reg, vblk->index);
 	if (!flush_reg) {
 		/*after v7 chips, always linear addr*/
-		if (pipeline->osd_version == OSD_V7)
+		if (osd->mif_acc_mode == LINEAR_MIF)
 			osd_mem_mode(vblk, reg_ops, reg, 1);
 
 		DRM_DEBUG("%s-%d not need to flush mif register.\n", osd->base.name, vblk->index);
@@ -792,21 +885,33 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 
 	src_h = mvos->src_h + mvos->src_y;
 	byte_stride = mvos->byte_stride;
-	if (pipeline->osd_version == OSD_V7)
-		byte_stride = line_stride_calc(mvos->pixel_format,
+	if (osd->mif_acc_mode == LINEAR_MIF) {
+		if (mvsps->more_60)
+			byte_stride = line_stride_calc(mvos->pixel_format,
+						mvos->src_w * 2, 0);
+		else
+			byte_stride = line_stride_calc(mvos->pixel_format,
 						mvos->src_w, 0);
+	}
 	phy_addr = mvos->phy_addr;
 	scope_src.h_start = mvos->src_x;
 	scope_src.h_end = mvos->src_x + mvos->src_w - 1;
 	scope_src.v_start = mvos->src_y;
 	scope_src.v_end = mvos->src_y + mvos->src_h - 1;
+	if (mvsps->more_60) {
+		if (vblk->index == OSD1_SLICE0)
+			scope_src.h_end = mvos->src_x + mvos->src_w - 1 + SCALER_OVERLAP;
+		if (vblk->index == OSD3_SLICE1)
+			scope_src.h_start = mvos->src_x - SCALER_OVERLAP;
+	}
+
 	pixel_format = mvos->pixel_format;
 
 	reverse_x = (mvos->rotation & DRM_MODE_REFLECT_X) ? 1 : 0;
 	reverse_y = (mvos->rotation & DRM_MODE_REFLECT_Y) ? 1 : 0;
 	osd_reverse_x_enable(vblk, reg_ops, reg, reverse_x);
 	osd_reverse_y_enable(vblk, reg_ops, reg, reverse_y);
-	if (pipeline->osd_version == OSD_V7) {
+	if (osd->mif_acc_mode == LINEAR_MIF) {
 		osd_linear_addr_config(vblk, reg_ops, reg, phy_addr, byte_stride);
 		DRM_DEBUG("byte stride=0x%x,phy_addr=0x%pa\n",
 			  byte_stride, &phy_addr);
@@ -825,8 +930,8 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	osd_input_size_config(vblk, reg_ops, reg, scope_src);
 	osd_color_config(vblk, reg_ops, reg, pixel_format, mvos->pixel_blend, afbc_en);
 
-	if (pipeline->osd_version == OSD_V7)
-		osd_afbc_config_v7(vblk, reg_ops, reg, vblk->index, afbc_en);
+	if (osd->mif_acc_mode == LINEAR_MIF)
+		osd_afbc_config_linear(vblk, reg_ops, reg, vblk->index, afbc_en);
 	else
 		osd_afbc_config(vblk, reg_ops, reg, vblk->index, afbc_en);
 
@@ -953,11 +1058,57 @@ static void osd_hw_init(struct meson_vpu_block *vblk)
 		return;
 	}
 
-	if (pipeline->osd_version != OSD_V7)
-		meson_drm_osd_canvas_alloc();
+	meson_drm_osd_canvas_alloc();
 
 	osd->reg = &osd_mif_reg[vblk->index];
 	osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
+	osd->mif_acc_mode = CANVAS_MODE;
+
+	DRM_DEBUG("%s hw_init done.\n", osd->base.name);
+}
+
+static void t7_osd_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_osd *osd = to_osd_block(vblk);
+
+	if (!vblk || !osd) {
+		DRM_DEBUG("hw_init break for NULL.\n");
+		return;
+	}
+
+	pipeline = osd->base.pipeline;
+	if (!pipeline) {
+		DRM_DEBUG("hw_init break for NULL.\n");
+		return;
+	}
+
+	osd->reg = &osd_mif_reg[vblk->index];
+	osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
+	osd->mif_acc_mode = LINEAR_MIF;
+
+	DRM_DEBUG("%s hw_init done.\n", osd->base.name);
+}
+
+static void s5_osd_hw_init(struct meson_vpu_block *vblk)
+{
+	struct meson_vpu_pipeline *pipeline;
+	struct meson_vpu_osd *osd = to_osd_block(vblk);
+
+	if (!vblk || !osd) {
+		DRM_DEBUG("hw_init break for NULL.\n");
+		return;
+	}
+
+	pipeline = osd->base.pipeline;
+	if (!pipeline) {
+		DRM_DEBUG("hw_init break for NULL.\n");
+		return;
+	}
+
+	osd->reg = &s5_osd_mif_reg[vblk->index];
+	osd_ctrl_init(vblk, pipeline->subs[0].reg_ops, osd->reg);
+	osd->mif_acc_mode = LINEAR_MIF;
 
 	DRM_DEBUG("%s hw_init done.\n", osd->base.name);
 }
@@ -978,7 +1129,7 @@ static void osd_hw_fini(struct meson_vpu_block *vblk)
 		return;
 	}
 
-	if (pipeline->osd_version != OSD_V7)
+	if (osd->mif_acc_mode == CANVAS_MODE)
 		meson_drm_osd_canvas_free();
 }
 
@@ -998,6 +1149,16 @@ struct meson_vpu_block_ops t7_osd_ops = {
 	.enable = osd_hw_enable,
 	.disable = osd_hw_disable,
 	.dump_register = osd_dump_register,
-	.init = osd_hw_init,
+	.init = t7_osd_hw_init,
+	.fini = osd_hw_fini,
+};
+
+struct meson_vpu_block_ops s5_osd_ops = {
+	.check_state = osd_check_state,
+	.update_state = osd_set_state,
+	.enable = osd_hw_enable,
+	.disable = osd_hw_disable,
+	.dump_register = osd_dump_register,
+	.init = s5_osd_hw_init,
 	.fini = osd_hw_fini,
 };

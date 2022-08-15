@@ -23,7 +23,7 @@
 #define MESON_MAX_OSD_BLEND 3
 #define MESON_MAX_OSD_TO_VPP 2
 #define MESON_MAX_SCALERS 4
-#define MESON_MAX_HDRS 2
+#define MESON_MAX_HDRS 3
 #define MESON_MAX_DBS 2
 #define MESON_MAX_POSTBLEND 3
 #define MESON_MAX_BLOCKS 32
@@ -36,11 +36,11 @@
 #define MESON_OSD_INPUT_H_LIMIT 2160
 
 #define MAX_DIN_NUM 4
-#define MAX_DOUT_NUM 2
+#define MAX_DOUT_NUM 3
 
 #define VP_MAP_STRUCT_SIZE	120
 #define BUFFER_NUM		4
-#define MAX_DFS_PATH_NUM 2
+#define MAX_DFS_PATH_NUM 4
 /*
  *according to reg description,scale down limit shold be 4bits=16
  *but test result is 10,it will display abnormal if bigger than 10.xx
@@ -63,6 +63,13 @@
 #define SCALER_OUTPUT_HEIGHT_CHANGED BIT(3)
 #define SCALER_OUTPUT_SCAN_MODE_CHANGED BIT(4)
 
+#define SCALER_OVERLAP 32
+enum slice_index {
+	OSD1_SLICE0,
+	OSD2_SLICE1,
+	OSD3_SLICE1,
+};
+
 enum meson_vpu_blk_type {
 	MESON_BLK_OSD = 0,
 	MESON_BLK_AFBC,
@@ -72,6 +79,7 @@ enum meson_vpu_blk_type {
 	MESON_BLK_DOVI,
 	MESON_BLK_VPPBLEND,
 	MESON_BLK_VIDEO,
+	MESON_BLK_SLICE2PPC,
 };
 
 struct meson_vpu_pipeline;
@@ -177,9 +185,16 @@ struct meson_vpu_osd_layer_info {
 	u32 status_changed;
 };
 
+enum osd_mif_acc_mode {
+	CANVAS_MODE,
+	LINEAR_AFBC,
+	LINEAR_MIF,
+};
+
 struct meson_vpu_osd {
 	struct meson_vpu_block base;
 	struct osd_mif_reg_s *reg;
+	int mif_acc_mode;
 };
 
 struct meson_vpu_osd_state {
@@ -427,6 +442,15 @@ struct meson_vpu_postblend_state {
 	struct osd_scope_s postblend_scope[MESON_MAX_OSD_TO_VPP];
 };
 
+struct meson_vpu_slice2ppc {
+	struct meson_vpu_block base;
+	struct slice2ppc_reg_s *reg;
+};
+
+struct meson_vpu_slice2ppc_state {
+	struct meson_vpu_block_state base;
+};
+
 /* vpu pipeline */
 struct rdma_reg_ops {
 	u32 (*rdma_read_reg)(u32 addr);
@@ -443,6 +467,15 @@ struct meson_vpu_sub_pipeline {
 	struct rdma_reg_ops *reg_ops;
 };
 
+struct meson_vpu_pipeline_ops {
+	int (*check_pipeline_path)(int *combination, int num_planes,
+				  struct meson_vpu_pipeline_state *mvps,
+				  struct drm_atomic_state *state);
+	int (*set_pipeline_para)(int *combination, int num_planes,
+				  struct meson_vpu_pipeline_state *mvps,
+				  struct drm_atomic_state *state);
+};
+
 struct meson_vpu_pipeline {
 	struct drm_private_obj obj;
 	struct meson_vpu_sub_pipeline subs[MESON_MAX_CRTC];
@@ -454,7 +487,9 @@ struct meson_vpu_pipeline {
 	struct meson_vpu_hdr *hdrs[MESON_MAX_HDRS];
 	struct meson_vpu_db *dbs[MESON_MAX_DBS];
 	struct meson_vpu_postblend *postblends[MESON_MAX_POSTBLEND];
+	struct meson_vpu_slice2ppc *slice2ppc;
 	struct meson_vpu_pipeline_state *state;
+	struct meson_vpu_pipeline_ops *ops;
 	u32 num_osds;
 	u32 num_video;
 	u32 num_afbc_osds;
@@ -487,6 +522,22 @@ struct meson_vpu_traverse {
 
 struct meson_vpu_sub_pipeline_state {
 	u64 enable_blocks;
+	int more_4k;
+	int more_60;
+	u32 scaler_din_hsize[MESON_MAX_OSDS];
+	u32 scaler_dout_hsize[MESON_MAX_OSDS];
+	u32 scaler_din_vsize[MESON_MAX_OSDS];
+	u32 scaler_dout_vsize[MESON_MAX_OSDS];
+	u32 slice_dout_hsize[MESON_MAX_OSDS];
+	u32 hwincut_bgn[MESON_MAX_OSDS];
+	u32 hwincut_end[MESON_MAX_OSDS];
+	u32 slice_x_st[MESON_MAX_OSDS];
+	u32 slice_x_end[MESON_MAX_OSDS];
+	u32 init_phase[MESON_MAX_OSDS];
+	u32 blend_dout_hsize[2];
+	u32 blend_dout_vsize[2];
+	u32 slice2ppc_hsize;
+	u32 slice2ppc_vsize;
 };
 
 struct meson_vpu_pipeline_state {
@@ -529,6 +580,7 @@ struct meson_vpu_pipeline_state {
 #define to_db_block(x) container_of(x, struct meson_vpu_db, base)
 #define to_postblend_block(x) container_of(x, struct meson_vpu_postblend, base)
 #define to_video_block(x) container_of(x, struct meson_vpu_video, base)
+#define to_slice2ppc_block(x) container_of(x, struct meson_vpu_slice2ppc, base)
 
 #define to_osd_state(x) container_of(x, struct meson_vpu_osd_state, base)
 #define to_afbc_state(x) container_of(x, struct meson_vpu_afbc_state, base)
@@ -539,6 +591,8 @@ struct meson_vpu_pipeline_state {
 #define to_db_state(x) container_of(x, struct meson_vpu_db_state, base)
 #define to_postblend_state(x) container_of(x, \
 		struct meson_vpu_postblend_state, base)
+#define to_slice2ppc_state(x) container_of(x, \
+		struct meson_vpu_slice2ppc_state, base)
 #define to_video_state(x) container_of(x, struct meson_vpu_video_state, base)
 
 #define priv_to_block(x) container_of(x, struct meson_vpu_block, obj)
@@ -618,6 +672,16 @@ extern struct meson_vpu_block_ops t3_afbc_ops;
 extern struct meson_vpu_block_ops t7_postblend_ops;
 extern struct meson_vpu_block_ops t3_postblend_ops;
 
+extern struct meson_vpu_block_ops s5_osd_ops;
+extern struct meson_vpu_block_ops s5_afbc_ops;
+extern struct meson_vpu_block_ops s5_scaler_ops;
+extern struct meson_vpu_block_ops s5_osdblend_ops;
+extern struct meson_vpu_block_ops s5_postblend_ops;
+extern struct meson_vpu_block_ops slice2ppc_ops;
+
+extern struct meson_vpu_pipeline_ops g12a_vpu_pipeline_ops;
+extern struct meson_vpu_pipeline_ops t7_vpu_pipeline_ops;
+extern struct meson_vpu_pipeline_ops s5_vpu_pipeline_ops;
 #ifdef CONFIG_DEBUG_FS
 extern u32 overwrite_reg[256];
 extern u32 overwrite_val[256];

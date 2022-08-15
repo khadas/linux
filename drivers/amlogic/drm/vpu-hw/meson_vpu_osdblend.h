@@ -29,6 +29,23 @@
 #define VIU_OSD_BLEND_RO_CURRENT_XY                0x39bf
 #define VIU_OSD_BLEND_CTRL1                        0x39c0
 
+#define VIU_OSD_BLEND_CTRL_S5                      0x60b0
+#define VIU_OSD_BLEND_DIN0_SCOPE_H_S5              0x60b1
+#define VIU_OSD_BLEND_DIN0_SCOPE_V_S5              0x60b2
+#define VIU_OSD_BLEND_DIN1_SCOPE_H_S5              0x60b3
+#define VIU_OSD_BLEND_DIN1_SCOPE_V_S5              0x60b4
+#define VIU_OSD_BLEND_DIN2_SCOPE_H_S5              0x60b5
+#define VIU_OSD_BLEND_DIN2_SCOPE_V_S5              0x60b6
+#define VIU_OSD_BLEND_DIN3_SCOPE_H_S5              0x60b7
+#define VIU_OSD_BLEND_DIN3_SCOPE_V_S5              0x60b8
+#define VIU_OSD_BLEND_DUMMY_DATA0_S5               0x60b9
+#define VIU_OSD_BLEND_DUMMY_ALPHA_S5               0x60ba
+#define VIU_OSD_BLEND_BLEND0_SIZE_S5               0x60bb
+#define VIU_OSD_BLEND_BLEND1_SIZE_S5               0x60bc
+#define VIU_OSD_BLEND_RO_CURRENT_XY_S5             0x60bf
+#define VIU_OSD_BLEND_CTRL1_S5                     0x60c0
+#define VIU_OSD_HOLD_LINE_HIGH_BITS_S5             0x60c1
+
 /* add for osd dv core2 */
 #define DOLBY_CORE2A_SWAP_CTRL1	                   0x3434
 #define DOLBY_CORE2A_SWAP_CTRL2	                   0x3435
@@ -56,7 +73,7 @@ enum osd_channel_e {
 	OSD_CHANNEL2,
 	OSD_CHANNEL3,
 	OSD_CHANNEL4,
-	OSD_CHANNEL_NUM = 0
+	OSD_CHANNEL_NUM = 0,
 };
 
 struct osd_dummy_data_s {

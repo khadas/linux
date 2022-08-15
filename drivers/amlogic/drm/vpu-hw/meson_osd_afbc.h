@@ -241,6 +241,11 @@
 #define VPU_MAFBC2_PAYLOAD_MAX_LOW_S3 0x3c7f
 #define VPU_MAFBC2_PAYLOAD_MAX_HIGH_S3 0x3c80
 
+#define VPP_INTF_OSD1_CTRL             0x4105
+#define VPP_INTF_OSD2_CTRL             0x4106
+#define VPP_INTF_OSD3_CTRL             0x4107
+#define VPP_INTF_OSD4_CTRL             0x4108
+
 struct afbc_osd_reg_s {
 	u32 vpu_mafbc_header_buf_addr_low_s;
 	u32 vpu_mafbc_header_buf_addr_high_s;
