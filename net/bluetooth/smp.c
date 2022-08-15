@@ -511,7 +511,7 @@ bool smp_irk_matches(struct hci_dev *hdev, const u8 irk[16],
 
 	smp = chan->data;
 
-	BT_DBG("RPA %pMR IRK %*phN", bdaddr, 16, irk);
+	BT_TRACE("RPA %pMR IRK %*phN", bdaddr, 16, irk);
 
 	err = smp_ah(irk, &bdaddr->b[3], hash);
 	if (err)

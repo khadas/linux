@@ -491,14 +491,14 @@ static void l2cap_chan_destroy(struct kref *kref)
 
 void l2cap_chan_hold(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, kref_read(&c->kref));
+	BT_TRACE("chan %p orig refcnt %d", c, kref_read(&c->kref));
 
 	kref_get(&c->kref);
 }
 
 void l2cap_chan_put(struct l2cap_chan *c)
 {
-	BT_DBG("chan %p orig refcnt %d", c, kref_read(&c->kref));
+	BT_TRACE("chan %p orig refcnt %d", c, kref_read(&c->kref));
 
 	kref_put(&c->kref, l2cap_chan_destroy);
 }
@@ -869,7 +869,7 @@ static void l2cap_send_cmd(struct l2cap_conn *conn, u8 ident, u8 code, u16 len,
 	struct sk_buff *skb = l2cap_build_cmd(conn, code, ident, len, data);
 	u8 flags;
 
-	BT_DBG("code 0x%2.2x", code);
+	BT_TRACE("code 0x%2.2x", code);
 
 	if (!skb)
 		return;
@@ -899,7 +899,7 @@ static void l2cap_do_send(struct l2cap_chan *chan, struct sk_buff *skb)
 	struct hci_conn *hcon = chan->conn->hcon;
 	u16 flags;
 
-	BT_DBG("chan %p, skb %p len %d priority %u", chan, skb, skb->len,
+	BT_TRACE("chan %p, skb %p len %d priority %u", chan, skb, skb->len,
 	       skb->priority);
 
 	if (chan->hs_hcon && !__chan_is_moving(chan)) {
@@ -1086,7 +1086,7 @@ static void l2cap_send_sframe(struct l2cap_chan *chan,
 	struct sk_buff *skb;
 	u32 control_field;
 
-	BT_DBG("chan %p, control %p", chan, control);
+	BT_TRACE("chan %p, control %p", chan, control);
 
 	if (!control->sframe)
 		return;
@@ -1108,7 +1108,7 @@ static void l2cap_send_sframe(struct l2cap_chan *chan,
 		__clear_ack_timer(chan);
 	}
 
-	BT_DBG("reqseq %d, final %d, poll %d, super %d", control->reqseq,
+	BT_TRACE("reqseq %d, final %d, poll %d, super %d", control->reqseq,
 	       control->final, control->poll, control->super);
 
 	if (test_bit(FLAG_EXT_CTRL, &chan->flags))
@@ -1881,7 +1881,7 @@ static void l2cap_streaming_send(struct l2cap_chan *chan,
 	struct sk_buff *skb;
 	struct l2cap_ctrl *control;
 
-	BT_DBG("chan %p, skbs %p", chan, skbs);
+	BT_TRACE("chan %p, skbs %p", chan, skbs);
 
 	if (__chan_is_moving(chan))
 		return;
@@ -1907,7 +1907,7 @@ static void l2cap_streaming_send(struct l2cap_chan *chan,
 
 		l2cap_do_send(chan, skb);
 
-		BT_DBG("Sent txseq %u", control->txseq);
+		BT_TRACE("Sent txseq %u", control->txseq);
 
 		chan->next_tx_seq = __next_seq(chan, chan->next_tx_seq);
 		chan->frames_sent++;
@@ -1920,7 +1920,7 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 	struct l2cap_ctrl *control;
 	int sent = 0;
 
-	BT_DBG("chan %p", chan);
+	BT_TRACE("chan %p", chan);
 
 	if (chan->state != BT_CONNECTED)
 		return -ENOTCONN;
@@ -1975,10 +1975,10 @@ static int l2cap_ertm_send(struct l2cap_chan *chan)
 			chan->tx_send_head = skb_queue_next(&chan->tx_q, skb);
 
 		l2cap_do_send(chan, tx_skb);
-		BT_DBG("Sent txseq %u", control->txseq);
+		BT_TRACE("Sent txseq %u", control->txseq);
 	}
 
-	BT_DBG("Sent %d, %u unacked, %u in ERTM queue", sent,
+	BT_TRACE("Sent %d, %u unacked, %u in ERTM queue", sent,
 	       chan->unacked_frames, skb_queue_len(&chan->tx_q));
 
 	return sent;
@@ -1991,7 +1991,7 @@ static void l2cap_ertm_resend(struct l2cap_chan *chan)
 	struct sk_buff *tx_skb;
 	u16 seq;
 
-	BT_DBG("chan %p", chan);
+	BT_TRACE("chan %p", chan);
 
 	if (test_bit(CONN_REMOTE_BUSY, &chan->conn_state))
 		return;
@@ -2059,7 +2059,7 @@ static void l2cap_ertm_resend(struct l2cap_chan *chan)
 
 		l2cap_do_send(chan, tx_skb);
 
-		BT_DBG("Resent txseq %d", control.txseq);
+		BT_TRACE("Resent txseq %d", control.txseq);
 
 		chan->last_acked_seq = chan->buffer_seq;
 	}
@@ -2068,7 +2068,7 @@ static void l2cap_ertm_resend(struct l2cap_chan *chan)
 static void l2cap_retransmit(struct l2cap_chan *chan,
 			     struct l2cap_ctrl *control)
 {
-	BT_DBG("chan %p, control %p", chan, control);
+	BT_TRACE("chan %p, control %p", chan, control);
 
 	l2cap_seq_list_append(&chan->retrans_list, control->reqseq);
 	l2cap_ertm_resend(chan);
@@ -2079,7 +2079,7 @@ static void l2cap_retransmit_all(struct l2cap_chan *chan,
 {
 	struct sk_buff *skb;
 
-	BT_DBG("chan %p, control %p", chan, control);
+	BT_TRACE("chan %p, control %p", chan, control);
 
 	if (control->poll)
 		set_bit(CONN_SEND_FBIT, &chan->conn_state);
@@ -2115,7 +2115,7 @@ static void l2cap_send_ack(struct l2cap_chan *chan)
 					 chan->last_acked_seq);
 	int threshold;
 
-	BT_DBG("chan %p last_acked_seq %d buffer_seq %d",
+	BT_TRACE("chan %p last_acked_seq %d buffer_seq %d",
 	       chan, chan->last_acked_seq, chan->buffer_seq);
 
 	memset(&control, 0, sizeof(control));
@@ -2142,7 +2142,7 @@ static void l2cap_send_ack(struct l2cap_chan *chan)
 		threshold += threshold << 1;
 		threshold >>= 2;
 
-		BT_DBG("frames_to_ack %u, threshold %d", frames_to_ack,
+		BT_TRACE("frames_to_ack %u, threshold %d", frames_to_ack,
 		       threshold);
 
 		if (frames_to_ack >= threshold) {
@@ -2468,7 +2468,7 @@ static void l2cap_le_flowctl_send(struct l2cap_chan *chan)
 {
 	int sent = 0;
 
-	BT_DBG("chan %p", chan);
+	BT_TRACE("chan %p", chan);
 
 	while (chan->tx_credits && !skb_queue_empty(&chan->tx_q)) {
 		l2cap_do_send(chan, skb_dequeue(&chan->tx_q));
@@ -2476,7 +2476,7 @@ static void l2cap_le_flowctl_send(struct l2cap_chan *chan)
 		sent++;
 	}
 
-	BT_DBG("Sent %d credits %u queued %u", sent, chan->tx_credits,
+	BT_TRACE("Sent %d credits %u queued %u", sent, chan->tx_credits,
 	       skb_queue_len(&chan->tx_q));
 }
 
@@ -2599,7 +2599,7 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len)
 		break;
 
 	default:
-		BT_DBG("bad state %1.1x", chan->mode);
+		BT_TRACE("bad state %1.1x", chan->mode);
 		err = -EBADFD;
 	}
 
@@ -2612,7 +2612,7 @@ static void l2cap_send_srej(struct l2cap_chan *chan, u16 txseq)
 	struct l2cap_ctrl control;
 	u16 seq;
 
-	BT_DBG("chan %p, txseq %u", chan, txseq);
+	BT_TRACE("chan %p, txseq %u", chan, txseq);
 
 	memset(&control, 0, sizeof(control));
 	control.sframe = 1;
@@ -2634,7 +2634,7 @@ static void l2cap_send_srej_tail(struct l2cap_chan *chan)
 {
 	struct l2cap_ctrl control;
 
-	BT_DBG("chan %p", chan);
+	BT_TRACE("chan %p", chan);
 
 	if (chan->srej_list.tail == L2CAP_SEQ_LIST_CLEAR)
 		return;
@@ -2652,7 +2652,7 @@ static void l2cap_send_srej_list(struct l2cap_chan *chan, u16 txseq)
 	u16 initial_head;
 	u16 seq;
 
-	BT_DBG("chan %p, txseq %u", chan, txseq);
+	BT_TRACE("chan %p, txseq %u", chan, txseq);
 
 	memset(&control, 0, sizeof(control));
 	control.sframe = 1;
@@ -2677,12 +2677,12 @@ static void l2cap_process_reqseq(struct l2cap_chan *chan, u16 reqseq)
 	struct sk_buff *acked_skb;
 	u16 ackseq;
 
-	BT_DBG("chan %p, reqseq %u", chan, reqseq);
+	BT_TRACE("chan %p, reqseq %u", chan, reqseq);
 
 	if (chan->unacked_frames == 0 || reqseq == chan->expected_ack_seq)
 		return;
 
-	BT_DBG("expected_ack_seq %u, unacked_frames %u",
+	BT_TRACE("expected_ack_seq %u, unacked_frames %u",
 	       chan->expected_ack_seq, chan->unacked_frames);
 
 	for (ackseq = chan->expected_ack_seq; ackseq != reqseq;
@@ -2701,12 +2701,12 @@ static void l2cap_process_reqseq(struct l2cap_chan *chan, u16 reqseq)
 	if (chan->unacked_frames == 0)
 		__clear_retrans_timer(chan);
 
-	BT_DBG("unacked_frames %u", chan->unacked_frames);
+	BT_TRACE("unacked_frames %u", chan->unacked_frames);
 }
 
 static void l2cap_abort_rx_srej_sent(struct l2cap_chan *chan)
 {
-	BT_DBG("chan %p", chan);
+	BT_TRACE("chan %p", chan);
 
 	chan->expected_tx_seq = chan->buffer_seq;
 	l2cap_seq_list_clear(&chan->srej_list);
@@ -2718,7 +2718,7 @@ static void l2cap_tx_state_xmit(struct l2cap_chan *chan,
 				struct l2cap_ctrl *control,
 				struct sk_buff_head *skbs, u8 event)
 {
-	BT_DBG("chan %p, control %p, skbs %p, event %d", chan, control, skbs,
+	BT_TRACE("chan %p, control %p, skbs %p, event %d", chan, control, skbs,
 	       event);
 
 	switch (event) {
@@ -2867,7 +2867,7 @@ static void l2cap_tx_state_wait_f(struct l2cap_chan *chan,
 static void l2cap_tx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 		     struct sk_buff_head *skbs, u8 event)
 {
-	BT_DBG("chan %p, control %p, skbs %p, event %d, state %d",
+	BT_TRACE("chan %p, control %p, skbs %p, event %d, state %d",
 	       chan, control, skbs, event, chan->tx_state);
 
 	switch (chan->tx_state) {
@@ -2886,14 +2886,14 @@ static void l2cap_tx(struct l2cap_chan *chan, struct l2cap_ctrl *control,
 static void l2cap_pass_to_tx(struct l2cap_chan *chan,
 			     struct l2cap_ctrl *control)
 {
-	BT_DBG("chan %p, control %p", chan, control);
+	BT_TRACE("chan %p, control %p", chan, control);
 	l2cap_tx(chan, control, NULL, L2CAP_EV_RECV_REQSEQ_AND_FBIT);
 }
 
 static void l2cap_pass_to_tx_fbit(struct l2cap_chan *chan,
 				  struct l2cap_ctrl *control)
 {
-	BT_DBG("chan %p, control %p", chan, control);
+	BT_TRACE("chan %p, control %p", chan, control);
 	l2cap_tx(chan, control, NULL, L2CAP_EV_RECV_FBIT);
 }
 
@@ -2903,7 +2903,7 @@ static void l2cap_raw_recv(struct l2cap_conn *conn, struct sk_buff *skb)
 	struct sk_buff *nskb;
 	struct l2cap_chan *chan;
 
-	BT_DBG("conn %p", conn);
+	BT_TRACE("conn %p", conn);
 
 	mutex_lock(&conn->chan_lock);
 
@@ -6934,7 +6934,7 @@ static void l2cap_data_channel(struct l2cap_conn *conn, u16 cid,
 		}
 	}
 
-	BT_DBG("chan %p, len %d", chan, skb->len);
+	BT_TRACE("chan %p, len %d", chan, skb->len);
 
 	/* If we receive data on a fixed channel before the info req/rsp
 	 * procdure is done simply assume that the channel is supported
@@ -6974,7 +6974,7 @@ static void l2cap_data_channel(struct l2cap_conn *conn, u16 cid,
 		goto done;
 
 	default:
-		BT_DBG("chan %p: bad mode 0x%2.2x", chan, chan->mode);
+		BT_TRACE("chan %p: bad mode 0x%2.2x", chan, chan->mode);
 		break;
 	}
 
@@ -6999,7 +6999,7 @@ static void l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm,
 	if (!chan)
 		goto free_skb;
 
-	BT_DBG("chan %p, len %d", chan, skb->len);
+	BT_TRACE("chan %p, len %d", chan, skb->len);
 
 	if (chan->state != BT_BOUND && chan->state != BT_CONNECTED)
 		goto drop;
@@ -7054,7 +7054,7 @@ static void l2cap_recv_frame(struct l2cap_conn *conn, struct sk_buff *skb)
 		return;
 	}
 
-	BT_DBG("len %d, cid 0x%4.4x", len, cid);
+	BT_TRACE("len %d, cid 0x%4.4x", len, cid);
 
 	switch (cid) {
 	case L2CAP_CID_SIGNALING:
@@ -7083,7 +7083,7 @@ static void process_pending_rx(struct work_struct *work)
 					       pending_rx_work);
 	struct sk_buff *skb;
 
-	BT_DBG("");
+	BT_TRACE("");
 
 	while ((skb = skb_dequeue(&conn->pending_rx)))
 		l2cap_recv_frame(conn, skb);
@@ -7602,7 +7602,7 @@ void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 	if (!conn)
 		goto drop;
 
-	BT_DBG("conn %p len %d flags 0x%x", conn, skb->len, flags);
+	BT_TRACE("conn %p len %d flags 0x%x", conn, skb->len, flags);
 
 	switch (flags) {
 	case ACL_START:
@@ -7632,7 +7632,7 @@ void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 			return;
 		}
 
-		BT_DBG("Start: total len %d, frag len %d", len, skb->len);
+		BT_TRACE("Start: total len %d, frag len %d", len, skb->len);
 
 		if (skb->len > len) {
 			BT_ERR("Frame is too long (len %d, expected len %d)",
@@ -7652,7 +7652,7 @@ void l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 		break;
 
 	case ACL_CONT:
-		BT_DBG("Cont: frag len %d (expecting %d)", skb->len, conn->rx_len);
+		BT_TRACE("Cont: frag len %d (expecting %d)", skb->len, conn->rx_len);
 
 		if (!conn->rx_len) {
 			BT_ERR("Unexpected continuation frame (len %d)", skb->len);

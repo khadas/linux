@@ -141,7 +141,7 @@ int mgmt_cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 	struct mgmt_ev_cmd_complete *ev;
 	int err;
 
-	BT_DBG("sock %p", sk);
+	BT_DBG("sock cmd %u, %p", cmd, sk);
 
 	skb = alloc_skb(sizeof(*hdr) + sizeof(*ev) + rp_len, GFP_KERNEL);
 	if (!skb)

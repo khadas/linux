@@ -58,7 +58,7 @@ static int req_run(struct hci_request *req, hci_req_complete_t complete,
 	struct sk_buff *skb;
 	unsigned long flags;
 
-	BT_DBG("length %u", skb_queue_len(&req->cmd_q));
+	BT_TRACE("length %u", skb_queue_len(&req->cmd_q));
 
 	/* If an error occurred during request building, remove all HCI
 	 * commands queued on the HCI request queue.
@@ -102,7 +102,7 @@ int hci_req_run_skb(struct hci_request *req, hci_req_complete_skb_t complete)
 static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
 				  struct sk_buff *skb)
 {
-	BT_DBG("%s result 0x%2.2x", hdev->name, result);
+	BT_TRACE("%s result 0x%2.2x", hdev->name, result);
 
 	if (hdev->req_status == HCI_REQ_PEND) {
 		hdev->req_result = result;
@@ -115,7 +115,7 @@ static void hci_req_sync_complete(struct hci_dev *hdev, u8 result, u16 opcode,
 
 void hci_req_sync_cancel(struct hci_dev *hdev, int err)
 {
-	BT_DBG("%s err 0x%2.2x", hdev->name, err);
+	BT_TRACE("%s err 0x%2.2x", hdev->name, err);
 
 	if (hdev->req_status == HCI_REQ_PEND) {
 		hdev->req_result = err;
@@ -131,7 +131,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	struct sk_buff *skb;
 	int err = 0;
 
-	BT_DBG("%s", hdev->name);
+	BT_TRACE("%s", hdev->name);
 
 	hci_req_init(&req, hdev);
 
@@ -167,7 +167,7 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 	skb = hdev->req_skb;
 	hdev->req_skb = NULL;
 
-	BT_DBG("%s end: err %d", hdev->name, err);
+	BT_TRACE("%s end: err %d", hdev->name, err);
 
 	if (err < 0) {
 		kfree_skb(skb);
@@ -196,7 +196,7 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 	struct hci_request req;
 	int err = 0;
 
-	BT_DBG("%s start", hdev->name);
+	BT_TRACE("%s start", hdev->name);
 
 	hci_req_init(&req, hdev);
 
@@ -260,7 +260,7 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 	hdev->req_skb = NULL;
 	hdev->req_status = hdev->req_result = 0;
 
-	BT_DBG("%s end: err %d", hdev->name, err);
+	BT_TRACE("%s end: err %d", hdev->name, err);
 
 	return err;
 }
@@ -304,7 +304,7 @@ struct sk_buff *hci_prepare_cmd(struct hci_dev *hdev, u16 opcode, u32 plen,
 	if (plen)
 		skb_put_data(skb, param, plen);
 
-	BT_DBG("skb len %d", skb->len);
+	BT_TRACE("skb len %d", skb->len);
 
 	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
 	hci_skb_opcode(skb) = opcode;
@@ -319,7 +319,7 @@ void hci_req_add_ev(struct hci_request *req, u16 opcode, u32 plen,
 	struct hci_dev *hdev = req->hdev;
 	struct sk_buff *skb;
 
-	BT_DBG("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
+	BT_TRACE("%s opcode 0x%4.4x plen %d", hdev->name, opcode, plen);
 
 	/* If an error occurred during request building, there is no point in
 	 * queueing the HCI command. We can simply return.

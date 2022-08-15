@@ -989,7 +989,7 @@ static inline void hci_conn_put(struct hci_conn *conn)
 
 static inline void hci_conn_hold(struct hci_conn *conn)
 {
-	BT_DBG("hcon %p orig refcnt %d", conn, atomic_read(&conn->refcnt));
+	BT_TRACE("hcon %p orig refcnt %d", conn, atomic_read(&conn->refcnt));
 
 	atomic_inc(&conn->refcnt);
 	cancel_delayed_work(&conn->disc_work);
@@ -1033,7 +1033,7 @@ static inline void hci_conn_drop(struct hci_conn *conn)
 /* ----- HCI Devices ----- */
 static inline void hci_dev_put(struct hci_dev *d)
 {
-	BT_DBG("%s orig refcnt %d", d->name,
+	BT_TRACE("%s orig refcnt %d", d->name,
 	       kref_read(&d->dev.kobj.kref));
 
 	put_device(&d->dev);
@@ -1041,7 +1041,7 @@ static inline void hci_dev_put(struct hci_dev *d)
 
 static inline struct hci_dev *hci_dev_hold(struct hci_dev *d)
 {
-	BT_DBG("%s orig refcnt %d", d->name,
+	BT_TRACE("%s orig refcnt %d", d->name,
 	       kref_read(&d->dev.kobj.kref));
 
 	get_device(&d->dev);

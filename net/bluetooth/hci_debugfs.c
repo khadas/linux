@@ -196,6 +196,21 @@ static int remote_oob_show(struct seq_file *f, void *ptr)
 
 DEFINE_SHOW_ATTRIBUTE(remote_oob);
 
+static int bt_debug_log_level_set(void *data, u64 val)
+{
+	set_bt_debug_log_level(val);
+	return 0;
+}
+
+static int bt_debug_log_level_get(void *data, u64 *val)
+{
+	*val = get_bt_debug_log_level();
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(bt_debug_log_level_fops, bt_debug_log_level_get,
+			bt_debug_log_level_set, "%llu\n");
+
 static int conn_info_min_age_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
@@ -311,7 +326,8 @@ void hci_debugfs_create_common(struct hci_dev *hdev)
 	debugfs_create_file("uuids", 0444, hdev->debugfs, hdev, &uuids_fops);
 	debugfs_create_file("remote_oob", 0400, hdev->debugfs, hdev,
 			    &remote_oob_fops);
-
+	debugfs_create_file("bt_debug_log_level", 0644, hdev->debugfs, hdev,
+			   &bt_debug_log_level_fops);
 	debugfs_create_file("conn_info_min_age", 0644, hdev->debugfs, hdev,
 			    &conn_info_min_age_fops);
 	debugfs_create_file("conn_info_max_age", 0644, hdev->debugfs, hdev,

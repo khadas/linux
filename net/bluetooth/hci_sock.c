@@ -204,7 +204,7 @@ void hci_send_to_sock(struct hci_dev *hdev, struct sk_buff *skb)
 	struct sock *sk;
 	struct sk_buff *skb_copy = NULL;
 
-	BT_DBG("hdev %p len %d", hdev, skb->len);
+	BT_TRACE("hdev %p len %d", hdev, skb->len);
 
 	read_lock(&hci_sk_list.lock);
 
@@ -267,7 +267,7 @@ static void __hci_send_to_channel(unsigned short channel, struct sk_buff *skb,
 {
 	struct sock *sk;
 
-	BT_DBG("channel %u len %d", channel, skb->len);
+	BT_TRACE("channel %u len %d", channel, skb->len);
 
 	sk_for_each(sk, &hci_sk_list.head) {
 		struct sk_buff *nskb;
@@ -314,7 +314,7 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb)
 	if (!atomic_read(&monitor_promisc))
 		return;
 
-	BT_DBG("hdev %p len %d", hdev, skb->len);
+	BT_TRACE("hdev %p len %d", hdev, skb->len);
 
 	switch (hci_skb_pkt_type(skb)) {
 	case HCI_COMMAND_PKT:
@@ -737,7 +737,7 @@ static void hci_si_event(struct hci_dev *hdev, int type, int dlen, void *data)
 
 void hci_sock_dev_event(struct hci_dev *hdev, int event)
 {
-	BT_DBG("hdev %s event %d", hdev->name, event);
+	BT_TRACE("hdev %s event %d", hdev->name, event);
 
 	if (atomic_read(&monitor_promisc)) {
 		struct sk_buff *skb;
@@ -831,7 +831,7 @@ static int hci_sock_release(struct socket *sock)
 	struct hci_dev *hdev;
 	struct sk_buff *skb;
 
-	BT_DBG("sock %p sk %p", sock, sk);
+	BT_TRACE("sock %p sk %p", sock, sk);
 
 	if (!sk)
 		return 0;
@@ -975,7 +975,7 @@ static int hci_sock_ioctl(struct socket *sock, unsigned int cmd,
 	struct sock *sk = sock->sk;
 	int err;
 
-	BT_DBG("cmd %x arg %lx", cmd, arg);
+	BT_TRACE("cmd %x arg %lx", cmd, arg);
 
 	lock_sock(sk);
 
@@ -1071,7 +1071,7 @@ static int hci_sock_bind(struct socket *sock, struct sockaddr *addr,
 	struct sk_buff *skb;
 	int len, err = 0;
 
-	BT_DBG("sock %p sk %p", sock, sk);
+	BT_TRACE("sock %p sk %p", sock, sk);
 
 	if (!addr)
 		return -EINVAL;
@@ -1366,7 +1366,7 @@ static int hci_sock_getname(struct socket *sock, struct sockaddr *addr,
 	struct hci_dev *hdev;
 	int err = 0;
 
-	BT_DBG("sock %p sk %p", sock, sk);
+	BT_TRACE("sock %p sk %p", sock, sk);
 
 	if (peer)
 		return -EOPNOTSUPP;
@@ -1435,7 +1435,7 @@ static int hci_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 	int copied, err;
 	unsigned int skblen;
 
-	BT_DBG("sock %p, sk %p", sock, sk);
+	BT_TRACE("sock %p, sk %p", sock, sk);
 
 	if (flags & MSG_OOB)
 		return -EOPNOTSUPP;
@@ -1494,7 +1494,7 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 	bool var_len, no_hdev;
 	int err;
 
-	BT_DBG("got %zu bytes", msglen);
+	BT_TRACE("got %zu bytes", msglen);
 
 	if (msglen < sizeof(*hdr))
 		return -EINVAL;
@@ -1512,6 +1512,7 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 	opcode = __le16_to_cpu(hdr->opcode);
 	index = __le16_to_cpu(hdr->index);
 	len = __le16_to_cpu(hdr->len);
+	BT_DBG("opcode = %u", opcode);
 
 	if (len != msglen - sizeof(*hdr)) {
 		err = -EINVAL;
@@ -1699,7 +1700,7 @@ static int hci_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 	struct sk_buff *skb;
 	int err;
 
-	BT_DBG("sock %p sk %p", sock, sk);
+	BT_TRACE("sock %p sk %p", sock, sk);
 
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;
@@ -1837,7 +1838,7 @@ static int hci_sock_setsockopt(struct socket *sock, int level, int optname,
 	struct sock *sk = sock->sk;
 	int err = 0, opt = 0;
 
-	BT_DBG("sk %p, opt %d", sk, optname);
+	BT_TRACE("sk %p, opt %d", sk, optname);
 
 	if (level != SOL_HCI)
 		return -ENOPROTOOPT;
@@ -1923,7 +1924,7 @@ static int hci_sock_getsockopt(struct socket *sock, int level, int optname,
 	struct sock *sk = sock->sk;
 	int len, opt, err = 0;
 
-	BT_DBG("sk %p, opt %d", sk, optname);
+	BT_TRACE("sk %p, opt %d", sk, optname);
 
 	if (level != SOL_HCI)
 		return -ENOPROTOOPT;
@@ -2016,7 +2017,7 @@ static int hci_sock_create(struct net *net, struct socket *sock, int protocol,
 {
 	struct sock *sk;
 
-	BT_DBG("sock %p", sock);
+	BT_TRACE("sock %p", sock);
 
 	if (sock->type != SOCK_RAW)
 		return -ESOCKTNOSUPPORT;
