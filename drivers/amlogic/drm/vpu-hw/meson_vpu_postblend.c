@@ -380,8 +380,6 @@ static void postblend_hw_disable(struct meson_vpu_block *vblk,
 
 	if (vblk->index == 0)
 		vpp_osd1_postblend_mux_set(vblk, state->sub->reg_ops, postblend->reg, VPP_NULL);
-	else if (vblk->index == 1)
-		vpp1_osd1_postblend_mux_set(vblk, state->sub->reg_ops, postblend->reg1, VPP_NULL);
 
 	DRM_DEBUG("%s disable called.\n", postblend->base.name);
 }
@@ -521,6 +519,10 @@ static void t7_postblend_hw_init(struct meson_vpu_block *vblk)
 	if (vblk->index == 0) {
 		fix_vpu_clk2_default_regs(vblk, vblk->pipeline->subs[0].reg_ops);
 		postblend_osd2_def_conf(vblk);
+	} else if (vblk->index == 1) {
+		/*vpp1_bld_ctrl keep on osd3 enable*/
+		vpp1_osd1_postblend_mux_set(vblk, vblk->pipeline->subs[0].reg_ops,
+			postblend->reg1, 2);
 	}
 
 	DRM_DEBUG("%s hw_init called.\n", postblend->base.name);
