@@ -1162,22 +1162,28 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 	void __user *argp;
-	int mcd_nr;
-	struct aml_lcd_drv_s *pdrv;
+	int mcd_nr = -1;
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)file->private_data;
 	struct lcd_optical_info_s *opt_info;
 	struct aml_lcd_tcon_bin_s lcd_tcon_buff;
 	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
 	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
 	struct lcd_tcon_data_block_header_s block_header;
+	union lcd_ctrl_config_u *pctrl;
 	unsigned int size = 0, temp, m = 0;
 	unsigned char *mem_vaddr = NULL;
 	char *str = NULL;
-	int index = 0;
+	int index = 0, i = 0;
+	struct lcd_config_s *pconf;
+	struct phy_config_s *phy_cfg, phy_usr;
+	unsigned int ss_level = 0xffffffff, ss_freq = 0xffffffff, ss_mode = 0xffffffff;
+	struct lcd_ss_ctl_s ss_ctl = {0xffffffff, 0xffffffff, 0xffffffff};
 
-	pdrv = (struct aml_lcd_drv_s *)file->private_data;
 	if (!pdrv)
 		return -EFAULT;
 
+	pconf = &pdrv->config;
+	pctrl = &pdrv->config.control;
 	opt_info = &pdrv->config.optical;
 	mcd_nr = _IOC_NR(cmd);
 	LCDPR("[%d]: %s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
@@ -1336,6 +1342,129 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			mm_table->data_mem_vaddr[index] = NULL;
 			ret = -EFAULT;
 		}
+		break;
+	case LCD_IOC_POWER_CTRL:
+		if (copy_from_user((void *)&temp, argp, sizeof(unsigned int))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (temp) {
+			mutex_lock(&lcd_power_mutex);
+			aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_ON, (void *)pdrv);
+			lcd_if_enable_retry(pdrv);
+			mutex_unlock(&lcd_power_mutex);
+		} else {
+			mutex_lock(&lcd_power_mutex);
+			aml_lcd_notifier_call_chain(LCD_EVENT_IF_POWER_OFF, (void *)pdrv);
+			mutex_unlock(&lcd_power_mutex);
+		}
+		break;
+	case LCD_IOC_MUTE_CTRL:
+		if (copy_from_user((void *)&temp, argp, sizeof(unsigned int))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (temp)
+			pdrv->lcd_screen_black(pdrv);
+		else
+			pdrv->lcd_screen_restore(pdrv);
+
+		break;
+	case LCD_IOC_GET_PHY_PARAM:
+		phy_cfg = &pconf->phy_cfg;
+
+		if (copy_to_user(argp, (const void *)phy_cfg, sizeof(struct phy_config_s)))
+			ret = -EFAULT;
+
+		break;
+	case LCD_IOC_SET_PHY_PARAM:
+		memset(&phy_usr, 0, sizeof(struct phy_config_s));
+		if (copy_from_user((void *)&phy_usr, argp, sizeof(struct phy_config_s))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		memcpy(&pdrv->config.phy_cfg, &phy_usr, sizeof(struct phy_config_s));
+		phy_cfg = &pconf->phy_cfg;
+		if (phy_cfg->ioctl_mode == 0) {
+			switch (pdrv->config.basic.lcd_type) {
+			case LCD_LVDS:
+				pctrl->lvds_cfg.phy_vswing = phy_cfg->vswing_level;
+				pctrl->lvds_cfg.phy_preem  = phy_cfg->preem_level;
+				break;
+			case LCD_VBYONE:
+				pctrl->vbyone_cfg.phy_vswing = phy_cfg->vswing_level;
+				pctrl->vbyone_cfg.phy_preem  = phy_cfg->preem_level;
+				break;
+			case LCD_MLVDS:
+				pctrl->mlvds_cfg.phy_vswing = phy_cfg->vswing_level;
+				pctrl->mlvds_cfg.phy_preem  = phy_cfg->preem_level;
+				break;
+			case LCD_P2P:
+				pctrl->p2p_cfg.phy_vswing = phy_cfg->vswing_level;
+				pctrl->p2p_cfg.phy_preem  = phy_cfg->preem_level;
+				break;
+			case LCD_EDP:
+				pctrl->edp_cfg.phy_vswing = phy_cfg->vswing_level;
+				pctrl->edp_cfg.phy_preem  = phy_cfg->preem_level;
+				break;
+			default:
+				LCDERR("%s: not support lcd_type: %s\n",
+				       __func__,
+				       lcd_type_type_to_str(pdrv->config.basic.lcd_type));
+				return -EINVAL;
+			}
+			phy_cfg->vswing =
+				lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
+			temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
+			for (i = 0; i < phy_cfg->lane_num; i++)
+				phy_cfg->lane[i].preem = temp;
+		}
+
+		if (pdrv->status & LCD_STATUS_IF_ON)
+			lcd_phy_set(pdrv, 1);
+
+		break;
+	case LCD_IOC_GET_SS:
+		lcd_get_ss_num(pdrv, &ss_ctl.level, &ss_ctl.freq, &ss_ctl.mode);
+
+		if (copy_to_user(argp, (const void *)&ss_ctl, sizeof(struct lcd_ss_ctl_s)))
+			ret = -EFAULT;
+
+		break;
+	case LCD_IOC_SET_SS:
+		if (copy_from_user((void *)&ss_ctl, argp, sizeof(struct lcd_ss_ctl_s))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (ss_ctl.level != 0xffffffff)
+			ss_level = ss_ctl.level & 0xff;
+		if (ss_ctl.freq != 0xffffffff)
+			ss_freq  = ss_ctl.freq & 0xff;
+		if (ss_ctl.mode != 0xffffffff)
+			ss_mode  = ss_ctl.mode & 0xff;
+		ret = lcd_set_ss(pdrv, ss_level, ss_freq, ss_mode);
+
+		if (ret == 0) {
+			temp = pdrv->config.timing.ss_level;
+			if (ss_level <= 0xf) {
+				temp &= ~(0xff);
+				temp |= ss_level;
+			}
+			if (ss_freq <= 0xf) {
+				temp &= ~((0xf << LCD_CLK_SS_BIT_FREQ) << 8);
+				temp |= ((ss_freq << LCD_CLK_SS_BIT_FREQ) << 8);
+			}
+			if (ss_mode <= 0xf) {
+				temp &= ~((0xf << LCD_CLK_SS_BIT_MODE) << 8);
+				temp |= ((ss_mode << LCD_CLK_SS_BIT_MODE) << 8);
+			}
+			pdrv->config.timing.ss_level = temp;
+		}
+
 		break;
 	default:
 		LCDERR("[%d]: not support ioctl cmd_nr: 0x%x\n",

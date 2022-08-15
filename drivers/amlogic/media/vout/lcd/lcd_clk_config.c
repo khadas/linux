@@ -4059,6 +4059,32 @@ void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv)
 	}
 }
 
+int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,
+	unsigned int *level, unsigned int *freq, unsigned int *mode)
+{
+	struct lcd_clk_config_s *clk_conf;
+
+	clk_conf = get_lcd_clk_config(pdrv);
+	if (!clk_conf || !clk_conf->data) {
+		LCDERR("[%d] %s: clk_conf or clk_conf->data is null\n", pdrv->index, __func__);
+		return -1;
+	}
+
+	if (level)
+		*level = (clk_conf->ss_level >= clk_conf->data->ss_level_max) ?
+			0 : clk_conf->ss_level;
+
+	if (freq)
+		*freq = (clk_conf->ss_freq >= clk_conf->data->ss_freq_max) ?
+			0 : clk_conf->ss_freq;
+
+	if (mode)
+		*mode = (clk_conf->ss_mode >= clk_conf->data->ss_mode_max) ?
+			0 : clk_conf->ss_mode;
+
+	return 0;
+}
+
 int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf)
 {
 	struct lcd_clk_config_s *cconf;

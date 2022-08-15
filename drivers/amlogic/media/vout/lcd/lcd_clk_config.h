@@ -156,6 +156,8 @@ extern spinlock_t lcd_clk_lock;
 struct lcd_clk_config_s *get_lcd_clk_config(struct aml_lcd_drv_s *pdrv);
 
 void lcd_clk_generate_parameter(struct aml_lcd_drv_s *pdrv);
+int lcd_get_ss_num(struct aml_lcd_drv_s *pdrv,
+	unsigned int *level, unsigned int *freq, unsigned int *mode);
 int lcd_get_ss(struct aml_lcd_drv_s *pdrv, char *buf);
 void lcd_clk_ss_config_update(struct aml_lcd_drv_s *pdrv);
 int lcd_set_ss(struct aml_lcd_drv_s *pdrv, unsigned int level,
