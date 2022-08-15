@@ -161,6 +161,13 @@
 			alignment = <0x0 0x400000>;
 		};
 	};
+
+	gpiomem {
+		compatible = "amlogic, gpiomem";
+		reg = <0x0 0xfe004000 0x0 0x1000>;
+		status = "okay";
+	};
+
 	sdcard_power: regulator-sdcard {
 		compatible = "regulator-fixed";
 		regulator-name = "SDCARD_POWER";
