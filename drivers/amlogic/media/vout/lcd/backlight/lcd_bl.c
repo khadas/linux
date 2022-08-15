@@ -2800,7 +2800,7 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 				len += sprintf(buf + len,
 					       "duty_value=%d(%d%%)\n",
 					       bl_pwm->pwm_duty,
-					       bl_pwm->pwm_duty * 100 / 255);
+					       bl_pwm->pwm_duty * 100 / bl_pwm->pwm_duty_max);
 			} else {
 				len += sprintf(buf + len,
 					       "duty_value=%d%%\n",
@@ -2820,7 +2820,7 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 				len += sprintf(buf + len,
 					       "duty_value=%d(%d%%)\n",
 					       bl_pwm->pwm_duty,
-					       bl_pwm->pwm_duty * 100 / 255);
+					       bl_pwm->pwm_duty * 100 / bl_pwm->pwm_duty_max);
 			} else {
 				len += sprintf(buf + len,
 					       "duty_value=%d%%\n",
@@ -2839,7 +2839,7 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 				len += sprintf(buf + len,
 					       "duty_value=%d(%d%%)\n",
 					       bl_pwm->pwm_duty,
-					       bl_pwm->pwm_duty * 100 / 255);
+					       bl_pwm->pwm_duty * 100 / bl_pwm->pwm_duty_max);
 			} else {
 				len += sprintf(buf + len,
 					       "duty_value=%d%%\n",
@@ -2928,7 +2928,9 @@ static void bl_debug_pwm_set(struct aml_bl_drv_s *bdrv, unsigned int index,
 			break;
 		case BL_DEBUG_PWM_DUTY_MAX:
 			bl_pwm->pwm_duty_max = value;
-			if (bl_pwm->pwm_duty_max > 100)
+			if (bl_pwm->pwm_duty_max > 255)
+				pwm_range = 40950;
+			else if (bl_pwm->pwm_duty_max > 100)
 				pwm_range = 2550;
 			else
 				pwm_range = 1000;
