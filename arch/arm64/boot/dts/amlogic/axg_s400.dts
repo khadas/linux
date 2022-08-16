@@ -26,6 +26,11 @@
 		spi2 = &spicc1;
 	};
 
+	ion_dev {
+		compatible = "amlogic, ion_dev";
+		memory-region = <&ion_reserved>;
+	};
+
 	memory@00000000 {
 		device_type = "memory";
 		linux,usable-memory = <0x0 0x000000 0x0 0x40000000>;
@@ -67,6 +72,12 @@
 			size = <0x0 0x2000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x3e000000 0x0 0x2000000>;
+		};
+		ion_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x2000000>;
+			alignment = <0x0 0x400000>;
 		};
 	};
 
