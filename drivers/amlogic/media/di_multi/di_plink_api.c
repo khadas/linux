@@ -6345,7 +6345,8 @@ bool dpvpp_try_reg(struct di_ch_s *pch, struct vframe_s *vfm)
 
 	if (!ponly_enable &&
 	    cfgg(PONLY_MODE) == 1 &&
-	    (vfm->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE) {
+	    (vfm->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE &&
+	    !(vfm->type & VIDTYPE_FORCE_SIGN_IP_JOINT)) {
 		ponly_enable = true;
 	}
 

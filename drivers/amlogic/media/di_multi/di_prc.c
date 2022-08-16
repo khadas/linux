@@ -3084,7 +3084,8 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 
 	if (!ponly_enable &&
 	    cfggch(pch, PONLY_MODE) == 1 &&
-	    (vframe->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE) {
+	    (vframe->type & VIDTYPE_TYPEMASK) == VIDTYPE_PROGRESSIVE &&
+	    !(vframe->type & VIDTYPE_FORCE_SIGN_IP_JOINT)) {
 		ponly_enable = true;
 		ponly_by_firstp = true;
 	}
