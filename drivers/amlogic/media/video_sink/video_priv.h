@@ -460,7 +460,7 @@ struct video_layer_s {
 	u32 compHeight;
 	u32 src_width;
 	u32 src_height;
-	bool alpha_win_en;
+	u32 alpha_win_en;
 	struct pip_alpha_scpxn_s alpha_win;
 	bool pre_link_en;
 	bool need_disable_prelink;
