@@ -438,4 +438,12 @@ int get_receiver_id(u8 layer_id);
 int proc_lowlatency_frame(u8 instance_id);
 bool check_av1_hdr10p(char *p);
 int get_output_pcrscr_info(s32 *inc, u32 *base);
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+#define OVER_FIELD_NORMAL 0
+#define OVER_FIELD_NEW_VF 1
+#define OVER_FIELD_RDMA_READY 2
+#define OVER_FIELD_STATE_MAX 3
+void update_over_field_states(u32 new_state, bool force);
+#endif
 #endif /* VIDEO_H */

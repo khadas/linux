@@ -82,6 +82,9 @@ static inline struct vframe_s *common_vf_get(struct video_recv_s *ins)
 		vf->index_disp, ktime_to_us(ktime_get()));
 
 	if (vf) {
+		vpp_trace_vframe("common_vf_get",
+			(void *)vf, vf->type, vf->flag,
+			ins->vpp_id, vsync_cnt[ins->vpp_id]);
 		if (!tvin_vf_disp_mode_check(vf)) {
 			vf_put(vf, ins->recv_name);
 			return NULL;
@@ -129,6 +132,9 @@ static inline void common_vf_put(struct video_recv_s *ins,
 
 	vfp = vf_get_provider(ins->recv_name);
 	if (vfp && vf) {
+		vpp_trace_vframe("common_vf_put",
+			(void *)vf, vf->type, vf->flag,
+			ins->vpp_id, vsync_cnt[ins->vpp_id]);
 		vf_put(vf, ins->recv_name);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if ((glayer_info[0].display_path_id == ins->path_id || is_multi_dv_mode()) &&

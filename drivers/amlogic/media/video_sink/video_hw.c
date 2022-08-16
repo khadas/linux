@@ -8237,12 +8237,14 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	if (update_mif) {
 		canvas_update_for_mif(layer, vf);
 
+		vpp_trace_vframe("swap_vf", (void *)vf, vf->type, vf->flag, layer_id, 0);
 		if (layer->global_debug & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
 			struct canvas_s tmp;
 
 			canvas_read(cur_canvas_tbl[0], &tmp);
-			pr_info("%s: y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
-				__func__, cur_canvas_tbl[0], tmp.addr,
+			pr_info("%s %d: vf:%px, y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
+				__func__, layer_id, vf,
+				cur_canvas_tbl[0], tmp.addr,
 				vf->canvas0Addr, vf->plane_num,
 				vf->type, vf->flag,
 				vf->compHeadAddr, vf->compBodyAddr,
@@ -9064,6 +9066,68 @@ u32 get_cur_enc_line(void)
 	enc_line = (reg_val >> 16) & 0x1fff;
 
 	return enc_line;
+}
+
+u32 get_cur_enc_num(void)
+{
+	u32 enc_num = 0;
+	unsigned int reg = VPU_VENCI_STAT;
+	unsigned int reg_val = 0;
+	u32 offset = 0;
+	u32 venc_type = get_venc_type();
+	u32 bit_offest = 0;
+
+	if (cur_dev->t7_display) {
+		u32 venc_mux = 3;
+
+		bit_offest = 13;
+		venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (venc_type) {
+		case 0:
+			reg = VPU_VENCI_STAT;
+			break;
+		case 1:
+			reg = VPU_VENCP_STAT;
+			break;
+		case 2:
+			reg = VPU_VENCL_STAT;
+			break;
+		}
+	} else {
+		bit_offest = 29;
+		switch (venc_type) {
+		case 0:
+			reg = ENCL_INFO_READ;
+			break;
+		case 1:
+			reg = ENCI_INFO_READ;
+			break;
+		case 2:
+			reg = ENCP_INFO_READ;
+			break;
+		case 3:
+			reg = ENCT_INFO_READ;
+			break;
+		}
+	}
+
+	reg_val = READ_VCBUS_REG(reg + offset);
+
+	enc_num = (reg_val >> bit_offest) & 0x7;
+
+	return enc_num;
 }
 
 static void do_vpu_delay_work(struct work_struct *work)
