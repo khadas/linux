@@ -944,6 +944,7 @@ void dpre_vdoing(unsigned int ch);
 //#define DBG_CLEAR_MEM	(1)
 #define DBG_BUFFER_EXT	(1)
 #define DBG_VFM_CVS	(1)
+//#define TMP_EN_PLINK	(1)
 //#define DBG_EXTBUFFER_ONLY_ADDR	(1)
 //#define S4D_OLD_SETTING_KEEP (1)
 //#define S4D_OLD_PQ_KEEP (1)

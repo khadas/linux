@@ -261,6 +261,14 @@ struct pvpp_dis_para_in_s {
 	struct di_win_s win;
 };
 
+/************************************************
+ * pvpp_display
+ *	only for pre-vpp link
+ *	display by pre-vpp mode
+ * return:
+ *	< 0: ref to enum EPVPP_ERROR
+ *	>= 0: ref to enum EPVPP_DISPLAY_MODE
+ ************************************************/
 int pvpp_display(struct vframe_s *vfm,
 			    struct pvpp_dis_para_in_s *in_para,
 			    void *out_para);
@@ -277,9 +285,10 @@ int pvpp_sw(bool on);
  ************************************************/
 u32 di_api_get_plink_instance_id(void);
 
+/* call api from vpp */
 void di_disable_prelink_notify(bool async);
 void di_prelink_state_changed_notify(void);
-
+/* bool is_di_hf_y_reverse(void) */
 /*********************************************************
  * @brief  di_s_bypass_ch  set channel bypass
  *

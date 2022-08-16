@@ -275,8 +275,10 @@ int pvpp_display(struct vframe_s *vfm,
 {
 	int ret = -1;
 
-	if (dil_api && dil_api->pre_vpp_link_display)
+	if (dil_api && dil_api->pre_vpp_link_display) {
 		ret = dil_api->pre_vpp_link_display(vfm, in_para, out_para);
+		return ret;
+	}
 	PR_ERR("%s:not attach\n", __func__);
 	return ret;
 }
