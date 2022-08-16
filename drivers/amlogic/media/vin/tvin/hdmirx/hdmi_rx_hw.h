@@ -3405,4 +3405,5 @@ void rx_esm_reset(int level);
 void hdmirx_hdcp22_reauth(void);
 void rx_earc_hpd_handler(struct work_struct *work);
 void rx_kill_esm(void);
+int is_t7_former(void);
 #endif

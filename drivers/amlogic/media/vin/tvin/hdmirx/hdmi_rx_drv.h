@@ -57,7 +57,7 @@
 #define var_to_str(var) (#var)
 
 /* register edid notify callback for T7 */
-#define RX_VER2 "ver.2022/02/21"
+#define RX_VER2 "ver.2022/08/16"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368

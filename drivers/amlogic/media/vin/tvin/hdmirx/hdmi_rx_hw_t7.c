@@ -2344,3 +2344,8 @@ u8 rx_get_stream_manage_info(void)
 	return stream_type_low;
 }
 
+/*t7 version*/
+int is_t7_former(void)
+{
+	return (is_meson_t7_cpu() && (is_meson_rev_a() || is_meson_rev_b()));
+}

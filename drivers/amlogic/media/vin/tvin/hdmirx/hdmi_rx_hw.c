@@ -5714,8 +5714,8 @@ bool is_ddc_filter_en(void)
 void rx_ddc_active_monitor(void)
 {
 	u32 temp = 0;
-
-	if (ddc_dbg_en)
+	/*check the version of t7*/
+	if (ddc_dbg_en || !is_t7_former())
 		return;
 
 	if (rx.state != FSM_WAIT_CLK_STABLE)
