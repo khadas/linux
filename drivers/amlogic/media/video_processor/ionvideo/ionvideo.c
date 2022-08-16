@@ -509,6 +509,7 @@ static int vidioc_open(struct file *file)
 
 	mutex_lock(&dev->mutex_opened);
 	if (dev->fd_num > 0) {
+		mutex_unlock(&dev->mutex_opened);
 		pr_err("%s error\n", __func__);
 		return -EBUSY;
 	}
