@@ -1278,6 +1278,8 @@
 			status = "okay";
 			index = <0>;
 			line_delay = <500>;
+			interrupts = <0 3 1>;
+			interrupt-names = "vsync";
 		};
 
 		vdac: vdac {
