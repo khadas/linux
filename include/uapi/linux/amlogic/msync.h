@@ -72,6 +72,8 @@ struct session_sync_stat {
 	uint32_t flag;
 	/* enum av_sync_stat */
 	uint32_t stat;
+	/* clean poll stat after stat */
+	uint32_t clean_poll;
 };
 
 enum avs_event {

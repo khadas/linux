@@ -217,8 +217,8 @@ struct msync_priv {
 
 enum {
 	LOG_ERR = 0,
-	LOG_WARN = 0,
-	LOG_INFO = 0,
+	LOG_WARN = 1,
+	LOG_INFO = 2,
 	LOG_DEBUG = 3,
 	LOG_TRACE = 4,
 };
@@ -230,7 +230,7 @@ enum {
 	} while (0)
 
 static struct msync sync;
-static int log_level;
+static int log_level = LOG_INFO;
 static void pcr_set(struct sync_session *session);
 static void start_transit_work(struct sync_session *session);
 
@@ -1809,9 +1809,9 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		stat.audio_switch = session->audio_switching;
 		if (copy_to_user(argp, &stat, sizeof(stat)))
 			return -EFAULT;
-		if (session->v_active && flag == SRC_V)
+		if (stat.clean_poll && session->v_active && flag == SRC_V)
 			session->event_pending &= ~SRC_V;
-		else if (session->a_active && flag == SRC_A)
+		else if (stat.clean_poll && session->a_active && flag == SRC_A)
 			session->event_pending &= ~SRC_A;
 		break;
 	}
