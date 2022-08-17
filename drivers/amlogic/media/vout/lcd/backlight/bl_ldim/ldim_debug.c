@@ -890,7 +890,8 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
 			dbg_attr.data = ldim_drv->fw->fw_sel;
-			ldim_config_update_t7(ldim_drv);
+			//ldim_config_update_t7(ldim_drv);
+			ldim_drv->pq_updating = 1;
 		}
 		pr_info("fw_sel = %d\n", ldim_drv->fw->fw_sel);
 	} else if (!strcmp(parm[0], "ldc_hist_mode")) {
@@ -1476,7 +1477,8 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
 			dbg_attr.data = comp->ldc_bl_buf_diff;
-			ldim_config_update_t7(ldim_drv);
+			//ldim_config_update_t7(ldim_drv);
+			ldim_drv->pq_updating = 1;
 		}
 		pr_info("ldc_bl_buf_diff = %d\n", comp->ldc_bl_buf_diff);
 	} else if (!strcmp(parm[0], "ldc_glb_gain")) {
@@ -1493,7 +1495,8 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
 			dbg_attr.data = comp->ldc_glb_gain;
-			ldim_config_update_t7(ldim_drv);
+			//ldim_config_update_t7(ldim_drv);
+			ldim_drv->pq_updating = 1;
 		}
 		pr_info("ldc_glb_gain = %d\n", comp->ldc_glb_gain);
 	} else if (!strcmp(parm[0], "ldc_dth_en")) {
@@ -1510,7 +1513,8 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
 			dbg_attr.data = comp->ldc_dth_en;
-			ldim_config_update_t7(ldim_drv);
+			//ldim_config_update_t7(ldim_drv);
+			ldim_drv->pq_updating = 1;
 		}
 		pr_info("ldc_dth_en = %d\n", comp->ldc_dth_en);
 	} else if (!strcmp(parm[0], "ldc_dth_bw")) {
@@ -1527,7 +1531,8 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_SINGLE;
 			dbg_attr.data = comp->ldc_dth_bw;
-			ldim_config_update_t7(ldim_drv);
+			//ldim_config_update_t7(ldim_drv);
+			ldim_drv->pq_updating = 1;
 		}
 		pr_info("ldc_dth_bw = %d\n", comp->ldc_dth_bw);
 	} else if (!strcmp(parm[0], "glb_hist")) {
@@ -1560,7 +1565,8 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 				}
 				dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 				dbg_attr.mode = LDIM_DBG_ATTR_MODE_MIN_GAIN_LUT;
-				ldc_min_gain_lut_set();
+				//ldc_min_gain_lut_set();
+				ldim_drv->pq_updating = 1;
 			}
 			goto ldim_attr_tuning_new_end;
 		}
@@ -1570,7 +1576,8 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 					       &ldc_min_gain_lut[j]) < 0)
 					goto ldim_attr_tuning_new_err;
 			}
-			ldc_min_gain_lut_set();
+			//ldc_min_gain_lut_set();
+			ldim_drv->pq_updating = 1;
 		}
 		goto ldim_attr_tuning_new_err;
 	} else if (!strcmp(parm[0], "dither_lut")) {
@@ -1604,7 +1611,8 @@ static int ldim_attr_tuning_new(struct aml_ldim_driver_s *ldim_drv, char **parm)
 			}
 			dbg_attr.cmd = LDIM_DBG_ATTR_CMD_WR;
 			dbg_attr.mode = LDIM_DBG_ATTR_MODE_DTH_LUT;
-			ldc_dither_lut_set();
+			//ldc_dither_lut_set();
+			ldim_drv->pq_updating = 1;
 			goto ldim_attr_tuning_new_end;
 		}
 		goto ldim_attr_tuning_new_err;
