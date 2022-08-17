@@ -821,6 +821,15 @@ struct spd_infoframe_st {
 			u8 data[19];
 		} __packed freesync;
 		u8 data[28];
+		struct spd_data_st {
+			/*Vendor Name Character*/
+			u8 vendor_name[8];
+			/*Product Description Character*/
+			u8 product_des[16];
+			/*byte 25*/
+			u8 source_info;
+			u8 rsvd[3];
+		} __packed spddata;
 	} __packed des_u;
 } __packed;
 
@@ -1145,4 +1154,5 @@ void rx_get_avi_info(struct avi_infoframe_st *st_pkt);
 void rx_get_vtem_info(void);
 void rx_get_aif_info(void);
 void dump_pktinfo_status(void);
+bool rx_is_specific_20_dev(void);
 #endif
