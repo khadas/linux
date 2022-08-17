@@ -52,4 +52,9 @@ int is_in_vsync_isr_viu3(void);
 #ifdef CONFIG_AMLOGIC_BL_LDIM
 int is_in_ldim_vsync_isr(void);
 #endif
+
+//extern int vsync_rdma_handle[5];
+u32 VCBUS_RD_MPEG_REG(u32 adr);
+int VCBUS_WR_MPEG_REG(u32 adr, u32 val);
+int VCBUS_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len);
 #endif

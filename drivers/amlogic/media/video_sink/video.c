@@ -121,6 +121,8 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include <linux/math64.h>
 #include "video_receiver.h"
 #include "video_multi_vsync.h"
+#include "video_hw_s5.h"
+#include "vpp_post_s5.h"
 
 #include <linux/amlogic/gki_module.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_MSYNC
@@ -1003,7 +1005,7 @@ static void dump_afbc_reg(void)
 		pr_info("[0x%x] = 0x%X\n",
 			   reg_addr, reg_val);
 		reg_addr = vd_layer[i].vd_afbc_reg.afbc_top_ctrl;
-		if (cur_dev->t7_display && reg_addr) {
+		if (cur_dev->display_module == T7_DISPLAY_MODULE && reg_addr) {
 			reg_val = READ_VCBUS_REG(reg_addr);
 			pr_info("[0x%x] = 0x%X\n",
 				   reg_addr, reg_val);
@@ -1354,7 +1356,7 @@ static void dump_vpp_path_size_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
 
-	if (!cur_dev->t7_display)
+	if (cur_dev->display_module == OLD_DISPLAY_MODULE)
 		return;
 	pr_info("vpp path size reg:\n");
 	reg_addr = vpp_path_size_reg.vd1_hdr_in_size;
@@ -1479,7 +1481,7 @@ static void dump_vpp_misc_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
 
-	if (!cur_dev->t7_display)
+	if (cur_dev->display_module == OLD_DISPLAY_MODULE)
 		return;
 	pr_info("vpp misc reg:\n");
 	reg_addr = viu_misc_reg.mali_afbcd_top_ctrl;
@@ -1528,7 +1530,7 @@ static void dump_zorder_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
 
-	if (!cur_dev->t7_display)
+	if (cur_dev->display_module == OLD_DISPLAY_MODULE)
 		return;
 	pr_info("vpp zorder reg:\n");
 	reg_addr = VD1_BLEND_SRC_CTRL;
@@ -2115,8 +2117,7 @@ static s32 is_afbc_for_vpp(u8 id)
 
 	if (id >= MAX_VD_LAYERS || legacy_vpp)
 		return ret;
-	/* karry */
-	if (cur_dev->t7_display)
+	if (cur_dev->display_module != OLD_DISPLAY_MODULE)
 		return 0;
 	if (id == 0)
 		val = READ_VCBUS_REG(VD1_AFBCD0_MISC_CTRL);
@@ -6264,11 +6265,13 @@ s32 primary_render_frame(struct video_layer_s *layer)
 		/* when new frame is toggled but video layer is not on */
 		/* need always flush pps register before pwr on */
 		/* to avoid pps coeff lost */
+		#ifdef CHECK_LATER
 		if (frame_par && dispbuf && !is_local_vf(dispbuf) &&
 		    (!get_video_enabled() ||
 		     get_video_onoff_state() ==
 		     VIDEO_ENABLE_STATE_ON_PENDING))
 			vd_scaler_setting(layer, &layer->sc_setting);
+		#endif
 
 		/* dolby vision process for each vsync */
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -6891,7 +6894,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	path_id.vd2_path_id = vd2_path_id;
 	path_id.vd3_path_id = vd3_path_id;
 
-	blend_reg_conflict_detect();
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		blend_reg_conflict_detect();
 	if (vd_layer[0].force_disable)
 		atomic_set(&vt_disable_video_done, 1);
 
@@ -6988,7 +6992,6 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 	}
 #endif
-
 	vout_type = detect_vout_type(vinfo);
 	/* hold_line = calc_hold_line(); */
 
@@ -10862,7 +10865,7 @@ EXPORT_SYMBOL(get_video_hold_state);
 
 u8 is_vpp_postblend(void)
 {
-	if (cur_dev->t7_display) {
+	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		if (READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off) & VPP_POSTBLEND_EN)
 			return 1;
 	} else {
@@ -17190,16 +17193,21 @@ static ssize_t reg_dump_store(struct class *cla,
 	}
 
 	if (res) {
-		dump_mif_reg();
-		dump_afbc_reg();
-		dump_pps_reg();
-		dump_vpp_blend_reg();
-		dump_vpp_path_size_reg();
-		dump_vpp_misc_reg();
-		dump_zorder_reg();
-		dump_fgrain_reg();
-		if (cur_dev->aisr_support)
-			dump_aisr_reg();
+		if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+			dump_s5_vd_proc_regs();
+			dump_vpp_post_reg();
+		} else {
+			dump_mif_reg();
+			dump_afbc_reg();
+			dump_pps_reg();
+			dump_vpp_blend_reg();
+			dump_vpp_path_size_reg();
+			dump_vpp_misc_reg();
+			dump_zorder_reg();
+			dump_fgrain_reg();
+			if (cur_dev->aisr_support)
+				dump_aisr_reg();
+		}
 	}
 	return count;
 }
@@ -18783,7 +18791,7 @@ static struct amvideo_device_data_s amvideo = {
 	.afbc_conv_lbuf_len[0] = 0x100,
 	.afbc_conv_lbuf_len[1] = 0x100,
 	.mif_linear = 0,
-	.t7_display = 0,
+	.display_module = 0,
 	.max_vd_layers = 2,
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
@@ -18833,7 +18841,7 @@ static struct amvideo_device_data_s amvideo_tm2_revb = {
 	.afbc_conv_lbuf_len[0] = 0x100,
 	.afbc_conv_lbuf_len[1] = 0x100,
 	.mif_linear = 0,
-	.t7_display = 0,
+	.display_module = 0,
 	.max_vd_layers = 2,
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
@@ -18883,7 +18891,7 @@ static struct amvideo_device_data_s amvideo_sc2 = {
 	.afbc_conv_lbuf_len[0] = 0x100,
 	.afbc_conv_lbuf_len[1] = 0x100,
 	.mif_linear = 0,
-	.t7_display = 0,
+	.display_module = 0,
 	.max_vd_layers = 2,
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
@@ -18933,7 +18941,7 @@ static struct amvideo_device_data_s amvideo_t5 = {
 	.afbc_conv_lbuf_len[0] = 0x100,
 	.afbc_conv_lbuf_len[1] = 0x100,
 	.mif_linear = 0,
-	.t7_display = 0,
+	.display_module = 0,
 	.max_vd_layers = 2,
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
@@ -18983,7 +18991,7 @@ static struct amvideo_device_data_s amvideo_t5d = {
 	.afbc_conv_lbuf_len[0] = 0x80,
 	.afbc_conv_lbuf_len[1] = 0x80,
 	.mif_linear = 0,
-	.t7_display = 0,
+	.display_module = 0,
 	.max_vd_layers = 2,
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
@@ -19036,7 +19044,7 @@ static struct amvideo_device_data_s amvideo_t7 = {
 	.afbc_conv_lbuf_len[1] = 0x100,
 	.afbc_conv_lbuf_len[2] = 0x100,
 	.mif_linear = 1,
-	.t7_display = 1,
+	.display_module = T7_DISPLAY_MODULE,
 	.max_vd_layers = 3,
 	.has_vpp1 = 1,
 	.has_vpp2 = 1,
@@ -19088,7 +19096,7 @@ static struct amvideo_device_data_s amvideo_s4 = {
 	.afbc_conv_lbuf_len[0] = 0x100,
 	.afbc_conv_lbuf_len[1] = 0x100,
 	.mif_linear = 0,
-	.t7_display = 0,
+	.display_module = 0,
 	.max_vd_layers = 2,
 };
 
@@ -19136,7 +19144,7 @@ static struct amvideo_device_data_s amvideo_t5d_revb = {
 	.afbc_conv_lbuf_len[0] = 0x80,
 	.afbc_conv_lbuf_len[1] = 0x80,
 	.mif_linear = 0,
-	.t7_display = 0,
+	.display_module = 0,
 	.max_vd_layers = 2,
 };
 
@@ -19186,7 +19194,7 @@ static struct amvideo_device_data_s amvideo_t3 = {
 	.afbc_conv_lbuf_len[0] = 0x100,
 	.afbc_conv_lbuf_len[1] = 0x100,
 	.mif_linear = 1,
-	.t7_display = 1,
+	.display_module = T7_DISPLAY_MODULE,
 	.max_vd_layers = 2,
 	.has_vpp1 = 1,
 	.has_vpp2 = 0,
@@ -19238,7 +19246,59 @@ static struct amvideo_device_data_s amvideo_t5w = {
 	.afbc_conv_lbuf_len[0] = 0x100,
 	.afbc_conv_lbuf_len[1] = 0x80,
 	.mif_linear = 1,
-	.t7_display = 1,
+	.display_module = T7_DISPLAY_MODULE,
+	.max_vd_layers = 2,
+	.has_vpp1 = 1,
+	.has_vpp2 = 0,
+};
+
+static struct amvideo_device_data_s amvideo_s5 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_S5_,
+	.sr_reg_offt = 0x1e00,
+	.sr_reg_offt2 = 0x1f80,
+	.layer_support[0] = 1,
+	.layer_support[1] = 1,
+	.layer_support[2] = 0,
+	.afbc_support[0] = 1,
+	.afbc_support[1] = 1,
+	.afbc_support[2] = 0,
+	.pps_support[0] = 1,
+	.pps_support[1] = 1,
+	.pps_support[2] = 0,
+	.alpha_support[0] = 1,
+	.alpha_support[1] = 1,
+	.alpha_support[2] = 0,
+	.dv_support = 1,
+	.sr0_support = 1,
+	.sr1_support = 1,
+	.core_v_disable_width_max[0] = 2048,
+	.core_v_disable_width_max[1] = 4096,
+	.core_v_enable_width_max[0] = 1024,
+	.core_v_enable_width_max[1] = 2048,
+	.supscl_path = CORE0_PPS_CORE1,
+	.fgrain_support[0] = 1,
+	.fgrain_support[1] = 1,
+	.fgrain_support[2] = 0,
+	.has_hscaler_8tap[0] = 1,
+	.has_hscaler_8tap[1] = 1,
+	.has_hscaler_8tap[2] = 0,
+	.has_pre_hscaler_ntap[0] = 2,
+	.has_pre_hscaler_ntap[1] = 2,
+	.has_pre_hscaler_ntap[2] = 0,
+	.has_pre_vscaler_ntap[0] = 1,
+	.has_pre_vscaler_ntap[1] = 1,
+	.has_pre_vscaler_ntap[2] = 0,
+	.src_width_max[0] = 4096,
+	.src_width_max[1] = 4096,
+	.src_width_max[2] = 4096,
+	.src_height_max[0] = 2160,
+	.src_height_max[1] = 2160,
+	.src_height_max[2] = 2160,
+	.ofifo_size = 0x1000,
+	.afbc_conv_lbuf_len[0] = 0x100,
+	.afbc_conv_lbuf_len[1] = 0x100,
+	.mif_linear = 1,
+	.display_module = S5_DISPLAY_MODULE,
 	.max_vd_layers = 2,
 	.has_vpp1 = 1,
 	.has_vpp2 = 0,
@@ -19265,6 +19325,15 @@ static struct video_device_hw_s t5w_dev_property = {
 	.aisr_support = 0,
 	.frc_support = 0,
 	.di_hf_y_reverse = 0,
+	.sr_in_size = 1,
+};
+
+static struct video_device_hw_s s5_dev_property = {
+	.vd2_independ_blend_ctrl = 1,
+	.aisr_support = 1,
+	.frc_support = 0,
+	/* aisr reverse workaround for t3*/
+	.di_hf_y_reverse = 1,
 	.sr_in_size = 1,
 };
 
@@ -19308,6 +19377,10 @@ static const struct of_device_id amlogic_amvideom_dt_match[] = {
 	{
 		.compatible = "amlogic, amvideom-t5w",
 		.data = &amvideo_t5w,
+	},
+	{
+		.compatible = "amlogic, amvideom-s5",
+		.data = &amvideo_s5,
 	},
 	{}
 };
@@ -19379,6 +19452,15 @@ bool video_is_meson_t5w_cpu(void)
 {
 	if (amvideo_meson_dev.cpu_type ==
 		MESON_CPU_MAJOR_ID_T5W_)
+		return true;
+	else
+		return false;
+}
+
+bool video_is_meson_s5_cpu(void)
+{
+	if (amvideo_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_S5_)
 		return true;
 	else
 		return false;
@@ -19488,11 +19570,13 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 static void set_rdma_func_handler(void)
 {
 	cur_dev->rdma_func[0].rdma_rd =
-		VSYNC_RD_MPEG_REG;
+		VCBUS_RD_MPEG_REG;
+		//VSYNC_RD_MPEG_REG;
 	cur_dev->rdma_func[0].rdma_wr =
-		VSYNC_WR_MPEG_REG;
+		VCBUS_WR_MPEG_REG;
+		//VSYNC_WR_MPEG_REG;
 	cur_dev->rdma_func[0].rdma_wr_bits =
-		VSYNC_WR_MPEG_REG_BITS;
+		VCBUS_WR_MPEG_REG_BITS;
 
 	cur_dev->rdma_func[1].rdma_rd =
 		VSYNC_RD_MPEG_REG_VPP1;
@@ -19524,6 +19608,7 @@ static int amvideom_probe(struct platform_device *pdev)
 	int display_device_cnt = 1;
 	int ex_rdma = 0;
 
+	pr_info("%s\n", __func__);
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		struct amvideo_device_data_s *amvideo_meson;
@@ -19545,6 +19630,8 @@ static int amvideom_probe(struct platform_device *pdev)
 			return -ENODEV;
 		}
 	}
+	pr_info("%s, cpu_type=%x\n", __func__, amvideo_meson_dev.cpu_type);
+
 	if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T3_) {
 		memcpy(&amvideo_meson_dev.dev_property, &t3_dev_property,
 		       sizeof(struct video_device_hw_s));
@@ -19565,6 +19652,10 @@ static int amvideom_probe(struct platform_device *pdev)
 		memcpy(&amvideo_meson_dev.dev_property, &t5w_dev_property,
 		       sizeof(struct video_device_hw_s));
 		cur_dev->power_ctrl = true;
+	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S5_) {
+		memcpy(&amvideo_meson_dev.dev_property, &s5_dev_property,
+		       sizeof(struct video_device_hw_s));
+		cur_dev->power_ctrl = true;
 	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,
 		       sizeof(struct video_device_hw_s));
@@ -19577,8 +19668,13 @@ static int amvideom_probe(struct platform_device *pdev)
 	if (vdtemp < 0)
 		vd1_vd2_mux_dts = 1;
 	set_rdma_func_handler();
-	video_early_init(&amvideo_meson_dev);
-	video_hw_init();
+	if (amvideo_meson_dev.display_module == S5_DISPLAY_MODULE) {
+		video_early_init_s5(&amvideo_meson_dev);
+		video_hw_init_s5();
+	} else {
+		video_early_init(&amvideo_meson_dev);
+		video_hw_init();
+	}
 	prop = of_get_property(pdev->dev.of_node, "display_device_cnt", NULL);
 	if (prop)
 		display_device_cnt = of_read_ulong(prop, 1);
@@ -19679,6 +19775,7 @@ static int amvideom_probe(struct platform_device *pdev)
 		for (j = 0; j < SCENES_VALUE; j++)
 			vpp_scenes[i].pq_values[j] = vpp_pq_data[i][j];
 	}
+	pr_info("rdma probe ok\n");
 	return ret;
 }
 

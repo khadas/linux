@@ -196,6 +196,11 @@ enum VPU_MODULE_e {
 	VPU2_R,
 };
 
+enum display_module_e {
+	OLD_DISPLAY_MODULE,
+	T7_DISPLAY_MODULE,
+	S5_DISPLAY_MODULE,
+};
 typedef u32 (*rdma_rd_op)(u32 reg);
 typedef int (*rdma_wr_op)(u32 reg, u32 val);
 typedef int (*rdma_wr_bits_op)(u32 reg, u32 val, u32 start, u32 len);
@@ -210,7 +215,7 @@ struct video_dev_s {
 	int vpp_off;
 	int viu_off;
 	int mif_linear;
-	int t7_display;
+	int display_module;
 	int max_vd_layers;
 	int vd2_independ_blend_ctrl;
 	int aisr_support;
@@ -488,6 +493,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_T5D_REVB_,
 	MESON_CPU_MAJOR_ID_T3_,
 	MESON_CPU_MAJOR_ID_T5W_,
+	MESON_CPU_MAJOR_ID_S5_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -523,7 +529,7 @@ struct amvideo_device_data_s {
 	u32 ofifo_size;
 	u32 afbc_conv_lbuf_len[MAX_VD_LAYER];
 	u8 mif_linear;
-	u8 t7_display;
+	u8 display_module;
 	u8 max_vd_layers;
 	u8 has_vpp1;
 	u8 has_vpp2;
@@ -683,6 +689,33 @@ int video_hw_init(void);
 int video_early_init(struct amvideo_device_data_s *p_amvideo);
 int video_late_uninit(void);
 
+int video_hw_init_s5(void);
+int video_early_init_s5(struct amvideo_device_data_s *p_amvideo);
+void vd_scaler_setting_s5(struct video_layer_s *layer,
+		       struct scaler_setting_s *setting);
+void vd_set_dcu_s5(u8 layer_id,
+		struct video_layer_s *layer,
+		struct vpp_frame_par_s *frame_par,
+		struct vframe_s *vf);
+void vd_mif_setting_s5(struct video_layer_s *layer,
+			struct mif_pos_s *setting);
+void proc_vd_vsc_phase_per_vsync_s5(struct video_layer_s *layer,
+				 struct vpp_frame_par_s *frame_par,
+				 struct vframe_s *vf);
+void switch_3d_view_per_vsync_s5(struct video_layer_s *layer);
+void aisr_reshape_cfg_s5(struct video_layer_s *layer,
+		     struct aisr_setting_s *aisr_mif_setting);
+void aisr_scaler_setting_s5(struct video_layer_s *layer,
+			     struct scaler_setting_s *setting);
+void vd_blend_setting_s5(struct video_layer_s *layer, struct blend_setting_s *setting);
+void fgrain_setting_s5(struct video_layer_s *layer,
+		    struct fgrain_setting_s *setting,
+		    struct vframe_s *vf);
+void alpha_win_set_s5(struct video_layer_s *layer);
+void vd_clip_setting_s5(u8 layer_id,
+	struct clip_setting_s *setting);
+void vpp_post_blend_update_s5(const struct vinfo_s *vinfo);
+
 /* from video.c */
 extern u32 osd_vpp_misc;
 extern u32 osd_vpp_misc_mask;
@@ -731,6 +764,7 @@ extern struct vpp_frame_par_s *curpip2_frame_par;
 extern struct video_layer_s vd_layer_vpp[2];
 extern u32 force_switch_vf_mode;
 extern u32 video_info_change_status;
+extern u32 reference_zorder;
 
 bool black_threshold_check(u8 id);
 extern atomic_t primary_src_fmt;

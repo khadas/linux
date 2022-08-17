@@ -2679,13 +2679,11 @@
 	};
 
 	meson-amvideom {
-		compatible = "amlogic, amvideom-t7";
+		compatible = "amlogic, amvideom-s5";
 		dev_name = "amvideom";
-		status = "disable";
-		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING
-			GIC_SPI 194 IRQ_TYPE_EDGE_RISING
-			GIC_SPI 82 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "vsync", "vsync_viu2", "vsync_viu3";
+		status = "okay";
+		interrupts = <GIC_SPI 115 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vsync";
 	};
 
 	vpu_security {

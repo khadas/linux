@@ -620,6 +620,37 @@ u32 PRE_VSYNC_RD_MPEG_REG(u32 adr)
 	return read_val;
 }
 EXPORT_SYMBOL(PRE_VSYNC_RD_MPEG_REG);
+
+#define CPU_WRITE
+#ifdef CPU_WRITE
+u32 VCBUS_RD_MPEG_REG(u32 adr)
+{
+	u32 read_val = Rd(adr);
+	return read_val;
+}
+EXPORT_SYMBOL(VCBUS_RD_MPEG_REG);
+
+int VCBUS_WR_MPEG_REG(u32 adr, u32 val)
+{
+	Wr(adr, val);
+	return 0;
+}
+EXPORT_SYMBOL(VCBUS_WR_MPEG_REG);
+
+int VCBUS_WR_MPEG_REG_BITS(u32 adr, u32 val, u32 start, u32 len)
+{
+	u32 read_val, write_val;
+
+	read_val = Rd(adr);
+	write_val = (read_val &
+			 ~(((1L << (len)) - 1) << (start)))
+			| ((unsigned int)(val) << (start));
+	Wr(adr, write_val);
+	return 0;
+}
+EXPORT_SYMBOL(VCBUS_WR_MPEG_REG_BITS);
+#endif
+
 int VSYNC_WR_MPEG_REG(u32 adr, u32 val)
 {
 	int enable_ = cur_enable[cur_vsync_handle_id] & 0xf;
