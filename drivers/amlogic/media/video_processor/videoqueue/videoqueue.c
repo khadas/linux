@@ -263,33 +263,17 @@ static void file_pop_display_q(struct video_queue_dev *dev,
 	}
 }
 
-/*
-static void videoq_hdmi_video_sync(struct video_queue_dev *dev,
-	struct vframe_s *vf)
+static u32 get_avsync_delay_time(void)
 {
-	u64 audio_need_delay;
+	u32 delay_value = get_tvin_delay_min_ms();
 
-	audio_need_delay = get_tvin_delay_duration();
-
-	if (audio_need_delay == 0)
-		return;
-
-	vframe_get_delay = (int)div_u64(((jiffies_64 -
-		vf->ready_jiffies64) * 1000), HZ);
-	vframe_get_delay -= vf->duration / 96;
-	if (dev->check_sync_count == 0)
-		vq_print(P_ERROR, "audio need =%lld, first delay=%lld\n",
-			audio_need_delay, vframe_get_delay);
-	dev->check_sync_count++;
-	if (audio_need_delay * 1000 > vframe_get_delay * 1000 +
-			3 * vpp_vsync_us + vpp_vsync_us / 2) {
-		vq_print(P_SYNC, "delay: audio need =%lld, delay=%lld\n",
-			audio_need_delay, vframe_get_delay);
-		dev->sync_need_delay = true;
-		return;
+	if (delay_value == 0) {
+		delay_value = get_tvin_delay_min_ms();
+		vq_print(P_OTHER, "sync: no request delay, need set min %d\n",
+			delay_value);
 	}
+	return delay_value;
 }
-*/
 
 static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 	struct vframe_s *vf)
@@ -307,7 +291,7 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 		disp_delay_count = 2;
 	else
 		disp_delay_count = 3;
-	audio_need_delay = get_tvin_delay_duration();
+	audio_need_delay = get_avsync_delay_time();
 	if (audio_need_delay == 0)
 		return;
 
@@ -390,7 +374,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 	u32 vframe_walk_delay = 0;
 	u32 tvin_delay_duration = 0;
 	u64 avsync_diff = 0;
-	u32 frc_delay = 0;
+	u32 vdin_hold_count_cur = 0;
 	bool vlock_locked = false;
 	bool need_resync = false;
 	u64 vdin_vsync = 0;
@@ -542,7 +526,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 	if (dev->frame_num > HDMI_DELAY_CHECK_INDEX &&
 		dev->need_check_delay_count == 0 &&
 		need_resync) {
-		tvin_delay_duration = get_tvin_delay_duration();
+		tvin_delay_duration = get_avsync_delay_time();
 		vframe_walk_delay = get_tvin_delay();
 		avsync_diff = abs(tvin_delay_duration - vframe_walk_delay);
 
@@ -552,12 +536,12 @@ static int do_file_thread(struct video_queue_dev *dev)
 
 		if (avsync_diff * 1000 > vdin_vsync * 3 / 4) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
-			frc_delay = get_vdin_add_delay_num();
+			vdin_hold_count_cur = get_vdin_add_delay_num();
 #endif
-			vq_print(P_OTHER, "resync: frc1:%d,frc2:%d\n",
-				dev->frc_delay_first_frame, frc_delay);
+			vq_print(P_OTHER, "resync: vdin_hold_count:%d, cur:%d\n",
+				dev->vdin_hold_count, vdin_hold_count_cur);
 
-			if (frc_delay == dev->frc_delay_first_frame) {
+			if (vdin_hold_count_cur == dev->vdin_hold_count) {
 				vq_print(P_ERROR,
 					"resync:need=%d,actual=%d,diff=%lld\n",
 					tvin_delay_duration, vframe_walk_delay,
@@ -570,8 +554,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 	dev->vlock_locked = vlock_locked;
 	/*step 1: audio required*/
 	if (!sync_start) {
-		vq_print(P_ERROR, "queue first frame frc=%d\n",
-			dev->frc_delay_first_frame);
+		vq_print(P_ERROR, "queue first frame\n");
 	} else if (dev->need_check_delay_count > 0) {
 	/*step 2: recheck video sync after hdmi-in start*/
 		videoq_hdmi_video_sync_2(dev, vf);
@@ -614,7 +597,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 		pcr_time = pts;
 		sync_start = true;
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
-		dev->frc_delay_first_frame = get_vdin_add_delay_num();
+		dev->vdin_hold_count = get_vdin_add_delay_num();
 #endif
 	}
 
@@ -998,7 +981,7 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 	dev->check_sync_count = 0;
 	dev->provider_name = NULL;
 	dev->need_check_delay_count = 0;
-	dev->frc_delay_first_frame = 0;
+	dev->vdin_hold_count = 0;
 	dev->vlock_locked = false;
 	vframe_get_delay = 0;
 	dev->game_mode = false;
