@@ -1051,7 +1051,7 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop)
 		rx.vs_info_details.allm_mode;
 	prop->latency.it_content = rx.cur.it_content;
 	prop->latency.cn_type = rx.cur.cn_type;
-
+#ifdef CONFIG_AMLOGIC_HDMITX
 	if (rx.open_fg  &&
 		(latency_info.allm_mode != rx.vs_info_details.allm_mode ||
 		latency_info.it_content != rx.cur.it_content ||
@@ -1061,6 +1061,7 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop)
 		latency_info.cn_type  = rx.cur.cn_type;
 		hdmitx_update_latency_info(&prop->latency);
 	}
+#endif
 }
 
 static u32 emp_irq_cnt;
@@ -1281,6 +1282,7 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 	u32 param = 0, temp_val, temp;
 	//unsigned int size = sizeof(struct pd_infoframe_s);
 	struct pd_infoframe_s pkt_info;
+	struct spd_infoframe_st *spdpkt;
 	void *srcbuff;
 	u8 sad_data[30];
 	u8 len = 0;
@@ -1464,6 +1466,19 @@ static long hdmirx_ioctl(struct file *file, unsigned int cmd,
 		}
 		if (!rx_edid_set_aud_sad(sad_data, len))
 			rx_pr("sad data length err\n");
+		break;
+	case HDMI_IOC_GET_SPD_SRC_INFO:
+		spdpkt = (struct spd_infoframe_st *)&rx_pkt.spd_info;
+		if (!argp)
+			return -EINVAL;
+		mutex_lock(&devp->rx_lock);
+		if (copy_to_user(argp, spdpkt, sizeof(struct spd_infoframe_st))) {
+			pr_err("spd src info err\n");
+			ret = -EFAULT;
+			mutex_unlock(&devp->rx_lock);
+			break;
+		}
+		mutex_unlock(&devp->rx_lock);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

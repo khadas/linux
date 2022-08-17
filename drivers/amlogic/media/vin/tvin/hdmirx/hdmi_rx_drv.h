@@ -23,7 +23,7 @@
 #include "hdmi_rx_drv_ext.h"
 
 /* repeater */
-#define RX_VER0 "ver.2022/07/26"
+#define RX_VER0 "ver.2022/09/06"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -149,6 +149,7 @@ struct hdmirx_dev_s {
 #define HDMI_IOC_HDCP22_NOT_SUPPORT _IO(HDMI_IOC_MAGIC, 0x0e)
 #define HDMI_IOC_SET_AUD_SAD	_IOW(HDMI_IOC_MAGIC, 0x0f, char*)
 #define HDMI_IOC_GET_AUD_SAD	_IOR(HDMI_IOC_MAGIC, 0x10, char*)
+#define HDMI_IOC_GET_SPD_SRC_INFO	_IOR(HDMI_IOC_MAGIC, 0x11, struct spd_infoframe_st)
 
 #define IOC_SPD_INFO  _BIT(0)
 #define IOC_AUD_INFO  _BIT(1)

@@ -1898,15 +1898,18 @@ static void signal_status_init(void)
 	rx.var.de_stable = false;
 }
 
-bool edid_ver_chg(enum hdcp_version_e pre, enum hdcp_version_e cur)
+bool edid_ver_need_chg(void)
 {
 	bool flag = false;
 
-	if (pre == HDCP_VER_NONE || pre == HDCP_VER_14) {
+	if (rx.fs_mode.hdcp_ver[rx.port] == HDCP_VER_NONE ||
+		rx.fs_mode.hdcp_ver[rx.port] == HDCP_VER_14) {
 		/* if detect hdcp22 auth, update to edid2.0 */
-		if (cur == HDCP_VER_22 &&
-		    rx.fs_mode.edid_ver[rx.port] != EDID_V20)
+		if ((rx.hdcp.hdcp_version == HDCP_VER_22 || rx_is_specific_20_dev()) &&
+			rx.fs_mode.edid_ver[rx.port] != EDID_V20) {
+			rx.fs_mode.hdcp_ver[rx.port] = HDCP_VER_22;
 			flag = true;
+		}
 	}
 	/* if change from hdcp22 to hdcp none/14,
 	 * need to update to edid1.4
@@ -1932,15 +1935,13 @@ void fs_mode_init(void)
 void hdcp_sts_update(void)
 {
 	unsigned char edid_auto = (edid_select >> (rx.port * 4)) & 0x2;
-	bool edid_chg = edid_ver_chg(rx.fs_mode.hdcp_ver[rx.port],
-				     rx.hdcp.hdcp_version);
 
-	if (rx.fs_mode.hdcp_ver[rx.port] != rx.hdcp.hdcp_version) {
-		rx.fs_mode.hdcp_ver[rx.port] = rx.hdcp.hdcp_version;
-		if (edid_auto && edid_chg) {
-			hdmi_rx_top_edid_update();
-			rx.state = FSM_HPD_LOW;
-		}
+	if (!edid_auto)
+		return;
+
+	if (edid_ver_need_chg()) {
+		hdmi_rx_top_edid_update();
+		rx.state = FSM_HPD_LOW;
 	}
 }
 
