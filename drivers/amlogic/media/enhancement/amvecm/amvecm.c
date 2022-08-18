@@ -2036,9 +2036,9 @@ void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf)
 		if (!for_amdv_certification())
 #endif
 			ve_on_vs(vf ? vf : rpt_vf);
-		if (vf && is_video_layer_on(VD1_PATH)) {
-			ve_hist_gamma_tgt(vf);
-			vpp_backup_histgram(vf);
+		if (is_video_layer_on(VD1_PATH)) {
+			ve_hist_gamma_tgt(vf ? vf : rpt_vf);
+			vpp_backup_histgram(vf ? vf : rpt_vf);
 		}
 		pattern_detect(vf ? vf : rpt_vf);
 	} else {
@@ -10484,7 +10484,7 @@ static void amvecm_shutdown(struct platform_device *pdev)
 #ifdef CONFIG_AML_LCD
 	aml_lcd_atomic_notifier_unregister(&aml_lcd_gamma_nb);
 #endif
-	lc_free();
+	//lc_free();
 	vpp_lut3d_table_release();
 	lut_release();
 }
