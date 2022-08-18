@@ -235,6 +235,7 @@ struct lcd_tcon_local_cfg_s *get_lcd_tcon_local_cfg(void);
  * **********************************
  */
 /* internal */
+void lcd_tcon_od_pre_disable(unsigned char *table);
 int lcd_tcon_valid_check(void);
 struct tcon_rmem_s *get_lcd_tcon_rmem(void);
 struct tcon_mem_map_table_s *get_lcd_tcon_mm_table(void);

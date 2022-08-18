@@ -21,6 +21,25 @@
 #include <linux/amlogic/tee.h>
 #endif
 
+void lcd_tcon_od_pre_disable(unsigned char *table)
+{
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	unsigned char *table8;
+	unsigned int *table32;
+	unsigned int reg = 0, bit = 0;
+
+	if (!tcon_conf)
+		return;
+
+	table32 = (unsigned int *)(table);
+	table8 = (unsigned char *)(table);
+	reg = tcon_conf->reg_core_od;
+	bit = tcon_conf->bit_od_en;
+	if (tcon_conf->reg_table_width == 32 && tcon_conf->core_reg_width != 8)
+		table32[reg] &= ~(1 << bit);
+	else
+		table8[reg] &= ~(1 << bit);
+}
 static void lcd_tcon_core_reg_pre_od(struct lcd_tcon_config_s *tcon_conf,
 				     struct tcon_mem_map_table_s *mm_table)
 {
@@ -83,7 +102,7 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 {
 	unsigned char *table8;
 	unsigned int *table32;
-	unsigned int len, offset, reg, bit;
+	unsigned int len, offset;//, reg, bit;
 	int i, ret;
 
 	ret = lcd_tcon_valid_check();
@@ -97,35 +116,18 @@ void lcd_tcon_core_reg_set(struct aml_lcd_drv_s *pdrv,
 
 	len = mm_table->core_reg_table_size;
 	offset = tcon_conf->core_reg_start;
-	reg = tcon_conf->reg_core_od;
-	bit = tcon_conf->bit_od_en;
 	if (tcon_conf->core_reg_width == 8) {
 		table8 = core_reg_table;
-		if (mm_table->version) {
-			//pre disable od, enable od in lut bin
-			table8[reg] &= ~(1 << bit);
-		}
 		for (i = offset; i < len; i++)
 			lcd_tcon_write_byte(pdrv, i, table8[i]);
 	} else {
 		if (tcon_conf->reg_table_width == 32) {
 			len /= 4;
 			table32 = (unsigned int *)core_reg_table;
-			if (mm_table->version) {
-				//pre disable od, enable od in lut bin
-				table32[reg] &= ~(1 << bit);
-			}
-			//only valid in 32bit core reg
-			if (tcon_conf->tcon_axi_mem_update)
-				tcon_conf->tcon_axi_mem_update(table32);
 			for (i = offset; i < len; i++)
 				lcd_tcon_write(pdrv, i, table32[i]);
 		} else {
 			table8 = core_reg_table;
-			if (mm_table->version) {
-				//pre disable od, enable od in lut bin
-				table8[reg] &= ~(1 << bit);
-			}
 			for (i = offset; i < len; i++)
 				lcd_tcon_write(pdrv, i, table8[i]);
 		}
