@@ -2529,6 +2529,25 @@ static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 	}
 }
 
+static void vdin_set_vfe_info(struct vdin_dev_s *devp, struct vf_entry *vfe)
+{
+	vfe->vf.type = vdin_get_curr_field_type(devp);
+	vfe->vf.type_original = vfe->vf.type;
+	/* debug for video latency */
+	vfe->vf.ready_jiffies64 = jiffies_64;
+	vfe->vf.ready_clock[0] = sched_clock();
+
+	if (devp->game_mode)
+		vfe->vf.flag |= VFRAME_FLAG_GAME_MODE;
+	else
+		vfe->vf.flag &= ~VFRAME_FLAG_GAME_MODE;
+
+	if (devp->prop.latency.allm_mode)
+		vfe->vf.flag |= VFRAME_FLAG_ALLM_MODE;
+	else
+		vfe->vf.flag &= ~VFRAME_FLAG_ALLM_MODE;
+}
+
 /*
  *VDIN_FLAG_RDMA_ENABLE=1
  *	provider_vf_put(devp->last_wr_vfe, devp->vfp);
@@ -3100,15 +3119,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 				  devp->flags & VDIN_FLAG_RDMA_ENABLE);
 
 	devp->curr_wr_vfe = next_wr_vfe;
-	next_wr_vfe->vf.type = vdin_get_curr_field_type(devp);
-	next_wr_vfe->vf.type_original = next_wr_vfe->vf.type;
-	/* debug for video latency */
-	next_wr_vfe->vf.ready_jiffies64 = jiffies_64;
-	next_wr_vfe->vf.ready_clock[0] = sched_clock();
-	if (devp->game_mode)
-		next_wr_vfe->vf.flag |= VFRAME_FLAG_GAME_MODE;
-	else
-		next_wr_vfe->vf.flag &= ~VFRAME_FLAG_GAME_MODE;
+	vdin_set_vfe_info(devp, next_wr_vfe);
+
 	if (!(devp->flags & VDIN_FLAG_RDMA_ENABLE) ||
 	    (devp->game_mode & VDIN_GAME_MODE_1)) {
 		if (devp->work_mode == VDIN_WORK_MD_NORMAL) {

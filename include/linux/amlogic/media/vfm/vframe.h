@@ -115,6 +115,8 @@
 #define VFRAME_FLAG_MIRROR_H                    0x10000000 /*mirror frame horizontally*/
 #define VFRAME_FLAG_MIRROR_V                    0x20000000 /*mirror frame vertically*/
 #define VFRAME_FLAG_PC_MODE			0x40000000
+#define VFRAME_FLAG_ALLM_MODE			0x80000000
+
 #define VFRAME_FLAG_DI_BYPASS			0x08000000
 #define VFRAME_FLAG_DI_GET			0x10000000
 #define VFRAME_FLAG_DI_PVPPLINK			0x20000000
