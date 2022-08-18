@@ -69,11 +69,6 @@
 #include <trace/hooks/signal.h>
 #include <trace/hooks/cfg80211.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_SHOW_CPU_CHIPID)
-#include <trace/hooks/cpuinfo.h>
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_show_cpu_chipid);
-#endif
-
 #if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
 #include <trace/hooks/aml_v4l2.h>
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_meta_ptr_update);
