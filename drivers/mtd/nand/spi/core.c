@@ -1096,7 +1096,9 @@ static int spinand_init(struct spinand_device *spinand)
 	/* Propagate ECC information to mtd_info */
 	mtd->ecc_strength = nand->eccreq.strength;
 	mtd->ecc_step_size = nand->eccreq.step_size;
-
+#ifdef CONFIG_AMLOGIC_MODIFY
+	mtd->bitflip_threshold = mtd->ecc_strength;
+#endif
 	return 0;
 
 err_cleanup_nanddev:
