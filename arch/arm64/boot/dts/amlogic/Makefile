@@ -104,3 +104,6 @@ dtb-y += axg_s400_v03.dtb
 dtb-y += axg_s400_v03sbr.dtb
 dtb-y += axg_s420_v03.dtb
 dtb-y += s5_pxp.dtb
+dtb-y += s5_s928x_ax208.dtb
+dtb-y += s5_s928x_ax209.dtb
+dtb-y += s5_s928x_ax201.dtb
