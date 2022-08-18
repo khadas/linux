@@ -11215,7 +11215,7 @@ long dim_pq_load_io(unsigned long arg)
 	if (atomic_read(&de_devp->pq_io) < 1 ||
 	    !atomic_dec_and_test(&de_devp->pq_io)) {
 		PR_ERR("%s:busy, do nothing\n", __func__);
-		return -EFAULT;
+		return -EBUSY;
 	}
 	mm_size = sizeof(struct am_pq_parm_s);
 	if (copy_from_user(&tmp_pq_s, argp, mm_size)) {
@@ -11287,7 +11287,7 @@ long dim_pq_load_io(unsigned long arg)
 		PR_ERR("please retry table name 0x%x.\n",
 		       di_pq_ptr->pq_parm.table_name);
 		di_pq_parm_destroy(di_pq_ptr);
-		ret = -EFAULT;
+		ret = -EBUSY;
 	}
 	atomic_set(&de_devp->pq_io, 1); /* idle */
 	return ret;
