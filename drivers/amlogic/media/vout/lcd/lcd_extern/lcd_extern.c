@@ -58,8 +58,18 @@ struct lcd_extern_dev_s *lcd_extern_get_dev(struct lcd_extern_driver_s *edrv, in
 	if (dev_index >= LCD_EXTERN_INDEX_INVALID)
 		return NULL;
 
-	for (i = 0; i < lcd_ext_dev_cnt[edrv->index]; i++) {
-		if (edrv->dev[i] && edrv->dev[i]->dev_index == dev_index)
+	for (i = 0; i < edrv->dev_cnt; i++) {
+		if (!edrv->dev[i])
+			break;
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_ADV) {
+			EXTPR("%s: dev[%d]: name: %s, dev_index:%d, get dev_index:%d\n",
+				__func__, i,
+				edrv->dev[i]->config.name,
+				edrv->dev[i]->dev_index,
+				dev_index);
+		}
+		if (edrv->dev[i]->dev_index == dev_index)
 			return edrv->dev[i];
 	}
 
@@ -1575,22 +1585,24 @@ static void lcd_extern_dev_probe_work(struct work_struct *work)
 		goto lcd_extern_dev_probe_work_err;
 
 	dev_index = 0;
-	edrv->dev_cnt = 1;
-	edrv->dev[dev_index] = lcd_extern_dev_malloc(dev_index);
+
+	edrv->dev[edrv->dev_cnt] = lcd_extern_dev_malloc(dev_index);
 	EXTPR("[%d]: %s: from unifykey\n", edrv->index, __func__);
-	ret = lcd_extern_get_config_unifykey(edrv, edrv->dev[dev_index], skey);
+	ret = lcd_extern_get_config_unifykey(edrv, edrv->dev[edrv->dev_cnt], skey);
 	if (ret) {
-		lcd_extern_dev_free(edrv->dev[dev_index]);
-		edrv->dev[dev_index] = NULL;
+		lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+		edrv->dev[edrv->dev_cnt] = NULL;
 		goto lcd_extern_dev_probe_work_err;
 	}
 
-	lcd_extern_config_update(edrv, edrv->dev[dev_index]);
-	ret = lcd_extern_add_dev(edrv, edrv->dev[dev_index]);
+	lcd_extern_config_update(edrv, edrv->dev[edrv->dev_cnt]);
+	ret = lcd_extern_add_dev(edrv, edrv->dev[edrv->dev_cnt]);
 	if (ret) {
-		lcd_extern_dev_free(edrv->dev[dev_index]);
-		edrv->dev[dev_index] = NULL;
+		lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+		edrv->dev[edrv->dev_cnt] = NULL;
 		goto lcd_extern_dev_probe_work_err;
+	} else {
+		edrv->dev_cnt++;
 	}
 
 	return;
@@ -1647,28 +1659,30 @@ static int lcd_extern_config_load(struct lcd_extern_driver_s *edrv)
 	} else {
 		edrv->config_load = 0;
 		EXTPR("[%d]: %s from dts\n", edrv->index, __func__);
-		for (i = 0; i < edrv->dev_cnt; i++) {
+		for (i = 0; i < lcd_ext_dev_cnt[edrv->index]; i++) {
 			dev_index = lcd_ext_index_lut[edrv->index][i];
 			if (dev_index == LCD_EXTERN_INDEX_INVALID) {
 				EXTPR("[%d]: %s: invalid dev_index\n", edrv->index, __func__);
 				continue;
 			}
-			edrv->dev[dev_index] = lcd_extern_dev_malloc(dev_index);
-			if (!edrv->dev[dev_index])
+			edrv->dev[edrv->dev_cnt] = lcd_extern_dev_malloc(dev_index);
+			if (!edrv->dev[edrv->dev_cnt])
 				continue;
 
-			ret = lcd_extern_get_config_dts(np, edrv, edrv->dev[dev_index]);
+			ret = lcd_extern_get_config_dts(np, edrv, edrv->dev[edrv->dev_cnt]);
 			if (ret) {
-				lcd_extern_dev_free(edrv->dev[dev_index]);
-				edrv->dev[dev_index] = NULL;
+				lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+				edrv->dev[edrv->dev_cnt] = NULL;
 				continue;
 			}
 
-			lcd_extern_config_update(edrv, edrv->dev[dev_index]);
-			ret = lcd_extern_add_dev(edrv, edrv->dev[dev_index]);
+			lcd_extern_config_update(edrv, edrv->dev[edrv->dev_cnt]);
+			ret = lcd_extern_add_dev(edrv, edrv->dev[edrv->dev_cnt]);
 			if (ret) {
-				lcd_extern_dev_free(edrv->dev[dev_index]);
-				edrv->dev[dev_index] = NULL;
+				lcd_extern_dev_free(edrv->dev[edrv->dev_cnt]);
+				edrv->dev[edrv->dev_cnt] = NULL;
+			} else {
+				edrv->dev_cnt++;
 			}
 		}
 	}
@@ -2325,7 +2339,7 @@ static int aml_lcd_extern_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, edrv);
 	ext_cdev_add(edrv, &pdev->dev);
 	edrv->pdev = pdev;
-	edrv->dev_cnt = lcd_ext_dev_cnt[index];
+	edrv->dev_cnt = 0;
 
 	INIT_WORK(&edrv->dev_probe_work, lcd_extern_dev_probe_work);
 	ret = lcd_extern_config_load(edrv);
