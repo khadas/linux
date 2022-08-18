@@ -230,6 +230,10 @@ MODULE_PARM_DESC(debug_section, "\n\t\t debug section");
 static int debug_section;
 module_param(debug_section, int, 0644);
 
+MODULE_PARM_DESC(audio_es_len_limit, "\n\t\t debug section");
+static int audio_es_len_limit = (40 * 1024);
+module_param(audio_es_len_limit, int, 0644);
+
 struct dump_file dvr_dump_file;
 
 #define VIDEOES_DUMP_FILE   "/data/video_dump"
@@ -954,7 +958,9 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		       (unsigned long)es_params->header.dts,
 		       es_params->header.len);
 
-		if (!(es_params->header.pts_dts_flag & 0x4))
+		if (!(es_params->header.pts_dts_flag & 0x4) ||
+			(pout->type == AUDIO_TYPE &&
+			 es_params->header.len < audio_es_len_limit))
 			out_ts_cb_list(pout, (char *)&es_params->header,
 				h_len,
 				(h_len + es_params->header.len),
@@ -967,7 +973,9 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
-			if (!(es_params->header.pts_dts_flag & 0x4)) {
+			if (!(es_params->header.pts_dts_flag & 0x4) ||
+				(pout->type == AUDIO_TYPE &&
+				 es_params->header.len < audio_es_len_limit)) {
 				if (pout->type == AUDIO_TYPE)
 					find_audio_es_type(ptmp, ret);
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
@@ -1000,7 +1008,9 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
 				if (!es_params->es_overflow)
-					if (!(es_params->header.pts_dts_flag & 0x4))
+					if (!(es_params->header.pts_dts_flag & 0x4) ||
+						(pout->type == AUDIO_TYPE &&
+						 es_params->header.len < audio_es_len_limit))
 						out_ts_cb_list(pout, ptmp, ret, 0, 0);
 					else
 						; //do nothing
@@ -1422,7 +1432,9 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		       (unsigned long)es_params->header.dts,
 		       es_params->header.len);
 
-		if (!(es_params->header.pts_dts_flag & 0x4))
+		if (!(es_params->header.pts_dts_flag & 0x4) ||
+			(pout->type == AUDIO_TYPE &&
+			 es_params->header.len < audio_es_len_limit))
 			out_ts_cb_list(pout, (char *)&es_params->header,
 				h_len,
 				(h_len + es_params->header.len),
@@ -1435,7 +1447,9 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
-			if (!(es_params->header.pts_dts_flag & 0x4)) {
+			if (!(es_params->header.pts_dts_flag & 0x4) ||
+				(pout->type == AUDIO_TYPE &&
+				 es_params->header.len < audio_es_len_limit)) {
 				find_audio_es_type(ptmp, ret);
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
 			} else {
