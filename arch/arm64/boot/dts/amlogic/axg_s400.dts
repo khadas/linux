@@ -330,32 +330,6 @@
 		pinctrl-0 = <&b_uart_pins>;
 	};
 
-	vpu {
-		compatible = "amlogic, vpu-axg";
-		dev_name = "vpu";
-		status = "disabled";
-/*
-		clocks = <&clkc CLKID_VAPB_MUX>,
-			<&clkc CLKID_VPU_INTR>,
-			<&clkc CLKID_VPU_P0_COMP>,
-			<&clkc CLKID_VPU_P1_COMP>,
-			<&clkc CLKID_VPU_MUX>;
-		clock-names = "vapb_clk",
-			"vpu_intr_gate",
-			"vpu_clk0",
-			"vpu_clk1",
-			"vpu_clk";
-*/
-		clk_level = <3>;
-		/* 0: 100.0M    1: 166.7M    2: 200.0M    3: 250.0M */
-	};
-
-	vout {
-		compatible = "amlogic, vout";
-		dev_name = "vout";
-		status = "disabled";
-	};
-
 	auge_sound {
 		compatible = "amlogic, auge-sound-card";
 		aml-audio-card,name = "AML-AUGESOUND";
@@ -842,7 +816,6 @@
 			key-permit = "read","write","del";
 		};
 	};//End unifykey
-
 }; /* end of / */
 &efuse {
 	status = "ok";

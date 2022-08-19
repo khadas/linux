@@ -18,6 +18,7 @@ config AMLOGIC_VOUT
 if AMLOGIC_VOUT
 source "drivers/amlogic/media/vout/vclk_serve/Kconfig"
 source "drivers/amlogic/media/vout/lcd/Kconfig"
+source "drivers/amlogic/media/vout/peripheral_lcd/Kconfig"
 source "drivers/amlogic/media/vout/vout_serve/Kconfig"
 source "drivers/amlogic/media/vout/hdmitx21/Kconfig"
 source "drivers/amlogic/media/vout/hdmitx/Kconfig"

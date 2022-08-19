@@ -11,3 +11,5 @@ include drivers/amlogic/media/vout/cvbs/Makefile
 include drivers/amlogic/media/vout/vdac/Makefile
 
 include drivers/amlogic/media/vout/lcd/Makefile
+
+include drivers/amlogic/media/vout/peripheral_lcd/Makefile
