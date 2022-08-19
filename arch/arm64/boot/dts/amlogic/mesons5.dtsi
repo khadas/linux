@@ -2278,17 +2278,17 @@
 		max_frame_time = <200>;
 	};
 
-	a76_tsensor: a76_tsensor@fe020000 {
+	gpu_tsensor: gpu_tsensor@fe094000 {
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
-		reg = <0x0 0xfe020000 0x0 0x50>;
-		tsensor_id = <1>;
+		reg = <0x0 0xfe094000 0x0 0x50>;
+		tsensor_id = <2>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
 		rtemp = <115000>;
-		interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
-//		clocks = <&clkc CLKID_TS_CLK>;
-//		clock-names = "ts_comp";
+		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 	};
 
@@ -2296,57 +2296,57 @@
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
 		reg = <0x0 0xfe022000 0x0 0x50>;
-		tsensor_id = <2>;
+		tsensor_id = <1>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
 		rtemp = <115000>;
 		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-//		clocks = <&clkc CLKID_TS_CLK>;
-//		clock-names = "ts_comp";
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 	};
 
-	ddr0_tsensor: ddr0_tsensor@fe01e000 {
+	vpu_tsensor: vpu_tsensor@fe0a2000 {
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
-		reg = <0x0 0xfe01e000 0x0 0x50>;
+		reg = <0x0 0xfe0a2000 0x0 0x50>;
 		tsensor_id = <3>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
 		rtemp = <115000>;
-		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
-//		clocks = <&clkc CLKID_TS_CLK>;
-//		clock-names = "ts_comp";
+		interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 	};
 
-	ddr1_tsensor: ddr1_tsensor@fe01c000 {
+	dos_tsensor: dos_tsensor@fe0a4000 {
 		compatible = "amlogic, r1p1-tsensor";
 		status = "okay";
-		reg = <0x0 0xfe01c000 0x0 0x50>;
+		reg = <0x0 0xfe0a4000 0x0 0x50>;
 		tsensor_id = <4>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
 		rtemp = <115000>;
-		interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
-//		clocks = <&clkc CLKID_TS_CLK>;
-//		clock-names = "ts_comp";
+		interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
 	};
 
 	nna_tsensor: nna_tsensor@fe096000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "disabled";
+		status = "okay";
 		reg = <0x0 0xfe096000 0x0 0x50>;
 		tsensor_id = <5>;
 		cal_type = <0x11>;
 		cal_coeff = <324 424 3159 9411>;
 		rtemp = <115000>;
 		interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
-//		clocks = <&clkc CLKID_TS_CLK>;
-//		clock-names = "ts_comp";
+		clocks = <&clkc CLKID_TS_CLK>;
+		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
-		//power-domains = <&pwrdm PDID_P1_NNA_TOP>;
+		power-domains = <&pwrdm PDID_S5_NNA_4T>;
 	};
 
 	meson_cooldev: meson-cooldev@0 {
@@ -2379,44 +2379,32 @@
 	};/*meson cooling devices end*/
 
 	thermal-zones {
-		soc_thermal: soc_thermal {
+		gpu_thermal: gpu_thermal {
 			status = "okay";
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
 			sustainable-power = <5160>;
-			thermal-sensors = <&a76_tsensor 0>;
+			thermal-sensors = <&gpu_tsensor 1>;
 			trips {
-				a76switch_on: trip-point@0 {
+				gpuswitch_on: trip-point@0 {
 					temperature = <80000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				a76control: trip-point@1 {
+				gpucontrol: trip-point@1 {
 					temperature = <90000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				a76hot: trip-point@2 {
+				gpuhot: trip-point@2 {
 					temperature = <100000>;
 					hysteresis = <5000>;
 					type = "hot";
 				};
-				a76critical: trip-point@3 {
+				gpucritical: trip-point@3 {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
-				};
-			};
-			cooling-maps {
-				cpufreq_cooling_map {
-					trip = <&a76control>;
-				//	cooling-device = <&CPU6 0 8>;
-					contribution = <1024>;
-				};
-				cpucore_cooling_map {
-					trip = <&a76hot>;
-					cooling-device = <&cpucore_cool1 0 2>;
-					contribution = <1024>;
 				};
 			};
 		};
@@ -2425,7 +2413,7 @@
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
 			sustainable-power = <960>;
-			thermal-sensors = <&a55_tsensor 1>;
+			thermal-sensors = <&a55_tsensor 0>;
 			trips {
 				a55switch_on: trip-point@0 {
 					temperature = <80000>;
@@ -2460,50 +2448,49 @@
 					contribution = <1024>;
 				};
 			};
-
 		};
-		ddr0_thermal: ddr0_thermal {
+		vpu_thermal: vpu_thermal {
 			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
 			sustainable-power = <400>;
-			thermal-sensors = <&ddr0_tsensor 2>;
+			thermal-sensors = <&vpu_tsensor 2>;
 			trips {
-				ddr0switch_on: trip-point@0 {
+				vpuswitch_on: trip-point@0 {
 					temperature = <80000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				ddr0control: trip-point@1 {
+				vpucontrol: trip-point@1 {
 					temperature = <90000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				ddr0critical: trip-point@2 {
+				vpucritical: trip-point@2 {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
 			};
 		};
-		ddr1_thermal: ddr1_thermal {
+		dos_thermal: dos_thermal {
 			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
 			sustainable-power = <400>;
-			thermal-sensors = <&ddr1_tsensor 3>;
+			thermal-sensors = <&dos_tsensor 3>;
 			trips {
-				ddr1switch_on: trip-point@0 {
+				dosswitch_on: trip-point@0 {
 					temperature = <80000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				ddr1control: trip-point@1 {
+				doscontrol: trip-point@1 {
 					temperature = <90000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
-				ddr1critical: trip-point@2 {
+				doscritical: trip-point@2 {
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";

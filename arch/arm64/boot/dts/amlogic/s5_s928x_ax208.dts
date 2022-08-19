@@ -38,10 +38,10 @@
 		spi4 = &spicc3;
 		spi5 = &spicc4;
 		spi6 = &spicc5;
-		tsensor0 = &a76_tsensor;
-		tsensor1 = &a55_tsensor;
-		tsensor2 = &ddr0_tsensor;
-		tsensor3 = &ddr1_tsensor;
+		tsensor0 = &a55_tsensor;
+		tsensor1 = &gpu_tsensor;
+		tsensor2 = &vpu_tsensor;
+		tsensor3 = &dos_tsensor;
 		tsensor4 = &nna_tsensor;
 	};
 
