@@ -29,6 +29,7 @@
 
 #include <trace/hooks/sched.h>
 #include <trace/hooks/dtask.h>
+#include <trace/hooks/cgroup.h>
 
 #ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
 #include <linux/amlogic/debug_ftrace_ramoops.h>
