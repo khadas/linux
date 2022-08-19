@@ -54,6 +54,7 @@ static int p2p_mode = 2;
 static int output_format_mode = 1;
 static int txlx_output_format_mode = 1;
 static int cma_layout_flag = 1;
+static int cpu_draw;
 
 #define NO_TASK_MODE
 
@@ -424,6 +425,104 @@ static int render_frame(struct ge2d_context_s *context,
 	return 0;
 }
 
+static int copy_phybuf_to_file(ulong phys, u32 size,
+			       struct file *fp, loff_t pos)
+{
+	u8 *p;
+
+	p = codec_mm_vmap(phys, size);
+	if (!p)
+		return -1;
+	codec_mm_dma_flush(p, size, DMA_FROM_DEVICE);
+	vfs_write(fp, (char *)p, size, &pos);
+	codec_mm_unmap_phyaddr(p);
+
+	return 0;
+}
+
+static int colorbar_left = 0xff0000;
+static int colorbar_middle = 0x00ff00;
+static int colorbar_right = 0x0000ff;
+
+static int cpu_draw_colorbar(struct vframe_s *vf, struct ge2d_context_s *context)
+{
+	struct canvas_s cs0;
+	struct file *filp = NULL;
+	loff_t pos = 0;
+	int ret = 0;
+	void __iomem *p;
+	mm_segment_t old_fs = get_fs();
+	int i, j;
+	unsigned int dst_addr_off = 0;
+	int frame_width = picdec_input.frame_width;
+	int frame_height = picdec_input.frame_height;
+	int bp = ((frame_width + 0x1f) & ~0x1f) * 3;
+
+	canvas_read(vf->canvas0Addr & 0xff, &cs0);
+
+	vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
+	p = map_virt_from_phys
+		(cs0.addr,
+		 cs0.width * cs0.height);
+	aml_pr_info(1, "%s cs0.width = %d, cs0.height = %d\n", __func__, cs0.width, cs0.height);
+	aml_pr_info(1, "%s cpu draw colorbar width = %d, height = %d\n",
+					__func__, frame_width, frame_height);
+
+	if (!picdec_input.input) {
+		for (j = 0; j < frame_height; j++) {
+			for (i = 0; i < frame_width; i += 3) {
+				dst_addr_off = i + bp * j;
+				*(char *)(p + dst_addr_off) = (colorbar_left & 0xff0000) >> 16;
+				*(char *)(p + dst_addr_off + 1) = (colorbar_left & 0x00ff00) >> 8;
+				*(char *)(p + dst_addr_off + 2) = (colorbar_left & 0x0000ff);
+			}
+			for (i = frame_width; i < frame_width * 2; i += 3) {
+				dst_addr_off = i + bp * j;
+				*(char *)(p + dst_addr_off) = (colorbar_middle & 0xff0000) >> 16;
+				*(char *)(p + dst_addr_off + 1) = (colorbar_middle & 0x00ff00) >> 8;
+				*(char *)(p + dst_addr_off + 2) = (colorbar_middle & 0x0000ff);
+			}
+			for (i = frame_width * 2; i < frame_width * 3; i += 3) {
+				dst_addr_off = i + bp * j;
+				*(char *)(p + dst_addr_off) = (colorbar_right & 0xff0000) >> 16;
+				*(char *)(p + dst_addr_off + 1) = (colorbar_right & 0x00ff00) >> 8;
+				*(char *)(p + dst_addr_off + 2) = (colorbar_right & 0x0000ff);
+			}
+		}
+		aml_pr_info(1, "%s test color copy finish ###\n", __func__);
+	}
+
+	if ((dump_file_flag) && picdec_device.origin_width > 100) {
+		if (picdec_device.output_format_mode) {
+			set_fs(KERNEL_DS);
+			filp = filp_open("/data/temp/rgb24.rgb",
+					 O_RDWR | O_CREAT, 0666);
+			if (IS_ERR(filp)) {
+				aml_pr_info(0, "open file failed\n");
+			} else {
+				if (!cma_layout_flag) {
+					pr_info("%s %d start writing file\n", __func__, __LINE__);
+					vfs_write(filp, (char *)p,
+						  cs0.width * cs0.height, &pos);
+					unmap_virt_from_phys(p);
+					pr_info("%s %d finish writing file\n", __func__, __LINE__);
+				} else {
+					ret = copy_phybuf_to_file
+						(cs0.addr,
+						 cs0.width * cs0.height,
+						 filp, 0);
+					if (ret < 0)
+						pr_err("write rgb24 file failed.\n");
+				}
+				vfs_fsync(filp, 0);
+				filp_close(filp, NULL);
+				set_fs(old_fs);
+			}
+		}
+	}
+	return 0;
+}
+
 static int render_frame_block(void)
 {
 	struct vframe_s *new_vf;
@@ -550,7 +649,10 @@ static int render_frame_block(void)
 	DISP_RATIO_FORCE_NORMALWIDE;
 	picdec_device.cur_index = index;
 	aml_pr_info(1, "picdec_fill_buffer start\n");
-	picdec_fill_buffer(new_vf, context, &ge2d_config);
+	if (!cpu_draw)
+		picdec_fill_buffer(new_vf, context, &ge2d_config);
+	else
+		cpu_draw_colorbar(new_vf, context);
 	aml_pr_info(1, "picdec_fill_buffer finish\n");
 	do_gettimeofday(&end);
 	time_use = (end.tv_sec - start.tv_sec) * 1000 +
@@ -932,21 +1034,6 @@ int fill_color(struct vframe_s *vf, struct ge2d_context_s *context,
 			   (end.tv_usec - start.tv_usec) / 1000;
 	if (debug_flag)
 		pr_info("clear background time use: %ldms\n", time_use);
-	return 0;
-}
-
-static int copy_phybuf_to_file(ulong phys, u32 size,
-			       struct file *fp, loff_t pos)
-{
-	u8 *p;
-
-	p = codec_mm_vmap(phys, size);
-	if (!p)
-		return -1;
-	codec_mm_dma_flush(p, size, DMA_FROM_DEVICE);
-	vfs_write(fp, (char *)p, size, &pos);
-	codec_mm_unmap_phyaddr(p);
-
 	return 0;
 }
 
@@ -1933,6 +2020,27 @@ static ssize_t p2p_mode_store(struct class *cla,
 	return count;
 }
 
+static ssize_t cpu_draw_show(struct class *cla,
+			     struct class_attribute *attr,
+			     char *buf)
+{
+	return snprintf(buf, 40, "%d\n", cpu_draw);
+}
+
+static ssize_t cpu_draw_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &res);
+	aml_pr_info(0, "cpu_draw: %d->%d\n", cpu_draw, res);
+	cpu_draw = res;
+
+	return count;
+}
+
 static ssize_t output_format_mode_show(struct class *cla,
 				       struct class_attribute *attr,
 				       char *buf)
@@ -2007,6 +2115,8 @@ static CLASS_ATTR_RW(p2p_mode);
 static CLASS_ATTR_RW(output_format_mode);
 static CLASS_ATTR_RW(txlx_output_format_mode);
 static CLASS_ATTR_RW(cma_layout_flag);
+static CLASS_ATTR_RW(cpu_draw);
+
 
 static struct attribute *picdec_class_attrs[] = {
 	&class_attr_frame_render.attr,
@@ -2019,6 +2129,7 @@ static struct attribute *picdec_class_attrs[] = {
 	&class_attr_output_format_mode.attr,
 	&class_attr_txlx_output_format_mode.attr,
 	&class_attr_cma_layout_flag.attr,
+	&class_attr_cpu_draw.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(picdec_class);
