@@ -2604,6 +2604,7 @@ static void set_frames_info(struct composer_dev *dev,
 				 "sideband to non\n");
 		}
 		dev->is_sideband = false;
+		disable_video_layer(dev, 0);
 		sprintf(render_layer,
 			"video_render.%d",
 			dev->video_render_index);
