@@ -382,7 +382,16 @@ int meson_atomic_commit(struct drm_device *dev,
 		return 0;
 	}
 
-	ret = meson_drm_atomic_helper_setup_commit(state, nonblock);
+	if (state->legacy_cursor_update) {
+		ret = drm_atomic_helper_setup_commit(state, nonblock);
+		/*drm_atomic_helper_wait_for_vblanks reference it,
+		 *so it should be flase for non-async update commit.
+		 */
+		state->legacy_cursor_update = false;
+		DRM_DEBUG_ATOMIC("legacy_cursor_update force to false!\n");
+	} else {
+		ret = meson_drm_atomic_helper_setup_commit(state, nonblock);
+	}
 	if (ret)
 		return ret;
 
