@@ -469,11 +469,11 @@ static inline bool vdin_is_need_send_event(struct vdin_dev_s *devp,
 	if (IS_HDMI_SRC(devp->parm.port) &&
 	    ((devp->flags & VDIN_FLAG_DEC_STARTED &&
 	      info->status == TVIN_SIG_STATUS_UNSTABLE &&
-	      !(devp->vdin_stable_cnt % 10)) ||
+	      !(devp->vdin_stable_cnt % VDIN_SEND_EVENT_INTERVAL)) ||
 	     (!(devp->flags & VDIN_FLAG_DEC_STARTED) &&
 	      info->status == TVIN_SIG_STATUS_STABLE &&
 	      devp->vdin_stable_cnt >= VDIN_STABLED_CNT &&
-	      !(devp->vdin_stable_cnt % 10))))
+	      !(devp->vdin_stable_cnt % VDIN_SEND_EVENT_INTERVAL))))
 		return true;
 	else
 		return false;
