@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2022/07/11: enable clock in dts for t5w"
+#define CEC_DRIVER_VERSION     "2022/08/21: bringup for s5"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -46,6 +46,7 @@ enum cec_chip_ver {
 	CEC_CHIP_S4,/*base on sc2*/
 	CEC_CHIP_T3,	/* only have cecb */
 	CEC_CHIP_T5W,	/* from T5D */
+	CEC_CHIP_S5
 };
 
 enum cecaver {
