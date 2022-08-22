@@ -2251,7 +2251,7 @@
 			<0x0 0xfe084000 0x0 0x20>;
 		status = "disable";
 		protocol = <REMOTE_TYPE_NEC>;
-		interrupts = <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 61 IRQ_TYPE_EDGE_RISING>;
 		map = <&custom_maps>;
 		max_frame_time = <200>;
 	};
@@ -3483,7 +3483,7 @@
 
 	remote_pins: remote_pin {
 		mux {
-			groups = "remote_in";
+			groups = "remote_in_d";
 			function = "remote_in";
 			bias-disable;
 		};

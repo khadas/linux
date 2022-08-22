@@ -1642,7 +1642,7 @@
 };
 
 &ir {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&remote_pins>;
 	pinctrl-names = "default";
 };
@@ -1905,12 +1905,6 @@
 			function = "tdm_clk_outd";
 		};
 	};
-};
-
-&ir {
-	status = "disabled";
-	pinctrl-0 = <&remote_pins>;
-	pinctrl-names = "default";
 };
 
 &amlvecm {
