@@ -24,6 +24,12 @@ enum dsp_start_mode {
 	MAX_START_MODE,
 };
 
+enum dsp_boot_location {
+	PURE_DDR = 1,
+	PURE_SRAM,
+	DDR_SRAM
+};
+
 enum dsp_index {
 	DSPA = 0,
 	DSPB

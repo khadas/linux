@@ -26,6 +26,7 @@ struct reg_iomem_t {
 	unsigned int	regb_size;
 	void __iomem *hiu_addr;		/*HIU*/
 	void __iomem *sram_base;
+	void __iomem *sram_base_b;
 };
 
 extern struct reg_iomem_t g_regbases;
@@ -67,5 +68,6 @@ struct hifi4dsp_miscdev_t {
 #define PWR_OFF   0
 
 extern unsigned int bootlocation;
+extern unsigned int bootlocation_b;
 
 #endif /*_HIFI4DSP_PRIV_H*/

@@ -51,6 +51,8 @@
 struct reg_iomem_t g_regbases;
 unsigned int bootlocation;
 static unsigned int boot_sram_addr, boot_sram_size;
+unsigned int bootlocation_b;
+static unsigned int dspb_sram_addr, dspb_sram_size;
 static struct mutex hifi4dsp_flock;
 
 static struct reserved_mem hifi4_rmem; /*dsp firmware memory*/
@@ -439,8 +441,8 @@ static int hifi4dsp_driver_load_2fw(struct hifi4dsp_dsp *dsp)
 	}
 	dsp->dsp_fw = new_dsp_sram_fw;
 	strcpy(new_dsp_sram_fw->name, info->fw2_name);
-	new_dsp_sram_fw->paddr = boot_sram_addr;
-	new_dsp_sram_fw->buf = g_regbases.sram_base;
+	new_dsp_sram_fw->paddr = dsp->id ? dspb_sram_addr : boot_sram_addr;
+	new_dsp_sram_fw->buf = dsp->id ? g_regbases.sram_base_b : g_regbases.sram_base;
 	hifi4dsp_fw_sram_load(new_dsp_sram_fw);
 
 	return err;
@@ -632,10 +634,22 @@ static int hifi4dsp_driver_dsp_start(struct hifi4dsp_dsp *dsp)
 	clk_set_rate(dsp->dsp_clk, dsp->freq);
 	clk_prepare_enable(dsp->dsp_clk);
 
-	if (bootlocation == 1)
-		soc_dsp_bootup(dsp->id, dsp->dsp_fw->paddr, dsp->freq);
-	else if (bootlocation == 2)
-		soc_dsp_bootup(dsp->id, boot_sram_addr, dsp->freq);
+	switch (dsp->id) {
+	case DSPA:
+		if (bootlocation == 1)
+			soc_dsp_bootup(dsp->id, dsp->dsp_fw->paddr, dsp->freq);
+		else if (bootlocation == 2)
+			soc_dsp_bootup(dsp->id, boot_sram_addr, dsp->freq);
+		break;
+	case DSPB:
+		if (bootlocation_b == 3)
+			soc_dsp_bootup(dsp->id, dspb_sram_addr, dsp->freq);
+		else
+			soc_dsp_bootup(dsp->id, dsp->dsp_fw->paddr, dsp->freq);
+		break;
+	default:
+		break;
+	}
 
 	dsp->info = NULL;
 	dsp->dspstarted = 1;
@@ -1500,10 +1514,31 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Can't retrieve boot_sram_size\n");
 			goto err1;
 		}
-		pr_info("Dsp boot from SRAM !boot addr : 0x%08x, allocate size: 0x%08x\n",
+		pr_info("DspA boot from SRAM !boot addr : 0x%08x, allocate size: 0x%08x\n",
 			boot_sram_addr, boot_sram_size);
 		g_regbases.sram_base = ioremap_nocache(boot_sram_addr,
 						       boot_sram_size);
+	}
+
+	ret = of_property_read_u32(np, "bootlocation_b", &bootlocation_b);
+	if (ret && ret != -EINVAL)
+		dev_err(&pdev->dev, "of get bootlocation_b property failed\n");
+	if (bootlocation_b == DDR_SRAM) {
+		ret = of_property_read_u32(np, "dspb_sram_addr",
+					   &dspb_sram_addr);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Can't retrieve dspb_sram_addr\n");
+			goto err1;
+		}
+		ret = of_property_read_u32(np, "dspb_sram_size",
+					   &dspb_sram_size);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "Can't retrieve dspb_sram_size\n");
+			goto err1;
+		}
+		pr_info("DspB boot from SRAM !boot addr : 0x%08x, allocate size: 0x%08x\n",
+			dspb_sram_addr, dspb_sram_size);
+		g_regbases.sram_base_b = ioremap_nocache(dspb_sram_addr, dspb_sram_size);
 	}
 
 	ret = of_property_read_u32_array(np, "optimize_longcall", &optimize_longcall[0], 2);
