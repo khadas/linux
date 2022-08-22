@@ -1240,6 +1240,11 @@ static int override_release(char __user *release, size_t len)
 	return ret;
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static int bpf_enable_for_cts;
+core_param(bpf_enable_for_cts, bpf_enable_for_cts, int, 0644);
+#endif
+
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
 	struct new_utsname tmp;
@@ -1248,12 +1253,15 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	memcpy(&tmp, utsname(), sizeof(tmp));
 #ifdef CONFIG_AMLOGIC_MODIFY
 #ifdef CONFIG_ARM
-	pr_debug("newuname: %s/%d release=%s\n", current->comm, current->pid, tmp.release);
+	pr_info("newuname: %s/%d release=%s bpf_enable_for_cts=%d\n",
+		current->comm, current->pid, tmp.release, bpf_enable_for_cts);
 	if (!strncmp(current->comm, "bpfloader", 9) ||
 	    !strncmp(current->comm, "netd", 4)) {
-		strcpy(tmp.release, "3.14.1"); //fake version don't support bpf
-		pr_debug("fake uname: %s/%d release=%s\n",
-			 current->comm, current->pid, tmp.release);
+		if (!bpf_enable_for_cts) {
+			strcpy(tmp.release, "3.14.1"); //fake version don't support bpf
+			pr_info("fake uname: %s/%d release=%s\n",
+				 current->comm, current->pid, tmp.release);
+		}
 	}
 #endif
 #endif
