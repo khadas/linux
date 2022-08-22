@@ -146,6 +146,7 @@ static void vd_display_q_uninit(struct composer_dev *dev)
 					if (!dma_flag) {
 						dma_buf_put((struct dma_buf *)file_vf);
 						dma_fence_signal(vd_prepare->release_fence);
+						dma_fence_put(vd_prepare->release_fence);
 						vc_print(dev->index, PRINT_FENCE,
 						"%s: release_fence = %px\n",
 						__func__,
@@ -219,6 +220,7 @@ static void vd_ready_q_uninit(struct composer_dev *dev)
 				} else {
 					dma_buf_put((struct dma_buf *)file_vf);
 					dma_fence_signal(vd_prepare->release_fence);
+					dma_fence_put(vd_prepare->release_fence);
 					vc_print(dev->index, PRINT_FENCE,
 						"%s: release_fence = %px\n",
 						__func__,
@@ -828,6 +830,7 @@ static void vc_vf_put(struct vframe_s *vf, void *op_arg)
 			} else {
 				dma_buf_put((struct dma_buf *)file_vf);
 				dma_fence_signal(vd_prepare_tmp->release_fence);
+				dma_fence_put(vd_prepare_tmp->release_fence);
 				vc_print(dev->index, PRINT_FENCE,
 					"%s: release_fence = %px\n",
 					__func__,
