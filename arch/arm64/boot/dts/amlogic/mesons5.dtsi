@@ -497,10 +497,8 @@
 		compatible = "amlogic, jtag";
 		status = "okay";
 		select = "disable"; /* disable/jtag_a */
-		//amlogic,support-jtag-trace;
-		pinctrl-names="jtag_a_pins", "jtag_trace_pins";
+		pinctrl-names="jtag_a_pins";
 		pinctrl-0=<&jtag_a_pins>;
-		pinctrl-1=<&jtag_trace_pins>;
 	};
 
 	hifi4dsp: hifi4dsp {
@@ -3326,30 +3324,6 @@
 				 "jtag_a_clk",
 				 "jtag_a_tms";
 			function = "jtag_a";
-		};
-	};
-
-	jtag_trace_pins: jtag_trace_pin {
-		mux {
-			groups = "jtag_trace_clka",
-				"jtag_trace_ctl",
-				"jtag_trace_d0",
-				"jtag_trace_d1",
-				"jtag_trace_d2",
-				"jtag_trace_d3",
-				"jtag_trace_d4",
-				"jtag_trace_d5",
-				"jtag_trace_d6",
-				"jtag_trace_d7",
-				"jtag_trace_d8",
-				"jtag_trace_d9",
-				"jtag_trace_d10",
-				"jtag_trace_d11",
-				"jtag_trace_d12",
-				"jtag_trace_d13",
-				"jtag_trace_d14",
-				"jtag_trace_d15";
-			function = "jtag_trace";
 		};
 	};
 
