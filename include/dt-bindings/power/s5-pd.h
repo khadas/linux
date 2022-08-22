@@ -37,4 +37,3 @@
 #define PDID_S5_DMC11		31
 #define PDID_S5_DDRPHY0		32
 #define PDID_S5_DDRPHY1		33
-#define PDID_S5_NOC_DMC_WRAP	34
