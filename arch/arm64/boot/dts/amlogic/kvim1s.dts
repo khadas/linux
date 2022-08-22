@@ -400,6 +400,12 @@
 		};
 	};//End unifykey
 
+	onewire:onewire {
+		compatible = "w1-gpio";
+		gpios = <&gpio GPIOZ_8 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
+
 	efusekey:efusekey{
 		keynum = <4>;
 		key0 = <&key_0>;
