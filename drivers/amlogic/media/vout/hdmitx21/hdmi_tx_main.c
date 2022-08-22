@@ -5351,7 +5351,7 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		/* Get pxp_mode information */
 		ret = of_property_read_u32(pdev->dev.of_node, "pxp_mode",
 					   &pxp_mode);
-		hdev->pxp_mode = !!pxp_mode;
+		hdev->pxp_mode = 0;
 		if (!ret)
 			pr_info("hdev->pxp_mode: %d\n", hdev->pxp_mode);
 

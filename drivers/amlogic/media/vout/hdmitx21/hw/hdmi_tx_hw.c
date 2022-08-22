@@ -249,6 +249,9 @@ void hdmitx21_sys_reset(void)
 	case MESON_CPU_ID_T7:
 		hdmitx21_sys_reset_t7();
 		break;
+	case MESON_CPU_ID_S5:
+		hdmitx21_sys_reset_s5();
+		break;
 	default:
 		break;
 	}
@@ -339,6 +342,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	hd21_set_reg_bits(CLKCTRL_HDMI_CLK_CTRL, 7, 8, 3);
 	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 24, 1);
 
+	pr_info("%s%d\n", __func__, __LINE__);
 	if (hdmitx21_uboot_already_display(hdev)) {
 		int ret;
 		u8 body[32] = {0};
@@ -432,7 +436,11 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	data32 |= (1 << 3);
 	data32 |= (1 << 1);
 	data32 |= (1 << 0);
+	pr_info("%s%dHDMITX_TOP_CLK_CNTL = 0x%x", __func__, __LINE__,
+			hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL));
 	hdmitx21_wr_reg(HDMITX_TOP_CLK_CNTL,  data32);
+	pr_info("%s%dHDMITX_TOP_CLK_CNTL = 0x%x", __func__, __LINE__,
+			hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL));
 	data32 = 0;
 	data32 |= (1 << 8);  // [  8] hdcp_topology_err
 	data32 |= (1 << 7);  // [  7] rxsense_fall
@@ -443,6 +451,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	data32 |= (1 << 2);  // [  2] hpd_fall_intr
 	data32 |= (1 << 1);  // [  1] hpd_rise_intr
 	data32 |= (1 << 0);  // [ 0] core_pwd_intr_rise
+	pr_info("%s%d\n", __func__, __LINE__);
 	hdmitx21_wr_reg(HDMITX_TOP_INTR_MASKN, 0x6);
 
 	//--------------------------------------------------------------------------
@@ -469,6 +478,7 @@ int hdmitx21_uboot_audio_en(void)
 
 void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 {
+	pr_info("%s%d\n", __func__, __LINE__);
 	hdev->hwop.setdispmode = hdmitx_set_dispmode;
 	hdev->hwop.setaudmode = hdmitx_set_audmode;
 	hdev->hwop.debugfun = hdmitx_debug;
@@ -496,8 +506,13 @@ static void set_phy_by_mode(u32 mode)
 
 	switch (hdev->data->chip_type) {
 	case MESON_CPU_ID_T7:
-	default:
 		set21_phy_by_mode_t7(mode);
+		break;
+	case MESON_CPU_ID_S5:
+		set21_phy_by_mode_s5(mode);
+		break;
+	default:
+		pr_info("%s: Not match chip ID\n", __func__);
 		break;
 	}
 }
@@ -543,7 +558,7 @@ static void set_vid_clk_div(u32 div)
 {
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 16, 3);
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_DIV, div - 1, 0, 8);
-	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
+	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 4, 0, 3);
 }
 
 static void set_hdmi_tx_pixel_div(u32 div)
@@ -904,6 +919,7 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 	// [    1] src_sel_encp: Enable ENCI or ENCP output to HDMI
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 1, (hdev->enc_idx == 0) ? 0 : 1, 1);
 
+	hd21_set_reg_bits(VPU_HDMI_SETTING, 0, 16, 3);	//hard code
 	hdmitx_set_phy(hdev);
 	return 0;
 }
@@ -1183,7 +1199,11 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	/* aud_mclk_sel: Select to use which clock for ACR measurement.
 	 * 0= Use i2s_mclk; 1=Use spdif_clk.
 	 */
+	pr_info("%s%dHDMITX_TOP_CLK_CNTL = 0x%x", __func__, __LINE__,
+			hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL));
 	hdmitx21_set_reg_bits(HDMITX_TOP_CLK_CNTL, 1 - hdev->tx_aud_src, 13, 1);
+	pr_info("%s%dHDMITX_TOP_CLK_CNTL = 0x%x", __func__, __LINE__,
+			hdmitx21_rd_reg(HDMITX_TOP_CLK_CNTL));
 
 	pr_info(HW "hdmitx tx_aud_src = %d\n", hdev->tx_aud_src);
 
@@ -1834,8 +1854,11 @@ static void set_t7_top_div40(u32 div40)
 	data32 |= (1 << 12);
 	data32 |= (0 << 8);
 	data32 |= (0 << 0);
+	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
+			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 	hdmitx21_wr_reg(HDMITX_TOP_BIST_CNTL, data32);
-
+	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
+			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 	if (div40)
 		hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
 }
@@ -1868,7 +1891,11 @@ static void set_s5_top_div40(u32 div40)
 	data32 |= (1 << 16);
 	data32 |= (0 << 8);
 	data32 |= (0 << 0);
+	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
+			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 	hdmitx21_wr_reg(HDMITX_TOP_BIST_CNTL, data32);
+	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
+			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 
 	if (div40)
 		hdmitx21_wr_reg(HDMITX_S5_TOP_TMDS_CLK_PTTN_CNTL, 0x2);

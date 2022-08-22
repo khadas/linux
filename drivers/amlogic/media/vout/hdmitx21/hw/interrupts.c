@@ -131,6 +131,7 @@ static void intr2_sw_handler(struct intr_t *intr)
 static void _intr_enable(struct intr_t *pint, bool en)
 {
 	hdmitx21_wr_reg(pint->intr_mask_reg, en ? pint->mask_data : 0);
+	pr_info("%s%d\n", __func__, __LINE__);
 	hdmitx21_set_bit(HDMITX_TOP_INTR_MASKN, pint->intr_top_bit, en);
 }
 
@@ -249,6 +250,7 @@ void hdmitx_setupirqs(struct hdmitx_dev *phdev)
 {
 	int r;
 
+	pr_info("%s%d\n", __func__, __LINE__);
 	hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT_CLR, 0x7);
 	r = request_irq(phdev->irq_hpd, &intr_handler,
 			IRQF_SHARED, "hdmitx",

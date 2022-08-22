@@ -88,20 +88,25 @@ void hdmitx21_set_bit(u32 addr, u32 bit_val, bool st);
 #define VID_PLL_DIV_15     13
 #define VID_PLL_DIV_2p5    14
 #define VID_PLL_DIV_3p25   15
+#define VID_PLL_DIV_10     16
 
 #define GROUP_MAX	10
 struct hw_enc_clk_val_group {
 	enum hdmi_vic group[GROUP_MAX];
-	u32 hpll_clk_out; /* Unit: kHz */
-	u32 od1;
-	u32 od2; /* HDMI_CLK_TODIG */
-	u32 od3;
-	u32 vid_pll_div;
-	u32 vid_clk_div;
-	u32 enc_div;
-	u32 fe_div;
-	u32 pnx_div;
-	u32 pixel_div;
+	u32 txpll_vco_clk; /* 3G~6G, Unit: kHz */
+	u32 txpll_3_od0; /* div 1, 2, 4, 8 */
+	u8  txpll_4_div9_en; /* tx_phy_clk1618 */
+	u32 txpll_3_od1; /* div 1, 2, 4, 8 */
+	u32 txpll_3_od2; /* div 1, 2, 4, 8 */
+	u8  txpll_4_od;	/* div 1, 2, 4, 8 */
+	u8  txpll_4_mux; /* a_phy_clock */
+	u8  hdmi_ctl2_div5_10; /* hdmi_clk_todig, hdmi_ch_clk */
+	u8  fpll_vco_clk; /* 1.6G ~ 3.2G, Unit: kHz */
+	u8  fpll_tmds_od1; /* div 1, 2, 4, 8 */
+	u8  fpll_tmds_od2; /* div 1, 2, 4, 8, then div2 to tmds_clk */
+	u8  fpll_pixel_od; /* div 1, 1.25, 1.5, 2, pixel_clk */
+	u8  vid_pll_clk_div; /* div 5, 6.25, 7.5, htx_tmds_clk */
+	u8  hdmi_pll_tmds_clk_div; /* div 5, 6.25, 7.5, vid_pll0_clk*/
 };
 
 void hdmitx21_set_default_clk(void);
@@ -137,18 +142,28 @@ void hdmitx21_venc_en(bool en, bool pi_mode);
 #define REG         "reg: "
 
 void hdmitx21_phy_bandgap_en_t7(void);
+void hdmitx21_phy_bandgap_en_s5(void);
 
 void set21_phy_by_mode_t7(u32 mode);
+void set21_phy_by_mode_s5(u32 mode);
 
 void hdmitx21_sys_reset_t7(void);
+void hdmitx21_sys_reset_s5(void);
+
 void hdmitx21_debugfs_init(void);
 
 void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk);
+void set21_s5_hpll_clk_out(u32 frac_rate, u32 clk);
+void set21_hpll_od0_t7(u32 div);
 void set21_hpll_od1_t7(u32 div);
 void set21_hpll_od2_t7(u32 div);
-void set21_hpll_od3_t7(u32 div);
+void set21_txpll_3_od0_s5(u8 od);
+void set21_txpll_3_od1_s5(u8 od);
+void set21_txpll_3_od2_s5(u8 od);
+void set21_txpll_4_od_s5(u8 od);
 
 void set21_hpll_sspll_t7(enum hdmi_vic vic);
+void set21_hpll_sspll_s5(enum hdmi_vic vic);
 
 void dump_hdmitx_reg(void);
 void dump_infoframe_packets(struct seq_file *s);
