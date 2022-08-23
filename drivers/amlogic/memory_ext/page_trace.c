@@ -65,6 +65,7 @@
  */
 static bool merge_function = 1;
 static int page_trace_filter = 64; /* not print size < page_trace_filter */
+static int page_trace_filter_slab;
 unsigned int cma_alloc_trace;
 static struct proc_dir_entry *d_pagetrace;
 #ifndef CONFIG_64BIT
@@ -751,6 +752,7 @@ struct pagetrace_summary {
 	struct page_summary *sum;
 	unsigned long ticks;
 	int mt_cnt[MIGRATE_TYPES];
+	int filter_slab[MIGRATE_TYPES];
 };
 
 static unsigned long find_ip_base(unsigned long ip)
@@ -814,11 +816,13 @@ static int trace_cmp(const void *x1, const void *x2)
 }
 
 static void show_page_trace(struct seq_file *m, struct zone *zone,
-			    struct page_summary *sum, int *mt_cnt)
+			    struct pagetrace_summary *pt_sum)
 {
 	int i, j;
 	struct page_summary *p;
 	unsigned long total_mt, total_used = 0;
+	struct page_summary *sum = pt_sum->sum;
+	int *mt_cnt = pt_sum->mt_cnt;
 
 	seq_printf(m, "%s            %s, %s\n",
 		   "count(KB)", "kaddr", "function");
@@ -847,6 +851,9 @@ static void show_page_trace(struct seq_file *m, struct zone *zone,
 		seq_puts(m, "------------------------------\n");
 		seq_printf(m, "total pages:%6ld, %9ld kB, type:%s\n",
 			   total_mt, K(total_mt), migratetype_names[j]);
+		if (page_trace_filter_slab)
+			seq_printf(m, "filter_slab pages:%6ld, %9ld kB\n",
+				pt_sum->filter_slab[j], K(pt_sum->filter_slab[j]));
 		seq_puts(m, "------------------------------\n");
 		total_used += total_mt;
 	}
@@ -895,7 +902,7 @@ static void merge_same_function(struct page_summary *sum, int *mt_cnt)
 }
 
 static int update_page_trace(struct seq_file *m, struct zone *zone,
-			     struct page_summary *sum, int *mt_cnt)
+			     struct pagetrace_summary *pt_sum)
 {
 	unsigned long pfn;
 	unsigned long start_pfn = zone->zone_start_pfn;
@@ -904,6 +911,8 @@ static int update_page_trace(struct seq_file *m, struct zone *zone,
 	struct page_trace *trace;
 	struct page_summary *p;
 	struct rb_root root[MIGRATE_TYPES];
+	struct page_summary *sum = pt_sum->sum;
+	int *mt_cnt = pt_sum->mt_cnt;
 
 	memset(root, 0, sizeof(root));
 	/* loop whole zone */
@@ -928,6 +937,11 @@ static int update_page_trace(struct seq_file *m, struct zone *zone,
 
 		if (!(*(unsigned int *)trace)) /* empty */
 			continue;
+
+		if (page_trace_filter_slab && PageSlab(page)) {
+			pt_sum->filter_slab[mt]++;
+			continue;
+		}
 
 		mt = trace->migrate_type;
 		p  = sum + mt_offset[mt];
@@ -974,13 +988,13 @@ static int pagetrace_show(struct seq_file *m, void *arg)
 	for_each_populated_zone(zone) {
 		memset(sum->sum, 0, size);
 		memset(sum->mt_cnt, 0, sizeof(int) * MIGRATE_TYPES);
-		ret = update_page_trace(m, zone, sum->sum, sum->mt_cnt);
+		ret = update_page_trace(m, zone, sum);
 		if (ret) {
 			seq_printf(m, "Error %d in zone %8s\n",
 				   ret, zone->name);
 			continue;
 		}
-		show_page_trace(m, zone, sum->sum, sum->mt_cnt);
+		show_page_trace(m, zone, sum);
 	}
 	sum->ticks = sched_clock() - sum->ticks;
 
@@ -1031,6 +1045,16 @@ static ssize_t pagetrace_write(struct file *file, const char __user *buffer,
 		cma_alloc_trace = arg ? 1 : 0;
 		pr_info("set cma_trace to %d\n", cma_alloc_trace);
 	}
+
+	if (!strncmp(buf, "filter_slab=", 12)) {	/* option for 'filter=slab' */
+		if (sscanf(buf, "filter_slab=%d", &arg) < 0) {
+			kfree(buf);
+			return -EINVAL;
+		}
+		page_trace_filter_slab = arg;
+		pr_info("set filter slab to %d\n", page_trace_filter_slab);
+	}
+
 	if (!strncmp(buf, "filter=", 7)) {	/* option for 'filter=' */
 		if (sscanf(buf, "filter=%ld", &arg) < 0) {
 			kfree(buf);
