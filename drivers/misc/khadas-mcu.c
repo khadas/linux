@@ -313,10 +313,10 @@ static int is_mcu_redled_control_supported(void)
 {
 	// MCU Red LED control is supported for:
 	// 1. Khadas VIM1S V10 and later
-		if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V10)
+		//if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V10)
 			return 1;
-		else
-			return 0;
+		//else
+			//return 0;
 }
 
 
@@ -333,6 +333,8 @@ static void mcu_redled_set(int mode)
 			if (ret < 0) {
 				pr_debug("write red led cmd error\n");
 			}
+			else
+				pr_debug("write red led cmd mode=%d\n",mode);
 		}
 	}
 }
