@@ -25,6 +25,7 @@
 #include "meson_uvm_allocator.h"
 #include "meson_uvm_nn_processor.h"
 #include "meson_uvm_aipq_processor.h"
+#include "meson_uvm_buffer_info.h"
 
 static struct mua_device *mdev;
 
@@ -641,7 +642,7 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	case UVM_IOC_SET_FD:
 		fd = data.fd_data.fd;
-		ret = mua_set_commit_display(fd, data.fd_data.commit_display);
+		ret = mua_set_commit_display(fd, data.fd_data.data);
 
 		if (ret < 0) {
 			MUA_PRINTK(0, "invalid dmabuf fd.\n");
@@ -680,6 +681,20 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			MUA_PRINTK(0, "get meta data fail.\n");
 			return -EINVAL;
 		}
+		break;
+	case UVM_IOC_GET_TYPE:
+		fd = data.fd_data.fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+		ret = get_uvm_video_type(fd);
+		if (ret < 0) {
+			MUA_PRINTK(1, "get video %d type fail.\n", fd);
+			return ret;
+		}
+		data.fd_data.data = ret;
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+		ret = 0;
 		break;
 	default:
 		return -ENOTTY;
