@@ -1911,11 +1911,10 @@
 		flag_cma = <4>;	//<1>;
 		//memory-region = <&di_reserved>;
 		memory-region = <&di_cma_reserved>;
-		interrupts = <0 203 1
-				0 202 1
-				0 81 1
-				0 285 1>;
-		interrupt-names = "pre_irq", "post_irq", "aisr_irq", "dct_irq";
+		interrupts = <0 122 1
+				0 123 1
+				0 128 1>;
+		interrupt-names = "pre_irq", "post_irq", "dct_irq";
 		clocks = <&clkc CLKID_VPU_CLKB>,
 			<&clkc CLKID_VPU>;
 		clock-names = "vpu_clkb",
@@ -1930,7 +1929,7 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 		dct = <0>;//decontour disable
-		hf	= <2>; //enable aisr
+		hf	= <0>; //enable aisr
 		en_4k = <1>;
 		alloc_sct = <1>;
 		po_fmt = <6>;
