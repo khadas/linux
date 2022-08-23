@@ -39,7 +39,7 @@
 #define SIP_FREERTOS_FID		0x8200004B
 #define RTOS_REQUEST_INFO		0
 #define RTOS_ALLOW_COREUP		1
-#define SMC_UNK				0xffffffff
+#define SMC_UNK				-1
 #define RSVED_MAX_IRQ			1024
 #define RTOS_RUN_FLAG			0xA5A5A5A5
 
@@ -530,7 +530,7 @@ static int aml_rtos_probe(struct platform_device *pdev)
 	rtosinfo_phy = freertos_request_info();
 	pr_info("rtosinfo_phy=%lx\n", rtosinfo_phy);
 	if (rtosinfo_phy == 0 ||
-	    rtosinfo_phy == SMC_UNK)
+	    (int)rtosinfo_phy == SMC_UNK)
 		return 0;
 
 	rtosinfo = (struct xrtosinfo_t *)memremap(rtosinfo_phy,
