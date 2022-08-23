@@ -1304,10 +1304,11 @@ static void do_inband_signal(struct evl_thread *thread, int signo, int sigval)
 		memset(&si, '\0', sizeof(si));
 		si.si_signo = signo;
 		si.si_code = SI_QUEUE;
-		si.si_int = sigval;
+		si.si_int = sigval | sigdebug_marker;
 		send_sig_info(signo, &si, p);
-	} else
+	} else {
 		send_sig(signo, p, 1);
+	}
 }
 
 static void sig_irqwork(struct irq_work *work)
@@ -1336,7 +1337,7 @@ void evl_signal_thread(struct evl_thread *thread, int sig, int arg)
 	init_irq_work(&sigd->work, sig_irqwork);
 	sigd->thread = thread;
 	sigd->signo = sig;
-	sigd->sigval = sig == SIGDEBUG ? arg | sigdebug_marker : arg;
+	sigd->sigval = arg;
 
 	evl_get_element(&thread->element);
 	/* Cannot fail, irq_work is local to this call. */
