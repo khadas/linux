@@ -1208,7 +1208,13 @@ bool is_afbc_enabled(u8 layer_id)
 		return -1;
 
 	layer = &vd_layer[layer_id];
-	value = READ_VCBUS_REG(layer->vd_afbc_reg.afbc_enable);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		if (layer_id == MAX_VD_CHAN_S5 - 1)
+			layer_id += SLICE_NUM - 1;
+		value = READ_VCBUS_REG(vd_proc_reg.vd_afbc_reg[layer_id].afbc_enable);
+	} else {
+		value = READ_VCBUS_REG(layer->vd_afbc_reg.afbc_enable);
+	}
 	return (value & 0x100) ? true : false;
 }
 
@@ -8285,7 +8291,7 @@ static bool is_sr_phase_changed(void)
 	return changed;
 }
 
-int get_layer_display_canvas(u8 layer_id)
+int get_layer_display_canvas_s5(u8 layer_id)
 {
 	int ret = -1;
 	struct video_layer_s *layer = NULL;
@@ -8293,6 +8299,22 @@ int get_layer_display_canvas(u8 layer_id)
 	if (layer_id >= MAX_VD_LAYER)
 		return -1;
 
+	layer = &vd_layer[layer_id];
+	if (layer_id == MAX_VD_CHAN_S5 - 1)
+		layer_id += SLICE_NUM - 1;
+	ret = READ_VCBUS_REG(vd_proc_reg.vd_mif_reg[layer_id].vd_if0_canvas0);
+	return ret;
+}
+
+int get_layer_display_canvas(u8 layer_id)
+{
+	int ret = -1;
+	struct video_layer_s *layer = NULL;
+
+	if (layer_id >= MAX_VD_LAYER)
+		return -1;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return get_layer_display_canvas_s5(layer_id);
 	layer = &vd_layer[layer_id];
 	ret = READ_VCBUS_REG(layer->vd_mif_reg.vd_if0_canvas0);
 	return ret;
@@ -9430,6 +9452,8 @@ int detect_vout_type(const struct vinfo_s *vinfo)
 {
 	int vout_type = VOUT_TYPE_PROG;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return 0;
 	if (vinfo && vinfo->field_height != vinfo->height) {
 		if (vinfo->height == 576 || vinfo->height == 480)
 			vout_type = (READ_VCBUS_REG(ENCI_INFO_READ) &

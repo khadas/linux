@@ -2119,6 +2119,8 @@ static s32 is_afbc_for_vpp(u8 id)
 		return ret;
 	if (cur_dev->display_module != OLD_DISPLAY_MODULE)
 		return 0;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return 0;
 	if (id == 0)
 		val = READ_VCBUS_REG(VD1_AFBCD0_MISC_CTRL);
 	else
@@ -2500,7 +2502,8 @@ int ext_get_cur_video_frame(struct vframe_s **vf, int *canvas_index)
 	if (!cur_dispbuf)
 		return -1;
 	atomic_inc(&cur_dispbuf->use_cnt);
-	*canvas_index = READ_VCBUS_REG(vd_layer[0].vd_mif_reg.vd_if0_canvas0);
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		*canvas_index = READ_VCBUS_REG(vd_layer[0].vd_mif_reg.vd_if0_canvas0);
 	*vf = cur_dispbuf;
 	return 0;
 }
@@ -2531,10 +2534,12 @@ static void dump_vframe_status(const char *name)
 
 static void dump_vdin_reg(void)
 {
-	unsigned int reg001, reg002;
+	unsigned int reg001 = 0, reg002 = 0;
 
-	reg001 = READ_VCBUS_REG(0x1204);
-	reg002 = READ_VCBUS_REG(0x1205);
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		reg001 = READ_VCBUS_REG(0x1204);
+		reg002 = READ_VCBUS_REG(0x1205);
+	}
 	pr_info("VDIN_LCNT_STATUS:0x%x,VDIN_COM_STATUS0:0x%x\n",
 		reg001, reg002);
 }
@@ -10037,7 +10042,7 @@ static void video_vf_unreg_provider(void)
 	}
 
 	atomic_dec(&video_unreg_flag);
-	pr_info("VD1 AFBC 0x%x.\n", READ_VCBUS_REG(AFBC_ENABLE));
+	pr_info("VD1 AFBC 0x%x.\n", is_afbc_enabled(0));
 	enable_video_discontinue_report = 1;
 	show_first_picture = false;
 	show_first_frame_nosync = false;
@@ -10865,7 +10870,8 @@ EXPORT_SYMBOL(get_video_hold_state);
 
 u8 is_vpp_postblend(void)
 {
-	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+	} else if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		if (READ_VCBUS_REG(VPP_MISC + cur_dev->vpp_off) & VPP_POSTBLEND_EN)
 			return 1;
 	} else {
@@ -13079,8 +13085,11 @@ static ssize_t pts_trace_show(struct class *cla,
 static ssize_t video_brightness_show(struct class *cla,
 				     struct class_attribute *attr, char *buf)
 {
-	s32 val = (READ_VCBUS_REG(VPP_VADJ1_Y + cur_dev->vpp_off) >> 8) &
-			0x1ff;
+	s32 val = 0;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		val = (READ_VCBUS_REG(VPP_VADJ1_Y + cur_dev->vpp_off) >> 8) &
+				0x1ff;
 
 	val = (val << 23) >> 23;
 
@@ -13098,26 +13107,30 @@ static ssize_t video_brightness_store(struct class *cla,
 	if (r < 0 || val < -255 || val > 255)
 		return -EINVAL;
 
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-		WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y +
-			cur_dev->vpp_off, val, 8, 9);
+			WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y +
+				cur_dev->vpp_off, val, 8, 9);
 #endif
-	} else {
-		WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y +
-			cur_dev->vpp_off, val << 1, 8, 10);
+		} else {
+			WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y +
+				cur_dev->vpp_off, val << 1, 8, 10);
+		}
+		WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ1_EN);
 	}
-	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ1_EN);
-
 	return count;
 }
 
 static ssize_t video_contrast_show(struct class *cla,
 				   struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n",
-		       (int)(READ_VCBUS_REG(VPP_VADJ1_Y + cur_dev->vpp_off) &
-			     0xff) - 0x80);
+	int val = 0;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		val = (int)(READ_VCBUS_REG(VPP_VADJ1_Y + cur_dev->vpp_off) &
+			     0xff) - 0x80;
+	return sprintf(buf, "%d\n", val);
 }
 
 static ssize_t video_contrast_store(struct class *cla,
@@ -13132,17 +13145,20 @@ static ssize_t video_contrast_store(struct class *cla,
 		return -EINVAL;
 
 	val += 0x80;
-
-	WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y + cur_dev->vpp_off, val, 0, 8);
-	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ1_EN);
-
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y + cur_dev->vpp_off, val, 0, 8);
+		WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ1_EN);
+	}
 	return count;
 }
 
 static ssize_t vpp_brightness_show(struct class *cla,
 				   struct class_attribute *attr, char *buf)
 {
-	s32 val = (READ_VCBUS_REG(VPP_VADJ2_Y +
+	s32 val = 0;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		val = (READ_VCBUS_REG(VPP_VADJ2_Y +
 			cur_dev->vpp_off) >> 8) & 0x1ff;
 
 	val = (val << 23) >> 23;
@@ -13160,18 +13176,18 @@ static ssize_t vpp_brightness_store(struct class *cla,
 	r = kstrtoint(buf, 0, &val);
 	if (r < 0 || val < -255 || val > 255)
 		return -EINVAL;
-
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
-		WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y +
-			cur_dev->vpp_off, val, 8, 9);
+			WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y +
+				cur_dev->vpp_off, val, 8, 9);
 #endif
-	} else {
-		WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y +
-			cur_dev->vpp_off, val << 1, 8, 10);
+		} else {
+			WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y +
+				cur_dev->vpp_off, val << 1, 8, 10);
+		}
+		WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ2_EN);
 	}
-	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ2_EN);
-
 	return count;
 }
 
@@ -13179,9 +13195,12 @@ static ssize_t vpp_contrast_show(struct class *cla,
 				 struct class_attribute *attr,
 				 char *buf)
 {
-	return sprintf(buf, "%d\n",
-		       (int)(READ_VCBUS_REG(VPP_VADJ2_Y + cur_dev->vpp_off) &
-			     0xff) - 0x80);
+	int val = 0;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		val = (int)(READ_VCBUS_REG(VPP_VADJ2_Y + cur_dev->vpp_off) &
+			     0xff) - 0x80;
+	return sprintf(buf, "%d\n", val);
 }
 
 static ssize_t vpp_contrast_store(struct class *cla,
@@ -13197,9 +13216,10 @@ static ssize_t vpp_contrast_store(struct class *cla,
 		return -EINVAL;
 
 	val += 0x80;
-
-	WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y + cur_dev->vpp_off, val, 0, 8);
-	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ2_EN);
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		WRITE_VCBUS_REG_BITS(VPP_VADJ2_Y + cur_dev->vpp_off, val, 0, 8);
+		WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ2_EN);
+	}
 
 	return count;
 }
@@ -13207,8 +13227,12 @@ static ssize_t vpp_contrast_store(struct class *cla,
 static ssize_t video_saturation_show(struct class *cla,
 				     struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n",
-		READ_VCBUS_REG(VPP_VADJ1_Y + cur_dev->vpp_off) & 0xff);
+	int val = 0;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		val = READ_VCBUS_REG(VPP_VADJ1_Y + cur_dev->vpp_off) & 0xff;
+
+	return sprintf(buf, "%d\n", val);
 }
 
 static ssize_t video_saturation_store(struct class *cla,
@@ -13221,9 +13245,10 @@ static ssize_t video_saturation_store(struct class *cla,
 	r = kstrtoint(buf, 0, &val);
 	if (r < 0 || val < -127 || val > 127)
 		return -EINVAL;
-
-	WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y + cur_dev->vpp_off, val, 0, 8);
-	WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ1_EN);
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		WRITE_VCBUS_REG_BITS(VPP_VADJ1_Y + cur_dev->vpp_off, val, 0, 8);
+		WRITE_VCBUS_REG(VPP_VADJ_CTRL + cur_dev->vpp_off, VPP_VADJ1_EN);
+	}
 
 	return count;
 }
@@ -13231,7 +13256,11 @@ static ssize_t video_saturation_store(struct class *cla,
 static ssize_t vpp_saturation_hue_show(struct class *cla,
 				       struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%x\n", READ_VCBUS_REG(VPP_VADJ2_MA_MB));
+	int val = 0;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		val = READ_VCBUS_REG(VPP_VADJ2_MA_MB);
+	return sprintf(buf, "0x%x\n", val);
 }
 
 static ssize_t vpp_saturation_hue_store(struct class *cla,
@@ -13245,19 +13274,20 @@ static ssize_t vpp_saturation_hue_store(struct class *cla,
 	r = kstrtoint(buf, 0, &mab);
 	if (r < 0 || (mab & 0xfc00fc00))
 		return -EINVAL;
-
-	WRITE_VCBUS_REG(VPP_VADJ2_MA_MB, mab);
-	mc = (s16)((mab << 22) >> 22);	/* mc = -mb */
-	mc = 0 - mc;
-	if (mc > 511)
-		mc = 511;
-	if (mc < -512)
-		mc = -512;
-	md = (s16)((mab << 6) >> 22);	/* md =  ma; */
-	mab = ((mc & 0x3ff) << 16) | (md & 0x3ff);
-	WRITE_VCBUS_REG(VPP_VADJ2_MC_MD, mab);
-	/* WRITE_MPEG_REG(VPP_VADJ_CTRL, 1); */
-	WRITE_VCBUS_REG_BITS(VPP_VADJ_CTRL + cur_dev->vpp_off, 1, 2, 1);
+	if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+		WRITE_VCBUS_REG(VPP_VADJ2_MA_MB, mab);
+		mc = (s16)((mab << 22) >> 22);	/* mc = -mb */
+		mc = 0 - mc;
+		if (mc > 511)
+			mc = 511;
+		if (mc < -512)
+			mc = -512;
+		md = (s16)((mab << 6) >> 22);	/* md =  ma; */
+		mab = ((mc & 0x3ff) << 16) | (md & 0x3ff);
+		WRITE_VCBUS_REG(VPP_VADJ2_MC_MD, mab);
+		/* WRITE_MPEG_REG(VPP_VADJ_CTRL, 1); */
+		WRITE_VCBUS_REG_BITS(VPP_VADJ_CTRL + cur_dev->vpp_off, 1, 2, 1);
+	}
 #ifdef PQ_DEBUG_EN
 	pr_info("\n[amvideo..] set vpp_saturation OK!!!\n");
 #endif
@@ -13526,15 +13556,17 @@ static ssize_t video_test_screen_store(struct class *cla,
 	/* show test screen  YUV blend*/
 	/* force as black 0x008080 for dolbyvision stb ipt blend */
 	if (!legacy_vpp) {
-		if (is_amdv_enable() &&
-		    is_amdv_stb_mode())
-			WRITE_VCBUS_REG
-			(VPP_POST_BLEND_BLEND_DUMMY_DATA,
-			 0x00008080);
-		else
-			WRITE_VCBUS_REG
-			(VPP_POST_BLEND_BLEND_DUMMY_DATA,
-			 test_screen & 0x00ffffff);
+		if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+			if (is_amdv_enable() &&
+			    is_amdv_stb_mode())
+				WRITE_VCBUS_REG
+				(VPP_POST_BLEND_BLEND_DUMMY_DATA,
+				 0x00008080);
+			else
+				WRITE_VCBUS_REG
+				(VPP_POST_BLEND_BLEND_DUMMY_DATA,
+				 test_screen & 0x00ffffff);
+		}
 	}
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	else if (is_meson_gxm_cpu() ||
@@ -13630,9 +13662,10 @@ static ssize_t video_rgb_screen_store(struct class *cla,
 	/* show test screen  YUV blend*/
 	yuv_eight = rgb2yuv(rgb_screen & 0x00ffffff);
 	if (!legacy_vpp) {
-		WRITE_VCBUS_REG
-			(VPP_POST_BLEND_BLEND_DUMMY_DATA,
-			yuv_eight & 0x00ffffff);
+		if (cur_dev->display_module != S5_DISPLAY_MODULE)
+			WRITE_VCBUS_REG
+				(VPP_POST_BLEND_BLEND_DUMMY_DATA,
+				yuv_eight & 0x00ffffff);
 	} else if (is_meson_gxtvbb_cpu()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		WRITE_VCBUS_REG(VPP_DUMMY_DATA1,
@@ -15153,10 +15186,12 @@ static ssize_t hist_test_show(struct class *cla,
 	u32 hist_result[4];
 
 	if (hist_test_flag) {
-		hist_result[0] = READ_VCBUS_REG(VI_HIST_MAX_MIN);
-		hist_result[1] = READ_VCBUS_REG(VI_HIST_SPL_VAL);
-		hist_result[2] = READ_VCBUS_REG(VI_HIST_SPL_PIX_CNT);
-		hist_result[3] = READ_VCBUS_REG(VI_HIST_CHROMA_SUM);
+		if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+			hist_result[0] = READ_VCBUS_REG(VI_HIST_MAX_MIN);
+			hist_result[1] = READ_VCBUS_REG(VI_HIST_SPL_VAL);
+			hist_result[2] = READ_VCBUS_REG(VI_HIST_SPL_PIX_CNT);
+			hist_result[3] = READ_VCBUS_REG(VI_HIST_CHROMA_SUM);
+		}
 
 		len += sprintf(buf + len, "\n======time %d =====\n",
 			       hist_print_count + 1);
@@ -15203,6 +15238,9 @@ static ssize_t hist_test_store(struct class *cla,
 		pat_val = parsed[2];
 	}
 	if (!ginfo || ginfo->mode == VMODE_INVALID)
+		return 0;
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return 0;
 
 	if (cur_dispbuf &&
