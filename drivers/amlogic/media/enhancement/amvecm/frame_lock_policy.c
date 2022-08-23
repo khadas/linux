@@ -48,7 +48,7 @@ static unsigned int vrr_mode_chg_skip_cnt = 10;
 static struct completion vrr_off_done;
 
 struct vrr_sig_sts frame_sts = {
-	.vrr_support = true,
+	.vrr_support = false,
 	.vrr_pre_en = 0,
 	.vrr_en = 0,
 	.vrr_frame_sts = FRAMELOCK_INVALID,
@@ -62,6 +62,11 @@ struct vrr_sig_sts frame_sts = {
 	.vrr_frame_out_fps_min = 48,
 	.vrr_frame_out_fps_max = 120,
 };
+
+void frame_lock_set_vrr_support_flag(bool support_flag)
+{
+	frame_sts.vrr_support = support_flag;
+}
 
 unsigned int frame_lock_show_vout_framerate(void)
 {
@@ -128,7 +133,7 @@ int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 
 	switch (cmd) {
 	case FRAME_LOCK_EVENT_ON:
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3)
+		if (frame_sts.vrr_support)
 			frame_sts.vrr_en = vrr_data->vrr_mode;
 		else
 			frame_sts.vrr_en = 0;
@@ -539,6 +544,7 @@ ssize_t frame_lock_debug_show(struct class *cla,
 
 	frame_sts.vrr_frame_in_fps_max = frame_sts.vrr_frame_out_fps_max;
 	pr_info("\n frame_lock_version = %s", FRAME_LOCK_POLICY_VERSION);
+	pr_info("\n vrr_support = %d", frame_sts.vrr_support);
 	pr_info("\n frame_lock_en = %d", frame_lock_en);
 	pr_info("\n vrr_support = %d", frame_sts.vrr_support);
 	pr_info("\n vrr_en = %d", frame_sts.vrr_en);

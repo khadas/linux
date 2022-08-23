@@ -49,5 +49,6 @@ int flock_vrr_nfy_callback(struct notifier_block *block, unsigned long cmd,
 void frame_lock_vrr_off_done_init(void);
 void frame_lock_mode_chg(unsigned int cmd);
 u16 frame_lock_get_vrr_status(void);
+void frame_lock_set_vrr_support_flag(bool support_flag);
 
 #endif

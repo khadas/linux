@@ -9981,6 +9981,7 @@ static const struct vecm_match_data_s vecm_dt_t7 = {
 	.vlk_hwver = vlock_hw_tm2verb,
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vrr_support_flag = 1,
 };
 
 static const struct vecm_match_data_s vecm_dt_t3 = {
@@ -9991,6 +9992,7 @@ static const struct vecm_match_data_s vecm_dt_t3 = {
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 	.vlk_ctl_for_frc = 1,
+	.vrr_support_flag = 1,
 };
 
 /*t5w vlock follow t5 */
@@ -10001,6 +10003,7 @@ static const struct vecm_match_data_s vecm_dt_t5w = {
 	.vlk_hwver = vlock_hw_tm2verb,
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vrr_support_flag = 1,
 };
 
 static const struct of_device_id aml_vecm_dt_match[] = {
@@ -10163,6 +10166,8 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			pr_amvecm_dbg("unable to get matched device\n");
 		}
 		vlock_dt_match_init(matchdata);
+
+		frame_lock_set_vrr_support_flag(matchdata->vrr_support_flag);
 
 		/*vlock param config*/
 		vlock_param_config(node);
