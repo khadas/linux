@@ -34,7 +34,61 @@
 struct meson_commit_work_item {
 	struct kthread_work kthread_work;
 	struct work_struct *work;
+	int crtc_id;
+	int commit_flag;
 };
+
+static bool check_parallel_commit(struct drm_atomic_state *state,
+		struct drm_crtc **dest_crtc)
+{
+	struct drm_connector_state *connector_state;
+	struct drm_connector *connector;
+	struct drm_crtc_state *crtc_state;
+	struct drm_crtc *crtc;
+	int i, num_crtcs = 0;
+
+	/* any connector change, return false */
+	for_each_new_connector_in_state(state, connector, connector_state, i)
+		return false;
+
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		if (drm_atomic_crtc_needs_modeset(crtc_state))
+			return false;
+		if (++num_crtcs > 1)
+			return false;
+		*dest_crtc = crtc;
+	}
+
+	return true;
+}
+
+static void meson_commit_reenter_inc(struct drm_atomic_state *state,
+	int crtc_index, int flag)
+{
+	struct meson_drm *priv = state->dev->dev_private;
+	struct am_meson_crtc *amcrtc;
+
+	amcrtc = priv->crtcs[crtc_index];
+	atomic_inc(&amcrtc->commit_num);
+	/* WARN_ON(atomic_read(&amcrtc->commit_num) > 1); */
+	if (atomic_read(&amcrtc->commit_num) > 1)
+		DRM_ERROR("commit reenter\n");
+
+	DRM_DEBUG_ATOMIC("%s crtc_index%d, commit_num=%d, flag=%d\n", __func__,
+		crtc_index, atomic_read(&amcrtc->commit_num), flag);
+}
+
+static void meson_commit_reenter_dec(struct drm_atomic_state *state,
+	int crtc_index, int flag)
+{
+	struct meson_drm *priv = state->dev->dev_private;
+	struct am_meson_crtc *amcrtc;
+
+	amcrtc = priv->crtcs[crtc_index];
+	atomic_dec(&amcrtc->commit_num);
+	DRM_DEBUG_ATOMIC("%s crtc_index%d, commit_num=%d, flag=%d\n", __func__,
+		crtc_index, atomic_read(&amcrtc->commit_num), flag);
+}
 
 static void commit_tail(struct drm_atomic_state *old_state)
 {
@@ -150,8 +204,11 @@ static void meson_commit_work(struct kthread_work *work)
 	struct drm_atomic_state *state = container_of(work_item->work,
 						      struct drm_atomic_state,
 						      commit_work);
-	kfree(work_item);
+
+	meson_commit_reenter_inc(state, work_item->crtc_id, work_item->commit_flag);
 	meson_commit_tail(state);
+	meson_commit_reenter_dec(state, work_item->crtc_id, work_item->commit_flag);
+	kfree(work_item);
 }
 
 static int stall_checks(struct drm_crtc *crtc, bool nonblock)
@@ -334,30 +391,6 @@ static int meson_drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 	return 0;
 }
 
-static bool check_parallel_commit(struct drm_atomic_state *state,
-		struct drm_crtc **dest_crtc)
-{
-	struct drm_connector_state *connector_state;
-	struct drm_connector *connector;
-	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc;
-	int i, num_crtcs = 0;
-
-	/* any connector change, return false */
-	for_each_new_connector_in_state(state, connector, connector_state, i)
-		return false;
-
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		if (drm_atomic_crtc_needs_modeset(crtc_state))
-			return false;
-		if (++num_crtcs > 1)
-			return false;
-		*dest_crtc = crtc;
-	}
-
-	return true;
-}
-
 void meson_atomic_helper_async_commit(struct drm_device *dev,
 				    struct drm_atomic_state *state)
 {
@@ -475,17 +508,22 @@ int meson_atomic_commit(struct drm_device *dev,
 	 */
 
 	drm_atomic_state_get(state);
-	if (nonblock) {
-		crtc_index = 0;
-		work_item->work = &state->commit_work;
-		kthread_init_work(&work_item->kthread_work, meson_commit_work);
-		if (is_parallel && dest_crtc)
-			crtc_index = dest_crtc->index;
 
+	crtc_index = 0;
+	if (is_parallel && dest_crtc)
+		crtc_index = dest_crtc->index;
+
+	if (nonblock) {
+		work_item->work = &state->commit_work;
+		work_item->crtc_id = crtc_index;
+		work_item->commit_flag = nonblock;
+		kthread_init_work(&work_item->kthread_work, meson_commit_work);
 		worker = &priv->commit_thread[crtc_index].worker;
 		kthread_queue_work(worker, &work_item->kthread_work);
 	} else {
+		meson_commit_reenter_inc(state, crtc_index, nonblock);
 		commit_tail(state);
+		meson_commit_reenter_dec(state, crtc_index, nonblock);
 	}
 
 	return 0;

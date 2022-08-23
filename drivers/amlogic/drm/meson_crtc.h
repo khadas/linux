@@ -64,6 +64,7 @@ struct am_meson_crtc {
 	unsigned int irq;
 	int crtc_index;
 	int vout_index;
+	atomic_t commit_num;
 	struct drm_pending_vblank_event *event;
 	struct meson_vpu_pipeline *pipeline;
 
