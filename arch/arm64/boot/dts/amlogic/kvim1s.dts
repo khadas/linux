@@ -610,10 +610,12 @@
 		scan_period = <20>;
 		key_num = <1>;
 		key_name = "power";
-		key_code = <116>;
-		key-gpios = <&gpio  GPIOD_8  GPIO_ACTIVE_LOW>;
+		key_code = <KEY_POWER>;
+		key_type = <EV_KEY>;
+		key-gpios = <&gpio  GPIOD_8  GPIO_ACTIVE_HIGH>;
 		detect_mode = <0>;/*0:polling mode, 1:irq mode*/
 	};
+
 	khadas-hwver {
 		compatible = "khadas-hwver";
 		status = "okay";
@@ -840,8 +842,8 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 
-		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin>;
+		/* pinctrl-names = "pdm_pins";*/
+		/* pinctrl-0 = <&pdmin>;*/
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
@@ -1088,14 +1090,6 @@
 				"tdm_d4_z",
 				"tdm_d5_z";
 			function = "tdm";
-		};
-	};
-
-	pdmin: pdmin {
-		mux { /* GPIOD_8, GPIOD_9 */
-			groups = "pdm_dclk_d",
-				"pdm_din0_d";
-			function = "pdm";
 		};
 	};
 
