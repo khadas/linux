@@ -19570,13 +19570,11 @@ static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 static void set_rdma_func_handler(void)
 {
 	cur_dev->rdma_func[0].rdma_rd =
-		VCBUS_RD_MPEG_REG;
-		//VSYNC_RD_MPEG_REG;
+		VSYNC_RD_MPEG_REG;
 	cur_dev->rdma_func[0].rdma_wr =
-		VCBUS_WR_MPEG_REG;
-		//VSYNC_WR_MPEG_REG;
+		VSYNC_WR_MPEG_REG;
 	cur_dev->rdma_func[0].rdma_wr_bits =
-		VCBUS_WR_MPEG_REG_BITS;
+		VSYNC_WR_MPEG_REG_BITS;
 
 	cur_dev->rdma_func[1].rdma_rd =
 		VSYNC_RD_MPEG_REG_VPP1;
