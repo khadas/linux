@@ -1630,6 +1630,13 @@
 	};
 };
 
+&spicc0 {
+	status = "disabled";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spicc0_pins>;
+	cs-gpios = <&gpio GPIOT_21 GPIO_ACTIVE_HIGH>;
+};
+
 &spicc2 {	//for UWB/LocalDimm
 	status = "disabled";
 	pinctrl-names = "default";
