@@ -103,7 +103,7 @@ static u32 g_slice_num = 1;
 MODULE_PARM_DESC(g_slice_num, "\n g_slice_num\n");
 module_param(g_slice_num, uint, 0664);
 
-static u32 pi_enable;
+u32 pi_enable;
 MODULE_PARM_DESC(pi_enable, "\n pi_enable\n");
 module_param(pi_enable, uint, 0664);
 
@@ -849,14 +849,18 @@ void disable_vd1_blend_s5(struct video_layer_s *layer)
 void disable_vd2_blend_s5(struct video_layer_s *layer)
 {
 	u8 vpp_index;
+	u32 layer_id = 0;
 	struct vd_afbc_reg_s *vd_afbc_reg = NULL;
 	struct vd_mif_reg_s *vd_mif_reg = NULL;
 
 	if (!layer)
 		return;
 	vpp_index = layer->vpp_index;
-	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer->layer_id];
-	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer->layer_id];
+	if (layer->layer_id != 0)
+		layer_id = layer->layer_id + SLICE_NUM - 1;
+
+	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_id];
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_id];
 
 	if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 		pr_info("VIDEO: VD2 AFBC off now. dispbuf:%p, vf_ext:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",
@@ -867,8 +871,8 @@ void disable_vd2_blend_s5(struct video_layer_s *layer)
 			&vf_local, &local_pip,
 			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
 			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
-	cur_dev->rdma_func[vpp_index].rdma_wr(layer->vd_afbc_reg.afbc_enable, 0);
-	cur_dev->rdma_func[vpp_index].rdma_wr(layer->vd_mif_reg.vd_if0_gen_reg, 0);
+	cur_dev->rdma_func[vpp_index].rdma_wr(vd_afbc_reg->afbc_enable, 0);
+	cur_dev->rdma_func[vpp_index].rdma_wr(vd_mif_reg->vd_if0_gen_reg, 0);
 
 	if (layer->dispbuf &&
 	    is_local_vf(layer->dispbuf)) {
@@ -999,12 +1003,13 @@ static void vd_proc_sr0_set(u32 vpp_index,
 			3, 0, 2);
 
 		tmp_data = rdma_rd(vd_sr_reg->srsharp0_sharp_sr2_ctrl);
-		if ((((tmp_data >> 1) & 0x1) !=
+		if ((((tmp_data >> 5) & 0x1) !=
 			(vd_sr->v_scaleup_en & 0x1)) ||
-			(((tmp_data >> 1) & 0x1) !=
+			(((tmp_data >> 4) & 0x1) !=
 			(vd_sr->h_scaleup_en & 0x1))) {
-			tmp_data |= ((vd_sr->v_scaleup_en & 0x1) << 1);
-			tmp_data |= ((vd_sr->h_scaleup_en & 0x1) << 0);
+			tmp_data &= ~0x30;
+			tmp_data |= ((vd_sr->v_scaleup_en & 0x1) << 5);
+			tmp_data |= ((vd_sr->h_scaleup_en & 0x1) << 4);
 			rdma_wr(vd_sr_reg->srsharp0_sharp_sr2_ctrl, tmp_data);
 		}
 	} else {
@@ -1038,12 +1043,13 @@ static void vd_proc_sr1_set(u32 vpp_index,
 		rdma_wr_bits(vd_sr_reg->vd_proc_sr1_ctrl,
 			0, 0, 2);
 	tmp_data = rdma_rd(vd_sr_reg->srsharp1_sharp_sr2_ctrl);
-	if	((((tmp_data >> 1) & 0x1) !=
+	if	((((tmp_data >> 5) & 0x1) !=
 		 (vd_sr->v_scaleup_en & 0x1)) ||
-		(((tmp_data >> 1) & 0x1) !=
+		(((tmp_data >> 4) & 0x1) !=
 		 (vd_sr->h_scaleup_en & 0x1))) {
-		tmp_data |= ((vd_sr->v_scaleup_en & 0x1) << 1);
-		tmp_data |= ((vd_sr->h_scaleup_en & 0x1) << 0);
+		tmp_data &= ~0x30;
+		tmp_data |= ((vd_sr->v_scaleup_en & 0x1) << 5);
+		tmp_data |= ((vd_sr->h_scaleup_en & 0x1) << 4);
 		rdma_wr(vd_sr_reg->srsharp1_sharp_sr2_ctrl, tmp_data);
 	}
 	if (debug_flag_s5)
@@ -1106,6 +1112,8 @@ static void vd_proc_unit_set(u32 vpp_index,
 	/* dv */
 	vd_proc_bypass_dv(vpp_index, slice_index, vd_proc_unit->bypass_dv);
 	/* sr0 */
+	vpu_module_clk_enable(vd_layer[0].vpp_index, SR0, 0);
+	vpu_module_clk_enable(vd_layer[0].vpp_index, SR1, 0);
 	if (slice_index == 0 &&
 		vd_proc_unit->sr0_dpath_sel == SR0_IN_SLICE0) {
 		vd_proc_sr0_set(vpp_index, slice_index,
@@ -1770,7 +1778,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	u32 src_w = 0, src_h = 0;
 	u32 dst_w = 0, dst_h = 0;
 	u32 h_start = 0, v_start = 0;
-	u32 slice = 0;
+	u32 slice = 0, slice_num;
 	struct vd_proc_s *vd_proc = &g_vd_proc;
 	struct vpp_frame_par_s *cur_frame_par = layer->cur_frame_par;
 	struct vd_proc_vd1_info_s *vd_proc_vd1_info;
@@ -1782,6 +1790,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		return;
 	if (!cur_frame_par)
 		return;
+	slice_num = layer->slice_num;
 	memset(vd_proc, 0x0, sizeof(struct vd_proc_s));
 	/* should set slice later */
 	/* set some important input info for vd_proc */
@@ -1880,6 +1889,13 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 			vd_proc_vd1_info->vd1_src_din_hsize[0] = src_w;
 			vd_proc_vd1_info->vd1_src_din_vsize[0] = src_h;
 			/* without overlap */
+			#ifdef CHECK_LATER
+			if (vd_proc_vd1_info->vd1_slices_dout_dpsel ==
+				VD1_SLICES_DOUT_PI) {
+				vd_proc_vd1_info->vd1_proc_unit_dout_hsize[0] = dst_w;
+				vd_proc_vd1_info->vd1_proc_unit_dout_vsize[0] = dst_h;
+			}
+			#endif
 			vd_proc_vd1_info->vd1_proc_unit_dout_hsize[0] = dst_w;
 			vd_proc_vd1_info->vd1_proc_unit_dout_vsize[0] = dst_h;
 			/* whole vd1 output size */
@@ -1900,7 +1916,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 				for (slice = 0; slice < SLICE_NUM; slice++) {
 					vd_proc_vd1_info->vd1_proc_unit_dout_hsize[slice] =
 						slice_out_hsize(slice, SLICE_NUM, dst_w);
-					vd_proc_vd1_info->vd1_proc_unit_dout_hsize[slice] = dst_h;
+					vd_proc_vd1_info->vd1_proc_unit_dout_vsize[slice] = dst_h;
 					vd_proc_vd1_info->vd1_dout_x_start[slice] = h_start;
 					vd_proc_vd1_info->vd1_dout_y_start[slice] = v_start;
 				}
@@ -1919,33 +1935,37 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		case VD1_SLICES01_MODE:
 			break;
 		}
-		vd_proc_unit->vd_proc_pps.horz_phase_step =
-			horz_phase_step;
-		vd_proc_unit->vd_proc_pps.vert_phase_step =
-			vert_phase_step;
-		vd_proc_unit->vd_proc_pps.prehsc_en = vpp_pre_hsc_en;
-		vd_proc_unit->vd_proc_pps.prevsc_en = vpp_pre_vsc_en;
+		for (slice = 0; slice < slice_num; slice++) {
+			vd_proc_unit = &vd_proc->vd_proc_unit[slice];
+			vd_proc_unit->vd_proc_pps.horz_phase_step =
+				horz_phase_step;
+			vd_proc_unit->vd_proc_pps.vert_phase_step =
+				vert_phase_step;
+			vd_proc_unit->vd_proc_pps.prehsc_en = vpp_pre_hsc_en;
+			vd_proc_unit->vd_proc_pps.prevsc_en = vpp_pre_vsc_en;
+			pr_info("horz_phase_step=0x%x, vert_phase_step=0x%x\n",
+				vd_proc_unit->vd_proc_pps.horz_phase_step,
+				vd_proc_unit->vd_proc_pps.vert_phase_step);
+			sr0_h_scaleup_en = cur_frame_par->supsc0_enable &&
+				cur_frame_par->supsc0_hori_ratio;
+			sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
+				cur_frame_par->supsc1_hori_ratio;
+			vd_proc_unit->sr0_en = sr0_h_scaleup_en;
+			vd_proc_unit->sr1_en = sr1_h_scaleup_en;
+			vd_proc_unit->vd_proc_sr0.sr_en =
+				cur_frame_par->supsc0_enable;
+			vd_proc_unit->vd_proc_sr0.h_scaleup_en =
+				cur_frame_par->supsc0_hori_ratio;
+			vd_proc_unit->vd_proc_sr0.v_scaleup_en =
+				cur_frame_par->supsc0_vert_ratio;
 
-		sr0_h_scaleup_en = cur_frame_par->supsc0_enable &&
-			cur_frame_par->supsc0_hori_ratio;
-		sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
-			cur_frame_par->supsc1_hori_ratio;
-		vd_proc_unit->sr0_en = sr0_h_scaleup_en;
-		vd_proc_unit->sr1_en = sr1_h_scaleup_en;
-		vd_proc_unit->vd_proc_sr0.sr_en =
-			cur_frame_par->supsc0_enable;
-		vd_proc_unit->vd_proc_sr0.h_scaleup_en =
-			cur_frame_par->supsc0_hori_ratio;
-		vd_proc_unit->vd_proc_sr0.v_scaleup_en =
-			cur_frame_par->supsc0_vert_ratio;
-
-		vd_proc_unit->vd_proc_sr1.sr_en =
-			cur_frame_par->supsc1_enable;
-		vd_proc_unit->vd_proc_sr1.h_scaleup_en =
-			cur_frame_par->supsc1_hori_ratio;
-		vd_proc_unit->vd_proc_sr1.v_scaleup_en =
-			cur_frame_par->supsc1_vert_ratio;
-
+			vd_proc_unit->vd_proc_sr1.sr_en =
+				cur_frame_par->supsc1_enable;
+			vd_proc_unit->vd_proc_sr1.h_scaleup_en =
+				cur_frame_par->supsc1_hori_ratio;
+			vd_proc_unit->vd_proc_sr1.v_scaleup_en =
+				cur_frame_par->supsc1_vert_ratio;
+		}
 		/* if 4 pic, todo */
 	} else if (layer->layer_id == 1) {
 		vd_proc->vd2_used = 1;
@@ -2354,12 +2374,13 @@ static void vd1_proc_unit_param_set(struct vd_proc_s *vd_proc, u32 slice)
 		else
 			sr1_din_vsize = sr1_dout_vsize;
 		if (debug_flag_s5)
-			pr_info("hwincut_din_hsize=%d, s0_din_hsize_tmp=%d, dout_hsize=%d, h_scaleup_en=%d, sr1_din_hsize=%d\n",
-				hwincut_din_hsize,
+			pr_info("s0_din_h/vsize_tmp=%d, %d, sr 0 h/v_scaleup_en=%d,%d, sr1_din_hsize=%d,dout_hsize=%d\n",
 				s0_din_hsize_tmp,
-				dout_hsize,
-				vd_proc_unit->vd_proc_sr1.h_scaleup_en,
-				sr1_din_hsize);
+				s0_din_vsize_tmp,
+				vd_proc_unit->vd_proc_sr0.h_scaleup_en,
+				vd_proc_unit->vd_proc_sr0.v_scaleup_en,
+				sr1_din_hsize,
+				dout_hsize);
 
 		if (vd_proc_unit->sr0_dpath_sel == SR0_IN_SLICE0) {
 			if (vd_proc_unit->sr0_pps_dpsel == SR0_AFTER_PPS) {
@@ -2390,13 +2411,13 @@ static void vd1_proc_unit_param_set(struct vd_proc_s *vd_proc, u32 slice)
 				else
 					sr0_dout_hsize = sr0_din_hsize;
 				if (vd_proc_unit->vd_proc_sr0.v_scaleup_en)
-					sr0_dout_vsize = sr0_din_vsize >> 1;
+					sr0_dout_vsize = sr0_din_vsize << 1;
 				else
 					sr0_dout_vsize = sr0_din_vsize;
 				/* pps */
 				pps_dout_hsize = sr1_din_hsize;
 				pps_dout_vsize = sr1_din_vsize;
-				pps_din_hsize = sr0_dout_vsize;
+				pps_din_hsize = sr0_dout_hsize;
 				pps_din_vsize = sr0_dout_vsize;
 			}
 		} else {
@@ -2673,6 +2694,10 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				/* pps */
 				pps_dout_vsize = sr1_din_vsize;
 				pps_din_vsize = s0_din_vsize_tmp;
+			sr0_din_hsize = sr1_din_hsize;
+			sr0_din_vsize = sr1_din_vsize;
+			sr0_dout_hsize = sr1_din_hsize;
+			sr0_dout_vsize = sr1_din_vsize;
 			}
 			/* h_wincut */
 			hwincut_bgn = 0;
@@ -2710,6 +2735,10 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				cal_pps_dout_hsize(&pps_dout_hsize1,
 					0, slice_x_end[slice] + 1, horz_phase_step);
 				pps_dout_hsize = pps_dout_hsize1 - pps_dout_hsize0;
+			pr_info("pps_dout_hsize0=0x%x, pps_dout_hsize1=0x%x, pps_dout_hsize=0x%x\n",
+				pps_dout_hsize0,
+				pps_dout_hsize1,
+				pps_dout_hsize);
 			}
 			hwincut_din_hsize = pps_dout_hsize;
 			pps_din_vsize = s1_din_vsize_tmp;
@@ -2892,8 +2921,8 @@ static void vd_proc_param_set_vd1(struct vd_proc_s *vd_proc)
 	vd_proc_slice_info = &vd_proc->vd_proc_slice_info;
 	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_PI) {
 		vd_proc->vd_proc_pi.pi_en = 1;
-		vd1_proc_dout_hsize = vd1_proc_dout_hsize / 2;
-		vd1_proc_dout_vsize = vd1_proc_dout_vsize / 2;
+		//vd1_proc_dout_hsize = vd1_proc_dout_hsize / 2;
+		//vd1_proc_dout_vsize = vd1_proc_dout_vsize / 2;
 	}
 	/* mosaic related setting, need reset if needed todo */
 	vd_proc_mosaic = &vd_proc->vd_proc_mosaic;
@@ -2955,6 +2984,8 @@ static void vd_proc_param_set_vd1(struct vd_proc_s *vd_proc)
 			vd_proc->vd_proc_unit[1].reg_bypass_prebld = 0;
 		else
 			vd_proc->vd_proc_unit[1].reg_bypass_prebld = 1;
+	} else {
+		vd_proc->vd_proc_unit[1].reg_bypass_prebld = 1;
 	}
 
 	for (slice = 0; slice < vd_proc_vd1_info->slice_num; slice++) {
@@ -4653,27 +4684,6 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 	frame_par = setting->frame_par;
 	vpp_index = layer->vpp_index;
 	/* vpp super scaler */
-	vpu_module_clk_enable(vd_layer[0].vpp_index, SR0, 0);
-	vpu_module_clk_enable(vd_layer[0].vpp_index, SR1, 0);
-	#ifdef CHECK_LATER
-	vpp_set_super_scaler_regs
-		(frame_par->supscl_path,
-		frame_par->supsc0_enable,
-		frame_par->spsc0_w_in,
-		frame_par->spsc0_h_in,
-		frame_par->supsc0_hori_ratio,
-		frame_par->supsc0_vert_ratio,
-		frame_par->supsc1_enable,
-		frame_par->spsc1_w_in,
-		frame_par->spsc1_h_in,
-		frame_par->supsc1_hori_ratio,
-		frame_par->supsc1_vert_ratio,
-		setting->vinfo_width,
-		setting->vinfo_height);
-	#endif
-	if (slice == 0)
-		cur_dev->rdma_func[vpp_index].rdma_wr(VD_PROC_S0_PPS_IN_SIZE,
-			vd_proc_pps->din_hsize << 16 | vd_proc_pps->din_vsize);
 
 	if (is_amdv_on() &&
 	    is_amdv_stb_mode() &&

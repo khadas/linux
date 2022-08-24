@@ -5938,9 +5938,9 @@ void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 
 	if (!glayer_info[layer_id].pps_support)
 		return;
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		proc_vd_vsc_phase_per_vsync_s5(layer, frame_par, vf);
-	else
+	} else {
 		if (layer_id == 0)
 			proc_vd1_vsc_phase_per_vsync
 				(layer, frame_par, vf);
@@ -5950,6 +5950,7 @@ void proc_vd_vsc_phase_per_vsync(struct video_layer_s *layer,
 		else
 			proc_vd3_vsc_phase_per_vsync
 				(layer, frame_par, vf);
+	}
 }
 
 /*********************************************************
@@ -8627,7 +8628,6 @@ int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
 	layer_id = layer->layer_id;
 	if (layer->layer_id != 0 || slice >= SLICE_NUM)
 		return -1;
-	pr_info("%s\n", __func__);
 
 	if ((vf->type & VIDTYPE_MVC) && layer_id == 0) {
 		pr_info("multi slice not support mvc\n");
