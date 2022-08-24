@@ -49,6 +49,5 @@ void cm2_frame_switch_patch(void);
 void cm_latch_process(void);
 int cm_load_reg(struct am_regs_s *arg);
 void pd_combing_fix_patch(enum pd_comb_fix_lvl_e level);
-
 #endif
 

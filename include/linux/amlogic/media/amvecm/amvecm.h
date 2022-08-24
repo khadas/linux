@@ -678,6 +678,13 @@ enum vlk_chiptype {
 	vlock_chip_t3,
 };
 
+enum chip_type {
+	chip_other = 0,
+	chip_t3,
+	chip_t5w,
+	chip_s5
+};
+
 enum vlock_hw_ver_e {
 	/*gxtvbb*/
 	vlock_hw_org = 0,
@@ -700,6 +707,7 @@ enum vlock_hw_ver_e {
 };
 
 struct vecm_match_data_s {
+	enum chip_type chip_id;
 	enum vlk_chiptype vlk_chip;
 	u32 vlk_support;
 	u32 vlk_new_fsm;
@@ -727,6 +735,32 @@ enum vpp_index {
 	VPP_TOP_MAX_S = 3
 };
 
+enum vpp_slice_e {
+	SLICE0 = 0,
+	SLICE1,
+	SLICE2,
+	SLICE3,
+	SLICE_MAX
+};
+
+enum vadj_index_e {
+	VE_VADJ1 = 0,
+	VE_VADJ2
+};
+
+/*flag:
+ *bit 0: brigtness
+ *bit 1: contrast
+ *bit 2: saturation
+ *bit 3: hue
+ */
+struct vdj_parm_s {
+	int flag;
+	int brightness;
+	int contrast;
+	int sat_hue;
+};
+
 extern signed int vd1_brightness, vd1_contrast;
 extern bool gamma_en;
 extern unsigned int atv_source_flg;
@@ -747,6 +781,7 @@ extern enum ecm_color_type cm_cur_work_color_md;
 extern int cm2_debug;
 
 extern unsigned int ct_en;
+extern enum chip_type chip_type_id;
 
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,

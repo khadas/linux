@@ -28,3 +28,4 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amv
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/hdr/am_hdr10_tmo_fw.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/frame_lock_policy.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/color/color_tune.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/amve_v2.o

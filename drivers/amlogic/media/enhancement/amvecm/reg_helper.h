@@ -19,7 +19,7 @@
 #ifndef __REG_HELPER_H
 #define __REG_HELPER_H
 
-#include "arch/vpp_regs.h"
+//#include "arch/vpp_regs.h"
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
 
@@ -28,6 +28,13 @@
 #define SET_BIT(x) (0x01 << (x))
 #define GET_BIT(x) (0x01 << (x))
 #define GET_BITS(x, y) (((0x01 << (y)) - 1) << (x))
+
+#define srsharp0_sharp_hvsize 0x3e00
+#define srsharp0_pkosht_vsluma_lut_h 0x3e81
+#define srsharp1_sharp_hvsize 0x3f00
+#define srsharp1_pkosht_vsluma_lut_h 0x3f81
+#define srsharp1_lc_input_mux 0x3fb1
+#define srsharp1_lc_map_ram_data 0x3ffe
 
 /* useful inline fucntions to handle different offset */
 static inline bool cpu_after_eq_t7(void)
@@ -47,20 +54,20 @@ static inline bool cpu_after_eq_tl1(void)
 
 static inline bool is_sr0_reg(u32 addr)
 {
-	return (addr >= SRSHARP0_SHARP_HVSIZE &&
-		addr <= SRSHARP0_PKOSHT_VSLUMA_LUT_H);
+	return (addr >= srsharp0_sharp_hvsize &&
+		addr <= srsharp0_pkosht_vsluma_lut_h);
 }
 
 static inline bool is_sr1_reg(u32 addr)
 {
-	return (addr >= SRSHARP1_SHARP_HVSIZE &&
-		addr <= SRSHARP1_PKOSHT_VSLUMA_LUT_H);
+	return (addr >= srsharp1_sharp_hvsize &&
+		addr <= srsharp1_pkosht_vsluma_lut_h);
 }
 
 static inline bool is_lc_reg(u32 addr)
 {
-	return (addr >= SRSHARP1_LC_INPUT_MUX &&
-		addr <= SRSHARP1_LC_MAP_RAM_DATA);
+	return (addr >= srsharp1_lc_input_mux &&
+		addr <= srsharp1_lc_map_ram_data);
 }
 
 static inline bool is_sr0_dnlpv2_reg(u32 addr)

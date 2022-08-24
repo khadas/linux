@@ -2660,7 +2660,7 @@
 	};
 
 	amlvecm: amlvecm {
-		compatible = "amlogic, vecm-t7";
+		compatible = "amlogic, vecm-s5";
 		status = "disable";
 		dev_name = "aml_vecm";
 		/*status = "okay";*/

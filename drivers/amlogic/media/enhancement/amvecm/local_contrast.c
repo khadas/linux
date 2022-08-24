@@ -1946,6 +1946,9 @@ void lc_process(struct vframe_s *vf,
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_TL1)
 		return;
 
+	if (chip_type_id == chip_s5)
+		return;
+
 	if (!lc_malloc_ok) {
 		pr_amlc_dbg("%s: lc malloc fail", __func__);
 		return;

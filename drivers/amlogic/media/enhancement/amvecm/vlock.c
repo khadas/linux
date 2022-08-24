@@ -946,6 +946,9 @@ void vlock_clk_config(struct device *dev)
 	/*unsigned int clk_frq;*/
 	struct stvlock_sig_sts *pvlock = vlock_tab[VLOCK_ENC0];
 
+	if (chip_type_id == chip_s5)
+		return;
+
 	if (!pvlock)
 		return;
 
@@ -2111,6 +2114,9 @@ void vlock_status_init(void)
 	u32 offset_vlck;
 	u32 offset_enc;
 	struct vinfo_s *vinfo;
+
+	if (chip_type_id == chip_s5)
+		return;
 
 	/*config vlock mode*/
 	/*todo:txlx & g9tv support auto pll,*/

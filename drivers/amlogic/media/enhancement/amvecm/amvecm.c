@@ -86,6 +86,7 @@
 #include "hdr/gamut_convert.h"
 #include "../../video_sink/vpp_pq.h"
 #include "frame_lock_policy.h"
+#include "amve_v2.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -124,6 +125,8 @@ static struct resource *res_lc_curve_irq;
 static struct workqueue_struct *aml_cabc_queue;
 static struct work_struct cabc_proc_work;
 static struct work_struct cabc_bypass_work;
+
+enum chip_type chip_type_id;
 
 /*gamma loading protect*/
 spinlock_t vpp_lcd_gamma_lock;
@@ -257,7 +260,7 @@ unsigned int vecm_latch_flag2;
 module_param(vecm_latch_flag2, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag2, "\n vecm_latch_flag2\n");
 
-unsigned int pq_load_en = 1;/* load pq table enable/disable */
+unsigned int pq_load_en;/* load pq table enable/disable */
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
@@ -537,7 +540,10 @@ void amvecm_vadj_latch_process(void)
 static int amvecm_set_contrast2(int val)
 {
 	val += 0x80;
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+
+	if (chip_type_id == chip_s5) {
+		ve_contrast_set(val, VE_VADJ2, WR_VCB);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
 				   val, 0, 8);
 		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
@@ -552,13 +558,15 @@ static int amvecm_set_contrast2(int val)
 
 static int amvecm_set_brightness2(int val)
 {
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+	if (chip_type_id == chip_s5) {
+		ve_brigtness_set(val, VE_VADJ2, WR_VCB);
+		return 0;
+	} else if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y,
 				   val, 8, 9);
 #endif
-	}
-	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ2_Y_2,
 				   val, 8, 11);
 	else
@@ -596,7 +604,12 @@ static ssize_t video_adj1_brightness_show(struct class *cla,
 {
 	s32 val = 0;
 
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+	if (chip_type_id == chip_s5) {
+		val = ve_brightness_contrast_get(VE_VADJ1);
+		val = (val >> 8) & 0x7ff;
+		val = (val << 21) >> 21;
+		return sprintf(buf, "%d\n", val);
+	} else if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		val = (READ_VPP_REG(VPP_VADJ1_Y) >> 8) & 0x1ff;
 		val = (val << 23) >> 23;
@@ -626,12 +639,17 @@ static ssize_t video_adj1_brightness_store(struct class *cla,
 	if (r != 1 || val < -1024 || val > 1023)
 		return -EINVAL;
 
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
+	if (chip_type_id == chip_s5)
+		ve_brigtness_set(val, VE_VADJ1, WR_VCB);
+	else if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB)
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val, 8, 9);
 	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, val, 8, 11);
 	else
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y, val >> 1, 8, 10);
+
+	if (chip_type_id == chip_s5)
+		return count;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
@@ -645,7 +663,10 @@ static ssize_t video_adj1_contrast_show(struct class *cla,
 					struct class_attribute *attr,
 					char *buf)
 {
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+	if (chip_type_id == chip_s5) {
+		return sprintf(buf, "%d\n",
+			(int)(ve_brightness_contrast_get(VE_VADJ1) & 0xff) - 0x80);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		return sprintf(buf, "%d\n",
 			(int)(READ_VPP_REG(VPP_VADJ1_Y_2) & 0xff) - 0x80);
 	else
@@ -666,7 +687,9 @@ static ssize_t video_adj1_contrast_store(struct class *cla,
 
 	val += 0x80;
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (chip_type_id == chip_s5) {
+		ve_contrast_set(val, VE_VADJ1, WR_VCB);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG_BITS(VPP_VADJ1_Y_2, val, 0, 8);
 		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 	} else {
@@ -684,7 +707,12 @@ static ssize_t video_adj2_brightness_show(struct class *cla,
 {
 	s32 val = 0;
 
-	if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
+	if (chip_type_id == chip_s5) {
+		val = ve_brightness_contrast_get(VE_VADJ2);
+		val = (val >> 8) & 0x7ff;
+		val = (val << 21) >> 21;
+		return sprintf(buf, "%d\n", val);
+	} else if (get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 		val = (READ_VPP_REG(VPP_VADJ2_Y) >> 8) & 0x1ff;
 		val = (val << 23) >> 23;
@@ -721,7 +749,10 @@ static ssize_t video_adj2_contrast_show(struct class *cla,
 					struct class_attribute *attr,
 					char *buf)
 {
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+	if (chip_type_id == chip_s5) {
+		return sprintf(buf, "%d\n",
+			(int)(ve_brightness_contrast_get(VE_VADJ2) & 0xff) - 0x80);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		return sprintf(buf, "%d\n",
 			(int)(READ_VPP_REG(VPP_VADJ2_Y_2) & 0xff) - 0x80);
 	else
@@ -997,6 +1028,9 @@ static void vpp_dump_histgram(void)
 
 void vpp_get_hist_en(void)
 {
+	if (chip_type_id == chip_s5)
+		return;
+
 	if (hist_chl)
 		WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0x2, 11, 3);
 	else
@@ -1011,6 +1045,9 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 {
 	unsigned int hist_height, hist_width, i;
 	u64 divid;
+
+	if (chip_type_id == chip_s5)
+		return;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		/*TL1 remove VPP_IN_H_V_SIZE register*/
@@ -1371,6 +1408,9 @@ void amvecm_dejaggy_patch(struct vframe_s *vf)
 	}
 
 	if (!pd_det)
+		return;
+
+	if (chip_type_id == chip_s5)
 		return;
 
 	gmv = vf->di_gmv / 10000;
@@ -1849,6 +1889,9 @@ static int cabc_add_hist_proc(struct vframe_s *vf)
 
 	hist = vf_hist_get();
 
+	if (chip_type_id == chip_s5)
+		return 0;
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) {
 		vpp_pst_hist_sta_read(hist);
 		return 1;
@@ -2143,7 +2186,9 @@ int amvecm_set_saturation_hue(int mab)
 		mb = -512;
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+	if (chip_type_id == chip_s5)
+		ve_color_mab_set(mab, VE_VADJ1, WR_DMA);
+	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ1_MA_MB_2, mab);
 	else
 		WRITE_VPP_REG(VPP_VADJ1_MA_MB, mab);
@@ -2157,7 +2202,9 @@ int amvecm_set_saturation_hue(int mab)
 	md = (s16)((mab << 6) >> 22);  /* md =  ma; */
 	mab = ((mc & 0x3ff) << 16) | (md & 0x3ff);
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (chip_type_id == chip_s5) {
+		ve_color_mcd_set(mab, VE_VADJ1, WR_DMA);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
 		WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 	} else {
@@ -2211,7 +2258,10 @@ static int amvecm_set_saturation_hue_post(int val1,
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
 	pr_info("\n[amvideo..] saturation_post:%d hue_post:%d mab:%x\n",
 		saturation_post, hue_post, mab);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+
+	if (chip_type_id == chip_s5)
+		ve_color_mab_set(mab, VE_VADJ2, WR_VCB);
+	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		WRITE_VPP_REG(VPP_VADJ2_MA_MB_2, mab);
 	else
 		WRITE_VPP_REG(VPP_VADJ2_MA_MB, mab);
@@ -2223,7 +2273,10 @@ static int amvecm_set_saturation_hue_post(int val1,
 		mc = -512;
 	md = (s16)((mab << 6) >> 22);  /* md =	ma; */
 	mab = ((mc & 0x3ff) << 16) | (md & 0x3ff);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+
+	if (chip_type_id == chip_s5) {
+		ve_color_mcd_set(mab, VE_VADJ2, WR_VCB);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		WRITE_VPP_REG(VPP_VADJ2_MC_MD_2, mab);
 		WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 0, 1);
 	} else {
@@ -4158,7 +4211,10 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 	if (mb < -512)
 		mb = -512;
 	mab =  ((ma & 0x3ff) << 16) | (mb & 0x3ff);
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
+
+	if (chip_type_id == chip_s5)
+		ve_color_mab_set(mab, VE_VADJ1, WR_VCB);
+	else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		VSYNC_WRITE_VPP_REG(VPP_VADJ1_MA_MB_2, mab);
 	else
 		VSYNC_WRITE_VPP_REG(VPP_VADJ1_MA_MB, mab);
@@ -4171,7 +4227,9 @@ void vpp_vd_adj1_saturation_hue(signed int sat_val,
 	md = (s16)((mab << 6) >> 22);  /* md =	ma; */
 	mab = ((mc & 0x3ff) << 16) | (md & 0x3ff);
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (chip_type_id == chip_s5) {
+		ve_color_mcd_set(mab, VE_VADJ1, WR_VCB);
+	} else if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		VSYNC_WRITE_VPP_REG(VPP_VADJ1_MC_MD_2, mab);
 		VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 0, 1);
 	} else {
@@ -7475,46 +7533,73 @@ static void get_cm_hist(enum cm_hist_e hist_sel)
 static void cm_init_config(int bitdepth)
 {
 	int i, j, reg;
+	struct cm_port_s cm_port;
+	unsigned int addr_port;
+	unsigned int data_port;
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A)
 		am_set_regmap(&cm_default);
 	else
 		am_set_regmap(&cm_default_legacy);
 
-	if (bitdepth == 10) {
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x40400);
-	} else if (bitdepth == 12) {
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x100400);
-	} else {
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
-		WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
-		WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x40400);
-	}
+	if (chip_type_id == chip_s5) {
+		for (i = SLICE0; i < SLICE_MAX; i++) {
+			cm_port = get_cm_port();
+			addr_port = cm_port.cm_addr_port[i];
+			data_port = cm_port.cm_data_port[i];
 
-	for (i = 0; i < 32; i++) {
-		for (j = 0; j < 5; j++) {
-			reg = CM2_ENH_COEF0_H00 + i * 8 + j;
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, reg);
-			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x0);
+			WRITE_VPP_REG(addr_port, XVYCC_YSCP_REG);
+			WRITE_VPP_REG(data_port, 0xfff0000);
+			WRITE_VPP_REG(addr_port, XVYCC_USCP_REG);
+			WRITE_VPP_REG(data_port, 0xfff0000);
+			WRITE_VPP_REG(addr_port, XVYCC_VSCP_REG);
+			WRITE_VPP_REG(data_port, 0xfff0000);
+			WRITE_VPP_REG(addr_port, LUMA_ADJ0_REG);
+			WRITE_VPP_REG(data_port, 0x100400);
+			for (i = 0; i < 32; i++) {
+				for (j = 0; j < 5; j++) {
+					reg = CM2_ENH_COEF0_H00 + i * 8 + j;
+					WRITE_VPP_REG(addr_port, reg);
+					WRITE_VPP_REG(data_port, 0x0);
+				}
+			}
+		}
+	} else {
+		if (bitdepth == 10) {
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x40400);
+		} else if (bitdepth == 12) {
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0xfff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x100400);
+		} else {
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_YSCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_USCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, XVYCC_VSCP_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x3ff0000);
+			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, LUMA_ADJ0_REG);
+			WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x40400);
+		}
+
+		for (i = 0; i < 32; i++) {
+			for (j = 0; j < 5; j++) {
+				reg = CM2_ENH_COEF0_H00 + i * 8 + j;
+				WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT, reg);
+				WRITE_VPP_REG(VPP_CHROMA_DATA_PORT, 0x0);
+			}
 		}
 	}
 }
@@ -7749,6 +7834,9 @@ static ssize_t amvecm_debug_store(struct class *cla,
 				pr_info("unsupport cm2_clr_dbg cmd\n");
 				goto free_buf;
 			}
+		} else if (!strcmp(parm[1], "cm_init")) {
+			cm_init_config(12);
+			pr_info("cm init\n");
 		} else {
 			pr_info("unsupport cm cmd\n");
 			goto free_buf;
@@ -9561,6 +9649,12 @@ void init_pq_setting(void)
 		vpp_pq_ctrl_config(pq_cfg, WR_VCB);
 
 		pq_reg_wr_rdma = 1;
+	} else if (chip_type_id == chip_s5) {
+		bitdepth = 12;
+		cm_init_config(bitdepth);
+		vpp_pq_ctrl_config(pq_cfg, WR_VCB);
+
+		pq_reg_wr_rdma = 1;
 	}
 	return;
 
@@ -9652,6 +9746,9 @@ void amvecm_gamma_init(bool en)
 	unsigned int i, j, k;
 	unsigned short data[256];
 
+	if (chip_type_id == chip_s5)
+		return;
+
 	for (i = 0; i < 256; i++) {
 		data[i] = i << 2;
 		video_gamma_table_r.data[i] = data[i];
@@ -9699,6 +9796,9 @@ static void amvecm_wb_init(bool en)
 	int *initcoef;
 
 	initcoef = wb_init_bypass_coef;
+
+	if (chip_type_id == chip_s5)
+		return;
 
 	if (video_rgb_ogo_xvy_mtx) {
 		WRITE_VPP_REG_BITS(VPP_MATRIX_CTRL, 3, 8, 3);
@@ -9754,6 +9854,9 @@ static void amvecm_wb_init(bool en)
 
 void amvecm_3dlut_init(bool en)
 {
+	if (chip_type_id == chip_s5)
+		return;
+
 	if (ct_en) {
 		lut3d_en = 1;
 		vpp_lut3d_table_init(-1, -1, -1);
@@ -9921,6 +10024,7 @@ static const struct file_operations amvecm_fops = {
 };
 
 static const struct vecm_match_data_s vecm_dt_xxx = {
+	.chip_id = chip_other,
 	.vlk_chip = vlock_chip_txlx,
 	.vlk_support = true,
 	.vlk_new_fsm = 0,
@@ -9931,6 +10035,7 @@ static const struct vecm_match_data_s vecm_dt_xxx = {
 
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct vecm_match_data_s vecm_dt_tl1 = {
+	.chip_id = chip_other,
 	.vlk_chip = vlock_chip_tl1,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -9941,6 +10046,7 @@ static const struct vecm_match_data_s vecm_dt_tl1 = {
 #endif
 
 static const struct vecm_match_data_s vecm_dt_sm1 = {
+	.chip_id = chip_other,
 	.vlk_chip = vlock_chip_sm1,
 	.vlk_support = false,
 	.vlk_new_fsm = 1,
@@ -9950,6 +10056,7 @@ static const struct vecm_match_data_s vecm_dt_sm1 = {
 };
 
 static const struct vecm_match_data_s vecm_dt_tm2 = {
+	.chip_id = chip_other,
 	.vlk_chip = vlock_chip_tm2,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -9959,6 +10066,7 @@ static const struct vecm_match_data_s vecm_dt_tm2 = {
 };
 
 static const struct vecm_match_data_s vecm_dt_tm2_verb = {
+	.chip_id = chip_other,
 	.vlk_chip = vlock_chip_tm2,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -9968,6 +10076,7 @@ static const struct vecm_match_data_s vecm_dt_tm2_verb = {
 };
 
 static const struct vecm_match_data_s vecm_dt_t5 = {
+	.chip_id = chip_other,
 	.vlk_chip = vlock_chip_t5,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -9977,6 +10086,7 @@ static const struct vecm_match_data_s vecm_dt_t5 = {
 };
 
 static const struct vecm_match_data_s vecm_dt_t5d = {
+	.chip_id = chip_other,
 	.vlk_chip = vlock_chip_t5,/*same as t5d*/
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -9986,6 +10096,7 @@ static const struct vecm_match_data_s vecm_dt_t5d = {
 };
 
 static const struct vecm_match_data_s vecm_dt_t7 = {
+	.chip_id = chip_other,
 	.vlk_chip = vlock_chip_t7,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -9996,6 +10107,7 @@ static const struct vecm_match_data_s vecm_dt_t7 = {
 };
 
 static const struct vecm_match_data_s vecm_dt_t3 = {
+	.chip_id = chip_t3,
 	.vlk_chip = vlock_chip_t3,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10008,6 +10120,7 @@ static const struct vecm_match_data_s vecm_dt_t3 = {
 
 /*t5w vlock follow t5 */
 static const struct vecm_match_data_s vecm_dt_t5w = {
+	.chip_id = chip_t5w,
 	.vlk_chip = vlock_chip_t5,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10015,6 +10128,16 @@ static const struct vecm_match_data_s vecm_dt_t5w = {
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 	.vrr_support_flag = 1,
+};
+
+static const struct vecm_match_data_s vecm_dt_s5 = {
+	.chip_id = chip_s5,
+	.vlk_chip = vlock_chip_t5,
+	.vlk_support = false,
+	.vlk_new_fsm = 1,
+	.vlk_hwver = vlock_hw_tm2verb,
+	.vlk_phlock_en = false,
+	.vlk_pll_sel = vlock_pll_sel_tcon,
 };
 
 static const struct of_device_id aml_vecm_dt_match[] = {
@@ -10060,8 +10183,18 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 		.compatible = "amlogic, vecm-t5w",
 		.data = &vecm_dt_t5w,
 	},
+	{
+		.compatible = "amlogic, vecm-s5",
+		.data = &vecm_dt_s5,
+	},
 	{},
 };
+
+static void aml_vecm_match_init(struct vecm_match_data_s *pdata)
+{
+	chip_type_id = pdata->chip_id;
+	pr_info("vecm chip id: %d", chip_type_id);
+}
 
 static void aml_vecm_dt_parse(struct platform_device *pdev)
 {
@@ -10176,6 +10309,7 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 			matchdata = (struct vecm_match_data_s *)&vecm_dt_xxx;
 			pr_amvecm_dbg("unable to get matched device\n");
 		}
+		aml_vecm_match_init(matchdata);
 		vlock_dt_match_init(matchdata);
 
 		frame_lock_set_vrr_support_flag(matchdata->vrr_support_flag);
@@ -10195,8 +10329,11 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 	amvecm_3dlut_init(lut3d_en);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (!is_amdv_enable())
-#endif
 		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+#endif
+	if (chip_type_id != chip_s5)
+		WRITE_VPP_REG_BITS(VPP_MISC, 1, 28, 1);
+
 	if (cm_en) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 		if (!is_amdv_enable())
@@ -10347,10 +10484,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	/* register vdin vrr en client*/
 	frame_lock_vrr_off_done_init();
 	aml_vrr_atomic_notifier_register(&flock_vdin_vrr_en_notifier_nb);
-
-	init_pattern_detect();
 	/* #endif */
-	vpp_get_hist_en();
 
 	if (is_meson_txlx_cpu()) {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
@@ -10380,6 +10514,8 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	hdr_init(&amvecm_dev.hdr_d);
 	aml_vecm_dt_parse(pdev);
 
+	init_pattern_detect();
+	vpp_get_hist_en();
 	init_pq_setting();
 	aml_vecm_viu2_vsync_irq_init();
 	lc_curve_isr_defined = 0;

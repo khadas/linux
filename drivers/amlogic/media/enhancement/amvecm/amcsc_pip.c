@@ -1930,7 +1930,8 @@ void video_post_process(struct vframe_s *vf,
 		break;
 	}
 
-	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
+	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A &&
+		chip_type_id != chip_s5) {
 		if (!(vinfo->mode == VMODE_LCD ||
 			vinfo->mode == VMODE_DUMMY_ENCP)) {
 			pr_csc(12, "%s: vpp_index = %d mode = %d [%d]\n",
