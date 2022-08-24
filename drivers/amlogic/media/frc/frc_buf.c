@@ -33,6 +33,7 @@
 
 #include "frc_drv.h"
 #include "frc_buf.h"
+#include "frc_rdma.h"
 
 int frc_buf_test = 1;
 module_param(frc_buf_test, int, 0664);
@@ -530,7 +531,8 @@ int frc_buf_alloc(struct frc_dev_s *devp)
 	 * buffer 14+2 relese memory size: 0x13b8000 19M
 	 */
 	devp->buf.cma_mem_size2 = 0x2770000;
-	devp->buf.cma_mem_size = 0xa000000 - devp->buf.cma_mem_size2;
+	devp->buf.cma_mem_size = 0xa000000 -
+		devp->buf.cma_mem_size2 - FRC_RDMA_SIZE;
 
 	if (!devp->buf.cma_buf_alloc) {
 		devp->buf.cma_mem_paddr_pages =
@@ -547,7 +549,8 @@ int frc_buf_alloc(struct frc_dev_s *devp)
 			page_to_phys(devp->buf.cma_mem_paddr_pages);
 		pr_frc(0, "cma paddr_start=0x%lx size:0x%x\n",
 			(ulong)devp->buf.cma_mem_paddr_start, devp->buf.cma_mem_size);
-
+		// rdma buf alloc 1M
+		frc_rdma_alloc_buf();
 	}
 	if (!devp->buf.cma_buf_alloc2) {
 		devp->buf.cma_mem_paddr_pages2 =
@@ -580,6 +583,8 @@ int frc_buf_release(struct frc_dev_s *devp)
 		devp->buf.cma_mem_alloced = 0;
 		devp->buf.cma_buf_alloc = 0;
 		pr_frc(2, "%s buffer1 released\n", __func__);
+		//rdma buf release
+		frc_rdma_release_buf();
 	} else {
 		pr_frc(0, "%s no buffer exist\n", __func__);
 	}
@@ -1202,66 +1207,66 @@ int frc_buf_config(struct frc_dev_s *devp)
 	base2 = devp->buf.cma_mem_paddr_start2;
 	pr_frc(log, "%s cma base:0x%x, base2:0x%x\n", __func__, base, base2);
 	/*mc info buffer*/
-	WRITE_FRC_REG(FRC_REG_MC_YINFO_BADDR, base + devp->buf.lossy_mc_y_info_buf_paddr);
-	WRITE_FRC_REG(FRC_REG_MC_CINFO_BADDR, base + devp->buf.lossy_mc_c_info_buf_paddr);
-	WRITE_FRC_REG(FRC_REG_MC_VINFO_BADDR, base + devp->buf.lossy_mc_v_info_buf_paddr);
-	WRITE_FRC_REG(FRC_REG_ME_XINFO_BADDR, base + devp->buf.lossy_me_x_info_buf_paddr);
+	WRITE_FRC_REG_BY_CPU(FRC_REG_MC_YINFO_BADDR, base + devp->buf.lossy_mc_y_info_buf_paddr);
+	WRITE_FRC_REG_BY_CPU(FRC_REG_MC_CINFO_BADDR, base + devp->buf.lossy_mc_c_info_buf_paddr);
+	WRITE_FRC_REG_BY_CPU(FRC_REG_MC_VINFO_BADDR, base + devp->buf.lossy_mc_v_info_buf_paddr);
+	WRITE_FRC_REG_BY_CPU(FRC_REG_ME_XINFO_BADDR, base + devp->buf.lossy_me_x_info_buf_paddr);
 
 	/*lossy mc y,c,v data buffer, data buffer needn't config*/
 	/*lossy me data buffer, data buffer needn't config*/
 
 	/*lossy mc link buffer*/
 	for (i = FRC_REG_MC_YBUF_ADDRX_0; i <= FRC_REG_MC_YBUF_ADDRX_15; i++) {
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.lossy_mc_y_link_buf_paddr[i - FRC_REG_MC_YBUF_ADDRX_0]);
 	}
 	for (i = FRC_REG_MC_CBUF_ADDRX_0; i <= FRC_REG_MC_CBUF_ADDRX_15; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.lossy_mc_c_link_buf_paddr[i - FRC_REG_MC_CBUF_ADDRX_0]);
 
 	for (i = FRC_REG_MC_VBUF_ADDRX_0; i <= FRC_REG_MC_VBUF_ADDRX_15; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.lossy_mc_v_link_buf_paddr[i - FRC_REG_MC_VBUF_ADDRX_0]);
 
 	/*lossy me link buffer*/
 	for (i = FRC_REG_ME_BUF_ADDRX_0; i <= FRC_REG_ME_BUF_ADDRX_15; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.lossy_me_link_buf_paddr[i - FRC_REG_ME_BUF_ADDRX_0]);
 
 	/*norm hme data buffer*/
 	for (i = FRC_REG_HME_BUF_ADDRX_0; i <= FRC_REG_HME_BUF_ADDRX_15; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.norm_hme_data_buf_paddr[i - FRC_REG_HME_BUF_ADDRX_0]);
 
 	/*norm memv buffer*/
 	for (i = FRC_REG_ME_NC_UNI_MV_ADDRX_0; i <= FRC_REG_ME_PC_PHS_MV_ADDR; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.norm_memv_buf_paddr[i - FRC_REG_ME_NC_UNI_MV_ADDRX_0]);
 
 	/*norm hmemv buffer*/
 	for (i = FRC_REG_HME_NC_UNI_MV_ADDRX_0; i <= FRC_REG_VP_PF_UNI_MV_ADDR; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.norm_hmemv_buf_paddr[i - FRC_REG_HME_NC_UNI_MV_ADDRX_0]);
 
 	/*norm mevp buffer*/
 	for (i = FRC_REG_VP_MC_MV_ADDRX_0; i <= FRC_REG_VP_MC_MV_ADDRX_1; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.norm_mevp_out_buf_paddr[i - FRC_REG_VP_MC_MV_ADDRX_0]);
 
 	/*norm iplogo buffer*/
 	for (i = FRC_REG_IP_LOGO_ADDRX_0; i <= FRC_REG_IP_LOGO_ADDRX_15; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.norm_iplogo_buf_paddr[i - FRC_REG_IP_LOGO_ADDRX_0]);
 
 	/*norm logo irr buffer*/
-	WRITE_FRC_REG(FRC_REG_LOGO_IIR_BUF_ADDR, base + devp->buf.norm_logo_irr_buf_paddr);
+	WRITE_FRC_REG_BY_CPU(FRC_REG_LOGO_IIR_BUF_ADDR, base + devp->buf.norm_logo_irr_buf_paddr);
 
 	/*norm logo scc buffer*/
-	WRITE_FRC_REG(FRC_REG_LOGO_SCC_BUF_ADDR, base + devp->buf.norm_logo_scc_buf_paddr);
+	WRITE_FRC_REG_BY_CPU(FRC_REG_LOGO_SCC_BUF_ADDR, base + devp->buf.norm_logo_scc_buf_paddr);
 
 	/*norm iplogo buffer*/
 	for (i = FRC_REG_ME_LOGO_ADDRX_0; i <= FRC_REG_ME_LOGO_ADDRX_15; i++)
-		WRITE_FRC_REG(i,
+		WRITE_FRC_REG_BY_CPU(i,
 			base + devp->buf.norm_melogo_buf_paddr[i - FRC_REG_ME_LOGO_ADDRX_0]);
 
 	frc_buf_mapping_tab_init(devp);

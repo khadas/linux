@@ -79,15 +79,16 @@
 // frc_20220708 optimize frc off2on flow
 // frc_20220722 add vlock st and time record
 // frc_20220801 set force_mode and ctrl freq
+// frc_20220919 sync 24p and frm reset check
 
-#define FRC_FW_VER			"20220919 sync 24p and frm reset check"
-#define FRC_KERDRV_VER                  1990
+#define FRC_FW_VER			"2022-0920 add frc rdma access reg"
+#define FRC_KERDRV_VER                  2339
 
 #define FRC_DEVNO	1
 #define FRC_NAME	"frc"
 #define FRC_CLASS_NAME	"frc"
 
-// #define CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+#define CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 
 /*
 extern int frc_dbg_en;
@@ -502,6 +503,8 @@ struct frc_dev_s {
 	u32 vs_duration;	/*vpu int duration*/
 	u64 vs_timestamp;	/*vpu int time stamp*/
 	u32 in_out_ratio;
+	u64 rdma_time;
+	u64 rdma_time2;
 
 	u32 dbg_force_en;
 	u32 dbg_in_out_ratio;

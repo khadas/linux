@@ -61,9 +61,9 @@
 #include "frc_dbg.h"
 #include "frc_buf.h"
 #include "frc_hw.h"
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+// #ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 #include "frc_rdma.h"
-#endif
+// #endif
 
 // static struct frc_dev_s *frc_dev; // for SWPL-53056:KASAN: use-after-free
 static struct frc_dev_s frc_dev;
@@ -518,7 +518,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 	frc_devp->rdma_irq = of_irq_get_byname(of_node, "irq_frc_rdma");
 	snprintf(frc_devp->rdma_irq_name, sizeof(frc_devp->rdma_irq_name), "frc_rdma_irq");
 	PR_FRC("%s=%d\n", frc_devp->rdma_irq_name, frc_devp->rdma_irq);
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+// #ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 	if (frc_devp->rdma_irq > 0) {
 		ret = request_irq(frc_devp->rdma_irq, frc_rdma_isr, IRQF_SHARED,
 				  frc_devp->rdma_irq_name, (void *)frc_devp);
@@ -527,7 +527,7 @@ static int frc_dts_parse(struct frc_dev_s *frc_devp)
 		else
 			disable_irq(frc_devp->rdma_irq);
 	}
-#endif
+// #endif
 	/*register map*/
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "frc_reg");
 	if (res) {
@@ -923,17 +923,19 @@ static int frc_probe(struct platform_device *pdev)
 	if (frc_buf_set(frc_devp) != 0)
 		goto fail_dev_create;
 
+	frc_internal_initial(frc_devp);
 	frc_hw_initial(frc_devp);
-	frc_internal_initial(frc_devp); /*need after frc_top_init*/
 	/*enable irq*/
 	if (frc_devp->in_irq > 0)
 		enable_irq(frc_devp->in_irq);
 	if (frc_devp->out_irq > 0)
 		enable_irq(frc_devp->out_irq);
-#ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
+// #ifdef CONFIG_AMLOGIC_MEDIA_FRC_RDMA
 	if (frc_devp->rdma_irq > 0)
 		enable_irq(frc_devp->rdma_irq);
-#endif
+	if (!frc_rdma_init())
+		PR_FRC("%s frc rdma init failed\n", __func__);
+// #endif
 	INIT_WORK(&frc_devp->frc_clk_work, frc_clock_workaround);
 	INIT_WORK(&frc_mem_dyc_proc, frc_mem_dynamic_proc);
 	frc_devp->clk_chg = 1;
@@ -983,6 +985,8 @@ static int __exit frc_remove(struct platform_device *pdev)
 		free_irq(frc_devp->in_irq, (void *)frc_devp);
 	if (frc_devp->out_irq > 0)
 		free_irq(frc_devp->out_irq, (void *)frc_devp);
+	if (frc_devp->rdma_irq > 0)
+		free_irq(frc_devp->rdma_irq, (void *)frc_devp);
 
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
@@ -1016,6 +1020,8 @@ static void frc_shutdown(struct platform_device *pdev)
 		free_irq(frc_devp->in_irq, (void *)frc_devp);
 	if (frc_devp->out_irq > 0)
 		free_irq(frc_devp->out_irq, (void *)frc_devp);
+	if (frc_devp->rdma_irq > 0)
+		free_irq(frc_devp->rdma_irq, (void *)frc_devp);
 	device_destroy(frc_devp->clsp, frc_devp->devno);
 	cdev_del(&frc_devp->cdev);
 	class_destroy(frc_devp->clsp);

@@ -13043,14 +13043,93 @@
 
 extern void __iomem *frc_base;
 
+/******************************************************************************/
+extern u32 regdata_inpholdctl_0002;     // FRC_INP_HOLD_CTRL 0x0002
+extern u32 regdata_outholdctl_0003;     // FRC_OUT_HOLD_CTRL 0x0003
+extern u32 regdata_top_ctl_0007;        // FRC_REG_TOP_CTRL7  0x0007
+extern u32 regdata_top_ctl_0009;        // FRC_REG_TOP_CTRL9
+extern u32 regdata_top_ctl_0017;        // FRC_REG_TOP_CTRL17
+
+extern u32 regdata_pat_pointer_0102;
+extern u32 regdata_loadorgframe[16];    // 0x0103
+
+extern u32 regdata_phs_tab_0116;
+
+extern u32 regdata_blksizexy_012b;
+extern u32 regdata_blkscale_012c;
+extern u32 regdata_hme_scale_012d;
+
+extern u32 regdata_logodbg_0142;         // FRC_LOGO_DEBUG    0x0142
+extern u32 regdata_inpmoden_04f9;        // FRC_REG_INP_MODULE_EN  0x04f9
+extern u32 regdata_iplogo_en_0503;       // FRC_IPLOGO_EN    0x0503
+extern u32 regdata_bbd_t2b_0604;         // FRC_BBD_DETECT_REGION_TOP2BOT  0x0604
+extern u32 regdata_bbd_l2r_0605;         // FRC_BBD_DETECT_REGION_LFT2RIT  0x0605
+
+extern u32 regdata_me_en_1100;           // FRC_ME_EN   0x1100
+extern u32 regdata_me_bbpixed_1108;      // FRC_ME_BB_PIX_ED  0x1108
+extern u32 regdata_me_bbblked_110a;      // FRC_ME_BB_BLK_ED  0x110a
+extern u32 regdata_me_stat12rhst_110b;   // FRC_ME_STAT_12R_HST  0x110b
+extern u32 regdata_me_stat12rh_110c;     // FRC_ME_STAT_12R_H01  0x110c
+extern u32 regdata_me_stat12rh_110d;     // FRC_ME_STAT_12R_H23  0x110d
+extern u32 regdata_me_stat12rv_110e;     // FRC_ME_STAT_12R_V0   0x110e
+extern u32 regdata_me_stat12rv_110f;     // FRC_ME_STAT_12R_V1   0x110f
+
+extern u32 regdata_vpbb1_1e03;          // FRC_VP_BB_1      0x1e03
+extern u32 regdata_vpbb2_1e04;          // FRC_VP_BB_2      0x1e04
+extern u32 regdata_vpmebb1_1e05;        // FRC_VP_ME_BB_1   0x1e05
+extern u32 regdata_vpmebb2_1e06;        // FRC_VP_ME_BB_2   0x1e06
+
+extern u32 regdata_vp_win1_1e58;        // FRC_VP_REGION_WINDOW_1 0x1e58
+extern u32 regdata_vp_win2_1e59;        // FRC_VP_REGION_WINDOW_2 0x1e59
+extern u32 regdata_vp_win3_1e5a;        // FRC_VP_REGION_WINDOW_3 0x1e5a
+extern u32 regdata_vp_win4_1e5b;        // FRC_VP_REGION_WINDOW_4 0x1e5b
+
+extern u32 regdata_mcset1_3000;         // FRC_MC_SETTING1   0x3000
+extern u32 regdata_mcset2_3001;         // FRC_MC_SETTING2   0x3001
+
+extern u32 regdata_mcdemo_win_3200;     // FRC_MC_DEMO_WINDOW  0x3200
+extern u32 regdata_topctl_3f01;
+
+///////////////////////////////////////////////////////////////////////////////
+
+extern u32 regdata_fd_enable_0700;      // FRC_FD_ENABLE     0x0700
+extern u32 regdata_film_phs1_0117;      // FRC_REG_FILM_PHS_1     0x0117
+extern u32 regdata_me_stat_glb_apl_156c;// FRC_ME_STAT_GLB_APL    0x156c
+
+extern u32 regdata_fwd_phs_0146;        // FRC_REG_FWD_PHS     0x0146
+extern u32 regdata_fwd_phs_ro_016f;     //  FRC_REG_FWD_PHS_RO   0x016f
+extern u32 regdata_fwd_phs_adj_016b;    // FRC_REG_FWD_PHS_ADJ       0x016b
+extern u32 regdata_load_frame_flag0_0149;     // FRC_REG_LOAD_FRAME_FLAG_0  0x0149
+extern u32 regdata_load_frame_flag1_014a;     //  FRC_REG_LOAD_FRAME_FLAG_1  0x014a
+extern u32 regdata_fwd_table_cnt_phaofs_016c; //  FRC_REG_FWD_TABLE_CNT_PHAOFS 0x016c
+extern u32 regdata_fwd_sign_ro_016e;          //  FRC_REG_FWD_SIGN_RO  x016e
+extern u32 regdata_fwd_fid_0147;              // FRC_REG_FWD_FID     0x0147
+extern u32 regdata_fwd_fid_posi_0148;         // FRC_REG_FWD_FID_POSI   0x0148
+extern u32 regdata_fwd_fid_lut1[16];          // FRC_REG_FWD_FID_LUT_1_0    0x014b
+extern u32 regdata_fwd_fid_lut2[16];          // FRC_REG_FWD_FID_LUT_2_0    0x014c
+
+extern int fw_idx;
+
+/******************************************************************************/
 inline void WRITE_FRC_REG(unsigned int reg, unsigned int val);
+inline void WRITE_FRC_REG_BY_CPU(unsigned int reg, unsigned int val);
+
 inline void WRITE_FRC_BITS(unsigned int reg, unsigned int value,
-					unsigned int start, unsigned int len);
+	unsigned int start, unsigned int len);
+
 inline void UPDATE_FRC_REG_BITS(unsigned int reg, unsigned int value, unsigned int mask);
+// #define UPDATE_FRC_REG_BITS(addr, val, mask) FRC_RDMA_VSYNC_REG_UPDATE(addr, val, mask)
+
+inline void UPDATE_FRC_REG_BITS_1(unsigned int reg, unsigned int value, unsigned int mask);
+inline int is_rdma_enable(void);
+
 inline int READ_FRC_REG(unsigned int reg);
 inline u32 READ_FRC_BITS(u32 reg, const u32 start, const u32 len);
 inline u32 floor_rs(u32 ix, u32 rs);
 inline u32 ceil_rx(u32 ix, u32 rs);
 inline s32  negative_convert(s32 data, u32 fbits);
+inline void frc_config_reg_value(u32 need_val, u32 mask, u32 *reg_val);
+void check_fw_table(u8 flag);
+
 
 #endif

@@ -38,6 +38,7 @@
 #include "frc_buf.h"
 #include "frc_hw.h"
 #include "frc_proc.h"
+#include "frc_rdma.h"
 
 int frc_dbg_ctrl;
 module_param(frc_dbg_ctrl, int, 0664);
@@ -85,8 +86,7 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "dc_rate:(me:%d,mc_y:%d,mc_c:%d), real total size:%d\n",
 		devp->buf.me_comprate, devp->buf.mc_y_comprate,
 		devp->buf.mc_c_comprate, devp->buf.real_total_size);
-	pr_frc(0, "mc_loss_en = %d me_loss_en = %d\n", fw_data->frc_top_type.mc_loss_en,
-		fw_data->frc_top_type.me_loss_en);
+	pr_frc(0, "memc_loss_en = %d\n", fw_data->frc_top_type.memc_loss_en);
 	pr_frc(0, "loss_ratio = %d\n", devp->loss_ratio);
 	pr_frc(0, "frc_prot_mode = %d\n", devp->prot_mode);
 	pr_frc(0, "high_freq_flash = %d\n", devp->in_sts.high_freq_flash);
@@ -123,6 +123,7 @@ void frc_status(struct frc_dev_s *devp)
 	pr_frc(0, "mc_fb = %d\n", fw_data->frc_fw_alg_ctrl.frc_algctrl_u8mcfb);
 	pr_frc(0, "frc_fb_num = %d\n", fw_data->frc_top_type.frc_fb_num);
 	pr_frc(0, "frc_ratio_mode = %d\n", fw_data->frc_top_type.frc_ratio_mode);
+	pr_frc(0, "frc_rdma_en:%d\n", fw_data->frc_top_type.rdma_en);
 
 	pr_frc(0, "frc_in hsize=%d vsize=%d\n",
 			devp->in_sts.in_hsize, devp->in_sts.in_vsize);
@@ -179,8 +180,7 @@ ssize_t frc_debug_if_help(struct frc_dev_s *devp, char *buf)
 	len += sprintf(buf + len, "force_mode en(0/1) hize vsize\n");
 	len += sprintf(buf + len, "ud_dbg 0/1 0/1 0/1 0/1\t: meud_en,mcud_en,in,out alg time\n");
 	len += sprintf(buf + len, "auto_ctrl 0/1 \t: frc auto on off work mode\n");
-	len += sprintf(buf + len, "mc_lossy 0/1 \t: 0:off 1:on\n");
-	len += sprintf(buf + len, "me_lossy 0/1 \t: 0:off 1:on\n");
+	len += sprintf(buf + len, "memc_lossy 0/1/2 \t: 0:off 1:mc_en,2:me_en,3:memc_en\n");
 	len += sprintf(buf + len, "powerdown : power down memc\n");
 	len += sprintf(buf + len, "poweron : power on memc\n");
 	len += sprintf(buf + len, "memc_level : memc_dejudder\n");
@@ -406,19 +406,12 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_osdbit_setfalsecolor(val1);
-	} else if (!strcmp(parm[0], "me_lossy")) {
+	} else if (!strcmp(parm[0], "memc_lossy")) {
 		if (!parm[1])
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0) {
-			fw_data->frc_top_type.me_loss_en  = val1;
-			cfg_me_loss(fw_data->frc_top_type.me_loss_en);
-		}
-	} else if (!strcmp(parm[0], "mc_lossy")) {
-		if (!parm[1])
-			goto exit;
-		if (kstrtoint(parm[1], 10, &val1) == 0) {
-			fw_data->frc_top_type.mc_loss_en  = val1;
-			cfg_me_loss(fw_data->frc_top_type.mc_loss_en);
+			fw_data->frc_top_type.memc_loss_en  = val1;
+			frc_cfg_memc_loss(fw_data->frc_top_type.memc_loss_en);
 		}
 	} else if (!strcmp(parm[0], "secure_on")) {
 		if (!parm[1] || !parm[2])
@@ -554,6 +547,27 @@ void frc_debug_if(struct frc_dev_s *devp, const char *buf, size_t count)
 			goto exit;
 		if (kstrtoint(parm[1], 10, &val1) == 0)
 			frc_set_notell_film(devp, val1);
+	} else if (!strcmp(parm[0], "frc_rdma")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0) {
+			pr_frc(0, "frc rdma test start, val1:%d\n", val1);
+			frc_rdma_process(val1);
+		}
+	} else if (!strcmp(parm[0], "addr_val")) {
+		if (!parm[2])
+			goto exit;
+		if (kstrtoint(parm[1], 16, &val1))
+			;// val1 = val1 & 0xffff;
+		if (kstrtoint(parm[2], 16, &val2))
+			;//val2 = val2 & 0xffffffff;
+		pr_frc(0, "frc rdma addr:%x, val:%x\n", val1, val2);
+		frc_rdma_table_config(val1, val2);
+	} else if (!strcmp(parm[0], "rdma_en")) {
+		if (!parm[1])
+			goto exit;
+		if (kstrtoint(parm[1], 10, &val1) == 0)
+			fw_data->frc_top_type.rdma_en = val1;
 	}
 exit:
 	kfree(buf_orig);
@@ -640,7 +654,7 @@ void frc_tool_dbg_store(struct frc_dev_s *devp, const char *buf)
 		if (kstrtoul(parm[2], 16, &val) < 0)
 			goto free_buf;
 		regvalue = val;
-		WRITE_FRC_REG(reg, regvalue);
+		WRITE_FRC_REG_BY_CPU(reg, regvalue);
 	}
 
 free_buf:
