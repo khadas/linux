@@ -38,6 +38,8 @@
 
 #ifdef CONFIG_AMLOGIC_CMA
 #include <linux/amlogic/aml_cma.h>
+#include <linux/delay.h>
+#include <linux/sched/clock.h>
 #endif /* CONFIG_AMLOGIC_CMA */
 
 #ifdef CONFIG_AMLOGIC_SEC
@@ -464,6 +466,9 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 #ifdef CONFIG_AMLOGIC_CMA
 	int dummy;
 	unsigned long tick = 0;
+	unsigned long long in_tick, timeout;
+
+	in_tick = sched_clock();
 #endif
 
 	if (!cma || !cma->count || !cma->bitmap)
@@ -471,6 +476,13 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 
 	pr_debug("%s(cma %p, count %lu, align %d)\n", __func__, (void *)cma,
 		 count, align);
+
+#ifdef CONFIG_AMLOGIC_CMA
+	cma_debug(0, NULL, "(cma %p, count %lu, align %d)\n",
+		  (void *)cma, count, align);
+	in_tick = sched_clock();
+	timeout = 2ULL * 1000000 * (1 + ((count * PAGE_SIZE) >> 20));
+#endif
 
 	if (!count)
 		goto out;
@@ -551,6 +563,15 @@ struct page *cma_alloc(struct cma *cma, unsigned long count,
 	#ifndef CONFIG_AMLOGIC_CMA
 		/* try again with a bit different memory target */
 		start = bitmap_no + mask + 1;
+	#else
+		/*
+		 * CMA allocation time out, for example:
+		 * 1. set isoaltion failed.
+		 * 2. refcout and mapcount mismatch.
+		 * may blocked on some pages, relax CPU and try later.
+		 */
+		if ((sched_clock() - in_tick) >= timeout)
+			usleep_range(1000, 2000);
 	#endif
 	}
 
