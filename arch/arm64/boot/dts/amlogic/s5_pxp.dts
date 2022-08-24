@@ -1201,18 +1201,18 @@
 	//gpios = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
 };
 
-&crg30 {
+&crg20 {
 	compatible = "amlogic, crg-host-drd";
 	status = "disabled";
 };
 
-&crg31_drd {
+&crg31 {
+	compatible = "amlogic, crg-host-drd";
+	status = "disabled";
+};
+
+&crg30_drd {
 	compatible = "amlogic, crg-drd";
-	status = "disabled";
-};
-
-&crg32 {
-	compatible = "amlogic, crg-host-drd";
 	status = "disabled";
 };
 
@@ -1234,13 +1234,14 @@
 	portnum = <1>;
 };
 
-&usb2_m31_2_phy {
-	status = "disabled";
+&crg_phy_20 {
+	status = "okay";
+	portnum = <1>;
 };
 
-&usb3_m31_2_phy {
-	status = "disabled";
-	portnum = <1>;
+&crg3_phy_20 {
+	status = "okay";
+	portnum = <0>;
 };
 
 &crg_udc_2 {

@@ -141,8 +141,15 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	u32 reset_level = 0x84;
 	u32 m31phy_reset_level_bit;
 	u32 m31ctl_reset_level_bit;
+	u32 m31_utmi_reset_level_bit;
+	u32 u3_combx0_reset_bit;
 	u32 val;
 	int uncomposite;
+	u32 shift;
+	u32 mask;
+	u32 temp;
+	int m31_utmi_reset_level_flag = 0;
+	int u3_combx0_reset_flag = 0;
 
 	prop = of_get_property(dev->of_node, "portnum", NULL);
 	if (prop)
@@ -212,6 +219,22 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	else
 		m31ctl_reset_level_bit = 6;
 
+	prop = of_get_property(dev->of_node, "m31-utmi-reset-level-bit", NULL);
+	if (prop) {
+		m31_utmi_reset_level_bit = of_read_ulong(prop, 1);
+		m31_utmi_reset_level_flag = 1;
+	} else {
+		m31_utmi_reset_level_bit = 0;
+	}
+
+	prop = of_get_property(dev->of_node, "u3-combx0-reset-bit", NULL);
+	if (prop) {
+		u3_combx0_reset_bit = of_read_ulong(prop, 1);
+		u3_combx0_reset_flag = 1;
+	} else {
+		u3_combx0_reset_bit = 0;
+	}
+
 	phy->dev		= dev;
 	phy->portnum      = portnum;
 	phy->suspend_flag = 0;
@@ -227,6 +250,53 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 	phy->reset_level = reset_level;
 	phy->m31phy_reset_level_bit = m31phy_reset_level_bit;
 	phy->m31ctl_reset_level_bit = m31ctl_reset_level_bit;
+
+	if (m31_utmi_reset_level_flag == 1 && u3_combx0_reset_flag == 1) {
+		dev_info(&pdev->dev, "reset m31 phy!!!!!!\n");
+		mask = (size_t)phy->reset_regs & 0xf;
+		temp = 1 << (m31ctl_reset_level_bit % 32);
+		shift = (m31ctl_reset_level_bit / 32) * 4;
+		val = readl((void __iomem		*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		writel((val & (~temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		usleep_range(90, 100);
+		writel((val | (temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		usleep_range(90, 100);
+
+		temp = 1 << (m31_utmi_reset_level_bit % 32);
+		shift = (m31_utmi_reset_level_bit / 32) * 4;
+		val = readl((void __iomem		*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		writel((val & (~temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		usleep_range(90, 100);
+		writel((val | (temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+
+		usleep_range(90, 100);
+
+		temp = 1 << (u3_combx0_reset_bit % 32);
+		shift = (u3_combx0_reset_bit / 32) * 4;
+		val = readl((void __iomem		*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		writel((val & (~temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		usleep_range(90, 100);
+		writel((val | (temp)), (void __iomem	*)
+			((unsigned long)phy->reset_regs +
+			(phy->reset_level - mask) + shift));
+		usleep_range(90, 100);
+	}
 
 	/* set the phy from pcie to usb3 */
 	if (phy->portnum > 0) {
