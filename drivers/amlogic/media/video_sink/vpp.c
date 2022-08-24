@@ -1686,24 +1686,7 @@ RESTART:
 	video_left = video_layer_left;
 	video_width = video_layer_width;
 	video_height = video_layer_height;
-	if (video_top == 0 &&
-	    video_left == 0 &&
-	    video_width <= 1 &&
-	    video_height <= 1) {
-		/* special case to do full screen display */
-		video_width = width_out;
-		video_height = height_out;
-	} else {
-		if (video_layer_width < 16 &&
-		    video_layer_height < 16) {
-			/*
-			 *sanity check to move
-			 *video out when the target size is too small
-			 */
-			video_width = width_out;
-			video_height = height_out;
-			video_left = width_out * 2;
-		}
+	if (!(vpp_flags & VPP_FLAG_FORCE_NO_OFFSET)) {
 		video_top += video_layer_global_offset_y;
 		video_left += video_layer_global_offset_x;
 	}
@@ -4206,14 +4189,7 @@ RESTART:
 	video_left = video_layer_left;
 	video_width = video_layer_width;
 	video_height = video_layer_height;
-	if (video_top == 0 &&
-	    video_left == 0 &&
-	    video_width <= 1 &&
-	    video_height <= 1) {
-		/* special case to do full screen display */
-		video_width = video_layer_width;
-		video_height = video_layer_height;
-	} else {
+	if (!(vpp_flags & VPP_FLAG_FORCE_NO_OFFSET)) {
 		video_top += video_layer_global_offset_y;
 		video_left += video_layer_global_offset_x;
 	}
@@ -4589,6 +4565,7 @@ int vpp_set_filters(struct disp_info_s *input,
 	bool bypass_sr0 = bypass_sr;
 	bool bypass_sr1 = bypass_sr;
 	bool retry = false;
+	bool adjust = false;
 
 	if (!input)
 		return ret;
@@ -4597,6 +4574,7 @@ int vpp_set_filters(struct disp_info_s *input,
 
 RERTY:
 	vpp_flags = 0;
+	adjust = false;
 	/* use local var to avoid the input data be overwritten */
 	memcpy(&local_input, input, sizeof(struct disp_info_s));
 
@@ -4759,6 +4737,40 @@ RERTY:
 				local_input.afd_crop.right);
 		vpp_flags |= VPP_FLAG_FORCE_AFD_ENABLE;
 	}
+
+	if (local_input.layer_left == 0 &&
+	    local_input.layer_top == 0 &&
+	    local_input.layer_width <= 1 &&
+	    local_input.layer_height <= 1) {
+		/* special case to do full screen display */
+		local_input.layer_width = vinfo->width;
+		local_input.layer_height = vinfo->height;
+		vpp_flags |= VPP_FLAG_FORCE_NO_OFFSET;
+		adjust = true;
+	} else if (local_input.pps_support) {
+		/* TODO: remove it */
+		if (local_input.layer_width < 16 &&
+		    local_input.layer_height < 16) {
+			/* sanity check to move */
+			/* video out when the target size is too small */
+			local_input.layer_width = vinfo->width;
+			local_input.layer_height = vinfo->height;
+			local_input.layer_left = vinfo->width * 2;
+			adjust = true;
+		}
+	}
+
+	if (super_debug && adjust)
+		pr_info("layer%d: adjust pos from (%d %d %d %d) -> (%d %d %d %d)\n",
+			input->layer_id,
+			input->layer_left,
+			input->layer_top,
+			input->layer_left + input->layer_width - 1,
+			input->layer_top + input->layer_height - 1,
+			local_input.layer_left,
+			local_input.layer_top,
+			local_input.layer_left + local_input.layer_width - 1,
+			local_input.layer_top + local_input.layer_height - 1);
 
 	/* TODO: mirror case */
 	if (local_input.reverse) {
