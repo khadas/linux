@@ -2352,14 +2352,14 @@
 		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 	};
-	camera0 {
+	camera0: camera0 {
 		compatible = "amlogic, camera";
 		index = <0>;
 		csiphy = <&csiphy0>;
 		adapter = <&adapter0>;
 	};
 
-	camera1 {
+	camera1: camera1 {
 		compatible = "amlogic, camera";
 		index = <1>;
 		csiphy = <&csiphy2>;

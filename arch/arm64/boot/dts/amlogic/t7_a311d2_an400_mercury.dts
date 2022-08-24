@@ -242,7 +242,7 @@
 	freertos {
 		compatible = "amlogic,freertos";
 		status = "okay";
-		irqs_rsv = <32 227 249 91 321 343 345>;
+		irqs_rsv = <32 227 249 91 321 343>;
 		info_offset = <0x1000>;
 	};
 
@@ -1498,7 +1498,7 @@
 	};
 
 	ov5640_0: sensor0@3c {
-		compatible = "ov, ov5640";
+		compatible = "ovti,ov5640-droid";
 		index = <0>;
 		reg = <0x3c>;
 		reg-addr-type = <2>;
@@ -1611,7 +1611,7 @@
 	};
 
 	ov5640_2: sensor1@3c {
-		compatible = "ov, ov5640";
+		compatible = "ovti,ov5640-rtos";
 		index = <1>;
 		reg = <0x3c>;
 		reg-addr-type = <2>;
@@ -1816,6 +1816,14 @@
 	temper-frame-num2 = <1>;
 	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
+};
+
+&camera0 {
+	compatible = "amlogic,camera-droid";
+};
+
+&camera1 {
+	compatible = "amlogic,camera-rtos";
 };
 
 &adapter {
