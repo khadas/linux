@@ -797,6 +797,8 @@ int seq_file_vframe(struct seq_file *seq, void *v, struct vframe_s *pvfm)
 		   (pvfm->flag & VFRAME_FLAG_DI_BYPASS) ? true : false);
 	seq_printf(seq, "\t%-15s:%d\n", "flag:VIDTYPE_PRE_INTERLACE",
 		   (pvfm->type & VIDTYPE_PRE_INTERLACE) ? true : false);
+	seq_printf(seq, "\t%-15s:%d\n", "flag:VIDTYPE_COMPRESS_LOSS",
+		   (pvfm->type & VIDTYPE_COMPRESS_LOSS) ? true : false);
 	seq_printf(seq, "%-15s:%d\n", "ins_id", pvfm->di_instance_id);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas0Addr", pvfm->canvas0Addr);
 	seq_printf(seq, "%-15s:0x%x\n", "canvas1Addr", pvfm->canvas1Addr);

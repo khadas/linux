@@ -2316,8 +2316,7 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 
 		if (mem_vf2 && pafd_ctr->en_set.b.mem) {
 			/* mem */
-			if ((mem_vf2->type & VIDTYPE_COMPRESS_LOSS) &&
-			    cfgg(AFBCE_LOSS_EN)) {
+			if (cfgg(AFBCE_LOSS_EN)) {
 				cfg.reg_lossy_en = 1;
 				nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
 			} else {
@@ -2400,8 +2399,7 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 			afbc_update_level1(chan2_vf, pafd_ctr->fb.ch2_dec);
 
 		/*nr*/
-		if ((mem_vf2->type & VIDTYPE_COMPRESS_LOSS) &&
-		    cfgg(AFBCE_LOSS_EN))
+		if (cfgg(AFBCE_LOSS_EN))
 			nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
 		else
 			nr_vf->type &= ~VIDTYPE_COMPRESS_LOSS;
@@ -4873,9 +4871,12 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	} else if (cfg->loosy_mode == 2) {
 		lossy_luma_en = 0;
 		lossy_chrm_en = 1;
-	} else {
+	} else if (cfg->loosy_mode == 3) {
 		lossy_luma_en = 1;
 		lossy_chrm_en = 1;
+	} else {
+		lossy_luma_en = 0;
+		lossy_chrm_en = 0;
 	}
 
 	op->wr(reg[EAFBCE_MODE],
@@ -5096,8 +5097,7 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	}
 	#endif
 	vf_set_for_com(di_buf);
-	if (cfgg(AFBCE_LOSS_EN) &&
-	    (di_buf->vframe->type & VIDTYPE_COMPRESS_LOSS))
+	if (cfgg(AFBCE_LOSS_EN))
 		cfg->loosy_mode = 0x3;
 #ifdef AFBCP
 	di_print("%s:buf[%d],head[0x%lx],info[0x%lx]\n",
