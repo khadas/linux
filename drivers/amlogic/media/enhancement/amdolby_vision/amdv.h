@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "202200727"
+#define DRIVER_VER "202200825"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -522,7 +522,7 @@ struct m_dovi_setting_s {
 	struct content_info_s content_info;/*copy src content infos*/
 
 	/*reserved*/
-	u32 reserved[128];
+	u32 reserved[128];/*user_l11+content_type+wp+byte2+byte3*/
 };
 
 struct dv_inst_s {

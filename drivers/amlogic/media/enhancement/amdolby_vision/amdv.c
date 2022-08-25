@@ -132,7 +132,7 @@ static unsigned int last_dolby_vision_policy;
 /* bit1: follow source 0: bypass hdr10 to vpp 1: process hdr10 by dolby core */
 /* === HDR10+ === */
 /* bit2: 0: bypass hdr10+ to vpp, 1: process hdr10+ as hdr10 by dolby core */
-/* === HLG -- TV core 1.6 only === */
+/* === HLG ===== */
 /* bit3: follow sink 0: bypass hlg to vpp, 1: process hlg by dolby core */
 /* bit4: follow source 0: bypass hlg to vpp, 1: process hlg by dolby core */
 /* === SDR === */
@@ -558,6 +558,8 @@ MODULE_PARM_DESC(force_two_valid,    "\n force_two_valid\n");
 static int dv_core1_detunnel = 1;
 static bool update_control_path_flag;
 
+static bool hdmi_in_allm;
+static bool local_allm;
 #define MAX_PARAM   8
 bool is_aml_gxm(void)
 {
@@ -5135,13 +5137,14 @@ static int prepare_vsif_pkt(struct dv_vsif_para *vsif,
 			m_setting->content_info.white_point > 0)
 			src_content_flag = true;
 		if ((debug_dolby & 1))
-			pr_dv_dbg("L11_md_present %d,src_content_info %d, sink_dm_ver %d\n",
+			pr_dv_dbg("L11_md_present %d,src_content_info %d,allm %d %d,sink_dm_ver %d\n",
 				      m_setting->output_vsif.l11_md_present,
-				      src_content_flag,
+				      src_content_flag, hdmi_in_allm,
+				      local_allm,
 				      vinfo->vout_device->dv_info->dm_version);
 		/*Send L11 vsif in two cases*/
-		/*case 1: cp return output_vsif with L11 that is from content metadata */
-		/*case 2: cp return content_info with L11 and sink_dm_ver >=2*/
+		/*case 1: cp return output_vsif with L11 that is from source meta(sink-led or ott)*/
+		/*case 2: cp return content_info with L11 and sink_dm_ver >=2(hdmi in source-led)*/
 		/*case 3: todo... source contains game mode and sink support dv game mode*/
 		if (m_setting->dovi_ll_enable && (m_setting->output_vsif.l11_md_present ||
 		    (src_content_flag && vinfo->vout_device->dv_info->dm_version >= 2))) {
@@ -8265,6 +8268,11 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		}
 	} else if (vf && (vf->source_type == VFRAME_SOURCE_TYPE_HDMI) &&
 		(is_aml_tm2_stbmode() || is_aml_t7_stbmode()) && hdmi_to_stb_policy) {
+		if (vf->flag & VFRAME_FLAG_ALLM_MODE)
+			hdmi_in_allm = true;
+		else
+			hdmi_in_allm = false;
+
 		req.vf = vf;
 		req.bot_flag = 0;
 		req.aux_buf = NULL;
@@ -9064,6 +9072,22 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 	new_m_dovi_setting.enable_debug = debug_ko;
 	new_m_dovi_setting.enable_multi_core1 = enable_multi_core1;
 	new_m_dovi_setting.pri_input = pri_input;
+
+	/*update L11 info for hdmi in allm and local allm*/
+	if (hdmi_in_allm || local_allm) {
+		new_m_dovi_setting.reserved[0] = 1;/*user l11*/
+		new_m_dovi_setting.reserved[1] = 2;/*user content type*/
+		new_m_dovi_setting.reserved[2] = 8;/*user white point*/
+		new_m_dovi_setting.reserved[3] = 0;/*byte2*/
+		new_m_dovi_setting.reserved[4] = 0;/*byte3*/
+	} else {
+		new_m_dovi_setting.reserved[0] = 0;/*user l11*/
+		new_m_dovi_setting.reserved[1] = 0;/*user content type*/
+		new_m_dovi_setting.reserved[2] = 0;/*user white point*/
+		new_m_dovi_setting.reserved[3] = 0;/*byte2*/
+		new_m_dovi_setting.reserved[4] = 0;/*byte3*/
+	}
+
 	if (enable_multi_core1) {
 		for (i = 0; i < new_m_dovi_setting.num_video; i++) {
 			if (force_two_valid) {
@@ -9161,7 +9185,7 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 		}
 		if (vf)
 			pr_dv_dbg
-			("[inst%d]video:%dx%d,fmt:%d->%d,md:%d,comp:%d,fr:%d\n",
+			("[inst%d]video:%dx%d,fmt:%d->%d,md:%d,comp:%d,fr:%d,allm %d %d\n",
 			 dv_id + 1,
 			 new_m_dovi_setting.input[dv_id].video_width,
 			 new_m_dovi_setting.input[dv_id].video_height,
@@ -9169,7 +9193,9 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 			 dst_format,
 			 new_m_dovi_setting.input[dv_id].in_md_size,
 			 new_m_dovi_setting.input[dv_id].in_comp_size,
-			 dv_inst[dv_id].frame_count);
+			 dv_inst[dv_id].frame_count,
+			 hdmi_in_allm,
+			 local_allm);
 		if (vf_2)
 			pr_dv_dbg
 			("[inst%d]video:%dx%d,fmt:%d->%d,md:%d,comp:%d,fr:%d\n",
@@ -10940,9 +10966,10 @@ static int amdolby_vision_process_v2_stb
 			pri_input = 0;
 	}
 
-	if (is_aml_stb_hdmimode() &&
-		(!layerid_valid(hdmi_path_id) || !dv_inst_valid(hdmi_inst_id)))
+	if (!layerid_valid(hdmi_path_id) || !dv_inst_valid(hdmi_inst_id)) {
 		tv_dovi_setting->input_mode = 0;
+		hdmi_in_allm = false;
+	}
 
 	if (force_pri_input == 0 || force_pri_input == 1) {
 		if (debug_dolby & 0x1000)
@@ -13200,6 +13227,62 @@ static ssize_t amdolby_vision_use_cfg_target_lum_store
 	return count;
 }
 
+static ssize_t	amdolby_vision_hdmi_in_allm_show
+	(struct class *cla,
+	 struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "hdmi_in_allm: %d\n", hdmi_in_allm);
+}
+
+static ssize_t amdolby_vision_hdmi_in_allm_store
+	(struct class *cla,
+	 struct class_attribute *attr,
+	 const char *buf, size_t count)
+{
+	size_t r;
+	int tmp;
+
+	if (!buf)
+		return count;
+
+	r = kstrtoint(buf, 0, &tmp);
+	if (r != 0)
+		return -EINVAL;
+
+	hdmi_in_allm = tmp > 0 ? true : false;
+	pr_info("update hdmi_in_allm to %d\n", hdmi_in_allm);
+
+	return count;
+}
+
+static ssize_t	amdolby_vision_local_allm_show
+	(struct class *cla,
+	 struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "local_allm: %d\n", local_allm);
+}
+
+static ssize_t amdolby_vision_local_allm_store
+	(struct class *cla,
+	 struct class_attribute *attr,
+	 const char *buf, size_t count)
+{
+	size_t r;
+	int tmp;
+
+	if (!buf)
+		return count;
+
+	r = kstrtoint(buf, 0, &tmp);
+	if (r != 0)
+		return -EINVAL;
+
+	local_allm = tmp > 0 ? true : false;
+	pr_info("update local_allm to %d\n", local_allm);
+
+	return count;
+}
+
 static ssize_t	amdolby_vision_brightness_off_show
 	(struct class *cla,
 	struct class_attribute *attr, char *buf)
@@ -14152,6 +14235,12 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(force_pri_input, 0644,
 	       amdolby_vision_force_pri_input_show,
 	       amdolby_vision_force_pri_input_store),
+	__ATTR(hdmi_in_allm, 0644,
+	       amdolby_vision_hdmi_in_allm_show,
+	       amdolby_vision_hdmi_in_allm_store),
+	__ATTR(local_allm, 0644,
+	       amdolby_vision_local_allm_show,
+	       amdolby_vision_local_allm_store),
 	__ATTR_NULL
 };
 
