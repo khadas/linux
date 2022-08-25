@@ -14,7 +14,7 @@ struct data_vs_param_s {
 };
 
 int vpp_data_init(struct vpp_dev_s *pdev);
-int vpp_data_load_db(char *pbin_path);
+void vpp_data_updata_reg_lc(struct vpp_lc_param_s *pdata);
 void vpp_data_on_vs(struct data_vs_param_s *pvs_param);
 
 #endif

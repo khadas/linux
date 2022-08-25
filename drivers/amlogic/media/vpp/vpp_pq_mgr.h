@@ -16,6 +16,7 @@ struct vpp_pq_mgr_settings {
 	int contrast_post;   /*-1024~1023*/
 	int hue_post;        /*-25~25*/
 	int saturation_post; /*-128~127*/
+	int sharpness;       /*0~255*/
 	struct vpp_white_balance_s video_rgb_ogo;
 	struct vpp_pre_gamma_table_s cur_pre_gamma_tbl;
 	struct vpp_gamma_table_s cur_gamma_tbl;
@@ -46,7 +47,10 @@ int vpp_pq_mgr_set_pc_mode(int val);
 int vpp_pq_mgr_set_csc_type(int val);
 int vpp_pq_mgr_load_3dlut_data(struct vpp_lut3d_path_s *pdata);
 int vpp_pq_mgr_set_3dlut_data(struct vpp_lut3d_table_s *ptable);
-int vpp_pq_mgr_set_hdr_tmo_curve(struct vpp_hdr_tone_mapping_s *pdata);
+int vpp_pq_mgr_set_hdr_cgain_curve(struct vpp_hdr_lut_s *pdata);
+int vpp_pq_mgr_set_hdr_oetf_curve(struct vpp_hdr_lut_s *pdata);
+int vpp_pq_mgr_set_hdr_eotf_curve(struct vpp_hdr_lut_s *pdata);
+int vpp_pq_mgr_set_hdr_tmo_curve(struct vpp_hdr_lut_s *pdata);
 int vpp_pq_mgr_set_hdr_tmo_param(struct vpp_tmo_param_s *pdata);
 int vpp_pq_mgr_set_cabc_param(struct vpp_cabc_param_s *pdata);
 int vpp_pq_mgr_set_aad_param(struct vpp_aad_param_s *pdata);

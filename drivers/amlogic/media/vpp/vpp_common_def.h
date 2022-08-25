@@ -76,7 +76,7 @@ enum vpp_color_primary_e {
 };
 
 enum vpp_hdr_lut_type_e {
-	EN_HDR_LUT_TYPE_HLG = 1,
+	EN_HDR_LUT_TYPE_HLG = 0,
 	EN_HDR_LUT_TYPE_HDR,
 	EN_HDR_LUT_TYPE_MAX,
 };
@@ -448,9 +448,9 @@ struct vpp_hdr_metadata_s {
 	u32 luminance[2];    /*max/min luminance, normalized 10000*/
 };
 
-struct vpp_hdr_tone_mapping_s {
+struct vpp_hdr_lut_s {
 	enum vpp_hdr_lut_type_e lut_type;
-	unsigned int lutlength;
+	unsigned int lut_length;
 	union {
 		void *tm_lut;
 		long long tm_lut_len;
@@ -500,7 +500,6 @@ struct vpp_lc_curve_s {
 	unsigned int lc_ymaxval_lmt[16];
 	unsigned int lc_ypkbv_lmt[16];
 	unsigned int lc_ypkbv_ratio[4];
-	unsigned int param[100];
 };
 
 struct vpp_lc_param_s {
@@ -640,6 +639,11 @@ struct vpp_pq_tuning_table_s {
 #define VPP_IOC_SET_LC_PARAM        _IOW(_VPP_TYPE, 0x13, struct vpp_lc_param_s)
 #define VPP_IOC_SET_CSC_TYPE        _IOW(_VPP_TYPE, 0x14, enum vpp_csc_type_e)
 #define VPP_IOC_SET_3DLUT_DATA      _IOW(_VPP_TYPE, 0x15, struct vpp_lut3d_table_s)
+
+#define VPP_IOC_SET_HDR_TMO         _IOW(_VPP_TYPE, 0x16, struct vpp_hdr_lut_s)
+#define VPP_IOC_SET_HDR_OETF        _IOW(_VPP_TYPE, 0x17, struct vpp_hdr_lut_s)
+#define VPP_IOC_SET_HDR_EOTF        _IOW(_VPP_TYPE, 0x18, struct vpp_hdr_lut_s)
+#define VPP_IOC_SET_HDR_CGAIN       _IOW(_VPP_TYPE, 0x19, struct vpp_hdr_lut_s)
 
 #define VPP_IOC_GET_PC_MODE         _IOR(_VPP_TYPE, 0x80, enum vpp_pc_mode_e)
 #define VPP_IOC_GET_CSC_TYPE        _IOR(_VPP_TYPE, 0x81, enum vpp_csc_type_e)

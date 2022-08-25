@@ -284,6 +284,14 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_hue_post);
 
 int vpp_pq_mgr_set_sharpness(int val)
 {
+	pq_mgr_settings.sharpness = val;
+	val = vpp_check_range(val, 0, 255);
+
+	pr_vpp(PR_DEBUG, "[%s] sharpness = %d\n", __func__, val);
+
+	vpp_module_sr_set_osd_gain(EN_MODE_SR_0, val, val);
+	vpp_module_sr_set_osd_gain(EN_MODE_SR_1, val, val);
+
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_sharpness);
@@ -452,12 +460,30 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_dnlp_param);
 
 int vpp_pq_mgr_set_lc_curve(struct vpp_lc_curve_s *pdata)
 {
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	if (vpp_module_lc_get_support()) {
+		vpp_module_lc_write_lut(EN_LC_SAT, &pdata->lc_saturation[0]);
+		vpp_module_lc_write_lut(EN_LC_YMIN_LMT, &pdata->lc_yminval_lmt[0]);
+		vpp_module_lc_write_lut(EN_LC_YPKBV_YMAX_LMT, &pdata->lc_ypkbv_ymaxval_lmt[0]);
+		vpp_module_lc_write_lut(EN_LC_YMAX_LMT, &pdata->lc_ymaxval_lmt[0]);
+		vpp_module_lc_write_lut(EN_LC_YPKBV_LMT, &pdata->lc_ypkbv_lmt[0]);
+		vpp_module_lc_write_lut(EN_LC_YPKBV_RAT, &pdata->lc_ypkbv_ratio[0]);
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_lc_curve);
 
 int vpp_pq_mgr_set_lc_param(struct vpp_lc_param_s *pdata)
 {
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	if (vpp_module_lc_get_support())
+		vpp_data_updata_reg_lc(pdata);
+
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_lc_param);
@@ -492,6 +518,14 @@ int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 	case EN_MODULE_CCORING:
 		vpp_module_ve_ccoring_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.chroma_cor_en = enable;
+		break;
+	case EN_MODULE_LC:
+		vpp_module_lc_en(enable);
+		pq_mgr_settings.pq_status.pq_cfg.lc_en = enable;
+		break;
+	case EN_MODULE_LUT3D:
+		vpp_module_lut3d_en(enable);
+		pq_mgr_settings.pq_status.pq_cfg.lut3d_en = enable;
 		break;
 	default:
 		break;
@@ -575,7 +609,7 @@ EXPORT_SYMBOL(vpp_pq_mgr_load_3dlut_data);
 int vpp_pq_mgr_set_3dlut_data(struct vpp_lut3d_table_s *ptable)
 {
 	if (!ptable)
-		return 0;
+		return RET_POINT_FAIL;
 
 	switch (ptable->data_type) {
 	case EN_LUT3D_INPUT_PARAM:
@@ -593,8 +627,58 @@ int vpp_pq_mgr_set_3dlut_data(struct vpp_lut3d_table_s *ptable)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_3dlut_data);
 
-int vpp_pq_mgr_set_hdr_tmo_curve(struct vpp_hdr_tone_mapping_s *pdata)
+int vpp_pq_mgr_set_hdr_cgain_curve(struct vpp_hdr_lut_s *pdata)
 {
+	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
+	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_CGAIN;
+
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	vpp_module_hdr_set_lut(type, sub_module, (int *)pdata->tm_lut);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_hdr_cgain_curve);
+
+int vpp_pq_mgr_set_hdr_oetf_curve(struct vpp_hdr_lut_s *pdata)
+{
+	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
+	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_OETF;
+
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	vpp_module_hdr_set_lut(type, sub_module, (int *)pdata->tm_lut);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_hdr_oetf_curve);
+
+int vpp_pq_mgr_set_hdr_eotf_curve(struct vpp_hdr_lut_s *pdata)
+{
+	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
+	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_EOTF;
+
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	vpp_module_hdr_set_lut(type, sub_module, (int *)pdata->tm_lut);
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_hdr_eotf_curve);
+
+int vpp_pq_mgr_set_hdr_tmo_curve(struct vpp_hdr_lut_s *pdata)
+{
+	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
+	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_OGAIN;
+
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	vpp_module_hdr_set_lut(type, sub_module, (int *)pdata->tm_lut);
+
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_hdr_tmo_curve);
