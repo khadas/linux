@@ -340,6 +340,40 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 }
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
+struct early_suspend dwmac_early_suspend;
+int backup_adv;
+static void dwmac_early_suspend_func(struct early_suspend *h)
+{
+	struct platform_device *pdev = (struct platform_device *)h->param;
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct phy_device *phydev = ndev->phydev;
+
+	if (support_mac_wol) {
+		if (phydev->link && phydev->speed != SPEED_10) {
+			backup_adv = phy_read(phydev, MII_ADVERTISE);
+			phy_write(phydev, MII_ADVERTISE, 0x61);
+			genphy_restart_aneg(phydev);
+			msleep(3000);
+		} else {
+			backup_adv = 0;
+		}
+	}
+}
+
+static void dwmac_early_resume_func(struct early_suspend *h)
+{
+	struct platform_device *pdev = (struct platform_device *)h->param;
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct phy_device *phydev = ndev->phydev;
+
+	if (support_mac_wol) {
+		if (backup_adv) {
+			phy_write(phydev, MII_ADVERTISE, backup_adv);
+			genphy_restart_aneg(phydev);
+		}
+	}
+}
+
 void set_wol_notify_bl31(void)
 {
 	struct arm_smccc_res res;
@@ -611,6 +645,12 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		dwmac->input_dev = input_dev;
 
 	}
+
+	dwmac_early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
+	dwmac_early_suspend.suspend = dwmac_early_suspend_func;
+	dwmac_early_suspend.resume = dwmac_early_resume_func;
+	dwmac_early_suspend.param = pdev;
+	register_early_suspend(&dwmac_early_suspend);
 #endif
 	return 0;
 

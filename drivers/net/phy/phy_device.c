@@ -1829,6 +1829,13 @@ int genphy_read_lpa(struct phy_device *phydev)
 							lpagb);
 		}
 
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+		lpa = phy_read(phydev, MII_ADVERTISE);
+		if (lpa < 0)
+			return lpa;
+
+		mii_lpa_mod_linkmode_lpa_t(phydev->advertising, lpa);
+#endif
 		lpa = phy_read(phydev, MII_LPA);
 		if (lpa < 0)
 			return lpa;
