@@ -395,7 +395,8 @@ int osd_afbc_check_uhd_count(struct meson_vpu_osd_layer_info *plane_info,
 	int ret = 0;
 
 	if (plane_info->src_w >= MESON_OSD_INPUT_W_LIMIT &&
-		plane_info->src_h >= MESON_OSD_INPUT_H_LIMIT) {
+		plane_info->src_h >= MESON_OSD_INPUT_H_LIMIT &&
+		plane_info->afbc_en) {
 		plane_info->uhd_plane_index = 1;
 	} else {
 		plane_info->uhd_plane_index = 0;
