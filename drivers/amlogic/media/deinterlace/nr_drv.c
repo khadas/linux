@@ -493,6 +493,13 @@ static void nr2_config_op(unsigned short width, unsigned short height,
 
 static bool cue_en = true;
 module_param_named(cue_en, cue_en, bool, 0664);
+/********************************************
+ * debug cue_en
+ ********************************************/
+static bool cue_en_last;
+static bool cue_en_force_disable;
+module_param_named(cue_en_force_disable, cue_en_force_disable, bool, 0664);
+
 /*
  * workaround for nframe count
  * indicating error field type in cue
@@ -1273,8 +1280,17 @@ void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 		cue_en = false;
 		cue_glb_mot_check_en = false;
 	} else {
-		cue_en = true;
+		if (cue_en_force_disable)
+			cue_en = false;
+		else
+			cue_en = true;
 		cue_glb_mot_check_en = true;
+		if (cue_en_force_disable)
+			cue_en = false;
+	}
+	if (cue_en_last != cue_en) {
+		di_pr_info("cue:chg1:%d->%d\n", cue_en_last, cue_en);
+		cue_en_last = cue_en;
 	}
 	/*close cue when cue disable*/
 	if (!cue_en) {
@@ -1361,10 +1377,24 @@ void adaptive_cue_adjust_op(unsigned int frame_diff, unsigned int field_diff,
 		if (pcue_parm->frame_count >
 			(pcue_parm->glb_mot_fieldnum - 6) &&
 			pcue_parm->field_count1 >
-			(pcue_parm->glb_mot_fieldnum - 6))
+			(pcue_parm->glb_mot_fieldnum - 6) &&
+			!cue_en_force_disable)
 			cue_en = true;
 		else
 			cue_en = false;
+
+		if (cue_en != cue_en_last) {
+			di_pr_info("cue_en:chg2:%d->%d\n", cue_en_last, cue_en);
+			di_pr_info("\t%d,%d,%d\n",
+					pcue_parm->frame_count,
+					pcue_parm->field_count1,
+					pcue_parm->glb_mot_fieldnum);
+			cue_en_last = cue_en;
+		}
+		di_print("cue:%d,%d,%d\n",
+					pcue_parm->frame_count,
+					pcue_parm->field_count1,
+					pcue_parm->glb_mot_fieldnum);
 		/* for clockfuliness clip */
 		if (pcue_parm->field_count >
 				(pcue_parm->glb_mot_fieldnum - 6)) {
