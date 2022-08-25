@@ -31,6 +31,7 @@ void init_reg_map(u32 type);
 	((PADCTRL_REG_IDX << BASE_REG_OFFSET) + ((reg) << 2))
 
 //  PAD_CTRL
+#define PADCTRL_PIN_MUX_REG8          PADCTRL_REG_ADDR(0x0008)
 #define PADCTRL_PIN_MUX_REGN          PADCTRL_REG_ADDR(0x0017)
 #define PADCTRL_GPIOW_I               PADCTRL_REG_ADDR(0x0090)
 //  SYS_CTRL
