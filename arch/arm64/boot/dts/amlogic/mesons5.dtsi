@@ -2150,21 +2150,21 @@
 	jpegenc{
 		compatible = "amlogic, jpegenc";
 		dev_name = "jpegenc";
-		status = "disabled";
+		status = "okay";
 
-//		clocks = <&clkc CLKID_DOS
+		clocks = <&clkc CLKID_SYS_CLK_DOS
 //			&clkc CLKID_VAPB
-//			&clkc CLKID_HCODEC_MUX>;
+			&clkc CLKID_HCODEC>;
 
-//		clock-names =
-//			"clk_dos",
+		clock-names =
+			"clk_dos",
 //			"clk_apb_dos",
-//			"clk_jpeg_enc";
+			"clk_jpeg_enc";
 
 //		clocks = <&clkc CLKID_HCODEC_P0>;
 //		clock-names = "hcodec_p0";
 		//power-domains = <&pwrdm PDID_T7_DOS_HCODEC>;
-		interrupts = <0 91 1 0 92 1 0 93 1>;
+		interrupts = <0 16 1 0 17 1 0 18 1>;
 		interrupt-names = "dos_mbox_slow_irq0", "dos_mbox_slow_irq1", "dos_mbox_slow_irq2";
 		//reset-names = "jpegenc_rst";
 		//resets = <&reset RESET_BRG_HCODEC_PIPL0>;
