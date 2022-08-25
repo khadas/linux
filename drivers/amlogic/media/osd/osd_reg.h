@@ -305,8 +305,7 @@
 #define VPP_SC_MISC                       0x1d19
 #define VPP_PREBLEND_VD1_H_START_END      0x1d1a
 #define VPP_PREBLEND_VD1_V_START_END      0x1d1b
-#define VPP_POSTBLEND_VD1_H_START_END     0x1d1c
-#define VPP_POSTBLEND_VD1_V_START_END     0x1d1d
+
 #define VPP_BLEND_VD2_H_START_END         0x1d1e
 #define VPP_BLEND_VD2_V_START_END         0x1d1f
 #define VPP_PREBLEND_H_SIZE               0x1d20
@@ -580,7 +579,7 @@
 #define VIU2_OSD1_PROT_CTRL               0x1e4e
 #define VIU2_OSD1_MALI_UNPACK_CTRL        0x1e4f
 #define VIU2_OSD1_DIMM_CTRL               0x1e50
-#define VIU2_OSD1_UNSUPPORT               VIU_OSD2_TCOLOR_AG3
+
 /* viu2 rotate */
 #define VIU2_RMIF_CTRL1                   0x1e81
 #define VIU2_RMIF_SCOPE_X                 0x1e83
@@ -1673,7 +1672,6 @@
 #define VIU_OSD_BLEND_DUMMY_ALPHA           0x39ba
 #define VIU_OSD_BLEND_BLEND0_SIZE           0x39bb
 #define VIU_OSD_BLEND_BLEND1_SIZE           0x39bc
-#define VIU_OSD_BLEND_RO_CURRENT_XY         0x39bf
 
 #define VPP_OUT_H_V_SIZE                    0x1da5
 
@@ -1681,20 +1679,21 @@
 #define VPP_OSD1_IN_SIZE                    0x1df1
 #define VPP_GCLK_CTRL2                      0x1df2
 #define VD2_PPS_DUMMY_DATA                  0x1df4
+
 #define VPP_OSD1_BLD_H_SCOPE                0x1df5
 #define VPP_OSD1_BLD_V_SCOPE                0x1df6
 #define VPP_OSD2_BLD_H_SCOPE                0x1df7
 #define VPP_OSD2_BLD_V_SCOPE                0x1df8
+
 #define VPP_WRBAK_CTRL                      0x1df9
 #define VPP_SLEEP_CTRL                      0x1dfa
+
 #define VD1_BLEND_SRC_CTRL                  0x1dfb
 #define VD2_BLEND_SRC_CTRL                  0x1dfc
 #define VD3_BLEND_SRC_CTRL                  0x1def
 #define OSD1_BLEND_SRC_CTRL                 0x1dfd
 #define OSD2_BLEND_SRC_CTRL                 0x1dfe
 
-#define VPP_POST_BLEND_BLEND_DUMMY_DATA     0x3968
-#define VPP_POST_BLEND_DUMMY_ALPHA          0x3969
 #define VPP_RDARB_MODE                      0x3978
 #define VPP_RDARB_REQEN_SLV                 0x3979
 #define VPU_RDARB_MODE_L2C1                 0x279d
@@ -1813,5 +1812,340 @@
 #define VPP2_BLD_DIN2_VSCOPE                       0x59cc
 #define VPP2_BLEND_BLEND_DUMMY_DATA                0x59e9
 #define VPP2_BLEND_DUMMY_ALPHA                     0x59ea
+
+/* s5 mif regs */
+#define S5_VIU_OSD1_CTRL_STAT          0x4200
+#define S5_VIU_OSD1_CTRL_STAT2         0x4201
+#define S5_VIU_OSD1_COLOR_ADDR         0x4202
+#define S5_VIU_OSD1_COLOR              0x4203
+#define S5_VIU_OSD1_TCOLOR_AG0         0x4204
+#define S5_VIU_OSD1_TCOLOR_AG1         0x4205
+#define S5_VIU_OSD1_TCOLOR_AG2         0x4206
+#define S5_VIU_OSD1_TCOLOR_AG3         0x4207
+#define S5_VIU_OSD1_BLK0_CFG_W0        0x4208
+#define S5_VIU_OSD1_BLK1_CFG_W0        0x4209
+#define S5_VIU_OSD1_BLK2_CFG_W0        0x420a
+#define S5_VIU_OSD1_BLK3_CFG_W0        0x420b
+#define S5_VIU_OSD1_BLK0_CFG_W1        0x420c
+#define S5_VIU_OSD1_BLK1_CFG_W1        0x420d
+#define S5_VIU_OSD1_BLK2_CFG_W1        0x420e
+#define S5_VIU_OSD1_BLK3_CFG_W1        0x420f
+#define S5_VIU_OSD1_BLK0_CFG_W2        0x4210
+#define S5_VIU_OSD1_BLK1_CFG_W2        0x4211
+#define S5_VIU_OSD1_BLK2_CFG_W2        0x4212
+#define S5_VIU_OSD1_BLK3_CFG_W2        0x4213
+#define S5_VIU_OSD1_BLK0_CFG_W3        0x4214
+#define S5_VIU_OSD1_BLK1_CFG_W3        0x4215
+#define S5_VIU_OSD1_BLK2_CFG_W3        0x4216
+#define S5_VIU_OSD1_BLK3_CFG_W3        0x4217
+#define S5_VIU_OSD1_BLK0_CFG_W4        0x4218
+#define S5_VIU_OSD1_BLK1_CFG_W4        0x4219
+#define S5_VIU_OSD1_BLK2_CFG_W4        0x421a
+#define S5_VIU_OSD1_BLK3_CFG_W4        0x421b
+#define S5_VIU_OSD1_FIFO_CTRL_STAT     0x421c
+#define S5_VIU_OSD1_TEST_RDDATA        0x421d
+#define S5_VIU_OSD1_PROT_CTRL          0x421e
+#define S5_VIU_OSD1_MALI_UNPACK_CTRL   0x421f
+#define S5_VIU_OSD1_DIMM_CTRL          0x4220
+
+#define S5_VIU_OSD2_CTRL_STAT          0x4240
+#define S5_VIU_OSD2_CTRL_STAT2         0x4241
+#define S5_VIU_OSD2_COLOR_ADDR         0x4242
+#define S5_VIU_OSD2_COLOR              0x4243
+#define S5_VIU_OSD2_TCOLOR_AG0         0x4244
+#define S5_VIU_OSD2_TCOLOR_AG1         0x4245
+#define S5_VIU_OSD2_TCOLOR_AG2         0x4246
+#define S5_VIU_OSD2_TCOLOR_AG3         0x4247
+#define S5_VIU_OSD2_BLK0_CFG_W0        0x4248
+#define S5_VIU_OSD2_BLK1_CFG_W0        0x4249
+#define S5_VIU_OSD2_BLK2_CFG_W0        0x424a
+#define S5_VIU_OSD2_BLK3_CFG_W0        0x424b
+#define S5_VIU_OSD2_BLK0_CFG_W1        0x424c
+#define S5_VIU_OSD2_BLK1_CFG_W1        0x424d
+#define S5_VIU_OSD2_BLK2_CFG_W1        0x424e
+#define S5_VIU_OSD2_BLK3_CFG_W1        0x424f
+#define S5_VIU_OSD2_BLK0_CFG_W2        0x4250
+#define S5_VIU_OSD2_BLK1_CFG_W2        0x4251
+#define S5_VIU_OSD2_BLK2_CFG_W2        0x4252
+#define S5_VIU_OSD2_BLK3_CFG_W2        0x4253
+#define S5_VIU_OSD2_BLK0_CFG_W3        0x4254
+#define S5_VIU_OSD2_BLK1_CFG_W3        0x4255
+#define S5_VIU_OSD2_BLK2_CFG_W3        0x4256
+#define S5_VIU_OSD2_BLK3_CFG_W3        0x4257
+#define S5_VIU_OSD2_BLK0_CFG_W4        0x4258
+#define S5_VIU_OSD2_BLK1_CFG_W4        0x4259
+#define S5_VIU_OSD2_BLK2_CFG_W4        0x425a
+#define S5_VIU_OSD2_BLK3_CFG_W4        0x425b
+#define S5_VIU_OSD2_FIFO_CTRL_STAT     0x425c
+#define S5_VIU_OSD2_TEST_RDDATA        0x425d
+#define S5_VIU_OSD2_PROT_CTRL          0x425e
+#define S5_VIU_OSD2_MALI_UNPACK_CTRL   0x425f
+#define S5_VIU_OSD2_DIMM_CTRL          0x4260
+#define S5_VIU_OSD2_HL1_H_START_END    0x4263
+#define S5_VIU_OSD2_HL1_V_START_END    0x4264
+#define S5_VIU_OSD2_HL2_H_START_END    0x4265
+#define S5_VIU_OSD2_HL2_V_START_END    0x4266
+
+#define S5_VIU_OSD3_CTRL_STAT          0x4280
+#define S5_VIU_OSD3_CTRL_STAT2         0x4281
+#define S5_VIU_OSD3_COLOR_ADDR         0x4282
+#define S5_VIU_OSD3_COLOR              0x4283
+#define S5_VIU_OSD3_TCOLOR_AG0         0x4284
+#define S5_VIU_OSD3_TCOLOR_AG1         0x4285
+#define S5_VIU_OSD3_TCOLOR_AG2         0x4286
+#define S5_VIU_OSD3_TCOLOR_AG3         0x4287
+#define S5_VIU_OSD3_BLK0_CFG_W0        0x4288
+#define S5_VIU_OSD3_BLK1_CFG_W0        0x4289
+#define S5_VIU_OSD3_BLK2_CFG_W0        0x428a
+#define S5_VIU_OSD3_BLK3_CFG_W0        0x428b
+#define S5_VIU_OSD3_BLK0_CFG_W1        0x428c
+#define S5_VIU_OSD3_BLK1_CFG_W1        0x428d
+#define S5_VIU_OSD3_BLK2_CFG_W1        0x428e
+#define S5_VIU_OSD3_BLK3_CFG_W1        0x428f
+#define S5_VIU_OSD3_BLK0_CFG_W2        0x4290
+#define S5_VIU_OSD3_BLK1_CFG_W2        0x4291
+#define S5_VIU_OSD3_BLK2_CFG_W2        0x4292
+#define S5_VIU_OSD3_BLK3_CFG_W2        0x4293
+#define S5_VIU_OSD3_BLK0_CFG_W3        0x4294
+#define S5_VIU_OSD3_BLK1_CFG_W3        0x4295
+#define S5_VIU_OSD3_BLK2_CFG_W3        0x4296
+#define S5_VIU_OSD3_BLK3_CFG_W3        0x4297
+#define S5_VIU_OSD3_BLK0_CFG_W4        0x4298
+#define S5_VIU_OSD3_BLK1_CFG_W4        0x4299
+#define S5_VIU_OSD3_BLK2_CFG_W4        0x429a
+#define S5_VIU_OSD3_BLK3_CFG_W4        0x429b
+#define S5_VIU_OSD3_FIFO_CTRL_STAT     0x429c
+#define S5_VIU_OSD3_TEST_RDDATA        0x429d
+#define S5_VIU_OSD3_PROT_CTRL          0x429e
+#define S5_VIU_OSD3_MALI_UNPACK_CTRL   0x429f
+#define S5_VIU_OSD3_DIMM_CTRL          0x42a0
+
+#define S5_VIU_OSD4_CTRL_STAT          0x42c0
+#define S5_VIU_OSD4_CTRL_STAT2         0x42c1
+#define S5_VIU_OSD4_COLOR_ADDR         0x42c2
+#define S5_VIU_OSD4_COLOR              0x42c3
+#define S5_VIU_OSD4_TCOLOR_AG0         0x42c4
+#define S5_VIU_OSD4_TCOLOR_AG1         0x42c5
+#define S5_VIU_OSD4_TCOLOR_AG2         0x42c6
+#define S5_VIU_OSD4_TCOLOR_AG3         0x42c7
+#define S5_VIU_OSD4_BLK0_CFG_W0        0x42c8
+#define S5_VIU_OSD4_BLK1_CFG_W0        0x42c9
+#define S5_VIU_OSD4_BLK2_CFG_W0        0x42ca
+#define S5_VIU_OSD4_BLK3_CFG_W0        0x42cb
+#define S5_VIU_OSD4_BLK0_CFG_W1        0x42cc
+#define S5_VIU_OSD4_BLK1_CFG_W1        0x42cd
+#define S5_VIU_OSD4_BLK2_CFG_W1        0x42ce
+#define S5_VIU_OSD4_BLK3_CFG_W1        0x42cf
+#define S5_VIU_OSD4_BLK0_CFG_W2        0x42d0
+#define S5_VIU_OSD4_BLK1_CFG_W2        0x42d1
+#define S5_VIU_OSD4_BLK2_CFG_W2        0x42d2
+#define S5_VIU_OSD4_BLK3_CFG_W2        0x42d3
+#define S5_VIU_OSD4_BLK0_CFG_W3        0x42d4
+#define S5_VIU_OSD4_BLK1_CFG_W3        0x42d5
+#define S5_VIU_OSD4_BLK2_CFG_W3        0x42d6
+#define S5_VIU_OSD4_BLK3_CFG_W3        0x42d7
+#define S5_VIU_OSD4_BLK0_CFG_W4        0x42d8
+#define S5_VIU_OSD4_BLK1_CFG_W4        0x42d9
+#define S5_VIU_OSD4_BLK2_CFG_W4        0x42da
+#define S5_VIU_OSD4_BLK3_CFG_W4        0x42db
+#define S5_VIU_OSD4_FIFO_CTRL_STAT     0x42dc
+#define S5_VIU_OSD4_TEST_RDDATA        0x42dd
+#define S5_VIU_OSD4_PROT_CTRL          0x42de
+#define S5_VIU_OSD4_MALI_UNPACK_CTRL   0x42df
+#define S5_VIU_OSD4_DIMM_CTRL          0x42e0
+
+/* s5 scaler regs */
+#define OSD1_PROC_VSC_PHASE_STEP      0x6410
+#define OSD1_PROC_VSC_INI_PHASE       0x6411
+#define OSD1_PROC_VSC_CTRL0           0x6412
+#define OSD1_PROC_HSC_PHASE_STEP      0x6413
+#define OSD1_PROC_HSC_INI_PHASE       0x6414
+#define OSD1_PROC_HSC_CTRL0           0x6415
+#define OSD1_PROC_HSC_INI_PAT_CTRL    0x6416
+#define OSD1_PROC_SC_DUMMY_DATA       0x6417
+#define OSD1_PROC_SC_CTRL0            0x6418
+#define OSD1_PROC_SCI_WH_M1           0x6419
+#define OSD1_PROC_SCO_H_START_END     0x641a
+#define OSD1_PROC_SCO_V_START_END     0x641b
+#define OSD1_PROC_SCALE_COEF_IDX      0x641c
+#define OSD1_PROC_SCALE_COEF          0x641d
+#define OSD1_PROC_DB_FLT_CTRL         0x6420
+#define OSD1_PROC_DB_FLT_CTRL1        0x6421
+#define OSD1_PROC_DB_FLT_LUMA_THRD    0x6422
+#define OSD1_PROC_DB_FLT_CHRM_THRD    0x6423
+#define OSD1_PROC_DB_FLT_RANDLUT      0x6424
+#define OSD1_PROC_DB_FLT_PXI_THRD     0x6425
+#define OSD1_PROC_DB_FLT_SEED_Y       0x6426
+#define OSD1_PROC_DB_FLT_SEED_U       0x6427
+#define OSD1_PROC_DB_FLT_SEED_V       0x6428
+#define OSD1_PROC_DB_FLT_SEED3        0x6429
+#define OSD1_PROC_DB_FLT_SEED4        0x642a
+#define OSD1_PROC_DB_FLT_SEED5        0x642b
+
+#define OSD2_PROC_VSC_PHASE_STEP      0x6810
+#define OSD2_PROC_VSC_INI_PHASE       0x6811
+#define OSD2_PROC_VSC_CTRL0           0x6812
+#define OSD2_PROC_HSC_PHASE_STEP      0x6813
+#define OSD2_PROC_HSC_INI_PHASE       0x6814
+#define OSD2_PROC_HSC_CTRL0           0x6815
+#define OSD2_PROC_HSC_INI_PAT_CTRL    0x6816
+#define OSD2_PROC_SC_DUMMY_DATA       0x6817
+#define OSD2_PROC_SC_CTRL0            0x6818
+#define OSD2_PROC_SCI_WH_M1           0x6819
+#define OSD2_PROC_SCO_H_START_END     0x681a
+#define OSD2_PROC_SCO_V_START_END     0x681b
+#define OSD2_PROC_SCALE_COEF_IDX      0x681c
+#define OSD2_PROC_SCALE_COEF          0x681d
+#define OSD2_PROC_DB_FLT_CTRL         0x6820
+#define OSD2_PROC_DB_FLT_CTRL1        0x6821
+#define OSD2_PROC_DB_FLT_LUMA_THRD    0x6822
+#define OSD2_PROC_DB_FLT_CHRM_THRD    0x6823
+#define OSD2_PROC_DB_FLT_RANDLUT      0x6824
+#define OSD2_PROC_DB_FLT_PXI_THRD     0x6825
+#define OSD2_PROC_DB_FLT_SEED_Y       0x6826
+#define OSD2_PROC_DB_FLT_SEED_U       0x6827
+#define OSD2_PROC_DB_FLT_SEED_V       0x6828
+#define OSD2_PROC_DB_FLT_SEED3        0x6829
+#define OSD2_PROC_DB_FLT_SEED4        0x682a
+#define OSD2_PROC_DB_FLT_SEED5        0x682b
+
+#define OSD3_PROC_VSC_PHASE_STEP      0x6c10
+#define OSD3_PROC_VSC_INI_PHASE       0x6c11
+#define OSD3_PROC_VSC_CTRL0           0x6c12
+#define OSD3_PROC_HSC_PHASE_STEP      0x6c13
+#define OSD3_PROC_HSC_INI_PHASE       0x6c14
+#define OSD3_PROC_HSC_CTRL0           0x6c15
+#define OSD3_PROC_HSC_INI_PAT_CTRL    0x6c16
+#define OSD3_PROC_SC_DUMMY_DATA       0x6c17
+#define OSD3_PROC_SC_CTRL0            0x6c18
+#define OSD3_PROC_SCI_WH_M1           0x6c19
+#define OSD3_PROC_SCO_H_START_END     0x6c1a
+#define OSD3_PROC_SCO_V_START_END     0x6c1b
+#define OSD3_PROC_SCALE_COEF_IDX      0x6c1c
+#define OSD3_PROC_SCALE_COEF          0x6c1d
+#define OSD3_PROC_DB_FLT_CTRL         0x6c20
+#define OSD3_PROC_DB_FLT_CTRL1        0x6c21
+#define OSD3_PROC_DB_FLT_LUMA_THRD    0x6c22
+#define OSD3_PROC_DB_FLT_CHRM_THRD    0x6c23
+#define OSD3_PROC_DB_FLT_RANDLUT      0x6c24
+#define OSD3_PROC_DB_FLT_PXI_THRD     0x6c25
+#define OSD3_PROC_DB_FLT_SEED_Y       0x6c26
+#define OSD3_PROC_DB_FLT_SEED_U       0x6c27
+#define OSD3_PROC_DB_FLT_SEED_V       0x6c28
+#define OSD3_PROC_DB_FLT_SEED3        0x6c29
+#define OSD3_PROC_DB_FLT_SEED4        0x6c2a
+#define OSD3_PROC_DB_FLT_SEED5        0x6c2b
+
+#define OSD4_PROC_VSC_PHASE_STEP      0x7010
+#define OSD4_PROC_VSC_INI_PHASE       0x7011
+#define OSD4_PROC_VSC_CTRL0           0x7012
+#define OSD4_PROC_HSC_PHASE_STEP      0x7013
+#define OSD4_PROC_HSC_INI_PHASE       0x7014
+#define OSD4_PROC_HSC_CTRL0           0x7015
+#define OSD4_PROC_HSC_INI_PAT_CTRL    0x7016
+#define OSD4_PROC_SC_DUMMY_DATA       0x7017
+#define OSD4_PROC_SC_CTRL0            0x7018
+#define OSD4_PROC_SCI_WH_M1           0x7019
+#define OSD4_PROC_SCO_H_START_END     0x701a
+#define OSD4_PROC_SCO_V_START_END     0x701b
+#define OSD4_PROC_SCALE_COEF_IDX      0x701c
+#define OSD4_PROC_SCALE_COEF          0x701d
+#define OSD4_PROC_DB_FLT_CTRL         0x7020
+#define OSD4_PROC_DB_FLT_CTRL1        0x7021
+#define OSD4_PROC_DB_FLT_LUMA_THRD    0x7022
+#define OSD4_PROC_DB_FLT_CHRM_THRD    0x7023
+#define OSD4_PROC_DB_FLT_RANDLUT      0x7024
+#define OSD4_PROC_DB_FLT_PXI_THRD     0x7025
+#define OSD4_PROC_DB_FLT_SEED_Y       0x7026
+#define OSD4_PROC_DB_FLT_SEED_U       0x7027
+#define OSD4_PROC_DB_FLT_SEED_V       0x7028
+#define OSD4_PROC_DB_FLT_SEED3        0x7029
+#define OSD4_PROC_DB_FLT_SEED4        0x702a
+#define OSD4_PROC_DB_FLT_SEED5        0x702b
+
+/* osd sys regs */
+#define OSD1_PROC_IN_SIZE                0x6061
+#define OSD2_PROC_IN_SIZE                0x6062
+#define OSD3_PROC_IN_SIZE                0x6063
+#define OSD4_PROC_IN_SIZE                0x6064
+#define OSD1_PROC_OUT_SIZE               0x6065
+#define OSD2_PROC_OUT_SIZE               0x6066
+#define OSD3_PROC_OUT_SIZE               0x6067
+#define OSD4_PROC_OUT_SIZE               0x6068
+#define OSD_BLEND_DOUT0_SIZE             0x6069
+#define OSD_BLEND_DOUT1_SIZE             0x606a
+
+#define VPP_HL_COLOR                     0x606d
+#define VPP_RO_PROBE_COLOR               0x6070
+#define VPP_RO_PROBE_COLOR1              0x6071
+#define OSD_PROC_1MUX3_SEL               0x6072
+#define OSD_2SLICE2PPC_IN_SIZE           0x6073
+#define OSD_2SLICE2PPC_MODE              0x6074
+#define OSD_2SLICE2PPC_GC_CTRL           0x6075
+#define OSD_PI_BYPASS_EN                 0x6076
+#define OSD_DOLBY_BYPASS_EN              0x6077
+#define OSD_SYS_5MUX4_SEL                0x6078
+#define OSD_SYS_HWIN0_CUT                0x6079
+#define OSD_SYS_HWIN1_CUT                0x607a
+#define OSD_SYS_PAD_CTRL                 0x607b
+#define OSD_SYS_PAD_DUMMY_DATA0          0x607c
+#define OSD_SYS_PAD_DUMMY_DATA1          0x607d
+#define OSD_SYS_PAD_H_SIZE               0x607e
+#define OSD_SYS_PAD_V_SIZE               0x607f
+#define OSD_SYS_2SLICE_HWIN_CUT          0x6080
+
+/* vpp_intf_top */
+#define VPP_INTF_OSD1_CTRL               0x4105
+#define VPP_INTF_OSD2_CTRL               0x4106
+#define VPP_INTF_OSD3_CTRL               0x4107
+#define VPP_INTF_OSD4_CTRL               0x4108
+
+/* s5 osd blend */
+#define S5_VIU_OSD_BLEND_CTRL               0x60b0
+#define S5_VIU_OSD_BLEND_CTRL1              0x60c0
+#define S5_VIU_OSD_BLEND_DIN0_SCOPE_H       0x60b1
+#define S5_VIU_OSD_BLEND_DIN0_SCOPE_V       0x60b2
+#define S5_VIU_OSD_BLEND_DIN1_SCOPE_H       0x60b3
+#define S5_VIU_OSD_BLEND_DIN1_SCOPE_V       0x60b4
+#define S5_VIU_OSD_BLEND_DIN2_SCOPE_H       0x60b5
+#define S5_VIU_OSD_BLEND_DIN2_SCOPE_V       0x60b6
+#define S5_VIU_OSD_BLEND_DIN3_SCOPE_H       0x60b7
+#define S5_VIU_OSD_BLEND_DIN3_SCOPE_V       0x60b8
+#define S5_VIU_OSD_BLEND_DUMMY_DATA0        0x60b9
+#define S5_VIU_OSD_BLEND_DUMMY_ALPHA        0x60ba
+#define S5_VIU_OSD_BLEND_BLEND0_SIZE        0x60bb
+#define S5_VIU_OSD_BLEND_BLEND1_SIZE        0x60bc
+
+/* vpp post regs */
+#define VPP_POST_GCLK_CTRL                  0x1d00
+#define VPP_POSTBLND_H_V_SIZE               0x1d01
+#define VPP_POSTBLND_CTRL                   0x1d02
+
+#define S5_VPP_OSD1_BLD_H_SCOPE             0x1d09
+#define S5_VPP_OSD1_BLD_V_SCOPE             0x1d0a
+#define S5_VPP_OSD2_BLD_H_SCOPE             0x1d0b
+#define S5_VPP_OSD2_BLD_V_SCOPE             0x1d0c
+
+#define S5_VD1_BLEND_SRC_CTRL               0x1d0d
+#define S5_VD2_BLEND_SRC_CTRL               0x1d0e
+#define S5_VD3_BLEND_SRC_CTRL               0x1d0f
+#define S5_OSD1_BLEND_SRC_CTRL              0x1d10
+#define S5_OSD2_BLEND_SRC_CTRL              0x1d11
+
+#define VIU_OSD1_MISC                       0x1a15
+#define VIU_OSD2_MISC                       0x1a16
+#define VIU_OSD3_MISC                       0x1a17
+#define VIU_OSD4_MISC                       0x1a18
+
+#define S5_VPP_RDARB_MODE                   0x4120
+
+#define VPP_RDARB_REQEN_SLV0                0x4121
+#define VPP_RDARB_REQEN_SLV1                0x4122
+
+#define S5_VPP_MISC                         0x2509
+#define S5_VPP_OFIFO_SIZE                   0x2504
+#define S5_VPP_OUT_H_V_SIZE                 0x2503
+
+#define OSD_REG_UNSUPPORT                   0xffff
 
 #endif

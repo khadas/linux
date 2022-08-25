@@ -137,15 +137,34 @@ static void osd_debug_dump_register_all(void)
 	u32 index = 0;
 	u32 count = osd_hw.osd_meson_dev.osd_count;
 	struct hw_osd_reg_s *osd_reg = NULL;
+	struct hw_osd_blend_reg_s *blend_reg = &hw_osd_reg_blend;
 
 	reg = VPU_VIU_VENC_MUX_CTRL;
 	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-	reg = VPP_MISC;
-	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-	reg = VPP_OFIFO_SIZE;
-	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-	reg = VPP_HOLD_LINES;
-	osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+
+	if (osd_dev_hw.s5_display) {
+		reg = S5_VPP_MISC;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = S5_VPP_OFIFO_SIZE;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+
+		reg = VPP_INTF_OSD3_CTRL;
+		osd_log_info("reg[0x%x]: 0x%08x(2mux1)\n", reg, osd_reg_read(reg));
+		reg = OSD_PROC_1MUX3_SEL;
+		osd_log_info("reg[0x%x]: 0x%08x(1mux3)\n", reg, osd_reg_read(reg));
+		reg = OSD_PI_BYPASS_EN;
+		osd_log_info("reg[0x%x]: 0x%08x(PI)\n", reg, osd_reg_read(reg));
+		reg = OSD_SYS_5MUX4_SEL;
+		osd_log_info("reg[0x%x]: 0x%08x(5mux4)\n", reg, osd_reg_read(reg));
+	} else {
+		reg = VPP_MISC;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VPP_OFIFO_SIZE;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = VPP_HOLD_LINES;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+	}
+
 	if (osd_dev_hw.t7_display) {
 		reg = PATH_START_SEL;
 		osd_log_info("reg[0x%x]: 0x%08x(osd vsync sel)\n", reg, osd_reg_read(reg));
@@ -211,70 +230,84 @@ static void osd_debug_dump_register_all(void)
 		}
 	}
 	if (osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
-		reg = OSD_PATH_MISC_CTRL;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_CTRL;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DIN0_SCOPE_H;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DIN0_SCOPE_V;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DIN1_SCOPE_H;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DIN1_SCOPE_V;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DIN2_SCOPE_H;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DIN2_SCOPE_V;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DIN3_SCOPE_H;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DIN3_SCOPE_V;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DUMMY_DATA0;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_DUMMY_ALPHA;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_BLEND0_SIZE;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_BLEND1_SIZE;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-
-		reg = VPP_OSD1_IN_SIZE;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VPP_OSD1_BLD_H_SCOPE;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VPP_OSD1_BLD_V_SCOPE;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VPP_OSD2_BLD_H_SCOPE;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VPP_OSD2_BLD_V_SCOPE;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VD1_BLEND_SRC_CTRL;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VD2_BLEND_SRC_CTRL;
-		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		if (osd_dev_hw.t7_display) {
-			reg = VD3_BLEND_SRC_CTRL;
+		if (!osd_dev_hw.s5_display) {
+			reg = OSD_PATH_MISC_CTRL;
 			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 		}
-		reg = OSD1_BLEND_SRC_CTRL;
+		reg = blend_reg->osd_blend_ctrl;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = OSD2_BLEND_SRC_CTRL;
+		reg = blend_reg->osd_blend_din0_scope_h;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VIU_OSD_BLEND_CTRL1;
+		reg = blend_reg->osd_blend_din0_scope_v;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VPP_POSTBLEND_H_SIZE;
+		reg = blend_reg->osd_blend_din1_scope_h;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VPP_OUT_H_V_SIZE;
+		reg = blend_reg->osd_blend_din1_scope_v;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_din2_scope_h;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_din2_scope_v;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_din3_scope_h;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_din3_scope_v;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_dummy_data0;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_dummy_alpha;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_blend0_size;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_blend1_size;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 
-		reg = OSD1_HDR2_MATRIXI_EN_CTRL;
+		if (!osd_dev_hw.s5_display) {
+			reg = VPP_OSD1_IN_SIZE;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		} else {
+			reg = blend_reg->osd_blend_dout0_size;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+			reg = blend_reg->osd_blend_dout1_size;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		}
+		reg = blend_reg->vpp_osd1_bld_h_scope;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = OSD1_HDR2_MATRIXO_EN_CTRL;
+		reg = blend_reg->vpp_osd1_bld_v_scope;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
-		reg = VPP_OSD2_MATRIX_EN_CTRL;
+		reg = blend_reg->vpp_osd2_bld_h_scope;
 		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->vpp_osd2_bld_v_scope;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->vd1_blend_src_ctrl;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->vd2_blend_src_ctrl;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		if (osd_dev_hw.t7_display || osd_dev_hw.s5_display) {
+			reg = blend_reg->vd3_blend_src_ctrl;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		}
+		reg = blend_reg->osd1_blend_src_ctrl;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd2_blend_src_ctrl;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = blend_reg->osd_blend_ctrl1;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+
+		if (!osd_dev_hw.s5_display) {
+			reg = VPP_POSTBLEND_H_SIZE;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+			reg = VPP_OUT_H_V_SIZE;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+			reg = OSD1_HDR2_MATRIXI_EN_CTRL;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+			reg = OSD1_HDR2_MATRIXO_EN_CTRL;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+			reg = VPP_OSD2_MATRIX_EN_CTRL;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		} else {
+			reg = S5_VPP_OUT_H_V_SIZE;
+			osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		}
 		/* avoid crash for reading viu2 osd regs */
 		if (!osd_hw.powered[count - 1] && osd_hw.osd_meson_dev.has_viu2)
 			count--;
@@ -448,7 +481,8 @@ static void osd_debug_dump_register_all(void)
 			reg <= OSD1_AFBCD_PIXEL_VSCOPE; reg++)
 			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
-	} else if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC) {
+	} else if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
+		   !osd_dev_hw.s5_display) {
 		reg = OSD_PATH_MISC_CTRL;
 		osd_log_info("reg[0x%x]: 0x%08x\n\n",
 			     reg, osd_reg_read(reg));

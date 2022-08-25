@@ -292,6 +292,7 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_T7,
 	__MESON_CPU_MAJOR_ID_T3,
 	__MESON_CPU_MAJOR_ID_T5W,
+	__MESON_CPU_MAJOR_ID_S5,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -573,6 +574,7 @@ struct osd_device_hw_s {
 	u32 remove_afbc;
 	u32 remove_pps;
 	u32 prevsync_support;
+	u32 s5_display;
 };
 
 struct hw_osd_reg_s {
@@ -636,6 +638,39 @@ struct hw_osd_reg_s {
 	u32 vpu_mafbc_irq_clear; /* VPU_MAFBC_IRQ_CLEAR */
 
 	u32 vpp_osd1_scale_ctrl; /* VPP_OSD1_SCALE_CTRL */
+	u32 osd_proc_in_size;    /* OSD1_PROC_IN_SIZE */
+	u32 osd_proc_out_size;   /* OSD1_PROC_OUT_SIZE */
+};
+
+struct hw_osd_blend_reg_s {
+	/* osd_blend */
+	u32 osd_blend_ctrl;         /* VIU_OSD_BLEND_CTRL */
+	u32 osd_blend_ctrl1;        /* VIU_OSD_BLEND_CTRL1 */
+	u32 osd_blend_din0_scope_h; /* VIU_OSD_BLEND_DIN0_SCOPE_H */
+	u32 osd_blend_din0_scope_v; /* VIU_OSD_BLEND_DIN0_SCOPE_V */
+	u32 osd_blend_din1_scope_h; /* VIU_OSD_BLEND_DIN1_SCOPE_H */
+	u32 osd_blend_din1_scope_v; /* VIU_OSD_BLEND_DIN1_SCOPE_V */
+	u32 osd_blend_din2_scope_h; /* VIU_OSD_BLEND_DIN2_SCOPE_H */
+	u32 osd_blend_din2_scope_v; /* VIU_OSD_BLEND_DIN2_SCOPE_V */
+	u32 osd_blend_din3_scope_h; /* VIU_OSD_BLEND_DIN3_SCOPE_H */
+	u32 osd_blend_din3_scope_v; /* VIU_OSD_BLEND_DIN3_SCOPE_V */
+	u32 osd_blend_dummy_data0;  /* VIU_OSD_BLEND_DUMMY_DATA0 */
+	u32 osd_blend_dummy_alpha;  /* VIU_OSD_BLEND_DUMMY_ALPHA */
+	u32 osd_blend_blend0_size;  /* VIU_OSD_BLEND_BLEND0_SIZE */
+	u32 osd_blend_blend1_size;  /* VIU_OSD_BLEND_BLEND1_SIZE */
+	u32 osd_blend_dout0_size;   /* OSD_BLEND_DOUT0_SIZE */
+	u32 osd_blend_dout1_size;   /* OSD_BLEND_DOUT1_SIZE */
+
+	/* vpp_post_blend related */
+	u32 vpp_osd1_bld_h_scope; /* VPP_OSD1_BLD_H_SCOPE */
+	u32 vpp_osd1_bld_v_scope; /* VPP_OSD1_BLD_V_SCOPE */
+	u32 vpp_osd2_bld_h_scope; /* VPP_OSD2_BLD_H_SCOPE */
+	u32 vpp_osd2_bld_v_scope; /* VPP_OSD2_BLD_V_SCOPE */
+	u32 vd1_blend_src_ctrl;   /* VD1_BLEND_SRC_CTRL */
+	u32 vd2_blend_src_ctrl;   /* VD2_BLEND_SRC_CTRL */
+	u32 vd3_blend_src_ctrl;   /* VD3_BLEND_SRC_CTRL */
+	u32 osd1_blend_src_ctrl;  /* OSD1_BLEND_SRC_CTRL */
+	u32 osd2_blend_src_ctrl;  /* OSD2_BLEND_SRC_CTRL */
 };
 
 struct osd_blend_reg_s {
@@ -743,6 +778,7 @@ struct hw_osd_blending_s {
 };
 
 extern struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
+extern struct hw_osd_blend_reg_s hw_osd_reg_blend;
 typedef void (*update_func_t)(u32);
 struct hw_list_s {
 	struct list_head list;

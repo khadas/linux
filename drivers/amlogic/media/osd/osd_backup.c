@@ -536,6 +536,117 @@ static struct reg_item osd4_recovery_table_t7[] = {
 	{VIU_OSD4_DIMM_CTRL, 0x0, 0x7fffffff, 1},
 };
 
+/* After S5 Chip */
+static struct reg_item osd1_recovery_table_s5[] = {
+	/* osd1 */
+	{S5_VIU_OSD1_CTRL_STAT, 0x0, 0xc01ff9f7, 1},
+	{S5_VIU_OSD1_CTRL_STAT2, 0x0, 0x0000ffff, 1},
+	INVALID_REG_ITEM, /* VIU_OSD1_COLOR_ADDR 0x4242 */
+	INVALID_REG_ITEM, /* VIU_OSD1_COLOR 0x4243 */
+	{S5_VIU_OSD1_TCOLOR_AG0, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD1_TCOLOR_AG1, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD1_TCOLOR_AG2, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD1_TCOLOR_AG3, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD1_BLK0_CFG_W0, 0x0, 0x70ffff7f, 1},
+	INVALID_REG_ITEM, /* 0x4249 */
+	INVALID_REG_ITEM, /* 0x424a */
+	INVALID_REG_ITEM, /* 0x424b */
+	{S5_VIU_OSD1_BLK0_CFG_W1, 0x0, 0x1fff1fff, 1},
+	INVALID_REG_ITEM, /* 0x424d */
+	INVALID_REG_ITEM, /* 0x424e */
+	INVALID_REG_ITEM, /* 0x424f */
+	{S5_VIU_OSD1_BLK0_CFG_W2, 0x0, 0x1fff1fff, 1},
+	INVALID_REG_ITEM, /* 0x4251 */
+	INVALID_REG_ITEM, /* 0x4252 */
+	INVALID_REG_ITEM, /* 0x4253 */
+	{S5_VIU_OSD1_BLK0_CFG_W3, 0x0, 0x0fff0fff, 1},
+	INVALID_REG_ITEM, /* 0x4255 */
+	INVALID_REG_ITEM, /* 0x4256 */
+	INVALID_REG_ITEM, /* 0x4257 */
+	{S5_VIU_OSD1_BLK0_CFG_W4, 0x0, 0x0fff0fff, 1},
+	{S5_VIU_OSD1_BLK1_CFG_W4, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD1_BLK2_CFG_W4, 0x0, 0xffffffff, 1},
+	INVALID_REG_ITEM, /* 0x425b */
+	{S5_VIU_OSD1_FIFO_CTRL_STAT, 0x0, 0xffc7ffff, 1},
+	INVALID_REG_ITEM, /* S5_VIU_OSD1_TEST_RDDATA 0x425d*/
+	{S5_VIU_OSD1_PROT_CTRL, 0x0, 0xffff0000, 1},
+	{S5_VIU_OSD1_MALI_UNPACK_CTRL, 0x0, 0x9f01ffff, 1},
+	{S5_VIU_OSD1_DIMM_CTRL, 0x0, 0x7fffffff, 1},
+};
+
+static struct reg_item osd2_recovery_table_s5[] = {
+	/* osd2 */
+	{S5_VIU_OSD2_CTRL_STAT, 0x0, 0xc01ff9f7, 1},
+	{S5_VIU_OSD2_CTRL_STAT2, 0x0, 0x0000ffff, 1},
+	INVALID_REG_ITEM, /* VIU_OSD2_COLOR_ADDR 0x4202 */
+	INVALID_REG_ITEM, /* VIU_OSD2_COLOR 0x4203 */
+	{S5_VIU_OSD2_TCOLOR_AG0, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD2_TCOLOR_AG1, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD2_TCOLOR_AG2, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD2_TCOLOR_AG3, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD2_BLK0_CFG_W0, 0x0, 0x70ffff7f, 1},
+	INVALID_REG_ITEM, /* 0x4209 */
+	INVALID_REG_ITEM, /* 0x420a */
+	INVALID_REG_ITEM, /* 0x420b */
+	{S5_VIU_OSD2_BLK0_CFG_W1, 0x0, 0x1fff1fff, 1},
+	INVALID_REG_ITEM, /* 0x420d */
+	INVALID_REG_ITEM, /* 0x420e */
+	INVALID_REG_ITEM, /* 0x420f */
+	{S5_VIU_OSD2_BLK0_CFG_W2, 0x0, 0x1fff1fff, 1},
+	INVALID_REG_ITEM, /* 0x4211 */
+	INVALID_REG_ITEM, /* 0x4212 */
+	INVALID_REG_ITEM, /* 0x4213 */
+	{S5_VIU_OSD2_BLK0_CFG_W3, 0x0, 0x0fff0fff, 1},
+	INVALID_REG_ITEM, /* 0x4215 */
+	INVALID_REG_ITEM, /* 0x4216 */
+	INVALID_REG_ITEM, /* 0x4217 */
+	{S5_VIU_OSD2_BLK0_CFG_W4, 0x0, 0x0fff0fff, 1},
+	{S5_VIU_OSD2_BLK1_CFG_W4, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD2_BLK2_CFG_W4, 0x0, 0xffffffff, 1},
+	INVALID_REG_ITEM, /* 0x421b */
+	{S5_VIU_OSD2_FIFO_CTRL_STAT, 0x0, 0xffc7ffff, 1},
+	INVALID_REG_ITEM, /* S5_VIU_OSD2_TEST_RDDATA 0x421d*/
+	{S5_VIU_OSD2_PROT_CTRL, 0x0, 0xffff0000, 1},
+	{S5_VIU_OSD2_MALI_UNPACK_CTRL, 0x0, 0x9f01ffff, 1},
+	{S5_VIU_OSD2_DIMM_CTRL, 0x0, 0x7fffffff, 1},
+};
+
+static struct reg_item osd3_recovery_table_s5[] = {
+	{S5_VIU_OSD3_CTRL_STAT, 0x0, 0xc01ff9f7, 1},
+	{S5_VIU_OSD3_CTRL_STAT2, 0x0, 0x0000ffff, 1},
+	INVALID_REG_ITEM, /* S5_VIU_OSD3_COLOR_ADDR 0x4282 */
+	INVALID_REG_ITEM, /* S5_VIU_OSD3_COLOR 0x4283 */
+	{S5_VIU_OSD3_TCOLOR_AG0, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD3_TCOLOR_AG1, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD3_TCOLOR_AG2, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD3_TCOLOR_AG3, 0x0, 0xffffffff, 0},
+	{S5_VIU_OSD3_BLK0_CFG_W0, 0x0, 0x70ffff7f, 1},
+	INVALID_REG_ITEM, /* 0x4289 */
+	INVALID_REG_ITEM, /* 0x428a */
+	INVALID_REG_ITEM, /* 0x428b */
+	{S5_VIU_OSD3_BLK0_CFG_W1, 0x0, 0x1fff1fff, 1},
+	INVALID_REG_ITEM, /* 0x428d */
+	INVALID_REG_ITEM, /* 0x428e */
+	INVALID_REG_ITEM, /* 0x428f */
+	{S5_VIU_OSD3_BLK0_CFG_W2, 0x0, 0x1fff1fff, 1},
+	INVALID_REG_ITEM, /* 0x4291 */
+	INVALID_REG_ITEM, /* 0x4292 */
+	INVALID_REG_ITEM, /* 0x4293 */
+	{S5_VIU_OSD3_BLK0_CFG_W3, 0x0, 0x0fff0fff, 1},
+	INVALID_REG_ITEM, /* 0x4295 */
+	INVALID_REG_ITEM, /* 0x4296 */
+	INVALID_REG_ITEM, /* 0x4297 */
+	{S5_VIU_OSD3_BLK0_CFG_W4, 0x0, 0x0fff0fff, 1},
+	{S5_VIU_OSD3_BLK1_CFG_W4, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD3_BLK2_CFG_W4, 0x0, 0xffffffff, 1},
+	INVALID_REG_ITEM, /* 0x429b */
+	{S5_VIU_OSD3_FIFO_CTRL_STAT, 0x0, 0xffc7ffff, 1},
+	INVALID_REG_ITEM, /* S5_VIU_OSD3_TEST_RDDATA 0x429d */
+	{S5_VIU_OSD3_PROT_CTRL, 0x0, 0xffff0000, 1},
+	{S5_VIU_OSD3_MALI_UNPACK_CTRL, 0x0, 0x9f01ffff, 1},
+	{S5_VIU_OSD3_DIMM_CTRL, 0x0, 0x7fffffff, 1},
+};
+
 static struct reg_item osd1_sc_recovery_table_g12a[] = {
 	{VPP_OSD_VSC_PHASE_STEP, 0x0, 0x0fffffff, 1},
 	{VPP_OSD_VSC_INI_PHASE, 0x0, 0xffffffff, 1},
@@ -666,6 +777,57 @@ static struct reg_item osd4_sc_recovery_table_t7[] = {
 	{T7_OSD4_SCO_V_START_END, 0x0, 0x0fff0fff, 1},
 	{T7_OSD4_SCALE_COEF_IDX, 0x0, 0x0000c37f, 0},
 	{T7_OSD4_SCALE_COEF, 0x0, 0xffffffff, 0},
+};
+
+static struct reg_item osd1_sc_recovery_table_s5[] = {
+	{OSD1_PROC_VSC_PHASE_STEP, 0x0, 0x0fffffff, 1},
+	{OSD1_PROC_VSC_INI_PHASE, 0x0, 0xffffffff, 1},
+	{OSD1_PROC_VSC_CTRL0, 0x0, 0x01fb7b7f, 1},
+	{OSD1_PROC_HSC_PHASE_STEP, 0x0, 0x0fffffff, 1},
+	{OSD1_PROC_HSC_INI_PHASE, 0x0, 0xffffffff, 1},
+	{OSD1_PROC_HSC_CTRL0, 0x0, 0x007b7b7f, 1},
+	{OSD1_PROC_HSC_INI_PAT_CTRL, 0x0, 0x0000ff77, 1},
+	{OSD1_PROC_SC_DUMMY_DATA, 0x0, 0xffffffff, 1},
+	{OSD1_PROC_SC_CTRL0, 0x0, 0x0fff3ffc, 1},
+	{OSD1_PROC_SCI_WH_M1, 0x0, 0x1fff1fff, 1},
+	{OSD1_PROC_SCO_H_START_END, 0x0, 0x0fff0fff, 1},
+	{OSD1_PROC_SCO_V_START_END, 0x0, 0x0fff0fff, 1},
+	{OSD1_PROC_SCALE_COEF_IDX, 0x0, 0x0000c37f, 0},
+	{OSD1_PROC_SCALE_COEF, 0x0, 0xffffffff, 0}
+};
+
+static struct reg_item osd2_sc_recovery_table_s5[] = {
+	{OSD2_PROC_VSC_PHASE_STEP, 0x0, 0x0fffffff, 1},
+	{OSD2_PROC_VSC_INI_PHASE, 0x0, 0xffffffff, 1},
+	{OSD2_PROC_VSC_CTRL0, 0x0, 0x01fb7b7f, 1},
+	{OSD2_PROC_HSC_PHASE_STEP, 0x0, 0x0fffffff, 1},
+	{OSD2_PROC_HSC_INI_PHASE, 0x0, 0xffffffff, 1},
+	{OSD2_PROC_HSC_CTRL0, 0x0, 0x007b7b7f, 1},
+	{OSD2_PROC_HSC_INI_PAT_CTRL, 0x0, 0x0000ff77, 1},
+	{OSD2_PROC_SC_DUMMY_DATA, 0x0, 0xffffffff, 1},
+	{OSD2_PROC_SC_CTRL0, 0x0, 0x0fff3ffc, 1},
+	{OSD2_PROC_SCI_WH_M1, 0x0, 0x1fff1fff, 1},
+	{OSD2_PROC_SCO_H_START_END, 0x0, 0x0fff0fff, 1},
+	{OSD2_PROC_SCO_V_START_END, 0x0, 0x0fff0fff, 1},
+	{OSD2_PROC_SCALE_COEF_IDX, 0x0, 0x0000c37f, 0},
+	{OSD2_PROC_SCALE_COEF, 0x0, 0xffffffff, 0},
+};
+
+static struct reg_item osd3_sc_recovery_table_s5[] = {
+	{OSD3_PROC_VSC_PHASE_STEP, 0x0, 0x0fffffff, 1},
+	{OSD3_PROC_VSC_INI_PHASE, 0x0, 0xffffffff, 1},
+	{OSD3_PROC_VSC_CTRL0, 0x0, 0x01fb7b7f, 1},
+	{OSD3_PROC_HSC_PHASE_STEP, 0x0, 0x0fffffff, 1},
+	{OSD3_PROC_HSC_INI_PHASE, 0x0, 0xffffffff, 1},
+	{OSD3_PROC_HSC_CTRL0, 0x0, 0x007b7b7f, 1},
+	{OSD3_PROC_HSC_INI_PAT_CTRL, 0x0, 0x0000ff77, 1},
+	{OSD3_PROC_SC_DUMMY_DATA, 0x0, 0xffffffff, 1},
+	{OSD3_PROC_SC_CTRL0, 0x0, 0x0fff3ffc, 1},
+	{OSD3_PROC_SCI_WH_M1, 0x0, 0x1fff1fff, 1},
+	{OSD3_PROC_SCO_H_START_END, 0x0, 0x0fff0fff, 1},
+	{OSD3_PROC_SCO_V_START_END, 0x0, 0x0fff0fff, 1},
+	{OSD3_PROC_SCALE_COEF_IDX, 0x0, 0x0000c37f, 0},
+	{OSD3_PROC_SCALE_COEF, 0x0, 0xffffffff, 0},
 };
 
 static struct reg_item vpu_afbcd_recovery_table_g12a[] = {
@@ -939,6 +1101,26 @@ static struct reg_item blend_recovery_table_g12a[] = {
 	{VIU_OSD_BLEND_CTRL1, 0x0, 0x00037337, 1},
 };
 
+static struct reg_item blend_recovery_table_s5[] = {
+	{S5_VIU_OSD_BLEND_CTRL, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD_BLEND_DIN0_SCOPE_H, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_DIN0_SCOPE_V, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_DIN1_SCOPE_H, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_DIN1_SCOPE_V, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_DIN2_SCOPE_H, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_DIN2_SCOPE_V, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_DIN3_SCOPE_H, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_DIN3_SCOPE_V, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_DUMMY_DATA0, 0x0, 0x00ffffff, 1},
+	{S5_VIU_OSD_BLEND_DUMMY_ALPHA, 0x0, 0x1fffffff, 1},
+	{S5_VIU_OSD_BLEND_BLEND0_SIZE, 0x0, 0x1fff1fff, 1},
+	{S5_VIU_OSD_BLEND_BLEND1_SIZE, 0x0, 0x1fff1fff, 1},
+	INVALID_REG_ITEM, /* 0x60bd */
+	INVALID_REG_ITEM, /* 0x60be */
+	INVALID_REG_ITEM, /* 0x60bf */
+	{S5_VIU_OSD_BLEND_CTRL1, 0x0, 0x00037337, 1},
+};
+
 static struct reg_item post_blend_recovery_table_g12a[] = {
 	{VPP_VD2_HDR_IN_SIZE, 0x0, 0x1fff1fff, 0},
 	{VPP_OSD1_IN_SIZE, 0x0, 0x1fff1fff, 1},
@@ -955,6 +1137,18 @@ static struct reg_item post_blend_recovery_table_g12a[] = {
 	INVALID_REG_ITEM, /* 0x1dfc */
 	{OSD1_BLEND_SRC_CTRL, 0x0, 0x00110f1f, 1},
 	{OSD2_BLEND_SRC_CTRL, 0x0, 0x00110f1f, 1},
+};
+
+static struct reg_item post_blend_recovery_table_s5[] = {
+	{S5_VPP_OSD1_BLD_H_SCOPE, 0x0, 0x1fff1fff, 1},
+	{S5_VPP_OSD1_BLD_V_SCOPE, 0x0, 0x1fff1fff, 1},
+	{S5_VPP_OSD2_BLD_H_SCOPE, 0x0, 0x1fff1fff, 1},
+	{S5_VPP_OSD2_BLD_V_SCOPE, 0x0, 0x1fff1fff, 1},
+	INVALID_REG_ITEM, /* 0x1d0d */
+	INVALID_REG_ITEM, /* 0x1d0e */
+	INVALID_REG_ITEM, /* 0x1d0f */
+	{S5_OSD1_BLEND_SRC_CTRL, 0x0, 0x1f, 1},
+	{S5_OSD2_BLEND_SRC_CTRL, 0x0, 0x1f, 1},
 };
 
 static struct reg_item misc_recovery_table_g12a[] = {
@@ -996,6 +1190,30 @@ static struct reg_item misc_recovery_table_t7[] = {
 	{VPU_MAFBC1_SURFACE_CFG, 0x0, 0x0001000f, 1},
 	{VPU_MAFBC2_IRQ_MASK, 0x0, 0x0000003f, 1},
 	{VPU_MAFBC2_SURFACE_CFG, 0x0, 0x0001000f, 1},
+};
+
+static struct reg_item misc_recovery_table_s5[] = {
+	{S5_VIU_OSD1_DIMM_CTRL, 0x0, 0x7fffffff, 1},
+	{S5_VIU_OSD2_DIMM_CTRL, 0x0, 0x7fffffff, 1},
+	{S5_VIU_OSD2_BLK0_CFG_W4, 0x0, 0x0fff0fff, 1},
+	{S5_VIU_OSD2_BLK1_CFG_W4, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD2_BLK2_CFG_W4, 0x0, 0xffffffff, 1},
+	{S5_VIU_OSD2_MALI_UNPACK_CTRL, 0x0, 0x9f01ffff, 1},
+	{VPP_INTF_OSD1_CTRL, 0x0, 0x1, 1},
+	{VPP_INTF_OSD2_CTRL, 0x0, 0x1, 1},
+	{VPP_INTF_OSD3_CTRL, 0x0, 0x1, 1},
+	{VPU_MAFBC1_IRQ_MASK, 0x0, 0x0000003f, 1},
+	{VPU_MAFBC1_SURFACE_CFG, 0x0, 0x0001000f, 1},
+	{VPU_MAFBC2_IRQ_MASK, 0x0, 0x0000003f, 1},
+	{VPU_MAFBC2_SURFACE_CFG, 0x0, 0x0001000f, 1},
+	{OSD1_PROC_IN_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD2_PROC_IN_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD3_PROC_IN_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD1_PROC_OUT_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD2_PROC_OUT_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD3_PROC_OUT_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD_BLEND_DOUT0_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD_BLEND_DOUT1_SIZE, 0x0, 0x1fff1fff, 1},
 };
 
 static void recovery_regs_init_old(void)
@@ -1250,6 +1468,108 @@ static void recovery_regs_init_t7(void)
 		(struct reg_item *)&misc_recovery_table_t7[0];
 }
 
+static void recovery_regs_init_s5(void)
+{
+	int i = 0;
+
+	gRecovery[i].base_addr = S5_VIU_OSD1_CTRL_STAT;
+	gRecovery[i].size = sizeof(osd1_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd1_recovery_table_s5[0];
+
+	i++;
+	gRecovery[i].base_addr = S5_VIU_OSD2_CTRL_STAT;
+	gRecovery[i].size = sizeof(osd2_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd2_recovery_table_s5[0];
+
+	i++;
+	gRecovery[i].base_addr = S5_VIU_OSD3_CTRL_STAT;
+	gRecovery[i].size = sizeof(osd3_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd3_recovery_table_s5[0];
+
+	i++;
+	gRecovery[i].base_addr = OSD1_PROC_VSC_PHASE_STEP;
+	gRecovery[i].size = sizeof(osd1_sc_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd1_sc_recovery_table_s5[0];
+
+	i++;
+	gRecovery[i].base_addr = OSD2_PROC_VSC_PHASE_STEP;
+	gRecovery[i].size = sizeof(osd2_sc_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd2_sc_recovery_table_s5[0];
+
+	i++;
+	gRecovery[i].base_addr = OSD3_PROC_VSC_PHASE_STEP;
+	gRecovery[i].size = sizeof(osd3_sc_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd3_sc_recovery_table_s5[0];
+
+	i++;
+	gRecovery[i].base_addr = VPU_MAFBC_BLOCK_ID;
+	gRecovery[i].size = sizeof(vpu_afbcd_recovery_table_g12a)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&vpu_afbcd_recovery_table_g12a[0];
+
+	i++;
+	gRecovery[i].base_addr = VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0;
+	gRecovery[i].size = sizeof(osd1_afbcd_recovery_table_g12a)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd1_afbcd_recovery_table_g12a[0];
+
+	i++;
+	gRecovery[i].base_addr = VPU_MAFBC_HEADER_BUF_ADDR_LOW_S1;
+	gRecovery[i].size = sizeof(osd2_afbcd_recovery_table_g12a)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd2_afbcd_recovery_table_g12a[0];
+
+	i++;
+	gRecovery[i].base_addr = VPU_MAFBC1_HEADER_BUF_ADDR_LOW_S2;
+	gRecovery[i].size = sizeof(osd3_afbcd_recovery_table_g12a)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd3_afbcd_recovery_table_g12a[0];
+
+	i++;
+	gRecovery[i].base_addr = VPU_MAFBC2_HEADER_BUF_ADDR_LOW_S3;
+	gRecovery[i].size = sizeof(osd4_afbcd_recovery_table_t7)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&osd4_afbcd_recovery_table_t7[0];
+
+	i++;
+	gRecovery[i].base_addr = S5_VIU_OSD_BLEND_CTRL;
+	gRecovery[i].size = sizeof(blend_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&blend_recovery_table_s5[0];
+
+	i++;
+	gRecovery[i].base_addr = S5_VPP_OSD1_BLD_H_SCOPE;
+	gRecovery[i].size = sizeof(post_blend_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&post_blend_recovery_table_s5[0];
+
+	i++;
+	gRecovery[i].base_addr = 0xffffffff; /* not base addr */
+	gRecovery[i].size = sizeof(misc_recovery_table_s5)
+		/ sizeof(struct reg_item);
+	gRecovery[i].table =
+		(struct reg_item *)&misc_recovery_table_s5[0];
+}
+
 void recovery_regs_init(void)
 {
 	int cpu_id = osd_hw.osd_meson_dev.cpu_id;
@@ -1258,7 +1578,9 @@ void recovery_regs_init(void)
 		return;
 	memset(gRecovery, 0, sizeof(gRecovery));
 
-	if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
+	if (cpu_id >= __MESON_CPU_MAJOR_ID_S5)
+		recovery_regs_init_s5();
+	else if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
 		recovery_regs_init_t7();
 	else if (cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
 		recovery_regs_init_g12a();
@@ -2232,6 +2554,254 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 	return ret;
 }
 
+static int update_recovery_item_s5(u32 addr, u32 value)
+{
+	u32 base, size;
+	int i;
+	struct reg_item *table = NULL;
+	int ret = -1;
+
+	if (!recovery_enable)
+		return ret;
+
+	base = addr & 0xfff0;
+	switch (base) {
+	case S5_VIU_OSD1_CTRL_STAT:
+	case S5_VIU_OSD1_BLK0_CFG_W2:
+	case S5_VIU_OSD1_DIMM_CTRL:
+		/* osd1 */
+		if (backup_enable &
+			HW_RESET_OSD1_REGS) {
+			ret = 1;
+			break;
+		}
+		base = gRecovery[0].base_addr;
+		size = gRecovery[0].size;
+		table = gRecovery[0].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case S5_VIU_OSD2_CTRL_STAT:
+	case S5_VIU_OSD2_BLK0_CFG_W2:
+	case S5_VIU_OSD2_DIMM_CTRL:
+		/* osd2 */
+		if (backup_enable &
+			HW_RESET_OSD2_REGS) {
+			ret = 1;
+			break;
+		}
+		base = gRecovery[1].base_addr;
+		size = gRecovery[1].size;
+		table = gRecovery[1].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case S5_VIU_OSD3_CTRL_STAT:
+	case S5_VIU_OSD3_BLK0_CFG_W2:
+	case S5_VIU_OSD3_DIMM_CTRL:
+		/* osd3 */
+		if (backup_enable &
+			HW_RESET_OSD3_REGS) {
+			ret = 1;
+			break;
+		}
+		base = gRecovery[2].base_addr;
+		size = gRecovery[2].size;
+		table = gRecovery[2].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case OSD1_PROC_VSC_PHASE_STEP:
+		/* osd1 sc */
+		base = gRecovery[3].base_addr;
+		size = gRecovery[3].size;
+		table = gRecovery[3].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case OSD2_PROC_VSC_PHASE_STEP:
+		/* osd2 sc */
+		base = gRecovery[4].base_addr;
+		size = gRecovery[4].size;
+		table = gRecovery[4].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case OSD3_PROC_VSC_PHASE_STEP:
+		/* osd3 sc */
+		base = gRecovery[5].base_addr;
+		size = gRecovery[5].size;
+		table = gRecovery[5].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+
+	case VPU_MAFBC_BLOCK_ID:
+		/* vpu mali common */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD_REGS) {
+			ret = 1;
+			break;
+		}
+		base = gRecovery[6].base_addr;
+		size = gRecovery[6].size;
+		table = gRecovery[6].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0:
+		/* vpu mali src0 */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD_REGS) {
+			ret = 1;
+			break;
+		}
+		base = gRecovery[7].base_addr;
+		size = gRecovery[7].size;
+		table = gRecovery[7].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC_HEADER_BUF_ADDR_LOW_S1:
+		/* vpu mali src1 */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD1_REGS) {
+			ret = 1;
+			break;
+		}
+		base = gRecovery[8].base_addr;
+		size = gRecovery[8].size;
+		table = gRecovery[8].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC1_HEADER_BUF_ADDR_LOW_S2:
+		/* vpu mali src2 */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD2_REGS) {
+			ret = 1;
+			break;
+		}
+		base = gRecovery[9].base_addr;
+		size = gRecovery[9].size;
+		table = gRecovery[9].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC2_HEADER_BUF_ADDR_LOW_S3:
+		/* vpu mali src3 */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD_REGS) {
+			ret = 1;
+			break;
+		}
+		base = gRecovery[10].base_addr;
+		size = gRecovery[10].size;
+		table = gRecovery[10].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case VIU_OSD_BLEND_CTRL:
+	case VIU_OSD_BLEND_CTRL1:
+		/* osd blend ctrl */
+		base = gRecovery[11].base_addr;
+		size = gRecovery[11].size;
+		table = gRecovery[11].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	case S5_VPP_OSD1_BLD_H_SCOPE:
+	case S5_OSD1_BLEND_SRC_CTRL:
+		/* vpp blend ctrl */
+		base = gRecovery[12].base_addr;
+		size = gRecovery[12].size;
+		table = gRecovery[12].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table[addr - base].val = value;
+			if (table[addr - base].recovery)
+				table[addr - base].recovery = 1;
+			ret = 0;
+		}
+		break;
+	default:
+		/* recovery misc */
+		table = gRecovery[13].table;
+		for (i = 0; i <  gRecovery[13].size; i++) {
+			if (addr == table[i].addr) {
+				table[i].val = value;
+				if (table[i].recovery)
+					table[i].recovery = 1;
+				ret = 0;
+				break;
+			}
+		}
+		break;
+	}
+
+	return ret;
+}
+
 static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 {
 	u32 base, size;
@@ -2511,6 +3081,255 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 	return ret;
 }
 
+static s32 get_recovery_item_s5(u32 addr, u32 *value, u32 *mask)
+{
+	u32 base, size;
+	int i;
+	struct reg_item *table = NULL;
+	int ret = -1;
+
+	if (!recovery_enable)
+		return ret;
+
+	base = addr & 0xfff0;
+	switch (base) {
+	case S5_VIU_OSD1_CTRL_STAT:
+	case S5_VIU_OSD1_BLK0_CFG_W2:
+	case S5_VIU_OSD1_DIMM_CTRL:
+		/* osd1 */
+		if (backup_enable &
+			HW_RESET_OSD1_REGS) {
+			ret = 2;
+			break;
+		}
+		base = gRecovery[0].base_addr;
+		size = gRecovery[0].size;
+		table = gRecovery[0].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case S5_VIU_OSD2_CTRL_STAT:
+	case S5_VIU_OSD2_BLK0_CFG_W2:
+	case S5_VIU_OSD2_DIMM_CTRL:
+		/* osd2 */
+		if (backup_enable &
+			HW_RESET_OSD2_REGS) {
+			ret = 2;
+			break;
+		}
+		base = gRecovery[1].base_addr;
+		size = gRecovery[1].size;
+		table = gRecovery[1].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case S5_VIU_OSD3_CTRL_STAT:
+	case S5_VIU_OSD3_BLK0_CFG_W2:
+	case S5_VIU_OSD3_DIMM_CTRL:
+		/* osd3 */
+		if (backup_enable &
+			HW_RESET_OSD3_REGS) {
+			ret = 2;
+			break;
+		}
+		base = gRecovery[2].base_addr;
+		size = gRecovery[2].size;
+		table = gRecovery[2].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case OSD1_PROC_VSC_PHASE_STEP:
+		/* osd1 sc */
+		base = gRecovery[3].base_addr;
+		size = gRecovery[3].size;
+		table = gRecovery[3].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case OSD2_PROC_VSC_PHASE_STEP:
+		/* osd2 sc */
+		base = gRecovery[4].base_addr;
+		size = gRecovery[4].size;
+		table = gRecovery[4].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case OSD3_PROC_VSC_PHASE_STEP:
+		/* osd3 sc */
+		base = gRecovery[5].base_addr;
+		size = gRecovery[5].size;
+		table = gRecovery[5].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC_BLOCK_ID:
+		/* vpu mali common */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD_REGS) {
+			ret = 2;
+			break;
+		}
+		base = gRecovery[6].base_addr;
+		size = gRecovery[6].size;
+		table = gRecovery[6].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC_HEADER_BUF_ADDR_LOW_S0:
+		/* vpu mali src0 */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD_REGS) {
+			ret = 2;
+			break;
+		}
+		base = gRecovery[7].base_addr;
+		size = gRecovery[7].size;
+		table = gRecovery[7].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC_HEADER_BUF_ADDR_LOW_S1:
+		/* vpu mali src1 */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD1_REGS) {
+			ret = 2;
+			break;
+		}
+		base = gRecovery[8].base_addr;
+		size = gRecovery[8].size;
+		table = gRecovery[8].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC1_HEADER_BUF_ADDR_LOW_S2:
+		/* vpu mali src2 */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD2_REGS) {
+			ret = 2;
+			break;
+		}
+		base = gRecovery[9].base_addr;
+		size = gRecovery[9].size;
+		table = gRecovery[9].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case VPU_MAFBC2_HEADER_BUF_ADDR_LOW_S3:
+		/* vpu mali src3 */
+		if (backup_enable &
+			HW_RESET_MALI_AFBCD_REGS) {
+			ret = 2;
+			break;
+		}
+		base = gRecovery[10].base_addr;
+		size = gRecovery[10].size;
+		table = gRecovery[10].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case VIU_OSD_BLEND_CTRL:
+	case VIU_OSD_BLEND_CTRL1:
+		/* osd blend ctrl */
+		base = gRecovery[11].base_addr;
+		size = gRecovery[11].size;
+		table = gRecovery[11].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	case S5_VPP_OSD1_BLD_H_SCOPE:
+	case S5_OSD1_BLEND_SRC_CTRL:
+		/* vpp blend ctrl */
+		base = gRecovery[12].base_addr;
+		size = gRecovery[12].size;
+		table = gRecovery[12].table;
+		if (addr >= base &&
+		    (addr < base + size)) {
+			table += (addr - base);
+			ret = 0;
+		}
+		break;
+	default:
+		/* recovery misc */
+		table = gRecovery[13].table;
+		for (i = 0; i <  gRecovery[13].size; i++) {
+			if (addr == table[i].addr) {
+				table += i;
+				ret = 0;
+				break;
+			}
+		}
+		break;
+	}
+
+	if (ret == 0 && table) {
+		if (table->recovery == 1) {
+			u32 regmask = table->mask;
+			u32 real_value = osd_reg_read(addr);
+
+			if (enable_vd_zorder &&
+			    addr == S5_OSD2_BLEND_SRC_CTRL) {
+				ret = 1;
+				table->recovery = 0;
+			} else if ((real_value & regmask)
+				== (table->val & regmask)) {
+				ret = 1;
+				*mask = regmask;
+				*value = real_value;
+			} else {
+				*mask = regmask;
+				*value = real_value & ~(regmask);
+				*value |= (table->val & regmask);
+			}
+			table->recovery = 2;
+		} else if (table->recovery == 2) {
+			ret = 1;
+		} else {
+			ret = -1;
+		}
+	}
+	/* ret = 1, 2 need not recovery,
+	 *	ret = 0 need recovery,
+	 *	ret = -1, not find
+	 */
+	return ret;
+}
+
 int update_recovery_item(u32 addr, u32 value)
 {
 	int ret = -1;
@@ -2518,7 +3337,10 @@ int update_recovery_item(u32 addr, u32 value)
 
 	if (!recovery_enable)
 		return ret;
-	if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
+
+	if (cpu_id >= __MESON_CPU_MAJOR_ID_S5)
+		ret = update_recovery_item_s5(addr, value);
+	else if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
 		ret = update_recovery_item_t7(addr, value);
 	else if (cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
 		ret = update_recovery_item_g12a(addr, value);
@@ -2536,7 +3358,9 @@ s32 get_recovery_item(u32 addr, u32 *value, u32 *mask)
 	if (!recovery_enable)
 		return ret;
 
-	if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
+	if (cpu_id >= __MESON_CPU_MAJOR_ID_S5)
+		ret = get_recovery_item_s5(addr, value, mask);
+	else if (cpu_id >= __MESON_CPU_MAJOR_ID_T7)
 		ret = get_recovery_item_t7(addr, value, mask);
 	else if (cpu_id >= __MESON_CPU_MAJOR_ID_G12A)
 		ret = get_recovery_item_g12a(addr, value, mask);
