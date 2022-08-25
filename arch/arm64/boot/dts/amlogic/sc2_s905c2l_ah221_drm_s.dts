@@ -58,8 +58,7 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x10000>;
-			bconsole-size = <0x10000>;
+			pmsg-size = <0x20000>;
 		};
 
 		pcie_reserved: linux,pcie {
