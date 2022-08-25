@@ -38,7 +38,7 @@ static const struct pll_params_table s5_sys_pll_params_table[] = {
 	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
 	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
 	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(81, 1, 0), /*DCO=1944M OD=1944M*/
+	PLL_PARAMS(84, 1, 0), /*DCO=2016M OD=2016M*/
 	{ /* sentinel */ }
 };
 #else
@@ -50,7 +50,7 @@ static const struct pll_params_table s5_sys_pll_params_table[] = {
 	PLL_PARAMS(71, 1), /*DCO=1704MM OD=1704M*/
 	PLL_PARAMS(75, 1), /*DCO=1800M OD=1800M*/
 	PLL_PARAMS(79, 1), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(81, 1), /*DCO=1944M OD=1944M*/
+	PLL_PARAMS(84, 1), /*DCO=2016M OD=2016M*/
 	{ /* sentinel */ }
 };
 #endif
@@ -106,7 +106,7 @@ static struct clk_regmap s5_sys_pll_dco = {
 		 * This clock feeds the CPU, avoid disabling it
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -119,7 +119,8 @@ static const struct pll_params_table s5_sys1_pll_params_table[] = {
 	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
 	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
 	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(81, 1, 0), /*DCO=1944M OD=1944M*/
+	PLL_PARAMS(84, 1, 0), /*DCO=2016M OD=2016M*/
+	PLL_PARAMS(88, 1, 0), /*DCO=2112M OD=2112M*/
 	{ /* sentinel */ }
 };
 #else
@@ -131,7 +132,8 @@ static const struct pll_params_table s5_sys1_pll_params_table[] = {
 	PLL_PARAMS(71, 1), /*DCO=1704MM OD=1704M*/
 	PLL_PARAMS(75, 1), /*DCO=1800M OD=1800M*/
 	PLL_PARAMS(79, 1), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(81, 1), /*DCO=1944M OD=1944M*/
+	PLL_PARAMS(84, 1), /*DCO=2016M OD=2016M*/
+	PLL_PARAMS(88, 1), /*DCO=2112M OD=2112M*/
 	{ /* sentinel */ }
 };
 #endif
@@ -186,7 +188,7 @@ static struct clk_regmap s5_sys1_pll_dco = {
 		/*
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -892,7 +894,7 @@ static struct clk_regmap s5_gp0_pll = {
 static const struct pll_params_table s5_gp1_pll_table[] = {
 	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(116, 1, 1), /*DCO=2784 OD=1392M*/
-	PLL_PARAMS(126, 1, 1), /*DCO=3024 OD=1512M*/
+	PLL_PARAMS(125, 1, 1), /*DCO=3000 OD=1500M*/
 	PLL_PARAMS(67, 1, 0), /*DCO=1608M OD=1608MM*/
 	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
 	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
@@ -904,7 +906,7 @@ static const struct pll_params_table s5_gp1_pll_table[] = {
 static const struct pll_params_table s5_gp1_pll_table[] = {
 	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(116, 1), /*DCO=2784 OD=1392M*/
-	PLL_PARAMS(126, 1), /*DCO=3024 OD=1512M*/
+	PLL_PARAMS(125, 1), /*DCO=3000 OD=1500M*/
 	PLL_PARAMS(67, 1), /*DCO=1608M OD=1608MM*/
 	PLL_PARAMS(71, 1), /*DCO=1704MM OD=1704M*/
 	PLL_PARAMS(75, 1), /*DCO=1800M OD=1800M*/
@@ -965,7 +967,7 @@ static struct clk_regmap s5_gp1_pll_dco = {
 		/*
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_GET_RATE_NOCACHE | CLK_IS_CRITICAL,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1978,18 +1980,18 @@ static struct clk_regmap s5_hifi_pll = {
  * a strict register sequence to enable the PLL.
  */
 static const struct reg_sequence s5_pcie_pll_init_regs[] = {
-	{ .reg = CLKCTRL_PCIEPLL_CTRL0,	.def = 0x200c04c8 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL0,	.def = 0x300c04c8 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL1,	.def = 0x30000000 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL2,	.def = 0x00001100 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL3,	.def = 0x10058e00 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL4,	.def = 0x000100c0 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL5,	.def = 0x68000048 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL5,	.def = 0x68000068, .delay_us = 20 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL4,	.def = 0x008100c0, .delay_us = 10 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL0,	.def = 0x340f04c8 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL0,	.def = 0x140f04c8, .delay_us = 10 },
-	{ .reg = CLKCTRL_PCIEPLL_CTRL2,	.def = 0x00001000 }
+	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x200c04c8 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x300c04c8 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL1,	.def = 0x30000000 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL2,	.def = 0x00001100 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL3,	.def = 0x10058e00 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x000100c0 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000048 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000068, .delay_us = 20 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x008100c0, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x340c04c8 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x140c04c8, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL2,	.def = 0x00001000 }
 };
 
 #ifdef CONFIG_ARM64
@@ -2008,32 +2010,32 @@ static const struct pll_params_table s5_pcie_pll_table[] = {
 static struct clk_regmap s5_pcie_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
 		.en = {
-			.reg_off = CLKCTRL_PCIEPLL_CTRL0,
+			.reg_off = ANACTRL_PCIEPLL_CTRL0,
 			.shift   = 28,
 			.width   = 1,
 		},
 		.m = {
-			.reg_off = CLKCTRL_PCIEPLL_CTRL0,
+			.reg_off = ANACTRL_PCIEPLL_CTRL0,
 			.shift   = 0,
 			.width   = 8,
 		},
 		.n = {
-			.reg_off = CLKCTRL_PCIEPLL_CTRL0,
+			.reg_off = ANACTRL_PCIEPLL_CTRL0,
 			.shift   = 10,
 			.width   = 5,
 		},
 		.frac = {
-			.reg_off = CLKCTRL_PCIEPLL_CTRL1,
+			.reg_off = ANACTRL_PCIEPLL_CTRL1,
 			.shift   = 0,
 			.width   = 12,
 		},
 		.l = {
-			.reg_off = CLKCTRL_PCIEPLL_STS,
+			.reg_off = ANACTRL_PCIEPLL_STS,
 			.shift   = 31,
 			.width   = 1,
 		},
 		.rst = {
-			.reg_off = CLKCTRL_PCIEPLL_CTRL0,
+			.reg_off = ANACTRL_PCIEPLL_CTRL0,
 			.shift   = 29,
 			.width   = 1,
 		},
@@ -2076,10 +2078,10 @@ static struct clk_fixed_factor s5_pcie_pll_dco_div2 = {
 
 static struct clk_regmap s5_pcie_pll_od = {
 	.data = &(struct clk_regmap_div_data){
-		.offset = CLKCTRL_PCIEPLL_CTRL0,
+		.offset = ANACTRL_PCIEPLL_CTRL0,
 		.shift = 16,
 		.width = 5,
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ALLOW_ZERO |
+		.flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO |
 			CLK_DIVIDER_ROUND_CLOSEST,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -2119,7 +2121,7 @@ static struct clk_fixed_factor s5_pcie_pll = {
 
 static struct clk_regmap s5_pcie_hcsl_out = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_PCIEPLL_CTRL5,
+		.offset = ANACTRL_PCIEPLL_CTRL5,
 		.bit_idx = 3,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -2144,7 +2146,7 @@ static struct clk_regmap s5_pcie_hcsl_pad = {
 
 static struct clk_regmap s5_pcie_hcsl_in_pad = {
 	.data = &(struct clk_regmap_gate_data){
-		.offset = CLKCTRL_PCIEPLL_CTRL5,
+		.offset = ANACTRL_PCIEPLL_CTRL5,
 		.bit_idx = 2,
 	},
 	.hw.init = &(struct clk_init_data){
@@ -2157,7 +2159,7 @@ static struct clk_regmap s5_pcie_hcsl_in_pad = {
 
 static struct clk_regmap s5_pcie_clk_in_sel = {
 	.data = &(struct clk_regmap_mux_data) {
-		.offset = CLKCTRL_PCIEPLL_CTRL5,
+		.offset = ANACTRL_PCIEPLL_CTRL5,
 		.mask = 0x1,
 		.shift = 2,
 	},
@@ -2167,6 +2169,202 @@ static struct clk_regmap s5_pcie_clk_in_sel = {
 		.parent_hws = (const struct clk_hw *[]) {
 			&s5_pcie_pll.hw,
 			&s5_pcie_hcsl_in_pad.hw
+		},
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static const struct reg_sequence s5_pcie1_pll_init_regs[] = {
+	{ .reg = ANACTRL_PCIEPLL_CTRL6,	.def = 0x200c04c8 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL6,	.def = 0x300c04c8 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL7,	.def = 0x30000000 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL8,	.def = 0x00001100 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL9,	.def = 0x10058e00 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL10, .def = 0x000100c0 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL11, .def = 0x68000048 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL11, .def = 0x68000068, .delay_us = 20 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL10, .def = 0x008100c0, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL6,	.def = 0x340c04c8 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL6,	.def = 0x140c04c8, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL8,	.def = 0x00001000 }
+};
+
+#ifdef CONFIG_ARM64
+/* Keep a single entry table for recalc/round_rate() ops */
+static const struct pll_params_table s5_pcie1_pll_table[] = {
+	PLL_PARAMS(150, 1),
+	{0, 0}
+};
+#else
+static const struct pll_params_table s5_pcie1_pll_table[] = {
+	PLL_PARAMS(150, 1, 0),
+	{0, 0, 0}
+};
+#endif
+
+static struct clk_regmap s5_pcie1_pll_dco = {
+	.data = &(struct meson_clk_pll_data){
+		.en = {
+			.reg_off = ANACTRL_PCIEPLL_CTRL6,
+			.shift   = 28,
+			.width   = 1,
+		},
+		.m = {
+			.reg_off = ANACTRL_PCIEPLL_CTRL6,
+			.shift   = 0,
+			.width   = 8,
+		},
+		.n = {
+			.reg_off = ANACTRL_PCIEPLL_CTRL6,
+			.shift   = 10,
+			.width   = 5,
+		},
+		.frac = {
+			.reg_off = ANACTRL_PCIEPLL_CTRL7,
+			.shift   = 0,
+			.width   = 12,
+		},
+		.l = {
+			.reg_off = ANACTRL_PCIEPLL_STS1,
+			.shift   = 31,
+			.width   = 1,
+		},
+		.rst = {
+			.reg_off = ANACTRL_PCIEPLL_CTRL6,
+			.shift   = 29,
+			.width   = 1,
+		},
+		.table = s5_pcie1_pll_table,
+		.init_regs = s5_pcie1_pll_init_regs,
+		.init_count = ARRAY_SIZE(s5_pcie1_pll_init_regs),
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie1_pll_dco",
+		.ops = &meson_clk_pcie_pll_ops,
+		.parent_data = &(const struct clk_parent_data) {
+			.fw_name = "xtal",
+		},
+		.num_parents = 1,
+		/*
+		 * Register has the risk of being directly operated
+		 */
+		.flags = CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_fixed_factor s5_pcie1_pll_dco_div2 = {
+	.mult = 1,
+	.div = 2,
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie1_pll_dco_div2",
+		.ops = &clk_fixed_factor_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s5_pcie1_pll_dco.hw
+		},
+		.num_parents = 1,
+		/*
+		 * pcie pll is directly used in other modules, and the
+		 * parent rate needs to be modified
+		 * Register has the risk of being directly operated.
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap s5_pcie1_pll_od = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = ANACTRL_PCIEPLL_CTRL6,
+		.shift = 16,
+		.width = 5,
+		.flags = CLK_DIVIDER_ONE_BASED | CLK_DIVIDER_ALLOW_ZERO |
+			CLK_DIVIDER_ROUND_CLOSEST,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie1_pll_od",
+		.ops = &clk_regmap_divider_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s5_pcie1_pll_dco_div2.hw
+		},
+		.num_parents = 1,
+		/*
+		 * pcie pll is directly used in other modules, and the
+		 * parent rate needs to be modified
+		 * Register has the risk of being directly operated.
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_fixed_factor s5_pcie1_pll = {
+	.mult = 1,
+	.div = 2,
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie1_pll",
+		.ops = &clk_fixed_factor_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s5_pcie1_pll_od.hw
+		},
+		.num_parents = 1,
+		/*
+		 * pcie pll is directly used in other modules, and the
+		 * parent rate needs to be modified
+		 * Register has the risk of being directly operated.
+		 */
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+	},
+};
+
+static struct clk_regmap s5_pcie1_hcsl_out = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_PCIEPLL_CTRL11,
+		.bit_idx = 3,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie1_hcsl",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &s5_pcie1_pll.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+/* pcie_clk_in from chip pad */
+static struct clk_regmap s5_pcie1_hcsl_pad = {
+	.hw.init = &(struct clk_init_data){
+			.name = "pcie1_hcsl_pad",
+			.ops = &meson_pll_clk_no_ops,
+			.parent_hws = NULL,
+			.num_parents = 0,
+		},
+
+};
+
+static struct clk_regmap s5_pcie1_hcsl_in_pad = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_PCIEPLL_CTRL11,
+		.bit_idx = 2,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie1_hcsl_in_pad",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &s5_pcie1_hcsl_pad.hw },
+		.num_parents = 1,
+	},
+};
+
+static struct clk_regmap s5_pcie1_clk_in_sel = {
+	.data = &(struct clk_regmap_mux_data) {
+		.offset = ANACTRL_PCIEPLL_CTRL11,
+		.mask = 0x1,
+		.shift = 2,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie1_clk_in",
+		.ops = &clk_regmap_mux_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s5_pcie1_pll.hw,
+			&s5_pcie1_hcsl_in_pad.hw
 		},
 		.num_parents = 2,
 		.flags = CLK_SET_RATE_PARENT,
@@ -6691,6 +6889,14 @@ static struct clk_hw_onecell_data s5_hw_onecell_data = {
 		[CLKID_PCIE_HCSL_PAD]		= &s5_pcie_hcsl_pad.hw,
 		[CLKID_PCIE_HCSL_IN_PAD]		= &s5_pcie_hcsl_in_pad.hw,
 		[CLKID_PCIE_CLK_IN]			= &s5_pcie_clk_in_sel.hw,
+		[CLKID_PCIE1_PLL_DCO]			= &s5_pcie1_pll_dco.hw,
+		[CLKID_PCIE1_PLL_DCO_DIV2]		= &s5_pcie1_pll_dco_div2.hw,
+		[CLKID_PCIE1_PLL_OD]			= &s5_pcie1_pll_od.hw,
+		[CLKID_PCIE1_PLL]			= &s5_pcie1_pll.hw,
+		[CLKID_PCIE1_HCSL_OUT]		= &s5_pcie1_hcsl_out.hw,
+		[CLKID_PCIE1_HCSL_PAD]		= &s5_pcie1_hcsl_pad.hw,
+		[CLKID_PCIE1_HCSL_IN_PAD]		= &s5_pcie1_hcsl_in_pad.hw,
+		[CLKID_PCIE1_CLK_IN]			= &s5_pcie1_clk_in_sel.hw,
 		[CLKID_SYS2_PLL_DCO]			= &s5_sys2_pll_dco.hw,
 		[CLKID_SYS2_PLL]			= &s5_sys2_pll.hw,
 		[CLKID_A76_DYN_CLK]			= &s5_a76_dyn_clk.hw,
@@ -7378,6 +7584,11 @@ static struct clk_regmap *const s5_pll_regmaps[] = {
 	&s5_pcie_hcsl_out,
 	&s5_pcie_hcsl_in_pad,
 	&s5_pcie_clk_in_sel,
+	&s5_pcie1_pll_dco,
+	&s5_pcie1_pll_od,
+	&s5_pcie1_hcsl_out,
+	&s5_pcie1_hcsl_in_pad,
+	&s5_pcie1_clk_in_sel,
 };
 
 static struct clk_regmap *const s5_cpu_clk_regmaps[] = {
