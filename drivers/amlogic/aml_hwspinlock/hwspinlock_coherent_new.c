@@ -36,9 +36,10 @@
 #include <linux/of.h>
 #include <linux/hwspinlock.h>
 #include <linux/pm_runtime.h>
-#include "../../hwspinlock/hwspinlock_internal.h"
+#include "hwspinlock_internal.h"
+#include "hwspinlock_coherent_new.h"
 
-#define DRIVER_NAME		"aml_hwspinlock"
+#define DRIVER_NAME		"aml_bak_hwspinlock"
 #define HWSPINLOCK_DEFAULT_VALUE	0xa5a5a5a5
 #define HWSPINLOCK_MAX_CPUS	5
 #define HWSPINLOCK_NUMS		5
@@ -317,8 +318,7 @@ static int aml_hwspinlock_probe(struct platform_device *pdev)
 		goto probe_err;
 	}
 
-	aml_spinlock = devm_kzalloc(dev, struct_size(bank, lock, HWSPINLOCK_NUMS),
-				    GFP_KERNEL);
+	aml_spinlock = devm_kzalloc(dev, sizeof(*aml_spinlock), GFP_KERNEL);
 	if (!aml_spinlock) {
 		err = -ENOMEM;
 		goto probe_err;
@@ -369,18 +369,12 @@ static struct platform_driver aml_hwspinlock_driver = {
 	},
 };
 
-int __init aml_hwspinlock_init(void)
+int __init aml_bak_hwspinlock_init(void)
 {
 	return platform_driver_register(&aml_hwspinlock_driver);
 }
 
-void __exit aml_hwspinlock_exit(void)
+void __exit aml_bak_hwspinlock_exit(void)
 {
 	platform_driver_unregister(&aml_hwspinlock_driver);
 }
-
-module_init(aml_hwspinlock_init);
-module_exit(aml_hwspinlock_exit);
-
-MODULE_DESCRIPTION("aml hwspinlock driver");
-MODULE_LICENSE("GPL v2");

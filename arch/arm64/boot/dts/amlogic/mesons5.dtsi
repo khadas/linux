@@ -1119,7 +1119,7 @@
 				reg-names = "topctrl";
 //				clocks = <&clkc CLKID_SYS_CLK_GLB>;
 //				clock-names = "glb_clk";
-				hwlocks = <&aml_hwlock HWSPINLOCK_ID_GLB_TIMER>;
+				//hwlocks = <&aml_hwlock HWSPINLOCK_ID_GLB_TIMER>;
 			};
 
 			gbl_timer_isp: global-timer@8e040 {
@@ -1132,6 +1132,11 @@
 				compatible = "amlogic,meson-glb-timer-gpio-input";
 				reg-names = "input-src-sel";
 				reg = <0x0 0x8e180 0x0 0x56c>;
+			};
+
+			aml_hwspinlock_regs: syscon@e300 {
+				compatible = "syscon";
+				reg = <0x0 0xe300 0x0 0x80>;
 			};
 		};
 
@@ -2909,11 +2914,10 @@
 		mbox-dests = <MAILBOX_AOCPU>;
 	};
 
-	aml_hwlock: aml_hwlock@0 {
+	aml_hwspinlock: hwlock {
 		status = "okay";
-		compatible = "amlogic, meson-hwspinlock";
-		reg = <0x0 0xfe006a80 0x0 0x80>;
-		bakery-cpus = <5>;
+		compatible = "amlogic, hwspinlock";
+		syscon = <&aml_hwspinlock_regs 0 0x4>;
 		#hwlock-cells = <1>;
 	};
 
