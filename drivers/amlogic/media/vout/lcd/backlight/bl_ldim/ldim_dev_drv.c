@@ -34,7 +34,8 @@
 #include <linux/amlogic/gki_module.h>
 
 static DEFINE_MUTEX(ldim_dev_dbg_mutex);
-static struct work_struct ldim_dev_probe_work;
+static struct delayed_work ldim_dev_probe_dly_work;
+static unsigned int ldim_dev_probe_retry_cnt;
 
 struct bl_gpio_s ldim_gpio[BL_GPIO_NUM_MAX] = {
 	{.probe_flag = 0, .register_flag = 0,},
@@ -2098,17 +2099,18 @@ static int ldim_dev_remove_driver(struct aml_ldim_driver_s *ldim_drv)
 	return ret;
 }
 
-#define LDIM_DEV_PROBE_WAIT_TIMEOUT    8000
+#define LDIM_DEV_PROBE_WAIT_TIMEOUT    16000
 static void ldim_dev_probe_func(struct work_struct *work)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
-	unsigned int val, i = 0;
+	unsigned int val;
 	int ret = -1;
 
-	while (ldim_drv->valid_flag == 0) {
-		if (i++ >= LDIM_DEV_PROBE_WAIT_TIMEOUT)
-			break;
-		lcd_delay_ms(20);
+	if (ldim_drv->valid_flag == 0) {
+		if (ldim_dev_probe_retry_cnt++ < LDIM_DEV_PROBE_WAIT_TIMEOUT) {
+			lcd_queue_delayed_work(&ldim_dev_probe_dly_work, 10);
+			return;
+		}
 	}
 	if (ldim_drv->valid_flag == 0)
 		return;
@@ -2165,8 +2167,9 @@ static int ldim_dev_probe(struct platform_device *pdev)
 	/* set drvdata */
 	platform_set_drvdata(pdev, &ldim_dev_drv);
 
-	INIT_WORK(&ldim_dev_probe_work, ldim_dev_probe_func);
-	lcd_queue_work(&ldim_dev_probe_work);
+	ldim_dev_probe_retry_cnt = 0;
+	INIT_DELAYED_WORK(&ldim_dev_probe_dly_work, ldim_dev_probe_func);
+	lcd_queue_delayed_work(&ldim_dev_probe_dly_work, 0);
 
 	return 0;
 }
@@ -2175,6 +2178,7 @@ static int __exit ldim_dev_remove(struct platform_device *pdev)
 {
 	struct aml_ldim_driver_s *ldim_drv = aml_ldim_get_driver();
 
+	cancel_delayed_work(&ldim_dev_probe_dly_work);
 	if (ldim_dev_drv.index != 0xff)
 		ldim_dev_remove_driver(ldim_drv);
 
@@ -2183,6 +2187,11 @@ static int __exit ldim_dev_remove(struct platform_device *pdev)
 	LDIMPR("%s\n", __func__);
 
 	return 0;
+}
+
+static void ldim_dev_shutdown(struct platform_device *pdev)
+{
+	cancel_delayed_work(&ldim_dev_probe_dly_work);
 }
 
 #ifdef CONFIG_OF
@@ -2204,6 +2213,7 @@ static struct platform_driver ldim_dev_platform_driver = {
 	},
 	.probe   = ldim_dev_probe,
 	.remove  = __exit_p(ldim_dev_remove),
+	.shutdown = ldim_dev_shutdown,
 };
 
 int __init ldim_dev_init(void)
