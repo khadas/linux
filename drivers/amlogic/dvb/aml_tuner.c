@@ -400,6 +400,40 @@ static const struct tuner_module tuner_modules[] = {
 		.detach = aml_tuner_detach,
 		.match = aml_tuner_match,
 		.detect = aml_tuner_detect
+	},
+	{
+		.name = "cxd2871",
+		.id = AM_TUNER_CXD2871,
+		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
+				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_ATSCMH, SYS_DTMB,
+				SYS_DVBT2, SYS_DVBC_ANNEX_C
+		},
+		.type = { FE_OFDM, FE_ATSC, FE_QAM,
+				FE_DTMB, FE_ISDBT,
+				AML_FE_UNDEFINED
+		},
+		.attach_symbol = NULL,
+		.attach = aml_tuner_attach,
+		.detach = aml_tuner_detach,
+		.match = aml_tuner_match,
+		.detect = aml_tuner_detect
+	},
+	{
+		.name = "cxd6866",
+		.id = AM_TUNER_CXD6866,
+		.delsys = { SYS_DVBC_ANNEX_A, SYS_DVBC_ANNEX_B, SYS_DVBT,
+				SYS_ISDBT, SYS_ISDBC, SYS_ATSC, SYS_ATSCMH, SYS_DTMB,
+				SYS_DVBT2, SYS_DVBC_ANNEX_C, SYS_DVBS, SYS_DVBS2, SYS_ISDBS
+		},
+		.type = { FE_OFDM, FE_ATSC, FE_QAM,
+				FE_DTMB, FE_ISDBT, FE_QPSK,
+				AML_FE_UNDEFINED
+		},
+		.attach_symbol = NULL,
+		.attach = aml_tuner_attach,
+		.detach = aml_tuner_detach,
+		.match = aml_tuner_match,
+		.detect = aml_tuner_detect
 	}
 };
 

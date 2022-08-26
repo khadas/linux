@@ -39,7 +39,9 @@ enum tuner_type {
 	AM_TUNER_R848 = 21,
 	AM_TUNER_MXL603 = 22,
 	AM_TUNER_RT710 = 23,
-	AM_TUNER_R850 = 24
+	AM_TUNER_R850 = 24,
+	AM_TUNER_CXD6866 = 25,
+	AM_TUNER_CXD2871 = 26
 };
 
 enum atv_demod_type {
@@ -82,7 +84,8 @@ enum dtv_demod_type {
 	AM_DTV_DEMOD_MXL256C  = 25,
 	AM_DTV_DEMOD_MXL258C  = 26,
 	AM_DTV_DEMOD_SI2169   = 27,
-	AM_DTV_DEMOD_AVL6221C = 28
+	AM_DTV_DEMOD_AVL6221C = 28,
+	AM_DTV_DEMOD_CXD2878  = 29
 };
 
 enum aml_fe_dev_type {
