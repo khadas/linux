@@ -629,7 +629,6 @@ int aml_cma_alloc_range(unsigned long start, unsigned long end)
 	unsigned long outer_start, outer_end;
 	int ret = 0, order;
 	int try_times = 0;
-	int boost_ok = 0;
 
 	struct compact_control cc = {
 		.nr_migratepages = 0,
@@ -660,7 +659,6 @@ try_again:
 	if ((num_online_cpus() > 1) && can_boost &&
 	    ((end - start) >= pageblock_nr_pages / 2)) {
 		ret = cma_alloc_contig_boost(start, end - start);
-		boost_ok = !ret ? 1 : 0;
 	} else {
 		ret = aml_alloc_contig_migrate_range(&cc, start, end, 0, current);
 	}
@@ -672,10 +670,9 @@ try_again:
 	}
 
 	ret = 0;
-	if (!boost_ok) {
-		lru_add_drain_all();
-		drain_all_pages(cc.zone);
-	}
+	lru_add_drain_all();
+	drain_all_pages(cc.zone);
+
 	order = 0;
 	outer_start = start;
 	while (!PageBuddy(pfn_to_page(outer_start))) {
