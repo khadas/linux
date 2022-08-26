@@ -292,8 +292,12 @@ int frame_lock_frame_rate_check(struct vinfo_s *vinfo)
 
 	if (frame_sts.vrr_frame_cur >= frame_sts.vrr_frame_out_fps_min &&
 		frame_sts.vrr_frame_cur <= frame_sts.vrr_frame_out_fps_max) {
+		if (frame_sts.vrr_frame_outof_range_cnt == vrr_outof_rge_cnt)
+			ret = false;
+		else
+			ret = true;
+
 		frame_sts.vrr_frame_outof_range_cnt = 0;
-		ret = true;
 	} else {
 		if (frame_sts.vrr_frame_outof_range_cnt < vrr_outof_rge_cnt) {
 			frame_sts.vrr_frame_outof_range_cnt++;
