@@ -383,6 +383,26 @@
 		status = "okay";
 	};
 
+	adla: adla@0xfe371000 {
+		compatible = "amlogic,adla";
+		dev_name = "adla";
+		status = "okay";
+		reg = <0x0 0xfe371000 0x0 0x2000
+			0x0 0xf7000000 0x0 0x80000
+			>;
+		reg-names = "adla_reg\0adla_sram";
+		interrupt-names = "adla";
+		interrupts = <0 148 1>;
+		clocks = <&clkc CLKID_NNA>;
+		clock-names = "adla_core_clk";
+		assigned-clocks =<&clkc CLKID_NNA>;
+		assigned-clock-parentsd = <&clkc CLKID_FCLK_DIV2P5>;
+		assigned-clock-rates = <800000000>;
+		power-domains=<&pwrdm PDID_S5_NNA_4T>;
+		//memory-region = <&nna_cma_reserved>;
+		smmu;
+	};
+
 	nna_top_ports_wrapper_0: nna_top_ports_wrapper@fe370000 {
 		compatible = "amazon,nna-1.0";
 		device-name = "acenna0";
