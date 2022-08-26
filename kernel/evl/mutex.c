@@ -899,14 +899,16 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	if (mutex->flags & EVL_MUTEX_CEILING)
 		clear_boost_locked(mutex, curr, EVL_MUTEX_CEILING);
 
+	/*
+	 * The whole logic is based on the invariant that the current
+	 * thread does own the mutex being released.
+	 * IOW: currh == atomic_read(lockp) & ~(EVL_MUTEX_FLCLAIM|EVL_MUTEX_FLCEIL).
+	 */
 	h = atomic_read(lockp);
-	h = atomic_cmpxchg(lockp, h, EVL_NO_HANDLE);
-	if ((h & ~EVL_MUTEX_FLCEIL) != currh) {
-		/* FLCLAIM set, mutex is contended. */
+	if (h & EVL_MUTEX_FLCLAIM) { /* Is there a contender? */
 		transfer_ownership(mutex, curr);
 	} else {
-		if (h != currh)	/* FLCEIL set, FLCLAIM clear. */
-			atomic_set(lockp, EVL_NO_HANDLE);
+		atomic_set(lockp, EVL_NO_HANDLE);
 		untrack_owner(mutex);
 	}
 
