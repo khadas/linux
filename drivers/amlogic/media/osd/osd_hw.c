@@ -120,6 +120,7 @@ static int save_frame(u32 index, u32 frame_index);
 
 struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 struct hw_osd_blend_reg_s hw_osd_reg_blend;
+static int osd_reg_init = 1;
 
 struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 	{
@@ -1718,7 +1719,7 @@ static int get_venc_type(u32 viu_type)
 {
 	u32 venc_type = 0;
 
-	if (osd_dev_hw.t7_display) {
+	if (osd_dev_hw.t7_display || osd_dev_hw.s5_display) {
 		u32 venc_mux = 3;
 		u32 venc_addr = VPU_VENC_CTRL;
 
@@ -1756,7 +1757,7 @@ static int get_active_begin_line(u32 viu_type)
 	u32 offset = 0;
 	u32 reg = ENCL_VIDEO_VAVON_BLINE;
 
-	if (osd_dev_hw.t7_display) {
+	if (osd_dev_hw.t7_display || osd_dev_hw.s5_display) {
 		u32 venc_mux = 3;
 
 		venc_mux = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
@@ -1816,7 +1817,7 @@ int get_encp_line(u32 viu_type)
 	u32 offset = 0;
 	u32 venc_type = get_venc_type(viu_type);
 
-	if (osd_dev_hw.t7_display) {
+	if (osd_dev_hw.t7_display || osd_dev_hw.s5_display) {
 		u32 venc_mux = 3;
 
 		venc_mux = osd_reg_read(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
@@ -13396,9 +13397,23 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_reg_write(L_GAMMA_CNTL_PORT, 0);
 
 	/* here we will init default value ,these value only set once . */
-	if (!logo_loaded) {
-		if (osd_dev_hw.s5_display)
+	if (!logo_loaded || osd_reg_init) {
+		if (osd_dev_hw.s5_display) {
 			s5_default_path_settings();
+
+			/* osd0 matrix settings */
+			osd_reg_write(0x6100, 0x00e60252);
+			osd_reg_write(0x6100, 0x00e60252);
+			osd_reg_write(0x6101, 0x00341f83);
+			osd_reg_write(0x6102, 0xfebd01c0);
+			osd_reg_write(0x6103, 0x01c01e64);
+			osd_reg_write(0x6104, 0x00001fdc);
+			osd_reg_write(0x6108, 0x00400200);
+			osd_reg_write(0x6109, 0x00000200);
+			osd_reg_write(0x610a, 0x00000000);
+			osd_reg_write(0x610b, 0x00000000);
+			osd_reg_write(0x6139, 0x00000001);
+		}
 
 		if (osd_dev_hw.multi_afbc_core)
 			multi_afbc_default_path_setting();
