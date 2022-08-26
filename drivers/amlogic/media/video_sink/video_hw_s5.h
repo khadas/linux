@@ -86,6 +86,9 @@ struct vd_proc_sr_s {
 	u32 dout_vsize;
 	u32 h_scaleup_en;
 	u32 v_scaleup_en;
+	u32 sr_support;
+	u32 core_v_enable_width_max;
+	u32 core_v_disable_width_max;
 };
 
 struct vd_proc_hwin_s {

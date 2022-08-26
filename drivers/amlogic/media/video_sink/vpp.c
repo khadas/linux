@@ -4375,6 +4375,16 @@ int vpp_set_super_scaler_regs(int scaler_path_sel,
 	return 0;
 }
 
+struct sr_info_s *get_super_scaler_info(void)
+{
+	return &sr_info;
+}
+
+bool get_super_scaler_status(void)
+{
+	return super_scaler;
+}
+
 static void vpp_set_super_scaler
 	(u32 vpp_wide_mode,
 	const struct vinfo_s *vinfo,

@@ -91,6 +91,18 @@ static struct vpp_post_input_s g_vpp_input;
 #define SIZE_ALIG8(frm_hsize)    ((((frm_hsize) + 7) >> 3) << 3)
 #define SIZE_ALIG4(frm_hsize)    ((((frm_hsize) + 3) >> 2) << 2)
 
+static u32 get_reg_slice_vpost(int reg_addr, int slice_idx)
+{
+	u32 reg_offset;
+	u32 reg_addr_tmp;
+
+	reg_offset = slice_idx == 0 ? 0 :
+		slice_idx == 1 ? 0x100 :
+		slice_idx == 2 ? 0x700 : 0x1900;
+	reg_addr_tmp = reg_addr + reg_offset;
+	return reg_addr_tmp;
+}
+
 static void dump_vpp_blend_reg(void)
 {
 	u32 reg_addr, reg_val = 0;
@@ -192,6 +204,7 @@ static void dump_vpp_blend_reg(void)
 
 static void dump_vpp_post_misc_reg(void)
 {
+	int i;
 	u32 reg_addr, reg_val = 0;
 	struct vpp_post_misc_reg_s *vpp_post_misc_reg = NULL;
 
@@ -229,26 +242,33 @@ static void dump_vpp_post_misc_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = vpp_post_misc_reg->vpp_out_h_v_size;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%X\n",
+	for (i = 0; i < SLICE_NUM; i++) {
+		reg_addr = vpp_post_misc_reg->vpp_out_h_v_size;
+		reg_addr = get_reg_slice_vpost(reg_addr, i);
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = vpp_post_misc_reg->vpp_ofifo_size;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%X\n",
-		   reg_addr, reg_val);
-	reg_addr = vpp_post_misc_reg->vpp_slc_deal_ctrl;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%X\n",
-		   reg_addr, reg_val);
-	reg_addr = vpp_post_misc_reg->vpp_hwin_size;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%X\n",
-		   reg_addr, reg_val);
-	reg_addr = vpp_post_misc_reg->vpp_align_fifo_size;
-	reg_val = READ_VCBUS_REG(reg_addr);
-	pr_info("[0x%x] = 0x%X\n",
-		   reg_addr, reg_val);
+		reg_addr = vpp_post_misc_reg->vpp_ofifo_size;
+		reg_addr = get_reg_slice_vpost(reg_addr, i);
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vpp_post_misc_reg->vpp_slc_deal_ctrl;
+		reg_addr = get_reg_slice_vpost(reg_addr, i);
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vpp_post_misc_reg->vpp_hwin_size;
+		reg_addr = get_reg_slice_vpost(reg_addr, i);
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vpp_post_misc_reg->vpp_align_fifo_size;
+		reg_addr = get_reg_slice_vpost(reg_addr, i);
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
 }
 
 void dump_vpp_post_reg(void)
@@ -257,7 +277,7 @@ void dump_vpp_post_reg(void)
 	dump_vpp_post_misc_reg();
 }
 
-void wr_slice_vpost(int reg_addr, int val, int slice_idx)
+static void wr_slice_vpost(int reg_addr, int val, int slice_idx)
 {
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[VPP0].rdma_wr;
 	u32 reg_offset;
@@ -266,11 +286,11 @@ void wr_slice_vpost(int reg_addr, int val, int slice_idx)
 	reg_offset = slice_idx == 0 ? 0 :
 		slice_idx == 1 ? 0x100 :
 		slice_idx == 2 ? 0x700 : 0x1900;
-	reg_addr_tmp = reg_addr + (reg_offset << 2);
+	reg_addr_tmp = reg_addr + reg_offset;
 	rdma_wr(reg_addr_tmp, val);
 };
 
-void wr_reg_bits_slice_vpost(int reg_addr, int val, int start, int len, int slice_idx)
+static void wr_reg_bits_slice_vpost(int reg_addr, int val, int start, int len, int slice_idx)
 {
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[VPP0].rdma_wr_bits;
 	u32 reg_offset;
@@ -279,7 +299,7 @@ void wr_reg_bits_slice_vpost(int reg_addr, int val, int start, int len, int slic
 	reg_offset = slice_idx == 0 ? 0 :
 		slice_idx == 1 ? 0x100 :
 		slice_idx == 2 ? 0x700 : 0x1900;
-	reg_addr_tmp = reg_addr + (reg_offset << 2);
+	reg_addr_tmp = reg_addr + reg_offset;
 	rdma_wr_bits(reg_addr_tmp, val, start, len);
 };
 
@@ -747,9 +767,9 @@ static int vpp_post_proc_hwin_param_set(struct vpp_post_s *vpp_post)
 		vpp_post_proc_hwin->hwin_end[2] =
 			vpp_post_proc_slice->hsize[2] - overlap_hsize - 1;
 
-		vpp_post_proc_hwin->hwin_en[1] = 1;
-		vpp_post_proc_hwin->hwin_bgn[1] = overlap_hsize;
-		vpp_post_proc_hwin->hwin_end[1] =
+		vpp_post_proc_hwin->hwin_en[3] = 1;
+		vpp_post_proc_hwin->hwin_bgn[3] = overlap_hsize;
+		vpp_post_proc_hwin->hwin_end[3] =
 			vpp_post_proc_slice->hsize[3] - 1;
 		break;
 	case 2:
@@ -834,7 +854,7 @@ static int get_vpp_slice_num(const struct vinfo_s *info)
 	int slice_num = 1;
 
 	/* 8k case 4 slice */
-	if (info->width > 3840 && info->field_height > 2160)
+	if (info->width > 4096 && info->field_height > 2160)
 		slice_num = 4;
 	/* 4k120hz */
 	else if (info->width == 3840 &&
@@ -856,7 +876,8 @@ static int check_vpp_info_changed(struct vpp_post_input_s *vpp_input)
 		if (vpp_input->din_hsize[i] != g_vpp_input.din_hsize[i] ||
 			vpp_input->din_vsize[i] != g_vpp_input.din_vsize[i]) {
 			changed = 1;
-			pr_info("hit vpp_input:%d, %d, %d, %d\n",
+			pr_info("hit vpp_input vd[%d]:%d, %d, %d, %d\n",
+			i,
 			vpp_input->din_hsize[i],
 			vpp_input->din_vsize[i],
 			g_vpp_input.din_hsize[i],
@@ -937,7 +958,7 @@ int update_vpp_input_info(const struct vinfo_s *info)
 	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P ||
 		vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_2S4P) {
 		vpp_input.vd1_padding_en = 1;
-		vpp_input.vd1_size_before_padding = vd_proc_vd1_info->vd1_dout_vsize;
+		vpp_input.vd1_size_before_padding = vd_proc_vd1_info->vd1_dout_hsize;
 		vpp_input.vd1_size_after_padding = vpp_input.din_hsize[0];
 	} else {
 		vpp_input.vd1_padding_en = 0;
