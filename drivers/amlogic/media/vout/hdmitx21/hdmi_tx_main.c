@@ -5303,6 +5303,10 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 	int ret = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
+	struct pinctrl *pin;
+	//const char *pin_name;
+	//const struct of_device_id *of_id;
+
 #ifdef CONFIG_OF
 	int val;
 	phandle phandler;
@@ -5310,22 +5314,33 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 	const struct of_device_id *match;
 #endif
 
-	/* HDMITX pinctrl config for hdp and ddc*/
-	if (pdev->dev.pins) {
-		hdev->pdev = &pdev->dev;
+	match = of_match_device(meson_amhdmitx_of_match, &pdev->dev);
+	if (!match) {
+		pr_info("unable to get matched device\n");
+		return -1;
+	}
+	pr_info("get matched device\n");
+	//hdev->data = match->data;
 
-		hdev->pinctrl_default =
-			pinctrl_lookup_state(pdev->dev.pins->p, "default");
-		if (IS_ERR(hdev->pinctrl_default))
-			pr_info("no default of pinctrl state\n");
+	/* pinmux set */
+	if (pdev->dev.of_node) {
+		pin = devm_pinctrl_get(&pdev->dev);
+		if (!pin)
+			pr_info("get pin control fail\n");
 
-		hdev->pinctrl_i2c =
-			pinctrl_lookup_state(pdev->dev.pins->p, "hdmitx_i2c");
-		if (IS_ERR(hdev->pinctrl_i2c))
-			pr_info("no hdmitx_i2c of pinctrl state\n");
+		hdev->pinctrl_default = pinctrl_lookup_state(pin, "hdmitx_hpd");
+		pinctrl_select_state(pin, hdev->pinctrl_default);
 
-		pinctrl_select_state(pdev->dev.pins->p,
-				     hdev->pinctrl_default);
+		hdev->pinctrl_i2c = pinctrl_lookup_state(pin, "hdmitx_ddc");
+		pinctrl_select_state(pin, hdev->pinctrl_i2c);
+		/* rx_pr("hdmirx: pinmux:%p, name:%s\n", */
+		/* pin, pin_name); */
+		pr_info("get pin control\n");
+
+		/* rx_pr("hdmirx: pinmux:%p, name:%s\n", */
+		/* pin, pin_name); */
+	} else {
+		pr_info("node null\n");
 	}
 
 #ifdef CONFIG_OF
