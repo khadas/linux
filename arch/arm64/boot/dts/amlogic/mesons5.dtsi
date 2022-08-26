@@ -316,7 +316,9 @@
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
+		reg = <0x0 0xfe01037c 0x0 0x4>; /*SYSCTRL_SEC_STATUS_REG31*/
 		dis_nb_cpus_in_shutdown;
+		status = "okay";
 	};
 
 	ram-dump {

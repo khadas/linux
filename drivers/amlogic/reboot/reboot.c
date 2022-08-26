@@ -188,6 +188,12 @@ static ssize_t reset_test_store(struct device *dev,
 	char s[64] = {0};
 	u32 reason, i = 0;
 
+	if (count > 64) {
+		pr_err("%s: Error: string length %u is over maximum limits 64\n",
+		       __func__, (u32)count);
+		return count;
+	}
+
 	while (*buf != '\n')
 		s[i++] = *buf++;
 	reason = parse_reason(s);
