@@ -1532,6 +1532,10 @@
 	};
 };
 
+&drm_subsystem {
+		crtc_masks = <3 7 1>;
+};
+
 &lcd {
 	ports {
 		port {
