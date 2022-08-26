@@ -382,7 +382,8 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 	vrr_data.target_vfreq_num = devp->parm.info.fps;
 	vrr_data.target_vfreq_den = 1;
 	vrr_data.vrr_mode = devp->prop.vtem_data.vrr_en |
-			(devp->prop.spd_data.data[5] >> 1 & 0x7);
+			(vdin_check_is_spd_data(devp) &&
+			(devp->prop.spd_data.data[5] >> 1 & 0x7));
 	/* save vrr_mode status */
 	devp->vrr_data.vrr_mode = vrr_data.vrr_mode;
 
@@ -390,16 +391,19 @@ void vdin_frame_lock_check(struct vdin_dev_s *devp, int state)
 		if (devp->game_mode) {
 			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_ON,
 						   &vrr_data);
+			devp->vrr_data.frame_lock_vrr_en = vrr_data.vrr_mode;
 			pr_info("%s: state =1 and Game, enable frame lock mode:%x\n", __func__,
 				vrr_data.vrr_mode);
 		} else {
 			aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF,
 							   &vrr_data);
+			devp->vrr_data.frame_lock_vrr_en = FALSE;
 			pr_info("%s: state =1 and no Game, disable v\n", __func__);
 		}
 	} else {
 		aml_vrr_atomic_notifier_call_chain(FRAME_LOCK_EVENT_OFF,
 						   &vrr_data);
+		devp->vrr_data.frame_lock_vrr_en = FALSE;
 		pr_info("%s: state=0 ,disable frame lock\n", __func__);
 	}
 }
@@ -439,6 +443,7 @@ static inline void vdin_get_in_out_fps(struct vdin_dev_s *devp)
 
 static void vdin_game_mode_check(struct vdin_dev_s *devp)
 {
+	devp->game_mode_pre = devp->game_mode;
 	if (game_mode == 1 && (!IS_TVAFE_ATV_SRC(devp->parm.port))) {
 		vdin_get_in_out_fps(devp);
 		/* if vout fps greater than vin fps use mode0 */
@@ -485,11 +490,54 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 
 	if (vdin_force_game_mode)
 		devp->game_mode = vdin_force_game_mode;
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+		pr_info("%s: game_mode_cfg=0x%x;pre:%d,cur:%#x,force mode:0x%x,fps:%d,vout:%d\n",
+			__func__, game_mode, devp->game_mode_pre, devp->game_mode,
+			vdin_force_game_mode, devp->vdin_std_duration,
+			devp->vinfo_std_duration);
+}
+
+/* game mode change,check in every isr routine */
+static inline void vdin_game_mode_dynamic_chg(struct vdin_dev_s *devp)
+{
+	if (devp->game_mode_pre & VDIN_GAME_MODE_2) {
+		if (devp->game_mode & VDIN_GAME_MODE_2)
+			devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
+		else if (devp->game_mode & VDIN_GAME_MODE_1)
+			devp->game_mode_chg = VDIN_GAME_MODE_2_TO_1;
+		else if (devp->game_mode & VDIN_GAME_MODE_0)
+			devp->game_mode_chg = VDIN_GAME_MODE_ON_TO_OFF;
+		else if (!devp->game_mode)
+			devp->game_mode_chg = VDIN_GAME_MODE_ON_TO_OFF;
+	} else if (devp->game_mode_pre & VDIN_GAME_MODE_1) {
+		if (devp->game_mode & VDIN_GAME_MODE_2)
+			devp->game_mode_chg = VDIN_GAME_MODE_1_TO_2;
+		else if (devp->game_mode & VDIN_GAME_MODE_1)
+			devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
+		else if (devp->game_mode & VDIN_GAME_MODE_0)
+			devp->game_mode_chg = VDIN_GAME_MODE_ON_TO_OFF;
+		else if (!devp->game_mode)
+			devp->game_mode_chg = VDIN_GAME_MODE_ON_TO_OFF;
+	} else if (devp->game_mode_pre & VDIN_GAME_MODE_0) {
+		if (devp->game_mode & VDIN_GAME_MODE_1 ||
+			devp->game_mode & VDIN_GAME_MODE_2)
+			devp->game_mode_chg = VDIN_GAME_MODE_OFF_TO_ON;
+		else /* game mode 0 or no game mode */
+			devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
+	} else {/* non game mode */
+		if (devp->game_mode & VDIN_GAME_MODE_1 ||
+			devp->game_mode & VDIN_GAME_MODE_2)
+			devp->game_mode_chg = VDIN_GAME_MODE_OFF_TO_ON;
+		else/* game mode 0 or no game mode */
+			devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
+	}
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+		pr_info("%s %d,game:pre(%#x)cur(%#x)chg:%d\n",
+			__func__, __LINE__, devp->game_mode_pre,
+			devp->game_mode, devp->game_mode_chg);
+	devp->game_mode_bak = devp->game_mode_pre;
 	devp->game_mode_pre = devp->game_mode;
-	if (vdin_isr_monitor & BIT(7))
-		pr_info("%s: game_mode_cfg=0x%x;cur:%#x,force mode:0x%x,fps:%d,vout:%d\n",
-			__func__, game_mode, devp->game_mode, vdin_force_game_mode,
-			devp->vdin_std_duration, devp->vinfo_std_duration);
 }
 
 static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
@@ -521,13 +569,22 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 			VDIN_GAME_MODE_1 |
 			VDIN_GAME_MODE_SWITCH_EN);
 	}
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+		pr_info("%s %d,vrr_mode:%d,game:pre(%#x)cur(%#x)in fps:%d out fps:%d\n",
+			__func__, __LINE__, devp->vrr_data.vrr_mode,
+			devp->game_mode_pre, devp->game_mode, devp->vdin_std_duration,
+			devp->vinfo_std_duration);
 }
 
 static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 {
+	unsigned int game_mode_backup;
+
 	if (!devp->game_mode)
 		return;
 
+	game_mode_backup = devp->game_mode;
 	/*switch to game mode 2 from game mode 1,otherwise may appear blink*/
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 		if (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN) {
@@ -567,9 +624,10 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 				}
 				phase_lock_flag = 0;
 				if (vdin_isr_monitor & BIT(4))
-					pr_info("switch to game mode 0x%x, frame_cnt=%d in fps:%d out fps:%d\n",
-						devp->game_mode, devp->frame_cnt,
-						devp->vdin_std_duration, devp->vinfo_std_duration);
+					pr_info("switch(%d) to game mode 0x%x, frame_cnt=%d in fps:%d out fps:%d\n",
+						devp->game_mode_pre, devp->game_mode,
+						devp->frame_cnt, devp->vdin_std_duration,
+						devp->vinfo_std_duration);
 			}
 		} else {
 			/* if phase lock fail, exit game mode and re-entry
@@ -578,10 +636,6 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			if (!vlock_get_phlock_flag() && !frame_lock_vrr_lock_status()) {
 				if (phase_lock_flag++ > 1) {
 					vdin_game_mode_dynamic_check(devp);
-					if (vdin_isr_monitor & BIT(4))
-						pr_info("game mode switch to 0x%x in fps:%d out fps:%d\n",
-							devp->game_mode, devp->vdin_std_duration,
-							devp->vinfo_std_duration);
 					phase_lock_flag = 0;
 					/* vlock need reset automatic,
 					 * vlock will re-lock
@@ -606,6 +660,11 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			devp->game_mode = (VDIN_GAME_MODE_0 | VDIN_GAME_MODE_2);
 		}
 	}
+
+	if (game_mode_backup != devp->game_mode)
+		devp->game_mode_pre = game_mode_backup;
+	/* remember game mode change, handle send vf change in ISR */
+	vdin_game_mode_dynamic_chg(devp);
 }
 
 /* game mode changed while vdin dec have started
@@ -623,14 +682,15 @@ void vdin_game_mode_chg(struct vdin_dev_s *devp,
 		spin_lock_irqsave(&devp->isr_lock, flags);
 		/* game_mode change */
 		if (!old_mode && new_mode)
-			devp->game_mode_chg = VDIN_GAME_MODE_OFF_2_ON;
+			devp->game_mode_chg = VDIN_GAME_MODE_OFF_TO_ON;
 		else if (old_mode && !new_mode)
-			devp->game_mode_chg = VDIN_GAME_MODE_ON_2_OFF;
+			devp->game_mode_chg = VDIN_GAME_MODE_ON_TO_OFF;
 		else
 			devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
-		if (vdin_isr_monitor & BIT(7))
-			pr_info("%s:%d;pre cfg mode:%d,new cfg mode%d;pre cur mode:%d\n",
-				__func__, devp->game_mode_chg, old_mode, new_mode, devp->game_mode);
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+			pr_info("%s;game,old:%d,new:%d,chg:%d;game cur:%#x\n",
+				__func__, old_mode, new_mode,
+				devp->game_mode_chg, devp->game_mode);
 		game_mode = new_mode;
 		devp->game_mode_bak = devp->game_mode;
 		vdin_game_mode_check(devp);
@@ -640,15 +700,16 @@ void vdin_game_mode_chg(struct vdin_dev_s *devp,
 
 static void vdin_handle_game_mode_chg(struct vdin_dev_s *devp)
 {
-	if (devp->game_mode_chg == VDIN_GAME_MODE_OFF_2_ON) {
-		if (vdin_isr_monitor & BIT(7))
+	if (devp->game_mode_chg == VDIN_GAME_MODE_OFF_TO_ON ||
+		devp->game_mode_chg == VDIN_GAME_MODE_1_TO_2) {
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
 			pr_info("%s,game_mode_cur:%d,last_wr_vfe:%d\n", __func__,
 				devp->game_mode, !!devp->last_wr_vfe);
 		if ((devp->game_mode & VDIN_GAME_MODE_1) && devp->last_wr_vfe) {
 			receiver_vf_put(&devp->last_wr_vfe->vf, devp->vfp);
 			devp->last_wr_vfe = NULL;
 		}
-	} else if (devp->game_mode_chg == VDIN_GAME_MODE_ON_2_OFF) {
+	} else if (devp->game_mode_chg == VDIN_GAME_MODE_ON_TO_OFF) {
 		if ((devp->game_mode_bak & VDIN_GAME_MODE_1) && devp->curr_wr_vfe)
 			receiver_vf_put(&devp->curr_wr_vfe->vf, devp->vfp);
 
@@ -658,7 +719,18 @@ static void vdin_handle_game_mode_chg(struct vdin_dev_s *devp)
 			devp->last_wr_vfe = NULL;
 			devp->game_chg_drop_frame_cnt = 2;
 		}
-		if (vdin_isr_monitor & BIT(7))
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+			pr_info("%s,game_mode_chg:%d,game_mode_bak:%#x\n", __func__,
+				devp->game_mode_chg, devp->game_mode_bak);
+	} else if (devp->game_mode_chg == VDIN_GAME_MODE_2_TO_1) {
+		if (devp->curr_wr_vfe)
+			receiver_vf_put(&devp->curr_wr_vfe->vf, devp->vfp);
+		devp->curr_wr_vfe = NULL;
+		if (devp->last_wr_vfe)
+			receiver_vf_put(&devp->last_wr_vfe->vf, devp->vfp);
+		devp->last_wr_vfe = NULL;
+		devp->game_chg_drop_frame_cnt = 2;
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
 			pr_info("%s,game_mode_chg:%d,game_mode_bak:%#x\n", __func__,
 				devp->game_mode_chg, devp->game_mode_bak);
 	}
@@ -926,7 +998,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		return -1;
 	}
 
-	vdin_frame_lock_check(devp, 1);
 	if (devp->frontend && devp->frontend->sm_ops) {
 		sm_ops = devp->frontend->sm_ops;
 		sm_ops->get_sig_property(devp->frontend, &devp->prop);
@@ -1052,6 +1123,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vfp->size = devp->vf_mem_max_cnt; /* canvas and afbce compatible */
 	vf_pool_init(devp->vfp, devp->vfp->size);
 	vdin_game_mode_check(devp);
+	vdin_frame_lock_check(devp, 1);
 	vdin_vf_init(devp);
 	/* config dolby mem base */
 	vdin_dolby_addr_alloc(devp, devp->vfp->size);
@@ -1411,6 +1483,10 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->vdin1_stop_write = 0;
 	devp->vdin1_stop_write_count = 0;
 	devp->vdin_stable_cnt = 0;
+	devp->game_mode = 0;
+	devp->game_mode_pre = 0;
+	devp->game_mode_bak = 0;
+	devp->game_mode_chg = VDIN_GAME_MODE_UN_CHG;
 
 	if ((devp->vdin_function_sel & VDIN_SELF_STOP_START) &&
 		devp->self_stop_start) {
@@ -2200,8 +2276,14 @@ static void vdin_hist_tgt(struct vdin_dev_s *devp, struct vframe_s *vf)
 void vdin_drop_frame_info(struct vdin_dev_s *devp, char *info)
 {
 	if (skip_frame_debug) {
-		pr_info("vdin.%d: vdin_irq_flag=%d %s\n",
-			devp->index, devp->vdin_irq_flag, info);
+		if (devp->vdin_irq_flag == VDIN_IRQ_FLG_NO_NEXT_FE)
+			pr_info("vdin.%d: %s wr_list:%x wr_mode:%x rd_list:%x rd_mode:%x\n",
+				devp->index, info, devp->vfp->wr_list_size,
+				devp->vfp->wr_mode_size, devp->vfp->rd_list_size,
+				devp->vfp->rd_mode_size);
+		else
+			pr_info("vdin.%d: vdin_irq_flag=%d %s\n",
+				devp->index, devp->vdin_irq_flag, info);
 	}
 }
 
@@ -2408,9 +2490,20 @@ void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en)
 
 static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 {
-	if (!devp->vrr_data.vrr_mode) {
-		if ((devp->prop.vtem_data.vrr_en |
-		    (devp->prop.spd_data.data[5] >> 1 & 0x7))) {
+	bool is_freesync = 0, is_vrr = 0;
+
+	is_vrr = devp->prop.vtem_data.vrr_en;
+	is_freesync = (vdin_check_is_spd_data(devp) &&
+			(devp->prop.spd_data.data[5] >> 1 & 0x7));
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
+		pr_info("%s %d,frame_lock_on:%d,vrr:%d,freesync:%d,game:%d\n",
+			__func__, __LINE__, devp->vrr_data.frame_lock_vrr_en,
+			is_vrr, is_freesync, devp->game_mode);
+
+	/* FRAME_LOCK_EVENT_OFF */
+	if (!devp->vrr_data.frame_lock_vrr_en) {
+		if ((is_vrr || is_freesync) && devp->game_mode) {
 			devp->vrr_on_add_cnt++;
 			devp->vrr_off_add_cnt = 0;
 		} else {
@@ -2421,9 +2514,8 @@ static inline void vdin_dynamic_switch_vrr(struct vdin_dev_s *devp)
 			devp->vrr_on_add_cnt = 0;
 			devp->vrr_off_add_cnt = 0;
 		}
-	} else {
-		if (!(devp->prop.vtem_data.vrr_en |
-		     (devp->prop.spd_data.data[5] >> 1 & 0x7))) {
+	} else {/* FRAME_LOCK_EVENT_ON */
+		if (!(is_vrr || is_freesync)) {
 			devp->vrr_off_add_cnt++;
 			devp->vrr_on_add_cnt = 0;
 		} else {
@@ -2471,7 +2563,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (!devp)
 		return IRQ_HANDLED;
 
-	if (vdin_isr_monitor & BIT(6))
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_VF)
 		pr_info("vdin frame_cnt:%d vdin_cur_time:%lld\n",
 			devp->frame_cnt, ktime_to_us(ktime_get()));
 
@@ -3059,6 +3151,12 @@ irq_handled:
 	}
 #endif
 	isr_log(devp->vfp);
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_BUFFER)
+		pr_info("vdin.%d: frame_cnt:0x%x wr_list:%x wr_mode:%x rd_list:%x rd_mode:%x\n",
+			devp->index, devp->frame_cnt, devp->vfp->wr_list_size,
+			devp->vfp->wr_mode_size, devp->vfp->rd_list_size,
+			devp->vfp->rd_mode_size);
 
 	return IRQ_HANDLED;
 }

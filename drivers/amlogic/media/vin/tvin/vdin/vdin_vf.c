@@ -393,6 +393,8 @@ int vf_pool_init(struct vf_pool *p, int size)
 	spin_unlock_irqrestore(&p->tmp_lock, flags);
 	p->wr_list_size = 0;
 	p->rd_list_size = 0;
+	p->wr_mode_size = 0;
+	p->rd_mode_size = 0;
 	p->fz_list_size = 0;
 	p->tmp_list_size = 0;
 	p->last_vfe = NULL;
@@ -570,8 +572,16 @@ struct vf_entry *provider_vf_get(struct vf_pool *p)
 	spin_lock_irqsave(&p->wr_lock, flags);
 	vfe = vf_pool_get(&p->wr_list);
 	if (vfe) {
+		if (vfe->status != VF_STATUS_WL) {
+			if (vf_list_dbg & VDIN_VF_DBG_EN)
+				pr_info("not WL entry:0x%p index:%x sta:%x\n",
+					vfe, vfe->vf.index, vfe->status);
+			spin_unlock_irqrestore(&p->wr_lock, flags);
+			return NULL;
+		}
 		p->wr_list_size--;
 		vfe->status = VF_STATUS_WM;
+		p->wr_mode_size++;
 		if (vf_list_dbg & VDIN_VF_MOVE_EN && p->vf_move_prt_cnt) {
 			p->vf_move_prt_cnt--;
 			pr_info("del_wr:entry:0x%p wr_size:%x index:%x sta:%x\n",
@@ -606,6 +616,7 @@ void provider_vf_put(struct vf_entry *vfe, struct vf_pool *p)
 	vfe->status = VF_STATUS_RL;
 	vf_pool_put(vfe, &p->rd_list);
 	p->rd_list_size++;
+	p->wr_mode_size--;
 	spin_unlock_irqrestore(&p->rd_lock, flags);
 	spin_lock_irqsave(&p->log_lock, flags);
 	vf_log(p, VF_OPERATION_FPUT, true);
@@ -667,8 +678,16 @@ struct vf_entry *receiver_vf_get(struct vf_pool *p)
 	}
 
 	vfe = vf_pool_get(&p->rd_list);
+	if (vfe->status != VF_STATUS_RL) {
+		if (vf_list_dbg & VDIN_VF_DBG_EN)
+			pr_info("not RL entry:0x%p index:%x sta:%x\n",
+				vfe, vfe->vf.index, vfe->status);
+		spin_unlock_irqrestore(&p->rd_lock, flags);
+		return NULL;
+	}
 	p->rd_list_size--;
 	vfe->status = VF_STATUS_RM;
+	p->rd_mode_size++;
 	spin_unlock_irqrestore(&p->rd_lock, flags);
 	spin_lock_irqsave(&p->log_lock, flags);
 	vf_log(p, VF_OPERATION_BGET, true);
@@ -736,11 +755,15 @@ void receiver_vf_put(struct vframe_s *vf, struct vf_pool *p)
 		if (master->status == VF_STATUS_WL ||
 		    master->status == VF_STATUS_RL) {
 			if (vf_list_dbg & VDIN_VF_DBG_EN)
-				pr_info("back in list mem vf_addr:0x%p index:%x sta:%x\n",
+				pr_info("not WL and RL entry:0x%p index:%x sta:%x\n",
 					master, vf->index, master->status);
 			spin_unlock_irqrestore(&p->wr_lock, flags);
 			return;
 		}
+		if (master->status == VF_STATUS_WM)
+			p->wr_mode_size--;
+		if (master->status == VF_STATUS_RM)
+			p->rd_mode_size--;
 		master->status = VF_STATUS_WL;
 		vf_pool_put(master, &p->wr_list);
 		p->wr_list_size++;
@@ -986,6 +1009,8 @@ void vdin_dump_vf_state(struct vf_pool *p)
 		pr_info("\t ratio_control(0x%x) signal_type(0x%x)\n",
 			pos->vf.ratio_control, pos->vf.signal_type);
 	}
+	pr_info("wr_mode_size:0x%x, rd_mode_size:0x%x\n",
+		p->wr_mode_size, p->rd_mode_size);
 	spin_unlock_irqrestore(&p->rd_lock, flags);
 
 	pr_info("buffer in waiting list:\n");

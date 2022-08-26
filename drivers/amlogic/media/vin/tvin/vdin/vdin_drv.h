@@ -308,14 +308,15 @@ enum vdin_vf_put_md {
 	VDIN_VF_RECYCLE,
 };
 
-#define VDIN_ISR_MONITOR_HDR	BIT(0)
-#define VDIN_ISR_MONITOR_EMP	BIT(1)
-#define VDIN_ISR_MONITOR_RATIO	BIT(2)
-#define VDIN_ISR_MONITOR_GAME	BIT(4)
+#define VDIN_ISR_MONITOR_HDR		BIT(0)
+#define VDIN_ISR_MONITOR_EMP		BIT(1)
+#define VDIN_ISR_MONITOR_RATIO		BIT(2)
+#define VDIN_ISR_MONITOR_GAME		BIT(4)
 #define VDIN_ISR_MONITOR_VS		BIT(5)
 #define VDIN_ISR_MONITOR_VF		BIT(6)
 #define VDIN_ISR_MONITOR_VRR_DATA	BIT(9)
-#define VDIN_ISR_MONITOR_AFBCE	BIT(10)
+#define VDIN_ISR_MONITOR_AFBCE		BIT(10)
+#define VDIN_ISR_MONITOR_BUFFER		BIT(11)
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
@@ -495,8 +496,10 @@ struct vdin_event_info {
 
 enum vdin_game_mode_chg_e {
 	VDIN_GAME_MODE_UN_CHG = 0,
-	VDIN_GAME_MODE_OFF_2_ON,
-	VDIN_GAME_MODE_ON_2_OFF,
+	VDIN_GAME_MODE_OFF_TO_ON,
+	VDIN_GAME_MODE_ON_TO_OFF,
+	VDIN_GAME_MODE_1_TO_2,
+	VDIN_GAME_MODE_2_TO_1,
 	VDIN_GAME_MODE_NUM
 };
 
@@ -521,6 +524,8 @@ struct vdin_vrr_s {
 	struct tvin_spd_data_s spd_data;
 	unsigned int vrr_chg_cnt;
 	unsigned int vrr_mode;
+	/* vrr_en in frame_lock_policy */
+	bool frame_lock_vrr_en;
 };
 
 struct vdin_dev_s {
@@ -704,9 +709,10 @@ struct vdin_dev_s {
 	 *vdin & vpp read/write same buffer may happen
 	 */
 	unsigned int game_mode;
+	/* game mode state before game change in ISR */
 	unsigned int game_mode_pre;
 	enum vdin_game_mode_chg_e game_mode_chg;
-	/* game mode current state before ioctl change game mode */
+	/* game mode state before ioctl change game mode */
 	unsigned int game_mode_bak;
 	int game_chg_drop_frame_cnt;
 	unsigned int vrr_mode;
