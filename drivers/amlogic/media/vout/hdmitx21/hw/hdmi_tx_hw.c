@@ -819,10 +819,14 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		(((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10) |
 		(0 << 12);
 	hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
+<<<<<<< HEAD
 	hdmitx21_dither_config(hdev);
 
+=======
+	pr_info("***double reset hwp_init start***\n");
+	hdmi_hwp_init(hdev);
+>>>>>>> hdmitx21: double reset hwp_init in set mode [1/1]
 	_hdmitx21_set_clk();
-
 	// Set this timer very small on purpose, to test the new function
 	hdmitx21_wr_reg(HDMITX_TOP_I2C_BUSY_CNT_MAX,  30);
 
