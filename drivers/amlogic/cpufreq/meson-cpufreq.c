@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
+#define DEBUG
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
@@ -76,10 +76,9 @@ static unsigned int meson_cpufreq_get_rate(unsigned int cpu)
 		cpufreq_data = policy.driver_data;
 		cur_cluster = cpufreq_data->clusterid;
 		rate = clk_get_rate(clk[cur_cluster]) / 1000;
-	}
-
-	pr_debug("%s: cpu: %d, cluster: %d, freq: %u\n",
+		pr_debug("%s: cpu: %d, cluster: %d, freq: %u\n",
 		 __func__, cpu, cur_cluster, rate);
+	}
 
 	return rate;
 }

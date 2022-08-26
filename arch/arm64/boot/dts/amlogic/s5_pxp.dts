@@ -1968,7 +1968,3 @@
 &vddcpub {
 	status = "disabled";
 };
-
-&CPU0 {
-	cpu-supply = <&vddcpua>;
-};

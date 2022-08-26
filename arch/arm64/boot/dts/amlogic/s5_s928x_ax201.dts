@@ -1922,7 +1922,3 @@
 &vddcpub {
 	status = "okay";
 };
-
-&CPU0 {
-	cpu-supply = <&vddcpua>;
-};
