@@ -35,9 +35,6 @@
 		spi1 = &spicc0;
 		spi2 = &spicc1;
 		spi3 = &spicc2;
-		spi4 = &spicc3;
-		spi5 = &spicc4;
-		spi6 = &spicc5;
 		tsensor0 = &a55_tsensor;
 		tsensor1 = &gpu_tsensor;
 		tsensor2 = &vpu_tsensor;
@@ -1584,59 +1581,22 @@
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins>;
-	//cs-gpios = <&gpio GPIOH_9 0>;
+	pinctrl-0 = <&spicc0_pins_t>;
+	cs-gpios = <&gpio GPIOT_4 0>;
 };
 
 &spicc1 {
 	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc1_pins>;
-	//cs-gpios = <&gpio GPIOH_13 0>;
-};
-
-&sspicc1 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
-	cs-num = <0>;
-	spi-mode = <0x0>;
-	vmem-bus-num = <0>;
+	cs-gpios = <&gpio GPIOH_6 0>;
 };
 
 &spicc2 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc2_pins_h>;
-	//cs-gpios = <&gpio GPIOH_17 0>;
-};
-
-&spicc3 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc3_pins_k>;
-	//cs-gpios = <&gpio GPIOK_3 0>;
-
-};
-
-&spicc4 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc4_pins_k>;
-	//cs-gpios = <&gpio GPIOK_7 0>;
-};
-
-&spicc5 {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&spicc5_pins>;
-	cs-gpios = <&gpio GPIOT_13 0>;
-	spi-nor@0 {
-		compatible = "jedec,spi-nor";
-		status = "okay";
-		reg = <0>;
-		spi-max-frequency = <16000000>;
-	};
+	pinctrl-0 = <&spicc2_pins_x>;
+	cs-gpios = <&gpio GPIOX_2 0>;
 };
 
 &fb {
