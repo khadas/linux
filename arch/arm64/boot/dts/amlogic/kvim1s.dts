@@ -440,6 +440,19 @@
 		aml-audio-card,name = "AML-AUGESOUND";
 
 		aml-audio-card,dai-link@0 {
+			mclk-fs = <128>;
+			/* suffix-name, sync with android audio hal used for */
+			suffix-name = "alsaPORT-spdif";
+			cpu {
+				sound-dai = <&spdifa>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@1 {
 			format = "dsp_a";
 			mclk-fs = <512>;
 			//continuous-clock;
@@ -469,7 +482,7 @@
 			};
 		};
 
-		aml-audio-card,dai-link@1 {
+		aml-audio-card,dai-link@2 {
 			format = "i2s";// "dsp_a";
 			mclk-fs = <256>;
 			continuous-clock;
@@ -505,7 +518,7 @@
 			};
 		};
 
-		aml-audio-card,dai-link@2 {
+		aml-audio-card,dai-link@3 {
 			format = "i2s";
 			mclk-fs = <256>;
 			//continuous-clock;
@@ -531,7 +544,7 @@
 			};
 		};
 
-		aml-audio-card,dai-link@3 {
+		aml-audio-card,dai-link@4 {
 			mclk-fs = <64>;
 			/* suffix-name, sync with android audio hal
 			 * what's the dai link used for
@@ -545,18 +558,6 @@
 			};
 		};
 
-		aml-audio-card,dai-link@4 {
-			mclk-fs = <128>;
-			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-spdif";
-			cpu {
-				sound-dai = <&spdifa>;
-				system-clock-frequency = <6144000>;
-			};
-			codec {
-				sound-dai = <&dummy_codec>;
-			};
-		};
 		/* spdif_b to hdmi, only playback */
 		aml-audio-card,dai-link@5 {
 			mclk-fs = <128>;
