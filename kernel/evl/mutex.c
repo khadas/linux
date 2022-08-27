@@ -465,9 +465,9 @@ static void flush_mutex_locked(struct evl_mutex *mutex, int reason)
 
 	assert_hard_lock(&mutex->lock);
 
-	if (list_empty(&mutex->wchan.wait_list))
+	if (list_empty(&mutex->wchan.wait_list)) {
 		EVL_WARN_ON(CORE, mutex->flags & EVL_MUTEX_CLAIMED);
-	else {
+	} else {
 		list_for_each_entry_safe(waiter, tmp,
 					&mutex->wchan.wait_list, wait_next) {
 			list_del_init(&waiter->wait_next);
@@ -833,11 +833,29 @@ static void transfer_ownership(struct evl_mutex *mutex,
 
 	assert_hard_lock(&mutex->lock);
 
+	/*
+	 * FLCEIL may only be raised by the owner, or when the owner
+	 * is blocked waiting for the mutex (ownership transfer). In
+	 * addition, only the current owner of a mutex may release it,
+	 * therefore we can't race while testing FLCEIL locklessly.
+	 * All updates to FLCLAIM are covered by the mutex lock.
+	 *
+	 * Therefore, clearing the fastlock racelessly in this routine
+	 * without leaking FLCEIL/FLCLAIM updates can be achieved
+	 * locklessly.
+	 *
+	 * NOTE: FLCLAIM might be set although the wait list is empty,
+	 * that's ok, we'll clear it along with the rest of the handle
+	 * information. The opposite would be wrong though, so we have
+	 * an assertion for this case.
+	 */
 	if (list_empty(&mutex->wchan.wait_list)) {
 		untrack_owner(mutex);
 		atomic_set(lockp, EVL_NO_HANDLE);
 		return;
 	}
+
+	EVL_WARN_ON(CORE, !(atomic_read(lockp) & EVL_MUTEX_FLCLAIM));
 
 	n_owner = list_first_entry(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
@@ -871,46 +889,19 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
-	fundle_t currh, h;
-	atomic_t *lockp;
 
 	trace_evl_mutex_unlock(mutex);
 
 	if (!enable_inband_switch(curr))
 		return;
 
-	lockp = mutex->fastlock;
-	currh = fundle_of(curr);
-
-	/*
-	 * FLCEIL may only be raised by the owner, or when the owner
-	 * is blocked waiting for the mutex (ownership transfer). In
-	 * addition, only the current owner of a mutex may release it,
-	 * therefore we can't race while testing FLCEIL locklessly.
-	 * All updates to FLCLAIM are covered by the mutex lock.
-	 *
-	 * Therefore, clearing the fastlock racelessly in this routine
-	 * without leaking FLCEIL/FLCLAIM updates can be achieved
-	 * locklessly.
-	 */
 	raw_spin_lock_irqsave(&mutex->lock, flags);
 	raw_spin_lock(&curr->lock);
 
 	if (mutex->flags & EVL_MUTEX_CEILING)
 		clear_boost_locked(mutex, curr, EVL_MUTEX_CEILING);
 
-	/*
-	 * The whole logic is based on the invariant that the current
-	 * thread does own the mutex being released.
-	 * IOW: currh == atomic_read(lockp) & ~(EVL_MUTEX_FLCLAIM|EVL_MUTEX_FLCEIL).
-	 */
-	h = atomic_read(lockp);
-	if (h & EVL_MUTEX_FLCLAIM) { /* Is there a contender? */
-		transfer_ownership(mutex, curr);
-	} else {
-		atomic_set(lockp, EVL_NO_HANDLE);
-		untrack_owner(mutex);
-	}
+	transfer_ownership(mutex, curr);
 
 	raw_spin_unlock(&curr->lock);
 	raw_spin_unlock_irqrestore(&mutex->lock, flags);
