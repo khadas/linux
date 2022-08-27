@@ -813,9 +813,6 @@
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
 
 		interrupt-names = "irq_spdifin";
-		pinctrl-names = "spdif_pins", "spdif_pins_mute";
-		pinctrl-0 = <&spdifout>;
-		pinctrl-1 = <&spdifout_a_mute>;
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
