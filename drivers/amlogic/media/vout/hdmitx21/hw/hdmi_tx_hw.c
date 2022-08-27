@@ -82,6 +82,8 @@ int hdmitx21_hpd_hw_op(enum hpd_op cmd)
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	switch (hdev->data->chip_type) {
+	case MESON_CPU_ID_S5:
+		return !!(hd21_read_reg(PADCTRL_GPIOH_I) & (1 << 2));
 	case MESON_CPU_ID_T7:
 	default:
 		return !!(hd21_read_reg(PADCTRL_GPIOW_I) & (1 << 15));
