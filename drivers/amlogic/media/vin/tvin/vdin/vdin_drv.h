@@ -114,8 +114,9 @@
 /* 20220927: panel reverse not into game switch */
 /* 20220930: 4k dv not afbce avoid afbce done */
 /* 20221010: support buffer keeper */
+/* 20221018: smr state machine optimization */
 
-#define VDIN_VER "20221010"
+#define VDIN_VER "20221018"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

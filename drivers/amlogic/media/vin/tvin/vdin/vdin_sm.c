@@ -510,7 +510,7 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 static inline bool vdin_is_need_send_event(struct vdin_dev_s *devp,
 					struct tvin_info_s *info)
 {
-	if (IS_HDMI_SRC(devp->parm.port) &&
+	if (!(devp->flags & VDIN_FLAG_SNOW_FLAG) &&
 	    ((devp->flags & VDIN_FLAG_DEC_STARTED &&
 	      info->status == TVIN_SIG_STATUS_UNSTABLE &&
 	      !(devp->vdin_stable_cnt % VDIN_SEND_EVENT_INTERVAL)) ||
@@ -1045,23 +1045,50 @@ void tvin_smr(struct vdin_dev_s *devp)
 						break;
 				}
 			}
-			sm_p->state = TVIN_SM_STATUS_STABLE;
-			info->status = TVIN_SIG_STATUS_STABLE;
-			vdin_update_prop(devp);
-			/* tcl vrr case */
-			devp->vrr_data.vdin_vrr_en_flag =
-				devp->pre_prop.vtem_data.vrr_en;
-			/* sometime alloc mem too long signal detected again */
-			if (!mutex_is_locked(&devp->fe_lock)) {
-				devp->starting_chg = 0;
-				devp->csc_cfg = 0;
+			if (IS_HDMI_SRC(port)) {
+				if (!(devp->flags & VDIN_FLAG_DEC_STARTED) &&
+				    !mutex_is_locked(&devp->fe_lock)) {
+					sm_p->state = TVIN_SM_STATUS_STABLE;
+					info->status = TVIN_SIG_STATUS_STABLE;
+					vdin_update_prop(devp);
+					/* vrr case */
+					devp->vrr_data.vdin_vrr_en_flag =
+						devp->pre_prop.vtem_data.vrr_en;
+					/* sometime alloc mem too long signal detected again */
+					if (!mutex_is_locked(&devp->fe_lock)) {
+						devp->starting_chg = 0;
+						devp->csc_cfg = 0;
+					}
+					if (sm_debug_enable)
+						pr_info("[smr.%d] %ums prestable --> stable\n",
+							devp->index, jiffies_to_msecs(jiffies));
+					sm_print_nosig  = 0;
+					sm_print_notsup = 0;
+					sm_print_prestable = 0;
+				} else {
+					sm_p->state = TVIN_SM_STATUS_UNSTABLE;
+					info->status = TVIN_SIG_STATUS_UNSTABLE;
+					devp->frame_drop_num = vdin_re_cfg_drop_cnt;
+				}
+			} else {
+				sm_p->state = TVIN_SM_STATUS_STABLE;
+				info->status = TVIN_SIG_STATUS_STABLE;
+				vdin_update_prop(devp);
+				/* vrr case */
+				devp->vrr_data.vdin_vrr_en_flag =
+					devp->pre_prop.vtem_data.vrr_en;
+				/* sometime alloc mem too long signal detected again */
+				if (!mutex_is_locked(&devp->fe_lock)) {
+					devp->starting_chg = 0;
+					devp->csc_cfg = 0;
+				}
+				if (sm_debug_enable)
+					pr_info("[smr.%d] %ums prestable --> stable\n",
+						devp->index, jiffies_to_msecs(jiffies));
+				sm_print_nosig  = 0;
+				sm_print_notsup = 0;
+				sm_print_prestable = 0;
 			}
-			if (sm_debug_enable)
-				pr_info("[smr.%d] %ums prestable --> stable\n",
-					devp->index, jiffies_to_msecs(jiffies));
-			sm_print_nosig  = 0;
-			sm_print_notsup = 0;
-			sm_print_prestable = 0;
 		}
 		break;
 	}
