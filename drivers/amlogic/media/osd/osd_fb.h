@@ -66,4 +66,5 @@ const struct color_bit_define_s *
 extern struct osd_fb_dev_s *gp_fbdev_list[];
 extern const struct color_bit_define_s default_color_format_array[];
 extern unsigned int osd_game_mode[];
+extern unsigned int osd_pi_debug, osd_pi_enable;
 #endif

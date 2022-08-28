@@ -162,6 +162,7 @@ enum osd_index_e {
 	OSD3,
 	OSD4,
 	OSD_MAX,
+	OSD_ERR
 };
 
 /* osd table for viux */
@@ -561,6 +562,7 @@ struct osd_device_data_s {
 	u32 mif_linear;
 	u32 has_vpp1;
 	u32 has_vpp2;
+	u32 has_pi;
 	struct clk *vpu_clkc;
 };
 
@@ -985,5 +987,7 @@ struct hw_para_s {
 	u32 cur_frame_count;
 	u32 save_frame_number[HW_OSD_COUNT];
 	struct ffile_info file_info_debug[HW_OSD_COUNT];
+	struct pandata_s pi_out;
+	u32 pi_enable;
 };
 #endif /* _OSD_H_ */

@@ -2057,10 +2057,18 @@ int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 		int afbc0_started = 0;
 
 		for (i = 0; i < osd_count; i++) {
+			u32 hw_index;
+
 			if (get_output_device_id(i) != output_index ||
 			    !osd_hw.osd_afbcd[i].enable)
 				continue;
-			if (i == 1 && afbc0_started)
+
+			hw_index = to_osd_hw_index(i);
+
+			/* for osd_dev_hw.multi_afbc_core,
+			 * OSD1+OSD2 uses afbc, OSD3 uses afbc1, OSD4 uses afbc2.
+			 */
+			if (hw_index == OSD2 && afbc0_started)
 				continue;
 
 			osd_reg = &hw_osd_reg_array[i];
@@ -2070,7 +2078,7 @@ int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 			osd_log_dbg2(MODULE_BASE,
 				     "%s, AFBC osd%d start command\n",
 				     __func__, i);
-			if (i == 0)
+			if (hw_index == OSD1)
 				afbc0_started = 1;
 		}
 	}

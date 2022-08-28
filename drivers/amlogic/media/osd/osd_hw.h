@@ -222,6 +222,7 @@ void osd_set_dimm_info(u32 index, u32 osd_dimm_layer, u32 osd_dimm_color);
 u32 osd_get_line_n_rdma(void);
 void  osd_set_line_n_rdma(u32 line_n_rdma);
 u32 get_output_device_id(u32 index);
+u32 to_osd_hw_index(u32 osd_index);
 void osd_set_hold_line(u32 index, int hold_line);
 u32 osd_get_hold_line(u32 index);
 void osd_set_blend_bypass(int index, u32 blend_bypass);

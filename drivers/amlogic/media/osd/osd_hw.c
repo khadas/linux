@@ -998,6 +998,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t3[HW_OSD_COUNT] = {
 	},
 };
 
+/* OSD1 + OSD3 */
 struct hw_osd_reg_s hw_osd_reg_array_s5[HW_OSD_COUNT] = {
 	{
 		S5_VIU_OSD1_CTRL_STAT,
@@ -1062,68 +1063,6 @@ struct hw_osd_reg_s hw_osd_reg_array_s5[HW_OSD_COUNT] = {
 		OSD1_PROC_OUT_SIZE,
 	},
 	{
-		S5_VIU_OSD2_CTRL_STAT,
-		S5_VIU_OSD2_CTRL_STAT2,
-		S5_VIU_OSD2_COLOR_ADDR,
-		S5_VIU_OSD2_COLOR,
-		S5_VIU_OSD2_TCOLOR_AG0,
-		S5_VIU_OSD2_TCOLOR_AG1,
-		S5_VIU_OSD2_TCOLOR_AG2,
-		S5_VIU_OSD2_TCOLOR_AG3,
-		S5_VIU_OSD2_BLK0_CFG_W0,
-		S5_VIU_OSD2_BLK0_CFG_W1,
-		S5_VIU_OSD2_BLK0_CFG_W2,
-		S5_VIU_OSD2_BLK0_CFG_W3,
-		S5_VIU_OSD2_BLK0_CFG_W4,
-		S5_VIU_OSD2_BLK1_CFG_W4,
-		S5_VIU_OSD2_BLK2_CFG_W4,
-		S5_VIU_OSD2_FIFO_CTRL_STAT,
-		S5_VIU_OSD2_TEST_RDDATA,
-		S5_VIU_OSD2_PROT_CTRL,
-		S5_VIU_OSD2_MALI_UNPACK_CTRL,
-		S5_VIU_OSD2_DIMM_CTRL,
-		OSD_REG_UNSUPPORT, /* VPP_WRAP_OSD2_MATRIX_EN_CTRL */
-
-		OSD2_PROC_SCALE_COEF_IDX,
-		OSD2_PROC_SCALE_COEF,
-		OSD2_PROC_VSC_PHASE_STEP,
-		OSD2_PROC_VSC_INI_PHASE,
-		OSD2_PROC_VSC_CTRL0,
-		OSD2_PROC_HSC_PHASE_STEP,
-		OSD2_PROC_HSC_INI_PHASE,
-		OSD2_PROC_HSC_CTRL0,
-		OSD2_PROC_SC_DUMMY_DATA,
-		OSD2_PROC_SC_CTRL0,
-		OSD2_PROC_SCI_WH_M1,
-		OSD2_PROC_SCO_H_START_END,
-		OSD2_PROC_SCO_V_START_END,
-		OSD2_PROC_DB_FLT_CTRL,
-		VPU_MAFBC_HEADER_BUF_ADDR_LOW_S1,
-		VPU_MAFBC_HEADER_BUF_ADDR_HIGH_S1,
-		VPU_MAFBC_FORMAT_SPECIFIER_S1,
-		VPU_MAFBC_BUFFER_WIDTH_S1,
-		VPU_MAFBC_BUFFER_HEIGHT_S1,
-		VPU_MAFBC_BOUNDING_BOX_X_START_S1,
-		VPU_MAFBC_BOUNDING_BOX_X_END_S1,
-		VPU_MAFBC_BOUNDING_BOX_Y_START_S1,
-		VPU_MAFBC_BOUNDING_BOX_Y_END_S1,
-		VPU_MAFBC_OUTPUT_BUF_ADDR_LOW_S1,
-		VPU_MAFBC_OUTPUT_BUF_ADDR_HIGH_S1,
-		VPU_MAFBC_OUTPUT_BUF_STRIDE_S1,
-		VPU_MAFBC_PREFETCH_CFG_S1,
-
-		VPP_INTF_OSD2_CTRL,  /* MALI_AFBCD_TOP_CTRL */
-		VPU_MAFBC_IRQ_MASK,
-		VPU_MAFBC_SURFACE_CFG,
-		VPU_MAFBC_COMMAND,
-		VPU_MAFBC_IRQ_RAW_STATUS,
-		VPU_MAFBC_IRQ_CLEAR,
-
-		OSD_REG_UNSUPPORT, /* VPP_OSD2_SCALE_CTRL */
-		OSD2_PROC_IN_SIZE,
-		OSD2_PROC_OUT_SIZE,
-	},
-	{
 		S5_VIU_OSD3_CTRL_STAT,
 		S5_VIU_OSD3_CTRL_STAT2,
 		S5_VIU_OSD3_COLOR_ADDR,
@@ -1160,19 +1099,19 @@ struct hw_osd_reg_s hw_osd_reg_array_s5[HW_OSD_COUNT] = {
 		OSD3_PROC_SCO_H_START_END,
 		OSD3_PROC_SCO_V_START_END,
 		OSD3_PROC_DB_FLT_CTRL,
-		VPU_MAFBC1_HEADER_BUF_ADDR_LOW_S2,
-		VPU_MAFBC1_HEADER_BUF_ADDR_HIGH_S2,
-		VPU_MAFBC1_FORMAT_SPECIFIER_S2,
-		VPU_MAFBC1_BUFFER_WIDTH_S2,
-		VPU_MAFBC1_BUFFER_HEIGHT_S2,
-		VPU_MAFBC1_BOUNDING_BOX_X_START_S2,
-		VPU_MAFBC1_BOUNDING_BOX_X_END_S2,
-		VPU_MAFBC1_BOUNDING_BOX_Y_START_S2,
-		VPU_MAFBC1_BOUNDING_BOX_Y_END_S2,
-		VPU_MAFBC1_OUTPUT_BUF_ADDR_LOW_S2,
-		VPU_MAFBC1_OUTPUT_BUF_ADDR_HIGH_S2,
-		VPU_MAFBC1_OUTPUT_BUF_STRIDE_S2,
-		VPU_MAFBC1_PREFETCH_CFG_S2,
+		VPU_MAFBC1_HEADER_BUF_ADDR_LOW_S1,
+		VPU_MAFBC1_HEADER_BUF_ADDR_HIGH_S1,
+		VPU_MAFBC1_FORMAT_SPECIFIER_S1,
+		VPU_MAFBC1_BUFFER_WIDTH_S1,
+		VPU_MAFBC1_BUFFER_HEIGHT_S1,
+		VPU_MAFBC1_BOUNDING_BOX_X_START_S1,
+		VPU_MAFBC1_BOUNDING_BOX_X_END_S1,
+		VPU_MAFBC1_BOUNDING_BOX_Y_START_S1,
+		VPU_MAFBC1_BOUNDING_BOX_Y_END_S1,
+		VPU_MAFBC1_OUTPUT_BUF_ADDR_LOW_S1,
+		VPU_MAFBC1_OUTPUT_BUF_ADDR_HIGH_S1,
+		VPU_MAFBC1_OUTPUT_BUF_STRIDE_S1,
+		VPU_MAFBC1_PREFETCH_CFG_S1,
 
 		VPP_INTF_OSD3_CTRL, /* MALI_AFBCD1_TOP_CTRL */
 		VPU_MAFBC1_IRQ_MASK,
@@ -1956,6 +1895,84 @@ static void osd_vpu_power_on_viu2(void)
 		osd_reg_write(VPU_CLK_GATE, val);
 	}
 #endif
+}
+
+u32 to_osd_hw_index(u32 osd_index)
+{
+	u32 index = osd_index;
+
+	/* for s5_display, only OSD1 + OSD3.
+	 * osd_index 0 -> HW OSD1
+	 * osd_index 1 -> HW OSD3
+	 */
+	if (osd_dev_hw.s5_display && osd_index == 1)
+		index = OSD3;
+
+	return index;
+}
+
+static u32 to_osd_sw_index(u32 osd_index)
+{
+	u32 index = osd_index;
+
+	/* for s5_display, only OSD1 + OSD3.
+	 * HW OSD1 -> osd_index 0
+	 * HW OSD3 -> osd_index 1
+	 */
+	if (osd_dev_hw.s5_display) {
+		switch (osd_index) {
+		case OSD1:
+			index = 0;
+			break;
+		case OSD3:
+			index = 1;
+			break;
+		default:
+			index = OSD_ERR;
+			break;
+		}
+	}
+
+	return index;
+}
+
+static u32 to_reorder_hw_index(u32 reorder_index)
+{
+	u32 osd_index = reorder_index - 1;
+	u32 hw_reoder_index;
+
+	hw_reoder_index = to_osd_hw_index(osd_index) + 1;
+
+	/* for s5_display, OSDx to din(x+1) */
+	if (osd_dev_hw.s5_display)
+		hw_reoder_index++;
+
+	return hw_reoder_index;
+}
+
+static u32 to_din_scope_osd_index(u32 din_index)
+{
+	u32 osd_index = din_index;
+
+	if (osd_dev_hw.s5_display) {
+		switch (din_index) {
+		case 0:
+			osd_index = OSD_ERR;
+			break;
+		case 1:
+			osd_index = OSD1;
+			break;
+		case 2:
+			osd_index = OSD2;
+			break;
+		case 3:
+			osd_index = OSD3;
+			break;
+		}
+	}
+	osd_index = to_osd_sw_index(osd_index);
+
+	return osd_index;
 }
 
 /* validate if osdx is routed to vpp_topx */
@@ -2904,8 +2921,10 @@ void osd_update_vsync_timestamp(void)
 					    (s64)vinfo->sync_duration_num);
 			if (diff_time > (vsync_time + 1000000) ||
 			    diff_time < (vsync_time - 1000000))
-				pr_info("vsync timestamp warning: cur=%lld, pre=%lld, diff_time=%lld\n",
-					cur_timestamp, timestamp[VIU1], diff_time);
+				osd_log_dbg2(MODULE_BASE,
+					     "vsync timestamp warning: cur=%lld, pre=%lld, diff_time=%lld\n",
+					     cur_timestamp, timestamp[VIU1],
+					     diff_time);
 		}
 	}
 	timestamp[VIU1] = cur_timestamp;
@@ -8483,28 +8502,20 @@ static void generate_blend_din_table(struct hw_osd_blending_s *blending)
 		break;
 	}
 
-	/* for s5_display, OSDx to din(x+1) */
-	if (osd_dev_hw.s5_display) {
-		temp2 = 0;
-		for (i = 0; i < OSD_BLEND_LAYERS; i++) {
-			temp1 = (blending->din_reoder_sel >> (i * 4)) & 0xf;
-			if (temp1 & 0x0f)
-				temp2 |= ((temp1 + 1) << (i * 4));
+	/* workaround for shift issue */
+	/* not enable layers used osd4 */
+	temp2 = 0;
+	for (i = 0; i < OSD_BLEND_LAYERS; i++) {
+		temp1 = (blending->din_reoder_sel >> (i * 4)) & 0xf;
+		if (!(temp1 & 0x0f)) {
+			temp2 |= (0x04 << (i * 4));
+		} else {
+			temp1 = to_reorder_hw_index(temp1);
+			temp2 |= (temp1 << (i * 4));
 		}
-		blending->din_reoder_sel = temp2;
 	}
+	blending->din_reoder_sel = temp2;
 
-	if (osd_hw.osd_meson_dev.cpu_id < __MESON_CPU_MAJOR_ID_S5) {
-		/* workaround for shift issue */
-		/* not enable layers used osd4 */
-		temp2 = 0;
-		for (i = 0; i < OSD_BLEND_LAYERS; i++) {
-			temp1 = (blending->din_reoder_sel >> (i * 4)) & 0xf;
-			if (!(temp1 & 0x0f))
-				temp2 |= (0x04 << (i * 4));
-		}
-		blending->din_reoder_sel |= temp2;
-	}
 	osd_log_dbg(MODULE_BLEND, "osd_to_bdin_table[i]=[%x,%x,%x,%x]\n",
 		    blending->osd_to_bdin_table[0],
 		    blending->osd_to_bdin_table[1],
@@ -8547,6 +8558,7 @@ static int osd_setting_blending_scope(u32 index)
 	u32 bld_osd_v_start, bld_osd_v_end;
 	u32 reg_offset = 2;
 	u32 output_index = get_output_device_id(index);
+	u32 hw_index = index;
 
 	if (index >= osd_hw.osd_meson_dev.viu1_osd_count) {
 		osd_log_err("error osd index=%d\n", index);
@@ -8587,19 +8599,20 @@ static int osd_setting_blending_scope(u32 index)
 		    bld_osd_v_start,
 		    bld_osd_v_end);
 
+	hw_index = to_osd_hw_index(index);
 	/* for s5_display, osdx to din_scope(x+1) */
 	if (osd_dev_hw.s5_display)
-		index++;
+		hw_index++;
 
 	/* it is setting for osdx */
 	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(hw_osd_reg_blend.osd_blend_din0_scope_h +
-		reg_offset * index,
+		reg_offset * hw_index,
 		bld_osd_h_end << 16 |
 		bld_osd_h_start);
 	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(hw_osd_reg_blend.osd_blend_din0_scope_v +
-		reg_offset * index,
+		reg_offset * hw_index,
 		bld_osd_v_end << 16 |
 		bld_osd_v_start);
 	return 0;
@@ -9239,6 +9252,13 @@ static void vpp_setting_blend(struct hw_osd_blending_s *blending)
 	    vpp0_blend_reg->prebld_osd2_premult)
 		osd_blend_reg->osd_bld_out1_premult = 1;
 
+	if (osd_hw.osd_meson_dev.has_pi && osd_hw.pi_enable) {
+		vpp0_blend_reg->osd1_h_start = osd_hw.pi_out.x_start;
+		vpp0_blend_reg->osd1_h_end   = osd_hw.pi_out.x_end;
+		vpp0_blend_reg->osd1_v_start = osd_hw.pi_out.y_start;
+		vpp0_blend_reg->osd1_v_end   = osd_hw.pi_out.y_end;
+	}
+
 	osd_log_dbg2(MODULE_BLEND,
 		"vpp input1: x=%d, y=%d, w=%d, h=%d\n",
 		layer_blend->input1_data.x,
@@ -9264,6 +9284,8 @@ static void vpp_setting_blend(struct hw_osd_blending_s *blending)
 		     vpp0_blend_reg->osd2_h_end,
 		     vpp0_blend_reg->osd2_v_start,
 		     vpp0_blend_reg->osd2_v_end);
+	if (osd_hw.osd_meson_dev.has_pi)
+		osd_log_dbg(MODULE_BLEND, "pi enable:%d\n", osd_hw.pi_enable);
 }
 
 static void set_osd_dummy_policy(u32 index, u32 src_height, u32 dst_height)
@@ -11161,6 +11183,13 @@ static void set_vpp0_blend_reg(struct vpp0_blend_reg_s *vpp0_blend_reg)
 	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_blend.vpp_osd2_bld_v_scope,
 			     vpp0_blend_reg->osd2_v_start << 16 |
 			     vpp0_blend_reg->osd2_v_end);
+
+	if (osd_hw.osd_meson_dev.has_pi) {
+		if (osd_hw.pi_enable)
+			VSYNCOSD_WR_MPEG_REG_BITS(OSD_PI_BYPASS_EN, 0, 0, 1);
+		else
+			VSYNCOSD_WR_MPEG_REG_BITS(OSD_PI_BYPASS_EN, 1, 0, 1);
+	}
 	/* vpp osd1 blend ctrl */
 	if (osd_dev_hw.s5_display)
 		VSYNCOSD_WR_MPEG_REG(hw_osd_reg_blend.osd1_blend_src_ctrl,
@@ -11218,7 +11247,7 @@ static void set_vpp0_blend_reg(struct vpp0_blend_reg_s *vpp0_blend_reg)
 
 static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 {
-	int i, j;
+	int i;
 	u32 reg_offset = 2;
 	u32 din_count = OSD_BLEND_LAYERS;
 	u32 dv_core2_hsize;
@@ -11277,30 +11306,31 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 				     osd_blend_reg->osd_blend_blend0_size);
 		VSYNCOSD_WR_MPEG_REG(hw_osd_reg_blend.osd_blend_dout1_size,
 				     osd_blend_reg->osd_blend_blend1_size);
-		/* s5 display, din0 for 2slice2ppc, din1/2/3 for osd */
-		VSYNCOSD_WR_MPEG_REG(hw_osd_reg_blend.osd_blend_din0_scope_v,
-				     0xffffffff);
-		din_count--;
 	}
 
 	for (i = 0; i < din_count; i++) {
-		/* for s5_display, osdx to din_scope(x+1) */
-		if (osd_dev_hw.s5_display)
-			j = i + 1;
-		else
-			j = i;
-		if (osd_hw.enable[i]) {
+		u32 osd_index = to_din_scope_osd_index(i);
+
+		if (osd_index == OSD_ERR) {
+			VSYNCOSD_WR_MPEG_REG
+				(hw_osd_reg_blend.osd_blend_din0_scope_v +
+				 reg_offset * i,
+				     0xffffffff);
+			continue;
+		}
+
+		if (osd_hw.enable[osd_index]) {
 			VSYNCOSD_WR_MPEG_REG
 			(hw_osd_reg_blend.osd_blend_din0_scope_h +
-			reg_offset * j,
-			osd_blend_reg->osd_blend_din_scope_h[i]);
+			reg_offset * i,
+			osd_blend_reg->osd_blend_din_scope_h[osd_index]);
 		}
-		if ((osd_blend_reg->osd_blend_din_scope_v[i] & 0xffff0000) == 0)
-			osd_blend_reg->osd_blend_din_scope_v[i] =
+		if ((osd_blend_reg->osd_blend_din_scope_v[osd_index] & 0xffff0000) == 0)
+			osd_blend_reg->osd_blend_din_scope_v[osd_index] =
 				0xffffffff;
 		VSYNCOSD_WR_MPEG_REG(hw_osd_reg_blend.osd_blend_din0_scope_v +
-				     reg_offset * j,
-				     osd_blend_reg->osd_blend_din_scope_v[i]);
+				     reg_offset * i,
+				     osd_blend_reg->osd_blend_din_scope_v[osd_index]);
 	}
 
 	dv_core2_vsize = (osd_blend_reg->osd_blend_blend0_size >> 16) & 0xfff;
@@ -11440,6 +11470,44 @@ u32 get_cur_begine_line(u32 output_index)
 	return cur_begine_line[output_index];
 }
 
+static void adjust_pi_axis(void)
+{
+	unsigned int x = osd_hw.disp_info[VIU1].position_x;
+	unsigned int y = osd_hw.disp_info[VIU1].position_y;
+	unsigned int w = osd_hw.disp_info[VIU1].position_w;
+	unsigned int h = osd_hw.disp_info[VIU1].position_h;
+	unsigned int i, osd_count = osd_hw.osd_meson_dev.osd_count;
+
+	if (!osd_pi_debug) {
+		if ((w > 3840 && h > 2160) || (w > 4096 && h > 2160))
+			osd_hw.pi_enable = 1;
+		else
+			osd_hw.pi_enable = 0;
+	} else {
+		osd_hw.pi_enable = osd_pi_enable;
+	}
+
+	if (osd_hw.pi_enable) {
+		osd_hw.pi_out.x_start = x;
+		osd_hw.pi_out.x_end = x + w - 1;
+		osd_hw.pi_out.y_start = y;
+		osd_hw.pi_out.y_end = y + h - 1;
+
+		for (i = 0; i < osd_count; i++) {
+			if (!validate_osd(i, VIU1))
+				continue;
+			osd_hw.dst_data[i].x /= 2;
+			osd_hw.dst_data[i].y /= 2;
+			osd_hw.dst_data[i].w /= 2;
+			osd_hw.dst_data[i].h /= 2;
+		}
+		osd_hw.disp_info[VIU1].position_x /= 2;
+		osd_hw.disp_info[VIU1].position_y /= 2;
+		osd_hw.disp_info[VIU1].position_w /= 2;
+		osd_hw.disp_info[VIU1].position_h /= 2;
+	}
+}
+
 static int osd_setting_order(u32 output_index)
 {
 	int i;
@@ -11453,6 +11521,9 @@ static int osd_setting_order(u32 output_index)
 	u32 secure_src = 0;
 #endif
 	u32 total_line;
+
+	if (osd_hw.osd_meson_dev.has_pi)
+		adjust_pi_axis();
 
 	blending = &osd_blending;
 
@@ -12321,6 +12392,8 @@ void osd_mali_afbc_start(u32 output_index)
 		int afbc0_start = 0;
 
 		for (i = 0; i < osd_count; i++) {
+			u32 hw_index;
+
 			osd_reg = &hw_osd_reg_array[i];
 			if (osd_hw.osd_afbcd[i].afbc_start)
 				/* enable mali afbc */
@@ -12330,14 +12403,19 @@ void osd_mali_afbc_start(u32 output_index)
 				if (!validate_osd(i, output_index))
 					continue;
 
-				if (i == 1 && afbc0_start)
+				hw_index = to_osd_hw_index(i);
+				osd_log_dbg2(MODULE_BASE, "i:%d hw_index:%d\n", i, hw_index);
+				/* for osd_dev_hw.multi_afbc_core,
+				 * OSD1+OSD2 uses afbc, OSD3 uses afbc1, OSD4 uses afbc2.
+				 */
+				if (hw_index == OSD2 && afbc0_start)
 					continue;
 
 				rdma_wr(osd_reg->vpu_mafbc_command,
 					(osd_hw.afbc_use_latch ?
 					2 : 1));
 				osd_log_dbg2(MODULE_BASE, "AFBC osd%d start command\n", i);
-				if (i == 0)
+				if (hw_index == OSD1)
 					afbc0_start = 1;
 			}
 		}

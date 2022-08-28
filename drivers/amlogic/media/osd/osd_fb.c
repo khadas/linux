@@ -362,6 +362,7 @@ static int osd_shutdown_flag;
 unsigned int osd_log_level;
 unsigned int osd_log_module = 1;
 unsigned int osd_game_mode[VIU_COUNT];
+unsigned int osd_pi_debug, osd_pi_enable;
 
 int int_viu_vsync = -ENXIO;
 int int_viu2_vsync = -ENXIO;
@@ -3052,6 +3053,32 @@ static ssize_t show_reset_status(struct device *device,
 	return snprintf(buf, PAGE_SIZE, "0x%x\n", status);
 }
 
+static ssize_t show_pi_test(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 80, "pi_debug:%d pi_enable:%d\n",
+			osd_pi_debug, osd_pi_enable);
+}
+
+static ssize_t store_pi_test(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		osd_pi_debug = parsed[0];
+		osd_pi_enable = parsed[1];
+		osd_log_info("set pi_debug:%d pi_enable:%d\n",
+			     osd_pi_debug, osd_pi_enable);
+	} else {
+		osd_log_err("usage: echo pi_debug pi_enable > pi_test\n");
+	}
+
+	return count;
+}
+
 /* Todo: how to use uboot logo */
 static ssize_t free_scale_switch(struct device *device,
 				 struct device_attribute *attr,
@@ -3216,6 +3243,15 @@ static ssize_t show_osd_background_size(struct device *device,
 	struct display_flip_info_s disp_info;
 
 	osd_get_background_size(fb_info->node, &disp_info);
+
+	if (osd_hw.osd_meson_dev.has_pi && osd_hw.pi_enable) {
+		disp_info.position_x = osd_hw.pi_out.x_start;
+		disp_info.position_y = osd_hw.pi_out.y_start;
+		disp_info.position_w = osd_hw.pi_out.x_end -
+					osd_hw.pi_out.x_start + 1;
+		disp_info.position_h = osd_hw.pi_out.y_end -
+					osd_hw.pi_out.y_start + 1;
+	}
 	return snprintf(buf, 80, "%d %d %d %d %d %d %d %d\n",
 		disp_info.background_w,
 		disp_info.background_h,
@@ -4188,6 +4224,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_rdma_recovery_stat, NULL),
 	__ATTR(file_info, 0440,
 	       show_file_info, NULL),
+	__ATTR(pi_test, 0644,
+	       show_pi_test, store_pi_test),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4907,7 +4945,7 @@ static struct osd_device_data_s osd_s5 = {
 	.cpu_id = __MESON_CPU_MAJOR_ID_S5,
 	.osd_ver = OSD_HIGH_ONE,
 	.afbc_type = MALI_AFBC,
-	.osd_count = 1, /* one layer for bringup test */
+	.osd_count = 2, /* OSD1 + OSD3 */
 	.has_deband = 1,
 	.has_lut = 1,
 	.has_rdma = 1,
@@ -4920,6 +4958,7 @@ static struct osd_device_data_s osd_s5 = {
 	.mif_linear = 1,
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
+	.has_pi = 1,
 };
 
 static struct osd_device_hw_s s5_dev_property = {
