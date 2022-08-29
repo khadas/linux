@@ -3172,10 +3172,6 @@ void rx_main_state_machine(void)
 			rx.state = FSM_WAIT_CLK_STABLE;
 			break;
 		}
-		if (!is_tmds_valid()) {
-			rx.state = FSM_SIG_UNSTABLE;
-			break;
-		}
 		dwc_rst_wait_cnt++;
 		if (dwc_rst_wait_cnt < dwc_rst_wait_cnt_max)
 			break;
