@@ -132,6 +132,8 @@ struct vd_proc_sr_reg_s {
 	u32 vd_proc_sr1_ctrl;
 	u32 srsharp0_sharp_sr2_ctrl;
 	u32 srsharp1_sharp_sr2_ctrl;
+	u32 srsharp0_sharp_sr2_ctrl2;
+	u32 srsharp1_sharp_sr2_ctrl2;
 	u32 srsharp1_nn_post_top;
 };
 

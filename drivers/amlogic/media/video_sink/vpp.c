@@ -1486,9 +1486,6 @@ static int vpp_set_filters_internal_s5
 			(video_source_crop_right + 3) & ~0x03;
 	}
 
-	if (is_bandwidth_policy_hit(input->layer_id))
-		next_frame_par->vscale_skip_count++;
-
 RESTART_ALL:
 	crop_left = video_source_crop_left / crop_ratio;
 	crop_right = video_source_crop_right / crop_ratio;
@@ -4385,6 +4382,16 @@ bool get_super_scaler_status(void)
 	return super_scaler;
 }
 
+static void disable_super_scaler(struct vpp_frame_par_s *next_frame_par)
+{
+	next_frame_par->supsc0_enable = 0;
+	next_frame_par->supsc0_vert_ratio = 0;
+	next_frame_par->supsc0_hori_ratio = 0;
+	next_frame_par->supsc1_enable = 0;
+	next_frame_par->supsc1_vert_ratio = 0;
+	next_frame_par->supsc1_hori_ratio = 0;
+}
+
 static void vpp_set_super_scaler
 	(u32 vpp_wide_mode,
 	const struct vinfo_s *vinfo,
@@ -5990,12 +5997,15 @@ RERTY:
 	}
 #endif
 	if (local_input.layer_id == 0) {
-		vpp_set_super_scaler
-			(wide_mode,
-			vinfo, next_frame_par,
-			(bypass_sr0 | bypass_spscl0),
-			(bypass_sr1 | bypass_spscl1),
-			vpp_flags);
+		if (local_input.slice_num == SLICE_NUM)
+			disable_super_scaler(next_frame_par);
+		else
+			vpp_set_super_scaler
+				(wide_mode,
+				vinfo, next_frame_par,
+				(bypass_sr0 | bypass_spscl0),
+				(bypass_sr1 | bypass_spscl1),
+				vpp_flags);
 		/* cm input size will be set in super scaler function */
 	} else {
 		if (local_input.pps_support) {

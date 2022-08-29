@@ -78,6 +78,7 @@ enum {
 #define VPP_VD1_END_BIT             0
 
 #define VPP_REGION_MASK             0xfff
+#define VPP_REGION_MASK_8K          0x1fff
 #define VPP_REGION1_BIT             16
 #define VPP_REGION2_BIT             0
 #define VPP_REGION3_BIT             16
