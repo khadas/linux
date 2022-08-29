@@ -27,14 +27,6 @@ DECLARE_HOOK(android_vh_v4l2_fill_fmtdesc,
 	TP_PROTO(struct v4l2_fmtdesc *format),
 	TP_ARGS(format));
 
-DECLARE_HOOK(android_vh_v4l2_strparm_save,
-	TP_PROTO(struct v4l2_streamparm *p),
-	TP_ARGS(p));
-
-DECLARE_HOOK(android_vh_v4l2_strparm_restore,
-	TP_PROTO(struct v4l2_streamparm *p),
-	TP_ARGS(p));
-
 #endif /* _TRACE_HOOK_V4L2_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

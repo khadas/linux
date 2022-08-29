@@ -74,8 +74,6 @@
 #include <trace/hooks/v4l2.h>
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_meta_ptr_update);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_fill_fmtdesc);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_strparm_save);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_strparm_restore);
 #endif
 
 /*

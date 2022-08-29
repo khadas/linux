@@ -2125,10 +2125,6 @@ static int v4l_s_parm(const struct v4l2_ioctl_ops *ops,
 	if (ret)
 		return ret;
 
-#if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-	trace_android_vh_v4l2_strparm_save(p);
-#endif
-
 	/* Note: extendedmode is never used in drivers */
 	if (V4L2_TYPE_IS_OUTPUT(p->type)) {
 		memset(p->parm.output.reserved, 0,
@@ -2141,10 +2137,6 @@ static int v4l_s_parm(const struct v4l2_ioctl_ops *ops,
 		p->parm.capture.extendedmode = 0;
 		p->parm.capture.capturemode &= V4L2_MODE_HIGHQUALITY;
 	}
-
-#if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-	trace_android_vh_v4l2_strparm_restore(p);
-#endif
 
 	return ops->vidioc_s_parm(file, fh, p);
 }
