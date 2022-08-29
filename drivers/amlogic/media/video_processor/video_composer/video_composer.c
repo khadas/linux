@@ -102,6 +102,8 @@ u32 vd_pulldown_level = 2;
 u32 vd_max_hold_count = 300;
 u32 vd_set_frame_delay[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 u32 vd_dump_vframe;
+u32 vpp_drop_count;
+
 struct vframe_s *current_display_vf;
 
 #define to_dst_buf(vf)	\
@@ -2722,6 +2724,7 @@ static void set_frames_info(struct composer_dev *dev,
 			    last_index[dev->index][j] > vf->omx_index) {
 				dev->received_new_count = vf->omx_index;
 				dev->received_count = vf->omx_index;
+				vpp_drop_count = 0;
 				reset_drop ^= 1 << dev->index;
 				vc_print(dev->index, PRINT_PATTERN,
 					 "drop cnt reset!!\n");
@@ -3591,11 +3594,13 @@ static ssize_t drop_cnt_show(struct class *class,
 			     struct class_attribute *attr, char *buf)
 {
 	return sprintf(buf,
-		"rec_cnt: %d, omx_index: %d, valid_cnt: %d, drop_cnt: %d\n",
+		"rec_cnt: %d, omx_index: %d, valid_cnt: %d, player_drop_cnt: %d, vpp_drop_cnt: %d, total_drop_cnt: %d\n",
 		receive_count,
 		last_omx_index,
 		receive_new_count,
-		drop_cnt);
+		drop_cnt,
+		vpp_drop_count,
+		drop_cnt + vpp_drop_count);
 }
 
 static ssize_t drop_cnt_pip_show(struct class *class,

@@ -63,6 +63,8 @@ void vsync_notify_video_composer(void)
 	int count = MAX_VIDEO_COMPOSER_INSTANCE_NUM;
 
 	for (i = 0; i < count; i++) {
+		if (get_count[i] > 0)
+			vpp_drop_count += (get_count[i] - 1);
 		vsync_count[i]++;
 		get_count[i] = 0;
 		countinue_vsync_count[i]++;

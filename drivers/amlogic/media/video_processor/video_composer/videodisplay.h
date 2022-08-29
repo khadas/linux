@@ -33,6 +33,7 @@ extern u32 vsync_pts_inc_scale;
 extern u32 vsync_pts_inc_scale_base;
 extern u32 vd_set_frame_delay[];
 extern struct vframe_s *current_display_vf;
+extern u32 vpp_drop_count;
 
 struct video_display_frame_info_t {
 	struct dma_buf *dmabuf;
