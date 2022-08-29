@@ -1411,6 +1411,14 @@
 		reg-data-type = <1>;
 		link-device = <&phycsi>;
 	};
+
+	ft5336:ft5336@38 {
+		compatible = "edt,edt-ft5336", "ft5x06";
+		reg = <0x38>;
+		interrupt_pin = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
+		status = "disabled";
+	};
 };
 
 &i2c5 {
