@@ -3146,6 +3146,10 @@ start_chk:
 			vdin_dmc_ctrl(devp, !!temp);
 			pr_info("set dmc_ctrl on_off:%d\n", !!temp);
 		}
+	} else if (!strcmp(parm[0], "manual_change_csc")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.manual_change_csc = temp;
+		pr_info("manual_change_csc:%d\n", devp->debug.manual_change_csc);
 	} else if (!strcmp(parm[0], "afbce_monitor")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->dbg_afbce_monitor = temp;

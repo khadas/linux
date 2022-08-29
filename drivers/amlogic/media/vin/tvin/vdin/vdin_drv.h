@@ -109,7 +109,8 @@
 /* 20220811: state machine optimization */
 /* 20220829: get correct base framerate */
 /* 20220830: ioctl node need add more protect */
-#define VDIN_VER "20220830:ioctl node need add more protect"
+/* 20220907: add manual_change_csc debug */
+#define VDIN_VER "20220907: add manual_change_csc debug"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -449,6 +450,7 @@ struct vdin_debug_s {
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;
 	unsigned short vdin1_line_buff;
+	unsigned short manual_change_csc;
 	unsigned int vdin_recycle_num;/* debug for vdin recycle frame by self */
 };
 
@@ -700,8 +702,8 @@ struct vdin_dev_s {
 	bool cut_window_cfg;
 	bool auto_cut_window_en;
 	/*
-	 *1:vdin out limit range
-	 *0:vdin out full range
+	 *0:vdin out limit range
+	 *1:vdin out full range
 	 */
 	unsigned int color_range_mode;
 	/*
