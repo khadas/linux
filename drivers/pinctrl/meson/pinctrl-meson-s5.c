@@ -288,10 +288,10 @@ static const unsigned int tdm_d2_x_pins[]		= { GPIOX_3 };
 static const unsigned int hdmitx_sda_pins[]		= { GPIOH_0 };
 static const unsigned int hdmitx_sck_pins[]		= { GPIOH_1 };
 static const unsigned int hdmitx_hpd_in_pins[]		= { GPIOH_2 };
-static const unsigned int spdif_out_h_pins[]		= { GPIOH_3 };
-static const unsigned int spdif_in_h_pins[]		= { GPIOH_4 };
-static const unsigned int iso7816_clk_h_pins[]		= { GPIOH_5 };
-static const unsigned int iso7816_data_h_pins[]		= { GPIOH_6 };
+static const unsigned int spdif_out_h_pins[]		= { GPIOH_4 };
+static const unsigned int spdif_in_h_pins[]		= { GPIOH_5 };
+static const unsigned int iso7816_clk_h_pins[]		= { GPIOH_6 };
+static const unsigned int iso7816_data_h_pins[]		= { GPIOH_7 };
 
 /* Bank H func2 */
 static const unsigned int i2c3_scl_h_pins[]		= { GPIOH_0 };
