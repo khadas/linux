@@ -242,7 +242,7 @@ EXPORT_SYMBOL(vout2_shutdown);
 /*
  *here we offer two functions to get and register vout module server
  *vout module server will set and store tvmode attributes for vout encoder
- *we can ensure TVMOD SET MODULE independent with these two function.
+ *we can ensure TVMODE SET MODULE independent with these two function.
  */
 
 int vout2_register_server(struct vout_server_s *mem_server)

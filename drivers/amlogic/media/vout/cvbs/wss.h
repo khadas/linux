@@ -136,7 +136,7 @@
 
 #define WSS_480I_CC_START                       0x0
 #define WSS_480I_CC_LINE						0x1211
-/*line evn 17,odd 18,reault all 21*/
+/*line evn 17,odd 18,result all 21*/
 #define WSS_480I_CC_LENGTH						0x2
 #define WSS_480I_CC_MASK                        0xffff
 

@@ -67,7 +67,7 @@ static struct class *tvafe_clsp;
 #define TVAFE_TIMER_INTERVAL    (HZ / 100)   /* 10ms, #define HZ 100 */
 #define TVAFE_RATIO_CNT			40
 
-static struct am_regs_s tvaferegs;
+static struct am_regs_s tvafe_regs;
 static struct tvafe_pin_mux_s tvafe_pinmux;
 static struct meson_tvafe_data *s_tvafe_data;
 static struct tvafe_clkgate_type tvafe_clkgate;
@@ -347,7 +347,7 @@ static int tvafe_get_v_fmt(void)
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
 		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+			tvafe_pr_err("tvafe haven't opened OR suspend:flags:0x%x!!!\n",
 					devp->flags);
 		return 0;
 	}
@@ -399,7 +399,7 @@ int tvafe_bringup_detect_signal(struct tvafe_dev_s *devp, enum tvin_port_e port)
 	tvafe_init_reg(&tvafe->cvd2, &devp->mem, port);
 
 	/* must reload mux if you change adc reg table!!! */
-	tvafe_adc_pin_muxing(adc_ch);
+	tvafe_adc_pin_mux(adc_ch);
 
 	W_APB_BIT(TVFE_CLAMP_INTF, 1, CLAMP_EN_BIT, CLAMP_EN_WID);
 	devp->flags |= TVAFE_FLAG_DEV_OPENED;
@@ -470,7 +470,7 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	tvafe_init_reg(&tvafe->cvd2, &devp->mem, port);
 
 	/* must reload mux if you change adc reg table!!! */
-	tvafe_adc_pin_muxing(adc_ch);
+	tvafe_adc_pin_mux(adc_ch);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN_AVDETECT
 	/*only txlx chip enabled*/
@@ -499,7 +499,7 @@ static int tvafe_dec_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	tvafe->parm.port = port;
 	vs_adj_val_pre = 0;
 
-	/* set the flag to enabble ioctl access */
+	/* set the flag to enable ioctl access */
 	devp->flags |= TVAFE_FLAG_DEV_OPENED;
 	tvafe_clk_status = true;
 #ifdef CONFIG_AMLOGIC_ATV_DEMOD
@@ -529,7 +529,7 @@ static void tvafe_dec_start(struct tvin_frontend_s *fe, enum tvin_sig_fmt_e fmt)
 	mutex_lock(&devp->afe_mutex);
 	manual_flag = 0;
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-		tvafe_pr_err("%s:(%d) decode havn't opened\n",
+		tvafe_pr_err("%s:(%d) decode haven't opened\n",
 			     __func__, devp->index);
 		mutex_unlock(&devp->afe_mutex);
 		return;
@@ -585,7 +585,7 @@ static void tvafe_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 
 	mutex_lock(&devp->afe_mutex);
 	if (!(devp->flags & TVAFE_FLAG_DEV_STARTED)) {
-		tvafe_pr_err("%s:(%d) decode havn't started\n",
+		tvafe_pr_err("%s:(%d) decode haven't started\n",
 			     __func__, devp->index);
 		mutex_unlock(&devp->afe_mutex);
 		return;
@@ -647,7 +647,7 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 	mutex_lock(&devp->afe_mutex);
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
-		tvafe_pr_err("%s:(%d) decode havn't opened\n",
+		tvafe_pr_err("%s:(%d) decode haven't opened\n",
 			     __func__, devp->index);
 		mutex_unlock(&devp->afe_mutex);
 		return;
@@ -743,14 +743,14 @@ static int tvafe_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
 		if (tvafe_dbg_print & TVAFE_DBG_ISR)
-			tvafe_pr_err("tvafe havn't opened, isr error!!!\n");
+			tvafe_pr_err("tvafe haven't opened, isr error!!!\n");
 		return TVIN_BUF_SKIP;
 	}
 
 	if (force_stable)
 		return TVIN_BUF_NULL;
 
-	/* if there is any error or overflow, do some reset, then rerurn -1;*/
+	/* if there is any error or overflow, do some reset, then return -1;*/
 	if (tvafe->parm.info.status != TVIN_SIG_STATUS_STABLE ||
 	    tvafe->parm.info.fmt == TVIN_SIG_FMT_NULL) {
 		if (devp->flags & TVAFE_FLAG_DEV_SNOW_FLAG)
@@ -926,7 +926,7 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
 		if (tvafe_dbg_print & TVAFE_DBG_SMR)
-			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+			tvafe_pr_err("tvafe haven't opened OR suspend:flags:0x%x!!!\n",
 					devp->flags);
 		return true;
 	}
@@ -974,17 +974,17 @@ static bool tvafe_is_nosig(struct tvin_frontend_s *fe)
 			tvafe_snow_config_acd_resume();
 	}
 
-	/* normal sigal & adc reg error, reload source mux */
+	/* normal signal & adc reg error, reload source mux */
 	if (tvafe->cvd2.info.adc_reload_en && !ret) {
 		adc_ch = tvafe_port_to_channel(port, devp->pinmux);
-		tvafe_adc_pin_muxing(adc_ch);
+		tvafe_adc_pin_mux(adc_ch);
 	}
 
 	return ret;
 }
 
 /*
- * tvafe signal mode status: change/unchange
+ * tvafe signal mode status: change/unchangeable
  */
 bool tvafe_fmt_chg(struct tvin_frontend_s *fe)
 {
@@ -996,7 +996,7 @@ bool tvafe_fmt_chg(struct tvin_frontend_s *fe)
 	enum tvin_port_e port = tvafe->parm.port;
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-		tvafe_pr_err("tvafe havn't opened, get fmt chg error!!!\n");
+		tvafe_pr_err("tvafe haven't opened, get fmt chg error!!!\n");
 		return true;
 	}
 	if (force_stable)
@@ -1030,7 +1030,7 @@ enum tvin_sig_fmt_e tvafe_get_fmt(struct tvin_frontend_s *fe)
 	enum tvin_port_e port = tvafe->parm.port;
 
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-		tvafe_pr_err("tvafe havn't opened, get sig fmt error!!!\n");
+		tvafe_pr_err("tvafe haven't opened, get sig fmt error!!!\n");
 		return fmt;
 	}
 	if (IS_TVAFE_SRC(port))
@@ -1306,12 +1306,12 @@ static long tvafe_ioctl(struct file *file,
 	}
 
 	/* tvafe_pr_info("%s command: %u\n", __func__, cmd); */
-	if (disableapi)
+	if (disable_api)
 		return -EPERM;
 
 	mutex_lock(&devp->afe_mutex);
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) &&
-		cmd != TVIN_IOC_S_AFE_SONWCFG) {
+		cmd != TVIN_IOC_S_AFE_SNOW_CFG) {
 		tvafe_pr_info("%s, tvafe device is disable, ignore the command %d\n",
 				__func__, cmd);
 		mutex_unlock(&devp->afe_mutex);
@@ -1321,28 +1321,28 @@ static long tvafe_ioctl(struct file *file,
 	switch (cmd) {
 	case TVIN_IOC_LOAD_REG:
 		{
-		if (copy_from_user(&tvaferegs, argp,
+		if (copy_from_user(&tvafe_regs, argp,
 			sizeof(struct am_regs_s))) {
 			tvafe_pr_info("load reg errors: can't get buffer length\n");
 			ret = -EINVAL;
 			break;
 		}
 
-		if (!tvaferegs.length || tvaferegs.length > 512) {
+		if (!tvafe_regs.length || tvafe_regs.length > 512) {
 			tvafe_pr_info("load regs error: buffer length overflow!!!, length=0x%x\n",
-				tvaferegs.length);
+				tvafe_regs.length);
 			ret = -EINVAL;
 			break;
 		}
 		if (enable_db_reg)
-			tvafe_set_regmap(&tvaferegs);
+			tvafe_set_regmap(&tvafe_regs);
 
 		break;
 		}
-	case TVIN_IOC_S_AFE_SONWCFG:
+	case TVIN_IOC_S_AFE_SNOW_CFG:
 		/*tl1/txhd tvconfig snow en/disable*/
 		if (copy_from_user(&temp, argp, sizeof(unsigned int))) {
-			tvafe_pr_info("snowcfg: get param err\n");
+			tvafe_pr_info("snow_cfg: get param err\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -1352,20 +1352,20 @@ static long tvafe_ioctl(struct file *file,
 			tvafe_set_snow_cfg(false);
 		tvafe_pr_info("tvconfig snow:%d\n", snow_cfg);
 		break;
-	case TVIN_IOC_S_AFE_SONWON:
+	case TVIN_IOC_S_AFE_SNOW_ON:
 		devp->flags |= TVAFE_FLAG_DEV_SNOW_FLAG;
 		tvafe_snow_function_flag = true;
 		tvafe_snow_config(1);
 		tvafe_snow_config_clamp(1);
 		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_info("TVIN_IOC_S_AFE_SONWON\n");
+			tvafe_pr_info("TVIN_IOC_S_AFE_SNOW_ON\n");
 		break;
-	case TVIN_IOC_S_AFE_SONWOFF:
+	case TVIN_IOC_S_AFE_SNOW_OFF:
 		tvafe_snow_config(0);
 		tvafe_snow_config_clamp(0);
 		devp->flags &= (~TVAFE_FLAG_DEV_SNOW_FLAG);
 		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_info("TVIN_IOC_S_AFE_SONWOFF\n");
+			tvafe_pr_info("TVIN_IOC_S_AFE_SNOW_OFF\n");
 		break;
 	case TVIN_IOC_G_AFE_CVBS_LOCK:
 		cvbs_lock_status = tvafe_cvd2_get_lock_status(&tvafe->cvd2);
@@ -1787,7 +1787,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	}
 	tdevp->flags = 0;
 
-	/* create cdev and reigser with sysfs */
+	/* create cdev and register with sysfs */
 	ret = tvafe_add_cdev(&tdevp->cdev, &tvafe_fops, tdevp->index);
 	if (ret) {
 		tvafe_pr_err("%s: failed to add cdev\n", __func__);
@@ -1951,7 +1951,7 @@ static int tvafe_drv_probe(struct platform_device *pdev)
 	tvafe_dev_local = tdevp;
 	tdevp->sizeof_tvafe_dev_s = sizeof(struct tvafe_dev_s);
 
-	disableapi = false;
+	disable_api = false;
 	force_stable = false;
 	tvafe_atv_search_channel = false;
 	tvafe_manual_fmt_save = TVIN_SIG_FMT_NULL;
@@ -2087,7 +2087,7 @@ static void tvafe_drv_shutdown(struct platform_device *pdev)
 	}
 	mutex_unlock(&tdevp->afe_mutex);
 
-	tvafe_pr_info("%s: tvafe sutdown ok.\n", __func__);
+	tvafe_pr_info("%s: tvafe shutdown ok.\n", __func__);
 }
 
 static struct platform_driver tvafe_driver = {

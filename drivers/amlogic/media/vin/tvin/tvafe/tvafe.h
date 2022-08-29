@@ -24,7 +24,7 @@
 /* 20220415: pq_reg_trust_table add register mask */
 /* 20220430: PALM CC not display */
 /* 20220513: add electrical performance debug adjust command */
-/* 20220602: call avin read crash after shutdowm */
+/* 20220602: call avin read crash after shutdown */
 /* 20220613: tvafe shutdown not close clk stuck */
 /* 20220708: ntsc-m set 0x2e to default value */
 /* 20220812: avin 0% white cannot detect signal */
@@ -158,7 +158,7 @@ void cvd_set_shift_cnt(enum tvafe_cvd2_shift_cnt_e src, unsigned int val);
 unsigned int cvd_get_shift_cnt(enum tvafe_cvd2_shift_cnt_e src);
 int tvafe_bringup_detect_signal(struct tvafe_dev_s *devp, enum tvin_port_e port);
 
-extern bool disableapi;
+extern bool disable_api;
 extern bool force_stable;
 extern bool tvafe_atv_search_channel;
 

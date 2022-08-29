@@ -52,7 +52,7 @@
 /* cvd2 function in 10ms timer */
 #define TVAFE_CVD2_NORMAL_REG_CHECK_CNT     100  /* n*10ms */
 
-/* zhuangwei, nonstd flag */
+/* VLSI, nonstd flag */
 #define CVD2_NONSTD_CNT_INC_STEP 1
 #define CVD2_NONSTD_CNT_DEC_STEP 1
 #define CVD2_NONSTD_CNT_INC_LIMIT 50
@@ -65,8 +65,8 @@
 
 /* wait for signal stable */
 #define FMT_WAIT_CNT 15
-#define NTSC_SW_MAXCNT 40
-#define NTSC_SW_MIDCNT 20
+#define NTSC_SW_MAX_CNT 40
+#define NTSC_SW_MID_CNT 20
 
 /*threshold for 4xx or 3xx valid*/
 #define CNT_VLD_TH 0x30
@@ -179,11 +179,11 @@ static bool cvd_pr_flag;
 static bool cvd_pr1_chroma_flag;
 static bool cvd_pr2_chroma_flag;
 
-/* zhuangwei, nonstd experiment */
+/* VLSI, nonstd experiment */
 static unsigned int chroma_sum_pre1;
 static unsigned int chroma_sum_pre2;
 static unsigned int chroma_sum_pre3;
-/* fanghui,noise det to juge some reg setting */
+/* noise det to judge some reg setting */
 static unsigned int noise1;
 static unsigned int noise2;
 static unsigned int noise3;
@@ -336,7 +336,7 @@ static void tvafe_cvd2_filter_config(void)
 }
 
 /*
- * tvafe cvd2 load Reg talbe
+ * tvafe cvd2 load Reg table
  */
 static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 		struct tvafe_cvd2_mem_s *mem)
@@ -349,7 +349,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	/*disable vbi*/
 	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 	W_APB_REG(ACD_REG_22, 0x07080000);
-	/* manuel reset vbi */
+	/* manual reset vbi */
 	W_APB_REG(ACD_REG_22, 0x87080000);
 
 	/* reset CVD2 */
@@ -443,7 +443,7 @@ static void tvafe_cvd2_write_mode_reg(struct tvafe_cvd2_s *cvd2,
 	W_APB_REG(CVD2_VBI_CC_START, 0x00000054);
 	/*disable vbi*/
 	W_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
-	W_APB_REG(ACD_REG_22, 0x82080000); /* manuel reset vbi */
+	W_APB_REG(ACD_REG_22, 0x82080000); /* manual reset vbi */
 	W_APB_REG(ACD_REG_22, 0x04080000);
 	/* vbi reset release, vbi agent enable */
 #endif
@@ -533,13 +533,13 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 {
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
 	unsigned int noise_read = 0;
-	unsigned int noise_strenth = 0;
+	unsigned int noise_strength = 0;
 
 	noise_read = R_APB_REG(CVD2_SYNC_NOISE_STATUS);
 	noise3 = noise2;
 	noise2 = noise1;
 	noise1 = noise_read;
-	noise_strenth = (noise1 + (noise2 << 1) + noise3) >> 2;
+	noise_strength = (noise1 + (noise2 << 1) + noise3) >> 2;
 
 	if (force_nostd == 3)
 		return;
@@ -561,8 +561,8 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 	cvd2->info.non_std_config = cvd2->info.non_std_enable;
 	if (cvd2->info.non_std_config && force_nostd != 0x1) {
 		if (tvafe_dbg_print & TVAFE_DBG_NOSTD) {
-			tvafe_pr_info("%s: config non-std signal reg, noise_strenth=%d\n",
-				__func__, noise_strenth);
+			tvafe_pr_info("%s: config non-std signal reg, noise_strength=%d\n",
+				__func__, noise_strength);
 		}
 
 #ifdef CONFIG_AM_SI2176
@@ -574,7 +574,7 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 			W_APB_REG(CVD2_NOISE_THRESHOLD, 0x04);
 			if (cvd2->info.scene_colorful)
 				W_APB_REG(CVD2_VSYNC_CNTL, 0x02);
-			if (noise_strenth > 48 && NOISE_JUDGE)
+			if (noise_strength > 48 && NOISE_JUDGE)
 				W_APB_BIT(CVD2_H_LOOP_MAXSTATE, 4,
 					HSTATE_MAX_BIT, HSTATE_MAX_WID);
 			else
@@ -594,7 +594,7 @@ void tvafe_cvd2_non_std_config(struct tvafe_cvd2_s *cvd2)
 			/* VS_SIGNAL_AUTO_TH_BIT, VS_SIGNAL_AUTO_TH_WID); */
 			W_APB_REG(CVD2_HSYNC_RISING_EDGE_START, 0x25);
 			W_APB_BIT(TVFE_CLAMP_INTF, 0x661, 0, 12);
-			if (noise_strenth > 48 && NOISE_JUDGE)
+			if (noise_strength > 48 && NOISE_JUDGE)
 				W_APB_BIT(CVD2_H_LOOP_MAXSTATE, 4,
 					HSTATE_MAX_BIT, HSTATE_MAX_WID);
 			else
@@ -979,7 +979,7 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 	}
 
 	/* 0xD and 0x87 modify for no color burst pattern occur offset. */
-	/* 0xD influence no clolr burst switch to color bar pattern and */
+	/* 0xD influence no color burst switch to color bar pattern and */
 	/* atv no color burst pattern display, so add off/on switch. */
 	if ((cvd2->vd_port == TVIN_PORT_CVBS1 ||
 	    cvd2->vd_port == TVIN_PORT_CVBS2) && !no_color_burst_cfg) {
@@ -1206,7 +1206,7 @@ int tvafe_cvd2_get_atv_format(void)
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
 		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+			tvafe_pr_err("tvafe haven't opened OR suspend:flags:0x%x!!!\n",
 					devp->flags);
 		return 0;
 	}
@@ -1225,7 +1225,7 @@ int tvafe_cvd2_get_hv_lock(void)
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED) ||
 		(devp->flags & TVAFE_POWERDOWN_IN_IDLE)) {
 		if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
-			tvafe_pr_err("tvafe havn't opened OR suspend:flags:0x%x!!!\n",
+			tvafe_pr_err("tvafe haven't opened OR suspend:flags:0x%x!!!\n",
 					devp->flags);
 		return 0;
 	}
@@ -1298,7 +1298,7 @@ static void tvafe_cvd2_non_std_signal_det(struct tvafe_cvd2_s *cvd2)
 				__func__, cvd2->info.scene_colorful,
 				chroma_sum_filt,
 				cvd2->hw.h_nonstd, cvd2->hw.v_nonstd);
-			tvafe_pr_info("%s: smr_cnt=%d, nonstd_cnt=%d, stabl_cnt=%d, nonstd_flag=%d, dgain=0x%x, non_std_enable=%d\n",
+			tvafe_pr_info("%s: smr_cnt=%d, nonstd_cnt=%d, stable_cnt=%d, nonstd_flag=%d, dgain=0x%x, non_std_enable=%d\n",
 				__func__, cvd2->info.smr_cnt,
 				cvd2->info.nonstd_cnt,
 				cvd2->info.nonstd_stable_cnt,
@@ -1321,7 +1321,7 @@ static void tvafe_cvd2_non_std_signal_det(struct tvafe_cvd2_s *cvd2)
 					chroma_sum_filt,
 					cvd2->hw.h_nonstd,
 					cvd2->hw.v_nonstd);
-				tvafe_pr_info("%s: smr_cnt=%d, nonstd_cnt=%d, stabl_cnt=%d, nonstd_flag=%d, dgain=0x%x, non_std_enable=%d\n",
+				tvafe_pr_info("%s: smr_cnt=%d, nonstd_cnt=%d, stable_cnt=%d, nonstd_flag=%d, dgain=0x%x, non_std_enable=%d\n",
 					__func__, cvd2->info.smr_cnt,
 					cvd2->info.nonstd_cnt,
 					cvd2->info.nonstd_stable_cnt,
@@ -1346,7 +1346,7 @@ static bool tvafe_cvd2_sig_unstable(struct tvafe_cvd2_s *cvd2)
 }
 
 /*
- * tvafe cvd2 checkt current format match condition
+ * tvafe cvd2 check current format match condition
  */
 static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 {
@@ -1427,10 +1427,10 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 	/* for ntsc-m pal-m switch bug */
 	if (!cvd2->hw.chroma_lock &&
 	    cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M) {
-		if (cvd2->info.ntsc_switch_cnt++ >= NTSC_SW_MAXCNT)
+		if (cvd2->info.ntsc_switch_cnt++ >= NTSC_SW_MAX_CNT)
 			cvd2->info.ntsc_switch_cnt = 0;
 
-		if (cvd2->info.ntsc_switch_cnt <= NTSC_SW_MIDCNT) {
+		if (cvd2->info.ntsc_switch_cnt <= NTSC_SW_MID_CNT) {
 			if (R_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16,
 			CDTO_INC_23_16_BIT, CDTO_INC_23_16_WID) != 0x2e) {
 				W_APB_BIT(CVD2_CHROMA_DTO_INCREMENT_23_16, 0x2e,
@@ -1443,7 +1443,7 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 					PALSW_LVL_BIT, PALSW_LVL_WID);
 				W_APB_BIT(CVD2_COMB_LOCK_CONFIG, 0x7,
 			LOSE_CHROMALOCK_LVL_BIT, LOSE_CHROMALOCK_LVL_WID);
-				W_APB_BIT(CVD2_PHASE_OFFSE_RANGE, 0x20,
+				W_APB_BIT(CVD2_PHASE_OFFSET_RANGE, 0x20,
 			PHASE_OFFSET_RANGE_BIT, PHASE_OFFSET_RANGE_WID);
 			}
 			if (!cvd_pr1_chroma_flag &&
@@ -1469,7 +1469,7 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 				W_APB_BIT(CVD2_COMB_LOCK_CONFIG, 2,
 					LOSE_CHROMALOCK_LVL_BIT,
 					LOSE_CHROMALOCK_LVL_WID);
-				W_APB_BIT(CVD2_PHASE_OFFSE_RANGE, 0x15,
+				W_APB_BIT(CVD2_PHASE_OFFSET_RANGE, 0x15,
 					PHASE_OFFSET_RANGE_BIT,
 					PHASE_OFFSET_RANGE_WID);
 			}
@@ -1701,7 +1701,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 				tvafe_cvd2_try_format(cvd2, mem,
 				TVIN_SIG_FMT_CVBS_PAL_M);
 				if (tvafe_dbg_print & TVAFE_DBG_SMR)
-					tvafe_pr_info("%sdismatch pal_i and after try other format: line625 %d!!!and the  fsc358 %d,pal %d,fsc_443:%d",
+					tvafe_pr_info("%s dismatch pal_i and after try other format: line625 %d!!!and the  fsc358 %d,pal %d,fsc_443:%d",
 					__func__, cvd2->hw.line625,
 					cvd2->hw.fsc_358,
 					cvd2->hw.pal, cvd2->hw.fsc_443);
@@ -1710,7 +1710,7 @@ static void tvafe_cvd2_search_video_mode(struct tvafe_cvd2_s *cvd2,
 		case TVIN_SIG_FMT_CVBS_PAL_CN:
 			if (cvd2->hw.line625 && cvd2->hw.fsc_358 &&
 			cvd2->hw.pal){
-				/* line625+brust358+pal*/
+				/* line625+burst358+pal*/
 				/*-> pal_cn */
 				cvd2->info.state = TVAFE_CVD2_STATE_FIND;
 			} else if ((IS_TVAFE_AVIN_SRC(cvd2->vd_port) ||
@@ -2010,7 +2010,7 @@ static void tvafe_cvd2_auto_de(struct tvafe_cvd2_s *cvd2)
 	}
 }
 
-/* vlis advice new add @20170329 */
+/* VLSI advice new add @20170329 */
 static void tvafe_cvd2_adj_vs(struct tvafe_cvd2_s *cvd2)
 {
 	struct tvafe_user_param_s *user_param = tvafe_get_user_param();
@@ -2218,7 +2218,7 @@ inline enum tvin_sig_fmt_e tvafe_cvd2_get_format(struct tvafe_cvd2_s *cvd2)
 
 #ifdef TVAFE_SET_CVBS_PGA_EN
 /*
- * tvafe cvd2 pag ajustment in vsync interval
+ * tvafe cvd2 pag adjustment in vsync interval
  */
 inline void tvafe_cvd2_adj_pga(struct tvafe_cvd2_s *cvd2)
 {
@@ -2359,7 +2359,7 @@ inline void tvafe_cvd2_adj_hs(struct tvafe_cvd2_s *cvd2,
 	else if (cvd2->config_fmt == TVIN_SIG_FMT_CVBS_NTSC_M)
 		hcnt64_standard = 0x30e0e;
 
-	/* only for pal-i adjusment */
+	/* only for pal-i adjustment */
 	if (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_PAL_I &&
 	    cvd2->config_fmt != TVIN_SIG_FMT_CVBS_NTSC_M)
 		return;
@@ -2633,7 +2633,7 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 	if ((user_param->auto_adj_en & TVAFE_AUTO_HS) == 0)
 		return;
 
-	/* only for ntsc-m adjusment */
+	/* only for ntsc-m adjustment */
 	if (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_NTSC_M)
 		return;
 
@@ -2817,7 +2817,7 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 	if ((user_param->auto_adj_en & TVAFE_AUTO_CDTO) == 0)
 		return;
 
-	/* only for pal-i adjusment */
+	/* only for pal-i adjustment */
 	if (cvd2->config_fmt != TVIN_SIG_FMT_CVBS_PAL_I &&
 	    cvd2->config_fmt != TVIN_SIG_FMT_CVBS_NTSC_M)
 		return;
@@ -2892,9 +2892,9 @@ inline void tvafe_cvd2_adj_cdto(struct tvafe_cvd2_s *cvd2,
 
 #ifdef SYNC_HEIGHT_AUTO_TUNING
 /*
- * tvafe cvd2 sync height ajustment for picture quality in vsync interval
+ * tvafe cvd2 sync height adjustment for picture quality in vsync interval
  */
-static inline void tvafe_cvd2_sync_hight_tune(struct tvafe_cvd2_s *cvd2)
+static inline void tvafe_cvd2_sync_height_tune(struct tvafe_cvd2_s *cvd2)
 {
 	int burst_mag = 0;
 	int burst_mag_16msb = 0, burst_mag_16lsb = 0;
@@ -2985,7 +2985,7 @@ inline void tvafe_cvd2_check_3d_comb(struct tvafe_cvd2_s *cvd2)
 		return;
 
 #ifdef SYNC_HEIGHT_AUTO_TUNING
-	tvafe_cvd2_sync_hight_tune(cvd2);
+	tvafe_cvd2_sync_height_tune(cvd2);
 #endif
 
 	if (cvd2->info.comb_check_cnt++ > CVD_3D_COMB_CHECK_MAX_CNT)

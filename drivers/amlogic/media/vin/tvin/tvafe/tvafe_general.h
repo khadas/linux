@@ -27,11 +27,11 @@
 #define HHI_VID_DIVIDER_CNTL	0x66
 
 /* T5W add 3d comb clk */
-#define HHI_TVFECLK_CNTL		0x7e
-#define TVFECLK_GATE			0x6
-#define TVFECLK_GATE_WIDTH		1
-#define TVFECLK_SEL			0x7
-#define TVFECLK_SEL_WIDTH		3
+#define HHI_TVFE_CLK_CNTL		0x7e
+#define TVFE_CLK_GATE			0x6
+#define TVFE_CLK_GATE_WIDTH		1
+#define TVFE_CLK_SEL			0x7
+#define TVFE_CLK_SEL_WIDTH		3
 
 #define VENC_VDAC_DACSEL0			0x1b78
 #define P_VENC_VDAC_DACSEL0		VCBUS_REG_ADDR(VENC_VDAC_DACSEL0)
@@ -125,7 +125,7 @@
 #define ADC_EN_ATV_DEMOD	0x1
 #define ADC_EN_TVAFE		0x2
 #define ADC_EN_DTV_DEMOD	0x4
-#define ADC_EN_DTV_DEMODPLL	0x8
+#define ADC_EN_DTV_DEMOD_PLL	0x8
 
 #define LOG_ADC_CAL
 /* #define LOG_VGA_EDID */
@@ -177,7 +177,7 @@ struct tvafe_clkgate_type {
 /* ********************************************* */
 enum tvafe_adc_ch_e tvafe_port_to_channel(enum tvin_port_e port,
 					  struct tvafe_pin_mux_s *pinmux);
-int tvafe_adc_pin_muxing(enum tvafe_adc_ch_e adc_ch);
+int tvafe_adc_pin_mux(enum tvafe_adc_ch_e adc_ch);
 void tvafe_set_regmap(struct am_regs_s *p);
 void tvafe_init_reg(struct tvafe_cvd2_s *cvd2, struct tvafe_cvd2_mem_s *mem,
 		    enum tvin_port_e port);

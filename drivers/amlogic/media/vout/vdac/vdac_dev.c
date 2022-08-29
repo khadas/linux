@@ -479,7 +479,7 @@ void vdac_enable(bool on, unsigned int module_sel)
 			}
 
 			if (pri_flag_cnt) {
-				pr_info("%s: avout_atv is in use, cann't off, pri_flag_cnt: %d\n",
+				pr_info("%s: avout_atv is in use, can't off, pri_flag_cnt: %d\n",
 					__func__, pri_flag_cnt);
 				break;
 			}

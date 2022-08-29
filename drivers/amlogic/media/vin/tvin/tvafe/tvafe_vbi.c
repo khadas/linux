@@ -301,9 +301,9 @@ static void vbi_hw_init(struct vbi_dev_s *devp)
 	tvafe_pr_info("%s: vbi hw init done.\n", __func__);
 }
 
-static inline void vbi_get_byte(unsigned char **rdptr_addr, unsigned char *retbyte)
+static inline void vbi_get_byte(unsigned char **rdptr_addr, unsigned char *ret_byte)
 {
-		*retbyte = **rdptr_addr;
+		*ret_byte = **rdptr_addr;
 		*rdptr_addr = *rdptr_addr + 1;
 }
 
@@ -465,7 +465,7 @@ static int copy_vbi_to(unsigned char *table_start_addr,
  *  Example:
  *  table: 0x00 0x11 0x22 0x33 0x44 0x55 0x66 0x77 0x88 0x99
  *  search_point = 0x22's addr
- *  search contet = 0x44 0x55 0x66 0x77
+ *  search content = 0x44 0x55 0x66 0x77
  *  so, len = 6
  *  return 0x77's addr
  *-----------------------------------------------------------
@@ -905,11 +905,11 @@ static void vbi_slicer_work(struct work_struct *p_work)
 	unsigned char *local_rptr = NULL;
 	unsigned char vbi_head[3] = {0x00, 0xFF, 0xFF};
 	unsigned char *rptr, *ret_addr, *vbi_addr;
-	unsigned int len = 0, chlen = 0, vbihlen, datalen;
+	unsigned int len = 0, ch_len = 0, vbi_h_len, datalen;
 	int ret, data_save_flag = 0;
 	unsigned char *tmp;
 	unsigned char *vbi_addr_bak = NULL;
-	unsigned int vbihlen_bak = 0, chlen_bak = 0;
+	unsigned int vbi_h_len_bak = 0, ch_len_bak = 0;
 
 	if (!devp)
 		return;
@@ -1007,7 +1007,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 
 	local_rptr = devp->temp_addr_start;
 	datalen = sizeof(struct vbi_data_s);
-	while (chlen < len) {
+	while (ch_len < len) {
 		if (!devp->vbi_start || !tvafe_clk_status) {
 			if (vbi_dbg_en & VBI_DBG_INFO)
 				tvafe_pr_info("%s: vbi stopped\n", __func__);
@@ -1024,16 +1024,16 @@ static void vbi_slicer_work(struct work_struct *p_work)
 
 		vbi_addr = search_table(local_rptr, local_rptr,
 		(devp->temp_addr_start + len - VBI_WRITE_BURST_BYTE - 1),
-			vbi_head, 3, &vbihlen, 2);
+			vbi_head, 3, &vbi_h_len, 2);
 		if (!vbi_addr) {
 			if (vbi_search_table_err_num == 2 &&
 				(vbi_dbg_en & VBI_DBG_INFO)) {
-				tvafe_pr_info("%s: vbi data search table invalid, vcnt:%d, chlen:%d, len:%d, data_save_flag:%d, vbi_search_table_err_num=%d\n",
-					__func__, vcnt, chlen, len,
+				tvafe_pr_info("%s: vbi data search table invalid, vcnt:%d, ch_len:%d, len:%d, data_save_flag:%d, vbi_search_table_err_num=%d\n",
+					__func__, vcnt, ch_len, len,
 					data_save_flag,
 					vbi_search_table_err_num);
-				tvafe_pr_info("%s: chlen_bak:%d, vbihlen_bak:%d, vbi_addr_bak:%p, mem_start=%p, mem_end=%p\n",
-					__func__, chlen_bak, vbihlen_bak,
+				tvafe_pr_info("%s: ch_len_bak:%d, vbi_h_len_bak:%d, vbi_addr_bak:%p, mem_start=%p, mem_end=%p\n",
+					__func__, ch_len_bak, vbi_h_len_bak,
 					vbi_addr_bak,
 					devp->pac_addr_start,
 					devp->pac_addr_end);
@@ -1051,10 +1051,10 @@ static void vbi_slicer_work(struct work_struct *p_work)
 			}
 			goto vbi_slicer_work_next;
 		}
-		chlen += (vbihlen + 3);
+		ch_len += (vbi_h_len + 3);
 		local_rptr = vbi_addr + 1;
 		vbi_addr_bak = vbi_addr;
-		vbihlen_bak = vbihlen;
+		vbi_h_len_bak = vbi_h_len;
 
 		if (local_rptr > devp->temp_addr_end ||
 		    local_rptr < devp->temp_addr_start) {
@@ -1067,7 +1067,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 
 		/* vbi_type & field_id */
 		vbi_get_byte(&local_rptr, &rbyte);
-		chlen++;
+		ch_len++;
 		vbi_data.vbi_type = (rbyte >> 1) & 0x7;
 		vbi_data.field_id = rbyte & 1;
 		#if defined(VBI_TT_SUPPORT)
@@ -1075,39 +1075,39 @@ static void vbi_slicer_work(struct work_struct *p_work)
 		#endif
 		if (vbi_data.vbi_type > MAX_PACKET_TYPE) {
 			if (vbi_dbg_en & VBI_DBG_INFO) {
-				tvafe_pr_info("[vbi..]: vcnt:%d, chlen:%d, unsupport vbi_type_id:%d\n",
-					vcnt, chlen, vbi_data.vbi_type);
+				tvafe_pr_info("[vbi..]: vcnt:%d, ch_len:%d, unsupport vbi_type_id:%d\n",
+					vcnt, ch_len, vbi_data.vbi_type);
 			}
 			continue;
 		}
 		/* byte counter */
 		vbi_get_byte(&local_rptr, &rbyte);
-		chlen++;
+		ch_len++;
 		vbi_data.nbytes = rbyte;
 		/* line number */
 		vbi_get_byte(&local_rptr, &rbyte);
-		chlen++;
+		ch_len++;
 		pre_val = (u16)rbyte;
 		vbi_get_byte(&local_rptr, &rbyte);
-		chlen++;
+		ch_len++;
 		pre_val |= ((u16)rbyte & 0x3) << 8;
 		vbi_data.line_num = pre_val;
 		if (vbi_dbg_en & VBI_DBG_ISR4)
 			vbi_data.line_num = vcnt;
 		/* data */
-		chlen += vbi_data.nbytes;
+		ch_len += vbi_data.nbytes;
 		if (vbi_data.nbytes > VBI_DATA_BYTE_MAX) {
 			if (vbi_dbg_en & VBI_DBG_INFO) {
-				tvafe_pr_info("[vbi..]: vcnt:%d, chlen:%d, unsupport vbi_data_byte:%d\n",
-					vcnt, chlen, vbi_data.nbytes);
+				tvafe_pr_info("[vbi..]: vcnt:%d, ch_len:%d, unsupport vbi_data_byte:%d\n",
+					vcnt, ch_len, vbi_data.nbytes);
 			}
 			continue;
 		}
 		if (check_vbi_data_valid(&vbi_data)) {
 			local_rptr += vbi_data.nbytes;
 			if (vbi_dbg_en & VBI_DBG_INFO) {
-				tvafe_pr_info("[vbi..]: vcnt:%d, chlen:%d, invalid vbi_data type:%d, tt_sys:%d, byte:%d\n",
-					vcnt, chlen, vbi_data.vbi_type,
+				tvafe_pr_info("[vbi..]: vcnt:%d, ch_len:%d, invalid vbi_data type:%d, tt_sys:%d, byte:%d\n",
+					vcnt, ch_len, vbi_data.vbi_type,
 					vbi_data.tt_sys, vbi_data.nbytes);
 			}
 			continue;
@@ -1130,8 +1130,8 @@ static void vbi_slicer_work(struct work_struct *p_work)
 		if (vbi_dbg_en & VBI_DBG_ISR4) {
 			if (vbi_pr_isr_buf) {
 				j = sprintf(vbi_pr_isr_buf,
-					"[vbi..]: chlen:%d, vcnt:%d, field_id:%d, line_num:%4d, data_cnt:%d:",
-					chlen, vcnt,
+					"[vbi..]: ch_len:%d, vcnt:%d, field_id:%d, line_num:%4d, data_cnt:%d:",
+					ch_len, vcnt,
 					vbi_data.field_id,
 					vbi_data.line_num,
 					vbi_data.nbytes);
@@ -1156,7 +1156,7 @@ static void vbi_slicer_work(struct work_struct *p_work)
 			}
 		}
 
-		chlen_bak = chlen;
+		ch_len_bak = ch_len;
 	}
 
 vbi_slicer_work_next:
@@ -1375,7 +1375,7 @@ static int vbi_ringbuffer_empty(struct vbi_ringbuffer_s *rbuf)
 static void vbi_user_buffer_dump(u8 __user *buf, size_t len)
 {
 	unsigned char *data;
-	unsigned int i, j, chlen, datalen;
+	unsigned int i, j, ch_len, datalen;
 	struct vbi_data_s vbi_data;
 
 	if (vbi_pr_read_buf) {
@@ -1388,31 +1388,31 @@ static void vbi_user_buffer_dump(u8 __user *buf, size_t len)
 		}
 
 		datalen = sizeof(struct vbi_data_s);
-		chlen = 0;
-		while (chlen < len) {
-			if ((chlen + datalen) > len) {
-				tvafe_pr_info("%s: chlen:%d,datalen:%d,len:%d invalid\n",
-					__func__, chlen, datalen, (int)len);
+		ch_len = 0;
+		while (ch_len < len) {
+			if ((ch_len + datalen) > len) {
+				tvafe_pr_info("%s: ch_len:%d,datalen:%d,len:%d invalid\n",
+					__func__, ch_len, datalen, (int)len);
 				break;
 			}
-			memcpy(&vbi_data, (data + chlen), datalen);
-			chlen += datalen;
+			memcpy(&vbi_data, (data + ch_len), datalen);
+			ch_len += datalen;
 			if (vbi_data.vbi_type > MAX_PACKET_TYPE) {
-				tvafe_pr_info("[user..]: chlen:%d, line_num:%4d, unsupport vbi_type_id:%d\n",
-					chlen, vbi_data.line_num,
+				tvafe_pr_info("[user..]: ch_len:%d, line_num:%4d, unsupport vbi_type_id:%d\n",
+					ch_len, vbi_data.line_num,
 					vbi_data.vbi_type);
 				continue;
 			}
 			if (vbi_data.nbytes > VBI_DATA_BYTE_MAX) {
-				tvafe_pr_info("[user..]: chlen:%d, line_num:%4d, unsupport vbi_data_byte:%d\n",
-					chlen, vbi_data.line_num,
+				tvafe_pr_info("[user..]: ch_len:%d, line_num:%4d, unsupport vbi_data_byte:%d\n",
+					ch_len, vbi_data.line_num,
 					vbi_data.nbytes);
 				continue;
 			}
 
 			j = sprintf(vbi_pr_read_buf,
-				"[user..]: chlen:%d, field_id:%d, line_num:%4d, data_cnt:%d:",
-				chlen,
+				"[user..]: ch_len:%d, field_id:%d, line_num:%4d, data_cnt:%d:",
+				ch_len,
 				vbi_data.field_id,
 				vbi_data.line_num,
 				vbi_data.nbytes);
@@ -1677,11 +1677,11 @@ static long vbi_ioctl(struct file *file,
 		vbi_data_stable_flag = 0;
 		ret = vbi_slicer_stop(vbi_slicer);
 		if (tvafe_clk_status) {
-			/* manuel reset vbi */
+			/* manual reset vbi */
 			/*W_VBI_APB_REG(ACD_REG_22, 0x82080000);*/
 			/* vbi reset release, vbi agent enable*/
 				/*W_VBI_APB_REG(ACD_REG_22, 0x06080000);*/
-			/*WAPB_REG(CVD2_VBI_CC_START, 0x00000054);*/
+			/*W_APB_REG(CVD2_VBI_CC_START, 0x00000054);*/
 			W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
 		}
 		tvafe_vbi_set_wss();
@@ -1713,7 +1713,7 @@ static long vbi_ioctl(struct file *file,
 			ret = vbi_slicer_set(vbi_dev, vbi_slicer);
 		} else {
 			ret = -EFAULT;
-			tvafe_pr_err("[vbi..] %s: tvafeclose, no vbi_slicer_set\n",
+			tvafe_pr_err("[vbi..] %s: tvafe_close, no vbi_slicer_set\n",
 				__func__);
 		}
 		mutex_unlock(&vbi_slicer->mutex);
@@ -2034,7 +2034,7 @@ static ssize_t debug_store(struct device *dev,
 		tvafe_pr_info("data_wmode:%d\n", vbi_buffer->data_wmode);
 	} else if (!strncmp(parm[0], "start", strlen("start"))) {
 		W_APB_REG(ACD_REG_22, 0x07080000);
-		/* manuel reset vbi */
+		/* manual reset vbi */
 		W_APB_REG(ACD_REG_22, 0x87080000);
 		W_APB_REG(ACD_REG_22, 0x04080000);
 		vbi_hw_init(devp);
@@ -2051,7 +2051,7 @@ static ssize_t debug_store(struct device *dev,
 		devp->vbi_start = false;
 		vbi_data_stable_flag = 0;
 		vbi_slicer_stop(vbi_slicer);
-		/* manuel reset vbi */
+		/* manual reset vbi */
 		/* vbi reset release, vbi agent enable*/
 		W_VBI_APB_REG(ACD_REG_22, 0x06080000);
 		W_VBI_APB_REG(CVD2_VBI_FRAME_CODE_CTL, 0x10);
@@ -2408,7 +2408,7 @@ static int vbi_mem_device_init(struct reserved_mem *rmem,
 	res->start = rmem->base;
 	res->end = rmem->base + rmem->size - 1;
 
-	tvafe_pr_info("init vbi memsource 0x%lx->0x%lx\n",
+	tvafe_pr_info("init vbi mem_source 0x%lx->0x%lx\n",
 		(unsigned long)res->start, (unsigned long)res->end);
 
 	return 0;
@@ -2427,8 +2427,3 @@ static int __init vbi_mem_setup(struct reserved_mem *rmem)
 
 RESERVEDMEM_OF_DECLARE(vbi, "amlogic, vbi-mem",
 	vbi_mem_setup);
-
-//MODULE_DESCRIPTION("AMLOGIC vbi driver");
-//MODULE_LICENSE("GPL");
-//MODULE_AUTHOR("frank  <frank.zhao@amlogic.com>");
-

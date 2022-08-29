@@ -529,7 +529,7 @@ static long cvbs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		spin_lock_irqsave(&tvout_clk_lock, flags);
 		if (copy_from_user(&parm, argp,
 				sizeof(struct vout_cc_parm_s))) {
-			cvbs_log_err("VOUT_IOC_CC_DATAinvalid parameter\n");
+			cvbs_log_err("VOUT_IOC_CC_DATA invalid parameter\n");
 			ret = -EFAULT;
 			spin_unlock_irqrestore(&tvout_clk_lock, flags);
 			break;
@@ -547,10 +547,10 @@ static long cvbs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			cc_ringbuf.cc_data[cc_ringbuf.wp].data = CC_2byte_data;
 			cc_ringbuf.wp = (cc_ringbuf.wp + 1) %
 					MAX_RING_BUFF_LEN;
-			/* vout_log_info("CCringbuf Write :0x%x wp:%d\n", */
+			/* vout_log_info("CC_ringbuf Write :0x%x wp:%d\n", */
 			/* CC_2byte_data, cc_ringbuf.wp); */
 		} else {
-			cvbs_log_err("CCringbuf is FULL!! can't write.\n");
+			cvbs_log_err("CC_ringbuf is FULL!! can't write.\n");
 		}
 
 		spin_unlock_irqrestore(&tvout_clk_lock, flags);
@@ -1071,10 +1071,10 @@ enum {
 	 */
 	CMD_VP_SET,
 
-	/* get the current perfomance config */
+	/* get the current performance config */
 	CMD_VP_GET,
 
-	/* dump the perfomance config in dts */
+	/* dump the performance config in dts */
 	CMD_VP_CONFIG_DUMP,
 	/*set pll path: 3:vid pll  2:gp0 pll path2*/
 			/*1:gp0 pll path1*/
@@ -1270,7 +1270,7 @@ static void cvbs_debug_store(const char *buf)
 
 	case CMD_REG_WRITE_BITS:
 		if (argc != 6) {
-			pr_info("[%s] cmd_reg_wrute_bits format:\n"
+			pr_info("[%s] cmd_reg_write_bits format:\n"
 			"\twb value_hex c/h/v address_hex start_dec length_dec\n",
 				__func__);
 			goto DEBUG_END;

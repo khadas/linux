@@ -37,7 +37,7 @@
 
 /* cvd2 auto adjust de enable/disable defines*/
 #define TVAFE_CVD2_AUTO_DE_ENABLE
-/* enable cvd2 de auto ajust */
+/* enable cvd2 de auto adjust */
 #define TVAFE_CVD2_AUTO_DE_CHECK_CNT	100
 /* check lines counter 100*10ms */
 #define TVAFE_CVD2_AUTO_DE_TH	0xd0

@@ -39,7 +39,7 @@ static struct early_suspend early_suspend;
 static int early_suspend_flag;
 #endif
 
-/* must be last includ file */
+/* must be last include file */
 #include <linux/amlogic/gki_module.h>
 
 #define VOUT_CDEV_NAME  "display"

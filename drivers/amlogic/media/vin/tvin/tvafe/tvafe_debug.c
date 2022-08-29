@@ -23,7 +23,7 @@
 #include "tvafe.h"
 #include "../vdin/vdin_ctl.h"
 
-bool disableapi;
+bool disable_api;
 bool force_stable;
 
 static void tvafe_state(struct tvafe_dev_s *devp)
@@ -180,7 +180,7 @@ static void tvafe_state(struct tvafe_dev_s *devp)
 		hw->noise_level);
 	tvafe_pr_info("tvafe_cvd2_hw_data_s->low_amp:%d\n", hw->low_amp);
 
-	tvafe_pr_info("\ntvafe_cvd2_info_s->smr_cnt:%d\n",
+	tvafe_pr_info("\n tvafe_cvd2_info_s->smr_cnt:%d\n",
 		cvd2_info->smr_cnt);
 	tvafe_pr_info("tvafe_cvd2_info_s->isr_cnt:%d\n",
 		cvd2_info->isr_cnt);
@@ -299,9 +299,9 @@ static ssize_t debug_store(struct device *dev,
 		} else {
 			tvafe_pr_info("%s:invalid command.", buff);
 		}
-	} else if (!strncmp(buff, "disableapi", strlen("disableapi"))) {
-		if (kstrtouint(buff + strlen("disableapi") + 1, 10, &val) == 0)
-			disableapi = val;
+	} else if (!strncmp(buff, "disable_api", strlen("disable_api"))) {
+		if (kstrtouint(buff + strlen("disable_api") + 1, 10, &val) == 0)
+			disable_api = val;
 
 	} else if (!strncmp(buff, "force_stable", strlen("force_stable"))) {
 		if (kstrtouint(buff + strlen("force_stable") + 1, 10, &val) == 0)
@@ -320,7 +320,7 @@ static ssize_t debug_store(struct device *dev,
 		}
 	} else if (!strncmp(buff, "afe_ver", strlen("afe_ver"))) {
 		tvafe_pr_info("tvafe version :  %s\n", TVAFE_VER);
-	} else if (!strncmp(buff, "snowcfg", strlen("snowcfg"))) {
+	} else if (!strncmp(buff, "snow_cfg", strlen("snow_cfg"))) {
 		if (!parm[1])
 			goto tvafe_store_err;
 		if (kstrtouint(parm[1], 10, &val) < 0)
@@ -605,9 +605,9 @@ tvafe_store_err:
 
 static const char *tvafe_debug_usage_str = {
 "Usage:\n"
-"    echo cvdfmt ntsc/ntsc443/pali/palm/palcn/pal60/secam/null > /sys/class/tvafe/tvafe0/debug;conifg manual fmt\n"
+"    echo cvdfmt ntsc/ntsc443/pali/palm/palcn/pal60/secam/null > /sys/class/tvafe/tvafe0/debug;config manual fmt\n"
 "\n"
-"    echo disableapi val(d) > /sys/class/tvafe/tvafe0/debug;enable/ignore api cmd\n"
+"    echo disable_api val(d) > /sys/class/tvafe/tvafe0/debug;enable/ignore api cmd\n"
 "\n"
 "    echo force_stable val(d) > /sys/class/tvafe/tvafe0/debug;force stable or not force\n"
 "\n"
@@ -691,7 +691,7 @@ static void tvafe_dumpmem_adc(struct tvafe_dev_s *devp)
 static int tvafe_dumpmem_save_buf(struct tvafe_dev_s *devp, const char *str)
 {
 	unsigned int highmem_flag = 0;
-	unsigned long highaddr;
+	unsigned long high_addr;
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf = NULL;
@@ -710,8 +710,8 @@ static int tvafe_dumpmem_save_buf(struct tvafe_dev_s *devp, const char *str)
 	if (devp->cma_config_flag == 1 && highmem_flag != 0) {
 		/*tvafe dts config 5M memory*/
 		for (i = 0; i < devp->cma_mem_size / SZ_1M; i++) {
-			highaddr = devp->mem.start + i * SZ_1M;
-			buf = vdin_vmap(highaddr, SZ_1M);
+			high_addr = devp->mem.start + i * SZ_1M;
+			buf = vdin_vmap(high_addr, SZ_1M);
 			if (!buf) {
 				pr_info("vdin_vmap error\n");
 				return -1;
@@ -746,7 +746,7 @@ static ssize_t dumpmem_store(struct device *dev,
 
 	devp = dev_get_drvdata(dev);
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-		tvafe_pr_err("tvafe havn't opened, error!!!\n");
+		tvafe_pr_err("tvafe haven't opened, error!!!\n");
 		return len;
 	}
 
@@ -787,27 +787,27 @@ static ssize_t reg_store(struct device *dev,
 		struct device_attribute *attr, const char *buff, size_t count)
 {
 	struct tvafe_dev_s *devp;
-	unsigned int argn = 0, addr = 0, value = 0, end = 0, tmp = 0;
+	unsigned int arg_n = 0, addr = 0, value = 0, end = 0, tmp = 0;
 	char *p, *para, *buf_work, cmd = 0;
 	char *argv[3];
 
 	devp = dev_get_drvdata(dev);
 	if (!(devp->flags & TVAFE_FLAG_DEV_OPENED)) {
-		tvafe_pr_err("tvafe havn't opened, error!!!\n");
+		tvafe_pr_err("tvafe haven't opened, error!!!\n");
 		return count;
 	}
 
 	buf_work = kstrdup(buff, GFP_KERNEL);
 	p = buf_work;
 
-	for (argn = 0; argn < 3; argn++) {
+	for (arg_n = 0; arg_n < 3; arg_n++) {
 		para = strsep(&p, " ");
 		if (!para)
 			break;
-		argv[argn] = para;
+		argv[arg_n] = para;
 	}
 
-	if (argn < 1 || argn > 3) {
+	if (arg_n < 1 || arg_n > 3) {
 		kfree(buf_work);
 		return count;
 	}
@@ -817,7 +817,7 @@ static ssize_t reg_store(struct device *dev,
 		switch (cmd) {
 		case 'r':
 		case 'R':
-			if (argn < 2) {
+			if (arg_n < 2) {
 				tvafe_pr_err("syntax error.\n");
 			} else {
 				if (kstrtouint(argv[1], 16, &tmp) == 0)
@@ -831,7 +831,7 @@ static ssize_t reg_store(struct device *dev,
 			break;
 		case 'w':
 		case 'W':
-			if (argn < 3) {
+			if (arg_n < 3) {
 				tvafe_pr_err("syntax error.\n");
 			} else {
 				if (kstrtouint(argv[1], 16, &tmp) == 0)
@@ -849,7 +849,7 @@ static ssize_t reg_store(struct device *dev,
 			break;
 		case 'd':
 		/*case 'D': */
-			if (argn < 3) {
+			if (arg_n < 3) {
 				tvafe_pr_err("syntax error.\n");
 			} else {
 				if (kstrtouint(argv[1], 16, &tmp) == 0)
@@ -898,13 +898,13 @@ static ssize_t reg_show(struct device *dev,
 
 	len += sprintf(buff + len, "Usage:\n");
 	len += sprintf(buff + len,
-		"\techo [read|write <date>] addr > reg;Access ATV DEMON/TVAFE/HDMIRX logic address.\n");
+		"\t echo [read|write <date>] addr > reg;Access ATV DEMON/TVAFE/HDMIRX logic address.\n");
 	len += sprintf(buff + len,
-		"\techo dump <start> <end> > reg;Dump ATV DEMON/TVAFE/HDMIRX logic address.\n");
+		"\t echo dump <start> <end> > reg;Dump ATV DEMON/TVAFE/HDMIRX logic address.\n");
 	len += sprintf(buff + len,
 		"Address format:\n");
 	len += sprintf(buff + len,
-		"\taddr    : 0xXXXX, 16 bits register address\n");
+		"\t addr    : 0xXXXX, 16 bits register address\n");
 	return len;
 }
 
@@ -916,9 +916,9 @@ static ssize_t cutwin_show(struct device *dev,
 	ssize_t len = 0;
 
 	len += sprintf(buf + len,
-		"echo h index(d) val(d) > /sys/class/tvafe/tvafe0/cutwin;conifg cutwindow_h value\n");
+		"echo h index(d) val(d) > /sys/class/tvafe/tvafe0/cutwin;config cutwindow_h value\n");
 	len += sprintf(buf + len,
-		"echo v index(d) val(d) > /sys/class/tvafe/tvafe0/cutwin;conifg cutwindow_v value\n");
+		"echo v index(d) val(d) > /sys/class/tvafe/tvafe0/cutwin;config cutwindow_v value\n");
 	len += sprintf(buf + len,
 		"echo r > /sys/class/tvafe/tvafe0/cutwin;read cutwindow value\n");
 	return len;
@@ -940,27 +940,27 @@ static void tvafe_cutwindow_info_print(void)
 		pr_len += sprintf(pr_buf + pr_len,
 			" %d", user_param->cutwindow_val_h[i]);
 	}
-	pr_len += sprintf(pr_buf + pr_len, "\ncutwindow_v:");
+	pr_len += sprintf(pr_buf + pr_len, "\n cutwindow_v:");
 	for (i = 0; i < 5; i++) {
 		pr_len += sprintf(pr_buf + pr_len,
 			" %d", user_param->cutwindow_val_v[i]);
 	}
-	pr_len += sprintf(pr_buf + pr_len, "\nhorizontal_dir0:");
+	pr_len += sprintf(pr_buf + pr_len, "\n horizontal_dir0:");
 	for (i = 0; i < 5; i++) {
 		pr_len += sprintf(pr_buf + pr_len,
 			" %d", user_param->horizontal_dir0[i]);
 	}
-	pr_len += sprintf(pr_buf + pr_len, "\nhorizontal_dir1:");
+	pr_len += sprintf(pr_buf + pr_len, "\n horizontal_dir1:");
 	for (i = 0; i < 5; i++) {
 		pr_len += sprintf(pr_buf + pr_len,
 			" %d", user_param->horizontal_dir1[i]);
 	}
-	pr_len += sprintf(pr_buf + pr_len, "\nhorizontal_stp0:");
+	pr_len += sprintf(pr_buf + pr_len, "\n horizontal_stp0:");
 	for (i = 0; i < 5; i++) {
 		pr_len += sprintf(pr_buf + pr_len,
 			" %d", user_param->horizontal_stp0[i]);
 	}
-	pr_len += sprintf(pr_buf + pr_len, "\nhorizontal_stp1:");
+	pr_len += sprintf(pr_buf + pr_len, "\n horizontal_stp1:");
 	for (i = 0; i < 5; i++) {
 		pr_len += sprintf(pr_buf + pr_len,
 			" %d", user_param->horizontal_stp1[i]);

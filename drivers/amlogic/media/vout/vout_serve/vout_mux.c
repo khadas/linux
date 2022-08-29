@@ -22,7 +22,7 @@
 #include "vout_func.h"
 #include "vout_reg.h"
 
-/* must be last includ file */
+/* must be last include file */
 #include <linux/amlogic/gki_module.h>
 
 struct vout_mux_data_s {

@@ -327,9 +327,9 @@ enum tvafe_adc_ch_e tvafe_port_to_channel(enum tvin_port_e port,
 }
 
 /*
- * tvafe pin mux setting for input source, cvd2 video poaition reg setting
+ * tvafe pin mux setting for input source, cvd2 video position reg setting
  */
-int tvafe_adc_pin_muxing(enum tvafe_adc_ch_e adc_ch)
+int tvafe_adc_pin_mux(enum tvafe_adc_ch_e adc_ch)
 {
 	if (adc_ch == TVAFE_ADC_CH_NULL) {
 		tvafe_pr_info("%s set pin mux error!!!!!.\n", __func__);
@@ -563,7 +563,7 @@ static void tvafe_reset_module(void)
 	W_APB_BIT(TVFE_RST_CTRL, 1, ALL_CLK_RST_BIT, ALL_CLK_RST_WID);
 	W_APB_BIT(TVFE_RST_CTRL, 0, ALL_CLK_RST_BIT, ALL_CLK_RST_WID);
 	/*reset vdin asynchronous fifo*/
-	/*for greenscreen on repeatly power on/off*/
+	/*for greenscreen on repeatedly power on/off*/
 	W_APB_BIT(TVFE_RST_CTRL, 1, SAMPLE_OUT_RST_BIT, SAMPLE_OUT_RST_WID);
 	W_APB_BIT(TVFE_RST_CTRL, 0, SAMPLE_OUT_RST_BIT, SAMPLE_OUT_RST_WID);
 }
@@ -604,10 +604,10 @@ void tvafe_enable_module(bool enable)
 
 	/* T5W add 3d comb clk */
 	if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5W) {
-		vclk_clk_reg_setb(HHI_TVFECLK_CNTL, 1, TVFECLK_GATE,
-				  TVFECLK_GATE_WIDTH);
-		vclk_clk_reg_setb(HHI_TVFECLK_CNTL, 1, TVFECLK_SEL,
-				  TVFECLK_SEL_WIDTH);
+		vclk_clk_reg_setb(HHI_TVFE_CLK_CNTL, 1, TVFE_CLK_GATE,
+				  TVFE_CLK_GATE_WIDTH);
+		vclk_clk_reg_setb(HHI_TVFE_CLK_CNTL, 1, TVFE_CLK_SEL,
+				  TVFE_CLK_SEL_WIDTH);
 	}
 
 	/* tvfe power up */
@@ -643,10 +643,10 @@ void tvafe_enable_module(bool enable)
 
 		/* T5W add 3d comb clk */
 		if (tvafe_cpu_type() >= TVAFE_CPU_TYPE_T5W) {
-			vclk_clk_reg_setb(HHI_TVFECLK_CNTL, 0, TVFECLK_GATE,
-					  TVFECLK_GATE_WIDTH);
-			vclk_clk_reg_setb(HHI_TVFECLK_CNTL, 0, TVFECLK_SEL,
-					  TVFECLK_SEL_WIDTH);
+			vclk_clk_reg_setb(HHI_TVFE_CLK_CNTL, 0, TVFE_CLK_GATE,
+					  TVFE_CLK_GATE_WIDTH);
+			vclk_clk_reg_setb(HHI_TVFE_CLK_CNTL, 0, TVFE_CLK_SEL,
+					  TVFE_CLK_SEL_WIDTH);
 		}
 
 		/* main clk down */

@@ -873,10 +873,10 @@
 #define BD_SECAM_CFD_DEC_STEP_WID					4
 #define BD_SECAM_CFD_INC_STEP_BIT					8
 #define BD_SECAM_CFD_INC_STEP_WID					4
-#define BD_BDDR_CFD_DEC_STEP_BIT					4
-#define BD_BDDR_CFD_DEC_STEP_WID					4
-#define BD_BDDR_CFD_INC_STEP_BIT					0
-#define BD_BDDR_CFD_INC_STEP_WID					4
+#define BD_DBDR_CFD_DEC_STEP_BIT					4
+#define BD_DBDR_CFD_DEC_STEP_WID					4
+#define BD_DBDR_CFD_INC_STEP_BIT					0
+#define BD_DBDR_CFD_INC_STEP_WID					4
 
 #define ACD_REG_83                       ((ACD_BASE_ADD + 0x83) << 2)
 #define RO_BD_ACC4XX_CNT_BIT						24
@@ -949,10 +949,10 @@
 #define CLAMPAGC_COMPLUMA_MIN_TH_WID				12
 
 #define ACD_REG_A4                        ((ACD_BASE_ADD + 0xA4) << 2)
-#define CLMPAGC_COMPLUMA_MAXMIN_TC_BIT				16
-#define CLMPAGC_COMPLUMA_MAXMIN_TC_WID			3
-#define CLMPAGC_COMPLUMA_DEC_VALUE_BIT				0
-#define CLMPAGC_COMPLUMA_DEC_VALUE_WID			12
+#define CLAMPAGC_COMPLUMA_MAXMIN_TC_BIT				16
+#define CLAMPAGC_COMPLUMA_MAXMIN_TC_WID			3
+#define CLAMPAGC_COMPLUMA_DEC_VALUE_BIT				0
+#define CLAMPAGC_COMPLUMA_DEC_VALUE_WID			12
 
 /* reg of acd below of here is to be reserved */
 
@@ -1863,7 +1863,7 @@
 #define VCENTER_BIT                     0
 #define VCENTER_WID                     16
 
-/* ******** AUTO MODE AND AUTO POLARITY -- YPBP R & RGB *** */
+/* ******** AUTO MODE AND AUTO POLARITY -- YPBPR R & RGB *** */
 
 #define TVFE_SYNCTOP_SPOL_MUXCTRL      ((TOP_BASE_ADD + 0x20) << 2)
 #define SPOL_D_COMP_SYNCIN_BIT          26
@@ -1876,10 +1876,10 @@
 #define SPOL_AUTOMODE_LN_TH_WID         8
 #define SPOL_AUTOMODE_EN_BIT            3
 #define SPOL_AUTOMODE_EN_WID            1
-#define SPOL_MANNUAL_INV_VS_BIT         2
-#define SPOL_MANNUAL_INV_VS_WID         1
-#define SPOL_MANNUAL_INV_HS_BIT         1
-#define SPOL_MANNUAL_INV_HS_WID         1
+#define SPOL_MANUAL_INV_VS_BIT         2
+#define SPOL_MANUAL_INV_VS_WID         1
+#define SPOL_MANUAL_INV_HS_BIT         1
+#define SPOL_MANUAL_INV_HS_WID         1
 #define SPOL_AUTO_POL_BIT               0
 #define SPOL_AUTO_POL_WID               1
 
@@ -2578,7 +2578,7 @@
 
 /* ********TVAFE AA FITER *************** */
 #define TVFE_AAFILTER_CTRL1          ((TOP_BASE_ADD + 0x91) << 2)
-#define AAFILER_BYPASS_BIT                 20
+#define AAFILTER_BYPASS_BIT                 20
 /* [20]:all [21]:bypass y[22]:bypass cb [23]:bypass cr */
 #define AAFILTER_BYPASS_WID         4
 #define AAFILTER_UV_BIT                        17
@@ -2631,22 +2631,22 @@
 
 /* *************TVFE_SOG_MON******************** */
 #define TVFE_SOG_MON_CTRL1           ((TOP_BASE_ADD + 0x96) << 2)
-#define SOGTOP_AUTO_ENABLE_BIT          31
-#define SOGTOP_AUTO_ENABLE_WID    1
-#define SOGTOP_INV_MASK_BIT                  30
-#define SOGTOP_INV_MASK_WID            1
-#define SOGTOP_INV_SOG_BIT                    29
-#define SOGTOP_INV_SOG_WID              1
-#define SOGTOP_AUTO_LCNT_BIT               8
-#define SOGTOP_AUTO_LCNT_WID         12
-#define SOGTOP_MASK_EN_BIT                  7
-#define SOGTOP_MASK_EN_WID            1
-#define SOGTOP_MASK_FMAT_BIT             4
-#define SOGTOP_MASK_FMAT_WID       3
-#define SOGTOP_VSYNC_SLE_BIT              2
-#define SOGTOP_VSYNC_SLE_WID        2
-#define SOGTOP_MASK_SEL_BIT                0
-#define SOGTOP_MASK_SEL_WID          2
+#define SOG_TOP_AUTO_ENABLE_BIT          31
+#define SOG_TOP_AUTO_ENABLE_WID    1
+#define SOG_TOP_INV_MASK_BIT                  30
+#define SOG_TOP_INV_MASK_WID            1
+#define SOG_TOP_INV_SOG_BIT                    29
+#define SOG_TOP_INV_SOG_WID              1
+#define SOG_TOP_AUTO_LCNT_BIT               8
+#define SOG_TOP_AUTO_LCNT_WID         12
+#define SOG_TOP_MASK_EN_BIT                  7
+#define SOG_TOP_MASK_EN_WID            1
+#define SOG_TOP_MASK_FMAT_BIT             4
+#define SOG_TOP_MASK_FMAT_WID       3
+#define SOG_TOP_VSYNC_SLE_BIT              2
+#define SOG_TOP_VSYNC_SLE_WID        2
+#define SOG_TOP_MASK_SEL_BIT                0
+#define SOG_TOP_MASK_SEL_WID          2
 
 #define TVFE_SOG_MON_INDICATOR1    ((TOP_BASE_ADD + 0x97) << 2)
 #define SOG_CNT_NEG_BIT                         16
@@ -2677,7 +2677,7 @@
 #define TVFE_READBACK_INDICATOR3      ((TOP_BASE_ADD + 0x9D) << 2)
 #define INDICATOR_RB_DC_AREA_BIT               0
 #define INDICATOR_RB_DC_AREA_WID         32
-/* ********CVBS AA FITER SIGNAL******************* */
+/* ********CVBS AA FILTER SIGNAL******************* */
 #define TVFE_AFC_CTRL1                   ((TOP_BASE_ADD + 0xA0) << 2)
 #define AFC_EN_BIT                                              31
 #define AFC_EN_WID                                        1
@@ -2685,44 +2685,44 @@
 #define AFC_BYPASS_WID                               1
 #define AFC_CDELAY_BIT                                     29
 #define AFC_CDELAY_WID                               1
-#define AFC_YC_ALHPA0_BIT                               16
-#define AFC_YC_ALHPA0_WID                         12
-#define AFC_YC_ALHPA1_BIT                               0
-#define AFC_YC_ALHPA1_WID                         12
+#define AFC_YC_ALPHA0_BIT                               16
+#define AFC_YC_ALPHA0_WID                         12
+#define AFC_YC_ALPHA1_BIT                               0
+#define AFC_YC_ALPHA1_WID                         12
 
 #define TVFE_AFC_CTRL2                  ((TOP_BASE_ADD + 0xA1) << 2)
-#define AFC_YC_ALHPA4_BIT                               20
-#define AFC_YC_ALHPA4_WID                         10
-#define AFC_YC_ALHPA3_BIT                               10
-#define AFC_YC_ALHPA3_WID                         10
-#define AFC_YC_ALHPA2_BIT                               0
-#define AFC_YC_ALHPA2_WID                         10
+#define AFC_YC_ALPHA4_BIT                               20
+#define AFC_YC_ALPHA4_WID                         10
+#define AFC_YC_ALPHA3_BIT                               10
+#define AFC_YC_ALPHA3_WID                         10
+#define AFC_YC_ALPHA2_BIT                               0
+#define AFC_YC_ALPHA2_WID                         10
 
 #define TVFE_AFC_CTRL3                   ((TOP_BASE_ADD + 0xA2) << 2)
-#define AFC_YC_ALHPA7_BIT                               20
-#define AFC_YC_ALHPA7_WID                         8
-#define AFC_YC_ALHPA6_BIT                               10
-#define AFC_YC_ALHPA6_WID                         10
-#define AFC_YC_ALHPA5_BIT                               0
-#define AFC_YC_ALHPA5_WID                         10
+#define AFC_YC_ALPHA7_BIT                               20
+#define AFC_YC_ALPHA7_WID                         8
+#define AFC_YC_ALPHA6_BIT                               10
+#define AFC_YC_ALPHA6_WID                         10
+#define AFC_YC_ALPHA5_BIT                               0
+#define AFC_YC_ALPHA5_WID                         10
 
 #define TVFE_AFC_CTRL4                    ((TOP_BASE_ADD + 0xA3) << 2)
-#define AFC_YC_ALHPA11_BIT                           24
-#define AFC_YC_ALHPA11_WID                     8
-#define AFC_YC_ALHPA10_BIT                           16
-#define AFC_YC_ALHPA10_WID                     8
-#define AFC_YC_ALHPA9_BIT                         8
-#define AFC_YC_ALHPA9_WID                   8
-#define AFC_YC_ALHPA8_BIT                         0
-#define AFC_YC_ALHPA8_WID                   8
+#define AFC_YC_ALPHA11_BIT                           24
+#define AFC_YC_ALPHA11_WID                     8
+#define AFC_YC_ALPHA10_BIT                           16
+#define AFC_YC_ALPHA10_WID                     8
+#define AFC_YC_ALPHA9_BIT                         8
+#define AFC_YC_ALPHA9_WID                   8
+#define AFC_YC_ALPHA8_BIT                         0
+#define AFC_YC_ALPHA8_WID                   8
 
 #define TVFE_AFC_CTRL5                    ((TOP_BASE_ADD + 0xA4) << 2)
 #define AFC_VDELAY_BIT                               10
 #define AFC_VDELAY_WID                         2
 #define AFC_UDELAY_BIT                               8
 #define AFC_UDELAY_WID                         2
-#define AFC_YC_ALHPA12_BIT                       0
-#define AFC_YC_ALHPA12_WID                 8
+#define AFC_YC_ALPHA12_BIT                       0
+#define AFC_YC_ALPHA12_WID                 8
 
 /* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESONG9TV) */
 #define TVFE_ATV_DMD_CLP_CTRL              ((TOP_BASE_ADD + 0xA8) << 2)
@@ -3848,7 +3848,7 @@
 #define MOTION_DEBUG_BIT                0
 #define MOTION_DEBUG_WID                8
 
-#define CVD2_PHASE_OFFSE_RANGE            ((CVD_BASE_ADD + 0xF0) << 2)
+#define CVD2_PHASE_OFFSET_RANGE            ((CVD_BASE_ADD + 0xF0) << 2)
 #define PHASE_OFFSET_RANGE_BIT          0
 #define PHASE_OFFSET_RANGE_WID          8
 
@@ -4163,13 +4163,13 @@
 /* #define VBIL6O_BIT                      0 */
 /* #define VBIL6O_WID                      4 */
 
-#define CVD2_VBI_CC_RUNIN_ACCUM_AMPLF    ((CVD_BASE_ADD + 0x6B) << 2)
-#define CC_RUNIN_ACCUM_AMPLF_BIT         0
-#define CC_RUNIN_ACCUM_AMPLF_WID         8
+#define CVD2_VBI_CC_RUNIN_ACCUM_AMPL    ((CVD_BASE_ADD + 0x6B) << 2)
+#define CC_RUNIN_ACCUM_AMPL_BIT         0
+#define CC_RUNIN_ACCUM_AMPL_WID         8
 
-#define CVD2_VBI_TT_RUNIN_ACCUM_AMPLF     ((CVD_BASE_ADD + 0x6C) << 2)
-#define TT_RUNIN_ACCUM_AMPLF_BIT         0
-#define TT_RUNIN_ACCUM_AMPLF_WID         8
+#define CVD2_VBI_TT_RUNIN_ACCUM_AMPL     ((CVD_BASE_ADD + 0x6C) << 2)
+#define TT_RUNIN_ACCUM_AMPL_BIT         0
+#define TT_RUNIN_ACCUM_AMPL_WID         8
 
 #define CVD2_VBI_WSS_DATA2                ((CVD_BASE_ADD + 0x6D) << 2)
 #define WSSDATA2_BIT                     0
