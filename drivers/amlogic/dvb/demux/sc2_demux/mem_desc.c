@@ -1115,6 +1115,11 @@ int SC2_bufferid_read_newest_pts(struct chan_id *pchan, char **pread)
 	int overflow = 0;
 	int pts_mem_offset = 0;
 
+	if (!pchan || !pchan->mem_phy) {
+		dprint("pchan is null or pchan->mem_phy is 0\n");
+		return 0;
+	}
+
 	w_offset_org = wdma_get_wr_len(pchan->id, &overflow);
 	w_offset = w_offset_org % pchan->mem_size;
 	w_offset = w_offset / buf_len * buf_len;
