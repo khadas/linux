@@ -579,7 +579,10 @@ static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 	vpp_post_blend->bld_out_en = 1;
 
 	/* 1:din0	2:din1 3:din2 4:din3 5:din4 else :close */
-	vpp_post_blend->bld_src1_sel = 1;
+	if (vd_layer[0].post_blend_en)
+		vpp_post_blend->bld_src1_sel = 1;
+	else
+		vpp_post_blend->bld_src1_sel = 0;
 #ifdef CHECK_LATER
 	vpp_post_blend->bld_src2_sel = 0;
 	vpp_post_blend->bld_src3_sel = 0;
