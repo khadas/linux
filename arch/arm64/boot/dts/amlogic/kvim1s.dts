@@ -618,12 +618,6 @@
 	status = "okay";
 };
 
-&i2c2 {
-	status = "okay";
-	pinctrl-names="default";
-	pinctrl-0=<&i2c2_pins2>;
-	clock-frequency = <300000>;
-};
 
 &i2c4 {
 	status = "disabled";
