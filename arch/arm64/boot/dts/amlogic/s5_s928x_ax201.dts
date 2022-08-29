@@ -12,7 +12,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "s5_pxp";
+	amlogic-dt-id = "s5_s928x_ax201";
 	compatible = "amlogic, s5";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
