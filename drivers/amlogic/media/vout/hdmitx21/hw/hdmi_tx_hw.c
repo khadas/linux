@@ -498,7 +498,10 @@ static void set_phy_by_mode(u32 mode)
 		set21_phy_by_mode_t7(mode);
 		break;
 	case MESON_CPU_ID_S5:
-		set21_phy_by_mode_s5(mode);
+		if (hdev->frl_rate)
+			set21_phy_by_frl_mode_s5(hdev->frl_rate);
+		else /* for legecy mode */
+			set21_phy_by_mode_s5(mode);
 		break;
 	default:
 		pr_info("%s: Not match chip ID\n", __func__);
@@ -700,6 +703,8 @@ void enable_crt_video_hdmi(u32 enable, u32 in_sel, u8 enc_sel)
 		 (enc_sel << 5) |
 		 (0 << 4) |
 		 (0 << 0);
+	if (para->cs == HDMI_COLORSPACE_YUV420)
+		data32 |= (1 << 0); /* pixel_clk DIV */
 	hd21_write_reg(CLKCTRL_ENC_HDMI_CLK_CTRL, data32);
 	hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 20, 1);
 	hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 12, 1);
@@ -803,6 +808,8 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		  (0 << 12) |
 		  (2 << 22) |
 		  (0 << 24);
+	if (hdev->frl_rate && para->cs == HDMI_COLORSPACE_YUV420)
+		data32 |= 3 << 0; // 3:420 dual port
 	hd21_write_reg(VPU_HDMI_FMT_CTRL, data32);
 
 	// [    2] inv_hsync_b
@@ -820,6 +827,8 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		(0 << 6) |
 		(((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10) |
 		(0 << 12);
+	if (para->cd == COLORDEPTH_24B && hdmitx21_dv_en() == 0)
+		data32 |= (1 << 4);
 	hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
 <<<<<<< HEAD
 	hdmitx21_dither_config(hdev);
@@ -905,7 +914,14 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 		 (0 << 12) |
 		 (((TX_INPUT_COLOR_FORMAT == HDMI_COLORSPACE_RGB) ? 0 : 3) << 16) |
 		 (((para->cs == HDMI_COLORSPACE_YUV420) ? 1 : 0) << 20) |
-		 (0 << 24);
+		 (0 << 24) |
+		 (0 << 28);
+	if (hdev->frl_rate) {
+		if (para->cs == HDMI_COLORSPACE_YUV420)
+			data32 |= 2 << 28;
+		else
+			data32 |= 1 << 28;
+	}
 	hd21_write_reg(VPU_HDMI_SETTING, data32);
 	if (hdev->para->cs == HDMI_COLORSPACE_RGB)
 		hd21_set_reg_bits(VPU_HDMI_SETTING, 4, 16, 3);
@@ -914,6 +930,11 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 0, 16, 3);	//hard code
 	hdmitx_set_phy(hdev);
+	hdmitx_set_clkdiv(hdev);
+	if (hdev->frl_rate) {
+		hdmitx_set_fpll(hdev);
+		hdmitx_frl_training_main(hdev->frl_rate);
+	}
 	return 0;
 }
 
@@ -1424,6 +1445,9 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		hdev->cur_VIC = value;
 		hdmitx21_set_clk(hdev);
 		return;
+	} else if (strncmp(tmpbuf, "frl", 3) == 0) {
+		hdmitx_frl_training_main(hdev->frl_rate);
+		return;
 	} else if (strncmp(tmpbuf, "clkmsr", 6) == 0) {
 		struct _hdmi_clkmsr {
 			int idx;
@@ -1856,7 +1880,7 @@ static void set_t7_top_div40(u32 div40)
 		hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
 }
 
-static void set_s5_top_div40(u32 div40)
+static void set_s5_top_div40(u32 div40, u32 frl_mode)
 {
 	u32 data32;
 
@@ -1884,9 +1908,9 @@ static void set_s5_top_div40(u32 div40)
 	data32 |= (1 << 16);
 	data32 |= (0 << 8);
 	data32 |= (0 << 0);
-	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
-			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 	hdmitx21_wr_reg(HDMITX_TOP_BIST_CNTL, data32);
+
+	hdmitx21_set_reg_bits(HDMITX_TOP_BIST_CNTL, frl_mode ? 1 : 0, 19, 1);
 	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
 			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 
@@ -1901,7 +1925,7 @@ static void set_top_div40(u32 div40)
 	if (hdev->data->chip_type == MESON_CPU_ID_T7)
 		set_t7_top_div40(div40);
 	else
-		set_s5_top_div40(div40);
+		set_s5_top_div40(div40, hdev->frl_rate);
 }
 
 static void hdmitx_set_div40(u32 div40)
@@ -2269,13 +2293,15 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data8 = 0;
 	data8 |= (dp_color_depth & 0x03); // [1:0]color depth. 00:8bpp;01:10bpp;10:12bpp;11:16bpp
 	data8 |= (((dp_color_depth != 4) ? 1 : 0) << 7);  // [7]  deep color enable bit
+	data8 |= (hdev->frl_rate ? 1 : 0) << 3;
+	data8 |= (hdev->frl_rate ? 1 : 0) << 4;
 	hdmitx21_wr_reg(P2T_CTRL_IVCTX, data8);
 	data32 = 0;
 	data32 |= (1 << 5);  // [  5] reg_hdmi2_on
 	data32 |= (para->scrambler_en & 0x01 << 0);  // [ 0] scrambler_en.
 	hdmitx21_wr_reg(SCRCTL_IVCTX, data32 & 0xff);
 
-	hdmitx21_wr_reg(CLK_DIV_CNTRL_IVCTX, 0x1);
+	hdmitx21_wr_reg(CLK_DIV_CNTRL_IVCTX, hdev->frl_rate ? 0 : 1);
 	//hdmitx21_wr_reg(H21TXSB_PKT_PRD_IVCTX, 0x1);
 	//hdmitx21_wr_reg(HOST_CTRL2_IVCTX, 0x80); //INT active high
 	hdmitx21_wr_reg(CLKPWD_IVCTX, 0xf4);
@@ -2309,6 +2335,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data8 |= ((6 - color_depth) << 0);
 	hdmitx21_wr_reg(VP_INPUT_MASK_IVCTX, data8);
 
+<<<<<<< HEAD
 	// [11: 9] select_cr: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
 	//                    4={cr[3:0],y[3:0],cb[3:0]};
 	//                    5={y[3:0],cr[3:0],cb[3:0]};
@@ -2336,6 +2363,38 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 		data32 |= (0 << 2);
 		data32 |= (0 << 1);
 		data32 |= (0 << 0);
+=======
+	// Output 422
+	if (para->cs == HDMI_COLORSPACE_YUV422) {
+		data32  = 0;
+		data32 |= (2  << 9);
+		data32 |= (4  << 6);
+		data32 |= (0  << 3);
+		data32 |= (0  << 2);
+		data32 |= (0  << 1);
+		data32 |= (0  << 0);
+
+		data8  = 0;
+		data8 |= (2   << 4);
+		data8 |= (2   << 2);
+		data8 |= (2   << 0);
+	} else {
+		data32  = 0;
+		data32 |= (2  << 9);
+		data32 |= (1  << 6);
+		data32 |= (0  << 3);
+		data32 |= (0  << 2);
+		data32 |= (0  << 1);
+		data32 |= (0  << 0);
+
+		data8  = 0;
+		data8 |= (0   << 4);
+	}
+	//mapping for yuv422 12bit
+	hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX, data32 & 0xff);
+	hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX + 1, (data32 >> 8) & 0xff);
+	hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
+>>>>>>> hdmitx21: add FRL bringup code [1/1]
 
 		// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
 		// 0=12bit; 1=10bit(disable 2-LSB),

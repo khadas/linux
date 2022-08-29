@@ -46,6 +46,7 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	u32 de_v_begin = 0;
 	u32 de_v_end = 0;
 	bool y420_mode = 0;
+	int hpara_div = 1;
 
 	if (hdev->para && hdev->para->cs == HDMI_COLORSPACE_YUV420)
 		y420_mode = 1;
@@ -58,6 +59,18 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 
 	timing = *tp;
 	tp = &timing;
+
+	/* the FRL works at dual mode, so the horizon parameters will reduce to half */
+	if (hdev->frl_rate && y420_mode == 1)
+		hpara_div = 4;
+	if (hdev->frl_rate && y420_mode == 0)
+		hpara_div = 2;
+	timing.h_total /= hpara_div;
+	timing.h_blank /= hpara_div;
+	timing.h_front /= hpara_div;
+	timing.h_sync /= hpara_div;
+	timing.h_back /= hpara_div;
+	timing.h_active /= hpara_div;
 
 	de_h_end = tp->h_total - (tp->h_front - hsync_st);
 	de_h_begin = de_h_end - tp->h_active;
@@ -398,6 +411,11 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 		config_tv_enc_calc(hdev, vic);
 		break;
 	}
+
+	if (hdev->frl_rate)
+		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 0, 3);
+	else
+		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 0, 3);
 } /* set_tv_encp_new */
 
 static void config_tv_enci(enum hdmi_vic vic)

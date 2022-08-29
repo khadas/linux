@@ -397,7 +397,12 @@ struct hdmitx_dev {
 	u8 rhpd_state; /* For repeater use only, no delay */
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
+<<<<<<< HEAD
 	int aspect_ratio;	/* 1, 4:3; 2, 16:9 */
+=======
+	u8 frl_mode; /* TODO */
+	u8 frl_rate;
+>>>>>>> hdmitx21: add FRL bringup code [1/1]
 	struct hdmitx_info hdmi_info;
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */

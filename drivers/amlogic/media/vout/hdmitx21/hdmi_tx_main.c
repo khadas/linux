@@ -2837,6 +2837,10 @@ static ssize_t dc_cap_show(struct device *dev,
 	const struct dv_info *dv = &hdev->rxcap.dv_info;
 	const struct dv_info *dv2 = &hdev->rxcap.dv_info2;
 
+	pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
+	pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
+	return pos;
+
 	if (prxcap->dc_36bit_420)
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,12bit\n");
 	if (prxcap->dc_30bit_420)
@@ -4008,6 +4012,39 @@ static ssize_t cont_smng_method_store(struct device *dev,
 	return count;
 }
 
+static ssize_t frl_rate_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdev->frl_rate);
+
+	return pos;
+}
+
+static ssize_t frl_rate_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf,
+				      size_t count)
+{
+	u8 val = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		if (val > 6) {
+			pr_info("set frl_rate in 0 ~ 6\n");
+			return count;
+		}
+		hdev->frl_rate = val;
+		pr_info("set frl_rate as %d\n", val);
+	}
+
+	return count;
+}
+
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_rptx.h>
 
 void direct21_hdcptx14_opr(enum rptx_hdcp14_cmd cmd, void *args)
@@ -4245,6 +4282,7 @@ static DEVICE_ATTR_RW(hdcp_ctl_lvl);
 static DEVICE_ATTR_RW(sysctrl_enable);
 static DEVICE_ATTR_RO(propagate_stream_type);
 static DEVICE_ATTR_RW(cont_smng_method);
+static DEVICE_ATTR_RW(frl_rate);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -5664,6 +5702,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_sysctrl_enable);
 	ret = device_create_file(dev, &dev_attr_propagate_stream_type);
 	ret = device_create_file(dev, &dev_attr_cont_smng_method);
+	ret = device_create_file(dev, &dev_attr_frl_rate);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -5835,6 +5874,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_sysctrl_enable);
 	device_remove_file(dev, &dev_attr_propagate_stream_type);
 	device_remove_file(dev, &dev_attr_cont_smng_method);
+	device_remove_file(dev, &dev_attr_frl_rate);
 
 	cdev_del(&hdev->cdev);
 
