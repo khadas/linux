@@ -603,7 +603,7 @@
 			ldim_pwm_port = "PWM_D";
 			ldim_pwm_attr = <1  /* pol */
 				120 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				2>;/*default duty(%)*/
+				1000>;/*default duty(x/4095)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <1000000>; /* unit: hz */
@@ -760,7 +760,7 @@
 			ldim_pwm_port = "PWM_VS";
 			ldim_pwm_attr = <1  /* pol */
 				1 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				2>;/*default duty(%)*/
+				1000>;/*default duty(x/4095)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <3000000>; /* unit: hz */
