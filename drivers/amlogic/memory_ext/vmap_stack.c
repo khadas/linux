@@ -233,6 +233,7 @@ static struct page *get_vmap_cached_page(int *remain)
 	spin_lock_irqsave(&avmap->page_lock, flags);
 	if (unlikely(!avmap->cached_pages)) {
 		spin_unlock_irqrestore(&avmap->page_lock, flags);
+		pr_info("%s, no cached page.\n", __func__);
 		return NULL;
 	}
 	page = list_first_entry(&avmap->list, struct page, lru);
