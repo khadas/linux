@@ -537,20 +537,19 @@ void ve_vadj_ctl(enum wr_md_e mode, enum vadj_index_e vadj_idx, int en)
 	}
 }
 
+/*blue stretch can only use on slice0 on s5*/
 void ve_bs_ctl(enum wr_md_e mode, int en)
 {
-	int i;
-
 	if (mode == WR_VCB) {
-		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, en, 0, 1);
-		for (i = SLICE1; i < SLICE_MAX; i++)
-			WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL +
-				ve_reg_ofst[i - 1], en, 0, 1);
+		WRITE_VPP_REG_BITS(VPP_BLUE_STRETCH_1, en, 31, 1);
+		//for (i = SLICE1; i < SLICE_MAX; i++)
+			//WRITE_VPP_REG_BITS(VPP_SLICE1_BLUE_STRETCH_1 +
+				//ve_reg_ofst[i - 1], en, 31, 1);
 	} else if (mode == WR_DMA) {
-		VSYNC_WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, en, 0, 1);
-		for (i = SLICE1; i < SLICE_MAX; i++)
-			VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL +
-				ve_reg_ofst[i - 1], en, 0, 1);
+		VSYNC_WRITE_VPP_REG_BITS(VPP_BLUE_STRETCH_1, en, 31, 1);
+		//for (i = SLICE1; i < SLICE_MAX; i++)
+			//VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE1_BLUE_STRETCH_1 +
+				//ve_reg_ofst[i - 1], en, 31, 1);
 	}
 }
 
