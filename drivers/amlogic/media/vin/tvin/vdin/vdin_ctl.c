@@ -3753,7 +3753,7 @@ bool vdin_write_done_check(unsigned int offset, struct vdin_dev_s *devp)
 		}
 	}
 
-	if (devp->afbce_valid) { /* afbce */
+	if (devp->afbce_valid && devp->double_wr) { /* afbce */
 		if (vdin_afbce_read_write_down_flag()) {
 			devp->stats.afbce_normal_cnt++;
 			ret = true;

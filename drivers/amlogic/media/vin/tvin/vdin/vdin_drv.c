@@ -2669,15 +2669,6 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 					devp->prop.spd_data.data[5]);
 		}
 		vdin_vs_proc_monitor(devp);
-		if (devp->dv.chg_cnt) {
-			if (devp->frame_cnt > 2)
-				vdin_pause_hw_write(devp,
-					devp->flags & VDIN_FLAG_RDMA_ENABLE);
-			vdin_drop_frame_info(devp, "dv chg");
-			vdin_vf_skip_all_disp(devp->vfp);
-			return IRQ_HANDLED;
-		}
-
 		if (devp->prop.vdin_hdr_flag &&
 		    devp->prop.hdr_info.hdr_state == HDR_STATE_SET &&
 		    devp->drop_hdr_set_sts) {
@@ -2738,6 +2729,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 
 	spin_lock_irqsave(&devp->isr_lock, flags);
+
+	if (devp->dv.chg_cnt) {
+		if (devp->frame_cnt > 2)
+			vdin_pause_hw_write(devp,
+				devp->flags & VDIN_FLAG_RDMA_ENABLE);
+		vdin_drop_frame_info(devp, "dv chg");
+		vdin_vf_skip_all_disp(devp->vfp);
+		vdin_drop_cnt++;
+		goto irq_handled;
+	}
 
 	if (devp->afbce_mode == 1) {
 		/* no need reset mif under afbc mode */

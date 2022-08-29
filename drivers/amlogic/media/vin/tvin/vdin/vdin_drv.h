@@ -112,7 +112,8 @@
 /* 20220907: add manual_change_csc debug */
 /* 20220915: dv not support manual set game mode */
 /* 20220927: panel reverse not into game switch */
-#define VDIN_VER "20220927"
+/* 20220930: 4k dv not afbce avoid afbce done */
+#define VDIN_VER "20220930"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
