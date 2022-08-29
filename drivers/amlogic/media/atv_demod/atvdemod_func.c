@@ -163,12 +163,12 @@ void check_communication_interface(void)
 {
 	unsigned long data_tmp;
 
-	pr_info("ATV-DMD check communication intf\n");
+	pr_dbg("ATV-DMD check communication intf\n");
 	atv_dmd_wr_long(APB_BLOCK_ADDR_VERS_REGISTER, 0x0, 0xA1B2C3D4);
 	atv_dmd_wr_byte(APB_BLOCK_ADDR_VERS_REGISTER, 0x1, 0x34);
 	atv_dmd_wr_word(APB_BLOCK_ADDR_VERS_REGISTER, 0x2, 0xBCDE);
 	data_tmp = atv_dmd_rd_long(APB_BLOCK_ADDR_VERS_REGISTER, 0x0);
-	pr_info("atv demod check communication intf data out %lx\n", data_tmp);
+	pr_dbg("atv demod check communication intf data out %lx\n", data_tmp);
 
 	if (data_tmp != 0xa134bcde)
 		pr_info("atv demod check communication intf failed\n");
@@ -198,7 +198,10 @@ void atv_dmd_misc(void)
 	atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x44, 0x5c8808c1);/*zhuangwei*/
 	if (tuner_id == AM_TUNER_R840 || tuner_id == AM_TUNER_R842) {
 		/*zhuangwei*/
-		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, reg_23cf);
+		if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG)
+			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, 0x32);
+		else
+			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, reg_23cf);
 		/*guanzhong@20150804a*/
 		atv_dmd_wr_byte(APB_BLOCK_ADDR_SIF_STG_2, 0x00, 0x1);
 		if (is_meson_txhd_cpu()) {
@@ -220,7 +223,10 @@ void atv_dmd_misc(void)
 		/* atv_dmd_wr_byte(APB_BLOCK_ADDR_AGC_PWM, 0x09, 0x19); */
 	} else {
 		/*zhuangwei*/
-		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, 0x88188832);
+		if (broad_std == AML_ATV_DEMOD_VIDEO_MODE_PROP_PAL_BG)
+			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, 0x32);
+		else
+			atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x3c, 0x88188832);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_AGC_PWM, 0x08, 0x46170200);
 	}
 
@@ -1712,7 +1718,8 @@ int atvdemod_clk_init(void)
 	/*3.configure atv demod*/
 	check_communication_interface();
 	power_on_receiver();
-	pr_err("%s done\n", __func__);
+
+	pr_dbg("%s done\n", __func__);
 
 	return 0;
 }
@@ -1746,7 +1753,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		/* maybe need wait */
 		reg_value = adec_rd_reg(CARRIER_MAG_REPORT);
-		pr_info("%s CARRIER_MAG_REPORT: 0x%x\n",
+		pr_dbg("%s CARRIER_MAG_REPORT: 0x%x\n",
 				__func__, (reg_value >> 16) & 0xffff);
 		if (((reg_value >> 16) & 0xffff) > audio_a2_threshold) {
 			std = AUDIO_STANDARD_A2_K;
@@ -1798,7 +1805,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_info("%s NICAM_LEVEL_REPORT: 0x%x\n",
+		pr_dbg("%s NICAM_LEVEL_REPORT: 0x%x\n",
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_BG;
@@ -1837,7 +1844,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_info("%s NICAM_LEVEL_REPORT: 0x%x\n",
+		pr_dbg("%s NICAM_LEVEL_REPORT: 0x%x\n",
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_DK;
@@ -1876,7 +1883,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_info("%s NICAM_LEVEL_REPORT: 0x%x\n",
+		pr_dbg("%s NICAM_LEVEL_REPORT: 0x%x\n",
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_I;
@@ -1911,7 +1918,7 @@ int amlfmt_aud_standard(int broad_std)
 
 		reg_value = adec_rd_reg(NICAM_LEVEL_REPORT);
 		nicam_lock = (reg_value >> 28) & 1;
-		pr_info("%s NICAM_LEVEL_REPORT: 0x%x\n",
+		pr_dbg("%s NICAM_LEVEL_REPORT: 0x%x\n",
 				__func__, reg_value);
 		if (nicam_lock) {
 			std = AUDIO_STANDARD_NICAM_L;
@@ -1936,7 +1943,7 @@ int amlfmt_aud_standard(int broad_std)
 				vpll_lock, line_lock);
 	}
 
-	pr_err("%s detect aud std:%d, aud_reinit:%d.\n", __func__,
+	pr_dbg("%s detect aud std:%d, aud_reinit:%d.\n", __func__,
 			std, aud_reinit);
 	return std;
 }

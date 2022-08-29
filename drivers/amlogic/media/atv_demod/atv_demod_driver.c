@@ -61,7 +61,8 @@
 /* 2021/12/24 --- V2.32 --- Fix shutdown. */
 /* 2021/12/29 --- V2.33 --- Fix unable to find symbol aml_atvdemod_attach. */
 /* 2022/06/16 --- V2.34 --- Fix audio setting and resume. */
-#define AMLATVDEMOD_VER "V2.34"
+/* 2022/08/27 --- V2.35 --- Fix ripples. */
+#define AMLATVDEMOD_VER "V2.35"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
