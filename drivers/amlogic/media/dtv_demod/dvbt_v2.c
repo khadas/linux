@@ -1248,7 +1248,7 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
 		PR_INFO("r842 tuner,set r842 dvbt config\n");
 		dvbt_t2_wrb(0x821, 0x70);
-		dvbt_t2_wrb(0x824, 0xf0);
+		dvbt_t2_wrb(0x824, 0x40);
 		dvbt_t2_wrb(0x825, 0x10);
 		dvbt_t2_wrb(0x827, 0x50);
 	} else {
