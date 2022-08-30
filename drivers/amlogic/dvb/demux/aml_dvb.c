@@ -646,19 +646,27 @@ int get_demux_feature(int support_feature)
 	if (support_feature == SUPPORT_ES_HEADER_NEED_AUCPU) {
 		if (cpu_type == MESON_CPU_MAJOR_ID_SC2 ||
 			cpu_type == MESON_CPU_MAJOR_ID_S4 ||
-			cpu_type == MESON_CPU_MAJOR_ID_T7)
+			cpu_type == MESON_CPU_MAJOR_ID_T7 ||
+			cpu_type == MESON_CPU_MAJOR_ID_S5)
 			return 1;
 		else
 			return 0;
 	} else if (support_feature == SUPPORT_TSD) {
 		if (cpu_type == MESON_CPU_MAJOR_ID_SC2)
 			return 1;
+		else if ((cpu_type == MESON_CPU_MAJOR_ID_T7 && minor_type == 0xc) ||
+				(cpu_type == MESON_CPU_MAJOR_ID_S5 && minor_type == 0xa))
+			return 0;
 		else
 			return 0;
 	} else if (support_feature == SUPPORT_PSCP) {
 		return 0;
 	} else if (support_feature == SUPPORT_TEMI) {
-		return 0;
+		if ((cpu_type == MESON_CPU_MAJOR_ID_T7 && minor_type == 0xc) ||
+			(cpu_type == MESON_CPU_MAJOR_ID_S5 && minor_type == 0xa))
+			return 1;
+		else
+			return 0;
 	} else if (support_feature == SUPPORT_PES_HEADER) {
 		return 0;
 	} else {

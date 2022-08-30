@@ -32,7 +32,8 @@ enum output_format {
 	ES_FORMAT,
 	PES_FORMAT,
 	SECTION_FORMAT,
-	DVR_FORMAT
+	DVR_FORMAT,
+	TEMI_FORMAT
 };
 
 enum pid_cfg_mode {
@@ -76,6 +77,7 @@ void tsout_config_ts_table(int pid, u32 pid_mask, u32 pid_entry, u32 buffer_id);
 void tsout_config_es_table(u32 es_entry, int pid,
 			   u32 sid, u32 reset, u32 dup_ok, u8 fmt);
 void tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid);
+void tsout_config_temi_table(u32 temi_entry, u32 pcr_pid, u32 sid, u32 buffer_id, u32 status);
 int tsout_config_get_pcr(u32 pcr_entry, u64 *pcr);
 void tsout_config_remap_table(u32 pid_entry, u32 sid, int pid, int pid_new);
 

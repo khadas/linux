@@ -212,10 +212,11 @@ static void tee_tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
 
 void tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
 {
-	union PCR_TAB_FIELD data;
+	union PCR_TEMI_TAB_FIELD data;
 
 	if (is_security_dmx == TEE_DMX_ENABLE)
 		return tee_tsout_config_pcr_table(pcr_entry, pcr_pid, sid);
+
 	data.data = 0;
 
 	if (pcr_pid != -1) {
@@ -225,6 +226,24 @@ void tsout_config_pcr_table(u32 pcr_entry, u32 pcr_pid, u32 sid)
 		data.b.valid = 1;
 	}
 	WRITE_CBUS_REG(TS_OUTPUT_PCR_TAB(pcr_entry), data.data);
+	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
+}
+
+void tsout_config_temi_table(u32 temi_entry, u32 pcr_pid, u32 sid, u32 buffer_id, u32 status)
+{
+	union PCR_TEMI_TAB_FIELD data;
+
+	data.data = 0;
+
+	if (status != -1) {
+		data.data = 0;
+		data.b.pcr_pid = pcr_pid;
+		data.b.sid = sid;
+		data.b.valid = 1;
+		data.b.buffer_id = buffer_id;
+		data.b.ext = 1;
+	}
+	WRITE_CBUS_REG(TS_OUTPUT_PCR_TAB(temi_entry), data.data);
 	pr_dbg("%s data.data:0x%0x\n", __func__, data.data);
 }
 

@@ -749,7 +749,7 @@
 	dvb-demux {
 		compatible = "amlogic sc2, dvb-demux";
 		dev_name = "dvb-demux";
-		status = "disabled";
+		status = "okay";
 
 		reg = <0x0 0xfe000000 0x0 0x480000>;
 
