@@ -5492,6 +5492,7 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 void _set_video_mirror(struct disp_info_s *layer, int mirror)
 {
 	int last_mirror, new_mirror;
+	int last_reverse, new_reverse;
 	bool revser_temp = false;
 
 	if (!layer)
@@ -5540,10 +5541,13 @@ void _set_video_mirror(struct disp_info_s *layer, int mirror)
 
 	last_mirror = layer->mirror;
 	new_mirror = mirror;
+	last_reverse = layer->reverse;
+	new_reverse = revser_temp;
 	layer->mirror = mirror;
 	layer->reverse = revser_temp;
 
-	if (last_mirror != new_mirror) {
+	if (last_mirror != new_mirror ||
+		last_mirror != new_reverse) {
 		if (layer->layer_id == 0) {
 			vd_layer[0].property_changed = true;
 			if (debug_flag & DEBUG_FLAG_TRACE_EVENT)
