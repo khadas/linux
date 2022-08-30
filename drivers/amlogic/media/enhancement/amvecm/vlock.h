@@ -24,7 +24,7 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "linux/amlogic/media/amvecm/ve.h"
 
-#define VLOCK_VER "Ref.2022/0615: fix T3 Rev B black screen"
+#define VLOCK_VER "Ref.2022/0829: fix video show abnormal with aspect raio 4:3"
 
 #define VLOCK_REG_NUM					33
 #define VLOCK_ALL_LOCK_CNT				400

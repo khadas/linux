@@ -194,6 +194,7 @@ u32 speed_up_en = 1;
 static int vlock_protect_min;
 static int vlock_manual;
 static int vlock_frc_is_on;
+static int vlock_frc_status_chg;
 
 struct reg_map vlock_reg_maps[REG_MAP_END] = {0};
 
@@ -532,6 +533,16 @@ static void vlock_tune_sync_frc(u32 frc_vporch_cal, unsigned char frc_s2l_en)
 	WRITE_VPP_REG(ENCL_SYNC_LINE_LENGTH, max_lncnt - frc_v_porch - 1);
 }
 
+static unsigned int vlock_set_frc_status(int frc_status)
+{
+	if (vlock_frc_is_on != frc_status)
+		vlock_frc_status_chg = 1;
+	else
+		vlock_frc_status_chg = 0;
+
+	return vlock_frc_status_chg;
+}
+
 bool vlock_vsync_skip_for_frc(void)
 {
 	int ret = false;
@@ -571,6 +582,8 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param)
 
 	if (!pvlock)
 		return ret;
+
+	vlock_set_frc_status(frc_param.s2l_en);
 
 	vlock_manual = frc_param.frc_mcfixlines;
 	vlock_frc_is_on = frc_param.s2l_en;
@@ -3038,10 +3051,12 @@ void vlock_fsm_monitor(struct vframe_s *vf, struct stvlock_sig_sts *pvlock)
 			} else {
 				/*normal mode*/
 				pvlock->frame_cnt_no = 0;
-				if (vlock_fsm_en_step2_func(pvlock, vf) <= 0) {
+				if (vlock_fsm_en_step2_func(pvlock, vf) <= 0 ||
+					vlock_frc_status_chg) {
 					pvlock->fsm_sts =
 						VLOCK_STATE_DISABLE_STEP1_DONE;
 					vlock_clear_frame_counter(pvlock);
+					vlock_frc_status_chg = 0;
 				}
 			}
 		} else if (pvlock->vmd_chg) {
@@ -3175,13 +3190,13 @@ void vlock_process(struct vframe_s *vf,
 		}
 	}
 
-	if (vlock_debug & VLOCK_DEBUG_FLASH)
-		pr_info("%s: idx = %d, addr = 0x%x, org_enc_line_num = %d, pre_enc_max_line = %d\n",
+	if (vlock_debug & VLOCK_DEBUG_INFO)
+		pr_info("%s: idx = %d, addr = 0x%x, org_enc_line_num = %d, pre_enc_max_line = %d vlock_frc_status_chg = %d\n",
 			__func__,
 			pvlock->idx,
 			pvlock->enc_max_line_addr + pvlock->offset_encl,
 			pvlock->org_enc_line_num,
-			pvlock->pre_enc_max_line);
+			pvlock->pre_enc_max_line, vlock_frc_status_chg);
 
 	/* todo:vlock processs only for tv chip */
 	if (pvlock->dtdata->vlk_new_fsm)
