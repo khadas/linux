@@ -17,7 +17,10 @@
 /*20210602: support t7/t3 new ldc */
 /*20210730: basic function run ok */
 /*20210806: add fw support */
-#define LDIM_DRV_VER    "20210806"
+/*20220815: correct ldim spi dma config */
+#define LDIM_DRV_VER    "20220815"
+
+#define LDIM_SPI_DUTY_VSYNC_DIRECT
 
 extern unsigned char ldim_debug_print;
 
