@@ -3844,11 +3844,11 @@
 		&dvfs850_cfg
 		&dvfs850_cfg>;
 
-	reset_cfg:reset_cfg {
-		reg_level = <0x16>;
-		reg_mask = <0x26>;
-		reg_bit = <10>;
-	};
+//	reset_cfg:reset_cfg {
+//		reg_level = <0x16>;
+//		reg_mask = <0x26>;
+//		reg_bit = <10>;
+//	};
 
 };
 
