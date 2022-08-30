@@ -1093,7 +1093,7 @@ static struct meson_msr_id clk_msr_t7[] __initdata = {
 	CLK_MSR_ID(116, "gpio_msr_clk"),
 	CLK_MSR_ID(117, "cts_spicc_1_clk"),
 	CLK_MSR_ID(118, "cts_spicc_0_clk"),
-	CLK_MSR_ID(118, "cts_anakin_clk"),
+	CLK_MSR_ID(119, "cts_anakin_clk"),
 	CLK_MSR_ID(121, "cts_ts_clk(temp sensor)"),
 	CLK_MSR_ID(122, "ts_a73_clk"),
 	CLK_MSR_ID(123, "ts_a53_clk"),
