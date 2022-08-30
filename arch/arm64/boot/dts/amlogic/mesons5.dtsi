@@ -3271,7 +3271,7 @@
 
 	sdio_clk_gate_pins: sdio_clk_gate {
 		mux {
-			groups = "GPIOM_4";
+			groups = "GPIOX_4";
 			function = "gpio_periphs";
 			bias-pull-down;
 			drive-strength-microamp = <4000>;
