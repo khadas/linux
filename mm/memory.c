@@ -4811,6 +4811,12 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 	p4d_t *p4d;
 	vm_fault_t ret;
 
+#ifdef CONFIG_AMLOGIC_CMA
+	if (vma->vm_file && vma->vm_file->f_mapping &&
+	    (vma->vm_flags & VM_EXEC))
+		vma->vm_file->f_mapping->gfp_mask |= __GFP_NO_CMA;
+#endif
+
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
 	if (flags & FAULT_FLAG_SPECULATIVE) {
 		pgd_t pgdval;
