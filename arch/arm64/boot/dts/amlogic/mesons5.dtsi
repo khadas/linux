@@ -70,7 +70,7 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpua>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
@@ -106,7 +106,7 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpua>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
@@ -142,7 +142,7 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpua>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
@@ -178,7 +178,7 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpua>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
@@ -214,7 +214,7 @@
 			capacity-dmips-mhz = <512>;
 			dynamic-power-coefficient = <1024>;
 //			#cooling-cells = <2>;
-			cpu-supply = <&vddcpub>;
+			cpu-supply = <&VDD_CPUA>;
 			cpu_supply_external_used;
 			dsu-opp-table = <1200000 880000 1500000 940000>;
 			dsu_clock_shared;
@@ -528,9 +528,9 @@
 		status = "disabled";
 	};
 
-	vddcpua: pwm_cd-regulator {
+	vddcpua: pwmao_d-regulator {
 		compatible = "pwm-regulator";
-		pwms = <&pwm_cd MESON_PWM_1 1500 0>;
+		//pwms = <&pwmao_cd MESON_PWM_1 1500 0>;
 		regulator-name = "vddcpua";
 		regulator-min-microvolt = <689000>;
 		regulator-max-microvolt = <1049000>;
@@ -577,9 +577,9 @@
 		status = "disabled";
 	};
 
-	vddcpub: pwm_ab-regulator {
+	vddcpub: pwmao_b-regulator {
 		compatible = "pwm-regulator";
-		pwms = <&pwm_ab MESON_PWM_0 1500 0>;
+		//pwms = <&pwmao_ab MESON_PWM_1 1500 0>;
 		regulator-name = "vddcpub";
 		regulator-min-microvolt = <689000>;
 		regulator-max-microvolt = <1049000>;
@@ -744,29 +744,6 @@
 //		    "adc_clk", "adc_sel";
 		interrupts = <GIC_SPI 181 IRQ_TYPE_EDGE_RISING>;
 		reg = <0x00 0xfe026000 0x00 0x48>;
-	};
-
-	vbat: fixedregulator@vbat {
-		compatible = "regulator-fixed";
-		regulator-name = "12V";
-		regulator-min-microvolt = <12000000>;
-		regulator-max-microvolt = <12000000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vcc5v_reg: fixedregulator@vcc5v {
-		vin-supply = <&vbat>;
-		compatible = "regulator-fixed";
-		regulator-name = "VCC5V";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOC_7 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
 	};
 
 	soc {

@@ -803,155 +803,6 @@
 		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
 		key_tolerance = <40 40 40 40>;
 	};
-
-	vddq_reg: fixedregulator@vddq {
-		compatible = "regulator-fixed";
-		vin-supply = <&vbat>;
-		regulator-name = "VDDQ_1V1";
-		regulator-min-microvolt = <1130000>;
-		regulator-max-microvolt = <1130000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vddqlp_reg: fixedregulator@vddqlp {
-		compatible = "regulator-fixed";
-		vin-supply = <&vbat>;
-		regulator-name = "VDDQ_0V6_1V1";
-		regulator-min-microvolt = <600000>;
-		regulator-max-microvolt = <600000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vdd_ddr_reg: fixedregulator@vdd_ddr {
-		compatible = "regulator-fixed";
-		vin-supply = <&vbat>;
-		regulator-name = "VDD_DDR";
-		regulator-min-microvolt = <820000>;
-		regulator-max-microvolt = <820000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOD_8 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vddao3v3_reg: fixedregulator@vddao3v3 {
-		vin-supply = <&vbat>;
-		compatible = "regulator-fixed";
-		regulator-name = "VDDAO_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vddao1v8_reg: fixedregulator@vddao1v8 {
-		compatible = "regulator-fixed";
-		vin-supply = <&vddao3v3_reg>;
-		regulator-name = "VDDAO_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	avdd1v8_reg: fixedregulator@avdd1v8 {
-		vin-supply = <&vddao3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "AVDD1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vdd3v3_reg: fixedregulator@vdd3v3 {
-		vin-supply = <&vddao3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "VDD3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	avdd0v8_reg: fixedregulator@avdd0v8 {
-		vin-supply = <&vddao3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "AVDD0V8";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <800000>;
-		pinctrl-names = "default";
-		gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	emmc1v8_reg: fixedregulator@emmc1v8 {
-		vin-supply = <&vddao3v3_reg>;
-		compatible = "regulator-fixed";
-		regulator-name = "EMMC_1V8";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		pinctrl-names = "default";
-		//open this gpio, reboot will hang !!!
-		//gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
-		startup-delay-us = <70000>;
-		enable-active-high;
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	sdcard_3v3: sdcard-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "SD_3V3";
-		vin-supply = <&vdd3v3_reg>;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		// GPIOH_7(Down) Output L= Enable SD_3V3
-		gpio = <&gpio GPIOH_7 GPIO_ACTIVE_LOW>;
-		// (GPIOH_7 |sdcard-3v3) out lo ACTIVE LOW
-		enable-active-low; //3.3V , high: 0V
-		regulator-boot-on;
-		regulator-always-on;
-	};
-
-	vddio_c_p: sdcard-1v8_3v3 {
-		compatible = "regulator-gpio";
-		regulator-name = "VDDIO_C_P";
-		vin-supply = <&vdd3v3_reg>;
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <3300000>;
-		// GPIOH_8(DOWN) H: 1.8V, L: 3.3V
-		gpio = <&gpio GPIOH_8 GPIO_ACTIVE_HIGH>;
-		// (GPIOH_8 |VDDIO_C) out lo : 3300mV, 3.3V
-		gpios-states = <0>;
-
-		/* Based on P200 schematics, signal CARD_1.8V/3.3V_CTR */
-		states = <1800000 1
-			  3300000 0>;
-	};
 };
 
 &audiobus {
@@ -1418,7 +1269,185 @@
 	pinctrl-0 = <&i2c4_pins1>;
 	status = "disabled";
 	#address-cells = <1>;
-	#size-cells = <0>;
+    #size-cells = <0>;
+    pmic2657: pmic@6a {
+		compatible = "rohm,bd2657";
+		reg = <0x6a>;
+		interrupt-parent = <&gpio_intc>;
+		interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "cpu-irq";
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-reserved-ranges = <0 1>;
+
+		regulators {
+			VDD_CPUA: BUCK1 {
+				regulator-name = "VDD_CPUA";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+			VDD_CPUA1: BUCK2 {
+				regulator-name = "VDD_CPUA1";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+			VDD_CPUB: BUCK3 {
+				regulator-name = "VDD_CPUB";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+			VDDQ: BUCK4 {
+				regulator-name = "VDDQ";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-always-on;
+			};
+		};
+	};
+
+	pmic71888: pmic@4b {
+		compatible = "rohm,bd71888";
+		reg = <0x4b>;
+		clocks = <&pmic_osc>;
+		clock-names = "osc";
+		clock-output-names = "pmic_clk";
+		interrupt-parent = <&gpio_intc>;
+		//interrupts = <GPIOE_5 GPIO_ACTIVE_LOW>;
+		interrupt-names = "irq";
+		rohm,reset-snvs-powered;
+
+		regulators {
+			VDD_NPU: BUCK1 {
+				regulator-name = "VDD_NPU";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
+				regulator-ramp-delay = <10000>;
+				rohm,dvs-run-voltage = <840000>;
+				rohm,dvs-idle-voltage = <840000>;
+				rohm,dvs-suspend-voltage = <840000>;
+				regulator-always-on;
+			};
+
+			VDD_EE: BUCK2 {
+				regulator-name = "VDD_EE";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
+				regulator-ramp-delay = <10000>;
+				rohm,dvs-run-voltage = <840000>;
+				rohm,dvs-idle-voltage = <840000>;
+				regulator-always-on;
+			};
+
+			VDD_DDR: BUCK3 {
+				regulator-name = "VDD_DDR";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				regulator-boot-on;
+				rohm,dvs-run-voltage = <800000>;
+				regulator-always-on;
+			};
+
+			VDD_FDLE: BUCK4 {
+				regulator-name = "VDD_FDLE";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1300000>;
+				rohm,dvs-run-voltage = <840000>;
+				regulator-always-on;
+			};
+
+			VDDCAM: BUCK5 {
+				regulator-name = "VDDCAM";
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1350000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			AVDD_3V3: BUCK6 {
+				regulator-name = "AVDD_3V3";
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			AVDD_1V8: BUCK7 {
+				regulator-name = "AVDD_1V8";
+				regulator-min-microvolt = <1605000>;
+				regulator-max-microvolt = <1995000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			VDD_2H: BUCK8 {
+				regulator-name = "VDD_2H";
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1400000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			PMIC_EN: LDO1 {
+				regulator-name = "PMIC_EN";
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <1900000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo2_reg: LDO2 {
+				regulator-name = "ldo2_reg";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+
+			VAON_1V8: LDO3 {
+				regulator-name = "VAON_1V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			MINPCIE: LDO4 {
+				regulator-name = "MINPCIE";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1800000>;
+			};
+
+			TOF_2V8: LDO5 {
+				regulator-name = "TOF_2V8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			AVDD12_PCIE: LDO6 {
+				regulator-name = "AVDD12_PCIE";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			VIOCAM: LDO7 {
+				regulator-name = "VIOCAM";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+
+			BACKLIGHT: MUXSW_EN {
+				regulator-name = "BACKLIGHT";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+			};
+		};
+	};
 };
 
 &i2c1 {
@@ -1538,8 +1567,8 @@
 	non-removable;
 	disable-wp;
 
-	//vmmc-supply = <&sdcard_3v3>;
-	//vqmmc-supply = <&vddio_c_p>;
+	//vmmc-supply = <&vddao_3v3>;
+	//vqmmc-supply = <&vddio_ao1v8>;
 
 	brcmf: wifi@1 {
 		reg = <1>;
@@ -1583,8 +1612,8 @@
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-//	vmmc-supply = <&sdcard_3v3>;
-//	vqmmc-supply = <&vddio_c_p>;
+	//vmmc-supply = <&vddao_3v3>;
+	//vqmmc-supply = <&emmc_1v8>;
 };
 
 &sd_emmc_c {
@@ -1604,8 +1633,8 @@
 	disable-wp;
 
 //	mmc-pwrseq = <&emmc_pwrseq>;
-//	vmmc-supply = <&sdcard_3v3>;
-//	vqmmc-supply = <&vddio_c_p>;
+//	vmmc-supply = <&vddao_3v3>;
+//	vqmmc-supply = <&vddao_1v8>;
 };
 
 &saradc {
@@ -1924,13 +1953,9 @@
 };
 
 &pwm_ab {
-	pinctrl-0 = <&pwm_a_pins1>;
+	//pinctrl-0 = <&pwm_a_pins>;
 	pinctrl-names = "default";
-	status = "okay";
-};
-
-&pwm_cd {
-	status = "okay";
+	status = "disabled";
 };
 
 &irblaster {
@@ -1943,11 +1968,11 @@
 };
 
 &vddcpua {
-	status = "okay";
+	status = "disabled";
 };
 
 &vddcpub {
-	status = "okay";
+	status = "disabled";
 };
 
 &CPU0 {
