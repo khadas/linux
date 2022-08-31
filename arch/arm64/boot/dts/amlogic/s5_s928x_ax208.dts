@@ -1578,14 +1578,14 @@
 //	sd-uhs-sdr12;
 //	sd-uhs-sdr25;
 //	sd-uhs-sdr50;
-//	sd_uhs-sdr104;
+//	sd-uhs-sdr104;
 	max-frequency = <200000000>;
 	disable-wp;
 
 	cd-gpios = <&gpio GPIOC_6 GPIO_ACTIVE_HIGH>;
 	//dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
-//	vmmc-supply = <&sdcard_3v3>;
-//	vqmmc-supply = <&vddio_c_p>;
+	vmmc-supply = <&sdcard_3v3>;
+	vqmmc-supply = <&vddio_c_p>;
 };
 
 &sd_emmc_c {
@@ -1598,7 +1598,7 @@
 	cap-mmc-highspeed;
 //	mmc-ddr-1_8v;
 	mmc-hs200-1_8v;
-//	mmc-hs400-1_8v;
+	mmc-hs400-1_8v;
 	//mmc-hs400-enhanced-strobe;
 	max-frequency = <200000000>;
 	non-removable;
