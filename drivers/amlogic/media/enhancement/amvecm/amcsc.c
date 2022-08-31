@@ -53,6 +53,7 @@
 #include "hdr/am_hdr10_tm.h"
 #include "reg_helper.h"
 #include <linux/amlogic/gki_module.h>
+#include "color/ai_color.h"
 
 uint debug_csc;
 static int cur_mvc_type[VD_PATH_MAX];
@@ -8031,6 +8032,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		    hdr10_plus_process_mode[vd_path] == PROC_MATCH)
 			hdr10_plus_process_update(0, vd_path, vpp_index);
 	}
+
+	ai_color_proc(vf);
 
 	/* eye protection mode */
 	if (signal_change_flag & SIG_WB_CHG)

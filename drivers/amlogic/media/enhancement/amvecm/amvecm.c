@@ -87,6 +87,7 @@
 #include "../../video_sink/vpp_pq.h"
 #include "frame_lock_policy.h"
 #include "amve_v2.h"
+#include "color/ai_color.h"
 
 #define pr_amvecm_dbg(fmt, args...)\
 	do {\
@@ -5671,6 +5672,7 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 	}
 
 	hdr10_tmo_dbg(parm);
+	ai_color_debug_store(parm);
 
 free_buf:
 	kfree(stemp);
