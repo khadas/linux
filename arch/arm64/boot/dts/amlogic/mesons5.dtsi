@@ -1253,7 +1253,7 @@
 			reg = <0x0 0xfdd00000 0x0 0x100000>;
 			interrupts = <0 131 4>;
 			clock-src = "usb0"; /** clock src */
-			port-speed = <5>; /** 0: default, high, 1: full */
+			port-speed = <3>; /** 0: default, high, 1: full */
 			phy-reg = <0xfe074000>;
 			phy-reg-size = <0x1000>;
 			clocks = <&clkc CLKID_SYS_CLK_USB>;
