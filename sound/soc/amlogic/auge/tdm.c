@@ -371,7 +371,8 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 	p_tdm->setting.sysclk = freq;
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
-	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll"))
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll") ||
+		!strcmp(clk_name, "hifi1_pll"))
 		if (p_tdm->syssrc_clk_rate)
 			mpll_freq = p_tdm->syssrc_clk_rate;
 		else
@@ -1746,7 +1747,8 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 		p_tdm->chipinfo->use_vadtop);
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
-	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll") ||
+		!strcmp(clk_name, "hifi1_pll")) {
 		if (p_tdm->syssrc_clk_rate)
 			pll = p_tdm->syssrc_clk_rate;
 		else
