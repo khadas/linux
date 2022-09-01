@@ -794,15 +794,15 @@
 
 	adc_keypad {
 		compatible = "amlogic, adc_keypad";
-		status = "disabled";
-		key_name = "update", "vol-", "vol+", "enter";
-		key_num = <4>;
-		io-channels = <&saradc 2>;
-		io-channel-names = "key-chan-2";
-		key_chan = <2 2 2 2>;
-		key_code = <141 114 115 28>;
-		key_val = <0 143 266 389>; //val=voltage/1800mV*1023
-		key_tolerance = <40 40 40 40>;
+		status = "okay";
+		key_name = "key_a", "key_b", "key_c";
+		key_num = <3>;
+		io-channels = <&saradc 0>;
+		io-channel-names = "key-chan-0";
+		key_chan = <0 0 0>;
+		key_code = <141 114 115>;
+		key_val = <900 511 0>; //val=voltage/1800mV*1023
+		key_tolerance = <40 40 40>;
 	};
 
 	vddq_reg: fixedregulator@vddq {
@@ -1554,7 +1554,7 @@
 };
 
 &saradc {
-	status = "disabled";
+	status = "okay";
 };
 
 &ethmac {
