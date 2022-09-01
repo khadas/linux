@@ -1312,6 +1312,7 @@
 
 &pcie {
 	reset-gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
+	wake-gpio = <&gpio GPIOT_5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
