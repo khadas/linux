@@ -1736,13 +1736,14 @@
 &spicc0 {
 	status = "disabled";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc0_pins_t &spicc0_cs_pins_t>;
-	//cs-gpios = <&gpio GPIOT_4 0>;
+	//pinctrl-0 = <&spicc0_pins_t &spicc0_cs_pins_t>;
+	pinctrl-0 = <&spicc0_pins_t>;
+	cs-gpios = <&gpio GPIOT_4 0>;
 	assigned-clocks =<&clkc CLKID_SPICC0>;
 	assigned-clock-rates = <200000000>;
 	latency = <4>;
 	parent_clk_fixed;
-	toggle_cs_every_word;
+	//toggle_cs_every_word;
 };
 
 &spicc1 {
