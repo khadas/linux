@@ -52,6 +52,7 @@
 #include <linux/memory.h>
 #ifdef CONFIG_AMLOGIC_CMA
 #include <linux/amlogic/aml_cma.h>
+#include <linux/delay.h>
 #endif
 
 #include <asm/tlbflush.h>
@@ -296,6 +297,9 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 	pte_t pte;
 	swp_entry_t entry;
 	struct page *page;
+#ifdef CONFIG_AMLOGIC_CMA
+	bool need_wait = 0;
+#endif
 
 	spin_lock(ptl);
 	pte = *ptep;
@@ -307,6 +311,17 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 		goto out;
 
 	page = pfn_swap_entry_to_page(entry);
+#ifdef CONFIG_AMLOGIC_CMA
+	/* This page is under cma allocating, do not increase it ref */
+	if (in_cma_allocating(page)) {
+		pr_debug("%s, Page:%lx, flags:%lx, m:%d, c:%d, map:%p\n",
+			__func__, page_to_pfn(page), page->flags,
+			page_mapcount(page), page_count(page),
+			page->mapping);
+		need_wait = 1;
+		goto out;
+	}
+#endif
 	page = compound_head(page);
 
 	/*
@@ -321,6 +336,10 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 	return;
 out:
 	pte_unmap_unlock(ptep, ptl);
+#ifdef CONFIG_AMLOGIC_CMA
+	if (need_wait)
+		usleep_range(1000, 1100);
+#endif
 }
 
 void migration_entry_wait(struct mm_struct *mm, pmd_t *pmd,
