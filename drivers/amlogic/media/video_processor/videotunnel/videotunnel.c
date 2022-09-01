@@ -340,24 +340,6 @@ static const struct file_operations debug_limit_fops = {
 	.write = vt_debug_limit_write,
 };
 
-static int vt_close_fd(struct vt_session *session, unsigned int fd)
-{
-	int ret;
-
-	if (!session->task)
-		return -ESRCH;
-
-	ret = __close_fd(session->task->files, fd);
-	/* can't restart close syscall because file table entry was cleared */
-	if (unlikely(ret == -ERESTARTSYS ||
-		     ret == -ERESTARTNOINTR ||
-		     ret == -ERESTARTNOHAND ||
-		     ret == -ERESTART_RESTARTBLOCK))
-		ret = -EINTR;
-
-	return ret;
-}
-
 static void vt_instance_destroy(struct kref *kref)
 {
 	struct vt_instance *instance =
@@ -1721,8 +1703,6 @@ static int vt_release_buffer_process(struct vt_buffer_data *data,
 		return -EINVAL;
 	}
 
-	/* close the fd in consumer side */
-	vt_close_fd(session, buffer->buffer_fd_con);
 	instance->fcount--;
 	dev->state.buffer_close++;
 	instance->state.buffer_close++;
