@@ -2196,8 +2196,10 @@ static int too_many_isolated(struct pglist_data *pgdat, int file,
 	 * won't get blocked by normal direct-reclaimers, forming a circular
 	 * deadlock.
 	 */
+#ifndef CONFIG_AMLOGIC_MEMORY_EXTEND
 	if ((sc->gfp_mask & (__GFP_IO | __GFP_FS)) == (__GFP_IO | __GFP_FS))
 		inactive >>= 3;
+#endif
 
 #ifdef CONFIG_AMLOGIC_CMA
 	check_cma_isolated(&isolated, inactive, inactive);
