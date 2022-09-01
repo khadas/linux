@@ -120,8 +120,8 @@
 };
 
 &display_subsystem {
-	memory-region = <&drm_logo>;
-	memory-region-names = "drm-logo";
+	clocks = <&hdptxphy_hdmi_clk0>;
+	clock-names = "hdmi0_phy_pll";
 };
 
 &dfi {

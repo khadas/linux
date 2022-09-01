@@ -252,6 +252,10 @@
 	status = "okay";
 };
 
+&hdptxphy_hdmi_clk0 {
+	status = "okay";
+};
+
 &route_hdmi0 {
 	status = "okay";
 };
