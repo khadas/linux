@@ -180,6 +180,8 @@ static int per_lcd_gpio_register(int index, int init_value)
 
 void per_lcd_gpio_set(int index, int value)
 {
+	if (per_lcd_debug_flag)
+		LCDPR("%s: idx:val= [%d, %d]\n", __func__, index, value);
 	if (index >= PER_GPIO_NUM_MAX) {
 		LCDERR("gpio index %d, exit\n", index);
 		return;
@@ -326,8 +328,12 @@ static ssize_t per_lcd_init_store(struct class *class,
 				  struct class_attribute *attr,
 				  const char *buf, size_t count)
 {
-	if (!peripheral_lcd_drv)
+	if (!peripheral_lcd_drv) {
+		LCDPR("peripheral_lcd_drv NULL\n");
+	} else {
+		LCDPR("peripheral_lcd_drv not NULL\n");
 		peripheral_lcd_drv->enable();
+	}
 	return count;
 }
 

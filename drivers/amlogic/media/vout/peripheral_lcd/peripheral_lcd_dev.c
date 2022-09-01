@@ -470,7 +470,7 @@ static int per_lcd_dev_add_driver(struct peripheral_lcd_driver_s *per_lcd_drv)
 
 	if (strcmp(per_lcd_dev_conf.name, "intel_8080") == 0)
 		ret = per_lcd_dev_8080_probe(per_lcd_drv);
-	else if (strcmp(per_lcd_dev_conf.name, "spi") == 0)
+	else if (strcmp(per_lcd_dev_conf.name, "spi_st7789") == 0)
 		ret = per_lcd_dev_spi_probe(per_lcd_drv);
 	else
 		LCDPR("%s:unsopport device driver: %s(%d)\n",
@@ -495,7 +495,7 @@ static void per_lcd_dev_remove_driver(struct peripheral_lcd_driver_s *per_lcd_dr
 	if ((strcmp(per_lcd_dev_conf.name, "intel_8080") == 0) ||
 	    (strcmp(per_lcd_dev_conf.name, "8080") == 0))
 		ret = per_lcd_dev_8080_remove(per_lcd_drv);
-	else if (strcmp(per_lcd_dev_conf.name, "spi") == 0)
+	else if (strcmp(per_lcd_dev_conf.name, "spi_st7789") == 0)
 		ret = per_lcd_dev_spi_remove(per_lcd_drv);
 	else
 		LCDPR("%s: unsopport device driver: %s(%d)\n",
@@ -522,6 +522,88 @@ static void per_lcd_dev_remove_driver(struct peripheral_lcd_driver_s *per_lcd_dr
 	}
 }
 
+static void per_lcd_config_update_dynamic_size(struct peripheral_lcd_driver_s *edrv, int flag)
+{
+	unsigned char type, size, *table;
+	unsigned int max_len = 0, i = 0, index;
+
+	if (flag) {
+		max_len = edrv->per_lcd_dev_conf->init_on_cnt;
+		table = edrv->per_lcd_dev_conf->init_on;
+	} else {
+		max_len = edrv->per_lcd_dev_conf->init_off_cnt;
+		table = edrv->per_lcd_dev_conf->init_on;
+	}
+
+	while ((i + 1) < max_len) {
+		type = table[i];
+		size = table[i + 1];
+		if (type == PER_LCD_CMD_TYPE_END)
+			break;
+		if (size == 0)
+			goto per_lcd_config_update_dynamic_size_next;
+		if ((i + 2 + size) > max_len)
+			break;
+
+		if (type == PER_LCD_CMD_TYPE_GPIO) {
+			/* gpio probe */
+			index = table[i + 2];
+			if (index < PER_GPIO_MAX)
+				per_lcd_gpio_probe(index);
+		}
+per_lcd_config_update_dynamic_size_next:
+		i += (size + 2);
+	}
+}
+
+static void per_lcd_config_update_fixed_size(struct peripheral_lcd_driver_s *edrv, int flag)
+{
+	int i = 0, max_len = 0;
+	unsigned char type, cmd_size, index;
+	unsigned char *table;
+
+	cmd_size = edrv->per_lcd_dev_conf->cmd_size;
+	if (cmd_size < 2) {
+		LCDPR("[%d]: %s: dev_%d invalid cmd_size %d\n",
+				edrv->dev_index, __func__, edrv->dev_index, cmd_size);
+		return;
+	}
+
+	if (flag) {
+		max_len = edrv->per_lcd_dev_conf->init_on_cnt;
+		table = edrv->per_lcd_dev_conf->init_on;
+	} else {
+		max_len = edrv->per_lcd_dev_conf->init_off_cnt;
+		table = edrv->per_lcd_dev_conf->init_on;
+	}
+
+	while ((i + cmd_size) <= max_len) {
+		type = table[i];
+		if (type == PER_LCD_CMD_TYPE_END)
+			break;
+		if (type == PER_LCD_CMD_TYPE_GPIO) {
+			/* gpio probe */
+			index = table[i + 1];
+			if (index < PER_GPIO_MAX)
+				per_lcd_gpio_probe(index);
+		}
+		i += cmd_size;
+	}
+}
+
+static void per_lcd_config_update(struct peripheral_lcd_driver_s *per_drv)
+{
+	if (per_drv->per_lcd_dev_conf->cmd_size == PER_LCD_CMD_SIZE_DYNAMIC)	{
+		LCDPR("%s dynamic\n", __func__);
+		per_lcd_config_update_dynamic_size(per_drv, 1);
+		per_lcd_config_update_dynamic_size(per_drv, 0);
+	} else {
+		LCDPR("%s fixed\n", __func__);
+		per_lcd_config_update_fixed_size(per_drv, 1);
+		per_lcd_config_update_fixed_size(per_drv, 0);
+	}
+}
+
 int perl_lcd_dev_probe(struct peripheral_lcd_driver_s *per_lcd_drv)
 {
 	int ret;
@@ -533,6 +615,9 @@ int perl_lcd_dev_probe(struct peripheral_lcd_driver_s *per_lcd_drv)
 		per_lcd_drv->per_lcd_dev_conf = NULL;
 		return -1;
 	}
+
+	per_lcd_config_update(per_lcd_drv);
+
 	ret = per_lcd_dev_add_driver(per_lcd_drv);
 	LCDPR("%s: ret=%d\n", __func__, ret);
 	return ret;

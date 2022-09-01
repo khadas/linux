@@ -18,7 +18,7 @@
 #define PER_GPIO_INPUT           2
 
 #define PER_GPIO_MAX             0xff
-#define PER_GPIO_NUM_MAX         21
+#define PER_GPIO_NUM_MAX         23
 
 /*******************************************/
 /*       PER LCD CMD                      */

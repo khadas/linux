@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include "mesonaxg.dtsi"
+#include "mesonaxg_s420-per_lcd.dtsi"
 
 / {
 	model = "Amlogic";

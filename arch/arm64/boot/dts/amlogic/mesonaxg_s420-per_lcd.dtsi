@@ -32,16 +32,15 @@
 			&gpio GPIOA_19 GPIO_ACTIVE_HIGH
 			&gpio GPIOA_20 GPIO_ACTIVE_HIGH
 			&gpio_ao GPIOAO_3 GPIO_ACTIVE_HIGH
-			&gpio GPIOH_8 GPIO_ACTIVE_HIGH
 			&gpio_ao GPIOAO_10 GPIO_ACTIVE_HIGH>;
 		per_lcd_gpio_names = "GPIOA_0","GPIOA_1","GPIOA_2","GPIOA_3",
 				"GPIOA_4","GPIOA_5","GPIOA_6","GPIOA_7",
 				"GPIOA_8","GPIOA_9","GPIOA_10","GPIOA_11",
 				"GPIOA_12","GPIOA_13","GPIOA_14","GPIOA_15",
 				"GPIOA_16","GPIOA_17","GPIOA_18","GPIOA_19",
-				"GPIOA_20","HPIOAO_3","GPIOH_8","GPIOAO_10";
+				"GPIOA_20","HPIOAO_3","GPIOAO_10";
 		reg = <0x0 0xff634434 0x0 0xc>;
-		per_lcd_dev_index = <0>;
+		per_lcd_dev_index = <1>;
 
 		per_lcd_0{
 			peripheral_lcd_dev_name = "intel_8080";

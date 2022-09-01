@@ -485,6 +485,7 @@ int per_lcd_dev_spi_probe(struct peripheral_lcd_driver_s *per_lcd_drv)
 	spi = per_lcd_drv->spi_dev;
 
 	spi_vsync_irq_init(per_lcd_drv);
+	per_lcd_gpio_probe(dev_conf->dcx_index);
 	ret = spi_power_on_init();
 	if (!ret)
 		spi_fill_screen_color(0);
