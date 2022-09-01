@@ -30,6 +30,7 @@
 	"V03.00.00.00.01.03.02 [20220711] [COMP] add hdcp version protect for drm\n" \
 	"V03.00.00.00.01.03.03 [20220713] [SYSFS] add phy show sysfs\n" \
 	"V03.00.01.00.01.03.03 [20220713] [AUDIO] audio callback turn on the judgement\n" \
-	"V03.00.01.00.01.03.04 [20220803] [BUGFIX] echo 1 > /sys/class/display/bist lead to panic\n"
+	"V03.00.01.00.01.03.04 [20220803] [BUG] echo 1 > /sys/class/display/bist lead to panic\n" \
+	"V03.00.01.00.01.03.05 [20220903] [BUG] add DDC reset before do EDID transaction\n"
 
 #endif // __HDMI20_VERSION_H__
