@@ -1707,6 +1707,7 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 		secondary = hdmi->plat_data->right;
 
 	result = hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+	//printk("Enter into %s  %d  result=%d \n", __func__, __LINE__, result);
 
 	if (secondary) {
 		result_secondary = secondary->phy.ops->read_hpd(secondary, secondary->phy.data);
@@ -1716,7 +1717,12 @@ dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 		else
 			result = connector_status_disconnected;
 	}
-
+    if (result == connector_status_connected){
+            extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, true); //change for uboot-logo
+    }
+    else {
+            extcon_set_state_sync(hdmi->extcon, EXTCON_DISP_HDMI, false);
+    }
 	return result;
 }
 
@@ -2184,7 +2190,7 @@ static void dw_hdmi_qp_bridge_atomic_enable(struct drm_bridge *bridge,
 	struct drm_atomic_state *state = old_state->base.state;
 	struct drm_connector *connector;
 	void *data = hdmi->plat_data->phy_data;
-
+	//printk("Enter into %s  %d\n", __func__, __LINE__);
 	connector = drm_atomic_get_new_connector_for_encoder(state,
 							     bridge->encoder);
 
