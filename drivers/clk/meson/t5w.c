@@ -3699,7 +3699,7 @@ static struct clk_regmap t5w_tvfe_clk_sel = {
 		.name = "tvfe_clk_sel",
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = t5w_tvfe_parent_hws,
-		.num_parents = ARRAY_SIZE(t5w_spicc_parent_hws),
+		.num_parents = ARRAY_SIZE(t5w_tvfe_parent_hws),
 	},
 };
 
