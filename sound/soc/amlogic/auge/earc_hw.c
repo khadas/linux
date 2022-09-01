@@ -1395,12 +1395,23 @@ void earctx_enable(struct regmap *top_map,
 					 val << offset);
 		}
 
+		/* first biphase work clear, and then start */
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x1 << 30,
+				 0x1 << 30);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x3 << 28,
+				 0x0);
+
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0x1 << 29, /* afifo out reset */
 				 0x1 << 29);
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0x1 << 28, /* afifo in reset */
 				 0x1 << 28);
+		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
+				 0x1 << 31,
+				 0x1 << 31);
 	} else {
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
 				 0x1 << 30, /* biphase work clear */
@@ -1410,14 +1421,6 @@ void earctx_enable(struct regmap *top_map,
 				 0x3 << 28,
 				 0x0 << 28);
 	}
-
-	mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-			 0x1 << 31,
-			 enable << 31);
-
-	mmio_update_bits(dmac_map, EARC_RX_CMDC_BIPHASE_CTRL1,
-			 0x1 << 30,
-			 enable << 30);
 
 	if (enable)
 		mmio_write(top_map, EARCTX_DMAC_INT_MASK,
