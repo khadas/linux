@@ -40,7 +40,7 @@ void __iomem *sharemem_input_base;
 void __iomem *sharemem_output_base;
 unsigned int efuse_obj_cmd_status;
 
-#define  DEFINE_EFUEKEY_SHOW_ATTR(keyname)	\
+#define  DEFINE_EFUSEKEY_SHOW_ATTR(keyname)	\
 	static ssize_t  keyname##_show(struct class *cla, \
 					  struct class_attribute *attr,	\
 						char *buf)	\
@@ -50,13 +50,13 @@ unsigned int efuse_obj_cmd_status;
 		ret = efuse_user_attr_show(#keyname, buf); \
 		return ret; \
 	}
-DEFINE_EFUEKEY_SHOW_ATTR(mac)
-DEFINE_EFUEKEY_SHOW_ATTR(mac_bt)
-DEFINE_EFUEKEY_SHOW_ATTR(mac_wifi)
-DEFINE_EFUEKEY_SHOW_ATTR(usid)
+DEFINE_EFUSEKEY_SHOW_ATTR(mac)
+DEFINE_EFUSEKEY_SHOW_ATTR(mac_bt)
+DEFINE_EFUSEKEY_SHOW_ATTR(mac_wifi)
+DEFINE_EFUSEKEY_SHOW_ATTR(usid)
 
 #ifndef EFUSE_READ_ONLY
-#define  DEFINE_EFUEKEY_STORE_ATTR(keyname)	\
+#define  DEFINE_EFUSEKEY_STORE_ATTR(keyname)	\
 	static ssize_t  keyname##_store(struct class *cla, \
 					  struct class_attribute *attr,	\
 						const char *buf,	\
@@ -67,10 +67,10 @@ DEFINE_EFUEKEY_SHOW_ATTR(usid)
 		ret = efuse_user_attr_store(#keyname, buf, count); \
 		return ret; \
 	}
-DEFINE_EFUEKEY_STORE_ATTR(mac)
-DEFINE_EFUEKEY_STORE_ATTR(mac_bt)
-DEFINE_EFUEKEY_STORE_ATTR(mac_wifi)
-DEFINE_EFUEKEY_STORE_ATTR(usid)
+DEFINE_EFUSEKEY_STORE_ATTR(mac)
+DEFINE_EFUSEKEY_STORE_ATTR(mac_bt)
+DEFINE_EFUSEKEY_STORE_ATTR(mac_wifi)
+DEFINE_EFUSEKEY_STORE_ATTR(usid)
 #endif
 
 int efuse_getinfo(char *item, struct efusekey_info *info)

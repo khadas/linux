@@ -21,13 +21,13 @@
 #include "security_key.h"
 #include "normal_key.h"
 
-#define SECUESTORAGE_HEAD_SIZE		(256)
-#define SECUESTORAGE_WHOLE_SIZE		(0x40000)
+#define SECURESTORAGE_HEAD_SIZE		(256)
+#define SECURESTORAGE_WHOLE_SIZE		(0x40000)
 
 #undef pr_fmt
 #define pr_fmt(fmt) "unifykey: " fmt
 
-#define SECUREKEY_SIZE		SECUESTORAGE_WHOLE_SIZE
+#define SECUREKEY_SIZE		SECURESTORAGE_WHOLE_SIZE
 
 static DEFINE_MUTEX(securekey_lock);
 u8 *securekey_prebuf;
@@ -40,7 +40,7 @@ struct storagekey_info_t {
 static struct storagekey_info_t storagekey_info = {
 	.buffer = NULL,
 	/* default size */
-	.size = SECUESTORAGE_WHOLE_SIZE,
+	.size = SECURESTORAGE_WHOLE_SIZE,
 };
 
 static struct unifykey_storage_ops ops;
@@ -129,13 +129,13 @@ static s32 _amlkey_init(u8 *seed, u32 len, int encrypt_type)
 				 &actual_size);
 	if (ret) {
 		pr_err("fail to read key data\n");
-		memset(storagekey_info.buffer, 0, SECUESTORAGE_HEAD_SIZE);
+		memset(storagekey_info.buffer, 0, SECURESTORAGE_HEAD_SIZE);
 		goto _out;
 	}
 
 	if (actual_size >= (1U << 20)) {
 		pr_err("really need more than 1M mem? please check\n");
-		memset(storagekey_info.buffer, 0, SECUESTORAGE_HEAD_SIZE);
+		memset(storagekey_info.buffer, 0, SECURESTORAGE_HEAD_SIZE);
 		ret = -EINVAL;
 		goto _out;
 	}
