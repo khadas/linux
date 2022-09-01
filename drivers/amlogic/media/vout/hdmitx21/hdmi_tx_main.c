@@ -325,8 +325,12 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	pr_info("hdmitx hpd state: %d\n", hdev->hpd_state);
 
 	/*force to get EDID after resume for Amplifier Power case*/
-	if (hdev->hpd_state)
+	if (hdev->hpd_state) {
+		/*add i2c soft reset before read EDID */
+		hdev->hwop.cntlddc(hdev, DDC_GLITCH_FILTER_RESET, 0);
+		hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
 		hdmitx_get_edid(hdev);
+	}
 	if (hdev->tv_usage == 0)
 		hdmitx_notify_hpd(hdev->hpd_state,
 			  hdev->edid_parsing ?

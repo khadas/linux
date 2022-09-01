@@ -376,8 +376,13 @@ static void hdmitx_late_resume(struct early_suspend *h)
 	pr_info("hdmitx hpd state: %d\n", hdev->hpd_state);
 
 	/*force to get EDID after resume for Amplifier Power case*/
-	if (hpd_state)
+	if (hpd_state) {
+		/*add i2c soft reset before read EDID */
+		hdev->hwop.cntlddc(hdev, DDC_GLITCH_FILTER_RESET, 0);
+		if (hdev->data->chip_type >= MESON_CPU_ID_G12A)
+			hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
 		hdmitx_get_edid(hdev);
+	}
 	hdmitx_notify_hpd(hpd_state,
 			  hdev->edid_parsing ?
 			  hdev->edid_ptr : NULL);
