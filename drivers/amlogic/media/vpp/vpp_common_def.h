@@ -15,6 +15,7 @@
 #define VPP_HIST_BIN_COUNT        (64)
 #define VPP_COLOR_HIST_BIN_COUNT  (32)
 #define VPP_HDR_HIST_BIN_COUNT    (128)
+#define VPP_COLOR_PRIMARY_LEN     (8)
 
 #define VPP_DNLP_SCURV_LEN             (65)
 #define VPP_DNLP_GAIN_VAR_LUT_LEN      (49)
@@ -53,14 +54,12 @@ enum vpp_module_e {
 	EN_MODULE_PREGAMMA,
 	EN_MODULE_GAMMA,
 	EN_MODULE_WB,
-	EN_MODULE_DNLP,
+	EN_MODULE_DNLP,     /*5*/
 	EN_MODULE_CCORING,
 	EN_MODULE_SR0,
-	EN_MODULE_SR0_DNLP,
 	EN_MODULE_SR1,
-	EN_MODULE_SR1_DNLP,
 	EN_MODULE_LC,
-	EN_MODULE_CM,
+	EN_MODULE_CM,       /*10*/
 	EN_MODULE_BLE,
 	EN_MODULE_BLS,
 	EN_MODULE_LUT3D,
@@ -171,6 +170,7 @@ enum vpp_csc_type_e {
 	EN_CSC_MATRIX_BT2020YUV_BT2020RGB = 0x40,
 	EN_CSC_MATRIX_BT2020RGB_709RGB,
 	EN_CSC_MATRIX_BT2020RGB_CUSRGB,
+	EN_CSC_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC = 0x50,
 	EN_CSC_MATRIX_DEFAULT_CSCTYPE     = 0xffff,
 };
 
@@ -249,6 +249,13 @@ enum vpp_dnlp_param_e {
 	EN_DNLP_MVREFLSH_OFFSET,
 	EN_DNLP_LUMA_AVG_TH,
 	EN_DNLP_PARAM_MAX,
+};
+
+enum vpp_cm_curve_type_e {
+	EN_CM_LUMA = 0,
+	EN_CM_SAT,
+	EN_CM_HUE,
+	EN_CM_HUE_BY_HS,
 };
 
 enum vpp_lut3d_data_type_e {
@@ -337,6 +344,43 @@ enum vpp_data_src_e {
 };
 
 /*Settings index sync*/
+enum vpp_ble_param_e {
+	EN_BLE_START = 0,
+	EN_BLE_SLOPE1,
+	EN_BLE_MIDPT,
+	EN_BLE_SLOPE2,
+	EN_BLE_PARAM_MAX,
+};
+
+enum vpp_ccoring_param_e {
+	EN_CC_SLOPE = 0,
+	EN_CC_TH,
+	EN_CC_BYPASS_YTH,
+	EN_CC_PARAM_MAX,
+};
+
+enum vpp_bls_param_e {
+	EN_BLS_EN_SEL = 0,
+	EN_BLS_CB_INC,
+	EN_BLS_CR_INC,
+	EN_BLS_GAIN,
+	EN_BLS_GAIN_CB4CR,
+	EN_BLS_LUMA_HIGH,   /*5*/
+	EN_BLS_ERR_CRP,
+	EN_BLS_ERR_SIGN3,
+	EN_BLS_ERR_CRP_INV,
+	EN_BLS_ERR_CRN,
+	EN_BLS_ERR_SIGN2,   /*10*/
+	EN_BLS_ERR_CRN_INV,
+	EN_BLS_ERR_CBP,
+	EN_BLS_ERR_SIGN1,
+	EN_BLS_ERR_CBP_INV,
+	EN_BLS_ERR_CBN,     /*15*/
+	EN_BLS_ERR_SIGN0,
+	EN_BLS_ERR_CBN_INV,
+	EN_BLS_PARAM_MAX,
+};
+
 enum vpp_lc_param_e {
 	EN_LC_CURVE_NODES_VLPF = 0,
 	EN_LC_CURVE_NODES_HLPF,
@@ -1237,10 +1281,10 @@ enum vpp_sr_param_e {
 };
 
 /*Commom struct*/
-struct vpp_pq_ctrl_s {
-	unsigned char vadj1_en;    /*control video brightness contrast saturation hue*/
+struct vpp_pq_en_ctrl_s {
+	unsigned char vadj1_en; /*control video brightness contrast saturation hue*/
 	unsigned char vd1_ctrst_en;
-	unsigned char vadj2_en;    /*control video+osd brightness contrast saturation hue*/
+	unsigned char vadj2_en; /*control video+osd brightness contrast saturation hue*/
 	unsigned char post_ctrst_en;
 	unsigned char pregamma_en;
 	unsigned char gamma_en;
@@ -1258,7 +1302,7 @@ struct vpp_pq_ctrl_s {
 
 struct vpp_pq_state_s {
 	int pq_en;
-	struct vpp_pq_ctrl_s pq_cfg;
+	struct vpp_pq_en_ctrl_s pq_cfg;
 };
 
 struct vpp_white_balance_s {
@@ -1313,19 +1357,23 @@ struct vpp_histgm_param_s {
 	unsigned int sat_histgm[VPP_COLOR_HIST_BIN_COUNT];
 };
 
+struct vpp_hdr_histgm_param_s {
+	unsigned int data_rgb_max[VPP_HDR_HIST_BIN_COUNT];
+};
+
 /*master_display_info for display device*/
 struct vpp_hdr_metadata_s {
-	u32 primaries[3][2]; /*normalized 50000 in G,B,R order*/
-	u32 white_point[2];  /*normalized 50000*/
-	u32 luminance[2];    /*max/min luminance, normalized 10000*/
+	unsigned int primaries[3][2]; /*normalized 50000 in G,B,R order*/
+	unsigned int white_point[2];  /*normalized 50000*/
+	unsigned int luminance[2];    /*max/min luminance, normalized 10000*/
 };
 
 struct vpp_hdr_lut_s {
 	enum vpp_hdr_lut_type_e lut_type;
-	unsigned int lut_length;
+	unsigned int lut_size;
 	union {
-		void *tm_lut;
-		long long tm_lut_len;
+		int *lut_data;
+		long long lut_len;
 	};
 };
 
@@ -1374,6 +1422,18 @@ struct vpp_lc_curve_s {
 	unsigned int lc_ypkbv_ratio[4];
 };
 
+struct vpp_ble_param_s {
+	unsigned int param[EN_BLE_PARAM_MAX];
+};
+
+struct vpp_cc_param_s {
+	unsigned int param[EN_CC_PARAM_MAX];
+};
+
+struct vpp_bls_param_s {
+	unsigned int param[EN_BLS_PARAM_MAX];
+};
+
 struct vpp_lc_param_s {
 	unsigned int param[EN_LC_PARAM_MAX];
 };
@@ -1387,7 +1447,7 @@ struct vpp_sharpness1_param_s {
 };
 
 struct vpp_sr_param_s {
-	unsigned char mode; /*0=Sharpness0, 1=Sharpness1*/
+	unsigned char mode; /*0=sharpness0, 1=sharpness1*/
 	unsigned int param[EN_SR_PARAM_MAX];
 };
 
@@ -1457,6 +1517,12 @@ struct vpp_dnlp_curve_param_s {
 	unsigned int param[EN_DNLP_PARAM_MAX];
 };
 
+struct vpp_cm_curve_s {
+	enum vpp_cm_curve_type_e curve_type;
+	unsigned int data_size;
+	void *pdata;
+};
+
 struct vpp_lut3d_path_s {
 	enum vpp_lut3d_data_type_e data_type;
 	unsigned char data_count;
@@ -1469,12 +1535,31 @@ struct vpp_lut3d_table_s {
 	unsigned char data_index;
 	unsigned char data_check;
 	unsigned int data_size;
-	unsigned int *pdata;
+	int *pdata;
+};
+
+struct vpp_aipq_table_s {
+	unsigned int height;
+	unsigned int width;
+	union {
+		void *table_ptr;
+		long long table_len;
+	};
+};
+
+struct vpp_eye_protect_s {
+	bool enable;
+	int rgb[EN_MODE_RGB_MAX];
 };
 
 struct vpp_module_ctrl_s {
 	enum vpp_module_e module_type;
-	int status;
+	bool status;
+};
+
+struct vpp_color_primary_s {/*R/G/B/W (x,y)*50000*/
+	unsigned int data_src[VPP_COLOR_PRIMARY_LEN];
+	unsigned int data_dest[VPP_COLOR_PRIMARY_LEN];
 };
 
 struct vpp_pq_tuning_reg_s {
@@ -1525,6 +1610,15 @@ struct vpp_pq_tuning_table_s {
 #define VPP_IOC_SET_HDR_EOTF        _IOW(_VPP_TYPE, 0x18, struct vpp_hdr_lut_s)
 #define VPP_IOC_SET_HDR_CGAIN       _IOW(_VPP_TYPE, 0x19, struct vpp_hdr_lut_s)
 
+#define VPP_IOC_SET_CM_CURVE        _IOW(_VPP_TYPE, 0x1a, struct vpp_cm_curve_s)
+#define VPP_IOC_SET_CM_OFFSET_CURVE _IOW(_VPP_TYPE, 0x1b, struct vpp_cm_curve_s)
+
+#define VPP_IOC_SET_EYE_PROTECT     _IOW(_VPP_TYPE, 0x1c, struct vpp_eye_protect_s)
+#define VPP_IOC_SET_AIPQ_TABLE      _IOW(_VPP_TYPE, 0x1d, struct vpp_aipq_table_s)
+
+#define VPP_IOC_SET_COLOR_PRIMARY_STATUS _IOW(_VPP_TYPE, 0x1e, int)
+#define VPP_IOC_SET_COLOR_PRIMARY   _IOW(_VPP_TYPE, 0x1f, struct vpp_color_primary_s)
+
 #define VPP_IOC_GET_PC_MODE         _IOR(_VPP_TYPE, 0x80, enum vpp_pc_mode_e)
 #define VPP_IOC_GET_CSC_TYPE        _IOR(_VPP_TYPE, 0x81, enum vpp_csc_type_e)
 #define VPP_IOC_GET_HDR_TYPE        _IOR(_VPP_TYPE, 0x82, enum vpp_hdr_type_e)
@@ -1533,6 +1627,7 @@ struct vpp_pq_tuning_table_s {
 #define VPP_IOC_GET_HIST_AVG        _IOR(_VPP_TYPE, 0x85, struct vpp_histgm_ave_s)
 #define VPP_IOC_GET_HIST_BIN        _IOR(_VPP_TYPE, 0x86, struct vpp_histgm_param_s)
 #define VPP_IOC_GET_PQ_STATE        _IOR(_VPP_TYPE, 0x87, struct vpp_pq_state_s)
+#define VPP_IOC_GET_HDR_HIST        _IOR(_VPP_TYPE, 0x88, struct vpp_hdr_histgm_param_s)
 
 #endif
 

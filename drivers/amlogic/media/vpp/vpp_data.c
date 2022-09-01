@@ -944,6 +944,7 @@ static void _update_data_page_reg(struct vpp_pq_tuning_page_s *pdata)
 				tmp = pcur_page->reg[j].val;
 				tmp = vpp_insert_int(tmp, pcur_reg->val, start, len);
 				pcur_page->reg[j].val = tmp;
+				pcur_page->reg[j].update = 1;
 				break;
 			}
 		}
@@ -966,6 +967,9 @@ static void _write_data_table(enum vpp_page_module_e module,
 		return;
 
 	for (i = 0; i < pq_table[module].count; i++) {
+		if (!pq_table[module].page[index].reg[i].update)
+			continue;
+
 		val = pq_table[module].page[index].reg[i].val;
 		mask_index = pq_table[module].page[index].reg[i].mask_type;
 		val &= mask_list[mask_index];
@@ -975,6 +979,8 @@ static void _write_data_table(enum vpp_page_module_e module,
 		tmp = READ_VPP_REG_BY_MODE(EN_MODE_DIR, addr);
 		val |= tmp & (~mask_list[mask_index]);
 		WRITE_VPP_REG_BY_MODE(EN_MODE_RDMA, addr, val);
+
+		pq_table[module].page[index].reg[i].update = 0;
 	}
 }
 

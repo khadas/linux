@@ -16,6 +16,8 @@ struct _vadj_bit_cfg_s {
 	struct _bit_s bit_vadj2_ctrl_en;
 	struct _bit_s bit_vadj_brightness;
 	struct _bit_s bit_vadj_contrast;
+	struct _bit_s bit_vd1_rgbbst_en;
+	struct _bit_s bit_post_rgbbst_en;
 };
 
 struct _vadj_reg_cfg_s {
@@ -28,6 +30,8 @@ struct _vadj_reg_cfg_s {
 	unsigned char reg_vadj2_y;
 	unsigned char reg_vadj2_ma_mb;
 	unsigned char reg_vadj2_mc_md;
+	unsigned char reg_vd1_rgb_ctrst;
+	unsigned char reg_post_rgb_ctrst;
 };
 
 /*Default table from T3*/
@@ -40,14 +44,18 @@ static struct _vadj_reg_cfg_s vadj_reg_cfg = {
 	0xa0,
 	0xa2,
 	0xa3,
-	0xa4
+	0xa4,
+	0x89,
+	0xa9,
 };
 
 static struct _vadj_bit_cfg_s vadj_bit_cfg = {
 	{0, 1},
 	{0, 1},
 	{8, 11},
-	{0, 8}
+	{0, 8},
+	{1, 1},
+	{1, 1},
 };
 
 /*For ai pq*/
@@ -186,6 +194,31 @@ int vpp_module_vadj_post_en(bool enable)
 {
 	return _set_vadj_ctrl(EN_MODE_VADJ_02, enable,
 		vadj_bit_cfg.bit_vadj2_ctrl_en.start, vadj_bit_cfg.bit_vadj2_ctrl_en.len);
+}
+
+void vpp_module_vadj_set_param(enum vadj_param_e index, int val)
+{
+	unsigned int addr = 0;
+	unsigned char start = 0;
+	unsigned char len = 0;
+	enum io_mode_e io_mode = EN_MODE_DIR;
+
+	switch (index) {
+	case EN_VADJ_VD1_RGBBST_EN:
+		addr = ADDR_PARAM(vadj_reg_cfg.page, vadj_reg_cfg.reg_vd1_rgb_ctrst);
+		start = vadj_bit_cfg.bit_vd1_rgbbst_en.start;
+		len = vadj_bit_cfg.bit_vd1_rgbbst_en.len;
+		break;
+	case EN_VADJ_POST_RGBBST_EN:
+		addr = ADDR_PARAM(vadj_reg_cfg.page, vadj_reg_cfg.reg_post_rgb_ctrst);
+		start = vadj_bit_cfg.bit_post_rgbbst_en.start;
+		len = vadj_bit_cfg.bit_post_rgbbst_en.len;
+		break;
+	default:
+		return;
+	}
+
+	WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val, start, len);
 }
 
 int vpp_module_vadj_set_brightness(int val)

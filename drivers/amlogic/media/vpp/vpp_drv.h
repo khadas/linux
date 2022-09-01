@@ -112,6 +112,7 @@ struct vpp_dev_s {
 	unsigned int virq_cnt;
 	struct resource *res_lc_irq; /*lc curve irq*/
 	unsigned int lcirq_cnt;
+	int lcisr_defined;
 
 	spinlock_t isr_lock;/*isr lock*/
 	struct mutex lut3d_lock;

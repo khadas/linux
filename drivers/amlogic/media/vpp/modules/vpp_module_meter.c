@@ -224,7 +224,7 @@ void vpp_module_meter_fetch_hist_report(void)
 	for (i = 0; i < DNLP_HIST_CNT; i++) {
 		addr = ADDR_PARAM(hist_reg_cfg.page, hist_reg_cfg.reg_hist_dnlp[i]);
 		tmp = READ_VPP_REG_BY_MODE(io_mode, addr);
-		vpp_hist_report.gamma[i] = (unsigned short)vpp_mask_int(tmp,
+		vpp_hist_report.gamma[i * 2] = (unsigned short)vpp_mask_int(tmp,
 			hist_bit_cfg.bit_hist_dnlp_data0.start,
 			hist_bit_cfg.bit_hist_dnlp_data0.len);
 		vpp_hist_report.gamma[i * 2 + 1] = (unsigned short)vpp_mask_int(tmp,

@@ -68,7 +68,7 @@ static int dnlp_reg_def_16p[16] = {
 };
 
 /*Algorithm related*/
-static int pre_satur;
+static int pre_sat;
 static bool dnlp_alg_insmod_ok;
 static struct dnlp_alg_s *pdnlp_alg_function;
 static struct dnlp_alg_input_param_s *pdnlp_alg_input;
@@ -81,6 +81,126 @@ static struct dnlp_dbg_print_s *pdnlp_dbg_printk;
 /*For ai pq*/
 static struct dnlp_ai_pq_param_s dnlp_ai_pq_offset;
 static struct dnlp_ai_pq_param_s dnlp_ai_pq_base;
+
+/*For debug*/
+struct dnlp_dbg_parse_cmd_s dnlp_dbg_parse_cmd[] = {
+	{"alg_enable", NULL, 1},
+	{"respond", NULL, 1},
+	{"sel", NULL, 1},
+	{"respond_flag", NULL, 1},
+	{"smhist_ck", NULL, 1},
+	{"mvreflsh", NULL, 1},
+	{"pavg_btsft", NULL, 1},
+	{"dbg_i2r", NULL, 1},
+	{"cuvbld_min", NULL, 1},
+	{"cuvbld_max", NULL, 1},
+	{"schg_sft", NULL, 1},
+	{"bbd_ratio_low", NULL, 1},
+	{"bbd_ratio_hig", NULL, 1},
+	{"limit_rng", NULL, 1},
+	{"range_det", NULL, 1},
+	{"blk_cctr", NULL, 1},
+	{"brgt_ctrl", NULL, 1},
+	{"brgt_range", NULL, 1},
+	{"brght_add", NULL, 1},
+	{"brght_max", NULL, 1},
+	{"dbg_adjavg", NULL, 1},
+	{"auto_rng", NULL, 1},
+	{"lowrange", NULL, 1},
+	{"hghrange", NULL, 1},
+	{"satur_rat", NULL, 1},
+	{"satur_max", NULL, 1},
+	{"set_saturtn", NULL, 1},
+	{"sbgnbnd", NULL, 1},
+	{"sendbnd", NULL, 1},
+	/*{"clashBgn", NULL, 1},*/
+	/*{"clashEnd", NULL, 1},*/
+	{"var_th", NULL, 1},
+	{"clahe_gain_neg", NULL, 1},
+	{"clahe_gain_pos", NULL, 1},
+	{"clahe_gain_delta", NULL, 1},
+	{"mtdbld_rate", NULL, 1},
+	{"adpmtd_lbnd", NULL, 1},
+	{"adpmtd_hbnd", NULL, 1},
+	{"blkext_ofst", NULL, 1},
+	{"whtext_ofst", NULL, 1},
+	{"blkext_rate", NULL, 1},
+	{"whtext_rate", NULL, 1},
+	{"bwext_div4x_min", NULL, 1},
+	/*{"iRgnBgn", NULL, 1},*/
+	/*{"iRgnEnd", NULL, 1},*/
+	{"dbg_map", NULL, 1},
+	{"final_gain", NULL, 1},
+	{"cliprate_v3", NULL, 1},
+	{"cliprate_min", NULL, 1},
+	{"adpcrat_lbnd", NULL, 1},
+	{"adpcrat_hbnd", NULL, 1},
+	{"scurv_low_th", NULL, 1},
+	{"scurv_mid1_th", NULL, 1},
+	{"scurv_mid2_th", NULL, 1},
+	{"scurv_hgh1_th", NULL, 1},
+	{"scurv_hgh2_th", NULL, 1},
+	{"mtdrate_adp_en", NULL, 1},
+	{"clahe_method", NULL, 1},
+	{"ble_en", NULL, 1},
+	{"norm", NULL, 1},
+	{"scn_chg_th", NULL, 1},
+	{"step_th", NULL, 1},
+	{"iir_step_mux", NULL, 1},
+	{"single_bin_bw", NULL, 1},
+	{"single_bin_method", NULL, 1},
+	{"reg_max_slop_1st", NULL, 1},
+	{"reg_max_slop_mid", NULL, 1},
+	{"reg_max_slop_fin", NULL, 1},
+	{"reg_min_slop_1st", NULL, 1},
+	{"reg_min_slop_mid", NULL, 1},
+	{"reg_min_slop_fin", NULL, 1},
+	{"reg_trend_wht_expand_mode", NULL, 1},
+	{"reg_trend_blk_expand_mode", NULL, 1},
+	{"ve_hist_cur_gain", NULL, 1},
+	{"ve_hist_cur_gain_precise", NULL, 1},
+	{"reg_mono_binrang_st", NULL, 1},
+	{"reg_mono_binrang_ed", NULL, 1},
+	{"c_hist_gain_base", NULL, 1},
+	{"s_hist_gain_base", NULL, 1},
+	{"mvreflsh_offset", NULL, 1},
+	{"luma_avg_th", NULL, 1},
+	{"", NULL, 0}
+};
+
+struct dnlp_dbg_parse_cmd_s dnlp_dbg_parse_ro_cmd[] = {
+	{"luma_avg4", NULL, 1},
+	{"var_d8", NULL, 1},
+	{"scurv_gain", NULL, 1},
+	{"blk_wht_ext0", NULL, 1},
+	{"blk_wht_ext1", NULL, 1},
+	{"dnlp_brightness", NULL, 1},
+	{"", NULL, 0}
+};
+
+struct dnlp_dbg_parse_cmd_s dnlp_dbg_parse_cv_cmd[] = {
+	{"scurv_low", NULL, VPP_DNLP_SCURV_LEN},
+	{"scurv_mid1", NULL, VPP_DNLP_SCURV_LEN},
+	{"scurv_mid2", NULL, VPP_DNLP_SCURV_LEN},
+	{"scurv_hgh1", NULL, VPP_DNLP_SCURV_LEN},
+	{"scurv_hgh2", NULL, VPP_DNLP_SCURV_LEN},
+	{"gain_var_lut49", NULL, VPP_DNLP_GAIN_VAR_LUT_LEN},
+	{"c_hist_gain", NULL, VPP_DNLP_HIST_GAIN_LEN},
+	{"s_hist_gain", NULL, VPP_DNLP_HIST_GAIN_LEN},
+	{"wext_gain", NULL, VPP_DNLP_WEXT_GAIN_LEN},
+	{"adp_thrd", NULL, VPP_DNLP_ADP_THRD_LEN},
+	{"reg_blk_boost_12", NULL, VPP_DNLP_REG_BLK_BOOST_LEN},
+	{"reg_adp_ofset_20", NULL, VPP_DNLP_REG_ADP_OFSET_LEN},
+	{"reg_mono_protect", NULL, VPP_DNLP_REG_MONO_PROT_LEN},
+	{"reg_trend_wht_expand_lut8", NULL, VPP_DNLP_TREND_WHT_EXP_LUT_LEN},
+	{"ve_dnlp_tgt", NULL, VPP_DNLP_SCURV_LEN},
+	{"ve_dnlp_tgt_10b", NULL, VPP_DNLP_SCURV_LEN},
+	/*{"GmScurve", NULL, VPP_DNLP_SCURV_LEN},*/
+	{"clash_curve", NULL, VPP_DNLP_SCURV_LEN},
+	{"clsh_scvbld", NULL, VPP_DNLP_SCURV_LEN},
+	{"blkwht_ebld", NULL, VPP_DNLP_SCURV_LEN},
+	{"", NULL, 0}
+};
 
 /*Internal functions*/
 static void _set_dnlp_ctrl(enum _dnlp_mode_e mode, int val,
@@ -234,21 +354,21 @@ void _calculate_dnlp_sat_compensation(bool *psat_comp, int *psat_val)
 	tmp1 = MIN(tmp0, tmp);
 
 	if (set_saturtn == 0) {
-		if (tmp1 != pre_satur) {
+		if (tmp1 != pre_sat) {
 			do_comp = true;
 			val = tmp1 + 512;
-			pre_satur = tmp1;
+			pre_sat = tmp1;
 		} else {
 			do_comp = false;
 		}
 	} else {
-		if (pre_satur != set_saturtn) {
+		if (pre_sat != set_saturtn) {
 			do_comp = true;
 			if (set_saturtn < 512)
 				val = set_saturtn + 512;
 			else
 				val = set_saturtn;
-			pre_satur = set_saturtn;
+			pre_sat = set_saturtn;
 		} else {
 			do_comp = false;
 		}
@@ -272,6 +392,124 @@ static void _init_dnlp_data(int *pluma_sum,
 		ptgt_data_10b[i] = i << 4;
 		plpf_data[i] = ptgt_data[i] << dnlp_rt;
 	}
+}
+
+static void _dnlp_debug_init(void)
+{
+	int i = 0;
+
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_alg_enable;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_respond;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_sel;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_respond_flag;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_smhist_ck;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_mvreflsh;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_pavg_btsft;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_dbg_i2r;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_cuvbld_min;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_cuvbld_max;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_schg_sft;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_bbd_ratio_low;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_bbd_ratio_hig;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_limit_rng;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_range_det;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_blk_cctr;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_brgt_ctrl;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_brgt_range;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_brght_add;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_brght_max;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_dbg_adjavg;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_auto_rng;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_lowrange;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_hghrange;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_hghrange;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_satur_rat;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_satur_max;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_set_saturtn;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_sbgnbnd;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_sendbnd;
+	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clashBgn;*/
+	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clashEnd;*/
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_var_th;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clahe_gain_neg;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clahe_gain_pos;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clahe_gain_delta;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_mtdbld_rate;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_adpmtd_lbnd;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_adpmtd_hbnd;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_blkext_ofst;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_whtext_ofst;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_blkext_rate;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_whtext_rate;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_bwext_div4x_min;
+	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_iRgnBgn;*/
+	/*dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_iRgnEnd;*/
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_dbg_map;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_final_gain;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_cliprate_v3;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_cliprate_min;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_adpcrat_lbnd;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_adpcrat_hbnd;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_scurv_low_th;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_scurv_mid1_th;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_scurv_mid2_th;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_scurv_hgh1_th;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_scurv_hgh2_th;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_mtdrate_adp_en;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_clahe_method;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_ble_en;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_norm;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_scn_chg_th;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_step_th;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_iir_step_mux;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_single_bin_bw;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_single_bin_method;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_max_slop_1st;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_max_slop_mid;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_max_slop_fin;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_min_slop_1st;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_min_slop_mid;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_min_slop_fin;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_trend_wht_expand_mode;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_trend_blk_expand_mode;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_ve_hist_cur_gain;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_ve_hist_cur_gain_precise;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_mono_binrang_st;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_reg_mono_binrang_ed;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_c_hist_gain_base;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_s_hist_gain_base;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_mvreflsh_offset;
+	dnlp_dbg_parse_cmd[i++].value = &pdnlp_alg_node_param->dnlp_luma_avg_th;
+
+	i = 0;
+	dnlp_dbg_parse_ro_cmd[i++].value = pdnlp_dbg_ro_param->ro_luma_avg4;
+	dnlp_dbg_parse_ro_cmd[i++].value = pdnlp_dbg_ro_param->ro_var_d8;
+	dnlp_dbg_parse_ro_cmd[i++].value = pdnlp_dbg_ro_param->ro_scurv_gain;
+	dnlp_dbg_parse_ro_cmd[i++].value = pdnlp_dbg_ro_param->ro_blk_wht_ext0;
+	dnlp_dbg_parse_ro_cmd[i++].value = pdnlp_dbg_ro_param->ro_blk_wht_ext1;
+	dnlp_dbg_parse_ro_cmd[i++].value = pdnlp_dbg_ro_param->ro_dnlp_brightness;
+
+	i = 0;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->dnlp_scurv_low;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->dnlp_scurv_mid1;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->dnlp_scurv_mid2;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->dnlp_scurv_hgh1;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->dnlp_scurv_hgh2;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->gain_var_lut49;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->c_hist_gain;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->s_hist_gain;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->wext_gain;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->adp_thrd;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->reg_blk_boost_12;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->reg_adp_ofset_20;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->reg_mono_protect;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_rw_param->reg_trend_wht_expand_lut8;
+	dnlp_dbg_parse_cv_cmd[i++].value = NULL;/*pdnlp_alg_output->ve_dnlp_tgt;*/
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_alg_output->ve_dnlp_tgt_10b;
+	/*dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->GmScurve;*/
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->clash_curve;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->clsh_scvbld;
+	dnlp_dbg_parse_cv_cmd[i++].value = pdnlp_dbg_ro_param->blkwht_ebld;
 }
 
 static void _dnlp_algorithm_init(void)
@@ -367,6 +605,8 @@ static void _dnlp_algorithm_init(void)
 
 		dnlp_alg_insmod_ok = true;
 		PR_DRV("%s: is OK\n", __func__);
+
+		_dnlp_debug_init();
 	} else {
 		PR_DRV("%s: pdnlp_alg_function is NULL\n", __func__);
 	}
@@ -418,7 +658,7 @@ int vpp_module_dnlp_init(struct vpp_dev_s *pdev)
 		cur_mode = EN_MODE_DNLP_VPP;
 	}
 
-	pre_satur = 0;
+	pre_sat = 0;
 
 	memset(&dnlp_ai_pq_offset, 0, sizeof(dnlp_ai_pq_offset));
 	dnlp_ai_pq_base.final_gain = 8;
@@ -673,6 +913,26 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 		&dnlp_lpf[0]);
 	_calculate_dnlp_reg(&dnlp_lpf[0], &dnlp_reg[0]);
 	_set_dnlp_data(cur_mode, &dnlp_reg[0]);
+}
+
+bool vpp_module_dnlp_get_insmod_status(void)
+{
+	return dnlp_alg_insmod_ok;
+}
+
+struct dnlp_dbg_parse_cmd_s *vpp_module_dnlp_get_dbg_info(void)
+{
+	return &dnlp_dbg_parse_cmd[0];
+}
+
+struct dnlp_dbg_parse_cmd_s *vpp_module_dnlp_get_dbg_ro_info(void)
+{
+	return &dnlp_dbg_parse_ro_cmd[0];
+}
+
+struct dnlp_dbg_parse_cmd_s *vpp_module_dnlp_get_dbg_cv_info(void)
+{
+	return &dnlp_dbg_parse_cv_cmd[0];
 }
 
 /*For ai pq*/

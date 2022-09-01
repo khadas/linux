@@ -6,6 +6,7 @@
 #include "vpp_common.h"
 #include "vpp_pq_mgr.h"
 #include "vpp_modules_inc.h"
+#include "vpp_vf_proc.h"
 #include "vpp_data.h"
 
 #define RET_POINT_FAIL (-1)
@@ -27,6 +28,9 @@ static int _modules_init(struct vpp_dev_s *pdev)
 	vpp_module_meter_init(pdev);
 	vpp_module_ve_init(pdev);
 	vpp_module_dnlp_init(pdev);
+	vpp_module_lc_init(pdev);
+	vpp_module_cm_init(pdev);
+	vpp_module_sr_init(pdev);
 
 	return 0;
 }
@@ -87,9 +91,123 @@ static int _get_mab_from_sat_hue(int sat_val, int hue_val)
 	return mab;
 }
 
+static void _set_pq_bypass_all(bool enable)
+{
+	pr_vpp(PR_DEBUG, "[%s] pq_bypass_all = %d\n", __func__, enable);
+}
+
+static void _mtrx_mul_mtrx(int (*mtrx_a)[3], int (*mtrx_b)[3], int (*mtrx_out)[3])
+{
+	int i, j, k;
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++) {
+			mtrx_out[i][j] = 0;
+			for (k = 0; k < 3; k++)
+				mtrx_out[i][j] += mtrx_a[i][k] * mtrx_b[k][j];
+		}
+	}
+
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++)
+			mtrx_out[i][j] = (mtrx_out[i][j] + (1 << 9)) >> 10;
+	}
+}
+
+static void _mtrx_multi(int *rgb, int *coef)
+{
+	int i, j, k;
+	int mtrx_rgb[3][3] = {0};
+	int mtrx_in[3][3] = {0};
+	int mtrx_out[3][3] = {0};
+
+	int mtrx_rgbto709l[3][3] = {
+		{187, 629, 63},
+		{-103, -346, 450},
+		{450, -409, -41},
+	};
+	int mtrx_709ltorgb[3][3] = {
+		{1192, 0, 1836},
+		{1192, -218, -547},
+		{1192, 2166, 0},
+	};
+
+	if (!rgb || !coef)
+		return;
+
+	mtrx_in[0][0] = rgb[0];
+	mtrx_in[1][1] = rgb[1];
+	mtrx_in[2][2] = rgb[2];
+
+	if (mtrx_in[0][0] == 0x400 &&
+		mtrx_in[1][1] == 0x400 &&
+		mtrx_in[2][2] == 0x400) {
+		for (i = 0; i < 3; i++) {
+			for (j = 0; j < 3; j++) {
+				if (i == j)
+					mtrx_out[i][j] = 0x400;
+				else
+					mtrx_out[i][j] = 0;
+			}
+		}
+	} else {
+		_mtrx_mul_mtrx(mtrx_in, mtrx_709ltorgb, mtrx_rgb);
+		_mtrx_mul_mtrx(mtrx_rgbto709l, mtrx_rgb, mtrx_out);
+	}
+
+	k = 0;
+	for (i = 0; i < 3; i++) {
+		for (j = 0; j < 3; j++) {
+			coef[k] = mtrx_out[i][j];
+			k++;
+			pr_vpp(PR_DEBUG, "[%s] mtrx_out[%d][%d] = 0x%x\n",
+				__func__, i, j, mtrx_out[i][j]);
+		}
+	}
+}
+
+static void _str_sapr_to_d(char *s, int *d, int n)
+{
+	int i, j, count;
+	long value;
+	char des[9] = {0};
+
+	count = (strlen(s) + n - 2) / (n - 1);
+	for (i = 0; i < count; i++) {
+		for (j = 0; j < n - 1; j++)
+			des[j] = s[j + i * (n - 1)];
+		des[n - 1] = '\0';
+
+		if (kstrtol(des, 10, &value) < 0)
+			return;
+
+		d[i] = value;
+	}
+}
+
+#ifdef CONFIG_AMLOGIC_LCD
+static int _lcd_gamma_notifier(struct notifier_block *nb,
+	unsigned long event, void *data)
+{
+	if ((event & LCD_EVENT_GAMMA_UPDATE) == 0)
+		return NOTIFY_DONE;
+
+	vpp_module_gamma_set_viu_sel(*(int *)data);
+	vpp_module_lcd_gamma_notify();
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block nb_lcd_gamma = {
+	.notifier_call = _lcd_gamma_notifier,
+};
+#endif
+
 /*External functions*/
 int vpp_pq_mgr_init(struct vpp_dev_s *pdev)
 {
+	int ret = 0;
+
 	chip_type = pdev->pm_data->chip_id;
 
 	memset(&pq_mgr_settings, 0, sizeof(struct vpp_pq_mgr_settings));
@@ -99,13 +217,56 @@ int vpp_pq_mgr_init(struct vpp_dev_s *pdev)
 
 	lut3d_db_initial = false;
 
-	return 0;
+#ifdef CONFIG_AMLOGIC_LCD
+	ret = aml_lcd_notifier_register(&nb_lcd_gamma);
+	if (ret)
+		PR_DRV("register aml_lcd_gamma_notifier failed\n");
+#endif
+
+	return ret;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_init);
 
+void vpp_pq_mgr_deinit(void)
+{
+#ifdef CONFIG_AMLOGIC_LCD
+	aml_lcd_notifier_unregister(&nb_lcd_gamma);
+#endif
+}
+EXPORT_SYMBOL(vpp_pq_mgr_deinit);
+
 int vpp_pq_mgr_set_status(struct vpp_pq_state_s *pstatus)
 {
-	return 0;
+	int ret = 0;
+
+	if (!pstatus)
+		return RET_POINT_FAIL;
+
+	memcpy(&pq_mgr_settings.pq_status, pstatus, sizeof(struct vpp_pq_state_s));
+
+	pr_vpp(PR_DEBUG, "[%s] pq_en = %d\n", __func__, pstatus->pq_en);
+
+	if (!pstatus->pq_en) {
+		_set_pq_bypass_all(true);
+	} else {
+		vpp_module_vadj_en(pstatus->pq_cfg.vadj1_en);
+		vpp_module_vadj_post_en(pstatus->pq_cfg.vadj2_en);
+		vpp_module_vadj_set_param(EN_VADJ_VD1_RGBBST_EN, pstatus->pq_cfg.vd1_ctrst_en);
+		vpp_module_vadj_set_param(EN_VADJ_POST_RGBBST_EN, pstatus->pq_cfg.post_ctrst_en);
+		vpp_module_pre_gamma_en(pstatus->pq_cfg.pregamma_en);
+		vpp_module_lcd_gamma_en(pstatus->pq_cfg.gamma_en);
+		vpp_module_go_en(pstatus->pq_cfg.wb_en);
+		vpp_module_dnlp_en(pstatus->pq_cfg.dnlp_en);
+		vpp_module_lc_en(pstatus->pq_cfg.lc_en);
+		vpp_module_ve_blkext_en(pstatus->pq_cfg.black_ext_en);
+		vpp_module_ve_ccoring_en(pstatus->pq_cfg.chroma_cor_en);
+		vpp_module_sr_en(EN_MODE_SR_0, pstatus->pq_cfg.sharpness0_en);
+		vpp_module_sr_en(EN_MODE_SR_1, pstatus->pq_cfg.sharpness1_en);
+		vpp_module_cm_en(pstatus->pq_cfg.cm_en);
+		vpp_module_lut3d_en(pstatus->pq_cfg.lut3d_en);
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_status);
 
@@ -388,6 +549,58 @@ int vpp_pq_mgr_set_gamma_table(struct vpp_gamma_table_s *pdata)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_gamma_table);
 
+int vpp_pq_mgr_set_cm_curve(enum vpp_cm_curve_type_e type, int *pdata)
+{
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	pr_vpp(PR_DEBUG, "[%s] set data, type = %d\n", __func__, type);
+
+	switch (type) {
+	case EN_CM_LUMA:
+		vpp_module_cm_set_cm2_luma(pdata);
+		break;
+	case EN_CM_SAT:
+		vpp_module_cm_set_cm2_sat(pdata);
+		break;
+	case EN_CM_HUE:
+		vpp_module_cm_set_cm2_hue(pdata);
+		break;
+	case EN_CM_HUE_BY_HS:
+		vpp_module_cm_set_cm2_hue_by_hs(pdata);
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_cm_curve);
+
+int vpp_pq_mgr_set_cm_offset_curve(enum vpp_cm_curve_type_e type, char *pdata)
+{
+	if (!pdata)
+		return RET_POINT_FAIL;
+
+	pr_vpp(PR_DEBUG, "[%s] set data, type = %d\n", __func__, type);
+
+	switch (type) {
+	case EN_CM_LUMA:
+		vpp_module_cm_set_cm2_offset_luma(pdata);
+		break;
+	case EN_CM_SAT:
+		vpp_module_cm_set_cm2_offset_sat(pdata);
+		break;
+	case EN_CM_HUE:
+		vpp_module_cm_set_cm2_offset_hue(pdata);
+		break;
+	case EN_CM_HUE_BY_HS:
+		vpp_module_cm_set_cm2_offset_hue_by_hs(pdata);
+		break;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_cm_offset_curve);
+
 int vpp_pq_mgr_set_matrix_param(struct vpp_mtrx_info_s *pdata)
 {
 	int ret = 0;
@@ -421,22 +634,10 @@ int vpp_pq_mgr_set_matrix_param(struct vpp_mtrx_info_s *pdata)
 	memcpy(&pq_mgr_settings.matrix_param[mtrx_sel],
 		&pdata->mtrx_param, sizeof(struct vpp_mtrx_param_s));
 
-	ret = vpp_module_matrix_rs(mode,
-		pdata->mtrx_param.right_shift);
-	ret = vpp_module_matrix_set_pre_offset(mode, 0,
-		pdata->mtrx_param.pre_offset[0]);
-	ret = vpp_module_matrix_set_pre_offset(mode, 1,
-		pdata->mtrx_param.pre_offset[1]);
-	ret = vpp_module_matrix_set_pre_offset(mode, 2,
-		pdata->mtrx_param.pre_offset[2]);
-	ret = vpp_module_matrix_set_offset(mode, 0,
-		pdata->mtrx_param.post_offset[0]);
-	ret = vpp_module_matrix_set_offset(mode, 1,
-		pdata->mtrx_param.post_offset[1]);
-	ret = vpp_module_matrix_set_offset(mode, 2,
-		pdata->mtrx_param.post_offset[2]);
-	ret = vpp_module_matrix_set_coef_3x3(mode,
-		&pdata->mtrx_param.matrix_coef[0]);
+	ret = vpp_module_matrix_rs(mode, pdata->mtrx_param.right_shift);
+	ret |= vpp_module_matrix_set_pre_offset(mode, &pdata->mtrx_param.pre_offset[0]);
+	ret |= vpp_module_matrix_set_offset(mode, &pdata->mtrx_param.post_offset[0]);
+	ret |= vpp_module_matrix_set_coef_3x3(mode, &pdata->mtrx_param.matrix_coef[0]);
 
 	return ret;
 }
@@ -481,6 +682,8 @@ int vpp_pq_mgr_set_lc_param(struct vpp_lc_param_s *pdata)
 	if (!pdata)
 		return RET_POINT_FAIL;
 
+	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
+
 	if (vpp_module_lc_get_support())
 		vpp_data_updata_reg_lc(pdata);
 
@@ -519,13 +722,32 @@ int vpp_pq_mgr_set_module_status(enum vpp_module_e module, bool enable)
 		vpp_module_ve_ccoring_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.chroma_cor_en = enable;
 		break;
+	case EN_MODULE_SR0:
+		vpp_module_sr_en(EN_MODE_SR_0, enable);
+		pq_mgr_settings.pq_status.pq_cfg.sharpness0_en = enable;
+		break;
+	case EN_MODULE_SR1:
+		vpp_module_sr_en(EN_MODE_SR_1, enable);
+		pq_mgr_settings.pq_status.pq_cfg.sharpness1_en = enable;
+		break;
 	case EN_MODULE_LC:
 		vpp_module_lc_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.lc_en = enable;
 		break;
+	case EN_MODULE_CM:
+		vpp_module_cm_en(enable);
+		pq_mgr_settings.pq_status.pq_cfg.cm_en = enable;
+		break;
+	case EN_MODULE_BLE:
+		vpp_module_ve_blkext_en(enable);
+		pq_mgr_settings.pq_status.pq_cfg.black_ext_en = enable;
+		break;
 	case EN_MODULE_LUT3D:
 		vpp_module_lut3d_en(enable);
 		pq_mgr_settings.pq_status.pq_cfg.lut3d_en = enable;
+		break;
+	case EN_MODULE_ALL:
+		_set_pq_bypass_all(!enable);
 		break;
 	default:
 		break;
@@ -537,9 +759,30 @@ EXPORT_SYMBOL(vpp_pq_mgr_set_module_status);
 
 int vpp_pq_mgr_set_pc_mode(int val)
 {
+	pr_vpp(PR_DEBUG, "[%s] pc_mode = %d\n", __func__, val);
+
+	pq_mgr_settings.pc_mode = val;
+
+	vpp_vf_set_pc_mode(val);
+
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_pc_mode);
+
+int vpp_pq_mgr_set_color_primary_status(int val)
+{
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_color_primary_status);
+
+int vpp_pq_mgr_set_color_primary(struct vpp_color_primary_s *pdata)
+{
+	if (!pdata)
+		return 0;
+
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_color_primary);
 
 int vpp_pq_mgr_set_csc_type(int val)
 {
@@ -559,6 +802,8 @@ int vpp_pq_mgr_load_3dlut_data(struct vpp_lut3d_path_s *pdata)
 		lut3d_db_initial = false;
 		return 0;
 	}
+
+	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
 
 	key_len = 17 * 17 * 17 * 3 * pdata->data_count;
 	pkey_lut_all = kmalloc(key_len, GFP_KERNEL);
@@ -611,6 +856,9 @@ int vpp_pq_mgr_set_3dlut_data(struct vpp_lut3d_table_s *ptable)
 	if (!ptable)
 		return RET_POINT_FAIL;
 
+	pr_vpp(PR_DEBUG, "[%s] data_type = %d\n", __func__,
+		ptable->data_type);
+
 	switch (ptable->data_type) {
 	case EN_LUT3D_INPUT_PARAM:
 		vpp_module_lut3d_set_data(ptable->pdata);
@@ -631,11 +879,15 @@ int vpp_pq_mgr_set_hdr_cgain_curve(struct vpp_hdr_lut_s *pdata)
 {
 	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
 	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_CGAIN;
+	enum hdr_vpp_type_e vpp_sel = EN_TYPE_VPP0;
 
 	if (!pdata)
 		return RET_POINT_FAIL;
 
-	vpp_module_hdr_set_lut(type, sub_module, (int *)pdata->tm_lut);
+	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
+
+	vpp_module_hdr_set_lut(type, sub_module,
+		(int *)pdata->lut_data, vpp_sel);
 
 	return 0;
 }
@@ -645,11 +897,15 @@ int vpp_pq_mgr_set_hdr_oetf_curve(struct vpp_hdr_lut_s *pdata)
 {
 	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
 	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_OETF;
+	enum hdr_vpp_type_e vpp_sel = EN_TYPE_VPP0;
 
 	if (!pdata)
 		return RET_POINT_FAIL;
 
-	vpp_module_hdr_set_lut(type, sub_module, (int *)pdata->tm_lut);
+	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
+
+	vpp_module_hdr_set_lut(type, sub_module,
+		(int *)pdata->lut_data, vpp_sel);
 
 	return 0;
 }
@@ -659,11 +915,15 @@ int vpp_pq_mgr_set_hdr_eotf_curve(struct vpp_hdr_lut_s *pdata)
 {
 	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
 	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_EOTF;
+	enum hdr_vpp_type_e vpp_sel = EN_TYPE_VPP0;
 
 	if (!pdata)
 		return RET_POINT_FAIL;
 
-	vpp_module_hdr_set_lut(type, sub_module, (int *)pdata->tm_lut);
+	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
+
+	vpp_module_hdr_set_lut(type, sub_module,
+		(int *)pdata->lut_data, vpp_sel);
 
 	return 0;
 }
@@ -673,11 +933,15 @@ int vpp_pq_mgr_set_hdr_tmo_curve(struct vpp_hdr_lut_s *pdata)
 {
 	enum hdr_module_type_e type = EN_MODULE_TYPE_VDIN0;
 	enum hdr_sub_module_e sub_module = EN_SUB_MODULE_OGAIN;
+	enum hdr_vpp_type_e vpp_sel = EN_TYPE_VPP0;
 
 	if (!pdata)
 		return RET_POINT_FAIL;
 
-	vpp_module_hdr_set_lut(type, sub_module, (int *)pdata->tm_lut);
+	pr_vpp(PR_DEBUG, "[%s] set data\n", __func__);
+
+	vpp_module_hdr_set_lut(type, sub_module,
+		(int *)pdata->lut_data, vpp_sel);
 
 	return 0;
 }
@@ -700,6 +964,71 @@ int vpp_pq_mgr_set_aad_param(struct vpp_aad_param_s *pdata)
 	return 0;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_set_aad_param);
+
+int vpp_pq_mgr_set_eye_protect(struct vpp_eye_protect_s *pdata)
+{
+	int ret = 0;
+	int coef[9] = {0};
+	int pre_offset[3] = {-64, -512, -512};
+	int offset[3] = {64, 512, 512};
+
+	if (!pdata)/* || vpp_vf_get_vinfo_lcd_support())*/
+		return ret;
+
+	pr_vpp(PR_DEBUG, "[%s] enable = %d\n",
+		__func__, pdata->enable);
+	pr_vpp(PR_DEBUG, "[%s] r_gain = %d\n",
+		__func__, pdata->rgb[0]);
+	pr_vpp(PR_DEBUG, "[%s] g_gain = %d\n",
+		__func__, pdata->rgb[1]);
+	pr_vpp(PR_DEBUG, "[%s] b_gain = %d\n",
+		__func__, pdata->rgb[2]);
+
+	if (pdata->enable) {
+		_mtrx_multi(&pdata->rgb[0], &coef[0]);
+		ret = vpp_module_matrix_set_pre_offset(EN_MTRX_MODE_POST, &pre_offset[0]);
+		ret |= vpp_module_matrix_set_offset(EN_MTRX_MODE_POST, &offset[0]);
+		ret |= vpp_module_matrix_set_coef_3x3(EN_MTRX_MODE_POST, &coef[0]);
+	}
+
+	ret |= vpp_module_matrix_en(EN_MTRX_MODE_POST, pdata->enable);
+
+	return ret;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_eye_protect);
+
+int vpp_pq_mgr_set_aipq_offset_table(char *pdata_str,
+	unsigned int height, unsigned int width)
+{
+	int i = 0;
+	int *ptable = NULL;
+	unsigned int table_len = 0;
+	unsigned int size = 0;
+
+	if (!pdata_str)
+		return RET_POINT_FAIL;
+
+	table_len = height * width * sizeof(int);
+	ptable = kmalloc(table_len, GFP_KERNEL);
+	if (!ptable)
+		return -EFAULT;
+
+	_str_sapr_to_d(pdata_str, ptable, 4);
+
+	size = width * sizeof(int);
+	for (i = 0; i < height; i++)
+		memcpy(vpp_pq_data[i], ptable + (i * width), size);
+
+	kfree(ptable);
+	return 0;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_aipq_offset_table);
+
+void vpp_pq_mgr_set_lc_isr(void)
+{
+	vpp_module_lc_set_isr();
+}
+EXPORT_SYMBOL(vpp_pq_mgr_set_lc_isr);
 
 void vpp_pq_mgr_get_status(struct vpp_pq_state_s *pstatus)
 {
@@ -764,6 +1093,8 @@ EXPORT_SYMBOL(vpp_pq_mgr_get_hue_post);
 
 void vpp_pq_mgr_get_sharpness(int *pval)
 {
+	if (pval)
+		*pval = pq_mgr_settings.sharpness;
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_sharpness);
 
@@ -818,16 +1149,6 @@ void vpp_pq_mgr_get_module_status(enum vpp_module_e module, bool *penable)
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_module_status);
 
-void vpp_pq_mgr_get_pc_mode(int *pval)
-{
-}
-EXPORT_SYMBOL(vpp_pq_mgr_get_pc_mode);
-
-void vpp_pq_mgr_get_csc_type(int *pval)
-{
-}
-EXPORT_SYMBOL(vpp_pq_mgr_get_csc_type);
-
 void vpp_pq_mgr_get_hdr_tmo_param(struct vpp_tmo_param_s *pdata)
 {
 }
@@ -835,18 +1156,42 @@ EXPORT_SYMBOL(vpp_pq_mgr_get_hdr_tmo_param);
 
 void vpp_pq_mgr_get_hdr_metadata(struct vpp_hdr_metadata_s *pdata)
 {
+	struct vpp_hdr_metadata_s *pmetadata;
+
+	if (!pdata)
+		return;
+
+	pmetadata = vpp_vf_get_hdr_metadata();
+	memcpy(pdata, pmetadata, sizeof(struct vpp_hdr_metadata_s));
+
+	pr_vpp(PR_DEBUG, "[%s] white_point_0 = %d, %d\n", __func__,
+		pmetadata->primaries[0][0], pmetadata->primaries[0][1]);
+	pr_vpp(PR_DEBUG, "[%s] white_point_1 = %d, %d\n", __func__,
+		pmetadata->primaries[1][0], pmetadata->primaries[1][1]);
+	pr_vpp(PR_DEBUG, "[%s] white_point_2 = %d, %d\n", __func__,
+		pmetadata->primaries[2][0], pmetadata->primaries[2][1]);
+	pr_vpp(PR_DEBUG, "[%s] white_point = %d, %d\n", __func__,
+		pmetadata->white_point[0], pmetadata->white_point[1]);
+	pr_vpp(PR_DEBUG, "[%s] luminance = %d, %d\n", __func__,
+		pmetadata->luminance[0], pmetadata->luminance[1]);
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_hdr_metadata);
 
-void vpp_pq_mgr_get_hdr_type(enum vpp_hdr_type_e *pval)
+void vpp_pq_mgr_get_hdr_histogram(struct vpp_hdr_histgm_param_s *pdata)
 {
-}
-EXPORT_SYMBOL(vpp_pq_mgr_get_hdr_type);
+	struct hdr_hist_report_s *preport = NULL;
+	int i = 0;
 
-void vpp_pq_mgr_get_color_primary(enum vpp_color_primary_e *pval)
-{
+	if (!pdata)
+		return;
+
+	preport = vpp_module_hdr_get_hist_report();
+
+	for (i = 0; i < VPP_HDR_HIST_BIN_COUNT; i++)
+		pdata->data_rgb_max[i] =
+			preport->hist_buff[HDR_HIST_BACKUP_COUNT - 1][i];
 }
-EXPORT_SYMBOL(vpp_pq_mgr_get_color_primary);
+EXPORT_SYMBOL(vpp_pq_mgr_get_hdr_histogram);
 
 void vpp_pq_mgr_get_histogram_ave(struct vpp_histgm_ave_s *pdata)
 {
@@ -899,6 +1244,30 @@ void vpp_pq_mgr_get_histogram(struct vpp_histgm_param_s *pdata)
 	}
 }
 EXPORT_SYMBOL(vpp_pq_mgr_get_histogram);
+
+int vpp_pq_mgr_get_pc_mode(void)
+{
+	return pq_mgr_settings.pc_mode;
+}
+EXPORT_SYMBOL(vpp_pq_mgr_get_pc_mode);
+
+enum vpp_csc_type_e vpp_pq_mgr_get_csc_type(void)
+{
+	return vpp_vf_get_csc_type(EN_VD1_PATH);
+}
+EXPORT_SYMBOL(vpp_pq_mgr_get_csc_type);
+
+enum vpp_hdr_type_e vpp_pq_mgr_get_hdr_type(void)
+{
+	return vpp_vf_get_hdr_type();
+}
+EXPORT_SYMBOL(vpp_pq_mgr_get_hdr_type);
+
+enum vpp_color_primary_e vpp_pq_mgr_get_color_primary(void)
+{
+	return vpp_vf_get_color_primary();
+}
+EXPORT_SYMBOL(vpp_pq_mgr_get_color_primary);
 
 struct vpp_pq_mgr_settings *vpp_pq_mgr_get_settings(void)
 {

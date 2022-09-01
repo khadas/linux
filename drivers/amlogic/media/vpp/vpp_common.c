@@ -5,6 +5,8 @@
 
 #include "vpp_common.h"
 
+#define LEN_INT    (32)
+
 int vpp_check_range(int val, int down, int up)
 {
 	int ret = 0;
@@ -22,7 +24,7 @@ int vpp_check_range(int val, int down, int up)
 int vpp_mask_int(int val, int start, int len)
 {
 	int ret = 0xffffffff;
-	int tmp = sizeof(int) - len;
+	int tmp = LEN_INT - len;
 
 	if (tmp < 0)
 		tmp = 0;
@@ -36,7 +38,7 @@ int vpp_insert_int(int src_val, int insert_val,
 	int start, int len)
 {
 	int ret = 0xffffffff;
-	int tmp = sizeof(int) - len;
+	int tmp = LEN_INT - len;
 	int mask;
 
 	if (tmp < 0)

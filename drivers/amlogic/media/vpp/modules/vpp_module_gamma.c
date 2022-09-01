@@ -38,6 +38,9 @@ static int combine_mode;
 
 static bool pregm_tp_flag;
 static bool lcdgm_tp_flag;
+static bool pregm_update_flag;
+static bool lcdgm_update_flag;
+
 static unsigned int cur_pregm_tbl[EN_MODE_RGB_MAX][VPP_PRE_GAMMA_TABLE_LEN];
 static unsigned int cur_lcdgm_tbl[EN_MODE_RGB_MAX][VPP_GAMMA_TABLE_LEN];
 static unsigned int tmp_tbl[EN_MODE_RGB_MAX][VPP_GAMMA_TABLE_LEN];
@@ -262,6 +265,8 @@ int vpp_module_gamma_init(struct vpp_dev_s *pdev)
 
 	pregm_tp_flag = false;
 	lcdgm_tp_flag = false;
+	pregm_update_flag = false;
+	lcdgm_update_flag = false;
 
 	return 0;
 }
@@ -270,7 +275,7 @@ void vpp_module_gamma_set_viu_sel(int val)
 {
 	viu_sel = val;
 
-	if (viu_sel == 1) {        /*venc1*/
+	if (viu_sel == 1) {         /*venc1*/
 		add_offset = 0x100;
 	} else if (viu_sel == 2) {  /*venc2*/
 		add_offset = 0x200;
@@ -283,6 +288,22 @@ int vpp_module_pre_gamma_en(bool enable)
 {
 	return _set_gamma_ctrl(EN_MODE_GAMMA_PRE, enable,
 		gamma_bit_cfg.bit_gamma_ctrl_en.start, gamma_bit_cfg.bit_gamma_ctrl_en.len);
+}
+
+int vpp_module_pre_gamma_write_single(enum vpp_rgb_mode_e mode,
+	unsigned int *pdata)
+{
+	int i;
+
+	if (!pdata || mode == EN_MODE_RGB_MAX)
+		return 0;
+
+	for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++)
+		cur_pregm_tbl[mode][i] = pdata[i];
+
+	pregm_update_flag = true;
+
+	return 0;
 }
 
 int vpp_module_pre_gamma_write(unsigned int *pr_data,
@@ -299,12 +320,25 @@ int vpp_module_pre_gamma_write(unsigned int *pr_data,
 		cur_pregm_tbl[EN_MODE_B][i] = pb_data[i];
 	}
 
+	pregm_update_flag = true;
+
 	return 0;
 }
 
 int vpp_module_pre_gamma_read(unsigned int *pr_data,
 	unsigned int *pg_data, unsigned int *pb_data)
 {
+	int i;
+
+	if (!pr_data || !pg_data || !pb_data)
+		return 0;
+
+	for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++) {
+		pr_data[i] = cur_pregm_tbl[EN_MODE_R][i];
+		pg_data[i] = cur_pregm_tbl[EN_MODE_G][i];
+		pb_data[i] = cur_pregm_tbl[EN_MODE_B][i];
+	}
+
 	return 0;
 }
 
@@ -352,7 +386,7 @@ void vpp_module_pre_gamma_on_vs(void)
 	unsigned int addr;
 	enum io_mode_e io_mode = EN_MODE_RDMA;
 
-	if (pregm_tp_flag)
+	if (pregm_tp_flag || !pregm_update_flag)
 		return;
 
 	addr = ADDR_PARAM(pre_gamma_reg_cfg.page, pre_gamma_reg_cfg.reg_gamma_addr);
@@ -362,12 +396,40 @@ void vpp_module_pre_gamma_on_vs(void)
 	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[EN_MODE_R][0]);
 	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[EN_MODE_G][0]);
 	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[EN_MODE_B][0]);
+
+	pregm_update_flag = false;
 }
 
 int vpp_module_lcd_gamma_en(bool enable)
 {
 	return _set_gamma_ctrl(EN_MODE_GAMMA_LCD, enable,
 		gamma_bit_cfg.bit_gamma_ctrl_en.start, gamma_bit_cfg.bit_gamma_ctrl_en.len);
+}
+
+int vpp_module_lcd_gamma_write_single(enum vpp_rgb_mode_e mode,
+	unsigned int *pdata)
+{
+	int i;
+	enum io_mode_e io_mode = EN_MODE_DIR;
+	enum _gamma_data_type_e rgb_type;
+
+	if (!pdata || mode == EN_MODE_RGB_MAX)
+		return 0;
+
+	for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++)
+		cur_lcdgm_tbl[mode][i] = pdata[i];
+
+	if (!combine_mode) {
+		if (lcdgm_tp_flag)
+			return 0;
+
+		rgb_type = (enum _gamma_data_type_e)mode;
+		_set_lcd_gamma_data_single(io_mode, rgb_type, pdata);
+	} else {
+		lcdgm_update_flag = true;
+	}
+
+	return 0;
 }
 
 int vpp_module_lcd_gamma_write(unsigned int *pr_data,
@@ -385,13 +447,15 @@ int vpp_module_lcd_gamma_write(unsigned int *pr_data,
 		cur_lcdgm_tbl[EN_MODE_B][i] = pb_data[i];
 	}
 
-	if (lcdgm_tp_flag)
-		return 0;
-
 	if (!combine_mode) {
+		if (lcdgm_tp_flag)
+			return 0;
+
 		_set_lcd_gamma_data_single(io_mode, EN_TYPE_GAMMA_R, pr_data);
 		_set_lcd_gamma_data_single(io_mode, EN_TYPE_GAMMA_G, pg_data);
 		_set_lcd_gamma_data_single(io_mode, EN_TYPE_GAMMA_B, pb_data);
+	} else {
+		lcdgm_update_flag = true;
 	}
 
 	return 0;
@@ -400,6 +464,9 @@ int vpp_module_lcd_gamma_write(unsigned int *pr_data,
 int vpp_module_lcd_gamma_read(unsigned int *pr_data,
 	unsigned int *pg_data, unsigned int *pb_data)
 {
+	if (!pr_data || !pg_data || !pb_data)
+		return 0;
+
 	if (combine_mode) {
 		_get_lcd_gamma_data_combine(pr_data, pg_data, pb_data);
 	} else {
@@ -449,9 +516,28 @@ int vpp_module_lcd_gamma_pattern(bool enable,
 	return 0;
 }
 
+void vpp_module_lcd_gamma_notify(void)
+{
+	enum io_mode_e io_mode = EN_MODE_DIR;
+
+	if (!combine_mode) {
+		if (lcdgm_tp_flag)
+			return;
+
+		_set_lcd_gamma_data_single(io_mode, EN_TYPE_GAMMA_R,
+			&cur_lcdgm_tbl[EN_MODE_R][0]);
+		_set_lcd_gamma_data_single(io_mode, EN_TYPE_GAMMA_G,
+			&cur_lcdgm_tbl[EN_MODE_G][0]);
+		_set_lcd_gamma_data_single(io_mode, EN_TYPE_GAMMA_B,
+			&cur_lcdgm_tbl[EN_MODE_B][0]);
+	} else {
+		lcdgm_update_flag = true;
+	}
+}
+
 void vpp_module_lcd_gamma_on_vs(void)
 {
-	if (lcdgm_tp_flag)
+	if (lcdgm_tp_flag || !lcdgm_update_flag)
 		return;
 
 	if (combine_mode) {
@@ -459,6 +545,8 @@ void vpp_module_lcd_gamma_on_vs(void)
 			&cur_lcdgm_tbl[EN_MODE_R][0],
 			&cur_lcdgm_tbl[EN_MODE_G][0],
 			&cur_lcdgm_tbl[EN_MODE_B][0]);
+
+		lcdgm_update_flag = false;
 	}
 }
 

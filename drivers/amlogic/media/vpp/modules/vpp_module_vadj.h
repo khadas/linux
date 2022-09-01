@@ -6,6 +6,12 @@
 #ifndef __VPP_MODULE_VADJ_H__
 #define __VPP_MODULE_VADJ_H__
 
+enum vadj_param_e {
+	EN_VADJ_VD1_RGBBST_EN = 0,
+	EN_VADJ_POST_RGBBST_EN,
+	EN_VADJ_PARAM_MAX,
+};
+
 struct vadj_ai_pq_param_s {
 	int sat_hue_mad;
 };
@@ -13,6 +19,7 @@ struct vadj_ai_pq_param_s {
 int vpp_module_vadj_init(struct vpp_dev_s *pdev);
 int vpp_module_vadj_en(bool enable);
 int vpp_module_vadj_post_en(bool enable);
+void vpp_module_vadj_set_param(enum vadj_param_e index, int val);
 int vpp_module_vadj_set_brightness(int val);
 int vpp_module_vadj_set_brightness_post(int val);
 int vpp_module_vadj_set_contrast(int val);

@@ -34,21 +34,31 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
+#ifdef CONFIG_AMLOGIC_LCD
+#include <linux/amlogic/media/vout/lcd/lcd_notify.h>
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
+#include "../../video_sink/vpp_pq.h"
 
 #include "vpp_common_def.h"
 #include "vpp_reg_io.h"
 #include "vpp_drv.h"
 
 /* Commom define */
-#define PR_SYS    (0)
-#define PR_IOC    (1)
-#define PR_DEBUG  (2)
+#define PR_SYS    (0x0)
+#define PR_IOC    (0x1)
+#define PR_DEBUG  (0x2)
+
+#define LUT_SIZE_EOTF      (33)
+#define LUT_SIZE_OETF_OSD  (41)
 
 extern unsigned int pr_lvl;
 
 #define pr_vpp(level, fmt, args ...)\
 	do {\
-		if ((level) & pr_lvl)\
+		if (level & pr_lvl)\
 			pr_info("vpp:" fmt, ##args);\
 	} while (0)
 
@@ -78,20 +88,6 @@ extern unsigned int pr_lvl;
 	(y & (~x)) + ((~y) & x);\
 	})
 #endif
-
-enum vpp_vd_path_e {
-	EN_VD1_PATH = 0,
-	EN_VD2_PATH,
-	EN_VD3_PATH,
-	EN_VD_PATH_MAX,
-};
-
-enum vpp_vf_top_e {
-	EN_VF_TOP0 = 0,
-	EN_VF_TOP1,
-	EN_VF_TOP2,
-	EN_VF_TOP_MAX,
-};
 
 /*ai detected scenes*/
 enum vpp_detect_scene_e {

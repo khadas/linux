@@ -10,11 +10,21 @@ struct dnlp_ai_pq_param_s {
 	int final_gain;
 };
 
+struct dnlp_dbg_parse_cmd_s {
+	char *parse_string;
+	unsigned int *value;
+	unsigned int data_len;
+};
+
 int vpp_module_dnlp_init(struct vpp_dev_s *pdev);
 void vpp_module_dnlp_en(bool enable);
 void vpp_module_dnlp_update_data(int hist_luma_sum, unsigned short *phist_data);
 void vpp_module_dnlp_get_sat_compensation(bool *psat_comp, int *psat_val);
 void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata);
+bool vpp_module_dnlp_get_insmod_status(void);
+struct dnlp_dbg_parse_cmd_s *vpp_module_dnlp_get_dbg_info(void);
+struct dnlp_dbg_parse_cmd_s *vpp_module_dnlp_get_dbg_ro_info(void);
+struct dnlp_dbg_parse_cmd_s *vpp_module_dnlp_get_dbg_cv_info(void);
 
 void vpp_module_dnlp_get_ai_pq_base(struct dnlp_ai_pq_param_s *pparam);
 void vpp_module_dnlp_set_ai_pq_offset(struct dnlp_ai_pq_param_s *pparam);

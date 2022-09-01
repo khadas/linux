@@ -6,16 +6,16 @@
 #include "../vpp_common.h"
 #include "vpp_module_sr.h"
 
-#ifndef FMETER_SCORE
-#define FMETER_SCORE(x, y, z) ({ \
+#ifndef CAL_FMETER_SCORE
+#define CAL_FMETER_SCORE(x, y, z) ({ \
 	typeof(x) _x = x; \
 	typeof(y) _y = y; \
 	typeof(z) _z = z; \
-	MAX(MIN(100, MAX(0, (_x * 1000) / (_x + _y + _z))), \
-	MIN(100, MAX(0, (_x + _y) * 1000 / \
-	(_x + _y + _z) / 3))); \
+	MAX(MIN(100, (_x * 1000) / (_x + _y + _z)), \
+	MIN(100, (_x + _y) * 1000 / \
+	(_x + _y + _z) / 3)); \
 	})
-#endif //FMETER_SCORE
+#endif //CAL_FMETER_SCORE
 
 #define FMETER_TUNING_SIZE_MAX (11)
 
@@ -414,7 +414,7 @@ static void _get_sr_fmeter_hcnt(enum sr_mode_e mode)
 	for (i = 0; i < FMETER_HCNT_MAX; i++)
 		fm_report.hcnt[mode][i] = READ_VPP_REG_BY_MODE(io_mode, addr + i);
 
-	fm_report.score[mode] = FMETER_SCORE(fm_report.hcnt[mode][0],
+	fm_report.score[mode] = CAL_FMETER_SCORE(fm_report.hcnt[mode][0],
 		fm_report.hcnt[mode][1], fm_report.hcnt[mode][2]);
 }
 

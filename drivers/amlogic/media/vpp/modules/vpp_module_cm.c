@@ -8,9 +8,13 @@
 
 #define CM2_DATA_WR_COUNT (5)
 
-enum lc_lmt_type_e {
-	EN_TYPE_LC_LMT_12 = 0,
-	EN_TYPE_LC_LMT_16,
+enum _cm2_curve_type_e {
+	EN_CM2_CURVE_LUMA = 0,
+	EN_CM2_CURVE_SAT,
+	EN_CM2_CURVE_SAT_Y,
+	EN_CM2_CURVE_HUE,
+	EN_CM2_CURVE_HUE_S,
+	EN_CM2_CURVE_HUE_Y,
 };
 
 struct _chroma_reg_cfg_s {
@@ -402,6 +406,81 @@ static void _set_cm2_hue_via_y_by_index(int *pdata,
 	}
 }
 
+static int _get_cm2_curve_by_index(enum _cm2_curve_type_e type,
+	int *pdata, int start, int end)
+{
+	unsigned int addr = 0;
+	int val[CM2_DATA_WR_COUNT] = {0};
+	int i, j;
+	int data_len = 0;
+
+	if (!pdata || end < start ||
+		start > (CM2_CURVE_SIZE - 1) ||
+		end > (CM2_CURVE_SIZE - 1))
+		return data_len;
+
+	for (i = start; i <= end; i++) {
+		for (j = 0; j < CM2_DATA_WR_COUNT; j++) {
+			addr = cm_addr_cfg.addr_cm2_enh_coef0_h00 + i * 8 + j;
+			val[j] = _get_cm_reg_by_addr(addr);
+		}
+
+		switch (type) {
+		case EN_CM2_CURVE_LUMA:
+			/*curve 0*/
+			pdata[i] = val[0] & 0x000000ff;
+			data_len += 1;
+			break;
+		case EN_CM2_CURVE_SAT:
+			/*curve 0*/
+			pdata[i + CM2_CURVE_SIZE * 0] = (val[0] & 0x0000ff00) >> 8;
+			/*curve 1*/
+			pdata[i + CM2_CURVE_SIZE * 1] = (val[0] & 0x00ff0000) >> 16;
+			/*curve 2*/
+			pdata[i + CM2_CURVE_SIZE * 2] = (val[0] & 0xff000000) >> 24;
+			data_len += 3;
+			break;
+		case EN_CM2_CURVE_SAT_Y:
+			/*curve 0*/
+			pdata[i + CM2_CURVE_SIZE * 0] = (val[3] & 0xff000000) >> 24;
+			/*curve 1,2,3,4*/
+			pdata[i + CM2_CURVE_SIZE * 1] = val[4] & 0x000000ff;
+			pdata[i + CM2_CURVE_SIZE * 2] = (val[4] & 0x0000ff00) >> 8;
+			pdata[i + CM2_CURVE_SIZE * 3] = (val[4] & 0x00ff0000) >> 16;
+			pdata[i + CM2_CURVE_SIZE * 4] = (val[4] & 0xff000000) >> 24;
+			data_len += 5;
+			break;
+		case EN_CM2_CURVE_HUE:
+			/*curve 0*/
+			pdata[i] = val[1] & 0x000000ff;
+			data_len += 1;
+			break;
+		case EN_CM2_CURVE_HUE_S:
+			/*curve 0,1*/
+			pdata[i + CM2_CURVE_SIZE * 0] = (val[2] & 0x00ff0000) >> 16;
+			pdata[i + CM2_CURVE_SIZE * 1] = (val[2] & 0xff000000) >> 24;
+			/*curve 2,3,4*/
+			pdata[i + CM2_CURVE_SIZE * 2] = val[3] & 0x000000ff;
+			pdata[i + CM2_CURVE_SIZE * 3] = (val[3] & 0x0000ff00) >> 8;
+			pdata[i + CM2_CURVE_SIZE * 4] = (val[3] & 0x00ff0000) >> 16;
+			data_len += 5;
+			break;
+		case EN_CM2_CURVE_HUE_Y:
+			/*curve 0,1,2*/
+			pdata[i + CM2_CURVE_SIZE * 0] = (val[1] & 0x0000ff00) >> 8;
+			pdata[i + CM2_CURVE_SIZE * 1] = (val[1] & 0x00ff0000) >> 16;
+			pdata[i + CM2_CURVE_SIZE * 2] = (val[1] & 0xff000000) >> 24;
+			/*curve 3,4*/
+			pdata[i + CM2_CURVE_SIZE * 3] = val[2] & 0x000000ff;
+			pdata[i + CM2_CURVE_SIZE * 4] = (val[2] & 0x0000ff00) >> 8;
+			data_len += 5;
+			break;
+		}
+	}
+
+	return data_len;
+}
+
 /*External functions*/
 int vpp_module_cm_init(struct vpp_dev_s *pdev)
 {
@@ -769,12 +848,106 @@ void vpp_module_cm_set_cm2_offset_hue_by_hs(char *pdata)
 		cur_cm2_offset_hue_hs[i] = pdata[i];
 }
 
+/*input array size is 32 for pdata*/
+int vpp_module_cm_get_cm2_luma(int *pdata)
+{
+	if (!pdata)
+		return 0;
+
+	return _get_cm2_curve_by_index(EN_CM2_CURVE_LUMA, pdata, 0, 31);
+}
+
+/*input array size is 32*3 as curve 0/1/2 for pdata*/
+int vpp_module_cm_get_cm2_sat(int *pdata)
+{
+	if (!pdata)
+		return 0;
+
+	return _get_cm2_curve_by_index(EN_CM2_CURVE_SAT, pdata, 0, 31);
+}
+
+/*input array size is 9 for pdata*/
+int vpp_module_cm_get_cm2_sat_by_l(int *pdata)
+{
+	unsigned int addr = 0;
+	int val = 0;
+
+	if (!pdata)
+		return 0;
+
+	addr = cm_addr_cfg.addr_sat_byyb_node0;
+	val = _get_cm_reg_by_addr(addr);
+	pdata[0] = val & 0x000000ff;
+	pdata[1] = (val & 0x0000ff00) >> 8;
+	pdata[2] = (val & 0x00ff0000) >> 16;
+	pdata[3] = (val & 0xff000000) >> 24;
+
+	addr = cm_addr_cfg.addr_sat_byyb_node1;
+	val = _get_cm_reg_by_addr(addr);
+	pdata[4] = val & 0x000000ff;
+	pdata[5] = (val & 0x0000ff00) >> 8;
+	pdata[6] = (val & 0x00ff0000) >> 16;
+	pdata[7] = (val & 0xff000000) >> 24;
+
+	addr = cm_addr_cfg.addr_sat_byyb_node2;
+	val = _get_cm_reg_by_addr(addr);
+	pdata[8] = val & 0x000000ff;
+
+	return 9;
+}
+
+/*input array size is 32*5 as curve 0/1/2/3/4 for pdata*/
+int vpp_module_cm_get_cm2_sat_by_hl(int *pdata)
+{
+	if (!pdata)
+		return 0;
+
+	return _get_cm2_curve_by_index(EN_CM2_CURVE_SAT_Y, pdata, 0, 31);
+}
+
+/*input array size is 32 for pdata*/
+int vpp_module_cm_get_cm2_hue(int *pdata)
+{
+	if (!pdata)
+		return 0;
+
+	return _get_cm2_curve_by_index(EN_CM2_CURVE_HUE, pdata, 0, 31);
+}
+
+/*input array size is 32*5 as curve 0/1/2/3/4 for pdata*/
+int vpp_module_cm_get_cm2_hue_by_hs(int *pdata)
+{
+	if (!pdata)
+		return 0;
+
+	return _get_cm2_curve_by_index(EN_CM2_CURVE_HUE_S, pdata, 0, 31);
+}
+
+/*input array size is 32*5 as curve 0/1/2/3/4 for pdata*/
+int vpp_module_cm_get_cm2_hue_by_hl(int *pdata)
+{
+	if (!pdata)
+		return 0;
+
+	return _get_cm2_curve_by_index(EN_CM2_CURVE_HUE_Y, pdata, 0, 31);
+}
+
 void vpp_module_cm_on_vs(void)
 {
 	if (cm_ai_pq_update) {
 		vpp_module_cm_set_cm2_sat(&cm_ai_pq_base.sat[0]);
 		cm_ai_pq_update = false;
 	}
+}
+
+void vpp_module_cm_set_reg(unsigned int addr, int val)
+{
+	_set_cm_reg_by_addr(addr, val);
+}
+
+int vpp_module_cm_get_reg(unsigned int addr)
+{
+	return _get_cm_reg_by_addr(addr);
 }
 
 /*For ai pq*/

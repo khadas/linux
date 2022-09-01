@@ -24,9 +24,9 @@ int vpp_module_matrix_sel(enum matrix_mode_e mode, int val);
 int vpp_module_matrix_clmod(enum matrix_mode_e mode, int val);
 int vpp_module_matrix_rs(enum matrix_mode_e mode, int val);
 int vpp_module_matrix_set_offset(enum matrix_mode_e mode,
-	unsigned char idx, int val);
+	int *pdata);
 int vpp_module_matrix_set_pre_offset(enum matrix_mode_e mode,
-	unsigned char idx, int val);
+	int *pdata);
 int vpp_module_matrix_set_coef_3x3(enum matrix_mode_e mode, int *pdata);
 int vpp_module_matrix_set_coef_3x5(enum matrix_mode_e mode, int *pdata);
 int vpp_module_matrix_set_contrast_uv(int val_u, int val_v);

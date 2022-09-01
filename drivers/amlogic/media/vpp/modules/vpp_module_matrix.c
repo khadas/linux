@@ -113,55 +113,49 @@ static int _set_matrix_clip(enum matrix_mode_e mode, int val,
 }
 
 static int _set_matrix_pre_offset(enum io_mode_e io_mode,
-	enum matrix_mode_e mode, unsigned char idx, int val)
+	enum matrix_mode_e mode, int *pdata)
 {
 	unsigned int addr = 0;
-	unsigned char start;
-	unsigned char len;
+	unsigned char start = mtrx_bit_cfg.bit_mtrx_offset[0].start;
+	int val = 0;
 
-	if (mode == EN_MTRX_MODE_MAX)
+	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
 
-	if (idx < MTRX_OFFSET_CNT) {
-		if (idx > 1)
-			addr = ADDR_PARAM(mtrx_reg_cfg[mode].page,
-				mtrx_reg_cfg[mode].reg_mtrx_pre_offset2);
-		else
-			addr = ADDR_PARAM(mtrx_reg_cfg[mode].page,
-				mtrx_reg_cfg[mode].reg_mtrx_pre_offset0_1);
+	addr = ADDR_PARAM(mtrx_reg_cfg[mode].page,
+		mtrx_reg_cfg[mode].reg_mtrx_pre_offset0_1);
+	val = (pdata[0] << start) | pdata[1];
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
 
-		start = mtrx_bit_cfg.bit_mtrx_offset[idx].start;
-		len = mtrx_bit_cfg.bit_mtrx_offset[idx].len;
+	addr = ADDR_PARAM(mtrx_reg_cfg[mode].page,
+		mtrx_reg_cfg[mode].reg_mtrx_pre_offset2);
 
-		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val, start, len);
-	}
+	val = pdata[2];
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
 
 	return 0;
 }
 
 static int _set_matrix_offset(enum io_mode_e io_mode,
-	enum matrix_mode_e mode, unsigned char idx, int val)
+	enum matrix_mode_e mode, int *pdata)
 {
 	unsigned int addr = 0;
-	unsigned char start;
-	unsigned char len;
+	unsigned char start = mtrx_bit_cfg.bit_mtrx_offset[0].start;
+	int val = 0;
 
-	if (mode == EN_MTRX_MODE_MAX)
+	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
 
-	if (idx < MTRX_OFFSET_CNT) {
-		if (idx > 1)
-			addr = ADDR_PARAM(mtrx_reg_cfg[mode].page,
-				mtrx_reg_cfg[mode].reg_mtrx_offset2);
-		else
-			addr = ADDR_PARAM(mtrx_reg_cfg[mode].page,
-				mtrx_reg_cfg[mode].reg_mtrx_offset0_1);
+	addr = ADDR_PARAM(mtrx_reg_cfg[mode].page,
+		mtrx_reg_cfg[mode].reg_mtrx_offset0_1);
+	val = (pdata[0] << start) | pdata[1];
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
 
-		start = mtrx_bit_cfg.bit_mtrx_offset[idx].start;
-		len = mtrx_bit_cfg.bit_mtrx_offset[idx].len;
+	addr = ADDR_PARAM(mtrx_reg_cfg[mode].page,
+		mtrx_reg_cfg[mode].reg_mtrx_offset2);
 
-		WRITE_VPP_REG_BITS_BY_MODE(io_mode, addr, val, start, len);
-	}
+	val = pdata[2];
+	WRITE_VPP_REG_BY_MODE(io_mode, addr, val);
 
 	return 0;
 }
@@ -244,6 +238,25 @@ static int _set_matrix_coef(enum io_mode_e io_mode,
 	return 0;
 }
 
+static void _set_matrix_default_data(enum matrix_mode_e mode)
+{
+	int i = 0;
+
+	cur_mtrx_data[mode].changed = true;
+
+	for (i = 0; i < MTRX_OFFSET_CNT; i++) {
+		cur_mtrx_data[mode].pre_offset[i] = 0;
+		cur_mtrx_data[mode].offset[i] = 0;
+	}
+
+	for (i = 0; i < 15; i++) {
+		if (i != 0 && i != 4 && i != 8)
+			cur_mtrx_data[mode].coef[i] = 0;
+		else
+			cur_mtrx_data[mode].coef[i] = 0x400;
+	}
+}
+
 /*External functions*/
 int vpp_module_matrix_init(struct vpp_dev_s *pdev)
 {
@@ -303,6 +316,8 @@ int vpp_module_matrix_init(struct vpp_dev_s *pdev)
 	mtrx_reg_cfg[EN_MTRX_MODE_CMPT].reg_mtrx_pre_offset0_1 = 0x67;
 	mtrx_reg_cfg[EN_MTRX_MODE_CMPT].reg_mtrx_pre_offset2   = 0x68;
 
+	_set_matrix_default_data(EN_MTRX_MODE_POST);
+
 	return 0;
 }
 
@@ -340,24 +355,26 @@ int vpp_module_matrix_rs(enum matrix_mode_e mode, int val)
 }
 
 int vpp_module_matrix_set_offset(enum matrix_mode_e mode,
-	unsigned char idx, int val)
+	int *pdata)
 {
-	if (mode == EN_MTRX_MODE_MAX)
+	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
 
-	cur_mtrx_data[mode].offset[idx] = val;
+	memcpy(&cur_mtrx_data[mode].offset[0], pdata,
+		sizeof(int) * MTRX_OFFSET_CNT);
 	cur_mtrx_data[mode].changed = true;
 
 	return 0;
 }
 
 int vpp_module_matrix_set_pre_offset(enum matrix_mode_e mode,
-	unsigned char idx, int val)
+	int *pdata)
 {
-	if (mode == EN_MTRX_MODE_MAX)
+	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
 
-	cur_mtrx_data[mode].pre_offset[idx] = val;
+	memcpy(&cur_mtrx_data[mode].pre_offset[0], pdata,
+		sizeof(int) * MTRX_OFFSET_CNT);
 	cur_mtrx_data[mode].changed = true;
 
 	return 0;
@@ -365,7 +382,7 @@ int vpp_module_matrix_set_pre_offset(enum matrix_mode_e mode,
 
 int vpp_module_matrix_set_coef_3x3(enum matrix_mode_e mode, int *pdata)
 {
-	if (mode == EN_MTRX_MODE_MAX)
+	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
 
 	memcpy(&cur_mtrx_data[mode].coef[0], pdata, sizeof(int) * 9);
@@ -376,7 +393,7 @@ int vpp_module_matrix_set_coef_3x3(enum matrix_mode_e mode, int *pdata)
 
 int vpp_module_matrix_set_coef_3x5(enum matrix_mode_e mode, int *pdata)
 {
-	if (mode == EN_MTRX_MODE_MAX)
+	if (mode == EN_MTRX_MODE_MAX || !pdata)
 		return 0;
 
 	memcpy(&cur_mtrx_data[mode].coef[0], pdata, sizeof(int) * 15);
@@ -399,13 +416,8 @@ int vpp_module_matrix_set_contrast_uv(int val_u, int val_v)
 	data[4] = val_u;
 	data[8] = val_v;
 	_set_matrix_coef(io_mode, mode, size, data);
-
-	for (i = 0; i < MTRX_OFFSET_CNT; i++) {
-		_set_matrix_offset(io_mode, mode,
-			i, cur_mtrx_data[mode].offset[i]);
-		_set_matrix_pre_offset(io_mode, mode,
-			i, cur_mtrx_data[mode].pre_offset[i]);
-	}
+	_set_matrix_offset(io_mode, mode, &cur_mtrx_data[mode].offset[0]);
+	_set_matrix_pre_offset(io_mode, mode, &cur_mtrx_data[mode].pre_offset[0]);
 
 	return 0;
 }
@@ -413,7 +425,6 @@ int vpp_module_matrix_set_contrast_uv(int val_u, int val_v)
 void vpp_module_matrix_on_vs(void)
 {
 	int i = 0;
-	int j = 0;
 	enum io_mode_e io_mode = EN_MODE_RDMA;
 	enum _matrix_size_e size = EN_MTRX_SIZE_3X5;
 
@@ -421,15 +432,9 @@ void vpp_module_matrix_on_vs(void)
 		if (!cur_mtrx_data[i].changed)
 			continue;
 
-		_set_matrix_coef(io_mode, i, size,
-			&cur_mtrx_data[i].coef[0]);
-
-		for (j = 0; j < MTRX_OFFSET_CNT; j++) {
-			_set_matrix_offset(io_mode, i,
-				j, cur_mtrx_data[i].offset[j]);
-			_set_matrix_pre_offset(io_mode, i,
-				j, cur_mtrx_data[i].pre_offset[j]);
-		}
+		_set_matrix_coef(io_mode, i, size, &cur_mtrx_data[i].coef[0]);
+		_set_matrix_offset(io_mode, i, &cur_mtrx_data[i].offset[0]);
+		_set_matrix_pre_offset(io_mode, i, &cur_mtrx_data[i].pre_offset[0]);
 
 		cur_mtrx_data[i].changed = false;
 	}

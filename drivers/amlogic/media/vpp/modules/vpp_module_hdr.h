@@ -15,6 +15,13 @@
 #define HDR_HIST_BACKUP_COUNT (16)
 #define HDR_HIST_PERCENT_BACKUP_COUNT (9)
 
+enum hdr_vpp_type_e {
+	EN_TYPE_VPP0 = 0,
+	EN_TYPE_VPP1,
+	EN_TYPE_VPP2,
+	EN_TYPE_VPP_MAX,
+};
+
 enum hdr_module_type_e {
 	EN_MODULE_TYPE_VDIN0 = 0,
 	EN_MODULE_TYPE_VDIN1,
@@ -74,19 +81,26 @@ struct hdr_hist_report_s {
 };
 
 int vpp_module_hdr_init(struct vpp_dev_s *pdev);
-int vpp_module_hdr_en(enum hdr_module_type_e type, bool enable);
+int vpp_module_hdr_en(enum hdr_module_type_e type, bool enable,
+	enum hdr_vpp_type_e vpp_sel);
 void vpp_module_hdr_sub_module_en(enum hdr_module_type_e type,
-	enum hdr_sub_module_e sub_module, bool enable);
+	enum hdr_sub_module_e sub_module, bool enable,
+	enum hdr_vpp_type_e vpp_sel);
 void vpp_module_hdr_set_lut(enum hdr_module_type_e type,
-	enum hdr_sub_module_e sub_module, int *pdata);
+	enum hdr_sub_module_e sub_module, int *pdata,
+	enum hdr_vpp_type_e vpp_sel);
 void vpp_module_hdr_set_matrix(enum hdr_module_type_e type,
-	enum hdr_sub_module_e sub_module, struct hdr_matrix_data_s *pdata);
+	enum hdr_sub_module_e sub_module, struct hdr_matrix_data_s *pdata,
+	enum hdr_vpp_type_e vpp_sel);
 void vpp_module_hdr_set_gamut(enum hdr_module_type_e type,
-	struct hdr_gamut_data_s *pdata);
+	struct hdr_gamut_data_s *pdata, enum hdr_vpp_type_e vpp_sel);
 void vpp_module_hdr_hist_en(enum hdr_module_type_e type, bool enable);
-void vpp_module_get_hdr_hist_report(enum hdr_module_type_e type,
-	enum hdr_hist_data_type_e data_type, int hist_width, int hist_height,
-	struct hdr_hist_report_s *pdata);
+void vpp_module_hdr_fetch_hist_report(enum hdr_module_type_e type,
+	enum hdr_hist_data_type_e data_type, int hist_width, int hist_height);
+struct hdr_hist_report_s *vpp_module_hdr_get_hist_report(void);
+void vpp_module_hdr_get_lut(enum hdr_module_type_e type,
+	enum hdr_sub_module_e sub_module, int *pdata,
+	enum hdr_vpp_type_e vpp_sel);
 void vpp_module_hdr_on_vs(void);
 
 #endif

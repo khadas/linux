@@ -48,7 +48,17 @@ void vpp_module_cm_set_cm2_offset_luma(char *pdata);
 void vpp_module_cm_set_cm2_offset_sat(char *pdata);
 void vpp_module_cm_set_cm2_offset_hue(char *pdata);
 void vpp_module_cm_set_cm2_offset_hue_by_hs(char *pdata);
+int vpp_module_cm_get_cm2_luma(int *pdata);
+int vpp_module_cm_get_cm2_sat(int *pdata);
+int vpp_module_cm_get_cm2_sat_by_l(int *pdata);
+int vpp_module_cm_get_cm2_sat_by_hl(int *pdata);
+int vpp_module_cm_get_cm2_hue(int *pdata);
+int vpp_module_cm_get_cm2_hue_by_hs(int *pdata);
+int vpp_module_cm_get_cm2_hue_by_hl(int *pdata);
 void vpp_module_cm_on_vs(void);
+
+void vpp_module_cm_set_reg(unsigned int addr, int val);
+int vpp_module_cm_get_reg(unsigned int addr);
 
 void vpp_module_cm_get_ai_pq_base(struct cm_ai_pq_param_s *pparam);
 void vpp_module_cm_set_ai_pq_offset(struct cm_ai_pq_param_s *pparam);
