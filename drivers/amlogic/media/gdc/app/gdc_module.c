@@ -101,7 +101,7 @@ static struct gdc_device_data_s aml_gdc_v2 = {
 
 static struct gdc_device_data_s aml_gdc_v3 = {
 	.dev_type = AML_GDC,
-	.clk_type = GATE,
+	.clk_type = MUXGATE_MUXSEL_GATE,
 	.bit_width_ext = 1,
 	.gamma_support = 0,
 	.core_cnt = 1,
