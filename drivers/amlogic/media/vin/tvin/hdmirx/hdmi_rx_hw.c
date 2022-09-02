@@ -3877,10 +3877,10 @@ void rx_aud_pll_ctl(bool en)
 				tmp = 0;
 				/* 0:tmds_clk 1:ref_clk 2:mpll_clk */
 				tmp |= 2 << 2;
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, tmp);
+				wr_reg_hhi(HHI_AUD_PLL_CNTL2, tmp);
 				/* cntl3 2:0 0=1*cts 1=2*cts */
 				/* 010=4*cts 011=8*cts */
-				wr_reg_hhi(HHI_AUD_PLL_CNTL, rx.phy.aud_div);
+				wr_reg_hhi(HHI_AUD_PLL_CNTL3, rx.phy.aud_div);
 				if (log_level & AUDIO_LOG)
 					rx_pr("aud div=%d\n",
 					rd_reg_hhi(ANACTL_AUD_PLL_CNTL3));
