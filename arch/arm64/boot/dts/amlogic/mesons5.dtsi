@@ -1436,20 +1436,94 @@
 			};
 		};
 
-		pcie: pcie@0xe0000000 {
+		pcie1: pcie@e0000000 {
 			compatible = "amlogic, amlogic-pcie-v3";
 			reg = <0x0 0xe0000000 0x0 0x1000
 				0x0 0xfe02c000 0x0 0x2000
-				0x0 0xe0000000 0x0 0x10000000
+				0x0 0xe0000000 0x0 0x8000000
+				0x0 0xe7e00000 0x0 0x200000
+				0x0 0xfe076000 0x0 0x2000
+				0x0 0xfe002040 0x0 0x10>;
+			reg-names = "apb-base", "pcictrl-base", "axi-base",
+				    "ecam-base", "phy-base", "reset-base";
+			interrupts = <GIC_SPI 412 IRQ_TYPE_EDGE_RISING>;
+			#interrupt-cells = <1>;
+			msi-controller;
+			msi-parent = <&pcie1>;
+			interrupt-parent = <&gic>;
+			bus-range = <0x0 0xff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0 0 0 1 &gic GIC_SPI 408
+					IRQ_TYPE_EDGE_RISING>,
+					<0 0 0 2 &gic GIC_SPI 409
+					IRQ_TYPE_EDGE_RISING>,
+					<0 0 0 3 &gic GIC_SPI 410
+					IRQ_TYPE_EDGE_RISING>,
+					<0 0 0 4 &gic GIC_SPI 411
+					IRQ_TYPE_EDGE_RISING>;
+			device_type = "pci";
+			ranges =
+				/*
+				 * <0x81000000 0 0xe0001000
+				 * 0 0xe0001000 0x0 0x100000>,
+				 */
+				/*downstream I/O */
+				<0x82000000 0 0xe1000000 0x0 0xe1000000
+				0 0x4000000>;
+				/* non-prefetchable memory */
+			num-lanes = <1>;
+			port-num = <1>;
+			phy-type = <1>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pcieck_1_pins>;
+
+			clocks = <&clkc CLKID_PCIE1_PLL
+				&clkc CLKID_SYS_CLK_PCIE
+				&clkc CLKID_SYS_CLK_PCIE_PHY1
+				&clkc CLKID_PCIE1_HCSL_OUT
+				&clkc CLKID_PCIE_400M
+				&clkc CLKID_PCIE_TL_CLK
+				&clkc CLKID_PCIE_CLK>;
+			clock-names = "pcie_refpll",
+					"pcie",
+					"pcie_phy",
+					"pcie_hcsl",
+					"pcie_400m_clk",
+					"pcie_tl_clk",
+					"cts_pcie_clk";
+			/*reset-gpio-type
+			 *0:Shared pad(no reset)
+			 *1:OD pad2:Normal pad
+			 */
+			gpio-type = <2>;
+			pcie-gen2-l0-rst-bit = <12>;
+			pcie-apb-rst-bit = <6>;
+			pcie-phy-rst-bit = <9>;
+			pcie-a-rst-bit = <13>;
+			pcie-rst-bit = <4>;
+			pcie-rst-mask = <0xff>;
+			power-domains = <&pwrdm PDID_S5_PCIE1>;
+			status = "disabled";
+			/* iommu-map = <0x100 &smmu P1_SID_PCIE 0x10>; */
+			dma-ranges = <0x0 0x0 0x0 0x0 0x0 0x0 0x80000000>;
+		};
+
+		pcie0: pcie@e8000000 {
+			compatible = "amlogic, amlogic-pcie-v3";
+			reg = <0x0 0xe8000000 0x0 0x1000
+				0x0 0xfe02a000 0x0 0x2000
+				0x0 0xe8000000 0x0 0x8000000
 				0x0 0xefe00000 0x0 0x200000
-				0x0 0xfe072000 0x0 0x2000
+				0x0 0xfe074000 0x0 0x2000
 				0x0 0xfe002040 0x0 0x10>;
 			reg-names = "apb-base", "pcictrl-base", "axi-base",
 				    "ecam-base", "phy-base", "reset-base";
 			interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
 			#interrupt-cells = <1>;
 			msi-controller;
-			msi-parent = <&pcie>;
+			msi-parent = <&pcie0>;
 			interrupt-parent = <&gic>;
 			bus-range = <0x0 0xff>;
 			#address-cells = <3>;
@@ -1467,90 +1541,47 @@
 			ranges =
 				/*
 				 *  <0x81000000 0 0xff000000
-				 *  0 0xe1000000 0x0 0x100000
+				 *  0 0xe8001000 0x0 0x100000
 				 */
 				/*downstream I/O */
-				<0x82000000 0 0xe4000000 0x0 0xe4000000
-				0 0x8000000>;
+				<0x82000000 0 0xe8200000 0x0 0xe8200000
+				0 0x7c00000>;
 				/* non-prefetchable memory */
 			num-lanes = <1>;
-			pcie-num = <1>;
+			port-num = <0>;
+			phy-type = <1>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&pcieck_pins>;
+			pinctrl-0 = <&pcieck_0_pins>;
 
-//			clocks = <&clkc CLKID_PCIE_PLL
-//				&clkc CLKID_SYS_CLK_PCIE
-//				&clkc CLKID_SYS_CLK_PCIEPHY
-//				&clkc CLKID_PCIE_HCSL
-//				&clkc CLKID_PCIE_400M
-//				&clkc CLKID_PCIE_TL_CLK
-//				&clkc CLKID_PCIE_CLK>;
-//			clock-names = "pcie_refpll",
-//					"pcie",
-//					"pcie_phy",
-//					"pcie_hcsl",
-//					"pcie_400m_clk",
-//					"pcie_tl_clk",
-//					"cts_pcie_clk";
+			clocks = <&clkc CLKID_PCIE_PLL
+				&clkc CLKID_SYS_CLK_PCIE
+				&clkc CLKID_SYS_CLK_PCIE_PHY0
+				&clkc CLKID_PCIE_HCSL_OUT
+				&clkc CLKID_PCIE_400M
+				&clkc CLKID_PCIE_TL_CLK
+				&clkc CLKID_PCIE_CLK>;
+			clock-names = "pcie_refpll",
+					"pcie",
+					"pcie_phy",
+					"pcie_hcsl",
+					"pcie_400m_clk",
+					"pcie_tl_clk",
+					"cts_pcie_clk";
 			/*reset-gpio-type
 			 *0:Shared pad(no reset)
 			 *1:OD pad2:Normal pad
 			 */
 			gpio-type = <2>;
-			pcie-m31phy-rst-bit = <21>;
-			pcie-gen3-l0-rst-bit = <18>;
-			pcie-apb-rst-bit = <14>;
-			pcie-phy-rst-bit = <13>;
-			pcie-a-rst-bit = <12>;
+			pcie-gen2-l0-rst-bit = <18>;
+			pcie-apb-rst-bit = <7>;
+			pcie-phy-rst-bit = <10>;
+			pcie-a-rst-bit = <14>;
 			pcie-rst-bit = <12>;
 			pcie-rst-mask = <0xff>;
-			//power-domains = <&pwrdm PDID_P1_PCIE>;
+			power-domains = <&pwrdm PDID_S5_PCIE0>;
 			status = "disabled";
-			iommu-map = <0x100 &smmu P1_SID_PCIE 0x10>;
+			/* iommu-map = <0x100 &smmu P1_SID_PCIE 0x10>; */
 			dma-ranges = <0x0 0x0 0x0 0x0 0x0 0x0 0x80000000>;
-		};
-
-		pcie_ep: pcie-ep@0xe0000000 {
-			compatible = "amlogic, amlogic-pcie-ep";
-			reg = <0x0 0xe0000000 0x0 0x1000
-				0x0 0xfe02c000 0x0 0x2000
-				0x0 0xe0000000 0x0 0x10000000
-				0x0 0xefe00000 0x0 0x200000
-				0x0 0xfe072000 0x0 0x2000
-				0x0 0xfe002040 0x0 0x10
-				0x0 0xe4000000 0x0 0x8000000>;
-			reg-names = "apb-base", "pcictrl-base", "axi-base",
-				    "ecam-base", "phy-base", "reset-base",
-				    "mem0";
-			interrupts = <GIC_SPI 78 IRQ_TYPE_EDGE_RISING>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&pcieck_pins>;
-
-//			clocks = <&clkc CLKID_PCIE_PLL
-//				&clkc CLKID_SYS_CLK_PCIE
-//				&clkc CLKID_SYS_CLK_PCIEPHY
-//				&clkc CLKID_PCIE_HCSL
-//				&clkc CLKID_PCIE_400M
-//				&clkc CLKID_PCIE_TL_CLK
-//				&clkc CLKID_PCIE_CLK>;
-//			clock-names = "pcie_refpll",
-//					"pcie",
-//					"pcie_phy",
-//					"pcie_hcsl",
-//					"pcie_400m_clk",
-//					"pcie_tl_clk",
-//					"cts_pcie_clk";
-			/*reset-gpio-type 0:Shared pad(no reset)1:OD pad2:Normal pad*/
-			gpio-type = <2>;
-			pcie-m31phy-rst-bit = <21>;
-			pcie-gen3-l0-rst-bit = <18>;
-			pcie-apb-rst-bit = <14>;
-			pcie-phy-rst-bit = <13>;
-			pcie-a-rst-bit = <12>;
-			pcie-rst-bit = <12>;
-			pcie-rst-mask = <0xff>;
-			//power-domains = <&pwrdm PDID_P1_PCIE>;
-			status = "disabled";
 		};
 
 		sd_emmc_c: mmc@fe08c000 {
@@ -3767,9 +3798,18 @@
 		};
 	};
 
-	pcieck_pins: pcieck_pin {
+	pcieck_0_pins: pcieck_0_pin {
 		mux {
-			groups = "pcieck_reqn_d";
+			/* GPIOT_23 */
+			groups = "pcieck_b_reqn";
+			function = "pcieck";
+		};
+	};
+
+	pcieck_1_pins: pcieck_1_pin {
+		mux {
+			/* GPIOX_19 */
+			groups = "pcieck_c_reqn";
 			function = "pcieck";
 		};
 	};

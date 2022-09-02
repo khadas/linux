@@ -1390,7 +1390,7 @@
 
 &usb3_m31_1_phy {
 	status = "okay";
-	portnum = <1>;
+	portnum = <0>;
 };
 
 &crg_phy_20 {
@@ -1408,9 +1408,9 @@
 	controller-type = <4>;
 };
 
-&pcie {
-	reset-gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
-	status = "disabled";
+&pcie1 {
+	reset-gpio = <&gpio GPIOX_5 GPIO_ACTIVE_HIGH>;
+	status = "disable";
 };
 
 &i2c4 {

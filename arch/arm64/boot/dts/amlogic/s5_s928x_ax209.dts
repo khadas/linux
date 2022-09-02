@@ -1352,11 +1352,6 @@
 	controller-type = <4>;
 };
 
-&pcie {
-	reset-gpio = <&gpio GPIOH_3 GPIO_ACTIVE_HIGH>;
-	status = "disabled";
-};
-
 &i2c4 {
 	clock-frequency = <400000>;
 	pinctrl-names = "default";

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * Amlogic AXI PCIe host controller driver
+ * Amlogic AXI PCIe controller driver
  *
  * Copyright (c) 2016 Amlogic, Inc.
  *
@@ -17,7 +17,7 @@
 
 #include "pcie-amlogic-v3.h"
 
-int amlogic_pcie_get_reset(struct amlogic_pcie *amlogic)
+static int amlogic_pcie_get_reset_for_m31_phy(struct amlogic_pcie *amlogic)
 {
 	struct device *dev = amlogic->dev;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -35,7 +35,7 @@ int amlogic_pcie_get_reset(struct amlogic_pcie *amlogic)
 
 	/*pcie_gen3_l0_rst*/
 	amlogic->gen3_l0_rst = devm_reset_control_get_exclusive(dev,
-								"gen3_lo_rst");
+								"gen3_l0_rst");
 	if (IS_ERR(amlogic->gen3_l0_rst)) {
 		if (PTR_ERR(amlogic->gen3_l0_rst) != -EPROBE_DEFER)
 			dev_err(dev, "gen3_l0_rst reset property in node\n");
@@ -186,7 +186,182 @@ get_rst_reg:
 	return 0;
 }
 
-int amlogic_pcie_set_reset(struct amlogic_pcie *amlogic, bool set)
+static int amlogic_pcie_get_reset_for_m31_comphy(struct amlogic_pcie *amlogic)
+{
+	struct device *dev = amlogic->dev;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct device_node *node = dev->of_node;
+	struct resource *rst_regs;
+	int ret = 0;
+
+	amlogic->gen2_l0_rst = devm_reset_control_get_exclusive(dev,
+								"gen2_l0_rst");
+	if (IS_ERR(amlogic->gen2_l0_rst)) {
+		if (PTR_ERR(amlogic->gen2_l0_rst) != -EPROBE_DEFER)
+			goto get_rst_reg;
+	}
+
+	amlogic->pcie_apb_rst = devm_reset_control_get_exclusive(dev,
+								 "apb_rst");
+	if (IS_ERR(amlogic->pcie_apb_rst)) {
+		if (PTR_ERR(amlogic->pcie_apb_rst) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_apb_rstreset property in node\n");
+		return PTR_ERR(amlogic->pcie_apb_rst);
+	}
+
+	amlogic->pcie_phy_rst = devm_reset_control_get_exclusive(dev,
+								 "phy_rst");
+	if (IS_ERR(amlogic->pcie_phy_rst)) {
+		if (PTR_ERR(amlogic->pcie_phy_rst) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_phy_rst property in node\n");
+		return PTR_ERR(amlogic->pcie_phy_rst);
+	}
+
+	amlogic->pcie_a_rst = devm_reset_control_get_exclusive(dev,
+							       "pcie_a_rst");
+	if (IS_ERR(amlogic->pcie_a_rst)) {
+		if (PTR_ERR(amlogic->pcie_a_rst) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_a_rst reset property in node\n");
+		return PTR_ERR(amlogic->pcie_a_rst);
+	}
+
+	amlogic->pcie_rst0 = devm_reset_control_get_exclusive(dev, "pcie_rst0");
+	if (IS_ERR(amlogic->pcie_rst0)) {
+		if (PTR_ERR(amlogic->pcie_rst0) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_rst0 property in node\n");
+		return PTR_ERR(amlogic->pcie_rst0);
+	}
+
+	amlogic->pcie_rst1 = devm_reset_control_get_exclusive(dev, "pcie_rst1");
+	if (IS_ERR(amlogic->pcie_rst1)) {
+		if (PTR_ERR(amlogic->pcie_rst1) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_rst1 reset property in node\n");
+		return PTR_ERR(amlogic->pcie_rst1);
+	}
+
+	amlogic->pcie_rst2 = devm_reset_control_get_exclusive(dev, "pcie_rst2");
+	if (IS_ERR(amlogic->pcie_rst2)) {
+		if (PTR_ERR(amlogic->pcie_rst2) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_rst2 reset property in node\n");
+		return PTR_ERR(amlogic->pcie_rst2);
+	}
+
+	amlogic->pcie_rst3 = devm_reset_control_get_exclusive(dev, "pcie_rst3");
+	if (IS_ERR(amlogic->pcie_rst3)) {
+		if (PTR_ERR(amlogic->pcie_rst3) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_rst3 reset property in node\n");
+		return PTR_ERR(amlogic->pcie_rst3);
+	}
+
+	amlogic->pcie_rst4 = devm_reset_control_get_exclusive(dev, "pcie_rst4");
+	if (IS_ERR(amlogic->pcie_rst4)) {
+		if (PTR_ERR(amlogic->pcie_rst4) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_rst4 reset property in node\n");
+		return PTR_ERR(amlogic->pcie_rst4);
+	}
+
+	amlogic->pcie_rst5 = devm_reset_control_get_exclusive(dev, "pcie_rst5");
+	if (IS_ERR(amlogic->pcie_rst5)) {
+		if (PTR_ERR(amlogic->pcie_rst5) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_rst5 reset property in node\n");
+		return PTR_ERR(amlogic->pcie_rst5);
+	}
+
+	amlogic->pcie_rst6 = devm_reset_control_get_exclusive(dev, "pcie_rst6");
+	if (IS_ERR(amlogic->pcie_rst6)) {
+		if (PTR_ERR(amlogic->pcie_rst6) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_rst6 reset property in node\n");
+		return PTR_ERR(amlogic->pcie_rst6);
+	}
+
+	amlogic->pcie_rst7 = devm_reset_control_get_exclusive(dev, "pcie_rst7");
+	if (IS_ERR(amlogic->pcie_rst7)) {
+		if (PTR_ERR(amlogic->pcie_rst7) != -EPROBE_DEFER)
+			dev_err(dev, "pcie_rst7 reset property in node\n");
+		return PTR_ERR(amlogic->pcie_rst7);
+	}
+
+	return 0;
+
+get_rst_reg:
+	rst_regs = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"reset-base");
+	amlogic->rst_base = devm_ioremap(dev, rst_regs->start,
+					 resource_size(rst_regs));
+	if (IS_ERR(amlogic->rst_base)) {
+		dev_err(dev, "failed to request rst_base\n");
+		return PTR_ERR(amlogic->rst_base);
+	}
+
+	ret = of_property_read_u32(node, "pcie-gen2-l0-rst-bit",
+				   &amlogic->gen3_l0_rst_bit);
+	if (ret) {
+		dev_err(dev, "failed to request gen2_l0_rst_bit\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(node, "pcie-apb-rst-bit",
+				   &amlogic->apb_rst_bit);
+	if (ret) {
+		dev_err(dev, "failed to request apb_rst_bit\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(node, "pcie-phy-rst-bit",
+				   &amlogic->phy_rst_bit);
+	if (ret) {
+		dev_err(dev, "failed to request phy_rst_bit\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(node, "pcie-a-rst-bit",
+				   &amlogic->pcie_a_rst_bit);
+	if (ret) {
+		dev_err(dev, "failed to request pcie_a_rst_bit\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(node, "pcie-rst-bit",
+				   &amlogic->pcie_rst_bit);
+	if (ret) {
+		dev_err(dev, "failed to request pcie_rst_bit\n");
+		return ret;
+	}
+
+	ret = of_property_read_u32(node, "pcie-rst-mask",
+				   &amlogic->pcie_rst_mask);
+	if (ret) {
+		dev_err(dev, "failed to request pcie_rst_size\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+int amlogic_pcie_get_resets(struct amlogic_pcie *amlogic)
+{
+	struct device *dev = amlogic->dev;
+	int ret = 0;
+
+	switch (amlogic->phy_type) {
+	case AMLOGIC_PHY:
+		dev_dbg(dev, " pcie use AMLOGIC_PHY\n");
+		break;
+	case M31_COMBPHY:
+		dev_dbg(dev, " pcie use M31_COMBPHY\n");
+		ret = amlogic_pcie_get_reset_for_m31_comphy(amlogic);
+		break;
+	case M31_PHY:
+	default:
+		dev_dbg(dev, " pcie use M31_PHY\n");
+		ret = amlogic_pcie_get_reset_for_m31_phy(amlogic);
+		break;
+	}
+
+	return ret;
+}
+
+static int amlogic_pcie_set_reset_for_m31_phy(struct amlogic_pcie *amlogic, bool set)
 {
 	struct device *dev = amlogic->dev;
 	int err = 0, val = 0;
@@ -356,9 +531,6 @@ set_rst_reg:
 		val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
 		val &= ~(amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
 		writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
-		val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
-
-		amlogic_pciectrl_write(amlogic, val, PCIE_A_CTRL0);
 
 		val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
 		val &= ~((1 << amlogic->pcie_a_rst_bit) |
@@ -387,19 +559,196 @@ set_rst_reg:
 			 (1 << amlogic->phy_rst_bit) |
 			 (1 << amlogic->apb_rst_bit));
 		writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
-
-		val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
-
-		if (amlogic->is_rc)
-			val |= PORT_TYPE;
-		else
-			val &= ~PORT_TYPE;
-		amlogic_pciectrl_write(amlogic, val, PCIE_A_CTRL0);
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(amlogic_pcie_set_reset);
+
+static int amlogic_pcie_set_reset_for_m31_combphy(struct amlogic_pcie *amlogic)
+{
+	struct device *dev = amlogic->dev;
+	int err = 0, val = 0;
+
+	if (amlogic->rst_base)
+		goto set_rst_reg;
+
+	err = reset_control_deassert(amlogic->gen2_l0_rst);
+	if (err < 0) {
+		dev_err(dev, "deassert gen2_l0_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->gen2_l0_rst);
+	if (err < 0) {
+		dev_err(dev, "assert gen2_l0_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_apb_rst);
+	if (err < 0) {
+		dev_err(dev, "deassert pcie_apb_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_apb_rst);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_apb_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_phy_rst);
+	if (err) {
+		dev_err(dev, "deassert pcie_phy_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_phy_rst);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_phy_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_a_rst);
+	if (err) {
+		dev_err(dev, "deassert pcie_a_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_a_rst);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_a_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_rst0);
+	if (err) {
+		dev_err(dev, "deassert pcie_rst0 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_rst0);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_rst0 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_rst1);
+	if (err) {
+		dev_err(dev, "deassert pcie_rst1 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_rst1);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_rst1 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_rst2);
+	if (err) {
+		dev_err(dev, "deassert pcie_rst2 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_rst2);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_rst2 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_rst3);
+	if (err) {
+		dev_err(dev, "deassert pcie_rst3 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_rst3);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_rst3 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_rst4);
+	if (err) {
+		dev_err(dev, "deassert pcie_rst4 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_rst4);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_rst4 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_rst5);
+	if (err) {
+		dev_err(dev, "deassert pcie_rst5 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_rst5);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_rst5 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_rst6);
+	if (err) {
+		dev_err(dev, "deassert pcie_rst6 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_rst6);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_rst6 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(amlogic->pcie_rst7);
+	if (err) {
+		dev_err(dev, "deassert pcie_rst7 err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(amlogic->pcie_rst7);
+	if (err < 0) {
+		dev_err(dev, "assert pcie_rst7 err %d\n", err);
+		return err;
+	}
+
+set_rst_reg:
+	val = readl(amlogic->rst_base + RESETCTRL0_OFFSET);
+	val &= ~(1 << amlogic->phy_rst_bit);
+	writel(val, amlogic->rst_base + RESETCTRL0_OFFSET);
+
+	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+	val &= ~((1 << amlogic->pcie_a_rst_bit) |
+		 (1 << amlogic->gen2_l0_rst_bit));
+	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+
+	val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
+	val &= ~(amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
+	writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
+
+	usleep_range(10, 20);
+
+	val = readl(amlogic->rst_base + RESETCTRL0_OFFSET);
+	val |= 1 << amlogic->phy_rst_bit;
+	writel(val, amlogic->rst_base + RESETCTRL0_OFFSET);
+
+	val = readl(amlogic->rst_base + RESETCTRL1_OFFSET);
+	val |= ((1 << amlogic->pcie_a_rst_bit) |
+		(1 << amlogic->gen2_l0_rst_bit));
+	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
+
+	val = readl(amlogic->rst_base + RESETCTRL3_OFFSET);
+	val |= (amlogic->pcie_rst_mask << amlogic->pcie_rst_bit);
+	writel(val, amlogic->rst_base + RESETCTRL3_OFFSET);
+
+	usleep_range(10, 20);
+
+	return 0;
+}
 
 void amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 {
@@ -412,9 +761,10 @@ void amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 	} else if (amlogic->gpio_type == 1) {
 		dev_info(dev, "pad gpio\n");
 		if (amlogic->reset_gpio >= 0)
-			ret = devm_gpio_request(dev,
-						amlogic->reset_gpio,
-						"RESET");
+			ret = devm_gpio_request_one(dev,
+						    amlogic->reset_gpio,
+						    GPIOF_OUT_INIT_HIGH,
+						    "PERST");
 
 		if (!ret && gpio_is_valid(amlogic->reset_gpio)) {
 			dev_info(dev, "GPIO pad: assert reset\n");
@@ -425,9 +775,10 @@ void amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 	} else {
 		dev_info(dev, "normal gpio\n");
 		if (amlogic->reset_gpio >= 0) {
-			ret = devm_gpio_request(dev,
-						amlogic->reset_gpio,
-						"RESET");
+			ret = devm_gpio_request_one(dev,
+						    amlogic->reset_gpio,
+						    GPIOF_OUT_INIT_HIGH,
+						    "PERST");
 			if (!ret)
 				gpio_direction_output(amlogic->reset_gpio, 0);
 		}
@@ -438,6 +789,55 @@ void amlogic_pcie_set_reset_gpio(struct amlogic_pcie *amlogic)
 			gpio_set_value_cansleep(amlogic->reset_gpio, 1);
 		}
 	}
+}
+
+static int amlogic_pcie_get_clks(struct amlogic_pcie *amlogic)
+{
+	struct device *dev = amlogic->dev;
+
+	amlogic->pcie_400m_clk = devm_clk_get(dev, "pcie_400m_clk");
+	if (IS_ERR(amlogic->pcie_400m_clk)) {
+		dev_err(dev, "pcie_400m_clk not found\n");
+		return PTR_ERR(amlogic->pcie_400m_clk);
+	}
+
+	amlogic->pcie_tl_clk = devm_clk_get(dev, "pcie_tl_clk");
+	if (IS_ERR(amlogic->pcie_tl_clk)) {
+		dev_err(dev, "pcie_tl_clk not found\n");
+		return PTR_ERR(amlogic->pcie_tl_clk);
+	}
+
+	amlogic->cts_pcie_clk = devm_clk_get(dev, "cts_pcie_clk");
+	if (IS_ERR(amlogic->cts_pcie_clk)) {
+		dev_err(dev, "cts_pcie_clk not found\n");
+		return PTR_ERR(amlogic->cts_pcie_clk);
+	}
+
+	amlogic->pcie_clk = devm_clk_get(dev, "pcie");
+	if (IS_ERR(amlogic->pcie_clk)) {
+		dev_err(dev, "pcie_clk not found\n");
+		return PTR_ERR(amlogic->pcie_clk);
+	}
+
+	amlogic->phy_clk = devm_clk_get(dev, "pcie_phy");
+	if (IS_ERR(amlogic->phy_clk)) {
+		dev_err(dev, "phy_clk not found\n");
+		return PTR_ERR(amlogic->phy_clk);
+	}
+
+	amlogic->refpll_clk = devm_clk_get(dev, "pcie_refpll");
+	if (IS_ERR(amlogic->refpll_clk)) {
+		dev_err(dev, "refpll_clk not found\n");
+		return PTR_ERR(amlogic->refpll_clk);
+	}
+
+	amlogic->dev_clk = devm_clk_get(dev, "pcie_hcsl");
+	if (IS_ERR(amlogic->dev_clk)) {
+		dev_err(dev, "dev_clk not found\n");
+		return PTR_ERR(amlogic->dev_clk);
+	}
+
+	return 0;
 }
 
 int amlogic_pcie_parse_dt(struct amlogic_pcie *amlogic)
@@ -498,51 +898,18 @@ int amlogic_pcie_parse_dt(struct amlogic_pcie *amlogic)
 		amlogic->lanes = 1;
 	}
 
-	err = amlogic_pcie_get_reset(amlogic);
+	err = of_property_read_u32(node, "port-num", &amlogic->port_num);
+	if (err)
+		amlogic->port_num = 0;
+	dev_dbg(dev, "pcie port_num = %d\n", amlogic->port_num);
+
+	err = amlogic_pcie_get_resets(amlogic);
 	if (err)
 		return err;
 
-	amlogic->pcie_400m_clk = devm_clk_get(dev, "pcie_400m_clk");
-	if (IS_ERR(amlogic->pcie_400m_clk)) {
-		dev_err(dev, "pcie_400m_clk not found\n");
-		return PTR_ERR(amlogic->pcie_400m_clk);
-	}
-
-	amlogic->pcie_tl_clk = devm_clk_get(dev, "pcie_tl_clk");
-	if (IS_ERR(amlogic->pcie_tl_clk)) {
-		dev_err(dev, "pcie_tl_clk not found\n");
-		return PTR_ERR(amlogic->pcie_tl_clk);
-	}
-
-	amlogic->cts_pcie_clk = devm_clk_get(dev, "cts_pcie_clk");
-	if (IS_ERR(amlogic->cts_pcie_clk)) {
-		dev_err(dev, "cts_pcie_clk not found\n");
-		return PTR_ERR(amlogic->cts_pcie_clk);
-	}
-
-	amlogic->pcie_clk = devm_clk_get(dev, "pcie");
-	if (IS_ERR(amlogic->pcie_clk)) {
-		dev_err(dev, "pcie_clk not found\n");
-		return PTR_ERR(amlogic->pcie_clk);
-	}
-
-	amlogic->phy_clk = devm_clk_get(dev, "pcie_phy");
-	if (IS_ERR(amlogic->phy_clk)) {
-		dev_err(dev, "phy_clk not found\n");
-		return PTR_ERR(amlogic->phy_clk);
-	}
-
-	amlogic->refpll_clk = devm_clk_get(dev, "pcie_refpll");
-	if (IS_ERR(amlogic->refpll_clk)) {
-		dev_err(dev, "refpll_clk not found\n");
-		return PTR_ERR(amlogic->refpll_clk);
-	}
-
-	amlogic->dev_clk = devm_clk_get(dev, "pcie_hcsl");
-	if (IS_ERR(amlogic->dev_clk)) {
-		dev_err(dev, "dev_clk not found\n");
-		return PTR_ERR(amlogic->dev_clk);
-	}
+	err = amlogic_pcie_get_clks(amlogic);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -656,9 +1023,8 @@ void amlogic_set_max_payload(struct amlogic_pcie *amlogic, int size)
 				PCIE_CAP_OFFSET + PCI_EXP_DEVCTL);
 }
 
-int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
+static int amlogic_pcie_init_port_for_m31_phy(struct amlogic_pcie *amlogic)
 {
-	struct device *dev = amlogic->dev;
 	int err;
 	u32 regs;
 	u32 val;
@@ -670,7 +1036,7 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 	val |= (1 << amlogic->m31phy_rst_bit);
 	writel(val, amlogic->rst_base + RESETCTRL1_OFFSET);
 
-	err = amlogic_pcie_set_reset(amlogic, false);
+	err = amlogic_pcie_set_reset_for_m31_phy(amlogic, false);
 	if (err)
 		return err;
 
@@ -685,11 +1051,81 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 	writel(regs, amlogic->phy_base);
 	usleep_range(20, 30);
 
-	amlogic_pcie_set_reset_gpio(amlogic);
-
-	err = amlogic_pcie_set_reset(amlogic, true);
+	err = amlogic_pcie_set_reset_for_m31_phy(amlogic, true);
 	if (err)
 		return err;
+
+	return 0;
+}
+
+static int amlogic_pcie_init_port_for_m31_combphy(struct amlogic_pcie *amlogic)
+{
+	int ret = 0;
+	u32 val;
+
+	/* phy init */
+	val = readl(amlogic->phy_base);
+	val &= ~(BIT(0) | BIT(22));
+	val |= BIT(17) | BIT(25);
+	writel(val, amlogic->phy_base);
+	val = readl(amlogic->phy_base + 0x4);
+
+	val |= BIT(11);
+	writel(val, amlogic->phy_base + 0x4);
+
+	ret = amlogic_pcie_set_reset_for_m31_combphy(amlogic);
+	if (ret)
+		return ret;
+
+	/*
+	 * workaround pcie1 ctrl just for S5, S5 pcie0 no need
+	 * value recommend by VLSI
+	 */
+	if (amlogic->port_num == 1 && of_machine_is_compatible("amlogic, s5")) {
+		val = 0x73f << 2;
+		amlogic_pciectrl_write(amlogic, val, 0xb4);
+		val = amlogic_pciectrl_read(amlogic, 0xb8);
+		val = 0x390073;
+		amlogic_pciectrl_write(amlogic, val, 0xb8);
+
+		val = amlogic_pciectrl_read(amlogic, 0xbc);
+		val = 0xe0000;
+		amlogic_pciectrl_write(amlogic, val, 0xbc);
+	}
+
+	return 0;
+}
+
+int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
+{
+	struct device *dev = amlogic->dev;
+	int ret = 0;
+	u32 regs;
+	u32 val;
+
+	switch (amlogic->phy_type) {
+	case AMLOGIC_PHY:
+		dev_dbg(dev, " pcie init port and AMLOGIC_PHY\n");
+		break;
+	case M31_COMBPHY:
+		dev_dbg(dev, " pcie init port and M31_COMBPHY\n");
+		ret = amlogic_pcie_init_port_for_m31_combphy(amlogic);
+		break;
+	case M31_PHY:
+	default:
+		dev_dbg(dev, " pcie init port and M31_PHY\n");
+		ret = amlogic_pcie_init_port_for_m31_phy(amlogic);
+		break;
+	}
+
+	val = amlogic_pciectrl_read(amlogic, PCIE_A_CTRL0);
+	if (amlogic->is_rc)
+		val |= PORT_TYPE;
+	else
+		val &= ~PORT_TYPE;
+	amlogic_pciectrl_write(amlogic, val, PCIE_A_CTRL0);
+
+	amlogic_pcie_set_reset_gpio(amlogic);
 
 	if (!amlogic_pcie_link_up(amlogic))
 		return -ETIMEDOUT;
@@ -698,7 +1134,7 @@ int amlogic_pcie_init_port(struct amlogic_pcie *amlogic)
 	dev_info(dev, "current linK speed is GEN%d,link width is x%d\n",
 		 ((regs >> 8) & 0x3f), (regs & 0xff));
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(amlogic_pcie_init_port);
 
@@ -707,11 +1143,10 @@ int amlogic_pcie_get_phys(struct amlogic_pcie *amlogic)
 	struct device *dev = amlogic->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
-	struct phy *phy;
 
-	phy = devm_of_phy_get(dev, dev->of_node, "pcie-phy");
-	if (IS_ERR(phy)) {
-		if (PTR_ERR(phy) != -EPROBE_DEFER)
+	amlogic->pcie_phy = devm_of_phy_get(dev, dev->of_node, "pcie-phy");
+	if (IS_ERR(amlogic->pcie_phy)) {
+		if (PTR_ERR(amlogic->pcie_phy) != -EPROBE_DEFER)
 			goto get_phy_reg;
 	}
 
@@ -849,8 +1284,8 @@ void amlogic_pcie_cfg_addr_map(struct amlogic_pcie *amlogic,
 				atr_base + ATR_TRSL_PARAM);
 
 	dev_dbg(dev,
-		 "ATR Map:0x%010llx %s 0x%010llx [0x%010llx] (param: 0x%06x)\n",
-		 src_addr, (trsl_param & 0x400000) ? "<-" : "->", trsl_addr,
-		 ((u64)1) << (size + 1), trsl_param);
+		"ATR Map:0x%010llx %s 0x%010llx [0x%010llx] (param: 0x%06x)\n",
+		src_addr, (trsl_param & 0x400000) ? "<-" : "->", trsl_addr,
+		((u64)1) << (size + 1), trsl_param);
 }
 EXPORT_SYMBOL_GPL(amlogic_pcie_cfg_addr_map);
