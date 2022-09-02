@@ -864,6 +864,7 @@ static ssize_t cma_debug_write(struct file *file, const char __user *buffer,
 	if (copy_from_user(buf, buffer, count))
 		goto exit;
 
+	buf[count - 1] = 0;
 	if (!strncmp(buf, "cma_task=", 9)) {	/* option for 'cma_task=' */
 		if (sscanf(buf, "cma_task=%d", &arg) < 0)
 			goto exit;
