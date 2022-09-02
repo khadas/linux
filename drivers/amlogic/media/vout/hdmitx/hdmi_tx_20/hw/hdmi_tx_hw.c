@@ -4116,7 +4116,6 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		}
 		break;
 	case CONF_CLR_AVI_PACKET:
-		pr_info("%s ***clr avi***\n", __func__);
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);

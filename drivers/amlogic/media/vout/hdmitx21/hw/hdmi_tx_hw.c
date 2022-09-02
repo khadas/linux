@@ -805,6 +805,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 		(((para->cd == COLORDEPTH_24B) ? 1 : 0) << 10) |
 		(0 << 12);
 	hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
+	hdmitx21_dither_config(hdev);
 
 	_hdmitx21_set_clk();
 
@@ -2196,23 +2197,41 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	// [    2] reverse_cr
 	// [    1] reverse_cb
 	// [ 0] reverse_y
-	data32 = 0;
-	data32 |= (2 << 9);
-	data32 |= (1 << 6);
-	data32 |= (0 << 3);
-	data32 |= (0 << 2);
-	data32 |= (0 << 1);
-	data32 |= (0 << 0);
-	hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX, data32 & 0xff);
-	hdmitx21_wr_reg((VP_OUTPUT_MAPPING_IVCTX + 1), (data32 >> 8) & 0xff);
+	//Output 422
+	if (para->cs == HDMI_COLORSPACE_YUV422) {
+		data32 = 0;
+		data32 |= (2 << 9);
+		data32 |= (4 << 6);
+		data32 |= (0 << 3);
+		data32 |= (0 << 2);
+		data32 |= (0 << 1);
+		data32 |= (0 << 0);
 
-	// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
-	// 0=12bit; 1=10bit(disable 2-LSB),
-	// 2=8bit(disable 4-LSB), 3=6bit(disable 6-LSB)
-	data8 = 0;
-	data8 |= (0 << 4);
-	data8 |= (0 << 2);
-	data8 |= (0 << 0);
+		// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
+		// 0=12bit; 1=10bit(disable 2-LSB),
+		// 2=8bit(disable 4-LSB), 3=6bit(disable 6-LSB)
+		data8 = 0;
+		data8 |= (2 << 4);
+		data8 |= (2 << 2);
+		data8 |= (2 << 0);
+	} else {
+		data32 = 0;
+		data32 |= (2 << 9);
+		data32 |= (1 << 6);
+		data32 |= (0 << 3);
+		data32 |= (0 << 2);
+		data32 |= (0 << 1);
+		data32 |= (0 << 0);
+
+		// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
+		// 0=12bit; 1=10bit(disable 2-LSB),
+		// 2=8bit(disable 4-LSB), 3=6bit(disable 6-LSB)
+		data8 = 0;
+		data8 |= (0 << 4);
+	}
+	//mapping for yuv422 12bit
+	hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX, data32 & 0xff);
+	hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX + 1, (data32 >> 8) & 0xff);
 	hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
 
 	//---------------
@@ -2388,4 +2407,14 @@ int hdmitx21_read_phy_status(void)
 	phy_value = !!(hd21_read_reg(ANACTRL_HDMIPHY_CTRL0) & 0xffff);
 
 	return phy_value;
+}
+
+void hdmitx21_dither_config(struct hdmitx_dev *hdev)
+{
+	struct hdmi_format_para *para = hdev->para;
+
+	if (para->cd == COLORDEPTH_24B && hdmitx21_dv_en() == 0)
+		hd21_set_reg_bits(VPU_HDMI_DITH_CNTL, 1, 4, 1);
+	else
+		hd21_set_reg_bits(VPU_HDMI_DITH_CNTL, 0, 4, 1);
 }

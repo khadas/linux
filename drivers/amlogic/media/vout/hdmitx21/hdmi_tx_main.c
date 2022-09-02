@@ -1868,6 +1868,7 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 			}
 		}
 	}
+	hdmitx21_dither_config(hdev);
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 }
 
