@@ -655,7 +655,7 @@
 
 	picdec {
 		compatible = "amlogic, picdec";
-		status = "disabled";
+		status = "okay";
 	};
 
 	ppmgr {
