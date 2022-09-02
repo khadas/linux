@@ -333,6 +333,16 @@ static int amlogic_usb3_m31_probe(struct platform_device *pdev)
 		usleep_range(90, 100);
 
 		phy->phy.flags = AML_USB3_PHY_ENABLE;
+	} else {
+		if (uncomposite) {
+			r0.d32 = readl(phy->phy3_cfg);
+			r0.b.TX_ENABLE_N = 1;
+			r0.b.PHY_SEL = 1;
+			r0.b.FSLSSERIALMODE = 0;
+			r0.b.PHY_SSCG_ON = 0;
+			writel(r0.d32, phy->phy3_cfg);
+			usleep_range(90, 100);
+		}
 	}
 
 	usb_add_phy_dev(&phy->phy);
