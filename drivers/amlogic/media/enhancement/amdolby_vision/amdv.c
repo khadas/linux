@@ -2170,7 +2170,7 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 	}
 
 	for (j = 0; j < NUM_IPCORE1; j++) {
-		if ((debug_flag & 0x10) && dump_enable_f(i)) {
+		if ((debug_flag & 0x10) && dump_enable_f(j)) {
 			pr_info("video-%d\n", j + 1);
 			p = (u32 *)&m_setting->core1[j].dm_reg;
 			for (i = 0; i < 27; i++)
@@ -2180,7 +2180,7 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 			for (i = 0; i < 173; i++)
 				pr_info("%08x\n", p[i]);
 		}
-		if ((debug_flag & 0x20) && dump_enable_f(i)) {
+		if ((debug_flag & 0x20) && dump_enable_f(j)) {
 			pr_info("\nvideo-%d lut\n", j + 1);
 			p = (uint32_t *)&m_setting->core1[j].dm_lut.tm_lut_i;
 			for (i = 0; i < 64; i++)
@@ -5030,35 +5030,69 @@ void prepare_hdr10_param(struct vframe_master_display_colour_s *p_mdc,
 			p_hdr10_param->w_x = p_mdc->white_point[0];
 			p_hdr10_param->w_y = p_mdc->white_point[1];
 		}
-	} else {
-		/* GBR -> RGB as DV will swap back to GBR
-		 * in send_hdmi_pkt
-		 */
-		if (p_hdr10_param->min_display_mastering_lum !=
-		    min_lum ||
-		    p_hdr10_param->max_display_mastering_lum !=
-		    max_lum ||
-		    p_hdr10_param->r_x != bt2020_primaries[2][0] ||
-		    p_hdr10_param->r_y != bt2020_primaries[2][1] ||
-		    p_hdr10_param->g_x != bt2020_primaries[0][0] ||
-		    p_hdr10_param->g_y != bt2020_primaries[0][1] ||
-		    p_hdr10_param->b_x != bt2020_primaries[1][0] ||
-		    p_hdr10_param->b_y != bt2020_primaries[1][1] ||
-		    p_hdr10_param->w_x != bt2020_white_point[0] ||
-		    p_hdr10_param->w_y != bt2020_white_point[1]) {
-			flag |= 2;
-			p_hdr10_param->min_display_mastering_lum =
-				min_lum;
+	} else if (primaries_type == 0) {
+		if (is_amdv_stb_mode() &&
+			p_mdc->present_flag &&
+			p_mdc->primaries[0][0] == 0 &&
+			p_mdc->primaries[0][1] == 0 &&
+			p_mdc->primaries[1][0] == 0 &&
+			p_mdc->primaries[1][1] == 0 &&
+			p_mdc->primaries[2][0] == 0 &&
+			p_mdc->primaries[2][1] == 0 &&
+			p_mdc->white_point[0] == 0 &&
+			p_mdc->white_point[1] == 0 &&
+			p_mdc->luminance[0] == 0 &&
+			p_mdc->luminance[1] == 0 &&
+			p_cll->max_pic_average == 0 &&
+			p_cll->max_content == 0) {/*stb, passthrough zero drms*/
+			flag |= 1;
 			p_hdr10_param->max_display_mastering_lum =
-				max_lum;
-			p_hdr10_param->r_x = bt2020_primaries[2][0];
-			p_hdr10_param->r_y = bt2020_primaries[2][1];
-			p_hdr10_param->g_x = bt2020_primaries[0][0];
-			p_hdr10_param->g_y = bt2020_primaries[0][1];
-			p_hdr10_param->b_x = bt2020_primaries[1][0];
-			p_hdr10_param->b_y = bt2020_primaries[1][1];
-			p_hdr10_param->w_x = bt2020_white_point[0];
-			p_hdr10_param->w_y = bt2020_white_point[1];
+				p_mdc->luminance[0];
+			p_hdr10_param->min_display_mastering_lum =
+				p_mdc->luminance[1];
+			p_hdr10_param->r_x = p_mdc->primaries[0][0];
+			p_hdr10_param->r_y = p_mdc->primaries[0][1];
+			p_hdr10_param->g_x = p_mdc->primaries[1][0];
+			p_hdr10_param->g_y = p_mdc->primaries[1][1];
+			p_hdr10_param->b_x = p_mdc->primaries[2][0];
+			p_hdr10_param->b_y = p_mdc->primaries[2][1];
+			p_hdr10_param->w_x = p_mdc->white_point[0];
+			p_hdr10_param->w_y = p_mdc->white_point[1];
+			p_cll->present_flag = 1;
+			if (debug_dolby & 1)
+				pr_info("source primary zero, passthrough\n");
+		} else {
+			/* GBR -> RGB as DV will swap back to GBR
+			 * in send_hdmi_pkt
+			 */
+			if (p_hdr10_param->min_display_mastering_lum !=
+			    min_lum ||
+			    p_hdr10_param->max_display_mastering_lum !=
+			    max_lum ||
+			    p_hdr10_param->r_x != bt2020_primaries[2][0] ||
+			    p_hdr10_param->r_y != bt2020_primaries[2][1] ||
+			    p_hdr10_param->g_x != bt2020_primaries[0][0] ||
+			    p_hdr10_param->g_y != bt2020_primaries[0][1] ||
+			    p_hdr10_param->b_x != bt2020_primaries[1][0] ||
+			    p_hdr10_param->b_y != bt2020_primaries[1][1] ||
+			    p_hdr10_param->w_x != bt2020_white_point[0] ||
+			    p_hdr10_param->w_y != bt2020_white_point[1]) {
+				flag |= 2;
+				p_hdr10_param->min_display_mastering_lum =
+					min_lum;
+				p_hdr10_param->max_display_mastering_lum =
+					max_lum;
+				p_hdr10_param->r_x = bt2020_primaries[2][0];
+				p_hdr10_param->r_y = bt2020_primaries[2][1];
+				p_hdr10_param->g_x = bt2020_primaries[0][0];
+				p_hdr10_param->g_y = bt2020_primaries[0][1];
+				p_hdr10_param->b_x = bt2020_primaries[1][0];
+				p_hdr10_param->b_y = bt2020_primaries[1][1];
+				p_hdr10_param->w_x = bt2020_white_point[0];
+				p_hdr10_param->w_y = bt2020_white_point[1];
+				if (debug_dolby & 1)
+					pr_info("source primary invalid, use bt2020\n");
+			}
 		}
 	}
 
@@ -5876,8 +5910,8 @@ static void send_hdmi_pkt_ahead
 			else
 				vinfo->vout_device->fresh_tx_vsif_pkt
 					(EOTF_T_DV_AHEAD,
-					amdv_target_mode ==
-					dovi_ll_enable
+					(amdv_target_mode ==
+					dovi_ll_enable)
 					? YUV422_BIT12 : RGB_8BIT, &vsif,
 					false);
 		}
@@ -14077,14 +14111,15 @@ static ssize_t amdolby_vision_graphic_md_store
 		pr_info("failed to open file: |%s|\n", parm[0]);
 		goto LOAD_END;
 	}
-	vfs_stat(parm[0], &stat);
-	if (stat.size > MD_BUF_SIZE) {
-		graphic_md_size = MD_BUF_SIZE;
-		pr_err("graphic md file %lld > %d\n", stat.size, MD_BUF_SIZE);
-	} else {
-		graphic_md_size = stat.size;
+	if (vfs_stat(parm[0], &stat) == 0) {
+		if (stat.size > MD_BUF_SIZE) {
+			graphic_md_size = MD_BUF_SIZE;
+			pr_err("graphic md file %lld > %d\n", stat.size, MD_BUF_SIZE);
+		} else {
+			graphic_md_size = stat.size;
+		}
+		vfs_read(filp, graphic_md_buf, graphic_md_size, &pos);
 	}
-	vfs_read(filp, graphic_md_buf, graphic_md_size, &pos);
 	filp_close(filp, NULL);
 
 LOAD_END:
