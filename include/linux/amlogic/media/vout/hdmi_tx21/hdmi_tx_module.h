@@ -592,6 +592,7 @@ void hdmitx21_edid_clear(struct hdmitx_dev *hdev);
 void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdev);
 void hdmitx21_edid_buf_compare_print(struct hdmitx_dev *hdev);
 int hdmitx21_read_phy_status(void);
+void hdmitx21_dither_config(struct hdmitx_dev *hdev);
 
 /* VSIF: Vendor Specific InfoFrame
  * It has multiple purposes:
