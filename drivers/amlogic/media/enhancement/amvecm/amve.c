@@ -2752,18 +2752,21 @@ int dv_pq_ctl(enum dv_pq_ctl_e ctl)
 		cfg.sharpness0_en = pq_cfg.sharpness0_en;
 		cfg.sharpness1_en = pq_cfg.sharpness1_en;
 		vpp_pq_ctrl_config(cfg, WR_DMA);
+		eye_proc(eye_protect.rgb, 0);
 		dv_pq_bypass = 2;
 		pr_amve_dbg("dv enable, for STB pq disable, dv_pq_bypass = %d\n",
 				dv_pq_bypass);
 		break;
 	case DV_PQ_CERT:
 		vpp_pq_ctrl_config(dv_cfg_bypass, WR_DMA);
+		eye_proc(eye_protect.rgb, 0);
 		dv_pq_bypass = 1;
 		pr_amve_dbg("dv certification mode, pq disable, dv_pq_bypass = %d\n",
 			    dv_pq_bypass);
 		break;
 	case DV_PQ_REC:
 		vpp_pq_ctrl_config(pq_cfg, WR_DMA);
+		vecm_latch_flag2 |= VPP_EYE_PROTECT_UPDATE;
 		dv_pq_bypass = 0;
 		pr_amve_dbg("dv disable, pq recovery, dv_pq_bypass = %d\n",
 			    dv_pq_bypass);

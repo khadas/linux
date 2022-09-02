@@ -709,7 +709,8 @@ extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;
 extern unsigned int lc_offset;
 extern unsigned int pq_user_latch_flag;
-
+extern struct eye_protect_s eye_protect;
+extern unsigned int vecm_latch_flag2;
 
 extern enum ecm_color_type cm_cur_work_color_md;
 extern int cm2_debug;
