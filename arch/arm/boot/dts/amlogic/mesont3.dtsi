@@ -1120,15 +1120,14 @@
 				<&clkc CLKID_SD_EMMC_B_CLK_SEL>,
 				 <&clkc CLKID_SD_EMMC_B_CLK>,
 				 <&xtal>,
-				 <&clkc CLKID_GP0_PLL>,
-				 <&clkc CLKID_GP0_PLL>;
+				 <&clkc CLKID_FCLK_DIV2>,
+				 <&clkc CLKID_FCLK_DIV2>;
 			clock-names = "core", "mux0", "mux1",
 					"clkin0", "clkin1","clkin2";
 			//card_type = <5>;
 			card_type = <3>;
 			cap-sdio-irq;
 			keep-power-in-suspend;
-			src_clk_rate = <1152000000>;
 			use_intf3_tuning;
 			mmc_debug_flag;
 			//resets = <&reset RESET_SD_EMMC_B>;
