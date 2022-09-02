@@ -703,7 +703,7 @@ void enable_crt_video_hdmi(u32 enable, u32 in_sel, u8 enc_sel)
 		 (enc_sel << 5) |
 		 (0 << 4) |
 		 (0 << 0);
-	if (para->cs == HDMI_COLORSPACE_YUV420)
+	if (para->cs == HDMI_COLORSPACE_YUV420 && !hdev->frl_rate)
 		data32 |= (1 << 0); /* pixel_clk DIV */
 	hd21_write_reg(CLKCTRL_ENC_HDMI_CLK_CTRL, data32);
 	hd21_set_reg_bits(CLKCTRL_ENC_HDMI_CLK_CTRL, 1, 20, 1);
@@ -927,6 +927,14 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 		hd21_set_reg_bits(VPU_HDMI_SETTING, 4, 16, 3);
 	// [    1] src_sel_encp: Enable ENCI or ENCP output to HDMI
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 1, (hdev->enc_idx == 0) ? 0 : 1, 1);
+	if (hdev->data->chip_type >= MESON_CPU_ID_S5) {
+		if (hdev->frl_rate) {
+			hd21_set_reg_bits(VPU_HDMI_SETTING, 0, 20, 4);
+			hd21_set_reg_bits(VPU_HDMI_SETTING, 0, 24, 4);
+			if (hdev->para->cs != HDMI_COLORSPACE_YUV420)
+				hd21_set_reg_bits(VPU_HDMI_SETTING, 1, 1, 1);
+		}
+	}
 
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 0, 16, 3);	//hard code
 	hdmitx_set_phy(hdev);

@@ -68,6 +68,7 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	timing.h_total /= hpara_div;
 	timing.h_blank /= hpara_div;
 	timing.h_front /= hpara_div;
+	timing.h_front |= 3; /* For ENCP, there needs OR 3 */
 	timing.h_sync /= hpara_div;
 	timing.h_back /= hpara_div;
 	timing.h_active /= hpara_div;
@@ -412,7 +413,7 @@ void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index, enum hdmi_vic vic,
 		break;
 	}
 
-	if (hdev->frl_rate)
+	if (hdev->frl_rate && hdev->para->cs != HDMI_COLORSPACE_YUV420)
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 0, 3);
 	else
 		hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 0, 3);
