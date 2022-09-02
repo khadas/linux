@@ -200,7 +200,7 @@ void g12_dmc_mon_disable(struct dmc_monitor *mon)
 
 struct dmc_mon_ops g12_dmc_mon_ops = {
 	.handle_irq = g12_dmc_mon_irq,
-	.set_montor = g12_dmc_mon_set,
+	.set_monitor = g12_dmc_mon_set,
 	.disable    = g12_dmc_mon_disable,
 	.dump_reg   = g12_dmc_dump_reg,
 };

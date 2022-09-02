@@ -157,7 +157,7 @@ struct ddr_bandwidth {
 	char busy;
 	char mode;
 	char bytes_per_cycle;
-	char soc_feature;		/* some special featur of it */
+	char soc_feature;		/* some special feature of it */
 	int mali_port[2];
 	int stat_flag;
 	unsigned int ddr_priority_num;

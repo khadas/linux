@@ -328,8 +328,8 @@ int dmc_set_monitor(unsigned long start, unsigned long end,
 	dmc_mon->addr_start = start;
 	dmc_mon->addr_end   = end;
 	dmc_regulation_dev(dev_mask, en);
-	if (start < end && dmc_mon->ops && dmc_mon->ops->set_montor)
-		return dmc_mon->ops->set_montor(dmc_mon);
+	if (start < end && dmc_mon->ops && dmc_mon->ops->set_monitor)
+		return dmc_mon->ops->set_monitor(dmc_mon);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(dmc_set_monitor);
@@ -419,8 +419,8 @@ static ssize_t device_store(struct class *cla,
 		}
 	}
 	if (dmc_mon->addr_start < dmc_mon->addr_end && dmc_mon->ops &&
-	     dmc_mon->ops->set_montor)
-		dmc_mon->ops->set_montor(dmc_mon);
+	     dmc_mon->ops->set_monitor)
+		dmc_mon->ops->set_monitor(dmc_mon);
 
 	return count;
 }
@@ -464,8 +464,8 @@ static ssize_t debug_store(struct class *cla,
 	if (val <= 7) {
 		dmc_mon->debug = val;
 		if (dmc_mon->addr_start < dmc_mon->addr_end && dmc_mon->ops &&
-				dmc_mon->ops->set_montor)
-			dmc_mon->ops->set_montor(dmc_mon);
+				dmc_mon->ops->set_monitor)
+			dmc_mon->ops->set_monitor(dmc_mon);
 
 	} else {
 		pr_err("Current parameters range from 0-7\n");
