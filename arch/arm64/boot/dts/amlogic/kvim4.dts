@@ -1658,6 +1658,8 @@
 &lcd1 {
 	ports {
 		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			lcd1_to_drm: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&drm_to_lcd1>;
@@ -1669,6 +1671,8 @@
 &lcd2 {
 	ports {
 		port {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			lcd2_to_drm: endpoint@0 {
 				reg = <0>;
 				remote-endpoint = <&drm_to_lcd2>;
