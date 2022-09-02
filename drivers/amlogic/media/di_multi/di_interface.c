@@ -324,11 +324,19 @@ void dim_dbg_buffer2(struct di_buffer *buffer, unsigned int id)
 
 static void cfg_ch_set_for_s4_cp(struct di_ch_s *pch)
 {
+	unsigned int out_format;
+
 	if (pch->itf.u.dinst.parm.work_mode != WORK_MODE_S4_DCOPY)
 		return;
 	cfgsch(pch, KEEP_DEC_VF, 0); // for all new_interface
-	/* fix out: nv21 */
-	cfgsch(pch, POUT_FMT, 1);
+	out_format = pch->itf.u.dinst.parm.output_format &
+		DIM_OUT_FORMAT_FIX_MASK;
+	/* out: nv21 */
+	if (out_format == DI_OUTPUT_NV21)
+		cfgsch(pch, POUT_FMT, 1);
+	else
+		cfgsch(pch, POUT_FMT, 2);
+	PR_INF("%s:output_format:0x%x\n", __func__, out_format);
 	cfgsch(pch, IOUT_FMT, 1);
 	cfgsch(pch, ALLOC_SCT, 0);
 	cfgsch(pch, DAT, 0);
@@ -504,7 +512,6 @@ int new_create_instance(struct di_init_parm parm)
 		pch->s4dw	= NULL;
 	}
 	//cfg_ch_set(pch);
-	itf->op_cfg_ch_set	= cfg_ch_set;
 	mutex_unlock(&pch->itf.lock_reg);
 	PR_INF("%s:ch[%d],tmode[%d]\n", "create", ch, itf->tmode);
 	PR_INF("\tout:0x%x\n", itf->u.dinst.parm.output_format);
