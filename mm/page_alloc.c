@@ -3073,6 +3073,18 @@ __rmqueue(struct zone *zone, unsigned int order, int migratetype,
 {
 	struct page *page;
 
+#ifdef CONFIG_AMLOGIC_CMA
+	/* use CMA first */
+	if (migratetype == MIGRATE_MOVABLE && alloc_flags & ALLOC_MOVABLE_USE_CMA_FIRST) {
+		page = __rmqueue_cma_fallback(zone, order);
+		if (page) {
+			trace_mm_page_alloc_zone_locked(page, order,
+							MIGRATE_CMA);
+			return page;
+		}
+	}
+#endif /* CONFIG_AMLOGIC_CMA */
+
 retry:
 	page = __rmqueue_smallest(zone, order, migratetype);
 
@@ -3084,6 +3096,31 @@ retry:
 		trace_mm_page_alloc_zone_locked(page, order, migratetype);
 	return page;
 }
+
+#ifdef CONFIG_AMLOGIC_CMA
+/*
+ * get page but not cma
+ */
+static struct page *rmqueue_no_cma(struct zone *zone, unsigned int order,
+				   int migratetype, unsigned int alloc_flags)
+{
+	struct page *page;
+
+	spin_lock(&zone->lock);
+retry:
+	page = __rmqueue_smallest(zone, order, migratetype);
+	if (unlikely(!page)) {
+		if (!page && __rmqueue_fallback(zone, order, migratetype, alloc_flags))
+			goto retry;
+	}
+	WARN_ON(page && is_migrate_cma(get_pcppage_migratetype(page)));
+	if (page)
+		__mod_zone_page_state(zone, NR_FREE_PAGES, -(1 << order));
+
+	spin_unlock(&zone->lock);
+	return page;
+}
+#endif /* CONFIG_AMLOGIC_CMA */
 
 #ifdef CONFIG_CMA
 static struct page *__rmqueue_cma(struct zone *zone, unsigned int order,
@@ -3760,6 +3797,12 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
 {
 	struct page *page = NULL;
 	struct list_head *list = NULL;
+#ifdef CONFIG_AMLOGIC_CMA
+	bool cma = can_use_cma(gfp_flags);
+
+	if (cma)
+		alloc_flags |= ALLOC_MOVABLE_USE_CMA_FIRST;
+#endif
 
 	do {
 		/* First try to get CMA pages */
@@ -3777,6 +3820,48 @@ struct page *__rmqueue_pcplist(struct zone *zone, unsigned int order,
 		}
 
 		page = list_first_entry(list, struct page, lru);
+	#ifdef CONFIG_AMLOGIC_CMA
+		/*
+		 * USING CMA FIRST POLICY situations:
+		 * 1. CMA pages may return to pcp and allocated next
+		 *    but gfp mask is not suitable for CMA;
+		 * 2. MOVABLE pages may return to pcp and allocated next
+		 *    but gfp mask is suitable for CMA
+		 *
+		 * For 1, we should replace a none-CMA page
+		 * For 2, we should replace with a cma page
+		 * before page is deleted from PCP list.
+		 */
+		if (!cma && is_migrate_cma_page(page)) {
+			/* case 1 */
+			page = rmqueue_no_cma(zone, 0, migratetype, alloc_flags);
+			if (page) {
+				check_new_pcp(page);
+				return page;
+			} else {
+				return NULL;
+			}
+		} else if ((migratetype == MIGRATE_MOVABLE) &&
+			   (get_pcppage_migratetype(page) != MIGRATE_CMA) &&
+			   cma) {
+			struct page *t;
+
+			spin_lock(&zone->lock);
+			t = __rmqueue_cma_fallback(zone, 0);
+			/* can't alloc cma pages or not ready */
+			if (!t || check_new_pcp(page)) {
+				spin_unlock(&zone->lock);
+				goto use_pcp;
+			}
+			page = t;
+			__mod_zone_freepage_state(zone, -(1),
+						  get_pcppage_migratetype(t));
+			spin_unlock(&zone->lock);
+			check_new_pcp(page);
+			return page;
+		}
+use_pcp:
+	#endif /* CONFIG_AMLOGIC_CMA */
 		list_del(&page->lru);
 		pcp->count -= 1 << order;
 	} while (check_new_pcp(page));
@@ -3823,6 +3908,12 @@ struct page *rmqueue(struct zone *preferred_zone,
 {
 	unsigned long flags;
 	struct page *page;
+#ifdef CONFIG_AMLOGIC_CMA
+	bool cma = can_use_cma(gfp_flags);
+
+	if (cma)
+		alloc_flags |= ALLOC_MOVABLE_USE_CMA_FIRST;
+#endif
 
 	if (likely(pcp_allowed_order(order))) {
 		page = rmqueue_pcplist(preferred_zone, zone, order,
