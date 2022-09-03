@@ -18,6 +18,8 @@
 static u32 frac_rate;
 static void set_crt_video_enc(u32 vidx, u32 in_sel, u32 div_n);
 static void set_crt_video_enc2(u32 vidx, u32 in_sel, u32 div_n);
+static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev);
+
 /*
  * HDMITX Clock configuration
  */
@@ -167,6 +169,8 @@ static void set_hpll_clk_out(u32 clk)
 		pr_info("%s%d***config s5 hpll***\n", __func__, __LINE__);
 		switch (hdev->frl_rate) {
 		case FRL_NONE: /* for legacy modes */
+			if (frac_rate == 1)
+				clk = clk * 100 / 1001 * 10;
 			set21_s5_hpll_clk_out(frac_rate, clk);
 			break;
 		case FRL_3G3L:
@@ -300,7 +304,7 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 
 	/* Disable the output clock */
 	if (hdev->data->chip_type == MESON_CPU_ID_S5) {
-		pr_info("%s[%d] s5 hadr code \n", __func__, __LINE__);
+		pr_info("%s[%d] s5 hard code\n", __func__, __LINE__);
 		hd21_write_reg(reg_vid_pll, 0);
 		hd21_write_reg(reg_vid_pll, 0x1000000);
 		hd21_write_reg(reg_vid_pll, 0x1020000);
@@ -459,7 +463,13 @@ static struct hw_enc_clk_val_group setting_enc_clk_val_24[] = {
 	  HDMI_VIC_END},
 		5940000, 8, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0,
 			VID_PLL_DIV_5, VID_PLL_DIV_5},
+	{{HDMI_96_3840x2160p50_16x9,
+	  HDMI_97_3840x2160p60_16x9,
+	  HDMI_VIC_END},
+		5940000, 2, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0,
+			VID_PLL_DIV_5, VID_PLL_DIV_5},
 	{{HDMI_196_7680x4320p30_16x9,
+	  HDMI_198_7680x4320p50_16x9,
 	  HDMI_199_7680x4320p60_16x9,
 	  HDMI_VIC_END},
 		5000000, 8, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0,
@@ -634,6 +644,11 @@ void hdmitx_set_fpll(struct hdmitx_dev *hdev)
 	if (fpll_vco > MAX_FPLL_VCO) {
 		pr_info("hdmitx21: FPLL VCO over clock %d\n", fpll_vco);
 		return;
+	}
+	hdmitx_check_frac_rate(hdev);
+	if (frac_rate) {
+		fpll_vco = fpll_vco * 1000 / 1001;
+		pr_info("fpll_vco %d shift to %d\n", tmp_clk, fpll_vco);
 	}
 	div = 1;
 	do {

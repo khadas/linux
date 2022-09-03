@@ -68,7 +68,8 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	timing.h_total /= hpara_div;
 	timing.h_blank /= hpara_div;
 	timing.h_front /= hpara_div;
-	timing.h_front |= 3; /* For ENCP, there needs OR 3 */
+	if (hdev->frl_rate)
+		timing.h_front |= 3; /* For ENCP, there needs OR 3 */
 	timing.h_sync /= hpara_div;
 	timing.h_back /= hpara_div;
 	timing.h_active /= hpara_div;

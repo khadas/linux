@@ -202,11 +202,6 @@ static void store_cea_idx(struct rx_cap *prxcap, enum hdmi_vic vic)
 {
 	int i;
 	int already = 0;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	WARN_ONCE(1, "not implemented");
-	hdmitx_edid_set_default_vic(hdev);
-	return;
 
 	for (i = 0; (i < VIC_MAX_NUM) && (i < prxcap->VIC_count); i++) {
 		if (vic == prxcap->VIC[i]) {
@@ -1812,23 +1807,7 @@ static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 /* refer to CEA-861-G 7.5.1 video data block */
 static void _store_vics(struct rx_cap *prxcap, u8 vic_dat)
 {
-	u8 vic_bit6_0 = vic_dat & (~0x80);
-	u8 vic_bit7 = !!(vic_dat & 0x80);
-
-	if (!prxcap)
-		return;
-
-	if (vic_bit6_0 >= 1 && vic_bit6_0 <= 64) {
-		store_cea_idx(prxcap, vic_bit6_0);
-		if (vic_bit7) {
-			if (prxcap->native_vic && !prxcap->native_vic2)
-				prxcap->native_vic2 = vic_bit6_0;
-			if (!prxcap->native_vic)
-				prxcap->native_vic = vic_bit6_0;
-		}
-	} else {
-		store_cea_idx(prxcap, vic_dat);
-	}
+	store_cea_idx(prxcap, vic_dat);
 }
 
 static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
@@ -1882,8 +1861,10 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 
 		case HDMI_EDID_BLOCK_TYPE_VIDEO:
 			offset++;
-			for (i = 0; i < count ; i++)
+			for (i = 0; i < count ; i++) {
+				pr_info("i=%d VIC=%d\n", i, blockbuf[offset + i]);
 				_store_vics(prxcap, blockbuf[offset + i]);
+			}
 			offset += count;
 			break;
 
@@ -2025,9 +2006,8 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
 
-	prxcap->VIC_count = 0x2;
+	prxcap->VIC_count = 0x1;
 	prxcap->VIC[0] = HDMI_16_1920x1080p60_16x9;
-	prxcap->VIC[1] = HDMI_199_7680x4320p60_16x9;
 	prxcap->native_vic = HDMI_16_1920x1080p60_16x9;
 	hdmitx_device->vic_count = prxcap->VIC_count;
 	pr_info(EDID "set default vic\n");
@@ -2758,7 +2738,6 @@ int hdmitx21_edid_parse(struct hdmitx_dev *hdmitx_device)
 	if (edid_zero_data(EDID_buf) ||
 	    (prxcap->VIC_count == 0 && prxcap->vesa_timing[0] == 0))
 		hdmitx_edid_set_default_vic(hdmitx_device);
-
 	return 0;
 }
 
@@ -2833,6 +2812,8 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		    para->cs == HDMI_COLORSPACE_YUV444)
 			if (para->cd != COLORDEPTH_24B)
 				return 0;
+		if (para->cs == HDMI_COLORSPACE_YUV420)
+			return 0;
 		break;
 	case HDMI_7_720x480i60_16x9:
 	case HDMI_22_720x576i50_16x9:
@@ -2852,8 +2833,11 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 
 	/* target mode is not contained at RX SVD */
 	for (i = 0; (i < prxcap->VIC_count) && (i < VIC_MAX_NUM); i++) {
-		if ((para->timing.vic & 0xff) == (prxcap->VIC[i] & 0xff))
+		if ((para->timing.vic & 0xff) == (prxcap->VIC[i] & 0xff)) {
+			if (para->timing.vic == HDMI_199_7680x4320p60_16x9)
+				return 1;
 			svd_flag = 1;
+		}
 	}
 	if (svd_flag == 0)
 		return 0;

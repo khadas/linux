@@ -333,7 +333,7 @@ static enum hdmi_vic _get_vic_from_vsif(struct hdmitx_dev *hdev)
 	return hdmi4k_vic;
 }
 
-static void hdmi_hwp_init(struct hdmitx_dev *hdev)
+static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 {
 	u32 data32;
 
@@ -345,7 +345,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 24, 1);
 
 	pr_info("%s%d\n", __func__, __LINE__);
-	if (hdmitx21_uboot_already_display(hdev)) {
+	if (!reset && hdmitx21_uboot_already_display(hdev)) {
 		int ret;
 		u8 body[32] = {0};
 		union hdmi_infoframe *infoframe = &hdev->infoframes.avi;
@@ -479,7 +479,7 @@ void hdmitx21_meson_init(struct hdmitx_dev *hdev)
 	hdev->hwop.cntlpacket = hdmitx_cntl;
 	hdev->hwop.cntlconfig = hdmitx_cntl_config;
 	hdev->hwop.cntlmisc = hdmitx_cntl_misc;
-	hdmi_hwp_init(hdev);
+	hdmi_hwp_init(hdev, 0);
 	hdmitx21_debugfs_init();
 	hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, CLR_AVMUTE);
 }
@@ -835,8 +835,12 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 
 =======
 	pr_info("***double reset hwp_init start***\n");
+<<<<<<< HEAD
 	hdmi_hwp_init(hdev);
 >>>>>>> hdmitx21: double reset hwp_init in set mode [1/1]
+=======
+	hdmi_hwp_init(hdev, 1);
+>>>>>>> hdmitx21: add fixed modes for valid_mode checking [1/1]
 	_hdmitx21_set_clk();
 	// Set this timer very small on purpose, to test the new function
 	hdmitx21_wr_reg(HDMITX_TOP_I2C_BUSY_CNT_MAX,  30);
@@ -859,6 +863,8 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 
 pr_info("%s[%d]\n", __func__, __LINE__);
 	hdmitx21_set_clk(hdev);
+	if (hdev->frl_rate)
+		hdmitx_set_fpll(hdev);
 
 	hdmitx_set_hw(hdev);
 	if (para->timing.pi_mode == 0 &&
@@ -939,10 +945,8 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 0, 16, 3);	//hard code
 	hdmitx_set_phy(hdev);
 	hdmitx_set_clkdiv(hdev);
-	if (hdev->frl_rate) {
-		hdmitx_set_fpll(hdev);
+	if (hdev->frl_rate)
 		hdmitx_frl_training_main(hdev->frl_rate);
-	}
 	return 0;
 }
 
@@ -1117,6 +1121,63 @@ static void set_aud_info_pkt(struct hdmitx_dev *hdev,
 	hdmi_audio_infoframe_set(info);
 }
 
+u32 hdmi21_get_frl_aud_n_paras(enum hdmi_audio_fs fs,
+			       u32 frl_rate)
+{
+	u32 base32k_n = 6048;
+	u32 base44k1_n = 5292;
+	u32 base48k_n = 5760;
+
+	switch (frl_rate) {
+	case 1:
+		base32k_n = 6048;
+		base44k1_n = 5292;
+		base48k_n = 5760;
+		break;
+	case 2:
+	case 3:
+		base32k_n = 4032;
+		base44k1_n = 5292;
+		base48k_n = 6048;
+		break;
+	case 4:
+		base32k_n = 4032;
+		base44k1_n = 3969;
+		base48k_n = 6048;
+		break;
+	case 5:
+		base32k_n = 3456;
+		base44k1_n = 3969;
+		base48k_n = 5184;
+		break;
+	case 6:
+		base32k_n = 3072;
+		base44k1_n = 3969;
+		base48k_n = 4752;
+		break;
+	default:
+		break;
+	}
+	switch (fs) {
+	case FS_32K:
+		return base32k_n * 1;
+	case FS_44K1:
+		return base44k1_n * 1;
+	case FS_88K2:
+		return base44k1_n * 2;
+	case FS_176K4:
+		return base44k1_n * 4;
+	case FS_48K:
+		return base48k_n * 1;
+	case FS_96K:
+		return base48k_n * 2;
+	case FS_192K:
+		return base48k_n * 4;
+	default:
+		return base48k_n;
+	}
+}
+
 static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 			    struct hdmitx_audpara *audio_param)
 {
@@ -1134,6 +1195,9 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	else
 		aud_n_para = hdmi21_get_aud_n_paras(audio_param->sample_rate,
 						  hdev->para->cd, char_rate);
+	if (hdev->frl_rate)
+		aud_n_para = hdmi21_get_frl_aud_n_paras(audio_param->sample_rate, hdev->frl_rate);
+	hdmitx21_set_reg_bits(ACR_CTS_CLK_DIV_IVCTX, hdev->frl_rate ? 1 : 0, 4, 1);
 	/* N must mutiples 4 for DD+ */
 	switch (audio_param->type) {
 	case CT_DD_P:
@@ -1818,7 +1882,9 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, u32 num)
 static void hdmitx_getediddata(u8 *des, u8 *src)
 {
 	int i = 0;
-	u32 blk = src[126] + 1;
+	u32 blk;
+
+	blk = src[126] + 1;
 
 	if (blk == 2)
 		if (src[128 + 4] == 0xe2 && src[128 + 5] == 0x78)
@@ -2309,6 +2375,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data32 |= (para->scrambler_en & 0x01 << 0);  // [ 0] scrambler_en.
 	hdmitx21_wr_reg(SCRCTL_IVCTX, data32 & 0xff);
 
+	hdmitx21_wr_reg(SW_RST_IVCTX, 0); // default value
 	hdmitx21_wr_reg(CLK_DIV_CNTRL_IVCTX, hdev->frl_rate ? 0 : 1);
 	//hdmitx21_wr_reg(H21TXSB_PKT_PRD_IVCTX, 0x1);
 	//hdmitx21_wr_reg(HOST_CTRL2_IVCTX, 0x80); //INT active high

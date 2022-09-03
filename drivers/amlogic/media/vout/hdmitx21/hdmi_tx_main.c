@@ -2838,6 +2838,7 @@ static ssize_t dc_cap_show(struct device *dev,
 	const struct dv_info *dv2 = &hdev->rxcap.dv_info2;
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
+	pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
 	pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
 	return pos;
 
@@ -2911,9 +2912,30 @@ static ssize_t valid_mode_show(struct device *dev,
 			       char *buf)
 {
 	int pos = 0;
+	int i;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdmi_format_para *para = NULL;
 
+	/* TEMP, hard code for fixed modes */
+	static const char * const fixed_modes[] = {
+		"1080p60hz444,8bit",
+		"1080p60hzrgb,8bit",
+		"1080p50hz444,8bit",
+		"1080p50hzrgb,8bit",
+		"2160p60hz444,8bit",
+		"2160p60hzrgb,8bit",
+		"2160p50hz444,8bit",
+		"2160p50hzrgb,8bit",
+		"4320p60hz420,8bit",
+		NULL,
+	};
+
+	for (i = 0; fixed_modes[i]; i++) {
+		if (strncmp(fixed_modes[i], cvalid_mode, strlen(fixed_modes[i])) == 0)
+			goto next;
+	}
+	return snprintf(buf + pos, PAGE_SIZE, "0\n\r");
+next:
 	if (cvalid_mode[0]) {
 		valid_mode = pre_process_str(cvalid_mode);
 		if (valid_mode == 0) {

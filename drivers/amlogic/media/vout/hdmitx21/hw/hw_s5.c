@@ -48,7 +48,6 @@ void set21_s5_hpll_clk_out(u32 frac_rate, u32 clk)
 {
 	switch (clk) {
 	case 6000000:
-	case 5940000: /* TODO */
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x812cfa00);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x80016101);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0xf0002211);
@@ -59,10 +58,42 @@ void set21_s5_hpll_clk_out(u32 frac_rate, u32 clk)
 			hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL4, 0xf, 4, 4);
 		}
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x00000203);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x1000aaaa);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, 0x0);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x812cfa01);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x812cfa03);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x812cfa07);	//3c yes?
+		pr_info("HPLL: 0x%x\n", hd21_read_reg(ANACTRL_HDMIPLL_CTRL0));
+		break;
+	case 5934060:
+		/* 5940 / 1.001, Lp_spll_div_0p5_en */
+		/* 5940 / 1.001 / 24 * 2 = 494.505 2^17 */
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x00016101);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0xf0002217);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x558130b0);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 1, 1);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 2, 1);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x11451212);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x00000203);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, (1 << 31) | (0x102d0 << 0));
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x1dee01);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 1, 1);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 2, 1);
+		pr_info("HPLL: 0x%x\n", hd21_read_reg(ANACTRL_HDMIPLL_CTRL0));
+		break;
+	case 5940000:
+		/* 5940, Lp_spll_div_0p5_en */
+		/* 5940 / 24 * 2 = 494.505 2^17 */
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL0, 0x00016101);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL1, 0xf0002217);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x558130b0);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 1, 1);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 2, 1);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x11451212);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x00000203);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, (0 << 31) | (0 << 0));
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x1def01);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 1, 1);
+		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL3, 1, 2, 1);
 		pr_info("HPLL: 0x%x\n", hd21_read_reg(ANACTRL_HDMIPLL_CTRL0));
 		break;
 	case 5600000:
