@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-#define DEBUG
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
