@@ -1120,14 +1120,16 @@ static void vd_proc_sr1_set(u32 vpp_index,
 		if ((tmp_data & 0x1) != 0)
 			rdma_wr_bits(vd_sr_reg->vd_proc_sr1_ctrl,
 					       0, 0, 1);
-		pr_info("%s:disable sr1 core tmp_data: %x\n",
-			__func__,
-			tmp_data);
+		if (debug_flag_s5)
+			pr_info("%s:disable sr1 core tmp_data: %x\n",
+				__func__,
+				tmp_data);
 		vpu_module_clk_disable_s5(VPP0, SR1, 0);
 	} else {
-		pr_info("%s:enable sr1 core tmp_data: %x\n",
-			__func__,
-			tmp_data);
+		if (debug_flag_s5)
+			pr_info("%s:enable sr1 core tmp_data: %x\n",
+				__func__,
+				tmp_data);
 		if (((tmp_data >> 1) & 0x1) != 1)
 			rdma_wr_bits(vd_sr_reg->vd_proc_sr1_ctrl,
 					       1, 1, 1);
@@ -2075,9 +2077,10 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 				vert_phase_step;
 			vd_proc_unit->vd_proc_pps.prehsc_en = vpp_pre_hsc_en;
 			vd_proc_unit->vd_proc_pps.prevsc_en = vpp_pre_vsc_en;
-			pr_info("horz_phase_step=0x%x, vert_phase_step=0x%x\n",
-				vd_proc_unit->vd_proc_pps.horz_phase_step,
-				vd_proc_unit->vd_proc_pps.vert_phase_step);
+			if (debug_flag_s5)
+				pr_info("horz_phase_step=0x%x, vert_phase_step=0x%x\n",
+					vd_proc_unit->vd_proc_pps.horz_phase_step,
+					vd_proc_unit->vd_proc_pps.vert_phase_step);
 			sr0_h_scaleup_en = cur_frame_par->supsc0_enable &&
 				cur_frame_par->supsc0_hori_ratio;
 			sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
@@ -2781,11 +2784,13 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 		/* 2slices */
 		h_no_scale = ((din_hsize - overlap_hsize) ==
 			dout_hsize[slice]);
-	pr_info("h_no_scale=0x%x, slice=%d, din_hsize=0x%x, dout_hsize[slice]=0x%x\n",
-		h_no_scale,
-		slice,
-		din_hsize,
-		dout_hsize[slice]);
+
+	if (debug_flag_s5)
+		pr_info("h_no_scale=0x%x, slice=%d, din_hsize=0x%x, dout_hsize[slice]=0x%x\n",
+			h_no_scale,
+			slice,
+			din_hsize,
+			dout_hsize[slice]);
 
 	if (din_hsize < overlap_hsize * 2) {
 		pr_info("invalid param: vd1_slice_din_hsize(%d) < overlap_hsize*2(%d)\n",
@@ -2885,15 +2890,17 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				cal_pps_dout_hsize(&pps_dout_hsize1,
 					0, slice_x_end[slice] + 1, horz_phase_step);
 				pps_dout_hsize = pps_dout_hsize1 - pps_dout_hsize0;
-			pr_info("slice_x_st=0x%x, slice_x_end=0x%x, horz_phase_step=0x%x\n",
-				slice_x_st,
-				slice_x_end[slice],
-				horz_phase_step);
+				if (debug_flag_s5) {
+					pr_info("slice_x_st=0x%x, slice_x_end=0x%x, horz_phase_step=0x%x\n",
+						slice_x_st,
+						slice_x_end[slice],
+						horz_phase_step);
 
-			pr_info("pps_dout_hsize0=0x%x, pps_dout_hsize1=0x%x, pps_dout_hsize=0x%x\n",
-				pps_dout_hsize0,
-				pps_dout_hsize1,
-				pps_dout_hsize);
+					pr_info("pps_dout_hsize0=0x%x, pps_dout_hsize1=0x%x, pps_dout_hsize=0x%x\n",
+						pps_dout_hsize0,
+						pps_dout_hsize1,
+						pps_dout_hsize);
+				}
 			}
 			hwincut_din_hsize = pps_dout_hsize;
 			pps_din_vsize = s1_din_vsize_tmp;
@@ -5121,10 +5128,11 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 		if (use_frm_horz_phase_step) {
 			r3 = vd_proc_pps->dout_hsize - 1;
 			r2 = vd_proc_pps->dout_hsize;
-			pr_info("%s: dout_hsize=0x%x, dout_vsize=0x%x\n",
-				__func__,
-				vd_proc_pps->dout_hsize,
-				vd_proc_pps->dout_vsize);
+			if (debug_flag_s5)
+				pr_info("%s: dout_hsize=0x%x, dout_vsize=0x%x\n",
+					__func__,
+					vd_proc_pps->dout_hsize,
+					vd_proc_pps->dout_vsize);
 		} else {
 			r2 = frame_par->VPP_hsc_linear_endp
 				- frame_par->VPP_hsc_startp;
@@ -6838,15 +6846,16 @@ void vpp_post_blend_update_s5(const struct vinfo_s *vinfo)
 	struct vpp_post_s vpp_post;
 
 	vpp_input = get_vpp_input_info();
-	pr_info("%s,slice_num=%d, din_hsize[0]=%d, %d, din[1]:%d, %d, bld_out =%d, %d\n",
-		__func__,
-		vpp_input->slice_num,
-		vpp_input->din_hsize[0],
-		vpp_input->din_vsize[0],
-		vpp_input->din_hsize[1],
-		vpp_input->din_vsize[1],
-		vpp_input->bld_out_hsize,
-		vpp_input->bld_out_vsize);
+	if (debug_flag_s5)
+		pr_info("%s,slice_num=%d, din_hsize[0]=%d, %d, din[1]:%d, %d, bld_out =%d, %d\n",
+			__func__,
+			vpp_input->slice_num,
+			vpp_input->din_hsize[0],
+			vpp_input->din_vsize[0],
+			vpp_input->din_hsize[1],
+			vpp_input->din_vsize[1],
+			vpp_input->bld_out_hsize,
+			vpp_input->bld_out_vsize);
 
 	vpp_post_param_set(vpp_input, &vpp_post);
 	vpp_post_set(VPP0, &vpp_post);
