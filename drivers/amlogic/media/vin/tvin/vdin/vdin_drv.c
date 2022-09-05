@@ -551,28 +551,48 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 	if (devp->vrr_data.vrr_mode &&
 	    devp->vdin_std_duration >= 25 &&
 	    devp->vdin_std_duration < 48) {
-		devp->game_mode = (VDIN_GAME_MODE_0 |
-			VDIN_GAME_MODE_SWITCH_EN);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
+			devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_SWITCH_EN);
+		else
+			devp->game_mode = VDIN_GAME_MODE_0;
 	} else if (devp->vrr_data.vrr_mode &&
 		   devp->vdin_std_duration >= 48) {
-		devp->game_mode = (VDIN_GAME_MODE_0 |
-				VDIN_GAME_MODE_1 |
-				VDIN_GAME_MODE_SWITCH_EN);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
+			devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_1 |
+					VDIN_GAME_MODE_SWITCH_EN);
+		else
+			devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_1);
 	} else if (devp->vdin_std_duration < 25 ||
 		   (devp->vinfo_std_duration >
 		    (devp->vdin_std_duration + 1) * 2)) {
-		devp->game_mode &= ~VDIN_GAME_MODE_1;
-		devp->game_mode &= ~VDIN_GAME_MODE_2;
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0) {
+			devp->game_mode &= ~VDIN_GAME_MODE_1;
+			devp->game_mode &= ~VDIN_GAME_MODE_2;
+		} else {
+			devp->game_mode &= ~VDIN_GAME_MODE_SWITCH_EN;
+			devp->game_mode &= ~VDIN_GAME_MODE_1;
+			devp->game_mode &= ~VDIN_GAME_MODE_2;
+		}
 	} else if ((devp->vdin_std_duration >= 25 &&
 		    devp->vdin_std_duration < 48) ||
 		   (devp->vinfo_std_duration >
 		    (devp->vdin_std_duration + 2))) {
-		devp->game_mode = (VDIN_GAME_MODE_0 |
-			VDIN_GAME_MODE_SWITCH_EN);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
+			devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_SWITCH_EN);
+		else
+			devp->game_mode = VDIN_GAME_MODE_0;
 	} else {
-		devp->game_mode = (VDIN_GAME_MODE_0 |
-			VDIN_GAME_MODE_1 |
-			VDIN_GAME_MODE_SWITCH_EN);
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1) && panel_reverse == 0)
+			devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_1 |
+					VDIN_GAME_MODE_SWITCH_EN);
+		else
+			devp->game_mode = (VDIN_GAME_MODE_0 |
+					VDIN_GAME_MODE_1);
 	}
 
 	/* dv is auto game not support manual set game */
