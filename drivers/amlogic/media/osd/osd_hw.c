@@ -3923,10 +3923,6 @@ int osd_set_scan_mode(u32 index)
 	if (vinfo && vinfo->name && (strcmp(vinfo->name, "invalid") &&
 		      strcmp(vinfo->name, "null"))) {
 		osd_hw.scale_workaround = 0;
-		if (osd_auto_adjust_filter) {
-			osd_h_filter_mode = 1;
-			osd_v_filter_mode = 1;
-		}
 
 		scale_input_w = osd_hw.free_src_data[index].x_end -
 				osd_hw.free_src_data[index].x_start + 1;
@@ -3999,18 +3995,26 @@ int osd_set_scan_mode(u32 index)
 				}
 			}
 		} else {
-			if ((vinfo->width == 3840 &&
-			     vinfo->height == 2160) ||
-			    (vinfo->width == 4096 &&
-			     vinfo->height == 2160)) {
+			if (vinfo->height >= 2160) {
 				osd_hw.field_out_en[output_index] = 0;
-			} else if ((vinfo->width == 720 &&
-				vinfo->height == 480) ||
-				(vinfo->width == 720 &&
-				vinfo->height == 576)) {
 				if (osd_auto_adjust_filter) {
-					osd_h_filter_mode = 6;
-					osd_v_filter_mode = 6;
+					osd_h_filter_mode = 1;
+					if (vinfo &&
+						(!strcmp(vinfo->name, "2160p60hz420") ||
+						 !strcmp(vinfo->name, "2160p50hz420")))
+						osd_v_filter_mode = 2;
+					else
+						osd_v_filter_mode = 1;
+				}
+			} else if (vinfo->height >= 1080) {
+				if (osd_auto_adjust_filter) {
+					osd_h_filter_mode = 1;
+					osd_v_filter_mode = 1;
+				}
+			} else if (vinfo->height >= 720) {
+				if (osd_auto_adjust_filter) {
+					osd_h_filter_mode = 7;
+					osd_v_filter_mode = 7;
 				}
 				if (osd_hw.free_scale_mode[index])
 					osd_hw.field_out_en[output_index] = 0;
