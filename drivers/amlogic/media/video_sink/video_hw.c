@@ -5919,6 +5919,7 @@ void vd_clip_setting(u8 layer_id,
 		return;
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		vd_clip_setting_s5(layer_id, setting);
+		setting->clip_done = true;
 		return;
 	}
 	if (layer_id == 0)
@@ -6209,6 +6210,7 @@ static inline void vdx_test_pattern_output(u32 index, u32 on, u32 color)
 {
 	u8 vpp_index = VPP0;
 	u32 vdx_clip_misc0, vdx_clip_misc1;
+	struct clip_setting_s setting;
 
 	switch (index) {
 	case 0:
@@ -6254,25 +6256,36 @@ static inline void vdx_test_pattern_output(u32 index, u32 on, u32 color)
 			pr_info("Y=%x, U=%x, V=%x\n", Y, U, V);
 			color = (Y << 22) | (U << 12) | V << 2; /* YUV */
 		}
-
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vdx_clip_misc0,
-			color);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vdx_clip_misc1,
-			color);
-		WRITE_VCBUS_REG(vdx_clip_misc0, color);
-		WRITE_VCBUS_REG(vdx_clip_misc1, color);
+		if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vdx_clip_misc0,
+				color);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vdx_clip_misc1,
+				color);
+			WRITE_VCBUS_REG(vdx_clip_misc0, color);
+			WRITE_VCBUS_REG(vdx_clip_misc1, color);
+		} else {
+			setting.clip_min = color;
+			setting.clip_max = color;
+			vd_clip_setting_s5(index, &setting);
+		}
 	} else {
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vdx_clip_misc0,
-			(0x3ff << 20) |
-			(0x3ff << 10) |
-			0x3ff);
-		cur_dev->rdma_func[vpp_index].rdma_wr
-			(vdx_clip_misc1,
-			(0x0 << 20) |
-			(0x0 << 10) | 0x0);
+		if (cur_dev->display_module != S5_DISPLAY_MODULE) {
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vdx_clip_misc0,
+				(0x3ff << 20) |
+				(0x3ff << 10) |
+				0x3ff);
+			cur_dev->rdma_func[vpp_index].rdma_wr
+				(vdx_clip_misc1,
+				(0x0 << 20) |
+				(0x0 << 10) | 0x0);
+		} else {
+			setting.clip_min = 0;
+			setting.clip_max = 0x3fffffff;
+			vd_clip_setting_s5(index, &setting);
+		}
 	}
 }
 

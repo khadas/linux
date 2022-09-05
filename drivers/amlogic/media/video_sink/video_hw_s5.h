@@ -98,6 +98,14 @@ struct vd_proc_hwin_s {
 	u32 hwin_end;
 };
 
+struct vd_proc_padding_s {
+	u32 padding_en;
+	u32 slice_pad_h_bgn;
+	u32 slice_pad_v_bgn;
+	u32 slice_pad_h_end;
+	u32 slice_pad_v_end;
+};
+
 struct vd_proc_pi_s {
 	u32 pi_en;
 	u32 pi_in_hsize;
@@ -166,6 +174,7 @@ struct vd_proc_unit_s {
 	struct vd_proc_sr_s vd_proc_sr0;
 	struct vd_proc_sr_s vd_proc_sr1;
 	struct vd_proc_hwin_s vd_proc_hwin;
+	struct vd_proc_padding_s vd_proc_padding;
 };
 
 struct vd_proc_mosaic_s {
@@ -312,5 +321,5 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 void canvas_update_for_mif_slice(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     u32 slice);
-
+ssize_t video_vd_proc_state_dump(char *buf);
 #endif

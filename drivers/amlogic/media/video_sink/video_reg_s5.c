@@ -546,6 +546,8 @@ struct vd_proc_slice_reg_s vd_proc_slice_reg_s5[SLICE_NUM] = {
 		VD1_S0_DETUNL_CTRL,
 		S5_VD1_SLICE0_HDR2_CTRL,
 		VD1_S0_DV_BYPASS_CTRL,
+		VD1_S0_CLIP_MISC0,
+		VD1_S0_CLIP_MISC1,
 	},
 	{
 		VD_PROC_S1_IN_SIZE,
@@ -554,6 +556,8 @@ struct vd_proc_slice_reg_s vd_proc_slice_reg_s5[SLICE_NUM] = {
 		VD1_S1_DETUNL_CTRL,
 		S5_VD1_SLICE1_HDR2_CTRL,
 		VD1_S1_DV_BYPASS_CTRL,
+		VD1_S1_CLIP_MISC0,
+		VD1_S1_CLIP_MISC1,
 	},
 	{
 		VD_PROC_S2_IN_SIZE,
@@ -562,6 +566,8 @@ struct vd_proc_slice_reg_s vd_proc_slice_reg_s5[SLICE_NUM] = {
 		VD1_S2_DETUNL_CTRL,
 		S5_VD1_SLICE2_HDR2_CTRL,
 		VD1_S2_DV_BYPASS_CTRL,
+		VD1_S2_CLIP_MISC0,
+		VD1_S2_CLIP_MISC1,
 	},
 	{
 		VD_PROC_S3_IN_SIZE,
@@ -570,6 +576,8 @@ struct vd_proc_slice_reg_s vd_proc_slice_reg_s5[SLICE_NUM] = {
 		VD1_S3_DETUNL_CTRL,
 		S5_VD1_SLICE3_HDR2_CTRL,
 		VD1_S3_DV_BYPASS_CTRL,
+		VD1_S3_CLIP_MISC0,
+		VD1_S3_CLIP_MISC1,
 	},
 };
 

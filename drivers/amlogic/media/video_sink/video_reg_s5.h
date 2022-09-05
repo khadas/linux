@@ -144,6 +144,8 @@ struct vd_proc_slice_reg_s {
 	u32 vd_s0_detunl_ctrl;
 	u32 vd1_hdr_s0_ctrl;
 	u32 vd1_s0_dv_bypass_ctrl;
+	u32 vd1_s0_clip_misc0;
+	u32 vd1_s0_clip_misc1;
 };
 
 struct vd_proc_pps_reg_s {

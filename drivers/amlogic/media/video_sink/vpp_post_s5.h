@@ -141,6 +141,8 @@ struct vpp_post_input_s {
 	u32 overlap_hsize;
 	u32 din_hsize[VPP_POST_NUM];
 	u32 din_vsize[VPP_POST_NUM];
+	u32 din_x_start[VPP_POST_NUM];
+	u32 din_y_start[VPP_POST_NUM];
 	u32 bld_out_hsize;
 	u32 bld_out_vsize;
 	/* means vd1 4s4p padding */

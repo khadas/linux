@@ -16199,6 +16199,13 @@ static ssize_t videopip2_state_show(struct class *cla,
 	return vdx_state_show(VD3_PATH, buf);
 }
 
+static ssize_t video_vd_proc_state_show(struct class *cla,
+				struct class_attribute *attr,
+				char *buf)
+{
+	return video_vd_proc_state_dump(buf);
+}
+
 s32 set_video_path_select(const char *recv_name, u8 layer_id)
 {
 	u32 new_path_id;
@@ -18421,6 +18428,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		tvin_source_type_show,
 		tvin_source_type_store),
+	__ATTR_RO(video_vd_proc_state),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
