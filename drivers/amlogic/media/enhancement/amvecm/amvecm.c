@@ -77,6 +77,7 @@
 #include "local_contrast.h"
 #include "arch/vpp_hdr_regs.h"
 #include "set_hdr2_v0.h"
+#include "s5_set_hdr2_v0.h"
 #include "ai_pq/ai_pq.h"
 #include "reg_helper.h"
 #include "reg_default_setting.h"
@@ -5669,6 +5670,14 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 				goto free_buf;
 			hdr_reg_dump(val);
 		}
+	} else if (!strcmp(parm[0], "s5_reg_dump")) {
+		if (!parm[1]) {
+			s5_hdr_reg_dump(0);
+		} else {
+			if (kstrtoul(parm[1], 16, &val) < 0)
+				goto free_buf;
+			hdr_reg_dump(val);
+		}
 	}
 
 	hdr10_tmo_dbg(parm);
@@ -10441,11 +10450,11 @@ static int aml_vecm_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	int i = 0;
-
 	struct amvecm_dev_s *devp = &amvecm_dev;
 
 	memset(devp, 0, (sizeof(struct amvecm_dev_s)));
 	pr_info("\n VECM probe start\n");
+	hdr_lut_buffer_malloc(pdev);
 	ret = alloc_chrdev_region(&devp->devno, 0, 1, AMVECM_NAME);
 	if (ret < 0)
 		goto fail_alloc_region;
@@ -10573,6 +10582,7 @@ static int __exit aml_vecm_remove(struct platform_device *pdev)
 		free_irq(res_viu2_vsync_irq->start,
 			 (void *)"amvecm_vsync2");
 	}
+	hdr_lut_buffer_free(pdev);
 
 	hdr_exit();
 	device_destroy(devp->clsp, devp->devno);

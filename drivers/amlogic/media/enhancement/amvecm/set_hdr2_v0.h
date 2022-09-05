@@ -15,6 +15,8 @@
  * more details.
  *
  */
+#ifndef AM_SET_HDR2_V0
+#define AM_SET_HDR2_V0
 
 #include <linux/types.h>
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -147,3 +149,56 @@ extern u32 hdr_hist[NUM_HDR_HIST][128];
 extern u32 percentile[9];
 extern u32 disable_flush_flag;
 void hdr_reg_dump(unsigned int offset);
+
+#define LDIM_STTS_DMA_ID 0
+#define FG0_DMA_ID		 1
+#define FG1_DMA_ID		 2
+#define FG2_DMA_ID		 3
+#define FG3_DMA_ID		 4
+#define FG4_DMA_ID		 5
+#define FG5_DMA_ID		 6
+#define HDR_DMA_ID		 7
+#define LUT3D_DMA_ID	 8
+
+enum LUT_DMA_ID_e {
+	LDIM_DMA_ID = LDIM_STTS_DMA_ID,
+	DI_FG_DMA_ID = FG0_DMA_ID,
+	VD1S0_FG_DMA_ID = FG1_DMA_ID,
+	VD1S1_FG_DMA_ID = FG2_DMA_ID,
+	VD1S2_FG_DMA_ID = FG3_DMA_ID,
+	VD1S3_FG_DMA_ID = FG4_DMA_ID,
+	VD2_FG_DMA_ID = FG5_DMA_ID,
+	HDR2_DMA_ID = HDR_DMA_ID,
+	VPP_LUT3D_DMA_ID = LUT3D_DMA_ID
+};
+
+struct VPU_LUT_DMA_t {
+	enum LUT_DMA_ID_e dma_id;
+	//reg_hdr_dma_sel:
+	u32 reg_hdr_dma_sel_vd1s0;//4bits, default 1
+	u32 reg_hdr_dma_sel_vd1s1;//4bits, default 2
+	u32 reg_hdr_dma_sel_vd1s2;//4bits, default 3
+	u32 reg_hdr_dma_sel_vd1s3;//4bits, default 4
+	u32 reg_hdr_dma_sel_vd2  ;//4bits, default 5
+	u32 reg_hdr_dma_sel_osd1 ;//4bits, default 6
+	u32 reg_hdr_dma_sel_osd2 ;//4bits, default 7
+	u32 reg_hdr_dma_sel_osd3 ;//4bits, default 8
+	//reg_dma_mode : 1: cfg hdr2 lut with lut_dma, 0: with cbus mode
+	u32 reg_vd1s0_hdr_dma_mode;//1bit
+	u32 reg_vd1s1_hdr_dma_mode;//1bit
+	u32 reg_vd1s2_hdr_dma_mode;//1bit
+	u32 reg_vd1s3_hdr_dma_mode;//1bit
+	u32 reg_vd2_hdr_dma_mode;//1bit
+	u32 reg_osd1_hdr_dma_mode;//1bit
+	u32 reg_osd2_hdr_dma_mode;//1bit
+	u32 reg_osd3_hdr_dma_mode;//1bit
+
+	//mif info : TODO more params
+	u32 rd_wr_sel;
+	u32 mif_baddr[16][4];
+	u32 chan_rd_bytes_num[16];//rdmif rd num
+	u32 chan_sel_src_num[16];//channel select interrupt source num
+	u32 chan_little_endian[16];
+	u32 chan_swap_64bit[16];
+};
+#endif

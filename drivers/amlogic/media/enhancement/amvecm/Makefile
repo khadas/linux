@@ -10,6 +10,7 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amv
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/keystone_correction.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/bitdepth.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/set_hdr2_v0.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/s5_set_hdr2_v0.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/dnlp_cal.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/cm2_adj.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM) += enhancement/amvecm/pattern_detection.o

@@ -28,6 +28,7 @@
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
 #include "set_hdr2_v0.h"
+#include "s5_set_hdr2_v0.h"
 #include "arch/vpp_hdr_regs.h"
 #include "arch/vpp_regs.h"
 #include "arch/vpp_dolbyvision_regs.h"
@@ -811,6 +812,15 @@ int rgb2ycbcrf_709[MTX_NUM_PARAM] = {
 	0, 0, 0,
 	0, 0, 0,
 	0
+};
+
+int rgb2ycbcr_bt2020[MTX_NUM_PARAM] = {
+	0x00e6, 0x0252, 0x0034,
+	0x1f83, 0xfebd, 0x01c0,
+	0x01c0, 0x1e64, 0x0000,
+	0x1fdc, 0x0, 0x0,
+	0x0, 0x0, 0x0,
+	0x0
 };
 
 int srgb2ycbcrf_709[MTX_NUM_PARAM] = {
@@ -2509,8 +2519,8 @@ void get_hist(enum vd_path_e vd_path, enum hdr_hist_sel hist_sel)
 	}
 
 	for (i = 0; i < NUM_HDR_HIST - 1; i++)
-		memcpy(hdr_hist[i], hdr_hist[i + 1], 128 * sizeof(uint32_t));
-	memset(percentile, 0, 9 * sizeof(uint32_t));
+		memcpy(hdr_hist[i], hdr_hist[i + 1], 128 * sizeof(u32));
+	memset(percentile, 0, 9 * sizeof(u32));
 	total_pixel = 0;
 	for (i = 0; i < 128; i++) {
 		WRITE_VPP_REG_BITS(hist_ctrl_port, i, 16, 8);
@@ -2754,6 +2764,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	int *oft_post_out = bypass_pos;
 	bool always_full_func = false;
 	int vpp_sel;
+	enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
 
 	if (disable_flush_flag)
 		return hdr_process_select;
@@ -2761,6 +2772,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	/* t3 have osd1/2/3 and vd1/2, no vd3 */
 	/* t7 have osd1/3 and vd1/2/3, no osd2 */
 	/* t5w do not have osd hdr, but osd1/2/3 hdr matrix is used*/
+	/* s5 do not have osd2 hdr and matrix */
 	switch (module_sel) {
 	case OSD2_HDR:
 		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3 &&
@@ -2770,7 +2782,8 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	case OSD3_HDR:
 		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3 &&
 			get_cpu_type() != MESON_CPU_MAJOR_ID_T7 &&
-			get_cpu_type() != MESON_CPU_MAJOR_ID_T5W)
+			get_cpu_type() != MESON_CPU_MAJOR_ID_T5W &&
+			get_cpu_type() != MESON_CPU_MAJOR_ID_S5)
 			return hdr_process_select;
 		break;
 	case VD3_HDR:
@@ -2833,6 +2846,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		eo_gmt_bit_mode = true;
 
 	if (module_sel == VD1_HDR ||
+		module_sel == S5_VD1_SLICE1 ||
+		module_sel == S5_VD1_SLICE2 ||
+		module_sel == S5_VD1_SLICE3 ||
 	    module_sel == VD2_HDR ||
 	    module_sel == VD3_HDR ||
 	    module_sel == OSD1_HDR ||
@@ -3123,6 +3139,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	/*mtx parameters*/
 	/* default matrix config */
 	if (module_sel == VD1_HDR ||
+	    module_sel == S5_VD1_SLICE1 ||
+	    module_sel == S5_VD1_SLICE2 ||
+	    module_sel == S5_VD1_SLICE3 ||
 	    module_sel == VD2_HDR ||
 	    module_sel == VD3_HDR ||
 	    module_sel == DI_HDR ||
@@ -3164,7 +3183,10 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 				oft_pre_out = bypass_pre;
 				oft_post_out = bypass_pos;
 			} else {
-				coeff_in = rgb2ycbcr_709;
+				if (is_meson_s5_cpu())
+					coeff_in = rgb2ycbcr_bt2020;
+				else
+					coeff_in = rgb2ycbcr_709;
 				oft_pre_in = rgb2yuvpre;
 				oft_post_in = rgb2yuvpos;
 				oft_pre_out = bypass_pre;
@@ -3241,6 +3263,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		   hdr_process_select & HLG_BYPASS) {
 		hdr_mtx_param.mtx_gamut_mode = 1;
 		if (module_sel == VD1_HDR ||
+		    module_sel == S5_VD1_SLICE1 ||
+		    module_sel == S5_VD1_SLICE2 ||
+		    module_sel == S5_VD1_SLICE3 ||
 		    module_sel == VD2_HDR ||
 		    module_sel == VD3_HDR ||
 		    module_sel == DI_HDR ||
@@ -3358,6 +3383,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_mtx_param.mtx_only = HDR_ONLY;
 		hdr_mtx_param.mtx_gamut_mode = 1;
 		if ((module_sel == VD1_HDR ||
+		     module_sel == S5_VD1_SLICE1 ||
+		     module_sel == S5_VD1_SLICE2 ||
+		     module_sel == S5_VD1_SLICE3 ||
 		     module_sel == VD2_HDR ||
 		     module_sel == VD3_HDR ||
 		     module_sel == DI_HDR ||
@@ -3396,6 +3424,9 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		hdr_mtx_param.mtx_only = HDR_ONLY;
 		hdr_mtx_param.mtx_gamut_mode = 2;
 		if ((module_sel == VD1_HDR ||
+		     module_sel == S5_VD1_SLICE1 ||
+		     module_sel == S5_VD1_SLICE2 ||
+		     module_sel == S5_VD1_SLICE3 ||
 		     module_sel == VD2_HDR ||
 		     module_sel == VD3_HDR ||
 		     module_sel == DI_HDR ||
@@ -3566,6 +3597,27 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 	}
 
+	if (is_meson_s5_cpu()) {
+		pr_csc(12, "%s: s5 update hdr core (%d).\n",
+			__func__,
+			module_sel);
+		s5_set_hdr_matrix(module_sel, HDR_IN_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		s5_set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
+		s5_set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
+			&hdr_mtx_param, NULL, &hdr_lut_param, vpp_index);
+		s5_set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+		s5_set_oetf_lut(module_sel, &hdr_lut_param, vpp_index);
+		s5_set_hdr_matrix(module_sel, HDR_OUT_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		s5_set_c_gain(module_sel, &hdr_lut_param, vpp_index);
+
+		s5_hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+
+		dma_id = HDR_DMA_ID;
+		vpu_lut_dma(module_sel, &hdr_lut_param, dma_id);
+		return hdr_process_select;
+	}
 	/* enable hdr: first enable X_HDR2_CLK_GATE */
 	/* then enable hdr mode */
 	if (!(hdr_process_select & HDR_BYPASS))

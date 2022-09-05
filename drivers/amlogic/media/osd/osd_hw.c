@@ -13476,22 +13476,8 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 
 	/* here we will init default value ,these value only set once . */
 	if (!logo_loaded || osd_reg_init) {
-		if (osd_dev_hw.s5_display) {
+		if (osd_dev_hw.s5_display)
 			s5_default_path_settings();
-
-			/* osd0 matrix settings */
-			osd_reg_write(0x6100, 0x00e60252);
-			osd_reg_write(0x6100, 0x00e60252);
-			osd_reg_write(0x6101, 0x00341f83);
-			osd_reg_write(0x6102, 0xfebd01c0);
-			osd_reg_write(0x6103, 0x01c01e64);
-			osd_reg_write(0x6104, 0x00001fdc);
-			osd_reg_write(0x6108, 0x00400200);
-			osd_reg_write(0x6109, 0x00000200);
-			osd_reg_write(0x610a, 0x00000000);
-			osd_reg_write(0x610b, 0x00000000);
-			osd_reg_write(0x6139, 0x00000001);
-		}
 
 		if (osd_dev_hw.multi_afbc_core)
 			multi_afbc_default_path_setting();

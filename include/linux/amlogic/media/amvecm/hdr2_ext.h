@@ -2,7 +2,8 @@
 /*
  * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
+#ifndef AM_HDR2_EXT
+#define AM_HDR2_EXT
 #include <linux/types.h>
 
 enum hdr_module_sel {
@@ -16,6 +17,10 @@ enum hdr_module_sel {
 	DI_HDR = 8,
 	DI_M2M_HDR = 9,
 	OSD3_HDR = 10,
+	S5_VD1_SLICE1 = 11,
+	S5_VD1_SLICE2 = 12,
+	S5_VD1_SLICE3 = 13,
+	S5_VD2_HDR2 = 14,
 	HDR_MAX
 };
 
@@ -147,4 +152,4 @@ int get_hdr_setting(enum hdr_module_sel module_sel,
 				enum hdr_process_sel hdr_process_select,
 				struct hdr_proc_setting_param_s *hdr_params,
 				enum hdr_params_op op);
-
+#endif
