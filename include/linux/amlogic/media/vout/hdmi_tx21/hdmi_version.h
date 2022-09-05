@@ -36,6 +36,7 @@
 	"V03.00.00.00.03.03.06 [20220829] [NEWF] support avi content type\n" \
 	"V03.00.00.00.03.03.07 [20220901] [NEWF] add dual vsif interface for allm\n" \
 	"V03.00.00.00.03.03.08 [20220903] [BUG] add DDC reset before do EDID transaction\n" \
-	"V03.00.00.00.03.03.09 [20220919] [BUG] y422 mapping and Enable the dither\n"
+	"V03.00.00.00.03.03.09 [20220919] [BUG] y422 mapping and Enable the dither\n" \
+	"V03.00.00.00.03.03.10 [20220919] [BUG] Don't reset variables when parse a new block\n"
 
 #endif // __HDMI21_VERSION_H__
