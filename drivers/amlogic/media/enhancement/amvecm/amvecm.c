@@ -3166,6 +3166,17 @@ static long amvecm_ioctl(struct file *file,
 			sizeof(enum freerun_type_e)))
 			ret = -EFAULT;
 		break;
+	case AMVECM_IOC_S_GAMUT_CONV_EN:
+		if (copy_from_user(&gamut_conv_enable,
+			(void __user *)arg,
+			sizeof(enum gamut_conv_enable_e))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("gamut conv enable cp from usr failed\n");
+		} else {
+			pr_amvecm_dbg("gamut conv enable cp from usr success status:%d\n",
+				gamut_conv_enable);
+		}
+		break;
 	default:
 		ret = -EINVAL;
 		break;

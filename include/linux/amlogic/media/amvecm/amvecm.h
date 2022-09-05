@@ -179,6 +179,90 @@ void amdv_set_toggle_flag(int flag);
 #define FREESYNC_DYNAMIC_GAMMA_NUM 10
 #define FREESYNC_DYNAMIC_GAMMA_CHANNEL 3
 
+#define CSC_FLAG_TOGGLE_FRAME	1
+#define CSC_FLAG_CHECK_OUTPUT	2
+#define CSC_FLAG_FORCE_SIGNAL	4
+
+#define _VE_CM  'C'
+#define _DI_	'D'
+
+#define AMVECM_IOC_G_HIST_AVG			_IOW(_VE_CM, 0x22, struct ve_hist_s)
+#define AMVECM_IOC_VE_DNLP_EN			_IO(_VE_CM, 0x23)
+#define AMVECM_IOC_VE_DNLP_DIS			_IO(_VE_CM, 0x24)
+#define AMVECM_IOC_VE_NEW_DNLP			_IOW(_VE_CM, 0x25, struct ve_dnlp_curve_param_s)
+#define AMVECM_IOC_G_HIST_BIN			_IOW(_VE_CM, 0x26, struct vpp_hist_param_s)
+#define AMVECM_IOC_G_HDR_METADATA		_IOW(_VE_CM, 0x27, struct hdr_metadata_info_s)
+/*vpp get color primary*/
+#define AMVECM_IOC_G_COLOR_PRI			_IOR(_VE_CM, 0x28, enum color_primary_e)
+/* VPP.CM IOCTL command list */
+#define AMVECM_IOC_LOAD_REG			_IOW(_VE_CM, 0x30, struct am_regs_s)
+/* VPP.GAMMA IOCTL command list */
+#define AMVECM_IOC_GAMMA_TABLE_EN		_IO(_VE_CM, 0x40)
+#define AMVECM_IOC_GAMMA_TABLE_DIS		_IO(_VE_CM, 0x41)
+#define AMVECM_IOC_GAMMA_TABLE_R		_IOW(_VE_CM, 0x42, struct tcon_gamma_table_s)
+#define AMVECM_IOC_GAMMA_TABLE_G		_IOW(_VE_CM, 0x43, struct tcon_gamma_table_s)
+#define AMVECM_IOC_GAMMA_TABLE_B		_IOW(_VE_CM, 0x44, struct tcon_gamma_table_s)
+#define AMVECM_IOC_S_RGB_OGO			_IOW(_VE_CM, 0x45, struct tcon_rgb_ogo_s)
+#define AMVECM_IOC_G_RGB_OGO			_IOR(_VE_CM, 0x46, struct tcon_rgb_ogo_s)
+/*VPP.VLOCK IOCTL command list*/
+#define AMVECM_IOC_VLOCK_EN			_IO(_VE_CM, 0x47)
+#define AMVECM_IOC_VLOCK_DIS			_IO(_VE_CM, 0x48)
+/*VPP.3D-SYNC IOCTL command list*/
+#define AMVECM_IOC_3D_SYNC_EN			_IO(_VE_CM, 0x49)
+#define AMVECM_IOC_GAMMA_SET			_IOW(_VE_CM, 0X4a, struct gm_tbl_s)
+#define AMVECM_IOC_3D_SYNC_DIS			_IO(_VE_CM, 0x50)
+#define AMDI_IOC_SET_PQ_PARM			_IOW(_DI_, 0x51, struct am_pq_parm_s)
+#define AMVECM_IOC_SET_OVERSCAN			_IOW(_VE_CM, 0x52, struct ve_pq_load_s)
+/*DNLP IOCTL command list*/
+#define AMVECM_IOC_G_DNLP_STATE			_IOR(_VE_CM, 0x53, enum dnlp_state_e)
+#define AMVECM_IOC_S_DNLP_STATE			_IOW(_VE_CM, 0x54, enum dnlp_state_e)
+/*PCMODE IOCTL command list*/
+#define AMVECM_IOC_G_PQMODE			_IOR(_VE_CM, 0x55, enum pc_mode_e)
+#define AMVECM_IOC_S_PQMODE			_IOW(_VE_CM, 0x56, enum pc_mode_e)
+/*CUR_CSCTYPE IOCTL command list*/
+#define AMVECM_IOC_G_CSCTYPE			_IOR(_VE_CM, 0x57, enum vpp_matrix_csc_e)
+#define AMVECM_IOC_S_CSCTYPE			_IOW(_VE_CM, 0x58, enum vpp_matrix_csc_e)
+/*PIC_MODE IOCTL command list*/
+#define AMVECM_IOC_G_PIC_MODE			_IOR(_VE_CM, 0x59, struct am_vdj_mode_s)
+#define AMVECM_IOC_S_PIC_MODE			_IOW(_VE_CM, 0x60, struct am_vdj_mode_s)
+/*HDR TYPE command list*/
+#define AMVECM_IOC_G_HDR_TYPE			_IOR(_VE_CM, 0x61, enum hdr_type_e)
+/*Local contrast command list*/
+#define AMVECM_IOC_S_LC_CURVE			_IOW(_VE_CM, 0x62, struct ve_lc_curve_parm_s)
+#define AMVECM_IOC_S_HDR_TM			_IOW(_VE_CM, 0x63, struct hdr_tone_mapping_s)
+#define AMVECM_IOC_G_HDR_TM			_IOR(_VE_CM, 0x64, struct hdr_tone_mapping_s)
+#define AMVECM_IOC_S_CMS_LUMA			_IOW(_VE_CM, 0x65, struct cm_color_md)
+#define AMVECM_IOC_S_CMS_SAT			_IOW(_VE_CM, 0x66, struct cm_color_md)
+#define AMVECM_IOC_S_CMS_HUE			_IOW(_VE_CM, 0x67, struct cm_color_md)
+#define AMVECM_IOC_S_CMS_HUE_HS			_IOW(_VE_CM, 0x68, struct cm_color_md)
+#define AMVECM_IOC_S_PQ_CTRL			_IOW(_VE_CM, 0x69, struct vpp_pq_ctrl_s)
+#define AMVECM_IOC_G_PQ_CTRL			_IOR(_VE_CM, 0x6a, struct vpp_pq_ctrl_s)
+/*cpu ver ioc*/
+#define AMVECM_IOC_S_MESON_CPU_VER		_IOW(_VE_CM, 0x6b, enum meson_cpu_ver_e)
+#define AMVECM_IOC_S_AIPQ_TABLE			_IOW(_VE_CM, 0x6c, struct aipq_load_s)
+#define AMVECM_IOC_SET_3D_LUT			_IO(_VE_CM, 0x6d)
+#define AMVECM_IOC_LOAD_3D_LUT			_IO(_VE_CM, 0x6e)
+#define AMVECM_IOC_SET_3D_LUT_ORDER		_IO(_VE_CM, 0x6f)
+#define AMVECM_IOC_S_MTX_COEF			_IOW(_VE_CM, 0x70, struct vpp_mtx_info_s)
+#define AMVECM_IOC_G_MTX_COEF			_IOR(_VE_CM, 0x71, struct vpp_mtx_info_s)
+#define AMVECM_IOC_S_PRE_GAMMA			_IOW(_VE_CM, 0x72, struct pre_gamma_table_s)
+#define AMVECM_IOC_G_PRE_GAMMA			_IOR(_VE_CM, 0x73, struct pre_gamma_table_s)
+/*hdr10_tmo ioc*/
+#define AMVECM_IOC_S_HDR_TMO			_IOW(_VE_CM, 0x74, struct hdr_tmo_sw)
+#define AMVECM_IOC_G_HDR_TMO			_IOR(_VE_CM, 0x75, struct hdr_tmo_sw)
+/*cabc command list*/
+#define AMVECM_IOC_S_CABC_PARAM			_IOW(_VE_CM, 0x76, struct db_cabc_param_s)
+/*aad command list*/
+#define AMVECM_IOC_S_AAD_PARAM			_IOW(_VE_CM, 0x77, struct db_aad_param_s)
+#define AMVECM_IOC_S_EYE_PROT			_IOW(_VE_CM, 0x78, struct eye_protect_s)
+#define AMVECM_IOC_S_FREERUN_TYPE		_IOW(_VE_CM, 0x79, enum freerun_type_e)
+#define AMVECM_IOC_S_BLUE_STR			_IOW(_VE_CM, 0x7a, struct blue_str_parm_s)
+#define AMVECM_IOC_S_COLOR_TUNE			_IOW(_VE_CM, 0x7b, struct color_tune_parm_s)
+#define AMVECM_IOC_3D_LUT_EN			_IO(_VE_CM, 0x7c)
+#define AMVECM_IOC_COLOR_PRI_EN			_IO(_VE_CM, 0x7d)
+#define AMVECM_IOC_COLOR_PRIMARY		_IOW(_VE_CM, 0x7e, struct primary_s)
+#define AMVECM_IOC_S_GAMUT_CONV_EN		_IOW(_VE_CM, 0x7f, enum gamut_conv_enable_e)
+
 struct tcon_gamma_table_s {
 	u16 data[256];
 } /*tcon_gamma_table_t */;
@@ -257,38 +341,6 @@ enum pq_table_name_e {
 	TABLE_NAME_MAX,
 };
 
-#define _VE_CM  'C'
-
-#define AMVECM_IOC_G_HIST_AVG   _IOW(_VE_CM, 0x22, struct ve_hist_s)
-#define AMVECM_IOC_VE_DNLP_EN   _IO(_VE_CM, 0x23)
-#define AMVECM_IOC_VE_DNLP_DIS  _IO(_VE_CM, 0x24)
-#define AMVECM_IOC_VE_NEW_DNLP  _IOW(_VE_CM, 0x25, struct ve_dnlp_curve_param_s)
-#define AMVECM_IOC_G_HIST_BIN   _IOW(_VE_CM, 0x26, struct vpp_hist_param_s)
-#define AMVECM_IOC_G_HDR_METADATA _IOW(_VE_CM, 0x27, struct hdr_metadata_info_s)
-/*vpp get color primary*/
-#define AMVECM_IOC_G_COLOR_PRI _IOR(_VE_CM, 0x28, enum color_primary_e)
-
-/* VPP.CM IOCTL command list */
-#define AMVECM_IOC_LOAD_REG  _IOW(_VE_CM, 0x30, struct am_regs_s)
-
-/* VPP.GAMMA IOCTL command list */
-#define AMVECM_IOC_GAMMA_TABLE_EN  _IO(_VE_CM, 0x40)
-#define AMVECM_IOC_GAMMA_TABLE_DIS _IO(_VE_CM, 0x41)
-#define AMVECM_IOC_GAMMA_TABLE_R _IOW(_VE_CM, 0x42, struct tcon_gamma_table_s)
-#define AMVECM_IOC_GAMMA_TABLE_G _IOW(_VE_CM, 0x43, struct tcon_gamma_table_s)
-#define AMVECM_IOC_GAMMA_TABLE_B _IOW(_VE_CM, 0x44, struct tcon_gamma_table_s)
-#define AMVECM_IOC_S_RGB_OGO   _IOW(_VE_CM, 0x45, struct tcon_rgb_ogo_s)
-#define AMVECM_IOC_G_RGB_OGO  _IOR(_VE_CM, 0x46, struct tcon_rgb_ogo_s)
-
-/*VPP.VLOCK IOCTL command list*/
-#define AMVECM_IOC_VLOCK_EN  _IO(_VE_CM, 0x47)
-#define AMVECM_IOC_VLOCK_DIS _IO(_VE_CM, 0x48)
-
-#define AMVECM_IOC_GAMMA_SET _IOW(_VE_CM, 0X4a, struct gm_tbl_s)
-/*VPP.3D-SYNC IOCTL command list*/
-#define AMVECM_IOC_3D_SYNC_EN  _IO(_VE_CM, 0x49)
-#define AMVECM_IOC_3D_SYNC_DIS _IO(_VE_CM, 0x50)
-
 struct ve_pq_load_s {
 	enum pq_table_name_e param_id;
 	unsigned int length;
@@ -310,37 +362,15 @@ struct ve_pq_table_s {
 	unsigned int reserved2;
 };
 
-#define AMVECM_IOC_SET_OVERSCAN  _IOW(_VE_CM, 0x52, struct ve_pq_load_s)
 enum dnlp_state_e {
 	DNLP_OFF = 0,
 	DNLP_ON,
 };
 
-/*DNLP IOCTL command list*/
-#define AMVECM_IOC_G_DNLP_STATE _IOR(_VE_CM, 0x53, enum dnlp_state_e)
-#define AMVECM_IOC_S_DNLP_STATE _IOW(_VE_CM, 0x54, enum dnlp_state_e)
 enum pc_mode_e {
 	PCMODE_OFF = 0,
 	PCMODE_ON,
 };
-
-/*PCMODE IOCTL command list*/
-#define AMVECM_IOC_G_PQMODE _IOR(_VE_CM, 0x55, enum pc_mode_e)
-#define AMVECM_IOC_S_PQMODE _IOW(_VE_CM, 0x56, enum pc_mode_e)
-
-/*CUR_CSCTYPE IOCTL command list*/
-#define AMVECM_IOC_G_CSCTYPE _IOR(_VE_CM, 0x57, enum vpp_matrix_csc_e)
-#define AMVECM_IOC_S_CSCTYPE _IOW(_VE_CM, 0x58, enum vpp_matrix_csc_e)
-
-/*PIC_MODE IOCTL command list*/
-#define AMVECM_IOC_G_PIC_MODE _IOR(_VE_CM, 0x59, struct am_vdj_mode_s)
-#define AMVECM_IOC_S_PIC_MODE _IOW(_VE_CM, 0x60, struct am_vdj_mode_s)
-
-/*HDR TYPE command list*/
-#define AMVECM_IOC_G_HDR_TYPE _IOR(_VE_CM, 0x61, enum hdr_type_e)
-
-/*Local contrast command list*/
-#define AMVECM_IOC_S_LC_CURVE _IOW(_VE_CM, 0x62, struct ve_lc_curve_parm_s)
 
 enum lut_type_e {
 	HLG_LUT = 1,
@@ -355,22 +385,11 @@ struct hdr_tone_mapping_s {
 	unsigned int *tm_lut;
 };
 
-#define AMVECM_IOC_S_HDR_TM  _IOW(_VE_CM, 0x63, struct hdr_tone_mapping_s)
-#define AMVECM_IOC_G_HDR_TM  _IOR(_VE_CM, 0x64, struct hdr_tone_mapping_s)
-
 /* CMS ioctl data structure */
 struct cms_data_s {
 	int color;
 	int value;
 };
-
-#define AMVECM_IOC_S_CMS_LUMA   _IOW(_VE_CM, 0x65, struct cms_data_s)
-#define AMVECM_IOC_S_CMS_SAT    _IOW(_VE_CM, 0x66, struct cms_data_s)
-#define AMVECM_IOC_S_CMS_HUE    _IOW(_VE_CM, 0x67, struct cms_data_s)
-#define AMVECM_IOC_S_CMS_HUE_HS _IOW(_VE_CM, 0x68, struct cms_data_s)
-
-#define AMVECM_IOC_S_PQ_CTRL  _IOW(_VE_CM, 0x69, struct vpp_pq_ctrl_s)
-#define AMVECM_IOC_G_PQ_CTRL  _IOR(_VE_CM, 0x6a, struct vpp_pq_ctrl_s)
 
 enum meson_cpu_ver_e {
 	VER_NULL = 0,
@@ -379,9 +398,6 @@ enum meson_cpu_ver_e {
 	VER_C,
 	VER_MAX
 };
-
-/*cpu ver ioc*/
-#define AMVECM_IOC_S_MESON_CPU_VER _IOW(_VE_CM, 0x6b, enum meson_cpu_ver_e)
 
 /*G12A vpp matrix*/
 enum vpp_matrix_e {
@@ -406,9 +422,6 @@ struct vpp_mtx_info_s {
 	struct matrix_coef_s mtx_coef;
 };
 
-#define AMVECM_IOC_S_MTX_COEF   _IOW(_VE_CM, 0x70, struct vpp_mtx_info_s)
-#define AMVECM_IOC_G_MTX_COEF   _IOR(_VE_CM, 0x71, struct vpp_mtx_info_s)
-
 struct pre_gamma_table_s {
 	unsigned int en;
 	unsigned int lut_r[65];
@@ -416,25 +429,10 @@ struct pre_gamma_table_s {
 	unsigned int lut_b[65];
 };
 
-#define AMVECM_IOC_S_PRE_GAMMA   _IOW(_VE_CM, 0x72, struct pre_gamma_table_s)
-#define AMVECM_IOC_G_PRE_GAMMA   _IOR(_VE_CM, 0x73, struct pre_gamma_table_s)
-
-/*hdr10_tmo ioc*/
-#define AMVECM_IOC_S_HDR_TMO   _IOW(_VE_CM, 0x74, struct hdr_tmo_sw)
-#define AMVECM_IOC_G_HDR_TMO   _IOR(_VE_CM, 0x75, struct hdr_tmo_sw)
-
-/*cabc command list*/
-#define AMVECM_IOC_S_CABC_PARAM _IOW(_VE_CM, 0x76, struct db_cabc_param_s)
-
-/*aad command list*/
-#define AMVECM_IOC_S_AAD_PARAM _IOW(_VE_CM, 0x77, struct db_aad_param_s)
-
 struct eye_protect_s {
 	int en;
 	int rgb[3];
 };
-
-#define AMVECM_IOC_S_EYE_PROT   _IOW(_VE_CM, 0x78, struct eye_protect_s)
 
 /*Freerun type ioctl enum*/
 enum freerun_type_e {
@@ -443,7 +441,49 @@ enum freerun_type_e {
 	FREERUN_TYPE_MAX
 };
 
-#define AMVECM_IOC_S_FREERUN_TYPE   _IOW(_VE_CM, 0x79, enum freerun_type_e)
+struct blue_str_parm_s {
+	int blue_stretch_en;
+	int blue_stretch_cr_inc;
+	int blue_stretch_cb_inc;
+	int blue_stretch_gain;
+	int blue_stretch_gain_cb4cr;
+	int blue_stretch_error_crp;
+	int blue_stretch_error_crp_inv;
+	int blue_stretch_error_crn;
+	int blue_stretch_error_crn_inv;
+	int blue_stretch_error_cbp;
+	int blue_stretch_error_cbp_inv;
+	int blue_stretch_error_cbn;
+	int blue_stretch_error_cbn_inv;
+	int blue_stretch_luma_high;
+};
+
+struct color_tune_parm_s {
+	int en;
+	int rgain_r;
+	int rgain_g;
+	int rgain_b;
+
+	int ggain_r;
+	int ggain_g;
+	int ggain_b;
+
+	int bgain_r;
+	int bgain_g;
+	int bgain_b;
+
+	int cgain_r;
+	int cgain_g;
+	int cgain_b;
+
+	int mgain_r;
+	int mgain_g;
+	int mgain_b;
+
+	int ygain_r;
+	int ygain_g;
+	int ygain_b;
+};
 
 struct am_vdj_mode_s {
 	int flag;
@@ -598,10 +638,6 @@ struct aipq_load_s {
 	};
 };
 
-#define AMVECM_IOC_S_AIPQ_TABLE _IOW(_VE_CM, 0x6c, struct aipq_load_s)
-
-#define _DI_	'D'
-
 struct am_pq_parm_s {
 	unsigned int table_name;
 	unsigned int table_len;
@@ -615,25 +651,20 @@ struct am_pq_parm_s {
 	};
 };
 
-#define AMDI_IOC_SET_PQ_PARM  _IOW(_DI_, 0x51, struct am_pq_parm_s)
-
 /*3D LUT IOCTL command list*/
 struct table_3dlut_s {
 	unsigned int data[17 * 17 * 17][3];
 } /*table_3dlut_s */;
-#define AMVECM_IOC_SET_3D_LUT  _IO(_VE_CM, 0x6d)
-#define AMVECM_IOC_LOAD_3D_LUT  _IO(_VE_CM, 0x6e)
-#define AMVECM_IOC_SET_3D_LUT_ORDER  _IO(_VE_CM, 0x6f)
-
-#define AMVECM_IOC_3D_LUT_EN  _IO(_VE_CM, 0x79)
-#define AMVECM_IOC_COLOR_PRI_EN  _IO(_VE_CM, 0x7a)
 
 struct primary_s {
 	u32 src[8];
 	u32 dest[8];
 };
 
-#define AMVECM_IOC_COLOR_PRIMARY _IOW(_VE_CM, 0x7b, struct primary_s)
+enum gamut_conv_enable_e {
+	gamut_conv_off,
+	gamut_conv_on,
+};
 
 enum vlk_chiptype {
 	vlock_chip_txl,
@@ -716,10 +747,6 @@ extern enum ecm_color_type cm_cur_work_color_md;
 extern int cm2_debug;
 
 extern unsigned int ct_en;
-
-#define CSC_FLAG_TOGGLE_FRAME	1
-#define CSC_FLAG_CHECK_OUTPUT	2
-#define CSC_FLAG_FORCE_SIGNAL	4
 
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,
