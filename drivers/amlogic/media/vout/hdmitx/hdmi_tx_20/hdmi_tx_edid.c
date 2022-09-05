@@ -1913,8 +1913,8 @@ static int hdmitx_edid_block_parse(struct hdmitx_dev *hdev,
 	prxcap->native_Mode = blockbuf[3];
 	prxcap->number_of_dtd += blockbuf[3] & 0xf;
 
-	prxcap->native_VIC = 0xff;
-	prxcap->AUD_count = 0;
+	/*prxcap->native_VIC = 0xff;*/
+	/*prxcap->AUD_count = 0;*/
 
 	edid_y420cmdb_reset(&hdev->hdmi_info);
 	if (end > 126)
