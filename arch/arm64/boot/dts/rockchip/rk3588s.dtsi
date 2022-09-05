@@ -1896,6 +1896,7 @@
 			phys = <&u2phy0_otg>, <&usbdp_phy0_u3>;
 			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
+			linux,sysdev_is_parent;
 			snps,dis_enblslpm_quirk;
 			snps,dis-u1-entry-quirk;
 			snps,dis-u2-entry-quirk;

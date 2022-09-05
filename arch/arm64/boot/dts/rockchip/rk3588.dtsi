@@ -133,6 +133,7 @@
 			phys = <&u2phy1_otg>, <&usbdp_phy1_u3>;
 			phy-names = "usb2-phy", "usb3-phy";
 			phy_type = "utmi_wide";
+			linux,sysdev_is_parent;
 			snps,dis_enblslpm_quirk;
 			snps,dis-u2-freeclk-exists-quirk;
 			snps,dis-del-phy-power-chg-quirk;
