@@ -193,17 +193,18 @@ static struct clk_regmap s5_sys1_pll_dco = {
 };
 
 static const struct reg_sequence s5_sys2pll_init_regs[] = {
-	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x20011086 },
-	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x30011086 },
+	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x2001208d },
+	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x3001208d },
 	{ .reg = CLKCTRL_SYS2PLL_CTRL1,	.def = 0x3420500f },
 	{ .reg = CLKCTRL_SYS2PLL_CTRL2,	.def = 0x00023041 },
 	{ .reg = CLKCTRL_SYS2PLL_CTRL3,	.def = 0x0, .delay_us = 20 },
-	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x10011086, .delay_us = 20 },
+	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x1001208d, .delay_us = 20 },
 	{ .reg = CLKCTRL_SYS2PLL_CTRL2,	.def = 0x00023001, .delay_us = 50 }
 };
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table s5_sys2_pll_params_table[] = {
+	PLL_PARAMS(141, 1, 2), /*DCO=3384M OD=846M*/
 	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
 	PLL_PARAMS(116, 1, 1), /*DCO=2784 OD=1392M*/
 	PLL_PARAMS(126, 1, 1), /*DCO=3024 OD=1512M*/
@@ -211,19 +212,20 @@ static const struct pll_params_table s5_sys2_pll_params_table[] = {
 	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
 	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
 	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(81, 1, 0), /*DCO=1944M OD=1944M*/
+	PLL_PARAMS(81, 1, 0), /*DCO=1944M OD=1944M */
 	{ /* sentinel */ }
 };
 #else
 static const struct pll_params_table s5_sys2_pll_params_table[] = {
-	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
-	PLL_PARAMS(116, 1), /*DCO=2784 OD=1392M*/
-	PLL_PARAMS(126, 1), /*DCO=3024 OD=1512M*/
-	PLL_PARAMS(67, 1), /*DCO=1608M OD=1608MM*/
-	PLL_PARAMS(71, 1), /*DCO=1704MM OD=1704M*/
-	PLL_PARAMS(75, 1), /*DCO=1800M OD=1800M*/
-	PLL_PARAMS(79, 1), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(81, 1), /*DCO=1944M OD=1944M*/
+	PLL_PARAMS(141, 1), /* DCO=3384M */
+	PLL_PARAMS(100, 1), /* DCO=2400M */
+	PLL_PARAMS(116, 1), /* DCO=2784M */
+	PLL_PARAMS(126, 1), /* DCO=3024M */
+	PLL_PARAMS(67, 1), /* DCO=1608M */
+	PLL_PARAMS(71, 1), /* DCO=1704M */
+	PLL_PARAMS(75, 1), /* DCO=1800M */
+	PLL_PARAMS(79, 1), /* DCO=1896M */
+	PLL_PARAMS(81, 1), /* DCO=1944M */
 	{ /* sentinel */ }
 };
 #endif
@@ -3824,7 +3826,7 @@ static struct clk_regmap s5_cts_vdac = {
 	},
 };
 
-static u32 s5_enc_hdmi_tx_mux_table[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+static u32 s5_enc_hdmi_tx_mux_table[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
 static const struct clk_hw *s5_enc_hdmi_tx_parent_hws[] = {
 	&s5_vclk_div1.hw,
 	&s5_vclk_div2.hw,
@@ -3853,6 +3855,22 @@ static struct clk_regmap s5_enc_hdmi_tx_pnx_clk_sel = {
 	},
 };
 
+static struct clk_regmap s5_enc_hdmi_tx_pnx_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_VID_CLK0_CTRL2,
+		.bit_idx = 10,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "enc_hdmi_tx_pnx_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s5_enc_hdmi_tx_pnx_clk_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 static struct clk_regmap s5_enc_hdmi_tx_fe_clk_sel = {
 	.data = &(struct clk_regmap_mux_data){
 		.offset = CLKCTRL_ENC0_HDMI_CLK_CTRL,
@@ -3865,6 +3883,22 @@ static struct clk_regmap s5_enc_hdmi_tx_fe_clk_sel = {
 		.ops = &clk_regmap_mux_ops,
 		.parent_hws = s5_enc_hdmi_tx_parent_hws,
 		.num_parents = ARRAY_SIZE(s5_enc_hdmi_tx_parent_hws),
+	},
+};
+
+static struct clk_regmap s5_enc_hdmi_tx_fe_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_VID_CLK0_CTRL2,
+		.bit_idx = 9,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "enc_hdmi_tx_fe_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s5_enc_hdmi_tx_fe_clk_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -3883,9 +3917,25 @@ static struct clk_regmap s5_enc_hdmi_tx_pixel_clk_sel = {
 	},
 };
 
+static struct clk_regmap s5_enc_hdmi_tx_pixel_clk = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = CLKCTRL_VID_CLK0_CTRL2,
+		.bit_idx = 5,
+	},
+	.hw.init = &(struct clk_init_data) {
+		.name = "enc_hdmi_tx_pixel_clk",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) {
+			&s5_enc_hdmi_tx_pixel_clk_sel.hw
+		},
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 static u32 s5_cts_hdmi_tx_pnx_clk_mux_table[] = { 0, 1 };
 static const struct clk_hw *s5_hdmi_tx_pnx_clk_parent_hws[] = {
-	&s5_enc_hdmi_tx_pnx_clk_sel.hw,
+	&s5_enc_hdmi_tx_pnx_clk.hw,
 	&s5_gp2_pll.hw,
 };
 
@@ -3906,7 +3956,7 @@ static struct clk_regmap s5_hdmi_tx_pnx_clk_sel = {
 
 static u32 s5_cts_hdmi_tx_fe_clk_mux_table[] = { 0, 1 };
 static const struct clk_hw *s5_hdmi_tx_fe_clk_parent_hws[] = {
-	&s5_enc_hdmi_tx_fe_clk_sel.hw,
+	&s5_enc_hdmi_tx_fe_clk.hw,
 	&s5_gp2_pll.hw,
 };
 
@@ -3927,7 +3977,7 @@ static struct clk_regmap s5_hdmi_tx_fe_clk_sel = {
 
 static u32 s5_cts_hdmi_tx_pixel_clk_mux_table[] = { 0, 1 };
 static const struct clk_hw *s5_hdmi_tx_pixel_clk_parent_hws[] = {
-	&s5_enc_hdmi_tx_pixel_clk_sel.hw,
+	&s5_enc_hdmi_tx_pixel_clk.hw,
 	&s5_gp2_pll.hw,
 };
 
@@ -5508,7 +5558,7 @@ static struct clk_regmap s5_nna0_div = {
 			&s5_nna0_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5557,7 +5607,7 @@ static struct clk_regmap s5_nna1_div = {
 			&s5_nna1_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5592,7 +5642,7 @@ static struct clk_regmap s5_nna_sel = {
 			{ .hw = &s5_nna1.hw, }
 		},
 		.num_parents = 2,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -5755,7 +5805,7 @@ static struct clk_regmap s5_vpuclk1_div = {
 			&s5_vpuclk1_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5804,7 +5854,7 @@ static struct clk_regmap s5_vpuclk0_div = {
 			&s5_vpuclk0_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5839,6 +5889,7 @@ static struct clk_regmap s5_vpuclk_sel = {
 			&s5_vpuclk1.hw
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -5896,7 +5947,7 @@ static struct clk_regmap s5_vpuclkb_tmp_div = {
 			&s5_vpuclkb_tmp_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5930,7 +5981,7 @@ static struct clk_regmap s5_vpuclkb_div = {
 			&s5_vpuclkb_tmp.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -5988,7 +6039,7 @@ static struct clk_regmap s5_vdin_meas_div = {
 			&s5_vdin_meas_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6101,7 +6152,7 @@ static struct clk_regmap s5_cmpr_div = {
 			&s5_cmpr_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6121,9 +6172,10 @@ static struct clk_regmap s5_cmpr = {
 	},
 };
 
-static u32 mux_table_mali_sel[] = { 0, 3, 4, 5, 6 };
+static u32 mux_table_mali_sel[] = { 0, 1, 3, 4, 5, 6 };
 static const struct clk_parent_data mali_parent_data[] = {
 	{ .fw_name = "xtal", },
+	{ .hw = &s5_sys2_pll.hw },
 	{ .hw = &s5_fclk_div2p5.hw },
 	{ .hw = &s5_fclk_div3.hw },
 	{ .hw = &s5_fclk_div4.hw },
@@ -6159,7 +6211,7 @@ static struct clk_regmap s5_mali0_div = {
 			&s5_mali0_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6175,6 +6227,7 @@ static struct clk_regmap s5_mali0 = {
 			&s5_mali0_div.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -6207,7 +6260,7 @@ static struct clk_regmap s5_mali1_div = {
 			&s5_mali1_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6223,6 +6276,7 @@ static struct clk_regmap s5_mali1 = {
 			&s5_mali1_div.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -6240,6 +6294,7 @@ static struct clk_regmap s5_mali_sel = {
 			&s5_mali1.hw,
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -6297,7 +6352,7 @@ static struct clk_regmap s5_vdec0_div = {
 			&s5_vdec0_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6346,7 +6401,7 @@ static struct clk_regmap s5_vdec1_div = {
 			&s5_vdec1_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6380,6 +6435,7 @@ static struct clk_regmap s5_vdec_sel = {
 			&s5_vdec1.hw,
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -6428,7 +6484,7 @@ static struct clk_regmap s5_hcodec0_div = {
 			&s5_hcodec0_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6444,6 +6500,7 @@ static struct clk_regmap s5_hcodec0 = {
 			&s5_hcodec0_div.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -6476,7 +6533,7 @@ static struct clk_regmap s5_hcodec1_div = {
 			&s5_hcodec1_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6510,6 +6567,7 @@ static struct clk_regmap s5_hcodec_sel = {
 			&s5_hcodec1.hw,
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -6558,7 +6616,7 @@ static struct clk_regmap s5_hevc0_div = {
 			&s5_hevc0_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6607,7 +6665,7 @@ static struct clk_regmap s5_hevc1_div = {
 			&s5_hevc1_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6641,6 +6699,7 @@ static struct clk_regmap s5_hevc_sel = {
 			&s5_hevc1.hw,
 		},
 		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT,
 	},
 };
 
@@ -6698,7 +6757,7 @@ static struct clk_regmap s5_vc9000e_axi_div = {
 			&s5_vc9000e_axi_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6747,7 +6806,7 @@ static struct clk_regmap s5_vc9000e_core_div = {
 			&s5_vc9000e_core_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6804,7 +6863,7 @@ static struct clk_regmap s5_hdmitx_sys_div = {
 			&s5_hdmitx_sys_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6853,7 +6912,7 @@ static struct clk_regmap s5_hdmitx_prif_div = {
 			&s5_hdmitx_prif_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6902,7 +6961,7 @@ static struct clk_regmap s5_hdmitx_200m_div = {
 			&s5_hdmitx_200m_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -6951,7 +7010,7 @@ static struct clk_regmap s5_hdmitx_aud_div = {
 			&s5_hdmitx_aud_sel.hw,
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
 	},
 };
 
@@ -7363,9 +7422,12 @@ static struct clk_hw_onecell_data s5_hw_onecell_data = {
 		[CLKID_HDMITX_AUD_SEL]			= &s5_hdmitx_aud_sel.hw,
 		[CLKID_HDMITX_AUD_DIV]			= &s5_hdmitx_aud_div.hw,
 		[CLKID_HDMITX_AUD]			= &s5_hdmitx_aud.hw,
-		[CLKID_ENC_HDMI_TX_PNX_SEL] = &s5_enc_hdmi_tx_pnx_clk_sel.hw,
-		[CLKID_ENC_HDMI_TX_FE_SEL]  = &s5_enc_hdmi_tx_fe_clk_sel.hw,
-		[CLKID_ENC_HDMI_TX_PIXEL_SEL] = &s5_enc_hdmi_tx_pixel_clk_sel.hw,
+		[CLKID_ENC_HDMI_TX_PNX_SEL]		= &s5_enc_hdmi_tx_pnx_clk_sel.hw,
+		[CLKID_ENC_HDMI_TX_PNX]			= &s5_enc_hdmi_tx_pnx_clk.hw,
+		[CLKID_ENC_HDMI_TX_FE_SEL]		= &s5_enc_hdmi_tx_fe_clk_sel.hw,
+		[CLKID_ENC_HDMI_TX_FE]			= &s5_enc_hdmi_tx_fe_clk.hw,
+		[CLKID_ENC_HDMI_TX_PIXEL_SEL]		= &s5_enc_hdmi_tx_pixel_clk_sel.hw,
+		[CLKID_ENC_HDMI_TX_PIXEL]		= &s5_enc_hdmi_tx_pixel_clk.hw,
 		[CLKID_HDMI_TX_PNX_SEL]     = &s5_hdmi_tx_pnx_clk_sel.hw,
 		[CLKID_HDMI_TX_FE_SEL]      = &s5_hdmi_tx_fe_clk_sel.hw,
 		[CLKID_HDMI_TX_PIXEL_SEL]   = &s5_hdmi_tx_pixel_clk_sel.hw,
@@ -7676,8 +7738,11 @@ static struct clk_regmap *const s5_clk_regmaps[] = {
 	&s5_hdmitx_aud_div,
 	&s5_hdmitx_aud,
 	&s5_enc_hdmi_tx_pnx_clk_sel,
+	&s5_enc_hdmi_tx_pnx_clk,
 	&s5_enc_hdmi_tx_fe_clk_sel,
+	&s5_enc_hdmi_tx_fe_clk,
 	&s5_enc_hdmi_tx_pixel_clk_sel,
+	&s5_enc_hdmi_tx_pixel_clk,
 	&s5_hdmi_tx_pnx_clk_sel,
 	&s5_hdmi_tx_fe_clk_sel,
 	&s5_hdmi_tx_pixel_clk_sel,
