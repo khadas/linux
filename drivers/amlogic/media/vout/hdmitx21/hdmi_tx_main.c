@@ -1228,12 +1228,24 @@ static int hdmitx_check_valid_aspect_ratio(enum hdmi_vic vic, int aspect_ratio)
 int hdmitx21_get_aspect_ratio(void)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	int x, y;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
+
 	if (vic == HDMI_2_720x480p60_4x3 || vic == HDMI_17_720x576p50_4x3)
 		return AR_4X3;
 	if (vic == HDMI_3_720x480p60_16x9 || vic == HDMI_18_720x576p50_16x9)
+		return AR_16X9;
+
+	struct vinfo_s *info = NULL;
+
+	info = hdmitx_get_current_vinfo(NULL);
+	x = info->aspect_ratio_num;
+	y = info->aspect_ratio_den;
+	if (x == 4 && y == 3)
+		return AR_4X3;
+	if (x == 16 && y == 9)
 		return AR_16X9;
 
 	return 0;
@@ -1245,28 +1257,28 @@ struct aspect_ratio_list *hdmitx21_get_support_ar_list(void)
 	int i = 0;
 
 	memset(ar_list, 0, sizeof(ar_list));
-	if (hdmitx_check_vic(HDMI_2_720x480p60_4x3)) {
+	if (hdmitx_check_vic(HDMI_2_720x480p60_4x3) &&
+			hdmitx_check_vic(HDMI_3_720x480p60_16x9)) {
 		ar_list[i].vic = HDMI_2_720x480p60_4x3;
 		ar_list[i].flag = TRUE;
 		ar_list[i].aspect_ratio_num = 4;
 		ar_list[i].aspect_ratio_den = 3;
 		i++;
-	}
-	if (hdmitx_check_vic(HDMI_3_720x480p60_16x9)) {
+
 		ar_list[i].vic = HDMI_3_720x480p60_16x9;
 		ar_list[i].flag = TRUE;
 		ar_list[i].aspect_ratio_num = 16;
 		ar_list[i].aspect_ratio_den = 9;
 		i++;
 	}
-	if (hdmitx_check_vic(HDMI_17_720x576p50_4x3)) {
+	if (hdmitx_check_vic(HDMI_17_720x576p50_4x3) &&
+			hdmitx_check_vic(HDMI_18_720x576p50_16x9)) {
 		ar_list[i].vic = HDMI_17_720x576p50_4x3;
 		ar_list[i].flag = TRUE;
 		ar_list[i].aspect_ratio_num = 4;
 		ar_list[i].aspect_ratio_den = 3;
 		i++;
-	}
-	if (hdmitx_check_vic(HDMI_18_720x576p50_16x9)) {
+
 		ar_list[i].vic = HDMI_18_720x576p50_16x9;
 		ar_list[i].flag = TRUE;
 		ar_list[i].aspect_ratio_num = 16;
@@ -1274,43 +1286,6 @@ struct aspect_ratio_list *hdmitx21_get_support_ar_list(void)
 		i++;
 	}
 	return &ar_list[0];
-}
-
-int hdmitx21_get_aspect_ratio_value(void)
-{
-	int i;
-	int value = 0;
-	static struct aspect_ratio_list *ar_list;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-	enum hdmi_vic vic = HDMI_0_UNKNOWN;
-
-	ar_list = hdmitx21_get_support_ar_list();
-	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
-
-	if (vic == HDMI_2_720x480p60_4x3 || vic == HDMI_3_720x480p60_16x9) {
-		for (i = 0; i < 4; i++) {
-			if (ar_list[i].vic == HDMI_2_720x480p60_4x3)
-				value++;
-			if (ar_list[i].vic == HDMI_3_720x480p60_16x9)
-				value++;
-		}
-	}
-
-	if (vic == HDMI_17_720x576p50_4x3 || vic == HDMI_18_720x576p50_16x9) {
-		for (i = 0; i < 4; i++) {
-			if (ar_list[i].vic == HDMI_17_720x576p50_4x3)
-				value++;
-			if (ar_list[i].vic == HDMI_18_720x576p50_16x9)
-				value++;
-		}
-	}
-
-	if (value > 1) {
-		value = hdmitx21_get_aspect_ratio();
-		return value;
-	}
-
-	return 0;
 }
 
 void hdmitx21_set_aspect_ratio(int aspect_ratio)
@@ -6340,8 +6315,6 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.avmute = drm_hdmitx_avmute,
 	.set_phy = drm_hdmitx_set_phy,
 	.get_hdmi_hdr_status = hdmi_hdr_status_to_drm,
-	.set_aspect_ratio = hdmitx21_set_aspect_ratio,
-	.get_aspect_ratio = hdmitx21_get_aspect_ratio_value,
 
 	/*hdcp apis*/
 	.hdcp_init = drm_hdmitx_hdcp_init,

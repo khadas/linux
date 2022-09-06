@@ -94,8 +94,6 @@ struct meson_hdmitx_dev {
 
 	void (*avmute)(unsigned char mute);
 	void (*set_phy)(unsigned char en);
-	void (*set_aspect_ratio)(int aspect_ratio);
-	int (*get_aspect_ratio)(void);
 
 	/*hdcp apis*/
 	void (*hdcp_init)(void);
