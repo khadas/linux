@@ -23,7 +23,7 @@
 #include "hdr/gamut_convert.h"
 #include "arch/vpp_hdr_regs.h"
 
-#define CUP_WRITE_LUT 1
+#define CUP_WRITE_LUT 0
 
 static uint dma_sel = 3;
 module_param(dma_sel, uint, 0664);
@@ -1617,10 +1617,10 @@ struct oetf_lut_s {
 	s64 oetf_lut_res : 4;
 	s64 oetf_lut_5 : 8;
 	s64 oetf_lut_6 : 12;
-	s16 oetf_lut_7 : 12;
-	s16 oetf_lut_8 : 12;
-	s16 oetf_lut_9 : 12;
-	s16 reserve : 8;
+	s64 oetf_lut_7 : 12;
+	s64 oetf_lut_8 : 12;
+	s64 oetf_lut_9 : 12;
+	s64 reserve : 8;
 };
 
 struct ootf_lut_s {
@@ -1635,18 +1635,18 @@ struct ootf_lut_s {
 };
 
 struct cgain_lut_s {
-	s16 cgain_lut_0 : 12;
-	s16 cgain_lut_1 : 12;
-	s16 cgain_lut_2 : 12;
-	s16 cgain_lut_3 : 12;
-	s16 cgain_lut_4 : 12;
-	s16 cgain_lut_res : 4;
-	s16 cgain_lut_5 : 8;
-	s16 cgain_lut_6 : 12;
-	s16 cgain_lut_7 : 12;
-	s16 cgain_lut_8 : 12;
-	s16 cgain_lut_9 : 12;
-	s16 reserve : 8;
+	s64 cgain_lut_0 : 12;
+	s64 cgain_lut_1 : 12;
+	s64 cgain_lut_2 : 12;
+	s64 cgain_lut_3 : 12;
+	s64 cgain_lut_4 : 12;
+	s64 cgain_lut_res : 4;
+	s64 cgain_lut_5 : 8;
+	s64 cgain_lut_6 : 12;
+	s64 cgain_lut_7 : 12;
+	s64 cgain_lut_8 : 12;
+	s64 cgain_lut_9 : 12;
+	s64 reserve : 8;
 };
 
 struct dma_lut_address {
@@ -1804,13 +1804,13 @@ void fill_dam_buffer(enum hdr_module_sel module_sel,
 			dma_addr->cgain_lut[i].cgain_lut_2 = hdr_lut_param->cgain_lut[j + 2];
 			dma_addr->cgain_lut[i].cgain_lut_3 = hdr_lut_param->cgain_lut[j + 3];
 			dma_addr->cgain_lut[i].cgain_lut_4 = hdr_lut_param->cgain_lut[j + 4];
-			dma_addr->cgain_lut[i].cgain_lut_5 = hdr_lut_param->cgain_lut[j + 5];
+			dma_addr->cgain_lut[i].cgain_lut_res =
+				hdr_lut_param->cgain_lut[j + 5] & 0xf;
+			dma_addr->cgain_lut[i].cgain_lut_5 =
+				(hdr_lut_param->cgain_lut[j + 5] & 0xff0) >> 4;
 			dma_addr->cgain_lut[i].cgain_lut_6 = hdr_lut_param->cgain_lut[j + 6];
 			dma_addr->cgain_lut[i].cgain_lut_7 = hdr_lut_param->cgain_lut[j + 7];
-			dma_addr->cgain_lut[i].cgain_lut_res =
-				hdr_lut_param->cgain_lut[j + 8] & 0xf;
-			dma_addr->cgain_lut[i].cgain_lut_8 =
-				(hdr_lut_param->cgain_lut[j + 8] & 0xff0) >> 4;
+			dma_addr->cgain_lut[i].cgain_lut_8 = hdr_lut_param->cgain_lut[j + 8];
 			dma_addr->cgain_lut[i].cgain_lut_9 = hdr_lut_param->cgain_lut[j + 9];
 			dma_addr->cgain_lut[i].reserve = 0x00;
 			j += 10;
@@ -2021,10 +2021,6 @@ void vpu_lut_dma(enum hdr_module_sel module_sel,
 	#if !CUP_WRITE_LUT
 	u32 dma_id_int;
 	struct VPU_LUT_DMA_t g_vpu_lut_dma;
-	//char *a;
-	int i = 0;
-	int j = 0;
-	unsigned int val;
 
 	fill_dam_buffer(module_sel, hdr_lut_param, &addr);
 	init_vpu_lut_dma(&g_vpu_lut_dma);
