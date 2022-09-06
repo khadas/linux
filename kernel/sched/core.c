@@ -30,6 +30,10 @@
 #include <trace/hooks/sched.h>
 #include <trace/hooks/dtask.h>
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/amlogic/debug_ftrace_ramoops.h>
+#endif
+
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
  * associated with them) to allow external modules to probe them.
@@ -6477,7 +6481,16 @@ static void __sched notrace __schedule(unsigned int sched_mode)
 		psi_sched_switch(prev, next, !task_on_rq_queued(prev));
 
 		trace_sched_switch(sched_mode & SM_MASK_PREEMPT, prev, next);
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+		do {
+			unsigned long next_comm;
 
+			if (ramoops_io_en) {
+				strscpy((char *)&next_comm, next->comm, sizeof(next_comm));
+				pstore_ftrace_sched_switch(next->pid, next_comm);
+			}
+		} while (0);
+#endif
 		/* Also unlocks the rq: */
 		rq = context_switch(rq, prev, next, &rf);
 	} else {

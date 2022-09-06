@@ -344,10 +344,13 @@ int ioremap_page_range(unsigned long addr, unsigned long end,
 	flush_cache_vmap(addr, end);
 
 #ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
-	if (need_dump_iomap() && !is_normal_memory(prot))
+	if (need_dump_iomap() && !is_normal_memory(prot)) {
 		pr_err("io__map <va:0x%08lx-0x%08lx> pa:0x%lx,port:0x%lx\n",
 		       addr, end, (unsigned long)phys_addr_save,
 		       (unsigned long)pgprot_val(prot));
+
+		save_iomap_info(addr, (unsigned long)phys_addr_save, (unsigned int)(end - addr));
+	}
 #endif
 
 	if (IS_ENABLED(CONFIG_ARCH_HAS_IOREMAP_PHYS_HOOKS) && !err)
@@ -2664,6 +2667,9 @@ static void __vunmap(const void *addr, int deallocate_pages)
 		return;
 	}
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	delete_iomap_info((unsigned long)addr);
+#endif
 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));
 	debug_check_no_obj_freed(area->addr, get_vm_area_size(area));
 

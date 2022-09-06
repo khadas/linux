@@ -24,6 +24,51 @@
 
 #include "clk.h"
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/amlogic/debug_ftrace_ramoops.h>
+#define SKIP_CLK_MAX_NUM 10
+#define SKIP_CLK_MAX_NAME_LEN 16
+
+static int meson_clk_debug;
+core_param(meson_clk_debug, meson_clk_debug, int, 0644);
+
+int skip_all_clk_disable;
+core_param(skip_all_clk_disable, skip_all_clk_disable, int, 0644);
+
+static int skip_clk_num;
+
+static char clk_skip_disable_list[SKIP_CLK_MAX_NUM][SKIP_CLK_MAX_NAME_LEN];
+
+static int clk_skip_disable_list_setup(const char *ptr, const struct kernel_param *kp)
+{
+	char *str_entry;
+	char *str = (char *)ptr;
+	int i = 0;
+
+	do {
+		str_entry = strsep(&str, ",");
+		if (str_entry) {
+			if (!strlen(str_entry))
+				break;
+			strscpy(clk_skip_disable_list[i], str_entry, SKIP_CLK_MAX_NAME_LEN);
+			pr_info("clk_skip_disable_list[%d]: %s\n", i, clk_skip_disable_list[i]);
+			i++;
+		}
+	} while (str_entry && i < SKIP_CLK_MAX_NUM);
+
+	skip_clk_num = i;
+
+	return 0;
+}
+
+static const struct kernel_param_ops clk_skip_disable_list_ops = {
+	.set = clk_skip_disable_list_setup,
+	.get = NULL
+};
+
+core_param_cb(clk_skip_disable_list, &clk_skip_disable_list_ops, NULL, 0644);
+#endif
+
 static DEFINE_SPINLOCK(enable_lock);
 static DEFINE_MUTEX(prepare_lock);
 
@@ -822,6 +867,10 @@ EXPORT_SYMBOL_GPL(clk_rate_exclusive_get);
 
 static void clk_core_unprepare(struct clk_core *core)
 {
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	int i;
+#endif
+
 	lockdep_assert_held(&prepare_lock);
 
 	if (!core)
@@ -837,6 +886,16 @@ static void clk_core_unprepare(struct clk_core *core)
 
 	if (core->flags & CLK_SET_RATE_GATE)
 		clk_core_rate_unprotect(core);
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	for (i = 0; i < skip_clk_num; i++) {
+		if (strstr(core->name, clk_skip_disable_list[i]))
+			return;
+	}
+
+	if (skip_all_clk_disable)
+		return;
+#endif
 
 	if (--core->prepare_count > 0)
 		return;
@@ -964,6 +1023,10 @@ EXPORT_SYMBOL_GPL(clk_prepare);
 
 static void clk_core_disable(struct clk_core *core)
 {
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	int i;
+#endif
+
 	lockdep_assert_held(&enable_lock);
 
 	if (!core)
@@ -976,8 +1039,28 @@ static void clk_core_disable(struct clk_core *core)
 	    "Disabling critical %s\n", core->name))
 		return;
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	for (i = 0; i < skip_clk_num; i++) {
+		if (strstr(core->name, clk_skip_disable_list[i])) {
+			pr_info("%s clk in white list, skip disable\n", core->name);
+			return;
+		}
+	}
+
+	if (skip_all_clk_disable) {
+		pr_info("skip all clk disable, %s clk will not disable\n", core->name);
+		return;
+	}
+#endif
+
 	if (--core->enable_count > 0)
 		return;
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	pstore_ftrace_clk_disable((unsigned long)core->name);
+	if (ramoops_io_en && meson_clk_debug)
+		pr_info("disable clk %s\n", core->name);
+#endif
 
 	trace_clk_disable_rcuidle(core);
 
@@ -1040,8 +1123,17 @@ static int clk_core_enable(struct clk_core *core)
 
 		trace_clk_enable_rcuidle(core);
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+		if (core->ops->enable) {
+			ret = core->ops->enable(core->hw);
+			if (ramoops_io_en && meson_clk_debug)
+				pr_info("enable clk %s\n", core->name);
+			pstore_ftrace_clk_enable((unsigned long)core->name);
+		}
+#else
 		if (core->ops->enable)
 			ret = core->ops->enable(core->hw);
+#endif
 
 		trace_clk_enable_complete_rcuidle(core);
 
