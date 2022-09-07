@@ -25,6 +25,7 @@
 *.gz
 *.i
 *.ko
+*.lds
 *.lex.c
 *.ll
 *.lst
@@ -53,6 +54,8 @@ modules.order
 #
 # Top-level generic files
 #
+/*.img
+/out/
 /tags
 /TAGS
 /linux

@@ -6368,6 +6368,11 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 		return recent_used_cpu;
 	}
 
+	if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+		if (rockchip_perf_get_level() == ROCKCHIP_PERFORMANCE_HIGH)
+			goto sd_llc;
+	}
+
 	/*
 	 * For asymmetric CPU capacity systems, our domain of interest is
 	 * sd_asym_cpucapacity rather than sd_llc.
@@ -6388,6 +6393,7 @@ static int select_idle_sibling(struct task_struct *p, int prev, int target)
 		}
 	}
 
+sd_llc:
 	sd = rcu_dereference(per_cpu(sd_llc, target));
 	if (!sd)
 		return target;
@@ -6766,6 +6772,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 				prev_delta = compute_energy(p, prev_cpu, pd);
 				prev_delta -= base_energy_pd;
 				best_delta = min(best_delta, prev_delta);
+				if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+					if (prev_delta == best_delta)
+						best_energy_cpu = prev_cpu;
+				}
 			}
 
 			/*
@@ -6825,6 +6835,24 @@ unlock:
 	if (prev_delta == ULONG_MAX)
 		return best_energy_cpu;
 
+	/*
+	 * when select ROCKCHIP_PERFORMANCE_LOW:
+	 * Pick best_energy_cpu immediately if prev_cpu is big cpu and
+	 * best_energy_cpu is little cpu, so that tasks can migrate from
+	 * big cpu to little cpu easier to save power.
+	 */
+	if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+		struct cpumask *cpul_mask = rockchip_perf_get_cpul_mask();
+		struct cpumask *cpub_mask = rockchip_perf_get_cpub_mask();
+		int level = rockchip_perf_get_level();
+
+		if ((level == ROCKCHIP_PERFORMANCE_LOW) && cpul_mask &&
+		    cpub_mask && cpumask_test_cpu(prev_cpu, cpub_mask) &&
+		    cpumask_test_cpu(best_energy_cpu, cpul_mask)) {
+			return best_energy_cpu;
+		}
+	}
+
 	if ((prev_delta - best_delta) > ((prev_delta + base_energy) >> 4))
 		return best_energy_cpu;
 
@@ -6869,6 +6897,11 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	if (sd_flag & SD_BALANCE_WAKE) {
 		record_wakee(p);
 
+		if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+			if (rockchip_perf_get_level() == ROCKCHIP_PERFORMANCE_HIGH)
+				goto no_eas;
+		}
+
 		if (sched_energy_enabled()) {
 			new_cpu = find_energy_efficient_cpu(p, prev_cpu, sync);
 			if (new_cpu >= 0)
@@ -6876,6 +6909,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 			new_cpu = prev_cpu;
 		}
 
+no_eas:
 		want_affine = !wake_wide(p) && cpumask_test_cpu(cpu, p->cpus_ptr);
 	}
 
@@ -6907,6 +6941,23 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 		/* Fast path */
 
 		new_cpu = select_idle_sibling(p, prev_cpu, new_cpu);
+
+		if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+			struct root_domain *rd = cpu_rq(cpu)->rd;
+			struct cpumask *cpul_mask = rockchip_perf_get_cpul_mask();
+			struct cpumask *cpub_mask = rockchip_perf_get_cpub_mask();
+			int level = rockchip_perf_get_level();
+
+			if ((level == ROCKCHIP_PERFORMANCE_HIGH) && !READ_ONCE(rd->overutilized) &&
+			    cpul_mask && cpub_mask && cpumask_intersects(p->cpus_ptr, cpub_mask) &&
+			    cpumask_test_cpu(new_cpu, cpul_mask)) {
+				for_each_domain(cpu, tmp) {
+					sd = tmp;
+				}
+				if (sd)
+					new_cpu = find_idlest_cpu(sd, p, cpu, prev_cpu, sd_flag);
+			}
+		}
 
 		if (want_affine)
 			current->recent_used_cpu = cpu;
@@ -8988,6 +9039,17 @@ find_idlest_group(struct sched_domain *sd, struct task_struct *p, int this_cpu)
 	do {
 		int local_group;
 
+		if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+			struct root_domain *rd = cpu_rq(this_cpu)->rd;
+			struct cpumask *cpub_mask = rockchip_perf_get_cpub_mask();
+			int level = rockchip_perf_get_level();
+
+			if ((level == ROCKCHIP_PERFORMANCE_HIGH) && !READ_ONCE(rd->overutilized) &&
+			    cpub_mask && cpumask_intersects(p->cpus_ptr, cpub_mask) &&
+			    !cpumask_intersects(sched_group_span(group), cpub_mask))
+				continue;
+		}
+
 		/* Skip over this group if it has no CPUs allowed */
 		if (!cpumask_intersects(sched_group_span(group),
 					p->cpus_ptr))
@@ -9713,6 +9775,16 @@ static int should_we_balance(struct lb_env *env)
 {
 	struct sched_group *sg = env->sd->groups;
 	int cpu;
+
+	if (IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)) {
+		struct root_domain *rd = env->dst_rq->rd;
+		struct cpumask *cpul_mask = rockchip_perf_get_cpul_mask();
+		int level = rockchip_perf_get_level();
+
+		if ((level == ROCKCHIP_PERFORMANCE_HIGH) && !READ_ONCE(rd->overutilized) &&
+		    cpul_mask && cpumask_test_cpu(env->dst_cpu, cpul_mask))
+			return 0;
+	}
 
 	/*
 	 * Ensure the balancing environment is consistent; can happen

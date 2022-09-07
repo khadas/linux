@@ -48,8 +48,12 @@ static inline void page_ext_init_flatmem(void)
 {
 }
 extern void page_ext_init(void);
+static inline void page_ext_init_flatmem_late(void)
+{
+}
 #else
 extern void page_ext_init_flatmem(void);
+extern void page_ext_init_flatmem_late(void);
 static inline void page_ext_init(void)
 {
 }
@@ -77,6 +81,10 @@ static inline struct page_ext *lookup_page_ext(const struct page *page)
 }
 
 static inline void page_ext_init(void)
+{
+}
+
+static inline void page_ext_init_flatmem_late(void)
 {
 }
 

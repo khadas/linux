@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/sys_soc.h>
 #include <linux/timer.h>
@@ -55,6 +56,37 @@ struct ehci_platform_priv {
 };
 
 static const char hcd_name[] = "ehci-platform";
+
+static void ehci_rockchip_relinquish_port(struct usb_hcd *hcd, int portnum)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	u32 __iomem *status_reg = &ehci->regs->port_status[--portnum];
+	u32 portsc;
+
+	portsc = ehci_readl(ehci, status_reg);
+	portsc &= ~(PORT_OWNER | PORT_RWC_BITS);
+
+	ehci_writel(ehci, portsc, status_reg);
+}
+
+#define USIC_MICROFRAME_OFFSET	0x90
+#define USIC_SCALE_DOWN_OFFSET	0xa0
+#define USIC_ENABLE_OFFSET	0xb0
+#define USIC_ENABLE		BIT(0)
+#define USIC_SCALE_DOWN		BIT(2)
+#define USIC_MICROFRAME_COUNT	0x1d4d
+
+static void ehci_usic_init(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+
+	ehci_writel(ehci, USIC_ENABLE,
+		    hcd->regs + USIC_ENABLE_OFFSET);
+	ehci_writel(ehci, USIC_MICROFRAME_COUNT,
+		    hcd->regs + USIC_MICROFRAME_OFFSET);
+	ehci_writel(ehci, USIC_SCALE_DOWN,
+		    hcd->regs + USIC_SCALE_DOWN_OFFSET);
+}
 
 static int ehci_platform_reset(struct usb_hcd *hcd)
 {
@@ -303,6 +335,12 @@ static int ehci_platform_probe(struct platform_device *dev)
 		if (soc_device_match(quirk_poll_match))
 			priv->quirk_poll = true;
 
+		if (of_machine_is_compatible("rockchip,rk3288") &&
+		    of_property_read_bool(dev->dev.of_node,
+					  "rockchip-relinquish-port"))
+			ehci_platform_hc_driver.relinquish_port =
+					  ehci_rockchip_relinquish_port;
+
 		for (clk = 0; clk < EHCI_MAX_CLKS; clk++) {
 			priv->clks[clk] = of_clk_get(dev->dev.of_node, clk);
 			if (IS_ERR(priv->clks[clk])) {
@@ -351,6 +389,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 	}
 #endif
 
+	pm_runtime_set_active(&dev->dev);
+	pm_runtime_enable(&dev->dev);
+	pm_runtime_get_sync(&dev->dev);
 	if (pdata->power_on) {
 		err = pdata->power_on(dev);
 		if (err < 0)
@@ -370,6 +411,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 	if (err)
 		goto err_power;
 
+	if (of_usb_get_phy_mode(dev->dev.of_node) == USBPHY_INTERFACE_MODE_HSIC)
+		ehci_usic_init(hcd);
+
 	device_wakeup_enable(hcd->self.controller);
 	device_enable_async_suspend(hcd->self.controller);
 	platform_set_drvdata(dev, hcd);
@@ -383,6 +427,8 @@ err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
 err_reset:
+	pm_runtime_put_sync(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 	reset_control_assert(priv->rsts);
 err_put_clks:
 	while (--clk >= 0)
@@ -417,6 +463,9 @@ static int ehci_platform_remove(struct platform_device *dev)
 		clk_put(priv->clks[clk]);
 
 	usb_put_hcd(hcd);
+
+	pm_runtime_put_sync(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 
 	if (pdata == &ehci_platform_defaults)
 		dev->dev.platform_data = NULL;

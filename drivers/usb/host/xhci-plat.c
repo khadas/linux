@@ -142,6 +142,7 @@ static const struct of_device_id usb_xhci_of_match[] = {
 		.compatible = "generic-xhci",
 	}, {
 		.compatible = "xhci-platform",
+#ifndef CONFIG_ARCH_ROCKCHIP
 	}, {
 		.compatible = "marvell,armada-375-xhci",
 		.data = &xhci_plat_marvell_armada,
@@ -178,6 +179,7 @@ static const struct of_device_id usb_xhci_of_match[] = {
 	}, {
 		.compatible = "brcm,bcm7445-xhci",
 		.data = &xhci_plat_brcm,
+#endif
 	},
 	{},
 };
@@ -357,6 +359,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 		if (device_property_read_bool(tmpdev, "quirk-broken-port-ped"))
 			xhci->quirks |= XHCI_BROKEN_PORT_PED;
+
+		if (device_property_read_bool(tmpdev, "quirk-skip-phy-init"))
+			xhci->quirks |= XHCI_SKIP_PHY_INIT;
 
 		device_property_read_u32(tmpdev, "imod-interval-ns",
 					 &xhci->imod_interval);

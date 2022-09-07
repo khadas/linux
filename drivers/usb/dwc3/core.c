@@ -121,11 +121,24 @@ static void __dwc3_set_mode(struct work_struct *work)
 	struct dwc3 *dwc = work_to_dwc(work);
 	unsigned long flags;
 	int ret;
+	int retries = 1000;
 	u32 reg;
 
 	mutex_lock(&dwc->mutex);
 
 	pm_runtime_get_sync(dwc->dev);
+
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+	if (dwc->desired_role_sw_mode == USB_DR_MODE_PERIPHERAL &&
+	    dwc->desired_role_sw_mode != dwc->current_role_sw_mode)
+		pm_runtime_get(dwc->dev);
+	else if ((dwc->desired_role_sw_mode == USB_DR_MODE_UNKNOWN ||
+		  dwc->desired_role_sw_mode == USB_DR_MODE_HOST) &&
+		  dwc->current_role_sw_mode == USB_DR_MODE_PERIPHERAL)
+		pm_runtime_put(dwc->dev);
+
+	dwc->current_role_sw_mode = dwc->desired_role_sw_mode;
+#endif
 
 	if (dwc->current_dr_role == DWC3_GCTL_PRTCAP_OTG)
 		dwc3_otg_update(dwc, 0);
@@ -201,7 +214,26 @@ static void __dwc3_set_mode(struct work_struct *work)
 		}
 		break;
 	case DWC3_GCTL_PRTCAP_DEVICE:
-		dwc3_core_soft_reset(dwc);
+		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+		reg |= DWC3_DCTL_CSFTRST;
+		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
+
+		if (DWC3_VER_IS_WITHIN(DWC31, 190A, ANY) || DWC3_IP_IS(DWC32))
+			retries = 10;
+
+		do {
+			reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+			if (!(reg & DWC3_DCTL_CSFTRST))
+				goto done;
+
+			if (DWC3_VER_IS_WITHIN(DWC31, 190A, ANY) || DWC3_IP_IS(DWC32))
+				msleep(20);
+			else
+				udelay(1);
+		} while (--retries);
+done:
+		if (DWC3_VER_IS_WITHIN(DWC31, ANY, 180A))
+			msleep(50);
 
 		dwc3_event_buffers_setup(dwc);
 
@@ -1061,6 +1093,10 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		if (dwc->parkmode_disable_ss_quirk)
 			reg |= DWC3_GUCTL1_PARKMODE_DISABLE_SS;
 
+		if (dwc->maximum_speed == USB_SPEED_HIGH ||
+		    dwc->maximum_speed == USB_SPEED_FULL)
+			reg |= DWC3_GUCTL1_DEV_FORCE_20_CLK_FOR_30_CLK;
+
 		dwc3_writel(dwc->regs, DWC3_GUCTL1, reg);
 	}
 
@@ -1649,7 +1685,17 @@ static int dwc3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err5;
 
-	pm_runtime_put(dev);
+	if (dwc->dr_mode == USB_DR_MODE_OTG &&
+	    of_device_is_compatible(dev->parent->of_node,
+				    "rockchip,rk3399-dwc3")) {
+#if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
+		pm_runtime_set_autosuspend_delay(dev, 100);
+#endif
+		pm_runtime_allow(dev);
+		pm_runtime_put_sync_suspend(dev);
+	} else {
+		pm_runtime_put(dev);
+	}
 
 	return 0;
 
@@ -1797,7 +1843,8 @@ static int dwc3_suspend_common(struct dwc3 *dwc, pm_message_t msg)
 		dwc3_core_exit(dwc);
 		break;
 	default:
-		/* do nothing */
+		if (!pm_runtime_suspended(dwc->dev))
+			dwc3_core_exit(dwc);
 		break;
 	}
 
@@ -1864,7 +1911,9 @@ static int dwc3_resume_common(struct dwc3 *dwc, pm_message_t msg)
 
 		break;
 	default:
-		/* do nothing */
+		ret = dwc3_core_init_for_resume(dwc);
+		if (ret)
+			return ret;
 		break;
 	}
 
@@ -1899,7 +1948,7 @@ static int dwc3_runtime_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	device_init_wakeup(dev, true);
+	device_init_wakeup(dev, false);
 
 	return 0;
 }
@@ -1909,7 +1958,7 @@ static int dwc3_runtime_resume(struct device *dev)
 	struct dwc3     *dwc = dev_get_drvdata(dev);
 	int		ret;
 
-	device_init_wakeup(dev, false);
+	device_init_wakeup(dev, true);
 
 	ret = dwc3_resume_common(dwc, PMSG_AUTO_RESUME);
 	if (ret)
@@ -1958,6 +2007,9 @@ static int dwc3_suspend(struct device *dev)
 	struct dwc3	*dwc = dev_get_drvdata(dev);
 	int		ret;
 
+	if (pm_runtime_suspended(dwc->dev))
+		return 0;
+
 	ret = dwc3_suspend_common(dwc, PMSG_SUSPEND);
 	if (ret)
 		return ret;
@@ -1971,6 +2023,9 @@ static int dwc3_resume(struct device *dev)
 {
 	struct dwc3	*dwc = dev_get_drvdata(dev);
 	int		ret;
+
+	if (pm_runtime_suspended(dwc->dev))
+		return 0;
 
 	pinctrl_pm_select_default_state(dev);
 

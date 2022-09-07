@@ -1101,6 +1101,14 @@ static void uclamp_sync_util_min_rt_default(void)
 	rcu_read_unlock();
 }
 
+#if IS_ENABLED(CONFIG_ROCKCHIP_PERFORMANCE)
+void rockchip_perf_uclamp_sync_util_min_rt_default(void)
+{
+	uclamp_sync_util_min_rt_default();
+}
+EXPORT_SYMBOL(rockchip_perf_uclamp_sync_util_min_rt_default);
+#endif
+
 static inline struct uclamp_se
 uclamp_tg_restrict(struct task_struct *p, enum uclamp_id clamp_id)
 {
@@ -5733,6 +5741,14 @@ static int _sched_setscheduler(struct task_struct *p, int policy,
 		.sched_nice	= PRIO_TO_NICE(p->static_prio),
 	};
 
+	if (IS_ENABLED(CONFIG_ROCKCHIP_OPTIMIZE_RT_PRIO) &&
+	    ((policy == SCHED_FIFO) || (policy == SCHED_RR))) {
+		attr.sched_priority /= 2;
+		if (!check)
+			attr.sched_priority += MAX_RT_PRIO / 2;
+		if (!attr.sched_priority)
+			attr.sched_priority = 1;
+	}
 	/* Fixup the legacy SCHED_RESET_ON_FORK hack. */
 	if ((policy != SETPARAM_POLICY) && (policy & SCHED_RESET_ON_FORK)) {
 		attr.sched_flags |= SCHED_FLAG_RESET_ON_FORK;

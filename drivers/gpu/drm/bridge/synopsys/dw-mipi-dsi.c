@@ -244,7 +244,7 @@ struct dw_mipi_dsi {
 	struct device *dev;
 	void __iomem *base;
 
-	struct clk *pclk;
+	struct reset_control *apb_rst;
 
 	unsigned int lane_mbps; /* per lane */
 	u32 channel;
@@ -316,15 +316,10 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->plat_data;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
+	int max_data_lanes = dsi->plat_data->max_data_lanes;
 	int ret;
 
-	if (device->lanes > dsi->plat_data->max_data_lanes) {
-		dev_err(dsi->dev, "the number of data lanes(%u) is too many\n",
-			device->lanes);
-		return -EINVAL;
-	}
-
-	dsi->lanes = device->lanes;
+	dsi->lanes = (device->lanes > max_data_lanes) ? device->lanes / 2 : device->lanes;
 	dsi->channel = device->channel;
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
@@ -599,8 +594,14 @@ static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 
 static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 {
+	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
+
+	if (phy_ops->power_off)
+		phy_ops->power_off(dsi->plat_data->priv_data);
+
 	dsi_write(dsi, DSI_PWR_UP, RESET);
 	dsi_write(dsi, DSI_PHY_RSTZ, PHY_RSTZ);
+	pm_runtime_put(dsi->dev);
 }
 
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
@@ -715,16 +716,16 @@ static u32 dw_mipi_dsi_get_hcomponent_lbcc(struct dw_mipi_dsi *dsi,
 					   const struct drm_display_mode *mode,
 					   u32 hcomponent)
 {
-	u32 frac, lbcc;
+	u32 lbcc;
 
 	lbcc = hcomponent * dsi->lane_mbps * MSEC_PER_SEC / 8;
 
-	frac = lbcc % mode->clock;
-	lbcc = lbcc / mode->clock;
-	if (frac)
-		lbcc++;
+	if (mode->clock == 0) {
+		DRM_ERROR("dsi mode clock is 0!\n");
+		return 0;
+	}
 
-	return lbcc;
+	return DIV_ROUND_CLOSEST_ULL(lbcc, mode->clock);
 }
 
 static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi,
@@ -837,13 +838,13 @@ static void dw_mipi_dsi_dphy_enable(struct dw_mipi_dsi *dsi)
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS, val,
 				 val & PHY_LOCK, 1000, PHY_STATUS_TIMEOUT_US);
 	if (ret)
-		DRM_DEBUG_DRIVER("failed to wait phy lock state\n");
+		DRM_ERROR("failed to wait phy lock state\n");
 
 	ret = readl_poll_timeout(dsi->base + DSI_PHY_STATUS,
 				 val, val & PHY_STOP_STATE_CLK_LANE, 1000,
 				 PHY_STATUS_TIMEOUT_US);
 	if (ret)
-		DRM_DEBUG_DRIVER("failed to wait phy clk lane stop state\n");
+		DRM_ERROR("failed to wait phy clk lane stop state\n");
 }
 
 static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
@@ -857,7 +858,6 @@ static void dw_mipi_dsi_clear_err(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
-	const struct dw_mipi_dsi_phy_ops *phy_ops = dsi->plat_data->phy_ops;
 
 	/*
 	 * Switch to command mode before panel-bridge post_disable &
@@ -866,6 +866,8 @@ static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
 	 * before by the drm framework.
 	 */
 	dw_mipi_dsi_set_mode(dsi, 0);
+	if (dsi->slave)
+		dw_mipi_dsi_set_mode(dsi->slave, 0);
 
 	/*
 	 * TODO Only way found to call panel-bridge post_disable &
@@ -876,18 +878,10 @@ static void dw_mipi_dsi_bridge_post_disable(struct drm_bridge *bridge)
 	if (dsi->panel_bridge->funcs->post_disable)
 		dsi->panel_bridge->funcs->post_disable(dsi->panel_bridge);
 
-	if (phy_ops->power_off)
-		phy_ops->power_off(dsi->plat_data->priv_data);
-
-	if (dsi->slave) {
+	if (dsi->slave)
 		dw_mipi_dsi_disable(dsi->slave);
-		clk_disable_unprepare(dsi->slave->pclk);
-		pm_runtime_put(dsi->slave->dev);
-	}
-	dw_mipi_dsi_disable(dsi);
 
-	clk_disable_unprepare(dsi->pclk);
-	pm_runtime_put(dsi->dev);
+	dw_mipi_dsi_disable(dsi);
 }
 
 static unsigned int dw_mipi_dsi_get_lanes(struct dw_mipi_dsi *dsi)
@@ -912,7 +906,11 @@ static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
 	int ret;
 	u32 lanes = dw_mipi_dsi_get_lanes(dsi);
 
-	clk_prepare_enable(dsi->pclk);
+	if (dsi->apb_rst) {
+		reset_control_assert(dsi->apb_rst);
+		usleep_range(10, 20);
+		reset_control_deassert(dsi->apb_rst);
+	}
 
 	ret = phy_ops->get_lane_mbps(priv_data, adjusted_mode, dsi->mode_flags,
 				     lanes, dsi->format, &dsi->lane_mbps);
@@ -939,15 +937,15 @@ static void dw_mipi_dsi_mode_set(struct dw_mipi_dsi *dsi,
 	if (ret)
 		DRM_DEBUG_DRIVER("Phy init() failed\n");
 
+	if (phy_ops->power_on)
+		phy_ops->power_on(dsi->plat_data->priv_data);
+
 	dw_mipi_dsi_dphy_enable(dsi);
 
 	dw_mipi_dsi_wait_for_two_frames(adjusted_mode);
 
 	/* Switch to cmd mode for panel-bridge pre_enable & panel prepare */
 	dw_mipi_dsi_set_mode(dsi, 0);
-
-	if (phy_ops->power_on)
-		phy_ops->power_on(dsi->plat_data->priv_data);
 }
 
 static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
@@ -959,16 +957,25 @@ static void dw_mipi_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	dw_mipi_dsi_mode_set(dsi, adjusted_mode);
 	if (dsi->slave)
 		dw_mipi_dsi_mode_set(dsi->slave, adjusted_mode);
+
+	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
+		     dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
 }
 
 static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);
 
-	/* Switch to video mode for panel-bridge enable & panel enable */
-	dw_mipi_dsi_set_mode(dsi, MIPI_DSI_MODE_VIDEO);
-	if (dsi->slave)
-		dw_mipi_dsi_set_mode(dsi->slave, MIPI_DSI_MODE_VIDEO);
+	/* Switch to video/cmd mode for panel-bridge enable & panel enable */
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		dw_mipi_dsi_set_mode(dsi, MIPI_DSI_MODE_VIDEO);
+		if (dsi->slave)
+			dw_mipi_dsi_set_mode(dsi->slave, MIPI_DSI_MODE_VIDEO);
+	} else {
+		dw_mipi_dsi_set_mode(dsi, 0);
+		if (dsi->slave)
+			dw_mipi_dsi_set_mode(dsi->slave, 0);
+	}
 }
 
 static enum drm_mode_status
@@ -1103,7 +1110,6 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 		    const struct dw_mipi_dsi_plat_data *plat_data)
 {
 	struct device *dev = &pdev->dev;
-	struct reset_control *apb_rst;
 	struct dw_mipi_dsi *dsi;
 	int ret;
 
@@ -1129,39 +1135,18 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 		dsi->base = plat_data->base;
 	}
 
-	dsi->pclk = devm_clk_get(dev, "pclk");
-	if (IS_ERR(dsi->pclk)) {
-		ret = PTR_ERR(dsi->pclk);
-		dev_err(dev, "Unable to get pclk: %d\n", ret);
-		return ERR_PTR(ret);
-	}
-
 	/*
 	 * Note that the reset was not defined in the initial device tree, so
 	 * we have to be prepared for it not being found.
 	 */
-	apb_rst = devm_reset_control_get_optional_exclusive(dev, "apb");
-	if (IS_ERR(apb_rst)) {
-		ret = PTR_ERR(apb_rst);
+	dsi->apb_rst = devm_reset_control_get_optional_exclusive(dev, "apb");
+	if (IS_ERR(dsi->apb_rst)) {
+		ret = PTR_ERR(dsi->apb_rst);
 
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Unable to get reset control: %d\n", ret);
 
 		return ERR_PTR(ret);
-	}
-
-	if (apb_rst) {
-		ret = clk_prepare_enable(dsi->pclk);
-		if (ret) {
-			dev_err(dev, "%s: Failed to enable pclk\n", __func__);
-			return ERR_PTR(ret);
-		}
-
-		reset_control_assert(apb_rst);
-		usleep_range(10, 20);
-		reset_control_deassert(apb_rst);
-
-		clk_disable_unprepare(dsi->pclk);
 	}
 
 	dw_mipi_dsi_debugfs_init(dsi);
@@ -1245,6 +1230,12 @@ void dw_mipi_dsi_unbind(struct dw_mipi_dsi *dsi)
 {
 }
 EXPORT_SYMBOL_GPL(dw_mipi_dsi_unbind);
+
+struct drm_connector *dw_mipi_dsi_get_connector(struct dw_mipi_dsi *dsi)
+{
+	return drm_panel_bridge_connector(dsi->panel_bridge);
+}
+EXPORT_SYMBOL_GPL(dw_mipi_dsi_get_connector);
 
 MODULE_AUTHOR("Chris Zhong <zyw@rock-chips.com>");
 MODULE_AUTHOR("Philippe Cornu <philippe.cornu@st.com>");

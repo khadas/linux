@@ -330,6 +330,10 @@ restart:
 		if (time_before(jiffies, end) && !need_resched() &&
 		    --max_restart)
 			goto restart;
+
+#ifndef CONFIG_RT_SOFTINT_OPTIMIZATION
+		wakeup_softirqd();
+#endif
 	}
 
 #ifdef CONFIG_RT_SOFTINT_OPTIMIZATION
