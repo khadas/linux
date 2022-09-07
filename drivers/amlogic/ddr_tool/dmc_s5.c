@@ -177,7 +177,7 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 	}
 
 	port = status & 0xff;
-	subport = (status >> 9) & 0xf;
+	subport = (status >> 16) & 0x7;
 	pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p, rw:%c\n",
 		 title, addr, status, to_ports(port),
 		 to_sub_ports_name(port, subport, id_str, rw),
