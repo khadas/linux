@@ -17907,6 +17907,29 @@ static ssize_t tvin_source_type_store(struct class *cla,
 	return count;
 }
 
+static ssize_t bypass_module_s5_show(struct class *cla,
+			     struct class_attribute *attr, char *buf)
+{
+	return snprintf(buf, 80, "bypass module:0x%x(bit0: dv, bit1: hdr, bit2: detunnel)\n",
+		get_module_bypass_s5());
+}
+
+static ssize_t bypass_module_s5_store(struct class *cla,
+			      struct class_attribute *attr,
+			      const char *buf, size_t count)
+{
+	int ret, res;
+
+	ret = kstrtoint(buf, 0, &res);
+	if (ret) {
+		pr_err("kstrtoint err\n");
+		return -EINVAL;
+	}
+
+	set_module_bypass_s5(res);
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -18430,6 +18453,10 @@ static struct class_attribute amvideo_class_attrs[] = {
 		tvin_source_type_show,
 		tvin_source_type_store),
 	__ATTR_RO(video_vd_proc_state),
+	__ATTR(bypass_module,
+		0664,
+		bypass_module_s5_show,
+		bypass_module_s5_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {

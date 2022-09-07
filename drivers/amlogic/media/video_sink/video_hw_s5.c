@@ -95,10 +95,14 @@ struct vd_proc_reg_s vd_proc_reg;
 static u32 vpp_hold_line_s5 = 8;
 static u32 vpp_ofifo_size_s5 = 0x800;
 static u32 conv_lbuf_len_s5[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
+static u32 g_bypass_module = 5;
 #define SIZE_ALIG32(frm_hsize)   ((((frm_hsize) + 31) >> 5) << 5)
 #define SIZE_ALIG16(frm_hsize)   ((((frm_hsize) + 15) >> 4) << 4)
 #define SIZE_ALIG8(frm_hsize)    ((((frm_hsize) + 7) >> 3) << 3)
 #define SIZE_ALIG4(frm_hsize)    ((((frm_hsize) + 3) >> 2) << 2)
+#define BYPASS_DV         BIT(0)
+#define BYPASS_HDR        BIT(1)
+#define BYAPSS_DETUNNEL   BIT(2)
 
 static u32 g_slice_num = 0xff;
 MODULE_PARM_DESC(g_slice_num, "\n g_slice_num\n");
@@ -990,6 +994,16 @@ ssize_t video_vd_proc_state_dump(char *buf)
 	return len;
 }
 
+void set_module_bypass_s5(u32 bypass_module)
+{
+	g_bypass_module = bypass_module;
+}
+
+int get_module_bypass_s5(void)
+{
+	return g_bypass_module;
+}
+
 void disable_vd1_blend_s5(struct video_layer_s *layer)
 {
 	u8 vpp_index;
@@ -1122,7 +1136,8 @@ static void vd_proc_bypass_detunnel(u32 vpp_index,
 	struct vd_proc_slice_reg_s *vd_slice_reg = NULL;
 
 	vd_slice_reg = &vd_proc_reg.vd_proc_slice_reg[slice_index];
-	rdma_wr_bits(vd_slice_reg->vd_s0_detunl_ctrl, !bypass, 0, 1);
+	if (bypass)
+		rdma_wr_bits(vd_slice_reg->vd_s0_detunl_ctrl, !bypass, 0, 1);
 }
 
 static void vd_proc_bypass_dv(u32 vpp_index,
@@ -1132,7 +1147,8 @@ static void vd_proc_bypass_dv(u32 vpp_index,
 	struct vd_proc_slice_reg_s *vd_slice_reg = NULL;
 
 	vd_slice_reg = &vd_proc_reg.vd_proc_slice_reg[slice_index];
-	rdma_wr_bits(vd_slice_reg->vd1_s0_dv_bypass_ctrl, !bypass, 0, 1);
+	if (bypass)
+		rdma_wr_bits(vd_slice_reg->vd1_s0_dv_bypass_ctrl, !bypass, 0, 1);
 }
 
 static void vd_proc_bypass_hdr(u32 vpp_index,
@@ -1142,15 +1158,16 @@ static void vd_proc_bypass_hdr(u32 vpp_index,
 	struct vd_proc_slice_reg_s *vd_slice_reg = NULL;
 
 	vd_slice_reg = &vd_proc_reg.vd_proc_slice_reg[slice_index];
-	rdma_wr_bits(vd_slice_reg->vd1_hdr_s0_ctrl, !bypass, 13, 1);
+	if (bypass)
+		rdma_wr_bits(vd_slice_reg->vd1_hdr_s0_ctrl, !bypass, 13, 1);
 }
 
 static inline void vd_proc_bypass_ve(u32 vpp_index,
 	u32 slice_index, bool bypass)
 {
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
-
-	rdma_wr_bits(VD_PROC_BYPASS_CTRL, bypass, 1 + slice_index, 1);
+	if (bypass)
+		rdma_wr_bits(VD_PROC_BYPASS_CTRL, bypass, 1 + slice_index, 1);
 }
 
 static inline void vd_proc_bypass_preblend(u32 vpp_index,
@@ -1769,7 +1786,8 @@ static void vd2_proc_bypass_dv(u32 vpp_index,
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 
 	vd2_proc_misc_reg = &vd_proc_reg.vd2_proc_misc_reg;
-	rdma_wr_bits(vd2_proc_misc_reg->vd2_dv_bypass_ctrl, !bypass, 0, 1);
+	if (bypass)
+		rdma_wr_bits(vd2_proc_misc_reg->vd2_dv_bypass_ctrl, !bypass, 0, 1);
 }
 
 static void vd2_proc_bypass_hdr(u32 vpp_index,
@@ -1779,7 +1797,8 @@ static void vd2_proc_bypass_hdr(u32 vpp_index,
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 
 	vd2_proc_misc_reg = &vd_proc_reg.vd2_proc_misc_reg;
-	rdma_wr_bits(vd2_proc_misc_reg->vd2_hdr_ctrl, !bypass, 13, 1);
+	if (bypass)
+		rdma_wr_bits(vd2_proc_misc_reg->vd2_hdr_ctrl, !bypass, 13, 1);
 }
 
 static inline void vd2_proc_bypass_detunnel(u32 vpp_index,
@@ -1789,7 +1808,8 @@ static inline void vd2_proc_bypass_detunnel(u32 vpp_index,
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 
 	vd2_proc_misc_reg = &vd_proc_reg.vd2_proc_misc_reg;
-	rdma_wr_bits(vd2_proc_misc_reg->vd2_detunl_ctrl,
+	if (bypass)
+		rdma_wr_bits(vd2_proc_misc_reg->vd2_detunl_ctrl,
 			!bypass, 0, 1);
 }
 
@@ -2178,10 +2198,10 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	//vd_proc_preblend_info->prebld_dout_vsize
 	//vd_proc_preblend_info->vd1s0_vd2_prebld_en
 	//vd_proc_preblend_info->vd1s1_vd2_prebld_en
-	vd_proc->bypass_detunnel = 1;
-	vd_proc->bypass_hdr = 1;
-	vd_proc->bypass_dv = 1;
-	vd_proc->bypass_ve = 1;
+	vd_proc->bypass_detunnel = g_bypass_module & BYAPSS_DETUNNEL;
+	vd_proc->bypass_hdr = g_bypass_module & BYPASS_HDR;
+	vd_proc->bypass_dv = g_bypass_module & BYPASS_DV;
+	//vd_proc->bypass_ve = 1;
 	vd_proc_unit->sr0_dpath_sel = SR0_IN_SLICE0;
 	/* SR0_IN_SLICE0 */
 	if (cur_frame_par->supscl_path == CORE0_PPS_CORE1)
