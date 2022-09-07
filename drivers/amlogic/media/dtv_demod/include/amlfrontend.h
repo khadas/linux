@@ -5,6 +5,7 @@
 
 #ifndef _AMLFRONTEND_H
 #define _AMLFRONTEND_H
+
 /**/
 #include "depend.h" /**/
 #include "dvbc_func.h"
@@ -56,6 +57,7 @@
 /*  V1.1.63  fix dvbc 128/256qam unlock */
 /*  V1.1.64  fix atsc static echo test failed in -30us */
 /*  V1.1.65  fix locking qam64 signal failed in j83b */
+/*  V1.1.66  improve dvbs blind scan and support single cable */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -72,8 +74,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.65"
-#define DTVDEMOD_VER	"2022/10/02: fix locking qam64 signal failed in j83b"
+#define AMLDTVDEMOD_VER "V1.1.66"
+#define DTVDEMOD_VER	"2022/10/18: improve dvbs blind scan and support single cable"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -414,6 +416,10 @@ struct amldtvdemod_device_s {
 	unsigned int blind_debug_max_frc;
 	unsigned int blind_debug_min_frc;
 	unsigned int blind_same_frec;
+
+#ifdef CONFIG_AMLOGIC_DVB_COMPAT
+	struct dvbsx_singlecable_parameters singlecable_param;
+#endif
 
 	bool vdac_enable;
 	bool dvbc_inited;

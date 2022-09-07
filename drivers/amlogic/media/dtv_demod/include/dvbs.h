@@ -10,6 +10,11 @@
 #define ALIGN_24	16777216
 #define SR_LOW_THRD	11000000
 
+#define BLIND_SEARCH_AGC2BANDWIDTH_40 (40)
+#define BLIND_SEARCH_AGC2BANDWIDTH_80 (80)
+#define BLIND_SEARCH_POW_TH           (25000)
+#define BLIND_SEARCH_BW_MIN           (6)
+
 #define CNR_HIGH	0xcae
 #define CNR_LOW		0xcad
 #define AUTOSR_REG 0x922
@@ -52,15 +57,15 @@ struct fft_search_result {
 };
 
 struct fft_in_bw_result {
-	s32 found_tp_num;
-	u32 in_bw_result_frc[45];
-	u32 in_bw_result_bw[45];
+	s32 tp_num;
+	u32 freq[45];
+	u32 bw[45];
 };
 
 struct fft_total_result {
-	s32 found_tp_num;
-	u32 total_result_frc[1000];
-	u32 total_result_bw[1000];
+	s32 tp_num;
+	u32 freq[1000];
+	u32 bw[1000];
 };
 
 #define DVBS_REG_MRELEASE	0x100
@@ -160,6 +165,7 @@ void dvbs_fft_reg_term(unsigned int reg_val[60]);
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
 	int frq, struct fft_search_result *search_result);
 void dvbs_blind_fft_result_handle(struct fft_total_result *total_result);
-unsigned int dvbs_blind_check_AGC2_bandwidth(void);
+unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz);
+unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz);
 
 #endif

@@ -932,7 +932,7 @@ unsigned int clear_ddr_bus_data(struct aml_dtvdemod *demod)
 		devp->demod_thread = polling_en;
 	}
 
-	PR_INFO("%s: clear done.\n", __func__);
+	PR_DBGL("%s: clear done.\n", __func__);
 
 	return 0;
 }
@@ -1266,7 +1266,7 @@ static ssize_t attr_store(struct class *cls,
 			fe->dtv_property_cache.delivery_system == SYS_DVBS2)
 			fe->dtv_property_cache.frequency = fe->dtv_property_cache.frequency / 1000;
 
-		if (fe->ops.init)
+		if (fe->ops.init && demod->last_delsys == SYS_UNDEFINED)
 			fe->ops.init(fe);
 		if (fe->ops.set_property)
 			fe->ops.set_property(fe, &tvp);
@@ -1645,6 +1645,27 @@ static ssize_t diseq_cmd_store(struct class *cla, struct class_attribute *attr,
 	int cnt;
 	struct dvb_diseqc_master_cmd cmd;
 	/*int ret;*/
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
+	struct dvb_frontend *fe;
+
+	if (unlikely(!devp)) {
+		PR_ERR("%s:devp is NULL\n", __func__);
+		return -1;
+	}
+
+	list_for_each_entry(tmp, &devp->demod_list, list) {
+		if (tmp->id == 0) {
+			demod = tmp;
+			fe = &demod->frontend;
+			break;
+		}
+	}
+
+	if (unlikely(!demod)) {
+		PR_ERR("%s: demod is NULL\n", __func__);
+		return -1;
+	}
 
 	cnt = sscanf(bu, "%x %x %x %x %x %x %x %x %x %x %x %x %x %x %x %x",
 		    &tmpbuf[0], &tmpbuf[1], &tmpbuf[2], &tmpbuf[3],
@@ -1662,7 +1683,7 @@ static ssize_t diseq_cmd_store(struct class *cla, struct class_attribute *attr,
 	}
 	cmd.msg_len = cnt;
 	/* send diseqc msg */
-	aml_diseqc_send_cmd(&cmd);
+	aml_diseqc_send_cmd(fe, &cmd);
 
 	return count;
 }

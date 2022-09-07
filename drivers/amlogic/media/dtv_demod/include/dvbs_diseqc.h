@@ -41,8 +41,9 @@ void aml_def_set_lnb_en(int high_low);
 void aml_def_set_lnb_sel(int high_low);
 void demod_dump_reg_diseqc(void);
 void aml_diseqc_attach(struct amldtvdemod_device_s *devp,
-		       struct dvb_frontend *fe);
-u32 aml_diseqc_send_cmd(struct dvb_diseqc_master_cmd *cmd);
+		struct dvb_frontend *fe);
+u32 aml_diseqc_send_cmd(struct dvb_frontend *fe,
+		struct dvb_diseqc_master_cmd *cmd);
 void aml_diseqc_dbg_en(unsigned int val);
 void aml_diseqc_isr(void);
 void aml_diseqc_status(void);
@@ -50,4 +51,6 @@ void aml_diseqc_toneburst_sa(void);
 void aml_diseqc_toneburst_sb(void);
 void aml_diseqc_tone_on(u32 onoff);
 void aml_diseqc_flag_tone_on(u32 onoff);
+int aml_diseqc_set_voltage(struct dvb_frontend *fe,
+		enum fe_sec_voltage voltage);
 #endif
