@@ -49,6 +49,7 @@ void notrace __cpu_suspend_exit(void)
 #ifdef CONFIG_AMLOGIC_VMAP
 	__setup_vmap_stack(my_cpu_offset);
 #endif
+	mte_suspend_exit();
 	/*
 	 * We are resuming from reset with the idmap active in TTBR0_EL1.
 	 * We must uninstall the idmap and restore the expected MMU
