@@ -517,8 +517,6 @@ static void edidinfo_attach_to_vinfo(struct hdmitx_dev *hdev)
 
 	mutex_lock(&getedid_mutex);
 	hdrinfo_to_vinfo(&info->hdr_info, hdev);
-	if (hdev->para && hdev->para->cd == COLORDEPTH_24B)
-		memset(&info->hdr_info, 0, sizeof(struct hdr_info));
 	rxlatency_to_vinfo(info, &hdev->rxcap);
 	hdmitx_vdev.dv_info = &hdev->rxcap.dv_info;
 	mutex_unlock(&getedid_mutex);
@@ -3339,15 +3337,8 @@ static ssize_t _hdr_cap_show(struct device *dev,
 static ssize_t hdr_cap_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
-	int pos = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	const struct hdr_info *info = &hdev->rxcap.hdr_info;
-
-	if (hdev->hdr_priority == 2) {
-		pos += snprintf(buf + pos, PAGE_SIZE,
-			"mask rx hdr capability\n");
-		return pos;
-	}
 
 	return _hdr_cap_show(dev, attr, buf, info);
 }
@@ -4816,14 +4807,6 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 
 		memset(dv, 0, sizeof(struct dv_info));
 		pr_info("clear dv_info\n");
-	}
-	if (hdev->hdr_priority == 2) { /* clear dv_info/hdr_info */
-		struct dv_info *dv = &hdev->rxcap.dv_info;
-		struct hdr_info *hdr = &hdev->rxcap.hdr_info;
-
-		memset(dv, 0, sizeof(struct dv_info));
-		memset(hdr, 0, sizeof(struct hdr_info));
-		pr_info("clear dv_info/hdr_info\n");
 	}
 	mutex_unlock(&getedid_mutex);
 }

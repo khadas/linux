@@ -1134,8 +1134,7 @@ static void edid_parsingvendspec(struct hdmitx_dev *hdev,
 	ieeeoui += buf[pos++] << 8;
 	ieeeoui += buf[pos++] << 16;
 
-	if ((hdev->hdr_priority == 1 && ieeeoui == DV_IEEE_OUI) ||
-		hdev->hdr_priority == 2) {
+	if ((hdev->hdr_priority == 1 && ieeeoui == DV_IEEE_OUI)) {
 		_edid_parsingvendspec(dv2, hdr10_plus2, cuva2, buf);
 		return;
 	}
@@ -1217,14 +1216,9 @@ INVALID_DRM_STATIC:
 
 static int edid_parsedrmsb(struct rx_cap *prxcap, u8 *buf)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdr_info *hdr = &prxcap->hdr_info;
 	struct hdr_info *hdr2 = &prxcap->hdr_info2;
 
-	if (hdev->hdr_priority == 2) {
-		_edid_parsedrmsb(hdr2, buf);
-		return 0;
-	}
 	_edid_parsedrmsb(hdr, buf);
 	_edid_parsedrmsb(hdr2, buf);
 	return 1;
@@ -1289,14 +1283,9 @@ INVALID_DRM_DYNAMIC:
 
 static int edid_parsedrmdb(struct rx_cap *prxcap, u8 *buf)
 {
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdr_info *hdr = &prxcap->hdr_info;
 	struct hdr_info *hdr2 = &prxcap->hdr_info2;
 
-	if (hdev->hdr_priority == 2) {
-		_edid_parsedrmdb(hdr2, buf);
-		return 0;
-	}
 	_edid_parsedrmdb(hdr, buf);
 	_edid_parsedrmdb(hdr2, buf);
 	return 1;
