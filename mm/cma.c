@@ -528,7 +528,6 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
 		if (IS_ENABLED(CONFIG_CMA_INACTIVE)) {
 			page = pfn_to_page(pfn);
-			lru_cache_enable();
 			goto out;
 		}
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA, gfp_mask, &info);
