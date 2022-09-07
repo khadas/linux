@@ -2812,8 +2812,6 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		    para->cs == HDMI_COLORSPACE_YUV444)
 			if (para->cd != COLORDEPTH_24B)
 				return 0;
-		if (para->cs == HDMI_COLORSPACE_YUV420)
-			return 0;
 		break;
 	case HDMI_7_720x480i60_16x9:
 	case HDMI_22_720x576i50_16x9:

@@ -72,7 +72,7 @@ void set21_s5_hpll_clk_out(u32 frac_rate, u32 clk)
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x558130b0);
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 1, 1);
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 2, 1);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x11451212);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x11451292);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x00000203);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, (1 << 31) | (0x102d0 << 0));
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x1dee01);
@@ -88,7 +88,7 @@ void set21_s5_hpll_clk_out(u32 frac_rate, u32 clk)
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL2, 0x558130b0);
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 0, 1, 1);
 		hd21_set_reg_bits(ANACTRL_HDMIPLL_CTRL0, 1, 2, 1);
-		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x11451212);
+		hd21_write_reg(ANACTRL_HDMIPLL_CTRL4, 0x11451292);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL5, 0x00000203);
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL6, (0 << 31) | (0 << 0));
 		hd21_write_reg(ANACTRL_HDMIPLL_CTRL3, 0x1def01);
@@ -257,6 +257,10 @@ void hdmitx_set_s5_clkdiv(struct hdmitx_dev *hdev)
 
 	/* cts_htx_tmds_clk selects the htx_tmds20_clk or fll_tmds_clk */
 	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, hdev->frl_rate ? 1 : 0, 25, 2);
+	if (!hdev->frl_rate && hdev->para->cs == HDMI_COLORSPACE_YUV420)
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 16, 7);
+	else
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 0, 16, 7);
 	/* master_clk selects the vid_pll_clk or fpll_pixel_clk */
 	hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, hdev->frl_rate ? 4 : 0, 16, 3);
 }

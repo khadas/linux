@@ -549,6 +549,8 @@ static void hdmitx21_set_clk_(struct hdmitx_dev *hdev)
 next:
 	pr_info("%s %d\n", __func__, __LINE__);
 	memcpy(&tmp_clk, &p_enc[j], sizeof(struct hw_enc_clk_val_group));
+	if (!hdev->frl_rate && cs == HDMI_COLORSPACE_YUV420)
+		tmp_clk.txpll_4_od = 2;
 	set_hpll_clk_out(tmp_clk.txpll_vco_clk);
 	if (cd == COLORDEPTH_24B && hdev->sspll)
 		set_hpll_sspll(vic);
