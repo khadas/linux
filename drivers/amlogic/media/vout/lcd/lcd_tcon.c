@@ -2959,46 +2959,6 @@ static void lcd_tcon_intr_init(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_write(pdrv, TCON_INTR_MASKN, TCON_INTR_MASKN_VAL);
 }
 
-static irqreturn_t lcd_tcon_line_n_isr(int irq, void *data)
-{
-	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
-
-	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
-		return IRQ_HANDLED;
-
-	if (pdrv->tcon_isr_type)
-		lcd_tcon_vsync_isr(pdrv);
-
-	return IRQ_HANDLED;
-}
-
-static void lcd_tcon_line_n_intr_init(struct aml_lcd_drv_s *pdrv)
-{
-	unsigned int trigger_line;
-	unsigned int line_n_vsync_irq = 0;
-
-	if (!pdrv->res_line_n_irq) {
-		LCDERR("res_tcon_vsync_irq is null\n");
-		return;
-	}
-
-	/* set line_n = read(ENCL_VIDEO_VAVON_ELINE) + 1*/
-	trigger_line = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE) + 1;
-	lcd_vcbus_write(VPP_INT_LINE_NUM, trigger_line);
-
-	line_n_vsync_irq = pdrv->res_line_n_irq->start;
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("line_n_vsync_irq: %d\n", line_n_vsync_irq);
-
-	if (request_irq(line_n_vsync_irq, lcd_tcon_line_n_isr,
-			IRQF_SHARED, "line_n", (void *)pdrv)) {
-		LCDERR("can't request lcd_tcon_line_n_vsync irq\n");
-	} else {
-		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-			LCDPR("request lcd_tcon_line_n_vsync irq successful\n");
-	}
-}
-
 static int lcd_tcon_load_init_data_from_unifykey(void)
 {
 	int key_len, data_len, ret;
@@ -3108,7 +3068,7 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	tcon_mm_table.multi_lut_update = 1;
 
 	lcd_tcon_intr_init(pdrv);
-	lcd_tcon_line_n_intr_init(pdrv);
+	//lcd_tcon_line_n_intr_init(pdrv);
 
 	return 0;
 }

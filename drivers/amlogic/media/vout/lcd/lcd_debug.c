@@ -6380,20 +6380,7 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 		}
 	} else if (strcmp(parm[0], "isr") == 0) {
 		if (parm[1]) {
-			if (strcmp(parm[1], "type") == 0) {
-				if (parm[2]) {
-					ret = kstrtouint(parm[2], 16, &temp);
-					if (ret)
-						goto lcd_tcon_debug_store_err;
-					pdrv->tcon_isr_bypass = 1;
-					msleep(100);
-					pr_err("tcon isr_type: %d\n", pdrv->tcon_isr_type);
-					lcd_tcon_dbg_trace_clear();
-					pdrv->tcon_isr_type = temp;
-					pdrv->tcon_isr_bypass = 0;
-					goto lcd_tcon_debug_store_end;
-				}
-			} else if (strcmp(parm[1], "dbg") == 0) {
+			if (strcmp(parm[1], "dbg") == 0) {
 				if (parm[2]) {
 					ret = kstrtouint(parm[2], 16, &temp);
 					if (ret)
@@ -6426,8 +6413,7 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 				goto lcd_tcon_debug_store_end;
 			}
 		}
-		pr_err("tcon isr_type: %d, dbg_log_en: %d\n",
-			pdrv->tcon_isr_type,
+		pr_err("tcon dbg_log_en: %d\n",
 			(lcd_debug_print_flag & LCD_DBG_PR_TEST) ? 1 : 0);
 		if (lcd_debug_print_flag & LCD_DBG_PR_TEST)
 			lcd_tcon_dbg_trace_print(0);

@@ -640,8 +640,7 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_MLVDS:
 	case LCD_P2P:
-		if (pdrv->tcon_isr_type == 0)
-			lcd_tcon_vsync_isr(pdrv);
+		lcd_tcon_vsync_isr(pdrv);
 		break;
 	default:
 		break;
@@ -1900,7 +1899,6 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
 	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
 	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
-	pdrv->res_line_n_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "line_n");
 
 	pdrv->test_state = pdrv->debug_ctrl->debug_test_pattern;
 	pdrv->test_flag = 0;
@@ -1909,7 +1907,6 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->mute_count = 0;
 	pdrv->mute_count_test = 0;
 	pdrv->unmute_count_test = 0;
-	pdrv->tcon_isr_type = 0;
 	pdrv->tcon_isr_bypass = 0;
 	pdrv->fr_mode = 0;
 	pdrv->viu_sel = LCD_VIU_SEL_NONE;
