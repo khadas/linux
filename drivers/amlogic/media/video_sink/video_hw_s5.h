@@ -211,6 +211,8 @@ struct vd_proc_vd2_info_s {
 	u32 vd2_din_vsize;
 	u32 vd2_dout_hsize;
 	u32 vd2_dout_vsize;
+	u32 vd2_dout_x_start;
+	u32 vd2_dout_y_start;
 };
 
 struct vd_proc_vd1_info_s {
@@ -238,6 +240,8 @@ struct vd2_proc_s {
 	u32 din_vsize;
 	u32 dout_hsize;
 	u32 dout_vsize;
+	u32 vd2_dout_x_start;
+	u32 vd2_dout_y_start;
 	/* detunnel */
 	u32 bypass_detunnel;
 	/* hdr2 */

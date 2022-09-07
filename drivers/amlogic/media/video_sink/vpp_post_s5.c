@@ -201,6 +201,10 @@ static void dump_vpp_blend_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
+	reg_addr = vpp_post_blend_reg->vpp_postblnd_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
 }
 
 static void dump_vpp_post_misc_reg(void)
@@ -387,6 +391,12 @@ static void vpp_post_blend_set(u32 vpp_index,
 		pr_info("%s: vpp_postblend_vd1_v_start_end=%x\n",
 			__func__, vpp_blend->bld_din0_v_start << 16 |
 			vpp_blend->bld_din0_v_end);
+		pr_info("%s: vpp_postblend_vd2_h_start_end=%x\n",
+			__func__, vpp_blend->bld_din1_h_start << 16 |
+			vpp_blend->bld_din1_h_end);
+		pr_info("%s: vpp_postblend_vd2_v_start_end=%x\n",
+			__func__, vpp_blend->bld_din1_v_start << 16 |
+			vpp_blend->bld_din1_v_end);
 	}
 }
 
@@ -584,8 +594,11 @@ static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 		vpp_post_blend->bld_src1_sel = 1;
 	else
 		vpp_post_blend->bld_src1_sel = 0;
+	if (vd_layer[1].post_blend_en)
+		vpp_post_blend->bld_src2_sel = 2;
+	else
+		vpp_post_blend->bld_src2_sel = 0;
 #ifdef CHECK_LATER
-	vpp_post_blend->bld_src2_sel = 0;
 	vpp_post_blend->bld_src3_sel = 0;
 	vpp_post_blend->bld_src4_sel = 0;
 	vpp_post_blend->bld_src5_sel = 0;
@@ -609,7 +622,7 @@ static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 	vpp_post_blend->bld_din1_v_end = vpp_post_blend->bld_din1_v_start +
 		vpp_input->din_vsize[1] - 1;
 	vpp_post_blend->bld_din1_alpha = 0x100;
-	vpp_post_blend->bld_din1_premult_en	= 0;
+	vpp_post_blend->bld_din1_premult_en	= 1;
 
 	vpp_post_blend->bld_din2_h_start = vpp_input->din_x_start[2];
 	vpp_post_blend->bld_din2_h_end = vpp_post_blend->bld_din2_h_start +
@@ -634,13 +647,17 @@ static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 	vpp_post_blend->bld_din4_v_end = vpp_input->din_vsize[4] - 1;
 	vpp_post_blend->bld_din4_premult_en	= 0;
 	if (debug_flag)
-		pr_info("vpp_post_blend:bld_out: %d, %d,bld_din0: %d, %d, %d, %d\n",
+		pr_info("vpp_post_blend:bld_out: %d, %d,bld_din0: %d, %d, %d, %d, bld_din1: %d, %d, %d, %d\n",
 			vpp_post_blend->bld_out_w,
 			vpp_post_blend->bld_out_h,
-			vpp_post_blend->bld_din1_h_start,
+			vpp_post_blend->bld_din0_h_start,
 			vpp_post_blend->bld_din0_h_end,
+			vpp_post_blend->bld_din0_v_start,
+			vpp_post_blend->bld_din0_v_end,
+			vpp_post_blend->bld_din1_h_start,
+			vpp_post_blend->bld_din1_h_end,
 			vpp_post_blend->bld_din1_v_start,
-			vpp_post_blend->bld_din0_v_end);
+			vpp_post_blend->bld_din1_v_end);
 	return 0;
 }
 
@@ -886,12 +903,18 @@ static int check_vpp_info_changed(struct vpp_post_input_s *vpp_input)
 	/* check input param */
 	for (i = 0; i < 3; i++) {
 		if (vpp_input->din_hsize[i] != g_vpp_input_pre.din_hsize[i] ||
-			vpp_input->din_vsize[i] != g_vpp_input_pre.din_vsize[i]) {
+			vpp_input->din_vsize[i] != g_vpp_input_pre.din_vsize[i] ||
+			vpp_input->din_x_start[i] != g_vpp_input_pre.din_x_start[i] ||
+			vpp_input->din_y_start[i] != g_vpp_input_pre.din_y_start[i]) {
 			changed = 1;
-			pr_info("hit vpp_input vd[%d]:%d, %d, %d, %d\n",
+			pr_info("hit vpp_input vd[%d]:new:%d, %d, %d, %d, pre: %d, %d, %d, %d\n",
 			i,
+			vpp_input->din_x_start[i],
+			vpp_input->din_y_start[i],
 			vpp_input->din_hsize[i],
 			vpp_input->din_vsize[i],
+			g_vpp_input_pre.din_x_start[i],
+			g_vpp_input_pre.din_y_start[i],
 			g_vpp_input_pre.din_hsize[i],
 			g_vpp_input_pre.din_vsize[i]);
 			break;
@@ -928,6 +951,7 @@ int update_vpp_input_info(const struct vinfo_s *info)
 	struct vd_proc_s *vd_proc;
 	struct vpp_post_input_s vpp_input;
 	struct vd_proc_vd1_info_s *vd_proc_vd1_info;
+	struct vd_proc_vd2_info_s *vd_proc_vd2_info;
 
 	vpp_input.slice_num = get_vpp_slice_num(info);
 	vpp_input.overlap_hsize = 32;
@@ -938,6 +962,7 @@ int update_vpp_input_info(const struct vinfo_s *info)
 	/* vd1 vd2 vd3 osd1 osd2 */
 	vd_proc = get_vd_proc_info();
 	vd_proc_vd1_info = &vd_proc->vd_proc_vd1_info;
+	vd_proc_vd2_info = &vd_proc->vd_proc_vd2_info;
 	/* vd1 */
 	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P) {
 		vpp_input.din_hsize[0] = SIZE_ALIG32(vd_proc_vd1_info->vd1_dout_hsize);
@@ -961,8 +986,10 @@ int update_vpp_input_info(const struct vinfo_s *info)
 		vpp_input.din_y_start[0] = 0;
 	}
 	/* vd2 */
-	vpp_input.din_hsize[1] = 0;
-	vpp_input.din_vsize[1] = 0;
+	vpp_input.din_hsize[1] = vd_proc->vd2_proc.dout_hsize;
+	vpp_input.din_vsize[1] = vd_proc->vd2_proc.dout_vsize;
+	vpp_input.din_x_start[1] = vd_proc->vd2_proc.vd2_dout_x_start;
+	vpp_input.din_y_start[1] = vd_proc->vd2_proc.vd2_dout_y_start;
 	/* vd3 */
 	vpp_input.din_hsize[2] = 0;
 	vpp_input.din_vsize[2] = 0;

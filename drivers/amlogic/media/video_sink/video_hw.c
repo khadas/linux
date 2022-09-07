@@ -567,13 +567,11 @@ static void disable_video_layer_s5(u32 layer_id, u32 async)
 
 static void disable_video_all_layer_nodelay_s5(void)
 {
-	int i;
+	WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[0].afbc_enable, 0);
+	WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[0].vd_if0_gen_reg, 0);
 
-	for (i = 0; i < cur_dev->max_vd_layers; i++) {
-		/* disable vd blend */
-		WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[i].afbc_enable, 0);
-		WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[i].vd_if0_gen_reg, 0);
-	}
+	WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[4].afbc_enable, 0);
+	WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[4].vd_if0_gen_reg, 0);
 }
 
 void dv_mem_power_off(enum vpu_mod_e mode)
@@ -8516,7 +8514,7 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 	bool is_mvc = false;
 	bool update_mif = true;
 	u8 vpp_index;
-	u8 layer_id;
+	u8 layer_id, layer_index;
 	struct vd_mif_reg_s *vd_mif_reg;
 	struct vd_mif_reg_s *vd_mif_reg_mvc;
 	struct vd_afbc_reg_s *vd_afbc_reg;
@@ -8532,6 +8530,10 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 	layer_id = layer->layer_id;
 	if (layer_id > MAX_VD_CHAN_S5)
 		return -1;
+	if (layer_id != 0)
+		layer_index = layer_id + SLICE_NUM - 1;
+	else
+		layer_index = layer_id;
 	if ((vf->type & VIDTYPE_MVC) && layer_id == 0)
 		is_mvc = true;
 
@@ -8540,8 +8542,8 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 	cur_canvas_id = layer->cur_canvas_id;
 	cur_canvas_tbl =
 		&layer->canvas_tbl[cur_canvas_id][0];
-	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_id];
-	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_id];
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_index];
+	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_index];
 	vd_mif_reg_mvc = &vd_proc_reg.vd_mif_reg[SLICE_NUM];
 
 	/* switch buffer */

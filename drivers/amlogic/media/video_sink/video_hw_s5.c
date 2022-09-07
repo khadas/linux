@@ -182,7 +182,7 @@ static void dump_afbc_reg(void)
 	u32 reg_addr, reg_val = 0;
 	struct vd_afbc_reg_s *vd_afbc_reg = NULL;
 
-	for (i = 0; i < cur_dev->max_vd_layers; i++) {
+	for (i = 0; i < MAX_VD_LAYER_S5; i++) {
 		vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[i];
 
 		pr_info("vd%d afbc regs:\n", i);
@@ -810,6 +810,14 @@ static void dump_vd2_proc_misc_reg(void)
 	vd2_proc_misc_reg = &vd_proc_reg.vd2_proc_misc_reg;
 	pr_info("vd2 proc misc regs:\n");
 	reg_addr = vd2_proc_misc_reg->vd2_proc_in_size;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = vd2_proc_misc_reg->vd2_detunl_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	reg_addr = vd2_proc_misc_reg->vd2_hdr_ctrl;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
@@ -2117,7 +2125,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	if (!cur_frame_par)
 		return;
 	slice_num = layer->slice_num;
-	memset(vd_proc, 0x0, sizeof(struct vd_proc_s));
+	//memset(vd_proc, 0x0, sizeof(struct vd_proc_s));
 	/* should set slice later */
 	/* set some important input info for vd_proc */
 	vd_proc_vd1_info = &vd_proc->vd_proc_vd1_info;
@@ -2310,11 +2318,17 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	} else if (layer->layer_id == 1) {
 		vd_proc->vd2_used = 1;
 		/* todo */
-		vd_proc_vd2_info->vd2_dout_dpsel = VD2_DOUT_S2P;
+		if (pi_enable)
+			vd_proc_vd2_info->vd2_dout_dpsel = VD2_DOUT_PI;
+		else
+			vd_proc_vd2_info->vd2_dout_dpsel = VD2_DOUT_S2P;
+		//todo: for 4k120hz VD2_DOUT_PREBLD1
 		vd_proc_vd2_info->vd2_din_hsize = src_w;
 		vd_proc_vd2_info->vd2_din_vsize = src_h;
 		vd_proc_vd2_info->vd2_dout_hsize = dst_w;
 		vd_proc_vd2_info->vd2_dout_vsize = dst_h;
+		vd_proc_vd2_info->vd2_dout_x_start = h_start;
+		vd_proc_vd2_info->vd2_dout_y_start = v_start;
 
 		vd_proc->vd2_proc.vd_proc_pps.horz_phase_step =
 			horz_phase_step;
@@ -2329,8 +2343,17 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		}
 	}
 	if (debug_flag_s5) {
-		pr_info("%s:vd_proc_vd1_info->slice_num=%d\n",
-			__func__, vd_proc_vd1_info->slice_num);
+		if (vd_proc->vd1_used) {
+			pr_info("%s:vd_proc_vd1_info->slice_num=%d\n",
+				__func__, vd_proc_vd1_info->slice_num);
+			pr_info("%s:vd1_work_mode=0x%x, vd1_slices_dout_dpsel=0x%x\n",
+				__func__, vd_proc_vd1_info->vd1_work_mode,
+				vd_proc_vd1_info->vd1_slices_dout_dpsel);
+		} else if (vd_proc->vd2_used) {
+			pr_info("%s: vd2_dout_dpsel=%d, vd1s0_vd2_prebld_en=%d\n",
+				__func__, vd_proc_vd2_info->vd2_dout_dpsel,
+				vd_proc_preblend_info->vd1s0_vd2_prebld_en);
+		}
 		pr_info("%s:src_w=%d, src_h=%d, dst_w=%d, dst_h=%d\n",
 			__func__, src_w, src_h, dst_w, dst_h);
 		pr_info("%s:h_start=%d, v_start=%d\n",
@@ -2339,9 +2362,6 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 			__func__, horz_phase_step, vert_phase_step);
 		pr_info("%s:vpp_pre_hsc_en=0x%x, vpp_pre_vsc_en=0x%x\n",
 			__func__, vpp_pre_hsc_en, vpp_pre_vsc_en);
-		pr_info("%s:vd1_work_mode=0x%x, vd1_slices_dout_dpsel=0x%x\n",
-			__func__, vd_proc_vd1_info->vd1_work_mode,
-			vd_proc_vd1_info->vd1_slices_dout_dpsel);
 	}
 }
 
@@ -3399,6 +3419,7 @@ static void vd_proc_param_set_vd2(struct vd_proc_s *vd_proc)
 	u32 dout_hsize = 0, dout_vsize = 0;
 	u32 pps_din_hsize = 0, pps_din_vsize = 0;
 	u32 pps_dout_hsize = 0, pps_dout_vsize = 0;
+	u32 vd2_dout_x_start = 0, vd2_dout_y_start = 0;
 	struct vd_proc_vd2_info_s *vd_proc_vd2_info;
 	struct vd2_proc_s *vd2_proc = &vd_proc->vd2_proc;
 
@@ -3414,16 +3435,23 @@ static void vd_proc_param_set_vd2(struct vd_proc_s *vd_proc)
 	pps_din_vsize = din_vsize;
 	if (vd_proc_vd2_info->vd2_dout_dpsel == VD2_DOUT_PI) {
 		vd2_proc->vd_proc_pi.pi_en = 1;
-		pps_dout_hsize = dout_hsize / 2;
-		pps_dout_vsize = dout_vsize / 2;
+		pps_dout_hsize = dout_hsize;
+		pps_dout_vsize = dout_vsize;
+		dout_hsize = dout_hsize * 2;
+		dout_vsize = dout_vsize * 2;
 	} else {
 		pps_dout_hsize = dout_hsize;
 		pps_dout_vsize = dout_vsize;
 	}
+	vd2_dout_x_start = vd_proc_vd2_info->vd2_dout_x_start;
+	vd2_dout_y_start = vd_proc_vd2_info->vd2_dout_y_start;
+
 	vd2_proc->din_hsize = din_hsize;
 	vd2_proc->din_vsize = din_vsize;
 	vd2_proc->dout_hsize = dout_hsize;
-	vd2_proc->din_vsize = dout_vsize;
+	vd2_proc->dout_vsize = dout_vsize;
+	vd2_proc->vd2_dout_x_start = vd2_dout_x_start;
+	vd2_proc->vd2_dout_y_start = vd2_dout_y_start;
 	vd2_proc->vd2_dout_dpsel = vd_proc_vd2_info->vd2_dout_dpsel;
 
 	vd2_proc->vd_proc_pps.din_hsize = pps_din_hsize;
@@ -3435,6 +3463,14 @@ static void vd_proc_param_set_vd2(struct vd_proc_s *vd_proc)
 	vd2_proc->bypass_detunnel = vd_proc->bypass_detunnel;
 	vd2_proc->bypass_hdr = vd_proc->bypass_hdr;
 	//vd2_proc->dolby_en = 0;
+	pr_info("%s: din size: %d, %d, dout size: %d, %d, x/y start: %d, %d\n",
+		__func__,
+		vd2_proc->din_hsize,
+		vd2_proc->din_vsize,
+		vd2_proc->dout_hsize,
+		vd2_proc->dout_vsize,
+		vd2_proc->vd2_dout_x_start,
+		vd2_proc->vd2_dout_y_start);
 }
 
 static void vd_proc_param_set(struct vd_proc_s *vd_proc)
@@ -3665,19 +3701,19 @@ static void vd_set_blk_mode_s5(struct video_layer_s *layer, u8 block_mode)
 {
 	struct vd_mif_reg_s *vd_mif_reg = NULL;
 	struct vd_mif_linear_reg_s *vd_mif_linear_reg = NULL;
-	u32 layer_id = 0;
+	u32 layer_index = 0;
 	u32 pic_32byte_aligned = 0;
 	u8 vpp_index;
 
 	if (layer->layer_id > MAX_VD_CHAN_S5)
 		return;
 	if (!layer->layer_id)
-		layer_id = 0;
+		layer_index = 0;
 	else
-		layer_id = layer_id + SLICE_NUM - 1;
+		layer_index = layer->layer_id + SLICE_NUM - 1;
 
-	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_id];
-	vd_mif_linear_reg = &vd_proc_reg.vd_mif_linear_reg[layer_id];
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_index];
+	vd_mif_linear_reg = &vd_proc_reg.vd_mif_linear_reg[layer_index];
 	vpp_index = layer->vpp_index;
 	cur_dev->rdma_func[vpp_index].rdma_wr_bits(vd_mif_reg->vd_if0_gen_reg3,
 		block_mode, 12, 2);
@@ -4630,6 +4666,7 @@ static void vdx_set_dcu_s5(struct video_layer_s *layer,
 	struct vd_mif_reg_s *vd_mif_reg = NULL;
 	struct vd_afbc_reg_s *vd_afbc_reg = NULL;
 	int layer_id = layer->layer_id;
+	int layer_index = 0;
 	u8 vpp_index = layer->vpp_index;
 
 	if (!vf) {
@@ -4638,9 +4675,9 @@ static void vdx_set_dcu_s5(struct video_layer_s *layer,
 	}
 	if (!glayer_info[layer_id].layer_support)
 		return;
-	layer_id = layer_id + SLICE_NUM - 1;
-	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_id];
-	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_id];
+	layer_index = layer_id + SLICE_NUM - 1;
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_index];
+	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_index];
 
 	type = vf->type;
 	if (type & VIDTYPE_MVC)
@@ -4652,7 +4689,7 @@ static void vdx_set_dcu_s5(struct video_layer_s *layer,
 		type &= ~VIDTYPE_COMPRESS;
 
 	if (type & VIDTYPE_COMPRESS) {
-		if (conv_lbuf_len_s5[layer->layer_id] == VIDEO_USE_4K_RAM)
+		if (conv_lbuf_len_s5[layer_id] == VIDEO_USE_4K_RAM)
 			r = 3;
 		else
 			r = 1;
@@ -5831,7 +5868,7 @@ static void vdx_scaler_setting_s5(struct video_layer_s *layer,
 	layer_id = layer->layer_id;
 	frame_par = setting->frame_par;
 	vpp_filter = &frame_par->vpp_filter;
-	vd_pps_reg = &vd_proc_reg.vd_pps_reg[layer_id];
+	vd_pps_reg = &vd_proc_reg.vd_pps_reg[layer_id + SLICE_NUM - 1];
 	vpp_index = layer->vpp_index;
 
 	if (setting->sc_top_enable) {
@@ -6430,7 +6467,7 @@ static void vd_afbc_setting_s5(struct video_layer_s *layer, struct mif_pos_s *se
 		(vsize_in & 0xffff));
 }
 
-void set_vd_mif_slice_linear_cs_s5(struct video_layer_s *layer,
+static void set_vd_mif_slice_linear_cs_s5(struct video_layer_s *layer,
 				   struct canvas_s *cs0,
 				   struct canvas_s *cs1,
 				   struct canvas_s *cs2,
@@ -6518,11 +6555,15 @@ void set_vd_mif_linear_cs_s5(struct video_layer_s *layer,
 	int y_buffer_width, c_buffer_width;
 	u64 baddr_y, baddr_cb, baddr_cr;
 	struct vd_mif_linear_reg_s *vd_mif_linear_reg = NULL;
-	u8 vpp_index;
+	u8 vpp_index, layer_index;
 	u32 vd_if_baddr_y, vd_if_baddr_cb, vd_if_baddr_cr;
 	u32 vd_if_stride_0, vd_if_stride_1;
 
-	vd_mif_linear_reg = &vd_proc_reg.vd_mif_linear_reg[layer->layer_id];
+	if (layer->layer_id != 0)
+		layer_index = layer->layer_id + SLICE_NUM - 1;
+	else
+		layer_index = layer->layer_id;
+	vd_mif_linear_reg = &vd_proc_reg.vd_mif_linear_reg[layer_index];
 
 	if (!lr_select) {
 		vd_if_baddr_y = vd_mif_linear_reg->vd_if0_baddr_y;
@@ -6689,11 +6730,15 @@ void set_vd_mif_linear_s5(struct video_layer_s *layer,
 	u64 baddr_y, baddr_cb, baddr_cr;
 	struct vd_mif_linear_reg_s *vd_mif_linear_reg = NULL;
 	struct canvas_config_s *cfg = config;
-	u8 vpp_index;
+	u8 vpp_index, layer_index;
 	u32 vd_if_baddr_y, vd_if_baddr_cb, vd_if_baddr_cr;
 	u32 vd_if_stride_0, vd_if_stride_1;
 
-	vd_mif_linear_reg = &vd_proc_reg.vd_mif_linear_reg[layer->layer_id];
+	if (layer->layer_id != 0)
+		layer_index = layer->layer_id + SLICE_NUM - 1;
+	else
+		layer_index = layer->layer_id;
+	vd_mif_linear_reg = &vd_proc_reg.vd_mif_linear_reg[layer_index];
 	vpp_index = layer->vpp_index;
 	if (!lr_select) {
 		vd_if_baddr_y = vd_mif_linear_reg->vd_if0_baddr_y;
@@ -6990,6 +7035,9 @@ static void _vd_mif_setting_s5(struct video_layer_s *layer,
 				vd_slice_mif_setting_s5(layer, &layer->slice_mif_setting[slice]);
 			}
 		}
+	} else {
+		setting->id += SLICE_NUM - 1;
+		vd_mif_setting_s5(layer, setting);
 	}
 }
 
@@ -7198,6 +7246,7 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 
 	memset(vd_layer, 0, sizeof(vd_layer));
 	memset(vd_layer_vpp, 0, sizeof(vd_layer_vpp));
+	memset(&g_vd_proc, 0x0, sizeof(struct vd_proc_s));
 
 	/* only enable vd1 as default */
 	vd_layer[0].global_output = 1;

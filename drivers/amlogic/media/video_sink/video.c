@@ -5946,6 +5946,7 @@ s32 pip_render_frame(struct video_layer_s *layer, const struct vinfo_s *vinfo)
 
 	config_vd_pps
 		(layer, &layer->sc_setting, vinfo);
+	vd_s5_hw_set(layer, dispbuf, frame_par);
 	vd_scaler_setting
 		(layer, &layer->sc_setting);
 
