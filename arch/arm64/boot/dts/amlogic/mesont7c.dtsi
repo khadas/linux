@@ -2639,7 +2639,7 @@
 
 	nna_tsensor: nna_tsensor@fe096000 {
 		compatible = "amlogic, r1p1-tsensor";
-		status = "okay";
+		status = "disabled";
 		reg = <0x0 0xfe096000 0x0 0x50>;
 		tsensor_id = <4>;
 		cal_type = <0x11>;
