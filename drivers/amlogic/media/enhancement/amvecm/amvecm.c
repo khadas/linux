@@ -320,6 +320,10 @@ unsigned int ct_en;
 module_param(ct_en, uint, 0664);
 MODULE_PARM_DESC(ct_en, "\n color tune\n");
 
+unsigned int ai_color_enable;
+module_param(ai_color_enable, uint, 0664);
+MODULE_PARM_DESC(ai_color_enable, "\n ai_color_enable\n");
+
 unsigned int pq_user_value;
 enum hdr_type_e hdr_source_type = HDRTYPE_NONE;
 
@@ -1967,6 +1971,9 @@ int amvecm_on_vs(struct vframe_s *vf,
 
 	if (vd_path == VD1_PATH)
 		set_vpp_enh_clk(toggle_vf, vf);
+
+	if (is_meson_s5_cpu() && !ai_color_enable)
+		disable_ai_color();
 
 #ifdef T7_BRINGUP_MULTI_VPP
 	// todo, will not support in pxp bringup stage
@@ -5676,7 +5683,7 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 		} else {
 			if (kstrtoul(parm[1], 16, &val) < 0)
 				goto free_buf;
-			hdr_reg_dump(val);
+			s5_hdr_reg_dump(val);
 		}
 	}
 

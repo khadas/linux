@@ -2808,7 +2808,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 	}
 
-	pr_csc(12, "%s: hdr module=%d, select=%x vpp_index = %d\n",
+	pr_csc(12, "%s: hdr module =%d, proc sel=0x%x vpp_index = %d\n",
 		__func__,
 		module_sel,
 		hdr_process_select,
@@ -3598,7 +3598,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 	}
 
 	if (is_meson_s5_cpu()) {
-		pr_csc(12, "%s: s5 update hdr core (%d).\n",
+		pr_csc(12, "%s: s5 update hdr core sel(%d).\n",
 			__func__,
 			module_sel);
 		s5_set_hdr_matrix(module_sel, HDR_IN_MTX,

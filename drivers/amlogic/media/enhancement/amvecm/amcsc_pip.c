@@ -51,7 +51,11 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
+<<<<<<< HEAD
 static const char *module_str[11] = {
+=======
+static const char *module_str[15] = {
+>>>>>>> hdr: S5 vd1 hdr not enable [1/1]
 	"UNKNOWN",
 	"VD1",
 	"VD2",
@@ -60,9 +64,19 @@ static const char *module_str[11] = {
 	"OSD2",
 	"VDIN0",
 	"VDIN1",
+<<<<<<< HEAD
 	"DI",
 	"DI_MEM",
 	"OSD3"
+=======
+	"DI_HDR",
+	"DI_M2M_HDR",
+	"OSD3",
+	"S5_VD1_S1",
+	"S5_VD1_S2",
+	"S5_VD1_S3",
+	"S5_VD2_HDR2"
+>>>>>>> hdr: S5 vd1 hdr not enable [1/1]
 };
 
 static const char *process_str[15] = {
@@ -1434,7 +1448,7 @@ void hdmi_packet_process(int signal_change_flag,
 		pr_info("vdev->fresh_tx_hdr_pkt is null, return\n");
 		/* continue */
 	}
-	pr_csc(12,
+	pr_csc(16,
 	       "am_vecm: vd%d %s %s, vd2 %s %s, output_format %s,%s, flag 0x%x, hdr_cap = 0x%x\n",
 	       vd_path + 1,
 	       is_video_layer_on(VD1_PATH) ? "on" : "off",
@@ -1495,7 +1509,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (1 << 8)	/* bt709 */
 			| (1 << 0);	/* bt709 */
 		vd_signal.signal_type = SIGNAL_SDR;
-		pr_csc(4, "%s: SIGNAL_SDR vpp_index = %d\n",
+		pr_csc(16, "%s: SIGNAL_SDR vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
 	case BT2020:
@@ -1510,7 +1524,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (1 << 8)	/* bt709 */
 			| (10 << 0);
 		vd_signal.signal_type = SIGNAL_HDR10;
-		pr_csc(4, "%s: SIGNAL_HDR10 vpp_index = %d\n",
+		pr_csc(16, "%s: SIGNAL_HDR10 vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
 	case BT2020_PQ:
@@ -1524,7 +1538,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (16 << 8)
 			| (10 << 0);	/* bt2020c */
 		vd_signal.signal_type = SIGNAL_HDR10;
-		pr_csc(4, "%s: SIGNAL_HDR10 vpp_index = %d\n",
+		pr_csc(16, "%s: SIGNAL_HDR10 vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
 	case BT2020_HLG:
@@ -1538,7 +1552,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (18 << 8)
 			| (10 << 0);
 		vd_signal.signal_type = SIGNAL_HLG;
-		pr_csc(4, "%s: SIGNAL_HLG vpp_index = %d\n",
+		pr_csc(16, "%s: SIGNAL_HLG vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
 	case BT2020_PQ_DYNAMIC:
@@ -1552,7 +1566,7 @@ void hdmi_packet_process(int signal_change_flag,
 			| (16 << 8)  /* Always HDR10 */
 			| (10 << 0); /* bt2020c */
 		vd_signal.signal_type = SIGNAL_HDR10PLUS;
-		pr_csc(4, "%s: SIGNAL_HDR10PLUS vpp_index = %d\n",
+		pr_csc(16, "%s: SIGNAL_HDR10PLUS vpp_index = %d\n",
 			__func__, vpp_index);
 		break;
 	case UNKNOWN_FMT:
@@ -1617,6 +1631,8 @@ void video_post_process_t7(struct vframe_s *vf,
 int get_s5_silce_mode(void)
 {
 	/* Wait for video to realize */
+	if (!is_meson_s5_cpu())
+		return 1;
 	return slice_set;
 }
 
@@ -1714,12 +1730,20 @@ void video_post_process(struct vframe_s *vf,
 						HDR_BYPASS,
 						vinfo,
 						NULL, vpp_index);
-				} else if (s5_silce_mode == VD1_2SLICE) {
+				} else if (s5_silce_mode == VD1_4SLICE) {
 					hdr_proc(vf, VD1_HDR,
 						HDR_BYPASS,
 						vinfo,
 						NULL, vpp_index);
 					hdr_proc(vf, S5_VD1_SLICE1,
+						HDR_BYPASS,
+						vinfo,
+						NULL, vpp_index);
+					hdr_proc(vf, S5_VD1_SLICE2,
+						HDR_BYPASS,
+						vinfo,
+						NULL, vpp_index);
+					hdr_proc(vf, S5_VD1_SLICE3,
 						HDR_BYPASS,
 						vinfo,
 						NULL, vpp_index);
@@ -1891,6 +1915,11 @@ void video_post_process(struct vframe_s *vf,
 				if (s5_silce_mode == VD1_1SLICE) {
 					hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 				} else if (s5_silce_mode == VD1_2SLICE) {
+					hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo,
+						NULL, vpp_index);
+					hdr_proc(vf, S5_VD1_SLICE1, HDR_BYPASS, vinfo,
+						NULL, vpp_index);
+				} else if (s5_silce_mode == VD1_4SLICE) {
 					hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo,
 						NULL, vpp_index);
 					hdr_proc(vf, S5_VD1_SLICE1, HDR_BYPASS, vinfo,
@@ -2075,7 +2104,8 @@ void video_post_process(struct vframe_s *vf,
 					hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
 				} else if (s5_silce_mode == VD1_2SLICE) {
 					hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
-					hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+					hdr_proc(vf, S5_VD1_SLICE1, HDR_BYPASS,
+							 vinfo, NULL, vpp_index);
 				} else if (s5_silce_mode == VD1_4SLICE) {
 					hdr_proc(vf, VD1_HDR, HDR_BYPASS, vinfo,
 						NULL, vpp_index);

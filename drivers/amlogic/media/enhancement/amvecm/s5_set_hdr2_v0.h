@@ -39,5 +39,6 @@ void vpu_lut_dma(enum hdr_module_sel module_sel,
 void s5_hdr_reg_dump(unsigned int offset);
 void hdr_lut_buffer_malloc(struct platform_device *pdev);
 void hdr_lut_buffer_free(struct platform_device *pdev);
+void disable_ai_color(void);
 
 #endif
