@@ -23,6 +23,7 @@
 
 #include "audio_data.h"
 #include "../efuse_unifykey/efuse.h"
+#include <linux/amlogic/secmon.h>
 
 /*#define MYPRT pr_info*/
 #define MYPRT(...)
@@ -79,6 +80,7 @@ int meson_efuse_fn_smc_query_audioinfo(struct efuse_hal_api_arg *arg)
 	offset = arg->offset;
 	size = arg->size;
 
+	meson_sm_mutex_lock();
 	/*write data*/
 	memcpy((void *)sharemem_input, (const void *)arg->buffer, size);
 
@@ -95,6 +97,7 @@ int meson_efuse_fn_smc_query_audioinfo(struct efuse_hal_api_arg *arg)
 		memcpy((void *)arg->buffer,
 				(const void *)sharemem_input, arg->size);
 	}
+	meson_sm_mutex_unlock();
 	return ret;
 }
 
