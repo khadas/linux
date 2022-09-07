@@ -978,7 +978,7 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 		ret = page_address(page);
 	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
 		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B,
-				      PAGE_ALIGN(size) / PAGE_SIZE);
+				      PAGE_ALIGN(size));
 	#else
 		mod_lruvec_page_state(page, NR_SLAB_UNRECLAIMABLE_B,
 				      PAGE_SIZE << order);
