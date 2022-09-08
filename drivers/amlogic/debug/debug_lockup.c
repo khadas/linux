@@ -16,6 +16,9 @@
 #include <linux/sched/debug.h>
 #include <linux/slab.h>
 #include <linux/amlogic/debug_ftrace_ramoops.h>
+#include <linux/arm-smccc.h>
+#include <linux/delay.h>
+#include <linux/io.h>
 
 /*isr trace*/
 #define ns2ms			(1000 * 1000)
@@ -71,6 +74,31 @@ static int dis_irq_long_panic;
 core_param(dis_irq_long_panic, dis_irq_long_panic, int, 0644);
 static int irq_ratio_panic;
 core_param(irq_ratio_panic, irq_ratio_panic, int, 0644);
+
+#if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
+static int fiq_check_en = 1;
+core_param(fiq_check_en, fiq_check_en, int, 0644);
+static int fiq_check_show_regs_en;
+core_param(fiq_check_show_regs_en, fiq_check_show_regs_en, int, 0644);
+
+struct atf_regs {
+	u64 regs[31];
+	u64 sp;
+	u64 pc;
+	u64 pstate;
+};
+
+struct atf_fiq_smc_calls_result {
+	unsigned long phy_addr;
+	unsigned long buf_size;
+	unsigned long percpu_size;
+	unsigned long reserved1;
+};
+
+static void *atf_fiq_debug_virt_addr;
+static unsigned long atf_fiq_debug_buf_size;
+static unsigned long atf_fiq_debug_percpu_size;
+#endif
 
 noinline void isr_long_trace(void)
 {
@@ -396,6 +424,56 @@ void notrace smc_trace_stop(unsigned long smcid, unsigned long val)
 }
 EXPORT_SYMBOL(smc_trace_stop);
 
+#if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
+void atf_fiq_debug_entry(void)
+{
+	int cpu;
+	struct atf_regs *pregs  = NULL;
+	struct atf_regs atf_regs;
+	struct pt_regs regs;
+
+	cpu = get_cpu();
+	put_cpu();
+
+	pregs = (struct atf_regs *)(atf_fiq_debug_virt_addr +
+						cpu * atf_fiq_debug_percpu_size);
+	memcpy(&atf_regs, pregs, sizeof(struct atf_regs));
+
+#ifdef CONFIG_ARM64
+	/* sp_el0 */
+	memcpy(&regs.regs[0], &atf_regs.regs[0], 31 * sizeof(uint64_t));
+	regs.pc = atf_regs.pc;
+	regs.pstate = atf_regs.pstate;
+#elif CONFIG_AMLOGIC_ARMV8_AARCH32
+	regs.ARM_cpsr = (unsigned long)atf_regs.pstate;
+	regs.ARM_pc = (unsigned long)atf_regs.pc;
+	regs.ARM_sp = (unsigned long)atf_regs.regs[19];
+	regs.ARM_lr = (unsigned long)atf_regs.regs[18];
+	regs.ARM_ip = (unsigned long)atf_regs.regs[12];
+	regs.ARM_fp = (unsigned long)atf_regs.regs[11];
+	regs.ARM_r10 = (unsigned long)atf_regs.regs[10];
+	regs.ARM_r9 = (unsigned long)atf_regs.regs[9];
+	regs.ARM_r8 = (unsigned long)atf_regs.regs[8];
+	regs.ARM_r7 = (unsigned long)atf_regs.regs[7];
+	regs.ARM_r6 = (unsigned long)atf_regs.regs[6];
+	regs.ARM_r5 = (unsigned long)atf_regs.regs[5];
+	regs.ARM_r4 = (unsigned long)atf_regs.regs[4];
+	regs.ARM_r3 = (unsigned long)atf_regs.regs[3];
+	regs.ARM_r2 = (unsigned long)atf_regs.regs[2];
+	regs.ARM_r1 = (unsigned long)atf_regs.regs[1];
+	regs.ARM_r0 = (unsigned long)atf_regs.regs[0];
+#endif
+
+	pr_err("\n\n--------fiq_dump CPU%d--------\n\n", cpu);
+	if (fiq_check_show_regs_en)
+		show_regs(&regs);
+	dump_stack();
+	pr_err("\n");
+	while (1)
+		;
+}
+#endif
+
 void pr_lockup_info(int c)
 {
 	int cpu;
@@ -464,6 +542,15 @@ void pr_lockup_info(int c)
 		lockup_hook(cpu);
 	}
 	pr_err("\nHARDLOCKUP____ERR.END\n\n");
+
+#if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
+	if (atf_fiq_debug_virt_addr && fiq_check_en) {
+		struct arm_smccc_res res;
+
+		arm_smccc_smc(0x820000f1, 0x2, c, 0, 0, 0, 0, 0, &res);
+		mdelay(1000);//wait for the fiq dump to complete
+	}
+#endif
 }
 
 static struct dentry *debug_lockup;
@@ -648,6 +735,44 @@ static void test_mhz_hrtimer_init(void)
 	hrtimer_start(hrtimer, ktime_set(1, 0), HRTIMER_MODE_REL);
 }
 
+#if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
+static void fiq_debug_addr_init(void)
+{
+	union {
+		struct arm_smccc_res smccc;
+		struct atf_fiq_smc_calls_result result;
+	} res;
+	phys_addr_t atf_fiq_debug_phy_addr = 0;
+
+	memset(&res, 0, sizeof(res));
+	arm_smccc_smc(0x820000f1, 0x1,
+		(unsigned long)atf_fiq_debug_entry, 0, 0, 0, 0, 0, &res.smccc);
+	atf_fiq_debug_phy_addr = (phys_addr_t)res.result.phy_addr;
+	atf_fiq_debug_buf_size = res.result.buf_size;
+	atf_fiq_debug_percpu_size = res.result.percpu_size;
+
+	/* Current ATF version does not support FIQ DEBUG */
+	if (atf_fiq_debug_phy_addr == 0 || atf_fiq_debug_phy_addr == 0xFFFFFFFF) {
+		pr_err("invalid atf_buf_phy_addr\n");
+		return;
+	}
+
+	if (pfn_valid(__phys_to_pfn(atf_fiq_debug_phy_addr)))
+		atf_fiq_debug_virt_addr = (void __iomem *)
+					__phys_to_virt(atf_fiq_debug_phy_addr);
+	else
+		atf_fiq_debug_virt_addr = ioremap_cache(atf_fiq_debug_phy_addr,
+						atf_fiq_debug_buf_size);
+
+	pr_info("atf phy addr:%lx, size: %lx, atf virt addr:%lx\n",
+		(unsigned long)atf_fiq_debug_phy_addr, atf_fiq_debug_buf_size,
+		(unsigned long)atf_fiq_debug_virt_addr);
+
+	if (atf_fiq_debug_virt_addr)
+		memset(atf_fiq_debug_virt_addr, 0, atf_fiq_debug_buf_size);
+}
+#endif
+
 static int __init debug_lockup_init(void)
 {
 	debug_lockup = debugfs_create_dir("lockup", NULL);
@@ -672,7 +797,12 @@ static int __init debug_lockup_init(void)
 	debugfs_create_file("cpu_mhz", S_IFREG | 0664,
 			    debug_lockup, NULL, &cpu_mhz_debug_ops);
 	irq_flg = 1;
+
 	test_mhz_hrtimer_init();
+#if (defined CONFIG_ARM64) || (defined CONFIG_AMLOGIC_ARMV8_AARCH32)
+	fiq_debug_addr_init();
+#endif
+
 	return 0;
 }
 late_initcall(debug_lockup_init);
