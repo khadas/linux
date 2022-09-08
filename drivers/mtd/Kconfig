@@ -39,6 +39,7 @@ config MTD_BLOCK
 	tristate "Caching block device access to MTD devices"
 	depends on BLOCK
 	select MTD_BLKDEVS
+	select AMLOGIC_NAND
 	help
 	  Although most flash chips have an erase size too large to be useful
 	  as block devices, it is possible to use MTD devices which are based
@@ -57,6 +58,16 @@ config MTD_BLOCK
 
 	  You do not need this option for use with the DiskOnChip devices. For
 	  those, enable NFTL support (CONFIG_NFTL) instead.
+
+config AMLOGIC_NAND
+	bool "Amlogic NAND modification"
+        default y
+	depends on MTD_BLOCK
+	help
+	  Add bad block handling for mtd block.
+
+          some filesystems or users don't care the bad blocks on raw NAND, so
+          if you want to handle bad blocks in mtd block layer, say Y here.
 
 config MTD_BLOCK_RO
 	tristate "Readonly block device access to MTD devices"
