@@ -1347,7 +1347,7 @@ static u32 osd_mali_afbcd1_top_ctrl_mask = 0x00f7ffff;
 module_param(osd_vpp_misc, uint, 0444);
 MODULE_PARM_DESC(osd_vpp_misc, "osd_vpp_misc");
 
-static unsigned int rdarb_reqen_slv = 0xff7f;
+static unsigned int rdarb_reqen_slv = 0xffff7f;
 module_param(rdarb_reqen_slv, uint, 0664);
 MODULE_PARM_DESC(rdarb_reqen_slv, "rdarb_reqen_slv");
 
@@ -14307,8 +14307,6 @@ void  osd_suspend_hw(void)
 		osd_hw.reg_status_save1 =
 			osd_reg_read(hw_osd_reg_blend.osd1_blend_src_ctrl);
 
-		osd_hw.reg_status_save3 =
-			osd_reg_read(VPP_RDARB_REQEN_SLV);
 		if (!osd_dev_hw.multi_afbc_core)
 			osd_hw.reg_status_save4 =
 				osd_reg_read(VPU_MAFBC_SURFACE_CFG);
@@ -14319,8 +14317,22 @@ void  osd_suspend_hw(void)
 				osd_reg_read(hw_osd_reg_blend.osd2_blend_src_ctrl);
 			osd_reg_clr_mask(hw_osd_reg_blend.osd2_blend_src_ctrl, 0xf0f);
 		}
-		osd_reg_clr_mask(VPP_RDARB_REQEN_SLV,
-				 rdarb_reqen_slv);
+		if (osd_dev_hw.s5_display) {
+			osd_hw.reg_status_save3[0] =
+				osd_reg_read(VPP_RDARB_REQEN_SLV0);
+			osd_hw.reg_status_save3[1] =
+				osd_reg_read(VPP_RDARB_REQEN_SLV1);
+			osd_reg_clr_mask(VPP_RDARB_REQEN_SLV0,
+					 rdarb_reqen_slv);
+			osd_reg_clr_mask(VPP_RDARB_REQEN_SLV1,
+					 rdarb_reqen_slv);
+		} else {
+			osd_hw.reg_status_save3[0] =
+				osd_reg_read(VPP_RDARB_REQEN_SLV);
+			osd_reg_clr_mask(VPP_RDARB_REQEN_SLV,
+					 rdarb_reqen_slv);
+		}
+
 		if (!osd_dev_hw.multi_afbc_core) {
 			osd_reg_write(VPU_MAFBC_SURFACE_CFG, 0);
 			osd_reg_write(VPU_MAFBC_COMMAND, 1);
@@ -14389,8 +14401,15 @@ void osd_resume_hw(void)
 		if (!enable_vd_zorder)
 			osd_reg_write(hw_osd_reg_blend.osd2_blend_src_ctrl,
 				      osd_hw.reg_status_save2);
-		osd_reg_write(VPP_RDARB_REQEN_SLV,
-			      osd_hw.reg_status_save3);
+		if (osd_dev_hw.s5_display) {
+			osd_reg_write(VPP_RDARB_REQEN_SLV0,
+				      osd_hw.reg_status_save3[0]);
+			osd_reg_write(VPP_RDARB_REQEN_SLV1,
+				      osd_hw.reg_status_save3[1]);
+		} else {
+			osd_reg_write(VPP_RDARB_REQEN_SLV,
+				      osd_hw.reg_status_save3[0]);
+		}
 		if (!osd_dev_hw.multi_afbc_core)
 			osd_reg_write(VPU_MAFBC_SURFACE_CFG,
 				      osd_hw.reg_status_save4);

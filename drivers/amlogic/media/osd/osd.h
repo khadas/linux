@@ -880,7 +880,7 @@ struct hw_para_s {
 	u32 reg_status_save;
 	u32 reg_status_save1;
 	u32 reg_status_save2;
-	u32 reg_status_save3;
+	u32 reg_status_save3[2];
 	u32 reg_status_save4;
 #ifdef FIQ_VSYNC
 	bridge_item_t fiq_handle_item;
