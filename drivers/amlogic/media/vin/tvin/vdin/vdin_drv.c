@@ -893,7 +893,8 @@ static void vdin_vf_init(struct vdin_dev_s *devp)
 			vf->compWidth  = devp->h_active;
 			vf->compHeight = devp->v_active;
 		}
-
+		/* keeper config */
+		vf->mem_handle = devp->vf_codec_mem[i];
 		/* set source type & mode */
 		vdin_set_source_type(devp, vf);
 		vdin_set_source_mode(devp, vf);

@@ -113,7 +113,9 @@
 /* 20220915: dv not support manual set game mode */
 /* 20220927: panel reverse not into game switch */
 /* 20220930: 4k dv not afbce avoid afbce done */
-#define VDIN_VER "20220930"
+/* 20221010: support buffer keeper */
+
+#define VDIN_VER "20221010"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -612,6 +614,7 @@ struct vdin_dev_s {
 	unsigned int mem_size;
 	unsigned long vf_mem_start[VDIN_CANVAS_MAX_CNT];
 	struct page *vf_venc_pages[VDIN_CANVAS_MAX_CNT];
+	struct codec_mm_s *vf_codec_mem[VDIN_CANVAS_MAX_CNT];
 
 	/* save secure handle */
 	unsigned int secure_handle;
