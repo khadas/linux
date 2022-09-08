@@ -92,10 +92,11 @@ static ssize_t gt91xx_config_read_proc(struct file *, char __user *, size_t, lof
 static ssize_t gt91xx_config_write_proc(struct file *, const char __user *, size_t, loff_t *);
 
 static struct proc_dir_entry *gt91xx_config_proc = NULL;
-static const struct file_operations config_proc_ops = {
-    .owner = THIS_MODULE,
-    .read = gt91xx_config_read_proc,
-    .write = gt91xx_config_write_proc,
+
+static const struct proc_ops config_proc_ops = {
+    //.owner = THIS_MODULE,
+    .proc_read = gt91xx_config_read_proc,
+    .proc_write = gt91xx_config_write_proc,
 };
 
 #if GTP_CREATE_WR_NODE
@@ -2613,7 +2614,8 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     s32 ret = -1;
     struct goodix_ts_data *ts;
     u16 version_info;
-    
+    int reg = 0;
+
     struct device_node *np = client->dev.of_node;
     enum of_gpio_flags rst_flags, pwr_flags;
     u32 val;
@@ -2784,7 +2786,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     if (ret < 0)
     {
         printk("<%s>_%d    I2C communication ERROR!\n", __func__, __LINE__);
-        goto probe_init_error;
+		goto probe_init_error;
     }
 
     ret = gtp_read_version(client, &version_info);
@@ -2858,12 +2860,18 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
     return 0;
 
 probe_init_error:
-    printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);    
-    GTP_GPIO_FREE(ts->rst_pin);
-    GTP_GPIO_FREE(ts->irq_pin);
+    printk("   <%s>_%d  prob error !!!!!!!!!!!!!!!\n", __func__, __LINE__);
+	if(!gpio_is_valid(ts->rst_pin))
+    gpio_free(ts->rst_pin);
+    if(!gpio_is_valid(ts->irq_pin))
+    gpio_free(ts->irq_pin);
 probe_init_error_requireio:
     tp_unregister_fb(&ts->tp); 
     kfree(ts);
+    reg = regulator_disable(ts->tp_regulator);
+	if (reg < 0)
+		GTP_ERROR("failed to disable tp regulator\n");
+	msleep(20);
     return ret;
 }
 
