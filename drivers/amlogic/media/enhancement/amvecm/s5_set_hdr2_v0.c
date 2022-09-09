@@ -1021,8 +1021,8 @@ void s5_set_oetf_lut(enum hdr_module_sel module_sel,
 		oetf_lut_data_port = S5_VD1_SLICE3_OETF_LUT_DATA_PORT;
 		hdr_ctrl = S5_VD1_SLICE3_HDR2_CTRL;
 	} else if (module_sel == VD2_HDR) {
-		oetf_lut_addr_port = VD2_OETF_LUT_ADDR_PORT;
-		oetf_lut_data_port = VD2_OETF_LUT_DATA_PORT;
+		oetf_lut_addr_port = S5_VD2_OETF_LUT_ADDR_PORT;
+		oetf_lut_data_port = S5_VD2_OETF_LUT_DATA_PORT;
 		hdr_ctrl = S5_VD2_HDR2_CTRL;
 	} else if (module_sel == OSD1_HDR) {
 		oetf_lut_addr_port = S5_OSD1_OETF_LUT_ADDR_PORT;
@@ -1094,8 +1094,8 @@ void s5_set_c_gain(enum hdr_module_sel module_sel,
 		hdr_ctrl = S5_VD1_SLICE3_HDR2_CTRL;
 		cgain_coef1 = S5_VD1_SLICE3_HDR2_CGAIN_COEF1;
 	} else if (module_sel == VD2_HDR) {
-		cgain_lut_addr_port = VD2_CGAIN_LUT_ADDR_PORT;
-		cgain_lut_data_port = VD2_CGAIN_LUT_DATA_PORT;
+		cgain_lut_addr_port = S5_VD2_CGAIN_LUT_ADDR_PORT;
+		cgain_lut_data_port = S5_VD2_CGAIN_LUT_DATA_PORT;
 		hdr_ctrl = S5_VD2_HDR2_CTRL;
 		cgain_coef1 = S5_VD2_HDR2_CGAIN_COEF1;
 	} else if (module_sel == OSD1_HDR) {
