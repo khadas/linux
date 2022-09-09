@@ -1565,6 +1565,7 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 			continue;
 
 		ts_feed = &demux->ts_feed[i];
+
 		if (ts_feed->type == NONE_TYPE ||
 			ts_feed->type == SEC_TYPE ||
 			ts_feed->type == OTHER_TYPE)
@@ -1596,8 +1597,8 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 		wp_offset = 0;
 		newest_pts = 0;
 
-		if (!ts_feed || !ts_feed->ts_out_elem) {
-			dprint("ts_feed or ts_out_elem is NULL\n");
+		if (!ts_feed->ts_out_elem) {
+			dprint("ts_out_elem is NULL\n");
 			continue;
 		}
 
@@ -1638,8 +1639,8 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 			buf_phy_start = 0;
 			wp_offset = 0;
 
-			if (!section_feed || !section_feed->sec_out_elem) {
-				dprint("section_feed or sec_out_elem is NULL\n");
+			if (!section_feed->sec_out_elem) {
+				dprint("sec_out_elem is NULL\n");
 				continue;
 			}
 
@@ -1675,9 +1676,9 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 		if (demux->local_sid != hw_source - DMA_0) {
 			demux->local_sid = hw_source - DMA_0;
 			ts_output_update_filter(demux->id, demux->local_sid);
+			dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
 		}
 		demux->demod_sid = -1;
-		dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
 		advb->tsn_flag &= (~(1 << demux->id));
 		if (!advb->tsn_flag)
 			tsn_set_double_out(0);
@@ -1697,14 +1698,15 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 		if (demux->local_sid != (hw_source - DMA_0_1 + 0x20)) {
 			demux->local_sid = hw_source - DMA_0_1 + 0x20;
 			ts_output_update_filter(demux->id, demux->local_sid);
+			dsc_set_sid(demux->id, INPUT_LOCAL, hw_source - DMA_0_1);
 		}
 		demux->demod_sid = -1;
-		dsc_set_sid(demux->id, INPUT_LOCAL, hw_source - DMA_0_1);
 		advb->tsn_flag |= (1 << demux->id);
 		tsn_set_double_out(1);
 	} else if (hw_source >= FRONTEND_TS0_1 && hw_source <= FRONTEND_TS7_1) {
 		demux->ts_index = hw_source - FRONTEND_TS0_1;
-		if (advb->ts[demux->ts_index].ts_sid != -1) {
+		if (advb->ts[demux->ts_index].ts_sid != -1 &&
+			demux->demod_sid != (advb->ts[demux->ts_index].ts_sid ^ 0x20)) {
 			demux->demod_sid =
 				advb->ts[demux->ts_index].ts_sid ^ 0x20;
 			ts_output_update_filter(demux->id, demux->demod_sid);
