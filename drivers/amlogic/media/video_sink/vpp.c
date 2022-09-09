@@ -42,7 +42,7 @@
 #endif
 
 #include "video_priv.h"
-
+#include "video_hw_s5.h"
 #define MAX_NONLINEAR_FACTOR    0x40
 #define MAX_NONLINEAR_T_FACTOR    100
 
@@ -915,6 +915,238 @@ static unsigned int screen_ar_threshold = 3;
 static unsigned int aisr_debug_flag;
 MODULE_PARM_DESC(aisr_debug_flag, "aisr_debug_flag");
 module_param(aisr_debug_flag, uint, 0664);
+
+static int vpp_process_speed_check_s5
+	(u32 layer_id,
+	s32 width_in,
+	s32 height_in,
+	s32 height_out,
+	s32 height_screen,
+	u32 video_speed_check_width,
+	u32 video_speed_check_height,
+	struct vpp_frame_par_s *next_frame_par,
+	const struct vinfo_s *vinfo, struct vframe_s *vf,
+	u32 vpp_flags)
+{
+	u32 cur_ratio, bpp = 1;
+	int min_ratio_1000 = 0;
+	int freq_ratio = 1;
+	u32 sync_duration_den = 1;
+	u32 vtotal, htotal = 0, clk_in_pps = 0, clk_vpu = 0, clk_temp;
+	u32 input_time_us = 0, display_time_us = 0, dummy_time_us = 0;
+	u32 width_out = 0;
+	u32 vpu_clk = 0, max_height = 2160; /* 4k mode */
+	u32 slice_num, max_proc_height_s5 = 0;
+	u32 pi_enable, clk_calc = 0;
+
+	if (!vf)
+		return SPEED_CHECK_DONE;
+
+	/* store the debug info for legacy */
+	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
+		cur_vf_type = vf->type;
+
+	if (force_vskip_cnt == 0xff)/*for debug*/
+		return SPEED_CHECK_DONE;
+
+	if (next_frame_par->vscale_skip_count < force_vskip_cnt)
+		return SPEED_CHECK_VSKIP;
+
+	if (vinfo->sync_duration_den >  0)
+		sync_duration_den = vinfo->sync_duration_den;
+
+	if (IS_DI_POST(vf->type)) {
+		if (is_meson_txlx_cpu())
+			clk_in_pps = 250000000;
+		else
+			clk_in_pps = 333000000;
+	} else {
+		clk_in_pps = vpu_clk_get();
+	}
+
+	next_frame_par->clk_in_pps = clk_in_pps;
+	vpu_clk = vpu_clk_get();
+	/* the output is only up to 1080p */
+	if (vpu_clk <= 250000000) {
+		/* ((3840 * 2160) / 1920) *  (vpu_clk / 1000000) / 666 */
+		max_height =  4320 *  (vpu_clk / 1000000) / 666;
+	}
+	slice_num = get_slice_num(layer_id);
+	pi_enable = get_pi_enabled(layer_id);
+	if (pi_enable)
+		height_screen /= 2;
+	if (slice_num == 4)
+		max_proc_height_s5 = max_proc_height * 2;
+	else
+		max_proc_height_s5 = max_proc_height;
+	width_in = width_in / slice_num;
+
+	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME)) {
+		if (max_proc_height_s5 < max_height)
+			max_height = max_proc_height_s5;
+		cur_proc_height = max_height;
+	}
+
+	if (width_in > 720)
+		min_ratio_1000 =  min_skip_ratio;
+	else
+		min_ratio_1000 = 1750;
+
+	if (vinfo->field_height < vinfo->height)
+		vtotal = vinfo->vtotal / 2;
+	else
+		vtotal = vinfo->vtotal;
+
+	/*according vlsi suggest,
+	 *if di work need check mif input and vpu process speed
+	 */
+	if (IS_DI_POST(vf->type)) {
+		htotal = vinfo->htotal;
+		clk_vpu = vpu_clk_get();
+		clk_temp = clk_in_pps / 1000000;
+		if (clk_temp)
+			input_time_us = height_in * width_in / clk_temp;
+		clk_temp = clk_vpu / 1000000;
+		width_out = next_frame_par->VPP_hsc_endp -
+			next_frame_par->VPP_hsc_startp + 1;
+		if (clk_temp)
+			dummy_time_us = (vtotal * htotal -
+			height_out * width_out) / clk_temp;
+		display_time_us = 1000000 * sync_duration_den /
+			vinfo->sync_duration_num;
+		if (display_time_us > dummy_time_us)
+			display_time_us = display_time_us - dummy_time_us;
+		if (input_time_us > display_time_us)
+			return SPEED_CHECK_VSKIP;
+	}
+
+	if ((vinfo->sync_duration_num / sync_duration_den) > 60)
+		freq_ratio = vinfo->sync_duration_num /
+			sync_duration_den / 60;
+
+	if (freq_ratio < 1)
+		freq_ratio = 1;
+	if (layer_id == 0 && (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
+		cur_freq_ratio = freq_ratio;
+
+	/* #if (MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8) */
+	if ((get_cpu_type() >= MESON_CPU_MAJOR_ID_M8) && !is_meson_mtvd_cpu()) {
+		if (width_in <= 0 || height_in <= 0 ||
+		    height_out <= 0 || height_screen <= 0)
+			return SPEED_CHECK_DONE;
+
+		if (next_frame_par->vscale_skip_count > 0 &&
+		    ((vf->type & VIDTYPE_VIU_444) ||
+		     (vf->type & VIDTYPE_RGB_444)))
+			bpp = 2;
+		if (height_in * bpp > height_out) {
+			/*
+			 *don't need do skip for under 5% scaler down
+			 *reason:for 1080p input,4k output, if di clk is 250M,
+			 *the clac height is 1119;which is bigger than 1080!
+			 */
+			if (height_in > height_out &&
+			    ((height_in - height_out) < height_in / 20))
+				return SPEED_CHECK_DONE;
+			if (get_cpu_type() >=
+				MESON_CPU_MAJOR_ID_GXBB) {
+				cur_ratio = div_u64((u64)height_in *
+					(u64)vinfo->height *
+					1000 * freq_ratio,
+					height_out * max_height);
+				/* di process first, need more a bit of ratio */
+				if (IS_DI_POST(vf->type))
+					cur_ratio = (cur_ratio * 105) / 100;
+				if (next_frame_par->vscale_skip_count > 0 &&
+				    ((vf->type & VIDTYPE_VIU_444) ||
+				     (vf->type & VIDTYPE_RGB_444)))
+					cur_ratio = cur_ratio * 2;
+				if (pi_enable)
+					cur_ratio /= 2;
+				/* store the debug info for legacy */
+				if (layer_id == 0 &&
+				    (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
+					cur_skip_ratio = cur_ratio;
+				if (cur_ratio > min_ratio_1000 &&
+				    vf->source_type !=
+				    VFRAME_SOURCE_TYPE_TUNER &&
+				    vf->source_type !=
+				    VFRAME_SOURCE_TYPE_CVBS)
+					return SPEED_CHECK_VSKIP;
+			}
+			if (vf->type & VIDTYPE_VIU_422) {
+				/*TODO vpu */
+				clk_calc = div_u64((u64)VPP_SPEED_FACTOR *
+					    (u64)width_in *
+					    (u64)height_in *
+					    (u64)vinfo->sync_duration_num *
+					    (u64)vtotal,
+					    height_out *
+					    sync_duration_den *
+					    bypass_ratio);
+				if (height_out == 0 ||
+				     clk_calc > clk_in_pps)
+					return SPEED_CHECK_VSKIP;
+				else
+					return SPEED_CHECK_DONE;
+			} else {
+				/*TODO vpu */
+				clk_calc = div_u64((u64)VPP_SPEED_FACTOR *
+					    (u64)width_in *
+					    (u64)height_in *
+					    (u64)vinfo->sync_duration_num *
+					    (u64)vtotal,
+					    height_out *
+					    sync_duration_den * 256);
+				if (pi_enable)
+					clk_calc /= 2;
+				if (height_out == 0 ||
+					clk_calc > clk_in_pps)
+					return SPEED_CHECK_VSKIP;
+				/* 4K down scaling to non 4K > 30hz,*/
+				   /*skip lines for memory bandwidth */
+				else if ((((vf->type &
+					  VIDTYPE_COMPRESS) == 0) ||
+					  (next_frame_par->nocomp)) &&
+					(height_in > 2048) &&
+					(height_out < max_proc_height_s5) &&
+					(vinfo->sync_duration_num >
+					(30 * sync_duration_den)) &&
+					(get_cpu_type() !=
+					MESON_CPU_MAJOR_ID_GXTVBB) &&
+					(get_cpu_type() !=
+					MESON_CPU_MAJOR_ID_GXM) &&
+					(get_cpu_type() !=
+					MESON_CPU_MAJOR_ID_S5))
+					return SPEED_CHECK_VSKIP;
+				else
+					return SPEED_CHECK_DONE;
+			}
+		} else if (next_frame_par->hscale_skip_count == 0) {
+			/*TODO vpu */
+			if (div_u64(VPP_SPEED_FACTOR * width_in *
+				vinfo->sync_duration_num * height_screen,
+				sync_duration_den * 256)
+				> vpu_clk_get())
+				return SPEED_CHECK_HSKIP;
+			else
+				return SPEED_CHECK_DONE;
+		}
+		return SPEED_CHECK_DONE;
+	}
+	if (get_cpu_type() > MESON_CPU_MAJOR_ID_M6) {
+		if ((height_out + 1) > height_in)
+			return SPEED_CHECK_DONE;
+	} else {
+		/* #else */
+		if (video_speed_check_width * video_speed_check_height *
+			height_out > height_screen * width_in * height_in)
+			return SPEED_CHECK_DONE;
+	}
+	amlog_mask(LOG_MASK_VPP, "%s failed\n", __func__);
+	return SPEED_CHECK_VSKIP;
+}
+
 /*
  *test on txlx:
  *Time_out = (V_out/V_screen_total)/FPS_out;
@@ -2058,7 +2290,7 @@ RESTART:
 	if ((next_frame_par->vscale_skip_count < MAX_VSKIP_COUNT ||
 	     !next_frame_par->hscale_skip_count) &&
 	    (!(vpp_flags & VPP_FLAG_VSCALE_DISABLE))) {
-		int skip = vpp_process_speed_check
+		int skip = vpp_process_speed_check_s5
 			(input->layer_id,
 			(next_frame_par->VPP_hd_end_lines_ -
 			 next_frame_par->VPP_hd_start_lines_ + 1) /
@@ -5997,7 +6229,7 @@ RERTY:
 	}
 #endif
 	if (local_input.layer_id == 0) {
-		if (local_input.slice_num == SLICE_NUM)
+		if (get_slice_num(local_input.layer_id) == SLICE_NUM)
 			disable_super_scaler(next_frame_par);
 		else
 			vpp_set_super_scaler

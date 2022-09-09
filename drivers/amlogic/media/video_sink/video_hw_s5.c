@@ -1004,6 +1004,22 @@ int get_module_bypass_s5(void)
 	return g_bypass_module;
 }
 
+u32 get_slice_num(u32 layer_id)
+{
+	if (layer_id >= MAX_VD_CHAN_S5)
+		return 1;
+	else
+		return vd_layer[layer_id].slice_num;
+}
+
+u32 get_pi_enabled(u32 layer_id)
+{
+	if (layer_id >= MAX_VD_CHAN_S5)
+		return 1;
+	else
+		return vd_layer[layer_id].pi_enable;
+}
+
 void disable_vd1_blend_s5(struct video_layer_s *layer)
 {
 	u8 vpp_index;
@@ -1267,18 +1283,16 @@ static void vd_proc_sr0_set(u32 vpp_index,
 		if ((((tmp_data >> 5) & 0x1) !=
 			(vd_sr->v_scaleup_en & 0x1)) ||
 			(((tmp_data >> 4) & 0x1) !=
-			(vd_sr->h_scaleup_en & 0x1))) {
-			tmp_data &= ~0x30;
+			(vd_sr->h_scaleup_en & 0x1)) ||
+			(((tmp_data >> 2) & 0x1) != 1)) {
+			tmp_data &= ~0x34;
 			tmp_data |= ((vd_sr->v_scaleup_en & 0x1) << 5);
 			tmp_data |= ((vd_sr->h_scaleup_en & 0x1) << 4);
+			tmp_data |= (1 << 2);
 		}
 	} else {
-		tmp_data &= ~0x30;
+		tmp_data &= ~0x34;
 	}
-	if (vd_sr->din_hsize > sr_core0_max_width)
-		tmp_data &= ~2;
-	else
-		tmp_data |= 2;
 	rdma_wr(vd_sr_reg->srsharp0_sharp_sr2_ctrl, tmp_data);
 	rdma_wr(vd_sr_reg->srsharp0_sharp_sr2_ctrl2, 0x0);
 
@@ -1348,19 +1362,16 @@ static void vd_proc_sr1_set(u32 vpp_index,
 		if ((((tmp_data >> 5) & 0x1) !=
 			(vd_sr->v_scaleup_en & 0x1)) ||
 			(((tmp_data >> 4) & 0x1) !=
-			(vd_sr->h_scaleup_en & 0x1))) {
-			tmp_data &= ~0x30;
+			(vd_sr->h_scaleup_en & 0x1)) ||
+			(((tmp_data >> 2) & 0x1) != 1)) {
+			tmp_data &= ~0x34;
 			tmp_data |= ((vd_sr->v_scaleup_en & 0x1) << 5);
 			tmp_data |= ((vd_sr->h_scaleup_en & 0x1) << 4);
+			tmp_data |= (1 << 2);
 		}
 	} else {
-		tmp_data &= ~0x30;
+		tmp_data &= ~0x34;
 	}
-	if (vd_sr->din_hsize > sr_core1_max_width)
-		tmp_data &= ~2;
-	else
-		tmp_data |= 2;
-
 	rdma_wr(vd_sr_reg->srsharp1_sharp_sr2_ctrl, tmp_data);
 	rdma_wr(vd_sr_reg->srsharp1_sharp_sr2_ctrl2, 0x0);
 
@@ -2298,10 +2309,6 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 				vert_phase_step;
 			vd_proc_unit->vd_proc_pps.prehsc_en = vpp_pre_hsc_en;
 			vd_proc_unit->vd_proc_pps.prevsc_en = vpp_pre_vsc_en;
-			if (debug_flag_s5)
-				pr_info("horz_phase_step=0x%x, vert_phase_step=0x%x\n",
-					vd_proc_unit->vd_proc_pps.horz_phase_step,
-					vd_proc_unit->vd_proc_pps.vert_phase_step);
 			sr0_h_scaleup_en = cur_frame_par->supsc0_enable &&
 				cur_frame_par->supsc0_hori_ratio;
 			sr1_h_scaleup_en = cur_frame_par->supsc1_enable &&
@@ -7207,7 +7214,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	}
 	if (g_slice_num != 0xff)
 		layer->slice_num = g_slice_num;
-	glayer_info[layer->layer_id].slice_num = layer->slice_num;
+	layer->pi_enable = pi_enable;
 }
 
 int video_hw_init_s5(void)
