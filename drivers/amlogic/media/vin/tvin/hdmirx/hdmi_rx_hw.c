@@ -1586,7 +1586,7 @@ int hdmirx_control_clk_range(unsigned long min, unsigned long max)
 /*
  * set_scdc_cfg
  */
-void set_scdc_cfg(int hpdlow, int pwrprovided)
+void set_scdc_cfg(int hpdlow, int pwr_provided)
 {
 	switch (rx.chip_id) {
 	case CHIP_ID_TXHD:
@@ -1599,13 +1599,13 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 	case CHIP_ID_TM2:
 	case CHIP_ID_T5:
 		hdmirx_wr_dwc(DWC_SCDC_CONFIG,
-			(hpdlow << 1) | (pwrprovided << 0));
+			(hpdlow << 1) | (pwr_provided << 0));
 		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
 	case CHIP_ID_T5W:
 	default:
-		//hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwrprovided);
+		//hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwr_provided);
 		break;
 	}
 }
