@@ -9,6 +9,7 @@
 #include "tdm_hw.h"
 #include "iomap.h"
 #include "tdm_gain_version.h"
+#include <linux/amlogic/cpu_version.h>
 
 #define MST_CLK_INVERT_PH0_PAD_BCLK       BIT(0)
 #define MST_CLK_INVERT_PH0_PAD_FCLK       BIT(1)
@@ -544,10 +545,16 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 				reg_in = EE_AUDIO_CLK_TDMIN_A_CTRL;
 			aml_audiobus_update_bits(actrl, reg_in,
 				0x3 << 30, 0x3 << 30);
-			/* TDM in for all mst/slave mode set bit[29] = 0 */
-			if (master_mode)
+
+			/* TDM in for master && save mode set bit[29] = 0 by T7C */
+			if (is_meson_rev_c() && (get_cpu_type() == MESON_CPU_MAJOR_ID_T7)) {
 				aml_audiobus_update_bits(actrl, reg_in,
 					0x1 << 29, 0 << 29);
+			} else if (master_mode) {
+				aml_audiobus_update_bits(actrl, reg_in,
+					0x1 << 29, binv << 29);
+			}
+
 			if (id == 3) {
 				reg_in = EE_AUDIO_TDMIN_D_CTRL;
 			} else if (id < 3) {
