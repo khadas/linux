@@ -201,7 +201,7 @@ bool is_dfe_sts_ok_tm2(void)
 	return ret;
 }
 
-/* detect lowemplitude sig via tap0 value for TM2B*/
+/* detect low emplitude sig via tap0 value for TM2B*/
 /* TL1:TODO...*/
 int is_low_amplitude_sig_tm2(void)
 {
@@ -776,7 +776,7 @@ void aml_phy_short_bist_tm2(void)
 		data32 |= (1 << port) << 3;
 		data32 |= 0x7 << 0;
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3, data32);
-		rx_pr("\nport=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3));
+		rx_pr("\n port=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3));
 		usleep_range(5, 10);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0, 0x012000ff);
 		usleep_range(5, 10);
@@ -1225,7 +1225,7 @@ void dump_aml_phy_sts_tm2(void)
 	sli1_ofst5 = (data32 >> 8) & 0x1f;
 	sli2_ofst5 = (data32 >> 16) & 0x1f;
 
-	rx_pr("\nhdmirx phy status:\n");
+	rx_pr("\n hdmirx phy status:\n");
 	rx_pr("terminal=%d, vga_gain=%d, ", terminal, vga_gain);
 	rx_pr("pll_lock=%d, squelch=%d\n", pll_lock, squelch);
 	rx_pr("eq_boost=[%d,%d,%d]\n", ch0_eq_boost, ch1_eq_boost, ch2_eq_boost);

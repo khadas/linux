@@ -530,7 +530,7 @@ void aml_phy_short_bist_tl1(void)
 		/*selector clock to digital from data ch*/
 		data32 |= (1 << port) << 3;
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3, data32);
-		rx_pr("\nport=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3));
+		rx_pr("\n port=%x\n", rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL3));
 		usleep_range(5, 10);
 		wr_reg_hhi(HHI_HDMIRX_PHY_DCHA_CNTL0, 0x000002a2);
 		usleep_range(5, 10);

@@ -1545,7 +1545,7 @@ int hdmirx_control_clk_range(unsigned long min, unsigned long max)
 /*
  * set_scdc_cfg
  */
-void set_scdc_cfg(int hpdlow, int pwrprovided)
+void set_scdc_cfg(int hpdlow, int pwr_provided)
 {
 	switch (rx.chip_id) {
 	case CHIP_ID_TXHD:
@@ -1558,7 +1558,7 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 	case CHIP_ID_TM2:
 	case CHIP_ID_T5:
 		hdmirx_wr_dwc(DWC_SCDC_CONFIG,
-			(hpdlow << 1) | (pwrprovided << 0));
+			(hpdlow << 1) | (pwr_provided << 0));
 		break;
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
@@ -1567,7 +1567,7 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 		udelay(1);
 		hdmirx_wr_bits_cor(RX_C0_SRST2_AON_IVCRX, _BIT(5), 0);
 	default:
-		//hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwrprovided);
+		//hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwr_provided);
 		break;
 	}
 }

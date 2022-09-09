@@ -36,7 +36,7 @@ u32 rx_spd_type;
 u32 gpkt_fifo_pri;
 /*struct mutex pktbuff_lock;*/
 
-static struct pkt_typeregmap_st pktmaping[] = {
+static struct pkt_type_reg_map_st pkt_maping[] = {
 	/*infoframe pkt*/
 	{PKT_TYPE_INFOFRAME_VSI,	PFIFO_VS_EN},
 	{PKT_TYPE_INFOFRAME_AVI,	PFIFO_AVI_EN},
@@ -134,8 +134,8 @@ void rx_pkt_debug(void)
 	rx_pr("gamut_Meta_pkt_st size=%lu\n",
 	      sizeof(struct gamutmeta_pkt_st));
 	rx_pr("aud_3d_smppkt_st size=%lu\n",
-	      sizeof(struct a3dsmp_pkt_st));
-	rx_pr("oneb3d_smppkt_st size=%lu\n",
+	      sizeof(struct a3d_smp_pkt_st));
+	rx_pr("one b3d_smppkt_st size=%lu\n",
 	      sizeof(struct ob3d_smppkt_st));
 	rx_pr("aud_mtdata_pkt_st size=%lu\n",
 	      sizeof(struct audmtdata_pkt_st));
@@ -412,7 +412,7 @@ void rx_debug_pktinfo(char input[][20])
 			return;
 
 		packet_fifo_cfg |= sts;
-		/* not work immediately ?? meybe int is not open*/
+		/* not work immediately ?? maybe int is not open*/
 		enable = hdmirx_rd_dwc(DWC_PDEC_CTRL);
 		enable |= sts;
 		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
@@ -427,7 +427,7 @@ void rx_debug_pktinfo(char input[][20])
 			return;
 
 		packet_fifo_cfg &= (~sts);
-		/* not work immediately ?? meybe int is not open*/
+		/* not work immediately ?? maybe int is not open*/
 		enable = hdmirx_rd_dwc(DWC_PDEC_CTRL);
 		enable &= (~sts);
 		hdmirx_wr_dwc(DWC_PDEC_CTRL, enable);
@@ -803,7 +803,7 @@ void rx_pkt_dump(enum pkt_type_e typeid)
 
 u32 rx_pkt_type_mapping(enum pkt_type_e pkt_type)
 {
-	struct pkt_typeregmap_st *ptab = pktmaping;
+	struct pkt_type_reg_map_st *ptab = pkt_maping;
 	u32 i = 0;
 	u32 rt = 0;
 
@@ -1182,7 +1182,7 @@ void rx_pkt_get_gmd_ex(void *pktinfo)
 	/*6:4*/
 	pkt->gbd_profile = ((HB >> 4) & 0x7);
 	/*7*/
-	pkt->next_feild = ((HB >> 7) & 0x1);
+	pkt->next_field = ((HB >> 7) & 0x1);
 	/*11:8*/
 	pkt->cur_seq_num = ((HB >> 8) & 0xf);
 	/*13:12*/
@@ -1213,7 +1213,7 @@ void rx_pkt_get_gcp_ex(void *pktinfo)
 	pkt->sbpkt.clr_avmute = (gcpavmute & 0x01);
 	pkt->sbpkt.set_avmute = ((gcpavmute >> 1) & 0x01);
 	pkt->sbpkt.colordepth = ((gcpavmute >> 4) & 0xf);
-	pkt->sbpkt.pixelpkgphase = ((gcpavmute >> 8) & 0xf);
+	pkt->sbpkt.pixel_pkg_phase = ((gcpavmute >> 8) & 0xf);
 	pkt->sbpkt.def_phase = ((gcpavmute >> 12) & 0x01);
 }
 

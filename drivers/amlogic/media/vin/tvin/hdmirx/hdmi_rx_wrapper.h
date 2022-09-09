@@ -60,7 +60,7 @@ enum err_code_e {
 	ERR_DE_UNSTABLE,
 	ERR_NO_HDCP14_KEY,
 	ERR_TIMECHANGE,
-	ERR_UNKONW
+	ERR_UNKNOWN
 };
 
 enum irq_flag_e {
@@ -133,7 +133,7 @@ void hdmirx_close_port(void);
 bool is_clk_stable(void);
 unsigned int rx_get_pll_lock_sts(void);
 unsigned int rx_get_scdc_clkrate_sts(void);
-void set_scdc_cfg(int hpdlow, int pwrprovided);
+void set_scdc_cfg(int hpdlow, int pwr_provided);
 void fsm_restart(void);
 void rx_5v_monitor(void);
 void rx_audio_pll_sw_update(void);

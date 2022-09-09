@@ -378,12 +378,12 @@ void rx_hpd_to_esm_handle(struct work_struct *work)
 		return;
 	cancel_delayed_work(&esm_dwork);
 	/* switch_set_state(&rx.hpd_sdev, 0x0); */
-	/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
+	/* extcon_set_state_sync(rx.rx_extcon_rx22, EXTCON_DISP_HDMI, 0); */
 	rx_hdcp22_send_uevent(0);
 	rx_pr("esm_hpd-0\n");
 	msleep(80);
 	/* switch_set_state(&rx.hpd_sdev, 0x01); */
-	/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
+	/* extcon_set_state_sync(rx.rx_extcon_rx22, EXTCON_DISP_HDMI, 1); */
 	rx_hdcp22_send_uevent(1);
 	rx_pr("esm_hpd-1\n");
 }
@@ -1300,9 +1300,9 @@ static bool fmt_vic_abnormal(void)
 	} else if (rx.pre.sw_vic >= HDMI_VESA_OFFSET &&
 		   rx.pre.sw_vic < HDMI_UNSUPPORT &&
 		   rx.pre.repeat != 0) {
-		/* no pixel repeatition for VESA mode */
+		/* no pixel repetition for VESA mode */
 		if (log_level & VIDEO_LOG)
-			rx_pr("repeatition abnormal for vesa\n");
+			rx_pr("repetition abnormal for vesa\n");
 		return true;
 	} else if ((rx.pre.sw_vic == HDMI_1080p_ALTERNATIVE) &&
 			   (rx.pre.sw_dvi ||
@@ -2248,7 +2248,7 @@ void rx_get_global_variable(const char *buf)
 {
 	int i = 1;
 
-	rx_pr("index %-30s   value\n", "varaible");
+	rx_pr("index %-30s   value\n", "variable");
 	pr_var(dwc_rst_wait_cnt_max, i++);
 	pr_var(sig_stable_max, i++);
 	pr_var(hpd_wait_max, i++);
@@ -2340,7 +2340,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(vrr_range_dynamic_update_en, i++);
 	pr_var(phy_term_lel, i++);
 	pr_var(rx.var.force_pattern, i++);
-	/* phy var definitioin */
+	/* phy var definition */
 	pr_var(rx.aml_phy.sqrst_en, i++);
 	pr_var(rx.aml_phy.vga_dbg, i++);
 	pr_var(rx.aml_phy.dfe_en, i++);
@@ -2714,7 +2714,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 {
 	u32 fsmst = sm_pause;
 
-	/* stop fsm when swich port */
+	/* stop fsm when switch port */
 	sm_pause = 1;
 	rx.port = (port - TVIN_PORT_HDMI0) & 0xf;
 	rx.no_signal = false;
@@ -2757,7 +2757,7 @@ void hdmirx_open_port(enum tvin_port_e port)
 	rx.pre_state = rx.state;
 	if (rx.phy_ver >= PHY_VER_TM2)
 		rx.aml_phy.pre_int = 1;
-	/* extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 1); */
+	/* extcon_set_state_sync(rx.rx_extcon_open, EXTCON_DISP_HDMI, 1); */
 	rx_pr("%s:%d\n", __func__, rx.port);
 }
 
@@ -2770,7 +2770,7 @@ void hdmirx_close_port(void)
 	if (disable_port_en)
 		rx_set_port_hpd(disable_port_num, 0);
 	hdmirx_top_irq_en(false);
-	/* extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 0); */
+	/* extcon_set_state_sync(rx.rx_extcon_open, EXTCON_DISP_HDMI, 0); */
 	/* after port close, stop count DE/AVI infoframe */
 	rx.var.de_stable = false;
 	rx.var.de_cnt = 0;
@@ -2806,7 +2806,7 @@ static void rx_cable_clk_monitor(void)
 
 	if (pre_sts != rx.cableclk_stb_flg) {
 		pre_sts = rx.cableclk_stb_flg;
-		rx_pr("\nclk_stb_changed to = %d\n", pre_sts);
+		rx_pr("\n clk_stb_changed to = %d\n", pre_sts);
 	}
 }
 
@@ -3759,7 +3759,7 @@ void rx_debug_help(void)
 	rx_pr("state3 -dump phy\n");
 	rx_pr("state4 -dump clock\n");
 	rx_pr("statex -dump all\n");
-	rx_pr("port1/2/3 -port swich\n");
+	rx_pr("port1/2/3 -port switch\n");
 	rx_pr("hpd0/1 -set hpd 0:low\n");
 	rx_pr("cable_status -5V sts\n");
 	rx_pr("pause -pause fsm\n");
@@ -3863,7 +3863,7 @@ int hdmirx_debug(const char *buf, int size)
 		rx_hdcp22_send_uevent(0);
 	} else if (strncmp(tmpbuf, "esm1", 4) == 0) {
 		/*switch_set_state(&rx.hpd_sdev, 0x01);*/
-		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 1); */
+		/* extcon_set_state_sync(rx.rx_extcon_rx22, EXTCON_DISP_HDMI, 1); */
 		rx_hdcp22_send_uevent(1);
 	} else if (strncmp(input[0], "pktinfo", 7) == 0) {
 		rx_debug_pktinfo(input);

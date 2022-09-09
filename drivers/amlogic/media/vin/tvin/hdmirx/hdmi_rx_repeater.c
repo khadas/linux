@@ -201,7 +201,7 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		rx_pr("seq_num_V: 0x%x\n", rx.hdcp.topo_updated);
 		if (rx.hdcp.rpt_reauth_event == HDCP_VER_22) {
 			rx.hdcp.topo_updated++;
-			if (rx.hdcp.topo_updated > 0xFFFFFFUL)
+			if (rx.hdcp.topo_updated > 0xFFFFFF)
 				rx.hdcp.topo_updated = 0;
 		}
 		//hdmirx_wr_cor(RX_SHA_ctrl_HDCP1X_IVCRX, 1);
