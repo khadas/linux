@@ -1824,9 +1824,9 @@ int vdin_v4l2_probe(struct platform_device *pl_dev,
 		return ret;
 	}
 
-	devp->v4l_support_en = of_property_read_bool(pl_dev->dev.of_node,
+	devp->dts_config.v4l_en = of_property_read_bool(pl_dev->dev.of_node,
 						"v4l_support_en");
-	if (devp->v4l_support_en == 0) {
+	if (devp->dts_config.v4l_en == 0) {
 		dprintk(0, "vdin[%d] %s v4l2 disabled!\n",
 			devp->index, __func__);
 		return -1;

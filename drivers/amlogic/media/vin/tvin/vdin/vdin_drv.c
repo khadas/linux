@@ -1053,7 +1053,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	vdin_clk_on_off(devp, true);
 	vdin_set_default_regmap(devp);
 
-	if (devp->urgent_en && devp->index == 0)
+	if (devp->dts_config.urgent_en && devp->index == 0)
 		vdin_urgent_patch_resume(devp->addr_offset);
 
 	vdin_get_format_convert(devp);
@@ -1158,7 +1158,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->dv.chg_cnt = 0;
 	devp->prop.hdr_info.hdr_check_cnt = 0;
 	devp->vrr_data.vrr_chg_cnt = 0;
-	devp->wr_done_abnormal_cnt = 0;
 	devp->last_wr_vfe = NULL;
 	irq_max_count = 0;
 	vdin_drop_cnt = 0;
@@ -1255,8 +1254,6 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->rdma_irq_cnt = 0;
 	devp->frame_cnt = 0;
 	devp->put_frame_cnt = 0;
-	devp->wr_done_irq_cnt = 0;
-	devp->meta_wr_done_irq_cnt = 0;
 	phase_lock_flag = 0;
 	devp->ignore_frames = max_ignore_frame_cnt;
 	devp->vs_time_stamp = sched_clock();
@@ -1272,11 +1269,14 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->vrr_on_add_cnt = 0;
 	devp->vrr_off_add_cnt = 0;
 
+	devp->vdin_drop_ctl_cnt = 0;
+
 	/* write vframe as default */
 	devp->vframe_wr_en = 1;
 	devp->vframe_wr_en_pre = 1;
 	/* avoid abnormal image */
 	devp->dbg_stop_dec_delay = 50000;
+	memset(&devp->stats, 0, sizeof(devp->stats));
 	if (vdin_time_en)
 		pr_info("vdin.%d start time: %ums, run time:%ums.\n",
 			devp->index, jiffies_to_msecs(jiffies),
@@ -1436,7 +1436,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	vdin_set_default_regmap(devp);
 	/*only for vdin0*/
-	if (devp->urgent_en && devp->index == 0)
+	if (devp->dts_config.urgent_en && devp->index == 0)
 		vdin_urgent_patch_resume(devp->addr_offset);
 
 	/* reset default canvas  */
@@ -2349,6 +2349,11 @@ int vdin_vframe_put_and_recycle(struct vdin_dev_s *devp, struct vf_entry *vfe,
 			receiver_vf_put(&vfe->vf, devp->vfp);
 		devp->game_chg_drop_frame_cnt--;
 		ret = -1;
+	} else if (devp->dbg_fr_ctl > 1 && (devp->frame_cnt % devp->dbg_fr_ctl) != 0) {
+		if (vfe)
+			receiver_vf_put(&vfe->vf, devp->vfp);
+		devp->vdin_drop_ctl_cnt++;
+		ret = -1;
 	} else if (md == VDIN_VF_RECYCLE) {
 		vfe_tmp = receiver_vf_get(devp->vfp);
 		if (vfe_tmp)
@@ -2448,9 +2453,12 @@ irqreturn_t vdin_write_done_isr(int irq, void *dev_id)
 	sts = vdin_write_done_check(devp->addr_offset, devp);
 
 	/*write done flag VDIN_RO_WRMIF_STATUS bit 0*/
-	devp->wr_done_irq_cnt++;
-	/*pr_info("%s %d\n", __func__, devp->wr_done_irq_cnt);*/
-	return sts;/*IRQ_HANDLED;*/
+	devp->stats.wr_done_irq_cnt++;
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+		pr_info("wr_done_irq_cnt:%d\n",
+			devp->stats.wr_done_irq_cnt);
+
+	return IRQ_HANDLED;
 }
 
 irqreturn_t vpu_crash_isr(int irq, void *dev_id)
@@ -2848,6 +2856,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 		vdin_drop_cnt++;
 		goto irq_handled;
 	}
+	/* Check whether frame written done */
+	if (devp->dts_config.chk_write_done_en && !devp->dbg_no_wr_check) {
+		if (devp->frame_cnt > vdin_drop_num &&
+			!vdin_write_done_check(offset, devp)) {
+			devp->vdin_irq_flag = VDIN_IRQ_FLG_SKIP_FRAME;
+			vdin_drop_frame_info(devp, "write done check");
+			vdin_drop_cnt++;
+		}
+	}
+
 	curr_wr_vfe = devp->curr_wr_vfe;
 	curr_wr_vf  = &curr_wr_vfe->vf;
 
@@ -3566,7 +3584,7 @@ static int vdin_open(struct inode *inode, struct file *file)
 				pr_err("err:req wr_done_irq fail\n");
 			else
 				pr_info("vdin%d req wr_done irq %d\n", devp->index,
-					devp->irq);
+					devp->wr_done_irq);
 		}
 
 		/* only for t7 meta data */
@@ -4979,7 +4997,7 @@ int vdin_get_irq_from_dts(struct platform_device *pdev,
 	snprintf(devp->wr_done_irq_name,
 		 sizeof(devp->wr_done_irq_name),
 		 "vdin%d_wr_done", devp->index);
-	pr_info("%s=%d\n", devp->wr_done_irq_name, devp->wr_done_irq);
+	pr_info("%s %s=%d\n", __func__, devp->wr_done_irq_name, devp->wr_done_irq);
 
 	/* only for t7 dv vdin2 meta write done irq*/
 	if (devp->index == 0) {
@@ -5349,6 +5367,54 @@ static struct notifier_block vdin_signal_notifier = {
 	.notifier_call = vdin_signal_notify_callback,
 };
 
+static void vdin_get_dts_config(struct vdin_dev_s *devp,
+	struct platform_device *pdev)
+{
+	int ret = 0;
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "set_canvas_manual",
+				   &devp->set_canvas_manual);
+
+	if (ret)
+		devp->set_canvas_manual = 0;
+	if (devp->set_canvas_manual == 1)
+		devp->cma_config_flag = 0x100;
+
+	devp->dts_config.urgent_en = of_property_read_bool(pdev->dev.of_node,
+		"urgent_en");
+
+	devp->dts_config.chk_write_done_en =
+		of_property_read_bool(pdev->dev.of_node, "chk_wr_done_en");
+
+	devp->dts_config.v4l_en =
+		of_property_read_bool(pdev->dev.of_node, "v4l_support_en");
+
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
+		devp->double_wr_cfg = of_property_read_bool(pdev->dev.of_node,
+							     "double_write_en");
+		devp->secure_en = of_property_read_bool(pdev->dev.of_node,
+							 "secure_en");
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "frame_buff_num",
+				   &devp->frame_buff_num);
+	if (ret)
+		devp->frame_buff_num = 0;
+
+	if (devp->index == 0) {
+		ret = of_property_read_u32(pdev->dev.of_node, "vrr_mode_default",
+					&devp->vrr_mode);
+		if (ret)
+			devp->vrr_mode = 1;
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node, "vdin_function_sel",
+				   &devp->vdin_function_sel);
+	if (ret)
+		devp->vdin_function_sel = 0;
+}
+
 static int vdin_drv_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -5523,44 +5589,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-				   "set_canvas_manual",
-				   &devp->set_canvas_manual);
-
-	if (ret)
-		devp->set_canvas_manual = 0;
-	if (devp->set_canvas_manual == 1)
-		devp->cma_config_flag = 0x100;
-
-	devp->urgent_en = of_property_read_bool(pdev->dev.of_node,
-		"urgent_en");
-
-	devp->v4l_support_en = of_property_read_bool(pdev->dev.of_node,
-						"v4l_support_en");
-
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
-		devp->double_wr_cfg = of_property_read_bool(pdev->dev.of_node,
-							     "double_write_en");
-		devp->secure_en = of_property_read_bool(pdev->dev.of_node,
-							 "secure_en");
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node, "frame_buff_num",
-				   &devp->frame_buff_num);
-	if (ret)
-		devp->frame_buff_num = 0;
-
-	if (devp->index == 0) {
-		ret = of_property_read_u32(pdev->dev.of_node, "vrr_mode_default",
-					&devp->vrr_mode);
-		if (ret)
-			devp->vrr_mode = 1;
-	}
-
-	ret = of_property_read_u32(pdev->dev.of_node, "vdin_function_sel",
-				   &devp->vdin_function_sel);
-	if (ret)
-		devp->vdin_function_sel = 0;
+	vdin_get_dts_config(devp, pdev);
 
 	/* init vdin parameters */
 	devp->flags = VDIN_FLAG_NULL;
@@ -5633,7 +5662,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	vdin_set_config(devp);
 
 	/*probe v4l interface*/
-	if (devp->v4l_support_en)
+	if (devp->dts_config.v4l_en)
 		vdin_v4l2_probe(pdev, devp);
 
 	/* vdin measure clock */
@@ -5706,6 +5735,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	devp->dv.dv_config = false;
 	/* Game mode 2 use one buffer by default */
 	devp->dbg_force_one_buffer = 1;
+	devp->dbg_no_wr_check = 0;
 
 	INIT_DELAYED_WORK(&devp->dv.dv_dwork, vdin_dv_dwork);
 	INIT_DELAYED_WORK(&devp->vlock_dwork, vdin_vlock_dwork);

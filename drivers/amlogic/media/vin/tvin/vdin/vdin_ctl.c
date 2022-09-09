@@ -2213,7 +2213,7 @@ static inline void vdin_set_wr_ctrl(struct vdin_dev_s *devp,
 	/* req_en */
 	wr_bits(offset, VDIN_WR_CTRL, 1, WR_REQ_EN_BIT, WR_REQ_EN_WID);
 	/*only for vdin0*/
-	if (devp->urgent_en && devp->index == 0)
+	if (devp->dts_config.urgent_en && devp->index == 0)
 		vdin_urgent_patch(offset, v, h);
 	/* dis ctrl reg w pulse */
 	/*if (is_meson_g9tv_cpu() || is_meson_m8_cpu() ||
@@ -3725,24 +3725,52 @@ void vdin_enable_module(struct vdin_dev_s *devp, bool enable)
 
 bool vdin_write_done_check(unsigned int offset, struct vdin_dev_s *devp)
 {
+	bool ret = false;
+
 	/*clear int status*/
 	wr_bits(offset, VDIN_WR_CTRL, 1,
 			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
 	wr_bits(offset, VDIN_WR_CTRL, 0,
 			DIRECT_DONE_CLR_BIT, DIRECT_DONE_CLR_WID);
 
+	devp->stats.write_done_check++;
+
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2)) {
 		if (rd_bits(offset, VDIN_RO_WRMIF_STATUS,
-			    WRITE_DONE_BIT, WRITE_DONE_WID))
-			return true;
-
+				WRITE_DONE_BIT, WRITE_DONE_WID)) {
+			devp->stats.wmif_normal_cnt++;
+			ret = true;
+		} else {
+			devp->stats.wmif_abnormal_cnt++;
+		}
 	} else {
 		if (rd_bits(offset, VDIN_COM_STATUS0,
-			    DIRECT_DONE_STATUS_BIT, DIRECT_DONE_STATUS_WID))
-			return true;
+				DIRECT_DONE_STATUS_BIT, DIRECT_DONE_STATUS_WID)) {
+			devp->stats.wmif_normal_cnt++;
+			ret = true;
+		} else {
+			devp->stats.wmif_abnormal_cnt++;
+		}
 	}
-	devp->wr_done_abnormal_cnt++;
-	return false;
+
+	if (devp->afbce_valid) { /* afbce */
+		if (vdin_afbce_read_write_down_flag()) {
+			devp->stats.afbce_normal_cnt++;
+			ret = true;
+		} else {
+			devp->stats.afbce_abnormal_cnt++;
+			ret = false;
+		}
+	}
+
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+		pr_info("%s vdin%d irq:%d,check:%d,afbce:%d %d mif:%d %d\n",
+			__func__, devp->index, devp->stats.wr_done_irq_cnt,
+			devp->stats.write_done_check,
+			devp->stats.afbce_normal_cnt, devp->stats.afbce_abnormal_cnt,
+			devp->stats.wmif_normal_cnt, devp->stats.wmif_abnormal_cnt);
+
+	return ret;
 }
 
 void vdin_get_duration_by_fps(struct vdin_dev_s *devp)

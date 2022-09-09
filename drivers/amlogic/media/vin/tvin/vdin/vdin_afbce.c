@@ -588,20 +588,27 @@ void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable)
 	vdin_afbce_clear_write_down_flag(devp);
 }
 
+/* frm_end will not pull up if using rdma IF to clear afbce flag */
 void vdin_afbce_clear_write_down_flag(struct vdin_dev_s *devp)
 {
-	rdma_write_reg(devp->rdma_handle, AFBCE_CLR_FLAG, 1);
+	/* bit0:frm_end_clr;bit1:enc_error_clr */
+	W_VCBUS_BIT(AFBCE_CLR_FLAG, 3, 0, 2);
 }
 
-/* return 1: write down*/
+/* return 1: write down */
 int vdin_afbce_read_write_down_flag(void)
 {
-	int val1, val2;
+	int frm_end = -1, wr_abort = -1;
 
-	val1 = rd_bits(0, AFBCE_STA_FLAG, 0, 1);
-	val2 = rd_bits(0, AFBCE_STA_FLAG, 2, 2);
+	frm_end = rd_bits(0, AFBCE_STA_FLAG, 0, 1);
+	//frm_end = rd_bits(0, AFBCE_STAT1, 31, 1);
+	wr_abort = rd_bits(0, AFBCE_STA_FLAG, 2, 2);
 
-	if (val1 == 1 || val2 == 0)
+	if (vdin_isr_monitor & VDIN_ISR_MONITOR_WRITE_DONE)
+		pr_info("frm_end:%#x,wr_abort:%#x\n",
+			frm_end, wr_abort);
+
+	if (frm_end == 1 && wr_abort == 0)
 		return 1;
 	else
 		return 0;

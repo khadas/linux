@@ -319,6 +319,8 @@ enum vdin_vf_put_md {
 #define VDIN_ISR_MONITOR_VRR_DATA	BIT(9)
 #define VDIN_ISR_MONITOR_AFBCE		BIT(10)
 #define VDIN_ISR_MONITOR_BUFFER		BIT(11)
+#define VDIN_ISR_MONITOR_AFBCE_STA	BIT(12)
+#define VDIN_ISR_MONITOR_WRITE_DONE	BIT(13)
 
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
 
@@ -508,12 +510,30 @@ enum vdin_game_mode_chg_e {
 	VDIN_GAME_MODE_NUM
 };
 
+struct vdin_dts_config_s {
+	/* whether check write done flag */
+	bool chk_write_done_en;
+	bool urgent_en;
+	bool v4l_en;
+};
+
 struct vdin_v4l2_stat_s {
 	/* frame drop due to framerate control */
 	unsigned int drop_divide;
 	unsigned int done_cnt;
 	unsigned int que_cnt;
 	unsigned int dque_cnt;
+};
+
+struct vdin_frame_stat_s {
+	/* frame drop due to framerate control */
+	unsigned int write_done_check;
+	unsigned int afbce_abnormal_cnt;
+	unsigned int afbce_normal_cnt;
+	unsigned int wmif_abnormal_cnt;
+	unsigned int wmif_normal_cnt;
+	unsigned int wr_done_irq_cnt;
+	unsigned int meta_wr_done_irq_cnt;
 };
 
 struct vdin_v4l2_s {
@@ -633,7 +653,7 @@ struct vdin_dev_s {
 	unsigned int addr_offset;
 
 	unsigned int unstable_flag;
-	unsigned int wr_done_abnormal_cnt;
+	struct vdin_frame_stat_s stats;
 	unsigned int stamp;
 	unsigned int h_cnt64;
 	unsigned int cycle;
@@ -750,7 +770,6 @@ struct vdin_dev_s {
 	unsigned int canvas_config_mode;
 	bool pre_h_scale_en;
 	bool v_shrink_en;
-	bool urgent_en;
 	bool double_wr_cfg;
 	bool double_wr;
 	bool double_wr_10bit_sup;
@@ -765,8 +784,6 @@ struct vdin_dev_s {
 	unsigned int frame_cnt;
 	unsigned int put_frame_cnt;
 	unsigned int rdma_irq_cnt;
-	unsigned int wr_done_irq_cnt;
-	unsigned int meta_wr_done_irq_cnt;
 	unsigned int vdin_irq_flag;
 	unsigned int vdin_reset_flag;
 	unsigned int vdin_dev_ssize;
@@ -801,8 +818,6 @@ struct vdin_dev_s {
 	spinlock_t list_head_lock; /*v4l2 list lock*/
 	struct list_head buf_list;	/* buffer list head */
 	struct vdin_vb_buff *cur_buff;	/* vdin video frame buffer */
-	bool v4l_support_en;
-
 	/*struct v4l2_fh fh;*/
 	unsigned long vf_mem_c_start[VDIN_CANVAS_MAX_CNT];/* Y/C non-contiguous mem */
 	unsigned int dbg_v4l_pause;
@@ -836,6 +851,9 @@ struct vdin_dev_s {
 	unsigned int dbg_no_swap_en:1;
 	unsigned int dbg_force_one_buffer:1;
 	unsigned int dbg_afbce_monitor:8;
+	unsigned int dbg_no_wr_check:1;/* disable write done check */
+	unsigned int dbg_fr_ctl:7;/* disable write done check */
+	unsigned int vdin_drop_ctl_cnt;/* drop frames casued by dbg_drop_ctl */
 	unsigned int vdin_function_sel;
 	unsigned int self_stop_start;
 	unsigned int vdin1_stop_write;
@@ -845,6 +863,7 @@ struct vdin_dev_s {
 	struct task_struct *kthread;
 	struct semaphore sem;
 	struct vf_entry *vfe_tmp;
+	struct vdin_dts_config_s dts_config;
 };
 
 struct vdin_hist_s {
