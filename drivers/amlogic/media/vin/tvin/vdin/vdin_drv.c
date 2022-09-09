@@ -4193,11 +4193,14 @@ static long vdin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 			break;
 		}
+		mutex_lock(&devp->fe_lock);
 		if (game_mode != tmp)
 			vdin_game_mode_chg(devp, game_mode, tmp);
 		game_mode = tmp;
 		if (vdin_dbg_en)
-			pr_info("TVIN_IOC_GAME_MODE(%d) done\n", game_mode);
+			pr_info("TVIN_IOC_GAME_MODE(cfg:%d,cur:%#x) done\n",
+				game_mode, devp->game_mode);
+		mutex_unlock(&devp->fe_lock);
 		break;
 	}
 	case TVIN_IOC_VRR_MODE:
