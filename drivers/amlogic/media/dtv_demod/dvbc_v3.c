@@ -406,7 +406,9 @@ void dvbc_reg_initial(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		#endif
 		}
 
-		if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+		if (tuner_find_by_name(fe, "r842") ||
+			tuner_find_by_name(fe, "r836") ||
+			tuner_find_by_name(fe, "r850")) {
 			qam_write_reg(demod, 0x25,
 				(qam_read_reg(demod, 0x25) & 0xFFFFFFF0) | 0x8);
 		}
@@ -662,7 +664,9 @@ void dvbc_init_reg_ext(struct aml_dtvdemod *demod)
 	 * bit5: fast_agc.
 	 * bit16: qam_fec_mode.
 	 */
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+	if (tuner_find_by_name(fe, "r842") ||
+		tuner_find_by_name(fe, "r836") ||
+		tuner_find_by_name(fe, "r850")) {
 		qam_write_reg(demod, 0x7, 0xf13);
 
 		/* agc slow */

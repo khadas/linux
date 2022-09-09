@@ -831,14 +831,14 @@ void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 	dvbt_t2_wrb(0x80f, 0xff);
 	dvbt_t2_wrb(0x01a, 0x14);
 
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
-		PR_INFO("r842 tuner,set r842 dvbt2 config\n");
+	if (tuner_find_by_name(fe, "r842")) {
+		PR_INFO("set r842 dvbt2 config\n");
 		dvbt_t2_wrb(0x821, 0x70);
 		dvbt_t2_wrb(0x824, 0xa0);
 		dvbt_t2_wrb(0x825, 0x10);
 		dvbt_t2_wrb(0x827, 0x50);
 	} else {
-		PR_INFO("not r842 tuner,set default dvbt2 config\n");
+		PR_INFO("set default dvbt2 config\n");
 	}
 
 	dvbt_t2_wrb(0x1560, 0x50);
@@ -1245,14 +1245,14 @@ void dvbt_reg_initial(unsigned int bw, struct dvb_frontend *fe)
 	dvbt_t2_wrb(0x000a, 0x00);
 	dvbt_t2_wrb(0x19, 0x32);
 
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
-		PR_INFO("r842 tuner,set r842 dvbt config\n");
+	if (tuner_find_by_name(fe, "r842")) {
+		PR_INFO("set r842 dvbt config\n");
 		dvbt_t2_wrb(0x821, 0x70);
 		dvbt_t2_wrb(0x824, 0x40);
 		dvbt_t2_wrb(0x825, 0x10);
 		dvbt_t2_wrb(0x827, 0x50);
 	} else {
-		PR_INFO("not r842 tuner,set default dvbt config\n");
+		PR_INFO("set default dvbt config\n");
 		dvbt_t2_wrb(0x824, 0xa0);
 		dvbt_t2_wrb(0x825, 0x70);
 		dvbt_t2_wrb(0x827, 0x00);

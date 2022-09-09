@@ -221,6 +221,7 @@ struct stchip_register_t {
 };
 
 void st_dvbs2_init(void);
+bool tuner_find_by_name(struct dvb_frontend *fe, const char *name);
 void tuner_set_params(struct dvb_frontend *fe);
 int tuner_get_ch_power(struct dvb_frontend *fe);
 

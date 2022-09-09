@@ -562,7 +562,7 @@ static int gxtv_demod_dvbc_read_status_timer
 		strength = tuner_get_ch_power(fe);
 
 		/*agc control,fine tune strength*/
-		if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+		if (tuner_find_by_name(fe, "r842")) {
 			strength += 22;
 
 			if (strength <= -80)
@@ -693,7 +693,7 @@ static int gxtv_demod_dvbc_read_signal_strength
 	int tuner_sr = 0;
 
 	tuner_sr = tuner_get_ch_power(fe);
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+	if (tuner_find_by_name(fe, "r842")) {
 		tuner_sr += 22;
 
 		if (tuner_sr <= -80)
@@ -840,7 +840,10 @@ static int gxtv_demod_dvbc_set_frontend(struct dvb_frontend *fe)
 	}
 
 	/* Wait for R842 if output to stabilize when automatic sr. */
-	if (demod->auto_sr && !strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
+	if (demod->auto_sr &&
+		(tuner_find_by_name(fe, "r842") ||
+		tuner_find_by_name(fe, "r836") ||
+		tuner_find_by_name(fe, "r850")))
 		msleep(500);
 
 	dvbc_status(demod, &demod_sts, NULL);
@@ -1270,12 +1273,13 @@ static int gxtv_demod_dvbt_read_signal_strength(struct dvb_frontend *fe,
 
 	*strength = (s16)tuner_get_ch_power(fe);
 
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
+	if (tuner_find_by_name(fe, "r842"))
 		*strength += 7;
-	else if (!strncmp(fe->ops.tuner_ops.info.name, "mxl661", 6))
+	else if (tuner_find_by_name(fe, "mxl661"))
 		*strength += 3;
 
 	PR_DBGL("demod [id %d] tuner strength is %d dbm\n", demod->id, *strength);
+
 	return 0;
 }
 
@@ -1285,7 +1289,7 @@ static int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe,
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	unsigned int agc_level = 0;
 
-	if (!strncmp(fe->ops.tuner_ops.info.name, "av2018", 6)) {
+	if (tuner_find_by_name(fe, "av2018")) {
 		agc_level = dvbs_rd_byte(DVBS_AGC_LEVEL_ADDR);
 		if (agc_level > 183) {
 			*strength = 0;
@@ -1820,7 +1824,7 @@ static int gxtv_demod_atsc_read_signal_strength(struct dvb_frontend *fe,
 	int tn_sr = tuner_get_ch_power(fe);
 	unsigned int v = 0;
 
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+	if (tuner_find_by_name(fe, "r842")) {
 		if ((fe->dtv_property_cache.modulation <= QAM_AUTO) &&
 			(fe->dtv_property_cache.modulation != QPSK))
 			tn_sr += 18;
@@ -2165,7 +2169,7 @@ static int atsc_j83b_read_status(struct dvb_frontend *fe, enum fe_status *status
 
 	str = tuner_get_ch_power(fe);
 	/*agc control,fine tune strength*/
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
+	if (tuner_find_by_name(fe, "r842"))
 		str += 18;
 
 	if (str < THRD_TUNER_STRENTH_J83) {
@@ -2279,7 +2283,7 @@ static void atsc_read_status(struct dvb_frontend *fe, enum fe_status *status, un
 	strength = tuner_get_ch_power(fe);
 
 	/*agc control,fine tune strength*/
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+	if (tuner_find_by_name(fe, "r842")) {
 		strength += 15;
 		if (strength <= -80)
 			strength = atsc_get_power_strength(atsc_read_reg_v4(0x44) & 0xfff,
@@ -2949,9 +2953,8 @@ static int gxtv_demod_dtmb_read_signal_strength(struct dvb_frontend *fe,
 {
 	int tuner_sr = tuner_get_ch_power(fe);
 
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+	if (tuner_find_by_name(fe, "r842"))
 		tuner_sr += 16;
-	}
 
 	*strength = (s16)tuner_sr;
 
@@ -3155,9 +3158,17 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		demod->sr_val_uf_count = 0;
 		demod->auto_qam_done = 0;
 		demod_dvbc_set_qam(demod, demod->auto_qam_mode);
-		if (demod->auto_sr && !strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
-			dvbc_cfg_sw_hw_sr_max(demod, demod->sr_val_hw);
 		demod_dvbc_fsm_reset(demod);
+
+		if (!demod->auto_sr && demod->auto_qam_mode == QAM_MODE_256)
+			*delay = HZ / 2;//500ms
+
+		if (demod->auto_sr &&
+			(tuner_find_by_name(fe, "r842") ||
+			tuner_find_by_name(fe, "r836") ||
+			tuner_find_by_name(fe, "r850")))
+			dvbc_cfg_sw_hw_sr_max(demod, demod->sr_val_hw);
+
 		time_start = jiffies_to_msecs(jiffies);
 		PR_DVBC("%s: retune reset, sr %d.\n", __func__, demod->sr_val_hw);
 		return 2;
@@ -3294,12 +3305,6 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 	} else {
 		dvbc_get_qam_name(demod->auto_qam_mode, qam_name);
 		PR_DVBC("%s: try %s.\n", __func__, qam_name);
-
-		if (demod->auto_qam_mode == QAM_MODE_256) {
-			*delay = HZ / 2;//500ms
-		} else {
-			*delay = HZ / 5;//200ms
-		}
 	}
 
 	fsm_state = qam_read_reg(demod, 0x31);
@@ -3328,7 +3333,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		*delay = HZ / 4;
 		demod->real_para.modulation = amdemod_qam_fe(qam_mode);
 		demod->real_para.symbol = demod->auto_sr ?
-			demod->sr_val_hw_stable :
+			demod->sr_val_hw_stable * 1000 :
 			fe->dtv_property_cache.symbol_rate;
 		demod->auto_qam_mode = QAM_MODE_256;
 		return 1;
@@ -3348,12 +3353,19 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 	if (!is_meson_t5w_cpu()) {
 		demod->auto_qam_mode = dvbc_switch_qam(demod->auto_qam_mode);
 		demod_dvbc_set_qam(demod, demod->auto_qam_mode);
-	}
 
-	// Avoid 16QAM output abnormal.
-	if (demod->auto_qam_mode == QAM_MODE_16 ||
-		demod->auto_qam_mode == QAM_MODE_32)
-		demod_dvbc_fsm_reset(demod);
+		// Avoid 16QAM output abnormal.
+		if (demod->auto_qam_mode == QAM_MODE_16 ||
+			demod->auto_qam_mode == QAM_MODE_32)
+			demod_dvbc_fsm_reset(demod);
+
+		if (demod->auto_qam_mode == QAM_MODE_256 ||
+			demod->auto_qam_mode == QAM_MODE_128) {
+			*delay = HZ / 2;//500ms
+		} else {
+			*delay = HZ / 5;//200ms
+		}
+	}
 
 	// after switch qam, check the sr.
 	if (demod->auto_sr && demod->auto_sr_done) {
@@ -3386,9 +3398,15 @@ static unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *dela
 		demod->sr_val_hw_stable = 0;
 		demod->sr_val_hw_count = 0;
 		demod->sr_val_uf_count = 0;
-		if (demod->auto_sr && !strncmp(fe->ops.tuner_ops.info.name, "r842", 4))
-			dvbc_cfg_sw_hw_sr_max(demod, demod->sr_val_hw);
+
 		demod_dvbc_fsm_reset(demod);
+
+		if (demod->auto_sr &&
+			(tuner_find_by_name(fe, "r842") ||
+			tuner_find_by_name(fe, "r836") ||
+			tuner_find_by_name(fe, "r850")))
+			dvbc_cfg_sw_hw_sr_max(demod, demod->sr_val_hw);
+
 		time_start = jiffies_to_msecs(jiffies);
 		PR_DVBC("%s: retune reset, sr %d.\n", __func__, demod->sr_val_hw);
 		return 2;
@@ -3484,7 +3502,7 @@ static unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *dela
 		*delay = HZ / 4;
 		demod->real_para.modulation = fe->dtv_property_cache.modulation;
 		demod->real_para.symbol = demod->auto_sr ?
-				demod->sr_val_hw_stable :
+				demod->sr_val_hw_stable * 1000 :
 				fe->dtv_property_cache.symbol_rate;
 		return 1;
 	}
@@ -3739,7 +3757,7 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 
 	str = tuner_get_ch_power(fe);
 	/*agc control,fine tune strength*/
-	if (!strncmp(fe->ops.tuner_ops.info.name, "r842", 4)) {
+	if (tuner_find_by_name(fe, "r842")) {
 		str += 22;
 
 		if (str <= -80)
@@ -3771,7 +3789,7 @@ static int dvbc_read_status(struct dvb_frontend *fe, enum fe_status *status, boo
 		*status = FE_HAS_LOCK | FE_HAS_SIGNAL | FE_HAS_CARRIER |
 			FE_HAS_VITERBI | FE_HAS_SYNC;
 		demod->real_para.modulation = dvbc_get_dvbc_qam(demod->auto_qam_mode);
-		demod->real_para.symbol = sr;
+		demod->real_para.symbol = sr * 1000;
 
 		PR_DVBC("locked at sr:%d,Qam:%s\n", sr, get_qam_name(demod->auto_qam_mode));
 	} else if (s < 3) {

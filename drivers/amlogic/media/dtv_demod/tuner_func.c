@@ -9,6 +9,13 @@
 #include "demod_func.h"
 /*#include "aml_fe.h"*/
 
+bool tuner_find_by_name(struct dvb_frontend *fe, const char *name)
+{
+	if (!strncmp(fe->ops.tuner_ops.info.name, name, strlen(name)))
+		return true;
+	else
+		return false;
+}
 
 /*add to replase aml_fe_analog_set_frontend*/
 void tuner_set_params(struct dvb_frontend *fe)
@@ -38,7 +45,6 @@ int tuner_get_ch_power(struct dvb_frontend *fe)
 		}
 #endif
 	}
-
 
 	return strength;
 }
