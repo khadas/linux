@@ -2788,7 +2788,18 @@ int ts_output_get_mem_info(struct out_elem *pout,
 	*total_size = pout->pchan->mem_size;
 	*buf_phy_start = pout->pchan->mem_phy;
 	*wp_offset = SC2_bufferid_get_wp_offset(pout->pchan);
-	*free_size = SC2_bufferid_get_free_size(pout->pchan);
+	if (pout->aucpu_start) {
+		unsigned int now_w = 0;
+		unsigned int mem_size = pout->aucpu_mem_size;
+
+		now_w = SC2_bufferid_get_wp_offset(pout->pchan);
+		if (now_w >= pout->aucpu_read_offset)
+			*free_size = mem_size - (now_w - pout->aucpu_read_offset);
+		else
+			*free_size = pout->aucpu_read_offset - now_w;
+	} else {
+		*free_size = SC2_bufferid_get_free_size(pout->pchan);
+	}
 	if (newest_pts)
 		ts_output_get_newest_pts(pout, newest_pts);
 	return 0;
