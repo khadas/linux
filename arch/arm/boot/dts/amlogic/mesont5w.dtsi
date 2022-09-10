@@ -1646,6 +1646,8 @@
 			 * bit7 -- afbce for smaller resolution
 			 */
 			afbce_bit_mode = <0x13>;
+			/* chk_wr_done_en: enable write done check */
+			chk_wr_done_en;
 			/* urgent_en; */
 			double_write_en;
 			/* vdin v4l2 */
