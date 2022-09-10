@@ -15,6 +15,26 @@ enum {
 	MESON_DRM_CONNECTOR_V10 = 0,
 };
 
+struct drm_hdmitx_timing_para {
+	char name[DRM_DISPLAY_MODE_LEN];
+	int pi_mode;
+	u32 pix_repeat_factor;
+	u32 h_pol;
+	u32 v_pol;
+
+	u32 sync_dura_num;
+	u32 sync_dura_den;
+	u32 pixel_freq;
+	u32 h_active;
+	u32 h_front;
+	u32 h_sync;
+	u32 h_total;
+	u32 v_active;
+	u32 v_front;
+	u32 v_sync;
+	u32 v_total;
+};
+
 struct meson_connector_dev {
 	int ver;
 
@@ -80,6 +100,7 @@ struct meson_hdmitx_dev {
 
 	unsigned char *(*get_raw_edid)(void);
 	int (*get_vic_list)(int **vics);
+	int (*get_timing_para_by_vic)(int vic, struct drm_hdmitx_timing_para *para);
 
 	unsigned int (*get_content_types)(void);
 	int (*set_content_type)(int content_type);

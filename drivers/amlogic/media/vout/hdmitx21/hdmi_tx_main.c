@@ -6166,6 +6166,48 @@ static int drm_hdmitx_get_vic_list(int **vics)
 	return count;
 }
 
+static int drm_hdmitx_get_timing_para(int vic, struct drm_hdmitx_timing_para *para)
+{
+	const struct hdmi_timing *timing;
+
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (!timing)
+		return -1;
+
+	if (timing->sname)
+		strncpy(para->name, timing->sname, DRM_DISPLAY_MODE_LEN);
+	else if (timing->name)
+		strncpy(para->name, timing->name, DRM_DISPLAY_MODE_LEN);
+	else
+		return -1;
+
+	if (timing->v_freq % 1000 == 0) {
+		para->sync_dura_num = timing->v_freq / 1000;
+		para->sync_dura_den = 1;
+	} else {
+		para->sync_dura_num = timing->v_freq;
+		para->sync_dura_den = 1000;
+	}
+
+	para->pi_mode = timing->pi_mode;
+	para->pix_repeat_factor = 0;
+
+	para->h_pol = timing->h_pol;
+	para->v_pol = timing->v_pol;
+	para->pixel_freq = timing->pixel_freq;
+
+	para->h_active = timing->h_active;
+	para->h_front = timing->h_front;
+	para->h_sync = timing->h_sync;
+	para->h_total = timing->h_total;
+	para->v_active = timing->v_active;
+	para->v_front = timing->v_front;
+	para->v_sync = timing->v_sync;
+	para->v_total = timing->v_total;
+
+	return 0;
+}
+
 static unsigned char *drm_hdmitx_get_raw_edid(void)
 {
 	if (hdmitx21_device.edid_ptr)
@@ -6421,6 +6463,7 @@ static struct meson_hdmitx_dev drm_hdmitx_instance = {
 	.register_hpd_cb = drm_hdmitx_register_hpd_cb,
 	.get_raw_edid = drm_hdmitx_get_raw_edid,
 	.get_vic_list = drm_hdmitx_get_vic_list,
+	.get_timing_para_by_vic = drm_hdmitx_get_timing_para,
 	.get_content_types = drm_hdmitx_get_contenttypes,
 	.set_content_type = drm_hdmitx_set_contenttype,
 	.setup_attr = drm_hdmitx_setup_attr,

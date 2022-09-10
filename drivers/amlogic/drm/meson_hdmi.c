@@ -79,6 +79,12 @@ struct hdmitx_color_attr dv_ll_color_attr_list[] = {
 	{COLORSPACE_RESERVED, COLORDEPTH_RESERVED}
 };
 
+/* this is prior selected list for 8k */
+struct hdmitx_color_attr color_8k_attr_list[] = {
+	{COLORSPACE_YUV420, 8}, //"420,8bit"
+	{COLORSPACE_RESERVED, COLORDEPTH_RESERVED}
+};
+
 /* this is prior selected list of
  * 4k2k50hz, 4k2k60hz smpte50hz, smpte60hz
  */
@@ -110,6 +116,7 @@ struct hdmitx_color_attr other_color_attr_list[] = {
 #define MODE_4K2KSMPTE30HZ              "smpte30hz"
 #define MODE_4K2KSMPTE50HZ              "smpte50hz"
 #define MODE_4K2KSMPTE60HZ              "smpte60hz"
+#define MODE_8K                         "4320p"
 
 void convert_attrstr(char *attr_str,
 	struct hdmitx_color_attr *attr_param)
@@ -208,6 +215,8 @@ static struct hdmitx_color_attr *meson_hdmitx_get_candidate_attr_list
 	    !strcmp(outputmode, MODE_4K2KSMPTE60HZ) ||
 	    !strcmp(outputmode, MODE_4K2KSMPTE50HZ)) {
 		attr_list = color_attr_list;
+	} else if (strstr(outputmode, MODE_8K)) {
+		attr_list = color_8k_attr_list;
 	} else {
 		attr_list = other_color_attr_list;
 	}
@@ -319,9 +328,9 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int *vics;
 	int count = 0, i = 0, len = 0;
+	int ret;
 	struct drm_display_mode *mode, *pref_mode = NULL;
-	struct hdmi_format_para *hdmi_para;
-	struct hdmi_cea_timing *timing;
+	struct drm_hdmitx_timing_para para;
 	struct am_hdmi_tx *am_hdmitx = connector_to_am_hdmi(connector);
 	char *strp = NULL;
 	u32 num, den;
@@ -341,9 +350,8 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 	count = am_hdmitx->hdmitx_dev->get_vic_list(&vics);
 	if (count) {
 		for (i = 0; i < count; i++) {
-			hdmi_para = hdmi_get_fmt_paras(vics[i]);
-			timing = &hdmi_para->timing;
-			if (hdmi_para->vic == HDMI_UNKNOWN) {
+			ret = am_hdmitx->hdmitx_dev->get_timing_para_by_vic(vics[i], &para);
+			if (ret < 0) {
 				DRM_ERROR("Get hdmi para by vic [%d] failed.\n", vics[i]);
 				continue;
 			}
@@ -354,7 +362,7 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 				continue;
 			}
 
-			strncpy(mode->name, hdmi_para->hdmitx_vinfo.name, DRM_DISPLAY_MODE_LEN);
+			strncpy(mode->name, para.name, DRM_DISPLAY_MODE_LEN);
 			/* remove _4x3 suffix, in case misunderstand */
 			strp = strstr(mode->name, "_4x3");
 			if (strp)
@@ -371,18 +379,18 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			}
 
 			mode->type = DRM_MODE_TYPE_DRIVER;
-			num = hdmi_para->hdmitx_vinfo.sync_duration_num;
-			den = hdmi_para->hdmitx_vinfo.sync_duration_den;
+			num = para.sync_dura_num;
+			den = para.sync_dura_den;
 			mode->vrefresh = (int)DIV_ROUND_CLOSEST(num, den);
-			mode->clock = timing->pixel_freq;
+			mode->clock = para.pixel_freq;
 
-			mode->hdisplay = timing->h_active;
-			mode->hsync_start = mode->hdisplay + timing->h_front;
-			mode->hsync_end = timing->h_active + timing->h_front + timing->h_sync;
+			mode->hdisplay = para.h_active;
+			mode->hsync_start = para.h_active + para.h_front;
+			mode->hsync_end = para.h_active + para.h_front + para.h_sync;
 
-			mode->htotal = timing->h_total;
+			mode->htotal = para.h_total;
 			/* for 480i/576i, horizontal timing is repeated */
-			if (hdmi_para->pixel_repetition_factor == 1) {
+			if (para.pix_repeat_factor == 1) {
 				mode->hdisplay >>= 1;
 				mode->hsync_start >>= 1;
 				mode->hsync_end >>= 1;
@@ -390,22 +398,21 @@ int meson_hdmitx_get_modes(struct drm_connector *connector)
 			}
 
 			mode->hskew = 0;
-			mode->flags |= timing->hsync_polarity ?
+			mode->flags |= para.h_pol ?
 				DRM_MODE_FLAG_PHSYNC : DRM_MODE_FLAG_NHSYNC;
 
-			mode->vdisplay = timing->v_active;
-			mode->vsync_start = mode->vdisplay + timing->v_front;
-			mode->vsync_end = mode->vdisplay + timing->v_front + timing->v_sync;
-			mode->vtotal = timing->v_total;
+			mode->vdisplay = para.v_active;
+			mode->vsync_start = para.v_active + para.v_front;
+			mode->vsync_end = para.v_active + para.v_front + para.v_sync;
+			mode->vtotal = para.v_total;
 			mode->vscan = 0;
-			mode->flags |= timing->vsync_polarity ?
+			mode->flags |= para.v_pol ?
 				DRM_MODE_FLAG_PVSYNC : DRM_MODE_FLAG_NVSYNC;
 
 			/* use logical display timing for drm. vidsplay
 			 * while amlogic vout use half value.
 			 */
-			if (hdmi_para->hdmitx_vinfo.field_height !=
-				hdmi_para->hdmitx_vinfo.height) {
+			if (!para.pi_mode) {
 				mode->flags |= DRM_MODE_FLAG_INTERLACE;
 				mode->vdisplay = mode->vdisplay << 1;
 				mode->vsync_start = mode->vsync_start << 1;
@@ -1363,10 +1370,10 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 				 struct am_meson_crtc_state *crtc_state,
 				 struct drm_display_mode *adj_mode)
 {
-	int i, vic, brr = 60;
+	int i, ret, vic, brr = 60;
 	int num_group;
 	struct drm_vrr_mode_group *group;
-	struct hdmi_format_para *hdmi_para;
+	struct drm_hdmitx_timing_para para;
 	struct drm_vrr_mode_group *groups;
 
 	groups = kcalloc(MAX_VRR_MODE_GROUP, sizeof(*groups), GFP_KERNEL);
@@ -1391,12 +1398,12 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 		}
 	}
 
-	hdmi_para = hdmi_get_fmt_paras(vic);
-	if (hdmi_para->vic == HDMI_UNKNOWN) {
+	ret = hdmitx->hdmitx_dev->get_timing_para_by_vic(vic, &para);
+	if (ret < 0) {
 		DRM_ERROR("%s, Get hdmi para by vic [%d] failed.\n",
 			  __func__, vic);
 	} else {
-		strncpy(crtc_state->brr_mode, hdmi_para->hdmitx_vinfo.name,
+		strncpy(crtc_state->brr_mode, para.name,
 			DRM_DISPLAY_MODE_LEN);
 		crtc_state->brr_mode[DRM_DISPLAY_MODE_LEN - 1] = '\0';
 		crtc_state->valid_brr = 1;
