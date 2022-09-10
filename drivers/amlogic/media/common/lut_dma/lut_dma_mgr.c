@@ -66,16 +66,25 @@ static struct lutdma_device_data_s lutdma_meson_dev;
 static struct lutdma_device_data_s lut_dma = {
 	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBALE,
 	.support_8G_addr = 0,
+	.lut_dma_ver = 1,
 };
 
 static struct lutdma_device_data_s lut_dma_sc2 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_SC2_,
 	.support_8G_addr = 0,
+	.lut_dma_ver = 1,
 };
 
 static struct lutdma_device_data_s lut_dma_t7 = {
 	.cpu_type = MESON_CPU_MAJOR_ID_T7_,
 	.support_8G_addr = 1,
+	.lut_dma_ver = 1,
+};
+
+static struct lutdma_device_data_s lut_dma_s5 = {
+	.cpu_type = MESON_CPU_MAJOR_ID_S5_,
+	.support_8G_addr = 1,
+	.lut_dma_ver = 2,
 };
 
 static const struct of_device_id lut_dma_dt_match[] = {
@@ -90,6 +99,10 @@ static const struct of_device_id lut_dma_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-t7, lut_dma",
 		.data = &lut_dma_t7,
+	},
+	{
+		.compatible = "amlogic, meson-s5, lut_dma",
+		.data = &lut_dma_s5,
 	},
 	{}
 };
@@ -112,6 +125,15 @@ static bool lutdma_is_meson_t7_cpu(void)
 		return false;
 }
 
+static bool lutdma_is_meson_s5_cpu(void)
+{
+	if (lutdma_meson_dev.cpu_type ==
+		MESON_CPU_MAJOR_ID_S5_)
+		return true;
+	else
+		return false;
+}
+
 static u32 get_cur_rd_frame_index(void)
 {
 	u32 data, frame_index;
@@ -125,8 +147,13 @@ static u32 get_cur_rd_frame_index(void)
 static u32 get_cur_wr_frame_index(u32 channel)
 {
 	u32 data, reg, frame_index;
+	u32 channel_index = 0;
 
-	reg = VPU_DMA_RDMIF0_CTRL + channel;
+	if (channel >= 8)
+		channel_index = channel - 8;
+	else
+		channel_index = channel;
+	reg = VPU_DMA_RDMIF0_CTRL + channel_index;
 	data = lut_dma_reg_read(reg);
 	frame_index = (data & 0x30000000) >> 28;
 	pr_dbg("chan(%d)cur wr frame index:%d\n",
@@ -185,11 +212,15 @@ static void set_lut_dma_phyaddr_wrcfg_manual(u32 channel,
 {
 	u32 base_addr, trans_size;
 	struct lut_dma_device_info *info = &lut_dma_info;
-	u32 addr;
+	u32 addr, channel_index = 0;
 
+	if (channel >= 8)
+		channel_index = channel - 8;
+	else
+		channel_index = channel;
 	if (!info->ins[channel].baddr_set) {
 		base_addr = VPU_DMA_RDMIF0_BADR0 +
-			(channel * 4) + index;
+			(channel_index * 4) + index;
 		/* set write phy addr */
 		if (lutdma_meson_dev.support_8G_addr)
 			addr = phy_addr >> 4;
@@ -201,7 +232,7 @@ static void set_lut_dma_phyaddr_wrcfg_manual(u32 channel,
 	}
 	/* transfer unit:128 bits data */
 	trans_size = BYTE_16_ALIGNED(buf_size) / 16;
-	base_addr = VPU_DMA_RDMIF0_CTRL + channel;
+	base_addr = VPU_DMA_RDMIF0_CTRL + channel_index;
 	/* set buf size */
 	lut_dma_reg_set_bits(base_addr,
 			     trans_size, 0, 12);
@@ -217,13 +248,17 @@ static void set_lut_dma_phyaddr_wrcfg_auto(u32 channel,
 {
 	u32 base_addr, trans_size;
 	struct lut_dma_device_info *info = &lut_dma_info;
-	u32 addr;
+	u32 addr, channel_index = 0;
 	int i;
 
+	if (channel >= 8)
+		channel_index = channel - 8;
+	else
+		channel_index = channel;
 	if (!info->ins[channel].baddr_set) {
 		for (i = 0; i < DMA_BUF_NUM; i++) {
 			base_addr = VPU_DMA_RDMIF0_BADR0 +
-				(channel * 4) + i;
+				(channel_index * 4) + i;
 			/* set write phy addr */
 			if (lutdma_meson_dev.support_8G_addr)
 				addr = phy_addr >> 4;
@@ -235,7 +270,7 @@ static void set_lut_dma_phyaddr_wrcfg_auto(u32 channel,
 	}
 	/* transfer unit:128 bits data */
 	trans_size = BYTE_16_ALIGNED(buf_size) / 16;
-	base_addr = VPU_DMA_RDMIF0_CTRL + channel;
+	base_addr = VPU_DMA_RDMIF0_CTRL + channel_index;
 	/* set buf size */
 	lut_dma_reg_set_bits(base_addr,
 			     trans_size, 0, 12);
@@ -247,6 +282,7 @@ static void set_lut_dma_phyaddr(u32 dma_dir, u32 channel, ulong phy_addr)
 	int i;
 	u32 base_addr, addr;
 	struct lut_dma_device_info *info = &lut_dma_info;
+	int channel_index = 0;
 
 	if (lutdma_meson_dev.support_8G_addr)
 		addr = phy_addr >> 4;
@@ -275,8 +311,12 @@ static void set_lut_dma_phyaddr(u32 dma_dir, u32 channel, ulong phy_addr)
 		info->ins[channel].baddr_set = 1;
 	} else if (dma_dir == LUT_DMA_WR) {
 		for (i = 0; i < DMA_BUF_NUM; i++) {
+			if (channel >= 8)
+				channel_index = channel - 8;
+			else
+				channel_index = channel;
 			base_addr = VPU_DMA_RDMIF0_BADR0 +
-				(channel * 4) + i;
+				(channel_index * 4) + i;
 			/* set write phy addr */
 			lut_dma_reg_write(base_addr,
 					  addr);
@@ -291,11 +331,15 @@ static void set_lut_dma_wrcfg_manual(u32 channel, u32 index)
 {
 	u32 base_addr, buf_size, trans_size;
 	struct lut_dma_device_info *info = &lut_dma_info;
-	u32 addr = 0;
+	u32 addr = 0, channel_index = 0;
 
+	if (channel >= 8)
+		channel_index = channel - 8;
+	else
+		channel_index = channel;
 	if (!info->ins[channel].baddr_set) {
 		base_addr = VPU_DMA_RDMIF0_BADR0 +
-			(channel * 4) + index;
+			(channel_index * 4) + index;
 		/* set write phy addr */
 		if (lutdma_meson_dev.support_8G_addr)
 			addr = info->ins[channel].wr_phy_addr[index] >> 4;
@@ -308,7 +352,7 @@ static void set_lut_dma_wrcfg_manual(u32 channel, u32 index)
 	buf_size = info->ins[channel].wr_table_size[index];
 	/* transfer unit:128 bits data */
 	trans_size = BYTE_16_ALIGNED(buf_size) / 16;
-	base_addr = VPU_DMA_RDMIF0_CTRL + channel;
+	base_addr = VPU_DMA_RDMIF0_CTRL + channel_index;
 	/* set buf size */
 	lut_dma_reg_set_bits(base_addr,
 			     trans_size, 0, 12);
@@ -321,13 +365,17 @@ static void set_lut_dma_wrcfg_auto(u32 channel, u32 index)
 {
 	u32 base_addr, buf_size, trans_size;
 	struct lut_dma_device_info *info = &lut_dma_info;
-	u32 addr = 0;
+	u32 addr = 0, channel_index = 0;
 	int i;
 
+	if (channel >= 8)
+		channel_index = channel - 8;
+	else
+		channel_index = channel;
 	if (!info->ins[channel].baddr_set) {
 		for (i = 0; i < DMA_BUF_NUM; i++) {
 			base_addr = VPU_DMA_RDMIF0_BADR0 +
-				(channel * 4) + i;
+				(channel_index * 4) + i;
 			if (lutdma_meson_dev.support_8G_addr)
 				addr = info->ins[channel].wr_phy_addr[index] >> 4;
 			else
@@ -340,7 +388,7 @@ static void set_lut_dma_wrcfg_auto(u32 channel, u32 index)
 	buf_size = info->ins[channel].wr_size[index];
 	/* transfer unit:128 bits data */
 	trans_size = BYTE_16_ALIGNED(buf_size) / 16;
-	base_addr = VPU_DMA_RDMIF0_CTRL + channel;
+	base_addr = VPU_DMA_RDMIF0_CTRL + channel_index;
 	/* set buf size */
 	lut_dma_reg_set_bits(base_addr,
 			     trans_size, 0, 12);
@@ -349,7 +397,7 @@ static void set_lut_dma_wrcfg_auto(u32 channel, u32 index)
 static void set_lut_dma_phy_addr(u32 dma_dir, u32 channel)
 {
 	int i;
-	u32 base_addr, addr;
+	u32 base_addr, addr, channel_index = 0;
 	struct lut_dma_device_info *info = &lut_dma_info;
 
 	if (dma_dir == LUT_DMA_RD) {
@@ -379,12 +427,16 @@ static void set_lut_dma_phy_addr(u32 dma_dir, u32 channel)
 		info->ins[channel].baddr_set = 1;
 	} else if (dma_dir == LUT_DMA_WR) {
 		for (i = 0; i < DMA_BUF_NUM; i++) {
-			base_addr = VPU_DMA_RDMIF0_BADR0 +
-				(channel * 4) + i;
-			if (lutdma_meson_dev.support_8G_addr)
-				addr = info->ins[channel].rd_phy_addr[i] >> 4;
+			if (channel >= 8)
+				channel_index = channel - 8;
 			else
-				addr = info->ins[channel].rd_phy_addr[i];
+				channel_index = channel;
+			base_addr = VPU_DMA_RDMIF0_BADR0 +
+				(channel_index * 4) + i;
+			if (lutdma_meson_dev.support_8G_addr)
+				addr = info->ins[channel].wr_phy_addr[i] >> 4;
+			else
+				addr = info->ins[channel].wr_phy_addr[i];
 			/* set write phy addr */
 			lut_dma_reg_write(base_addr,
 					  addr);
@@ -398,9 +450,18 @@ MODULE_PARM_DESC(bit_format, "\n bit_format\n");
 module_param(bit_format, uint, 0664);
 static int lut_dma_enable(u32 dma_dir, u32 channel)
 {
-	int mode = 0;
+	int mode = 0, channel_sel = 0;
+	u32 channel_index = 0;
 	struct lut_dma_device_info *info = &lut_dma_info;
 
+	if (lutdma_meson_dev.lut_dma_ver == 2) {
+		if (channel >= 8)
+			channel_sel = 1;
+		else
+			channel_sel = 0;
+		lut_dma_reg_set_bits(VPU_DMA_RDMIF_SEL,
+			channel_sel, 0, 1);
+	}
 	if (dma_dir == LUT_DMA_RD) {
 		/* manul wr dma mode */
 		channel = LUT_DMA_RD_CHAN_NUM + channel;
@@ -413,22 +474,26 @@ static int lut_dma_enable(u32 dma_dir, u32 channel)
 		    info->ins[channel].registered &&
 			!info->ins[channel].enable) {
 			mode = info->ins[channel].mode;
+			if (channel >= 8)
+				channel_index = channel - 8;
+			else
+				channel_index = channel;
 			if (mode == LUT_DMA_AUTO) {
 				lut_dma_reg_set_bits(VPU_DMA_RDMIF0_CTRL +
-						     channel,
+						     channel_index,
 						     0, 26, 1);
 			} else if (mode == LUT_DMA_MANUAL) {
 				lut_dma_reg_set_bits(VPU_DMA_RDMIF0_CTRL +
-						     channel,
+						     channel_index,
 						     1, 26, 1);
 			}
 			lut_dma_reg_set_bits
-				(VPU_DMA_RDMIF0_CTRL + channel,
+				(VPU_DMA_RDMIF0_CTRL + channel_index,
 				 info->ins[channel].trigger_irq_type,
 				 16, 8);
 
 			lut_dma_reg_set_bits
-				(VPU_DMA_RDMIF0_CTRL + channel,
+				(VPU_DMA_RDMIF0_CTRL + channel_index,
 				 bit_format,
 				 13, 2);
 			info->ins[channel].enable = 1;
@@ -439,7 +504,7 @@ static int lut_dma_enable(u32 dma_dir, u32 channel)
 
 static void lut_dma_disable(u32 dma_dir, u32 channel)
 {
-	int mode = 0;
+	int mode = 0, channel_index = 0;
 	struct lut_dma_device_info *info = &lut_dma_info;
 
 	if (dma_dir == LUT_DMA_RD) {
@@ -450,9 +515,13 @@ static void lut_dma_disable(u32 dma_dir, u32 channel)
 	} else if (dma_dir == LUT_DMA_WR) {
 		if (channel < LUT_DMA_WR_CHANNEL &&
 		    info->ins[channel].registered) {
+			if (channel >= 8)
+				channel_index = channel - 8;
+			else
+				channel_index = channel;
 			mode = info->ins[channel].mode;
 			lut_dma_reg_set_bits(VPU_DMA_RDMIF0_CTRL +
-					     channel,
+					     channel_index,
 					     0, 16, 8);
 			info->ins[channel].enable = 0;
 		}
@@ -515,12 +584,17 @@ int lut_dma_write_phy_addr(u32 channel, ulong phy_addr, u32 size)
 void lut_dma_update_irq_source(u32 channel, u32 irq_source)
 {
 	struct lut_dma_device_info *info = &lut_dma_info;
+	u32 channel_index = 0;
 
 	if (!lut_dma_probed)
 		return;
 	pr_dbg("%s: channel=%d, irq_source=%d\n", __func__, channel, irq_source);
 	info->ins[channel].trigger_irq_type = 1 << irq_source;
-	lut_dma_reg_set_bits(VPU_DMA_RDMIF0_CTRL + channel,
+	if (channel >= 8)
+		channel_index = channel - 8;
+	else
+		channel_index = channel;
+	lut_dma_reg_set_bits(VPU_DMA_RDMIF0_CTRL + channel_index,
 			     info->ins[channel].trigger_irq_type,
 			     16, 8);
 }
@@ -1134,7 +1208,8 @@ static int lut_dma_probe(struct platform_device *pdev)
 		mutex_init(&info->ins[i].lut_dma_lock);
 	lut_dma_probed = 1;
 	if (lutdma_is_meson_sc2_cpu() ||
-	    lutdma_is_meson_t7_cpu())
+	    lutdma_is_meson_t7_cpu() ||
+	    lutdma_is_meson_s5_cpu())
 		lut_dma_reg_set_bits(VPU_DMA_RDMIF_CTRL2,
 				     1, 29, 1);
 	return 0;
