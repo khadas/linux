@@ -750,4 +750,5 @@ void *get_sei_from_src_fmt(struct vframe_s *vf, u32 *sei_size);
 enum vframe_signal_fmt_e get_vframe_src_fmt(struct vframe_s *vf);
 s32 clear_vframe_src_fmt(struct vframe_s *vf);
 int get_md_from_src_fmt(struct vframe_s *vf);
+char *find_vframe_sei(struct vframe_s *vf, void *sei, u32 size, u32 *ret_size);
 #endif /* VFRAME_H */
