@@ -759,6 +759,7 @@ void rx_edid_update_vrr_info(unsigned char *p_edid)
 			rx_pr("modify vrr min = %d, vrr_max = %d\n",
 				  rx.vrr_min, rx.vrr_max);
 	} else {
+		edid_rm_db_by_tag(p_edid, VSDB_FREESYNC_TAG);
 		rx_pr("hf_vsdb_start = %d", hf_vsdb_start);
 		tag_len = (p_edid[hf_vsdb_start] & 0xf) + 1;
 		rx_pr("tag_len = %d", tag_len);
@@ -819,6 +820,8 @@ u16 rx_get_tag_code(u_char *edid_data)
 			tag_code = tmp_tag;
 		else if (ieee_oui == 0xC45DD8)
 			tag_code = HF_VENDOR_DB_TAG;
+		else if (ieee_oui == 0x00001A)
+			tag_code = VSDB_FREESYNC_TAG;
 	} else {
 		tag_code = tmp_tag;
 	}
@@ -2052,14 +2055,26 @@ bool hdmi_rx_top_edid_update(void)
 			case 1:
 				pedid = (rx.fs_mode.edid_ver[i] == EDID_V20) ?
 					pedid_data2 : pedid_data1;
+				#ifdef CONFIG_AMLOGIC_HDMITX
+					if (edid_from_tx & 1)
+						pedid = pedid_data2;
+				#endif
 				break;
 			case 2:
 				pedid = (rx.fs_mode.edid_ver[i] == EDID_V20) ?
 					pedid_data4 : pedid_data3;
+				#ifdef CONFIG_AMLOGIC_HDMITX
+					if (edid_from_tx & 1)
+						pedid = pedid_data4;
+				#endif
 				break;
 			case 3:
 				pedid = (rx.fs_mode.edid_ver[i] == EDID_V20) ?
-					pedid_data6 : pedid_data5;
+					pedid_data6 : pedid_data4;
+				#ifdef CONFIG_AMLOGIC_HDMITX
+					if (edid_from_tx & 1)
+						pedid = pedid_data6;
+				#endif
 				break;
 			default:
 				break;
@@ -4707,6 +4722,7 @@ void edid_rm_db_by_tag(u8 *p_edid, u16 tagid)
 		return;
 	}
 	tag_offset = tag_data_blk - p_edid;
+	rx_pr("offset = %d, tag=%d\n", tag_offset, tagid);
 	tag_len = BLK_LENGTH(tag_data_blk[0]) + 1;
 	/* move data behind the removed data block
 	 * forward, except checksum & free size
