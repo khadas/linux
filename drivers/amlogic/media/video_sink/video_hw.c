@@ -3246,7 +3246,7 @@ static void vd1_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 		vpu_module_clk_disable(vpp_index, VD1_SCALER, 0);
 	}
 
-	/* horitontal filter settings */
+	/* horizontal filter settings */
 	if (setting->sc_h_enable) {
 		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
@@ -3971,7 +3971,7 @@ static void vdx_scaler_setting(struct video_layer_s *layer, struct scaler_settin
 			vpu_module_clk_disable(vpp_index, VD2_SCALER, 0);
 	}
 
-	/* horitontal filter settings */
+	/* horizontal filter settings */
 	if (setting->sc_h_enable) {
 		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
@@ -10640,14 +10640,6 @@ void fgrain_update_table(struct video_layer_s *layer,
 }
 #endif
 
-static bool is_layer_aisr_supported(struct video_layer_s *layer)
-{
-	/* only vd1 has aisr for t3 */
-	if (!layer || layer->layer_id != 0)
-		return false;
-	else
-		return true;
-}
 #define DI_HF_Y_REVERSE
 bool aisr_update_frame_info(struct video_layer_s *layer,
 			 struct vframe_s *vf)
@@ -10945,7 +10937,7 @@ void aisr_reshape_cfg(struct video_layer_s *layer,
 	if (!aisr_mif_setting->aisr_enable)
 		return;
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		aisr_reshape_cfg_s5(layer, aisr_mif_setting);
+		return aisr_reshape_cfg_s5(layer, aisr_mif_setting);
 	vscale_skip_count = aisr_mif_setting->vscale_skip_count;
 	aisr_hsize = aisr_mif_setting->x_end - aisr_mif_setting->x_start + 1;
 	aisr_vsize = aisr_mif_setting->y_end - aisr_mif_setting->y_start + 1;
@@ -11108,13 +11100,14 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 	u8 vpp_index, layer_id;
 	u32 aisr_enable = layer->aisr_mif_setting.aisr_enable;
 
-	if (!is_layer_aisr_supported(layer) ||
-	    !setting || !setting->frame_par)
-		return;
 	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
 		aisr_scaler_setting_s5(layer, setting);
 		return;
 	}
+
+	if (!is_layer_aisr_supported(layer) ||
+	    !setting || !setting->frame_par)
+		return;
 	if (!aisr_enable) {
 		aisr_sr1_nn_enable(0);
 		video_info_change_status &= ~VIDEO_AISR_FRAME_EVENT;
@@ -11185,7 +11178,7 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 			VPP_SC_TOP_EN_WID);
 	}
 
-	/* horitontal filter settings */
+	/* horizontal filter settings */
 	if (setting->sc_h_enable) {
 		bit9_mode = vpp_filter->vpp_horz_coeff[1] & 0x8000;
 		s11_mode = vpp_filter->vpp_horz_coeff[1] & 0x4000;
@@ -11624,6 +11617,8 @@ void aisr_scaler_setting(struct video_layer_s *layer,
 
 void aisr_demo_enable(void)
 {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return aisr_demo_enable_s5();
 	if (!cur_dev->aisr_support)
 		return;
 	/* reshape and aisr demo is mutex */
@@ -11637,6 +11632,8 @@ void aisr_demo_enable(void)
 
 void aisr_demo_axis_set(void)
 {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return aisr_demo_axis_set_s5();
 	if (!cur_dev->aisr_support)
 		return;
 	WRITE_VCBUS_REG_BITS

@@ -43,6 +43,7 @@
 
 #include "video_priv.h"
 #include "video_hw_s5.h"
+#include "vpp_regs_s5.h"
 #define MAX_NONLINEAR_FACTOR    0x40
 #define MAX_NONLINEAR_T_FACTOR    100
 
@@ -4024,6 +4025,101 @@ static void sr_pps_phase_auto_calculation(struct vpp_frame_par_s *next_frame_par
 		next_frame_par->vsc_top_rpt_l0_num = 3;
 }
 
+static void sr_pps_phase_auto_calculation_s5(struct vpp_frame_par_s *next_frame_par)
+{
+	struct sr_info_s *sr;
+	u32 sr0_sharp_sr2_ctrl;
+	u32 sr1_sharp_sr2_ctrl;
+	u32 sr0_sharp_sr2_ctrl2;
+	u32 sr1_sharp_sr2_ctrl2;
+	s64 sr0_bic_init_hphase_y;
+	s64 sr0_bic_init_vphase_y;
+	s64 sr0_bic_init_hphase_c;
+	s64 sr0_bic_init_vphase_c;
+	s64 sr1_bic_init_hphase_y;
+	s64 sr1_bic_init_vphase_y;
+	s64 sr1_bic_init_hphase_c;
+	s64 sr1_bic_init_vphase_c;
+	u32 sr0_sr2_vert_outphs;
+	u32 sr0_sr2_horz_outphs;
+	u32 sr1_sr2_vert_outphs;
+	u32 sr1_sr2_horz_outphs;
+
+	if (hscaler_8tap_enable[0])
+		next_frame_par->hsc_rpt_p0_num0 = 3;
+	else
+		next_frame_par->hsc_rpt_p0_num0 = 1;
+	next_frame_par->vsc_top_rpt_l0_num = 1;
+	if (!cur_dev->pps_auto_calc)
+		return;
+	sr = &sr_info;
+	sr0_sharp_sr2_ctrl =
+		cur_dev->rdma_func[VPP0].rdma_rd
+			(S5_SRSHARP0_SHARP_SR2_CTRL);
+	sr0_sr2_vert_outphs = (sr0_sharp_sr2_ctrl & 0x80) >> 7;
+	sr0_sr2_horz_outphs = (sr0_sharp_sr2_ctrl & 0x40) >> 6;
+	sr1_sharp_sr2_ctrl =
+		cur_dev->rdma_func[VPP0].rdma_rd
+			(S5_SRSHARP1_SHARP_SR2_CTRL);
+	sr1_sr2_vert_outphs = (sr1_sharp_sr2_ctrl & 0x80) >> 7;
+	sr1_sr2_horz_outphs = (sr1_sharp_sr2_ctrl & 0x40) >> 6;
+	sr0_sharp_sr2_ctrl2 =
+		cur_dev->rdma_func[VPP0].rdma_rd
+			(S5_SRSHARP0_SHARP_SR2_CTRL2);
+	sr0_bic_init_hphase_y = s3_to_s64((sr0_sharp_sr2_ctrl2 & 0x7fff) >> 12);
+	sr0_bic_init_vphase_y = s3_to_s64((sr0_sharp_sr2_ctrl2 & 0x7ff) >> 8);
+	sr0_bic_init_hphase_c = s3_to_s64((sr0_sharp_sr2_ctrl2 & 0x7f) >> 4);
+	sr0_bic_init_vphase_c = s3_to_s64(sr0_sharp_sr2_ctrl2 & 0x7);
+	sr1_sharp_sr2_ctrl2 =
+		cur_dev->rdma_func[VPP0].rdma_rd
+			(S5_SRSHARP1_SHARP_SR2_CTRL2);
+	sr1_bic_init_hphase_y = s3_to_s64((sr1_sharp_sr2_ctrl2 & 0x7fff) >> 12);
+	sr1_bic_init_vphase_y = s3_to_s64((sr1_sharp_sr2_ctrl2 & 0x7ff) >> 8);
+	sr1_bic_init_hphase_c = s3_to_s64((sr1_sharp_sr2_ctrl2 & 0x7f) >> 4);
+	sr1_bic_init_vphase_c = s3_to_s64(sr1_sharp_sr2_ctrl2 & 0x7);
+	if (next_frame_par->supsc0_enable) {
+		next_frame_par->h_phase[0] =
+			(sr0_bic_init_hphase_y +
+			sr0_sr2_horz_outphs * 2);
+		next_frame_par->v_phase[0] =
+			(sr0_bic_init_vphase_y +
+			sr0_sr2_vert_outphs * 2);
+	} else {
+		next_frame_par->h_phase[0] = 0;
+		next_frame_par->v_phase[0] = 0;
+	}
+	if (next_frame_par->supsc1_enable) {
+		next_frame_par->h_phase[2] =
+			(sr1_bic_init_hphase_y +
+			sr1_sr2_horz_outphs * 2);
+		next_frame_par->v_phase[2] =
+			(sr1_bic_init_vphase_y +
+			sr1_sr2_vert_outphs * 2);
+	} else {
+		next_frame_par->h_phase[2] = 0;
+		next_frame_par->v_phase[2] = 0;
+	}
+	next_frame_par->h_phase[0] <<= (25 - 2);
+	next_frame_par->v_phase[0] <<= (25 - 2);
+
+	next_frame_par->h_phase[2] <<= (25 - 2);
+	next_frame_par->v_phase[2] <<= (25 - 2);
+	if (aisr_debug_flag)
+		pr_info("%s:h_phase[0]=0x%llx, v_phase[0]=0x%llx,h_phase[2]=0x%llx,v_phase[2]=0x%llx\n",
+			__func__,
+			next_frame_par->h_phase[0],
+			next_frame_par->v_phase[0],
+			next_frame_par->h_phase[2],
+			next_frame_par->v_phase[2]);
+	sr_pps_step_phase_id(next_frame_par);
+	vd_hphase_ctrl_adjust(next_frame_par);
+	if (next_frame_par->hsc_rpt_p0_num0 >= 15)
+		next_frame_par->hsc_rpt_p0_num0 = 15;
+	vd_vphase_ctrl_adjust(next_frame_par);
+	if (next_frame_par->vsc_top_rpt_l0_num >= 3)
+		next_frame_par->vsc_top_rpt_l0_num = 3;
+}
+
 static void dnn_pps_phase_auto_calculation(struct vpp_frame_par_s *aisr_frame_par)
 {
 	s64 h_pps_ratio = 0;
@@ -4280,6 +4376,9 @@ void aisr_sr1_nn_enable(u32 enable)
 	struct sr_info_s *sr;
 	u32 sr_reg_offt2;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return aisr_sr1_nn_enable_s5(enable);
+
 	if (!cur_dev->aisr_support)
 		return;
 	sr = &sr_info;
@@ -4301,10 +4400,11 @@ void aisr_sr1_nn_enable_sync(u32 enable)
 
 	if (!cur_dev->aisr_support)
 		return;
-
+	pr_info("%s, enable=%d\n", __func__, enable);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return aisr_sr1_nn_enable_sync_s5(enable);
 	sr = &sr_info;
 	sr_reg_offt2 = sr->sr_reg_offt2;
-	pr_info("%s, enable=%d\n", __func__, enable);
 	if (enable)
 		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
@@ -4314,11 +4414,14 @@ void aisr_sr1_nn_enable_sync(u32 enable)
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
 			0x0, 13, 2);
 }
+
 void aisr_reshape_output(u32 enable)
 {
-	struct sr_info_s *sr;
-	u32 sr_reg_offt2;
+	struct sr_info_s *sr = NULL;
+	u32 sr_reg_offt2 = 0;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return aisr_reshape_output_s5(enable);
 	if (!cur_dev->aisr_support ||
 		!cur_dev->aisr_enable)
 		return;
@@ -6028,8 +6131,6 @@ RERTY:
 	/* check force ratio change flag in display buffer also
 	 * if it exist then it will override the settings in display side
 	 */
-	/* just for test temp */
-	vf->ratio_control = DISP_RATIO_ASPECT_RATIO_MASK;
 	if (vf->ratio_control & DISP_RATIO_FORCECONFIG) {
 		if ((vf->ratio_control & DISP_RATIO_CTRL_MASK) ==
 			DISP_RATIO_KEEPRATIO) {
@@ -6255,7 +6356,7 @@ RERTY:
 		}
 	}
 	aisr_set_filters(&local_input, next_frame_par, vf, vinfo, vpp_flags);
-	sr_pps_phase_auto_calculation(next_frame_par);
+	sr_pps_phase_auto_calculation_s5(next_frame_par);
 	return ret;
 }
 
@@ -6350,8 +6451,6 @@ RERTY:
 	/* check force ratio change flag in display buffer also
 	 * if it exist then it will override the settings in display side
 	 */
-	/* just for test temp */
-	vf->ratio_control = DISP_RATIO_ASPECT_RATIO_MASK;
 	if (vf->ratio_control & DISP_RATIO_FORCECONFIG) {
 		if ((vf->ratio_control & DISP_RATIO_CTRL_MASK) ==
 			DISP_RATIO_KEEPRATIO) {

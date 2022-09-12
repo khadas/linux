@@ -244,3 +244,13 @@ void vframe_canvas_set(struct canvas_config_s *config,
 	for (i = 0; i < planes; i++, canvas_index++, cfg++)
 		canvas_config_config(*canvas_index, cfg);
 }
+
+bool is_layer_aisr_supported(struct video_layer_s *layer)
+{
+	/* only vd1 has aisr for t3 */
+	if (!layer || layer->layer_id != 0)
+		return false;
+	else
+		return true;
+}
+

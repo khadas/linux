@@ -24,6 +24,7 @@
 #define SLICE_NUM 4
 #define MAX_VD_LAYER_S5 5
 #define MAX_VD_CHAN_S5 2
+#define AISR_SCHN     (MAX_VD_LAYER_S5)
 
 struct vd_mif_reg_s {
 	u32 vd_if0_gen_reg; /* VD1_IF0_GEN_REG */
@@ -136,6 +137,8 @@ struct vd_proc_sr_reg_s {
 	u32 srsharp0_sharp_sr2_ctrl2;
 	u32 srsharp1_sharp_sr2_ctrl2;
 	u32 srsharp1_nn_post_top;
+	u32 srsharp1_demo_mode_window_ctrl0;
+	u32 srsharp1_demo_mode_window_ctrl1;
 };
 
 struct vd_proc_slice_reg_s {
@@ -246,6 +249,32 @@ struct vd_pip_alpha_reg_s {
 	u32 vd_pip_alph_scp_v;
 };
 
+struct vd_aisr_reshape_reg_s {
+	u32 aisr_reshape_ctrl0;
+	u32 aisr_reshape_ctrl1;
+	u32 aisr_reshape_scope_x;
+	u32 aisr_reshape_scope_y;
+	u32 aisr_reshape_baddr00;
+	u32 aisr_reshape_baddr01;
+	u32 aisr_reshape_baddr02;
+	u32 aisr_reshape_baddr03;
+	u32 aisr_reshape_baddr10;
+	u32 aisr_reshape_baddr11;
+	u32 aisr_reshape_baddr12;
+	u32 aisr_reshape_baddr13;
+	u32 aisr_reshape_baddr20;
+	u32 aisr_reshape_baddr21;
+	u32 aisr_reshape_baddr22;
+	u32 aisr_reshape_baddr23;
+	u32 aisr_reshape_baddr30;
+	u32 aisr_reshape_baddr31;
+	u32 aisr_reshape_baddr32;
+	u32 aisr_reshape_baddr33;
+	u32 aisr_post_ctrl;
+	u32 aisr_post_size;
+	u32 aisr_sr1_nn_post_top;
+};
+
 struct vpp_post_misc_reg_s {
 	u32 vpp_postblnd_ctrl;
 	u32 vpp_obuf_ram_ctrl;
@@ -275,6 +304,7 @@ extern struct vd_proc_misc_reg_s vd_proc_misc_reg_s5;
 extern struct vd_proc_blend_reg_s vd_proc_blend_reg_s5;
 extern struct vd1_slice_pad_reg_s vd1_slice_pad_size0_reg_s5[SLICE_NUM];
 extern struct vd1_slice_pad_reg_s vd1_slice_pad_size1_reg_s5[SLICE_NUM];
+extern struct vd_aisr_reshape_reg_s aisr_reshape_reg_s5;
 extern struct vd2_proc_misc_reg_s vd2_proc_misc_reg_s5;
 extern struct vd2_pre_blend_reg_s vd2_pre_blend_reg_s5;
 extern struct vd_fg_reg_s fg_reg_s5_array[MAX_VD_LAYER_S5];

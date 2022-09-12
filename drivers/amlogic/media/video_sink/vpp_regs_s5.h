@@ -3261,5 +3261,4 @@
 #define S5_OSD_HDR2_CTRL                              0x6000
 
 #define VD1_PI_CONTROL                                0x4c54
-
 #endif

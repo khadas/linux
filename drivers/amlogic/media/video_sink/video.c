@@ -19730,6 +19730,7 @@ static int amvideom_probe(struct platform_device *pdev)
 	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_S5_) {
 		memcpy(&amvideo_meson_dev.dev_property, &s5_dev_property,
 		       sizeof(struct video_device_hw_s));
+		aisr_en = 1;
 		cur_dev->power_ctrl = true;
 	} else {
 		memcpy(&amvideo_meson_dev.dev_property, &legcy_dev_property,

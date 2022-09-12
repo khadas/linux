@@ -31,4 +31,5 @@ void init_layer_canvas(struct video_layer_s *layer,
 void vframe_canvas_set(struct canvas_config_s *config,
 	u32 planes,
 	u32 *index);
+bool is_layer_aisr_supported(struct video_layer_s *layer);
 #endif

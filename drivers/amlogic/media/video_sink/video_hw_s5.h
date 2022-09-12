@@ -302,6 +302,7 @@ struct vd_proc_reg_s {
 	struct vd_proc_misc_reg_s vd_proc_misc_reg;
 	struct vd1_slice_pad_reg_s vd1_slice_pad_size0_reg[SLICE_NUM];
 	struct vd1_slice_pad_reg_s vd1_slice_pad_size1_reg[SLICE_NUM];
+	struct vd_aisr_reshape_reg_s aisr_reshape_reg;
 	struct vd2_pre_blend_reg_s vd2_pre_blend_reg;
 	struct vd2_proc_misc_reg_s vd2_proc_misc_reg;
 	struct vd_pip_alpha_reg_s vd_pip_alpha_reg[MAX_VD_CHAN_S5];
@@ -328,6 +329,11 @@ void disable_vd1_blend_s5(struct video_layer_s *layer);
 void disable_vd2_blend_s5(struct video_layer_s *layer);
 void aisr_reshape_addr_set_s5(struct video_layer_s *layer,
 				  struct aisr_setting_s *aisr_mif_setting);
+void aisr_reshape_output_s5(u32 enable);
+void aisr_demo_enable_s5(void);
+void aisr_demo_axis_set_s5(void);
+void aisr_sr1_nn_enable_s5(u32 enable);
+void aisr_sr1_nn_enable_sync_s5(u32 enable);
 bool is_sr_phase_changed_s5(void);
 void vd_s5_hw_set(struct video_layer_s *layer,
 	struct vframe_s *dispbuf, struct vpp_frame_par_s *frame_par);
