@@ -34,6 +34,8 @@
 #define VCDB_TAG 0 /* video capability data block */
 #define VSVDB_TAG 1 /* Vendor-Specific Video Data Block */
 #define VSVDB_OFFSET	0xF0
+#define FREESYNC_OFFSET 0xE0
+#define VSDB_FREESYNC_TAG (VENDOR_TAG + FREESYNC_OFFSET)
 #define VSVDB_DV_TAG	((USE_EXTENDED_TAG << 8) + VSVDB_TAG)
 #define VSVDB_HDR10P_TAG ((USE_EXTENDED_TAG << 8) + VSVDB_TAG + VSVDB_OFFSET)
 #define VDDDB_TAG 2 /* VESA Display Device Data Block */
