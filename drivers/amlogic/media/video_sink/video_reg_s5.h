@@ -96,6 +96,7 @@ struct vd_fg_reg_s {
 	u32 fgrain_ctrl;
 	u32 fgrain_win_h;
 	u32 fgrain_win_v;
+	u32 fgrain_slice_win_h;
 };
 
 struct vd_pps_reg_s {

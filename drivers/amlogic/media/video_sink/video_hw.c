@@ -2926,10 +2926,8 @@ void vd_mif_setting(struct video_layer_s *layer,
 
 	if (!setting)
 		return;
-	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
-		//vd_mif_setting_s5(layer, setting);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return;
-	}
 	layer_id = layer->layer_id;
 	vpp_index = layer->vpp_index;
 	vd_mif_reg = setting->p_vd_mif_reg;
@@ -10251,7 +10249,7 @@ static void fgrain_set_config(struct video_layer_s *layer,
 	u32 layer_id = 0;
 	struct hw_fg_reg_s *fg_reg;
 
-	if (!glayer_info[layer_id].fgrain_support)
+	if (!glayer_info[layer->layer_id].fgrain_support)
 		return;
 	if (!setting)
 		return;
@@ -10335,7 +10333,7 @@ static void fgrain_set_window(struct video_layer_s *layer,
 			  (setting->end_y << 16));
 }
 
-int fgrain_init(u8 layer_id, u32 table_size)
+static int fgrain_init(u8 layer_id, u32 table_size)
 {
 	int ret;
 	u32 channel = FILM_GRAIN0_CHAN;
@@ -10369,6 +10367,10 @@ static void fgrain_uninit(u8 layer_id)
 {
 	u32 channel = FILM_GRAIN0_CHAN;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		fgrain_uninit_s5(layer_id);
+		return;
+	}
 	if (!glayer_info[layer_id].fgrain_support)
 		return;
 
@@ -10402,7 +10404,7 @@ static int fgrain_write(u32 layer_id, ulong fgs_table_addr)
 static int get_viu_irq_source(u8 vpp_index)
 {
 	u32 venc_mux = 3;
-	u32 irq_source = ENCP_GO_FEILD;
+	u32 irq_source = ENCP_GO_FIELD;
 
 	venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
 	venc_mux >>= (vpp_index * 2);
@@ -10411,13 +10413,13 @@ static int get_viu_irq_source(u8 vpp_index)
 	switch (venc_mux) {
 	case 0:
 		/* venc0 */
-		irq_source = VENC0_GO_FEILD;
+		irq_source = VENC0_GO_FIELD;
 		break;
 	case 1:
-		irq_source = VENC1_GO_FEILD;
+		irq_source = VENC1_GO_FIELD;
 		break;
 	case 2:
-		irq_source = VENC2_GO_FEILD;
+		irq_source = VENC2_GO_FIELD;
 		break;
 	}
 	return irq_source;
@@ -10425,7 +10427,7 @@ static int get_viu_irq_source(u8 vpp_index)
 
 static void fgrain_update_irq_source(u8 layer_id, u8 vpp_index)
 {
-	u32 irq_source = ENCP_GO_FEILD;
+	u32 irq_source = ENCP_GO_FIELD;
 	u32 viu, channel = 0;
 
 	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
@@ -10436,13 +10438,13 @@ static void fgrain_update_irq_source(u8 layer_id, u8 vpp_index)
 
 		switch (viu) {
 		case 0:
-			irq_source = ENCL_GO_FEILD;
+			irq_source = ENCL_GO_FIELD;
 			break;
 		case 1:
-			irq_source = ENCI_GO_FEILD;
+			irq_source = ENCI_GO_FIELD;
 			break;
 		case 2:
-			irq_source = ENCP_GO_FEILD;
+			irq_source = ENCP_GO_FIELD;
 			break;
 		}
 	}
@@ -10465,6 +10467,8 @@ void fgrain_config(struct video_layer_s *layer,
 	u8 layer_id;
 
 	if (!vf || !mif_setting || !setting || !frame_par)
+		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return;
 	layer_id = layer->layer_id;
 	if (!glayer_info[layer_id].fgrain_support)
@@ -10533,10 +10537,8 @@ void fgrain_setting(struct video_layer_s *layer,
 
 	if (!vf || !setting)
 		return;
-	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
-		fgrain_setting_s5(layer, setting, vf);
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
 		return;
-	}
 
 	layer_id = layer->layer_id;
 	if (!glayer_info[layer_id].lut_dma_support)
@@ -10561,6 +10563,8 @@ void fgrain_update_table(struct video_layer_s *layer,
 
 	if (!vf)
 		return;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return fgrain_update_table_s5(layer, vf);
 	layer_id = layer->layer_id;
 	if (!glayer_info[layer_id].lut_dma_support)
 		return;

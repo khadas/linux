@@ -382,7 +382,7 @@ static void vpp_post_blend_set(u32 vpp_index,
 
 	rdma_wr_bits(vpp_reg->vpp_postblnd_ctrl,
 		vpp_blend->bld_out_en, 8, 1);
-	if (debug_flag) {
+	if (debug_flag_s5 & DEBUG_VPP_POST) {
 		pr_info("%s: vpp_postblnd_h_v_size=%x\n",
 			__func__, vpp_blend->bld_out_w | vpp_blend->bld_out_h << 16);
 		pr_info("%s: vpp_postblend_vd1_h_start_end=%x\n",
@@ -435,7 +435,7 @@ static void vpp_post_slice_set(u32 vpp_index,
 	}
 	rdma_wr_bits(vpp_reg->vpp_4p4s_ctrl, slice_set, 0, 2);
 	rdma_wr_bits(vpp_reg->vpp_4s4p_ctrl, slice_set, 0, 2);
-	if (debug_flag) {
+	if (debug_flag_s5 & DEBUG_VPP_POST) {
 		pr_info("%s: vpp_4p4s_ctrl=%x\n",
 			__func__, slice_set);
 	}
@@ -455,7 +455,7 @@ static void vpp_vd1_hwin_set(u32 vpp_index,
 		rdma_wr(vpp_reg->vpp_post_vd1_win_cut_ctrl,
 			 vpp_post->vd1_hwin.vd1_hwin_en << 31  |
 			 vd1_win_in_hsize);
-		if (debug_flag)
+		if (debug_flag_s5 & DEBUG_VPP_POST)
 			pr_info("%s: vpp_post_vd1_win_cut_ctrl:vd1_win_in_hsize=%d\n",
 				__func__, vd1_win_in_hsize);
 	} else {
@@ -493,7 +493,7 @@ static void vpp_post_proc_set(u32 vpp_index,
 		wr_reg_bits_slice_vpost(vpp_reg->vpp_align_fifo_size,
 			vpp_post_proc->align_fifo_size[i], 0, 14, i);
 		/* todo: for other unit bypass handle */
-		if (debug_flag) {
+		if (debug_flag_s5 & DEBUG_VPP_POST) {
 			pr_info("%s: vpp_out_h_v_size=%x\n",
 				__func__, vpp_post_proc_slice->hsize[i] << 16 |
 			vpp_post_proc_slice->vsize[i]);
@@ -518,7 +518,7 @@ static void vpp_post_padding_set(u32 vpp_index,
 			vpp_post->vpp_post_pad.vpp_post_pad_dummy << 0 |
 			vpp_post->vpp_post_pad.vpp_post_pad_rpt_lcol << 30 |
 			vpp_post->vpp_post_pad.vpp_post_pad_en << 31);
-		if (debug_flag) {
+		if (debug_flag_s5 & DEBUG_VPP_POST) {
 			pr_info("%s: vpp_post_pad_hsize=%x\n",
 				__func__, vpp_post->vpp_post_pad.vpp_post_pad_hsize);
 		}
@@ -646,7 +646,7 @@ static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 	vpp_post_blend->bld_din4_v_start = 0;
 	vpp_post_blend->bld_din4_v_end = vpp_input->din_vsize[4] - 1;
 	vpp_post_blend->bld_din4_premult_en	= 0;
-	if (debug_flag)
+	if (debug_flag_s5 & DEBUG_VPP_POST)
 		pr_info("vpp_post_blend:bld_out: %d, %d,bld_din0: %d, %d, %d, %d, bld_din1: %d, %d, %d, %d\n",
 			vpp_post_blend->bld_out_w,
 			vpp_post_blend->bld_out_h,
@@ -895,7 +895,6 @@ static int get_vpp_slice_num(const struct vinfo_s *info)
 	return slice_num;
 }
 
-extern int debug_flag;
 static int check_vpp_info_changed(struct vpp_post_input_s *vpp_input)
 {
 	int i = 0, changed = 0;

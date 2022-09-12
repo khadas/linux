@@ -112,7 +112,7 @@ u32 pi_enable;
 MODULE_PARM_DESC(pi_enable, "\n pi_enable\n");
 module_param(pi_enable, uint, 0664);
 
-static u32 debug_flag_s5;
+u32 debug_flag_s5;
 MODULE_PARM_DESC(debug_flag_s5, "\n debug_flag_s5\n");
 module_param(debug_flag_s5, uint, 0664);
 
@@ -123,6 +123,11 @@ static void vdx_scaler_setting_s5(struct video_layer_s *layer,
 	struct scaler_setting_s *setting);
 static void _vd_mif_setting_s5(struct video_layer_s *layer,
 			struct mif_pos_s *setting);
+static void _vd_fgrain_config_s5(struct video_layer_s *layer,
+		   struct vpp_frame_par_s *frame_par,
+		   struct vframe_s *vf);
+static void _vd_fgrain_setting_s5(struct video_layer_s *layer,
+		    struct vframe_s *vf);
 
 static inline u32 slice_out_hsize(u32 slice,
 	u32 slice_num, u32 frm_hsize)
@@ -1138,7 +1143,7 @@ static void vd_proc_slice_set(u32 vpp_index,
 	/* NOTE:::The reg is to set size before hwincut */
 	rdma_wr(vd_slice_reg->vd_proc_s0_out_size,
 		vd_slice->dout_hsize << 16 | vd_slice->dout_vsize);
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s:vd_proc_s0_in_size: %x, vd_proc_s0_out_size: %x\n",
 			__func__,
 			vd_slice->din_hsize << 16 | vd_slice->din_vsize,
@@ -1193,7 +1198,7 @@ static inline void vd_proc_bypass_preblend(u32 vpp_index,
 
 	/* Bit 5: reg_bypass_prebld1 0:use vd prebld 1:bypass vd prebld */
 	/* Bit 0: reg_bypass_prebld0 0:use vd prebld 1:bypass vd prebld */
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s:reg_bypass_prebld: %d, %d\n",
 			__func__,
 			vd_proc->vd_proc_unit[0].reg_bypass_prebld,
@@ -1249,7 +1254,7 @@ static void vd_proc_sr0_set(u32 vpp_index,
 	else
 		sr_core0_max_width = vd_sr->core_v_enable_width_max;
 
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s:vd_proc_s0_sr0_in_size: %x, vd_proc_s1_sr0_in_size: %x\n",
 			__func__,
 			vd_sr->din_hsize << 16 |
@@ -1337,13 +1342,13 @@ static void vd_proc_sr1_set(u32 vpp_index,
 		if ((tmp_data & 0x1) != 0)
 			rdma_wr_bits(vd_sr_reg->vd_proc_sr1_ctrl,
 					       0, 0, 1);
-		if (debug_flag_s5)
+		if (debug_flag_s5 & DEBUG_SR)
 			pr_info("%s:disable sr1 core tmp_data: %x\n",
 				__func__,
 				tmp_data);
 		vpu_module_clk_disable_s5(VPP0, SR1, 0);
 	} else {
-		if (debug_flag_s5)
+		if (debug_flag_s5 & DEBUG_SR)
 			pr_info("%s:enable sr1 core tmp_data: %x\n",
 				__func__,
 				tmp_data);
@@ -1375,7 +1380,7 @@ static void vd_proc_sr1_set(u32 vpp_index,
 	rdma_wr(vd_sr_reg->srsharp1_sharp_sr2_ctrl, tmp_data);
 	rdma_wr(vd_sr_reg->srsharp1_sharp_sr2_ctrl2, 0x0);
 
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s:sr_en:%d, vd_proc_s0_sr1_in_size: %x, sr support=%d\n",
 			__func__,
 			vd_sr->sr_en,
@@ -1402,7 +1407,7 @@ static void vd_proc_hwin_set(u32 vpp_index,
 
 	if (slice_index >= SLICE_NUM)
 		return;
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s: hwin_en=%d, hwin_bgn=%d, hwin_end=%d\n",
 			__func__,
 			vd_hwin->hwin_en, vd_hwin->hwin_bgn, vd_hwin->hwin_end);
@@ -1487,7 +1492,7 @@ static void vd_proc_pi_path_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 		pi_enalbe = 1;
 
 	rdma_wr(vd_misc_reg->vd1_pi_ctrl, pi_enalbe);
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s: pi_enalbe=%x\n",
 			__func__, pi_enalbe);
 }
@@ -1546,7 +1551,7 @@ static void vd_slices_padding_set(u32 vpp_index,
 				vd_proc_padding->slice_pad_v_bgn = slice_pad_v_bgn[slice];
 				vd_proc_padding->slice_pad_h_end = slice_pad_h_end[slice];
 				vd_proc_padding->slice_pad_v_end = slice_pad_v_end[slice];
-				if (debug_flag_s5) {
+				if (debug_flag_s5 & DEBUG_VD_PROC) {
 					pr_info("%s:slice %d need padding, padding axis: %x, %x, %x, %x\n",
 						__func__, slice,
 						slice_pad_h_bgn[slice],
@@ -1719,7 +1724,7 @@ static void vd_proc_blend_set(u32 vpp_index,
 	rdma_wr(vd_blend_reg->vd1_s3_blend_src_ctrl,
 		(vd_blend->bld_src4_sel	& 0xf) |
 		(vd_blend->bld_din3_premult_en & 0x1) << 4);
-	if (debug_flag_s5) {
+	if (debug_flag_s5 & DEBUG_VD_PROC) {
 		pr_info("%s: vpp_vd_blnd_h_v_size=%x\n",
 			__func__, vd_blend->bld_out_w |
 			vd_blend->bld_out_h << 16);
@@ -1893,7 +1898,7 @@ static void vd_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 	vd1_dout_vsize = vd_proc->vd_proc_vd1_info.vd1_dout_vsize;
 	mosaic_mode = vd1_work_mode == VD1_2_2SLICES_MODE &&
 			vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P;
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s: vd1_work_mode=%d, vd1_slices_dout_dpsel=%d, vd1_dout_hsize=%d, vd1_dout_vsize=%d\n",
 			__func__, vd1_work_mode, vd1_slices_dout_dpsel,
 			vd1_dout_hsize, vd1_dout_vsize);
@@ -2040,7 +2045,7 @@ static void vd_blend_1ppc_param_set(struct vd_proc_s *vd_proc,
 	vd_proc_blend->bld_din3_v_end =
 		vd_proc->vd_proc_unit[3].dout_y_start +
 		vd_proc->vd_proc_unit[3].dout_vsize - 1;
-	if (debug_flag_s5) {
+	if (debug_flag_s5 & DEBUG_VD_PROC) {
 		pr_info("%s: bld_din0_h_start=%d, bld_din0_h_end=%d, v: %d, %d\n",
 			__func__,
 			vd_proc_blend->bld_din0_h_start,
@@ -2369,7 +2374,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 			vd_proc_preblend_info->prebld_dout_vsize = src_h;
 		}
 	}
-	if (debug_flag_s5) {
+	if (debug_flag_s5 & DEBUG_VD_PROC) {
 		if (vd_proc->vd1_used) {
 			pr_info("%s:vd_proc_vd1_info->slice_num=%d\n",
 				__func__, vd_proc_vd1_info->slice_num);
@@ -2541,7 +2546,7 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 				cal_pps_din_hsize(&o_valid_pix_din_hsize[slice],
 					valid_pix_pps_dout_hsize[slice],
 					horz_phase_step);
-			if (debug_flag_s5)
+			if (debug_flag_s5 & DEBUG_VD_PROC)
 				pr_info("o_valid_pix_din_hsize[%d]=%d, horz_phase_step=0x%x, valid_pix_pps_dout_hsize[slice]=%d\n",
 					slice, o_valid_pix_din_hsize[slice], horz_phase_step,
 					valid_pix_pps_dout_hsize[slice]);
@@ -2664,7 +2669,7 @@ static void get_slice_input_size(struct vd_proc_s *vd_proc)
 	}
 	/* todo */
 	//if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_PI)
-	if (debug_flag_s5) {
+	if (debug_flag_s5 & DEBUG_VD_PROC) {
 		pr_info("%s:vd1_work_mode=%d, vd1_slices_dout_dpsel=%d\n",
 			__func__,
 			vd_proc_vd1_info->vd1_work_mode,
@@ -2764,7 +2769,7 @@ static void vd1_proc_unit_param_set(struct vd_proc_s *vd_proc, u32 slice)
 			sr1_din_vsize = sr1_dout_vsize >> 1;
 		else
 			sr1_din_vsize = sr1_dout_vsize;
-		if (debug_flag_s5)
+		if (debug_flag_s5 & DEBUG_VD_PROC)
 			pr_info("s0_din_h/vsize_tmp=%d, %d, sr 0 h/v_scaleup_en=%d,%d, sr1_din_hsize=%d,dout_hsize=%d\n",
 				s0_din_hsize_tmp,
 				s0_din_vsize_tmp,
@@ -2954,7 +2959,7 @@ static void vd1_proc_unit_param_set(struct vd_proc_s *vd_proc, u32 slice)
 	vd_proc_unit->vd_proc_hwin.hwin_bgn = hwincut_bgn;
 	vd_proc_unit->vd_proc_hwin.hwin_end = hwincut_end;
 
-	if (debug_flag_s5) {
+	if (debug_flag_s5 & DEBUG_VD_PROC) {
 		pr_info("vd1 s%d: vd1_proc_unit_din_hsize/vsize: %d, %d\n",
 			slice, din_hsize, din_vsize);
 		pr_info("vd1 s%d: vd1_proc_unit_pps_din_hsize/vsize: %d, %d\n",
@@ -3029,7 +3034,7 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 		h_no_scale = ((din_hsize - overlap_hsize) ==
 			dout_hsize[slice]);
 
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_PPS)
 		pr_info("h_no_scale=0x%x, slice=%d, din_hsize=0x%x, dout_hsize[slice]=0x%x\n",
 			h_no_scale,
 			slice,
@@ -3134,7 +3139,7 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 				cal_pps_dout_hsize(&pps_dout_hsize1,
 					0, slice_x_end[slice] + 1, horz_phase_step);
 				pps_dout_hsize = pps_dout_hsize1 - pps_dout_hsize0;
-				if (debug_flag_s5) {
+				if (debug_flag_s5 & DEBUG_PPS) {
 					pr_info("slice_x_st=0x%x, slice_x_end=0x%x, horz_phase_step=0x%x\n",
 						slice_x_st,
 						slice_x_end[slice],
@@ -3285,7 +3290,7 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 	vd_proc_unit->vd_proc_hwin.hwin_bgn = hwincut_bgn;
 	vd_proc_unit->vd_proc_hwin.hwin_end = hwincut_end;
 
-	if (debug_flag_s5) {
+	if (debug_flag_s5 & DEBUG_VD_PROC) {
 		pr_info("%s\n",
 			__func__);
 		pr_info("vd1 s%d: vd1_proc_unit_din_hsize/vsize: %d, %d\n",
@@ -3559,7 +3564,7 @@ static void vd_proc_param_set(struct vd_proc_s *vd_proc)
 		vd_proc->vd_proc_unit[0].reg_bypass_prebld = 1;
 		vd_proc->vd_proc_unit[1].reg_bypass_prebld = 1;
 	}
-	if (debug_flag_s5) {
+	if (debug_flag_s5 & DEBUG_VD_PROC) {
 		pr_info("%s:reg_bypass_prebld: %d, %d\n",
 			__func__,
 			vd_proc->vd_proc_unit[0].reg_bypass_prebld,
@@ -3595,7 +3600,6 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 	set_vd_proc_info(layer);
 
 	vd_switch_frm_idx(vpp_index, 0);
-	//mif read todo
 	vd_proc_param_set(vd_proc);
 	if (dispbuf) {
 		/* adjust mif/afbc addr, scope, src_w, src_h */
@@ -3603,6 +3607,10 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 		vd_set_dcu_s5(layer->layer_id, layer,
 				frame_par, dispbuf);
 		_vd_mif_setting_s5(layer, &layer->mif_setting);
+		_vd_fgrain_config_s5(layer,
+			      frame_par,
+			      dispbuf);
+		_vd_fgrain_setting_s5(layer, dispbuf);
 	}
 
 	vd_proc_set(vpp_index, vd_proc);
@@ -3610,6 +3618,7 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 		vd_mosaic_slices_padding_set(vpp_index, 0, vd_proc);
 		vd_switch_frm_idx(vpp_index, 1);
 		//mif read for second half
+		//fg config
 		//todo
 		vd_proc_param_set(vd_proc);
 		vd_proc_set(vpp_index, vd_proc);
@@ -5389,7 +5398,7 @@ static void vd1_scaler_setting_s5(struct video_layer_s *layer,
 		if (use_frm_horz_phase_step) {
 			r3 = vd_proc_pps->dout_hsize - 1;
 			r2 = vd_proc_pps->dout_hsize;
-			if (debug_flag_s5)
+			if (debug_flag_s5 & DEBUG_VD_PROC)
 				pr_info("%s: dout_hsize=0x%x, dout_vsize=0x%x\n",
 					__func__,
 					vd_proc_pps->dout_hsize,
@@ -7097,11 +7106,575 @@ void vd_blend_setting_s5(struct video_layer_s *layer, struct blend_setting_s *se
 {
 }
 
-void fgrain_setting_s5(struct video_layer_s *layer,
-		    struct fgrain_setting_s *setting,
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+static void fgrain_set_config_s5(struct video_layer_s *layer,
+				  struct fgrain_setting_s *setting, u8 vpp_index)
+{
+	u32 reg_fgrain_glb_en = 1 << 0;
+	u32 reg_fgrain_loc_en = 1 << 1;
+	u32 reg_block_mode = 1 << 2;
+	u32 reg_rev_mode = 0 << 4;
+	u32 reg_comp_bits = 0 << 6;
+	/* unsigned , RW, default = 0:8bits; 1:10bits, else 12 bits */
+	u32 reg_fmt_mode = 2 << 8;
+	/* unsigned , RW, default =  0:444; 1:422; 2:420; 3:reserved */
+	u32 reg_last_in_mode = 0;
+	/* for none-afbc, it need set to 1,  default it is 0 */
+	u32 reg_fgrain_ext_imode = 1;
+	/*  unsigned , RW, default = 0 to indicate the
+	 *input data is *4 in 8bit mode
+	 */
+	u32 layer_index = 0;
+	struct vd_fg_reg_s *fg_reg;
+
+	if (!glayer_info[layer->layer_id].fgrain_support)
+		return;
+	if (!setting)
+		return;
+	layer_index = setting->id;
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s: layer_index=%d\n",
+			__func__, layer_index);
+
+	fg_reg = &vd_proc_reg.vd_fg_reg[layer_index];
+	reg_block_mode = setting->afbc << 2;
+	reg_rev_mode = setting->reverse << 4;
+	reg_comp_bits = setting->bitdepth << 6;
+	reg_fmt_mode = setting->fmt_mode << 8;
+	reg_last_in_mode = setting->last_in_mode;
+
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
+			       reg_fgrain_glb_en |
+			       reg_fgrain_loc_en |
+			       reg_block_mode |
+			       reg_rev_mode |
+			       reg_comp_bits |
+			       reg_fmt_mode,
+			       0, 10);
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
+			       reg_last_in_mode, 14, 1);
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
+			       reg_fgrain_ext_imode, 16, 1);
+}
+
+static void fgrain_start_s5(struct video_layer_s *layer, u8 vpp_index)
+{
+	u32 reg_fgrain_glb_en = 1 << 0;
+	u32 reg_fgrain_loc_en = 1 << 1;
+	struct vd_fg_reg_s *fg_reg;
+	u8 layer_id = layer->layer_id;
+	u8 layer_index = 0;
+
+	if (!glayer_info[layer_id].fgrain_support)
+		return;
+	if (glayer_info[layer_id].fgrain_start)
+		return;
+	if (layer_id > MAX_VD_CHAN_S5)
+		return;
+	if (layer_id != 0)
+		layer_index = layer_id + SLICE_NUM - 1;
+	else
+		layer_index = layer_id;
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s: layer_index=%d\n",
+			__func__, layer_index);
+
+	fg_reg = &vd_proc_reg.vd_fg_reg[layer_index];
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
+	       reg_fgrain_glb_en |
+	       reg_fgrain_loc_en,
+	       0, 2);
+	glayer_info[layer_id].fgrain_start = true;
+	glayer_info[layer_id].fgrain_force_update = true;
+}
+
+static void fgrain_slice_start_s5(struct video_layer_s *layer, u8 vpp_index, u8 slice)
+{
+	u32 reg_fgrain_glb_en = 1 << 0;
+	u32 reg_fgrain_loc_en = 1 << 1;
+	struct vd_fg_reg_s *fg_reg;
+	u8 layer_id = layer->layer_id;
+
+	if (!glayer_info[layer_id].fgrain_support)
+		return;
+	if (glayer_info[layer_id].fgrain_start)
+		return;
+	if (layer->layer_id != 0 || slice >= SLICE_NUM)
+		return;
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s: layer_index=%d\n",
+			__func__, slice);
+
+	fg_reg = &vd_proc_reg.vd_fg_reg[slice];
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
+		reg_fgrain_glb_en |
+		reg_fgrain_loc_en,
+		0, 2);
+	glayer_info[layer_id].fgrain_start = true;
+	glayer_info[layer_id].fgrain_force_update = true;
+}
+
+static void fgrain_stop_s5(struct video_layer_s *layer, u8 vpp_index)
+{
+	u32 reg_fgrain_glb_en = 1 << 0;
+	u32 reg_fgrain_loc_en = 0 << 1;
+	struct vd_fg_reg_s *fg_reg;
+	u8 layer_id = layer->layer_id;
+	u8 layer_index = 0;
+
+	if (!glayer_info[layer_id].fgrain_support)
+		return;
+	if (!glayer_info[layer_id].fgrain_start)
+		return;
+	if (layer_id > MAX_VD_CHAN_S5)
+		return;
+	if (layer_id != 0)
+		layer_index = layer_id + SLICE_NUM - 1;
+	else
+		layer_index = layer_id;
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s: layer_index=%d\n",
+			__func__, layer_index);
+
+	fg_reg = &vd_proc_reg.vd_fg_reg[layer_index];
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
+		   reg_fgrain_glb_en |
+		   reg_fgrain_loc_en,
+		   0, 2);
+	glayer_info[layer_id].fgrain_start = false;
+}
+
+static void fgrain_slice_stop_s5(struct video_layer_s *layer,
+	u8 vpp_index, u8 slice)
+{
+	u32 reg_fgrain_glb_en = 1 << 0;
+	u32 reg_fgrain_loc_en = 0 << 1;
+	struct vd_fg_reg_s *fg_reg;
+	u8 layer_id = layer->layer_id;
+
+	if (!glayer_info[layer_id].fgrain_support)
+		return;
+	if (!glayer_info[layer_id].fgrain_start)
+		return;
+	if (layer->layer_id != 0 || slice > SLICE_NUM)
+		return;
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s: layer_index=%d\n",
+			__func__, slice);
+
+	fg_reg = &vd_proc_reg.vd_fg_reg[slice];
+	cur_dev->rdma_func[vpp_index].rdma_wr_bits(fg_reg->fgrain_ctrl,
+		reg_fgrain_glb_en |
+		reg_fgrain_loc_en,
+		0, 2);
+	glayer_info[layer_id].fgrain_start = false;
+}
+
+static void fgrain_set_window_s5(struct video_layer_s *layer,
+			      struct fgrain_setting_s *setting,
+			      u8 vpp_index)
+{
+	struct vd_fg_reg_s *fg_reg;
+
+	if (setting->id > MAX_VD_LAYER_S5 - 1)
+		return;
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s: layer_index=%d\n",
+			__func__, setting->id);
+
+	fg_reg = &vd_proc_reg.vd_fg_reg[setting->id];
+	cur_dev->rdma_func[vpp_index].rdma_wr(fg_reg->fgrain_win_h,
+		(setting->start_x << 0) |
+		(setting->end_x << 16));
+	cur_dev->rdma_func[vpp_index].rdma_wr(fg_reg->fgrain_win_v,
+		(setting->start_y << 0) |
+		(setting->end_y << 16));
+}
+
+int fgrain_init_s5(u8 layer_id, u32 table_size)
+{
+	int ret = -1, i = 0;
+	u32 channel = FILM_GRAIN1_VD1S0_CHAN_S5;
+	struct lut_dma_set_t lut_dma_set;
+
+	if (!glayer_info[layer_id].fgrain_support)
+		return -1;
+	if (layer_id == 0) {
+		for (i = 0; i < SLICE_NUM; i++) {
+			channel = FILM_GRAIN1_VD1S0_CHAN_S5 + i;
+			lut_dma_set.channel = channel;
+			lut_dma_set.dma_dir = LUT_DMA_WR;
+			lut_dma_set.irq_source = VIU1_VSYNC;
+			lut_dma_set.mode = LUT_DMA_MANUAL;
+			lut_dma_set.table_size = table_size;
+			ret = lut_dma_register(&lut_dma_set);
+		}
+	} else if (layer_id == 1) {
+		channel = FILM_GRAIN2_CHAN_S5;
+		lut_dma_set.channel = channel;
+		lut_dma_set.dma_dir = LUT_DMA_WR;
+		lut_dma_set.irq_source = VIU1_VSYNC;
+		lut_dma_set.mode = LUT_DMA_MANUAL;
+		lut_dma_set.table_size = table_size;
+		ret = lut_dma_register(&lut_dma_set);
+	}
+	if (ret >= 0) {
+		glayer_info[layer_id].lut_dma_support = 1;
+
+	} else {
+		pr_info("%s failed, fg not support\n", __func__);
+		glayer_info[layer_id].lut_dma_support = 0;
+	}
+	return ret;
+}
+
+void fgrain_uninit_s5(u8 layer_id)
+{
+	int i = 0;
+	u32 channel = FILM_GRAIN0_CHAN;
+
+	if (!glayer_info[layer_id].fgrain_support)
+		return;
+
+	if (layer_id == 0) {
+		for (i = 0; i < SLICE_NUM; i++) {
+			channel = FILM_GRAIN1_VD1S0_CHAN_S5 + i;
+			lut_dma_unregister(LUT_DMA_WR, channel);
+		}
+	} else if (layer_id == 1) {
+		channel = FILM_GRAIN2_CHAN_S5;
+		lut_dma_unregister(LUT_DMA_WR, channel);
+	}
+}
+
+static int fgrain_write_s5(u32 layer_id, ulong fgs_table_addr)
+{
+	int table_size = FGRAIN_TBL_SIZE;
+	u32 channel = 0;
+
+	if (layer_id == 0) {
+		channel = FILM_GRAIN1_VD1S0_CHAN_S5;
+		lut_dma_write_phy_addr(channel,
+			fgs_table_addr,
+			table_size);
+	} else if (layer_id == 1) {
+		channel = FILM_GRAIN2_CHAN_S5;
+		lut_dma_write_phy_addr(channel,
+			fgs_table_addr,
+			table_size);
+	}
+	return 0;
+}
+
+static int fgrain_slice_write_s5(u32 layer_id,
+	ulong fgs_table_addr, u8 slice)
+{
+	int table_size = FGRAIN_TBL_SIZE;
+	u32 channel = 0;
+
+	if (layer_id == 0) {
+		channel = FILM_GRAIN1_VD1S0_CHAN_S5 + slice;
+		lut_dma_write_phy_addr(channel,
+			fgs_table_addr,
+			table_size);
+	}
+	return 0;
+}
+
+static int get_viu_irq_source_s5(u8 vpp_index)
+{
+	/* for s5 only one venc0 encp */
+	return ENCP_GO_FIELD;
+}
+
+static void fgrain_slice_update_irq_source_s5(u8 layer_id,
+	u8 vpp_index, u8 slice)
+{
+	u32 irq_source = ENCP_GO_FIELD;
+	u32 channel = 0;
+
+	/* get vpp0 irq source */
+	irq_source = get_viu_irq_source_s5(vpp_index);
+
+	if (layer_id == 0)
+		channel = FILM_GRAIN1_VD1S0_CHAN_S5 + slice;
+	lut_dma_update_irq_source(channel, irq_source);
+}
+
+static void fgrain_update_irq_source_s5(u8 layer_id, u8 vpp_index)
+{
+	u32 irq_source = ENCP_GO_FIELD;
+	u32 channel = 0;
+
+	/* get vpp0 irq source */
+	irq_source = get_viu_irq_source_s5(vpp_index);
+
+	if (layer_id == 0)
+		channel = FILM_GRAIN1_VD1S0_CHAN_S5;
+	else if (layer_id == 1)
+		channel = FILM_GRAIN2_CHAN_S5;
+	lut_dma_update_irq_source(channel, irq_source);
+}
+
+static void fgrain_slice_setting_s5(struct video_layer_s *layer,
+		    struct vframe_s *vf,
+		    struct fgrain_setting_s *setting)
+{
+	u8 vpp_index, layer_id;
+
+	if (!vf)
+		return;
+
+	layer_id = layer->layer_id;
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s(%d):fgrain_enable=%d, fgs_valid=%d, fgs_table_adr=%ld\n",
+			__func__,
+			setting->id,
+			glayer_info[layer_id].fgrain_enable,
+			vf->fgs_valid,
+			vf->fgs_table_adr);
+
+	if (!glayer_info[layer_id].lut_dma_support)
+		return;
+	vpp_index = layer->vpp_index;
+	if (!setting->used || !vf->fgs_valid ||
+	    !glayer_info[layer_id].fgrain_enable)
+		fgrain_slice_stop_s5(layer, vpp_index, setting->id);
+	if (glayer_info[layer_id].fgrain_enable) {
+		if (setting->used && vf->fgs_valid &&
+		    vf->fgs_table_adr) {
+			fgrain_set_config_s5(layer, setting, vpp_index);
+			fgrain_set_window_s5(layer, setting, vpp_index);
+		}
+	}
+}
+
+static void fgrain_setting_s5(struct video_layer_s *layer,
+		    struct vframe_s *vf,
+		    struct fgrain_setting_s *setting)
+{
+	u8 vpp_index, layer_id;
+
+	if (!vf)
+		return;
+	layer_id = layer->layer_id;
+
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s(%d):fgrain_enable=%d, fgs_valid=%d, fgs_table_adr=%ld\n",
+			__func__,
+			layer->layer_id,
+			glayer_info[layer_id].fgrain_enable,
+			vf->fgs_valid,
+			vf->fgs_table_adr);
+
+	if (!glayer_info[layer_id].lut_dma_support)
+		return;
+	vpp_index = layer->vpp_index;
+	if (!setting->used || !vf->fgs_valid ||
+	    !glayer_info[layer_id].fgrain_enable)
+		fgrain_stop_s5(layer, vpp_index);
+	if (glayer_info[layer_id].fgrain_enable) {
+		if (setting->used && vf->fgs_valid &&
+		    vf->fgs_table_adr) {
+			fgrain_set_config_s5(layer, setting, vpp_index);
+			fgrain_set_window_s5(layer, setting, vpp_index);
+		}
+	}
+}
+
+static void _vd_fgrain_setting_s5(struct video_layer_s *layer,
 		    struct vframe_s *vf)
 {
+	u8 vpp_index, layer_id;
+	int i;
+
+	if (!vf)
+		return;
+
+	layer_id = layer->layer_id;
+	if (!glayer_info[layer_id].lut_dma_support)
+		return;
+	vpp_index = layer->vpp_index;
+	if (layer_id == 0) {
+		if (get_vd1_work_mode() == VD1_1SLICES_MODE) {
+			layer->fgrain_setting.id = 0;
+			fgrain_setting_s5(layer, vf,
+				&layer->fgrain_setting);
+		} else {
+			for (i = 0; i < layer->slice_num; i++) {
+				layer->slice_fgrain_setting[i].id = i;
+				fgrain_slice_setting_s5(layer, vf,
+					&layer->slice_fgrain_setting[i]);
+			}
+		}
+	} else {
+		layer->fgrain_setting.id += SLICE_NUM - 1;
+		fgrain_setting_s5(layer, vf,
+			&layer->fgrain_setting);
+	}
 }
+
+void fgrain_config_s5(struct video_layer_s *layer,
+		   struct vpp_frame_par_s *frame_par,
+		   struct mif_pos_s *mif_setting,
+		   struct fgrain_setting_s *setting,
+		   struct vframe_s *vf)
+{
+	u32 type;
+	u8 layer_id;
+
+	if (!vf || !mif_setting || !setting || !frame_par)
+		return;
+	layer_id = layer->layer_id;
+	if (!glayer_info[layer_id].fgrain_support)
+		return;
+	if (!glayer_info[layer_id].lut_dma_support)
+		return;
+	type = vf->type;
+	if (frame_par->nocomp)
+		type &= ~VIDTYPE_COMPRESS;
+
+	if (type & VIDTYPE_COMPRESS) {
+		/* 1:afbc mode or 0: non-afbc mode  */
+		setting->afbc = 1;
+		/* bit[2]=0, non-afbc mode */
+		setting->last_in_mode = 0;
+		/* afbc copress is always 420 */
+		setting->fmt_mode = 2;
+		setting->used = 1;
+		if (vf->bitdepth & BITDEPTH_Y10)
+			setting->bitdepth = 1;
+		else
+			setting->bitdepth = 0;
+	} else {
+		setting->afbc = 0;
+		setting->last_in_mode = 1;
+		if (type & VIDTYPE_VIU_NV21) {
+			setting->fmt_mode = 2;
+			setting->used = 1;
+		} else {
+			/* only support 420 */
+			setting->used = 0;
+		}
+		/* fg after mif always 10 bits */
+		setting->bitdepth = 1;
+	}
+
+	if (glayer_info[layer_id].reverse)
+		setting->reverse = 3;
+	else
+		setting->reverse = 0;
+
+	setting->start_x = mif_setting->start_x_lines;
+	setting->end_x = mif_setting->end_x_lines;
+	setting->start_y = mif_setting->start_y_lines;
+	setting->end_y = mif_setting->end_y_lines;
+	if (setting->afbc) {
+		setting->start_x = setting->start_x / 32 * 32;
+		setting->end_x = setting->end_x / 32 * 32;
+		setting->start_y = setting->start_y / 4 * 4;
+		setting->end_y = setting->end_y / 4 * 4;
+	} else {
+		setting->end_x = (setting->end_x >> 1) << 1;
+		setting->end_y = (setting->end_y >> 1) << 1;
+
+		setting->start_x = (setting->start_x >> 1) << 1;
+		setting->start_y = (setting->start_y >> 1) << 1;
+	}
+}
+
+static void _vd_fgrain_config_s5(struct video_layer_s *layer,
+		   struct vpp_frame_par_s *frame_par,
+		   struct vframe_s *vf)
+{
+	int slice = 0;
+
+	if (layer->layer_id == 0) {
+		if (get_vd1_work_mode() == VD1_1SLICES_MODE) {
+			fgrain_config_s5(layer, frame_par,
+				&layer->mif_setting,
+				&layer->fgrain_setting,
+				vf);
+		} else {
+			for (slice = 0; slice < layer->slice_num; slice++) {
+				fgrain_config_s5(layer, frame_par,
+					&layer->slice_mif_setting[slice],
+					&layer->slice_fgrain_setting[slice],
+					vf);
+			}
+		}
+	} else {
+		fgrain_config_s5(layer, frame_par,
+				&layer->mif_setting,
+				&layer->fgrain_setting,
+				vf);
+	}
+}
+
+static void fgrain_slice_update_table_s5(struct video_layer_s *layer,
+			 struct vframe_s *vf, u8 slice)
+{
+	u8 vpp_index, layer_id;
+
+	if (!vf)
+		return;
+
+	layer_id = layer->layer_id;
+	if (!glayer_info[layer_id].lut_dma_support)
+		return;
+	vpp_index = layer->vpp_index;
+	if (!vf->fgs_valid || !glayer_info[layer_id].fgrain_enable)
+		fgrain_slice_stop_s5(layer, vpp_index, slice);
+
+	if (glayer_info[layer_id].fgrain_enable) {
+		if (vf->fgs_valid && vf->fgs_table_adr) {
+			fgrain_slice_start_s5(layer, vpp_index, slice);
+			fgrain_slice_update_irq_source_s5(layer_id, vpp_index, slice);
+			fgrain_slice_write_s5(layer_id, vf->fgs_table_adr, slice);
+		}
+	}
+}
+
+void fgrain_update_table_s5(struct video_layer_s *layer,
+			 struct vframe_s *vf)
+{
+	u8 vpp_index, layer_id;
+	u8 slice = 0;
+
+	if (!vf)
+		return;
+
+	layer_id = layer->layer_id;
+	if (debug_flag_s5 & DEBUG_FG)
+		pr_info("%s(%d):fgrain_enable=%d, fgs_valid=%d, fgs_table_adr=%ld\n",
+			__func__,
+			layer->layer_id,
+			glayer_info[layer_id].fgrain_enable,
+			vf->fgs_valid,
+			vf->fgs_table_adr);
+
+	if (!glayer_info[layer_id].lut_dma_support)
+		return;
+
+	if (layer->layer_id == 0 && layer->slice_num > 1) {
+		for (slice = 0; slice < layer->slice_num; slice++)
+			fgrain_slice_update_table_s5(layer, vf, slice);
+		return;
+	}
+
+	vpp_index = layer->vpp_index;
+	if (!vf->fgs_valid || !glayer_info[layer_id].fgrain_enable)
+		fgrain_stop_s5(layer, vpp_index);
+
+	if (glayer_info[layer_id].fgrain_enable) {
+		if (vf->fgs_valid && vf->fgs_table_adr) {
+			fgrain_start_s5(layer, vpp_index);
+			fgrain_update_irq_source_s5(layer_id, vpp_index);
+			fgrain_write_s5(layer_id, vf->fgs_table_adr);
+		}
+	}
+}
+#endif
 
 void alpha_win_set_s5(struct video_layer_s *layer)
 {
@@ -7152,7 +7725,7 @@ void vpp_post_blend_update_s5(const struct vinfo_s *vinfo)
 	struct vpp_post_s vpp_post;
 
 	vpp_input = get_vpp_input_info();
-	if (debug_flag_s5)
+	if (debug_flag_s5 & DEBUG_VPP_POST)
 		pr_info("%s,slice_num=%d, din_hsize[0]=%d, %d, din[1]:%d, %d, bld_out =%d, %d\n",
 			__func__,
 			vpp_input->slice_num,
@@ -7252,10 +7825,12 @@ int video_hw_init_s5(void)
 	/* hold line setting: todo */
 
 	/* Temp force set dmc：todo */
-	for (i = 0; i < MAX_VD_LAYER; i++) {
+#ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
+	for (i = 0; i < MAX_VD_CHAN_S5; i++) {
 		if (glayer_info[i].fgrain_support)
-			fgrain_init(i, FGRAIN_TBL_SIZE);
+			fgrain_init_s5(i, FGRAIN_TBL_SIZE);
 	}
+#endif
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 	secure_register(VIDEO_MODULE, 0, video_secure_op, vpp_secure_cb);
 #endif

@@ -20,6 +20,13 @@
 #define VIDEO_HW_S5_HH
 #include "video_reg_s5.h"
 
+#define DEBUG_VD_PROC     BIT(0)
+#define DEBUG_VPP_POST    BIT(1)
+#define DEBUG_AISR        BIT(2)
+#define DEBUG_FG          BIT(3)
+#define DEBUG_SR          BIT(4)
+#define DEBUG_PPS         BIT(5)
+
 enum sr0_path_sel {
 	SR0_IN_SLICE0,
 	SR0_IN_SLICE1,
@@ -299,6 +306,7 @@ struct vd_proc_reg_s {
 	struct vd2_proc_misc_reg_s vd2_proc_misc_reg;
 };
 
+extern u32 debug_flag_s5;
 struct vd_proc_s *get_vd_proc_info(void);
 void dump_s5_vd_proc_regs(void);
 void set_video_slice_policy(struct video_layer_s *layer,
@@ -330,4 +338,8 @@ void set_module_bypass_s5(u32 bypass_module);
 int get_module_bypass_s5(void);
 u32 get_slice_num(u32 layer_id);
 u32 get_pi_enabled(u32 layer_id);
+int fgrain_init_s5(u8 layer_id, u32 table_size);
+void fgrain_uninit_s5(u8 layer_id);
+void fgrain_update_table_s5(struct video_layer_s *layer,
+			 struct vframe_s *vf);
 #endif

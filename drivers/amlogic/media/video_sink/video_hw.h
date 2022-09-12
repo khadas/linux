@@ -21,7 +21,6 @@
 
 #define FGRAIN_TBL_SIZE  (498 * 16)
 
-int fgrain_init(u8 layer_id, u32 table_size);
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 void vpp_secure_cb(u32 arg);
 #endif

@@ -440,6 +440,7 @@ struct video_layer_s {
 	struct scaler_setting_s sc_setting;
 	struct blend_setting_s bld_setting;
 	struct fgrain_setting_s fgrain_setting;
+	struct fgrain_setting_s slice_fgrain_setting[SLICE_NUM];
 	struct clip_setting_s clip_setting;
 	struct aisr_setting_s aisr_mif_setting;
 	struct scaler_setting_s aisr_sc_setting;
@@ -727,9 +728,6 @@ void aisr_reshape_cfg_s5(struct video_layer_s *layer,
 void aisr_scaler_setting_s5(struct video_layer_s *layer,
 			     struct scaler_setting_s *setting);
 void vd_blend_setting_s5(struct video_layer_s *layer, struct blend_setting_s *setting);
-void fgrain_setting_s5(struct video_layer_s *layer,
-		    struct fgrain_setting_s *setting,
-		    struct vframe_s *vf);
 void alpha_win_set_s5(struct video_layer_s *layer);
 void vd_clip_setting_s5(u8 layer_id,
 	struct clip_setting_s *setting);
