@@ -291,7 +291,7 @@
 
 	meson_suspend:pm {
 		compatible = "amlogic, pm";
-		status = "disabled";
+		status = "okay";
 		device_name = "aml_pm";
 		reg = <0x0 0xfe010288 0x0 0x4>, /*SYSCTRL_STATUS_REG2*/
 			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
