@@ -276,7 +276,7 @@ static void amlogic_pcie_assert_reset(struct amlogic_pcie *amlogic_pcie)
 	}
 }
 
-void amlogic_set_max_payload(struct amlogic_pcie *amlogic_pcie, int size)
+static void amlogic_set_max_payload(struct amlogic_pcie *amlogic_pcie, int size)
 {
 	int max_payload_size = 1;
 	u32 val = 0;
@@ -314,7 +314,7 @@ void amlogic_set_max_payload(struct amlogic_pcie *amlogic_pcie, int size)
 	amlogic_elb_writel(amlogic_pcie, val, PCIE_DEV_CTRL_DEV_STUS);
 }
 
-void amlogic_set_max_rd_req_size(struct amlogic_pcie *amlogic_pcie, int size)
+static void amlogic_set_max_rd_req_size(struct amlogic_pcie *amlogic_pcie, int size)
 {
 	int max_rd_req_size = 1;
 	u32 val = 0;
