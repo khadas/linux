@@ -2007,7 +2007,7 @@ static void dw_hdmi_connector_force(struct drm_connector *connector)
 static int dw_hdmi_qp_fill_modes(struct drm_connector *connector, u32 max_x,
 								 u32 max_y)
 {
-	return drm_helper_probe_single_connector_modes(connector, 9000, 9000);
+	return drm_helper_probe_single_connector_modes(connector, max_x, max_y);
 }
 
 static const struct drm_connector_funcs dw_hdmi_connector_funcs = {
