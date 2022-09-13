@@ -2863,7 +2863,7 @@ static ssize_t show_block_windows(struct device *device,
 				  char *buf)
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
-	u32 wins[8];
+	u32 wins[8] = {0};
 
 	osd_get_block_windows_hw(fb_info->node, wins);
 	return snprintf(buf, PAGE_SIZE,
