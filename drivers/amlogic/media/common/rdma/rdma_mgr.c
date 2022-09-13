@@ -629,14 +629,14 @@ int rdma_config(int handle, u32 trigger_type)
 			WRITE_VCBUS_REG
 			(RDMA_ACCESS_MAN,
 			 READ_VCBUS_REG(RDMA_ACCESS_MAN) & (~1));
-			if (debug_flag & 2) {
-				pr_info("%s: handle=%d trigger_type %d : %d buffer_lock:%d\r\n",
-					__func__,
-					handle,
-					trigger_type_backup,
-					ins->rdma_item_count,
-					buffer_lock);
-			}
+		if (debug_flag & 2) {
+			pr_info("%s: handle=%d trigger_type %d : %d buffer_lock:%d\r\n",
+				__func__,
+				handle,
+				trigger_type_backup,
+				ins->rdma_item_count,
+				buffer_lock);
+		}
 		WRITE_VCBUS_REG_BITS
 		(ins->rdma_regadr->trigger_mask_reg,
 		 0, ins->rdma_regadr->trigger_mask_reg_bitpos,
