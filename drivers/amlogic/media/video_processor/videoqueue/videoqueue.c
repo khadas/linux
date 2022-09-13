@@ -265,7 +265,7 @@ static void file_pop_display_q(struct video_queue_dev *dev,
 
 static u32 get_avsync_delay_time(void)
 {
-	u32 delay_value = get_tvin_delay_min_ms();
+	u32 delay_value = get_tvin_delay_duration();
 
 	if (delay_value == 0) {
 		delay_value = get_tvin_delay_min_ms();
@@ -306,6 +306,11 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 #endif
 	actual_delay += frc_delay;
 	diff = actual_delay - audio_need_delay * 1000;
+
+	vq_print(P_AVSYNC, "audio_need=%lld,vframe_delay=%lld, actual_delay=%lld,diff=%lld\n",
+		audio_need_delay, vframe_delay,
+		actual_delay, diff);
+
 	if (diff > vdin_vsync * 1000 / 2) {
 		diff = div_u64(diff, 1000);
 		need_drop = div_u64(diff + vdin_vsync / 2, vdin_vsync);
