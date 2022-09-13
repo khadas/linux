@@ -2535,9 +2535,14 @@
 					cooling-device = <&cpucore_cool0 0 6>;
 					contribution = <1024>;
 				};
-				cpufreq_cooling_map {
+				cpufreq_cooling_map1 {
 					trip = <&a55control>;
 					cooling-device = <&CPU0 0 8>;
+					contribution = <1024>;
+				};
+				cpufreq_cooling_map2 {
+					trip = <&a55control>;
+					cooling-device = <&CPU4 0 8>;
 					contribution = <1024>;
 				};
 			};
