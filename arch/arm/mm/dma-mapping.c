@@ -926,6 +926,18 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 				}
 			}
 		} else {
+		/*
+		 * if the len cross the lowme/highmem zones
+		 * system will crash when do flush cache.
+		 */
+		#ifdef CONFIG_AMLOGIC_CMA
+			unsigned long tmp_pfn = pfn + (PAGE_ALIGN(len) >> PAGE_SHIFT);
+			struct page *tmp_page = pfn_to_page(tmp_pfn);
+
+			if (PageHighMem(tmp_page))
+				len = PAGE_SIZE - offset;
+		#endif
+
 			vaddr = page_address(page) + offset;
 			op(vaddr, len, dir);
 		}
