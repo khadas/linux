@@ -243,6 +243,8 @@ struct meson_vpu_video_layer_info {
 	u32 dst_h;
 	int dst_x;
 	int dst_y;
+	u32 fb_w;
+	u32 fb_h;
 	u32 zorder;
 	u32 byte_stride;
 	u32 pixel_format;
@@ -302,6 +304,8 @@ struct meson_vpu_video_state {
 	u32 dst_h;
 	int dst_x;
 	int dst_y;
+	u32 fb_w;
+	u32 fb_h;
 	int s_mode;
 	int r_mode;
 	u32 plane_index;

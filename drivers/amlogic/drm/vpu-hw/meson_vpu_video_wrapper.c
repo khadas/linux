@@ -39,8 +39,8 @@ video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	vf_info->crop_y = mvvs->src_y;
 	vf_info->crop_w = mvvs->src_w;
 	vf_info->crop_h = mvvs->src_h;
-	vf_info->buffer_w = mvvs->byte_stride;
-	vf_info->buffer_h = mvvs->src_h;
+	vf_info->buffer_w = mvvs->fb_w;
+	vf_info->buffer_h = mvvs->fb_h;
 	vf_info->zorder = mvvs->zorder;
 
 	DRM_DEBUG("dmabuf = %px, release_fence = %px\n",
@@ -277,6 +277,8 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	mvvs->dst_y = plane_info->dst_y;
 	mvvs->dst_w = plane_info->dst_w;
 	mvvs->dst_h = plane_info->dst_h;
+	mvvs->fb_w = plane_info->fb_w;
+	mvvs->fb_h = plane_info->fb_h;
 	mvvs->byte_stride = plane_info->byte_stride;
 	mvvs->plane_index = plane_info->plane_index;
 	mvvs->phy_addr[0] = plane_info->phy_addr[0];
