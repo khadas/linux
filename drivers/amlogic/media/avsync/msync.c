@@ -397,7 +397,8 @@ static void wakeup_poll(struct sync_session *session, u32 flag)
 		session->event_pending |= WAKE_V;
 	if (session->a_active && (flag & WAKE_A))
 		session->event_pending |= WAKE_A;
-	wake_up_interruptible(&session->poll_wait);
+	if (session->event_pending)
+		wake_up_interruptible(&session->poll_wait);
 }
 
 static void transit_work_func(struct work_struct *work)
@@ -1038,6 +1039,7 @@ static void session_pause(struct sync_session *session, bool pause)
 
 static void session_video_stop(struct sync_session *session)
 {
+	bool wakeup = true;
 	session->v_active = false;
 	update_f_vpts(session, AVS_INVALID_PTS);
 
@@ -1046,7 +1048,9 @@ static void session_video_stop(struct sync_session *session)
 		session->clock_start = false;
 		session->start_posted = false;
 		session->v_timeout = false;
+		session->event_pending = 0;
 		session->stat = AVS_STAT_INIT;
+		wakeup = false;
 		msync_dbg(LOG_INFO, "[%d]%s clock stop\n",
 			session->id, __func__);
 	} else if (LIVE_MODE(session->mode)) {
@@ -1071,11 +1075,13 @@ static void session_video_stop(struct sync_session *session)
 			div64_u64((u64)jiffies * UNIT90K, HZ);
 	}
 	mutex_unlock(&session->session_mutex);
-	wakeup_poll(session, WAKE_A);
+	if (wakeup)
+		wakeup_poll(session, WAKE_A);
 }
 
 static void session_audio_stop(struct sync_session *session)
 {
+	bool wakeup = true;
 	session->a_active = false;
 	session->audio_drop_cnt = 0;
 	update_f_apts(session, AVS_INVALID_PTS);
@@ -1085,7 +1091,9 @@ static void session_audio_stop(struct sync_session *session)
 		session->clock_start = false;
 		session->start_posted = false;
 		session->v_timeout = false;
+		session->event_pending = 0;
 		session->stat = AVS_STAT_INIT;
+		wakeup = false;
 		msync_dbg(LOG_INFO, "[%d]%d clock stop\n",
 			session->id, __LINE__);
 	} else if (session->audio_switching) {
@@ -1114,7 +1122,8 @@ static void session_audio_stop(struct sync_session *session)
 		session->last_check_apts_cnt = 0;
 	}
 	mutex_unlock(&session->session_mutex);
-	wakeup_poll(session, WAKE_V);
+	if (wakeup)
+		wakeup_poll(session, WAKE_V);
 }
 
 static void session_video_disc_iptv(struct sync_session *session, u32 pts)
