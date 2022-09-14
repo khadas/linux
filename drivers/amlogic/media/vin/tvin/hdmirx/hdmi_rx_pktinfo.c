@@ -1081,9 +1081,9 @@ void rx_pkt_get_vsi_ex(void *pktinfo)
 			pkt->length = hdmirx_rd_cor(AUDRX_TYPE_DP2_IVCRX) & 0x1f;
 			pkt->ieee = IEEE_HDR10PLUS;
 			if (rx_vsif_type & VSIF_TYPE_HDMI21) {
-				tmp = hdmirx_rd_cor(RX_UNREC_BYTE9_DP2_IVCRX);
+				tmp = hdmirx_rd_cor(VSIRX_DBYTE5_DP3_IVCRX);
 				if ((tmp >> 1) & 1)
-					pkt->ieee = IEEE_DV_PLUS_ALLM;
+					pkt->ieee = IEEE_HDR10P_PLUS_ALLM;
 			}
 			for (i = 0; i < 24; i++) {
 				tmp = hdmirx_rd_cor(AUDRX_DBYTE4_DP2_IVCRX + i);
@@ -1437,6 +1437,20 @@ void rx_get_vsi_info(void)
 				rx_pr("vsi hdr10+ length err\n");
 		/* consider hdr10+ is true when IEEE matched */
 		rx.vs_info_details.hdr10plus = true;
+		break;
+	case IEEE_HDR10P_PLUS_ALLM:
+		/* HDR10+ */
+		rx.vs_info_details.vsi_state = E_VSI_HDR10PLUS;
+		if (pkt->length != E_PKT_LENGTH_27 ||
+			pkt->pkttype != 0x01 ||
+			pkt->ver_st.version != 0x01 ||
+			((pkt->sbpkt.payload.data[1] >> 6) & 0x03) != 0x01)
+			if (log_level & PACKET_LOG)
+				rx_pr("vsi hdr10+ length err\n");
+		/* consider hdr10+ is true when IEEE matched */
+		rx.vs_info_details.hdr10plus = true;
+		rx.vs_info_details.hdmi_allm = true;
+		pkt->ieee = IEEE_HDR10PLUS;
 		break;
 	case IEEE_VSI14:
 		/* dolbyvision1.0 */

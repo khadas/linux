@@ -21,6 +21,8 @@
 #define IEEE_VSI21		0xc45dd8
 #define IEEE_HDR10PLUS		0x90848b
 #define IEEE_DV_PLUS_ALLM 0x1
+#define IEEE_HDR10P_PLUS_ALLM 0x2
+
 #define IEEE_FREESYNC	0x00001a
 
 #define VSIF_TYPE_DV15		1
