@@ -242,7 +242,7 @@ const struct soc_enum aud_codec_type_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(aud_codec_type_names),
 			aud_codec_type_names);
 
-static bool codec_is_raw(enum aud_codec_types codec_type)
+bool codec_is_raw(enum aud_codec_types codec_type)
 {
 	return ((codec_type != AUD_CODEC_TYPE_STEREO_PCM) &&
 		(codec_type != AUD_CODEC_TYPE_HSR_STEREO_PCM) &&
@@ -327,6 +327,7 @@ unsigned int mpll2dmac_clk_ratio_by_type(enum audio_coding_types coding_type)
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 	enum aud_codec_types codec_type,
 	unsigned int rate,
+	unsigned int bit_depth,
 	unsigned int l_bit)
 {
 	int rate_bit = snd_pcm_rate_to_rate_bit(rate);
@@ -337,62 +338,105 @@ void iec_get_channel_status_info(struct iec958_chsts *chsts,
 	}
 
 	if (codec_is_raw(codec_type)) {
-		chsts->chstat0_l = 0x1902;
-		chsts->chstat0_r = 0x1902;
+		chsts->chstat0_l = 0x6;
+		chsts->chstat0_r = 0x6;
+		chsts->chstat2_l = IEC958_AES4_CON_WORDLEN_20_16;
+		chsts->chstat2_r = IEC958_AES4_CON_WORDLEN_20_16;
 		if (codec_type == AUD_CODEC_TYPE_EAC3 ||
 		    codec_type == AUD_CODEC_TYPE_DTS_HD) {
 			/* DD+ */
 			if (rate_bit == SNDRV_PCM_RATE_32000) {
-				chsts->chstat1_l = 0x300;
-				chsts->chstat1_r = 0x300;
+				chsts->chstat1_l = IEC958_AES3_CON_FS_32000 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_32000 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_32000;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_32000;
 			} else if (rate_bit == SNDRV_PCM_RATE_44100) {
-				chsts->chstat1_l = 0xc00;
-				chsts->chstat1_r = 0xc00;
+				chsts->chstat1_l = IEC958_AES3_CON_FS_176400 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_176400 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_44100;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_44100;
 			} else {
-				chsts->chstat1_l = 0xe00;
-				chsts->chstat1_r = 0xe00;
+				chsts->chstat1_l = IEC958_AES3_CON_FS_192000 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_192000 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_48000;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_48000;
 			}
 		} else if (codec_type == AUD_CODEC_TYPE_TRUEHD ||
 			   codec_type == AUD_CODEC_TYPE_DTS_HD_MA) {
 			/* True HD, MA */
-			chsts->chstat1_l = 0x900;
-			chsts->chstat1_r = 0x900;
+			chsts->chstat1_l = IEC958_AES3_CON_FS_768000 << 8;
+			chsts->chstat1_r = IEC958_AES3_CON_FS_768000 << 8;
+			chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_192000;
+			chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_192000;
 		} else {
 			/* DTS,DD */
 			if (rate_bit == SNDRV_PCM_RATE_32000) {
-				chsts->chstat1_l = 0x300;
-				chsts->chstat1_r = 0x300;
+				chsts->chstat1_l = IEC958_AES3_CON_FS_32000 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_32000 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_32000;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_32000;
 			} else if (rate_bit == SNDRV_PCM_RATE_44100) {
 				chsts->chstat1_l = 0;
 				chsts->chstat1_r = 0;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_44100;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_44100;
 			} else {
-				chsts->chstat1_l = 0x200;
-				chsts->chstat1_r = 0x200;
+				chsts->chstat1_l = IEC958_AES3_CON_FS_48000 << 8;
+				chsts->chstat1_r = IEC958_AES3_CON_FS_48000 << 8;
+				chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_48000;
+				chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_48000;
 			}
 		}
 	} else {
 		chsts->chstat0_l = 0x0100;
 		chsts->chstat0_r = 0x0100;
-		chsts->chstat1_l = 0x200;
-		chsts->chstat1_r = 0x200;
 
-		if (rate_bit == SNDRV_PCM_RATE_44100) {
-			chsts->chstat1_l = 0;
-			chsts->chstat1_r = 0;
+		if (bit_depth >= 24) {
+			chsts->chstat2_l = IEC958_AES4_CON_MAX_WORDLEN_24 |
+					IEC958_AES4_CON_WORDLEN_24_20;
+			chsts->chstat2_r = IEC958_AES4_CON_MAX_WORDLEN_24 |
+					IEC958_AES4_CON_WORDLEN_24_20;
+		} else {
+			chsts->chstat2_l = IEC958_AES4_CON_WORDLEN_20_16;
+			chsts->chstat2_r = IEC958_AES4_CON_WORDLEN_20_16;
+		}
+
+		if (rate_bit == SNDRV_PCM_RATE_48000) {
+			chsts->chstat1_l = IEC958_AES3_CON_FS_48000 << 8;
+			chsts->chstat1_r = IEC958_AES3_CON_FS_48000 << 8;
+			chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_48000;
+			chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_48000;
+		} else if (rate_bit == SNDRV_PCM_RATE_44100) {
+			chsts->chstat1_l = IEC958_AES3_CON_FS_44100 << 8;
+			chsts->chstat1_r = IEC958_AES3_CON_FS_44100 << 8;
+			chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_44100;
+			chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_44100;
 		} else if (rate_bit == SNDRV_PCM_RATE_88200) {
-			chsts->chstat1_l = 0x800;
-			chsts->chstat1_r = 0x800;
+			chsts->chstat1_l = IEC958_AES3_CON_FS_88200 << 8;
+			chsts->chstat1_r = IEC958_AES3_CON_FS_88200 << 8;
+			chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_88200;
+			chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_88200;
 		} else if (rate_bit == SNDRV_PCM_RATE_96000) {
-			chsts->chstat1_l = 0xa00;
-			chsts->chstat1_r = 0xa00;
+			chsts->chstat1_l = IEC958_AES3_CON_FS_96000 << 8;
+			chsts->chstat1_r = IEC958_AES3_CON_FS_96000 << 8;
+			chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_96000;
+			chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_96000;
 		} else if (rate_bit == SNDRV_PCM_RATE_176400) {
-			chsts->chstat1_l = 0xc00;
-			chsts->chstat1_r = 0xc00;
+			chsts->chstat1_l = IEC958_AES3_CON_FS_176400 << 8;
+			chsts->chstat1_r = IEC958_AES3_CON_FS_176400 << 8;
+			chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_176400;
+			chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_176400;
 		} else if (rate_bit == SNDRV_PCM_RATE_192000) {
-			chsts->chstat1_l = 0xe00;
-			chsts->chstat1_r = 0xe00;
+			chsts->chstat1_l = IEC958_AES3_CON_FS_192000 << 8;
+			chsts->chstat1_r = IEC958_AES3_CON_FS_192000 << 8;
+			chsts->chstat2_l |= IEC958_AES4_CON_ORIGFS_192000;
+			chsts->chstat2_r |= IEC958_AES4_CON_ORIGFS_192000;
 		}
 	}
+
+	/* IEC958_AES2_CON_CHANNEL */
+	chsts->chstat1_l |= 1 << 4;
+	chsts->chstat1_r |= 2 << 4;
 
 	if (l_bit) {
 		chsts->chstat0_l |= 1 << 15;

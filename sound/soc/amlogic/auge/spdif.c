@@ -1371,8 +1371,13 @@ static int aml_dai_spdif_prepare(struct snd_pcm_substream *substream,
 		iec_get_channel_status_info(&chsts,
 					    p_spdif->codec_type,
 					    runtime->rate,
+					    bit_depth,
 					    l_src);
 		spdif_set_channel_status_info(&chsts, p_spdif->id);
+		if (codec_is_raw(p_spdif->codec_type))
+			spdif_set_validity(1, p_spdif->id);
+		else
+			spdif_set_validity(0, p_spdif->id);
 
 		/* TOHDMITX_CTRL0
 		 * Both spdif_a/spdif_b would notify to hdmitx

@@ -262,9 +262,13 @@ extern const struct soc_enum aud_codec_type_enum;
 struct iec958_chsts {
 	unsigned short chstat0_l;
 	unsigned short chstat1_l;
+	unsigned short chstat2_l;
 	unsigned short chstat0_r;
 	unsigned short chstat1_r;
+	unsigned short chstat2_r;
 };
+
+bool codec_is_raw(enum aud_codec_types codec_type);
 
 bool raw_is_4x_clk(enum aud_codec_types codec_type);
 
@@ -274,6 +278,7 @@ unsigned int mpll2dmac_clk_ratio_by_type(enum audio_coding_types coding_type);
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 				 enum aud_codec_types codec_type,
 				 unsigned int rate,
+				 unsigned int bit_depth,
 				 unsigned int l_bit);
 
 void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,

@@ -1456,7 +1456,7 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			else
 				event_type = AOUT_EVENT_IEC_60958_PCM;
 			iec_get_channel_status_info(&chsts, codec_type,
-				runtime->rate, 0);
+				runtime->rate, bit_depth, 0);
 			set_aud_param_ch_status(&chsts, &aud_param);
 			aout_notifier_call_chain(event_type, &aud_param);
 		}

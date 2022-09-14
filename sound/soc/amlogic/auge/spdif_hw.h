@@ -75,6 +75,8 @@ int spdifin_get_ch_status0to31(void);
 
 int spdifin_get_audio_type(void);
 
+void spdif_set_validity(bool en, int spdif_id);
+
 void spdif_set_channel_status_info(struct iec958_chsts *chsts, int spdif_id);
 
 void spdifout_play_with_zerodata(unsigned int spdif_id,

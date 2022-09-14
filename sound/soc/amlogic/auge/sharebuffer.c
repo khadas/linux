@@ -60,8 +60,10 @@ static int sharebuffer_spdifout_prepare(struct snd_pcm_substream *substream,
 	/* check and set channel status */
 	iec_get_channel_status_info(&chsts,
 				    type, runtime->rate,
+				    bit_depth,
 				    l_src);
 	spdif_set_channel_status_info(&chsts, spdif_id);
+	spdif_set_validity(0, spdif_id);
 
 	/* for samesource case, always 2ch substream to hdmitx */
 	aud_param.rate = runtime->rate;
