@@ -200,27 +200,33 @@
 				REMOTE_KEY(0x49, KEY_YELLOW)
 				REMOTE_KEY(0x4C, KEY_BLUE)>;
 		};
-		map_4: map_4{
-			mapname = "amlogic-remote-khadas";
-			customcode = <0xff00>;
-			release_delay = <80>;
-			vendor = <0x0003>;
-			product = <0x0003>;
-			version = <0x0300>;
-			size  = <13>;
-			keymap = <REMOTE_KEY(0x14,KEY_POWER)
-				REMOTE_KEY(0x13,KEY_MENU)
-				REMOTE_KEY(0x03,KEY_UP)
-				REMOTE_KEY(0x02,KEY_DOWN)
-				REMOTE_KEY(0x0e,KEY_LEFT)
-				REMOTE_KEY(0x1a,KEY_RIGHT)
-				REMOTE_KEY(0x07,KEY_ENTER)
-				REMOTE_KEY(0x58,KEY_VOLUMEDOWN)
-				REMOTE_KEY(0x5c,KEY_F5)
-				REMOTE_KEY(0x5b,KEY_F5)
-				REMOTE_KEY(0x0b,KEY_VOLUMEUP)
-				REMOTE_KEY(0x01,KEY_BACK)
-				REMOTE_KEY(0x48,KEY_HOME)>;
-		};
+                map_4: map_4{
+                        mapname = "amlogic-remote-khadas";
+                        customcode = <0xff00>;
+                        release_delay = <80>;
+                        vendor = <0x0003>;
+                        product = <0x0003>;
+                        version = <0x0300>;
+                        size  = <13>;
+                        fn_key_scancode = <0x5b>;
+                        cursor_left_scancode = <0x0e>;
+                        cursor_right_scancode = <0x1a>;
+                        cursor_up_scancode = <0x03>;
+                        cursor_down_scancode = <0x02>;
+                        cursor_ok_scancode = <0x07>;
+                        keymap = <REMOTE_KEY(0x14,KEY_POWER)
+                                REMOTE_KEY(0x13,KEY_MENU)
+                                REMOTE_KEY(0x03,KEY_UP)
+                                REMOTE_KEY(0x02,KEY_DOWN)
+                                REMOTE_KEY(0x0e,KEY_LEFT)
+                                REMOTE_KEY(0x1a,KEY_RIGHT)
+                                REMOTE_KEY(0x07,KEY_ENTER)
+                                REMOTE_KEY(0x58,KEY_VOLUMEDOWN)
+                                REMOTE_KEY(0x5c,KEY_F5)
+                                REMOTE_KEY(0x5b,KEY_F5)
+                                REMOTE_KEY(0x0b,KEY_VOLUMEUP)
+                                REMOTE_KEY(0x01,KEY_BACK)
+                                REMOTE_KEY(0x48,KEY_HOME)>;
+                };
 	};
 };
