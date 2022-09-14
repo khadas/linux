@@ -488,6 +488,11 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 		devp->game_mode = 0;
 	}
 
+	/* dv is auto game not support manual set game */
+	if (devp->dv.dv_flag && !devp->prop.latency.allm_mode &&
+	    !devp->prop.low_latency && !devp->vrr_data.vrr_mode)
+		devp->game_mode = 0;
+
 	if (vdin_force_game_mode)
 		devp->game_mode = vdin_force_game_mode;
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
@@ -569,6 +574,11 @@ static inline void vdin_game_mode_dynamic_check(struct vdin_dev_s *devp)
 			VDIN_GAME_MODE_1 |
 			VDIN_GAME_MODE_SWITCH_EN);
 	}
+
+	/* dv is auto game not support manual set game */
+	if (devp->dv.dv_flag && !devp->prop.latency.allm_mode &&
+	    !devp->prop.low_latency && !devp->vrr_data.vrr_mode)
+		devp->game_mode = 0;
 
 	if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
 		pr_info("%s %d,vrr_mode:%d,game:pre(%#x)cur(%#x)in fps:%d out fps:%d\n",
