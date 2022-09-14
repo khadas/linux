@@ -24,5 +24,6 @@ struct unifykey_type {
 };
 
 int register_unifykey_types(struct unifykey_type *uk_type);
+void auto_attach(void);
 
 #endif /*__KEYMANAGE__*/
