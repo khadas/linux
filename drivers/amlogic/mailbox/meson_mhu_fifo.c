@@ -28,6 +28,7 @@
 #include "meson_mhu_fifo.h"
 
 #define DRIVER_NAME		"meson_mhu_fifo"
+#define IRQ_MAX_DEFAULT		64
 
 struct mbox_data {
 	u32 status;
@@ -90,7 +91,7 @@ static void mbox_fifo_read(void *to, void __iomem *from, long count)
 static void mbox_fifo_clr(void __iomem *to, long count)
 {
 	int i = 0;
-	int len = count / 4 + (count + 3) / 4;
+	int len = (count + 3) / 4;
 
 	while (len > 0) {
 		writel(0, (to + 4 * i));
@@ -269,7 +270,6 @@ static irqreturn_t mbox_handler(int irq, void *p)
 	u64 i, bit = 1;
 
 	outcnt = irqmax;
-
 	status = mbox_irqstatus(ctlr);
 	while (status && (outcnt != 0)) {
 		for (i = 0; i < irqmax; i++) {
@@ -858,6 +858,8 @@ static int mhu_fifo_probe(struct platform_device *pdev)
 		dev_err(dev, "set mbox irqmax default value %d\n", err);
 		irqmax = MHUIRQ_MAXNUM_DEF;
 	}
+	if (irqmax > IRQ_MAX_DEFAULT)
+		irqmax = IRQ_MAX_DEFAULT;
 	mhu_ctlr->mhu_irqmax = irqmax;
 
 	mutex_init(&mhu_ctlr->mutex);

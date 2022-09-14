@@ -1370,6 +1370,12 @@ int mbox_message_send_ao_sync(struct device *dev, int cmd, void *sdata,
 	struct mbox_client cl = {0};
 	int ret = 0;
 
+	if (tx_size > MBOX_DATA_SIZE ||
+		rx_size > MBOX_DATA_SIZE) {
+		pr_err("%s: size: %d %d over max: %d\n",
+			__func__, tx_size, rx_size, MBOX_DATA_SIZE);
+		return -EINVAL;
+	}
 	ret = mbox_get_head_offset(&data_buf, mhu_type);
 	if (ret < 0 && (mhu_type & MASK_MHU)) {
 		data_buf.head_off = 0;
