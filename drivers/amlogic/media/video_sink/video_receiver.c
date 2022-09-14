@@ -203,6 +203,7 @@ static void common_vf_unreg_provider(struct video_recv_s *ins)
 			ins->local_buf_ext = *tmp;
 			ins->local_buf = *ins->cur_buf;
 			ins->local_buf.vf_ext = (void *)&ins->local_buf_ext;
+			ins->local_buf_ext.ratio_control = ins->local_buf.ratio_control;
 		} else {
 			ins->local_buf = *ins->cur_buf;
 		}

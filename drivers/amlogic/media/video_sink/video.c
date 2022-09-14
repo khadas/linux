@@ -6140,15 +6140,17 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	struct vpp_frame_par_s *frame_par;
 	bool force_setting = false;
 	u32 zoom_start_y, zoom_end_y, blank = 0;
-	struct scaler_setting_s local_vd2_pps;
-	struct blend_setting_s local_vd2_blend;
-	struct mif_pos_s local_vd2_mif;
+	struct scaler_setting_s local_vd2_pps = {0};
+	struct blend_setting_s local_vd2_blend = {0};
+	struct mif_pos_s local_vd2_mif = {0};
 	bool update_vd2 = false;
 	struct vframe_s *dispbuf = NULL;
 
 	if (!layer)
 		return -1;
 
+	local_vd2_mif.p_vd_mif_reg = &vd_layer[1].vd_mif_reg;
+	local_vd2_mif.p_vd_afbc_reg = &vd_layer[1].vd_afbc_reg;
 	/* filter setting management */
 	if (layer->new_vpp_setting) {
 		layer->cur_frame_par = layer->next_frame_par;
@@ -9865,17 +9867,21 @@ static void video_vf_unreg_provider(void)
 			vf_local_ext = *tmp;
 			vf_local = *cur_dispbuf;
 			vf_local.vf_ext = (void *)&vf_local_ext;
+			vf_local_ext.ratio_control = vf_local.ratio_control;
 		} else if (cur_dispbuf->vf_ext &&
 			is_pre_link_source(cur_dispbuf)) {
+			u32 tmp_rc;
 			struct vframe_s *tmp =
 				(struct vframe_s *)cur_dispbuf->vf_ext;
 
 			if (debug_flag & DEBUG_FLAG_PRELINK)
 				pr_info("video_unreg: prelink: cur_dispbuf:%p, vf->ext:%p, flag:%x\n",
 					cur_dispbuf, cur_dispbuf->vf_ext, cur_dispbuf->flag);
+			tmp_rc = cur_dispbuf->ratio_control;
 			memcpy(&tmp->pic_mode, &cur_dispbuf->pic_mode,
 				sizeof(struct vframe_pic_mode_s));
 			vf_local = *tmp;
+			vf_local.ratio_control = tmp_rc;
 			vf_local.vf_ext = NULL;
 		} else {
 			vf_local = *cur_dispbuf;
@@ -10088,17 +10094,21 @@ static void video_vf_light_unreg_provider(int need_keep_frame)
 			vf_local_ext = *tmp;
 			vf_local = *cur_dispbuf;
 			vf_local.vf_ext = (void *)&vf_local_ext;
+			vf_local_ext.ratio_control = vf_local.ratio_control;
 		} else if (cur_dispbuf->vf_ext &&
 			is_pre_link_source(cur_dispbuf)) {
+			u32 tmp_rc;
 			struct vframe_s *tmp =
 				(struct vframe_s *)cur_dispbuf->vf_ext;
 
 			if (debug_flag & DEBUG_FLAG_PRELINK)
 				pr_info("video_light_unreg: prelink: cur_dispbuf:%p, vf->ext:%p, flag:%x\n",
 					cur_dispbuf, cur_dispbuf->vf_ext, cur_dispbuf->flag);
+			tmp_rc = cur_dispbuf->ratio_control;
 			memcpy(&tmp->pic_mode, &cur_dispbuf->pic_mode,
 				sizeof(struct vframe_pic_mode_s));
 			vf_local = *tmp;
+			vf_local.ratio_control = tmp_rc;
 			vf_local.vf_ext = NULL;
 		} else {
 			vf_local = *cur_dispbuf;
@@ -10412,6 +10422,7 @@ static void pip_vf_unreg_provider(void)
 			local_pip_ext = *tmp;
 			local_pip = *cur_pipbuf;
 			local_pip.vf_ext = (void *)&local_pip_ext;
+			local_pip_ext.ratio_control = local_pip.ratio_control;
 		} else {
 			local_pip = *cur_pipbuf;
 		}
@@ -10533,6 +10544,7 @@ static void pip_vf_light_unreg_provider(int need_keep_frame)
 			local_pip_ext = *tmp;
 			local_pip = *cur_pipbuf;
 			local_pip.vf_ext = (void *)&local_pip_ext;
+			local_pip_ext.ratio_control = local_pip.ratio_control;
 		} else {
 			local_pip = *cur_pipbuf;
 		}
@@ -10629,6 +10641,7 @@ static void pip2_vf_unreg_provider(void)
 			local_pip2_ext = *tmp;
 			local_pip2 = *cur_pipbuf2;
 			local_pip2.vf_ext = (void *)&local_pip2_ext;
+			local_pip2_ext.ratio_control = local_pip2.ratio_control;
 		} else {
 			local_pip2 = *cur_pipbuf2;
 		}
@@ -10746,6 +10759,7 @@ static void pip2_vf_light_unreg_provider(int need_keep_frame)
 			local_pip2_ext = *tmp;
 			local_pip2 = *cur_pipbuf2;
 			local_pip2.vf_ext = (void *)&local_pip2_ext;
+			local_pip2_ext.ratio_control = local_pip2.ratio_control;
 		} else {
 			local_pip2 = *cur_pipbuf2;
 		}
