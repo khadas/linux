@@ -1253,13 +1253,13 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	memcpy(&tmp, utsname(), sizeof(tmp));
 #ifdef CONFIG_AMLOGIC_MODIFY
 #ifdef CONFIG_ARM
-	pr_info("newuname: %s/%d release=%s bpf_enable_for_cts=%d\n",
+	pr_debug("newuname: %s/%d release=%s bpf_enable_for_cts=%d\n",
 		current->comm, current->pid, tmp.release, bpf_enable_for_cts);
 	if (!strncmp(current->comm, "bpfloader", 9) ||
 	    !strncmp(current->comm, "netd", 4)) {
 		if (!bpf_enable_for_cts) {
 			strcpy(tmp.release, "3.14.1"); //fake version don't support bpf
-			pr_info("fake uname: %s/%d release=%s\n",
+			pr_debug("fake uname: %s/%d release=%s\n",
 				 current->comm, current->pid, tmp.release);
 		}
 	}
