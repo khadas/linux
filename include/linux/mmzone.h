@@ -102,12 +102,12 @@ extern int page_group_by_mobility_disabled;
 struct free_area {
 	struct list_head	free_list[MIGRATE_TYPES];
 	unsigned long		nr_free;
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 	unsigned long           free_mt[MIGRATE_TYPES];
 #endif
 };
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 void count_free_migrate(struct free_area *area, struct page *page,
 			struct list_head *list, int op);
 #define FREE_LIST_ADD	0

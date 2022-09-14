@@ -978,7 +978,7 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
 
 	list_add(&page->lru, &area->free_list[migratetype]);
 	area->nr_free++;
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 	count_free_migrate(area, page,
 		&area->free_list[migratetype], FREE_LIST_ADD);
 #endif
@@ -992,7 +992,7 @@ static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
 
 	list_add_tail(&page->lru, &area->free_list[migratetype]);
 	area->nr_free++;
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 	count_free_migrate(area, page,
 		&area->free_list[migratetype], FREE_LIST_ADD);
 #endif
@@ -1009,7 +1009,7 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
 	struct free_area *area = &zone->free_area[order];
 
 	list_move_tail(&page->lru, &area->free_list[migratetype]);
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 	count_free_migrate(area, page,
 		&area->free_list[migratetype], FREE_LIST_MOVE);
 #endif
@@ -1026,7 +1026,7 @@ static inline void del_page_from_free_list(struct page *page, struct zone *zone,
 	__ClearPageBuddy(page);
 	set_page_private(page, 0);
 	zone->free_area[order].nr_free--;
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 	count_free_migrate(&zone->free_area[order], page, NULL, FREE_LIST_RM);
 #endif
 }
@@ -6321,7 +6321,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 		unsigned int order;
 		unsigned long nr[MAX_ORDER], flags, total = 0;
 		unsigned char types[MAX_ORDER];
-	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 		unsigned long free_mt[MIGRATE_TYPES] = {0};
 	#endif
 
@@ -6340,7 +6340,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 
 			types[order] = 0;
 			for (type = 0; type < MIGRATE_TYPES; type++) {
-			#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+			#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 				free_mt[type] += (area->free_mt[type] << order);
 			#endif
 				if (!free_area_empty(area, type))
@@ -6355,7 +6355,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
 				show_migration_types(types[order]);
 		}
 		printk(KERN_CONT "= %lukB\n", K(total));
-	#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+	#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 		for (order = 0; order < MIGRATE_TYPES; order++) {
 			pr_info("Free_%s:%ld\n", migratetype_names[order],
 					free_mt[order]);
@@ -9766,7 +9766,7 @@ bool take_page_off_buddy(struct page *page)
 }
 #endif
 
-#ifdef CONFIG_AMLOGIC_MEMORY_EXTEND
+#ifdef CONFIG_AMLOGIC_MEMORY_STAT
 void count_free_migrate(struct free_area *area, struct page *page,
 			struct list_head *list, int op)
 {
@@ -9799,7 +9799,7 @@ void count_free_migrate(struct free_area *area, struct page *page,
 		break;
 	}
 }
-#endif /* CONFIG_AMLOGIC_MEMORY_EXTEND */
+#endif /* CONFIG_AMLOGIC_MEMORY_STAT */
 
 #ifdef CONFIG_ZONE_DMA
 bool has_managed_dma(void)
