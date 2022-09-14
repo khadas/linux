@@ -51,8 +51,10 @@
 #define CLKID_AUDIO_GATE_EARCRX                 36
 #define CLKID_AUDIO_GATE_TDMIND                 37
 #define CLKID_AUDIO_GATE_TDMOUTD                38
+#define CLKID_AUDIO_GATE_PCPD_A                 39
+#define CLKID_AUDIO_GATE_PCPD_B                 40
 
-#define CLKID_AUDIO_GATE_MAX                    39
+#define CLKID_AUDIO_GATE_MAX                    41
 
 #define MCLK_BASE                               CLKID_AUDIO_GATE_MAX
 #define CLKID_AUDIO_MCLK_A                      (MCLK_BASE + 0)

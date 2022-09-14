@@ -2063,9 +2063,10 @@ static int earctx_clk_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct earc *p_earc = dev_get_drvdata(component->dev);
-
-	ucontrol->value.enumerated.item[0] =
-			clk_get_rate(p_earc->clk_tx_dmac);
+	if (!IS_ERR(p_earc->clk_tx_dmac)) {
+		ucontrol->value.enumerated.item[0] =
+				clk_get_rate(p_earc->clk_tx_dmac);
+	}
 	return 0;
 }
 
