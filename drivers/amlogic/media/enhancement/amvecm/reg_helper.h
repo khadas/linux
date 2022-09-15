@@ -151,6 +151,8 @@ static inline u32 get_sr1_dnlp2_offset(void)
 
 static u32 offset_addr(u32 addr)
 {
+	if (is_meson_s5_cpu())
+		return addr; /*s5 sr lc reg change, todo*/
 	if (is_sr0_reg(addr))
 		return addr + get_sr0_offset();
 	else if (is_sr1_reg(addr))

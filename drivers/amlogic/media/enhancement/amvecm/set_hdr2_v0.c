@@ -1724,8 +1724,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		for (i = 0; i < MTX_NUM_PARAM; i++)
 			in_mtx[i] = hdr_mtx_param->mtx_in[i];
 
-#ifdef HDR2_PRINT
-		pr_info("hdr: in_mtx %d %d = %x,%x %x %x %x %x,%x\n",
+		pr_csc(64, "hdr: in_mtx %d %d = %x,%x %x %x %x %x,%x\n",
 			hdr_mtx_param->mtx_on,
 			hdr_mtx_param->mtx_only,
 			(hdr_mtx_param->mtxi_pre_offset[0] << 16) |
@@ -1741,7 +1740,6 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			in_mtx[2 * 3 + 2],
 			(hdr_mtx_param->mtxi_pos_offset[0] << 16) |
 			(hdr_mtx_param->mtxi_pos_offset[1] & 0xFFF));
-#endif
 		if (hdr_mtx_param->mtx_only == MTX_ONLY &&
 		    !hdr_mtx_param->mtx_on)
 			VSYNC_WRITE_VPP_REG_VPP_SEL(MATRIXI_EN_CTRL, 1, vpp_sel);
@@ -1932,8 +1930,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		/*shift2 is not used, set default*/
 		adpscl_shift[2] = hdr_lut_param->adp_scal_y_shift;
 
-#ifdef HDR2_PRINT
-		pr_info("hdr: gamut_mtx %d mode %d shift %d = %x %x %x %x %x\n",
+		pr_csc(64, "hdr: gamut_mtx %d mode %d shift %d = %x %x %x %x %x\n",
 			hdr_mtx_param->mtx_on,
 			hdr_mtx_param->mtx_gamut_mode,
 			gmut_shift,
@@ -1946,9 +1943,8 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 			(gmut_coef[2][1] & 0xffff) << 16 |
 			(gmut_coef[2][0] & 0xffff),
 			gmut_coef[2][2] & 0xffff);
-		pr_info("hdr: adpscl bypass %d, x_shift %d, y_shift %d\n",
+		pr_csc(64, "hdr: adpscl bypass %d, x_shift %d, y_shift %d\n",
 			adpscl_bypass[0], adpscl_shift[0], adpscl_shift[1]);
-#endif
 
 		/*gamut mode: 1->gamut before ootf*/
 					/*2->gamut after ootf*/
@@ -3616,38 +3612,37 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 
 		dma_id = HDR_DMA_ID;
 		vpu_lut_dma(module_sel, &hdr_lut_param, dma_id);
-		return hdr_process_select;
+	} else {
+		/* enable hdr: first enable X_HDR2_CLK_GATE */
+		/* then enable hdr mode */
+		if (!(hdr_process_select & HDR_BYPASS))
+			hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_sel);
+
+		set_hdr_matrix(module_sel, HDR_IN_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
+		set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
+			&hdr_mtx_param, NULL, &hdr_lut_param, vpp_index);
+		set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+		set_oetf_lut(module_sel, &hdr_lut_param, vpp_index);
+		set_hdr_matrix(module_sel, HDR_OUT_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		set_c_gain(module_sel, &hdr_lut_param, vpp_index);
+
+		hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+
+		if (clip_func == 0xff) {
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+				get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
+				clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
+							module_sel, vpp_index);
+		}
+
+		/* disable hdr: first disable X_HDR2_CTRL bit13, */
+		/* then disable X_HDR2_CLK_GATE */
+		if (hdr_process_select & HDR_BYPASS)
+			hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_sel);
 	}
-	/* enable hdr: first enable X_HDR2_CLK_GATE */
-	/* then enable hdr mode */
-	if (!(hdr_process_select & HDR_BYPASS))
-		hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_sel);
-
-	set_hdr_matrix(module_sel, HDR_IN_MTX,
-		&hdr_mtx_param, NULL, NULL, vpp_index);
-	set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
-	set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
-		&hdr_mtx_param, NULL, &hdr_lut_param, vpp_index);
-	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
-	set_oetf_lut(module_sel, &hdr_lut_param, vpp_index);
-	set_hdr_matrix(module_sel, HDR_OUT_MTX,
-		&hdr_mtx_param, NULL, NULL, vpp_index);
-	set_c_gain(module_sel, &hdr_lut_param, vpp_index);
-
-	hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
-
-	if (clip_func == 0xff) {
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
-			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
-			clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
-						module_sel, vpp_index);
-	}
-
-	/* disable hdr: first disable X_HDR2_CTRL bit13, */
-	/* then disable X_HDR2_CLK_GATE */
-	if (hdr_process_select & HDR_BYPASS)
-		hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_sel);
-
 	return hdr_process_select;
 }
 
@@ -3809,6 +3804,7 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	int *coeff_in = bypass_coeff;
 	int *oft_pre_in = bypass_pre;
 	int *oft_post_in = bypass_pos;
+	enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
 
 	if (disable_flush_flag)
 		return hdr_process_select;
@@ -3839,6 +3835,9 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 		eo_gmt_bit_mode = true;
 
 	if (module_sel == VD1_HDR ||
+		module_sel == S5_VD1_SLICE1 ||
+		module_sel == S5_VD1_SLICE2 ||
+		module_sel == S5_VD1_SLICE3 ||
 	    module_sel == VD2_HDR ||
 	    module_sel == VD3_HDR ||
 	    module_sel == OSD1_HDR ||
@@ -4017,36 +4016,56 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 			hdr_mtx_param.gmt_bit_mode = 1;
 	}
 
-	/* enable hdr: first enable X_HDR2_CLK_GATE */
-	/* then enable hdr mode */
-	if (!(hdr_process_select & HDR_BYPASS))
-		hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_index);
+	if (is_meson_s5_cpu()) {
+		pr_csc(12, "%s: s5 update hdr core sel(%d).\n",
+			__func__,
+			module_sel);
+		s5_set_hdr_matrix(module_sel, HDR_IN_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		s5_set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
+		s5_set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
+			&hdr_mtx_param, NULL, &hdr_lut_param, vpp_index);
+		s5_set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+		s5_set_oetf_lut(module_sel, &hdr_lut_param, vpp_index);
+		s5_set_hdr_matrix(module_sel, HDR_OUT_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		s5_set_c_gain(module_sel, &hdr_lut_param, vpp_index);
 
-	set_hdr_matrix(module_sel, HDR_IN_MTX,
-		&hdr_mtx_param, NULL, NULL, vpp_index);
-	set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
-	set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
-		&hdr_mtx_param, NULL, &hdr_lut_param, vpp_index);
-	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
-	set_oetf_lut(module_sel, &hdr_lut_param, vpp_index);
-	set_hdr_matrix(module_sel, HDR_OUT_MTX,
-		&hdr_mtx_param, NULL, NULL, vpp_index);
-	set_c_gain(module_sel, &hdr_lut_param, vpp_index);
+		s5_hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
 
-	hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+		dma_id = HDR_DMA_ID;
+		vpu_lut_dma(module_sel, &hdr_lut_param, dma_id);
+	} else {
+		/* enable hdr: first enable X_HDR2_CLK_GATE */
+		/* then enable hdr mode */
+		if (!(hdr_process_select & HDR_BYPASS))
+			hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_index);
 
-	if (clip_func == 0xff) {
-		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
-			get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
-			clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
-						module_sel, vpp_index);
+		set_hdr_matrix(module_sel, HDR_IN_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		set_eotf_lut(module_sel, &hdr_lut_param, vpp_index);
+		set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
+			&hdr_mtx_param, NULL, &hdr_lut_param, vpp_index);
+		set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+		set_oetf_lut(module_sel, &hdr_lut_param, vpp_index);
+		set_hdr_matrix(module_sel, HDR_OUT_MTX,
+			&hdr_mtx_param, NULL, NULL, vpp_index);
+		set_c_gain(module_sel, &hdr_lut_param, vpp_index);
+
+		hdr_hist_config(module_sel, &hdr_lut_param, vpp_index);
+
+		if (clip_func == 0xff) {
+			if (get_cpu_type() == MESON_CPU_MAJOR_ID_T3 ||
+				get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
+				clip_func_after_ootf(hdr_mtx_param.mtx_gamut_mode,
+							module_sel, vpp_index);
+		}
+
+		/* disable hdr: first disable X_HDR2_CTRL bit13, */
+		/* then disable X_HDR2_CLK_GATE */
+		if (hdr_process_select & HDR_BYPASS)
+			hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_index);
 	}
-
-	/* disable hdr: first disable X_HDR2_CTRL bit13, */
-	/* then disable X_HDR2_CLK_GATE */
-	if (hdr_process_select & HDR_BYPASS)
-		hdr_gclk_ctrl_switch(module_sel, hdr_process_select, vpp_index);
-
 	return hdr_process_select;
 }
 
