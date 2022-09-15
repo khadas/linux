@@ -339,7 +339,7 @@ int meson_add_mtd_partitions(struct mtd_info *mtd)
 	offset += part->size;
 
 	/* skip rsv */
-	offset += NAND_RSV_BLOCK_NUM * mtd->erasesize;
+	offset += NAND_RSV_BLOCK_NUM * (loff_t)mtd->erasesize;
 
 	/* tpl, support NAND_FIPMODE_DISCRETE only */
 	part++;

@@ -65,12 +65,12 @@ static int adjust_part_offset(struct mtd_info *master, u8 nr_parts,
 
 			parts[i].offset = adjust_offset +
 				reserved_part_blk_num *
-				master->erasesize;
+				(loff_t)master->erasesize;
 			parts[i].size = fip_part_size;
 			pr_info("%s: off %llx, size %llx\n", parts[i].name,
 				parts[i].offset, parts[i].size);
 			adjust_offset += reserved_part_blk_num *
-			master->erasesize + fip_part_size;
+			(loff_t)master->erasesize + fip_part_size;
 		}
 	}
 

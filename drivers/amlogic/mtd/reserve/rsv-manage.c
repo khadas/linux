@@ -153,7 +153,7 @@ int meson_rsv_write(struct meson_rsv_info_t *rsv_info, u_char *buf)
 
 	offset = rsv_info->valid_node->phy_blk_addr;
 	offset *= mtd->erasesize;
-	offset += rsv_info->valid_node->phy_page_addr * mtd->writesize;
+	offset += rsv_info->valid_node->phy_page_addr * (loff_t)mtd->writesize;
 	pr_info("%s:%d,save info to %llx\n", __func__, __LINE__, offset);
 
 	memcpy(oobinfo.name, rsv_info->name, 4);
@@ -260,7 +260,7 @@ RE_SEARCH:
 
 	offset = rsv_info->valid_node->phy_blk_addr;
 	offset *= mtd->erasesize;
-	offset += rsv_info->valid_node->phy_page_addr * mtd->writesize;
+	offset += rsv_info->valid_node->phy_page_addr * (loff_t)mtd->writesize;
 
 	if (rsv_info->valid_node->phy_page_addr == 0) {
 		ret = mtd->_block_isbad(mtd, offset);
@@ -450,7 +450,7 @@ RE_RSV_INFO:
 
 		offset = rsv_info->valid_node->phy_blk_addr;
 		offset *= mtd->erasesize;
-		offset += i * mtd->writesize;
+		offset += i * (u64)mtd->writesize;
 		error = mtd_read_oob(mtd, offset, &oob_ops);
 		if (error != 0 && error != -EUCLEAN) {
 			pr_info("blk good but read failed:%llx,%d\n",
@@ -508,7 +508,7 @@ RE_RSV_INFO:
 		ret = -1;
 	offset = rsv_info->valid_node->phy_blk_addr;
 	offset *= mtd->erasesize;
-	offset += rsv_info->valid_node->phy_page_addr * mtd->writesize;
+	offset += rsv_info->valid_node->phy_page_addr * (u64)mtd->writesize;
 	pr_info("%s valid addr: %llx\n", rsv_info->name, (u64)offset);
 	return ret;
 }
@@ -526,7 +526,7 @@ int meson_rsv_read(struct meson_rsv_info_t *rsv_info, u_char *buf)
 READ_RSV_AGAIN:
 	offset = rsv_info->valid_node->phy_blk_addr;
 	offset *= mtd->erasesize;
-	offset += rsv_info->valid_node->phy_page_addr * mtd->writesize;
+	offset += rsv_info->valid_node->phy_page_addr * (loff_t)mtd->writesize;
 	pr_info("%s:%d,read info %s from %llx\n", __func__, __LINE__,
 		 rsv_info->name, offset);
 
