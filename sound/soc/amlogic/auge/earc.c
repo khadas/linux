@@ -1820,6 +1820,13 @@ static void earctx_set_earc_mode(struct earc *p_earc, bool earc_mode)
 		dev_info(p_earc->dev, "cable is disconnect, no need set\n");
 		return;
 	}
+#if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
+	defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
+	if (!p_earc->tx_earc_mode) {
+		rx_earc_hpd_cntl(); /* reset hpd */
+		aml_earctx_enable_d2a(false);
+	}
+#endif
 	/* set arc initiated and arc_enable */
 	earctx_cmdc_arc_connect(p_earc->tx_cmdc_map, !earc_mode);
 	/* set earc mode */
@@ -1856,7 +1863,7 @@ int earctx_earc_mode_put(struct snd_kcontrol *kcontrol,
 	p_earc->tx_earc_mode = earc_mode;
 	earctx_set_earc_mode(p_earc, earc_mode);
 	if (!earc_mode && earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map) == ATNDTYP_ARC)
-		earctx_update_attend_event(p_earc, false, true);
+		schedule_work(&p_earc->send_uevent);
 
 	return 0;
 }
@@ -2422,10 +2429,13 @@ static void send_uevent_work_func(struct work_struct *p_work)
 	struct earc *p_earc = container_of(p_work, struct earc, send_uevent);
 	enum attend_type type = earctx_cmdc_get_attended_type(p_earc->tx_cmdc_map);
 
-	if (type == ATNDTYP_ARC)
+	if (type == ATNDTYP_ARC) {
+		msleep(700);
+		aml_earctx_enable_d2a(true);
 		earctx_update_attend_event(p_earc, false, true);
-	else if (type == ATNDTYP_DISCNCT)
+	} else if (type == ATNDTYP_DISCNCT) {
 		earctx_update_attend_event(p_earc, false, false);
+	}
 }
 
 void earc_hdmirx_hpdst(int earc_port, bool st)

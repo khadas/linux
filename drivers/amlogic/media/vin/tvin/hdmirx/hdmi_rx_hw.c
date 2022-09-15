@@ -4564,7 +4564,7 @@ void rx_earc_hpd_handler(struct work_struct *work)
 {
 	cancel_delayed_work(&eq_dwork);
 	rx_set_port_hpd(rx.arc_port, 0);
-	usleep_range(550000, 600000);
+	usleep_range(600000, 650000);
 	rx_set_port_hpd(rx.arc_port, 1);
 }
 
