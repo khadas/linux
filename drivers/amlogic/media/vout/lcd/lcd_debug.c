@@ -6721,14 +6721,15 @@ static ssize_t lcd_mipi_read_debug_show(struct device *dev,
 
 	if (dread.cnt > DSI_READ_CNT_MAX)
 		return sprintf(buf, "error: mipi read cnt is out of support\n");
-	if (!dread.value)
-		return sprintf(buf, "error: mipi read return value is null\n");
 
 	dread.line_start = 0x1fff;
 	dread.line_end = 0x1fff;
 	dread.ret_code = 4;
 
 #ifdef CONFIG_AMLOGIC_LCD_TABLET
+	dread.value = kcalloc(dread.cnt, sizeof(unsigned char), GFP_KERNEL);
+	if (!dread.value)
+		return sprintf(buf, "error: mipi read return value is null\n");
 	if (pdrv->config.control.mipi_cfg.current_mode == 0) {
 		dread.flag = 1;
 		while (i++ < 5000) {
@@ -6742,6 +6743,8 @@ static ssize_t lcd_mipi_read_debug_show(struct device *dev,
 #endif
 
 	if (dread.ret_code) {
+		kfree(dread.value);
+		dread.value = NULL;
 		dread.ret_code = (dread.ret_code >= MIPI_RD_RET_CODE_MAX) ?
 					MIPI_RD_RET_CODE_MAX : dread.ret_code;
 		return sprintf(buf, "read error: %s(%d)\n",
@@ -6760,6 +6763,8 @@ static ssize_t lcd_mipi_read_debug_show(struct device *dev,
 	len += sprintf(buf + len, "\nread line start=%d, end=%d\n",
 		dread.line_start, dread.line_end);
 
+	kfree(dread.value);
+	dread.value = NULL;
 	return len;
 }
 
@@ -6780,10 +6785,6 @@ static ssize_t lcd_mipi_read_debug_store(struct device *dev, struct device_attri
 	dread.cnt = (unsigned char)para[1];
 	if (dread.cnt > DSI_READ_CNT_MAX) {
 		LCDERR("mipi read cnt is out of support\n");
-		return count;
-	}
-	if (!dread.value) {
-		LCDERR("mipi read return value is null\n");
 		return count;
 	}
 
