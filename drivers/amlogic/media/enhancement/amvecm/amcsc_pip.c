@@ -46,7 +46,7 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
-static const char *module_str[10] = {
+static const char *module_str[11] = {
 	"UNKNOWN",
 	"VD1",
 	"VD2",
@@ -56,6 +56,7 @@ static const char *module_str[10] = {
 	"VDIN0",
 	"VDIN1",
 	"DI",
+	"DI_MEM",
 	"OSD3"
 };
 
@@ -1341,15 +1342,29 @@ static void prepare_hdr_info(struct master_display_info_s *hdr_data,
 	}
 }
 
-static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal)
+static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal,
+	enum vpp_index vpp_index)
 {
 	static int pre_signal = -1;
+
+	if (vpp_index != VPP_TOP0)
+		return -1;
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 	if (pre_signal != vd_signal->signal_type) {
 		vd_signal->vd1_signal_type =
 			vd_signal->signal_type;
-		vd_signal->vd2_signal_type =
-			vd_signal->signal_type;
+		if (is_vpp0(VD2_PATH))
+			vd_signal->vd2_signal_type =
+				vd_signal->signal_type;
+		else
+			vd_signal->vd2_signal_type = -1;
+		pr_csc(8,
+			"%s:line=%d, signal_type=%x, vd1_signal_type=%x, vd2_signal_type=%x\n",
+			__func__, __LINE__,
+			vd_signal->signal_type,
+			vd_signal->vd1_signal_type,
+			vd_signal->vd2_signal_type);
 		amvideo_notifier_call_chain
 			(AMVIDEO_UPDATE_SIGNAL_MODE,
 			(void *)vd_signal);
@@ -1394,6 +1409,10 @@ void hdmi_packet_process(int signal_change_flag,
 		return;
 	if (!vinfo->vout_device) {
 		/* pr_info("vinfo->vout_device is null, return\n"); */
+		if (vpp_index == VPP_TOP0) {
+			vd_signal.signal_type = SIGNAL_SDR;
+			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
+		}
 		return;
 	}
 
@@ -1556,13 +1575,13 @@ void hdmi_packet_process(int signal_change_flag,
 			if (f_h10)
 				f_h10(1, h10_para);
 		}
-		notify_vd_signal_to_amvideo(&vd_signal);
+		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 		return;
 	}
 	/* none hdr+ */
 	if (f_h) {
 		f_h(&send_info);
-		notify_vd_signal_to_amvideo(&vd_signal);
+		notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 	}
 }
 

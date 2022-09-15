@@ -7135,15 +7135,26 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path, enum vpp_index vpp_index)
 }
 EXPORT_SYMBOL(send_hdr10_plus_pkt);
 
-static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal)
+static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal,
+	enum vpp_index vpp_index)
 {
 	static int pre_signal = -1;
+
+	if (vpp_index != VPP_TOP0)
+		return -1;
+
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 	if (pre_signal != vd_signal->signal_type) {
 		vd_signal->vd1_signal_type =
 			vd_signal->signal_type;
 		vd_signal->vd2_signal_type =
 			vd_signal->signal_type;
+		pr_csc(8,
+			"%s:line=%d, signal_type=%x, vd1_signal_type=%x, vd2_signal_type=%x\n",
+			__func__, __LINE__,
+			vd_signal->signal_type,
+			vd_signal->vd1_signal_type,
+			vd_signal->vd2_signal_type);
 		amvideo_notifier_call_chain
 			(AMVIDEO_UPDATE_SIGNAL_MODE,
 			(void *)vd_signal);
@@ -7220,7 +7231,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 			}
 
 			vd_signal.signal_type = SIGNAL_HDR10PLUS;
-			notify_vd_signal_to_amvideo(&vd_signal);
+			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 
 			if (hdmi_csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				hdmi_csc_type =
@@ -7249,7 +7260,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 					f_h(&send_info);
 			}
 			vd_signal.signal_type = SIGNAL_HDR10;
-			notify_vd_signal_to_amvideo(&vd_signal);
+			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 
 			if (hdmi_csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				hdmi_csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
@@ -7292,7 +7303,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 				if (f_h)
 					f_h(&send_info);
 			}
-			notify_vd_signal_to_amvideo(&vd_signal);
+			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 
 			if (hdmi_csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				hdmi_csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
@@ -7334,7 +7345,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 				if (f_h)
 					f_h(&send_info);
 			}
-			notify_vd_signal_to_amvideo(&vd_signal);
+			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 			if (hdmi_csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB) {
 				hdmi_csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 				*hdmi_scs_type_changed = 1;
@@ -7370,7 +7381,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 						f_h10(1, h10_para);
 				}
 				vd_signal.signal_type = SIGNAL_HDR10PLUS;
-				notify_vd_signal_to_amvideo(&vd_signal);
+				notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 			}
 			if (hdmi_csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) {
 				hdmi_csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC;
@@ -7421,7 +7432,7 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 				}
 			}
 			vd_signal.signal_type = SIGNAL_SDR;
-			notify_vd_signal_to_amvideo(&vd_signal);
+			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
 			if (hdmi_csc_type != VPP_MATRIX_YUV709_RGB) {
 				hdmi_csc_type = VPP_MATRIX_YUV709_RGB;
 				*hdmi_scs_type_changed = 1;
