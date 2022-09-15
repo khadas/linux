@@ -11,7 +11,7 @@
 		map1 = <&map_1>;
 		map2 = <&map_2>;
 		map3 = <&map_3>;
-                map4 = <&map_4>;
+		map4 = <&map_4>;
 		map_0: map_0{
 			mapname = "amlogic-remote-1";
 			customcode = <0xfb04>;
@@ -208,6 +208,12 @@
                         product = <0x0003>;
                         version = <0x0300>;
                         size  = <13>;
+                        fn_key_scancode = <0x5b>;
+                        cursor_left_scancode = <0x0e>;
+                        cursor_right_scancode = <0x1a>;
+                        cursor_up_scancode = <0x03>;
+                        cursor_down_scancode = <0x02>;
+                        cursor_ok_scancode = <0x07>;
                         keymap = <REMOTE_KEY(0x14,KEY_POWER)
                                 REMOTE_KEY(0x13,KEY_MENU)
                                 REMOTE_KEY(0x03,KEY_UP)

@@ -215,7 +215,7 @@ static u32 meson_ir_getkeycode(struct meson_ir_dev *dev, u32 scancode)
 	    scancode == ct->tab.cursor_code.cursor_ok_scancode) {
 		meson_ir_dbg(chip->r_dev, "mouse left button scancode: 0x%x",
 			     BTN_LEFT);
-		return BTN_LEFT;
+		return BTN_MOUSE;
 	}
 
 	index = meson_ir_lookup_by_scancode(&ct->tab, scancode);
@@ -518,6 +518,51 @@ static int meson_ir_get_custom_tables(struct device_node *node,
 
 		memset(&ptable->tab.cursor_code, 0xff,
 		       sizeof(struct cursor_codemap));
+
+        if (strcmp(ptable->tab.custom_name, "amlogic-remote-khadas") == 0) {
+                ret = of_property_read_u32(map, "fn_key_scancode", &value);
+                if (ret) {
+                        dev_err(chip->dev, "please config fn_key_scancode item\n");
+                        goto err;
+                }
+                ptable->tab.cursor_code.fn_key_scancode = value;
+
+                ret = of_property_read_u32(map, "cursor_left_scancode", &value);
+                if (ret) {
+                        dev_err(chip->dev, "please config cursor_left_scancode item\n");
+                        goto err;
+                }
+                ptable->tab.cursor_code.cursor_left_scancode = value;
+
+                ret = of_property_read_u32(map, "cursor_right_scancode", &value);
+                if (ret) {
+                        dev_err(chip->dev, "please config cursor_right_scancode item\n")    ;
+                        goto err;
+                }
+                ptable->tab.cursor_code.cursor_right_scancode = value;
+
+                ret = of_property_read_u32(map, "cursor_up_scancode", &value);
+                if (ret) {
+                        dev_err(chip->dev, "please config cursor_up_scancode item\n");
+                        goto err;
+                }
+                ptable->tab.cursor_code.cursor_up_scancode = value;
+
+                ret = of_property_read_u32(map, "cursor_down_scancode", &value);
+                if (ret) {
+                        dev_err(chip->dev, "please config cursor_down_scancode item\n");
+                        goto err;
+                }
+                ptable->tab.cursor_code.cursor_down_scancode = value;
+
+                ret = of_property_read_u32(map, "cursor_ok_scancode", &value);
+                if (ret) {
+                        dev_err(chip->dev, "please config cursor_ok_scancode item\n");
+                        goto err;
+                }
+                ptable->tab.cursor_code.cursor_ok_scancode= value;
+        }
+
 		meson_ir_scancode_sort(&ptable->tab);
 		/*insert list*/
 		spin_lock_irqsave(&chip->slock, flags);
