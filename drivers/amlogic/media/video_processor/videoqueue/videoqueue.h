@@ -68,13 +68,13 @@ struct video_queue_dev {
 	u64 ready_time;
 	u32 delay_vsync_count;
 	u32 need_check_delay_count;
-	bool low_latency_mode;
 	bool need_aisr;
 	u32 vdin_hold_count;
 	bool vlock_locked;
 	int vdin_err_crc_count;
 	bool need_keep_frame;
 	int dv_inst;
+	int frame_skip_check_cnt;
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
