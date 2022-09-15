@@ -349,6 +349,13 @@ enum E_ASPECT_RATIO {
 	ASPECT_UNDEFINED = 255
 };
 
+struct aspect_ratio_info {
+	s32 sar_width; /* -1 :invalid value */
+	s32 sar_height; /* -1 :invalid value */
+	s32 dar_width; /* -1 :invalid value */
+	s32 dar_height; /* -1 :invalid value */
+};
+
 struct vdec_status {
 	unsigned int width;
 	unsigned int height;
@@ -356,6 +363,10 @@ struct vdec_status {
 	unsigned int error_count;
 	unsigned int status;
 	enum E_ASPECT_RATIO euAspectRatio;
+	struct aspect_ratio_info aspect_ratio;
+	u64 arg;
+	unsigned int size;
+	char reserved[60];
 };
 
 struct vdec_info {
