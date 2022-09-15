@@ -438,6 +438,10 @@ static int meson_cpufreq_set_target(struct cpufreq_policy *policy,
 		volt_new = dev_pm_opp_get_voltage(opp);
 		dev_pm_opp_put(opp);
 		volt_old = meson_regulator_get_volate(cpu_reg);
+		if (volt_old > cpufreq_data->volt_max)
+			volt_old = cpufreq_data->volt_max;
+		else if (volt_old < cpufreq_data->volt_min)
+			volt_old = cpufreq_data->volt_min;
 		volt_tol = volt_new * cpufreq_data->volt_tol / 100;
 		pr_debug("Found OPP: %lu kHz, %u, tolerance: %u\n",
 			 freq_new / 1000, volt_new, volt_tol);
@@ -792,6 +796,30 @@ static void show_dsu_opp_table(u32 *table, int clusterid)
 		clusterid, table[0], table[1], table[2], table[3]);
 }
 
+static void meson_set_policy_volt_range(struct meson_cpufreq_driver_data *data)
+{
+	struct device *cpu_dev = data->cpu_dev;
+	struct opp_table *opp_table = dev_pm_opp_get_opp_table(cpu_dev);
+	struct dev_pm_opp *opp;
+	unsigned long max = 0, min = -1;
+
+	if (opp_table) {
+		mutex_lock(&opp_table->lock);
+		list_for_each_entry(opp, &opp_table->opp_list, node) {
+			if (!opp->available)
+				continue;
+			if (opp->supplies[0].u_volt > max)
+				max = opp->supplies[0].u_volt;
+			if (opp->supplies[0].u_volt < min)
+				min = opp->supplies[0].u_volt;
+		}
+		dev_pm_opp_put_opp_table(opp_table);
+		mutex_unlock(&opp_table->lock);
+	}
+	data->volt_max = max;
+	data->volt_min = min;
+}
+
 /* CPU initialization */
 static int meson_cpufreq_init(struct cpufreq_policy *policy)
 {
@@ -996,6 +1024,7 @@ static int meson_cpufreq_init(struct cpufreq_policy *policy)
 
 	nr_opp = dev_pm_opp_get_opp_count(cpu_dev);
 	dev_pm_opp_of_register_em(policy->cpus);
+	meson_set_policy_volt_range(cpufreq_data);
 
 	dev_info(cpu_dev, "%s: CPU %d initialized\n", __func__, policy->cpu);
 	return ret;
@@ -1081,7 +1110,8 @@ static void meson_cpufreq_ready(struct cpufreq_policy *policy)
 #ifdef CONFIG_AMLOGIC_MODIFY
 	if (maxfreq && maxfreq >= policy->min && maxfreq < policy->max) {
 		pr_info("policy%d: set policy->max to %u from bootargs\n", policy->cpu, maxfreq);
-		freq_qos_update_request(policy->max_freq_req, maxfreq);
+		if (freq_qos_update_request(policy->max_freq_req, maxfreq) < 0)
+			pr_err("freq_qos_update_request failed\n");
 	}
 #endif
 }
