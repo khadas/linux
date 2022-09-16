@@ -669,6 +669,9 @@ static int set_disp_mode_auto(void)
 	/* nothing */
 	}
 
+	if (hdev->rxcap.max_frl_rate)
+		hdev->frl_rate = hdmitx21_select_frl_rate(hdev->dsc_en, vic,
+			hdev->para->cs, hdev->para->cd);
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
 /* if vic is HDMI_0_UNKNOWN, hdmitx21_set_display will disable HDMI */
 	edidinfo_detach_to_vinfo(hdev);
@@ -2835,11 +2838,6 @@ static ssize_t dc_cap_show(struct device *dev,
 	const struct dv_info *dv = &hdev->rxcap.dv_info;
 	const struct dv_info *dv2 = &hdev->rxcap.dv_info2;
 
-	pos += snprintf(buf + pos, PAGE_SIZE, "444,8bit\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "rgb,8bit\n");
-	pos += snprintf(buf + pos, PAGE_SIZE, "420,8bit\n");
-	return pos;
-
 	if (prxcap->dc_36bit_420)
 		pos += snprintf(buf + pos, PAGE_SIZE, "420,12bit\n");
 	if (prxcap->dc_30bit_420)
@@ -2910,32 +2908,9 @@ static ssize_t valid_mode_show(struct device *dev,
 			       char *buf)
 {
 	int pos = 0;
-	int i;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 	struct hdmi_format_para *para = NULL;
 
-	/* TEMP, hard code for fixed modes */
-	static const char * const fixed_modes[] = {
-		"1080p60hz444,8bit",
-		"1080p60hzrgb,8bit",
-		"1080p50hz444,8bit",
-		"1080p50hzrgb,8bit",
-		"2160p60hz420,8bit",
-		"2160p60hz444,8bit",
-		"2160p60hzrgb,8bit",
-		"2160p50hz444,8bit",
-		"2160p50hz420,8bit",
-		"2160p50hzrgb,8bit",
-		"4320p60hz420,8bit",
-		NULL,
-	};
-
-	for (i = 0; fixed_modes[i]; i++) {
-		if (strncmp(fixed_modes[i], cvalid_mode, strlen(fixed_modes[i])) == 0)
-			goto next;
-	}
-	return snprintf(buf + pos, PAGE_SIZE, "0\n\r");
-next:
 	if (cvalid_mode[0]) {
 		valid_mode = pre_process_str(cvalid_mode);
 		if (valid_mode == 0) {
@@ -4035,6 +4010,28 @@ static ssize_t frl_rate_show(struct device *dev,
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdev->frl_rate);
+	switch (hdev->frl_rate) {
+	case FRL_3G3L:
+		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_3G3L\n");
+		break;
+	case FRL_6G3L:
+		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_6G3L\n");
+		break;
+	case FRL_6G4L:
+		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_6G4L\n");
+		break;
+	case FRL_8G4L:
+		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_8G4L\n");
+		break;
+	case FRL_10G4L:
+		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_10G4L\n");
+		break;
+	case FRL_12G4L:
+		pos += snprintf(buf + pos, PAGE_SIZE, "FRL_12G4L\n");
+		break;
+	default:
+		break;
+	}
 
 	return pos;
 }
@@ -4047,14 +4044,56 @@ static ssize_t frl_rate_store(struct device *dev,
 	u8 val = 0;
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	if (isdigit(buf[0])) {
-		val = buf[0] - '0';
-		if (val > 6) {
+	/* if rx don't support FRL, return */
+	if (!hdev->rxcap.max_frl_rate) {
+		hdev->frl_rate = 0;
+		pr_info("rx not support FRL\n");
+		return count;
+	}
+
+	/* forced FRL rate setting */
+	if (buf[0] == 'f' && isdigit(buf[1])) {
+		val = buf[1] - '0';
+		if (val > FRL_12G4L) {
 			pr_info("set frl_rate in 0 ~ 6\n");
 			return count;
 		}
 		hdev->frl_rate = val;
 		pr_info("set frl_rate as %d\n", val);
+		return count;
+	}
+
+	return count;
+}
+
+static ssize_t dsc_en_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n", hdev->dsc_en);
+
+	return pos;
+}
+
+static ssize_t dsc_en_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf,
+				      size_t count)
+{
+	u8 val = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		if (val != 0 && val != 1) {
+			pr_info("set dsc_en in 0 ~ 1\n");
+			return count;
+		}
+		hdev->dsc_en = val;
+		pr_info("set dsc_en as %d\n", val);
 	}
 
 	return count;
@@ -4298,6 +4337,7 @@ static DEVICE_ATTR_RW(sysctrl_enable);
 static DEVICE_ATTR_RO(propagate_stream_type);
 static DEVICE_ATTR_RW(cont_smng_method);
 static DEVICE_ATTR_RW(frl_rate);
+static DEVICE_ATTR_RW(dsc_en);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -5710,6 +5750,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_propagate_stream_type);
 	ret = device_create_file(dev, &dev_attr_cont_smng_method);
 	ret = device_create_file(dev, &dev_attr_frl_rate);
+	ret = device_create_file(dev, &dev_attr_dsc_en);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -5882,6 +5923,7 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_propagate_stream_type);
 	device_remove_file(dev, &dev_attr_cont_smng_method);
 	device_remove_file(dev, &dev_attr_frl_rate);
+	device_remove_file(dev, &dev_attr_dsc_en);
 
 	cdev_del(&hdev->cdev);
 

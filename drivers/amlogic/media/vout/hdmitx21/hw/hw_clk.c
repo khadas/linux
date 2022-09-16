@@ -14,11 +14,19 @@
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
 
+#define MIN_HTXPLL_VCO 3000000 /* Min 3GHz */
+#define MAX_HTXPLL_VCO 6000000 /* Max 6GHz */
+#define MIN_FPLL_VCO 1600000 /* Min 1.6GHz */
+#define MAX_FPLL_VCO 3200000 /* Max 3.2GHz */
+#define MIN_GP2PLL_VCO 1600000 /* Min 1.6GHz */
+#define MAX_GP2PLL_VCO 3200000 /* Max 3.2GHz */
+
 /* local frac_rate flag */
 static u32 frac_rate;
 static void set_crt_video_enc(u32 vidx, u32 in_sel, u32 div_n);
 static void set_crt_video_enc2(u32 vidx, u32 in_sel, u32 div_n);
 static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev);
+static int likely_frac_rate_mode(char *m);
 
 /*
  * HDMITX Clock configuration
@@ -155,49 +163,6 @@ void hdmitx21_set_hdcp_pclk(struct hdmitx_dev *hdev)
 	hd21_set_reg_bits(CLKCTRL_SYS_CLK_EN0_REG2, 1, 3, 1);
 }
 
-static void set_hpll_clk_out(u32 clk)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	pr_info("config HPLL = %d frac_rate = %d\n", clk, frac_rate);
-
-	switch (hdev->data->chip_type) {
-	case MESON_CPU_ID_T7:
-		set21_t7_hpll_clk_out(frac_rate, clk);
-		break;
-	case MESON_CPU_ID_S5:
-		pr_info("%s%d***config s5 hpll***\n", __func__, __LINE__);
-		switch (hdev->frl_rate) {
-		case FRL_NONE: /* for legacy modes */
-			if (frac_rate == 1)
-				clk = clk * 100 / 1001 * 10;
-			set21_s5_hpll_clk_out(frac_rate, clk);
-			break;
-		case FRL_3G3L:
-		case FRL_6G3L:
-		case FRL_6G4L:
-		case FRL_12G4L:
-			set21_s5_hpll_clk_out(frac_rate, 6000000);
-			break;
-		case FRL_8G4L:
-			set21_s5_hpll_clk_out(frac_rate, 4000000);
-			break;
-		case FRL_10G4L:
-			set21_s5_hpll_clk_out(frac_rate, 5000000);
-			break;
-		default:
-			pr_info("not support rate: %d\n", hdev->frl_rate);
-			break;
-		}
-		break;
-	default:
-		pr_info("%s%dNot match chip ID\n", __func__, __LINE__);
-		break;
-	}
-
-	pr_info("config HPLL done\n");
-}
-
 /* HERE MUST BE BIT OPERATION!!! */
 static void set_hpll_sspll(enum hdmi_vic vic)
 {
@@ -216,114 +181,30 @@ static void set_hpll_sspll(enum hdmi_vic vic)
 	}
 }
 
-static void set_hpll_od0(u32 div)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	switch (hdev->data->chip_type) {
-	case MESON_CPU_ID_T7:
-		set21_hpll_od0_t7(div);
-		break;
-	case MESON_CPU_ID_S5:
-		set21_txpll_3_od0_s5(div);
-		break;
-	default:
-		pr_info("%s%dNot match chip ID\n", __func__, __LINE__);
-		break;
-	}
-}
-
-static void set_hpll_od1(u32 div)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	switch (hdev->data->chip_type) {
-	case MESON_CPU_ID_T7:
-		set21_hpll_od1_t7(div);
-		break;
-	case MESON_CPU_ID_S5:
-		set21_txpll_3_od1_s5(div);
-		break;
-	default:
-		pr_info("%s%dNot match chip ID\n", __func__, __LINE__);
-		break;
-	}
-}
-
-static void set_hpll_od2(u32 div)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	switch (hdev->data->chip_type) {
-	case MESON_CPU_ID_T7:
-		set21_hpll_od2_t7(div);
-		break;
-	case MESON_CPU_ID_S5:
-		set21_txpll_3_od2_s5(div);
-		break;
-	default:
-		pr_info("%s%dNot match chip ID\n", __func__, __LINE__);
-		break;
-	}
-}
-
-static void set_hpll_od3(u32 div)
-{
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
-
-	switch (hdev->data->chip_type) {
-	case MESON_CPU_ID_T7:
-		//set21_hpll_od3_t7(div);
-		break;
-	case MESON_CPU_ID_S5:
-		set21_txpll_4_od_s5(div);
-		break;
-	default:
-		pr_info("%s%dNot match chip ID\n", __func__, __LINE__);
-		break;
-	}
-}
-
 /* --------------------------------------------------
- *              clocks_set_vid_clk_div
+ *             set_tmds_vid_clk_div
  * --------------------------------------------------
  * wire            clk_final_en    = control[19];
  * wire            clk_div1        = control[18];
  * wire    [1:0]   clk_sel         = control[17:16];
  * wire            set_preset      = control[15];
  * wire    [14:0]  shift_preset    = control[14:0];
+ * div_src: 0 means divide the hdmi_tmds_out2 to tmds_clk
+ *          1 means divide the hdmi_tmds_out2 to vid_pll0_clk
  */
-static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
+static void set_tmds_vid_clk_div(u8 div_src, u32 div_val)
 {
-	int shift_val = 0;
-	int shift_sel = 0;
-	u32 reg_vid_pll = CLKCTRL_HDMI_VID_PLL_CLK_DIV;
-	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	u32 div_reg;
+	u32 shift_val = 0;
+	u32 shift_sel = 0;
 
-	pr_info("%s[%d] div = %d\n", __func__, __LINE__, div_sel);
+	div_reg = (div_src == 1) ? CLKCTRL_HDMI_VID_PLL_CLK_DIV : CLKCTRL_HDMI_PLL_TMDS_CLK_DIV;
 
-	/* Disable the output clock */
-	if (hdev->data->chip_type == MESON_CPU_ID_S5) {
-		pr_info("%s[%d] s5 hard code\n", __func__, __LINE__);
-		hd21_write_reg(reg_vid_pll, 0);
-		hd21_write_reg(reg_vid_pll, 0x1000000);
-		hd21_write_reg(reg_vid_pll, 0x1020000);
-		hd21_write_reg(reg_vid_pll, 0x1028000);
-		hd21_write_reg(reg_vid_pll, 0x102f39c);
-		hd21_write_reg(reg_vid_pll, 0x102739c);
-		hd21_write_reg(reg_vid_pll, 0x10a739c);
-		hd21_write_reg(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, 0x010af39c);	//hard code
-		hd21_write_reg(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, 0x010a739c);
-		return;
-	}
-	hd21_set_reg_bits(reg_vid_pll, 0, 18, 2);
-	hd21_set_reg_bits(reg_vid_pll, 0, 15, 1);
-	if (hdev->enc_idx == 2)
-		hd21_set_reg_bits(reg_vid_pll, 1, 25, 1); /* vid_pll2_clk_sel_hdmi */
-	else
-		hd21_set_reg_bits(reg_vid_pll, 1, 24, 1); /* vid_pll2_clk_sel_hdmi */
+	// Disable the output clock
+	hd21_set_reg_bits(div_reg, 0, 15, 1);
+	hd21_set_reg_bits(div_reg, 0, 19, 1);
 
-	switch (div_sel) {
+	switch (div_val) {
 	case VID_PLL_DIV_1:
 		shift_val = 0xFFFF;
 		shift_sel = 0;
@@ -380,35 +261,22 @@ static void clocks_set_vid_clk_div_for_hdmi(int div_sel)
 		shift_val = 0x7f80;
 		shift_sel = 2;
 		break;
-	case VID_PLL_DIV_2p5:
-		shift_val = 0x5294;
-		shift_sel = 2;
-		break;
-	case VID_PLL_DIV_3p25:
-		shift_val = 0x66cc;
-		shift_sel = 2;
-		break;
 	default:
-		pr_info("Error: clocks_set_vid_clk_div:  Invalid parameter\n");
-		break;
+		pr_err("%s[%d] invalid div %d\n", __func__, __LINE__, div_val);
 	}
 
-	if (shift_val == 0xffff) {      /* if divide by 1 */
-		hd21_set_reg_bits(reg_vid_pll, 1, 18, 1);
+	if (shift_val == 0xffff) { // if divide by 1
+		hd21_set_reg_bits(div_reg, 1, 18, 1);
 	} else {
-		hd21_set_reg_bits(reg_vid_pll, 0, 18, 1);
-		hd21_set_reg_bits(reg_vid_pll, 0, 16, 2);
-		hd21_set_reg_bits(reg_vid_pll, 0, 15, 1);
-		hd21_set_reg_bits(reg_vid_pll, 0, 0, 15);
-
-		hd21_set_reg_bits(reg_vid_pll, shift_sel, 16, 2);
-		hd21_set_reg_bits(reg_vid_pll, 1, 15, 1);
-		hd21_set_reg_bits(reg_vid_pll, shift_val, 0, 15);
-		hd21_set_reg_bits(reg_vid_pll, 0, 15, 1);
+		hd21_set_reg_bits(div_reg, shift_val, 0, 15);
+		hd21_set_reg_bits(div_reg, 1, 15, 1);
+		hd21_set_reg_bits(div_reg, 0, 20, 1);
+		hd21_set_reg_bits(div_reg, shift_sel, 16, 3);
+		// Set the selector low
+		hd21_set_reg_bits(div_reg, 0, 15, 1);
 	}
-	/* Enable the final output clock */
-	hd21_set_reg_bits(reg_vid_pll, 1, 19, 1);
-	hd21_write_reg(CLKCTRL_HDMI_PLL_TMDS_CLK_DIV, 0x010a739c);	//hard code
+	// Enable the final output clock
+	hd21_set_reg_bits(div_reg, 1, 19, 1);
 }
 
 static void set_vid_clk_div(struct hdmitx_dev *hdev, u32 div)
@@ -498,7 +366,165 @@ static struct hw_enc_clk_val_group setting_3dfp_enc_clk_val[] = {
 		3450000, 1, 2, 2, VID_PLL_DIV_5, 1, 1, 1, 1, 1},
 };
 
-static void hdmitx21_set_clk_(struct hdmitx_dev *hdev)
+/* if vsync likes 24000, 30000, ... etc, return 1 */
+static bool is_vsync_int(u32 clk)
+{
+	if (clk % 3000 == 0)
+		return 1;
+	return 0;
+}
+
+/* if vsync likes 59940, ... etc, return 1 */
+static bool is_vsync_frac(u32 clk)
+{
+	clk += clk / 1000;
+	if (is_vsync_int(clk) || is_vsync_int(clk + 1))
+		return 1;
+	return 0;
+}
+
+/* for varied hdmi basic modes, such as
+ * vic/16, the vsync is 60, and may shift to 59.94
+ * but vic/2, the vsync is 59.94, and may shift to 60
+ * return values:
+ *    0: no any shift
+ *    1: shift down 0.1%
+ *    2: shift up 0.1%
+ */
+static u32 check_clock_shift(enum hdmi_vic vic, u32 frac_policy)
+{
+	const struct hdmi_timing *timing = NULL;
+
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (!timing) {
+		pr_err("%s[%d] not valid vic %d\n", __func__, __LINE__, vic);
+		return 0;
+	}
+
+	/* only check such as 24hz, 30hz, 60hz, ... */
+	if (!likely_frac_rate_mode(timing->name))
+		return 0;
+
+	if (is_vsync_int(timing->v_freq)) {
+		if (frac_policy)
+			return 1;
+		else
+			return 0;
+	}
+	if (is_vsync_frac(timing->v_freq)) {
+		if (frac_policy)
+			return 0;
+		else
+			return 2;
+	}
+	return 0;
+}
+
+static void set_hdmitx_s5_htx_pll(struct hdmitx_dev *hdev)
+{
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	enum hdmi_colorspace cs = HDMI_COLORSPACE_YUV444;
+	enum hdmi_color_depth cd = COLORDEPTH_24B;
+	u32 base_pixel_clk = 25200;
+	u32 htx_vco = 5940000;
+	u32 div = 1;
+
+	if (!hdev || !hdev->para)
+		return;
+
+	vic = hdev->para->timing.vic;
+	cs = hdev->para->cs;
+	cd = hdev->para->cd;
+	if (vic == HDMI_0_UNKNOWN) {
+		pr_err("%s[%d] not valid vic %d\n", __func__, __LINE__, vic);
+		return;
+	}
+
+	base_pixel_clk = hdev->para->timing.pixel_freq;
+	if (base_pixel_clk < 25175 || base_pixel_clk > 5940000) {
+		pr_err("%s[%d] not valid pixel clock %d\n", __func__, __LINE__, base_pixel_clk);
+		return;
+	}
+
+	/* For FRL modes */
+	if (hdev->frl_rate != FRL_NONE) {
+		pr_info("set hpll for frl_rate %d\n", hdev->frl_rate);
+		switch (hdev->frl_rate) {
+		case FRL_3G3L:
+			set21_s5_htxpll_clk_out(6000000, 8);
+			break;
+		case FRL_6G3L:
+			set21_s5_htxpll_clk_out(6000000, 4);
+			break;
+		case FRL_6G4L:
+			set21_s5_htxpll_clk_out(6000000, 2);
+			break;
+		case FRL_12G4L:
+			set21_s5_htxpll_clk_out(6000000, 1);
+			break;
+		case FRL_8G4L:
+			set21_s5_htxpll_clk_out(4000000, 1);
+			break;
+		case FRL_10G4L:
+			set21_s5_htxpll_clk_out(5000000, 1);
+			break;
+		default:
+			pr_err("not support frl_rate: %d\n", hdev->frl_rate);
+			break;
+		}
+		return;
+	}
+
+	pr_info("%s[%d] base_pixel_clk %d  cs %d  cd %d  frac_rate %d\n",
+		__func__, __LINE__, base_pixel_clk, cs, cd, frac_rate);
+	/* for legacy TMDS modes */
+	if (cs != HDMI_COLORSPACE_YUV422) {
+		switch (cd) {
+		case COLORDEPTH_48B:
+			base_pixel_clk = base_pixel_clk * 2;
+			break;
+		case COLORDEPTH_36B:
+			base_pixel_clk = base_pixel_clk * 3 / 2;
+			break;
+		case COLORDEPTH_30B:
+			base_pixel_clk = base_pixel_clk * 5 / 4;
+			break;
+		case COLORDEPTH_24B:
+		default:
+			base_pixel_clk = base_pixel_clk * 1;
+			break;
+		}
+	}
+	if (check_clock_shift(vic, frac_rate) == 1)
+		base_pixel_clk = base_pixel_clk - base_pixel_clk / 1001;
+	if (check_clock_shift(vic, frac_rate) == 2)
+		base_pixel_clk = base_pixel_clk + base_pixel_clk / 1000;
+	base_pixel_clk = base_pixel_clk * 10; /* for tmds modes, here should multi 10 */
+	if (cs == HDMI_COLORSPACE_YUV420)
+		base_pixel_clk /= 2;
+	pr_info("%s[%d] calculate pixel_clk to %d\n", __func__, __LINE__, base_pixel_clk);
+	if (base_pixel_clk > MAX_HTXPLL_VCO) {
+		pr_err("%s[%d] base_pixel_clk %d over MAX_HTXPLL_VCO %d\n",
+			__func__, __LINE__, base_pixel_clk, MAX_HTXPLL_VCO);
+	}
+
+	div = 1;
+	/* the base pixel_clk range should be 250M ~ 5940M? */
+	htx_vco = base_pixel_clk;
+	do {
+		if (htx_vco >= MIN_HTXPLL_VCO && htx_vco < MAX_HTXPLL_VCO)
+			break;
+		div *= 2;
+		htx_vco *= 2;
+	} while (div <= 32);
+
+	/* the hdmi phy works under DUAL mode, and the div should be multiply 2 */
+	div *= 2;
+
+	set21_s5_htxpll_clk_out(htx_vco, div);
+}
+
+static void set_hdmitx_htx_pll(struct hdmitx_dev *hdev)
 {
 	int i = 0;
 	int j = 0;
@@ -506,11 +532,49 @@ static void hdmitx21_set_clk_(struct hdmitx_dev *hdev)
 	enum hdmi_vic vic = hdev->para->timing.vic;
 	enum hdmi_colorspace cs = hdev->para->cs;
 	enum hdmi_color_depth cd = hdev->para->cd;
-	struct hw_enc_clk_val_group tmp_clk = {0};
+	u8 clk_div_val = VID_PLL_DIV_5;
 
 	//if (hdev->pxp_mode) /* skip VCO setting */
 	//	return;
 
+	if (hdev->data->chip_type >= MESON_CPU_ID_S5) {
+		set_hdmitx_s5_htx_pll(hdev);
+		if (hdev->frl_rate)
+			set_frl_hpll_od(hdev->frl_rate);
+		if (cs != HDMI_COLORSPACE_YUV422) {
+			if (cd == COLORDEPTH_36B)
+				clk_div_val = VID_PLL_DIV_7p5;
+			else if (cd == COLORDEPTH_30B)
+				clk_div_val = VID_PLL_DIV_6p25;
+			else
+				clk_div_val = VID_PLL_DIV_5;
+		}
+		set_tmds_vid_clk_div(0, VID_PLL_DIV_5);
+		set_tmds_vid_clk_div(1, clk_div_val);
+		// set crt_vid_mux_div
+		//[19] disable clk_div0
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 19, 1);
+		// bit[18:16] crt_vid_mux_div source select
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 0, 16, 3);
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_DIV, 0, 0, 8);
+		// bit[2:0] crt_vid_mux_div div1/2/4 enable
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 7, 0, 3);
+		// cts_enc_clk div and enable
+		hd21_set_reg_bits(CLKCTRL_VIID_CLK0_DIV, 0, 12, 4);
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 3, 1);
+		// enc0_hdmi_tx_fe_clk div and enable
+		hd21_set_reg_bits(CLKCTRL_ENC0_HDMI_CLK_CTRL, 0, 20, 4);
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 9, 1);
+		// enc0_hdmi_tx_pnx_clk div and enable
+		hd21_set_reg_bits(CLKCTRL_ENC0_HDMI_CLK_CTRL, 0, 24, 4);
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 10, 1);
+		// enc0_hdmi_tx_pixel_clk div and enable
+		hd21_set_reg_bits(CLKCTRL_ENC0_HDMI_CLK_CTRL, 0, 16, 4);
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL2, 1, 5, 1);
+		//[19] enable clk_div0
+		hd21_set_reg_bits(CLKCTRL_VID_CLK0_CTRL, 1, 19, 1);
+		return;
+	}
 	/* YUV 422 always use 24B mode */
 	if (cs == HDMI_COLORSPACE_YUV422)
 		cd = COLORDEPTH_24B;
@@ -548,23 +612,15 @@ static void hdmitx21_set_clk_(struct hdmitx_dev *hdev)
 	}
 next:
 	pr_info("%s %d\n", __func__, __LINE__);
-	memcpy(&tmp_clk, &p_enc[j], sizeof(struct hw_enc_clk_val_group));
-	if (!hdev->frl_rate && cs == HDMI_COLORSPACE_YUV420)
-		tmp_clk.txpll_4_od = 2;
-	set_hpll_clk_out(tmp_clk.txpll_vco_clk);
+	pr_info("TODO here\n");
+
+	return;
 	if (cd == COLORDEPTH_24B && hdev->sspll)
 		set_hpll_sspll(vic);
 	if (hdev->frl_rate) {
 		set_frl_hpll_od(hdev->frl_rate);
 	} else {
-		/* for legacy modes */
-		set_hpll_od0(tmp_clk.txpll_3_od0);
-		set_hpll_od1(tmp_clk.txpll_3_od1);
-		set_hpll_od2(tmp_clk.txpll_3_od2);
-		set_hpll_od3(tmp_clk.txpll_4_od);
 	}
-	clocks_set_vid_clk_div_for_hdmi(tmp_clk.vid_pll_clk_div);
-	pr_info("j = %d  vid_pll_clk_div = %d\n", j, tmp_clk.vid_pll_clk_div);
 	set_vid_clk_div(hdev, 1);
 	set_hdmitx_enc_div(hdev, 1);
 	set_hdmitx_fe_div(hdev, 1);
@@ -587,19 +643,18 @@ static int likely_frac_rate_mode(char *m)
 		return 0;
 }
 
-#define MIN_FPLL_VCO 1600000 /* Min 1.6GHz */
-#define MAX_FPLL_VCO 3200000 /* Max 3.2GHz */
-
-void hdmitx_set_fpll(struct hdmitx_dev *hdev)
+static void hdmitx_set_fpll_without_dsc(struct hdmitx_dev *hdev)
 {
 	u32 fpll_vco = 2376000;
 	u32 div = 1;
 	u32 tmp_clk = 0;
 	u32 pixel_od = 0;
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
 
 	if (!hdev && !hdev->para)
 		return;
 
+	vic = hdev->para->timing.vic;
 	tmp_clk = hdev->para->timing.pixel_freq;
 	if (hdev->frl_rate)
 		tmp_clk /= 2;
@@ -626,7 +681,7 @@ void hdmitx_set_fpll(struct hdmitx_dev *hdev)
 			pixel_od = 1;
 		}
 		if (hdev->para->cd == COLORDEPTH_36B) {
-			tmp_clk = tmp_clk * 3 / 4;
+			tmp_clk = tmp_clk * 3 / 2;
 			pixel_od = 2;
 		}
 		if (hdev->para->cd == COLORDEPTH_48B) {
@@ -647,9 +702,46 @@ void hdmitx_set_fpll(struct hdmitx_dev *hdev)
 		pr_info("hdmitx21: FPLL VCO over clock %d\n", fpll_vco);
 		return;
 	}
-	hdmitx_check_frac_rate(hdev);
-	if (frac_rate) {
-		fpll_vco = fpll_vco * 1000 / 1001;
+	if (check_clock_shift(vic, frac_rate) == 1) {
+		fpll_vco = fpll_vco - fpll_vco / 1001;
+		pr_info("fpll_vco %d down shift to %d\n", tmp_clk, fpll_vco);
+	}
+	if (check_clock_shift(vic, frac_rate) == 2) {
+		fpll_vco = fpll_vco + fpll_vco / 1000;
+		pr_info("fpll_vco %d up shift to %d\n", tmp_clk, fpll_vco);
+	}
+	div = 1;
+	do {
+		if (fpll_vco >= MIN_FPLL_VCO && fpll_vco < MAX_FPLL_VCO)
+			break;
+		div *= 2;
+		fpll_vco *= 2;
+	} while (div <= 64);
+
+	hdmitx_set_s5_fpll(fpll_vco, div, pixel_od);
+}
+
+static void hdmitx_set_fpll_with_dsc(struct hdmitx_dev *hdev)
+{
+	u32 fpll_vco = 2376000;
+	u32 div = 1;
+	u32 tmp_clk = 0;
+	u32 pixel_od = 0;
+
+	if (!hdev && !hdev->para)
+		return;
+
+	/* HARD CODE, FRL8G4L 4320p60 y420 8bit, HDMI 2.1 Spec, Page 281 */
+	/* 594 / 4500 * (2380 + 116) */
+	tmp_clk = 329472 * 2;
+	/* TODO */
+	fpll_vco = tmp_clk;
+	if (fpll_vco > MAX_FPLL_VCO) {
+		pr_info("hdmitx21: FPLL VCO over clock %d\n", fpll_vco);
+		return;
+	}
+	if (0) { /* TODO */
+		fpll_vco = fpll_vco - fpll_vco / 1001;
 		pr_info("fpll_vco %d shift to %d\n", tmp_clk, fpll_vco);
 	}
 	div = 1;
@@ -661,6 +753,72 @@ void hdmitx_set_fpll(struct hdmitx_dev *hdev)
 	} while (div <= 64);
 
 	hdmitx_set_s5_fpll(fpll_vco, div, pixel_od);
+}
+
+void hdmitx_set_fpll(struct hdmitx_dev *hdev)
+{
+	if (hdev->dsc_en)
+		hdmitx_set_fpll_with_dsc(hdev);
+	else
+		hdmitx_set_fpll_without_dsc(hdev);
+}
+
+void hdmitx_set_gp2pll(struct hdmitx_dev *hdev)
+{
+	u32 gp2pll_vco = 2376000;
+	u32 div = 1;
+	u32 tmp_clk = 0;
+
+	if (!hdev && !hdev->para)
+		return;
+
+	tmp_clk = hdev->para->timing.pixel_freq;
+	if (hdev->frl_rate)
+		tmp_clk /= 2;
+	switch (hdev->para->cs) {
+	case HDMI_COLORSPACE_RGB:
+	case HDMI_COLORSPACE_YUV444:
+		if (hdev->para->cd == COLORDEPTH_30B)
+			tmp_clk = tmp_clk * 5 / 4;
+		if (hdev->para->cd == COLORDEPTH_36B)
+			tmp_clk = tmp_clk * 3 / 2;
+		if (hdev->para->cd == COLORDEPTH_48B)
+			tmp_clk = tmp_clk * 2;
+		break;
+	case HDMI_COLORSPACE_YUV420:
+		tmp_clk /= 2;
+		if (hdev->para->cd == COLORDEPTH_30B)
+			tmp_clk = tmp_clk * 5 / 4;
+		if (hdev->para->cd == COLORDEPTH_36B)
+			tmp_clk = tmp_clk * 3 / 2;
+		if (hdev->para->cd == COLORDEPTH_48B)
+			tmp_clk *= 1;
+		break;
+	case HDMI_COLORSPACE_YUV422:
+	default:
+		tmp_clk *= 1;
+		break;
+	}
+	tmp_clk *= 2; /* here is a fixed DIV2 to tmds_clk */
+
+	gp2pll_vco = tmp_clk;
+	if (gp2pll_vco > MAX_FPLL_VCO) {
+		pr_info("hdmitx21: GP2PLL VCO over clock %d\n", gp2pll_vco);
+		return;
+	}
+	if (0) { /* TODO */
+		gp2pll_vco = gp2pll_vco * 1000 / 1001;
+		pr_info("gp2pll_vco %d shift to %d\n", tmp_clk, gp2pll_vco);
+	}
+	div = 1;
+	do {
+		if (gp2pll_vco >= MIN_GP2PLL_VCO && gp2pll_vco < MAX_GP2PLL_VCO)
+			break;
+		div *= 2;
+		gp2pll_vco *= 2;
+	} while (div <= 16);
+
+	hdmitx_set_s5_gp2pll(gp2pll_vco, div);
 }
 
 void hdmitx_set_clkdiv(struct hdmitx_dev *hdev)
@@ -686,7 +844,20 @@ static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev)
 void hdmitx21_set_clk(struct hdmitx_dev *hdev)
 {
 	hdmitx_check_frac_rate(hdev);
-	hdmitx21_set_clk_(hdev);
+
+	if (hdev->data->chip_type == MESON_CPU_ID_T7) {
+		set21_t7_hpll_clk_out(frac_rate, 5940000); /* TODO, for t7 */
+		return;
+	}
+
+	disable_hdmitx_s5_plls(hdev);
+	/* typical 3 modes: legacy tmds, FRL w/o DSC, FRL w/ DSC */
+	set_hdmitx_htx_pll(hdev);
+	if (hdev->frl_rate) {
+		hdmitx_set_fpll(hdev);
+		if (hdev->dsc_en)
+			hdmitx_set_gp2pll(hdev);
+	}
 }
 
 void hdmitx21_disable_clk(struct hdmitx_dev *hdev)

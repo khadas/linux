@@ -117,9 +117,13 @@ void hdmitx21_set_hdcp_pclk(struct hdmitx_dev *hdev);
 void hdmitx21_set_cts_hdcp22_clk(struct hdmitx_dev *hdev);
 void set_frl_hpll_od(enum frl_rate_enum rate);
 void hdmitx_set_fpll(struct hdmitx_dev *hdev);
+void hdmitx_set_gp2pll(struct hdmitx_dev *hdev);
 void hdmitx_set_s5_fpll(u32 clk, u32 div, u32 pixel_od);
+void hdmitx_set_s5_gp2pll(u32 clk, u32 div);
 void hdmitx_set_clkdiv(struct hdmitx_dev *hdev);
 void hdmitx_set_s5_clkdiv(struct hdmitx_dev *hdev);
+void set_htxpll4_od(const u32 y420);
+void disable_hdmitx_s5_plls(struct hdmitx_dev *hdev);
 
 void set_tv_encp_new(struct hdmitx_dev *hdev, u32 enc_index,
 	enum hdmi_vic vic, u32 enable);
@@ -159,7 +163,7 @@ void hdmitx21_sys_reset_s5(void);
 void hdmitx21_debugfs_init(void);
 
 void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk);
-void set21_s5_hpll_clk_out(u32 frac_rate, u32 clk);
+void set21_s5_htxpll_clk_out(u32 clk, u32 div);
 void set21_hpll_od0_t7(u32 div);
 void set21_hpll_od1_t7(u32 div);
 void set21_hpll_od2_t7(u32 div);

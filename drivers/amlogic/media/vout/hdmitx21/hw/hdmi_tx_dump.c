@@ -39,7 +39,7 @@ static int dump_regs_show(struct seq_file *s, void *p)
 	// ((0x0000 << 2) + 0xfe008000) ~ ((0x00f3 << 2) + 0xfe008000)
 	dump32(s, ANACTRL_SYS0PLL_CTRL0, ANACTRL_DIF_PHY_STS);
 	// ((0x0001 << 2) + 0xfe000000) ~ ((0x0128 << 2) + 0xfe000000)
-	dump32(s, CLKCTRL_OSCIN_CTRL, CLKCTRL_EFUSE_A73_CFG2);
+	dump32(s, CLKCTRL_OSCIN_CTRL, CLKCTRL_FPLL_SYS);
 	// ((0x0000 << 2) + 0xfe00c000) ~ ((0x027f << 2) + 0xfe00c000)
 	dump32(s, PWRCTRL_PWR_ACK0, PWRCTRL_A73TOP_FSM_JUMP);
 	// ((0x1b00 << 2) + 0xff000000) ~ ((0x1bea << 2) + 0xff000000)

@@ -37,8 +37,8 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	const struct hdmi_timing *tp = NULL;
 	struct hdmi_timing timing = {0};
-	const u32 hsync_st = 4; // hsync start pixel count
-	const u32 vsync_st = 1; // vsync start line count
+	u32 hsync_st = 4; // hsync start pixel count
+	u32 vsync_st = 1; // vsync start line count
 	// Latency in pixel clock from ENCP_VFIFO2VD request to data ready to HDMI
 	const u32 vfifo2vd_to_hdmi_latency = 2;
 	u32 de_h_begin = 0;
@@ -73,6 +73,11 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	timing.h_sync /= hpara_div;
 	timing.h_back /= hpara_div;
 	timing.h_active /= hpara_div;
+
+	if (hdev->dsc_en) {
+		hsync_st = tp->h_front - 1;
+		vsync_st = tp->v_front - 1;
+	}
 
 	de_h_end = tp->h_total - (tp->h_front - hsync_st);
 	de_h_begin = de_h_end - tp->h_active;
@@ -123,14 +128,6 @@ static void config_tv_enc_calc(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 	//set vtotal & htotal
 	hd21_write_reg(ENCP_VIDEO_MAX_PXCNT, tp->h_total - 1);
 	hd21_write_reg(ENCP_VIDEO_MAX_LNCNT, tp->v_total - 1);
-	// set vfifo2vd
-	// if(vfifo2vd_en) {
-		// hd21_write_reg(ENCP_VFIFO2VD_CTL, vfifo2vd_en);
-		// hd21_write_reg(ENCP_VFIFO2VD_PIXEL_START, de_h_begin - 2);
-		// hd21_write_reg(ENCP_VFIFO2VD_PIXEL_END, de_h_end - 2);
-		// hd21_write_reg(ENCP_VFIFO2VD_LINE_TOP_START, de_v_begin);
-		// hd21_write_reg(ENCP_VFIFO2VD_LINE_TOP_END, de_v_end);
-	// }
 }
 
 static unsigned long modulo(unsigned long a, unsigned long b)

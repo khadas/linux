@@ -87,6 +87,23 @@ struct hdr_dynamic_struct {
 	u8 optional_fields[20];
 };
 
+enum frl_rate_enum {
+	FRL_NONE = 0,
+	FRL_3G3L = 1,
+	FRL_6G3L = 2,
+	FRL_6G4L = 3,
+	FRL_8G4L = 4,
+	FRL_10G4L = 5,
+	FRL_12G4L = 6,
+};
+
+/* get the corresponding bandwidth of current FRL_RATE, Unit: MHz */
+u32 get_frl_bandwidth(const enum frl_rate_enum rate);
+u32 calc_frl_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd);
+u32 calc_tmds_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd);
+
 #define VESA_MAX_TIMING 64
 #define Y420_VIC_MAX_NUM 6 /* only 6 4k mode for y420 */
 
@@ -121,7 +138,7 @@ struct rx_cap {
 	u32 dc_30bit_420:1;
 	u32 dc_36bit_420:1;
 	u32 dc_48bit_420:1;
-	u32 max_frl_rate:4;
+	enum frl_rate_enum max_frl_rate:4;
 	u32 cnc0:1; /* Graphics */
 	u32 cnc1:1; /* Photo */
 	u32 cnc2:1; /* Cinema */
@@ -397,12 +414,10 @@ struct hdmitx_dev {
 	u8 rhpd_state; /* For repeater use only, no delay */
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
-<<<<<<< HEAD
 	int aspect_ratio;	/* 1, 4:3; 2, 16:9 */
-=======
 	u8 frl_mode; /* TODO */
 	u8 frl_rate;
->>>>>>> hdmitx21: add FRL bringup code [1/1]
+	u8 dsc_en;
 	struct hdmitx_info hdmi_info;
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */

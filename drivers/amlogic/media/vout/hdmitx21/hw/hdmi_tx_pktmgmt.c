@@ -36,6 +36,10 @@
 #include "common.h"
 #include "../hdmi_tx.h"
 
+static int emp_verbose;
+MODULE_PARM_DESC(emp_verbose, "\n emp_verbose\n");
+module_param(emp_verbose, int, 0644);
+
 static DEFINE_SPINLOCK(tpi_lock);
 static void tpi_info_send(u8 sel, u8 *data, bool no_chksum_flag)
 {
@@ -191,3 +195,4 @@ int hdmitx_infoframe_rawget(u8 info_type, u8 *body)
 {
 	return _tpi_infoframe_wrrd(0, info_type, body);
 }
+

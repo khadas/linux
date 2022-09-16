@@ -1768,6 +1768,7 @@ static void hdmitx21_edid_parse_hfscdb(struct rx_cap *prxcap,
 	prxcap->scdc_present = !!(blockbuf[offset + 5] & (1 << 7));
 	prxcap->scdc_rr_capable = !!(blockbuf[offset + 5] & (1 << 6));
 	prxcap->lte_340mcsc_scramble = !!(blockbuf[offset + 5] & (1 << 3));
+	prxcap->max_frl_rate = (blockbuf[offset + 6] & 0xf0) >> 4;
 	set_vsdb_dc_420_cap(prxcap, &blockbuf[offset]);
 
 	if (count < 8)
@@ -2758,11 +2759,22 @@ static bool is_rx_support_y420(struct hdmitx_dev *hdev, enum hdmi_vic vic)
 {
 	int i;
 	struct rx_cap *prxcap = &hdev->rxcap;
+	const struct hdmi_timing *timing;
 
 	for (i = 0; i < Y420_VIC_MAX_NUM; i++) {
 		if (prxcap->y420_vic[i] == vic)
 			return 1;
 	}
+
+	/* In Spec2.1 Table 7-34, greater than 2160p30hz will support y420 */
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (!timing)
+		return 0;
+
+	if (timing->v_active > 2160 && timing->v_freq > 30000)
+		return 1;
+	if (timing->v_active >= 4320)
+		return 1;
 
 	return 0;
 }
@@ -2785,9 +2797,14 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	enum hdmi_color_depth rx_y444_max_dc = COLORDEPTH_24B;
 	enum hdmi_color_depth rx_y420_max_dc = COLORDEPTH_24B;
 	enum hdmi_color_depth rx_rgb_max_dc = COLORDEPTH_24B;
+	u32 rx_frl_bandwidth = 0;
+	u32 tx_frl_bandwidth = 0;
+	const struct hdmi_timing *timing;
 
 	if (!hdev || !para)
 		return 0;
+
+	prxcap = &hdev->rxcap;
 
 	/* exclude such as: 2160p60hz YCbCr444 10bit */
 	switch (para->timing.vic) {
@@ -2799,7 +2816,7 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	case HDMI_107_3840x2160p60_64x27:
 		if (para->cs == HDMI_COLORSPACE_RGB ||
 		    para->cs == HDMI_COLORSPACE_YUV444)
-			if (para->cd != COLORDEPTH_24B)
+			if (para->cd != COLORDEPTH_24B && !prxcap->max_frl_rate)
 				return 0;
 		break;
 	case HDMI_7_720x480i60_16x9:
@@ -2810,8 +2827,6 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 		break;
 	}
 
-	prxcap = &hdev->rxcap;
-
 	/* DVI case, only 8bit */
 	if (prxcap->ieeeoui != HDMI_IEEE_OUI) {
 		if (para->cd != COLORDEPTH_24B)
@@ -2821,8 +2836,6 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	/* target mode is not contained at RX SVD */
 	for (i = 0; (i < prxcap->VIC_count) && (i < VIC_MAX_NUM); i++) {
 		if ((para->timing.vic & 0xff) == (prxcap->VIC[i] & 0xff)) {
-			if (para->timing.vic == HDMI_199_7680x4320p60_16x9)
-				return 1;
 			svd_flag = 1;
 		}
 	}
@@ -2840,7 +2853,14 @@ bool hdmitx21_edid_check_valid_mode(struct hdmitx_dev *hdev,
 	}
 
 	calc_tmds_clk = para->tmds_clk / 1000;
-	if (calc_tmds_clk < rx_max_tmds_clk)
+	rx_frl_bandwidth = get_frl_bandwidth(prxcap->max_frl_rate);
+	timing = hdmitx21_gettiming_from_vic(para->timing.vic);
+	if (!timing)
+		return 0;
+	/* tx_frl_bandwidth = timing->pixel_freq / 1000 * 24 * 1.122 */
+	tx_frl_bandwidth = calc_frl_bandwidth(timing->pixel_freq / 1000,
+		para->cs, para->cd);
+	if (calc_tmds_clk < rx_max_tmds_clk || tx_frl_bandwidth <= rx_frl_bandwidth)
 		valid = 1;
 	else
 		return 0;
@@ -3194,6 +3214,8 @@ int hdmitx21_edid_dump(struct hdmitx_dev *hdmitx_device, char *buffer,
 		prxcap->scdc_present);
 	pos += snprintf(buffer + pos, buffer_len - pos, "RR_Cap: %x\n",
 		prxcap->scdc_rr_capable);
+	pos += snprintf(buffer + pos, buffer_len - pos, "FRL_RATE: %x\n",
+		prxcap->max_frl_rate);
 	pos +=
 	snprintf(buffer + pos, buffer_len - pos, "LTE_340M_Scramble: %x\n",
 		 prxcap->lte_340mcsc_scramble);

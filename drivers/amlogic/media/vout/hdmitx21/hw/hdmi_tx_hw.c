@@ -866,9 +866,9 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 
 pr_info("%s[%d]\n", __func__, __LINE__);
 	hdmitx21_set_clk(hdev);
-	if (hdev->frl_rate)
-		hdmitx_set_fpll(hdev);
-
+	//[4] reg_bypass_video_path
+	// For non-DSC, set to bit4 as 0
+	hdmitx21_set_reg_bits(PCLK2TMDS_MISC1_IVCTX, 0, 4, 1);
 	hdmitx_set_hw(hdev);
 	if (para->timing.pi_mode == 0 &&
 	    (para->timing.v_active == 480 || para->timing.v_active == 576))
@@ -952,7 +952,7 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 	}
 	hdmitx_set_phy(hdev);
 	hdmitx_set_clkdiv(hdev);
-	if (hdev->frl_rate)
+	if (hdev->rxcap.max_frl_rate)
 		hdmitx_frl_training_main(hdev->frl_rate);
 	return 0;
 }
@@ -1615,6 +1615,12 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 				return;
 			t = &hdev->para->timing;
 			value = t->h_active;
+			/* when FRL works, here will be half rate */
+			if (hdev->frl_rate) {
+				value /= 2;
+				if (hdev->para->cs == HDMI_COLORSPACE_YUV420)
+					value /= 2;
+			}
 			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 1);
 			hd21_write_reg(VENC_VIDEO_TST_CLRBAR_WIDTH, value / 8);
 			return;
@@ -1952,11 +1958,7 @@ static void set_t7_top_div40(u32 div40)
 	data32 |= (1 << 12);
 	data32 |= (0 << 8);
 	data32 |= (0 << 0);
-	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
-			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 	hdmitx21_wr_reg(HDMITX_TOP_BIST_CNTL, data32);
-	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
-			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 	if (div40)
 		hdmitx21_wr_reg(HDMITX_T7_TOP_TMDS_CLK_PTTN_CNTL, 0x2);
 }
@@ -1992,8 +1994,6 @@ static void set_s5_top_div40(u32 div40, u32 frl_mode)
 	hdmitx21_wr_reg(HDMITX_TOP_BIST_CNTL, data32);
 
 	hdmitx21_set_reg_bits(HDMITX_TOP_BIST_CNTL, frl_mode ? 1 : 0, 19, 1);
-	pr_info("%s%dHDMITX_TOP_BIST_CNTL = 0x%x", __func__, __LINE__,
-			hdmitx21_rd_reg(HDMITX_TOP_BIST_CNTL));
 
 	if (div40)
 		hdmitx21_wr_reg(HDMITX_S5_TOP_TMDS_CLK_PTTN_CNTL, 0x2);

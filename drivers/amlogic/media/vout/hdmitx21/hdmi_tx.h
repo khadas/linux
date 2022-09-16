@@ -45,16 +45,6 @@ enum ddc_err_t {
 	DDC_ERR_LIM_EXCEED = 0x05,
 };
 
-enum frl_rate_enum {
-	FRL_NONE = 0,
-	FRL_3G3L = 1,
-	FRL_6G3L = 2,
-	FRL_6G4L = 3,
-	FRL_8G4L = 4,
-	FRL_10G4L = 5,
-	FRL_12G4L = 6,
-};
-
 u8 hdmi_ddc_status_check(void);
 u8 hdmi_ddc_busy_check(void);
 void hdmi_ddc_error_reset(void);
@@ -87,8 +77,9 @@ void hdmi_drm_infoframe_rawset(u8 *hb, u8 *pb);
 void hdmi_emp_infoframe_set(struct emp_packet_st *info);
 void hdmi_emp_frame_set_member(struct emp_packet_st *info,
 	enum vrr_component_conf conf, u32 val);
-
-void hdmitx_frl_training_main(uint8_t frl_rate);
+enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
+	enum hdmi_colorspace cs, enum hdmi_color_depth cd);
+void hdmitx_frl_training_main(enum frl_rate_enum frl_rate);
 
 enum vrr_type {
 	T_VRR_NONE,

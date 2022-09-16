@@ -49,7 +49,8 @@ static void construct_avi_packet(struct hdmitx_dev *hdev)
 	    para->timing.vic == HDMI_93_3840x2160p24_16x9 ||
 	    para->timing.vic == HDMI_98_4096x2160p24_256x135)
 		/*HDMI Spec V1.4b P151*/
-		info->video_code = 0;
+		if (!hdev->frl_rate) /* TODO, clear under FRL */
+			info->video_code = 0;
 	info->ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	info->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
 	info->pixel_repeat = 0;
@@ -153,9 +154,10 @@ int hdmitx21_set_display(struct hdmitx_dev *hdev, enum hdmi_vic videocode)
 		if (videocode == HDMI_95_3840x2160p30_16x9 ||
 		    videocode == HDMI_94_3840x2160p25_16x9 ||
 		    videocode == HDMI_93_3840x2160p24_16x9 ||
-		    videocode == HDMI_98_4096x2160p24_256x135)
-			hdmi_set_vend_spec_infofram(hdev, videocode);
-		else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
+		    videocode == HDMI_98_4096x2160p24_256x135) {
+			if (!hdev->frl_rate) /* TODO */
+				hdmi_set_vend_spec_infofram(hdev, videocode);
+		} else if ((!hdev->flag_3dfp) && (!hdev->flag_3dtb) &&
 			 (!hdev->flag_3dss))
 			hdmi_set_vend_spec_infofram(hdev, 0);
 		else

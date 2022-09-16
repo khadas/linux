@@ -36,26 +36,109 @@
 #include "common.h"
 #include "../hdmi_tx.h"
 
-//scdc:
-//0x31: [7:4] FFE_LEVELS; [3:0] FRL_rate
-//FRL_Rate = 0: disable FRL
-//           1: 3G/3Lanes
-//           2: 6G/3Lanes
-//           3: 6G/4Lanes
-//           4: 8G/4Lanes
-//           5: 10G/4Lanes
-//           6: 12G/4Lanes
-//
+/* get the corresponding bandwidth of current FRL_RATE, Unit: MHz */
+u32 get_frl_bandwidth(const enum frl_rate_enum rate)
+{
+	const u32 frl_bandwidth[] = {
+		[FRL_NONE] = 0,
+		[FRL_3G3L] = 9000,
+		[FRL_6G3L] = 18000,
+		[FRL_6G4L] = 24000,
+		[FRL_8G4L] = 32000,
+		[FRL_10G4L] = 40000,
+		[FRL_12G4L] = 48000,
+	};
 
-#define FRL_RATE_3G_3LANES 1
-#define FRL_RATE_6G_3LANES 2
-#define FRL_RATE_6G_4LANES 3
-#define FRL_RATE_8G_4LANES 4
-#define FRL_RATE_10G_4LANES 5
-#define FRL_RATE_12G_4LANES 6
+	if (rate > FRL_12G4L)
+		return 0;
+	return frl_bandwidth[rate];
+}
+
+u32 calc_frl_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd)
+{
+	u32 bandwidth = pixel_freq;
+
+	if (cs == HDMI_COLORSPACE_YUV420)
+		bandwidth /= 2;
+	if (cs != HDMI_COLORSPACE_YUV422) {
+		if (cd == COLORDEPTH_48B)
+			bandwidth = bandwidth * 2;
+		else if (cd == COLORDEPTH_36B)
+			bandwidth = bandwidth * 3 / 2;
+		else if (cd == COLORDEPTH_30B)
+			bandwidth = bandwidth * 5 / 4;
+		else
+			bandwidth = bandwidth * 1;
+	}
+	/* bandwidth = tmds_bandwidth * 24 * 1.122 */
+	bandwidth = bandwidth * 24;
+	bandwidth = bandwidth * 561 / 500;
+
+	return bandwidth;
+}
+
+u32 calc_tmds_bandwidth(u32 pixel_freq, enum hdmi_colorspace cs,
+	enum hdmi_color_depth cd)
+{
+	u32 bandwidth = pixel_freq;
+
+	if (cs == HDMI_COLORSPACE_YUV420)
+		bandwidth /= 2;
+	if (cs != HDMI_COLORSPACE_YUV422) {
+		if (cd == COLORDEPTH_48B)
+			bandwidth = bandwidth * 2;
+		else if (cd == COLORDEPTH_36B)
+			bandwidth = bandwidth * 3 / 2;
+		else if (cd == COLORDEPTH_30B)
+			bandwidth = bandwidth * 5 / 4;
+		else
+			bandwidth = bandwidth * 1;
+	}
+
+	return bandwidth;
+}
+
+/* for legacy HDMI2.0 or earlier modes, still select TMDS */
+/* TODO DSC modes */
+enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
+	enum hdmi_colorspace cs, enum hdmi_color_depth cd)
+{
+	const struct hdmi_timing *timing;
+	enum frl_rate_enum rate = FRL_NONE;
+	u32 tx_frl_bandwidth = 0;
+	u32 tx_tmds_bandwidth = 0;
+
+	pr_info("dsc_en %d  vic %d  cs %d  cd %d\n", dsc_en, vic, cs, cd);
+	timing = hdmitx21_gettiming_from_vic(vic);
+	if (!timing)
+		return FRL_NONE;
+
+	tx_tmds_bandwidth = calc_tmds_bandwidth(timing->pixel_freq / 1000, cs, cd);
+	pr_info("Hactive=%d Vactive=%d Vfreq=%d TMDS_BandWidth=%d\n",
+		timing->h_active, timing->v_active,
+		timing->v_freq, tx_tmds_bandwidth);
+	/* If the tmds bandwidth is less than 594MHz, then selct the tmds mode */
+	/* the HxVp48hz is new introduced in HDMI 2.1 / CEA-861-H */
+	if (timing->h_active <= 4096 && timing->v_active <= 2160 &&
+		timing->v_freq != 48000 && tx_tmds_bandwidth <= 594 &&
+		timing->pixel_freq / 1000 < 600)
+		return FRL_NONE;
+	/* tx_frl_bandwidth = tmds_bandwidth * 24 * 1.122 */
+	tx_frl_bandwidth = tx_tmds_bandwidth * 24;
+	tx_frl_bandwidth = tx_frl_bandwidth * 561 / 500;
+	for (rate = FRL_3G3L; rate < FRL_12G4L + 1; rate++) {
+		if (tx_frl_bandwidth <= get_frl_bandwidth(rate)) {
+			pr_info("select frl_rate as %d\n", rate);
+			return rate;
+		}
+	}
+
+	return FRL_NONE;
+}
 
 //================== LTS 1============================
-static void TX_LTS_1_HDMI21_CONFIG(u8 frl_rate)
+static void TX_LTS_1_HDMI21_CONFIG(enum frl_rate_enum frl_rate)
 {
 	u8 data8;
 	u8 frl_rate_sel;
@@ -85,7 +168,7 @@ static void TX_LTS_1_HDMI21_CONFIG(u8 frl_rate)
 	hdmitx21_wr_reg(H21TXSB_CTRL_1_IVCTX, data8);
 
 	//--Disable h21tx_sb
-	frl_rate_sel = (frl_rate > FRL_RATE_6G_3LANES) ? 1 : 0;
+	frl_rate_sel = (frl_rate > FRL_6G3L) ? 1 : 0;
 	data8  = 0;
 	data8 |= (0 << 0); //reg_en,Moudel enable
 	data8 |= (1 << 4); //reg_scrambler_en
@@ -128,7 +211,7 @@ static void TX_LTS_2_POLL_READY(void)
 	}
 }
 
-static void TX_LTS_2_SETTING(u8 frl_rate)
+static void TX_LTS_2_SETTING(enum frl_rate_enum frl_rate)
 {
 	u8 data8;
 	//Step2:initial all lanes to FFE_LEVEL0
@@ -211,7 +294,7 @@ static void TX_FLT_UPDATE_CLEAR(void)
 }
 
 //======================= LTS P ========================
-static void TX_LTS_P_SEND_ONLY_GAP(u8 frl_rate)
+static void TX_LTS_P_SEND_ONLY_GAP(enum frl_rate_enum frl_rate)
 {
 	u8 data8;
 	u8 frl_rate_sel;
@@ -245,7 +328,7 @@ static void TX_LTS_P_SEND_ONLY_GAP(u8 frl_rate)
 	hdmitx21_wr_reg(H21TXSB_CTRL_1_IVCTX, data8);
 
 	//--Enable h21tx_sb
-	frl_rate_sel = (frl_rate > FRL_RATE_6G_3LANES) ? 1 : 0;
+	frl_rate_sel = (frl_rate > FRL_6G3L) ? 1 : 0;
 	data8  = 0;
 	data8 |= (1 << 0); //reg_en,Moudel enable
 	data8 |= (1 << 4); //reg_scrambler_en
@@ -304,7 +387,7 @@ module_param(ltp_en, int, 0644);
 //=================================
 //     hdmitx_frl_config
 //=================================
-static void hdmitx_frl_config(u8 color_depth, u8 frl_rate)
+static void hdmitx_frl_config(u8 color_depth, enum frl_rate_enum frl_rate)
 {
 	u8 data8;
 	u8 frl_rate_sel;
@@ -380,7 +463,7 @@ static void hdmitx_frl_config(u8 color_depth, u8 frl_rate)
 	hdmitx21_wr_reg(H21TXSB_CTRL_1_IVCTX, data8);
 
 	//--Disable h21tx_sb
-	frl_rate_sel = (frl_rate > FRL_RATE_6G_3LANES) ? 1 : 0;
+	frl_rate_sel = (frl_rate > FRL_6G3L) ? 1 : 0;
 	data8  = 0;
 	data8 |= (1 << 0); //reg_en,Moudel enable
 	//data8 |= (1 << 4); //reg_scrambler_en
@@ -397,11 +480,12 @@ static void hdmitx_frl_config(u8 color_depth, u8 frl_rate)
 	//=============================================================
 }
 
-void hdmitx_frl_training_main(u8 frl_rate)
+void hdmitx_frl_training_main(enum frl_rate_enum frl_rate)
 {
 	u16 ltp0123 = 0xAAAA;//reserved LTP
 	u8 data8;
 
+	pr_info("hdmitx21: set rx frl_rate as %d\n", frl_rate);
 	if (ltp_en == 0) {
 		pr_info("skip the FRL LTP training...\n");
 		hdmitx_frl_config(0, frl_rate);
@@ -422,6 +506,8 @@ void hdmitx_frl_training_main(u8 frl_rate)
 	TX_LTS_2_POLL_READY();
 	pr_info("[FRL TRAINING] ************** TX_LTS_2_SETTING************\n");
 	TX_LTS_2_SETTING(frl_rate);
+	if (frl_rate == FRL_NONE)
+		return;
 
 	while (ltp0123 != 0) {
 		pr_info("[FRL TRAINING] ************** TX_LTS_3_POLL_FLT_UPDATE************\n");
