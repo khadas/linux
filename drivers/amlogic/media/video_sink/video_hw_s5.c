@@ -185,6 +185,24 @@ static inline u32 slice_in_hsize(u32 slice,
 	return hsize;
 }
 
+void check_afbc_status(void)
+{
+	int i;
+	u32 reg_addr[4] = {0}, reg_val[4] = {0};
+	struct vd_afbc_reg_s *vd_afbc_reg = NULL;
+
+	for (i = 0; i < MAX_VD_LAYER_S5 - 1; i++) {
+		vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[i];
+		reg_addr[i] = vd_afbc_reg->afbc_stat;
+		reg_val[i] = READ_VCBUS_REG(reg_addr[i]);
+		if (((reg_val[i] & 0x7ffc) == 0) &&
+			((reg_val[i] & 0x30000) != 0x30000))
+			pr_info("afbc stats err: 0x%x = 0x%x\n",
+				reg_addr[i], reg_val[i]);
+		WRITE_VCBUS_REG(reg_addr[i], 1);
+	}
+}
+
 static void dump_afbc_reg(void)
 {
 	int i;
@@ -1066,7 +1084,7 @@ u32 get_pi_enabled(u32 layer_id)
 		return vd_layer[layer_id].pi_enable;
 }
 
-void disable_vd1_blend_s5(struct video_layer_s *layer)
+static void disable_vd1_slice_blend_s5(struct video_layer_s *layer, u8 slice)
 {
 	u8 vpp_index;
 	struct vd_afbc_reg_s *vd_afbc_reg = NULL;
@@ -1075,8 +1093,68 @@ void disable_vd1_blend_s5(struct video_layer_s *layer)
 	if (!layer)
 		return;
 	vpp_index = layer->vpp_index;
-	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer->layer_id];
-	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer->layer_id];
+	if (layer->layer_id != 0 || slice >= SLICE_NUM)
+		return;
+
+	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[slice];
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[slice];
+
+	if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
+		pr_info("VIDEO: VD1 AFBC off now. dispbuf:%p vf_ext:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",
+			layer->dispbuf,
+			layer->vf_ext,
+			layer->dispbuf_mapping ?
+			*layer->dispbuf_mapping : NULL,
+			&vf_local, &local_pip,
+			gvideo_recv[0] ? &gvideo_recv[0]->local_buf : NULL,
+			gvideo_recv[1] ? &gvideo_recv[1]->local_buf : NULL);
+
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(vd_afbc_reg->afbc_enable, 0);
+	cur_dev->rdma_func[vpp_index].rdma_wr
+		(vd_mif_reg->vd_if0_gen_reg, 0);
+
+	if (layer->dispbuf &&
+	    is_local_vf(layer->dispbuf)) {
+		layer->dispbuf = NULL;
+		layer->vf_ext = NULL;
+	}
+	if (layer->dispbuf_mapping) {
+		if (*layer->dispbuf_mapping &&
+		    is_local_vf(*layer->dispbuf_mapping))
+			*layer->dispbuf_mapping = NULL;
+		layer->dispbuf_mapping = NULL;
+		layer->dispbuf = NULL;
+		layer->vf_ext = NULL;
+	}
+	layer->new_vframe_count = 0;
+}
+
+void disable_vd1_blend_s5(struct video_layer_s *layer)
+{
+	u8 vpp_index;
+	struct vd_afbc_reg_s *vd_afbc_reg = NULL;
+	struct vd_mif_reg_s *vd_mif_reg = NULL;
+	u8 layer_index = 0, slice = 0;
+
+	if (!layer)
+		return;
+	if (layer->layer_id == 0 && layer->slice_num > 1) {
+		for (slice = 0; slice < layer->slice_num; slice++)
+			disable_vd1_slice_blend_s5(layer, slice);
+		return;
+	}
+
+	vpp_index = layer->vpp_index;
+	if (layer->layer_id > MAX_VD_CHAN_S5)
+		return;
+	if (!layer->layer_id)
+		layer_index = 0;
+	else
+		layer_index = layer->layer_id + SLICE_NUM - 1;
+	vd_afbc_reg = &vd_proc_reg.vd_afbc_reg[layer_index];
+	vd_mif_reg = &vd_proc_reg.vd_mif_reg[layer_index];
+
 
 	if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 		pr_info("VIDEO: VD1 AFBC off now. dispbuf:%p vf_ext:%p, *dispbuf_mapping:%p, local: %p, %p, %p, %p\n",

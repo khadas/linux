@@ -345,5 +345,5 @@ void fgrain_update_table_s5(struct video_layer_s *layer,
 			 struct vframe_s *vf);
 void vd_set_alpha_s5(struct video_layer_s *layer,
 			     u32 win_en, struct pip_alpha_scpxn_s *alpha_win);
-
+void check_afbc_status(void);
 #endif

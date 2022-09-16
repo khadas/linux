@@ -540,12 +540,26 @@ static struct vpu_dev_s *vpu_prime_dolby_ram;
 
 static void disable_video_layer_s5(u32 layer_id, u32 async)
 {
+	int i;
+	struct video_layer_s *layer = NULL;
+
 	if (!async) {
 		/* disable vd blend */
-		WRITE_VCBUS_REG
-			(vd_proc_reg.vd_afbc_reg[layer_id].afbc_enable, 0);
-		WRITE_VCBUS_REG
-			(vd_proc_reg.vd_mif_reg[layer_id].vd_if0_gen_reg, 0);
+		if (layer_id == 0) {
+			layer =  &vd_layer[layer_id];
+			for (i = 0; i < layer->slice_num; i++) {
+				WRITE_VCBUS_REG
+					(vd_proc_reg.vd_afbc_reg[i].afbc_enable, 0);
+				WRITE_VCBUS_REG
+					(vd_proc_reg.vd_mif_reg[i].vd_if0_gen_reg, 0);
+			}
+		} else {
+			layer_id += SLICE_NUM - 1;
+			WRITE_VCBUS_REG
+				(vd_proc_reg.vd_afbc_reg[layer_id].afbc_enable, 0);
+			WRITE_VCBUS_REG
+				(vd_proc_reg.vd_mif_reg[layer_id].vd_if0_gen_reg, 0);
+		}
 	}
 	switch (layer_id) {
 	case 0:
@@ -567,11 +581,17 @@ static void disable_video_layer_s5(u32 layer_id, u32 async)
 
 static void disable_video_all_layer_nodelay_s5(void)
 {
-	WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[0].afbc_enable, 0);
-	WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[0].vd_if0_gen_reg, 0);
+	int i = 0;
+	struct video_layer_s *layer = NULL;
 
-	WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[4].afbc_enable, 0);
-	WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[4].vd_if0_gen_reg, 0);
+	layer =  &vd_layer[0];
+
+	for (i = 0; i < layer->slice_num; i++) {
+		WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[i].afbc_enable, 0);
+		WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[i].vd_if0_gen_reg, 0);
+	}
+	WRITE_VCBUS_REG(vd_proc_reg.vd_afbc_reg[SLICE_NUM].afbc_enable, 0);
+	WRITE_VCBUS_REG(vd_proc_reg.vd_mif_reg[SLICE_NUM].vd_if0_gen_reg, 0);
 }
 
 void dv_mem_power_off(enum vpu_mod_e mode)

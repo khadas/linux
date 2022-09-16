@@ -6902,6 +6902,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 
 	if (cur_dev->display_module != S5_DISPLAY_MODULE)
 		blend_reg_conflict_detect();
+	else
+		check_afbc_status();
+
 	if (vd_layer[0].force_disable)
 		atomic_set(&vt_disable_video_done, 1);
 
