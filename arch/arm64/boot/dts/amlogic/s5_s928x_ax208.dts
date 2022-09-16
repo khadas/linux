@@ -1913,13 +1913,13 @@
 };
 
 &aml_wifi{
-	status = "disabled";
+	status = "okay";
 	interrupt-gpios = <&gpio  GPIOX_7  GPIO_ACTIVE_HIGH>;
 	power_on-gpios = <&gpio   GPIOX_6  GPIO_ACTIVE_HIGH>;
 };
 
 &aml_bt {
-	status = "disabled";
+	status = "okay";
 	reset-gpios = <&gpio    GPIOX_17 GPIO_ACTIVE_HIGH>;
 	hostwake-gpios = <&gpio GPIOX_19 GPIO_ACTIVE_HIGH>;
 };
@@ -1931,6 +1931,12 @@
 };
 
 &pwm_cd {
+	status = "okay";
+};
+
+&pwm_ef {
+	pinctrl-0 = <&pwm_f_pins>;
+	pinctrl-names = "default";
 	status = "okay";
 };
 

@@ -2843,7 +2843,7 @@
 
 	wifi_pwm_conf:wifi_pwm_conf{
 		pwm_channel1_conf {
-			pwms = <&pwm_ef 0 30550 0>;
+			pwms = <&pwm_ef 1 30550 0>;
 			duty-cycle = <15270>;
 			times = <8>;
 		};
