@@ -44,7 +44,6 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		/*swiotlb = "normal";*/ /*normal,force,noforce*/
 
 		ramdump_bl33z@00000000 {
 			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */
@@ -59,14 +58,6 @@
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
 			pmsg-size = <0x20000>;
-		};
-
-		pcie_reserved: linux,pcie {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x4000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x54c00000 0x0 0x4000000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -1424,7 +1415,6 @@
 
 &pcie {
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	memory-region = <&pcie_reserved>;
 	status = "disable";
 };
 

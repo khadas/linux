@@ -41,7 +41,6 @@
 	};
 
 	reserved-memory {
-		/*swiotlb = "normal";*/ /*normal,force,noforce*/
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -62,14 +61,6 @@
 			size = <0x3400000>;
 			alignment = <0x400000>;
 			alloc-ranges = <0x05000000 0x3400000>;
-		};
-
-		pcie_reserved: linux,pcie{
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x4000000>;
-			alignment = <0x400000>;
-			alloc-ranges = <0x54c00000 0x4000000>;
 		};
 
 		logo_reserved:linux,meson-fb {
@@ -1323,7 +1314,6 @@
 
 &pcie {
 	reset-gpio = <&gpio GPIOX_7 GPIO_ACTIVE_HIGH>;
-	memory-region = <&pcie_reserved>;
 	status = "disable";
 };
 
