@@ -354,7 +354,7 @@ static int asoc_simple_soc_card_probe(struct snd_soc_card *card)
 
 	return 0;
 }
-
+extern int get_board_type(void);
 static int asoc_simple_card_probe(struct platform_device *pdev)
 {
 	struct simple_card_data *priv;
@@ -364,6 +364,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct snd_soc_card *card;
 	int num, ret;
+	char *cart_s1="rockchip,bt";
 
 	/* Get the number of DAI links */
 	if (np && of_get_child_by_name(np, PREFIX "dai-link"))
@@ -420,7 +421,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		}
 
 		card->name		= (cinfo->card) ? cinfo->card : cinfo->name;
-		dai_link->name		= cinfo->name;
+		dai_link->name          = cinfo->name;
 		dai_link->stream_name	= cinfo->name;
 		dai_link->platform_name	= cinfo->platform;
 		dai_link->codec_name	= cinfo->codec;
@@ -433,6 +434,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		memcpy(&priv->dai_props->codec_dai, &cinfo->codec_dai,
 					sizeof(priv->dai_props->codec_dai));
 	}
+
+	if(!strcmp(card->name,cart_s1) && get_board_type()==KHADAS_CAPTAIN)
+		goto err;
 
 	snd_soc_card_set_drvdata(card, priv);
 
