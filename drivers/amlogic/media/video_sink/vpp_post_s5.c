@@ -622,7 +622,7 @@ static int vpp_blend_param_set(struct vpp_post_input_s *vpp_input,
 	vpp_post_blend->bld_din1_v_end = vpp_post_blend->bld_din1_v_start +
 		vpp_input->din_vsize[1] - 1;
 	vpp_post_blend->bld_din1_alpha = 0x100;
-	vpp_post_blend->bld_din1_premult_en	= 1;
+	vpp_post_blend->bld_din1_premult_en	= 0;
 
 	vpp_post_blend->bld_din2_h_start = vpp_input->din_x_start[2];
 	vpp_post_blend->bld_din2_h_end = vpp_post_blend->bld_din2_h_start +

@@ -239,6 +239,13 @@ struct vd2_pre_blend_reg_s {
 	u32 vpp_vd_preblnd_ctrl;
 };
 
+struct vd_pip_alpha_reg_s {
+	/* pip window */
+	u32 vd_pip_alph_ctrl;
+	u32 vd_pip_alph_scp_h;
+	u32 vd_pip_alph_scp_v;
+};
+
 struct vpp_post_misc_reg_s {
 	u32 vpp_postblnd_ctrl;
 	u32 vpp_obuf_ram_ctrl;
@@ -274,4 +281,5 @@ extern struct vd_fg_reg_s fg_reg_s5_array[MAX_VD_LAYER_S5];
 extern struct vd_mif_reg_s vd_mif_reg_s5_array[MAX_VD_LAYER_S5];
 extern struct vd_mif_linear_reg_s vd_mif_linear_reg_s5_array[MAX_VD_LAYER_S5];
 extern struct vd_afbc_reg_s vd_afbc_reg_s5_array[MAX_VD_LAYER_S5];
+extern struct vd_pip_alpha_reg_s vd_pip_alpha_reg_s5[MAX_VD_CHAN_S5];
 #endif

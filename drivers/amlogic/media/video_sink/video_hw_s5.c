@@ -844,6 +844,46 @@ static void dump_vd2_proc_misc_reg(void)
 		   reg_addr, reg_val);
 }
 
+static void dump_vd_pip_alpha_reg(void)
+{
+	u32 reg_addr, reg_val = 0;
+	struct vd_pip_alpha_reg_s *vd_pip_alpha_reg = NULL;
+	int i;
+
+	vd_pip_alpha_reg = &vd_proc_reg.vd_pip_alpha_reg[0];
+	pr_info("vd1 pip alpha regs:\n");
+	reg_addr = vd_pip_alpha_reg->vd_pip_alph_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	for (i = 0; i < MAX_PIP_WINDOW; i++) {
+		reg_addr = vd_pip_alpha_reg->vd_pip_alph_scp_h + i;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_pip_alpha_reg->vd_pip_alph_scp_v + i;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
+	vd_pip_alpha_reg = &vd_proc_reg.vd_pip_alpha_reg[1];
+	pr_info("vd2 pip alpha regs:\n");
+	reg_addr = vd_pip_alpha_reg->vd_pip_alph_ctrl;
+	reg_val = READ_VCBUS_REG(reg_addr);
+	pr_info("[0x%x] = 0x%X\n",
+		   reg_addr, reg_val);
+	for (i = 0; i < MAX_PIP_WINDOW; i++) {
+		reg_addr = vd_pip_alpha_reg->vd_pip_alph_scp_h + i;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+		reg_addr = vd_pip_alpha_reg->vd_pip_alph_scp_v + i;
+		reg_val = READ_VCBUS_REG(reg_addr);
+		pr_info("[0x%x] = 0x%X\n",
+			   reg_addr, reg_val);
+	}
+}
+
 void dump_s5_vd_proc_regs(void)
 {
 	dump_mif_reg();
@@ -857,6 +897,7 @@ void dump_s5_vd_proc_regs(void)
 	dump_vd_misc_reg();
 	dump_vd2_pre_blend_reg();
 	dump_vd2_proc_misc_reg();
+	dump_vd_pip_alpha_reg();
 }
 
 ssize_t video_vd_proc_state_dump(char *buf)
@@ -7676,8 +7717,38 @@ void fgrain_update_table_s5(struct video_layer_s *layer,
 }
 #endif
 
-void alpha_win_set_s5(struct video_layer_s *layer)
+void vd_set_alpha_s5(struct video_layer_s *layer,
+			     u32 win_en, struct pip_alpha_scpxn_s *alpha_win)
 {
+	int i;
+	u32 alph_gen_mode = 1;
+	/* 0:original, 1:  0.5 alpha 2: 0.25/0.5/0.75 */
+	u32 alph_gen_byps = 0;
+	u8 vpp_index, layer_id = 0;
+	struct vd_pip_alpha_reg_s *vd_pip_alpha_reg = NULL;
+
+	layer_id = layer->layer_id;
+	if (layer_id >= MAX_VD_CHAN_S5)
+		return;
+	vd_pip_alpha_reg = &vd_proc_reg.vd_pip_alpha_reg[layer_id];
+	vpp_index = layer->vpp_index;
+	if (!win_en)
+		alph_gen_byps = 1;
+	cur_dev->rdma_func[vpp_index].rdma_wr(vd_pip_alpha_reg->vd_pip_alph_ctrl,
+			  ((0 & 0x1) << 28) |
+			  ((win_en & 0xffff) << 12) |
+			  ((0 & 0x1ff) << 3) |
+			  ((alph_gen_mode & 0x3) << 1) |
+			  ((alph_gen_byps & 0x1) << 0));
+	for (i = 0; i < MAX_PIP_WINDOW; i++) {
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_pip_alpha_reg->vd_pip_alph_scp_h + i,
+				  (alpha_win->scpxn_end_h[i] & 0x1fff) << 16 |
+				  (alpha_win->scpxn_bgn_h[i] & 0x1fff));
+
+		cur_dev->rdma_func[vpp_index].rdma_wr(vd_pip_alpha_reg->vd_pip_alph_scp_v + i,
+				  (alpha_win->scpxn_end_v[i] & 0x1fff) << 16 |
+				  (alpha_win->scpxn_bgn_v[i] & 0x1fff));
+	}
 }
 
 static void vd1_clip_setting_s5(struct vd_proc_s *vd_proc,
@@ -7987,6 +8058,12 @@ int video_early_init_s5(struct amvideo_device_data_s *p_amvideo)
 		   &vd1_slice_pad_size1_reg_s5[i],
 		   sizeof(struct vd1_slice_pad_reg_s));
 	}
+
+	for (i = 0; i < MAX_VD_CHAN_S5; i++)
+		memcpy(&vd_proc_reg.vd_pip_alpha_reg[i],
+		   &vd_pip_alpha_reg_s5[i],
+		   sizeof(struct vd_pip_alpha_reg_s));
+
 	memcpy(&vd_proc_reg.vd_proc_sr_reg,
 	   &vd_proc_sr_reg_s5,
 	   sizeof(struct vd_proc_sr_reg_s));

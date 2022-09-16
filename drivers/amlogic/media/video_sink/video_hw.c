@@ -9452,11 +9452,14 @@ void alpha_win_set(struct video_layer_s *layer)
 {
 	u8 layer_id = layer->layer_id;
 
-	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		alpha_win_set_s5(layer);
-	else
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		if (glayer_info[layer_id].alpha_support)
+			vd_set_alpha_s5(layer, layer->alpha_win_en, &layer->alpha_win);
+
+	} else {
 		if (glayer_info[layer_id].alpha_support)
 			vd_set_alpha(layer, layer->alpha_win_en, &layer->alpha_win);
+	}
 }
 /*********************************************************
  * vout APIs

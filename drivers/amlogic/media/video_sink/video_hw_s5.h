@@ -304,6 +304,7 @@ struct vd_proc_reg_s {
 	struct vd1_slice_pad_reg_s vd1_slice_pad_size1_reg[SLICE_NUM];
 	struct vd2_pre_blend_reg_s vd2_pre_blend_reg;
 	struct vd2_proc_misc_reg_s vd2_proc_misc_reg;
+	struct vd_pip_alpha_reg_s vd_pip_alpha_reg[MAX_VD_CHAN_S5];
 };
 
 extern u32 debug_flag_s5;
@@ -342,4 +343,7 @@ int fgrain_init_s5(u8 layer_id, u32 table_size);
 void fgrain_uninit_s5(u8 layer_id);
 void fgrain_update_table_s5(struct video_layer_s *layer,
 			 struct vframe_s *vf);
+void vd_set_alpha_s5(struct video_layer_s *layer,
+			     u32 win_en, struct pip_alpha_scpxn_s *alpha_win);
+
 #endif

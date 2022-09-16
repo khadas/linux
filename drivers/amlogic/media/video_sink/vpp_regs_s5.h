@@ -485,7 +485,74 @@
 //
 //
 // Reading file:  ./vd1_pip_alph_gen_regs.h
-//
+#define S5_VD1_PIP_ALPH_CTRL                          0x1d20
+#define S5_VD1_PIP_ALPH_SCP_H_0                       0x1d21
+#define S5_VD1_PIP_ALPH_SCP_H_1                       0x1d22
+#define S5_VD1_PIP_ALPH_SCP_H_2                       0x1d23
+#define S5_VD1_PIP_ALPH_SCP_H_3                       0x1d24
+#define S5_VD1_PIP_ALPH_SCP_H_4                       0x1d25
+#define S5_VD1_PIP_ALPH_SCP_H_5                       0x1d26
+#define S5_VD1_PIP_ALPH_SCP_H_6                       0x1d27
+#define S5_VD1_PIP_ALPH_SCP_H_7                       0x1d28
+#define S5_VD1_PIP_ALPH_SCP_H_8                       0x1d29
+#define S5_VD1_PIP_ALPH_SCP_H_9                       0x1d2a
+#define S5_VD1_PIP_ALPH_SCP_H_10                      0x1d2b
+#define S5_VD1_PIP_ALPH_SCP_H_11                      0x1d2c
+#define S5_VD1_PIP_ALPH_SCP_H_12                      0x1d2d
+#define S5_VD1_PIP_ALPH_SCP_H_13                      0x1d2e
+#define S5_VD1_PIP_ALPH_SCP_H_14                      0x1d2f
+#define S5_VD1_PIP_ALPH_SCP_H_15                      0x1d30
+#define S5_VD1_PIP_ALPH_SCP_V_0                       0x1d31
+#define S5_VD1_PIP_ALPH_SCP_V_1                       0x1d32
+#define S5_VD1_PIP_ALPH_SCP_V_2                       0x1d33
+#define S5_VD1_PIP_ALPH_SCP_V_3                       0x1d34
+#define S5_VD1_PIP_ALPH_SCP_V_4                       0x1d35
+#define S5_VD1_PIP_ALPH_SCP_V_5                       0x1d36
+#define S5_VD1_PIP_ALPH_SCP_V_6                       0x1d37
+#define S5_VD1_PIP_ALPH_SCP_V_7                       0x1d38
+#define S5_VD1_PIP_ALPH_SCP_V_8                       0x1d39
+#define S5_VD1_PIP_ALPH_SCP_V_9                       0x1d3a
+#define S5_VD1_PIP_ALPH_SCP_V_10                      0x1d3b
+#define S5_VD1_PIP_ALPH_SCP_V_11                      0x1d3c
+#define S5_VD1_PIP_ALPH_SCP_V_12                      0x1d3d
+#define S5_VD1_PIP_ALPH_SCP_V_13                      0x1d3e
+#define S5_VD1_PIP_ALPH_SCP_V_14                      0x1d3f
+#define S5_VD1_PIP_ALPH_SCP_V_15                      0x1d40
+
+#define S5_VD2_PIP_ALPH_CTRL                          0x1d41
+#define S5_VD2_PIP_ALPH_SCP_H_0                       0x1d42
+#define S5_VD2_PIP_ALPH_SCP_H_1                       0x1d43
+#define S5_VD2_PIP_ALPH_SCP_H_2                       0x1d44
+#define S5_VD2_PIP_ALPH_SCP_H_3                       0x1d45
+#define S5_VD2_PIP_ALPH_SCP_H_4                       0x1d46
+#define S5_VD2_PIP_ALPH_SCP_H_5                       0x1d47
+#define S5_VD2_PIP_ALPH_SCP_H_6                       0x1d48
+#define S5_VD2_PIP_ALPH_SCP_H_7                       0x1d49
+#define S5_VD2_PIP_ALPH_SCP_H_8                       0x1d4a
+#define S5_VD2_PIP_ALPH_SCP_H_9                       0x1d4b
+#define S5_VD2_PIP_ALPH_SCP_H_10                      0x1d4c
+#define S5_VD2_PIP_ALPH_SCP_H_11                      0x1d4d
+#define S5_VD2_PIP_ALPH_SCP_H_12                      0x1d4e
+#define S5_VD2_PIP_ALPH_SCP_H_13                      0x1d4f
+#define S5_VD2_PIP_ALPH_SCP_H_14                      0x1d50
+#define S5_VD2_PIP_ALPH_SCP_H_15                      0x1d51
+#define S5_VD2_PIP_ALPH_SCP_V_0                       0x1d52
+#define S5_VD2_PIP_ALPH_SCP_V_1                       0x1d53
+#define S5_VD2_PIP_ALPH_SCP_V_2                       0x1d54
+#define S5_VD2_PIP_ALPH_SCP_V_3                       0x1d55
+#define S5_VD2_PIP_ALPH_SCP_V_4                       0x1d56
+#define S5_VD2_PIP_ALPH_SCP_V_5                       0x1d57
+#define S5_VD2_PIP_ALPH_SCP_V_6                       0x1d58
+#define S5_VD2_PIP_ALPH_SCP_V_7                       0x1d59
+#define S5_VD2_PIP_ALPH_SCP_V_8                       0x1d5a
+#define S5_VD2_PIP_ALPH_SCP_V_9                       0x1d5b
+#define S5_VD2_PIP_ALPH_SCP_V_10                      0x1d5c
+#define S5_VD2_PIP_ALPH_SCP_V_11                      0x1d5d
+#define S5_VD2_PIP_ALPH_SCP_V_12                      0x1d5e
+#define S5_VD2_PIP_ALPH_SCP_V_13                      0x1d5f
+#define S5_VD2_PIP_ALPH_SCP_V_14                      0x1d60
+#define S5_VD2_PIP_ALPH_SCP_V_15                      0x1d61
+
 // synopsys translate_off
 // synopsys translate_on
 // Reading file:  ./vpp_vd_sys_top_regs.h

@@ -721,3 +721,15 @@ struct vd2_pre_blend_reg_s vd2_pre_blend_reg_s5 = {
 	VPP_VD_PREBLND_CTRL,
 };
 
+struct vd_pip_alpha_reg_s vd_pip_alpha_reg_s5[MAX_VD_CHAN_S5] = {
+	{
+		S5_VD1_PIP_ALPH_CTRL,
+		S5_VD1_PIP_ALPH_SCP_H_0,
+		S5_VD1_PIP_ALPH_SCP_V_0,
+	},
+	{
+		S5_VD2_PIP_ALPH_CTRL,
+		S5_VD2_PIP_ALPH_SCP_H_0,
+		S5_VD2_PIP_ALPH_SCP_V_0,
+	},
+};

@@ -728,7 +728,6 @@ void aisr_reshape_cfg_s5(struct video_layer_s *layer,
 void aisr_scaler_setting_s5(struct video_layer_s *layer,
 			     struct scaler_setting_s *setting);
 void vd_blend_setting_s5(struct video_layer_s *layer, struct blend_setting_s *setting);
-void alpha_win_set_s5(struct video_layer_s *layer);
 void vd_clip_setting_s5(u8 layer_id,
 	struct clip_setting_s *setting);
 void vpp_post_blend_update_s5(const struct vinfo_s *vinfo);
