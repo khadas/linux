@@ -41,7 +41,10 @@ enum tuner_type {
 	AM_TUNER_RT710 = 23,
 	AM_TUNER_R850 = 24,
 	AM_TUNER_CXD6866 = 25,
-	AM_TUNER_CXD2871 = 26
+	AM_TUNER_CXD2871 = 26,
+	AM_TUNER_RDA5815M = 27,
+	AM_TUNER_RDA5160 = 28,
+	AM_TUNER_MAX = 29
 };
 
 enum atv_demod_type {
