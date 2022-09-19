@@ -20,8 +20,8 @@
 
 	aliases {
 		serial0 = &uart_A;
-		serial1 = &uart_C;
-		serial2 = &uart_B;
+		serial1 = &uart_B;
+		serial2 = &uart_C;
 		serial3 = &uart_D;
 		serial4 = &uart_E;
 		serial5 = &uart_F;
@@ -1937,8 +1937,8 @@
 	status = "disabled";
 };
 
-&uart_C {
-	status = "disabled";
+&uart_B {
+	status = "okay";
 	uart-has-rtscts;
 };
 
