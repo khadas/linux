@@ -1436,7 +1436,7 @@
 		};
 		partition@5 {
 			label = "tee";
-			reg = <0x0 0x200000>;
+			reg = <0x0 0x800000>;
 		};
 		partition@6 {
 			label = "logo";

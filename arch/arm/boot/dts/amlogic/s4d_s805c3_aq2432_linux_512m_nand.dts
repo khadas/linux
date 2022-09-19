@@ -1407,7 +1407,7 @@
 		};
 		partition@5 {
 			label = "tee";
-			reg = <0x0 0x200000>;
+			reg = <0x0 0x800000>;
 		};
 		partition@6 {
 			label = "logo";
@@ -1423,7 +1423,7 @@
 		};
 		partition@9 {
 			label = "boot";
-			reg = <0x0 0x1000000>;
+			reg = <0x0 0x1400000>;
 		};
 		partition@10 {
 			label = "system";
