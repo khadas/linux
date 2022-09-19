@@ -561,19 +561,22 @@ void tso_set(int path)
 	switch (path) {
 	case 0:
 		//ts0
-		data &= 0x0;
+		data &= ~(0xF);
 		break;
 	case 1:
 		//ts1
-		data &= 0x1;
+		data &= ~(0xF);
+		data |= 1;
 		break;
 	case 2:
 		//ts2
-		data &= 0x2;
+		data &= ~(0xF);
+		data |= 2;
 		break;
 	default:
 		//ts2
-		data &= 0x2;
+		data &= ~(0xF);
+		data |= 2;
 		break;
 	}
 
