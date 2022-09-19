@@ -841,6 +841,34 @@
 	status = "okay";
 };
 
+&CPU0 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU1 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU2 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
+&CPU3 {
+	operating-points-v2 = <&cpu_opp_table0_s805c3>,
+		<&cpu_opp_table1_s805c3>,
+		<&cpu_opp_table2_s805c3>,
+		<&cpu_opp_table3_s805c3>;
+};
+
 &audiobus {
 	tdma: tdm@0 {
 		compatible = "amlogic, t5-snd-tdma";
