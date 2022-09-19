@@ -140,6 +140,8 @@ struct fft_total_result {
 #define	CFR11	0x9d0
 #define	CFR10	0x9d1
 
+#define DVBS_AGC_LEVEL_ADDR     0x91a
+
 void dvbs2_diseqc_send_msg(unsigned int len, unsigned char *msg);
 unsigned int dvbs2_diseqc_read_msg(unsigned int len, unsigned char *msg);
 unsigned int dvbs2_diseqc_irq_check(void);

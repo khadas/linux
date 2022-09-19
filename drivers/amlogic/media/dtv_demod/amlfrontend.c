@@ -1283,6 +1283,33 @@ static int dtvdemod_dvbs_read_signal_strength(struct dvb_frontend *fe,
 		s16 *strength)
 {
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	unsigned int agc_level = 0;
+
+	if (!strncmp(fe->ops.tuner_ops.info.name, "av2018", 6)) {
+		agc_level = dvbs_rd_byte(DVBS_AGC_LEVEL_ADDR);
+		if (agc_level > 183) {
+			*strength = 0;
+			if (agc_level == 184)
+				*strength = -3;
+			if (agc_level == 185)
+				*strength = -1;
+		} else if (agc_level > 170 && agc_level <= 183) {
+			*strength = (s16)(agc_level * 120 / 13 - 1769) / 10;
+		} else if (agc_level >= 130 && agc_level <= 170) {
+			*strength = (s16)agc_level / 2 - 105;
+		} else if (agc_level >= 13 && agc_level < 130) {
+			*strength = (s16)(agc_level * 110 / 25 - 965) / 10;
+			if (*strength < -90)
+				*strength = -90;
+		} else {
+			*strength = -90;
+			if (agc_level == 0)
+				*strength = -95;
+		}
+
+		PR_DBGL("demod [id %d] tuner strength is %d dbm\n", demod->id, *strength);
+		return 0;
+	}
 
 	*strength = (s16)tuner_get_ch_power(fe);
 

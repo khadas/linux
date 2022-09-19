@@ -52,6 +52,7 @@
 /*  V1.1.59  fix dvbs/s2 aft range and different tuner blind window settings */
 /*  V1.1.60  support diseqc2.0 */
 /*  V1.1.61  fix T5W T and T2 channel switch unlock */
+/*  V1.1.62  implement get RSSI function for av2018 */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -68,8 +69,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.61"
-#define DTVDEMOD_VER	"2022/9/2: fix T5W T and T2 channel switch unlock"
+#define AMLDTVDEMOD_VER "V1.1.62"
+#define DTVDEMOD_VER	"2022/9/19: implement get RSSI function for av2018"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
