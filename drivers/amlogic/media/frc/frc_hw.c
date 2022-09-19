@@ -50,15 +50,17 @@ int FRC_PARAM_NUM = 8;
 module_param(FRC_PARAM_NUM, int, 0664);
 MODULE_PARM_DESC(FRC_PARAM_NUM, "FRC_PARAM_NUM");
 
-const struct vf_rate_table vf_rate_table[9] = {
+const struct vf_rate_table vf_rate_table[11] = {
 	{1600,  FRC_VD_FPS_60},
 	{1601,	FRC_VD_FPS_60},
 	{1920,  FRC_VD_FPS_50},
 	{2000,  FRC_VD_FPS_48},
 	{3200,	FRC_VD_FPS_30},
 	{3840,	FRC_VD_FPS_25},
+	{3999,	FRC_VD_FPS_24},
 	{4000,	FRC_VD_FPS_24},
-	{4004,	FRC_VD_FPS_24},
+	{4001,  FRC_VD_FPS_24},
+	{4004,  FRC_VD_FPS_24},
 	{0000,	FRC_VD_FPS_00},
 };
 
@@ -1814,6 +1816,8 @@ void fw_param_bbd_init(u32 hsize ,u32 vsize)
 	//temporal
 	//since reg_bb_motion_finer_col_num initial value is 64, so too big is not to care
 	reg_data = READ_FRC_REG(FRC_BBD_MOTION_NUM);
+	if (reg_data == 0)
+		reg_data = 64;
 	reg_bb_finer = reg_data & 0xff;
 	if((reg_bb_lft_motion/reg_bb_finer)<4){
 		 WRITE_FRC_BITS(FRC_BBD_MOTION_NUM, reg_bb_lft_motion/4, 0, 7); // reg_bb_motion_finer_col_num

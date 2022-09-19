@@ -315,6 +315,8 @@ static long frc_ioctl(struct file *file,
 			frc_fpp_memc_set_level(10, 0);
 		else if (fpp_state == FPP_MEMC_HIGH)
 			frc_fpp_memc_set_level(10, 1);
+		else if (fpp_state == FPP_MEMC_24PFILM)
+			frc_fpp_memc_set_level(10, 2);
 		else
 			frc_fpp_memc_set_level((u8)fpp_state, 0);
 
@@ -657,11 +659,11 @@ int frc_vd_notify_callback(struct notifier_block *block, unsigned long cmd, void
 			set_frc_bypass(true);
 			frc_change_to_state(FRC_STATE_DISABLE);
 			frc_state_change_finish(devp);
-			if (devp->frc_sts.frame_cnt) {
+			if (devp->frc_sts.frame_cnt != 0) {
 				devp->frc_sts.frame_cnt = 0;
-				pr_frc(1, "interrupt conflicts, reset frame_cnt\n");
+				pr_frc(1, "%s reset frm_cnt\n", __func__);
 			}
-			pr_frc(1, "VIDEO_SIZE_CHANGE_EVENT\n");
+			pr_frc(1, "%s VIDEO_SIZE_CHANGE_EVENT\n",  __func__);
 			devp->frc_sts.out_put_mode_changed = FRC_EVENT_VF_CHG_IN_SIZE;
 		}
 		break;

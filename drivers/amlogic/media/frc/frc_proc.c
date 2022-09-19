@@ -324,18 +324,22 @@ void frc_change_to_state(enum frc_state_e state)
 		pr_frc(0, "%s %d->%d, no video, can't change\n", __func__,
 				devp->frc_sts.state, state);
 	} else if (devp->frc_sts.state_transing) {
-		pr_frc(0, "%s state_transing busy!\n", __func__);
+		pr_frc(0, "%s state_transing busy(%d:%d->%d,frm:%d)!\n", __func__,
+				devp->frc_sts.state, devp->frc_sts.new_state,
+						state, devp->frc_sts.frame_cnt);
 		if (state != devp->frc_sts.new_state) {
 			devp->frc_sts.state = devp->frc_sts.new_state;
 			devp->frc_sts.new_state = state;
 			devp->frc_sts.frame_cnt = 0;
 			devp->frc_sts.state_transing = false;
-			pr_frc(0, "busy broken:%s %d->%d\n", __func__, devp->frc_sts.state, state);
+			pr_frc(0, "busy broken:%s %d->%d\n", __func__,
+					devp->frc_sts.state, state);
 		}
 	} else if (devp->frc_sts.state != state) {
 		devp->frc_sts.new_state = state;
 		devp->frc_sts.state_transing = true;
-		pr_frc(0, "%s %d->%d\n", __func__, devp->frc_sts.state, state);
+		pr_frc(0, "%s %d->%d(frm=%d)\n", __func__, devp->frc_sts.state,
+				state, devp->frc_sts.frame_cnt);
 	}
 }
 
@@ -643,6 +647,7 @@ void frc_state_change_finish(struct frc_dev_s *devp)
 {
 	devp->frc_sts.state = devp->frc_sts.new_state;
 	devp->frc_sts.state_transing = false;
+	devp->frc_sts.frame_cnt = 0;
 }
 
 void frc_test_mm_secure_set_off(struct frc_dev_s *devp)
@@ -1393,18 +1398,12 @@ int frc_fpp_memc_set_level(u8 level, u8 num)
 		return 0;
 	pfw_data = (struct frc_fw_data_s *)devp->fw_data;
 	pfw_data->frc_top_type.frc_memc_level = level;
-	if (num == 1) {
-		pfw_data->frc_top_type.frc_memc_level_1 = 1;
-		pr_frc(1, "fpp enhancement!\n");
-	} else {
-		pfw_data->frc_top_type.frc_memc_level_1 = 0;
-		pr_frc(1, "fpp frc_memc_level_1 0\n");
-	}
-	pr_frc(1, "fpp_set_memc_level:%d\n", level);
+	pfw_data->frc_top_type.frc_memc_level_1 = num;
+	pr_frc(1, "fpp_set_memc_level:%d[%d]\n", level, num);
 	if (pfw_data->frc_memc_level)
 		pfw_data->frc_memc_level(pfw_data);
-
 	return 1;
+
 }
 
 int frc_memc_set_demo(u8 setdemo)
