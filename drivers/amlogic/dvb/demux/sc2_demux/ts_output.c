@@ -1860,7 +1860,35 @@ static int _handle_es(struct out_elem *pout, struct es_params_t *es_params)
 				&es_params->last_header, 16);
 			memcpy(&es_params->last_header, pcur_header,
 					sizeof(es_params->last_header));
-//			dprint("error: header.len is 0, jump\n");
+			if (get_demux_feature(SUPPORT_PSCP)) {
+				if (!(pheader->pts_dts_flag & 0x4) &&
+					!(pheader->pts_dts_flag & 0x8))
+					return 0;
+
+				if (pout->output_mode || pout->pchan->sec_level) {
+					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
+						struct dmx_sec_es_data sec_es_data;
+
+						memset(&sec_es_data, 0,
+							sizeof(struct dmx_sec_es_data));
+						sec_es_data.pts_dts_flag =
+							es_params->header.pts_dts_flag & 0xC;
+						out_ts_cb_list(pout, (char *)&sec_es_data,
+							sizeof(struct dmx_sec_es_data), 0, 0);
+					}
+				} else {
+					if (pout->type == VIDEO_TYPE || pout->type == AUDIO_TYPE) {
+						struct dmx_non_sec_es_header es_data_header;
+
+						memset(&es_data_header, 0,
+							sizeof(struct dmx_non_sec_es_header));
+						es_data_header.pts_dts_flag =
+							es_params->header.pts_dts_flag & 0xC;
+						out_ts_cb_list(pout, (char *)&es_data_header,
+							sizeof(struct dmx_non_sec_es_header), 0, 0);
+					}
+				}
+			}
 			return 0;
 		}
 		if (pout->aucpu_handle >= 0) {

@@ -660,6 +660,8 @@ int get_demux_feature(int support_feature)
 		else
 			return 0;
 	} else if (support_feature == SUPPORT_PSCP) {
+		if (cpu_type >= MESON_CPU_MAJOR_ID_T5W)
+			return 1;
 		return 0;
 	} else if (support_feature == SUPPORT_TEMI) {
 		if ((cpu_type == MESON_CPU_MAJOR_ID_T7 && minor_type == 0xc) ||
