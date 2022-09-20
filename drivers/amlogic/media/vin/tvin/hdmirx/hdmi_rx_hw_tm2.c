@@ -510,15 +510,19 @@ void aml_phy_cfg_tm2(void)
 		data32 = phy_misci_b[idx][0];
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
 		usleep_range(5, 10);
-
 		data32 = phy_misci_b[idx][1];
+		aml_phy_get_trim_val_tl1_tm2();
 		if (phy_tdr_en) {
+			phy_trim_val = (~(0xfff << 12)) & phy_trim_val;
+			phy_trim_val = (tl1_tm2_reg360[rlevel] << 12) | phy_trim_val;
 			if (term_cal_en) {
 				data32 = (((data32 & (~(0x3ff << 12))) |
 					(term_cal_val << 12)) | (1 << 22));
 			} else {
 				data32 = phy_trim_val;
 			}
+		} else {
+			data32 = phy_trim_val;
 		}
 		/* step2-0xd8 */
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1, data32);

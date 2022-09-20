@@ -33,11 +33,12 @@
 #include "hdmi_rx_wrapper.h"
 
 /* FT trim flag:1-valid, 0-not valid */
-bool rterm_trim_flag_t5;
+u32 rterm_trim_flag_t5;
 /* FT trim value 4 bits */
 u32 rterm_trim_val_t5;
-
+u32 dts_debug_flag;
 /* for T5 */
+unsigned int rlevel;
 static const u32 phy_misci_t5[][4] = {
 		 /* 0x05	 0x06	 0x07	 0x08 */
 	{	 /* 24~45M */
@@ -120,6 +121,8 @@ struct apll_param apll_tab_t5[] = {
 	{PLL_BW_4, 40, 1, 0x1, 2,	  0x0, 2, 0},/* 594 */
 	{PLL_BW_NULL, 40, 1, 0x3, 8,	 0x2, 8, 0},
 };
+
+u32 t5_t7_rlevel[] = {8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7};
 
 /*Decimal to Gray code */
 unsigned int decimaltogray_t5(unsigned int x)
@@ -846,11 +849,17 @@ void aml_phy_get_trim_val_t5(void)
 {
 	u32 data32;
 
-	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL1);
-	/* bit [12: 15]*/
-	rterm_trim_val_t5 = (data32 >> 12) & 0xf;
-	/* bit'0*/
-	rterm_trim_flag_t5 = data32 & 0x1;
+	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
+	if (dts_debug_flag == 0) {
+		data32 = hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL1);
+		rterm_trim_val_t5 = (data32 >> 12) & 0xf;
+		rterm_trim_flag_t5 = data32 & 0x1;
+	} else {
+		rlevel = phy_term_lel & 0xf;
+		if (rlevel > 15)
+			rlevel = 15;
+		rterm_trim_flag_t5 = dts_debug_flag;
+	}
 	if (rterm_trim_flag_t5)
 		rx_pr("rterm trim=0x%x\n", rterm_trim_val_t5);
 }
@@ -874,11 +883,14 @@ void aml_phy_cfg_t5(void)
 		data32 = phy_misci_t5[idx][0];
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, data32);
 		usleep_range(5, 10);
-
 		data32 = phy_misci_t5[idx][1];
-		if (rterm_trim_flag_t5)
+		aml_phy_get_trim_val_t5();
+		if (rterm_trim_flag_t5) {
+			if (dts_debug_flag)
+				rterm_trim_val_t5 = t5_t7_rlevel[rlevel];
 			data32 = ((data32 & (~((0xf << 12) | 0x1))) |
 				(rterm_trim_val_t5 << 12) | rterm_trim_flag_t5);
+		}
 		/* step2-0xd8 */
 		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL1, data32);
 		/*step2-0xe0*/

@@ -2330,6 +2330,7 @@ void rx_get_global_variable(const char *buf)
 	pr_var(dbg_pkt, i++);
 	pr_var(aud_compose_type, i++);
 	pr_var(vrr_range_dynamic_update_en, i++);
+	pr_var(phy_term_lel, i++);
 	pr_var(rx.var.force_pattern, i++);
 	/* phy var definitioin */
 	pr_var(rx.aml_phy.sqrst_en, i++);
@@ -2674,6 +2675,8 @@ int rx_set_global_variable(const char *buf, int size)
 	if (set_pr_var(tmpbuf, var_to_str(rx.aml_phy.long_bist_en),
 		&rx.aml_phy.long_bist_en, value))
 		return pr_var(rx.aml_phy.long_bist_en, index);
+	if (set_pr_var(tmpbuf, var_to_str(phy_term_lel), &phy_term_lel, value))
+		return pr_var(phy_term_lel, index);
 	return 0;
 }
 

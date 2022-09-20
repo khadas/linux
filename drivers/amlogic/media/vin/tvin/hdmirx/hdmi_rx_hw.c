@@ -4988,14 +4988,12 @@ bool is_ft_trim_done(void)
 /*T5 todo:*/
 void aml_phy_get_trim_val_tl1_tm2(void)
 {
-	u32 data32;
-
-	phy_tdr_en = (phy_term_lel >> 4) & 0x1;
-	phy_term_lel = phy_term_lel & 0xf;
 	phy_trim_val = rd_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1);
-	data32 = (phy_trim_val >> 12) & 0x3ff;
-	data32 = (~((~data32) << phy_term_lel) | (1 << phy_term_lel));
-	phy_trim_val = ((phy_trim_val & (~(0x3ff << 12))) | (data32 << 12));
+	dts_debug_flag = (phy_term_lel >> 4) & 0x1;
+	rlevel = phy_term_lel & 0xf;
+	if (rlevel > 11)
+		rlevel = 10;
+	phy_tdr_en = dts_debug_flag;
 }
 
 void aml_phy_get_trim_val(void)

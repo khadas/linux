@@ -2962,7 +2962,6 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("en_4k_2_2k not found.\n");
 		en_4k_2_2k = 0;
 	}
-
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "en_4k_timing", &en_4k_timing);
 	if (ret)
