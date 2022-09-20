@@ -40,5 +40,6 @@ void s5_hdr_reg_dump(unsigned int offset);
 void hdr_lut_buffer_malloc(struct platform_device *pdev);
 void hdr_lut_buffer_free(struct platform_device *pdev);
 void disable_ai_color(void);
-
+void read_dma_buf(void);
+void write_dma_buf(u32 table_offset, u32 tbl_id, u32 value);
 #endif

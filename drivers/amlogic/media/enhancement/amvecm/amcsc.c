@@ -119,20 +119,23 @@ void hdr_osd3_off(enum vpp_index vpp_index)
 void hdr_vd1_off(enum vpp_index vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process;
-	int s5_silce_mode = get_s5_silce_mode();
+	int silce_mode = 1;
 
-	if (s5_silce_mode == VD1_1SLICE) {
+	if (is_meson_s5_cpu())
+		silce_mode = 4;/*bypass 4 vd1 slice no matter vd1 slice num*/
+
+	if (silce_mode == VD1_1SLICE) {
 		cur_hdr_process =
 			hdr_func(VD1_HDR, HDR_BYPASS,
 				 NULL, NULL, vpp_index);
-	} else if (s5_silce_mode == VD1_2SLICE) {
+	} else if (silce_mode == VD1_2SLICE) {
 		cur_hdr_process =
 			hdr_func(VD1_HDR, HDR_BYPASS,
 				 NULL, NULL, vpp_index);
 		cur_hdr_process =
 			hdr_func(S5_VD1_SLICE1, HDR_BYPASS,
 				 NULL, NULL, vpp_index);
-	} else if (s5_silce_mode == VD1_4SLICE) {
+	} else if (silce_mode == VD1_4SLICE) {
 		cur_hdr_process =
 			hdr_func(VD1_HDR, HDR_BYPASS,
 				 NULL, NULL, vpp_index);
@@ -3985,7 +3988,7 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
 	}
 	if (vinfo)
-		pr_csc(32, "%s: support %d %d %d,mode=%d, hdr_cap 0x%x\n",
+		pr_csc(256, "%s: support %d %d %d,mode=%d, hdr_cap 0x%x\n",
 			__func__,
 			vinfo->hdr_info.hdr_support,
 			vinfo->hdr_info.hdr10plus_info.ieeeoui,

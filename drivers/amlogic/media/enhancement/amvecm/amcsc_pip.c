@@ -35,8 +35,8 @@ static enum output_format_e target_format[VD_PATH_MAX];
 static enum hdr_type_e cur_source_format[VD_PATH_MAX];
 static enum output_format_e output_format;
 
-/* set 1 slice or 4 slice */
-static uint slice_set = 4;
+/*bit4: force mode; bit 0-3 slice num */
+static uint slice_set = 0x14;
 module_param(slice_set, uint, 0664);
 MODULE_PARM_DESC(slice_set, "\n slice_set\n");
 
@@ -74,9 +74,13 @@ static const char *module_str[15] = {
 	"OSD3",
 	"S5_VD1_S1",
 	"S5_VD1_S2",
+<<<<<<< HEAD
 	"S5_VD1_S3",
 	"S5_VD2_HDR2"
 >>>>>>> hdr: S5 vd1 hdr not enable [1/1]
+=======
+	"S5_VD1_S3"
+>>>>>>> hdr: enable dma lut [1/1]
 };
 
 static const char *process_str[15] = {
@@ -169,9 +173,9 @@ void hdr_proc(struct vframe_s *vf,
 			break;
 		}
 	}
-
-	pr_csc(8, "am_vecm: hdr module=%s, process=%s,vpp_index = %d, dv %d\n",
+	pr_csc(8, "am_vecm: hdr module=%s %d, process=%s,vpp_index=%d,dv %d\n",
 	       module_str[module_sel],
+	       module_sel,
 	       process_str[index],
 	       vpp_index,
 	       is_amdv_on());
@@ -1630,10 +1634,22 @@ void video_post_process_t7(struct vframe_s *vf,
 
 int get_s5_silce_mode(void)
 {
-	/* Wait for video to realize */
+	int slice_number;
+
 	if (!is_meson_s5_cpu())
 		return 1;
-	return slice_set;
+
+	if ((slice_set & 0x10))
+		slice_number = slice_set & 0x0F;
+	else
+		slice_number = get_slice_num(0);
+
+	pr_csc(64, "slice number %d\n", slice_number);
+
+	if (slice_number == 0 || slice_number > 4)
+		slice_number = 1;
+
+	return slice_number;
 }
 
 void video_post_process(struct vframe_s *vf,

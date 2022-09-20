@@ -1724,7 +1724,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		for (i = 0; i < MTX_NUM_PARAM; i++)
 			in_mtx[i] = hdr_mtx_param->mtx_in[i];
 
-		pr_csc(64, "hdr: in_mtx %d %d = %x,%x %x %x %x %x,%x\n",
+		pr_csc(64, "hdr: in_mtx on %d only %d = %x,%x %x %x %x %x,%x\n",
 			hdr_mtx_param->mtx_on,
 			hdr_mtx_param->mtx_only,
 			(hdr_mtx_param->mtxi_pre_offset[0] << 16) |
@@ -2804,7 +2804,7 @@ enum hdr_process_sel hdr_func(enum hdr_module_sel module_sel,
 		return hdr_process_select;
 	}
 
-	pr_csc(12, "%s: hdr module =%d, proc sel=0x%x vpp_index = %d\n",
+	pr_csc(12, "%s: hdr module=%d, proc sel=0x%x vpp_index = %d\n",
 		__func__,
 		module_sel,
 		hdr_process_select,

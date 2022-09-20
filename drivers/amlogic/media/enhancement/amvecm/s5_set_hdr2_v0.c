@@ -23,7 +23,7 @@
 #include "hdr/gamut_convert.h"
 #include "arch/vpp_hdr_regs.h"
 
-static uint cpu_write_lut = 1;
+static uint cpu_write_lut;
 module_param(cpu_write_lut, uint, 0664);
 MODULE_PARM_DESC(cpu_write_lut, "\n cpu_write_lut\n");
 
@@ -544,7 +544,7 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 			in_mtx[i] = hdr_mtx_param->mtx_in[i];
 
 //#ifdef HDR2_PRINT
-		pr_info("hdr: in_mtx %d %d = %x,%x %x %x %x %x,%x\n",
+		pr_csc(64, "hdr: in_mtx %d %d = %x,%x %x %x %x %x,%x\n",
 			hdr_mtx_param->mtx_on,
 			hdr_mtx_param->mtx_only,
 			(hdr_mtx_param->mtxi_pre_offset[0] << 16) |
@@ -927,10 +927,9 @@ void s5_set_eotf_lut(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(eotf_lut_addr_port, 0x0, vpp_sel);
-
 	/* use dma transport*/
 	if (cpu_write_lut) {
+		VSYNC_WRITE_VPP_REG_VPP_SEL(eotf_lut_addr_port, 0x0, vpp_sel);
 		for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++)
 			VSYNC_WRITE_VPP_REG_VPP_SEL(eotf_lut_data_port, lut[i], vpp_sel);
 	}
@@ -985,10 +984,10 @@ void s5_set_ootf_lut(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_addr_port, 0x0, vpp_sel);
-
 	/* use dma transport*/
 	if (cpu_write_lut) {
+		VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_addr_port, 0x0, vpp_sel);
+
 		for (i = 0; i < HDR2_OOTF_LUT_SIZE / 2; i++)
 			VSYNC_WRITE_VPP_REG_VPP_SEL(ootf_lut_data_port,
 			(lut[i * 2 + 1] << 16) + lut[i * 2], vpp_sel);
@@ -1044,10 +1043,10 @@ void s5_set_oetf_lut(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->lut_on)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_addr_port, 0x0, vpp_sel);
-
 	/* use dma transport*/
 	if (cpu_write_lut) {
+		VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_addr_port, 0x0, vpp_sel);
+
 		for (i = 0; i < HDR2_OETF_LUT_SIZE / 2; i++) {
 			if (hdr_lut_param->bitdepth == 10)
 				VSYNC_WRITE_VPP_REG_VPP_SEL(oetf_lut_data_port,
@@ -1136,10 +1135,10 @@ void s5_set_c_gain(enum hdr_module_sel module_sel,
 	if (!hdr_lut_param->cgain_en)
 		return;
 
-	VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_addr_port, 0x0, vpp_sel);
-
 	/* use dma transport*/
 	if (cpu_write_lut) {
+		VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_addr_port, 0x0, vpp_sel);
+
 		for (i = 0; i < HDR2_CGAIN_LUT_SIZE / 2; i++)
 			VSYNC_WRITE_VPP_REG_VPP_SEL(cgain_lut_data_port,
 					    (lut[i * 2 + 1] << 16) + lut[i * 2], vpp_sel);
@@ -1556,14 +1555,17 @@ void set_vpu_lut_dma_mif(struct VPU_LUT_DMA_t      *vpu_lut_dma)
 
 	WRITE_VPP_REG_BITS_S5(VPU_DMA_RDMIF_CTRL,
 		vpu_lut_dma->chan_rd_bytes_num[mif_num], 0, 13);/*reg_rd0_stride*/
-	WRITE_VPP_REG_BITS_S5(VPU_DMA_RDMIF_CTRL,
-		vpu_lut_dma->chan_sel_src_num[mif_num],  16, 8);/*Bit 23:16*/
-								/*reg_rd0_enable_int,*/
-								/*channel0 select interrupt source*/
+
 	WRITE_VPP_REG_BITS_S5(VPU_DMA_RDMIF_CTRL,
 		vpu_lut_dma->chan_little_endian[mif_num], 13, 1);/*Bit 13 little_endian*/
 	WRITE_VPP_REG_BITS_S5(VPU_DMA_RDMIF_CTRL,
 		vpu_lut_dma->chan_swap_64bit[mif_num], 14, 1);/*Bit 14 swap_64bit*/
+
+	WRITE_VPP_REG_BITS_S5(VPU_DMA_RDMIF_CTRL,
+		vpu_lut_dma->chan_sel_src_num[mif_num],  16, 8);/*Bit 23:16*/
+								/*reg_rd0_enable_int,*/
+								/*channel0 select interrupt source*/
+	pr_csc(64, "set vpu_lut_dma_mif done\n");
 }
 
 void init_vpu_lut_dma(struct VPU_LUT_DMA_t    *vpu_lut_dma)
@@ -1615,7 +1617,7 @@ void set_vpu_lut_dma(struct VPU_LUT_DMA_t *vpu_lut_dma)
 	//u_vpu_intf_async_top.
 	//u_vpu_intf_axird_async_3.
 	//req_en
-	WRITE_VPP_REG_BITS_S5(VPU_INTF_CTRL, 1, 22, 1);
+	//WRITE_VPP_REG_BITS_S5(VPU_INTF_CTRL, 1, 22, 1);
 }
 
 struct eotf_lut_s {
@@ -1670,6 +1672,7 @@ struct cgain_lut_s {
 	s64 reserve : 8;
 };
 
+/*size of each lut struct is 128bit, count = 65*/
 struct dma_lut_address {
 	struct eotf_lut_s eotf_lut[24];
 	struct oetf_lut_s oetf_lut[15];
@@ -1677,24 +1680,46 @@ struct dma_lut_address {
 	struct cgain_lut_s cgain_lut[7];
 };
 
-static struct dma_lut_address addr;
+enum dma_lut_off_enum {
+	OFFSET_VD1S0 = 0,
+	OFFSET_VD1S1 = 1,
+	OFFSET_VD1S2 = 2,
+	OFFSET_VD1S3 = 3,
+	OFFSET_VD2 = 4,
+	OFFSET_OSD1 = 5,
+	OFFSET_OSD2 = 6,
+	OFFSET_OSD3 = 7
+};
 
+static const char *dma_lut_off_str[8] = {
+	"VD1S0",
+	"VD1S1",
+	"VD1S2",
+	"VD1S3",
+	"VD2",
+	"OSD1",
+	"OSD2",
+	"OSD3"
+};
+
+/*vd1s0+vd1s1+vd1s2+vd1s3+vd2+osd1+osd2+osd3*/
+/*each dma 128bit*/
+/*2 dma header + 65 body + 1 dma tail*/
+static struct dma_lut_address lut_addr;
 static dma_addr_t dma_paddr;
 static void *dma_vaddr;
+#define DMA_LUT_BODY_COUNT 65
+#define DMA_HDR_COUNT 8
+#define DMA_COUNT_SINGLE_HDR (2 + DMA_LUT_BODY_COUNT + 1)
+#define DMA_COUNT_TOTAL_HDR (DMA_COUNT_SINGLE_HDR * DMA_HDR_COUNT)
+#define DMA_SIZE_SINGLE_HDR (DMA_COUNT_SINGLE_HDR * 128 / 8)
+#define DMA_SIZE_TOTAL_HDR (DMA_SIZE_SINGLE_HDR * DMA_HDR_COUNT)
 
 void fill_dma_buffer(enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *hdr_lut_param, struct dma_lut_address *dma_addr)
 {
 	int i = 0;
 	int j = 0;
-	u8 reg_dma_sel_vd1_slice0 = 1;
-	u8 reg_dma_sel_vd1_slice1 = 2;
-	u8 reg_dma_sel_vd1_slice2 = 3;
-	u8 reg_dma_sel_vd1_slice3 = 4;
-	u8 reg_dma_sel_vd2 = 5;
-	u8 reg_dma_sel_osd1 = 6;
-	u8 reg_dma_sel_osd2 = 7;
-	u8 reg_dma_sel_osd3 = 8;
 
 	/* fill eotf lut for dma*/
 	for (i = 0; i < 24; i++) {
@@ -1709,32 +1734,18 @@ void fill_dma_buffer(enum hdr_module_sel module_sel,
 				(hdr_lut_param->eotf_lut[j + 3] & 0xffff0) >> 4;
 			dma_addr->eotf_lut[i].eotf_lut_4 = hdr_lut_param->eotf_lut[j + 4];
 			dma_addr->eotf_lut[i].eotf_lut_5 = hdr_lut_param->eotf_lut[j + 5];
-
-			if (i == 0)  {
-				/* bit[127:120] of the first dma_data is dma select */
-				if (module_sel == OSD1_HDR)
-					dma_addr->eotf_lut[i].reserve =
-						reg_dma_sel_osd1 << 4;
-				else if (module_sel == OSD2_HDR)
-					dma_addr->eotf_lut[i].reserve  = reg_dma_sel_osd2 << 4;
-				else if (module_sel == OSD3_HDR)
-					dma_addr->eotf_lut[i].reserve  = reg_dma_sel_osd3 << 4;
-				else if (module_sel == VD1_HDR)
-					dma_addr->eotf_lut[i].reserve = reg_dma_sel_vd1_slice0 << 4;
-				else if (module_sel == S5_VD1_SLICE1)
-					dma_addr->eotf_lut[i].reserve = reg_dma_sel_vd1_slice1 << 4;
-				else if (module_sel == S5_VD1_SLICE2)
-					dma_addr->eotf_lut[i].reserve = reg_dma_sel_vd1_slice2 << 4;
-				else if (module_sel == S5_VD1_SLICE3)
-					dma_addr->eotf_lut[i].reserve = reg_dma_sel_vd1_slice3 << 4;
-				else if (module_sel == S5_VD2_HDR2)
-					dma_addr->eotf_lut[i].reserve = reg_dma_sel_vd2 << 4;
-				else
-					dma_addr->eotf_lut[i].reserve = 0;
-			} else {
-				dma_addr->eotf_lut[i].reserve = 0;
-			}
+			dma_addr->eotf_lut[i].reserve = 0;
 			j += 6;
+			/*pr_csc(64, "%s:m=%d,[%3d]:[%5x,%5x,%5x,%5x,%5x,%5x,%5x,%5x\n",*/
+				   /*__func__, module_sel, j,*/
+				   /*dma_addr->eotf_lut[i].eotf_lut_0,*/
+				   /*dma_addr->eotf_lut[i].eotf_lut_1,*/
+				   /*dma_addr->eotf_lut[i].eotf_lut_2,*/
+				   /*dma_addr->eotf_lut[i].eotf_lut__rev,*/
+				   /*dma_addr->eotf_lut[i].eotf_lut_3,*/
+				   /*dma_addr->eotf_lut[i].eotf_lut_4,*/
+				   /*dma_addr->eotf_lut[i].eotf_lut_5,*/
+				   /*dma_addr->eotf_lut[i].reserve);*/
 		} else {/*23*6=138, handle the last 5 eotf data*/
 			dma_addr->eotf_lut[i].eotf_lut_0 = hdr_lut_param->eotf_lut[j];/*138*/
 			dma_addr->eotf_lut[i].eotf_lut_1 = hdr_lut_param->eotf_lut[j + 1];/*139*/
@@ -1747,6 +1758,12 @@ void fill_dma_buffer(enum hdr_module_sel module_sel,
 			dma_addr->eotf_lut[i].eotf_lut_5 = 0;
 			dma_addr->eotf_lut[i].reserve = 0;
 			j += 5;
+			/*pr_csc(64, "%s:m=%d,[%3d]:[%5x,%5x,%5x,%5x,%5x,%5x,%5x,%5x]\n",*/
+				   /*__func__, module_sel, j,*/
+				   /*hdr_lut_param->eotf_lut[j], hdr_lut_param->eotf_lut[j + 1],*/
+				   /*hdr_lut_param->eotf_lut[j + 2],*/
+				   /*hdr_lut_param->eotf_lut[j + 3],*/
+				   /*hdr_lut_param->eotf_lut[j + 4]);*/
 		}
 	}
 
@@ -1779,7 +1796,7 @@ void fill_dma_buffer(enum hdr_module_sel module_sel,
 			dma_addr->oetf_lut[i].oetf_lut_res =
 				hdr_lut_param->oetf_lut[j + 5] & 0xf;
 			dma_addr->oetf_lut[i].oetf_lut_5 =
-				(hdr_lut_param->oetf_lut[j + 5] & 0xff) >> 4;//145
+				(hdr_lut_param->oetf_lut[j + 5] & 0xff0) >> 4;//145
 			dma_addr->oetf_lut[i].oetf_lut_6 = hdr_lut_param->oetf_lut[j + 6];//146
 			dma_addr->oetf_lut[i].oetf_lut_7 = hdr_lut_param->oetf_lut[j + 7];//147
 			dma_addr->oetf_lut[i].oetf_lut_8 = hdr_lut_param->oetf_lut[j + 8];//148
@@ -1856,8 +1873,8 @@ void fill_dma_buffer(enum hdr_module_sel module_sel,
 }
 
 //struct hdr_proc_lut_param_s s5_hdr_lut_param;
-void fill_dma_header_and_body(void *dma_vaddr,
-	struct dma_lut_address *addr, enum hdr_module_sel module_sel)
+void fill_dma_header_and_body(void *p_dma_vaddr,
+	struct dma_lut_address *lut_addr, enum hdr_module_sel module_sel)
 {
 	u32 *b;
 	ulong body_size;
@@ -1873,9 +1890,9 @@ void fill_dma_header_and_body(void *dma_vaddr,
 	u8 sel_val = 0;
 	int i = 0;
 
-	total_size = sizeof(struct dma_lut_address) + 16 + 16;
+	total_size = sizeof(struct dma_lut_address) + 16 + 16; /*128bit+128bit header*/
 	body_size = sizeof(struct dma_lut_address);
-	memset(dma_vaddr, 0x0, total_size);
+	memset(p_dma_vaddr, 0x0, total_size);
 
 	if (module_sel == OSD1_HDR)
 		sel_val = reg_dma_sel_osd1;
@@ -1891,12 +1908,12 @@ void fill_dma_header_and_body(void *dma_vaddr,
 		sel_val = reg_dma_sel_vd1_slice2;
 	else if (module_sel == S5_VD1_SLICE3)
 		sel_val = reg_dma_sel_vd1_slice3;
-	else if (module_sel == S5_VD2_HDR2)
+	else if (module_sel == VD2_HDR)
 		sel_val = reg_dma_sel_vd2;
 	else
 		sel_val = reg_dma_sel_osd1;
 
-	b = (u32 *)(dma_vaddr);
+	b = (u32 *)(p_dma_vaddr);
 	if (dma_sel == 0) {
 		b[0] = 0x60000000;
 		b[1] = 0x00000000;
@@ -1920,7 +1937,7 @@ void fill_dma_header_and_body(void *dma_vaddr,
 		b[3] = sel_val << 28;
 	}
 
-	pr_csc(64, "copy header: module=%d, [%x, %x, %x, %x], addr=%px\n",
+	pr_csc(64, "copy header: module=%d,[0x%x, 0x%x, 0x%x, 0x%x], addr=%px\n",
 		   module_sel, b[3], b[2], b[1], b[0], &b[0]);
 
 	if (dma_sel1 == 0) {
@@ -1938,100 +1955,104 @@ void fill_dma_header_and_body(void *dma_vaddr,
 		b[5] = 0x00000000;
 		b[6] = 0xf2000000;
 		b[7] = 0x00000000;
-	} else if (dma_sel == 3) {
+	} else if (dma_sel1 == 3) {
 		b[4] = 0x00000000;
 		b[5] = 0x00000000;
 		b[6] = 0x00000000;
 		b[7] = 0xf2000000;
-	} else if (dma_sel == 5) {
+	} else if (dma_sel1 == 5) {
 		b[4] = 0x00000000;
 		b[5] = 0xf2f2f2f2;
 		b[6] = 0xf2f2f2f2;
 		b[7] = 0xf2f2f2f2;
-	} else if (dma_sel == 6) {
+	} else if (dma_sel1 == 6) {
 		b[4] = 0xf2f2f2f2;
 		b[5] = 0x00000000;
 		b[6] = 0xf2f2f2f2;
 		b[7] = 0xf2f2f2f2;
-	} else if (dma_sel == 7) {
+	} else if (dma_sel1 == 7) {
 		b[4] = 0xf2f2f2f2;
 		b[5] = 0xf2f2f2f2;
 		b[6] = 0x00000000;
 		b[7] = 0xf2f2f2f2;
-	} else if (dma_sel == 8) {
+	} else if (dma_sel1 == 8) {
 		b[4] = 0xf2f2f2f2;
 		b[5] = 0xf2f2f2f2;
 		b[6] = 0xf2f2f2f2;
 		b[7] = 0x00000000;
 	}
 
-	pr_csc(64, "copy header: module=%d, [0x%x, 0x%x, 0x%x, 0x%x], addr=%px\n",
+	pr_csc(64, "copy header: module=%d,[0x%x,0x%x,0x%x,0x%x],addr=%px\n",
 		   module_sel, b[7], b[6], b[5], b[4], &b[4]);
 
-	memcpy((u64 *)(&b[8]), addr, sizeof(struct dma_lut_address));
+	memcpy(&b[8], lut_addr, sizeof(struct dma_lut_address));
 
-	pr_csc(64, "copy body: size=%ld\n", body_size);
+	pr_csc(64, "copy body  : size=%ld\n", body_size);
 
-	if (debug_csc & 64) {
+	if (debug_csc & 128) {
 		for (i = 0; i < body_size / 4; i = i + 4)
-			pr_info("%3d: %x, %x, %x, %x\n", i,
+			pr_info("%3d: %8x, %8x, %8x, %8x\n", i,
 			b[8 + i + 3], b[8 + i + 2], b[8 + i + 1], b[8 + i + 0]);
 	}
 }
 
-void fill_dma_tail(void *dma_vaddr, enum hdr_module_sel module_sel)
+void fill_dma_tail(void *p_dma_vaddr, enum hdr_module_sel module_sel)
 {
 	u32 *b;
 	ulong offset;
 
-	offset = (65 + 2) * 4;
-	b = (u32 *)(dma_vaddr);
-	if (dma_sel == 0) {
+	offset = (DMA_LUT_BODY_COUNT + 2) * 4;/*2 header*/
+	b = (u32 *)(p_dma_vaddr);
+
+	if (dma_sel1 == 0) {
 		b[offset + 0] = 0xf0000000;
 		b[offset + 1] = 0x00000000;
 		b[offset + 2] = 0x00000000;
 		b[offset + 3] = 0x00000000;
-	} else if (dma_sel == 1) {
+	} else if (dma_sel1 == 1) {
 		b[offset + 0] = 0x00000000;
 		b[offset + 1] = 0xf0000000;
 		b[offset + 2] = 0x00000000;
 		b[offset + 3] = 0x00000000;
-	} else if (dma_sel == 2) {
+	} else if (dma_sel1 == 2) {
 		b[offset + 0] = 0x00000000;
 		b[offset + 1] = 0x00000000;
 		b[offset + 2] = 0xf0000000;
 		b[offset + 3] = 0x00000000;
-	} else if (dma_sel == 3) {
+	} else if (dma_sel1 == 3) {
 		b[offset + 0] = 0x00000000;
 		b[offset + 1] = 0x00000000;
 		b[offset + 2] = 0x00000000;
 		b[offset + 3] = 0xf0000000;
-	} else if (dma_sel == 4) {
+	} else if (dma_sel1 == 4) {
 		b[offset + 0] = 0xf0000000;
 		b[offset + 1] = 0xf0000000;
 		b[offset + 2] = 0xf0000000;
 		b[offset + 3] = 0xf0000000;
-	} else if (dma_sel == 5) {
+	} else if (dma_sel1 == 5) {
 		b[offset + 0] = 0x00000000;
 		b[offset + 1] = 0xf0000000;
 		b[offset + 2] = 0xf0000000;
 		b[offset + 3] = 0xf0000000;
-	} else if (dma_sel == 6) {
+	} else if (dma_sel1 == 6) {
 		b[offset + 0] = 0xf0000000;
 		b[offset + 1] = 0x00000000;
 		b[offset + 2] = 0xf0000000;
 		b[offset + 3] = 0xf0000000;
-	} else if (dma_sel == 7) {
+	} else if (dma_sel1 == 7) {
 		b[offset + 0] = 0xf0000000;
 		b[offset + 1] = 0xf0000000;
 		b[offset + 2] = 0x00000000;
 		b[offset + 3] = 0xf0000000;
-	} else if (dma_sel == 8) {
+	} else if (dma_sel1 == 8) {
 		b[offset + 0] = 0xf0000000;
 		b[offset + 1] = 0xf0000000;
 		b[offset + 2] = 0xf0000000;
 		b[offset + 3] = 0x00000000;
 	}
+	pr_csc(64, "copy tail  : module=%d,[0x%x,0x%x,0x%x,0x%x],addr=%px\n",
+		   module_sel, b[offset + 3], b[offset + 2],
+		   b[offset + 1], b[offset + 0], &b[offset]);
 }
 
 //static struct platform_device vecm_pdev;
@@ -2041,10 +2062,10 @@ ulong alloc_size;
 void hdr_lut_buffer_malloc(struct platform_device *pdev)
 {
 	vecm_dev = pdev->dev;
-	alloc_size = (2 + 65 + 1) * 16;
+	alloc_size = DMA_SIZE_TOTAL_HDR;
 	dma_vaddr = dma_alloc_coherent(&vecm_dev,
 		alloc_size, &dma_paddr, GFP_KERNEL);
-	pr_info("hdr dma_vaddr %px\n", (u32 *)(dma_vaddr));
+	pr_info("hdr dma_vaddr: %px\n", (u32 *)(dma_vaddr));
 }
 
 void hdr_lut_buffer_free(struct platform_device *pdev)
@@ -2061,45 +2082,56 @@ void vpu_lut_dma(enum hdr_module_sel module_sel,
 	//===============================================
 	u32 dma_id_int;
 	struct VPU_LUT_DMA_t g_vpu_lut_dma;
+	u32 dma_addr_offset;
 
 	if (cpu_write_lut)
 		return;
 
-	fill_dma_buffer(module_sel, hdr_lut_param, &addr);
+	fill_dma_buffer(module_sel, hdr_lut_param, &lut_addr);
 	init_vpu_lut_dma(&g_vpu_lut_dma);
 
-	//g_vpu_lut_dma.dma_id = HDR2_DMA_ID;
 	g_vpu_lut_dma.dma_id = dma_id;
 	dma_id_int = (u32)(g_vpu_lut_dma.dma_id);
-	if (module_sel == OSD1_HDR)
+	if (module_sel == OSD1_HDR) {
 		g_vpu_lut_dma.reg_osd1_hdr_dma_mode = 1;
-	else if (module_sel == OSD2_HDR)
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_OSD1;
+	} else if (module_sel == OSD2_HDR) {
 		g_vpu_lut_dma.reg_osd2_hdr_dma_mode = 1;
-	else if (module_sel == OSD3_HDR)
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_OSD2;
+	} else if (module_sel == OSD3_HDR) {
 		g_vpu_lut_dma.reg_osd3_hdr_dma_mode = 1;
-	else if (module_sel == VD1_HDR)
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_OSD3;
+	} else if (module_sel == VD1_HDR) {
 		g_vpu_lut_dma.reg_vd1s0_hdr_dma_mode = 1;
-	else if (module_sel == S5_VD1_SLICE1)
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_VD1S0;
+	} else if (module_sel == S5_VD1_SLICE1) {
 		g_vpu_lut_dma.reg_vd1s1_hdr_dma_mode = 1;
-	else if (module_sel == S5_VD1_SLICE2)
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_VD1S1;
+	} else if (module_sel == S5_VD1_SLICE2) {
 		g_vpu_lut_dma.reg_vd1s2_hdr_dma_mode = 1;
-	else if (module_sel == S5_VD1_SLICE3)
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_VD1S2;
+	} else if (module_sel == S5_VD1_SLICE3) {
 		g_vpu_lut_dma.reg_vd1s3_hdr_dma_mode = 1;
-	else if (module_sel == S5_VD2_HDR2)
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_VD1S3;
+	} else if (module_sel == VD2_HDR) {
 		g_vpu_lut_dma.reg_vd2_hdr_dma_mode = 1;
-	else
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_VD2;
+	} else {
 		g_vpu_lut_dma.reg_osd1_hdr_dma_mode = 1;
-
-	g_vpu_lut_dma.rd_wr_sel = 1;  //0 : config wr_mif 1: config rd_mif
-	fill_dma_header_and_body(dma_vaddr, &addr, module_sel);
-	fill_dma_tail(dma_vaddr, module_sel);
+		dma_addr_offset = DMA_SIZE_SINGLE_HDR * OFFSET_OSD1;
+	}
+	/*0: config wr_mif 1: config rd_mif, only rd mif for s5*/
+	g_vpu_lut_dma.rd_wr_sel = 1;
+	fill_dma_header_and_body(dma_vaddr + dma_addr_offset, &lut_addr, module_sel);
+	fill_dma_tail(dma_vaddr + dma_addr_offset, module_sel);
 	g_vpu_lut_dma.mif_baddr[dma_id_int][0] = ((u32)(dma_paddr) >> 4);
 	g_vpu_lut_dma.mif_baddr[dma_id_int][1] = ((u32)(dma_paddr) >> 4);
 	g_vpu_lut_dma.mif_baddr[dma_id_int][2] = ((u32)(dma_paddr) >> 4);
 	g_vpu_lut_dma.mif_baddr[dma_id_int][3] = ((u32)(dma_paddr) >> 4);
 
-	g_vpu_lut_dma.chan_rd_bytes_num[dma_id_int] = (65 + 3) * 16 / 16; //refert to test.sv
-	g_vpu_lut_dma.chan_sel_src_num[dma_id_int] = 1;            //select viu_vsync_int_i[0]
+	g_vpu_lut_dma.chan_rd_bytes_num[dma_id_int] = DMA_COUNT_TOTAL_HDR;
+	/*interrupt source,select viu_vsync_int_i[0]*/
+	g_vpu_lut_dma.chan_sel_src_num[dma_id_int] = 1;
 	set_vpu_lut_dma(&g_vpu_lut_dma);
 }
 
@@ -2232,4 +2264,145 @@ void s5_hdr_reg_dump(unsigned int offset)
 		val = READ_VPP_REG(cgain_lut_data_port);
 		pr_info("[%04d] = 0x%08x\n", i, val);
 	}
+	pr_info("\nDMA_CTRL0[1a28] 0x%x\n", READ_VPP_REG_S5(VIU_DMA_CTRL0));
+	pr_info("DMA_CTRL1[1a29] 0x%x\n", READ_VPP_REG_S5(VIU_DMA_CTRL1));
+	pr_info("DMA_RDMIF7_CTRL [2757] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_CTRL));
+	pr_info("DMA_RDMIF7_BADR0[2774] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_BADR0));
+	pr_info("DMA_RDMIF7_BADR1[2775] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_BADR1));
+	pr_info("DMA_RDMIF7_BADR2[2776] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_BADR2));
+	pr_info("DMA_RDMIF7_BADR3[2777] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_BADR3));
 }
+
+void read_dma_buf(void)
+{
+	u32 *data32;
+	u32 i;
+	u32 j;
+	u32 eotf_off;
+	u32 oetf_off;
+	u32 ootf_off;
+	u32 cgain_off;
+	u32 tail_off;
+	u32 total_size = DMA_SIZE_SINGLE_HDR;
+
+	eotf_off = 2 * 4;
+	oetf_off = (2 + 24) * 4;
+	ootf_off = (2 + 24 + 15) * 4;
+	cgain_off = (2 + 24 + 15 + 19) * 4;
+	tail_off = (2 + 24 + 15 + 19 + 7) * 4;
+	data32 = (u32 *)(dma_vaddr);
+	pr_info("\nshow %s %s %s %s %s %s %s %s dma buf\n",
+			dma_lut_off_str[0], dma_lut_off_str[1],
+			dma_lut_off_str[2], dma_lut_off_str[3],
+			dma_lut_off_str[4], dma_lut_off_str[5],
+			dma_lut_off_str[6], dma_lut_off_str[7]);
+
+	for (j = 0; j < 8; j++) {
+		data32 =  (u32 *)(dma_vaddr + DMA_SIZE_SINGLE_HDR * j);
+
+		pr_info("\n----------dump %s dma_buf begin-----------%px\n",
+				dma_lut_off_str[j], &data32[0]);
+		for (i = 0; i < total_size / 4; i = i + 4)
+			pr_info("%3d: %8x, %8x, %8x, %8x\n", i,
+			data32[i + 3], data32[i + 2], data32[i + 1], data32[i + 0]);
+
+		pr_info("\n==>header: %8x %8x %8x %8x\n",
+			data32[3], data32[2], data32[1], data32[0]);
+		pr_info("           %8x %8x %8x %8x\n",
+			data32[7], data32[6], data32[5], data32[4]);
+
+		pr_info("\n==>eotf:\n");
+		for (i = 0; i < 24; i++)
+			pr_info("%5x %5x %5x %5x %5x %5x\n",
+					data32[eotf_off + 4 * i] & 0xfffff,
+					(data32[eotf_off + 4 * i + 1] & 0xff) << 12 |
+					(data32[eotf_off + 4 * i] & 0xfff00000) >> 20,
+					(data32[eotf_off + 4 * i + 1] & 0x0fffff00) >> 8,
+					(data32[eotf_off + 4 * i + 1] & 0xf0000000) >> 28 |
+					(data32[eotf_off + 4 * i + 2] & 0x0000ffff) << 4,
+					(data32[eotf_off + 4 * i + 3] & 0xf) << 16 |
+					(data32[eotf_off + 4 * i + 2] & 0xffff0000) >> 16,
+					(data32[eotf_off + 4 * i + 3] & 0xfffff0) >> 4);
+
+		pr_info("\n==>oetf:\n");
+		for (i = 0; i < 15; i++)
+			pr_info("%3x %3x %3x %3x %3x %3x %3x %3x %3x %3x\n",
+					data32[oetf_off + 4 * i] & 0xfff,
+					(data32[oetf_off + 4 * i] & 0xfff000) >> 12,
+					(data32[oetf_off + 4 * i + 1] & 0xf) << 8 |
+					(data32[oetf_off + 4 * i] & 0xff000000) >> 24,
+					(data32[oetf_off + 4 * i + 1] & 0xfff0) >> 4,
+					(data32[oetf_off + 4 * i + 1] & 0xfff0000) >> 16,
+					(data32[oetf_off + 4 * i + 1] & 0xf0000000) >> 28 |
+					(data32[oetf_off + 4 * i + 2] & 0xff) << 4,
+					(data32[oetf_off + 4 * i + 2] & 0xfff00) >> 8,
+					(data32[oetf_off + 4 * i + 2] & 0xfff00000) >> 20,
+					(data32[oetf_off + 4 * i + 3] & 0xfff),
+					(data32[oetf_off + 4 * i + 3] & 0xfff000) >> 12);
+
+		pr_info("\n==>ootf:\n");
+		for (i = 0; i < 19; i++)
+			pr_info("%4x %4x %4x %4x %4x %4x %4x %4x\n",
+					data32[ootf_off + 4 * i] & 0xffff,
+					(data32[ootf_off + 4 * i] & 0xffff0000) >> 16,
+					data32[ootf_off + 4 * i + 1] & 0xffff,
+					(data32[ootf_off + 4 * i + 1] & 0xffff0000) >> 16,
+					data32[ootf_off + 4 * i + 2] & 0xffff,
+					(data32[ootf_off + 4 * i + 2] & 0xffff0000) >> 16,
+					data32[ootf_off + 4 * i + 3] & 0xffff,
+					(data32[ootf_off + 4 * i + 3] & 0xffff0000) >> 16);
+
+		pr_info("\n==>cgain:\n");
+		for (i = 0; i < 7; i++)
+			pr_info("%3x %3x %3x %3x %3x %3x %3x %3x %3x %3x\n",
+					data32[cgain_off + 4 * i] & 0xfff,
+					(data32[cgain_off + 4 * i] & 0xfff000) >> 12,
+					(data32[cgain_off + 4 * i + 1] & 0xf) << 8 |
+					(data32[cgain_off + 4 * i] & 0xff000000) >> 24,
+					(data32[cgain_off + 4 * i + 1] & 0xfff0) >> 4,
+					(data32[cgain_off + 4 * i + 1] & 0xfff0000) >> 16,
+					(data32[cgain_off + 4 * i + 1] & 0xf0000000) >> 28 |
+					(data32[cgain_off + 4 * i + 2] & 0xff) << 4,
+					(data32[cgain_off + 4 * i + 2] & 0xfff00) >> 8,
+					(data32[cgain_off + 4 * i + 2] & 0xfff00000) >> 20,
+					(data32[cgain_off + 4 * i + 3] & 0xfff),
+					(data32[cgain_off + 4 * i + 3] & 0xfff000) >> 12);
+
+		pr_info("\n==>tail: %8x %8x %8x %8x\n",
+				data32[tail_off + 3], data32[tail_off + 2],
+				data32[tail_off + 1], data32[tail_off]);
+
+		pr_info("---------dump %s dma_buf end-----------\n", dma_lut_off_str[j]);
+	}
+	pr_info("\nDMA_CTRL0[1a28] 0x%x\n", READ_VPP_REG_S5(VIU_DMA_CTRL0));
+	pr_info("DMA_CTRL1[1a29] 0x%x\n", READ_VPP_REG_S5(VIU_DMA_CTRL1));
+	pr_info("DMA_RDMIF7_CTRL [2757] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_CTRL));
+	pr_info("DMA_RDMIF7_BADR0[2774] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_BADR0));
+	pr_info("DMA_RDMIF7_BADR1[2775] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_BADR1));
+	pr_info("DMA_RDMIF7_BADR2[2776] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_BADR2));
+	pr_info("DMA_RDMIF7_BADR3[2777] 0x%x\n", READ_VPP_REG_S5(VPU_DMA_RDMIF7_BADR3));
+}
+
+void write_dma_buf(u32 table_offset, u32 tbl_id, u32 value)
+{
+	u32 *data32;
+	u32 data_offset = 0;
+
+	if (table_offset < DMA_HDR_COUNT) {
+		/*each hdr has 68*4 count*/
+		data_offset = table_offset * DMA_COUNT_SINGLE_HDR * 4;
+	}
+
+	if (!dma_vaddr || tbl_id > DMA_COUNT_SINGLE_HDR * 4) {
+		pr_info("No dma table %px to write or id %d overflow\n",
+			dma_vaddr, tbl_id);
+		return;
+	}
+	data32 = (u32 *)dma_vaddr;
+	pr_info("dma_vaddr:%px, %px, modify table[%d]=0x%x -> 0x%x\n",
+			dma_vaddr, &data32[data_offset + tbl_id],
+			data_offset + tbl_id, data32[data_offset + tbl_id], value);
+
+	data32[data_offset + tbl_id] = value;
+}
+

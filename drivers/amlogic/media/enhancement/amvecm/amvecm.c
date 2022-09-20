@@ -5793,6 +5793,43 @@ static ssize_t amvecm_color_tune_store(struct class *cla,
 	return count;
 }
 
+static ssize_t amvecm_dma_buf_show(struct class *cla,
+				    struct class_attribute *attr, char *buf)
+{
+	read_dma_buf();
+	return 0;
+}
+
+static ssize_t amvecm_dma_buf_store(struct class *cla,
+				     struct class_attribute *attr,
+				     const char *buf, size_t count)
+{
+	char *buf_orig, *parm[8] = {NULL};
+	long tbl_id;
+	long value;
+	long table_offset = 0;
+
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amvecm(buf_orig, (char **)&parm);
+
+	if (kstrtoul(parm[0], 10, &tbl_id) < 0)
+		return -EINVAL;
+	if (kstrtoul(parm[1], 16, &value) < 0)
+		return -EINVAL;
+	if (parm[2]) {
+		if (kstrtoul(parm[2], 16, &table_offset) < 0)
+			return -EINVAL;
+	}
+
+	write_dma_buf((u32)table_offset, (u32)tbl_id, (u32)value);
+
+	kfree(buf_orig);
+	return count;
+}
+
 void pc_mode_process(void)
 {
 	unsigned int reg_val, drtlpf_config;
@@ -10009,6 +10046,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(color_tune, 0664,
 		amvecm_color_tune_show,
 		amvecm_color_tune_store),
+	__ATTR(dma_buf, 0664,
+		amvecm_dma_buf_show,
+		amvecm_dma_buf_store),
 	__ATTR_NULL
 };
 
