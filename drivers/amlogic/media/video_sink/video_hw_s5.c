@@ -1084,6 +1084,29 @@ u32 get_pi_enabled(u32 layer_id)
 		return vd_layer[layer_id].pi_enable;
 }
 
+int vpp_crc_check_s5(u32 vpp_crc_en, u8 vpp_index)
+{
+	u32 val = 0;
+	int vpp_crc_result = 0;
+	static u32 val_pre, crc_cnt;
+
+	if (vpp_crc_en) {
+		cur_dev->rdma_func[vpp_index].rdma_wr(S5_VPP_CRC_CHK, 1);
+		if (crc_cnt >= 1) {
+			val = cur_dev->rdma_func[vpp_index].rdma_rd(S5_VPP_RO_CRCSUM);
+			if (val_pre && val != val_pre)
+				vpp_crc_result = -1;
+			else
+				vpp_crc_result = val;
+		}
+		val_pre = val;
+		crc_cnt++;
+	} else {
+		crc_cnt  = 0;
+	}
+	return vpp_crc_result;
+}
+
 static void disable_vd1_slice_blend_s5(struct video_layer_s *layer, u8 slice)
 {
 	u8 vpp_index;

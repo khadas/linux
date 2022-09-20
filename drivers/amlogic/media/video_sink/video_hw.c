@@ -9873,7 +9873,7 @@ int vpp_crc_check(u32 vpp_crc_en, u8 vpp_index)
 	static u32 val_pre, crc_cnt;
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		return 0;
+		return vpp_crc_check_s5(vpp_crc_en, vpp_index);
 	if (vpp_crc_en && cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
 		cur_dev->rdma_func[vpp_index].rdma_wr(VPP_CRC_CHK, 1);
 		if (crc_cnt >= 1) {
@@ -9895,6 +9895,8 @@ int vpp_crc_viu2_check(u32 vpp_crc_en)
 {
 	int vpp_crc_result = 0;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return 0;
 	if (vpp_crc_en)
 		vpp_crc_result = READ_VCBUS_REG(VPP2_RO_CRCSUM);
 
@@ -9903,6 +9905,8 @@ int vpp_crc_viu2_check(u32 vpp_crc_en)
 
 void enable_vpp_crc_viu2(u32 vpp_crc_en)
 {
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return;
 	if (vpp_crc_en)
 		WRITE_VCBUS_REG_BITS(VPP2_CRC_CHK, 1, 0, 1);
 }
