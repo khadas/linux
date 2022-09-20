@@ -3134,6 +3134,8 @@ struct apll_param {
 	unsigned int aud_div;
 };
 
+extern u32 t5_t7_rlevel[];
+extern u32 tl1_tm2_reg360[];
 extern unsigned int hdmirx_addr_port;
 extern unsigned int hdmirx_data_port;
 extern unsigned int hdmirx_ctrl_port;
@@ -3178,7 +3180,12 @@ extern u32 rx_ecc_err_thres;
 extern u32 rx_ecc_err_frames;
 extern u32 ddc_dbg_en;
 extern int kill_esm_fail;
-
+extern u32 rterm_trim_val_t5;
+extern u32 rterm_trim_flag_t5;
+extern u32 rterm_trim_val_t7;
+extern u32 rterm_trim_flag_t7;
+extern unsigned int rlevel;
+extern u32 dts_debug_flag;
 void rx_get_best_eq_setting(void);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
 void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,
@@ -3355,6 +3362,7 @@ unsigned int hdmirx_rd_amlphy(unsigned int addr);
 void aml_phy_power_off_t5(void);
 void aml_phy_switch_port_t5(void);
 void aml_phy_get_trim_val_t5(void);
+void aml_phy_get_trim_val_tl1_tm2(void);
 
 void hdmirx_irq_hdcp_enable(bool enable);
 u8 rx_get_avmute_sts(void);

@@ -183,6 +183,20 @@ static const u32 phy_dchd_2[][3] = {
 	},
 };
 
+u32 tl1_tm2_reg360[] = {
+	0x7ff,
+	0x5ff,
+	0x4ff,
+	0x47f,
+	0x43f,
+	0x41f,
+	0x40f,
+	0x407,
+	0x403,
+	0x401,
+	0x400
+};
+
 bool is_tl1_former(void)
 {
 	if (is_meson_tl1_cpu() &&
@@ -241,15 +255,19 @@ void aml_phy_cfg_tl1(void)
 	usleep_range(5, 10);
 	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
 	usleep_range(2, 4);
-
 	data32 = phy_misci[idx][1];
+	aml_phy_get_trim_val_tl1_tm2();
 	if (idx < PHY_BW_5 && phy_tdr_en) {
+		phy_trim_val = (~(0xfff << 12)) & phy_trim_val;
+		phy_trim_val = (tl1_tm2_reg360[rlevel] << 12) | phy_trim_val;
 		if (term_cal_en) {
 			data32 = (((data32 & (~(0x3ff << 12))) |
 				(term_cal_val << 12)) | (1 << 22));
 		} else {
 			data32 = phy_trim_val;
 		}
+	} else {
+		data32 = phy_trim_val;
 	}
 	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL1, data32);
 	wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL2, phy_misci[idx][2]);
