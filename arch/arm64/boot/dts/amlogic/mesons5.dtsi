@@ -2241,7 +2241,7 @@
 
 //		clocks = <&clkc CLKID_HCODEC_P0>;
 //		clock-names = "hcodec_p0";
-		//power-domains = <&pwrdm PDID_T7_DOS_HCODEC>;
+		power-domains = <&pwrdm PDID_S5_DOS_HCODEC>;
 		interrupts = <0 16 1 0 17 1 0 18 1>;
 		interrupt-names = "dos_mbox_slow_irq0", "dos_mbox_slow_irq1", "dos_mbox_slow_irq2";
 		//reset-names = "jpegenc_rst";
