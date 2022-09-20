@@ -8898,13 +8898,16 @@ static void vd_set_alpha(struct video_layer_s *layer,
 			  ((alph_gen_mode & 0x3) << 1) |
 			  ((alph_gen_byps & 0x1) << 0));
 	for (i = 0; i < MAX_PIP_WINDOW; i++) {
-		cur_dev->rdma_func[vpp_index].rdma_wr(vpp_blend_reg->vd_pip_alph_scp_h + i,
-				  (alpha_win->scpxn_end_h[i] & 0x1fff) << 16 |
-				  (alpha_win->scpxn_bgn_h[i] & 0x1fff));
+		if (win_en & 1) {
+			cur_dev->rdma_func[vpp_index].rdma_wr(vpp_blend_reg->vd_pip_alph_scp_h + i,
+				(alpha_win->scpxn_end_h[i] & 0x1fff) << 16 |
+				(alpha_win->scpxn_bgn_h[i] & 0x1fff));
 
-		cur_dev->rdma_func[vpp_index].rdma_wr(vpp_blend_reg->vd_pip_alph_scp_v + i,
-				  (alpha_win->scpxn_end_v[i] & 0x1fff) << 16 |
-				  (alpha_win->scpxn_bgn_v[i] & 0x1fff));
+			cur_dev->rdma_func[vpp_index].rdma_wr(vpp_blend_reg->vd_pip_alph_scp_v + i,
+				(alpha_win->scpxn_end_v[i] & 0x1fff) << 16 |
+				(alpha_win->scpxn_bgn_v[i] & 0x1fff));
+			win_en >>= 1;
+		}
 	}
 }
 
