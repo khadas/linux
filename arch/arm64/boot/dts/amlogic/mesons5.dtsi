@@ -2449,17 +2449,23 @@
 				node_name = "cpucore_cool1";
 				device_type = "cpucore";
 			};
-
 			gpufreq_cool {
 				dyn_coeff = <358>;
-				node_name = "bifrost";
+				node_name = "valhall";
 				device_type = "gpufreq";
+			};
+			gpucore_cool {
+				node_name = "gpucore_cooldev";
+				device_type = "gpucore";
 			};
 		};
 		cpucore_cool0:cpucore_cool0 {
 			#cooling-cells = <2>;
 		};
 		cpucore_cool1:cpucore_cool1 {
+			#cooling-cells = <2>;
+		};
+		gpucore_cooldev:gpucore_cooldev {
 			#cooling-cells = <2>;
 		};
 	};/*meson cooling devices end*/
@@ -2491,6 +2497,18 @@
 					temperature = <110000>;
 					hysteresis = <1000>;
 					type = "critical";
+				};
+			};
+			cooling-maps {
+				gpufreq_cooling_map {
+					trip = <&gpucontrol>;
+					cooling-device = <&gpu 0 3>;
+					contribution = <1024>;
+				};
+				gpucore_cooling_map {
+					trip = <&gpuhot>;
+					cooling-device = <&gpucore_cooldev 0 1>;
+					contribution = <1024>;
 				};
 			};
 		};
@@ -2525,7 +2543,7 @@
 			cooling-maps {
 				cpucore_cooling_map {
 					trip = <&a55hot>;
-					cooling-device = <&cpucore_cool0 0 6>;
+					cooling-device = <&cpucore_cool0 0 2>;
 					contribution = <1024>;
 				};
 				cpufreq_cooling_map1 {
