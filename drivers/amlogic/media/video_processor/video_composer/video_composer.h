@@ -256,6 +256,7 @@ struct composer_dev {
 	u32 patten_factor[PATTEN_FACTOR_MAX];
 	u32 patten_factor_index;
 	u32 next_factor;
+	u32 last_drop_cnt;
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'

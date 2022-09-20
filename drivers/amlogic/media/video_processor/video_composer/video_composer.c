@@ -85,7 +85,6 @@ static u32 debug_crop_pip;
 static u32 composer_use_444;
 static u32 reset_drop;
 static u32 drop_cnt;
-static u32 last_drop_cnt;
 static u32 drop_cnt_pip;
 static u32 receive_count;
 static u32 receive_count_pip;
@@ -2741,8 +2740,8 @@ static void set_frames_info(struct composer_dev *dev,
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
 				if (drop_cnt == 0)
 					ATRACE_COUNTER("video_composer_drop_cnt", 0);
-				if (drop_cnt != last_drop_cnt) {
-					last_drop_cnt = drop_cnt;
+				if (drop_cnt != dev->last_drop_cnt) {
+					dev->last_drop_cnt = drop_cnt;
 					ATRACE_COUNTER("video_composer_drop_cnt", drop_cnt);
 					ATRACE_COUNTER("video_composer_drop_cnt", 0);
 				}
