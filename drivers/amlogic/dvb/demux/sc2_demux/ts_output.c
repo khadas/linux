@@ -3762,7 +3762,7 @@ int ts_output_check_flow_control(int sid, int percentage)
 				&total_size,
 				&buf_phy_start,
 				&free_size, &wp_offset, NULL);
-			level = total_size * percentage / 100;
+			level = (unsigned long)total_size * percentage / 100;
 
 			if (pout->type == VIDEO_TYPE) {
 				if (pout->decoder_rp_offset == INVALID_DECODE_RP)
