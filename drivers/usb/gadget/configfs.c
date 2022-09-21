@@ -25,10 +25,6 @@ static struct device *android_device;
 static int index;
 static int gadget_index;
 
-#ifdef CONFIG_AMLOGIC_COMMON_USB
-static struct gadget_info *gi_backup;
-#endif
-
 struct device *create_function_device(char *name)
 {
 	if (android_device && !IS_ERR(android_device))
@@ -1873,10 +1869,6 @@ static struct config_group *gadgets_make(
 	if (android_device_create(gi) < 0)
 		goto err;
 
-#ifdef CONFIG_AMLOGIC_COMMON_USB
-	gi_backup = gi;
-#endif
-
 	return &gi->group;
 
 err:
@@ -1922,53 +1914,6 @@ void unregister_gadget_item(struct config_item *item)
 	mutex_unlock(&gi->lock);
 }
 EXPORT_SYMBOL_GPL(unregister_gadget_item);
-
-#ifdef CONFIG_AMLOGIC_COMMON_USB
-int crg_otg_write_UDC(const char *udc_name)
-{
-	struct gadget_info *gi = gi_backup;
-	char *name;
-	int ret;
-	size_t len;
-
-	if (!gi)
-		return -ENOMEM;
-	len = strlen(udc_name);
-
-	name = kstrdup(udc_name, GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
-	if (name[len - 1] == '\n')
-		name[len - 1] = '\0';
-
-	mutex_lock(&gi->lock);
-
-	if (!strlen(name) || strcmp(name, "none") == 0) {
-		ret = unregister_gadget(gi);
-		if (ret)
-			goto err;
-		kfree(name);
-	} else {
-		if (gi->composite.gadget_driver.udc_name) {
-			ret = -EBUSY;
-			goto err;
-		}
-		gi->composite.gadget_driver.udc_name = name;
-		ret = usb_gadget_probe_driver(&gi->composite.gadget_driver);
-		if (ret) {
-			gi->composite.gadget_driver.udc_name = NULL;
-			goto err;
-		}
-	}
-	mutex_unlock(&gi->lock);
-	return 0;
-err:
-	kfree(name);
-	mutex_unlock(&gi->lock);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(crg_otg_write_UDC);
-#endif
 
 static int __init gadget_cfs_init(void)
 {
