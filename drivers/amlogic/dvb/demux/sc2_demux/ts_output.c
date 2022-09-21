@@ -145,6 +145,7 @@ struct out_elem {
 	char name[32];
 	/*get es header mutex with get newest pts*/
 	struct mutex pts_mutex;
+	u8 ts_dump;
 };
 
 struct sid_entry {
@@ -234,12 +235,11 @@ MODULE_PARM_DESC(audio_es_len_limit, "\n\t\t debug section");
 static int audio_es_len_limit = (40 * 1024);
 module_param(audio_es_len_limit, int, 0644);
 
-struct dump_file dvr_dump_file;
-
 #define VIDEOES_DUMP_FILE   "/data/video_dump"
 #define AUDIOES_DUMP_FILE   "/data/audio_dump"
 #define DVR_DUMP_FILE       "/data/dvr_dump"
 #define PES_DUMP_FILE		"/data/pes_dump"
+#define TS_DUMP_FILE		"/data/ts_dump"
 
 #define READ_CACHE_SIZE      (188)
 #define INVALID_DECODE_RP	(0xFFFFFFFF)
@@ -265,9 +265,12 @@ static void dump_file_open(char *path, struct dump_file *dump_file_fp,
 
 	//find new file name
 	while (i < 999) {
-		if (is_ts)
+		if (is_ts == 1)
 			snprintf((char *)&whole_path, sizeof(whole_path),
 			"%s_%03d.ts", path, i);
+		else if (is_ts == 2)
+			snprintf((char *)&whole_path, sizeof(whole_path),
+			"%s_0x%0x_%03d.ts", path, sid, i);
 		else
 			snprintf((char *)&whole_path, sizeof(whole_path),
 			"%s_0x%0x_0x%0x_%03d.es", path, sid, pid, i);
@@ -608,23 +611,30 @@ static int dvr_process(struct out_elem *pout)
 		if (flag == 0) {
 			if (pout->cb_ts_list)
 				out_ts_cb_list(pout, pread, ret, 0, 0);
-			if (dump_dvr_ts == 1) {
-				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file,
-					0, 0, 1);
-				dump_file_write(pread, ret, &dvr_dump_file);
+			if (pout->ts_dump) {
+				if (!pout->dump_file.file_fp)
+					dump_file_open(TS_DUMP_FILE,
+							&pout->dump_file, pout->sid, 0, 2);
+				dump_file_write(pread, ret, &pout->dump_file);
 			} else {
-				dump_file_close(&dvr_dump_file);
+				if (dump_dvr_ts == 1) {
+					dump_file_open(DVR_DUMP_FILE, &pout->dump_file,
+						0, 0, 1);
+					dump_file_write(pread, ret, &pout->dump_file);
+				} else {
+					dump_file_close(&pout->dump_file);
+				}
 			}
 		} else if (pout->cb_ts_list && flag == 1) {
 			if (dump_dvr_ts == 1) {
-				dump_file_open(DVR_DUMP_FILE, &dvr_dump_file,
+				dump_file_open(DVR_DUMP_FILE, &pout->dump_file,
 					0, 0, 1);
 				enforce_flush_cache(pread, ret);
 				dump_file_write(pread - pout->pchan->mem_phy +
 					pout->pchan->mem, ret,
-					&dvr_dump_file);
+					&pout->dump_file);
 			} else {
-				dump_file_close(&dvr_dump_file);
+				dump_file_close(&pout->dump_file);
 			}
 			write_sec_ts_data(pout, pread, ret);
 		}
@@ -2315,9 +2325,6 @@ struct out_elem *ts_output_open(int sid, u8 dmx_id, u8 format,
 		pout->aucpu_pts_handle = -1;
 		pout->aucpu_pts_start = 0;
 	} else {
-		if (format == DVR_FORMAT && dump_dvr_ts)
-			dump_file_open(DVR_DUMP_FILE, &dvr_dump_file, 0, 0, 1);
-
 		ret = SC2_bufferid_alloc(&attr, &pout->pchan, NULL);
 		if (ret != 0) {
 			dprint("%s sid:%d SC2_bufferid_alloc fail\n",
@@ -2406,9 +2413,8 @@ int ts_output_close(struct out_elem *pout)
 		mutex_unlock(&es_output_mutex);
 		mutex_destroy(&pout->pts_mutex);
 	} else {
-		if (pout->format == DVR_FORMAT &&
-			dvr_dump_file.file_fp)
-			dump_file_close(&dvr_dump_file);
+		if (pout->format == DVR_FORMAT && pout->dump_file.file_fp)
+			dump_file_close(&pout->dump_file);
 		remove_ts_out_list(pout, &ts_out_task_tmp);
 		kfree(pout->cache);
 	}
@@ -2470,7 +2476,7 @@ int ts_output_close(struct out_elem *pout)
 		pout->pchan1 = NULL;
 	}
 	pout->use_external_mem = 0;
-
+	pout->ts_dump = 0;
 	pout->used = 0;
 	pr_dbg("%s exit, line:%d\n", __func__, __LINE__);
 	return 0;
@@ -2572,6 +2578,8 @@ int ts_output_add_pid(struct out_elem *pout, int pid, int pid_mask, int dmx_id,
 			break;
 		}
 	} else {
+		if (pid == 0x1fff && pid_mask == 0x1fff)
+			pout->ts_dump = 1;
 		if (cb_id)
 			*cb_id = dmx_id;
 		pid_slot = pout->pid_list;
@@ -3425,10 +3433,8 @@ int ts_output_update_filter(int dmx_no, int sid)
 	return 0;
 }
 
-int ts_output_set_dvr_dump(int flag)
+int ts_output_set_dump_timer(int flag)
 {
-	dump_dvr_ts = flag;
-
 	mod_timer(&ts_out_task_tmp.out_timer,
 	  jiffies + msecs_to_jiffies(out_flush_time));
 

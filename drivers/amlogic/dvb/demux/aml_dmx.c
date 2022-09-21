@@ -2187,7 +2187,6 @@ static ssize_t dump_ts_store(struct class *class,
 	if (mutex_lock_interruptible(&advb->mutex))
 		return -ERESTARTSYS;
 	if (sid == -1 && ts_out_elem) {
-		ts_output_set_dvr_dump(0);
 		ts_output_remove_pid(ts_out_elem, 0x1fff);
 		ts_output_close(ts_out_elem);
 		ts_out_elem = NULL;
@@ -2199,7 +2198,7 @@ static ssize_t dump_ts_store(struct class *class,
 	ts_out_elem = ts_output_open(sid, 0, DVR_FORMAT, OTHER_TYPE, 0, 0);
 	if (ts_out_elem) {
 		ret = ts_output_set_mem(ts_out_elem,
-					TS_OUTPUT_CHAN_DVR_BUF_SIZE, 0,
+					dvr_buf_size, 0,
 					TS_OUTPUT_CHAN_PTS_BUF_SIZE, 0);
 		if (ret != 0) {
 			ts_output_close(ts_out_elem);
@@ -2207,7 +2206,7 @@ static ssize_t dump_ts_store(struct class *class,
 			mutex_unlock(&advb->mutex);
 			return size;
 		}
-		ts_output_set_dvr_dump(1);
+		ts_output_set_dump_timer(1);
 		ts_output_add_pid(ts_out_elem, 0x1fff, 0x1fff, 0, NULL);
 		dprint("create dump ts success\n");
 	} else {
