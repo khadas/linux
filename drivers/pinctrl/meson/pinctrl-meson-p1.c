@@ -494,6 +494,15 @@ static const unsigned int uart_f_cts_k_pins[]		= { GPIOK_29 };
 static const unsigned int uart_f_rts_k_pins[]		= { GPIOK_30 };
 
 /* BANK K func2 */
+static const unsigned int jtag_trace_d16_pins[]		= { GPIOK_8 };
+static const unsigned int jtag_trace_d17_pins[]		= { GPIOK_9 };
+static const unsigned int jtag_trace_d18_pins[]		= { GPIOK_10 };
+static const unsigned int jtag_trace_d19_pins[]		= { GPIOK_11 };
+static const unsigned int jtag_trace_d20_pins[]		= { GPIOK_12 };
+static const unsigned int jtag_trace_d21_pins[]		= { GPIOK_13 };
+static const unsigned int jtag_trace_d22_pins[]		= { GPIOK_14 };
+static const unsigned int jtag_trace_d23_pins[]		= { GPIOK_15 };
+static const unsigned int jtag_trace_d24_pins[]		= { GPIOK_16 };
 static const unsigned int i2c1_slave_sda_pins[]		= { GPIOK_17 };
 static const unsigned int i2c1_slave_sck_pins[]		= { GPIOK_18 };
 static const unsigned int i2c2_slave_sda_pins[]		= { GPIOK_19 };
@@ -528,6 +537,13 @@ static const unsigned int i2c1_sda_x_pins[]		= { GPIOX_5 };
 static const unsigned int i2c1_sck_x_pins[]		= { GPIOX_6 };
 
 /* BANK X func2 */
+static const unsigned int jtag_trace_d25_pins[]		= { GPIOX_0 };
+static const unsigned int jtag_trace_d26_pins[]		= { GPIOX_1 };
+static const unsigned int jtag_trace_d27_pins[]		= { GPIOX_2 };
+static const unsigned int jtag_trace_d28_pins[]		= { GPIOX_3 };
+static const unsigned int jtag_trace_d29_pins[]		= { GPIOX_4 };
+static const unsigned int jtag_trace_d30_pins[]		= { GPIOX_5 };
+static const unsigned int jtag_trace_d31_pins[]		= { GPIOX_6 };
 static const unsigned int i2c2_sda_x_pins[]		= { GPIOX_12 };
 static const unsigned int i2c2_sck_x_pins[]		= { GPIOX_13 };
 static const unsigned int spi_d_ss1_pins[]		= { GPIOX_15 };
@@ -1076,6 +1092,15 @@ static struct meson_pmx_group meson_p1_periphs_groups[] = {
 	GROUP(uart_f_rts_k,		1),
 
 	/* BANK K func2 */
+	GROUP(jtag_trace_d16,		2),
+	GROUP(jtag_trace_d17,		2),
+	GROUP(jtag_trace_d18,		2),
+	GROUP(jtag_trace_d19,		2),
+	GROUP(jtag_trace_d20,		2),
+	GROUP(jtag_trace_d21,		2),
+	GROUP(jtag_trace_d22,		2),
+	GROUP(jtag_trace_d23,		2),
+	GROUP(jtag_trace_d24,		2),
 	GROUP(i2c1_slave_sck,		2),
 	GROUP(i2c1_slave_sda,		2),
 	GROUP(i2c2_slave_sck,		2),
@@ -1110,6 +1135,13 @@ static struct meson_pmx_group meson_p1_periphs_groups[] = {
 	GROUP(i2c1_sda_x,		1),
 
 	/* BANK X func2 */
+	GROUP(jtag_trace_d25,		2),
+	GROUP(jtag_trace_d26,		2),
+	GROUP(jtag_trace_d27,		2),
+	GROUP(jtag_trace_d28,		2),
+	GROUP(jtag_trace_d29,		2),
+	GROUP(jtag_trace_d30,		2),
+	GROUP(jtag_trace_d31,		2),
 	GROUP(i2c2_sck_x,		2),
 	GROUP(i2c2_sda_x,		2),
 	GROUP(spi_d_ss1,		2),
@@ -1338,7 +1370,11 @@ static const char * const jtag_trace_groups[] = {
 	"jtag_trace_d2", "jtag_trace_d3", "jtag_trace_d4", "jtag_trace_d5",
 	"jtag_trace_d6", "jtag_trace_d7", "jtag_trace_d8", "jtag_trace_d9",
 	"jtag_trace_d10", "jtag_trace_d11", "jtag_trace_d12", "jtag_trace_d13",
-	"jtag_trace_d14", "jtag_trace_d15"
+	"jtag_trace_d14", "jtag_trace_d15",
+	"jtag_trace_d16", "jtag_trace_d17", "jtag_trace_d18", "jtag_trace_d19",
+	"jtag_trace_d20", "jtag_trace_d21", "jtag_trace_d22", "jtag_trace_d23",
+	"jtag_trace_d24", "jtag_trace_d25", "jtag_trace_d26", "jtag_trace_d27",
+	"jtag_trace_d28", "jtag_trace_d29", "jtag_trace_d30", "jtag_trace_d31"
 };
 
 static const char * const uart_a_groups[] = {
