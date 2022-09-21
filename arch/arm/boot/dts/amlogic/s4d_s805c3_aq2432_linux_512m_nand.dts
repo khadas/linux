@@ -1587,3 +1587,8 @@
 &drm_subsystem {
 	fbdev_sizes = <1280 720 1280 1440 32>;
 };
+
+&amlogic_codec {
+	tocodec_inout = <1>;
+	tdmout_index = <1>;
+};
