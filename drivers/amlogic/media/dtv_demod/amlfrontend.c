@@ -1962,6 +1962,8 @@ static int gxtv_demod_atsc_set_frontend(struct dvb_frontend *fe)
 			atsc_write_reg_v4(ATSC_EQ_REG_0XA5, 0x8c);
 			/* bit30: enable CCI */
 			atsc_write_reg_v4(ATSC_EQ_REG_0X92, 0x40000240);
+			//static echo
+			atsc_write_reg_v4(ATSC_EQ_REG_0X93, 0x90f01C0);
 			/* bit0~3: AGC bandwidth select */
 			atsc_write_reg_v4(ATSC_DEMOD_REG_0X58, 0x528220d);
 			/* clk recover confidence control */
