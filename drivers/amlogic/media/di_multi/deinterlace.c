@@ -2334,7 +2334,7 @@ static int di_cnt_post_buf(struct di_ch_s *pch /*,enum EDPST_OUT_MODE mode*/)
 		nr_width = (width * 3) / 2;
 	else
 		nr_width = width;
-
+	dbg_mem2("%s:dis_afbce:%d\n", __func__, mm->cfg.dis_afbce);
 	/* p */
 	//tmp nr_width = roundup(nr_width, canvas_align_width);
 	mm->cfg.pst_mode = mode;
@@ -2931,7 +2931,8 @@ bool dim_post_keep_release_one_check(unsigned int ch, unsigned int di_buf_index)
 			di_que_in(ch, QUE_POST_BACK, di_buf);
 			ndis_move_display2idle(pch, ndis);
 			if (dimp_get(edi_mp_bypass_post_state))
-				PR_INF("%s:buf[%d,%d]\n", __func__, di_buf->type, di_buf->index);
+				dbg_bypass("%s:buf[%d,%d]\n", __func__,
+					   di_buf->type, di_buf->index);
 
 			dbg_keep("%s:to back[%d]\n", __func__, di_buf_index);
 		} else {
@@ -5099,6 +5100,8 @@ static void re_build_buf(struct di_ch_s *pch, enum EDI_SGN sgn)
 
 	if (pch->ponly && dip_is_ponly_sct_mem(pch))
 		mm->cfg.dis_afbce = 0;
+	else if (cfggch(pch, POUT_FMT) <= 2)
+		mm->cfg.dis_afbce = 1;
 	else if ((!is_4k &&
 	     ((cfggch(pch, POUT_FMT) == 4)	||
 	      (cfggch(pch, POUT_FMT) == 6)	||
@@ -5774,11 +5777,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 				ppre->di_chan2_buf_dup_p = NULL;
 			}
 
-			PR_INF("%s:ch[%d]:%ums %dth source change:%d\n",
+			PR_INF("%s:ch[%d]:%ums %dth source change:%d:%d\n",
 			       "pre cfg",
 			       channel,
 			       jiffies_to_msecs(jiffies_64),
 			       ppre->in_seq,
+			       ppre->width_bk,
 			       di_buf->vframe->index_disp);
 			PR_INF("source change:0x%x/%d/%d/%d=>0x%x/%d/%d/%d\n",
 			       ppre->cur_inp_type,
@@ -6209,7 +6213,7 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		di_buf->di_wr_linked_buf = NULL;
 
 		if (dimp_get(edi_mp_bypass_post_state)) {
-			PR_INF("%s:no post buffer\n", __func__);
+			dbg_bypass("%s:no post buffer\n", __func__);
 		} else {
 			di_buf->di_buf_post =
 				di_que_out_to_di_buf(channel, QUE_POST_FREE);
@@ -6613,8 +6617,10 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 	}
 
 	if (is_bypass_post(channel)) {
-		if (dimp_get(edi_mp_bypass_post_state) == 0)
+		if (dimp_get(edi_mp_bypass_post_state) == 0) {
 			ppre->source_change_flag = 1;
+			dbg_bypass("to bypass post\n");
+		}
 
 		dimp_set(edi_mp_bypass_post_state, 1);
 	} else {
@@ -7822,7 +7828,8 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		       __func__, di_buf->index);
 		return 0;
 	}
-	hpst_dbg_mem_pd_trig(0);
+	if (!dim_dbg_post_crash_check(DI_BIT0)) /* dbg_sw */
+		hpst_dbg_mem_pd_trig(0);
 
 	if (ppost->toggle_flag && di_buf->di_buf_dup_p[1])
 		top_bot_config(di_buf->di_buf_dup_p[1]);
@@ -8762,9 +8769,11 @@ int dim_post_process(void *arg, unsigned int zoom_start_x_lines,
 		if (opl1()->wrmif_trig)
 			opl1()->wrmif_trig(EDI_MIFSM_WR);
 	} else {
+		if (!dim_dbg_post_crash_check(DI_BIT1)) { /* dbg_sw */
 		/*add by wangfeng 2018-11-15 bit[31]: Pending_ddr_wrrsp_Diwr*/
-		DIM_VSC_WR_MPG_BT(DI_DIWR_CTRL, 1, 31, 1);
-		DIM_VSC_WR_MPG_BT(DI_DIWR_CTRL, 0, 31, 1);
+			DIM_VSC_WR_MPG_BT(DI_DIWR_CTRL, 1, 31, 1);
+			DIM_VSC_WR_MPG_BT(DI_DIWR_CTRL, 0, 31, 1);
+		}
 	}
 
 	/*ary add for post crash*/
@@ -9034,7 +9043,7 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 	} else if (di_buf->is_bypass_pst) {
 		if (di_buf->di_buf_dup_p[0] && di_buf->di_buf_dup_p[0]->type == 2) {
 			buf_in = di_buf->di_buf_dup_p[0];
-			PR_INF("post bypass:\n");
+			dbg_bypass("post bypass:\n");
 			vframe_ret->mem_handle = NULL;
 			#ifdef VFRAME_FLAG_DI_PW_VFM
 			if (dip_itf_is_vfm(pch))
@@ -9064,19 +9073,19 @@ static void post_ready_buf_set(unsigned int ch, struct di_buf_s *di_buf)
 				else
 					vframe_ret->width = dimp_get(edi_mp_force_width);
 			}
-			PR_INF("\t:buf[%d,%d],vfm[%d,%d,0x%x]\n",
-				di_buf->type, di_buf->index,
-				di_buf->vframe->width, di_buf->vframe->height,
-				di_buf->vframe->type);
+			dbg_bypass("\t:buf[%d,%d],vfm[%d,%d,0x%x]\n",
+				   di_buf->type, di_buf->index,
+				   di_buf->vframe->width, di_buf->vframe->height,
+				   di_buf->vframe->type);
 
-			PR_INF("\t:0x%lx,0x%lx\n",
-			       (unsigned long)di_buf->vframe->canvas0_config[0].phy_addr,
-			       (unsigned long)di_buf->vframe->canvas0_config[1].phy_addr);
-			PR_INF("\t:cmp[%d,%d]\n", di_buf->vframe->compWidth,
-				di_buf->vframe->compHeight);
-			PR_INF("\t:0x%lx,0x%lx\n",
-				di_buf->vframe->compBodyAddr,
-				di_buf->vframe->compHeadAddr);
+			dbg_bypass("\t:0x%lx,0x%lx\n",
+				   (unsigned long)di_buf->vframe->canvas0_config[0].phy_addr,
+				   (unsigned long)di_buf->vframe->canvas0_config[1].phy_addr);
+			dbg_bypass("\t:cmp[%d,%d]\n", di_buf->vframe->compWidth,
+				   di_buf->vframe->compHeight);
+			dbg_bypass("\t:0x%lx,0x%lx\n",
+				   di_buf->vframe->compBodyAddr,
+				   di_buf->vframe->compHeadAddr);
 		}
 
 	} else {
@@ -9264,9 +9273,10 @@ static void recycle_vframe_type_post(struct di_buf_s *di_buf,
 				  channel, di_buf->di_buf[i]->index,
 				  di_buf->di_buf[i]->type);
 			if (dimp_get(edi_mp_bypass_post_state)) {
-				PR_INF("%s: ch[%d]:di_buf[%d],type=%d\n", __func__,
-				  channel, di_buf->di_buf[i]->index,
-				  di_buf->di_buf[i]->type);
+				dbg_bypass("%s: ch[%d]:di_buf[%d],type=%d\n",
+					   __func__,
+					   channel, di_buf->di_buf[i]->index,
+					   di_buf->di_buf[i]->type);
 			}
 		}
 	}
@@ -9626,9 +9636,11 @@ int dim_process_post_vframe(unsigned int channel)
 					VIDTYPE_VIU_SINGLE_PLANE |
 					VIDTYPE_VIU_FIELD |
 					VIDTYPE_PRE_INTERLACE;
+				 /* dbg_sw */
+				if (dim_dbg_post_crash_check(DI_BIT17))
+					di_buf->vframe->width =
+						tmp_buf[1]->width_bk;
 
-				di_buf->vframe->width =
-					tmp_buf[1]->width_bk;
 				di_buf->dw_width_bk = ready_di_buf->dw_width_bk;
 				di_buf->dw_height_bk = ready_di_buf->dw_height_bk;
 
@@ -9780,9 +9792,11 @@ int dim_process_post_vframe(unsigned int channel)
 					VIDTYPE_VIU_SINGLE_PLANE |
 					VIDTYPE_VIU_FIELD |
 					VIDTYPE_PRE_INTERLACE;
+			 /* dbg_sw */
+			if (dim_dbg_post_crash_check(DI_BIT16))
+				di_buf->vframe->width =
+					di_buf->di_buf_dup_p[1]->width_bk;
 
-			di_buf->vframe->width =
-				di_buf->di_buf_dup_p[1]->width_bk;
 			di_buf->dw_width_bk = ready_di_buf->dw_width_bk;
 			di_buf->dw_height_bk = ready_di_buf->dw_height_bk;
 
@@ -10071,8 +10085,8 @@ VFRAME_EVENT_PROVIDER_VFRAME_READY, NULL);
 					di_buf->is_bypass_pst = 1;
 					di_buf_i->pre_ref_count = 0;
 					di_buf->process_fun_index = PROCESS_FUN_NULL;
-					PR_INF("%s:pst bypass buf[%d:%d]\n", __func__,
-						di_buf->type, di_buf->index);
+					dbg_bypass("%s:pst bypass buf[%d:%d]\n", __func__,
+						   di_buf->type, di_buf->index);
 				}
 				if (ready_di_buf->new_format_flag &&
 				    ready_di_buf->type == VFRAME_TYPE_IN) {
@@ -10979,7 +10993,7 @@ void di_reg_setting_working(struct di_ch_s *pch,
 {
 	/****************************/
 	if (DIM_IS_IC(T5DB))
-		dim_afds()->reg_sw(true);
+		afbcd_enable_only_t5dvb();//dim_afds()->reg_sw(true);
 }
 
 unsigned int get_intr_mode(void)

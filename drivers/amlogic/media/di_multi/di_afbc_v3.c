@@ -3045,6 +3045,37 @@ static void afbc_val_reset_newformat(void)
 	pafd_ctr->pst_in_w = 0;
 }
 
+void disable_afbcd_t5dvb(void)
+{
+	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
+	const unsigned int *reg;
+	unsigned int reg_AFBC_ENABLE;
+
+	if (!afbc_is_supported() || !DIM_IS_IC(T5DB))
+		return;
+	reg = afbc_get_addrp(pafd_ctr->fb.pre_dec);
+	reg_AFBC_ENABLE = reg[EAFBC_ENABLE];
+
+	dim_print("%s:reg=0x%x:sw=off\n", __func__, reg_AFBC_ENABLE);
+	reg_wrb(reg_AFBC_ENABLE, 0, 8, 1);
+}
+
+void afbcd_enable_only_t5dvb(void)
+{
+	if (DIM_IS_IC(T5DB) && afbc_is_supported()) {
+		PR_INF("t5dvb afbcd on\n");
+		/* afbcd is shared */
+		reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 22, 1);
+		reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 10, 1);
+		reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 12, 1);
+		reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 1, 1);
+		dbg_reg("%s:t5d vb on\n 0x%x,0x%x\n",
+			__func__,
+			VD1_AFBCD0_MISC_CTRL,
+			reg_rd(VD1_AFBCD0_MISC_CTRL));
+	}
+}
+
 static void afbc_reg_sw(bool on)
 {
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
@@ -3058,6 +3089,7 @@ static void afbc_reg_sw(bool on)
 			afbc_power_sw(true, &di_normal_regset);
 		else if (pafd_ctr->fb.ver == AFBCD_V4) {
 			reg_wrb(DI_AFBCE_CTRL, 0x01, 4, 1);
+#ifdef _HIS_CODE_ //move to afbcd_enable_only_t5dvb
 			if (DIM_IS_IC(T5DB) && afbc_is_supported()) {
 				/* afbcd is shared */
 				reg_wrb(VD1_AFBCD0_MISC_CTRL, 0x01, 22, 1);
@@ -3069,6 +3101,7 @@ static void afbc_reg_sw(bool on)
 					VD1_AFBCD0_MISC_CTRL,
 					reg_rd(VD1_AFBCD0_MISC_CTRL));
 			}
+#endif
 		}
 	}
 	if (!on) {

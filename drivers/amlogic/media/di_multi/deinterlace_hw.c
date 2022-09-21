@@ -4575,7 +4575,9 @@ static void di_pre_data_mif_ctrl(bool enable)
 			if (dim_afds())
 				dim_afds()->inp_sw(false);
 		}
-
+		//test for bus-crash
+		//disable afbcd:
+		disable_afbcd_t5dvb();
 	}
 }
 

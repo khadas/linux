@@ -1104,6 +1104,28 @@ void di_mp_uit_set(enum EDI_MP_UI_T idx, int val)
 	get_datal()->mp_uit[idx] = val;
 }
 
+#ifdef DBG_POST_SETTING
+static unsigned int dim_dbg_post;
+module_param_named(dim_dbg_post, dim_dbg_post, uint, 0664);
+
+bool dim_dbg_post_crash_check(unsigned int bit_mask)
+{
+	return (dim_dbg_post & bit_mask) ? true : false;
+}
+
+unsigned int dim_dbg_post_crash_get(void)
+{
+	return dim_dbg_post;
+}
+
+#else /**/
+
+bool dim_dbg_post_crash_check(unsigned int bit_mask)
+{
+	return false;
+}
+
+#endif /* DBG_POST_SETTING */
 /************************************************
  * asked by pq tune
  ************************************************/
@@ -2702,10 +2724,11 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
 
 	if (!which) {
 		if (pch->bypass.b.lst_n != on) {
-			dbg_pl("ch[%d]:bypass change:n:%d->%d\n",
+			PR_INF("ch[%d]:bypass change:n:%d->%d:0x%x\n",
 			       pch->ch_id,
 			       pch->bypass.b.lst_n,
-			       on);
+			       on,
+			       on ? reason : 0);
 			pch->bypass.b.lst_n = on;
 		}
 		if (on) {
@@ -2718,10 +2741,11 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
 		}
 	} else {
 		if (pch->bypass.b.lst_i != on) {
-			dbg_pl("ch[%d]:bypass change:i:%d->%d\n",
+			PR_INF("ch[%d]:bypass change:i:%d->%d:0x%x\n",
 			       pch->ch_id,
 			       pch->bypass.b.lst_i,
-			       on);
+			       on,
+			       on ? reason : 0);
 			pch->bypass.b.lst_i = on;
 		}
 		if (on) {
@@ -2736,7 +2760,7 @@ void dim_bypass_set(struct di_ch_s *pch, bool which, unsigned int reason)
 }
 
 #define DIM_POLICY_STD_OLD	(125)
-#define DIM_POLICY_STD		(250)
+#define DIM_POLICY_STD		(450) //change from 250 to 450
 #define DIM_POLICY_NOT_LIMIT	(2000)
 #define DIM_POLICY_SHIFT_H	(7)
 #define DIM_POLICY_SHIFT_W	(6)
