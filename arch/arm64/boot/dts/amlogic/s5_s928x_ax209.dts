@@ -1874,6 +1874,12 @@
 	status = "okay";
 };
 
+&pwm_ef {
+	pinctrl-0 = <&pwm_f_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &irblaster {
 	status = "disabled";
 };
