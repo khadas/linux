@@ -935,7 +935,7 @@ static int vpp_process_speed_check_s5
 	u32 vtotal, htotal = 0, clk_in_pps = 0, clk_vpu = 0, clk_temp;
 	u32 input_time_us = 0, display_time_us = 0, dummy_time_us = 0;
 	u32 width_out = 0;
-	u32 vpu_clk = 0, max_height = 2160; /* 4k mode */
+	u32 vpu_clk = 0, max_height = 4320; /* 8k mode */
 	u32 slice_num, max_proc_height_s5 = 0;
 	u32 pi_enable, clk_calc = 0;
 
@@ -6179,7 +6179,7 @@ RERTY:
 	next_frame_par->VPP_post_blend_vd_h_end_ = vinfo->width - 1;
 	next_frame_par->VPP_post_blend_h_size_ = vinfo->width;
 
-	if (pi_enable) {
+	if (get_pi_enabled(input->layer_id)) {
 		dst_width = vinfo->width >> 1;
 		dst_height = vinfo->height >> 1;
 		local_input.layer_width >>= 1;

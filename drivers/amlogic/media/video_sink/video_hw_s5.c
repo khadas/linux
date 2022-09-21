@@ -108,7 +108,7 @@ static u32 g_slice_num = 0xff;
 MODULE_PARM_DESC(g_slice_num, "\n g_slice_num\n");
 module_param(g_slice_num, uint, 0664);
 
-u32 pi_enable;
+u32 pi_enable = 0xff;
 MODULE_PARM_DESC(pi_enable, "\n pi_enable\n");
 module_param(pi_enable, uint, 0664);
 
@@ -2382,7 +2382,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		/* should be set here */
 		/* todo */
 		if (layer->slice_num == 1) {
-			if (pi_enable) {
+			if (layer->pi_enable) {
 				vd_proc_vd1_info->vd1_work_mode = VD1_1SLICES_MODE;
 				vd_proc_vd1_info->vd1_slices_dout_dpsel = VD1_SLICES_DOUT_PI;
 				vd_proc_vd1_info->vd1_overlap_hsize = 0;
@@ -2498,7 +2498,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	} else if (layer->layer_id == 1) {
 		vd_proc->vd2_used = 1;
 		/* todo */
-		if (pi_enable)
+		if (layer->pi_enable)
 			vd_proc_vd2_info->vd2_dout_dpsel = VD2_DOUT_PI;
 		else
 			vd_proc_vd2_info->vd2_dout_dpsel = VD2_DOUT_S2P;
@@ -7949,7 +7949,7 @@ void set_video_slice_policy(struct video_layer_s *layer,
 {
 	u32 src_width = 0;
 	u32 src_height = 0;
-	u32 slice_num = 1;
+	u32 slice_num = 1, pi_en = 0;
 	const struct vinfo_s *vinfo = get_current_vinfo();
 
 	if (cur_dev->display_module != S5_DISPLAY_MODULE)
@@ -7965,15 +7965,12 @@ void set_video_slice_policy(struct video_layer_s *layer,
 	update_vd_src_info(layer->layer_id,
 		src_width, src_height, vf->compWidth, vf->compHeight);
 	if (layer->layer_id == 0) {
-		if (src_width > 4096 && src_height > 2160)
-			/* input: (4k-8k] */
-			slice_num = 4;
-
 		/* check output */
 		if (vinfo) {
-			/* input: (4k-8k] */
-			if (vinfo->width > 4096 && vinfo->height > 2160)
-				slice_num = 4;
+			/* output: (4k-8k], input <= 4k */
+			if ((vinfo->width > 4096 && vinfo->height > 2160) &&
+				(src_width <= 4096 && src_height <= 2160))
+				pi_en = 1;
 			/* 4k 120hz */
 			else if (vinfo->width > 1920 && vinfo->height > 1080 &&
 				(vinfo->sync_duration_num /
@@ -7982,11 +7979,16 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			else
 				slice_num = 1;
 		}
+		if (src_width > 4096 && src_height > 2160)
+			/* input: (4k-8k] */
+			slice_num = 4;
 		layer->slice_num = slice_num;
+		layer->pi_enable = pi_en;
 	}
 	if (g_slice_num != 0xff)
 		layer->slice_num = g_slice_num;
-	layer->pi_enable = pi_enable;
+	if (pi_enable != 0xff)
+		layer->pi_enable = pi_enable;
 }
 
 int video_hw_init_s5(void)
