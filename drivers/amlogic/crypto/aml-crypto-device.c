@@ -601,7 +601,8 @@ static int hw_restriction_check(u32 nbufs, struct crypt_mem *buf,
 		}
 
 		if (length % ses_ptr->cdata.blocksize) {
-			if (ses_ptr->cdata.cipher == CRYPTO_OP_AES_CTR) {
+			if (ses_ptr->cdata.cipher == CRYPTO_OP_AES_CTR ||
+					ses_ptr->cdata.cipher == CRYPTO_OP_SM4_CTR) {
 				if (i != (nbufs - 1)) {
 					dbgp(2, "unaligned buffer size: %d\n",
 					     length);
@@ -1677,8 +1678,9 @@ int crypto_run(struct fcrypt *fcr, struct kernel_crypt_op *kcop)
 			}
 		}
 
-		if (ses_ptr->cdata.cipher == CRYPTO_OP_AES_CTR) {
-			/* aes-ctr only supports encrypt */
+		if (ses_ptr->cdata.cipher == CRYPTO_OP_AES_CTR ||
+				ses_ptr->cdata.cipher == CRYPTO_OP_SM4_CTR) {
+			/* aes-ctr and sm4-ctr only supports encrypt */
 			kcop->cop.op = CRYPTO_OP_ENCRYPT;
 		}
 		if (ses_ptr->cdata.op_mode != OP_MODE_ECB && !kcop->cop.ivlen) {
