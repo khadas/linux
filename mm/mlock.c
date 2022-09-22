@@ -24,6 +24,9 @@
 #include <linux/memcontrol.h>
 #include <linux/mm_inline.h>
 #include <linux/secretmem.h>
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+#include <linux/amlogic/pin_file.h>
+#endif
 
 #include "internal.h"
 
@@ -587,6 +590,9 @@ static int apply_vma_lock_flags(unsigned long start, size_t len,
 		tmp = vma->vm_end;
 		if (tmp > end)
 			tmp = end;
+	#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+		reset_page_vma_flags(vma, flags);
+	#endif
 		error = mlock_fixup(vma, &prev, nstart, tmp, newflags);
 		if (error)
 			break;

@@ -83,6 +83,9 @@
 #include <linux/uaccess.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+#include <linux/amlogic/pin_file.h>
+#endif
 
 #include "pgalloc-track.h"
 #include "internal.h"
@@ -4789,6 +4792,48 @@ unlock:
 	return 0;
 }
 
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+static bool __restore_locked_page(struct page *page, struct vm_area_struct *vma,
+			 unsigned long addr, void *arg)
+{
+	int ret;
+	pte_t old_pte, *pte;
+	spinlock_t *ptl;	/* pte lock */
+
+	if (vma->vm_flags & (VM_LOCKED | VM_LOCKONFAULT)) {
+		if (addr < vma->vm_start || addr >= vma->vm_end)
+			return -EFAULT;
+		if (!page_count(page))
+			return -EINVAL;
+
+		pte = get_locked_pte(vma->vm_mm, addr, &ptl);
+		if (!pte)
+			return true;
+		old_pte = *pte;
+		pte_unmap_unlock(pte, ptl);
+		/* already refaulted */
+		if (pte_valid(old_pte) && pte_pfn(old_pte) == page_to_pfn(page))
+			return true;
+
+		ret = insert_page(vma, addr, page, vma->vm_page_prot);
+		pr_debug("%s, restore page:%lx for addr:%lx, vma:%px, ret:%d, old_pte:%llx\n",
+			__func__,  page_to_pfn(page), addr, vma, ret,
+			(unsigned long long)pte_val(old_pte));
+		return ret ? false : true;
+	}
+	return true; /* keep loop */
+}
+
+static void restore_locked_page(struct page *page)
+{
+	struct rmap_walk_control rwc = {
+		.rmap_one = __restore_locked_page,
+	};
+
+	rmap_walk(page, &rwc);
+}
+#endif
+
 /*
  * By the time we get here, we already hold the mm semaphore
  *
@@ -4804,6 +4849,9 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
 		.flags = flags,
 		.pgoff = linear_page_index(vma, address),
 		.gfp_mask = __get_fault_gfp_mask(vma),
+	#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+		.pte = NULL,
+	#endif
 	};
 	unsigned int dirty = flags & FAULT_FLAG_WRITE;
 	struct mm_struct *mm = vma->vm_mm;
@@ -5026,6 +5074,17 @@ retry_pud:
 		}
 	}
 
+#ifdef CONFIG_AMLOGIC_PIN_LOCKED_FILE
+	ret = handle_pte_fault(&vmf);
+	if (!ret) {
+		struct page *page = NULL;
+
+		page = aml_mlock_page_as_lock_mapping(vma, mm, &vmf, address);
+		if (page)
+			restore_locked_page(page);
+	}
+	return ret;
+#endif
 	return handle_pte_fault(&vmf);
 }
 
