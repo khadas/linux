@@ -439,6 +439,18 @@ static struct vframe_s *vmjpeg_vf_get(void *op_arg)
 	hw->get_num++;
 	if (kfifo_get(&hw->display_q, &vf)) {
 		ATRACE_COUNTER(hw->disp_q_name, kfifo_len(&hw->display_q));
+
+		vf->vf_ud_param.magic_code = UD_MAGIC_CODE;
+		vf->vf_ud_param.ud_param.buf_len = 0;
+		vf->vf_ud_param.ud_param.pbuf_addr = NULL;
+		vf->vf_ud_param.ud_param.instance_id = vdec->afd_video_id;
+
+		vf->vf_ud_param.ud_param.meta_info.duration = vf->duration;
+		vf->vf_ud_param.ud_param.meta_info.flags = (VFORMAT_MJPEG << 3);
+		vf->vf_ud_param.ud_param.meta_info.vpts = vf->pts;
+		if (vf->pts)
+			vf->vf_ud_param.ud_param.meta_info.vpts_valid = 1;
+
 		return vf;
 	}
 	return NULL;
@@ -626,7 +638,7 @@ static void vmjpeg_canvas_init(struct vdec_mjpeg_hw_s *hw)
 	}
 }
 
-static void init_scaler(void)
+static void init_scaler(u32 endian)
 {
 	/* 4 point triangle */
 	const unsigned int filt_coef[] = {
@@ -698,6 +710,13 @@ static void init_scaler(void)
 	/* reset pscaler */
 	WRITE_VREG(DOS_SW_RESET0, (1 << 10));
 	WRITE_VREG(DOS_SW_RESET0, 0);
+
+	if (is_cpu_t7c()) {
+		if (endian == 7)
+			WRITE_VREG(PSCALE_CTRL2, (0x1ff << 16) | READ_VREG(PSCALE_CTRL2));
+		else
+			WRITE_VREG(PSCALE_CTRL2, (0 << 16) | READ_VREG(PSCALE_CTRL2));
+	}
 
 	if (get_cpu_major_id() < AM_MESON_CPU_MAJOR_ID_SC2) {
 		READ_RESET_REG(RESET2_REGISTER);
@@ -931,6 +950,7 @@ static int vmjpeg_hw_ctx_restore(struct vdec_mjpeg_hw_s *hw)
 {
 	struct buffer_spec_s *buff_spec;
 	int index, i;
+	u32 endian;
 
 	index = find_free_buffer(hw);
 	if (index < 0)
@@ -956,7 +976,9 @@ static int vmjpeg_hw_ctx_restore(struct vdec_mjpeg_hw_s *hw)
 	/* find next decode buffer index */
 	WRITE_VREG(AV_SCRATCH_4, spec2canvas(&hw->buffer_spec[index]));
 	WRITE_VREG(AV_SCRATCH_5, index | 1 << 24);
-	init_scaler();
+
+	endian = (hw_to_vdec(hw)->canvas_mode == CANVAS_BLKMODE_LINEAR) ? 7 : 0;
+	init_scaler(endian);
 
 	/* clear buffer IN/OUT registers */
 	WRITE_VREG(MREG_TO_AMRISC, 0);
@@ -1161,8 +1183,8 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 	start_process_time(hw);
 	hw->last_vld_level = 0;
 	mod_timer(&hw->check_timer, jiffies + CHECK_INTERVAL);
-	amvdec_start();
 	vdec_enable_input(vdec);
+	amvdec_start();
 	hw->stat |= STAT_VDEC_RUN;
 	hw->init_flag = 1;
 
@@ -1342,6 +1364,7 @@ static int ammvdec_mjpeg_probe(struct platform_device *pdev)
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 	struct vdec_mjpeg_hw_s *hw = NULL;
 	int config_val = 0;
+	static struct vframe_operations_s vf_tmp_ops;
 
 	if (pdata == NULL) {
 		pr_info("ammvdec_mjpeg memory resource undefined.\n");
@@ -1430,8 +1453,12 @@ static int ammvdec_mjpeg_probe(struct platform_device *pdev)
 
 	hw->buf_num = vmjpeg_get_buf_num(hw);
 
+	memcpy(&vf_tmp_ops, &vf_provider_ops, sizeof(struct vframe_operations_s));
+	if (without_display_mode == 1) {
+		vf_tmp_ops.get = NULL;
+	}
 	vf_provider_init(&pdata->vframe_provider, pdata->vf_provider_name,
-		&vf_provider_ops, pdata);
+		&vf_tmp_ops, pdata);
 
 	platform_set_drvdata(pdev, pdata);
 

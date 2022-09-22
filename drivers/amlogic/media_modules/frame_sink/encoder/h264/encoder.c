@@ -116,7 +116,7 @@ static struct encode_manager_s encode_manager;
 
 static u32 ie_me_mb_type;
 static u32 ie_me_mode;
-static u32 ie_pippeline_block = 3;
+static u32 ie_pipeline_block = 3;
 static u32 ie_cur_ref_sel;
 /* static u32 avc_endian = 6; */
 static u32 clock_level = 5;
@@ -1039,11 +1039,11 @@ static void avc_buffspec_init(struct encode_wq_s *wq)
 static void avc_init_ie_me_parameter(struct encode_wq_s *wq, u32 quant)
 {
 	ie_cur_ref_sel = 0;
-	ie_pippeline_block = 12;
+	ie_pipeline_block = 12;
 	/* currently disable half and sub pixel */
 	ie_me_mode =
-		(ie_pippeline_block & IE_PIPPELINE_BLOCK_MASK) <<
-	      IE_PIPPELINE_BLOCK_SHIFT;
+		(ie_pipeline_block & IE_PIPELINE_BLOCK_MASK) <<
+	      IE_PIPELINE_BLOCK_SHIFT;
 
 	WRITE_HREG(IE_ME_MODE, ie_me_mode);
 	WRITE_HREG(IE_REF_SEL, ie_cur_ref_sel);
@@ -1547,7 +1547,12 @@ static s32 set_input_format(struct encode_wq_s *wq,
 		dump_raw_input(wq, request);
 
 	picsize_x = ((wq->pic.encoder_width + 15) >> 4) << 4;
-	picsize_y = wq->pic.encoder_height;
+	if (request->scale_enable) {
+		picsize_y = ((wq->pic.encoder_height + 15) >> 4) << 4;
+	}
+	else {
+		picsize_y = wq->pic.encoder_height;
+	}
 	oformat = 0;
 
 	if ((request->type == LOCAL_BUFF)
@@ -1561,6 +1566,7 @@ static s32 set_input_format(struct encode_wq_s *wq,
 			input = wq->mem.dct_buff_start_addr;
 			src_addr =
 				wq->mem.dct_buff_start_addr;
+			picsize_y = ((wq->pic.encoder_height + 15) >> 4) << 4;
 		} else if (request->type == DMA_BUFF) {
 			if (request->plane_num == 3) {
 				input_y = (unsigned long)request->dma_cfg[0].paddr;
@@ -4886,7 +4892,7 @@ static s32 amvenc_avc_probe(struct platform_device *pdev)
 	if (encode_manager.use_reserve == false) {
 #ifndef CONFIG_CMA
 		enc_pr(LOG_ERROR,
-			"amvenc_avc memory is invaild, probe fail!\n");
+			"amvenc_avc memory is invalid, probe fail!\n");
 		return -EFAULT;
 #else
 		encode_manager.cma_pool_size =

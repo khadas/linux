@@ -301,6 +301,7 @@ struct aml_vdec_cfg_infos {
 	 * bit 13	: report downscale yuv buffer size flag.
 	 * bit 12	: for second field pts mode.
 	 * bit 11	: disable error policy.
+	 * bit 10	: dynamic bypass vpp.
 	 * bit 9	: disable ge2d wrapper.
 	 * bit 1	: Non-standard dv flag.
 	 * bit 0	: dv two layer flag.
@@ -565,6 +566,7 @@ struct aml_vpp_cfg_infos {
 	bool	enable_local_buf;
 	bool	res_chg;
 	bool	is_vpp_reset;
+	bool	dynamic_bypass_vpp;
 };
 
 struct aml_ge2d_cfg_infos {

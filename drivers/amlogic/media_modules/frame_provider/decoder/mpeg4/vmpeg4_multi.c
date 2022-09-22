@@ -349,6 +349,7 @@ struct vdec_mpeg4_hw_s {
 	char new_q_name[32];
 	char disp_q_name[32];
 	bool run_flag;
+	bool process_busy;
 };
 static void vmpeg4_local_init(struct vdec_mpeg4_hw_s *hw);
 static int vmpeg4_hw_ctx_restore(struct vdec_mpeg4_hw_s *hw);
@@ -1120,7 +1121,7 @@ static int v4l_res_change(struct vdec_mpeg4_hw_s *hw, int width, int height)
 }
 
 
-static irqreturn_t vmpeg4_isr_thread_fn(struct vdec_s *vdec, int irq)
+static irqreturn_t vmpeg4_isr_thread_handler(struct vdec_s *vdec, int irq)
 {
 	u32 reg;
 	u32 picture_type;
@@ -1560,6 +1561,18 @@ static irqreturn_t vmpeg4_isr_thread_fn(struct vdec_s *vdec, int irq)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t vmpeg4_isr_thread_fn(struct vdec_s *vdec, int irq)
+{
+	irqreturn_t ret;
+	struct vdec_mpeg4_hw_s *hw = (struct vdec_mpeg4_hw_s *)(vdec->private);
+
+	ret = vmpeg4_isr_thread_handler(vdec, irq);
+
+	hw->process_busy = false;
+
+	return ret;
+}
+
 static irqreturn_t vmpeg4_isr(struct vdec_s *vdec, int irq)
 {
 	struct vdec_mpeg4_hw_s *hw =
@@ -1567,6 +1580,12 @@ static irqreturn_t vmpeg4_isr(struct vdec_s *vdec, int irq)
 
 	if (hw->eos)
 		return IRQ_HANDLED;
+
+	if (hw->process_busy) {
+		pr_info("%s process busy\n", __func__);
+		return IRQ_HANDLED;
+	}
+	hw->process_busy = true;
 
 	return IRQ_WAKE_THREAD;
 }
@@ -1753,6 +1772,18 @@ static struct vframe_s *vmpeg_vf_get(void *op_arg)
 	hw->get_num++;
 	if (kfifo_get(&hw->display_q, &vf)) {
 		ATRACE_COUNTER(hw->disp_q_name, kfifo_len(&hw->display_q));
+
+		vf->vf_ud_param.magic_code = UD_MAGIC_CODE;
+		vf->vf_ud_param.ud_param.buf_len = 0;
+		vf->vf_ud_param.ud_param.pbuf_addr = NULL;
+		vf->vf_ud_param.ud_param.instance_id = vdec->afd_video_id;
+
+		vf->vf_ud_param.ud_param.meta_info.duration = vf->duration;
+		vf->vf_ud_param.ud_param.meta_info.flags = (VFORMAT_MPEG4 << 3);
+		vf->vf_ud_param.ud_param.meta_info.vpts = vf->pts;
+		if (vf->pts)
+			vf->vf_ud_param.ud_param.meta_info.vpts_valid = 1;
+
 		return vf;
 	}
 	return NULL;
@@ -2121,19 +2152,32 @@ static void start_process_time(struct vdec_mpeg4_hw_s *hw)
 
 static void timeout_process(struct vdec_mpeg4_hw_s *hw)
 {
+	if (hw->process_busy) {
+		pr_info("%s, process_busy\n", __func__);
+		return;
+	}
+
+	if (work_pending(&hw->work) ||
+		work_busy(&hw->work)) {
+		pr_err("mpeg4 work on busy\n");
+		return;
+	}
+
 	if (hw->stat & STAT_VDEC_RUN) {
 		amvdec_stop();
 		hw->stat &= ~STAT_VDEC_RUN;
 	}
 	mmpeg4_debug_print(DECODE_ID(hw), 0,
 		"%s decoder timeout %d\n", __func__, hw->timeout_cnt);
-	if (vdec_frame_based((hw_to_vdec(hw)))) {
-		mmpeg4_debug_print(DECODE_ID(hw), 0,
-			"%s frame_num %d, chunk size 0x%x, chksum 0x%x\n",
-			__func__,
-			hw->frame_num,
-			hw->chunk->size,
-			get_data_check_sum(hw, hw->chunk->size));
+	if (debug_enable && vdec_frame_based((hw_to_vdec(hw)))) {
+		if (hw->chunk) {
+			mmpeg4_debug_print(DECODE_ID(hw), 0,
+				"%s frame_num %d, chunk size 0x%x, chksum 0x%x\n",
+				__func__,
+				hw->frame_num,
+				hw->chunk->size,
+				get_data_check_sum(hw, hw->chunk->size));
+		}
 	}
 	hw->timeout_cnt++;
 	/* timeout: data droped, frame_num inaccurate*/
@@ -2358,6 +2402,7 @@ static void vmpeg4_local_init(struct vdec_mpeg4_hw_s *hw)
 	hw->init_flag = 0;
 	hw->dec_result = DEC_RESULT_NONE;
 	hw->timeout_cnt = 0;
+	hw->process_busy = false;
 
 	for (i = 0; i < DECODE_BUFFER_NUM_MAX; i++)
 		hw->vfbuf_use[i] = 0;
@@ -2728,18 +2773,18 @@ static int ammvdec_mpeg4_probe(struct platform_device *pdev)
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 	struct vdec_mpeg4_hw_s *hw = NULL;
 	int config_val = 0;
+	static struct vframe_operations_s vf_tmp_ops;
 
 	if (pdata == NULL) {
 		pr_err("%s memory resource undefined.\n", __func__);
 		return -EFAULT;
 	}
 
-	hw = vmalloc(sizeof(struct vdec_mpeg4_hw_s));
+	hw = vzalloc(sizeof(struct vdec_mpeg4_hw_s));
 	if (hw == NULL) {
 		pr_err("\namvdec_mpeg4 decoder driver alloc failed\n");
 		return -ENOMEM;
 	}
-	memset(hw, 0, sizeof(struct vdec_mpeg4_hw_s));
 
 	/* the ctx from v4l2 driver. */
 	hw->v4l2_ctx = pdata->private;
@@ -2842,9 +2887,16 @@ static int ammvdec_mpeg4_probe(struct platform_device *pdev)
 	} else
 		hw->dynamic_buf_num_margin = dynamic_buf_num_margin;
 
-	if (!hw->is_used_v4l)
-		vf_provider_init(&pdata->vframe_provider,
-			pdata->vf_provider_name, &vf_provider_ops, pdata);
+	if (!hw->is_used_v4l) {
+		memcpy(&vf_tmp_ops, &vf_provider_ops, sizeof(struct vframe_operations_s));
+
+		if (without_display_mode == 1) {
+			vf_tmp_ops.get = NULL;
+		}
+
+		vf_provider_init(&pdata->vframe_provider, pdata->vf_provider_name,
+			&vf_tmp_ops, pdata);
+	}
 
 	hw->buf_num = vmpeg4_get_buf_num(hw);
 

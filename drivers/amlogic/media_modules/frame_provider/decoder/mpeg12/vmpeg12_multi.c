@@ -55,6 +55,7 @@
 #include "../utils/config_parser.h"
 #include <media/v4l2-mem2mem.h>
 #include "../utils/vdec_feature.h"
+#include "../utils/decoder_dma_alloc.h"
 
 #define MEM_NAME "codec_mmpeg12"
 #define CHECK_INTERVAL        (HZ/100)
@@ -289,6 +290,7 @@ struct vdec_mpeg12_hw_s {
 	dma_addr_t ccbuf_phyAddress;
 	void *ccbuf_phyAddress_virt;
 	u32 cc_buf_size;
+	ulong cc_buf_handle;
 	unsigned long ccbuf_phyAddress_is_remaped_nocache;
 	u32 frame_rpt_state;
 /* for error handling */
@@ -362,6 +364,7 @@ struct vdec_mpeg12_hw_s {
 	u32  parse_user_data_size;
 	struct userdata_meta_info_t meta_info;
 	u32 vf_ucode_cc_last_wp;
+	bool process_busy;
 };
 
 static u32 get_ratio_control(struct vdec_mpeg12_hw_s *hw);
@@ -2099,7 +2102,7 @@ static void copy_user_data_to_pic(struct vdec_mpeg12_hw_s *hw, struct pic_info_t
 	memset(hw->parse_user_data_buf, 0, CCBUF_SIZE);
 }
 
-static irqreturn_t vmpeg12_isr_thread_fn(struct vdec_s *vdec, int irq)
+static irqreturn_t vmpeg12_isr_thread_handler(struct vdec_s *vdec, int irq)
 {
 	u32 reg, index, info, seqinfo, offset, pts, frame_size=0, tmp;
 	u64 pts_us64 = 0;
@@ -2354,13 +2357,33 @@ static irqreturn_t vmpeg12_isr_thread_fn(struct vdec_s *vdec, int irq)
 
 	return IRQ_HANDLED;
 }
+
+static irqreturn_t vmpeg12_isr_thread_fn(struct vdec_s *vdec, int irq)
+{
+	irqreturn_t ret;
+	struct vdec_mpeg12_hw_s *hw =
+		(struct vdec_mpeg12_hw_s *)(vdec->private);
+
+	ret = vmpeg12_isr_thread_handler(vdec, irq);
+
+	hw->process_busy = false;
+
+	return ret;
+}
+
 static irqreturn_t vmpeg12_isr(struct vdec_s *vdec, int irq)
 {
 	u32 info, offset;
 	struct vdec_mpeg12_hw_s *hw =
-	(struct vdec_mpeg12_hw_s *)(vdec->private);
+		(struct vdec_mpeg12_hw_s *)(vdec->private);
 	if (hw->eos)
 		return IRQ_HANDLED;
+	if (hw->process_busy) {
+		pr_info("%s, process busy\n", __func__);
+		return IRQ_HANDLED;
+	}
+	hw->process_busy = true;
+
 	info = READ_VREG(MREG_PIC_INFO);
 	offset = READ_VREG(MREG_FRAME_OFFSET);
 
@@ -2919,9 +2942,9 @@ static int vmpeg12_canvas_init(struct vdec_mpeg12_hw_s *hw)
 
 		if (i == hw->buf_num) {
 			hw->cc_buf_size = AUX_BUF_ALIGN(CCBUF_SIZE);
-			hw->ccbuf_phyAddress_virt = dma_alloc_coherent(amports_get_dma_device(),
+			hw->ccbuf_phyAddress_virt = decoder_dma_alloc_coherent(&hw->cc_buf_handle,
 						  hw->cc_buf_size, &hw->ccbuf_phyAddress,
-						  GFP_KERNEL);
+						  "MPEG12_AUX_BUF");
 			if (hw->ccbuf_phyAddress_virt == NULL) {
 				pr_err("%s: failed to alloc cc buffer\n", __func__);
 				return -ENOMEM;
@@ -3115,6 +3138,11 @@ static void start_process_time_set(struct vdec_mpeg12_hw_s *hw)
 static void timeout_process(struct vdec_mpeg12_hw_s *hw)
 {
 	struct vdec_s *vdec = hw_to_vdec(hw);
+
+	if (hw->process_busy) {
+		pr_info("%s, process_busy\n", __func__);
+		return;
+	}
 
 	if (work_pending(&hw->work) ||
 	    work_busy(&hw->work) ||
@@ -3378,6 +3406,7 @@ static void vmpeg12_local_init(struct vdec_mpeg12_hw_s *hw)
 	hw->start_process_time = 0;
 	hw->init_flag = 0;
 	hw->dec_again_cnt = 0;
+	hw->process_busy = false;
 
 	init_waitqueue_head(&hw->wait_q);
 	if (dec_control)
@@ -3775,6 +3804,7 @@ static int ammvdec_mpeg12_probe(struct platform_device *pdev)
 	struct vdec_s *pdata = *(struct vdec_s **)pdev->dev.platform_data;
 	struct vdec_mpeg12_hw_s *hw = NULL;
 	int config_val = 0;
+	static struct vframe_operations_s vf_tmp_ops;
 
 	pr_info("ammvdec_mpeg12 probe start.\n");
 
@@ -3828,8 +3858,13 @@ static int ammvdec_mpeg12_probe(struct platform_device *pdev)
 		for (i = 0; i < DECODE_BUFFER_NUM_MAX; i++)
 			hw->canvas_spec[i] = 0xffffff;
 	}
+
+	memcpy(&vf_tmp_ops, &vf_provider_ops, sizeof(struct vframe_operations_s));
+	if (without_display_mode == 1) {
+		vf_tmp_ops.get = NULL;
+	}
 	vf_provider_init(&pdata->vframe_provider, pdata->vf_provider_name,
-		&vf_provider_ops, pdata);
+		&vf_tmp_ops, pdata);
 
 	if (pdata->parallel_dec == 1) {
 		int i;
@@ -3983,7 +4018,7 @@ static int ammvdec_mpeg12_remove(struct platform_device *pdev)
 	}
 
 	if (hw->ccbuf_phyAddress_virt) {
-		dma_free_coherent(amports_get_dma_device(),hw->cc_buf_size,
+		decoder_dma_free_coherent(hw->cc_buf_handle, hw->cc_buf_size,
 			hw->ccbuf_phyAddress_virt, hw->ccbuf_phyAddress);
 		hw->ccbuf_phyAddress_virt = NULL;
 		hw->ccbuf_phyAddress = 0;

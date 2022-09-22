@@ -5214,10 +5214,7 @@ int h264_slice_header_process(struct h264_dpb_stru *p_H264_Dpb, int *frame_num_g
 			currSlice->frame_num != p_Vid->pre_frame_num &&
 			currSlice->frame_num !=
 			(p_Vid->pre_frame_num + 1) % p_Vid->max_frame_num) {
-			struct SPSParameters *active_sps = p_Vid->active_sps;
 
-			 if (active_sps->frame_num_gap_allowed)
-				fill_frame_num_gap(p_Vid, currSlice);
 			*frame_num_gap = 1;
 		}
 

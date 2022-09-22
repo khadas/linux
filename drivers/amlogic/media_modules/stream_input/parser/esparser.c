@@ -31,8 +31,6 @@
 
 #include <linux/uaccess.h>
 #include <linux/atomic.h>
-
-/* #include <mach/am_regs.h> */
 #include <linux/delay.h>
 
 #include "../../frame_provider/decoder/utils/vdec.h"
@@ -134,18 +132,16 @@ static inline u32 buf_wp(u32 type)
 
 	if ((READ_PARSER_REG(PARSER_ES_CONTROL) & ES_VID_MAN_RD_PTR) == 0) {
 		wp =
-#if 1/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
+		/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		(type == BUF_TYPE_HEVC) ? READ_VREG(HEVC_STREAM_WR_PTR) :
-#endif
 		(type == BUF_TYPE_VIDEO) ? READ_VREG(VLD_MEM_VIFIFO_WP) :
 		(type == BUF_TYPE_AUDIO) ?
 		READ_AIU_REG(AIU_MEM_AIFIFO_MAN_WP) :
 		READ_PARSER_REG(PARSER_SUB_START_PTR);
 	} else {
 		wp =
-#if 1/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
+		/* MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 		(type == BUF_TYPE_HEVC) ? READ_PARSER_REG(PARSER_VIDEO_WP) :
-#endif
 		(type == BUF_TYPE_VIDEO) ? READ_PARSER_REG(PARSER_VIDEO_WP) :
 		(type == BUF_TYPE_AUDIO) ?
 			READ_AIU_REG(AIU_MEM_AIFIFO_MAN_WP) :
@@ -280,8 +276,7 @@ static ssize_t _esparser_write_s(const char __user *buf,
 	wp = get_buf_wp(type);
 	buf_end = get_buf_end(type) + 8;
 	buf_start = get_buf_start(type);
-	/*pr_info("write wp 0x%x, count %d, start 0x%x, end 0x%x\n",
-	*		 wp, (u32)count, buf_start, buf_end);*/
+
 	if (wp + count > buf_end) {
 		if (wp == buf_end) {
 			wp = buf_start;
@@ -360,13 +355,6 @@ s32 es_apts_checkin_us64(struct stream_buf_s *buf, u64 us64)
 
 s32 es_vpts_checkin(struct stream_buf_s *buf, u32 pts)
 {
-#if 0
-	if (buf->first_tstamp == INVALID_PTS) {
-		buf->flag |= BUF_FLAG_FIRST_TSTAMP;
-		buf->first_tstamp = pts;
-		return 0;
-	}
-#endif
 	u32 passed = 0;
 
 	mutex_lock(&esparser_mutex);
@@ -379,14 +367,6 @@ s32 es_vpts_checkin(struct stream_buf_s *buf, u32 pts)
 
 s32 es_apts_checkin(struct stream_buf_s *buf, u32 pts)
 {
-#if 0
-	if (buf->first_tstamp == INVALID_PTS) {
-		buf->flag |= BUF_FLAG_FIRST_TSTAMP;
-		buf->first_tstamp = pts;
-
-		return 0;
-	}
-#endif
 	u32 passed = 0;
 	mutex_lock(&esparser_mutex);
 	passed = audio_data_parsed + threadrw_buffer_level(buf);
@@ -403,13 +383,11 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 	u32 parser_sub_end_ptr;
 	u32 parser_sub_rp;
 	bool first_use = false;
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	VDEC_PRINT_FUN_LINENO(__func__, __LINE__);
 
 	if (has_hevc_vdec() && (buf->type == BUF_TYPE_HEVC))
 		pts_type = PTS_TYPE_HEVC;
 	else
-		/* #endif */
 		if (buf->type == BUF_TYPE_VIDEO)
 			pts_type = PTS_TYPE_VIDEO;
 		else if (buf->type == BUF_TYPE_AUDIO)
@@ -437,7 +415,7 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 		if (search_pattern == NULL) {
 			search_pattern = kcalloc(1,
 				SEARCH_PATTERN_LEN,
-				GFP_KERNEL);
+				GFP_KERNEL | GFP_DMA32);
 
 			if (search_pattern == NULL) {
 				pr_err("%s: no search_pattern\n", __func__);
@@ -460,14 +438,6 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 
 		/* reset PARSER with first esparser_init() call */
 		WRITE_RESET_REG(RESET1_REGISTER, RESET_PARSER);
-/* for recorded file and local play, this can't change the input source*/
-/* TS data path */
-/*
-#ifndef CONFIG_AM_DVB
-		WRITE_DEMUX_REG(FEC_INPUT_CONTROL, 0);
-#else
-		tsdemux_set_reset_flag();
-#endif  */
 
 		CLEAR_DEMUX_REG_MASK(TS_HIU_CTL, 1 << USE_HI_BSF_INTERFACE);
 		CLEAR_DEMUX_REG_MASK(TS_HIU_CTL_2, 1 << USE_HI_BSF_INTERFACE);
@@ -597,16 +567,6 @@ s32 esparser_init(struct stream_buf_s *buf, struct vdec_s *vdec)
 			goto Err_1;
 		}
 	}
-#if 0
-	if (buf->flag & BUF_FLAG_FIRST_TSTAMP) {
-		if (buf->type == BUF_TYPE_VIDEO)
-			es_vpts_checkin(buf, buf->first_tstamp);
-		else if (buf->type == BUF_TYPE_AUDIO)
-			es_apts_checkin(buf, buf->first_tstamp);
-
-		buf->flag &= ~BUF_FLAG_FIRST_TSTAMP;
-	}
-#endif
 
 	if (first_use) {
 		/*TODO irq */
@@ -796,11 +756,6 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 		realbuf = drm->drm_phy;
 		realcount = drm->drm_pktsize;
 		drm_flag = drm->drm_flag;
-		/* DRM_PRNT("drm_get_rawdata
-		 *onlydrminfo drm->drm_hasesdata[0x%x]
-		 * stbuf->type %d buf[0x%x]\n",
-		 *drm->drm_hasesdata,stbuf->type,buf);
-		 */
 	} else if (drm->drm_hasesdata == 1) {	/* buf is drminfo+es; */
 		if (drm->drm_pktsize > MAX_DRM_PACKAGE_SIZE) {
 			pr_err("drm package size is error, size is %u\n", drm->drm_pktsize);
@@ -809,19 +764,10 @@ ssize_t drm_write(struct file *file, struct stream_buf_s *stbuf,
 		realcount = drm->drm_pktsize;
 		realbuf = (unsigned long)buf + sizeof(struct drm_info);
 		drm_flag = 0;
-		/* DRM_PRNT("drm_get_rawdata
-		 *   drminfo+es drm->drm_hasesdata[0x%x]
-		 * stbuf->type %d\n",drm->drm_hasesdata,stbuf->type);
-		 */
 	} else {		/* buf is hwhead; */
 		realcount = count;
 		drm_flag = 0;
 		realbuf = (unsigned long)buf;
-		/* DRM_PRNT("drm_get_rawdata
-		 *  drm->drm_hasesdata[0x%x]
-		 * len[%d] count[%d] realcout[%d]\n",
-		 * drm->drm_hasesdata,len,count,realcount);
-		 */
 	}
 
 	len = realcount;

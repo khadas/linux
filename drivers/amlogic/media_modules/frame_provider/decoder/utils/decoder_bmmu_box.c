@@ -37,8 +37,15 @@
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include <linux/amlogic/media/codec_mm/codec_mm_keeper.h>
 
+struct mm_list_expand {
+	int index;
+	struct list_head mm_list;
+	struct codec_mm_s *mm;
+};
+
 struct decoder_bmmu_box {
 	int max_mm_num;
+	int exp_num;
 	const char *name;
 	int channel_id;
 	struct mutex mutex;
@@ -49,6 +56,7 @@ struct decoder_bmmu_box {
 	int align2n;		/*can overwite on idx alloc */
 	int mem_flags;		/*can overwite on idx alloc */
 	u32 alloc_flags;
+	struct mm_list_expand exp_mm_list;
 	struct codec_mm_s *mm_list[1];
 };
 
@@ -118,24 +126,87 @@ void *decoder_bmmu_box_alloc_box(const char *name,
 
 	size = sizeof(struct decoder_bmmu_box) + sizeof(struct codec_mm_s *) *
 		   max_num;
-	box = kmalloc(size, GFP_KERNEL);
+	box = kzalloc(size, GFP_KERNEL);
 	if (!box) {
 		pr_err("can't alloc decoder buffers box!!!\n");
 		return NULL;
 	}
-	memset(box, 0, size);
 	box->max_mm_num = max_num;
 	box->name = name;
 	box->channel_id = channel_id;
 	box->align2n = aligned;
 	box->mem_flags = mem_flags | tvp_flags;
 	box->alloc_flags = alloc_flags;
+	box->exp_num = 0;
+	box->exp_mm_list.mm = NULL;
+	box->exp_mm_list.index = -1;
+	INIT_LIST_HEAD(&box->exp_mm_list.mm_list);
 	mutex_init(&box->mutex);
 	INIT_LIST_HEAD(&box->list);
 	decoder_bmmu_box_mgr_add_box(box);
 	return (void *)box;
 }
 EXPORT_SYMBOL(decoder_bmmu_box_alloc_box);
+
+struct codec_mm_s *decoder_bmmu_box_get_mm_from_idx(
+	struct decoder_bmmu_box *box, int idx)
+{
+	struct list_head *p;
+	struct mm_list_expand *ent;
+
+	if (!box || idx < 0) {
+		pr_err("can't get mm from box(%p),idx:%d\n",
+			box, idx);
+		return NULL;
+	}
+	if (likely(idx < box->max_mm_num)) {
+		return box->mm_list[idx];
+	} else {
+		list_for_each(p, &box->exp_mm_list.mm_list) {
+			ent = list_entry(p, struct mm_list_expand, mm_list);
+			if (ent->index == idx) {
+				return ent->mm;
+			}
+		}
+		return NULL;
+	}
+}
+
+void decoder_bmmu_box_set_mm_from_idx(
+	struct decoder_bmmu_box *box, int idx, struct codec_mm_s *mm)
+{
+	struct list_head *p;
+	struct mm_list_expand *ent, *exp;
+
+	if (!box || idx < 0) {
+		pr_err("can't set mm to box(%s),idx:%d\n",
+			box->name, idx);
+		return;
+	}
+	if (likely(idx < box->max_mm_num)) {
+		box->mm_list[idx] = mm;
+	} else {
+		list_for_each(p, &box->exp_mm_list.mm_list) {
+			ent = list_entry(p, struct mm_list_expand, mm_list);
+			if (ent->index == idx) {
+				ent->mm = mm;
+				return;
+			}
+		}
+
+		exp = kzalloc(sizeof(struct mm_list_expand), GFP_KERNEL);
+		if (!exp) {
+			pr_err("creat exp_list failed! box name%s, idx=%d\n", box->name, idx);
+			return;
+		}
+		exp->index = idx;
+		exp->mm = mm;
+		box->exp_num++;
+		list_add(&exp->mm_list, &box->exp_mm_list.mm_list);
+		pr_debug("add new node to expand list, idx = %d, exp_num=%d.\n", idx ,box->exp_num);
+		return;
+	}
+}
 
 int decoder_bmmu_box_alloc_idx(void *handle, int idx, int size, int aligned_2n,
 							   int mem_flags)
@@ -146,7 +217,7 @@ int decoder_bmmu_box_alloc_idx(void *handle, int idx, int size, int aligned_2n,
 	int align = aligned_2n;
 	int memflags = mem_flags;
 
-	if (!box || idx < 0 || idx >= box->max_mm_num) {
+	if (!box || idx < 0) {
 		pr_err("can't alloc bmmu box(%p),idx:%d\n",
 				box, idx);
 		return -1;
@@ -157,7 +228,7 @@ int decoder_bmmu_box_alloc_idx(void *handle, int idx, int size, int aligned_2n,
 		memflags = box->mem_flags;
 
 	mutex_lock(&box->mutex);
-	mm = box->mm_list[idx];
+	mm = decoder_bmmu_box_get_mm_from_idx(box, idx);
 	if (mm) {
 		int invalid = 0;
 		int keeped = 0;
@@ -178,20 +249,20 @@ int decoder_bmmu_box_alloc_idx(void *handle, int idx, int size, int aligned_2n,
 			if (invalid) {
 				box->total_size -= mm->buffer_size;
 				codec_mm_release(mm, box->name);
-				box->mm_list[idx] = NULL;
+				decoder_bmmu_box_set_mm_from_idx(box, idx, NULL);
 				mm = NULL;
 			}
 		} else {
 			box->total_size -= mm->buffer_size;
 			codec_mm_release(mm, box->name);
-			box->mm_list[idx] = NULL;
+			decoder_bmmu_box_set_mm_from_idx(box, idx, NULL);
 			mm = NULL;
 		}
 	}
 	if (!mm) {
 		mm = codec_mm_alloc(box->name, size, align, memflags);
 		if (mm) {
-			box->mm_list[idx] = mm;
+			decoder_bmmu_box_set_mm_from_idx(box, idx, mm);
 			box->total_size += mm->buffer_size;
 			mm->ins_id = box->channel_id;
 			mm->ins_buffer_id = idx;
@@ -207,18 +278,18 @@ int decoder_bmmu_box_free_idx(void *handle, int idx)
 	struct decoder_bmmu_box *box = handle;
 	struct codec_mm_s *mm;
 
-	if (!box || idx < 0 || idx >= box->max_mm_num) {
+	if (!box || idx < 0) {
 		pr_err("can't free idx of box(%p),idx:%d  in (%d-%d)\n",
 				box, idx, 0,
 			   box ? (box->max_mm_num - 1) : 0);
 		return -1;
 	}
 	mutex_lock(&box->mutex);
-	mm = box->mm_list[idx];
+	mm = decoder_bmmu_box_get_mm_from_idx(box, idx);
 	if (mm) {
 		box->total_size -= mm->buffer_size;
 		codec_mm_release(mm, box->name);
-		box->mm_list[idx] = NULL;
+		decoder_bmmu_box_set_mm_from_idx(box, idx, NULL);
 		mm = NULL;
 		box->box_ref_cnt--;
 	}
@@ -232,6 +303,8 @@ int decoder_bmmu_box_free(void *handle)
 	struct decoder_bmmu_box *box = handle;
 	struct codec_mm_s *mm;
 	int i;
+	struct mm_list_expand *p;
+	struct mm_list_expand *next;
 
 	if (!box) {
 		pr_err("can't free box of NULL box!\n");
@@ -239,11 +312,20 @@ int decoder_bmmu_box_free(void *handle)
 	}
 	mutex_lock(&box->mutex);
 	for (i = 0; i < box->max_mm_num; i++) {
-		mm = box->mm_list[i];
+		mm = decoder_bmmu_box_get_mm_from_idx(box, i);
 		if (mm) {
 			codec_mm_release(mm, box->name);
-			box->mm_list[i] = NULL;
+			decoder_bmmu_box_set_mm_from_idx(box, i, NULL);
 		}
+	}
+	list_for_each_entry_safe(p, next, &box->exp_mm_list.mm_list, mm_list) {
+		if (p->mm) {
+			codec_mm_release(p->mm, box->name);
+			decoder_bmmu_box_set_mm_from_idx(box, p->index, NULL);
+		}
+		list_del(&p->mm_list);
+		kfree(p);
+		box->exp_num--;
 	}
 	mutex_unlock(&box->mutex);
 	decoder_bmmu_box_mgr_del_box(box);
@@ -257,13 +339,22 @@ void decoder_bmmu_try_to_release_box(void *handle)
 	struct decoder_bmmu_box *box = handle;
 	bool is_keep = false;
 	int i;
+	struct list_head *p;
+	struct mm_list_expand *ent;
 
 	if (!box || box->box_ref_cnt)
 		return;
 
 	mutex_lock(&box->mutex);
-	for (i = 0; i < box->max_mm_num; i++) {
-		if (box->mm_list[i]) {
+	for (i = 0; i <box->max_mm_num; i++) {
+		if (decoder_bmmu_box_get_mm_from_idx(box, i)) {
+			is_keep = true;
+			break;
+		}
+	}
+	list_for_each(p, &box->exp_mm_list.mm_list) {
+		ent = list_entry(p, struct mm_list_expand, mm_list);
+		if (ent->mm) {
 			is_keep = true;
 			break;
 		}
@@ -281,9 +372,9 @@ void *decoder_bmmu_box_get_mem_handle(void *box_handle, int idx)
 {
 	struct decoder_bmmu_box *box = box_handle;
 
-	if (!box || idx < 0 || idx >= box->max_mm_num)
+	if (!box || idx < 0)
 		return NULL;
-	return box->mm_list[idx];
+	return decoder_bmmu_box_get_mm_from_idx(box, idx);;
 }
 EXPORT_SYMBOL(decoder_bmmu_box_get_mem_handle);
 
@@ -291,13 +382,14 @@ int decoder_bmmu_box_get_mem_size(void *box_handle, int idx)
 {
 	struct decoder_bmmu_box *box = box_handle;
 	int size = 0;
+	struct codec_mm_s *mm;
 
-	if (!box || idx < 0 || idx >= box->max_mm_num)
+	if (!box || idx < 0)
 		return 0;
-	mutex_lock(&box->mutex);
-	if (box->mm_list[idx] != NULL)
-		size = box->mm_list[idx]->buffer_size;
-	mutex_unlock(&box->mutex);
+
+	mm = decoder_bmmu_box_get_mm_from_idx(box, idx);
+	if (mm != NULL)
+		size = mm->buffer_size;
 	return size;
 }
 
@@ -307,9 +399,9 @@ unsigned long decoder_bmmu_box_get_phy_addr(void *box_handle, int idx)
 	struct decoder_bmmu_box *box = box_handle;
 	struct codec_mm_s *mm;
 
-	if (!box || idx < 0 || idx >= box->max_mm_num)
+	if (!box || idx < 0)
 		return 0;
-	mm = box->mm_list[idx];
+	mm = decoder_bmmu_box_get_mm_from_idx(box, idx);
 	if (!mm)
 		return 0;
 	return mm->phy_addr;
@@ -321,9 +413,9 @@ void *decoder_bmmu_box_get_virt_addr(void *box_handle, int idx)
 	struct decoder_bmmu_box *box = box_handle;
 	struct codec_mm_s *mm;
 
-	if (!box || idx < 0 || idx >= box->max_mm_num)
+	if (!box || idx < 0)
 		return NULL;
-	mm = box->mm_list[idx];
+	mm = decoder_bmmu_box_get_mm_from_idx(box, idx);
 	if (!mm)
 		return 0;
 	return codec_mm_phys_to_virt(mm->phy_addr);
@@ -358,7 +450,7 @@ int decoder_bmmu_box_alloc_idx_wait(
 		struct decoder_bmmu_box *box = handle;
 		struct codec_mm_s *mm;
 		mutex_lock(&box->mutex);
-		mm = box->mm_list[idx];
+		mm = decoder_bmmu_box_get_mm_from_idx(box, idx);
 		keeped = is_codec_mm_keeped(mm);
 		mutex_unlock(&box->mutex);
 
@@ -437,11 +529,11 @@ int decoder_bmmu_box_add_callback_func(
 	struct decoder_bmmu_box *box = handle;
 	struct codec_mm_s *mm;
 
-	if (!box || idx < 0 || idx >= box->max_mm_num)
+	if (!box || idx < 0)
 		return 0;
 
 	mutex_lock(&box->mutex);
-	mm = box->mm_list[idx];
+	mm = decoder_bmmu_box_get_mm_from_idx(box, idx);
 	codec_mm_add_release_callback(mm, (struct codec_mm_cb_s *)cb);
 	mutex_unlock(&box->mutex);
 
@@ -457,6 +549,8 @@ static int decoder_bmmu_box_dump(struct decoder_bmmu_box *box, void *buf,
 	int tsize = 0;
 	int s;
 	int i;
+	struct list_head *p;
+	struct mm_list_expand *ent;
 
 	if (!buf) {
 		pbuf = sbuf;
@@ -469,8 +563,9 @@ static int decoder_bmmu_box_dump(struct decoder_bmmu_box *box, void *buf,
 		pbuf += s; \
 	} while (0)
 
+	BUFPRINT("**mm list**\n");
 	for (i = 0; i < box->max_mm_num; i++) {
-		struct codec_mm_s *mm = box->mm_list[i];
+		struct codec_mm_s *mm = decoder_bmmu_box_get_mm_from_idx(box, i);
 		if (buf && (size - tsize) < 256) {
 			BUFPRINT("\n\t**NOT END**\n");
 			break;
@@ -482,13 +577,32 @@ static int decoder_bmmu_box_dump(struct decoder_bmmu_box *box, void *buf,
 					 (void *)mm->phy_addr,
 					 mm->buffer_size,
 					 mm->from_flags);
-			if (!buf) {
-				pr_info("%s", sbuf);
-				pbuf = sbuf;
+		}
+	}
+	/*dump exp_mm_list*/
+	if (!list_empty(&box->exp_mm_list.mm_list)) {
+		BUFPRINT("**exp mm list**\n");
+		list_for_each(p, &box->exp_mm_list.mm_list) {
+			if (buf && (size - tsize) < 256) {
+				BUFPRINT("\n\t**NOT END**\n");
+				break;
+			}
+			ent = list_entry(p, struct mm_list_expand, mm_list);
+			if (ent->mm) {
+				BUFPRINT("code mem[%d]:%p, addr=%p, size=%d,from=%d\n",
+					 ent->index,
+					 (void *)ent->mm,
+					 (void *)ent->mm->phy_addr,
+					 ent->mm->buffer_size,
+					 ent->mm->from_flags);
 			}
 		}
 	}
 #undef BUFPRINT
+	if (!buf) {
+		pr_info("%s", sbuf);
+		pbuf = sbuf;
+	}
 
 	return tsize;
 }
@@ -522,13 +636,14 @@ static int decoder_bmmu_box_dump_all(void *buf, int size)
 		struct decoder_bmmu_box *box;
 
 		box = list_entry(list, struct decoder_bmmu_box, list);
-		BUFPRINT("box[%d]: %s, %splayer_id:%d, max_num:%d, size:%d\n",
+		BUFPRINT("box[%d]: %s, %splayer_id:%d, max_num:%d, size:%d, exp_num:%d\n",
 				 i, box->name,
 				 (box->mem_flags & CODEC_MM_FLAGS_TVP) ?
 				 "TVP mode " : "",
 				 box->channel_id,
 				 box->max_mm_num,
-				 box->total_size);
+				 box->total_size,
+				 box->exp_num);
 		if (buf) {
 			s = decoder_bmmu_box_dump(box, pbuf, size - tsize);
 			if (s > 0) {
@@ -558,6 +673,84 @@ static ssize_t box_dump_show(struct class *class, struct class_attribute *attr,
 
 	ret = decoder_bmmu_box_dump_all(buf, PAGE_SIZE);
 	return ret;
+}
+
+struct decoder_bmmu_box *decoder_bmmu_box_find_box_by_name(char *name)
+{
+	struct decoder_bmmu_box_mgr *mgr = get_decoder_bmmu_box_mgr();
+	struct list_head *p;
+	struct decoder_bmmu_box *box;
+
+	mutex_lock(&mgr->mutex);
+	list_for_each(p, &mgr->box_list) {
+		box = list_entry(p, struct decoder_bmmu_box, list);
+		if (strcmp(box->name, name) == 0) {
+			mutex_unlock(&mgr->mutex);
+			return box;
+		}
+	}
+	mutex_unlock(&mgr->mutex);
+	return NULL;
+}
+
+static ssize_t
+box_dump_store(struct class *class,
+		struct class_attribute *attr,
+		const char *buf, size_t size)
+{
+	char cmd[16];
+	static char name[32];
+	void* box = NULL;
+	u32 idx = 0;
+
+	sscanf(buf, "%s", cmd);
+	if (strcmp(cmd, "alloc-box") == 0) {
+		sscanf(buf, "%s %s %d", cmd, name, &idx);
+		pr_info("alloc box[%s], max_idx = %d\n", name, idx);
+		box = decoder_bmmu_box_alloc_box(name, 0, idx,
+						CODEC_MM_FLAGS_CMA_CLEAR |CODEC_MM_FLAGS_FOR_VDECODER,
+						0, 0);
+		if (!box) {
+			pr_err("%s - alloc bmmu box failed!!\n", __func__);
+			return -1;
+		} else {
+			pr_info("box[%p] alloc success\n", box);
+		}
+	} else if (strcmp(cmd, "alloc-idx") == 0) {
+		sscanf(buf, "%s %s %d", cmd, name, &idx);
+		pr_info("alloc from box[%s], idx = %d\n", name, idx);
+		box = decoder_bmmu_box_find_box_by_name(name);
+		if (!box) {
+			pr_err("box[%s] not found!\n", name);
+			return -1;
+		}
+		decoder_bmmu_box_alloc_idx(box, idx, 64, -1, -1);
+		pr_info("alloc index succeed\n");
+	} else if (strcmp(cmd, "free-box") == 0) {
+		sscanf(buf, "%s %s", cmd, name);
+		pr_info("free box[%s]\n", name);
+		box = decoder_bmmu_box_find_box_by_name(name);
+		if (!box) {
+			pr_err("box[%s] not found!\n", name);
+			return -1;
+		}
+		decoder_bmmu_box_free(box);
+		pr_info("free box succeed\n");
+	} else if (strcmp(cmd, "free-idx") == 0) {
+		sscanf(buf, "%s %s %d", cmd, name, &idx);
+		pr_info("free box[%s], idx = %d\n", name, idx);
+		box = decoder_bmmu_box_find_box_by_name(name);
+		if (!box) {
+			pr_err("box[%s] not found!\n", name);
+			return -1;
+		}
+		decoder_bmmu_box_free_idx(box, idx);
+		pr_info("free index succeed\n");
+	} else {
+		pr_err("input error! %s\n", cmd);
+	}
+
+	return size;
 }
 
 static ssize_t debug_show(struct class *class,
@@ -595,7 +788,7 @@ static ssize_t debug_store(struct class *class,
 
 }
 
-static CLASS_ATTR_RO(box_dump);
+static CLASS_ATTR_RW(box_dump);
 static CLASS_ATTR_RW(debug);
 
 static struct attribute *decoder_bmmu_box_class_attrs[] = {

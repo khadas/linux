@@ -165,7 +165,7 @@ const struct Jpegenc_BuffInfo_s jpegenc_buffspec[] = {
             .buf_start = 0,
             .buf_size = 0x12c000,
         },
-        .assit = {
+        .assist = {
             .buf_start = 0x12d000,
             .buf_size = 0x2000,
         },
@@ -182,7 +182,7 @@ const struct Jpegenc_BuffInfo_s jpegenc_buffspec[] = {
             .buf_start = 0,
             .buf_size = 0x753000,
         },
-        .assit = {
+        .assist = {
             .buf_start = 0x754000,
             .buf_size = 0x2000,
         },
@@ -199,7 +199,7 @@ const struct Jpegenc_BuffInfo_s jpegenc_buffspec[] = {
             .buf_start = 0,
             .buf_size = 0xc00000,
         },
-        .assit = {
+        .assist = {
             .buf_start = 0xc01000,
             .buf_size = 0x2000,
         },
@@ -216,7 +216,7 @@ const struct Jpegenc_BuffInfo_s jpegenc_buffspec[] = {
             .buf_start = 0,
             .buf_size = 0x13B3000,
         },
-        .assit = {
+        .assist = {
             .buf_start = 0x13B4000,
             .buf_size = 0x2000,
         },
@@ -233,7 +233,7 @@ const struct Jpegenc_BuffInfo_s jpegenc_buffspec[] = {
             .buf_start = 0,
             .buf_size = 0x1e7b000,
         },
-        .assit = {
+        .assist = {
             .buf_start = 0x1e7c000,
             .buf_size = 0x2000,
         },
@@ -250,7 +250,7 @@ const struct Jpegenc_BuffInfo_s jpegenc_buffspec[] = {
             .buf_start = 0,
             .buf_size = 0xc000000,
         },
-        .assit = {
+        .assist = {
             .buf_start = 0xc001000,
             .buf_size = 0x2000,
         },
@@ -267,7 +267,7 @@ const struct Jpegenc_BuffInfo_s jpegenc_buffspec[] = {
             .buf_start = 0,
             .buf_size = 0xc000000,
         },
-        .assit = {
+        .assist = {
             .buf_start = 0xc001000,
             .buf_size = 0x2000,
         },
@@ -541,8 +541,17 @@ static const u8 jpeg_huffman_ac[2][16 + 162] = {
 
 static u64 time_cnt = 0;
 
-static int enc_dma_buf_get_phys(struct enc_dma_cfg *cfg, unsigned long *addr);
-static void enc_dma_buf_unmap(struct enc_dma_cfg *cfg);
+static spinlock_t s_dma_buf_lock = __SPIN_LOCK_UNLOCKED(s_dma_buf_lock);
+static struct list_head s_dma_bufp_head = LIST_HEAD_INIT(s_dma_bufp_head);
+
+static spinlock_t s_vpu_lock = __SPIN_LOCK_UNLOCKED(s_vpu_lock);
+static DEFINE_SEMAPHORE(s_vpu_sem);
+static struct list_head s_vbp_head = LIST_HEAD_INIT(s_vbp_head);
+
+static s32 enc_dma_buf_release(struct file *filp);
+static s32 enc_src_addr_config(struct encdrv_dma_buf_info_t *pinfo,
+        struct file *filp);
+static s32 enc_free_buffers(struct file *filp);
 
 static void dump_requst(struct jpegenc_request_s *request) {
     jenc_pr(LOG_DEBUG, "jpegenc: dump request start\n");
@@ -1924,7 +1933,7 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
     u32 header_bytes = 0;
     u32 bak_header_bytes = 0;
     s32 i, j;
-    u8 *assitbuf = (u8 *)wq->AssitstreamStartVirtAddr;
+    u8 *assist_buf = (u8 *)wq->AssiststreamStartVirtAddr;
 
     if (wq->cmd.output_fmt >= JPEGENC_MAX_FRAME_FMT)
         jenc_pr(LOG_ERROR, "Input format is wrong!\n");
@@ -1989,7 +1998,7 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
     }
 
     /* SOI marke */
-    push_word(assitbuf, &header_bytes,
+    push_word(assist_buf, &header_bytes,
         (2 << 24) | /* Number of bytes */
         (0xffd8 << 0)); /* data: SOI marker */
 
@@ -2011,21 +2020,21 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
     tq[1] = q_num - 1;
 
     /* data: DQT marker */
-    push_word(assitbuf, &header_bytes,
+    push_word(assist_buf, &header_bytes,
         (2 << 24) | (0xffdb << 0));
     /* data: Lq */
-    push_word(assitbuf, &header_bytes,
+    push_word(assist_buf, &header_bytes,
         (2 << 24) | ((2 + 65 * q_num) << 0));
 
     /* Add Quantization table bytes */
     /* header_bytes += (2 + (2 + 65 * q_num)); */
     for (i = 0; i < q_num; i++) {
         /* data: {Pq,Tq} */
-        push_word(assitbuf, &header_bytes,
+        push_word(assist_buf, &header_bytes,
             (1 << 24) | (i << 0));
         for (j = 0; j < DCTSIZE2; j++) {
             /* data: Qk */
-            push_word(assitbuf, &header_bytes,
+            push_word(assist_buf, &header_bytes,
                 (1 << 24) |
                 ((gQuantTable[tq[i]][zigzag(j)]) << 0));
         }
@@ -2055,10 +2064,10 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
         ac_huff_sel_comp2 : ac_huff_sel_comp0;
 
     /* data: DHT marker */
-    push_word(assitbuf, &header_bytes,
+    push_word(assist_buf, &header_bytes,
         (2 << 24) | (0xffc4 << 0));
     /* data: Lh */
-    push_word(assitbuf, &header_bytes,
+    push_word(assist_buf, &header_bytes,
         (2 << 24) |
         ((2 + (1 + 16 + 12) * dc_huff_num +
         (1 + 16 + 162) * ac_huff_num) << 0));
@@ -2066,23 +2075,23 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
     /* Add Huffman table bytes */
     /* data: {Tc,Th} */
     for (i = 0; i < dc_huff_num; i++) {
-        push_word(assitbuf, &header_bytes,
+        push_word(assist_buf, &header_bytes,
             (1 << 24) | (i << 0));
         for (j = 0; j < 16 + 12; j++) {
             /* data: Li then Vi,j */
-            push_word(assitbuf, &header_bytes,
+            push_word(assist_buf, &header_bytes,
                 (1 << 24) |
                 ((jpeg_huffman_dc[dc_th[i]][j]) << 0));
         }
     }
     for (i = 0; i < ac_huff_num; i++) {
-        push_word(assitbuf, &header_bytes,
+        push_word(assist_buf, &header_bytes,
             (1 << 24) |
             (1 << 4) | /* data: Tc */
             (i << 0)); /* data: Th */
         for (j = 0; j < 16 + 162; j++) {
             /* data: Li then Vi,j */
-            push_word(assitbuf, &header_bytes,
+            push_word(assist_buf, &header_bytes,
                 (1 << 24) |
                 ((jpeg_huffman_ac[ac_th[i]][j]) << 0));
         }
@@ -2091,28 +2100,28 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
     /* Frame header */
     /* Add Frame header bytes */
     /* header_bytes += (2 + (8 + 3 * 3)); */
-    push_word(assitbuf, &header_bytes,
+    push_word(assist_buf, &header_bytes,
         (2 << 24) | /* Number of bytes */
         (0xffc0 << 0)); /* data: SOF_0 marker */
     /* data: Lf */
-    push_word(assitbuf, &header_bytes,
+    push_word(assist_buf, &header_bytes,
         (2 << 24) | ((8 + 3 * 3) << 0));
     /* data: P -- Sample precision */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (8 << 0));
     /* data: Y -- Number of lines */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (2 << 24) | (pic_height << 0));
     /* data: X -- Number of samples per line */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (2 << 24) | (pic_width << 0));
     /* data: Nf -- Number of components in a frame */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (3 << 0));
     /* data: C0 -- Comp0 identifier */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (0 << 0));
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) |
         /* data: H0 -- Comp0 horizontal sampling factor */
         ((h_factor_comp0 + 1) << 4) |
@@ -2120,32 +2129,32 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
         ((v_factor_comp0 + 1) << 0));
 
     /* data: Tq0 -- Comp0 quantization table seletor */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (0 << 0));
     /* data: C1 -- Comp1 identifier */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (1 << 0));
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) |
         /* data: H1 -- Comp1 horizontal sampling factor */
         ((h_factor_comp1 + 1) << 4) |
         /* data: V1 -- Comp1 vertical sampling factor */
         ((v_factor_comp1 + 1) << 0));
     /* data: Tq1 -- Comp1 quantization table seletor */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) |
         (((q_sel_comp0 != q_sel_comp1) ? 1 : 0) << 0));
     /* data: C2 -- Comp2 identifier */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (2 << 0));
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) |
         /* data: H2 -- Comp2 horizontal sampling factor */
         ((h_factor_comp2 + 1) << 4) |
         /* data: V2 -- Comp2 vertical sampling factor */
         ((v_factor_comp2 + 1) << 0));
     /* data: Tq2 -- Comp2 quantization table seletor */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) |
         (((q_sel_comp0 != q_sel_comp2) ? 1 : 0) << 0));
 
@@ -2160,47 +2169,47 @@ static void prepare_jpeg_header(struct jpegenc_wq_s *wq)
     /* header_bytes = ((header_bytes + 7)/8)*8; */
     bak_header_bytes = ((bak_header_bytes + 7) / 8) * 8 - bak_header_bytes;
     for (i = 0; i < bak_header_bytes; i++)
-        push_word(assitbuf,
+        push_word(assist_buf,
             &header_bytes,
             (1 << 24) | (0xff << 0)); /* 0xff filler */
 
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes,
         (2 << 24) | /* Number of bytes */
         (0xffda << 0)); /* data: SOS marker */
 
     /* data: Ls */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (2 << 24) | ((6 + 2 * 3) << 0));
     /* data: Ns -- Number of components in a scan */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (3 << 0));
     /* data: Cs0 -- Comp0 identifier */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (0 << 0));
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) |
         (0 << 4) | /* data: Td0 -- Comp0 DC Huffman table selector */
         (0 << 0)); /* data: Ta0 -- Comp0 AC Huffman table selector */
     /* data: Cs1 -- Comp1 identifier */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (1 << 0));
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) |
         /* data: Td1 -- Comp1 DC Huffman table selector */
         (((dc_huff_sel_comp0 != dc_huff_sel_comp1) ? 1 : 0) << 4) |
         /* data: Ta1 -- Comp1 AC Huffman table selector */
         (((ac_huff_sel_comp0 != ac_huff_sel_comp1) ? 1 : 0) << 0));
     /* data: Cs2 -- Comp2 identifier */
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) | (2 << 0));
-    push_word(assitbuf,
+    push_word(assist_buf,
         &header_bytes, (1 << 24) |
         /* data: Td2 -- Comp2 DC Huffman table selector */
         (((dc_huff_sel_comp0 != dc_huff_sel_comp2) ? 1 : 0) << 4) |
         /* data: Ta2 -- Comp2 AC Huffman table selector */
         (((ac_huff_sel_comp0 != ac_huff_sel_comp2) ? 1 : 0) << 0));
-    push_word(assitbuf, &header_bytes,
+    push_word(assist_buf, &header_bytes,
         (3 << 24) |
         (0 << 16) | /* data: Ss = 0 */
         (63 << 8) | /* data: Se = 63 */
@@ -2314,7 +2323,7 @@ static void init_jpeg_encoder(struct jpegenc_wq_s *wq)
            ((pic_y_end << 16) | (pic_y_start << 0)));
 
     /* Configure quantization tables */
-#ifdef EXTEAN_QUANT_TABLE
+#ifdef EXTERN_QUANT_TABLE
     if (external_quant_table_available) {
         convert_quant_table(&gQuantTable[0][0],
             &gExternalQuantTablePtr[0],
@@ -2530,23 +2539,45 @@ static void jpegenc_init_output_buffer(struct jpegenc_wq_s *wq)
         (1 << 1) | (0 << 0)));
 }
 
-static void jpegenc_buffspec_init(struct jpegenc_wq_s *wq)
+static s32 jpegenc_buffspec_init(struct jpegenc_wq_s *wq)
 {
-    /* input dct buffer config */
-    wq->InputBuffStart = wq->buf_start + gJpegenc.mem.bufspec->input.buf_start;
-    wq->InputBuffEnd = wq->InputBuffStart + gJpegenc.mem.bufspec->input.buf_size - 1;
-    jenc_pr(LOG_INFO, "InputBuffStart is 0x%x\n", wq->InputBuffStart);
+    s32 ret = 0;
+    struct encdrv_buffer_pool_t *vbp;
 
-    /* assit stream buffer config */
-    wq->AssitStart =  wq->buf_start + gJpegenc.mem.bufspec->assit.buf_start;
-    wq->AssitEnd = wq->AssitStart + gJpegenc.mem.bufspec->assit.buf_size - 1;
-    /* output stream buffer config */
-    wq->BitstreamStart =  wq->buf_start + gJpegenc.mem.bufspec->bitstream.buf_start;
-    wq->BitstreamEnd = wq->BitstreamStart + gJpegenc.mem.bufspec->bitstream.buf_size - 1;
-    jenc_pr(LOG_INFO, "BitstreamStart is 0x%x\n", wq->BitstreamStart);
+    ret = down_interruptible(&s_vpu_sem);
+    if (ret == 0) {
+        vbp = kzalloc(sizeof(*vbp), GFP_KERNEL);
+        if (!vbp) {
+            up(&s_vpu_sem);
+            return -ENOMEM;
+        }
 
-    wq->AssitstreamStartVirtAddr = phys_to_virt(wq->AssitStart);
-    jenc_pr(LOG_INFO, "AssitstreamStartVirtAddr is %p\n", wq->AssitstreamStartVirtAddr);
+        /* input dct buffer config */
+        wq->InputBuffStart = wq->buf_start + gJpegenc.mem.bufspec->input.buf_start;
+        wq->InputBuffEnd = wq->InputBuffStart + gJpegenc.mem.bufspec->input.buf_size - 1;
+        jenc_pr(LOG_INFO, "InputBuffStart is 0x%x\n", wq->InputBuffStart);
+
+        /* assist stream buffer config */
+        wq->AssistStart =  wq->buf_start + gJpegenc.mem.bufspec->assist.buf_start;
+        wq->AssistEnd = wq->AssistStart + gJpegenc.mem.bufspec->assist.buf_size - 1;
+        /* output stream buffer config */
+        wq->BitstreamStart =  wq->buf_start + gJpegenc.mem.bufspec->bitstream.buf_start;
+        wq->BitstreamEnd = wq->BitstreamStart + gJpegenc.mem.bufspec->bitstream.buf_size - 1;
+        jenc_pr(LOG_INFO, "BitstreamStart is 0x%x\n", wq->BitstreamStart);
+
+        wq->AssiststreamStartVirtAddr = phys_to_virt(wq->AssistStart);
+        jenc_pr(LOG_INFO, "AssiststreamStartVirtAddr is %p\n", wq->AssiststreamStartVirtAddr);
+
+        vbp->vb.phys_addr = wq->buf_start;
+        vbp->vb.size = wq->buf_size;
+
+        spin_lock(&s_vpu_lock);
+        list_add(&vbp->list, &s_vbp_head);
+        spin_unlock(&s_vpu_lock);
+
+        up(&s_vpu_sem);
+    }
+    return 0;
 }
 
 /* for temp */
@@ -2842,6 +2873,11 @@ static s32 set_jpeg_input_format(struct jpegenc_wq_s *wq,
     bool mfdin_big_endian = false;
     u32 block_mode = 0;
 
+    struct encdrv_buffer_pool_t *pool, *n;
+    struct encdrv_buffer_t vb, buf;
+    bool find = false;
+    u32 cached = 0;
+
 #ifdef CONFIG_AMLOGIC_MEDIA_CANVAS
     u32 canvas_w = 0;
 #endif
@@ -2863,8 +2899,34 @@ static s32 set_jpeg_input_format(struct jpegenc_wq_s *wq,
         (cmd->type == JPEGENC_PHYSICAL_BUFF)) {
 
         if (cmd->type == JPEGENC_LOCAL_BUFF) {
-            if (cmd->flush_flag & JPEGENC_FLUSH_FLAG_INPUT)
-                dma_flush(wq->InputBuffStart, cmd->framesize);
+            if (cmd->flush_flag & JPEGENC_FLUSH_FLAG_INPUT) {
+            buf.phys_addr = wq->InputBuffStart;
+            buf.size = cmd->framesize;
+
+            spin_lock(&s_vpu_lock);
+            list_for_each_entry_safe(pool, n,
+                &s_vbp_head, list) {
+                //if (pool->filp == filp) {
+                    vb = pool->vb;
+                    if ((vb.phys_addr <= buf.phys_addr)
+                        && ((vb.phys_addr + vb.size)
+                            > buf.phys_addr)
+                        && ((vb.phys_addr + vb.size)
+                            >= buf.phys_addr + buf.size)
+                        && find == false){
+                        cached = vb.cached;
+                        find = true;
+                        break;
+                    }
+                //}
+            }
+            spin_unlock(&s_vpu_lock);
+            //if (find && cached)
+            if (find)
+                dma_flush(
+                    (u32)buf.phys_addr,
+                    (u32)buf.size);
+            }
         }
 
         if (cmd->type == JPEGENC_LOCAL_BUFF || cmd->type == JPEGENC_DMA_BUFF)
@@ -3787,7 +3849,7 @@ static s32 convert_cmd(struct jpegenc_wq_s *wq, u32 *cmd_info)
     } else {
         wq->cmd.QuantTable_id = 0;
         jenc_pr(LOG_ERROR,
-            "JPEGENC_SEL_QUANT_TABLE invaild. target value: %d.\n",
+            "JPEGENC_SEL_QUANT_TABLE invalid. target value: %d.\n",
             cmd_info[8]);
     }
     jenc_pr(LOG_INFO,
@@ -3927,7 +3989,7 @@ static s32 jpegenc_open(struct inode *inode, struct file *file)
     spin_lock(&gJpegenc.sem_lock);
     init_waitqueue_head(&wq->complete);
     atomic_set(&wq->ready, 0);
-    wq->AssitstreamStartVirtAddr = NULL;
+    wq->AssiststreamStartVirtAddr = NULL;
     memset(gQuantTable, 0, sizeof(gQuantTable));
     wq->cmd.QuantTable_id = 0;
     wq->cmd.jpeg_quality = 90;
@@ -3935,7 +3997,7 @@ static s32 jpegenc_open(struct inode *inode, struct file *file)
     wq->max_height = gJpegenc.mem.bufspec->max_height;
     wq->headbytes = 0;
     file->private_data = (void *)wq;
-#ifdef EXTEAN_QUANT_TABLE
+#ifdef EXTERN_QUANT_TABLE
     gExternalQuantTablePtr = NULL;
     external_quant_table_available = false;
 #endif
@@ -3957,15 +4019,12 @@ static s32 jpegenc_release(struct inode *inode, struct file *file)
         jpegenc_stop();
         gJpegenc.inited = false;
     }
-    if (wq->dma_input != NULL) {
-        enc_dma_buf_unmap(wq->dma_input);
-        kfree(wq->dma_input);
-        wq->dma_input = NULL;
-    }
+    enc_dma_buf_release(file);
+    enc_free_buffers(file);
     memset(gQuantTable, 0, sizeof(gQuantTable));
 
-    if (wq->AssitstreamStartVirtAddr)
-        wq->AssitstreamStartVirtAddr = NULL;
+    if (wq->AssiststreamStartVirtAddr)
+        wq->AssiststreamStartVirtAddr = NULL;
 
 #ifdef CONFIG_CMA
     if (wq->buf_start) {
@@ -3996,9 +4055,34 @@ static s32 jpegenc_release(struct inode *inode, struct file *file)
     return 0;
 }
 
-static void jpegenc_reconfig_input(struct jpegenc_wq_s *wq, u32 new_addr, u32 new_size) {
-    wq->InputBuffStart = new_addr;
-    wq->InputBuffEnd = wq->InputBuffStart + new_size - 1;
+static s32 jpegenc_reconfig_input(struct jpegenc_wq_s *wq, u32 new_addr, u32 new_size) {
+    s32 ret = 0;
+    struct encdrv_buffer_pool_t *vbp;
+
+    if ((new_addr == 0) || (new_size == 0))
+        return -1;
+
+    ret = down_interruptible(&s_vpu_sem);
+    if (ret == 0) {
+        vbp = kzalloc(sizeof(*vbp), GFP_KERNEL);
+        if (!vbp) {
+            up(&s_vpu_sem);
+            return -ENOMEM;
+        }
+
+        wq->InputBuffStart = new_addr;
+        wq->InputBuffEnd = wq->InputBuffStart + new_size - 1;
+
+        vbp->vb.phys_addr = new_addr;
+        vbp->vb.size = new_size;
+
+        spin_lock(&s_vpu_lock);
+        list_add(&vbp->list, &s_vbp_head);
+        spin_unlock(&s_vpu_lock);
+
+        up(&s_vpu_sem);
+    }
+    return ret;
 }
 
 static void jpegenc_restore_input(struct jpegenc_wq_s *wq) {
@@ -4014,8 +4098,12 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
     int shared_fd = -1;
     //struct jpegenc_frame_params *frm_params;
 
-    struct platform_device *pdev;
-    unsigned long paddr = 0;
+    struct encdrv_dma_buf_info_t dma_info;
+    struct encdrv_buffer_t buf;
+    struct encdrv_buffer_pool_t *pool, *n;
+    struct encdrv_buffer_t vb;
+    bool find = false;
+    u32 cached = 0;
 
     switch (cmd) {
     case JPEGENC_IOC_QUERY_DMA_SUPPORT:
@@ -4033,54 +4121,23 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
 
         jenc_pr(LOG_INFO, "JPEGENC_IOC_CONFIG_DMA_INPUT, shared_fd:%d\n",
             shared_fd);
-
-        if (wq->dma_input != NULL) {
-            jenc_pr(LOG_INFO, "[%d] release old stale dma buffer\n", __LINE__);
-            enc_dma_buf_unmap(wq->dma_input);
-            wq->dma_input->fd = -1;
+        memset (&dma_info, 0, sizeof(dma_info));
+        dma_info.fd = shared_fd;
+        if (enc_src_addr_config(&dma_info, file)) {
+            jenc_pr(LOG_ERROR,
+                    "src addr config error\n");
+            r = -EFAULT;
+            break;
         }
-
-        if (wq->dma_input == NULL)
-            wq->dma_input = kmalloc(sizeof(struct enc_dma_cfg), GFP_KERNEL);
-
-        if (wq->dma_input != NULL) {
-            wq->dma_input->dir = DMA_TO_DEVICE;
-            wq->dma_input->fd = shared_fd;
-            pdev = gJpegenc.this_pdev;
-            wq->dma_input->dev = &(pdev->dev);
-
-            r = enc_dma_buf_get_phys(wq->dma_input, &paddr);
-
-            if (r < 0) {
-                jenc_pr(LOG_ERROR,
-                    "import fd %d failed\n",
-                    wq->dma_input->fd);
-                wq->dma_input->paddr = NULL;
-                wq->dma_input->vaddr = NULL;
-                enc_dma_buf_unmap(wq->dma_input);
-                kfree(wq->dma_input);
-                return -1;
-            }
-
-            wq->dma_input->paddr = (void *)paddr;
-            jenc_pr(LOG_INFO, "paddr %p\n",
-                    wq->dma_input->paddr);
-        } else {
-            jenc_pr(LOG_ERROR, "kmalloc struct enc_dma_cfg failed\n");
-            return -1;
-        }
-
-        jpegenc_reconfig_input(wq, paddr, wq->dma_input->size);
+        jenc_pr(LOG_INFO, "paddr %lx, size %ld\n",
+                dma_info.phys_addr, dma_info.size);
+        r = jpegenc_reconfig_input(wq, dma_info.phys_addr, dma_info.size);
         break;
     case JPEGENC_IOC_RELEASE_DMA_INPUT:
         jenc_pr(LOG_DEBUG, "ioctl JPEGENC_IOC_RELEASE_DMA_INPUT\n");
-        if (wq->dma_input != NULL) {
-            jenc_pr(LOG_INFO, "[%d] release dma buffer\n", __LINE__);
-            enc_dma_buf_unmap(wq->dma_input);
-            wq->dma_input->fd = -1;
-            // restore to original input buffer config if dma buffer is revoked
-            jpegenc_restore_input(wq);
-        }
+        enc_dma_buf_release(file);
+        // restore to original input buffer config if dma buffer is revoked
+        jpegenc_restore_input(wq);
         break;
     case JPEGENC_IOC_NEW_CMD:
         jenc_pr(LOG_DEBUG, "ioctl JPEGENC_IOC_NEW_CMD\n");
@@ -4088,6 +4145,10 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
             MAX_ADDR_INFO_SIZE * sizeof(u32))) {
             jenc_pr(LOG_ERROR,
                 "jpegenc get new cmd error.\n");
+            return -1;
+        }
+        if (!gJpegenc.inited) {
+            jenc_pr(LOG_DEBUG, "jpegenc uninitialized.\n");
             return -1;
         }
         if (!convert_cmd(wq, addr_info))
@@ -4098,6 +4159,10 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
         if (copy_from_user(&(wq->cmd), (void *)arg, (unsigned long) sizeof(struct jpegenc_request_s))) {
             jenc_pr(LOG_ERROR,
                 "jpegenc get new cmd2 error.\n");
+            return -1;
+        }
+        if (!gJpegenc.inited) {
+            jenc_pr(LOG_DEBUG, "jpegenc uninitialized.\n");
             return -1;
         }
 
@@ -4136,15 +4201,44 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
         break;
     case JPEGENC_IOC_GET_OUTPUT_SIZE:
         jenc_pr(LOG_DEBUG, "ioctl JPEGENC_IOC_GET_OUTPUT_SIZE\n");
-        cache_flush(wq->BitstreamStart, wq->output_size);
+        buf.phys_addr = wq->BitstreamStart;
+        buf.size = wq->output_size;
+
+        spin_lock(&s_vpu_lock);
+        list_for_each_entry_safe(pool, n,
+            &s_vbp_head, list) {
+            //if (pool->filp == filp) {
+                vb = pool->vb;
+                if ((vb.phys_addr <= buf.phys_addr)
+                    && ((vb.phys_addr + vb.size)
+                        > buf.phys_addr)
+                    && ((vb.phys_addr + vb.size)
+                        >= buf.phys_addr + buf.size)
+                    && find == false){
+                    cached = vb.cached;
+                    find = true;
+                    break;
+                }
+            //}
+        }
+        spin_unlock(&s_vpu_lock);
+        //if (find && cached)
+        if (find)
+            cache_flush(
+                (u32)buf.phys_addr,
+                (u32)buf.size);
         addr_info[0] = wq->headbytes;
         addr_info[1] = wq->output_size;
         r = copy_to_user((u32 *)arg, addr_info , 2 * sizeof(u32));
         break;
     case JPEGENC_IOC_CONFIG_INIT:
         jenc_pr(LOG_DEBUG, "ioctl JPEGENC_IOC_CONFIG_INIT\n");
+        if (gJpegenc.inited) {
+            jenc_pr(LOG_DEBUG, "jpegenc initialized.\n");
+            return -1;
+        }
         jpegenc_init();
-        jpegenc_buffspec_init(wq);
+        r = jpegenc_buffspec_init(wq);
         jenc_pr(LOG_DEBUG, "ioctl JPEGENC_IOC_CONFIG_INIT end\n");
         break;
     case JPEGENC_IOC_GET_BUFFINFO:
@@ -4152,8 +4246,8 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
         addr_info[0] = gJpegenc.mem.buf_size;
         addr_info[1] = gJpegenc.mem.bufspec->input.buf_start;
         addr_info[2] = gJpegenc.mem.bufspec->input.buf_size;
-        addr_info[3] = gJpegenc.mem.bufspec->assit.buf_start;
-        addr_info[4] = gJpegenc.mem.bufspec->assit.buf_size;
+        addr_info[3] = gJpegenc.mem.bufspec->assist.buf_start;
+        addr_info[4] = gJpegenc.mem.bufspec->assist.buf_size;
         addr_info[5] = gJpegenc.mem.bufspec->bitstream.buf_start;
         addr_info[6] = gJpegenc.mem.bufspec->bitstream.buf_size;
         r = copy_to_user((u32 *)arg, addr_info , 7 * sizeof(u32));
@@ -4180,7 +4274,7 @@ static long jpegenc_ioctl(struct file *file, u32 cmd, ulong arg)
         break;
     case JPEGENC_IOC_SET_EXT_QUANT_TABLE:
         jenc_pr(LOG_DEBUG, "ioctl JPEGENC_IOC_SET_EXT_QUANT_TABLE\n");
-#ifdef EXTEAN_QUANT_TABLE
+#ifdef EXTERN_QUANT_TABLE
         if (arg == 0) {
             kfree(gExternalQuantTablePtr);
             gExternalQuantTablePtr = NULL;
@@ -4240,6 +4334,10 @@ static s32 jpegenc_mmap(struct file *filp, struct vm_area_struct *vma)
         return -EAGAIN;
     }
     off += wq->buf_start;
+    if ((off > (wq->buf_start + wq->buf_size)) || ((off + vma_size) > (wq->buf_start + wq->buf_size))) {
+        jenc_pr(LOG_ERROR, "vma_size is 0x%lx, off is 0x%lx\n", vma_size, off);
+        return -EAGAIN;
+    }
     jenc_pr(LOG_INFO, "vma_size is %ld, off is %ld\n", vma_size, off);
     vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP | VM_IO;
     /* vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot); */
@@ -4514,7 +4612,86 @@ static void enc_dma_buf_unmap(struct enc_dma_cfg *cfg)
     dma_buf_detach(dbuf, d_att);
 
     dma_buf_put(dbuf);
+    jenc_pr(LOG_DEBUG, "enc_dma_buffer_unmap fd %d\n",fd);
     jenc_pr(LOG_DEBUG, "enc_dma_buffer_unmap vaddr %p\n",(unsigned *)vaddr);
+}
+
+static s32 enc_src_addr_config(struct encdrv_dma_buf_info_t *pinfo,
+        struct file *filp)
+{
+    struct encdrv_dma_buf_pool_t *vbp;
+    unsigned long phy_addr;
+    struct enc_dma_cfg *cfg;
+    s32 ret = 0;
+
+    vbp = kzalloc(sizeof(*vbp), GFP_KERNEL);
+    if (!vbp) {
+        ret = -ENOMEM;
+        return ret;
+    }
+    memset(vbp, 0, sizeof(struct encdrv_dma_buf_pool_t));
+    cfg = &vbp->dma_cfg;
+    cfg->dir = DMA_TO_DEVICE;
+    cfg->fd = pinfo->fd;
+    cfg->dev = &(gJpegenc.this_pdev->dev);
+    phy_addr = 0;
+    ret = enc_dma_buf_get_phys(cfg, &phy_addr);
+    if (ret < 0) {
+        jenc_pr(LOG_ERROR, "import fd %d failed\n", cfg->fd);
+        kfree(vbp);
+        ret = -1;
+        return ret;
+    }
+    pinfo->phys_addr = (ulong) phy_addr;
+    pinfo->size = cfg->size;
+    vbp->filp = filp;
+    spin_lock(&s_dma_buf_lock);
+    list_add(&vbp->list, &s_dma_bufp_head);
+    spin_unlock(&s_dma_buf_lock);
+    jenc_pr(LOG_INFO, "enc_src_addr_config phy_addr 0x%lx, size 0x%lx\n",
+        pinfo->phys_addr, pinfo->size);
+    return ret;
+}
+
+static s32 enc_dma_buf_release(struct file *filp)
+{
+    struct encdrv_dma_buf_pool_t *pool, *n;
+    struct enc_dma_cfg vb;
+
+    jenc_pr(LOG_DEBUG, "enc_release_dma_buffers\n");
+    list_for_each_entry_safe(pool, n, &s_dma_bufp_head, list) {
+        if (pool->filp == filp) {
+                vb = pool->dma_cfg;
+                if (vb.attach) {
+                enc_dma_buf_unmap(&vb);
+                spin_lock(&s_dma_buf_lock);
+                list_del(&pool->list);
+                spin_unlock(&s_dma_buf_lock);
+                kfree(pool);
+            }
+        }
+    }
+    return 0;
+}
+
+static s32 enc_free_buffers(struct file *filp)
+{
+    struct encdrv_buffer_pool_t *pool, *n;
+    struct encdrv_buffer_t vb;
+
+    jenc_pr(LOG_DEBUG, "enc_free_buffers\n");
+    list_for_each_entry_safe(pool, n, &s_vbp_head, list) {
+        //if (pool->filp == filp) {
+            vb = pool->vb;
+            if (vb.phys_addr) {
+                spin_lock(&s_vpu_lock);
+                list_del(&pool->list);
+                spin_unlock(&s_vpu_lock);
+                kfree(pool);
+            }
+        //}
+    }
+    return 0;
 }
 
 static ssize_t power_ctrl_show(struct class *cla, struct class_attribute *attr, char *buf) {
@@ -4673,7 +4850,7 @@ static s32 jpegenc_probe(struct platform_device *pdev)
     if (gJpegenc.use_reserve == false) {
 #ifndef CONFIG_CMA
         jenc_pr(LOG_ERROR,
-            "jpegenc memory is invaild, probe fail!\n");
+            "jpegenc memory is invalid, probe fail!\n");
         return -EFAULT;
 #else
         struct device_node *mem_node;

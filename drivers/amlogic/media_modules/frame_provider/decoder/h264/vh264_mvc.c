@@ -46,6 +46,7 @@
 #include "../utils/firmware.h"
 #include "../utils/config_parser.h"
 #include "../../../common/chips/decoder_cpu_ver_info.h"
+#include "../utils/decoder_dma_alloc.h"
 
 #define TIME_TASK_PRINT_ENABLE  0x100
 #define PUT_PRINT_ENABLE    0x200
@@ -130,6 +131,7 @@ static struct work_struct error_wd_work;
 static struct dec_sysinfo vh264mvc_amstream_dec_info;
 static dma_addr_t mc_dma_handle;
 static void *mc_cpu_addr;
+ulong mc_cpu_handle;
 
 static DEFINE_SPINLOCK(lock);
 
@@ -1609,8 +1611,8 @@ static s32 vh264mvc_init(void)
 		}
 	} else {
 		/* -- ucode loading (amrisc and swap code) */
-		mc_cpu_addr = dma_alloc_coherent(amports_get_dma_device(),
-			MC_TOTAL_SIZE, &mc_dma_handle, GFP_KERNEL);
+		mc_cpu_addr = decoder_dma_alloc_coherent(&mc_cpu_handle,
+			MC_TOTAL_SIZE, &mc_dma_handle, "H264_MVC_MC_CPU_BUF");
 		if (!mc_cpu_addr) {
 			amvdec_disable();
 			vfree(buf);
@@ -1638,7 +1640,7 @@ static s32 vh264mvc_init(void)
 		if (ret < 0) {
 			amvdec_disable();
 
-			dma_free_coherent(amports_get_dma_device(),
+			decoder_dma_free_coherent(mc_cpu_handle,
 					MC_TOTAL_SIZE,
 					mc_cpu_addr, mc_dma_handle);
 			mc_cpu_addr = NULL;
@@ -1713,7 +1715,7 @@ static int vh264mvc_stop(void)
 
 	if (stat & STAT_MC_LOAD) {
 		if (mc_cpu_addr != NULL) {
-			dma_free_coherent(amports_get_dma_device(),
+			decoder_dma_free_coherent(mc_cpu_handle,
 				MC_TOTAL_SIZE, mc_cpu_addr, mc_dma_handle);
 			mc_cpu_addr = NULL;
 		}

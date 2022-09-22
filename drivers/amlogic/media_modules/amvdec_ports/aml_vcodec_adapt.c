@@ -34,11 +34,9 @@
 #include "../stream_input/amports/adec.h"
 #include "../stream_input/amports/streambuf.h"
 #include "../stream_input/amports/streambuf_reg.h"
-#include "../stream_input/parser/tsdemux.h"
-#include "../stream_input/parser/psparser.h"
-#include "../stream_input/parser/esparser.h"
 #include "../frame_provider/decoder/utils/vdec.h"
 #include "../common/media_clock/switch/amports_gate.h"
+#include "../stream_input/parser/stream_parser.h"
 #include <linux/delay.h>
 #include "aml_vcodec_adapt.h"
 #include <linux/crc32.h>

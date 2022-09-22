@@ -466,7 +466,7 @@ static bool ge2d_needed(struct aml_vcodec_ctx *ctx, u32* mode)
 	if (ctx->ge2d_cfg.bypass)
 		return false;
 
-	if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) {
+	if (is_cpu_t7()) {
 		if ((ctx->output_pix_fmt != V4L2_PIX_FMT_H264) &&
 			(ctx->output_pix_fmt != V4L2_PIX_FMT_MPEG1) &&
 			(ctx->output_pix_fmt != V4L2_PIX_FMT_MPEG2) &&
@@ -901,7 +901,7 @@ static bool is_fb_mapped(struct aml_vcodec_ctx *ctx, ulong addr)
 
 	if (dstbuf->vb.vb2_buf.state == VB2_BUF_STATE_ACTIVE) {
 		/* binding vframe handle. */
-		if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) {
+		if (is_cpu_t7()) {
 			if (vf->canvas0_config[0].block_mode == CANVAS_BLKMODE_LINEAR) {
 				if ((ctx->output_pix_fmt != V4L2_PIX_FMT_H264) &&
 					(ctx->output_pix_fmt != V4L2_PIX_FMT_MPEG1) &&
@@ -2805,6 +2805,15 @@ static int vidioc_vdec_s_fmt(struct file *file, void *priv,
 	q_data->fmt = fmt;
 	vidioc_try_fmt(f, q_data->fmt);
 
+	if (V4L2_TYPE_IS_OUTPUT(f->type) && ctx->drv_handle && ctx->receive_cmd_stop) {
+		ctx->state = AML_STATE_IDLE;
+		ATRACE_COUNTER("V_ST_VSINK-state", ctx->state);
+		v4l_dbg(ctx, V4L_DEBUG_CODEC_STATE,
+			"vcodec state (AML_STATE_IDLE)\n");
+		vdec_if_deinit(ctx);
+		ctx->receive_cmd_stop = 0;
+	}
+
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		q_data->sizeimage[0] = pix_mp->plane_fmt[0].sizeimage;
 		q_data->coded_width = pix_mp->width;
@@ -4252,9 +4261,19 @@ static void vb2ops_vdec_buf_cleanup(struct vb2_buffer *vb)
 		}
 		if (ctx->output_thread_ready && ctx->is_stream_off) {
 			if (!is_fb_mapped(ctx, fb->m.mem[0].addr)) {
-				list_del(&fb->task->node);
-				task_chain_clean(fb->task);
-				task_chain_release(fb->task);
+				struct task_chain_s *task;
+				bool find_node = false;
+				list_for_each_entry(task, &ctx->task_chain_pool, node) {
+					if (task == fb->task) {
+						find_node = true;
+						break;
+					}
+				}
+				if (find_node == true) {
+					list_del(&fb->task->node);
+					task_chain_clean(fb->task);
+					task_chain_release(fb->task);
+				}
 			}
 		}
 	}
@@ -4726,6 +4745,8 @@ static int vidioc_vdec_s_parm(struct file *file, void *fh,
 			(dec->cfg.metadata_config_flag & (1 << 14));
 		if (force_enable_di_local_buffer)
 			ctx->vpp_cfg.enable_local_buf = true;
+		ctx->vpp_cfg.dynamic_bypass_vpp =
+			dec->cfg.metadata_config_flag & (1 << 10);
 
 		ctx->ge2d_cfg.bypass =
 			(dec->cfg.metadata_config_flag & (1 << 9));

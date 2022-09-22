@@ -430,6 +430,7 @@ static RefCntBuffer *assign_cur_frame_new_fb(AV1_COMMON *const cm) {
   new_fb_idx = get_free_frame_buffer(cm);
   if (new_fb_idx == INVALID_IDX) return NULL;
 
+  cm->buffer_pool->frame_bufs[new_fb_idx].buf.v4l_buf_index = new_fb_idx;
   cm->cur_frame = &cm->buffer_pool->frame_bufs[new_fb_idx];
   cm->cur_frame->buf.buf_8bit_valid = 0;
 #ifdef AML
@@ -1961,6 +1962,12 @@ int av1_decode_frame_headers_and_setup(AV1Decoder *pbi, int trailing_bits_presen
       // already been allocated, it will not be released by
       // assign_frame_buffer_p()!
       assert(!cm->cur_frame->raw_frame_buffer.data);
+
+      frame_to_show->buf.v4l_buf_index = cm->cur_frame->buf.index;
+      frame_to_show->buf.repeat_count ++;
+      cm->cur_frame->buf.repeat_pic = &frame_to_show->buf;
+      frame_to_show->buf.timestamp = cm->cur_frame->buf.timestamp;
+
       assign_frame_buffer_p(&cm->cur_frame, frame_to_show);
       pbi->reset_decoder_state = frame_to_show->frame_type == KEY_FRAME;
       unlock_buffer_pool(pool, flags);

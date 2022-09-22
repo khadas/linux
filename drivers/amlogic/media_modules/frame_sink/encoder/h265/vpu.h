@@ -168,7 +168,7 @@ struct vpudrv_buffer_pool_t {
 };
 
 /* To track the instance index and buffer in instance pool */
-struct vpudrv_instanace_list_t {
+struct vpudrv_instance_list_t {
 	struct list_head list;
 	ulong inst_idx;
 	ulong core_idx;

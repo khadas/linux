@@ -58,11 +58,6 @@
 #define TS_IN_COUNT       4
 #define S2P_COUNT         3
 #define ASYNCFIFO_COUNT   3
-#if 0
-#define TS_IN_COUNT       3
-#define S2P_COUNT         2
-#define ASYNCFIFO_COUNT   2
-#endif
 
 #define DMX_DEV_COUNT     3
 #define FE_DEV_COUNT      2

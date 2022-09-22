@@ -72,6 +72,7 @@ struct aml_v4l2_ge2d {
 	int			in_num[2];
 	int			out_num[2];
 	ulong			fb_token;
+	bool			get_eos;
 };
 
 struct task_ops_s *get_ge2d_ops(void);

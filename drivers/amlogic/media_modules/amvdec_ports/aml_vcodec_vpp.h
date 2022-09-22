@@ -88,6 +88,7 @@ struct aml_v4l2_vpp {
 	bool is_bypass_p;
 	int di_ibuf_num;
 	int di_obuf_num;
+	bool get_eos;
 };
 
 struct task_ops_s *get_vpp_ops(void);

@@ -426,7 +426,7 @@ struct vdec_s {
 	int pts_server_id;
 	u32 afd_video_id;
 	pfun_ptsserver_peek_pts_offset ptsserver_peek_pts_offset;
-	u32 play_num;
+	u32 inst_cnt;
 	wait_queue_head_t idle_wait;
 	struct vdec_data_info_s *vdata;
 };
@@ -575,6 +575,9 @@ extern void vdec_vframe_dirty(struct vdec_s *vdec,
 
 /* prepare decoder input */
 extern int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p);
+
+extern u32 vdec_offset_prepare_input(struct vdec_s *vdec, u32 consume_byte,
+	u32 data_offset, u32 data_size);
 
 /* clean decoder input */
 extern void vdec_clean_input(struct vdec_s *vdec);

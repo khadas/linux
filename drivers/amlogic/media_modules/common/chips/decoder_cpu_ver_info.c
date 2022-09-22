@@ -163,6 +163,7 @@ static const int cpu_sub_info[] = {
 		AM_MESON_CPU_MINOR_ID_REVB_G12B,
 		AM_MESON_CPU_MINOR_ID_REVB_TM2,
 		AM_MESON_CPU_MINOR_ID_S4_S805X2,
+		AM_MESON_CPU_MINOR_ID_T7C,
 };
 
 static const struct of_device_id cpu_sub_id_of_match[] = {
@@ -177,6 +178,10 @@ static const struct of_device_id cpu_sub_id_of_match[] = {
 	{
 		.compatible = "amlogic, cpu-major-id-s4-805x2",
 		.data = &cpu_sub_info[2],
+	},
+	{
+		.compatible = "amlogic, cpu-major-id-t7c",
+		.data = &cpu_sub_info[3],
 	},
 };
 
@@ -268,4 +273,18 @@ bool is_cpu_s4_s805x2(void)
 		&& (get_cpu_sub_id() == CHIP_REVX));
 }
 EXPORT_SYMBOL(is_cpu_s4_s805x2);
+
+bool is_cpu_t7(void)
+{
+	return ((get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7)
+		&& (get_cpu_sub_id() != CHIP_REVC));
+}
+EXPORT_SYMBOL(is_cpu_t7);
+
+bool is_cpu_t7c(void)
+{
+	return ((get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7)
+		&& (get_cpu_sub_id() == CHIP_REVC));
+}
+EXPORT_SYMBOL(is_cpu_t7c);
 

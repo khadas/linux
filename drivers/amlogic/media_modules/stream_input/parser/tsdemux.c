@@ -34,11 +34,7 @@
 #include <linux/module.h>
 
 #include <linux/uaccess.h>
-/* #include <mach/am_regs.h> */
 #include <linux/clk.h>
-/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
-/* #include <mach/mod_gate.h> */
-/* #endif */
 
 #include "../../frame_provider/decoder/utils/vdec.h"
 #include <linux/amlogic/media/utils/vdec_reg.h>
@@ -309,11 +305,9 @@ static irqreturn_t tsdemux_isr(int irq, void *dev_id)
 	}
 	if (int_status & (1 << DIS_CONTINUITY_PACKET)) {
 		discontinued_counter++;
-		/* pr_info("discontinued counter=%d\n",discontinued_counter); */
 	}
 	if (int_status & (1 << SUB_PES_READY)) {
 		/* TODO: put data to somewhere */
-		/* pr_info("subtitle pes ready\n"); */
 		wakeup_sub_poll();
 	}
 	if (int_status & (1<<PCR_READY)) {
@@ -426,7 +420,6 @@ static int reset_pcr_regs(void)
 		u32 clk_unit = 0;
 		u32 clk_81 = 0;
 		struct clk *clk;
-		//clk = clk_get(NULL,"clk81");
 		clk= devm_clk_get(amports_get_dma_device(),"clk_81");
 		if (IS_ERR(clk) || clk == 0) {
 			pr_info("[%s:%d] error clock\n", __func__, __LINE__);
@@ -475,13 +468,6 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 	pcrvideo_valid = 0;
 	pcraudio_valid = 0;
 	pcr_init_flag = 0;
-
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
-	/*TODO clk */
-	/*
-	 *switch_mod_gate_by_type(MOD_DEMUX, 1);
-	 */
-	/* #endif */
 
 	amports_switch_gate("demux", 1);
 
@@ -630,12 +616,10 @@ s32 tsdemux_init(u32 vid, u32 aid, u32 sid, u32 pcrid, bool is_hevc,
 	SET_PARSER_REG_MASK(PARSER_ES_CONTROL,
 			(7 << ES_SUB_WR_ENDIAN_BIT) | ES_SUB_MAN_RD_PTR);
 
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	if (vid != 0xffff) {
 		if (has_hevc_vdec())
 			r = pts_start((is_hevc) ? PTS_TYPE_HEVC : PTS_TYPE_VIDEO);
 		else
-			/* #endif */
 			r = pts_start(PTS_TYPE_VIDEO);
 		if ((r < 0) && (r != -EBUSY)) {
 			pr_info("Video pts start failed.(%d)\n", r);
@@ -717,11 +701,9 @@ err4:
 err3:
 	pts_stop(PTS_TYPE_AUDIO);
 err2:
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON8 */
 	if (has_hevc_vdec())
 		pts_stop((is_hevc) ? PTS_TYPE_HEVC : PTS_TYPE_VIDEO);
 	else
-		/* #endif */
 		pts_stop(PTS_TYPE_VIDEO);
 err1:
 	pr_info("TS Demux init failed.\n");
@@ -775,12 +757,6 @@ void tsdemux_release(void)
 	if (enable_demux_driver())
 		tsdemux_reset();
 
-	/* #if MESON_CPU_TYPE >= MESON_CPU_TYPE_MESON6 */
-	/*TODO clk */
-	/*
-	 *switch_mod_gate_by_type(MOD_DEMUX, 0);
-	 */
-	/* #endif */
 	amports_switch_gate("demux", 0);
 
 }
@@ -877,8 +853,6 @@ ssize_t drm_tswrite(struct file *file,
 		isphybuf = 1;
 	} else
 	    realbuf = (unsigned long)buf;
-	/* pr_info("drm->drm_flag = 0x%x,realcount = %d , buf = 0x%x ",*/
-	   /*drm->drm_flag,realcount, buf); */
 
 	count = realcount;
 
@@ -941,8 +915,6 @@ ssize_t drm_tswrite(struct file *file,
 
 			write_size = min_t(int, count, stbuf_space(buf_tmp));
 		}
-		/* pr_info("write_size = %d,count = %d,\n",*/
-		   /*write_size, count); */
 		if (write_size > 0) {
 			r = _tsdemux_write((const char __user *)realbuf + havewritebytes,
 				write_size, isphybuf);
@@ -960,8 +932,6 @@ ssize_t drm_tswrite(struct file *file,
 
 		havewritebytes += r;
 
-		/* pr_info("havewritebytes = %d, r = %d,\n",*/
-		   /*havewritebytes,  r); */
 		if (havewritebytes == realcount)
 			break;	/* write ok; */
 		else if (havewritebytes > realcount)
@@ -997,11 +967,6 @@ ssize_t tsdemux_write(struct file *file,
 				r = stbuf_wait_space(vbuf, wait_size);
 
 				if (r < 0) {
-					/* pr_info("write no space--- ");
-					 *   pr_info("no space,%d--%d,r-%d\n",
-					 *   stbuf_space(vbuf),
-					 *   stbuf_space(abuf),r);
-					 */
 					return r;
 				}
 			}
@@ -1011,11 +976,6 @@ ssize_t tsdemux_write(struct file *file,
 				r = stbuf_wait_space(abuf, wait_size);
 
 				if (r < 0) {
-					/* pr_info("write no stbuf_wait_space")'
-					 * pr_info{"---no space,%d--%d,r-%d\n",
-					 * stbuf_space(vbuf),
-					 * stbuf_space(abuf),r);
-					 */
 					return r;
 				}
 			}
@@ -1222,7 +1182,6 @@ u32 tsdemux_first_pcrscr_get(void)
 		else
 			pcr = READ_DEMUX_REG(PCR_DEMUX);
 		first_pcr = pcr;
-		/* pr_info("set first_pcr = 0x%x\n", pcr); */
 	}
 
 	return first_pcr;
@@ -1246,8 +1205,6 @@ u8 tsdemux_pcrvideo_valid(void)
 void tsdemux_pcr_set(unsigned int pcr)
 {
 	if (pcr_init_flag == 0) {
-		/*timestamp_pcrscr_set(pcr);
-		timestamp_pcrscr_enable(1);*/
 		pcr_init_flag = 1;
 	}
 }

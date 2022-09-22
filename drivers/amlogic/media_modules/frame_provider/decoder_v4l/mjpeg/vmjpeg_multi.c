@@ -252,6 +252,22 @@ struct vdec_mjpeg_hw_s {
 
 static void reset_process_time(struct vdec_mjpeg_hw_s *hw);
 
+static u32 mjpeg_get_endian(struct vdec_mjpeg_hw_s *hw)
+{
+	u32 endian;
+
+	/* mjpeg convert endian to match display. */
+	if ((is_cpu_t7()) ||
+		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) ||
+		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5W)) {
+		endian = (hw->canvas_mode == CANVAS_BLKMODE_LINEAR) ? 7 : 0;
+	} else {
+		endian = (hw->canvas_mode == CANVAS_BLKMODE_LINEAR) ? 0 : 7;
+	}
+
+	return endian;
+}
+
 static void set_frame_info(struct vdec_mjpeg_hw_s *hw, struct vframe_s *vf)
 {
 	u32 width, height;
@@ -284,15 +300,7 @@ static void set_frame_info(struct vdec_mjpeg_hw_s *hw, struct vframe_s *vf)
 	vf->canvas1_config[1] = hw->buffer_spec[vf->index].canvas_config[1];
 	vf->canvas1_config[2] = hw->buffer_spec[vf->index].canvas_config[2];
 
-	/* mjpeg convert endian to match display. */
-	if ((get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) ||
-		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T3) ||
-		(get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T5W)) {
-		temp_endian = (hw->canvas_mode == CANVAS_BLKMODE_LINEAR) ? 7 : 0;
-	} else {
-		temp_endian = (hw->canvas_mode == CANVAS_BLKMODE_LINEAR) ? 0 : 7;
-	}
-
+	temp_endian = mjpeg_get_endian(hw);
 	vf->canvas0_config[0].endian = temp_endian;
 	vf->canvas0_config[1].endian = temp_endian;
 	vf->canvas0_config[2].endian = temp_endian;
@@ -647,7 +655,7 @@ static int vmjpeg_dec_status(struct vdec_s *vdec, struct vdec_info *vstatus)
 	return 0;
 }
 
-static void init_scaler(void)
+static void init_scaler(u32 endian)
 {
 	/* 4 point triangle */
 	const unsigned int filt_coef[] = {
@@ -719,6 +727,13 @@ static void init_scaler(void)
 	/* reset pscaler */
 	WRITE_VREG(DOS_SW_RESET0, (1 << 10));
 	WRITE_VREG(DOS_SW_RESET0, 0);
+
+	if (is_cpu_t7c()) {
+		if (endian == 7)
+			WRITE_VREG(PSCALE_CTRL2, (0x1ff << 16) | READ_VREG(PSCALE_CTRL2));
+		else
+			WRITE_VREG(PSCALE_CTRL2, (0 << 16) | READ_VREG(PSCALE_CTRL2));
+	}
 
 	if (get_cpu_major_id() < AM_MESON_CPU_MAJOR_ID_SC2) {
 		READ_RESET_REG(RESET2_REGISTER);
@@ -1076,6 +1091,7 @@ static int vmjpeg_hw_ctx_restore(struct vdec_mjpeg_hw_s *hw)
 	int index = -1;
 	struct aml_vcodec_ctx * v4l2_ctx = hw->v4l2_ctx;
 	int i = 0;
+	u32 endian;
 
 	if (hw->v4l_params_parsed) {
 		struct vdec_pic_info pic;
@@ -1112,7 +1128,9 @@ static int vmjpeg_hw_ctx_restore(struct vdec_mjpeg_hw_s *hw)
 
 	WRITE_VREG(DOS_SW_RESET0, (1 << 7) | (1 << 6));
 	WRITE_VREG(DOS_SW_RESET0, 0);
-	init_scaler();
+
+	endian = mjpeg_get_endian(hw);
+	init_scaler(endian);
 
 	/* clear buffer IN/OUT registers */
 	WRITE_VREG(MREG_TO_AMRISC, 0);
@@ -1344,8 +1362,8 @@ static void run(struct vdec_s *vdec, unsigned long mask,
 	start_process_time(hw);
 	hw->last_vld_level = 0;
 	mod_timer(&hw->check_timer, jiffies + CHECK_INTERVAL);
-	amvdec_start();
 	vdec_enable_input(vdec);
+	amvdec_start();
 	hw->stat |= STAT_VDEC_RUN;
 	hw->init_flag = 1;
 

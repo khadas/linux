@@ -37,9 +37,28 @@
 })
 
 extern struct stream_buf_ops *get_stbuf_ops(void);
+
+#ifndef CONFIG_AMLOGIC_MEDIA_NO_PARSER
 extern struct stream_buf_ops *get_esparser_stbuf_ops(void);
 extern struct stream_buf_ops *get_tsparser_stbuf_ops(void);
 extern struct stream_buf_ops *get_psparser_stbuf_ops(void);
+#else
+static inline struct stream_buf_ops *get_psparser_stbuf_ops(void)
+{
+	pr_err("Not support ps parser.\n");
+	return NULL;
+}
+static inline struct stream_buf_ops *get_esparser_stbuf_ops(void)
+{
+	pr_err("Not support es parser.\n");
+	return NULL;
+}
+static inline struct stream_buf_ops *get_tsparser_stbuf_ops(void)
+{
+	pr_err("Not support ts parser.\n");
+	return NULL;
+}
+#endif
 
 int stream_buffer_base_init(struct stream_buf_s *stbuf,
 			    struct stream_buf_ops *ops,

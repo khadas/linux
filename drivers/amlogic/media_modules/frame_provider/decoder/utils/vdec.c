@@ -139,6 +139,9 @@ static int rdma_mode = 0x1;
 #define HEVC_RDMA_B_END_ADDR                       0x30fa
 #define HEVC_RDMA_B_STATUS0                        0x30fb
 
+#define FRAME_BASE_PATH_DI_V4LVIDEO_0 (29)
+#define FRAME_BASE_PATH_DI_V4LVIDEO_1 (30)
+#define FRAME_BASE_PATH_DI_V4LVIDEO_2 (31)
 
 static u32 debug = VDEC_DBG_ALWAYS_LOAD_FW;
 
@@ -158,8 +161,6 @@ static int parallel_decode = 1;
 static int fps_detection;
 static int fps_clear;
 static bool prog_only;
-
-static u32 play_num = 0;
 
 static int force_nosecure_even_drm;
 static int disable_switch_single_to_mult;
@@ -275,6 +276,7 @@ struct vdec_core_s {
 	struct power_manager_s *pm;
 	u32 vdec_resouce_status;
 	struct post_task_mgr_s post;
+	u32 inst_cnt;
 };
 
 static struct vdec_core_s *vdec_core;
@@ -1853,6 +1855,57 @@ int vdec_prepare_input(struct vdec_s *vdec, struct vframe_chunk_s **p)
 }
 EXPORT_SYMBOL(vdec_prepare_input);
 
+u32 vdec_offset_prepare_input(struct vdec_s *vdec, u32 consume_byte, u32 data_offset, u32 data_size)
+{
+	struct vdec_input_s *input = &vdec->input;
+	u32 res_byte, header_offset, header_data_size, data_invalid;
+
+	res_byte = data_size - consume_byte;
+	header_offset = data_offset;
+	header_data_size = data_size;
+	data_offset += consume_byte;
+	data_size = res_byte;
+
+	if (input->target == VDEC_INPUT_TARGET_VLD) {
+		//to do
+	} else if (input->target == VDEC_INPUT_TARGET_HEVC) {
+		data_invalid = data_offset - round_down(data_offset, 0x40);
+		data_offset -= data_invalid;
+		data_size += data_invalid;
+
+		if (data_offset < header_offset) {
+			data_invalid = consume_byte;
+			data_offset = header_offset;
+			data_size = header_data_size;
+		}
+
+		if (input_frame_based(input)) {
+			struct vframe_chunk_s *chunk = vdec_input_next_chunk(&vdec->input);
+			struct vframe_block_list_s *block = NULL;
+			int dummy;
+
+			block = chunk->block;
+			WRITE_VREG(HEVC_STREAM_START_ADDR, block->start);
+			WRITE_VREG(HEVC_STREAM_END_ADDR, block->start +
+					block->size);
+			WRITE_VREG(HEVC_STREAM_RD_PTR, block->start +
+					data_offset);
+			dummy = data_offset + data_size +
+					HEVC_PADDING_SIZE;
+			if (dummy >= block->size)
+				dummy -= block->size;
+			WRITE_VREG(HEVC_STREAM_WR_PTR,
+				round_down(block->start + dummy,
+					VDEC_FIFO_ALIGN));
+
+			/* set endian */
+			SET_VREG_MASK(HEVC_STREAM_CONTROL, 7 << 4);
+		}
+	}
+	return data_invalid;
+}
+EXPORT_SYMBOL(vdec_offset_prepare_input);
+
 void vdec_enable_input(struct vdec_s *vdec)
 {
 	struct vdec_input_s *input = &vdec->input;
@@ -2420,10 +2473,41 @@ static bool is_tunnel_pipeline(u32 pl)
 		true : false;
 }
 
-static bool is_res_locked(u32 pre, u32 cur)
+static bool is_nontunnel_pipeline(u32 pl)
 {
-	return is_tunnel_pipeline(pre) ?
-		(is_tunnel_pipeline(cur) ? true : false) : false;
+	return (pl & BIT(FRAME_BASE_PATH_DI_V4LVIDEO)) ? true : false;
+}
+
+static bool is_v4lvideo_already_used(u32 pre, int vf_receiver_inst)
+{
+	if (vf_receiver_inst == 0) {
+		if (pre & BIT(FRAME_BASE_PATH_DI_V4LVIDEO_0)) {
+			return true;
+		}
+	} else if (vf_receiver_inst == 1) {
+		if (pre & BIT(FRAME_BASE_PATH_DI_V4LVIDEO_1)) {
+			return true;
+		}
+	} else if (vf_receiver_inst == 2) {
+		if (pre & BIT(FRAME_BASE_PATH_DI_V4LVIDEO_2)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool is_res_locked(u32 pre, u32 cur, int vf_receiver_inst)
+{
+	if (is_tunnel_pipeline(pre)) {
+		if (is_tunnel_pipeline(cur)) {
+			return true;
+		}
+	} else if (is_nontunnel_pipeline(cur)) {
+		if (is_v4lvideo_already_used(pre,vf_receiver_inst)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 int vdec_resource_checking(struct vdec_s *vdec)
@@ -2434,9 +2518,9 @@ int vdec_resource_checking(struct vdec_s *vdec)
 	 * pipeline these are being released.
 	 */
 	ulong expires = jiffies + msecs_to_jiffies(2000);
-
 	while (is_res_locked(vdec_core->vdec_resouce_status,
-		BIT(vdec->frame_base_video_path))) {
+		BIT(vdec->frame_base_video_path),
+		vdec->vf_receiver_inst)) {
 		if (time_after(jiffies, expires)) {
 			pr_err("wait vdec resource timeout.\n");
 			return -EBUSY;
@@ -2465,7 +2549,8 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k, bool is_v4l)
 		max_di_count = max_supported_di_instance;
 	vdec->is_v4l = is_v4l ? 1 : 0;
 	if (is_res_locked(vdec_core->vdec_resouce_status,
-		BIT(vdec->frame_base_video_path)))
+		BIT(vdec->frame_base_video_path),
+		vdec->vf_receiver_inst))
 		return -EBUSY;
 
 	//pr_err("%s [pid=%d,tgid=%d]\n", __func__, current->pid, current->tgid);
@@ -2909,17 +2994,26 @@ s32 vdec_init(struct vdec_s *vdec, int is_4k, bool is_v4l)
 
 	mutex_lock(&vdec_mutex);
 	vdec_core->vdec_resouce_status |= BIT(p->frame_base_video_path);
-
-	if (vdec_dual(vdec)) {
-		if (vdec->slave)
-			vdec->play_num = (++play_num);
-		else
-			vdec->play_num = play_num;
-	} else {
-		vdec->play_num = (++play_num);
+	if (p->frame_base_video_path == FRAME_BASE_PATH_DI_V4LVIDEO) {
+		if (p->vf_receiver_inst == 0) {
+			vdec_core->vdec_resouce_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_0);
+		} else if (p->vf_receiver_inst == 1) {
+			vdec_core->vdec_resouce_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_1);
+		} else if (p->vf_receiver_inst == 2) {
+			vdec_core->vdec_resouce_status |= BIT(FRAME_BASE_PATH_DI_V4LVIDEO_2);
+		}
 	}
+	if (vdec_dual(vdec) && (!(vdec->port->type & PORT_TYPE_FRAME))) {
+		//DV stream mode
+		if (vdec->slave)
+			vdec_core->inst_cnt++;
+	} else {
+		//DV frame mode
+		vdec_core->inst_cnt++;
+	}
+	vdec->inst_cnt = vdec_core->inst_cnt;
 	mutex_unlock(&vdec_mutex);
-	pr_debug("vdec_init, play_num = %d\n", vdec->play_num);
+	pr_debug("vdec_init, inst_cnt = %d, port type 0x%x\n", vdec->inst_cnt, vdec->port->type);
 
 	vdec_input_prepare_bufs(/*prepared buffer for fast playing.*/
 		&vdec->input,
@@ -3074,6 +3168,15 @@ void vdec_release(struct vdec_s *vdec)
 		atomic_read(&vdec_core->vdec_nr));
 
 	mutex_lock(&vdec_mutex);
+	if (vdec->frame_base_video_path == FRAME_BASE_PATH_DI_V4LVIDEO) {
+		if (vdec->vf_receiver_inst == 0) {
+			vdec_core->vdec_resouce_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_0);
+		} else if (vdec->vf_receiver_inst == 1) {
+			vdec_core->vdec_resouce_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_1);
+		} else if (vdec->vf_receiver_inst == 2) {
+			vdec_core->vdec_resouce_status &= ~BIT(FRAME_BASE_PATH_DI_V4LVIDEO_2);
+		}
+	}
 	vdec_core->vdec_resouce_status &= ~BIT(vdec->frame_base_video_path);
 	mutex_unlock(&vdec_mutex);
 	vdec_destroy(vdec);

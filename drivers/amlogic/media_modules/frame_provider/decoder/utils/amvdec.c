@@ -334,7 +334,7 @@ static s32 amvdec_loadmc(const u32 *p)
 #else
 	{
 #endif
-		mc_addr = kmalloc(MC_SIZE, GFP_KERNEL);
+		mc_addr = kmalloc(MC_SIZE, GFP_KERNEL | GFP_DMA32);
 	}
 
 	if (!mc_addr)
@@ -554,7 +554,7 @@ static s32 amvdec2_loadmc(const u32 *p)
 #else
 		{
 #endif
-			mc_addr = kmalloc(MC_SIZE, GFP_KERNEL);
+			mc_addr = kmalloc(MC_SIZE, GFP_KERNEL | GFP_DMA32);
 		}
 
 		if (!mc_addr)
@@ -617,7 +617,7 @@ s32 amhcodec_loadmc(const u32 *p)
 #else
 	{
 #endif
-		mc_addr = kmalloc(MC_SIZE, GFP_KERNEL);
+		mc_addr = kmalloc(MC_SIZE, GFP_KERNEL | GFP_DMA32);
 	}
 
 	if (!mc_addr)
@@ -663,7 +663,7 @@ static s32 amhevc_loadmc(const u32 *p)
 #else
 		{
 #endif
-			mc_addr = kmalloc(MC_SIZE, GFP_KERNEL);
+			mc_addr = kmalloc(MC_SIZE, GFP_KERNEL | GFP_DMA32);
 		}
 
 		if (!mc_addr)

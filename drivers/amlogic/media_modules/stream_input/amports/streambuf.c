@@ -176,7 +176,7 @@ int stbuf_fetch_init(void)
 	if (NULL != fetchbuf)
 		return 0;
 
-	fetchbuf = (void *)__get_free_pages(GFP_KERNEL,
+	fetchbuf = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA32,
 						get_order(FETCHBUF_SIZE));
 
 	if (!fetchbuf) {

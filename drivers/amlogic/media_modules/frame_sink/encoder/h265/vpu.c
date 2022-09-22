@@ -288,7 +288,7 @@ static void vpu_free_dma_buffer(struct vpudrv_buffer_t *vb)
 
 static s32 vpu_free_instances(struct file *filp)
 {
-	struct vpudrv_instanace_list_t *vil, *n;
+	struct vpudrv_instance_list_t *vil, *n;
 	struct vpudrv_instance_pool_t *vip;
 	void *vip_base;
 
@@ -367,7 +367,7 @@ static void hevcenc_isr_tasklet(ulong data)
 {
 	struct vpu_drv_context_t *dev = (struct vpu_drv_context_t *)data;
 
-	enc_pr(LOG_INFO, "hevcenc_isr_tasklet  interruput:0x%08lx\n",
+	enc_pr(LOG_INFO, "hevcenc_isr_tasklet  interrupt:0x%08lx\n",
 		dev->interrupt_reason);
 	if (dev->interrupt_reason) {
 		/* notify the interrupt to user space */
@@ -1119,7 +1119,7 @@ static long vpu_ioctl(struct file *filp, u32 cmd, ulong arg)
 	case VDI_IOCTL_OPEN_INSTANCE:
 		{
 			struct vpudrv_inst_info_t inst_info;
-			struct vpudrv_instanace_list_t *vil, *n;
+			struct vpudrv_instance_list_t *vil, *n;
 
 			vil = kzalloc(sizeof(*vil), GFP_KERNEL);
 			if (!vil)
@@ -1174,7 +1174,7 @@ static long vpu_ioctl(struct file *filp, u32 cmd, ulong arg)
 	case VDI_IOCTL_CLOSE_INSTANCE:
 		{
 			struct vpudrv_inst_info_t inst_info;
-			struct vpudrv_instanace_list_t *vil, *n;
+			struct vpudrv_instance_list_t *vil, *n;
 
 			enc_pr(LOG_ALL,
 				"[+]VDI_IOCTL_CLOSE_INSTANCE\n");
@@ -1226,7 +1226,7 @@ static long vpu_ioctl(struct file *filp, u32 cmd, ulong arg)
 	case VDI_IOCTL_GET_INSTANCE_NUM:
 		{
 			struct vpudrv_inst_info_t inst_info;
-			struct vpudrv_instanace_list_t *vil, *n;
+			struct vpudrv_instance_list_t *vil, *n;
 
 			enc_pr(LOG_ALL,
 				"[+]VDI_IOCTL_GET_INSTANCE_NUM\n");
@@ -2060,7 +2060,7 @@ static s32 vpu_probe(struct platform_device *pdev)
 	if (use_reserve == false) {
 #ifndef CONFIG_CMA
 		enc_pr(LOG_ERROR,
-			"HevcEnc reserved memory is invaild, probe fail!\n");
+			"HevcEnc reserved memory is invalid, probe fail!\n");
 		err = -EFAULT;
 		goto ERROR_PROVE_DEVICE;
 #else

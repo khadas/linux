@@ -35,6 +35,7 @@
 
 #define MAX_DYNAMIC_INSTANCE_NUM 10
 #define MAX_INSTANCE_NUM 40
+#define MAX_CACHE_TIME_MS (60*1000)
 MediaSyncManage vMediaSyncInsList[MAX_INSTANCE_NUM];
 u64 last_system;
 u64 last_pcr;
@@ -430,6 +431,7 @@ long mediasync_ins_init_syncinfo(s32 sSyncInsId) {
 	pInstance->mPcrSlope.mNumerator = 1;
 	pInstance->mPcrSlope.mDenominator = 1;
 	pInstance->mAVRef = 0;
+	pInstance->mPlayerInstanceId = -1;
 
 	return 0;
 }
@@ -1380,6 +1382,7 @@ long mediasync_ins_set_avsyncstate(s32 sSyncInsId, s32 state) {
 	}
 
 	pInstance->mSyncInfo.state = state;
+	pInstance->mSyncInfo.setStateCurTimeUs = get_system_time_us();
 	mutex_unlock(&(vMediaSyncInsList[index].m_lock));
 
 	return 0;
@@ -1403,6 +1406,28 @@ long mediasync_ins_get_avsyncstate(s32 sSyncInsId, s32* state) {
 
 	return 0;
 }
+
+long mediasync_ins_get_avsyncstate_cur_time_us(s32 sSyncInsId, mediasync_avsync_state_cur_time_us* avsynstate) {
+	mediasync_ins* pInstance = NULL;
+	s32 index = get_index_from_syncid(sSyncInsId);
+	if (index < 0 || index >= MAX_INSTANCE_NUM)
+		return -1;
+
+	mutex_lock(&(vMediaSyncInsList[index].m_lock));
+	pInstance = vMediaSyncInsList[index].pInstance;
+	if (pInstance == NULL) {
+		mutex_unlock(&(vMediaSyncInsList[index].m_lock));
+		return -1;
+	}
+
+	avsynstate->state = pInstance->mSyncInfo.state;
+	avsynstate->setStateCurTimeUs = pInstance->mSyncInfo.setStateCurTimeUs;
+
+	mutex_unlock(&(vMediaSyncInsList[index].m_lock));
+
+	return 0;
+}
+
 
 long mediasync_ins_set_startthreshold(s32 sSyncInsId, s32 threshold) {
 	mediasync_ins* pInstance = NULL;
@@ -1953,7 +1978,11 @@ long mediasync_ins_get_audio_cache_info(s32 sSyncInsId, mediasync_audioinfo* inf
 				Beforediff = pInstance->mAudioDiscontinueInfo.discontinuePtsBefore - pInstance->mSyncInfo.curAudioInfo.framePts;
 				Afterdiff = pInstance->mSyncInfo.audioPacketsInfo.packetsPts - pInstance->mAudioDiscontinueInfo.discontinuePtsAfter;
 				info->cacheDuration = Beforediff + Afterdiff;
-
+				// sometimes stream not descramble, lead pts jump, cacheduration will have error
+				if (pInstance->mAudioDiscontinueInfo.isDiscontinue && (info->cacheDuration < 0 || info->cacheDuration > MAX_CACHE_TIME_MS * 90 * 2)) {
+					pr_info("get_audio_cache, cache=%dms, maybe cache cal have problem, need check more\n", info->cacheDuration/90);
+					info->cacheDuration = 0;
+				}
 			} else {
 				info->cacheDuration = 0;
 			}
@@ -2075,6 +2104,11 @@ long mediasync_ins_get_video_cache_info(s32 sSyncInsId, mediasync_videoinfo* inf
 				Afterdiff = pInstance->mSyncInfo.videoPacketsInfo.packetsPts - pInstance->mVideoDiscontinueInfo.discontinuePtsAfter;
 				info->cacheDuration = Beforediff + Afterdiff;
 
+				// sometimes stream not descramble, lead pts jump, cacheduration will have error
+				if (pInstance->mVideoDiscontinueInfo.isDiscontinue && (info->cacheDuration < 0 || info->cacheDuration > MAX_CACHE_TIME_MS * 90)) {
+					pr_info("get_video_cache, cache=%dms, maybe cache cal have problem, need check more\n", info->cacheDuration/90);
+					info->cacheDuration = 0;
+				}
 			} else {
 				info->cacheDuration = 0;
 			}
@@ -2187,6 +2221,49 @@ long mediasync_ins_get_firstqueuevideoinfo(s32 sSyncInsId, mediasync_frameinfo* 
 
 	info->framePts = pInstance->mSyncInfo.firstVideoPacketsInfo.framePts;
 	info->frameSystemTime = pInstance->mSyncInfo.firstVideoPacketsInfo.frameSystemTime;
+	mutex_unlock(&(vMediaSyncInsList[index].m_lock));
+
+	return 0;
+}
+
+long mediasync_ins_set_player_instance_id(s32 sSyncInsId, s32 PlayerInstanceId) {
+
+	mediasync_ins* pInstance = NULL;
+
+	s32 index = get_index_from_syncid(sSyncInsId);
+	if (index < 0 || index >= MAX_INSTANCE_NUM)
+		return -1;
+
+	mutex_lock(&(vMediaSyncInsList[index].m_lock));
+	pInstance = vMediaSyncInsList[index].pInstance;
+	if (pInstance == NULL) {
+		mutex_unlock(&(vMediaSyncInsList[index].m_lock));
+		return -1;
+	}
+
+	pInstance->mPlayerInstanceId = PlayerInstanceId;
+
+	mutex_unlock(&(vMediaSyncInsList[index].m_lock));
+
+	return 0;
+}
+
+long mediasync_ins_get_player_instance_id(s32 sSyncInsId, s32* PlayerInstanceId) {
+
+	mediasync_ins* pInstance = NULL;
+	s32 index = get_index_from_syncid(sSyncInsId);
+	if (index < 0 || index >= MAX_INSTANCE_NUM)
+		return -1;
+
+	mutex_lock(&(vMediaSyncInsList[index].m_lock));
+	pInstance = vMediaSyncInsList[index].pInstance;
+	if (pInstance == NULL) {
+		mutex_unlock(&(vMediaSyncInsList[index].m_lock));
+		return -1;
+	}
+
+	*PlayerInstanceId = pInstance->mPlayerInstanceId ;
+
 	mutex_unlock(&(vMediaSyncInsList[index].m_lock));
 
 	return 0;

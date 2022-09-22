@@ -577,7 +577,8 @@ static bool can_vpp_get_buf_from_m2m(struct aml_v4l2_vpp* vpp)
 	struct aml_vcodec_ctx *ctx = vpp->ctx;
 
 	if (ctx->cap_pool.dec >= (ctx->dpb_size - 1) ||
-		ctx->cap_pool.vpp < aml_v4l2_vpp_get_buf_num(ctx->vpp_cfg.mode))
+		(ctx->cap_pool.vpp < aml_v4l2_vpp_get_buf_num(ctx->vpp_cfg.mode)) ||
+		vpp->get_eos)
 		return true;
 
 	v4l_dbg(ctx, V4L_DEBUG_VPP_BUFMGR, "%s dec: %d dpb_size: %d vpp: %d\n",
@@ -591,8 +592,13 @@ static int aml_v4l2_vpp_thread(void* param)
 {
 	struct aml_v4l2_vpp* vpp = param;
 	struct aml_vcodec_ctx *ctx = vpp->ctx;
+	bool dynamic_bypass_vpp_flag = ctx->vpp_cfg.dynamic_bypass_vpp;
 
 	v4l_dbg(ctx, V4L_DEBUG_VPP_DETAIL, "enter vpp thread\n");
+
+	if (dynamic_bypass_vpp_flag) {
+		v4l_dbg(ctx, V4L_DEBUG_VPP_DETAIL, "dynamic bypass vpp\n");
+	}
 	while (vpp->running) {
 		struct aml_v4l2_vpp_buf *in_buf;
 		struct aml_v4l2_vpp_buf *out_buf = NULL;
@@ -605,6 +611,12 @@ retry:
 		if (!vpp->running)
 			break;
 
+		if (dynamic_bypass_vpp_flag != ctx->vpp_cfg.dynamic_bypass_vpp) {
+			dynamic_bypass_vpp_flag = ctx->vpp_cfg.dynamic_bypass_vpp;
+			di_s_bypass_ch(vpp->di_handle, dynamic_bypass_vpp_flag);
+			v4l_dbg(ctx, V4L_DEBUG_VPP_DETAIL, "dynamic bypass vpp:%s\n",
+				dynamic_bypass_vpp_flag ? "enable" : "disable");
+		}
 		if (kfifo_is_empty(&vpp->output)) {
 			if (down_interruptible(&vpp->sem_out))
 				goto exit;
@@ -863,6 +875,7 @@ int aml_v4l2_vpp_reset(struct aml_v4l2_vpp *vpp)
 	vpp->out_num[0]	= 0;
 	vpp->out_num[1]	= 0;
 	vpp->fb_token	= 0;
+	vpp->get_eos = false;
 	sema_init(&vpp->sem_in, 0);
 	sema_init(&vpp->sem_out, 0);
 
@@ -1151,6 +1164,7 @@ static int aml_v4l2_vpp_push_vframe(struct aml_v4l2_vpp* vpp, struct vframe_s *v
 		u32 dw_mode = VDEC_DW_NO_AFBC;
 
 		in_buf->di_buf.flag |= DI_FLAG_EOS;
+		vpp->get_eos = true;
 
 		if (vdec_if_get_param(vpp->ctx, GET_PARAM_DW_MODE, &dw_mode))
 			return -1;
@@ -1166,7 +1180,7 @@ static int aml_v4l2_vpp_push_vframe(struct aml_v4l2_vpp* vpp, struct vframe_s *v
 	fb = (struct vdec_v4l2_buffer *)vf->v4l_mem_handle;
 	in_buf->aml_buf = container_of(fb, struct aml_video_dec_buf, frame_buffer);
 
-	if (get_cpu_major_id() == AM_MESON_CPU_MAJOR_ID_T7) {
+	if (is_cpu_t7()) {
 		if (vf->canvas0_config[0].block_mode == CANVAS_BLKMODE_LINEAR) {
 			if ((vpp->ctx->output_pix_fmt != V4L2_PIX_FMT_H264) &&
 				(vpp->ctx->output_pix_fmt != V4L2_PIX_FMT_MPEG1) &&

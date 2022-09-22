@@ -19,7 +19,6 @@
  * AMLOGIC DVB driver.
  */
 //move to define in Makefile
-//#define ENABLE_DEMUX_DRIVER
 
 #include <linux/version.h>
 #include <linux/kernel.h>
@@ -58,6 +57,10 @@
 #include "aml_demod_gt.h"
 #include "../../../common/media_clock/switch/amports_gate.h"
 
+#ifdef CONFIG_AMLOGIC_MEDIA_NO_PARSER
+void tsdemux_set_ops(struct tsdemux_ops *ops) { return; }
+#endif
+
 #define pr_dbg(args...)\
 	do {\
 		if (debug_dvb)\
@@ -75,8 +78,6 @@ module_param(debug_dvb, int, 0644);
 #define DVB_VERSION "V2.02"
 
 
-//echo 0xff646180 0x40 > /sys/kernel/debug/aml_reg/paddr
-//echo 0xff634590 0x1 > /sys/kernel/debug/aml_reg/paddr
 #define TSINB_DEGLITCH0 0xff646180
 #define TSINB_DEGLITCH1 0xff634590
 
@@ -90,18 +91,12 @@ static struct aml_dvb aml_dvb_device;
 static struct class aml_stb_class;
 
 static int dmx_reset_all_flag = 0;
-#if 0
-static struct reset_control *aml_dvb_demux_reset_ctl;
-static struct reset_control *aml_dvb_afifo_reset_ctl;
-static struct reset_control *aml_dvb_ahbarb0_reset_ctl;
-static struct reset_control *aml_dvb_uparsertop_reset_ctl;
-#else
+
 /*no used reset ctl,need use clk in 4.9 kernel*/
 static struct clk *aml_dvb_demux_clk;
 static struct clk *aml_dvb_afifo_clk;
 static struct clk *aml_dvb_ahbarb0_clk;
 static struct clk *aml_dvb_uparsertop_clk;
-#endif
 
 static int aml_tsdemux_reset(void);
 static int aml_tsdemux_set_reset_flag(void);
@@ -1397,7 +1392,6 @@ static ssize_t demux##i##_filter_users_store(struct class *class,  \
 	struct aml_dmx *dmx = &dvb->dmx[i];\
 	unsigned long filter_used;\
 	unsigned long flags;/*char *endp;*/\
-	/*filter_used = simple_strtol(buf, &endp, 0);*/\
 	int ret = kstrtol(buf, 0, &filter_used);\
 	spin_lock_irqsave(&dvb->slock, flags);\
 	if (ret == 0 && filter_used) {\
@@ -1602,7 +1596,6 @@ static ssize_t asyncfifo##i##_flush_size_store(struct class *class,  \
 {\
 	struct aml_dvb *dvb = &aml_dvb_device;\
 	struct aml_asyncfifo *afifo = &dvb->asyncfifo[i];\
-	/*int fsize = simple_strtol(buf, NULL, 10);*/\
 	int fsize = 0;\
 	long value;\
 	int ret =0;\
@@ -1975,8 +1968,6 @@ static ssize_t hw_setting_store(struct class *class,
 		}
 
 		ts->pinctrl = devm_pinctrl_get_select(&dvb->pdev->dev, pname);
-/*              if(IS_ERR_VALUE(ts->pinctrl))*/
-/*                      ts->pinctrl = NULL;*/
 		ts->mode = mode;
 		ts->control = ctrl;
 
@@ -2257,20 +2248,6 @@ static struct class aml_stb_class = {
 	.class_groups = aml_stb_class_groups,
 };
 
-/*
- *extern int aml_regist_dmx_class(void);
- *extern int aml_unregist_dmx_class(void);
- */
-/*
- *void afifo_reset(int v)
- *{
- *	if (v)
- *		reset_control_assert(aml_dvb_afifo_reset_ctl);
- *	else
- *		reset_control_deassert(aml_dvb_afifo_reset_ctl);
- *}
- */
-
 static int aml_dvb_probe(struct platform_device *pdev)
 {
 	struct aml_dvb *advb;
@@ -2401,8 +2378,6 @@ static int aml_dvb_probe(struct platform_device *pdev)
 					advb->ts[i].pinctrl = NULL;
 				}
 
-				/* if(IS_ERR_VALUE(advb->ts[i].pinctrl)) */
-				/* advb->ts[i].pinctrl = NULL; */
 			}
 			memset(buf, 0, 32);
 			snprintf(buf, sizeof(buf), "ts%d_control", i);
@@ -2578,14 +2553,6 @@ static int aml_dvb_remove(struct platform_device *pdev)
 			devm_pinctrl_put(advb->ts[i].pinctrl);
 	}
 
-	/*switch_mod_gate_by_name("demux", 0); */
-#if 0
-	reset_control_assert(aml_dvb_uparsertop_reset_ctl);
-	reset_control_assert(aml_dvb_ahbarb0_reset_ctl);
-	reset_control_assert(aml_dvb_afifo_reset_ctl);
-	reset_control_assert(aml_dvb_demux_reset_ctl);
-#else
-#if 1
 	if (get_cpu_type() < MESON_CPU_MAJOR_ID_G12A)
 	{
 		clk_disable_unprepare(aml_dvb_uparsertop_clk);
@@ -2603,8 +2570,6 @@ static int aml_dvb_remove(struct platform_device *pdev)
 			clk_disable_unprepare(aml_dvb_afifo_clk);
 		}
 	}
-#endif
-#endif
 
 	pr_inf("[dmx_kpi] %s Exit.\n", __func__);
 	return 0;

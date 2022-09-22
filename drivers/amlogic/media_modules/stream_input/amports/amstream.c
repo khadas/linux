@@ -55,12 +55,8 @@
 #endif
 #include "../amports/streambuf.h"
 #include "../amports/streambuf_reg.h"
-#include "../parser/tsdemux.h"
-#include "../parser/psparser.h"
-#include "../parser/esparser.h"
 #include "../../frame_provider/decoder/utils/vdec.h"
 #include "adec.h"
-#include "../parser/rmparser.h"
 #include "amports_priv.h"
 #include <linux/amlogic/media/utils/amports_config.h>
 #include <linux/amlogic/media/frame_sync/tsync_pcr.h>
@@ -82,6 +78,7 @@
 #include "../subtitle/subtitle.h"
 #include "stream_buffer_base.h"
 #include "../../frame_provider/decoder/utils/vdec_feature.h"
+#include "../parser/stream_parser.h"
 
 //#define G12A_BRINGUP_DEBUG
 
@@ -683,6 +680,7 @@ static int video_port_init(struct port_priv_s *priv,
 	}
 
 	if (vdec_dual(vdec)) {
+		vdec->slave->sys_info = vdec->sys_info;
 		r = vdec_init(vdec->slave,
 			(priv->vdec->sys_info->height *
 			priv->vdec->sys_info->width) > 1920*1088, false);

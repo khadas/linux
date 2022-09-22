@@ -142,8 +142,8 @@ union param {
 #define TIMEOUT_COUNTER							0X67
 #define BUFFER_SIZE							0X68
 #define BUFFER_SIZE_HI							0X69
-#define CROPPING_LEFT_RIGHT						0X6A
-#define CROPPING_TOP_BOTTOM						0X6B
+#define FRAME_CROP_LEFT_OFFSET					0X6A
+#define FRAME_CROP_RIGHT_OFFSET					0X6B
 #if 1
  /* sps_flags2:
  *bit 3, bitstream_restriction_flag
@@ -267,7 +267,7 @@ union param {
 #define SLICE_GROUP_CHANGE_CYCLE_LEN					0XBD
 #define DELAY_LENGTH							0XBE
 #define PICTURE_STRUCT							0XBF
-/* #define pre_picture_struct						0xc0 */
+#define FRAME_CROP_TOP_OFFSET					0xc0
 #define DCAC_PREVIOUS_MB_TYPE						0xc1
 
 #define TIME_STAMP							0XC2
@@ -275,7 +275,7 @@ union param {
 #define VPTS_MAP_ADDR							0XC4
 #define H_VPTS_MAP_ADDR							0XC5
 
-/*#define MAX_DPB_SIZE							0XC6*/
+#define FRAME_CROP_BOTTOM_OFFSET				0XC6
 #define PIC_INSERT_FLAG							0XC7
 
 #define TIME_STAMP_START						0XC8
@@ -305,7 +305,7 @@ union param {
 #define FIRST_MB_IN_SLICE						0XF0
 #define PREV_MB_WIDTH							0XF1
 #define PREV_FRAME_SIZE_IN_MB						0XF2
-/*#define MAX_REFERENCE_FRAME_NUM_IN_MEM		0XF3*/
+#define MAX_REFERENCE_FRAME_NUM_IN_MEM		0XF3
 /* bit 0 - aspect_ratio_info_present_flag
  * bit 1 - timing_info_present_flag
  * bit 2 - nal_hrd_parameters_present_flag
@@ -379,12 +379,6 @@ union param {
 		unsigned short colocated_mv_addr_start[2];
 		unsigned short colocated_mv_addr_end[2];
 		unsigned short colocated_mv_wr_addr[2];
-
-		unsigned short frame_crop_left_offset;
-		unsigned short frame_crop_right_offset;
-		unsigned short frame_crop_top_offset;
-		unsigned short frame_crop_bottom_offset;
-		unsigned short chroma_format_idc;
 	} dpb;
 	struct {
 		unsigned short dump[MMCO_OFFSET];

@@ -177,10 +177,11 @@ void stream_buffer_meta_write(struct stream_buf_s *stbuf,
 	stbuf->stream_offset += meta->stbuf_pktsize;
 	stbuf->last_offset[stbuf->write_count % 2] = stbuf->stream_offset;
 	stbuf->write_count++;
-	/*
-	pr_debug("%s, update wp 0x%x + sz 0x%x --> 0x%x, stream_offset 0x%x\n",
-		__func__, meta->stbuf_pktaddr, meta->stbuf_pktsize, wp, stbuf->stream_offset);
-	*/
+
+	if (vdec_get_debug_flags() & 0x10000000) {
+		pr_debug("%s[%d], update wp 0x%x + sz 0x%x --> 0x%x, stream_offset 0x%x\n",
+			__func__, stbuf->write_count, meta->stbuf_pktaddr, meta->stbuf_pktsize, wp, stbuf->stream_offset);
+	}
 }
 EXPORT_SYMBOL(stream_buffer_meta_write);
 

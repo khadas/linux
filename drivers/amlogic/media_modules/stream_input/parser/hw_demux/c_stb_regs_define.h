@@ -230,7 +230,7 @@
 #define AO_RTI_GEN_PWR_ISO0 ((0x00 << 10) | (0x3b << 2))
 #define P_AO_RTI_GEN_PWR_ISO0           AOBUS_REG_ADDR(AO_RTI_GEN_PWR_ISO0)
 
-/**/
+
 #define STB_VERSION   (STB_CBUS_BASE + 0x00)
 #define P_STB_VERSION           CBUS_REG_ADDR(STB_VERSION)
 #define STB_VERSION_2 (STB_CBUS_BASE + 0x50)

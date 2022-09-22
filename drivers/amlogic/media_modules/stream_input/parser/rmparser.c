@@ -73,12 +73,6 @@ s32 rmparser_init(struct vdec_s *vdec)
 
 /* for recorded file and local play, this can't change the input source*/
 	/* TS data path */
-/*
-#ifndef CONFIG_AM_DVB
-	WRITE_DEMUX_REG(FEC_INPUT_CONTROL, 0);
-#else
-	tsdemux_set_reset_flag();
-#endif */
 
 	CLEAR_DEMUX_REG_MASK(TS_HIU_CTL, 1 << USE_HI_BSF_INTERFACE);
 	CLEAR_DEMUX_REG_MASK(TS_HIU_CTL_2, 1 << USE_HI_BSF_INTERFACE);

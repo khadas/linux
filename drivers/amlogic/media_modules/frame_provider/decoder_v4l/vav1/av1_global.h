@@ -1333,6 +1333,9 @@ typedef struct PIC_BUFFER_CONFIG_s {
   u32 hw_decode_time;
   u32 frame_size2; // For frame base mode
   int ctx_buf_idx;
+  int v4l_buf_index;
+  int repeat_count;
+  struct PIC_BUFFER_CONFIG_s *repeat_pic;
 } PIC_BUFFER_CONFIG;
 
 /*
