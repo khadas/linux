@@ -125,8 +125,9 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 	unsigned int id = meson_ion_cma_heap_id_get();
 
 	buffer = container_of(obj, struct mua_buffer, base);
-	MUA_PRINTK(1, "%s. buf_scalar=%d WxH: %dx%d\n",
-				__func__, scalar, buffer->width, buffer->height);
+	MUA_PRINTK(1, "%s. buf_scalar=%d WxH: %dx%d, commit_display = %d, tgid=%d,pid=%d",
+				__func__, scalar, buffer->width, buffer->height,
+				buffer->commit_display, current->tgid, mdev->pid);
 	memset(&info, 0, sizeof(info));
 
 	if (!enable_screencap && current->tgid == mdev->pid &&
@@ -197,7 +198,7 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 		size_t buf_size = dmabuf->size * 2 / 3;
 
 		MUA_PRINTK(1, "%s buf size=%zu\n", __func__, buf_size);
-		memset(vaddr, 0x0, buf_size);
+		memset(vaddr, 0x15, buf_size);
 		memset(vaddr + buf_size, 0x80, buf_size / 2);
 
 		vunmap(vaddr);
