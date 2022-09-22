@@ -135,7 +135,7 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 	status = dmc_prot_rw(io, DMC_PROT_VIO_1, 0, DMC_READ);
 	if ((status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1))) {
 		/* combine address */
-		addr  = (status >> 15) & 0x03;
+		addr  = (status >> 20) & 0x03;
 		addr  = (addr << 32ULL);
 		addr |= dmc_prot_rw(io, DMC_PROT_VIO_0, 0, DMC_READ);
 		rw = 'w';
@@ -144,7 +144,7 @@ static void check_violation(struct dmc_monitor *mon, void *io)
 		status = dmc_prot_rw(io, DMC_PROT_VIO_3, 0, DMC_READ);
 		if ((status & (DMC_VIO_PROT_RANGE0 | DMC_VIO_PROT_RANGE1))) {
 			/* combine address */
-			addr  = (status >> 15) & 0x03;
+			addr  = (status >> 20) & 0x03;
 			addr  = (addr << 32ULL);
 			addr |= dmc_prot_rw(io, DMC_PROT_VIO_2, 0, DMC_READ);
 			rw = 'r';
