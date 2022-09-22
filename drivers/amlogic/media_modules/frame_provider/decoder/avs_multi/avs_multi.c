@@ -3782,7 +3782,7 @@ static irqreturn_t vmavs_isr(struct vdec_s *vdec, int irq)
 	WRITE_VREG(ASSIST_MBOX1_CLR_REG, 1);
 
 	if (hw->process_busy) {
-		pr_info("%s, process busy\n", hw->process_busy);
+		pr_info("%s, process busy\n", __func__);
 		return IRQ_HANDLED;
 	}
 	hw->process_busy = true;
