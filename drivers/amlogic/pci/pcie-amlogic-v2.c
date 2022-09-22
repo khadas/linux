@@ -24,23 +24,11 @@
 #include <linux/clk-provider.h>
 #include <asm/sections.h>
 #include <linux/amlogic/tee.h>
-#include <linux/of_reserved_mem.h>
-#include <linux/swiotlb.h>
-
 
 static u32 handle;
-static struct device *dev_pcie_reserved_mem;
-
 static int link_speed = 2;
 module_param(link_speed, int, 0444);
 MODULE_PARM_DESC(link_speed, "select pcie link speed ");
-
-#ifdef CONFIG_SWIOTLB
-#define USE_TEE_WHITELIST 1
-#else
-#define USE_TEE_WHITELIST 0
-#endif
-
 int keep_init;
 
 struct amlogic_pcie {
@@ -68,74 +56,6 @@ struct amlogic_pcie {
 struct pcie_phy_aml_regs pcie_aml_regs_v2;
 struct pcie_phy		*g_pcie_phy_v2;
 struct amlogic_pcie *g_amlogic_pcie;
-
-struct device *get_pcie_reserved_mem_dev(void)
-{
-	return dev_pcie_reserved_mem;
-}
-EXPORT_SYMBOL(get_pcie_reserved_mem_dev);
-
-#if USE_TEE_WHITELIST
-static int __init pcie_protect_mem_init(struct device *dev)
-{
-	phandle mem_phandle;
-	int ret;
-	struct device_node *pnode = NULL;
-	unsigned int mem_size[2];
-	unsigned int mem_addr[2];
-
-	ret = of_property_read_u32(dev->of_node, "memory-region", &mem_phandle);
-	if (ret) {
-		dev_err(dev, "not match memory-region node\n");
-		return ret;
-	}
-
-	ret = of_reserved_mem_device_init(dev);
-	if (ret) {
-		dev_err(dev, "pcie reserved memory init fail:%d", ret);
-		return ret;
-	}
-
-	pnode = of_find_node_by_phandle(mem_phandle);
-	if (!pnode) {
-		dev_err(dev, "can't find node by phandle\n");
-		return -1;
-	}
-
-	/*request for mem device */
-	ret = of_property_read_u32_array(pnode, "size",
-					&mem_size[0], 2);
-	if (ret) {
-		dev_err(dev, "can't find mem size parameters\n");
-		return ret;
-	}
-
-	ret = of_property_read_u32_array(pnode, "alloc-ranges",
-					&mem_addr[0], 2);
-	if (ret) {
-		dev_err(dev, "can't find alloc-ranges parameters\n");
-		return ret;
-	}
-
-	dev_notice(dev, "pcie reserved memory %u MiB at 0x%x!\n",
-		mem_size[1] / SZ_1M, mem_addr[1]);
-
-	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_PCIE,
-		mem_addr[1],
-		mem_size[1],
-		&handle);
-	if (ret) {
-		dev_err(dev, "tee_protect_mem %u MiB at 0x%x failed! ret=%d!\n",
-			mem_size[1] / SZ_1M, mem_addr[1], ret);
-		return ret;
-	}
-
-	dev_notice(dev, "tee_protect_mem %u MiB at 0x%x!\n",
-				mem_size[1] / SZ_1M, mem_addr[1]);
-
-	return 0;
-}
-#endif
 
 static void amlogic_elb_writel(struct amlogic_pcie *amlogic_pcie, u32 val,
 								u32 reg)
@@ -934,23 +854,11 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 	if (pwr_ctl)
 		power_switch_to_pcie(amlogic_pcie->phy);
 
-#if USE_TEE_WHITELIST
-	if (swiotlb_force != SWIOTLB_NO_FORCE &&
-		!pcie_protect_mem_init(&pdev->dev)) {
-		dev_pcie_reserved_mem = &pdev->dev;
-		dev_info(dev, "use pcie protect mem!\n");
-	} else {
-#endif
-		tee_start = roundup(virt_to_phys((void *)_text), TEE_MEM_ALIGN_SIZE);
-		tee_end = rounddown(virt_to_phys((void *)__bss_stop), TEE_MEM_ALIGN_SIZE);
-		tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL,
-		  tee_start,
-		  tee_end - tee_start,
-		  &handle);
-		keep_init = 1;
-#if USE_TEE_WHITELIST
-	}
-#endif
+	tee_start = roundup(virt_to_phys((void *)_text), TEE_MEM_ALIGN_SIZE);
+	tee_end = rounddown(virt_to_phys((void *)__bss_stop), TEE_MEM_ALIGN_SIZE);
+	tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL,
+		tee_start, tee_end - tee_start, &handle);
+	keep_init = 1;
 
 	if (!amlogic_pcie->phy->phy_base) {
 		phy_base = platform_get_resource_byname(
