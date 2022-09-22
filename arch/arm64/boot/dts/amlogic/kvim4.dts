@@ -644,7 +644,7 @@
 		aml-audio-card,dai-link@3 {
 			mclk-fs = <64>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&pdm>;
 			};
@@ -1622,6 +1622,13 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&amvideom {
+	display_device_cnt = <2>;
+	vpp0_layer_count = <2>;
+	/* number of video layer display on vpp1 */
+	vpp1_layer_count = <1>;
+};
+
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";
@@ -1640,6 +1647,10 @@
 			remote-endpoint = <&lcd2_to_drm>;
 		};
 	};
+};
+
+&drm_subsystem {
+		crtc_masks = <3 7 1>;
 };
 
 &lcd {
