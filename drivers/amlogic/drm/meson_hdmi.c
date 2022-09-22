@@ -1306,16 +1306,21 @@ static int meson_hdmitx_decide_eotf_type
 	 * Currently checking is to confirm crtc_eotf_type == dv/dv_ll mode,
 	 * we need special setting for dv.
 	 */
-	if (hdmitx_state->pref_hdr_policy == MESON_PREF_DV)
-		crtc_eotf_type = HDMI_EOTF_MESON_DOLBYVISION;
-	else if (hdmitx_state->pref_hdr_policy == MESON_PREF_HDR)
+	if (hdmitx_state->pref_hdr_policy == MESON_PREF_DV) {
+		if (meson_crtc_state->dv_mode)
+			crtc_eotf_type = HDMI_EOTF_MESON_DOLBYVISION_LL;
+		else
+			crtc_eotf_type = HDMI_EOTF_MESON_DOLBYVISION;
+	} else if (hdmitx_state->pref_hdr_policy == MESON_PREF_HDR) {
 		crtc_eotf_type = HDMI_EOTF_SMPTE_ST2084;
-	else
+	} else {
 		crtc_eotf_type = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+	}
 
 	DRM_DEBUG_KMS("%s: default eotf [%u]\n", __func__, crtc_eotf_type);
 
-	if (crtc_eotf_type == HDMI_EOTF_MESON_DOLBYVISION) {
+	if (crtc_eotf_type == HDMI_EOTF_MESON_DOLBYVISION ||
+	    crtc_eotf_type == HDMI_EOTF_MESON_DOLBYVISION_LL) {
 		/*check if dv core valid*/
 		if (meson_crtc_state->crtc_dv_enable)
 			ret = 0;

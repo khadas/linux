@@ -105,6 +105,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->crtc_hdr_enable = cur_state->crtc_hdr_enable;
 	new_state->crtc_eotf_by_property_flag = cur_state->crtc_eotf_by_property_flag;
 	new_state->eotf_type_by_property = cur_state->eotf_type_by_property;
+	new_state->dv_mode = cur_state->dv_mode;
 
 	/*reset dynamic info.*/
 	if (amcrtc->priv->logo_show_done)
@@ -176,6 +177,9 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	}  else if (property == meson_crtc->bgcolor_property) {
 		*val = crtc_state->crtc_bgcolor;
 		return 0;
+	} else if (property == meson_crtc->dv_mode_property) {
+		*val = crtc_state->dv_mode;
+		return 0;
 	}
 
 	return ret;
@@ -203,6 +207,9 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 		return 0;
 	} else if (property == meson_crtc->bgcolor_property) {
 		crtc_state->crtc_bgcolor = val;
+		return 0;
+	} else if (property == meson_crtc->dv_mode_property) {
+		crtc_state->dv_mode = val;
 		return 0;
 	}
 
@@ -533,6 +540,9 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 
 		if (cur_state->eotf_type_by_property != new_state->eotf_type_by_property)
 			crtc_state->mode_changed = true;
+
+		if (cur_state->dv_mode != new_state->dv_mode)
+			crtc_state->mode_changed = true;
 	}
 
 	/*check plane-update*/
@@ -725,6 +735,20 @@ static void meson_crtc_init_dv_enable_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_crtc_init_dv_mode_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "dv_mode");
+	if (prop) {
+		amcrtc->dv_mode_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to dv_mode property\n");
+	}
+}
+
 static void meson_crtc_add_bgcolor_property(struct drm_device *drm_dev,
 						  struct am_meson_crtc *amcrtc)
 {
@@ -793,6 +817,7 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
 	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);
+	meson_crtc_init_dv_mode_property(priv->drm, amcrtc);
 	meson_crtc_add_bgcolor_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
