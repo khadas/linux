@@ -67,6 +67,7 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 u8 hdmitx_reauth_request(u8 hdcp_version);
 u8 __attribute__((weak))hdmitx_reauth_request(u8 hdcp_version);
 void rx_set_repeater_support(bool enable);
+bool get_rx_active_sts(void);
 //int rx_set_receiver_edid(const char *data, int len);
 void rx_start_repeater_auth(void);
 void rx_set_repeat_signal(bool repeat);

@@ -72,6 +72,8 @@ struct session_sync_stat {
 	uint32_t flag;
 	/* enum av_sync_stat */
 	uint32_t stat;
+	/* clean poll stat after stat */
+	uint32_t clean_poll;
 };
 
 enum avs_event {
@@ -158,6 +160,7 @@ struct ker_start_policy {
 #define AMSYNCS_IOC_AUDIO_START	_IOW((_A_M_SS), 0x13, struct audio_start)
 #define AMSYNCS_IOC_SET_CLK_DEV	_IOW((_A_M_SS), 0x14, int)
 #define AMSYNCS_IOC_GET_CLK_DEV	_IOR((_A_M_SS), 0x15, int)
+#define AMSYNCS_IOC_SET_STOP_AUDIO_WAIT	_IOR((_A_M_SS), 0x16, int)
 
 //For debuging
 #define AMSYNCS_IOC_GET_DEBUG_MODE	_IOR((_A_M_SS), 0x100, struct session_debug)

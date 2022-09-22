@@ -27,6 +27,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/compat.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/sched/clock.h>
 #ifdef CONFIG_AMLOGIC_BL_EXTERN
 #include <linux/amlogic/media/vout/lcd/aml_bl_extern.h>
 #endif
@@ -1796,12 +1797,16 @@ static int bl_lcd_on_notifier(struct notifier_block *nb,
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 	struct aml_bl_drv_s *bdrv;
+	unsigned long long local_time[3];
 
 	if ((event & LCD_EVENT_BL_ON) == 0)
 		return NOTIFY_DONE;
 
 	if (!pdrv)
 		return NOTIFY_DONE;
+
+	local_time[0] = sched_clock();
+
 	bdrv = aml_bl_get_driver(pdrv->index);
 	if (aml_bl_check_driver(bdrv))
 		return NOTIFY_DONE;
@@ -1825,6 +1830,9 @@ static int bl_lcd_on_notifier(struct notifier_block *nb,
 		BLERR("[%d]: wrong backlight control method\n", bdrv->index);
 	}
 
+	local_time[1] = sched_clock();
+	pdrv->config.cus_ctrl.bl_on_time = local_time[1] - local_time[0];
+
 	return NOTIFY_OK;
 }
 
@@ -1833,12 +1841,15 @@ static int bl_lcd_off_notifier(struct notifier_block *nb,
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 	struct aml_bl_drv_s *bdrv;
+	unsigned long long local_time[3];
 
 	if ((event & LCD_EVENT_BL_OFF) == 0)
 		return NOTIFY_DONE;
 
 	if (!pdrv)
 		return NOTIFY_DONE;
+	local_time[0] = sched_clock();
+
 	bdrv = aml_bl_get_driver(pdrv->index);
 	if (aml_bl_check_driver(bdrv))
 		return NOTIFY_DONE;
@@ -1856,6 +1867,9 @@ static int bl_lcd_off_notifier(struct notifier_block *nb,
 		bl_power_off(bdrv);
 	bdrv->state &= ~BL_STATE_BL_INIT_ON;
 	mutex_unlock(&bl_level_mutex);
+
+	local_time[1] = sched_clock();
+	pdrv->config.cus_ctrl.bl_off_time = local_time[1] - local_time[0];
 
 	return NOTIFY_OK;
 }
@@ -2786,7 +2800,7 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 				len += sprintf(buf + len,
 					       "duty_value=%d(%d%%)\n",
 					       bl_pwm->pwm_duty,
-					       bl_pwm->pwm_duty * 100 / 255);
+					       bl_pwm->pwm_duty * 100 / bl_pwm->pwm_duty_max);
 			} else {
 				len += sprintf(buf + len,
 					       "duty_value=%d%%\n",
@@ -2806,7 +2820,7 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 				len += sprintf(buf + len,
 					       "duty_value=%d(%d%%)\n",
 					       bl_pwm->pwm_duty,
-					       bl_pwm->pwm_duty * 100 / 255);
+					       bl_pwm->pwm_duty * 100 / bl_pwm->pwm_duty_max);
 			} else {
 				len += sprintf(buf + len,
 					       "duty_value=%d%%\n",
@@ -2825,7 +2839,7 @@ static ssize_t bl_debug_pwm_show(struct device *dev,
 				len += sprintf(buf + len,
 					       "duty_value=%d(%d%%)\n",
 					       bl_pwm->pwm_duty,
-					       bl_pwm->pwm_duty * 100 / 255);
+					       bl_pwm->pwm_duty * 100 / bl_pwm->pwm_duty_max);
 			} else {
 				len += sprintf(buf + len,
 					       "duty_value=%d%%\n",
@@ -2914,7 +2928,9 @@ static void bl_debug_pwm_set(struct aml_bl_drv_s *bdrv, unsigned int index,
 			break;
 		case BL_DEBUG_PWM_DUTY_MAX:
 			bl_pwm->pwm_duty_max = value;
-			if (bl_pwm->pwm_duty_max > 100)
+			if (bl_pwm->pwm_duty_max > 255)
+				pwm_range = 40950;
+			else if (bl_pwm->pwm_duty_max > 100)
 				pwm_range = 2550;
 			else
 				pwm_range = 1000;

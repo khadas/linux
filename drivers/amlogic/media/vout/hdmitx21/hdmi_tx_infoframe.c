@@ -123,6 +123,12 @@ void hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val)
 	case CONF_AVI_YQ01:
 		info->ycc_quantization_range = val;
 		break;
+	case CONF_AVI_VIC:
+		info->video_code = val;
+		break;
+	case CONF_AVI_AR:
+		info->picture_aspect = val;
+		break;
 	default:
 		break;
 	}

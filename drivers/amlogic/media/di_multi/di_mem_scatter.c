@@ -397,7 +397,8 @@ void sct_max_check(struct di_ch_s *pch)
 	//di_que_list_count(ch, QUE_POST_READY);
 	psum->mts_pst_ready		= di_que_list_count(ch, QUE_POST_READY);
 	psum->mts_pst_back		= di_que_list_count(ch, QUE_POST_BACK);
-	psum->mts_pst_dispaly		= list_count(ch, QUEUE_DISPLAY);
+	psum->mts_pst_dispaly		= ndis_cnt(pch, QBF_NDIS_Q_DISPLAY);
+	//list_count(ch, QUEUE_DISPLAY);
 }
 
 /*because sct is not sync with reg/unreg */
@@ -689,14 +690,16 @@ unsigned int sct_keep(struct di_ch_s *pch, struct dim_sct_s *sct)
 	int ret;
 
 	if (!pch || !sct)
-		return 0xff;
+		return DIM_KEEP_NONE;
 	psct = &pch->msct_top;
 
 	mem_handle =
 		di_mmu_box_get_mem_handle
 			(psct->box, sct->header.index);
+	dbg_mem2("scta:keep:0x%px\n", mem_handle);
 	ret = codec_mm_keeper_mask_keep_mem(mem_handle,
 		MEM_TYPE_CODEC_MM_SCATTER);
+	dbg_mem2("scta:keep:nub:%d\n", ret);
 	#ifdef HIS_CODE
 	vf->mem_head_handle =
 		decoder_bmmu_box_get_mem_handle
@@ -704,7 +707,8 @@ unsigned int sct_keep(struct di_ch_s *pch, struct dim_sct_s *sct)
 	#endif
 	if (ret >= 0)
 		return ret;
-	return 0xff;
+	PR_WARN("%s:overflow:%d\n", __func__, ret);
+	return DIM_KEEP_NONE;
 }
 
 static void sct_alloc_in_poling(unsigned int ch)
@@ -865,6 +869,7 @@ static void sct_mng_working(struct di_ch_s *pch)
 	struct di_pre_stru_s *ppre;
 	unsigned int frame_nub;
 	unsigned int cnt_display = 0;
+	unsigned int dbg_mng_sts = 0; //dbg only
 
 	if (!pch)
 		return;
@@ -903,6 +908,7 @@ static void sct_mng_working(struct di_ch_s *pch)
 		sct->pat_buf = NULL;
 		sct_free_l(pch, sct);
 	}
+	dbg_mng_sts |= cnt_recycle & 0xf; //dbg only [0xf]
 
 	/*summary */
 	cnt_pst_free	= di_que_list_count(ch, QUE_POST_FREE);
@@ -925,6 +931,9 @@ static void sct_mng_working(struct di_ch_s *pch)
 	}
 	if (!cnt_wait)
 		f_no_wbuf = true;
+
+	dbg_mng_sts |= (ready_set & 0xf) << 4; //dbg only [0xf0]
+	dbg_mng_sts |= (cnt_wait & 0xff) << 8; //dbg only [0xff00]
 
 	if (ready_set) {
 		/* ready to used */
@@ -964,10 +973,15 @@ static void sct_mng_working(struct di_ch_s *pch)
 			pch->rsc_bypass.b.no_buf = 0;/*tmp*/
 			PR_WARN("no buffer:recover[%d]\n", frame_nub);
 		}
+		dbg_mng_sts |= DI_BIT16; //dbg only [0xf0000]
+		dim_tr_ops.sct_sts(dbg_mng_sts);
 		return;
 	}
-	if ((cnt_pst_free + cnt_sct_req + cnt_sct_ready) >= DIM_SCT_KEEP_READY)
+	if ((cnt_pst_free + cnt_sct_req + cnt_sct_ready) >= DIM_SCT_KEEP_READY) {
+		dbg_mng_sts |= DI_BIT17; //dbg only [0xf0000]
+		dim_tr_ops.sct_sts(dbg_mng_sts);
 		return;
+	}
 
 	need_req = DIM_SCT_KEEP_READY - cnt_pst_free - cnt_sct_req - cnt_sct_ready;
 
@@ -977,6 +991,7 @@ static void sct_mng_working(struct di_ch_s *pch)
 		need_req = cnt_idle;
 		f_req = true;
 	}
+	dbg_mng_sts |= (need_req & 0xf) << 20; //dbg only [0xf00000]
 
 	if (f_req /*&& pat_buf && pat_buf->vaddr*/) {
 		/* required */
@@ -1020,6 +1035,7 @@ static void sct_mng_working(struct di_ch_s *pch)
 		//if (req_new)
 		//	mtask_wake_for_sct();
 	} else if (cnt_pst_ready >= 1) {
+		dbg_mng_sts |= (cnt_pst_ready & 0xf) << 24; //dbg only [0xf000000]
 	} else if (dip_itf_is_ins_lbuf(pch) &&
 		   cnt_display >= (pmsct->max_nub - 3)) {
 	} else {
@@ -1050,6 +1066,7 @@ static void sct_mng_working(struct di_ch_s *pch)
 				cnt_sct_req);
 		}
 	}
+	dim_tr_ops.sct_sts(dbg_mng_sts);
 	if (err)
 		pch->rsc_bypass.b.scr_err = 1;
 }

@@ -1148,6 +1148,7 @@
 #define ENCL_INBUF_CNT                             0x1cd5
 
 #define VPU_VENC_CTRL                              0x1cef
+#define VPP_INT_LINE_NUM                           0x1dce
 #define VPU_DISP_VIU0_CTRL                         0x2786
 #define VPU_DISP_VIU1_CTRL                         0x2787
 #define VPU_DISP_VIU2_CTRL                         0x2788

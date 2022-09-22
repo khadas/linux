@@ -44,8 +44,7 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x10000>;
-			bconsole-size = <0x10000>;
+			pmsg-size = <0x20000>;
 		};
 
 		secmon_reserved: linux,secmon {
@@ -106,6 +105,13 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
+			size = <0x0 0x0000000>;
+			alignment = <0x0 0x400000>;
+		};
+		/* secure ion for gpu, advice size is 80M */
+		ion_secure_reserved:linux,ion-secure {
+			compatible = "amlogic, ion-secure-mem";
+			no-map;
 			size = <0x0 0x0000000>;
 			alignment = <0x0 0x400000>;
 		};
@@ -1002,63 +1008,6 @@
 		reg-names = "ao_exit","ao";
 	};
 
-	cpu_opp_table0: cpu_opp_table0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <780000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <780000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <780000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <667000000>;
-			opp-microvolt = <780000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <800000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <800000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <810000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <830000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <870000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <950000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <1010000>;
-		};
-	};
-
-	cpufreq-meson {
-		compatible = "amlogic, cpufreq-meson";
-	//	pinctrl-names = "default";
-	//	pinctrl-0 = <&pwm_ao_d_pins3>;
-		status = "okay";
-	};
-
 	atv-demod {
 		compatible = "amlogic, atv-demod";
 		status = "okay";
@@ -1247,6 +1196,9 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
@@ -1322,6 +1274,9 @@
 
 		samesource_sel = <4>;
 
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 		status = "okay";
@@ -1340,6 +1295,9 @@
 			"spdif_pins_mute";
 		pinctrl-0 = <&spdifout_b>;
 		pinctrl-1 = <&spdifout_b_mute>;
+
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 
 		status = "okay";
 	};
@@ -1415,7 +1373,7 @@
 
 		/*this resample is only used for loopback_A.*/
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {

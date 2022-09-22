@@ -358,7 +358,8 @@ enum hdmi_aspect_ratio {
 
 struct vesa_standard_timing;
 
-struct hdmi_format_para *hdmitx21_match_dtd_paras(struct dtd *t);
+const struct hdmi_timing *hdmitx21_match_dtd_timing(struct dtd *t);
+const struct hdmi_timing *hdmitx21_match_standrd_timing(struct vesa_standard_timing *t);
 struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing
 	*t);
 struct hdmi_format_para *hdmitx21_tst_fmt_name(const char *name,

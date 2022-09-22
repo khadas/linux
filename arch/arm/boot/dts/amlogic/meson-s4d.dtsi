@@ -213,8 +213,8 @@
 
 	soc_info {
 		compatible = "amlogic, socdata";
-		reg =	<0x0 0xfe010000 0x0 0xc>,
-			 <0x0 0xfe010180 0x0 0x4>;
+		reg =	<0xfe010000 0xc>,
+			 <0xfe010180 0x4>;
 		read_nocsdata_cmd =<0x82000039>;
 		write_nocsdata_cmd=<0x82000038>;
 		auth_reg_ops_cmd=<0x820000f0>;
@@ -1931,7 +1931,7 @@
 	};
 	efuse: efuse{
 		compatible = "amlogic, efuse";
-		reg=<0x0 0xfe440040 0x0 0x4>;
+		reg=<0xfe440040 0x4>;
 		secureboot_mask = <0x00000c00>;
 		mem_size = <0x100000>;
 		read_cmd = <0x82000030>;

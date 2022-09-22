@@ -39,7 +39,11 @@
 /* 20220421: fix lcd clk mistake for vmode change with fr_adj_type 4*/
 /* 20220426: update lcd mute control for DLG switch*/
 /* 20220428: fix t5w regs mistake*/
-#define LCD_DRV_VERSION    "20220428"
+/* 20220622: support tcon dynamic gamma*/
+/* 20220719: support t5,t5w,t3 set vswing level in low common type*/
+/* 20220729: optimize tcon switch flow before dlg timing change*/
+/* 20220809: fix tcon axi mem mistake for DLG tcon bin*/
+#define LCD_DRV_VERSION    "20220809"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -144,6 +148,7 @@ int lcd_tcon_core_reg_get(struct aml_lcd_drv_s *pdrv,
 			  unsigned char *buf, unsigned int size);
 int lcd_tcon_enable(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv);
+int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv);
 
@@ -155,6 +160,7 @@ int lcd_debug_probe(struct aml_lcd_drv_s *pdrv);
 int lcd_debug_remove(struct aml_lcd_drv_s *pdrv);
 
 /* lcd venc */
+unsigned int lcd_get_encl_lint_cnt(struct aml_lcd_drv_s *pdrv);
 void lcd_wait_vsync(struct aml_lcd_drv_s *pdrv);
 void lcd_gamma_check_en(struct aml_lcd_drv_s *pdrv);
 void lcd_gamma_debug_test_en(struct aml_lcd_drv_s *pdrv, int flag);

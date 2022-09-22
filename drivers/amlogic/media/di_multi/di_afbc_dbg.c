@@ -427,7 +427,9 @@ EXPORT_SYMBOL(dbg_afbce_bits_show);
 void dbg_mif_wr_bits_show(struct seq_file *s, enum EDI_MIFSM mifsel)
 {
 	seq_printf(s, "dump bits:wr[%d]\n", mifsel);
-	dbg_regs_tab(s, opl1()->reg_mif_wr_bits_tab, opl1()->reg_mif_wr_tab[mifsel]);
+	if (opl1()->reg_mif_wr_bits_tab)
+		dbg_regs_tab(s, opl1()->reg_mif_wr_bits_tab,
+			     opl1()->reg_mif_wr_tab[mifsel]);
 }
 EXPORT_SYMBOL(dbg_mif_wr_bits_show);
 

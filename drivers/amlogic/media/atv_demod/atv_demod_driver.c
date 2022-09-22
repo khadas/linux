@@ -60,7 +60,8 @@
 /* 2021/11/05 --- V2.31 --- Bringup t5w. */
 /* 2021/12/24 --- V2.32 --- Fix shutdown. */
 /* 2021/12/29 --- V2.33 --- Fix unable to find symbol aml_atvdemod_attach. */
-#define AMLATVDEMOD_VER "V2.33"
+/* 2022/06/16 --- V2.34 --- Fix audio setting and resume. */
+#define AMLATVDEMOD_VER "V2.34"
 
 struct aml_atvdemod_device *amlatvdemod_devp;
 
@@ -71,7 +72,7 @@ static ssize_t atvdemod_debug_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	int n = 0;
-	unsigned int ret = 0;
+	int ret = 0;
 	char *buf_orig = NULL, *ps = NULL, *token = NULL;
 	char *parm[4] = { NULL };
 	unsigned int data_snr[128] = { 0 };

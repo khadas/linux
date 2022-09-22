@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2022/05/28: support for multi-addr under uboot"
+#define CEC_DRIVER_VERSION     "2022/07/11: enable clock in dts for t5w"
 
 #define CEC_DEV_NAME		"cec"
 

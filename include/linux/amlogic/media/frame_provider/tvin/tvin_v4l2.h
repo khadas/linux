@@ -220,7 +220,7 @@ enum cam_command_e {
 	CAM_COMMAND_SET_AE_LEVEL,
 	/* af related */
 	CAM_COMMAND_AF,
-	CAM_COMMAND_FULLSCAN,
+	CAM_COMMAND_FULL_SCAN,
 	CAM_COMMAND_TOUCH_FOCUS,
 	CAM_COMMAND_CONTINUOUS_FOCUS_ON,
 	CAM_COMMAND_CONTINUOUS_FOCUS_OFF,
@@ -723,7 +723,7 @@ enum cam_interface_e {
 
 #define PARAM_STATE_NULL			0x00000000
 #define PARAM_STATE_HISTGRAM		0x00000001
-#define PARAM_STATE_SCREENCAP		0x00000002
+#define PARAM_STATE_SCREEN_CAP		0x00000002
 
 /* *********************************************************************** */
 
@@ -791,8 +791,8 @@ struct vdin_parm_s {
 	/*for vdin cfmt convert & scale&skip */
 	/* vdin will convert color space accroding to dfmt */
 	enum tvin_color_fmt_e dfmt;
-	unsigned short dest_hactive;	/* for vdin scale down */
-	unsigned short dest_vactive;
+	unsigned short dest_h_active;	/* for vdin scale down */
+	unsigned short dest_v_active;
 	unsigned short skip_count;	/* for skip frame */
 
 	struct csi_parm_s csi_hw_info;

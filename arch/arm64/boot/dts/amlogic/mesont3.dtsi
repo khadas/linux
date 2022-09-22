@@ -48,6 +48,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			suspend-freq = <1200000>;
 			dynamic-power-coefficient = <230>;
 		};
 
@@ -76,6 +77,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			suspend-freq = <1200000>;
 			dynamic-power-coefficient = <230>;
 		};
 
@@ -104,6 +106,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			suspend-freq = <1200000>;
 			dynamic-power-coefficient = <230>;
 		};
 
@@ -132,6 +135,7 @@
 			cpu-supply = <&vddcpu0>;
 			voltage-tolerance = <0>;
 			clock-latency = <50000>;
+			suspend-freq = <1200000>;
 			dynamic-power-coefficient = <230>;
 		};
 
@@ -377,8 +381,8 @@
 		memory-region = <&dsp_fw_reserved>;
 		reg = <0 0xfe340018 0 0x114>,   /*dspa base address*/
 			  <0 0xfe350018 0 0x114>,   /*dspb base address*/
-			  <0 0x0 0 0x0>,     /*dspa status counter*/
-			  <0 0x0 0 0x0>,     /*dspb status counter*/
+			  <0 0xfe010258 0 0x4>,     /*dspa status counter*/
+			  <0 0xfe01025c 0 0x4>,     /*dspb status counter*/
 			  <0 0x30000000 0 0x80000>; /*dsp shm region*/
 		dsp-monitor-period-ms = <1000>;
 		logbuff-polling-period-ms = <50>;
@@ -1581,6 +1585,8 @@
 		status = "okay";
 		index = <0>;
 		line_delay = <600>;
+		interrupts = <0 197 1>;
+		interrupt-names = "vsync";
 	};
 
 	canvas: canvas {
@@ -1826,6 +1832,9 @@
 		pps-enable = <1>;
 		dct = <2>;//decontour enable
 		hf	= <2>; //enable aisr
+		en_4k = <1>;
+		alloc_sct = <1>;
+		po_fmt = <6>;
 		/***************************************************
 		 * t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11
@@ -1938,17 +1947,17 @@
 			thermal-sensors = <&cpu_tsensor 0>;
 			trips {
 				cpuswitch_on: trip-point@0 {
-					temperature = <80000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				cpucontrol: trip-point@1 {
-					temperature = <90000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				cpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -1973,17 +1982,17 @@
 			thermal-sensors = <&nna_tsensor 1>;
 			trips {
 				nnaswitch_on: trip-point@0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				nnacontrol: trip-point@1 {
-					temperature = <100000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				nnacritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -1996,17 +2005,17 @@
 			thermal-sensors = <&vpu_tsensor 2>;
 			trips {
 				vpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				vpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				vpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				vpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2139,7 +2148,7 @@
 			0x0 0xfe02a000 0x0 0x2000
 			0x0 0xfe002044 0x0 0x10>;
 		reg-names = "elbi", "cfg", "config", "phy", "reset";
-		interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 		#interrupt-cells = <1>;
 		bus-range = <0x0 0xff>;
 		#address-cells = <3>;
@@ -3088,6 +3097,14 @@ dvb_p_ts2_pins: dvb_p_ts2_pins {
 				 "spi_b_miso_h",
 				 //"spi_b_ss0_h",used as GPIOH_24
 				 "spi_b_clk_h";
+			function = "spi_b";
+			drive-strength-microamp = <2000>;
+		};
+	};
+
+	spicc1_cs_pins: spicc1_cs_pins {
+		mux {
+			groups = "spi_b_ss0_h";
 			function = "spi_b";
 			drive-strength-microamp = <2000>;
 		};

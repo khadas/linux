@@ -8,15 +8,26 @@
 #include <linux/amlogic/media/vrr/vrr.h>
 
 /* ver:20210806: initial version */
-#define VRR_DRV_VERSION  "20210806"
+/* ver:20220718: basic function for freesync */
+#define VRR_DRV_VERSION  "20220718"
 
 #define VRRPR(fmt, args...)      pr_info("vrr: " fmt "", ## args)
 #define VRRERR(fmt, args...)     pr_err("vrr error: " fmt "", ## args)
 
 #define VRR_DBG_PR_NORMAL       BIT(0)
-#define VRR_DBG_PR_ISR          BIT(1)
+#define VRR_DBG_PR_ADV          BIT(1)
+#define VRR_DBG_PR_ISR          BIT(3)
+#define VRR_DBG_TEST            BIT(4)
 
-#define VRR_MAX_DRV    3
+#define VRR_MAX_DRV             3
+
+#define VRR_TRACE_SIZE          4088
+struct vrr_trace_s {
+	unsigned int flag;
+	unsigned int size;
+	char *buf;
+	char *pcur;
+};
 
 enum vrr_chip_e {
 	VRR_CHIP_T7 = 0,
@@ -41,6 +52,10 @@ struct vrr_data_s {
 #define VRR_STATE_MODE_SW     BIT(5)
 #define VRR_STATE_ENCL        BIT(8)
 #define VRR_STATE_ENCP        BIT(9)
+#define VRR_STATE_SWITCH_OFF  BIT(12)
+#define VRR_STATE_CLR_MASK    0xffff
+//for debug
+#define VRR_STATE_TRACE       BIT(16)
 
 struct aml_vrr_drv_s {
 	unsigned int index;
@@ -58,6 +73,9 @@ struct aml_vrr_drv_s {
 	struct vrr_data_s *data;
 	struct device *dev;
 	struct timer_list sw_timer;
+
+	unsigned int vsync_irq;
+	spinlock_t vrr_isr_lock; /* vsync lock */
 };
 
 //===========================================================================
@@ -67,6 +85,7 @@ struct aml_vrr_drv_s {
 
 extern unsigned int vrr_debug_print;
 
+void vrr_drv_trace(struct aml_vrr_drv_s *vdrv, char *str);
 struct aml_vrr_drv_s *vrr_drv_get(int index);
 int vrr_drv_func_en(struct aml_vrr_drv_s *vdrv, int flag);
 int vrr_drv_lfc_update(struct aml_vrr_drv_s *vdrv, int flag, int fps);

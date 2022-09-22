@@ -31,7 +31,7 @@ extern struct sr_info_s sr_info;
 #define VPP_WIDEMODE_BITS            24
 #define VPP_FLAG_INTERLACE_OUT       0x00000010
 #define VPP_FLAG_INTERLACE_IN        0x00000020
-#define VPP_FLAG_CBCR_SEPARATE       0x00000040
+#define VPP_FLAG_HAS_DV_EL           0x00000040
 #define VPP_FLAG_ZOOM_SHORTSIDE      0x00000080
 #define VPP_FLAG_AR_MASK             0x0003ff00
 #define VPP_FLAG_AR_BITS             8
@@ -41,6 +41,7 @@ extern struct sr_info_s sr_info;
 #define VPP_FLAG_FORCE_NO_COMPRESS   0x00200000
 #define VPP_FLAG_FORCE_SWITCH_VF     0x00400000
 #define VPP_FLAG_FORCE_NOT_SWITCH_VF 0x00800000
+#define VPP_FLAG_FORCE_NO_OFFSET	 0x00000004
 #define VPP_FLAG_FORCE_AFD_ENABLE	 0x00000002
 #define VPP_FLAG_FROM_TOGGLE_FRAME	0x00000001
 

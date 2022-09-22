@@ -118,7 +118,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 static void meson_crtc_init_hdr_preference
 	(struct am_meson_crtc_state *crtc_state)
 {
-	crtc_state->crtc_hdr_process_policy = MESON_HDR_POLICY_FOLLOW_SINK;
+	crtc_state->crtc_hdr_process_policy = get_hdr_policy();
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	crtc_state->crtc_dv_enable = is_amdv_enable();
 #else
@@ -386,12 +386,6 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 				== MESON_HDR_POLICY_FOLLOW_SOURCE ||
 			meson_crtc_state->crtc_hdr_process_policy
 				== MESON_HDR_POLICY_FOLLOW_SINK) {
-			hdrpolicy = (meson_crtc_state->crtc_hdr_process_policy
-				== MESON_HDR_POLICY_FOLLOW_SINK) ? 0 : 1;
-			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
-			set_hdr_policy(hdrpolicy);
-			#endif
-
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			/*enable/disable dv*/
 			if (meson_crtc_state->crtc_dv_enable) {
@@ -403,6 +397,12 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 				}
 				set_amdv_enable(true);
 			}
+			#endif
+
+			hdrpolicy = (meson_crtc_state->crtc_hdr_process_policy
+				== MESON_HDR_POLICY_FOLLOW_SINK) ? 0 : 1;
+			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM
+			set_hdr_policy(hdrpolicy);
 			#endif
 		}
 		/*force eotf by property*/
@@ -497,10 +497,6 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG("%s:out\n", __func__);
 }
 
-static bool crtc_dv_enable_value;
-module_param_named(crtc_dv_enable, crtc_dv_enable_value, bool, 0644);
-MODULE_PARM_DESC(crtc_dv_enable, "crtc_dv_enable parameter to set dv");
-
 static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state)
 {
@@ -519,12 +515,6 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 			crtc_state->mode_changed = true;
 			crtc_force_hint = 0;
 		}
-
-		/*YOCTO trigger dv_enable by property
-		 *RDK trigger dv_enable by parameter node
-		 */
-		if (crtc_dv_enable_value)
-			new_state->crtc_dv_enable = crtc_dv_enable_value;
 
 		if (cur_state->crtc_dv_enable != new_state->crtc_dv_enable)
 			crtc_state->mode_changed = true;
@@ -743,10 +733,11 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	struct am_meson_crtc *amcrtc;
 	struct drm_crtc *crtc;
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
+	struct drm_plane *primary_plane;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	int gamma_lut_size = 0;
 #endif
-	int ret;
+	int ret, plane_index;
 	char crtc_name[64];
 
 	DRM_INFO("%s\n", __func__);
@@ -761,11 +752,13 @@ struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
 	amcrtc->crtc_index = idx;
 	amcrtc->vout_index = idx + 1;/*vout index start from 1.*/
 	crtc = &amcrtc->base;
+	plane_index = priv->primary_plane_index[idx];
+	primary_plane = &priv->osd_planes[plane_index]->base;
 
 	snprintf(crtc_name, 64, "%s-%d", "VPP", amcrtc->crtc_index);
 
 	ret = drm_crtc_init_with_planes(priv->drm, crtc,
-					priv->primary_plane, priv->cursor_plane,
+					primary_plane, priv->cursor_plane,
 					&am_meson_crtc_funcs, crtc_name);
 	if (ret) {
 		dev_err(amcrtc->drm_dev->dev, "Failed to init CRTC\n");

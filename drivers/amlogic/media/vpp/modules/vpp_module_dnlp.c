@@ -78,6 +78,10 @@ static struct dnlp_dbg_rw_param_s *pdnlp_dbg_rw_param;
 static struct param_for_dnlp_s *pdnlp_alg_node_param;
 static struct dnlp_dbg_print_s *pdnlp_dbg_printk;
 
+/*For ai pq*/
+static struct dnlp_ai_pq_param_s dnlp_ai_pq_offset;
+static struct dnlp_ai_pq_param_s dnlp_ai_pq_base;
+
 /*Internal functions*/
 static void _set_dnlp_ctrl(enum _dnlp_mode_e mode, int val,
 	unsigned char start, unsigned char len)
@@ -113,7 +117,8 @@ static void _set_dnlp_data(enum _dnlp_mode_e mode, int *pdata)
 	}
 }
 
-static void _calculate_dnlp_tgtx(int hist_luma_sum, int *phist_data)
+static void _calculate_dnlp_tgtx(int hist_luma_sum,
+	unsigned short *phist_data)
 {
 	int i = 0;
 	int same_bin_num = 0;
@@ -415,6 +420,9 @@ int vpp_module_dnlp_init(struct vpp_dev_s *pdev)
 
 	pre_satur = 0;
 
+	memset(&dnlp_ai_pq_offset, 0, sizeof(dnlp_ai_pq_offset));
+	dnlp_ai_pq_base.final_gain = 8;
+
 	return 0;
 }
 
@@ -430,7 +438,8 @@ void vpp_module_dnlp_en(bool enable)
 		dnlp_bit_cfg.bit_dnlp_ctrl_en.len);
 }
 
-void vpp_module_dnlp_update_data(int hist_luma_sum, int *phist_data)
+void vpp_module_dnlp_update_data(int hist_luma_sum,
+	unsigned short *phist_data)
 {
 	if (!dnlp_alg_insmod_ok)
 		_dnlp_algorithm_init();
@@ -503,100 +512,159 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 	*pdnlp_alg_input->menu_chg_en = 1;
 
 	/*calc iir-coef params*/
-	pdnlp_alg_node_param->dnlp_smhist_ck = pdata->param[DNLP_SMHIST_CK];
-	pdnlp_alg_node_param->dnlp_mvreflsh = pdata->param[DNLP_MVREFLSH];
+	pdnlp_alg_node_param->dnlp_smhist_ck =
+		pdata->param[EN_DNLP_SMHIST_CK];
+	pdnlp_alg_node_param->dnlp_mvreflsh =
+		pdata->param[EN_DNLP_MVREFLSH];
 
-	pdnlp_alg_node_param->dnlp_cuvbld_min = pdata->param[DNLP_CUVBLD_MIN];
-	pdnlp_alg_node_param->dnlp_cuvbld_max = pdata->param[DNLP_CUVBLD_MAX];
+	pdnlp_alg_node_param->dnlp_cuvbld_min =
+		pdata->param[EN_DNLP_CUVBLD_MIN];
+	pdnlp_alg_node_param->dnlp_cuvbld_max =
+		pdata->param[EN_DNLP_CUVBLD_MAX];
 
 	/*histogram refine parms (remove bb affects)*/
-	pdnlp_alg_node_param->dnlp_bbd_ratio_low = pdata->param[DNLP_BBD_RATIO_LOW];
-	pdnlp_alg_node_param->dnlp_bbd_ratio_hig = pdata->param[DNLP_BBD_RATIO_HIG];
+	pdnlp_alg_node_param->dnlp_bbd_ratio_low =
+		pdata->param[EN_DNLP_BBD_RATIO_LOW];
+	pdnlp_alg_node_param->dnlp_bbd_ratio_hig =
+		pdata->param[EN_DNLP_BBD_RATIO_HIG];
 
 	/*brightness_plus*/
-	pdnlp_alg_node_param->dnlp_blk_cctr = pdata->param[DNLP_BLK_CCTR];
-	pdnlp_alg_node_param->dnlp_brgt_ctrl = pdata->param[DNLP_BRGT_CTRL];
-	pdnlp_alg_node_param->dnlp_brgt_range = pdata->param[DNLP_BRGT_RANGE];
-	pdnlp_alg_node_param->dnlp_brght_add = pdata->param[DNLP_BRGHT_ADD];
-	pdnlp_alg_node_param->dnlp_brght_max = pdata->param[DNLP_BRGHT_MAX];
+	pdnlp_alg_node_param->dnlp_blk_cctr =
+		pdata->param[EN_DNLP_BLK_CCTR];
+	pdnlp_alg_node_param->dnlp_brgt_ctrl =
+		pdata->param[EN_DNLP_BRGT_CTRL];
+	pdnlp_alg_node_param->dnlp_brgt_range =
+		pdata->param[EN_DNLP_BRGT_RANGE];
+	pdnlp_alg_node_param->dnlp_brght_add =
+		pdata->param[EN_DNLP_BRGHT_ADD];
+	pdnlp_alg_node_param->dnlp_brght_max =
+		pdata->param[EN_DNLP_BRGHT_MAX];
 
 	/*hist auto range parms*/
-	pdnlp_alg_node_param->dnlp_auto_rng = pdata->param[DNLP_AUTO_RNG];
-	pdnlp_alg_node_param->dnlp_lowrange = pdata->param[DNLP_LOWRANGE];
-	pdnlp_alg_node_param->dnlp_hghrange = pdata->param[DNLP_HGHRANGE];
+	pdnlp_alg_node_param->dnlp_auto_rng =
+		pdata->param[EN_DNLP_AUTO_RNG];
+	pdnlp_alg_node_param->dnlp_lowrange =
+		pdata->param[EN_DNLP_LOWRANGE];
+	pdnlp_alg_node_param->dnlp_hghrange =
+		pdata->param[EN_DNLP_HGHRANGE];
 
 	/*for gma_scurvs processing range*/
-	pdnlp_alg_node_param->dnlp_satur_rat = pdata->param[DNLP_SATUR_RAT];
-	pdnlp_alg_node_param->dnlp_satur_max = pdata->param[DNLP_SATUR_MAX];
-	pdnlp_alg_node_param->dnlp_sbgnbnd = pdata->param[DNLP_SBGNBND];
-	pdnlp_alg_node_param->dnlp_sendbnd = pdata->param[DNLP_SENDBND];
+	pdnlp_alg_node_param->dnlp_satur_rat =
+		pdata->param[EN_DNLP_SATUR_RAT];
+	pdnlp_alg_node_param->dnlp_satur_max =
+		pdata->param[EN_DNLP_SATUR_MAX];
+	pdnlp_alg_node_param->dnlp_sbgnbnd =
+		pdata->param[EN_DNLP_SBGNBND];
+	pdnlp_alg_node_param->dnlp_sendbnd =
+		pdata->param[EN_DNLP_SENDBND];
 
 	/*for clahe_curvs processing range*/
-	/*pdnlp_alg_node_param->dnlp_clashBgn = pdata->param[DNLP_CLASHBGN];*/
-	/*pdnlp_alg_node_param->dnlp_clashEnd = pdata->param[DNLP_CLASHEND];*/
+	/*pdnlp_alg_node_param->dnlp_clashBgn = pdata->param[EN_DNLP_CLASHBGN];*/
+	/*pdnlp_alg_node_param->dnlp_clashEnd = pdata->param[EN_DNLP_CLASHEND];*/
 
 	/*gains to delta of curves (for strength of the DNLP)*/
-	pdnlp_alg_node_param->dnlp_clahe_gain_neg = pdata->param[DNLP_CLAHE_GAIN_NEG];
-	pdnlp_alg_node_param->dnlp_clahe_gain_pos = pdata->param[DNLP_CLAHE_GAIN_POS];
-	pdnlp_alg_node_param->dnlp_final_gain = pdata->param[DNLP_FINAL_GAIN];
+	pdnlp_alg_node_param->dnlp_clahe_gain_neg =
+		pdata->param[EN_DNLP_CLAHE_GAIN_NEG];
+	pdnlp_alg_node_param->dnlp_clahe_gain_pos =
+		pdata->param[EN_DNLP_CLAHE_GAIN_POS];
+	pdnlp_alg_node_param->dnlp_final_gain =
+		pdata->param[EN_DNLP_FINAL_GAIN] + dnlp_ai_pq_offset.final_gain;
 
 	/*coef of blending between gma_scurv and clahe curves*/
-	pdnlp_alg_node_param->dnlp_mtdbld_rate =  pdata->param[DNLP_MTDBLD_RATE];
-	pdnlp_alg_node_param->dnlp_adpmtd_lbnd = pdata->param[DNLP_ADPMTD_LBND];
-	pdnlp_alg_node_param->dnlp_adpmtd_hbnd = pdata->param[DNLP_ADPMTD_HBND];
+	pdnlp_alg_node_param->dnlp_mtdbld_rate =
+		pdata->param[EN_DNLP_MTDBLD_RATE];
+	pdnlp_alg_node_param->dnlp_adpmtd_lbnd =
+		pdata->param[EN_DNLP_ADPMTD_LBND];
+	pdnlp_alg_node_param->dnlp_adpmtd_hbnd =
+		pdata->param[EN_DNLP_ADPMTD_HBND];
 
 	/*black white extension control params*/
-	pdnlp_alg_node_param->dnlp_blkext_ofst = pdata->param[DNLP_BLKEXT_OFST];
-	pdnlp_alg_node_param->dnlp_whtext_ofst = pdata->param[DNLP_WHTEXT_OFST];
-	pdnlp_alg_node_param->dnlp_blkext_rate = pdata->param[DNLP_BLKEXT_RATE];
-	pdnlp_alg_node_param->dnlp_whtext_rate = pdata->param[DNLP_WHTEXT_RATE];
-	pdnlp_alg_node_param->dnlp_bwext_div4x_min = pdata->param[DNLP_BWEXT_DIV4X_MIN];
-	/*pdnlp_alg_node_param->dnlp_iRgnBgn = pdata->param[DNLP_IRGNBGN];*/
-	/*pdnlp_alg_node_param->dnlp_iRgnEnd = pdata->param[DNLP_IRGNEND];*/
+	pdnlp_alg_node_param->dnlp_blkext_ofst =
+		pdata->param[EN_DNLP_BLKEXT_OFST];
+	pdnlp_alg_node_param->dnlp_whtext_ofst =
+		pdata->param[EN_DNLP_WHTEXT_OFST];
+	pdnlp_alg_node_param->dnlp_blkext_rate =
+		pdata->param[EN_DNLP_BLKEXT_RATE];
+	pdnlp_alg_node_param->dnlp_whtext_rate =
+		pdata->param[EN_DNLP_WHTEXT_RATE];
+	pdnlp_alg_node_param->dnlp_bwext_div4x_min =
+		pdata->param[EN_DNLP_BWEXT_DIV4X_MIN];
+	/*pdnlp_alg_node_param->dnlp_iRgnBgn = pdata->param[EN_DNLP_IRGNBGN];*/
+	/*pdnlp_alg_node_param->dnlp_iRgnEnd = pdata->param[EN_DNLP_IRGNEND];*/
 
 	/*curve- clahe*/
-	pdnlp_alg_node_param->dnlp_cliprate_v3 = pdata->param[DNLP_CLIPRATE_V3];
-	pdnlp_alg_node_param->dnlp_cliprate_min = pdata->param[DNLP_CLIPRATE_MIN];
-	pdnlp_alg_node_param->dnlp_adpcrat_lbnd = pdata->param[DNLP_ADPCRAT_LBND];
-	pdnlp_alg_node_param->dnlp_adpcrat_hbnd = pdata->param[DNLP_ADPCRAT_HBND];
+	pdnlp_alg_node_param->dnlp_cliprate_v3 =
+		pdata->param[EN_DNLP_CLIPRATE_V3];
+	pdnlp_alg_node_param->dnlp_cliprate_min =
+		pdata->param[EN_DNLP_CLIPRATE_MIN];
+	pdnlp_alg_node_param->dnlp_adpcrat_lbnd =
+		pdata->param[EN_DNLP_ADPCRAT_LBND];
+	pdnlp_alg_node_param->dnlp_adpcrat_hbnd =
+		pdata->param[EN_DNLP_ADPCRAT_HBND];
 
 	/*adaptive saturation compensations*/
-	pdnlp_alg_node_param->dnlp_scurv_low_th = pdata->param[DNLP_SCURV_LOW_TH];
-	pdnlp_alg_node_param->dnlp_scurv_mid1_th = pdata->param[DNLP_SCURV_MID1_TH];
-	pdnlp_alg_node_param->dnlp_scurv_mid2_th = pdata->param[DNLP_SCURV_MID2_TH];
-	pdnlp_alg_node_param->dnlp_scurv_hgh1_th = pdata->param[DNLP_SCURV_HGH1_TH];
-	pdnlp_alg_node_param->dnlp_scurv_hgh2_th = pdata->param[DNLP_SCURV_HGH2_TH];
+	pdnlp_alg_node_param->dnlp_scurv_low_th =
+		pdata->param[EN_DNLP_SCURV_LOW_TH];
+	pdnlp_alg_node_param->dnlp_scurv_mid1_th =
+		pdata->param[EN_DNLP_SCURV_MID1_TH];
+	pdnlp_alg_node_param->dnlp_scurv_mid2_th =
+		pdata->param[EN_DNLP_SCURV_MID2_TH];
+	pdnlp_alg_node_param->dnlp_scurv_hgh1_th =
+		pdata->param[EN_DNLP_SCURV_HGH1_TH];
+	pdnlp_alg_node_param->dnlp_scurv_hgh2_th =
+		pdata->param[EN_DNLP_SCURV_HGH2_TH];
 
 	/*new c curve param add for vlsi-kiteli*/
-	pdnlp_alg_node_param->dnlp_mtdrate_adp_en = pdata->param[DNLP_MTDRATE_ADP_EN];
-	pdnlp_alg_node_param->dnlp_clahe_method = pdata->param[DNLP_CLAHE_METHOD];
-	pdnlp_alg_node_param->dnlp_ble_en = pdata->param[DNLP_BLE_EN];
-	pdnlp_alg_node_param->dnlp_norm = pdata->param[DNLP_NORM];
-	pdnlp_alg_node_param->dnlp_scn_chg_th = pdata->param[DNLP_SCN_CHG_TH];
-	pdnlp_alg_node_param->dnlp_iir_step_mux = pdata->param[DNLP_IIR_STEP_MUX];
-	pdnlp_alg_node_param->dnlp_single_bin_bw = pdata->param[DNLP_SINGLE_BIN_BW];
-	pdnlp_alg_node_param->dnlp_single_bin_method = pdata->param[DNLP_SINGLE_BIN_METHOD];
-	pdnlp_alg_node_param->dnlp_reg_max_slop_1st = pdata->param[DNLP_REG_MAX_SLOP_1ST];
-	pdnlp_alg_node_param->dnlp_reg_max_slop_mid = pdata->param[DNLP_REG_MAX_SLOP_MID];
-	pdnlp_alg_node_param->dnlp_reg_max_slop_fin = pdata->param[DNLP_REG_MAX_SLOP_FIN];
-	pdnlp_alg_node_param->dnlp_reg_min_slop_1st = pdata->param[DNLP_REG_MIN_SLOP_1ST];
-	pdnlp_alg_node_param->dnlp_reg_min_slop_mid = pdata->param[DNLP_REG_MIN_SLOP_MID];
-	pdnlp_alg_node_param->dnlp_reg_min_slop_fin = pdata->param[DNLP_REG_MIN_SLOP_FIN];
+	pdnlp_alg_node_param->dnlp_mtdrate_adp_en =
+		pdata->param[EN_DNLP_MTDRATE_ADP_EN];
+	pdnlp_alg_node_param->dnlp_clahe_method =
+		pdata->param[EN_DNLP_CLAHE_METHOD];
+	pdnlp_alg_node_param->dnlp_ble_en =
+		pdata->param[EN_DNLP_BLE_EN];
+	pdnlp_alg_node_param->dnlp_norm =
+		pdata->param[EN_DNLP_NORM];
+	pdnlp_alg_node_param->dnlp_scn_chg_th =
+		pdata->param[EN_DNLP_SCN_CHG_TH];
+	pdnlp_alg_node_param->dnlp_iir_step_mux =
+		pdata->param[EN_DNLP_IIR_STEP_MUX];
+	pdnlp_alg_node_param->dnlp_single_bin_bw =
+		pdata->param[EN_DNLP_SINGLE_BIN_BW];
+	pdnlp_alg_node_param->dnlp_single_bin_method =
+		pdata->param[EN_DNLP_SINGLE_BIN_METHOD];
+	pdnlp_alg_node_param->dnlp_reg_max_slop_1st =
+		pdata->param[EN_DNLP_REG_MAX_SLOP_1ST];
+	pdnlp_alg_node_param->dnlp_reg_max_slop_mid =
+		pdata->param[EN_DNLP_REG_MAX_SLOP_MID];
+	pdnlp_alg_node_param->dnlp_reg_max_slop_fin =
+		pdata->param[EN_DNLP_REG_MAX_SLOP_FIN];
+	pdnlp_alg_node_param->dnlp_reg_min_slop_1st =
+		pdata->param[EN_DNLP_REG_MIN_SLOP_1ST];
+	pdnlp_alg_node_param->dnlp_reg_min_slop_mid =
+		pdata->param[EN_DNLP_REG_MIN_SLOP_MID];
+	pdnlp_alg_node_param->dnlp_reg_min_slop_fin =
+		pdata->param[EN_DNLP_REG_MIN_SLOP_FIN];
 	pdnlp_alg_node_param->dnlp_reg_trend_wht_expand_mode =
-		pdata->param[DNLP_REG_TREND_WHT_EXPAND_MODE];
+		pdata->param[EN_DNLP_REG_TREND_WHT_EXPAND_MODE];
 	pdnlp_alg_node_param->dnlp_reg_trend_blk_expand_mode =
-		pdata->param[DNLP_REG_TREND_BLK_EXPAND_MODE];
-	pdnlp_alg_node_param->dnlp_ve_hist_cur_gain = pdata->param[DNLP_HIST_CUR_GAIN];
+		pdata->param[EN_DNLP_REG_TREND_BLK_EXPAND_MODE];
+	pdnlp_alg_node_param->dnlp_ve_hist_cur_gain =
+		pdata->param[EN_DNLP_HIST_CUR_GAIN];
 	pdnlp_alg_node_param->dnlp_ve_hist_cur_gain_precise =
-		pdata->param[DNLP_HIST_CUR_GAIN_PRECISE];
+		pdata->param[EN_DNLP_HIST_CUR_GAIN_PRECISE];
 	pdnlp_alg_node_param->dnlp_reg_mono_binrang_st =
-		pdata->param[DNLP_REG_MONO_BINRANG_ST];
+		pdata->param[EN_DNLP_REG_MONO_BINRANG_ST];
 	pdnlp_alg_node_param->dnlp_reg_mono_binrang_ed =
-		pdata->param[DNLP_REG_MONO_BINRANG_ED];
-	pdnlp_alg_node_param->dnlp_c_hist_gain_base = pdata->param[DNLP_C_HIST_GAIN_BASE];
-	pdnlp_alg_node_param->dnlp_s_hist_gain_base = pdata->param[DNLP_S_HIST_GAIN_BASE];
-	pdnlp_alg_node_param->dnlp_mvreflsh_offset = pdata->param[DNLP_MVREFLSH_OFFSET];
-	pdnlp_alg_node_param->dnlp_luma_avg_th = pdata->param[DNLP_LUMA_AVG_TH];
+		pdata->param[EN_DNLP_REG_MONO_BINRANG_ED];
+	pdnlp_alg_node_param->dnlp_c_hist_gain_base =
+		pdata->param[EN_DNLP_C_HIST_GAIN_BASE];
+	pdnlp_alg_node_param->dnlp_s_hist_gain_base =
+		pdata->param[EN_DNLP_S_HIST_GAIN_BASE];
+	pdnlp_alg_node_param->dnlp_mvreflsh_offset =
+		pdata->param[EN_DNLP_MVREFLSH_OFFSET];
+	pdnlp_alg_node_param->dnlp_luma_avg_th =
+		pdata->param[EN_DNLP_LUMA_AVG_TH];
+
+	dnlp_ai_pq_base.final_gain = pdata->param[EN_DNLP_FINAL_GAIN];
 
 	/*update reg data*/
 	_init_dnlp_data(pdnlp_alg_input->ve_dnlp_luma_sum,
@@ -605,5 +673,28 @@ void vpp_module_dnlp_set_param(struct vpp_dnlp_curve_param_s *pdata)
 		&dnlp_lpf[0]);
 	_calculate_dnlp_reg(&dnlp_lpf[0], &dnlp_reg[0]);
 	_set_dnlp_data(cur_mode, &dnlp_reg[0]);
+}
+
+/*For ai pq*/
+void vpp_module_dnlp_get_ai_pq_base(struct dnlp_ai_pq_param_s *pparam)
+{
+	if (!pparam)
+		return;
+
+	pparam->final_gain = dnlp_ai_pq_base.final_gain;
+}
+
+void vpp_module_dnlp_set_ai_pq_offset(struct dnlp_ai_pq_param_s *pparam)
+{
+	int offset = 0;
+
+	if (!pparam)
+		return;
+
+	offset = pparam->final_gain;
+	if (dnlp_ai_pq_offset.final_gain != offset) {
+		dnlp_ai_pq_offset.final_gain = offset;
+		pdnlp_alg_node_param->dnlp_final_gain += offset;
+	}
 }
 

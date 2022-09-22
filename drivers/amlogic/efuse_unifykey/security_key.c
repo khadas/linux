@@ -247,10 +247,10 @@ int __init security_key_init(struct platform_device *pdev)
 	phy_block = storage_smc_ops(BL31_STORAGE_BLOCK);
 	share_mem->size = storage_smc_ops(BL31_STORAGE_SIZE);
 
-	if (!phy_in || phy_in == SMC_UNK ||
-	    !phy_out || phy_out == SMC_UNK ||
-	    !phy_block || phy_block == SMC_UNK ||
-	    !(share_mem->size) || share_mem->size == SMC_UNK) {
+	if (!phy_in || (int)phy_in == SMC_UNK ||
+	    !phy_out || (int)phy_out == SMC_UNK ||
+	    !phy_block || (int)phy_block == SMC_UNK ||
+	    !(share_mem->size) || ((int)share_mem->size) == SMC_UNK) {
 		pr_err("fail to obtain phy addr of shared mem\n");
 		return -EOPNOTSUPP;
 	}

@@ -84,61 +84,61 @@ extern int aml_demod_debug;
 #define DBG_ISDBT	BIT(8)
 #define DBG_TIME	BIT(9)
 
-#define PR_INFO(fmt, args ...)	printk("dtv_dmd:"fmt, ##args)
+#define PR_INFO(fmt, args ...)	pr_info("dtv_dmd:" fmt, ##args)
 
 #define PR_TIME(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_TIME) { \
-			printk("dtv_dmd:" fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
 #define PR_DBG(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_INFO) { \
-			printk("dtv_dmd:"fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
 #define PR_ATSC(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_ATSC) { \
-			printk("dtv_dmd:"fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
 #define PR_DVBC(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_DVBC) { \
-			pr_info("dtv_dmd:"fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
 #define PR_DVBT(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_DVBT) { \
-			pr_info("dtv_dmd:"fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
 #define PR_DVBS(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_DVBS) { \
-			pr_info("dtv_dmd:"fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
 #define PR_DTMB(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_DTMB) { \
-			pr_info("dtv_dmd:"fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
 #define PR_ISDBT(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_ISDBT) { \
-			pr_info("dtv_dmd:"fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
@@ -146,12 +146,12 @@ extern int aml_demod_debug;
 #define PR_DBGL(fmt, args ...) \
 	do { \
 		if (aml_demod_debug & DBG_LOOP) { \
-			pr_info("dtv_dmd:"fmt, ##args); \
+			pr_info("dtv_dmd:" fmt, ##args); \
 		} \
 	} while (0)
 
-#define PR_ERR(fmt, args ...) pr_err("dtv_dmd:"fmt, ## args)
-#define PR_WAR(fmt, args...)  pr_warn("dtv_dmd:" fmt, ## args)
+#define PR_ERR(fmt, args ...) pr_err("dtv_dmd:" fmt, ##args)
+#define PR_WAR(fmt, args...)  pr_warn("dtv_dmd:" fmt, ##args)
 
 
 enum demod_reg_mode {
@@ -236,18 +236,7 @@ unsigned int dvbt_set_ch(struct aml_dtvdemod *demod,
 		struct aml_demod_dvbt *demod_dvbt, struct dvb_frontend *fe);
 int dvbt2_set_ch(struct aml_dtvdemod *demod, struct dvb_frontend *fe);
 
-struct demod_status_ops {
-	int (*get_status)(void);
-	int (*get_ber)(void);
-	int (*get_snr)(struct aml_demod_sta *demod_sta);
-	int (*get_strength)(struct aml_demod_sta *demod_sta);
-	int (*get_ucblocks)(struct aml_demod_sta *demod_sta);
-};
-
-struct demod_status_ops *dvbt_get_status_ops(void);
-
 /* dvbc */
-
 int dvbc_set_ch(struct aml_dtvdemod *demod, struct aml_demod_dvbc *demod_dvbc,
 		struct dvb_frontend *fe);
 int dvbc_status(struct aml_dtvdemod *demod, struct aml_demod_sts *demod_sts,

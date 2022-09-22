@@ -164,9 +164,13 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 	struct aml_dmx *pdmx = (struct aml_dmx *)demux->priv;
 	int ret = 0;
 
-	if (pdmx->reset_init == 0 && pdmx->video_pid != -1) {
+	if (pdmx->reset_init == 0 && pdmx->video_pid != -1 && pdmx->sc2_input) {
 		ts_input_write_empty(pdmx->sc2_input, pdmx->video_pid);
 		pdmx->reset_init = 1;
+	}
+	if (pdmx->reset_init_audio == 0 && pdmx->audio_pid != -1 && pdmx->sc2_input) {
+		ts_input_write_empty(pdmx->sc2_input, pdmx->audio_pid);
+		pdmx->reset_init_audio = 1;
 	}
 	if (mutex_lock_interruptible(pdmx->pmutex)) {
 		dprint("%s line:%d\n", __func__, __LINE__);
@@ -185,6 +189,14 @@ static int _dmx_write_from_user(struct dmx_demux *demux,
 			return -ERESTARTSYS;
 		}
 	}
+
+	if (!pdmx->sc2_input) {
+		dprint("first set DMX_SET_INPUT to local\n");
+		if (enable_w_mutex)
+			mutex_unlock(pdmx->pmutex);
+		return -1;
+	}
+
 	ret = ts_input_write(pdmx->sc2_input, buf, count);
 	if (enable_w_mutex) {
 		usleep_range(1000, 1500);
@@ -562,6 +574,11 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 	if (feed->type == VIDEO_TYPE) {
 		demux->video_pid = feed->pid;
 		demux->reset_init = 0;
+	}
+
+	if (feed->type == AUDIO_TYPE) {
+		demux->audio_pid = feed->pid;
+		demux->reset_init_audio = 0;
 	}
 
 	mutex_unlock(demux->pmutex);
@@ -984,7 +1001,7 @@ static void dvr_filter_pid(const int pid, struct aml_dmx *demux,
 	struct pid_node *node_pid = NULL;
 
 	list_for_each_entry_safe(node_pid, pos2, &demux->pid_head, node) {
-		if (node_pid->pid == pid && node_pid->feed &&
+		if ((node_pid->pid == pid || node_pid->pid == 0x2000) && node_pid->feed &&
 				 ((struct sw_demux_ts_feed *)node_pid->feed)->ts_cb) {
 			/*if found dvb-core buff isn't enough, return*/
 			if (req_len && req_ret) {
@@ -1110,6 +1127,11 @@ static int _dmx_release_ts_feed(struct dmx_demux *dmx,
 	if (feed->type == VIDEO_TYPE) {
 		demux->video_pid = -1;
 		demux->reset_init = -1;
+	}
+
+	if (feed->type == AUDIO_TYPE) {
+		demux->audio_pid = -1;
+		demux->reset_init_audio = -1;
 	}
 
 	list_for_each_entry_safe(entry, tmp, &demux->pid_head, node) {
@@ -1574,6 +1596,11 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 		wp_offset = 0;
 		newest_pts = 0;
 
+		if (!ts_feed || !ts_feed->ts_out_elem) {
+			dprint("ts_feed or ts_out_elem is NULL\n");
+			continue;
+		}
+
 		ts_output_get_mem_info(ts_feed->ts_out_elem,
 			   &total_mem,
 			   &buf_phy_start,
@@ -1610,6 +1637,11 @@ int _dmx_get_mem_info(struct dmx_demux *dmx, struct dmx_filter_mem_info *info)
 			total_mem = 0;
 			buf_phy_start = 0;
 			wp_offset = 0;
+
+			if (!section_feed || !section_feed->sec_out_elem) {
+				dprint("section_feed or sec_out_elem is NULL\n");
+				continue;
+			}
 
 			ts_output_get_mem_info(section_feed->sec_out_elem,
 				   &total_mem,
@@ -1776,7 +1808,7 @@ static int _dmx_decode_info(struct dmx_demux *dmx, struct decoder_mem_info *info
 {
 	struct aml_dmx *demux = (struct aml_dmx *)dmx->priv;
 
-	pr_dbg("%s dmx%d\n", __func__, demux->id);
+//	pr_dbg("%s dmx%d\n", __func__, demux->id);
 
 	if (mutex_lock_interruptible(demux->pmutex))
 		return -ERESTARTSYS;
@@ -1890,6 +1922,8 @@ int dmx_init(struct aml_dmx *pdmx, struct dvb_adapter *dvb_adapter)
 	pdmx->sec_dvr_size = 0;
 	pdmx->reset_init = -1;
 	pdmx->video_pid = -1;
+	pdmx->reset_init_audio = -1;
+	pdmx->audio_pid = -1;
 //      dvb_net_init(dvb_adapter, &dmx->dvb_net, &pdmx->dmx);
 
 	return 0;

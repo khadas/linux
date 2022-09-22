@@ -468,6 +468,8 @@ static int dump_di_pre_stru_seq(struct seq_file *seq, void *v,
 		   di_pre_stru_p->bypass_pre ? "true" : "false");
 	seq_printf(seq, "%-25s = %s\n", "invert_flag",
 		   di_pre_stru_p->invert_flag ? "true" : "false");
+	seq_printf(seq, "%-25s = %s\n", "is_disable_nr",
+		   di_pre_stru_p->is_disable_nr ? "true" : "false");
 
 	return 0;
 }
@@ -994,9 +996,12 @@ static int seq_file_module_para_show(struct seq_file *seq, void *v)
 	dim_seq_file_module_para_di(seq);
 	dim_seq_file_module_para_hw(seq);
 	dim_seq_file_module_para_pps(seq);
-	get_ops_mtn()->module_para(seq);
-	get_ops_nr()->module_para(seq);
-	get_ops_pd()->module_para(seq);
+	if (get_ops_mtn()->module_para)
+		get_ops_mtn()->module_para(seq);
+	if (get_ops_nr()->module_para)
+		get_ops_nr()->module_para(seq);
+	if (get_ops_pd()->module_para)
+		get_ops_pd()->module_para(seq);
 
 	return 0;
 }
@@ -1009,7 +1014,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	struct di_buf_s *p = NULL, *keep_buf;/* ptmp; */
 	struct di_pre_stru_s *di_pre_stru_p;
 	struct di_post_stru_s *di_post_stru_p;
-	const char *version_s = dim_get_version_s();
+	//const char *version_s = dim_get_version_s();
 	int dump_state_flag = dim_get_dump_state_flag();
 	unsigned char recovery_flag = dim_vcry_get_flg();
 	unsigned int recovery_log_reason = dim_vcry_get_log_reason();
@@ -1037,8 +1042,7 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 
 	dump_state_flag = 1;
 	seq_printf(seq, "%s:ch[%d]\n", __func__, channel);
-	seq_printf(seq, "version %s, init_flag %d, dw[%d:%d:%d:%d]\n",
-		   version_s,
+	seq_printf(seq, "init_flag %d, dw[%d:%d:%d:%d]\n",
 		   get_init_flag(channel),
 		   get_datal()->dw_d.state_en,
 		   get_datal()->dw_d.state_cfg_by_dbg,
@@ -1068,6 +1072,8 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	seq_printf(seq, "mm:sts:num_local[%d],num_post[%d]\n",
 		   mm->sts.num_local,
 		   mm->sts.num_post);
+	seq_printf(seq, "mem:nub[%d]\n",
+		   di_buf_mem_get_nub(pch));
 	keep_buf = di_post_stru_p->keep_buf;
 	seq_printf(seq, "used_post_buf_index %d(0x%p),",
 		   IS_ERR_OR_NULL(keep_buf) ?

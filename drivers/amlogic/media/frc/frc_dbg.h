@@ -9,6 +9,7 @@ extern const char * const frc_state_ary[];
 extern u32 g_input_hsize;
 extern u32 g_input_vsize;
 extern int frc_dbg_en;
+extern int frc_dbg_ctrl;
 
 void frc_power_domain_ctrl(struct frc_dev_s *devp, u32 onoff);
 void frc_debug_if(struct frc_dev_s *frc_devp, const char *buf, size_t count);

@@ -52,8 +52,7 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x10000>;
-			bconsole-size = <0x10000>;
+			pmsg-size = <0x20000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -75,8 +74,7 @@
 		};
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			/* keep sync with fb, fox example:logo_addr = "0x7f800000"*/
 			alignment = <0x0 0x400000>;
 			reg = <0x0 0x7f800000 0x0 0x800000>;
@@ -94,11 +92,11 @@
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 		};
-		/* secure ion for gpu,advice size is 0x8000000 */
+		/* secure ion for gpu, advice size is 80M */
 		ion_secure_reserved:linux,ion-secure {
 			compatible = "amlogic, ion-secure-mem";
 			no-map;
-			size = <0x0 0x0000000>;
+			size = <0x0 0x5000000>;
 			alignment = <0x0 0x400000>;
 		};
 		ion_fb_reserved:linux,ion-fb {
@@ -1538,6 +1536,25 @@
 			input-enable;
 		};
 	};
+	ST5461D18_2_pins: ST5461D18_2_pin {
+		mux {
+			groups = "tcon_1","tcon_2","tcon_3",
+				"tcon_4","tcon_5","tcon_6",
+				"tcon_9","tcon_10","tcon_11",
+				"tcon_14","tcon_lock";
+			function = "tcon";
+		};
+	};
+	ST5461D18_2_off_pins: ST5461D18_2_off_pin {
+		mux {
+			groups = "GPIOH_1","GPIOH_2","GPIOH_3",
+				"GPIOH_4","GPIOH_5","GPIOH_6",
+				"GPIOH_9","GPIOH_10","GPIOH_11",
+				"GPIOH_14","GPIOH_0";
+				function = "gpio_periphs";
+			input-enable;
+		};
+	};
 };
 
 &pwm_cd {
@@ -1710,8 +1727,9 @@
 &spicc1 {	//for UWB/LocalDimm
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&spicc1_pins>;
-	cs-gpios = <&gpio GPIOH_24 GPIO_ACTIVE_HIGH>;
+	pinctrl-0 = <&spicc1_pins &spicc1_cs_pins>;
+	cs2clk-us = <2>;
+	clk2cs-us = <12>;
 };
 
 &spicc2 {

@@ -573,6 +573,11 @@ static void lcd_p2p_phy_set_t5(struct aml_lcd_drv_s *pdrv, int status)
 				cntl14 = 0xe0600272;
 			else /* default 385mV */
 				cntl14 = 0xfe60027f;
+
+			/* vswing_level */
+			cntl14 &= ~(0xf);
+			cntl14 |= phy->vswing;
+
 			/* vcm */
 			if ((phy->flag & (1 << 1))) {
 				cntl14 &= ~(0x7ff << 4);
@@ -671,13 +676,13 @@ static void lcd_lvds_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 			       pdrv->index);
 			return;
 		}
-		flag = (0x1f << 5);
+		flag = (0x1f << 10);
 		break;
 	case 2:
 		if (lvds_conf->dual_port)
 			flag = (0x3ff << 5);
 		else
-			flag = (0x1f << 10);
+			flag = (0x1f << 5);
 		break;
 	default:
 		LCDERR("invalid drv_index %d for lvds\n", pdrv->index);
@@ -1123,6 +1128,11 @@ static void lcd_p2p_phy_set_t3(struct aml_lcd_drv_s *pdrv, int status)
 				cntl14 = 0xe0600272;
 			else /* default 385mV */
 				cntl14 = 0xfe60027f;
+
+			/* vswing_level */
+			cntl14 &= ~(0xf);
+			cntl14 |= phy->vswing;
+
 			/* vcm */
 			if ((phy->flag & (1 << 1))) {
 				cntl14 &= ~(0x7ff << 4);
@@ -1384,6 +1394,11 @@ static void lcd_p2p_phy_set_t5w(struct aml_lcd_drv_s *pdrv, int status)
 				cntl14 = 0xe0600272;
 			else /* default 385mV */
 				cntl14 = 0xfe60027f;
+
+			/* vswing_level */
+			cntl14 &= ~(0xf);
+			cntl14 |= phy->vswing;
+
 			/* vcm */
 			if ((phy->flag & (1 << 1))) {
 				cntl14 &= ~(0x7ff << 4);

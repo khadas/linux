@@ -297,11 +297,18 @@ int mmc_dtb_open(struct inode *node, struct file *file)
 	return 0;
 }
 
-ssize_t mmc_dtb_read(struct file *file, char __user *buf,
-		     size_t count, loff_t *ppos)
+ssize_t mmc_dtb_read(struct file *file,
+		char __user *buf,
+		size_t count,
+		loff_t *ppos)
 {
 	unsigned char *dtb_ptr = NULL;
+	unsigned char *dst = NULL;
 	ssize_t read_size = 0;
+	int bit = card_dtb->csd.read_blkbits;
+	int blk = (MMC_DTB_PART_OFFSET + *ppos) >> bit;
+	int read_count = 0;
+	int cnt = 0;
 	int ret = 0;
 
 	if (*ppos == CONFIG_DTB_SIZE)
@@ -316,19 +323,31 @@ ssize_t mmc_dtb_read(struct file *file, char __user *buf,
 	if (!dtb_ptr)
 		return -ENOMEM;
 
-	mmc_claim_host(card_dtb->host);
-	ret = amlmmc_dtb_read(card_dtb, (unsigned char *)dtb_ptr,
-			      CONFIG_DTB_SIZE);
-	if (ret) {
-		pr_err("%s: read failed:%d", __func__, ret);
-		ret = -EFAULT;
-		goto exit;
-	}
 	if ((*ppos + count) > CONFIG_DTB_SIZE)
 		read_size = CONFIG_DTB_SIZE - *ppos;
 	else
 		read_size = count;
-	ret = copy_to_user(buf, (dtb_ptr + *ppos), read_size);
+
+	cnt = read_size >> bit;
+	dst = dtb_ptr;
+	mmc_claim_host(card_dtb->host);
+	do {
+		if (cnt > MAX_TRANS_BLK)
+			read_count = MAX_TRANS_BLK;
+		else
+			read_count = cnt;
+		ret = mmc_read_internal(card_dtb, blk, read_count, dst);
+		if (ret) {
+			pr_err("%s: read failed:%d", __func__, ret);
+			ret = -EFAULT;
+			goto exit;
+		}
+		blk += read_count;
+		cnt -= read_count;
+		dst += read_count << bit;
+	} while (cnt != 0);
+
+	ret = copy_to_user(buf, dtb_ptr, read_size);
 	*ppos += read_size;
 
 exit:
@@ -337,11 +356,17 @@ exit:
 }
 
 ssize_t mmc_dtb_write(struct file *file,
-		      const char __user *buf, size_t count, loff_t *ppos)
+		const char __user *buf,
+		size_t count, loff_t *ppos)
 {
 	unsigned char *dtb_ptr = NULL;
+	unsigned char *dst = NULL;
 	ssize_t write_size = 0;
+	int bit = card_dtb->csd.read_blkbits;
 	int ret = 0;
+	int cnt = 0;
+	int write_count = 0;
+	int blk = (MMC_DTB_PART_OFFSET + *ppos) >> bit;
 
 	if (*ppos == CONFIG_DTB_SIZE)
 		return 0;
@@ -354,21 +379,45 @@ ssize_t mmc_dtb_write(struct file *file,
 	if (!dtb_ptr)
 		return -ENOMEM;
 
-	mmc_claim_host(card_dtb->host);
-
 	if ((*ppos + count) > CONFIG_DTB_SIZE)
 		write_size = CONFIG_DTB_SIZE - *ppos;
 	else
 		write_size = count;
 
-	ret = copy_from_user((dtb_ptr + *ppos), buf, write_size);
+	ret = copy_from_user(dtb_ptr, buf, write_size);
 
-	ret = amlmmc_dtb_write(card_dtb,
-			       dtb_ptr, CONFIG_DTB_SIZE);
-	if (ret) {
-		pr_err("%s: write dtb failed", __func__);
-		ret = -EFAULT;
-		goto exit;
+	cnt = write_size >> bit;
+	dst = dtb_ptr;
+	mmc_claim_host(card_dtb->host);
+	do {
+		if (cnt > MAX_TRANS_BLK)
+			write_count = MAX_TRANS_BLK;
+		else
+			write_count = cnt;
+		ret = mmc_write_internal(card_dtb, blk, write_count, dst);
+		if (ret) {
+			pr_err("%s: write failed:%d", __func__, ret);
+			ret = -EFAULT;
+			goto exit;
+		}
+		blk += write_count;
+		cnt -= write_count;
+		dst += write_count << bit;
+	} while (cnt != 0);
+
+	if ((*ppos + count) >= CONFIG_DTB_SIZE) {
+		ret = amlmmc_dtb_read(card_dtb, dtb_ptr, CONFIG_DTB_SIZE);
+		if (ret) {
+			pr_err("%s: read dtb failed", __func__);
+			ret = -EFAULT;
+			goto exit;
+		}
+		ret = amlmmc_dtb_write(card_dtb, dtb_ptr, CONFIG_DTB_SIZE);
+		if (ret) {
+			pr_err("%s: write dtb failed", __func__);
+			ret = -EFAULT;
+			goto exit;
+		}
 	}
 
 	*ppos += write_size;

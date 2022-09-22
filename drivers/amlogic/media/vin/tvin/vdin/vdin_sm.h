@@ -44,7 +44,7 @@ enum tvin_sg_chg_flg {
 	TVIN_SIG_CHG_NO2DV	= 0x08,
 	TVIN_SIG_CHG_COLOR_FMT	= 0x10,
 	TVIN_SIG_CHG_RANGE	= 0x20,	/*color range:full or limit*/
-	TVIN_SIG_CHG_BIT	= 0x40,	/*color bit deepth: 8,10,12 ...*/
+	TVIN_SIG_CHG_BIT	= 0x40,	/*color bit depth: 8,10,12 ...*/
 	TVIN_SIG_CHG_VS_FRQ	= 0x80,
 	TVIN_SIG_CHG_DV_ALLM	= 0x100,
 	TVIN_SIG_CHG_AFD	= 0x200,/*aspect ratio*/
@@ -59,6 +59,9 @@ enum tvin_sg_chg_flg {
 #define RE_CONFIG_DV_EN		0x01
 #define RE_CONFIG_HDR_EN	0x02
 #define RE_CONFIG_ALLM_EN	0x04
+
+#define VDIN_STABLED_CNT		500
+#define VDIN_SEND_EVENT_INTERVAL	50 /* Experience value can be adjusted */
 
 enum vdin_sm_log_level {
 	VDIN_SM_LOG_L_1 = 0x01,
@@ -76,7 +79,7 @@ struct tvin_sm_s {
 	unsigned int back_nosig_cnt; /* STATE_UNSTABLE */
 	unsigned int back_stable_cnt; /* STATE_UNSTABLE */
 	unsigned int exit_prestable_cnt; /* STATE_PRESTABLE */
-	/* thresholds of state switchted */
+	/* thresholds of state switched */
 	int back_nosig_max_cnt;
 	int atv_unstable_in_cnt;
 	int atv_unstable_out_cnt;

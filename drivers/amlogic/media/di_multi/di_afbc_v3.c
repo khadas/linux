@@ -873,6 +873,8 @@ static void dbg_afbc_blk(struct seq_file *s, union afbc_blk_s *blk, char *name)
 	seq_printf(s, "\t%5s:[%d],\n", "enc_wr", blk->b.enc_wr);
 }
 
+static const char *afbc_get_version(void);
+
 int dbg_afbc_cfg_v3_show(struct seq_file *s, void *v)
 {
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
@@ -880,7 +882,9 @@ int dbg_afbc_cfg_v3_show(struct seq_file *s, void *v)
 	if (!pafd_ctr)
 		return 0;
 
-	seq_printf(s, "%10s:%d\n", "version", pafd_ctr->fb.ver);
+	seq_printf(s, "%10s:%d:%s\n",
+		   "version", pafd_ctr->fb.ver,
+		   afbc_get_version());
 
 	dbg_afbc_blk(s, &pafd_ctr->fb.sp, "support");
 
@@ -1402,7 +1406,7 @@ static void afbc_prob(unsigned int cid, struct afd_s *p)
 	}
 
 	//afbc_cfg = BITS_EAFBC_CFG_DISABLE;
-	PR_INF("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
+	dbg_mem("%s:ver[%d],%s,mode[%d]\n", __func__, pafd_ctr->fb.ver,
 	       afbc_get_version(), pafd_ctr->fb.mode);
 }
 
@@ -1768,6 +1772,8 @@ static unsigned int afbcd_v5_get_offset(enum EAFBC_DEC dec)
  * s4dw:
  * phase_step is replace by vt_ini_phase
  * 8 or 16 before s4dw
+ * input VIDTYPE_COMPRESS_LOSS ,di input 0x5452 bit0/4/10/11 set 1
+ * if di out loss 0x5552 bit0/4/10/11 set 1 from vlsi feijun (same vd1)
  **********************************************/
 static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 				   struct AFBCD_CFG_S *cfg)
@@ -2119,9 +2125,14 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 	if (pafd_ctr->fb.ver >= AFBCD_V5 && cfg) {
 		regs_ofst = afbcd_v5_get_offset(dec);
 		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			(cfg->reg_lossy_en & 0x1), 0, 1);//lossy_luma_en
+			cfg->reg_lossy_en, 0, 1);//lossy_luma_en
 		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
-			(cfg->reg_lossy_en & 0x2), 4, 1);//lossy_chrm_en
+			cfg->reg_lossy_en, 4, 1);//lossy_chrm_en
+		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
+			cfg->reg_lossy_en, 10, 1);//lossy_luma_en extern
+		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
+			cfg->reg_lossy_en, 11, 1);//lossy_chrm_en extern
+
 		reg_wr((regs_ofst + AFBCDM_ROT_CTRL),
 		       ((cfg->pip_src_mode  & 0x1) << 27) |
 		       //pip_src_mode
@@ -2293,19 +2304,29 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 				afbce_tm2_sw(false, &di_normal_regset);
 		}
 		/*inp*/
-		if (pafd_ctr->en_set.b.inp)
+		if (pafd_ctr->en_set.b.inp) {
+			if (inp_vf2->type & VIDTYPE_COMPRESS_LOSS)
+				cfg.reg_lossy_en = 1;
 			enable_afbc_input_local(inp_vf2,
 						pafd_ctr->fb.pre_dec, pcfg);
-
+		}
 		if (is_src_i(inp_vf2) || VFMT_IS_I(inp_vf2->type))
 			src_i_set(nr_vf);
 			//dim_print("%s:set srci\n", __func__);
 
-		if (mem_vf2 && pafd_ctr->en_set.b.mem)
+		if (mem_vf2 && pafd_ctr->en_set.b.mem) {
 			/* mem */
+			if (cfgg(AFBCE_LOSS_EN)) {
+				cfg.reg_lossy_en = 1;
+				nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
+			} else {
+				cfg.reg_lossy_en = 0;
+				nr_vf->type &= ~VIDTYPE_COMPRESS_LOSS;
+			}
 			enable_afbc_input_local(mem_vf2,
 						pafd_ctr->fb.mem_dec,
 						pcfg);
+		}
 		if (chan2_vf && pafd_ctr->en_set.b.chan2)
 			/* chan2 */
 			enable_afbc_input_local(chan2_vf,
@@ -2378,6 +2399,11 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 			afbc_update_level1(chan2_vf, pafd_ctr->fb.ch2_dec);
 
 		/*nr*/
+		if (cfgg(AFBCE_LOSS_EN))
+			nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
+		else
+			nr_vf->type &= ~VIDTYPE_COMPRESS_LOSS;
+
 		if (pafd_ctr->en_set.b.enc_nr)
 			afbce_update_level1(nr_vf,
 					    &di_normal_regset, EAFBC_ENC0);
@@ -4845,9 +4871,12 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	} else if (cfg->loosy_mode == 2) {
 		lossy_luma_en = 0;
 		lossy_chrm_en = 1;
-	} else {
+	} else if (cfg->loosy_mode == 3) {
 		lossy_luma_en = 1;
 		lossy_chrm_en = 1;
+	} else {
+		lossy_luma_en = 0;
+		lossy_chrm_en = 0;
 	}
 
 	op->wr(reg[EAFBCE_MODE],
@@ -4858,8 +4887,10 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 	       (2                & 0x3)		<< 14 |
 	       (reg_fmt444_comb  & 0x1));
 	/* loosy */
-	op->bwr(reg[EAFBCE_QUANT_ENABLE], (lossy_luma_en & 0x1), 0, 1);
-	op->bwr(reg[EAFBCE_QUANT_ENABLE], (lossy_chrm_en & 0x1), 4, 1);
+	op->bwr(reg[EAFBCE_QUANT_ENABLE], lossy_luma_en, 0, 1);
+	op->bwr(reg[EAFBCE_QUANT_ENABLE], lossy_chrm_en, 4, 1);
+	op->bwr(reg[EAFBCE_QUANT_ENABLE], lossy_luma_en, 10, 1);
+	op->bwr(reg[EAFBCE_QUANT_ENABLE], lossy_chrm_en, 11, 1);
 
 	/* hsize_in of afbc input*/
 	/* vsize_in of afbc input*/
@@ -5055,7 +5086,6 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	di_buf->flg_afbce_set = 1;
 	cfg->enable = 1;
 	/* 0:close 1:luma lossy 2:chrma lossy 3: luma & chrma lossy*/
-	cfg->loosy_mode = 0;
 	cfg->head_baddr = di_buf->afbc_adr;//head_baddr_enc;/*head addr*/
 	cfg->mmu_info_baddr = di_buf->afbct_adr;
 	//vf->compHeadAddr = cfg->head_baddr;
@@ -5067,6 +5097,8 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	}
 	#endif
 	vf_set_for_com(di_buf);
+	if (cfgg(AFBCE_LOSS_EN))
+		cfg->loosy_mode = 0x3;
 #ifdef AFBCP
 	di_print("%s:buf[%d],head[0x%lx],info[0x%lx]\n",
 		 __func__,

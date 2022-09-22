@@ -162,6 +162,11 @@ static bool early_suspend_flag;
 
 struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 
+//RPT_RX's behavior when RPT_TX is disconnected:
+//1.  HPD pulled down.
+//2.  works on receiver mode
+int rpt_only_mode;
+
 /* audio block compose method for hdmitx/rx:
  * 1: for soundbar:
  * EDID = downstream TV's video + soundbar's audio capability.
@@ -2959,16 +2964,23 @@ static int hdmirx_probe(struct platform_device *pdev)
 		hdcp_tee_path = 0;
 		rx_pr("not find hdcp_tee_path, hdcp normal path\n");
 	}
-	if (hdcp_tee_path)
-		hdcp22_on = 1;
-	else
-		rx_is_hdcp22_support();
+	/*if (hdcp_tee_path)*/
+		/*hdcp22_on = 1;*/
+	/*else*/
+	rx_is_hdcp22_support();
 	ret = of_property_read_u32(pdev->dev.of_node,
 				   "aud_compose_type",
 				   &aud_compose_type);
 	if (ret) {
 		aud_compose_type = 1;
 		rx_pr("not find aud_compose_type, soundbar by default\n");
+	}
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "rpt_only_mode",
+				   &rpt_only_mode);
+	if (ret) {
+		rpt_only_mode = 0;
+		rx_pr("not find rpt_only_mode, soundbar by default\n");
 	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)
@@ -3153,12 +3165,10 @@ static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 				break;
 			msleep(20);
 		}
-		if (!hdcp22_kill_esm) {
+		if (!hdcp22_kill_esm)
 			rx_pr("hdcp22 kill ok!\n");
-		} else {
+		else
 			rx_pr("hdcp22 kill timeout!\n");
-			kill_esm_fail = 1;
-		}
 		hdcp_22_off();
 	} else if ((event == PM_POST_SUSPEND) && hdcp22_on) {
 		rx_pr("PM_POST_SUSPEND\n");
@@ -3186,15 +3196,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 	 * div must change togther.
 	 */
 	rx_set_suspend_edid_clk(true);
-	if (rx.chip_id < CHIP_ID_T7) {
-		if (hdcp22_on) {
-			if (kill_esm_fail) {
-				rx_kill_esm();
-				kill_esm_fail = 0;
-				rx_pr("kill esm fail rst\n");
-			}
-		}
-	}
+	rx_dig_clk_en(0);
 	rx_pr("hdmirx: suspend success\n");
 	return 0;
 }
@@ -3205,6 +3207,7 @@ static int hdmirx_resume(struct platform_device *pdev)
 
 	hdevp = platform_get_drvdata(pdev);
 	add_timer(&hdevp->timer);
+	rx_dig_clk_en(1);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	/* if early suspend not called, need to pw up phy here */
 	if (!early_suspend_flag)
@@ -3242,6 +3245,7 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 		hdcp_22_off();
 	hdmirx_top_irq_en(false);
 	hdmirx_output_en(false);
+	rx_dig_clk_en(0);
 	rx_pr("%s- success\n", __func__);
 }
 

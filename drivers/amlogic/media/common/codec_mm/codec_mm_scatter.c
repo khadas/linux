@@ -107,7 +107,7 @@
 #define SC_FREE(p) vfree(p)
 
 #endif
-#define MAX_SC_LIST 128
+#define MAX_SC_LIST 256
 #define MK_TAG(a, b, c, d) (((a) << 24) | ((b) << 16) |\
 					((c) << 8) | (d))
 #define SMGT_IDENTIFY_TAG MK_TAG('Z', 'S', 'C', 'Z')

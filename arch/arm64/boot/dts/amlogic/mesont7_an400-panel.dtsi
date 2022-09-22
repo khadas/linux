@@ -129,7 +129,7 @@
 				2 0 0 10 /*signal disable*/
 				0 0 0 500 /*panel power off*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
+			backlight_index = <0>;
 		};
 		vbyone_1{
 			model_name = "public_1region";
@@ -174,7 +174,7 @@
 				2 0 0 10  /*signal disable*/
 				0 0 0 500 /*panel power off*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
+			backlight_index = <0>;
 		};
 		vbyone_2{
 			model_name = "vbyone_1region_hdmi";
@@ -493,9 +493,9 @@
 		/* power index:(point gpios_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
-		bl-gpios = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH
+		bl-gpios = <&gpio GPIOY_5 GPIO_ACTIVE_HIGH
 			&gpio GPIOY_1 GPIO_ACTIVE_HIGH>;
-		bl_gpio_names = "GPIOY_12","GPIOY_1";
+		bl_gpio_names = "GPIOY_5","GPIOY_1";
 
 		backlight_0{
 			index = <0>;
@@ -798,6 +798,10 @@
 			ldim_bl_profile_path =
 				"/odm/etc/tvconfig/panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
 
+			mcu_header = <0x55AA0014>;
+			mcu_dim =<0x0000FF4D>;	/*reserve+type+adim+pdim*/
+			/*type: 0: 3bytes(old spec), 1:6bytes(new spec)*/
+
 			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
 				11
 				23
@@ -822,7 +826,7 @@
 		status = "okay";
 		index = <1>;
 		mode = "tablet";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
 		clocks = <&clkc CLKID_MIPI_DSI_B
 			&clkc CLKID_DSI1_PHY_GATE
@@ -941,7 +945,7 @@
 				2 0 0 10 /*signal disable*/
 				0 0 0 500  /*panel power off*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
+			backlight_index = <0>;
 		};
 		vbyone_1{
 			model_name = "public_1region";
@@ -986,7 +990,7 @@
 				2 0 0 10  /*signal disable*/
 				0 0 0 500  /*panel power off*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
+			backlight_index = <0>;
 		};
 		vbyone_2{
 			model_name = "vbyone_1region_hdmi";
@@ -1245,8 +1249,8 @@
 		key_valid = <0>;
 		pinctrl-names = "pwm_on",
 				"pwm_off";
-//		pinctrl-0 = <&pwm_f_pins>;
-//		pinctrl-1 = <&bl1_pwm_off_pins>;
+		pinctrl-0 = <&pwm_f_pins>; /* GPIOY_8*/
+		pinctrl-1 = <&bl1_pwm_off_pins>; /* GPIOY_8*/
 		pinctrl_version = <2>; /* for uboot */
 		interrupts = <0 197 1
 			0 194 1
@@ -1258,9 +1262,9 @@
 		/* power index:(point gpios_index, 0xff=invalid) */
 		/* power value:(0=output low, 1=output high, 2=input) */
 		/* power delay:(unit in ms) */
-		bl-gpios = <&gpio GPIOY_13 GPIO_ACTIVE_HIGH
+		bl-gpios = <&gpio GPIOY_9 GPIO_ACTIVE_HIGH
 			&gpio GPIOY_8 GPIO_ACTIVE_HIGH>;
-		bl_gpio_names = "GPIOY_13","GPIOY_8";
+		bl_gpio_names = "GPIOY_9","GPIOY_8";
 
 		backlight_0{
 			index = <0>;

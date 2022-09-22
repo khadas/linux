@@ -26,7 +26,7 @@
 #include <sound/asoundef.h>
 #include <linux/clk-provider.h>
 #include <linux/regulator/consumer.h>
-
+#include <linux/amlogic/pm.h>
 
 #include "ddr_mngr.h"
 #include "spdif_hw.h"
@@ -101,7 +101,7 @@ struct aml_spdif {
 	unsigned int syssrc_clk_rate;
 	struct regulator *regulator_vcc3v3;
 	struct regulator *regulator_vcc5v;
-
+	int suspend_clk_off;
 };
 
 unsigned int get_spdif_source_l_config(int id)
@@ -476,7 +476,7 @@ static int aml_spdif_platform_suspend(struct platform_device *pdev, pm_message_t
 	struct pinctrl_state *pstate = NULL;
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 
-	if (p_spdif->chipinfo->regulator) {
+	if (p_spdif->chipinfo->regulator || (p_spdif->suspend_clk_off && !is_pm_s2idle_mode())) {
 		if (!IS_ERR(p_spdif->clk_spdifout)) {
 			while (__clk_is_enabled(p_spdif->clk_spdifout))
 				clk_disable_unprepare(p_spdif->clk_spdifout);
@@ -513,7 +513,7 @@ static int aml_spdif_platform_resume(struct platform_device *pdev)
 	int stream = SNDRV_PCM_STREAM_PLAYBACK;
 	int ret = 0;
 
-	if (p_spdif->chipinfo->regulator) {
+	if (p_spdif->chipinfo->regulator || (p_spdif->suspend_clk_off && !is_pm_s2idle_mode())) {
 		if (!IS_ERR(p_spdif->clk_spdifout)) {
 			clk_set_parent(p_spdif->clk_spdifout, NULL);
 			ret = clk_set_parent(p_spdif->clk_spdifout, p_spdif->sysclk);
@@ -1903,6 +1903,11 @@ static int aml_spdif_platform_probe(struct platform_device *pdev)
 			}
 		}
 	}
+
+	ret = of_property_read_u32(node, "suspend-clk-off",
+			&aml_spdif->suspend_clk_off);
+	if (ret < 0)
+		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 
 	/* get audio controller */
 	node_prt = of_get_parent(node);

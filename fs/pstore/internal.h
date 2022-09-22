@@ -6,6 +6,10 @@
 #include <linux/time.h>
 #include <linux/pstore.h>
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+extern bool console_enable;
+#endif
+
 #define PSTORE_DEFAULT_KMSG_BYTES 10240
 extern unsigned long kmsg_bytes;
 
@@ -32,13 +36,6 @@ extern void pstore_unregister_pmsg(void);
 #else
 static inline void pstore_register_pmsg(void) {}
 static inline void pstore_unregister_pmsg(void) {}
-#endif
-
-#ifdef CONFIG_AMLOGIC_MODIFY
-extern bool console_enable;
-extern bool bconsole_enable;
-extern u32 bconsole_size;
-extern void dump_log_to_bconsole(void);
 #endif
 
 extern struct pstore_info *psinfo;

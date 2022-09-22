@@ -4820,71 +4820,6 @@ static bool is_sc_enable_before_pps(struct vpp_frame_par_s *par)
 	return ret;
 }
 
-void correct_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
-				 struct vframe_s *el_vf)
-{
-	u32 aligned_mask = 0xfffffffe;
-	u32 old_len;
-
-	if ((is_amdv_on() == true) &&
-	    par->VPP_line_in_length_ > 0 &&
-	    !is_sc_enable_before_pps(par)) {
-		/* work around to skip the size check when sc enable */
-		if (el_vf) {
-			/*
-			 *if (cur_dispbuf2->type
-			 *	& VIDTYPE_COMPRESS)
-			 *	aligned_mask = 0xffffffc0;
-			 *else
-			 */
-			aligned_mask = 0xfffffffc;
-		}
-#ifdef CHECK_LATER /* def TV_REVERSE */
-		if (reverse) {
-			par->VPP_line_in_length_ &=
-				0xfffffffe;
-			par->VPP_hd_end_lines_ &=
-				0xfffffffe;
-			par->VPP_hd_start_lines_ =
-				par->VPP_hd_end_lines_ + 1
-				- (par->VPP_line_in_length_ <<
-				par->hscale_skip_count);
-		} else {
-#endif
-		{
-		par->VPP_line_in_length_ &=
-			aligned_mask;
-		par->VPP_hd_start_lines_ &=
-			aligned_mask;
-		par->VPP_hd_end_lines_ =
-			par->VPP_hd_start_lines_ +
-			(par->VPP_line_in_length_ <<
-			par->hscale_skip_count) - 1;
-		/* if have el layer, need 2 pixel align by height */
-		if (el_vf) {
-			old_len =
-				par->VPP_vd_end_lines_ -
-				par->VPP_vd_start_lines_ + 1;
-			if (old_len & 1)
-				par->VPP_vd_end_lines_--;
-			if (par->VPP_vd_start_lines_ & 1) {
-				par->VPP_vd_start_lines_--;
-				par->VPP_vd_end_lines_--;
-			}
-			old_len =
-				par->VPP_vd_end_lines_ -
-				par->VPP_vd_start_lines_ + 1;
-			old_len = old_len >> par->vscale_skip_count;
-			if (par->VPP_pic_in_height_ < old_len)
-				par->VPP_pic_in_height_ = old_len;
-			}
-		}
-#ifdef CHECK_LATER
-		}
-#endif
-	}
-}
-
 void config_dvel_position(struct video_layer_s *layer,
 			  struct mif_pos_s *setting,
 			  struct vframe_s *el_vf)
@@ -4943,6 +4878,7 @@ void config_dvel_position(struct video_layer_s *layer,
 	setting->start_y_lines = 0;
 	setting->end_y_lines = height_el - 1;
 
+	/* TODO: remove it */
 	if ((is_amdv_on() == true) &&
 	    cur_frame_par->VPP_line_in_length_ > 0 &&
 	    !is_sc_enable_before_pps(cur_frame_par)) {
@@ -6035,6 +5971,12 @@ void set_video_mute(bool on)
 	video_mute_on = on;
 }
 EXPORT_SYMBOL(set_video_mute);
+
+int get_video_mute_val(void)
+{
+	return video_mute_on;
+}
+EXPORT_SYMBOL(get_video_mute_val);
 
 int get_video_mute(void)
 {
@@ -7763,6 +7705,8 @@ void vpp1_blend_update(u32 vpp_index)
 		vpp1_blend_ctrl =
 			cur_dev->rdma_func[vpp_index].rdma_rd
 				(vppx_blend_reg_array[0].vpp_bld_ctrl);
+		/*should reset video control.*/
+		vpp1_blend_ctrl &= 0xfffe;
 		vpp1_blend_ctrl |= bld_src1_sel;
 	}
 
@@ -7900,6 +7844,9 @@ void vpp2_blend_update(u32 vpp_index)
 		vpp2_blend_ctrl =
 			cur_dev->rdma_func[vpp_index].rdma_rd
 				(vppx_blend_reg_array[1].vpp_bld_ctrl);
+
+		/*should reset video control.*/
+		vpp2_blend_ctrl &= 0xfffe;
 		vpp2_blend_ctrl |= bld_src1_sel;
 	}
 
@@ -8290,12 +8237,14 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 	if (update_mif) {
 		canvas_update_for_mif(layer, vf);
 
+		vpp_trace_vframe("swap_vf", (void *)vf, vf->type, vf->flag, layer_id, 0);
 		if (layer->global_debug & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
 			struct canvas_s tmp;
 
 			canvas_read(cur_canvas_tbl[0], &tmp);
-			pr_info("%s: y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
-				__func__, cur_canvas_tbl[0], tmp.addr,
+			pr_info("%s %d: vf:%px, y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
+				__func__, layer_id, vf,
+				cur_canvas_tbl[0], tmp.addr,
 				vf->canvas0Addr, vf->plane_num,
 				vf->type, vf->flag,
 				vf->compHeadAddr, vf->compBodyAddr,
@@ -8636,7 +8585,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
-		     const struct vinfo_s *vinfo)
+		     const struct vinfo_s *vinfo, u32 swap_op_flag)
 {
 	bool first_picture = false;
 	bool enable_layer = false;
@@ -8791,7 +8740,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	/* enable new config on the new frames */
 	if (first_picture || force_toggle || frame_changed ||
 	    sr_phase_changed || aisr_update) {
-		u32 op_flag = OP_VPP_MORE_LOG;
+		u32 op_flag = OP_VPP_MORE_LOG | swap_op_flag;
 
 		if (layer->next_frame_par == layer->cur_frame_par)
 			layer->next_frame_par =
@@ -9117,6 +9066,68 @@ u32 get_cur_enc_line(void)
 	enc_line = (reg_val >> 16) & 0x1fff;
 
 	return enc_line;
+}
+
+u32 get_cur_enc_num(void)
+{
+	u32 enc_num = 0;
+	unsigned int reg = VPU_VENCI_STAT;
+	unsigned int reg_val = 0;
+	u32 offset = 0;
+	u32 venc_type = get_venc_type();
+	u32 bit_offest = 0;
+
+	if (cur_dev->t7_display) {
+		u32 venc_mux = 3;
+
+		bit_offest = 13;
+		venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (venc_type) {
+		case 0:
+			reg = VPU_VENCI_STAT;
+			break;
+		case 1:
+			reg = VPU_VENCP_STAT;
+			break;
+		case 2:
+			reg = VPU_VENCL_STAT;
+			break;
+		}
+	} else {
+		bit_offest = 29;
+		switch (venc_type) {
+		case 0:
+			reg = ENCL_INFO_READ;
+			break;
+		case 1:
+			reg = ENCI_INFO_READ;
+			break;
+		case 2:
+			reg = ENCP_INFO_READ;
+			break;
+		case 3:
+			reg = ENCT_INFO_READ;
+			break;
+		}
+	}
+
+	reg_val = READ_VCBUS_REG(reg + offset);
+
+	enc_num = (reg_val >> bit_offest) & 0x7;
+
+	return enc_num;
 }
 
 static void do_vpu_delay_work(struct work_struct *work)

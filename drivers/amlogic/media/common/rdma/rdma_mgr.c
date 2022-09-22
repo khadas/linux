@@ -1090,13 +1090,13 @@ int rdma_write_reg(int handle, u32 adr, u32 val)
 		!is_in_vsync_isr_viu2() &&
 		!is_in_vsync_isr_viu3() &&
 		!is_in_ldim_vsync_isr()) || (smp_processor_id() != 0)) &&
-		vsync_rdma_handle[VSYNC_RDMA] == handle) {
+		get_rdma_handle(VSYNC_RDMA) == handle) {
 #else
 	if ((((smp_processor_id() == 0) &&
 		!is_in_vsync_isr() &&
 		!is_in_vsync_isr_viu2() &&
 		!is_in_vsync_isr_viu3()) || (smp_processor_id() != 0)) &&
-		vsync_rdma_handle[VSYNC_RDMA] == handle) {
+		get_rdma_handle(VSYNC_RDMA) == handle) {
 #endif
 		dump_stack();
 		pr_info("rdma_write(%d) %d(%x)<=%x\n",
@@ -1395,6 +1395,16 @@ void pre_vsync_rdma_register(void)
 	set_rdma_handle(PRE_VSYNC_RDMA, handle);
 }
 EXPORT_SYMBOL(pre_vsync_rdma_register);
+
+void ex_vsync_rdma_register(void)
+{
+	int handle;
+
+	handle = rdma_register(get_rdma_ops(EX_VSYNC_RDMA),
+			       NULL, rdma_table_size);
+	set_rdma_handle(EX_VSYNC_RDMA, handle);
+}
+EXPORT_SYMBOL(ex_vsync_rdma_register);
 
 static ssize_t show_debug_flag(struct class *class,
 			       struct class_attribute *attr,

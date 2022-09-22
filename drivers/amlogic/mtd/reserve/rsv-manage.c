@@ -338,7 +338,7 @@ RE_RSV_INFO:
 
 	memset((u8 *)&oobinfo, 0, sizeof(struct oobinfo_t));
 
-	error = mtd->_read_oob(mtd, offset, &oob_ops);
+	error = mtd_read_oob(mtd, offset, &oob_ops);
 	if (error != 0 && error != -EUCLEAN) {
 		pr_info("blk check good but read failed: %llx, %d\n",
 			(u64)offset, error);
@@ -451,7 +451,7 @@ RE_RSV_INFO:
 		offset = rsv_info->valid_node->phy_blk_addr;
 		offset *= mtd->erasesize;
 		offset += i * mtd->writesize;
-		error = mtd->_read_oob(mtd, offset, &oob_ops);
+		error = mtd_read_oob(mtd, offset, &oob_ops);
 		if (error != 0 && error != -EUCLEAN) {
 			pr_info("blk good but read failed:%llx,%d\n",
 				(u64)offset, error);
@@ -541,7 +541,7 @@ READ_RSV_AGAIN:
 
 		memset((u8 *)&oobinfo, 0, oob_ops.ooblen);
 
-		ret = mtd->_read_oob(mtd, offset, &oob_ops);
+		ret = mtd_read_oob(mtd, offset, &oob_ops);
 		if (ret != 0 && ret != -EUCLEAN) {
 			pr_info("blk good but read failed: %llx, %d\n",
 				(u64)offset, ret);

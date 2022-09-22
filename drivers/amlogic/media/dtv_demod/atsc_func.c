@@ -668,8 +668,7 @@ void atsc_reset(void)
 	atsc_write_reg(0x0900, 0x00);
 }
 
-
-int atsc_read_snr(void)
+int atsc_read_snr_10(void)
 {
 	int snr;
 	int snr_db;
@@ -681,20 +680,13 @@ int atsc_read_snr(void)
 
 	snr_db = SNR_dB_table[atsc_find(snr, SNR_table, 56)];
 
-	return snr_db / 10;
+	return snr_db;
 }
 
-int atsc_read_snr_10(void)
+int atsc_read_snr(void)
 {
-	int SNR;
-	int SNR_dB;
-
-	SNR = (atsc_read_reg(0x0511) << 8) +
-			atsc_read_reg(0x0512);
-	SNR_dB = SNR_dB_table[atsc_find(SNR, SNR_table, 56)];
-	return SNR_dB;
+	return atsc_read_snr_10() / 10;
 }
-
 
 int check_snr_ser(int ser_threshholds)
 {
@@ -832,30 +824,22 @@ void atsc_reset_new(void)
 
 void cci_run_new(struct amldtvdemod_device_s *devp)
 {
-	unsigned int result[4], bin[4], power[4];
-	int max_p[2], max_b[2], ck0;
-	int cci_cnt = 0;
-	int avg_len = 200;
-	int threshold;
-	union ATSC_EQ_REG_0X92_BITS val_0x92;
-	unsigned int time[10];
+	unsigned int result[4] = { 0 }, bin[4] = { 0 }, power[4] = { 0 };
+	unsigned int max_p[8] = { 0 }, max_b[8] = { 0 }, ck0 = 0, offset = 0;
+	unsigned int position[4] = { 0 }, cci_cnt = 0, dist = 15;
+	unsigned int avg_len = 200, threshold = 0;
+	union ATSC_EQ_REG_0X92_BITS val_0x92 = { 0 };
+	unsigned int time[3] = { 0 };
+
+	time[0] = jiffies_to_msecs(jiffies);
+	PR_ATSC("%s: [atsc_time][start......]\n", __func__);
 
 	threshold = avg_len * 800;
-	time[0] = jiffies_to_msecs(jiffies);
 	val_0x92.bits = atsc_read_reg_v4(ATSC_EQ_REG_0X92);
 
-	for (ck0 = 0; ck0 < 2048; ck0++)
-		devp->peak[ck0] = 0;
+	memset(&devp->peak, 0, sizeof(devp->peak));
 
-	for (ck0 = 0; ck0 < 2; ck0++) {
-		max_p[ck0] = 0;
-		max_b[ck0] = 0;
-	}
-
-	time[1] = jiffies_to_msecs(jiffies);
-	PR_ATSC("[atsc_time][cci_run1,%d ms]\n", (time[1] - time[0]));
-
-	for (ck0 = 0; ck0 < avg_len; ck0++) {
+	for (ck0 = 0; ck0 < avg_len; ++ck0) {
 		val_0x92.b.cwrmv_enable = 0x1;
 		atsc_write_reg_v4(ATSC_EQ_REG_0X92, val_0x92.bits);
 
@@ -879,11 +863,13 @@ void cci_run_new(struct amldtvdemod_device_s *devp)
 		devp->peak[bin[1]] = devp->peak[bin[1]] + power[1];
 		devp->peak[bin[2]] = devp->peak[bin[2]] + power[2];
 		devp->peak[bin[3]] = devp->peak[bin[3]] + power[3];
+
 		usleep_range(300, 400);
 	}
 
-	time[2] = jiffies_to_msecs(jiffies);
-	PR_ATSC("[atsc_time][cci_run2,%d ms]\n", (time[2] - time[1]));
+	time[1] = jiffies_to_msecs(jiffies);
+	PR_ATSC("%s: [atsc_time][cci_run1 cost %d ms]\n",
+			__func__, time[1] - time[0]);
 
 	cci_cnt = 0;
 
@@ -891,46 +877,186 @@ void cci_run_new(struct amldtvdemod_device_s *devp)
 		if (devp->peak[ck0] > threshold) {
 			if (devp->peak[ck0] > max_p[0]) {
 				/* Shift Max */
+				max_p[7] = max_p[6];
+				max_b[7] = max_b[6];
+				max_p[6] = max_p[5];
+				max_b[6] = max_b[5];
+				max_p[5] = max_p[4];
+				max_b[5] = max_b[4];
+				max_p[4] = max_p[3];
+				max_b[4] = max_b[3];
+				max_p[3] = max_p[2];
+				max_b[3] = max_b[2];
+				max_p[2] = max_p[1];
+				max_b[2] = max_b[1];
 				max_p[1] = max_p[0];
 				max_b[1] = max_b[0];
 				max_p[0] = devp->peak[ck0];
 				max_b[0] = ck0;
 			} else if (devp->peak[ck0] > max_p[1]) {
+				max_p[7] = max_p[6];
+				max_b[7] = max_b[6];
+				max_p[6] = max_p[5];
+				max_b[6] = max_b[5];
+				max_p[5] = max_p[4];
+				max_b[5] = max_b[4];
+				max_p[4] = max_p[3];
+				max_b[4] = max_b[3];
+				max_p[3] = max_p[2];
+				max_b[3] = max_b[2];
+				max_p[2] = max_p[1];
+				max_b[2] = max_b[1];
 				max_p[1] = devp->peak[ck0];
 				max_b[1] = ck0;
+			} else if (devp->peak[ck0] > max_p[2]) {
+				max_p[7] = max_p[6];
+				max_b[7] = max_b[6];
+				max_p[6] = max_p[5];
+				max_b[6] = max_b[5];
+				max_p[5] = max_p[4];
+				max_b[5] = max_b[4];
+				max_p[4] = max_p[3];
+				max_b[4] = max_b[3];
+				max_p[3] = max_p[2];
+				max_b[3] = max_b[2];
+				max_p[2] = devp->peak[ck0];
+				max_b[2] = ck0;
+			} else if (devp->peak[ck0] > max_p[3]) {
+				max_p[7] = max_p[6];
+				max_b[7] = max_b[6];
+				max_p[6] = max_p[5];
+				max_b[6] = max_b[5];
+				max_p[5] = max_p[4];
+				max_b[5] = max_b[4];
+				max_p[4] = max_p[3];
+				max_b[4] = max_b[3];
+				max_p[3] = devp->peak[ck0];
+				max_b[3] = ck0;
+			} else if (devp->peak[ck0] > max_p[4]) {
+				max_p[7] = max_p[6];
+				max_b[7] = max_b[6];
+				max_p[6] = max_p[5];
+				max_b[6] = max_b[5];
+				max_p[5] = max_p[4];
+				max_b[5] = max_b[4];
+				max_p[4] = devp->peak[ck0];
+				max_b[4] = ck0;
+			} else if (devp->peak[ck0] > max_p[5]) {
+				max_p[7] = max_p[6];
+				max_b[7] = max_b[6];
+				max_p[6] = max_p[5];
+				max_b[6] = max_b[5];
+				max_p[5] = devp->peak[ck0];
+				max_b[5] = ck0;
+			} else if (devp->peak[ck0] > max_p[6]) {
+				max_p[7] = max_p[6];
+				max_b[7] = max_b[6];
+				max_p[6] = devp->peak[ck0];
+				max_b[6] = ck0;
+			} else if (devp->peak[ck0] > max_p[7]) {
+				max_p[7] = devp->peak[ck0];
+				max_b[7] = ck0;
 			}
 
-			cci_cnt = cci_cnt + 1;
+			++cci_cnt;
 		}
 	}
 
-	time[3] = jiffies_to_msecs(jiffies);
-	PR_ATSC("[atsc_time][cci_run3,%d ms]\n", (time[3] - time[2]));
+	for (ck0 = 0; ck0 < 8; ++ck0)
+		PR_ATSC("cci_cnt %d - ck0 %d CCI: pos %d, power %d.\n",
+				cci_cnt, ck0, max_b[ck0], max_p[ck0]);
 
 	if (cci_cnt > 0) {
-		atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61, max_b[0], 0, 11);
-		if (cci_cnt > 1)
-			atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61, max_b[1], 16, 11);
+		position[0] = max_b[0];
+		ck0 = 1;
+		cci_cnt = 1;
 
-		if (devp->atsc_cr_step_size_dbg) {
-			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60, devp->atsc_cr_step_size_dbg);
-			PR_ATSC("%s dbg mode,set cr reg(0x60) = 0x%x\n", __func__,
-				devp->atsc_cr_step_size_dbg);
-		} else {
-			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60, 0x140);
-			//atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X60, 1, 8, 1);
-			PR_ATSC("%s set cr reg(0x60) = 0x140\n", __func__);
+		while (cci_cnt < 4 && ck0 < 8) {
+			if (abs(max_b[ck0] - max_b[ck0 - 1]) > dist)
+				position[cci_cnt++] = max_b[ck0];
+
+			++ck0;
 		}
+
+		for (ck0 = 0; ck0 < cci_cnt; ++ck0)
+			PR_ATSC("ck0 %d CCI: pos %d(0x%x).\n",
+					ck0, position[ck0], position[ck0]);
 	}
 
-	for (ck0 = 0; ck0 < 2; ck0++)
-		PR_ATSC("%d-%d CCI:pos 0x%x,power 0x%x.\n", cci_cnt, ck0, max_b[ck0], max_p[ck0]);
+	time[2] = jiffies_to_msecs(jiffies);
+	PR_ATSC("%s: [atsc_time][cci_run2 cost %d ms]\n",
+			__func__, time[2] - time[1]);
 
-	PR_ATSC("After writing0x61: 0x%x\n", atsc_read_reg_v4(ATSC_DEMOD_REG_0X61));
+	if (cci_cnt > 0) {
+		PR_ATSC("Before read 0x33: 0x%x, 0x34: 0x%x.\n",
+				front_read_reg(0x33), front_read_reg(0x34));
+		PR_ATSC("Before read 0x60: 0x%x, 0x61: 0x%x.\n",
+				atsc_read_reg_v4(ATSC_DEMOD_REG_0X60),
+				atsc_read_reg_v4(ATSC_DEMOD_REG_0X61));
 
-	time[4] = jiffies_to_msecs(jiffies);
-	PR_ATSC("[atsc_time][cci_run4,%d ms]\n", (time[4] - time[3]));
-	PR_ATSC("[atsc_time]--------printf cost %d us\n", jiffies_to_msecs(jiffies) - time[4]);
+		atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61,
+				position[0], 0, 16);
+
+		if (cci_cnt > 1)
+			atsc_write_reg_bits_v4(ATSC_DEMOD_REG_0X61,
+					position[1], 16, 16);
+
+		/* 2048: fft points.
+		 * 10762: fft symbol rate(bps).
+		 * 24: sampling rate.
+		 * 1 << 28: 2^28.
+		 */
+		if (cci_cnt > 2) {
+			if (position[2] > 512) {
+				offset = (position[2] - 512) * 107620 / 2048;
+				offset = (50 + offset) * (1 << 28) / 240;
+			} else {
+				offset = (512 - position[2]) * 107620 / 2048;
+				offset = (50 - offset) * (1 << 28) / 240;
+			}
+
+			/* cci config2
+			 * bit[31]: 0 - enable cci, 1 - bypass.
+			 * bit[0-28]: offset.
+			 */
+			front_write_reg(0x33, offset & 0xfffffff);
+		}
+
+		if (cci_cnt > 3) {
+			if (position[3] > 512) {
+				offset = (position[3] - 512) * 107620 / 2048;
+				offset = (50 + offset) * (1 << 28) / 240;
+			} else {
+				offset = (512 - position[3]) * 107620 / 2048;
+				offset = (50 - offset) * (1 << 28) / 240;
+			}
+
+			/* cci config2
+			 * bit31: 0 - enable cci, 1 - bypass.
+			 * bit[0-28]: offset.
+			 */
+			front_write_reg(0x34, offset & 0xfffffff);
+		}
+
+		if (devp->atsc_cr_step_size_dbg) {
+			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60,
+					devp->atsc_cr_step_size_dbg);
+			PR_ATSC("%s: dbg mode, set cr reg(0x60) = 0x%x.\n",
+					__func__, devp->atsc_cr_step_size_dbg);
+		} else {
+			atsc_write_reg_v4(ATSC_DEMOD_REG_0X60, 0x143);
+			PR_ATSC("%s: set cr reg(0x60) = 0x143.\n", __func__);
+		}
+
+		PR_ATSC("After write 0x33: 0x%x, 0x34: 0x%x.\n",
+				front_read_reg(0x33), front_read_reg(0x34));
+		PR_ATSC("After write 0x60: 0x%x, 0x61: 0x%x.\n",
+				atsc_read_reg_v4(ATSC_DEMOD_REG_0X60),
+				atsc_read_reg_v4(ATSC_DEMOD_REG_0X61));
+	}
+
+	PR_ATSC("[atsc_time][total cost %d ms]\n",
+			jiffies_to_msecs(jiffies) - time[0]);
 }
 
 void set_cr_ck_rate_new(void)

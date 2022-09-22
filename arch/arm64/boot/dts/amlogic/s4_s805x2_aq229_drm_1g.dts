@@ -56,8 +56,7 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x10000>;
-			bconsole-size = <0x10000>;
+			pmsg-size = <0x20000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -115,7 +114,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0xb400000>;
+			size = <0x0 0xE800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 		};

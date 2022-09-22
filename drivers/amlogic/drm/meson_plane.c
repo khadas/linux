@@ -1332,7 +1332,7 @@ int meson_plane_create_scaling_filter_property(struct drm_plane *plane,
 	return 0;
 }
 
-static void meson_crtc_add_occupied_property(struct drm_device *drm_dev,
+static void meson_plane_add_occupied_property(struct drm_device *drm_dev,
 						  struct am_osd_plane *osd_plane)
 {
 	struct drm_property *prop;
@@ -1346,11 +1346,36 @@ static void meson_crtc_add_occupied_property(struct drm_device *drm_dev,
 	}
 }
 
-static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
+static void meson_plane_get_primary_plane(struct meson_drm *priv,
+			enum drm_plane_type *type)
+{
+	int i, j, first_plane = -1;
+
+	for (j = 0; j < MESON_MAX_OSDS; j++)
+		type[j] = DRM_PLANE_TYPE_OVERLAY;
+
+	for (i = 0; i < MESON_MAX_CRTC; i++) {
+		for (j = 0; j < MESON_MAX_OSDS; j++) {
+			if (i == priv->crtcmask_osd[j] &&
+				priv->osd_occupied_index != j) {
+				first_plane = (first_plane != -1) ? first_plane : j;
+
+				if (first_plane != -1 && first_plane < MESON_MAX_OSDS) {
+					type[j] = DRM_PLANE_TYPE_PRIMARY;
+					priv->primary_plane_index[i] = j;
+					break;
+				}
+			}
+		}
+		first_plane = -1;
+	}
+}
+
+static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
+		int i, u32 crtc_mask, enum drm_plane_type type)
 {
 	struct am_osd_plane *osd_plane;
 	struct drm_plane *plane;
-	enum drm_plane_type type = DRM_PLANE_TYPE_OVERLAY;
 	u32  zpos, min_zpos, max_zpos, osd_index;
 	char plane_name[8];
 	const char *const_plane_name;
@@ -1359,11 +1384,6 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 				 GFP_KERNEL);
 	if (!osd_plane)
 		return 0;
-
-	if (i == 0)
-		type = DRM_PLANE_TYPE_PRIMARY;
-	else
-		type = DRM_PLANE_TYPE_OVERLAY;
 
 	min_zpos = OSD_PLANE_BEGIN_ZORDER;
 	max_zpos = OSD_PLANE_END_ZORDER;
@@ -1399,7 +1419,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 	else
 		osd_plane->osd_occupied = false;
 
-	drm_universal_plane_init(priv->drm, plane, 0xFF,
+	drm_universal_plane_init(priv->drm, plane, 1 << crtc_mask,
 				 &am_osd_plane_funs,
 				 supported_drm_formats,
 				 ARRAY_SIZE(supported_drm_formats),
@@ -1429,13 +1449,14 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv, int i)
 				BIT(DRM_SCALING_FILTER_4POINT_BSPLINE) |
 				BIT(DRM_SCALING_FILTER_3POINT_BSPLINE) |
 				BIT(DRM_SCALING_FILTER_REPEATE));
-	meson_crtc_add_occupied_property(priv->drm, osd_plane);
-	DRM_INFO("osd plane %d create done, occupied-%d\n", i, osd_plane->osd_occupied);
+	meson_plane_add_occupied_property(priv->drm, osd_plane);
+	DRM_INFO("osd plane %d create done, occupied-%d crtcmask-%d type-%d\n",
+		i, osd_plane->osd_occupied, crtc_mask, type);
 	return osd_plane;
 }
 
 static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
-						    int i)
+						    int i, u32 crtc_mask)
 {
 	struct am_video_plane *video_plane;
 	struct drm_plane *plane;
@@ -1449,6 +1470,7 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 		DRM_INFO("no memory to alloc video plane\n");
 		return 0;
 	}
+
 	min_zpos = 0;
 	max_zpos = 255;
 
@@ -1463,7 +1485,8 @@ static struct am_video_plane *am_video_plane_create(struct meson_drm *priv,
 	sprintf(plane_name, "video%d", i);
 	const_plane_name = plane_name;
 	spin_lock_init(&video_plane->lock);
-	drm_universal_plane_init(priv->drm, plane, 0xFF,
+
+	drm_universal_plane_init(priv->drm, plane, 1 << crtc_mask,
 				 &am_video_plane_funs,
 				 video_supported_drm_formats,
 				 ARRAY_SIZE(video_supported_drm_formats),
@@ -1481,11 +1504,15 @@ int am_meson_plane_create(struct meson_drm *priv)
 	struct am_osd_plane *plane;
 	struct am_video_plane *video_plane;
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
+	enum drm_plane_type type[MESON_MAX_OSD];
 	int i, osd_index, video_index;
 	u32 vfm_mode;
 
 	memset(priv->osd_planes, 0, sizeof(struct am_osd_plane *) * MESON_MAX_OSD);
 	memset(priv->video_planes, 0, sizeof(struct am_video_plane *) * MESON_MAX_VIDEO);
+
+	/*calculate primary plane*/
+	meson_plane_get_primary_plane(priv, type);
 
 	/*osd plane*/
 	for (i = 0; i < MESON_MAX_OSD; i++) {
@@ -1493,7 +1520,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 			continue;
 
 		osd_index = pipeline->osds[i]->base.index;
-		plane = am_osd_plane_create(priv, osd_index);
+		plane = am_osd_plane_create(priv, osd_index, priv->crtcmask_osd[i], type[i]);
 
 		if (!plane)
 			return -ENOMEM;
@@ -1510,7 +1537,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 	/*video plane: init after osd to provide osd id at first.*/
 	for (i = 0; i < pipeline->num_video; i++) {
 		video_index = pipeline->video[i]->base.index;
-		video_plane = am_video_plane_create(priv, video_index);
+		video_plane = am_video_plane_create(priv, video_index, priv->crtcmask_video[i]);
 		if (!video_plane)
 			return -ENOMEM;
 

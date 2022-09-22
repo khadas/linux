@@ -59,6 +59,7 @@
 #define VIDTYPE_RGB_444			0x20000000
 #define VIDTYPE_DI_PW			0x40000000
 #define VIDTYPE_V4L_EOS			0x80000000
+#define VIDTYPE_FORCE_SIGN_IP_JOINT     0x400 /* add by Joy Rao */
 
 #define DISP_RATIO_FORCECONFIG          0x80000000
 #define DISP_RATIO_FORCE_NORMALWIDE     0x40000000
@@ -116,6 +117,7 @@
 #define VFRAME_FLAG_PC_MODE			0x40000000
 #define VFRAME_FLAG_DI_BYPASS			0x08000000
 #define VFRAME_FLAG_DI_GET			0x10000000
+#define VFRAME_FLAG_DI_PVPPLINK			0x20000000
 
 /* need check folllowing bits when toggle frame, to trigger property change */
 /* add more bits which indicates display attr change in vf->flag */
@@ -199,7 +201,7 @@ struct tvin_hdr10p_data_s {
 
 /*vdin dolby vsi info param*/
 struct tvin_dv_vsif_s {
-	u8 dobly_vision_signal:1;
+	u8 dolby_vision_signal:1;
 	u8 backlt_ctrl_MD_present:1;
 	u8 auxiliary_MD_present:1;
 	u8 eff_tmax_PQ_hi;

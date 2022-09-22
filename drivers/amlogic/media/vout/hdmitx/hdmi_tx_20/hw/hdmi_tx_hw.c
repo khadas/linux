@@ -3377,17 +3377,18 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 	if (!hdev->vinfo)
 		return;
 
+	/*hdev->bist_lock = 1;*/
+	/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
+	 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
+	 *			  hdev->para->cs);
+	 */
+	if (hdev->data->chip_type < MESON_CPU_ID_SC2)
+		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
+
 	switch (num) {
 	case 1:
 	case 2:
 	case 3:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_CLRBAR_STRT, 0x112);
 			hd_write_reg(P_ENCI_TST_CLRBAR_WIDTH, 0xb4);
@@ -3413,13 +3414,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 4:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x3ff);
@@ -3438,13 +3432,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 5:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x200);
@@ -3463,13 +3450,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 6:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x200);
@@ -3488,13 +3468,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 7:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x200);
@@ -3513,13 +3486,6 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, unsigned int num)
 			num, hdmitx_bist_str[num]);
 		break;
 	case 8:
-		/*hdev->bist_lock = 1;*/
-		/*hdmitx_wr_reg(HDMITX_DWC_FC_VSDSIZE, 0x05);
-		 *hdev->hwop.cntlconfig(hdev, CONF_AVI_RGBYCC_INDIC,
-		 *		      hdev->para->cs);
-		 */
-		hd_set_reg_bits(P_HHI_GCLK_OTHER, 1, 3, 1);
-
 		if (hdev->vinfo->viu_mux == VIU_MUX_ENCI) {
 			hd_write_reg(P_ENCI_TST_MDSEL, 0);
 			hd_write_reg(P_ENCI_TST_Y, 0x0);
@@ -4156,6 +4122,7 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 		}
 		break;
 	case CONF_CLR_AVI_PACKET:
+		pr_info("%s ***clr avi***\n", __func__);
 		hdmitx_wr_reg(HDMITX_DWC_FC_AVIVID, 0);
 		if (hdmitx_rd_reg(HDMITX_DWC_FC_VSDPAYLOAD0) == 0x20)
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
@@ -4166,6 +4133,11 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, unsigned int cmd,
 			hdmitx_wr_reg(HDMITX_DWC_FC_VSDPAYLOAD1, 0);
 		break;
 	case CONF_CLR_AUDINFO_PACKET:
+		break;
+	case CONF_ASPECT_RATIO:
+		pr_info("%s argv = %d\n", __func__, argv);
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVICONF1, argv & 0x3, 4, 2);	//aspect_ratio
+		hdmitx_set_reg_bits(HDMITX_DWC_FC_AVIVID, argv >> 2, 0, 7);	//vic
 		break;
 	case CONF_AVI_BT2020:
 		if (argv == SET_AVI_BT2020) {
@@ -5484,4 +5456,24 @@ static void hdmitx_set_hw(struct hdmitx_dev *hdev)
 			 hdev->para->cd,
 			 TX_INPUT_COLOR_FORMAT,
 			 hdev->para->cs);
+}
+
+int read_phy_status(void)
+{
+	int phy_val = 0;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
+
+	switch (hdev->data->chip_type) {
+	case MESON_CPU_ID_SC2:
+		phy_val = !!(hd_read_reg(P_ANACTRL_HDMIPHY_CTRL0) & 0xffff);
+		break;
+	case MESON_CPU_ID_TM2:
+	case MESON_CPU_ID_TM2B:
+		phy_val = !!(hd_read_reg(P_TM2_HHI_HDMI_PHY_CNTL0) & 0xffff);
+		break;
+	default:
+		phy_val = !!(hd_read_reg(P_HHI_HDMI_PHY_CNTL0) & 0xffff);
+		break;
+	}
+	return phy_val;
 }

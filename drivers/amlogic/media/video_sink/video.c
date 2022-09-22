@@ -30,11 +30,13 @@
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/ctype.h>
+#include <linux/compat.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/utils/amstream.h>
+#include <linux/amlogic/media/utils/am_com.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
 #include <linux/amlogic/media/frame_provider/tvin/tvin.h>
@@ -121,13 +123,6 @@ MODULE_AMLOG(LOG_LEVEL_ERROR, 0, LOG_DEFAULT_LEVEL_DESC, LOG_MASK_DESC);
 #include "video_multi_vsync.h"
 
 #include <linux/amlogic/gki_module.h>
-#define CREATE_TRACE_POINTS
-#include "video_trace.h"
-#undef TRACE_INCLUDE_PATH
-#undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_PATH ../../drivers/amlogic/media/video_sink
-#define TRACE_INCLUDE_FILE video_trace
-#include <trace/define_trace.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_MSYNC
 #include <uapi/linux/amlogic/msync.h>
 #endif
@@ -458,8 +453,10 @@ int get_video_debug_flags(void)
 static int vsync_enter_line_max;
 static int vsync_exit_line_max;
 
-static bool over_sync;
-/* static int over_sync_count; */
+static u32 performance_debug;
+static bool over_field;
+static u32 over_field_case1_cnt;
+static u32 over_field_case2_cnt;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 static int vsync_rdma_line_max;
@@ -1961,6 +1958,74 @@ static int dv_inst_pip = -1;
 /*bit0~1 for vd1, bit2~3 for vd2*/
 static u32 force_skip_cnt;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+#define OVER_FIELD_NORMAL 0
+#define OVER_FIELD_NEW_VF 1
+#define OVER_FIELD_RDMA_READY 2
+#define OVER_FIELD_STATE_MAX 3
+
+static ulong config_timeinfo;
+static u32 config_vsync_num;
+static u32 wrong_state_change_cnt;
+static u32 always_new_vf_cnt;
+static atomic_t cur_over_field_state = ATOMIC_INIT(OVER_FIELD_NORMAL);
+
+void update_over_field_states(u32 new_state, bool force)
+{
+	struct timeval timeinfo;
+	u32 cur_state;
+	bool expection = true;
+
+	/* TODO: if need add rdma ready to new frame case */
+	cur_state = atomic_read(&cur_over_field_state);
+	switch (new_state) {
+	case OVER_FIELD_NORMAL:
+		if (cur_state == OVER_FIELD_RDMA_READY) {
+			atomic_set(&cur_over_field_state, OVER_FIELD_NORMAL);
+			expection = false;
+		} else if (cur_state == OVER_FIELD_NORMAL) {
+			expection = false;
+		}
+		break;
+	case OVER_FIELD_NEW_VF:
+		if (cur_state == OVER_FIELD_NORMAL) {
+			atomic_set(&cur_over_field_state, OVER_FIELD_NEW_VF);
+			expection = false;
+		}
+		break;
+	case OVER_FIELD_RDMA_READY:
+		if (cur_state == OVER_FIELD_NEW_VF) {
+			atomic_set(&cur_over_field_state, OVER_FIELD_RDMA_READY);
+			expection = false;
+			config_vsync_num = get_cur_enc_num();
+			do_gettimeofday(&timeinfo);
+			config_timeinfo = timeinfo.tv_sec * 1000000 + timeinfo.tv_usec;
+		} else if (cur_state == OVER_FIELD_NORMAL) {
+			expection = false;
+		}
+		break;
+	default:
+		break;
+	}
+	if (force && new_state < OVER_FIELD_STATE_MAX) {
+		atomic_set(&cur_over_field_state, new_state);
+		expection = false;
+	}
+
+	if (expection) {
+		if (new_state >= OVER_FIELD_STATE_MAX ||
+		    cur_state >= OVER_FIELD_STATE_MAX)
+			pr_info("invalid over field state: %d/%d\n",
+				cur_state, new_state);
+		else
+			wrong_state_change_cnt++;
+	}
+	vpp_trace_field_state("UPDATE-STATE",
+		cur_state, new_state, expection ? 1 : 0,
+		wrong_state_change_cnt, 0);
+}
+#endif
+
 u32 get_playback_delay_duration(void)
 {
 	u32 memc_delay = 0;
@@ -2334,6 +2399,8 @@ static inline struct vframe_s *video_vf_get(void)
 	vf = vf_get(RECEIVER_NAME);
 	if (vf) {
 		get_count++;
+		vpp_trace_vframe("video_vf_get",
+			(void *)vf, vf->type, vf->flag, 0, vsync_cnt[VPP0]);
 		if (vf->type & VIDTYPE_V4L_EOS) {
 			vf_put(vf, RECEIVER_NAME);
 			return NULL;
@@ -2389,6 +2456,8 @@ static inline int video_vf_put(struct vframe_s *vf)
 		return -EINVAL;
 	}
 	if (atomic_dec_and_test(&vf->use_cnt)) {
+		vpp_trace_vframe("video_vf_put",
+			(void *)vf, vf->type, vf->flag, 0, vsync_cnt[VPP0]);
 		if (vf_put(vf, RECEIVER_NAME) < 0)
 			return -EFAULT;
 		if (IS_DI_POSTWRTIE(vf->type))
@@ -2963,6 +3032,12 @@ static void process_hdmi_video_sync(struct vframe_s *vf)
 	if ((!hdmi_delay_first_check && !hdmi_delay_normal_check &&
 	     hdmin_delay_start == 0) || !vf || last_required_total_delay <= 0)
 		return;
+
+	if (vf->flag & VFRAME_FLAG_GAME_MODE) {
+		if (debug_flag & DEBUG_FLAG_HDMI_AVSYNC_DEBUG)
+			pr_info("game mode, not do avsync\n");
+		return;
+	}
 
 	hdmin_delay_duration = 0;
 	while (provider_name) {
@@ -5247,6 +5322,10 @@ bool black_threshold_check(u8 id)
 		return ret;
 
 	frame_par = layer->cur_frame_par;
+	if (frame_par &&
+	    (frame_par->VPP_pic_in_height_ < 2 ||
+	     frame_par->VPP_line_in_length_ < 2))
+		return true;
 	if (layer_info->layer_width <= black_threshold_width ||
 	    layer_info->layer_height <= black_threshold_height) {
 		if (frame_par &&
@@ -5371,11 +5450,9 @@ void _set_video_window(struct disp_info_s *layer, int *p)
 	new_y = layer->layer_top;
 	new_w = layer->layer_width;
 	new_h = layer->layer_height;
-	trace_axis("VIDEO",
-		   layer->layer_left,
-		   layer->layer_top,
-		   layer->layer_left + layer->layer_width - 1,
-		   layer->layer_top + layer->layer_height - 1);
+	vpp_trace_axis(layer->layer_left, layer->layer_top,
+		layer->layer_left + layer->layer_width - 1,
+		layer->layer_top + layer->layer_height - 1);
 
 	if (last_x != new_x || last_y != new_y ||
 	    last_w != new_w || last_h != new_h) {
@@ -5590,7 +5667,7 @@ void pip2_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		layer_info->zorder = vf->zorder;
 	}
 
-	layer_swap_frame(vf, layer, false, vinfo);
+	layer_swap_frame(vf, layer, false, vinfo, 0);
 
 	/* FIXME: free correct keep frame */
 	if (!is_local_vf(layer->dispbuf)) {
@@ -5754,7 +5831,7 @@ void pip_swap_frame(struct video_layer_s *layer, struct vframe_s *vf,
 		layer_info->zorder = vf->zorder;
 	}
 
-	layer_swap_frame(vf, layer, false, vinfo);
+	layer_swap_frame(vf, layer, false, vinfo, 0);
 
 	/* FIXME: free correct keep frame */
 	if (!is_local_vf(layer->dispbuf)) {
@@ -5989,7 +6066,8 @@ void primary_swap_frame(struct video_layer_s *layer, struct vframe_s *vf1, int l
 	/* switch buffer */
 	post_canvas = vf->canvas0Addr;
 	ret = layer_swap_frame
-		(vf, layer, force_toggle, vinfo);
+		(vf, layer, force_toggle, vinfo,
+		cur_dispbuf2 ? OP_HAS_DV_EL : 0);
 	if (ret >= vppfilter_success) {
 		amlog_mask
 			(LOG_MASK_FRAMEINFO,
@@ -6190,9 +6268,6 @@ s32 primary_render_frame(struct video_layer_s *layer)
 	}
 	/* VPP one time settings */
 	if (dispbuf) {
-#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		correct_vd1_mif_size_for_DV(frame_par, cur_dispbuf2);
-#endif
 		/* progressive or decode interlace case height 1:1 */
 		/* vdin afbc and interlace case height 1:1 */
 		zoom_start_y = frame_par->VPP_vd_start_lines_;
@@ -6530,6 +6605,63 @@ static int update_pip2_recycle_buffer(void)
 	return 0;
 }
 
+static inline void trace_performance(int enc_line_start,
+	int cur_enc_line,
+	struct timeval *start,
+	struct timeval *end1,
+	struct timeval *end2,
+	struct timeval *end3,
+	struct timeval *end4)
+{
+	u32 sync_duration;
+	struct vinfo_s *video_info;
+	unsigned long time_use1 = 0;
+	unsigned long time_use2 = 0;
+	unsigned long time_use3 = 0;
+	unsigned long time_use4 = 0;
+	unsigned long time_use5 = 0;
+	struct timeval end;
+
+	do_gettimeofday(&end);
+
+	time_use1 = (end1->tv_sec - start->tv_sec) * 1000000 +
+				(end1->tv_usec - start->tv_usec);
+	time_use2 = (end2->tv_sec - start->tv_sec) * 1000000 +
+				(end2->tv_usec - start->tv_usec);
+	time_use3 = (end3->tv_sec - start->tv_sec) * 1000000 +
+				(end3->tv_usec - start->tv_usec);
+	time_use4 = (end4->tv_sec - start->tv_sec) * 1000000 +
+				(end4->tv_usec - start->tv_usec);
+	time_use5 = (end.tv_sec - start->tv_sec) * 1000000 +
+				(end.tv_usec - start->tv_usec);
+
+	video_info = get_current_vinfo();
+	if (video_info && video_info->sync_duration_num)
+		sync_duration = video_info->sync_duration_den * 1000 /
+				video_info->sync_duration_num;
+	else
+		sync_duration = 16;
+
+	if (cur_enc_line < enc_line_start || time_use5 > sync_duration * 1000) {
+		over_field = true;
+		++over_field_case1_cnt;
+		if (performance_debug & DEBUG_FLAG_OVER_VSYNC)
+			pr_info("long vsync enc line: %4d/4%d, time %ld us\n",
+				enc_line_start, cur_enc_line, time_use5);
+	}
+
+	vpp_trace_timeinfo(time_use1, time_use2, time_use3,
+		time_use4, time_use5, sync_duration * 1000);
+
+	if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME) {
+		pr_info("vsync time: %ld %ld %ld %ld %ld us\n",
+			time_use1, time_use2, time_use3, time_use4, time_use5);
+		pr_info("vsync enc line: %4d/4%d, over_field %d, count %d %d\n",
+			enc_line_start, cur_enc_line,
+			over_field, over_field_case1_cnt, over_field_case2_cnt);
+	}
+}
+
 void set_alpha_scpxn(struct video_layer_s *layer,
 			   struct componser_info_t *componser_info)
 {
@@ -6692,6 +6824,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 {
 	/* int hold_line; */
 	int enc_line;
+	int enc_line_start = 0;
 	unsigned char frame_par_di_set = 0;
 	s32 vout_type;
 	struct vframe_s *vf;
@@ -6730,6 +6863,19 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	int source_type = 0;
 	struct path_id_s path_id;
 	bool need_force_black = false;
+	struct timeval start;
+	struct timeval end1;
+	struct timeval end2;
+	struct timeval end3;
+	struct timeval end4;
+	u8 new_frame_mask = 0;
+
+	do_gettimeofday(&start);
+	enc_line_start = get_cur_enc_line();
+	end1 = start;
+	end2 = start;
+	end3 = start;
+	end4 = start;
 
 	path_id.vd1_path_id = vd1_path_id;
 	path_id.vd2_path_id = vd2_path_id;
@@ -6777,6 +6923,59 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (first_irq) {
 		first_irq = false;
 		goto RUN_FIRST_RDMA;
+	}
+	if (is_vsync_rdma_enable()) {
+		bool valid_mode = false;
+		u32 timeinfo_th = 0;
+		u32 enc_num = get_cur_enc_num();
+
+		if (vinfo &&
+			(vinfo->mode == VMODE_HDMI ||
+			 vinfo->mode == VMODE_LCD ||
+			 vinfo->mode == VMODE_CVBS)) {
+			valid_mode = true;
+			if (vinfo->sync_duration_num) {
+				timeinfo_th = vinfo->sync_duration_den * 1000000 /
+					vinfo->sync_duration_num;
+				/* set as 1.5 duration */
+				timeinfo_th = (timeinfo_th * 3) >> 1;
+			}
+		}
+		/* TODO: need check each layer by new frame flag */
+		if (!over_field && valid_mode && timeinfo_th) {
+			u32 state = atomic_read(&cur_over_field_state);
+
+			if (state == OVER_FIELD_RDMA_READY ||
+			    state == OVER_FIELD_NORMAL) {
+				ulong cur_timeinfo = start.tv_sec * 1000000 + start.tv_usec;
+
+				if (enc_num == config_vsync_num &&
+				    cur_timeinfo < config_timeinfo + timeinfo_th)
+					over_field = true;
+			} else if (state == OVER_FIELD_NEW_VF) {
+				over_field = true;
+			}
+			if (over_field)
+				over_field_case2_cnt++;
+		}
+		update_over_field_states(OVER_FIELD_NORMAL, !valid_mode ? true : false);
+		if (atomic_read(&cur_over_field_state) == OVER_FIELD_NEW_VF) {
+			always_new_vf_cnt++;
+			if (always_new_vf_cnt > 5) {
+				update_over_field_states(OVER_FIELD_NORMAL, true);
+				pr_info("Over field state is always as new_vf. Need reset it.\n");
+				always_new_vf_cnt = 0;
+			}
+		} else {
+			always_new_vf_cnt = 0;
+		}
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+		vpp_trace_field_state("VSYNC-START",
+			atomic_read(&cur_over_field_state),
+			atomic_read(&cur_over_field_state),
+			over_field ? 1 : 0,
+			config_vsync_num, enc_num);
+#endif
 	}
 #endif
 
@@ -6878,35 +7077,39 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	if (is_amdv_enable() &&
-	    (is_tunnel_mode(RECEIVER_NAME) || is_tunnel_mode(RECEIVERPIP_NAME))) {
-		char *provider_name = NULL;
+	if (is_amdv_enable()) {
+		if (is_tunnel_mode(RECEIVER_NAME) || is_tunnel_mode(RECEIVERPIP_NAME)) {
+			char *provider_name = NULL;
 
-		if (vd1_path_id == VFM_PATH_PIP || vd2_path_id == VFM_PATH_PIP) {
-			provider_name = vf_get_provider_name(RECEIVERPIP_NAME);
-			while (provider_name) {
-				if (!vf_get_provider_name(provider_name))
-					break;
-				provider_name =
-					vf_get_provider_name(provider_name);
+			if (vd1_path_id == VFM_PATH_PIP || vd2_path_id == VFM_PATH_PIP) {
+				provider_name = vf_get_provider_name(RECEIVERPIP_NAME);
+				while (provider_name) {
+					if (!vf_get_provider_name(provider_name))
+						break;
+					provider_name =
+						vf_get_provider_name(provider_name);
+				}
+				if (provider_name)
+					amdv_set_provider(provider_name, VD2_PATH);
+				else
+					amdv_set_provider(dv_provider[1], VD2_PATH);
 			}
-			if (provider_name)
-				amdv_set_provider(provider_name, VD2_PATH);
-			else
-				amdv_set_provider(dv_provider[1], VD2_PATH);
-		}
-		if (vd1_path_id == VFM_PATH_AMVIDEO || vd2_path_id == VFM_PATH_AMVIDEO) {
-			provider_name = vf_get_provider_name(RECEIVER_NAME);
-			while (provider_name) {
-				if (!vf_get_provider_name(provider_name))
-					break;
-				provider_name =
-					vf_get_provider_name(provider_name);
+			if (vd1_path_id == VFM_PATH_AMVIDEO || vd2_path_id == VFM_PATH_AMVIDEO) {
+				provider_name = vf_get_provider_name(RECEIVER_NAME);
+				while (provider_name) {
+					if (!vf_get_provider_name(provider_name))
+						break;
+					provider_name =
+						vf_get_provider_name(provider_name);
+				}
+				if (provider_name)
+					amdv_set_provider(provider_name, VD1_PATH);
+				else
+					amdv_set_provider(dv_provider[0], VD1_PATH);
 			}
-			if (provider_name)
-				amdv_set_provider(provider_name, VD1_PATH);
-			else
-				amdv_set_provider(dv_provider[0], VD1_PATH);
+		} else {
+			amdv_set_provider(dv_provider[0], VD1_PATH);
+			amdv_set_provider(dv_provider[1], VD2_PATH);
 		}
 	}
 
@@ -7033,7 +7236,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			frame_lock_process(NULL, cur_frame_par);
 	}
 #endif
-
+	if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
+		do_gettimeofday(&end1);
 	enc_line = get_cur_enc_line();
 	if (enc_line > vsync_enter_line_max)
 		vsync_enter_line_max = enc_line;
@@ -7353,9 +7557,11 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		vd_layer[1].cur_canvas_id = vd_layer[1].next_canvas_id;
 		vd_layer[2].cur_canvas_id = vd_layer[2].next_canvas_id;
 	} else {
-		if (rdma_enable_pre)
+		if (rdma_enable_pre) {
+			/* force set state as normal without check */
+			update_over_field_states(OVER_FIELD_NORMAL, true);
 			goto exit;
-
+		}
 		vd_layer[0].cur_canvas_id = 0;
 		vd_layer[0].next_canvas_id = 1;
 		vd_layer[1].cur_canvas_id = 0;
@@ -7364,7 +7570,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		vd_layer[2].next_canvas_id = 1;
 	}
 
-	if (!over_sync) {
+	if (!over_field) {
 		for (i = 0; i < DISPBUF_TO_PUT_MAX; i++) {
 			if (dispbuf_to_put[i]) {
 				dispbuf_to_put[i]->rendered = true;
@@ -7399,19 +7605,19 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 	if (gvideo_recv[0]) {
 		gvideo_recv[0]->irq_mode = true;
 		gvideo_recv[0]->func->early_proc(gvideo_recv[0],
-						 over_sync ? 1 : 0);
+						 over_field ? 1 : 0);
 	}
 	if (gvideo_recv[1]) {
 		gvideo_recv[1]->irq_mode = true;
 		gvideo_recv[1]->func->early_proc(gvideo_recv[1],
-						 over_sync ? 1 : 0);
+						 over_field ? 1 : 0);
 	}
 	if (gvideo_recv[2]) {
 		gvideo_recv[2]->irq_mode = true;
 		gvideo_recv[2]->func->early_proc(gvideo_recv[2],
-						 over_sync ? 1 : 0);
+						 over_field ? 1 : 0);
 	}
-	over_sync = false;
+	over_field = false;
 	if (!cur_dispbuf || cur_dispbuf == &vf_local) {
 		vf = video_vf_peek();
 		if (vf) {
@@ -7506,8 +7712,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 				vf->pts, vf->omx_index,
 				timestamp_pcrscr_get(), timestamp_vpts_get());
 		}
-		if ((omx_continuous_drop_flag && omx_run) &&
-		    !(debug_flag & DEBUG_FLAG_OMX_DISABLE_DROP_FRAME)) {
+		if ((omx_continuous_drop_flag && omx_run)) {
 			if (is_amdv_enable() && vf &&
 			    is_amdv_frame(vf)) {
 				if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
@@ -7623,6 +7828,8 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (iret1 == 1 || iret2 == 1 || iret3 == 1)
 				break;
 #endif
+			if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
+				do_gettimeofday(&end2);
 			vf = video_vf_get();
 			if (!vf) {
 				ATRACE_COUNTER(MODULE_NAME,  __LINE__);
@@ -7671,6 +7878,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (has_receive_dummy_vframe())
 				break;
 
+			if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
+				do_gettimeofday(&end3);
+
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			if (vd1_path_id == VFM_PATH_AMVIDEO ||
 			    vd1_path_id == VFM_PATH_DEF ||
@@ -7679,6 +7889,9 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 			if (hold_video)
 				dv_new_vf = NULL;
 #endif
+			if (performance_debug & DEBUG_FLAG_VSYNC_PROCESS_TIME)
+				do_gettimeofday(&end4);
+
 			if (trickmode_fffb == 1) {
 				trickmode_vpts = vf->pts;
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
@@ -8367,8 +8580,13 @@ SET_FILTER:
 			gvideo_recv[0]->cur_buf->flag & VFRAME_FLAG_FAKE_FRAME)
 			vd_layer[0].dispbuf = gvideo_recv[0]->cur_buf;
 
-		if (new_frame || cur_dispbuf)
-			vd_layer[0].dispbuf_mapping = &cur_dispbuf;
+		if (new_frame || cur_dispbuf) {
+			if (new_frame && path3_new_frame == new_frame)
+				vd_layer[0].dispbuf_mapping =
+					&gvideo_recv[0]->cur_buf;
+			else
+				vd_layer[0].dispbuf_mapping = &cur_dispbuf;
+		}
 		cur_blackout = blackout | force_blackout;
 	} else {
 		cur_blackout = 1;
@@ -8472,6 +8690,7 @@ SET_FILTER:
 		dvel_swap_frame(cur_dispbuf2);
 #endif
 	} else if (new_frame) {
+		new_frame_mask |= 1;
 		vframe_walk_delay = (int)div_u64(((jiffies_64 -
 			new_frame->ready_jiffies64) * 1000), HZ);
 		vframe_walk_delay += 1000 *
@@ -8524,6 +8743,7 @@ SET_FILTER:
 #if defined(CONFIG_AMLOGIC_MEDIA_FRC)
 	frc_input_handle(vd_layer[0].dispbuf, cur_frame_par);
 #endif
+
 	if (atomic_read(&axis_changed)) {
 		video_prop_status |= VIDEO_PROP_CHANGE_AXIS;
 		atomic_set(&axis_changed, 0);
@@ -8857,6 +9077,7 @@ SET_FILTER:
 		pip_swap_frame(&vd_layer[1], vd_layer[1].dispbuf, vinfo);
 		need_disable_vd2 = false;
 	} else if (new_frame2) {
+		new_frame_mask |= 2;
 		pip_swap_frame(&vd_layer[1], new_frame2, vinfo);
 		need_disable_vd2 = false;
 	}
@@ -9135,6 +9356,7 @@ SET_FILTER:
 			pip2_swap_frame(&vd_layer[2], vd_layer[2].dispbuf, vinfo);
 			need_disable_vd3 = false;
 		} else if (new_frame3) {
+			new_frame_mask |= 4;
 			pip2_swap_frame(&vd_layer[2], new_frame3, vinfo);
 			need_disable_vd3 = false;
 		}
@@ -9352,9 +9574,18 @@ exit:
 	cur_rdma_buf = cur_dispbuf;
 	pip_rdma_buf = cur_pipbuf;
 	pip2_rdma_buf = cur_pipbuf2;
+	if (new_frame_mask && is_vsync_rdma_enable())
+		update_over_field_states(OVER_FIELD_NEW_VF, false);
 RUN_FIRST_RDMA:
-	/* vsync_rdma_config(); */
 	vsync_rdma_process();
+
+	enc_line = get_cur_enc_line();
+
+	vpp_trace_encline("AFTER-RDMA", enc_line_start, enc_line);
+
+	trace_performance(enc_line_start, enc_line,
+		&start, &end1, &end2, &end3, &end4);
+
 	if (debug_flag & DEBUG_FLAG_PRINT_RDMA) {
 		if (enable_rdma_log_count == 0)
 			enable_rdma_log(0);
@@ -9407,6 +9638,13 @@ RUN_FIRST_RDMA:
 	cur_vd2_path_id = vd2_path_id;
 	cur_vd3_path_id = vd3_path_id;
 
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	vpp_trace_field_state("VSYNC-END",
+		atomic_read(&cur_over_field_state),
+		atomic_read(&cur_over_field_state),
+		over_field ? 1 : 0,
+		over_field_case1_cnt, over_field_case2_cnt);
+#endif
 	if (debug_flag & DEBUG_FLAG_GET_COUNT)
 		pr_info("count=%d pip=%d, pip2=%d\n",
 			get_count, get_count_pip, get_count_pip2);
@@ -10074,7 +10312,6 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		mutex_unlock(&omx_mutex);
 		hdmi_in_delay_maxmin_reset();
 		//init_hdr_info();
-		/* over_sync_count = 0; */
 /*notify di 3d mode is frame*/
 /*alternative mode,passing two buffer in one frame */
 #ifdef CONFIG_AMLOGIC_MEDIA_TVIN
@@ -10676,6 +10913,10 @@ EXPORT_SYMBOL(di_prelink_state_changed_notify);
 #define ATSC_T35_PROV_CODE    0x0031
 #define PRIME_SL_T35_PROV_CODE     0x003A
 #define DVB_T35_PROV_CODE     0x003B
+#define AV1_HDR10P_T35_PROV_CODE   0x003C
+#define AV1_HDR10P_T35_PROV_ORIENTED_CODE   0x0001
+#define AV1_HDR10P_APPLICATION_IDENTIFIER   4
+
 #define ATSC_USER_ID_CODE     0x47413934
 #define DVB_USER_ID_CODE      0x00000000
 #define DM_MD_USER_TYPE_CODE  0x09
@@ -10683,6 +10924,33 @@ EXPORT_SYMBOL(di_prelink_state_changed_notify);
 #define FMT_TYPE_DV_AV1 1
 #define FMT_TYPE_HDR10_PLUS 2
 #define FMT_TYPE_PRIME 3
+#define FMT_TYPE_HDR10_PLUS_AV1 4
+
+bool check_av1_hdr10p(char *p)
+{
+	u32 country_code;
+	u32 provider_code;
+	u32 provider_oriented_code;
+	u32 application_identifier;
+
+	if (!p)
+		return false;
+
+	country_code = *(p);
+	provider_code = (*(p + 1) << 8) |
+			*(p + 2);
+	provider_oriented_code = (*(p + 3) << 8) | *(p + 4);
+	application_identifier = *(p + 5);
+	if (country_code == 0xB5 &&
+	    provider_code ==
+	    AV1_HDR10P_T35_PROV_CODE &&
+	    provider_oriented_code == AV1_HDR10P_T35_PROV_ORIENTED_CODE &&
+	    application_identifier == AV1_HDR10P_APPLICATION_IDENTIFIER)
+		return true;
+	else
+		return false;
+}
+EXPORT_SYMBOL(check_av1_hdr10p);
 
 static int check_media_sei(char *sei, u32 sei_size, u32 fmt_type)
 {
@@ -10702,10 +10970,12 @@ static int check_media_sei(char *sei, u32 sei_size, u32 fmt_type)
 	if (fmt_type == FMT_TYPE_DV)
 		sei_type = DV_SEI;
 	else if (fmt_type == FMT_TYPE_DV_AV1)
-		sei_type = DV_AV1_SEI;
+		sei_type = AV1_SEI;
 	else if (fmt_type == FMT_TYPE_HDR10_PLUS ||
 		fmt_type == FMT_TYPE_PRIME)
 		sei_type = HDR10P; /* same sei type */
+	else if (fmt_type == FMT_TYPE_HDR10_PLUS_AV1)
+		sei_type = AV1_SEI;
 	else
 		return ret;
 
@@ -10723,13 +10993,36 @@ static int check_media_sei(char *sei, u32 sei_size, u32 fmt_type)
 		type = (type << 8) | *p++;
 		type = (type << 8) | *p++;
 
-		if ((sei_type == DV_SEI && sei_type == type) ||
-		    (sei_type == DV_AV1_SEI && sei_type == (type & 0xffff0000))) {
+		if ((sei_type == DV_SEI && sei_type == type)) {/*h264/h265 dv*/
 			ret = 1;
+			break;
+		} else if (fmt_type == FMT_TYPE_DV_AV1 &&
+			   sei_type == (type & 0xffff0000) &&
+			   size > 6) {
+			/*av1 dv, double check nal type and payload type to distinguish hdr10p*/
+			if (!check_av1_hdr10p(p))
+				ret = 1;
+			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+				pr_info("check FMT_TYPE_DV_AV1 %d\n", ret);
 			break;
 		} else if (fmt_type == FMT_TYPE_HDR10_PLUS && sei_type == type) {
 			/* TODO: double check nal type and payload type */
 			ret = 1;
+			break;
+		} else if (fmt_type == FMT_TYPE_HDR10_PLUS_AV1 &&
+			   sei_type == (type & 0xffff0000) &&
+			   size > 6) {
+			/* av1 hdr10p, double check nal type and payload type */
+			/*4 byte size + 4 byte type*/
+			/*1 byte country_code B5*/
+			/*2 byte provider_code 003C*/
+			/*2 byte provider_oriented_code 0001, 2094-40*/
+			/*1 byte app_identifier 4*/
+			/*1 byte app_mode 1*/
+			if (check_av1_hdr10p(p))
+				ret = 1;
+			if (debug_flag & DEBUG_FLAG_OMX_DV_DROP_FRAME)
+				pr_info("check FMT_TYPE_HDR10_PLUS_AV1 %d\n", ret);
 			break;
 		} else if (sei_type == DV_SEI && type == HDR10P) {
 			/* check DVB/ATSC as DV */
@@ -10913,7 +11206,8 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		} else if ((signal_transfer_characteristic == 0x30) &&
 			     ((signal_color_primaries == 9) ||
 			      (signal_color_primaries == 2))) {
-			if (check_media_sei(sei, size, FMT_TYPE_HDR10_PLUS))
+			if (check_media_sei(sei, size, FMT_TYPE_HDR10_PLUS) ||
+			    check_media_sei(sei, size, FMT_TYPE_HDR10_PLUS_AV1))
 				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10PLUS;
 			else /* TODO: if need switch to HDR10 */
 				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
@@ -11130,6 +11424,20 @@ u32 video_get_layer_capability(void)
 	return layer_cap;
 }
 
+int get_output_pcrscr_info(s32 *inc, u32 *base)
+{
+	if (IS_ERR_OR_NULL(inc) || IS_ERR_OR_NULL(base)) {
+		pr_info("%s: param is NULL.\n", __func__);
+		return -1;
+	}
+
+	*inc = vsync_pts_inc_scale;
+	*base = vsync_pts_inc_scale_base;
+
+	return 0;
+}
+EXPORT_SYMBOL(get_output_pcrscr_info);
+
 #if ENABLE_UPDATE_HDR_FROM_USER
 static void config_hdr_info(const struct vframe_master_display_colour_s p)
 {
@@ -11225,9 +11533,7 @@ static void set_omx_pts(u32 *p)
 	} else {
 		omx_continuous_drop_count++;
 		if (omx_continuous_drop_count >=
-		     OMX_CONTINUOUS_DROP_LEVEL &&
-		    !(debug_flag &
-		       DEBUG_FLAG_OMX_DISABLE_DROP_FRAME)) {
+		     OMX_CONTINUOUS_DROP_LEVEL) {
 			omx_continuous_drop_flag = true;
 			if (debug_flag & DEBUG_FLAG_OMX_DEBUG_DROP_FRAME)
 				pr_info("countinous drop %d\n",
@@ -12544,7 +12850,7 @@ static ssize_t video_screen_mode_show(struct class *cla,
 		"normal-noscaleup",
 		"4-3 ignore", "4-3 letter box", "4-3 pan scan", "4-3 combined",
 		"16-9 ignore", "16-9 letter box", "16-9 pan scan",
-		"16-9 combined", "Custom AR", "AFD", "non-linear-T"
+		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9"
 	};
 
 	if (layer->wide_mode < ARRAY_SIZE(wide_str)) {
@@ -14457,6 +14763,49 @@ static ssize_t process_fmt_show
 				process_name[1]);
 		}
 	}
+
+	if (!cur_dev || cur_dev->max_vd_layers <= 2)
+		goto show_end;
+
+	hdr_bypass = false;
+	dispbuf = get_dispbuf(2);
+	if (dispbuf) {
+		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+			ret += sprintf(buf + ret, "vd3: src_fmt = %s; ",
+				fmt_str[fmt]);
+		else
+			ret += sprintf(buf + ret, "vd3: src_fmt = null; ");
+
+		get_hdr_process_name(2, process_name[2], output_fmt);
+
+		l = strlen("HDR_BYPASS");
+		if (!strncmp(process_name[2], "HDR_BYPASS", l) ||
+		    !strncmp(process_name[2], "HLG_BYPASS", l))
+			hdr_bypass = true;
+
+		if (amdv_on) {
+			ret += sprintf(buf + ret, "out_fmt = IPT\n");
+		} else if (hdr_bypass) {
+			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+				if ((!strcmp(fmt_str[fmt], "HDR10") ||
+				     !strcmp(fmt_str[fmt], "HDR10+")) &&
+				    (!strcmp(output_fmt, "HDR") ||
+				     !strcmp(output_fmt, "HDR+")))
+					ret += sprintf(buf + ret,
+						"out_fmt = %s_%s\n",
+						fmt_str[fmt], output_fmt);
+				else
+					ret += sprintf(buf + ret,
+						"out_fmt = %s\n", fmt_str[fmt]);
+			else
+				ret += sprintf(buf + ret, "out_fmt = src!\n");
+		} else {
+			ret += sprintf(buf + ret, "process = %s\n",
+				process_name[2]);
+		}
+	}
+show_end:
 	return ret;
 }
 
@@ -15156,7 +15505,7 @@ static ssize_t videopip_screen_mode_show(struct class *cla,
 		"normal-noscaleup",
 		"4-3 ignore", "4-3 letter box", "4-3 pan scan", "4-3 combined",
 		"16-9 ignore", "16-9 letter box", "16-9 pan scan",
-		"16-9 combined", "Custom AR", "AFD"
+		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9"
 	};
 
 	if (layer->wide_mode < ARRAY_SIZE(wide_str))
@@ -15197,7 +15546,7 @@ static ssize_t videopip2_screen_mode_show(struct class *cla,
 		"normal-noscaleup",
 		"4-3 ignore", "4-3 letter box", "4-3 pan scan", "4-3 combined",
 		"16-9 ignore", "16-9 letter box", "16-9 pan scan",
-		"16-9 combined", "Custom AR", "AFD"
+		"16-9 combined", "Custom AR", "AFD", "non-linear-T", "21-9"
 	};
 
 	if (layer->wide_mode < ARRAY_SIZE(wide_str))
@@ -15591,6 +15940,64 @@ static ssize_t vdx_state_show(u32 index, char *buf)
 	return len;
 }
 
+static ssize_t performance_debug_show(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return sprintf(buf, "performance_debug: %d\n",
+		performance_debug);
+}
+
+static ssize_t performance_debug_store(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+	u32 enable;
+
+	ret = kstrtoint(buf, 0, &enable);
+	if (ret < 0)
+		return -EINVAL;
+	performance_debug = enable;
+	return count;
+}
+
+static ssize_t over_field_state_show(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	u32 cur_state = OVER_FIELD_NORMAL;
+	u32 cur_over_field_wrong_cnt = 0;
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	cur_state = atomic_read(&cur_over_field_state);
+	cur_over_field_wrong_cnt = wrong_state_change_cnt;
+#endif
+	return sprintf(buf, "cur_over_filed_state: %d; wrong state cnt:%d; over cnt:%d %d\n",
+		cur_state, cur_over_field_wrong_cnt,
+		over_field_case1_cnt, over_field_case2_cnt);
+}
+
+static ssize_t over_field_state_store(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	int ret;
+	u32 val;
+
+	ret = kstrtoint(buf, 0, &val);
+	if (ret < 0)
+		return -EINVAL;
+	over_field_case1_cnt = 0;
+	over_field_case2_cnt = 0;
+#ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
+	update_over_field_states(OVER_FIELD_NORMAL, val ? true : false);
+	wrong_state_change_cnt = 0;
+	pr_info("%s to clear over field state.\n", val ? "force" : "no force");
+#endif
+	return count;
+}
+
 static ssize_t video_force_skip_cnt_show(struct class *cla, struct class_attribute *attr,
 			       char *buf)
 {
@@ -15821,6 +16228,17 @@ static ssize_t film_grain_store
 		pr_err("need 3 input params\n");
 	}
 	return strnlen(buf, count);
+}
+
+static ssize_t film_grain_support_show
+	(struct class *cla,
+	struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 40, "%d\n",
+		((glayer_info[2].fgrain_support ? 1 : 0) << 2) |
+		((glayer_info[1].fgrain_support ? 1 : 0) << 1) |
+		((glayer_info[0].fgrain_support ? 1 : 0) << 0));
 }
 
 static ssize_t pip_alpha_store
@@ -17627,6 +18045,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       film_grain_show,
 	       film_grain_store),
+	__ATTR_RO(film_grain_support),
 	__ATTR(pq_default,
 	       0664,
 	       pq_default_show,
@@ -17696,6 +18115,14 @@ static struct class_attribute amvideo_class_attrs[] = {
 	       0664,
 	       mirror_axis_show,
 	       mirror_axis_store),
+	__ATTR(performance_debug,
+	       0664,
+	       performance_debug_show,
+	       performance_debug_store),
+	__ATTR(over_field_state,
+	       0664,
+	       over_field_state_show,
+	       over_field_state_store),
 	__ATTR(pps_coefs,
 	       0664,
 	       NULL,
@@ -18979,6 +19406,7 @@ static int amvideom_probe(struct platform_device *pdev)
 	int vdtemp = -1;
 	const void *prop;
 	int display_device_cnt = 1;
+	int ex_rdma = 0;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
@@ -19063,6 +19491,15 @@ static int amvideom_probe(struct platform_device *pdev)
 			vd_layer_vpp[0].vpp_index = VPP1;
 			vd_layer_vpp[0].layer_id = 1;
 		}
+	}
+
+	prop = of_get_property(pdev->dev.of_node, "low_latency", NULL);
+	if (prop) {
+		ex_rdma = of_read_ulong(prop, 1);
+		if (ex_rdma)
+			ex_vsync_rdma_register();
+		else
+			pr_info("ex_vsync_rdma_register function can not be used\n");
 	}
 
 	video_cap_set(&amvideo_meson_dev);

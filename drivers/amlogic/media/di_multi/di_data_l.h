@@ -102,7 +102,9 @@
 	| VIDTYPE_RGB_444		\
 	| VIDTYPE_V4L_EOS)
 
-#define DIM_S4DW_REG_BACK_NUB	5
+#define DIM_KEEP_NONE	(0xfffffff0)
+
+#define DIM_NRDIS_REG_BACK_NUB	5
 enum EDI_MEM_M {
 	EDI_MEM_M_REV = 0,
 	EDI_MEM_M_CMA = 1,
@@ -166,6 +168,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_DW_EN,
 	EDI_CFG_SUB_V,
 	EDI_CFG_EN_PRE_LINK,
+	EDI_CFG_AFBCE_LOSS_EN,
 	EDI_CFG_END,
 };
 
@@ -861,19 +864,19 @@ struct mtsk_cmd_s {
  * keep same order as di_name_new_que
  **************************************/
 enum QUE_TYPE {	/*mast start from 0 */
-	QUE_IN_FREE,	/*5*/
-	QUE_PRE_READY,	/*6*/
-	QUE_POST_FREE,	/*7*/
-	QUE_POST_READY,	/*8*/
-	QUE_POST_BACK,		/*new*/
-	QUE_POST_DOING,
+	QUE_IN_FREE,	/*5:0*/
+	QUE_PRE_READY,	/*6:1*/
+	QUE_POST_FREE,	/*7:2*/
+	QUE_POST_READY,	/*8:3*/
+	QUE_POST_BACK,	/*9:4*/
+	QUE_POST_DOING, /*10:5*/
 //	QUE_POST_KEEP,	/*below use pw_queue_in*/
 //	QUE_POST_KEEP_BACK,
-	QUE_POST_KEEP_RE_ALLOC, /*need*/
-	QUE_PRE_NO_BUF_WAIT,	//
-	QUE_PST_NO_BUF_WAIT,	//
-	QUE_PRE_NO_BUF, /*ary add before local_free*/
-	QUE_PST_NO_BUF,
+	QUE_POST_KEEP_RE_ALLOC, /*need:11:6*/
+	QUE_PRE_NO_BUF_WAIT,	/*12:7*/
+	QUE_PST_NO_BUF_WAIT,	/*13:8*/
+	QUE_PRE_NO_BUF, /*14:9*/
+	QUE_PST_NO_BUF,	/*15:10*/
 	/*----------------*/
 	QUE_DBG,
 	QUE_NUB,
@@ -885,6 +888,25 @@ enum EDI_BUF_TYPE {
 	EDI_BUF_T_LOCAL,	/*VFRAME_TYPE_LOCAL*/
 	EDI_BUF_T_POST,		/*VFRAME_TYPE_POST*/
 };
+
+/**************************************/
+enum EDIM_QID {
+	/*8*/
+	EDIM_QID_LMEM,
+	/*16*/
+	EDIM_QID_TST16,
+	/*32*/
+	EDIM_QID_TST32,
+	/*64*/
+	EDIM_QID_TST64,
+};
+
+/* ref to EDIM_QID */
+#define DIM_Q_NUB	(4)
+#define DIM_Q8_NUB	(1)
+#define DIM_Q16_NUB	(1)
+#define DIM_Q32_NUB	(1)
+#define DIM_Q64_NUB	(1)
 
 #define MAX_FIFO_SIZE	(32)
 
@@ -1234,6 +1256,7 @@ struct dim_itf_s {
 	struct dev_vfm_s	dvfmc; /* for vfm option */
 	struct dev_instance	dinst;
 	} u;
+	bool bypass_ext; //set 0 when unreg;
 };
 
 struct di_ores_s {
@@ -1241,7 +1264,7 @@ struct di_ores_s {
 	struct di_pre_stru_s di_pre_stru;
 	struct di_post_stru_s di_post_stru;
 
-	struct di_buf_s di_buf_local[MAX_LOCAL_BUF_NUM * 2];
+	struct di_buf_s di_buf_local[MAX_LOCAL_BUF_NUM_REAL];
 	struct di_buf_s di_buf_in[MAX_IN_BUF_NUM];
 	struct di_buf_s di_buf_post[MAX_POST_BUF_NUM];
 
@@ -1250,7 +1273,7 @@ struct di_ores_s {
 
 	struct vframe_s *vframe_in[MAX_IN_BUF_NUM];
 	struct vframe_s vframe_in_dup[MAX_IN_BUF_NUM];
-	struct vframe_s vframe_local[MAX_LOCAL_BUF_NUM * 2];
+	struct vframe_s vframe_local[MAX_LOCAL_BUF_NUM_REAL];
 	struct vframe_s vframe_post[MAX_POST_BUF_NUM];
 	/* ********** */
 	struct di_dat_s	dat_i;
@@ -1368,6 +1391,7 @@ struct dim_sum_s {
 	unsigned int b_pst_free;
 	unsigned int b_display;
 	unsigned int b_nin;
+	unsigned int b_dct_in;
 	unsigned int b_in_free;
 	bool	need_local; //set by pre_config
 	bool flg_rebuild;
@@ -1881,7 +1905,7 @@ enum EDIM_TMODE {
 /************************************************/
 struct di_ch_s {
 	/*struct di_cfgx_s dbg_cfg;*/
-	bool cfgx_en[K_DI_CFGX_NUB];
+	unsigned char cfgx_en[K_DI_CFGX_NUB];
 	unsigned int mp_uix[K_DI_MP_UIX_NUB];/*module para x*/
 
 	struct di_dbg_datax_s dbg_data;
@@ -1990,6 +2014,9 @@ struct di_ch_s {
 	bool en_dw;
 	bool en_dw_mem;
 	unsigned int last_bypass;
+	struct kfifo	fifo32[DIM_Q_NUB];
+	bool flg_fifo32[DIM_Q_NUB];
+	unsigned int err;
 };
 
 struct dim_policy_s {
@@ -2565,6 +2592,14 @@ enum EDIM_WKUP_REASON {
 
 };
 
+struct dim_plink_dbg_s {
+	bool flg_sw;
+	int flg_check_di_act;
+	int flg_check_vf;
+	int display_sts;
+	u32 display_cnt;
+};
+
 struct dim_dvs_prevpp_s {
 	bool allowed;	/* support vpp link */
 	bool insert;
@@ -2582,6 +2617,7 @@ struct dim_dvs_prevpp_s {
 	atomic_t sum_wk_rq;	/*debug: total cal wk */
 	atomic_t sum_wk_real_cnt; /*debug: real wk */
 	const struct vframe_operations_s *vf_ops;
+	struct dim_plink_dbg_s dbgd;
 };
 
 struct di_data_l_s {
@@ -2627,7 +2663,7 @@ struct di_data_l_s {
 	unsigned char hf_owner;	//
 	bool	hf_busy;//
 	unsigned int ic_sub_ver;
-	struct reg_t s4dw_reg[DIM_S4DW_REG_BACK_NUB];
+	struct reg_t s4dw_reg[DIM_NRDIS_REG_BACK_NUB];
 	void *mng_hf_buf;
 	struct dim_dvs_prevpp_s dvs_prevpp;
 	atomic_t	state_cnt_reg;
@@ -2635,6 +2671,7 @@ struct di_data_l_s {
 	bool	pre_vpp_exist;	/* interface */
 	bool	pre_vpp_active; /* interface sw multi wr bypass contr */
 	bool	pre_vpp_set;	/* interface sw other multi wr */
+	bool	fg_bypass_en; /* for t5dvb fg */
 };
 
 /**************************************
@@ -2676,6 +2713,7 @@ struct di_data_l_s {
 #define DBG_M_HDR		DI_BIT27
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
+
 extern unsigned int di_dbg;
 
 #define dbg_m(mark, fmt, args ...)		\
@@ -2720,9 +2758,14 @@ extern unsigned int di_dbg;
 #define dbg_tst(fmt, args ...)		dbg_m(DBG_M_TST, fmt, ##args)
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 #define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
+
 char *di_cfgx_get_name(enum EDI_CFGX_IDX idx);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
-void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);
+unsigned char di_cfgx_getc(unsigned int ch, enum EDI_CFGX_IDX idx);
+void di_cfgx_set(unsigned int ch,
+		 enum EDI_CFGX_IDX idx,
+		 bool en,
+		 unsigned char pos);
 
 /****************************************
  *bit control
@@ -3236,6 +3279,11 @@ static inline unsigned int di_get_mem_size(unsigned int ch)
 	return get_datal()->mng.mm[ch].sts.mem_size;
 }
 
+static inline struct dim_plink_dbg_s *di_g_plink_dbg(void)
+{
+	return &get_datal()->dvs_prevpp.dbgd;
+}
+
 void di_tout_int(struct di_time_out_s *tout, unsigned int thd);
 bool di_tout_contr(enum EDI_TOUT_CONTR cmd, struct di_time_out_s *tout);
 
@@ -3305,11 +3353,11 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
 #define IC_SUPPORT_DECONTOUR	DI_BIT0
 #define IC_SUPPORT_HDR		DI_BIT1
 #define IC_SUPPORT_DW		DI_BIT2 /* double write */
+#define IC_SUPPORT_PRE_VPP_LINK	DI_BIT3
 
 #define IS_IC_SUPPORT(cc)	(get_datal()->mdata->support & \
 				IC_SUPPORT_##cc ? true : false)
 #define DIM_IS_ICS(T5W)		(DIM_IS_IC(T3) && \
 				cfgg(SUB_V) == 1)
 
-#define IC_SUPPORT_PRE_VPP_LINK		DI_BIT3
 #endif	/*__DI_DATA_L_H__*/

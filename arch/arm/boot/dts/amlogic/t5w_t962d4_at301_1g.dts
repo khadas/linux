@@ -51,17 +51,16 @@
 		};
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			/* keep sync with fb */
-			/* fox example:logo_addr = "0x3f800000"*/
+			/* fox example:logo_addr = "0x2ec00000"*/
 			alignment = <0x400000>;
-			reg = <0x3f800000 0x800000>;
+			reg = <0x2ec00000 0x800000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
 			compatible = "amlogic, lcd_tcon";
-			reg = <0x3d400000 0x00c00000>;
+			reg = <0x2f400000 0x00c00000>;
 			no-map;
 		};
 
@@ -84,17 +83,17 @@
 			 */
 			size = <0x01400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x0f800000>;
+			alloc-ranges = <0x00000000 0x2ec00000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x14c00000>;
+			size = <0x10000000>;
 			alignment = <0x400000>;
 			linux,contiguous-region;
-			alloc-ranges = <0x07400000 0x14c00000>;
+			alloc-ranges = <0x30000000 0x10000000>;
 		};
 
 		/* demod_cma_reserved:linux,demod_cma {
@@ -103,7 +102,7 @@
 		 *	// 40M
 		 *	size = <0x02800000>;
 		 *	alignment = <0x400000>;
-		 *	alloc-ranges = <0x0 0x3f000000>;
+		 *	alloc-ranges = <0x00000000 0x30000000>;
 		 *};
 		 */
 
@@ -143,7 +142,7 @@
 			 */
 			size = <0x400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x0f800000>;
+			alloc-ranges = <0x00000000 0x2ec00000>;
 		};
 
 		ion_fb_reserved:linux,ion-fb {
@@ -152,7 +151,7 @@
 			/* 1920x1080x4x3 round up 4M align */
 			size = <0x1c00000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x0f800000>;
+			alloc-ranges = <0x00000000 0x2ec00000>;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -160,7 +159,7 @@
 			reusable;
 			size = <0x400000>;
 			alignment = <0x400000>;
-			alloc-ranges = <0x30000000 0x0f800000>;
+			alloc-ranges = <0x00000000 0x2ec00000>;
 		};
 	};
 
@@ -642,6 +641,7 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <1>;
+		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
 		/* MAP_ADDR_MODULE_CBUS */
@@ -1258,7 +1258,7 @@
 	 ***************************************************/
 	en_4k = <0>;
 	//keep_dec_vf = <2>;
-	//po_fmt = <6>;
+	po_fmt = <0>;
 	/***************************************************
 	 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
 	 * local 5*4075520 = 20
@@ -1278,6 +1278,12 @@
 	 * 1: enable
 	 ***************************************************/
 	//hf = <0>;
+	afbce_loss_en = <1>;
+	/***************************************************
+	 * loss mode for di out (T5w)
+	 * 0:not set loss mode for di out;
+	 * 1:1:check the loss flag in vf and set for di
+	 ***************************************************/
 };/* end of multi-di */
 
 &i2c0 {
@@ -1486,7 +1492,7 @@
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
-	logo_addr = "0x3f800000";
+	logo_addr = "0x2ec00000";
 	/* display_device_cnt = <2>; */ /* for dual screen upport */
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
@@ -1581,6 +1587,44 @@
 			groups = "GPIOH_12","GPIOH_13";
 			function = "gpio_periphs";
 			output-low;
+		};
+	};
+	ST6451D06_3_pins: ST6451D06_3_pin {
+		mux {
+			groups = "tcon_1","tcon_2","tcon_3",
+				"tcon_4","tcon_5","tcon_6",
+				"tcon_9","tcon_10","tcon_11",
+				"tcon_14","tcon_lock";
+			function = "tcon";
+		};
+	};
+	ST6451D06_3_off_pins: ST6451D06_3_off_pin {
+		mux {
+			groups = "GPIOH_1","GPIOH_2","GPIOH_3",
+				"GPIOH_4","GPIOH_5","GPIOH_6",
+				"GPIOH_9","GPIOH_10","GPIOH_11",
+				"GPIOH_14","GPIOH_0";
+				function = "gpio_periphs";
+			input-enable;
+		};
+	};
+	ST5461D18_2_pins: ST5461D18_2_pin {
+		mux {
+			groups = "tcon_1","tcon_2","tcon_3",
+				"tcon_4","tcon_5","tcon_6",
+				"tcon_9","tcon_10","tcon_11",
+				"tcon_14","tcon_lock";
+			function = "tcon";
+		};
+	};
+	ST5461D18_2_off_pins: ST5461D18_2_off_pin {
+		mux {
+			groups = "GPIOH_1","GPIOH_2","GPIOH_3",
+				"GPIOH_4","GPIOH_5","GPIOH_6",
+				"GPIOH_9","GPIOH_10","GPIOH_11",
+				"GPIOH_14","GPIOH_0";
+				function = "gpio_periphs";
+			input-enable;
 		};
 	};
 };

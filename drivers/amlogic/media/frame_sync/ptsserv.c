@@ -90,11 +90,17 @@ static struct pts_table_s pts_table[PTS_TYPE_MAX] = {
 		.status = PTS_IDLE,
 		.rec_num = VIDEO_REC_SIZE,
 		.lookup_threshold = VIDEO_LOOKUP_RESOLUTION,
+		.first_checkin_pts = -1,
+		.last_checkin_pts = -1,
+		.last_checkout_pts = -1,
 	},
 	{
 		.status = PTS_IDLE,
 		.rec_num = AUDIO_REC_SIZE,
 		.lookup_threshold = AUDIO_LOOKUP_RESOLUTION,
+		.first_checkin_pts = -1,
+		.last_checkin_pts = -1,
+		.last_checkout_pts = -1,
 	},
 };
 

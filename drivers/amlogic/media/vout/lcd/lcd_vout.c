@@ -24,6 +24,7 @@
 #include <linux/of_device.h>
 #include <linux/compat.h>
 #include <linux/workqueue.h>
+#include <linux/sched/clock.h>
 #ifdef CONFIG_OF
 #include <linux/of.h>
 #endif
@@ -179,6 +180,11 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int i, index, wait;
 	int value = -1;
 
+	if (pdrv->lcd_pxp) {
+		LCDPR("[%d]: %s: lcd_pxp bypass\n", pdrv->index, __func__);
+		return;
+	}
+
 	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 	i = 0;
 	while (i < LCD_PWR_STEP_MAX) {
@@ -272,6 +278,7 @@ static void lcd_dlg_switch_mode(struct aml_lcd_drv_s *pdrv)
 	struct lcd_extern_dev_s *edev;
 #endif
 	unsigned int i = 0, index;
+	unsigned long long local_time[3];
 
 	LCDPR("[%d]: %s\n", pdrv->index, __func__);
 	while (i < LCD_PWR_STEP_MAX) {
@@ -281,11 +288,17 @@ static void lcd_dlg_switch_mode(struct aml_lcd_drv_s *pdrv)
 			break;
 		switch (power_step->type) {
 		case LCD_POWER_TYPE_SIGNAL:
-			if (pdrv->config.basic.lcd_type == LCD_P2P)
+			if (pdrv->config.basic.lcd_type == LCD_P2P) {
+				local_time[0] = sched_clock();
 				lcd_tcon_reload(pdrv);
+				local_time[1] = sched_clock();
+				pdrv->config.cus_ctrl.tcon_reload_time =
+					local_time[1] - local_time[0];
+			}
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
+			local_time[0] = sched_clock();
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: power_ctrl step %d\n",
 					pdrv->index, i);
@@ -303,6 +316,8 @@ static void lcd_dlg_switch_mode(struct aml_lcd_drv_s *pdrv)
 				edev->power_on(edrv, edev);
 			else
 				LCDERR("[%d]: no ext_%d power on\n", pdrv->index, index);
+			local_time[1] = sched_clock();
+			pdrv->config.cus_ctrl.level_shift_time = local_time[1] - local_time[0];
 			break;
 #endif
 		default:
@@ -322,6 +337,7 @@ static void lcd_dlg_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 	struct lcd_extern_dev_s *edev;
 #endif
 	unsigned int i, index;
+	unsigned long long local_time[3];
 
 	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 	i = 0;
@@ -350,6 +366,7 @@ static void lcd_dlg_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 			break;
 #ifdef CONFIG_AMLOGIC_LCD_EXTERN
 		case LCD_POWER_TYPE_EXTERN:
+			local_time[0] = sched_clock();
 			if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 				LCDPR("[%d]: power_ctrl: %d, step %d\n",
 					pdrv->index, status, i);
@@ -374,6 +391,8 @@ static void lcd_dlg_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 				else
 					LCDERR("[%d]: no ext_%d power off\n", pdrv->index, index);
 			}
+			local_time[1] = sched_clock();
+			pdrv->config.cus_ctrl.level_shift_time = local_time[1] - local_time[0];
 			break;
 #endif
 		default:
@@ -538,13 +557,18 @@ static void lcd_screen_restore_work(struct work_struct *work)
 	unsigned long flags = 0;
 	int ret = 0;
 	struct aml_lcd_drv_s *pdrv;
+	unsigned long long local_time[3];
 
+	local_time[0] = sched_clock();
 	pdrv = container_of(work, struct aml_lcd_drv_s, screen_restore_work);
 
 	mutex_lock(&lcd_power_mutex);
 	reinit_completion(&pdrv->vsync_done);
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
-	pdrv->mute_count = 0;
+	if (pdrv->unmute_count_test)
+		pdrv->mute_count = pdrv->unmute_count_test;
+	else
+		pdrv->mute_count = 4;
 	pdrv->mute_flag = 1;
 	spin_unlock_irqrestore(&pdrv->isr_lock, flags);
 	ret = wait_for_completion_timeout(&pdrv->vsync_done,
@@ -553,6 +577,8 @@ static void lcd_screen_restore_work(struct work_struct *work)
 		LCDPR("vmode switch: wait_for_completion_timeout\n");
 	pdrv->lcd_screen_restore(pdrv);
 	mutex_unlock(&lcd_power_mutex);
+	local_time[1] = sched_clock();
+	pdrv->config.cus_ctrl.unmute_time = local_time[1] - local_time[0];
 }
 
 static void lcd_lata_resume_work(struct work_struct *work)
@@ -614,7 +640,8 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_MLVDS:
 	case LCD_P2P:
-		lcd_tcon_vsync_isr(pdrv);
+		if (pdrv->tcon_isr_type == 0)
+			lcd_tcon_vsync_isr(pdrv);
 		break;
 	default:
 		break;
@@ -622,11 +649,10 @@ static inline void lcd_vsync_handler(struct aml_lcd_drv_s *pdrv)
 
 	spin_lock_irqsave(&pdrv->isr_lock, flags);
 	if (pdrv->mute_flag) {
-		if (pdrv->mute_count < 2) {
-			pdrv->mute_count++;
-		} else if (pdrv->mute_count == 2) {
+		if (pdrv->mute_count > 0) {
+			pdrv->mute_count--;
+		} else if (pdrv->mute_count == 0) {
 			complete(&pdrv->vsync_done);
-			pdrv->mute_count++;
 			pdrv->mute_flag = 0;
 		}
 	}
@@ -952,6 +978,9 @@ static int lcd_power_screen_black_notifier(struct notifier_block *nb,
 					   unsigned long event, void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	unsigned long long local_time[3];
+
+	local_time[0] = sched_clock();
 
 	if ((event & LCD_EVENT_SCREEN_BLACK) == 0)
 		return NOTIFY_DONE;
@@ -965,7 +994,9 @@ static int lcd_power_screen_black_notifier(struct notifier_block *nb,
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
 	lcd_power_screen_black(pdrv);
+	local_time[1] = sched_clock();
 
+	pdrv->config.cus_ctrl.mute_time = local_time[1] - local_time[0];
 	return NOTIFY_OK;
 }
 
@@ -978,6 +1009,9 @@ static int lcd_power_screen_restore_notifier(struct notifier_block *nb,
 					     unsigned long event, void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	unsigned long long local_time[3];
+
+	local_time[0] = sched_clock();
 
 	if ((event & LCD_EVENT_SCREEN_RESTORE) == 0)
 		return NOTIFY_DONE;
@@ -991,6 +1025,9 @@ static int lcd_power_screen_restore_notifier(struct notifier_block *nb,
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s: 0x%lx\n", pdrv->index, __func__, event);
 	lcd_power_screen_restore(pdrv);
+	local_time[1] = sched_clock();
+
+	pdrv->config.cus_ctrl.unmute_time = local_time[1] - local_time[0];
 
 	return NOTIFY_OK;
 }
@@ -1863,12 +1900,17 @@ static int lcd_config_probe(struct aml_lcd_drv_s *pdrv, struct platform_device *
 	pdrv->res_vsync_irq[2] = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync3");
 	pdrv->res_vx1_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vbyone");
 	pdrv->res_tcon_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "tcon");
+	pdrv->res_line_n_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "line_n");
 
 	pdrv->test_state = pdrv->debug_ctrl->debug_test_pattern;
 	pdrv->test_flag = 0;
 	pdrv->mute_state = 0;
 	pdrv->mute_flag = 0;
 	pdrv->mute_count = 0;
+	pdrv->mute_count_test = 0;
+	pdrv->unmute_count_test = 0;
+	pdrv->tcon_isr_type = 0;
+	pdrv->tcon_isr_bypass = 0;
 	pdrv->fr_mode = 0;
 	pdrv->viu_sel = LCD_VIU_SEL_NONE;
 	pdrv->vsync_none_timer_flag = 0;

@@ -63,28 +63,28 @@ int vdin_capture_picture(struct vdin_parm_s *vdin_cap_param,
 	devp->cfg_dma_buf = 1;
 	devp->flags |= VDIN_FLAG_MANUAL_CONVERSION;
 	devp->debug.dest_cfmt = vdin_cap_param->dfmt;
-	devp->debug.scaler4w = vdin_cap_param->dest_hactive;
-	devp->debug.scaler4h = vdin_cap_param->dest_vactive;
-	vdin_set_canvas_addr[0].dmabuff = cap_buf;
-	vdin_set_canvas_addr[0].dmabufattach =
-	dma_buf_attach(vdin_set_canvas_addr[0].dmabuff, devp->dev);
-	vdin_set_canvas_addr[0].sgtable =
-	dma_buf_map_attachment(vdin_set_canvas_addr[0].dmabufattach,
+	devp->debug.scaling4w = vdin_cap_param->dest_h_active;
+	devp->debug.scaling4h = vdin_cap_param->dest_v_active;
+	vdin_set_canvas_addr[0].dma_buffer = cap_buf;
+	vdin_set_canvas_addr[0].dmabuf_attach =
+	dma_buf_attach(vdin_set_canvas_addr[0].dma_buffer, devp->dev);
+	vdin_set_canvas_addr[0].sg_table =
+	dma_buf_map_attachment(vdin_set_canvas_addr[0].dmabuf_attach,
 				DMA_BIDIRECTIONAL);
-	page = sg_page(vdin_set_canvas_addr[0].sgtable->sgl);
+	page = sg_page(vdin_set_canvas_addr[0].sg_table->sgl);
 	vdin_set_canvas_addr[0].paddr = PFN_PHYS(page_to_pfn(page));
 	vdin_set_canvas_addr[0].size =
-		vdin_set_canvas_addr[0].dmabuff->size;
+		vdin_set_canvas_addr[0].dma_buffer->size;
 	start_tvin_service(devp->index, vdin_cap_param);
 	if (debug_sleep_time) {
 		msleep(debug_sleep_time);
 		stop_tvin_service(devp->index);
-		dma_buf_unmap_attachment(vdin_set_canvas_addr[0].dmabufattach,
-					 vdin_set_canvas_addr[0].sgtable,
+		dma_buf_unmap_attachment(vdin_set_canvas_addr[0].dmabuf_attach,
+					 vdin_set_canvas_addr[0].sg_table,
 					 DMA_BIDIRECTIONAL);
-		dma_buf_detach(vdin_set_canvas_addr[0].dmabuff,
-			       vdin_set_canvas_addr[0].dmabufattach);
-		dma_buf_put(vdin_set_canvas_addr[0].dmabuff);
+		dma_buf_detach(vdin_set_canvas_addr[0].dma_buffer,
+			       vdin_set_canvas_addr[0].dmabuf_attach);
+		dma_buf_put(vdin_set_canvas_addr[0].dma_buffer);
 		memset(vdin_set_canvas_addr, 0,
 			sizeof(struct vdin_set_canvas_addr_s) *
 			VDIN_CANVAS_MAX_CNT);

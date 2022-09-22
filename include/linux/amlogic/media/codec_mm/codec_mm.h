@@ -9,6 +9,7 @@
 #include <linux/atomic.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/device.h>
 
 /*
  *memflags

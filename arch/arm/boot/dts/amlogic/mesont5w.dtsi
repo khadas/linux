@@ -44,7 +44,11 @@
 				"high_freq_clk_parent",
 				"dsu_clk",
 				"dsu_pre_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
+			multi_tables_available;
+			operating-points-v2 = <&cpu_opp_table0>,
+				<&cpu_opp_table1>,
+				<&cpu_opp_table2>,
+				<&cpu_opp_table3>;
 			cpu-supply = <&vddcpu0>;
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
@@ -69,7 +73,11 @@
 				"high_freq_clk_parent",
 				"dsu_clk",
 				"dsu_pre_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
+			multi_tables_available;
+			operating-points-v2 = <&cpu_opp_table0>,
+				<&cpu_opp_table1>,
+				<&cpu_opp_table2>,
+				<&cpu_opp_table3>;
 			cpu-supply = <&vddcpu0>;
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
@@ -94,7 +102,11 @@
 				"high_freq_clk_parent",
 				"dsu_clk",
 				"dsu_pre_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
+			multi_tables_available;
+			operating-points-v2 = <&cpu_opp_table0>,
+				<&cpu_opp_table1>,
+				<&cpu_opp_table2>,
+				<&cpu_opp_table3>;
 			cpu-supply = <&vddcpu0>;
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
@@ -119,7 +131,11 @@
 				"high_freq_clk_parent",
 				"dsu_clk",
 				"dsu_pre_parent";
-			operating-points-v2 = <&cpu_opp_table0>;
+			multi_tables_available;
+			operating-points-v2 = <&cpu_opp_table0>,
+				<&cpu_opp_table1>,
+				<&cpu_opp_table2>,
+				<&cpu_opp_table3>;
 			cpu-supply = <&vddcpu0>;
 			cpu-idle-states = <&CPU_SLEEP_0 &SYSTEM_SLEEP_0>;
 			voltage-tolerance = <0>;
@@ -187,7 +203,7 @@
 	};
 
 	arm_pmu {
-		compatible = "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a15-pmu";
 		private-interrupts;
 		interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>,
@@ -374,11 +390,11 @@
 		};
 		opp04 {
 			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <800000>;
+			opp-microvolt = <790000>;
 		};
 		opp05 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <810000>;
+			opp-microvolt = <830000>;
 		};
 		opp06 {
 			opp-hz = /bits/ 64 <1392000000>;
@@ -386,7 +402,7 @@
 		};
 		opp07 {
 			opp-hz = /bits/ 64 <1512000000>;
-			opp-microvolt = <850000>;
+			opp-microvolt = <840000>;
 		};
 		opp08 {
 			opp-hz = /bits/ 64 <1608000000>;
@@ -394,15 +410,177 @@
 		};
 		opp09 {
 			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <910000>;
+			opp-microvolt = <920000>;
 		};
 		opp10 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <970000>;
+			opp-microvolt = <950000>;
 		};
 		opp11 {
 			opp-hz = /bits/ 64 <1908000000>;
 			opp-microvolt = <1010000>;
+		};
+	};
+
+	cpu_opp_table1: cpu_opp_table1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <790000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <790000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <790000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <790000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <790000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <830000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1392000000>;
+			opp-microvolt = <830000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <840000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <880000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <920000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <950000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <1010000>;
+		};
+	};
+
+	cpu_opp_table2: cpu_opp_table2 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <760000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <760000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <760000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <760000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <760000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <790000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1392000000>;
+			opp-microvolt = <800000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <820000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <830000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <890000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <920000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <990000>;
+		};
+	};
+
+	cpu_opp_table3: cpu_opp_table3 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp00 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <730000>;
+		};
+		opp01 {
+			opp-hz = /bits/ 64 <250000000>;
+			opp-microvolt = <730000>;
+		};
+		opp02 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <730000>;
+		};
+		opp03 {
+			opp-hz = /bits/ 64 <667000000>;
+			opp-microvolt = <730000>;
+		};
+		opp04 {
+			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <730000>;
+		};
+		opp05 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <750000>;
+		};
+		opp06 {
+			opp-hz = /bits/ 64 <1392000000>;
+			opp-microvolt = <770000>;
+		};
+		opp07 {
+			opp-hz = /bits/ 64 <1512000000>;
+			opp-microvolt = <780000>;
+		};
+		opp08 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <810000>;
+		};
+		opp09 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <850000>;
+		};
+		opp10 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <880000>;
+		};
+		opp11 {
+			opp-hz = /bits/ 64 <1908000000>;
+			opp-microvolt = <940000>;
 		};
 	};
 
@@ -1100,6 +1278,8 @@
 			status = "okay";
 			index = <0>;
 			line_delay = <500>;
+			interrupts = <0 3 1>;
+			interrupt-names = "vsync";
 		};
 
 		vdac: vdac {
@@ -1465,7 +1645,7 @@
 			 * bit6 -- afbce for 720p
 			 * bit7 -- afbce for smaller resolution
 			 */
-			afbce_bit_mode = <0x11>;
+			afbce_bit_mode = <0x13>;
 			/* urgent_en; */
 			double_write_en;
 			/* vdin v4l2 */
@@ -1557,6 +1737,7 @@
 			hf = <0>;
 			dct = <2>;
 			sub_v = <1>;//sub version for t5w
+			afbce_loss_en = <0>;//t5w loss mode enable for DI output
 			/***************************************************
 			 * t5w t3 support 4k ,same with t7 ,no canvas,
 			 * post_nub---default is 11
@@ -1583,6 +1764,7 @@
 			 * hf---0:not enable; 1: enable
 			 * dct---0:not enable; 1: enable 1 ch; 2: enable 2 ch
 			 * sub_v---0:major; 1: sub
+			 * afbce_loss_en---1:check the loss flag in vf and set for di,0:disable
 			 ***************************************************/
 		};
 
@@ -1666,6 +1848,8 @@
 			pinctrl-0=<&aocecb_mux>;
 			pinctrl-1=<&aocecb_mux>;
 			pinctrl-2=<&aocecb_mux>;
+			clocks = <&clkc_AO CLKID_CECB_32K_CLKOUT>;
+			clock-names = "cecb_clk";
 			reg = <0xFF800000 0x400>;
 			reg-names = "ao";
 		};
@@ -1779,17 +1963,17 @@
 				thermal-sensors = <&p_tsensor 0>;
 				trips {
 					pswitch_on: trip-point@0 {
-						temperature = <85000>;
-						hysteresis = <5000>;
-						type = "passive";
-					};
-					pcontrol: trip-point@1 {
 						temperature = <95000>;
 						hysteresis = <5000>;
 						type = "passive";
 					};
+					pcontrol: trip-point@1 {
+						temperature = <105000>;
+						hysteresis = <5000>;
+						type = "passive";
+					};
 					pcritical: trip-point@2 {
-						temperature = <110000>;
+						temperature = <115000>;
 						hysteresis = <1000>;
 						type = "critical";
 					};

@@ -46,6 +46,7 @@ struct dma_fence *aml_sync_get_fence(int syncfile_fd);
 int aml_sync_wait_fence(struct dma_fence *fence, long timeout);
 void aml_sync_put_fence(struct dma_fence *fence);
 void output_fence_info(void);
+int aml_sync_fence_status(struct dma_fence *fence);
 #endif
 
 #endif /* _OSD_SW_SYNC_H */

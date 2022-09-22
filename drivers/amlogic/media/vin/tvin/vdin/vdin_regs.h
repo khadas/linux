@@ -110,8 +110,8 @@
  * otherwise there will be no video data input
  */
 /* Bit 3:0 vdin selection, 1: mpeg_in from dram, 2: bt656 input,
- * 3: component input, 4: tvdecoder input, 5: hdmi rx input,
- *  6: digtial video input, 7: loopback from Viu1, 8: MIPI.
+ * 3: component input, 4: tv decoder input, 5: hdmi rx input,
+ *  6: digital video input, 7: loopback from Viu1, 8: MIPI.
  */
 #define VDIN_COM_CTRL0        ((0x1202))/* + 0xd0100000) */
 /* Bit 28:16 active_max_pix_cnt, readonly */
@@ -169,19 +169,19 @@
 /* Bit 12:0  output width minus 1 */
 #define VDIN_WIDTHM1I_WIDTHM1O   ((0x120a))/* + 0xd0100000) */
 /* Bit 20:17 prehsc_mode,
- * bit 3:2, prehsc odd line interp mode,
- * bit 1:0, prehsc even line interp mode,
+ * bit 3:2, prehsc odd line interpolation mode,
+ * bit 1:0, prehsc even line interpolation mode,
  */
 /* each 2bit, 00: pix0+pix1/2, average, 01: pix1, 10: pix0 */
 /* Bit 16:15 sp422_mode, special mode for the component1 and component2,
  *  00: normal case, 01: 32 64 32, 10: 0 64 64 0, 11: 16 96 16
  */
-/* Bit 14:8, hsc_ini_pixi_ptr, signed data,
- *  only useful when short_lineo_en is true
+/* Bit 14:8, hsc_ini_pix_i_ptr, signed data,
+ *  only useful when short_line_o_en is true
  */
 /* Bit 7, prehsc_en */
 /* Bit 6, hsc_en, */
-/* Bit 5, hsc_short_lineo_en, short line output enable */
+/* Bit 5, hsc_short_line_o_en, short line output enable */
 /* Bit 4, hsc_nearest_en */
 /* Bit 3, hsc_phase0_always_en */
 /* Bit 2:0, hsc_bank_length */
@@ -225,7 +225,7 @@
  *  otherwise select nothing
  */
 /* Bit 3:2, matrix coef idx selection, 00: select mat0, 01: select mat1,
- *  otherwise slect nothing
+ *  otherwise select nothing
  */
 /* Bit 1   mat1 conversion matrix enable */
 /* Bit 0   mat0 conversion matrix enable */
@@ -405,8 +405,8 @@
 /* shadow is latch by go_field */
 #define WR_CANVAS_DOUBLE_BUF_EN_BIT            11
 #define WR_CANVAS_DOUBLE_BUF_EN_WID            1
-#define VDIN_WRCTRLREG_PAUSE_BIT		10
-#define VDIN_WRCTRLREG_PAUSE_WID		1
+#define VDIN_WR_CTRL_REG_PAUSE_BIT		10
+#define VDIN_WR_CTRL_REG_PAUSE_WID		1
 #define WR_REQ_URGENT_BIT               9
 #define WR_REQ_URGENT_WID               1    /* directly send out */
 #define WR_REQ_EN_BIT                   8
@@ -439,13 +439,13 @@
 /* Bit 24:20, integer portion */
 /* Bit 19:0, fraction portion */
 #define VDIN_VSC_PHASE_STEP            ((0x1223))/* + 0xd0100000) */
-/* Bit 23, vsc_en, vertical scaler enable */
+/* Bit 23, vsc_en, vertical scaling enable */
 /* Bit 21 vsc_phase0_always_en, when scale up, you have to set it to 1 */
 /* Bit 20:16 ini skip_line_num */
-/* Bit 15:0 vscaler ini_phase */
+/* Bit 15:0 vertical scaling ini_phase */
 #define VDIN_VSC_INI_CTRL                 ((0x1224))/* + 0xd0100000) */
-/* Bit 28:16, vshrink input height minus 1 */
-/* Bit 12:0, scaler input height minus 1 */
+/* Bit 28:16, vertical shrink input height minus 1 */
+/* Bit 12:0, scaling input height minus 1 */
 #define VDIN_SCIN_HEIGHTM1                ((0x1225))/* + 0xd0100000) */
 /* Bit 23:16, dummy component 0 */
 /* Bit 15:8, dummy component 1 */
@@ -460,7 +460,7 @@
 /* Bit 15:8  component 1 */
 /* Bit 7:0 component 2 */
 #define VDIN_MATRIX_HL_COLOR              ((0x1229))/* + 0xd0100000) */
-/* 28:16 probe x, postion */
+/* 28:16 probe x, position */
 /* 12:0  probe y, position */
 #define VDIN_MATRIX_PROBE_POS             ((0x122a))/* + 0xd0100000) */
 #define VDIN_CHROMA_ADDR_PORT             ((0x122b))/* + 0xd0100000) */
@@ -485,7 +485,7 @@
 /* Bit 8     ldim_stts_en */
 /* Bit 6:5   hist_dnlp_low
  * the real pixels in each bins got by
- *  VDIN_DNLP_HISTXX should multiple with 2^(dnlp_low+3)
+ *  VDIN_DNLP_HIST_XX should multiple with 2^(dnlp_low+3)
  */
 /* Bit 3:2   hist_din_sel    the source used for hist statistics.
  *  00: from matrix0 dout,  01: from vsc_dout,
@@ -522,7 +522,7 @@
 #define VDIN_HIST_CHROMA_SUM             ((0x1236))/* + 0xd0100000) */
 /* Bit 31:16 higher hist bin */
 /* Bit 15:0  lower hist bin */
-/* 0-255 are splited to 64 bins evenly, and VDIN_DNLP_HISTXX */
+/* 0-255 are split to 64 bins evenly, and VDIN_DNLP_HIST_XX */
 /* are the statistic number of pixels that within each bin. */
 /* VDIN_DNLP_HIST00[15:0]  counts for the first  bin */
 /* VDIN_DNLP_HIST00[31:16] counts for the second bin */
@@ -595,15 +595,15 @@
 #define LPF_BEFORE_STATISTIC_EN_BIT    20
 #define LPF_BEFORE_STATISTIC_EN_WID    1
 /* region H/V position index, refer to VDIN_LDIM_STTS_HIST_SET_REGION */
-#define BLK_HV_POS_IDXS_BIT                     16
-#define BLK_HV_POS_IDXS_WID                    4
+#define BLK_HV_POS_IDX_BIT                    16
+#define BLK_HV_POS_IDX_WID                    4
 #define REGION_RD_INDEX_INC_BIT             15
 #define REGION_RD_INDEX_INC_WID            1
 #define REGION_RD_INDEX_BIT                      0
 #define REGION_RD_INDEX_WID                     7
 
 /* Bit 28:0, if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h0:
- * read/write hvstart0
+ * read/write hv start0
  */
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h1: read/write hend01 */
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h2: read/write vend01 */
@@ -615,7 +615,7 @@
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h8: read/write vend67 */
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h9: read/write hend89 */
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'ha: read/write vend89 */
-/* hvstart0, Bit 28:16 row0 vstart, Bit 12:0 col0 hstart */
+/* hv start0, Bit 28:16 row0 vstart, Bit 12:0 col0 hstart */
 /* hend01, Bit 28:16 col1 hend, Bit 12:0 col0 hend */
 /* vend01, Bit 28:16 row1 vend, Bit 12:0 row0 vend */
 /* hend23, Bit 28:16 col3 hend, Bit 12:0 col2 hend */
@@ -662,7 +662,7 @@
 #define VDIN_MEAS_CTRL0  ((0x125a))/* + 0xd0100000) */
 /* Read only */
 /* 19:16     meas_ind_total_count_n,
- *  every number of sync_span vsyncs, this count add 1
+ *  every number of sync_span vsync, this count add 1
  */
 /* 15:0      high bit portion of vsync total counter */
 #define VDIN_MEAS_VS_COUNT_HI  ((0x125b))/* + 0xd0100000) */
@@ -690,7 +690,7 @@
 #define VDIN_BLKBAR_CTRL1     ((0x125f))/* + 0xd0100000) */
 /* Bit 31:24 blkbar_black_level    threshold to judge a black point */
 /* Bit 23:21 Reserved */
-/* Bit 20:8  blkbar_hwidth         left and right region width */
+/* Bit 20:8  blkbar_h_width         left and right region width */
 /* Bit 7:5   blkbar_comp_sel
  * select yin or uin or vin to be the valid input
  */
@@ -702,7 +702,7 @@
 /* bit blkbar_det_top_en */
 #define VDIN_BLKBAR_CTRL0    ((0x1260))/* + 0xd0100000) */
 /* Bit 31:29 Reserved */
-/* Bit 28:16 blkbar_hstart.        Left region start */
+/* Bit 28:16 blkbar_h_start.        Left region start */
 /* Bit 15:13 Reserved */
 /* Bit 12:0  blkbar_hend.          Right region end */
 #define VDIN_BLKBAR_H_START_END  ((0x1261))/* + 0xd0100000) */
@@ -766,7 +766,7 @@
  */
 #define VDIN_BLKBAR_IND_RIGHT2_CNT      ((0x126a))/* + 0xd0100000) */
 /* Readonly */
-/* Bit 31:30 Resersed */
+/* Bit 31:30 Reserved */
 /* Bit 29    blkbar_ind_black_det_done.
  * LEFT/RIGHT Black detection done
  */
@@ -776,7 +776,7 @@
 #define VDIN_BLKBAR_STATUS0    ((0x126b))/* + 0xd0100000) */
 /* Readonly */
 /* Bit 31:29 Reserved */
-/* Bit 28:16 blkbar_left_pos.       Left black bar posiont */
+/* Bit 28:16 blkbar_left_pos.       Left black bar position */
 /* Bit 15:13 Reserved */
 /* Bit 12:0  blkbar_right_pos.      Right black bar position */
 #define VDIN_BLKBAR_STATUS1      ((0x126c))/* + 0xd0100000) */
@@ -817,8 +817,8 @@
 #define VDIN_VSHRK_MODE_WID	2
 #define VDIN_HSHRK_EN_BIT	30
 #define VDIN_HSHRK_EN_WID	1
-#define VDIN_VSHRK_DYMMY_BIT	0
-#define VDIN_VSHRK_DYMMY_WID	24
+#define VDIN_VSHRK_DUMMY_BIT	0
+#define VDIN_VSHRK_DUMMY_WID	24
 
 #define VDIN_DNLP_HIST32         ((0x1272))/* + 0xd0100000) */
 /* Read only */
@@ -979,7 +979,7 @@
 /*[15:0] vdin reorder sel
  *0:disable, 1:vdin0 normal, 2:vdin0 small, 3:vdin1 normal, 4:vdin1 small
  */
-#define VDIN_TOP_DOUBLE_CTRL		0x410b
+#define VDIN_TOP_DOUBLE_CTRL	0x410b
 #define VDIN_REORDER_SEL_WID	4
 /* [3:0] afbce sel */
 #define AFBCE_OUT_SEL_BIT	0
@@ -999,7 +999,7 @@
 #define VDIN_TOP_SECURE_REG0		0x410e
 #define VDIN_TOP_SECURE_REG1		0x410f
 
-#define VDIN_SECURE_RXIN_DW		0x4116
+#define VDIN_SECURE_RX_IN_DW			0x4116
 #define VDIN_TOP_MEAS_RO_LINE		0x4117
 #define VDIN_TOP_MEAS_RO_PIXF		0x4118
 #define VDIN_TOP_MEAS_RO_PIXB		0x4119
@@ -1068,10 +1068,10 @@
 #define LFIFO_BUF_CNT_BIT               3
 #define LFIFO_BUF_CNT_WID               10   /* wren + read - */
 #define DIRECT_DONE_STATUS_BIT          2
-/* direct_done_clr_bit & reg_wpluse */
+/* direct_done_clr_bit & reg_w_pulse */
 #define DIRECT_DONE_STATUS_WID          1
 #define NR_DONE_STATUS_BIT              1
- /* nr_done_clr_bit & reg_wpluse */
+ /* nr_done_clr_bit & reg_w_pulse */
 #define NR_DONE_STATUS_WID              1
 #define VDIN_FLD_EVEN_BIT               0
 #define VDIN_FLD_EVEN_WID               1
@@ -1193,7 +1193,7 @@
 /* pre-hscaler: 1/2 coarse scale down */
 #define PRE_HSCL_EN_WID                 1
 #define HSCL_EN_BIT                     6
-#define HSCL_EN_WID                     1    /* hscaler: fine scale down */
+#define HSCL_EN_WID                     1 /* hscaler: fine scale down */
 #define SHORT_LN_OUT_EN_BIT             5
 #define SHORT_LN_OUT_EN_WID             1
 /*when decimation timing located in between 2 input pixels,
@@ -1285,7 +1285,7 @@
 /* 00: select matrix0, 01: select matrix1,otherwise select nothing */
 #define VDIN_PROBE_SEL_BIT                  4
 #define VDIN_PROBE_SEL_WID                  2
-/* 00: select mat0, 01: select mat1, otherwise slect nothing */
+/* 00: select mat0, 01: select mat1, otherwise select nothing */
 #define VDIN_MATRIX_COEF_INDEX_BIT          2
 #define VDIN_MATRIX_COEF_INDEX_WID          2
 /* Bit 1   mat1 conversion matrix enable */
@@ -1463,8 +1463,8 @@
 #define CM_TOP_EN_WID				  1
 #define BRI_CON_EN_BIT				  27
 #define BRI_CON_EN_WID				  1
-#define SED_YUVINVEN_BIT			  24
-#define SED_YUVINVEN_WID			  3
+#define SED_YUV_INV_EN_BIT			  24
+#define SED_YUV_INV_EN_WID			  3
 #define REG_ADJ_BRI_BIT				  12
 #define REG_ADJ_BRI_WID				  11
 #define REG_ADJ_CON_BIT				  0
@@ -1484,7 +1484,7 @@
 #define LINE_WID_USING_VPU_CLK_WID                16
 
 /* #define VDIN_HIST_CTRL                             0x1230 */
-/* the total pixels = VDIN_HISTXX*(2^(VDIN_HIST_POW+3)) */
+/* the total pixels = VDIN_HIST_XX*(2^(VDIN_HIST_POW+3)) */
 #define HIST_POW_BIT                    5
 #define HIST_POW_WID                    2
 /* Bit 3:2   hist_din_sel    the source used for hist statistics.
@@ -1498,7 +1498,7 @@
  */
 #define HIST_WIN_EN_BIT                 1
 #define HIST_WIN_EN_WID                 1
-/* Histgram readback: 0: disable, 1: enable */
+/* Histgram read back: 0: disable, 1: enable */
 #define HIST_RD_EN_BIT                  0
 #define HIST_RD_EN_WID                  1
 
@@ -1722,7 +1722,7 @@
 
 /* # VDIN_LDIM_STTS_HIST_SET_REGION                    0x1258 */
 /* Bit 28:0, if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h0:
- * read/write hvstart0
+ * read/write hv start0
  */
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h1: read/write hend01 */
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h2: read/write vend01 */
@@ -1734,7 +1734,7 @@
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h8: read/write vend67 */
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'h9: read/write hend89 */
 /* if VDIN_LDIM_STTS_HIST_REGION_IDX[19:16] == 5'ha: read/write vend89 */
-/* hvstart0, Bit 28:16 row0 vstart, Bit 12:0 col0 hstart */
+/* hv start0, Bit 28:16 row0 vstart, Bit 12:0 col0 hstart */
 /* hend01, Bit 28:16 col1 hend, Bit 12:0 col0 hend */
 /* vend01, Bit 28:16 row1 vend, Bit 12:0 row0 vend */
 /* hend23, Bit 28:16 col3 hend, Bit 12:0 col2 hend */
@@ -1831,7 +1831,7 @@
 #define BLKBAR_SW_STAT_EN_WID           1
 #define BLKBAR_DET_SOFT_RST_N_BIT       3
 #define BLKBAR_DET_SOFT_RST_N_WID       1    /* write 0 & then 1 to reset */
-/* 0: matrix_dout, 1: hscaler_dout, 2/3: pre-hscaler_din */
+/* 0: matrix_dout, 1: h_scaling_dout, 2/3: pre-h_scaling_din */
 #define BLKBAR_DIN_SEL_BIT              1
 #define BLKBAR_DIN_SEL_WID              2
 /* blkbar_din_srdy blkbar_din_rrdy  enable */
@@ -1936,13 +1936,13 @@
 #define VPP_OFF_URG_CTRL_WID	1
 
 /*#define VDIN_COM_CTRL0*/
-#define VDIN_COMMONINPUT_EN_BIT		4
-#define VDIN_COMMONINPUT_EN_WID		1
+#define VDIN_COMMON_INPUT_EN_BIT		4
+#define VDIN_COMMON_INPUT_EN_WID		1
 
 /*#define VDIN1_WR_CTRL*/
 #define VDIN1_VCP_WR_EN_BIT	8
 #define VDIN1_VCP_WR_EN_WID	1
-#define VDIN1_DISABLE_CLOCKGATE_BIT	29
-#define VDIN1_DISABLE_CLOCKGATE_WID	1
+#define VDIN1_DISABLE_CLOCK_GATE_BIT	29
+#define VDIN1_DISABLE_CLOCK_GATE_WID	1
 
 #endif /* __VDIN_REGS_H */

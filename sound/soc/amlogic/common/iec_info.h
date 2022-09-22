@@ -145,6 +145,12 @@ enum audio_coding_types {
 
 	/* Pause */
 	AUDIO_CODING_TYPE_PAUSE              = 16,
+	AUDIO_CODING_TYPE_EAC3_LAYOUT_B      = 17,
+	AUDIO_CODING_TYPE_MLP_LAYOUT_B       = 18,
+	AUDIO_CODING_TYPE_DTS_LAYOUT_B       = 19,
+	AUDIO_CODING_TYPE_DTS_HD_LAYOUT_B    = 20,
+	AUDIO_CODING_TYPE_DTS_HD_MA_LAYOUT_B = 21,
+
 };
 
 static const char * const audio_coding_type_names[] = {
@@ -165,6 +171,11 @@ static const char * const audio_coding_type_names[] = {
 	/* 14 */ "DSD (One Bit Audio 6CH)",
 	/* 15 */ "DSD (One Bit Audio 12CH)",
 	/* 16 */ "PAUSE",
+	/* 17 */ "E-AC-3/DD+ (Dolby Digital Plus Layout B)",
+	/* 18 */ "MLP (Dolby TrueHD Layout B)",
+	/* 19 */ "DTS Layout B",
+	/* 20 */ "DTS-HD Layout B",
+	/* 21 */ "DTS-HD MA Layout B",
 };
 
 /* spdif in audio format detect: LPCM or NONE-LPCM */

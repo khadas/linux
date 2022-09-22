@@ -68,6 +68,7 @@ CLOCK_GATE(audio_earctx, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 5, sys_clk);
 CLOCK_GATE(audio_earcrx, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 6, sys_clk);
 CLOCK_GATE(audio_resampleb_old, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 7, sys_clk);
 CLOCK_GATE(audio_locker, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 8, sys_clk);
+CLOCK_GATE(audio_tdmoutd, AUD_ADDR_OFFSET(EE_AUDIO_CLK_GATE_EN1), 10, sys_clk);
 
 static struct clk_gate *t7_audio_clk_gates[] = {
 	&audio_ddr_arb,
@@ -112,6 +113,7 @@ static struct clk_gate *t7_audio_clk_gates[] = {
 	&audio_earcrx,
 	&audio_resampleb_old,
 	&audio_locker,
+	&audio_tdmoutd,
 };
 
 /* Array of all clocks provided by this provider */
@@ -158,6 +160,7 @@ static struct clk_hw *t7_audio_clk_hws[] = {
 	[CLKID_AUDIO_GATE_EARCRX]      = &audio_earcrx.hw,
 	[CLKID_AUDIO_GATE_RESAMPLEB_OLD] = &audio_resampleb_old.hw,
 	[CLKID_AUDIO_GATE_LOCKER]      = &audio_locker.hw,
+	[CLKID_AUDIO_GATE_TDMOUTD]	   = &audio_tdmoutd.hw,
 };
 
 static int t7_clk_gates_init(struct clk **clks, void __iomem *iobase)
@@ -217,6 +220,10 @@ CLOCK_COM_GATE(mclk_pad1, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_PAD_CTRL0), 31);
 CLOCK_COM_MUX(mclk_pad2, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_PAD_CTRL1), 0x7, 8);
 CLOCK_COM_DIV(mclk_pad2, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_PAD_CTRL1), 0, 8);
 CLOCK_COM_GATE(mclk_pad2, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_PAD_CTRL1), 15);
+/* mclk_pad3 */
+CLOCK_COM_MUX(mclk_pad3, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_PAD_CTRL1), 0x7, 24);
+CLOCK_COM_DIV(mclk_pad3, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_PAD_CTRL1), 16, 8);
+CLOCK_COM_GATE(mclk_pad3, AUD_ADDR_OFFSET(EE_AUDIO_MCLK_PAD_CTRL1), 31);
 
 /* spdifin */
 CLOCK_COM_MUX(spdifin, AUD_ADDR_OFFSET(EE_AUDIO_CLK_SPDIFIN_CTRL), 0x7, 24);
@@ -403,6 +410,11 @@ static int t7_clks_init(struct clk **clks, void __iomem *iobase)
 	clks[CLKID_AUDIO_MCLK_PAD2] =
 			REGISTER_CLK_COM_PARENTS(mclk_pad2, mclk_pad);
 	WARN_ON(IS_ERR_OR_NULL(clks[CLKID_AUDIO_MCLK_PAD2]));
+
+	IOMAP_COM_CLK(mclk_pad3, iobase);
+	clks[CLKID_AUDIO_MCLK_PAD3] =
+			REGISTER_CLK_COM_PARENTS(mclk_pad3, mclk_pad);
+	WARN_ON(IS_ERR_OR_NULL(clks[CLKID_AUDIO_MCLK_PAD3]));
 
 	return 0;
 }

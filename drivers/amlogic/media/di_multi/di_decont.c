@@ -1519,17 +1519,11 @@ void dcntr_check(struct vframe_s *vfm)
 			pcfg->burst = 0;
 		else if (cvs_w % 64)
 			pcfg->burst = 1;
-		#ifdef CVS_UINT
-		dim_print("%s:cvsy:add:0x%x,c:0x%x\n",
-			  __func__,
-			  vfm->canvas0_config[0].phy_addr,
-			  vfm->canvas0_config[1].phy_addr);
-		#else
+
 		dim_print("%s:cvsy:add:0x%lx,c:0x%lx\n",
 			  __func__,
-			  vfm->canvas0_config[0].phy_addr,
-			  vfm->canvas0_config[1].phy_addr);
-		#endif
+			  (unsigned long)vfm->canvas0_config[0].phy_addr,
+			  (unsigned long)vfm->canvas0_config[1].phy_addr);
 	}
 
 	if (!pcfg->in.use_cvs) {
@@ -1638,6 +1632,10 @@ int  dbg_dct_mif_show(struct seq_file *s, void *v)
 	int i;
 
 	pcfg = &di_dcnt;
+	if (!pcfg->support || !pcfg->flg_int) {
+		seq_printf(s, "%s:\n", "no dct");
+		return 0;
+	}
 	for (i = 0; i < 4; i++) {
 		seq_printf(s, "dump dct mif[%d]\n", i);
 		dbg_regs_tab(s, pcfg->reg_mif_bits_tab, pcfg->reg_mif_tab[i]);
@@ -1685,6 +1683,10 @@ int dbg_dct_contr_show(struct seq_file *s, void *v)
 	struct dcntr_core_s *pcfg;
 
 	pcfg = &di_dcnt;
+	if (!pcfg->support || !pcfg->flg_int) {
+		seq_printf(s, "%s:\n", "no dct");
+		return 0;
+	}
 
 	dbg_reg_tab(s, pcfg->reg_contr_bits);
 

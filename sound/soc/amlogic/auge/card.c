@@ -189,10 +189,11 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct aml_card_data *p_aml_audio;
 	int hal_format = ucontrol->value.integer.value[0];
+	struct snd_card *snd = card->snd_card;
 
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
-	audio_send_uevent(card->dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
+	audio_send_uevent(&snd->ctl_dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
 	pr_info("update audio atmos flag! audio_type = %d\n", hal_format);
 
 	if (p_aml_audio->hal_fmt != hal_format)
@@ -842,6 +843,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 	enum of_gpio_flags flags;
 	int gpio;
 	bool active_low;
+	unsigned int sleep_time = 500;
 
 	gpio = of_get_named_gpio_flags(node, "spk_mute-gpios", 0, &flags);
 	priv->spk_mute_gpio = gpio;
@@ -878,7 +880,11 @@ static int aml_card_parse_gpios(struct device_node *node,
 	}
 	if (!IS_ERR(priv->avout_mute_desc)) {
 		if (!priv->av_mute_enable) {
-			msleep(500);
+			if (!of_property_read_u32(node,
+				"av_mute_sleep_time", &sleep_time))
+				msleep(sleep_time);
+			else
+				msleep(500);
 			gpiod_direction_output(priv->avout_mute_desc,
 				GPIOF_OUT_INIT_HIGH);
 			pr_info("av out status: %s\n",

@@ -38,6 +38,51 @@
 	__ret;							\
 })
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#include <linux/amlogic/debug_ftrace_ramoops.h>
+#define SKIP_PD_MAX_NUM 10
+#define SKIP_PD_MAX_NAME_LEN 16
+
+static int meson_pd_debug = 1;
+core_param(meson_pd_debug, meson_pd_debug, int, 0644);
+
+static int skip_all_pd_power_off;
+core_param(skip_all_pd_power_off, skip_all_pd_power_off, int, 0644);
+
+static int skip_pd_num;
+
+static char pd_skip_power_off_list[SKIP_PD_MAX_NUM][SKIP_PD_MAX_NAME_LEN];
+
+static int pd_skip_power_off_list_setup(const char *ptr, const struct kernel_param *kp)
+{
+	char *str_entry;
+	char *str = (char *)ptr;
+	int i = 0;
+
+	do {
+		str_entry = strsep(&str, ",");
+		if (str_entry) {
+			if (!strlen(str_entry))
+				break;
+			strlcpy(pd_skip_power_off_list[i], str_entry, SKIP_PD_MAX_NAME_LEN);
+			pr_info("pd_skip_power_off_list[%d]: %s\n", i, pd_skip_power_off_list[i]);
+			i++;
+		}
+	} while (str_entry && i < SKIP_PD_MAX_NUM);
+
+	skip_pd_num = i;
+
+	return 0;
+}
+
+static const struct kernel_param_ops pd_skip_power_off_list_ops = {
+	.set = pd_skip_power_off_list_setup,
+	.get = NULL
+};
+
+core_param_cb(pd_skip_power_off_list, &pd_skip_power_off_list_ops, NULL, 0644);
+#endif
+
 static LIST_HEAD(gpd_list);
 static DEFINE_MUTEX(gpd_list_lock);
 
@@ -418,6 +463,12 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 	if (!genpd->power_on)
 		return 0;
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	pstore_ftrace_pd_power_on((unsigned long)genpd->name);
+	if (ramoops_io_en && meson_pd_debug)
+		pr_info("power_on pd %s\n", genpd->name);
+#endif
+
 	if (!timed)
 		return genpd->power_on(genpd);
 
@@ -445,8 +496,30 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 	s64 elapsed_ns;
 	int ret;
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	int i;
+#endif
+
 	if (!genpd->power_off)
 		return 0;
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	for (i = 0; i < skip_pd_num; i++) {
+		if (strstr(genpd->name, pd_skip_power_off_list[i])) {
+			pr_info("%s pd in white list, skip power_off\n", genpd->name);
+			return -1;
+		}
+	}
+
+	if (skip_all_pd_power_off) {
+		pr_info("skip all pd power_off,%s pd will not power_off\n", genpd->name);
+		return -1;
+	}
+
+	pstore_ftrace_pd_power_off((unsigned long)genpd->name);
+	if (ramoops_io_en && meson_pd_debug)
+		pr_info("power_off pd %s\n", genpd->name);
+#endif
 
 	if (!timed)
 		return genpd->power_off(genpd);

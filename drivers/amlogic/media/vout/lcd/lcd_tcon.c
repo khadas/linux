@@ -22,7 +22,9 @@
 #include <linux/cma.h>
 #include <linux/dma-contiguous.h>
 #include <linux/dma-mapping.h>
+#include <linux/sched/clock.h>
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
+#include <linux/amlogic/media/vout/lcd/lcd_notify.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
 #include <linux/amlogic/media/vout/lcd/aml_bl.h>
@@ -48,6 +50,135 @@ static struct lcd_tcon_local_cfg_s tcon_local_cfg;
 
 static int lcd_tcon_data_multi_remvoe(struct tcon_mem_map_table_s *mm_table);
 static int lcd_tcon_data_multi_reset(struct tcon_mem_map_table_s *mm_table);
+
+static unsigned long long *dbg_vsync_time, *dbg_list_trave_time;
+static unsigned int dbg_vsync_cnt, dbg_list_trave_cnt;
+static unsigned int dbg_cnt_0, dbg_cnt_1;
+
+static inline void lcd_tcon_dbg_vsync_time_save(unsigned long long n, int line_cnt, int flag)
+{
+	if (!dbg_vsync_time)
+		return;
+
+	if (dbg_vsync_cnt >= dbg_cnt_0)
+		dbg_vsync_cnt = 0;
+	if ((flag >> 12) & 0xf) {
+		dbg_vsync_time[dbg_vsync_cnt++] = n;
+		dbg_vsync_time[dbg_vsync_cnt++] = 0xffff000000000000 | (line_cnt << 16) | flag;
+	} else {
+		dbg_vsync_time[dbg_vsync_cnt++] = n;
+		dbg_vsync_time[dbg_vsync_cnt++] = (line_cnt << 16) | flag;
+	}
+}
+
+static inline void lcd_tcon_dbg_list_trave_time_save(unsigned long long n, int flag)
+{
+	if (!dbg_list_trave_time)
+		return;
+
+	if (dbg_list_trave_cnt >= dbg_cnt_1)
+		dbg_list_trave_cnt = 0;
+	if ((flag >> 12) & 0xf) {
+		dbg_list_trave_time[dbg_list_trave_cnt++] = n;
+		dbg_list_trave_time[dbg_list_trave_cnt++] = 0xffff111100000000 | flag;
+	} else {
+		dbg_list_trave_time[dbg_list_trave_cnt++] = n;
+		dbg_list_trave_time[dbg_list_trave_cnt++] = flag;
+	}
+}
+
+static void lcd_tcon_time_print(unsigned long long *table)
+{
+	unsigned int len, i;
+	char *buf;
+
+	buf = kcalloc(1024, sizeof(char), GFP_KERNEL);
+	if (!buf)
+		return;
+
+	len = 0;
+	for (i = 0; i < 9; i++)
+		len += sprintf(buf + len, " %llu,", table[i]);
+	len += sprintf(buf + len, " %llu", table[9]);
+	pr_err("%s\n", buf);
+
+	kfree(buf);
+}
+
+void lcd_tcon_dbg_trace_clear(void)
+{
+	memset(tcon_mm_table.vsync_time, 0, sizeof(unsigned long long) * 10);
+	memset(tcon_mm_table.list_trave_time, 0, sizeof(unsigned long long) * 10);
+
+	if (dbg_vsync_time)
+		memset(dbg_vsync_time, 0, sizeof(unsigned long long) * dbg_cnt_0);
+	if (dbg_list_trave_time)
+		memset(dbg_list_trave_time, 0, sizeof(unsigned long long) * dbg_cnt_1);
+	dbg_vsync_cnt = 0;
+	dbg_list_trave_cnt = 0;
+}
+
+void lcd_tcon_dbg_trace_print(unsigned int flag)
+{
+	char *buf;
+	unsigned long long data;
+	unsigned int len, n, m;
+	int i, j;
+
+	len = 24 * 20;
+	buf = kcalloc(len, sizeof(char), GFP_KERNEL);
+	if (!buf)
+		return;
+
+	pr_err("vsync_time:\n");
+	lcd_tcon_time_print(tcon_mm_table.vsync_time);
+	pr_err("list_trave_time:\n");
+	lcd_tcon_time_print(tcon_mm_table.list_trave_time);
+
+	if (flag & 0x1) {
+		pr_info("\ndbg_vsync_time:\n");
+		if (dbg_vsync_time) {
+			for (i = 0; i < dbg_cnt_0; i += 8) {
+				n = 0;
+				m = 0;
+				for (j = 0; j < 8; j++) {
+					data = dbg_vsync_time[i + j];
+					if (j % 2)
+						n += sprintf(buf + n, " 0x%llx", data);
+					else
+						n += sprintf(buf + n, " %llu", data);
+					if (data)
+						m = 1;
+				}
+				pr_err("%s\n", buf);
+				if (m == 0)
+					break;
+			}
+		}
+	}
+
+	if (flag & 0x2) {
+		pr_info("\ndbg_list_trave_time:\n");
+		if (dbg_list_trave_time) {
+			for (i = 0; i < dbg_cnt_1; i += 8) {
+				n = 0;
+				m = 0;
+				for (j = 0; j < 8; j++) {
+					data = dbg_list_trave_time[i + j];
+					if (j % 2)
+						n += sprintf(buf + n, " 0x%llx", data);
+					else
+						n += sprintf(buf + n, " %llu", data);
+					if (data)
+						m = 1;
+				}
+				pr_err("%s\n", buf);
+				if (m == 0)
+					break;
+			}
+		}
+	}
+}
 
 /* **********************************
  * tcon common function
@@ -425,7 +556,7 @@ void lcd_tcon_multi_lut_print(void)
 {
 	struct tcon_data_multi_s *data_multi;
 	struct tcon_data_list_s *data_list;
-	int i;
+	int i, j;
 
 	if (tcon_mm_table.data_multi_cnt == 0) {
 		LCDPR("tcon data_multi_cnt is 0\n");
@@ -446,20 +577,40 @@ void lcd_tcon_multi_lut_print(void)
 			i, data_multi->block_type, data_multi->list_cnt,
 			data_multi->bypass_flag);
 		if (data_multi->list_cur) {
+			data_list = data_multi->list_cur;
 			pr_info("data_multi[%d] current:\n"
-				"  sel_id:     %d\n"
-				"  sel_name:   %s\n",
-				i, data_multi->list_cur->id,
-				data_multi->list_cur->block_name);
+				"  sel_id:        %d\n"
+				"  sel_name:      %s\n"
+				"  range:         %d, %d\n"
+				"  ctrl_data_cnt: %d\n",
+				i, data_list->id,
+				data_list->block_name,
+				data_list->min,
+				data_list->max,
+				data_list->ctrl_data_cnt);
+			if (data_list->ctrl_data_cnt) {
+				if (data_list->ctrl_data) {
+					pr_info("  ctrl_data:\n");
+					for (j = 0; j < data_list->ctrl_data_cnt; j++) {
+						pr_info("    [%d]: %d\n",
+							j, data_list->ctrl_data[j]);
+					}
+				} else {
+					pr_info("  ctrl_data is NULL\n");
+				}
+			}
 		} else {
 			pr_info("data_multi[%d] current: NULL\n", i);
 		}
 		pr_info("data_multi[%d] list:\n", i);
 		data_list = data_multi->list_header;
 		while (data_list) {
-			pr_info("  block[%d]: %s, vaddr=0x%px\n",
+			pr_info("  block[%d]: %s, range: %d,%d, ctrl_data_cnt:%d, vaddr=0x%px\n",
 				data_list->id,
 				data_list->block_name,
+				data_list->min,
+				data_list->max,
+				data_list->ctrl_data_cnt,
 				data_list->block_vaddr);
 			data_list = data_list->next;
 		}
@@ -614,11 +765,14 @@ int lcd_tcon_info_print(char *buf, int offset)
 						"  type:      0x%x\n"
 						"  list_cnt:  %d\n"
 						"  sel_id:    %d\n"
-						"  sel_name:  %s\n",
+						"  sel_name:  %s\n"
+						"  sel_range: %d,%d\n",
 						tcon_mm_table.data_multi[i].block_type,
 						tcon_mm_table.data_multi[i].list_cnt,
 						tcon_mm_table.data_multi[i].list_cur->id,
-						tcon_mm_table.data_multi[i].list_cur->block_name);
+						tcon_mm_table.data_multi[i].list_cur->block_name,
+						tcon_mm_table.data_multi[i].list_cur->min,
+						tcon_mm_table.data_multi[i].list_cur->max);
 				}
 			}
 		}
@@ -813,6 +967,20 @@ int lcd_tcon_core_update(struct aml_lcd_drv_s *pdrv)
 	return 0;
 }
 
+int lcd_tcon_reload_pre(struct aml_lcd_drv_s *pdrv)
+{
+	int ret;
+
+	ret = lcd_tcon_valid_check();
+	if (ret)
+		return -1;
+
+	if (lcd_tcon_conf->tcon_reload_pre)
+		lcd_tcon_conf->tcon_reload_pre(pdrv);
+
+	return 0;
+}
+
 int lcd_tcon_reload(struct aml_lcd_drv_s *pdrv)
 {
 	int ret;
@@ -872,7 +1040,220 @@ void lcd_tcon_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_tcon_conf->tcon_disable(pdrv);
 }
 
-static int lcd_tcon_data_multi_match_policy_check(struct aml_lcd_drv_s *pdrv,
+static void lcd_tcon_time_sort_save(unsigned long long *table, unsigned long long data)
+{
+	int i, j;
+
+	for (i = 9; i >= 0; i--) {
+		if (data > table[i]) {
+			for (j = 0; j < i; j++)
+				table[j] = table[j + 1];
+			table[i] = data;
+			break;
+		}
+	}
+}
+
+static int lcd_tcon_data_multi_match_policy(struct aml_lcd_drv_s *pdrv, unsigned int frame_rate,
+		struct tcon_data_multi_s *data_multi, struct tcon_data_list_s *data_list)
+{
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+	struct aml_bl_drv_s *bldrv;
+	struct bl_pwm_config_s *bl_pwm = NULL;
+#endif
+	unsigned int temp;
+
+	switch (data_list->ctrl_method) {
+	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT:
+	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_NOTIFY:
+		if (frame_rate < data_list->min || frame_rate > data_list->max)
+			goto lcd_tcon_data_multi_match_policy_exit;
+		if (!data_multi)
+			break;
+		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
+			snprintf(data_multi->dbg_str, 64, "vfreq %d-%d hit, %d",
+				data_list->min, data_list->max, frame_rate);
+		}
+		break;
+	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+		bldrv = aml_bl_get_driver(pdrv->index);
+		if (!bldrv)
+			goto lcd_tcon_data_multi_match_policy_err_type;
+		temp = bldrv->level;
+
+		if (temp < data_list->min || temp > data_list->max)
+			goto lcd_tcon_data_multi_match_policy_exit;
+		if (!data_multi)
+			break;
+		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
+			snprintf(data_multi->dbg_str, 64, "bl_level %d-%d hit, %d",
+				data_list->min, data_list->max, temp);
+		}
+#endif
+		break;
+	case LCD_TCON_DATA_CTRL_MULTI_BL_PWM_DUTY:
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+		bldrv = aml_bl_get_driver(pdrv->index);
+		if (!bldrv)
+			goto lcd_tcon_data_multi_match_policy_err_type;
+
+		switch (bldrv->bconf.method) {
+		case BL_CTRL_PWM:
+			bl_pwm = bldrv->bconf.bl_pwm;
+			break;
+		case BL_CTRL_PWM_COMBO:
+			if (data_list->ctrl_data) {
+				if (data_list->ctrl_data[0])
+					bl_pwm = bldrv->bconf.bl_pwm_combo0;
+				else
+					bl_pwm = bldrv->bconf.bl_pwm_combo1;
+			}
+			break;
+		default:
+			break;
+		}
+		if (!bl_pwm)
+			goto lcd_tcon_data_multi_match_policy_err_type;
+
+		temp = bl_pwm->pwm_duty;
+		if (temp < data_list->min || temp > data_list->max)
+			goto lcd_tcon_data_multi_match_policy_exit;
+		if (!data_multi)
+			break;
+		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
+			snprintf(data_multi->dbg_str, 64, "bl_pwm[%d] duty %d-%d hit, %d",
+				bl_pwm->index, data_list->min, data_list->max, temp);
+		}
+#endif
+		break;
+	case LCD_TCON_DATA_CTRL_DEFAULT:
+		return 1;
+	default:
+		return -1;
+	}
+
+	return 0;
+
+lcd_tcon_data_multi_match_policy_exit:
+	return -1;
+
+#ifdef CONFIG_AMLOGIC_BACKLIGHT
+lcd_tcon_data_multi_match_policy_err_type:
+	LCDERR("%s: %s type invalid\n", __func__, data_list->block_name);
+	return -1;
+#endif
+}
+
+static int lcd_tcon_data_multi_match_init(struct aml_lcd_drv_s *pdrv,
+		struct tcon_data_list_s *data_list,
+		struct lcd_tcon_data_part_ctrl_s *ctrl_part, unsigned char *p)
+{
+	unsigned int data_byte, data_cnt;
+	unsigned int i, j, k;
+
+	if (!ctrl_part)
+		return -1;
+	if (ctrl_part->ctrl_data_flag != LCD_TCON_DATA_CTRL_FLAG_MULTI)
+		return -1;
+
+	data_byte = ctrl_part->data_byte_width;
+	data_cnt = ctrl_part->data_cnt;
+	data_list->ctrl_method = LCD_TCON_DATA_CTRL_MULTI_MAX;
+
+	k = 0;
+	data_list->min = 0;
+	data_list->max = 0;
+	data_list->ctrl_data_cnt = 0;
+	kfree(data_list->ctrl_data);
+	data_list->ctrl_data = NULL;
+
+	switch (ctrl_part->ctrl_method) {
+	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT:
+		if (data_cnt != 2)
+			goto lcd_tcon_data_multi_match_init_err_data_cnt;
+
+		data_list->ctrl_method = ctrl_part->ctrl_method;
+		for (j = 0; j < data_byte; j++)
+			data_list->min |= (p[k + j] << (j * 8));
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			data_list->max |= (p[k + j] << (j * 8));
+		break;
+	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_NOTIFY:
+		if (data_cnt <= 2)
+			goto lcd_tcon_data_multi_match_init_err_data_cnt;
+
+		data_list->ctrl_method = ctrl_part->ctrl_method;
+		for (j = 0; j < data_byte; j++)
+			data_list->min |= (p[k + j] << (j * 8));
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			data_list->max |= (p[k + j] << (j * 8));
+
+		data_list->ctrl_data_cnt = data_cnt - 2;
+		if (data_list->ctrl_data_cnt == 0)
+			break;
+		data_list->ctrl_data =
+			kcalloc(data_list->ctrl_data_cnt, sizeof(unsigned int), GFP_KERNEL);
+		if (!data_list->ctrl_data)
+			goto lcd_tcon_data_multi_match_init_err_malloc;
+		for (i = 0; i < data_list->ctrl_data_cnt; i++) {
+			k += data_byte;
+			for (j = 0; j < data_byte; j++)
+				data_list->ctrl_data[i] |= (p[k + j] << (j * 8));
+		}
+		break;
+	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
+		if (data_cnt != 2)
+			goto lcd_tcon_data_multi_match_init_err_data_cnt;
+
+		data_list->ctrl_method = ctrl_part->ctrl_method;
+		for (j = 0; j < data_byte; j++)
+			data_list->min |= (p[k + j] << (j * 8));
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			data_list->max |= (p[k + j] << (j * 8));
+		break;
+	case LCD_TCON_DATA_CTRL_MULTI_BL_PWM_DUTY:
+		if (data_cnt != 3)
+			goto lcd_tcon_data_multi_match_init_err_data_cnt;
+
+		data_list->ctrl_method = ctrl_part->ctrl_method;
+		//pwm combo index
+		data_list->ctrl_data_cnt = 1;
+		data_list->ctrl_data = kzalloc(sizeof(unsigned int), GFP_KERNEL);
+		if (!data_list->ctrl_data)
+			goto lcd_tcon_data_multi_match_init_err_malloc;
+		for (j = 0; j < data_byte; j++)
+			data_list->ctrl_data[0] |= (p[k + j] << (j * 8));
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			data_list->min |= (p[k + j] << (j * 8));
+		k += data_byte;
+		for (j = 0; j < data_byte; j++)
+			data_list->max |= (p[k + j] << (j * 8));
+		break;
+	case LCD_TCON_DATA_CTRL_DEFAULT:
+		return 1;
+	default:
+		return -1;
+	}
+
+	return 0;
+
+lcd_tcon_data_multi_match_init_err_data_cnt:
+	LCDERR("%s: ctrl_part %s data_cnt %d error\n",
+		__func__, ctrl_part->name, data_cnt);
+	return -1;
+
+lcd_tcon_data_multi_match_init_err_malloc:
+	LCDERR("%s: ctrl_part %s malloc error\n", __func__, ctrl_part->name);
+	return -1;
+}
+
+static int lcd_tcon_data_multi_match_check(struct aml_lcd_drv_s *pdrv,
+		unsigned int frame_rate,
 		struct lcd_tcon_data_part_ctrl_s *ctrl_part, unsigned char *p)
 {
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
@@ -897,22 +1278,19 @@ static int lcd_tcon_data_multi_match_policy_check(struct aml_lcd_drv_s *pdrv,
 	max = 0;
 
 	switch (ctrl_part->ctrl_method) {
-	case LCD_TCON_DATA_CTRL_MULTI_VFREQ:
+	case LCD_TCON_DATA_CTRL_MULTI_VFREQ_DIRECT:
 		if (data_cnt != 2)
 			goto lcd_tcon_data_multi_match_check_err_data_cnt;
-		temp = vout_frame_rate_measure(); //1000 multi
-		if (temp == 0)
-			temp = pdrv->config.timing.frame_rate;
-		else
-			temp /= 1000;
 
 		for (j = 0; j < data_byte; j++)
 			min |= (p[k + j] << (j * 8));
 		k += data_byte;
 		for (j = 0; j < data_byte; j++)
 			max |= (p[k + j] << (j * 8));
-		if (temp < min || temp > max)
+		if (frame_rate < min || frame_rate > max)
 			goto lcd_tcon_data_multi_match_check_exit;
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("%s: vfreq %d-%d hit, %d", __func__, min, max, frame_rate);
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_LEVEL:
 #ifdef CONFIG_AMLOGIC_BACKLIGHT
@@ -930,6 +1308,8 @@ static int lcd_tcon_data_multi_match_policy_check(struct aml_lcd_drv_s *pdrv,
 			max |= (p[k + j] << (j * 8));
 		if (temp < min || temp > max)
 			goto lcd_tcon_data_multi_match_check_exit;
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("%s: bl_level %d-%d hit, %d", __func__, min, max, temp);
 #endif
 		break;
 	case LCD_TCON_DATA_CTRL_MULTI_BL_PWM_DUTY:
@@ -941,7 +1321,7 @@ static int lcd_tcon_data_multi_match_policy_check(struct aml_lcd_drv_s *pdrv,
 		if (data_cnt != 3)
 			goto lcd_tcon_data_multi_match_check_err_data_cnt;
 		for (j = 0; j < data_byte; j++)
-			data |= (p[k + j] << (j * 8));
+			data |= (p[k + j] << (j * 8)); //pwm_index
 		k += data_byte;
 		for (j = 0; j < data_byte; j++)
 			min |= (p[k + j] << (j * 8));
@@ -968,6 +1348,11 @@ static int lcd_tcon_data_multi_match_policy_check(struct aml_lcd_drv_s *pdrv,
 		temp = bl_pwm->pwm_duty;
 		if (temp < min || temp > max)
 			goto lcd_tcon_data_multi_match_check_exit;
+
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("%s: bl_pwm[%d] duty %d-%d hit, %d",
+				__func__, bl_pwm->index, min, max, temp);
+		}
 #endif
 		break;
 	case LCD_TCON_DATA_CTRL_DEFAULT:
@@ -992,21 +1377,18 @@ lcd_tcon_data_multi_match_check_err_type:
 #endif
 }
 
-/* return:
- *    0: matched
- *    1: dft list
- *   -1: not match
- */
-int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf)
+static int lcd_tcon_data_multi_list_init(struct aml_lcd_drv_s *pdrv,
+		struct tcon_data_list_s *data_list)
 {
 	struct lcd_tcon_data_block_header_s *block_header;
 	struct lcd_tcon_data_block_ext_header_s *ext_header;
 	struct lcd_tcon_data_part_ctrl_s *ctrl_part;
-	unsigned char *p, part_type;
+	unsigned char *data_buf, *p, part_type;
 	unsigned int size, data_offset, offset, i;
 	unsigned short part_cnt;
 	int ret;
 
+	data_buf = data_list->block_vaddr;
 	block_header = (struct lcd_tcon_data_block_header_s *)data_buf;
 	p = data_buf + LCD_TCON_DATA_BLOCK_HEADER_SIZE;
 	ext_header = (struct lcd_tcon_data_block_ext_header_s *)p;
@@ -1022,11 +1404,61 @@ int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *da
 		case LCD_TCON_DATA_PART_TYPE_CONTROL:
 			offset = LCD_TCON_DATA_PART_CTRL_SIZE_PRE;
 			ctrl_part = (struct lcd_tcon_data_part_ctrl_s *)p;
+			size = offset + (ctrl_part->data_cnt * ctrl_part->data_byte_width);
+			if (ctrl_part->ctrl_data_flag != LCD_TCON_DATA_CTRL_FLAG_MULTI)
+				break;
+			ret = lcd_tcon_data_multi_match_init(pdrv, data_list,
+				ctrl_part, (p + offset));
+			if (ret == 0)
+				return 0;
+			if (ret == 1)
+				return 1;
+			break;
+		default:
+			return -1;
+		}
+		data_offset += size;
+	}
+
+	return -1;
+}
+
+/* return:
+ *    0: matched
+ *    1: dft list
+ *   -1: not match
+ */
+int lcd_tcon_data_multi_match_find(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf)
+{
+	struct lcd_tcon_data_block_header_s *block_header;
+	struct lcd_tcon_data_block_ext_header_s *ext_header;
+	struct lcd_tcon_data_part_ctrl_s *ctrl_part;
+	unsigned char *p, part_type;
+	unsigned int frame_rate, size, data_offset, offset, i;
+	unsigned short part_cnt;
+	int ret;
+
+	block_header = (struct lcd_tcon_data_block_header_s *)data_buf;
+	p = data_buf + LCD_TCON_DATA_BLOCK_HEADER_SIZE;
+	ext_header = (struct lcd_tcon_data_block_ext_header_s *)p;
+	part_cnt = ext_header->part_cnt;
+	frame_rate = pdrv->config.timing.frame_rate;
+
+	data_offset = LCD_TCON_DATA_BLOCK_HEADER_SIZE + block_header->ext_header_size;
+	size = 0;
+	for (i = 0; i < part_cnt; i++) {
+		p = data_buf + data_offset;
+		part_type = p[LCD_TCON_DATA_PART_NAME_SIZE + 3];
+
+		switch (part_type) {
+		case LCD_TCON_DATA_PART_TYPE_CONTROL:
+			offset = LCD_TCON_DATA_PART_CTRL_SIZE_PRE;
+			ctrl_part = (struct lcd_tcon_data_part_ctrl_s *)p;
 			size = offset + (ctrl_part->data_cnt *
 					 ctrl_part->data_byte_width);
 			if (ctrl_part->ctrl_data_flag != LCD_TCON_DATA_CTRL_FLAG_MULTI)
 				break;
-			ret = lcd_tcon_data_multi_match_policy_check(pdrv,
+			ret = lcd_tcon_data_multi_match_check(pdrv, frame_rate,
 				ctrl_part, (p + offset));
 			if (ret == 0)
 				return 0;
@@ -1112,6 +1544,8 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 {
 	struct tcon_data_multi_s *data_multi = NULL;
 	struct tcon_data_list_s *temp_list, *match_list;
+	unsigned int acc_data[2], n = 0, frame_rate, temp;
+	unsigned long long local_time[4];
 	int i, ret = 0;
 
 	if (!mm_table || !mm_table->data_multi)
@@ -1119,6 +1553,12 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 	if (mm_table->data_multi_cnt == 0)
 		return 0;
 
+	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
+		local_time[0] = sched_clock();
+		lcd_tcon_dbg_list_trave_time_save(local_time[0], 0);
+	}
+
+	frame_rate = mm_table->frame_rate;
 	for (i = 0; i < mm_table->data_multi_cnt; i++) {
 		data_multi = &mm_table->data_multi[i];
 		/* bypass LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT for multi lut swich */
@@ -1131,22 +1571,35 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 		/* step1: check current list first, for threshold overlap*/
 		temp_list = data_multi->list_cur;
 		if (temp_list) {
-			ret = lcd_tcon_data_multi_match_find(pdrv, temp_list->block_vaddr);
+			n++;
+			ret = lcd_tcon_data_multi_match_policy(pdrv, frame_rate,
+					data_multi, temp_list);
 			if (ret == 0) //current range, no need update
 				continue;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
+			local_time[1] = sched_clock();
+			lcd_tcon_dbg_list_trave_time_save((local_time[1] - local_time[0]), 1);
 		}
 
 		/* step2: traversing list*/
 		temp_list = data_multi->list_header;
 		match_list = NULL;
 		while (temp_list) {
-			ret = lcd_tcon_data_multi_match_find(pdrv, temp_list->block_vaddr);
+			n++;
+			ret = lcd_tcon_data_multi_match_policy(pdrv, frame_rate,
+					data_multi, temp_list);
 			if (ret == 0) {
 				match_list = temp_list;
 				break;
 			}
 			temp_list = temp_list->next;
 		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
+			local_time[2] = sched_clock();
+			lcd_tcon_dbg_list_trave_time_save((local_time[2] - local_time[0]), 2);
+		}
+
 		if (!match_list) //no active list, no need update setting
 			continue;
 
@@ -1156,17 +1609,105 @@ static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,
 			continue;
 		}
 
-		ret = lcd_tcon_data_common_parse_set(pdrv, match_list->block_vaddr, 0);
+		if (data_multi->block_type == LCD_TCON_DATA_BLOCK_TYPE_ACC_LUT &&
+		    match_list->ctrl_method == LCD_TCON_DATA_CTRL_MULTI_VFREQ_NOTIFY) {
+			acc_data[0] = pdrv->index;
+			if (match_list->ctrl_data)
+				acc_data[1] = match_list->ctrl_data[0];
+			else
+				acc_data[1] = 0xff; //default gamma lut
+			aml_lcd_atomic_notifier_call_chain(LCD_EVENT_GAMMA_UPDATE,
+					(void *)acc_data);
+			data_multi->list_cur = match_list;
+			data_multi->list_update = NULL;
+		} else {
+			data_multi->list_update = match_list;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
+			LCDPR("%s: multi[%d]: type=0x%x, %s: id=%d, %s\n",
+			      __func__, i,
+			      data_multi->block_type,
+			      data_multi->dbg_str,
+			      match_list->id,
+			      match_list->block_name);
+		}
+	}
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
+		local_time[3] = sched_clock();
+		temp = (0xf << 12) | (n << 4) | 3;
+		lcd_tcon_dbg_list_trave_time_save((local_time[3] - local_time[0]), temp);
+		lcd_tcon_time_sort_save(mm_table->list_trave_time,
+			(local_time[3] - local_time[0]));
+	}
+
+	return ret;
+}
+
+static int lcd_tcon_data_multi_set(struct aml_lcd_drv_s *pdrv,
+				   struct tcon_mem_map_table_s *mm_table)
+{
+	struct tcon_data_multi_s *data_multi = NULL;
+	unsigned long long local_time[4];
+	int i, lut_hit = 0, temp, line_cnt, ret = 0;
+
+	if (!mm_table || !mm_table->data_multi)
+		return 0;
+	if (mm_table->data_multi_cnt == 0)
+		return 0;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
+		local_time[0] = sched_clock();
+		line_cnt = lcd_get_encl_lint_cnt(pdrv);
+		lcd_tcon_dbg_vsync_time_save(local_time[0], line_cnt, 0);
+	}
+
+	temp = vout_frame_rate_measure(); //1000 multi
+	if (temp == 0)
+		temp = pdrv->config.timing.frame_rate;
+	else
+		temp /= 1000;
+	mm_table->frame_rate = temp;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
+		local_time[1] = sched_clock();
+		line_cnt = lcd_get_encl_lint_cnt(pdrv);
+		lcd_tcon_dbg_vsync_time_save(local_time[1] - local_time[0], line_cnt, 1);
+	}
+
+	lcd_tcon_data_multi_update(pdrv, &tcon_mm_table);
+	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
+		local_time[2] = sched_clock();
+		line_cnt = lcd_get_encl_lint_cnt(pdrv);
+		lcd_tcon_dbg_vsync_time_save(local_time[2] - local_time[0], line_cnt, 2);
+	}
+
+	for (i = 0; i < mm_table->data_multi_cnt; i++) {
+		data_multi = &mm_table->data_multi[i];
+		/* bypass LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT for multi lut swich */
+		/* bypass LCD_TCON_DATA_BLOCK_TYPE_ACC_LUT for soc gamma update */
+		if (data_multi->block_type == LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT)
+			continue;
+		/* bypass_flag for debug */
+		if (data_multi->bypass_flag)
+			continue;
+		if (!data_multi->list_update)
+			continue;
+
+		lut_hit++;
+		ret = lcd_tcon_data_common_parse_set(pdrv,
+			data_multi->list_update->block_vaddr, 0);
 		if (ret) //list update failed
 			continue;
-		data_multi->list_cur = match_list;
-		if (lcd_debug_print_flag & LCD_DBG_PR_ISR) {
-			LCDPR("%s: multi[%d]: type=0x%x, id=%d, %s\n",
-				__func__, i,
-				data_multi->block_type,
-				data_multi->list_cur->id,
-				data_multi->list_cur->block_name);
-		}
+		data_multi->list_cur = data_multi->list_update;
+		data_multi->list_update = NULL;
+	}
+	if (lcd_debug_print_flag & LCD_DBG_PR_TEST) {
+		local_time[3] = sched_clock();
+		line_cnt = lcd_get_encl_lint_cnt(pdrv);
+		temp = (0xf << 12) | (lut_hit << 4) | 3;
+		lcd_tcon_dbg_vsync_time_save(local_time[3] - local_time[0], line_cnt, temp);
+		lcd_tcon_time_sort_save(mm_table->vsync_time, (local_time[3] - local_time[0]));
 	}
 
 	return ret;
@@ -1178,11 +1719,13 @@ void lcd_tcon_vsync_isr(struct aml_lcd_drv_s *pdrv)
 
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
 		return;
+	if (pdrv->tcon_isr_bypass)
+		return;
 
 	if (tcon_mm_table.version) {
 		if (tcon_mm_table.multi_lut_update) {
 			spin_lock_irqsave(&tcon_local_cfg.multi_list_lock, flags);
-			lcd_tcon_data_multi_update(pdrv, &tcon_mm_table);
+			lcd_tcon_data_multi_set(pdrv, &tcon_mm_table);
 			spin_unlock_irqrestore(&tcon_local_cfg.multi_list_lock, flags);
 		}
 	}
@@ -1416,6 +1959,7 @@ static inline void lcd_tcon_data_list_remove(struct tcon_data_multi_s *data_mult
 	cur_list = data_multi->list_header;
 	while (cur_list) {
 		next_list = cur_list->next;
+		kfree(cur_list->ctrl_data);
 		kfree(cur_list);
 		cur_list = next_list;
 	}
@@ -1424,6 +1968,7 @@ static inline void lcd_tcon_data_list_remove(struct tcon_data_multi_s *data_mult
 	data_multi->list_cnt = 0;
 	data_multi->list_header = NULL;
 	data_multi->list_cur = NULL;
+	data_multi->list_update = NULL;
 }
 
 static int lcd_tcon_data_multi_add(struct aml_lcd_drv_s *pdrv,
@@ -1433,6 +1978,7 @@ static int lcd_tcon_data_multi_add(struct aml_lcd_drv_s *pdrv,
 {
 	struct tcon_data_multi_s *data_multi = NULL;
 	struct tcon_data_list_s *data_list;
+	unsigned int frame_rate;
 	unsigned long flags = 0;
 	int i, ret;
 
@@ -1474,6 +2020,7 @@ static int lcd_tcon_data_multi_add(struct aml_lcd_drv_s *pdrv,
 		data_multi->block_type = block_header->block_type;
 		data_multi->list_header = NULL;
 		data_multi->list_cur = NULL;
+		data_multi->list_update = NULL;
 		data_multi->list_remove = NULL;
 		data_multi->list_cnt = 0;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -1483,14 +2030,17 @@ static int lcd_tcon_data_multi_add(struct aml_lcd_drv_s *pdrv,
 		}
 	}
 	lcd_tcon_data_list_add(data_multi, data_list);
+	lcd_tcon_data_multi_list_init(pdrv, data_list);
 
-	ret = lcd_tcon_data_multi_match_find(pdrv, data_list->block_vaddr);
+	frame_rate = pdrv->config.timing.frame_rate;
+	ret = lcd_tcon_data_multi_match_policy(pdrv, frame_rate, data_multi, data_list);
 	if (ret == 0) {
 		data_multi->list_cur = data_list;
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
-			LCDPR("%s: multi[%d]: type=0x%x, id=%d, %s\n",
+			LCDPR("%s: multi[%d]: type=0x%x, %s: id=%d, %s\n",
 				__func__, i,
 				data_multi->block_type,
+				data_multi->dbg_str,
 				data_multi->list_cur->id,
 				data_multi->list_cur->block_name);
 		}
@@ -1578,11 +2128,32 @@ static void lcd_tcon_data_complete_check(struct aml_lcd_drv_s *pdrv, int index)
 	}
 }
 
+void lcd_tcon_data_block_regen_crc(unsigned char *data)
+{
+	unsigned int raw_crc32 = 0, new_crc32 = 0;
+	struct lcd_tcon_data_block_header_s *header;
+
+	if (!data)
+		return;
+	header = (struct lcd_tcon_data_block_header_s *)data;
+
+	raw_crc32 = (data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24));
+	new_crc32 = cal_crc32(0, data + 4, header->block_size - 4);
+	if (raw_crc32 != new_crc32) {
+		data[0] = (unsigned char)(new_crc32 & 0xff);
+		data[1] = (unsigned char)((new_crc32 >> 8) & 0xff);
+		data[2] = (unsigned char)((new_crc32 >> 16) & 0xff);
+		data[3] = (unsigned char)((new_crc32 >> 24) & 0xff);
+	}
+}
+
 int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int index)
 {
 	struct lcd_tcon_data_block_header_s *block_header;
 	struct tcon_data_priority_s *data_prio;
 	unsigned int priority;
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
+	unsigned int *core_reg_table;
 	int j;
 
 	if (!tcon_mm_table.data_size) {
@@ -1606,6 +2177,17 @@ int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int 
 		tcon_mm_table.valid_flag |= block_header->block_flag;
 		if (block_header->block_flag == LCD_TCON_DATA_VALID_DEMURA)
 			tcon_mm_table.demura_cnt++;
+	} else {
+		core_reg_table = (unsigned int *)(data_buf +
+			sizeof(struct lcd_tcon_data_block_header_s));
+
+		if (!tcon_conf)
+			return -1;
+
+		lcd_tcon_od_pre_disable((unsigned char *)core_reg_table);
+		if (tcon_conf->tcon_axi_mem_update)
+			tcon_conf->tcon_axi_mem_update(core_reg_table);
+		lcd_tcon_data_block_regen_crc(data_buf);
 	}
 
 	/* insertion sort for block data init_priority */
@@ -1632,6 +2214,7 @@ int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int 
 		data_prio[j + 1].index = index;
 		data_prio[j + 1].priority = priority;
 	}
+
 	tcon_mm_table.data_size[index] = block_header->block_size;
 
 	/* add data multi list */
@@ -2049,6 +2632,26 @@ static void lcd_tcon_axi_mem_config_t5(void)
 	}
 }
 
+static void lcd_tcon_axi_rmem_update_t5(unsigned int *table)
+{
+	unsigned int reg, paddr, i;
+
+	if (tcon_rmem.flag == 0 || !tcon_rmem.axi_rmem) {
+		LCDERR("%s: invalid axi_mem\n", __func__);
+		return;
+	}
+
+	for (i = 0; i < lcd_tcon_conf->axi_bank; i++) {
+		reg = lcd_tcon_conf->axi_reg[i];
+		paddr = tcon_rmem.axi_rmem[i].mem_paddr;
+		table[reg] = paddr;
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+			LCDPR("%s: axi[%d] reg: 0x%08x, paddr: 0x%08x\n",
+			      __func__, i, reg, paddr);
+		}
+	}
+}
+
 static void lcd_tcon_axi_mem_config_t5d(void)
 {
 	unsigned int size = 0x00500000;
@@ -2086,6 +2689,24 @@ static void lcd_tcon_axi_mem_config_t5d(void)
 	tcon_rmem.axi_rmem->mem_size = size;
 
 	*lcd_tcon_conf->axi_reg = reg;
+}
+
+static void lcd_tcon_axi_rmem_update_t5d(unsigned int *table)
+{
+	unsigned int reg, paddr;
+
+	if (tcon_rmem.flag == 0 || !tcon_rmem.axi_rmem) {
+		LCDERR("%s: invalid axi_mem\n", __func__);
+		return;
+	}
+
+	reg = *lcd_tcon_conf->axi_reg;
+	paddr = tcon_rmem.axi_rmem->mem_paddr;
+	table[reg] = paddr;
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
+		LCDPR("%s: axi reg: 0x%08x, paddr: 0x%08x\n",
+			__func__, reg, paddr);
+	}
 }
 
 static void lcd_tcon_axi_mem_secure_tl1(void)
@@ -2235,7 +2856,8 @@ static int lcd_tcon_mem_config(void)
 		      tcon_rmem.secure_handle_rmem.mem_vaddr,
 		      tcon_rmem.secure_handle_rmem.mem_size);
 
-	if (lcd_tcon_conf->tcon_axi_mem_secure)
+	if (lcd_tcon_conf->tcon_axi_mem_secure &&
+		tcon_rmem.secure_handle_rmem.mem_vaddr)
 		lcd_tcon_conf->tcon_axi_mem_secure();
 
 	ret = lcd_tcon_bin_path_update(tcon_rmem.bin_path_rmem.mem_size);
@@ -2337,6 +2959,46 @@ static void lcd_tcon_intr_init(struct aml_lcd_drv_s *pdrv)
 	lcd_tcon_write(pdrv, TCON_INTR_MASKN, TCON_INTR_MASKN_VAL);
 }
 
+static irqreturn_t lcd_tcon_line_n_isr(int irq, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+
+	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
+		return IRQ_HANDLED;
+
+	if (pdrv->tcon_isr_type)
+		lcd_tcon_vsync_isr(pdrv);
+
+	return IRQ_HANDLED;
+}
+
+static void lcd_tcon_line_n_intr_init(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int trigger_line;
+	unsigned int line_n_vsync_irq = 0;
+
+	if (!pdrv->res_line_n_irq) {
+		LCDERR("res_tcon_vsync_irq is null\n");
+		return;
+	}
+
+	/* set line_n = read(ENCL_VIDEO_VAVON_ELINE) + 1*/
+	trigger_line = lcd_vcbus_read(ENCL_VIDEO_VAVON_ELINE) + 1;
+	lcd_vcbus_write(VPP_INT_LINE_NUM, trigger_line);
+
+	line_n_vsync_irq = pdrv->res_line_n_irq->start;
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("line_n_vsync_irq: %d\n", line_n_vsync_irq);
+
+	if (request_irq(line_n_vsync_irq, lcd_tcon_line_n_isr,
+			IRQF_SHARED, "line_n", (void *)pdrv)) {
+		LCDERR("can't request lcd_tcon_line_n_vsync irq\n");
+	} else {
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("request lcd_tcon_line_n_vsync irq successful\n");
+	}
+}
+
 static int lcd_tcon_load_init_data_from_unifykey(void)
 {
 	int key_len, data_len, ret;
@@ -2378,6 +3040,7 @@ static int lcd_tcon_load_init_data_from_unifykey_new(void)
 	int key_len, data_len;
 	unsigned char *buf, *p;
 	struct lcd_tcon_init_block_header_s *data_header;
+	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 	int ret;
 
 	data_len = tcon_mm_table.core_reg_table_size +
@@ -2396,7 +3059,6 @@ static int lcd_tcon_load_init_data_from_unifykey_new(void)
 		goto lcd_tcon_load_init_data_new_err;
 	if (key_len != data_len)
 		goto lcd_tcon_load_init_data_new_err;
-
 	memcpy(data_header, buf, LCD_TCON_DATA_BLOCK_HEADER_SIZE);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("unifykey header:\n");
@@ -2416,6 +3078,10 @@ static int lcd_tcon_load_init_data_from_unifykey_new(void)
 		goto lcd_tcon_load_init_data_new_err;
 	p = buf + LCD_TCON_DATA_BLOCK_HEADER_SIZE;
 	memcpy(tcon_mm_table.core_reg_table, p, data_len);
+	lcd_tcon_od_pre_disable(tcon_mm_table.core_reg_table);
+	if (tcon_conf && tcon_conf->tcon_axi_mem_update && tcon_conf->reg_table_width == 32)
+		tcon_conf->tcon_axi_mem_update((unsigned int *)tcon_mm_table.core_reg_table);
+
 	kfree(buf);
 
 	LCDPR("tcon: load init data len: %d, ver: %s\n",
@@ -2442,6 +3108,7 @@ static int lcd_tcon_get_config(struct aml_lcd_drv_s *pdrv)
 	tcon_mm_table.multi_lut_update = 1;
 
 	lcd_tcon_intr_init(pdrv);
+	lcd_tcon_line_n_intr_init(pdrv);
 
 	return 0;
 }
@@ -2507,11 +3174,13 @@ static struct lcd_tcon_config_s tcon_data_tl1 = {
 	.axi_reg = NULL,
 	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_tl1,
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_tl1,
+	.tcon_axi_mem_update = NULL,
 	.tcon_global_reset = NULL,
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_tl1,
 	.tcon_enable = lcd_tcon_enable_tl1,
 	.tcon_disable = lcd_tcon_disable_tl1,
 	.tcon_reload = NULL,
+	.tcon_reload_pre = NULL,
 };
 
 static struct lcd_tcon_config_s tcon_data_t5 = {
@@ -2551,11 +3220,13 @@ static struct lcd_tcon_config_s tcon_data_t5 = {
 	.axi_reg = NULL,
 	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_t5,
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t5,
+	.tcon_axi_mem_update = lcd_tcon_axi_rmem_update_t5,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = NULL,
+	.tcon_reload_pre = NULL,
 };
 
 static struct lcd_tcon_config_s tcon_data_t5d = {
@@ -2590,11 +3261,13 @@ static struct lcd_tcon_config_s tcon_data_t5d = {
 	.axi_reg = NULL,
 	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_t5d,
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t5,
+	.tcon_axi_mem_update = lcd_tcon_axi_rmem_update_t5d,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = NULL,
+	.tcon_reload_pre = NULL,
 };
 
 static struct lcd_tcon_config_s tcon_data_t3 = {
@@ -2634,11 +3307,13 @@ static struct lcd_tcon_config_s tcon_data_t3 = {
 	.axi_reg = NULL,
 	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_t5,
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
+	.tcon_axi_mem_update = lcd_tcon_axi_rmem_update_t5,
 	.tcon_global_reset = lcd_tcon_global_reset_t3,
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t3,
 	.tcon_disable = lcd_tcon_disable_t3,
 	.tcon_reload = lcd_tcon_reload_t3,
+	.tcon_reload_pre = lcd_tcon_reload_pre_t3,
 };
 
 static struct lcd_tcon_config_s tcon_data_t5w = {
@@ -2669,6 +3344,7 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.rsv_mem_size    = 0x00c00000,
 	.axi_mem_size    = 0x00a00000,
 	.bin_path_size   = 0x00002800,
+	.secure_handle_size   = 0x00000064,
 	.vac_size        = 0,
 	.demura_set_size = 0,
 	.demura_lut_size = 0,
@@ -2677,11 +3353,13 @@ static struct lcd_tcon_config_s tcon_data_t5w = {
 	.axi_reg = NULL,
 	.tcon_axi_mem_config = lcd_tcon_axi_mem_config_t5,
 	.tcon_axi_mem_secure = lcd_tcon_axi_mem_secure_t3,
+	.tcon_axi_mem_update = lcd_tcon_axi_rmem_update_t5,
 	.tcon_global_reset = lcd_tcon_global_reset_t5,
 	.tcon_gamma_pattern = lcd_tcon_gamma_pattern_t5,
 	.tcon_enable = lcd_tcon_enable_t5,
 	.tcon_disable = lcd_tcon_disable_t5,
 	.tcon_reload = lcd_tcon_reload_t3,
+	.tcon_reload_pre = lcd_tcon_reload_pre_t3,
 };
 
 int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
@@ -2730,6 +3408,15 @@ int lcd_tcon_probe(struct aml_lcd_drv_s *pdrv)
 
 	lcd_tcon_reserved_memory_init(pdrv);
 	lcd_tcon_mem_config();
+
+	dbg_cnt_0 = 120 * 60 * 7;
+	dbg_vsync_time = kcalloc(dbg_cnt_0, sizeof(unsigned long long), GFP_KERNEL);
+	if (!dbg_vsync_time)
+		LCDERR("%s: dbg_vsync_time error\n", __func__);
+	dbg_cnt_1 = 120 * 60 * 5;
+	dbg_list_trave_time = kcalloc(dbg_cnt_1, sizeof(unsigned long long), GFP_KERNEL);
+	if (!dbg_list_trave_time)
+		LCDERR("%s: dbg_list_trave_time error\n", __func__);
 
 	spin_lock_init(&tcon_local_cfg.multi_list_lock);
 	INIT_WORK(&pdrv->tcon_config_work, lcd_tcon_get_config_work);

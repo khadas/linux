@@ -30,6 +30,7 @@ struct {
 	TAG_INFO(DEMUX),
 	TAG_INFO(MEDIA_SYNC),
 	TAG_INFO(DDR_BW),
+	TAG_INFO(DIM),
 	{ NULL, 0 }
 };
 

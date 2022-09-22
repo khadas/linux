@@ -54,6 +54,7 @@ static struct early_suspend bt_early_suspend;
 
 #define BT_RFKILL "bt_rfkill"
 #define QCA_ID 0x271
+#define RTK_ID 0x24C
 #define AML_ID 0x8888
 #define POWER_EVENT_DEF     0
 #define POWER_EVENT_RESET   1
@@ -79,10 +80,17 @@ static int distinguish_module(void)
 	vendor_id = sdio_get_vendor();
 	pr_info("vendor_id = 0x%x\n", vendor_id);
 
+#ifdef CONFIG_AMLOGIC_BT_WAKE_NOT_REPORT
+	/* for platform like yocto, suspend wakeup use any-key wakeup, don't
+	 * need to help report key event for all modules
+	 */
+	return 1;
+#else
 	if (vendor_id == QCA_ID)
 		return 1;
 
 	return 0;
+#endif
 }
 
 static ssize_t value_show(struct class *cls,

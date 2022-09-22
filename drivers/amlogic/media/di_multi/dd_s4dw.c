@@ -49,8 +49,7 @@
 
 static unsigned int dim_afbc_skip_en;
 module_param_named(dim_afbc_skip_en, dim_afbc_skip_en, uint, 0664);
-//static unsigned int afbc_skip_w, afbc_skip_h;
-//static unsigned int afbc_skip_ori_w, afbc_skip_ori_h;
+
 #ifdef DBG_BUFFER_FLOW
 static unsigned int afbc_skip_pps_w, afbc_skip_pps_h;
 module_param_named(afbc_skip_pps_w, afbc_skip_pps_w, uint, 0664);
@@ -131,16 +130,17 @@ void dim_dbg_buffer_ext(struct di_ch_s *pch,
 			ch, pos, buffer);
 		return;
 	}
-	PR_INF("dbg_buffer_ex:ch[%d],%d,0x%px[0x%px,0x%px]\n",
-		ch, pos, buffer,
+	PR_INF("dbg_buffer_ex:ch[%d],%d,0x%px,0x%x,[0x%px,0x%px]\n",
+		ch, pos, buffer, buffer->flag,
 		buffer->private_data, buffer->vf->private_data);
-	PR_INF("\t0x%lx,0x%lx,0x%lx<%d %d>:0x%x\n",
+	PR_INF("\t0x%lx,0x%lx,0x%lx<%d %d>:0x%x:0x%x\n",
 		buffer->phy_addr,
 		buffer->vf->canvas0_config[0].phy_addr,
 		buffer->vf->canvas0_config[1].phy_addr,
 		buffer->vf->canvas0_config[0].width,
 		buffer->vf->canvas0_config[0].height,
-		buffer->vf->canvas0Addr);
+		buffer->vf->canvas0Addr,
+		buffer->vf->type);
 
 	#endif
 }
@@ -593,6 +593,8 @@ enum ES4DW_BYPASS_ID {
 	ES4DW_BYPASS_TYP,
 	ES4DW_BYPASS_SRC_PPMGR,
 	ES4DW_BYPASS_SIZE_UP_4K,
+	ES4DW_BYPASS_SIZE_DOWN,
+	ES4DW_BYPASS_EOS,
 };
 
 static unsigned int s4dw_bypasse_checkvf(struct vframe_s *vf)
@@ -607,12 +609,17 @@ static unsigned int s4dw_bypasse_checkvf(struct vframe_s *vf)
 		return ES4DW_BYPASS_I;
 	if (vf->type & DIM_BYPASS_VF_TYPE)
 		return ES4DW_BYPASS_TYP;
+	if (vf->type & VIDTYPE_V4L_EOS)
+		return ES4DW_BYPASS_EOS;
 	if (vf->source_type == VFRAME_SOURCE_TYPE_PPMGR)
 		return ES4DW_BYPASS_SRC_PPMGR;
 
 	dim_vf_x_y(vf, &x, &y);
 	if (x > 3840 || y > 2160)
 		return ES4DW_BYPASS_SIZE_UP_4K;
+
+	if (x < 128 || y < 16)
+		return ES4DW_BYPASS_SIZE_DOWN;
 
 	return 0;
 }
@@ -621,6 +628,10 @@ static u32 s4dw_bypass_checkother(struct di_ch_s *pch)
 {
 	if (dimp_get(edi_mp_di_debug_flag) & 0x100000)
 		return ES4DW_BYPASS_ALL_BYPASS;
+	/* EDI_CFGX_BYPASS_ALL */
+	di_cfgx_set(pch->ch_id,
+		    EDI_CFGX_BYPASS_ALL,
+		    pch->itf.bypass_ext, DI_BIT4);
 	if (di_cfgx_get(pch->ch_id, EDI_CFGX_BYPASS_ALL))
 		return ES4DW_BYPASS_CH;
 	//other
@@ -650,7 +661,8 @@ static bool s4dw_bypass_2_ready_bynins(struct di_ch_s *pch,
 {
 	void *in_ori;
 //	struct dim_nins_s	*nins =NULL;
-	struct di_buffer *buffer;
+	struct di_buffer *buffer, *buffer_o;
+	struct di_buf_s *buf_pst;
 
 	if (!nins) {
 		PR_ERR("%s:no in ori ?\n", __func__);
@@ -668,8 +680,32 @@ static bool s4dw_bypass_2_ready_bynins(struct di_ch_s *pch,
 		buffer = (struct di_buffer *)in_ori;
 		buffer->flag |= DI_FLAG_BUF_BY_PASS;
 	}
+	if (dip_itf_is_ins_exbuf(pch)) {
+		/* get out buffer */
+		buf_pst = di_que_out_to_di_buf(pch->ch_id, QUE_POST_FREE);
+		if (!buf_pst) {
+			PR_ERR("%s:no post free\n", __func__);
+			return true;
+		}
 
-	ndrd_qin(pch, in_ori);
+		buffer_o = buf_pst->c.buffer;
+		if (!buffer_o) {
+			PR_ERR("%s:no buffer_o\n", __func__);
+			return true;
+		}
+		di_buf_clear(pch, buf_pst);
+		di_que_in(pch->ch_id, QUE_PST_NO_BUF_WAIT, buf_pst);
+		if (buffer->flag & DI_FLAG_EOS ||
+		    (buffer->vf && buffer->vf->type & VIDTYPE_V4L_EOS))
+			buffer_o->flag |= DI_FLAG_EOS;
+		if (buffer_o->vf)
+			buffer_o->vf->vf_ext = buffer->vf;
+		buffer_o->flag |= DI_FLAG_BUF_BY_PASS;
+		ndrd_qin(pch, buffer_o);
+	} else {
+		ndrd_qin(pch, in_ori);
+	}
+
 	return true;
 }
 
@@ -1563,9 +1599,10 @@ static unsigned char s4dw_pre_buf_config(struct di_ch_s *pch)
 		} else if (ppre->prog_proc_type == 0x10 &&
 		    (nv21_flg				||
 		     (cfggch(pch, POUT_FMT) == 0)	||
-		     (((cfggch(pch, POUT_FMT) == 4) ||
-		      (cfggch(pch, POUT_FMT) == 5) ||
-		      (cfggch(pch, POUT_FMT) == 6)) &&
+		     (((cfggch(pch, POUT_FMT) == 4)	||
+		      (cfggch(pch, POUT_FMT) == 5)	||
+		      (cfggch(pch, POUT_FMT) == 6)	||
+		      (cfggch(pch, POUT_FMT) == 7)) &&
 		     (ppre->sgn_lv <= EDI_SGN_HD)))) {
 			if (dim_afds() && dim_afds()->cnt_sgn_mode) {
 				typetmp = ppre->di_inp_buf->vframe->type;
@@ -1629,57 +1666,6 @@ static unsigned char s4dw_pre_buf_config(struct di_ch_s *pch)
 	ppre->combing_fix_en = false;//di_mpr(combing_fix_en);
 
 	return 0; /*ok*/
-}
-
-static void s4dw_dbg_reg(void)
-{
-#ifdef DBG_BUFFER_FLOW
-	int i;
-	struct reg_t *preg;
-
-	if (!dbg_flow())
-		return;
-	preg = &get_datal()->s4dw_reg[0];
-	for (i = 0; i < DIM_S4DW_REG_BACK_NUB; i++) {
-		if (!(preg + i)->add)
-			break;
-		PR_INF("special:0x%x=0x%x\n",
-			(preg + i)->add, (preg + i)->df_val);
-	}
-#endif /*DBG_BUFFER_FLOW*/
-}
-
-static void s4dw_reg_special_set(bool set)
-{
-	int i;
-	struct reg_t *preg;
-
-	preg = &get_datal()->s4dw_reg[0];
-
-	if (set) {
-		//save old data and set new value;
-		i = 0;
-		(preg + i)->add = DNR_CTRL;
-		(preg + i)->df_val = RD(DNR_CTRL);
-		DIM_DI_WR(DNR_CTRL, 0x0);
-		i++;
-		(preg + i)->add = NR4_TOP_CTRL;
-		(preg + i)->df_val = RD(NR4_TOP_CTRL);
-		DIM_DI_WR(NR4_TOP_CTRL, 0x3e03c);
-		i++;
-		for (; i < DIM_S4DW_REG_BACK_NUB; i++)
-			(preg + i)->add = 0;
-
-		s4dw_dbg_reg();
-		return;
-	}
-
-	/* reset: set old data */
-	for (i = 0; i < DIM_S4DW_REG_BACK_NUB; i++) {
-		if (!(preg + i)->add)
-			break;
-		DIM_DI_WR((preg + i)->add, (preg + i)->df_val);
-	}
 }
 
 void s4dw_hpre_check_pps(void)
@@ -2139,7 +2125,7 @@ static void s4dw_pre_set(unsigned int channel)
 					      ppre->mcdi_enable);
 	}
 #endif
-	s4dw_reg_special_set(true);
+	dimh_nr_disable_set(true);
 	ppre->field_count_for_cont++;
 
 	if (ppre->field_count_for_cont >= 5)
@@ -2201,7 +2187,7 @@ static void s4dw_done_config(unsigned int channel, bool flg_timeout)
 	dim_dbg_pre_cnt(channel, "d1");
 	dim_ddbg_mod_save(EDI_DBG_MOD_PRE_DONEB, channel, ppre->in_seq);/*dbg*/
 	pch = get_chdata(channel);
-	s4dw_reg_special_set(false);
+	dimh_nr_disable_set(false);
 	if (!ppre->di_wr_buf || !ppre->di_inp_buf) {
 		PR_ERR("%s:no key buffer? 0x%px,0x%px\n",
 		       __func__, ppre->di_wr_buf, ppre->di_inp_buf);
@@ -2213,8 +2199,7 @@ static void s4dw_done_config(unsigned int channel, bool flg_timeout)
 			opl1()->pre_gl_sw(false);
 		else
 			hpre_gl_sw(false);
-
-		ppre->timeout_check = true;
+		//for cp disable ppre->timeout_check = true;
 	}
 	if (ppre->di_wr_buf->field_count < 3) {
 		if (!ppre->di_wr_buf->field_count)

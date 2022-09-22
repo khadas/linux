@@ -64,14 +64,15 @@ enum tvin_port_e {
 	TVIN_PORT_HDMI7,
 	TVIN_PORT_DVIN0 = 0x00008000,
 	TVIN_PORT_VIU1 = 0x0000a000,
-	TVIN_PORT_VIU1_VIDEO,
-	TVIN_PORT_VIU1_WB0_VD1,
-	TVIN_PORT_VIU1_WB0_VD2,
-	TVIN_PORT_VIU1_WB0_OSD1,
-	TVIN_PORT_VIU1_WB0_OSD2,
-	TVIN_PORT_VIU1_WB0_VPP,
-	TVIN_PORT_VIU1_WB0_VDIN_BIST,
-	TVIN_PORT_VIU1_WB0_POST_BLEND,
+	TVIN_PORT_VIU1_VIDEO, /* vpp0 preblend vd1 */
+	TVIN_PORT_VIU1_WB0_VD1, /* vpp0 vadj1 output */
+	TVIN_PORT_VIU1_WB0_VD2, /* vpp0 vd2 postblend input */
+	TVIN_PORT_VIU1_WB0_OSD1, /* vpp0 osd1 postblend input */
+	TVIN_PORT_VIU1_WB0_OSD2, /* vpp0 osd2 postblend input */
+	TVIN_PORT_VIU1_WB0_VPP, /* vpp0 output */
+	TVIN_PORT_VIU1_WB0_POST_BLEND, /* vpp0 postblend output */
+	TVIN_PORT_VIU1_WB1_VDIN_BIST,
+	TVIN_PORT_VIU1_WB1_VIDEO,
 	TVIN_PORT_VIU1_WB1_VD1,
 	TVIN_PORT_VIU1_WB1_VD2,
 	TVIN_PORT_VIU1_WB1_OSD1,
@@ -82,6 +83,17 @@ enum tvin_port_e {
 	TVIN_PORT_VIU2_ENCL,
 	TVIN_PORT_VIU2_ENCI,
 	TVIN_PORT_VIU2_ENCP,
+	TVIN_PORT_VIU2_VD1, /* vpp1 vd1 output */
+	TVIN_PORT_VIU2_OSD1, /* vpp1 osd1 output */
+	TVIN_PORT_VIU2_VPP, /* vpp1 output */
+	TVIN_PORT_VIU3 = 0x0000D000,
+	TVIN_PORT_VIU3_VD1, /* vpp2 vd1 output */
+	TVIN_PORT_VIU3_OSD1, /* vpp2 osd1 output */
+	TVIN_PORT_VIU3_VPP, /* vpp2 output */
+	TVIN_PORT_VENC = 0x0000E000,
+	TVIN_PORT_VENC0,
+	TVIN_PORT_VENC1,
+	TVIN_PORT_VENC2,
 	TVIN_PORT_MIPI = 0x00010000,
 	TVIN_PORT_ISP = 0x00020000,
 	TVIN_PORT_MAX = 0x80000000,
@@ -536,8 +548,8 @@ bool IS_TVAFE_AVIN_SRC(enum tvin_port_e port);
 #define TVIN_IOC_VF_UNREG           _IO(_TM_T, 0x44)
 #define TVIN_IOC_FREEZE_VF          _IO(_TM_T, 0x45)
 #define TVIN_IOC_UNFREEZE_VF        _IO(_TM_T, 0x46)
-#define TVIN_IOC_SNOWON             _IO(_TM_T, 0x47)
-#define TVIN_IOC_SNOWOFF            _IO(_TM_T, 0x48)
+#define TVIN_IOC_SNOW_ON             _IO(_TM_T, 0x47)
+#define TVIN_IOC_SNOW_OFF            _IO(_TM_T, 0x48)
 #define TVIN_IOC_GET_COLOR_RANGE	_IOR(_TM_T, 0X49,\
 	enum tvin_force_color_range_e)
 #define TVIN_IOC_SET_COLOR_RANGE	_IOW(_TM_T, 0X4a,\

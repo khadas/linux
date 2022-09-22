@@ -32,3 +32,20 @@ int vpp_mask_int(int val, int start, int len)
 	return ret;
 }
 
+int vpp_insert_int(int src_val, int insert_val,
+	int start, int len)
+{
+	int ret = 0xffffffff;
+	int tmp = sizeof(int) - len;
+	int mask;
+
+	if (tmp < 0)
+		tmp = 0;
+
+	mask = ~(((ret >> start) << tmp) >> (tmp - start));
+	tmp = insert_val << start;
+	ret = (src_val & mask) | tmp;
+
+	return ret;
+}
+

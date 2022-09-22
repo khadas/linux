@@ -494,6 +494,20 @@ struct phy_config_s {
 struct cus_ctrl_config_s {
 	unsigned int flag;
 	unsigned char dlg_flag;
+	unsigned long long mute_time;
+	unsigned long long unmute_time;
+	unsigned long long switch_time;
+	unsigned long long power_off_time;
+	unsigned long long bl_off_time;
+	unsigned long long bl_on_time;
+	unsigned long long driver_change_time;
+	unsigned long long driver_disable_time;
+	unsigned long long driver_init_time;
+	unsigned long long tcon_reload_time;
+	unsigned long long reg_set_time;
+	unsigned long long data_set_time;
+	unsigned long long level_shift_time;
+	unsigned long long dlg_time;
 	unsigned short attr_0_para0;
 	unsigned short attr_0_para1;
 	unsigned short attr_0_para2;
@@ -623,6 +637,10 @@ struct aml_lcd_drv_s {
 	unsigned char mute_state;
 	unsigned char mute_flag;
 	unsigned char mute_count;
+	unsigned char mute_count_test;
+	unsigned char unmute_count_test;
+	unsigned char tcon_isr_type;
+	unsigned char tcon_isr_bypass;
 	unsigned char probe_done;
 	unsigned char viu_sel;
 	unsigned char gamma_en_flag;
@@ -682,6 +700,7 @@ struct aml_lcd_drv_s {
 	struct resource *res_vsync_irq[3];
 	struct resource *res_vx1_irq;
 	struct resource *res_tcon_irq;
+	struct resource *res_line_n_irq;
 	struct timer_list pll_mnt_timer;
 	struct timer_list vs_none_timer;
 	struct completion vsync_done;

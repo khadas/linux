@@ -495,15 +495,19 @@ static enum dsp_health get_dsp_health_status(unsigned long online)
 	case DSPA_ONLINE:
 		this_cnt[DSPA] = readl(hifi4dsp_p[DSPA]->dsp->status_reg);
 		pr_debug("[%s]dspa[%u %u]\n", __func__, last_cnt[DSPA], this_cnt[DSPA]);
-		if (this_cnt[DSPA] == last_cnt[DSPA])
+		if (this_cnt[DSPA] == last_cnt[DSPA]) {
+			hifi4dsp_p[DSPA]->dsp->dsphang = 1;
 			ret = DSPA_HANG;
+		}
 		last_cnt[DSPA] = this_cnt[DSPA];
 		break;
 	case DSPB_ONLINE:
 		this_cnt[DSPB] = readl(hifi4dsp_p[DSPB]->dsp->status_reg);
 		pr_debug("[%s]dspb[%u %u]\n", __func__, last_cnt[DSPB], this_cnt[DSPB]);
-		if (this_cnt[DSPB] == last_cnt[DSPB])
+		if (this_cnt[DSPB] == last_cnt[DSPB]) {
+			hifi4dsp_p[DSPB]->dsp->dsphang = 1;
 			ret = DSPB_HANG;
+		}
 		last_cnt[DSPB] = this_cnt[DSPB];
 		break;
 	case DSPAB_ONLINE:
@@ -511,12 +515,22 @@ static enum dsp_health get_dsp_health_status(unsigned long online)
 		this_cnt[DSPB] = readl(hifi4dsp_p[DSPB]->dsp->status_reg);
 		pr_debug("[%s]dspa[%u %u]dspb[%u %u]\n", __func__,
 			last_cnt[DSPA], this_cnt[DSPA], last_cnt[DSPB], this_cnt[DSPB]);
-		if (this_cnt[DSPA] == last_cnt[DSPA] && this_cnt[DSPB] == last_cnt[DSPB])
+		if (this_cnt[DSPA] == last_cnt[DSPA] && this_cnt[DSPB] == last_cnt[DSPB]) {
+			hifi4dsp_p[DSPA]->dsp->dsphang = 1;
+			hifi4dsp_p[DSPB]->dsp->dsphang = 1;
 			ret = DSPAB_HANG;
-		else if (this_cnt[DSPA] == last_cnt[DSPA])
+		} else if (this_cnt[DSPA] == last_cnt[DSPA]) {
+			hifi4dsp_p[DSPA]->dsp->dsphang = 1;
+			hifi4dsp_p[DSPB]->dsp->dsphang = 0;
 			ret = DSPA_HANG;
-		else if (this_cnt[DSPB] == last_cnt[DSPB])
+		} else if (this_cnt[DSPB] == last_cnt[DSPB]) {
+			hifi4dsp_p[DSPA]->dsp->dsphang = 0;
+			hifi4dsp_p[DSPB]->dsp->dsphang = 1;
 			ret = DSPB_HANG;
+		} else {
+			hifi4dsp_p[DSPA]->dsp->dsphang = 0;
+			hifi4dsp_p[DSPB]->dsp->dsphang = 0;
+		}
 		last_cnt[DSPA] = this_cnt[DSPA];
 		last_cnt[DSPB] = this_cnt[DSPB];
 		break;
@@ -533,27 +547,19 @@ static void dsp_health_monitor(struct work_struct *work)
 
 	switch (get_dsp_health_status(dsp_online)) {
 	case DSP_GOOD:
-		hifi4dsp_p[DSPA]->dsp->dsphang = 0;
-		hifi4dsp_p[DSPB]->dsp->dsphang = 0;
 		break;
 	case DSPA_HANG:
 		snprintf(data, sizeof(data), "ACTION=DSP_WTD_A");
-		hifi4dsp_p[DSPA]->dsp->dsphang = 1;
-		hifi4dsp_p[DSPB]->dsp->dsphang = 0;
 		kobject_uevent_env(&hifi4dsp_p[DSPA]->dsp->dev->kobj, KOBJ_CHANGE, envp);
 		pr_debug("[%s][DSPA_HANG]\n", __func__);
 		break;
 	case DSPB_HANG:
 		snprintf(data, sizeof(data), "ACTION=DSP_WTD_B");
-		hifi4dsp_p[DSPA]->dsp->dsphang = 0;
-		hifi4dsp_p[DSPB]->dsp->dsphang = 1;
 		kobject_uevent_env(&hifi4dsp_p[DSPB]->dsp->dev->kobj, KOBJ_CHANGE, envp);
 		pr_debug("[%s][DSPB_HANG]\n", __func__);
 		break;
 	case DSPAB_HANG:
 		snprintf(data, sizeof(data), "ACTION=DSP_WTD_WHOLE");
-		hifi4dsp_p[DSPA]->dsp->dsphang = 1;
-		hifi4dsp_p[DSPB]->dsp->dsphang = 1;
 		kobject_uevent_env(&hifi4dsp_p[DSPA]->dsp->dev->kobj, KOBJ_CHANGE, envp);
 		pr_debug("[%s][DSPAB_HANG]\n", __func__);
 		break;

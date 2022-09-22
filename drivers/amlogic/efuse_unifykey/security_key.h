@@ -13,7 +13,7 @@
 #define RET_EMEM	3	/*no enough memory*/
 #define RET_EUND	0xff
 
-#define SMC_UNK		0xffffffff
+#define SMC_UNK		-1
 
 #define	BL31_STORAGE_QUERY		0x82000060
 #define	BL31_STORAGE_READ		0x82000061

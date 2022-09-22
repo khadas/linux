@@ -57,7 +57,7 @@ static int __init media_main_init(void)
 {
 	pr_info("### %s() start\n", __func__);
 	call_sub_init(media_configs_system_init);
-	call_sub_init(secmem_init);
+	call_sub_init(dmabuf_manage_init);
 	call_sub_init(codec_mm_module_init);
 	call_sub_init(codec_io_init);
 	call_sub_init(vdec_reg_ops_init);

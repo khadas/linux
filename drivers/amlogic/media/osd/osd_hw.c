@@ -1799,16 +1799,91 @@ static void release_fenceobj(struct osd_layers_fence_map_s *fence_map,
 	}
 }
 
+static int fence_combine_signaled(u32 output_index,
+			   struct osd_layers_fence_map_s *fence_map)
+{
+	int i = 0, ret = 1;
+	int start_index = 0;
+	int osd_count = 0;
+	struct layer_fence_map_s *layer_map = NULL;
+
+	if (output_index == VIU1) {
+		osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
+		if (osd_hw.osd_meson_dev.osd_ver <= OSD_NORMAL)
+			osd_count = 1;
+		start_index = 0;
+	} else if (output_index == VIU2) {
+		if (osd_dev_hw.t7_display) {
+			osd_count = osd_hw.osd_meson_dev.viu1_osd_count;
+			start_index = 0;
+		} else {
+			start_index = osd_hw.osd_meson_dev.viu2_index;
+			osd_count = start_index + 1;
+		}
+	} else {
+		osd_log_err("invalid output_index=%d\n", output_index);
+		return 1;
+	}
+
+	for (i = start_index; i < osd_count; i++) {
+		if (!validate_osd(i, output_index))
+			continue;
+
+		layer_map = &fence_map->layer_map[i];
+
+		if (!layer_map->in_fence)
+			continue;
+
+		if (timeline_created[output_index] &&
+		    layer_map->enable &&
+		    fence_map->cmd == LAYER_SYNC) {
+			ret = aml_sync_fence_status(layer_map->in_fence);
+			if (!ret)
+				break;
+		}
+	}
+
+	return ret;
+}
+
+static int worker_list_empty(struct kthread_worker *worker)
+{
+	if (!worker) {
+		osd_log_err("worker is NULL\n");
+		return 1;
+	}
+
+	return list_empty(&worker->work_list) ? 1 : 0;
+}
+
 static void osd_toggle_buffer_layers(struct kthread_work *work)
 {
 	struct osd_layers_fence_map_s *data, *next;
-	struct list_head saved_list;
-	u32 game_mode = osd_game_mode[VIU1], timeline_inc = 0;
+	u32 game_mode = osd_game_mode[VIU1], timeline_inc;
+	LIST_HEAD(saved_list);
 
+cycle:
 	mutex_lock(&post_fence_list_lock[VIU1]);
-	saved_list = post_fence_list[VIU1];
-	list_replace_init(&post_fence_list[VIU1], &saved_list);
+	if (list_empty(&post_fence_list[VIU1])) {
+		mutex_unlock(&post_fence_list_lock[VIU1]);
+			return;
+	}
+
+	if (!game_mode) {
+		list_replace_init(&post_fence_list[VIU1], &saved_list);
+	} else {
+		list_for_each_entry_safe(data, next,
+					 &post_fence_list[VIU1], list) {
+			if (fence_combine_signaled(VIU1, data))
+				list_move_tail(&data->list, &saved_list);
+		}
+
+		if (list_empty(&saved_list))
+			list_move_tail(post_fence_list[VIU1].next, &saved_list);
+	}
 	mutex_unlock(&post_fence_list_lock[VIU1]);
+
+	timeline_inc = 0;
 
 	list_for_each_entry_safe(data, next, &saved_list, list) {
 		if (!game_mode) {
@@ -1826,9 +1901,12 @@ static void osd_toggle_buffer_layers(struct kthread_work *work)
 		list_del(&data->list);
 		kfree(data);
 	}
-	if (timeline_inc)
+	if (timeline_inc > 1)
 		osd_log_dbg(MODULE_FENCE, "game mode, VIU1 timeline_inc %d\n",
 			    timeline_inc);
+
+	if (worker_list_empty(work->worker))
+		goto cycle;
 }
 
 static void osd_toggle_buffer(struct kthread_work *work)
@@ -1860,13 +1938,30 @@ static void osd_toggle_buffer_single_viu2(struct kthread_work *work)
 static void osd_toggle_buffer_layers_viu2(struct kthread_work *work)
 {
 	struct osd_layers_fence_map_s *data, *next;
-	struct list_head saved_list;
-	u32 game_mode = osd_game_mode[VIU2], timeline_inc = 0;
+	u32 game_mode = osd_game_mode[VIU2], timeline_inc;
+	LIST_HEAD(saved_list);
 
+cycle:
 	mutex_lock(&post_fence_list_lock[VIU2]);
-	saved_list = post_fence_list[VIU2];
-	list_replace_init(&post_fence_list[VIU2], &saved_list);
+	if (list_empty(&post_fence_list[VIU2])) {
+		mutex_unlock(&post_fence_list_lock[VIU2]);
+		return;
+	}
+	if (!game_mode) {
+		list_replace_init(&post_fence_list[VIU2], &saved_list);
+	} else {
+		list_for_each_entry_safe(data, next,
+					 &post_fence_list[VIU2], list) {
+			if (fence_combine_signaled(VIU2, data))
+				list_move_tail(&data->list, &saved_list);
+		}
+
+		if (list_empty(&saved_list))
+			list_move_tail(post_fence_list[VIU2].next, &saved_list);
+	}
+
 	mutex_unlock(&post_fence_list_lock[VIU2]);
+	timeline_inc = 0;
 	list_for_each_entry_safe(data, next, &saved_list, list) {
 		if (!game_mode) {
 			data->inc_cnt = 1;
@@ -1886,6 +1981,9 @@ static void osd_toggle_buffer_layers_viu2(struct kthread_work *work)
 	if (timeline_inc > 1)
 		osd_log_dbg(MODULE_FENCE, "game mode, VIU2 timeline_inc %d\n",
 			    timeline_inc);
+
+	if (worker_list_empty(work->worker))
+		goto cycle;
 }
 
 static void osd_toggle_buffer_viu2(struct kthread_work *work)
@@ -2263,8 +2361,8 @@ static int osd_wait_buf_ready(struct osd_fence_map_s *fence_map)
 	buf_ready_fence = fence_map->in_fence;
 	if (!buf_ready_fence)
 		return -1;/* no fence ,output directly. */
-	ret = osd_wait_fenceobj(buf_ready_fence, 4000);
-	if (ret < 0) {
+	ret = osd_wait_fenceobj(buf_ready_fence, msecs_to_jiffies(4000));
+	if (ret <= 0) {
 		osd_log_err("Sync Fence wait error:%d\n", ret);
 		osd_log_err("-----wait buf idx:[%d] ERROR\n"
 			    "-----on screen buf idx:[%d]\n",
@@ -2287,8 +2385,8 @@ static int osd_wait_buf_ready_combine(struct layer_fence_map_s *layer_map)
 	if (!buf_ready_fence)
 		return -1;/* no fence ,output directly. */
 
-	ret = osd_wait_fenceobj(buf_ready_fence, 4000);
-	if (ret < 0)
+	ret = osd_wait_fenceobj(buf_ready_fence, msecs_to_jiffies(4000));
+	if (ret <= 0)
 		osd_log_err("osd%d: Sync Fence wait error:%d\n",
 			    layer_map->fb_index, ret);
 	else
@@ -11508,6 +11606,7 @@ static void osd_setting_viux(u32 output_index)
 			osd_hw.free_scale[index].h_enable = 0;
 			osd_hw.free_scale[index].v_enable = 0;
 		}
+		osd_set_scan_mode(index);
 		osd_hw.free_src_data[index].x_start =
 			osd_hw.src_data[index].x;
 		osd_hw.free_src_data[index].x_end =
@@ -11568,7 +11667,6 @@ static void osd_setting_viux(u32 output_index)
 						      CANVAS_BLKMODE_LINEAR);
 	#endif
 			}
-			osd_set_scan_mode(index);
 			osd_hw.reg[OSD_COLOR_MODE].update_func(index);
 			if (!osd_hw.dim_layer[index]) {
 				rdma_wr(osd_reg->osd_dimm_ctrl, 0x00000000);

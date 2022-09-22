@@ -7,9 +7,12 @@
 #define __DVBS_FUNC_H__
 #include "dvb_frontend.h"
 
+#define ALIGN_24	16777216
+#define SR_LOW_THRD	11000000
+
 #define CNR_HIGH	0xcae
 #define CNR_LOW		0xcad
-#define AUTOSR_REG   0x922
+#define AUTOSR_REG 0x922
 #define AUTOSR_OFF 0xcc
 #define AUTOSR_ON  0xdc
 
@@ -24,8 +27,8 @@ enum diseq_irq_flag {
 };
 
 struct fe_lla_lookpoint_t {
-	s32 realval;	//real value
-	s32 regval;	//binary value
+	s32 realval; //real value
+	s32 regval; //binary value
 };
 
 struct fe_lla_lookup_t {
@@ -143,6 +146,7 @@ void dvbs2_diseqc_init(void);
 void dvbs2_diseqc_continuous_tone(unsigned int onoff);
 void dvbs_check_status(struct seq_file *seq);
 unsigned int dvbs_get_freq_offset(unsigned int *polarity);
+unsigned int dvbs_get_symbol_rate(void);
 void dvbs_fft_reg_init(unsigned int *reg_val);
 void dvbs_fft_reg_term(unsigned int reg_val[60]);
 void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,

@@ -88,6 +88,8 @@ static void meson_hdmitx_unbind(struct device *dev,
 static void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev);
 static void tee_comm_dev_reg(struct hdmitx_dev *hdev);
 static void tee_comm_dev_unreg(struct hdmitx_dev *hdev);
+static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
+static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data);
@@ -206,6 +208,18 @@ static struct hdmitx_uevent hdmi_events[] = {
 	},
 };
 
+/* indicate plugout before systemcontrol boot  */
+static bool plugout_mute_flg;
+static char hdmichecksum[11] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+
+static char invalidchecksum[11] = {
+	'i', 'n', 'v', 'a', 'l', 'i', 'd', 'c', 'r', 'c', '\0'
+};
+
+static char emptychecksum[11] = {0};
+
 int hdmitx21_set_uevent(enum hdmitx_event type, int val)
 {
 	char env[MAX_UEVENT_LEN];
@@ -281,6 +295,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	hdmitx21_edid_ram_buffer_clear(hdev);
 	edidinfo_detach_to_vinfo(hdev);
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_SUSPEND);
+	hdmitx21_set_uevent(HDMITX_AUDIO_EVENT, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_AVI_PACKET, 0);
 	hdev->hwop.cntlconfig(hdev, CONF_CLR_VSDB_PACKET, 0);
 }
@@ -322,7 +337,7 @@ static void hdmitx_late_resume(struct early_suspend *h)
 			  hdev->edid_ptr : NULL);
 
 	hdev->hwop.cntlconfig(hdev, CONF_AUDIO_MUTE_OP, AUDIO_MUTE);
-	set_disp_mode_auto();
+	/* set_disp_mode_auto(); */
 
 	hdmitx21_set_uevent(HDMITX_HPD_EVENT, hdev->hpd_state);
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
@@ -560,9 +575,24 @@ void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev)
 
 static void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev)
 {
+	cancel_delayed_work(&hdev->work_start_hdcp);
 	hdev->hdcp_mode = 0;
 	hdcp_mode_set(0);
 }
+
+static void hdmitx_start_hdcp_handler(struct work_struct *work)
+{
+	struct hdmitx_dev *hdev = container_of((struct delayed_work *)work,
+		struct hdmitx_dev, work_start_hdcp);
+
+	if (hdcp_need_control_by_upstream(hdev)) {
+		pr_info("hdmitx: currently hdcp should started by upstream, eixt\n");
+	} else {
+		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, CLR_AVMUTE);
+		hdmitx21_enable_hdcp(hdev);
+	}
+}
+
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -667,9 +697,8 @@ static int set_disp_mode_auto(void)
 	/* wait for TV detect signal stable,
 	 * otherwise hdcp may easily auth fail
 	 */
-	msleep(250);
-	hdmitx21_enable_hdcp(hdev);
 	hdev->ready = 1;
+	queue_delayed_work(hdev->hdmi_wq, &hdev->work_start_hdcp, HZ / 4);
 
 	return ret;
 }
@@ -1143,6 +1172,169 @@ static void hdmitx_sdr_hdr_uevent(struct hdmitx_dev *hdev)
 	}
 }
 
+static int hdmitx_check_vic(int vic)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	int i;
+
+	for (i = 0; i < hdev->rxcap.VIC_count && i < VIC_MAX_NUM; i++) {
+		if (vic == hdev->rxcap.VIC[i])
+			return 1;
+	}
+
+	return 0;
+}
+
+static int hdmitx_check_valid_aspect_ratio(enum hdmi_vic vic, int aspect_ratio)
+{
+	switch (vic) {
+	case HDMI_2_720x480p60_4x3:
+		if (hdmitx_check_vic(HDMI_3_720x480p60_16x9)) {
+			if (aspect_ratio == AR_16X9)
+				return 1;
+			pr_info("same aspect_ratio = %d\n", aspect_ratio);
+		} else {
+			pr_info("TV not support dual aspect_ratio\n");
+		}
+		break;
+	case HDMI_3_720x480p60_16x9:
+		if (hdmitx_check_vic(HDMI_2_720x480p60_4x3)) {
+			if (aspect_ratio == AR_4X3)
+				return 1;
+			pr_info("same aspect_ratio = %d\n", aspect_ratio);
+		} else {
+			pr_info("TV not support dual aspect_ratio\n");
+		}
+		break;
+	case HDMI_17_720x576p50_4x3:
+		if (hdmitx_check_vic(HDMI_18_720x576p50_16x9)) {
+			if (aspect_ratio == AR_16X9)
+				return 1;
+			pr_info("same aspect_ratio = %d\n", aspect_ratio);
+		} else {
+			pr_info("TV not support dual aspect_ratio\n");
+		}
+		break;
+	case HDMI_18_720x576p50_16x9:
+		if (hdmitx_check_vic(HDMI_17_720x576p50_4x3)) {
+			if (aspect_ratio == AR_4X3)
+				return 1;
+			pr_info("same aspect_ratio = %d\n", aspect_ratio);
+		} else {
+			pr_info("TV not support dual aspect_ratio\n");
+		}
+		break;
+	default:
+		break;
+	}
+	pr_info("not support vic = %d\n", vic);
+	return 0;
+}
+
+int hdmitx21_get_aspect_ratio(void)
+{
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	int x, y;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
+
+	if (vic == HDMI_2_720x480p60_4x3 || vic == HDMI_17_720x576p50_4x3)
+		return AR_4X3;
+	if (vic == HDMI_3_720x480p60_16x9 || vic == HDMI_18_720x576p50_16x9)
+		return AR_16X9;
+
+	struct vinfo_s *info = NULL;
+
+	info = hdmitx_get_current_vinfo(NULL);
+	x = info->aspect_ratio_num;
+	y = info->aspect_ratio_den;
+	if (x == 4 && y == 3)
+		return AR_4X3;
+	if (x == 16 && y == 9)
+		return AR_16X9;
+
+	return 0;
+}
+
+struct aspect_ratio_list *hdmitx21_get_support_ar_list(void)
+{
+	static struct aspect_ratio_list ar_list[4];
+	int i = 0;
+
+	memset(ar_list, 0, sizeof(ar_list));
+	if (hdmitx_check_vic(HDMI_2_720x480p60_4x3) &&
+			hdmitx_check_vic(HDMI_3_720x480p60_16x9)) {
+		ar_list[i].vic = HDMI_2_720x480p60_4x3;
+		ar_list[i].flag = TRUE;
+		ar_list[i].aspect_ratio_num = 4;
+		ar_list[i].aspect_ratio_den = 3;
+		i++;
+
+		ar_list[i].vic = HDMI_3_720x480p60_16x9;
+		ar_list[i].flag = TRUE;
+		ar_list[i].aspect_ratio_num = 16;
+		ar_list[i].aspect_ratio_den = 9;
+		i++;
+	}
+	if (hdmitx_check_vic(HDMI_17_720x576p50_4x3) &&
+			hdmitx_check_vic(HDMI_18_720x576p50_16x9)) {
+		ar_list[i].vic = HDMI_17_720x576p50_4x3;
+		ar_list[i].flag = TRUE;
+		ar_list[i].aspect_ratio_num = 4;
+		ar_list[i].aspect_ratio_den = 3;
+		i++;
+
+		ar_list[i].vic = HDMI_18_720x576p50_16x9;
+		ar_list[i].flag = TRUE;
+		ar_list[i].aspect_ratio_num = 16;
+		ar_list[i].aspect_ratio_den = 9;
+		i++;
+	}
+	return &ar_list[0];
+}
+
+void hdmitx21_set_aspect_ratio(int aspect_ratio)
+{
+	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	int ret;
+	int aspect_ratio_vic = 0;
+
+	if (aspect_ratio != AR_4X3 && aspect_ratio != AR_16X9) {
+		pr_info("aspect ratio should be 1 or 2");
+		return;
+	}
+
+	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
+	ret = hdmitx_check_valid_aspect_ratio(vic, aspect_ratio);
+	pr_info("%s vic = %d, ret = %d\n", __func__, vic, ret);
+
+	if (!ret)
+		return;
+
+	switch (vic) {
+	case HDMI_2_720x480p60_4x3:
+		aspect_ratio_vic = (HDMI_3_720x480p60_16x9 << 2) + aspect_ratio;
+		break;
+	case HDMI_3_720x480p60_16x9:
+		aspect_ratio_vic = (HDMI_2_720x480p60_4x3 << 2) + aspect_ratio;
+		break;
+	case HDMI_17_720x576p50_4x3:
+		aspect_ratio_vic = (HDMI_18_720x576p50_16x9 << 2) + aspect_ratio;
+		break;
+	case HDMI_18_720x576p50_16x9:
+		aspect_ratio_vic = (HDMI_17_720x576p50_4x3 << 2) + aspect_ratio;
+		break;
+	default:
+		break;
+	}
+
+	hdev->hwop.cntlconfig(hdev, CONF_ASPECT_RATIO, aspect_ratio_vic);
+	hdev->aspect_ratio = aspect_ratio;
+	pr_info("set new aspect ratio = %d\n", aspect_ratio);
+}
+
 static void hdr_work_func(struct work_struct *work)
 {
 	struct hdmitx_dev *hdev =
@@ -1453,12 +1645,15 @@ static void hdmitx_set_vsif_pkt(enum eotf_type type,
 	vsif_debug_info.tunnel_mode = tunnel_mode;
 	vsif_debug_info.signal_sdr = signal_sdr;
 
-	if (hdev->ready == 0 || hdev->rxcap.dv_info.ieeeoui
-		!= DV_IEEE_OUI) {
+	if (hdev->ready == 0) {
 		ltype = EOTF_T_NULL;
 		ltmode = -1;
 		spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
 		return;
+	}
+	if (hdev->rxcap.dv_info.ieeeoui != DV_IEEE_OUI) {
+		if (type == 0 && !data && signal_sdr)
+			pr_info("TV not support DV, clr dv_vsif\n");
 	}
 
 	if (hdr_status_pos != 2)
@@ -2405,7 +2600,7 @@ static ssize_t aud_cap_show(struct device *dev,
 	static const char * const aud_ct[] =  {
 		"ReferToStreamHeader", "PCM", "AC-3", "MPEG1", "MP3",
 		"MPEG2", "AAC", "DTS", "ATRAC",	"OneBitAudio",
-		"Dobly_Digital+", "DTS-HD", "MAT", "DST", "WMA_Pro",
+		"Dolby_Digital+", "DTS-HD", "MAT", "DST", "WMA_Pro",
 		"Reserved", NULL};
 	static const char * const aud_sampling_frequency[] = {
 		"ReferToStreamHeader", "32", "44.1", "48", "88.2", "96",
@@ -2462,7 +2657,7 @@ static ssize_t aud_cap_show(struct device *dev,
 		case CT_DTS_HD:
 		case CT_MAT:
 		case CT_DST:
-			pos += snprintf(buf + pos, PAGE_SIZE, "DepVaule 0x%x\n",
+			pos += snprintf(buf + pos, PAGE_SIZE, "DepValue 0x%x\n",
 				prxcap->RxAudioCap[i].cc3);
 			break;
 		case CT_WMA:
@@ -2967,7 +3162,7 @@ static ssize_t _show_dv_cap(struct device *dev,
 	int pos = 0;
 	int i;
 
-	if (dv->ieeeoui != DV_IEEE_OUI) {
+	if (dv->ieeeoui != DV_IEEE_OUI || dv->block_flag != CORRECT) {
 		pos += snprintf(buf + pos, PAGE_SIZE,
 			"The Rx don't support DolbyVision\n");
 		return pos;
@@ -3175,7 +3370,12 @@ static ssize_t phy_store(struct device *dev,
 static ssize_t phy_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return 0;
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		hdmitx21_read_phy_status());
+
+		return pos;
 }
 
 static ssize_t rxsense_policy_store(struct device *dev,
@@ -3450,7 +3650,6 @@ static ssize_t div40_store(struct device *dev,
 	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, buf[0] == '1');
-	hdev->div40 = (buf[0] == '1');
 
 	return count;
 }
@@ -3553,6 +3752,68 @@ static ssize_t def_stream_type_store(struct device *dev,
 		pr_info("set def_stream_type as %d\n", val);
 		if (val == 0 || val == 1)
 			hdev->def_stream_type = val;
+		else
+			pr_info("only accept as 0 or 1\n");
+	}
+
+	return count;
+}
+
+static ssize_t propagate_stream_type_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+
+	if (p_hdcp->ds_repeater && p_hdcp->hdcp_type == HDCP_VER_HDCP2X) {
+		pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+			p_hdcp->csm_message.streamid_type & 0xFF);
+	} else {
+		pr_info("no stream type, as ds_repeater: %d, hdcp_type: %d\n",
+			p_hdcp->ds_repeater, p_hdcp->hdcp_type);
+	}
+	return pos;
+}
+
+static ssize_t cont_smng_method_show(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		p_hdcp->cont_smng_method);
+
+	return pos;
+}
+
+/* content stream management update method:
+ * when upstream side received new content stream
+ * management message, there're two method to
+ * update content stream type that propagated
+ * to downstream hdcp2.3 repeater:
+ * 0(default): init new re-auth with downstream
+ * 1: only send content stream management message
+ * with new stream type to downstream
+ */
+static ssize_t cont_smng_method_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf,
+				      size_t count)
+{
+	u8 val = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	struct hdcp_t *p_hdcp = (struct hdcp_t *)hdev->am_hdcp;
+
+	if (isdigit(buf[0])) {
+		val = buf[0] - '0';
+		pr_info("set cont_smng_method as %d\n", val);
+		if (val == 0 || val == 1)
+			p_hdcp->cont_smng_method = val;
 		else
 			pr_info("only accept as 0 or 1\n");
 	}
@@ -3692,6 +3953,29 @@ static ssize_t support_3d_show(struct device *dev,
 	return pos;
 }
 
+static ssize_t sysctrl_enable_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	int pos = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\r\n",
+		hdev->systemcontrol_on);
+	return pos;
+}
+
+static ssize_t sysctrl_enable_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (strncmp(buf, "0", 1) == 0)
+		hdev->systemcontrol_on = false;
+	if (strncmp(buf, "1", 1) == 0)
+		hdev->systemcontrol_on = true;
+	return count;
+}
+
 static ssize_t hdcp_ctl_lvl_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -3770,6 +4054,9 @@ static DEVICE_ATTR_RO(support_3d);
 static DEVICE_ATTR_RO(hdmitx21);
 static DEVICE_ATTR_RW(def_stream_type);
 static DEVICE_ATTR_RW(hdcp_ctl_lvl);
+static DEVICE_ATTR_RW(sysctrl_enable);
+static DEVICE_ATTR_RO(propagate_stream_type);
+static DEVICE_ATTR_RW(cont_smng_method);
 
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
 static struct vinfo_s *hdmitx_get_current_vinfo(void *data)
@@ -4026,6 +4313,32 @@ static struct vout_server_s hdmitx_vout2_server = {
 };
 #endif
 
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+static struct vout_server_s hdmitx_vout3_server = {
+	.name = "hdmitx_vout3_server",
+	.op = {
+		.get_vinfo = hdmitx_get_current_vinfo,
+		.set_vmode = hdmitx_set_current_vmode,
+		.validate_vmode = hdmitx_validate_vmode,
+		.check_same_vmodeattr = hdmitx_check_same_vmodeattr,
+		.vmode_is_supported = hdmitx_vmode_is_supported,
+		.disable = hdmitx_module_disable,
+		.set_state = hdmitx_vout_set_state,
+		.clr_state = hdmitx_vout_clr_state,
+		.get_state = hdmitx_vout_get_state,
+		.get_disp_cap = hdmitx_vout_get_disp_cap,
+		.set_vframe_rate_hint = NULL,
+		.get_vframe_rate_hint = NULL,
+		.set_bist = hdmitx_set_bist,
+#ifdef CONFIG_PM
+		.vout_suspend = NULL,
+		.vout_resume = NULL,
+#endif
+	},
+	.data = NULL,
+};
+#endif
+
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 
 #include <linux/soundcard.h>
@@ -4128,11 +4441,11 @@ static int hdmitx_notify_callback_a(struct notifier_block *block,
 	hdev->audio_param_update_flag = 0;
 	hdev->audio_notify_flag = 0;
 
-	/* if (audio_param->sample_rate != n_rate) { */
+	if (audio_param->sample_rate != n_rate) {
 		audio_param->sample_rate = n_rate;
 		hdev->audio_param_update_flag = 1;
 		pr_info("aout notify sample rate: %d\n", n_rate);
-	/* } */
+	}
 
 	if (audio_param->type != cmd) {
 		audio_param->type = cmd;
@@ -4292,6 +4605,21 @@ static void hdmitx_cedst_process(struct work_struct *work)
 	queue_delayed_work(hdev->cedst_wq, &hdev->work_cedst, HZ);
 }
 
+static bool is_tv_changed(void)
+{
+	bool ret = false;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+
+	if (memcmp(hdmichecksum, hdev->rxcap.chksum, 10) &&
+		memcmp(emptychecksum, hdev->rxcap.chksum, 10) &&
+		memcmp(invalidchecksum, hdmichecksum, 10)) {
+		ret = true;
+		pr_info("hdmi crc is diff between uboot and kernel\n");
+	}
+
+	return ret;
+}
+
 static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 {
 	struct vinfo_s *info = NULL;
@@ -4336,6 +4664,29 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 	info = hdmitx_get_current_vinfo(NULL);
 	if (info && info->mode == VMODE_HDMI)
 		hdmitx21_set_audio(hdev, &hdev->cur_audio_param);
+	if (plugout_mute_flg) {
+		/* 1.TV not changed: just clear avmute and continue output
+		 * 2.if TV changed:
+		 * keep avmute (will be cleared by systemcontrol);
+		 * clear pkt, packets need to be cleared, otherwise,
+		 * if plugout from DV/HDR TV, and plugin to non-DV/HDR
+		 * TV, packets may not be cleared. pkt sending will
+		 * be callbacked later after vinfo attached.
+		 */
+		if (is_cur_tmds_div40(hdev))
+			hdmitx_resend_div40(hdev);
+		if (!is_tv_changed()) {
+			hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP,
+					    CLR_AVMUTE);
+		} else {
+			/* keep avmute & clear pkt */
+			hdmitx_set_vsif_pkt(0, 0, NULL, true);
+			hdmitx_set_hdr10plus_pkt(0, NULL);
+			hdmitx_set_drm_pkt(NULL);
+		}
+		edidinfo_attach_to_vinfo(hdev);
+		plugout_mute_flg = false;
+	}
 	hdev->hpd_state = 1;
 	if (hdev->tv_usage == 0)
 		hdmitx_notify_hpd(hdev->hpd_state,
@@ -4407,6 +4758,33 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		mutex_unlock(&setclk_mutex);
 		return;
 	}
+	/* when plugout before systemcontrol boot, setavmute
+	 * but keep output not changed, and wait for plugin
+	 * NOTE: TV maybe changed(such as DV <-> non-DV)
+	 */
+	if (!hdev->systemcontrol_on &&
+		hdmitx21_uboot_already_display()) {
+		plugout_mute_flg = true;
+		/* edidinfo_detach_to_vinfo(hdev); */
+		clear_rx_vinfo(hdev);
+		hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGOUT;
+		hdmitx21_edid_clear(hdev);
+		hdmi_physical_size_update(hdev);
+		hdmitx21_edid_ram_buffer_clear(hdev);
+		hdev->hpd_state = 0;
+		if (hdev->tv_usage == 0) {
+			rx_edid_physical_addr(0, 0, 0, 0);
+			hdmitx_notify_hpd(hdev->hpd_state, NULL);
+		}
+		hdev->hwop.cntlmisc(hdev, MISC_AVMUTE_OP, SET_AVMUTE);
+		hdmitx21_set_uevent(HDMITX_HPD_EVENT, 0);
+		hdmitx21_set_uevent(HDMITX_AUDIO_EVENT, 0);
+		mutex_unlock(&setclk_mutex);
+		/*notify to drm hdmi*/
+		if (hdmitx21_device.drm_hpd_cb.callback)
+			hdmitx21_device.drm_hpd_cb.callback(hdmitx21_device.drm_hpd_cb.data);
+		return;
+	}
 	/*after plugout, DV mode can't be supported*/
 	hdmitx_set_vsif_pkt(0, 0, NULL, true);
 	hdmitx_set_hdr10plus_pkt(0, NULL);
@@ -4455,13 +4833,32 @@ int get21_hpd_state(void)
 
 static bool is_cur_tmds_div40(struct hdmitx_dev *hdev)
 {
-	return 0;
+	const struct hdmi_timing *tp;
+	const char *name;
+	unsigned int act_clk = 0;
+
+	if (!hdev)
+		return false;
+	tp = hdmitx21_gettiming_from_vic(hdev->cur_VIC);
+	if (tp) {
+		name = tp->sname ? tp->sname : tp->name;
+		hdev->para = hdmitx21_get_fmtpara(name,
+			hdev->fmt_attr);
+	}
+	if (!hdev->para)
+		return false;
+	act_clk = hdev->para->tmds_clk / 1000;
+	pr_info("hdmitx: get vic %d cscd %s act_clk %d\n",
+		hdev->cur_VIC, hdev->fmt_attr, act_clk);
+
+	if (act_clk > 340)
+		return true;
+	return false;
 }
 
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev)
 {
 	hdev->hwop.cntlddc(hdev, DDC_SCDC_DIV40_SCRAMB, 1);
-	hdev->div40 = 1;
 }
 
 /*****************************
@@ -4684,6 +5081,7 @@ static int amhdmitx21_device_init(struct hdmitx_dev *hdmi_dev)
 	hdev->vic_count = 0;
 	hdev->force_audio_flag = 0;
 	hdev->ready = 0;
+	hdev->systemcontrol_on = 0;
 	hdev->rxsense_policy = 0; /* no RxSense by default */
 	/* enable or disable HDMITX SSPLL, enable by default */
 	hdev->sspll = 1;
@@ -5053,6 +5451,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	ret = device_create_file(dev, &dev_attr_hdmitx21);
 	ret = device_create_file(dev, &dev_attr_def_stream_type);
 	ret = device_create_file(dev, &dev_attr_hdcp_ctl_lvl);
+	ret = device_create_file(dev, &dev_attr_sysctrl_enable);
+	ret = device_create_file(dev, &dev_attr_propagate_stream_type);
+	ret = device_create_file(dev, &dev_attr_cont_smng_method);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	register_early_suspend(&hdmitx_early_suspend_handler);
@@ -5067,6 +5468,9 @@ static int amhdmitx_probe(struct platform_device *pdev)
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_register_server(&hdmitx_vout2_server);
 #endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	vout3_register_server(&hdmitx_vout3_server);
+#endif
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
 	if (hdmitx21_uboot_audio_en()) {
 		struct hdmitx_audpara *audpara = &hdev->cur_audio_param;
@@ -5078,28 +5482,25 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	}
 	aout_register_client(&hdmitx_notifier_nb_a);
 #endif
-pr_info("%s[%d]\n", __func__, __LINE__);
+
 	/* update fmt_attr */
 	hdmitx_init_fmt_attr(hdev);
-pr_info("%s[%d]\n", __func__, __LINE__);
 
 	hdev->hpd_state = !!hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0);
 	hdmitx21_set_uevent(HDMITX_HDCPPWR_EVENT, HDMI_WAKEUP);
 	INIT_WORK(&hdev->work_hdr, hdr_work_func);
-pr_info("%s[%d]\n", __func__, __LINE__);
 
 /* When init hdmi, clear the hdmitx module edid ram and edid buffer. */
 	hdmitx21_edid_clear(hdev);
 	hdmitx21_edid_ram_buffer_clear(hdev);
-pr_info("%s[%d]\n", __func__, __LINE__);
 	hdev->hdmi_wq = alloc_workqueue(DEVICE_NAME,
 					WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
 	INIT_DELAYED_WORK(&hdev->work_hpd_plugin, hdmitx_hpd_plugin_handler);
 	INIT_DELAYED_WORK(&hdev->work_hpd_plugout, hdmitx_hpd_plugout_handler);
+	INIT_DELAYED_WORK(&hdev->work_start_hdcp, hdmitx_start_hdcp_handler);
 	INIT_DELAYED_WORK(&hdev->work_aud_hpd_plug,
 			  hdmitx_aud_hpd_plug_handler);
 	INIT_DELAYED_WORK(&hdev->work_internal_intr, hdmitx_top_intr_handler);
-pr_info("%s[%d]\n", __func__, __LINE__);
 
 	/* for rx sense feature */
 	hdev->rxsense_wq = alloc_workqueue("hdmitx_rxsense",
@@ -5109,33 +5510,33 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 	hdev->cedst_wq = alloc_workqueue("hdmitx_cedst",
 					 WQ_SYSFS | WQ_FREEZABLE, 0);
 	INIT_DELAYED_WORK(&hdev->work_cedst, hdmitx_cedst_process);
-pr_info("%s[%d]\n", __func__, __LINE__);
 
 	hdev->tx_aud_cfg = 1; /* default audio configure is on */
-	/* When bootup mbox and TV simutanously, TV may not handle SCDC/DIV40 */
-	if (hdev->hpd_state && is_cur_tmds_div40(hdev))
-		hdmitx_resend_div40(hdev);
-
 	hdmitx21_hdcp_init();
-
 	hdmitx_setupirqs(hdev);
-pr_info("%s[%d]\n", __func__, __LINE__);
 
 	if (hdev->hpd_state) {
 		/* need to get edid before vout probe */
 		hdev->already_used = 1;
 		hdmitx_get_edid(hdev);
 	}
-	if (hdev->tv_usage == 0)
-		hdmitx_notify_hpd(hdev->hpd_state,
-			  hdev->edid_parsing ?
-			  hdev->edid_ptr : NULL);
-pr_info("%s[%d]\n", __func__, __LINE__);
 	/* Trigger HDMITX IRQ*/
-	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0))
-		hdev->hwop.cntlmisc(hdev, MISC_TRIGGER_HPD, 0);
-pr_info("%s[%d]\n", __func__, __LINE__);
-
+	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0)) {
+		/* When bootup mbox and TV simutanously,
+		 * TV may not handle SCDC/DIV40
+		 */
+		if (is_cur_tmds_div40(hdev))
+			hdmitx_resend_div40(hdev);
+		hdev->hwop.cntlmisc(hdev,
+			MISC_TRIGGER_HPD, 1);
+		hdev->already_used = 1;
+	} else {
+		/* may plugout during uboot finish--kernel start,
+		 * treat it as normal hotplug out, for > 3.4G case
+		 */
+		hdev->hwop.cntlmisc(hdev,
+			MISC_TRIGGER_HPD, 0);
+	}
 	hdev->hdmi_init = 1;
 	/*bind to drm.*/
 	component_add(&pdev->dev, &meson_hdmitx_bind_ops);
@@ -5166,6 +5567,9 @@ static int amhdmitx_remove(struct platform_device *pdev)
 #endif
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
 	vout2_unregister_server(&hdmitx_vout2_server);
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	vout3_unregister_server(&hdmitx_vout3_server);
 #endif
 
 #if IS_ENABLED(CONFIG_AMLOGIC_SND_SOC)
@@ -5217,6 +5621,9 @@ static int amhdmitx_remove(struct platform_device *pdev)
 	device_remove_file(dev, &dev_attr_hdcp_ver);
 	device_remove_file(dev, &dev_attr_def_stream_type);
 	device_remove_file(dev, &dev_attr_hdcp_ctl_lvl);
+	device_remove_file(dev, &dev_attr_sysctrl_enable);
+	device_remove_file(dev, &dev_attr_propagate_stream_type);
+	device_remove_file(dev, &dev_attr_cont_smng_method);
 
 	cdev_del(&hdev->cdev);
 
@@ -5439,6 +5846,16 @@ static int hdmitx21_boot_hdr_priority(char *str)
 }
 
 __setup("hdr_priority=", hdmitx21_boot_hdr_priority);
+
+static int __init get_hdmi21_checksum(char *str)
+{
+	snprintf(hdmichecksum, sizeof(hdmichecksum), "%s", str);
+
+	pr_info("get hdmi checksum: %s\n", hdmichecksum);
+	return 0;
+}
+
+__setup("hdmichecksum=", get_hdmi21_checksum);
 
 MODULE_PARM_DESC(log21_level, "\n log21_level\n");
 module_param(log21_level, int, 0644);
@@ -5664,11 +6081,11 @@ static void drm_hdmitx_hdcp_enable(int hdcp_type)
 		pr_err("%s enabled HDCP_NULL\n", __func__);
 		break;
 	case HDCP_MODE14:
-		hdev->hdcp_mode = 0x11;
+		hdev->hdcp_mode = 0x1;
 		hdcp_mode_set(1);
 		break;
 	case HDCP_MODE22:
-		hdev->hdcp_mode = 0x12;
+		hdev->hdcp_mode = 0x2;
 		hdcp_mode_set(2);
 		break;
 	default:
@@ -5705,9 +6122,19 @@ static unsigned int drm_hdmitx_get_tx_hdcp_cap(void)
 
 static unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 {
-	int rxhdcp = 0;
+	unsigned int rxhdcp = 0;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	if (is_rx_hdcp2ver()) {
+	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
+	/* note that during hdcp1.4 authentication, read hdcp version
+	 * of connected TV set(capable of hdcp2.2) may cause TV
+	 * switch its hdcp mode, and flash screen. should not
+	 * read hdcp version of sink during hdcp1.4 authentication.
+	 * if hdcp1.4 authentication currently, force return hdcp1.4
+	 */
+	if (hdev->hdcp_mode == 0x1) {
+		rxhdcp = HDCP_MODE14;
+	} else if (get_hdcp2_lstore() && is_rx_hdcp2ver()) {
 		rx_hdcp2_ver = 1;
 		rxhdcp = HDCP_MODE22 | HDCP_MODE14;
 	} else {
@@ -5716,7 +6143,7 @@ static unsigned int drm_hdmitx_get_rx_hdcp_cap(void)
 	}
 
 	pr_info("%s rx hdcp [%d]\n", __func__, rxhdcp);
-	return 0;
+	return rxhdcp;
 }
 
 static void drm_hdmitx_register_hdcp_notify(struct connector_hdcp_cb *cb)
@@ -5818,7 +6245,10 @@ static long hdcp_comm_ioctl(struct file *file,
 			hdev->ready &&
 			hdev->hdcp_mode == 0) {
 			pr_info("hdmi ready but hdcp not enabled, enable now\n");
-			hdmitx21_enable_hdcp(hdev);
+			if (hdcp_need_control_by_upstream(hdev))
+				pr_info("hdmitx: currently hdcp should started by upstream\n");
+			else
+				hdmitx21_enable_hdcp(hdev);
 		}
 		break;
 	default:

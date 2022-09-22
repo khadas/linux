@@ -194,6 +194,7 @@ static const struct drm_encoder_funcs meson_panel_encoder_funcs = {
 int meson_panel_dev_bind(struct drm_device *drm,
 	int type, struct meson_connector_dev *intf)
 {
+	struct meson_drm *priv = drm->dev_private;
 	struct drm_connector *connector = NULL;
 	struct drm_encoder *encoder = NULL;
 	struct meson_panel *panel_instance = NULL;
@@ -279,6 +280,7 @@ int meson_panel_dev_bind(struct drm_device *drm,
 	}
 
 	/* Encoder */
+	encoder->possible_crtcs = priv->crtc_masks[ENCODER_LCD];
 	drm_encoder_helper_add(encoder, &meson_panel_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, encoder, &meson_panel_encoder_funcs,
 			       encoder_type, "am_lcd_encoder");
@@ -287,8 +289,6 @@ int meson_panel_dev_bind(struct drm_device *drm,
 			__func__, __LINE__);
 		goto free_resource;
 	}
-	/* force possible_crtcs */
-	encoder->possible_crtcs = BIT(0) | BIT(1) | BIT(2);
 
 	/* Connector */
 	drm_connector_helper_add(connector, &meson_panel_helper_funcs);

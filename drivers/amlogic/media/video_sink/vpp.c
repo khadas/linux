@@ -34,6 +34,12 @@
 #include <linux/amlogic/media/registers/register.h>
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/video_sink/video_signal_notify.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
+#if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#endif
 
 #include "video_priv.h"
 
@@ -1246,6 +1252,74 @@ static void vert_coef_print(u32 layer_id, struct vppfilter_mode_s *filter)
 	}
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+static void align_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
+	bool has_el, bool reverse)
+{
+	u32 aligned_mask = 0xfffffffe;
+	u32 temp;
+	bool force_check = false;
+	int dv_support;
+
+	if (!par)
+		return;
+
+	dv_support = get_dv_support_info() & 7;
+	if (is_amdv_enable() && is_aml_tvmode() &&
+	    !is_amdv_on() && dv_support == 7) {
+		int ret_src = get_amdv_src_format(VD1_PATH);
+		int dv_hdr_policy = get_amdv_hdr_policy();
+
+		/* HDR = 1/DV = 3/HLG= 5/SDR=6 */
+		if ((ret_src == 1 && (dv_hdr_policy & 1)) ||
+		    (ret_src == 5 && (dv_hdr_policy & 2)) ||
+		    (ret_src == 6 && (dv_hdr_policy & 0x20)) ||
+		    ret_src == 3)
+			force_check = true;
+	}
+	/* TODO: need remove sr0 check */
+	if ((is_amdv_on() || force_check) &&
+	    par->VPP_line_in_length_ > 0) {
+		/* work around to skip the size check when sc enable */
+		if (has_el) {
+			/*
+			 *if (cur_dispbuf2->type
+			 *	& VIDTYPE_COMPRESS)
+			 *	aligned_mask = 0xffffffc0;
+			 *else
+			 */
+			aligned_mask = 0xfffffffc;
+		}
+		par->VPP_line_in_length_ &=
+			aligned_mask;
+		par->VPP_hd_start_lines_ &=
+			aligned_mask;
+		par->VPP_hd_end_lines_ =
+			par->VPP_hd_start_lines_ +
+			(par->VPP_line_in_length_ <<
+			par->hscale_skip_count) - 1;
+		/* if have el layer, need 2 pixel align by height */
+		if (has_el) {
+			temp =
+				par->VPP_vd_end_lines_ -
+				par->VPP_vd_start_lines_ + 1;
+			if (temp & 1)
+				par->VPP_vd_end_lines_--;
+			if (par->VPP_vd_start_lines_ & 1) {
+				par->VPP_vd_start_lines_--;
+				par->VPP_vd_end_lines_--;
+			}
+			temp =
+				par->VPP_vd_end_lines_ -
+				par->VPP_vd_start_lines_ + 1;
+			temp = temp >> par->vscale_skip_count;
+			if (par->VPP_pic_in_height_ < temp)
+				par->VPP_pic_in_height_ = temp;
+		}
+	}
+}
+#endif
+
 static int vpp_set_filters_internal
 	(struct disp_info_s *input,
 	u32 width_in,
@@ -1543,6 +1617,18 @@ RESTART:
 		} else {
 			wide_mode = VIDEO_WIDEOPTION_NORMAL;
 		}
+	} else if (wide_mode == VIDEO_WIDEOPTION_21_9) {
+		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE)
+			aspect_factor = 0x255;
+		else
+			aspect_factor = 0x6E;
+		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
+		    video_layer_width > 1 && video_layer_height > 1 &&
+		    (9 * video_layer_width == video_layer_height * 21))
+			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		else
+			wide_mode = VIDEO_WIDEOPTION_NORMAL;
+		ext_sar = false;
 	}
 	/* if use the mode ar, will disable ext ar */
 
@@ -1600,24 +1686,7 @@ RESTART:
 	video_left = video_layer_left;
 	video_width = video_layer_width;
 	video_height = video_layer_height;
-	if (video_top == 0 &&
-	    video_left == 0 &&
-	    video_width <= 1 &&
-	    video_height <= 1) {
-		/* special case to do full screen display */
-		video_width = width_out;
-		video_height = height_out;
-	} else {
-		if (video_layer_width < 16 &&
-		    video_layer_height < 16) {
-			/*
-			 *sanity check to move
-			 *video out when the target size is too small
-			 */
-			video_width = width_out;
-			video_height = height_out;
-			video_left = width_out * 2;
-		}
+	if (!(vpp_flags & VPP_FLAG_FORCE_NO_OFFSET)) {
 		video_top += video_layer_global_offset_y;
 		video_left += video_layer_global_offset_x;
 	}
@@ -2097,6 +2166,11 @@ RESTART:
 			}
 		}
 	}
+
+	/* only check vd1 */
+	if (!input->layer_id)
+		align_vd1_mif_size_for_DV(next_frame_par,
+			(vpp_flags & VPP_FLAG_HAS_DV_EL) ? true : false, reverse);
 
 	next_frame_par->video_input_h = next_frame_par->VPP_vd_end_lines_ -
 		next_frame_par->VPP_vd_start_lines_ + 1;
@@ -4115,14 +4189,7 @@ RESTART:
 	video_left = video_layer_left;
 	video_width = video_layer_width;
 	video_height = video_layer_height;
-	if (video_top == 0 &&
-	    video_left == 0 &&
-	    video_width <= 1 &&
-	    video_height <= 1) {
-		/* special case to do full screen display */
-		video_width = video_layer_width;
-		video_height = video_layer_height;
-	} else {
+	if (!(vpp_flags & VPP_FLAG_FORCE_NO_OFFSET)) {
 		video_top += video_layer_global_offset_y;
 		video_left += video_layer_global_offset_x;
 	}
@@ -4498,6 +4565,7 @@ int vpp_set_filters(struct disp_info_s *input,
 	bool bypass_sr0 = bypass_sr;
 	bool bypass_sr1 = bypass_sr;
 	bool retry = false;
+	bool adjust = false;
 
 	if (!input)
 		return ret;
@@ -4506,6 +4574,7 @@ int vpp_set_filters(struct disp_info_s *input,
 
 RERTY:
 	vpp_flags = 0;
+	adjust = false;
 	/* use local var to avoid the input data be overwritten */
 	memcpy(&local_input, input, sizeof(struct disp_info_s));
 
@@ -4669,6 +4738,40 @@ RERTY:
 		vpp_flags |= VPP_FLAG_FORCE_AFD_ENABLE;
 	}
 
+	if (local_input.layer_left == 0 &&
+	    local_input.layer_top == 0 &&
+	    local_input.layer_width <= 1 &&
+	    local_input.layer_height <= 1) {
+		/* special case to do full screen display */
+		local_input.layer_width = vinfo->width;
+		local_input.layer_height = vinfo->height;
+		vpp_flags |= VPP_FLAG_FORCE_NO_OFFSET;
+		adjust = true;
+	} else if (local_input.pps_support) {
+		/* TODO: remove it */
+		if (local_input.layer_width < 16 &&
+		    local_input.layer_height < 16) {
+			/* sanity check to move */
+			/* video out when the target size is too small */
+			local_input.layer_width = vinfo->width;
+			local_input.layer_height = vinfo->height;
+			local_input.layer_left = vinfo->width * 2;
+			adjust = true;
+		}
+	}
+
+	if (super_debug && adjust)
+		pr_info("layer%d: adjust pos from (%d %d %d %d) -> (%d %d %d %d)\n",
+			input->layer_id,
+			input->layer_left,
+			input->layer_top,
+			input->layer_left + input->layer_width - 1,
+			input->layer_top + input->layer_height - 1,
+			local_input.layer_left,
+			local_input.layer_top,
+			local_input.layer_left + local_input.layer_width - 1,
+			local_input.layer_top + local_input.layer_height - 1);
+
 	/* TODO: mirror case */
 	if (local_input.reverse) {
 		s32 x_end, y_end;
@@ -4708,6 +4811,9 @@ RERTY:
 		vpp_flags |= VPP_FLAG_FORCE_SWITCH_VF;
 	else if (op_flag & OP_FORCE_NOT_SWITCH_VF)
 		vpp_flags |= VPP_FLAG_FORCE_NOT_SWITCH_VF;
+
+	if (op_flag & OP_HAS_DV_EL)
+		vpp_flags |= VPP_FLAG_HAS_DV_EL;
 
 	if (local_input.need_no_compress)
 		vpp_flags |= VPP_FLAG_FORCE_NO_COMPRESS;

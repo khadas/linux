@@ -458,7 +458,8 @@ void codec_mm_memset(ulong phys, u32 val, u32 size)
 	/*any data lurking in the kernel direct-mapped region is invalidated.*/
 	if (!PageHighMem(page)) {
 		ptr = page_address(page);
-		codec_mm_dma_flush(ptr, size, DMA_FROM_DEVICE);
+		memset(ptr, val, size);
+		codec_mm_dma_flush(ptr, size, DMA_TO_DEVICE);
 		return;
 	}
 
@@ -1447,6 +1448,9 @@ static int codec_mm_tvp_pool_alloc_by_slot(struct extpool_mgt_s *tvp_pool,
 
 	mutex_lock(&tvp_pool->pool_lock);
 	max_reserved_free_size = mgt->total_reserved_size - mgt->alloced_res_size;
+	if (mgt->cma_res_pool.total_size - mgt->cma_res_pool.alloced_size > 16 * SZ_1M)
+		max_reserved_free_size += mgt->cma_res_pool.total_size -
+			mgt->cma_res_pool.alloced_size;
 	max_cma_free_size = mgt->total_cma_size - mgt->alloced_cma_size;
 	use_cma_pool_first = max_cma_free_size > max_reserved_free_size ? 1 : 0;
 
@@ -1616,6 +1620,10 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 	try_alloced_size = mgt->total_cma_size - mgt->alloced_cma_size;
 	if (try_alloced_size > 0) {
 		int retry = 0;
+		int memflags = CODEC_MM_FLAGS_FOR_LOCAL_MGR | CODEC_MM_FLAGS_CMA;
+
+		if (for_tvp)
+			memflags |= CODEC_MM_FLAGS_RESERVED;
 
 		try_alloced_size = min_t(int,
 			size - alloced_size, try_alloced_size);
@@ -1625,8 +1633,7 @@ int codec_mm_extpool_pool_alloc(struct extpool_mgt_s *tvp_pool,
 			mem = codec_mm_alloc(for_tvp ? TVP_POOL_NAME :
 						CMA_RES_POOL_NAME,
 					try_alloced_size, RESERVE_MM_ALIGNED_2N,
-					CODEC_MM_FLAGS_FOR_LOCAL_MGR |
-					CODEC_MM_FLAGS_CMA);
+					memflags);
 			if (mem) {
 				struct page *mm = mem->mem_handle;
 
@@ -2028,12 +2035,12 @@ static int dump_mem_infos(void *buf, int size)
 	}
 	list_for_each_entry(mem, &mgt->mem_list, list) {
 		s = snprintf(pbuf, size - tsize,
-			     "\t[%d].%d:%s.%d,addr=%p,size=%d,from=%d,cnt=%d,",
+			     "\t[%d].%d:%s.%d,addr=%ld,size=%d,from=%d,cnt=%d,",
 			mem->mem_id,
 			mem->ins_id,
 			mem->owner[0] ? mem->owner[0] : "no",
 			mem->ins_buffer_id,
-			(void *)mem->phy_addr,
+			mem->phy_addr,
 			mem->buffer_size,
 			mem->from_flags,
 			atomic_read(&mem->use_cnt)

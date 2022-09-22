@@ -628,6 +628,8 @@ static struct platform_driver crg_host_driver = {
 
 void crg_exit(void)
 {
+	if (!crg_driver.driver.p)
+		return;
 	platform_driver_unregister(&crg_driver);
 }
 

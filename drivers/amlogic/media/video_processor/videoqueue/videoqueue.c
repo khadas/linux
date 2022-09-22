@@ -263,33 +263,17 @@ static void file_pop_display_q(struct video_queue_dev *dev,
 	}
 }
 
-/*
-static void videoq_hdmi_video_sync(struct video_queue_dev *dev,
-	struct vframe_s *vf)
+static u32 get_avsync_delay_time(void)
 {
-	u64 audio_need_delay;
+	u32 delay_value = get_tvin_delay_min_ms();
 
-	audio_need_delay = get_tvin_delay_duration();
-
-	if (audio_need_delay == 0)
-		return;
-
-	vframe_get_delay = (int)div_u64(((jiffies_64 -
-		vf->ready_jiffies64) * 1000), HZ);
-	vframe_get_delay -= vf->duration / 96;
-	if (dev->check_sync_count == 0)
-		vq_print(P_ERROR, "audio need =%lld, first delay=%lld\n",
-			audio_need_delay, vframe_get_delay);
-	dev->check_sync_count++;
-	if (audio_need_delay * 1000 > vframe_get_delay * 1000 +
-			3 * vpp_vsync_us + vpp_vsync_us / 2) {
-		vq_print(P_SYNC, "delay: audio need =%lld, delay=%lld\n",
-			audio_need_delay, vframe_get_delay);
-		dev->sync_need_delay = true;
-		return;
+	if (delay_value == 0) {
+		delay_value = get_tvin_delay_min_ms();
+		vq_print(P_OTHER, "sync: no request delay, need set min %d\n",
+			delay_value);
 	}
+	return delay_value;
 }
-*/
 
 static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 	struct vframe_s *vf)
@@ -307,7 +291,7 @@ static void videoq_hdmi_video_sync_2(struct video_queue_dev *dev,
 		disp_delay_count = 2;
 	else
 		disp_delay_count = 3;
-	audio_need_delay = get_tvin_delay_duration();
+	audio_need_delay = get_avsync_delay_time();
 	if (audio_need_delay == 0)
 		return;
 
@@ -369,7 +353,7 @@ void videoqueue_drop_vf(struct video_queue_dev *dev)
 	dev->frame_num++;
 }
 
-static void do_file_thread(struct video_queue_dev *dev)
+static int do_file_thread(struct video_queue_dev *dev)
 {
 	struct vframe_s *vf;
 	int ret = 0;
@@ -390,11 +374,11 @@ static void do_file_thread(struct video_queue_dev *dev)
 	u32 vframe_walk_delay = 0;
 	u32 tvin_delay_duration = 0;
 	u64 avsync_diff = 0;
-	u32 frc_delay = 0;
+	u32 vdin_hold_count_cur = 0;
 	bool vlock_locked = false;
 	bool need_resync = false;
 	u64 vdin_vsync = 0;
-
+	vq_print(P_OTHER, "enter %s.\n", __func__);
 	if (!dev->provider_name) {
 		provider_name = vf_get_provider_name(dev->vf_receiver_name);
 		while (provider_name) {
@@ -409,7 +393,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 	}
 
 	if (!kfifo_peek(&dev->file_q, &ready_file))
-		return;
+		return -1;
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf && !dev->game_mode) {
 		if (dev->low_latency_mode) {
@@ -429,16 +413,29 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 	if (!vf) {
 		vq_print(P_SYNC, "peek err\n");
-		return;
+		return -1;
 	}
 
 	if (vf->width == 0 || vf->height == 0) {
 		vq_print(P_ERROR, "vframe param invalid.\n");
-		vf_get(dev->vf_receiver_name);
-		vf_put(vf, dev->vf_receiver_name);
+		vf = vf_get(dev->vf_receiver_name);
+		if (vf)
+			vf_put(vf, dev->vf_receiver_name);
 		vf = vf_peek(dev->vf_receiver_name);
 		if (!vf)
-			return;
+			return -1;
+	}
+
+	if (get_video_mute_val()) {
+		vq_print(P_ERROR, "video_mute_on need drop.\n");
+		while (1) {
+			vf = vf_get(dev->vf_receiver_name);
+			if (vf)
+				vf_put(vf, dev->vf_receiver_name);
+			vf = vf_peek(dev->vf_receiver_name);
+			if (!vf)
+				return -1;
+		}
 	}
 
 	if (dev->provider_name && !(strcmp(dev->provider_name, "dv_vdin"))) {
@@ -463,7 +460,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 						"crc black screen err\n");
 			}
 
-			return;
+			return -1;
 		}
 	}
 
@@ -521,10 +518,15 @@ static void do_file_thread(struct video_queue_dev *dev)
 		need_resync = true;
 	}
 
+	if (dev->game_mode) {
+		need_resync = false;
+		dev->need_check_delay_count = 0;
+	}
+
 	if (dev->frame_num > HDMI_DELAY_CHECK_INDEX &&
 		dev->need_check_delay_count == 0 &&
 		need_resync) {
-		tvin_delay_duration = get_tvin_delay_duration();
+		tvin_delay_duration = get_avsync_delay_time();
 		vframe_walk_delay = get_tvin_delay();
 		avsync_diff = abs(tvin_delay_duration - vframe_walk_delay);
 
@@ -534,12 +536,12 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 		if (avsync_diff * 1000 > vdin_vsync * 3 / 4) {
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
-			frc_delay = get_vdin_add_delay_num();
+			vdin_hold_count_cur = get_vdin_add_delay_num();
 #endif
-			vq_print(P_OTHER, "resync: frc1:%d,frc2:%d\n",
-				dev->frc_delay_first_frame, frc_delay);
+			vq_print(P_OTHER, "resync: vdin_hold_count:%d, cur:%d\n",
+				dev->vdin_hold_count, vdin_hold_count_cur);
 
-			if (frc_delay == dev->frc_delay_first_frame) {
+			if (vdin_hold_count_cur == dev->vdin_hold_count) {
 				vq_print(P_ERROR,
 					"resync:need=%d,actual=%d,diff=%lld\n",
 					tvin_delay_duration, vframe_walk_delay,
@@ -552,25 +554,24 @@ static void do_file_thread(struct video_queue_dev *dev)
 	dev->vlock_locked = vlock_locked;
 	/*step 1: audio required*/
 	if (!sync_start) {
-		vq_print(P_ERROR, "queue first frame frc=%d\n",
-			dev->frc_delay_first_frame);
+		vq_print(P_ERROR, "queue first frame\n");
 	} else if (dev->need_check_delay_count > 0) {
 	/*step 2: recheck video sync after hdmi-in start*/
 		videoq_hdmi_video_sync_2(dev, vf);
 		dev->need_check_delay_count--;
 	}
 
-	if (dev->sync_need_delay)
-		return;
+	if (dev->sync_need_delay && !dev->game_mode)
+		return 0;
 
 	vf = vf_peek(dev->vf_receiver_name);
 	if (!vf)
-		return;
+		return -1;
 
 	if (get_video_hold_state()) {
 		vq_print(P_ERROR, "hold video need drop.\n");
 		videoqueue_drop_vf(dev);
-		return;
+		return 0;
 	}
 
 	vframe_disp_mode = vf_disp_mode_get(dev, vf);
@@ -581,14 +582,14 @@ static void do_file_thread(struct video_queue_dev *dev)
 	if (vframe_disp_mode == VFRAME_DISP_MODE_SKIP) {
 		vq_print(P_ERROR, "SKIP\n");
 		videoqueue_drop_vf(dev);
-		return;
+		return 0;
 	}
 
 	if (!dev->game_mode && !sync_start) {
 		if (dev->delay_vsync_count > 0) {
 			dev->delay_vsync_count--;
 			vq_print(P_SYNC, "delay one vsync\n");
-			return;
+			return 0;
 		}
 	}
 
@@ -596,7 +597,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 		pcr_time = pts;
 		sync_start = true;
 #ifdef CONFIG_AMLOGIC_MEDIA_VDIN
-		dev->frc_delay_first_frame = get_vdin_add_delay_num();
+		dev->vdin_hold_count = get_vdin_add_delay_num();
 #endif
 	}
 
@@ -609,7 +610,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 	if (dev->low_latency_mode && !dev->game_mode) {
 		if (pts + pcr_margin <= pcr_time) {
-			vq_print(P_ERROR,
+			vq_print(P_SYNC,
 				"delay pts= %lld, pcr=%lld,omx_index=%d\n",
 				pts, pcr_time, dev->frame_num);
 			pcr_time = pts;
@@ -624,18 +625,18 @@ static void do_file_thread(struct video_queue_dev *dev)
 				pts, dev->frame_num);
 		} else if (pts_tmp >= pcr_time + vsync_pts_inc) {
 			vq_print(P_SYNC, "early continue\n");
-			return;
+			return 0;
 		}
 	}
 
 	if (!kfifo_get(&dev->file_q, &ready_file)) {
 		pr_info("task: get failed\n");
-		return;
+		return -1;
 	}
 	private_data = v4lvideo_get_file_private_data(ready_file, true);
 	vf = vf_get(dev->vf_receiver_name);
 	if (!vf)
-		return;
+		return -1;
 	if (vf->hf_info)
 		dev->need_aisr = true;
 	else
@@ -707,7 +708,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 		}
 		if (!kfifo_put(&dev->file_q, ready_file))
 			pr_err("queue error but file_q is full\n");
-		return;
+		return -1;
 	}
 
 	if (!kfifo_put(&dev->display_q, ready_file))
@@ -774,6 +775,8 @@ static void do_file_thread(struct video_queue_dev *dev)
 		vq_print(P_AVSYNC, "drop omx_index=%d\n", dev->frame_num);
 		dev->sync_need_drop_count--;
 	}
+
+	return 1;
 }
 
 static void do_fence_thread(struct video_queue_dev *dev)
@@ -853,10 +856,11 @@ static int vq_file_thread(void *data)
 {
 	struct video_queue_dev *dev = data;
 	struct sched_param param = {.sched_priority = MAX_RT_PRIO - 1};
+	struct vframe_s *vf = NULL;
+	int ret = 0, tmp_pts = 0;
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	dev->delay_vsync_count = delay_vsync;
-
 	while (1) {
 		if (kthread_should_stop())
 			break;
@@ -868,7 +872,21 @@ static int vq_file_thread(void *data)
 			wakeup | dev->thread_need_stop,
 			msecs_to_jiffies(50));
 		wakeup = 0;
-		do_file_thread(dev);
+
+		vf = vf_peek(dev->vf_receiver_name);
+		if (vf)
+			tmp_pts = DUR2PTS(vf->duration);
+
+		vq_print(P_OTHER, "tmp_pts:%d, vsync_pts_inc:%d\n", tmp_pts, vsync_pts_inc);
+		if (tmp_pts > 0 && tmp_pts < vsync_pts_inc) {
+			vq_print(P_OTHER, "enter new flow.\n");
+			do
+				ret = do_file_thread(dev);
+			while (ret == 1);
+		} else {
+			vq_print(P_OTHER, "enter old flow.\n");
+			do_file_thread(dev);
+		}
 	}
 
 	complete(&dev->file_thread_done);
@@ -963,7 +981,7 @@ static int videoqueue_reg_provider(struct video_queue_dev *dev)
 	dev->check_sync_count = 0;
 	dev->provider_name = NULL;
 	dev->need_check_delay_count = 0;
-	dev->frc_delay_first_frame = 0;
+	dev->vdin_hold_count = 0;
 	dev->vlock_locked = false;
 	vframe_get_delay = 0;
 	dev->game_mode = false;
@@ -1043,6 +1061,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	} else {
 		vq_print(P_ERROR, "ATV source need keep frame.\n");
 	}
+
 	if (dev->file_thread)
 		kthread_stop(dev->file_thread);
 

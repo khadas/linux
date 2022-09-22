@@ -23,7 +23,7 @@
 #include "hdmi_rx_drv_ext.h"
 
 /* repeater */
-#define RX_VER0 "ver.2022/02/25"
+#define RX_VER0 "ver.2022/07/26"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -57,7 +57,7 @@
 #define var_to_str(var) (#var)
 
 /* register edid notify callback for T7 */
-#define RX_VER2 "ver.2022/02/21"
+#define RX_VER2 "ver.2022/08/16"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -468,6 +468,7 @@ struct hdmi_rx_hdcp {
 	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
 	/* add for dv cts */
 	enum hdcp_version_e hdcp_pre_ver;
+	u8 stream_type;
 	bool hdcp_source;
 	unsigned char hdcp22_exception;/*esm exception code,reg addr :0x60*/
 };
@@ -771,6 +772,7 @@ extern bool hdmi_cec_en;
 extern int hdmi_yuv444_enable;
 extern int vdin_drop_frame_cnt;
 extern int aud_compose_type;
+extern int rpt_only_mode;
 extern u32 vrr_func_en;
 /* debug */
 extern bool hdcp_enable;
@@ -795,7 +797,7 @@ void rx_get_global_variable(const char *buf);
 int rx_pr(const char *fmt, ...);
 unsigned int hdmirx_hw_dump_reg(unsigned char *buf, int size);
 unsigned int hdmirx_show_info(unsigned char *buf, int size);
-bool is_afifo_error(void);
+bool is_aud_fifo_error(void);
 bool is_aud_pll_error(void);
 int hdmirx_debug(const char *buf, int size);
 void dump_reg(void);

@@ -23,12 +23,14 @@
 		interrupts = <0 197 1
 			0 194 1
 			0 282 1
-			0 56 1>;
-		interrupt-names = "vsync","vsync2","vbyone","tcon";
+			0 56 1
+			0 195 1>;
+		interrupt-names = "vsync","vsync2","vbyone","tcon","line_n";
 		pinctrl-names = "vbyone","vbyone_off",
 				"tcon_p2p","tcon_p2p_usit","tcon_p2p_off",
 				"tcon_mlvds","tcon_mlvds_off",
-				"ST6451D06-3","ST6451D06-3_off";
+				"ST6451D06-3","ST6451D06-3_off",
+				"ST5461D18-2","ST5461D18-2_off";
 		pinctrl-0 = <&lcd_vbyone_a_pins>;
 		pinctrl-1 = <&lcd_vbyone_a_off_pins>;
 		pinctrl-2 = <&lcd_tcon_p2p_pins>;
@@ -38,6 +40,8 @@
 		pinctrl-6 = <&lcd_tcon_mlvds_off_pins>;
 		pinctrl-7 = <&ST6451D06_3_pins>;
 		pinctrl-8 = <&ST6451D06_3_off_pins>;
+		pinctrl-9 = <&ST5461D18_2_pins>;
+		pinctrl-10 = <&ST5461D18_2_off_pins>;
 		pinctrl_version = <2>; /* for uboot */
 		memory-region = <&lcd_tcon_reserved>;
 
@@ -779,6 +783,10 @@
 				3487 24>; /*profile_k, profile_bits*/
 			ldim_bl_profile_path =
 				"/odm/etc/tvconfig/panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
+
+			mcu_header = <0x55AA0014>;
+			mcu_dim =<0x0000FF4D>;	/*reserve+type+adim+pdim*/
+			/*type: 0: 3bytes(old spec), 1:6bytes(new spec)*/
 
 			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
 				11

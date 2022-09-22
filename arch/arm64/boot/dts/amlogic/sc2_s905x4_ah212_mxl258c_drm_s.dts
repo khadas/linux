@@ -57,8 +57,7 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x10000>;
-			bconsole-size = <0x10000>;
+			pmsg-size = <0x20000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -931,22 +930,8 @@
 		compatible = "amlogic,aw9523b_led";
 		reg = <0x5b>;
 		status = "okay";
-		reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 		platform = <4>;
-
-		led1 {
-			default_colors = <0 0 0>;
-			r_io_number = <0>;
-			g_io_number = <10>;
-			b_io_number = <5>;
-		};
-
-		led2 {
-			default_colors = <0 0 0>;
-			r_io_number = <1>;
-			g_io_number = <11>;
-			b_io_number = <6>;
-		};
 
 		led3 {
 			default_colors = <0 0 0>;
@@ -957,15 +942,23 @@
 
 		led4 {
 			default_colors = <0 0 0>;
-			r_io_number = <3>;
-			g_io_number = <13>;
-			b_io_number = <8>;
+			r_io_number = <4>;
+			g_io_number = <10>;
+			b_io_number = <9>;
 		};
+
 		led9 {
 			default_colors = <0 0 0>;
-			r_io_number = <4>;
+			r_io_number = <3>;
+			g_io_number = <11>;
+			b_io_number = <8>;
+		};
+
+		led1 {
+			default_colors = <0 0 0>;
+			r_io_number = <0>;
 			g_io_number = <14>;
-			b_io_number = <9>;
+			b_io_number = <5>;
 		};
 	};
 };

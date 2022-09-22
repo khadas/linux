@@ -670,6 +670,9 @@ static void tvafe_dec_close(struct tvin_frontend_s *fe)
 	/**disable av out**/
 	tvafe_enable_avout(tvafe->parm.port, false);
 
+	if (IS_TVAFE_AVIN_SRC(tvafe->parm.port))
+		avport_opened = 0;
+
 #ifdef TVAFE_POWERDOWN_IN_IDLE
 	/**disable tvafe clock**/
 	devp->flags |= TVAFE_POWERDOWN_IN_IDLE;

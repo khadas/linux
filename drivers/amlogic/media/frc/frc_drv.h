@@ -71,8 +71,15 @@
 // frc_20220505 frc check dbg roreg
 // frc_20220524 frc memory optimize
 // frc_20220608 optimize video flag check
+// frc_20220613 fix frc memory resume abnormal
+// frc_20220620 integrated frc status
+// frc_20220623 add frc debug control
+// frc_20220704 fix frc secure mode abnormal
+// frc_20220705 fix frc bypass frame when on
+// frc_20220708 optimize frc off2on flow
+// frc_20220722 add vlock st and time record
 
-#define FRC_FW_VER			"2022-0613 fix frc memory resume abnormal"
+#define FRC_FW_VER			"2022-0801 set force_mode and ctrl freq"
 #define FRC_KERDRV_VER                  1990
 
 #define FRC_DEVNO	1
@@ -141,7 +148,7 @@ extern int frc_dbg_en;
 
 //------------------------------------------------------- clock defined end
 // vd fps
-#define FRC_VD_FPS_DEF    0
+#define FRC_VD_FPS_00    0
 #define FRC_VD_FPS_60    60
 #define FRC_VD_FPS_50    50
 #define FRC_VD_FPS_48    48
@@ -156,7 +163,8 @@ extern int frc_dbg_en;
 #define FRC_FLAG_PIC_MODE		0x04
 #define FRC_FLAG_HIGH_BW		0x08
 #define FRC_FLAG_LIMIT_SIZE		0x10
-#define FRC_FLAG_OTHER_MODE		0x20
+#define FRC_FLAG_VLOCK_ST		0x20
+#define FRC_FLAG_OTHER_MODE		0x40
 
 enum chip_id {
 	ID_NULL = 0,
@@ -169,6 +177,11 @@ struct dts_match_data {
 
 struct frc_data_s {
 	const struct dts_match_data *match_data;
+};
+
+struct vf_rate_table {
+	u16 duration;
+	u16 framerate;
 };
 
 struct st_frc_buf {
@@ -316,12 +329,12 @@ struct st_frc_in_sts {
 	/*vd status sync*/
 	u8 frc_is_tvin;
 	u8 frc_source_chg;
-	u32 frc_vf_rate;
+	u16 frc_vf_rate;
 	u32 frc_last_disp_count;
 };
 
 struct st_frc_out_sts {
-	u32 out_framerate;
+	u16 out_framerate;
 	u32 vout_height;
 	u32 vout_width;
 
@@ -481,6 +494,7 @@ struct frc_dev_s {
 	struct clk *clk_me;
 	u32 clk_me_frq;
 	unsigned int clk_state;
+	u32 clk_chg;
 	u32 rdma_handle;
 
 	/* vframe check */

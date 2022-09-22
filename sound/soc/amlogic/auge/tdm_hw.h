@@ -34,6 +34,7 @@ enum tdmin_src {
 	TDMOUTA = 13,
 	TDMOUTB = 14,
 	TDMOUTC = 15,
+	TDMOUTD = 16,
 };
 
 struct pcm_setting {

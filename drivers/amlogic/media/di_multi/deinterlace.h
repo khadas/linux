@@ -40,14 +40,26 @@
 //#define TEST_PIP	(1)
 
 /************************************************
- * from t7 cvs address is ulong
+ * vframe use ud meta data
  ************************************************/
-//#define CVS_UINT	(1)
+#define DIM_EN_UD_USED	(1)
+
+/************************************************
+ * function:hdr
+ ************************************************/
+#define DIM_HAVE_HDR	(1)
 
 /************************************************
  * pre-vpp link
  ************************************************/
-#define VPP_LINK_USED_FUNC	(1)
+//#define VPP_LINK_USED_FUNC	(1)
+
+/************************************************
+ * ext function:hf
+ *	function:is_di_hf_y_reverse not define
+ ************************************************/
+//#define DIM_EXT_NO_HF	(1)
+
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ			'i'
@@ -71,6 +83,7 @@
 /* buffer management related */
 #define MAX_IN_BUF_NUM				(15)	/*change 4 to 8*/
 #define MAX_LOCAL_BUF_NUM			(5)//(7)
+#define MAX_LOCAL_BUF_NUM_REAL			(MAX_LOCAL_BUF_NUM << 1)
 //#define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
 #define POST_BUF_NUM				(20)
 #define MAX_POST_BUF_NUM			(POST_BUF_NUM + 3)//(11)	/*(5)*/ /* 16 */
@@ -185,6 +198,7 @@
 				 VFRAME_FLAG_HF	|		\
 				 VFRAME_FLAG_DI_DW	|	\
 				 VFRAME_FLAG_VIDEO_LINEAR	|	\
+				 VFRAME_FLAG_DI_PVPPLINK	|	\
 				 VFRAME_FLAG_DI_BYPASS)
 
 enum process_fun_index_e {
@@ -545,12 +559,13 @@ struct di_pre_stru_s {
 	bool input_size_change_flag;
 /* true: bypass di all logic, false: not bypass */
 	bool bypass_flag;
-	unsigned int is_bypass_all	: 1;
 	/* bit0 for cfg, bit1 for t5dvb*/
-	unsigned int is_bypass_mem	: 2;
+	unsigned int is_bypass_mem	: 4;
+	unsigned int is_bypass_all	: 1;
 	unsigned int is_bypass_fg	: 1;
 	unsigned int is_disable_chan2	: 1;
-	unsigned int rev1		: 27;
+	unsigned int is_disable_nr	: 1;	//for t5d vb
+	unsigned int rev1		: 24;
 	unsigned char prog_proc_type;
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer

@@ -13,13 +13,16 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
-
-#include <linux/amlogic/media/amvecm/hdr2_ext.h>
 #include "deinterlace.h"
+#ifdef DIM_HAVE_HDR
+#include <linux/amlogic/media/amvecm/hdr2_ext.h>
+#endif /* DIM_HAVE_HDR */
 #include "di_data_l.h"
 #include <linux/amlogic/media/di/di.h>
 #include "register.h"
 #include "di_prc.h"
+
+#ifdef DIM_HAVE_HDR
 
 enum EREG_HDR_IDX {
 	EMATRIXI_COEF00_01,
@@ -868,9 +871,11 @@ const struct di_hdr_ops_s di_hdr_op_data = {
 	.get_pre_post	= hdr_get_pre_post,
 
 };
+#endif /* DIM_HAVE_HDR */
 
 void dim_hdr_prob(void)
 {
+#ifdef DIM_HAVE_HDR
 	struct di_hdr_s *hdr;
 	unsigned int sizev;
 
@@ -898,30 +903,37 @@ void dim_hdr_prob(void)
 	/*check*/
 	hdr = (struct di_hdr_s *)get_datal()->hw_hdr;
 	PR_INF("%s:0x%x\n", __func__, hdr->code);
+#endif	/* DIM_HAVE_HDR */
 }
 
 void dim_hdr_remove(void)
 {
+#ifdef DIM_HAVE_HDR
 	if (!get_datal()->hw_hdr)
 		return;
 	vfree(get_datal()->hw_hdr);
 	get_datal()->hw_hdr = NULL;
 
 	PR_INF("%s:end\n", __func__);
+#endif /* DIM_HAVE_HDR */
 }
 
 const struct di_hdr_ops_s *dim_hdr_ops(void)
 {
+#ifdef DIM_HAVE_HDR
 	struct di_hdr_s *hdr;
 
 	if (!get_datal()->hw_hdr)
 		return NULL;
 	hdr = (struct di_hdr_s *)get_datal()->hw_hdr;
 	return hdr->ops;
+#endif /* DIM_HAVE_HDR */
+	return NULL;
 }
 
 int dim_dbg_hdr_reg1(struct seq_file *s, void *v, unsigned int indx)
 {
+#ifdef DIM_HAVE_HDR
 	int i;
 	unsigned int rbase = 0;
 	unsigned int nub1, off2, nub2, off3, nub3;
@@ -963,11 +975,13 @@ int dim_dbg_hdr_reg1(struct seq_file *s, void *v, unsigned int indx)
 			   rbase + off3 + i,
 			   DIM_RDMA_RD(rbase + off3 + i));
 	}
+#endif /* DIM_HAVE_HDR */
 	return 0;
 }
 
 int dim_dbg_hdr_para_show(struct seq_file *s, void *v)
 {
+#ifdef DIM_HAVE_HDR
 	int i;
 	struct di_hdr_s *pd;
 	char *splt = "---------------------------";
@@ -1018,6 +1032,7 @@ int dim_dbg_hdr_para_show(struct seq_file *s, void *v)
 	for (i = 0; i < MTX_NUM_PARAM; i++)
 		seq_printf(s, "%d:%d\n",
 			   i, pd->c.hdr_para.hdr_mtx_param.mtx_in[i]);
+#endif /* DIM_HAVE_HDR */
 	return 0;
 }
 

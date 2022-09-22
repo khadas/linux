@@ -40,8 +40,14 @@ struct amlogic_crg_otg {
 	void __iomem    *usb2_phy_cfg;
 	void __iomem    *m31_phy_cfg;
 	struct delayed_work     work;
+	struct delayed_work     set_mode_work;
+	/*otg_mutex should be taken amlogic_crg_otg_work and
+	 *amlogic_crg_otg_set_m_work
+	 */
+	struct mutex		*otg_mutex;
 	struct gpio_desc *usb_gpio_desc;
 	int vbus_power_pin;
+	int mode_work_flag;
 	struct regulator *usb_regulator_ao1v8;
 	struct regulator *usb_regulator_ao3v3;
 	struct regulator *usb_regulator_vcc5v;
@@ -136,6 +142,11 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 	unsigned long phy3_addr = ((unsigned long)phy->phy3_cfg);
 	int ret;
 
+	if (phy->mode_work_flag == 1) {
+		cancel_delayed_work_sync(&phy->set_mode_work);
+		phy->mode_work_flag = 0;
+	}
+	mutex_lock(phy->otg_mutex);
 	reg5.d32 = readl((void __iomem *)(phy3_addr + 0x14));
 	if (reg5.b.iddig_curr == 0) {
 		/* to do*/
@@ -157,6 +168,32 @@ static void amlogic_crg_otg_work(struct work_struct *work)
 	}
 	reg5.b.usb_iddig_irq = 0;
 	writel(reg5.d32, (void __iomem *)(phy3_addr + 0x14));
+	mutex_unlock(phy->otg_mutex);
+}
+
+static void amlogic_crg_otg_set_m_work(struct work_struct *work)
+{
+	struct amlogic_crg_otg *phy =
+		container_of(work, struct amlogic_crg_otg, set_mode_work.work);
+	union usb_r5_v2 reg5;
+	unsigned long reg_addr = ((unsigned long)phy->usb2_phy_cfg);
+	unsigned long phy3_addr = ((unsigned long)phy->phy3_cfg);
+
+	mutex_lock(phy->otg_mutex);
+	phy->mode_work_flag = 0;
+	reg5.d32 = readl((void __iomem *)(phy3_addr + 0x14));
+	if (reg5.b.iddig_curr == 0) {
+		amlogic_m31_set_vbus_power(phy, 1);
+		set_mode(reg_addr, HOST_MODE, phy3_addr);
+		crg_init();
+	} else {
+		set_mode(reg_addr, DEVICE_MODE, phy3_addr);
+		amlogic_m31_set_vbus_power(phy, 0);
+		crg_gadget_init();
+	}
+	reg5.b.usb_iddig_irq = 0;
+	writel(reg5.d32, (void __iomem *)(phy3_addr + 0x14));
+	mutex_unlock(phy->otg_mutex);
 }
 
 static irqreturn_t amlogic_crgotg_detect_irq(int irq, void *dev)
@@ -192,8 +229,6 @@ static int amlogic_crg_otg_v2_probe(struct platform_device *pdev)
 	int len, otg = 0;
 	int controller_type = USB_NORMAL;
 	int regulator_contorl_flag = 0;
-	union usb_r5_v2 reg5;
-	unsigned long reg_addr;
 	const char *udc_name = NULL;
 	const char *gpio_name = NULL;
 	int gpio_vbus_power_pin = -1;
@@ -356,6 +391,10 @@ static int amlogic_crg_otg_v2_probe(struct platform_device *pdev)
 	phy->phy3_cfg = usb3_phy_base;
 	phy->vbus_power_pin = gpio_vbus_power_pin;
 	phy->usb_gpio_desc = usb_gd;
+	phy->mode_work_flag = 0;
+	phy->otg_mutex = kmalloc(sizeof(*phy->otg_mutex),
+				GFP_KERNEL);
+	mutex_init(phy->otg_mutex);
 
 	INIT_DELAYED_WORK(&phy->work, amlogic_crg_otg_work);
 
@@ -427,21 +466,9 @@ NO_M31:
 				HOST_MODE, (unsigned long)phy->phy3_cfg);
 		}
 	} else {
-		reg_addr = ((unsigned long)phy->phy3_cfg);
-		reg5.d32 = readl((void __iomem *)(reg_addr + 0x14));
-		if (reg5.b.iddig_curr == 0) {
-			amlogic_m31_set_vbus_power(phy, 1);
-			set_mode(reg_addr, HOST_MODE,
-				(unsigned long)phy->phy3_cfg);
-			crg_init();
-		} else {
-			set_mode(reg_addr, DEVICE_MODE,
-				(unsigned long)phy->phy3_cfg);
-			amlogic_m31_set_vbus_power(phy, 0);
-			crg_gadget_init();
-		}
-		reg5.b.usb_iddig_irq = 0;
-		writel(reg5.d32, (void __iomem *)(reg_addr + 0x14));
+		phy->mode_work_flag = 1;
+		INIT_DELAYED_WORK(&phy->set_mode_work, amlogic_crg_otg_set_m_work);
+		schedule_delayed_work(&phy->set_mode_work, msecs_to_jiffies(500));
 	}
 
 	return 0;

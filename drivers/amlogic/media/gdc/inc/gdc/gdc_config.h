@@ -53,6 +53,7 @@ struct gdc_device_data_s {
 	int gamma_support; /* gamma support */
 	int core_cnt;      /* total core count */
 	int smmu_support;  /* smmu support */
+	int fw_version;
 };
 
 struct meson_gdc_dev_t {
@@ -78,6 +79,7 @@ struct meson_gdc_dev_t {
 	u32 is_idle[CORE_NUM]; /* indicate the core status, 0:busy 1:idle */
 	ktime_t time_stamp[CORE_NUM]; /* start time stamp */
 	struct gdc_queue_item_s *current_item[CORE_NUM];
+	int fw_version;
 };
 
 struct gdc_event_s {

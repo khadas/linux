@@ -534,7 +534,7 @@ int gdc_dma_buffer_alloc(struct aml_dma_buffer *buffer,
 	mutex_unlock(&buffer->lock);
 	gdc_req_buf->index = index;
 	dma_buf = (struct aml_dma_buf *)buf;
-	if (dma_buf->dma_dir == DMA_FROM_DEVICE)
+	if (dma_buf->dma_dir == DMA_FROM_DEVICE && !gdc_smmu_enable)
 		dma_sync_single_for_cpu(dma_buf->dev,
 					dma_buf->dma_addr,
 					dma_buf->size,
@@ -762,7 +762,6 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 			cfg->linear_config.buf_size = buf_size;
 			cfg->linear_config.dma_addr = *addr;
 		}
-		gdc_dma_buffer_unmap(cfg);
 	} else {
 		/* config(firmware) buffer must be a physically continuous block memory
 		 * for smmu case, copy it to a new linear block.
@@ -790,6 +789,29 @@ int gdc_dma_buffer_get_phys(struct aml_dma_buffer *buffer,
 		}
 	}
 	return ret;
+}
+
+int gdc_dma_buffer_unmap_info(struct aml_dma_buffer *buffer,
+			      struct aml_dma_cfg *cfg)
+{
+	int i, found = 0;
+
+	if (!cfg || cfg->fd < 0) {
+		pr_err("%s: error input param\n", __func__);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < AML_MAX_DMABUF; i++) {
+		if (buffer->gd_buffer[i].alloc) {
+			if (cfg->dbuf == buffer->gd_buffer[i].dbuf) {
+				found = 1;
+				break;
+			}
+		}
+	}
+	if (!found)
+		gdc_dma_buffer_unmap(cfg);
+	return 0;
 }
 
 void gdc_dma_buffer_unmap(struct aml_dma_cfg *cfg)
@@ -831,6 +853,9 @@ void gdc_dma_buffer_dma_flush(struct device *dev, int fd)
 	struct aml_dma_buf *buf;
 
 	gdc_log(LOG_DEBUG, "%s fd=%d\n", __func__, fd);
+	if (gdc_smmu_enable)
+		return;
+
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
 		pr_err("dma_buf_get failed\n");
@@ -853,6 +878,9 @@ void gdc_dma_buffer_cache_flush(struct device *dev, int fd)
 	struct aml_dma_buf *buf;
 
 	gdc_log(LOG_DEBUG, "%s fd=%d\n", __func__, fd);
+	if (gdc_smmu_enable)
+		return;
+
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf)) {
 		pr_err("dma_buf_get failed\n");

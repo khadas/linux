@@ -76,7 +76,7 @@ static int hdmi_stable_out_cnt = 1;/* 25; */
 /* new add in gxtvbb@20160523,reason:
  *gxtvbb add atv snow config,the config will affect signal detect.
  *if atv_stable_out_cnt < 100,the signal state will change
- *after swich source to atv or after atv search
+ *after switch source to atv or after atv search
  */
 static int atv_stable_out_cnt = 100;
 /* new add in gxtvbb@20160613,reason:
@@ -113,7 +113,7 @@ MODULE_PARM_DESC(vdin_re_cfg_drop_cnt, "vdin_re_cfg_drop_cnt");
 #ifdef DEBUG_SUPPORT
 module_param(back_nosig_max_cnt, int, 0664);
 MODULE_PARM_DESC(back_nosig_max_cnt,
-		 "unstable enter nosignal state max count");
+		 "unstable enter no signal state max count");
 
 module_param(atv_unstable_in_cnt, int, 0664);
 MODULE_PARM_DESC(atv_unstable_in_cnt, "atv_unstable_in_cnt");
@@ -385,6 +385,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			if (devp->vrr_data.vrr_chg_cnt > vdin_vrr_chg_cnt) {
 				devp->vrr_data.vrr_chg_cnt = 0;
 				signal_chg |= TVIN_SIG_CHG_VRR;
+				vdin_frame_lock_check(devp, 1);
 				if (signal_chg && (sm_debug_enable & VDIN_SM_LOG_L_1))
 					pr_info("%s vrr_chg:(%d->%d) spd:([5]%d->%d) [0](%d->%d)\n",
 						__func__,
@@ -421,7 +422,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 	return signal_chg;
 }
 
-/* check auto de to adjust vdin cutwindow */
+/* check auto de to adjust vdin cut window */
 void vdin_auto_de_handler(struct vdin_dev_s *devp)
 {
 	struct tvin_state_machine_ops_s *sm_ops;
@@ -435,7 +436,7 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 		sm_dev[devp->index].state = TVIN_SM_STATUS_NULL;
 		return;
 	}
-	if (devp->auto_cutwindow_en == 0)
+	if (devp->auto_cut_window_en == 0)
 		return;
 	prop = &devp->prop;
 	sm_ops = devp->frontend->sm_ops;
@@ -453,13 +454,29 @@ void vdin_auto_de_handler(struct vdin_dev_s *devp)
 		if (pre_vs != cur_vs || pre_ve != cur_ve ||
 		    pre_hs != cur_hs || pre_he != cur_he) {
 			if (sm_debug_enable & VDIN_SM_LOG_L_4)
-				pr_info("[smr.%d] pre_vs(%d->%d),pre_ve(%d->%d),pre_hs(%d->%d),pre_he(%d->%d),cutwindow_cfg:0x%x\n",
+				pr_info("[smr.%d] pre_vs(%d->%d),pre_ve(%d->%d),pre_hs(%d->%d),pre_he(%d->%d),cut_window_cfg:0x%x\n",
 					devp->index, pre_vs, cur_vs, pre_ve, cur_ve,
 					pre_hs, cur_hs, pre_he, cur_he,
-					devp->cutwindow_cfg);
-			devp->cutwindow_cfg = 1;
+					devp->cut_window_cfg);
+			devp->cut_window_cfg = 1;
 		}
 	}
+}
+
+static inline bool vdin_is_need_send_event(struct vdin_dev_s *devp,
+					struct tvin_info_s *info)
+{
+	if (IS_HDMI_SRC(devp->parm.port) &&
+	    ((devp->flags & VDIN_FLAG_DEC_STARTED &&
+	      info->status == TVIN_SIG_STATUS_UNSTABLE &&
+	      !(devp->vdin_stable_cnt % VDIN_SEND_EVENT_INTERVAL)) ||
+	     (!(devp->flags & VDIN_FLAG_DEC_STARTED) &&
+	      info->status == TVIN_SIG_STATUS_STABLE &&
+	      devp->vdin_stable_cnt >= VDIN_STABLED_CNT &&
+	      !(devp->vdin_stable_cnt % VDIN_SEND_EVENT_INTERVAL))))
+		return true;
+	else
+		return false;
 }
 
 void tvin_smr_init_counter(int index)
@@ -621,7 +638,7 @@ void reset_tvin_smr(unsigned int index)
 	sm_dev[index].sig_status = TVIN_SIG_STATUS_NULL;
 }
 
-void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
+void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 {
 	/*struct tvin_sm_s *sm_p;*/
 	bool re_cfg = 0;
@@ -647,7 +664,6 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 	} else {
 		if (chg & TVIN_SIG_CHG_VRR) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
-			vdin_frame_lock_check(devp, 1);
 
 			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)\n", __func__,
 				devp->vrr_data.vdin_vrr_en_flag,
@@ -707,7 +723,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 	struct tvin_state_machine_ops_s *sm_ops;
 	struct tvin_info_s *info;
 	enum tvin_port_e port = TVIN_PORT_NULL;
-	unsigned int unstb_in;
+	unsigned int unstable_in;
 	struct tvin_sm_s *sm_p;
 	struct tvin_frontend_s *fe;
 	struct tvin_sig_property_s *prop, *pre_prop;
@@ -809,11 +825,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 				    devp->unstable_flag &&
 				    (devp->flags & VDIN_FLAG_SNOW_FLAG))
 					/* UNSTABLE_ATV_MAX_CNT; */
-					unstb_in = sm_p->atv_unstable_in_cnt;
+					unstable_in = sm_p->atv_unstable_in_cnt;
 				else
-					unstb_in = other_unstable_in_cnt;
-				if (sm_p->state_cnt >= unstb_in) {
-					sm_p->state_cnt  = unstb_in;
+					unstable_in = other_unstable_in_cnt;
+				if (sm_p->state_cnt >= unstable_in) {
+					sm_p->state_cnt  = unstable_in;
 					info->status = TVIN_SIG_STATUS_UNSTABLE;
 					/*info->fmt = TVIN_SIG_FMT_NULL;*/
 
@@ -829,18 +845,18 @@ void tvin_smr(struct vdin_dev_s *devp)
 				++sm_p->back_stable_cnt;
 				if (IS_TVAFE_ATV_SRC(port) &&
 				    (devp->flags & VDIN_FLAG_SNOW_FLAG))
-					unstb_in = sm_p->atv_unstable_out_cnt;
+					unstable_in = sm_p->atv_unstable_out_cnt;
 				else if (IS_TVAFE_ATV_SRC(port) && manual_flag)
-					unstb_in = manual_unstable_out_cnt;
+					unstable_in = manual_unstable_out_cnt;
 				else if (port >= TVIN_PORT_HDMI0 &&
 					 port <= TVIN_PORT_HDMI7)
-					unstb_in = sm_p->hdmi_unstable_out_cnt;
+					unstable_in = sm_p->hdmi_unstable_out_cnt;
 				else
-					unstb_in = other_unstable_out_cnt;
+					unstable_in = other_unstable_out_cnt;
 
 				cnt = sizeof(struct tvin_sig_property_s);
 				 /* must wait enough time for cvd signal lock */
-				if (sm_p->back_stable_cnt >= unstb_in) {
+				if (sm_p->back_stable_cnt >= unstable_in) {
 					sm_p->back_stable_cnt = 0;
 					sm_p->state_cnt = 0;
 					if (sm_ops->get_fmt &&
@@ -959,8 +975,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 			/* tcl vrr case */
 			devp->vrr_data.vdin_vrr_en_flag =
 				devp->pre_prop.vtem_data.vrr_en;
-			devp->csc_cfg = 0;
-			devp->starting_chg = 0;
+			/* sometime alloc mem too long signal detected again */
+			if (!mutex_is_locked(&devp->fe_lock)) {
+				devp->starting_chg = 0;
+				devp->csc_cfg = 0;
+			}
 			if (sm_debug_enable)
 				pr_info("[smr.%d] %ums prestable --> stable\n",
 					devp->index, jiffies_to_msecs(jiffies));
@@ -993,7 +1012,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_fmt_chg = 1;
 			}
 		}
-		/* dynamic adjust cutwindow for atv test */
+		/* dynamic adjust cut window for atv test */
 		if (IS_TVAFE_SRC(port))
 			vdin_auto_de_handler(devp);
 
@@ -1030,6 +1049,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				sm_print_fmt_chg = 0;
 				sm_print_prestable = 0;
 				atv_stable_fmt_check_enable = 0;
+				devp->vdin_stable_cnt = 0;
 			}
 		} else {
 			/*add for atv snow*/
@@ -1062,10 +1082,11 @@ void tvin_smr(struct vdin_dev_s *devp)
 					sm_atv_prestable_fmt = stable_fmt;
 				}
 			}
+			devp->vdin_stable_cnt++;
 			sm_p->state_cnt = 0;
 			signal_chg |= vdin_hdmirx_fmt_chg_detect(devp);
 			if (signal_chg || devp->starting_chg)
-				tvin_sigchg_event_process(devp, signal_chg);
+				tvin_sig_chg_event_process(devp, signal_chg);
 		}
 		/* check unreliable vsync interrupt */
 		if (devp->unreliable_vs_cnt != devp->unreliable_vs_cnt_pre) {
@@ -1081,8 +1102,14 @@ void tvin_smr(struct vdin_dev_s *devp)
 		break;
 	}
 
+	if (sm_debug_enable & VDIN_SM_LOG_L_5)
+		pr_info("status:%x %x %x\n",
+			sm_p->state, info->status, sm_p->sig_status);
+
 	if (devp->flags & VDIN_FLAG_DEC_OPENED) {
-		if (sm_p->sig_status != info->status) {
+		if ((sm_p->sig_status != info->status ||
+		     vdin_is_need_send_event(devp, info)) &&
+		    !mutex_is_locked(&devp->fe_lock)) {
 			sm_p->sig_status = info->status;
 			devp->event_info.event_sts = TVIN_SIG_CHG_STS;
 			devp->pre_event_info.event_sts =

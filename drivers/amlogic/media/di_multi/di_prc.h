@@ -108,7 +108,7 @@ unsigned char di_cfg_cp_get(struct di_ch_s *pch,
 void di_cfg_cp_set(struct di_ch_s *pch,
 		   enum EDI_CFG_TOP_IDX id,
 		   unsigned char val);
-
+#ifdef __HIS_CODE__
 /**************************************
  *
  * cfg ctr x
@@ -119,7 +119,7 @@ void di_cfgx_get_info(enum EDI_CFGX_IDX idx, char **name);
 void di_cfgx_init_val(void);
 bool di_cfgx_get(unsigned int ch, enum EDI_CFGX_IDX idx);
 void di_cfgx_set(unsigned int ch, enum EDI_CFGX_IDX idx, bool en);
-
+#endif
 /**************************************
  *
  * module para top
@@ -189,6 +189,8 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe);
 enum EDI_SGN di_vframe_2_sgn(struct vframe_s *vframe);
 const struct di_mm_cfg_s *di_get_mm_tab(unsigned int is_4k,
 					struct di_ch_s *pch);
+
+bool dim_config_crc_icl(void);
 
 /************************************************
  * sct
@@ -312,6 +314,8 @@ void di_pause(unsigned int ch, bool on);
 
 void dim_sumx_clear(unsigned int ch);
 void dim_sumx_set(struct di_ch_s *pch);
+void dim_sumx_trig_in_pre(struct di_ch_s *pch);
+void task_send_ready(unsigned int id);
 
 void dim_mp_update_reg(void);
 void dim_mp_update_post(void);
@@ -415,6 +419,7 @@ void dbg_buffer_print(void *in);
 bool tst_tmp_is_extbuf(void);
 bool dim_is_dbg_tabe(void);
 void dip_sum_post_ch(void);
+bool di_buf_clear(struct di_ch_s *pch, struct di_buf_s *di_buf);
 
 void dbg_hd(struct seq_file *s, struct qs_buf_s *header);
 void dbg_hd_print(struct qs_buf_s *header);
@@ -480,6 +485,14 @@ unsigned int dim_mng_hf_sum_free_get(void);
 unsigned int dim_mng_hf_sum_idle_get(void);
 void dim_mng_hf_prob(void);
 void dim_mng_hf_exit(void);
+unsigned int di_buf_mem_get_nub(struct di_ch_s *pch);
+void di_buf_mem_clear(struct di_ch_s *pch);
+void di_buf_mem_save(struct di_ch_s *pch, struct di_buf_s *di_buf);
+void di_q_unreg(struct di_ch_s *pch);
+
+void q32_ch_exit(struct di_ch_s *pch);
+void q32_ch_int(struct di_ch_s *pch);
+void pp_buf_clear(struct di_buf_s *buff);
 
 void dim_print_hf(struct hf_info_t *phf);
 void mtask_wake_m(void);
@@ -523,6 +536,7 @@ void di_pre_size_change(unsigned short width,
 void dim_nr_ds_hw_ctrl(bool enable);
 void config_di_cnt_mif(struct DI_SIM_MIF_S *di_cnt_mif,
 			      struct di_buf_s *di_buf);
+void dimh_nr_disable_set(bool set);
 #ifdef S4D_OLD_SETTING_KEEP
 void config_canvas_idx_mtn(struct di_buf_s *di_buf,
 				  int mtn_canvas_idx);
@@ -558,6 +572,14 @@ void dim_dbg_buffer_ext(struct di_ch_s *pch,
 void dim_dbg_vf_cvs(struct di_ch_s *pch,
 			struct vframe_s *vfm,
 			unsigned int pos);
+int new_create_instance(struct di_init_parm parm);
+
+int new_destroy_instance(int index);
+enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer);
+enum DI_ERRORTYPE new_fill_output_buffer(int index, struct di_buffer *buffer);
+int new_release_keep_buf(struct di_buffer *buffer);
+int new_get_output_buffer_num(int index);
+int new_get_input_buffer_num(int index);
 bool dim_get_overturn(void);
 int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			  struct pvpp_dis_para_in_s *in_para, void *out_para);
@@ -585,4 +607,5 @@ unsigned int cvs_nub_get(unsigned int idx, char *name);
 bool dim_check_exit_process(void);
 bool dim_is_creat_p_vpp_link(void);
 void dvpp_dbg_trig_sw(unsigned int cmd);
+int di_ls_bypass_ch(int index, bool on);
 #endif	/*__DI_PRC_H__*/

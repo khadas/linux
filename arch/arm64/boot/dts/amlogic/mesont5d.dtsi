@@ -1284,7 +1284,8 @@
 		ion_dev {
 			compatible = "amlogic, ion_dev";
 			memory-region = <&ion_cma_reserved
-					&ion_fb_reserved>;
+					&ion_fb_reserved
+					&ion_secure_reserved>;
 		};/* end of ion_dev*/
 	}; /* end of soc*/
 
@@ -1868,7 +1869,7 @@
 					type = "passive";
 				};
 				pcontrol: trip-point@1 {
-					temperature = <100000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};

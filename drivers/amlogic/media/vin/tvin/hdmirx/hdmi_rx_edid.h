@@ -801,6 +801,7 @@ void rx_modify_edid(unsigned char *buffer,
 void rx_edid_update_audio_info(unsigned char *p_edid,
 			       unsigned int len);
 bool is_ddc_idle(unsigned char port_id);
+bool is_edid_buff_normal(unsigned char port_id);
 bool need_update_edid(void);
 enum edid_ver_e get_edid_selection(u8 port);
 enum edid_ver_e rx_parse_edid_ver(u8 *p_edid);

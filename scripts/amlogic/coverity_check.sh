@@ -29,7 +29,9 @@ function usage() {
 
     2) ./scripts/amlogic/code_check.sh //kernel 5.4 or kernel 4.9, then coverity own local last commit
 
-		3) ./scripts/amlogic/code_check.sh drivers/amlogic/power //kernel 5.4 or kernel 4.9, Scan code in a directory
+    3) ./scripts/amlogic/code_check.sh drivers/amlogic/power //kernel 5.4 or kernel 4.9, Scan code in a directory
+
+    4) ./scripts/amlogic/code_check.sh -s STREAM  -k /mnt/fileroot/user.key -p	//Submit result to coverity server using user.key and STREAM
 
 EOF
   exit 1
@@ -136,6 +138,11 @@ function build() {
 		cov-analyze --dir ./im-dir/ --strip-path $WORKSPACE/ --all
 		sleep 1
 		cov-format-errors --dir ./im-dir/ --html-output ./html-result --filesort --strip-path $WORKSPACE/ -x
+	elif [ "$COVERITY_SUBMIT" = "1" ]; then
+		cov-import-scm --scm git --dir ./im-dir/
+		cov-analyze --dir ./im-dir/ --strip-path $WORKSPACE/ --all  --disable-parse-warnings
+		sleep 1
+		cov-commit-defects --dir ./im-dir/ --auth-key-file $COVERITY_KEY --host 10.18.11.122 --stream $STREAM  --noxrefs --on-new-cert trust
 	else
 		#echo "===========filelist ${filelist}"
 		echo "===========tupattern ${tupattern}"
@@ -177,6 +184,17 @@ function parser() {
 			#	continue ;;
 			--all)
 				CONFIG_COVERITY_ALL="1"
+				continue ;;
+			-k)
+				COVERITY_KEY="${argv[$i]}"
+				echo "COVERITY_KEY=$COVERITY_KEY"
+				continue ;;
+			-s)
+				STREAM="${argv[$i]}"
+				echo "STREAM=$STREAM"
+				continue ;;
+			-p)
+				COVERITY_SUBMIT="1"
 				continue ;;
 			*)
 		esac

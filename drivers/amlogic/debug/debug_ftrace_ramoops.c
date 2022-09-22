@@ -84,7 +84,7 @@ core_param(dump_phys_addr, dump_phys_addr, int, 0644);
 
 const char *record_name[] = {
 	"NULL",
-	"FUNC",
+	"IO-FUNC",
 	"IO-R",
 	"IO-W",
 	"IO-R-E",
@@ -94,6 +94,10 @@ const char *record_name[] = {
 	"IO-SMC-IN",
 	"IO-SMC-OUT",
 	"IO-SMC-NORET-IN",
+	"IO-CLK-EN",
+	"IO-CLK-DIS",
+	"PD_POWER_ON",
+	"PD_POWER_OFF",
 };
 
 void reg_check_init(void)
@@ -298,8 +302,8 @@ void notrace pstore_io_rw_dump(struct pstore_ftrace_record *rec,
 	sec = (unsigned long)time;
 	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %s%08lx-%8lx>  <%ps <- %pS>\n",
 		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
-		   record_name[rec->flag], rec->phys_addr ? "p:" : "",
-		   rec->val1, (rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ?
+		   record_name[rec->flag], rec->phys_addr ? "p:" : "", rec->val1,
+		   (rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ?
 		   rec->val2 : 0, (void *)rec->ip, (void *)rec->parent_ip);
 }
 
@@ -316,6 +320,21 @@ void notrace pstore_sched_switch_dump(struct pstore_ftrace_record *rec,
 	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %lu:%s>\n",
 		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
 		   record_name[rec->flag], rec->val1, (char *)&rec->val2);
+}
+
+void notrace pstore_clk_pd_dump(struct pstore_ftrace_record *rec,
+			struct seq_file *s)
+{
+	unsigned long sec = 0, us = 0;
+	unsigned long long time = rec->time;
+	unsigned int cpu = pstore_ftrace_decode_cpu(rec);
+
+	do_div(time, 1000);
+	us = (unsigned long)do_div(time, 1000000);
+	sec = (unsigned long)time;
+	seq_printf(s, "[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %s>  <%ps <- %pS>\n",
+		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm, record_name[rec->flag],
+		   rec->name, (void *)rec->ip, (void *)rec->parent_ip);
 }
 
 void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
@@ -335,6 +354,12 @@ void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
 	case PSTORE_FLAG_IO_SCHED_SWITCH:
 		pstore_sched_switch_dump(rec, s);
 		break;
+	case PSTORE_FLAG_CLK_ENABLE:
+	case PSTORE_FLAG_CLK_DISABLE:
+	case PSTORE_FLAG_PD_POWER_ON:
+	case PSTORE_FLAG_PD_POWER_OFF:
+		pstore_clk_pd_dump(rec, s);
+		break;
 	default:
 		seq_printf(s, "Unknown Msg:%x\n", rec->flag);
 	}
@@ -352,6 +377,20 @@ void notrace __pstore_sched_switch_dump(struct pstore_ftrace_record *rec)
 	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %lu:%s>\n",
 		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
 		   record_name[rec->flag], rec->val1, (char *)&rec->val2);
+}
+
+void notrace __pstore_clk_pd_dump(struct pstore_ftrace_record *rec)
+{
+	unsigned long sec = 0, us = 0;
+	unsigned long long time = rec->time;
+	unsigned int cpu = pstore_ftrace_decode_cpu(rec);
+
+	do_div(time, 1000);
+	us = (unsigned long)do_div(time, 1000000);
+	sec = (unsigned long)time;
+	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %s>  <%ps <- %pS>\n",
+		   sec, us, cpu, rec->in_irq, rec->pid, rec->comm, record_name[rec->flag],
+		   rec->name, (void *)rec->ip, (void *)rec->parent_ip);
 }
 
 static unsigned long virt_convert_phys_addr(unsigned long virt_addr)
@@ -424,8 +463,19 @@ void notrace pstore_io_save(unsigned long reg, unsigned long val,
 	rec.flag = flag;
 	rec.in_irq = !!in_irq();
 	rec.phys_addr = 0;
-	rec.val1 = reg;
-	rec.val2 = val;
+
+	switch (rec.flag) {
+	case PSTORE_FLAG_CLK_ENABLE:
+	case PSTORE_FLAG_CLK_DISABLE:
+	case PSTORE_FLAG_PD_POWER_ON:
+	case PSTORE_FLAG_PD_POWER_OFF:
+		strlcpy(rec.name, (char *)val, sizeof(rec.name));
+		break;
+	default:
+		rec.val1 = reg;
+		rec.val2 = val;
+		break;
+	}
 
 	if (dump_phys_addr) {
 		switch (rec.flag) {
@@ -477,8 +527,8 @@ static void notrace __pstore_io_rw_dump(struct pstore_ftrace_record *rec)
 	sec = (unsigned long)time;
 	pr_info("[%04ld.%06ld@%d %d] <%5d-%6s> <%6s %s%08lx-%8lx>  <%pS <- %pS>\n",
 		sec, us, cpu, rec->in_irq, rec->pid, rec->comm,
-		record_name[rec->flag], rec->phys_addr ? "p:" : "",
-		rec->val1, (rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ?
+		record_name[rec->flag], rec->phys_addr ? "p:" : "", rec->val1,
+		(rec->flag == PSTORE_FLAG_IO_W || rec->flag == PSTORE_FLAG_IO_TAG) ?
 		rec->val2 : 0, (void *)rec->ip, (void *)rec->parent_ip);
 }
 
@@ -499,6 +549,12 @@ static void notrace __pstore_ftrace_dump_old(struct pstore_ftrace_record *rec)
 		break;
 	case PSTORE_FLAG_IO_SCHED_SWITCH:
 		__pstore_sched_switch_dump(rec);
+		break;
+	case PSTORE_FLAG_CLK_ENABLE:
+	case PSTORE_FLAG_CLK_DISABLE:
+	case PSTORE_FLAG_PD_POWER_ON:
+	case PSTORE_FLAG_PD_POWER_OFF:
+		__pstore_clk_pd_dump(rec);
 		break;
 	default:
 		pr_err("Unknown Msg:%x\n", rec->flag);

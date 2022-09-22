@@ -55,13 +55,21 @@ config AMLOGIC_MEDIA_MULTI_DEC
 		is required, the feature supports decoding
 		at the same time.
 
+config AMLOGIC_MEDIA_NO_PARSER
+	bool "The stream buffer works on non-parser mode."
+	depends on AMLOGIC_MEDIA_DRIVERS
+	default n
+	help
+		The module of hardware parser will be removed after
+		SC2 platform. therefore the parser modules can't be
+		builded in ko if enable this item.
 
 if AMLOGIC_MEDIA_COMMON
 source "drivers/amlogic/media/common/Kconfig"
 endif
 
-if AMLOGIC_MEDIA_DRIVERS
 source "drivers/amlogic/media/camera/Kconfig"
+if AMLOGIC_MEDIA_DRIVERS
 source "drivers/amlogic/media/video_sink/Kconfig"
 source "drivers/amlogic/media/vout/Kconfig"
 source "drivers/amlogic/media/vrr/Kconfig"

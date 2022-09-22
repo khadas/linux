@@ -30,6 +30,9 @@
 #include <linux/amlogic/media/utils/vdec_reg.h>
 #include <linux/amlogic/media/registers/register_map.h>
 #include <linux/amlogic/media/rdma/rdma_mgr.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+#include <linux/amlogic/media/video_sink/video.h>
+#endif
 
 #define Wr(adr, val) WRITE_VCBUS_REG(adr, val)
 #define Rd(adr)     READ_VCBUS_REG(adr)
@@ -197,6 +200,11 @@ int _vsync_rdma_config(int rdma_type)
 				if (rdma_type == VSYNC_RDMA) {
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 							   RDMA_TRIGGER_VSYNC_INPUT);
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+					if (iret)
+						update_over_field_states(OVER_FIELD_RDMA_READY,
+							false);
+#endif
 				} else if (rdma_type == VSYNC_RDMA_VPP1) {
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 							   RDMA_TRIGGER_VPP1_VSYNC_INPUT);
@@ -219,6 +227,11 @@ int _vsync_rdma_config(int rdma_type)
 				if (rdma_type == VSYNC_RDMA) {
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
 							   RDMA_TRIGGER_VSYNC_INPUT);
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+					if (iret)
+						update_over_field_states(OVER_FIELD_RDMA_READY,
+							false);
+#endif
 				} else if (rdma_type == LINE_N_INT_RDMA) {
 					set_rdma_trigger_line();
 					iret = rdma_config(vsync_rdma_handle[rdma_type],
@@ -360,8 +373,12 @@ static void vsync_rdma_irq(void *arg)
 		/*triggered by next vsync*/
 		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA],
 				   RDMA_TRIGGER_VSYNC_INPUT);
-		if (iret)
+		if (iret) {
+#ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
+			update_over_field_states(OVER_FIELD_RDMA_READY, false);
+#endif
 			vsync_cfg_count[VSYNC_RDMA]++;
+		}
 	} else {
 		iret = rdma_config(vsync_rdma_handle[VSYNC_RDMA], 0);
 	}
@@ -929,9 +946,13 @@ struct rdma_op_s *get_rdma_ops(int rdma_type)
 
 void set_rdma_handle(int rdma_type, int handle)
 {
-	vsync_rdma_handle[rdma_type] = handle;
-	pr_info("%s video rdma handle = %d.\n", __func__,
-		vsync_rdma_handle[rdma_type]);
+	if (rdma_type <= 6) {
+		vsync_rdma_handle[rdma_type] = handle;
+		pr_info("%s video rdma handle = %d.\n", __func__,
+			vsync_rdma_handle[rdma_type]);
+	} else {
+		pr_info("vsync_rdma_handle array overrun\n");
+	}
 }
 
 int get_rdma_handle(int rdma_type)

@@ -130,6 +130,7 @@ struct aml_tdm {
 	int pcpd_monitor_enable;
 	struct regulator *regulator_vcc3v3;
 	struct regulator *regulator_vcc5v;
+	int suspend_clk_off;
 };
 
 #define TDM_BUFFER_BYTES (512 * 1024)
@@ -956,7 +957,7 @@ static void tdm_sharebuffer_trigger(struct aml_tdm *p_tdm,
 	if (ops) {
 		int reenable = 0;
 
-		if (channels > 2)
+		if (channels > 2 && !(p_tdm->fddr->chipinfo->chnum_sync))
 			reenable = 1;
 		ops->trigger(cmd,
 			p_tdm->samesource_sel,
@@ -1006,7 +1007,7 @@ static void tdm_sharebuffer_reset(struct aml_tdm *p_tdm, int channels)
 		return;
 
 	ops = get_samesrc_ops(p_tdm->samesource_sel);
-	if (ops && channels > 2)
+	if (ops && channels > 2 && !(p_tdm->fddr->chipinfo->chnum_sync))
 		ops->reset(p_tdm->samesource_sel - 3,
 				offset);
 }
@@ -2029,6 +2030,12 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	ret = of_property_read_u32(node, "suspend-clk-off",
+			&p_tdm->suspend_clk_off);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
+	}
+
 	/* default no same source */
 	if (p_tdm->chipinfo->same_src_fn) {
 		int ss = 0;
@@ -2232,7 +2239,7 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 
-	if (p_tdm->chipinfo->regulator) {
+	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
 		if (!IS_ERR(p_tdm->mclk2pad)) {
 			while (__clk_is_enabled(p_tdm->mclk2pad))
 				clk_disable_unprepare(p_tdm->mclk2pad);
@@ -2273,7 +2280,7 @@ static int aml_tdm_platform_resume(struct platform_device *pdev)
 	out_lanes = pop_count(p_tdm->setting.lane_mask_out);
 	in_lanes = pop_count(p_tdm->setting.lane_mask_in);
 
-	if (p_tdm->chipinfo->regulator) {
+	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
 
 		audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
 		audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);

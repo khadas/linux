@@ -24,7 +24,7 @@
 
 #include <linux/tracepoint.h>
 
-/* single lifecycle events */
+/* single life cycle events */
 DECLARE_EVENT_CLASS(vdin_event_class,
 		    TP_PROTO(const char *name, int field_cnt,
 			     unsigned long time),
@@ -35,7 +35,7 @@ DECLARE_EVENT_CLASS(vdin_event_class,
 		    TP_fast_assign(__assign_str(name, name);
 				   __entry->field_cnt = field_cnt;
 				   __entry->time = time;),
-	TP_printk("[%s-%dth-%lums]",  __get_str(name),
+	TP_printk("[%s-%dth-%lu ms]",  __get_str(name),
 		  __entry->field_cnt, __entry->time)
 );
 

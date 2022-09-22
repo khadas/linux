@@ -139,8 +139,8 @@ void hdmitx21_read_edid(u8 *_rx_edid)
 		hdmitx21_wr_reg(DDC_DIN_CNT2_IVCTX, 0x00); //data length hi
 		hdmitx21_wr_reg(DDC_CMD_IVCTX, 0x04); //CMD
 		// Wait until I2C done
-		hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), HZ / 100); //i2c process
-		hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 100); //i2c done
+		hdmitx21_poll_reg(DDC_STATUS_IVCTX, 1 << 4, ~(1 << 4), HZ / 50); //i2c process
+		hdmitx21_poll_reg(DDC_STATUS_IVCTX, 0 << 4, ~(1 << 4), HZ / 50); //i2c done
 		// Read back 8 bytes
 		for (i = 0; i < 8; i++) {
 			if (byte_num == 126) {

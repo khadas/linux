@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
-#include <linux/amlogic/media/codec_mm/secmem.h>
+#include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 #include <linux/ion.h>
 
 #include "dev_ion.h"
@@ -76,7 +76,7 @@ static phys_addr_t ion_secure_allocate(struct ion_heap *heap,
 		container_of(heap, struct ion_cma_heap, heap);
 	phys_addr_t paddr;
 
-	paddr = secure_block_alloc(size, flags);
+	paddr = secure_block_alloc(size, size, 0);
 	if (!paddr) {
 		pr_err("%s failed out size %d\n", __func__, (int)size);
 		return ION_CODEC_MM_ALLOCATE_FAIL;
@@ -93,7 +93,8 @@ static void ion_secure_free(struct ion_heap *heap,
 		container_of(heap, struct ion_cma_heap, heap);
 	if (addr == ION_CODEC_MM_ALLOCATE_FAIL)
 		return;
-	secure_block_free(addr, size);
+	if (secure_block_free(addr, size))
+		pr_err("block free error, please fix it");
 	codec_heap->alloced_size -= size;
 }
 

@@ -56,13 +56,17 @@
 #define DEBUG_FLAG_PTS_TRACE            0x400000
 #define DEBUG_FLAG_FRAME_DETECT            0x800000
 #define DEBUG_FLAG_OMX_DEBUG_DROP_FRAME        0x1000000
-#define DEBUG_FLAG_OMX_DISABLE_DROP_FRAME        0x2000000
+#define DEBUG_FLAG_RECEIVER_DEBUG        0x2000000
 #define DEBUG_FLAG_PRINT_DROP_FRAME        0x4000000
 #define DEBUG_FLAG_OMX_DV_DROP_FRAME        0x8000000
 #define DEBUG_FLAG_COMPOSER_NO_DROP_FRAME     0x10000000
 #define DEBUG_FLAG_AXIS_NO_UPDATE     0x20000000
 #define DEBUG_FLAG_HDMI_AVSYNC_DEBUG     0x40000000
 #define DEBUG_FLAG_HDMI_DV_CRC     0x80000000
+
+/*for performance_debug*/
+#define DEBUG_FLAG_VSYNC_PROCESS_TIME  0x1
+#define DEBUG_FLAG_OVER_VSYNC          0x2
 
 #define VOUT_TYPE_TOP_FIELD 0
 #define VOUT_TYPE_BOT_FIELD 1
@@ -122,6 +126,7 @@
 #define OP_VPP_MORE_LOG 1
 #define OP_FORCE_SWITCH_VF 2
 #define OP_FORCE_NOT_SWITCH_VF 4
+#define OP_HAS_DV_EL 8
 
 enum tvin_surface_type_e {
 	TVIN_SOURCE_TYPE_OTHERS = 0,
@@ -459,7 +464,7 @@ struct video_layer_s {
 	u32 compHeight;
 	u32 src_width;
 	u32 src_height;
-	bool alpha_win_en;
+	u32 alpha_win_en;
 	struct pip_alpha_scpxn_s alpha_win;
 	bool pre_link_en;
 	bool need_disable_prelink;
@@ -601,25 +606,23 @@ void amdv_set_toggle_flag(int flag);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-void correct_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
-				 struct vframe_s *el_vf);
 void config_dvel_position(struct video_layer_s *layer,
-			  struct mif_pos_s *setting,
-			  struct vframe_s *el_vf);
+			struct mif_pos_s *setting,
+		struct vframe_s *el_vf);
 s32 config_dvel_pps(struct video_layer_s *layer,
 		    struct scaler_setting_s *setting,
 		    const struct vinfo_s *info);
 s32 config_dvel_blend(struct video_layer_s *layer,
-		      struct blend_setting_s *setting,
-		      struct vframe_s *dvel_vf);
+			struct blend_setting_s *setting,
+			struct vframe_s *dvel_vf);
 #endif
 
 #ifdef TV_3D_FUNCTION_OPEN
 void config_3d_vd2_position(struct video_layer_s *layer,
-			    struct mif_pos_s *setting);
+			struct mif_pos_s *setting);
 s32 config_3d_vd2_pps(struct video_layer_s *layer,
-		      struct scaler_setting_s *setting,
-		      const struct vinfo_s *info);
+			struct scaler_setting_s *setting,
+			const struct vinfo_s *info);
 s32 config_3d_vd2_blend(struct video_layer_s *layer,
 			struct blend_setting_s *setting);
 void switch_3d_view_per_vsync(struct video_layer_s *layer);
@@ -660,11 +663,12 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 u32 *get_canvase_tbl(u8 layer_id);
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
-		     const struct vinfo_s *vinfo);
+		     const struct vinfo_s *vinfo, u32 swap_op_flag);
 int detect_vout_type(const struct vinfo_s *vinfo);
 int calc_hold_line(void);
 u32 get_active_start_line(void);
 u32 get_cur_enc_line(void);
+u32 get_cur_enc_num(void);
 void vpu_work_process(void);
 int vpp_crc_check(u32 vpp_crc_en, u8 vpp_index);
 void enable_vpp_crc_viu2(u32 vpp_crc_en);
@@ -817,6 +821,17 @@ void amvecm_process(struct path_id_s *path_id, struct video_recv_s *p_gvideo_rec
 u32 get_force_skip_cnt(enum vd_path_e path);
 bool is_pre_link_source(struct vframe_s *vf);
 bool is_pre_link_on(struct video_layer_s *layer, struct vframe_s *vf);
+void vpp_trace_axis(int left, int top, int right, int bottom);
+void vpp_trace_timeinfo(unsigned long time1,
+	unsigned long time2, unsigned long time3,
+	unsigned long time4, unsigned long time5,
+	int duration);
+void vpp_trace_encline(const char *sub_name, int start_line, int cur_line);
+void vpp_trace_field_state(const char *sub_name,
+	int cur_state, int new_state,
+	int over_field, int cnt1, int cnt2);
+void vpp_trace_vframe(const char *name, void *vf, int arg1, int arg2, int id, int cnt);
+
 #ifdef ENABLE_PRE_LINK
 bool is_pre_link_available(struct vframe_s *vf);
 #endif

@@ -179,5 +179,8 @@ struct plat_stmmacenet_data {
 	int mac_port_sel_speed;
 	bool en_tx_lpi_clockgating;
 	int has_xgmac;
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	int mdns_wkup;
+#endif
 };
 #endif

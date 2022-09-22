@@ -139,6 +139,7 @@ static int _malloc_dsc_table_index(int dsc_type)
 	for (i = 0; i < MAX_DSC_PID_TABLE_NUM; i++) {
 		if (table[i].used == 0) {
 			table[i].used = 1;
+			table[i].valid = 0;
 			break;
 		}
 	}
@@ -436,6 +437,41 @@ static int _dsc_chan_set_algo(struct dsc_channel *ch,
 	ptmp->algo = algo;
 	if (ptmp->valid)
 		dsc_config_pid_table(ptmp, ch->dsc_type);
+	return 0;
+}
+
+static int _dsc_chan_set_sid(struct dsc_channel *ch,
+		int sid)
+{
+	struct dsc_pid_table *ptmp = NULL;
+
+	ch->sid = sid;
+	if (ch->loop && ch->sid >= 32)
+		dprint("warn: double descram sid should small than 32\n");
+
+	if (ch->loop)
+		ch->sid = ch->sid >= 32 ? ch->sid : (ch->sid + 32);
+
+	ptmp = _get_dsc_pid_table(ch->index, ch->dsc_type);
+	if (!ptmp) {
+		dprint("%s _get_dsc_pid_table fail\n", __func__);
+		return -1;
+	}
+	ptmp->sid = ch->sid;
+	if (ptmp->valid)
+		dsc_config_pid_table(ptmp, ch->dsc_type);
+
+	if (ch->index00) {
+		ptmp = _get_dsc_pid_table(ch->index00, ch->dsc_type);
+		if (!ptmp) {
+			dprint("%s _get_dsc_pid_table fail\n", __func__);
+			return -1;
+		}
+		ptmp->sid = sid;
+		if (ptmp->valid)
+			dsc_config_pid_table(ptmp, ch->dsc_type);
+	}
+
 	return 0;
 }
 
@@ -772,11 +808,23 @@ int dsc_set_source(int id, int source)
 int dsc_set_sid(int id, int source, int sid)
 {
 	struct aml_dvb *advb = aml_get_dvb_device();
+	struct aml_dsc *dsc;
+	struct dsc_channel *chans;
 
 	if (source == INPUT_DEMOD)
 		advb->dsc[id].demod_sid = sid;
 	else
 		advb->dsc[id].local_sid = sid;
+
+	dsc = &advb->dsc[id];
+	if (dsc->dev) {
+		chans = dsc->dsc_channels;
+		while (chans) {
+			_dsc_chan_set_sid(chans, sid);
+			chans = chans->next;
+		}
+	}
+
 	return 0;
 }
 

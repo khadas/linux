@@ -124,7 +124,7 @@ static long aml_demod_ioctl(struct file *file,
 	int strength = 0;
 	struct aml_tuner_sys tuner_para = {0};
 	struct aml_demod_reg arg_t;
-	unsigned int val;
+	unsigned int val = 0;
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
 	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
 
@@ -147,15 +147,11 @@ static long aml_demod_ioctl(struct file *file,
 
 	switch (cmd) {
 	case AML_DEMOD_GET_LOCK_STS:
-		val = dvbt_get_status_ops()->get_status();
-
 		if (copy_to_user((void __user *)arg, &val, sizeof(unsigned int)))
 			pr_dbg("copy_to_user error AML_DEMOD_GET_PLL_INIT\n");
 		break;
 
 	case AML_DEMOD_GET_PER:
-		val = dvbt_get_status_ops()->get_ber() & 0xffff;
-
 		if (copy_to_user((void __user *)arg, &val, sizeof(unsigned int)))
 			pr_dbg("copy_to_user error AML_DEMOD_GET_PLL_INIT\n");
 		break;

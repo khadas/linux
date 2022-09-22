@@ -464,6 +464,23 @@ struct tdm_chipinfo t7_tdmc_chipinfo = {
 	.use_arb = true,
 };
 
+struct tdm_chipinfo t7_tdmd_chipinfo = {
+	.id          = TDM_D,
+	.sclk_ws_inv = true,
+	.oe_fn       = OE_FUNCTION_V2,
+	.same_src_fn = true,
+	.adc_fn      = true,
+	.lane_cnt    = LANE_MAX1,
+	.reset_reg_offset = 1,
+	.async_fifo  = true,
+	.separate_tohdmitx_en = true,
+	.tdmin_srcs = &tdmin_srcs_v3[0],
+	.slot_num_en = true,
+	.chnum_en = false,
+	.gain_ver = GAIN_VER3,
+	.use_arb = true,
+};
+
 struct tdm_chipinfo p1_tdma_chipinfo = {
 	.id          = TDM_A,
 	.sclk_ws_inv = true,
@@ -666,6 +683,10 @@ static const struct of_device_id aml_tdm_device_id[] = {
 	{
 		.compatible = "amlogic, t7-snd-tdmc",
 		.data       = &t7_tdmc_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t7-snd-tdmd",
+		.data       = &t7_tdmd_chipinfo,
 	},
 	{
 		.compatible = "amlogic, p1-snd-tdma",

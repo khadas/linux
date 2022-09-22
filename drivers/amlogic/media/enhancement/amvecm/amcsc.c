@@ -3938,8 +3938,11 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 			hdr_cap |= (dv_cap << DV_SUPPORT_SHF) & DV_SUPPORT;
 	}
 	if (vinfo)
-		pr_csc(32, "%s: mode=%d  hdr_cap = 0x%x\n",
+		pr_csc(32, "%s: support %d %d %d,mode=%d, hdr_cap 0x%x\n",
 			__func__,
+			vinfo->hdr_info.hdr_support,
+			vinfo->hdr_info.hdr10plus_info.ieeeoui,
+			vinfo->hdr_info.hdr10plus_info.application_version,
 			vinfo->mode,
 			hdr_cap);
 	return hdr_cap;
@@ -7775,8 +7778,11 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			signal_type_changed(vf, vinfo, vd_path, vpp_index);
 
 	if ((flags & CSC_FLAG_CHECK_OUTPUT) &&
-	    (signal_change_flag & SIG_PRI_INFO)) {
-		signal_change_latch |= SIG_PRI_INFO;
+	    (signal_change_flag & (SIG_PRI_INFO | SIG_CS_CHG))) {
+		if (signal_change_flag & SIG_PRI_INFO)
+			signal_change_latch |= SIG_PRI_INFO;
+		if (signal_change_flag & SIG_CS_CHG)
+			signal_change_latch |= SIG_CS_CHG;
 	} else if (flags & CSC_FLAG_TOGGLE_FRAME) {
 		signal_change_flag |= signal_change_latch;
 		signal_change_latch = 0;
@@ -8098,6 +8104,10 @@ int amvecm_matrix_process(struct vframe_s *vf,
 					    CSC_ON);
 	}
 
+	pr_csc(16, "amvecm process vd%d %s %p %p, %d, %d\n",
+	       vd_path + 1,
+	       is_video_layer_on(vd_path) ? "on" : "off",
+	       vf, vf_rpt, is_amdv_on(), dovi_on);
 	if (vd_path == VD1_PATH) {
 		if (is_amdv_on()) {
 			if (!dovi_on)

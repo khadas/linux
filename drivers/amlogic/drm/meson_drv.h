@@ -47,6 +47,13 @@ struct meson_connector {
 
 #define connector_to_meson_connector(x) container_of(x, struct meson_connector, connector)
 
+enum vpu_enc_type {
+	ENCODER_HDMI = 0,
+	ENCODER_LCD,
+	ENCODER_CVBS,
+	ENCODER_MAX
+};
+
 struct meson_drm {
 	struct device *dev;
 
@@ -68,12 +75,18 @@ struct meson_drm {
 	struct drm_atomic_state *state;
 
 	u32 num_crtcs;
+	u32 primary_plane_index[MESON_MAX_CRTC];
 	struct am_meson_crtc *crtcs[MESON_MAX_CRTC];
 	struct meson_drm_thread commit_thread[MESON_MAX_CRTC];
 
 	u32 num_planes;
 	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
 	struct am_video_plane *video_planes[MESON_MAX_VIDEO];
+	u32 crtcmask_osd[MESON_MAX_OSD];
+	u32 crtcmask_video[MESON_MAX_VIDEO];
+
+	/*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+	u32 crtc_masks[ENCODER_MAX];
 
 	/*CONFIG_DRM_MESON_EMULATE_FBDEV*/
 	struct meson_drm_fbdev_config ui_config;

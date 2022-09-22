@@ -198,8 +198,6 @@ void hdmitx_top_intr_handler(struct work_struct *work)
 				&hdev->work_hpd_plugout, 0);
 			if (earc_hdmitx_hpdst)
 				earc_hdmitx_hpdst(false);
-			queue_delayed_work(hdev->hdmi_wq,
-					   &hdev->work_aud_hpd_plug, 2 * HZ);
 		}
 	}
 next:

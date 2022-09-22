@@ -31,6 +31,7 @@ static struct composer_dev *mdev[3];
 
 static int get_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 static unsigned int countinue_vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
+int actual_delay_count[MAX_VD_LAYERS];
 
 #define PATTERN_32_DETECT_RANGE 7
 #define PATTERN_22_DETECT_RANGE 7
@@ -50,6 +51,11 @@ enum video_refresh_pattern {
 
 static int patten_trace[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 static int vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
+
+void video_display_para_reset(int layer_index)
+{
+	actual_delay_count[layer_index] = 0;
+}
 
 void vsync_notify_video_composer(void)
 {
@@ -559,10 +565,12 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	bool expired = true;
 	bool expired_tmp = true;
 	bool open_pulldown = false;
+	bool special_case = false;
 	int ready_len;
 	u32 vsync_index = 0;
 	int ret;
 	int max_delay_count = 2;
+	int input_fps, output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 
 	time1 = dev->start_time;
 	time2 = vsync_time;
@@ -583,11 +591,22 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 				"peek: vf->vc_private is NULL\n");
 		}
 
+		input_fps = vf->duration * 15;
+		get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);
+		output_fps = 90000 * 16 * (u64)output_pts_inc_scale;
+		output_fps = div64_u64(output_fps, output_pts_inc_scale_base);
+		vc_print(dev->index, PRINT_OTHER,
+			"peek: input_fps=%d, output_fps=%d.\n", input_fps, output_fps);
 		/*apk/sf drop 0/3 4; vc receive 1 2 5 in one vsync*/
 		/*apk queue 5 and wait 1, it will fence timeout*/
-		if (get_count[dev->index] == 2) {
+		/* dev->video_render_index == 5 means T7 dual screen mode */
+		/*input 120hz with 60hz output or input 100hz with 50hz output no need check*/
+		if (vd_vf_is_tvin(vf) && (input_fps * 3 < output_fps * 2) && input_fps <= 14400)
+			special_case = true;
+		if (!special_case && (get_count[dev->index] == 2 && dev->video_render_index != 5)) {
 			vc_print(dev->index, PRINT_ERROR,
-				 "has already get 2, can not get more\n");
+				 "has already get 2, can not get more, video_render.%d",
+				 dev->video_render_index);
 			return NULL;
 		}
 		if (get_count[dev->index] > 0 &&
@@ -723,9 +742,12 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 "get:canvas_w: %d, canvas_h: %d\n",
 			  vf->canvas0_config[0].width, vf->canvas0_config[0].height);
 
-		if (vf->vc_private)
+		if (vf->vc_private) {
 			vf->vc_private->last_disp_count =
 				countinue_vsync_count[dev->index];
+			actual_delay_count[dev->index] = vsync_count[dev->index]
+				- vf->vc_private->vsync_index + 1;
+		}
 
 		if (dev->enable_pulldown) {
 			dev->patten_factor_index++;
@@ -741,6 +763,10 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 		countinue_vsync_count[dev->index] = 0;
 		dev->last_vf_index = vf->omx_index;
 		current_display_vf = vf;
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+		ATRACE_COUNTER("video_composer_get_vf_omx_index", vf->omx_index);
+		ATRACE_COUNTER("video_composer_get_vf_omx_index", 0);
+#endif
 		return vf;
 	} else {
 		return NULL;
@@ -1148,6 +1174,7 @@ static int video_display_uninit(int layer_index)
 	dev->port->open_count--;
 	vfree(dev);
 	mdev[layer_index] = NULL;
+	video_display_para_reset(layer_index);
 	return ret;
 }
 

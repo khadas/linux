@@ -70,7 +70,7 @@ struct video_queue_dev {
 	u32 need_check_delay_count;
 	bool low_latency_mode;
 	bool need_aisr;
-	u32 frc_delay_first_frame;
+	u32 vdin_hold_count;
 	bool vlock_locked;
 	int vdin_err_crc_count;
 	bool need_keep_frame;
@@ -83,6 +83,7 @@ int get_vdin_add_delay_num(void);
 
 bool vlock_get_phlock_flag(void);
 bool vlock_get_vlock_flag(void);
+int get_video_mute_val(void);
 
 #define videoqueue_IOC_MAGIC  'I'
 #define videoqueue_IOCTL_ALLOC_ID   _IOW(videoqueue_IOC_MAGIC, 0x00, int)

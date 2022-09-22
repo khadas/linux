@@ -230,7 +230,7 @@ enum {
 	} while (0)
 
 static struct msync sync;
-static int log_level;
+static int log_level = LOG_INFO;
 static void pcr_set(struct sync_session *session);
 static void start_transit_work(struct sync_session *session);
 
@@ -480,8 +480,7 @@ static void audio_change_work_func(struct work_struct *work)
 		mutex_unlock(&session->session_mutex);
 		return;
 	}
-	if (session->start_policy.policy == AMSYNC_START_ALIGN &&
-			!session->start_posted) {
+	if (!session->start_posted) {
 		session->start_posted = true;
 		session->stat = AVS_STAT_STARTED;
 		msync_dbg(LOG_WARN, "[%d] audio allow start\n",
@@ -826,8 +825,7 @@ static u32 session_audio_start(struct sync_session *session,
 	mutex_lock(&session->session_mutex);
 	if (session->audio_switching) {
 		update_f_apts(session, pts);
-		if (session->wall_clock > pts ||
-		    session->start_policy.policy != AMSYNC_START_ALIGN) {
+		if ((int)(session->wall_clock - pts) >= 0) {
 			/* audio start immediately pts to small */
 			/* (need drop) or no wait */
 			session->stat = AVS_STAT_STARTED;
@@ -835,14 +833,13 @@ static u32 session_audio_start(struct sync_session *session,
 				"[%d]%d audio immediate start %u clock %u\n",
 				session->id, __LINE__, pts,
 				session->wall_clock);
-			if (session->start_policy.policy == AMSYNC_START_ALIGN &&
-					!session->start_posted) {
+			if (!session->start_posted) {
 				session->start_posted = true;
 				wakeup = true;
 			}
-		} else if (session->start_policy.policy == AMSYNC_START_ALIGN) {
+		} else {
 			// normal case, wait audio start point
-			u32 diff_ms =  (pts - session->wall_clock) / 90;
+			u32 diff_ms =  (int)(pts - session->wall_clock) / 90;
 			u32 delay_jiffies = msecs_to_jiffies(diff_ms);
 
 			msync_dbg(LOG_INFO,
@@ -996,6 +993,27 @@ exit:
 	return ret;
 }
 
+static void session_stop_audio_wait(struct sync_session *session)
+{
+	mutex_lock(&session->session_mutex);
+	if (session->start_policy.policy != AMSYNC_START_ALIGN ||
+		session->clock_start)
+		goto exit;
+	if (session->wait_work_on) {
+		cancel_delayed_work_sync(&session->wait_work);
+		session->wait_work_on = false;
+	} else {
+		goto exit;
+	}
+	session->a_active = false;
+
+	mutex_unlock(&session->session_mutex);
+	wakeup_poll(session, WAKE_A);
+	return;
+exit:
+	mutex_unlock(&session->session_mutex);
+}
+
 static void session_pause(struct sync_session *session, bool pause)
 {
 	mutex_lock(&session->session_mutex);
@@ -1013,6 +1031,7 @@ static void session_pause(struct sync_session *session, bool pause)
 			session->stat = AVS_STAT_PAUSED;
 		else
 			session->stat = AVS_STAT_STARTED;
+		session->d_vsync_last  = -1;
 	}
 	mutex_unlock(&session->session_mutex);
 }
@@ -1644,9 +1663,9 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		bool wakeup = false;
 
 		get_user(mode, (u32 __user *)argp);
-		msync_dbg(LOG_INFO,
-			"session[%d] mode %d --> %d\n",
-			session->id, session->mode, mode);
+		msync_dbg(LOG_ERR,
+			"session[%d] mode %d --> %d by %s\n",
+			session->id, session->mode, mode, current->comm);
 		mutex_lock(&session->session_mutex);
 		if (session->mode != AVS_MODE_PCR_MASTER &&
 			mode == AVS_MODE_PCR_MASTER &&
@@ -1790,9 +1809,9 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		stat.audio_switch = session->audio_switching;
 		if (copy_to_user(argp, &stat, sizeof(stat)))
 			return -EFAULT;
-		if (session->v_active && flag == SRC_V)
+		if (stat.clean_poll && session->v_active && flag == SRC_V)
 			session->event_pending &= ~SRC_V;
-		else if (session->a_active && flag == SRC_A)
+		else if (stat.clean_poll && session->a_active && flag == SRC_A)
 			session->event_pending &= ~SRC_A;
 		break;
 	}
@@ -1912,6 +1931,11 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 	case AMSYNCS_IOC_GET_CLK_DEV:
 	{
 		put_user(session->clk_dev, (int __user *)argp);
+		break;
+	}
+	case AMSYNCS_IOC_SET_STOP_AUDIO_WAIT:
+	{
+		session_stop_audio_wait(session);
 		break;
 	}
 	default:
@@ -2035,14 +2059,16 @@ static ssize_t session_stat_show(struct class *cla,
 
 	session = container_of(cla, struct sync_session, session_class);
 	return sprintf(buf,
-		"active v/%d a/%d\n"
+		"id: %d\n"
+		"active v/%d a/%d mode %d\n"
 		"first v/%x a/%x\n"
 		"last  v/%x a/%x\n"
 		"diff-ms a-w %d v-w %d a-v %d\n"
 		"start %d r %d\n"
 		"w %x pcr(%c) %x\n"
 		"audio switch %c\n",
-		session->v_active, session->a_active,
+		session->id,
+		session->v_active, session->a_active, session->mode,
 		session->first_vpts.pts,
 		session->first_apts.pts,
 		session->last_vpts.pts - session->last_vpts.delay,

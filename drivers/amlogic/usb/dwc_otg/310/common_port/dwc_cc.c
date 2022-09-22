@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
 /* $File: //dwh/usb_iip/dev/software/dwc_common_port_2/dwc_cc.c $
  * $Revision: #4 $
  * $Date: 2010/11/04 $

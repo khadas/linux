@@ -56,8 +56,7 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x10000>;
-			bconsole-size = <0x10000>;
+			pmsg-size = <0x20000>;
 		};
 
 		secmon_reserved: linux,secmon {
@@ -69,8 +68,7 @@
 		};
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			alignment = <0x0 0x400000>;
 			reg = <0x0 0x3f800000 0x0 0x800000>;
 		};
@@ -1184,6 +1182,9 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
@@ -1257,6 +1258,9 @@
 		pinctrl-0 = <&spdifout_a>;
 		pinctrl-1 = <&spdifout_a_mute>;
 
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		samesource_sel = <4>;
 
 		/*spdif clk tuning enable*/
@@ -1277,6 +1281,9 @@
 			"spdif_pins_mute";
 		pinctrl-0 = <&spdifout_b>;
 		pinctrl-1 = <&spdifout_b_mute>;
+
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 
 		status = "okay";
 	};
@@ -1352,7 +1359,7 @@
 
 		/*this resample is only used for loopback_A.*/
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {

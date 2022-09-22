@@ -15,13 +15,13 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
-#include <linux/amlogic/media/codec_mm/secmem.h>
+#include <linux/amlogic/media/codec_mm/dmabuf_manage.h>
 
 #define DMA_BUF_CODEC_MM "DMA_BUF"
 
 static struct dma_heap *secure_heap;
 
-static int dma_buf_debug;
+static int dma_buf_debug = 1;
 module_param(dma_buf_debug, int, 0644);
 
 #define dprintk(level, fmt, arg...) \
@@ -35,9 +35,9 @@ module_param(dma_buf_debug, int, 0644);
 #define pr_inf(fmt, args ...)		dprintk(8, fmt, ## args)
 #define pr_enter()			pr_inf("enter")
 
-#define SECMEM_DMA_BLOCK_PADDING_SIZE		(256 * 1024)
-#define SECMEM_DMA_BLOCK_MIN_SZIE		(256 * 1024)
-#define SECMEM_DMA_BLOCK_ALIGN_2N		12
+#define SECURE_DMA_BLOCK_PADDING_SIZE		(64 * 1024)
+#define SECURE_DMA_BLOCK_MIN_SZIE			(16 * 1024)
+#define SECURE_DMA_BLOCK_ALIGN_2N			12
 
 struct secure_block_info {
 	__u32 version;
@@ -45,6 +45,10 @@ struct secure_block_info {
 	__u32 phyaddr;
 	__u32 allocsize;
 	__u32 state;
+	__u32 id;
+	__u32 bind;
+	__u32 allocnum;
+	__u32 freenum;
 };
 
 struct secure_heap_buffer {
@@ -98,7 +102,7 @@ static struct sg_table *dup_sg_table(struct sg_table *table)
 }
 
 static int secure_heap_attach(struct dma_buf *dmabuf,
-			      struct dma_buf_attachment *attachment)
+				struct dma_buf_attachment *attachment)
 {
 	struct secure_heap_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a;
@@ -130,7 +134,7 @@ static int secure_heap_attach(struct dma_buf *dmabuf,
 }
 
 static void secure_heap_detach(struct dma_buf *dmabuf,
-			       struct dma_buf_attachment *attachment)
+				struct dma_buf_attachment *attachment)
 {
 	struct secure_heap_buffer *buffer = dmabuf->priv;
 	struct dma_heap_attachment *a = attachment->priv;
@@ -167,8 +171,8 @@ static struct sg_table *secure_heap_map_dma_buf
 }
 
 static void secure_heap_unmap_dma_buf(struct dma_buf_attachment *attachment,
-				      struct sg_table *table,
-				      enum dma_data_direction direction)
+					struct sg_table *table,
+					enum dma_data_direction direction)
 {
 	struct dma_heap_attachment *a = attachment->priv;
 	int attr = 0;
@@ -189,7 +193,7 @@ static int secure_heap_dma_buf_begin_cpu_access
 }
 
 static int secure_heap_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
-					      enum dma_data_direction direction)
+						enum dma_data_direction direction)
 {
 	pr_enter();
 	return 0;
@@ -212,24 +216,25 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 	if (!buffer)
 		return -1;
 	if (buffer->block &&
-		buffer->block->version >= SECMEM_HEAP_SUPPORT_DELAY_ALLOC_VERSION) {
+		buffer->block->version >= SECURE_HEAP_SUPPORT_DELAY_ALLOC_VERSION) {
 		block = buffer->block;
 		switch (block->state) {
 		case 1:
-			if (block->allocsize < SECMEM_DMA_BLOCK_MIN_SZIE)
-				len = SECMEM_DMA_BLOCK_MIN_SZIE;
+			if (block->allocsize < SECURE_DMA_BLOCK_MIN_SZIE)
+				len = SECURE_DMA_BLOCK_MIN_SZIE;
 			else
 				len = secure_align_up2n(block->allocsize,
-					SECMEM_DMA_BLOCK_ALIGN_2N);
-			len += SECMEM_DMA_BLOCK_PADDING_SIZE;
-			if (block->size < len || block->size - len >= SECMEM_DMA_BLOCK_MIN_SZIE) {
+					SECURE_DMA_BLOCK_ALIGN_2N);
+			len += SECURE_DMA_BLOCK_PADDING_SIZE;
+			if (block->size < len ||
+				(block->size - len >= SECURE_DMA_BLOCK_MIN_SZIE)) {
 				if (block->size && block->phyaddr) {
 					if (secure_block_free(block->phyaddr, block->size))
-						pr_err("Secmem free err please fix it");
+						pr_err("Secure buffer free err please fix it");
 					block->phyaddr = 0;
 					block->size = 0;
 				}
-				paddr = secure_block_alloc(len, 0);
+				paddr = secure_block_alloc(len, buffer->len, block->id);
 				if (!paddr) {
 					pr_err("No more secure memory can be alloc %ld", len);
 					return -1;
@@ -239,8 +244,36 @@ static int secure_heap_mmap(struct dma_buf *dmabuf,
 				block->phyaddr = paddr;
 				block->size = len;
 				buffer->buf->size = len;
+				if (block->id > 0)
+					block->bind = 1;
 			}
 			block->allocsize = 0;
+			block->state = 0;
+			break;
+		case 2:
+			if (block->version >= SECURE_HEAP_SUPPORT_MULTI_POOL_VERSION) {
+				paddr = block->phyaddr;
+				if (block->size && block->phyaddr) {
+					if (secure_block_free(block->phyaddr, block->size))
+						pr_err("Secure buffer free err please fix it");
+					block->phyaddr = 0;
+					block->size = 0;
+				}
+				if (block->id != 0 && block->allocsize > 0) {
+					block->freenum =
+						dmabuf_manage_get_can_alloc_blocknum(block->id,
+						buffer->len,
+						block->allocsize + SECURE_DMA_BLOCK_ALIGN_2N,
+						paddr);
+					block->allocnum =
+						dmabuf_manage_get_allocated_blocknum(block->id);
+					block->allocsize = 0;
+				} else {
+					block->allocnum = 0;
+					block->freenum = 0;
+					block->allocsize = 0;
+				}
+			}
 			block->state = 0;
 			break;
 		default:
@@ -275,7 +308,7 @@ static void secure_heap_dma_buf_release(struct dma_buf *dmabuf)
 	block = buffer->block;
 	if (block && block->phyaddr && block->size) {
 		if (secure_block_free(block->phyaddr, block->size))
-			pr_err("Secmem release error, please fix it");
+			pr_err("Secure buffer release error, please fix it");
 	}
 	sg_free_table(&buffer->sg_table);
 	if (buffer->block_page)
@@ -299,10 +332,10 @@ static const struct dma_buf_ops secure_heap_buf_ops = {
 };
 
 static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
-					       unsigned long len,
-					       unsigned long fd_flags,
-					       unsigned long heap_flags,
-					       bool uncached)
+						unsigned long len,
+						unsigned long fd_flags,
+						unsigned long heap_flags,
+						bool uncached)
 {
 	struct secure_heap_buffer *buffer;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
@@ -333,9 +366,9 @@ static struct dma_buf *secure_heap_do_allocate(struct dma_heap *heap,
 	if (sg_alloc_table(table, 1, GFP_KERNEL))
 		goto free_priv_buffer;
 
-	buffer->block->version = secmem_get_secure_heap_version();
-	if (buffer->block->version == SECMEM_HEAP_DEFAULT_VERSION) {
-		paddr = secure_block_alloc(len, 0);
+	buffer->block->version = dmabuf_manage_get_secure_heap_version();
+	if (buffer->block->version == SECURE_HEAP_DEFAULT_VERSION) {
+		paddr = secure_block_alloc(len, len, 0);
 		if (!paddr)
 			goto free_tables;
 		buffer->block->size = len;

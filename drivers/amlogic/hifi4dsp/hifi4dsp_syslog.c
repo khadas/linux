@@ -159,6 +159,7 @@ static ssize_t hificlkrate_write(struct file *file, const char __user *userbuf,
 	struct seq_file *sf = file->private_data;
 	struct hifi4dsp_dsp *dsp = sf->private;
 	char buffer[15] = {0};
+	u32 freq = 0;
 
 	count = min_t(size_t, count, sizeof(buffer) - 1);
 
@@ -166,6 +167,14 @@ static ssize_t hificlkrate_write(struct file *file, const char __user *userbuf,
 		return -EFAULT;
 	if (kstrtouint(buffer, 0, &dsp->freq))
 		return -EINVAL;
+
+	if (hifi4dsp_p[dsp->id]->dsp->status_reg && dsp->dspstarted && !dsp->dsphang) {
+		freq = dsp->freq;
+		clk_set_rate(dsp->dsp_clk, dsp->freq);
+		clk_prepare_enable(dsp->dsp_clk);
+		scpi_send_data(&freq, sizeof(freq), dsp->id ? SCPI_DSPB : SCPI_DSPA,
+			SCPI_CMD_HIFI5_FREQ_SET_END, NULL, 0);
+	}
 
 	return count;
 }

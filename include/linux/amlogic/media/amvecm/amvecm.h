@@ -679,6 +679,7 @@ struct vecm_match_data_s {
 	u32 reg_addr_hiu;
 	u32 reg_addr_anactr;
 	u32 vlk_ctl_for_frc;/*control frc flash patch*/
+	u32 vrr_support_flag;/*frame lock control type 1:support 0:unsupport*/
 };
 
 enum vd_path_e {

@@ -137,8 +137,8 @@ const char *tvin_port_str(enum tvin_port_e port)
 		return "VIU1_WB0_OSD2";
 	case TVIN_PORT_VIU1_WB0_VPP:
 		return "VIU1_WB0_VPP";
-	case TVIN_PORT_VIU1_WB0_VDIN_BIST:
-		return "VIU1_WB0_VDIN_BIST";
+	case TVIN_PORT_VIU1_WB1_VDIN_BIST:
+		return "VIU1_WB1_VDIN_BIST";
 	case TVIN_PORT_VIU1_WB0_POST_BLEND:
 		return "VIU1_WB0_POST_BLEND";
 	case TVIN_PORT_MAX:

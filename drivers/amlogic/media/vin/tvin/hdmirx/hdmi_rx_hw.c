@@ -80,6 +80,11 @@ int hdcp22_on;
 MODULE_PARM_DESC(hdcp22_on, "\n hdcp22_on\n");
 module_param(hdcp22_on, int, 0664);
 
+/* 0: previous hdcp_rx22 ,1: new hdcp_rx22 */
+int rx22_ver;
+MODULE_PARM_DESC(rx22_ver, "\n rx22_ver\n");
+module_param(rx22_ver, int, 0664);
+
 MODULE_PARM_DESC(force_clk_rate, "\n force_clk_rate\n");
 module_param(force_clk_rate, int, 0664);
 
@@ -544,6 +549,11 @@ void wr_reg_clk_ctl(unsigned int offset, unsigned int val)
 	addr = offset + rx_reg_maps[MAP_ADDR_MODULE_CLK_CTRL].phy_addr;
 	wr_reg(MAP_ADDR_MODULE_CLK_CTRL, addr, val);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
+}
+
+void hdmirx_wr_bits_clk_ctl(unsigned int addr, unsigned int mask, unsigned int value)
+{
+	wr_reg_clk_ctl(addr, rx_set_bits(rd_reg_clk_ctl(addr), mask, value));
 }
 
 /* For analog modules register rd */
@@ -1182,6 +1192,11 @@ void rx_set_irq_t5(bool enable)
 			data32 |= 0 << 0; /* PD_FIFO_TH_MIN_PASS */
 			data32 |= pdec_ists_en;
 		}
+		/* clear status */
+		hdmirx_wr_dwc(DWC_PDEC_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_AUD_CEC_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_AUD_FIFO_ICLR, ~0);
+		hdmirx_wr_dwc(DWC_MD_ICLR, ~0);
 		hdmirx_wr_dwc(DWC_PDEC_IEN_SET, data32);
 		hdmirx_wr_dwc(DWC_AUD_FIFO_IEN_SET, OVERFL | UNDERFL);
 	} else {
@@ -1292,10 +1307,15 @@ void hdmirx_top_irq_en(bool flag)
 		/* bit27 DE rise */
 		top_intr_maskn_value = 0x28000001;
 	}
-	if (flag)
+	if (flag) {
+		/* for TXLX, cec phy address error issues */
+		if (rx.chip_id <= CHIP_ID_TL1)
+			top_intr_maskn_value |= 0x1e0000;
+
 		hdmirx_wr_top(TOP_INTR_MASKN, top_intr_maskn_value);
-	else
+	} else {
 		hdmirx_wr_top(TOP_INTR_MASKN, 0);
+	}
 }
 
 /*
@@ -2104,7 +2124,7 @@ void rx_hdcp14_config(const struct hdmi_rx_hdcp *hdcp)
 	/* hdmirx_wr_bits_dwc(ctx, DWC_HDCP_CTRL, KEY_DECRYPT_ENABLE, 1); */
 	hdmirx_wr_bits_dwc(DWC_HDCP_CTRL, KEY_DECRYPT_ENABLE, 0);
 	hdmirx_wr_dwc(DWC_HDCP_SEED, hdcp->seed);
-	if (hdcp14_key_mode == SECURE_MODE || hdcp_tee_path) {
+	if (hdcp14_key_mode == SECURE_MODE || hdcp14_on) {
 		rx_set_hdcp14_secure_key();
 		rx_pr("hdcp1.4 secure mode\n");
 	} else {
@@ -2393,6 +2413,22 @@ void control_reset(void)
 	hdmirx_wr_dwc(DWC_DMI_SW_RST,	0x0000001F);
 }
 
+void rx_dig_clk_en(bool en)
+{
+	if (rx.chip_id >= CHIP_ID_T7)
+		return;
+	hdcp22_clk_en(en);
+	/* enable gate of cts_hdmirx_modet_clk */
+	/* enable gate of cts_hdmirx_cfg_clk */
+	if (rx.chip_id >= CHIP_ID_T5) {
+		hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL, MODET_CLK_EN, en);
+		hdmirx_wr_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN, en);
+	} else {
+		wr_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, MODET_CLK_EN, en);
+		wr_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN, en);
+	}
+}
+
 void rx_esm_tmdsclk_en(bool en)
 {
 	if (rx.chip_id >= CHIP_ID_T7)
@@ -2460,10 +2496,13 @@ void hdcp22_clk_en(bool en)
 			/* for arbitrating AXI requests from HDMI TX and RX.*/
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(1, 12), 0x1);
 	} else {
-		if (rx.chip_id >= CHIP_ID_T5)
+		if (rx.chip_id >= CHIP_ID_T5) {
 			wr_reg_clk_ctl(HHI_HDCP22_CLK_CNTL, 0);
-		else
+			wr_reg_clk_ctl(HHI_AXI_CLK_CTNL, 0);
+		} else {
 			wr_reg_hhi(HHI_HDCP22_CLK_CNTL, 0);
+			wr_reg_hhi(HHI_AXI_CLK_CTNL, 0);
+		}
 		if (rx.chip_id >= CHIP_ID_TL1)
 			/* TL1:esm related clk bit9-11 */
 			hdmirx_wr_bits_top(TOP_CLK_CNTL, MSK(3, 9), 0x0);
@@ -2481,14 +2520,23 @@ void hdmirx_hdcp22_esm_rst(void)
 	if (rx.chip_id >= CHIP_ID_T7)
 		return;
 
-	/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
-	if (rx.chip_id >= CHIP_ID_TL1)
-		hdmirx_wr_top(TOP_SW_RESET, 0x1000);
-	else
-		/* For txlx and previous chips,the sw_reset_hdcp22 is bit'8 */
-		hdmirx_wr_top(TOP_SW_RESET, 0x100);
-	mdelay(1);
-	hdmirx_wr_top(TOP_SW_RESET, 0x0);
+	rx_pr("before kill\n");
+	rx_kill_esm();
+	mdelay(5);
+	if (hdcp22_kill_esm == 3 || !rx22_ver) {
+		rx_pr("before rst:\n");
+		/* For TL1,the sw_reset_hdcp22 bit is top reg 0x0,bit'12 */
+		if (rx.chip_id >= CHIP_ID_TL1)
+			hdmirx_wr_top(TOP_SW_RESET, 0x1000);
+		else
+			/* For txlx and previous chips,the sw_reset_hdcp22 is bit'8 */
+			hdmirx_wr_top(TOP_SW_RESET, 0x100);
+		rx_pr("before releas\n");
+		mdelay(1);
+		hdmirx_wr_top(TOP_SW_RESET, 0x0);
+	} else {
+		rx_pr("do not kill\n");
+	}
 	rx_pr("esm rst\n");
 }
 
@@ -2554,11 +2602,11 @@ void hdcp_22_off(void)
 		/* rx_set_cur_hpd(0); */
 		hpd_to_esm = 0;
 		hdmirx_wr_dwc(DWC_HDCP22_CONTROL, 0x0);
-		if (hdcp22_kill_esm == 0)
-			hdmirx_hdcp22_esm_rst();
-		else
-			hdcp22_kill_esm = 0;
-		hdcp22_clk_en(0);
+	//if (hdcp22_kill_esm == 0)
+	hdmirx_hdcp22_esm_rst();
+	//else
+		//hdcp22_kill_esm = 0;
+	hdcp22_clk_en(0);
 	}
 	rx_pr("hdcp22 off\n");
 }
@@ -2572,7 +2620,6 @@ void hdcp_22_on(void)
 		//TODO..
 	} else {
 		hdcp22_kill_esm = 0;
-		kill_esm_fail = 0;
 		/* switch_set_state(&rx.hpd_sdev, 0x0); */
 		/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
 		rx_hdcp22_send_uevent(0);
@@ -3703,12 +3750,16 @@ void rx_acr_info_sw_update(void)
  *
  * return true if afifo under/over flow, false otherwise.
  */
-bool is_afifo_error(void)
+bool is_aud_fifo_error(void)
 {
 	bool ret = false;
 
+	if (rx.chip_id >= CHIP_ID_T7)
+		return ret;
+
 	if ((hdmirx_rd_dwc(DWC_AUD_FIFO_STS) &
-		(OVERFL_STS | UNDERFL_STS)) != 0) {
+		(OVERFL_STS | UNDERFL_STS)) &&
+		rx.aud_info.aud_packet_received) {
 		ret = true;
 		if (log_level & AUDIO_LOG)
 			rx_pr("afifo err\n");
@@ -5663,8 +5714,8 @@ bool is_ddc_filter_en(void)
 void rx_ddc_active_monitor(void)
 {
 	u32 temp = 0;
-
-	if (ddc_dbg_en)
+	/*check the version of t7*/
+	if (ddc_dbg_en || !is_t7_former())
 		return;
 
 	if (rx.state != FSM_WAIT_CLK_STABLE)

@@ -904,7 +904,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 
 	if (type <= VFRAME_EVENT_PROVIDER_CMD_MAX	&&
 	    di_receiver_event_cmd[type]) {
-		dbg_ev("ch[%d]:%s,%d:%s\n", ch, __func__,
+		dbg_ev("ch[%d]:%s:%d:%s\n", ch, "event",
 		       type,
 		       di_receiver_event_cmd[type]);
 	}
@@ -936,7 +936,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		}
 		dev_vframe_reg_first(&pch->itf);
 		pch->sum_reg_cnt++;
-		dbg_ev("reg:%s[%d]\n", provider_name, pch->sum_reg_cnt);
+		dbg_reg("reg:%s[%d]\n", provider_name, pch->sum_reg_cnt);
 		atomic_set(&pch->vf_get_idle, 1);
 		dim_api_reg(DIME_REG_MODE_VFM, pch);
 
@@ -1399,5 +1399,5 @@ void dev_vframe_init(void)
 		vf_provider_init(&pvfm->di_vf_prov, pvfm->name,
 				 &deinterlace_vf_provider, &pvfm->indx);
 	}
-	dbg_reg("%s finish\n", __func__);
+	dbg_mem("%s finish\n", __func__);
 }

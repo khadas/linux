@@ -216,8 +216,9 @@ static struct sec_pm_private_domain t7_pm_domains[] __initdata = {
 	[PDID_T7_VI_CLK2] = POWER_DOMAIN(vi_clk2, PDID_T7_VI_CLK2,
 					 DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_ETH] = POWER_DOMAIN(eth, PDID_T7_ETH, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
-	[PDID_T7_ISP] = POWER_DOMAIN(isp, PDID_T7_ISP, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_MIPI_ISP] = POWER_DOMAIN(mipi_isp, PDID_T7_MIPI_ISP, DOMAIN_INIT_OFF, 0),
+	[PDID_T7_ISP] = POWER_DOMAIN(isp, PDID_T7_ISP, DOMAIN_INIT_ON, GENPD_FLAG_IGNORE_UNUSED),
+	[PDID_T7_MIPI_ISP] = POWER_DOMAIN(mipi_isp, PDID_T7_MIPI_ISP,
+					DOMAIN_INIT_ON, GENPD_FLAG_IGNORE_UNUSED),
 	[PDID_T7_GDC] = TOP_DOMAIN(gdc, PDID_T7_GDC, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
 	[PDID_T7_DEWARP] = TOP_DOMAIN(dewarp, PDID_T7_DEWARP, DOMAIN_INIT_ON,
 				      GENPD_FLAG_IGNORE_UNUSED, PDID_T7_NIC3),
@@ -511,11 +512,11 @@ static int sec_pd_probe(struct platform_device *pdev)
 		init_status = pwr_ctrl_status_psci_smc(private_pd->pd_index);
 
 		if (init_status == DOMAIN_INIT_OFF && private_pd->pd_status == DOMAIN_INIT_ON) {
-			if (pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
+			if (pd[i].base.flags & GENPD_FLAG_ALWAYS_ON)
 				pwr_ctrl_psci_smc(i, PWR_ON);
 		}
 
-		if (init_status == -1 || pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
+		if (init_status == -1 || pd[i].base.flags & GENPD_FLAG_ALWAYS_ON)
 			init_status = private_pd->pd_status;
 
 		/* Initialize based on pd_status */

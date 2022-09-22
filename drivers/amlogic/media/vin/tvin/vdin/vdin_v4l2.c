@@ -39,11 +39,11 @@ int vdin_reg_v4l2(struct vdin_v4l2_ops_s *v4l2_ops)
 }
 EXPORT_SYMBOL(vdin_reg_v4l2);
 
-void vdin_unreg_v4l2(void)
+void vdin_unregister_v4l2(void)
 {
 	memset(&ops, 0, sizeof(struct vdin_v4l2_ops_s));
 }
-EXPORT_SYMBOL(vdin_unreg_v4l2);
+EXPORT_SYMBOL(vdin_unregister_v4l2);
 
 int v4l2_vdin_ops_init(struct vdin_v4l2_ops_s *vdin_v4l2p)
 {
@@ -94,8 +94,8 @@ const char *cam_cmd_to_str(enum cam_command_e cmd)
 		return "CAM_COMMAND_SET_AE_LEVEL";
 	case CAM_COMMAND_AF:
 		return "CAM_COMMAND_AF";
-	case CAM_COMMAND_FULLSCAN:
-		return "CAM_COMMAND_FULLSCAN";
+	case CAM_COMMAND_FULL_SCAN:
+		return "CAM_COMMAND_FULL_SCAN";
 	case CAM_COMMAND_TOUCH_FOCUS:
 		return "CAM_COMMAND_TOUCH_FOCUS";
 	case CAM_COMMAND_CONTINUOUS_FOCUS_ON:

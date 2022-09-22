@@ -31,10 +31,14 @@ void frc_hw_initial(struct frc_dev_s *frc_devp);
 void frc_scene_detect_input(struct frc_fw_data_s *fw_data);
 void frc_scene_detect_output(struct frc_fw_data_s *fw_data);
 
+bool vlock_get_phlock_flag(void);
+bool vlock_get_vlock_flag(void);
+
 void frc_change_to_state(enum frc_state_e state);
 void frc_state_change_finish(struct frc_dev_s *devp);
 void frc_state_handle_old(struct frc_dev_s *devp);
 void frc_state_handle(struct frc_dev_s *devp);
+void frc_state_handle_new(struct frc_dev_s *devp);
 void frc_input_vframe_handle(struct frc_dev_s *devp, struct vframe_s *vf,
 					struct vpp_frame_par_s *cur_video_sts);
 void frc_dump_monitor_data(struct frc_dev_s *devp);
@@ -53,6 +57,8 @@ void frc_mm_secure_set(struct frc_dev_s *devp);
 void frc_char_flash_check(void);
 void frc_chk_vd_sts_chg(struct frc_dev_s *frc_devp,
 				struct vframe_s *vf);
+u16 frc_check_film_mode(struct frc_dev_s *frc_devp);
+
 extern struct work_struct frc_mem_dyc_proc;
 
 #endif

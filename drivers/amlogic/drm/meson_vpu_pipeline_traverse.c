@@ -663,13 +663,18 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 			 struct meson_vpu_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
-	int i, j, ret;
+	int i, j, ret, index;
 	bool is_continue = false;
 	/*comb of osd path index or each osd.*/
 	int combination[MESON_MAX_OSDS] = {0};
 
 	i = 0;
 	ret = -1;
+
+	for (index = MESON_MAX_OSDS; index >= 0; index--) {
+		if (mvps->plane_info[index].enable)
+			break;
+	}
 
 	do {
 		DRM_DEBUG("Comb check [%d-%d-%d-%d]\n",
@@ -681,9 +686,12 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 			break;
 		vpu_pipeline_clean_block(combination, num_planes, mvps, state);
 		i++;
-		combination[num_planes - 1] = i;
+		combination[index] = i;
 
-		for (j = num_planes - 1; j >= 0; j--) {
+		for (j = index; j >= 0; j--) {
+			if (!mvps->plane_info[j].enable)
+				continue;
+
 			if (combination[j] >= path_num_array[j]) {
 				combination[j] = 0;
 				i = 0;
@@ -695,8 +703,9 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 
 		is_continue = false;
 
-		for (j = 0; j < num_planes; j++) {
-			if (combination[j] != 0) {
+		for (j = 0; j < MESON_MAX_OSDS; j++) {
+			if (combination[j] != 0 &&
+			    mvps->plane_info[j].enable) {
 				is_continue = true;
 				break;
 			}

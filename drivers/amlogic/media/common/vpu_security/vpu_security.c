@@ -511,6 +511,7 @@ static struct class_attribute vpu_security_attrs[] = {
 	       debug_value_show, debug_value_store),
 };
 
+#ifdef USE_VPU_SECURIT_ISR
 irqreturn_t vpu_security_isr(int irq, void *dev_id)
 {
 	struct vpu_security_device_info *info = &vpu_security_info;
@@ -546,11 +547,14 @@ irqreturn_t vpu_security_isr(int irq, void *dev_id)
 	}
 	return IRQ_HANDLED;
 }
+#endif
 
 static int vpu_security_probe(struct platform_device *pdev)
 {
 	int i, ret = 0, err = 0;
+#ifdef USE_VPU_SECURIT_ISR
 	int int_vpu_security;
+#endif
 	struct vpu_security_device_info *info = &vpu_security_info;
 
 	if (pdev->dev.of_node) {
@@ -579,6 +583,7 @@ static int vpu_security_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+#ifdef USE_VPU_SECURIT_ISR
 	info->pdev = pdev;
 	int_vpu_security = platform_get_irq_byname(pdev, "vpu_security");
 	if (request_irq(int_vpu_security, &vpu_security_isr,
@@ -586,6 +591,7 @@ static int vpu_security_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't request irq for vpu_security\n");
 		return -ENODEV;
 	}
+#endif
 
 	info->clsp = class_create(THIS_MODULE,
 				  CLASS_NAME);

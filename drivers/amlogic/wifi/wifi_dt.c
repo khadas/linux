@@ -519,24 +519,6 @@ static int wifi_setup_dt(void)
 		return -1;
 	}
 
-	/* setup irq */
-	if (wifi_info.interrupt_pin) {
-		ret = gpio_request(wifi_info.interrupt_pin,
-				   OWNER_NAME);
-		if (ret)
-			WIFI_INFO("interrupt_pin request failed(%d)\n", ret);
-
-		ret = gpio_direction_input(wifi_info.interrupt_pin);
-		if (ret)
-			WIFI_INFO("set interrupt_pin input failed(%d)\n", ret);
-
-		wifi_info.irq_num = gpio_to_irq(wifi_info.interrupt_pin);
-		if (wifi_info.irq_num)
-			WIFI_DEBUG("irq num is:(%d)\n", wifi_info.irq_num);
-
-		SHOW_PIN_OWN("interrupt_pin", wifi_info.interrupt_pin);
-	}
-
 	/* setup power */
 	if (wifi_info.chip_en_pin) {
 		ret = gpio_request(wifi_info.chip_en_pin, OWNER_NAME);
@@ -1060,6 +1042,26 @@ EXPORT_SYMBOL(extern_wifi_set_enable);
 
 int wifi_irq_num(void)
 {
+	int ret;
+
+	/* setup irq */
+	if (wifi_info.interrupt_pin) {
+		ret = gpio_request(wifi_info.interrupt_pin,
+				   OWNER_NAME);
+		if (ret)
+			WIFI_INFO("interrupt_pin request failed(%d)\n", ret);
+
+		ret = gpio_direction_input(wifi_info.interrupt_pin);
+		if (ret)
+			WIFI_INFO("set interrupt_pin input failed(%d)\n", ret);
+
+		wifi_info.irq_num = gpio_to_irq(wifi_info.interrupt_pin);
+		if (wifi_info.irq_num)
+			WIFI_DEBUG("irq num is:(%d)\n", wifi_info.irq_num);
+
+		SHOW_PIN_OWN("interrupt_pin", wifi_info.interrupt_pin);
+	}
+
 	return wifi_info.irq_num;
 }
 EXPORT_SYMBOL(wifi_irq_num);

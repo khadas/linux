@@ -668,14 +668,21 @@
 		dsp-cnt = <2>;
 		dspaoffset = <0x00000>;
 		dspboffset = <0x800000>;
-		bootlocation = <1>;   /*1: boot from DDR, 2: from sram, 3...*/
-		boot_sram_addr = <0xfff00000>;
-		boot_sram_size = <0x80000>;
+		bootlocation = <2>;   /*1: boot from DDR, 2: from sram, 3...*/
+		optimize_longcall = <1 0>;
+		sram_remap_addr = <0x7ff00000 0xf7100000 0x0 0x0>;
+		boot_sram_addr = <0xf7100000>;
+		boot_sram_size = <0x100000>;
+		//boot_sram_addr = <0xfff00000>;
+		//boot_sram_size = <0x80000>;
 		//dspsrambase = <0xf7100000>;
 		//dspsramsize = <0x100000>;
 		power-domains = <&pwrdm PDID_P1_DSPA>,
 						<&pwrdm PDID_P1_DSPB>;
 		power-domain-names = "dspa", "dspb";
+		iommu = <&smmu P1_SID_DSP_A>,<&smmu P1_SID_DSP_B>;
+		dma-ranges = <0x0 0x0 0x0 0x0 0x0 0x80000000>;
+		dsp_clk_freqs = <800000000 800000000>;
 		status = "okay";
 	};
 
@@ -1268,6 +1275,13 @@
 					#gpio-cells = <2>;
 					gpio-ranges = <&storage_pinctrl 0 0 13>;
 				};
+			};
+
+			gpio_mclk: bank-mclk@8310 {
+					reg = <0x0 0x8310 0x0 0x2c>;
+					compatible = "amlogic,meson-mclk-gpio";
+					gpio-controller;
+					#gpio-cells = <2>;
 			};
 
 			gpio_intc: interrupt-controller@40c0 {
@@ -4189,6 +4203,14 @@
 				 "spi_a_miso",
 				 //"spi_a_ss0",used as GPIOH_9
 				 "spi_a_clk";
+			function = "spi_a";
+			drive-strength-microamp = <2000>;
+		};
+	};
+
+	spicc0_cs_pins: spicc0_cs_pins {
+		mux {
+			groups = "spi_a_ss0";
 			function = "spi_a";
 			drive-strength-microamp = <2000>;
 		};

@@ -297,3 +297,16 @@ void aml_sync_put_fence(struct dma_fence *fence)
 {
 	dma_fence_put(fence);
 }
+
+/**
+ * dma_fence_get_status_locked - returns the status upon completion
+ * @fence: the dma_fence to query
+ *
+ * Returns 0 if the fence has not yet been signaled, 1 if the fence has
+ * been signaled without an error condition, or a negative error code
+ * if the fence has been completed in err.
+ */
+int aml_sync_fence_status(struct dma_fence *fence)
+{
+	return dma_fence_get_status(fence);
+}

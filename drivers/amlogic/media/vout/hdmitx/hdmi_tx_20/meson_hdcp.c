@@ -507,6 +507,17 @@ void hdcp_key_check(struct timer_list *timer)
 	}
 }
 
+bool hdcp_tx22_daemon_ready(void)
+{
+	bool ret = false;
+
+	if (meson_hdcp.hdcp22_daemon_state != HDCP22_DAEMON_DONE)
+		ret = false;
+	else
+		ret = true;
+	return ret;
+}
+
 void meson_hdcp_init(void)
 {
 	int ret;

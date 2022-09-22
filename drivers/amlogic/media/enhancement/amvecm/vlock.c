@@ -584,10 +584,10 @@ int vlock_sync_frc_vporch(struct stvlock_frc_param frc_param)
 			pvlock->enc_frc_v_porch = frc_param.frc_v_porch;
 			pvlock->enc_frc_max_line = frc_param.max_lncnt;
 			pvlock->enc_frc_max_pixel = frc_param.max_pxcnt;
-			pr_info("vlock: vlock not done, is locking ..., frc set max lncnt and ma px cnt!");
+			pr_info("vlock: vlock not done, is locking ...");
 			ret = 0;
 		} else {
-			pr_info("vlock: vlock is NULL or Disable, frc set max lncnt and ma px cnt!");
+			pr_info("vlock: vlock status is starting ...");
 			vlock_tune_sync_frc(frc_param.frc_v_porch, frc_param.s2l_en);
 			ret = 0;
 		}
@@ -3313,6 +3313,7 @@ void vlock_status(struct stvlock_sig_sts *pvlock)
 	pr_info("com_sts0 :0x%0x\n", pvlock->vdinsts.com_sts0);
 	pr_info("com_sts1 :0x%0x\n", pvlock->vdinsts.com_sts1);
 	pr_info("vlock_protect_min:%d\n", vlock_protect_min);
+	pr_info("vlock_manual:%d\n", vlock_manual);
 }
 
 void vlock_reg_dump(struct stvlock_sig_sts *pvlock)
@@ -3509,6 +3510,7 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 		pvlock->fsm_pause = true;
 		pvlock->fsm_sts = VLOCK_STATE_NULL;
 		vlock_notify_event = cmd;
+		frame_lock_mode_chg(cmd);
 		if (pvlock->dtdata->vlk_new_fsm &&
 		    pvlock->fsm_sts >= VLOCK_STATE_ENABLE_STEP1_DONE &&
 		    pvlock->fsm_sts <= VLOCK_STATE_DISABLE_STEP1_DONE) {
@@ -3526,6 +3528,7 @@ int vlock_notify_callback(struct notifier_block *block, unsigned long cmd,
 		pvlock->fsm_pause = false;
 		pvlock->fsm_sts = VLOCK_STATE_NULL;
 		vlock_notify_event = cmd;
+		frame_lock_mode_chg(cmd);
 		pr_info("vlock: event MODE_CHANGE\n");
 		break;
 

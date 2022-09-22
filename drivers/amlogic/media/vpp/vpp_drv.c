@@ -103,27 +103,163 @@ static long vpp_ioctl(struct file *filp,
 	unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
-	struct vpp_pq_state_s pq_state;
+	int val = 0;
 	void __user *argp;
+	unsigned int buffer_size;
+	struct vpp_pq_state_s pq_state;
+	struct vpp_white_balance_s wb_data;
+	struct vpp_pre_gamma_table_s *ppre_gamma_data = NULL;
+	struct vpp_gamma_table_s *pgamma_data = NULL;
 
 	memset(&pq_state, 0, sizeof(struct vpp_pq_state_s));
+	memset(&wb_data, 0, sizeof(struct vpp_white_balance_s));
+
+	pr_vpp(PR_IOC, "%s cmd = %d\n", __func__, cmd);
+
+	argp = (void __user *)arg;
 
 	switch (cmd) {
-	case VPP_IOC_GET_PQ_STATE:
-		pq_state.pq_en = 0;
-		argp = (void __user *)arg;
-		if (copy_to_user(argp, &pq_state,
-			sizeof(struct vpp_pq_state_s))) {
-			pr_vpp(PR_IOC, "IOC_GET_PQ_STATE IOC failed\n");
+	case VPP_IOC_SET_BRIGHTNESS:
+		if (copy_from_user(&val, argp, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_BRIGHTNESS failed\n");
 			ret = -EFAULT;
 		} else {
-			pr_vpp(PR_IOC, "IOC_GET_PQ_STATE IOC success\n");
+			pr_vpp(PR_IOC, "VPP_IOC_SET_BRIGHTNESS success\n");
+			ret = vpp_pq_mgr_set_brightness(val);
+		}
+		break;
+	case VPP_IOC_SET_CONTRAST:
+		if (copy_from_user(&val, argp, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_CONTRAST failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_CONTRAST success\n");
+			ret = vpp_pq_mgr_set_contrast(val);
+		}
+		break;
+	case VPP_IOC_SET_SATURATION:
+		if (copy_from_user(&val, argp, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_SATURATION failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_SATURATION success\n");
+			ret = vpp_pq_mgr_set_saturation(val);
+		}
+		break;
+	case VPP_IOC_SET_HUE:
+		if (copy_from_user(&val, argp, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_HUE failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_HUE success\n");
+			ret = vpp_pq_mgr_set_hue(val);
+		}
+		break;
+	case VPP_IOC_SET_BRIGHTNESS_POST:
+		if (copy_from_user(&val, argp, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_BRIGHTNESS_POST failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_BRIGHTNESS_POST success\n");
+			ret = vpp_pq_mgr_set_brightness_post(val);
+		}
+		break;
+	case VPP_IOC_SET_CONTRAST_POST:
+		if (copy_from_user(&val, argp, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_CONTRAST_POST failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_CONTRAST_POST success\n");
+			ret = vpp_pq_mgr_set_contrast_post(val);
+		}
+		break;
+	case VPP_IOC_SET_SATURATION_POST:
+		if (copy_from_user(&val, argp, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_SATURATION_POST failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_SATURATION_POST success\n");
+			ret = vpp_pq_mgr_set_saturation_post(val);
+		}
+		break;
+	case VPP_IOC_SET_HUE_POST:
+		if (copy_from_user(&val, argp, sizeof(int))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_HUE_POST failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_HUE_POST success\n");
+			ret = vpp_pq_mgr_set_hue_post(val);
+		}
+		break;
+	case VPP_IOC_SET_WB:
+		if (copy_from_user(&wb_data, argp,
+			sizeof(struct vpp_white_balance_s))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_WB failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_WB success\n");
+			ret = vpp_pq_mgr_set_whitebalance(&wb_data);
+		}
+		break;
+	case VPP_IOC_SET_PRE_GAMMA_DATA:
+		buffer_size = sizeof(struct vpp_pre_gamma_table_s);
+		ppre_gamma_data = kmalloc(buffer_size, GFP_KERNEL);
+		if (!ppre_gamma_data) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA malloc failed\n");
+			ret = -ENOMEM;
+		} else {
+			if (copy_from_user(ppre_gamma_data, argp, buffer_size)) {
+				pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA failed\n");
+				ret = -EFAULT;
+			} else {
+				pr_vpp(PR_IOC, "VPP_IOC_SET_PRE_GAMMA_DATA success\n");
+				ret = vpp_pq_mgr_set_pre_gamma_table(ppre_gamma_data);
+			}
+			kfree(ppre_gamma_data);
+		}
+		break;
+	case VPP_IOC_SET_GAMMA_DATA:
+		buffer_size = sizeof(struct vpp_gamma_table_s);
+		pgamma_data = kmalloc(buffer_size, GFP_KERNEL);
+		if (!pgamma_data) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA malloc failed\n");
+			ret = -ENOMEM;
+		} else {
+			if (copy_from_user(pgamma_data, argp, buffer_size)) {
+				pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA failed\n");
+				ret = -EFAULT;
+			} else {
+				pr_vpp(PR_IOC, "VPP_IOC_SET_GAMMA_DATA success\n");
+				ret = vpp_pq_mgr_set_gamma_table(pgamma_data);
+			}
+			kfree(pgamma_data);
+		}
+		break;
+	case VPP_IOC_SET_PQ_STATE:
+		if (copy_from_user(&pq_state, argp,
+			sizeof(struct vpp_pq_state_s))) {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_PQ_STATE failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_SET_PQ_STATE success\n");
+			ret = vpp_pq_mgr_set_status(&pq_state);
+		}
+		break;
+	case VPP_IOC_GET_PQ_STATE:
+		vpp_pq_mgr_get_status(&pq_state);
+		if (copy_to_user(argp, &pq_state,
+			sizeof(struct vpp_pq_state_s))) {
+			pr_vpp(PR_IOC, "VPP_IOC_GET_PQ_STATE failed\n");
+			ret = -EFAULT;
+		} else {
+			pr_vpp(PR_IOC, "VPP_IOC_GET_PQ_STATE success\n");
 		}
 		break;
 	default:
 		ret = 0;
 		break;
 	}
+
 	return ret;
 }
 

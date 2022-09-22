@@ -42,6 +42,10 @@
 
 #include "meson-cqhci.h"
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+extern int skip_all_clk_disable;
+#endif
+
 struct mmc_gpio {
 	struct gpio_desc *ro_gpio;
 	struct gpio_desc *cd_gpio;
@@ -245,8 +249,16 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 			if (__clk_get_enable_count(host->clk[1]))
 				clk_disable_unprepare(host->clk[1]);
 			host->src_clk_cfg_done = false;
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+			if (!skip_all_clk_disable) {
+				WARN_ON(__clk_get_enable_count(host->clk[2]));
+				WARN_ON(__clk_get_enable_count(host->clk[1]));
+			}
+#else
 			WARN_ON(__clk_get_enable_count(host->clk[2]));
 			WARN_ON(__clk_get_enable_count(host->clk[1]));
+#endif
 		}
 		return 0;
 	}
@@ -1289,6 +1301,9 @@ static void meson_mmc_check_resampling(struct meson_host *host,
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	case MMC_TIMING_SD_HS:
+		val = readl(host->regs + SD_EMMC_V3_ADJUST);
+		val |= CFG_ADJUST_ENABLE;
+		writel(val, host->regs + SD_EMMC_V3_ADJUST);
 		mmc_phase_set = &host->sdmmc.init;
 		break;
 	default:
@@ -3891,6 +3906,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 	mmc->max_req_size = SD_EMMC_MAX_REQ_SIZE;
 	mmc->max_seg_size = mmc->max_req_size;
 	mmc->ocr_avail = 0x200080;
+	mmc->max_current_180 = 300; /* 300 mA in 1.8V */
+	mmc->max_current_330 = 300; /* 300 mA in 3.3V */
 
 	/*
 	 * At the moment, we don't know how to reliably enable HS400.

@@ -120,8 +120,7 @@ static long dsm_open_session(struct dev_session *dev,
 	/**
 	 * Do not allow prefix or mask in low 16 bits
 	 */
-	if ((para->session.prefix & 0xFFFF) ||
-			(para->session.mask & 0xFFFF))
+	if (para->session.prefix & 0xFFFF)
 		return -EINVAL;
 
 	sess = kzalloc(sizeof(*sess), GFP_KERNEL);

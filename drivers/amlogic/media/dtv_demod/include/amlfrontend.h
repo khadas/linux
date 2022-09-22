@@ -44,6 +44,12 @@
 /*  V1.1.51  fixed dvbs/s2/isdbt aft test and support dvbt2 5/6/1.7M */
 /*  V1.1.52  add ambus exit processing when switching mode */
 /*  V1.1.53  fixed dvb-c auto qam unlock when 16qam/32qam */
+/*  V1.1.54  rebuild atsc to improve signal locking performance */
+/*  V1.1.55  improve atsc cci */
+/*  V1.1.56  add dvbt2 fef info */
+/*  V1.1.57  fix auto qam(t5w) and sr */
+/*  V1.1.58  fix delsys exit setting and r842 dvbc auto sr */
+/*  V1.1.59  fix dvbs/s2 aft range and different tuner blind window settings */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -60,9 +66,9 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.53"
-#define DTVDEMOD_VER	"2022/06/01: fixed dvb-c auto qam unlock when 16qam/32qam"
-#define AMLDTVDEMOD_T2_FW_VER "V1417.0909"
+#define AMLDTVDEMOD_VER "V1.1.59"
+#define DTVDEMOD_VER	"2022/08/23: fix dvbs/s2 aft range and different tuner blind window settings"
+#define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
@@ -70,9 +76,10 @@
 /* tested on BTC, sensertivity of demod is -100dBm */
 #define THRD_TUNER_STRENTH_DVBT (-101)
 #define THRD_TUNER_STRENTH_DVBS (-79)
-#define THRD_TUNER_STRENTH_DTMB (-92)
+#define THRD_TUNER_STRENTH_DTMB (-100)
+#define THRD_TUNER_STRENTH_DVBC (-87)
 
-#define TIMEOUT_ATSC		2000
+#define TIMEOUT_ATSC		3000
 #define TIMEOUT_DVBT		3000
 #define TIMEOUT_DVBS		2000
 #define TIMEOUT_DVBC		3000
@@ -208,6 +215,7 @@ struct aml_demod_para_real {
 	u32_t symbol;
 	u32_t snr;
 	u32_t plp_num;
+	u32_t fef_info;
 };
 
 #define CAP_NAME_LEN	100
@@ -250,6 +258,7 @@ struct aml_dtvdemod {
 	unsigned int sr_val_hw;
 	unsigned int sr_val_hw_stable;
 	unsigned int sr_val_hw_count;
+	unsigned int sr_val_uf_count;
 	unsigned int symb_rate_en;
 	unsigned int auto_sr;
 	unsigned int auto_sr_done;
@@ -400,7 +409,7 @@ struct amldtvdemod_device_s {
 
 	bool vdac_enable;
 	bool dvbc_inited;
-	int peak[2048];
+	unsigned int peak[2048];
 	unsigned int ber_base;
 	unsigned int atsc_cr_step_size_dbg;
 	unsigned char index;

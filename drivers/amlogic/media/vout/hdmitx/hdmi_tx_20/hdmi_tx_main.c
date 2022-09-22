@@ -1466,6 +1466,169 @@ static unsigned int hdmitx_get_frame_duration(void)
 	return frame_duration;
 }
 
+static int hdmitx_check_vic(int vic)
+{
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	int i;
+
+	for (i = 0; i < hdev->rxcap.VIC_count && i < VIC_MAX_NUM; i++) {
+		if (vic == hdev->rxcap.VIC[i])
+			return 1;
+	}
+
+	return 0;
+}
+
+static int hdmitx_check_valid_aspect_ratio(enum hdmi_vic vic, int aspect_ratio)
+{
+	switch (vic) {
+	case HDMI_720x480p60_4x3:
+		if (hdmitx_check_vic(HDMI_720x480p60_16x9)) {
+			if (aspect_ratio == AR_16X9)
+				return 1;
+			pr_info("same aspect_ratio = %d\n", aspect_ratio);
+		} else {
+			pr_info("TV not support dual aspect_ratio\n");
+		}
+		break;
+	case HDMI_720x480p60_16x9:
+		if (hdmitx_check_vic(HDMI_720x480p60_4x3)) {
+			if (aspect_ratio == AR_4X3)
+				return 1;
+			pr_info("same aspect_ratio = %d\n", aspect_ratio);
+		} else {
+			pr_info("TV not support dual aspect_ratio\n");
+		}
+		break;
+	case HDMI_720x576p50_4x3:
+		if (hdmitx_check_vic(HDMI_720x576p50_16x9)) {
+			if (aspect_ratio == AR_16X9)
+				return 1;
+			pr_info("same aspect_ratio = %d\n", aspect_ratio);
+		} else {
+			pr_info("TV not support dual aspect_ratio\n");
+		}
+		break;
+	case HDMI_720x576p50_16x9:
+		if (hdmitx_check_vic(HDMI_720x576p50_4x3)) {
+			if (aspect_ratio == AR_4X3)
+				return 1;
+			pr_info("same aspect_ratio = %d\n", aspect_ratio);
+		} else {
+			pr_info("TV not support dual aspect_ratio\n");
+		}
+		break;
+	default:
+		break;
+	}
+	pr_info("not support vic = %d\n", vic);
+	return 0;
+}
+
+int hdmitx_get_aspect_ratio(void)
+{
+	enum hdmi_vic vic = HDMI_UNKNOWN;
+	int x, y;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+
+	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
+
+	if (vic == HDMI_720x480p60_4x3 || vic == HDMI_720x576p50_4x3)
+		return AR_4X3;
+	if (vic == HDMI_720x480p60_16x9 || vic == HDMI_720x576p50_16x9)
+		return AR_16X9;
+
+	struct vinfo_s *info = NULL;
+
+	info = hdmitx_get_current_vinfo(NULL);
+	x = info->aspect_ratio_num;
+	y = info->aspect_ratio_den;
+	if (x == 4 && y == 3)
+		return AR_4X3;
+	if (x == 16 && y == 9)
+		return AR_16X9;
+
+	return 0;
+}
+
+struct aspect_ratio_list *hdmitx_get_support_ar_list(void)
+{
+	static struct aspect_ratio_list ar_list[4];
+	int i = 0;
+
+	memset(ar_list, 0, sizeof(ar_list));
+	if (hdmitx_check_vic(HDMI_720x480p60_4x3) &&
+			hdmitx_check_vic(HDMI_720x480p60_16x9)) {
+		ar_list[i].vic = HDMI_720x480p60_4x3;
+		ar_list[i].flag = TRUE;
+		ar_list[i].aspect_ratio_num = 4;
+		ar_list[i].aspect_ratio_den = 3;
+		i++;
+
+		ar_list[i].vic = HDMI_720x480p60_16x9;
+		ar_list[i].flag = TRUE;
+		ar_list[i].aspect_ratio_num = 16;
+		ar_list[i].aspect_ratio_den = 9;
+		i++;
+	}
+	if (hdmitx_check_vic(HDMI_720x576p50_4x3) &&
+			hdmitx_check_vic(HDMI_720x576p50_16x9)) {
+		ar_list[i].vic = HDMI_720x576p50_4x3;
+		ar_list[i].flag = TRUE;
+		ar_list[i].aspect_ratio_num = 4;
+		ar_list[i].aspect_ratio_den = 3;
+		i++;
+
+		ar_list[i].vic = HDMI_720x576p50_16x9;
+		ar_list[i].flag = TRUE;
+		ar_list[i].aspect_ratio_num = 16;
+		ar_list[i].aspect_ratio_den = 9;
+		i++;
+	}
+	return &ar_list[0];
+}
+
+void hdmitx_set_aspect_ratio(int aspect_ratio)
+{
+	enum hdmi_vic vic = HDMI_UNKNOWN;
+	struct hdmitx_dev *hdev = &hdmitx_device;
+	int ret;
+	int aspect_ratio_vic = 0;
+
+	if (aspect_ratio != AR_4X3 && aspect_ratio != AR_16X9) {
+		pr_info("aspect ratio should be 1 or 2");
+		return;
+	}
+
+	vic = hdev->hwop.getstate(hdev, STAT_VIDEO_VIC, 0);
+	ret = hdmitx_check_valid_aspect_ratio(vic, aspect_ratio);
+	pr_info("%s vic = %d, ret = %d\n", __func__, vic, ret);
+
+	if (!ret)
+		return;
+
+	switch (vic) {
+	case HDMI_720x480p60_4x3:
+		aspect_ratio_vic = (HDMI_720x480p60_16x9 << 2) + aspect_ratio;
+		break;
+	case HDMI_720x480p60_16x9:
+		aspect_ratio_vic = (HDMI_720x480p60_4x3 << 2) + aspect_ratio;
+		break;
+	case HDMI_720x576p50_4x3:
+		aspect_ratio_vic = (HDMI_720x576p50_16x9 << 2) + aspect_ratio;
+		break;
+	case HDMI_720x576p50_16x9:
+		aspect_ratio_vic = (HDMI_720x576p50_4x3 << 2) + aspect_ratio;
+		break;
+	default:
+		break;
+	}
+
+	hdev->hwop.cntlconfig(hdev, CONF_ASPECT_RATIO, aspect_ratio_vic);
+	hdev->aspect_ratio = aspect_ratio;
+	pr_info("set new aspect ratio = %d\n", aspect_ratio);
+}
+
 static void hdr_work_func(struct work_struct *work)
 {
 	struct hdmitx_dev *hdev =
@@ -3201,7 +3364,7 @@ static ssize_t aud_cap_show(struct device *dev,
 	static const char * const aud_ct[] =  {
 		"ReferToStreamHeader", "PCM", "AC-3", "MPEG1", "MP3",
 		"MPEG2", "AAC", "DTS", "ATRAC",	"OneBitAudio",
-		"Dobly_Digital+", "DTS-HD", "MAT", "DST", "WMA_Pro",
+		"Dolby_Digital+", "DTS-HD", "MAT", "DST", "WMA_Pro",
 		"Reserved", NULL};
 	static const char * const aud_sampling_frequency[] = {
 		"ReferToStreamHeader", "32", "44.1", "48", "88.2", "96",
@@ -3258,7 +3421,7 @@ static ssize_t aud_cap_show(struct device *dev,
 		case CT_DTS_HD:
 		case CT_MAT:
 		case CT_DST:
-			pos += snprintf(buf + pos, PAGE_SIZE, "DepVaule 0x%x\n",
+			pos += snprintf(buf + pos, PAGE_SIZE, "DepValue 0x%x\n",
 				prxcap->RxAudioCap[i].cc3);
 			break;
 		case CT_WMA:
@@ -4040,7 +4203,12 @@ static ssize_t phy_store(struct device *dev,
 static ssize_t phy_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	return 0;
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "%d\n",
+		read_phy_status());
+
+	return pos;
 }
 
 static ssize_t rxsense_policy_store(struct device *dev,
@@ -7572,9 +7740,18 @@ unsigned int drm_get_rx_hdcp_cap(void)
 
 	if (hdmitx_device.hdmi_init != 1)
 		return 0;
+
+	/* note that during hdcp1.4 authentication, read hdcp version
+	 * of connected TV set(capable of hdcp2.2) may cause TV
+	 * switch its hdcp mode, and flash screen. should not
+	 * read hdcp version of sink during hdcp1.4 authentication.
+	 * if hdcp1.4 authentication currently, force return hdcp1.4
+	 */
+	if (hdmitx_device.hdcp_mode == 1)
+		return 0x1;
 	/* if TX don't have HDCP22 key, skip RX hdcp22 ver */
 	if (hdmitx_device.hwop.cntlddc(&hdmitx_device,
-		DDC_HDCP_22_LSTORE, 0) == 0)
+		DDC_HDCP_22_LSTORE, 0) == 0 || !hdcp_tx22_daemon_ready())
 		return 0x1;
 
 	/* Detect RX support HDCP22 */

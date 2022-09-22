@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "202200613"
+#define DRIVER_VER "202200727"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -869,5 +869,6 @@ void calculate_panel_max_pq
 	 const struct vinfo_s *vinfo,
 	 struct target_config *config);
 int layer_id_to_dv_id(enum vd_path_e vd_path);
+bool layerid_valid(int layerid);
 
 #endif

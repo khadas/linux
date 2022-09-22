@@ -66,28 +66,6 @@ void kmap_flush_unused(void);
 
 struct page *kmap_to_page(void *addr);
 
-#ifdef CONFIG_NTFS3_FS
-static inline void *kmap_local_page(struct page *page)
-{
-	return __kmap_local_page_prot(page, kmap_prot);
-}
-
-static inline void *kmap_local_page_prot(struct page *page, pgprot_t prot)
-{
-	return __kmap_local_page_prot(page, prot);
-}
-
-static inline void *kmap_local_pfn(unsigned long pfn)
-{
-	return __kmap_local_pfn_prot(pfn, kmap_prot);
-}
-
-static inline void __kunmap_local(void *vaddr)
-{
-	kunmap_local_indexed(vaddr);
-}
-#endif
-
 #else /* CONFIG_HIGHMEM */
 
 static inline unsigned int nr_free_highpages(void) { return 0; }
@@ -96,25 +74,6 @@ static inline struct page *kmap_to_page(void *addr)
 {
 	return virt_to_page(addr);
 }
-
-#ifdef CONFIG_NTFS3_FS
-static inline void *kmap_local_page(struct page *page)
-{
-	return page_address(page);
-}
-
-static inline void *kmap_local_page_prot(struct page *page, pgprot_t prot)
-{
-	return kmap_local_page(page);
-}
-
-static inline void __kunmap_local(void *addr)
-{
-#ifdef ARCH_HAS_FLUSH_ON_KUNMAP
-	kunmap_flush_on_unmap(addr);
-#endif
-}
-#endif
 
 static inline unsigned long totalhigh_pages(void) { return 0UL; }
 
@@ -149,14 +108,6 @@ static inline void __kunmap_atomic(void *addr)
 #endif
 
 #endif /* CONFIG_HIGHMEM */
-
-#ifdef CONFIG_NTFS3_FS
-#define kunmap_local(__addr)					\
-do {								\
-	BUILD_BUG_ON(__same_type((__addr), struct page *));	\
-	__kunmap_local(__addr);					\
-} while (0)
-#endif
 
 #if defined(CONFIG_HIGHMEM) || defined(CONFIG_X86_32)
 

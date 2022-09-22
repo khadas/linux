@@ -663,14 +663,80 @@ static int lcd_info_adv_print(struct aml_lcd_drv_s *pdrv, char *buf, int offset)
 			"\nlcd cus_ctrl:\n"
 			"ctrl_flag:     0x%x\n"
 			"dlg_flag:      %u\n"
+			"dlg_time:      %llu\n"
 			"attr_0_para0:  %u\n"
 			"attr_0_para1:  %u\n",
 			pdrv->config.cus_ctrl.flag,
 			pdrv->config.cus_ctrl.dlg_flag,
+			pdrv->config.cus_ctrl.dlg_time,
 			pdrv->config.cus_ctrl.attr_0_para0,
 			pdrv->config.cus_ctrl.attr_0_para1);
 
 	len += lcd_clk_clkmsr_print(pdrv, (buf + len), (len + offset));
+
+	return len;
+}
+
+static ssize_t lcd_dlg_time_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	ssize_t len = 0;
+
+	if (pdrv->config.cus_ctrl.dlg_flag == 3) {
+		len = sprintf(buf, "dlg times attr:\n"
+				"ctrl_flag:     0x%x\n"
+				"dlg_flag:      %u\n"
+				"mute_time:      %llu\n"
+				"switch_time:      %llu\n"
+				"level_shfit_time:      %llu\n"
+				"tcon_reload_time(total):      %llu\n"
+				"tcon_reg_set_time:      %llu\n"
+				"tcon_data_set_time:      %llu\n"
+				"driver_change_time:      %llu\n"
+				"unmute_time:      %llu\n"
+				"dlg_time:      %llu\n",
+				pdrv->config.cus_ctrl.flag,
+				pdrv->config.cus_ctrl.dlg_flag,
+				pdrv->config.cus_ctrl.mute_time,
+				pdrv->config.cus_ctrl.switch_time,
+				pdrv->config.cus_ctrl.level_shift_time,
+				pdrv->config.cus_ctrl.tcon_reload_time,
+				pdrv->config.cus_ctrl.reg_set_time,
+				pdrv->config.cus_ctrl.data_set_time,
+				pdrv->config.cus_ctrl.driver_change_time,
+				pdrv->config.cus_ctrl.unmute_time,
+				pdrv->config.cus_ctrl.dlg_time);
+	} else if (pdrv->config.cus_ctrl.dlg_flag == 2) {
+		len = sprintf(buf, "dlg times attr:\n"
+				"ctrl_flag:     0x%x\n"
+				"dlg_flag:      %u\n"
+				"mute_time:      %llu\n"
+				"bl_off_time:      %llu\n"
+				"driver_disable_time:      %llu\n"
+				"power_off_time:      %llu\n"
+				"driver_init_time:      %llu\n"
+				"level_shfit_time:      %llu\n"
+				"bl_on_time:      %llu\n"
+				"unmute_time:      %llu\n"
+				"switch_time:      %llu\n"
+				"driver_change_time:      %llu\n"
+				"dlg_time:      %llu\n",
+				pdrv->config.cus_ctrl.flag,
+				pdrv->config.cus_ctrl.dlg_flag,
+				pdrv->config.cus_ctrl.mute_time,
+				pdrv->config.cus_ctrl.bl_off_time,
+				pdrv->config.cus_ctrl.driver_disable_time,
+				pdrv->config.cus_ctrl.power_off_time,
+				pdrv->config.cus_ctrl.driver_init_time,
+				pdrv->config.cus_ctrl.level_shift_time,
+				pdrv->config.cus_ctrl.bl_on_time,
+				pdrv->config.cus_ctrl.unmute_time,
+				pdrv->config.cus_ctrl.switch_time,
+				pdrv->config.cus_ctrl.driver_change_time,
+				pdrv->config.cus_ctrl.dlg_time);
+	} else {
+	}
 
 	return len;
 }
@@ -4414,6 +4480,60 @@ static ssize_t lcd_debug_print_store(struct device *dev, struct device_attribute
 	return count;
 }
 
+static ssize_t lcd_debug_unmute_count_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+
+	return sprintf(buf, "get unmute count test: %d\n",
+		       pdrv->unmute_count_test);
+}
+
+static ssize_t lcd_debug_unmute_count_store(struct device *dev, struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	int ret = 0;
+	unsigned int temp = 0;
+
+	ret = kstrtouint(buf, 16, &temp);
+	if (ret) {
+		pr_info("invalid data\n");
+		return -EINVAL;
+	}
+	pdrv->unmute_count_test = (unsigned char)temp;
+	LCDPR("set unmute count: 0x%x\n", pdrv->unmute_count_test);
+
+	return count;
+}
+
+static ssize_t lcd_debug_mute_count_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+
+	return sprintf(buf, "get mute count test: %d\n",
+		       pdrv->mute_count_test);
+}
+
+static ssize_t lcd_debug_mute_count_store(struct device *dev, struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct aml_lcd_drv_s *pdrv = dev_get_drvdata(dev);
+	int ret = 0;
+	unsigned int temp = 0;
+
+	ret = kstrtouint(buf, 16, &temp);
+	if (ret) {
+		pr_info("invalid data\n");
+		return -EINVAL;
+	}
+	pdrv->mute_count_test = (unsigned char)temp;
+	LCDPR("set mute count: 0x%x\n", pdrv->mute_count_test);
+
+	return count;
+}
+
 static ssize_t lcd_debug_cus_ctrl_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
@@ -4493,9 +4613,12 @@ static struct device_attribute lcd_debug_attrs[] = {
 	__ATTR(clk,         0644, lcd_debug_clk_show, lcd_debug_clk_store),
 	__ATTR(test,        0644, lcd_debug_test_show, lcd_debug_test_store),
 	__ATTR(mute,        0644, lcd_debug_mute_show, lcd_debug_mute_store),
+	__ATTR(mute_count,  0644, lcd_debug_mute_count_show, lcd_debug_mute_count_store),
+	__ATTR(unmute_count,  0644, lcd_debug_unmute_count_show, lcd_debug_unmute_count_store),
 	__ATTR(prbs,        0644, lcd_debug_prbs_show, lcd_debug_prbs_store),
 	__ATTR(reg,         0200, NULL, lcd_debug_reg_store),
 	__ATTR(vlock,       0444, lcd_debug_vlock_show, NULL),
+	__ATTR(dlg_time,    0444, lcd_dlg_time_show, NULL),
 	__ATTR(dump,        0644, lcd_debug_dump_show, lcd_debug_dump_store),
 	__ATTR(print,       0644, lcd_debug_print_show, lcd_debug_print_store),
 	__ATTR(cus_ctrl,    0444, lcd_debug_cus_ctrl_show, NULL),
@@ -6224,6 +6347,59 @@ static ssize_t lcd_tcon_debug_store(struct device *dev, struct device_attribute 
 		} else {
 			goto lcd_tcon_debug_store_err;
 		}
+	} else if (strcmp(parm[0], "isr") == 0) {
+		if (parm[1]) {
+			if (strcmp(parm[1], "type") == 0) {
+				if (parm[2]) {
+					ret = kstrtouint(parm[2], 16, &temp);
+					if (ret)
+						goto lcd_tcon_debug_store_err;
+					pdrv->tcon_isr_bypass = 1;
+					msleep(100);
+					pr_err("tcon isr_type: %d\n", pdrv->tcon_isr_type);
+					lcd_tcon_dbg_trace_clear();
+					pdrv->tcon_isr_type = temp;
+					pdrv->tcon_isr_bypass = 0;
+					goto lcd_tcon_debug_store_end;
+				}
+			} else if (strcmp(parm[1], "dbg") == 0) {
+				if (parm[2]) {
+					ret = kstrtouint(parm[2], 16, &temp);
+					if (ret)
+						goto lcd_tcon_debug_store_err;
+					if (temp)
+						lcd_debug_print_flag |= LCD_DBG_PR_TEST;
+					else
+						lcd_debug_print_flag &= ~LCD_DBG_PR_TEST;
+					pr_err("tcon isr dbg_log_en: %d\n", temp);
+					goto lcd_tcon_debug_store_end;
+				}
+			} else if (strcmp(parm[1], "clr") == 0) {
+				pdrv->tcon_isr_bypass = 1;
+				msleep(100);
+				lcd_tcon_dbg_trace_clear();
+				pdrv->tcon_isr_bypass = 0;
+				goto lcd_tcon_debug_store_end;
+			} else if (strcmp(parm[1], "log") == 0) {
+				if (parm[2]) {
+					ret = kstrtouint(parm[2], 16, &temp);
+					if (ret)
+						goto lcd_tcon_debug_store_err;
+				} else {
+					temp = 0x1;
+				}
+				pdrv->tcon_isr_bypass = 1;
+				msleep(100);
+				lcd_tcon_dbg_trace_print(temp);
+				pdrv->tcon_isr_bypass = 0;
+				goto lcd_tcon_debug_store_end;
+			}
+		}
+		pr_err("tcon isr_type: %d, dbg_log_en: %d\n",
+			pdrv->tcon_isr_type,
+			(lcd_debug_print_flag & LCD_DBG_PR_TEST) ? 1 : 0);
+		if (lcd_debug_print_flag & LCD_DBG_PR_TEST)
+			lcd_tcon_dbg_trace_print(0);
 	} else {
 		goto lcd_tcon_debug_store_err;
 	}

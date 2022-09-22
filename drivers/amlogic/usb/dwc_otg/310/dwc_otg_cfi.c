@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
 /* ==========================================================================
  * Synopsys HS OTG Linux Software Driver and documentation (hereinafter,
  * "Software") is an Unsupported proprietary work of Synopsys, Inc. unless

@@ -56,8 +56,7 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x10000>;
-			bconsole-size = <0x10000>;
+			pmsg-size = <0x20000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -69,11 +68,10 @@
 		};
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
+			reg = <0x0 0x7f800000 0x0 0x800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {
@@ -811,69 +809,6 @@
 		status = "disabled";
 	};/* Audio Related end */
 
-	cpu_opp_table0: cpu_opp_table0 {
-		compatible = "operating-points-v2";
-		status = "okay";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <100000000>;
-			opp-microvolt = <779000>;
-		};
-		opp01 {
-			opp-hz = /bits/ 64 <250000000>;
-			opp-microvolt = <779000>;
-		};
-		opp02 {
-			opp-hz = /bits/ 64 <500000000>;
-			opp-microvolt = <779000>;
-		};
-		opp03 {
-			opp-hz = /bits/ 64 <667000000>;
-			opp-microvolt = <799000>;
-		};
-		opp04 {
-			opp-hz = /bits/ 64 <1000000000>;
-			opp-microvolt = <799000>;
-		};
-		opp05 {
-			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <809000>;
-		};
-		opp06 {
-			opp-hz = /bits/ 64 <1404000000>;
-			opp-microvolt = <839000>;
-		};
-		opp07 {
-			opp-hz = /bits/ 64 <1500000000>;
-			opp-microvolt = <849000>;
-		};
-		opp08 {
-			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <879000>;
-		};
-		opp09 {
-			opp-hz = /bits/ 64 <1704000000>;
-			opp-microvolt = <919000>;
-		};
-		opp10 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <959000>;
-		};
-		opp11 {
-			opp-hz = /bits/ 64 <1908000000>;
-			opp-microvolt = <989000>;
-		};
-		opp12 {
-			opp-hz = /bits/ 64 <2004000000>;
-			opp-microvolt = <1019000>;
-		};
-	};
-
-	cpufreq-meson {
-		compatible = "amlogic, cpufreq-meson";
-		status = "okay";
-	};
 };
 
 &pwm_ij {
@@ -930,22 +865,8 @@
 		compatible = "amlogic,aw9523b_led";
 		reg = <0x5b>;
 		status = "okay";
-		reset-gpio = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio GPIOD_11 GPIO_ACTIVE_HIGH>;
 		platform = <4>;
-
-		led1 {
-			default_colors = <0 0 0>;
-			r_io_number = <0>;
-			g_io_number = <10>;
-			b_io_number = <5>;
-		};
-
-		led2 {
-			default_colors = <0 0 0>;
-			r_io_number = <1>;
-			g_io_number = <11>;
-			b_io_number = <6>;
-		};
 
 		led3 {
 			default_colors = <0 0 0>;
@@ -956,15 +877,23 @@
 
 		led4 {
 			default_colors = <0 0 0>;
-			r_io_number = <3>;
-			g_io_number = <13>;
-			b_io_number = <8>;
+			r_io_number = <4>;
+			g_io_number = <10>;
+			b_io_number = <9>;
 		};
+
 		led9 {
 			default_colors = <0 0 0>;
-			r_io_number = <4>;
+			r_io_number = <3>;
+			g_io_number = <11>;
+			b_io_number = <8>;
+		};
+
+		led1 {
+			default_colors = <0 0 0>;
+			r_io_number = <0>;
 			g_io_number = <14>;
-			b_io_number = <9>;
+			b_io_number = <5>;
 		};
 	};
 };

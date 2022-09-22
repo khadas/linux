@@ -50,8 +50,7 @@
 //			record-size = <0x20000>;
 //			console-size = <0x40000>;
 //			ftrace-size = <0x80000>;
-//			pmsg-size = <0x10000>;
-//			bconsole-size = <0x10000>;
+//			pmsg-size = <0x20000>;
 //		};
 
 		secmon_reserved:linux,secmon {
@@ -63,11 +62,10 @@
 		};
 
 		logo_reserved:linux,meson-fb {
-			compatible = "shared-dma-pool";
-			reusable;
+			compatible = "amlogic, meson-fb";
 			size = <0x0 0x800000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
+			reg = <0x0 0x7f800000 0x0 0x800000>;
 		};
 
 		ion_cma_reserved:linux,ion-dev {

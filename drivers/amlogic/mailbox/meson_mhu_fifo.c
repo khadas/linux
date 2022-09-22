@@ -36,6 +36,7 @@ struct mbox_data {
 	u64 ullclt;
 	char data[MBOX_DATA_SIZE];
 } __packed;
+int mbox_nums;
 
 static struct list_head mbox_devs = LIST_HEAD_INIT(mbox_devs);
 static struct class *mbox_class;
@@ -89,7 +90,7 @@ static void mbox_fifo_read(void *to, void __iomem *from, long count)
 static void mbox_fifo_clr(void __iomem *to, long count)
 {
 	int i = 0;
-	int len = count / 4 + count % 4;
+	int len = count / 4 + (count + 3) / 4;
 
 	while (len > 0) {
 		writel(0, (to + 4 * i));
@@ -177,14 +178,13 @@ static void mbox_isr_handler(int mhu_id, void *p)
 	int channel = 0;
 	u32 status;
 
-	for (channel = 0; channel < CHANNEL_FIFO_MAX; channel++) {
+	for (channel = 0; channel < mbox_nums; channel++) {
 		if (ctlr->mhu_id[channel] == mhu_id)
 			break;
 	}
 
-	if (channel >= CHANNEL_FIFO_MAX) {
+	if (channel >= mbox_nums)
 		return;
-	}
 
 	status = readl(mbox_fsts_base + CTL_OFFSET(mhu_id));
 	if (status) {
@@ -215,14 +215,13 @@ void mbox_ack_isr_handler(int mhu_id, void *p)
 	struct mhu_data_buf *data = NULL;
 	int channel;
 
-	for (channel = 0; channel < CHANNEL_FIFO_MAX; channel++) {
+	for (channel = 0; channel < mbox_nums; channel++) {
 		if (ctlr->mhu_id[channel] == mhu_id)
 			break;
 	}
 
-	if (channel >= CHANNEL_FIFO_MAX) {
+	if (channel >= mbox_nums)
 		return;
-	}
 
 	chan = &ctlr->channels[channel];
 	mbox_chan = &mbox_con->chans[channel];
@@ -651,10 +650,11 @@ static int mhu_cdev_init(struct device *dev, struct mhu_ctlr *mhu_ctlr)
 	dev_t char_dev;
 	int char_major;
 	const char *name = NULL;
-	int mbdevs, mbox_nums = 0;
+	int mbdevs;
 	int index, i;
 	int err = 0;
 
+	mbox_nums = 0;
 	of_property_read_u32(dev->of_node,
 			     "mbox-nums", &mbox_nums);
 	if (mbox_nums == 0 || mbox_nums > CHANNEL_FIFO_MAX)

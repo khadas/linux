@@ -33,12 +33,24 @@ struct di_ext_ops {
 	void (*post_update_mc)(void);
 	void (*post_keep_cmd_release2)(struct vframe_s *vframe);
 	void (*polic_cfg)(unsigned int cmd, bool on);
+	/* new interface */
+	int (*new_create_instance)(struct di_init_parm parm);
+	int (*new_destroy_instance)(int index);
+	enum DI_ERRORTYPE (*new_empty_input_buffer)(int index, struct di_buffer *buffer);
+	enum DI_ERRORTYPE (*new_fill_output_buffer)(int index, struct di_buffer *buffer);
+	int (*new_get_state)(int index, struct di_status *status);
+	int (*new_write)(struct di_buffer *buffer, struct composer_dst *dst);
+	int (*new_release_keep_buf)(struct di_buffer *buffer);
+	int (*new_get_output_buffer_num)(int index);
+	int (*new_get_input_buffer_num)(int index);
 	int (*pre_vpp_link_display)(struct vframe_s *vfm,
 				    struct pvpp_dis_para_in_s *in_para, void *out_para);
 	int (*pre_vpp_link_check_vf)(struct vframe_s *vfm);
 	int (*pre_vpp_link_check_act)(void);
 	int (*pre_vpp_link_sw)(bool on);
 	u32 (*pre_vpp_get_ins_id)(void);
+	bool (*config_crc_ic)(void);
+	int (*s_bypass_ch)(int index, bool on);
 };
 
 #endif	/*__DI_LOCAL_H__*/

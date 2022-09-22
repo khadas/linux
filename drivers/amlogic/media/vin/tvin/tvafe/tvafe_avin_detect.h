@@ -131,6 +131,7 @@ struct tvafe_avin_det_s {
 	struct work_struct work_struct_update;
 	unsigned int irq_counter[2];
 	unsigned int device_num;
+	unsigned int function_select;
 };
 
 enum avin_cpu_type {

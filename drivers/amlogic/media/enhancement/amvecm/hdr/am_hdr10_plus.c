@@ -29,6 +29,7 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/amlogic/media/video_sink/video.h>
 
 #include "am_hdr10_plus.h"
 #include "am_hdr10_plus_ootf.h"
@@ -505,6 +506,18 @@ static int parse_sei(char *sei_buf, uint32_t size)
 	return 0;
 }
 
+/*av1 hdr10p not contain nal_unit_type + payload type +  payload size  these 4bytes*/
+static int parse_sei_av1(char *sei_buf, uint32_t size)
+{
+	if (size < 6)
+		return 0;
+
+	if (check_av1_hdr10p(sei_buf))
+		parser_hdr10_plus_medata(sei_buf, size);
+
+	return 0;
+}
+
 static void hdr10_plus_vf_md_parse(struct vframe_s *vf)
 {
 	int i;
@@ -736,6 +749,9 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 				}
 				if (type == 0x02000000)
 					parse_sei(p, size);
+
+				if ((type & 0xffff0000) == 0x14000000)/*av1 hdr10p*/
+					parse_sei_av1(p, size);
 
 				count++;
 				offest += size;

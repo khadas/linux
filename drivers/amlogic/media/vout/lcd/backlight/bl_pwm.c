@@ -146,7 +146,9 @@ static int bl_pwm_out_level_check(struct bl_pwm_config_s *bl_pwm)
 	int out_level = 0xff;
 	unsigned int pwm_range;
 
-	if (bl_pwm->pwm_duty_max > 100)
+	if (bl_pwm->pwm_duty_max > 255)
+		pwm_range = 4095;
+	else if (bl_pwm->pwm_duty_max > 100)
 		pwm_range = 255;
 	else
 		pwm_range = 100;
@@ -420,7 +422,13 @@ void bl_pwm_set_duty(struct aml_bl_drv_s *bdrv, struct bl_pwm_config_s *bl_pwm)
 		return;
 
 	if (bdrv->pwm_duty_free) {
-		if (bl_pwm->pwm_duty_max > 100) {
+		if (bl_pwm->pwm_duty_max > 255) {
+			if (bl_pwm->pwm_duty > 4095) {
+				BLERR("pwm_duty %d > 4095, reset to 4095\n",
+				      bl_pwm->pwm_duty);
+				bl_pwm->pwm_duty = 4095;
+			}
+		} else if (bl_pwm->pwm_duty_max > 100) {
 			if (bl_pwm->pwm_duty > 255) {
 				BLERR("pwm_duty %d > 255, reset to 255\n",
 				      bl_pwm->pwm_duty);
@@ -446,7 +454,10 @@ void bl_pwm_set_duty(struct aml_bl_drv_s *bdrv, struct bl_pwm_config_s *bl_pwm)
 	}
 
 	temp = bl_pwm->pwm_cnt;
-	if (bl_pwm->pwm_duty_max > 100) {
+	if (bl_pwm->pwm_duty_max > 255) {
+		bl_pwm->pwm_level =
+			bl_do_div(((temp * bl_pwm->pwm_duty) + 2048), 4095);
+	} else if (bl_pwm->pwm_duty_max > 100) {
 		bl_pwm->pwm_level =
 			bl_do_div(((temp * bl_pwm->pwm_duty) + 127), 255);
 	} else {
@@ -461,7 +472,7 @@ void bl_pwm_set_duty(struct aml_bl_drv_s *bdrv, struct bl_pwm_config_s *bl_pwm)
 		if (bl_pwm->pwm_duty_max > 100) {
 			BLPR("duty=%d(%d%%), duty_max=%d, duty_min=%d\n",
 			     bl_pwm->pwm_duty,
-			     bl_pwm->pwm_duty * 100 / 255,
+			     bl_pwm->pwm_duty * 100 / bl_pwm->pwm_duty_max,
 			     bl_pwm->pwm_duty_max, bl_pwm->pwm_duty_min);
 		} else {
 			BLPR("duty=%d%%, duty_max=%d%%, duty_min=%d%%\n",
@@ -602,7 +613,10 @@ void bl_pwm_set_level(struct aml_bl_drv_s *bdrv,
 				pwm_min;
 	}
 	temp = bl_pwm->pwm_level;
-	if (bl_pwm->pwm_duty_max > 100) {
+	if (bl_pwm->pwm_duty_max > 255) {
+		bl_pwm->pwm_duty =
+			(bl_do_div((temp * 40950), bl_pwm->pwm_cnt) + 5) / 10;
+	} else if (bl_pwm->pwm_duty_max > 100) {
 		bl_pwm->pwm_duty =
 			(bl_do_div((temp * 2550), bl_pwm->pwm_cnt) + 5) / 10;
 	} else {
@@ -616,7 +630,7 @@ void bl_pwm_set_level(struct aml_bl_drv_s *bdrv,
 		if (bl_pwm->pwm_duty_max > 100) {
 			BLPR("duty=%d(%d%%), pwm max=%d, min=%d, pwm_lvl=%d\n",
 			     bl_pwm->pwm_duty,
-			     bl_pwm->pwm_duty * 100 / 255,
+			     bl_pwm->pwm_duty * 100 / bl_pwm->pwm_duty_max,
 			     bl_pwm->pwm_max, bl_pwm->pwm_min,
 			     bl_pwm->pwm_level);
 		} else {
@@ -652,7 +666,10 @@ void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm)
 	}
 
 	temp = bl_pwm->pwm_cnt;
-	if (bl_pwm->pwm_duty_max > 100) {
+	if (bl_pwm->pwm_duty_max > 255) {
+		bl_pwm->pwm_max = bl_do_div((temp * bl_pwm->pwm_duty_max), 4095);
+		bl_pwm->pwm_min = bl_do_div((temp * bl_pwm->pwm_duty_min), 4095);
+	} else if (bl_pwm->pwm_duty_max > 100) {
 		bl_pwm->pwm_max = bl_do_div((temp * bl_pwm->pwm_duty_max), 255);
 		bl_pwm->pwm_min = bl_do_div((temp * bl_pwm->pwm_duty_min), 255);
 	} else {

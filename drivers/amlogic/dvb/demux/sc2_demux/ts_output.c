@@ -195,6 +195,8 @@ static int timer_es_wake_up;
 	dprintk(LOG_ERROR, debug_ts_output, fmt, ## args)
 #define pr_dbg(fmt, args...) \
 	dprintk(LOG_DBG, debug_ts_output, "ts_output:" fmt, ## args)
+#define pr_sec_dbg(fmt, args...) \
+	dprintk(LOG_DBG, debug_section, "ts_output:" fmt, ## args)
 
 MODULE_PARM_DESC(debug_ts_output, "\n\t\t Enable demux debug information");
 static int debug_ts_output;
@@ -223,6 +225,14 @@ module_param(es_count_one_time, int, 0644);
 MODULE_PARM_DESC(dump_pes, "\n\t\t dump pes packet");
 static int dump_pes;
 module_param(dump_pes, int, 0644);
+
+MODULE_PARM_DESC(debug_section, "\n\t\t debug section");
+static int debug_section;
+module_param(debug_section, int, 0644);
+
+MODULE_PARM_DESC(audio_es_len_limit, "\n\t\t debug section");
+static int audio_es_len_limit = (40 * 1024);
+module_param(audio_es_len_limit, int, 0644);
 
 struct dump_file dvr_dump_file;
 
@@ -521,7 +531,7 @@ static int section_process(struct out_elem *pout)
 			if (pout->cb_sec_list) {
 				w_size = out_sec_cb_list(pout, pread, ret);
 				ATRACE_COUNTER(pout->name, w_size);
-				pr_dbg("%s send:%d, w:%d wwwwww\n", __func__,
+				pr_sec_dbg("%s send:%d, w:%d wwwwww\n", __func__,
 				       ret, w_size);
 				pout->remain_len = ret - w_size;
 				if (pout->remain_len) {
@@ -554,7 +564,7 @@ static int section_process(struct out_elem *pout)
 				w_size =
 				    out_sec_cb_list(pout, pout->cache, ret);
 				ATRACE_COUNTER(pout->name, w_size);
-				pr_dbg("%s send:%d, w:%d\n", __func__, ret,
+				pr_sec_dbg("%s send:%d, w:%d\n", __func__, ret,
 				       w_size);
 				pout->remain_len = ret - w_size;
 				if (pout->remain_len)
@@ -849,9 +859,9 @@ static int get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	else
 		pheader->len = cur_es_bytes - last_es_bytes;
 
-	pr_dbg("sid:0x%0x pid:0x%0x len:%d,cur_es:0x%0x, last_es:0x%0x\n",
-	       pout->sid, pout->es_pes->pid,
-		   pheader->len, cur_es_bytes, last_es_bytes);
+//	pr_dbg("sid:0x%0x pid:0x%0x len:%d,cur_es:0x%0x, last_es:0x%0x\n",
+//	       pout->sid, pout->es_pes->pid,
+//		   pheader->len, cur_es_bytes, last_es_bytes);
 //	dprint("%s pid:0x%0x\n", __func__, pout->es_pes->pid);
 
 	return 0;
@@ -898,6 +908,34 @@ static int re_get_non_sec_es_header(struct out_elem *pout, char *last_header,
 	return 0;
 }
 
+int find_audio_es_type(char *es_buf, int length)
+{
+	char *p;
+	static int count;
+	int match = 0;
+
+	p = es_buf;
+
+	if ((p[0] == 0x0b && p[1] == 0x77) ||
+		(p[0] == 0x77 && p[1] == 0x0b) ||
+		(p[0] == 0xff && (p[1] & 0xe0) == 0xe0) ||
+		(((p[0] & 0xff) == 0xff) && (p[1] & 0xf6) == 0xf0) ||
+		(p[0] == 0x56 && ((p[1] & 0xe0) == 0xe0))) {
+		match = 1;
+	}
+
+	if (match) {
+		count++;
+		if (count > 30) {
+			pr_dbg("0x%0x 0x%0x\n", p[0], p[1]);
+			count = 0;
+		}
+		return 0;
+	}
+	pr_dbg("es error 0x%0x, 0x%0x\n", p[0], p[1]);
+	return -1;
+}
+
 static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 {
 	int ret;
@@ -920,7 +958,9 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 		       (unsigned long)es_params->header.dts,
 		       es_params->header.len);
 
-		if (!(es_params->header.pts_dts_flag & 0x4))
+		if (!(es_params->header.pts_dts_flag & 0x4) ||
+			(pout->type == AUDIO_TYPE &&
+			 es_params->header.len < audio_es_len_limit))
 			out_ts_cb_list(pout, (char *)&es_params->header,
 				h_len,
 				(h_len + es_params->header.len),
@@ -933,10 +973,15 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 	ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
-			if (!(es_params->header.pts_dts_flag & 0x4))
+			if (!(es_params->header.pts_dts_flag & 0x4) ||
+				(pout->type == AUDIO_TYPE &&
+				 es_params->header.len < audio_es_len_limit)) {
+				if (pout->type == AUDIO_TYPE)
+					find_audio_es_type(ptmp, ret);
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
-			else
+			} else {
 				; //do nothing
+			}
 		else
 			pr_dbg("audio data lost\n");
 		if (((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
@@ -950,12 +995,12 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			dump_file_write(ptmp, ret, &pout->dump_file);
 
 		es_params->data_len += ret;
-		pr_dbg("%s total len:%d, remain:%d\n",
-		       pout->type == AUDIO_TYPE ? "audio" : "video",
-		       es_len,
-		       es_len - es_params->data_len);
 
 		if (ret != len) {
+			pr_dbg("%s total len:%d, remain:%d\n",
+				   pout->type == AUDIO_TYPE ? "audio" : "video",
+				   es_len,
+				   es_len - es_params->data_len);
 			if (pout->pchan->r_offset != 0)
 				return -1;
 			/*loop back ,read one time*/
@@ -963,7 +1008,9 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 			ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
 			if (ret) {
 				if (!es_params->es_overflow)
-					if (!(es_params->header.pts_dts_flag & 0x4))
+					if (!(es_params->header.pts_dts_flag & 0x4) ||
+						(pout->type == AUDIO_TYPE &&
+						 es_params->header.len < audio_es_len_limit))
 						out_ts_cb_list(pout, ptmp, ret, 0, 0);
 					else
 						; //do nothing
@@ -973,15 +1020,16 @@ static int write_es_data(struct out_elem *pout, struct es_params_t *es_params)
 					dump_file_write(ptmp,
 							ret, &pout->dump_file);
 				es_params->data_len += ret;
-				pr_dbg("%s total len:%d, remain:%d\n",
-					   pout->type == AUDIO_TYPE ?
-					   "audio" : "video",
-					   es_len,
-					   es_len - es_params->data_len);
-				if (ret != len)
+				if (ret != len) {
+					pr_dbg("%s total len:%d, remain:%d\n",
+						   pout->type == AUDIO_TYPE ?
+						   "audio" : "video",
+						   es_len,
+						   es_len - es_params->data_len);
 					return -1;
-				else
+				} else {
 					return 0;
+				}
 			}
 		} else {
 			return 0;
@@ -998,9 +1046,12 @@ static int clean_es_data(struct out_elem *pout, struct chan_id *pchan,
 
 	while (len) {
 		ret = SC2_bufferid_read(pout->pchan, &ptmp, len, 0);
-		if (ret != 0)
+		if (ret != 0) {
 			len -= ret;
-
+		} else {
+			dprint("%s ret:%d\n", __func__, len);
+			return -1;
+		}
 		if (pout->running == TASK_DEAD || !pout->enable)
 			return -1;
 	}
@@ -1224,7 +1275,8 @@ static unsigned int aucpu_read_pts_process(struct out_elem *pout,
 			pout->aucpu_pts_r_offset = 0;
 		}
 	}
-	pr_dbg("%s pts request:%d, ret:%d\n", __func__, len, data_len);
+	if (len != data_len)
+		pr_dbg("%s pts request:%d, ret:%d\n", __func__, len, data_len);
 	return data_len;
 }
 
@@ -1282,7 +1334,8 @@ static unsigned int aucpu_read_process(struct out_elem *pout,
 			pout->aucpu_read_offset = 0;
 		}
 	}
-	pr_dbg("%s request:%d, ret:%d\n", __func__, len, data_len);
+	if (len != data_len)
+		pr_dbg("%s request:%d, ret:%d\n", __func__, len, data_len);
 	return data_len;
 }
 
@@ -1346,8 +1399,8 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	int es_len = 0;
 	int len = 0;
 
-	pr_dbg("%s chan id:%d, isdirty:%d\n", __func__,
-	       pout->pchan->id, isdirty);
+//	pr_dbg("%s chan id:%d, isdirty:%d\n", __func__,
+//	       pout->pchan->id, isdirty);
 
 	if (es_params->have_header == 0)
 		return -1;
@@ -1379,7 +1432,9 @@ static int write_aucpu_es_data(struct out_elem *pout,
 		       (unsigned long)es_params->header.dts,
 		       es_params->header.len);
 
-		if (!(es_params->header.pts_dts_flag & 0x4))
+		if (!(es_params->header.pts_dts_flag & 0x4) ||
+			(pout->type == AUDIO_TYPE &&
+			 es_params->header.len < audio_es_len_limit))
 			out_ts_cb_list(pout, (char *)&es_params->header,
 				h_len,
 				(h_len + es_params->header.len),
@@ -1392,10 +1447,14 @@ static int write_aucpu_es_data(struct out_elem *pout,
 	ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
 	if (ret) {
 		if (!es_params->es_overflow)
-			if (!(es_params->header.pts_dts_flag & 0x4))
+			if (!(es_params->header.pts_dts_flag & 0x4) ||
+				(pout->type == AUDIO_TYPE &&
+				 es_params->header.len < audio_es_len_limit)) {
+				find_audio_es_type(ptmp, ret);
 				out_ts_cb_list(pout, ptmp, ret, 0, 0);
-			else
+			} else {
 				; //do nothing
+			}
 		else
 			pr_dbg("audio data lost\n");
 		if (((dump_audio_es & 0xFFFF)  == pout->es_pes->pid &&
@@ -1411,15 +1470,16 @@ static int write_aucpu_es_data(struct out_elem *pout,
 			dump_file_write(ptmp, ret, &pout->dump_file);
 
 		es_params->data_len += ret;
-		pr_dbg("%s total len:%d, remain:%d\n",
-		       pout->type == AUDIO_TYPE ? "audio" : "video",
-		       es_len,
-		       es_len - es_params->data_len);
 
-		if (ret != len)
+		if (ret != len) {
+			pr_dbg("%s total len:%d, remain:%d\n",
+				   pout->type == AUDIO_TYPE ? "audio" : "video",
+				   es_len,
+				   es_len - es_params->data_len);
 			return -1;
-		else
+		} else {
 			return 0;
+		}
 	}
 	return -1;
 }
@@ -1520,9 +1580,12 @@ static int clean_aucpu_data(struct out_elem *pout, unsigned int len)
 
 	while (len) {
 		ret = aucpu_bufferid_read(pout, &ptmp, len, 0);
-		if (ret != 0)
+		if (ret != 0) {
 			len -= ret;
-
+		} else {
+			dprint("%s ret:%d\n", __func__, len);
+			return -1;
+		}
 		if (pout->running == TASK_DEAD || !pout->enable)
 			return -1;
 	}
@@ -1548,7 +1611,7 @@ static int write_sec_video_es_data(struct out_elem *pout,
 	int ret;
 	int flag = 0;
 
-	pr_dbg("%s pid:0x%0x enter\n", __func__, pout->es_pes->pid);
+//	pr_dbg("%s pid:0x%0x enter\n", __func__, pout->es_pes->pid);
 	if (es_params->header.len == 0)
 		return -1;
 
@@ -1629,13 +1692,14 @@ static int write_sec_video_es_data(struct out_elem *pout,
 		sec_es_data.data_end = (unsigned long)ptmp -
 			pout->pchan->mem + pout->pchan->mem_phy + len;
 	}
-	if (sec_es_data.data_end > sec_es_data.data_start)
-		pr_dbg("video data start:0x%x, end:0x%x len:0x%x\n",
-			sec_es_data.data_start, sec_es_data.data_end,
-			(sec_es_data.data_end - sec_es_data.data_start));
-	else
-		pr_dbg("video data start:0x%x,data end:0x%x\n",
-				sec_es_data.data_start, sec_es_data.data_end);
+
+//	if (sec_es_data.data_end > sec_es_data.data_start)
+//		pr_dbg("video data start:0x%x, end:0x%x len:0x%x\n",
+//			sec_es_data.data_start, sec_es_data.data_end,
+//			(sec_es_data.data_end - sec_es_data.data_start));
+//	else
+//		pr_dbg("video data start:0x%x,data end:0x%x\n",
+//				sec_es_data.data_start, sec_es_data.data_end);
 
 	ATRACE_COUNTER(pout->name, sec_es_data.pts);
 	pr_dbg("video pid:0x%0x sid:0x%0x flag:%d, pts:0x%lx, dts:0x%lx, offset:0x%lx\n",
@@ -3415,7 +3479,6 @@ int ts_output_check_flow_control(int sid, int percentage)
 	struct out_elem *pout;
 	struct cb_entry *ptmp = NULL;
 
-	pr_dbg("%s enter\n", __func__);
 	for (i = 0; i < MAX_ES_NUM; i++) {
 		es_slot = &es_table[i];
 		pout = es_slot->pout;
@@ -3464,8 +3527,8 @@ int ts_output_check_flow_control(int sid, int percentage)
 				while (ptmp && ptmp->cb) {
 					if (check_dmx_filter_buff(ptmp->udata[0],
 						(total_size - free_size)) != 0) {
-						pr_dbg("%s a 2 buf:0x%0x, level:0x%0x\n",
-							__func__, buff_len, level);
+						pr_dbg("%s a 2 total_size:0x%0x, free:0x%0x\n",
+							__func__, total_size, free_size);
 						return -3;
 					}
 					ptmp = ptmp->next;
@@ -3473,6 +3536,5 @@ int ts_output_check_flow_control(int sid, int percentage)
 			}
 		}
 	}
-	pr_dbg("%s exit\n", __func__);
 	return 0;
 }

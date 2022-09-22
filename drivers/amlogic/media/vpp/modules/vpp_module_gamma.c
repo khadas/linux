@@ -38,9 +38,9 @@ static int combine_mode;
 
 static bool pregm_tp_flag;
 static bool lcdgm_tp_flag;
-static unsigned int cur_pregm_tbl[MODE_RGB_MAX][VPP_PRE_GAMMA_TABLE_LEN];
-static unsigned int cur_lcdgm_tbl[MODE_RGB_MAX][VPP_GAMMA_TABLE_LEN];
-static unsigned int tmp_tbl[MODE_RGB_MAX][VPP_GAMMA_TABLE_LEN];
+static unsigned int cur_pregm_tbl[EN_MODE_RGB_MAX][VPP_PRE_GAMMA_TABLE_LEN];
+static unsigned int cur_lcdgm_tbl[EN_MODE_RGB_MAX][VPP_GAMMA_TABLE_LEN];
+static unsigned int tmp_tbl[EN_MODE_RGB_MAX][VPP_GAMMA_TABLE_LEN];
 
 /*Default table from T3*/
 static struct _gamma_reg_cfg_s pre_gamma_reg_cfg = {
@@ -294,9 +294,9 @@ int vpp_module_pre_gamma_write(unsigned int *pr_data,
 		return 0;
 
 	for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++) {
-		cur_pregm_tbl[MODE_R][i] = pr_data[i];
-		cur_pregm_tbl[MODE_G][i] = pg_data[i];
-		cur_pregm_tbl[MODE_B][i] = pb_data[i];
+		cur_pregm_tbl[EN_MODE_R][i] = pr_data[i];
+		cur_pregm_tbl[EN_MODE_G][i] = pg_data[i];
+		cur_pregm_tbl[EN_MODE_B][i] = pb_data[i];
 	}
 
 	return 0;
@@ -322,18 +322,18 @@ int vpp_module_pre_gamma_pattern(bool enable,
 
 	if (enable) {
 		for (i = 0; i < VPP_PRE_GAMMA_TABLE_LEN; i++) {
-			tmp_tbl[MODE_R][i] = r_val;
-			tmp_tbl[MODE_G][i] = g_val;
-			tmp_tbl[MODE_B][i] = b_val;
+			tmp_tbl[EN_MODE_R][i] = r_val;
+			tmp_tbl[EN_MODE_G][i] = g_val;
+			tmp_tbl[EN_MODE_B][i] = b_val;
 		}
 
-		pr_data = &tmp_tbl[MODE_R][0];
-		pg_data = &tmp_tbl[MODE_G][0];
-		pb_data = &tmp_tbl[MODE_B][0];
+		pr_data = &tmp_tbl[EN_MODE_R][0];
+		pg_data = &tmp_tbl[EN_MODE_G][0];
+		pb_data = &tmp_tbl[EN_MODE_B][0];
 	} else {
-		pr_data = &cur_pregm_tbl[MODE_R][0];
-		pg_data = &cur_pregm_tbl[MODE_G][0];
-		pb_data = &cur_pregm_tbl[MODE_B][0];
+		pr_data = &cur_pregm_tbl[EN_MODE_R][0];
+		pg_data = &cur_pregm_tbl[EN_MODE_G][0];
+		pb_data = &cur_pregm_tbl[EN_MODE_B][0];
 	}
 
 	addr = ADDR_PARAM(pre_gamma_reg_cfg.page, pre_gamma_reg_cfg.reg_gamma_addr);
@@ -359,9 +359,9 @@ void vpp_module_pre_gamma_on_vs(void)
 	WRITE_VPP_REG_BY_MODE(io_mode, addr, 0);
 
 	addr = ADDR_PARAM(pre_gamma_reg_cfg.page, pre_gamma_reg_cfg.reg_gamma_data);
-	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[MODE_R][0]);
-	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[MODE_G][0]);
-	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[MODE_B][0]);
+	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[EN_MODE_R][0]);
+	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[EN_MODE_G][0]);
+	_set_pre_gamma_data(io_mode, addr, &cur_pregm_tbl[EN_MODE_B][0]);
 }
 
 int vpp_module_lcd_gamma_en(bool enable)
@@ -380,9 +380,9 @@ int vpp_module_lcd_gamma_write(unsigned int *pr_data,
 		return 0;
 
 	for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++) {
-		cur_lcdgm_tbl[MODE_R][i] = pr_data[i];
-		cur_lcdgm_tbl[MODE_G][i] = pg_data[i];
-		cur_lcdgm_tbl[MODE_B][i] = pb_data[i];
+		cur_lcdgm_tbl[EN_MODE_R][i] = pr_data[i];
+		cur_lcdgm_tbl[EN_MODE_G][i] = pg_data[i];
+		cur_lcdgm_tbl[EN_MODE_B][i] = pb_data[i];
 	}
 
 	if (lcdgm_tp_flag)
@@ -424,18 +424,18 @@ int vpp_module_lcd_gamma_pattern(bool enable,
 
 	if (enable) {
 		for (i = 0; i < VPP_GAMMA_TABLE_LEN; i++) {
-			tmp_tbl[MODE_R][i] = r_val;
-			tmp_tbl[MODE_G][i] = g_val;
-			tmp_tbl[MODE_B][i] = b_val;
+			tmp_tbl[EN_MODE_R][i] = r_val;
+			tmp_tbl[EN_MODE_G][i] = g_val;
+			tmp_tbl[EN_MODE_B][i] = b_val;
 		}
 
-		pr_data = &tmp_tbl[MODE_R][0];
-		pg_data = &tmp_tbl[MODE_G][0];
-		pb_data = &tmp_tbl[MODE_B][0];
+		pr_data = &tmp_tbl[EN_MODE_R][0];
+		pg_data = &tmp_tbl[EN_MODE_G][0];
+		pb_data = &tmp_tbl[EN_MODE_B][0];
 	} else {
-		pr_data = &cur_lcdgm_tbl[MODE_R][0];
-		pg_data = &cur_lcdgm_tbl[MODE_G][0];
-		pb_data = &cur_lcdgm_tbl[MODE_B][0];
+		pr_data = &cur_lcdgm_tbl[EN_MODE_R][0];
+		pg_data = &cur_lcdgm_tbl[EN_MODE_G][0];
+		pb_data = &cur_lcdgm_tbl[EN_MODE_B][0];
 	}
 
 	if (combine_mode) {
@@ -456,9 +456,9 @@ void vpp_module_lcd_gamma_on_vs(void)
 
 	if (combine_mode) {
 		_set_lcd_gamma_data_combine(EN_MODE_RDMA,
-			&cur_lcdgm_tbl[MODE_R][0],
-			&cur_lcdgm_tbl[MODE_G][0],
-			&cur_lcdgm_tbl[MODE_B][0]);
+			&cur_lcdgm_tbl[EN_MODE_R][0],
+			&cur_lcdgm_tbl[EN_MODE_G][0],
+			&cur_lcdgm_tbl[EN_MODE_B][0]);
 	}
 }
 

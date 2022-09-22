@@ -272,6 +272,19 @@ enum hdmi_hdr_color {
 	C_BT2020,
 };
 
+enum hdmitx_aspect_ratio {
+	AR_UNKNOWM = 0,
+	AR_4X3,
+	AR_16X9,
+};
+
+struct aspect_ratio_list {
+	enum hdmi_vic vic;
+	int flag;
+	char aspect_ratio_num;
+	char aspect_ratio_den;
+};
+
 struct hdmitx_clk_tree_s {
 	/* hdmitx clk tree */
 	struct clk *hdmi_clk_vapb;
@@ -311,6 +324,7 @@ struct hdmitx_dev {
 	struct delayed_work work_internal_intr;
 	struct delayed_work work_cedst;
 	struct work_struct work_hdr;
+	struct delayed_work work_start_hdcp;
 	struct vrr_device_s hdmitx_vrr_dev;
 	void *am_hdcp;
 #ifdef CONFIG_AML_HDMI_TX_14
@@ -382,6 +396,7 @@ struct hdmitx_dev {
 	u8 rhpd_state; /* For repeater use only, no delay */
 	u8 force_audio_flag;
 	u8 mux_hpd_if_pin_high_flag;
+	int aspect_ratio;	/* 1, 4:3; 2, 16:9 */
 	struct hdmitx_info hdmi_info;
 	u32 log;
 	u32 tx_aud_cfg; /* 0, off; 1, on */
@@ -451,6 +466,7 @@ struct hdmitx_dev {
 	struct miscdevice hdcp_comm_device;
 	u8 def_stream_type;
 	u8 tv_usage;
+	bool systemcontrol_on;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -505,6 +521,7 @@ struct hdmitx_dev {
 #define AUDIO_MUTE          0x1
 #define AUDIO_UNMUTE        0x2
 #define CONF_CLR_AUDINFO_PACKET (CMD_CONF_OFFSET + 0x1000 + 0x01)
+#define CONF_ASPECT_RATIO	(CMD_CONF_OFFSET + 0x60c)
 
 /***********************************************************************
  *             MISC control, hpd, hpll //cntlmisc
@@ -572,6 +589,7 @@ const char *hdmitx21_edid_vic_to_string(enum hdmi_vic vic);
 void hdmitx21_edid_clear(struct hdmitx_dev *hdev);
 void hdmitx21_edid_ram_buffer_clear(struct hdmitx_dev *hdev);
 void hdmitx21_edid_buf_compare_print(struct hdmitx_dev *hdev);
+int hdmitx21_read_phy_status(void);
 
 /* VSIF: Vendor Specific InfoFrame
  * It has multiple purposes:
@@ -771,4 +789,5 @@ bool hdmitx21_hdr_en(void);
 bool hdmitx21_dv_en(void);
 bool hdmitx21_hdr10p_en(void);
 u32 aud_sr_idx_to_val(enum hdmi_audio_fs e_sr_idx);
+bool hdmitx21_uboot_already_display(void);
 #endif

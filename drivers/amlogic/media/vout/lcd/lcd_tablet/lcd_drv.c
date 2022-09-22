@@ -188,7 +188,7 @@ static void lcd_lvds_clk_util_set(struct aml_lcd_drv_s *pdrv)
 
 	if (pdrv->data->chip_type == LCD_CHIP_T7) {
 		switch (pdrv->index) {
-		case 0:
+		case 0: /* lane0~lane4 */
 			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
 			reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL1;
 			bit_data_in_lvds = 0;
@@ -197,12 +197,12 @@ static void lcd_lvds_clk_util_set(struct aml_lcd_drv_s *pdrv)
 			val_lane_sel = 0x155;
 			len_lane_sel = 10;
 			break;
-		case 1:
+		case 1: /* lane10~lane14 */
 			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
 			reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL1;
 			bit_data_in_lvds = 2;
 			bit_data_in_edp = 3;
-			bit_lane_sel = 10;
+			bit_lane_sel = 20;
 			val_lane_sel = 0x155;
 			len_lane_sel = 10;
 			break;
@@ -211,12 +211,12 @@ static void lcd_lvds_clk_util_set(struct aml_lcd_drv_s *pdrv)
 			reg_phy_tx_ctrl1 = COMBO_DPHY_EDP_LVDS_TX_PHY2_CNTL1;
 			bit_data_in_lvds = 4;
 			bit_data_in_edp = 0xff;
-			if (pdrv->config.control.lvds_cfg.dual_port) {
+			if (pdrv->config.control.lvds_cfg.dual_port) { /* lane5~lane14 */
 				bit_lane_sel = 10;
 				val_lane_sel = 0xaaaaa;
 				len_lane_sel = 20;
-			} else {
-				bit_lane_sel = 20;
+			} else { /* lane5~lane9 */
+				bit_lane_sel = 10;
 				val_lane_sel = 0x2aa;
 				len_lane_sel = 10;
 			}
@@ -281,7 +281,7 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 	unsigned int reg_lvds_pack_ctrl, reg_lvds_gen_ctrl;
 	unsigned int bit_num, pn_swap, port_swap, lane_reverse;
 	unsigned int dual_port, fifo_mode, lvds_repack;
-	unsigned int offset;
+	unsigned int ch_reg0, ch_reg1, offset;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
@@ -421,21 +421,37 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		 *    a: d3_b
 		 *    b: d4_b
 		 */
-		if (port_swap) {
-			if (lane_reverse) {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x345789ab);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0x0612);
-			} else {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x210a9876);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0x5b43);
-			}
+		ch_reg0 = P2P_CH_SWAP0_T7 + offset;
+		ch_reg1 = P2P_CH_SWAP1_T7 + offset;
+		if (pdrv->index == 0) {
+			//don't support port_swap and lane_reverse
+			lcd_vcbus_write(ch_reg0, 0xfff43210);
+			lcd_vcbus_write(ch_reg1, 0xffff);
+		} else if (pdrv->index == 1) {
+			lcd_vcbus_write(ch_reg0, 0xf43210ff);
+			lcd_vcbus_write(ch_reg1, 0xffff);
 		} else {
-			if (lane_reverse) {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x9ab12345);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0x6078);
+			if (dual_port) {
+				if (port_swap) {
+					if (lane_reverse) {
+						lcd_vcbus_write(ch_reg0, 0x345789ab);
+						lcd_vcbus_write(ch_reg1, 0x0612);
+					} else {
+						lcd_vcbus_write(ch_reg0, 0x210a9876);
+						lcd_vcbus_write(ch_reg1, 0x5b43);
+					}
+				} else {
+					if (lane_reverse) {
+						lcd_vcbus_write(ch_reg0, 0x9ab12345);
+						lcd_vcbus_write(ch_reg1, 0x6078);
+					} else {
+						lcd_vcbus_write(ch_reg0, 0x87643210);
+						lcd_vcbus_write(ch_reg1, 0xb5a9);
+					}
+				}
 			} else {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x87643210);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0xb5a9);
+				lcd_vcbus_write(ch_reg0, 0xfff43210);
+				lcd_vcbus_write(ch_reg1, 0xffff);
 			}
 		}
 		lcd_vcbus_write(P2P_BIT_REV_T7 + offset, 2);
@@ -456,21 +472,23 @@ static void lcd_lvds_control_set(struct aml_lcd_drv_s *pdrv)
 		 *    a: d3_b
 		 *    b: d4_b
 		 */
+		ch_reg0 = P2P_CH_SWAP0_T7 + offset;
+		ch_reg1 = P2P_CH_SWAP1_T7 + offset;
 		if (port_swap) {
 			if (lane_reverse) {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x456789ab);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0x0123);
+				lcd_vcbus_write(ch_reg0, 0x456789ab);
+				lcd_vcbus_write(ch_reg1, 0x0123);
 			} else {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x10ba9876);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0x5432);
+				lcd_vcbus_write(ch_reg0, 0x10ba9876);
+				lcd_vcbus_write(ch_reg1, 0x5432);
 			}
 		} else {
 			if (lane_reverse) {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0xab012345);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0x6789);
+				lcd_vcbus_write(ch_reg0, 0xab012345);
+				lcd_vcbus_write(ch_reg1, 0x6789);
 			} else {
-				lcd_vcbus_write(P2P_CH_SWAP0_T7 + offset, 0x76543210);
-				lcd_vcbus_write(P2P_CH_SWAP1_T7 + offset, 0xba98);
+				lcd_vcbus_write(ch_reg0, 0x76543210);
+				lcd_vcbus_write(ch_reg1, 0xba98);
 			}
 		}
 		lcd_vcbus_write(P2P_BIT_REV_T7 + offset, 2);

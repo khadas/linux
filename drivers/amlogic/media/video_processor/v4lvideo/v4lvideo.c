@@ -1460,6 +1460,7 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 	u32 try_count = 0;
 	u32 max_count = 1;
 	bool fmt_update = false;
+	u32 sei_size = 0;
 
 	if (!vf || !dup_vf || !provider || !alloc_sei)
 		return ret;
@@ -1467,6 +1468,31 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 	/*if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) &&*/
 	/*    (vf->type & VIDTYPE_DI_PW))*/
 	/*	return ret;*/
+
+	if (vf->type & VIDTYPE_DI_PW &&
+		vf->src_fmt.sei_magic_code == SEI_MAGIC_CODE) {
+		req.aux_buf = (char *)get_sei_from_src_fmt(vf, &sei_size);
+		req.aux_size = sei_size;
+		req.dv_enhance_exist = vf->src_fmt.dual_layer ? 1 : 0;
+		if (req.aux_buf && req.aux_size) {
+			p = vmalloc(req.aux_size);
+			if (p) {
+				memcpy(p, req.aux_buf, req.aux_size);
+				ret = update_vframe_src_fmt(dup_vf, (void *)p,
+					(u32)req.aux_size,
+					vf->src_fmt.dual_layer ? true : false,
+					provider, NULL);
+				if (!ret)
+					atomic_inc(&global_set_cnt);
+				else
+					vfree(p);
+			}
+		} else {
+			ret = update_vframe_src_fmt(dup_vf, NULL, 0,
+				false, provider, NULL);
+		}
+		goto finish_import;
+	}
 
 	if (!strcmp(provider, "dvbldec") && dup_vf->omx_index < 2)
 		max_count = 10;
@@ -1521,6 +1547,7 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 
 	if ((alloc_sei & 2) && max_count > 1)
 		pr_info("sei try_count %d\n", try_count);
+finish_import:
 	if (alloc_sei & 2)
 		pr_info("import sei: provider:%s, vf:%p, dup_vf:%p, req.aux_buf:%p, req.aux_size:%d, req.dv_enhance_exist:%d, vf->src_fmt.fmt:%d\n",
 			provider, vf, dup_vf,
@@ -2147,7 +2174,6 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	active_file_list_push(dev, file_private_data);
 
 	fput(file_vf);
-	mutex_unlock(&dev->mutex_input);
 
 	if (vf->pts_us64) {
 		dev->first_frame = 1;
@@ -2195,6 +2221,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if (vf->type_original & VIDTYPE_INTERLACE || vf->type & VIDTYPE_INTERLACE)
 		p->field = V4L2_FIELD_INTERLACED;
 
+	mutex_unlock(&dev->mutex_input);
 	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
 	dq_count[inst_id]++;
 	return 0;
@@ -2543,6 +2570,11 @@ static int v4lvideo_fd_link(int src_fd, int dst_fd)
 	struct file_private_data *private_data0 = NULL;
 	struct file_private_data *private_data1 = NULL;
 
+	if (src_fd == dst_fd) {
+		pr_err("%s:invalid param: src_fd:%d, dst_fd:%d.\n", __func__, src_fd, dst_fd);
+		return -EINVAL;
+	}
+
 	file0 = fget(src_fd);
 	if (!file0) {
 		pr_err("v4lvideo: %s source file is NULL\n", __func__);
@@ -2552,6 +2584,13 @@ static int v4lvideo_fd_link(int src_fd, int dst_fd)
 	if (!file1) {
 		fput(file0);
 		pr_err("v4lvideo: %s dst file is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!is_v4lvideo_buf_file(file0) || !is_v4lvideo_buf_file(file1)) {
+		pr_err("%s: file is not v4lvideo.\n", __func__);
+		fput(file0);
+		fput(file1);
 		return -EINVAL;
 	}
 

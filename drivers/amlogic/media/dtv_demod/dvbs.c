@@ -1186,7 +1186,7 @@ static struct fe_lla_lookup_t fe_l2a_s2_cn_lookup = {
 		{ -5, 11498 }, { 0, 11034 }, { 5, 10660 },
 		{ 10, 10330 }, {  15, 9828 }, { 20, 9515 },
 		{ 25, 9052 }, {  30, 8613 }, { 33, 8487 },
-		{ 36, 8162 }, {  39, 7956 }, { 42,  7753 },
+		{ 36, 8162 }, {  39, 7956 }, { 42, 7753 },
 		{ 45, 7547 }, {  48, 7328 }, { 51, 7081 },
 		{ 54, 6934 }, {  57, 6702 }, { 60, 6544 },
 		{ 63, 6362 }, {  66, 6141 }, { 69, 5949 },
@@ -1209,8 +1209,8 @@ static struct fe_lla_lookup_t fe_l2a_s2_cn_lookup = {
 		{ 370, 430 }, { 380, 420 }, { 390, 434 },
 		{ 400, 404 }, { 410, 408 }, { 420, 398 },
 		{ 430, 401 }, { 440, 395 }, { 450, 400 },
-		{ 460,  388 }, { 470, 419 }, { 480, 418 },
-		{ 490,  403 }, { 500, 394 }, { 510, 396 },
+		{ 460, 388 }, { 470, 419 }, { 480, 418 },
+		{ 490, 403 }, { 500, 394 }, { 510, 396 },
 	}
 };
 
@@ -1221,15 +1221,15 @@ void demod_init_local(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 	do {
 		if (l2a_def_val_local[reg].addr == 0xffff)
 			break;
-		//while blind scan,set autosr on,0 means blind scan
-		if (is_blind_scan == 0 && l2a_def_val_local[reg].addr == AUTOSR_REG)
+		//while blind scan,set autosr on,1 means blind scan
+		if (is_blind_scan && l2a_def_val_local[reg].addr == AUTOSR_REG)
 			dvbs_wr_byte(AUTOSR_REG, AUTOSR_OFF);
 		else
 			dvbs_wr_byte(l2a_def_val_local[reg].addr,
-				     l2a_def_val_local[reg].value);
+					l2a_def_val_local[reg].value);
 
 		/* for wider frequency offset when low SR. */
-		if (symb_rate_kbs < 11000 && is_blind_scan &&
+		if (symb_rate_kbs < (SR_LOW_THRD / 1000) && !is_blind_scan &&
 			l2a_def_val_local[reg].addr == 0x9b0)
 			dvbs_wr_byte(0x9b0, 0x6);
 		else
@@ -1244,7 +1244,7 @@ void dvbs2_reg_initial(unsigned int symb_rate_kbs, unsigned int is_blind_scan)
 	unsigned int tmp = 0;
 
 	/* BW/(1+ROLLOFF)=SYMBOLRATE */
-	tmp = symb_rate_kbs * ((16777216 + 67500) / 135000);
+	tmp = symb_rate_kbs * ((ALIGN_24 + ADC_CLK_135M / 2) / ADC_CLK_135M);
 
 	dvbs_wr_byte(0x9fc, (tmp >> 16) & 0xff);
 	dvbs_wr_byte(0x9fd, (tmp >> 8) & 0xff);
@@ -1504,27 +1504,41 @@ unsigned int dvbs_get_quality(void)
 
 unsigned int dvbs_get_freq_offset(unsigned int *polarity)
 {
-	unsigned int carrier_offset, freq_offset;
+	unsigned int carrier_offset = 0, freq_offset = 0;
 
 	carrier_offset = dvbs_rd_byte(CFR12) << 16;
 	carrier_offset |= dvbs_rd_byte(CFR11) << 8;
 	carrier_offset |= dvbs_rd_byte(CFR10);
-	PR_DVBS("%s carrier offset = 0x%x\n", __func__, carrier_offset);
 
 	*polarity = carrier_offset >> 23 & 0x1;
 	/* negative val, convert to original code */
 	if (*polarity) {
 		carrier_offset ^= 0xffffff;
 		carrier_offset += 1;
-		PR_DVBS("%s convert : 0x%x\n", __func__, carrier_offset);
 	}
 
 	/* fre offset = carrier_offset * Fs(adc) / 2^24 */
-	freq_offset = carrier_offset * 135;//ADC_CLK_135M
-	freq_offset /= 16777216;/* 2^24 */
-	PR_DVBS("%s, fre offset = %dM\n", __func__, freq_offset);
+	freq_offset = carrier_offset * (ADC_CLK_135M / 1000); //ADC_CLK_135M
+	freq_offset = (freq_offset + ALIGN_24 / 2000) / (ALIGN_24 / 1000);
+
+	PR_DVBS("%s: polarity %d, carrier_offset 0x%x, freq_offset %dKHz.\n",
+		__func__, *polarity, carrier_offset, freq_offset);
 
 	return freq_offset;
+}
+
+unsigned int dvbs_get_symbol_rate(void)
+{
+	unsigned int sr_kbps = 0;
+
+	sr_kbps = dvbs_rd_byte(0x9fc) << 16;
+	sr_kbps |= dvbs_rd_byte(0x9fd) << 8;
+	sr_kbps |= dvbs_rd_byte(0x9fe);
+	sr_kbps = sr_kbps * (ADC_CLK_135M / 1000);
+
+	sr_kbps = (sr_kbps + ALIGN_24 / 2000) / (ALIGN_24 / 1000);
+
+	return sr_kbps;
 }
 
 #define SIGNAL_STRENGTH_READ_TIMES 50
@@ -1723,11 +1737,11 @@ void fe_l2a_set_symbol_rate(unsigned int symb_rate)
 	unsigned int tmp = 0;
 
 	tmp = (symb_rate / 1000) * (1 << 15);
-	tmp = tmp / (135000000 / 1000);
+	tmp = tmp / ADC_CLK_135M;
 	tmp = tmp * (1 << 9);
 	PR_DVBS("1 tmp: %d, symb_rate: %d.\n", tmp, symb_rate);
 
-	//tmp = symb_rate / 1000 * ((16777216 + 67500) / 135000);
+	//tmp = symb_rate / 1000 * ((ALIGN_24 + ADC_CLK_135M / 2) / ADC_CLK_135M);
 	//PR_DVBS("2 tmp: %d, symb_rate: %d.\n", tmp, symb_rate);
 
 	dvbs_wr_byte(0x9f0, (tmp >> 16) & 0xff);
@@ -1757,7 +1771,7 @@ void dvbs_blind_fft_work(struct fft_threadcontrols *spectr_ana_data,
 	dvbs_write_bits(0x8c2, spectr_ana_data->acc, 0, 8);
 	dvbs_write_bits(0x8c0, 0x1, 0, 1);//UFBS_ENABLE
 
-	frc_demod_set = frq * (1 << 24) / 135;
+	frc_demod_set = frq * ALIGN_24 / (ADC_CLK_135M / 1000);
 	dvbs_wr_byte(0x9c3, ((char)(frc_demod_set >> 16)));
 	dvbs_wr_byte(0x9c4, ((char)(frc_demod_set >> 8)));
 	dvbs_wr_byte(0x9c5, (char)frc_demod_set);
@@ -1943,9 +1957,9 @@ unsigned int dvbs_blind_check_AGC2_bandwidth(void)
 	//	nb_steps = 1;
 
 	/* AGC2 step is 1 / div MHz */
-	//freq_step = 1000 * ((16777216 + 67500) / 135000) / div;
+	//freq_step = 1000 * ((ALIGN_24 + ADC_CLK_135M / 2) / ADC_CLK_135M) / div;
 	//PR_DVBS("1 freq_step: %d\n", freq_step);
-	freq_step = ((1000000 << 8) / (135000000 >> 8)) / div;
+	freq_step = ((1000000 << 8) / ((ADC_CLK_135M * 1000) >> 8)) / div;
 	freq_step = freq_step << 8;
 	PR_DVBS("2 freq_step: %d\n", freq_step);
 

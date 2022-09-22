@@ -10,97 +10,6 @@
 #include <linux/scatterlist.h>
 
 #define PIPE_PARANOIA /* for now */
-#ifdef CONFIG_NTFS3_FS
-#define iterate_iovec_ntfs3(i, n, base, len, off, __p, STEP) {        \
-	size_t off = 0;                                         \
-	size_t skip = i->iov_offset;                            \
-	do {                                                    \
-		len = min(n, __p->iov_len - skip);              \
-		if (likely(len)) {                              \
-			base = __p->iov_base + skip;            \
-			len -= (STEP);                          \
-			off += len;                             \
-			skip += len;                            \
-			n -= len;                               \
-			if (skip < __p->iov_len)                \
-				break;                          \
-		}                                               \
-		__p++;                                          \
-		skip = 0;                                       \
-	} while (n);                                            \
-	i->iov_offset = skip;                                   \
-	n = off;                                                \
-}
-
-#define iterate_bvec_ntfs3(i, n, base, len, off, p, STEP) {           \
-	size_t off = 0;                                         \
-	unsigned skip = i->iov_offset;                          \
-	while (n) {                                             \
-		unsigned offset = p->bv_offset + skip;          \
-		unsigned left;                                  \
-		void *kaddr = kmap_local_page(p->bv_page +      \
-					offset / PAGE_SIZE);    \
-		base = kaddr + offset % PAGE_SIZE;              \
-		len = min(min(n, (size_t)(p->bv_len - skip)),   \
-			(size_t)(PAGE_SIZE - offset % PAGE_SIZE)); \
-		left = (STEP);                                  \
-		kunmap_local(kaddr);                            \
-		len -= left;                                    \
-		off += len;                                     \
-		skip += len;                                    \
-		if (skip == p->bv_len) {                        \
-			skip = 0;                               \
-			p++;                                    \
-		}	                                        \
-		n -= len;                                       \
-		if (left)                                       \
-			break;                                  \
-		}                                                       \
-	i->iov_offset = skip;                                   \
-	n = off;                                                \
-}
-#define iterate_xarray(i, n, base, len, __off, STEP) {          \
-	__label__ __out;                                        \
-	size_t __off = 0;                                       \
-	struct page *head = NULL;                               \
-	loff_t start = i->xarray_start + i->iov_offset;         \
-	unsigned int offset = start % PAGE_SIZE;                    \
-	pgoff_t index = start / PAGE_SIZE;                      \
-	int j;                                                  \
-								\
-	XA_STATE(xas, i->xarray, index);                        \
-								\
-	rcu_read_lock();                                        \
-	xas_for_each(&xas, head, ULONG_MAX) {                   \
-		unsigned int left;                                  \
-		if (xas_retry(&xas, head))                      \
-			continue;                               \
-		if (WARN_ON(xa_is_value(head)))                 \
-			break;                                  \
-		if (WARN_ON(PageHuge(head)))                    \
-			break;                                  \
-		for (j = (head->index < index) ? index - head->index : 0; \
-			j < thp_nr_pages(head); j++) {             \
-			void *kaddr = kmap_local_page(head + j);        \
-			base = kaddr + offset;                  \
-			len = PAGE_SIZE - offset;               \
-			len = min(n, len);                      \
-			left = (STEP);                          \
-			kunmap_local(kaddr);                    \
-			len -= left;                            \
-			__off += len;                           \
-			n -= len;                               \
-			if (left || n == 0)                     \
-				goto __out;                     \
-			offset = 0;                             \
-		}                                              \
-	}                                                  \
-__out:                                                        \
-	rcu_read_unlock();                                      \
-	i->iov_offset += __off;                                 \
-	n = __off;                                              \
-}
-#endif
 
 #define iterate_iovec(i, n, __v, __p, skip, STEP) {	\
 	size_t left;					\
@@ -225,48 +134,6 @@ __out:                                                        \
 		i->iov_offset = skip;				\
 	}							\
 }
-
-#ifdef CONFIG_NTFS3_FS
-#define __iterate_and_advance(i, n, base, len, off, I, K) {     \
-	if (unlikely(i->count < n))                             \
-		n = i->count;                                   \
-	if (likely(n)) {                                        \
-		if (likely(iter_is_iovec(i))) {                 \
-			const struct iovec *iov = i->iov;       \
-			void __user *base;                      \
-			size_t len;                             \
-			iterate_iovec_ntfs3(i, n, base, len, off,     \
-						iov, (I))       \
-			i->nr_segs -= iov - i->iov;             \
-			i->iov = iov;                           \
-		} else if (iov_iter_is_bvec(i)) {               \
-			const struct bio_vec *bvec = i->bvec;   \
-			void *base;                             \
-			size_t len;                             \
-			iterate_bvec_ntfs3(i, n, base, len, off,      \
-						bvec, (K))      \
-			i->nr_segs -= bvec - i->bvec;           \
-			i->bvec = bvec;                         \
-		} else if (iov_iter_is_kvec(i)) {               \
-			const struct kvec *kvec = i->kvec;      \
-			void *base;                             \
-			size_t len;                             \
-			iterate_iovec_ntfs3(i, n, base, len, off,     \
-						kvec, (K))      \
-			i->nr_segs -= kvec - i->kvec;           \
-			i->kvec = kvec;                         \
-		} else if (iov_iter_is_xarray(i)) {             \
-			void *base;                             \
-			size_t len;                             \
-			iterate_xarray(i, n, base, len, off, (K))    \
-		}                                               \
-		i->count -= n;                                  \
-	}                                                       \
-}
-#define iterate_and_advance_ntfs3(i, n, base, len, off, I, K) { \
-	__iterate_and_advance(i, n, base, len, off, I, ((void)(K), 0))	\
-}
-#endif
 
 static int copyout(void __user *to, const void *from, size_t n)
 {
@@ -1020,55 +887,7 @@ static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
 	WARN_ON(1);
 	return false;
 }
-#ifdef CONFIG_NTFS3_FS
-static size_t __copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
-				struct iov_iter *i)
-{
-	if (likely(iter_is_iovec(i)))
-		return copy_page_to_iter_iovec(page, offset, bytes, i);
-	if (iov_iter_is_bvec(i) || iov_iter_is_kvec(i) || iov_iter_is_xarray(i)) {
-		void *kaddr = kmap_local_page(page);
-		size_t wanted = _copy_to_iter(kaddr + offset, bytes, i);
-		kunmap_local(kaddr);
-		return wanted;
-	}
-	if (iov_iter_is_pipe(i))
-		return copy_page_to_iter_pipe(page, offset, bytes, i);
-	if (unlikely(iov_iter_is_discard(i))) {
-		if (unlikely(i->count < bytes))
-			bytes = i->count;
-		i->count -= bytes;
-		return bytes;
-	}
-	WARN_ON(1);
-	return 0;
-}
 
-size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
-			struct iov_iter *i)
-{
-	size_t res = 0;
-	if (unlikely(!page_copy_sane(page, offset, bytes)))
-		return 0;
-	page += offset / PAGE_SIZE; // first subpage
-	offset %= PAGE_SIZE;
-	while (1) {
-		size_t n = __copy_page_to_iter(page, offset,
-				min(bytes, (size_t)PAGE_SIZE - offset), i);
-		res += n;
-		bytes -= n;
-		if (!bytes || !n)
-			break;
-		offset += n;
-		if (offset == PAGE_SIZE) {
-			page++;
-			offset = 0;
-		}
-	}
-	return res;
-}
-EXPORT_SYMBOL(copy_page_to_iter);
-#else
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
@@ -1090,7 +909,7 @@ size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 		return copy_page_to_iter_pipe(page, offset, bytes, i);
 }
 EXPORT_SYMBOL(copy_page_to_iter);
-#endif
+
 size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
@@ -1109,6 +928,31 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 		return copy_page_from_iter_iovec(page, offset, bytes, i);
 }
 EXPORT_SYMBOL(copy_page_from_iter);
+
+size_t copy_page_from_iter_atomic(struct page *page, unsigned int offset, size_t bytes,
+				  struct iov_iter *i)
+{
+	char *kaddr = kmap_atomic(page), *to = kaddr + offset;
+
+	if (unlikely(!page_copy_sane(page, offset, bytes))) {
+		kunmap_atomic(kaddr);
+		return 0;
+	}
+	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
+		kunmap_atomic(kaddr);
+		WARN_ON(1);
+		return 0;
+	}
+	iterate_and_advance(i, bytes, v,
+			copyin((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len),
+			memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
+				v.bv_offset, v.bv_len),
+			memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
+	)
+	kunmap_atomic(kaddr);
+	return bytes;
+}
+EXPORT_SYMBOL(copy_page_from_iter_atomic);
 
 static size_t pipe_zero(size_t bytes, struct iov_iter *i)
 {
@@ -1356,23 +1200,6 @@ void iov_iter_pipe(struct iov_iter *i, unsigned int direction,
 	i->start_idx = i->idx;
 }
 EXPORT_SYMBOL(iov_iter_pipe);
-
-#ifdef CONFIG_NTFS3_FS
-void iov_iter_xarray(struct iov_iter *i, unsigned int direction,
-			struct xarray *xarray, loff_t start, size_t count)
-{
-	BUG_ON(direction & ~1);
-	*i = (struct iov_iter) {
-		.iter_type = ITER_XARRAY,
-		.data_source = direction,
-		.xarray = xarray,
-		.xarray_start = start,
-		.count = count,
-		.iov_offset = 0
-	};
-}
-EXPORT_SYMBOL(iov_iter_xarray);
-#endif
 
 /**
  * iov_iter_discard - Initialise an I/O iterator that discards data
@@ -1924,28 +1751,3 @@ int iov_iter_for_each_range(struct iov_iter *i, size_t bytes,
 	return err;
 }
 EXPORT_SYMBOL(iov_iter_for_each_range);
-
-#ifdef CONFIG_NTFS3_FS
-size_t copy_page_from_iter_atomic(struct page *page, unsigned offset, size_t bytes,
-				struct iov_iter *i)
-{
-	char *kaddr = kmap_atomic(page), *p = kaddr + offset;
-	if (unlikely(!page_copy_sane(page, offset, bytes))) {
-		kunmap_atomic(kaddr);
-		return 0;
-	}
-	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
-		kunmap_atomic(kaddr);
-		WARN_ON(1);
-		return 0;
-	}
-	iterate_and_advance_ntfs3(i, bytes, base, len, off,
-		copyin(p + off, base, len),
-		memcpy(p + off, base, len)
-	);
-	kunmap_atomic(kaddr);
-	return bytes;
-}
-
-EXPORT_SYMBOL(copy_page_from_iter_atomic);
-#endif

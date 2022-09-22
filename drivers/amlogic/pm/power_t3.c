@@ -187,39 +187,10 @@ static int pm_vad_suspend(struct platform_device *pdev)
 	dev_info(&pdev->dev, "Current cpu freq:%lu\n",
 			clk_get_rate(private_data->cpu_clk));
 
-	dev_info(&pdev->dev, "Ready to switch frequency to 1200M\n");
-
-	if (clk_set_rate(private_data->cpu_clk, 1200000000)) {
-		dev_err(&pdev->dev,
-				"cpu clk switch fail!!!\n");
-	} else {
-		dev_info(&pdev->dev,
-				"cpu clk switch successful!!!\n");
-	}
-
-	dev_info(&pdev->dev, "cpu clk current parents:%s\n",
-			__clk_get_name(clk_get_parent(private_data->cpu_clk)));
-
 	// [suspend clk] 3. switch dsu clk to cpu clk
 	before_dsu_parent = clk_get_parent(private_data->dsu_clk);
 	dev_info(&pdev->dev, "DSU clk current parents:%s\n",
 			__clk_get_name(before_dsu_parent));
-
-	dev_info(&pdev->dev, "DSU clk counts:%d\n",
-			__clk_get_enable_count(before_dsu_parent));
-
-	dev_info(&pdev->dev, "Ready to switch dsu parent to cpu clk\n");
-	if (clk_set_parent(private_data->dsu_clk, private_data->cpu_clk)) {
-		dev_err(&pdev->dev,
-				"DSU clock switch to cpu clk fail!!!\n");
-	} else {
-		dev_info(&pdev->dev,
-				"DSU clock switch to cpu clk successful!!!\n");
-		clk_disable_unprepare(before_dsu_parent);
-	}
-
-	dev_info(&pdev->dev, "DSU clk current parents:%s\n",
-			__clk_get_name(clk_get_parent(private_data->dsu_clk)));
 
 	// [suspend clk] 4. Switch axi clk to cpu clk
 	if (clk_set_rate(private_data->axi_clk, 200000000)) {
@@ -299,16 +270,6 @@ static int pm_vad_resume(struct platform_device *pdev)
 			__clk_get_enable_count(private_data->fixed_pll));
 
 	// [resume clk] 2. Restore dsu clk parent
-	clk_prepare_enable(before_dsu_parent);
-	dev_info(&pdev->dev, "Ready to restore dsu clk\n");
-	if (clk_set_parent(private_data->dsu_clk, before_dsu_parent)) {
-		dev_err(&pdev->dev,
-				"DSU clock restore fail!!!\n");
-	} else {
-		dev_info(&pdev->dev,
-				"DSU clock restore successful!!!\n");
-	}
-
 	dev_info(&pdev->dev, "DSU clk current parents:%s\n",
 			__clk_get_name(clk_get_parent(private_data->dsu_clk)));
 

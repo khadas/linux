@@ -22,6 +22,8 @@
 
 #define HHI_GCLK_MPEG0			(0x50  <<  2) /* (0xC883C000 + 0x140) */
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* (0xC883C000 + 0x200)  */
+#define MODET_CLK_EN			_BIT(24)
+#define CFG_CLK_EN				_BIT(8)
 #define HHI_HDMIRX_AUD_CLK_CNTL	0x204 /* 0x1081 */
 #define HHI_AXI_CLK_CTNL		(0xb8 * 4)
 #define HHI_VDAC_CNTL0			(0xbb * 4)
@@ -3166,7 +3168,7 @@ extern int hdcp_tee_path;
 extern char emp_buf[1024];
 extern int hdcp22_on;
 extern int hdcp14_on;
-extern bool hdcp22_kill_esm;
+extern int hdcp22_kill_esm;
 extern bool hpd_to_esm;
 extern u32 term_cal_val;
 extern u32 phy_trim_val;
@@ -3317,7 +3319,7 @@ void rx_phy_short_bist(void);
 void aml_phy_iq_skew_monitor(void);
 void aml_eq_eye_monitor(void);
 void aml_phy_power_off(void);
-
+void rx_dig_clk_en(bool en);
 /* tl1 extern */
 void aml_phy_init_tl1(void);
 void dump_reg_phy_tl1_tm2(void);
@@ -3403,4 +3405,5 @@ void rx_esm_reset(int level);
 void hdmirx_hdcp22_reauth(void);
 void rx_earc_hpd_handler(struct work_struct *work);
 void rx_kill_esm(void);
+int is_t7_former(void);
 #endif

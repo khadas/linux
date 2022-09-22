@@ -80,14 +80,14 @@ struct ldim_dev_driver_s ldim_dev_drv = {
 	.ldim_pwm_config = {
 		.pwm_method = BL_PWM_POSITIVE,
 		.pwm_port = BL_PWM_MAX,
-		.pwm_duty_max = 100,
+		.pwm_duty_max = 4095,
 		.pwm_duty_min = 0,
 	},
 	.analog_pwm_config = {
 		.pwm_method = BL_PWM_POSITIVE,
 		.pwm_port = BL_PWM_MAX,
 		.pwm_freq = 1000,
-		.pwm_duty_max = 100,
+		.pwm_duty_max = 4095,
 		.pwm_duty_min = 10,
 	},
 
@@ -273,13 +273,16 @@ void ldim_set_duty_pwm(struct bl_pwm_config_s *bl_pwm)
 
 	if (bl_pwm->pwm_port >= BL_PWM_MAX)
 		return;
+	if (bl_pwm->pwm_duty_max == 0)
+		return;
 
 	temp = bl_pwm->pwm_cnt;
-	bl_pwm->pwm_level = bl_do_div(((temp * bl_pwm->pwm_duty) + 50), 100);
+	bl_pwm->pwm_level = bl_do_div(((temp * bl_pwm->pwm_duty) +
+		((bl_pwm->pwm_duty_max + 1) >> 1)), bl_pwm->pwm_duty_max);
 
 	if (ldim_debug_print == 2) {
-		LDIMPR("pwm port %d: duty=%d%%, pwm_max=%d, pwm_min=%d, pwm_level=%d\n",
-		       bl_pwm->pwm_port, bl_pwm->pwm_duty,
+		LDIMPR("pwm port %d: duty= %d / %d, pwm_max=%d, pwm_min=%d, pwm_level=%d\n",
+		       bl_pwm->pwm_port, bl_pwm->pwm_duty, bl_pwm->pwm_duty_max,
 		       bl_pwm->pwm_max, bl_pwm->pwm_min, bl_pwm->pwm_level);
 	}
 
@@ -1160,6 +1163,20 @@ static int ldim_dev_get_config_from_dts(struct ldim_dev_driver_s *dev_drv,
 		dev_drv->dim_min = temp[1];
 	}
 
+	ret = of_property_read_u32(child, "mcu_header", &val);
+	if (ret)
+		dev_drv->mcu_header = 0;
+	else
+		dev_drv->mcu_header = (unsigned int)val;
+
+	ret = of_property_read_u32(child, "mcu_dim", &val);
+	if (ret)
+		dev_drv->mcu_dim = 0;
+	else
+		dev_drv->mcu_dim = (unsigned int)val;
+	LDIMPR("mcu_header: 0x%x, mcu_dim: 0x%x\n",
+	dev_drv->mcu_header, dev_drv->mcu_dim);
+
 	ret = of_property_read_u32(child, "chip_count", &val);
 	if (ret)
 		dev_drv->chip_cnt = 1;
@@ -1507,6 +1524,19 @@ static int ldim_dev_get_config_from_ukey(struct ldim_dev_driver_s *dev_drv,
 		(*(p + LCD_UKEY_LDIM_DEV_CHIP_COUNT) |
 		((*(p + LCD_UKEY_LDIM_DEV_CHIP_COUNT + 1)) << 8));
 	LDIMPR("chip_count: %d\n", dev_drv->chip_cnt);
+
+	dev_drv->mcu_header =
+		(*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_0) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_0 + 1)) << 8) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_0 + 2)) << 16) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_0 + 3)) << 24));
+	dev_drv->mcu_dim =
+		(*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_1) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_1 + 1)) << 8) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_1 + 2)) << 16) |
+		((*(p + LCD_UKEY_LDIM_DEV_CUST_ATTR_1 + 3)) << 24));
+	LDIMPR("mcu_header: 0x%x, mcu_dim: 0x%x\n",
+	dev_drv->mcu_header, dev_drv->mcu_dim);
 
 	str = (const char *)(p + LCD_UKEY_LDIM_DEV_ZONE_MAP_PATH);
 	if (strlen(str) == 0) {
@@ -2093,6 +2123,8 @@ static void ldim_dev_probe_func(struct work_struct *work)
 	ldim_drv->dev_drv = &ldim_dev_drv;
 	ldim_dev_drv.bl_row = ldim_drv->conf->seg_row;
 	ldim_dev_drv.bl_col = ldim_drv->conf->seg_col;
+	ldim_dev_drv.ldim_pwm_config.pwm_duty_max = 4095;
+	ldim_dev_drv.analog_pwm_config.pwm_duty_max = 4095;
 	val = ldim_dev_drv.bl_row * ldim_dev_drv.bl_col;
 	ldim_dev_drv.zone_num = val;
 	ldim_dev_drv.bl_mapping = kcalloc(val, sizeof(unsigned short), GFP_KERNEL);

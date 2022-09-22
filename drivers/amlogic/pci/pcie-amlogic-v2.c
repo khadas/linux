@@ -31,11 +31,17 @@
 static u32 handle;
 static struct device *dev_pcie_reserved_mem;
 
+static int link_speed = 2;
+module_param(link_speed, int, 0444);
+MODULE_PARM_DESC(link_speed, "select pcie link speed ");
+
 #ifdef CONFIG_SWIOTLB
 #define USE_TEE_WHITELIST 1
 #else
 #define USE_TEE_WHITELIST 0
 #endif
+
+int keep_init;
 
 struct amlogic_pcie {
 	struct dw_pcie		*pci;
@@ -54,6 +60,7 @@ struct amlogic_pcie {
 	u32			device_attch;
 	u32			rst_mod;
 	u32			pwr_ctl;
+	u32			link_gen;
 };
 
 #define to_amlogic_pcie(x) dev_get_drvdata((x)->dev)
@@ -389,6 +396,8 @@ static void amlogic_pcie_assert_reset(struct amlogic_pcie *amlogic_pcie)
 			gpio_direction_input(
 				amlogic_pcie->reset_gpio);
 		}
+		if (amlogic_pcie->reset_gpio >= 0)
+			devm_gpio_free(dev, amlogic_pcie->reset_gpio);
 	} else {
 		dev_info(dev, "normal gpio\n");
 		if (amlogic_pcie->reset_gpio >= 0) {
@@ -406,6 +415,8 @@ static void amlogic_pcie_assert_reset(struct amlogic_pcie *amlogic_pcie)
 			gpio_set_value_cansleep(
 				amlogic_pcie->reset_gpio, 1);
 		}
+		if (amlogic_pcie->reset_gpio >= 0)
+			devm_gpio_free(dev, amlogic_pcie->reset_gpio);
 	}
 
 }
@@ -489,7 +500,10 @@ static void amlogic_set_max_rd_req_size
 
 static void amlogic_pcie_init_dw(struct amlogic_pcie *amlogic_pcie)
 {
+	struct dw_pcie *pci = amlogic_pcie->pci;
 	u32 val = 0;
+	u32 reg;
+	u32 exp_cap_off = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
 
 	val = amlogic_elb_readl(amlogic_pcie, PCIE_PORT_LINK_CTRL_OFF);
 	val &= (~(0x3f<<16));
@@ -513,6 +527,26 @@ static void amlogic_pcie_init_dw(struct amlogic_pcie *amlogic_pcie)
 
 	amlogic_elb_writel(amlogic_pcie, 0x0, PCIE_BASE_ADDR0);
 	amlogic_elb_writel(amlogic_pcie, 0x0, PCIE_BASE_ADDR1);
+
+	if (amlogic_pcie->link_gen == 1) {
+		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCAP,
+			     4, &reg);
+		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
+			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
+			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
+			dw_pcie_write(pci->dbi_base + exp_cap_off +
+				      PCI_EXP_LNKCAP, 4, reg);
+		}
+
+		dw_pcie_read(pci->dbi_base + exp_cap_off + PCI_EXP_LNKCTL2,
+			     2, &reg);
+		if ((reg & PCI_EXP_LNKCAP_SLS) != PCI_EXP_LNKCAP_SLS_2_5GB) {
+			reg &= ~((u32)PCI_EXP_LNKCAP_SLS);
+			reg |= PCI_EXP_LNKCAP_SLS_2_5GB;
+			dw_pcie_write(pci->dbi_base + exp_cap_off +
+				      PCI_EXP_LNKCTL2, 2, reg);
+		}
+	}
 }
 
 static void amlogic_enable_memory_space(struct amlogic_pcie *amlogic_pcie)
@@ -909,6 +943,7 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 		  tee_start,
 		  tee_end - tee_start,
 		  &handle);
+		keep_init = 1;
 #if USE_TEE_WHITELIST
 	}
 #endif
@@ -1065,6 +1100,10 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 	}
 
 	amlogic_pcie->phy->reset_state = 1;
+
+	amlogic_pcie->link_gen = link_speed;
+	if (amlogic_pcie->link_gen <= 0 || amlogic_pcie->link_gen > 2)
+		amlogic_pcie->link_gen = 2;
 
 	elbi_base = platform_get_resource_byname(pdev, IORESOURCE_MEM, "elbi");
 	if (!elbi_base) {

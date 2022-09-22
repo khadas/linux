@@ -108,6 +108,8 @@ struct aml_dmx {
 	 */
 	int reset_init;
 	int video_pid;
+	int reset_init_audio;
+	int audio_pid;
 
 	/* pid list */
 	struct list_head pid_head;

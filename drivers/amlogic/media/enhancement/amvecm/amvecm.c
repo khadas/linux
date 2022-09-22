@@ -2517,19 +2517,6 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("load gamma table fail\n");
 			ret = -EFAULT;
 		} else {
-			memcpy(&video_gamma_table_r,
-				&gt.gm_tb[gm_par_idx][0],
-				sizeof(struct tcon_gamma_table_s));
-			memcpy(&video_gamma_table_g,
-				&gt.gm_tb[gm_par_idx][1],
-				sizeof(struct tcon_gamma_table_s));
-			memcpy(&video_gamma_table_b,
-				&gt.gm_tb[gm_par_idx][2],
-				sizeof(struct tcon_gamma_table_s));
-
-			vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
-			vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
-			vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 			pr_amvecm_dbg(" gm_par_idx = %d, load gm success\n", gm_par_idx);
 		}
 		break;
@@ -5292,7 +5279,13 @@ static ssize_t amvecm_post_matrix_data_show(struct class *cla,
 		val1 = READ_VPP_REG(VPP_PROBE_COLOR);
 	else
 		val1 = READ_VPP_REG(VPP_MATRIX_PROBE_COLOR);
-	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
+	if (is_meson_t7_cpu()) {
+		val2 = READ_VPP_REG(VPP_PROBE_COLOR1);
+		len += sprintf(buf + len,
+		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
+		((val2 & 0xf) << 8) | ((val1 >> 24) & 0xff),
+		(val1 >> 12) & 0xfff, val1 & 0xfff);
+	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		len += sprintf(buf + len,
 		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
 		(val1 >> 20) & 0x3ff,
@@ -9988,6 +9981,7 @@ static const struct vecm_match_data_s vecm_dt_t7 = {
 	.vlk_hwver = vlock_hw_tm2verb,
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vrr_support_flag = 1,
 };
 
 static const struct vecm_match_data_s vecm_dt_t3 = {
@@ -9998,6 +9992,7 @@ static const struct vecm_match_data_s vecm_dt_t3 = {
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
 	.vlk_ctl_for_frc = 1,
+	.vrr_support_flag = 1,
 };
 
 /*t5w vlock follow t5 */
@@ -10008,6 +10003,7 @@ static const struct vecm_match_data_s vecm_dt_t5w = {
 	.vlk_hwver = vlock_hw_tm2verb,
 	.vlk_phlock_en = true,
 	.vlk_pll_sel = vlock_pll_sel_tcon,
+	.vrr_support_flag = 1,
 };
 
 static const struct of_device_id aml_vecm_dt_match[] = {
@@ -10171,6 +10167,8 @@ static void aml_vecm_dt_parse(struct platform_device *pdev)
 		}
 		vlock_dt_match_init(matchdata);
 
+		frame_lock_set_vrr_support_flag(matchdata->vrr_support_flag);
+
 		/*vlock param config*/
 		vlock_param_config(node);
 		vlock_clk_config(&pdev->dev);
@@ -10214,18 +10212,27 @@ static int aml_lcd_gamma_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	param = (unsigned int *)data;
+	/*gamma_index: select which vpp,  vpp0/vpp1/vpp2 gamma*/
 	gamma_index = param[0];
+	/*freesync 10 groups gamma table index, index:0~10
+	 *0xff: default(not tcon) gamma
+	 */
 	gm_par_idx = param[1];
 
-	memcpy(&video_gamma_table_r,
-		&gt.gm_tb[gm_par_idx][0],
-		sizeof(struct tcon_gamma_table_s));
-	memcpy(&video_gamma_table_g,
-		&gt.gm_tb[gm_par_idx][1],
-		sizeof(struct tcon_gamma_table_s));
-	memcpy(&video_gamma_table_b,
-		&gt.gm_tb[gm_par_idx][2],
-		sizeof(struct tcon_gamma_table_s));
+	if (gm_par_idx != 0xff) {
+		if (!frame_lock_get_vrr_status())
+			return NOTIFY_DONE;
+
+		memcpy(&video_gamma_table_r,
+			&gt.gm_tb[gm_par_idx][0],
+			sizeof(struct tcon_gamma_table_s));
+		memcpy(&video_gamma_table_g,
+			&gt.gm_tb[gm_par_idx][1],
+			sizeof(struct tcon_gamma_table_s));
+		memcpy(&video_gamma_table_b,
+			&gt.gm_tb[gm_par_idx][2],
+			sizeof(struct tcon_gamma_table_s));
+	}
 
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
 	vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
@@ -10318,7 +10325,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	spin_lock_init(&vpp_lcd_gamma_lock);
 	mutex_init(&vpp_lut3d_lock);
 #ifdef CONFIG_AMLOGIC_LCD
-	ret = aml_lcd_notifier_register(&aml_lcd_gamma_nb);
+	ret = aml_lcd_atomic_notifier_register(&aml_lcd_gamma_nb);
 	if (ret)
 		pr_info("register aml_lcd_gamma_notifier failed\n");
 
@@ -10327,6 +10334,7 @@ static int aml_vecm_probe(struct platform_device *pdev)
 	/* register vout client */
 	vout_register_client(&vlock_notifier_nb);
 	/* register vdin vrr en client*/
+	frame_lock_vrr_off_done_init();
 	aml_vrr_atomic_notifier_register(&flock_vdin_vrr_en_notifier_nb);
 
 	init_pattern_detect();
@@ -10423,7 +10431,7 @@ static int __exit aml_vecm_remove(struct platform_device *pdev)
 	class_destroy(devp->clsp);
 	unregister_chrdev_region(devp->devno, 1);
 #ifdef CONFIG_AMLOGIC_LCD
-	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
+	aml_lcd_atomic_notifier_unregister(&aml_lcd_gamma_nb);
 	cancel_work_sync(&aml_lcd_vlock_param_work);
 #endif
 	vout_unregister_client(&vlock_notifier_nb);
@@ -10474,7 +10482,7 @@ static void amvecm_shutdown(struct platform_device *pdev)
 	class_destroy(devp->clsp);
 	unregister_chrdev_region(devp->devno, 1);
 #ifdef CONFIG_AML_LCD
-	aml_lcd_notifier_unregister(&aml_lcd_gamma_nb);
+	aml_lcd_atomic_notifier_unregister(&aml_lcd_gamma_nb);
 #endif
 	lc_free();
 	vpp_lut3d_table_release();

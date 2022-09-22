@@ -392,7 +392,7 @@ static struct clk_regmap t5d_vpu_clkc_p0_gate = {
 			&t5d_vpu_clkc_p0_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED
 	},
 };
 
@@ -441,7 +441,7 @@ static struct clk_regmap t5d_vpu_clkc_p1_gate = {
 			&t5d_vpu_clkc_p1_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT
+		.flags = CLK_GET_RATE_NOCACHE | CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED
 	},
 };
 

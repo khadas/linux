@@ -118,7 +118,7 @@ void ma_di_init(void)
 	/* 420->422 chrome difference is large motion is large,flick */
 	DIM_DI_WR(DI_MTN_1_CTRL4, 0x01800880);
 	DIM_DI_WR(DI_MTN_1_CTRL7, 0x0a800480);
-	if (dim_config_crc_ic()) {//add for crc @2k22-0102
+	if (dim_config_crc_icl()) {//add for crc @2k22-0102
 		DIM_DI_WR(DI_MTN_1_CTRL3, 0x15200a0a);
 		DIM_DI_WR(DI_MTN_1_CTRL5, 0x74000d0d);
 		DIM_DI_WR(DI_MTN_1_CTRL7, 0xa800480);
@@ -980,7 +980,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S *di_inp_mif,
 	static bool last_disable_chan2; //dbg only
 
 	if (DIM_IS_IC(T5) || DIM_IS_IC(T5DB)) {
-		mem_bypass = (pre_vdin_link & 0x30) ? true : false;
+		mem_bypass = (pre_vdin_link & 0xf0) ? true : false;
 		chan2_disable = ppre->is_disable_chan2;
 	}
 
@@ -1208,7 +1208,7 @@ void dimh_enable_mc_di_pre_g12(struct DI_MC_MIF_s *mcinford_mif,
 		if (mcdi_en) {
 			DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xf7ff, 0, 16);
 			//add for crc @2k22-0102
-			if (dim_config_crc_ic()) {
+			if (dim_config_crc_icl()) {
 				DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0xdff, 17, 11);
 				DIM_RDMA_WR_BITS(MCDI_CTRL_MODE, 0, 29, 3);
 			} else {
@@ -4250,9 +4250,6 @@ void di_async_reset2(void)/*2019-04-05 add for debug*/
 	pr_info("%s:0x%x,0x%x,0x%x\n", __func__, val1, val2, val3);
 }
 
-#define DI_NOP_REG1	(0x2fcb)
-#define DI_NOP_REG2	(0x2fcd)
-
 void h_dbg_reg_set(unsigned int val)
 {
 	struct di_hpst_s  *pst = get_hw_pst();
@@ -4798,6 +4795,12 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 	PR_INF("load 0x%x pq table len %u.\n",
 	       di_pq_ptr->pq_parm.table_name,
 	       di_pq_ptr->pq_parm.table_len);
+	/* check len for coverity */
+	if (di_pq_ptr->pq_parm.table_len  >= DIMTABLE_LEN_MAX) {
+		PR_WARN("%s:len overflow:%d\n", __func__,
+			di_pq_ptr->pq_parm.table_len);
+		return;
+	}
 	nr_table = TABLE_NAME_NR | TABLE_NAME_DEBLOCK | TABLE_NAME_DEMOSQUITO;
 	regs_p = (struct am_reg_s *)di_pq_ptr->regs;
 	len = di_pq_ptr->pq_parm.table_len;
@@ -4838,6 +4841,57 @@ void dimh_load_regs(struct di_pq_parm_s *di_pq_ptr)
 		if (dimp_get(edi_mp_pq_load_dbg) == 2)
 			pr_info("[%u][0x%x] = [0x%x] %s\n", i, addr,
 				value, RD(addr) != value ? "fail" : "success");
+	}
+}
+
+static void dbg_nr_reg(void)
+{
+#ifdef DBG_BUFFER_FLOW
+	int i;
+	struct reg_t *preg;
+
+	if (!dbg_flow())
+		return;
+	preg = &get_datal()->s4dw_reg[0];
+	for (i = 0; i < DIM_NRDIS_REG_BACK_NUB; i++) {
+		if (!(preg + i)->add)
+			break;
+		PR_INF("special:0x%x=0x%x\n",
+			(preg + i)->add, (preg + i)->df_val);
+	}
+#endif /*DBG_BUFFER_FLOW*/
+}
+
+void dimh_nr_disable_set(bool set)
+{
+	int i;
+	struct reg_t *preg;
+
+	preg = &get_datal()->s4dw_reg[0];
+
+	if (set) {
+		//save old data and set new value;
+		i = 0;
+		(preg + i)->add = DNR_CTRL;
+		(preg + i)->df_val = RD(DNR_CTRL);
+		DIM_DI_WR(DNR_CTRL, 0x0);
+		i++;
+		(preg + i)->add = NR4_TOP_CTRL;
+		(preg + i)->df_val = RD(NR4_TOP_CTRL);
+		DIM_DI_WR(NR4_TOP_CTRL, 0x3e03c);
+		i++;
+		for (; i < DIM_NRDIS_REG_BACK_NUB; i++)
+			(preg + i)->add = 0;
+
+		dbg_nr_reg();
+		return;
+	}
+
+	/* reset: set old data */
+	for (i = 0; i < DIM_NRDIS_REG_BACK_NUB; i++) {
+		if (!(preg + i)->add)
+			break;
+		DIM_DI_WR((preg + i)->add, (preg + i)->df_val);
 	}
 }
 

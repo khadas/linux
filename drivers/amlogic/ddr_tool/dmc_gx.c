@@ -116,6 +116,15 @@ static void check_violation(struct dmc_monitor *mon, void *data)
 		port = (status >> 10) & 0xf;
 		subport = (status >> 6) & 0xf;
 
+		if ((mon->debug & DMC_DEBUG_CMA) == 0) {
+			if (strstr(to_sub_ports(port, subport, id_str), "EMMC"))
+				continue;
+			if (strstr(to_sub_ports(port, subport, id_str), "USB"))
+				continue;
+			if (strstr(to_sub_ports(port, subport, id_str), "ETH"))
+				continue;
+		}
+
 		pr_emerg(DMC_TAG "%s, addr:%08lx, s:%08lx, ID:%s, sub:%s, c:%ld, d:%p\n",
 			 title, addr, status, to_ports(port),
 			 to_sub_ports(port, subport, id_str),
@@ -149,13 +158,15 @@ static void gx_dmc_mon_irq(struct dmc_monitor *mon, void *data)
 static int gx_dmc_mon_set(struct dmc_monitor *mon)
 {
 	unsigned long value, end;
+	unsigned int wb;
 
 	/* aligned to 64KB */
+	wb = mon->addr_start & 0x01;
 	end = ALIGN(mon->addr_end, DMC_ADDR_SIZE);
 	value = (mon->addr_start >> 16) | ((end >> 16) << 16);
 	dmc_prot_rw(NULL, DMC_PROT0_RANGE, value, DMC_WRITE);
 
-	value = (1 << 19) | mon->device;
+	value = (wb << 17) | (1 << 19) | mon->device;
 	dmc_prot_rw(NULL, DMC_PROT0_CTRL, value, DMC_WRITE);
 
 	pr_emerg("range:%08lx - %08lx, device:%llx\n",

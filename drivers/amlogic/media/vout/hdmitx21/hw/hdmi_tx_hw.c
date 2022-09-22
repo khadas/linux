@@ -119,9 +119,16 @@ static void config_avmute(u32 val)
 {
 	pr_debug(HW "avmute set to %d\n", val);
 	switch (val) {
+	/* This code is required for proper generation of GCP's in ES1 */
 	case SET_AVMUTE:
+		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 0, 7, 1);
+		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 0, 3, 1);
+		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 1, 3, 1);
 		break;
 	case CLR_AVMUTE:
+		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 0, 7, 1);
+		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 0, 3, 1);
+		hdmitx21_set_reg_bits(TPI_SC_IVCTX, 1, 7, 1);
 		break;
 	case OFF_AVMUTE:
 	default:
@@ -245,7 +252,7 @@ void hdmitx21_sys_reset(void)
 	}
 }
 
-static bool hdmitx_uboot_already_display(void)
+bool hdmitx21_uboot_already_display(void)
 {
 	if (hd21_read_reg(ANACTRL_HDMIPHY_CTRL0))
 		return 1;
@@ -320,7 +327,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 {
 	u32 data32;
 
-	if (hdmitx_uboot_already_display()) {
+	if (hdmitx21_uboot_already_display()) {
 		int ret;
 		u8 body[32] = {0};
 		union hdmi_infoframe *infoframe = &hdev->infoframes.avi;
@@ -350,6 +357,7 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 				vic = avi->video_code;
 				if (vic == HDMI_0_UNKNOWN)
 					vic = _get_vic_from_vsif(hdev);
+				hdev->cur_VIC = vic;
 				tp = hdmitx21_gettiming_from_vic(vic);
 				if (tp) {
 					name = tp->sname ? tp->sname : tp->name;
@@ -361,8 +369,8 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev)
 				hdev->para->cs = HDMI_COLORSPACE_YUV444;
 				hdev->para->cd = COLORDEPTH_24B;
 			}
-			pr_info("hdmitx21: parsing AVI CS%d CD%d\n",
-				avi->colorspace, hdev->para->cd);
+			pr_info("hdmitx21: parsing AVI CS%d CD%d VIC%d\n",
+				avi->colorspace, hdev->para->cd, hdev->cur_VIC);
 		}
 		return;
 	}
@@ -703,7 +711,7 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	if (hdev->enc_idx == 2) {
 		set_hdmitx_enc_idx(2);
 		hd21_set_reg_bits(VPU_DISP_VIU2_CTRL, 1, 29, 1);
-		hd21_set_reg_bits(VPU_VIU_VENC_MUX_CTRL, 2, 2, 2);
+		//hd21_set_reg_bits(VPU_VIU_VENC_MUX_CTRL, 2, 2, 2);
 	}
 	hdmitx21_venc_en(0, 0);
 	hd21_set_reg_bits(VPU_HDMI_SETTING, 0, (hdev->enc_idx == 0) ? 0 : 1, 1);
@@ -715,11 +723,14 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 			      (TX_INPUT_COLOR_FORMAT == HDMI_COLORSPACE_YUV420) ? 1 : 0,
 			      hdev->enc_idx);
 	// configure GCP
+	/* for 8bit depth or y422: non-merge gcp mode + clr_avmute,
+	 * for dc mode: merge gcp mode + clr_avmute
+	 */
 	if (para->cs == HDMI_COLORSPACE_YUV422 || para->cd == COLORDEPTH_24B) {
 		hdmitx21_set_reg_bits(GCP_CNTL_IVCTX, 0, 0, 1);
-		hdmi_gcppkt_manual_set(1);
+		/* hdmi_gcppkt_manual_set(1); */
 	} else {
-		hdmi_gcppkt_manual_set(0);
+		/* hdmi_gcppkt_manual_set(0); */
 		hdmitx21_set_reg_bits(GCP_CNTL_IVCTX, 1, 0, 1);
 	}
 	// --------------------------------------------------------
@@ -1715,7 +1726,7 @@ static void hdmitx_getediddata(u8 *des, u8 *src)
 		des[i] = src[i];
 }
 
-void hdmitx_set_scdc_div40(u32 div40)
+static void hdmitx_set_scdc_div40(u32 div40)
 {
 	u32 addr = 0x20;
 	u32 data;
@@ -1815,7 +1826,8 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 	case DDC_EDID_CLEAR_RAM:
 		break;
 	case DDC_SCDC_DIV40_SCRAMB:
-		hdmitx_set_div40(argv == 1);
+		hdmitx_set_scdc_div40(argv == 1);
+		hdev->div40 = (argv == 1);
 		break;
 	default:
 		break;
@@ -1882,6 +1894,11 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 		break;
 	case CONF_CLR_AUDINFO_PACKET:
 		break;
+	case CONF_ASPECT_RATIO:
+		pr_info("%s argv = %d\n", __func__, argv);
+		hdmi_avi_infoframe_config(CONF_AVI_VIC, argv >> 2);
+		hdmi_avi_infoframe_config(CONF_AVI_AR, argv & 0x3);
+		break;
 	case CONF_AVI_BT2020:
 		break;
 	case CONF_CLR_DV_VS10_SIG:
@@ -1945,7 +1962,10 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 	case MISC_HPD_GPI_ST:
 		return hdmitx21_hpd_hw_op(HPD_READ_HPD_GPIO);
 	case MISC_TRIGGER_HPD:
-		hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
+		if (argv == 1)
+			hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 1);
+		else
+			hdmitx21_wr_reg(HDMITX_TOP_INTR_STAT, 1 << 2);
 		return 0;
 		break;
 	case MISC_TMDS_PHY_OP:
@@ -1986,6 +2006,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 static enum hdmi_vic get_vic_from_pkt(void)
 {
 	enum hdmi_vic vic = HDMI_0_UNKNOWN;
+
+	vic = hdmitx21_rd_reg(TPI_AVI_BYTE4_IVCTX) & 0x7f;
 
 	return vic;
 }
@@ -2092,6 +2114,7 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	pr_info("configure hdmitx21\n");
 	hdmitx21_wr_reg(HDMITX_TOP_SW_RESET, 0);
 	hdmitx_set_div40(para->tmds_clk_div40);
+	hdev->div40 = para->tmds_clk_div40;
 
 	//--------------------------------------------------------------------------
 	// Glitch-filter HPD and RxSense
@@ -2354,4 +2377,13 @@ void hdmitx_vrr_set_maxlncnt(u32 max_lcnt)
 u32 hdmitx_vrr_get_maxlncnt(void)
 {
 	return hd21_read_reg(ENCP_VIDEO_MAX_LNCNT) + 1;
+}
+
+int hdmitx21_read_phy_status(void)
+{
+	int phy_value = 0;
+
+	phy_value = !!(hd21_read_reg(ANACTRL_HDMIPHY_CTRL0) & 0xffff);
+
+	return phy_value;
 }

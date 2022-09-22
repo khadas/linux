@@ -108,7 +108,7 @@ int efuse_burn_lockable_is_cfg(char *itemname)
 }
 
 /*
- * return: 1:burned(wrote), 0: not write, -1: fail
+ * return: 1:burned(written), 0: not write, -1: fail
  */
 int efuse_burn_check_burned(char *itemname)
 {
@@ -691,9 +691,9 @@ static ssize_t checkburn_show(struct class *cla,
 		if (efuse_burn_lockable_is_cfg(efuse_dev->name) == 0) {
 			n = efuse_burn_check_burned(efuse_dev->name);
 			if (n == 1)
-				n = sprintf(buf, "wrote");
+				n = sprintf(buf, "written");
 			else if (n == 0)
-				n = sprintf(buf, "notwrite");
+				n = sprintf(buf, "not write");
 			else
 				n = sprintf(buf, "error");
 		} else {

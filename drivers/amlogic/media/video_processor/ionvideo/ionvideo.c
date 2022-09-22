@@ -507,12 +507,21 @@ static int vidioc_open(struct file *file)
 {
 	struct ionvideo_dev *dev = video_drvdata(file);
 
-	if (dev->fd_num > 0 || ppmgr2_init(&dev->ppmgr2_dev) < 0) {
+	mutex_lock(&dev->mutex_opened);
+	if (dev->fd_num > 0) {
+		mutex_unlock(&dev->mutex_opened);
 		pr_err("%s error\n", __func__);
 		return -EBUSY;
 	}
-
 	dev->fd_num++;
+	mutex_unlock(&dev->mutex_opened);
+
+	if (ppmgr2_init(&dev->ppmgr2_dev) < 0) {
+		pr_err("%s error2\n", __func__);
+		dev->fd_num--;
+		return -EBUSY;
+	}
+
 	dev->pts = 0;
 	dev->c_width = 0;
 	dev->c_height = 0;
@@ -540,17 +549,33 @@ static int vidioc_close(struct file *file)
 
 	struct ionvideo_dmaqueue *dma_q = &dev->vidq;
 
+	IONVID_DBG("%s!!!!\n", __func__);
+
+	mutex_lock(&dev->mutex_opened);
+	if (dev->fd_num > 0) {
+		dev->fd_num--;
+	} else {
+		pr_err("%s more than one time\n", __func__);
+		mutex_unlock(&dev->mutex_opened);
+		return 0;
+	}
+	mutex_unlock(&dev->mutex_opened);
+
 	if (dma_q->kthread)
 		vidioc_streamoff(file, NULL, 0);
 
-	IONVID_DBG("%s!!!!\n", __func__);
 	ppmgr2_release(&dev->ppmgr2_dev);
-	//dprintk(dev, 2, "vidioc_close\n");
+
 	IONVID_DBG("%s\n", __func__);
-	if (dev->fd_num > 0)
-		dev->fd_num--;
 
 	dev->once_record = 0;
+	return 0;
+}
+
+static ssize_t vidioc_read(struct file *file, char __user *data,
+			   size_t count, loff_t *ppos)
+{
+	pr_info("ionvideo read\n");
 	return 0;
 }
 
@@ -684,10 +709,20 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct page *page = NULL;
 	void *phy_addr = NULL;
 
+	if (p->index > IONVIDEO_POOL_SIZE) {
+		pr_err("ionvideo: dbuf: err index=%d\n", p->index);
+		return -EINVAL;
+	}
 	dev->ionvideo_input[p->index] = *p;
 
 	if (!ppmgr2_dev->phy_addr[p->index]) {
 		dbuf = dma_buf_get(p->m.fd);
+
+		if (IS_ERR_OR_NULL(dbuf)) {
+			pr_err("ionvideo: dbuf: dbuf=%px\n", dbuf);
+			return -EINVAL;
+		}
+
 		attach = dma_buf_attach(dbuf, dev->v4l2_dev.dev);
 		if (IS_ERR(attach)) {
 			pr_info("ionvideo: attach err\n");
@@ -752,7 +787,7 @@ static const struct v4l2_file_operations ionvideo_v4l2_fops = {
 	.owner = THIS_MODULE,
 	.open = vidioc_open,
 	.release = vidioc_close,
-	.read = vb2_fop_read,
+	.read = vidioc_read,
 	.poll = vidioc_poll,
 	.unlocked_ioctl = video_ioctl2,/* V4L2 ioctl handler */
 	.mmap = vb2_fop_mmap,
@@ -949,6 +984,7 @@ static int ionvideo_create_instance(int inst,
 
 	mutex_init(&dev->mutex_input);
 	mutex_init(&dev->mutex_output);
+	mutex_init(&dev->mutex_opened);
 
 	return 0;
 unreg_dev:

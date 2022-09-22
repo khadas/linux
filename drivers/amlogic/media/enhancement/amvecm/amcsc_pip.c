@@ -115,7 +115,7 @@ static const char *dv_output_str[6] = {
 	"BYPASS"
 };
 
-static int process_id[2];
+static int process_id[VD_PATH_MAX];
 void hdr_proc(struct vframe_s *vf,
 	      enum hdr_module_sel module_sel,
 	      u32 hdr_process_select,
@@ -156,17 +156,19 @@ void hdr_proc(struct vframe_s *vf,
 	       vpp_index,
 	       is_amdv_on());
 
-	if (module_sel == 1)
+	if (module_sel == VD1_HDR)
 		process_id[0] = index;
-	else if (module_sel == 2)
+	else if (module_sel == VD2_HDR)
 		process_id[1] = index;
+	else if (module_sel == VD3_HDR)
+		process_id[2] = index;
 }
 
 void get_hdr_process_name(int id, char *name, char *output_fmt)
 {
 	int index;
 
-	if (id > 1)
+	if (id > VD_PATH_MAX - 1)
 		return;
 	index = process_id[id];
 	memcpy(name, process_str[index], strlen(process_str[index]) + 1);
@@ -1598,6 +1600,7 @@ void video_post_process(struct vframe_s *vf,
 	enum hdr_type_e src_format = cur_source_format[vd_path];
 	/*eo clip select: 0->23bit eo; 1->32 bit eo*/
 	unsigned int eo_sel = 0;
+	enum mtx_csc_e mtx_csc = MATRIX_NULL;
 	struct matrix_s m = {
 		{0, 0, 0},
 		{
@@ -1953,15 +1956,20 @@ void video_post_process(struct vframe_s *vf,
 					source_type[vd_path]);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ1_MISC, 1, 1, 1);
 				VSYNC_WRITE_VPP_REG_BITS(VPP_VADJ2_MISC, 1, 1, 1);
+				if (csc_type == VPP_MATRIX_YUV709F_RGB)
+					mtx_csc = MATRIX_YUV709F_RGB;
+				else
+					mtx_csc = MATRIX_YUV709_RGB;
+
 				if (vpp_index == VPP_TOP1)
 					mtx_setting(VPP1_POST2_MTX,
-						MATRIX_YUV709_RGB, MTX_ON);
+						mtx_csc, MTX_ON);
 				else if (vpp_index == VPP_TOP2)
 					mtx_setting(VPP2_POST2_MTX,
-						MATRIX_YUV709_RGB, MTX_ON);
+						mtx_csc, MTX_ON);
 				else
 					mtx_setting(POST2_MTX,
-					    MATRIX_YUV709_RGB, MTX_ON);
+					    mtx_csc, MTX_ON);
 			}
 		}
 	}

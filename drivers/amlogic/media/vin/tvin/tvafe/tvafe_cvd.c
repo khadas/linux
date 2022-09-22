@@ -166,6 +166,7 @@ static unsigned int vs_adj_th_level03 = 0x20;
 /*-3.5hz*/
 static unsigned int vs_adj_th_level04 = 0x28;
 static unsigned int cvd_2e = 0x8c;
+static unsigned int ntscm_cvd_2e = 0x82;
 static unsigned int cvd_2e_l1 = 0x5c;
 static unsigned int acd_128 = 0x14;
 static unsigned int acd_128_l1 = 0x1f;
@@ -2771,9 +2772,13 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 						R_APB_REG(ACD_REG_2D), R_APB_REG(ACD_REG_66));
 				}
 			}
+			W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, ntscm_cvd_2e,
+				  HACTIVE_START_BIT, HACTIVE_START_WID);
 		} else {
 			W_APB_REG(ACD_REG_66, ntscm_acd_166);
 			W_APB_REG(ACD_REG_2D, acd_ntscm_h_back);
+			W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, ntscm_cvd_2e,
+				  HACTIVE_START_BIT, HACTIVE_START_WID);
 			cvd2->info.hs_adj_en = 0;
 			cvd2->info.hs_adj_level = 0;
 
@@ -2785,6 +2790,8 @@ inline void tvafe_cvd2_adj_hs_ntsc(struct tvafe_cvd2_s *cvd2,
 	} else {
 		W_APB_REG(ACD_REG_66, ntscm_acd_166);
 		W_APB_REG(ACD_REG_2D, acd_ntscm_h_back);
+		W_APB_BIT(CVD2_ACTIVE_VIDEO_HSTART, ntscm_cvd_2e,
+			  HACTIVE_START_BIT, HACTIVE_START_WID);
 		cvd2->info.hs_adj_en = 0;
 		cvd2->info.hs_adj_level = 0;
 
@@ -3016,19 +3023,19 @@ void tvafe_cvd2_rf_ntsc50_en(bool v)
 	ntsc50_en = v;
 }
 
-void tvafe_snow_config(unsigned int onoff)
+void tvafe_snow_config(unsigned int on_off)
 {
 	if (tvafe_snow_function_flag == 0 ||
 		tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
 		tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2)
 		return;
-	if (onoff)
+	if (on_off)
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 3, BLUE_MODE_BIT, BLUE_MODE_WID);
 	else
 		W_APB_BIT(CVD2_OUTPUT_CONTROL, 0, BLUE_MODE_BIT, BLUE_MODE_WID);
 }
 
-void tvafe_snow_config_clamp(unsigned int onoff)
+void tvafe_snow_config_clamp(unsigned int on_off)
 {
 	struct tvafe_dev_s *devp = NULL;
 
@@ -3040,22 +3047,22 @@ void tvafe_snow_config_clamp(unsigned int onoff)
 		return;
 	}
 
-	if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && onoff) {
+	if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && on_off) {
 		/* 0x6d is tm2 adjust snow gain */
 		W_APB_REG(ACD_REG_6D, 0x03000000);
-	} else if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && !onoff) {
+	} else if ((tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) && !on_off) {
 		W_APB_REG(ACD_REG_6D, 0x00000000);
 	}
 
 	if (tvafe_cpu_type() == TVAFE_CPU_TYPE_TL1 ||
 	    tvafe_cpu_type() >= TVAFE_CPU_TYPE_TM2) {
-		if (onoff)
-			vdin_adjust_tvafesnow_brightness();
+		if (on_off)
+			vdin_adjust_tvafe_snow_brightness();
 		return;
 	}
 	if (tvafe_snow_function_flag == 0)
 		return;
-	if (onoff)
+	if (on_off)
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 0, 20, 1);
 	else
 		W_APB_BIT(TVFE_ATV_DMD_CLP_CTRL, 1, 20, 1);

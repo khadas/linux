@@ -2088,8 +2088,7 @@
 			rx-fifo-depth = <4096>;
 			tx-fifo-depth = <2048>;
 			/*1:inphy; 2:exphy;*/
-			internal_phy = <2>;
-			cali_val = <0x80000>;
+			internal_phy = <1>;
 			status = "disabled";
 
 			mdio0: mdio {
@@ -2306,6 +2305,66 @@
 					"csi-host3-intr1",
 					"csi-host3-intr2";
 		link-device = <&adapter>;
+	};
+
+	adapter0: adapter0@fe3b0000 {
+		compatible = "amlogic, adapter0";
+		reg = <0x0 0xfe3b0000 0x0 0x00000400>,
+			<0x0 0xfe3b3000 0x0 0x00000800>;
+		reg-names = "adapter", "isp_top";
+		interrupts = <GIC_SPI 0x139 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkc CLKID_MIPI_ISP>;
+		clock-names = "cts_mipi_isp_clk";
+		power-domains = <&pwrdm PDID_T7_ISP>;
+	};
+
+	adapter2: adapter2@fe3b0800 {
+		compatible = "amlogic, adapter2";
+		reg = <0x0 0xfe3b0800 0x0 0x00000400>,
+			<0x0 0xfe3b3000 0x0 0x00000800>;
+		reg-names = "adapter", "isp_top";
+		interrupts = <GIC_SPI 0x137 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkc CLKID_MIPI_ISP>;
+		clock-names = "cts_mipi_isp_clk";
+		power-domains = <&pwrdm PDID_T7_ISP>;
+	};
+	csiphy0: csiphy0@fe3bfc00 {
+		compatible = "amlogic, csiphy0";
+		reg = <0x0 0xfe3bfc00 0x0 0x00000400>,
+			<0x0 0xfe3bdc00 0x0 0x00000100>,
+			<0x0 0xfe3bec00 0x0 0x00000400>;
+		reg-names = "csi_phy","csi_aphy", "csi_host";
+		clocks = <&clkc CLKID_MIPI_CSI_PHY0>;
+		clock-names = "cts_mipi_csi_phy_clk0";
+		assigned-clock-parents = <&clkc CLKID_MIPI_CSI_PHY0>;
+		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
+		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
+	};
+
+	csiphy2: csiphy2@fe3bf400 {
+		compatible = "amlogic, csiphy2";
+		reg = <0x0 0xfe3bf400 0x0 0x00000400>,
+			<0x0 0xfe3bdc00 0x0 0x00000100>,
+			<0x0 0xfe3be400 0x0 0x00000400>;
+		reg-names = "csi_phy","csi_aphy", "csi_host";
+		clocks = <&clkc CLKID_MIPI_CSI_PHY0>;
+		clock-names = "cts_mipi_csi_phy_clk0";
+		assigned-clock-parents = <&clkc CLKID_MIPI_CSI_PHY0>;
+		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
+		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
+	};
+	camera0 {
+		compatible = "amlogic, camera";
+		index = <0>;
+		csiphy = <&csiphy0>;
+		adapter = <&adapter0>;
+	};
+
+	camera1 {
+		compatible = "amlogic, camera";
+		index = <1>;
+		csiphy = <&csiphy2>;
+		adapter = <&adapter2>;
 	};
 
 	vdec {
@@ -2662,7 +2721,7 @@
 		status = "okay";
 	};
 
-	rdma{
+	rdma {
 		compatible = "amlogic, meson-t7, rdma";
 		status = "okay";
 		interrupts = <GIC_SPI 215 IRQ_TYPE_EDGE_RISING>;
@@ -2858,17 +2917,17 @@
 			thermal-sensors = <&a73_tsensor 0>;
 			trips {
 				a73switch_on: trip-point@0 {
-					temperature = <80000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a73control: trip-point@1 {
-					temperature = <90000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a73critical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2888,17 +2947,17 @@
 			thermal-sensors = <&a53_tsensor 1>;
 			trips {
 				a53switch_on: trip-point@0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a53control: trip-point@1 {
-					temperature = <100000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a53critical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2918,17 +2977,17 @@
 			thermal-sensors = <&gpu_tsensor 2>;
 			trips {
 				gpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				gpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				gpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				gpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2941,17 +3000,17 @@
 			thermal-sensors = <&nna_tsensor 3>;
 			trips {
 				nnaswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				nnacontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				nnacontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				nnacritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2964,17 +3023,17 @@
 			thermal-sensors = <&hevc_tsensor 4>;
 			trips {
 				hevcswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				hevccontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				hevccontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				hevccritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2987,17 +3046,17 @@
 			thermal-sensors = <&vpu_tsensor 5>;
 			trips {
 				vpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				vpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				vpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				vpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};

@@ -33,6 +33,11 @@ kfifo_alloc(fifo,		\
 	    32,			\
 	    GFP_KERNEL)
 
+#define UFI16_ALLOC(fifo)	\
+kfifo_alloc(fifo,		\
+	    16,			\
+	    GFP_KERNEL)
+
 #define UFI8_ALLOC(fifo)	\
 kfifo_alloc(fifo,		\
 	    8,			\

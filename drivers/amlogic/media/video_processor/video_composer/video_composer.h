@@ -44,8 +44,14 @@
 #include <linux/dma-contiguous.h>
 #include "vfq.h"
 #include <linux/amlogic/media/ge2d/ge2d.h>
+#include <linux/amlogic/media/video_sink/video.h>
 #include "vframe_ge2d_composer.h"
 #include "vframe_dewarp_composer.h"
+
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO_COMPOSER
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+#include <trace/events/meson_atrace.h>
+#endif
 
 #define MXA_LAYER_COUNT 9
 #define COMPOSER_READY_POOL_SIZE 32
@@ -77,6 +83,8 @@
 #define SOURCE_DTV_FIX_TUNNEL		0x1
 #define SOURCE_HWC_CREAT_ION		0x2
 #define SOURCE_PIC_MODE		0x4
+
+extern int actual_delay_count[MAX_VD_LAYERS];
 
 enum vc_transform_t {
 	/* flip source image horizontally */

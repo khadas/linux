@@ -11,7 +11,6 @@
 #include "meson_drv.h"
 #include "meson_crtc.h"
 #include "meson_plane.h"
-#include "meson_debugfs.h"
 #include "meson_vpu_pipeline.h"
 #include <drm/amlogic/meson_connector_dev.h>
 #include <linux/amlogic/media/vout/hdmi_tx/hdmi_tx_module.h>
@@ -685,62 +684,6 @@ int meson_plane_debugfs_init(struct drm_plane *plane, struct dentry *root)
 	return 0;
 }
 
-static ssize_t meson_connector_attr_write(struct file *file, const char __user *ubuf,
-				size_t len, loff_t *offp)
-{
-	if (len > sizeof(attr_debugfs) - 1)
-		return -EINVAL;
-
-	if (copy_from_user(attr_debugfs, ubuf, len))
-		return -EFAULT;
-	if (attr_debugfs[len - 1] == '\n')
-		attr_debugfs[len - 1] = '\0';
-	attr_debugfs[len] = '\0';
-
-	attr_force_debugfs = true;
-	return len;
-}
-
-static int meson_connector_attr_show(struct seq_file *sf, void *data)
-{
-	seq_printf(sf, "hdmitx_attr: %s\n", attr_debugfs);
-	return 0;
-}
-
-static int meson_connector_attr_open(struct inode *inode, struct file *file)
-{
-	struct drm_connector *connector = inode->i_private;
-
-	return single_open(file, meson_connector_attr_show, connector);
-}
-
-static const struct file_operations meson_connector_attr_fops = {
-	.owner = THIS_MODULE,
-	.open = meson_connector_attr_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = meson_connector_attr_write,
-};
-
-int meson_connector_debugfs_init(struct drm_connector *connector,
-		struct dentry *root)
-{
-	struct dentry *meson_vpu_root;
-	struct dentry *entry;
-
-	meson_vpu_root = debugfs_create_dir(connector->name, root);
-
-	entry = debugfs_create_file("hdmitx_attr", 0644, meson_vpu_root,
-			connector, &meson_connector_attr_fops);
-	if (!entry) {
-		DRM_ERROR("create attr debugfs node error\n");
-		debugfs_remove_recursive(meson_vpu_root);
-	}
-
-	return 0;
-}
-
 static int mm_show(struct seq_file *sf, void *arg)
 {
 	return 0;
@@ -755,8 +698,6 @@ int meson_debugfs_init(struct drm_minor *minor)
 	int ret;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
-	struct drm_connector *connector;
-	struct drm_connector_list_iter conn_iter;
 	struct drm_device *dev = minor->dev;
 	ret = drm_debugfs_create_files(meson_debugfs_list,
 				       ARRAY_SIZE(meson_debugfs_list),
@@ -773,10 +714,6 @@ int meson_debugfs_init(struct drm_minor *minor)
 		meson_plane_debugfs_init(plane, minor->debugfs_root);
 	}
 
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		meson_connector_debugfs_init(connector, minor->debugfs_root);
-	}
 	return ret;
 }
 

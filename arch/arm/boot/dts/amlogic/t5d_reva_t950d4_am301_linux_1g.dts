@@ -57,8 +57,7 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x10000>;
-			bconsole-size = <0x10000>;
+			pmsg-size = <0x20000>;
 		};
 
 		secmon_reserved: linux,secmon {
@@ -1206,6 +1205,9 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
@@ -1281,6 +1283,9 @@
 
 		samesource_sel = <4>;
 
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 		status = "okay";
@@ -1299,6 +1304,9 @@
 			"spdif_pins_mute";
 		pinctrl-0 = <&spdifout_b>;
 		pinctrl-1 = <&spdifout_b_mute>;
+
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 
 		status = "okay";
 	};
@@ -1374,7 +1382,7 @@
 
 		/*this resample is only used for loopback_A.*/
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {

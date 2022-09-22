@@ -43,11 +43,6 @@
 #include <linux/ctype.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
 
-#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_VIDEO_COMPOSER
-#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
-#include <trace/events/meson_atrace.h>
-#endif
-
 #include "videodisplay.h"
 #define VIDEO_COMPOSER_VERSION "1.0"
 
@@ -90,6 +85,7 @@ static u32 debug_crop_pip;
 static u32 composer_use_444;
 static u32 reset_drop;
 static u32 drop_cnt;
+static u32 last_drop_cnt;
 static u32 drop_cnt_pip;
 static u32 receive_count;
 static u32 receive_count_pip;
@@ -2285,11 +2281,15 @@ static void video_composer_task(struct composer_dev *dev)
 				vc_print(dev->index, PRINT_ERROR,
 					 "by_pass ready_q is full\n");
 			ready_count = kfifo_len(&dev->ready_q);
-			if (ready_count > 2)
-				vc_print(dev->index, PRINT_ERROR,
+			/* dev->video_render_index == 5 means T7 dual screen mode */
+			if (ready_count > 3 && dev->video_render_index == 5)
+				vc_print(dev->index, PRINT_OTHER,
 					 "ready len=%d\n", ready_count);
-			else if (ready_count > 1)
-				vc_print(dev->index, PRINT_PATTERN,
+			else if (ready_count > 2 && dev->video_render_index != 5)
+				vc_print(dev->index, PRINT_OTHER,
+					 "ready len=%d\n", ready_count);
+			else if (ready_count > 1 && dev->video_render_index != 5)
+				vc_print(dev->index, PRINT_OTHER,
 					 "ready len=%d\n", ready_count);
 			vc_print(dev->index, PRINT_QUEUE_STATUS,
 				 "ready len=%d\n", kfifo_len(&dev->ready_q));
@@ -2309,7 +2309,7 @@ static void video_composer_wait_event(struct composer_dev *dev)
 {
 	wait_event_interruptible_timeout(dev->wq,
 					 (kfifo_len(&dev->receive_q) > 0 &&
-					  dev->enable_composer) ||
+					  dev->composer_enabled) ||
 					 dev->need_free_buffer ||
 					 dev->need_unint_receive_q ||
 					 dev->need_empty_ready ||
@@ -2391,7 +2391,8 @@ static int video_composer_open(struct inode *inode, struct file *file)
 		return -EBUSY;
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = vmalloc(sizeof(*dev));
+	memset(dev, 0, sizeof(*dev));
 	if (!dev) {
 		mutex_unlock(&video_composer_mutex);
 		pr_err("video_composer: instance %d alloc dev failed",
@@ -2490,7 +2491,7 @@ static int video_composer_release(struct inode *inode, struct file *file)
 			break;
 		}
 	}
-	kfree(dev);
+	vfree(dev);
 	return 0;
 }
 
@@ -2603,6 +2604,7 @@ static void set_frames_info(struct composer_dev *dev,
 				 "sideband to non\n");
 		}
 		dev->is_sideband = false;
+		disable_video_layer(dev, 0);
 		sprintf(render_layer,
 			"video_render.%d",
 			dev->video_render_index);
@@ -2733,6 +2735,15 @@ static void set_frames_info(struct composer_dev *dev,
 			if (dev->index == 0) {
 				drop_cnt = vf->omx_index + 1
 					    - dev->received_new_count;
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
+				if (drop_cnt == 0)
+					ATRACE_COUNTER("video_composer_drop_cnt", 0);
+				if (drop_cnt != last_drop_cnt) {
+					last_drop_cnt = drop_cnt;
+					ATRACE_COUNTER("video_composer_drop_cnt", drop_cnt);
+					ATRACE_COUNTER("video_composer_drop_cnt", 0);
+				}
+#endif
 				receive_new_count = dev->received_new_count;
 				receive_count = dev->received_count + 1;
 				last_omx_index = vf->omx_index;
@@ -2763,7 +2774,8 @@ static void set_frames_info(struct composer_dev *dev,
 				 vf->index_disp,
 				 vf->pts_us64);
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
-			ATRACE_COUNTER("video_composer", vf->index_disp);
+			ATRACE_COUNTER("video_composer_sf_omx_index", vf->omx_index);
+			ATRACE_COUNTER("video_composer_sf_omx_index", 0);
 #endif
 		} else {
 			vc_print(dev->index, PRINT_ERROR,
@@ -2890,7 +2902,7 @@ static int video_composer_uninit(struct composer_dev *dev)
 				- dev->fence_release_count);
 	dev->is_sideband = false;
 	dev->need_empty_ready = false;
-
+	video_display_para_reset(dev->index);
 	return ret;
 }
 
@@ -2914,12 +2926,13 @@ int video_composer_set_enable(struct composer_dev *dev, u32 val)
 		return ret;
 	}
 	dev->enable_composer = val;
-	wake_up_interruptible(&dev->wq);
 
-	if (val == VIDEO_COMPOSER_ENABLE_NORMAL)
+	if (val == VIDEO_COMPOSER_ENABLE_NORMAL) {
 		ret = video_composer_init(dev);
-	else if (val == VIDEO_COMPOSER_ENABLE_NONE)
+	} else if (val == VIDEO_COMPOSER_ENABLE_NONE) {
+		wake_up_interruptible(&dev->wq);
 		ret = video_composer_uninit(dev);
+	}
 
 	if (ret != 0)
 		pr_err("vc: set failed\n");
@@ -3787,6 +3800,14 @@ static ssize_t vd_dump_vframe_store(struct class *class,
 	return count;
 }
 
+static ssize_t actual_delay_count_show(struct class *class,
+			       struct class_attribute *attr, char *buf)
+{
+	int val = (actual_delay_count[0] | (actual_delay_count[1] << 4)
+		| (actual_delay_count[2] << 8));
+	return sprintf(buf, "%d\n", val);
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -3825,6 +3846,8 @@ static CLASS_ATTR_RW(vd_pulldown_level);
 static CLASS_ATTR_RW(vd_max_hold_count);
 static CLASS_ATTR_RW(vd_set_frame_delay);
 static CLASS_ATTR_RW(vd_dump_vframe);
+static CLASS_ATTR_RO(actual_delay_count);
+
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -3865,6 +3888,7 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_vd_max_hold_count.attr,
 	&class_attr_vd_set_frame_delay.attr,
 	&class_attr_vd_dump_vframe.attr,
+	&class_attr_actual_delay_count.attr,
 	NULL
 };
 

@@ -548,6 +548,10 @@ panel/tcon/HV650QUB-F70_LDIM/bl_profile.bin";
 				"/mnt/vendor/odm_ext/etc/tvconfig/\
 panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
 
+			mcu_header = <0x55AA0014>;
+			mcu_dim =<0x0000FF4D>;	/*reserve+type+adim+pdim*/
+			/*type: 0: 3bytes(old spec), 1:6bytes(new spec)*/
+
 			ldim_cus_param = < /* maximum = 32 x 4 bytes*/
 				11
 				23

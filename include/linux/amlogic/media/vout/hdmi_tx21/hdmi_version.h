@@ -22,6 +22,15 @@
 /****************************************************************/
 
 #define HDMITX21_VERSIONS_LOG \
-	"V03.00.00.00.00.01.00 [20220616] [EDID] add MPEG-H edid parse\n"
-
+	"V03.00.00.00.00.01.00 [20220616] [EDID] add MPEG-H edid parse\n" \
+	"V03.00.00.00.00.01.01 [20220628] [Compatibility] optimize for hotplug during bootup\n"\
+	"V03.00.00.00.00.02.01 [20220707] [EDID] add hdr_priority  = 1 parse hdr10+\n" \
+	"V03.00.00.00.01.02.01 [20220708] [HDCP] fix hdcp1.4 repeater cts issues\n" \
+	"V03.00.00.00.01.02.02 [20220711] [COMP] add hdcp version protect for drm\n" \
+	"V03.00.00.00.01.03.02 [20220711] [EDID] HF1-23 add the ddc delay to 20ms\n" \
+	"V03.00.00.00.01.03.03 [20220713] [SYSFS] add phy show sysfs\n" \
+	"V03.00.00.00.02.03.03 [20220715] [HDCP] T7 DVI 1080p60 1A-09 test fail\n" \
+	"V03.00.00.00.02.03.04 [20220726] [COMP] add avmute interface\n" \
+	"V03.00.00.00.03.03.04 [20220805] [HDCP] fix hdcp1.4 repeater cts 3C-II-07\n" \
+	"V03.00.00.00.03.03.05 [20220811] [NEWF] hdmitx21 add aspect ratio support\n"
 #endif // __HDMI21_VERSION_H__

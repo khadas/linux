@@ -1092,6 +1092,23 @@ u8 scpi_get_ethernet_calc(void)
 }
 EXPORT_SYMBOL(scpi_get_ethernet_calc);
 
+u32 scpi_set_ethernet_wol(u32 flag)
+{
+	struct scpi_data_buf sdata;
+	struct mhu_data_buf mdata;
+
+	struct __packed {
+		u32 status;
+	} buf;
+
+	SCPI_SETUP_DBUF(sdata, mdata, SCPI_CL_NONE,
+		SCPI_CMD_SET_ETHERNET_WOL, flag, buf);
+	if (scpi_execute_cmd(&sdata))
+		return 0;
+	return buf.status;
+}
+EXPORT_SYMBOL(scpi_set_ethernet_wol);
+
 int scpi_get_cpuinfo(enum scpi_get_pfm_type type, u32 *freq, u32 *vol)
 {
 	struct scpi_data_buf sdata;

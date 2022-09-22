@@ -282,6 +282,19 @@ enum hdmi_hdr_color {
 	C_BT2020,
 };
 
+enum hdmitx_aspect_ratio {
+	AR_UNKNOWM = 0,
+	AR_4X3,
+	AR_16X9,
+};
+
+struct aspect_ratio_list {
+	enum hdmi_vic vic;
+	int flag;
+	char aspect_ratio_num;
+	char aspect_ratio_den;
+};
+
 struct hdmitx_clk_tree_s {
 	/* hdmitx clk tree */
 	struct clk *hdmi_clk_vapb;
@@ -434,6 +447,7 @@ struct hdmitx_dev {
 	unsigned char force_audio_flag;
 	unsigned char mux_hpd_if_pin_high_flag;
 	int auth_process_timer;
+	int aspect_ratio;	/* 1, 4:3; 2, 16:9 */
 	struct hdmitx_info hdmi_info;
 	unsigned int log;
 	unsigned int tx_aud_cfg; /* 0, off; 1, on */
@@ -599,6 +613,7 @@ struct hdmitx_dev {
 #define AUDIO_UNMUTE        0x2
 #define CONF_CLR_AUDINFO_PACKET (CMD_CONF_OFFSET + 0x1000 + 0x01)
 #define CONF_GET_AUDIO_MUTE_ST	(CMD_CONF_OFFSET + 0x1000 + 0x02)
+#define CONF_ASPECT_RATIO	(CMD_CONF_OFFSET + 0x101a)
 
 /***********************************************************************
  *             MISC control, hpd, hpll //cntlmisc
@@ -930,4 +945,6 @@ bool hdmitx_find_vendor_6g(struct hdmitx_dev *hdev);
 bool hdmitx_find_vendor_ratio(struct hdmitx_dev *hdev);
 
 int hdmitx_uboot_already_display(int type);
+
+int read_phy_status(void);
 #endif

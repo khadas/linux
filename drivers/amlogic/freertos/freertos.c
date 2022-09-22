@@ -32,13 +32,14 @@
 #include <linux/sched/signal.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/amlogic/freertos.h>
+#include <linux/mm.h>
 
 #define AML_RTOS_NAME "freertos"
 
 #define SIP_FREERTOS_FID		0x8200004B
 #define RTOS_REQUEST_INFO		0
 #define RTOS_ALLOW_COREUP		1
-#define SMC_UNK				0xffffffff
+#define SMC_UNK				-1
 #define RSVED_MAX_IRQ			1024
 #define RTOS_RUN_FLAG			0xA5A5A5A5
 
@@ -49,6 +50,7 @@ struct logbuf_t {
 	char buf[0];
 };
 
+static struct reserved_mem res_mem;
 static unsigned long rtosinfo_phy;
 static struct xrtosinfo_t *rtosinfo;
 static int freertos_finished;
@@ -62,6 +64,28 @@ static u32 logbuf_len;
 static struct logbuf_t *logbuf;
 static struct dentry *rtos_logbuf_file;
 static DEFINE_MUTEX(freertos_logbuf_lock);
+
+static BLOCKING_NOTIFIER_HEAD(rtos_nofitier_chain);
+
+int register_freertos_notifier(struct notifier_block *nb)
+{
+	int err;
+
+	err = blocking_notifier_chain_register(&rtos_nofitier_chain, nb);
+	return err;
+}
+EXPORT_SYMBOL_GPL(register_freertos_notifier);
+
+int unregister_freertos_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&rtos_nofitier_chain, nb);
+}
+EXPORT_SYMBOL(unregister_freertos_notifier);
+
+static int call_freertos_notifiers(unsigned long val, void *v)
+{
+	return blocking_notifier_call_chain(&rtos_nofitier_chain, val, v);
+}
 
 static unsigned long freertos_request_info(void)
 {
@@ -88,6 +112,8 @@ static unsigned long freertos_request_info(void)
 		return 0;
 	}
 	info_base = rmem->base;
+	res_mem.base = rmem->base;
+	res_mem.size = rmem->size;
 
 	freertos = of_find_compatible_node(NULL, NULL, "amlogic,freertos");
 	if (!freertos) {
@@ -113,7 +139,7 @@ unsigned int freertos_is_run(void)
 	if (!phy)
 		return 0;
 
-	info = (struct xrtosinfo_t *)ioremap(phy, sizeof(struct xrtosinfo_t));
+	info = (struct xrtosinfo_t *)memremap(phy, sizeof(struct xrtosinfo_t), MEMREMAP_WB);
 	if (info) {
 		if (info->rtos_run_flag != RTOS_RUN_FLAG) {
 			pr_debug("rtos_run_flag:%x\n", info->rtos_run_flag);
@@ -238,6 +264,11 @@ static void freertos_do_finish(int bootup)
 				} else {
 					pr_info("cpu %u already take over\n", cpu);
 				}
+				free_reserved_area(__va(res_mem.base),
+					__va(PAGE_ALIGN(res_mem.base + res_mem.size)),
+						   0,
+						   "free_mem");
+				call_freertos_notifiers(1, NULL);
 			}
 		}
 //done:
@@ -412,7 +443,7 @@ static int aml_rtos_logbuf_init(void)
 	size = rtosinfo->logbuf_len;
 	pr_info("logbuffer: 0x%x, 0x%x\n",
 		rtosinfo->logbuf_phy, rtosinfo->logbuf_len);
-	logbuf = ioremap_cache(phy, size);
+	logbuf = memremap(phy, size, MEMREMAP_WB);
 	if (!logbuf) {
 		pr_err("map log buffer failed\n");
 		return -1;
@@ -499,12 +530,12 @@ static int aml_rtos_probe(struct platform_device *pdev)
 	rtosinfo_phy = freertos_request_info();
 	pr_info("rtosinfo_phy=%lx\n", rtosinfo_phy);
 	if (rtosinfo_phy == 0 ||
-	    rtosinfo_phy == SMC_UNK)
+	    (int)rtosinfo_phy == SMC_UNK)
 		return 0;
 
-	rtosinfo = (struct xrtosinfo_t *)
-		   ioremap_cache(rtosinfo_phy,
-			   sizeof(struct xrtosinfo_t));
+	rtosinfo = (struct xrtosinfo_t *)memremap(rtosinfo_phy,
+						  sizeof(struct xrtosinfo_t),
+						  MEMREMAP_WB);
 	if (rtosinfo) {
 		freertos_do_finish(1);
 	} else {
