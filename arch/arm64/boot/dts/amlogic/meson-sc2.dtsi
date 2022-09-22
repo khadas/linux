@@ -291,11 +291,6 @@
 		pinctrl-1=<&jtag_b_pins>;
 	};
 
-	ddr-scrambler@0xfe02e030 {
-		compatible = "amlogic, ddr-scrambler-preserve";
-		reg = <0x0 0xfe02e030 0x0 0x4>;
-	};
-
 	mbox_mhu_fifo: mhu@0 {
 		status = "okay";
 		compatible = "amlogic, meson_mhu_fifo";

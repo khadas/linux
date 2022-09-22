@@ -945,11 +945,6 @@ static int ramoops_probe(struct platform_device *pdev)
 		pstore_ftrace_dump_old(cxt->fprzs[0]);
 	}
 #endif
-
-#ifdef CONFIG_AMLOGIC_DEBUG_SCRAMBLER_RAMOOPS
-	scrambler_ramoops_init();
-#endif
-
 	return 0;
 
 fail_buf:
