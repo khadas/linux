@@ -29,9 +29,6 @@
 #include <media/v4l2-mem2mem.h>
 
 #include <trace/events/v4l2.h>
-#if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-#include <trace/hooks/v4l2.h>
-#endif
 
 /* Zero out the end of the struct pointed to by p.  Everything after, but
  * not including, the specified field is cleared. */
@@ -1440,9 +1437,6 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		case V4L2_PIX_FMT_MT21C:	descr = "Mediatek Compressed Format"; break;
 		case V4L2_PIX_FMT_SUNXI_TILED_NV12: descr = "Sunxi Tiled NV12 Format"; break;
 		default:
-#if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-			trace_android_vh_v4l2_fill_fmtdesc(fmt);
-#endif
 			if (fmt->description[0])
 				return;
 			WARN(1, "Unknown pixelformat 0x%08x\n", fmt->pixelformat);

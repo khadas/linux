@@ -70,12 +70,6 @@
 #include <trace/hooks/cfg80211.h>
 #include <trace/hooks/user.h>
 
-#if IS_ENABLED(CONFIG_AMLOGIC_V4L2)
-#include <trace/hooks/v4l2.h>
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_meta_ptr_update);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_v4l2_fill_fmtdesc);
-#endif
-
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
  * associated with them) to allow external modules to probe them.
