@@ -24,6 +24,7 @@
 /* Device registers */
 #define MCU_PWR_OFF_CMD_REG       0x80
 #define MCU_SHUTDOWN_NORMAL_REG   0x2c
+#define MCU_RGB_LED_CTRL_REG         	0x23
 
 /*Fan device*/
 #define MCU_CMD_FAN_STATUS_CTRL_REGv2   0x8A
@@ -51,6 +52,25 @@ enum khadas_board {
 enum khadas_board_hwver {
 	KHADAS_BOARD_HWVER_NONE = 0,
 	KHADAS_BOARD_HWVER_V11
+};
+
+enum khadas_mculed_mode {
+	KHADAS_MCU_LED_OFF = 0,
+	KHADAS_MCU_LED_ON,
+	KHADAS_RED_LED_BREATH,
+	KHADAS_GREEN_LED_BREATH,
+	KHADAS_BLUE_LED_BREATH,
+	KHADAS_RG_LED_BREATH,
+	KHADAS_RB_LED_BREATH,
+	KHADAS_GB_LED_BREATH,
+	KHADAS_RGB_LED_BREATH,
+	KHADAS_RED_LED_HEARTBEAT,
+	KHADAS_GREEN_LED_HEARTBEAT,
+	KHADAS_BLUE_LED_HEARTBEAT,
+	KHADAS_RG_LED_HEARTBEAT,
+	KHADAS_RB_LED_HEARTBEAT,
+	KHADAS_GB_LED_HEARTBEAT,
+	KHADAS_RGB_LED_HEARTBEAT,
 };
 
 enum mcu_fan_mode {
@@ -89,9 +109,11 @@ struct mcu_data {
 	enum khadas_board board;
 	enum khadas_board_hwver hwver;
 	struct mcu_fan_data fan_data;
+	enum khadas_mculed_mode mculed_mode;
 };
 
 struct mcu_data *g_mcu_data;
+int ageing_test_flag = 0;
 
 static int i2c_master_reg8_send(const struct i2c_client *client,
 		const char reg, const char *buf, int count)
@@ -185,6 +207,17 @@ static int is_mcu_fan_control_supported(void)
 	}
 
 }
+
+static int is_mcu_mculed_control_supported(void)
+{
+	// MCU MCU LED control is supported for:
+	// 1. Khadas EDGE2 and later
+		//if (g_mcu_data->hwver >= KHADAS_BOARD_HWVER_V10)
+			return 1;
+		//else
+			//return 0;
+}
+
 static void mcu_fan_level_set(struct mcu_fan_data *fan_data, int level)
 {
     if (is_mcu_fan_control_supported()) {
@@ -389,6 +422,25 @@ void fan_level_set(struct mcu_data *ug_mcu_data)
     }
 }
 
+static void mcu_mculed_set(int mode)
+{
+	int ret;
+	char reg;
+
+	if (mode >= 0x00 && mode <= 0x0f) {
+		g_mcu_data->mculed_mode = mode;
+		reg = (char)mode;
+		if (is_mcu_mculed_control_supported()) {
+			ret = mcu_i2c_write_regs(g_mcu_data->client,MCU_RGB_LED_CTRL_REG,&reg, 1);
+			if (ret < 0) {
+				pr_debug("write mcu led cmd error\n");
+			}
+			else
+				pr_debug("write mcu led cmd mode=%d\n",mode);
+		}
+	}
+}
+
 static ssize_t show_fan_trigger_low(struct class *cls,
         struct class_attribute *attr, char *buf)
 {
@@ -502,6 +554,14 @@ static ssize_t store_mcu_poweroff(struct class *cls,struct class_attribute *attr
 	return count;
 }
 
+static ssize_t show_mculed_mode(struct class *cls,
+		struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf,
+			"MCU LED mode:%d\n",
+			g_mcu_data->mculed_mode);
+}
+
 static ssize_t store_mcu_rst(struct class *cls, struct class_attribute *attr,
 				const char *buf, size_t count)
 {
@@ -523,6 +583,20 @@ static ssize_t store_mcu_rst(struct class *cls, struct class_attribute *attr,
 	return count;
 }
 
+static ssize_t store_mculed_mode(struct class *cls,
+		struct class_attribute *attr,
+		const char *buf, size_t count)
+{
+	int mode;
+
+	if (kstrtoint(buf, 0, &mode))
+		return -EINVAL;
+
+	mcu_mculed_set(mode);
+
+	return count;
+}
+
 static struct class_attribute fan_class_attrs[] = {
     __ATTR(enable, 0644, show_fan_enable, store_fan_enable),
     __ATTR(mode, 0644, show_fan_mode, store_fan_mode),
@@ -539,6 +613,7 @@ static struct class_attribute fan_class_attrs[] = {
 static struct class_attribute mcu_class_attrs[] = {
 	__ATTR(poweroff, 0644, NULL, store_mcu_poweroff),
 	__ATTR(rst, 0644, NULL, store_mcu_rst),
+	__ATTR(mculed, 0644, show_mculed_mode, store_mculed_mode),
 };
 
 static void create_mcu_attrs(void) {
