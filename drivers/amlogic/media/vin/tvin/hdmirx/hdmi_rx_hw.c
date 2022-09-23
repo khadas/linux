@@ -138,6 +138,8 @@ unsigned int hdmirx_rd_dwc(unsigned int addr)
 	int data;
 	unsigned long dev_offset = 0x10;
 
+	if (!rx_get_dig_clk_en_sts())
+		return 0;
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		data = rd_reg(MAP_ADDR_MODULE_TOP,
@@ -176,6 +178,8 @@ void hdmirx_wr_dwc(unsigned int addr, unsigned int data)
 	ulong flags;
 	unsigned int dev_offset = 0x10;
 
+	if (!rx_get_dig_clk_en_sts())
+		return;
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		spin_lock_irqsave(&reg_rw_lock, flags);
 		wr_reg(MAP_ADDR_MODULE_TOP,
@@ -533,6 +537,11 @@ unsigned int rd_reg_clk_ctl(unsigned int offset)
 	ret = rd_reg(MAP_ADDR_MODULE_CLK_CTRL, addr);
 	spin_unlock_irqrestore(&reg_rw_lock, flags);
 	return ret;
+}
+
+u32 hdmirx_rd_bits_clk_ctl(u32 addr, u32 mask)
+{
+	return rx_get_bits(rd_reg_clk_ctl(addr), mask);
 }
 
 void wr_reg_clk_ctl(unsigned int offset, unsigned int val)
@@ -2422,6 +2431,19 @@ void rx_dig_clk_en(bool en)
 		wr_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, MODET_CLK_EN, en);
 		wr_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN, en);
 	}
+}
+
+bool rx_get_dig_clk_en_sts(void)
+{
+	int ret;
+
+	if (rx.chip_id >= CHIP_ID_T7)
+		return true;
+	if (rx.chip_id >= CHIP_ID_T5)
+		ret = hdmirx_rd_bits_clk_ctl(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN);
+	else
+		ret = rd_reg_hhi_bits(HHI_HDMIRX_CLK_CNTL, CFG_CLK_EN);
+	return ret;
 }
 
 void rx_esm_tmdsclk_en(bool en)
