@@ -3406,4 +3406,5 @@ void hdmirx_hdcp22_reauth(void);
 void rx_earc_hpd_handler(struct work_struct *work);
 void rx_kill_esm(void);
 int is_t7_former(void);
+bool rx_get_dig_clk_en_sts(void);
 #endif
