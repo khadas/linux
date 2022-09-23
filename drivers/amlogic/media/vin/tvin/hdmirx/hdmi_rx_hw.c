@@ -1563,6 +1563,9 @@ void set_scdc_cfg(int hpdlow, int pwrprovided)
 	case CHIP_ID_T7:
 	case CHIP_ID_T3:
 	case CHIP_ID_T5W:
+		hdmirx_wr_bits_cor(RX_C0_SRST2_AON_IVCRX, _BIT(5), 1);
+		udelay(1);
+		hdmirx_wr_bits_cor(RX_C0_SRST2_AON_IVCRX, _BIT(5), 0);
 	default:
 		//hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, pwrprovided);
 		break;
