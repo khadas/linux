@@ -193,39 +193,23 @@ static struct clk_regmap s5_sys1_pll_dco = {
 };
 
 static const struct reg_sequence s5_sys2pll_init_regs[] = {
-	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x2001208d },
-	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x3001208d },
+	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x20011045 },
+	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x30011045 },
 	{ .reg = CLKCTRL_SYS2PLL_CTRL1,	.def = 0x3420500f },
 	{ .reg = CLKCTRL_SYS2PLL_CTRL2,	.def = 0x00023041 },
 	{ .reg = CLKCTRL_SYS2PLL_CTRL3,	.def = 0x0, .delay_us = 20 },
-	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x1001208d, .delay_us = 20 },
+	{ .reg = CLKCTRL_SYS2PLL_CTRL0,	.def = 0x10011045, .delay_us = 20 },
 	{ .reg = CLKCTRL_SYS2PLL_CTRL2,	.def = 0x00023001, .delay_us = 50 }
 };
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table s5_sys2_pll_params_table[] = {
-	PLL_PARAMS(141, 1, 2), /*DCO=3384M OD=846M*/
-	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
-	PLL_PARAMS(116, 1, 1), /*DCO=2784 OD=1392M*/
-	PLL_PARAMS(126, 1, 1), /*DCO=3024 OD=1512M*/
-	PLL_PARAMS(67, 1, 0), /*DCO=1608M OD=1608MM*/
-	PLL_PARAMS(71, 1, 0), /*DCO=1704MM OD=1704M*/
-	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
-	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
-	PLL_PARAMS(81, 1, 0), /*DCO=1944M OD=1944M */
+	PLL_PARAMS(69, 1, 1), /*DCO=1656M OD=828M*/
 	{ /* sentinel */ }
 };
 #else
 static const struct pll_params_table s5_sys2_pll_params_table[] = {
-	PLL_PARAMS(141, 1), /* DCO=3384M */
-	PLL_PARAMS(100, 1), /* DCO=2400M */
-	PLL_PARAMS(116, 1), /* DCO=2784M */
-	PLL_PARAMS(126, 1), /* DCO=3024M */
-	PLL_PARAMS(67, 1), /* DCO=1608M */
-	PLL_PARAMS(71, 1), /* DCO=1704M */
-	PLL_PARAMS(75, 1), /* DCO=1800M */
-	PLL_PARAMS(79, 1), /* DCO=1896M */
-	PLL_PARAMS(81, 1), /* DCO=1944M */
+	PLL_PARAMS(69, 1), /* DCO=1656M */
 	{ /* sentinel */ }
 };
 #endif
@@ -367,7 +351,7 @@ static struct clk_regmap s5_sys_pll = {
 		.shift = 12,
 		.width = 3,
 		.table = s5_sys_pll_od_tab,  /* max_div = 16 */
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ALLOW_ZERO,
+		.flags = CLK_DIVIDER_ALLOW_ZERO,
 		.smc_id = SECURE_PLL_CLK,
 		.secid = SECID_SYS0_PLL_OD
 	},
@@ -803,9 +787,9 @@ static const struct reg_sequence s5_gp0_init_regs[] = {
 	{ .reg = CLKCTRL_GP0PLL_CTRL0,	.def = 0x30011085 },
 	{ .reg = CLKCTRL_GP0PLL_CTRL1,	.def = 0x03a10000 },
 	{ .reg = CLKCTRL_GP0PLL_CTRL2,	.def = 0x00040000 },
-	{ .reg = CLKCTRL_GP0PLL_CTRL3,	.def = 0x090da000, .delay_us = 20 },
+	{ .reg = CLKCTRL_GP0PLL_CTRL3,	.def = 0x0b0da000, .delay_us = 20 },
 	{ .reg = CLKCTRL_GP0PLL_CTRL0,	.def = 0x10011085, .delay_us = 20 },
-	{ .reg = CLKCTRL_GP0PLL_CTRL3,	.def = 0x090da200, .delay_us = 50 }
+	{ .reg = CLKCTRL_GP0PLL_CTRL3,	.def = 0x0b0da200, .delay_us = 50 }
 };
 
 static struct clk_regmap s5_gp0_pll_dco = {
@@ -894,8 +878,7 @@ static struct clk_regmap s5_gp0_pll = {
 		.shift = 10,
 		.width = 3,
 		.table = s5_gp0_pll_od_tab,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ALLOW_ZERO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+		.flags = (CLK_DIVIDER_ALLOW_ZERO | CLK_DIVIDER_ROUND_CLOSEST),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp0_pll",
@@ -1023,7 +1006,7 @@ static struct clk_regmap s5_gp1_pll = {
 		.shift = 12,
 		.width = 3,
 		.table = s5_gp1_pll_od_tab,
-		.flags = CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ALLOW_ZERO,
+		.flags = CLK_DIVIDER_ALLOW_ZERO,
 		.smc_id = SECURE_PLL_CLK,
 		.secid = SECID_GP1_PLL_OD
 	},
@@ -1072,9 +1055,9 @@ static const struct reg_sequence s5_gp2_init_regs[] = {
 	{ .reg = CLKCTRL_GP2PLL_CTRL0,	.def = 0x30011085 },
 	{ .reg = CLKCTRL_GP2PLL_CTRL1,	.def = 0x03a10000 },
 	{ .reg = CLKCTRL_GP2PLL_CTRL2,	.def = 0x00040000 },
-	{ .reg = CLKCTRL_GP2PLL_CTRL3,	.def = 0x090da000, .delay_us = 20 },
+	{ .reg = CLKCTRL_GP2PLL_CTRL3,	.def = 0x0b0da000, .delay_us = 20 },
 	{ .reg = CLKCTRL_GP2PLL_CTRL0,	.def = 0x10011085, .delay_us = 20 },
-	{ .reg = CLKCTRL_GP2PLL_CTRL3,	.def = 0x090da200, .delay_us = 20 }
+	{ .reg = CLKCTRL_GP2PLL_CTRL3,	.def = 0x0b0da200, .delay_us = 20 }
 };
 
 static struct clk_regmap s5_gp2_pll_dco = {
@@ -1163,8 +1146,7 @@ static struct clk_regmap s5_gp2_pll = {
 		.shift = 10,
 		.width = 3,
 		.table = s5_gp2_pll_od_tab,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ALLOW_ZERO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+		.flags = (CLK_DIVIDER_ALLOW_ZERO | CLK_DIVIDER_ROUND_CLOSEST),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp2_pll",
@@ -1202,9 +1184,9 @@ static const struct reg_sequence s5_fpll_init_regs[] = {
 	{ .reg = CLKCTRL_FPLL_CTRL0, .def = 0x30a12085 },
 	{ .reg = CLKCTRL_FPLL_CTRL1, .def = 0x03a10000 },
 	{ .reg = CLKCTRL_FPLL_CTRL2, .def = 0x00040000 },
-	{ .reg = CLKCTRL_FPLL_CTRL3, .def = 0x090da000, .delay_us = 20 },
+	{ .reg = CLKCTRL_FPLL_CTRL3, .def = 0x0b0da000, .delay_us = 20 },
 	{ .reg = CLKCTRL_FPLL_CTRL0, .def = 0x10a12085, .delay_us = 20 },
-	{ .reg = CLKCTRL_FPLL_CTRL3, .def = 0x090da200, .delay_us = 50 }
+	{ .reg = CLKCTRL_FPLL_CTRL3, .def = 0x0b0da200, .delay_us = 50 }
 };
 
 static struct clk_regmap s5_fpll_dco = {
@@ -1509,9 +1491,9 @@ static const struct reg_sequence s5_hifi1_init_regs[] = {
 	{ .reg = CLKCTRL_HIFI1PLL_CTRL0, .def = 0x30011085 },
 	{ .reg = CLKCTRL_HIFI1PLL_CTRL1, .def = 0x03a10000 },
 	{ .reg = CLKCTRL_HIFI1PLL_CTRL2, .def = 0x00040000 },
-	{ .reg = CLKCTRL_HIFI1PLL_CTRL3, .def = 0x090da000, .delay_us = 20 },
+	{ .reg = CLKCTRL_HIFI1PLL_CTRL3, .def = 0x0b0da000, .delay_us = 20 },
 	{ .reg = CLKCTRL_HIFI1PLL_CTRL0, .def = 0x10011085, .delay_us = 20 },
-	{ .reg = CLKCTRL_HIFI1PLL_CTRL3, .def = 0x090da200, .delay_us = 50 }
+	{ .reg = CLKCTRL_HIFI1PLL_CTRL3, .def = 0x0b0da200, .delay_us = 50 }
 };
 
 static const struct pll_mult_range s5_hifi1_pll_m = {
@@ -1625,28 +1607,19 @@ static struct clk_regmap s5_hifi1_pll = {
 };
 #endif
 
-#ifdef CONFIG_ARM
-static const struct pll_params_table s5_nna_pll_table[] = {
-	PLL_PARAMS(100, 1, 1), /*DCO=2400M OD=1200M*/
-	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
-	{ /* sentinel */  }
+static const struct pll_mult_range s5_nna_pll_m = {
+	.min = 67,
+	.max = 133,
 };
-#else
-static const struct pll_params_table s5_nna_pll_table[] = {
-	PLL_PARAMS(100, 1), /*DCO=2400M OD=1200M*/
-	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
-	{ /* sentinel */  }
-};
-#endif
 
 static const struct reg_sequence s5_nna_pll_init_regs[] = {
-	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x20011085 },
-	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x30011085 },
-	{ .reg = CLKCTRL_NNAPLL_CTRL1, .def = 0x03a10000 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x20010885 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x30010885 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL1, .def = 0x03a0aaaa },
 	{ .reg = CLKCTRL_NNAPLL_CTRL2, .def = 0x00040000 },
-	{ .reg = CLKCTRL_NNAPLL_CTRL3, .def = 0x090da000, .delay_us = 20 },
-	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x10011085, .delay_us = 20 },
-	{ .reg = CLKCTRL_NNAPLL_CTRL3, .def = 0x090da200, .delay_us = 50 }
+	{ .reg = CLKCTRL_NNAPLL_CTRL3, .def = 0x0b0da000, .delay_us = 20 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL0, .def = 0x10010885, .delay_us = 20 },
+	{ .reg = CLKCTRL_NNAPLL_CTRL3, .def = 0x0b0da200, .delay_us = 50 }
 };
 
 static struct clk_regmap s5_nna_pll_dco = {
@@ -1677,7 +1650,7 @@ static struct clk_regmap s5_nna_pll_dco = {
 		.n = {
 			.reg_off = CLKCTRL_NNAPLL_CTRL0,
 			.shift   = 16,
-			.width   = 5,
+			.width   = 1,
 		},
 		.l = {
 			.reg_off = CLKCTRL_NNAPLL_STS,
@@ -1689,7 +1662,7 @@ static struct clk_regmap s5_nna_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.table = s5_nna_pll_table,
+		.range = &s5_nna_pll_m,
 		.init_regs = s5_nna_pll_init_regs,
 		.init_count = ARRAY_SIZE(s5_nna_pll_init_regs),
 	},
@@ -1735,8 +1708,7 @@ static struct clk_regmap s5_nna_pll = {
 		.shift = 10,
 		.width = 3,
 		.table = s5_nna_pll_od_table,
-		.flags = (CLK_DIVIDER_POWER_OF_TWO | CLK_DIVIDER_ALLOW_ZERO |
-			  CLK_DIVIDER_ROUND_CLOSEST),
+		.flags = (CLK_DIVIDER_ALLOW_ZERO | CLK_DIVIDER_ROUND_CLOSEST),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "nna_pll",
@@ -2039,9 +2011,9 @@ static const struct reg_sequence s5_hifi_init_regs[] = {
 	{ .reg = CLKCTRL_HIFIPLL_CTRL0,	.def = 0x30011085 },
 	{ .reg = CLKCTRL_HIFIPLL_CTRL1,	.def = 0x03a10000 },
 	{ .reg = CLKCTRL_HIFIPLL_CTRL2,	.def = 0x00040000 },
-	{ .reg = CLKCTRL_HIFIPLL_CTRL3,	.def = 0x090da000, .delay_us = 20 },
+	{ .reg = CLKCTRL_HIFIPLL_CTRL3,	.def = 0x0b0da000, .delay_us = 20 },
 	{ .reg = CLKCTRL_HIFIPLL_CTRL0,	.def = 0x10011085, .delay_us = 20 },
-	{ .reg = CLKCTRL_HIFIPLL_CTRL3,	.def = 0x090da200, .delay_us = 50 }
+	{ .reg = CLKCTRL_HIFIPLL_CTRL3,	.def = 0x0b0da200, .delay_us = 50 }
 };
 
 #ifdef CONFIG_ARM
@@ -2317,6 +2289,20 @@ static struct clk_fixed_factor s5_pcie_pll = {
 	},
 };
 
+static struct clk_regmap s5_pcie_bgp = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_PCIEPLL_CTRL5,
+		.bit_idx = 27,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie_bgp",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &s5_pcie_pll.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+
 static struct clk_regmap s5_pcie_hcsl_out = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_PCIEPLL_CTRL5,
@@ -2325,7 +2311,7 @@ static struct clk_regmap s5_pcie_hcsl_out = {
 	.hw.init = &(struct clk_init_data){
 		.name = "pcie_hcsl",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &s5_pcie_pll.hw },
+		.parent_hws = (const struct clk_hw *[]) { &s5_pcie_bgp.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
@@ -2513,6 +2499,20 @@ static struct clk_fixed_factor s5_pcie1_pll = {
 	},
 };
 
+static struct clk_regmap s5_pcie1_bgp = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = ANACTRL_PCIEPLL_CTRL11,
+		.bit_idx = 27,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "pcie1_bgp",
+		.ops = &clk_regmap_gate_ops,
+		.parent_hws = (const struct clk_hw *[]) { &s5_pcie1_pll.hw },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
+	},
+};
+
 static struct clk_regmap s5_pcie1_hcsl_out = {
 	.data = &(struct clk_regmap_gate_data){
 		.offset = ANACTRL_PCIEPLL_CTRL11,
@@ -2521,7 +2521,7 @@ static struct clk_regmap s5_pcie1_hcsl_out = {
 	.hw.init = &(struct clk_init_data){
 		.name = "pcie1_hcsl",
 		.ops = &clk_regmap_gate_ops,
-		.parent_hws = (const struct clk_hw *[]) { &s5_pcie1_pll.hw },
+		.parent_hws = (const struct clk_hw *[]) { &s5_pcie1_bgp.hw },
 		.num_parents = 1,
 		.flags = CLK_SET_RATE_PARENT,
 	},
@@ -5519,11 +5519,10 @@ static struct clk_regmap s5_pcie_tl = {
 	},
 };
 
-static u32 s5_nna_table[] = { 0, 1, 2, 3, 5 };
+static u32 s5_nna_table[] = { 0, 2, 3, 5 };
 
 static const struct clk_parent_data s5_nna_clk_parent_data[] = {
 	{ .fw_name = "xtal", },
-	{ .hw = &s5_fclk_div2p5.hw },
 	{ .hw = &s5_fclk_div3.hw },
 	{ .hw = &s5_nna_pll.hw },
 	{ .hw = &s5_fclk_div4.hw },
@@ -7155,6 +7154,7 @@ static struct clk_hw_onecell_data s5_hw_onecell_data = {
 		[CLKID_PCIE_PLL_DCO_DIV2]		= &s5_pcie_pll_dco_div2.hw,
 		[CLKID_PCIE_PLL_OD]			= &s5_pcie_pll_od.hw,
 		[CLKID_PCIE_PLL]			= &s5_pcie_pll.hw,
+		[CLKID_PCIE_BGP]			= &s5_pcie_bgp.hw,
 		[CLKID_PCIE_HCSL_OUT]		= &s5_pcie_hcsl_out.hw,
 		[CLKID_PCIE_HCSL_PAD]		= &s5_pcie_hcsl_pad.hw,
 		[CLKID_PCIE_HCSL_IN_PAD]		= &s5_pcie_hcsl_in_pad.hw,
@@ -7163,6 +7163,7 @@ static struct clk_hw_onecell_data s5_hw_onecell_data = {
 		[CLKID_PCIE1_PLL_DCO_DIV2]		= &s5_pcie1_pll_dco_div2.hw,
 		[CLKID_PCIE1_PLL_OD]			= &s5_pcie1_pll_od.hw,
 		[CLKID_PCIE1_PLL]			= &s5_pcie1_pll.hw,
+		[CLKID_PCIE1_BGP]			= &s5_pcie1_bgp.hw,
 		[CLKID_PCIE1_HCSL_OUT]		= &s5_pcie1_hcsl_out.hw,
 		[CLKID_PCIE1_HCSL_PAD]		= &s5_pcie1_hcsl_pad.hw,
 		[CLKID_PCIE1_HCSL_IN_PAD]		= &s5_pcie1_hcsl_in_pad.hw,
@@ -7858,11 +7859,13 @@ static struct clk_regmap *const s5_clk_regmaps[] = {
 static struct clk_regmap *const s5_pll_regmaps[] = {
 	&s5_pcie_pll_dco,
 	&s5_pcie_pll_od,
+	&s5_pcie_bgp,
 	&s5_pcie_hcsl_out,
 	&s5_pcie_hcsl_in_pad,
 	&s5_pcie_clk_in_sel,
 	&s5_pcie1_pll_dco,
 	&s5_pcie1_pll_od,
+	&s5_pcie1_bgp,
 	&s5_pcie1_hcsl_out,
 	&s5_pcie1_hcsl_in_pad,
 	&s5_pcie1_clk_in_sel,
@@ -7896,6 +7899,7 @@ static int s5_dual_div_mux_notifier_cb(struct notifier_block *nb,
 	switch (event) {
 	case PRE_RATE_CHANGE:
 		clk_set_rate(nb_data->clk_mux1->clk, cnd->new_rate);
+		clk_prepare_enable(nb_data->clk_mux1->clk);
 		clk_hw_set_parent(nb_data->clk_mux, nb_data->clk_mux1);
 
 		udelay(5);
@@ -7904,6 +7908,7 @@ static int s5_dual_div_mux_notifier_cb(struct notifier_block *nb,
 
 	case POST_RATE_CHANGE:
 		clk_hw_set_parent(nb_data->clk_mux, nb_data->clk_mux0);
+		clk_disable_unprepare(nb_data->clk_mux1->clk);
 
 		udelay(5);
 
