@@ -49,6 +49,7 @@
 #define P_FENCE		0X2
 #define P_SYNC		0X4
 #define P_AVSYNC	0X8
+#define P_THREAD	0X10
 
 #define UNDEQUEU_COUNT 4
 #define CHECK_DELAYE_COUNT 6
@@ -889,7 +890,7 @@ static int vq_file_thread(void *data)
 				ret = do_file_thread(dev);
 			while (ret == 1);
 		} else {
-			vq_print(P_OTHER, "enter old flow.\n");
+			vq_print(P_THREAD, "enter old flow.\n");
 			do_file_thread(dev);
 		}
 	}
@@ -1064,7 +1065,7 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 		if (ret < 0)
 			vq_print(P_ERROR, "set VT_VIDEO_SET_STATUS err\n");
 	} else {
-		vq_print(P_ERROR, "ATV source need keep frame.\n");
+		vq_print(P_OTHER, "ATV source need keep frame.\n");
 	}
 
 	if (dev->file_thread)
@@ -1094,7 +1095,6 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	if (dev->game_mode || dev->low_latency_mode) {
 		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
 			VT_VIDEO_SET_GAME_MODE, 0);
-		vq_print(P_ERROR, "set no game mode\n");
 		dev->game_mode = false;
 		if (ret < 0)
 			vq_print(P_ERROR, "set game mode false err\n");
