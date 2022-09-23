@@ -7145,7 +7145,7 @@ static int wl_cfgvendor_lstats_get_info(struct wiphy *wiphy,
 				dtoh32(cca_result->secs[0].congest_obss),
 				dtoh32(cca_result->secs[0].interference)));
 		} else {
-			WL_TRACE(("cca_get_stats is unsupported \n"));
+			WL_ERR(("cca_get_stats is unsupported \n"));
 		}
 
 		/* If cca_get_stats is unsupported, cca_busy_time has zero value as initial value */

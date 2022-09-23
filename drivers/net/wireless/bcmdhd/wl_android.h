@@ -87,7 +87,7 @@ typedef struct _compat_android_wifi_priv_cmd {
 #define WL_MSG(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_MSG_LEVEL) { \
-			printk(KERN_ERR DHD_LOG_PREFIX "[%s] %s : " arg1, name, __func__, ## args); \
+			printf("[%s] %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 
@@ -105,7 +105,7 @@ do {	\
 		memcmp(&static_tmp, cmp, size)) { \
 			__err_ts = __cur_ts; \
 			memcpy(static_tmp, cmp, size); \
-			printk(KERN_ERR DHD_LOG_PREFIX "[%s] %s : [%u times] " arg1, \
+			printf("[%s] %s : [%u times] " arg1, \
 				name, __func__, __err_cnt, ## args); \
 			__err_cnt = 0; \
 		} else { \

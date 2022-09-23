@@ -841,9 +841,17 @@ wl_cfg80211_handle_if_role_conflict(struct bcm_cfg80211 *cfg,
 	wl_iftype_t new_wl_iftype)
 {
 	s32 ret = BCME_OK;
+#ifdef P2P_AP_CONCURRENT
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
+#endif
 
 	WL_INFORM_MEM(("Incoming iface = %s\n", wl_iftype_to_str(new_wl_iftype)));
 
+#ifdef P2P_AP_CONCURRENT
+	if (dhd->conf->war & P2P_AP_MAC_CONFLICT) {
+		return ret;
+	} else
+#endif
 #ifdef WL_STATIC_IF
 	if (wl_cfg80211_get_sec_iface(cfg) == WL_IF_TYPE_AP &&
 			new_wl_iftype == WL_IF_TYPE_AP) {
@@ -1334,7 +1342,7 @@ wl_cfg80211_change_virtual_iface(struct wiphy *wiphy, struct net_device *ndev,
 
 	WL_INFORM_MEM(("[%s] cfg_iftype changed to %d\n", ndev->name, type));
 #ifdef WL_EXT_IAPSTA
-	wl_ext_iapsta_update_iftype(ndev, netinfo->ifidx, wl_iftype);
+	wl_ext_iapsta_update_iftype(ndev, wl_iftype);
 #endif
 
 fail:
@@ -1537,19 +1545,29 @@ wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	u32 bw = WL_CHANSPEC_BW_20;
 	s32 err = BCME_OK;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
-#if defined(CUSTOM_SET_CPUCORE) || defined(APSTA_RESTRICTED_CHANNEL) || defined(WL_EXT_IAPSTA)
+#if defined(CUSTOM_SET_CPUCORE) || defined(APSTA_RESTRICTED_CHANNEL)
 	dhd_pub_t *dhd =  (dhd_pub_t *)(cfg->pub);
+#endif /* CUSTOM_SET_CPUCORE || APSTA_RESTRICTED_CHANNEL */
+#ifdef WL_EXT_IAPSTA
 	enum nl80211_band band;
 	s32 _chan;
-#endif /* CUSTOM_SET_CPUCORE || APSTA_RESTRICTED_CHANNEL */
+#endif /* WL_EXT_IAPSTA */
 	u16 center_freq = chan->center_freq;
 
 	dev = ndev_to_wlc_ndev(dev, cfg);
 #ifdef WL_EXT_IAPSTA
 	_chan = ieee80211_frequency_to_channel(chan->center_freq);
-	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP) {
-		wl_ext_iapsta_update_iftype(dev, dhd_net2idx(dhd->info, dev), WL_IF_TYPE_AP);
-		_chan = wl_ext_iapsta_update_channel(dhd, dev, _chan);
+	if (dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP ||
+			dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO) {
+		u16 wl_iftype = 0;
+		u16 wl_mode = 0;
+		if (cfg80211_to_wl_iftype(dev->ieee80211_ptr->iftype,
+				&wl_iftype, &wl_mode) < 0) {
+			WL_ERR(("Unknown interface type:0x%x\n", dev->ieee80211_ptr->iftype));
+			return -EINVAL;
+		}
+		wl_ext_iapsta_update_iftype(dev, wl_iftype);
+		_chan = wl_ext_iapsta_update_channel(dev, _chan);
 	}
 	if (CHANNEL_IS_5G(_chan))
 		band = NL80211_BAND_5GHZ;
@@ -2545,13 +2563,13 @@ wl_cfg80211_bcn_validate_sec(
 
 	if (dev_role == NL80211_IFTYPE_P2P_GO && (ies->wpa2_ie)) {
 		/* For P2P GO, the sec type is WPA2-PSK */
-		WL_DBG(("P2P GO: validating wpa2_ie"));
+		WL_DBG(("P2P GO: validating wpa2_ie\n"));
 		if (wl_validate_wpa2ie(dev, ies->wpa2_ie, bssidx)  < 0)
 			return BCME_ERROR;
 
 	} else if (dev_role == NL80211_IFTYPE_AP) {
 
-		WL_DBG(("SoftAP: validating security"));
+		WL_DBG(("SoftAP: validating security\n"));
 		/* If wpa2_ie or wpa_ie is present validate it */
 
 #if defined(SUPPORT_SOFTAP_WPAWPA2_MIXED)
@@ -2663,7 +2681,7 @@ static s32 wl_cfg80211_bcn_set_params(
 	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
 	s32 err = BCME_OK;
 
-	WL_DBG(("interval (%d) \ndtim_period (%d) \n",
+	WL_DBG(("interval (%d) dtim_period (%d) \n",
 		info->beacon_interval, info->dtim_period));
 
 	if (info->beacon_interval) {
@@ -2969,7 +2987,7 @@ wl_cfg80211_bcn_bringup_ap(
 	s32 err = BCME_OK;
 	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
 	s32 is_rsdb_supported = BCME_ERROR;
-	char sec[32];
+	char sec[64];
 
 #if defined (BCMDONGLEHOST)
 	is_rsdb_supported = DHD_OPMODE_SUPPORTED(cfg->pub, DHD_FLAG_RSDB_MODE);
@@ -3606,7 +3624,7 @@ wl_cfg80211_start_ap(
 		}
 		wl_wlfc_enable(cfg, TRUE);
 #ifdef WL_EXT_IAPSTA
-		wl_ext_iapsta_update_iftype(dev, dhd_net2idx(dhd->info, dev), WL_IF_TYPE_AP);
+		wl_ext_iapsta_update_iftype(dev, WL_IF_TYPE_AP);
 #endif /* WL_EXT_IAPSTA */
 #ifdef PKT_FILTER_SUPPORT
 		/* Disable packet filter */
@@ -3704,7 +3722,7 @@ wl_cfg80211_start_ap(
 	/* Set IEs to FW */
 	if ((err = wl_cfg80211_set_ies(dev, &info->beacon, bssidx)) < 0)
 		WL_ERR(("Set IEs failed \n"));
-	
+
 #ifdef WLDWDS
 	if (dev->ieee80211_ptr->use_4addr) {
 		if ((err = wl_cfg80211_set_mgmt_vndr_ies(cfg, ndev_to_cfgdev(dev), bssidx,
@@ -5169,7 +5187,7 @@ wl_cfg80211_ch_switch_notify(struct net_device *dev, uint16 chanspec, struct wip
 	WL_MSG(dev->name, "Channel switch notification for freq: %d chanspec: 0x%x\n",
 		freq, chanspec);
 #ifdef WL_EXT_IAPSTA
-	wl_ext_war(dev);
+	wl_ext_fw_reinit_incsa(dev);
 #endif
 	return;
 }

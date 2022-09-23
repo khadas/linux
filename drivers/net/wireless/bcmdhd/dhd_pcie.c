@@ -1080,6 +1080,13 @@ int dhdpcie_bus_attach(osl_t *osh, dhd_bus_t **bus_ptr,
 		bus->d2h_intr_method = PCIE_INTX;
 #endif /* DHD_MSI_SUPPORT */
 
+		/* For MSI, use host irq based control and for INTX use D2H INTMASK based control */
+		if (bus->d2h_intr_method == PCIE_MSI) {
+			bus->d2h_intr_control = PCIE_HOST_IRQ_CTRL;
+		} else {
+			bus->d2h_intr_control = PCIE_D2H_INTMASK_CTRL;
+		}
+
 #ifdef DHD_HP2P
 		bus->hp2p_txcpl_max_items = DHD_MAX_ITEMS_HPP_TXCPL_RING;
 		bus->hp2p_rxcpl_max_items = DHD_MAX_ITEMS_HPP_RXCPL_RING;
@@ -1545,16 +1552,16 @@ skip_intstatus_read:
 
 		bus->isr_intr_disable_count++;
 
-#ifdef CHIP_INTR_CONTROL
-		dhdpcie_bus_intr_disable(bus); /* Disable interrupt using IntMask!! */
-#else
-		/* For Linux, Macos etc (otherthan NDIS) instead of disabling
-		* dongle interrupt by clearing the IntMask, disable directly
-		* interrupt from the host side, so that host will not recieve
-		* any interrupts at all, even though dongle raises interrupts
-		*/
-		dhdpcie_disable_irq_nosync(bus); /* Disable interrupt!! */
-#endif /* HOST_INTR_CONTROL */
+		if (bus->d2h_intr_control == PCIE_D2H_INTMASK_CTRL) {
+			dhdpcie_bus_intr_disable(bus); /* Disable interrupt using IntMask!! */
+		} else {
+			/* For Linux, Macos etc (otherthan NDIS) instead of disabling
+			* dongle interrupt by clearing the IntMask, disable directly
+			* interrupt from the host side, so that host will not recieve
+			* any interrupts at all, even though dongle raises interrupts
+			*/
+			dhdpcie_disable_irq_nosync(bus); /* Disable interrupt!! */
+		}
 
 		bus->intdis = TRUE;
 #ifdef DHD_FLOW_RING_STATUS_TRACE
@@ -1779,6 +1786,7 @@ dhdpcie_cc_watchdog_reset(dhd_bus_t *bus)
 		(WD_SSRESET_PCIE_F0_EN | WD_SSRESET_PCIE_ALL_FN_EN);
 	pcie_watchdog_reset(bus->osh, bus->sih, WD_ENABLE_MASK, wd_en);
 }
+
 void
 dhdpcie_dongle_reset(dhd_bus_t *bus)
 {
@@ -2565,10 +2573,11 @@ dhdpcie_advertise_bus_cleanup(dhd_pub_t *dhdp)
 
 	timeleft = dhd_os_busbusy_wait_negation(dhdp, &dhdp->dhd_bus_busy_state);
 #ifdef LINUX
-	if ((timeleft == 0) || (timeleft == 1)) {
+	if ((timeleft == 0) || (timeleft == 1))
 #else
-	if (timeleft == 0) {
+	if (timeleft == 0)
 #endif
+	{
 		/* XXX This condition ideally should not occur, this means some
 		 * bus usage context is not clearing the respective usage bit, print
 		 * dhd_bus_busy_state and crash the host for further debugging.
@@ -3553,6 +3562,11 @@ dhd_set_bus_params(struct dhd_bus *bus)
 			bus->pollrate = 1;
 		printf("%s: set polling mode %d\n", __FUNCTION__, bus->dhd->conf->dhd_poll);
 	}
+	if (bus->dhd->conf->d2h_intr_control >= 0)
+		bus->d2h_intr_control = bus->dhd->conf->d2h_intr_control;
+	printf("d2h_intr_method -> %s(%d); d2h_intr_control -> %s(%d)\n",
+		bus->d2h_intr_method ? "PCIE_MSI" : "PCIE_INTX", bus->d2h_intr_method,
+		bus->d2h_intr_control ? "HOST_IRQ" : "D2H_INTMASK", bus->d2h_intr_control);
 }
 
 /**
@@ -4092,15 +4106,21 @@ dhdpcie_download_code_file(struct dhd_bus *bus, char *pfw_path)
 		goto err;
 	}
 	residual_len = total_len;
+#endif /* CACHE_FW_IMAGE */
 	/* Download image with MEMBLOCK size */
-	while (residual_len) {
+#if defined(CACHE_FW_IMAGES)
+	while (residual_len)
+#else
+	/* Download image with MEMBLOCK size */
+	while ((len = dhd_os_get_image_block((char*)memptr, MEMBLOCK, imgbuf)))
+#endif /* CACHE_FW_IMAGE */
+	{
+#if defined(CACHE_FW_IMAGES)
 		len = MIN(residual_len, MEMBLOCK);
 		memcpy(memptr, dnld_buf + buf_offset, len);
 		residual_len -= len;
 		buf_offset += len;
 #else
-	/* Download image with MEMBLOCK size */
-	while ((len = dhd_os_get_image_block((char*)memptr, MEMBLOCK, imgbuf))) {
 		if (len < 0) {
 			DHD_ERROR(("%s: dhd_os_get_image_block failed (%d)\n", __FUNCTION__, len));
 			bcmerror = BCME_ERROR;
@@ -9272,11 +9292,13 @@ dhd_bus_dump_dar_registers(struct dhd_bus *bus)
 	dar_erraddr_val = si_corereg(bus->sih, bus->sih->buscoreidx, dar_erraddr_reg, 0, 0);
 	dar_pcie_mbint_val = si_corereg(bus->sih, bus->sih->buscoreidx, dar_pcie_mbint_reg, 0, 0);
 
-	DHD_ERROR(("%s: dar_clk_ctrl(0x%x:0x%x) dar_pwr_ctrl(0x%x:0x%x) dar_intstat(0x%x:0x%x)\n",
+	DHD_RPM(("%s: dar_clk_ctrl(0x%x:0x%x) dar_pwr_ctrl(0x%x:0x%x) "
+		"dar_intstat(0x%x:0x%x)\n",
 		__FUNCTION__, dar_clk_ctrl_reg, dar_clk_ctrl_val,
 		dar_pwr_ctrl_reg, dar_pwr_ctrl_val, dar_intstat_reg, dar_intstat_val));
 
-	DHD_ERROR(("%s: dar_errlog(0x%x:0x%x) dar_erraddr(0x%x:0x%x) dar_pcie_mbint(0x%x:0x%x)\n",
+	DHD_RPM(("%s: dar_errlog(0x%x:0x%x) dar_erraddr(0x%x:0x%x) "
+		"dar_pcie_mbint(0x%x:0x%x)\n",
 		__FUNCTION__, dar_errlog_reg, dar_errlog_val,
 		dar_erraddr_reg, dar_erraddr_val, dar_pcie_mbint_reg, dar_pcie_mbint_val));
 }
@@ -9294,7 +9316,7 @@ dhd_bus_hostready(struct  dhd_bus *bus)
 		return;
 	}
 
-	DHD_ERROR(("%s : Read PCICMD Reg: 0x%08X\n", __FUNCTION__,
+	DHD_ERROR_MEM(("%s : Read PCICMD Reg: 0x%08X\n", __FUNCTION__,
 		dhd_pcie_config_read(bus, PCI_CFG_CMD, sizeof(uint32))));
 
 	dhd_bus_dump_dar_registers(bus);
@@ -9304,7 +9326,7 @@ dhd_bus_hostready(struct  dhd_bus *bus)
 #endif /* defined(DHD_MMIO_TRACE) */
 	si_corereg(bus->sih, bus->sih->buscoreidx, dhd_bus_db1_addr_get(bus), ~0, 0x12345678);
 	bus->hostready_count ++;
-	DHD_ERROR(("%s: Ring Hostready:%d\n", __FUNCTION__, bus->hostready_count));
+	DHD_ERROR_MEM(("%s: Ring Hostready:%d\n", __FUNCTION__, bus->hostready_count));
 }
 
 /* Clear INTSTATUS */
@@ -9345,7 +9367,6 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 	uint32 zero = 0;
 #endif /* DHD_PCIE_NATIVE_RUNTIMEPM */
 
-	printf("%s: state=%d\n", __FUNCTION__, state);
 	if (bus->dhd == NULL) {
 		DHD_ERROR(("%s: bus not inited\n", __FUNCTION__));
 		return BCME_ERROR;
@@ -9396,7 +9417,7 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 		}
 
 		/* Suspend */
-		DHD_ERROR(("%s: Entering suspend state\n", __FUNCTION__));
+		DHD_RPM(("%s: Entering suspend state\n", __FUNCTION__));
 
 		bus->dhd->dhd_watchdog_ms_backup = dhd_watchdog_ms;
 		if (bus->dhd->dhd_watchdog_ms_backup) {
@@ -9546,7 +9567,7 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 #endif /* OEM_ANDROID */
 
 		if (bus->wait_for_d3_ack) {
-			DHD_ERROR(("%s: Got D3 Ack \n", __FUNCTION__));
+			DHD_RPM(("%s: Got D3 Ack \n", __FUNCTION__));
 			/* Got D3 Ack. Suspend the bus */
 #ifdef OEM_ANDROID
 			if (active) {
@@ -9808,7 +9829,7 @@ dhdpcie_bus_suspend(struct dhd_bus *bus, bool state)
 #endif /* PCIE_OOB */
 	} else {
 		/* Resume */
-		DHD_ERROR(("%s: Entering resume state\n", __FUNCTION__));
+		DHD_RPM(("%s: Entering resume state\n", __FUNCTION__));
 		bus->last_resume_start_time = OSL_LOCALTIME_NS();
 
 		/**
@@ -11219,7 +11240,7 @@ dhdpcie_pme_active(osl_t *osh, bool enable)
 	}
 
 	pme_csr = OSL_PCI_READ_CONFIG(osh, cap_ptr + PME_CSR_OFFSET, sizeof(uint32));
-	DHD_ERROR(("%s : pme_sts_ctrl 0x%x\n", __FUNCTION__, pme_csr));
+	DHD_RPM(("%s : pme_sts_ctrl 0x%x\n", __FUNCTION__, pme_csr));
 
 	pme_csr |= PME_CSR_PME_STAT;
 	if (enable) {
@@ -11713,8 +11734,9 @@ void dhd_bus_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 			dhdp->bus->inband_host_sleep_exit_to_cnt);
 	}
 #endif /* PCIE_INB_DW */
-	bcm_bprintf(strbuf, "d2h_intr_method -> %s\n",
-		dhdp->bus->d2h_intr_method ? "PCIE_MSI" : "PCIE_INTX");
+	bcm_bprintf(strbuf, "d2h_intr_method -> %s d2h_intr_control -> %s\n",
+		dhdp->bus->d2h_intr_method ? "PCIE_MSI" : "PCIE_INTX",
+		dhdp->bus->d2h_intr_control ? "HOST_IRQ" : "D2H_INTMASK");
 
 	bcm_bprintf(strbuf, "\n\nDB7 stats - db7_send_cnt: %d, db7_trap_cnt: %d, "
 		"max duration: %lld (%lld - %lld), db7_timing_error_cnt: %d\n",
@@ -12303,7 +12325,7 @@ dhdpcie_bus_ringbell_fast(struct dhd_bus *bus, uint32 value)
 {
 	/* Skip once bus enters low power state (D3_INFORM/D3_ACK) */
 	if (__DHD_CHK_BUS_IN_LPS(bus)) {
-		DHD_ERROR(("%s: trying to ring the doorbell after D3 inform %d\n",
+		DHD_RPM(("%s: trying to ring the doorbell after D3 inform %d\n",
 			__FUNCTION__, bus->bus_low_power_state));
 		return;
 	}
@@ -12347,7 +12369,7 @@ dhdpcie_bus_ringbell_2_fast(struct dhd_bus *bus, uint32 value, bool devwake)
 {
 	/* Skip once bus enters low power state (D3_INFORM/D3_ACK) */
 	if (__DHD_CHK_BUS_IN_LPS(bus)) {
-		DHD_ERROR(("%s: trying to ring the doorbell after D3 inform %d\n",
+		DHD_RPM(("%s: trying to ring the doorbell after D3 inform %d\n",
 			__FUNCTION__, bus->bus_low_power_state));
 		return;
 	}
@@ -12488,18 +12510,18 @@ BCMFASTPATH(dhd_bus_dpc)(struct dhd_bus *bus)
 #ifdef DHD_READ_INTSTATUS_IN_DPC
 INTR_ON:
 #endif /* DHD_READ_INTSTATUS_IN_DPC */
-#ifdef CHIP_INTR_CONTROL
-		dhdpcie_bus_intr_enable(bus); /* Enable back interrupt using Intmask!! */
-		bus->dpc_intr_enable_count++;
-#else
-		/* For Linux, Macos etc (otherthan NDIS) enable back the host interrupts
-		 * which has been disabled in the dhdpcie_bus_isr()
-		 */
-		if ((dhdpcie_irq_disabled(bus)) && (!dhd_query_bus_erros(bus->dhd))) {
-			dhdpcie_enable_irq(bus); /* Enable back interrupt!! */
+		if (bus->d2h_intr_control == PCIE_D2H_INTMASK_CTRL) {
+			dhdpcie_bus_intr_enable(bus); /* Enable back interrupt using Intmask!! */
 			bus->dpc_intr_enable_count++;
+		} else {
+			/* For Linux, Macos etc (otherthan NDIS) enable back the host interrupts
+			 * which has been disabled in the dhdpcie_bus_isr()
+			 */
+			if ((dhdpcie_irq_disabled(bus)) && (!dhd_query_bus_erros(bus->dhd))) {
+				dhdpcie_enable_irq(bus); /* Enable back interrupt!! */
+				bus->dpc_intr_enable_count++;
+			}
 		}
-#endif /* HOST_INTR_CONTROL */
 		bus->dpc_exit_time = OSL_LOCALTIME_NS();
 	} else {
 		bus->resched_dpc_time = OSL_LOCALTIME_NS();
@@ -12621,7 +12643,7 @@ dhd_bus_handle_d3_ack(dhd_bus_t *bus)
 #endif /* !NDIS */
 
 	DHD_SET_BUS_LPS_D3_ACKED(bus);
-	DHD_ERROR(("%s: D3_ACK Recieved\n", __FUNCTION__));
+	DHD_RPM(("%s: D3_ACK Recieved\n", __FUNCTION__));
 
 	if (bus->dhd->dhd_induce_error == DHD_INDUCE_D3_ACK_TIMEOUT) {
 		/* Set bus_low_power_state to DHD_BUS_D3_ACK_RECIEVED */
@@ -12639,6 +12661,7 @@ dhd_bus_handle_d3_ack(dhd_bus_t *bus)
 		DHD_ERROR(("%s: Inducing D3 ACK timeout\n", __FUNCTION__));
 	}
 }
+
 void
 dhd_bus_handle_mb_data(dhd_bus_t *bus, uint32 d2h_mb_data)
 {
@@ -13125,7 +13148,7 @@ dhdpci_bus_read_frames(dhd_bus_t *bus)
 
 	/* Do not process rest of ring buf once bus enters low power state (D3_INFORM/D3_ACK) */
 	if (DHD_CHK_BUS_IN_LPS(bus)) {
-		DHD_ERROR(("%s: Bus is in power save state (%d). "
+		DHD_RPM(("%s: Bus is in power save state (%d). "
 			"Skip processing rest of ring buffers.\n",
 			__FUNCTION__, bus->bus_low_power_state));
 		return FALSE;
@@ -15561,7 +15584,7 @@ dhd_get_rpm_state(dhd_pub_t *dhd)
 void
 dhd_set_rpm_state(dhd_pub_t *dhd, bool state)
 {
-	DHD_ERROR(("%s: %d\n", __FUNCTION__, state));
+	DHD_RPM(("%s: %d\n", __FUNCTION__, state));
 	dhd->bus->rpm_enabled = state;
 }
 

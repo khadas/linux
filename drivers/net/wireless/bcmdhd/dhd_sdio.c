@@ -3275,6 +3275,7 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 	int timeleft;
 	uint rxlen = 0;
 	static uint cnt = 0;
+	uint max_rxcnt;
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
@@ -3375,7 +3376,11 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 	else
 		bus->dhd->rx_ctlerrs++;
 
-	if (bus->dhd->rxcnt_timeout >= MAX_CNTL_RX_TIMEOUT) {
+	if (bus->dhd->conf->rxcnt_timeout)
+		max_rxcnt = bus->dhd->conf->rxcnt_timeout;
+	else
+		max_rxcnt = MAX_CNTL_RX_TIMEOUT;
+	if (bus->dhd->rxcnt_timeout >= max_rxcnt) {
 #ifdef DHD_PM_CONTROL_FROM_FILE
 		if (g_pm_control == TRUE) {
 			return -BCME_ERROR;
@@ -8197,7 +8202,7 @@ dhd_bus_dump_txpktstatics(dhd_pub_t *dhdp)
 			printk("\n");
 			printk(KERN_CONT DHD_LOG_PREFIXS);
 		}
- 	}
+	}
 	printk("\n");
 	printk(KERN_CONT DHD_LOG_PREFIXS);
 	for (i=0;i<bus->tx_statics.glom_max;i++) {
@@ -8220,7 +8225,7 @@ dhd_bus_dump_txpktstatics(dhd_pub_t *dhdp)
 			printk("\n");
 			printk(KERN_CONT DHD_LOG_PREFIXS);
 		}
- 	}
+	}
 	printk("\n");
 	if (total) {
 		printf("%s: data(%d)/glom(%d)=%d, glom_max=%d\n",
@@ -8237,7 +8242,7 @@ dhd_bus_dump_txpktstatics(dhd_pub_t *dhdp)
 	printk(KERN_CONT DHD_LOG_PREFIXS);
 	for (i=0; i<10; i++) {
 		printk(KERN_CONT "[%d]: %d, ", i, dhdp->conf->kso_try_array[i]);
- 	}
+	}
 	printk("\n");
 #endif
 }
@@ -9893,7 +9898,7 @@ dhdsdio_release_malloc(dhd_bus_t *bus, osl_t *osh)
 	}
 
 	if (bus->membuf) {
-		MFREE(osh, bus->membuf, MAX_DATA_BUF);
+		MFREE(osh, bus->membuf, MAX_MEM_BUF);
 		bus->membuf = NULL;
 	}
 

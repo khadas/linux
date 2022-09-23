@@ -95,8 +95,8 @@
 #define NMR2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5], (a)[6], (a)[7]
 #define NMRSTR "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
 
-#define NAN_DBG_ENTER() {WL_DBG(("Enter: %s\n", __FUNCTION__));}
-#define NAN_DBG_EXIT() {WL_DBG(("Exit: %s\n", __FUNCTION__));}
+#define NAN_DBG_ENTER() {WL_DBG(("Enter\n"));}
+#define NAN_DBG_EXIT() {WL_DBG(("Exit\n"));}
 
 /* Service Control Type length */
 #define NAN_SVC_CONTROL_TYPE_MASK	((1 << NAN_SVC_CONTROL_TYPE_LEN) - 1)

@@ -1331,8 +1331,8 @@ typedef struct dhd_pub {
 	 * 3 means skip 2 DTIMs and wake up 3rd DTIM(9th beacon when AP DTIM is 3)
 	 */
 	int suspend_bcn_li_dtim;         /* bcn_li_dtim value in suspend mode */
-#ifdef PKT_FILTER_SUPPORT
 	int early_suspended;	/* Early suspend status */
+#ifdef PKT_FILTER_SUPPORT
 	int dhcp_in_progress;	/* DHCP period */
 #endif
 
@@ -2683,6 +2683,8 @@ extern void dhd_os_sdlock(dhd_pub_t * pub);
 extern void dhd_os_sdunlock(dhd_pub_t * pub);
 extern void dhd_os_sdlock_txq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_txq(dhd_pub_t * pub);
+extern unsigned long dhd_os_sdlock_txoff(dhd_pub_t * pub);
+extern void dhd_os_sdunlock_txoff(dhd_pub_t * pub, unsigned long flags);
 extern void dhd_os_sdlock_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_sndup_rxq(dhd_pub_t * pub);

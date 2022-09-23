@@ -1669,7 +1669,7 @@ dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 		}
 #endif /* DHD_WET */
 
-	DHD_ERROR(("%s bufsize: %d free: %d", __FUNCTION__, buflen, strbuf->size));
+	DHD_ERROR(("%s bufsize: %d free: %d\n", __FUNCTION__, buflen, strbuf->size));
 	/* return remaining buffer length */
 	return (!strbuf->size ? BCME_BUFTOOSHORT : strbuf->size);
 }

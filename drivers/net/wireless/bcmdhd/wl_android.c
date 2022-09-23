@@ -93,19 +93,19 @@ uint android_msg_level = ANDROID_ERROR_LEVEL | ANDROID_MSG_LEVEL;
 #define ANDROID_ERROR_MSG(x, args...) \
 	do { \
 		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
-			printk(KERN_ERR DHD_LOG_PREFIXS "ANDROID-ERROR) " x, ## args); \
+			printf("ANDROID-ERROR) " x, ## args); \
 		} \
 	} while (0)
 #define ANDROID_TRACE_MSG(x, args...) \
 	do { \
 		if (android_msg_level & ANDROID_TRACE_LEVEL) { \
-			printk(KERN_INFO DHD_LOG_PREFIXS "ANDROID-TRACE) " x, ## args); \
+			printf("ANDROID-TRACE) " x, ## args); \
 		} \
 	} while (0)
 #define ANDROID_INFO_MSG(x, args...) \
 	do { \
 		if (android_msg_level & ANDROID_INFO_LEVEL) { \
-			printk(KERN_INFO DHD_LOG_PREFIXS "ANDROID-INFO) " x, ## args); \
+			printf("ANDROID-INFO) " x, ## args); \
 		} \
 	} while (0)
 #define ANDROID_ERROR(x) ANDROID_ERROR_MSG x
@@ -12901,6 +12901,15 @@ wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len)
 
 	return bytes_written;
 }
+
+/*
+* ENABLE_INSMOD_NO_FW_LOAD	X O O O
+* ENABLE_INSMOD_NO_POWER_OFF	X X O O
+* NO_POWER_OFF_AFTER_OPEN	X X X O
+* after insmod					H L H H
+* wlan0 down					H L L H
+* fw trap trigger wlan0 down		H L L L
+*/
 
 int wl_android_init(void)
 {

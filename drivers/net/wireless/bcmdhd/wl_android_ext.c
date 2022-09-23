@@ -35,25 +35,25 @@
 #define AEXT_ERROR(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
-			printk(KERN_ERR DHD_LOG_PREFIX "[%s] AEXT-ERROR) %s : " arg1, name, __func__, ## args); \
+			printf("[%s] AEXT-ERROR) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 #define AEXT_TRACE(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_TRACE_LEVEL) { \
-			printk(KERN_INFO DHD_LOG_PREFIX "[%s] AEXT-TRACE) %s : " arg1, name, __func__, ## args); \
+			printf("[%s] AEXT-TRACE) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 #define AEXT_INFO(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_INFO_LEVEL) { \
-			printk(KERN_INFO DHD_LOG_PREFIX "[%s] AEXT-INFO) %s : " arg1, name, __func__, ## args); \
+			printf("[%s] AEXT-INFO) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 #define AEXT_DBG(name, arg1, args...) \
 	do { \
 		if (android_msg_level & ANDROID_DBG_LEVEL) { \
-			printk(KERN_INFO DHD_LOG_PREFIX "[%s] AEXT-DBG) %s : " arg1, name, __func__, ## args); \
+			printf("[%s] AEXT-DBG) %s : " arg1, name, __func__, ## args); \
 		} \
 	} while (0)
 
@@ -163,22 +163,23 @@ typedef struct auth_name_map_t {
 const auth_name_map_t auth_name_map[] = {
 	{WL_AUTH_OPEN_SYSTEM,	WPA_AUTH_DISABLED,	"open"},
 	{WL_AUTH_SHARED_KEY,	WPA_AUTH_DISABLED,	"shared"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA_AUTH_PSK,		"wpapsk"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK,		"wpa2psk"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa2psksha256"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_FT|WPA2_AUTH_PSK,			"wpa2psk-ft"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_UNSPECIFIED,				"wpa2eap"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_FT|WPA2_AUTH_UNSPECIFIED,	"wpa2eap-ft"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK,	"wpa3psk"},
-	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK,	"wpa3psk"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK,	"wpa3psk"},
-	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK,	"wpa3psk"},
-	{WL_AUTH_OPEN_SYSTEM,	0x20,	"wpa3psk"},
-	{WL_AUTH_SAE_KEY,		0x20,	"wpa3psk"},
-	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3psksha256"},
-	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3psksha256"},
-	{WL_AUTH_OPEN_SYSTEM,	0x20|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3psksha256"},
-	{WL_AUTH_SAE_KEY,		0x20|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3psksha256"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA_AUTH_PSK,		"wpa/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK,		"wpa2/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa2/psk/sha256"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_FT|WPA2_AUTH_PSK,			"wpa2/psk/ft"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_UNSPECIFIED,				"wpa2/eap"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA2_AUTH_FT|WPA2_AUTH_UNSPECIFIED,	"wpa2/eap/ft"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK,	"wpa3/psk"},
+	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK,	"wpa3sae/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK,	"wpa3/psk"},
+	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK,	"wpa3sae/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	0x20,	"wpa3/psk"},
+	{WL_AUTH_SAE_KEY,		0x20,	"wpa3sae/psk"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3/psk/sha256"},
+	{WL_AUTH_SAE_KEY,		WPA3_AUTH_SAE_PSK|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3sae/psk/sha256"},
+	{WL_AUTH_OPEN_SYSTEM,	0x20|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3/psk/sha256"},
+	{WL_AUTH_SAE_KEY,		0x20|WPA2_AUTH_PSK_SHA256|WPA2_AUTH_PSK,	"wpa3sae/psk/sha256"},
+	{WL_AUTH_OPEN_SYSTEM,	WPA3_AUTH_OWE,	"wpa3/owe"},
 };
 
 typedef struct wsec_name_map_t {
@@ -191,7 +192,7 @@ const wsec_name_map_t wsec_name_map[] = {
 	{WEP_ENABLED,	"wep"},
 	{TKIP_ENABLED,	"tkip"},
 	{AES_ENABLED,	"aes"},
-	{TKIP_ENABLED|AES_ENABLED,	"tkipaes"},
+	{TKIP_ENABLED|AES_ENABLED,	"tkip/aes"},
 };
 
 static int wl_ext_wl_iovar(struct net_device *dev, char *command, int total_len);
@@ -466,8 +467,9 @@ wl_ext_user_sync(struct dhd_pub *dhd, int ifidx, bool lock)
 #endif
 	}
 }
+#endif /* WL_CFG80211 && WL_ESCAN */
 
-bool
+static bool
 wl_ext_event_complete(struct dhd_pub *dhd, int ifidx)
 {
 	struct net_device *dev = dhd_idx2net(dhd, ifidx);
@@ -477,10 +479,6 @@ wl_ext_event_complete(struct dhd_pub *dhd, int ifidx)
 #ifdef WL_ESCAN
 	struct wl_escan_info *escan = dhd->escan;
 #endif /* WL_ESCAN */
-#ifdef WL_EXT_IAPSTA
-	struct wl_apsta_params *apsta_params = dhd->iapsta_params;
-	struct wl_if_info *cur_if = NULL;
-#endif /* WL_EXT_IAPSTA */
 	bool complete = TRUE;
 
 #ifdef WL_CFG80211
@@ -489,7 +487,7 @@ wl_ext_event_complete(struct dhd_pub *dhd, int ifidx)
 		complete = FALSE;
 	}
 	if (wl_get_drv_status_all(cfg, CONNECTING)) {
-		AEXT_INFO(dev->name, "CONNECTING\n");
+		AEXT_INFO(dev->name, "CFG80211 CONNECTING\n");
 		complete = FALSE;
 	}
 	if (wl_get_drv_status_all(cfg, DISCONNECTING)) {
@@ -504,20 +502,29 @@ wl_ext_event_complete(struct dhd_pub *dhd, int ifidx)
 	}
 #endif /* WL_ESCAN */
 #ifdef WL_EXT_IAPSTA
-	if (ifidx < MAX_IF_NUM) {
-		cur_if = &apsta_params->if_info[ifidx];
-	}
-	if (cur_if && cur_if->ifmode == ISTA_MODE &&
-			cur_if->eapol_status >= EAPOL_STATUS_4WAY_START &&
-			cur_if->eapol_status < EAPOL_STATUS_4WAY_DONE) {
-		AEXT_INFO(dev->name, "4-WAY handshaking %d\n", cur_if->eapol_status);
+	if (wl_ext_sta_connecting(dev)) {
+		AEXT_INFO(dev->name, "CONNECTING\n");
 		complete = FALSE;
 	}
 #endif /* WL_EXT_IAPSTA */
 
 	return complete;
 }
-#endif /* WL_CFG80211 && WL_ESCAN */
+
+void
+wl_ext_wait_event_complete(struct dhd_pub *dhd, int ifidx)
+{
+	struct net_device *net;
+	s32 timeout = -1;
+
+	timeout = wait_event_interruptible_timeout(dhd->conf->event_complete,
+		wl_ext_event_complete(dhd, ifidx), msecs_to_jiffies(10000));
+	if (timeout <= 0 || !wl_ext_event_complete(dhd, ifidx)) {
+		wl_ext_event_complete(dhd, ifidx);
+		net = dhd_idx2net(dhd, ifidx);
+		AEXT_ERROR(net->name, "timeout\n");
+	}
+}
 
 int
 wl_ext_get_ioctl_ver(struct net_device *dev, int *ioctl_ver)
@@ -829,7 +836,7 @@ wl_ext_connect(struct net_device *dev, struct wl_conn_info *conn_info)
 	u32 chan_cnt = 0;
 	s8 *iovar_buf = NULL;
 	int ioctl_ver = 0;
-	char sec[32];
+	char sec[64];
 
 	wl_ext_get_ioctl_ver(dev, &ioctl_ver);
 
@@ -1210,23 +1217,6 @@ wl_extsae_chip(struct dhd_pub *dhd)
 	}
 
 	return true;
-}
-
-void
-wl_ext_war(struct net_device *dev)
-{
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
-	struct dhd_conf *conf = dhd->conf;
-
-	if (conf->war & FW_REINIT_INCSA) {
-		if (wl_get_mode_by_netdev(cfg, dev) == WL_MODE_BSS) {
-			if (wl_ext_iapsta_iftype_enabled(dev, WL_IF_TYPE_AP)) {
-				AEXT_INFO(dev->name, "wl reinit\n");
-				wl_ext_ioctl(dev, WLC_INIT, NULL, 0, 1);
-			}
-		}
-	}
 }
 #endif
 
@@ -2158,6 +2148,7 @@ exit:
 static int
 wl_ext_gtk_key_info(struct net_device *dev, char *data, char *command, int total_len)
 {
+	struct dhd_pub *dhd = dhd_get_pub(dev);
 	int err = 0;
 	char iovar_buf[WLC_IOCTL_SMLEN]="\0";
 	gtk_keyinfo_t keyinfo;
@@ -2166,12 +2157,9 @@ wl_ext_gtk_key_info(struct net_device *dev, char *data, char *command, int total
 	/* wl gtk_key_info [kck kek replay_ctr] */
 	/* wl gtk_key_info 001122..FF001122..FF00000000000001 */
 	if (data) {
-		memset(&keyinfo, 0, sizeof(keyinfo));
-		memcpy(&keyinfo, data, RSN_KCK_LENGTH+RSN_KEK_LENGTH+RSN_REPLAY_LEN);
-		if (android_msg_level & ANDROID_INFO_LEVEL) {
-			prhex("kck", (uchar *)keyinfo.KCK, RSN_KCK_LENGTH);
-			prhex("kek", (uchar *)keyinfo.KEK, RSN_KEK_LENGTH);
-			prhex("replay_ctr", (uchar *)keyinfo.ReplayCounter, RSN_REPLAY_LEN);
+		if (!dhd->conf->rekey_offload) {
+			AEXT_INFO(dev->name, "rekey_offload disabled\n");
+			return BCME_UNSUPPORTED;
 		}
 
 		memset(&bcol_keyinfo, 0, sizeof(bcol_keyinfo));
@@ -2184,15 +2172,22 @@ wl_ext_gtk_key_info(struct net_device *dev, char *data, char *command, int total
 			goto exit;
 		}
 
+		memset(&keyinfo, 0, sizeof(keyinfo));
+		memcpy(&keyinfo, data, RSN_KCK_LENGTH+RSN_KEK_LENGTH+RSN_REPLAY_LEN);
 		err = wl_ext_iovar_setbuf(dev, "gtk_key_info", &keyinfo, sizeof(keyinfo),
 			iovar_buf, sizeof(iovar_buf), NULL);
 		if (err) {
 			AEXT_ERROR(dev->name, "failed to set gtk_key_info\n");
-			goto exit;
+			return err;
 		}
 	}
 
 exit:
+	if (android_msg_level & ANDROID_INFO_LEVEL) {
+		prhex("kck", (uchar *)keyinfo.KCK, RSN_KCK_LENGTH);
+		prhex("kek", (uchar *)keyinfo.KEK, RSN_KEK_LENGTH);
+		prhex("replay_ctr", (uchar *)keyinfo.ReplayCounter, RSN_REPLAY_LEN);
+	}
     return err;
 }
 #endif /* USE_IW */
@@ -2598,7 +2593,7 @@ wl_ext_get_country(struct net_device *dev, char *data, char *command,
 	if (data) {
 		char *country_code = data;
 		char *rev_info_delim = country_code + 2; /* 2 bytes of country code */
-		int revinfo = -1;
+		int revinfo = 0;
 		if ((rev_info_delim) &&
 			(strnicmp(rev_info_delim, "/", strlen("/")) == 0) && (rev_info_delim + 1)) {
 			revinfo  = bcm_atoi(rev_info_delim + 1);
@@ -2692,6 +2687,7 @@ wl_ext_wl_iovar(struct net_device *dev, char *command, int total_len)
 	int bytes_written=-1;
 	const wl_ext_iovar_tpl_t *tpl = wl_ext_iovar_tpl_list;
 	int tpl_count = ARRAY_SIZE(wl_ext_iovar_tpl_list);
+	char *pEnd;
 
 	AEXT_TRACE(dev->name, "cmd %s\n", command);
 	pick_tmp = command;
@@ -2705,14 +2701,14 @@ wl_ext_wl_iovar(struct net_device *dev, char *command, int total_len)
 		goto exit;
 
 	memset(name, 0 , sizeof (name));
-	cmd = (int)simple_strtol(pch, NULL, 0);
-	if (cmd == 0) {
+	cmd = bcm_strtoul(pch, &pEnd, 0);
+	if (cmd == 0 || strlen(pEnd)) {
 		strcpy(name, pch);
 	}
 	data = bcmstrtok(&pick_tmp, "", 0); // pick data
-	if (data && cmd == 0) {
+	if (data && (cmd == 0|| strlen(pEnd))) {
 		cmd = WLC_SET_VAR;
-	} else if (cmd == 0) {
+	} else if (cmd == 0|| strlen(pEnd)) {
 		cmd = WLC_GET_VAR;
 	}
 
@@ -3224,74 +3220,37 @@ int
 wl_ext_drv_scan(struct net_device *dev, uint32 band, bool fast_scan)
 {
 	int ret = -1, i, cnt = 0;
-	struct dhd_pub *dhd = dhd_get_pub(dev);
-	struct wl_escan_info *escan = dhd->escan;
 	int retry = 0, retry_max, retry_interval = 250, up = 1;
-	wl_channel_list_t channels;
-	int cur_scan_time;
-	uint scan_get, scan_set;
-#ifdef WL_CFG80211
-	struct bcm_cfg80211 *cfg = wl_get_cfg(dev);
-#endif /* WL_CFG80211 */
+	wl_scan_info_t scan_info;
 
 	retry_max = WL_ESCAN_TIMER_INTERVAL_MS/retry_interval;
 	ret = wldev_ioctl_get(dev, WLC_GET_UP, &up, sizeof(s32));
 	if (ret < 0 || up == 0) {
 		ret = wldev_ioctl_set(dev, WLC_UP, &up, sizeof(s32));
 	}
+	memset(&scan_info, 0, sizeof(wl_scan_info_t));
+	if (band == WLC_BAND_2G || band == WLC_BAND_AUTO) {
+		for (i=0; i<13; i++)
+			scan_info.channels.channel[i] = i + 1;
+		cnt += 13;
+	}
+	if (band == WLC_BAND_5G || band == WLC_BAND_AUTO) {
+		for (i=0; i<4; i++)
+			scan_info.channels.channel[i+cnt] = 36 + i*4;
+		cnt += 4;
+		for (i=0; i<4; i++)
+			scan_info.channels.channel[i+cnt] = 149 + i*4;
+		cnt += 4;
+	}
+	scan_info.channels.count = cnt;
+	if (fast_scan)
+		scan_info.scan_time = 40;
+	scan_info.bcast_ssid = TRUE;
 	retry = retry_max;
 	while (retry--) {
-		if (escan->escan_state == ESCAN_STATE_SCANING
-#ifdef WL_CFG80211
-			|| wl_get_drv_status_all(cfg, SCANNING)
-#endif
-		)
-		{
-			AEXT_INFO(dev->name, "Scanning %d tried, ret = %d\n",
-				(retry_max - retry), ret);
-		} else {
-			if (band == WLC_BAND_2G || band == WLC_BAND_5G || band == WLC_BAND_AUTO) {
-				memcpy(&channels, &dhd->conf->channels, sizeof(wl_channel_list_t));
-				memset(&dhd->conf->channels, 0, sizeof(wl_channel_list_t));
-			}
-			if (band == WLC_BAND_2G || band == WLC_BAND_AUTO) {
-				for (i=0; i<13; i++)
-					dhd->conf->channels.channel[i] = i + 1;
-				cnt += 13;
-				dhd->conf->channels.count = cnt;
-			}
-			if (band == WLC_BAND_5G || band == WLC_BAND_AUTO) {
-				for (i=0; i<4; i++)
-					dhd->conf->channels.channel[i+cnt] = 36 + i*4;
-				cnt += 4;
-				for (i=0; i<4; i++)
-					dhd->conf->channels.channel[i+cnt] = 149 + i*4;
-				cnt += 4;
-				dhd->conf->channels.count = cnt;
-			}
-			if (fast_scan) {
-				AEXT_INFO(dev->name, "Scanning %d tried, ret = %d\n",
-					(retry_max - retry), ret);
-				if (!wl_ext_iapsta_other_if_enabled(dev)) {
-					scan_get = WLC_GET_SCAN_UNASSOC_TIME;
-					scan_set = WLC_SET_SCAN_UNASSOC_TIME;
-				} else {
-					scan_get = WLC_GET_SCAN_CHANNEL_TIME;
-					scan_set = WLC_SET_SCAN_CHANNEL_TIME;
-				}
-				cur_scan_time = wl_ext_set_scan_time(dev, 40, scan_get, scan_set);
-			} else {
-				cur_scan_time = 0;
-			}
-			ret = wl_escan_set_scan(dev, NULL, 0, TRUE);
-			if (fast_scan && cur_scan_time) {
-				wl_ext_ioctl(dev, scan_set, &cur_scan_time, sizeof(cur_scan_time), 1);
-			}
-			if (band == WLC_BAND_2G || band == WLC_BAND_5G)
-				memcpy(&dhd->conf->channels, &channels, sizeof(wl_channel_list_t));
-			if (!ret)
-				break;
-		}
+		ret = wl_escan_set_scan(dev, &scan_info);
+		if (!ret)
+			break;
 		OSL_SLEEP(retry_interval);
 	}
 	if (retry == 0) {
@@ -3312,10 +3271,10 @@ wl_ext_drv_apcs(struct net_device *dev, uint32 band)
 
 	escan = dhd->escan;
 	WL_MSG(dev->name, "ACS_SCAN\n");
+	escan->autochannel = 1;
 	ret = wl_ext_drv_scan(dev, band, TRUE);
 	if (ret < 0)
 		goto done;
-	escan->autochannel = 1;
 	retry_max = WL_ESCAN_TIMER_INTERVAL_MS/retry_interval;
 	retry = retry_max;
 	while (retry--) {
@@ -3333,8 +3292,7 @@ wl_ext_drv_apcs(struct net_device *dev, uint32 band)
 	}
 
 done:
-	if (escan)
-		escan->autochannel = 0;
+	escan->autochannel = 0;
 
 	return channel;
 }
@@ -3512,7 +3470,7 @@ wl_update_connected_rssi_cache(struct net_device *net,
 		AEXT_ERROR(net->name, "Could not get rssi (%d)\n", error);
 		return error;
 	}
-	rssi = scbval.val;
+	rssi = dtoh32(scbval.val);
 
 	osl_do_gettimeofday(&now);
 	timeout.tv_sec = now.tv_sec + RSSICACHE_TIMEOUT;
@@ -3734,7 +3692,7 @@ wl_delete_dirty_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl)
 	prev = node;
 	for (;node;) {
 		i++;
-		if (now.tv_sec > node->tv.tv_sec) {
+		if (now.tv_sec > node->tv.tv_sec || node->dirty > BSSCACHE_DIRTY) {
 			if (node == *bss_head) {
 				tmp = 1;
 				*bss_head = node->next;
@@ -4083,4 +4041,3 @@ wl_release_bss_cache_ctrl(wl_bss_cache_ctrl_t *bss_cache_ctrl)
 	wl_free_bss_cache(bss_cache_ctrl);
 }
 #endif /* BSSCACHE */
-

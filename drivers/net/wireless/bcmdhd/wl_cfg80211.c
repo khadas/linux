@@ -3759,7 +3759,7 @@ wl_cfg80211_post_ifcreate(struct net_device *ndev,
 		wl_set_drv_status(cfg, AP_CREATING, new_ndev);
 	}
 #ifdef WL_EXT_IAPSTA
-	wl_ext_iapsta_update_iftype(new_ndev, event->ifidx, wl_iftype);
+	wl_ext_iapsta_update_iftype(new_ndev, wl_iftype);
 #endif
 
 	WL_INFORM_MEM(("Network Interface (%s) registered with host."
@@ -4190,10 +4190,11 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 	size_t join_params_size;
 	chanspec_t chanspec = 0;
+	char sec[64];
 
 	WL_TRACE(("In\n"));
 	RETURN_EIO_IF_NOT_UP(cfg);
-	WL_INFORM_MEM(("IBSS JOIN BSSID:" MACDBG "\n", MAC2STRDBG(params->bssid)));
+	WL_INFORM_MEM(("IBSS JOIN\n"));
 	if (!params->ssid || params->ssid_len <= 0 ||
 		params->ssid_len > DOT11_MAX_SSID_LEN) {
 		WL_ERR(("Invalid parameter\n"));
@@ -4205,7 +4206,20 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	chan = params->channel;
 #endif /* WL_CFG80211_P2P_DEV_IF */
 	if (chan) {
-		cfg->channel = wl_freq_to_chanspec(chan->center_freq);
+		u16 center_freq = chan->center_freq;
+#ifdef WL_EXT_IAPSTA
+		enum nl80211_band band;
+		s32 _chan;
+		_chan = ieee80211_frequency_to_channel(center_freq);
+		wl_ext_iapsta_update_iftype(dev, WL_IF_TYPE_IBSS);
+		_chan = wl_ext_iapsta_update_channel(dev, _chan);
+		if (CHANNEL_IS_5G(_chan))
+			band = NL80211_BAND_5GHZ;
+		else
+			band = NL80211_BAND_2GHZ;
+		center_freq = ieee80211_channel_to_frequency(_chan, band);
+#endif /* WL_EXT_IAPSTA */
+		cfg->channel = wl_freq_to_chanspec(center_freq);
 	}
 	if (wl_get_drv_status(cfg, CONNECTED, dev)) {
 		struct wlc_ssid *lssid = (struct wlc_ssid *)wl_read_prof(cfg, dev, WL_PROF_SSID);
@@ -4228,6 +4242,7 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	bss = cfg80211_get_ibss(wiphy, NULL, params->ssid, params->ssid_len);
 	if (!bss) {
 		if (IBSS_INITIAL_SCAN_ALLOWED == TRUE) {
+			int retry = 4;
 			memcpy(ssid.ssid, params->ssid, params->ssid_len);
 			ssid.ssid_len = params->ssid_len;
 			do {
@@ -4245,7 +4260,13 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 			 */
 
 			/* wait 4 secons till scan done.... */
-			schedule_timeout_interruptible(msecs_to_jiffies(4000));
+//			schedule_timeout_interruptible(msecs_to_jiffies(4000));
+			while (retry--) {
+				if (!wl_get_drv_status_all(cfg, SCANNING)) {
+					break;
+				}
+				wl_delay(150);
+			}
 
 			bss = cfg80211_get_ibss(wiphy, NULL,
 				params->ssid, params->ssid_len);
@@ -4314,6 +4335,10 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	wldev_iovar_setint(dev, "wpa_auth", WPA_AUTH_DISABLED);
 	wldev_iovar_setint(dev, "wsec", 0);
 
+	wl_ext_get_sec(dev, 0, sec, sizeof(sec), TRUE);
+	WL_MSG(dev->name, "Join IBSS %pM ssid \"%s\", len (%d), channel=%d, sec=%s\n",
+		&join_params.params.bssid, join_params.ssid.SSID, join_params.ssid.SSID_len,
+		wf_chspec_ctlchan(chanspec), sec);
 	err = wldev_ioctl_set(dev, WLC_SET_SSID, &join_params,
 		join_params_size);
 	if (unlikely(err)) {
@@ -4352,7 +4377,7 @@ static s32 wl_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	RETURN_EIO_IF_NOT_UP(cfg);
 	wl_link_down(cfg);
 
-	WL_INFORM_MEM(("Leave IBSS\n"));
+	WL_MSG(dev->name, "Leave IBSS\n");
 	curbssid = wl_read_prof(cfg, dev, WL_PROF_BSSID);
 	wl_set_drv_status(cfg, DISCONNECTING, dev);
 	scbval.val = 0;
@@ -4720,7 +4745,7 @@ wl_set_set_cipher(struct net_device *dev, struct cfg80211_connect_params *sme)
 
 	WL_DBG(("pval (%d) gval (%d)\n", pval, gval));
 #ifdef WL_GCMP
-	WL_DBG(("algos:%x, mask:%x", algos, mask));
+	WL_DBG(("algos:%x, mask:%x\n", algos, mask));
 #endif /* WL_GCMP */
 
 	if (is_wps_conn(sme)) {
@@ -4734,13 +4759,13 @@ wl_set_set_cipher(struct net_device *dev, struct cfg80211_connect_params *sme)
 
 #ifdef BCMWAPI_WPI
 		if (sme->crypto.cipher_group == WLAN_CIPHER_SUITE_SMS4) {
-			WL_DBG((" NO, is_wps_conn, WAPI set to SMS4_ENABLED"));
+			WL_DBG((" NO, is_wps_conn, WAPI set to SMS4_ENABLED\n"));
 			wsec_val = val;
 		} else
 #endif
 
 		{
-			WL_DBG((" NO, is_wps_conn, Set pval | gval to WSEC"));
+			WL_DBG((" NO, is_wps_conn, Set pval | gval to WSEC\n"));
 			wsec_val = pval | gval;
 		}
 	}
@@ -6114,13 +6139,13 @@ wl_sync_fw_assoc_states(struct bcm_cfg80211 *cfg,
 			}
 		}
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync(dev, STA_WAIT_DISCONNECTED, WL_EXT_STATUS_CONNECTING, NULL);
+		wl_ext_in4way_sync(dev, STA_WAIT_DISCONNECTED, WL_EXT_STATUS_DISCONNECTING, NULL);
 #endif
 	}
 
 	/* Clear BSSID if disconnecting state is not in progress */
 	bzero(&bssid, sizeof(bssid));
-	if (!wl_get_drv_status(cfg, DISCONNECTING, dev)) {
+	if (!info->reassoc && !wl_get_drv_status(cfg, DISCONNECTING, dev)) {
 		wl_update_prof(cfg, dev, NULL, (void *)&bssid, WL_PROF_BSSID);
 	}
 
@@ -6171,20 +6196,35 @@ void
 wl_conn_debug_info(struct bcm_cfg80211 *cfg, struct net_device *dev, wlcfg_assoc_info_t *info)
 {
 	struct wl_security *sec = wl_read_prof(cfg, dev, WL_PROF_SEC);
-	char sec_info[32];
+	char sec_info[64];
 	u32 chanspec = info->chanspecs[0];
-	s32 rssi = 0;
+	u32 chan_cnt = info->chan_cnt;
+	s32 cur_rssi = 0, target_rssi = 0;
+	scb_val_t scb_val;
+	s32 err = BCME_OK;
 
 	if (!sec) {
 		WL_ERR(("no sec?\n"));
 		return;
 	}
 
-	rssi = wl_ext_get_rssi(cfg, info->bssid);
+	target_rssi = wl_ext_get_rssi(cfg, info->bssid);
 	wl_ext_get_sec(dev, 0, sec_info, sizeof(sec_info), TRUE);
-	WL_MSG(dev->name, "Connecting with " MACDBG " ssid \"%s\", len (%d), "
-		"channel=%d, sec=%s, rssi=%d\n", MAC2STRDBG((u8*)(&info->bssid)),
-		info->ssid, info->ssid_len, wf_chspec_ctlchan(chanspec), sec_info, rssi);
+	if (info->reassoc) {
+		memset(&scb_val, 0, sizeof(scb_val_t));
+		err = wldev_ioctl_get(dev, WLC_GET_RSSI, &scb_val, sizeof(scb_val_t));
+		if (!err)
+			cur_rssi = dtoh32(scb_val.val);
+		WL_MSG(dev->name, "Reconnecting with " MACDBG " ssid \"%s\", len (%d), "
+			"channel=%d(chan_cnt=%d), sec=%s, rssi=%d => %d\n",
+			MAC2STRDBG((u8*)(&info->bssid)), info->ssid, info->ssid_len,
+			wf_chspec_ctlchan(chanspec), chan_cnt, sec_info, cur_rssi, target_rssi);
+	} else {
+		WL_MSG(dev->name, "Connecting with " MACDBG " ssid \"%s\", len (%d), "
+			"channel=%d(chan_cnt=%d), sec=%s, rssi=%d\n",
+			MAC2STRDBG((u8*)(&info->bssid)), info->ssid, info->ssid_len,
+			wf_chspec_ctlchan(chanspec), chan_cnt, sec_info, target_rssi);
+	}
 	if (wl_dbg_level & WL_DBG_DBG) {
 		WL_MSG(dev->name, "akm:0x%x auth:0x%x wpaver:0x%x pwise:0x%x gwise:0x%x\n",
 				sec->wpa_auth, sec->auth_type, sec->wpa_versions,
@@ -6200,7 +6240,7 @@ wl_conn_debug_info(struct bcm_cfg80211 *cfg, struct net_device *dev, wlcfg_assoc
 		info->ssid, info->chan_cnt));
 }
 
-static s32
+s32
 wl_handle_join(struct bcm_cfg80211 *cfg,
 	struct net_device *dev, wlcfg_assoc_info_t *assoc_info)
 {
@@ -6235,6 +6275,11 @@ wl_handle_join(struct bcm_cfg80211 *cfg,
 		goto fail;
 	}
 
+#ifdef WL_EXT_IAPSTA
+	wl_ext_iapsta_update_channel(dev, wf_chspec_ctlchan(assoc_info->chanspecs[0]));
+#endif
+	/* print relevant info for debug purpose */
+	wl_conn_debug_info(cfg, dev, assoc_info);
 	err = wldev_iovar_setbuf_bsscfg(dev, "join", join_params, join_params_size,
 		cfg->ioctl_buf, WLC_IOCTL_MAXLEN, assoc_info->bssidx, &cfg->ioctl_buf_sync);
 	if (err) {
@@ -6248,28 +6293,57 @@ fail:
 	return err;
 }
 
-static s32
+s32
 wl_handle_reassoc(struct bcm_cfg80211 *cfg, struct net_device *dev,
 		wlcfg_assoc_info_t *info)
 {
-	wl_reassoc_params_t reassoc_params;
-	s32 err;
-	char sec_info[32];
+	wl_reassoc_params_t *reassoc_params;
+	s32 err = BCME_OK;
+	size_t reassoc_params_size;
+	u32 chan_cnt = info->chan_cnt;
+	chanspec_t *chanspecs = info->chanspecs;
+	u32 chanspec = info->chanspecs[0];
 
-	bzero(&reassoc_params, WL_REASSOC_PARAMS_FIXED_SIZE);
-	(void)memcpy_s(&reassoc_params.bssid.octet, ETH_ALEN, info->bssid, ETH_ALEN);
-	wl_ext_get_sec(dev, 0, sec_info, sizeof(sec_info), TRUE);
-	WL_MSG(dev->name, "Reconnecting with " MACDBG " sec=%s\n",
-		MAC2STRDBG((u8*)(&reassoc_params.bssid)), sec_info);
-	err = wldev_ioctl_set(dev, WLC_REASSOC, &reassoc_params, sizeof(wl_reassoc_params_t));
-	if (unlikely(err)) {
-		WL_ERR(("reassoc failed, error=%d\n", err));
-		return err;
+	if (!cfg->join_iovar_ver) {
+		reassoc_params_size = WL_ASSOC_PARAMS_FIXED_SIZE +
+			chan_cnt * sizeof(chanspec_t);
+	} else if (cfg->join_iovar_ver == WL_EXTJOIN_VERSION_V1) {
+		reassoc_params_size = WL_ASSOC_PARAMS_FIXED_SIZE_V1 +
+			chan_cnt * sizeof(chanspec_t);
 	} else {
-		WL_INFORM_MEM(("wl reassoc "MACDBG"\n", MAC2STRDBG(info->bssid)));
+		WL_ERR(("Unsupported join iovar version\n"));
+		err = -EINVAL;
+		goto fail;
 	}
 
-	return BCME_OK;
+	reassoc_params = MALLOCZ(cfg->osh, reassoc_params_size);
+	if (reassoc_params == NULL) {
+		err = -ENOMEM;
+		WL_ERR(("Mem alloc for reassoc_params failed\n"));
+		goto fail;
+	}
+
+	(void)memcpy_s(&reassoc_params->bssid.octet, ETH_ALEN, info->bssid, ETH_ALEN);
+	(void)memcpy_s(reassoc_params->chanspec_list, (sizeof(chanspec_t) * chan_cnt),
+		chanspecs, sizeof(chanspec_t) * chan_cnt);
+	reassoc_params->chanspec_num = htod32(chan_cnt);
+
+#ifdef WL_EXT_IAPSTA
+	wl_ext_iapsta_update_channel(dev, wf_chspec_ctlchan(chanspec));
+#endif
+	/* print relevant info for debug purpose */
+	wl_conn_debug_info(cfg, dev, info);
+	err = wldev_ioctl_set(dev, WLC_REASSOC, reassoc_params, sizeof(wl_reassoc_params_t));
+	if (unlikely(err)) {
+		WL_ERR(("reassoc failed, error=%d\n", err));
+		goto fail;
+	}
+
+fail:
+	if (reassoc_params) {
+		MFREE(cfg->osh, reassoc_params, reassoc_params_size);
+	}
+	return err;
 }
 
 static s32
@@ -6279,9 +6353,6 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = BCME_OK;
 	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
 	wlcfg_assoc_info_t assoc_info;
-#ifdef WL_EXT_IAPSTA
-	dhd_pub_t *dhdp =  (dhd_pub_t *)(cfg->pub);
-#endif
 
 	WL_DBG(("Enter len=%zu\n", sme->ie_len));
 	RETURN_EIO_IF_NOT_UP(cfg);
@@ -6313,7 +6384,6 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (assoc_info.reassoc) {
-		// terence 20200530, should call wl_ext_iapsta_update_channel() to move AP channel?
 		/* Handle roam to same ESS */
 		if ((err = wl_handle_reassoc(cfg, dev, &assoc_info)) != BCME_OK) {
 			goto fail;
@@ -6337,11 +6407,6 @@ wl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 			goto fail;
 		}
 
-		/* print relevant info for debug purpose */
-#ifdef WL_EXT_IAPSTA
-		wl_ext_iapsta_update_channel(dhdp, dev, CHSPEC_CHANNEL(assoc_info.chanspecs[0]));
-#endif
-		wl_conn_debug_info(cfg, dev, &assoc_info);
 		if ((err = wl_handle_join(cfg, dev, &assoc_info)) != BCME_OK) {
 			goto fail;
 		}
@@ -6368,8 +6433,8 @@ fail:
 	}
 #ifdef WL_EXT_IAPSTA
 	if (!err)
-		wl_ext_in4way_sync(dev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY,
-			WL_EXT_STATUS_CONNECTING, NULL);
+		wl_ext_in4way_sync(dev, STA_NO_BTC_IN4WAY|STA_REASSOC_RETRY,
+			WL_EXT_STATUS_CONNECTING, &assoc_info);
 #endif
 
 	mutex_unlock(&cfg->connect_sync);
@@ -6429,7 +6494,6 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 #endif /* BCMDONGLEHOST */
 
 	RETURN_EIO_IF_NOT_UP(cfg);
-	WL_MSG(dev->name, "Reason %d, act %d\n", reason_code, act);
 
 #ifdef BCMDONGLEHOST
 	BCM_REFERENCE(dhdp);
@@ -6458,6 +6522,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 		bzero(null_bssid, sizeof(null_bssid));
 		curbssid = null_bssid;
 	}
+	WL_MSG(dev->name, "Reason %d, act %d, bssid %pM\n", reason_code, act, curbssid);
 
 	if (act) {
 #ifdef DBG_PKT_MON
@@ -6491,7 +6556,7 @@ wl_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *dev,
 					goto exit;
 				}
 #ifdef WL_EXT_IAPSTA
-				wl_ext_in4way_sync(dev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
+				wl_ext_in4way_sync(dev, STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
 					WL_EXT_STATUS_DISCONNECTING, NULL);
 #endif
 		}
@@ -7027,8 +7092,7 @@ exit:
 	wl_set_wsec_info_algos(dev, algos, mask);
 #endif /* WL_GCMP */
 #ifdef WL_EXT_IAPSTA
-	wl_ext_in4way_sync(dev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY,
-		WL_EXT_STATUS_ADD_KEY, NULL);
+	wl_ext_in4way_sync(dev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_ADD_KEY, NULL);
 #endif
 	return err;
 }
@@ -7615,9 +7679,9 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 			}
 			wl_delete_dirty_rssi_cache(&cfg->g_connected_rssi_cache_ctrl);
 			wl_reset_rssi_cache(&cfg->g_connected_rssi_cache_ctrl);
-#endif
 #if defined(RSSIOFFSET)
 			rssi = wl_update_rssi_offset(dev, rssi);
+#endif
 #endif
 #if !defined(RSSIAVG) && !defined(RSSIOFFSET)
 			// terence 20150419: limit the max. rssi to -2 or the bss will be filtered out in android OS
@@ -7754,6 +7818,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 					STA_INFO_BIT(INFO_TX_PACKETS) |
 					STA_INFO_BIT(INFO_TX_FAILED));
 get_station_err:
+#if 0
 			if (err && (err != -ENODATA)) {
 				/* Disconnect due to zero BSSID or error to get RSSI */
 				scb_val_t scbval;
@@ -7777,6 +7842,7 @@ get_station_err:
 				CFG80211_DISCONNECTED(dev, 0, NULL, 0, false, GFP_KERNEL);
 				wl_link_down(cfg);
 			}
+#endif
 			break;
 		case WL_IF_TYPE_AP:
 			sta = (sta_info_v4_t *)buf;
@@ -11267,9 +11333,8 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 					MACDBG "), ignore it\n", MAC2STRDBG(cur_bssid)));
 				return err;
 			}
-			WL_INFORM_MEM(("[%s] IBSS BSSID is changed from " MACDBG " to " MACDBG "\n",
-				ndev->name, MAC2STRDBG(cur_bssid),
-				MAC2STRDBG((const u8 *)&e->addr)));
+			WL_MSG(ndev->name, "IBSS BSSID is changed from " MACDBG " to " MACDBG "\n",
+				MAC2STRDBG(cur_bssid), MAC2STRDBG((const u8 *)&e->addr));
 			wl_get_assoc_ies(cfg, ndev);
 			wl_update_prof(cfg, ndev, NULL, (const void *)&e->addr, WL_PROF_BSSID);
 			wl_update_bss_info(cfg, ndev, false);
@@ -11281,8 +11346,8 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		}
 		else {
 			/* New connection */
-			WL_INFORM_MEM(("[%s] IBSS connected to " MACDBG "\n",
-				ndev->name, MAC2STRDBG((const u8 *)&e->addr)));
+			WL_MSG(ndev->name, "IBSS connected to " MACDBG "\n",
+				MAC2STRDBG((const u8 *)&e->addr));
 			wl_link_up(cfg);
 			wl_get_assoc_ies(cfg, ndev);
 			wl_update_prof(cfg, ndev, NULL, (const void *)&e->addr, WL_PROF_BSSID);
@@ -12056,7 +12121,8 @@ wl_handle_assoc_fail(struct bcm_cfg80211 *cfg, wl_assoc_status_t *as, bool compl
 #ifdef BCMDONGLEHOST
 	BCM_REFERENCE(dhdp);
 #endif /* BCMDONGLEHOST */
-	WL_INFORM_MEM(("event: %s\n", bcmevent_get_name(as->event_type)));
+	WL_MSG(ndev->name, "assoc fail Reason: %s from %pM\n",
+		bcmevent_get_name(as->event_type), as->addr);
 
 	if (connect_req_bssid && !ETHER_ISNULLADDR(as->addr) &&
 		memcmp(&as->addr, connect_req_bssid, ETH_ALEN) != 0) {
@@ -12064,6 +12130,14 @@ wl_handle_assoc_fail(struct bcm_cfg80211 *cfg, wl_assoc_status_t *as, bool compl
 		return BCME_OK;
 	}
 #ifdef WL_EXT_IAPSTA
+	{
+		wl_event_msg_t emsg;
+		memcpy(&emsg, as->event_msg, sizeof(wl_event_msg_t));
+		ret = wl_ext_in4way_sync(ndev, STA_REASSOC_RETRY,
+			WL_EXT_STATUS_RECONNECT, &emsg);
+		if (ret)
+			return 0;
+	}
 	wl_ext_iapsta_enable_master_if(ndev, FALSE);
 #endif
 
@@ -12076,11 +12150,11 @@ wl_handle_assoc_fail(struct bcm_cfg80211 *cfg, wl_assoc_status_t *as, bool compl
 		wl_clr_drv_status(cfg, NESTED_CONNECT, ndev);
 		WL_INFORM_MEM(("Disconnect from nested connect context\n"));
 #if defined(BSSCACHE)
-		wl_delete_disconnected_bss_cache(&cfg->g_bss_cache_ctrl, (u8*)(&e->addr));
+		wl_delete_disconnected_bss_cache(&cfg->g_bss_cache_ctrl,
+			(u8*)(&as->event_msg->addr));
 #endif
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync(ndev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
-			WL_EXT_STATUS_DISCONNECTED, NULL);
+		wl_ext_in4way_sync(ndev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_DISCONNECTED, NULL);
 #endif
 		return BCME_OK;
 	}
@@ -12205,11 +12279,22 @@ wl_handle_link_down(struct bcm_cfg80211 *cfg, wl_assoc_status_t *as)
 #ifdef BCMDONGLEHOST
 	BCM_REFERENCE(dhdp);
 #endif /* BCMDONGLEHOST */
-	WL_MSG(ndev->name, "Link down Reason: %s\n", bcmevent_get_name(as->event_type));
+	WL_MSG(ndev->name, "Link down: %s(%d), reason %d from %pM\n",
+		bcmevent_get_name(as->event_type), event, reason, as->addr);
 	if ((BCME_OK != wl_get_connected_bssid(cfg, ndev, as->curbssid))) {
 		WL_ERR(("bssid not found\n"));
 		return -1;
 	}
+#ifdef WL_EXT_IAPSTA
+	{
+		wl_event_msg_t emsg;
+		memcpy(&emsg, as->event_msg, sizeof(wl_event_msg_t));
+		ret = wl_ext_in4way_sync(ndev, STA_REASSOC_RETRY,
+			WL_EXT_STATUS_RECONNECT, &emsg);
+		if (ret)
+			return 0;
+	}
+#endif
 
 	if (memcmp(as->curbssid, as->addr, ETHER_ADDR_LEN) != 0) {
 		WL_ERR(("BSSID of event is not the connected BSSID"
@@ -12229,11 +12314,11 @@ wl_handle_link_down(struct bcm_cfg80211 *cfg, wl_assoc_status_t *as)
 		wl_clr_drv_status(cfg, NESTED_CONNECT, ndev);
 		WL_INFORM_MEM(("Disconnect from nested connect context\n"));
 #if defined(BSSCACHE)
-		wl_delete_disconnected_bss_cache(&cfg->g_bss_cache_ctrl, (u8*)(&e->addr));
+		wl_delete_disconnected_bss_cache(&cfg->g_bss_cache_ctrl,
+			(u8*)(&as->event_msg->addr));
 #endif
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync(ndev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
-			WL_EXT_STATUS_DISCONNECTED, NULL);
+		wl_ext_in4way_sync(ndev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_DISCONNECTED, NULL);
 		wl_ext_iapsta_restart_master(ndev);
 #endif
 		return 0;
@@ -12319,13 +12404,22 @@ wl_handle_link_down(struct bcm_cfg80211 *cfg, wl_assoc_status_t *as)
 	/* clear profile before reporting link down */
 	wl_init_prof(cfg, ndev);
 #if defined(BSSCACHE)
-	wl_delete_disconnected_bss_cache(&cfg->g_bss_cache_ctrl, (u8*)(&e->addr));
+	wl_delete_disconnected_bss_cache(&cfg->g_bss_cache_ctrl,
+		(u8*)(&as->event_msg->addr));
 #endif
 #ifdef WL_EXT_IAPSTA
-	wl_ext_in4way_sync(ndev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
-		WL_EXT_STATUS_DISCONNECTED, NULL);
-	wl_ext_iapsta_restart_master(ndev);
+	{
+		wl_event_msg_t emsg;
+		memcpy(&emsg, as->event_msg, sizeof(wl_event_msg_t));
+		wl_ext_in4way_sync(ndev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_DISCONNECTED, &emsg);
+		wl_ext_iapsta_restart_master(ndev);
+	}
 #endif
+
+	if (wl_get_drv_status(cfg, DISCONNECTING, ndev)) {
+		/* If DISCONNECTING bit is set, mark locally generated */
+		loc_gen = 1;
+	}
 
 	CFG80211_DISCONNECTED(ndev, reason, ie_ptr, ie_len,
 		loc_gen, GFP_KERNEL);
@@ -13302,6 +13396,7 @@ wl_bss_roaming_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 #ifdef DHD_POST_EAPOL_M1_AFTER_ROAM_EVT
 	dhd_if_t *ifp = NULL;
 #endif /* DHD_POST_EAPOL_M1_AFTER_ROAM_EVT */
+	s32 rssi;
 #ifdef WLFBT
 	uint32 data_len = 0;
 	if (data)
@@ -13324,12 +13419,13 @@ wl_bss_roaming_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	}
 	cur_channel = wf_chspec_ctlchan(wl_chspec_driver_to_host(cur_chanspec));
 	orig_channel = wf_chspec_ctlchan(wl_chspec_driver_to_host(*chanspec));
+	if (dhdp->conf->chip != BCM43569_CHIP_ID) {
 	if ((orig_channel == cur_channel) &&
 			((memcmp(curbssid, &e->addr, ETHER_ADDR_LEN) == 0) ||
 			(memcmp(&cfg->last_roamed_addr, &e->addr, ETHER_ADDR_LEN) == 0))) {
-		WL_DBG(("BSS already present, Skipping roamed event to"
-		" upper layer\n"));
+		WL_DBG(("BSS already present, Skipping roamed event to upper layer\n"));
 		goto fail;
+	}
 	}
 #endif /* LINUX_VERSION > 2.6.39 || WL_COMPAT_WIRELESS */
 
@@ -13354,7 +13450,14 @@ wl_bss_roaming_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		goto fail;
 	}
 
-	WL_MSG(ndev->name, "%pM(ch:%3d/%sMHz) => %pM(ch:%3d/%sMHz)\n",
+	memset(&scbval, 0, sizeof(scb_val_t));
+	err = wldev_ioctl_get(ndev, WLC_GET_RSSI, &scbval, sizeof(scb_val_t));
+	if (err) {
+		WL_ERR(("Could not get rssi (%d)\n", err));
+	}
+	rssi = dtoh32(scbval.val);
+
+	WL_MSG(ndev->name, "%pM(ch:%3d/%sMHz) => %pM(ch:%3d/%sMHz, rssi: %3d)\n",
 		curbssid, orig_channel,
 		CHSPEC_IS20(*chanspec)?"20":
 		CHSPEC_IS40(*chanspec)?"40":
@@ -13364,7 +13467,8 @@ wl_bss_roaming_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		CHSPEC_IS20(cur_chanspec)?"20":
 		CHSPEC_IS40(cur_chanspec)?"40":
 		CHSPEC_IS80(cur_chanspec)?"80":
-		CHSPEC_IS160(cur_chanspec)?"160":"??");
+		CHSPEC_IS160(cur_chanspec)?"160":"??",
+		rssi);
 
 	wl_update_prof(cfg, ndev, NULL, (const void *)(e->addr.octet), WL_PROF_BSSID);
 	curbssid = wl_read_prof(cfg, ndev, WL_PROF_BSSID);
@@ -13725,6 +13829,7 @@ wl_bss_connect_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 			WL_ERR(("ssid_len=0. Indicate assoc event failure\n"));
 			completed = false;
 			sec->auth_assoc_res_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			wl_clr_drv_status(cfg, CONNECTED, ndev);
 		}
 	}
 
@@ -13749,8 +13854,7 @@ wl_bss_connect_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 	} else {
 		WL_MSG(ndev->name, "Report connect result - connection failed\n");
 #ifdef WL_EXT_IAPSTA
-		wl_ext_in4way_sync(ndev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
-			WL_EXT_STATUS_DISCONNECTED, NULL);
+		wl_ext_in4way_sync(ndev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_DISCONNECTED, NULL);
 #endif
 	}
 
@@ -14906,7 +15010,7 @@ wl_cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 	wdev = ndev_to_wdev(dev);
 	if (!wdev) {
-		//WL_ERR(("wdev null. Do nothing\n"));
+//		WL_ERR(("wdev null. Do nothing\n"));
 		return NOTIFY_DONE;
 	}
 
@@ -17279,8 +17383,7 @@ s32 wl_cfg80211_up(struct net_device *net)
 	ioctl_version = val;
 	WL_TRACE(("WLC_GET_VERSION=%d\n", ioctl_version));
 #ifdef WL_EXT_IAPSTA
-	wl_ext_in4way_sync(net, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
-		WL_EXT_STATUS_DISCONNECTED, NULL);
+	wl_ext_in4way_sync(net, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_DISCONNECTED, NULL);
 #endif
 
 	mutex_lock(&cfg->usr_sync);
@@ -17688,7 +17791,7 @@ s32 wl_cfg80211_get_p2p_dev_addr(struct net_device *net, struct ether_addr *p2pd
 		return -1;
 	if (!p2p_is_on(cfg)) {
 		get_primary_mac(cfg, &primary_mac);
-		memcpy((void *)p2pdev_addr, (void *)&primary_mac, ETHER_ADDR_LEN);
+		memcpy((void *)&p2pdev_addr, (void *)&primary_mac, ETHER_ADDR_LEN);
 	} else {
 		memcpy(p2pdev_addr->octet, wl_to_p2p_bss_macaddr(cfg, P2PAPI_BSSCFG_DEVICE).octet,
 			ETHER_ADDR_LEN);
@@ -19714,6 +19817,7 @@ wl_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 	gtk_keyinfo_t keyinfo;
 	bcol_gtk_para_t bcol_keyinfo;
+	dhd_pub_t *dhd = cfg->pub;
 
 	WL_DBG(("Enter\n"));
 	if (data == NULL || cfg->p2p_net == dev) {
@@ -19721,9 +19825,10 @@ wl_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 	}
 
-	bcopy(data->kck, keyinfo.KCK, RSN_KCK_LENGTH);
-	bcopy(data->kek, keyinfo.KEK, RSN_KEK_LENGTH);
-	bcopy(data->replay_ctr, keyinfo.ReplayCounter, RSN_REPLAY_LEN);
+	if (!dhd->conf->rekey_offload) {
+		WL_TRACE(("rekey_offload disabled\n"));
+		return BCME_UNSUPPORTED;
+	}
 
 	memset(&bcol_keyinfo, 0, sizeof(bcol_keyinfo));
 	bcol_keyinfo.enable = 1;
@@ -19736,6 +19841,9 @@ wl_cfg80211_set_rekey_data(struct wiphy *wiphy, struct net_device *dev,
 		goto exit;
 	}
 
+	bcopy(data->kck, keyinfo.KCK, RSN_KCK_LENGTH);
+	bcopy(data->kek, keyinfo.KEK, RSN_KEK_LENGTH);
+	bcopy(data->replay_ctr, keyinfo.ReplayCounter, RSN_REPLAY_LEN);
 	if ((err = wldev_iovar_setbuf(dev, "gtk_key_info", &keyinfo, sizeof(keyinfo),
 		cfg->ioctl_buf, WLC_IOCTL_SMLEN, &cfg->ioctl_buf_sync)) < 0) {
 		return err;
@@ -22471,21 +22579,16 @@ wl_notify_start_auth(struct bcm_cfg80211 *cfg,
 		if (wdev->conn_owner_nlportid) {
 			break;
 		}
-
 		wl_delay(10);
 	}
-
-#ifdef WL_EXT_IAPSTA
-	err = wl_ext_in4way_sync(ndev, STA_START_AUTH_DELAY, WL_EXT_STATUS_CONNECTING, NULL);
-	if (err) {
-		WL_ERR(("Failed to notify external auth req(%d)\n", err));
-		return BCME_ERROR;
-	}
-#endif
 
 	err = cfg80211_external_auth_request(ndev, &ext_auth_param, GFP_KERNEL);
 	if (err) {
 		WL_ERR(("Send external auth request failed, ret %d\n", err));
+		err = wldev_ioctl_set(ndev, WLC_DISASSOC, NULL, 0);
+		if (err < 0) {
+			WL_ERR(("WLC_DISASSOC error %d\n", err));
+		}
 		return BCME_ERROR;
 	}
 
@@ -22529,8 +22632,7 @@ wl_handle_auth_event(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 			status, ntoh32(e->reason)));
 #ifdef WL_EXT_IAPSTA
 		if (status != WLC_E_STATUS_SUCCESS)
-			wl_ext_in4way_sync(ndev, STA_NO_SCAN_IN4WAY|STA_NO_BTC_IN4WAY|STA_WAIT_DISCONNECTED,
-				WL_EXT_STATUS_DISCONNECTED, NULL);
+			wl_ext_in4way_sync(ndev, STA_NO_BTC_IN4WAY, WL_EXT_STATUS_DISCONNECTED, NULL);
 #endif
 		return WL_INVALID;
 	}

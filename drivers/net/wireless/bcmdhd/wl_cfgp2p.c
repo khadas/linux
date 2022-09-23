@@ -1789,6 +1789,9 @@ wl_cfgp2p_generate_bss_mac(struct bcm_cfg80211 *cfg, struct ether_addr *primary_
 {
 	struct ether_addr *mac_addr = wl_to_p2p_bss_macaddr(cfg, P2PAPI_BSSCFG_DEVICE);
 	struct ether_addr *int_addr;
+#ifdef P2P_AP_CONCURRENT
+	dhd_pub_t *dhd = (dhd_pub_t *)(cfg->pub);
+#endif
 
 	if (ETHER_IS_LOCALADDR(primary_addr)) {
 		/* STA is using locally administered MAC. Use randomized mac
@@ -1798,6 +1801,10 @@ wl_cfgp2p_generate_bss_mac(struct bcm_cfg80211 *cfg, struct ether_addr *primary_
 	} else {
 		(void)memcpy_s(mac_addr, ETH_ALEN, bcmcfg_to_prmry_ndev(cfg)->perm_addr, ETH_ALEN);
 		mac_addr->octet[0] |= 0x02;
+#ifdef P2P_AP_CONCURRENT
+		if (dhd->conf->war & P2P_AP_MAC_CONFLICT)
+			wl_ext_iapsta_get_vif_macaddr(dhd, 2, (u8 *)mac_addr);
+#endif
 		WL_DBG(("P2P Discovery address:"MACDBG "\n", MAC2STRDBG(mac_addr->octet)));
 	}
 

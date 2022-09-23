@@ -16,6 +16,7 @@ void wl_ext_get_sec(struct net_device *dev, int ifmode, char *sec, int total_len
 bool wl_ext_check_scan(struct net_device *dev, dhd_pub_t *dhdp);
 int wl_ext_set_scan_time(struct net_device *dev, int scan_time,
 	uint32 scan_get, uint32 scan_set);
+void wl_ext_wait_event_complete(struct dhd_pub *dhd, int ifidx);
 int wl_ext_add_del_ie(struct net_device *dev, uint pktflag, char *ie_data, const char* add_del_cmd);
 #ifdef WL_ESCAN
 int wl_ext_drv_scan(struct net_device *dev, uint band, bool fast_scan);
@@ -49,13 +50,11 @@ int wl_ext_get_ioctl_ver(struct net_device *dev, int *ioctl_ver);
 #endif
 #if defined(WL_CFG80211) || defined(WL_ESCAN)
 void wl_ext_user_sync(struct dhd_pub *dhd, int ifidx, bool lock);
-bool wl_ext_event_complete(struct dhd_pub *dhd, int ifidx);
 #endif
 #if defined(WL_CFG80211)
 bool wl_legacy_chip_check(struct net_device *net);
 bool wl_new_chip_check(struct net_device *net);
 bool wl_extsae_chip(struct dhd_pub *dhd);
-void wl_ext_war(struct net_device *dev);
 #endif
 #if defined(WL_EXT_IAPSTA) || defined(WL_CFG80211)
 void wl_ext_bss_iovar_war(struct net_device *dev, s32 *val);
@@ -138,6 +137,7 @@ int wl_update_rssi_offset(struct net_device *net, int rssi);
 #if defined(BSSCACHE)
 #define BSSCACHE_TIMEOUT	30
 #define BSSCACHE_MAXCNT		20
+#define BSSCACHE_DIRTY		4
 #define SORT_BSS_CHANNEL
 //#define SORT_BSS_RSSI
 
@@ -173,4 +173,3 @@ int wl_ext_get_best_channel(struct net_device *net,
 	int ioctl_ver, int *best_2g_ch, int *best_5g_ch
 );
 #endif
-

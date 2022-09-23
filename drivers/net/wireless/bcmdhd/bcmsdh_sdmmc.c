@@ -1117,9 +1117,11 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 	}
 
 	if (sd_msglevel & SDH_COST_VAL) {
+		uint32 diff_us;
 		osl_do_gettimeofday(&now);
-		sd_cost(("%s: rw=%d len=1 cost=%lds %luus\n", __FUNCTION__,
-			rw, now.tv_sec-before.tv_sec, now.tv_nsec/1000-before.tv_nsec/1000));
+		diff_us = osl_do_gettimediff(&now, &before);
+		sd_cost(("%s: rw=%d len=1 cost = %3dms %3dus\n", __FUNCTION__,
+			rw, diff_us/1000, diff_us%1000));
 	}
 
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
@@ -1219,9 +1221,11 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	}
 
 	if (sd_msglevel & SDH_COST_VAL) {
+		uint32 diff_us;
 		osl_do_gettimeofday(&now);
-		sd_cost(("%s: rw=%d, len=%d cost=%lds %luus\n", __FUNCTION__,
-			rw, nbytes, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+		diff_us = osl_do_gettimediff(&now, &before);
+		sd_cost(("%s: rw=%d, len=%d cost = %3dms %3dus\n", __FUNCTION__,
+			rw, nbytes, diff_us/1000, diff_us%1000));
 	}
 
 	return (((err_ret == 0)&&(err_ret2 == 0)) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
@@ -1431,15 +1435,16 @@ txglomfail:
 	if (sd_msglevel & SDH_COST_VAL)
 #endif
 	{
+		uint32 diff_us;
 		osl_do_gettimeofday(&now);
-		sd_cost(("%s: rw=%d, ttl_len=%d, cost=%lds %luus\n", __FUNCTION__,
-			write, ttl_len, now.tv_sec-before.tv_sec, now.tv_nsec/1000-before.tv_nsec/1000));
-	}
-
+		diff_us = osl_do_gettimediff(&now, &before);
+		sd_cost(("%s: rw=%d, ttl_len=%4d cost = %3dms %3dus\n", __FUNCTION__,
+			write, ttl_len, diff_us/1000, diff_us%1000));
 #ifdef PKT_STATICS
-	if (write && (func == 2))
-		sd->sdio_spent_time_us = osl_do_gettimediff(&now, &before);
+		if (write && (func == 2))
+			sd->sdio_spent_time_us = diff_us;
 #endif
+	}
 
 	sd_trace(("%s: Exit\n", __FUNCTION__));
 	return SDIOH_API_RC_SUCCESS;
@@ -1492,9 +1497,11 @@ sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 	sd_trace(("%s: Exit\n", __FUNCTION__));
 
 	if (sd_msglevel & SDH_COST_VAL) {
+		uint32 diff_us;
 		osl_do_gettimeofday(&now);
-		sd_cost(("%s: rw=%d, len=%d cost=%lds %luus\n", __FUNCTION__,
-			write, len, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+		diff_us = osl_do_gettimediff(&now, &before);
+		sd_cost(("%s: rw=%d, len=%4d cost = %3dms %3dus\n", __FUNCTION__,
+			write, len, diff_us/1000, diff_us%1000));
 	}
 
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
@@ -1580,9 +1587,11 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 	PKTFREE_STATIC(sd->osh, tmppkt, write ? TRUE : FALSE);
 
 	if (sd_msglevel & SDH_COST_VAL) {
+		uint32 diff_us;
 		osl_do_gettimeofday(&now);
-		sd_cost(("%s: len=%d cost=%lds %luus\n", __FUNCTION__,
-			buf_len, now.tv_sec-before.tv_sec, now.tv_nsec/1000 - before.tv_nsec/1000));
+		diff_us = osl_do_gettimediff(&now, &before);
+		sd_cost(("%s: rw=%d, len=%d cost = %3dms %3dus\n", __FUNCTION__,
+			write, buf_len, diff_us/1000, diff_us%1000));
 	}
 
 	return status;

@@ -492,10 +492,32 @@ out_err:
 	return err;
 }
 
+struct wireless_dev * wl_get_scan_wdev(struct bcm_cfg80211 *cfg);
+struct net_device *
+wl_get_scan_ndev(struct bcm_cfg80211 *cfg)
+{
+	struct wireless_dev *wdev = NULL;
+	struct net_device *ndev = NULL;
+
+	wdev = wl_get_scan_wdev(cfg);
+	if (!wdev) {
+		WL_ERR(("No wdev present\n"));
+		return NULL;
+	}
+
+	ndev = wdev_to_wlc_ndev(wdev, cfg);
+	if (!ndev) {
+		WL_ERR(("No ndev present\n"));
+	}
+
+	return ndev;
+}
+
 #if defined(BSSCACHE) || defined(RSSIAVG)
 void wl_cfg80211_update_bss_cache(struct bcm_cfg80211 *cfg)
 {
 #if defined(RSSIAVG)
+	struct net_device *ndev = wl_get_scan_ndev(cfg);
 	int rssi;
 #endif
 	wl_scan_results_t *bss_list = cfg->bss_list;
@@ -513,8 +535,9 @@ void wl_cfg80211_update_bss_cache(struct bcm_cfg80211 *cfg)
 	/* Update cache */
 #if defined(RSSIAVG)
 	wl_update_rssi_cache(&cfg->g_rssi_cache_ctrl, bss_list);
-	if (!in_atomic())
+	if (!in_atomic() && ndev) {
 		wl_update_connected_rssi_cache(ndev, &cfg->g_rssi_cache_ctrl, &rssi);
+	}
 #endif
 #if defined(BSSCACHE)
 	wl_update_bss_cache(&cfg->g_bss_cache_ctrl,
@@ -544,7 +567,6 @@ s32 wl_inform_bss_cache(struct bcm_cfg80211 *cfg)
 	wl_bss_info_t *bi = NULL;	/* must be initialized */
 	s32 err = 0;
 	s32 i, cnt;
-	struct net_device *ndev = bcmcfg_to_prmry_ndev(cfg);
 	wl_bss_cache_t *node;
 
 	WL_SCAN(("scanned AP count (%d)\n", bss_list->count));
@@ -569,9 +591,6 @@ s32 wl_inform_bss_cache(struct bcm_cfg80211 *cfg)
 		node = node->next;
 	}
 	preempt_enable();
-	if (cfg->autochannel)
-		wl_ext_get_best_channel(ndev, &cfg->g_bss_cache_ctrl, ioctl_version,
-			&cfg->best_2g_ch, &cfg->best_5g_ch);
 
 	return err;
 }
@@ -584,12 +603,17 @@ wl_inform_bss(struct bcm_cfg80211 *cfg)
 	wl_scan_results_t *bss_list;
 	wl_bss_info_t *bi = NULL;	/* must be initialized */
 	s32 i;
-	struct net_device *ndev = bcmcfg_to_prmry_ndev(cfg);
 #endif
+	struct net_device *ndev = wl_get_scan_ndev(cfg);
 	s32 err = 0;
 
+#ifdef WL_EXT_IAPSTA
+	if (ndev)
+		wl_ext_in4way_sync(ndev, 0, WL_EXT_STATUS_SCAN_COMPLETE, NULL);
+#endif
+
 #if defined(BSSCACHE) || defined(RSSIAVG)
-		wl_cfg80211_update_bss_cache(cfg);
+	wl_cfg80211_update_bss_cache(cfg);
 #endif
 
 #if defined(BSSCACHE)
@@ -612,10 +636,17 @@ wl_inform_bss(struct bcm_cfg80211 *cfg)
 		}
 	}
 	preempt_enable();
-	if (cfg->autochannel)
+#endif
+
+	if (cfg->autochannel && ndev) {
+#if defined(BSSCACHE)
+		wl_ext_get_best_channel(ndev, &cfg->g_bss_cache_ctrl, ioctl_version,
+			&cfg->best_2g_ch, &cfg->best_5g_ch);
+#else
 		wl_ext_get_best_channel(ndev, bss_list, ioctl_version,
 			&cfg->best_2g_ch, &cfg->best_5g_ch);
 #endif
+	}
 
 	WL_MEM(("cfg80211 scan cache updated\n"));
 #ifdef ROAM_CHANNEL_CACHE
@@ -1541,6 +1572,36 @@ chanspec_t wl_freq_to_chanspec(int freq)
 	return chanspec;
 }
 
+#ifdef SCAN_SUPPRESS
+static void
+wl_cfgscan_populate_scan_channel(struct bcm_cfg80211 *cfg,
+	struct ieee80211_channel **channels, u32 n_channels,
+	u16 *channel_list, u32 target_channel)
+{
+	u32 i = 0;
+	u32 chanspec = 0;
+	u32 channel;
+
+	for (i=0; i<n_channels; i++) {
+		channel = ieee80211_frequency_to_channel(channels[i]->center_freq);
+		if (channel != target_channel)
+			continue;
+		if (!dhd_conf_match_channel(cfg->pub, channel))
+			return;
+
+		chanspec = wl_freq_to_chanspec(channels[i]->center_freq);
+		if (chanspec == INVCHANSPEC) {
+			WL_ERR(("Invalid chanspec! Skipping channel\n"));
+			continue;
+		}
+
+		channel_list[0] = chanspec;
+		break;
+	}
+	WL_SCAN(("chan: %d, chanspec: %x\n", target_channel, chanspec));
+}
+#endif
+
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 14, 0))
 #define IS_RADAR_CHAN(flags) (flags & (IEEE80211_CHAN_RADAR | IEEE80211_CHAN_PASSIVE_SCAN))
 #else
@@ -1644,7 +1705,7 @@ wl_cfgscan_populate_scan_channels(struct bcm_cfg80211 *cfg,
 		} else {
 			channel_list[j] = CHSPEC_CHANNEL(chanspec);
 		}
-		WL_SCAN(("Channel/Chanspec: %x \n", channel_list[j]));
+		WL_SCAN(("chan: %d, chanspec: %x\n", channel, channel_list[j]));
 		j++;
 		if (j == WL_NUMCHANSPECS) {
 			/* max limit */
@@ -1791,20 +1852,20 @@ wl_scan_prep(struct bcm_cfg80211 *cfg, struct net_device *ndev, void *scan_param
 		n_channels = 1;
 		if ((n_channels > 0) && chan_list) {
 			if (len >= (scan_param_size + (n_channels * sizeof(u16)))) {
-				wl_ext_populate_scan_channel(cfg->pub, chan_list, channel, n_channels);
+				wl_cfgscan_populate_scan_channel(cfg,
+					request->channels, request->n_channels,
+					chan_list, channel);
 				cur_offset += (n_channels * (sizeof(u16)));
 			}
 		}
 	} else
 #endif
-	{
-		if ((request->n_channels > 0) && chan_list) {
-			if (len >= (scan_param_size + (request->n_channels * sizeof(u16)))) {
-				wl_cfgscan_populate_scan_channels(cfg,
-						request->channels, request->n_channels,
-						chan_list, &n_channels, true, false);
-				cur_offset += (uint32)(n_channels * (sizeof(u16)));
-			}
+	if ((request->n_channels > 0) && chan_list) {
+		if (len >= (scan_param_size + (request->n_channels * sizeof(u16)))) {
+			wl_cfgscan_populate_scan_channels(cfg,
+					request->channels, request->n_channels,
+					chan_list, &n_channels, true, false);
+			cur_offset += (uint32)(n_channels * (sizeof(u16)));
 		}
 	}
 
@@ -2060,8 +2121,7 @@ wl_run_escan(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		}
 
 		bssidx = wl_get_bssidx_by_wdev(cfg, ndev->ieee80211_ptr);
-//		WL_MSG(ndev->name, "LEGACY_SCAN sync ID: %d, bssidx: %d\n",
-//						sync_id, bssidx);
+		//WL_MSG(ndev->name, "LEGACY_SCAN sync ID: %d, bssidx: %d\n", sync_id, bssidx);
 		err = wldev_iovar_setbuf(ndev, "escan", params, params_size,
 			cfg->escan_ioctl_buf, WLC_IOCTL_MEDLEN, NULL);
 		if (unlikely(err)) {
@@ -2583,11 +2643,13 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		}
 	}
 
-	mutex_lock(&cfg->scan_sync);
 #ifdef WL_EXT_IAPSTA
-	if (!wl_ext_in4way_sync(ndev_to_wlc_ndev(ndev, cfg), STA_FAKE_SCAN_IN_CONNECT,
-		WL_EXT_STATUS_SCANNING, NULL))
+	if (wl_ext_in4way_sync(ndev, STA_FAKE_SCAN_IN_CONNECT, WL_EXT_STATUS_SCANNING, NULL)) {
+		mutex_lock(&cfg->scan_sync);
+		goto scan_success;
+	}
 #endif
+	mutex_lock(&cfg->scan_sync);
 	err = wl_do_escan(cfg, wiphy, ndev, request);
 	if (likely(!err)) {
 		goto scan_success;

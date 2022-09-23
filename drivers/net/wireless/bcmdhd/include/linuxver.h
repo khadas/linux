@@ -623,12 +623,26 @@ typedef struct {
 /* ANDREY: new MACROs to start stop threads(OLD kthread API STYLE) */
 /* requires  tsk_ctl_t tsk  argument, the caller's priv data is passed in owner ptr */
 /* note this macro assumes there may be only one context waiting on thread's completion */
+#ifdef KERNEL_TIMESTAMP
+extern char *dhd_log_dump_get_timestamp(void);
+#ifdef SYSTEM_TIMESTAMP
+extern char* dhd_dbg_get_system_timestamp(void);
+#define PRINTF_SYSTEM_TIME dhd_log_dump_get_timestamp(), dhd_dbg_get_system_timestamp()
+#define PERCENT_S "[%s][%s]"
+#else
+#define PRINTF_SYSTEM_TIME dhd_log_dump_get_timestamp()
+#define PERCENT_S "[%s]"
+#endif
+#else
+#define PRINTF_SYSTEM_TIME ""
+#define PERCENT_S "%s"
+#endif
 #ifndef DHD_LOG_PREFIX
 #define DHD_LOG_PREFIX "[dhd]"
 #endif
 #define DHD_LOG_PREFIXS DHD_LOG_PREFIX" "
 #ifdef DHD_DEBUG
-#define	printf_thr(fmt, args...)	printk(DHD_LOG_PREFIXS fmt , ## args)
+#define	printf_thr(fmt, args...)	printk(PERCENT_S DHD_LOG_PREFIXS fmt, PRINTF_SYSTEM_TIME, ## args)
 #define DBG_THR(args)		do {printf_thr args;} while (0)
 #else
 #define DBG_THR(x)

@@ -16,7 +16,7 @@ MODULE_NAME := dhdpci
 endif
 endif
 
-CONFIG_BCMDHD := m
+CONFIG_BCMDHD ?= m
 
 #CONFIG_BCMDHD_SDIO := y
 #CONFIG_BCMDHD_PCIE := y
@@ -24,14 +24,17 @@ CONFIG_BCMDHD := m
 
 CONFIG_BCMDHD_OOB := y
 #CONFIG_BCMDHD_CUSB := y
+#CONFIG_BCMDHD_NO_POWER_OFF := y
 CONFIG_BCMDHD_PROPTXSTATUS := y
 CONFIG_DHD_USE_STATIC_BUF := y
 #CONFIG_BCMDHD_STATIC_BUF_IN_DHD := y
-CONFIG_BCMDHD_VTS := y
+CONFIG_BCMDHD_ANDROID_VERSION := 11
 CONFIG_BCMDHD_AUTO_SELECT := y
 CONFIG_BCMDHD_DEBUG := y
+#CONFIG_BCMDHD_TIMESTAMP := y
 #CONFIG_BCMDHD_WAPI := y
 #CONFIG_BCMDHD_RANDOM_MAC := y
+#CONFIG_BCMDHD_MULTIPLE_DRIVER := y
 CONFIG_BCMDHD_TPUT := y
 
 CONFIG_MACH_PLATFORM := y
@@ -43,9 +46,9 @@ endif
 
 DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time                      \
 	-Dlinux -DLINUX -DBCMDRIVER                                           \
-	-Wno-maybe-uninitialized -Werror -Wno-format-security                 \
-	-Wno-unknown-warning-option -Wno-sometimes-uninitialized              \
-	-Wno-parentheses-equality -Wno-implicit-fallthrough                   \
+	-Wno-unknown-warning-option                                           \
+	-Wno-maybe-uninitialized -Wno-error -Wno-format-security              \
+	-Wno-implicit-fallthrough                                             \
 	-DBCMDONGLEHOST -DBCMDMA32 -DBCMFILEIMAGE                             \
 	-DDHDTHREAD -DDHD_DEBUG -DSHOW_EVENTS -DGET_OTP_MAC_ENABLE            \
 	-DWIFI_ACT_FRAME -DARP_OFFLOAD_SUPPORT -DSUPPORT_PM2_ONLY             \
@@ -54,9 +57,9 @@ DHDCFLAGS = -Wall -Wstrict-prototypes -Wno-date-time                      \
 	-DMULTIPLE_SUPPLICANT -DTSQ_MULTIPLIER -DMFP -DDHD_8021X_DUMP         \
 	-DPOWERUP_MAX_RETRY=1 -DIFACE_HANG_FORCE_DEV_CLOSE -DWAIT_DEQUEUE     \
 	-DUSE_NEW_RSPEC_DEFS                                                  \
-	-DWL_EXT_IAPSTA -DWL_ESCAN -DCCODE_LIST                               \
-	-DENABLE_INSMOD_NO_FW_LOAD                                            \
-	-I$(src) -I$(src)/include
+	-DWL_EXT_IAPSTA -DWL_ESCAN -DCCODE_LIST -DSUSPEND_EVENT               \
+	-DEAPOL_RESEND -DEAPOL_DYNAMATIC_RESEND                               \
+	-DENABLE_INSMOD_NO_FW_LOAD
 
 DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o   \
 	dhd_linux.o dhd_linux_platdev.o dhd_linux_sched.o dhd_pno.o           \
@@ -90,10 +93,11 @@ ifneq ($(CONFIG_CFG80211),)
 	DHDCFLAGS += -DSPECIFIC_MAC_GEN_SCHEME
 	DHDCFLAGS += -DWL_IFACE_MGMT
 	DHDCFLAGS += -DWLFBT
+	DHDCFLAGS += -DWL_EXT_RECONNECT
 	DHDCFLAGS += -DDHD_LOSSLESS_ROAMING
 	DHDCFLAGS += -DGTK_OFFLOAD_SUPPORT
 	DHDCFLAGS += -DWL_STATIC_IF
-	DHDCFLAGS += -DWL_CLIENT_SAE
+	DHDCFLAGS += -DWL_CLIENT_SAE -DWL_OWE
 endif
 
 #BCMDHD_SDIO
@@ -126,15 +130,17 @@ DHDCFLAGS += -DPCIE_FULL_DONGLE -DBCMPCIE -DCUSTOM_DPC_PRIO_SETTING=-1    \
 DHDCFLAGS += -DDHD_LB -DDHD_LB_RXP -DDHD_LB_STATS -DDHD_LB_TXP
 DHDCFLAGS += -DDHD_PKTID_AUDIT_ENABLED
 DHDCFLAGS += -DINSMOD_FW_LOAD
-DHDCFLAGS :=$(filter-out -DENABLE_INSMOD_NO_FW_LOAD,$(DHDCFLAGS))
-#DHDCFLAGS += -DUSE_AML_PCIE_TEE_MEM
+DHDCFLAGS += -DCONFIG_HAS_WAKELOCK
+#DHDCFLAGS += -DDHD_PCIE_RUNTIMEPM -DMAX_IDLE_COUNT=11 -DCUSTOM_DHD_RUNTIME_MS=100
 ifeq ($(CONFIG_BCMDHD_OOB),y)
 	DHDCFLAGS += -DCUSTOMER_OOB -DBCMPCIE_OOB_HOST_WAKE
 endif
 ifneq ($(CONFIG_PCI_MSI),)
 	DHDCFLAGS += -DDHD_MSI_SUPPORT
 endif
+CONFIG_BCMDHD_NO_POWER_OFF := y
 DHDCFLAGS += -DDHD_DISABLE_ASPM
+#DHDCFLAGS += -DUSE_AML_PCIE_TEE_MEM
 DHDOFILES += dhd_pcie.o dhd_pcie_linux.o pcie_core.o dhd_flowring.o       \
 	dhd_msgbuf.o dhd_linux_lb.o
 endif
@@ -145,12 +151,17 @@ BUS_TYPE := "usb"
 DHDCFLAGS += -DUSBOS_TX_THREAD -DBCMDBUS -DBCMTRXV2 -DDBUS_USB_LOOPBACK   \
 	-DBDC
 DHDCFLAGS += -DBCM_REQUEST_FW -DEXTERNAL_FW_PATH
-DHDCFLAGS :=$(filter-out -DENABLE_INSMOD_NO_FW_LOAD,$(DHDCFLAGS))
+CONFIG_BCMDHD_NO_POWER_OFF := y
 ifneq ($(CONFIG_BCMDHD_CUSB),)
 	DHDCFLAGS += -DBCMUSBDEV_COMPOSITE
-	DHDCFLAGS :=$(filter-out -DENABLE_INSMOD_NO_FW_LOAD,$(DHDCFLAGS))
+	CONFIG_BCMDHD_NO_POWER_OFF := y
 endif
 DHDOFILES += dbus.o dbus_usb.o dbus_usb_linux.o dhd_cdc.o dhd_wlfc.o
+endif
+
+ifeq ($(CONFIG_BCMDHD_NO_POWER_OFF),y)
+	DHDCFLAGS += -DENABLE_INSMOD_NO_FW_LOAD
+	DHDCFLAGS += -DENABLE_INSMOD_NO_POWER_OFF -DNO_POWER_OFF_AFTER_OPEN
 endif
 
 ifeq ($(CONFIG_BCMDHD_MULTIPLE_DRIVER),y)
@@ -160,6 +171,11 @@ ifeq ($(CONFIG_BCMDHD_MULTIPLE_DRIVER),y)
 	MODULE_NAME := dhd$(BUS_TYPE)
 else
 	DHDCFLAGS += -DBUS_TYPE=\"\"
+endif
+
+ifeq ($(CONFIG_BCMDHD_TIMESTAMP),y)
+	DHDCFLAGS += -DKERNEL_TIMESTAMP
+	DHDCFLAGS += -DSYSTEM_TIMESTAMP
 endif
 
 #PROPTXSTATUS
@@ -181,7 +197,8 @@ ifeq ($(CONFIG_64BIT),y)
 endif
 
 # For Android VTS
-ifeq ($(CONFIG_BCMDHD_VTS),y)
+ifneq ($(CONFIG_BCMDHD_ANDROID_VERSION),)
+	DHDCFLAGS += -DANDROID_VERSION=$(CONFIG_BCMDHD_ANDROID_VERSION)
 	DHDCFLAGS += -DDHD_NOTIFY_MAC_CHANGED
 ifneq ($(CONFIG_CFG80211),)
 	DHDCFLAGS += -DGSCAN_SUPPORT -DRTT_SUPPORT -DLINKSTAT_SUPPORT
@@ -192,6 +209,8 @@ ifneq ($(CONFIG_CFG80211),)
 	DHDCFLAGS += -DDHD_WAKE_STATUS
 	DHDOFILES += dhd_rtt.o bcm_app_utils.o
 endif
+else
+	DHDCFLAGS += -DANDROID_VERSION=0
 endif
 
 # For Debug
@@ -247,6 +266,7 @@ endif
 # For TPUT_IMPROVE
 ifeq ($(CONFIG_BCMDHD_TPUT),y)
 	DHDCFLAGS += -DDHD_TPUT_PATCH
+	DHDCFLAGS += -DTCPACK_INFO_MAXNUM=10 -DTCPDATA_INFO_MAXNUM=10
 ifneq ($(CONFIG_BCMDHD_SDIO),)
 	DHDCFLAGS += -DDYNAMIC_MAX_HDR_READ
 	DHDCFLAGS :=$(filter-out -DSDTEST,$(DHDCFLAGS))
@@ -301,7 +321,6 @@ ifeq ($(CONFIG_BCMDHD_DTS),y)
 endif
 	DHDCFLAGS += -DCUSTOMER_HW -DDHD_OF_SUPPORT
 	DHDCFLAGS += -DCUSTOMER_HW_AMLOGIC
-	DHDCFLAGS += -DSUSPEND_EVENT
 
 # for config custom MAC
 #	DHDCFLAGS += -DGET_CUSTOM_MAC_ENABLE -DCUSTOM_MULTI_MAC
@@ -358,7 +377,6 @@ modules_install:
 bcmdhd_sdio:
 	$(warning "building BCMDHD_SDIO..........")
 	$(MAKE) -C $(KERNEL_SRC) M=$(M) CONFIG_DHD_USE_STATIC_BUF=y modules
-	#mv dhd.ko dhd_sdio.ko
 
 bcmdhd_usb:
 	$(warning "building BCMDHD_USB..........")

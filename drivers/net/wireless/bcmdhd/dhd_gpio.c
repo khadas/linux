@@ -48,6 +48,7 @@ extern void set_usb_bt_power(int is_power);
 extern void set_usb_wifi_power(int is_power);
 extern void extern_wifi_set_enable(int is_on);
 extern void pci_remove_reinit(unsigned int vid, unsigned int pid, int delBus);
+//extern void amlogic_pcie_power_on_atu_fixup(void);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0))
 extern int wifi_irq_num(void);
 #endif
@@ -89,6 +90,13 @@ dhd_wlan_set_power(int on, wifi_adapter_info_t *adapter)
 		set_usb_wifi_power(1);
 		mdelay(200);
     }
+#endif
+#ifdef BCMPCIE
+//		extern_wifi_set_enable(0);
+//		mdelay(200);
+//		extern_wifi_set_enable(1);
+//		mdelay(200);
+//		amlogic_pcie_power_on_atu_fixup();
 #endif
 #endif
 #ifdef BUS_POWER_RESTORE
@@ -156,6 +164,10 @@ dhd_wlan_set_power(int on, wifi_adapter_info_t *adapter)
 		mdelay(200);
     }
 #endif
+#ifdef BCMPCIE
+//		extern_wifi_set_enable(0);
+//		mdelay(200);
+#endif
 #endif
 	}
 
@@ -197,8 +209,8 @@ static int dhd_wlan_set_carddetect(int present)
 #elif defined(BCMPCIE)
 		printf("======== Card detection to remove PCIE card! ========\n");
 #ifdef CUSTOMER_HW_AMLOGIC
-		//extern_wifi_set_enable(0);
-		//mdelay(200);
+//		extern_wifi_set_enable(0);
+//		mdelay(200);
 #endif
 #endif
 	}
@@ -483,4 +495,3 @@ void dhd_wlan_deinit_plat_data(wifi_adapter_info_t *adapter)
 #endif
 	dhd_wlan_deinit_gpio(adapter);
 }
-

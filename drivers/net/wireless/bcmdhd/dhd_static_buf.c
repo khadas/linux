@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * drivers/amlogic/wifi/dhd_static_buf.c
- *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
  */
-
-#define pr_fmt(fmt)	"Wifi: %s: " fmt, __func__
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -24,10 +10,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/skbuff.h>
-#include <linux/wlan_plat.h>
+#include <linux/amlogic/wlan_plat.h>
 #include <linux/amlogic/dhd_buf.h>
 
-#define	DHD_STATIC_VERSION_STR		"101.10.361.12 (wlan=r892223-20210928-1)"
+#define	DHD_STATIC_VERSION_STR		"101.10.361.16 (wlan=r892223-20220401-1)"
 #define STATIC_ERROR_LEVEL	(1 << 0)
 #define STATIC_TRACE_LEVEL	(1 << 1)
 #define STATIC_MSG_LEVEL	(1 << 0)
@@ -117,7 +103,7 @@ enum dhd_prealloc_index {
 #define DHD_PREALLOC_DATABUF_SIZE	(64 * 1024)
 #define DHD_PREALLOC_OSL_BUF_SIZE	(STATIC_BUF_MAX_NUM * STATIC_BUF_SIZE)
 #define DHD_PREALLOC_WIPHY_ESCAN0_SIZE	(64 * 1024)
-#define DHD_PREALLOC_DHD_INFO_SIZE	(34 * 1024)
+#define DHD_PREALLOC_DHD_INFO_SIZE	(36 * 1024)
 #if defined(CONFIG_BCMDHD_VTS) || defined(CONFIG_BCMDHD_DEBUG)
 #define DHD_PREALLOC_MEMDUMP_RAM_SIZE	(1290 * 1024)
 #endif /* CONFIG_BCMDHD_VTS | CONFIG_BCMDHD_DEBUG */
@@ -204,11 +190,15 @@ bcmdhd_mem_prealloc(
 	int section, unsigned long size)
 {
 #ifndef BCMDHD_MDRIVER
-	uint bus_type = 0;
 	int index = 0;
 #endif
+
+#ifdef BCMDHD_MDRIVER
 	DHD_STATIC_MSG("bus_type %d, index %d, sectoin %d, size %ld\n",
 		bus_type, index, section, size);
+#else
+	DHD_STATIC_MSG("sectoin %d, size %ld\n", section, size);
+#endif
 
 	if (section == DHD_PREALLOC_PROT)
 		return wlan_static_prot[index];
@@ -429,7 +419,7 @@ dhd_deinit_wlan_mem(int index)
 }
 
 static int
-dhd_init_wlan_mem(int index)
+dhd_init_wlan_mem(int index, unsigned int all_buf)
 {
 #if defined(BCMDHD_SDIO) || defined(BCMDHD_PCIE)
 	int i;
@@ -462,6 +452,7 @@ dhd_init_wlan_mem(int index)
 	}
 #endif /* BCMDHD_SDIO | BCMDHD_PCIE */
 
+	if (all_buf == 1) {
 #if defined(BCMDHD_SDIO)
 	wlan_static_skb[index][i] = dev_alloc_skb(DHD_SKB_4PAGE_BUFSIZE);
 	if (!wlan_static_skb[index][i])
@@ -532,6 +523,7 @@ dhd_init_wlan_mem(int index)
 	DHD_STATIC_TRACE("sectoin %d, size=%d\n",
 		DHD_PREALLOC_IF_FLOW_LKUP, DHD_PREALLOC_IF_FLOW_LKUP_SIZE);
 #endif /* BCMDHD_PCIE */
+	}
 
 #if defined(CONFIG_BCMDHD_VTS) || defined(CONFIG_BCMDHD_DEBUG)
 	wlan_static_dhd_memdump_ram_buf[index] = kmalloc(DHD_PREALLOC_MEMDUMP_RAM_SIZE, GFP_KERNEL);
@@ -542,6 +534,7 @@ dhd_init_wlan_mem(int index)
 		DHD_PREALLOC_MEMDUMP_RAM, DHD_PREALLOC_MEMDUMP_RAM_SIZE);
 #endif /* CONFIG_BCMDHD_VTS | CONFIG_BCMDHD_DEBUG */
 
+	if (all_buf == 1) {
 #if defined(BCMDHD_SDIO) || defined(BCMDHD_USB)
 	wlan_static_dhd_wlfc_hanger_buf[index] = kmalloc(DHD_PREALLOC_DHD_WLFC_HANGER_SIZE, GFP_KERNEL);
 	if (!wlan_static_dhd_wlfc_hanger_buf[index])
@@ -573,6 +566,7 @@ dhd_init_wlan_mem(int index)
 	size += DHD_PREALLOC_WL_ESCAN_SIZE;
 	DHD_STATIC_TRACE("sectoin %d, size=%d\n",
 		DHD_PREALLOC_WL_ESCAN, DHD_PREALLOC_WL_ESCAN_SIZE);
+	}
 
 	wlan_static_fw_verbose_ring_buf[index] = kmalloc(FW_VERBOSE_RING_SIZE, GFP_KERNEL);
 	if (!wlan_static_fw_verbose_ring_buf[index])
@@ -581,6 +575,7 @@ dhd_init_wlan_mem(int index)
 	DHD_STATIC_TRACE("sectoin %d, size=%d\n",
 		DHD_PREALLOC_FW_VERBOSE_RING, FW_VERBOSE_RING_SIZE);
 
+	if (all_buf == 1) {
 	wlan_static_fw_event_ring_buf[index] = kmalloc(FW_EVENT_RING_SIZE, GFP_KERNEL);
 	if (!wlan_static_fw_event_ring_buf[index])
 		goto err_mem_alloc;
@@ -603,12 +598,13 @@ dhd_init_wlan_mem(int index)
 	DHD_STATIC_TRACE("sectoin %d, size=%d\n",
 		DHD_PREALLOC_NAN_EVENT_RING, NAN_EVENT_RING_SIZE);
 #endif /* BCMDHD_UNUSE_MEM */
+	}
 
- 	DHD_STATIC_MSG("prealloc ok for index %d: %ld(%ldK)\n", index, size, size/1024);
+	DHD_STATIC_MSG("prealloc ok for index %d: %ld(%ldK)\n", index, size, size/1024);
 	return 0;
 
 err_mem_alloc:
- 	DHD_STATIC_ERROR("Failed to allocate memory for index %d\n", index);
+	DHD_STATIC_ERROR("Failed to allocate memory for index %d\n", index);
 
 	return -ENOMEM;
 }
@@ -618,14 +614,14 @@ int
 #else
 static int __init
 #endif
-bcmdhd_init_wlan_mem(void)
+bcmdhd_init_wlan_mem(unsigned int all_buf))
 {
 	int i, ret = 0;
 
  	DHD_STATIC_MSG("%s\n", DHD_STATIC_VERSION_STR);
 
 	for (i=0; i<MAX_NUM_ADAPTERS; i++) {
-		ret = dhd_init_wlan_mem(i);
+		ret = dhd_init_wlan_mem(i, all_buf);
 		if (ret)
 			break;
 	}
