@@ -223,7 +223,7 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 			 * object (and increase the ref count) from an
 			 * identifier we return an error. All pointers that
 			 * has been added in params have an increased ref
-			 * count. It's the callers responibility to do
+			 * count. It's the callers responsibility to do
 			 * tee_shm_put() on all resolved pointers.
 			 */
 			shm = tee_shm_get_from_id(ctx, ip.c);

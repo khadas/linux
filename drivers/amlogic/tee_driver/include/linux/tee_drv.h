@@ -74,7 +74,7 @@ struct tee_param {
  * @close_session:	close a session
  * @invoke_func:	invoke a trusted function
  * @cancel_req:		request cancel of an ongoing invoke or open
- * @supp_revc:		called for supplicant to get a command
+ * @supp_recv:		called for supplicant to get a command
  * @supp_send:		called for supplicant to send a response
  */
 struct tee_driver_ops {
@@ -235,7 +235,7 @@ void tee_shm_put(struct tee_shm *shm);
 /**
  * tee_shm_va2pa() - Get physical address of a virtual address
  * @shm:	Shared memory handle
- * @va:		Virtual address to tranlsate
+ * @va:		Virtual address to translate
  * @pa:		Returned physical address
  * @returns 0 on success and < 0 on failure
  */
@@ -244,7 +244,7 @@ int tee_shm_va2pa(struct tee_shm *shm, void *va, phys_addr_t *pa);
 /**
  * tee_shm_pa2va() - Get virtual address of a physical address
  * @shm:	Shared memory handle
- * @pa:		Physical address to tranlsate
+ * @pa:		Physical address to translate
  * @va:		Returned virtual address
  * @returns 0 on success and < 0 on failure
  */

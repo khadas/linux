@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 ccflags-y+=-Werror
 
 M ?= $(srctree)/drivers/amlogic/tee_driver

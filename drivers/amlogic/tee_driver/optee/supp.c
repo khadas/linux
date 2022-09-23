@@ -176,7 +176,7 @@ static struct optee_supp_req  *supp_pop_entry(struct optee_supp *supp,
 
 	if (supp->req_id != -1) {
 		/*
-		 * Supplicant should not mix synchronous and asnynchronous
+		 * Supplicant should not mix synchronous and asynchronous
 		 * requests.
 		 */
 		return ERR_PTR(-EINVAL);
@@ -286,7 +286,7 @@ int optee_supp_recv(struct tee_context *ctx, u32 *func, u32 *num_params,
 
 	if (num_meta) {
 		/*
-		 * tee-supplicant support meta parameters -> requsts can be
+		 * tee-supplicant support meta parameters -> requests can be
 		 * processed asynchronously.
 		 */
 		param->attr = TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT |

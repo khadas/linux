@@ -370,7 +370,7 @@ EXPORT_SYMBOL_GPL(tee_shm_free);
 /**
  * tee_shm_va2pa() - Get physical address of a virtual address
  * @shm:	Shared memory handle
- * @va:		Virtual address to tranlsate
+ * @va:		Virtual address to translate
  * @pa:		Returned physical address
  * @returns 0 on success and < 0 on failure
  */
@@ -392,7 +392,7 @@ EXPORT_SYMBOL_GPL(tee_shm_va2pa);
 /**
  * tee_shm_pa2va() - Get virtual address of a physical address
  * @shm:	Shared memory handle
- * @pa:		Physical address to tranlsate
+ * @pa:		Physical address to translate
  * @va:		Returned virtual address
  * @returns 0 on success and < 0 on failure
  */

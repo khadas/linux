@@ -1,3 +1,7 @@
+#SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+#
+# Copyright (c) 2015-2022, Amlogic, Inc.
+
 #!/bin/bash
 
 LOCAL_PATH=`pwd`

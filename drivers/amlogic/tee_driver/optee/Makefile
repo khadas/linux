@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
 M ?= $(srctree)/drivers/amlogic/tee_driver
 KERNEL_SRC ?= $(srctree)
 

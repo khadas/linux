@@ -104,7 +104,7 @@ int optee_from_msg_param(struct tee_param *params, size_t num_params,
  * optee_to_msg_param() - convert from struct tee_params to OPTEE_MSG parameters
  * @msg_params:	OPTEE_MSG parameters
  * @num_params:	number of elements in the parameter arrays
- * @params:	subsystem itnernal parameter representation
+ * @params:	subsystem internal parameter representation
  * Returns 0 on success or <0 on failure
  */
 int optee_to_msg_param(struct optee_msg_param *msg_params, size_t num_params,
