@@ -35,7 +35,7 @@ struct evl_monitor {
 		};
 		struct {
 			struct evl_wait_queue wait_queue;
-			struct evl_monitor *gate;
+			struct evl_monitor *gate; /* only valid during active wait. */
 			struct evl_poll_head poll_head;
 			struct list_head next; /* in ->events */
 		};
@@ -61,6 +61,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	struct evl_monitor *event;
 	struct evl_file *efilp;
 	unsigned long flags;
+	struct evl_rq *rq;
 	int ret = 0;
 
 	event = get_monitor_by_fd(monfd, &efilp);
@@ -78,15 +79,11 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	 * loosing events. Too bad.
 	 */
 	if (target->wchan == &event->wait_queue.wchan) {
-		raw_spin_lock_irqsave(&event->wait_queue.lock, flags);
 		event->state->flags |= (EVL_MONITOR_TARGETED|
 					EVL_MONITOR_SIGNALED);
-		raw_spin_lock(&target->lock);
-		raw_spin_lock(&target->rq->lock);
+		rq = evl_get_thread_rq(target, flags);
 		target->info |= T_SIGNAL;
-		raw_spin_unlock(&target->rq->lock);
-		raw_spin_unlock(&target->lock);
-		raw_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
+		evl_put_thread_rq(target, rq, flags);
 	}
 out:
 	evl_put_file(efilp);
@@ -167,18 +164,18 @@ static void wakeup_waiters(struct evl_monitor *event)
 	 * the thread heading the wait queue is readied.
 	 */
 	if (evl_wait_active(&event->wait_queue)) {
-		if (bcast)
+		if (bcast) {
 			evl_flush_wait_locked(&event->wait_queue, 0);
-		else if (state->flags & EVL_MONITOR_TARGETED) {
+		} else if (state->flags & EVL_MONITOR_TARGETED) {
 			evl_for_each_waiter_safe(waiter, n,
 						&event->wait_queue) {
 				if (waiter->info & T_SIGNAL)
 					evl_wake_up(&event->wait_queue,
 						waiter, 0);
 			}
-		} else
+		} else {
 			evl_wake_up_head(&event->wait_queue);
-
+		}
 		__untrack_event(event);
 	} /* Otherwise, spurious wakeup (fine, might happen). */
 
@@ -274,6 +271,11 @@ static int exit_monitor(struct evl_monitor *gate)
 		}
 	}
 
+	/*
+	 * The whole wakeup+exit sequence must appear as atomic, drop
+	 * the gate lock last so that we are fully covered until the
+	 * monitor is released.
+	 */
 	__exit_monitor(gate, curr);
 
 	raw_spin_unlock_irqrestore(&gate->lock, flags);
@@ -448,6 +450,7 @@ static int wait_monitor(struct file *filp,
 	struct evl_file *efilp;
 	enum evl_tmode tmode;
 	unsigned long flags;
+	struct evl_rq *rq;
 	ktime_t timeout;
 
 	if (event->type != EVL_MONITOR_EVENT) {
@@ -483,7 +486,6 @@ static int wait_monitor(struct file *filp,
 	}
 
 	raw_spin_lock_irqsave(&gate->lock, flags);
-	raw_spin_lock(&event->wait_queue.lock);
 
 	/*
 	 * Track event monitors the gate protects. When multiple
@@ -497,7 +499,6 @@ static int wait_monitor(struct file *filp,
 		event->gate = gate;
 		event->state->u.event.gate_offset = evl_shared_offset(gate->state);
 	} else if (event->gate != gate) {
-		raw_spin_unlock(&event->wait_queue.lock);
 		raw_spin_unlock_irqrestore(&gate->lock, flags);
 		op_ret = -EBADFD;
 		goto put;
@@ -508,15 +509,16 @@ static int wait_monitor(struct file *filp,
 	 * called later on, do not perform the WOLI checks when
 	 * enqueuing.
 	 */
+	raw_spin_lock(&event->wait_queue.lock);
 	evl_add_wait_queue_unchecked(&event->wait_queue, timeout, tmode);
-
-	raw_spin_lock(&curr->lock);
-	raw_spin_lock(&curr->rq->lock);
-	curr->info &= ~T_SIGNAL;
-	raw_spin_unlock(&curr->rq->lock);
-	raw_spin_unlock(&curr->lock);
 	raw_spin_unlock(&event->wait_queue.lock);
-	__exit_monitor(gate, curr);
+
+	rq = evl_get_thread_rq_noirq(curr);
+	curr->info &= ~T_SIGNAL;
+	evl_put_thread_rq_noirq(curr, rq);
+
+	__exit_monitor(gate, curr); /* See comment in exit_monitor(). */
+
 	raw_spin_unlock_irqrestore(&gate->lock, flags);
 
 	/*
