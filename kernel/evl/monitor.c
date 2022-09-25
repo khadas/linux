@@ -260,13 +260,11 @@ static int exit_monitor(struct evl_monitor *gate)
 	 */
 	raw_spin_lock_irqsave(&gate->lock, flags);
 
-	__exit_monitor(gate, curr);
-
+	/*
+	 * While gate.mutex is still held by current, we can
+	 * manipulate the state flags racelessly.
+	 */
 	if (state->flags & EVL_MONITOR_SIGNALED) {
-		/*
-		 * gate.mutex is held by current, so we are covered
-		 * against races with userland manipulating the flags.
-		 */
 		state->flags &= ~EVL_MONITOR_SIGNALED;
 		list_for_each_entry_safe(event, n, &gate->events, next) {
 			raw_spin_lock(&event->wait_queue.lock);
@@ -275,6 +273,8 @@ static int exit_monitor(struct evl_monitor *gate)
 			raw_spin_unlock(&event->wait_queue.lock);
 		}
 	}
+
+	__exit_monitor(gate, curr);
 
 	raw_spin_unlock_irqrestore(&gate->lock, flags);
 
