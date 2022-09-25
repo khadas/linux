@@ -385,6 +385,21 @@ static inline bool evl_cannot_block(void)
 		raw_spin_unlock_irqrestore(&(__thread)->lock, __flags);	\
 	} while (0)
 
+#define evl_get_thread_rq_noirq(__thread)				\
+	({								\
+		struct evl_rq *__rq;					\
+		raw_spin_lock(&(__thread)->lock);			\
+		__rq = (__thread)->rq;					\
+		raw_spin_lock(&__rq->lock);				\
+		__rq;							\
+	})
+
+#define evl_put_thread_rq_noirq(__thread, __rq)				\
+	do {								\
+		raw_spin_unlock(&(__rq)->lock);				\
+		raw_spin_unlock(&(__thread)->lock);			\
+	} while (0)
+
 bool evl_set_effective_thread_priority(struct evl_thread *thread,
 				       int prio);
 
