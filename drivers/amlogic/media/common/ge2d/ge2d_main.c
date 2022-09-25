@@ -49,6 +49,7 @@
 #define MAX_GE2D_CLK 500000000
 #define HHI_MEM_PD_REG0 0x40
 #define RESET2_LEVEL    0x422
+#define GE2D_AUTO_POWER_OFF_DELAY (200) /* ms */
 
 struct ge2d_device_s {
 	char name[20];
@@ -1636,8 +1637,12 @@ static int ge2d_probe(struct platform_device *pdev)
 
 	ret = ge2d_wq_init(pdev, irq, clk_gate);
 
-	if (ge2d_meson_dev.has_self_pwr)
+	if (ge2d_meson_dev.has_self_pwr) {
+		pm_runtime_set_autosuspend_delay(&pdev->dev,
+						 GE2D_AUTO_POWER_OFF_DELAY);
+		pm_runtime_use_autosuspend(&pdev->dev);
 		pm_runtime_enable(&pdev->dev);
+	}
 
 #ifdef CONFIG_AMLOGIC_FREERTOS
 	/* To avoid interfering with RTOS clock/power/interrupt resources,

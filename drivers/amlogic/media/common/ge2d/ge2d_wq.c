@@ -158,9 +158,8 @@ void ge2d_runtime_pwr(int enable)
 		if (ret < 0)
 			ge2d_log_err("runtime get power error\n");
 	} else {
-		ret = pm_runtime_put_sync(dev);
-		if (ret < 0)
-			ge2d_log_err("runtime put power error\n");
+		pm_runtime_mark_last_busy(dev);
+		pm_runtime_put_autosuspend(dev);
 	}
 }
 
