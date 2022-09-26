@@ -694,6 +694,9 @@ static int aml_dvb_probe(struct platform_device *pdev)
 
 	mutex_init(&advb->mutex);
 
+	ret = tee_demux_get(TEE_DMX_GET_SECURITY_ENABLE,
+			NULL, 0, &is_security_dmx, sizeof(is_security_dmx));
+
 	ret = init_demux_addr(pdev);
 	if (ret != 0)
 		return ret;
@@ -757,9 +760,6 @@ static int aml_dvb_probe(struct platform_device *pdev)
 
 	class_register(&aml_stb_class);
 	dmx_regist_dmx_class();
-
-	ret = tee_demux_get(TEE_DMX_GET_SECURITY_ENABLE,
-			NULL, 0, &is_security_dmx, sizeof(is_security_dmx));
 
 	dprint("probe dvb done, ret:%d, is_security_dmx:%d\n",
 			ret, is_security_dmx);
