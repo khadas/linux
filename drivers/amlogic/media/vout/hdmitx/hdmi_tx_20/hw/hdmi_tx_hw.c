@@ -549,7 +549,12 @@ static void hdmi_hwi_init(struct hdmitx_dev *hdev)
 
 	hdmitx_set_reg_bits(HDMITX_DWC_FC_INVIDCONF, 1, 7, 1);
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG1, 0x67);
-	hdmitx_wr_reg(HDMITX_TOP_DISABLE_NULL, 0x7); /* disable NULL pkt */
+	if (hdmitx_find_vendor_null_pkt(hdev)) {
+		hdmitx_wr_reg(HDMITX_TOP_DISABLE_NULL, 0x6);
+		pr_info(HW "special TV, need enable NULL packet\n");
+	} else {
+		hdmitx_wr_reg(HDMITX_TOP_DISABLE_NULL, 0x7); /* disable NULL pkt */
+	}
 	hdmitx_wr_reg(HDMITX_DWC_A_HDCPCFG0, 0x13);
 	hdmitx_set_reg_bits(HDMITX_DWC_HDCP22REG_CTRL, 1, 1, 1);
 	/* Enable skpclk to HDCP2.2 IP */

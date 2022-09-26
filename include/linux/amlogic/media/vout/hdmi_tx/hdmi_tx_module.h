@@ -938,6 +938,7 @@ bool hdmitx_hdr10p_en(void);
 bool LGAVIErrorTV(struct rx_cap *prxcap);
 bool hdmitx_find_vendor_6g(struct hdmitx_dev *hdev);
 bool hdmitx_find_vendor_ratio(struct hdmitx_dev *hdev);
+bool hdmitx_find_vendor_null_pkt(struct hdmitx_dev *hdev);
 
 int hdmitx_uboot_already_display(int type);
 
