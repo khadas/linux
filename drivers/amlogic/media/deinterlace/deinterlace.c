@@ -3707,7 +3707,8 @@ static void pre_de_done_buf_config(void)
 			post_wr_buf->vframe->di_gmv = 0;
 			post_wr_buf->vframe->di_cm_cnt = 0;
 		}
-
+		if (IS_ERR_OR_NULL(post_wr_buf))
+			return;
 		if (post_wr_buf && !di_pre_stru.cur_prog_flag) {
 			read_pulldown_info(&glb_frame_mot_num,
 				&glb_field_mot_num);

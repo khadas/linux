@@ -4263,7 +4263,8 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 			post_wr_buf->vframe->di_gmv = 0;
 			post_wr_buf->vframe->di_cm_cnt = 0;
 		}
-
+		if (IS_ERR_OR_NULL(post_wr_buf))
+			return;
 		if (post_wr_buf && !ppre->cur_prog_flag &&
 		    !flg_timeout && ppre->di_inp_buf) {
 			dim_read_pulldown_info(&frame_motnum,
