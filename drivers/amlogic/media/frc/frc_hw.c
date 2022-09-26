@@ -1955,6 +1955,8 @@ void frc_get_film_base_vf(struct frc_dev_s *frc_devp)
 	pfw_data = (struct frc_fw_data_s *)frc_devp->fw_data;
 	pfw_data->frc_top_type.film_mode = EN_VIDEO;
 	pfw_data->frc_top_type.vfp &= 0xFFFFFFF0;
+	if (frc_devp->in_sts.frc_is_tvin)  // HDMI_src no inform alg
+		return;
 	if ((pfw_data->frc_top_type.vfp & BIT_7) == BIT_7)
 		return;
 	pfw_data->frc_top_type.vfp |= 0x4;
