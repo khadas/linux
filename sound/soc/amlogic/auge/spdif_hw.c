@@ -105,7 +105,7 @@ void aml_spdif_arb_config(struct aml_audio_controller *actrl, bool use_arb)
 {
 	/* config ddr arb */
 	if (use_arb)
-		aml_audiobus_write(actrl, EE_AUDIO_ARB_CTRL, 1 << 31 | 0xff << 0);
+		aml_audiobus_write(actrl, EE_AUDIO_ARB_CTRL, 1 << 31 | 0xfff << 0);
 }
 
 int aml_spdifin_status_check(struct aml_audio_controller *actrl)

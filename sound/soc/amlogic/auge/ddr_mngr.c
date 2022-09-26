@@ -2225,8 +2225,8 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
-	.toddr_num             = 4,
-	.frddr_num             = 4,
+	.toddr_num             = 5,
+	.frddr_num             = 5,
 	.fifo_depth            = FIFO_DEPTH_1K,
 	.chnum_sync            = true,
 	.burst_finished_flag   = true,
@@ -2365,6 +2365,7 @@ static struct ddr_info ddr_info[] = {
 	{EE_AUDIO_TODDR_B_CTRL0, EE_AUDIO_FRDDR_B_CTRL0, "toddr_b", "frddr_b"},
 	{EE_AUDIO_TODDR_C_CTRL0, EE_AUDIO_FRDDR_C_CTRL0, "toddr_c", "frddr_c"},
 	{EE_AUDIO_TODDR_D_CTRL0, EE_AUDIO_FRDDR_D_CTRL0, "toddr_d", "frddr_d"},
+	{EE_AUDIO_TODDR_E_CTRL0, EE_AUDIO_FRDDR_E_CTRL0, "toddr_e", "frddr_e"},
 };
 
 static int ddr_get_toddr_base_addr_by_idx(int idx)

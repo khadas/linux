@@ -28,7 +28,7 @@
 #define FIFO_DEPTH_1K               0x400
 #define FIFO_DEPTH_512              0x200
 
-#define DDRMAX 4
+#define DDRMAX 5
 
 enum ddr_num {
 	DDR_A,

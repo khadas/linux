@@ -134,7 +134,8 @@ static int register_audio_controller(struct platform_device *pdev,
 	aml_audiobus_write(actrl, EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
 
 	if (info && !info->clk1_gate_off)
-		aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_CLK_GATE_EN1, 0xffffffff, 0xffffffff);
+
 	return 0;
 }
 
