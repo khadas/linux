@@ -803,8 +803,6 @@ static void do_fence_thread(struct video_queue_dev *dev)
 	fence_file = dq_info->fence_file;
 	dq_info->used = false;
 
-	sync_file = NULL;
-	fence_obj = NULL;
 	if (!IS_ERR_OR_NULL(fence_file))
 		sync_file = (struct sync_file *)fence_file->private_data;
 	else
@@ -883,7 +881,7 @@ static int vq_file_thread(void *data)
 		if (vf)
 			tmp_pts = DUR2PTS(vf->duration);
 
-		vq_print(P_OTHER, "tmp_pts:%d, vsync_pts_inc:%d\n", tmp_pts, vsync_pts_inc);
+		vq_print(P_OTHER, "tmp_pts:%d, vsync_pts_inc:%llu\n", tmp_pts, vsync_pts_inc);
 		if (tmp_pts > 0 && tmp_pts < vsync_pts_inc) {
 			vq_print(P_OTHER, "enter new flow.\n");
 			do

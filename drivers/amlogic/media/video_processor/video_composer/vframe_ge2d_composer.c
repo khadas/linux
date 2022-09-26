@@ -361,7 +361,7 @@ static int copy_phybuf_to_file(struct canvas_config_s *config,
 static bool dump_data(struct dump_param *para, enum buffer_data type)
 {
 	struct file *filp_dst = NULL;
-	char dst_path[64];
+	char dst_path[64] = {'\0'};
 	struct canvas_config_s *dump_config;
 	int result = 0;
 	int offset = 0;

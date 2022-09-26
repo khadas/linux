@@ -709,7 +709,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct page *page = NULL;
 	void *phy_addr = NULL;
 
-	if (p->index > IONVIDEO_POOL_SIZE) {
+	if (p->index >= IONVIDEO_POOL_SIZE) {
 		pr_err("ionvideo: dbuf: err index=%d\n", p->index);
 		return -EINVAL;
 	}

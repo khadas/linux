@@ -195,7 +195,7 @@ int vfm_map_add(char *id, char *name_chain)
 			       VFM_NAME_LEN - 1);
 			p->name[p->vfm_map_size][VFM_NAME_LEN - 1] = '\0';
 		} else {
-			memcpy(p->name[p->vfm_map_size], token, strlen(token));
+			memcpy(p->name[p->vfm_map_size], token, strlen(token) + 1);
 		}
 		p->vfm_map_size++;
 	} while (token && cnt--);

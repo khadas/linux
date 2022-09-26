@@ -598,6 +598,8 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 		input_fps = vf->duration * 15;
 		get_output_pcrscr_info(&output_pts_inc_scale, &output_pts_inc_scale_base);
 		output_fps = 90000 * 16 * (u64)output_pts_inc_scale;
+		if (!output_pts_inc_scale_base)
+			return NULL;
 		output_fps = div64_u64(output_fps, output_pts_inc_scale_base);
 		vc_print(dev->index, PRINT_OTHER,
 			"peek: input_fps=%d, output_fps=%d.\n", input_fps, output_fps);
