@@ -22,15 +22,15 @@
 //------------------------------------------------------------------------------
 // VIU registers 0x20 -0x3f
 //------------------------------------------------------------------------------
-#define VIU_VD1_MISC                               0x1a10
-#define VIU_VD2_MISC                               0x1a11
-#define VIU_VD3_MISC                               0x1a12
-#define VIU_VD4_MISC                               0x1a13
-#define VIU_VD5_MISC                               0x1a14
-#define VIU_OSD1_MISC                              0x1a15
-#define VIU_OSD2_MISC                              0x1a16
-#define VIU_OSD3_MISC                              0x1a17
-#define VIU_OSD4_MISC                              0x1a18
+#define S5_VIU_VD1_MISC                               0x1a10
+#define S5_VIU_VD2_MISC                               0x1a11
+#define S5_VIU_VD3_MISC                               0x1a12
+#define S5_VIU_VD4_MISC                               0x1a13
+#define S5_VIU_VD5_MISC                               0x1a14
+#define S5_VIU_OSD1_MISC                              0x1a15
+#define S5_VIU_OSD2_MISC                              0x1a16
+#define S5_VIU_OSD3_MISC                              0x1a17
+#define S5_VIU_OSD4_MISC                              0x1a18
 #define VIU_VIU0_MISC                              0x1a19
 #define VIU_VIU1_MISC                              0x1a1a
 #define VIU_VIU2_MISC                              0x1a1b

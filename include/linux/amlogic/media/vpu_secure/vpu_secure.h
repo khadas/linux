@@ -31,6 +31,11 @@ enum module_port_e {
 	MAX_SECURE_OUT
 };
 
+/* v4 extern secure bits */
+#define VD1_SLICE3_SECURE       BIT(12)
+#define VD1_SLICE2_SECURE       BIT(11)
+#define VD1_SLICE1_SECURE       BIT(10)
+
 /* v2 extend secure bits */
 #define VPP2_OUTPUT_SECURE      BIT(12)
 #define VPP1_OUTPUT_SECURE      BIT(11)

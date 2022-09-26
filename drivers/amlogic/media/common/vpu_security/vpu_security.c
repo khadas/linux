@@ -38,6 +38,7 @@
 #include <linux/amlogic/media/utils/vdec_reg.h>
 
 #include "vpu_security.h"
+#include "vpu_security_reg.h"
 
 #define DEVICE_NAME "vpu_security"
 #define CLASS_NAME  "vpu_security"
@@ -92,6 +93,22 @@ static struct vpu_sec_reg_s reg_v3[] = {
 	{VIU_FRM_CTRL,         1, 26, 1}  /* 12. VPP_TOP2 */
 };
 
+static struct vpu_sec_reg_s reg_v4[] = {
+	{S5_VIU_OSD1_MISC,   1, 4, 1}, /* 00. OSD1 */
+	{S5_VIU_OSD2_MISC,   1, 4, 1}, /* 01. OSD2 */
+	{S5_VIU_VD1_MISC,    1, 4, 1}, /* 02. vd1 slice 0 */
+	{S5_VIU_VD5_MISC,	 1, 4, 1}, /* 03. vd2 */
+	{S5_VIU_OSD3_MISC,   1, 4, 1}, /* 04. OSD3 */
+	{0,                  1,  0, 1}, /* 05. VD AFBC, not used */
+	{0,                  1,  0, 1}, /* 06. DV, not used */
+	{S5_VIU_OSD1_MISC,   1, 5, 1}, /* 07. MALI_AFBCD0 */
+	{S5_VIU_OSD3_MISC,   1, 5, 1}, /* 08. MALI_AFBCD1 */
+	{S5_VIU_OSD4_MISC,   1, 4, 1}, /* 09. OSD4 */
+	{S5_VIU_VD2_MISC,    1, 4, 1}, /* 10. 02.1 vd1 slice 1 */
+	{S5_VIU_VD3_MISC,    1, 4, 1}, /* 11. 02.1 vd1 slice 2 */
+	{S5_VIU_VD4_MISC,    1, 4, 1}, /* 12. 02.1 vd1 slice 3 */
+};
+
 static struct sec_dev_data_s vpu_security_sc2 = {
 	.version = VPU_SEC_V1,
 };
@@ -106,6 +123,10 @@ static struct sec_dev_data_s vpu_security_t7 = {
 
 static struct sec_dev_data_s vpu_security_t3 = {
 	.version = VPU_SEC_V3,
+};
+
+static struct sec_dev_data_s vpu_security_s5 = {
+	.version = VPU_SEC_V4,
 };
 
 static const struct of_device_id vpu_security_dt_match[] = {
@@ -124,6 +145,10 @@ static const struct of_device_id vpu_security_dt_match[] = {
 	{
 		.compatible = "amlogic, meson-t3, vpu_security",
 		.data = &vpu_security_t3,
+	},
+	{
+		.compatible = "amlogic, meson-s5, vpu_security",
+		.data = &vpu_security_s5,
 	},
 	{}
 };
@@ -204,6 +229,9 @@ static void secure_reg_update(struct vpu_secure_ins *ins,
 		} else if (version == VPU_SEC_V3) {
 			reg_size = ARRAY_SIZE(reg_v3);
 			reg_item = &reg_v3[0];
+		} else if (version == VPU_SEC_V4) {
+			reg_size = ARRAY_SIZE(reg_v4);
+			reg_item = &reg_v4[0];
 		}
 
 		/* work through the array and write bit(s) */
@@ -235,12 +263,13 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 	static bool osd_secure_en[VPP_TOP_MAX] = {0,};
 	static bool video_secure_en[VPP_TOP_MAX] = {0,};
 	static int value_save[VPP_TOP_MAX] = {0,};
-	u32 value = 0;
+	u32 value = 0, version = 0;
 	int secure_update = 0;
 	struct vd_secure_info_s vd_secure[MAX_SECURE_OUT];
 	bool vpp_top_en = 0;
 	struct vpu_sec_bit_s change;
 
+	version = vpu_secure_version();
 	if (is_vpu_secure_support()) {
 		switch (module) {
 		case OSD_MODULE:
@@ -282,6 +311,16 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 				video_secure[vpp_index] = secure_src;
 				value = video_secure[vpp_index] |
 					osd_secure[vpp_index];
+				if (version == VPU_SEC_V4) {
+					u32 temp;
+
+					if (value & VD1_INPUT_SECURE) {
+						temp = VD1_SLICE1_SECURE |
+							VD1_SLICE2_SECURE |
+							VD1_SLICE3_SECURE;
+						value |= temp;
+					}
+				}
 				ins->secure_enable = 1;
 				ins->secure_status = value;
 				video_secure_en[vpp_index] = 1;
@@ -303,27 +342,28 @@ u32 set_vpu_module_security(struct vpu_secure_ins *ins,
 			break;
 		}
 
-		vpp_top_en = osd_secure_en[vpp_index] ||
-			     video_secure_en[vpp_index];
-		if (vpp_index == 0) {
-			if (vpp_top_en)
-				value |= VPP_OUTPUT_SECURE;
-			else
-				value &= ~VPP_OUTPUT_SECURE;
+		if (version < VPU_SEC_V4) {
+			vpp_top_en = osd_secure_en[vpp_index] ||
+				     video_secure_en[vpp_index];
+			if (vpp_index == 0) {
+				if (vpp_top_en)
+					value |= VPP_OUTPUT_SECURE;
+				else
+					value &= ~VPP_OUTPUT_SECURE;
+			}
+			if (vpp_index == 1) {
+				if (vpp_top_en)
+					value |= VPP1_OUTPUT_SECURE;
+				else
+					value &= ~VPP1_OUTPUT_SECURE;
+			}
+			if (vpp_index == 2) {
+				if (vpp_top_en)
+					value |= VPP2_OUTPUT_SECURE;
+				else
+					value &= ~VPP2_OUTPUT_SECURE;
+			}
 		}
-		if (vpp_index == 1) {
-			if (vpp_top_en)
-				value |= VPP1_OUTPUT_SECURE;
-			else
-				value &= ~VPP1_OUTPUT_SECURE;
-		}
-		if (vpp_index == 2) {
-			if (vpp_top_en)
-				value |= VPP2_OUTPUT_SECURE;
-			else
-				value &= ~VPP2_OUTPUT_SECURE;
-		}
-
 		/* debug value setting */
 		if (debug_value)
 			value = debug_value;

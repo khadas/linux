@@ -3749,10 +3749,10 @@ static void vd_switch_frm_idx(u32 vpp_index, u32 frm_idx)
 
 	if (frm_idx == 0) {
 		rdma_wr_bits(VIU_VIU0_MISC, frm_idx, 0, 1);
-		rdma_wr_bits(VIU_VD1_MISC, 1, 8, 6);
+		rdma_wr_bits(S5_VIU_VD1_MISC, 1, 8, 6);
 	} else if (frm_idx == 1) {
 		rdma_wr_bits(VIU_VIU0_MISC, frm_idx, 0, 1);
-		rdma_wr_bits(VIU_VD1_MISC, 2, 8, 6);
+		rdma_wr_bits(S5_VIU_VD1_MISC, 2, 8, 6);
 	}
 }
 
