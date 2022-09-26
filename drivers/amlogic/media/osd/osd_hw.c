@@ -7410,6 +7410,8 @@ static void osd_update_enable(u32 index)
 
 	output_index = get_output_device_id(index);
 
+	if (osd_hw.osd_meson_dev.osd_ver == OSD_SIMPLE)
+		osd_set_scan_mode(index);
 	if (osd_hw.osd_meson_dev.afbc_type == MESON_AFBC &&
 	    osd_hw.enable[index] == ENABLE) {
 		/* only for osd1 */
@@ -12916,6 +12918,9 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		/* g12a and g12b need delay */
 		supsend_delay = 50;
 	}
+	/*close gamma only for axg*/
+	if (osd_hw.osd_meson_dev.osd_ver == OSD_SIMPLE)
+		osd_reg_write(L_GAMMA_CNTL_PORT, 0);
 	/* here we will init default value ,these value only set once . */
 	if (!logo_loaded) {
 		if (osd_dev_hw.multi_afbc_core)

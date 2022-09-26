@@ -645,10 +645,10 @@
 	};
 
 	meson-fb {
-		compatible = "amlogic, meson-axg";
+		compatible = "amlogic, fb-axg";
 		memory-region = <&fb_reserved>;
 		dev_name = "meson-fb";
-		status = "disabled";
+		status = "okay";
 		interrupts = <0 3 1
 			0 89 1>;
 		interrupt-names = "viu-vsync", "rdma";

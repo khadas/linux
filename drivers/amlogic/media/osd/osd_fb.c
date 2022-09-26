@@ -2136,8 +2136,8 @@ int osd_notify_callback(struct notifier_block *block,
 				osddev_update_disp_axis(fb_dev, 1);
 
 				osd_set_antiflicker_hw
-					(DEV_OSD1, vinfo,
-					gp_fbdev_list[DEV_OSD1]
+					(i, vinfo,
+					gp_fbdev_list[i]
 					->fb_info->var.yres);
 				osd_reg_write(VPP_POSTBLEND_H_SIZE,
 					      vinfo->width);
@@ -4587,7 +4587,7 @@ static struct osd_device_data_s osd_axg = {
 	.has_rdma = 0,
 	.has_dolby_vision = 0,
 	 /* use iomap its self, no rdma, no canvas, no freescale */
-	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.osd_fifo_len = 32, /* fifo len 64*8 = 512 */
 	.vpp_fifo_len = 0x400,
 	.dummy_data = 0x00808000,
 	.has_viu2 = 0,
