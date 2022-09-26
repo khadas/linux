@@ -1042,7 +1042,8 @@ static void rmnet_mbim_rx_handler(void *dev, struct sk_buff *skb_in)
 
 			qmap_skb = netdev_alloc_skb(qmap_net,  skb_len);
 			if (!qmap_skb) {
-				MSG_ERR("skb_clone fail\n");
+				mhi_netdev->stats.alloc_failed++;
+				//MSG_ERR("skb_clone fail\n"); //do not print in softirq
 				goto error;
 			}
 
@@ -1214,8 +1215,9 @@ static void rmnet_qmi_rx_handler(void *dev, struct sk_buff *skb_in)
 		}
 
 		if (qmap_skb == NULL) {
-			netdev_info(ndev, "fail to alloc skb, pkt_len = %d\n", skb_len);
-			goto error_pkt;;
+			pQmapDev->stats.alloc_failed++;
+			//netdev_info(ndev, "fail to alloc skb, pkt_len = %d\n", skb_len); //do not print in softirq
+			goto error_pkt;
 		}
 
 		skb_reset_transport_header(qmap_skb);
@@ -1706,7 +1708,7 @@ static int mhi_netdev_poll(struct napi_struct *napi, int budget)
 	/* queue new buffers */
 	ret = mhi_netdev->rx_queue(mhi_netdev, GFP_ATOMIC);
 	if (ret == -ENOMEM) {
-		MSG_LOG("out of tre, queuing bg worker\n");
+		//MSG_LOG("out of tre, queuing bg worker\n"); //do not print in softirq
 		mhi_netdev->stats.alloc_failed++;
 		schedule_work(&mhi_netdev->alloc_work);
 	}
@@ -1928,6 +1930,15 @@ static int qmap_ndo_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return rc;
 }
 
+#if (LINUX_VERSION_CODE > KERNEL_VERSION( 5,14,0 )) //b9067f5dc4a07c8e24e01a1b277c6722d91be39e
+#define use_ndo_siocdevprivate
+#endif
+#ifdef use_ndo_siocdevprivate
+static int qmap_ndo_siocdevprivate(struct net_device *dev, struct ifreq *ifr, void __user *data, int cmd) {
+	return qmap_ndo_do_ioctl(dev, ifr, cmd);
+}
+#endif
+
 static const struct net_device_ops mhi_netdev_ops_ip = {
 	.ndo_open = mhi_netdev_open,
 	.ndo_start_xmit = mhi_netdev_xmit,
@@ -1939,6 +1950,9 @@ static const struct net_device_ops mhi_netdev_ops_ip = {
 	.ndo_set_mac_address = eth_mac_addr,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_do_ioctl = qmap_ndo_do_ioctl,
+#ifdef use_ndo_siocdevprivate
+	.ndo_siocdevprivate = qmap_ndo_siocdevprivate,
+#endif
 };
 
 static void mhi_netdev_get_drvinfo (struct net_device *ndev, struct ethtool_drvinfo *info)

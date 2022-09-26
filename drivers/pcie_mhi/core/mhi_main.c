@@ -225,9 +225,11 @@ int mhi_queue_nop(struct mhi_device *mhi_dev,
 static void mhi_add_ring_element(struct mhi_controller *mhi_cntrl,
 				 struct mhi_ring *ring)
 {
-	ring->wp += ring->el_size;
-	if (ring->wp >= (ring->base + ring->len))
-		ring->wp = ring->base;
+	void *wp = ring->wp;
+	wp += ring->el_size;
+	if (wp >= (ring->base + ring->len))
+		wp = ring->base;
+	ring->wp = wp;
 	/* smp update */
 	smp_wmb();
 }
@@ -235,9 +237,11 @@ static void mhi_add_ring_element(struct mhi_controller *mhi_cntrl,
 static void mhi_del_ring_element(struct mhi_controller *mhi_cntrl,
 				 struct mhi_ring *ring)
 {
-	ring->rp += ring->el_size;
-	if (ring->rp >= (ring->base + ring->len))
-		ring->rp = ring->base;
+	void *rp = ring->rp;
+	rp += ring->el_size;
+	if (rp >= (ring->base + ring->len))
+		rp = ring->base;
+	ring->rp = rp;
 	/* smp update */
 	smp_wmb();
 }

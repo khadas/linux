@@ -1,5 +1,17 @@
 Release Notes
 
+[V1.3.3]
+Date:   5/18/2022
+enhancement:
+fix:
+ 1. Fix not synchronize access rp/wp when mhi_queue_xxx and mhi_process_xxx_ring run on different CPU
+
+[V1.3.2]
+Date:   12/16/2021
+enhancement:
+  1. support Linux Kernel V5.14
+  2. mhi_netdev_quectel.c do not print log in softirq context
+
 [V1.3.1]
 Date:   9/26/2021
 enhancement:

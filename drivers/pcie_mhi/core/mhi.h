@@ -4,7 +4,7 @@
 #ifndef _MHI_H_
 #define _MHI_H_
 
-#define PCIE_MHI_DRIVER_VERSION "V1.3.1"
+#define PCIE_MHI_DRIVER_VERSION "V1.3.3"
 
 #include <linux/miscdevice.h>
 typedef enum
@@ -809,7 +809,7 @@ void mhi_debug_reg_dump(struct mhi_controller *mhi_cntrl);
 
 #define MHI_VERB(fmt, ...) do { \
 		if (mhi_cntrl->klog_lvl <= MHI_MSG_LVL_VERBOSE) \
-			pr_debug("[D][%s] " fmt, __func__, ##__VA_ARGS__);\
+			pr_debug("[D][cntrl_idx=%d][%s] " fmt, mhi_cntrl->cntrl_idx, __func__, ##__VA_ARGS__);\
 } while (0)
 
 #else
@@ -820,19 +820,19 @@ void mhi_debug_reg_dump(struct mhi_controller *mhi_cntrl);
 
 #define MHI_LOG(fmt, ...) do {	\
 		if (mhi_cntrl->klog_lvl <= MHI_MSG_LVL_INFO) \
-			pr_info("[I][%s] " fmt, __func__, ##__VA_ARGS__);\
+			pr_info("[I][cntrl_idx=%d][%s] " fmt, mhi_cntrl->cntrl_idx, __func__, ##__VA_ARGS__);\
 		else if (!mhi_cntrl->klog_slient) \
-			printk(KERN_DEBUG "[I][%s] " fmt, __func__, ##__VA_ARGS__);\
+			printk(KERN_DEBUG "[I][cntrl_idx=%d][%s] " fmt, mhi_cntrl->cntrl_idx, __func__, ##__VA_ARGS__);\
 } while (0)
 
 #define MHI_ERR(fmt, ...) do {	\
 		if (mhi_cntrl->klog_lvl <= MHI_MSG_LVL_ERROR) \
-			pr_err("[E][%s] " fmt, __func__, ##__VA_ARGS__); \
+			pr_err("[E][cntrl_idx=%d][%s] " fmt, mhi_cntrl->cntrl_idx, __func__, ##__VA_ARGS__); \
 } while (0)
 
 #define MHI_CRITICAL(fmt, ...) do { \
 		if (mhi_cntrl->klog_lvl <= MHI_MSG_LVL_CRITICAL) \
-			pr_alert("[C][%s] " fmt, __func__, ##__VA_ARGS__); \
+			pr_alert("[C][cntrl_idx=%d][%s] " fmt, mhi_cntrl->cntrl_idx, __func__, ##__VA_ARGS__); \
 } while (0)
 
 int mhi_register_mhi_controller(struct mhi_controller *mhi_cntrl);

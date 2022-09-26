@@ -164,12 +164,10 @@ static long mhi_uci_ioctl(struct file *file,
 	struct uci_dev *uci_dev = file->private_data;
 	struct mhi_device *mhi_dev = uci_dev->mhi_dev;
 	long ret = -ERESTARTSYS;
-printk("hlm aaa %s \n", __func__);
+
 	mutex_lock(&uci_dev->mutex);
-	if (uci_dev->enabled){
-		printk("hlm bbb %s \n", __func__);
+	if (uci_dev->enabled)
 		ret = mhi_ioctl(mhi_dev, cmd, arg);
-	}
 
 	if (uci_dev->enabled) {
 		switch (cmd) {

@@ -75,8 +75,7 @@ static int mhi_dtr_tiocmset(struct mhi_controller *mhi_cntrl,
 * [75094.969783] mhi_uci_q 0306_00.03.00_DUN: mhi_dtr_tiocmset DTR:0 RTS:1
 * [75100.210994] mhi_uci_q 0306_00.03.00_DUN: mhi_dtr_tiocmset DTR:0 RTS:0
 */
-
-	printk("hlm123 %s DTR:%d RTS:%d\n", __func__,
+	dev_dbg(&mhi_dev->dev, "%s DTR:%d RTS:%d\n", __func__,
 				!!(tiocm & TIOCM_DTR), !!(tiocm & TIOCM_RTS));
 
 	reinit_completion(&dtr_chan->completion);
@@ -110,29 +109,29 @@ long mhi_ioctl(struct mhi_device *mhi_dev, unsigned int cmd, unsigned long arg)
 {
 	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
 	int ret;
-printk("hlm000 %s cmd=%x\n", __func__,cmd);
+
 	/* ioctl not supported by this controller */
 	if (!mhi_cntrl->dtr_dev)
 		return -EIO;
-printk("hlmxxx %s cmd=%x\n", __func__,cmd);
+
 	switch (cmd) {
 	case TIOCMGET:
 		return mhi_dev->tiocm;
 	case TIOCMSET:
 	{
 		u32 tiocm;
-printk("hlm111 %s \n", __func__);
+
 		ret = get_user(tiocm, (u32 *)arg);
 		if (ret)
 			return ret;
-printk("hlm222 %s \n", __func__);
+
 		return mhi_dtr_tiocmset(mhi_cntrl, mhi_dev, tiocm);
 	}
 	default:
 		break;
 	}
-printk("hlm return 0 %s \n", __func__);
-	return 0;
+
+	return -EINVAL;
 }
 EXPORT_SYMBOL(mhi_ioctl);
 
