@@ -1316,7 +1316,7 @@
 			ignore_desc_busy;
 			mmc_debug_flag;
 			tx_delay = <10>;
-			src_clk_rate = <1152000000>;
+			src_clk_rate = <1176000000>;
 		//	resets = <&reset RESET_SD_EMMC_C>;
 		};
 
