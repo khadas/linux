@@ -1,0 +1,6 @@
+config PCIE_RM500Q
+    tristate "Quectel 5G Module"
+    default n
+    help
+      QUECTEL 5G Module with PCIe
+

@@ -234,11 +234,6 @@ source "drivers/amlogic/Kconfig"
 
 source "drivers/gpu/arm/Kconfig"
 
-config CONFIG_PCIE_RM500Q
-    bool "Quectel 5G Module"
-    default n
-    help
-	  QUECTEL 5G Module with PCIe
-
+source "drivers/pcie_mhi/Kconfig"
 
 endmenu
