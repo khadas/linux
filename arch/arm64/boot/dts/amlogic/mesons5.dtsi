@@ -2840,7 +2840,7 @@
 			times = <8>;
 		};
 		pwm_channel2_conf {
-			pwms = <&pwm_ef 2 30500 0>;
+			pwms = <&pwm_ef 3 30500 0>;
 			duty-cycle = <15250>;
 			times = <12>;
 		};
