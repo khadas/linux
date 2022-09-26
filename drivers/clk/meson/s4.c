@@ -769,13 +769,15 @@ static struct s4_sys_pll_nb_data s4_sys_pll_nb_data = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table s4_hifi_pll_table[] = {
-	PLL_PARAMS(192, 1, 2), /* DCO = 4608M OD = 2 PLL = 1152M */
+	//PLL_PARAMS(192, 1, 2), /* DCO = 4608M OD = 2 PLL = 1152M */
+	PLL_PARAMS(196, 1, 2), /* DCO = 4718.592M OD = 2 PLL = 1179.648M */
 	PLL_PARAMS(150, 1, 1), /* DCO = 1806.336M OD = 1 */
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table s4_hifi_pll_table[] = {
-	PLL_PARAMS(192, 1), /* DCO = 4608M OD = 2 PLL = 1152M */
+	//PLL_PARAMS(192, 1), /* DCO = 4608M OD = 2 PLL = 1152M */
+	PLL_PARAMS(196, 1), /* DCO = 4718.592M OD = 2 PLL = 1179.648M */
 	PLL_PARAMS(150, 1), /* DCO = 1806.336M */
 	{ /* sentinel */  }
 };
@@ -785,7 +787,7 @@ static const struct pll_params_table s4_hifi_pll_table[] = {
  * Internal hifi pll emulation configuration parameters
  */
 static const struct reg_sequence s4_hifi_init_regs[] = {
-	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x0001ae14 },
+	{ .reg = ANACTRL_HIFIPLL_CTRL1,	.def = 0x0000ed80 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL2,	.def = 0x00000000 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL3,	.def = 0x6a285c00 },
 	{ .reg = ANACTRL_HIFIPLL_CTRL4,	.def = 0x65771290 },

@@ -1203,19 +1203,10 @@ static struct sc2_dsu_clk_postmux_nb_data sc2_dsu_clk_postmux0_nb_data = {
 	.nb.notifier_call = sc2_dsu_clk_postmux_notifier_cb,
 };
 
-#ifdef CONFIG_ARM
-static const struct pll_params_table sc2_hifi_pll_table[] = {
-	PLL_PARAMS(163, 1, 1), /* DCO = 3932.16M OD = 1 */
-	/*PLL_PARAMS(150, 1, 1),  DCO = 1806.336M OD = 1 */
-	{ /* sentinel */  }
+static const struct pll_mult_range sc2_hifi_pll_m = {
+	.min = 125,
+	.max = 250,
 };
-#else
-static const struct pll_params_table sc2_hifi_pll_table[] = {
-	PLL_PARAMS(163, 1), /* DCO = 3932.16M */
-	/*PLL_PARAMS(150, 1),  DCO = 1806.336M */
-	{ /* sentinel */  }
-};
-#endif
 
 /*
  * Internal hifi pll emulation configuration parameters
@@ -1244,7 +1235,7 @@ static struct clk_regmap sc2_hifi_pll_dco = {
 		.n = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL0,
 			.shift   = 10,
-			.width   = 5,
+			.width   = 1,  /* keep always n = 1 */
 		},
 		.frac = {
 			.reg_off = ANACTRL_HIFIPLL_CTRL1,
@@ -1261,7 +1252,7 @@ static struct clk_regmap sc2_hifi_pll_dco = {
 			.shift   = 29,
 			.width   = 1,
 		},
-		.table = sc2_hifi_pll_table,
+		.range = &sc2_hifi_pll_m,
 		.init_regs = sc2_hifi_init_regs,
 		.init_count = ARRAY_SIZE(sc2_hifi_init_regs),
 		.flags = CLK_MESON_PLL_ROUND_CLOSEST,

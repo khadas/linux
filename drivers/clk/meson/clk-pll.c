@@ -148,6 +148,35 @@ static unsigned long meson_clk_pll_recalc_rate(struct clk_hw *hw,
 }
 #endif
 
+#if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
+static unsigned int __pll_params_with_frac(unsigned long rate,
+					   unsigned long parent_rate,
+					   unsigned int m,
+					   unsigned int n,
+					   unsigned int od,
+					   struct meson_clk_pll_data *pll)
+{
+	unsigned int frac_max;
+	u64 val = ((u64)rate * n) << od;
+
+	if (pll->new_frac)
+		frac_max = FRAC_BASE;
+	else
+		frac_max = (1 << (pll->frac.width - 2));
+	/* Bail out if we are already over the requested rate */
+	if (rate < (parent_rate * m / n) >> od)
+		return 0;
+
+	if (pll->flags & CLK_MESON_PLL_ROUND_CLOSEST)
+		val = DIV_ROUND_CLOSEST_ULL(val * frac_max, parent_rate);
+	else
+		val = div_u64(val * frac_max, parent_rate);
+
+	val -= m * frac_max;
+
+	return min((unsigned int)val, (frac_max - 1));
+}
+#else
 static unsigned int __pll_params_with_frac(unsigned long rate,
 					   unsigned long parent_rate,
 					   unsigned int m,
@@ -174,6 +203,7 @@ static unsigned int __pll_params_with_frac(unsigned long rate,
 
 	return min((unsigned int)val, (frac_max - 1));
 }
+#endif
 
 static bool meson_clk_pll_is_better(unsigned long rate,
 				    unsigned long best,
@@ -384,7 +414,7 @@ static long meson_clk_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	 * The rate provided by the setting is not an exact match, let's
 	 * try to improve the result using the fractional parameter
 	 */
-	frac = __pll_params_with_frac(rate, *parent_rate, m, n, pll);
+	frac = __pll_params_with_frac(rate, *parent_rate, m, n, od, pll);
 
 	return __pll_params_to_rate(*parent_rate, m, n, frac, pll, od);
 }
@@ -577,13 +607,19 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	meson_parm_write(clk->map, &pll->m, m);
 #if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
 	meson_parm_write(clk->map, &pll->od, od);
-#endif
+
+	if (MESON_PARM_APPLICABLE(&pll->frac)) {
+		frac = __pll_params_with_frac(rate, parent_rate, m, n, od, pll);
+		meson_parm_write(clk->map, &pll->frac, frac);
+	}
+#else
 
 	if (MESON_PARM_APPLICABLE(&pll->frac)) {
 		frac = __pll_params_with_frac(rate, parent_rate, m, n, pll);
 		meson_parm_write(clk->map, &pll->frac, frac);
 	}
 
+#endif
 	/*
 	 * The PLL should set together required by the
 	 * PLL sequence.
