@@ -215,9 +215,7 @@
 		reg = <0x39>;
 		interrupt-parent = <&gpio3>;
 		interrupts = <RK_PB2 IRQ_TYPE_LEVEL_LOW>;
-		led-r-gpio = <&gpio4 24 GPIO_ACTIVE_HIGH>;		
-		pinctrl-names = "default";
-		pinctrl-0 = <&apds_int_l>;
+		led-r-gpio = <&gpio4 24 GPIO_ACTIVE_HIGH>;
 	};
 
 	bq25703: bq25703@6b {
@@ -957,10 +955,6 @@
 				<0 11 RK_FUNC_GPIO &pcfg_pull_up>,
 				<0 12 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
-	};
-
-	apds_int_l: apds-int-l {
-		rockchip,pins = <3 10 RK_FUNC_GPIO &pcfg_pull_up>;
 	};
 
 	charger {
