@@ -19768,6 +19768,26 @@ bool has_pre_vscaler_ntap(u8 layer_id)
 		return false;
 }
 
+int get_video_src_max_buffer(u8 layer_id,
+	u32 *src_width, u32 *src_height)
+{
+	if (layer_id >= MAX_VD_LAYER)
+		return -1;
+	*src_width = amvideo_meson_dev.src_width_max[layer_id];
+	*src_height = amvideo_meson_dev.src_height_max[layer_id];
+	return 0;
+}
+
+int get_video_src_min_buffer(u8 layer_id,
+	u32 *src_width, u32 *src_height)
+{
+	if (layer_id >= MAX_VD_LAYER)
+		return -1;
+	*src_width = 64;
+	*src_height = 64;
+	return 0;
+}
+
 static void video_cap_set(struct amvideo_device_data_s *p_amvideo)
 {
 	if (p_amvideo->cpu_type ==

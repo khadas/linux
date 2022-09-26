@@ -404,6 +404,10 @@ int _video_set_disable(u32 val);
 int _videopip_set_disable(u32 index, u32 val);
 void video_set_global_output(u32 index, u32 val);
 u32 video_get_layer_capability(void);
+int get_video_src_max_buffer(u8 layer_id,
+	u32 *src_width, u32 *src_height);
+int get_video_src_min_buffer(u8 layer_id,
+	u32 *src_width, u32 *src_height);
 void set_video_crop_ext(int layer_index, int *p);
 void set_video_window_ext(int layer_index, int *p);
 void set_video_zorder_ext(int layer_index, int zorder);
