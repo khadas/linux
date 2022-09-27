@@ -1722,7 +1722,8 @@ static void isolate_freepages(struct compact_control *cc)
 		migrate_type = get_pageblock_migratetype(page);
 		if (is_migrate_isolate(migrate_type))
 			continue;
-		if (is_migrate_cma(migrate_type) && cc->forbid_to_cma)
+		if (is_migrate_cma(migrate_type) &&
+		    test_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned))
 			continue;
 	#endif /* CONFIG_AMLOGIC_CMA */
 
@@ -2485,9 +2486,6 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 	/* lru_add_drain_all could be expensive with involving other CPUs */
 	lru_add_drain();
 
-#ifdef CONFIG_AMLOGIC_CMA
-	cc->forbid_to_cma = false;
-#endif
 	while ((ret = compact_finished(cc)) == COMPACT_CONTINUE) {
 		int err;
 		unsigned long iteration_start_pfn = cc->migrate_pfn;
@@ -2607,6 +2605,9 @@ out:
 			cc->zone->compact_cached_free_pfn = free_pfn;
 	}
 
+#ifdef CONFIG_AMLOGIC_CMA
+	__clear_bit(FORBID_TO_CMA_BIT, &cc->total_migrate_scanned);
+#endif
 	count_compact_events(COMPACTMIGRATE_SCANNED, cc->total_migrate_scanned);
 	count_compact_events(COMPACTFREE_SCANNED, cc->total_free_scanned);
 
