@@ -41,6 +41,7 @@
 		#size-cells = <1>;
 		ranges;
 
+		/* global autoconfigured region for contiguous allocations */
 		ramoops@0x07400000 {
 			compatible = "ramoops";
 			reg = <0x07400000 0x00100000>;
