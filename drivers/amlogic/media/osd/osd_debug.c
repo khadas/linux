@@ -503,21 +503,45 @@ static void osd_debug_dump_register_all(void)
 			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
 		reg = VPP1_BLEND_BLEND_DUMMY_DATA;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
-				     reg, osd_reg_read(reg));
+		osd_log_info("reg[0x%x]: 0x%08x\n",
+			     reg, osd_reg_read(reg));
 		reg = VPP1_BLEND_DUMMY_ALPHA;
-			osd_log_info("reg[0x%x]: 0x%08x\n\n",
-				     reg, osd_reg_read(reg));
+		osd_log_info("reg[0x%x]: 0x%08x\n\n",
+			     reg, osd_reg_read(reg));
 
 		for (reg = VPP2_BLD_CTRL; reg <= VPP2_BLD_DIN2_VSCOPE; reg++)
 			osd_log_info("reg[0x%x]: 0x%08x\n",
 				     reg, osd_reg_read(reg));
 		reg = VPP2_BLEND_BLEND_DUMMY_DATA;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
-				     reg, osd_reg_read(reg));
+		osd_log_info("reg[0x%x]: 0x%08x\n",
+			     reg, osd_reg_read(reg));
 		reg = VPP2_BLEND_DUMMY_ALPHA;
-			osd_log_info("reg[0x%x]: 0x%08x\n",
-				     reg, osd_reg_read(reg));
+		osd_log_info("reg[0x%x]: 0x%08x\n",
+			     reg, osd_reg_read(reg));
+	}
+
+	if (osd_hw.osd_meson_dev.has_slice2ppc) {
+		osd_log_info("--- slice2ppc ---\n");
+		reg = hw_osd_reg_slice2ppc.osd_2slice2ppc_in_size;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_2slice2ppc_mode;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_sys_hwin0_cut;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_sys_hwin1_cut;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_sys_pad_ctrl;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_sys_pad_dummy_data0;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_sys_pad_dummy_data1;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_sys_pad_h_size;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_sys_pad_v_size;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
+		reg = hw_osd_reg_slice2ppc.osd_sys_2slice_hwin_cut;
+		osd_log_info("reg[0x%x]: 0x%08x\n", reg, osd_reg_read(reg));
 	}
 }
 

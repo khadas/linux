@@ -28,6 +28,7 @@ extern int int_viu3_vsync;
 extern struct hw_para_s osd_hw;
 extern struct osd_device_hw_s osd_dev_hw;
 extern int enable_vd_zorder;
+extern struct hw_osd_slice2ppc_reg_s hw_osd_reg_slice2ppc;
 
 #ifdef CONFIG_HIBERNATION
 void osd_freeze_hw(void);

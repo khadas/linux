@@ -88,6 +88,8 @@
 
 #define FREE_SCALE_MAX_WIDTH    1920
 #define WAIT_CNT_MAX            20
+#define SCALER_OVERLAP          32
+#define SIZE_ALIG8              BYTE_8_ALIGNED
 
 struct hw_para_s osd_hw;
 struct osd_device_hw_s osd_dev_hw;
@@ -120,6 +122,8 @@ static int save_frame(u32 index, u32 frame_index);
 
 struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 struct hw_osd_blend_reg_s hw_osd_reg_blend;
+struct hw_osd_slice2ppc_reg_s hw_osd_reg_slice2ppc;
+struct hw_osd_slice2ppc_s osd_slice2ppc;
 static int osd_reg_init = 1;
 
 struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
@@ -154,6 +158,7 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		VPP_OSD_HSC_PHASE_STEP,
 		VPP_OSD_HSC_INI_PHASE,
 		VPP_OSD_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		VPP_OSD_SC_DUMMY_DATA,
 		VPP_OSD_SC_CTRL0,
 		VPP_OSD_SCI_WH_M1,
@@ -216,6 +221,7 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		OSD2_HSC_PHASE_STEP,
 		OSD2_HSC_INI_PHASE,
 		OSD2_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		OSD2_SC_DUMMY_DATA,
 		OSD2_SC_CTRL0,
 		OSD2_SCI_WH_M1,
@@ -278,6 +284,7 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		OSD34_HSC_PHASE_STEP,
 		OSD34_HSC_INI_PHASE,
 		OSD34_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		OSD34_SC_DUMMY_DATA,
 		OSD34_SC_CTRL0,
 		OSD34_SCI_WH_M1,
@@ -357,6 +364,7 @@ struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 		OSD_REG_UNSUPPORT,
 		OSD_REG_UNSUPPORT,
 		OSD_REG_UNSUPPORT,
+		OSD_REG_UNSUPPORT,
 
 		OSD_REG_UNSUPPORT,
 		OSD_REG_UNSUPPORT,
@@ -402,6 +410,7 @@ struct hw_osd_reg_s hw_osd_reg_array_tl1[HW_OSD_COUNT] = {
 		VPP_OSD_HSC_PHASE_STEP,
 		VPP_OSD_HSC_INI_PHASE,
 		VPP_OSD_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		VPP_OSD_SC_DUMMY_DATA,
 		VPP_OSD_SC_CTRL0,
 		VPP_OSD_SCI_WH_M1,
@@ -464,6 +473,7 @@ struct hw_osd_reg_s hw_osd_reg_array_tl1[HW_OSD_COUNT] = {
 		OSD2_HSC_PHASE_STEP,
 		OSD2_HSC_INI_PHASE,
 		OSD2_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		OSD2_SC_DUMMY_DATA,
 		OSD2_SC_CTRL0,
 		OSD2_SCI_WH_M1,
@@ -545,6 +555,7 @@ struct hw_osd_reg_s hw_osd_reg_array_tl1[HW_OSD_COUNT] = {
 		OSD_REG_UNSUPPORT,
 		OSD_REG_UNSUPPORT,
 		OSD_REG_UNSUPPORT,
+		OSD_REG_UNSUPPORT,
 
 		OSD_REG_UNSUPPORT,
 		OSD_REG_UNSUPPORT,
@@ -590,6 +601,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t7[HW_OSD_COUNT] = {
 		T7_VPP_OSD_HSC_PHASE_STEP,
 		T7_VPP_OSD_HSC_INI_PHASE,
 		T7_VPP_OSD_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		T7_VPP_OSD_SC_DUMMY_DATA,
 		T7_VPP_OSD_SC_CTRL0,
 		T7_VPP_OSD_SCI_WH_M1,
@@ -652,6 +664,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t7[HW_OSD_COUNT] = {
 		T7_OSD2_HSC_PHASE_STEP,
 		T7_OSD2_HSC_INI_PHASE,
 		T7_OSD2_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		T7_OSD2_SC_DUMMY_DATA,
 		T7_OSD2_SC_CTRL0,
 		T7_OSD2_SCI_WH_M1,
@@ -714,6 +727,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t7[HW_OSD_COUNT] = {
 		T7_OSD34_HSC_PHASE_STEP,
 		T7_OSD34_HSC_INI_PHASE,
 		T7_OSD34_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		T7_OSD34_SC_DUMMY_DATA,
 		T7_OSD34_SC_CTRL0,
 		T7_OSD34_SCI_WH_M1,
@@ -776,6 +790,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t7[HW_OSD_COUNT] = {
 		T7_OSD4_HSC_PHASE_STEP,
 		T7_OSD4_HSC_INI_PHASE,
 		T7_OSD4_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		T7_OSD4_SC_DUMMY_DATA,
 		T7_OSD4_SC_CTRL0,
 		T7_OSD4_SCI_WH_M1,
@@ -841,6 +856,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t3[HW_OSD_COUNT] = {
 		T7_VPP_OSD_HSC_PHASE_STEP,
 		T7_VPP_OSD_HSC_INI_PHASE,
 		T7_VPP_OSD_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		T7_VPP_OSD_SC_DUMMY_DATA,
 		T7_VPP_OSD_SC_CTRL0,
 		T7_VPP_OSD_SCI_WH_M1,
@@ -903,6 +919,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t3[HW_OSD_COUNT] = {
 		T7_OSD2_HSC_PHASE_STEP,
 		T7_OSD2_HSC_INI_PHASE,
 		T7_OSD2_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		T7_OSD2_SC_DUMMY_DATA,
 		T7_OSD2_SC_CTRL0,
 		T7_OSD2_SCI_WH_M1,
@@ -965,6 +982,7 @@ struct hw_osd_reg_s hw_osd_reg_array_t3[HW_OSD_COUNT] = {
 		T7_OSD34_HSC_PHASE_STEP,
 		T7_OSD34_HSC_INI_PHASE,
 		T7_OSD34_HSC_CTRL0,
+		OSD_REG_UNSUPPORT,
 		T7_OSD34_SC_DUMMY_DATA,
 		T7_OSD34_SC_CTRL0,
 		T7_OSD34_SCI_WH_M1,
@@ -1031,6 +1049,7 @@ struct hw_osd_reg_s hw_osd_reg_array_s5[HW_OSD_COUNT] = {
 		OSD1_PROC_HSC_PHASE_STEP,
 		OSD1_PROC_HSC_INI_PHASE,
 		OSD1_PROC_HSC_CTRL0,
+		OSD1_PROC_HSC_INI_PAT_CTRL,
 		OSD1_PROC_SC_DUMMY_DATA,
 		OSD1_PROC_SC_CTRL0,
 		OSD1_PROC_SCI_WH_M1,
@@ -1093,6 +1112,7 @@ struct hw_osd_reg_s hw_osd_reg_array_s5[HW_OSD_COUNT] = {
 		OSD3_PROC_HSC_PHASE_STEP,
 		OSD3_PROC_HSC_INI_PHASE,
 		OSD3_PROC_HSC_CTRL0,
+		OSD3_PROC_HSC_INI_PAT_CTRL,
 		OSD3_PROC_SC_DUMMY_DATA,
 		OSD3_PROC_SC_CTRL0,
 		OSD3_PROC_SCI_WH_M1,
@@ -1184,6 +1204,19 @@ struct hw_osd_blend_reg_s hw_osd_blend_reg_s5 = {
 	S5_VD3_BLEND_SRC_CTRL,
 	S5_OSD1_BLEND_SRC_CTRL,
 	S5_OSD2_BLEND_SRC_CTRL
+};
+
+struct hw_osd_slice2ppc_reg_s hw_osd_slice2ppc_reg =  {
+	OSD_2SLICE2PPC_IN_SIZE,
+	OSD_2SLICE2PPC_MODE,
+	OSD_SYS_HWIN0_CUT,
+	OSD_SYS_HWIN1_CUT,
+	OSD_SYS_PAD_CTRL,
+	OSD_SYS_PAD_DUMMY_DATA0,
+	OSD_SYS_PAD_DUMMY_DATA1,
+	OSD_SYS_PAD_H_SIZE,
+	OSD_SYS_PAD_V_SIZE,
+	OSD_SYS_2SLICE_HWIN_CUT
 };
 
 #define VIU2_OSD_REG_NUM    13
@@ -1943,8 +1976,11 @@ static u32 to_reorder_hw_index(u32 reorder_index)
 
 	hw_reoder_index = to_osd_hw_index(osd_index) + 1;
 
-	/* for s5_display, OSDx to din(x+1) */
-	if (osd_dev_hw.s5_display)
+	/* for s5_display
+	 * 2slice_mode: slice2ppc -> din0
+	 * normal_mode: osdx to din(x+1)
+	 */
+	if (osd_dev_hw.s5_display && !osd_hw.slice2ppc_enable)
 		hw_reoder_index++;
 
 	return hw_reoder_index;
@@ -1955,18 +1991,24 @@ static u32 to_din_scope_osd_index(u32 din_index)
 	u32 osd_index = din_index;
 
 	if (osd_dev_hw.s5_display) {
+		u32 slice_mode = osd_hw.slice2ppc_enable;
+
+		/* for s5_display
+		 * 2slice_mode: only din_scope0
+		 * normal_mode: din_scope1/2/3
+		 */
 		switch (din_index) {
 		case 0:
-			osd_index = OSD_ERR;
+			osd_index = slice_mode ? OSD1 : OSD_ERR;
 			break;
 		case 1:
-			osd_index = OSD1;
+			osd_index = slice_mode ? OSD_ERR : OSD1;
 			break;
 		case 2:
-			osd_index = OSD2;
+			osd_index = slice_mode ? OSD_ERR : OSD2;
 			break;
 		case 3:
-			osd_index = OSD3;
+			osd_index = slice_mode ? OSD_ERR : OSD3;
 			break;
 		}
 	}
@@ -7255,6 +7297,7 @@ static void osd_update_disp_freescale_enable(u32 index)
 	int hsc_ini_rcv_num, hsc_ini_rpt_p0_num;
 	int hf_bank_len = 4;
 	int vf_bank_len = 4;
+	int init_phase1 = 0, init_phase1_exp = 0;
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
 	u32 data32 = 0x0;
 	u32 shift_workaround = 0;
@@ -7288,18 +7331,21 @@ static void osd_update_disp_freescale_enable(u32 index)
 		(vf_bank_len / 2 - 1) > 0 ? (vf_bank_len / 2 - 1) : 0;
 #endif
 
-	hsc_ini_rcv_num = hf_bank_len;
-	hsc_ini_rpt_p0_num = hf_bank_len / 2 - 1;
-
-	src_w = osd_hw.free_src_data[index].x_end -
-		osd_hw.free_src_data[index].x_start + 1;
-	src_h = osd_hw.free_src_data[index].y_end -
-		osd_hw.free_src_data[index].y_start + 1;
-	dst_w = osd_hw.free_dst_data[index].x_end -
-		osd_hw.free_dst_data[index].x_start + 1;
-	dst_h = osd_hw.free_dst_data[index].y_end -
-		osd_hw.free_dst_data[index].y_start + 1;
-
+	if (osd_hw.slice2ppc_enable) {
+		src_w = osd_slice2ppc.in_hsize_total;
+		src_h = osd_slice2ppc.in_vsize_total;
+		dst_w = osd_slice2ppc.out_hsize_total;
+		dst_h = osd_slice2ppc.out_vsize_total;
+	} else {
+		src_w = osd_hw.free_src_data[index].x_end -
+			osd_hw.free_src_data[index].x_start + 1;
+		src_h = osd_hw.free_src_data[index].y_end -
+			osd_hw.free_src_data[index].y_start + 1;
+		dst_w = osd_hw.free_dst_data[index].x_end -
+			osd_hw.free_dst_data[index].x_start + 1;
+		dst_h = osd_hw.free_dst_data[index].y_end -
+			osd_hw.free_dst_data[index].y_start + 1;
+	}
 	/* config osd sc control reg */
 	data32 = 0x0;
 	if (osd_hw.free_scale_enable[index]) {
@@ -7388,26 +7434,68 @@ static void osd_update_disp_freescale_enable(u32 index)
 			vsc_bot_rcv_num++;
 	}
 
-	if (osd_dev_hw.s5_display) {
-		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
-					(osd_reg->osd_proc_in_size,
-					 (src_h << 16) | src_w);
-		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
-					(osd_reg->osd_proc_out_size,
-					 (dst_h << 16) | dst_w);
+	/* calculate ini_phase */
+	if (osd_hw.slice2ppc_enable &&
+	    osd_slice2ppc.slice_pos[index] == SLICE_RIGHT) {
+		u32 osd_slice_x_st = osd_slice2ppc.slice_in_x_start[index];
+		u32 init_phase1_pre, init_phase, slice_ini_sum;
+		u64 t;
+
+		t = ((u64)osd_slice_x_st + 1) << 24;
+		do_div(t, hf_phase_step);
+		init_phase1_pre = (t * hf_phase_step) & 0xFFFFFF;
+		init_phase =  init_phase1_pre & 0xFFFFFF;
+		init_phase1     = init_phase >> 8;
+		init_phase1_exp = init_phase & 0xff;
+
+		slice_ini_sum = t * hf_phase_step;
+		hsc_ini_rcv_num =
+			4 - (osd_slice_x_st + 1 - (slice_ini_sum >> 24));
+		hsc_ini_rpt_p0_num = 0;
+	} else {
+		hsc_ini_rcv_num = hf_bank_len;
+		hsc_ini_rpt_p0_num = hf_bank_len / 2 - 1;
 	}
 
 	if (osd_hw.free_scale_enable[index]) {
-		data32 = (((src_h - 1) & 0x1fff)
-				| ((src_w - 1) & 0x1fff) << 16);
+		u32 in_width, in_height, out_width, out_height;
+		u32 out_x_start, out_x_end, out_y_start, out_y_end;
+
+		if (osd_hw.slice2ppc_enable) {
+			in_width   = osd_slice2ppc.scaler_in_hsize[index];
+			in_height  = osd_slice2ppc.scaler_in_vsize[index];
+			out_x_start = 0;
+			out_x_end   = osd_slice2ppc.scaler_out_hsize[index] - 1;
+			out_y_start = 0;
+			out_y_end   = osd_slice2ppc.scaler_out_vsize[index] - 1;
+		} else {
+			in_width   = src_w;
+			in_height  = src_h;
+			out_x_start = osd_hw.free_dst_data[index].x_start;
+			out_x_end   = osd_hw.free_dst_data[index].x_end;
+			out_y_start = osd_hw.free_dst_data[index].y_start;
+			out_y_end   = osd_hw.free_dst_data[index].y_end;
+		}
+
+		if (osd_dev_hw.s5_display) {
+			out_width   = out_x_end - out_x_start + 1;
+			out_height  = out_y_end - out_y_start + 1;
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+					(osd_reg->osd_proc_in_size,
+					 (in_height << 16) | in_width);
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr
+					(osd_reg->osd_proc_out_size,
+					 (out_height << 16) | out_width);
+		}
+
+		data32 = ((in_height - 1) & 0x1fff) |
+			((in_width - 1) & 0x1fff) << 16;
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(osd_reg->osd_sci_wh_m1, data32);
-		data32 = ((osd_hw.free_dst_data[index].x_end & 0xfff) |
-			  (osd_hw.free_dst_data[index].x_start & 0xfff) << 16);
+		data32 = ((out_x_end & 0xfff) | (out_x_start & 0xfff) << 16);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(osd_reg->osd_sco_h_start_end, data32);
-		data32 = ((osd_hw.free_dst_data[index].y_end & 0xfff) |
-			  (osd_hw.free_dst_data[index].y_start & 0xfff) << 16);
+		data32 = ((out_y_end & 0xfff) | (out_y_start & 0xfff) << 16);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 			(osd_reg->osd_sco_v_start_end, data32);
 	}
@@ -7453,8 +7541,9 @@ static void osd_update_disp_freescale_enable(u32 index)
 			(osd_reg->osd_hsc_phase_step,
 			hf_phase_step, 0, 28);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
-			(osd_reg->osd_hsc_init_phase,
-			0, 0, 16);
+			(osd_reg->osd_hsc_init_phase, init_phase1, 0, 16);
+		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+			(osd_reg->osd_hsc_ini_pat_ctrl, init_phase1_exp, 0, 16);
 		osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
 			(osd_reg->osd_vsc_phase_step,
 			vf_phase_step, 0, 28);
@@ -8754,8 +8843,12 @@ static void set_blend_mode(struct hw_osd_blending_s *blending)
 		osd_blend_mode = OSD_BLEND_NONE;
 		break;
 	case 1:
-		/* select blend_din1 always */
-		osd_blend_mode = OSD_BLEND_A;
+		if (osd_hw.slice2ppc_enable) {
+			osd_blend_mode = OSD_BLEND_A_2SLICE;
+		} else {
+			/* select blend_din1 always */
+			osd_blend_mode = OSD_BLEND_A;
+		}
 		break;
 	case 2:
 		/* select blend_din1, blend_din4 always */
@@ -10684,6 +10777,263 @@ static void osd_set_freescale_new(u32 index,
 		     osd_hw.free_dst_data[index].y_end);
 }
 
+static void dup_param_for_osd_hw(u32 dst_index, u32 src_index)
+{
+	u32 src = src_index, dst = dst_index;
+
+	osd_hw.enable[dst] = osd_hw.enable[src];
+	osd_hw.osd_afbcd[dst_index].enable = osd_hw.osd_afbcd[src].enable;
+
+	osd_hw.gbl_alpha[dst] = osd_hw.gbl_alpha[src];
+	osd_hw.dim_layer[dst] = osd_hw.dim_layer[src];
+	osd_hw.dim_color[dst] = osd_hw.dim_color[src];
+	osd_hw.secure_enable[dst] = osd_hw.secure_enable[src];
+	osd_hw.blend_mode[dst] = osd_hw.blend_mode[src];
+
+	memcpy(&osd_hw.color_info[dst], &osd_hw.color_info[src],
+	       sizeof(struct color_bit_define_s));
+	memcpy(&osd_hw.fb_gem[dst], &osd_hw.fb_gem[src],
+	       sizeof(struct fb_geometry_s));
+
+	memcpy(&osd_hw.osd_afbcd[dst], &osd_hw.osd_afbcd[src],
+		sizeof(struct afbcd_data_s));
+	osd_hw.osd_afbcd[dst].out_addr_id = dst + 1;
+
+	osd_hw.free_scale_enable[dst] = osd_hw.free_scale_enable[src];
+	osd_hw.free_scale[dst].h_enable = osd_hw.free_scale[src].h_enable;
+	osd_hw.free_scale[dst].v_enable = osd_hw.free_scale[src].v_enable;
+	osd_hw.free_scale_mode[dst] = osd_hw.free_scale_mode[src];
+}
+
+static void osd_2slice_param_init(u32 index_orin)
+{
+	u32 horz_phase_step, osd_slice_in_x_st;
+	u32 hwincut_en[HWIN_NUM] = {1, 1, 0};
+	u32 hwincut_bgn[HWIN_NUM] = {0,};
+	u32 hwincut_end[HWIN_NUM] = {0,};
+	u32 osd_pps_din_hsize[OSD_MAX] = {0,}; /* pps include overlap */
+	u32 osd_pps_dout_hsize[OSD_MAX] = {0,};
+	u32 osd_slice_dout_hsize[OSD_MAX] = {0,};
+	u32 slice_pad_en = 0;
+	u32 slice_pad_h_bgn = 0, slice_pad_h_end = 0;
+	u32 slice_pad_v_bgn = 0, slice_pad_v_end = 0;
+	u32 xoffset, yoffset;
+	u32 osd_in_hsize_real, osd_out_hsize_real;
+	u32 osd_in_vsize_real, osd_out_vsize_real;
+	u32 i, count  = osd_hw.osd_meson_dev.viu1_osd_count;
+	u64 t;
+
+	if (osd_dev_hw.s5_display) {
+		osd_slice2ppc.slice_pos[OSD1] = SLICE_LEFT;
+		osd_slice2ppc.slice_pos[OSD2] = SLICE_RIGHT;
+		osd_slice2ppc.slice_pos[OSD3] = SLICE_NONE;
+		osd_slice2ppc.slice_pos[OSD4] = SLICE_NONE;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (osd_slice2ppc.slice_pos[i] == SLICE_NONE || i == index_orin)
+			continue;
+		dup_param_for_osd_hw(i, index_orin);
+	}
+
+	/* 2slice in & out size */
+	osd_in_hsize_real  = osd_hw.src_data[index_orin].w;
+	osd_out_hsize_real = osd_hw.dst_data[index_orin].w;
+	osd_in_vsize_real = osd_hw.src_data[index_orin].h;
+	osd_out_vsize_real = osd_hw.dst_data[index_orin].h;
+
+	xoffset = osd_hw.src_data[index_orin].x;
+	yoffset = osd_hw.src_data[index_orin].y;
+
+	if (osd_hw.field_out_en[VIU1])
+		osd_out_vsize_real = osd_out_vsize_real >> 1;
+
+	for (i = 0; i < count; i++) {
+		t = (u64)osd_in_hsize_real << 24;
+		do_div(t, osd_out_hsize_real);
+		horz_phase_step = t;
+
+		/* hscaler_en=0 */
+		if (osd_in_hsize_real == osd_out_hsize_real) {
+			if (osd_slice2ppc.slice_pos[i] == SLICE_LEFT) {
+				osd_pps_dout_hsize[i] =
+					SIZE_ALIG8(osd_out_hsize_real) / 2 +
+					SCALER_OVERLAP;
+				osd_pps_din_hsize[i] = osd_pps_dout_hsize[i];
+				/* left hwincut */
+				hwincut_bgn[HWIN_IN_0] = 0;
+				hwincut_end[HWIN_IN_0] =
+					SIZE_ALIG8(osd_out_hsize_real) / 2 - 1;
+			}
+			if (osd_slice2ppc.slice_pos[i] == SLICE_RIGHT) {
+				osd_pps_dout_hsize[i] =
+					osd_out_hsize_real -
+					SIZE_ALIG8(osd_out_hsize_real) / 2 +
+					SCALER_OVERLAP;
+				osd_pps_din_hsize[i] = osd_pps_dout_hsize[i];
+				/* right hwincut */
+				hwincut_bgn[HWIN_IN_1] = SCALER_OVERLAP;
+				hwincut_end[HWIN_IN_1] =
+					osd_pps_dout_hsize[i] - 1;
+			}
+		/* hscaler_en=1 */
+		} else {
+			if (osd_slice2ppc.slice_pos[i] == SLICE_LEFT) {
+				osd_slice_dout_hsize[i] =
+					SIZE_ALIG8(osd_out_hsize_real) / 2;
+
+				osd_pps_din_hsize[i] =
+					(((u64)osd_slice_dout_hsize[i] *
+					  horz_phase_step >> 24) + 1) / 2 * 2 +
+					  SCALER_OVERLAP;
+				t = (u64)osd_pps_din_hsize[i] << 24;
+				do_div(t, horz_phase_step);
+				osd_pps_dout_hsize[i] = (t + 1) / 2 * 2;
+
+				/* left hwincut */
+				hwincut_bgn[HWIN_IN_0] = 0;
+				hwincut_end[HWIN_IN_0] =
+					SIZE_ALIG8(osd_out_hsize_real) / 2 - 1;
+			}
+
+			if (osd_slice2ppc.slice_pos[i] == SLICE_RIGHT) {
+				osd_slice_in_x_st =
+					osd_pps_din_hsize[0] -
+					SCALER_OVERLAP * 2;
+				osd_slice_dout_hsize[i] =
+					osd_out_hsize_real -
+					SIZE_ALIG8(osd_out_hsize_real) / 2;
+
+				osd_pps_din_hsize[i] =
+					osd_in_hsize_real -
+					osd_pps_din_hsize[0] +
+					SCALER_OVERLAP * 2;
+				t = (u64)osd_pps_din_hsize[i] << 24;
+				do_div(t, horz_phase_step);
+				osd_pps_dout_hsize[i] = (t + 1) / 2 * 2;
+
+				/* right hwincut */
+				hwincut_bgn[HWIN_IN_1] =
+					osd_pps_dout_hsize[i] -
+					osd_slice_dout_hsize[i];
+				hwincut_end[HWIN_IN_1] =
+					osd_pps_dout_hsize[i] - 1;
+			}
+		}
+
+		/* right hwin padding */
+		if (osd_slice2ppc.slice_pos[i] == SLICE_RIGHT) {
+			slice_pad_h_bgn = 0;
+			slice_pad_h_end = osd_out_hsize_real -
+				SIZE_ALIG8(osd_out_hsize_real) / 2 - 1;
+			slice_pad_v_bgn = 0;
+			slice_pad_v_end = osd_out_vsize_real - 1;
+
+			if (osd_out_hsize_real < SIZE_ALIG8(osd_out_hsize_real))
+				slice_pad_en = 1;
+			else
+				slice_pad_en = 0;
+		}
+	}
+
+	/* after 2slice hwincut */
+	hwincut_bgn[HWIN_OUT] = 0;
+	hwincut_end[HWIN_OUT] = osd_out_hsize_real / 2 - 1;
+
+	if (osd_out_hsize_real < SIZE_ALIG8(osd_out_hsize_real))
+		hwincut_en[HWIN_OUT] = 1;
+	else
+		hwincut_en[HWIN_OUT] = 0;
+
+	/* a. 2slice register values */
+	osd_slice2ppc.slice2ppc_hsize = SIZE_ALIG8(osd_out_hsize_real) / 2;
+	osd_slice2ppc.slice2ppc_vsize = osd_out_vsize_real;
+	osd_slice2ppc.slice2ppc_mode = 0;
+
+	for (i = 0; i < HWIN_NUM; i++) {
+		osd_slice2ppc.hwincut_en[i] = hwincut_en[i];
+		osd_slice2ppc.hwincut_bgn[i] = hwincut_bgn[i];
+		osd_slice2ppc.hwincut_end[i] = hwincut_end[i];
+	}
+
+	osd_slice2ppc.pad_en = slice_pad_en;
+	osd_slice2ppc.pad_h_bgn = slice_pad_h_bgn;
+	osd_slice2ppc.pad_h_end = slice_pad_h_end;
+	osd_slice2ppc.pad_v_bgn = slice_pad_v_bgn;
+	osd_slice2ppc.pad_v_end = slice_pad_v_end;
+
+	/* b. values for calculation */
+	osd_slice2ppc.in_hsize_total = osd_in_hsize_real;
+	osd_slice2ppc.in_vsize_total = osd_in_vsize_real;
+	osd_slice2ppc.out_hsize_total = osd_out_hsize_real;
+	osd_slice2ppc.out_vsize_total = osd_out_vsize_real;
+
+	for (i = 0; i < SLICE_NUM; i++) {
+		osd_slice2ppc.scaler_in_hsize[i] = osd_pps_din_hsize[i];
+		osd_slice2ppc.scaler_in_vsize[i] = osd_in_vsize_real;
+		osd_slice2ppc.scaler_out_hsize[i] = osd_pps_dout_hsize[i];
+		osd_slice2ppc.scaler_out_vsize[i] = osd_out_vsize_real;
+	}
+	osd_slice2ppc.slice_in_x_start[SLICE_LEFT]  = xoffset;
+	osd_slice2ppc.slice_in_x_end[SLICE_LEFT]    = xoffset +
+						osd_pps_din_hsize[0] - 1;
+	osd_slice2ppc.slice_in_x_start[SLICE_RIGHT] = xoffset +
+						osd_pps_din_hsize[0] -
+						SCALER_OVERLAP * 2;
+	osd_slice2ppc.slice_in_x_end[SLICE_RIGHT]   = xoffset +
+						osd_in_hsize_real - 1;
+
+	osd_slice2ppc.slice_in_y_start[SLICE_LEFT]  = yoffset;
+	osd_slice2ppc.slice_in_y_end[SLICE_LEFT]    = yoffset +
+						osd_in_vsize_real - 1;
+	osd_slice2ppc.slice_in_y_start[SLICE_RIGHT] = yoffset;
+	osd_slice2ppc.slice_in_y_end[SLICE_RIGHT]   = yoffset +
+						osd_in_vsize_real - 1;
+
+	osd_log_dbg2(MODULE_2SLICE, "in_hsize_total:%d in_vsize_total:%d\n",
+		     osd_slice2ppc.in_hsize_total,
+		     osd_slice2ppc.in_vsize_total);
+	osd_log_dbg2(MODULE_2SLICE, "out_hsize_total:%d out_vsize_total:%d\n",
+		     osd_slice2ppc.out_hsize_total,
+		     osd_slice2ppc.out_vsize_total);
+
+	osd_log_dbg2(MODULE_2SLICE, "slice2ppc --- hsize:%d vsize:%d mode:%d\n",
+		     osd_slice2ppc.slice2ppc_hsize,
+		     osd_slice2ppc.slice2ppc_vsize,
+		     osd_slice2ppc.slice2ppc_mode);
+
+	for (i = 0; i < HWIN_NUM; i++) {
+		osd_log_dbg2(MODULE_2SLICE, "hwincut %d --- en:%d bgn:%d end:%d\n",
+			     i,
+			     osd_slice2ppc.hwincut_en[i],
+			     osd_slice2ppc.hwincut_bgn[i],
+			     osd_slice2ppc.hwincut_end[i]);
+	}
+
+	osd_log_dbg2(MODULE_2SLICE, "pad --- en%d h_bgn:%d h_end:%d v_bgn:%d v_end:%d\n",
+		     osd_slice2ppc.pad_en,
+		     osd_slice2ppc.pad_h_bgn, osd_slice2ppc.pad_h_end,
+		     osd_slice2ppc.pad_v_bgn, osd_slice2ppc.pad_v_end);
+
+	for (i = 0; i < count; i++) {
+		osd_log_dbg2(MODULE_2SLICE, "slice %d, osd%d ---\n",
+			     osd_slice2ppc.slice_pos[i], i);
+
+		osd_log_dbg2(MODULE_2SLICE, "scaler_in_hsize:%d scaler_in_vsize:%d\n",
+			     osd_slice2ppc.scaler_in_hsize[i],
+			     osd_slice2ppc.scaler_in_vsize[i]);
+		osd_log_dbg2(MODULE_2SLICE, "scaler_out_hsize:%d scaler_out_vsize:%d\n",
+			     osd_slice2ppc.scaler_out_hsize[i],
+			     osd_slice2ppc.scaler_out_vsize[i]);
+		osd_log_dbg2(MODULE_2SLICE, "slice_in_x_start:%d slice_in_x_end:%d\n",
+			     osd_slice2ppc.slice_in_x_start[i],
+			     osd_slice2ppc.slice_in_x_end[i]);
+		osd_log_dbg2(MODULE_2SLICE, "slice_in_y_start:%d slice_in_y_end:%d\n",
+			     osd_slice2ppc.slice_in_y_start[i],
+			     osd_slice2ppc.slice_in_y_end[i]);
+	}
+}
+
 /* every output is next path input */
 static void set_blend_path_new(struct hw_osd_blending_s *blending)
 {
@@ -10730,6 +11080,44 @@ static void set_blend_path_new(struct hw_osd_blending_s *blending)
 		index = blend_din_to_osd(BLEND_DIN1, blending);
 		if (index >= OSD_MAX)
 			return;
+		osd_set_freescale_new(index, blending);
+		osd_setting_blend0_new(blending);
+		if (!osd_blend_reg->din0_byp_blend) {
+			layer_blend->input1 = BLEND0_DIN;
+			layer_blend->input2 = BLEND_NO_DIN;
+			memcpy(&layer_blend->input1_data,
+			       &layer_blend->output_data,
+			       sizeof(struct dispdata_s));
+			/* same with blend0's background */
+			osd_setting_blend2(blending);
+		}
+		layer_blend->input1 = BLEND2_DIN;
+		layer_blend->input2 = BLEND_NO_DIN;
+		memcpy(&layer_blend->input1_data,
+		       &layer_blend->output_data,
+		       sizeof(struct dispdata_s));
+		layer_blend->input1_data.x +=
+			position_x;
+		layer_blend->input1_data.y +=
+			position_y;
+		vpp_setting_blend(blending);
+		break;
+	case OSD_BLEND_A_2SLICE:
+		/* osdx --> sc-->
+		 *               slice2ppc --> blend0-->blend2-->vpp_osd1
+		 * osdy --> sc-->
+		 */
+		index = blend_din_to_osd(BLEND_DIN1, blending);
+		if (index >= OSD_MAX)
+			return;
+
+		osd_2slice_param_init(index);
+
+		layer_blend->input1 = BLEND_DIN1;
+		if (osd_hw.blend_bypass[OSD1])
+			layer_blend->input1 |= BYPASS_DIN;
+		layer_blend->input2 = BLEND_NO_DIN;
+
 		osd_set_freescale_new(index, blending);
 		osd_setting_blend0_new(blending);
 		if (!osd_blend_reg->din0_byp_blend) {
@@ -11184,12 +11572,6 @@ static void set_vpp0_blend_reg(struct vpp0_blend_reg_s *vpp0_blend_reg)
 			     vpp0_blend_reg->osd2_v_start << 16 |
 			     vpp0_blend_reg->osd2_v_end);
 
-	if (osd_hw.osd_meson_dev.has_pi) {
-		if (osd_hw.pi_enable)
-			VSYNCOSD_WR_MPEG_REG_BITS(OSD_PI_BYPASS_EN, 0, 0, 1);
-		else
-			VSYNCOSD_WR_MPEG_REG_BITS(OSD_PI_BYPASS_EN, 1, 0, 1);
-	}
 	/* vpp osd1 blend ctrl */
 	if (osd_dev_hw.s5_display)
 		VSYNCOSD_WR_MPEG_REG(hw_osd_reg_blend.osd1_blend_src_ctrl,
@@ -11311,7 +11693,7 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 	for (i = 0; i < din_count; i++) {
 		u32 osd_index = to_din_scope_osd_index(i);
 
-		if (osd_index == OSD_ERR) {
+		if (osd_index == OSD_ERR || osd_index >= OSD_MAX) {
 			VSYNCOSD_WR_MPEG_REG
 				(hw_osd_reg_blend.osd_blend_din0_scope_v +
 				 reg_offset * i,
@@ -11331,6 +11713,27 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 		VSYNCOSD_WR_MPEG_REG(hw_osd_reg_blend.osd_blend_din0_scope_v +
 				     reg_offset * i,
 				     osd_blend_reg->osd_blend_din_scope_v[osd_index]);
+	}
+
+	if (osd_dev_hw.s5_display) {
+		u32 data32 = 0;
+
+		if (osd_hw.slice2ppc_enable) {
+			/* 1mux3, OSD1 & OSD3 -> slice2ppc */
+			data32 = 1 << 0 | 1 << 4;
+
+			/* 3mux2, OSD1 -> left slice, OSD3 -> right slice */
+			data32 |= 1 << 6 | 3 << 10;
+		} else {
+			/* 1mux3, OSD1 & OSD3 -> blend */
+			data32 = 2 << 0 | 2 << 4;
+		}
+		VSYNCOSD_WR_MPEG_REG(OSD_PROC_1MUX3_SEL, data32);
+
+		if (osd_hw.pi_enable)
+			VSYNCOSD_WR_MPEG_REG_BITS(OSD_PI_BYPASS_EN, 0, 0, 1);
+		else
+			VSYNCOSD_WR_MPEG_REG_BITS(OSD_PI_BYPASS_EN, 1, 0, 1);
 	}
 
 	dv_core2_vsize = (osd_blend_reg->osd_blend_blend0_size >> 16) & 0xfff;
@@ -11488,6 +11891,10 @@ static void adjust_pi_axis(void)
 	}
 
 	if (osd_hw.pi_enable) {
+		if (osd_hw.field_out_en[VIU1]) {
+			y = y >> 1;
+			h = h >> 1;
+		}
 		osd_hw.pi_out.x_start = x;
 		osd_hw.pi_out.x_end = x + w - 1;
 		osd_hw.pi_out.y_start = y;
@@ -11508,6 +11915,68 @@ static void adjust_pi_axis(void)
 	}
 }
 
+static void set_slice2ppc_status(void)
+{
+	unsigned int w = osd_hw.disp_info[VIU1].position_w;
+	unsigned int h = osd_hw.disp_info[VIU1].position_h;
+	struct vinfo_s *vinfo = NULL;
+
+#ifdef CONFIG_AMLOGIC_VOUT_SERVE
+	vinfo = get_current_vinfo();
+#endif
+	if (!vinfo) {
+		osd_log_err("%s current vinfo NULL\n", __func__);
+		return;
+	}
+
+	if (!osd_slice2ppc_debug) {
+		/* 4K120Hz */
+		if (((w >= 3840 && h >= 2160) || (w >= 4096 && h >= 2160)) &&
+		    vinfo->sync_duration_num / vinfo->sync_duration_den > 60)
+			osd_hw.slice2ppc_enable = 1;
+		else
+			osd_hw.slice2ppc_enable = 0;
+	} else {
+		osd_hw.slice2ppc_enable = osd_slice2ppc_enable;
+	}
+
+	if (osd_hw.osd_meson_dev.has_slice2ppc)
+		osd_log_dbg(MODULE_2SLICE, "slice2ppc enable:%d\n",
+			    osd_hw.slice2ppc_enable);
+}
+
+static void set_slice2ppc_reg(void)
+{
+	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_slice2ppc.osd_2slice2ppc_in_size,
+			     osd_slice2ppc.slice2ppc_vsize << 16 |
+			     osd_slice2ppc.slice2ppc_hsize);
+	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_slice2ppc.osd_2slice2ppc_mode,
+			     osd_slice2ppc.slice2ppc_mode);
+	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_slice2ppc.osd_sys_hwin0_cut,
+			     osd_slice2ppc.hwincut_en[HWIN_IN_0] << 29 |
+			     osd_slice2ppc.hwincut_bgn[HWIN_IN_0] << 16 |
+			     osd_slice2ppc.hwincut_end[HWIN_IN_0]);
+	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_slice2ppc.osd_sys_hwin1_cut,
+			     osd_slice2ppc.hwincut_en[HWIN_IN_1] << 29 |
+			     osd_slice2ppc.hwincut_bgn[HWIN_IN_1] << 16 |
+			     osd_slice2ppc.hwincut_end[HWIN_IN_1]);
+	VSYNCOSD_WR_MPEG_REG_BITS(hw_osd_reg_slice2ppc.osd_sys_pad_ctrl,
+				  osd_slice2ppc.pad_en, 0, 1);
+	/* hw_osd_reg_slice2ppc.osd_sys_pad_dummy_data0
+	 * hw_osd_reg_slice2ppc.osd_sys_pad_dummy_data1
+	 */
+	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_slice2ppc.osd_sys_pad_h_size,
+			     osd_slice2ppc.pad_h_bgn << 16 |
+			     osd_slice2ppc.pad_h_end);
+	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_slice2ppc.osd_sys_pad_v_size,
+			     osd_slice2ppc.pad_v_bgn << 16 |
+			     osd_slice2ppc.pad_v_end);
+	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_slice2ppc.osd_sys_2slice_hwin_cut,
+			     osd_slice2ppc.hwincut_en[HWIN_OUT] << 29 |
+			     osd_slice2ppc.hwincut_bgn[HWIN_OUT] << 16 |
+			     osd_slice2ppc.hwincut_end[HWIN_OUT]);
+}
+
 static int osd_setting_order(u32 output_index)
 {
 	int i;
@@ -11524,6 +11993,9 @@ static int osd_setting_order(u32 output_index)
 
 	if (osd_hw.osd_meson_dev.has_pi)
 		adjust_pi_axis();
+
+	if (osd_hw.osd_meson_dev.has_slice2ppc)
+		set_slice2ppc_status();
 
 	blending = &osd_blending;
 
@@ -11708,6 +12180,9 @@ static int osd_setting_order(u32 output_index)
 
 	if (osd_hw.hw_rdma_en)
 		osd_mali_afbc_start(output_index);
+
+	if (osd_hw.slice2ppc_enable)
+		set_slice2ppc_reg();
 
 	set_blend_reg(blending);
 	save_blend_reg(blending);
@@ -12430,21 +12905,40 @@ static void osd_basic_update_disp_geometry(u32 index)
 {
 	struct hw_osd_reg_s *osd_reg = &hw_osd_reg_array[index];
 	u32 data32;
-	u32 buffer_w, buffer_h;
 	u32 output_index = get_output_device_id(index);
+	u32 in_x_start, in_x_end, in_y_start, in_y_end;
+	u32 disp_x_start, disp_x_end, disp_y_start, disp_y_end;
 
-	data32 = (osd_hw.dispdata[index].x_start & 0xfff)
-		| (osd_hw.dispdata[index].x_end & 0xfff) << 16;
+	if (osd_hw.slice2ppc_enable) {
+		in_x_start = osd_slice2ppc.slice_in_x_start[index];
+		in_x_end   = osd_slice2ppc.slice_in_x_end[index];
+		in_y_start = osd_slice2ppc.slice_in_y_start[index];
+		in_y_end   = osd_slice2ppc.slice_in_y_end[index];
+		disp_x_start = 0;
+		disp_x_end   = in_x_end - in_x_start;
+		disp_y_start = 0;
+		disp_y_end   = in_y_end - in_y_start;
+	} else {
+		in_x_start = osd_hw.src_data[index].x;
+		in_x_end   = osd_hw.src_data[index].x +
+			     osd_hw.src_data[index].w - 1;
+		in_y_start = osd_hw.src_data[index].y;
+		in_y_end   = osd_hw.src_data[index].y +
+			     osd_hw.src_data[index].h - 1;
+		disp_x_start = osd_hw.dispdata[index].x_start;
+		disp_x_end   = osd_hw.dispdata[index].x_end;
+		disp_y_start = osd_hw.dispdata[index].y_start;
+		disp_y_end   = osd_hw.dispdata[index].y_end;
+	}
+
+	data32 = (disp_x_start & 0xfff) | (disp_x_end & 0xfff) << 16;
 	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(osd_reg->osd_blk0_cfg_w3, data32);
 	if (osd_hw.scan_mode[index] == SCAN_MODE_INTERLACE)
-		data32 = ((osd_hw.dispdata[index].y_start >> 1) & 0xfff)
-			| ((((osd_hw.dispdata[index].y_end + 1)
-			>> 1) - 1) & 0xfff) << 16;
+		data32 = ((disp_y_start >> 1) & 0xfff)
+			| ((((disp_y_end + 1) >> 1) - 1) & 0xfff) << 16;
 	else
-		data32 = (osd_hw.dispdata[index].y_start & 0xfff)
-			| (osd_hw.dispdata[index].y_end
-			& 0xfff) << 16;
+		data32 = (disp_y_start & 0xfff) | (disp_y_end & 0xfff) << 16;
 	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(osd_reg->osd_blk0_cfg_w4,
 		data32);
@@ -12539,18 +13033,16 @@ static void osd_basic_update_disp_geometry(u32 index)
 			if (osd_hw.osd_afbcd[index].enable) {
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_boundings_box_x_start_s,
-					osd_hw.src_data[index].x);
+					 in_x_start);
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_boundings_box_x_end_s,
-					osd_hw.src_data[index].x +
-					osd_hw.src_data[index].w - 1);
+					 in_x_end);
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_boundings_box_y_start_s,
-					osd_hw.src_data[index].y);
+					 in_y_start);
 				osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 					(osd_reg->afbc_boundings_box_y_end_s,
-					osd_hw.src_data[index].y +
-					osd_hw.src_data[index].h -  1);
+					 in_y_end);
 			}
 		} else {
 			/* osd switch to mali */
@@ -12601,43 +13093,15 @@ static void osd_basic_update_disp_geometry(u32 index)
 					(osd_reg->osd_ctrl_stat, 0x0, 2, 1);
 		}
 	}
-	if (osd_hw.free_scale_enable[index] &&
-	    osd_hw.free_src_data[index].x_end > 0 &&
-	    osd_hw.free_src_data[index].y_end > 0) {
-		/* enable osd free scale */
-		data32 = (osd_hw.free_src_data[index].x_start & 0x1fff) |
-			 (osd_hw.free_src_data[index].x_end & 0x1fff) << 16;
-		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
-			(osd_reg->osd_blk0_cfg_w1, data32);
-		data32 = ((osd_hw.free_src_data[index].y_start
-			+ osd_hw.pandata[index].y_start) & 0x1fff)
-			| ((osd_hw.free_src_data[index].y_end
-			+ osd_hw.pandata[index].y_start) & 0x1fff) << 16;
-		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
-			(osd_reg->osd_blk0_cfg_w2, data32);
-	} else {
-		/* normal mode */
-		data32 = (osd_hw.pandata[index].x_start & 0x1fff)
-			| (osd_hw.pandata[index].x_end & 0x1fff) << 16;
-		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
-			(osd_reg->osd_blk0_cfg_w1, data32);
-		data32 = (osd_hw.pandata[index].y_start & 0x1fff)
-			| (osd_hw.pandata[index].y_end & 0x1fff) << 16;
-		osd_hw.osd_rdma_func[output_index].osd_rdma_wr
-			(osd_reg->osd_blk0_cfg_w2, data32);
-	}
-	data32 = (osd_hw.src_data[index].x & 0x1fff) |
-			 ((osd_hw.src_data[index].x +
-			 osd_hw.src_data[index].w - 1) & 0x1fff) << 16;
+
+	data32 = (in_x_start & 0x1fff) | (in_x_end & 0x1fff) << 16;
 	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(hw_osd_reg_array[index].osd_blk0_cfg_w1, data32);
-	buffer_w = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
-	data32 = (osd_hw.src_data[index].y & 0x1fff)
-		| ((osd_hw.src_data[index].y +
-		osd_hw.src_data[index].h - 1) & 0x1fff) << 16;
+
+	data32 = (in_y_start & 0x1fff) | (in_y_end & 0x1fff) << 16;
 	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(osd_reg->osd_blk0_cfg_w2, data32);
-	buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
+
 	data32 = osd_hw.osd_rdma_func[output_index].osd_rdma_rd
 		(osd_reg->osd_ctrl_stat);
 	data32 &= ~0x1ff008;//0x1ff00e;
@@ -13393,6 +13857,10 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 	else
 		memcpy(&hw_osd_reg_blend, &hw_osd_blend_reg_legacy,
 		       sizeof(struct hw_osd_blend_reg_s));
+
+	if (osd_hw.osd_meson_dev.has_slice2ppc)
+		memcpy(&hw_osd_reg_slice2ppc, &hw_osd_slice2ppc_reg,
+		       sizeof(struct hw_osd_slice2ppc_reg_s));
 
 	if (osd_meson->osd_count == 3 &&
 	    osd_meson->has_viu2) {

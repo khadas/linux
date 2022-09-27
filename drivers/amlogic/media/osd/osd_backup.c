@@ -1214,6 +1214,16 @@ static struct reg_item misc_recovery_table_s5[] = {
 	{OSD3_PROC_OUT_SIZE, 0x0, 0x1fff1fff, 1},
 	{OSD_BLEND_DOUT0_SIZE, 0x0, 0x1fff1fff, 1},
 	{OSD_BLEND_DOUT1_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD_2SLICE2PPC_IN_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD_2SLICE2PPC_MODE, 0x0, 0x1, 1},
+	{OSD_SYS_HWIN0_CUT, 0x0, 0x3fff1fff, 1},
+	{OSD_SYS_HWIN1_CUT, 0x0, 0x3fff1fff, 1},
+	{OSD_SYS_PAD_CTRL, 0x0, 0x1, 1},
+	{OSD_SYS_PAD_DUMMY_DATA0, 0x0, 0x0fff0fff, 1},
+	{OSD_SYS_PAD_DUMMY_DATA1, 0x0, 0x0fff0fff, 1},
+	{OSD_SYS_PAD_H_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD_SYS_PAD_V_SIZE, 0x0, 0x1fff1fff, 1},
+	{OSD_SYS_2SLICE_HWIN_CUT, 0x0, 0x3fff1fff, 1},
 };
 
 static void recovery_regs_init_old(void)

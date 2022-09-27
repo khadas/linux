@@ -363,6 +363,7 @@ enum osd_blend_mode_e {
 	OSD_BLEND_AB_C,
 	OSD_BLEND_ABCD,
 	OSD_BLEND_AB_CD,
+	OSD_BLEND_A_2SLICE
 };
 
 enum afbc_pix_format_e {
@@ -563,6 +564,7 @@ struct osd_device_data_s {
 	u32 has_vpp1;
 	u32 has_vpp2;
 	u32 has_pi;
+	u32 has_slice2ppc;
 	struct clk *vpu_clkc;
 };
 
@@ -612,6 +614,7 @@ struct hw_osd_reg_s {
 	u32 osd_hsc_phase_step;/* VPP_OSD_HSC_PHASE_STEP */
 	u32 osd_hsc_init_phase;/* VPP_OSD_HSC_INI_PHASE */
 	u32 osd_hsc_ctrl0;/* VPP_OSD_HSC_CTRL0 */
+	u32 osd_hsc_ini_pat_ctrl; /* OSDx_PROC_HSC_CTRL0 */
 	u32 osd_sc_dummy_data;/* VPP_OSD_SC_DUMMY_DATA */
 	u32 osd_sc_ctrl0;/* VPP_OSD_SC_CTRL0 */
 	u32 osd_sci_wh_m1;/* VPP_OSD_SCI_WH_M1 */
@@ -673,6 +676,65 @@ struct hw_osd_blend_reg_s {
 	u32 vd3_blend_src_ctrl;   /* VD3_BLEND_SRC_CTRL */
 	u32 osd1_blend_src_ctrl;  /* OSD1_BLEND_SRC_CTRL */
 	u32 osd2_blend_src_ctrl;  /* OSD2_BLEND_SRC_CTRL */
+};
+
+struct hw_osd_slice2ppc_reg_s {
+	u32 osd_2slice2ppc_in_size;  /* OSD_2SLICE2PPC_IN_SIZE */
+	u32 osd_2slice2ppc_mode;     /* OSD_2SLICE2PPC_MODE */
+	u32 osd_sys_hwin0_cut;       /* OSD_SYS_HWIN0_CUT */
+	u32 osd_sys_hwin1_cut;       /* OSD_SYS_HWIN1_CUT */
+	u32 osd_sys_pad_ctrl;        /* OSD_SYS_PAD_CTRL */
+	u32 osd_sys_pad_dummy_data0; /* OSD_SYS_PAD_DUMMY_DATA0 */
+	u32 osd_sys_pad_dummy_data1; /* OSD_SYS_PAD_DUMMY_DATA1 */
+	u32 osd_sys_pad_h_size;      /* OSD_SYS_PAD_H_SIZE */
+	u32 osd_sys_pad_v_size;      /* OSD_SYS_PAD_V_SIZE */
+	u32 osd_sys_2slice_hwin_cut; /* OSD_SYS_2SLICE_HWIN_CUT */
+};
+
+enum hwin_cut_e {
+	HWIN_IN_0,
+	HWIN_IN_1,
+	HWIN_OUT,
+	HWIN_NUM
+};
+
+enum slice_position_e {
+	SLICE_LEFT,
+	SLICE_RIGHT,
+	SLICE_NUM,
+	SLICE_NONE
+};
+
+struct hw_osd_slice2ppc_s {
+	/* 2slice register values */
+	u32 slice2ppc_hsize; /* hsize */
+	u32 slice2ppc_vsize; /* vsize */
+	u32 slice2ppc_mode;  /* 0: 2slice to 2ppc  1: 1slice to 2ppc */
+
+	u32 hwincut_en[HWIN_NUM];
+	u32 hwincut_bgn[HWIN_NUM];
+	u32 hwincut_end[HWIN_NUM];
+
+	u32 pad_en;
+	u32 pad_h_bgn;
+	u32 pad_h_end;
+	u32 pad_v_bgn;
+	u32 pad_v_end;
+
+	/* values for calculation */
+	u32 in_hsize_total;
+	u32 in_vsize_total;
+	u32 out_hsize_total;
+	u32 out_vsize_total;
+	u32 scaler_in_hsize[OSD_MAX];
+	u32 scaler_in_vsize[OSD_MAX];
+	u32 scaler_out_hsize[OSD_MAX];
+	u32 scaler_out_vsize[OSD_MAX];
+	u32 slice_in_x_start[OSD_MAX];
+	u32 slice_in_x_end[OSD_MAX];
+	u32 slice_in_y_start[OSD_MAX];
+	u32 slice_in_y_end[OSD_MAX];
+	enum slice_position_e slice_pos[OSD_MAX];
 };
 
 struct osd_blend_reg_s {
@@ -989,5 +1051,6 @@ struct hw_para_s {
 	struct ffile_info file_info_debug[HW_OSD_COUNT];
 	struct pandata_s pi_out;
 	u32 pi_enable;
+	u32 slice2ppc_enable;
 };
 #endif /* _OSD_H_ */

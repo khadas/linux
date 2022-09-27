@@ -363,6 +363,7 @@ unsigned int osd_log_level;
 unsigned int osd_log_module = 1;
 unsigned int osd_game_mode[VIU_COUNT];
 unsigned int osd_pi_debug, osd_pi_enable;
+unsigned int osd_slice2ppc_debug, osd_slice2ppc_enable;
 
 int int_viu_vsync = -ENXIO;
 int int_viu2_vsync = -ENXIO;
@@ -3079,6 +3080,32 @@ static ssize_t store_pi_test(struct device *device,
 	return count;
 }
 
+static ssize_t show_slice2ppc_test(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 80, "slice2ppc_debug:%d slice2ppc_enable:%d\n",
+			osd_slice2ppc_debug, osd_slice2ppc_enable);
+}
+
+static ssize_t store_slice2ppc_test(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		osd_slice2ppc_debug = parsed[0];
+		osd_slice2ppc_enable = parsed[1];
+		osd_log_info("set slice2ppc_debug:%d slice2ppc_enable:%d\n",
+			     osd_slice2ppc_debug, osd_slice2ppc_enable);
+	} else {
+		osd_log_err("usage: echo slice2ppc_debug slice2ppc_enable > slice2ppc_test\n");
+	}
+
+	return count;
+}
+
 /* Todo: how to use uboot logo */
 static ssize_t free_scale_switch(struct device *device,
 				 struct device_attribute *attr,
@@ -4226,6 +4253,8 @@ static struct device_attribute osd_attrs[] = {
 	       show_file_info, NULL),
 	__ATTR(pi_test, 0644,
 	       show_pi_test, store_pi_test),
+	__ATTR(slice2ppc_test, 0644,
+	       show_slice2ppc_test, store_slice2ppc_test),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4959,6 +4988,7 @@ static struct osd_device_data_s osd_s5 = {
 	.has_vpp1 = 0,
 	.has_vpp2 = 0,
 	.has_pi = 1,
+	.has_slice2ppc = 1,
 };
 
 static struct osd_device_hw_s s5_dev_property = {
