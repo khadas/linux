@@ -4126,12 +4126,17 @@ void dim_rst_protect(bool on)/*2019-01-22 by VLSI feng.wang*/
 #define PRE_ID_MASK_TL1	(0x14500)
 
 #define PRE_ID_MASK_T5	(0x28a00) //add decontour and shift 1bit
+#define PRE_ID_MASK_S5	(0x50a00)	//add ai color
 
 static bool di_pre_idle(void)
 {
 	bool ret = false;
 
-	if (DIM_IS_IC_EF(T3) || DIM_IS_IC(T5D) || DIM_IS_IC(T5DB) ||
+	if (DIM_IS_IC_EF(S5)) {
+		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
+			PRE_ID_MASK_S5) == PRE_ID_MASK_S5)
+			ret = true;
+	} else if (DIM_IS_IC_EF(T3) || DIM_IS_IC(T5D) || DIM_IS_IC(T5DB) ||
 	    DIM_IS_IC(T5)) {
 		if ((DIM_RDMA_RD(DI_ARB_DBG_STAT_L1C1) &
 			PRE_ID_MASK_T5) == PRE_ID_MASK_T5)
