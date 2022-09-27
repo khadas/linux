@@ -47,8 +47,8 @@
  *have not get more info from others,so config it as 10 right now.
  *Todo:if you make sure and test okay,you can rechange it.
  */
-#define MESON_OSD_SCLAE_DOWN_LIMIT 10
-#define MESON_OSD_SCLAE_UP_LIMIT ((1 << 24) - 1)
+#define MESON_OSD_SCALE_DOWN_LIMIT 10
+#define MESON_OSD_SCALE_UP_LIMIT ((1 << 24) - 1)
 
 #define SCALER_RATIO_X_CALC_DONE BIT(0)
 #define SCALER_RATIO_Y_CALC_DONE BIT(1)
@@ -125,7 +125,7 @@ struct meson_vpu_block {
 
 	enum meson_vpu_blk_type type;
 	u8 id;
-	/*index in same type objects arry,update to object_index*/
+	/*index in same type objects array,update to object_index*/
 	u8 index;
 	u8 max_inputs;
 	u8 max_outputs;

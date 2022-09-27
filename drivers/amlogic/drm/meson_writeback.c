@@ -429,7 +429,7 @@ int am_meson_writeback_create(struct drm_device *drm)
 	/*amlogic prop*/
 	ret = meson_writeback_port_property(drm, drm_writeback);
 	if (ret) {
-		DRM_ERROR("Failed to attch capture port prop\n");
+		DRM_ERROR("Failed to attach capture port prop\n");
 		return ret;
 	}
 

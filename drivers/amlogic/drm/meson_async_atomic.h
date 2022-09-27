@@ -8,7 +8,7 @@
 
 #include <drm/drm_atomic.h>
 
-int meson_asyc_atomic_ioctl(struct drm_device *dev,
+int meson_async_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv);
 
 #endif

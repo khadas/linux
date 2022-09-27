@@ -262,7 +262,7 @@ static int atomic_set_prop(struct drm_atomic_state *state,
 }
 
 /*modified from drm_mode_atomic_ioctl() */
-int meson_asyc_atomic_ioctl(struct drm_device *dev,
+int meson_async_atomic_ioctl(struct drm_device *dev,
 			  void *data, struct drm_file *file_priv)
 {
 	struct drm_mode_atomic *arg = data;

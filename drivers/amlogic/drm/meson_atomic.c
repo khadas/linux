@@ -330,7 +330,7 @@ static int meson_drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 			continue;
 		}
 
-		/* Legacy cursor updates are fully unsynced. */
+		/* Legacy cursor updates are fully unsynchronized. */
 		if (state->legacy_cursor_update) {
 			complete_all(&commit->flip_done);
 			continue;

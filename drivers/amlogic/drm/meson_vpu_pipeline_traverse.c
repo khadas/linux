@@ -194,7 +194,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 		m = mvps->scale_blk[i][0]->index;
 		scaler_param = &mvps->scaler_param[m];
 
-		/*save sclaer ratio*/
+		/*save scaler ratio*/
 		scaler_param->ratio_w_num = mvps->plane_info[osd_index].src_w;
 		scaler_param->ratio_w_den = mvps->plane_info[osd_index].dst_w;
 		scaler_param->ratio_h_num = mvps->plane_info[osd_index].src_h;
@@ -225,7 +225,6 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				mvps->osd_scope_pre[osd_index].v_start
 				+ scaler_param->output_height - 1;
 		} else {/*scaler position is after osd land*/
-			/*osdblend scope size calc firstly*/
 			mvps->osd_scope_pre[osd_index].h_start =
 				mvps->plane_info[osd_index].dst_x *
 				scaler_param->ratio_w_num /
@@ -935,7 +934,7 @@ void vpu_pipeline_clean_block(int *combination, int num_planes,
 }
 
 /**
- * combinate_layer_path - combinate every found layer path
+ * combine_layer_path - combine every found layer path
  * @path_num_array: the number of every layer's found path
  * @num_planes: the number of layer
  *
@@ -944,7 +943,7 @@ void vpu_pipeline_clean_block(int *combination, int num_planes,
  * RETURNS:
  * 0 for the valid path or -1 for the invalid path
  */
-int combinate_layer_path(int *path_num_array, int num_planes,
+int combine_layer_path(int *path_num_array, int num_planes,
 			 struct meson_vpu_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
@@ -1012,7 +1011,7 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 
 /**
  * find every layer's path(from start block to the end block) through
- * pipeline_dfs, combinate every found path of every layer
+ * pipeline_dfs, combine every found path of every layer
  * and check whether the combination is a valid path
  * that can meet the requirement of hardware limites.
  *
@@ -1062,7 +1061,7 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 		pipeline_dfs(osd_index, mvps, start, end, state);
 	}
 
-	DRM_DEBUG("==>pipeline_dfs end, start combinate.\n");
+	DRM_DEBUG("==>pipeline_dfs end, start combine.\n");
 	// start to combination every layer case
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
@@ -1073,7 +1072,7 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 			  (osd_index + 1), path[i]);
 	}
 
-	ret = combinate_layer_path(path, num_planes, mvps, state);
+	ret = combine_layer_path(path, num_planes, mvps, state);
 	if (ret)
 		DRM_ERROR("can't find a valid path.\n");
 

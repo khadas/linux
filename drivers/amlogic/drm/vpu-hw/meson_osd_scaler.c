@@ -876,7 +876,7 @@ void osd_scaler_config(struct osd_scaler_reg_s *reg,
 	if (version >= OSD_V2)
 		osd_vsc_repate_last_line_enable_set(vblk, reg_ops, reg, 1);
 
-	/*eanble sc*/
+	/*enable sc*/
 	osd_vsc_enable_set(vblk, reg_ops, reg, scaler_enable);
 	osd_hsc_enable_set(vblk, reg_ops, reg, scaler_enable);
 	osd_sc_en_set(vblk, reg_ops, reg, scaler_enable);

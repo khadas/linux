@@ -114,12 +114,16 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	plane_info->src_y = state->src_y >> 16;
 	plane_info->src_w = (state->src_w >> 16) & 0xffff;
 	plane_info->src_h = (state->src_h >> 16) & 0xffff;
+	DRM_DEBUG("original source: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
+		plane_info->src_x, plane_info->src_y, plane_info->src_w, plane_info->src_h);
 
 	plane_info->dst_x = state->crtc_x;
 	plane_info->dst_y = state->crtc_y;
 	plane_info->dst_w = state->crtc_w;
 	plane_info->dst_h = state->crtc_h;
 	plane_info->rotation = state->rotation;
+	DRM_DEBUG("original destination: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
+		plane_info->dst_x, plane_info->dst_y, plane_info->dst_w, plane_info->dst_h);
 	if (state->plane) {
 		amp = to_am_osd_plane(state->plane);
 		if (plane_info->rotation != amp->osd_reverse)
@@ -147,6 +151,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 		} else {
 			plane_info->enable = 0;
 		}
+		DRM_DEBUG("state->crtc_x < 0\n");
 	}
 	if (state->crtc_y < 0) {
 		dst_h = state->crtc_h + state->crtc_y;
@@ -159,6 +164,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 		} else {
 			plane_info->enable = 0;
 		}
+		DRM_DEBUG("state->crtc_y < 0\n");
 	}
 	/*overdisplay process*/
 	if ((plane_info->dst_x + plane_info->dst_w) > mode->hdisplay) {
@@ -172,6 +178,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 			plane_info->src_w =
 				(src_w * plane_info->dst_w) / dst_w;
 		}
+		DRM_DEBUG("(plane_info->dst_x + plane_info->dst_w) > mode->hdisplay\n");
 	}
 	if ((plane_info->dst_y + plane_info->dst_h) > mode->vdisplay) {
 		if (plane_info->dst_y >= mode->vdisplay) {
@@ -184,6 +191,7 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 			plane_info->src_h =
 				(src_h * plane_info->dst_h) / dst_h;
 		}
+		DRM_DEBUG("(plane_info->dst_y + plane_info->dst_h) > mode->vdisplay\n");
 	}
 	/*reverse process*/
 	if (plane_info->rotation & DRM_MODE_REFLECT_X)
@@ -192,6 +200,13 @@ meson_plane_position_calc(struct meson_vpu_osd_layer_info *plane_info,
 	if (plane_info->rotation & DRM_MODE_REFLECT_Y)
 		plane_info->dst_y = mode->vdisplay - plane_info->dst_h -
 			plane_info->dst_y;
+	DRM_DEBUG("fini source: src_x=%d, src_y=%d, src_w=%d, src_h=%d\n",
+		plane_info->src_x, plane_info->src_y,
+		plane_info->src_w, plane_info->src_h);
+	DRM_DEBUG("fini destination: dst_x=%d, dst_y=%d, dst_w=%d, dst_h=%d\n",
+		plane_info->dst_x, plane_info->dst_y,
+		plane_info->dst_w, plane_info->dst_h);
+
 }
 
 static void
@@ -286,15 +301,15 @@ meson_plane_check_size_range(struct meson_vpu_osd_layer_info *plane_info)
 		ratio_x = (src_w + dst_w - 1) / dst_w;
 	if (src_h > dst_h)
 		ratio_y = (src_h + dst_h - 1) / dst_h;
-	if (ratio_x > MESON_OSD_SCLAE_DOWN_LIMIT ||
-	    ratio_y > MESON_OSD_SCLAE_DOWN_LIMIT)
+	if (ratio_x > MESON_OSD_SCALE_DOWN_LIMIT ||
+	    ratio_y > MESON_OSD_SCALE_DOWN_LIMIT)
 		ret = -EDOM;
 	if (src_w < dst_w)
 		ratio_x = (dst_w + src_w - 1) / src_w;
 	if (src_h < dst_h)
 		ratio_y = (dst_h + src_h - 1) / src_h;
-	if (ratio_x > MESON_OSD_SCLAE_UP_LIMIT ||
-	    ratio_y > MESON_OSD_SCLAE_UP_LIMIT)
+	if (ratio_x > MESON_OSD_SCALE_UP_LIMIT ||
+	    ratio_y > MESON_OSD_SCALE_UP_LIMIT)
 		ret = -EDOM;
 	return ret;
 }
@@ -469,7 +484,7 @@ static int meson_plane_get_fb_info(struct drm_plane *plane,
 	    AFBC_FORMAT_MOD_BLOCK_SIZE_32x8)
 		plane_info->afbc_inter_format |= SUPER_BLOCK_ASPECT;
 
-	DRM_DEBUG("flags:%d pixel_format:%d,modifer=%llu\n",
+	DRM_DEBUG("flags:%d pixel_format:%d,modifier=%llu\n",
 		  fb->flags, fb->format->format,
 				fb->modifier);
 	DRM_DEBUG("plane afbc_en=%u, afbc_inter_format=%x\n",
@@ -505,7 +520,7 @@ static int meson_video_plane_get_fb_info(struct drm_plane *plane,
 	plane_info->fb_w = fb->width;
 	plane_info->fb_h = fb->height;
 
-	DRM_DEBUG("flags:%d pixel_format:%d,modifer=%llu\n",
+	DRM_DEBUG("flags:%d pixel_format:%d,modifier=%llu\n",
 		  fb->flags, fb->format->format,
 				fb->modifier);
 	DRM_DEBUG("phy_addr[0]=0x%pa,byte_stride=%d,pixel_format=%d\n",
@@ -1056,7 +1071,7 @@ static int meson_video_plane_atomic_check(struct drm_plane *plane,
 		return -EINVAL;
 	}
 
-	DRM_DEBUG("planeidx [%d]\n", video_plane->plane_index);
+	DRM_DEBUG("plane_index [%d]\n", video_plane->plane_index);
 
 	mvps = meson_vpu_pipeline_get_state(drv->pipeline, state->state);
 	if (!mvps || video_plane->plane_index >= MESON_MAX_VIDEO) {
@@ -1309,7 +1324,7 @@ meson_create_scaling_filter_prop(struct drm_device *dev,
 	{ DRM_SCALING_FILTER_BICUBIC_SHARP, "Bicubic_Sharp" },
 	{ DRM_SCALING_FILTER_BICUBIC, "Bicubic" },
 	{ DRM_SCALING_FILTER_BILINEAR, "Bilinear" },
-	{ DRM_SCALING_FILTER_2POINT_BINILEAR, "2Point_Bilinear" },
+	{ DRM_SCALING_FILTER_2POINT_BILINEAR, "2Point_Bilinear" },
 	{ DRM_SCALING_FILTER_3POINT_TRIANGLE_SHARP, "3Point_Triangle_Sharp" },
 	{ DRM_SCALING_FILTER_3POINT_TRIANGLE, "3Point_Triangle" },
 	{ DRM_SCALING_FILTER_4POINT_TRIANGLE, "4Point_Triangle" },
@@ -1322,7 +1337,7 @@ meson_create_scaling_filter_prop(struct drm_device *dev,
 				BIT(DRM_SCALING_FILTER_BICUBIC_SHARP) |
 				BIT(DRM_SCALING_FILTER_BICUBIC) |
 				BIT(DRM_SCALING_FILTER_BILINEAR) |
-				BIT(DRM_SCALING_FILTER_2POINT_BINILEAR)  |
+				BIT(DRM_SCALING_FILTER_2POINT_BILINEAR)  |
 				BIT(DRM_SCALING_FILTER_3POINT_TRIANGLE_SHARP) |
 				BIT(DRM_SCALING_FILTER_3POINT_TRIANGLE) |
 				BIT(DRM_SCALING_FILTER_4POINT_TRIANGLE) |
@@ -1429,7 +1444,7 @@ static void meson_plane_get_primary_plane(struct meson_drm *priv,
 
 	for (i = 0; i < MESON_MAX_CRTC; i++) {
 		for (j = 0; j < MESON_MAX_OSDS; j++) {
-			if (i == priv->crtcmask_osd[j] &&
+			if (i == priv->crtc_mask_osd[j] &&
 				priv->osd_occupied_index != j) {
 				first_plane = j;
 
@@ -1514,7 +1529,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 				BIT(DRM_SCALING_FILTER_BICUBIC_SHARP) |
 				BIT(DRM_SCALING_FILTER_BICUBIC) |
 				BIT(DRM_SCALING_FILTER_BILINEAR) |
-				BIT(DRM_SCALING_FILTER_2POINT_BINILEAR) |
+				BIT(DRM_SCALING_FILTER_2POINT_BILINEAR) |
 				BIT(DRM_SCALING_FILTER_3POINT_TRIANGLE_SHARP) |
 				BIT(DRM_SCALING_FILTER_3POINT_TRIANGLE) |
 				BIT(DRM_SCALING_FILTER_4POINT_TRIANGLE) |
@@ -1523,7 +1538,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 				BIT(DRM_SCALING_FILTER_REPEATE));
 	meson_plane_add_occupied_property(priv->drm, osd_plane);
 	meson_plane_add_max_fb_property(priv->drm, osd_plane);
-	DRM_INFO("osd plane %d create done, occupied-%d crtcmask-%d type-%d\n",
+	DRM_INFO("osd plane %d create done, occupied-%d crtc_mask-%d type-%d\n",
 		i, osd_plane->osd_occupied, crtc_mask, type);
 	return osd_plane;
 }
@@ -1593,7 +1608,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 			continue;
 
 		osd_index = pipeline->osds[i]->base.index;
-		plane = am_osd_plane_create(priv, osd_index, priv->crtcmask_osd[i], type[i]);
+		plane = am_osd_plane_create(priv, osd_index, priv->crtc_mask_osd[i], type[i]);
 
 		if (!plane)
 			return -ENOMEM;
@@ -1610,7 +1625,7 @@ int am_meson_plane_create(struct meson_drm *priv)
 	/*video plane: init after osd to provide osd id at first.*/
 	for (i = 0; i < pipeline->num_video; i++) {
 		video_index = pipeline->video[i]->base.index;
-		video_plane = am_video_plane_create(priv, video_index, priv->crtcmask_video[i]);
+		video_plane = am_video_plane_create(priv, video_index, priv->crtc_mask_video[i]);
 		if (!video_plane)
 			return -ENOMEM;
 

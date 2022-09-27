@@ -82,7 +82,7 @@ static const struct drm_mode_config_helper_funcs meson_mode_config_helpers = {
 	.atomic_commit_tail = meson_atomic_helper_commit_tail,
 };
 
-bool meson_drm_get_scannout_position(struct drm_device *dev,
+bool meson_drm_get_scanout_position(struct drm_device *dev,
 	unsigned int pipe, bool in_vblank_irq,
 	int *vpos, int *hpos, ktime_t *stime, ktime_t *etime,
 	const struct drm_display_mode *mode)
@@ -91,7 +91,7 @@ bool meson_drm_get_scannout_position(struct drm_device *dev,
 	struct am_meson_crtc *crtc = to_am_meson_crtc
 		(drm_crtc_from_index(dev, pipe));
 
-	ret = crtc->get_scannout_position(crtc,
+	ret = crtc->get_scanout_position(crtc,
 		in_vblank_irq, vpos, hpos, stime, etime, mode);
 
 	return (ret == 0) ? true : false;
@@ -103,7 +103,7 @@ static const struct drm_ioctl_desc meson_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 	#endif
-	DRM_IOCTL_DEF_DRV(MESON_ASYNC_ATOMIC, meson_asyc_atomic_ioctl,
+	DRM_IOCTL_DEF_DRV(MESON_ASYNC_ATOMIC, meson_async_atomic_ioctl,
 			  0),
 };
 #endif
@@ -129,7 +129,7 @@ static const struct file_operations fops = {
 static struct drm_driver meson_driver = {
 	/*driver_features setting move to probe functions*/
 	.driver_features	= 0,
-	.get_scanout_position = meson_drm_get_scannout_position,
+	.get_scanout_position = meson_drm_get_scanout_position,
 	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = meson_debugfs_init,

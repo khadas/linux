@@ -450,7 +450,7 @@ backoff:
 }
 
 /**
- * the implment if different from drm_fb_helper.
+ * the implement if different from drm_fb_helper.
  * for plane based fbdev, we only disable corresponding plane
  * but not the whole crtc.
  */

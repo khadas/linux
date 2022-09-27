@@ -38,14 +38,14 @@ struct am_meson_crtc_state {
 	u8 crtc_hdr_process_policy; /*follow sink or follow source*/
 	/*only used to indicate if dv ll mode output now.*/
 	u8 crtc_eotf_type;
-	/*dv core enabled, control by usersapce not driver*/
+	/*dv core enabled, control by userspace not driver*/
 	bool crtc_dv_enable;
 	bool dv_mode;
 	/*hdr core enabled, always on if soc support hdr.*/
 	bool crtc_hdr_enable;
-	/*etof policy update by property*/
+	/*eotf policy update by property*/
 	bool crtc_eotf_by_property_flag;
-	/*etof value by property*/
+	/*eotf value by property*/
 	u8 eotf_type_by_property;
 	/*crtc background*/
 	u64 crtc_bgcolor;
@@ -70,7 +70,7 @@ struct am_meson_crtc {
 	struct meson_vpu_pipeline *pipeline;
 
 	struct drm_property *hdr_policy;
-	struct drm_property *hdmi_etof;
+	struct drm_property *hdmi_eotf;
 	struct drm_property *dv_enable_property;
 	struct drm_property *dv_mode_property;
 	struct drm_property *bgcolor_property;
@@ -86,7 +86,7 @@ struct am_meson_crtc {
 	/*forced to detect crc several times after bootup.*/
 	int force_crc_chk;
 	/*funcs*/
-	int (*get_scannout_position)(struct am_meson_crtc *crtc,
+	int (*get_scanout_position)(struct am_meson_crtc *crtc,
 		bool in_vblank_irq, int *vpos, int *hpos,
 		ktime_t *stime, ktime_t *etime,
 		const struct drm_display_mode *mode);

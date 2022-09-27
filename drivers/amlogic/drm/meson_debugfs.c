@@ -47,7 +47,7 @@ static u8 *meson_drm_vmap(ulong addr, u32 size, bool *bflg)
 
 	vaddr = vmap(pages, npages, VM_MAP, pgprot);
 	if (!vaddr) {
-		pr_err("the phy(%lx) vmaped fail, size: %d\n",
+		pr_err("the phy(%lx) vmap fail, size: %d\n",
 		       addr - offset, npages << PAGE_SHIFT);
 		kfree(pages);
 		return NULL;
@@ -327,7 +327,7 @@ static int meson_osd_reverse_show(struct seq_file *sf, void *data)
 	struct am_osd_plane *amp = to_am_osd_plane(plane);
 
 	seq_puts(sf, "echo 1/2/3 > osd_reverse :reverse the osd xy/x/y\n");
-	seq_puts(sf, "echo 0 > osd_reverse to unreverse the osd plane\n");
+	seq_puts(sf, "echo 0 > osd_reverse to un_reverse the osd plane\n");
 	seq_printf(sf, "osd_reverse: %d\n", amp->osd_reverse);
 	return 0;
 }
@@ -505,7 +505,7 @@ static int meson_reg_debug_show(struct seq_file *sf, void *data)
 	seq_puts(sf, "echo rv reg > debug to read the register\n");
 	seq_puts(sf, "echo wv reg val > debug to overwrite the register\n");
 	seq_puts(sf, "echo ow 1 > debug to enable overwrite register\n");
-	seq_printf(sf, "\noverwrited status: %s\n", overwrite_enable ? "on" : "off");
+	seq_printf(sf, "\noverwrote status: %s\n", overwrite_enable ? "on" : "off");
 	if (overwrite_enable) {
 		for (i = 0; i < reg_num; i++)
 			seq_printf(sf, "reg[0x%04x]=0x%08x\n", overwrite_reg[i],

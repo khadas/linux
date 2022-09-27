@@ -560,7 +560,7 @@ void am_meson_logo_init(struct drm_device *dev)
 			of_node_put(mem_node);
 			if (rmem) {
 				logo.size = rmem->size;
-				DRM_INFO("of read reservememsize=0x%x\n",
+				DRM_INFO("of read reserve memsize=0x%x\n",
 					 logo.size);
 			}
 		} else {
@@ -651,7 +651,7 @@ static int gem_mem_device_init(struct reserved_mem *rmem, struct device *dev)
 	}
 	gem_mem_start = rmem->base;
 	gem_mem_size = rmem->size;
-	DRM_INFO("init gem memsource addr:0x%x size:0x%x\n",
+	DRM_INFO("init gem mem_source addr:0x%x size:0x%x\n",
 		(u32)gem_mem_start, (u32)gem_mem_size);
 
 	return 0;
