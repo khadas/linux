@@ -92,6 +92,10 @@ static struct vpp_post_input_s g_vpp_input_pre;
 #define SIZE_ALIG8(frm_hsize)    ((((frm_hsize) + 7) >> 3) << 3)
 #define SIZE_ALIG4(frm_hsize)    ((((frm_hsize) + 3) >> 2) << 2)
 
+static u32 g_post_slice_num = 0xff;
+MODULE_PARM_DESC(g_post_slice_num, "\n g_post_slice_num\n");
+module_param(g_post_slice_num, uint, 0664);
+
 static u32 get_reg_slice_vpost(int reg_addr, int slice_idx)
 {
 	u32 reg_offset;
@@ -892,6 +896,8 @@ static int get_vpp_slice_num(const struct vinfo_s *info)
 		slice_num = 2;
 	else
 		slice_num = 1;
+	if (g_post_slice_num != 0xff)
+		slice_num = g_post_slice_num;
 	return slice_num;
 }
 

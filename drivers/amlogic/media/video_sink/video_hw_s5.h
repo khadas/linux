@@ -26,6 +26,7 @@
 #define DEBUG_FG          BIT(3)
 #define DEBUG_SR          BIT(4)
 #define DEBUG_PPS         BIT(5)
+#define DEBUG_VD2_PROC    BIT(6)
 
 enum sr0_path_sel {
 	SR0_IN_SLICE0,

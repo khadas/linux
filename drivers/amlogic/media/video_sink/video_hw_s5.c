@@ -2631,6 +2631,29 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 		case VD1_2_2SLICES_MODE:
 			break;
 		case VD1_SLICES01_MODE:
+			switch (vd_proc_vd1_info->vd1_slices_dout_dpsel) {
+			case VD1_SLICES_DOUT_2S4P:
+				/* if one pic */
+				/* whole frame in hsize */
+				vd_proc_vd1_info->vd1_src_din_hsize[0] = src_w;
+				vd_proc_vd1_info->vd1_src_din_vsize[0] = src_h;
+				/* without overlap */
+				for (slice = 0; slice < 2; slice++) {
+					vd_proc_vd1_info->vd1_proc_unit_dout_hsize[slice] =
+						slice_out_hsize(slice, 2, dst_w);
+					vd_proc_vd1_info->vd1_proc_unit_dout_vsize[slice] = dst_h;
+					vd_proc_vd1_info->vd1_dout_x_start[slice] = h_start;
+					vd_proc_vd1_info->vd1_dout_y_start[slice] = v_start;
+				}
+				/* whole vd1 output size */
+				vd_proc_vd1_info->vd1_dout_hsize = dst_w;
+				vd_proc_vd1_info->vd1_dout_vsize = dst_h;
+				vd_proc_vd1_info->vd1_overlap_hsize = 32;
+				break;
+			case VD1_SLICES_DOUT_PI:
+				/* 4 pic */
+				break;
+			}
 			break;
 		}
 		for (slice = 0; slice < slice_num; slice++) {
@@ -2818,6 +2841,71 @@ static void set_vd_src_info(struct video_layer_s *layer)
 		case VD1_2_2SLICES_MODE:
 			break;
 		case VD1_SLICES01_MODE:
+			switch (vd_proc_vd1_info->vd1_slices_dout_dpsel) {
+			case VD1_SLICES_DOUT_2S4P:
+				/* if one pic */
+				/* whole frame in hsize, need 2slice, recal-mif scope*/
+				for (slice = 0; slice < SLICE_NUM / 2; slice++) {
+					slice_mif_setting = &layer->slice_mif_setting[slice];
+					slice_mif_setting->id = slice;
+					slice_mif_setting->reverse = mif_setting->reverse;
+					/* whole buffer size */
+					slice_mif_setting->src_w = mif_setting->src_w;
+					slice_mif_setting->src_h = mif_setting->src_h;
+					slice_mif_setting->start_x_lines =
+						vd_proc_slice_info->vd1_slice_x_st[slice];
+					slice_mif_setting->end_x_lines =
+						vd_proc_slice_info->vd1_slice_x_end[slice];
+					slice_mif_setting->start_y_lines =
+						mif_setting->start_y_lines;
+					slice_mif_setting->end_y_lines =
+						mif_setting->end_y_lines;
+
+					slice_mif_setting->l_hs_luma =
+						slice_mif_setting->start_x_lines;
+					slice_mif_setting->l_he_luma =
+						slice_mif_setting->end_x_lines;
+					slice_mif_setting->l_vs_luma =
+						slice_mif_setting->start_y_lines;
+					slice_mif_setting->l_ve_luma =
+						slice_mif_setting->end_y_lines;
+					slice_mif_setting->r_hs_luma =
+						slice_mif_setting->start_x_lines;
+					slice_mif_setting->r_he_luma =
+						slice_mif_setting->end_x_lines;
+					slice_mif_setting->r_vs_luma =
+						slice_mif_setting->start_y_lines;
+					slice_mif_setting->r_ve_luma =
+						slice_mif_setting->end_y_lines;
+					slice_mif_setting->l_hs_chrm =
+						slice_mif_setting->l_hs_luma >> 1;
+					slice_mif_setting->l_he_chrm =
+						slice_mif_setting->l_he_luma >> 1;
+					slice_mif_setting->r_hs_chrm =
+						slice_mif_setting->r_hs_luma >> 1;
+					slice_mif_setting->r_he_chrm =
+						slice_mif_setting->r_he_luma >> 1;
+					slice_mif_setting->l_vs_chrm =
+						slice_mif_setting->l_vs_luma >> 1;
+					slice_mif_setting->l_ve_chrm =
+						slice_mif_setting->l_ve_luma >> 1;
+					slice_mif_setting->r_vs_chrm =
+						slice_mif_setting->r_vs_luma >> 1;
+					slice_mif_setting->r_ve_chrm =
+						slice_mif_setting->r_ve_luma >> 1;
+
+					slice_mif_setting->h_skip = mif_setting->h_skip;
+					slice_mif_setting->v_skip = mif_setting->v_skip;
+					slice_mif_setting->hc_skip = mif_setting->hc_skip;
+					slice_mif_setting->vc_skip = mif_setting->vc_skip;
+					slice_mif_setting->skip_afbc = mif_setting->skip_afbc;
+					slice_mif_setting->vpp_3d_mode = 0;
+				}
+				break;
+			case VD1_SLICES_DOUT_PI:
+				/* 4 pic */
+				break;
+			}
 			break;
 		}
 	}
@@ -3974,6 +4062,7 @@ static void vd_proc_param_set_vd2(struct vd_proc_s *vd_proc)
 	vd2_proc->bypass_dv = vd_proc->bypass_dv;
 	vd2_proc->bypass_detunnel = vd_proc->bypass_detunnel;
 	vd2_proc->bypass_hdr = vd_proc->bypass_hdr;
+	//vd2_proc->dolby_en = 0;
 	if (debug_flag_s5 & DEBUG_VD_PROC)
 		pr_info("%s: din size: %d, %d, dout size: %d, %d, x/y start: %d, %d\n",
 			__func__,
