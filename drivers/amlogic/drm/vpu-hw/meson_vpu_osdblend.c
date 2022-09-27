@@ -15,6 +15,10 @@
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
 #endif
 
+static int align_proc = 4;
+module_param(align_proc, int, 0664);
+MODULE_PARM_DESC(align_proc, "align_proc");
+
 static struct osdblend_reg_s osdblend_reg = {
 	VIU_OSD_BLEND_CTRL,
 	VIU_OSD_BLEND_DIN0_SCOPE_H,
@@ -651,19 +655,31 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 			max_height = mvps->osd_scope_pre[i].v_end + 1;
 	}
 	/*sub blend size check*/
-	mvobs->input_width[OSD_SUB_BLEND0] = max_width;
-	mvobs->input_width[OSD_SUB_BLEND1] = max_width;
+	if (align_proc == 4) {
+		mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, 4);
+		mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, 4);
+	} else if (align_proc == 2) {
+		mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, 2);
+		mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, 2);
+	} else {
+		mvobs->input_width[OSD_SUB_BLEND0] = max_width;
+		mvobs->input_width[OSD_SUB_BLEND1] = max_width;
+	}
 	mvobs->input_height[OSD_SUB_BLEND0] = max_height;
 	mvobs->input_height[OSD_SUB_BLEND1] = max_height;
-	mvsps->blend_dout_hsize[OSD_SUB_BLEND0] = max_width;
+
+	/*blend dout size */
+	mvsps->blend_dout_hsize[OSD_SUB_BLEND0] = ALIGN(max_width, 2);
 	mvsps->blend_dout_vsize[OSD_SUB_BLEND0] = max_height;
-	mvsps->blend_dout_hsize[OSD_SUB_BLEND1] = max_width;
+
+	mvsps->blend_dout_hsize[OSD_SUB_BLEND1] = ALIGN(max_width, 2);
 	mvsps->blend_dout_vsize[OSD_SUB_BLEND1] = max_height;
 
 	osdblend_hw_update(vblk, state->sub->reg_ops, reg, mvobs);
 
 	meson_vpu_write_reg(OSD_BLEND_DOUT0_SIZE,
-			    (max_height << 16) | max_width);
+			    (mvsps->blend_dout_vsize[OSD_SUB_BLEND0] << 16) |
+			    mvsps->blend_dout_hsize[OSD_SUB_BLEND0]);
 
 	if (mvps->plane_info[0].enable) {
 		reg_ops->rdma_write_reg(OSD1_PROC_IN_SIZE,
