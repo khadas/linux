@@ -186,9 +186,9 @@ void cecb_irq_handle(void)
 	if (intr_cec != 0)
 		cecb_clear_irq(intr_cec);
 	else
-		dprintk(L_2, "err cec intsts:0\n");
+		dprintk(L_2, "err cec int_sts:0\n");
 
-	dprintk(L_2, "cecb intsts:0x%x\n", intr_cec);
+	dprintk(L_2, "cecb int_sts:0x%x\n", intr_cec);
 	if (cec_dev->plat_data->ee_to_ao)
 		shift = 16;
 	if (cec_ver_cnt == cec_ver_cnt_max) {
@@ -200,7 +200,7 @@ void cecb_irq_handle(void)
 	if (intr_cec == CEC_IRQ_TX_DONE) {
 		cec_tx_result = CEC_FAIL_NONE;
 		std_ao_cec.tx_result = CEC_TX_STATUS_OK;
-		dprintk(L_2, "irqflg:TX_DONE\n");
+		dprintk(L_2, "irq_flg:TX_DONE\n");
 		if (std_ao_cec.common_queue)
 			queue_delayed_work(cec_dev->cec_rx_event_wq,
 					   &std_ao_cec.work_cec_tx,
@@ -218,24 +218,24 @@ void cecb_irq_handle(void)
 	    (intr_cec & CEC_IRQ_TX_ERR_INITIATOR)) {
 		if (intr_cec & CEC_IRQ_TX_NACK) {
 			cec_tx_result = CEC_FAIL_NACK;
-			dprintk(L_2, "irqflg:TX_NACK\n");
+			dprintk(L_2, "irq_flg:TX_NACK\n");
 			std_ao_cec.tx_result = CEC_TX_STATUS_NACK;
 		} else if (intr_cec & CEC_IRQ_TX_ARB_LOST) {
 			cec_tx_result = CEC_FAIL_BUSY;
 			/* clear start */
 			hdmirx_cec_write(DWC_CEC_TX_CNT, 0);
 			hdmirx_set_bits_dwc(DWC_CEC_CTRL, 0, 0, 3);
-			dprintk(L_2, "irqflg:ARB_LOST\n");
+			dprintk(L_2, "irq_flg:ARB_LOST\n");
 			std_ao_cec.tx_result = CEC_TX_STATUS_ARB_LOST;
 		} else if (intr_cec & CEC_IRQ_TX_ERR_INITIATOR) {
-			dprintk(L_2, "irqflg:INITIATOR\n");
+			dprintk(L_2, "irq_flg:INITIATOR\n");
 			cec_tx_result = CEC_FAIL_OTHER;
 			std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
 			if (std_ao_cec.dbg_ret)
 				std_ao_cec.tx_result =
 					CEC_TX_STATUS_MAX_RETRIES | CEC_TX_STATUS_ERROR;
 		} else {
-			dprintk(L_2, "irqflg:Other\n");
+			dprintk(L_2, "irq_flg:Other\n");
 			cec_tx_result = CEC_FAIL_OTHER;
 			std_ao_cec.tx_result = CEC_TX_STATUS_ERROR;
 		}
@@ -260,7 +260,7 @@ void cecb_irq_handle(void)
 	/* EOM irq, message is coming */
 	if ((intr_cec & CEC_IRQ_RX_EOM) || lock) {
 		cecb_pick_msg(rx_msg, &rx_len);
-		dprintk(L_2, "irqflg:RX_EOM\n");
+		dprintk(L_2, "irq_flg:RX_EOM\n");
 		cec_store_msg_to_buff(rx_len, rx_msg);
 		cec_new_msg_push();
 		dwork = &cec_dev->cec_work;
@@ -534,8 +534,8 @@ try_again:
 	 * device, we should wait it finished.
 	 */
 	if (cec_dev->sw_chk_bus) {
-		if (check_confilct()) {
-			CEC_ERR("bus confilct too long\n");
+		if (check_conflict()) {
+			CEC_ERR("bus conflict too long\n");
 			mutex_unlock(&cec_dev->cec_tx_mutex);
 			return CEC_FAIL_BUSY;
 		}
@@ -543,12 +543,12 @@ try_again:
 	/* for std cec, driver never retry itself */
 	retry = 0;
 	if (cec_sel == CEC_B)
-		ret = cecb_trigle_tx(msg, len, signal_free_time);
+		ret = cecb_trigger_tx(msg, len, signal_free_time);
 	else
-		ret = ceca_trigle_tx(msg, len);
+		ret = ceca_trigger_tx(msg, len);
 	if (ret < 0) {
 		/* we should increase send idx if busy */
-		CEC_INFO("tx busy\n");
+		CEC_ERR("tx busy\n");
 		if (retry > 0) {
 			retry--;
 			msleep(100 + (prandom_u32() & 0x07) * 10);
@@ -671,7 +671,7 @@ static int __maybe_unused cec_late_check_rx_buffer(void)
 	 * start another check if rx buffer is full
 	 */
 	if ((-1) == ceca_rx_irq_handle(rx_msg, &rx_len)) {
-		CEC_INFO("buffer get unrecognized msg\n");
+		CEC_INFO("buffer got unrecognized msg\n");
 		ceca_rx_buf_clear();
 		return 0;
 	}
@@ -1171,7 +1171,7 @@ static ssize_t cmda_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
-		ceca_trigle_tx(buf, cnt);
+		ceca_trigger_tx(buf, cnt);
 
 	return count;
 }
@@ -1198,7 +1198,7 @@ static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
 		buf[i] = (char)tmpbuf[i];
 
 	if (cec_dev->cec_num > ENABLE_ONE_CEC)
-		cecb_trigle_tx(buf, cnt, 5);
+		cecb_trigger_tx(buf, cnt, 5);
 
 	return count;
 }
@@ -2496,7 +2496,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 			cec_dev->port_seq);
 	}
 
-	cec_set_clk(pdev);
+	cec_set_clk(&pdev->dev);
 	/* irq set */
 	cec_irq_enable(false);
 	/* default enable all function*/
@@ -2674,12 +2674,13 @@ static int aml_aocec_probe(struct platform_device *pdev)
 					      &cec_dev->cec_wk_as_msg[1]);
 	}
 #endif
+	cec_debug_fs_init();
 	cec_irq_enable(true);
 	/* not check signal free time by default
 	 * otherwise it easily fail at
 	 * utils/cec-compliance/cec-test-adapter.cpp(1224):
 	 * There were 87 messages in the receive queue for 68 transmits
-	 * intsts:0x11 and irqflg:INITIATOR
+	 * int_sts:0x11 and irq_flg:INITIATOR
 	 */
 	cec_dev->chk_sig_free_time = false;
 	cec_dev->sw_chk_bus = false;

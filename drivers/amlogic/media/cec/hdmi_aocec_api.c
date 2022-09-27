@@ -42,6 +42,8 @@
 #include <linux/amlogic/pm.h>
 #include "hdmi_aocec_api.h"
 #include <media/cec.h>
+#include "linux/rtc.h"
+#include <linux/timekeeping.h>
 
 static int cec_line_cnt;
 
@@ -211,12 +213,21 @@ void write_periphs(unsigned int addr, unsigned int data)
 		writel(data, cec_dev->periphs_reg + addr);
 }
 
-static unsigned int read_periphs(unsigned int addr)
+unsigned int read_periphs(unsigned int addr)
 {
 	unsigned int data = 0;
 
 	if (cec_dev->periphs_reg)
 		data = readl(cec_dev->periphs_reg + addr);
+	return data;
+}
+
+static unsigned int read_pad_reg(unsigned int addr)
+{
+	unsigned int data = 0;
+
+	if (cec_dev->pad_reg)
+		data = readl(cec_dev->pad_reg + addr);
 	return data;
 }
 
@@ -627,7 +638,7 @@ void cecb_check_irq_enable(void)
 {
 	unsigned int reg32;
 
-	/* irq on chip txlx has sperate from EE cec, no need check */
+	/* irq on chip txlx has separate from EE cec, no need check */
 	if (cec_dev->plat_data->ee_to_ao)
 		return;
 
@@ -660,11 +671,13 @@ int cecb_irq_stat(void)
 	return intr_cec;
 }
 
-int cecb_trigle_tx(const unsigned char *msg, unsigned char len, unsigned char sig_free)
+int cecb_trigger_tx(const unsigned char *msg, unsigned char len, unsigned char sig_free)
 {
 	int i = 0, size = 0;
 	int lock;
 	u32 cec_ctrl = 0;
+	struct timespec64 kts;
+	struct rtc_time tm;
 
 	cecb_check_irq_enable();
 	while (1) {
@@ -686,13 +699,15 @@ int cecb_trigle_tx(const unsigned char *msg, unsigned char len, unsigned char si
 		msleep(20);
 		CEC_INFO("%s busy cnt: %d\n", __func__, i);
 	}
-	size += sprintf(msg_log_buf + size, "cecb: tx len: %d data:", len);
+	ktime_get_real_ts64(&kts);
+	rtc_time64_to_tm(kts.tv_sec, &tm);
+	size += sprintf(msg_log_buf + size, "UTC+0 %ptRd %ptRt: [TX] len: %d, msg:", &tm, &tm, len);
 	for (i = 0; i < len; i++) {
 		hdmirx_cec_write(DWC_CEC_TX_DATA0 + i * 4, msg[i]);
 		size += sprintf(msg_log_buf + size, " %02x", msg[i]);
 	}
 	msg_log_buf[size] = '\0';
-	CEC_INFO("%s\n", msg_log_buf);
+	CEC_PRINT("%s\n", msg_log_buf);
 	/* start send */
 	hdmirx_cec_write(DWC_CEC_TX_CNT, len);
 
@@ -908,7 +923,7 @@ static void ao_ceca_irq_enable(bool enable)
 }
 
 /* return value: 1: successful	  0: error */
-int ceca_trigle_tx(const unsigned char *msg, int len)
+int ceca_trigger_tx(const unsigned char *msg, int len)
 {
 	int i;
 	unsigned int n;
@@ -1045,10 +1060,10 @@ static void ceca_addr_add(unsigned int l_add)
 /*--------------------- END of AO CEC --------------------*/
 
 /* --------hw related------- */
-void cec_set_clk(struct platform_device *pdev)
+void cec_set_clk(struct device *dev)
 {
 	if (cec_dev->plat_data->chip_id >= CEC_CHIP_A1) {
-		cec_dev->ceca_clk = devm_clk_get(&pdev->dev, "ceca_clk");
+		cec_dev->ceca_clk = devm_clk_get(dev, "ceca_clk");
 		if (IS_ERR(cec_dev->ceca_clk)) {
 			CEC_INFO("no ceca clk src\n");
 			if (cec_dev->plat_data->ceca_ver == CECA_NONE) {
@@ -1071,7 +1086,7 @@ void cec_set_clk(struct platform_device *pdev)
 				 clk_get_rate(cec_dev->ceca_clk));
 		}
 
-		cec_dev->cecb_clk = devm_clk_get(&pdev->dev, "cecb_clk");
+		cec_dev->cecb_clk = devm_clk_get(dev, "cecb_clk");
 		if (IS_ERR(cec_dev->cecb_clk)) {
 			CEC_INFO("no cecb clk src\n");
 			if (cec_dev->plat_data->cecb_ver == CECB_NONE) {
@@ -1273,7 +1288,7 @@ void cec_restore_logical_addr(unsigned int cec_sel, unsigned int addr_en)
  * it will clear logic addr before
  * enter suspend, and AO_DEBUG_REG1 is
  * used to store the logic addr used under uboot;
- * for g12a/b, in addtion to AO_DEBUG_REG1
+ * for g12a/b, in addition to AO_DEBUG_REG1
  * cec related data are transferred to uboot
  * by mailbox(SWPL-32434)
  */
@@ -1376,7 +1391,7 @@ enum hrtimer_restart cec_line_check(struct hrtimer *timer)
 	return HRTIMER_RESTART;
 }
 
-int check_confilct(void)
+int check_conflict(void)
 {
 	int i;
 
@@ -1638,11 +1653,11 @@ unsigned int cec_config(unsigned int value, bool wr_flag)
 
 /*
  *wr_flag: reg AO_DEBUG_REG1 (bit 0-16)
- *	1 write; value valid
- *	0 read;  value invalid
- *		0-15 : phy addr+
- *		16-19: logical address+
- *		20-23: device type+
+ * 1 write; value valid
+ * 0 read; value invalid
+ * 0-15: phy addr+
+ * 16-19: logical address+
+ * 20-23: device type+
  */
 unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag)
 {
@@ -1654,12 +1669,12 @@ unsigned int cec_config2_phyaddr(unsigned int value, bool wr_flag)
 
 /*
  *wr_flag: reg AO_DEBUG_REG1 (bit 16-19)
- *	1 write; value valid
- *	0 read;  value invalid
- *		0-15 : phy addr+
- *		16-19: logical address+
- *		20-23: device type+
- *      24-27: second logical address (new, for soundbar)
+ * 1 write; value valid
+ * 0 read; value invalid
+ * 0-15: phy addr+
+ * 16-19: logical address+
+ * 20-23: device type+
+ * 24-27: second logical address (new, for soundbar)
  */
 unsigned int cec_config2_logaddr(unsigned int value, bool wr_flag)
 {
@@ -1816,6 +1831,8 @@ void init_cec_port_info(struct hdmi_port_info *port,
 void cec_status(void)
 {
 	struct hdmi_port_info *port;
+	unsigned char i = 0;
+	unsigned int tmp = 0;
 
 	CEC_ERR("driver date:%s\n", CEC_DRIVER_VERSION);
 	/*CEC_ERR("chip type:0x%x\n",*/
@@ -1853,12 +1870,31 @@ void cec_status(void)
 	CEC_ERR("framework_on:0x%x\n", cec_dev->framework_on);
 	CEC_ERR("store msg_num:0x%x\n", cec_dev->msg_num);
 	CEC_ERR("store msg_idx:0x%x\n", cec_dev->msg_idx);
+	CEC_ERR("cec_msg_dbg_en: %d\n", cec_msg_dbg_en);
+	CEC_ERR("port_seq: %x\n", cec_dev->port_seq);
 
 	port = kcalloc(cec_dev->port_num, sizeof(*port), GFP_KERNEL);
 	if (port) {
 		init_cec_port_info(port, cec_dev);
+		for (i = 0; i < cec_dev->port_num; i++) {
+			/* port_id: 1/2/3 means HDMIRX1/2/3, 0 means HDMITX port */
+			CEC_ERR("port_id: %d, ", port[i].port_id);
+			CEC_ERR("port_type: %s, ",
+				port[i].type == HDMI_INPUT ? "hdmirx" : "hdmitx");
+			CEC_ERR("physical_address: %x, ", port[i].physical_address);
+			CEC_ERR("cec_supported: %s, ", port[i].cec_supported ? "true" : "false");
+			CEC_ERR("arc_supported: %s\n", port[i].arc_supported ? "true" : "false");
+		}
 		kfree(port);
 	}
+
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+	tmp |= (get_hpd_state() << 4);
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+	tmp |= (hdmirx_get_connect_info() & 0xF);
+#endif
+	CEC_ERR("hdmitx/rx connect status: 0x%x\n", tmp);
 
 	if (cec_dev->cec_num > ENABLE_ONE_CEC) {
 		CEC_ERR("B addrL 0x%x\n", hdmirx_cec_read(DWC_CEC_ADDR_L));
@@ -1891,6 +1927,125 @@ void cec_status(void)
 	CEC_ERR("addr_enable:0x%x\n", cec_dev->cec_info.addr_enable);
 	CEC_ERR("chk_sig_free_time: %d\n", cec_dev->chk_sig_free_time);
 	CEC_ERR("sw_chk_bus: %d\n", cec_dev->sw_chk_bus);
+}
+
+int dump_cec_status(char *buf)
+{
+	struct hdmi_port_info *port;
+	unsigned char i = 0;
+	unsigned int tmp = 0;
+	int pos = 0;
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "driver date:%s\n", CEC_DRIVER_VERSION);
+	/*pos += snprintf(buf + pos, PAGE_SIZE, "chip type:0x%x\n",*/
+	/*	get_meson_cpu_version(MESON_CPU_VERSION_LVL_MAJOR));*/
+	pos += snprintf(buf + pos, PAGE_SIZE, "ee_cec:%d\n", ee_cec);
+	pos += snprintf(buf + pos, PAGE_SIZE, "cec_num:%d\n", cec_dev->cec_num);
+	pos += snprintf(buf + pos, PAGE_SIZE, "dev_type:%d\n", (unsigned int)cec_dev->dev_type);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"wk_logic_addr:0x%x\n", cec_dev->wakeup_data.wk_logic_addr);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"wk_phy_addr:0x%x\n", cec_dev->wakeup_data.wk_phy_addr);
+	pos += snprintf(buf + pos, PAGE_SIZE, "wk_port_id:0x%x\n", cec_dev->wakeup_data.wk_port_id);
+	pos += snprintf(buf + pos, PAGE_SIZE, "wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
+	pos += snprintf(buf + pos, PAGE_SIZE, "phy_addr:0x%x\n", cec_dev->phy_addr);
+	pos += snprintf(buf + pos, PAGE_SIZE, "cec_version:0x%x\n", cec_dev->cec_info.cec_version);
+	pos += snprintf(buf + pos, PAGE_SIZE, "hal_ctl:0x%x\n", cec_dev->cec_info.hal_ctl);
+	pos += snprintf(buf + pos, PAGE_SIZE, "menu_lang:0x%x\n", cec_dev->cec_info.menu_lang);
+	pos += snprintf(buf + pos, PAGE_SIZE, "menu_status:0x%x\n", cec_dev->cec_info.menu_status);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"open_count:%d\n", cec_dev->cec_info.open_count.counter);
+	pos += snprintf(buf + pos, PAGE_SIZE, "vendor_id:0x%x\n", cec_dev->cec_info.vendor_id);
+	pos += snprintf(buf + pos, PAGE_SIZE, "port_num:0x%x\n", cec_dev->port_num);
+	pos += snprintf(buf + pos, PAGE_SIZE, "output:0x%x\n", cec_dev->output);
+	pos += snprintf(buf + pos, PAGE_SIZE, "arc_port:0x%x\n", cec_dev->arc_port);
+	pos += snprintf(buf + pos, PAGE_SIZE, "hal_flag:0x%x\n", cec_dev->hal_flag);
+	pos += snprintf(buf + pos, PAGE_SIZE, "hpd_state:0x%x\n", get_hpd_state());
+	pos += snprintf(buf + pos, PAGE_SIZE, "cec_config:0x%x\n", cec_config(0, 0));
+	pos += snprintf(buf + pos, PAGE_SIZE, "log_addr:0x%x\n", cec_dev->cec_info.log_addr);
+
+	pos += snprintf(buf + pos, PAGE_SIZE, "id:0x%x\n", cec_dev->plat_data->chip_id);
+	pos += snprintf(buf + pos, PAGE_SIZE, "ceca_ver:0x%x\n", cec_dev->plat_data->ceca_ver);
+	pos += snprintf(buf + pos, PAGE_SIZE, "cecb_ver:0x%x\n", cec_dev->plat_data->cecb_ver);
+	pos += snprintf(buf + pos, PAGE_SIZE, "share_io:0x%x\n", cec_dev->plat_data->share_io);
+	pos += snprintf(buf + pos, PAGE_SIZE, "line_bit:0x%x\n", cec_dev->plat_data->line_bit);
+	pos += snprintf(buf + pos, PAGE_SIZE, "ee_to_ao:0x%x\n", cec_dev->plat_data->ee_to_ao);
+	pos += snprintf(buf + pos, PAGE_SIZE, "irq_ceca:0x%x\n", cec_dev->irq_ceca);
+	pos += snprintf(buf + pos, PAGE_SIZE, "irq_cecb:0x%x\n", cec_dev->irq_cecb);
+	pos += snprintf(buf + pos, PAGE_SIZE, "framework_on:0x%x\n", cec_dev->framework_on);
+	pos += snprintf(buf + pos, PAGE_SIZE, "store msg_num:0x%x\n", cec_dev->msg_num);
+	pos += snprintf(buf + pos, PAGE_SIZE, "store msg_idx:0x%x\n", cec_dev->msg_idx);
+	pos += snprintf(buf + pos, PAGE_SIZE, "cec_msg_dbg_en: %d\n", cec_msg_dbg_en);
+	pos += snprintf(buf + pos, PAGE_SIZE, "port_seq: %x\n", cec_dev->port_seq);
+	pos += snprintf(buf + pos, PAGE_SIZE, "cec_log_en: %x\n", cec_dev->cec_log_en);
+
+	port = kcalloc(cec_dev->port_num, sizeof(*port), GFP_KERNEL);
+	if (port) {
+		init_cec_port_info(port, cec_dev);
+		for (i = 0; i < cec_dev->port_num; i++) {
+			/* port_id: 1/2/3 means HDMIRX1/2/3, 0 means HDMITX port */
+			pos += snprintf(buf + pos, PAGE_SIZE, "port_id: %d, ",
+					port[i].port_id);
+			pos += snprintf(buf + pos, PAGE_SIZE, "port_type: %s, ",
+					port[i].type == HDMI_INPUT ? "hdmirx" : "hdmitx");
+			pos += snprintf(buf + pos, PAGE_SIZE, "physical_address: %x, ",
+					port[i].physical_address);
+			pos += snprintf(buf + pos, PAGE_SIZE, "cec_supported: %s, ",
+					port[i].cec_supported ? "true" : "false");
+			pos += snprintf(buf + pos, PAGE_SIZE, "arc_supported: %s\n",
+					port[i].arc_supported ? "true" : "false");
+		}
+		kfree(port);
+	}
+
+#if (defined(CONFIG_AMLOGIC_HDMITX) || defined(CONFIG_AMLOGIC_HDMITX21))
+	tmp |= (get_hpd_state() << 4);
+#endif
+#ifdef CONFIG_AMLOGIC_MEDIA_TVIN_HDMI
+	tmp |= (hdmirx_get_connect_info() & 0xF);
+#endif
+	snprintf(buf + pos, PAGE_SIZE, "hdmitx/rx connect status: 0x%x\n", tmp);
+
+	if (cec_dev->cec_num > ENABLE_ONE_CEC) {
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"B addrL 0x%x\n", hdmirx_cec_read(DWC_CEC_ADDR_L));
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"B addrH 0x%x\n", hdmirx_cec_read(DWC_CEC_ADDR_H));
+
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"A addr0 0x%x\n", aocec_rd_reg(CEC_LOGICAL_ADDR0));
+		pos += snprintf(buf + pos, PAGE_SIZE,
+			"A addr1 0x%x\n", aocec_rd_reg(CEC_LOGICAL_ADDR1));
+		/* pos += snprintf(buf + pos, PAGE_SIZE, */
+			/* "addr2 0x%x\n", aocec_rd_reg(CEC_LOGICAL_ADDR2));*/
+		/* pos += snprintf(buf + pos, PAGE_SIZE, */
+			/* "addr3 0x%x\n", aocec_rd_reg(CEC_LOGICAL_ADDR3));*/
+		/* pos += snprintf(buf + pos, PAGE_SIZE, */
+			/* "addr4 0x%x\n", aocec_rd_reg(CEC_LOGICAL_ADDR4));*/
+	} else {
+		if (ee_cec == CEC_B) {
+			pos += snprintf(buf + pos, PAGE_SIZE, "addrL 0x%x\n",
+				hdmirx_cec_read(DWC_CEC_ADDR_L));
+			pos += snprintf(buf + pos, PAGE_SIZE, "addrH 0x%x\n",
+				hdmirx_cec_read(DWC_CEC_ADDR_H));
+		} else {
+			pos += snprintf(buf + pos, PAGE_SIZE, "addr0 0x%x\n",
+				aocec_rd_reg(CEC_LOGICAL_ADDR0));
+			pos += snprintf(buf + pos, PAGE_SIZE, "addr1 0x%x\n",
+				aocec_rd_reg(CEC_LOGICAL_ADDR1));
+			pos += snprintf(buf + pos, PAGE_SIZE, "addr2 0x%x\n",
+				aocec_rd_reg(CEC_LOGICAL_ADDR2));
+			pos += snprintf(buf + pos, PAGE_SIZE, "addr3 0x%x\n",
+				aocec_rd_reg(CEC_LOGICAL_ADDR3));
+			pos += snprintf(buf + pos, PAGE_SIZE, "addr4 0x%x\n",
+				aocec_rd_reg(CEC_LOGICAL_ADDR4));
+		}
+	}
+	pos += snprintf(buf + pos, PAGE_SIZE, "addr_enable:0x%x\n", cec_dev->cec_info.addr_enable);
+	pos += snprintf(buf + pos, PAGE_SIZE,
+		"chk_sig_free_time: %d\n", cec_dev->chk_sig_free_time);
+	pos += snprintf(buf + pos, PAGE_SIZE, "sw_chk_bus: %d\n", cec_dev->sw_chk_bus);
+	return pos;
 }
 
 unsigned int cec_get_cur_phy_addr(void)
@@ -2135,125 +2290,125 @@ void cec_get_wakeup_data(void)
 	}
 }
 
-int dump_cecrx_reg(char *b)
+int dump_cec_reg(char *buf)
 {
-	int i = 0, s = 0;
+	int i = 0, pos = 0;
 	unsigned char reg;
 	unsigned int reg32;
 
 	if (ee_cec == CEC_A) {
 		reg32 = read_ao(AO_CEC_CLK_CNTL_REG0);
-		s += sprintf(b + s, "AO_CEC_CLK_CNTL_REG0:0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CEC_CLK_CNTL_REG0:0x%08x\n",
 			reg32);
 		reg32 = read_ao(AO_CEC_CLK_CNTL_REG1);
-		s += sprintf(b + s, "AO_CEC_CLK_CNTL_REG1:0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CEC_CLK_CNTL_REG1:0x%08x\n",
 			reg32);
 		reg32 = read_ao(AO_CEC_GEN_CNTL);
-		s += sprintf(b + s, "AO_CEC_GEN_CNTL:	0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CEC_GEN_CNTL:	0x%08x\n",
 			reg32);
 		reg32 = read_ao(AO_CEC_RW_REG);
-		s += sprintf(b + s, "AO_CEC_RW_REG:	0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CEC_RW_REG: 0x%08x\n",
 			reg32);
 		reg32 = read_ao(AO_CEC_INTR_MASKN);
-		s += sprintf(b + s, "AO_CEC_INTR_MASKN:0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CEC_INTR_MASKN:0x%08x\n",
 			reg32);
 		reg32 = read_ao(AO_CEC_INTR_STAT);
-		s += sprintf(b + s, "AO_CEC_INTR_STAT: 0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CEC_INTR_STAT: 0x%08x\n",
 			reg32);
 	}
 
 	if (cec_dev->plat_data->chip_id == CEC_CHIP_A1) {
-		s += sprintf(b + s, "%2x:%2x\n", 0xe4, read_periphs(0xe4));
-		s += sprintf(b + s, "%2x:%2x\n", 0xe8, read_periphs(0xe8));
-		s += sprintf(b + s, "%2x:%2x\n", 0xec, read_periphs(0xec));
-		s += sprintf(b + s, "%2x:%2x\n", 0xf0, read_periphs(0xf0));
+		pos += snprintf(buf + pos, PAGE_SIZE, "%2x:%2x\n", 0xe4, read_periphs(0xe4));
+		pos += snprintf(buf + pos, PAGE_SIZE, "%2x:%2x\n", 0xe8, read_periphs(0xe8));
+		pos += snprintf(buf + pos, PAGE_SIZE, "%2x:%2x\n", 0xec, read_periphs(0xec));
+		pos += snprintf(buf + pos, PAGE_SIZE, "%2x:%2x\n", 0xf0, read_periphs(0xf0));
 	} else if (cec_dev->plat_data->chip_id == CEC_CHIP_SC2 ||
 		   cec_dev->plat_data->chip_id == CEC_CHIP_S4) {
-		s += sprintf(b + s, "%2x:%2x\n", 0x22, read_clock(0x22));
-		s += sprintf(b + s, "%2x:%2x\n", 0x23, read_clock(0x23));
-		s += sprintf(b + s, "%2x:%2x\n", 0x24, read_clock(0x24));
-		s += sprintf(b + s, "%2x:%2x\n", 0x25, read_clock(0x25));
+		pos += snprintf(buf + pos, PAGE_SIZE, "%2x:%2x\n", 0x22, read_clock(0x22));
+		pos += snprintf(buf + pos, PAGE_SIZE, "%2x:%2x\n", 0x23, read_clock(0x23));
+		pos += snprintf(buf + pos, PAGE_SIZE, "%2x:%2x\n", 0x24, read_clock(0x24));
+		pos += snprintf(buf + pos, PAGE_SIZE, "%2x:%2x\n", 0x25, read_clock(0x25));
 	}
 
 	if (ee_cec == CEC_B) {
 		reg32 = read_ao(AO_CECB_CLK_CNTL_REG0);
-		s += sprintf(b + s,
+		pos += snprintf(buf + pos, PAGE_SIZE,
 			     "AO_CECB_CLK_CNTL_REG0:0x%08x\n",
 			     reg32);
 		reg32 = read_ao(AO_CECB_CLK_CNTL_REG1);
-		s += sprintf(b + s,
+		pos += snprintf(buf + pos, PAGE_SIZE,
 			     "AO_CECB_CLK_CNTL_REG1:0x%08x\n",
 			     reg32);
 		reg32 = read_ao(AO_CECB_GEN_CNTL);
-		s += sprintf(b + s, "AO_CECB_GEN_CNTL:	0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CECB_GEN_CNTL: 0x%08x\n",
 			reg32);
 		reg32 = read_ao(AO_CECB_RW_REG);
-		s += sprintf(b + s, "AO_CECB_RW_REG:	0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CECB_RW_REG: 0x%08x\n",
 			reg32);
 		reg32 = read_ao(AO_CECB_INTR_MASKN);
-		s += sprintf(b + s, "AO_CECB_INTR_MASKN:0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CECB_INTR_MASKN:0x%08x\n",
 			reg32);
 		reg32 = read_ao(AO_CECB_INTR_STAT);
-		s += sprintf(b + s, "AO_CECB_INTR_STAT: 0x%08x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "AO_CECB_INTR_STAT: 0x%08x\n",
 			reg32);
 
-		s += sprintf(b + s, "CEC MODULE REGS:\n");
-		s += sprintf(b + s, "CEC_CTRL	  = 0x%02x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC MODULE REGS:\n");
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC_CTRL = 0x%02x\n",
 			hdmirx_cec_read(DWC_CEC_CTRL));
 		if (cec_dev->plat_data->cecb_ver >= CECB_VER_2)
-			s += sprintf(b + s, "CEC_CTRL2	  = 0x%02x\n",
+			pos += snprintf(buf + pos, PAGE_SIZE, "CEC_CTRL2 = 0x%02x\n",
 				hdmirx_cec_read(DWC_CEC_CTRL2));
-		s += sprintf(b + s, "CEC_MASK	  = 0x%02x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC_MASK = 0x%02x\n",
 			hdmirx_cec_read(DWC_CEC_MASK));
-		s += sprintf(b + s, "CEC_ADDR_L   = 0x%02x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC_ADDR_L = 0x%02x\n",
 			hdmirx_cec_read(DWC_CEC_ADDR_L));
-		s += sprintf(b + s, "CEC_ADDR_H   = 0x%02x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC_ADDR_H = 0x%02x\n",
 			hdmirx_cec_read(DWC_CEC_ADDR_H));
-		s += sprintf(b + s, "CEC_TX_CNT   = 0x%02x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC_TX_CNT = 0x%02x\n",
 			hdmirx_cec_read(DWC_CEC_TX_CNT));
-		s += sprintf(b + s, "CEC_RX_CNT   = 0x%02x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC_RX_CNT = 0x%02x\n",
 			hdmirx_cec_read(DWC_CEC_RX_CNT));
 		if (cec_dev->plat_data->cecb_ver >= CECB_VER_2)
-			s += sprintf(b + s, "CEC_STAT0	 = 0x%02x\n",
+			pos += snprintf(buf + pos, PAGE_SIZE, "CEC_STAT0 = 0x%02x\n",
 				hdmirx_cec_read(DWC_CEC_STAT0));
-		s += sprintf(b + s, "CEC_LOCK	  = 0x%02x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC_LOCK = 0x%02x\n",
 			hdmirx_cec_read(DWC_CEC_LOCK));
-		s += sprintf(b + s, "CEC_WKUPCTRL = 0x%02x\n",
+		pos += snprintf(buf + pos, PAGE_SIZE, "CEC_WKUPCTRL = 0x%02x\n",
 			hdmirx_cec_read(DWC_CEC_WKUPCTRL));
 
-		s += sprintf(b + s, "%s", "RX buffer:");
+		pos += snprintf(buf + pos, PAGE_SIZE, "%s", "RX buffer:");
 		for (i = 0; i < 16; i++) {
 			reg = hdmirx_cec_read(DWC_CEC_RX_DATA0 + i * 4) & 0xff;
-			s += sprintf(b + s, " %02x", reg);
+			pos += snprintf(buf + pos, PAGE_SIZE, " %02x", reg);
 		}
-		s += sprintf(b + s, "\n");
+		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 
-		s += sprintf(b + s, "%s", "TX buffer:");
+		pos += snprintf(buf + pos, PAGE_SIZE, "%s", "TX buffer:");
 		for (i = 0; i < 16; i++) {
 			reg = hdmirx_cec_read(DWC_CEC_TX_DATA0 + i * 4) & 0xff;
-			s += sprintf(b + s, " %02x", reg);
+			pos += snprintf(buf + pos, PAGE_SIZE, " %02x", reg);
 		}
-		s += sprintf(b + s, "\n");
+		pos += snprintf(buf + pos, PAGE_SIZE, "\n");
 	} else {
 		for (i = 0; i < ARRAY_SIZE(cec_reg_name1); i++) {
-			s += sprintf(b + s, "%s:%2x\n",
+			pos += snprintf(buf + pos, PAGE_SIZE, "%s:%2x\n",
 				cec_reg_name1[i], aocec_rd_reg(i + 0x10));
 		}
 
 		for (i = 0; i < ARRAY_SIZE(cec_reg_name2); i++) {
-			s += sprintf(b + s, "%s:%2x\n",
+			pos += snprintf(buf + pos, PAGE_SIZE, "%s:%2x\n",
 				cec_reg_name2[i], aocec_rd_reg(i + 0x90));
 		}
 
 		if (cec_dev->plat_data->ceca_sts_reg) {
 			for (i = 0; i < ARRAY_SIZE(ceca_reg_name3); i++) {
-				s += sprintf(b + s, "%s:%2x\n",
+				pos += snprintf(buf + pos, PAGE_SIZE, "%s:%2x\n",
 				 ceca_reg_name3[i], aocec_rd_reg(i + 0xA0));
 			}
 		}
 	}
 
-	return s;
+	return pos;
 }
 
 int cec_set_uevent(enum cec_event_type type, unsigned int val)
@@ -2311,5 +2466,49 @@ int __attribute__((weak))hdmirx_get_connect_info(void)
 int __attribute__((weak))hdmirx_set_cec_cfg(u32 cfg)
 {
 	return 0;
+}
+
+inline unsigned int get_pin_status(void)
+{
+	unsigned int reg;
+
+	switch (cec_dev->plat_data->chip_id) {
+	case CEC_CHIP_SC2:
+	case CEC_CHIP_S4:
+		/* GPIOH_3 */
+		reg = read_pad_reg(PADCTRL_GPIOH_I);
+		reg = (reg >> 3) & 0x1;
+		break;
+	case CEC_CHIP_S5:
+		/* GPIOH_3 */
+		reg = read_pad_reg(PADCTRL_GPIOH_I_S5);
+		reg = (reg >> 3) & 0x1;
+		break;
+	case CEC_CHIP_T7:
+		/* GPIOW_12 CEC_A */
+	case CEC_CHIP_T3:
+		/* GPIOW_12 */
+		reg = read_pad_reg(PADCTRL_GPIOW_I);
+		reg = (reg >> 12) & 0x1;
+		break;
+	case CEC_CHIP_TM2:
+		/* GPIOAO_10 */
+		reg = read_ao(AO_GPIO_I);
+		reg = (reg >> 10) & 0x1;
+		break;
+	case CEC_CHIP_T5D:
+	case CEC_CHIP_T5W:
+		/* case CEC_CHIP_T5: T5 doesn't have kernel5.4 branch */
+		/* GPIOW_12 */
+		reg = read_pad_reg(PREG_PAD_GPIO3_I);
+		reg = (reg >> 12) & 0x1;
+		break;
+	default:
+		/* means not implemented */
+		reg = 0xFF;
+		break;
+	}
+
+	return reg;
 }
 

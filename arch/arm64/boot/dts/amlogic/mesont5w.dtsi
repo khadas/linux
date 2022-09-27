@@ -1858,8 +1858,9 @@
 			pinctrl-2=<&aocecb_mux>;
 			clocks = <&clkc_AO CLKID_CECB_32K_CLKOUT>;
 			clock-names = "cecb_clk";
-			reg = <0x0 0xFF800000 0x0 0x400>;
-			reg-names = "ao";
+			reg = <0x0 0xFF800000 0x0 0x400
+			       0x0 0xFF634400 0x0 0x400>;
+			reg-names = "ao", "pad_reg";
 		};
 
 		ionvideo {

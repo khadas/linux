@@ -1604,6 +1604,7 @@
 		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
 		ee_cec;
 		arc_port_mask = <0x1>;
+		cec_log_en = <1>;
 		interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING/*0:snps*/
 			GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
@@ -1616,8 +1617,9 @@
 		clock-names = "ceca_clk","cecb_clk";
 		reg = <0xfe044000 0x2ff
 		       0xfe010000 0xfff
-		       0xfe000000 0xfff>;
-		reg-names = "ao","periphs","clock"/*ao_exit hdmirx hhi*/;
+		       0xfe000000 0xfff
+		       0xfe004000 0x2000>;
+		reg-names = "ao","periphs","clock","pad_reg";
 	};
 
 	aml_dma {

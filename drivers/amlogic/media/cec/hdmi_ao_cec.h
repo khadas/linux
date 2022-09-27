@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2022/11/04: save wakeup message for T7"
+#define CEC_DRIVER_VERSION     "2022/11/05: add detail log and dump interface"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -186,6 +186,7 @@ struct ao_cec_dev {
 	void __iomem *hhi_reg;
 	void __iomem *periphs_reg;
 	void __iomem *clk_reg;
+	void __iomem *pad_reg;
 	/* struct hdmitx_dev *tx_dev; */
 	struct workqueue_struct *cec_thread;
 	struct workqueue_struct *hdmi_plug_wq;
@@ -227,6 +228,7 @@ struct ao_cec_dev {
 	bool chk_sig_free_time;
 	/* default not enable SW check, for debug */
 	bool sw_chk_bus;
+	u32 cec_log_en;
 };
 
 struct cec_msg_last {
@@ -243,7 +245,15 @@ struct cec_msg_last {
 #define CEC_FUNC_CFG_ALL			0x2f
 #define CEC_FUNC_CFG_NONE			0x0
 
-#define PREG_PAD_GPIO3_I			(0x01b << 2)
+/* T5/T5D/T5W (0xff634400 + (0x01b << 2)) */
+#define PREG_PAD_GPIO3_I (0x01b << 2)
+/* S4/SC2 0xfe004140 */
+#define PADCTRL_GPIOH_I 0x140
+/* S5 */
+#define PADCTRL_GPIOH_I_S5 (0x00d0 << 2)
+
+/* T3 0xfe004240 */
+#define PADCTRL_GPIOW_I 0x240
 
 enum cec_reg_group {
 	cec_reg_group_old = 0,

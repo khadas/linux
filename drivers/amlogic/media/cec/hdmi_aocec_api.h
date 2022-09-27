@@ -37,16 +37,16 @@ void write_ao(unsigned int addr, unsigned int data);
 void cec_clear_saved_logic_addr(void);
 
 void ceca_rx_buf_clear(void);
-int ceca_trigle_tx(const unsigned char *msg, int len);
+int ceca_trigger_tx(const unsigned char *msg, int len);
 unsigned int ao_ceca_intr_stat(void);
 void ceca_hw_reset(void);
 
-int cecb_trigle_tx(const unsigned char *msg, unsigned char len, unsigned char sig_free);
+int cecb_trigger_tx(const unsigned char *msg, unsigned char len, unsigned char sig_free);
 void cecb_check_irq_enable(void);
 int cecb_irq_stat(void);
 inline void cecb_clear_irq(unsigned int flags);
 
-void cec_set_clk(struct platform_device *pdev);
+void cec_set_clk(struct device *dev);
 void cec_hw_init(void);
 void cec_pre_init(void);
 void cec_hw_reset(unsigned int cec_sel);
@@ -61,7 +61,7 @@ void cec_restore_logical_addr(unsigned int cec_sel, unsigned int addr_en);
 void cec_enable_arc_pin(bool enable);
 
 enum hrtimer_restart cec_line_check(struct hrtimer *timer);
-int check_confilct(void);
+int check_conflict(void);
 void cec_ip_share_io(u32 share, u32 cec_ip);
 
 /* msg related */
@@ -99,12 +99,17 @@ void cec_get_wakeup_reason(void);
 unsigned int cec_get_wk_port_id(unsigned int phy_addr);
 void cec_clear_wakeup_reason(void);
 void cec_get_wakeup_data(void);
-int dump_cecrx_reg(char *b);
+int dump_cec_reg(char *b);
+int dump_cec_status(char *buf);
 int cec_set_uevent(enum cec_event_type type, unsigned int val);
 int cec_set_dev_info(uint8_t dev_idx);
 int hdmirx_get_connect_info(void);
 int hdmirx_set_cec_cfg(u32 cfg);
 bool cec_message_op(unsigned char *msg, unsigned char len);
+void cec_debug_fs_init(void);
+unsigned int read_clock(unsigned int addr);
+unsigned int read_periphs(unsigned int addr);
+inline unsigned int get_pin_status(void);
 
 #define CEC_ERR(format, args...)				\
 	do {	\
@@ -122,6 +127,13 @@ bool cec_message_op(unsigned char *msg, unsigned char len);
 	do { \
 		if (cec_msg_dbg_en >= (level) && cec_dev->dbg_dev) \
 			pr_info("cec: " fmt, ## arg); \
+	} while (0)
+
+/* print tx/rx status */
+#define CEC_PRINT(fmt, args...) \
+	do { \
+		if (cec_msg_dbg_en || cec_dev->cec_log_en) \
+			pr_info("cec: " fmt, ##args); \
 	} while (0)
 
 #endif

@@ -1015,8 +1015,9 @@
 		clocks = <&clkc_AO CLKID_CECB_32K_CLKOUT>;
 		clock-names = "cecb_clk";
 		reg = <0xFF80023c 0x4
-			   0xFF800000 0x400>;
-		reg-names = "ao_exit","ao";
+			   0xFF800000 0x400
+			   0xFF634400 0x400>;
+		reg-names = "ao_exit","ao","pad_reg";
 	};
 
 	atv-demod {
