@@ -982,7 +982,7 @@ void amdv_update_pq_config(char *pq_config_buf)
 
 void amdv_update_vsvdb_config(char *vsvdb_buf, u32 tbl_size)
 {
-	if ((is_aml_tm2revb() || is_aml_t7_stbmode()) && multi_dv_mode) {
+	if (multi_dv_mode) {
 		if (tbl_size > sizeof(new_m_dovi_setting.vsvdb_tbl)) {
 			pr_info("update_vsvdb_config tbl size overflow %d\n", tbl_size);
 			return;
@@ -1892,7 +1892,7 @@ void amdv_dump_struct(void)
 {
 	int i;
 
-	if (is_aml_tm2revb() && multi_dv_mode) {
+	if (multi_dv_mode) {
 		for (i = 0; i < NUM_IPCORE1; i++) {
 			dump_struct(&m_dovi_setting.core1[i].dm_reg,
 				    sizeof(m_dovi_setting.core1[i].dm_reg),
@@ -8279,14 +8279,16 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				dv_inst[dv_id].last_mel_mode = mel_flag;
 			}
 		} else if (meta_flag_bl && meta_flag_el) {
-			total_md_size = dv_inst[dv_id].last_total_md_size;
-			total_comp_size = dv_inst[dv_id].last_total_comp_size;
+			total_md_size = m_dovi_setting.input[dv_id].in_md_size;
+			total_comp_size = m_dovi_setting.input[dv_id].in_comp_size;
 			el_flag = m_dovi_setting.input[dv_id].el_flag;
 			mel_flag = dv_inst[dv_id].last_mel_mode;
 			if (debug_dolby & 2)
 				pr_dv_dbg("update el_flag %d, melFlag %d\n",
 					     el_flag, mel_flag);
 			meta_flag_bl = 0;
+			if (total_md_size == 0)
+				src_format = FORMAT_SDR;
 		}
 		if (el_flag && !enable_mel)
 			el_flag = 0;
@@ -11001,7 +11003,8 @@ static int amdolby_vision_process_v2_stb
 	}
 
 	if (!layerid_valid(hdmi_path_id) || !dv_inst_valid(hdmi_inst_id)) {
-		tv_dovi_setting->input_mode = 0;
+		if (tv_dovi_setting)
+			tv_dovi_setting->input_mode = 0;
 		hdmi_in_allm = false;
 	}
 
@@ -12277,8 +12280,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 						dolby_vision_hdr10_policy, ko_info);
 
 			}
-		} else if (func->multi_control_path && !p_funcs_stb &&
-			   is_aml_t7_stbmode()) {
+		} else if (func->multi_control_path && !p_funcs_stb) {
 			pr_info("*** register_dv_multi_stb_functions.***\n");
 
 			if (!is_aml_tm2revb() && !is_aml_t7_stbmode() && enable_multi_core1) {
