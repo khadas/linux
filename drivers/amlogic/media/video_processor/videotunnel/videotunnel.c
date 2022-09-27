@@ -1088,8 +1088,18 @@ static int vt_send_cmd_process(struct vt_ctrl_data *data,
 
 	instance = idr_find(&dev->instance_idr, id);
 
-	if (!instance || session->role != VT_ROLE_PRODUCER)
-		return -EINVAL;
+	if (data->video_cmd == VT_VIDEO_SET_COLOR_BLACK ||
+			data->video_cmd == VT_VIDEO_SET_COLOR_BLUE ||
+			data->video_cmd == VT_VIDEO_SET_COLOR_GREEN) {
+		/* no instance or instance has no consumer */
+		if (!instance || !instance->consumer) {
+			vt_debug(VT_DEBUG_CMD, "vt [%d] set solid color, no consumer", id);
+			return -ENOTCONN;
+		}
+	} else {
+		if (!instance || session->role != VT_ROLE_PRODUCER)
+			return -EINVAL;
+	}
 
 	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
 	if (!cmd)
