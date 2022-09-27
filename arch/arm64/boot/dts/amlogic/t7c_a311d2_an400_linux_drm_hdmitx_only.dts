@@ -13,7 +13,7 @@
 
 / {
 	model = "Amlogic";
-	amlogic-dt-id = "t7c_a311d2_an400-4g";
+	amlogic-dt-id = "t7c_a311d2_an400-hdmitx-only";
 	compatible = "amlogic, t7c";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -683,6 +683,18 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+
+//		aml-audio-card,dai-link@7 {
+//			mclk-fs = <256>;
+//			suffix-name = "alsaPORT-earc";
+//			cpu {
+//				sound-dai = <&earc>;
+//				system-clock-frequency = <12288000>;
+//			};
+//			codec {
+//				sound-dai = <&dummy_codec>;
+//			};
+//		};
 
 		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
@@ -1623,76 +1635,19 @@
 	display_size_default = <3840 2160 3840 4320 32>;
 	mem_size = <0x00800000 0x4000000 0x100000 0x100000 0x100000>;
 	4k2k_fb = <1>;
-	display_device_cnt = <2>;
+	display_device_cnt = <1>;
 	logo_addr = "0x3f800000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
-&amvideom {
-	display_device_cnt = <2>;
-	vpp0_layer_count = <2>;
-	/* number of video layer display on vpp1 */
-	vpp1_layer_count = <1>;
-};
-
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";
-
-	connectors_dev: port@1 {
-		drm_to_lcd0: endpoint@2 {
-			reg = <2>;
-			remote-endpoint = <&lcd0_to_drm>;
-		};
-		drm_to_lcd1: endpoint@3 {
-			reg = <3>;
-			remote-endpoint = <&lcd1_to_drm>;
-		};
-		drm_to_lcd2: endpoint@4 {
-			reg = <4>;
-			remote-endpoint = <&lcd2_to_drm>;
-		};
-	};
 };
 
-&drm_subsystem {
-		crtc_masks = <3 7 1>;
-};
-
-&lcd {
-	ports {
-		port {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			lcd0_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd0>;
-			};
-		};
-	};
-};
-
-&lcd1 {
-	ports {
-		port {
-			lcd1_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd1>;
-			};
-		};
-	};
-};
-
-&lcd2 {
-	ports {
-		port {
-			lcd2_to_drm: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&drm_to_lcd2>;
-			};
-		};
-	};
+&amvideom {
+	display_device_cnt = <1>;
 };
 
 &amhdmitx {
