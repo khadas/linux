@@ -2566,21 +2566,30 @@
 	};
 
 	vrr0: vrr0 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <0>;
+		line_delay = <600>;
+		interrupts = <0 197 1>;
+		interrupt-names = "vsync";
 	};
 
 	vrr1: vrr1 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <1>;
+		line_delay = <600>;
+		interrupts = <0 197 1>;
+		interrupt-names = "vsync";
 	};
 
 	vrr2: vrr2 {
-		compatible = "amlogic, vrr-t3";
+		compatible = "amlogic, vrr-t7";
 		status = "okay";
 		index = <2>;
+		line_delay = <600>;
+		interrupts = <0 197 1>;
+		interrupt-names = "vsync";
 	};
 
 	ir: ir@8000 {

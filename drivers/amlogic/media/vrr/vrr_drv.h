@@ -10,7 +10,8 @@
 /* ver:20210806: initial version */
 /* ver:20220718: basic function for freesync */
 /* ver:20220816: support fps policy */
-#define VRR_DRV_VERSION  "20220816"
+/* ver:20220927: support multi drv for t7 */
+#define VRR_DRV_VERSION  "20220927"
 
 #define VRRPR(fmt, args...)      pr_info("vrr: " fmt "", ## args)
 #define VRRERR(fmt, args...)     pr_err("vrr error: " fmt "", ## args)
@@ -57,8 +58,12 @@ struct vrr_data_s {
 #define VRR_STATE_SWITCH_OFF  BIT(10)
 #define VRR_STATE_RESET       BIT(11)
 #define VRR_STATE_CLR_MASK    0xffff
+//static state
+#define VRR_STATE_VS_IRQ      BIT(16)
+#define VRR_STATE_VS_IRQ_EN   BIT(17)
+#define VRR_STATE_ACTIVE      BIT(20)
 //for debug
-#define VRR_STATE_TRACE       BIT(16)
+#define VRR_STATE_TRACE       BIT(24)
 
 struct aml_vrr_drv_s {
 	unsigned int index;
@@ -81,6 +86,7 @@ struct aml_vrr_drv_s {
 
 	unsigned int vsync_irq;
 	spinlock_t vrr_isr_lock; /* vsync lock */
+	char vs_isr_name[16];
 };
 
 //===========================================================================
