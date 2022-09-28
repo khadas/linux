@@ -59,6 +59,8 @@ struct pcm_setting {
 
 	/* eco or sclk_ws_inv */
 	bool sclk_ws_inv;
+	/* Standardization value by normal setting */
+	unsigned int standard_sysclk;
 };
 
 void aml_tdm_enable(struct aml_audio_controller *actrl,

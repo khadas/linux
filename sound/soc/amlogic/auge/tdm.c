@@ -23,6 +23,7 @@
 #include <sound/pcm_params.h>
 #include <linux/clk-provider.h>
 #include <linux/regulator/consumer.h>
+#include <linux/clk-provider.h>
 
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/clk_measure.h>
@@ -30,6 +31,7 @@
 
 #include <linux/amlogic/media/vout/hdmi_tx_ext.h>
 #include <linux/amlogic/media/sound/aout_notify.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include "ddr_mngr.h"
 #include "tdm_hw.h"
@@ -44,6 +46,7 @@
 #include "pcpd_monitor.h"
 #include "../common/iec_info.h"
 #include "iomap.h"
+#include "audio_utils.h"
 
 #define DRV_NAME "snd_tdm"
 
@@ -79,6 +82,8 @@ struct aml_tdm {
 	struct aml_audio_controller *actrl;
 	struct device *dev;
 	struct clk *clk;
+	/* for 44100hz samplerate */
+	struct clk *clk_src_cd;
 	struct clk *clk_gate;
 	struct clk *mclk;
 	/* mclk mux out to pad */
@@ -204,6 +209,7 @@ static int pcm_setting_init(struct pcm_setting *setting, unsigned int rate,
 	}
 	setting->sysclk_bclk_ratio = ratio;
 	setting->sysclk = ratio * setting->bclk;
+	setting->standard_sysclk = setting->sysclk;
 
 	return 0;
 }
@@ -363,12 +369,66 @@ static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 	return ratio;
 }
 
-static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
+#define MPLL_HBR_FIXED_FREQ   (491520000)
+#define MPLL_CD_FIXED_FREQ    (451584000)
+
+/* normal hifi+mpll clk src each for 44.1k and 48k */
+static int aml_set_tdm_mclk_s4(struct aml_tdm *p_tdm, unsigned int freq)
+{
+	int ret = -1;
+	bool force_mpll = is_force_mpll_clk();
+
+	pr_info("%s: force_mpll = %d, freq = %d\n", __func__, force_mpll, freq);
+	if (IS_ERR(p_tdm->clk_src_cd)) {
+		pr_err("%s: please make sure S4 DTS support 2 clk source\n", __func__);
+		return 0;
+	}
+
+	if (force_mpll) {
+		int ratio = 0;
+
+		if (p_tdm->setting.standard_sysclk % 8000 == 0)
+			ratio = MPLL_HBR_FIXED_FREQ / p_tdm->setting.standard_sysclk;
+		else if (p_tdm->setting.standard_sysclk % 11025 == 0)
+			ratio = MPLL_CD_FIXED_FREQ / p_tdm->setting.standard_sysclk;
+
+		clk_set_rate(p_tdm->clk_src_cd, freq * ratio);
+		ret = clk_set_parent(p_tdm->mclk, p_tdm->clk_src_cd);
+		if (ret)
+			dev_warn(p_tdm->dev, "can't set tdm parent cd clock\n");
+	} else {
+		if (p_tdm->setting.standard_sysclk % 8000 == 0) {
+			if (p_tdm->syssrc_clk_rate)
+				clk_set_rate(p_tdm->clk, p_tdm->syssrc_clk_rate);
+			else
+				pr_warn("%s(), DTS miss hifi clk rate config", __func__);
+			ret = clk_set_parent(p_tdm->mclk, p_tdm->clk);
+			if (ret)
+				dev_warn(p_tdm->dev, "can't set tdm parent clock\n");
+		} else if (p_tdm->setting.standard_sysclk % 11025 == 0) {
+			clk_set_rate(p_tdm->clk_src_cd, MPLL_CD_FIXED_FREQ);
+			ret = clk_set_parent(p_tdm->mclk, p_tdm->clk_src_cd);
+			if (ret)
+				dev_warn(p_tdm->dev, "can't set tdm parent cd clock\n");
+
+		} else {
+			dev_warn(p_tdm->dev, "unsupport clock rate %d\n",
+				p_tdm->setting.standard_sysclk);
+		}
+	}
+
+	clk_set_rate(p_tdm->mclk, freq);
+	p_tdm->last_mclk_freq = freq;
+
+	return 0;
+}
+
+/* normal 1 audio clk src both for 44.1k and 48k */
+static int aml_set_tdm_mclk_1(struct aml_tdm *p_tdm, unsigned int freq)
 {
 	unsigned int ratio = aml_mpll_mclk_ratio(freq);
 	unsigned int mpll_freq = 0;
 	char *clk_name;
-	p_tdm->setting.sysclk = freq;
 
 	clk_name = (char *)__clk_get_name(p_tdm->clk);
 	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll") ||
@@ -399,6 +459,73 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 		clk_get_rate(p_tdm->clk));
 
 	return 0;
+}
+
+/* 2 audio clk src each for 44.1k and 48k */
+static int aml_set_tdm_mclk_2(struct aml_tdm *p_tdm, unsigned int freq)
+{
+	int ret = -1;
+	char *clk_name = (char *)__clk_get_name(p_tdm->clk);
+	int ratio = 0;
+
+	if (IS_ERR(p_tdm->clk_src_cd) || strcmp(clk_name, "hifi_pll")) {
+		pr_err("%s: please make sure DTS support 2 clk source\n", __func__);
+		return 0;
+	}
+
+	if (p_tdm->setting.standard_sysclk % 8000 == 0) {
+		ratio = MPLL_HBR_FIXED_FREQ / p_tdm->setting.standard_sysclk;
+
+		clk_set_rate(p_tdm->clk, freq * ratio);
+		ret = clk_set_parent(p_tdm->mclk, p_tdm->clk);
+		if (ret)
+			dev_warn(p_tdm->dev, "can't set tdm parent clock\n");
+	} else if (p_tdm->setting.standard_sysclk % 11025 == 0) {
+		ratio = MPLL_CD_FIXED_FREQ / p_tdm->setting.standard_sysclk;
+
+		clk_set_rate(p_tdm->clk_src_cd, freq * ratio);
+		ret = clk_set_parent(p_tdm->mclk, p_tdm->clk_src_cd);
+		if (ret)
+			dev_warn(p_tdm->dev, "can't set tdm parent cd clock\n");
+	} else {
+		dev_warn(p_tdm->dev, "unsupport clock rate %d\n", p_tdm->setting.standard_sysclk);
+	}
+
+	clk_set_rate(p_tdm->mclk, freq);
+	p_tdm->last_mclk_freq = freq;
+
+	pr_info("set mclk:%d, get mclk:%lu, mpll:%lu, clk_src_cd:%lu\n",
+		freq,
+		clk_get_rate(p_tdm->mclk),
+		clk_get_rate(p_tdm->clk),
+		clk_get_rate(p_tdm->clk_src_cd));
+
+	return 0;
+}
+
+static int aml_set_tdm_mclk_normal(struct aml_tdm *p_tdm, unsigned int freq)
+{
+	int ret = 0;
+
+	if (IS_ERR(p_tdm->clk_src_cd))
+		ret = aml_set_tdm_mclk_1(p_tdm, freq);
+	else
+		ret = aml_set_tdm_mclk_2(p_tdm, freq);
+
+	return ret;
+}
+
+static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
+{
+	int ret = 0;
+	char *clk_name = (char *)__clk_get_name(p_tdm->clk);
+
+	if (get_cpu_type() == MESON_CPU_MAJOR_ID_S4 && !strcmp(clk_name, "hifi_pll"))
+		ret = aml_set_tdm_mclk_s4(p_tdm, freq);
+	else
+		ret = aml_set_tdm_mclk_normal(p_tdm, freq);
+
+	return ret;
 }
 
 static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture_active)
@@ -532,7 +659,7 @@ void aml_tdm_hw_setting_free(struct aml_tdm *p_tdm, int stream)
 
 	/* disable clock and gate */
 	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
-		pr_debug("%s(), disable mclk for tdm-%d", __func__, p_tdm->id);
+		pr_err("%s(), disable mclk for tdm-%d", __func__, p_tdm->id);
 		clk_disable_unprepare(p_tdm->mclk);
 	}
 }
@@ -1562,6 +1689,7 @@ static int aml_dai_set_tdm_sysclk(struct snd_soc_dai *cpu_dai,
 				int clk_id, unsigned int freq, int dir)
 {
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	p_tdm->setting.standard_sysclk = freq;
 
 	return aml_set_tdm_mclk(p_tdm, freq);
 }
@@ -1723,7 +1851,7 @@ static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 	unsigned int mclk = 12288000;
 	unsigned int ratio = aml_mpll_mclk_ratio(mclk);
 	unsigned int lrclk_hi;
-	unsigned int pll = mclk * ratio;
+	unsigned long pll = mclk * ratio;
 	char *clk_name;
 
 	/*set default i2s  timing sequence*/
@@ -2105,6 +2233,10 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Can't retrieve srcpll clock\n");
 		return PTR_ERR(p_tdm->clk);
 	}
+
+	p_tdm->clk_src_cd = devm_clk_get(&pdev->dev, "clk_src_cd");
+	if (IS_ERR(p_tdm->clk_src_cd))
+		dev_warn(&pdev->dev, "no clk_src_cd clock for 44k case\n");
 
 	p_tdm->mclk = devm_clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(p_tdm->mclk)) {
