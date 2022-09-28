@@ -706,6 +706,8 @@ static irqreturn_t meson_spicc_irq(int irq, void *data)
 	}
 #endif
 
+	if (spicc->clk2cs_ns)
+		udelay(DIV_ROUND_UP(spicc->clk2cs_ns, 1000));
 	/* Empty RX FIFO */
 	meson_spicc_rx(spicc);
 
@@ -1394,6 +1396,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	spicc->data->has_linear_div = match->has_linear_div;
 	spicc->data->has_oen = match->has_oen;
 	spicc->data->has_async_clk = match->has_async_clk;
+	spicc->data->is_div_parent_async_clk = match->is_div_parent_async_clk;
 
 	meson_spicc_hw_init(spicc);
 #else
