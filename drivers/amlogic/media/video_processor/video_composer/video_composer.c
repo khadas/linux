@@ -85,7 +85,9 @@ static u32 debug_crop_pip;
 static u32 composer_use_444;
 static u32 reset_drop;
 static u32 drop_cnt;
+#ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
 static u32 last_drop_cnt;
+#endif
 static u32 drop_cnt_pip;
 static u32 receive_count;
 static u32 receive_count_pip;
