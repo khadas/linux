@@ -12293,7 +12293,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 
 			if (!is_aml_tm2revb() && !is_aml_t7_stbmode() && enable_multi_core1) {
 				enable_multi_core1 = false;
-				pr_info("*** olny has one core1. please check***\n");
+				pr_info("*** only has one core1. please check***\n");
 			}
 			if (!ko_info) {
 				ko_info_len = strlen(func->version_info);

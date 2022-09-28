@@ -233,7 +233,7 @@ void aml_cma_alloc_pre_hook(int *dummy, int count)
 {
 	get_cma_alloc_ref();
 
-	/* temperary increase task priority if allocate many pages */
+	/* temporary increase task priority if allocate many pages */
 	*dummy = task_nice(current);
 	if (count >= (pageblock_nr_pages / 2))
 		set_user_nice(current, -18);

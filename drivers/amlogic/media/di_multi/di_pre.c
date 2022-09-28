@@ -69,8 +69,8 @@ void pre_vinfo_set(unsigned int ch,
  * compare current vframe info with last
  * return
  *	0. no change
- *	1. video format channge
- *	2. scan mode channge?
+ *	1. video format change
+ *	2. scan mode change?
  ****************************************/
 unsigned int is_vinfo_change(unsigned int ch)
 {

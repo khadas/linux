@@ -6993,7 +6993,7 @@ void dim_irq_pre(void)
 	//if ((data32 & 1) == 0 && dimp_get(edi_mp_di_dbg_mask) & 8)
 	//	pr_info("irq[%d]pre|post=0 write done.\n", irq);
 	if (ppre->pre_de_busy) {
-		/* only one inetrrupr mask should be enable */
+		/* only one interrupt mask should be enable */
 		if ((data32 & 2) && !(mask32 & 2)) {
 			dim_print("irq pre MTNWR ==ch[%d]\n", channel);
 			flag = 1;
@@ -7163,7 +7163,7 @@ void dim_post_irq_sub(int irq)
 		DIM_DI_WR(DI_INTR_CTRL,
 			  (data32 & 0xffff0004) | (intr_mode << 30));
 
-		/* disable wr back avoid pps sreay in g12a */
+		/* disable wr back avoid pps reay in g12a */
 		/* dim_DI_Wr_reg_bits(DI_POST_CTRL, 0, 7, 1); */
 		if (DIM_IS_IC_EF(SC2))
 			opl1()->pst_set_flow(1, EDI_POST_FLOW_STEP3_IRQ);

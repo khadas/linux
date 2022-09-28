@@ -482,7 +482,7 @@ static int dolby_fw_probe(struct platform_device *pdev)
 	ret = register_chrdev(0, DOLBY_FW_DEVICE_NAME,
 						&dolby_fw_fops);
 	if (ret < 0) {
-		pr_err("Can't register %s divece", DOLBY_FW_DEVICE_NAME);
+		pr_err("Can't register %s device", DOLBY_FW_DEVICE_NAME);
 		ret = -ENODEV;
 		goto err;
 	}

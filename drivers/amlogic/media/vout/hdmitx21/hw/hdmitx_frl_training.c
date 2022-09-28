@@ -170,7 +170,7 @@ static void TX_LTS_1_HDMI21_CONFIG(enum frl_rate_enum frl_rate)
 	//--Disable h21tx_sb
 	frl_rate_sel = (frl_rate > FRL_6G3L) ? 1 : 0;
 	data8  = 0;
-	data8 |= (0 << 0); //reg_en,Moudel enable
+	data8 |= (0 << 0); //reg_en,Module enable
 	data8 |= (1 << 4); //reg_scrambler_en
 	data8 |= (frl_rate_sel << 7); //reg_lane_sel,1'b1:4lane enable;1'b0:3lane enable
 	hdmitx21_wr_reg(H21TXSB_CTRL_IVCTX, data8);
@@ -215,7 +215,7 @@ static void TX_LTS_2_SETTING(enum frl_rate_enum frl_rate)
 {
 	u8 data8;
 	//Step2:initial all lanes to FFE_LEVEL0
-	//Conifg PLL and Analog Phy,TODO
+	//Config PLL and Analog Phy,TODO
 
 	//Step3:check FRL max
 	//Assume that Rx support FRL Max rate is 10G 4lane
@@ -298,7 +298,7 @@ static void TX_LTS_P_SEND_ONLY_GAP(enum frl_rate_enum frl_rate)
 {
 	u8 data8;
 	u8 frl_rate_sel;
-	//Step1:start FRL transsion with Gap only
+	//Step1:start FRL transition with Gap only
 
 	//Enable HDMI2P1
 	data8  = 0;
@@ -330,7 +330,7 @@ static void TX_LTS_P_SEND_ONLY_GAP(enum frl_rate_enum frl_rate)
 	//--Enable h21tx_sb
 	frl_rate_sel = (frl_rate > FRL_6G3L) ? 1 : 0;
 	data8  = 0;
-	data8 |= (1 << 0); //reg_en,Moudel enable
+	data8 |= (1 << 0); //reg_en,Module enable
 	data8 |= (1 << 4); //reg_scrambler_en
 	data8 |= (frl_rate_sel << 7); //reg_lane_sel,1'b1:4lane enable;1'b0:3lane enable
 	hdmitx21_wr_reg(H21TXSB_CTRL_IVCTX, data8);
@@ -408,7 +408,7 @@ static void hdmitx_frl_config(u8 color_depth, enum frl_rate_enum frl_rate)
 	data8  = 0;
 	data8 |= (1 << 0);
 	data8 |= (1 << 2);
-	data8 |= (0 << 7); //reg_clkration_sw_en
+	data8 |= (0 << 7); //reg_clk ration_sw_en
 	hdmitx21_wr_reg(CLKRATIO_IVCTX, data8);
 
 	data8  = 0;
@@ -465,7 +465,7 @@ static void hdmitx_frl_config(u8 color_depth, enum frl_rate_enum frl_rate)
 	//--Disable h21tx_sb
 	frl_rate_sel = (frl_rate > FRL_6G3L) ? 1 : 0;
 	data8  = 0;
-	data8 |= (1 << 0); //reg_en,Moudel enable
+	data8 |= (1 << 0); //reg_en,Module enable
 	//data8 |= (1 << 4); //reg_scrambler_en
 	data8 |= (0 << 4); //reg_scrambler_en
 	data8 |= (frl_rate_sel << 7); //reg_lane_sel,1'b1:4lane enable;1'b0:3lane enable

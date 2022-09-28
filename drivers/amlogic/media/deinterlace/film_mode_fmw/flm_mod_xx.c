@@ -412,7 +412,7 @@ int	FlmModsDet(struct sFlmDatSt *pRDat, int nDif01, int nDif02, int flm2224_cen)
 			else
 				nT3 = aXMI01[0] - aXMI01[1];
 
-			/* Distance between minimium-2 dif02 */
+			/* Distance between minimum-2 dif02 */
 			if (aXMI02[1] > aXMI02[0])
 				nT4 = aXMI02[1] - aXMI02[0];
 			else

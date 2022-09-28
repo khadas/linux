@@ -3261,7 +3261,7 @@ int ts_output_dump_info(char *buf)
 			if (pout->use_external_mem == 1)
 				r = sprintf(buf, "mem mode:secure\n");
 			else
-				r = sprintf(buf, "mem mode:noraml\n");
+				r = sprintf(buf, "mem mode:normal\n");
 			buf += r;
 			total += r;
 
@@ -3583,7 +3583,7 @@ static void update_dvr_sid(struct out_elem *pout, int sid, int dmx_no)
 		tsout_config_ts_table(-1, pid_slot->pid_mask,
 		      pid_slot->id, pout->pchan->id);
 
-		/*remalloc slot and */
+		/*malloc slot and */
 		new_pid_slot = _malloc_pid_entry_slot(pout->sid, pid_slot->pid);
 		if (!new_pid_slot) {
 			pr_dbg("malloc pid entry fail\n");

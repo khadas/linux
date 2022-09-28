@@ -81,7 +81,7 @@
 //Bit  0            reg_frc_mc_loss_en             // unsigned ,    RW, default = 0
 #define FRC_AUTO_RST_SEL                           0x000c
 //Bit 31:6  reserved
-//Bit 5 :0  reg_auto_rst_sel      // unsigned ,   RW, default = 6'h3c,{lut,mc,mevp,inp,top,ctrl} 1:software reseet 0:auto_reset
+//Bit 5 :0  reg_auto_rst_sel      // unsigned ,   RW, default = 6'h3c,{lut,mc,mevp,inp,top,ctrl} 1:software reset 0:auto_reset
 #define FRC_REG_TOP_CTRL13                         0x000d
 //Bit 31:7          reserved
 //Bit 6             reg_force_film_end       // unsigned ,    RW, default = 0  force film_end of every phase high
@@ -788,7 +788,7 @@
 //Bit 31           reg_debug_path_en         // unsigned ,    RW, default = 0
 //Bit 30           reg_me_debug_cn_fs_en     // unsigned ,    RW, default = 0  enable signal of debug cn full search mv, 0: disable, 1:enable
 //Bit 29           reg_me_debug_nc_fs_en     // unsigned ,    RW, default = 0  enable signal of debug nc full search mv, 0: disable, 1:enable
-//Bit 28:26        reg_me_debug_pc_prj_mode  // unsigned ,    RW, default = 0  enanle signal of debug pc proj mv , 0: disable, 1: prj mv0, 2: prj mv1, 3: prj mv2, 4: prj mv3
+//Bit 28:26        reg_me_debug_pc_prj_mode  // unsigned ,    RW, default = 0  enable signal of debug pc proj mv , 0: disable, 1: prj mv0, 2: prj mv1, 3: prj mv2, 4: prj mv3
 //Bit 25:23        reg_me_debug_cp_prj_mode  // unsigned ,    RW, default = 0  enable signal of debug cp proj mv , 0: disable, 1: prj mv0, 2: prj mv1, 3: prj mv2, 4: prj mv3
 //Bit 22:20        reg_me_debug_pc_sad_mode  // unsigned ,    RW, default = 0  enable signal of debug sad, 0: disable ,1:pc_phs_mv sad,2:weighted sad_dc, 3:weighted sad_ac,4:pc_phs_mv.sad_4x4
 //Bit 19:17        reg_me_debug_cn_sad_mode  // unsigned ,    RW, default = 0  enable signal of debug sad, 0: disable ,1:cn_uni_mv sad,2:weighted sad_dc, 3:weighted sad_ac,4:cn_uni_mv.sad_4x4
@@ -1728,7 +1728,7 @@
 //Bit 31: 4        reserved
 //Bit  3: 0        reg_ds_nr_lut_15          // unsigned ,    RW, default = 0  coef of NR temporal filter for ME image.
 #define FRC_REG_GLB_MOTION                         0x041b
-//Bit 31: 0        ro_ds_glb_motion          // unsigned ,    RO, default = 0  gobal motion based on downsample data
+//Bit 31: 0        ro_ds_glb_motion          // unsigned ,    RO, default = 0  global motion based on downsample data
 // synopsys translate_off
 // synopsys translate_on
 //
@@ -1839,7 +1839,7 @@
 //Bit 9 : 8        reg_glk_ctrl      // unsigned ,    RW, default = 0  csc reg_glk_ctrl enable 2'b00:gatting 2'b01:close 2'b1x:always open
 //Bit 7: 5         reserved
 //Bit  4           reg_sync_en       // unsigned ,    RW, default = 0  reg_csc_en sync enable
-//Bit  3           reg_csc_en        // unsigned ,    RW, default = 1  enable rgb2yuv mtrix for ip pattern generation
+//Bit  3           reg_csc_en        // unsigned ,    RW, default = 1  enable rgb2yuv matrix for ip pattern generation
 //Bit 2:0          reg_csc_rs        // unsigned ,    RW, default = 0  0: normalized to 1024 as 1; 1: norm to 2048; 2: norm to 4096; 3: norm to 8192
 #define FRC_INP_CSC_OFFSET_INP01                   0x04e5
 //Bit 31:29        reserved
@@ -1949,7 +1949,7 @@
 //Bit 31:30         reserved
 //Bit 29:0          reg_inp_dbg_data          // unsigned ,    RW, default = 0  reg_inp_dbg_data
 #define FRC_REG_INP_DBG_CTRL3                      0x04fc
-//Bit 31:30         reg_osd_force_en          // unsigned ,    RW, default = 0  osd deubg force enable
+//Bit 31:30         reg_osd_force_en          // unsigned ,    RW, default = 0  osd debug force enable
 //Bit 29: 0         reg_osd_force_yuv         // unsigned ,    RW, default = 0  osd debug force color
 #define FRC_REG_INP_MIF_GCLK_CTRL                  0x04fd
 //Bit 31:20         reserved
@@ -2038,44 +2038,44 @@
 //Bit  7: 0        reg_iplogo_edgedir4_corr_form_cnt_coring // unsigned ,    RW, default = 1  dir4 corr form logo same weight cnt coring
 #define FRC_IPLOGO_CORR_FORM_UB_GWEIGHT_0          0x0507
 //Bit 31: 8        reserved
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_0 // unsigned ,    RW, default = 7  dir4 corr form logo gaussion weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_0 // unsigned ,    RW, default = 7  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_LB_GWEIGHT_0          0x0508
-//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_0 // unsigned ,    RW, default = 9  dir4 corr form logo gaussion weight
-//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_0 // unsigned ,    RW, default = 10  dir4 corr form logo gaussion weight
-//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_0 // unsigned ,    RW, default = 9  dir4 corr form logo gaussion weight
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_0 // unsigned ,    RW, default = 7  dir4 corr form logo gaussion weight
+//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_0 // unsigned ,    RW, default = 9  dir4 corr form logo gaussian weight
+//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_0 // unsigned ,    RW, default = 10  dir4 corr form logo gaussian weight
+//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_0 // unsigned ,    RW, default = 9  dir4 corr form logo gaussian weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_0 // unsigned ,    RW, default = 7  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_UB_GWEIGHT_1          0x0509
 //Bit 31: 8        reserved
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_1 // unsigned ,    RW, default = 9  dir4 corr form logo gaussion weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_1 // unsigned ,    RW, default = 9  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_LB_GWEIGHT_1          0x050a
-//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_1 // unsigned ,    RW, default = 11  dir4 corr form logo gaussion weight
-//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_1 // unsigned ,    RW, default = 12  dir4 corr form logo gaussion weight
-//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_1 // unsigned ,    RW, default = 11  dir4 corr form logo gaussion weight
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_1 // unsigned ,    RW, default = 9  dir4 corr form logo gaussion weight
+//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_1 // unsigned ,    RW, default = 11  dir4 corr form logo gaussian weight
+//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_1 // unsigned ,    RW, default = 12  dir4 corr form logo gaussian weight
+//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_1 // unsigned ,    RW, default = 11  dir4 corr form logo gaussian weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_1 // unsigned ,    RW, default = 9  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_UB_GWEIGHT_2          0x050b
 //Bit 31: 8        reserved
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_2 // unsigned ,    RW, default = 10  dir4 corr form logo gaussion weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_2 // unsigned ,    RW, default = 10  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_LB_GWEIGHT_2          0x050c
-//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_2 // unsigned ,    RW, default = 12  dir4 corr form logo gaussion weight
-//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_2 // unsigned ,    RW, default = 13  dir4 corr form logo gaussion weight
-//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_2 // unsigned ,    RW, default = 12  dir4 corr form logo gaussion weight
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_2 // unsigned ,    RW, default = 10  dir4 corr form logo gaussion weight
+//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_2 // unsigned ,    RW, default = 12  dir4 corr form logo gaussian weight
+//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_2 // unsigned ,    RW, default = 13  dir4 corr form logo gaussian weight
+//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_2 // unsigned ,    RW, default = 12  dir4 corr form logo gaussian weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_2 // unsigned ,    RW, default = 10  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_UB_GWEIGHT_3          0x050d
 //Bit 31: 8        reserved
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_3 // unsigned ,    RW, default = 9  dir4 corr form logo gaussion weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_3 // unsigned ,    RW, default = 9  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_LB_GWEIGHT_3          0x050e
-//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_3 // unsigned ,    RW, default = 11  dir4 corr form logo gaussion weight
-//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_3 // unsigned ,    RW, default = 12  dir4 corr form logo gaussion weight
-//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_3 // unsigned ,    RW, default = 11  dir4 corr form logo gaussion weight
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_3 // unsigned ,    RW, default = 9  dir4 corr form logo gaussion weight
+//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_3 // unsigned ,    RW, default = 11  dir4 corr form logo gaussian weight
+//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_3 // unsigned ,    RW, default = 12  dir4 corr form logo gaussian weight
+//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_3 // unsigned ,    RW, default = 11  dir4 corr form logo gaussian weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_3 // unsigned ,    RW, default = 9  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_UB_GWEIGHT_4          0x050f
 //Bit 31: 8        reserved
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_4 // unsigned ,    RW, default = 7  dir4 corr form logo gaussion weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_4_4 // unsigned ,    RW, default = 7  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_CORR_FORM_LB_GWEIGHT_4          0x0510
-//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_4 // unsigned ,    RW, default = 9  dir4 corr form logo gaussion weight
-//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_4 // unsigned ,    RW, default = 10  dir4 corr form logo gaussion weight
-//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_4 // unsigned ,    RW, default = 9  dir4 corr form logo gaussion weight
-//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_4 // unsigned ,    RW, default = 7  dir4 corr form logo gaussion weight
+//Bit 31:24        reg_iplogo_edgedir4_corr_weight_5x5_3_4 // unsigned ,    RW, default = 9  dir4 corr form logo gaussian weight
+//Bit 23:16        reg_iplogo_edgedir4_corr_weight_5x5_2_4 // unsigned ,    RW, default = 10  dir4 corr form logo gaussian weight
+//Bit 15: 8        reg_iplogo_edgedir4_corr_weight_5x5_1_4 // unsigned ,    RW, default = 9  dir4 corr form logo gaussian weight
+//Bit  7: 0        reg_iplogo_edgedir4_corr_weight_5x5_0_4 // unsigned ,    RW, default = 7  dir4 corr form logo gaussian weight
 #define FRC_IPLOGO_SCC_GRAY_TH_0                   0x0511
 //Bit 31:22        reserved
 //Bit 21:16        reg_iplogo_scc_dif_th_0   // unsigned ,    RW, default = 20  scc gray dif rough threshold
@@ -3997,11 +3997,11 @@
 #define CLOSS_FRAME_HOLD_NUMS                      0x0c01
 //Bit 31: 0        reg_frame_hold_nums       // unsigned ,    RW, default = 0  frame_hold_nums
 #define CLOSS_GCLK_CTRL0                           0x0c02
-//Bit 31: 0        reg_gclk_ctrl_0           // unsigned ,    RW, default = 0  resevsed for gated-clock control0
+//Bit 31: 0        reg_gclk_ctrl_0           // unsigned ,    RW, default = 0  reserved for gated-clock control0
 #define CLOSS_GCLK_CTRL1                           0x0c03
-//Bit 31: 0        reg_gclk_ctrl_1           // unsigned ,    RW, default = 0  resevsed for gated-clock control1
+//Bit 31: 0        reg_gclk_ctrl_1           // unsigned ,    RW, default = 0  reserved for gated-clock control1
 #define CLOSS_PIC_SIZE                             0x0c04
-//Bit 31:16        reg_pic_ysize             // unsigned ,    RW, default = 512  picture verital size
+//Bit 31:16        reg_pic_ysize             // unsigned ,    RW, default = 512  picture vertical size
 //Bit 15: 0        reg_pic_xsize             // unsigned ,    RW, default = 1024  picture horizontal size
 #define CLOSS_SLICE_XSIZE                          0x0c05
 //Bit 31:16        reserved
@@ -4313,23 +4313,23 @@
 //Bit 15: 0        reg_rc_group_y_0    // unsigned ,    RW, default = 4  vertical size of group (super block) within slice for rate control algorithm
 //Bit 31:16        reg_rc_group_y_3    // unsigned ,    RW, default = 4  vertical size of group (super block) within slice for rate control algorithm
 //Bit 15: 0        reg_rc_group_y_2    // unsigned ,    RW, default = 4  vertical size of group (super block) within slice for rate control algorithm
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_3 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 23:16        reg_rc_perln_16pec_xbdgt_2 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 15: 8        reg_rc_perln_16pec_xbdgt_1 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit  7: 0        reg_rc_perln_16pec_xbdgt_0 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_7 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 23:16        reg_rc_perln_16pec_xbdgt_6 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 15: 8        reg_rc_perln_16pec_xbdgt_5 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit  7: 0        reg_rc_perln_16pec_xbdgt_4 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_11 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 23:16        reg_rc_perln_16pec_xbdgt_10 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 15: 8        reg_rc_perln_16pec_xbdgt_9 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit  7: 0        reg_rc_perln_16pec_xbdgt_8 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_15 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 23:16        reg_rc_perln_16pec_xbdgt_14 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 15: 8        reg_rc_perln_16pec_xbdgt_13 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit  7: 0        reg_rc_perln_16pec_xbdgt_12 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_16 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_3 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 23:16        reg_rc_perln_16pec_xbdgt_2 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 15: 8        reg_rc_perln_16pec_xbdgt_1 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit  7: 0        reg_rc_perln_16pec_xbdgt_0 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_7 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 23:16        reg_rc_perln_16pec_xbdgt_6 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 15: 8        reg_rc_perln_16pec_xbdgt_5 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit  7: 0        reg_rc_perln_16pec_xbdgt_4 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_11 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 23:16        reg_rc_perln_16pec_xbdgt_10 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 15: 8        reg_rc_perln_16pec_xbdgt_9 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit  7: 0        reg_rc_perln_16pec_xbdgt_8 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_15 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 23:16        reg_rc_perln_16pec_xbdgt_14 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 15: 8        reg_rc_perln_16pec_xbdgt_13 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit  7: 0        reg_rc_perln_16pec_xbdgt_12 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_16 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
 //Bit 23:16        reg_rc_1stln_slice_xbdgt // unsigned ,    RW, default = 20  extra bit budget (in pct= x/128) for the first line of the slice, no prediction from pre-line;
 //Bit 15: 8        reg_rc_2ndln_slice_xbdgt // unsigned ,    RW, default = 12  extra bit budget (in pct= x/128) for the 2nd line of the slice, with limited prediction from pre-line;
 //Bit  7: 0        reg_rc_1stln_group_xbdgt // unsigned ,    RW, default = 8  extra bit budget (in pct= x/128) for the first line of the group, still with prediction from pre-line;
@@ -4498,27 +4498,27 @@
 //Bit 31:16        reg_rc_group_y_3    // unsigned ,    RW, default = 4  vertical size of group (super block) within slice for rate control algorithm
 //Bit 15: 0        reg_rc_group_y_2    // unsigned ,    RW, default = 4  vertical size of group (super block) within slice for rate control algorithm
 #define CLOSS0_RC_BUDGET_0                         0x0c4c
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_3 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 23:16        reg_rc_perln_16pec_xbdgt_2 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 15: 8        reg_rc_perln_16pec_xbdgt_1 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit  7: 0        reg_rc_perln_16pec_xbdgt_0 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_3 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 23:16        reg_rc_perln_16pec_xbdgt_2 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 15: 8        reg_rc_perln_16pec_xbdgt_1 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit  7: 0        reg_rc_perln_16pec_xbdgt_0 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
 #define CLOSS0_RC_BUDGET_1                         0x0c4d
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_7 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 23:16        reg_rc_perln_16pec_xbdgt_6 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 15: 8        reg_rc_perln_16pec_xbdgt_5 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit  7: 0        reg_rc_perln_16pec_xbdgt_4 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_7 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 23:16        reg_rc_perln_16pec_xbdgt_6 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 15: 8        reg_rc_perln_16pec_xbdgt_5 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit  7: 0        reg_rc_perln_16pec_xbdgt_4 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
 #define CLOSS0_RC_BUDGET_2                         0x0c4e
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_11 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 23:16        reg_rc_perln_16pec_xbdgt_10 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 15: 8        reg_rc_perln_16pec_xbdgt_9 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit  7: 0        reg_rc_perln_16pec_xbdgt_8 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_11 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 23:16        reg_rc_perln_16pec_xbdgt_10 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 15: 8        reg_rc_perln_16pec_xbdgt_9 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit  7: 0        reg_rc_perln_16pec_xbdgt_8 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
 #define CLOSS0_RC_BUDGET_3                         0x0c4f
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_15 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 23:16        reg_rc_perln_16pec_xbdgt_14 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit 15: 8        reg_rc_perln_16pec_xbdgt_13 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
-//Bit  7: 0        reg_rc_perln_16pec_xbdgt_12 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_15 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 23:16        reg_rc_perln_16pec_xbdgt_14 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit 15: 8        reg_rc_perln_16pec_xbdgt_13 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
+//Bit  7: 0        reg_rc_perln_16pec_xbdgt_12 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
 #define CLOSS0_RC_BUDGET_4                         0x0c50
-//Bit 31:24        reg_rc_perln_16pec_xbdgt_16 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 piecies.
+//Bit 31:24        reg_rc_perln_16pec_xbdgt_16 // signed ,    RW, default = 0  extra bit budget (in pct= x/128) for the cells within the line, defined by 17 nodes to split the line into 16 pieces.
 //Bit 23:16        reg_rc_1stln_slice_xbdgt // unsigned ,    RW, default = 20  extra bit budget (in pct= x/128) for the first line of the slice, no prediction from pre-line;
 //Bit 15: 8        reg_rc_2ndln_slice_xbdgt // unsigned ,    RW, default = 12  extra bit budget (in pct= x/128) for the 2nd line of the slice, with limited prediction from pre-line;
 //Bit  7: 0        reg_rc_1stln_group_xbdgt // unsigned ,    RW, default = 8  extra bit budget (in pct= x/128) for the first line of the group, still with prediction from pre-line;
@@ -4776,9 +4776,9 @@
 #define FRC_ME_DBG                                 0x1105
 //Bit 31:29        reserved
 //Bit 28           reg_me_hiermv_chk_en      // unsigned ,    RW, default = 0  enable checking if hierarical mv is new
-//Bit 27           reg_me_stmv_chk_en        // unsigned ,    RW, default = 0  enable checking if spatial/temproral mv is new
+//Bit 27           reg_me_stmv_chk_en        // unsigned ,    RW, default = 0  enable checking if spatial/temporal mv is new
 //Bit 26           reg_me_rndmv_chk_en       // unsigned ,    RW, default = 0  enable checking if random mv is new
-//Bit 25           reg_me_fsmv_chk_en        // unsigned ,    RW, default = 0  enable checking if full serarch mv is new
+//Bit 25           reg_me_fsmv_chk_en        // unsigned ,    RW, default = 0  enable checking if full search mv is new
 //Bit 24           reg_me_prjmv_chk_en       // unsigned ,    RW, default = 0  enable checking if projected mv is new
 //Bit 23:16        reserved
 //Bit 15: 6        reserved
@@ -4844,7 +4844,7 @@
 //Bit 31:26        reserved
 //Bit 25:22        reg_me_region_fb_xnum     // unsigned ,    RW, default = 6  me statistic region horizontal number
 //Bit 21:18        reg_me_region_fb_ynum     // unsigned ,    RW, default = 4  me statistic region vertical number
-//Bit 17:16        reg_me_region_fb_loop_sel // unsigned ,    RW, default = 3  me statistic reigon for pf loop or pc_phs loop. 0: pc_phs,1: cn, 2:nc, 3:pf
+//Bit 17:16        reg_me_region_fb_loop_sel // unsigned ,    RW, default = 3  me statistic region for pf loop or pc_phs loop. 0: pc_phs,1: cn, 2:nc, 3:pf
 //Bit 15: 8        reg_me_region_fb_xsize    // unsigned ,    RW, default = 34  me statistic region horizontal height for each region
 //Bit  7: 0        reg_me_region_fb_ysize    // unsigned ,    RW, default = 40  me statistic region vertical width for each region
 #define FRC_ME_RPD_ADD_CANDIDATES                  0x1111
@@ -4990,7 +4990,7 @@
 #define FRC_ME_RPD_EN                              0x1127
 //Bit 31           reg_me_rpd_cn_en          // unsigned ,    RW, default = 0  enable repeated pattern detection for cn loop
 //Bit 30           reg_me_rpd_nc_en          // unsigned ,    RW, default = 0  enable repeated pattern detection for nc loop
-//Bit 29           reg_me_rpd_max_sad_sel    // unsigned ,    RW, default = 0  for CrosSAD.useless for chip. max sad selection for repeated pattern search, 0: max auto sad, 1: max corss sad
+//Bit 29           reg_me_rpd_max_sad_sel    // unsigned ,    RW, default = 0  for CrosSAD.useless for chip. max sad selection for repeated pattern search, 0: max auto sad, 1: max cross sad
 //Bit 28           reg_me_rpd_flg_erode_en   // unsigned ,    RW, default = 0  enable repeated pattern flag erosion
 //Bit 27           reg_me_rpd_flg_refine_en  // unsigned ,    RW, default = 1  enable repeated pattern flag refinement
 //Bit 26:24        reg_me_rpd_flg_refine_cnt_th // unsigned ,    RW, default = 4  refine threshold.
@@ -5039,29 +5039,29 @@
 //Bit  7: 0        reg_me_rpd_min_peak_th    // unsigned ,    RW, default = 0  min peak threshold for repeated pattern search
 #define FRC_ME_RPD_T1_FLAT                         0x112c
 //Bit 31:28        reserved
-//Bit 27:16        reg_me_rpd_t1_flat_th0    // unsigned ,    RW, default = 256  flat threshold0 cleanig false type one detection for repeated pattern search
-//Bit 15: 8        reg_me_rpd_t1_flat_th1    // unsigned ,    RW, default = 6  flat threshold1 cleanig false type one detection for repeated pattern search
+//Bit 27:16        reg_me_rpd_t1_flat_th0    // unsigned ,    RW, default = 256  flat threshold0 cleaning false type one detection for repeated pattern search
+//Bit 15: 8        reg_me_rpd_t1_flat_th1    // unsigned ,    RW, default = 6  flat threshold1 cleaning false type one detection for repeated pattern search
 //Bit  7: 0        reg_me_rpd_t1_th          // unsigned ,    RW, default = 64  type one rp threshold for repeated pattern search
 #define FRC_ME_RPD_T2_LHL                          0x112d
 //Bit 31:24        reg_me_rpd_t2_lhl_th      // unsigned ,    RW, default = 12  type two lhl threshold for repeated pattern search
 //Bit 23:16        reg_me_rpd_t2_lhlhl_th    // unsigned ,    RW, default = 4  type two lhlhl threshold for repeated pattern search
 //Bit 15: 8        reserved
-//Bit  7: 0        reg_me_rpd_t2_flat_th3    // unsigned ,    RW, default = 8  flat threshold3 cleanig false type two detection for repeated pattern search
+//Bit  7: 0        reg_me_rpd_t2_flat_th3    // unsigned ,    RW, default = 8  flat threshold3 cleaning false type two detection for repeated pattern search
 #define FRC_ME_RPD_T2_FLAT                         0x112e
-//Bit 31:20        reg_me_rpd_t2_flat_th0    // unsigned ,    RW, default = 256  flat threshold0 cleanig false type two detection for repeated pattern search
-//Bit 19:12        reg_me_rpd_t2_flat_th1    // unsigned ,    RW, default = 6  flat threshold1 cleanig false type two detection for repeated pattern search
-//Bit 11: 0        reg_me_rpd_t2_flat_th2    // unsigned ,    RW, default = 128  flat threshold2 cleanig false type two detection for repeated pattern search
+//Bit 31:20        reg_me_rpd_t2_flat_th0    // unsigned ,    RW, default = 256  flat threshold0 cleaning false type two detection for repeated pattern search
+//Bit 19:12        reg_me_rpd_t2_flat_th1    // unsigned ,    RW, default = 6  flat threshold1 cleaning false type two detection for repeated pattern search
+//Bit 11: 0        reg_me_rpd_t2_flat_th2    // unsigned ,    RW, default = 128  flat threshold2 cleaning false type two detection for repeated pattern search
 #define FRC_ME_RPD_T3_FLAT                         0x112f
 //Bit 31:30        reserved
 //Bit 29:24        reg_me_rpd_t3_th          // unsigned ,    RW, default = 2  type three threshold for repeated pattern search, 8 is normalized as 1
-//Bit 23:16        reg_me_rpd_t3_flat_th1    // unsigned ,    RW, default = 6  flat threshold1 cleanig false type three detection for repeated pattern search
+//Bit 23:16        reg_me_rpd_t3_flat_th1    // unsigned ,    RW, default = 6  flat threshold1 cleaning false type three detection for repeated pattern search
 //Bit 15:12        reserved
-//Bit 11: 0        reg_me_rpd_t3_flat_th0    // unsigned ,    RW, default = 256  flat threshold0 cleanig false type three detection for repeated pattern search
+//Bit 11: 0        reg_me_rpd_t3_flat_th0    // unsigned ,    RW, default = 256  flat threshold0 cleaning false type three detection for repeated pattern search
 #define FRC_ME_RPD_AUTO_FLAT                       0x1130
 //Bit 31:28        reserved
-//Bit 27:16        reg_me_rpd_auto_flat_th0  // unsigned ,    RW, default = 256  atuo flat flag threshold0 for repeated pattern search
+//Bit 27:16        reg_me_rpd_auto_flat_th0  // unsigned ,    RW, default = 256  auto flat flag threshold0 for repeated pattern search
 //Bit 15: 8        reserved
-//Bit  7: 0        reg_me_rpd_auto_flat_th1  // unsigned ,    RW, default = 6  atuo flat flag threshold0 for repeated pattern search
+//Bit  7: 0        reg_me_rpd_auto_flat_th1  // unsigned ,    RW, default = 6  auto flat flag threshold0 for repeated pattern search
 #define FRC_ME_RPD_VLINE                           0x1131
 //Bit 31:24        reg_me_rpd_vline_wid_th   // unsigned ,    RW, default = 4  vertical line width threshold for repeated pattern search
 //Bit 23:16        reg_me_rpd_vline_len_th   // unsigned ,    RW, default = 16  vertical line length threshold for repeated pattern search
@@ -5082,8 +5082,8 @@
 //Bit 15: 8        reg_me_rpd_hard_ab_th_low // unsigned ,    RW, default = 2  hard ab deepness low threshold for horizontal direction for repeated pattern search, 8 is normalized as 1
 //Bit  7: 0        reg_me_rpd_hard_ab_th_high // unsigned ,    RW, default = 6  hard ab deepness high threshold for horizontal direction for repeated pattern search, 8 is normalized as 1
 #define FRC_ME_CAD_FS_EN                           0x1135
-//Bit 31           reg_me_add_fs_cn_en       // unsigned ,    RW, default = 0  enable adding full search cadidates for cn loop
-//Bit 30           reg_me_add_fs_nc_en       // unsigned ,    RW, default = 0  enable adding full search cadidates for nc loop
+//Bit 31           reg_me_add_fs_cn_en       // unsigned ,    RW, default = 0  enable adding full search candidates for cn loop
+//Bit 30           reg_me_add_fs_nc_en       // unsigned ,    RW, default = 0  enable adding full search candidates for nc loop
 //Bit 29:16        reserved
 //Bit 15:10        reserved
 //Bit  9           reg_me_fs_src_flag_clear_en // unsigned ,    RW, default = 0  enable signal of clear fs_src_flag when me start
@@ -5091,15 +5091,15 @@
 //Bit  7: 0        reg_me_fs_sad_core_th     // unsigned ,    RW, default = 4  sad coring threshold for full search
 #define FRC_ME_CAD_FS_PENALTY                      0x1136
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_penalty_fs_cn      // unsigned ,    RW, default = 160  penalty of full search cadidates for cn loop each scan
-//Bit  7: 0        reg_me_penalty_fs_nc      // unsigned ,    RW, default = 160  penalty of full search cadidates for nc loop each scan
+//Bit 15: 8        reg_me_penalty_fs_cn      // unsigned ,    RW, default = 160  penalty of full search candidates for cn loop each scan
+//Bit  7: 0        reg_me_penalty_fs_nc      // unsigned ,    RW, default = 160  penalty of full search candidates for nc loop each scan
 #define FRC_ME_CAD_PRJ_EN                          0x1137
 //Bit 31:19        reserved
 //Bit 18           reg_me_add_prj_en         // unsigned ,    RW, default = 0  enable adding projected mv for candidates, each scan
 //Bit 17: 7        reserved
-//Bit  6: 4        reg_mv_proj_blkx_ext      // unsigned ,    RW, default = 2  block x extend for mv project decsion.ME pixel presion.
+//Bit  6: 4        reg_mv_proj_blkx_ext      // unsigned ,    RW, default = 2  block x extend for mv project decision.ME pixel presion.
 //Bit  3            reserved
-//Bit  2: 0        reg_mv_proj_blky_ext      // unsigned ,    RW, default = 2  block y extend for mv project decsion.ME pixel presion.
+//Bit  2: 0        reg_mv_proj_blky_ext      // unsigned ,    RW, default = 2  block y extend for mv project decision.ME pixel presion.
 #define FRC_ME_CAD_PRJ_PENALTY                     0x1138
 //Bit 31:24        reg_me_penalty_prj        // unsigned ,    RW, default = 60  projected mv penalty for candidates, each scan
 //Bit 23:16        reserved
@@ -5357,8 +5357,8 @@
 //Bit  4: 0        reg_me_rad_rpchk_phs_ygain // unsigned ,    RW, default = 2  repeated pattern check y-direction gain in random MVs for phase loop, 16 is normalized as 1
 #define FRC_ME_RPD_PENALTY_GMV                     0x1303
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_gmv_cn // unsigned ,    RW, default = 12  penalty of gmv cadidates for cn loop each scan if rp detected
-//Bit  7: 0        reg_me_rpd_penalty_gmv_nc // unsigned ,    RW, default = 12  penalty of gmv cadidates for nc loop each scan if rp detected
+//Bit 15: 8        reg_me_rpd_penalty_gmv_cn // unsigned ,    RW, default = 12  penalty of gmv candidates for cn loop each scan if rp detected
+//Bit  7: 0        reg_me_rpd_penalty_gmv_nc // unsigned ,    RW, default = 12  penalty of gmv candidates for nc loop each scan if rp detected
 #define FRC_ME_ADD_HME_SAD                         0x1304
 //Bit 31:20        reserved
 //Bit 19:12        reg_me_add_h_mv_length_th // unsigned ,    RW, default = 12  threshold of mv length for add hierarchical mv
@@ -5415,22 +5415,22 @@
 //Bit 15: 8        reg_me_penalty_s_t_0_8    // unsigned ,    RW, default = 0  static penalty for S and T
 //Bit  7: 0        reg_me_penalty_s_t_0_9    // unsigned ,    RW, default = 0  static penalty for S and T
 #define FRC_ME_CAD_RAD_EN_0                        0x130d
-//Bit 31           reg_me_add_h_en_0_0       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 30           reg_me_add_h_en_0_1       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 29           reg_me_add_h_en_0_2       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 28           reg_me_add_h_en_0_3       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 27           reg_me_add_h_en_0_4       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 26           reg_me_add_h_en_0_5       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 25           reg_me_add_h_en_0_6       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 24           reg_me_add_h_en_0_7       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 23           reg_me_add_h_en_0_8       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 22           reg_me_add_h_en_0_9       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 21           reg_me_add_h_en_0_10      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 20           reg_me_add_h_en_0_11      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 19           reg_me_add_h_en_0_12      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 18           reg_me_add_h_en_0_13      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 17           reg_me_add_h_en_0_14      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 16           reg_me_add_h_en_0_15      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
+//Bit 31           reg_me_add_h_en_0_0       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 30           reg_me_add_h_en_0_1       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 29           reg_me_add_h_en_0_2       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 28           reg_me_add_h_en_0_3       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 27           reg_me_add_h_en_0_4       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 26           reg_me_add_h_en_0_5       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 25           reg_me_add_h_en_0_6       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 24           reg_me_add_h_en_0_7       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 23           reg_me_add_h_en_0_8       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 22           reg_me_add_h_en_0_9       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 21           reg_me_add_h_en_0_10      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 20           reg_me_add_h_en_0_11      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 19           reg_me_add_h_en_0_12      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 18           reg_me_add_h_en_0_13      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 17           reg_me_add_h_en_0_14      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 16           reg_me_add_h_en_0_15      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
 //Bit 15: 5        reserved
 //Bit  4           reg_me_add_h_c_only_0     // unsigned ,    RW, default = 0  1 means enable current position for hie-candidate.
 //Bit  3           reg_me_add_rad_en_0_0     // unsigned ,    RW, default = 1  enable to add rand candidate into candidate list, 0 do not add s0, 1 add s0
@@ -5488,25 +5488,25 @@
 //Bit  7: 4        reg_me_rad_x2_max_0_3     // unsigned ,    RW, default = 1  max random offset for the cmv (0~+15)
 //Bit  3: 0        reg_me_rad_y2_max_0_3     // unsigned ,    RW, default = 1  max random offset for the cmv (0~+15)
 #define FRC_ME_CAD_HIE_PEN0_0                      0x1314
-//Bit 31:24        reg_me_penalty_h_0_0      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_0_1      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_0_2      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_0_3      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_0_0      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_0_1      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_0_2      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_0_3      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN1_0                      0x1315
-//Bit 31:24        reg_me_penalty_h_0_4      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_0_5      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_0_6      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_0_7      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_0_4      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_0_5      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_0_6      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_0_7      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN2_0                      0x1316
-//Bit 31:24        reg_me_penalty_h_0_8      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_0_9      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_0_10     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_0_11     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_0_8      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_0_9      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_0_10     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_0_11     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN3_0                      0x1317
-//Bit 31:24        reg_me_penalty_h_0_12     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_0_13     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_0_14     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_0_15     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_0_12     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_0_13     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_0_14     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_0_15     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_SETS_SEL_1                      0x1318
 //Bit 31:28        reg_me_add_sel_1_0        // unsigned ,    RW, default = 6  add cand sets, 0:S and T mv,10:S and T mv,1:zmv, 2: gmv, 3: rand mv, 4: prj mv, 5: fsmv, 6: hmv, 7: invalid;
 //Bit 27:24        reg_me_add_sel_1_1        // unsigned ,    RW, default = 0  add cand sets,
@@ -5550,22 +5550,22 @@
 //Bit 15: 8        reg_me_penalty_s_t_1_8    // unsigned ,    RW, default = 0  static penalty for S and T
 //Bit  7: 0        reg_me_penalty_s_t_1_9    // unsigned ,    RW, default = 0  static penalty for S and T
 #define FRC_ME_CAD_RAD_EN_1                        0x131f
-//Bit 31           reg_me_add_h_en_1_0       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 30           reg_me_add_h_en_1_1       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 29           reg_me_add_h_en_1_2       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 28           reg_me_add_h_en_1_3       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 27           reg_me_add_h_en_1_4       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 26           reg_me_add_h_en_1_5       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 25           reg_me_add_h_en_1_6       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 24           reg_me_add_h_en_1_7       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 23           reg_me_add_h_en_1_8       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 22           reg_me_add_h_en_1_9       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 21           reg_me_add_h_en_1_10      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 20           reg_me_add_h_en_1_11      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 19           reg_me_add_h_en_1_12      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 18           reg_me_add_h_en_1_13      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 17           reg_me_add_h_en_1_14      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 16           reg_me_add_h_en_1_15      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
+//Bit 31           reg_me_add_h_en_1_0       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 30           reg_me_add_h_en_1_1       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 29           reg_me_add_h_en_1_2       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 28           reg_me_add_h_en_1_3       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 27           reg_me_add_h_en_1_4       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 26           reg_me_add_h_en_1_5       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 25           reg_me_add_h_en_1_6       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 24           reg_me_add_h_en_1_7       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 23           reg_me_add_h_en_1_8       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 22           reg_me_add_h_en_1_9       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 21           reg_me_add_h_en_1_10      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 20           reg_me_add_h_en_1_11      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 19           reg_me_add_h_en_1_12      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 18           reg_me_add_h_en_1_13      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 17           reg_me_add_h_en_1_14      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 16           reg_me_add_h_en_1_15      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
 //Bit 15: 5        reserved
 //Bit  4           reg_me_add_h_c_only_1     // unsigned ,    RW, default = 0  1 means enable current position for hie-candidate.
 //Bit  3           reg_me_add_rad_en_1_0     // unsigned ,    RW, default = 1  enable to add rand candidate into candidate list, 0 do not add s0, 1 add s0
@@ -5623,25 +5623,25 @@
 //Bit  7: 4        reg_me_rad_x2_max_1_3     // unsigned ,    RW, default = 1  max random offset for the cmv (0~+15)
 //Bit  3: 0        reg_me_rad_y2_max_1_3     // unsigned ,    RW, default = 1  max random offset for the cmv (0~+15)
 #define FRC_ME_CAD_HIE_PEN0_1                      0x1326
-//Bit 31:24        reg_me_penalty_h_1_0      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_1_1      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_1_2      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_1_3      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_1_0      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_1_1      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_1_2      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_1_3      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN1_1                      0x1327
-//Bit 31:24        reg_me_penalty_h_1_4      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_1_5      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_1_6      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_1_7      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_1_4      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_1_5      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_1_6      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_1_7      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN2_1                      0x1328
-//Bit 31:24        reg_me_penalty_h_1_8      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_1_9      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_1_10     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_1_11     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_1_8      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_1_9      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_1_10     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_1_11     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN3_1                      0x1329
-//Bit 31:24        reg_me_penalty_h_1_12     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_1_13     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_1_14     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_1_15     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_1_12     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_1_13     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_1_14     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_1_15     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_SETS_SEL_2                      0x132a
 //Bit 31:28        reg_me_add_sel_2_0        // unsigned ,    RW, default = 6  add cand sets, 0:S and T mv,10:S and T mv,1:zmv, 2: gmv, 3: rand mv, 4: prj mv, 5: fsmv, 6: hmv, 7: invalid;
 //Bit 27:24        reg_me_add_sel_2_1        // unsigned ,    RW, default = 0  add cand sets,
@@ -5685,22 +5685,22 @@
 //Bit 15: 8        reg_me_penalty_s_t_2_8    // unsigned ,    RW, default = 0  static penalty for S and T
 //Bit  7: 0        reg_me_penalty_s_t_2_9    // unsigned ,    RW, default = 0  static penalty for S and T
 #define FRC_ME_CAD_RAD_EN_2                        0x1331
-//Bit 31           reg_me_add_h_en_2_0       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 30           reg_me_add_h_en_2_1       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 29           reg_me_add_h_en_2_2       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 28           reg_me_add_h_en_2_3       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 27           reg_me_add_h_en_2_4       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 26           reg_me_add_h_en_2_5       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 25           reg_me_add_h_en_2_6       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 24           reg_me_add_h_en_2_7       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 23           reg_me_add_h_en_2_8       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 22           reg_me_add_h_en_2_9       // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 21           reg_me_add_h_en_2_10      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 20           reg_me_add_h_en_2_11      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 19           reg_me_add_h_en_2_12      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 18           reg_me_add_h_en_2_13      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 17           reg_me_add_h_en_2_14      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
-//Bit 16           reg_me_add_h_en_2_15      // unsigned ,    RW, default = 1  enable to add hierarchical cadidates into candidate list, 0 do not add, 1 add
+//Bit 31           reg_me_add_h_en_2_0       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 30           reg_me_add_h_en_2_1       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 29           reg_me_add_h_en_2_2       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 28           reg_me_add_h_en_2_3       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 27           reg_me_add_h_en_2_4       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 26           reg_me_add_h_en_2_5       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 25           reg_me_add_h_en_2_6       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 24           reg_me_add_h_en_2_7       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 23           reg_me_add_h_en_2_8       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 22           reg_me_add_h_en_2_9       // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 21           reg_me_add_h_en_2_10      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 20           reg_me_add_h_en_2_11      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 19           reg_me_add_h_en_2_12      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 18           reg_me_add_h_en_2_13      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 17           reg_me_add_h_en_2_14      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
+//Bit 16           reg_me_add_h_en_2_15      // unsigned ,    RW, default = 1  enable to add hierarchical candidates into candidate list, 0 do not add, 1 add
 //Bit 15: 5        reserved
 //Bit  4           reg_me_add_h_c_only_2     // unsigned ,    RW, default = 0  1 means enable current position for hie-candidate.
 //Bit  3           reg_me_add_rad_en_2_0     // unsigned ,    RW, default = 1  enable to add rand candidate into candidate list, 0 do not add s0, 1 add s0
@@ -5758,25 +5758,25 @@
 //Bit  7: 4        reg_me_rad_x2_max_2_3     // unsigned ,    RW, default = 1  max random offset for the cmv (0~+15)
 //Bit  3: 0        reg_me_rad_y2_max_2_3     // unsigned ,    RW, default = 1  max random offset for the cmv (0~+15)
 #define FRC_ME_CAD_HIE_PEN0_2                      0x1338
-//Bit 31:24        reg_me_penalty_h_2_0      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_2_1      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_2_2      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_2_3      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_2_0      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_2_1      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_2_2      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_2_3      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN1_2                      0x1339
-//Bit 31:24        reg_me_penalty_h_2_4      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_2_5      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_2_6      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_2_7      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_2_4      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_2_5      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_2_6      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_2_7      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN2_2                      0x133a
-//Bit 31:24        reg_me_penalty_h_2_8      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_2_9      // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_2_10     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_2_11     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_2_8      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_2_9      // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_2_10     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_2_11     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_HIE_PEN3_2                      0x133b
-//Bit 31:24        reg_me_penalty_h_2_12     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 23:16        reg_me_penalty_h_2_13     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit 15: 8        reg_me_penalty_h_2_14     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
-//Bit  7: 0        reg_me_penalty_h_2_15     // unsigned ,    RW, default = 60  static penalty for hierarchical cadidates
+//Bit 31:24        reg_me_penalty_h_2_12     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 23:16        reg_me_penalty_h_2_13     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit 15: 8        reg_me_penalty_h_2_14     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
+//Bit  7: 0        reg_me_penalty_h_2_15     // unsigned ,    RW, default = 60  static penalty for hierarchical candidates
 #define FRC_ME_CAD_POS0_0                          0x133c
 //Bit 31:28        reg_me_cmv_s_t_pos_x_0_0  // signed ,    RW, default = -1  for S and T candidates position X
 //Bit 27:24        reg_me_cmv_s_t_pos_y_0_0  // signed ,    RW, default = -1  for S and T candidates position Y
@@ -5924,7 +5924,7 @@
 #define FRC_ME_RAD_EDGE_0                          0x134e
 //Bit 31:26        reserved
 //Bit 25           reg_me_rad_edge_en_0      // unsigned ,    RW, default = 0  enable edge based random offst for each loop
-//Bit 24           reg_me_rad_edge_calc_mode_0 // unsigned ,    RW, default = 1  edege calc. mode used for random cadidates, 0: dif calc. using top/bot row or left/right column for cost saving, 1: dif calc. using every row/column;
+//Bit 24           reg_me_rad_edge_calc_mode_0 // unsigned ,    RW, default = 1  edege calc. mode used for random candidates, 0: dif calc. using top/bot row or left/right column for cost saving, 1: dif calc. using every row/column;
 //Bit 23:20        reg_me_rad_edge_core_0    // unsigned ,    RW, default = 0  core for edge calc.
 //Bit 19:16        reg_me_rad_edge_thn_0     // unsigned ,    RW, default = 9  me_rad_edge threshold1 = th0 + 2^thn to get the th1 of the curv
 //Bit 15:10        reserved
@@ -5944,7 +5944,7 @@
 #define FRC_ME_RAD_EDGE_1                          0x1352
 //Bit 31:26        reserved
 //Bit 25           reg_me_rad_edge_en_1      // unsigned ,    RW, default = 0  enable edge based random offst for each loop
-//Bit 24           reg_me_rad_edge_calc_mode_1 // unsigned ,    RW, default = 1  edege calc. mode used for random cadidates, 0: dif calc. using top/bot row or left/right column for cost saving, 1: dif calc. using every row/column;
+//Bit 24           reg_me_rad_edge_calc_mode_1 // unsigned ,    RW, default = 1  edege calc. mode used for random candidates, 0: dif calc. using top/bot row or left/right column for cost saving, 1: dif calc. using every row/column;
 //Bit 23:20        reg_me_rad_edge_core_1    // unsigned ,    RW, default = 0  core for edge calc.
 //Bit 19:16        reg_me_rad_edge_thn_1     // unsigned ,    RW, default = 9  me_rad_edge threshold1 = th0 + 2^thn to get the th1 of the curv
 //Bit 15:10        reserved
@@ -5964,7 +5964,7 @@
 #define FRC_ME_RAD_EDGE_2                          0x1356
 //Bit 31:26        reserved
 //Bit 25           reg_me_rad_edge_en_2      // unsigned ,    RW, default = 0  enable edge based random offst for each loop
-//Bit 24           reg_me_rad_edge_calc_mode_2 // unsigned ,    RW, default = 1  edege calc. mode used for random cadidates, 0: dif calc. using top/bot row or left/right column for cost saving, 1: dif calc. using every row/column;
+//Bit 24           reg_me_rad_edge_calc_mode_2 // unsigned ,    RW, default = 1  edege calc. mode used for random candidates, 0: dif calc. using top/bot row or left/right column for cost saving, 1: dif calc. using every row/column;
 //Bit 23:20        reg_me_rad_edge_core_2    // unsigned ,    RW, default = 0  core for edge calc.
 //Bit 19:16        reg_me_rad_edge_thn_2     // unsigned ,    RW, default = 9  me_rad_edge threshold1 = th0 + 2^thn to get the th1 of the curv
 //Bit 15:10        reserved
@@ -5983,44 +5983,44 @@
 //Bit 15: 0        reg_me_rand_seed_mvq_2    // unsigned ,    RW, default = 14392  random seed for the LFSR for mvx/mvy fractional part
 #define FRC_ME_RPD_PENALTY_ST_0                    0x135a
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_0 // unsigned ,    RW, default = 22  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_0 // unsigned ,    RW, default = 22  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_0 // unsigned ,    RW, default = 22  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_0 // unsigned ,    RW, default = 22  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_1                    0x135b
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_1 // unsigned ,    RW, default = 22  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_1 // unsigned ,    RW, default = 22  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_1 // unsigned ,    RW, default = 22  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_1 // unsigned ,    RW, default = 22  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_2                    0x135c
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_2 // unsigned ,    RW, default = 28  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_2 // unsigned ,    RW, default = 28  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_2 // unsigned ,    RW, default = 28  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_2 // unsigned ,    RW, default = 28  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_3                    0x135d
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_3 // unsigned ,    RW, default = 20  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_3 // unsigned ,    RW, default = 20  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_3 // unsigned ,    RW, default = 20  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_3 // unsigned ,    RW, default = 20  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_4                    0x135e
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_4 // unsigned ,    RW, default = 28  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_4 // unsigned ,    RW, default = 28  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_4 // unsigned ,    RW, default = 28  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_4 // unsigned ,    RW, default = 28  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_5                    0x135f
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_5 // unsigned ,    RW, default = 21  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_5 // unsigned ,    RW, default = 21  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_5 // unsigned ,    RW, default = 21  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_5 // unsigned ,    RW, default = 21  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_6                    0x1360
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_6 // unsigned ,    RW, default = 22  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_6 // unsigned ,    RW, default = 22  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_6 // unsigned ,    RW, default = 22  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_6 // unsigned ,    RW, default = 22  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_7                    0x1361
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_7 // unsigned ,    RW, default = 0  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_7 // unsigned ,    RW, default = 0  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_7 // unsigned ,    RW, default = 0  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_7 // unsigned ,    RW, default = 0  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_8                    0x1362
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_8 // unsigned ,    RW, default = 0  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_8 // unsigned ,    RW, default = 0  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_8 // unsigned ,    RW, default = 0  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_8 // unsigned ,    RW, default = 0  penalty of s/t candidates for nc loop each scan if rp not detected
 #define FRC_ME_RPD_PENALTY_ST_9                    0x1363
 //Bit 31:16        reserved
-//Bit 15: 8        reg_me_rpd_penalty_st_cn_9 // unsigned ,    RW, default = 0  penalty of s/t cadidates for cn loop each scan if rp not detected
-//Bit  7: 0        reg_me_rpd_penalty_st_nc_9 // unsigned ,    RW, default = 0  penalty of s/t cadidates for nc loop each scan if rp not detected
+//Bit 15: 8        reg_me_rpd_penalty_st_cn_9 // unsigned ,    RW, default = 0  penalty of s/t candidates for cn loop each scan if rp not detected
+//Bit  7: 0        reg_me_rpd_penalty_st_nc_9 // unsigned ,    RW, default = 0  penalty of s/t candidates for nc loop each scan if rp not detected
 // synopsys translate_off
 // synopsys translate_on
 //
@@ -6062,7 +6062,7 @@
 //Bit 12           reg_add_hme_mvdiff_penalty_zmv_0 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate zmv
 //Bit 11           reg_add_hme_mvdiff_penalty_s_t_0 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate s and t mv
 //Bit 10           reg_add_hme_mvdiff_penalty_rand_0 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate random mv
-//Bit  9           reg_add_hme_mvdiff_penalty_proj_0 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate projetion mv
+//Bit  9           reg_add_hme_mvdiff_penalty_proj_0 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate projection mv
 //Bit  8           reg_add_hme_mvdiff_penalty_fs_0 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate full search mv
 //Bit  7: 0        reg_hme_mvdiff_penalty_gmv_gain_0 // unsigned ,    RW, default = 16  gain of hme_mvdiff_penalty_gmv, norm to 16 as 1
 #define FRC_ME_H_MVDIFF_GAIN0_0                    0x1503
@@ -6117,7 +6117,7 @@
 //Bit 12           reg_add_hme_mvdiff_penalty_zmv_1 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate zmv
 //Bit 11           reg_add_hme_mvdiff_penalty_s_t_1 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate s and t mv
 //Bit 10           reg_add_hme_mvdiff_penalty_rand_1 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate random mv
-//Bit  9           reg_add_hme_mvdiff_penalty_proj_1 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate projetion mv
+//Bit  9           reg_add_hme_mvdiff_penalty_proj_1 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate projection mv
 //Bit  8           reg_add_hme_mvdiff_penalty_fs_1 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate full search mv
 //Bit  7: 0        reg_hme_mvdiff_penalty_gmv_gain_1 // unsigned ,    RW, default = 16  gain of hme_mvdiff_penalty_gmv, norm to 16 as 1
 #define FRC_ME_H_MVDIFF_GAIN0_1                    0x150b
@@ -6172,7 +6172,7 @@
 //Bit 12           reg_add_hme_mvdiff_penalty_zmv_2 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate zmv
 //Bit 11           reg_add_hme_mvdiff_penalty_s_t_2 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate s and t mv
 //Bit 10           reg_add_hme_mvdiff_penalty_rand_2 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate random mv
-//Bit  9           reg_add_hme_mvdiff_penalty_proj_2 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate projetion mv
+//Bit  9           reg_add_hme_mvdiff_penalty_proj_2 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate projection mv
 //Bit  8           reg_add_hme_mvdiff_penalty_fs_2 // unsigned ,    RW, default = 0  enable of add hme_mvdiff_penalty for candidate full search mv
 //Bit  7: 0        reg_hme_mvdiff_penalty_gmv_gain_2 // unsigned ,    RW, default = 16  gain of hme_mvdiff_penalty_gmv, norm to 16 as 1
 #define FRC_ME_H_MVDIFF_GAIN0_2                    0x1513
@@ -6274,9 +6274,9 @@
 //Bit  7: 0        reg_obme_mask_mode3_th    // unsigned ,    RW, default = 10  adaptive obme mask threshold for mode=3 on the mask3 texture;
 #define FRC_ME_OBME_MASK_RAT                       0x1521
 //Bit 31:20        reserved
-//Bit 19:16        reg_obme_mask_xside_rat0  // unsigned ,    RW, default = 7  adaptive obme mask current mask txture to upper mode txture ratio to decide if use this mask0, normn to 16 as 1
-//Bit 15:12        reg_obme_mask_xside_rat1  // unsigned ,    RW, default = 8  adaptive obme mask current mask txture to upper mode txture ratio to decide if use this mask1, normn to 16 as 1
-//Bit 11: 8        reg_obme_mask_xside_rat2  // unsigned ,    RW, default = 9  adaptive obme mask current mask txture to upper mode txture ratio to decide if use this mask2, normn to 16 as 1
+//Bit 19:16        reg_obme_mask_xside_rat0  // unsigned ,    RW, default = 7  adaptive obme mask current mask texture to upper mode txture ratio to decide if use this mask0, normn to 16 as 1
+//Bit 15:12        reg_obme_mask_xside_rat1  // unsigned ,    RW, default = 8  adaptive obme mask current mask texture to upper mode txture ratio to decide if use this mask1, normn to 16 as 1
+//Bit 11: 8        reg_obme_mask_xside_rat2  // unsigned ,    RW, default = 9  adaptive obme mask current mask texture to upper mode txture ratio to decide if use this mask2, normn to 16 as 1
 //Bit  7: 0        reg_obme_mask_xside_thrd  // unsigned ,    RW, default = 10  adaptive obme mask threshold side texture constraint;
 #define FRC_ME_ZGMV_PATCH_EN                       0x1522
 //Bit 31:30        reserved
@@ -6310,7 +6310,7 @@
 //Bit 19:18        reg_me_bv_e2e_sad_upd_en  // unsigned ,    RW, default = 0  set to 1, enable updating bv01 e2e based sad for phase loop
 //Bit 17           reg_me_bv_e2e_sad_chk_en  // unsigned ,    RW, default = 0  copy bv0 to bv1 after swap them by reg_me_bv_e2e_sad_upd_en.
 //Bit 16           reg_me_bv_e2e_mv_chk_en   // unsigned ,    RW, default = 0  set to 0, bypass e2e MV check.
-//Bit 15: 8        reg_me_bv_diff_th         // unsigned ,    RW, default = 16  threshold of mvdiff if bvs are differenent
+//Bit 15: 8        reg_me_bv_diff_th         // unsigned ,    RW, default = 16  threshold of mvdiff if bvs are different
 //Bit  7: 0        reg_me_bv_sad_ratio       // unsigned ,    RW, default = 20  apl ration for bvs sad, 8% of apl. set this ratio to 0 and reg_me_p2p_bypass_con*=0 will bypass e2e MV check.
 #define FRC_ME_E2E_CHK_TH                          0x1525
 //Bit 31:24        reg_me_bv_p2p_diff_th     // unsigned ,    RW, default = 16  mv diff threshold for bvs p2p check
@@ -6990,7 +6990,7 @@
 //Bit 28           reg_me_glb_oob_disable    // unsigned ,    RW, default = 1  oob disable for global statistic
 //Bit 27            reserved
 //Bit 26:17        reg_me_glb_sad_coring_th  // unsigned ,    RW, default = 2  coring threshold for global sad sum
-//Bit 16           reg_me_glb_sad_remove_logo_en // unsigned ,    RW, default = 1  enable logo remvoing for global sad statistic
+//Bit 16           reg_me_glb_sad_remove_logo_en // unsigned ,    RW, default = 1  enable logo removing for global sad statistic
 //Bit 15:13        reserved
 //Bit 12: 0        reg_me_glb_bad_sad_th     // unsigned ,    RW, default = 1023  threshold for global bad sad statistic
 #define FRC_ME_STAT_ZMV_CNT                        0x170c
@@ -7104,7 +7104,7 @@
 #define FRC_ME_STAT_RGN_SAD                        0x1729
 //Bit 31:29        reg_me_region_dtl_sel     // unsigned ,    RW, default = 0  detail selection. 0: MAX(dtl_pre,dtl_cur); 1: MIN(dtl_pre,dtl_cur); 2: arg(dtl_pre,dtl_cur); 3: dtl_pre; 4: dtl_cur.
 //Bit 28:16        reg_me_region_bad_match_sad_th // unsigned ,    RW, default = 500  bad match mv sad threshold for regional statistic
-//Bit 15           reg_me_region_sad_remove_logo_en // unsigned ,    RW, default = 1  enable logo remvoing for regional sad statistic
+//Bit 15           reg_me_region_sad_remove_logo_en // unsigned ,    RW, default = 1  enable logo removing for regional sad statistic
 //Bit 14            reserved
 //Bit 13           reg_me_region_sad_sel     // unsigned ,    RW, default = 0  select pure_sad or sad to calc sad_sum, 0:sad,1:pure_sad
 //Bit 12: 0        reg_me_region_sad_coring_th // unsigned ,    RW, default = 8  sad coring threshold for regional sad statistic
@@ -7135,9 +7135,9 @@
 // synopsys translate_off
 // synopsys translate_on
 #define FRC_ME_RO_RGN_T_CONSIS_0                   0x1800
-//Bit 31: 0        ro_me_region_t_consis_0   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_0   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_0                   0x1801
-//Bit 31: 0        ro_me_region_s_consis_0   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_0   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_0                    0x1802
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_0    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7160,9 +7160,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_0    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_1                   0x1809
-//Bit 31: 0        ro_me_region_t_consis_1   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_1   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_1                   0x180a
-//Bit 31: 0        ro_me_region_s_consis_1   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_1   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_1                    0x180b
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_1    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7185,9 +7185,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_1    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_2                   0x1812
-//Bit 31: 0        ro_me_region_t_consis_2   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_2   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_2                   0x1813
-//Bit 31: 0        ro_me_region_s_consis_2   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_2   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_2                    0x1814
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_2    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7210,9 +7210,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_2    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_3                   0x181b
-//Bit 31: 0        ro_me_region_t_consis_3   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_3   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_3                   0x181c
-//Bit 31: 0        ro_me_region_s_consis_3   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_3   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_3                    0x181d
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_3    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7235,9 +7235,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_3    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_4                   0x1824
-//Bit 31: 0        ro_me_region_t_consis_4   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_4   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_4                   0x1825
-//Bit 31: 0        ro_me_region_s_consis_4   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_4   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_4                    0x1826
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_4    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7260,9 +7260,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_4    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_5                   0x182d
-//Bit 31: 0        ro_me_region_t_consis_5   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_5   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_5                   0x182e
-//Bit 31: 0        ro_me_region_s_consis_5   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_5   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_5                    0x182f
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_5    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7285,9 +7285,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_5    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_6                   0x1836
-//Bit 31: 0        ro_me_region_t_consis_6   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_6   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_6                   0x1837
-//Bit 31: 0        ro_me_region_s_consis_6   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_6   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_6                    0x1838
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_6    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7310,9 +7310,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_6    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_7                   0x183f
-//Bit 31: 0        ro_me_region_t_consis_7   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_7   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_7                   0x1840
-//Bit 31: 0        ro_me_region_s_consis_7   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_7   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_7                    0x1841
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_7    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7335,9 +7335,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_7    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_8                   0x1848
-//Bit 31: 0        ro_me_region_t_consis_8   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_8   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_8                   0x1849
-//Bit 31: 0        ro_me_region_s_consis_8   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_8   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_8                    0x184a
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_8    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7360,9 +7360,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_8    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_9                   0x1851
-//Bit 31: 0        ro_me_region_t_consis_9   // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_9   // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_9                   0x1852
-//Bit 31: 0        ro_me_region_s_consis_9   // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_9   // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_9                    0x1853
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_9    // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7385,9 +7385,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_9    // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_10                  0x185a
-//Bit 31: 0        ro_me_region_t_consis_10  // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_10  // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_10                  0x185b
-//Bit 31: 0        ro_me_region_s_consis_10  // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_10  // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_10                   0x185c
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_10   // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7410,9 +7410,9 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_10   // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_RGN_T_CONSIS_11                  0x1863
-//Bit 31: 0        ro_me_region_t_consis_11  // unsigned ,    RO, default = 0  12 region temporal cnosistences for phase loop
+//Bit 31: 0        ro_me_region_t_consis_11  // unsigned ,    RO, default = 0  12 region temporal consistences for phase loop
 #define FRC_ME_RO_RGN_S_CONSIS_11                  0x1864
-//Bit 31: 0        ro_me_region_s_consis_11  // unsigned ,    RO, default = 0  12 region spatial cnosistences for phase loop
+//Bit 31: 0        ro_me_region_s_consis_11  // unsigned ,    RO, default = 0  12 region spatial consistences for phase loop
 #define FRC_ME_RO_RGN_DTL_SUM_11                   0x1865
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_dtl_sum_11   // unsigned ,    RO, default = 0  12 region high detail sum for phase loop
@@ -7435,71 +7435,71 @@
 //Bit 31            reserved
 //Bit 30: 0        ro_me_region_apl_sum_11   // unsigned ,    RO, default = 0  12 region apl sum for phase loop
 #define FRC_ME_RO_S_CONSIS_0                       0x186c
-//Bit 31: 0        ro_me_glb_s_consis_0      // unsigned ,    RO, default = 0  gobal spatial cnosistences in each loop
+//Bit 31: 0        ro_me_glb_s_consis_0      // unsigned ,    RO, default = 0  global spatial consistences in each loop
 #define FRC_ME_RO_T_CONSIS_0                       0x186d
-//Bit 31: 0        ro_me_glb_t_consis_0      // unsigned ,    RO, default = 0  gobal temporal cnosistences in each loop
+//Bit 31: 0        ro_me_glb_t_consis_0      // unsigned ,    RO, default = 0  global temporal consistences in each loop
 #define FRC_ME_RO_APL_0                            0x186e
 //Bit 31:24        reserved
 //Bit 23: 0        ro_me_glb_apl_sum_0       // unsigned ,    RO, default = 0  global apl for each loop
 #define FRC_ME_RO_DTL_0                            0x186f
 //Bit 31: 0        ro_me_glb_dtl_sum_0       // unsigned ,    RO, default = 0  global detail for each loop
 #define FRC_ME_RO_SAD_0                            0x1870
-//Bit 31: 0        ro_me_glb_sad_sum_0       // unsigned ,    RO, default = 0  gobal sad sum in each loop
+//Bit 31: 0        ro_me_glb_sad_sum_0       // unsigned ,    RO, default = 0  global sad sum in each loop
 #define FRC_ME_RO_BLK_CNT_SAD_0                    0x1871
 //Bit 31:18        reserved
-//Bit 17: 0        ro_me_glb_bad_sad_cnt_0   // unsigned ,    RO, default = 0  gobal bad sad count in each loop
+//Bit 17: 0        ro_me_glb_bad_sad_cnt_0   // unsigned ,    RO, default = 0  global bad sad count in each loop
 #define FRC_ME_RO_BLK_CNT_0                        0x1872
 //Bit 31:18        reserved
-//Bit 17: 0        ro_me_glb_cnt_0           // unsigned ,    RO, default = 0  gobal valid block count each loop
+//Bit 17: 0        ro_me_glb_cnt_0           // unsigned ,    RO, default = 0  global valid block count each loop
 #define FRC_ME_RO_TCMV_CNT_0                       0x1873
 //Bit 31: 0        ro_me_tot_cmv_cnt_0       // unsigned ,    RO, default = 0  total cmv count
 #define FRC_ME_RO_FCMV_CNT_0                       0x1874
 //Bit 31: 0        ro_me_fin_cmv_cnt_0       // unsigned ,    RO, default = 0  fine/final cmv count
 #define FRC_ME_RO_S_CONSIS_1                       0x1875
-//Bit 31: 0        ro_me_glb_s_consis_1      // unsigned ,    RO, default = 0  gobal spatial cnosistences in each loop
+//Bit 31: 0        ro_me_glb_s_consis_1      // unsigned ,    RO, default = 0  global spatial consistences in each loop
 #define FRC_ME_RO_T_CONSIS_1                       0x1876
-//Bit 31: 0        ro_me_glb_t_consis_1      // unsigned ,    RO, default = 0  gobal temporal cnosistences in each loop
+//Bit 31: 0        ro_me_glb_t_consis_1      // unsigned ,    RO, default = 0  global temporal consistences in each loop
 #define FRC_ME_RO_APL_1                            0x1877
 //Bit 31:24        reserved
 //Bit 23: 0        ro_me_glb_apl_sum_1       // unsigned ,    RO, default = 0  global apl for each loop
 #define FRC_ME_RO_DTL_1                            0x1878
 //Bit 31: 0        ro_me_glb_dtl_sum_1       // unsigned ,    RO, default = 0  global detail for each loop
 #define FRC_ME_RO_SAD_1                            0x1879
-//Bit 31: 0        ro_me_glb_sad_sum_1       // unsigned ,    RO, default = 0  gobal sad sum in each loop
+//Bit 31: 0        ro_me_glb_sad_sum_1       // unsigned ,    RO, default = 0  global sad sum in each loop
 #define FRC_ME_RO_BLK_CNT_SAD_1                    0x187a
 //Bit 31:18        reserved
-//Bit 17: 0        ro_me_glb_bad_sad_cnt_1   // unsigned ,    RO, default = 0  gobal bad sad count in each loop
+//Bit 17: 0        ro_me_glb_bad_sad_cnt_1   // unsigned ,    RO, default = 0  global bad sad count in each loop
 #define FRC_ME_RO_BLK_CNT_1                        0x187b
 //Bit 31:18        reserved
-//Bit 17: 0        ro_me_glb_cnt_1           // unsigned ,    RO, default = 0  gobal valid block count each loop
+//Bit 17: 0        ro_me_glb_cnt_1           // unsigned ,    RO, default = 0  global valid block count each loop
 #define FRC_ME_RO_TCMV_CNT_1                       0x187c
 //Bit 31: 0        ro_me_tot_cmv_cnt_1       // unsigned ,    RO, default = 0  total cmv count
 #define FRC_ME_RO_FCMV_CNT_1                       0x187d
 //Bit 31: 0        ro_me_fin_cmv_cnt_1       // unsigned ,    RO, default = 0  fine/final cmv count
 #define FRC_ME_RO_S_CONSIS_2                       0x187e
-//Bit 31: 0        ro_me_glb_s_consis_2      // unsigned ,    RO, default = 0  gobal spatial cnosistences in each loop
+//Bit 31: 0        ro_me_glb_s_consis_2      // unsigned ,    RO, default = 0  global spatial consistences in each loop
 #define FRC_ME_RO_T_CONSIS_2                       0x187f
-//Bit 31: 0        ro_me_glb_t_consis_2      // unsigned ,    RO, default = 0  gobal temporal cnosistences in each loop
+//Bit 31: 0        ro_me_glb_t_consis_2      // unsigned ,    RO, default = 0  global temporal consistences in each loop
 #define FRC_ME_RO_APL_2                            0x1880
 //Bit 31:24        reserved
 //Bit 23: 0        ro_me_glb_apl_sum_2       // unsigned ,    RO, default = 0  global apl for each loop
 #define FRC_ME_RO_DTL_2                            0x1881
 //Bit 31: 0        ro_me_glb_dtl_sum_2       // unsigned ,    RO, default = 0  global detail for each loop
 #define FRC_ME_RO_SAD_2                            0x1882
-//Bit 31: 0        ro_me_glb_sad_sum_2       // unsigned ,    RO, default = 0  gobal sad sum in each loop
+//Bit 31: 0        ro_me_glb_sad_sum_2       // unsigned ,    RO, default = 0  global sad sum in each loop
 #define FRC_ME_RO_BLK_CNT_SAD_2                    0x1883
 //Bit 31:18        reserved
-//Bit 17: 0        ro_me_glb_bad_sad_cnt_2   // unsigned ,    RO, default = 0  gobal bad sad count in each loop
+//Bit 17: 0        ro_me_glb_bad_sad_cnt_2   // unsigned ,    RO, default = 0  global bad sad count in each loop
 #define FRC_ME_RO_BLK_CNT_2                        0x1884
 //Bit 31:18        reserved
-//Bit 17: 0        ro_me_glb_cnt_2           // unsigned ,    RO, default = 0  gobal valid block count each loop
+//Bit 17: 0        ro_me_glb_cnt_2           // unsigned ,    RO, default = 0  global valid block count each loop
 #define FRC_ME_RO_TCMV_CNT_2                       0x1885
 //Bit 31: 0        ro_me_tot_cmv_cnt_2       // unsigned ,    RO, default = 0  total cmv count
 #define FRC_ME_RO_FCMV_CNT_2                       0x1886
 //Bit 31: 0        ro_me_fin_cmv_cnt_2       // unsigned ,    RO, default = 0  fine/final cmv count
 #define FRC_ME_RO_FCMV_CNT                         0x1887
 //Bit 31:18        reserved
-//Bit 17: 0        ro_me_glb_unstable_cnt    // unsigned ,    RO, default = 0  gobal unstable count
+//Bit 17: 0        ro_me_glb_unstable_cnt    // unsigned ,    RO, default = 0  global unstable count
 #define FRC_ME_RO_GMV_ROUGH                        0x1888
 //Bit 31:29        reserved
 //Bit 28:16        ro_me_gmv_rough_vector_0  // signed ,    RO, default = 0  mv detected by FW, [mvx, mvy] s9.2, replace the bv if reg_me_ovrwrite_bv_en=1, otherwise is gmv of each loop, only care about the vector, no care of the sad and so on.
@@ -9194,7 +9194,7 @@
 //Bit 23:16        reg_dehalo_oct2_bg_mv_length_th // unsigned ,    RW, default = 16  oct2 pht mv length th
 //Bit 15: 8        reg_dehalo_oct2_fg_mv_length_th // unsigned ,    RW, default = 16  oct2 pht mv length th
 //Bit  7: 3        reserved
-//Bit  2           reg_dehalo_oct2_diff_v1_v2_chk_en // unsigned ,    RW, default = 0  enable siganal of check difference of vector1 and vector2
+//Bit  2           reg_dehalo_oct2_diff_v1_v2_chk_en // unsigned ,    RW, default = 0  enable signal of check difference of vector1 and vector2
 //Bit  1           reg_dehalo_oct2_bg_mv_length_chk_en // unsigned ,    RW, default = 0  pht mv length check enable signal
 //Bit  0           reg_dehalo_oct2_fg_mv_length_chk_en // unsigned ,    RW, default = 0  pht mv length check enable signal
 #define FRC_VP_DEHALO_TURN_OFF                     0x1e56
@@ -10502,7 +10502,7 @@
 //Bit 9 : 8        reg_glk_ctrl      // unsigned ,    RW, default = 0  csc reg_glk_ctrl enable 2'b00:gatting 2'b01:close 2'b1x:always open
 //Bit 7: 5         reserved
 //Bit  4           reg_sync_en       // unsigned ,    RW, default = 1  reg_csc_en sync enable
-//Bit  3           reg_csc_en        // unsigned ,    RW, default = 1  enable rgb2yuv mtrix for ip pattern generation
+//Bit  3           reg_csc_en        // unsigned ,    RW, default = 1  enable rgb2yuv matrix for ip pattern generation
 //Bit 2:0          reg_csc_rs        // unsigned ,    RW, default = 0  0: normalized to 1024 as 1; 1: norm to 2048; 2: norm to 4096; 3: norm to 8192
 #define FRC_MC_CSC_OFFSET_INP01                    0x30f5
 //Bit 31:29        reserved
@@ -11838,7 +11838,7 @@
 //Bit 31:15        reserved
 //Bit 14           reg_mc_force_deflicker_en // unsigned ,    RW, default = 0  force deflicker
 //Bit 13           reg_mc_flicker0_mode      // unsigned ,    RW, default = 0  do-deflicker == 0 mode 0: use all bilinear(c v h c2 v2 h2); mode 1: c use h8v4, v h c2 h2 v2 use bilinear
-//Bit 12           reg_mc_flicker1_mode      // unsigned ,    RW, default = 0  do-deflicker == 1 mode 0: just c use h8v4 not do obmc; mode 1: c use h8 v4, v h c2 h2 v2 use biliear
+//Bit 12           reg_mc_flicker1_mode      // unsigned ,    RW, default = 0  do-deflicker == 1 mode 0: just c use h8v4 not do obmc; mode 1: c use h8 v4, v h c2 h2 v2 use bilinear
 //Bit 11:10        reserved
 //Bit  9: 0        reg_mc_diff_mv_thrd       // unsigned ,    RW, default = 0  mv diff th
 #define FRC_MC_INVALID_CHECK_MODE                  0x3202
@@ -11971,7 +11971,7 @@
 //Bit 25:24        reg_mc_pixlogo_lv_div     // unsigned ,    RW, default = 0  used in logo post blender, set to 0 for 5x7 window by default.
 //Bit 23:20        reg_mc_z_to_logo_sel      // unsigned ,    RW, default = 1  mode of choosing z_to_logo in logo post blender: 0:(izp+izc)/2; 1:blend via phase; 2:izp; 3:izc; 4:med(pc_avg,izp,izc)
 //Bit 19:16        reg_mc_z_jud_sel          // unsigned ,    RW, default = 2  mode of choosing z_jud in logo post blender: 0:(izp+izc)/2; 1:blend via phase; 2:p 3:c 4:med(pc_avg,izp,izc)
-//Bit 15:12        reg_mc_glb_dejudder       // unsigned ,    RW, default = 0  weight for logo_blemder with z_jud; the bigger then z_jud takes more part
+//Bit 15:12        reg_mc_glb_dejudder       // unsigned ,    RW, default = 0  weight for logo_blender with z_jud; the bigger then z_jud takes more part
 //Bit 11: 8        reg_mc_pixlogo_lv_gain    // unsigned ,    RW, default = 8  set to 8 for 5x7 window by default.
 //Bit  7: 0        reserved
 #define FRC_MC_REGION_FALLBACK                     0x320f
@@ -12257,7 +12257,7 @@
 //Bit 16           reg_mc_debug_mv_pht_en    // unsigned ,    RW, default = 0  debug mode to display pht(after dehalo) mv on U and V channels: 0:no dump 1 mv_c, 2 mv_h, 3, mv_v
 //Bit 15:13        reg_mc_debug_mv_mode_scl  // unsigned ,    RW, default = 0  sel of show HSB, LSB of mv, 0: dont shift 1: show HSB rit shft1 2:show LSB lft shft1 3:show HSB rit shft2 2:show LSB lft shft2
 //Bit 12           reg_mc_debug_mv_dbg_enable // unsigned ,    RW, default = 0  enable of output debug mv overlay on picture or not.
-//Bit 11:10        reg_mc_debug_mv_blk_tag_mode // unsigned ,    RW, default = 1  enable of taging block by change color or top-left corner pixels
+//Bit 11:10        reg_mc_debug_mv_blk_tag_mode // unsigned ,    RW, default = 1  enable of tagging block by change color or top-left corner pixels
 //Bit  9           reg_mc_debug_mv_arrow_overlay // unsigned ,    RW, default = 0  enable of overlay arrow to show the mv
 //Bit  8           reg_mc_debug_mv_mv_overlay_uv // unsigned ,    RW, default = 0  overlay mvx and mvy on u/v
 //Bit  7: 6        reg_mc_debug_mv_occl_tag_mode // unsigned ,    RW, default = 2  tag mode of occ region:   0: no tag; 1: tag by replace whole block color; 2: tag by color the block boundary;

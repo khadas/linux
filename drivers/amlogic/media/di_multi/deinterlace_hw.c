@@ -3870,7 +3870,7 @@ void dim_intr_control_sc2(void)
 {
 	unsigned int path_sel;
 
-	/* reseet interrupt */
+	/* reset interrupt */
 	DIM_RDMA_WR(DI_INTR_CTRL, 0xcffe0000);
 	path_sel = 1;
 	DIM_DI_WR_REG_BITS(DI_TOP_PRE_CTRL, (path_sel & 0x3), 0, 2);
@@ -4363,7 +4363,7 @@ void di_post_set_flow(unsigned int post_wr_en, enum EDI_POST_FLOW step)
 	case EDI_POST_FLOW_STEP3_IRQ:
 		WR(DI_POST_GL_CTRL, 0x1);
 		/* DI_POST_CTRL
-		 *	disable wr back avoid pps sreay in g12a
+		 *	disable wr back avoid pps reay in g12a
 		 *	[7]: set 0;
 		 */
 		WR(DI_POST_CTRL, 0x80000045);

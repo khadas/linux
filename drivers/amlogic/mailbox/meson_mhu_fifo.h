@@ -31,7 +31,7 @@
 #define IRQ_CLR_OFFSETH(x)	(0x44 + ((x) << 3))
 #define IRQ_STS_OFFSETH(x)	(0x84 + ((x) << 3))
 
-/*inclule status 0x4 task id 0x8, ullclt 0x8, completion 0x8*/
+/*include status 0x4 task id 0x8, ullclt 0x8, completion 0x8*/
 #define MBOX_HEAD_SIZE		0x1c
 #define MBOX_RESEV_SIZE		0x4
 

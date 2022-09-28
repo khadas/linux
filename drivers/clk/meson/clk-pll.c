@@ -486,7 +486,7 @@ static int meson_clk_pcie_pll_enable(struct clk_hw *hw)
 	if (retry <= 0)
 		return -EIO;
 
-	/*pcie pll clk share use for usb phy, so add this operiaton from ASIC*/
+	/*pcie pll clk share use for usb phy, so add this operation from ASIC*/
 	do {
 		if (meson_parm_read(clk->map, &pll->pcie_hcsl)) {
 			meson_parm_write(clk->map, &pll->pcie_exen, 0);
@@ -585,7 +585,7 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	}
 
 	/*
-	 * The PLL should set together requied by the
+	 * The PLL should set together required by the
 	 * PLL sequence.
 	 * This scenes will cause PLL lock failed
 	 *  clk_set_rate(pll);

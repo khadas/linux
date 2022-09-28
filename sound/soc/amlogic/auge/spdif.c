@@ -922,7 +922,7 @@ static void spdifin_status_event(struct aml_spdif *p_spdif)
 	/* interrupt status, check and clear by reg_clk_interrupt */
 	intrpt_status = aml_spdifin_status_check(p_spdif->actrl);
 
-	/* clear irq bits immediametely */
+	/* clear irq bits immediately */
 	aml_spdifin_clr_irq(p_spdif->actrl,
 			p_spdif->chipinfo->clr_irq_all_bits,
 			intrpt_status & 0xff);

@@ -194,7 +194,7 @@ static int startsync_mode = 2;
  *dynamic mode (D)  : discontinue....>min,< max,can switch to static mode,
  *		if diff is <min,and become to Sd mode if timerout.
  *sdynamic mode (A): dynamic mode become to static mode,because timer out,
- *		Don't do switch  befome timeout.
+ *Don't do switch  before timeout.
  *
  *tsync_av_mode switch...
  *(AMASTER S)<-->(D VMASTER)<--> (S VMASTER)

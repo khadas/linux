@@ -187,7 +187,7 @@ static struct clk_regmap tm2_sys_pll_dco = {
  * 2) change the return value for .round_rate, a greater many
  *   code will be modified, related to whole CCF.
  * 3) dco pll using kHZ, other clock using HZ, when calculate pll
- *    it will be a lot of mass because of unit deferentces.
+ *    it will be a lot of mass because of unit differences.
  *
  * Keep Consistent with 64bit, creat a Virtual clock for sys pll
  */

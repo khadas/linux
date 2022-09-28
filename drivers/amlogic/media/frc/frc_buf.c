@@ -516,7 +516,7 @@ void frc_dump_buf_reg(void)
 }
 
 /*
- * alloc resove memory
+ * alloc resolve memory
  */
 int frc_buf_alloc(struct frc_dev_s *devp)
 {

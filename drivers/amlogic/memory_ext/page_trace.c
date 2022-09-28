@@ -722,7 +722,7 @@ static int __init page_trace_pre_work(unsigned long size)
 #define LARGE	1024
 #define SMALL	256
 
-/* caller for unmovalbe are max */
+/* caller for unmovable are max */
 #define MT_UNMOVABLE_IDX	0                            /* 0,UNMOVABLE   */
 #define MT_MOVABLE_IDX		(MT_UNMOVABLE_IDX   + LARGE) /* 1,MOVABLE     */
 #define MT_RECLAIMABLE_IDX	(MT_MOVABLE_IDX     + SMALL) /* 2,RECLAIMABLE */
@@ -1291,7 +1291,7 @@ static int record_stack(unsigned int hash, unsigned long *stack)
 			if (memcmp(stack, tmp->stack, sizeof(tmp->stack))) {
 				int i;
 
-				pr_err("%s stack hash confilct:%x\n",
+				pr_err("%s stack hash conflict:%x\n",
 				       __func__, hash);
 				for (i = 0; i < SLAB_STACK_DEP; i++) {
 					pr_err("%16lx %16lx, %ps, %ps\n",

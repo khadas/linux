@@ -168,7 +168,7 @@ void SLut_gen(struct sa_adj_param_s *reg_sat,
 	int skl;
 	int skr;
 
-	//double sgainlut[120] = {0};
+	//double against[120] = {0};
 
 	reg_sat->reg_sat_prt = reg_sat->reg_sat_prt > 512 ? reg_sat->reg_sat_prt : 512;
 	reg_sat->reg_sat_prt_p = (1 << 20) / (1024 - reg_sat->reg_sat_prt);

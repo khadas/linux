@@ -1185,7 +1185,7 @@ void frc_state_handle_new(struct frc_dev_s *devp)
 				frc_frame_forcebuf_count(forceidx);
 				frc_input_fid =
 				READ_FRC_REG(FRC_REG_PAT_POINTER) >> 4 & 0xF;
-				pr_frc(log, "d-e_freezeing readidx:%d, frm:%d\n",
+				pr_frc(log, "d-e_freezing readidx:%d, frm:%d\n",
 					frc_input_fid, devp->frc_sts.frame_cnt);
 				devp->frc_sts.frame_cnt++;
 				off2on_cnt++;

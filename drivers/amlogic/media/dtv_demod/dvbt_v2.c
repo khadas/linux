@@ -1548,7 +1548,7 @@ unsigned int dtvdemod_calcul_get_field(unsigned int memory_base, unsigned int nb
 		temp_val = (temp_val << nb_bits);
 		temp_val = (temp_val >> nb_bits);
 
-		/* on laisser la place aux bits de l'autre mot */
+		/* on lasser la place aux bits de l'autre mot */
 		if ((right_bits > 0) && (right_bits < 32))
 			temp_val = (temp_val << (32 - right_bits));
 		else

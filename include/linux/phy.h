@@ -1250,7 +1250,7 @@ enum {
 	ETH_PHY		= 0x0,
 	ETH_PHY_C1	= 0x1,
 	ETH_PHY_C2	= 0x2,
-	ETH_PHY_SC2	= 0x3, //kerel android-q
+	ETH_PHY_SC2	= 0x3, //kernel android-q
 	ETH_PHY_T5      = 0x4,
 	ETH_PHY_T7      = 0x5,
 };

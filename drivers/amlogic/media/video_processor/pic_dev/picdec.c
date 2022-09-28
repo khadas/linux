@@ -303,7 +303,7 @@ static u8 __iomem *map_virt_from_phys(phys_addr_t phys,
 static void unmap_virt_from_phys(u8 __iomem *vaddr)
 {
 	if (_is_vmalloc_or_module_addr(vaddr)) {
-		/* unmap prevois vaddr */
+		/* unmap previous vaddr */
 		vunmap(vaddr);
 		vaddr = NULL;
 	}

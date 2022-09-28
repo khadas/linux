@@ -238,7 +238,7 @@ int osd_init_progress_bar(void)
 		return -EFAULT;
 	}
 
-	/* initial op info before draw actrualy */
+	/* initial op info before draw actual */
 	op_info->dst_rect.x += progress_bar.bar_border;
 	op_info->dst_rect.y += progress_bar.bar_border;
 	op_info->dst_rect.w =

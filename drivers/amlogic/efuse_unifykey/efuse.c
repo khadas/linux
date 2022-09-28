@@ -1180,7 +1180,7 @@ static CLASS_ATTR_RO(secureboot_check);
 static EFUSE_CLASS_ATTR(checkburn);
 static CLASS_ATTR_RO(checklist);
 
-static struct attribute *efuse_calss_attrs[] = {
+static struct attribute *efuse_class_attrs[] = {
 	&class_attr_userdata.attr,
 	&class_attr_mac.attr,
 	&class_attr_mac_bt.attr,
@@ -1194,7 +1194,7 @@ static struct attribute *efuse_calss_attrs[] = {
 	NULL,
 };
 
-ATTRIBUTE_GROUPS(efuse_calss);
+ATTRIBUTE_GROUPS(efuse_class);
 
 static int efuse_probe(struct platform_device *pdev)
 {
@@ -1309,7 +1309,7 @@ static int efuse_probe(struct platform_device *pdev)
 	efuse_dev->secureboot_mask = secureboot_mask;
 	efuse_dev->cls.name = EFUSE_CLASS_NAME;
 	efuse_dev->cls.owner = THIS_MODULE;
-	efuse_dev->cls.class_groups = efuse_calss_groups;
+	efuse_dev->cls.class_groups = efuse_class_groups;
 	ret = class_register(&efuse_dev->cls);
 	if (ret)
 		goto error2;

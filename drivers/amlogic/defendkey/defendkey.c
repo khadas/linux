@@ -313,7 +313,7 @@ static CLASS_ATTR_RO(secure_check);
 static CLASS_ATTR_RO(secure_verify);
 static CLASS_ATTR_RW(decrypt_dtb);
 
-static struct attribute *defendkey_calss_attrs[] = {
+static struct attribute *defendkey_class_attrs[] = {
 	&class_attr_version.attr,
 	&class_attr_secure_check.attr,
 	&class_attr_secure_verify.attr,
@@ -321,7 +321,7 @@ static struct attribute *defendkey_calss_attrs[] = {
 	NULL,
 };
 
-ATTRIBUTE_GROUPS(defendkey_calss);
+ATTRIBUTE_GROUPS(defendkey_class);
 
 static int __init early_defendkey_para(char *buf)
 {
@@ -413,7 +413,7 @@ static int defendkey_probe(struct platform_device *pdev)
 	defendkey_dev->reg_base = reg_base;
 	defendkey_dev->cls.name = DEFENDKEY_CLASS_NAME;
 	defendkey_dev->cls.owner = THIS_MODULE;
-	defendkey_dev->cls.class_groups = defendkey_calss_groups;
+	defendkey_dev->cls.class_groups = defendkey_class_groups;
 
 	ret = class_register(&defendkey_dev->cls);
 	if (ret) {

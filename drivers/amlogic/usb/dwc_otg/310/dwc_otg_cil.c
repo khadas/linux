@@ -5548,7 +5548,7 @@ int dwc_otg_set_param_otg_cap(dwc_otg_core_if_t *core_if, int32_t val)
 	if (!valid) {
 		if (dwc_otg_param_initialized(core_if->core_params->otg_cap))
 			DWC_ERROR
-			    ("%d invalid for otg_cap paremter. Check HW configuration.\n",
+			    ("%d invalid for otg_cap parameter. Check HW configuration.\n",
 			     val);
 
 		val =
@@ -5601,7 +5601,7 @@ int dwc_otg_set_param_dma_enable(dwc_otg_core_if_t *core_if, int32_t val)
 	if ((val == 1) && (core_if->hwcfg2.b.architecture == 0)) {
 		if (dwc_otg_param_initialized(core_if->core_params->dma_enable))
 			DWC_ERROR
-			    ("%d invalid for dma_enable paremter. Check HW configuration.\n",
+			    ("%d invalid for dma_enable parameter. Check HW configuration.\n",
 			     val);
 
 		val = 0;
@@ -5635,7 +5635,7 @@ int dwc_otg_set_param_dma_desc_enable(dwc_otg_core_if_t *core_if, int32_t val)
 		if (dwc_otg_param_initialized
 		    (core_if->core_params->dma_desc_enable))
 			DWC_ERROR
-			    ("%d invalid for dma_desc_enable paremter. Check HW configuration.\n",
+			    ("%d invalid for dma_desc_enable parameter. Check HW configuration.\n",
 			     val);
 
 		val = 0;
@@ -5682,7 +5682,7 @@ int dwc_otg_set_param_enable_dynamic_fifo(dwc_otg_core_if_t *core_if,
 		if (dwc_otg_param_initialized
 		    (core_if->core_params->enable_dynamic_fifo))
 			DWC_ERROR
-			    ("%d invalid for enable_dynamic_fifo paremter. Check HW configuration.\n",
+			    ("%d invalid for enable_dynamic_fifo parameter. Check HW configuration.\n",
 			     val);
 
 		val = 0;
@@ -6065,7 +6065,7 @@ int dwc_otg_set_param_speed(dwc_otg_core_if_t *core_if, int32_t val)
 	    && dwc_otg_get_param_phy_type(core_if) == DWC_PHY_TYPE_PARAM_FS) {
 		if (dwc_otg_param_initialized(core_if->core_params->speed))
 			DWC_ERROR
-			    ("%d invalid for speed paremter. Check HW configuration.\n",
+			    ("%d invalid for speed parameter. Check HW configuration.\n",
 			     val);
 
 		val =
@@ -6140,7 +6140,7 @@ int dwc_otg_set_param_phy_ulpi_ext_vbus(dwc_otg_core_if_t *core_if,
 					int32_t val)
 {
 	if (DWC_OTG_PARAM_TEST(val, 0, 1)) {
-		DWC_WARN("Wrong valaue for phy_ulpi_ext_vbus\n");
+		DWC_WARN("Wrong value for phy_ulpi_ext_vbus\n");
 		DWC_WARN("phy_ulpi_ext_vbus must be 0 or 1\n");
 		return -DWC_E_INVALID;
 	}
@@ -6157,7 +6157,7 @@ int32_t dwc_otg_get_param_phy_ulpi_ext_vbus(dwc_otg_core_if_t *core_if)
 int dwc_otg_set_param_phy_utmi_width(dwc_otg_core_if_t *core_if, int32_t val)
 {
 	if (DWC_OTG_PARAM_TEST(val, 8, 8) && DWC_OTG_PARAM_TEST(val, 16, 16)) {
-		DWC_WARN("Wrong valaue for phy_utmi_width\n");
+		DWC_WARN("Wrong value for phy_utmi_width\n");
 		DWC_WARN("phy_utmi_width must be 8 or 16\n");
 		return -DWC_E_INVALID;
 	}
@@ -6174,7 +6174,7 @@ int32_t dwc_otg_get_param_phy_utmi_width(dwc_otg_core_if_t *core_if)
 int dwc_otg_set_param_ulpi_fs_ls(dwc_otg_core_if_t *core_if, int32_t val)
 {
 	if (DWC_OTG_PARAM_TEST(val, 0, 1)) {
-		DWC_WARN("Wrong valaue for ulpi_fs_ls\n");
+		DWC_WARN("Wrong value for ulpi_fs_ls\n");
 		DWC_WARN("ulpi_fs_ls must be 0 or 1\n");
 		return -DWC_E_INVALID;
 	}
@@ -6191,7 +6191,7 @@ int32_t dwc_otg_get_param_ulpi_fs_ls(dwc_otg_core_if_t *core_if)
 int dwc_otg_set_param_ts_dline(dwc_otg_core_if_t *core_if, int32_t val)
 {
 	if (DWC_OTG_PARAM_TEST(val, 0, 1)) {
-		DWC_WARN("Wrong valaue for ts_dline\n");
+		DWC_WARN("Wrong value for ts_dline\n");
 		DWC_WARN("ts_dline must be 0 or 1\n");
 		return -DWC_E_INVALID;
 	}
@@ -6209,7 +6209,7 @@ int dwc_otg_set_param_i2c_enable(dwc_otg_core_if_t *core_if, int32_t val)
 {
 	int retval = 0;
 	if (DWC_OTG_PARAM_TEST(val, 0, 1)) {
-		DWC_WARN("Wrong valaue for i2c_enable\n");
+		DWC_WARN("Wrong value for i2c_enable\n");
 		DWC_WARN("i2c_enable must be 0 or 1\n");
 		return -DWC_E_INVALID;
 	}
@@ -6276,7 +6276,7 @@ int dwc_otg_set_param_en_multiple_tx_fifo(dwc_otg_core_if_t *core_if,
 {
 	int retval = 0;
 	if (DWC_OTG_PARAM_TEST(val, 0, 1)) {
-		DWC_WARN("Wrong valaue for en_multiple_tx_fifo,\n");
+		DWC_WARN("Wrong value for en_multiple_tx_fifo,\n");
 		DWC_WARN("en_multiple_tx_fifo must be 0 or 1\n");
 		return -DWC_E_INVALID;
 	}
@@ -6459,7 +6459,7 @@ int32_t dwc_otg_get_param_deep_besl(dwc_otg_core_if_t *core_if)
 int dwc_otg_set_param_tx_thr_length(dwc_otg_core_if_t *core_if, int32_t val)
 {
 	if (DWC_OTG_PARAM_TEST(val, 8, 128)) {
-		DWC_WARN("Wrong valaue for tx_thr_length\n");
+		DWC_WARN("Wrong value for tx_thr_length\n");
 		DWC_WARN("tx_thr_length must be 8 - 128\n");
 		return -DWC_E_INVALID;
 	}
@@ -6476,7 +6476,7 @@ int32_t dwc_otg_get_param_tx_thr_length(dwc_otg_core_if_t *core_if)
 int dwc_otg_set_param_rx_thr_length(dwc_otg_core_if_t *core_if, int32_t val)
 {
 	if (DWC_OTG_PARAM_TEST(val, 8, 128)) {
-		DWC_WARN("Wrong valaue for rx_thr_length\n");
+		DWC_WARN("Wrong value for rx_thr_length\n");
 		DWC_WARN("rx_thr_length must be 8 - 128\n");
 		return -DWC_E_INVALID;
 	}
@@ -7129,7 +7129,7 @@ void dwc_otg_set_hirdthresh(dwc_otg_core_if_t *core_if, uint32_t val)
 	glpmcfg_data_t lpmcfg;
 
 	if (val > 15) {
-		DWC_WARN("Wrong valaue for hird_thres\n");
+		DWC_WARN("Wrong value for hird_thres\n");
 		DWC_WARN("hird_thres must be 0-f\n");
 		return ;
 	}

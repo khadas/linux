@@ -856,7 +856,7 @@ static int meson_nfc_read_page_raw(struct nand_chip *nand, u8 *buf,
  *
  * return a negative nuumber -ENODATA or bitflips
  * -ENODATA: read failed
- * bitflips: read scucess
+ * bitflips: read success
  */
 static int meson_nfc_read_page_hwecc(struct nand_chip *nand, u8 *buf,
 				     int oob_required, int page)

@@ -2494,7 +2494,7 @@ static void aml_save_tuning_para(struct mmc_host *mmc)
  *
  * if all four condition above is yes, the tuning parameter
  *		could be use directly
- * otherwise retunning and save parameter
+ * otherwise returning and save parameter
  */
 static int aml_para_is_exist(struct mmc_host *mmc)
 {

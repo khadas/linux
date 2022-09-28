@@ -274,7 +274,7 @@ void atv_dmd_misc(void)
 		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x44, 0x8c0808c1);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x0c, 0x387c0831);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_CARR_RCVY, 0x24, 0xc030901);
-	} else if (non_std_en == 3) { /* for Hisence */
+	} else if (non_std_en == 3) { /* for Hisense */
 		atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0x00, 0x1030501);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x44, 0x8c0808c1);
 		atv_dmd_wr_long(APB_BLOCK_ADDR_VDAGC, 0x0c, 0x387c0831);

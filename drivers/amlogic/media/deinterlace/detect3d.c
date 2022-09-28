@@ -237,7 +237,7 @@ det3d_info.tscore_3d_tb_accum + (tb_score <= 0) -
 			pr_info("%s input(%d,%d),output (%d,%d).\n",
 __func__, chessbd_score, int_score,
 det3d_info.score_3d_chs, det3d_info.score_3d_int);
-		/* cliping to s7 */
+		/* clipping to s7 */
 		det3d_info.score_3d_chs =
 (det3d_info.score_3d_chs > CHESSBOAD_FMT_SCORE_MAX) ?
 CHESSBOAD_FMT_SCORE_MAX : det3d_info.score_3d_chs;

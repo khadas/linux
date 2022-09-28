@@ -1,4 +1,4 @@
-mlogic Meson DWC3 USB SoC controller
+amlogic Meson DWC3 USB SoC controller
 
 Required properties:
 - compatible:   depending on the SoC this should contain one of:

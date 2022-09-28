@@ -502,7 +502,7 @@ struct xml_nr_s {
 	unsigned int reg_map[XML_NR];
 };
 
-#define XML_SH 33		/* shanrpness */
+#define XML_SH 33		/* sharpness */
 struct xml_sharp_s {
 	unsigned int reg_map[XML_SH];
 };
@@ -517,7 +517,7 @@ struct xml_bn_s {
 	unsigned int reg_map[XML_BN];
 };
 
-#define XML_AE 6		/* auto explosure statistics */
+#define XML_AE 6		/* auto exposure statistics */
 struct xml_ae_s {
 	unsigned int reg_map[XML_AE];
 };

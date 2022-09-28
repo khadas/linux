@@ -2724,7 +2724,7 @@ static long amvecm_ioctl(struct file *file,
 		}
 		argp = (void __user *)vpp_pq_load.param_ptr;
 		if (copy_from_user(vpp_pq_load_table, argp, mem_size)) {
-			pr_amvecm_dbg("[amvecm..] ovescan copy fail!!\n");
+			pr_amvecm_dbg("[amvecm..] overscan copy fail!!\n");
 			break;
 		}
 		parse_overscan_table(vpp_pq_load.length, vpp_pq_load_table);
@@ -8429,7 +8429,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			kfree(section_out);
 			kfree(tmp);
 		} else {
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 		}
 	} else if (!strcmp(parm[0], "3dlut_dump")) {
 		if (!strcmp(parm[1], "init_tab"))
@@ -8437,7 +8437,7 @@ static ssize_t amvecm_debug_store(struct class *cla,
 		else if (!strcmp(parm[1], "reg_tab"))
 			dump_plut3d_reg_table();
 		else
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 	} else if (!strcmp(parm[0], "cm_hist")) {
 		if (!parm[1]) {
 			pr_info("miss param1\n");
@@ -8792,7 +8792,7 @@ static ssize_t amvecm_reg_store(struct class *cla,
 				amvecm_hiu_reg_read((reg_addr + i),
 						    &reg_val);
 			} else {
-				pr_info("unsupprt cmd!\n");
+				pr_info("unsupport cmd!\n");
 				kfree(buf_orig);
 				return -EINVAL;
 			}
@@ -8800,7 +8800,7 @@ static ssize_t amvecm_reg_store(struct class *cla,
 				(reg_addr + i), reg_val);
 		}
 	} else {
-		pr_info("unsupprt cmd!\n");
+		pr_info("unsupport cmd!\n");
 	}
 	kfree(buf_orig);
 	return count;
@@ -9180,7 +9180,7 @@ void lc_load_curve(struct ve_lc_curve_parm_s *p)
 	lc_alg_parm.dbg_parm3 = p->param[lc_dbg_parm3];
 	lc_alg_parm.dbg_parm4 = p->param[lc_dbg_parm4];
 
-	/*load lc_staturation curve*/
+	/*load lc_saturation curve*/
 	lc_wr_reg(p->ve_lc_saturation, 0x1);
 	/*load lc_yminval_lmt*/
 	lc_wr_reg(p->ve_lc_yminval_lmt, 0x2);
@@ -9230,7 +9230,7 @@ static ssize_t amvecm_lc_show(struct class *cla,
 			lc_rd_reg(YPKBV_RAT, 1, temp_cur);
 			break;
 		default:
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 			break;
 		}
 		lc_dbg_flag &= ~LC_CUR_RD_UPDATE;
@@ -9321,7 +9321,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 		else if (!strcmp(parm[1], "disable"))
 			lc_en = 0;
 		else
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 	} else if (!strcmp(parm[0], "lc_version")) {
 		pr_info("lc driver version :  %s\n", LC_VER);
 	} else if (!strcmp(parm[0], "lc_dbg")) {
@@ -9338,7 +9338,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 		else if (!strcmp(parm[1], "disable"))
 			lc_demo_mode = 0;
 		else
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 	} else if (!strcmp(parm[0], "dump_lut_data")) {
 		if (kstrtoul(parm[1], 16, &val) < 0)
 			goto free_buf;
@@ -9360,7 +9360,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 		else if (reg_sel == CNTST_LMT)
 			lc_rd_reg(CNTST_LMT, 0, NULL);
 		else
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 	} else if (!strcmp(parm[0], "dump_lut_str")) {
 		if (kstrtoul(parm[1], 16, &val) < 0)
 			goto free_buf;
@@ -9390,7 +9390,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 		else if (reg_sel == CNTST_LMT)
 			lc_wr_reg(reg_lut, CNTST_LMT);
 		else
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 	} else if (!strcmp(parm[0], "dump_hist")) {
 		if (!strcmp(parm[1], "all")) {
 			/*dump all hist of one frame*/
@@ -9417,7 +9417,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 			lc_hist_prcnt = val;
 			amlc_debug = 0x6;
 		} else {
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 		}
 	} else if (!strcmp(parm[0], "dump_curve")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
@@ -9453,7 +9453,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 				goto free_buf;
 			min_bv_percent_th = val;
 		} else {
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 		}
 	} else if (!strcmp(parm[0], "osd_iir_en")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
@@ -9481,7 +9481,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 			pr_info("after setting: alpha1: %d, alpha2: %d, refresh_bit: %d, ts: %d\n",
 				alpha1, alpha2, refresh_bit, ts);
 		}  else {
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 		}
 	} else if (!strcmp(parm[0], "scene_change_th")) {
 		pr_info("current value: %d\n", scene_change_th);
@@ -9506,7 +9506,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 			lc_temp = v;
 			lc_dbg_flag |= LC_PARAM_RD_UPDATE;
 		} else
-			pr_info("unsupprt cmd!\n");
+			pr_info("unsupport cmd!\n");
 	} else if (!strcmp(parm[0], "get_hist")) {
 		if (kstrtoul(parm[1], 10, &val) < 0)
 			goto free_buf;
@@ -9630,7 +9630,7 @@ static ssize_t amvecm_lc_store(struct class *cls,
 			detect_signal_range_threshold_black,
 			detect_signal_range_threshold_white);
 	} else {
-		pr_info("unsupprt cmd!\n");
+		pr_info("unsupport cmd!\n");
 	}
 
 	kfree(buf_orig);

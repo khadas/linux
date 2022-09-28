@@ -870,7 +870,7 @@ int new_get_output_buffer_num(int index)
 }
 
 /**********************************************************
- * @brief  di_get_input_buffer_num  get inptut buffer num
+ * @brief  di_get_input_buffer_num  get input buffer num
  *
  * @param[in]  index   instance index
  * @param[in]  buffer  Pointer of buffer structure

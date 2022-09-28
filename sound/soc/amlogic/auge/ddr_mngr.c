@@ -1357,7 +1357,7 @@ int aml_check_sharebuffer_valid(struct frddr *fr, int ss_sel)
 
 /* select dst for same source
  * lvl: share buffer req_sel 1~2
- * lvl 0 is aleardy used for reg_frddr_src_sel1
+ * lvl 0 is already used for reg_frddr_src_sel1
  * lvl 1 is for reg_frddr_src_sel2
  * lvl 2 is for reg_frddr_src_sel3
  */
@@ -1660,7 +1660,7 @@ void aml_frddr_select_dst(struct frddr *fr, enum frddr_dest dst)
 
 /* select dst for same source
  * sel: share buffer req_sel 1~2
- * sel 0 is aleardy used for reg_frddr_src_sel1
+ * sel 0 is already used for reg_frddr_src_sel1
  * sel 1 is for reg_frddr_src_sel2
  * sel 2 is for reg_frddr_src_sel3
  */

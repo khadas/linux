@@ -42,7 +42,7 @@ bool hdmitx_find_vendor_6g(struct hdmitx_dev *hdev)
 	return false;
 }
 
-/* need to forcely change clk raito for such TV when suspend/resume box */
+/* need to forcely change clk ratio for such TV when suspend/resume box */
 bool hdmitx_find_vendor_ratio(struct hdmitx_dev *hdev)
 {
 	int i;

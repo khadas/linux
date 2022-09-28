@@ -1219,7 +1219,7 @@ static int meson_cpufreq_probe(struct platform_device *pdev)
 	}
 	cpufreq_proc = proc_mkdir("meson_cpufreq", NULL);
 	if (!cpufreq_proc)
-		pr_err("%s: failed to create meson_cppufreq proc entry\n", __func__);
+		pr_err("%s: failed to create meson_cpufreq proc entry\n", __func__);
 
 	ret = cpufreq_register_driver(&meson_cpufreq_driver);
 	if (ret) {

@@ -1153,7 +1153,7 @@ static int aml_pdm_platform_probe(struct platform_device *pdev)
 
 	ret = of_property_read_u32(node, "filter_mode", &p_pdm->filter_mode);
 	if (ret < 0) {
-		/* defulat set 1 */
+		/* default set 1 */
 		p_pdm->filter_mode = 1;
 	}
 	pr_debug("%s pdm filter mode from dts:%d\n",

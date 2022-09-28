@@ -1603,7 +1603,7 @@ void video_post_process_t7(struct vframe_s *vf,
 			enum hdr_type_e *source_type)
 {
 	//special for t7
-	// since in with t7, there will be more differernt combination
+	// since in with t7, there will be more different combination
 	// of vd input and osd input, vd2 or vd3 is possible be the main video
 
 	//vd1+osd0+osd1+vpp0+venc0 as 1st/main display process path

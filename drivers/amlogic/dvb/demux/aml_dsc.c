@@ -890,7 +890,7 @@ int dsc_dump_info(char *buf)
 	char sid = 0;
 	char err = 0;
 
-	r = sprintf(buf, "\n pay attation: dsc connected to %s\n\n",
+	r = sprintf(buf, "\n pay attention: dsc connected to %s\n\n",
 			dvb->dsc_pipeline ? "demod" : "local");
 	buf += r;
 	total += r;

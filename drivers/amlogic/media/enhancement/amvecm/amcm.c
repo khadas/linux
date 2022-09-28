@@ -57,7 +57,7 @@ MODULE_PARM_DESC(debug_regload, "\n debug_regload\n");
 
 static int cm_level = 1;/* 0:optimize;1:enhancement */
 module_param(cm_level, int, 0664);
-MODULE_PARM_DESC(cm_level, "\n selcet cm lever\n");
+MODULE_PARM_DESC(cm_level, "\n select cm lever\n");
 
 int cm_en;/* 0:disable;1:enable */
 module_param(cm_en, int, 0664);

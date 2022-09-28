@@ -1634,7 +1634,7 @@ static void vlock_enable_step3_enc(struct stvlock_sig_sts *pvlock)
 		if (enc_max_line >= vlock_protect_min)
 			WRITE_VPP_REG(pvlock->enc_max_line_addr + offset_enc, enc_max_line);
 		else if ((vlock_debug & VLOCK_DEBUG_FLASH))
-			pr_info("vlock:WARNING... enc_max_line:%d is limited by prt_min:%d cannot adj contiue\n",
+			pr_info("vlock:WARNING... enc_max_line:%d is limited by prt_min:%d cannot adj continue\n",
 				enc_max_line, vlock_protect_min);
 		if ((vlock_debug & VLOCK_DEBUG_FLASH)) {
 			pr_info("polity_line_num=%d line_num=%d, org_line=%d\n",
@@ -3148,7 +3148,7 @@ u32 vlock_chk_is_small_win(struct vpp_frame_par_s *cur_video_sts)
 	return 0;
 }
 
-/*new packed separeted from amvecm_on_vs,avoid the influencec of repeate call,
+/*new packed separeted from amvecm_on_vs,avoid the influence of repeate call,
  *which may affect vlock process
  */
 void vlock_process(struct vframe_s *vf,

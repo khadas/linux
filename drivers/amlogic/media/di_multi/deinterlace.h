@@ -570,7 +570,7 @@ struct di_pre_stru_s {
 /* set by prog_proc_config when source is vdin,0:use 2 i
  * serial buffer,1:use 1 p buffer,3:use 2 i paralleling buffer
  */
-/* ary: loacal play p mode is 0
+/* ary: local play p mode is 0
  * local play i mode is 0
  */
 /* alloc di buf as p or i;0: alloc buf as i;

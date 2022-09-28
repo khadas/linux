@@ -55,7 +55,7 @@
  * @data: The buffer into which data is written
  * @reg_addr: Slave device register start address to start read data
  * @length: Number of data bytes in @data being read from slave device
- * @filled: When buffer @data be filled will set this flag with 1, outhrwise 0
+ * @filled: When buffer @data be filled will set this flag with 1, otherwise 0
  * @list_head:Eonnet every goodix_tools_data struct into a list
  */
 

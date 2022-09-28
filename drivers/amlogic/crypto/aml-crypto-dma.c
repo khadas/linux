@@ -44,14 +44,14 @@ void aml_write_crypto_reg(u32 addr, u32 data)
 	if (cryptoreg)
 		writel(data, cryptoreg + (addr << 2));
 	else
-		pr_err("crypto reg mapping is not initailized\n");
+		pr_err("crypto reg mapping is not initialized\n");
 }
 EXPORT_SYMBOL_GPL(aml_write_crypto_reg);
 
 u32 aml_read_crypto_reg(u32 addr)
 {
 	if (!cryptoreg) {
-		pr_err("crypto reg mapping is not initailized\n");
+		pr_err("crypto reg mapping is not initialized\n");
 		return 0;
 	}
 	return readl(cryptoreg + (addr << 2));

@@ -1629,7 +1629,7 @@ static int seq_file_curr_vframe_show(struct seq_file *seq, void *v)
 
 /**************************************
  *
- * summmary variable
+ * summary variable
  *
  **************************************/
 static int seq_file_sum_show(struct seq_file *seq, void *v)

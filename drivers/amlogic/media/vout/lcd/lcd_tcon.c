@@ -1536,7 +1536,7 @@ void lcd_tcon_data_multi_bypass_set(struct tcon_mem_map_table_s *mm_table,
 	LCDERR("tcon multi[%d]: block_type=0x%x invalid\n", i, block_type);
 }
 
-/* for tcon vsync switch multi lut dynamiclly,
+/* for tcon vsync switch multi lut dynamically,
  * will bypass block_type: LCD_TCON_DATA_BLOCK_TYPE_BASIC_INIT
  */
 static int lcd_tcon_data_multi_update(struct aml_lcd_drv_s *pdrv,

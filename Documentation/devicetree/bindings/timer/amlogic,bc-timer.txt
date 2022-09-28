@@ -20,7 +20,7 @@ Required properties:
 Example:
 
 timer_bc {
-	compatible = "amloigc,bc-timer";
+	compatible = "amlogic,bc-timer";
 	reg =   <0xffd0f190 0x8>;
 	timer_name = "Meson TimerF";
 	clockevent-rating=<300>;

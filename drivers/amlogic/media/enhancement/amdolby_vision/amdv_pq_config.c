@@ -1830,7 +1830,7 @@ void get_dv_bin_config(void)
 		pr_info("t_whitexy:          %d, %d\n",
 			config->ambient_config.t_whitexy[0],
 			config->ambient_config.t_whitexy[1]);
-		pr_info("t_surround_reflecti:%d\n",
+		pr_info("t_surround_reflection:%d\n",
 			config->ambient_config.t_surround_reflection);
 		pr_info("t_screen_reflection:%d\n",
 			config->ambient_config.t_screen_reflection);

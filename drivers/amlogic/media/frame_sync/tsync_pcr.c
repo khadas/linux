@@ -59,7 +59,7 @@ enum pcr_init_priority_e {
 #define NO_DATA_CHECK_TIME           4000
 
 /*
- *the diff of system time and referrence lock,
+ *the diff of system time and reference lock,
  * which use the threshold to adjust the system time
  */
 #define OPEN_RECOVERY_THRESHOLD 18000
@@ -1541,7 +1541,7 @@ void tsync_pcr_avevent_locked(enum avevent_e event, u32 param)
 }
 EXPORT_SYMBOL(tsync_pcr_avevent_locked);
 
-/* timer to check the system with the referrence time in ts stream. */
+/* timer to check the system with the reference time in ts stream. */
 static unsigned long tsync_pcr_check(void)
 {
 	u32 tsdemux_pcr = 0;
@@ -1679,7 +1679,7 @@ static unsigned long tsync_pcr_check(void)
 	/*
 	 **********************************************************
 	 * On S905/S905X Platform, when we play avs video file on dtv
-	 *which contian long cabac   some time it will cause amstream
+	 *which contain long cabac   some time it will cause amstream
 	 *video buffer enter an error status. vbuf_level will over  vbuf_size,
 	 *this will cause a lot of print in this function. And that will
 	 *prevent reset ts monitor work thread from getting cpu control

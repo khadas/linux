@@ -4696,7 +4696,7 @@ void osd_setup_hw(u32 index,
 #endif
 	}
 
-	/* osd blank only control by /sys/class/graphcis/fbx/blank */
+	/* osd blank only control by /sys/class/graphics/fbx/blank */
 	if (memcmp(&pan_data, &osd_hw.pandata[index],
 		   sizeof(struct pandata_s)) != 0 ||
 	    memcmp(&disp_data, &osd_hw.dispdata[index],
@@ -9583,7 +9583,7 @@ static void osd_set_freescale(u32 index,
 					osd_hw.dst_data[index].y;
 				width = osd_hw.dst_data[index].w;
 				height = osd_hw.dst_data[index].h;
-				/* interleaced case */
+				/* interleaved case */
 				if (osd_hw.field_out_en[output_index]) {
 					height = height >> 1;
 					osd_hw.free_dst_data[index].y_start >>= 1;
@@ -15178,7 +15178,7 @@ int get_vmap_addr(u32 index, u8 __iomem **buf)
 	/*nocache*/
 	pgprot = pgprot_writecombine(PAGE_KERNEL);
 	if (vaddr) {
-		/*  unmap prevois vaddr */
+		/*  unmap previous vaddr */
 		vunmap(vaddr);
 		vaddr = NULL;
 	}
@@ -15240,7 +15240,7 @@ int osd_set_clear(u32 index)
 		count -= c;
 	}
 	if (vaddr) {
-		/*  unmap prevois vaddr */
+		/*  unmap previous vaddr */
 		vunmap(vaddr);
 		vaddr = NULL;
 	}

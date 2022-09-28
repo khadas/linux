@@ -35,7 +35,7 @@
 
 static int hdmi21_authenticated;
 static struct hdcp_t *p_hdcp;
-/* hdcp_topo info transfrred to upstream, 1.4 & 2.2 */
+/* hdcp_topo info transferred to upstream, 1.4 & 2.2 */
 struct hdcp_topo_s hdcp_topo;
 
 static int hdcp_verbose;
@@ -783,7 +783,7 @@ static void hdcp1x_process_intr(struct hdcp_t *p_hdcp, u8 int_reg[])
 			 * 2.but for 1.4 repeater 3B-01b:Regular procedure With Repeater
 			 * - DEVICE_COUNT=0, second part comes first before ksv fifo
 			 * ready, here need to notify upstream side to update topo info
-			 * 3.hdcp1.4 repeatr 3C-II-06~09, still need to notify topo
+			 * 3.hdcp1.4 repeat 3C-II-06~09, still need to notify topo
 			 * info to upstream side even if topo info exceed the maximum
 			 */
 			if (p_hdcp->hdcp14_second_part_pass ||

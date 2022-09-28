@@ -91,7 +91,7 @@ struct vt_state {
 /*
  * struct vt_dev - the metadata of the videotunnel device node
  * @mdev:			the actual misc device
- * @instance_lock:	mutex procting the instances
+ * @instance_lock:	mutex producer the instances
  * @instance_idr:	an idr space for allocating instance ids
  * @instances:		an rb tree for all the existing video instance
  * @session_lock:	an semaphore protect sessions
@@ -105,7 +105,7 @@ struct vt_dev {
 	struct rb_root instances;
 	struct vt_state state;
 
-	struct mutex vsync_lock; /* proctect vsync info */
+	struct mutex vsync_lock; /* protect vsync info */
 	u64 vsync_timestamp;
 	u32 vsync_period;
 
@@ -127,7 +127,7 @@ struct vt_dev {
  * @display_serial:	used for debugging (to make display_name unique)
  * @task:			used for debugging
  * @cid:			connection id
- * @wait_consumer:	cosunmer wait queue of this session
+ * @wait_consumer:	costumer wait queue of this session
  * @wait_producer:	producer wait queue of this session
  */
 struct vt_session {
@@ -191,10 +191,10 @@ struct vt_cmd {
  * @ref:		reference count
  * @id:			unique id allocated by device->idr
  * @node:		node in the videotunel device rbtree
- * @lock:		proctect fifo
+ * @lock:		protect fifo
  * @dev:		backpointer to device
  * @consumer:		consumer session on this instance
- * @wait_consumer:	cosnumer wait queue for buffer
+ * @wait_consumer:	costumer wait queue for buffer
  * @producer:		producer session on this instance
  * @wait_producer:	producer wait queue for buffer
  * @cmd_lock:			protect cmd fifo
@@ -211,7 +211,7 @@ struct vt_instance {
 	struct vt_dev *dev;
 	struct rb_node node;
 
-	struct mutex lock; /* proctect fd fifo */
+	struct mutex lock; /* protect fd fifo */
 	struct vt_session *consumer;
 	wait_queue_head_t wait_consumer;
 	struct vt_session *producer;

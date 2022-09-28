@@ -224,7 +224,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 			mvps->osd_scope_pre[osd_index].v_end =
 				mvps->osd_scope_pre[osd_index].v_start
 				+ scaler_param->output_height - 1;
-		} else {/*scaler position is after osdlend*/
+		} else {/*scaler position is after osd land*/
 			/*osdblend scope size calc firstly*/
 			mvps->osd_scope_pre[osd_index].h_start =
 				mvps->plane_info[osd_index].dst_x *

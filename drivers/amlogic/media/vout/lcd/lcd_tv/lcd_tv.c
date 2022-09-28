@@ -1194,7 +1194,7 @@ static void lcd_config_init(struct aml_lcd_drv_s *pdrv)
 	if (pdrv->config.timing.lcd_clk == 0) { /* default 0 for 60hz */
 		pdrv->config.timing.lcd_clk = 60;
 	} else {
-		LCDPR("[%d]: custome clk: %d\n",
+		LCDPR("[%d]:  custom clk: %d\n",
 		      pdrv->index, pdrv->config.timing.lcd_clk);
 	}
 

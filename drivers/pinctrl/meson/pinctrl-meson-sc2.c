@@ -1106,7 +1106,7 @@ static const char * const nand_groups[] = {
 
 static const char * const sdcard_groups[] = {
 	"sdcard_d0_c", "sdcard_d1_c", "sdcard_d2_c", "sdcard_d3_c",
-	"sdcaed_cd_c", "sdcard_clk_c", "sdcard_cmd_c",
+	"sdcard_cd_c", "sdcard_clk_c", "sdcard_cmd_c",
 
 	"sdcard_d0_x", "sdcard_d1_x", "sdcard_d2_x", "sdcard_d3_x",
 	"sdcard_clk_x", "sdcard_cmd_x",

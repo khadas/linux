@@ -77,7 +77,7 @@ static int meson_writeback_connector_atomic_check(struct drm_connector *conn,
 	}
 
 	if (WARN_ON(i == ARRAY_SIZE(writeback_fmts))) {
-		DRM_ERROR("%s pixel format not surpport!\n", __func__);
+		DRM_ERROR("%s pixel format not support!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -212,7 +212,7 @@ static void meson_writeback_connector_atomic_commit(struct drm_connector *conn,
 	}
 
 	if (WARN_ON(i == ARRAY_SIZE(writeback_fmts))) {
-		DRM_ERROR("%s pixel format not surpport!\n", __func__);
+		DRM_ERROR("%s pixel format not support!\n", __func__);
 		return;
 	}
 
@@ -432,7 +432,7 @@ int am_meson_writeback_create(struct drm_device *drm)
 		return ret;
 	}
 
-	/*create writeback capture workquene*/
+	/*create writeback capture workqueue*/
 	drm_writeback->writeback_wq = alloc_workqueue("writeback_capture",
 				WQ_HIGHPRI | WQ_CPU_INTENSIVE, 0);
 

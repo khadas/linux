@@ -45,7 +45,7 @@
 	% factors to be applied to linear RGB before going to LUT289
  *oetf_norm = (2^14); % oetf normalization
  *oetf_scl = max(1,hlg_lum_max/100); % 1200
- *blx_soft = 0;        % 0: means not black soft cliping;
+ *blx_soft = 0;        % 0: means not black soft clipping;
 	otherwise soft clipping, e.g. 2*4
 */
 unsigned int eotf_33_2084_table[][33] = {

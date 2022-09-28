@@ -240,7 +240,7 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		unsigned int tx_mask = setting->tx_mask;
 
-		/* set lanes mask acordingly */
+		/* set lanes mask accordingly */
 		lane_mask = setting->lane_mask_out;
 		mask_count = pop_count(tx_mask);
 
@@ -270,7 +270,7 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 		unsigned int rx_mask = setting->rx_mask;
 		mask_count = pop_count(rx_mask);
 
-		/* set lanes mask acordingly */
+		/* set lanes mask accordingly */
 		lane_mask = setting->lane_mask_in;
 
 		if (p_tdm->chipinfo->slot_num_en && setting->slots > 0)

@@ -354,7 +354,7 @@ static int stack_floor_page(unsigned long addr)
 static int check_addr_up_flow(unsigned long addr)
 {
 	/*
-	 * It's the first page of 4 contigours virtual address
+	 * It's the first page of 4 contiguous virtual address
 	 * rage(aligned to THREAD_SIZE) but next page of this
 	 * addr is not mapped
 	 */
@@ -452,7 +452,7 @@ static void check_sp_fault_again(struct pt_regs *regs)
 	 * to cause a vmap fault again. So we need map next page for
 	 * stack before page-fault happen.
 	 *
-	 * But we need check sp is realy in vmap stack range.
+	 * But we need check sp is really in vmap stack range.
 	 */
 	if (!is_vmap_addr(addr)) /* addr may in linear mapping */
 		return;

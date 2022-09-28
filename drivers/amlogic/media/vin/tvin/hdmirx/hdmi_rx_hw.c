@@ -650,7 +650,7 @@ void wr_reg_hhi_bits(unsigned int offset, unsigned int mask, unsigned int val)
 }
 
 /*
- * rd_reg - regisger read
+ * rd_reg - register read
  * @module: module index of the reg_map table
  * @reg_addr: offset address of specified phy addr
  *
@@ -670,7 +670,7 @@ unsigned int rd_reg(enum map_addr_module_e module,
 }
 
 /*
- * wr_reg - regisger write
+ * wr_reg - register write
  * @module: module index of the reg_map table
  * @reg_addr: offset address of specified phy addr
  * @val: value being written
@@ -686,7 +686,7 @@ void wr_reg(enum map_addr_module_e module,
 }
 
 /*
- * rd_reg_b - regisger read byte mode
+ * rd_reg_b - register read byte mode
  * @module: module index of the reg_map table
  * @reg_addr: offset address of specified phy addr
  *
@@ -706,7 +706,7 @@ unsigned char rd_reg_b(enum map_addr_module_e module,
 }
 
 /*
- * wr_reg_b - regisger write byte mode
+ * wr_reg_b - register write byte mode
  * @module: module index of the reg_map table
  * @reg_addr: offset address of specified phy addr
  * @val: value being written
@@ -1644,7 +1644,7 @@ int packet_init_t7(void)
 	data8 |= 4 << 2; /* clr register if 4 frames no pkt */
 	hdmirx_wr_cor(VSI_CTRL1_DP3_IVCRX, data8);
 	hdmirx_wr_cor(VSI_CTRL3_DP3_IVCRX, 1);
-	/* aif to stort hdr10+ */
+	/* aif to sort hdr10+ */
 	hdmirx_wr_cor(VSI_ID1_DP3_IVCRX, 0x8b);
 	hdmirx_wr_cor(VSI_ID2_DP3_IVCRX, 0x84);
 	hdmirx_wr_cor(VSI_ID3_DP3_IVCRX, 0x90);
@@ -2131,7 +2131,7 @@ bool rx_clr_tmds_valid(void)
 			udelay(5);
 			wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL0, _BIT(25), 1);
 			if (log_level & VIDEO_LOG)
-				rx_pr("low empplitue %s!\n", __func__);
+				rx_pr("low amplitude %s!\n", __func__);
 			ret = true;
 		}
 	} else if (rx.phy_ver >= PHY_VER_T5) {
@@ -3064,8 +3064,8 @@ bool rx_clkrate_monitor(void)
 	int error = 0;
 
 	clk_rate = rx_get_scdc_clkrate_sts();
-	/* should rm squelch judgement for low-emplitude issue */
-	/* otherwise,sw can not detect the low-emplitude signal */
+	/* should rm squelch judgement for low-amplitude issue */
+	/* otherwise,sw can not detect the low-amplitude signal */
 	/* if (rx.state < FSM_WAIT_CLK_STABLE) */
 		/*return changed;*/
 	/*if (is_clk_stable()) { */
@@ -3552,7 +3552,7 @@ void cor_init(void)
 	hdmirx_wr_cor(AEC0_CTRL_AUD_IVCRX, data8); //AEC0 CTRL
 
 	data8 = 0;
-	data8 |= (0 << 7);//[7] H resoslution change
+	data8 |= (0 << 7);//[7] H resolution change
 	data8 |= (0 << 6);//[6] polarity change
 	data8 |= (0 << 5);//[5] change of interlaced
 	data8 |= (0 << 4);//[4] change of the FS
@@ -3749,7 +3749,7 @@ bool is_aud_fifo_error(void)
 
 /*
  * is_aud_pll_error - audio clock range detection
- * noraml mode: aud_pll = aud_sample_rate * 128
+ * normal mode: aud_pll = aud_sample_rate * 128
  * HBR: aud_pll = aud_sample_rate * 128 * 4
  *
  * return true if audio clock is in range, false otherwise.
@@ -4291,7 +4291,7 @@ void hdmirx_config_video(void)
 	}
 
 	if (rx.chip_id == CHIP_ID_T7) {
-		/* repeatition config */
+		/* repetition config */
 		switch (rx.cur.repeat) {
 		case 1:
 			reg_clk_vp_core_div = 3;

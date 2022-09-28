@@ -355,7 +355,7 @@ struct rx_video_info {
 	bool hw_dvi;
 
 	u8 hdcp_type;
-	/** bit'0:auth start  bit'1:enc state(0:not endrypted 1:encrypted) **/
+	/** bit'0:auth start  bit'1:enc state(0:not encrypted 1:encrypted) **/
 	u8 hdcp14_state;
 	/** 1:decrypted 0:encrypted **/
 	u8 hdcp22_state;

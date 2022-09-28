@@ -200,7 +200,7 @@ static int meson_ir_report_rel(struct meson_ir_dev *dev, u32 scancode,
 				break;
 		}
 		if (cnt > chip->input_cnt) {
-			dev_err(chip->dev, "vdndor ID Configuration error\n");
+			dev_err(chip->dev, "vendor ID Configuration error\n");
 			dev_err(chip->dev, "vendor = %x, product = %x, version = %x\n",
 					ct->tab.vendor, ct->tab.product, ct->tab.version);
 			return 0;
@@ -227,7 +227,7 @@ static u32 meson_ir_getkeycode(struct meson_ir_dev *dev, u32 scancode)
 	int index;
 
 	if (!ct) {
-		dev_err(chip->dev, "cur_custom is nulll\n");
+		dev_err(chip->dev, "cur_custom is null\n");
 		return KEY_RESERVED;
 	}
 	/*return BTN_LEFT in mouse mode*/
@@ -372,7 +372,7 @@ static irqreturn_t meson_ir_interrupt(int irq, void *dev_id)
 
 	/**
 	 *software decode multiple protocols by using Time Measurement of
-	 *multif-format IR controller
+	 *multi-format IR controller
 	 */
 	if (MULTI_IR_SOFTWARE_DECODE(rc->protocol)) {
 		rc->ir_work = MULTI_IR_ID;

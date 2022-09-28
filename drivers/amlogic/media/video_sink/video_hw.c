@@ -11901,7 +11901,7 @@ int video_hw_init(void)
 		WRITE_VCBUS_REG_BITS(VIU_MISC_CTRL1, 0xff, 16, 8);
 		WRITE_VCBUS_REG(VPP_AMDV_CTRL, 0x22000);
 		/*
-		 *default setting is black for dummy data1& dumy data0,
+		 *default setting is black for dummy data1& dump data0,
 		 *for dummy data1 the y/cb/cr data width is 10bit on gxm,
 		 *for dummy data the y/cb/cr data width is 8bit but
 		 *vpp_dummy_data will be left shift 2bit auto on gxm!!!
@@ -12104,7 +12104,7 @@ static void vpp_sr_init(struct amvideo_device_data_s *p_amvideo)
 			sr->core1_v_disable_width_max = 4096;
 			sr->core1_v_enable_width_max = 2048;
 		} else if (is_meson_txhd_cpu()) {
-			/* 2k pannal */
+			/* 2k panel */
 			sr->sr_support |= SUPER_CORE0_SUPPORT;
 			sr->sr_support &= ~SUPER_CORE1_SUPPORT;
 			sr->core0_v_disable_width_max = 2048;

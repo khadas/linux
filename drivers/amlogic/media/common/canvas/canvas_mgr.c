@@ -243,7 +243,7 @@ canvas_pool_register_const_canvas(int start_index, int end, const char *owner)
 		int index = start_index + i;
 
 		if (test_and_set_bit(index, pool->canvas_map))
-			pr_warn("canvas have be used inddex=%d,old owner =%s,new owner =%s\n",
+			pr_warn("canvas have be used index=%d,old owner =%s,new owner =%s\n",
 				index, pool->info[index].owner, owner);
 		pool->info[index].owner = owner;
 		pool->info[index].oldowner = NULL;
@@ -381,7 +381,7 @@ canvas_pool_map_show(struct class *class,
 		o1 = info.owner ? info.owner : "none";
 		o2 = info.oldowner ? info.oldowner : "none";
 		size += snprintf(buf + size, PAGE_SIZE - size,
-			"cavas[%02x],used=%d,fix=%d\town=%s,\toown=%s,\tt=%ld,",
+			"canvas[%02x],used=%d,fix=%d\town=%s,\town=%s,\tt=%ld,",
 			(unsigned int)i,
 			test_bit(i, pool->canvas_map),
 			info.fixed_onwer, o1, o2, info.alloc_time);

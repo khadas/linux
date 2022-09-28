@@ -73,7 +73,7 @@ const char *dip_chst_get_name(enum EDI_TOP_STATE chst);
 
 /**************************************
  *
- * summmary variable
+ * summary variable
  *
  **************************************/
 void di_sum_reg_init(unsigned int ch);

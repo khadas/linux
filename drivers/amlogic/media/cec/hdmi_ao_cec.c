@@ -579,7 +579,7 @@ static int __maybe_unused cec_late_check_rx_buffer(void)
 	 * start another check if rx buffer is full
 	 */
 	if ((-1) == ceca_rx_irq_handle(rx_msg, &rx_len)) {
-		CEC_INFO("buffer got unrecorgnized msg\n");
+		CEC_INFO("buffer get unrecognized msg\n");
 		ceca_rx_buf_clear();
 		return 0;
 	}

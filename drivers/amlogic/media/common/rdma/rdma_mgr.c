@@ -1828,7 +1828,7 @@ static int __init rdma_probe(struct platform_device *pdev)
 
 	rdma_mgr_irq_request = 1;
 	data32  = 0;
-	data32 |= 1 << 7; /* wrtie ddr urgent */
+	data32 |= 1 << 7; /* write ddr urgent */
 	data32 |= 1 << 6; /* read ddr urgent */
 	data32 |= ctrl_ahb_wr_burst_size << 4;
 	data32 |= ctrl_ahb_rd_burst_size << 2;

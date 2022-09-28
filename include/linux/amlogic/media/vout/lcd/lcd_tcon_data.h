@@ -52,7 +52,7 @@
 #define LCD_TCON_INIT_BIN_NAME_SIZE             28
 #define LCD_TCON_INIT_BIN_VERSION_SIZE          8
 
-/* tcon data control defaine */
+/* tcon data control define */
 /* block_ctrl */
 #define LCD_TCON_DATA_CTRL_FLAG_MULTI           0x01
 #define LCD_TCON_DATA_CTRL_FLAG_DLG             0xd0

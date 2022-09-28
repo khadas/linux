@@ -119,7 +119,7 @@ struct mvrr_const_st {
 	const struct mvrr_const_val *val[];
 };
 
-/* VRR parameters confugration */
+/* VRR parameters configuration */
 struct vrr_conf_para {
 	enum vrr_type type;
 	u8 vrr_enabled;

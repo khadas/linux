@@ -134,7 +134,7 @@ bool timer_cnt(unsigned long *ptimer, unsigned int hs_nub)
  * bit [10:11] debug for only set one time;
  * bit [12]: trig update all once;
  * bit [13]: force di do nothing;
- * bit [14]: check vpp virture active
+ * bit [14]: check vpp virtue active
  * bit [15]: force vpp active
  * bit [16]: force mem bypass
  * bit [17]: force update all
@@ -5235,7 +5235,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf,
 	out_dvfm->vf_ext = ndvfm->c.ori_vf;
 	out_dvfm->sum_reg_cnt = itf->sum_reg_cnt;
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
-		/* confic cvs for input */
+		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_in;
 		cvsp->plane_nub	= in_dvfm->vfs.plane_num;
 		cvsp->cvs_cfg	= &in_dvfm->vfs.canvas0_config[0];
@@ -5243,7 +5243,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf,
 		//cvs_link(&cvspara, "in_cvs");
 	}
 	if (ndvfm->c.set_cfg.b.en_wr_cvs) {
-		/* confic cvs for input */
+		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_wr;
 		cvsp->plane_nub	= out_dvfm->vfs.plane_num;
 		cvsp->cvs_cfg	= &out_dvfm->vfs.canvas0_config[0];
@@ -5252,7 +5252,7 @@ static bool dpvpp_parser_nr(struct dimn_itf_s *itf,
 	}
 
 	if (ndvfm->c.set_cfg.b.en_mem_cvs) {
-		/* confic cvs for input */
+		/* config cvs for input */
 		cvsp = &ndvfm->c.cvspara_mem;
 		cvsp->plane_nub	= out_dvfm->vfs.plane_num;
 		cvsp->cvs_cfg	= &out_dvfm->vfs.canvas0_config[0];
@@ -5416,7 +5416,7 @@ static void dpvpph_display_update_all(struct dim_prevpp_ds_s *ds,
 		ds->mif_wr.tst_not_setcontr);
 	/* cfg cvs */
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
-		/* confic cvs for input */
+		/* config cvs for input */
 		if (in_dvfm->vfs.canvas0Addr == (u32)-1) {
 			cvsp = &ndvfm->c.cvspara_in;
 			cvsp->plane_nub	= in_dvfm->vfs.plane_num;
@@ -5700,7 +5700,7 @@ void dpvpph_display_update_part(struct dim_prevpp_ds_s *ds,
 	/* cfg cvs */
 	if (ndvfm->c.set_cfg.b.en_in_cvs) {
 		if (in_dvfm->vfs.canvas0Addr == (u32)-1) {
-			/* confic cvs for input */
+			/* config cvs for input */
 			cvsp = &ndvfm->c.cvspara_in;
 			cvsp->plane_nub	= in_dvfm->vfs.plane_num;	////updat no need
 			cvsp->cvs_cfg		= &in_dvfm->vfs.canvas0_config[0];//updat no need

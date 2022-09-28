@@ -508,7 +508,7 @@ static void set_phy_by_mode(u32 mode)
 	case MESON_CPU_ID_S5:
 		if (hdev->frl_rate)
 			set21_phy_by_frl_mode_s5(hdev->frl_rate);
-		else /* for legecy mode */
+		else /* for legacy mode */
 			set21_phy_by_mode_s5(mode);
 		break;
 	default:
@@ -1210,7 +1210,7 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	if (hdev->frl_rate)
 		aud_n_para = hdmi21_get_frl_aud_n_paras(audio_param->sample_rate, hdev->frl_rate);
 	hdmitx21_set_reg_bits(ACR_CTS_CLK_DIV_IVCTX, hdev->frl_rate ? 1 : 0, 4, 1);
-	/* N must mutiples 4 for DD+ */
+	/* N must multiples 4 for DD+ */
 	switch (audio_param->type) {
 	case CT_DD_P:
 		aud_n_para *= 4;

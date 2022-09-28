@@ -790,7 +790,7 @@ void dwc_otg_iso_ep_stop_transfer(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 					   ep->desc_cnt * 2);
 	}
 
-	/* reset varibales */
+	/* reset variables */
 	ep->dma_addr0 = 0;
 	ep->dma_addr1 = 0;
 	ep->xfer_buff0 = 0;
@@ -942,7 +942,7 @@ int dwc_otg_pcd_iso_ep_stop(dwc_otg_pcd_t *pcd, void *ep_handle,
 }
 
 /**
- * This function is used for perodical data exchnage between PCD and gadget drivers.
+ * This function is used for periodic data exchange between PCD and gadget drivers.
  * for Isochronous EPs
  *
  *	- Every time a sync period completes this function is called to
@@ -1018,7 +1018,7 @@ static void dwc_otg_pcd_init_ep(dwc_otg_pcd_t *pcd, dwc_otg_pcd_ep_t *pcd_ep,
 	pcd_ep->dwc_ep.num = ep_num;
 	pcd_ep->dwc_ep.active = 0;
 	pcd_ep->dwc_ep.tx_fifo_num = 0;
-	/* Control until ep is actvated */
+	/* Control until ep is activated */
 	pcd_ep->dwc_ep.type = DWC_OTG_EP_TYPE_CONTROL;
 	pcd_ep->dwc_ep.maxpacket = MAX_PACKET_SIZE;
 	pcd_ep->dwc_ep.dma_addr = 0;

@@ -105,7 +105,7 @@ struct goodix_module {
 
 /*
  * struct goodix_ts_board_data -  board data
- * @avdd_name: name of analoy regulator
+ * @avdd_name: name of analog regulator
  * @reset_gpio: reset gpio number
  * @irq_gpio: interrupt gpio number
  * @irq_flag: irq trigger type
@@ -341,7 +341,7 @@ enum goodix_cfg_bin_state {
  * @highsense_cfg: high sense config data
  * @hw_ops: hardware operations
  * @chip_version: firmware version information
- * @sleep_cmd: sleep commang
+ * @sleep_cmd: sleep command
  * @gesture_cmd: gesture command
  * @dev: device pointer,may be a i2c or spi device
  * @of_node: device node

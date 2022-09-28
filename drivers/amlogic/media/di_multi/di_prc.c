@@ -1282,7 +1282,7 @@ void di_pause(unsigned int ch, bool on)
 
 /**************************************
  *
- * summmary variable
+ * summary variable
  *
  **************************************/
 const struct di_sum_s di_sum_tab[] = {
@@ -2566,7 +2566,7 @@ void do_table_working(struct do_table_s *pdo)
 	unsigned int ret = 0;
 	unsigned int next = 0;
 	bool flash = false;
-	unsigned int cnt = 0;	/*proction*/
+	unsigned int cnt = 0;	/*protection*/
 	unsigned int lst_id;	/*dbg only*/
 	char *name = "";	/*dbg only*/
 	bool need_pr = false;	/*dbg only*/

@@ -403,7 +403,7 @@ static ssize_t driver_info_show(struct device *dev,
 			GOODIX_DRIVER_VERSION);
 }
 
-/* show chip infoamtion */
+/* show chip information */
 static ssize_t chip_info_show(struct device  *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -1119,7 +1119,7 @@ int goodix_ts_irq_setup(struct goodix_ts_core *core_data)
 				      GOODIX_CORE_DRIVER_NAME,
 				      core_data);
 	if (r < 0)
-		ts_err("Failed to requeset threaded irq:%d", r);
+		ts_err("Failed to request threaded irq:%d", r);
 	else
 		atomic_set(&core_data->irq_enabled, 1);
 
@@ -1299,7 +1299,7 @@ exit_pinctrl_put:
 #endif
 
 /**
- * goodix_ts_gpio_setup - Request gpio resources from GPIO subsysten
+ * goodix_ts_gpio_setup - Request gpio resources from GPIO subsystem
  *	reset_gpio and irq_gpio number are obtained from goodix_ts_device
  *  which created in hardware layer driver. e.g.goodix_xx_i2c.c
  *	A goodix_ts_device should set those two fileds to right value
@@ -1315,7 +1315,7 @@ static int goodix_ts_gpio_setup(struct goodix_ts_core *core_data)
 	ts_info("GPIO setup,reset-gpio:%d, irq-gpio:%d",
 		ts_bdata->reset_gpio, ts_bdata->irq_gpio);
 	/*
-	 * after kenerl3.13, gpio_ api is deprecated, new
+	 * after kernel3.13, gpio_ api is deprecated, new
 	 * driver should use gpiod_ api.
 	 */
 	r = devm_gpio_request_one(&core_data->pdev->dev, ts_bdata->reset_gpio,
@@ -1365,7 +1365,7 @@ static void goodix_ts_set_input_params(struct input_dev *input_dev,
 
 /**
  * goodix_ts_input_dev_config - Requset and config a input device
- *  then register it to input sybsystem.
+ *  then register it to input subsystem.
  *  NOTE that some hardware layer may provide a input device
  *  (ts_dev->input_dev not NULL).
  * @core_data: pointer to touch core data

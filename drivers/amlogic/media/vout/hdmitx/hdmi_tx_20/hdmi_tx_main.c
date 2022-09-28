@@ -338,7 +338,7 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	/* for huawei TV, it will display green screen pattern under
 	 * 4k50/60hz y420 deep color when receive amvute. After disable
 	 * phy of box, TV will continue mute and stay in still frame
-	 * mode for a few frames, if it receives scdc clk raito change
+	 * mode for a few frames, if it receives scdc clk rate change
 	 * during this period, it may recognize it as signal unstable
 	 * instead of no signal, and keep mute pattern for several
 	 * seconds. Here keep hdmi output disabled for a few frames
@@ -3174,7 +3174,7 @@ bool is_vic_over_limited_1080p(enum hdmi_vic vic)
 	struct hdmi_format_para *para = hdmi_get_fmt_paras(vic);
 
 	/* if the vic equals to HDMI_UNKNOWN or VESA,
-	 * then treate it as over limited
+	 * then treated it as over limited
 	 */
 	if (vic == HDMI_UNKNOWN || vic >= HDMITX_VESA_OFFSET)
 		return 1;
@@ -5824,7 +5824,7 @@ static int hdmitx_set_current_vmode(enum vmode_e mode, void *data)
 	struct vinfo_s *vinfo;
 
 	pr_info("%s[%d]\n", __func__, __LINE__);
-	/* get current vinfo and refesh */
+	/* get current vinfo and refresh” */
 	vinfo = hdmitx_get_current_vinfo(NULL);
 	if (vinfo && vinfo->name)
 		recalc_vinfo_sync_duration(vinfo,
@@ -7293,7 +7293,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	}
 	/* Trigger HDMITX IRQ*/
 	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0)) {
-		/* When bootup mbox and TV simutanously,
+		/* When bootup mbox and TV simultaneously,
 		 * TV may not handle SCDC/DIV40
 		 */
 		if (is_cur_tmds_div40(hdev))

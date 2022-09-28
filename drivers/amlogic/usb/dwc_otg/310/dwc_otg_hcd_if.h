@@ -252,7 +252,7 @@ extern int dwc_otg_hcd_send_lpm(dwc_otg_hcd_t *hcd, uint8_t devaddr,
  *
  * @param hcd The HCD
  * @param iso_desc_count Count of ISOC descriptors
- * @param atomic_alloc Specefies whether to perform atomic allocation.
+ * @param atomic_alloc specifies whether to perform atomic allocation.
  */
 extern dwc_otg_hcd_urb_t *dwc_otg_hcd_urb_alloc(dwc_otg_hcd_t *hcd,
 						int iso_desc_count,
@@ -321,7 +321,7 @@ extern uint32_t dwc_otg_hcd_urb_get_error_count(dwc_otg_hcd_urb_t
  *
  * @param dwc_otg_urb DWC_OTG URB
  * @param desc_num ISOC descriptor number
- * @param offset Offset from beginig of buffer.
+ * @param offset Offset from beginning of buffer.
  * @param length Transaction length
  */
 extern void dwc_otg_hcd_urb_set_iso_desc_params(dwc_otg_hcd_urb_t *dwc_otg_urb,

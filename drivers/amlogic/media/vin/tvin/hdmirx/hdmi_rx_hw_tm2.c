@@ -201,7 +201,7 @@ bool is_dfe_sts_ok_tm2(void)
 	return ret;
 }
 
-/* detect low emplitude sig via tap0 value for TM2B*/
+/* detect low amplitude sig via tap0 value for TM2B*/
 /* TL1:TODO...*/
 int is_low_amplitude_sig_tm2(void)
 {

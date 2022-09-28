@@ -4109,7 +4109,7 @@ void __exit video_composer_module_exit(void)
 	platform_driver_unregister(&video_composer_driver);
 }
 
-//MODULE_DESCRIPTION("Video Technology Magazine video composer Capture Boad");
+//MODULE_DESCRIPTION("Video Technology Magazine video composer Capture Board");
 //MODULE_AUTHOR("Amlogic, Jintao Xu<jintao.xu@amlogic.com>");
 //MODULE_LICENSE("GPL");
 //MODULE_VERSION(VIDEO_COMPOSER_VERSION);

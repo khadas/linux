@@ -5,7 +5,7 @@
 
 #ifndef __FRC_INTERFACE_H__
 #define __FRC_INTERFACE_H__
-//==== amlogci inclue =============
+//==== amlogic inclue =============
 #include <linux/amlogic/media/vpu/vpu.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/vout/vinfo.h>
@@ -29,7 +29,7 @@ enum frc_fpp_state_e {
 	FPP_MEMC_MAX,
 };
 
-//==== ioctrol define =============
+//==== ioctl define =============
 #define FRC_IOC_MAGIC                   'F'
 #define FRC_IOC_GET_FRC_EN		_IOR(FRC_IOC_MAGIC, 0x00, unsigned int)
 #define FRC_IOC_GET_FRC_STS		_IOR(FRC_IOC_MAGIC, 0x01, unsigned int)

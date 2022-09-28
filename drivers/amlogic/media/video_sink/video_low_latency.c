@@ -662,16 +662,16 @@ static int lowlatency_vsync(u8 instance_id)
 		cur_blackout = blackout_pip | force_blackout;
 	} else if ((vd1_path_id != VFM_PATH_INVALID) &&
 		   (vd1_path_id != VFM_PATH_AUTO)) {
-		/* priamry display on VD1 */
+		/* primary display on VD1 */
 		new_frame = path0_new_frame;
 		if (!new_frame) {
 			if (!cur_dispbuf) {
-				/* priamry no frame in display */
+				/* primary no frame in display */
 				if (cur_vd1_path_id != vd1_path_id)
 					safe_switch_videolayer(0, false, true);
 				vd_layer[0].dispbuf = NULL;
 			} else if (cur_dispbuf == &vf_local) {
-				/* priamry keep frame */
+				/* primary keep frame */
 				vd_layer[0].dispbuf = cur_dispbuf;
 			} else if (vd_layer[0].dispbuf
 				!= cur_dispbuf) {
@@ -1063,7 +1063,7 @@ static int lowlatency_vsync(u8 instance_id)
 		pr_info("new_frame2=%p\n", new_frame2);
 		cur_blackout = 1;
 	} else if (vd2_path_id == VFM_PATH_AMVIDEO) {
-		/* priamry display in VD2 */
+		/* primary display in VD2 */
 		new_frame2 = path0_new_frame;
 		if (!new_frame2) {
 			if (!cur_dispbuf) {
@@ -1072,7 +1072,7 @@ static int lowlatency_vsync(u8 instance_id)
 					safe_switch_videolayer(1, false, true);
 				vd_layer[1].dispbuf = NULL;
 			} else if (cur_dispbuf == &vf_local) {
-				/* priamry keep frame */
+				/* primary keep frame */
 				vd_layer[1].dispbuf = cur_dispbuf;
 			} else if (vd_layer[1].dispbuf
 				!= cur_dispbuf) {
@@ -1347,7 +1347,7 @@ static int lowlatency_vsync(u8 instance_id)
 				vd_layer[2].dispbuf_mapping = &gvideo_recv[2]->cur_buf;
 			cur_blackout = 1;
 		} else if (vd3_path_id == VFM_PATH_AMVIDEO) {
-			/* priamry display in VD3 */
+			/* primary display in VD3 */
 			new_frame3 = path0_new_frame;
 			if (!new_frame3) {
 				if (!cur_dispbuf) {
@@ -1356,7 +1356,7 @@ static int lowlatency_vsync(u8 instance_id)
 						safe_switch_videolayer(2, false, true);
 					vd_layer[2].dispbuf = NULL;
 				} else if (cur_dispbuf == &vf_local) {
-					/* priamry keep frame */
+					/* primary keep frame */
 					vd_layer[2].dispbuf = cur_dispbuf;
 				} else if (vd_layer[2].dispbuf
 					!= cur_dispbuf) {

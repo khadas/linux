@@ -1810,7 +1810,7 @@ void set_hdr_matrix(enum hdr_module_sel module_sel,
 		for (i = 0; i < 3; i++)
 			c_gain_lim_coef[i] =
 				hdr_mtx_param->mtx_cgain[i] << 2;
-		/* 0: adptive scaler mode(Ys); 1: max linear(RGB max) */
+		/* 0: adaptive scaler mode(Ys); 1: max linear(RGB max) */
 		/* 2: none linear Ys -- Do NOT use it */
 		if (hdr_mtx_param->p_sel & HLG_HDR ||
 		    hdr_mtx_param->p_sel & HLG_SDR ||

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * ALSA SoC Amlogic t9015c interenl codec driver
+ * ALSA SoC Amlogic t9015c internal codec driver
  *
  * Copyright (C) 2019 Amlogic,inc
  *
@@ -470,7 +470,7 @@ static int adc3101_hw_params(struct snd_pcm_substream *substream,
 	/* Use PLL as CODEC_CLKIN and DAC_MOD_CLK as BDIV_CLKIN */
 	snd_soc_component_write(component, ADC3101_CLKMUX, 0);
 
-	/* We will fix R value to 1 and will make P & J=K.D as varialble */
+	/* We will fix R value to 1 and will make P & J=K.D as variable */
 	data = snd_soc_component_read32(component, ADC3101_PLLPR);
 	data &= ~(7 << 4);
 

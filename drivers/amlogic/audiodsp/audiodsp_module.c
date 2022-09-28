@@ -492,7 +492,7 @@ int audiodsp_probe(void)
 		DSP_PRNT("Can't register  char devie for " DSP_NAME "\n");
 		goto error1;
 	} else {
-		DSP_PRNT("register " DSP_NAME " to char divece(%d)\n",
+		DSP_PRNT("register " DSP_NAME " to char device(%d)\n",
 			 AUDIODSP_MAJOR);
 	}
 

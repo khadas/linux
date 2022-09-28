@@ -382,7 +382,7 @@ static void hdmitx_parsing_avipkt(struct seq_file *s)
 	default:
 		conf = "xvYCC601";
 	}
-	seq_printf(s, "extended_colorimetriy: %s\n", conf);
+	seq_printf(s, "extended_colorimetry: %s\n", conf);
 
 	switch ((reg_val & 0xc) >> 2) {
 	case 0:

@@ -724,7 +724,7 @@ exit:
 }
 
 /**
- * This function hadles ADP Sense Interrupt
+ * This function handle ADP Sense Interrupt
  */
 static int32_t dwc_otg_adp_handle_sns_intr(dwc_otg_core_if_t *core_if)
 {

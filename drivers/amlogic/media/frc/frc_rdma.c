@@ -172,7 +172,7 @@ void frc_rdma_write_test(dma_addr_t phy_addr, u32 size)
 	// data32  = 0;
 	// data32 |= 1 << 10;
 	// data32 |= 1 << 8;
-	// data32 |= 1 << 7; /* wrtie ddr urgent */
+	// data32 |= 1 << 7; /* write ddr urgent */
 	// data32 |= 1 << 6; /* read ddr urgent */
 	// data32 |= 1 << 4;
 	// data32 |= 1 << 2;
@@ -732,7 +732,7 @@ void frc_auto_limit_test(int num)
 		frc_rdma->rdma_table_phy_addr + sizeof(u32) * frc_rdma->rdma_item_count * 2 - 1);
 
 	WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x0, 1, 1); // 0: non-incremental reg access
-	WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x1, 5, 1); // aotu1 write
+	WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x1, 5, 1); // auto write
 	WRITE_FRC_BITS(FRC_RDMA_AUTO_SRC1_SEL, 0x1, 5, 1);
 	//frc_rdma->rdma_item_count = 0;
 	while (1) {
@@ -817,7 +817,7 @@ int frc_rdma_process(u32 val)
 			}
 		}
 		// WRITE_FRC_REG_BY_CPU(FRC_RDMA_CTRL, 0x1 << 24);
-		// frc_rdma_munal_start();
+		// frc_rdma_manual_start();
 	} else if (val == 4) {
 		for (i = 0x0; i < 0x10; i++) {
 			frc_rdma->rdma_table_addr[i] = (0x60 + i) & 0xffff;
@@ -863,7 +863,7 @@ int frc_rdma_process(u32 val)
 			frc_rdma->rdma_table_phy_addr + frc_rdma->rdma_item_count * 8 - 1);
 
 		WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x0, 1, 1); // 0: non-inc reg access
-		WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x1, 5, 1); // aotu1 write
+		WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x1, 5, 1); // auto write
 		WRITE_FRC_REG_BY_CPU(FRC_RDMA_AUTO_SRC1_SEL, 0x20);
 	} else if (val == 10) {
 		frc_rdma_read_test_reg();
@@ -890,13 +890,13 @@ int frc_rdma_process(u32 val)
 			frc_rdma->rdma_table_phy_addr + frc_rdma->rdma_item_count * 8 - 1);
 
 		WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x0, 1, 1); // 0: non-inc reg access
-		WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x1, 5, 1); // aotu1 write
+		WRITE_FRC_BITS(FRC_RDMA_ACCESS_AUTO, 0x1, 5, 1); // auto write
 		WRITE_FRC_BITS(FRC_RDMA_AUTO_SRC1_SEL, 0x1, 0, 1);
 	} else if (val == 24) {
 		//manual trigger
 		frc_rdma_config(0, 0);
 	} else if (val == 25) {
-		//quto1 trigger
+		//auto trigger
 		frc_rdma_config(1, 0);
 	} else if (val == 26) {
 		//auto2 trigger
@@ -977,7 +977,7 @@ int frc_rdma_init(void)
 	// struct frc_rdma_info *frc_rdma2 = &frc_rdma_s2;
 
 	data32  = 0;
-	data32 |= 0 << 7; /* wrtie ddr urgent */
+	data32 |= 0 << 7; /* write ddr urgent */
 	data32 |= 0 << 6; /* read ddr urgent */
 	data32 |= 0 << 4;
 	data32 |= 0 << 2;

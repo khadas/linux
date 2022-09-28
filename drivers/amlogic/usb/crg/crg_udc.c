@@ -761,7 +761,7 @@ void setup_status_trb(struct crg_gadget_dev *crg_udc,
 {
 	u32 tmp, dir = 0;
 
-	/* There are some cases where seutp_status_trb() is called with
+	/* There are some cases where setup_status_trb() is called with
 	 * usb_req set to NULL.
 	 */
 
@@ -3839,7 +3839,7 @@ queue_more_trbs:
 	return 0;
 }
 
-/*temprory solution, this function should be board specific*/
+/*temporary solution, this function should be board specific*/
 int g_dnl_board_usb_cable_connected(void)
 {
 	struct crg_gadget_dev *crg_udc;

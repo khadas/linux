@@ -58,7 +58,7 @@ canvas_lut_data_build(ulong addr, u32 width, u32 height,
 {
 	/*
 	 *DMC_CAV_LUT_DATAL/DMC_CAV_LUT_DATAH
-	 *high 32bits of cavnas data which need to be configured
+	 *high 32bits of canvas data which need to be configured
 	 *to canvas memory.
 	 *64bits CANVAS look up table
 	 *bit 61:58   Endian control.
@@ -79,7 +79,7 @@ canvas_lut_data_build(ulong addr, u32 width, u32 height,
 	 *bit 53:41.   canvas Hight.
 	 *bit 40:29.   canvas Width, unit: 8bytes. must in 32bytes boundary.
 	 *that means last 2 bits must be 0.
-	 *bit 28:0.    cavnas start address.   unit. 8 bytes. must be in
+	 *bit 28:0.    canvas start address.   unit. 8 bytes. must be in
 	 *32bytes boundary. that means last 2bits must be 0.
 	 */
 

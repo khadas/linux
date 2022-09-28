@@ -219,7 +219,7 @@ enum ge2d_memtype_s {
  * format code is defined as:
  * [18] : 1-deep color mode(10/12 bit), 0-8bit mode
  * [17] : 1-YUV color space, 0-RGB color space
- * [16] : compress_range, 1-full ramge, 0-limited range
+ * [16] : compress_range, 1-full range, 0-limited range
  * [9:8]: format
  * [7:6]: 8bit_mode_sel
  * [5]  : LUT_EN
@@ -390,7 +390,7 @@ enum ge2d_memtype_s {
 #define IS_STRETCHBLIT      0x4
 #define IS_BLIT             0x8
 
-/* Indicates that dma fd has been attatched using ioctl GE2D_ATTACH_DMA_FD */
+/* Indicates that dma fd has been attached using ioctl GE2D_ATTACH_DMA_FD */
 #define DMA_FD_ATTACHED     (-2)
 
 struct rectangle_s {

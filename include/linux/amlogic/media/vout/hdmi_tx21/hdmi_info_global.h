@@ -40,7 +40,7 @@ enum hdmi_scan {
 	/* where some active pixelsand lines at the edges are not displayed. */
 	SS_SCAN_OVER,
 	/* where all active pixels&lines are displayed,
-	 * with or withouta border.
+	 * with or without border.
 	 */
 	SS_SCAN_UNDER,
 	SS_RSV
@@ -61,7 +61,7 @@ enum hdmi_slacing {
 	SC_NO_UINFORM = 0,
 	/* Picture has been scaled horizontally */
 	SC_SCALE_HORIZ,
-	SC_SCALE_VERT, /* Picture has been scaled verticallv */
+	SC_SCALE_VERT, /* Picture has been scaled vertically */
 	SC_SCALE_HORIZ_VERT,
 /* Picture has been scaled horizontally & SC_SCALE_H_V */
 };

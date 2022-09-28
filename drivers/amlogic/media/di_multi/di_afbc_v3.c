@@ -1619,7 +1619,7 @@ static void afbc_check_chg_level(struct vframe_s *vf,
 		 AFBC_VTYPE_MASK_SAV);
 	di_print("\t\t:body[0x%x] inf[0x%x]\n",
 		 vf->compBodyAddr, vf->compHeadAddr);
-	di_print("\tinofo:type[0x%x]\n", pctr->l_vtype);
+	di_print("\tinfo:type[0x%x]\n", pctr->l_vtype);
 
 	di_print("\t\th[%d],w[%d],b[0x%x]\n", pctr->l_h,
 		 pctr->l_w, pctr->l_bitdepth);
@@ -3803,7 +3803,7 @@ static void afbc_check_chg_level_dvfm(struct dvfm_s *vf,
 		 AFBC_VTYPE_MASK_SAV);
 	di_print("\t\t:body[0x%x] inf[0x%x]\n",
 		 vf->vfs.compBodyAddr, vf->vfs.compHeadAddr);
-	di_print("\tinofo:type[0x%x]\n", pctr->l_vtype);
+	di_print("\tinfo:type[0x%x]\n", pctr->l_vtype);
 
 	di_print("\t\th[%d],w[%d],b[0x%x]\n", pctr->l_h,
 		 pctr->l_w, pctr->l_bitdepth);
@@ -5033,7 +5033,7 @@ static void ori_afbce_cfg(struct enc_cfg_s *cfg,
 
 	if (flg_v5) {
 		op->bwr(reg[EAFBCE_PIP_CTRL], cfg->reg_init_ctrl, 1, 1);
-		//pii_moide
+		//pii_mode
 		op->bwr(reg[EAFBCE_PIP_CTRL], cfg->reg_pip_mode, 0, 1);
 
 		op->bwr(reg[EAFBCE_ROT_CTRL], cfg->rot_en, 4, 1);

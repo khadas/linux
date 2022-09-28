@@ -443,7 +443,7 @@ enum cp_dv_type_eunm {
 	SRC_TYPE_DV    = 0x1, /*input is dv content, and output is amdv. */
 	SRC_TYPE_HDR10   = 0x3, /*input is HDR10, and output is a amdv. */
 	SRC_TYPE_SDR     = 0x5, /*input is SDR, and output is a amdv*/
-	SRC_TYPE_HLG     = 0x7  /*iinput is HLG, and output is a amdv */
+	SRC_TYPE_HLG     = 0x7  /*input is HLG, and output is a amdv */
 };
 
 struct vsif_parameter_s {

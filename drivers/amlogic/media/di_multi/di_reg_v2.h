@@ -157,7 +157,7 @@
 /* Bit 31    it true, disable clock, otherwise enable clock        */
 /* Bit 30    soft rst bit */
 /* Bit 28    if true, horizontal formatter use repeating to */
-/* generete pixel, otherwise use bilinear interpolation */
+/* generate pixel, otherwise use bilinear interpolation */
 /* Bit 27:24 horizontal formatter initial phase */
 /* Bit 23    horizontal formatter repeat pixel 0 enable */
 /* Bit 22:21 horizontal Y/C ratio, 00: 1:1, 01: 2:1, 10: 4:1 */
@@ -165,9 +165,9 @@
 /* Bit 19    if true, always use phase0 while vertical formater, */
 /* meaning always repeat data, no interpolation */
 /* Bit 18    if true, disable vertical formatter chroma repeat last line */
-/* Bit 17    veritcal formatter dont need repeat */
+/* Bit 17    vertical formatter dont need repeat */
 /* line on phase0, 1: enable, 0: disable */
-/* Bit 16    veritcal formatter repeat line 0 enable */
+/* Bit 16    vertical formatter repeat line 0 enable */
 /* Bit 15:12 vertical formatter skip line num at the beginning */
 /* Bit 11:8  vertical formatter initial phase */
 /* Bit 7:1   vertical formatter phase step (3.4) */

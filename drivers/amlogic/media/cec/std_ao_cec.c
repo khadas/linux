@@ -671,7 +671,7 @@ static int __maybe_unused cec_late_check_rx_buffer(void)
 	 * start another check if rx buffer is full
 	 */
 	if ((-1) == ceca_rx_irq_handle(rx_msg, &rx_len)) {
-		CEC_INFO("buffer got unrecorgnized msg\n");
+		CEC_INFO("buffer get unrecognized msg\n");
 		ceca_rx_buf_clear();
 		return 0;
 	}
@@ -2676,7 +2676,7 @@ static int aml_aocec_probe(struct platform_device *pdev)
 #endif
 	cec_irq_enable(true);
 	/* not check signal free time by default
-	 * otherwise it eazily fail at
+	 * otherwise it easily fail at
 	 * utils/cec-compliance/cec-test-adapter.cpp(1224):
 	 * There were 87 messages in the receive queue for 68 transmits
 	 * intsts:0x11 and irqflg:INITIATOR

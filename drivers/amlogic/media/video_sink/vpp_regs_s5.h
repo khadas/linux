@@ -313,7 +313,7 @@
 // Reading file:  ./vpp_post_reg.h
 //
 //===========================================================================
-// Vpp0 postprocesing Registers
+// Vpp0 postprocessing Registers
 //===========================================================================
 //====================top====================
 #define S5_VPP_POST_GCLK_CTRL                         0x1d00
@@ -867,7 +867,7 @@
 // Reading file:  ./vpp_post_unit_reg.h
 //
 //===========================================================================
-// Video postprocesing Registers
+// Video postprocessing Registers
 //===========================================================================
 //====================top====================
 #define S5_VPP_GCLK_CTRL                              0x2500
@@ -1164,7 +1164,7 @@
 //Bit 31    cfmt_gclk_bit_dis      unsigned, default = 0 ; //  it true, disable clock, otherwise enable clock
 //Bit 30    cfmt_soft_rst_bit      unsigned, default = 0 ; //  soft rst bit
 //Bit 29    reserved
-//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generete pixel, otherwise use bilinear interpolation
+//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generate pixel, otherwise use bilinear interpolation
 //Bit 27:24 chfmt_ini_phase        unsigned, default = 0 ; //  horizontal formatter initial phase
 //Bit 23    chfmt_rpt_p0_en        unsigned, default = 0 ; //  horizontal formatter repeat pixel 0 enable
 //Bit 22:21 chfmt_yc_ratio         unsigned, default = 0 ; //  horizontal Y/C ratio, 00: 1:1, 01: 2:1, 10: 4:1
@@ -1507,7 +1507,7 @@
 //Bit 31    cfmt_gclk_bit_dis      unsigned, default = 0 ; //  it true, disable clock, otherwise enable clock
 //Bit 30    cfmt_soft_rst_bit      unsigned, default = 0 ; //  soft rst bit
 //Bit 29    reserved
-//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generete pixel, otherwise use bilinear interpolation
+//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generate pixel, otherwise use bilinear interpolation
 //Bit 27:24 chfmt_ini_phase        unsigned, default = 0 ; //  horizontal formatter initial phase
 //Bit 23    chfmt_rpt_p0_en        unsigned, default = 0 ; //  horizontal formatter repeat pixel 0 enable
 //Bit 22:21 chfmt_yc_ratio         unsigned, default = 0 ; //  horizontal Y/C ratio, 00: 1:1, 01: 2:1, 10: 4:1
@@ -1872,7 +1872,7 @@
 //Bit 31    cfmt_gclk_bit_dis      unsigned, default = 0 ; //  it true, disable clock, otherwise enable clock
 //Bit 30    cfmt_soft_rst_bit      unsigned, default = 0 ; //  soft rst bit
 //Bit 29    reserved
-//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generete pixel, otherwise use bilinear interpolation
+//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generate pixel, otherwise use bilinear interpolation
 //Bit 27:24 chfmt_ini_phase        unsigned, default = 0 ; //  horizontal formatter initial phase
 //Bit 23    chfmt_rpt_p0_en        unsigned, default = 0 ; //  horizontal formatter repeat pixel 0 enable
 //Bit 22:21 chfmt_yc_ratio         unsigned, default = 0 ; //  horizontal Y/C ratio, 00: 1:1, 01: 2:1, 10: 4:1
@@ -2210,7 +2210,7 @@
 //Bit 31    cfmt_gclk_bit_dis      unsigned, default = 0 ; //  it true, disable clock, otherwise enable clock
 //Bit 30    cfmt_soft_rst_bit      unsigned, default = 0 ; //  soft rst bit
 //Bit 29    reserved
-//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generete pixel, otherwise use bilinear interpolation
+//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generate pixel, otherwise use bilinear interpolation
 //Bit 27:24 chfmt_ini_phase        unsigned, default = 0 ; //  horizontal formatter initial phase
 //Bit 23    chfmt_rpt_p0_en        unsigned, default = 0 ; //  horizontal formatter repeat pixel 0 enable
 //Bit 22:21 chfmt_yc_ratio         unsigned, default = 0 ; //  horizontal Y/C ratio, 00: 1:1, 01: 2:1, 10: 4:1
@@ -3012,7 +3012,7 @@
 //Bit 31:29 reserved
 //Bit 28:16 reg_y_end         // unsigned , default = 0, the canvas ver end pixel position
 //Bit 15:13 reserved
-//Bit 12: 0 reg_y_start       // unsigned , default = 0, the canvas ver start pixel positio
+//Bit 12: 0 reg_y_start       // unsigned , default = 0, the canvas ver start pixel position
 #define S5_AISR_RESHAP_BADDR00                        0x4145
 //Bit 31:0  reg_baddr00       // unsigned , default = 0, the (0,0) base addr for reshape
 #define S5_AISR_RESHAP_BADDR01                        0x4146
@@ -3192,7 +3192,7 @@
 //Bit  2: 0        reg_vsc_bank_length       // unsigned ,    RW, default = 4  default	=	4	,vertical	scaler	bank	length
 #define S5_SCHN_SCO_FIFO_CTRL                         0x4186
 //Bit 31:29        reserved
-//Bit 28:16        reg_sco_fifo_line_lenm1   // unsigned ,    RW, default = 13'hfff  default	=	0xfff,	scale	out	fifo	line	length	minus	1
+//Bit 28:16        reg_sco_fifo_line_len1   // unsigned ,    RW, default = 13'hfff  default	=	0xfff,	scale	out	fifo	line	length	minus	1
 //Bit 15:13        reserved
 //Bit 12: 0        reg_sco_fifo_size         // unsigned ,    RW, default = 13'h200  default	=	0x200,	scale	out	fifo	size	(actually	only	bit	11:01	is	valid,	11:1,	max	1024),	always	even	number
 #define S5_SCHN_HSC_PHASE_CTRL1                       0x4187

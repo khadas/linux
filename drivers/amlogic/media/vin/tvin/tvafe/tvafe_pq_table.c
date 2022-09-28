@@ -62,7 +62,7 @@ static struct tvafe_reg_table_s cvbs_palm_table_tl1[] = {
 	{CVD2_CHROMA_EDGE_ENHANCEMENT, 0x22, 0xff},
 	{CVD2_REG_87, 0xc0, 0xc0},
 	{CVD2_REG_FA, 0x00, 0xa0},
-	/*for moonoscope pattern color flash*/
+	/*for monoscope pattern color flash*/
 	{ACD_REG_22, 0x2020000, 0xffffffff},
 	{CVD2_NOISE_THRESHOLD, 0xff, 0xff},
 	{CVD2_NON_STANDARD_SIGNAL_THRESHOLD, 0x20, 0xff},
@@ -147,7 +147,7 @@ static struct tvafe_reg_table_s rf_palm_table_tl1[] = {
 	{CVD2_REG_B0, 0xf0, 0xff},
 	{CVD2_REG_B2, 0x00, 0x18},
 	{CVD2_CONTROL1, 0x00, 0x0c},
-	/*for moonoscope pattern color flash*/
+	/*for monoscope pattern color flash*/
 	{ACD_REG_22, 0x2020000, 0xffffffff},
 	{CVD2_NOISE_THRESHOLD, 0xff, 0xff},
 	{CVD2_NON_STANDARD_SIGNAL_THRESHOLD, 0x20, 0xff},

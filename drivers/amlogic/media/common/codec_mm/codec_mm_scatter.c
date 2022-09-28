@@ -907,7 +907,7 @@ static int codec_mm_page_alloc_from_one_pages(struct codec_mm_scatter_mgt *smgt,
 				PAGE_SIZE,
 				DMA_FROM_DEVICE);
 		} else {
-			/*can't alloced memofy from ONEPAGE alloc */
+			/*can't alloced memory from ONEPAGE alloc */
 			WAR_LOG("Out of memory OnePage alloc =%d,%d\n",
 				alloced, num);
 			break;
@@ -1942,7 +1942,7 @@ static int codec_mm_scatter_info_dump_in(struct codec_mm_scatter_mgt *smgt,
 			pbuf += s; \
 		} while (0)
 
-	BUFPRINT("codec %sscattered memory info:\n",
+	BUFPRINT("codec %s scattered memory info:\n",
 		 smgt->tvp_mode ? "TVP " : "");
 	BUFPRINT("\ttotal size:%dM, %d Bytes,pages:%d\n",
 		 (smgt->total_page_num << PAGE_SHIFT) / SZ_1M,
@@ -1974,7 +1974,7 @@ static int codec_mm_scatter_info_dump_in(struct codec_mm_scatter_mgt *smgt,
 		 smgt->scatter_task_run_num);
 	BUFPRINT("\tone_page_cnt:%d\n",
 		 smgt->one_page_cnt);
-	BUFPRINT("\tcatters cnt:%d\n", smgt->scatters_cnt);
+	BUFPRINT("\tscatters cnt:%d\n", smgt->scatters_cnt);
 	BUFPRINT("\tslot cnt:%d\n", smgt->slot_cnt);
 	BUFPRINT("\tcma alloc block size:%d\n",
 		 smgt->try_alloc_in_cma_page_cnt);
@@ -2587,8 +2587,8 @@ int codec_mm_scatter_scatter_clear(struct codec_mm_scatter_mgt *smgt,
 	if (to_free_mms &&
 	    (((to_free_mms_cnt > 1 || !smgt->delay_free_on) &&
 	    time_after(jiffies, to_free_mms->tofree_jiffies)) ||
-	    force)) {	/*force== no checktimeer. */
-		/*set to nagative for free now. */
+	    force)) {	/*force== no checktimer. */
+		/*set to negative for free now. */
 		int cnt = atomic_sub_return(100000, &to_free_mms->user_cnt);
 
 		if (cnt != -100000) {

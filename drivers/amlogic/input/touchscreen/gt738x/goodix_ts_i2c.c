@@ -146,7 +146,7 @@ static int goodix_parse_dt(struct device_node *node,
 			strncpy(board_data->avdd_name,
 				name_tmp, sizeof(board_data->avdd_name));
 		else
-			ts_info("invalied avdd name length: %ld > %ld",
+			ts_info("invalid avdd name length: %ld > %ld",
 				strlen(name_tmp),
 				sizeof(board_data->avdd_name));
 	}
@@ -272,7 +272,7 @@ int goodix_ts_dev_confirm(struct goodix_ts_device *ts_dev)
  * @addr: register address
  * @data: read buffer
  * @len: bytes to read
- * return: 0 - read ok, < 0 - i2c transter error
+ * return: 0 - read ok, < 0 - i2c transfer error
  */
 int goodix_i2c_read(struct goodix_ts_device *dev, unsigned int reg,
 	unsigned char *data, unsigned int len)
@@ -346,7 +346,7 @@ read_exit:
  * @addr: register address
  * @data: write buffer
  * @len: bytes to write
- * return: 0 - write ok; < 0 - i2c transter error.
+ * return: 0 - write ok; < 0 - i2c transfer error.
  */
 int goodix_i2c_write(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
@@ -412,7 +412,7 @@ write_exit:
  * @addr: register address
  * @data: read buffer
  * @len: bytes to read
- * return: 0 - read ok, < 0 - i2c transter error
+ * return: 0 - read ok, < 0 - i2c transfer error
  */
 int goodix_i2c_read_nodelay(struct goodix_ts_device *dev, unsigned int reg,
 	unsigned char *data, unsigned int len)
@@ -485,7 +485,7 @@ read_exit:
  * @addr: register address
  * @data: write buffer
  * @len: bytes to write
- * return: 0 - write ok; < 0 - i2c transter error.
+ * return: 0 - write ok; < 0 - i2c transfer error.
  */
 int goodix_i2c_write_nodelay(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
@@ -552,7 +552,7 @@ write_exit:
  * @addr: register address
  * @data: write buffer
  * @len: bytes to write
- * return: 0 - write ok; < 0 - i2c transter error.
+ * return: 0 - write ok; < 0 - i2c transfer error.
  */
 int goodix_i2c_write_once(struct goodix_ts_device *dev, unsigned int reg,
 		unsigned char *data, unsigned int len)
@@ -616,7 +616,7 @@ static void goodix_cmds_init(struct goodix_ts_cmd *ts_cmd,
 }
 
 /**
- * goodix_send_command - seng cmd to firmware
+ * goodix_send_command - send cmd to firmware
  *
  * @dev: pointer to device
  * @cmd: pointer to command struct which cotain command data
@@ -660,7 +660,7 @@ static int goodix_read_version(struct goodix_ts_device *dev,
 	}
 	if (!pid_read_len || pid_read_len > GOODIX_PID_MAX_LEN ||
 	    !vid_read_len || vid_read_len > GOODIX_VID_MAX_LEN) {
-		ts_err("invalied pid vid length, pid_len:%d, vid_len:%d",
+		ts_err("invalid pid vid length, pid_len:%d, vid_len:%d",
 			pid_read_len, vid_read_len);
 		return -EINVAL;
 	}
@@ -1556,7 +1556,7 @@ exit:
 	return r;
 }
 
-/* hardware opeation funstions */
+/* hardware operation functions */
 static const struct goodix_ts_hw_ops hw_i2c_ops = {
 	.dev_confirm = goodix_ts_dev_confirm,
 	.read = goodix_i2c_read,

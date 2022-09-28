@@ -473,7 +473,7 @@ static int per_lcd_dev_add_driver(struct peripheral_lcd_driver_s *per_lcd_drv)
 	else if (strcmp(per_lcd_dev_conf.name, "spi_st7789") == 0)
 		ret = per_lcd_dev_spi_probe(per_lcd_drv);
 	else
-		LCDPR("%s:unsopport device driver: %s(%d)\n",
+		LCDPR("%s:unsupported device driver: %s(%d)\n",
 		      __func__, per_lcd_dev_conf.name, index);
 
 	if (ret) {
@@ -498,7 +498,7 @@ static void per_lcd_dev_remove_driver(struct peripheral_lcd_driver_s *per_lcd_dr
 	else if (strcmp(per_lcd_dev_conf.name, "spi_st7789") == 0)
 		ret = per_lcd_dev_spi_remove(per_lcd_drv);
 	else
-		LCDPR("%s: unsopport device driver: %s(%d)\n",
+		LCDPR("%s: unsupported device driver: %s(%d)\n",
 		      __func__, per_lcd_dev_conf.name, index);
 
 	if (ret) {

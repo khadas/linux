@@ -3092,7 +3092,7 @@ static ssize_t contenttype_mode_store(struct device *dev,
 
 /* for decoder/hwc or sysctl to control the low latency mode,
  * as they don't care if sink support ALLM OR HDMI1.X game mode
- * so need hdmitx driver to decice to send ALLM OR HDMI1.X game
+ * so need hdmitx driver to device to send ALLM OR HDMI1.X game
  * mode according to capability of EDID
  */
 static ssize_t ll_mode_show(struct device *dev,
@@ -5819,7 +5819,7 @@ static int amhdmitx_probe(struct platform_device *pdev)
 	}
 	/* Trigger HDMITX IRQ*/
 	if (hdev->hwop.cntlmisc(hdev, MISC_HPD_GPI_ST, 0)) {
-		/* When bootup mbox and TV simutanously,
+		/* When bootup mbox and TV simultaneously,
 		 * TV may not handle SCDC/DIV40
 		 */
 		if (is_cur_tmds_div40(hdev))

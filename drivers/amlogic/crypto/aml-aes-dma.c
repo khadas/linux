@@ -1495,7 +1495,7 @@ static int aml_aes_probe(struct platform_device *pdev)
 	int err = -EPERM;
 	const struct aml_aes_info *aes_info = NULL;
 	/* Set default iv_swap to 1 for backward compatible.
-	 * It can be modified by sepcifying iv_swap in dts.
+	 * It can be modified by specifying iv_swap in dts.
 	 */
 	u8 iv_swap = 1;
 	u8 set_key_iv_separately = 0;

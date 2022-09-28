@@ -280,7 +280,7 @@ static int _am_meson_occupy_plane_config(struct drm_atomic_state *state,
 	return 0;
 }
 
-/*simaler with __drm_atomic_helper_set_config,
+/*similar with __drm_atomic_helper_set_config,
  *TODO:sync with __drm_atomic_helper_set_config
  */
 int __am_meson_drm_set_config(struct drm_mode_set *set,
@@ -464,7 +464,7 @@ static void am_meson_load_logo(struct drm_device *dev,
 	}
 
 	meson_fb = to_am_meson_fb(fb);
-	/*init all connecotr and found matched uboot mode.*/
+	/*init all connector and found matched uboot mode.*/
 	found = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		drm_modeset_lock_all(dev);
@@ -486,12 +486,12 @@ static void am_meson_load_logo(struct drm_device *dev,
 				break;
 		}
 
-		DRM_INFO("Connecotr[%d] status[%d]\n",
+		DRM_INFO("connector[%d] status[%d]\n",
 			connector->connector_type, connector->status);
 	}
 
 	if (found) {
-		DRM_INFO("Found Connecotr[%d] mode[%s]\n",
+		DRM_INFO("Found connector[%d] mode[%s]\n",
 			connector->connector_type, mode->name);
 		if (!strcmp("null", mode->name)) {
 			DRM_INFO("NULL MODE, nothing to do.");

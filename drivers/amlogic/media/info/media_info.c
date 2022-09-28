@@ -328,7 +328,7 @@ static int minfo_key_add_check_locked(struct koi *k)
 	}
 
 	list_add(&k->node, &info.khead);
-	minfo_dbg(LOG_DEBUG, "minfo k %s monitered by pid %d\n",
+	minfo_dbg(LOG_DEBUG, "minfo k %s monitored by pid %d\n",
 			k->key, k->pid);
 	return 0;
 }

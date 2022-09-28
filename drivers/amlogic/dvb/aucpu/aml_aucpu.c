@@ -182,7 +182,7 @@ struct aucpu_inst_t {
 	struct aucpu_buffer_t reprt_buf; //report result buffer
 	struct aucpu_buffer_t in_upd_buf; //report result buffer
 	u32 src_update_index; //source pointer update demux channel index
-	s32 inst_handle; // hadnle from aucpu returned.
+	s32 inst_handle; //handle from aucpu returned.
 	// below are runtime  status
 	u32 work_state; // the working  status of the instance
 	u32 src_wrptr; //source buffer wrptr
@@ -201,7 +201,7 @@ struct aucpu_ctx_t {
 	u32 activated_inst_num; /* active instances number */
 	struct aucpu_inst_t strm_inst[AUCPU_MAX_INTST_NUM];
 	struct aml_cmd_set last_cmd;
-	struct aucpu_buffer_t aucpu_reg; /* resigster assignment */
+	struct aucpu_buffer_t aucpu_reg; /* register assignment */
 	struct aucpu_buffer_t aucpu_mem; /* local total buffer pool */
 
 	struct aucpu_buffer_t t_upd_buf; /* total update input buf */
@@ -1193,7 +1193,7 @@ static s32 aucpu_mem_device_init(struct reserved_mem *rmem,
 	}
 
 	if (!rmem->base) {
-		aucpu_pr(LOG_ERROR, " Aucpu NO reserved mem asssiged\n");
+		aucpu_pr(LOG_ERROR, " Aucpu NO reserved mem assgned\n");
 		r = -EFAULT;
 		return r;
 	}

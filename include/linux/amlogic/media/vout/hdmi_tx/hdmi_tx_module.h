@@ -363,7 +363,7 @@ struct hdmitx_dev {
 		void (*setpacket)(int type, unsigned char *DB,
 				  unsigned char *HB);
 		void (*disablepacket)(int type);
-		/* In original setpacket, there are many policys, like
+		/* In original setpacket, there are many policies, like
 		 *  if ((DB[4] >> 4) == T3D_FRAME_PACKING)
 		 * Need a only pure data packet to call
 		 */
@@ -472,7 +472,7 @@ struct hdmitx_dev {
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
 	unsigned int allm_mode; /* allm_mode: 1/on 0/off */
-	unsigned int ct_mode; /* 0/off 1/game, 2/graphcis, 3/photo, 4/cinema */
+	unsigned int ct_mode; /* 0/off 1/game, 2/graphics, 3/photo, 4/cinema */
 	unsigned int sspll;
 	unsigned int hdmi_rext; /* Rext resistor */
 	/* if HDMI plugin even once time, then set 1 */

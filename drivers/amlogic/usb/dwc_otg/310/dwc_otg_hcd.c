@@ -2374,7 +2374,7 @@ int dwc_otg_hcd_hub_control(dwc_otg_hcd_t *dwc_otg_hcd,
 		/*
 		   For Synopsys HW emulation of Power
 		   down wkup_control asserts the
-		   hreset_n and prst_n on suspned.
+		   hreset_n and prst_n on suspend.
 		   This causes the HPRT0 to be zero.
 		   We intentionally tell the software
 		   that port is in L2Suspend state.

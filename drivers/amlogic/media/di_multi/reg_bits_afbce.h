@@ -246,7 +246,7 @@ union AFBCE_ENABLE_BITS {
 		reserved2:3,
 		enc_en_mode:1,		/* bit 12? */
 		/* enc_en_mode:default = 0, */
-		//1: chose pulse staert mode,
+		//1: chose pulse start mode,
 		//need write a pule by AFBCE_ENABLE[0],
 		//0: automatic start
 		enc_rst_mode:1,		/* bit[13] ?*/

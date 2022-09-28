@@ -5,7 +5,7 @@ Required properties:
 
  - status: should be "okay" or "disabled"
 
- - key_n: propertity defination of each key, which contains key-name, key-device and key-permit
+ - key_n: property defination of each key, which contains key-name, key-device and key-permit
 	 	key-name could be any ascii string within 48 bytes
 		key-device must be one of "normal", "secure", "efuse"
 		key-permit must be the combination of "read", "write" and "del"

@@ -341,7 +341,7 @@ static int __init amaudio_init(void)
 	ret =
 	    register_chrdev(AMAUDIO_MAJOR, AMAUDIO_DRIVER_NAME, &amaudio_fops);
 	if (ret < 0) {
-		pr_err("Can't register %s divece ", AMAUDIO_DRIVER_NAME);
+		pr_err("Can't register %s device ", AMAUDIO_DRIVER_NAME);
 		ret = -ENODEV;
 		goto err;
 	}
@@ -378,7 +378,7 @@ static int __init amaudio_init(void)
 		goto err4;
 	}
 
-	pr_info("%s - amaudio: driver %s succuess!\n",
+	pr_info("%s - amaudio: driver %s success!\n",
 		__func__, AMAUDIO_DRIVER_NAME);
 
 	return platform_driver_register(&amlogic_amaudio_driver);

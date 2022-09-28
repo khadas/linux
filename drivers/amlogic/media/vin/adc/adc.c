@@ -228,14 +228,14 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 		if (devp->filter_flg & (FILTER_TVAFE | FILTER_DTV_DEMOD)) {
 			ret = -1;
 
-			pr_info("%s: ADEMOD fail!!!, filter_flg: %d\n",
+			pr_info("%s: DEMOD fail!!!, filter_flg: %d\n",
 					__func__, devp->filter_flg);
 			break;
 		}
 
 		if (devp->filter_flg & FILTER_ATV_DEMOD) {
 			if (devp->print_en)
-				pr_info("%s: ADEMOD ATV had done!: %d\n",
+				pr_info("%s: DEMOD ATV had done!: %d\n",
 						__func__, devp->filter_flg);
 			break;
 		}
@@ -487,14 +487,14 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			ret = -1;
 
 			if (devp->print_en)
-				pr_info("%s:ADEMOD fail!:%d\n",
+				pr_info("%s:DEMOD fail!:%d\n",
 					__func__, devp->pll_flg);
 			break;
 		}
 
 		if (devp->pll_flg & ADC_ATV_DEMOD) {
 			if (devp->print_en)
-				pr_info("%s:ADEMOD ATV had done!:%d\n",
+				pr_info("%s:DEMOD ATV had done!:%d\n",
 					__func__, devp->pll_flg);
 			break;
 		}

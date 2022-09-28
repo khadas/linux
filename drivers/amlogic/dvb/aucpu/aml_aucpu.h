@@ -75,7 +75,7 @@ struct dma_link_des {
  *
  * This struction define the buffer for input/output of the contents
  *
- * @phy_start:	Phyisical addess of the buffer
+ * @phy_start:	Physical address of the buffer
  * @buf_size:	size of the buffer in bytes, multiple of 8
  * @buf_flags:	buffer configure flags:
  *		bit 0: ring buffer or linklist
@@ -88,7 +88,7 @@ struct dma_link_des {
 struct aml_aucpu_strm_buf {
 	ulong phy_start; /* PHY addess of the buffer (32bit-alignment) */
 	u32 buf_size; /* bytes, shall be multiply of 8 */
-	u32 buf_flags; /* bit 0: 0:the buffer is noraml ring buffrer */
+	u32 buf_flags; /* bit 0: 0:the buffer is normal ring buffer */
 				 /* 1: it is link list */
 };
 
@@ -118,7 +118,7 @@ struct aml_aucpu_buf_upd {
  * @config_flags:	config options:
  * @buf_flags:	config options::
  *			bit 0: source wrptr update method
- *				0, automatally via DMX DMA
+ *				0, automatically via DMX DMA
  *				1, manually by calling functions
  *			other bits: reserved
  *
@@ -132,7 +132,7 @@ struct aml_aucpu_inst_config {
 			/*    bit 8-24 :PID of the PTS pack                */
 	u32 config_flags;	/* config options:                     */
 			/* bit 0: source wrptr update method               */
-			/*        0, automatally via DMX DMA dma_id used   */
+			/*        0, automatically via DMX DMA dma_id used   */
 			/*        1, manually via function call src_update */
 			/* other bits reserved                             */
 };
@@ -151,7 +151,7 @@ enum aml_aucpu_stream_type {
 	MEDIA_MAX,
 };
 
-/* current running state of an intance */
+/* current running state of an instance */
 enum aml_aucpu_states {
 	AUCPU_STA_NONE = 0, /* NONE */
 	AUCPU_STA_IDLE = 1, /*created but no start */

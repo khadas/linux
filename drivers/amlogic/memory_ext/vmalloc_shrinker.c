@@ -377,7 +377,7 @@ static int vmalloc_shrinker_scan(void *data)
 
 			/*
 			 * set flag and clear pte first to avoid write
-			 * during comporess, if fault during process, then
+			 * during compress, if fault during process, then
 			 * ignore this case
 			 */
 			old_pte = *ptep;

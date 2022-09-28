@@ -166,15 +166,15 @@ static void meson_rtc_clk_config(struct meson_rtc_data *rtc)
 
 	if (rtc->freq == OSC_24MHZ) {
 		reg_val = readl(rtc->reg_base + RTC_CTRL);
-		/* Select RTC osillator to 24MHz clock output */
+		/* Select RTC oscillator to 24MHz clock output */
 		reg_val |= (1 << RTC_OSC_SEL_BIT);
 		writel(reg_val, rtc->reg_base + RTC_CTRL);
 
-		/* Set RTC osillator to freq_out to freq_in/((N0*M0+N1*M1)/(M0+M1)) */
+		/* Set RTC oscillator to freq_out to freq_in/((N0*M0+N1*M1)/(M0+M1)) */
 		reg_val = readl(rtc->reg_base + RTC_OSCIN_CTRL0);
 		reg_val &= (~(0x3 << 28));
 		reg_val |= (0x1 << 28);
-		/* Enable clock_in gate of osillator 24MHz */
+		/* Enable clock_in gate of oscillator 24MHz */
 		reg_val |= (1 << 31);
 		/* N0 is set to 733, N1 is set to 732 by default*/
 		writel(reg_val, rtc->reg_base + RTC_OSCIN_CTRL0);
@@ -265,7 +265,7 @@ static int meson_rtc_get_calibration(struct device *dev, u32 *calibration)
 
 /* The calibration value transferred from buf takes bit[18:0] to represent   */
 /* match counter, while takes bit[31:30] to represent operation style       */
-/* which can be set to: 0 reprensents no calibration; 1 represents drop one */
+/* which can be set to: 0 represents no calibration; 1 represents drop one */
 /* second every match counter; 2 represents insert one second every match counter */
 static ssize_t rtc_calibration_store(struct device *dev,
 				struct device_attribute *attr,

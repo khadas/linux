@@ -581,7 +581,7 @@ static int colorbar_handler(struct vframe_s *vf, int flag)
 
 	/*
 	 * flag == 0, color bar is not detected, restore
-	 *            the dedault setting
+	 *            the default setting
 	 * flag == 1, mixed color bar is detected, apply
 	 *            the specific setting
 	 * flag == 2, color bar is detected, apply
@@ -590,7 +590,7 @@ static int colorbar_handler(struct vframe_s *vf, int flag)
 
 	/*
 	 * do not keep programming register
-	 * return if detection result is not chaneged
+	 * return if detection result is not changed
 	 */
 	if (last_type == vf->source_type &&
 	    last_mode == vf->source_mode &&
@@ -741,14 +741,14 @@ static int face_handler(struct vframe_s *vf, int flag)
 
 	/*
 	 * flag == 0, face is not detected, restore
-	 *            the dedault setting
+	 *            the default setting
 	 * flag == 1, face is detected, apply
 	 *            the specific setting
 	 */
 
 	/*
 	 * do not keep programming register
-	 * return if detection result is not chaneged
+	 * return if detection result is not changed
 	 */
 	if (last_type == vf->source_type &&
 	    last_mode == vf->source_mode &&
@@ -908,14 +908,14 @@ static int corn_handler(struct vframe_s *vf, int flag)
 
 	/*
 	 * flag == 0, green corn is not detected, restore
-	 *            the dedault setting
+	 *            the default setting
 	 * flag == 1, green corn is detected, apply
 	 *            the specific setting
 	 */
 
 	/*
 	 * do not keep programming register
-	 * return if detection result is not chaneged
+	 * return if detection result is not changed
 	 */
 	if (last_type == vf->source_type &&
 	    last_mode == vf->source_mode &&

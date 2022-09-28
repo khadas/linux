@@ -1257,7 +1257,7 @@ void earctx_set_cs_info(struct regmap *dmac_map,
 	earctx_set_cs_freq(dmac_map, cs_info->sampling_freq);
 	/* audio layout */
 	earctx_update_cs_layout(dmac_map, coding_type);
-	/* channel alloacation */
+	/* channel allocation */
 	earctx_set_cs_ca(dmac_map, ca);
 }
 

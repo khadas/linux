@@ -336,7 +336,7 @@ const char *hdmi_fmt[] = {
 	"HDMI_720x480p240_16x9",
 	"HDMI_720x480i240_4x3",
 	"HDMI_720x480i240_16x9",
-	/* Refet to CEA 861-F */
+	/* Refer to CEA 861-F */
 	"HDMI_1280x720p24_16x9",
 	"HDMI_1280x720p25_16x9",
 	"HDMI_1280x720p30_16x9",
@@ -3689,9 +3689,9 @@ void rx_parse_print_vsdb(struct cta_blk_parse_info *edid_info)
 	if (edid_info->vsdb.cnc1)
 		rx_pr("\tcnc1: Photo\n");
 	if (edid_info->vsdb.cnc0)
-		rx_pr("\tcnc0: Grahpics(text)\n");
+		rx_pr("\tcnc0: Graphics(text)\n");
 	if (edid_info->vsdb.hdmi_vic_len > 0)
-		rx_pr("Supproted 4k2k format:\n");
+		rx_pr("supported 4k2k format:\n");
 	if (edid_info->vsdb.hdmi_4k2k_30hz_sup)
 		rx_pr("\thdmi vic1: 4k30hz\n");
 	if (edid_info->vsdb.hdmi_4k2k_25hz_sup)
@@ -4763,7 +4763,7 @@ void splice_tag_db_to_edid(u8 *p_edid, u8 *add_buf,
 	splice_data_blk_to_edid(p_edid, tag_data_blk, 0xFF);
 }
 
-/* romove cta data blk which tag = tagid */
+/* remove cta data blk which tag = tagid */
 void edid_rm_db_by_tag(u8 *p_edid, u16 tagid)
 {
 	int tag_offset;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * ALSA SoC Amlogic t9015c interenl codec driver
+ * ALSA SoC Amlogic t9015c internal codec driver
  *
  * Copyright (C) 2019 Amlogic,inc
  *

@@ -731,7 +731,7 @@ unsigned int capture_adc_data_once(char *path, unsigned int capture_mode,
 		}
 		break;
 
-	case 6: /* disqec in */
+	case 6: /* diseqc in */
 		if (devp->data->hw_ver == DTVDEMOD_HW_S4D ||
 			devp->data->hw_ver == DTVDEMOD_HW_S4) {
 			addr = 0x1000;

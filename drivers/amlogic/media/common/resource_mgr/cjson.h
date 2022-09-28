@@ -31,7 +31,7 @@ struct cjson {
 	double valuedouble;			/* The item's number, if type==cjson_number */
 
 	char *string;				/* The item's name string*/
-	char *pure_json;	/*chorm add it at 2020-01-03 17:39.*/
+	char *pure_json;	/*chrome add it at 2020-01-03 17:39.*/
 };
 
 struct cjson *cjson_parse(const char *value);

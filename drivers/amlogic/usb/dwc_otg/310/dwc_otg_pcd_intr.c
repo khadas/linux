@@ -2916,7 +2916,7 @@ static void reinit_ddma_iso_xfer(dwc_otg_core_if_t *core_if, dwc_ep_t *dwc_ep)
  * in case Iso out packet was dropped
  *
  * @param core_if Programming view of DWC_otg controller.
- * @param dwc_ep The EP for wihich transfer complete was asserted
+ * @param dwc_ep The EP for which transfer complete was asserted
  *
  */
 static uint32_t handle_iso_out_pkt_dropped(dwc_otg_core_if_t *core_if,
@@ -3046,7 +3046,7 @@ static uint32_t set_iso_pkts_info(dwc_otg_core_if_t *core_if, dwc_ep_t *ep)
 		 * that this happens when Out packet is dropped, but because of
 		 * interrupts merging during first interrupt handling PktDrpSts
 		 * bit is cleared and for next merged interrupts it is not reset.
-		 * In this case SW hadles the interrupt as if PktDrpSts bit is set.
+		 * In this case SW handle the interrupt as if PktDrpSts bit is set.
 		 */
 		if (ep->is_in)
 			return 1;
@@ -4180,7 +4180,7 @@ do { \
 					/* Clear the bit in DOEPINTn for this interrupt */
 					CLEAR_OUT_EP_INTR(core_if, epnum, xfercompl);
 					if (core_if->snpsid >= OTG_CORE_REV_3_00a) {
-						DWC_DEBUGPL(DBG_PCDV, "in xfer xomplete DOEPINT=%x doepint=%x\n",
+						DWC_DEBUGPL(DBG_PCDV, "in xfer complete DOEPINT=%x doepint=%x\n",
 							DWC_READ_REG32(&core_if->dev_if->out_ep_regs[0]->doepint),
 							doepint.d32);
 						DWC_DEBUGPL(DBG_PCDV, "DOEPCTL=%x \n",

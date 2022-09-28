@@ -74,7 +74,7 @@ enum channel_status_type {
 	CS_TYPE_B  /* channel B status */
 };
 
-/* consumer channel statatus structure */
+/* consumer channel status structure */
 struct iec_cnsmr_cs {
 	/* CS bit0, 0: consumer use, 1 for Professional use */
 	bool user;

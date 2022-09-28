@@ -439,7 +439,7 @@ struct hdmitx_dev {
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
 	u32 allm_mode; /* allm_mode: 1/on 0/off */
-	u32 ct_mode; /* 0/off 1/game, 2/graphcis, 3/photo, 4/cinema */
+	u32 ct_mode; /* 0/off 1/game, 2/graphics, 3/photo, 4/cinema */
 	bool it_content;
 	u32 sspll;
 	/* if HDMI plugin even once time, then set 1 */

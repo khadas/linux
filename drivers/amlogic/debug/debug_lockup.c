@@ -322,8 +322,8 @@ void  notrace __arch_cpu_idle_exit(void)
 }
 
 static unsigned long smcid_skip_list[] = {
-	0x84000001, /* suspned A32*/
-	0xC4000001, /* suspned A64*/
+	0x84000001, /* suspend A32*/
+	0xC4000001, /* suspend A64*/
 	0x84000002, /* cpu off */
 	0x84000008, /* system off */
 	0x84000009, /* system reset */

@@ -6747,7 +6747,7 @@ void vpp_disp_info_init(struct disp_info_s *info, u8 id)
 	}
 }
 
-/*for gxlx only have core1 which will affact pip line*/
+/*for gxlx only have core1 which will affect pip line*/
 void vpp_bypass_ratio_config(void)
 {
 	if (is_meson_gxbb_cpu() || is_meson_gxl_cpu() ||

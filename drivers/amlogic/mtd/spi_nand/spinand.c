@@ -273,7 +273,7 @@ static struct meson_partition_platform_data *
 	pdata->part_num = part_num;
 
 	ret = of_property_read_u32(np, "bl_mode", &pdata->bl_mode);
-	pr_info("bl_mode %s\n", pdata->bl_mode ? "descrete" : "compact");
+	pr_info("bl_mode %s\n", pdata->bl_mode ? "discrete" : "compact");
 
 	ret = of_property_read_u32(np, "fip_copies", &pdata->fip_copies);
 	pr_info("fip_copies %d\n", pdata->fip_copies);

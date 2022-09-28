@@ -663,7 +663,7 @@ enum hdmi_vic_e {
 	HDMI_480p240_16x9 = 57,
 	HDMI_480i240 = 58,
 	HDMI_480i240_16x9 = 59,
-	/* Refet to CEA 861-F */
+	/* Refer to CEA 861-F */
 	HDMI_720p24 = 60,
 	HDMI_720p25 = 61,
 	HDMI_720p30 = 62,

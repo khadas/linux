@@ -66,7 +66,7 @@ struct gdc_settings {
 	//opaque address in ddr added with offset to
 	//write the gdc config sequence
 	void *ddr_mem;
-	//when inititialised this callback will be called
+	//when initialised this callback will be called
 	//to update frame buffer addresses and offsets
 	void (*get_frame_buffer)(u32 y_base_addr,
 				 u32 uv_base_addr,

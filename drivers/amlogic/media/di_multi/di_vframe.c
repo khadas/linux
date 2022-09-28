@@ -466,7 +466,7 @@ static int di_ori_event_light_unreg(unsigned int channel)
 
 	di_block_set(1);//di_blocking = 1;
 
-	pr_dbg("%s: vf_notify_receiver ligth unreg\n", __func__);
+	pr_dbg("%s: vf_notify_receiver light unreg\n", __func__);
 
 //ary 2020-12-09	spin_lock_irqsave(&plist_lock, flags);
 	for (i = 0; i < MAX_IN_BUF_NUM; i++) {

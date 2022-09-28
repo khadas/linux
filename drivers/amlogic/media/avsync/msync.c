@@ -1744,7 +1744,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 
 		if (!copy_from_user(&policy, argp, sizeof(policy))) {
 			msync_dbg(LOG_DEBUG,
-				"session[%d] policys %u timeout %u, old timeout=%d.\n",
+				"session[%d] policy %u timeout %u, old timeout=%d.\n",
 				session->id, policy.policy, 
 				policy.timeout, session->start_policy.timeout);
 			session->start_policy.policy = policy.policy;

@@ -746,7 +746,7 @@ static int _bufferid_malloc_desc_mem(struct chan_id *pchan,
 	dma_sync_single_for_device(aml_get_device(),
 		pchan->memdescs_phy, sizeof(union mem_desc), DMA_TO_DEVICE);
 	pr_dbg("flush mem descs to ddr\n");
-	pr_dbg("%s mem_desc phy addr 0x%x, memdsc:0x%lx\n", __func__,
+	pr_dbg("%s mem_desc phy addr 0x%x, memdescs:0x%lx\n", __func__,
 	       pchan->memdescs_phy, (unsigned long)pchan->memdescs);
 
 	dma_sync_single_for_device(aml_get_device(),

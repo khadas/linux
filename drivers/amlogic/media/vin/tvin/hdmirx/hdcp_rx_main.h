@@ -101,7 +101,7 @@ struct esm_ioc_code {
 /*
  * ESM_IOC_MEMSET_DATA: initialize data memory.
  *
- *   - offset  = start initializatoin at this byte offset into the data memory.
+ *   - offset  = start initialization at this byte offset into the data memory.
  *   - len     = number of bytes to set.
  *   - data[0] = byte value to write to all indicated memory locations.
  */

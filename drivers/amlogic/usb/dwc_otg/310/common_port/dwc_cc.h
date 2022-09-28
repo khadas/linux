@@ -106,7 +106,7 @@ extern int32_t dwc_cc_add(void *mem_ctx, dwc_cc_if_t *cc_if, uint8_t *chid,
 
 /** Changes the CHID, CK, CDID, or Name values of a connection context in the
  * list, preserving any accumulated statistics.  This would typically be called
- * if the host decideds to change the context with a SET_CONNECTION request.
+ * if the host decides to change the context with a SET_CONNECTION request.
  *
  * @param cc_if The cc_if structure.
  * @param id The identifier of the connection context.

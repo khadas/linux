@@ -453,7 +453,7 @@ void vf_pq_process(struct vframe_s *vf,
 		prob[i][0] = vf->nn_value[i].maxclass;
 		prob[i][1] = vf->nn_value[i].maxprob;
 		if (pq_debug[2] > 0x10)
-			pr_info("classi top%d= %d: prob = %d\n",
+			pr_info("class top%d= %d: prob = %d\n",
 				i + 1, prob[i][0], prob[i][1]);
 	}
 

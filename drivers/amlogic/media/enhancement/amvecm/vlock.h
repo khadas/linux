@@ -291,9 +291,9 @@ enum vlock_pll_sel {
 #define VLOCK_SUP_MODE	(VLOCK_SUPPORT_HDMI | VLOCK_SUPPORT_CVBS | \
 			 VLOCK_SUPPORT_1TO2)
 
-/*10s for 60hz input,vlock pll stabel cnt limit*/
+/*10s for 60hz input,vlock pll stable cnt limit*/
 #define VLOCK_PLL_STABLE_LIMIT	600
-#define VLOCK_ENC_STABLE_CNT	180/*vlock enc stabel cnt limit*/
+#define VLOCK_ENC_STABLE_CNT	180/*vlock enc stable cnt limit*/
 #define VLOCK_PLL_ADJ_LIMIT 9/*vlock pll adj limit(0x300a default)*/
 
 /*vlock_debug mask*/

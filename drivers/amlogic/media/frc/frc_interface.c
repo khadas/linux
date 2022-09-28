@@ -50,7 +50,7 @@
 
 /*
  * every vsync handle
- * vf : curret input vf
+ * vf : current input vf
  * cur_video_sts: current video state
  * called in vpp vs ir :vsync_fisr_in
  * defined(CONFIG_AMLOGIC_MEDIA_FRC)

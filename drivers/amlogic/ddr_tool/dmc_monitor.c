@@ -43,7 +43,7 @@ static int early_dmc_param(char *buf)
 {
 	unsigned long s_addr, e_addr, mask, config = 0;
 	/*
-	 * Patten:  dmc_montiro=[start_addr],[end_addr],[mask]
+	 * Patten:  dmc_monitor=[start_addr],[end_addr],[mask]
 	 * Example: dmc_monitor=0x00000000,0x20000000,0x7fce
 	 * config: bit 0 - exclude (t3/t7/p1/c3)
 	 *	   bit 1 - write;

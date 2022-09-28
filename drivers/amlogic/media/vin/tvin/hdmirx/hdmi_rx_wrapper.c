@@ -2011,7 +2011,7 @@ void rx_dwc_reset(void)
 	rx_sw_reset(rst_lvl);
 	//rx_irq_en(true);
 	/* for hdcp1.4 interact very early cases, don't do
-	 * esm reset to avoid interaction be interferenced.
+	 * esm reset to avoid interaction be interference.
 	 */
 	rx_esm_reset(3);
 }

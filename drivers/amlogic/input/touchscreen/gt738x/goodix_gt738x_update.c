@@ -59,7 +59,7 @@
 
 /**
  * fw_subsys_info - subsytem firmware information
- * @type: sybsystem type
+ * @type: subsystem type
  * @size: firmware size
  * @flash_addr: flash address
  * @data: firmware data
@@ -84,7 +84,7 @@ struct fw_subsys_info {
  * @chip_type: chip type
  * @protocol_ver: firmware packing
  *   protocol version
- * @subsys: sybsystem info
+ * @subsys: subsystem info
  */
 struct firmware_info {
 	u32 size;
@@ -489,7 +489,7 @@ static int goodix_wait_sta(struct goodix_ts_device *ts_dev, u16 sta_addr,
 		}
 		usleep_range(10000, 11000);
 	}
-	ts_err("wait 0x%04x eq 0x%02x failed, real satatus:0x%02x\n", sta_addr,
+	ts_err("wait 0x%04x eq 0x%02x failed, real status:0x%02x\n", sta_addr,
 				sta, data);
 	return -EINVAL;
 }

@@ -2269,7 +2269,7 @@ static void vd_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 		break;
 	default:
 		if (mosaic_mode) {
-			/* 4slices mosiac mode */
+			/* 4slices mosaic mode */
 			vd_proc_mosaic = &vd_proc->vd_proc_mosaic;
 			/* output to vd1 */
 			rdma_wr_bits(VPP_VD_SYS_CTRL, 0, 2, 1);
@@ -2512,7 +2512,7 @@ static void set_vd_proc_info(struct video_layer_s *layer)
 	h_start = cur_frame_par->VPP_hsc_startp;
 	v_start = cur_frame_par->VPP_vsc_startp;
 
-	/* get scaler info(include prehscaler, pps, sr)*/
+	/* get scaler info(include pre_scaler, pps, sr)*/
 	horz_phase_step =
 		cur_frame_par->vpp_filter.vpp_hsc_start_phase_step;
 	vert_phase_step =
@@ -4141,8 +4141,8 @@ static void vd_proc_param_set(struct vd_proc_s *vd_proc)
 	}
 }
 
-/* sur_idx set to 0 for the first halft */
-/* sur_idx set to 1 for the second halft */
+/* sur_idx set to 0 for the first half */
+/* sur_idx set to 1 for the second half */
 static void vd_switch_frm_idx(u32 vpp_index, u32 frm_idx)
 {
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;

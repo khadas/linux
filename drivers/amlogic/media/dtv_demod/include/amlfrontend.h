@@ -17,7 +17,7 @@
 /*  V1.0.23  fixed code and dts CMA config          */
 /*  V1.0.24  dvbt2 add reset when unlocked for 3s   */
 /*  V1.0.25  add demod version and t2 fw version node*/
-/*  V1.0.26  weak signal sidplay after dvbs search*/
+/*  V1.0.26  weak signal display after dvbs search*/
 /*  V1.0.27  s4d remove dvbs blindscan fastsearch threadhold*/
 /*  V1.0.28  fix the hang when read mplp info in DVBT system*/
 /*  V1.0.29  add auto recognition t/t2 r842 config*/
@@ -81,7 +81,7 @@
 
 #define THRD_TUNER_STRENTH_ATSC (-87)
 #define THRD_TUNER_STRENTH_J83 (-76)
-/* tested on BTC, sensertivity of demod is -100dBm */
+/* tested on BTC, sensitivity of demod is -100dBm */
 #define THRD_TUNER_STRENTH_DVBT (-101)
 #define THRD_TUNER_STRENTH_DVBS (-79)
 #define THRD_TUNER_STRENTH_DTMB (-100)
@@ -325,7 +325,7 @@ struct aml_dtvdemod {
 
 	struct aml_demod_para_real real_para;
 
-	struct pinctrl *pin_agc;    /*agc pintrcl*/
+	struct pinctrl *pin_agc;    /*agc pinctrl*/
 	struct pinctrl *pin_diseqc_out; /*diseqc out pin*/
 	struct pinctrl *pin_diseqc_in; /*diseqc in pin*/
 

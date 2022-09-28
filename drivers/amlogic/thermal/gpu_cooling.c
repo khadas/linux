@@ -161,7 +161,7 @@ static int gpufreq_set_cur_state(struct thermal_cooling_device *cdev,
  * We set: online PP to n_c;
  *         temperature coefficient to t_c;
  *         power to p_c;
- *         current runnint frequent to F(MHz)
+ *         current running frequent to F(MHz)
  * We have:
  *     Power = n_c * t_c * F
  */

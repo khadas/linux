@@ -569,7 +569,7 @@ EXPORT_SYMBOL(auge_toacodec_ctrl_ext);
 
 void fratv_enable(bool enable)
 {
-	/* Need reset firstlry ? */
+	/* Need reset firstly ? */
 	if (enable) {
 		audiobus_update_bits(EE_AUDIO_FRATV_CTRL0,
 				     0x1 << 29, 0x1 << 29);
