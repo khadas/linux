@@ -66,8 +66,8 @@ struct src_data_para {
 	u32 canvas1Addr;
 	u32 plane_num;
 	u32 type;
-	u32 posion_x;
-	u32 posion_y;
+	u32 position_x;
+	u32 position_y;
 	u32 width;
 	u32 height;
 	u32 bitdepth;

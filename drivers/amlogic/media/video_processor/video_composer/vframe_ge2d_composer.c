@@ -621,8 +621,8 @@ int ge2d_data_composer(struct src_data_para *scr_data,
 	}
 	input_width = scr_data->width;
 	input_height = scr_data->height;
-	input_x = scr_data->posion_x;
-	input_y = scr_data->posion_y;
+	input_x = scr_data->position_x;
+	input_y = scr_data->position_y;
 
 	if (scr_data->type & VIDTYPE_INTERLACE)
 		input_height = scr_data->height >> 1;

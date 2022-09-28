@@ -1234,8 +1234,18 @@ static int config_ge2d_data(struct composer_dev *dev,
 		data->source_type = vf->source_type;
 		data->type = vf->type;
 		data->plane_num = vf->plane_num;
-		data->width = vf->width;
-		data->height = vf->height;
+		if (vf->type & VIDTYPE_COMPRESS) {
+			data->position_x = info->crop_x * vf->width / vf->compWidth;
+			data->position_y = info->crop_y * vf->height / vf->compHeight;
+			data->width = info->crop_w * vf->width / vf->compWidth;
+			data->height = info->crop_h * vf->height / vf->compHeight;
+		} else {
+			data->position_x = info->crop_x;
+			data->position_y = info->crop_y;
+			data->width = info->crop_w;
+			data->height = info->crop_h;
+		}
+
 		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 			data->is_vframe = false;
 		else
@@ -1286,8 +1296,8 @@ static int config_ge2d_data(struct composer_dev *dev,
 				| VIDTYPE_VIU_FIELD
 				| VIDTYPE_VIU_NV21;
 		data->plane_num = 2;
-		data->posion_x = info->crop_x;
-		data->posion_y = info->crop_y;
+		data->position_x = info->crop_x;
+		data->position_y = info->crop_y;
 		data->width = info->crop_w;
 		data->height = info->crop_h;
 		data->is_vframe = false;
