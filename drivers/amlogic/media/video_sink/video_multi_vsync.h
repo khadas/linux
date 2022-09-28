@@ -8,5 +8,7 @@
 
 irqreturn_t vsync_isr_viu2(int irq, void *dev_id);
 irqreturn_t vsync_isr_viu3(int irq, void *dev_id);
+void viu2_hook(void);
+void viu3_hook(void);
 #endif
 /*VIDEO_MULTI_VSYNC_HEADER_HH*/

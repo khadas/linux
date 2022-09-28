@@ -8438,6 +8438,18 @@ SET_FILTER:
 	else
 		vd_layer[0].vf_ext = NULL;
 
+	/* vout mode detection under old tunnel mode */
+	if (vd_layer[0].dispbuf &&
+		((vd_layer[0].dispbuf->type & VIDTYPE_NO_VIDEO_ENABLE) == 0)) {
+		if (strcmp(old_vmode, new_vmode)) {
+			vd_layer[0].property_changed = true;
+			vd_layer[1].property_changed = true;
+			vd_layer[2].property_changed = true;
+			pr_info("detect vout mode change!!!!!!!!!!!!\n");
+			strcpy(old_vmode, new_vmode);
+		}
+	}
+
 	/* vd1 config */
 	if (gvideo_recv[0] &&
 	    gvideo_recv[0]->path_id == vd1_path_id) {
@@ -19784,6 +19796,8 @@ int __init video_init(void)
 
 #ifdef CONFIG_AM_VOUT
 	vout_hook();
+	viu2_hook();
+	viu3_hook();
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
