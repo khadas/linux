@@ -181,7 +181,7 @@ static DEFINE_PER_CPU(unsigned long, watchdog_touch_ts);
 static DEFINE_PER_CPU(unsigned long, watchdog_report_ts);
 static DEFINE_PER_CPU(struct hrtimer, watchdog_hrtimer);
 static DEFINE_PER_CPU(bool, softlockup_touch_sync);
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
 DEFINE_PER_CPU(unsigned long, hrtimer_interrupts);
 DEFINE_PER_CPU(unsigned long, hrtimer_interrupts_saved);
 extern void watchdog_check_hardlockup_other_cpu(void);
@@ -371,7 +371,7 @@ static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
 	/* kick the hardlockup detector */
 	watchdog_interrupt_count();
 
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
 	/* test for hardlockups on the next cpu */
 	watchdog_check_hardlockup_other_cpu();
 #endif
@@ -483,7 +483,7 @@ static void watchdog_enable(unsigned int cpu)
 	/* Enable the perf event */
 	if (watchdog_enabled & NMI_WATCHDOG_ENABLED)
 		watchdog_nmi_enable(cpu);
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
 	watchdog_nmi_enable(cpu);
 #endif
 }
