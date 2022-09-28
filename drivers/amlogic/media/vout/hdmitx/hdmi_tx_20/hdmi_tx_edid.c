@@ -90,6 +90,7 @@ static unsigned char __nosavedata edid_checkvalue[4] = {0};
 static unsigned int hdmitx_edid_check_valid_blocks(unsigned char *buf);
 static void Edid_DTD_parsing(struct rx_cap *prxcap, unsigned char *data);
 static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev);
+char hdmimodepropname[20] = "null";
 
 static int xtochar(int num, unsigned char *checksum)
 {
@@ -1817,6 +1818,7 @@ static void hdmitx_edid_set_default_aud(struct hdmitx_dev *hdev)
 /* add default VICs for DVI case */
 static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 {
+	enum hdmi_vic vic;
 	struct rx_cap *prxcap = &hdmitx_device->rxcap;
 
 	prxcap->VIC_count = 0x4;
@@ -1826,8 +1828,45 @@ static void hdmitx_edid_set_default_vic(struct hdmitx_dev *hdmitx_device)
 	prxcap->VIC[3] = HDMI_1920x1080p60_16x9;
 	prxcap->native_VIC = HDMI_720x480p60_16x9;
 	hdmitx_device->vic_count = prxcap->VIC_count;
-	pr_info(EDID "set default vic\n");
+	vic = hdmitx_edid_vic_tab_map_vic(hdmimodepropname);
+	switch (vic) {
+		case HDMIV_480x320p60hz:
+		case HDMIV_640x480p60hz:
+		case HDMIV_800x480p60hz:
+		case HDMIV_800x600p60hz:
+		case HDMIV_1024x600p60hz:
+		case HDMIV_1024x768p60hz:
+		case HDMIV_1280x480p60hz:
+		case HDMIV_1280x800p60hz:
+		case HDMIV_1280x1024p60hz:
+		case HDMIV_1360x768p60hz:
+		case HDMIV_1440x900p60hz:
+		case HDMIV_1600x900p60hz:
+		case HDMIV_1600x1200p60hz:
+		case HDMIV_1680x1050p60hz:
+		case HDMIV_1920x1200p60hz:
+		case HDMIV_2560x1080p60hz:
+		case HDMIV_2560x1440p60hz:
+		case HDMIV_2560x1600p60hz:
+		case HDMIV_3440x1440p60hz:
+		prxcap->VIC_count = 0x1;
+		prxcap->VIC[0] = vic;
+		prxcap->native_VIC = vic;
+		pr_info(EDID "single resolution screen set default vic %d\n", vic);
+		break;
+		default:
+		printk("hdmi screen is not single resolution\n");
+	}
 }
+
+static int __init hdmimode_setup(char *str)
+{
+	if (str != NULL)
+		sprintf(hdmimodepropname, "%s", str);
+
+    return 0;
+}
+__setup("hdmimode=", hdmimode_setup);
 
 #if 0
 #define PRINT_HASH(hash)	\
@@ -2582,6 +2621,7 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"smpte60hz", HDMI_4096x2160p60_256x135},
 	{"2160p60hz", HDMI_4k2k_60},
 	{"2160p50hz", HDMI_4k2k_50},
+	{"480x320p60hz", HDMIV_480x320p60hz},
 	{"640x480p60hz", HDMIV_640x480p60hz},
 	{"800x480p60hz", HDMIV_800x480p60hz},
 	{"800x600p60hz", HDMIV_800x600p60hz},
@@ -2590,6 +2630,7 @@ static struct dispmode_vic dispmode_vic_tab[] = {
 	{"1024x600p60hz", HDMIV_1024x600p60hz},
 	{"1024x768p60hz", HDMIV_1024x768p60hz},
 	{"1152x864p75hz", HDMIV_1152x864p75hz},
+	{"1280x480p60hz", HDMIV_1280x480p60hz},
 	{"1280x600p60hz", HDMIV_1280x600p60hz},
 	{"1280x768p60hz", HDMIV_1280x768p60hz},
 	{"1280x800p60hz", HDMIV_1280x800p60hz},
