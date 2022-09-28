@@ -524,7 +524,6 @@ void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt)
 		0x1 << 27 | 0x7 << 24 | 0x1fff << 3,
 		0x1 << 27 | fmt->endian << 24 | fmt->type << 13 |
 		fmt->msb << 8 | fmt->lsb << 3);
-
 	/* bit 0-7: chnum_max, same with record channels */
 	if (to->chipinfo && to->chipinfo->chnum_sync) {
 		bool chsync_enable = true;
@@ -895,7 +894,8 @@ static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_
 	mutex_lock(&p_attach_resample->lock);
 	/* channels and bit depth for resample */
 	/*&& (to->src == SPDIFIN)*/
-	if (to->chipinfo && to->chipinfo->asrc_only_left_j && bitwidth == 32) {
+	enable = get_resample_enable(p_attach_resample->id);
+	if (enable && to->chipinfo && to->chipinfo->asrc_only_left_j && bitwidth == 32) {
 		struct aml_audio_controller *actrl = to->actrl;
 		unsigned int reg_base = to->reg_base;
 		unsigned int reg;
@@ -942,7 +942,6 @@ static void aml_resample_enable(struct toddr *to, struct toddr_attach *p_attach_
 		resample_format_set(p_attach_resample->id, to->fmt.ch_num, bitwidth);
 	}
 
-	enable = get_resample_enable(p_attach_resample->id);
 	if (p_attach_resample->resample_version >= T5_RESAMPLE &&
 	    p_attach_resample->id == RESAMPLE_A) {
 		aml_toddr_select_src(to, RESAMPLEA);
