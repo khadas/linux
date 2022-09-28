@@ -1396,6 +1396,34 @@ static void meson_plane_add_occupied_property(struct drm_device *drm_dev,
 	}
 }
 
+static const u32 meson_plane_fb_size_list[] = {
+	1080 << 16 | 1920,
+	2160 << 16 | 3840,
+};
+
+static void meson_plane_add_max_fb_property(struct drm_device *drm_dev,
+					    struct am_osd_plane *osd_plane)
+{
+	int ret;
+	u32 size_index, max_fb_size;
+	struct drm_property *prop;
+
+	ret = of_property_read_u32(drm_dev->dev->of_node, "max_fb_size", &size_index);
+	if (ret)
+		max_fb_size = meson_plane_fb_size_list[0];
+	else
+		max_fb_size = meson_plane_fb_size_list[size_index];
+
+	prop = drm_property_create_range(drm_dev, DRM_MODE_PROP_IMMUTABLE,
+					"max_fb_size", 0, UINT_MAX);
+	if (prop) {
+		osd_plane->max_fb_property = prop;
+		drm_object_attach_property(&osd_plane->base.base, prop, max_fb_size);
+	} else {
+		DRM_ERROR("Failed to create max_fb property\n");
+	}
+}
+
 static void meson_plane_get_primary_plane(struct meson_drm *priv,
 			enum drm_plane_type *type)
 {
@@ -1500,6 +1528,7 @@ static struct am_osd_plane *am_osd_plane_create(struct meson_drm *priv,
 				BIT(DRM_SCALING_FILTER_3POINT_BSPLINE) |
 				BIT(DRM_SCALING_FILTER_REPEATE));
 	meson_plane_add_occupied_property(priv->drm, osd_plane);
+	meson_plane_add_max_fb_property(priv->drm, osd_plane);
 	DRM_INFO("osd plane %d create done, occupied-%d crtcmask-%d type-%d\n",
 		i, osd_plane->osd_occupied, crtc_mask, type);
 	return osd_plane;
