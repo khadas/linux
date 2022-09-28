@@ -1451,7 +1451,7 @@
 		};
 		partition@9 {
 			label = "boot";
-			reg = <0x0 0x1400000>;
+			reg = <0x0 0x2200000>;
 		};
 		partition@10 {
 			label = "system";
@@ -1462,6 +1462,10 @@
 			reg = <0x0 0x1000000>;
 		};
 		partition@12 {
+			label = "vbmeta";
+			reg = <0x0 0x0100000>;
+		};
+		partition@13 {
 			label = "data";
 			reg = <0x0 0xffffffff>;
 		};
