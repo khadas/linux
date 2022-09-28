@@ -236,14 +236,13 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
 static void untrack_owner(struct evl_mutex *mutex)
 {
 	struct evl_thread *prev = mutex->owner;
-	unsigned long flags;
 
 	assert_hard_lock(&mutex->lock);
 
 	if (prev) {
-		raw_spin_lock_irqsave(&prev->tracking_lock, flags);
+		raw_spin_lock(&prev->tracking_lock);
 		list_del(&mutex->next_tracker);
-		raw_spin_unlock_irqrestore(&prev->tracking_lock, flags);
+		raw_spin_unlock(&prev->tracking_lock);
 		evl_put_element(&prev->element);
 		mutex->owner = NULL;
 	}
