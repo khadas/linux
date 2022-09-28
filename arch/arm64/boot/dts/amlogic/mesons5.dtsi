@@ -2028,7 +2028,7 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 		dct = <0>;//decontour disable
-		hf	= <0>; //enable aisr
+		hf	= <2>; //enable aisr
 		en_4k = <1>;
 		alloc_sct = <1>;
 		po_fmt = <6>;
