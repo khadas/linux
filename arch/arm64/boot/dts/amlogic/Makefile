@@ -100,3 +100,6 @@ dtb-y += axg_s420.dtb
 dtb-y += axg_s400.dtb
 dtb-y += axg_s420_emmc.dtb
 dtb-y += axg_s400_emmc.dtb
+dtb-y += axg_s400_v03.dtb
+dtb-y += axg_s400_v03sbr.dtb
+dtb-y += axg_s420_v03.dtb
