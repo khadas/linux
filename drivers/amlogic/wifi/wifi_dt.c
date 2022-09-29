@@ -332,7 +332,7 @@ static long wifi_power_ioctl(struct file *filp,
 		mdelay(200);
 		set_usb_wifi_power(1);
 		mdelay(200);
-		pci_reinit();
+//		pci_reinit();
 		WIFI_INFO("Set sdio wifi power up!\n");
 		break;
 	case WIFI_POWER_DOWN:

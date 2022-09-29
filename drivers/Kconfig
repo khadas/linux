@@ -208,4 +208,6 @@ source "drivers/tee/Kconfig"
 
 source "drivers/gpu/arm/Kconfig"
 
+source "drivers/pcie_mhi/Kconfig"
+
 endmenu
