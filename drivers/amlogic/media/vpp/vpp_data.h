@@ -15,6 +15,8 @@ struct data_vs_param_s {
 
 int vpp_data_init(struct vpp_dev_s *pdev);
 void vpp_data_updata_reg_lc(struct vpp_lc_param_s *pdata);
+void vpp_data_updata_reg_sharpness0(struct vpp_sharpness0_param_s *pdata);
+void vpp_data_updata_reg_sharpness1(struct vpp_sharpness1_param_s *pdata);
 void vpp_data_on_vs(struct data_vs_param_s *pvs_param);
 
 #endif
