@@ -1218,7 +1218,7 @@ static const char * const pcieck_reqn_groups[] = {
 static const char * const iso7816_groups[] = {
 	"iso7816_clk_c", "iso7816_clk_h", "iso7816_data_c", "iso7816_clk_x",
 	"iso7816_data_x", "iso7816_data_h", "iso7816_clk_z0",
-	"iso7816_clk_z8", "iso7816_data_z1", "is7816_data_z9",
+	"iso7816_clk_z8", "iso7816_data_z1", "iso7816_data_z9",
 };
 
 static const char * const hdmitx_groups[] = {
