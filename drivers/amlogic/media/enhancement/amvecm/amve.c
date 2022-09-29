@@ -117,7 +117,7 @@ module_param(dnlp_en, int, 0664);
 MODULE_PARM_DESC(dnlp_en, "\n enable or disable dnlp\n");
 static int dnlp_status = 1;/* 0:done;1:todo */
 
-int dnlp_en_2;/* 0:disable;1:enable */
+int dnlp_en_2 = 1;/* 0:disable;1:enable */
 module_param(dnlp_en_2, int, 0664);
 MODULE_PARM_DESC(dnlp_en_2, "\n enable or disable dnlp\n");
 
@@ -267,7 +267,7 @@ static void ve_dnlp_load_def_reg(void)
 
 void ve_on_vs(struct vframe_s *vf)
 {
-	if (dnlp_en_2 || ve_en) {
+	if (dnlp_en_2) {
 		/* calculate dnlp target data */
 		if (ve_dnlp_calculate_tgtx(vf)) {
 			/* calculate dnlp low-pass-filter data */
@@ -994,6 +994,12 @@ void ve_dnlp_latch_process(void)
 		vecm_latch_flag &= ~FLAG_VE_NEW_DNLP;
 		ve_set_v3_dnlp(&dnlp_curve_param_load);
 	}
+
+	if (vecm_latch_flag2 & BLE_WHE_UPDATE) {
+		vecm_latch_flag2 &= ~BLE_WHE_UPDATE;
+		ble_whe_param_update(&ble_whe_param_load);
+	}
+
 	if (dnlp_en && dnlp_status) {
 		dnlp_status = 0;
 		ve_set_dnlp_2();

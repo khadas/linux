@@ -151,6 +151,15 @@ struct dnlp_dbg_print_s {
 	int *dnlp_printk;
 };
 
+struct ble_whe_param_s {
+	int blk_adj_en;
+	int blk_end;
+	int blk_slp;
+	int brt_adj_en;
+	int brt_start;
+	int brt_slp;
+};
+
 struct dnlp_alg_s {
 	void (*dnlp_algorithm_main)(unsigned int raw_hst_sum);
 	void (*dnlp_para_set)(struct dnlp_alg_output_param_s **dnlp_output,
@@ -158,7 +167,8 @@ struct dnlp_alg_s {
 			      struct dnlp_dbg_rw_param_s **rw_param,
 			      struct dnlp_dbg_ro_param_s **ro_param,
 			      struct param_for_dnlp_s **rw_node,
-			      struct dnlp_dbg_print_s **dbg_print);
+			      struct dnlp_dbg_print_s **dbg_print,
+			      struct ble_whe_param_s **ble_whe_param);
 	void (*dnlp3_param_refresh)(void);
 };
 

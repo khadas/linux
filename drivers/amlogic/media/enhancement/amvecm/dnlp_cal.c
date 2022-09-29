@@ -64,6 +64,7 @@ static struct dnlp_alg_output_param_s *dnlp_alg_output;
 static struct dnlp_dbg_ro_param_s *dnlp_dbg_ro_param;
 static struct dnlp_dbg_rw_param_s *dnlp_dbg_rw_param;
 static struct dnlp_dbg_print_s *dnlp_dbg_printk;
+static struct ble_whe_param_s *ble_whe_param;
 
 int *dnlp_scurv_low_copy;
 int *dnlp_scurv_mid1_copy;
@@ -107,6 +108,7 @@ bool *menu_chg_en_copy;
 struct dnlp_alg_param_s dnlp_alg_param;
 struct param_for_dnlp_s *dnlp_alg_node_copy;
 struct ve_dnlp_curve_param_s dnlp_curve_param_load;
+struct ve_ble_whe_param_s ble_whe_param_load;
 struct dnlp_parse_cmd_s dnlp_parse_cmd[] = {
 	{"alg_enable", &dnlp_alg_param.dnlp_alg_enable},
 	{"respond", &dnlp_alg_param.dnlp_respond},
@@ -243,6 +245,16 @@ void dnlp_dbg_node_copy(void)
 	       sizeof(struct dnlp_alg_param_s));
 }
 
+void ble_whe_param_init(void)
+{
+	ble_whe_param_load.blk_adj_en = ble_whe_param->blk_adj_en;
+	ble_whe_param_load.blk_end = ble_whe_param->blk_end;
+	ble_whe_param_load.blk_slp = ble_whe_param->blk_slp;
+	ble_whe_param_load.brt_adj_en = ble_whe_param->brt_adj_en;
+	ble_whe_param_load.brt_start = ble_whe_param->brt_start;
+	ble_whe_param_load.brt_slp = ble_whe_param->brt_slp;
+}
+
 void dnlp_alg_param_init(void)
 {
 	if (!dnlp_alg_function)
@@ -332,10 +344,11 @@ void dnlp_alg_param_init(void)
 	if (dnlp_alg_function) {
 		dnlp_alg_function->dnlp_para_set(&dnlp_alg_output,
 			&dnlp_alg_input, &dnlp_dbg_rw_param, &dnlp_dbg_ro_param,
-			&dnlp_alg_node_copy, &dnlp_dbg_printk);
+			&dnlp_alg_node_copy, &dnlp_dbg_printk, &ble_whe_param);
 
 		dnlp_alg_param_copy();
 		dnlp_dbg_node_copy();
+		ble_whe_param_init();
 
 		dnlp_insmod_ok = 1;
 		pr_info("%s: is ok\n", __func__);
@@ -759,6 +772,7 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 	dnlp_sel = p->param[ve_dnlp_sel];
 
 	/* hist auto range parms */
+	dnlp_alg_param.dnlp_alg_enable = p->param[ve_dnlp_enable];
 	dnlp_alg_param.dnlp_lowrange = p->param[ve_dnlp_lowrange];
 	dnlp_alg_param.dnlp_hghrange = p->param[ve_dnlp_hghrange];
 	dnlp_alg_param.dnlp_auto_rng = p->param[ve_dnlp_auto_rng];
@@ -879,6 +893,10 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 	if (dnlp_insmod_ok == 0)
 		return;
 
+	if (dnlp_dbg_print & 4)
+		pr_info("ve_en = %d, dnlp_sel = %d, dnlp_alg_enable = %d\n",
+			ve_en, dnlp_sel, dnlp_alg_param.dnlp_alg_enable);
+
 	dnlp_dbg_node_copy();
 
 	if (ve_en) {
@@ -900,6 +918,25 @@ void ve_set_v3_dnlp(struct ve_dnlp_curve_param_s *p)
 	} else {
 		/* disable dnlp */
 		ve_disable_dnlp();
+	}
+}
+
+void ble_whe_param_update(struct ve_ble_whe_param_s *p)
+{
+	ble_whe_param->blk_adj_en = p->blk_adj_en;
+	ble_whe_param->blk_end = p->blk_end;
+	ble_whe_param->blk_slp = p->blk_slp;
+	ble_whe_param->brt_adj_en = p->brt_adj_en;
+	ble_whe_param->brt_slp = p->brt_slp;
+	ble_whe_param->brt_start = p->brt_start;
+
+	if (dnlp_dbg_print & 4) {
+		pr_info("blk_adj_en = %d\n", ble_whe_param->blk_adj_en);
+		pr_info("blk_end = %d\n", ble_whe_param->blk_end);
+		pr_info("blk_slp = %d\n", ble_whe_param->blk_slp);
+		pr_info("brt_adj_en = %d\n", ble_whe_param->brt_adj_en);
+		pr_info("brt_slp = %d\n", ble_whe_param->brt_slp);
+		pr_info("brt_start = %d\n", ble_whe_param->brt_start);
 	}
 }
 

@@ -2592,8 +2592,9 @@ static long amvecm_ioctl(struct file *file,
 	struct primary_s color_pr;
 	struct video_color_matrix gamut_mtx;
 	int cm_color = 0;
-	struct color_tune_parm_s ct_param;
+	struct ve_ble_whe_param_s ble_whe;
 	struct color_param_s ct_parm1;
+	struct color_tune_parm_s ct_param;
 
 	if (debug_amvecm & 2)
 		pr_info("[amvecm..] %s: cmd_nr = 0x%x\n",
@@ -3463,6 +3464,19 @@ static long amvecm_ioctl(struct file *file,
 			pr_amvecm_dbg("gamut matrix copy to user fail\n");
 		} else {
 			pr_amvecm_dbg("gamut matrix copy to user success\n");
+		}
+		break;
+	case AMVECM_IOC_S_BLE_WHE:
+		if (copy_from_user(&ble_whe,
+			(void __user *)arg,
+			sizeof(struct ve_ble_whe_param_s))) {
+			ret = -EFAULT;
+			pr_amvecm_dbg("ble whe copy from user fail\n");
+		} else {
+			memcpy(&ble_whe_param_load, &ble_whe,
+				sizeof(struct ve_ble_whe_param_s));
+			vecm_latch_flag2 |= BLE_WHE_UPDATE;
+			pr_amvecm_dbg("ble whe set success\n");
 		}
 		break;
 	default:
@@ -6141,6 +6155,133 @@ static ssize_t amvecm_dma_buf_store(struct class *cla,
 	write_dma_buf((u32)table_offset, (u32)tbl_id, (u32)value);
 
 	kfree(buf_orig);
+	return count;
+}
+
+static ssize_t amvecm_ble_whe_dbg_show(struct class *cla,
+	struct class_attribute *attr, char *buf)
+{
+	ssize_t len = 0;
+
+	if (dnlp_dbg_flag & BLK_ADJ_EN) {
+		dnlp_dbg_flag &= ~BLK_ADJ_EN;
+		len += sprintf(buf + len, "blk_adj_en = %d\n",
+			ble_whe_param_load.blk_adj_en);
+	}
+
+	if (dnlp_dbg_flag & BLK_END) {
+		dnlp_dbg_flag &= ~BLK_END;
+		len += sprintf(buf + len, "blk_end = %d\n",
+			ble_whe_param_load.blk_end);
+	}
+
+	if (dnlp_dbg_flag & BLK_SLP) {
+		dnlp_dbg_flag &= ~BLK_SLP;
+		len += sprintf(buf + len, "blk_slp = %d\n",
+			ble_whe_param_load.blk_slp);
+	}
+
+	if (dnlp_dbg_flag & BRT_ADJ_EN) {
+		dnlp_dbg_flag &= ~BRT_ADJ_EN;
+		len += sprintf(buf + len, "brt_adj_en = %d\n",
+			ble_whe_param_load.brt_adj_en);
+	}
+
+	if (dnlp_dbg_flag & BRT_START) {
+		dnlp_dbg_flag &= ~BRT_START;
+		len += sprintf(buf + len, "brt_start = %d\n",
+			ble_whe_param_load.brt_start);
+	}
+
+	if (dnlp_dbg_flag & BRT_SLP) {
+		dnlp_dbg_flag &= ~BRT_SLP;
+		len += sprintf(buf + len, "brt_slp = %d\n",
+			ble_whe_param_load.brt_slp);
+	}
+
+	return len;
+}
+
+static ssize_t amvecm_ble_whe_dbg_store(struct class *cla,
+	struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	long val = 0;
+	char *buf_orig, *parm[8] = {NULL};
+
+	if (!buf)
+		return count;
+
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param_amvecm(buf_orig, (char **)&parm);
+
+	if (!strcmp(parm[0], "blk_adj_en")) {
+		if (!parm[1]) {
+			dnlp_dbg_flag |= BLK_ADJ_EN;
+			goto for_read;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		ble_whe_param_load.blk_adj_en = (int)val;
+		pr_info("blk_adj_en = %d\n", (int)val);
+	} else if (!strcmp(parm[0], "blk_end")) {
+		if (!parm[1]) {
+			dnlp_dbg_flag |= BLK_END;
+			goto for_read;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		ble_whe_param_load.blk_end = (int)val;
+		pr_info("blk_end = %d\n", (int)val);
+	} else if (!strcmp(parm[0], "blk_slp")) {
+		if (!parm[1]) {
+			dnlp_dbg_flag |= BLK_SLP;
+			goto for_read;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		ble_whe_param_load.blk_slp = (int)val;
+		pr_info("blk_slp = %d\n", (int)val);
+	} else if (!strcmp(parm[0], "brt_adj_en")) {
+		if (!parm[1]) {
+			dnlp_dbg_flag |= BRT_ADJ_EN;
+			goto for_read;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		ble_whe_param_load.brt_adj_en = (int)val;
+		pr_info("brt_adj_en = %d\n", (int)val);
+	} else if (!strcmp(parm[0], "brt_start")) {
+		if (!parm[1]) {
+			dnlp_dbg_flag |= BRT_START;
+			goto for_read;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		ble_whe_param_load.brt_start = (int)val;
+		pr_info("brt_start = %d\n", (int)val);
+	} else if (!strcmp(parm[0], "brt_slp")) {
+		if (!parm[1]) {
+			dnlp_dbg_flag |= BRT_SLP;
+			goto for_read;
+		}
+		if (kstrtoul(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		ble_whe_param_load.brt_slp = (int)val;
+		pr_info("brt_slp = %d\n", (int)val);
+	} else if (!strcmp(parm[0], "read_param")) {
+		pr_info("blk_adj_en = %d\n", ble_whe_param_load.blk_adj_en);
+		pr_info("blk_end = %d\n", ble_whe_param_load.blk_end);
+		pr_info("blk_slp = %d\n", ble_whe_param_load.blk_slp);
+		pr_info("brt_adj_en = %d\n", ble_whe_param_load.brt_adj_en);
+		pr_info("brt_start = %d\n", ble_whe_param_load.brt_start);
+		pr_info("brt_slp = %d\n", ble_whe_param_load.brt_slp);
+	}
+
+	vecm_latch_flag2 |= BLE_WHE_UPDATE;
+	return count;
+
+for_read:
 	return count;
 }
 
@@ -10389,6 +10530,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(dma_buf, 0664,
 		amvecm_dma_buf_show,
 		amvecm_dma_buf_store),
+	__ATTR(ble_whe_dbg, 0644,
+		amvecm_ble_whe_dbg_show,
+		amvecm_ble_whe_dbg_store),
 	__ATTR_NULL
 };
 

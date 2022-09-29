@@ -159,6 +159,8 @@ extern unsigned int *ve_dnlp_tgt_10b_copy;
 void dnlp_dbg_node_copy(void);
 extern bool dnlp_insmod_ok; /*0:fail, 1:ok*/
 extern int *dnlp_printk_copy;
+extern struct ve_ble_whe_param_s ble_whe_param_load;
 void ai_dnlp_param_update(int value);
+void ble_whe_param_update(struct ve_ble_whe_param_s *p);
 #endif
 

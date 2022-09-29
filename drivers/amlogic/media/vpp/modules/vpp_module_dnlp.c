@@ -77,6 +77,7 @@ static struct dnlp_dbg_ro_param_s *pdnlp_dbg_ro_param;
 static struct dnlp_dbg_rw_param_s *pdnlp_dbg_rw_param;
 static struct param_for_dnlp_s *pdnlp_alg_node_param;
 static struct dnlp_dbg_print_s *pdnlp_dbg_printk;
+static struct ble_whe_param_s *ble_whe_param;
 
 /*For ai pq*/
 static struct dnlp_ai_pq_param_s dnlp_ai_pq_offset;
@@ -560,7 +561,7 @@ static void _dnlp_algorithm_init(void)
 	if (pdnlp_alg_function) {
 		pdnlp_alg_function->dnlp_para_set(&pdnlp_alg_output, &pdnlp_alg_input,
 			&pdnlp_dbg_rw_param, &pdnlp_dbg_ro_param,
-			&pdnlp_alg_node_param, &pdnlp_dbg_printk);
+			&pdnlp_alg_node_param, &pdnlp_dbg_printk, &ble_whe_param);
 
 		pdnlp_alg_node_param->dnlp_alg_enable = 0;
 		pdnlp_alg_node_param->dnlp_respond = 0;

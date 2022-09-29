@@ -232,6 +232,15 @@ struct ve_lc_curve_parm_s {
 	unsigned int param[100];
 };
 
+struct ve_ble_whe_param_s {
+	int blk_adj_en;
+	int blk_end;
+	int blk_slp;
+	int brt_adj_en;
+	int brt_start;
+	int brt_slp;
+};
+
 enum lc_alg_param_e {
 	lc_dbg_parm0 = 0,
 	lc_dbg_parm1,

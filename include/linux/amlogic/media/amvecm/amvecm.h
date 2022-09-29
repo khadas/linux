@@ -108,7 +108,8 @@ void amdv_set_toggle_flag(int flag);
  *#define VPP_VADJ1_BLMINUS_EN        (1 << 1)
  *#define VPP_VADJ1_EN                (1 << 0)
  */
-#define LUT3D_UPDATE                BIT(13)
+#define LUT3D_UPDATE                BIT(14)
+#define BLE_WHE_UPDATE              BIT(13)
 #define GAMMA_CRC_FAIL              BIT(12)
 #define GAMMA_CRC_PASS              BIT(11)
 #define GAMMA_READ_B                BIT(10)
@@ -170,6 +171,13 @@ void amdv_set_toggle_flag(int flag);
 #define LC_CUR_RD_UPDATE 0x8
 #define LC_PARAM_RD_UPDATE 0x10
 #define LC_CUR2_RD_UPDATE 0x20
+
+#define BLK_ADJ_EN        0x40
+#define BLK_END           0x80
+#define BLK_SLP           0x100
+#define BRT_ADJ_EN        0x200
+#define BRT_START         0x400
+#define BRT_SLP           0x800
 
 #define CM_SAT_DEBUG_FLAG 0x1
 #define CM_HUE_DEBUG_FLAG 0x2
@@ -265,7 +273,7 @@ void amdv_set_toggle_flag(int flag);
 #define AMVECM_IOC_COLOR_MTX_EN			_IO(_VE_CM, 0x80)
 #define AMVECM_IOC_S_COLOR_MATRIX_DATA		_IOW(_VE_CM, 0x81, struct video_color_matrix)
 #define AMVECM_IOC_G_COLOR_MATRIX_DATA		_IOR(_VE_CM, 0x82, struct video_color_matrix)
-
+#define AMVECM_IOC_S_BLE_WHE			_IOW(_VE_CM, 0x83, struct ve_ble_whe_param_s)
 
 struct tcon_gamma_table_s {
 	u16 data[257];
@@ -798,6 +806,7 @@ extern unsigned int vecm_latch_flag2;
 extern enum ecm_color_type cm_cur_work_color_md;
 extern int cm2_debug;
 extern int bs_3dlut_en;
+extern unsigned int vecm_latch_flag2;
 
 extern unsigned int ct_en;
 void bs_ct_latch(void);
