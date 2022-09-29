@@ -2387,6 +2387,7 @@ static int video_composer_thread(void *data)
 			empty_ready_queue(dev);
 			dev->last_file = NULL;
 			dev->fake_vf.flag |= VFRAME_FLAG_FAKE_FRAME;
+			dev->fake_vf.vf_ext = NULL;
 			dev->fake_back_vf = dev->fake_vf;
 			if (!kfifo_put(&dev->ready_q,
 				       &dev->fake_back_vf))
