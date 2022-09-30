@@ -374,7 +374,6 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 	u8 i;
 	int crtc_index;
 	struct meson_vpu_sub_pipeline_state *mvsps;
-	struct drm_display_mode *mode;
 
 	mvps->num_plane = 0;
 	mvps->num_plane_video = 0;
@@ -382,10 +381,7 @@ static void vpu_pipeline_planes_calc(struct meson_vpu_pipeline *pipeline,
 	for (i = 0; i < MESON_MAX_CRTC; i++) {
 		mvsps = &mvps->sub_states[i];
 		mvsps->enable_blocks = 0;
-		mode = &pipeline->subs[i].mode;
-		if (mode->hdisplay > 3840 || mode->vdisplay > 2160)
-			mvsps->more_4k = 1;
-		if (mode->vrefresh > 60 || osd_slice_mode)
+		if (osd_slice_mode)
 			mvsps->more_60 = 1;
 	}
 

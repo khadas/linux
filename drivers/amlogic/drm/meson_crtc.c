@@ -500,12 +500,24 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state)
 {
+	int ret;
+	struct meson_vpu_pipeline_state *mvps;
+	struct meson_vpu_sub_pipeline_state *mvsps;
+	struct drm_display_mode *mode;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct am_meson_crtc_state *cur_state =
 		to_am_meson_crtc_state(crtc->state);
 	struct am_meson_crtc_state *new_state =
 		to_am_meson_crtc_state(crtc_state);
-	int ret = 0;
+
+	ret = 0;
+	mvps = meson_vpu_pipeline_get_state(amcrtc->pipeline, crtc_state->state);
+	mvsps = &mvps->sub_states[crtc->index];
+	mode = &crtc_state->mode;
+	if (mode->hdisplay > 3840 || mode->vdisplay > 2160)
+		mvsps->more_4k = 1;
+	if (mode->vrefresh > 60)
+		mvsps->more_60 = 1;
 
 	/*apply parameters need modeset.*/
 	if (crtc_state->state->allow_modeset) {
