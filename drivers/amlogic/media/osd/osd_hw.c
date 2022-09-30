@@ -4816,6 +4816,8 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE) {
 		u32 output_index = VIU1;
 		u32 background_w = 0, background_h = 0;
+		u32 position_x = 0, position_y = 0;
+		u32 position_w = 0, position_h = 0;
 
 		background_w =
 			osd_hw.free_src_data[index].x_end -
@@ -4824,11 +4826,24 @@ static void osd_set_free_scale_enable_mode1(u32 index, u32 enable)
 			osd_hw.free_src_data[index].y_end -
 			osd_hw.free_src_data[index].y_start + 1;
 
+		position_x = osd_hw.free_dst_data[index].x_start;
+		position_y = osd_hw.free_dst_data[index].y_start;
+		position_w = osd_hw.free_dst_data[index].x_end -
+			osd_hw.free_dst_data[index].x_start + 1;
+		position_h = osd_hw.free_dst_data[index].y_end -
+			osd_hw.free_dst_data[index].y_start + 1;
+
 		output_index = get_output_device_id(index);
 		osd_hw.disp_info[output_index].background_w =
 			background_w;
 		osd_hw.disp_info[output_index].background_h =
 			background_h;
+
+		osd_hw.disp_info[output_index].position_x = position_x;
+		osd_hw.disp_info[output_index].position_y = position_x;
+		osd_hw.disp_info[output_index].position_w = position_w;
+		osd_hw.disp_info[output_index].position_h = position_h;
+
 		osd_setting_default_hwc();
 	}
 
@@ -5015,6 +5030,40 @@ void osd_set_window_axis_hw(u32 index, s32 x0, s32 y0, s32 x1, s32 y1)
 		temp_y0 = y0;
 		temp_y1 = y1;
 	}
+
+	/* use pi to scale up 2X for w and h */
+	if (get_osd_hwc_type(index) != OSD_G12A_NEW_HWC) {
+		if (osd_hw.osd_meson_dev.has_pi) {
+			u32 w = x1 - x0 + 1;
+			u32 h = temp_y1 - temp_y0 + 1;
+
+			if (!osd_pi_debug) {
+				if ((w > 3840 && h > 2160) ||
+				    (w > 4096 && h > 2160))
+					osd_hw.pi_enable = 1;
+				else
+					osd_hw.pi_enable = 0;
+			} else {
+				osd_hw.pi_enable = osd_pi_enable;
+			}
+
+			if (osd_hw.pi_enable) {
+				osd_hw.pi_out.x_start = x0;
+				osd_hw.pi_out.x_end = x1;
+				osd_hw.pi_out.y_start = temp_y0;
+				osd_hw.pi_out.y_end = temp_y1;
+
+				w /= 2;
+				h /= 2;
+
+				x0 /= 2;
+				x1 = x0 + w - 1;
+				temp_y0 /= 2;
+				temp_y1 = temp_y0 + h - 1;
+			}
+		}
+	}
+
 	osd_hw.free_dst_data[index].y_start = temp_y0;
 	osd_hw.free_dst_data[index].y_end = temp_y1;
 	osd_hw.free_dst_data[index].x_start = x0;
@@ -8654,7 +8703,7 @@ static int osd_setting_blending_scope(u32 index)
 		return -1;
 	}
 
-	if (index == OSD1) {
+	if (index == OSD1 && !osd_dev_hw.s5_display) {
 		bld_osd_h_start =
 			osd_hw.free_src_data[index].x_start;
 		bld_osd_h_end =
@@ -8721,14 +8770,21 @@ static int vpp_blend_setting_default(u32 index)
 		return -1;
 	}
 	if (osd_hw.free_scale_enable[index]) {
-		osd1_dst_h = osd_hw.free_dst_data[index].x_end
-			- osd_hw.free_dst_data[index].x_start + 1;
-		osd1_dst_v = osd_hw.free_dst_data[index].y_end
-			- osd_hw.free_dst_data[index].y_start + 1;
-		osd1_h_start = osd_hw.free_dst_data[index].x_start;
-		osd1_h_end = osd_hw.free_dst_data[index].x_end;
-		osd1_v_start = osd_hw.free_dst_data[index].y_start;
-		osd1_v_end = osd_hw.free_dst_data[index].y_end;
+		if (osd_hw.pi_enable) {
+			osd1_h_start = osd_hw.pi_out.x_start;
+			osd1_h_end   = osd_hw.pi_out.x_end;
+			osd1_v_start = osd_hw.pi_out.y_start;
+			osd1_v_end   = osd_hw.pi_out.y_end;
+		} else {
+			osd1_dst_h = osd_hw.free_dst_data[index].x_end
+				- osd_hw.free_dst_data[index].x_start + 1;
+			osd1_dst_v = osd_hw.free_dst_data[index].y_end
+				- osd_hw.free_dst_data[index].y_start + 1;
+			osd1_h_start = osd_hw.free_dst_data[index].x_start;
+			osd1_h_end = osd_hw.free_dst_data[index].x_end;
+			osd1_v_start = osd_hw.free_dst_data[index].y_start;
+			osd1_v_end = osd_hw.free_dst_data[index].y_end;
+		}
 	} else {
 		osd1_dst_h = osd_hw.dispdata[index].x_end
 			- osd_hw.dispdata[index].x_start + 1;
@@ -8740,6 +8796,16 @@ static int vpp_blend_setting_default(u32 index)
 		osd1_v_end = osd_hw.dispdata[index].y_end;
 	}
 
+	if (osd_hw.osd_meson_dev.has_pi) {
+		if (osd_hw.pi_enable) {
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(OSD_PI_BYPASS_EN, 0, 0, 1);
+		} else {
+			osd_hw.osd_rdma_func[output_index].osd_rdma_wr_bits
+				(OSD_PI_BYPASS_EN, 1, 0, 1);
+		}
+		osd_log_dbg(MODULE_BASE, "pi_enable:%d\n", osd_hw.pi_enable);
+	}
 	/* setting blend scope */
 	osd_hw.osd_rdma_func[output_index].osd_rdma_wr
 		(hw_osd_reg_blend.vpp_osd1_bld_h_scope,
@@ -12268,6 +12334,14 @@ static void osd_setting_default_hwc(void)
 		postbld_src3_sel = POSTBLD_OSD1_T7;
 	else
 		postbld_src3_sel = POSTBLD_OSD1;
+
+	if (osd_dev_hw.s5_display) {
+		/* OSDx to blend_din(x+1) */
+		din_reoder_sel = 0x4442;
+		/* enable din0 out only */
+		blend_din_en = 0x1;
+	}
+
 	/* depend on din0_premult_en */
 	postbld_osd1_premult = 0;
 	/* depend on din_premult_en bit 4 */
@@ -12320,8 +12394,13 @@ static void osd_setting_default_hwc(void)
 			     0x0  << 11 |
 			     0x0);
 
-	blend_hsize = osd_hw.disp_info[VIU1].background_w;
-	blend_vsize = osd_hw.disp_info[VIU1].background_h;
+	if (osd_dev_hw.s5_display) {
+		blend_hsize = osd_hw.disp_info[VIU1].position_w;
+		blend_vsize = osd_hw.disp_info[VIU1].position_h;
+	} else {
+		blend_hsize = osd_hw.disp_info[VIU1].background_w;
+		blend_vsize = osd_hw.disp_info[VIU1].background_h;
+	}
 
 	VSYNCOSD_WR_MPEG_REG(hw_osd_reg_blend.osd_blend_blend0_size,
 			     blend_vsize  << 16 |
@@ -13649,10 +13728,8 @@ static void s5_default_path_settings(void)
 	/* 2mux1, 0:use mali/mif 1:video */
 	osd_reg_set_bits(VPP_INTF_OSD3_CTRL, 0, 1, 1);
 
-	/* 1mux3,  OSD1/2/3 -> osd_blend */
-	osd_reg_set_bits(OSD_PROC_1MUX3_SEL, 2, 0, 2);
-	osd_reg_set_bits(OSD_PROC_1MUX3_SEL, 2, 2, 2);
-	osd_reg_set_bits(OSD_PROC_1MUX3_SEL, 2, 4, 2);
+	/* 1mux3, OSD1 & OSD3 -> osd_blend */
+	osd_reg_write(OSD_PROC_1MUX3_SEL, 2 << 0 | 2 << 4);
 
 	/* disable PI */
 	osd_reg_set_bits(OSD_PI_BYPASS_EN, 1, 0, 1);
