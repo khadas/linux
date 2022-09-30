@@ -939,7 +939,6 @@ static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq)
 {
 	unsigned int mpll_freq = freq *
 		mpll2dmac_clk_ratio_by_type(p_earc->tx_audio_coding_type);
-	unsigned long flags;
 
 	/* make sure mpll_freq doesn't exceed MPLL max freq */
 	while (mpll_freq > AML_MPLL_FREQ_MAX)
@@ -961,17 +960,19 @@ static void earctx_set_dmac_freq(struct earc *p_earc, unsigned int freq)
 	p_earc->tx_dmac_freq = freq;
 	clk_set_rate(p_earc->clk_tx_dmac, freq);
 
-	spin_lock_irqsave(&s_earc->tx_lock, flags);
 	if (!p_earc->tx_dmac_clk_on) {
 		int ret;
+		unsigned long flags;
 
 		ret = clk_prepare_enable(p_earc->clk_tx_dmac);
+
+		spin_lock_irqsave(&s_earc->tx_lock, flags);
 		if (ret)
 			dev_err(p_earc->dev, "Can't enable earc clk_tx_dmac: %d\n", ret);
 		else
 			p_earc->tx_dmac_clk_on = true;
+		spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 	}
-	spin_unlock_irqrestore(&s_earc->tx_lock, flags);
 }
 
 static void earctx_update_clk(struct earc *p_earc,
