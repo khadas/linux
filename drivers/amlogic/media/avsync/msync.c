@@ -38,7 +38,7 @@
 #define DEFAULT_WALL_ADJ_THRES (UNIT90K / 10) //100ms
 #define MAX_SESSION_NUM 4
 #define CHECK_INTERVAL ((HZ / 10) * 3) //300ms
-#define WAIT_INTERVAL (2 * (HZ)) //2s
+#define WAIT_INTERVAL (2000) //2s
 #define TRANSIT_INTERVAL (HZ) //1s
 #define DISC_THRE_MIN (UNIT90K / 3)
 #define DISC_THRE_MAX (UNIT90K * 20)
@@ -163,6 +163,7 @@ struct sync_session {
 	struct delayed_work transit_work;
 	bool audio_change_work_on;
 	struct delayed_work audio_change_work;
+	/* async audio start */
 	bool start_posted;
 	bool v_timeout;
 
@@ -733,6 +734,10 @@ static void session_video_start(struct sync_session *session, u32 pts)
 			if ((int)(session->first_apts.pts - pts) > 900) {
 				u32 delay = (session->first_apts.pts - pts) / 90;
 
+				if (session->start_policy.timeout != -1 &&
+						delay > session->start_policy.timeout)
+					delay = session->start_policy.timeout;
+
 				msync_dbg(LOG_INFO,
 					"[%d]%d video start %u ad %u\n",
 					session->id, __LINE__, pts, delay);
@@ -826,7 +831,8 @@ static u32 session_audio_start(struct sync_session *session,
 	mutex_lock(&session->session_mutex);
 	if (session->audio_switching) {
 		update_f_apts(session, pts);
-		if ((int)(session->wall_clock - pts) >= 0) {
+		if ((int)(session->wall_clock - pts) >= 0 ||
+				session->start_policy.policy != AMSYNC_START_ALIGN) {
 			/* audio start immediately pts to small */
 			/* (need drop) or no wait */
 			session->stat = AVS_STAT_STARTED;
@@ -838,10 +844,15 @@ static u32 session_audio_start(struct sync_session *session,
 				session->start_posted = true;
 				wakeup = true;
 			}
-		} else {
+		} else if (session->start_policy.policy == AMSYNC_START_ALIGN) {
 			// normal case, wait audio start point
 			u32 diff_ms =  (int)(pts - session->wall_clock) / 90;
-			u32 delay_jiffies = msecs_to_jiffies(diff_ms);
+			u32 delay_jiffies;
+
+			if (session->start_policy.timeout != -1 &&
+					diff_ms > jiffies_to_msecs(session->start_policy.timeout))
+				diff_ms = session->start_policy.timeout;
+			delay_jiffies = msecs_to_jiffies(diff_ms);
 
 			msync_dbg(LOG_INFO,
 				"[%d]%d audio start %u def %u ms clock %u\n",
@@ -871,7 +882,7 @@ static u32 session_audio_start(struct sync_session *session,
 				cancel_delayed_work_sync(&session->wait_work);
 			queue_delayed_work(session->wq,
 				&session->wait_work,
-				session->start_policy.timeout);
+				msecs_to_jiffies(session->start_policy.timeout));
 			session->wait_work_on = true;
 			session->stat = AVS_STAT_STARTING;
 			ret = AVS_START_ASYNC;
@@ -886,25 +897,24 @@ static u32 session_audio_start(struct sync_session *session,
 						"[%d]%d audio start %u\n",
 						session->id, __LINE__, pts);
 					session->clock_start = true;
-					session->start_posted = true;
 					session->stat = AVS_STAT_STARTED;
-					wakeup = true;
 					goto exit;
 				}
-				/* use video as start, delay audio start */
+				/* use video as start, audio will adjust wall on first PTS */
 				delay = (pts - vpts) / 90;
+				if (session->start_policy.timeout != -1 &&
+						delay > session->start_policy.timeout) {
+					msync_dbg(LOG_WARN,
+							"[%d]%d audio start %u late then video %ums\n",
+							session->id, __LINE__, pts, delay);
+				}
+
 				msync_dbg(LOG_INFO,
 					"[%d]%d audio start %u deferred %ums\n",
 					session->id, __LINE__, pts, delay);
 				session_set_wall_clock(session, vpts);
 				session->clock_start = true;
-				if (session->wait_work_on)
-					cancel_delayed_work_sync(&session->wait_work);
-				queue_delayed_work(session->wq,
-					&session->wait_work,
-					msecs_to_jiffies(delay));
-				session->wait_work_on = true;
-				session->stat = AVS_STAT_STARTING;
+				session->stat = AVS_STAT_STARTED;
 			} else {
 				session->clock_start = true;
 				session->stat = AVS_STAT_STARTED;
@@ -1102,6 +1112,8 @@ static void session_audio_stop(struct sync_session *session)
 			cancel_delayed_work_sync(&session->audio_change_work);
 			session->audio_change_work_on = false;
 		}
+		wakeup = false;
+		session->event_pending &= ~SRC_A;
 		msync_dbg(LOG_INFO, "[%d]%s audio switching stop audio\n",
 				session->id, __func__);
 	} else if (LIVE_MODE(session->mode)) {
@@ -1295,7 +1307,7 @@ static void session_update_apts(struct sync_session *session)
 			session->wall_adj_thres) {
 			unsigned long flags;
 
-			if (session->rate != 1000) {
+			if (session->rate != 1000 || session->audio_switching) {
 				msync_dbg(LOG_DEBUG,
 					"[%d]ignore reset %u --> %u\n",
 					session->id, session->wall_clock, pts);
@@ -1733,12 +1745,10 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 				session->id, policy.policy, 
 				policy.timeout, session->start_policy.timeout);
 			session->start_policy.policy = policy.policy;
-			if (policy.timeout >= 0) {
-				session->start_policy.timeout = msecs_to_jiffies(policy.timeout);
-				msync_dbg(LOG_DEBUG,
+			session->start_policy.timeout = policy.timeout;
+			msync_dbg(LOG_DEBUG,
 					"session[%d]new timeout %u.\n",
 					session->id, session->start_policy.timeout);
-			}
 		}
 		break;
 	}
@@ -2075,7 +2085,8 @@ static ssize_t session_stat_show(struct class *cla,
 		"diff-ms a-w %d v-w %d a-v %d\n"
 		"start %d r %d\n"
 		"w %x pcr(%c) %x\n"
-		"audio switch %c\n",
+		"audio switch %c\n"
+		"poll event %x\n",
 		session->id,
 		session->v_active, session->a_active, session->mode,
 		session->first_vpts.pts,
@@ -2091,7 +2102,8 @@ static ssize_t session_stat_show(struct class *cla,
 		session->wall_clock,
 		session->use_pcr ? 'y' : 'n',
 		session->pcr_clock.pts,
-		session->audio_switching ? 'y' : 'n');
+		session->audio_switching ? 'y' : 'n',
+		session->event_pending);
 }
 
 static ssize_t pcr_stat_show(struct class *cla,

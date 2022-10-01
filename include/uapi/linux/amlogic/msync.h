@@ -119,7 +119,9 @@ struct session_debug {
 struct ker_start_policy {
 	/* start policy */
 	uint32_t policy;
-	/* in audio timeout value for no video case, in ms */
+	/* in audio timeout value for no video case, in ms
+	 * -1 means ignore this value
+	 */
 	int timeout;
 };
 
