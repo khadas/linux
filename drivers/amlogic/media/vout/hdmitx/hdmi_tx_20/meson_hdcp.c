@@ -163,8 +163,13 @@ void meson_hdcp_disable(void)
 		return;
 
 	DRM_INFO("[%s]: %d\n", __func__, meson_hdcp.hdcp_execute_type);
-	/* TODO: whether to keep exe type */
-	/* if (meson_hdcp.hdcp_execute_type == HDCP_MODE22) { */
+	/* when switch mode under hdcp1.4, should not
+	 * trigger hdcp_tx22 daemon to change status.
+	 * otherwise, it may exit idle state and
+	 * enter polling(driver hdcp2.2 start) per 5ms
+	 * which cause high cpu CPU utilization
+	 */
+	if (meson_hdcp.hdcp_execute_type == HDCP_MODE22) {
 		meson_hdcp.hdcp_report = HDCP_TX22_DISCONNECT;
 		/* wait for tx22 to enter unconnected state */
 		msleep(200);
@@ -174,9 +179,9 @@ void meson_hdcp_disable(void)
 		/* wait for hdcp_tx22 stop hdcp22 done */
 		msleep(200);
 		drm_hdmitx_hdcp_disable(HDCP_MODE22);
-	/* } else if (meson_hdcp.hdcp_execute_type  == HDCP_MODE14) { */
+	} else if (meson_hdcp.hdcp_execute_type  == HDCP_MODE14) {
 		drm_hdmitx_hdcp_disable(HDCP_MODE14);
-	/* } */
+	}
 	meson_hdcp.hdcp_execute_type = HDCP_NULL;
 	meson_hdcp.hdcp_auth_result = HDCP_AUTH_UNKNOWN;
 	meson_hdcp.hdcp_en = 0;

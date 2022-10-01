@@ -41,6 +41,7 @@
 	"V03.01.01.00.01.04.10 [20221102] [EDID] adjust edid parsing for tv_ts\n" \
 	"V03.01.01.00.01.04.11 [20221111] [HPD] add hpd GPI status\n" \
 	"V03.01.01.00.01.04.12 [20221117] [BUG] remove audio mute when adaptive from sdr to hdr\n" \
-	"V03.01.01.00.01.04.13 [20221121] [NEW] add dump_debug_reg for debug\n"
+	"V03.01.01.00.01.04.13 [20221121] [NEW] add dump_debug_reg for debug\n" \
+	"V03.01.01.00.02.04.13 [20221130] [HDCP] optimise drm hdcp flow when switch mode\n"
 
 #endif // __HDMI20_VERSION_H__
