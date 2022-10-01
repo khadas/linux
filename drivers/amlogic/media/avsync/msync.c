@@ -458,6 +458,7 @@ static void wait_work_func(struct work_struct *work)
 			!session->start_posted) {
 		msync_dbg(LOG_DEBUG, "[%d]start posted\n", session->id);
 		session->start_posted = true;
+		session->stat = AVS_STAT_STARTED;
 		wake = true;
 	}
 
@@ -752,6 +753,7 @@ static void session_video_start(struct sync_session *session, u32 pts)
 				cancel_delayed_work_sync(&session->wait_work);
 				session->wait_work_on = false;
 				session->start_posted = true;
+				session->stat = AVS_STAT_STARTED;
 				wakeup = true;
 				msync_dbg(LOG_INFO, "[%d]%d video start %u\n",
 					session->id, __LINE__, pts);
@@ -842,6 +844,7 @@ static u32 session_audio_start(struct sync_session *session,
 				session->wall_clock);
 			if (!session->start_posted) {
 				session->start_posted = true;
+				session->stat = AVS_STAT_STARTED;
 				wakeup = true;
 			}
 		} else if (session->start_policy.policy == AMSYNC_START_ALIGN) {
@@ -1684,7 +1687,7 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 		bool wakeup = false;
 
 		get_user(mode, (u32 __user *)argp);
-		msync_dbg(LOG_ERR,
+		msync_dbg(LOG_INFO,
 			"session[%d] mode %d --> %d by %s\n",
 			session->id, session->mode, mode, current->comm);
 		mutex_lock(&session->session_mutex);
