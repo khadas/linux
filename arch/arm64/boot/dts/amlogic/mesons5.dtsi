@@ -2029,9 +2029,9 @@
 		pps-enable = <1>;
 		dct = <0>;//decontour disable
 		hf	= <2>; //enable aisr
-		en_4k = <1>;
-		alloc_sct = <1>;
-		po_fmt = <6>;
+		en_4k = <0>;
+		alloc_sct = <0>;
+		po_fmt = <0>;
 		/***************************************************
 		 * t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11
