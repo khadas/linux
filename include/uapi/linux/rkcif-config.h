@@ -9,11 +9,16 @@
 #include <linux/types.h>
 #include <linux/v4l2-controls.h>
 
+#ifndef VIDEO_MAX_FRAME
+#define VIDEO_MAX_FRAME			64
+#endif
+
 #define RKCIF_MAX_CSI_NUM		4
 
 #define RKCIF_API_VERSION		KERNEL_VERSION(0, 2, 0)
 
 #define V4L2_EVENT_RESET_DEV		0X1001
+#define V4L2_EVENT_EXPOSURE		0X1002
 
 #define RKCIF_CMD_GET_CSI_MEMORY_MODE \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, int)
@@ -56,6 +61,21 @@
 
 #define RKCIF_CMD_START_CAPTURE_ONE_FRAME_AOV \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 14, int)
+
+#define RKCIF_CMD_SET_EXPOSURE \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 15, struct rkcif_exp)
+
+#define RKCIF_CMD_GET_EFFECT_EXPOSURE \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 16, struct rkcif_effect_exp)
+
+#define RKCIF_CMD_ALLOC_BUF \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 17, struct rkcif_buffer_info)
+
+#define RKCIF_CMD_FREE_BUF \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 18, struct rkcif_buffer_info)
+
+#define RKCIF_CMD_GET_CONNECT_ID \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 19, int)
 
 /* cif memory mode
  * 0: raw12/raw10/raw8 8bit memory compact
@@ -118,4 +138,26 @@ enum rkcif_extraction_pattern {
 	RKCIF_EXTRACTION_PATTERN_BOTTOM_LEFT,
 	RKCIF_EXTRACTION_PATTERN_BOTTOM_RIGHT,
 };
+
+struct rkcif_exp_delay {
+	__u32 time_delay;
+	__u32 gain_delay;
+};
+
+struct rkcif_exp {
+	__u32 time;
+	__u32 gain;
+};
+
+struct rkcif_effect_exp {
+	__u32 sequence;
+	__u32 time;
+	__u32 gain;
+};
+
+struct rkcif_buffer_info {
+	__u32 buf_num;
+	int dma_fd[VIDEO_MAX_FRAME];
+};
+
 #endif
