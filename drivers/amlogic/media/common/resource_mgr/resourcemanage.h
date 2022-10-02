@@ -34,6 +34,7 @@ struct resman_para {
 			__u32 type;
 			__s32 value;
 			__s32 avail;
+			char app_name[32]; // appname that acquired this resource
 		} query;
 		struct {
 			char name[32];

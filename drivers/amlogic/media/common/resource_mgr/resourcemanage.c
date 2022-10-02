@@ -304,6 +304,32 @@ static struct resman_node *resman_find_node_by_resource_id
 	return NULL;
 }
 
+static void resman_find_appname_by_resource_name(const char *name, char *appname)
+{
+	struct list_head *pos1, *tmp1;
+	struct list_head *pos2, *tmp2;
+	struct resman_resource *resource;
+	struct resman_session *sess;
+	struct resman_node *node;
+
+	mutex_lock(&resource_lock);
+	mutex_lock(&sessions_lock);
+	list_for_each_safe(pos2, tmp2, &sessions_head) {
+		sess = list_entry(pos2, struct resman_session, list);
+		list_for_each_safe(pos1, tmp1, &sess->resources) {
+			node = list_entry(pos1, struct resman_node, rlist);
+			resource = node->resource_ptr;
+			if (resource && appname && !strcmp(name, resource->name)) {
+				dprintk(2, "acquired app_name %s\n", sess->app_name);
+				strncpy(appname, sess->app_name, STR_MAX_SIZE);
+				break;
+			}
+		}
+	}
+	mutex_unlock(&sessions_lock);
+	mutex_unlock(&resource_lock);
+}
+
 static int resman_count_codec_mm_session(bool secure)
 {
 	struct resman_resource *resource;
@@ -1825,6 +1851,12 @@ static long resman_ioctl_query(struct resman_session *sess, unsigned long para)
 		resman.v.query.value = resource->value;
 		resman.v.query.avail =
 			resource->d.counter.avail;
+		if (resman.v.query.value > 0) {
+			memset(resman.v.query.app_name, 0,
+				sizeof(resman.v.query.app_name));
+			resman_find_appname_by_resource_name(resman.v.query.name,
+				resman.v.query.app_name);
+		}
 		break;
 	case RESMAN_TYPE_CODEC_MM:
 		resman.v.query.avail =
