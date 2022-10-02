@@ -55,6 +55,7 @@
 /*  V1.1.62  implement get RSSI function for av2018 */
 /*  V1.1.63  fix dvbc 128/256qam unlock */
 /*  V1.1.64  fix atsc static echo test failed in -30us */
+/*  V1.1.65  fix locking qam64 signal failed in j83b */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -71,8 +72,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.64"
-#define DTVDEMOD_VER	"2022/09/26: fix atsc static echo test failed in -30us"
+#define AMLDTVDEMOD_VER "V1.1.65"
+#define DTVDEMOD_VER	"2022/10/02: fix locking qam64 signal failed in j83b"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
