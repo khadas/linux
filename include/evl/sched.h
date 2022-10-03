@@ -79,6 +79,7 @@ struct evl_rq {
 	struct evl_sched_tp tp;
 #endif
 	struct evl_thread root_thread;
+	struct lock_class_key root_lock_key;
 #ifdef CONFIG_EVL_RUNSTATS
 	ktime_t last_account_switch;
 	struct evl_account *current_account;
