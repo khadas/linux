@@ -192,6 +192,11 @@
 		clear_range = <0x05100000 0x200000>;
 	};
 
+	optee {
+		compatible = "linaro,optee-tz";
+		method = "smc";
+	};
+
 	meson_suspend:pm {
 		compatible = "amlogic, pm";
 		status = "okay";
