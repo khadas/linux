@@ -249,6 +249,15 @@ int evl_init_thread(struct evl_thread *thread,
 	if (ret)
 		goto err_out;
 
+	if (flags & T_ROOT) {
+		lockdep_set_class_and_name(&thread->lock, &rq->root_lock_key,
+					thread->name);
+	} else {
+		lockdep_register_key(&thread->lock_key);
+		lockdep_set_class_and_name(&thread->lock, &thread->lock_key,
+					thread->name);
+	}
+
 	trace_evl_init_thread(thread, iattr, ret);
 
 	return 0;
@@ -275,6 +284,9 @@ static void uninit_thread(struct evl_thread *thread)
 	rq = evl_get_thread_rq(thread, flags);
 	evl_forget_thread(thread);
 	evl_put_thread_rq(thread, rq, flags);
+
+	if (!(thread->state & T_ROOT))
+		lockdep_unregister_key(&thread->lock_key);
 
 	kfree(thread->name);
 }

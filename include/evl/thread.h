@@ -58,6 +58,7 @@ struct evl_init_thread_attr {
 
 struct evl_thread {
 	hard_spinlock_t lock;
+	struct lock_class_key lock_key;	/* lockdep disambiguation */
 
 	/*
 	 * Shared thread-specific data, covered by ->lock.
