@@ -1200,8 +1200,72 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 	struct rkcif_device *cif_dev = container_of(p, struct rkcif_device, pipe);
 	bool can_be_set = false;
 	int i, ret = 0;
+	u32 isp_num = 0;
 
-	if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) {
+	if (cif_dev->channels[0].capture_info.mode == RKMODULE_ONE_CH_TO_MULTI_ISP) {
+		if (!on && atomic_dec_return(&p->stream_cnt) > 0)
+			return 0;
+		if (on) {
+			atomic_inc(&p->stream_cnt);
+			isp_num = cif_dev->channels[0].capture_info.one_to_multi.isp_num;
+			if (atomic_read(&p->stream_cnt) == 1) {
+				rockchip_set_system_status(SYS_STATUS_CIF0);
+				can_be_set = false;
+			} else if (atomic_read(&p->stream_cnt) == isp_num) {
+				can_be_set = true;
+			}
+		}
+
+		if ((on && can_be_set) || !on) {
+			if (on) {
+				cif_dev->irq_stats.csi_overflow_cnt = 0;
+				cif_dev->irq_stats.csi_bwidth_lack_cnt = 0;
+				cif_dev->irq_stats.dvp_bus_err_cnt = 0;
+				cif_dev->irq_stats.dvp_line_err_cnt = 0;
+				cif_dev->irq_stats.dvp_overflow_cnt = 0;
+				cif_dev->irq_stats.dvp_pix_err_cnt = 0;
+				cif_dev->irq_stats.all_err_cnt = 0;
+				cif_dev->irq_stats.csi_size_err_cnt = 0;
+				cif_dev->irq_stats.dvp_size_err_cnt = 0;
+				cif_dev->irq_stats.dvp_bwidth_lack_cnt = 0;
+				cif_dev->irq_stats.frm_end_cnt[0] = 0;
+				cif_dev->irq_stats.frm_end_cnt[1] = 0;
+				cif_dev->irq_stats.frm_end_cnt[2] = 0;
+				cif_dev->irq_stats.frm_end_cnt[3] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[0] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[1] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[2] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[3] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[0] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[1] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[2] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[3] = 0;
+				cif_dev->reset_watchdog_timer.is_triggered = false;
+				cif_dev->reset_watchdog_timer.is_running = false;
+				cif_dev->err_state_work.last_timestamp = 0;
+				cif_dev->is_toisp_reset = false;
+				for (i = 0; i < cif_dev->num_channels; i++)
+					cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
+				cif_dev->reset_watchdog_timer.run_cnt = 0;
+			}
+
+			/* phy -> sensor */
+			for (i = 0; i < p->num_subdevs; i++) {
+				if (p->subdevs[i] == cif_dev->terminal_sensor.sd &&
+				    on &&
+				    cif_dev->is_thunderboot &&
+				    !rk_tb_mcu_is_done()) {
+					cif_dev->tb_client.data = p->subdevs[i];
+					cif_dev->tb_client.cb = rkcif_sensor_streaming_cb;
+					rk_tb_client_register_cb(&cif_dev->tb_client);
+				} else {
+					ret = v4l2_subdev_call(p->subdevs[i], video, s_stream, on);
+				}
+				if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+					goto err_stream_off;
+			}
+		}
+	} else if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) {
 		if ((on && atomic_inc_return(&p->stream_cnt) > 1) ||
 		    (!on && atomic_dec_return(&p->stream_cnt) > 0))
 			return 0;
@@ -1567,6 +1631,7 @@ static int _set_pipeline_default_fmt(struct rkcif_device *dev)
 static int subdev_asyn_register_itf(struct rkcif_device *dev)
 {
 	struct sditf_priv *sditf = NULL;
+	int i = 0;
 	int ret = 0;
 
 	ret = rkcif_update_sensor_info(&dev->stream[0]);
@@ -1575,9 +1640,13 @@ static int subdev_asyn_register_itf(struct rkcif_device *dev)
 			 "There is not terminal subdev, not synchronized with ISP\n");
 		return 0;
 	}
-	sditf = dev->sditf[0];
-	if (sditf && (!sditf->is_combine_mode) && (!dev->is_notifier_isp)) {
-		ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+
+	if (!dev->is_notifier_isp) {
+		for (i = 0; i < dev->sditf_cnt; i++) {
+			sditf = dev->sditf[i];
+			if (sditf)
+				ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+		}
 		dev->is_notifier_isp = true;
 	}
 
@@ -2035,6 +2104,320 @@ static void rkcif_deal_err_intr(struct work_struct *work)
 	rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_INTEN, CSI_BANDWIDTH_LACK_V1);
 }
 
+static void rkcif_exposure_effect_sequeue_match(struct rkcif_device *dev,
+							  struct sditf_effect_time *effect_time,
+							  struct sditf_effect_gain *effect_gain)
+{
+	struct sditf_effect_time *new_effect_time = NULL;
+	struct sditf_effect_gain *new_effect_gain = NULL;
+
+	if (effect_time->sequence < effect_gain->sequence) {
+		if (!list_empty(&dev->effect_time_head)) {
+			new_effect_time = list_first_entry(&dev->effect_time_head,
+					struct sditf_effect_time,
+					list);
+			if (new_effect_time) {
+				list_del(&new_effect_time->list);
+				kfree(effect_time);
+				effect_time = new_effect_time;
+				rkcif_exposure_effect_sequeue_match(dev, effect_time, effect_gain);
+			} else {
+				return;
+			}
+		} else {
+			return;
+		}
+	} else if (effect_time->sequence > effect_gain->sequence) {
+		if (!list_empty(&dev->effect_gain_head)) {
+			new_effect_gain = list_first_entry(&dev->effect_gain_head,
+					struct sditf_effect_gain,
+					list);
+			if (new_effect_gain) {
+				list_del(&new_effect_gain->list);
+				kfree(effect_gain);
+				effect_gain = new_effect_gain;
+				rkcif_exposure_effect_sequeue_match(dev, effect_time, effect_gain);
+			} else {
+				return;
+			}
+		} else {
+			return;
+		}
+	}
+}
+
+static void rkcif_get_cur_effect_sequeue(struct rkcif_device *dev,
+						 u32 total_sequeue,
+						 u32 *cur_sequeue,
+						 u32 *cur_id)
+{
+	u32 i = 0, pattern_cnt = 0, tmp = 0;
+	u32 tmp_pattern_cnt = 0, offset = 0;
+
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++)
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+
+	if (pattern_cnt == 0) {
+		v4l2_err(&dev->v4l2_dev, "pattern_cnt is %d, pls check it\n", pattern_cnt);
+		return;
+	}
+	*cur_sequeue = total_sequeue / pattern_cnt;
+	tmp = total_sequeue % pattern_cnt;
+	pattern_cnt = 0;
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++) {
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+		if (i > 0)
+			tmp_pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i - 1];
+		if (tmp < pattern_cnt) {
+			*cur_id = i;
+			offset = tmp - tmp_pattern_cnt;
+			break;
+		}
+	}
+	*cur_sequeue *= dev->channels[0].capture_info.one_to_multi.frame_pattern[*cur_id];
+	*cur_sequeue += offset;
+}
+
+static void rkcif_update_effect_exposure(struct rkcif_device *dev)
+{
+	struct sditf_priv *priv = NULL;
+	struct sditf_effect_exp *effect_exp = NULL;
+	struct sditf_effect_time *effect_time = NULL;
+	struct sditf_effect_gain *effect_gain = NULL;
+	u32 cur_sequeue = 0;
+	u32 cur_id = 0;
+
+	if (!list_empty(&dev->effect_time_head) && (!list_empty(&dev->effect_gain_head))) {
+		effect_time = list_first_entry(&dev->effect_time_head,
+					struct sditf_effect_time,
+					list);
+		if (effect_time)
+			list_del(&effect_time->list);
+
+		effect_gain = list_first_entry(&dev->effect_gain_head,
+					struct sditf_effect_gain,
+					list);
+		if (effect_gain)
+			list_del(&effect_gain->list);
+	}
+
+	if (effect_time && effect_gain) {
+		rkcif_exposure_effect_sequeue_match(dev, effect_time, effect_gain);
+		effect_exp = kzalloc(sizeof(*effect_exp), GFP_KERNEL);
+		if (effect_exp && effect_time && effect_gain) {
+			rkcif_get_cur_effect_sequeue(dev, effect_time->sequence, &cur_sequeue, &cur_id);
+			priv = dev->sditf[cur_id];
+			effect_exp->exp.sequence = cur_sequeue;
+			effect_exp->exp.time = effect_time->time;
+			effect_exp->exp.gain = effect_gain->gain;
+			mutex_lock(&priv->mutex);
+			list_add_tail(&effect_exp->list, &priv->effect_exp_head);
+			mutex_unlock(&priv->mutex);
+			sditf_event_exposure_notifier(priv, effect_exp);
+		} else {
+			v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_exp\n");
+		}
+		if (effect_time) {
+			kfree(effect_time);
+			effect_time = NULL;
+		}
+		if (effect_gain) {
+			kfree(effect_gain);
+			effect_gain = NULL;
+		}
+	} else {
+		if (effect_time) {
+			kfree(effect_time);
+			effect_time = NULL;
+		}
+		if (effect_gain) {
+			kfree(effect_gain);
+			effect_gain = NULL;
+		}
+		v4l2_err(&dev->v4l2_dev, "Failed to get effect time or gain\n");
+	}
+}
+
+static int rkcif_get_exp_effect_stream_id(struct rkcif_device *dev, u32 effect_frame)
+{
+	u32 i = 0, pattern_cnt = 0, tmp = 0;
+	int id = 0;
+
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++)
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+
+	if (pattern_cnt == 0)
+		return -EINVAL;
+	tmp = effect_frame % pattern_cnt;
+	pattern_cnt = 0;
+	for (i = 0; i < dev->channels[0].capture_info.one_to_multi.isp_num; i++) {
+		pattern_cnt += dev->channels[0].capture_info.one_to_multi.frame_pattern[i];
+		if (tmp < pattern_cnt) {
+			id = i;
+			break;
+		}
+	}
+	return id;
+}
+
+static void rkcif_exp_work(struct work_struct *exp_work)
+{
+	struct rkcif_device *dev = container_of(exp_work,
+						struct rkcif_device,
+						exp_work);
+	struct sditf_priv *priv = NULL;
+	struct rkcif_stream *stream = &dev->stream[0];
+	struct sditf_time *time;
+	struct sditf_gain *gain;
+	struct sditf_effect_time *effect_time;
+	struct sditf_effect_gain *effect_gain;
+	struct v4l2_ctrl *ctrl;
+	u32 cur_time = 0;
+	u32 cur_gain = 0;
+	int i = 0;
+	int id = 0;
+	int min_delay = 0;
+	int effect_frame = 0;
+
+	id = rkcif_get_exp_effect_stream_id(dev, stream->frame_idx - 1);
+	if (id < 0) {
+		dev_err(dev->dev, "%s %d get exp_effect stream failed\n",
+			__func__, __LINE__);
+		return;
+	}
+	priv = dev->sditf[id];
+	if (stream->frame_idx != 0)
+		sditf_event_inc_sof(priv);
+
+	if (stream->frame_idx == 0) {
+		cur_time = priv->cur_time;
+	} else {
+		effect_frame = stream->frame_idx + dev->exp_delay.time_delay - 1;
+		id = rkcif_get_exp_effect_stream_id(dev, effect_frame);
+		if (id < 0) {
+			dev_err(dev->dev, "%s %d get exp_effect stream failed\n",
+				__func__, __LINE__);
+			return;
+		}
+		priv = dev->sditf[id];
+		if (!list_empty(&priv->time_head)) {
+			time = list_first_entry(&priv->time_head,
+						struct sditf_time,
+						list);
+			if (time) {
+				mutex_lock(&priv->mutex);
+				list_del(&time->list);
+				mutex_unlock(&priv->mutex);
+				cur_time = time->time;
+				kfree(time);
+			}
+		} else {
+			cur_time = priv->cur_time;
+		}
+		if (dev->exp_dbg)
+			dev_info(priv->dev, "exp set id %d, val 0x%x\n",
+				 priv->connect_id, cur_time);
+	}
+	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
+			      V4L2_CID_EXPOSURE);
+	v4l2_ctrl_s_ctrl(ctrl, cur_time);
+	priv->cur_time = cur_time;
+	if (stream->frame_idx == 0) {
+		cur_gain = priv->cur_gain;
+	} else {
+		effect_frame = stream->frame_idx + dev->exp_delay.gain_delay - 1;
+		id = rkcif_get_exp_effect_stream_id(dev, effect_frame);
+		if (id < 0) {
+			dev_err(dev->dev, "%s %d get exp_effect stream failed\n",
+				__func__, __LINE__);
+			return;
+		}
+		priv = dev->sditf[id];
+		if (!list_empty(&priv->gain_head)) {
+			gain = list_first_entry(&priv->gain_head,
+						struct sditf_gain,
+						list);
+			if (gain) {
+				mutex_lock(&priv->mutex);
+				list_del(&gain->list);
+				mutex_unlock(&priv->mutex);
+				cur_gain = gain->gain;
+				kfree(gain);
+			}
+		} else {
+			cur_gain = priv->cur_gain;
+		}
+		if (dev->exp_dbg)
+			dev_info(priv->dev, "gain set id %d, val 0x%x\n",
+				 priv->connect_id, cur_gain);
+	}
+	ctrl = v4l2_ctrl_find(dev->terminal_sensor.sd->ctrl_handler,
+			      V4L2_CID_ANALOGUE_GAIN);
+	v4l2_ctrl_s_ctrl(ctrl, cur_gain);
+	priv->cur_gain = cur_gain;
+
+	id = rkcif_get_exp_effect_stream_id(dev, stream->frame_idx - 1);
+	if (id < 0) {
+		dev_err(dev->dev, "%s %d get exp_effect stream failed\n",
+			__func__, __LINE__);
+		return;
+	}
+	priv = dev->sditf[id];
+	if (stream->frame_idx == 0) {
+		for (i = 0; i < dev->exp_delay.time_delay; i++) {
+			effect_time = kzalloc(sizeof(*effect_time), GFP_KERNEL);
+			if (effect_time) {
+				effect_time->sequence = i;
+				effect_time->time = priv->cur_time;
+				list_add_tail(&effect_time->list, &dev->effect_time_head);
+				effect_time = NULL;
+			} else {
+				v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_time\n");
+			}
+		}
+		for (i = 0; i < dev->exp_delay.gain_delay; i++) {
+			effect_gain = kzalloc(sizeof(*effect_gain), GFP_KERNEL);
+			if (effect_gain) {
+				effect_gain->sequence = i;
+				effect_gain->gain = priv->cur_gain;
+				list_add_tail(&effect_gain->list, &dev->effect_gain_head);
+				effect_gain = NULL;
+			} else {
+				v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_gain\n");
+			}
+		}
+		if (dev->exp_delay.time_delay >= dev->exp_delay.gain_delay)
+			min_delay = dev->exp_delay.gain_delay;
+		else
+			min_delay = dev->exp_delay.time_delay;
+		for (i = 0; i < min_delay; i++)
+			rkcif_update_effect_exposure(dev);
+		return;
+	}
+
+	effect_time = kzalloc(sizeof(*effect_time), GFP_KERNEL);
+	if (effect_time) {
+		effect_time->sequence = stream->frame_idx + dev->exp_delay.time_delay - 1;
+		effect_time->time = cur_time;
+		list_add_tail(&effect_time->list, &dev->effect_time_head);
+		effect_time = NULL;
+	} else {
+		v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_time\n");
+	}
+	effect_gain = kzalloc(sizeof(*effect_gain), GFP_KERNEL);
+	if (effect_gain) {
+		effect_gain->sequence = stream->frame_idx + dev->exp_delay.gain_delay - 1;
+		effect_gain->gain = cur_gain;
+		list_add_tail(&effect_gain->list, &dev->effect_gain_head);
+		effect_gain = NULL;
+	} else {
+		v4l2_err(&dev->v4l2_dev, "Failed to alloc struct sditf_effect_gain\n");
+	}
+	rkcif_update_effect_exposure(dev);
+	priv->frame_idx.cur_frame_idx++;
+	priv->frame_idx.total_frame_idx = stream->frame_idx;
+}
+
 int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int inf_id)
 {
 	struct device *dev = cif_dev->dev;
@@ -2070,6 +2453,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->rdbk_debug = 0;
 	cif_dev->is_stop_skip = false;
 	cif_dev->is_sensor_off = false;
+	cif_dev->exp_dbg = 0;
 
 	cif_dev->resume_mode = 0;
 	memset(&cif_dev->channels[0].capture_info, 0, sizeof(cif_dev->channels[0].capture_info));
@@ -2079,6 +2463,12 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	INIT_WORK(&cif_dev->err_state_work.work, rkcif_err_print_work);
 	INIT_WORK(&cif_dev->sensor_work.work, rkcif_set_sensor_stream);
 	INIT_DELAYED_WORK(&cif_dev->work_deal_err, rkcif_deal_err_intr);
+	INIT_WORK(&cif_dev->exp_work, rkcif_exp_work);
+	cif_dev->exp_delay.time_delay = 2;
+	cif_dev->exp_delay.gain_delay = 2;
+	cif_dev->is_alloc_buf_user = false;
+	INIT_LIST_HEAD(&cif_dev->effect_time_head);
+	INIT_LIST_HEAD(&cif_dev->effect_gain_head);
 
 	if (cif_dev->inf_id == RKCIF_MIPI_LVDS && cif_dev->chip_id <= CHIP_RK3562_CIF)
 		cif_dev->use_hw_interlace = false;
