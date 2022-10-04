@@ -442,6 +442,7 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 		atomic_t *fastlock, u32 *ceiling_ref)
 {
 	int type = ceiling_ref ? EVL_MUTEX_PP : EVL_MUTEX_PI;
+	unsigned long flags __maybe_unused;
 
 	mutex->fastlock = fastlock;
 	atomic_set(fastlock, EVL_NO_HANDLE);
@@ -454,6 +455,13 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 	mutex->wchan.follow_depend = evl_follow_mutex_depend;
 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
 	raw_spin_lock_init(&mutex->lock);
+#ifdef CONFIG_PROVE_LOCKING
+	lockdep_register_key(&mutex->lock_key);
+	lockdep_set_class_and_name(&mutex->lock, &mutex->lock_key, name);
+	local_irq_save(flags);
+	might_lock(&mutex->lock);
+	local_irq_restore(flags);
+#endif
 }
 EXPORT_SYMBOL_GPL(__evl_init_mutex);
 
@@ -497,6 +505,7 @@ void evl_destroy_mutex(struct evl_mutex *mutex)
 	untrack_owner(mutex);
 	flush_mutex_locked(mutex, T_RMID);
 	raw_spin_unlock_irqrestore(&mutex->lock, flags);
+	lockdep_unregister_key(&mutex->lock_key);
 }
 EXPORT_SYMBOL_GPL(evl_destroy_mutex);
 

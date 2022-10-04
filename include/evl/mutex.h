@@ -25,13 +25,14 @@ struct evl_thread;
 #define EVL_MUTEX_CEILING	BIT(3)
 
 struct evl_mutex {
+	hard_spinlock_t lock;
+	struct lock_class_key lock_key;	/* lockdep disambiguation */
 	int wprio;
 	int flags;
 	struct evl_thread *owner;
 	struct evl_clock *clock;
 	atomic_t *fastlock;
 	u32 *ceiling_ref;
-	hard_spinlock_t lock;
 	struct evl_wait_channel wchan;
 	struct list_head next_booster; /* thread->boosters */
 	struct list_head next_tracker;   /* thread->trackers */
@@ -44,18 +45,16 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 
 #define evl_init_mutex_pi(__mutex, __clock, __fastlock)			\
 	do {								\
-		static struct lock_class_key __key;			\
 		__evl_init_mutex(__mutex, __clock, __fastlock, NULL);	\
 		lockdep_set_class_and_name(&(__mutex)->lock,		\
-					&__key, #__mutex);		\
+				&(__mutex)->lock_key, #__mutex); 	\
 	} while (0)
 
 #define evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling)	\
 	do {								\
-		static struct lock_class_key __key;			\
 		__evl_init_mutex(__mutex, __clock, __fastlock, __ceiling); \
 		lockdep_set_class_and_name(&(__mutex)->lock,		\
-					&__key, #__mutex);		\
+				&(__mutex)->lock_key, #__mutex); 	\
 	} while (0)
 
 void evl_destroy_mutex(struct evl_mutex *mutex);
