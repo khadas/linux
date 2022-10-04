@@ -20,7 +20,7 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 	wq->clock = clock;
 	raw_spin_lock_init(&wq->lock);
 	wq->wchan.reorder_wait = evl_reorder_wait;
-	wq->wchan.follow_depend = evl_follow_wait_depend;
+	wq->wchan.follow_depend = NULL;
 	wq->wchan.name = name;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);
 	lockdep_set_class_and_name(&wq->lock, key, name);
@@ -148,14 +148,6 @@ int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_reorder_wait);
-
-/* originator->lock held, hard irqs off */
-int evl_follow_wait_depend(struct evl_wait_channel *wchan,
-			struct evl_thread *originator)
-{
-	return 0;
-}
-EXPORT_SYMBOL_GPL(evl_follow_wait_depend);
 
 int evl_wait_schedule(struct evl_wait_queue *wq)
 {
