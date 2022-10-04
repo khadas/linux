@@ -38,7 +38,7 @@ struct evl_wait_queue {
 		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
 		.wchan = {						\
 			.reorder_wait = evl_reorder_wait,		\
-			.follow_depend = evl_follow_wait_depend,	\
+			.follow_depend = NULL,				\
 			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \
 			.name = #__name,				\
 		},							\
@@ -132,8 +132,5 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 
 int evl_reorder_wait(struct evl_thread *waiter,
 		struct evl_thread *originator);
-
-int evl_follow_wait_depend(struct evl_wait_channel *wchan,
-			struct evl_thread *originator);
 
 #endif /* !_EVL_WAIT_H_ */

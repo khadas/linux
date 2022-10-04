@@ -137,7 +137,7 @@ static int adjust_boost(struct evl_thread *owner,
 	 * +-------------------------+
 	 *
 	 * At each stage, wchan->reorder_wait() fixes up the priority
-	 * for @owner before walking deeper into PI chain.
+	 * for @owner before walking deeper into the PI chain.
 	 */
 	assert_hard_lock(&owner->lock);
 	assert_hard_lock(&origin->lock);
@@ -620,7 +620,7 @@ static int check_lock_chain(struct evl_thread *owner,
 	assert_hard_lock(&originator->lock);
 
 	wchan = owner->wchan;
-	if (wchan)
+	if (wchan && wchan->follow_depend)
 		return wchan->follow_depend(wchan, originator);
 
 	return 0;
@@ -1050,7 +1050,7 @@ int evl_follow_mutex_depend(struct evl_wait_channel *wchan,
 		 * crazy.
 		 */
 		depend = waiter->wchan;
-		if (depend)
+		if (depend && depend->follow_depend)
 			ret = depend->follow_depend(depend, originator);
 		raw_spin_unlock(&waiter->lock);
 		if (ret)
