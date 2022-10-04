@@ -16,11 +16,13 @@
 #define EVL_WAIT_FIFO    0
 #define EVL_WAIT_PRIO    BIT(0)
 
+struct evl_thread;
+
 struct evl_wait_channel {
 	int (*reorder_wait)(struct evl_thread *waiter,
 			struct evl_thread *originator);
-	int (*follow_depend)(struct evl_wait_channel *wchan,
-			struct evl_thread *originator);
+	struct evl_thread *(*follow_depend)(struct evl_thread *prev_owner,
+					    struct evl_thread *originator);
 	struct list_head wait_list;
 	const char *name;
 };
