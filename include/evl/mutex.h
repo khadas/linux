@@ -83,7 +83,8 @@ void evl_detect_boost_drop(void);
 int evl_reorder_mutex_wait(struct evl_thread *waiter,
 			struct evl_thread *originator);
 
-int evl_follow_mutex_depend(struct evl_wait_channel *wchan,
+struct evl_thread *
+evl_follow_mutex_depend(struct evl_thread *prev_owner,
 			struct evl_thread *originator);
 
 void evl_drop_tracking_mutexes(struct evl_thread *curr);
