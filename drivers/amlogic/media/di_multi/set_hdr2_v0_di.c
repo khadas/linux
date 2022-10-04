@@ -342,22 +342,8 @@ static void dim_hdr_set_matrix(struct di_hdr_s *pd,
 		for (i = 0; i < 9; i++)
 			gmut_coef[i / 3][i % 3] =
 				pmtx->mtx_gamut[i];
-		if ((pmtx->p_sel & HDR_SDR) ||
-		    (pmtx->p_sel & HDR10P_SDR) ||
-		    (pmtx->p_sel & HLG_SDR)) {
-			if (pmtx->gmt_bit_mode) {
-				gmut_shift = 8;
-				/*gamut shift bit for used for enable oo 33bit*/
-				/*after tm2 revb fix 32bit bug*/
-				gmut_shift |= 1 << 4;
-			} else {
-				/* use integer mode for gamut coeff */
-				gmut_shift = 0;
-			}
-		} else {
-			/* 2048 as 1.0 for gamut coeff */
-			gmut_shift = 11;
-		}
+
+		gmut_shift = pmtx->gmut_shift;
 
 		for (i = 0; i < 3; i++)
 			c_gain_lim_coef[i] = pmtx->mtx_cgain[i] << 2;

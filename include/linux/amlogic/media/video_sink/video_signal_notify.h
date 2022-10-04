@@ -24,6 +24,7 @@ enum vd_format_e {
 	SIGNAL_HLG = 2,
 	SIGNAL_HDR10PLUS = 3,
 	SIGNAL_DOVI = 4,
+	SIGNAL_CUVA = 5,
 };
 
 struct vd_signal_info_s {

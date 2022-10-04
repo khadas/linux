@@ -77,7 +77,7 @@ signed int saturation_offset;
 
 /*hdr------------------------------------*/
 
-void hdr_osd_off(enum vpp_index vpp_index)
+void hdr_osd_off(enum vpp_index_e vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process[3];
 
@@ -94,7 +94,7 @@ void hdr_osd_off(enum vpp_index vpp_index)
 	       HDR_BYPASS, cur_hdr_process[0], cur_hdr_process[1], cur_hdr_process[2]);
 }
 
-void hdr_osd2_off(enum vpp_index vpp_index)
+void hdr_osd2_off(enum vpp_index_e vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process;
 
@@ -105,7 +105,7 @@ void hdr_osd2_off(enum vpp_index vpp_index)
 	       HDR_BYPASS, cur_hdr_process);
 }
 
-void hdr_osd3_off(enum vpp_index vpp_index)
+void hdr_osd3_off(enum vpp_index_e vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process;
 
@@ -116,7 +116,7 @@ void hdr_osd3_off(enum vpp_index vpp_index)
 	       HDR_BYPASS, cur_hdr_process);
 }
 
-void hdr_vd1_off(enum vpp_index vpp_index)
+void hdr_vd1_off(enum vpp_index_e vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process;
 	int silce_mode = 1;
@@ -153,7 +153,7 @@ void hdr_vd1_off(enum vpp_index vpp_index)
 	       HDR_BYPASS, cur_hdr_process);
 }
 
-void hdr_vd2_off(enum vpp_index vpp_index)
+void hdr_vd2_off(enum vpp_index_e vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process;
 
@@ -164,7 +164,7 @@ void hdr_vd2_off(enum vpp_index vpp_index)
 	       HDR_BYPASS, cur_hdr_process);
 }
 
-void hdr_vd3_off(enum vpp_index vpp_index)
+void hdr_vd3_off(enum vpp_index_e vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process;
 
@@ -175,7 +175,7 @@ void hdr_vd3_off(enum vpp_index vpp_index)
 	       HDR_BYPASS, cur_hdr_process);
 }
 
-void hdr_vd1_iptmap(enum vpp_index vpp_index)
+void hdr_vd1_iptmap(enum vpp_index_e vpp_index)
 {
 	enum hdr_process_sel cur_hdr_process;
 	int s5_silce_mode = get_s5_silce_mode();
@@ -468,6 +468,7 @@ MODULE_PARM_DESC(wb_val, "\n white balance setting\n");
 
 static enum vframe_source_type_e pre_src_type[VD_PATH_MAX] = {
 	VFRAME_SOURCE_TYPE_COMP,
+	VFRAME_SOURCE_TYPE_COMP,
 	VFRAME_SOURCE_TYPE_COMP
 };
 
@@ -475,7 +476,7 @@ static unsigned int vd_path_max = VD_PATH_MAX;
 static unsigned int vpp_top_max = VPP_TOP_MAX_S;
 
 
-uint cur_csc_type[VD_PATH_MAX] = {0xffff, 0xffff};
+uint cur_csc_type[VD_PATH_MAX] = {0xffff, 0xffff, 0xffff};
 module_param_array(cur_csc_type, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(cur_csc_type, "\n current color space convert type\n");
 
@@ -621,26 +622,43 @@ static uint hdr_mode = 2; /* 0: hdr->hdr, 1:hdr->sdr, 2:auto */
 module_param(hdr_mode, uint, 0664);
 MODULE_PARM_DESC(hdr_mode, "\n set hdr_mode\n");
 
-/* 0: hdr->hdr, 1:hdr->sdr, 2:hdr->hlg */
+/* 0:hdr->hdr, 1:hdr->sdr, 2:hdr->hlg, 3:hdr->cuva */
+/* 4:hdr->cuva_hlg*/
 uint hdr_process_mode[VD_PATH_MAX];
-uint cur_hdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF};
+uint cur_hdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
 module_param_array(hdr_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(hdr_process_mode, "\n current hdr_process_mode\n");
 
 /* 0:bypass, 1:hdr10p->hdr, 2:hdr10p->sdr, 3:hdr10p->hlg */
+/* 4:hdr10p->cuva, 5:hdr10p->cuva_hlg*/
 uint hdr10_plus_process_mode[VD_PATH_MAX];
-uint cur_hdr10_plus_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF};
+uint cur_hdr10_plus_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
 module_param_array(hdr10_plus_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(hdr10_plus_process_mode, "\n current hdr10_plus_process_mode\n");
 
-/* 0: tx don't support hdr10+, 1: tx support hdr10+*/
-uint tx_hdr10_plus_support;
-
-/* 0: hlg->hlg, 1:hlg->sdr 2:hlg->hdr*/
+/* 0:hlg->hlg, 1:hlg->sdr 2:hlg->hdr, 3:hlg->cuva*/
+/* 4:hdr->cuva_hlg*/
 uint hlg_process_mode[VD_PATH_MAX];
-uint cur_hlg_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF};
+uint cur_hlg_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
 module_param_array(hlg_process_mode, uint, &vd_path_max, 0444);
 MODULE_PARM_DESC(hlg_process_mode, "\n current hlg_process_mode\n");
+
+/* 0:bypass, 1:cuva->sdr, 2:cuva->hdr, 3:cuva->hlg */
+/* 4:cuva->hdr10p, 5:cuva->cuva_hlg*/
+uint cuva_hdr_process_mode[VD_PATH_MAX];
+uint cur_cuva_hdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
+module_param_array(cuva_hdr_process_mode, uint, &vd_path_max, 0444);
+MODULE_PARM_DESC(cuva_hdr_process_mode, "\n current cuva_hdr_process_mode\n");
+
+/* 0:bypass, 1:cuva_hlg->sdr, 2:cuva_hlg->hdr, 3:cuva_hlg->hlg */
+/* 4:cuva_hlg->hdr, 5:cuva_hlg->cuva*/
+uint cuva_hlg_process_mode[VD_PATH_MAX];
+uint cur_cuva_hlg_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
+module_param_array(cuva_hlg_process_mode, uint, &vd_path_max, 0444);
+MODULE_PARM_DESC(cuva_hlg_process_mode, "\n current cuva_hlg_process_mode\n");
+
+/* 0: tx don't support hdr10+, 1: tx support hdr10+*/
+uint tx_hdr10_plus_support;
 
 static uint force_pure_hlg[VD_PATH_MAX];
 module_param_array(force_pure_hlg, uint, &vd_path_max, 0664);
@@ -652,7 +670,7 @@ MODULE_PARM_DESC(sdr_mode, "\n set sdr_mode\n");
 
 static uint cur_sdr_mode;
 
-/* 0: sdr->sdr, 1:sdr->hdr, 2:sdr->hlg */
+/* 0: sdr->sdr, 1:sdr->hdr, 2:sdr->hlg, 3:sdr->cuva, 4:sdr->cuva_hlg*/
 uint sdr_process_mode[VD_PATH_MAX];
 uint cur_sdr_process_mode[VD_PATH_MAX] = {PROC_OFF, PROC_OFF, PROC_OFF};
 module_param_array(sdr_process_mode, uint, &vd_path_max, 0444);
@@ -698,7 +716,7 @@ module_param(hdr_flag, uint, 0664);
 MODULE_PARM_DESC(hdr_flag, "\n set hdr_flag\n");
 
 /* 0: off, 1: normal, 2: bypass */
-static int video_process_status[VD_PATH_MAX] = {2, 2};
+static int video_process_status[VD_PATH_MAX] = {2, 2, 2};
 module_param_array(video_process_status, uint, &vd_path_max, 0664);
 MODULE_PARM_DESC(video_process_status, "\n video_process_status\n");
 
@@ -3981,6 +3999,9 @@ uint32_t sink_hdr_support(const struct vinfo_s *vinfo)
 		if (vinfo->hdr_info.hdr10plus_info.ieeeoui == HDR_PLUS_IEEE_OUI &&
 		    vinfo->hdr_info.hdr10plus_info.application_version == 1)
 			hdr_cap |= HDRP_SUPPORT;
+		if (vinfo->hdr_info.cuva_info.ieeeoui ==
+			CUVA_IEEEOUI)
+			hdr_cap |= CUVA_SUPPORT;
 		if (vinfo->hdr_info.colorimetry_support & 0xe0)
 			hdr_cap |= BT2020_SUPPORT;
 		dv_cap = sink_dv_support(vinfo);
@@ -4001,7 +4022,7 @@ EXPORT_SYMBOL(sink_hdr_support);
 
 int signal_type_changed(struct vframe_s *vf,
 			struct vinfo_s *vinfo, enum vd_path_e vd_path,
-			enum vpp_index vpp_index)
+			enum vpp_index_e vpp_index)
 {
 	u32 signal_type = 0;
 	u32 default_signal_type;
@@ -4196,10 +4217,26 @@ int signal_type_changed(struct vframe_s *vf,
 			       hdr10_plus_process_mode[vd_path]);
 			change_flag |= SIG_HDR10_PLUS_MODE;
 		}
+		if (cur_cuva_hdr_process_mode[vd_path]
+		    != cuva_hdr_process_mode[vd_path]) {
+			pr_csc(1, "vd%d cuva hdr mode changed %d %d.\n",
+				vd_path + 1,
+				cur_cuva_hdr_process_mode[vd_path],
+				cuva_hdr_process_mode[vd_path]);
+			change_flag |= SIG_CUVA_HDR_MODE;
+		}
+		if (cur_cuva_hlg_process_mode[vd_path]
+		    != cuva_hlg_process_mode[vd_path]) {
+			pr_csc(1, "vd%d cuva hlg mode changed %d %d.\n",
+				vd_path + 1,
+				cur_cuva_hlg_process_mode[vd_path],
+				cuva_hlg_process_mode[vd_path]);
+			change_flag |= SIG_CUVA_HLG_MODE;
+		}
 	}
 
 	if (cur_hdr_support[vpp_index]
-	!= (vinfo->hdr_info.hdr_support & 0x4)) {
+		!= (vinfo->hdr_info.hdr_support & 0x4)) {
 		pr_csc(1, "Tx HDR support changed.\n");
 		change_flag |= SIG_HDR_SUPPORT;
 		cur_hdr_support[vpp_index] =
@@ -4276,6 +4313,7 @@ int signal_type_changed(struct vframe_s *vf,
 	return change_flag;
 }
 
+#define signal_cuva ((cur_vd_signal_type >> 31) & 1)
 #define signal_format ((cur_vd_signal_type >> 26) & 7)
 #define signal_range ((cur_vd_signal_type >> 25) & 1)
 #define signal_color_primaries ((cur_vd_signal_type >> 16) & 0xff)
@@ -4299,14 +4337,21 @@ enum vpp_matrix_csc_e get_csc_type(void)
 	} else if ((signal_color_primaries == 9) ||
 		   (signal_transfer_characteristic >= 14)) {
 		if (signal_transfer_characteristic == 16) {
+			if (signal_cuva) {
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA;
 			/* smpte st-2084 */
-			if (signal_color_primaries != 9)
-				pr_csc(1, "\tWARNING: non-standard HDR!!!\n");
-			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
-		} else if (signal_transfer_characteristic == 14) {
+			} else {
+				if (signal_color_primaries != 9)
+					pr_csc(1, "\tWARNING: non-standard HDR!!!\n");
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			}
+		} else if (signal_transfer_characteristic == 14 ||
+				signal_transfer_characteristic == 18) {
 			/* bt2020-10 */
-			pr_csc(1, "\tWARNING: bt2020-10 HDR!!!\n");
-			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
+			if (signal_cuva)
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA;
+			else
+				csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 		} else if (signal_transfer_characteristic == 15) {
 			/* bt2020-12 */
 			pr_csc(1, "\tWARNING: bt2020-12 HDR!!!\n");
@@ -4314,10 +4359,6 @@ enum vpp_matrix_csc_e get_csc_type(void)
 				csc_type = VPP_MATRIX_YUV709_RGB;
 			else
 				csc_type = VPP_MATRIX_YUV709F_RGB;
-		} else if (signal_transfer_characteristic == 18) {
-			/* bt2020-12 */
-			/* pr_csc(1, "\tHLG!!!\n"); */
-			csc_type = VPP_MATRIX_BT2020YUV_BT2020RGB;
 		} else if (signal_transfer_characteristic == 0x30) {
 			if (signal_color_primaries == 9) {
 				/* pr_csc(1, "\tHDR10+!!!\n"); */
@@ -4367,12 +4408,14 @@ enum hdr_type_e get_hdr_source_type(void)
 	if ((signal_transfer_characteristic == 14 ||
 	     signal_transfer_characteristic == 18) &&
 	    signal_color_primaries == 9)
-		hdr_source_type = HLG_SOURCE;
+		hdr_source_type =
+			signal_cuva ? CUVA_HLG_SOURCE : HLG_SOURCE;
 	else if (signal_transfer_characteristic == 0x30 &&
 		 signal_color_primaries == 9)
 		hdr_source_type = HDR10PLUS_SOURCE;
 	else if (signal_transfer_characteristic == 16)
-		hdr_source_type = HDR10_SOURCE;
+		hdr_source_type =
+			signal_cuva ? CUVA_HDR_SOURCE : HDR10_SOURCE;
 	else
 		hdr_source_type = SDR_SOURCE;
 
@@ -4937,7 +4980,7 @@ static int hdr_process(enum vpp_matrix_csc_e csc_type,
 		       struct vframe_master_display_colour_s *master_info,
 		       enum vd_path_e vd_path,
 		       enum hdr_type_e *source_type,
-		       enum vpp_index vpp_index)
+		       enum vpp_index_e vpp_index)
 {
 	int need_adjust_contrast_saturation = 0;
 	int max_lumin = 10000;
@@ -5221,7 +5264,7 @@ static int hdr10p_process(enum vpp_matrix_csc_e csc_type,
 			  struct vframe_master_display_colour_s *master_info,
 			  enum vd_path_e vd_path,
 			  enum hdr_type_e *source_type,
-			  enum vpp_index vpp_index)
+			  enum vpp_index_e vpp_index)
 {
 	struct matrix_s m = {
 		{0, 0, 0},
@@ -5277,7 +5320,7 @@ static int hlg_process(enum vpp_matrix_csc_e csc_type,
 		       struct vframe_master_display_colour_s *master_info,
 		       enum vd_path_e vd_path,
 		       enum hdr_type_e *source_type,
-		       enum vpp_index vpp_index)
+		       enum vpp_index_e vpp_index)
 {
 	int need_adjust_contrast_saturation = 0;
 	int max_lumin = 10000;
@@ -5541,7 +5584,7 @@ static void bypass_hdr_process(enum vpp_matrix_csc_e csc_type,
 			       *master_info,
 			       enum vd_path_e vd_path,
 			       enum hdr_type_e *source_type,
-			       enum vpp_index vpp_index)
+			       enum vpp_index_e vpp_index)
 {
 	struct matrix_s m = {
 		{0, 0, 0},
@@ -6334,7 +6377,7 @@ static void hlg_hdr_process(enum vpp_matrix_csc_e csc_type,
 			    struct vframe_master_display_colour_s
 			    *master_info,
 			    enum vd_path_e vd_path,
-			    enum vpp_index vpp_index)
+			    enum vpp_index_e vpp_index)
 {
 	struct matrix_s osd_m = {
 		{0, 0, 0},
@@ -6630,7 +6673,7 @@ static void sdr_hdr_process(enum vpp_matrix_csc_e csc_type,
 			    *master_info,
 			    enum vd_path_e vd_path,
 			    enum hdr_type_e *source_type,
-			    enum vpp_index vpp_index)
+			    enum vpp_index_e vpp_index)
 {
 	int s5_silce_mode = get_s5_silce_mode();
 
@@ -6828,8 +6871,9 @@ static int vpp_eye_protection_process(enum vpp_matrix_csc_e csc_type,
 	return 0;
 }
 
-static void hdr_support_process(struct vinfo_s *vinfo, enum vd_path_e vd_path,
-		enum vpp_index vpp_index)
+static void hdr_support_process(struct vinfo_s *vinfo,
+	enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
 {
 	/*check if hdmitx support hdr10+*/
 	tx_hdr10_plus_support = sink_hdr_support(vinfo) & HDRP_SUPPORT;
@@ -6949,7 +6993,8 @@ bool is_vinfo_available(const struct vinfo_s *vinfo)
 }
 EXPORT_SYMBOL(is_vinfo_available);
 
-static enum hdr_type_e get_source_type(enum vd_path_e vd_path, enum vpp_index vpp_index)
+static enum hdr_type_e get_source_type(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
 {
 	struct vinfo_s *vinfo;
 
@@ -6977,7 +7022,10 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path, enum vpp_index vp
 	if ((signal_transfer_characteristic == 14 ||
 	     signal_transfer_characteristic == 18) &&
 	     signal_color_primaries == 9) {
-		return HDRTYPE_HLG;
+		if (signal_cuva)
+			return HDRTYPE_CUVA_HLG;
+		else
+			return HDRTYPE_HLG;
 	} else if (signal_transfer_characteristic == 0x30 &&
 		   signal_color_primaries == 9) {
 		if (sink_support_hdr10_plus(vinfo) &&
@@ -6992,13 +7040,17 @@ static enum hdr_type_e get_source_type(enum vd_path_e vd_path, enum vpp_index vp
 		else
 			return HDRTYPE_HDR10;
 	} else if (signal_transfer_characteristic == 16) {
-		return HDRTYPE_HDR10;
+		if (signal_cuva)
+			return HDRTYPE_CUVA_HDR;
+		else
+			return HDRTYPE_HDR10;
 	} else {
 		return HDRTYPE_SDR;
 	}
 }
 
-enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path, enum vpp_index vpp_index)
+enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
 {
 	if (vd_path >= VD_PATH_MAX)
 		return UNKNOWN_SOURCE;
@@ -7006,7 +7058,8 @@ enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path, enum vpp_index vpp_i
 }
 EXPORT_SYMBOL(get_cur_source_type);
 
-int get_hdr_module_status(enum vd_path_e vd_path, enum vpp_index vpp_index)
+int get_hdr_module_status(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
 {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (vd_path == VD1_PATH &&
@@ -7109,9 +7162,32 @@ static bool hdr10_plus_metadata_update(struct vframe_s *vf,
 	return true;
 }
 
+static bool cuva_metadata_update(struct vframe_s *vf,
+	enum vpp_matrix_csc_e csc_type,
+	struct cuva_hdr_vsif_para *vsif_paras,
+	struct cuva_hdr_vs_emds_para *emds_paras)
+{
+	//struct cuva_hdr_vsif_para vsif_para;
+	//struct cuva_hdr_vs_emds_para emds_para;
+
+	if (!vf)
+		return false;
+	if (csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA)
+		return false;
+
+	/* TODO: add meta update */
+	//parser_dynamic_metadata(vf);
+
+	//cuva_hdr_vsif_pkt_update(vsif_paras);
+	//cuva_hdr_emds_pkt_update(emds_paras);
+
+	//TODO: return false if meta not changed
+	return true;
+}
 static struct hdr10pgen_param_s hdr10pgen_param;
-void hdr10_plus_process_update(int force_source_lumin, enum vd_path_e vd_path,
-			enum vpp_index vpp_index)
+void hdr10_plus_process_update(int force_source_lumin,
+	enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
 {
 	int panel_lumin;
 	struct vinfo_s *vinfo;
@@ -7157,7 +7233,7 @@ void hdr10_plus_process_update(int force_source_lumin, enum vd_path_e vd_path,
 EXPORT_SYMBOL(hdr10_plus_process_update);
 
 static void hdr10_tm_process_update(struct vframe_master_display_colour_s *p,
-				    enum vd_path_e vd_path, enum vpp_index vpp_index)
+				    enum vd_path_e vd_path, enum vpp_index_e vpp_index)
 {
 	hdr10_tm_dynamic_proc(p);
 	if (vd_path == VD1_PATH)
@@ -7166,6 +7242,86 @@ static void hdr10_tm_process_update(struct vframe_master_display_colour_s *p,
 		hdr10_tm_update(VD2_HDR, HDR_SDR, vpp_index);
 	else if (vd_path == VD3_PATH)
 		hdr10_tm_update(VD3_HDR, HDR_SDR, vpp_index);
+}
+
+static void cuva_hdr_process_update(enum hdr_type_e src_type,
+	int proc_mode, enum vd_path_e vd_path,
+	struct vframe_master_display_colour_s *p,
+	enum vpp_index_e vpp_index)
+{
+#ifdef NEED_CUVA_ALG
+	int proc_flag = 0;
+	struct aml_cuva_data_s *cuva_data = get_cuva_data();
+
+	if (src_type == CUVA_HDR_SOURCE) {
+		if (proc_mode == PROC_CUVA_TO_SDR) {
+			cuva_tm_func(CUVA_HDR2SDR, p);
+			proc_flag = 1;
+		} else if (proc_mode == PROC_CUVA_TO_HDR) {
+			cuva_tm_func(CUVA_HDR2HDR10, p);
+			proc_flag = 1;
+		}
+	} else if (src_type == CUVA_HLG_SOURCE) {
+		if (proc_mode == PROC_CUVAHLG_TO_SDR) {
+			cuva_tm_func(CUVA_HLG2SDR, p);
+			proc_flag = 1;
+		} else if (proc_mode == PROC_CUVAHLG_TO_HLG) {
+			cuva_tm_func(CUVA_HLG2HLG, p);
+			proc_flag = 1;
+		} else if (proc_mode == PROC_CUVAHLG_TO_HDR) {
+			cuva_tm_func(CUVA_HLG2HDR10, p);
+			proc_flag = 1;
+		}
+	}
+	if (!proc_flag || !cuva_data->cuva_hdr_alg)
+		return;
+
+	if (is_meson_g12a_cpu() || is_meson_g12b_cpu())
+		cuva_data->ic_type = IC_G12A;
+
+	cuva_data->cuva_hdr_alg(cuva_data);
+
+	if (src_type == CUVA_HDR_SOURCE) {
+		if (proc_mode == PROC_CUVA_TO_SDR) {
+			if (vd_path == VD1_PATH)
+				cuva_hdr_update(VD1_HDR, CUVA_SDR, vpp_index);
+			else if (vd_path == VD2_PATH)
+				cuva_hdr_update(VD2_HDR, CUVA_SDR, vpp_index);
+			else if (vd_path == VD3_PATH)
+				cuva_hdr_update(VD3_HDR, CUVA_SDR, vpp_index);
+		} else if (proc_mode == PROC_CUVA_TO_HDR) {
+			if (vd_path == VD1_PATH)
+				cuva_hdr_update(VD1_HDR, CUVA_HDR, vpp_index);
+			else if (vd_path == VD2_PATH)
+				cuva_hdr_update(VD2_HDR, CUVA_HDR, vpp_index);
+			else if (vd_path == VD3_PATH)
+				cuva_hdr_update(VD3_HDR, CUVA_HDR, vpp_index);
+		}
+	} else if (src_type == CUVA_HLG_SOURCE) {
+		if (proc_mode == PROC_CUVAHLG_TO_SDR) {
+			if (vd_path == VD1_PATH)
+				cuva_hdr_update(VD1_HDR, CUVAHLG_SDR, vpp_index);
+			else if (vd_path == VD2_PATH)
+				cuva_hdr_update(VD2_HDR, CUVAHLG_SDR, vpp_index);
+			else if (vd_path == VD3_PATH)
+				cuva_hdr_update(VD3_HDR, CUVAHLG_SDR, vpp_index);
+		} else if (proc_mode == PROC_CUVAHLG_TO_HLG) {
+			if (vd_path == VD1_PATH)
+				cuva_hdr_update(VD1_HDR, CUVAHLG_HLG, vpp_index);
+			else if (vd_path == VD2_PATH)
+				cuva_hdr_update(VD2_HDR, CUVAHLG_HLG, vpp_index);
+			else if (vd_path == VD3_PATH)
+				cuva_hdr_update(VD3_HDR, CUVAHLG_HLG, vpp_index);
+		} else if (proc_mode == PROC_CUVAHLG_TO_HDR) {
+			if (vd_path == VD1_PATH)
+				cuva_hdr_update(VD1_HDR, CUVAHLG_HDR, vpp_index);
+			else if (vd_path == VD2_PATH)
+				cuva_hdr_update(VD2_HDR, CUVAHLG_HDR, vpp_index);
+			else if (vd_path == VD3_PATH)
+				cuva_hdr_update(VD3_HDR, CUVAHLG_HDR, vpp_index);
+		}
+	}
+#endif
 }
 
 static struct hdr10plus_para hdmitx_hdr10plus_params[VD_PATH_MAX];
@@ -7183,10 +7339,25 @@ uint get_hdr10_plus_pkt_delay(void)
 }
 EXPORT_SYMBOL(get_hdr10_plus_pkt_delay);
 
+static int cuva_pkt_update;
+static bool cuva_pkt_on;
+static struct cuva_hdr_vsif_para hdmitx_vsif_params[VD_PATH_MAX];
+static struct cuva_hdr_vs_emds_para hdmitx_edms_params[VD_PATH_MAX];
+static struct cuva_hdr_vsif_para cur_cuva_params;
+static struct cuva_hdr_vs_emds_para cur_edms_params;
+static uint cuva_pkt_delay = 1; // should set 1, 0 is ok
+module_param(cuva_pkt_delay, uint, 0664);
+
+uint get_cuva_pkt_delay(void)
+{
+	return cuva_pkt_delay;
+}
+EXPORT_SYMBOL(get_cuva_pkt_delay);
+
 void update_hdr10_plus_pkt(bool enable,
 			   void *hdr10plus_params,
 			   void *send_info,
-			   enum vpp_index vpp_index)
+			   enum vpp_index_e vpp_index)
 {
 	struct vinfo_s *vinfo;
 	struct vout_device_s *vdev = NULL;
@@ -7246,7 +7417,79 @@ void update_hdr10_plus_pkt(bool enable,
 }
 EXPORT_SYMBOL(update_hdr10_plus_pkt);
 
-void send_hdr10_plus_pkt(enum vd_path_e vd_path, enum vpp_index vpp_index)
+void update_cuva_pkt(bool enable,
+	void *cuva_params,
+	void *edms_params,
+	void *send_info,
+	enum vpp_index_e vpp_index)
+{
+	struct vinfo_s *vinfo;
+	struct vout_device_s *vdev = NULL;
+	bool follow_sink;
+
+	if (vpp_index == VPP_TOP1)
+		vinfo = get_current_vinfo2();
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	else if (vpp_index == VPP_TOP2)
+		vinfo = get_current_vinfo3();
+#endif
+	else
+		vinfo = get_current_vinfo();
+
+	if (vinfo && vinfo->mode != VMODE_HDMI)
+		return;
+
+	if (vinfo->vout_device) {
+		vdev = vinfo->vout_device;
+		if (!vdev)
+			return;
+		if (!vdev->fresh_tx_cuva_hdr_vsif)
+			return;
+		if (!vdev->fresh_tx_cuva_hdr_vs_emds)
+			return;
+	}
+
+	cuva_pkt_on = enable;
+	if (cuva_pkt_on) {
+		memcpy((void *)&cur_cuva_params, cuva_params,
+			sizeof(struct cuva_hdr_vsif_para));
+		memcpy((void *)&cur_edms_params, edms_params,
+			sizeof(struct cuva_hdr_vs_emds_para));
+		memcpy((void *)&cur_send_info, send_info,
+					sizeof(struct master_display_info_s));
+		cuva_pkt_update = CUVA_PKT_UPDATE;
+		pr_csc(2, "%s on\n", __func__);
+	} else {
+		if (!vdev)
+			return;
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		follow_sink = (get_amdv_policy() ==
+			AMDV_FOLLOW_SINK);
+#else
+		follow_sink = (get_hdr_policy() == 0);
+#endif
+		if (follow_sink &&
+		    (sink_hdr_support(vinfo) & CUVA_SUPPORT) &&
+		    (!sink_support_dv(vinfo))) {
+			pr_csc(2, "%s: DISABLE_VSIF\n", __func__);
+			if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1)
+				vdev->fresh_tx_cuva_hdr_vsif(NULL);
+			else
+				vdev->fresh_tx_cuva_hdr_vs_emds(NULL);
+		} else {
+			pr_csc(2, "%s: ZERO_VSIF\n", __func__);
+			vdev->fresh_tx_hdr_pkt(send_info);
+			vdev->fresh_tx_cuva_hdr_vsif(NULL);
+			vdev->fresh_tx_cuva_hdr_vs_emds(NULL);
+		}
+		cuva_pkt_update = CUVA_PKT_IDLE;
+		pr_csc(2, "%s off\n", __func__);
+	}
+}
+EXPORT_SYMBOL(update_cuva_pkt);
+
+void send_hdr10_plus_pkt(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
 {
 	struct vinfo_s *vinfo;
 	struct vout_device_s *vdev = NULL;
@@ -7295,8 +7538,67 @@ void send_hdr10_plus_pkt(enum vd_path_e vd_path, enum vpp_index vpp_index)
 }
 EXPORT_SYMBOL(send_hdr10_plus_pkt);
 
+void send_cuva_pkt(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index)
+{
+	struct vinfo_s *vinfo;
+	struct vout_device_s *vdev = NULL;
+
+	if (vpp_index == VPP_TOP1)
+		vinfo = get_current_vinfo2();
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	else if (vpp_index == VPP_TOP2)
+		vinfo = get_current_vinfo3();
+#endif
+	else
+		vinfo = get_current_vinfo();
+
+	if (vinfo && vinfo->mode != VMODE_HDMI)
+		return;
+
+	if (vinfo->vout_device) {
+		vdev = vinfo->vout_device;
+		if (!vdev)
+			return;
+		if (!vdev->fresh_tx_hdr_pkt)
+			return;
+		if (!vdev->fresh_tx_cuva_hdr_vsif)
+			return;
+		if (!vdev->fresh_tx_cuva_hdr_vs_emds)
+			return;
+	}
+	if (cuva_pkt_update == CUVA_PKT_UPDATE) {
+		if (!vdev)
+			return;
+		vdev->fresh_tx_hdr_pkt(&cur_send_info);
+		if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1)
+			vdev->fresh_tx_cuva_hdr_vsif(&cur_cuva_params);
+		else
+			vdev->fresh_tx_cuva_hdr_vs_emds(&cur_edms_params);
+		if (get_cuva_pkt_delay() > 1)
+			cuva_pkt_update = CUVA_PKT_REPEAT;
+		else
+			cuva_pkt_update = CUVA_PKT_IDLE;
+		pr_csc(2, "%s update cuva_pkt_update = %d\n",
+			__func__,
+			cuva_pkt_update);
+	} else if ((cuva_pkt_update == CUVA_PKT_REPEAT) &&
+		(get_cuva_pkt_delay() > 1)) {
+		if (!vdev)
+			return;
+		if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1)
+			vdev->fresh_tx_cuva_hdr_vsif(&cur_cuva_params);
+		else
+			vdev->fresh_tx_cuva_hdr_vs_emds(&cur_edms_params);
+		pr_csc(2, "%s repeat cuva_pkt_update = %d\n",
+			__func__,
+			cuva_pkt_update);
+	}
+}
+EXPORT_SYMBOL(send_cuva_pkt);
+
 static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal,
-	enum vpp_index vpp_index)
+	enum vpp_index_e vpp_index)
 {
 	static int pre_signal = -1;
 
@@ -7325,12 +7627,14 @@ static int notify_vd_signal_to_amvideo(struct vd_signal_info_s *vd_signal,
 }
 
 static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
-			  int signal_change_flag,
-			  enum vpp_matrix_csc_e csc_type,
-			  struct vframe_master_display_colour_s *p,
-			  int *hdmi_scs_type_changed,
-			  struct hdr10plus_para *hdmitx_hdr10plus_param,
-			  enum vd_path_e vd_path, enum vpp_index vpp_index)
+	int signal_change_flag,
+	enum vpp_matrix_csc_e csc_type,
+	struct vframe_master_display_colour_s *p,
+	int *hdmi_scs_type_changed,
+	struct hdr10plus_para *hdmitx_hdr10plus_param,
+	struct cuva_hdr_vsif_para *hdmitx_vsif_param,
+	struct cuva_hdr_vs_emds_para *hdmitx_edms_param,
+	enum vd_path_e vd_path, enum vpp_index_e vpp_index)
 {
 	struct vout_device_s *vdev = NULL;
 	void (*f_h10)(unsigned int flag,
@@ -7548,6 +7852,36 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 				*hdmi_scs_type_changed = 1;
 			}
 
+		} else if ((cuva_hdr_process_mode[vd_path] == 0) &&
+			(csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA)) {
+			/* source is cuva, send cuva packet as well*/
+			/* source is cuva, send cuva info */
+			if (get_cuva_pkt_delay() && vdev) {
+				update_cuva_pkt(true,
+					hdmitx_vsif_param,
+					hdmitx_edms_param,
+					&send_info,
+					vpp_index);
+			} else {
+					/* send cuva packet */
+				if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
+					if (vdev && vdev->fresh_tx_cuva_hdr_vsif)
+						vdev->fresh_tx_cuva_hdr_vsif
+						(hdmitx_vsif_param);
+				} else {
+					if (vdev && vdev->fresh_tx_cuva_hdr_vs_emds)
+						vdev->fresh_tx_cuva_hdr_vs_emds
+						(hdmitx_edms_param);
+				}
+			}
+			vd_signal.signal_type = SIGNAL_CUVA;
+			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
+			if (hdmi_csc_type !=
+				VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) {
+				hdmi_csc_type =
+					VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA;
+				*hdmi_scs_type_changed = 1;
+			}
 		} else {
 			/* sdr source send normal info*/
 			/* use the features to discribe source info */
@@ -7590,6 +7924,14 @@ static void hdr_tx_pkt_cb(struct vinfo_s *vinfo,
 					if (f_h10)
 						f_h10(0, h10_para);
 				}
+			} else if (cur_csc_type[vd_path] == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) {
+				if (vinfo->hdr_info.cuva_info.monitor_mode_sup == 1) {
+					if (vdev && vdev->fresh_tx_cuva_hdr_vsif)
+						vdev->fresh_tx_cuva_hdr_vsif(NULL);
+				} else {
+					if (vdev && vdev->fresh_tx_cuva_hdr_vs_emds)
+						vdev->fresh_tx_cuva_hdr_vs_emds(NULL);
+				}
 			}
 			vd_signal.signal_type = SIGNAL_SDR;
 			notify_vd_signal_to_amvideo(&vd_signal, vpp_index);
@@ -7608,7 +7950,7 @@ static void video_process(struct vframe_s *vf,
 			  struct vframe_master_display_colour_s *p,
 			  enum vd_path_e vd_path,
 			  enum hdr_type_e *source_type,
-			  enum vpp_index vpp_index)
+			  enum vpp_index_e vpp_index)
 {
 	int need_adjust_contrast_saturation = 0;
 
@@ -7624,7 +7966,8 @@ static void video_process(struct vframe_s *vf,
 		      SIG_HDR_MODE |
 		      SIG_HDR_SUPPORT |
 		      SIG_HLG_MODE |
-		      SIG_HDR_OOTF_CHG)) ||
+		      SIG_HDR_OOTF_CHG |
+		      SIG_CUVA_HDR_MODE)) ||
 		    cur_csc_type[vd_path] < VPP_MATRIX_BT2020YUV_BT2020RGB) {
 			if (get_hdr_type() & HLG_FLAG)
 				need_adjust_contrast_saturation =
@@ -7829,6 +8172,22 @@ static void video_process(struct vframe_s *vf,
 		       "hdr10_plus_process_mode changed to %d\n",
 		       vd_path + 1, hdr10_plus_process_mode[vd_path]);
 	}
+	if (cuva_hdr_process_mode[vd_path] !=
+		cur_cuva_hdr_process_mode[vd_path]) {
+		cuva_hdr_process_mode[vd_path] =
+			cur_cuva_hdr_process_mode[vd_path];
+		pr_csc(1, "vd_path = %d\n"
+			"cuva_hdr_process_mode changed to %d\n",
+			vd_path + 1, cuva_hdr_process_mode[vd_path]);
+	}
+	if (cuva_hlg_process_mode[vd_path] !=
+		cur_cuva_hlg_process_mode[vd_path]) {
+		cuva_hlg_process_mode[vd_path] =
+			cur_cuva_hlg_process_mode[vd_path];
+		pr_csc(1, "vd_path = %d\n"
+			"cur_cuva_hlg_process_mode changed to %d\n",
+			vd_path + 1, cuva_hlg_process_mode[vd_path]);
+	}
 	if (need_adjust_contrast_saturation & 1) {
 		if (lut_289_en &&
 		    get_cpu_type() <= MESON_CPU_MAJOR_ID_GXTVBB) {
@@ -7865,12 +8224,12 @@ static void video_process(struct vframe_s *vf,
 	}
 }
 
-static int current_hdr_cap[VD_PATH_MAX] = {-1, -1}; /* should set when probe */
-static int current_sink_available[VD_PATH_MAX] = {-1, -1};
+static int current_hdr_cap[VD_PATH_MAX] = {-1, -1, -1}; /* should set when probe */
+static int current_sink_available[VD_PATH_MAX] = {-1, -1, -1};
 int is_sink_cap_changed(const struct vinfo_s *vinfo,
 			int *p_current_hdr_cap,
 			int *p_current_sink_available,
-			enum vpp_index vpp_index)
+			enum vpp_index_e vpp_index)
 {
 	int hdr_cap;
 	int sink_available;
@@ -7919,7 +8278,7 @@ EXPORT_SYMBOL(is_video_turn_on);
 
 static int vpp_matrix_update(struct vframe_s *vf,
 			     struct vinfo_s *vinfo, int flags,
-			     enum vd_path_e vd_path, enum vpp_index vpp_index)
+			     enum vd_path_e vd_path, enum vpp_index_e vpp_index)
 {
 	enum vpp_matrix_csc_e csc_type = VPP_MATRIX_NULL;
 	int signal_change_flag = 0;
@@ -7927,6 +8286,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		&cur_master_display_colour[vd_path];
 	int hdmi_scs_type_changed = 0;
 	bool hdr10p_meta_updated = false;
+	bool cuva_meta_updated = false;
 	enum hdr_type_e source_format[VD_PATH_MAX];
 	static struct hdr10plus_para *para;
 	static int signal_change_latch;
@@ -8061,9 +8421,14 @@ static int vpp_matrix_update(struct vframe_s *vf,
 		hdr10p_meta_updated =
 		hdr10_plus_metadata_update(vf, csc_type,
 					   &hdmitx_hdr10plus_params[vd_path]);
+		cuva_meta_updated =
+			cuva_metadata_update(vf, csc_type,
+			&hdmitx_vsif_params[vd_path],
+			&hdmitx_edms_params[vd_path]);
 
 		if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC ||
-		    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB) {
+		    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB ||
+		    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) {
 			if (cpu_after_eq(MESON_CPU_MAJOR_ID_TM2))
 				get_hist(vd_path, HIST_E_RGBMAX);
 			else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
@@ -8115,7 +8480,10 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			hdr10p_meta_updated ?
 			&hdmitx_hdr10plus_params[vd_path] : NULL;
 			hdmi_packet_process(signal_change_flag, vinfo, p,
-					    para,
+					    para, cuva_meta_updated ?
+					    &hdmitx_vsif_params[vd_path] : NULL,
+					    cuva_meta_updated ?
+					    &hdmitx_edms_params[vd_path] : NULL,
 					    vd_path, source_format, vpp_index);
 		}
 	} else {
@@ -8128,6 +8496,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 				      p,
 				      &hdmi_scs_type_changed,
 				      &hdmitx_hdr10plus_params[vd_path],
+				      &hdmitx_vsif_params[vd_path],
+				      &hdmitx_edms_params[vd_path],
 				      vd_path, vpp_index);
 	}
 
@@ -8147,7 +8517,8 @@ static int vpp_matrix_update(struct vframe_s *vf,
 	     (SIG_CS_CHG | SIG_PRI_INFO | SIG_KNEE_FACTOR | SIG_HDR_MODE |
 	      SIG_HDR_SUPPORT | SIG_HLG_MODE | SIG_OP_CHG |
 	      SIG_SRC_OUTPUT_CHG | SIG_HDR10_PLUS_MODE |
-	      SIG_SRC_CHG | SIG_HDR_OOTF_CHG | SIG_FORCE_CHG))) {
+	      SIG_SRC_CHG | SIG_HDR_OOTF_CHG | SIG_FORCE_CHG |
+	      SIG_CUVA_HDR_MODE | SIG_CUVA_HLG_MODE))) {
 #ifdef T7_BRINGUP_MULTI_VPP
 		if (get_cpu_type() == MESON_CPU_MAJOR_ID_T7)
 			video_post_process_t7(vf, csc_type, vinfo,
@@ -8192,6 +8563,18 @@ static int vpp_matrix_update(struct vframe_s *vf,
 			hdr10_plus_process_update(0, vd_path, vpp_index);
 	}
 
+	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A) &&
+	    csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) {
+		if (get_hdr_type() & HLG_FLAG)
+			cuva_hdr_process_update(source_format[vd_path],
+				cuva_hlg_process_mode[vd_path],
+				vd_path, p, vpp_index);
+		else
+			cuva_hdr_process_update(source_format[vd_path],
+				cuva_hdr_process_mode[vd_path],
+				vd_path, p, vpp_index);
+	}
+
 	ai_color_proc(vf);
 
 	/* eye protection mode */
@@ -8207,7 +8590,7 @@ static int vpp_matrix_update(struct vframe_s *vf,
 static struct vframe_s last_vf_backup[VD_PATH_MAX];
 static struct vframe_s *last_vf[VD_PATH_MAX];
 static int last_vf_signal_type[VD_PATH_MAX];
-static int null_vf_cnt[VD_PATH_MAX] = {2, 2};
+static int null_vf_cnt[VD_PATH_MAX] = {2, 2, 2};
 static int prev_color_fmt[3];
 static int prev_vmode[3] = {0xff, 0xff, 0xff};
 static bool dovi_on;
@@ -8219,7 +8602,7 @@ MODULE_PARM_DESC(null_vf_max, "\n null_vf_max\n");
 
 int amvecm_matrix_process(struct vframe_s *vf,
 			  struct vframe_s *vf_rpt, int flags,
-			  enum vd_path_e vd_path, enum vpp_index vpp_index)
+			  enum vd_path_e vd_path, enum vpp_index_e vpp_index)
 {
 	static struct vframe_s fake_vframe;
 	struct vinfo_s *vinfo;

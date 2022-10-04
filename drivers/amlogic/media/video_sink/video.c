@@ -2094,9 +2094,10 @@ int vpp_crc_result;
 static u32 vpp_crc_viu2_en;
 
 /* source fmt string */
-const char *src_fmt_str[] = {
+const char *src_fmt_str[10] = {
 	"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
-	"Dolby Vison", "Dolby Vison Low latency", "MVC"
+	"Dolby Vison", "Dolby Vison Low latency", "MVC",
+	"CUVA_HDR", "CUVA_HLG"
 };
 
 atomic_t primary_src_fmt =
@@ -7332,6 +7333,7 @@ static irqreturn_t vsync_isr_in(int irq, void *dev_id)
 		amdv_check_hdr10plus(vf);
 		amdv_check_hlg(vf);
 		amdv_check_primesl(vf);
+		amdv_check_cuva(vf);
 	}
 #endif
 
@@ -8119,6 +8121,7 @@ SET_FILTER:
 		amdv_check_hdr10plus(vf);
 		amdv_check_hlg(vf);
 		amdv_check_primesl(vf);
+		amdv_check_cuva(vf);
 	}
 #endif
 	while (vf && !video_suspend) {
@@ -8214,6 +8217,7 @@ SET_FILTER:
 		amdv_check_hdr10plus(vf);
 		amdv_check_hlg(vf);
 		amdv_check_primesl(vf);
+		amdv_check_cuva(vf);
 	}
 #endif
 	while (vf && !video_suspend) {
@@ -8839,7 +8843,9 @@ SET_FILTER:
 			VFRAME_SIGNAL_FMT_HDR10PRIME,
 			VFRAME_SIGNAL_FMT_HLG,
 			VFRAME_SIGNAL_FMT_SDR,
-			VFRAME_SIGNAL_FMT_MVC
+			VFRAME_SIGNAL_FMT_MVC,
+			VFRAME_SIGNAL_FMT_CUVA_HDR,
+			VFRAME_SIGNAL_FMT_CUVA_HLG
 		};
 
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
@@ -8851,7 +8857,7 @@ SET_FILTER:
 			new_src_fmt =
 				(int)get_cur_source_type(VD1_PATH, VPP_TOP0);
 #endif
-		if (new_src_fmt > 0 && new_src_fmt < 8)
+		if (new_src_fmt > 0 && new_src_fmt < MAX_SOURCE)
 			fmt = (enum vframe_signal_fmt_e)src_map[new_src_fmt];
 		else
 			fmt = VFRAME_SIGNAL_FMT_INVALID;
@@ -10956,6 +10962,7 @@ EXPORT_SYMBOL(di_prelink_state_changed_notify);
  *********************************************************/
 #define signal_color_primaries ((vf->signal_type >> 16) & 0xff)
 #define signal_transfer_characteristic ((vf->signal_type >> 8) & 0xff)
+#define signal_cuva ((vf->signal_type >> 31) & 1)
 #define PREFIX_SEI_NUT 39
 #define SUFFIX_SEI_NUT 40
 #define SEI_ITU_T_T35 4
@@ -11257,7 +11264,10 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		if ((signal_transfer_characteristic == 14 ||
 		     signal_transfer_characteristic == 18) &&
 		    signal_color_primaries == 9) {
-			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
+			if (signal_cuva)
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HLG;
+			else
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HLG;
 		} else if ((signal_transfer_characteristic == 0x30) &&
 			     ((signal_color_primaries == 9) ||
 			      (signal_color_primaries == 2))) {
@@ -11269,13 +11279,17 @@ s32 update_vframe_src_fmt(struct vframe_s *vf,
 		} else if ((signal_transfer_characteristic == 16) &&
 			     ((signal_color_primaries == 9) ||
 			      (signal_color_primaries == 2))) {
-			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
+			if (signal_cuva)
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_CUVA_HDR;
+			else
+				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10;
 		} else {
 			vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_SDR;
 		}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 		if (is_prime_sl_enable() && sei && size &&
-		    vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PLUS) {
+		    vf->src_fmt.fmt != VFRAME_SIGNAL_FMT_HDR10PLUS &&
+		    !signal_cuva) {
 			if (check_media_sei(sei, size, FMT_TYPE_PRIME, NULL))
 				vf->src_fmt.fmt = VFRAME_SIGNAL_FMT_HDR10PRIME;
 		}
@@ -11408,9 +11422,15 @@ char *find_vframe_sei(struct vframe_s *vf,
 		if ((signal_transfer_characteristic == 14 ||
 		     signal_transfer_characteristic == 18) &&
 		    signal_color_primaries == 9) {
-		    /* HLG */
-			ret_sei = NULL;
-			cur_sei_size = 0;
+			/* HLG */
+			/* TODO: need parser SEI for CUVA */
+			if (signal_cuva) {
+				ret_sei = sei,
+				cur_sei_size = size;
+			} else {
+				ret_sei = NULL;
+				cur_sei_size = 0;
+			}
 		} else if ((signal_transfer_characteristic == 0x30) &&
 			     ((signal_color_primaries == 9) ||
 			      (signal_color_primaries == 2))) {
@@ -11431,17 +11451,23 @@ char *find_vframe_sei(struct vframe_s *vf,
 		} else if ((signal_transfer_characteristic == 16) &&
 			     ((signal_color_primaries == 9) ||
 			      (signal_color_primaries == 2))) {
-		    /* HDR10 */
-			ret_sei = NULL;
-			cur_sei_size = 0;
+			/* HDR10 */
+			/* TODO: need parser SEI for CUVA */
+			if (signal_cuva) {
+				ret_sei = sei,
+				cur_sei_size = size;
+			} else {
+				ret_sei = NULL;
+				cur_sei_size = 0;
+			}
 		} else {
-		    /* SDR */
+			/* SDR */
 			ret_sei = NULL;
 			cur_sei_size = 0;
 		}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
 		/* PRIME */
-		if (is_prime_sl_enable() && !hdr10p)
+		if (is_prime_sl_enable() && !hdr10p && !signal_cuva)
 			ret_sei = check_media_sei(sei, size, FMT_TYPE_PRIME, &cur_sei_size);
 #endif
 	}
@@ -14800,7 +14826,8 @@ static ssize_t src_fmt_show(struct class *cla,
 	ret += sprintf(buf + ret, "vd1 dispbuf: %p\n", dispbuf);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
-		if (fmt != VFRAME_SIGNAL_FMT_INVALID) {
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+		    fmt < VFRAME_SIGNAL_FMT_MAX) {
 			sei_ptr = get_sei_from_src_fmt(dispbuf, &sei_size);
 			ret += sprintf(buf + ret, "fmt = %s\n",
 				src_fmt_str[fmt]);
@@ -14814,7 +14841,8 @@ static ssize_t src_fmt_show(struct class *cla,
 	ret += sprintf(buf + ret, "vd2 dispbuf: %p\n", dispbuf);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
-		if (fmt != VFRAME_SIGNAL_FMT_INVALID) {
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+		    fmt < VFRAME_SIGNAL_FMT_MAX) {
 			sei_size = 0;
 			sei_ptr = get_sei_from_src_fmt(dispbuf, &sei_size);
 			ret += sprintf(buf + ret, "fmt=0x%s\n",
@@ -14825,6 +14853,26 @@ static ssize_t src_fmt_show(struct class *cla,
 			ret += sprintf(buf + ret, "src_fmt is invalid\n");
 		}
 	}
+	if (!cur_dev || cur_dev->max_vd_layers <= 2)
+		goto src_fmt_end;
+
+	dispbuf = get_dispbuf(2);
+	ret += sprintf(buf + ret, "vd3 dispbuf: %p\n", dispbuf);
+	if (dispbuf) {
+		fmt = get_vframe_src_fmt(dispbuf);
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+		    fmt < VFRAME_SIGNAL_FMT_MAX) {
+			sei_size = 0;
+			sei_ptr = get_sei_from_src_fmt(dispbuf, &sei_size);
+			ret += sprintf(buf + ret, "fmt=0x%s\n",
+				src_fmt_str[fmt]);
+			ret += sprintf(buf + ret, "sei: %p, size: %d\n",
+				sei_ptr, sei_size);
+		} else {
+			ret += sprintf(buf + ret, "src_fmt is invalid\n");
+		}
+	}
+src_fmt_end:
 	return ret;
 }
 
@@ -14840,18 +14888,14 @@ static ssize_t process_fmt_show
 	bool hdr_bypass = false;
 	int l;
 
-	static const char * const fmt_str[] = {
-		"SDR", "HDR10", "HDR10+", "HDR Prime", "HLG",
-		"Dolby Vison", "Dolby Vison Low latency", "MVC"
-	};
-
 	amdv_on = is_amdv_on();
 	dispbuf = get_dispbuf(0);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
-		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd1: src_fmt = %s; ",
-				fmt_str[fmt]);
+				src_fmt_str[fmt]);
 		else
 			ret += sprintf(buf + ret, "vd1: src_fmt = null; ");
 
@@ -14859,23 +14903,29 @@ static ssize_t process_fmt_show
 
 		l = strlen("HDR_BYPASS");
 		if (!strncmp(process_name[0], "HDR_BYPASS", l) ||
-		    !strncmp(process_name[0], "HLG_BYPASS", l))
+		    !strncmp(process_name[0], "HLG_BYPASS", l) ||
+		    !strncmp(process_name[0], "CUVA_BYPASS", l))
 			hdr_bypass = true;
 
 		if (amdv_on) {
 			ret += sprintf(buf + ret, "out_fmt = IPT\n");
 		} else if (hdr_bypass) {
-			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
-				if ((!strcmp(fmt_str[fmt], "HDR10") ||
-				     !strcmp(fmt_str[fmt], "HDR10+")) &&
+			if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+			    fmt < VFRAME_SIGNAL_FMT_MAX)
+				if ((!strcmp(src_fmt_str[fmt], "HDR10") ||
+				     !strcmp(src_fmt_str[fmt], "HDR10+") ||
+				     !strcmp(src_fmt_str[fmt], "CUVA_HDR") ||
+				     !strcmp(src_fmt_str[fmt], "CUVA_HLG")) &&
 				    (!strcmp(output_fmt, "HDR") ||
-				      !strcmp(output_fmt, "HDR+")))
+				     !strcmp(output_fmt, "HDR+") ||
+				     !strcmp(output_fmt, "CUVA_HDR") ||
+				     !strcmp(output_fmt, "CUVA_HLG")))
 					ret += sprintf(buf + ret,
 						"out_fmt = %s_%s\n",
-						fmt_str[fmt], output_fmt);
+						src_fmt_str[fmt], output_fmt);
 				else
 					ret += sprintf(buf + ret,
-						"out_fmt = %s\n", fmt_str[fmt]);
+						"out_fmt = %s\n", src_fmt_str[fmt]);
 			else
 				ret += sprintf(buf + ret, "out_fmt = src!\n");
 		} else {
@@ -14887,9 +14937,10 @@ static ssize_t process_fmt_show
 	dispbuf = get_dispbuf(1);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
-		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd2: src_fmt = %s; ",
-				fmt_str[fmt]);
+				src_fmt_str[fmt]);
 		else
 			ret += sprintf(buf + ret, "vd2: src_fmt = null; ");
 
@@ -14897,23 +14948,29 @@ static ssize_t process_fmt_show
 
 		l = strlen("HDR_BYPASS");
 		if (!strncmp(process_name[1], "HDR_BYPASS", l) ||
-		    !strncmp(process_name[1], "HLG_BYPASS", l))
+		    !strncmp(process_name[1], "HLG_BYPASS", l) ||
+		    !strncmp(process_name[1], "CUVA_BYPASS", l))
 			hdr_bypass = true;
 
 		if (amdv_on) {
 			ret += sprintf(buf + ret, "out_fmt = IPT\n");
 		} else if (hdr_bypass) {
-			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
-				if ((!strcmp(fmt_str[fmt], "HDR10") ||
-				     !strcmp(fmt_str[fmt], "HDR10+")) &&
+			if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+			    fmt < VFRAME_SIGNAL_FMT_MAX)
+				if ((!strcmp(src_fmt_str[fmt], "HDR10") ||
+				     !strcmp(src_fmt_str[fmt], "HDR10+") ||
+				     !strcmp(src_fmt_str[fmt], "CUVA_HDR") ||
+				     !strcmp(src_fmt_str[fmt], "CUVA_HLG")) &&
 				    (!strcmp(output_fmt, "HDR") ||
-				     !strcmp(output_fmt, "HDR+")))
+				     !strcmp(output_fmt, "HDR+") ||
+				     !strcmp(output_fmt, "CUVA_HDR") ||
+				     !strcmp(output_fmt, "CUVA_HLG")))
 					ret += sprintf(buf + ret,
 						"out_fmt = %s_%s\n",
-						fmt_str[fmt], output_fmt);
+						src_fmt_str[fmt], output_fmt);
 				else
 					ret += sprintf(buf + ret,
-						"out_fmt = %s\n", fmt_str[fmt]);
+						"out_fmt = %s\n", src_fmt_str[fmt]);
 			else
 				ret += sprintf(buf + ret, "out_fmt = src!\n");
 		} else {
@@ -14929,9 +14986,10 @@ static ssize_t process_fmt_show
 	dispbuf = get_dispbuf(2);
 	if (dispbuf) {
 		fmt = get_vframe_src_fmt(dispbuf);
-		if (fmt != VFRAME_SIGNAL_FMT_INVALID)
+		if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+		    fmt < VFRAME_SIGNAL_FMT_MAX)
 			ret += sprintf(buf + ret, "vd3: src_fmt = %s; ",
-				fmt_str[fmt]);
+				src_fmt_str[fmt]);
 		else
 			ret += sprintf(buf + ret, "vd3: src_fmt = null; ");
 
@@ -14939,23 +14997,29 @@ static ssize_t process_fmt_show
 
 		l = strlen("HDR_BYPASS");
 		if (!strncmp(process_name[2], "HDR_BYPASS", l) ||
-		    !strncmp(process_name[2], "HLG_BYPASS", l))
+		    !strncmp(process_name[2], "HLG_BYPASS", l) ||
+		    !strncmp(process_name[2], "CUVA_BYPASS", l))
 			hdr_bypass = true;
 
 		if (amdv_on) {
 			ret += sprintf(buf + ret, "out_fmt = IPT\n");
 		} else if (hdr_bypass) {
-			if (fmt != VFRAME_SIGNAL_FMT_INVALID)
-				if ((!strcmp(fmt_str[fmt], "HDR10") ||
-				     !strcmp(fmt_str[fmt], "HDR10+")) &&
+			if (fmt != VFRAME_SIGNAL_FMT_INVALID &&
+			    fmt < VFRAME_SIGNAL_FMT_MAX)
+				if ((!strcmp(src_fmt_str[fmt], "HDR10") ||
+				     !strcmp(src_fmt_str[fmt], "HDR10+") ||
+				     !strcmp(src_fmt_str[fmt], "CUVA_HDR") ||
+				     !strcmp(src_fmt_str[fmt], "CUVA_HLG")) &&
 				    (!strcmp(output_fmt, "HDR") ||
-				     !strcmp(output_fmt, "HDR+")))
+				     !strcmp(output_fmt, "HDR+") ||
+				     !strcmp(output_fmt, "CUVA_HDR") ||
+				     !strcmp(output_fmt, "CUVA_HLG")))
 					ret += sprintf(buf + ret,
 						"out_fmt = %s_%s\n",
-						fmt_str[fmt], output_fmt);
+						src_fmt_str[fmt], output_fmt);
 				else
 					ret += sprintf(buf + ret,
-						"out_fmt = %s\n", fmt_str[fmt]);
+						"out_fmt = %s\n", src_fmt_str[fmt]);
 			else
 				ret += sprintf(buf + ret, "out_fmt = src!\n");
 		} else {

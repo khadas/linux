@@ -187,6 +187,7 @@ static int lowlatency_vsync(u8 instance_id)
 		amdv_check_hdr10plus(vf);
 		amdv_check_hlg(vf);
 		amdv_check_primesl(vf);
+		amdv_check_cuva(vf);
 	}
 
 	if (cur_vd1_path_id != vd1_path_id) {
@@ -905,7 +906,9 @@ static int lowlatency_vsync(u8 instance_id)
 			VFRAME_SIGNAL_FMT_HDR10PRIME,
 			VFRAME_SIGNAL_FMT_HLG,
 			VFRAME_SIGNAL_FMT_SDR,
-			VFRAME_SIGNAL_FMT_MVC
+			VFRAME_SIGNAL_FMT_MVC,
+			VFRAME_SIGNAL_FMT_CUVA_HDR,
+			VFRAME_SIGNAL_FMT_CUVA_HLG
 		};
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -916,7 +919,7 @@ static int lowlatency_vsync(u8 instance_id)
 			new_src_fmt =
 				(int)get_cur_source_type(VD1_PATH, VPP_TOP0);
 #endif
-		if (new_src_fmt > 0 && new_src_fmt < 8)
+		if (new_src_fmt > 0 && new_src_fmt < MAX_SOURCE)
 			fmt = (enum vframe_signal_fmt_e)src_map[new_src_fmt];
 		else
 			fmt = VFRAME_SIGNAL_FMT_INVALID;

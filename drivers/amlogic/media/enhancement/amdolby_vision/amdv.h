@@ -125,7 +125,8 @@ enum signal_format_enum {
 	FORMAT_MVC = 7,
 	FORMAT_SDR10 = 8,
 	FORMAT_HDR8 = 9,
-	FORMAT_PRIMESL = 10
+	FORMAT_CUVA = 10,
+	FORMAT_PRIMESL = 11
 };
 
 enum priority_mode_enum  {

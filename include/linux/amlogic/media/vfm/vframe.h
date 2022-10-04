@@ -326,7 +326,10 @@ enum vframe_signal_fmt_e {
 	VFRAME_SIGNAL_FMT_HLG = 4,
 	VFRAME_SIGNAL_FMT_DOVI = 5,
 	VFRAME_SIGNAL_FMT_DOVI_LL = 6,
-	VFRAME_SIGNAL_FMT_MVC = 7
+	VFRAME_SIGNAL_FMT_MVC = 7,
+	VFRAME_SIGNAL_FMT_CUVA_HDR = 8,
+	VFRAME_SIGNAL_FMT_CUVA_HLG = 9,
+	VFRAME_SIGNAL_FMT_MAX = 10
 };
 
 #define SEI_MAGIC_CODE 0x53656920 /* SEI */
@@ -583,6 +586,7 @@ struct vframe_s {
 	u32 bitdepth;
 
 	/*
+	 * bit 31: is_cuva
 	 * bit 30: is_dv
 	 * bit 29: present_flag
 	 * bit 28-26: video_format

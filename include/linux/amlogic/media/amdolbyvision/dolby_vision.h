@@ -245,6 +245,7 @@ int amdv_check_hdr10(struct vframe_s *vf);
 int amdv_check_hlg(struct vframe_s *vf);
 int amdv_check_hdr10plus(struct vframe_s *vf);
 int amdv_check_primesl(struct vframe_s *vf);
+int amdv_check_cuva(struct vframe_s *vf);
 void tv_amdv_dma_table_modify
 	(u32 tbl_id, uint64_t value);
 void tv_amdv_efuse_info(void);

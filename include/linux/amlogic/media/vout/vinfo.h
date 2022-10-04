@@ -93,6 +93,7 @@ struct hdr10_plus_info {
 };
 
 struct cuva_info {
+	u32 cuva_support;
 	u8 rawdata[15];
 	u8 length;
 	u32 ieeeoui;

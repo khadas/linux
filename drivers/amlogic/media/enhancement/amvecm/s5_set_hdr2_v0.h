@@ -17,22 +17,22 @@ void s5_set_hdr_matrix(enum hdr_module_sel module_sel,
 		    struct hdr_proc_mtx_param_s *hdr_mtx_param,
 		    struct hdr10pgen_param_s *p_hdr10pgen_param,
 		    struct hdr_proc_lut_param_s *hdr_lut_param,
-		    enum vpp_index vpp_index);
+		    enum vpp_index_e vpp_index);
 void s5_set_eotf_lut(enum hdr_module_sel module_sel,
 		  struct hdr_proc_lut_param_s *hdr_lut_param,
-		  enum vpp_index vpp_index);
+		  enum vpp_index_e vpp_index);
 void s5_set_ootf_lut(enum hdr_module_sel module_sel,
 		  struct hdr_proc_lut_param_s *hdr_lut_param,
-		  enum vpp_index vpp_index);
+		  enum vpp_index_e vpp_index);
 void s5_set_oetf_lut(enum hdr_module_sel module_sel,
 		  struct hdr_proc_lut_param_s *hdr_lut_param,
-		  enum vpp_index vpp_index);
+		  enum vpp_index_e vpp_index);
 void s5_set_c_gain(enum hdr_module_sel module_sel,
 		struct hdr_proc_lut_param_s *hdr_lut_param,
-		enum vpp_index vpp_index);
+		enum vpp_index_e vpp_index);
 void s5_hdr_hist_config(enum hdr_module_sel module_sel,
 		     struct hdr_proc_lut_param_s *hdr_lut_param,
-		     enum vpp_index vpp_index);
+		     enum vpp_index_e vpp_index);
 void set_vpu_lut_dma_mif(struct VPU_LUT_DMA_t      *vpu_lut_dma);
 void vpu_lut_dma(enum hdr_module_sel module_sel,
 	struct hdr_proc_lut_param_s *hdr_lut_param, enum LUT_DMA_ID_e dma_id);

@@ -20,6 +20,7 @@ enum hdr_module_sel {
 	S5_VD1_SLICE1 = 11,
 	S5_VD1_SLICE2 = 12,
 	S5_VD1_SLICE3 = 13,
+	VICP_HDR = 14,
 	HDR_MAX
 };
 
@@ -39,7 +40,19 @@ enum hdr_process_sel {
 	SDR_GMT_CONVERT = BIT(12),
 	IPT_MAP = BIT(13),
 	IPT_SDR = BIT(14),
-	PROCESS_MAX = BIT(15),
+	CUVA_BYPASS = BIT(15),
+	CUVA_SDR = BIT(16),
+	CUVA_HDR = BIT(17),
+	CUVA_HLG = BIT(18),
+	CUVA_IPT = BIT(19),
+	SDR_CUVA = BIT(20),
+	HDR_CUVA = BIT(21),
+	HLG_CUVA = BIT(22),
+	CUVAHLG_SDR = BIT(23),
+	CUVAHLG_HDR = BIT(24),
+	CUVAHLG_HLG = BIT(25),
+	CUVAHLG_CUVA = BIT(26),
+	PROCESS_MAX = BIT(28),
 	/* reserved  several bits for additional info */
 	RGB_OSD = BIT(29),
 	RGB_VDIN = BIT(30),
@@ -86,6 +99,7 @@ struct hdr_proc_mtx_param_s {
 	unsigned int mtx_on;
 	enum hdr_process_sel p_sel;
 	unsigned int gmt_bit_mode;
+	int gmut_shift;
 };
 
 struct hdr_proc_lut_param_s {

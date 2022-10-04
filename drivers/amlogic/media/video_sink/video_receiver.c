@@ -538,6 +538,7 @@ static struct vframe_s *recv_common_dequeue_frame(struct video_recv_s *ins,
 			amdv_check_hdr10plus(vf);
 			amdv_check_hlg(vf);
 			amdv_check_primesl(vf);
+			amdv_check_cuva(vf);
 		}
 
 		fmt = get_vframe_src_fmt(vf);

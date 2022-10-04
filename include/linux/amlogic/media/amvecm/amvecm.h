@@ -163,6 +163,9 @@ void amdv_set_toggle_flag(int flag);
 #define HLG_SOURCE			5
 #define SDR_SOURCE			6
 #define MVC_SOURCE           7
+#define CUVA_HDR_SOURCE      8
+#define CUVA_HLG_SOURCE      9
+#define MAX_SOURCE      10
 
 #define DNLP_PARAM_RD_UPDATE 0x1
 #define DNLP_CV_RD_UPDATE 0x2
@@ -533,6 +536,7 @@ enum vpp_matrix_csc_e {
 	VPP_MATRIX_BT2020RGB_709RGB,
 	VPP_MATRIX_BT2020RGB_CUSRGB,
 	VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC = 0x50,
+	VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA = 0x51,
 	VPP_MATRIX_DEFAULT_CSCTYPE = 0xffff,
 };
 
@@ -544,6 +548,8 @@ enum hdr_type_e {
 	HDRTYPE_HDR10PLUS = HDR10PLUS_SOURCE,
 	HDRTYPE_DOVI = DOVI_SOURCE,
 	HDRTYPE_MVC = MVC_SOURCE,
+	HDRTYPE_CUVA_HDR = CUVA_HDR_SOURCE,
+	HDRTYPE_CUVA_HLG = CUVA_HLG_SOURCE,
 	HDRTYPE_PRIMESL = PRIMESL_SOURCE,
 };
 
@@ -728,7 +734,7 @@ enum vd_path_e {
 	VD_PATH_MAX = 3
 };
 
-enum vpp_index {
+enum vpp_index_e {
 	VPP_TOP0 = 0,
 	VPP_TOP1 = 1,
 	VPP_TOP2 = 2,
@@ -793,7 +799,7 @@ int amvecm_on_vs(struct vframe_s *display_vf,
 		 unsigned int cm_in_w,
 		 unsigned int cm_in_h,
 		 enum vd_path_e vd_path,
-		 enum vpp_index vpp_index);
+		 enum vpp_index_e vpp_index);
 void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf);
 void pc_mode_process(void);
 void pq_user_latch_process(void);
@@ -834,7 +840,8 @@ void enable_osd1_mtx(unsigned int en);
 void set_cur_hdr_policy(uint policy);
 bool di_api_mov_sel(unsigned int mode,
 		    unsigned int *pdate);
-enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path, enum vpp_index vpp_index);
+enum hdr_type_e get_cur_source_type(enum vd_path_e vd_path,
+	enum vpp_index_e vpp_index);
 
 int amvecm_set_saturation_hue(int mab);
 void amvecm_saturation_hue_update(int offset_val);
@@ -862,7 +869,7 @@ struct single_scene_s {
 };
 extern struct single_scene_s detected_scenes[SCENE_MAX];
 extern int freerun_en;
-u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index vpp_index);
+u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index_e vpp_index);
 int vinfo_lcd_support(void);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 #endif /* AMVECM_H */

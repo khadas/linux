@@ -1935,7 +1935,7 @@ static int cabc_aad_on_vs(int vf_state)
 }
 
 #ifdef T7_BRINGUP_MULTI_VPP
-int min_vpp_process(int vpp_top_index, enum vpp_index vpp_index)
+int min_vpp_process(int vpp_top_index, enum vpp_index_e vpp_index)
 {
 	int result = 0;
 	//write csc and gain/offset for vpp1/2 here
@@ -1957,7 +1957,7 @@ int amvecm_on_vs(struct vframe_s *vf,
 		 unsigned int cm_in_w,
 		 unsigned int cm_in_h,
 		 enum vd_path_e vd_path,
-		 enum vpp_index vpp_index)
+		 enum vpp_index_e vpp_index)
 {
 	int result = 0;
 	int vf_state = 0;
@@ -2001,6 +2001,7 @@ int amvecm_on_vs(struct vframe_s *vf,
 		return amvecm_matrix_process(toggle_vf, vf, flags, vd_path, vpp_index);
 	} else if (vd_path == VD1_PATH) {
 		send_hdr10_plus_pkt(vd_path, vpp_index);
+		send_cuva_pkt(vd_path, vpp_index);
 	}
 	if ((toggle_vf) || (vf)) {
 		/* matrix adjust */
