@@ -2637,10 +2637,12 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("hdmirx: fail to create info attribute file\n");
 		goto fail_create_info_file;
 	}
-	ret = device_create_file(hdevp->dev, &dev_attr_esm_base);
-	if (ret < 0) {
-		rx_pr("hdmirx: fail to create esm_base attribute file\n");
-		goto fail_create_esm_base_file;
+	if (rx.chip_id < CHIP_ID_T7) {
+		ret = device_create_file(hdevp->dev, &dev_attr_esm_base);
+		if (ret < 0) {
+			rx_pr("hdmirx: fail to create esm_base attribute file\n");
+			goto fail_create_esm_base_file;
+		}
 	}
 	ret = device_create_file(hdevp->dev, &dev_attr_cec);
 	if (ret < 0) {
@@ -2900,10 +2902,11 @@ static int hdmirx_probe(struct platform_device *pdev)
 	eq_wq = create_singlethread_workqueue(hdevp->frontend.name);
 	INIT_DELAYED_WORK(&eq_dwork, eq_dwork_handler);
 
-	esm_wq = create_singlethread_workqueue(hdevp->frontend.name);
-	INIT_DELAYED_WORK(&esm_dwork, rx_hpd_to_esm_handle);
-	/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
-
+	if (rx.chip_id < CHIP_ID_T7) {
+		esm_wq = create_singlethread_workqueue(hdevp->frontend.name);
+		INIT_DELAYED_WORK(&esm_dwork, rx_hpd_to_esm_handle);
+		/* queue_delayed_work(eq_wq, &eq_dwork, msecs_to_jiffies(5)); */
+	}
 	/* create for aml phy init */
 	amlphy_wq = create_workqueue(hdevp->frontend.name);
 	INIT_WORK(&amlphy_dwork, aml_phy_init_handler);

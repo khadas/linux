@@ -821,6 +821,8 @@ void rx_hdcp22_wr_top(unsigned int addr, unsigned int data)
  */
 unsigned int rx_hdcp22_rd_top(u32 addr)
 {
+	if (rx.chip_id >= CHIP_ID_T7)
+		return 0;
 	return (unsigned int)sec_top_read((unsigned int *)(unsigned long)addr);
 }
 
@@ -847,8 +849,7 @@ unsigned int sec_top_read(unsigned int *addr)
 	struct arm_smccc_res res;
 
 	if (rx.chip_id >= CHIP_ID_T7)
-		arm_smccc_smc(HDMIRX_RD_SEC_TOP_NEW, (unsigned long)(uintptr_t)addr,
-			      0, 0, 0, 0, 0, 0, &res);
+		return 0;
 	else
 		arm_smccc_smc(HDMIRX_RD_SEC_TOP, (unsigned long)(uintptr_t)addr,
 			      0, 0, 0, 0, 0, 0, &res);
@@ -881,64 +882,6 @@ unsigned int rx_sec_reg_read(unsigned int *addr)
 }
 
 /*
- * rx_sec_reg_write - aes reg write
- */
-void rx_sec_reg_aes_write(unsigned int *addr, unsigned int value)
-{
-	struct arm_smccc_res res;
-
-	arm_smccc_smc(HDMIRX_WR_AES, (unsigned long)(uintptr_t)addr,
-		      value, 0, 0, 0, 0, 0, &res);
-}
-
-unsigned int rx_sec_reg_aes_read(unsigned int *addr)
-{
-	struct arm_smccc_res res;
-
-	arm_smccc_smc(HDMIRX_RD_AES, (unsigned long)(uintptr_t)addr,
-		      0, 0, 0, 0, 0, 0, &res);
-	return (unsigned int)((res.a0) & 0xffffffff);
-}
-
-unsigned int rx_rd_aes(u32 addr)
-{
-	return (unsigned int)rx_sec_reg_aes_read((unsigned int *)(unsigned long)addr);
-}
-
-void rx_wr_aes(unsigned int addr, unsigned int data)
-{
-	rx_sec_reg_aes_write((unsigned int *)(unsigned long)addr, data);
-}
-
-void rx_sec_reg_cor_write(unsigned int *addr, unsigned int value)
-{
-	struct arm_smccc_res res;
-
-	arm_smccc_smc(HDMIRX_WR_COR, (unsigned long)(uintptr_t)addr,
-		      value, 0, 0, 0, 0, 0, &res);
-}
-
-unsigned int rx_sec_reg_cor_read(unsigned int *addr)
-{
-	struct arm_smccc_res res;
-
-	arm_smccc_smc(HDMIRX_RD_COR, (unsigned long)(uintptr_t)addr,
-		      0, 0, 0, 0, 0, 0, &res);
-
-	return (unsigned int)((res.a0) & 0xffffffff);
-}
-
-unsigned int rx_rd_cor(u32 addr)
-{
-	return (unsigned int)rx_sec_reg_cor_read((unsigned int *)(unsigned long)addr);
-}
-
-void rx_wr_cor(unsigned int addr, unsigned int data)
-{
-	rx_sec_reg_cor_write((unsigned int *)(unsigned long)addr, data);
-}
-
-/*
  * rx_sec_set_duk
  */
 unsigned int rx_sec_set_duk(bool repeater)
@@ -965,6 +908,18 @@ unsigned int rx_set_hdcp14_secure_key(void)
 	 */
 	arm_smccc_smc(HDCP14_RX_SETKEY, 0, 0, 0, 0, 0, 0, 0, &res);
 
+	return (unsigned int)((res.a0) & 0xffffffff);
+}
+
+/*
+ * rx_smc_cmd_handler: communicate with bl31
+ */
+u32 rx_smc_cmd_handler(u32 index, u32 value)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDMI_RX_SMC_CMD, index,
+				value, 0, 0, 0, 0, 0, &res);
 	return (unsigned int)((res.a0) & 0xffffffff);
 }
 
@@ -4873,12 +4828,6 @@ int rx_debug_wr_reg(const char *buf, char *tmpbuf, int i)
 		} else if (buf[2] == 'a') {
 			hdmirx_wr_amlphy(adr, value);
 			rx_pr("write %x to amlphy [%x]\n", value, adr);
-		} else if (buf[2] == 'c') {
-			rx_wr_cor(adr, value);
-			rx_pr("write %x to sec cor [%x]\n", value, adr);
-		} else if (buf[2] == 'e') {
-			rx_wr_aes(adr, value);
-			rx_pr("write %x to aes reg [%x]\n", value, adr);
 		}
 	}
 	return 0;
@@ -4916,12 +4865,6 @@ int rx_debug_rd_reg(const char *buf, char *tmpbuf)
 		} else if (tmpbuf[2] == 'a') {
 			value = hdmirx_rd_amlphy(adr);
 			rx_pr("amlphy [%x]=%x\n", adr, value);
-		} else if (tmpbuf[2] == 'c') {
-			value = rx_rd_cor(adr);
-			rx_pr("sec cor [%x]=%x\n", adr, value);
-		} else if (tmpbuf[2] == 'e') {
-			value = rx_rd_aes(adr);
-			rx_pr("aes [%x]=%x\n", adr, value);
 		}
 	}
 	return 0;
@@ -5820,3 +5763,27 @@ void rx_check_ecc_error(void)
 	}
 }
 
+int is_rx_hdcp14key_loaded_t7(void)
+{
+	return rx_smc_cmd_handler(HDCP14_RX_QUERY, 0);
+}
+
+int is_rx_hdcp22key_loaded_t7(void)
+{
+	return rx_smc_cmd_handler(HDCP22_RX_QUERY, 0);
+}
+
+int is_rx_hdcp14key_crc_pass(void)
+{
+	return rx_smc_cmd_handler(HDCP14_CRC_STS, 0);
+}
+
+int is_rx_hdcp22key_crc0_pass(void)
+{
+	return rx_smc_cmd_handler(HDCP22_CRC0_STS, 0);
+}
+
+int is_rx_hdcp22key_crc1_pass(void)
+{
+	return rx_smc_cmd_handler(HDCP22_CRC1_STS, 0);
+}

@@ -1193,13 +1193,20 @@
 #define HDCP22_RX_SET_DUK_KEY	0x8200002e
 #define HDCP22_RP_SET_DUK_KEY	0x8200002c
 #define HDCP14_RX_SETKEY		0x8200002d
-#define HDMIRX_RD_SEC_TOP_NEW	0x8200008b
 #define HDMIRX_WR_SEC_TOP_NEW	0x8200008c
-#define HDMIRX_RD_AES			0x8200008d
-#define HDMIRX_WR_AES			0x8200008e
-#define HDMIRX_RD_COR			0x8200008f
-#define HDMIRX_WR_COR			0x82000091
+#define HDMIRX_RSV0				0x8200008d
+#define HDMIRX_RSV1				0x8200008e
+#define HDMIRX_RSV2				0x8200008f
+#define HDMIRX_RSV3				0x82000091
 #define HDMI_RX_HDCP_CFG		0x820000aa
+#define HDMI_RX_SMC_CMD			0x8200008b
+
+/* unifykey query id */
+#define HDCP14_RX_QUERY	1
+#define HDCP22_RX_QUERY	2
+#define HDCP14_CRC_STS	0x10
+#define HDCP22_CRC0_STS	0x11
+#define HDCP22_CRC1_STS	0x12
 
 /* COR reg start */
 #define COR_SCDC_TMDS_CFG	0x7820
@@ -3407,4 +3414,15 @@ void rx_earc_hpd_handler(struct work_struct *work);
 void rx_kill_esm(void);
 int is_t7_former(void);
 bool rx_get_dig_clk_en_sts(void);
+int is_rx_unifykey_exist(const char *key_type);
+int rx_unifykey_query(int index);
+int is_rx_unifykey_14_support(void);
+int is_rx_unifykey_22_support(void);
+int is_rx_unifykey_support(void);
+u32 rx_smc_cmd_handler(u32 index, u32 value);
+int is_rx_hdcp14key_loaded_t7(void);
+int is_rx_hdcp22key_loaded_t7(void);
+int is_rx_hdcp14key_crc_pass(void);
+int is_rx_hdcp22key_crc0_pass(void);
+int is_rx_hdcp22key_crc1_pass(void);
 #endif

@@ -374,6 +374,8 @@ void hdmirx_init_params(void)
 
 void rx_hpd_to_esm_handle(struct work_struct *work)
 {
+	if (rx.chip_id >= CHIP_ID_T7)
+		return;
 	cancel_delayed_work(&esm_dwork);
 	/* switch_set_state(&rx.hpd_sdev, 0x0); */
 	/* extcon_set_state_sync(rx.rx_excton_rx22, EXTCON_DISP_HDMI, 0); */
@@ -3669,6 +3671,15 @@ static void dump_hdcp_status(void)
 	      rx.cur.hdcp14_state);
 	rx_pr("HDCP22 state:%d\n",
 	      rx.cur.hdcp22_state);
+	if (rx.chip_id >= CHIP_ID_T7) {
+		if (log_level & HDCP_LOG) {
+			rx_pr("14 key loaded-%d\n", is_rx_hdcp14key_loaded_t7());
+			rx_pr("22 key loaded-%d\n", is_rx_hdcp22key_loaded_t7());
+			rx_pr("14 key crc-%d\n", is_rx_hdcp14key_crc_pass());
+			rx_pr("22 key crc0-%d\n", is_rx_hdcp22key_crc0_pass());
+			rx_pr("22 key ccrc1-%d\n", is_rx_hdcp22key_crc1_pass());
+		}
+	}
 	if (rx.chip_id != CHIP_ID_T7)
 		return;
 	rx_pr("rpt = %d\n", hdmirx_repeat_support());
