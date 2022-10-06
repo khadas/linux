@@ -144,7 +144,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0xF000000>;
+			size = <0x0 0xB000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -1459,6 +1459,31 @@
 	pinctrl-names = "default";//, "sleep"
 	pinctrl-0 = <&i2c3_pins1>;
 	clock-frequency = <100000>; /* default 100k */
+	imx290_1: sensor2@1a {
+		compatible = "sony, imx290";
+		index = <0>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clocks = <&clkc CLKID_MCLK_1>,
+				<&clkc CLKID_MCLK_1_PRE>,
+				<&clkc CLKID_MCLK_PLL>,
+				<&xtal>;
+		clock-names = "mclk","mclk_pre","mclk_p","mclk_x";
+		pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
+		ports {
+			port@0 {
+				imx290_1_ep: imx290 {
+					reg = <0>;
+					data-lanes = <0 1 2 3>;
+					link-frequencies = /bits/ 64 <222750000>;
+					remote-endpoint = <&csiphy2_ep>;
+				};
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -1559,7 +1584,7 @@
 &csiphy0 {
 	ports {
 		port@0 {
-			csiphy0_ep_2: ov08a10 {
+			csiphy0_ep_2: endpoint {
 				reg = <0>;
 				status = "disable";
 				clock-lanes = <4>;
@@ -1568,8 +1593,8 @@
 			};
 		};
 		port@1 {
-			csiphy0_ep: imx290 {
-				reg = <0>;
+			csiphy0_ep: endpoint {
+				reg = <1>;
 				status = "okay";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
@@ -1577,8 +1602,8 @@
 			};
 		};
 		port@2 {
-			csiphy0_ep_4: imx415 {
-				reg = <0>;
+			csiphy0_ep_4: endpoint {
+				reg = <2>;
 				status = "disable";
 				clock-lanes = <4>;
 				data-lanes = <0 1 2 3>;
@@ -1594,6 +1619,20 @@
 
 &isp0 {
 	memory-region = <&camera_cma_reserved>;
+};
+
+&csiphy2 {
+	ports {
+		port@0 {
+			csiphy2_ep: endpoint {
+				reg = <2>;
+				status = "okay";
+				clock-lanes = <4>;
+				data-lanes = <0 1 2 3>;
+				remote-endpoint = <&imx290_1_ep>;
+			};
+		};
+	};
 };
 
 &ir {

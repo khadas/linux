@@ -2149,6 +2149,11 @@
 		reg-names = "adapter";
 		clocks = <&clkc CLKID_MIPI_ISP>;
 		clock-names = "mipi_isp_clk";
+		interrupts = <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH
+					GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH
+					GIC_SPI 311 IRQ_TYPE_LEVEL_HIGH
+					GIC_SPI 310 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "adap_irq_fe0", "adap_irq_fe1", "adap_irq_fe2", "adap_irq_fe3";
 	};
 
 	isp0: isp0@fe3b0000 {
@@ -2158,12 +2163,35 @@
 		clocks = <&clkc CLKID_MIPI_ISP>;
 		clock-names = "mipi_isp_clk";
 		interrupts = <0 289 1>;
+		interrupt-names = "isp";
 	};
 
 	camera0 {
 		compatible = "amlogic, camera";
 		index = <0>;
 		csiphy = <&csiphy0>;
+		adapter = <&adapter0>;
+		isp = <&isp0>;
+	};
+
+	csiphy2: csiphy2@0xfe3bec00 {
+		compatible = "amlogic, csiphy0";
+		reg = <0x0 0xfe3be400 0x0 0x3000>,//host2
+				<0x0 0xfe3bdc00 0x0 0x400>;
+		reg-names = "csi_phy","csi_aphy";
+		//power-domains = <&pwrdm PDID_C3_ISP_TOP>;
+		clocks = <&clkc CLKID_MIPI_CSI_PHY0>,
+				<&clkc CLKID_MIPI_CSI_PHY1>;
+		clock-names = "mipi_phy_clk",
+				"mipi_phy_clk1";
+		assigned-clock-parents = <&clkc CLKID_MIPI_CSI_PHY0>;
+		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
+	};
+
+	camera2 {
+		compatible = "amlogic, camera";
+		index = <2>;
+		csiphy = <&csiphy2>;
 		adapter = <&adapter0>;
 		isp = <&isp0>;
 	};
