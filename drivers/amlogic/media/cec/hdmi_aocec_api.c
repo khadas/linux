@@ -2085,7 +2085,10 @@ void cec_save_mail_box(void)
 	CEC_INFO("%s\n", __func__);
 	tmp = cec_get_cur_phy_addr();
 	if (cec_dev->dev_type != CEC_TV_ADDR) {
-		if (tmp == 0)
+		/* 0xffff is the default invalid phy addr */
+		if (get_hpd_state() == 0)
+			cec_dev->phy_addr = 0xffff;
+		else if (tmp == 0)
 			cec_dev->phy_addr = 0xffff;
 		else
 			cec_dev->phy_addr = tmp;

@@ -1593,11 +1593,21 @@ static long hdmitx_cec_ioctl(struct file *f,
 	switch (cmd) {
 	case CEC_IOC_GET_PHYSICAL_ADDR:
 		/*check_physical_addr_valid(20);*/
-		/* physical address for TV or repeator */
+		/* refer to hdmi specification, when a
+		 * physical address is cleared, it
+		 * takes the value F.F.F.F
+		 */
 		tmp = cec_get_cur_phy_addr();
-		if (cec_dev->dev_type != CEC_TV_ADDR && tmp != 0 &&
-		    tmp != 0xffff)
-			cec_dev->phy_addr = tmp;
+		if (cec_dev->dev_type != CEC_TV_ADDR) {
+			if (get_hpd_state() == 0)
+				cec_dev->phy_addr = 0xffff;
+			else if (tmp == 0)
+				cec_dev->phy_addr = 0xffff;
+			else
+				cec_dev->phy_addr = tmp;
+		} else {
+			cec_dev->phy_addr = 0;
+		}
 
 		if (!phy_addr_test) {
 			cec_config2_phyaddr(cec_dev->phy_addr, 1);

@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2022/12/06: remove suspend/resume event"
+#define CEC_DRIVER_VERSION     "2022/12/16: update default phy address"
 
 #define CEC_DEV_NAME		"cec"
 
