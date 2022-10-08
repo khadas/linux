@@ -1413,27 +1413,20 @@ void earctx_enable(struct regmap *top_map,
 				 0x1 << 31,
 				 0x1 << 31);
 	} else {
+		/* earc tx is not disable, only mute, ensure earc outputs zero data */
 		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x1 << 30, /* biphase work clear */
-				 0x1 << 30);
-
-		mmio_update_bits(dmac_map, EARCTX_SPDIFOUT_CTRL0,
-				 0x3 << 28,
-				 0x0 << 28);
+				 0x3 << 21,
+				 0x3 << 21);
+		return;
 	}
 
-	if (enable)
-		mmio_write(top_map, EARCTX_DMAC_INT_MASK,
-			   (0x1 << 4)	| /* fe_modulation c_hold_clr */
-			   (0x1 << 3)	| /* fe_modulation c_hold_start */
-			   (0x1 << 2)	| /* err_correct c_fifo_thd_less_pass */
-			   (0x1 << 1)	| /* err_correct r_fifo_overflow_set */
-			   (0x1 << 0)	  /* err_correct c_fifo_empty_set */
-			   );
-	else
-		mmio_write(top_map, EARCTX_DMAC_INT_MASK,
-			   0x0
-			   );
+	mmio_write(top_map, EARCTX_DMAC_INT_MASK,
+		   (0x1 << 4)	| /* fe_modulation c_hold_clr */
+		   (0x1 << 3)	| /* fe_modulation c_hold_start */
+		   (0x1 << 2)	| /* err_correct c_fifo_thd_less_pass */
+		   (0x1 << 1)	| /* err_correct r_fifo_overflow_set */
+		   (0x1 << 0)	  /* err_correct c_fifo_empty_set */
+		   );
 
 	earctx_compressed_enable(dmac_map,
 				 type,
