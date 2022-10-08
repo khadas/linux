@@ -6242,7 +6242,10 @@ static int drm_hdmitx_get_timing_para(int vic, struct drm_hdmitx_timing_para *pa
 	para->h_front = timing->h_front;
 	para->h_sync = timing->h_sync;
 	para->h_total = timing->h_total;
-	para->v_active = timing->v_active;
+	if (!timing->pi_mode)
+		para->v_active = timing->v_active / 2;
+	else
+		para->v_active = timing->v_active;
 	para->v_front = timing->v_front;
 	para->v_sync = timing->v_sync;
 	para->v_total = timing->v_total;
