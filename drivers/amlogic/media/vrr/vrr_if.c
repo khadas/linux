@@ -49,6 +49,8 @@ static void vrr_drv_state_active_update(int index)
 
 	for (i = 0; i < VRR_MAX_DRV; i++) {
 		vdrv = vrr_drv_get(i);
+		if (!vdrv)
+			continue;
 		if (i == index)
 			vdrv->state |= VRR_STATE_ACTIVE;
 		else
