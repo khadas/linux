@@ -3261,4 +3261,8 @@
 #define S5_OSD_HDR2_CTRL                              0x6000
 
 #define VD1_PI_CONTROL                                0x4c54
+
+#define VPP_SLICE1_DNLP_CTRL_01                       0x2865
+#define VPP_SLICE2_DNLP_CTRL_01                       0x2965
+#define VPP_SLICE3_DNLP_CTRL_01                       0x2a65
 #endif
