@@ -483,9 +483,9 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
-		sensor-name-sub = "imx290sub";
-		sensor-name-ssub = "imx290ssub";
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
+		sensor-name-sub = "os08a10sub";
+		sensor-name-ssub = "os08a10ssub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -495,14 +495,14 @@
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
-		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		power-enable = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 	};
 
 	hdmirx {
@@ -984,8 +984,8 @@
 			"pdm_dclk",
 			"pdm_sysclk";
 
-		pinctrl-names = "pdm_pins";
-		pinctrl-0 = <&pdmin_pins>;
+//		pinctrl-names = "pdm_pins";
+//		pinctrl-0 = <&pdmin_pins>;
 
 		/* mode 0~4, defalut:1 */
 		filter_mode = <1>;
