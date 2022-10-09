@@ -358,7 +358,7 @@ void s5_dmc_mon_disable(struct dmc_monitor *mon)
 
 struct dmc_mon_ops s5_dmc_mon_ops = {
 	.handle_irq = s5_dmc_mon_irq,
-	.set_montor = s5_dmc_mon_set,
+	.set_monitor = s5_dmc_mon_set,
 	.disable    = s5_dmc_mon_disable,
 	.dump_reg   = s5_dmc_dump_reg,
 };

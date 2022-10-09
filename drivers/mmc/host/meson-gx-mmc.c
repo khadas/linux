@@ -3171,15 +3171,9 @@ static int mmc_intf3_win_tuning(struct mmc_host *mmc, u32 opcode)
 
 	vclk = readl(host->regs + SD_EMMC_CLOCK);
 
-<<<<<<< HEAD
-	if ((vclk & CLK_DIV_MASK) > 10) {
+	if ((vclk & CLK_DIV_MASK) > 16) {
 		pr_err("clk div is too big, needn't tuning.\n");
 		return 0;
-=======
-	if ((vclk & CLK_DIV_MASK) > 16) {
-		pr_err("clk div is too big.\n");
-		return -1;
->>>>>>> s5: enable emmc hs400 [1/1]
 	}
 
 	vclk &= ~CLK_V3_RX_DELAY_MASK;

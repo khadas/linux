@@ -51,11 +51,7 @@ static u32 bt2020_white_point[2] = {
 	0.3127 * INORM + 0.5, 0.3290 * INORM + 0.5
 };
 
-<<<<<<< HEAD
-static const char *module_str[11] = {
-=======
 static const char *module_str[15] = {
->>>>>>> hdr: S5 vd1 hdr not enable [1/1]
 	"UNKNOWN",
 	"VD1",
 	"VD2",
@@ -64,23 +60,13 @@ static const char *module_str[15] = {
 	"OSD2",
 	"VDIN0",
 	"VDIN1",
-<<<<<<< HEAD
-	"DI",
-	"DI_MEM",
-	"OSD3"
-=======
 	"DI_HDR",
 	"DI_M2M_HDR",
 	"OSD3",
 	"S5_VD1_S1",
 	"S5_VD1_S2",
-<<<<<<< HEAD
 	"S5_VD1_S3",
 	"S5_VD2_HDR2"
->>>>>>> hdr: S5 vd1 hdr not enable [1/1]
-=======
-	"S5_VD1_S3"
->>>>>>> hdr: enable dma lut [1/1]
 };
 
 static const char *process_str[15] = {

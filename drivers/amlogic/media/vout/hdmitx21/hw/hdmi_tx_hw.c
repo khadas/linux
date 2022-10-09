@@ -833,17 +833,10 @@ static int hdmitx_set_dispmode(struct hdmitx_dev *hdev)
 	if (para->cd == COLORDEPTH_24B && hdmitx21_dv_en() == 0)
 		data32 |= (1 << 4);
 	hd21_write_reg(VPU_HDMI_DITH_CNTL, data32);
-<<<<<<< HEAD
 	hdmitx21_dither_config(hdev);
-
-=======
 	pr_info("***double reset hwp_init start***\n");
-<<<<<<< HEAD
-	hdmi_hwp_init(hdev);
->>>>>>> hdmitx21: double reset hwp_init in set mode [1/1]
-=======
+
 	hdmi_hwp_init(hdev, 1);
->>>>>>> hdmitx21: add fixed modes for valid_mode checking [1/1]
 	_hdmitx21_set_clk();
 	// Set this timer very small on purpose, to test the new function
 	hdmitx21_wr_reg(HDMITX_TOP_I2C_BUSY_CNT_MAX,  30);
@@ -2417,7 +2410,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 	data8 |= ((6 - color_depth) << 0);
 	hdmitx21_wr_reg(VP_INPUT_MASK_IVCTX, data8);
 
-<<<<<<< HEAD
 	// [11: 9] select_cr: 0=y; 1=cb; 2=Cr; 3={cr[11:4],cb[7:4]};
 	//                    4={cr[3:0],y[3:0],cb[3:0]};
 	//                    5={y[3:0],cr[3:0],cb[3:0]};
@@ -2445,38 +2437,6 @@ static void config_hdmi21_tx(struct hdmitx_dev *hdev)
 		data32 |= (0 << 2);
 		data32 |= (0 << 1);
 		data32 |= (0 << 0);
-=======
-	// Output 422
-	if (para->cs == HDMI_COLORSPACE_YUV422) {
-		data32  = 0;
-		data32 |= (2  << 9);
-		data32 |= (4  << 6);
-		data32 |= (0  << 3);
-		data32 |= (0  << 2);
-		data32 |= (0  << 1);
-		data32 |= (0  << 0);
-
-		data8  = 0;
-		data8 |= (2   << 4);
-		data8 |= (2   << 2);
-		data8 |= (2   << 0);
-	} else {
-		data32  = 0;
-		data32 |= (2  << 9);
-		data32 |= (1  << 6);
-		data32 |= (0  << 3);
-		data32 |= (0  << 2);
-		data32 |= (0  << 1);
-		data32 |= (0  << 0);
-
-		data8  = 0;
-		data8 |= (0   << 4);
-	}
-	//mapping for yuv422 12bit
-	hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX, data32 & 0xff);
-	hdmitx21_wr_reg(VP_OUTPUT_MAPPING_IVCTX + 1, (data32 >> 8) & 0xff);
-	hdmitx21_wr_reg(VP_OUTPUT_MASK_IVCTX, data8);
->>>>>>> hdmitx21: add FRL bringup code [1/1]
 
 		// [5:4] disable_lsbs_cr / [3:2] disable_lsbs_cb / [1:0] disable_lsbs_y
 		// 0=12bit; 1=10bit(disable 2-LSB),

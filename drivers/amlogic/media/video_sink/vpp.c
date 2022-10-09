@@ -1485,7 +1485,6 @@ static void vert_coef_print(u32 layer_id, struct vppfilter_mode_s *filter)
 	}
 }
 
-<<<<<<< HEAD
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 static void align_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
 	bool has_el, bool reverse)
@@ -1554,10 +1553,7 @@ static void align_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
 }
 #endif
 
-static int vpp_set_filters_internal
-=======
 static int vpp_set_filters_internal_s5
->>>>>>> vpp: verify sr0 and pi path [1/1]
 	(struct disp_info_s *input,
 	u32 width_in,
 	u32 height_in,
