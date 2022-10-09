@@ -3000,6 +3000,9 @@ static long video_composer_ioctl(struct file *file,
 	u32 val;
 	struct composer_dev *dev = (struct composer_dev *)file->private_data;
 	struct frames_info_t frames_info;
+	struct capability_info_t capability_info;
+	u32 w;
+	u32 h;
 
 	switch (cmd) {
 	case VIDEO_COMPOSER_IOCTL_SET_FRAMES:
@@ -3024,6 +3027,20 @@ static long video_composer_ioctl(struct file *file,
 	case VIDEO_COMPOSER_IOCTL_GET_PANEL_CAPABILITY:
 		val = video_get_layer_capability();
 		ret = copy_to_user(argp, &val, sizeof(u32));
+		break;
+	case VIDEO_COMPOSER_IOCTL_GET_LAYER_CAPABILITY:
+		memset(&capability_info, 0, sizeof(struct capability_info_t));
+		capability_info.capability = video_get_layer_capability();
+		get_video_src_min_buffer(dev->index, &w, &h);
+		capability_info.min_w = w;
+		capability_info.min_h = h;
+		get_video_src_max_buffer(dev->index, &w, &h);
+		capability_info.max_w = w;
+		capability_info.max_h = h;
+		vc_print(dev->index, PRINT_ERROR,
+			"get capability: min %d %d; max %d %d\n",
+			 capability_info.min_w, capability_info.min_h, w, h);
+		ret = copy_to_user(argp, &capability_info, sizeof(struct capability_info_t));
 		break;
 	default:
 		return -EINVAL;

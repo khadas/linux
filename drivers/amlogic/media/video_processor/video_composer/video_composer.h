@@ -262,6 +262,15 @@ struct composer_dev {
 	u32 last_drop_cnt;
 };
 
+struct capability_info_t {
+	u32 capability;
+	u32 min_w;
+	u32 min_h;
+	u32 max_w;
+	u32 max_h;
+	u32 reserved[10];
+};
+
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'
 #define VIDEO_COMPOSER_IOCTL_SET_FRAMES		\
 	_IOW(VIDEO_COMPOSER_IOC_MAGIC, 0x00, struct frames_info_t)
@@ -271,6 +280,8 @@ struct composer_dev {
 	_IOW(VIDEO_COMPOSER_IOC_MAGIC, 0x02, int)
 #define VIDEO_COMPOSER_IOCTL_GET_PANEL_CAPABILITY	\
 	_IOR(VIDEO_COMPOSER_IOC_MAGIC, 0x03, int)
+#define VIDEO_COMPOSER_IOCTL_GET_LAYER_CAPABILITY	\
+	_IOR(VIDEO_COMPOSER_IOC_MAGIC, 0x04, struct capability_info_t)
 
 int video_composer_set_enable(struct composer_dev *dev, u32 val);
 struct video_composer_port_s *video_composer_get_port(u32 index);
