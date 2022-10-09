@@ -910,38 +910,41 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 		tve->pclk_vdac = devm_clk_get(tve->dev, "pclk_vdac");
 		if (IS_ERR(tve->pclk_vdac)) {
 			dev_err(tve->dev, "Unable to get vdac pclk\n");
-			return PTR_ERR(tve->pclk_vdac);
+			ret = PTR_ERR(tve->pclk_vdac);
+			goto err_disable_aclk;
 		}
 
 		ret = clk_prepare_enable(tve->pclk_vdac);
 		if (ret) {
 			dev_err(tve->dev, "Cannot enable vdac pclk: %d\n", ret);
-			return ret;
+			goto err_disable_aclk;
 		}
 
 		tve->dclk = devm_clk_get(tve->dev, "dclk");
 		if (IS_ERR(tve->dclk)) {
 			dev_err(tve->dev, "Unable to get tve dclk\n");
-			return PTR_ERR(tve->dclk);
+			ret = PTR_ERR(tve->dclk);
+			goto err_disable_pclk;
 		}
 
 		ret = clk_prepare_enable(tve->dclk);
 		if (ret) {
 			dev_err(tve->dev, "Cannot enable tve dclk: %d\n", ret);
-			return ret;
+			goto err_disable_pclk;
 		}
 
 		if (tve->upsample_mode == DCLK_UPSAMPLEx4) {
 			tve->dclk_4x = devm_clk_get(tve->dev, "dclk_4x");
 			if (IS_ERR(tve->dclk_4x)) {
 				dev_err(tve->dev, "Unable to get tve dclk_4x\n");
-				return PTR_ERR(tve->dclk_4x);
+				ret = PTR_ERR(tve->dclk_4x);
+				goto err_disable_dclk;
 			}
 
 			ret = clk_prepare_enable(tve->dclk_4x);
 			if (ret) {
 				dev_err(tve->dev, "Cannot enable tve dclk_4x: %d\n", ret);
-				return ret;
+				goto err_disable_dclk;
 			}
 		}
 	}
@@ -960,7 +963,7 @@ static int rockchip_tve_bind(struct device *dev, struct device *master,
 			       DRM_MODE_ENCODER_TVDAC, NULL);
 	if (ret < 0) {
 		dev_err(tve->dev, "failed to initialize encoder with drm\n");
-		goto err_disable_aclk;
+		goto err_disable_dclk_4x;
 	}
 
 	drm_encoder_helper_add(encoder, &rockchip_tve_encoder_helper_funcs);
@@ -997,9 +1000,15 @@ err_free_connector:
 	drm_connector_cleanup(connector);
 err_free_encoder:
 	drm_encoder_cleanup(encoder);
+err_disable_dclk_4x:
+	clk_disable_unprepare(tve->dclk_4x);
+err_disable_dclk:
+	clk_disable_unprepare(tve->dclk);
+err_disable_pclk:
+	clk_disable_unprepare(tve->pclk_vdac);
 err_disable_aclk:
-	if (tve->soc_type == SOC_RK3036)
-		clk_disable_unprepare(tve->aclk);
+	clk_disable_unprepare(tve->aclk);
+	clk_disable_unprepare(tve->hclk);
 
 	return ret;
 }
@@ -1014,6 +1023,12 @@ static void rockchip_tve_unbind(struct device *dev, struct device *master,
 
 	drm_connector_cleanup(&tve->connector);
 	drm_encoder_cleanup(&tve->encoder);
+
+	clk_disable_unprepare(tve->dclk_4x);
+	clk_disable_unprepare(tve->dclk);
+	clk_disable_unprepare(tve->pclk_vdac);
+	clk_disable_unprepare(tve->aclk);
+	clk_disable_unprepare(tve->hclk);
 
 	pm_runtime_disable(dev);
 	dev_set_drvdata(dev, NULL);
