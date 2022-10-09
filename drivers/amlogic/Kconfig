@@ -181,5 +181,7 @@ source "drivers/amlogic/gpio/Kconfig"
 source "drivers/amlogic/media_modules/Kconfig"
 source "drivers/amlogic/tee_driver/Kconfig"
 
+source "drivers/amlogic/isp_module/Kconfig"
+
 endmenu
 endif
