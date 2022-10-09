@@ -682,7 +682,7 @@
 		compatible = "amlogic, ppmgr";
 		memory-region = <&ppmgr_reserved>;
 		dev_name = "ppmgr";
-		status = "disabled";
+		status = "okay";
 	};
 
 	amdolby_vision {
@@ -793,13 +793,13 @@
 	ionvideo {
 		compatible = "amlogic, ionvideo";
 		dev_name = "ionvideo";
-		status = "disabled";
+		status = "okay";
 	};
 
 	amlvideo2_0 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
-		status = "disabled";
+		status = "okay";
 		amlvideo2_id = <0>;
 		cma_mode = <1>;
 	};
@@ -807,7 +807,7 @@
 	amlvideo2_1 {
 		compatible = "amlogic, amlvideo2";
 		dev_name = "amlvideo2";
-		status = "disabled";
+		status = "okay";
 		amlvideo2_id = <1>;
 		cma_mode = <1>;
 	};
