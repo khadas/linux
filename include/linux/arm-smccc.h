@@ -407,7 +407,8 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 			unsigned long a5, unsigned long a6, unsigned long a7,
 			struct arm_smccc_res *res, struct arm_smccc_quirk *quirk);
 
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if (defined(CONFIG_AMLOGIC_DEBUG_MODULE) && defined(CONFIG_AMLOGIC_DEBUG_LOCKUP) && defined(MODULE) && !defined(SKIP_LOCKUP_CHECK)) ||\
+(defined(CONFIG_AMLOGIC_DEBUG) && defined(CONFIG_AMLOGIC_DEBUG_LOCKUP) && !defined(SKIP_LOCKUP_CHECK))
 void __arm_smccc_smc_glue(unsigned long a0, unsigned long a1,
 			unsigned long a2, unsigned long a3, unsigned long a4,
 			unsigned long a5, unsigned long a6, unsigned long a7,

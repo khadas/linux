@@ -10,7 +10,7 @@
 #include <asm/ptrace.h>
 #include <asm/sysreg.h>
 
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if defined(CONFIG_AMLOGIC_DEBUG_LOCKUP) && !defined(SKIP_LOCKUP_CHECK)
 #include <linux/amlogic/irqflags_debug_arm64.h>
 #else
 

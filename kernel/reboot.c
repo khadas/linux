@@ -19,7 +19,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/uaccess.h>
 
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_DEBUG
 #include <linux/io.h>
 static unsigned int scramble_reg;
 core_param(scramble_reg, scramble_reg, uint, 0644);
@@ -308,7 +308,7 @@ EXPORT_SYMBOL_GPL(kernel_power_off);
 
 DEFINE_MUTEX(system_transition_mutex);
 
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_DEBUG
 /* scramble_clear_preserve() will clear scramble_reg bit0,
  * this will cause fresh ddr data after reboot
  */
@@ -377,7 +377,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	mutex_lock(&system_transition_mutex);
 	switch (cmd) {
 	case LINUX_REBOOT_CMD_RESTART:
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_DEBUG
 		scramble_clear_preserve();
 #endif
 		kernel_restart(NULL);
@@ -397,7 +397,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		panic("cannot halt");
 
 	case LINUX_REBOOT_CMD_POWER_OFF:
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_DEBUG
 		scramble_clear_preserve();
 #endif
 		kernel_power_off();
@@ -412,7 +412,7 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 		}
 		buffer[sizeof(buffer) - 1] = '\0';
 
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_DEBUG
 		scramble_clear_preserve();
 #endif
 		kernel_restart(buffer);

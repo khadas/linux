@@ -2206,7 +2206,7 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 __releases(&pool->lock)
 __acquires(&pool->lock)
 {
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
 	struct worker *collision;
 	bool cpu_intensive;
 	unsigned long work_data;
@@ -2232,7 +2232,7 @@ __acquires(&pool->lock)
 
 	lockdep_copy_map(&lockdep_map, &work->lockdep_map);
 #endif
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
 	if (!pwq) {
 		WARN_ONCE(1, "<%s> pwq_NULL <%lx> <%ps>, <%ps> %s\n",
 			__func__, atomic_long_read(&work->data),

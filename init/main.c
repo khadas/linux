@@ -1227,7 +1227,7 @@ static bool __init_or_module initcall_blacklisted(initcall_t fn)
 	strreplace(fn_name, ' ', '\0');
 
 	list_for_each_entry(entry, &blacklisted_initcalls, next) {
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
 		char *str = strstr(fn_name, entry->buf);
 
 		if (!str)

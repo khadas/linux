@@ -100,7 +100,7 @@ static void do_free_init(struct work_struct *w);
 static DECLARE_WORK(init_free_wq, do_free_init);
 static LLIST_HEAD(init_free_list);
 
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
 static int module_debug;
 core_param(module_debug, module_debug, int, 0644);
 #endif
@@ -987,7 +987,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 	/* Store the name of the last unloaded module for diagnostic purposes */
 	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
 
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
 	if (module_debug)
 		pr_info("remove module: %s\n", mod->name);
 #endif
@@ -3461,7 +3461,7 @@ static int move_module(struct module *mod, struct load_info *info)
 		mod->init_layout.base = NULL;
 
 	/* Transfer each section which specifies SHF_ALLOC */
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
 	if (module_debug)
 		pr_info("module:%s init_base:%px size:%#x core_base:%px size:%#x, final section addresses:\n",
 			mod->name, mod->init_layout.base, mod->init_layout.size,
@@ -3485,7 +3485,7 @@ static int move_module(struct module *mod, struct load_info *info)
 			memcpy(dest, (void *)shdr->sh_addr, shdr->sh_size);
 		/* Update sh_addr to point to copy in image. */
 		shdr->sh_addr = (unsigned long)dest;
-#ifdef CONFIG_AMLOGIC_DEBUG
+#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
 		if (module_debug) {
 			if (!strcmp(info->secstrings + shdr->sh_name, ".bss") ||
 				!strcmp(info->secstrings + shdr->sh_name, ".data") ||
