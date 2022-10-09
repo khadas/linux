@@ -9218,6 +9218,16 @@ void set_video_slice_policy(struct video_layer_s *layer,
 			slice_num = 4;
 		layer->slice_num = slice_num;
 		layer->pi_enable = pi_en;
+	} else {
+		/* check output */
+		if (vinfo) {
+			/* output: (4k-8k], input <= 4k */
+			if (vinfo->width > 4096 && vinfo->height > 2160)
+				pi_en = 1;
+		}
+		slice_num = 1;
+		layer->slice_num = slice_num;
+		layer->pi_enable = pi_en;
 	}
 	if (g_slice_num != 0xff)
 		layer->slice_num = g_slice_num;
