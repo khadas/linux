@@ -483,7 +483,7 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 		sensor-name-sub = "imx290sub";
 		sensor-name-ssub = "imx290ssub";
 		pinctrl-names= "default";
@@ -495,14 +495,14 @@
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
-		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
-		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		power-enable = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 	};
 
 	hdmirx {
@@ -1725,10 +1725,8 @@
 
 &periphs_pinctrl {
 	pdmin_pins: pdmin_pin {
-		mux { /* GPIOM_3, GPIOM_4, GPIOM_5, GPIOM_1, GPIOM_2 */
+		mux { /* GPIOM_3, GPIOM_1, GPIOM_2 */
 			groups = "pdm_dclk",
-				"pdm_din0",
-				"pdm_din1_m5",
 				"pdm_din2",
 				"pdm_din3";
 			function = "pdm";
