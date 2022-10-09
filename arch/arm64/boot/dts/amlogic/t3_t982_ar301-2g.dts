@@ -968,6 +968,20 @@
 		reg = <0x33>;
 		status = "okay";
 	};
+
+	lcd_extern_i2c2: lcd_extern_i2c@70 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_oled";
+		reg = <0x70>;
+		status = "okay";
+	};
+
+	lcd_extern_i2c3: lcd_extern_i2c@78 {
+		compatible = "lcd_ext, i2c";
+		dev_name = "i2c_oled";
+		reg = <0x78>;
+		status = "okay";
+	};
 };
 
 &ethmac {

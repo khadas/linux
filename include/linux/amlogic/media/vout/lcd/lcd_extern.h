@@ -71,6 +71,7 @@ struct lcd_extern_config_s {
 
 struct lcd_extern_dev_s {
 	int dev_index;
+	unsigned int state;
 	unsigned char addr_sel; /* internal used */
 	struct lcd_extern_config_s config;
 	struct lcd_extern_multi_list_s *multi_list_header;
@@ -82,10 +83,13 @@ struct lcd_extern_dev_s {
 
 	int (*reg_read)(struct lcd_extern_driver_s *edrv,
 			struct lcd_extern_dev_s *edev,
-			unsigned char reg, unsigned char *buf);
+			unsigned char reg_byte_len,
+			unsigned short reg, unsigned char *buf);
 	int (*reg_write)(struct lcd_extern_driver_s *edrv,
 			struct lcd_extern_dev_s *edev,
 			unsigned char *buf, unsigned int len);
+	int (*init)(struct lcd_extern_driver_s *edrv,
+		    struct lcd_extern_dev_s *edev);
 	int (*power_on)(struct lcd_extern_driver_s *edrv,
 			struct lcd_extern_dev_s *edev);
 	int (*power_off)(struct lcd_extern_driver_s *edrv,
@@ -102,8 +106,10 @@ struct lcd_ext_gpio_s {
 /* global API */
 struct lcd_extern_driver_s {
 	int index;
+	unsigned int state;
 	unsigned char key_valid;
 	unsigned char config_load;
+	char ukey_name[15];
 	unsigned int dev_cnt;
 	struct lcd_ext_gpio_s gpio[LCD_EXTERN_GPIO_NUM_MAX];
 	struct lcd_extern_dev_s *dev[LCD_EXTERN_DEV_MAX];

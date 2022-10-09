@@ -64,7 +64,8 @@ int lcd_extern_i2c_write(struct i2c_client *i2client,
 }
 
 int lcd_extern_i2c_read(struct i2c_client *i2client,
-			unsigned char *buff, unsigned int len)
+			unsigned char *wbuf, unsigned int wlen,
+			unsigned char *rbuf, unsigned int rlen)
 {
 	struct i2c_msg msgs[2];
 	int ret = 0;
@@ -76,12 +77,12 @@ int lcd_extern_i2c_read(struct i2c_client *i2client,
 
 	msgs[0].addr = i2client->addr;
 	msgs[0].flags = 0;
-	msgs[0].len = 1;
-	msgs[0].buf = buff;
+	msgs[0].len = wlen;
+	msgs[0].buf = wbuf;
 	msgs[1].addr = i2client->addr;
 	msgs[1].flags = I2C_M_RD;
-	msgs[1].len = len;
-	msgs[1].buf = buff;
+	msgs[1].len = rlen;
+	msgs[1].buf = rbuf;
 
 	ret = i2c_transfer(i2client->adapter, msgs, 2);
 	if (ret < 0) {

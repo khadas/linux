@@ -29,7 +29,8 @@ static unsigned char ANX7911_NVM_wr[] = {0x00, 0x0a};
 #define ANX7911_REG_CNT   23
 
 static int lcd_extern_reg_read(struct lcd_extern_dev_s *edev,
-			       unsigned char reg, unsigned char *buf)
+			       unsigned char reg_byte_len,
+			       unsigned short reg, unsigned char *buf)
 {
 	struct aml_lcd_extern_i2c_dev_s *i2c_dev;
 	unsigned char tmp;
@@ -44,7 +45,7 @@ static int lcd_extern_reg_read(struct lcd_extern_dev_s *edev,
 		EXTERR("invalid i2c device\n");
 		return -1;
 	}
-	lcd_extern_i2c_read(i2c_dev->client, &tmp, 1);
+	lcd_extern_i2c_read(i2c_dev->client, &tmp, 1, &tmp, 1);
 	buf[0] = tmp;
 
 	return ret;
@@ -241,7 +242,7 @@ static int lcd_extern_init_check(struct lcd_extern_dev_s *edev, unsigned char fl
 	if (!chk_table)
 		return -1;
 
-	ret = lcd_extern_i2c_read(i2c_dev->client, chk_table, cnt);
+	ret = lcd_extern_i2c_read(i2c_dev->client, chk_table, 1, chk_table, cnt);
 	if (ret) {
 		EXTERR("%s: i2c read error\n", __func__);
 		return -1;
