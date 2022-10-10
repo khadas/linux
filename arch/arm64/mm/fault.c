@@ -545,11 +545,13 @@ static int __kprobes do_page_fault(unsigned long far, unsigned int esr,
 	unsigned long vm_flags;
 	unsigned int mm_flags = FAULT_FLAG_DEFAULT;
 	unsigned long addr = untagged_addr(far);
+#ifndef CONFIG_AMLOGIC_CMA
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
 	struct vm_area_struct *orig_vma = NULL;
 	struct vm_area_struct *vma;
 	struct vm_area_struct pvma;
 	unsigned long seq;
+#endif
 #endif
 
 	if (kprobe_page_fault(regs, esr))
@@ -608,6 +610,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned int esr,
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
 
+#ifndef CONFIG_AMLOGIC_CMA
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
 	/*
 	 * No need to try speculative faults for kernel or
@@ -672,6 +675,7 @@ spf_abort:
 no_spf:
 
 #endif	/* CONFIG_SPECULATIVE_PAGE_FAULT */
+#endif
 
 	/*
 	 * As per x86, we may deadlock here. However, since the kernel only
@@ -713,8 +717,10 @@ retry:
 		}
 	}
 	mmap_read_unlock(mm);
+#ifndef CONFIG_AMLOGIC_CMA
 #ifdef CONFIG_SPECULATIVE_PAGE_FAULT
 done:
+#endif
 #endif
 
 	/*
