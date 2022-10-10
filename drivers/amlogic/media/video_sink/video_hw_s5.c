@@ -1364,7 +1364,7 @@ void disable_vd1_blend_s5(struct video_layer_s *layer)
 	}
 
 	vpp_index = layer->vpp_index;
-	if (layer->layer_id > MAX_VD_CHAN_S5)
+	if (layer->layer_id >= MAX_VD_CHAN_S5)
 		return;
 	if (!layer->layer_id)
 		layer_index = 0;
@@ -3821,11 +3821,10 @@ static void vd_proc_param_set_vd1(struct vd_proc_s *vd_proc)
 	vd1_proc_dout_hsize =  vd_proc_vd1_info->vd1_dout_hsize;
 	vd1_proc_dout_vsize =  vd_proc_vd1_info->vd1_dout_vsize;
 	vd_proc_slice_info = &vd_proc->vd_proc_slice_info;
-	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_PI) {
+	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_PI)
 		vd_proc->vd_proc_pi.pi_en = 1;
-		//vd1_proc_dout_hsize = vd1_proc_dout_hsize / 2;
-		//vd1_proc_dout_vsize = vd1_proc_dout_vsize / 2;
-	}
+	else
+		vd_proc->vd_proc_pi.pi_en = 0;
 	/* mosaic related setting, need reset if needed todo */
 	vd_proc_mosaic = &vd_proc->vd_proc_mosaic;
 	vd_proc_mosaic->mosaic_vd1_dout_hsize = vd_proc_vd1_info->vd1_dout_hsize;
@@ -4210,7 +4209,7 @@ static void vd_set_blk_mode_s5(struct video_layer_s *layer, u8 block_mode)
 	u32 pic_32byte_aligned = 0;
 	u8 vpp_index;
 
-	if (layer->layer_id > MAX_VD_CHAN_S5)
+	if (layer->layer_id >= MAX_VD_CHAN_S5)
 		return;
 	if (!layer->layer_id)
 		layer_index = 0;
@@ -8575,7 +8574,7 @@ static void fgrain_start_s5(struct video_layer_s *layer, u8 vpp_index)
 		return;
 	if (glayer_info[layer_id].fgrain_start)
 		return;
-	if (layer_id > MAX_VD_CHAN_S5)
+	if (layer_id >= MAX_VD_CHAN_S5)
 		return;
 	if (layer_id != 0)
 		layer_index = layer_id + SLICE_NUM - 1;
@@ -8632,7 +8631,7 @@ static void fgrain_stop_s5(struct video_layer_s *layer, u8 vpp_index)
 		return;
 	if (!glayer_info[layer_id].fgrain_start)
 		return;
-	if (layer_id > MAX_VD_CHAN_S5)
+	if (layer_id >= MAX_VD_CHAN_S5)
 		return;
 	if (layer_id != 0)
 		layer_index = layer_id + SLICE_NUM - 1;
