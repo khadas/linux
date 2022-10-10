@@ -547,7 +547,8 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 				0x3 << 30, 0x3 << 30);
 
 			/* TDM in for master && save mode set bit[29] = 0 by T7C */
-			if (is_meson_rev_c() && (get_cpu_type() == MESON_CPU_MAJOR_ID_T7)) {
+			if (is_meson_rev_c() && (get_cpu_type() == MESON_CPU_MAJOR_ID_T7) &&
+				(tdmin_src_hdmirx || !master_mode)) {
 				aml_audiobus_update_bits(actrl, reg_in,
 					0x1 << 29, 0 << 29);
 			} else if (master_mode) {
