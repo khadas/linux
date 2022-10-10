@@ -71,8 +71,11 @@ u32 crop_en = 1;
 u32 shrink_en = 1;
 u32 debug_axis_en;
 struct output_axis_t axis;
+u32 debug_reg_addr;
+u32 debug_reg_val;
 
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
+struct vicp_hdr_s *vicp_hdr;
 
 static ssize_t print_flag_show(struct class *class,
 		struct class_attribute *attr, char *buf)
@@ -191,6 +194,8 @@ static ssize_t debug_reg_store(struct class *class,
 			return -EINVAL;
 		}
 		reg_val = val;
+		debug_reg_addr = reg_addr;
+		debug_reg_val = reg_val;
 		vicp_reg_write(reg_addr, reg_val);
 	}
 	kfree(buf_orig);
@@ -733,11 +738,16 @@ static void vicp_param_init(void)
 {
 	mutex_init(&vicp_mutex);
 	memset(&axis, 0, sizeof(struct output_axis_t));
+
+	vicp_hdr = vicp_hdr_prob();
+	if (IS_ERR_OR_NULL(vicp_hdr))
+		pr_info("vicp hdr init failed.\n");
 }
 
 static void vicp_param_uninit(void)
 {
 	pr_info("%s\n", __func__);
+	vicp_hdr_remove(vicp_hdr);
 }
 
 static int vicp_probe(struct platform_device *pdev)
@@ -912,7 +922,6 @@ error:
 static int vicp_remove(struct platform_device *pdev)
 {
 	pr_info("%s\n", __func__);
-
 	vicp_param_uninit();
 	pm_runtime_put_sync(&pdev->dev);
 	device_destroy(&vicp_class, MKDEV(VICP_MAJOR, 0));

@@ -21,6 +21,7 @@
 
 #include <linux/amlogic/media/vicp/vicp.h>
 #include "vicp_process_rdma.h"
+#include "vicp_hdr.h"
 
 extern u32 print_flag;
 extern u32 input_width;
@@ -41,38 +42,13 @@ extern int cgain_lut1[65];
 extern int cgain_lut0[65];
 extern u32 debug_axis_en;
 extern struct output_axis_t axis;
+extern struct vicp_hdr_s *vicp_hdr;
+extern u32 debug_reg_addr;
+extern u32 debug_reg_val;
+
 /* *********************************************************************** */
 /* ************************* enum definitions **************************.*/
 /* *********************************************************************** */
-enum hdr2_sel_e {
-	VD1_S0_HDR2 = 0,
-	VD1_S1_HDR2 = 1,
-	VD1_S2_HDR2 = 2,
-	VD1_S3_HDR2 = 3,
-	VD2_HDR2 = 4,
-	VD3_HDR2 = 5,
-	OSD1_HDR2 = 6,
-	OSD2_HDR2 = 7,
-	OSD3_HDR2 = 8,
-	OSD4_HDR2 = 9,
-	OSD_2PPC_HDR2 = 10,
-	VID_CMPR_HDR2 = 11,
-	VDIN1_HDR2 = 12,
-	DI_HDR2 = 13
-};
-
-enum f2v_vphase_type_e {
-	F2V_IT2IT = 0,
-	F2V_IB2IB,
-	F2V_IT2IB,
-	F2V_IB2IT,
-	F2V_P2IT,
-	F2V_P2IB,
-	F2V_IT2P,
-	F2V_IB2P,
-	F2V_P2P,
-	F2V_TYPE_MAX
-};   /* frame to video conversion type */
 
 /* *********************************************************************** */
 /* ************************* struct definitions **************************.*/
@@ -272,7 +248,7 @@ struct vid_cmpr_hdr_t {
 	u32 hdr2_en;
 	u32 hdr2_only_mat;
 	u32 hdr2_fmt_cfg;
-	u32 in_fmt;// 1:yuv in   0:rgb in
+	u32 input_fmt;// 1:yuv in   0:rgb in
 	u32 rgb_out_en;
 	u32 aicolor_sat_en;
 	u32 aicolor_lut_mod;
@@ -302,9 +278,6 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en);
 void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line);
 void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler);
 void set_vid_cmpr_afbcd(int hold_line_num, struct vid_cmpr_afbcd_t *afbcd);
-void vid_cmpr_hdr2_mtrix(int only_matrix, int mat_sel, int rgb2yuv_in, int hdr2_fmt,
-	int out_matrix_fmt);
-void set_vid_cmpr_hdr2(enum hdr2_sel_e hdr2_sel, int hdr2_top_en, int hdr2_only_mat,
-	int hdr2_fmt_cfg, int in_fmt, int rgb_out_en);
+void set_vid_cmpr_hdr(int hdr2_top_en);
 void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top);
 #endif //_VICP_PROCESS_H_

@@ -27,7 +27,7 @@
 #define VICP_AFBCD		    0X2
 #define VICP_RDMIF		    0X4
 #define VICP_SCALER		    0X8
-#define VICP_HDR		    0X10
+#define VICP_HDR2		    0X10
 #define VICP_CROP		    0X20
 #define VICP_SHRINK		    0X40
 #define VICP_WRMIF		    0X80

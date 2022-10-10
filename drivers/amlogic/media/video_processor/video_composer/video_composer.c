@@ -1817,7 +1817,7 @@ static void vframe_composer(struct composer_dev *dev)
 		 "min_top,min_left,max_bottom,max_right: %d %d %d %d\n",
 		 min_top, min_left, max_bottom, max_right);
 
-	if (scr_vf && count == 1) {
+	if (scr_vf && count == 1 && !is_vicp_supported()) {
 		vc_print(dev->index, PRINT_OTHER,
 			 "%s: copy hdr info.\n", __func__);
 		dst_vf->src_fmt = scr_vf->src_fmt;

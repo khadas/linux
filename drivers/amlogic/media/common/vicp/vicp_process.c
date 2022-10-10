@@ -163,11 +163,13 @@ irqreturn_t vicp_isr_handle(int irq, void *dev_id)
 
 void set_vid_cmpr_shrink(int is_enable, int size, int mode_h, int mode_v)
 {
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+
 	if (print_flag & VICP_SHRINK) {
 		pr_info("vicp: ##########shrink config##########\n");
-		pr_info("vicp: shrink_en = %d.\n", is_enable);
-		pr_info("vicp: shrink_size = %d.\n", size);
-		pr_info("vicp: shrink_mode: h %d, v %d.\n", mode_h, mode_v);
+		pr_info("vicp: shrink enable = %d.\n", is_enable);
+		pr_info("vicp: shrink size = %d.\n", size);
+		pr_info("vicp: shrink mode: h %d, v %d.\n", mode_h, mode_v);
 		pr_info("vicp: #################################.\n");
 	};
 
@@ -202,6 +204,8 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
 	struct vicp_afbce_pip_control_reg_t pip_control;
 	struct vicp_afbce_enable_reg_t enable_reg;
 
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+
 	if (IS_ERR_OR_NULL(afbce)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
 		return;
@@ -209,11 +213,12 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
 
 	if (print_flag & VICP_AFBCE) {
 		pr_info("vicp: ##########fbc_out config##########\n");
-		pr_info("vicp: headaddr: 0x%llx, 0x%llx.\n", afbce->head_baddr, afbce->table_baddr);
+		pr_info("vicp: headaddr: 0x%llx, tableaddr: 0x%llx.\n", afbce->head_baddr,
+			afbce->table_baddr);
 		pr_info("vicp: pip: init_flag=%d, mode=%d.\n", afbce->reg_init_ctrl,
 			afbce->reg_pip_mode);
-		pr_info("vicp: reg_ram_comb %d.\n", afbce->reg_ram_comb);
-		pr_info("vicp: output_format_mode %d.\n", afbce->reg_format_mode);
+		pr_info("vicp: reg_ram_comb: %d.\n", afbce->reg_ram_comb);
+		pr_info("vicp: output_format_mode: %d.\n", afbce->reg_format_mode);
 		pr_info("vicp: compbit: y %d, c %d.\n", afbce->reg_compbits_y,
 			afbce->reg_compbits_c);
 		pr_info("vicp: input_size: h %d, v %d.\n", afbce->hsize_in, afbce->vsize_in);
@@ -229,7 +234,6 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
 		pr_info("vicp: #################################.\n");
 	};
 
-	vicp_print(VICP_INFO, "%s: enable = %d.\n", __func__, enable);
 	if (!enable) {
 		vicp_print(VICP_INFO, "%s: afbce disable.\n", __func__);
 		vicp_reg_set_bits(VID_CMPR_AFBCE_ENABLE, 0, 8, 1);
@@ -288,7 +292,6 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
 	set_afbce_input_size(hsize_buf, vsize_buf);
 	set_afbce_blk_size(hblksize_buf, vblksize_buf);
 
-	vicp_print(VICP_INFO, "%s: head_baddr = 0x%lx.\n", __func__, afbce->head_baddr);
 	set_afbce_head_addr(afbce->head_baddr);
 	set_afbce_mif_size(uncmp_size);
 	set_afbce_pixel_in_scope(1, afbce->enc_win_bgn_h, afbce->enc_win_end_h);
@@ -324,8 +327,6 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
 	rmif_control3.stride = 0x1fff;
 	set_afbce_mmu_rmif_control3(rmif_control3);
 
-	vicp_print(VICP_INFO, "%s: init_ctrl = %d, pip_mode = %d.\n",
-		__func__, afbce->reg_init_ctrl, afbce->reg_pip_mode);
 	memset(&pip_control, 0, sizeof(struct vicp_afbce_pip_control_reg_t));
 	pip_control.enc_align_en = 1;
 	pip_control.pip_ini_ctrl = afbce->reg_init_ctrl;
@@ -371,26 +372,21 @@ void f2v_get_vertical_phase(unsigned int zoom_ratio, enum f2v_vphase_type_e type
 	}
 }
 
-void set_vid_cmpr_hdr2(enum hdr2_sel_e hdr2_sel, int hdr2_top_en, int hdr2_only_mat,
-	int hdr2_fmt_cfg, int in_fmt, int rgb_out_en)
+void set_vid_cmpr_hdr(int hdr2_top_en)
 {
-	if (hdr2_sel != VID_CMPR_HDR2) {
-		vicp_print(VICP_ERROR, "Not HDR2 compser!!!\n");
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+
+	if (debug_reg_addr != 0) {
+		vicp_print(VICP_INFO, "%s: start debug mode, return.\n", __func__);
 		return;
 	}
 
-	if (print_flag & VICP_HDR) {
-		pr_info("vicp: ##########hdr config##########\n");
-		pr_info("vicp: hdr_en = %d.\n", hdr2_top_en);
-		pr_info("vicp: hdr2_only_mat = %d.\n", hdr2_only_mat);
-		pr_info("vicp: hdr2_fmt_cfg = %d.\n", hdr2_fmt_cfg);
-		pr_info("vicp: input_fmt = %d.\n", in_fmt);
-		pr_info("vicp: rgb_out_en = %d.\n", rgb_out_en);
-		pr_info("vicp: #################################.\n");
-	};
-
-	vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, hdr2_top_en, 13, 1);
-	vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, hdr2_only_mat, 16, 1);
+	if (hdr2_top_en) {
+		vicp_hdr_set(vicp_hdr, 1);
+	} else {
+		vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, 0, 13, 1);
+		vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, 0, 16, 1);
+	}
 }
 
 static int get_presc_out_size(int presc_en, int presc_rate, int src_size)
@@ -448,6 +444,8 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 	/*0:vd1_s0 1:vd1_s1 2:vd1_s2 3:vd1_s3 4:vd2 5:vid_cmp 6:RESHAPE*/
 	int index = 5;
 
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+
 	if (IS_ERR_OR_NULL(scaler)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
 		return;
@@ -455,15 +453,14 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 
 	if (print_flag & VICP_SCALER) {
 		pr_info("vicp: ##########scaler config##########\n");
-		pr_info("vicp: in_size: h=%d, v=%d.\n", scaler->din_hsize, scaler->din_vsize);
-		pr_info("vicp: out_size: h=%d, v=%d.\n", scaler->dout_hsize, scaler->dout_vsize);
+		pr_info("vicp: input size: h %d, v %d.\n", scaler->din_hsize, scaler->din_vsize);
+		pr_info("vicp: output size: h %d, v %d.\n", scaler->dout_hsize, scaler->dout_vsize);
 		pr_info("vicp: vert_bank_length = %d.\n", scaler->vert_bank_length);
-		pr_info("vicp: pre_scaler_en: h=%d, v=%d.\n", scaler->prehsc_en,
-			scaler->prevsc_en);
-		pr_info("vicp: pre_scaler_rate: h=%d, v=%d.\n", scaler->prehsc_rate,
+		pr_info("vicp: pre_scaler_en: h %d, v %d.\n", scaler->prehsc_en, scaler->prevsc_en);
+		pr_info("vicp: pre_scaler_rate: h %d, v %d.\n", scaler->prehsc_rate,
 			scaler->prevsc_rate);
 		pr_info("vicp: high_res_coef_en = %d.\n", scaler->high_res_coef_en);
-		pr_info("vicp: phase_step: h=%d, v=%d.\n", scaler->horz_phase_step,
+		pr_info("vicp: phase_step: h %d, v %d.\n", scaler->horz_phase_step,
 			scaler->vert_phase_step);
 		pr_info("vicp: slice_start = %d\n", scaler->slice_x_st);
 		pr_info("vicp: slice_end: %d %d %d %d.\n",
@@ -472,7 +469,7 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 			scaler->slice_x_end[2],
 			scaler->slice_x_end[3]);
 		pr_info("vicp: pps_slice = %d..\n", scaler->pps_slice);
-		pr_info("vicp: phase_step_en=%d., step=%d.\n", scaler->phase_step_en,
+		pr_info("vicp: phase_step_en %d, step %d.\n", scaler->phase_step_en,
 			scaler->phase_step);
 		pr_info("vicp: #################################.\n");
 	};
@@ -692,6 +689,8 @@ void set_vid_cmpr_afbcd(int hold_line_num, struct vid_cmpr_afbcd_t *afbcd)
 	struct vicp_afbcd_quant_control_reg_t quant_control;
 	struct vicp_afbcd_rotate_control_reg_t rotate_control;
 	struct vicp_afbcd_rotate_scope_reg_t rotate_scope;
+
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (IS_ERR_OR_NULL(afbcd)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
@@ -929,6 +928,8 @@ void set_vid_cmpr_afbcd(int hold_line_num, struct vid_cmpr_afbcd_t *afbcd)
 
 void set_vid_cmpr_crop(struct vid_cmpr_crop_t *crop_param)
 {
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+
 	if (IS_ERR_OR_NULL(crop_param)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
 		return;
@@ -989,9 +990,9 @@ void set_mif_stride(struct vid_cmpr_mif_t *mif, int *stride_y, int *stride_cb, i
 	else
 		comp_num = 2;
 
-	vicp_print(VICP_INFO, "%s: pic_hsize = %d.\n", __func__, pic_hsize);
-	vicp_print(VICP_INFO, "%s: comp_bits = %d.\n", __func__, comp_bits);
-	vicp_print(VICP_INFO, "%s: comp_num = %d.\n", __func__, comp_num);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s: pic_hsize = %d.\n", __func__, pic_hsize);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s: comp_bits = %d.\n", __func__, comp_bits);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s: comp_num = %d.\n", __func__, comp_num);
 
 	u32 burst_stride_0;
 	u32 burst_stride_1;
@@ -1011,18 +1012,18 @@ void set_mif_stride(struct vid_cmpr_mif_t *mif, int *stride_y, int *stride_cb, i
 		burst_stride_2 = 0;
 	}
 
-	vicp_print(VICP_INFO, "%s: burst_stride_0 = %d.\n", __func__, burst_stride_0);
-	vicp_print(VICP_INFO, "%s: burst_stride_1 = %d.\n", __func__, burst_stride_1);
-	vicp_print(VICP_INFO, "%s: burst_stride_2 = %d.\n", __func__, burst_stride_2);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s: burst_stride_0 = %d.\n", __func__, burst_stride_0);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s: burst_stride_1 = %d.\n", __func__, burst_stride_1);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s: burst_stride_2 = %d.\n", __func__, burst_stride_2);
 
 	/*now y cb cr all need 64bytes aligned */
 	*stride_y = ((burst_stride_0 + 3) >> 2) << 2;
 	*stride_cb = ((burst_stride_1 + 3) >> 2) << 2;
 	*stride_cr = ((burst_stride_2 + 3) >> 2) << 2;
 
-	vicp_print(VICP_INFO, "%s, stride_y: %d.\n", __func__, *stride_y);
-	vicp_print(VICP_INFO, "%s: stride_cb = %d.\n", __func__, *stride_cb);
-	vicp_print(VICP_INFO, "%s: stride_cr = %d.\n", __func__, *stride_cr);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s, stride_y: %d.\n", __func__, *stride_y);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s: stride_cb = %d.\n", __func__, *stride_cb);
+	vicp_print(VICP_RDMIF | VICP_WRMIF, "%s: stride_cr = %d.\n", __func__, *stride_cr);
 };
 
 void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
@@ -1054,6 +1055,8 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 	struct vicp_rdmif_rpt_loop_t rpt_loop;
 	struct vicp_rdmif_color_format_t color_format;
 
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+
 	if (IS_ERR_OR_NULL(rd_mif)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
 		return;
@@ -1061,10 +1064,10 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 
 	if (print_flag & VICP_RDMIF) {
 		pr_info("vicp: ##########mif_in config##########\n");
-		pr_info("vicp: luma_x: %d, %d.\n", rd_mif->luma_x_start0, rd_mif->luma_x_end0);
-		pr_info("vicp: luma_y: %d, %d.\n", rd_mif->luma_y_start0, rd_mif->luma_y_end0);
-		pr_info("vicp: chrm_x: %d, %d.\n", rd_mif->chrm_x_start0, rd_mif->chrm_x_end0);
-		pr_info("vicp: chrm_y: %d, %d.\n", rd_mif->chrm_y_start0, rd_mif->chrm_y_end0);
+		pr_info("vicp: luma_x axis: %d, %d.\n", rd_mif->luma_x_start0, rd_mif->luma_x_end0);
+		pr_info("vicp: luma_y axis: %d, %d.\n", rd_mif->luma_y_start0, rd_mif->luma_y_end0);
+		pr_info("vicp: chrm_x axis: %d, %d.\n", rd_mif->chrm_x_start0, rd_mif->chrm_x_end0);
+		pr_info("vicp: chrm_y axis: %d, %d.\n", rd_mif->chrm_y_start0, rd_mif->chrm_y_end0);
 		pr_info("vicp: set_separate_en = %d.\n", rd_mif->set_separate_en);
 		pr_info("vicp: src_field_mode = %d.\n", rd_mif->src_field_mode);
 		pr_info("vicp: input_fmt = %d.\n", rd_mif->fmt_mode);
@@ -1222,7 +1225,6 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 
 	set_mif_stride(rd_mif, &stride_y, &stride_cb, &stride_cr);
 
-	vicp_print(VICP_INFO, "rdmif baddr=%x, stride=%d\n", rd_mif->canvas0_addr0 >> 4, stride_y);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_Y, rd_mif->canvas0_addr0);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_CB, rd_mif->canvas0_addr1);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_CR, rd_mif->canvas0_addr2);
@@ -1302,6 +1304,8 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en)
 	u32 stride_y, stride_cb, stride_cr, rgb_mode, bit10_mode;
 	struct vicp_wrmif_control_t wrmif_control;
 
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+
 	if (IS_ERR_OR_NULL(wr_mif)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
 		return;
@@ -1358,7 +1362,7 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en)
 	wrmif_control.rgb_mode = rgb_mode;
 	wrmif_control.h_conv = 0;
 	wrmif_control.v_conv = 0;
-	wrmif_control.swap_cbcr = 0;
+	wrmif_control.swap_cbcr = 1;/*1 NV12, 0 NV21*/
 	wrmif_control.urgent = 0;
 	wrmif_control.word_limit = 4;
 	wrmif_control.data_ext_ena = 0;
@@ -1455,7 +1459,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 	struct vid_cmpr_scaler_t vid_cmpr_scaler;
 	struct vid_cmpr_hdr_t vid_cmpr_hdr;
 	struct vid_cmpr_afbce_t vid_cmpr_afbce;
-	enum hdr2_sel_e hdr2_sel;
 
 	struct vid_cmpr_mif_t vid_cmpr_rmif;
 	struct vid_cmpr_mif_t vid_cmpr_wmif;
@@ -1468,22 +1471,9 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		return;
 	}
 
-	vicp_print(VICP_INFO, "==== input_win_bgn_h: %d, input_win_end_h: %d ====\n",
-				vid_cmpr_top->src_win_bgn_h, vid_cmpr_top->src_win_end_h);
-	vicp_print(VICP_INFO, "==== input_win_bgn_v: %d, input_win_end_v: %d ====\n",
-				vid_cmpr_top->src_win_bgn_v, vid_cmpr_top->src_win_end_v);
-
-	vicp_print(VICP_INFO, "==== out_win_bgn_h: %d, out_win_end_h: %d ====\n",
-				vid_cmpr_top->out_win_bgn_h, vid_cmpr_top->out_win_end_h);
-	vicp_print(VICP_INFO, "==== out_win_bgn_v: %d, out_win_end_v: %d ====\n",
-				vid_cmpr_top->out_win_bgn_v, vid_cmpr_top->out_win_end_v);
-
-	vicp_print(VICP_INFO, "==== out_shrk_mode: %d\n", vid_cmpr_top->out_shrk_mode);
-
 	if (vid_cmpr_top->src_compress == 1) {
 		set_rdmif_enable(0);
 		set_input_path(VICP_INPUT_PATH_AFBCD);
-		vicp_print(VICP_INFO, "%s: start config AFBCD parameter.\n", __func__, __LINE__);
 		memset(&vid_cmpr_afbcd, 0, sizeof(struct vid_cmpr_afbcd_t));
 		if (vid_cmpr_top->src_vf->bitdepth & BITDEPTH_SAVING_MODE)
 			vid_cmpr_afbcd.blk_mem_mode = 1;
@@ -1544,7 +1534,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 	} else {
 		set_afbcd_enable(0);
 		set_input_path(VICP_INPUT_PATH_RDMIF);
-		vicp_print(VICP_INFO, "%s: start config RDMIF parameter.\n", __func__, __LINE__);
 		memset(&vid_cmpr_rmif, 0, sizeof(struct vid_cmpr_mif_t));
 		vid_cmpr_rmif.luma_x_start0 = vid_cmpr_top->src_win_bgn_h;
 		vid_cmpr_rmif.luma_x_end0 = vid_cmpr_top->src_win_end_h;
@@ -1592,7 +1581,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		set_vid_cmpr_rmif(&vid_cmpr_rmif, 0, 2);
 		vicp_print(VICP_INFO, "RDMIF config done.\n");
 	}
-	vicp_print(VICP_INFO, "%s-%d: start config Scaler parameter.\n", __func__, __LINE__);
 	memset(&vid_cmpr_scaler, 0, sizeof(struct vid_cmpr_scaler_t));
 	vid_cmpr_scaler.din_hsize = vid_cmpr_top->src_hsize;
 	vid_cmpr_scaler.din_vsize = vid_cmpr_top->src_vsize;
@@ -1620,25 +1608,17 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 	set_input_size(vid_cmpr_scaler.din_vsize, vid_cmpr_scaler.din_hsize);
 	set_vid_cmpr_scale(scaler_enable, &vid_cmpr_scaler);
 	vicp_print(VICP_INFO, "Scaler config done.\n");
-	vicp_print(VICP_INFO, "%s-%d: start config HDR parameter.\n", __func__, __LINE__);
 	memset(&vid_cmpr_hdr, 0, sizeof(struct vid_cmpr_hdr_t));
-	hdr2_sel = VID_CMPR_HDR2;
 	if (!hdr_en)
 		vid_cmpr_hdr.hdr2_en = 0;
 	else
 		vid_cmpr_hdr.hdr2_en = vid_cmpr_top->hdr_en;
 	vid_cmpr_hdr.hdr2_only_mat = 0;
-	vid_cmpr_hdr.hdr2_fmt_cfg = 0;
-	vid_cmpr_hdr.in_fmt = 1;
+	vid_cmpr_hdr.hdr2_fmt_cfg = 1;
+	vid_cmpr_hdr.input_fmt = 1;
 	vid_cmpr_hdr.rgb_out_en = 0;
 
-	set_vid_cmpr_hdr2(hdr2_sel,
-		vid_cmpr_hdr.hdr2_en,
-		vid_cmpr_hdr.hdr2_only_mat,
-		vid_cmpr_hdr.hdr2_fmt_cfg,
-		vid_cmpr_hdr.in_fmt,/*1:yuv in   0:rgb in */
-		vid_cmpr_hdr.rgb_out_en
-	);
+	set_vid_cmpr_hdr(vid_cmpr_hdr.hdr2_en);
 	vicp_print(VICP_INFO, "HDR config done\n");
 
 	if (vid_cmpr_top->wrmif_en == 1) {
@@ -1646,7 +1626,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 			set_output_path(VICP_OUTPUT_PATH_WRMIF);
 		else
 			set_output_path(VICP_OUTPUT_PATH_ALL);
-		vicp_print(VICP_INFO, "%s: start config WRMIF parameter.\n", __func__, __LINE__);
 		memset(&vid_cmpr_wmif, 0, sizeof(struct vid_cmpr_mif_t));
 		output_begin_h = vid_cmpr_top->out_win_bgn_h;
 		output_begin_v = vid_cmpr_top->out_win_bgn_v;
@@ -1681,10 +1660,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 			vid_cmpr_wmif.luma_y_end0 = output_end_v;
 			vid_cmpr_wmif.buf_hsize = vid_cmpr_top->out_hsize_bgnd;
 		}
-		vicp_print(VICP_INFO, "==== double wrmif luma start_x: %d, end_x: %d ====\n",
-					vid_cmpr_wmif.luma_x_start0, vid_cmpr_wmif.luma_x_end0);
-		vicp_print(VICP_INFO, "==== double wrmif luma start_y: %d, end_y: %d ====\n",
-					vid_cmpr_wmif.luma_y_start0, vid_cmpr_wmif.luma_y_end0);
 		vid_cmpr_wmif.set_separate_en = vid_cmpr_top->wrmif_set_separate_en;
 		vid_cmpr_wmif.fmt_mode = vid_cmpr_top->wrmif_fmt_mode;
 
@@ -1708,8 +1683,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 			vid_cmpr_wmif.buf_crop_en = 1;
 		vid_cmpr_wmif.src_field_mode = 0;
 		vid_cmpr_wmif.output_field_num = 1;
-		vicp_print(VICP_INFO, "wrmif_bits_mode: %d, wrmif_canvas0_addr: %lx.\n",
-			vid_cmpr_top->wrmif_bits_mode, vid_cmpr_top->wrmif_canvas0_addr0);
 
 		set_vid_cmpr_wmif(&vid_cmpr_wmif, vid_cmpr_top->wrmif_en);
 		vicp_print(VICP_INFO, "WRMIF config done.\n");
@@ -1717,7 +1690,6 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		set_output_path(VICP_OUTPUT_PATH_AFBCE);
 	}
 
-	vicp_print(VICP_INFO, "%s-%d: start config AFBCE parameter.\n", __func__, __LINE__);
 	memset(&vid_cmpr_afbce, 0, sizeof(struct vid_cmpr_afbce_t));
 	if (vid_cmpr_top->out_afbce_enable == 1) {
 		vid_cmpr_afbce.head_baddr = vid_cmpr_top->out_head_baddr;
@@ -1761,7 +1733,10 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 	struct vframe_s *input_vframe = NULL;
 	struct dma_data_config_t *input_dma = NULL;
 	enum vicp_rotation_mode_e rotation;
+	enum vframe_signal_fmt_e signal_fmt;
 	u32 canvas_width = 0;
+
+	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
 	if (IS_ERR_OR_NULL(data_config) || IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: NULL param.\n", __func__);
@@ -1770,8 +1745,10 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 
 	if (data_config->input_data.is_vframe) {
 		input_vframe = data_config->input_data.data_vf;
-		vicp_print(VICP_INFO, "%s: src_addr = 0x%lx.\n", __func__,
-			input_vframe->canvas0_config[0].phy_addr);
+		if (IS_ERR_OR_NULL(input_vframe)) {
+			vicp_print(VICP_ERROR, "%s: NULL vframe.\n", __func__);
+			return -1;
+		}
 
 		if (current_dump_flag != dump_yuv_flag) {
 			dump_yuv(0, input_vframe);
@@ -1803,9 +1780,13 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		vid_cmpr_top->src_endian = input_vframe->canvas0_config[0].endian;
 		vid_cmpr_top->src_block_mode = input_vframe->canvas0_config[0].block_mode;
 		canvas_width = canvas_get_width(input_vframe->canvas0Addr & 0xff);
+		signal_fmt = get_vframe_src_fmt(input_vframe);
+		if (signal_fmt != VFRAME_SIGNAL_FMT_INVALID && signal_fmt != VFRAME_SIGNAL_FMT_SDR)
+			vid_cmpr_top->hdr_en = 1;
+		else
+			vid_cmpr_top->hdr_en = 0;
 	} else {
 		input_dma = data_config->input_data.data_dma;
-		vicp_print(VICP_INFO, "%s: src_addr = 0x%lx.\n", __func__, input_dma->buf_addr);
 		vid_cmpr_top->src_compress = 0;
 		vid_cmpr_top->src_hsize = input_dma->data_width;
 		vid_cmpr_top->src_vsize = input_dma->data_height;
@@ -1815,6 +1796,7 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		vid_cmpr_top->src_endian = 0;
 		vid_cmpr_top->src_block_mode = 0;
 		canvas_width = input_dma->buf_stride;
+		vid_cmpr_top->hdr_en = 0;
 	}
 
 	if (canvas_width % 32)
@@ -1833,8 +1815,6 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		vid_cmpr_top->rdmif_separate_en = 2;
 	else
 		vid_cmpr_top->rdmif_separate_en = 0;
-
-	vid_cmpr_top->hdr_en = 0;
 
 	if (debug_axis_en) {
 		data_config->data_option.output_axis.left = axis.left;
@@ -1885,7 +1865,6 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		vid_cmpr_top->out_rot_en = 0;
 		vid_cmpr_top->rot_rev_mode = 2;
 	} else {
-		vicp_print(VICP_INFO, "%s: no need rotation.\n", __func__);
 		vid_cmpr_top->out_rot_en = 0;
 		vid_cmpr_top->rot_rev_mode = 0;
 	}
