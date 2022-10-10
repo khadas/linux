@@ -2121,7 +2121,24 @@ static u32 enable_afbc_input_local(struct vframe_s *vf, enum EAFBC_DEC dec,
 
 	reg_wr(reg[EAFBC_HEAD_BADDR], vf->compHeadAddr >> 4);
 	reg_wr(reg[EAFBC_BODY_BADDR], vf->compBodyAddr >> 4);
-
+	if (pafd_ctr->fb.ver == AFBCD_V4) {
+		if (dec == EAFBC_DEC2_DI) {
+			if (vf->type & VIDTYPE_COMPRESS_LOSS)
+				reg_wr(DI_INP_AFBC_IQUANT_ENABLE, 0xc11);
+			else
+				reg_wr(DI_INP_AFBC_IQUANT_ENABLE, 0x0);
+		}
+		if (dec == EAFBC_DEC3_MEM) {
+			if (cfgg(AFBCE_LOSS_EN) == 1 ||
+			    ((vf->type & VIDTYPE_COMPRESS_LOSS) &&
+			     cfgg(AFBCE_LOSS_EN) == 2))
+				reg_wr(DI_MEM_AFBC_IQUANT_ENABLE, 0xc11);
+			else
+				reg_wr(DI_MEM_AFBC_IQUANT_ENABLE, 0x0);
+		}
+	}
+	//dim_print("dec=%d:type=0x%x,ver=0x%x,reg=0x%x\n", dec,vf->type,
+		//pafd_ctr->fb.ver,reg_rd(0X1812));
 	if (pafd_ctr->fb.ver >= AFBCD_V5 && cfg) {
 		regs_ofst = afbcd_v5_get_offset(dec);
 		reg_wrb((regs_ofst + AFBCDM_IQUANT_ENABLE),
@@ -2316,7 +2333,9 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 
 		if (mem_vf2 && pafd_ctr->en_set.b.mem) {
 			/* mem */
-			if (cfgg(AFBCE_LOSS_EN)) {
+			if (cfgg(AFBCE_LOSS_EN) == 1 ||
+			    ((mem_vf2->type & VIDTYPE_COMPRESS_LOSS) &&
+			     cfgg(AFBCE_LOSS_EN) == 2)) {//di loss
 				cfg.reg_lossy_en = 1;
 				nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
 			} else {
@@ -2399,7 +2418,9 @@ static u32 enable_afbc_input(struct vframe_s *inp_vf,
 			afbc_update_level1(chan2_vf, pafd_ctr->fb.ch2_dec);
 
 		/*nr*/
-		if (cfgg(AFBCE_LOSS_EN))
+		if (cfgg(AFBCE_LOSS_EN) == 1 ||
+		    ((mem_vf2->type & VIDTYPE_COMPRESS_LOSS) &&
+		     cfgg(AFBCE_LOSS_EN) == 2))
 			nr_vf->type |= VIDTYPE_COMPRESS_LOSS;
 		else
 			nr_vf->type &= ~VIDTYPE_COMPRESS_LOSS;
@@ -5130,7 +5151,9 @@ static void afbce_set(struct vframe_s *vf, enum EAFBC_ENC enc)
 	}
 	#endif
 	vf_set_for_com(di_buf);
-	if (cfgg(AFBCE_LOSS_EN))
+	if (cfgg(AFBCE_LOSS_EN) == 1 ||
+	    ((di_buf->vframe->type & VIDTYPE_COMPRESS_LOSS) &&
+	     cfgg(AFBCE_LOSS_EN) == 2))
 		cfg->loosy_mode = 0x3;
 #ifdef AFBCP
 	di_print("%s:buf[%d],head[0x%lx],info[0x%lx]\n",

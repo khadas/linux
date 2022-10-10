@@ -276,7 +276,8 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 #endif
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_AFBCE_LOSS_EN]  = {"afbce_loss_en",
-				/* 1:check the loss flag in vf and set for di */
+				/* 2:check the loss flag in vf and set for di */
+				/* 1:force di output loss*/
 				/* 0:not set loss mode for di out */
 				EDI_CFG_AFBCE_LOSS_EN,
 				0,

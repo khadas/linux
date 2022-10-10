@@ -4473,6 +4473,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_INP_AFBC_PIXEL_HOR_SCOPE	(0x180f)
 #define DI_INP_AFBC_PIXEL_VER_SCOPE	(0x1810)
 #define DI_INP_AFBC_VD_CFMT_H		(0x1811)
+#define DI_INP_AFBC_IQUANT_ENABLE	(0x1812)
 
 #define DI_MEM_AFBC_ENABLE		(0x1820)
 #define DI_MEM_AFBC_MODE		(0x1821)
@@ -4492,6 +4493,7 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_MEM_AFBC_PIXEL_HOR_SCOPE	(0x182f)
 #define DI_MEM_AFBC_PIXEL_VER_SCOPE	(0x1830)
 #define DI_MEM_AFBC_VD_CFMT_H		(0x1831)
+#define DI_MEM_AFBC_IQUANT_ENABLE	(0x1832)
 
 #define DI_AFBCE_CTRL			(0x2003) /* ary sc2 ? */
 /*
