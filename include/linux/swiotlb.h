@@ -23,7 +23,7 @@ enum swiotlb_force {
  * The complexity of {map,unmap}_single is linearly dependent on this value.
  */
 #ifdef CONFIG_AMLOGIC_MODIFY
-#define IO_TLB_SEGSIZE	2048
+#define IO_TLB_SEGSIZE	4096
 #else
 #define IO_TLB_SEGSIZE	128
 #endif
@@ -72,9 +72,6 @@ extern void swiotlb_tbl_sync_single(struct device *hwdev,
 #ifdef CONFIG_SWIOTLB
 extern enum swiotlb_force swiotlb_force;
 extern phys_addr_t io_tlb_start, io_tlb_end;
-#ifdef CONFIG_AMLOGIC_MODIFY
-extern unsigned long io_tlb_nslabs;
-#endif
 
 static inline bool is_swiotlb_buffer(phys_addr_t paddr)
 {

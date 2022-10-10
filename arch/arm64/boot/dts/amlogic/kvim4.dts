@@ -118,6 +118,16 @@
 			clear-map;
 		};
 
+		nvme_ssd:linux,nvme_ssd {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x1b000000>;
+			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+			clear-map;
+		};
+
 		/*di CMA pool */
 		di_cma_reserved:linux,di_cma {
 			compatible = "shared-dma-pool";

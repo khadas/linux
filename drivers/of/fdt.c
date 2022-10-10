@@ -33,10 +33,6 @@
 
 #include "of_private.h"
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-#include <linux/swiotlb.h>
-#endif
-
 /*
  * of_fdt_limit_memory - limit the number of regions in the /memory node
  * @limit: maximum entries
@@ -538,29 +534,6 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 static int __init __reserved_mem_check_root(unsigned long node)
 {
 	const __be32 *prop;
-#ifdef CONFIG_AMLOGIC_MODIFY
-#ifdef CONFIG_SWIOTLB
-	const char *str = NULL;
-	int strlen = 0;
-	static const char * const swiotlb_str[] = {
-		"normal", "force", "noforce"};
-
-	pr_info("swiotlb,default value: %s\n",
-		swiotlb_str[swiotlb_force]);
-	str = fdt_getprop(initial_boot_params, node, "swiotlb", &strlen);
-	if (str && strlen > 0) {
-		if (!strcmp(str, "force")) {
-			swiotlb_force = SWIOTLB_FORCE;
-		} else if (!strcmp(str, "normal")) {
-			swiotlb_force = SWIOTLB_NORMAL;
-		} else if (!strcmp(str, "noforce")) {
-			swiotlb_force = SWIOTLB_NO_FORCE;
-			io_tlb_nslabs = 1;
-		}
-		pr_info("swiotlb,dts value: %s\n", str);
-	}
-#endif
-#endif
 
 	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
 	if (!prop || be32_to_cpup(prop) != dt_root_size_cells)
