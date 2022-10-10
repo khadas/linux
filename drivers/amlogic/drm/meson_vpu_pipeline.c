@@ -532,7 +532,8 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline)
 	for (i = 0; i < pipeline->num_postblend; i++)
 		VPU_PIPELINE_HW_INIT(&pipeline->postblends[i]->base);
 
-	VPU_PIPELINE_HW_INIT(&pipeline->slice2ppc->base);
+	if (pipeline->slice2ppc)
+		VPU_PIPELINE_HW_INIT(&pipeline->slice2ppc->base);
 }
 
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline)
