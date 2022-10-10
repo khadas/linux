@@ -1667,7 +1667,13 @@ unsigned int cec_config2_logaddr(unsigned int value, bool wr_flag)
 
 	if (wr_flag) {
 		temp = (read_ao(AO_DEBUG_REG1) >> 16) & 0xf;
-		if (temp == 0) {
+		/* uboot will check first logic address firstly, if it's
+		 * invalid address, it will set default logic address
+		 * need replace first logic address with valid address.
+		 * if the saved first address value is 0 or 0xf, it means
+		 * it can be replaced.
+		 */
+		if (temp == 0 || temp == 0xf) {
 			cec_set_reg_bits(AO_DEBUG_REG1, value, 16, 4);
 		} else if (temp != value) {
 			/* assume platform will only alloc correct logic addr */
