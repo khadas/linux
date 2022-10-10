@@ -4331,8 +4331,8 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 
 		r = 0x1700;
 		if (vf &&
-		    (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-		    !IS_DI_POSTWRTIE(vf->type)))
+		  (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+		  (!IS_DI_POSTWRTIE(vf->type) && !(vf->flag & VFRAME_FLAG_COMPOSER_DONE))))
 			r |= (1 << 19); /* dos_uncomp */
 		if (type & VIDTYPE_COMB_MODE)
 			r |= (1 << 20);
@@ -4827,8 +4827,8 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 
 		r = 0x1700;
 		if (vf &&
-		    (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-		    !IS_DI_POSTWRTIE(vf->type)))
+		   (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+		   (!IS_DI_POSTWRTIE(vf->type) && !(vf->flag & VFRAME_FLAG_COMPOSER_DONE))))
 			r |= (1 << 19); /* dos_uncomp */
 		if (type & VIDTYPE_COMB_MODE)
 			r |= (1 << 20);
@@ -5231,8 +5231,8 @@ static void vdx_set_dcu_s5(struct video_layer_s *layer,
 		r = 0x1700;
 		if (cpu_after_eq(MESON_CPU_MAJOR_ID_TL1)) {
 			if (vf &&
-			    (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
-			    !IS_DI_POSTWRTIE(vf->type)))
+			  (vf->source_type != VFRAME_SOURCE_TYPE_HDMI &&
+			  (!IS_DI_POSTWRTIE(vf->type) && !(vf->flag & VFRAME_FLAG_COMPOSER_DONE))))
 				r |= (1 << 19); /* dos_uncomp */
 			if (type & VIDTYPE_COMB_MODE)
 				r |= (1 << 20);
