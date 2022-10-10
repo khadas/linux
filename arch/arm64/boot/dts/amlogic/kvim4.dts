@@ -480,7 +480,7 @@
 	sensor: sensor {
 		compatible = "soc, sensor";
 		status = "okay";
-		sensor-name = "imx335"; /*imx290;os08a10;imx227*/
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -490,14 +490,14 @@
 				<&clkc CLKID_MCLK_PLL>,
 				<&xtal>;
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
-		pwdn = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		power-enable = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
 		compatible = "soc, iq";
 		status = "okay";
-		sensor-name = "imx335"; /*imx290;os08a10;imx227*/
+		sensor-name = "os08a10"; /*imx290;os08a10;imx227*/
 	};
 
 	hdmirx {
