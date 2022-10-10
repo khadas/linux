@@ -209,6 +209,14 @@ struct dm_lut_ipcore {
 	u32 g_2_l[256];
 };
 
+enum OSD_INDEX {
+	OSD1_INDEX = 0,
+	OSD2_INDEX = 1,
+	OSD3_INDEX = 2,
+	OSD4_INDEX = 3,
+	OSD_MAX_INDEX = 4
+};
+
 void enable_amdv(int enable);
 bool is_amdv_enable(void);
 bool is_amdv_on(void);
@@ -260,7 +268,7 @@ int enable_rgb_to_yuv_matrix_for_dvll
 	(s32 on, uint32_t *coeff_orig, uint32_t bits);
 
 int is_amdv_frame(struct vframe_s *vf);
-void update_graphic_width_height(unsigned int width, unsigned int height);
+void update_graphic_width_height(unsigned int width, unsigned int height, enum OSD_INDEX index);
 int get_amdv_policy(void);
 void set_amdv_policy(int policy);
 int get_amdv_src_format(enum vd_path_e vd_path);
@@ -298,8 +306,14 @@ bool support_multi_core1(void);
 #define AMDV_UPDATE_OSD_MODE 0x00000001
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 int amdv_notifier_call_chain(unsigned long val, void *v);
+int register_osd_func(int (*get_osd_enable_status)(enum OSD_INDEX index));
 #else
 static inline int amdv_notifier_call_chain(unsigned long val, void *v)
+{
+	return 0;
+}
+
+static inline int register_osd_func(int (*get_osd_enable_status)(enum OSD_INDEX index))
 {
 	return 0;
 }

@@ -49,6 +49,8 @@
 /* add for osd dv core2 */
 #define DOLBY_CORE2A_SWAP_CTRL1	                   0x3434
 #define DOLBY_CORE2A_SWAP_CTRL2	                   0x3435
+#define DOLBY_CORE2A_SWAP_CTRL1_S5                 0x0b34
+#define DOLBY_CORE2A_SWAP_CTRL2_S5                 0x0b35
 
 struct osdblend_reg_s {
 	u32 viu_osd_blend_ctrl;

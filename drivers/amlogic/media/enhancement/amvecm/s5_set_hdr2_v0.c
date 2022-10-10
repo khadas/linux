@@ -2108,6 +2108,8 @@ void vpu_lut_dma(enum hdr_module_sel module_sel,
 
 	if (cpu_write_lut)
 		return;
+	if (!dma_vaddr)
+		return;
 
 	fill_dma_buffer(module_sel, hdr_lut_param, &lut_addr);
 	init_vpu_lut_dma(&g_vpu_lut_dma);

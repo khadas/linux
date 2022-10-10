@@ -9,8 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "2022001011"
-
+#define DRIVER_VER "20221020"
 #include <linux/types.h>
 #include "amdv_pq_config.h"
 
@@ -608,6 +607,7 @@ enum cpu_id_e {
 	_CPU_MAJOR_ID_T3,
 	_CPU_MAJOR_ID_S4D,
 	_CPU_MAJOR_ID_T5W,
+	_CPU_MAJOR_ID_S5,
 	_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -665,6 +665,7 @@ extern int core2_sel;
 extern bool force_bypass_from_prebld_to_vadj1;
 extern struct hdr10_parameter hdr10_param;
 extern int cur_valid_video_num;
+extern int (*get_osd_status)(enum OSD_INDEX index);
 /************/
 
 #define pr_dv_dbg(fmt, args...)\
@@ -809,6 +810,7 @@ bool is_aml_t3(void);
 bool is_aml_t3_tvmode(void);
 bool is_aml_t5w(void);
 bool is_amdv_stb_mode(void);
+bool is_aml_s5(void);
 
 u32 VSYNC_RD_DV_REG(u32 adr);
 int VSYNC_WR_DV_REG(u32 adr, u32 val);
@@ -827,8 +829,7 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 				    bool enable, bool enable_core1_s1,
 				    unsigned int mask, bool reset_core1a,
 				    bool reset_core1b, u32 frame_size,
-				    u32 frame_size_1, u8 pps_state,
-				    u32 graphics_w, u32 graphics_h);
+				    u32 frame_size_1, u8 pps_state);
 void adjust_vpotch(u32 graphics_w, u32 graphics_h);
 void adjust_vpotch_tv(void);
 void video_effect_bypass(int bypass);
@@ -853,8 +854,8 @@ void set_frame_count(int val);
 int get_frame_count(void);
 void reset_dv_param(void);
 void update_stb_core_setting_flag(int flag);
-u32 get_graphic_width(void);
-u32 get_graphic_height(void);
+u32 get_graphic_width(u32 index);
+u32 get_graphic_height(u32 index);
 bool need_send_emp_meta(const struct vinfo_s *vinfo);
 void convert_hdmi_metadata(uint32_t *md);
 bool get_core1a_core1b_switch(void);

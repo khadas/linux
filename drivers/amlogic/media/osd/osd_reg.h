@@ -1431,6 +1431,9 @@
 #define AMDV_CORE2A_SWAP_CTRL1		          0x3434
 #define AMDV_CORE2A_SWAP_CTRL2		          0x3435
 
+#define S5_AMDV_CORE2A_SWAP_CTRL1		      0x0b34
+#define S5_AMDV_CORE2A_SWAP_CTRL2		      0x0b35
+
 /* osd afbc on g12a */
 #define VPU_MAFBC_BLOCK_ID                  0x3a00
 #define VPU_MAFBC_IRQ_RAW_STATUS            0x3a01

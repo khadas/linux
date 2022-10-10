@@ -672,11 +672,12 @@
 	};
 
 	amdolby_vision {
-		compatible = "amlogic, dolby_vision_t7";
+		compatible = "amlogic, dolby_vision_s5";
 		dev_name = "aml_amdolby_vision_driver";
-		status = "disabled";
-		tv_mode = <1>;/*1:enabel ;0:disable*/
-	};
+		status = "okay";
+		tv_mode = <0>;/*1:enable ;0:disable*/
+		multi_core1 = <1>;
+		};
 
     /* SMC */
 	smartcard {

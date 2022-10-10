@@ -8068,6 +8068,24 @@ static int get_viu2_src_format(void)
 	return RGBA;
 }
 
+/* -1: invalid osd index
+ *  0: osd is disabled
+ *  1: osd is enabled
+ */
+static int get_osd_status(enum OSD_INDEX index)
+{
+	unsigned int sw_index;
+
+	if (index >= HW_OSD_COUNT)
+		return -1;
+
+	sw_index = to_osd_sw_index(index);
+	if (sw_index >= OSD_MAX)
+		return -1;
+
+	return osd_hw.enable[sw_index];
+}
+
 static void osd_update_disp_osd_rotate(u32 index)
 {
 	u32 rotate_en = osd_hw.osd_rotate[index];
@@ -11806,17 +11824,41 @@ static void set_osd_blend_reg(struct osd_blend_reg_s *osd_blend_reg)
 
 	if (osd_hw.osd_meson_dev.has_dolby_vision) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		tmp_h = dv_core2_hsize;
-		tmp_v = dv_core2_vsize;
+		if (osd_dev_hw.s5_display) {
+			for (i = 0; i < osd_hw.osd_meson_dev.osd_count; i++) {
+				if (osd_hw.enable[i]) {/*s5 osd1+osd3 two core2*/
+					/*s5: core2 is before pps and blend, use OSD1_PROC_IN_SIZE*/
+					dv_core2_hsize = osd_hw.free_src_data[i].x_end -
+						osd_hw.free_src_data[i].x_start + 1;
+					dv_core2_vsize = osd_hw.free_src_data[i].y_end -
+						osd_hw.free_src_data[i].y_start + 1;
+					tmp_h = dv_core2_hsize;
+					tmp_v = dv_core2_vsize;
+					update_dvcore2_timing(&tmp_h, &tmp_v);
+					VSYNCOSD_WR_MPEG_REG(S5_AMDV_CORE2A_SWAP_CTRL1,
+							 ((tmp_h + 0x40) << 16)
+							 | (tmp_v + 0x80 + 0));
+					VSYNCOSD_WR_MPEG_REG(S5_AMDV_CORE2A_SWAP_CTRL2,
+							 (tmp_h << 16) |
+							 (tmp_v + 0));
+					update_graphic_width_height
+						(dv_core2_hsize, dv_core2_vsize,
+						 to_osd_hw_index(i));
+				}
+			}
+		} else {
+			tmp_h = dv_core2_hsize;
+			tmp_v = dv_core2_vsize;
 
-		update_dvcore2_timing(&tmp_h, &tmp_v);
-		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL1,
-				     ((tmp_h + 0x40) << 16)
-				     | (tmp_v + 0x80 + 0));
-		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL2,
-				     (tmp_h << 16) |
-				     (tmp_v + 0));
-		update_graphic_width_height(dv_core2_hsize, dv_core2_vsize);
+			update_dvcore2_timing(&tmp_h, &tmp_v);
+			VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL1,
+					     ((tmp_h + 0x40) << 16)
+					     | (tmp_v + 0x80 + 0));
+			VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL2,
+					     (tmp_h << 16) |
+					     (tmp_v + 0));
+			update_graphic_width_height(dv_core2_hsize, dv_core2_vsize, OSD1_INDEX);
+		}
 		if (!update_to_dv) {
 			update_graphic_status();
 			update_to_dv = true;
@@ -13301,13 +13343,22 @@ static void osd1_basic_update_disp_geometry(void)
 		buffer_h = ((data32 >> 16) & 0x1fff) - (data32 & 0x1fff) + 1;
 	}
 	if (osd_hw.osd_meson_dev.has_dolby_vision) {
-		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL1,
-				     ((buffer_w + 0x40) << 16)
-				     | (buffer_h + 0x80 + 0));
-		VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL2,
-				     (buffer_w << 16) | (buffer_h + 0));
+		if (osd_dev_hw.s5_display) {
+			VSYNCOSD_WR_MPEG_REG(S5_AMDV_CORE2A_SWAP_CTRL1,
+						 ((buffer_w + 0x40) << 16)
+						 | (buffer_h + 0x80 + 0));
+			VSYNCOSD_WR_MPEG_REG(S5_AMDV_CORE2A_SWAP_CTRL2,
+						 (buffer_w << 16) |
+						 (buffer_h + 0));
+		} else {
+			VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL1,
+					     ((buffer_w + 0x40) << 16)
+					     | (buffer_h + 0x80 + 0));
+			VSYNCOSD_WR_MPEG_REG(AMDV_CORE2A_SWAP_CTRL2,
+						(buffer_w << 16) | (buffer_h + 0));
+		}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-		update_graphic_width_height(buffer_w, buffer_h);
+		update_graphic_width_height(buffer_w, buffer_h, 0);
 #endif
 	}
 	if (osd_hw.osd_afbcd[OSD1].enable &&
@@ -14421,7 +14472,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 			osd_secure_op,
 			osd_secure_cb);
 #endif
-
+	register_osd_func(get_osd_status);
 	osd_log_out = 1;
 }
 

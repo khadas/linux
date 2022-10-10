@@ -45,6 +45,8 @@
 #include <linux/poll.h>
 #include <linux/workqueue.h>
 #include "amdv.h"
+#include "amdv_regs_s5.h"
+#include "md_config.h"
 #include <linux/device.h>
 #include <linux/cdev.h>
 #include <linux/of.h>
@@ -356,10 +358,10 @@ static unsigned int dv_target_graphics_LL_max_26[5][3] = {
 };
 
 /*these two parameters form OSD*/
-static unsigned int osd_graphic_width = 1920;
-static unsigned int osd_graphic_height = 1080;
-static unsigned int new_osd_graphic_width = 1920;
-static unsigned int new_osd_graphic_height = 1080;
+static unsigned int osd_graphic_width[OSD_MAX_INDEX] = {1920};
+static unsigned int osd_graphic_height[OSD_MAX_INDEX] = {1080};
+static unsigned int new_osd_graphic_width[OSD_MAX_INDEX] = {1920};
+static unsigned int new_osd_graphic_height[OSD_MAX_INDEX] = {1080};
 
 static unsigned int enable_tunnel;
 static u32 vpp_data_422T0444_backup;
@@ -552,6 +554,9 @@ static int last_unmap_id;
 static int hdmi_inst_id;
 int hdmi_path_id;
 
+static u32 inst_debug[2];
+static u32 inst_res_debug[4];/*force set inst0 w/h inst1 w/h*/
+
 static int force_two_valid;
 module_param(force_two_valid, int, 0664);
 MODULE_PARM_DESC(force_two_valid,    "\n force_two_valid\n");
@@ -594,9 +599,17 @@ bool is_aml_s4d(void)
 		return false;
 }
 
+bool is_aml_s5(void)
+{
+	if (dv_meson_dev.cpu_id == _CPU_MAJOR_ID_S5)
+		return true;
+	else
+		return false;
+}
+
 bool is_aml_box(void)
 {
-	if (is_aml_gxm() || is_aml_g12() || is_aml_sc2() || is_aml_s4d())
+	if (is_aml_gxm() || is_aml_g12() || is_aml_sc2() || is_aml_s4d() || is_aml_s5())
 		return true;
 	else
 		return false;
@@ -746,6 +759,9 @@ int is_graphics_output_off(void)
 	    is_aml_s4d())
 		return !(READ_VPP_REG(OSD1_BLEND_SRC_CTRL) & (0xf << 8)) &&
 		!(READ_VPP_REG(OSD2_BLEND_SRC_CTRL) & (0xf << 8));
+	else if (is_aml_s5())
+		return !(READ_VPP_REG(S5_OSD1_BLEND_SRC_CTRL) & 0xf) &&
+		!(READ_VPP_REG(S5_OSD2_BLEND_SRC_CTRL) & 0xf);
 	else
 		return (!(READ_VPP_REG(VPP_MISC) & (1 << 12)));
 }
@@ -766,6 +782,9 @@ static u32 CORE2A_BASE;
 static u32 CORE2C_BASE;
 static u32 CORE3_BASE;
 static u32 CORETV_BASE;
+static u32 CORE3_S1_BASE;
+static u32 CORE3_S2_BASE;
+static u32 CORE3_S3_BASE;
 
 static void amdv_addr(void)
 {
@@ -803,6 +822,15 @@ static void amdv_addr(void)
 		CORE3_BASE = 0x3600;
 	} else if (is_aml_t5w()) {
 		CORETV_BASE = 0x4300;
+	} else if (is_aml_s5()) {
+		CORE1A_BASE = 0x3300;
+		CORE1B_BASE = 0x0a00;
+		CORE2A_BASE = 0x0b00;
+		CORE2C_BASE = 0x0d00;
+		CORE3_BASE = 0x0e00; /*S0*/
+		CORE3_S1_BASE = 0x0f00;
+		CORE3_S2_BASE = 0x1200;
+		CORE3_S3_BASE = 0x1300;
 	}
 }
 
@@ -822,6 +850,12 @@ static u32 addr_map(u32 adr)
 		adr = (adr & 0xffff) + CORE3_BASE;
 	else if (adr & CORETV_OFFSET)
 		adr = (adr & 0xffff) + CORETV_BASE;
+	else if (adr & CORE3_S1_OFFSET)
+		adr = (adr & 0xffff) + CORE3_S1_BASE;
+	else if (adr & CORE3_S2_OFFSET)
+		adr = (adr & 0xffff) + CORE3_S2_BASE;
+	else if (adr & CORE3_S3_OFFSET)
+		adr = (adr & 0xffff) + CORE3_S3_BASE;
 
 	return adr;
 }
@@ -1172,10 +1206,13 @@ bool need_send_emp_meta(const struct vinfo_s *vinfo)
 #endif
 
 void update_graphic_width_height(unsigned int width,
-	unsigned int height)
+	unsigned int height, enum OSD_INDEX index)
 {
-	new_osd_graphic_width = width;
-	new_osd_graphic_height = height;
+	if (index >= OSD_MAX_INDEX)
+		pr_info("error osd index\n");
+
+	new_osd_graphic_width[index] = width;
+	new_osd_graphic_height[index] = height;
 }
 EXPORT_SYMBOL(update_graphic_width_height);
 
@@ -1206,19 +1243,19 @@ static int is_graphic_changed(void)
 		ret |= 2;
 	}
 
-	if (osd_graphic_width != new_osd_graphic_width ||
-	    osd_graphic_height != new_osd_graphic_height) {
+	if (osd_graphic_width[OSD1_INDEX] != new_osd_graphic_width[OSD1_INDEX] ||
+	    osd_graphic_height[OSD1_INDEX] != new_osd_graphic_height[OSD1_INDEX]) {
 		if (debug_dolby & 0x2)
 			pr_dv_dbg("osd changed %d %d-%d %d\n",
-				     osd_graphic_width,
-				     osd_graphic_height,
-				     new_osd_graphic_width,
-				     new_osd_graphic_height);
+				     osd_graphic_width[OSD1_INDEX],
+				     osd_graphic_height[OSD1_INDEX],
+				     new_osd_graphic_width[OSD1_INDEX],
+				     new_osd_graphic_height[OSD1_INDEX]);
 		/* TODO: g12/tm2/sc2/t7 osd pps is after dolby core2, but */
 		/* sometimes osd do crop,should monitor osd size change*/
 		if (!is_osd_off /*&& !is_aml_tm2() && !is_aml_sc2() && !is_aml_t7()*/) {
-			osd_graphic_width = new_osd_graphic_width;
-			osd_graphic_height = new_osd_graphic_height;
+			osd_graphic_width[OSD1_INDEX] = new_osd_graphic_width[OSD1_INDEX];
+			osd_graphic_height[OSD1_INDEX] = new_osd_graphic_height[OSD1_INDEX];
 			ret |= 2;
 			force_set_lut = true;
 		}
@@ -1274,14 +1311,20 @@ int get_mute_type(void)
 		return MUTE_TYPE_NONE;
 }
 
-u32 get_graphic_width(void)
+u32 get_graphic_width(u32 index)
 {
-	return osd_graphic_width;
+	if (index < OSD_MAX_INDEX)
+		return osd_graphic_width[index];
+	else
+		return osd_graphic_width[0];
 }
 
-u32 get_graphic_height(void)
+u32 get_graphic_height(u32 index)
 {
-	return osd_graphic_height;
+	if (index < OSD_MAX_INDEX)
+		return osd_graphic_height[index];
+	else
+		return osd_graphic_height[0];
 }
 
 bool get_core1a_core1b_switch(void)
@@ -1394,6 +1437,8 @@ void update_dvcore2_timing(u32 *hsize, u32 *vsize)
 		*hsize = 1920;
 		*vsize = 1080;
 	}
+		*hsize = 3840;
+		*vsize = 2160;
 }
 EXPORT_SYMBOL(update_dvcore2_timing);
 
@@ -1770,8 +1815,10 @@ int dv_inst_map(int *inst)
 	int new_map_id = -1;
 	bool keep_last_frame = false;/*both two video keep last frame*/
 
-	if (!multi_dv_mode)
+	if (!multi_dv_mode) {
+		*inst = 0;
 		return 0;
+	}
 
 	spin_lock_irqsave(&dv_inst_lock, flags);
 
@@ -1986,6 +2033,20 @@ static void dump_setting(struct dovi_setting_s *setting,
 				READ_VPP_DV_REG(MALI_AFBCD_TOP_CTRL));
 			pr_info("t7_stb reg: core2c 1a55(bit19) val = 0x%x\n",
 				READ_VPP_DV_REG(MALI_AFBCD1_TOP_CTRL));
+		} else if (is_aml_s5()) {
+			pr_info("s5 reg: vd1 core1 0x2822(bit0, 1:enable) = 0x%x\n",
+				READ_VPP_DV_REG(VD1_S0_DV_BYPASS_CTRL));
+			pr_info("s5 reg: vd2 core1 0x3888(bit0, 1:enable) = 0x%x\n",
+				READ_VPP_DV_REG(VD2_DV_BYPASS_CTRL));
+			pr_info("s5 reg: core2a core2c 0x6077(bit0 bit4, 1:bypass) = 0x%x\n",
+				READ_VPP_DV_REG(OSD_DOLBY_BYPASS_EN));
+			pr_info("s5 reg: core3 0x2501(bit3, 1:enable) = 0x%x\n",
+				READ_VPP_DV_REG(S5_VPP_DOLBY_CTRL));
+			pr_info("s5 reg: core3 0x10fd(bit11, 1:enable) = 0x%x\n",
+				READ_VPP_DV_REG(VPU_DOLBY_TOP_CTRL));
+			pr_info("s5 core1a 0x3300, core1b 0x0a00\n");
+			pr_info("s5 core2a 0x0b00, core2c 0x0d00\n");
+			pr_info("s5 core3 0x0e00,0x0f00,0x1200,0x1300\n");
 		}
 
 		pr_info("core1\n");
@@ -2169,6 +2230,20 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 				READ_VPP_DV_REG(MALI_AFBCD_TOP_CTRL));
 			pr_info("t7_stb reg: core2c 0x1a55(bit19) = 0x%x\n",
 				READ_VPP_DV_REG(MALI_AFBCD1_TOP_CTRL));
+		} else if (is_aml_s5()) {
+			pr_info("s5 reg: vd1 core1 0x2822(bit0, 1:enable) = 0x%x\n",
+				READ_VPP_DV_REG(VD1_S0_DV_BYPASS_CTRL));
+			pr_info("s5 reg: vd2 core1 0x3888(bit0, 1:enable) = 0x%x\n",
+				READ_VPP_DV_REG(VD2_DV_BYPASS_CTRL));
+			pr_info("s5 reg: core2a core2c 0x6077(bit0 bit4, 1:bypass) = 0x%x\n",
+				READ_VPP_DV_REG(OSD_DOLBY_BYPASS_EN));
+			pr_info("s5 reg: core3 0x2501(bit3, 1:enable) = 0x%x\n",
+				READ_VPP_DV_REG(S5_VPP_DOLBY_CTRL));
+			pr_info("s5 reg: core3 0x10fd(bit11, 1:enable) = 0x%x\n",
+				READ_VPP_DV_REG(VPU_DOLBY_TOP_CTRL));
+			pr_info("s5 core1a 0x3300, core1b 0x0a00\n");
+			pr_info("s5 core2a 0x0b00, core2c 0x0d00\n");
+			pr_info("s5 core3 0x0e00,0x0f00,0x1200,0x1300\n");
 		}
 	}
 
@@ -6099,66 +6174,6 @@ unsigned char get_vsem_byte(u8 md_byte, u8 mask)
 	return ((md_byte & mask) >> field_lsb_off);
 }
 
-static u32 crc32_table[256] = {
-	0x00000000, 0x04c11db7, 0x09823b6e, 0x0d4326d9, 0x130476dc, 0x17c56b6b,
-	0x1a864db2, 0x1e475005, 0x2608edb8, 0x22c9f00f, 0x2f8ad6d6, 0x2b4bcb61,
-	0x350c9b64, 0x31cd86d3, 0x3c8ea00a, 0x384fbdbd, 0x4c11db70, 0x48d0c6c7,
-	0x4593e01e, 0x4152fda9, 0x5f15adac, 0x5bd4b01b, 0x569796c2, 0x52568b75,
-	0x6a1936c8, 0x6ed82b7f, 0x639b0da6, 0x675a1011, 0x791d4014, 0x7ddc5da3,
-	0x709f7b7a, 0x745e66cd, 0x9823b6e0, 0x9ce2ab57, 0x91a18d8e, 0x95609039,
-	0x8b27c03c, 0x8fe6dd8b, 0x82a5fb52, 0x8664e6e5, 0xbe2b5b58, 0xbaea46ef,
-	0xb7a96036, 0xb3687d81, 0xad2f2d84, 0xa9ee3033, 0xa4ad16ea, 0xa06c0b5d,
-	0xd4326d90, 0xd0f37027, 0xddb056fe, 0xd9714b49, 0xc7361b4c, 0xc3f706fb,
-	0xceb42022, 0xca753d95, 0xf23a8028, 0xf6fb9d9f, 0xfbb8bb46, 0xff79a6f1,
-	0xe13ef6f4, 0xe5ffeb43, 0xe8bccd9a, 0xec7dd02d, 0x34867077, 0x30476dc0,
-	0x3d044b19, 0x39c556ae, 0x278206ab, 0x23431b1c, 0x2e003dc5, 0x2ac12072,
-	0x128e9dcf, 0x164f8078, 0x1b0ca6a1, 0x1fcdbb16, 0x018aeb13, 0x054bf6a4,
-	0x0808d07d, 0x0cc9cdca, 0x7897ab07, 0x7c56b6b0, 0x71159069, 0x75d48dde,
-	0x6b93dddb, 0x6f52c06c, 0x6211e6b5, 0x66d0fb02, 0x5e9f46bf, 0x5a5e5b08,
-	0x571d7dd1, 0x53dc6066, 0x4d9b3063, 0x495a2dd4, 0x44190b0d, 0x40d816ba,
-	0xaca5c697, 0xa864db20, 0xa527fdf9, 0xa1e6e04e, 0xbfa1b04b, 0xbb60adfc,
-	0xb6238b25, 0xb2e29692, 0x8aad2b2f, 0x8e6c3698, 0x832f1041, 0x87ee0df6,
-	0x99a95df3, 0x9d684044, 0x902b669d, 0x94ea7b2a, 0xe0b41de7, 0xe4750050,
-	0xe9362689, 0xedf73b3e, 0xf3b06b3b, 0xf771768c, 0xfa325055, 0xfef34de2,
-	0xc6bcf05f, 0xc27dede8, 0xcf3ecb31, 0xcbffd686, 0xd5b88683, 0xd1799b34,
-	0xdc3abded, 0xd8fba05a, 0x690ce0ee, 0x6dcdfd59, 0x608edb80, 0x644fc637,
-	0x7a089632, 0x7ec98b85, 0x738aad5c, 0x774bb0eb, 0x4f040d56, 0x4bc510e1,
-	0x46863638, 0x42472b8f, 0x5c007b8a, 0x58c1663d, 0x558240e4, 0x51435d53,
-	0x251d3b9e, 0x21dc2629, 0x2c9f00f0, 0x285e1d47, 0x36194d42, 0x32d850f5,
-	0x3f9b762c, 0x3b5a6b9b, 0x0315d626, 0x07d4cb91, 0x0a97ed48, 0x0e56f0ff,
-	0x1011a0fa, 0x14d0bd4d, 0x19939b94, 0x1d528623, 0xf12f560e, 0xf5ee4bb9,
-	0xf8ad6d60, 0xfc6c70d7, 0xe22b20d2, 0xe6ea3d65, 0xeba91bbc, 0xef68060b,
-	0xd727bbb6, 0xd3e6a601, 0xdea580d8, 0xda649d6f, 0xc423cd6a, 0xc0e2d0dd,
-	0xcda1f604, 0xc960ebb3, 0xbd3e8d7e, 0xb9ff90c9, 0xb4bcb610, 0xb07daba7,
-	0xae3afba2, 0xaafbe615, 0xa7b8c0cc, 0xa379dd7b, 0x9b3660c6, 0x9ff77d71,
-	0x92b45ba8, 0x9675461f, 0x8832161a, 0x8cf30bad, 0x81b02d74, 0x857130c3,
-	0x5d8a9099, 0x594b8d2e, 0x5408abf7, 0x50c9b640, 0x4e8ee645, 0x4a4ffbf2,
-	0x470cdd2b, 0x43cdc09c, 0x7b827d21, 0x7f436096, 0x7200464f, 0x76c15bf8,
-	0x68860bfd, 0x6c47164a, 0x61043093, 0x65c52d24, 0x119b4be9, 0x155a565e,
-	0x18197087, 0x1cd86d30, 0x029f3d35, 0x065e2082, 0x0b1d065b, 0x0fdc1bec,
-	0x3793a651, 0x3352bbe6, 0x3e119d3f, 0x3ad08088, 0x2497d08d, 0x2056cd3a,
-	0x2d15ebe3, 0x29d4f654, 0xc5a92679, 0xc1683bce, 0xcc2b1d17, 0xc8ea00a0,
-	0xd6ad50a5, 0xd26c4d12, 0xdf2f6bcb, 0xdbee767c, 0xe3a1cbc1, 0xe760d676,
-	0xea23f0af, 0xeee2ed18, 0xf0a5bd1d, 0xf464a0aa, 0xf9278673, 0xfde69bc4,
-	0x89b8fd09, 0x8d79e0be, 0x803ac667, 0x84fbdbd0, 0x9abc8bd5, 0x9e7d9662,
-	0x933eb0bb, 0x97ffad0c, 0xafb010b1, 0xab710d06, 0xa6322bdf, 0xa2f33668,
-	0xbcb4666d, 0xb8757bda, 0xb5365d03, 0xb1f740b4
-};
-
-static u32 get_crc32(const void *data, size_t data_size)
-{
-	const u8 *p = (u8 *)data;
-	u32 crc = 0xFFFFFFFF;
-
-	while (data_size) {
-		crc = (crc << 8) ^ crc32_table[((crc >> 24) ^ *p) & 0xff];
-		p++;
-		data_size--;
-	}
-
-	return crc;
-}
-
 int vsem_check(unsigned char *control_data, unsigned char *vsem_payload)
 {
 	struct vsem_data_pkt *cur_pkt;
@@ -7718,8 +7733,8 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 				 amdv_target_min,
 				 amdv_target_max
 				 [src_format][dst_format],
-				 osd_graphic_width,
-				 osd_graphic_height);
+				 osd_graphic_width[OSD1_INDEX],
+				 osd_graphic_height[OSD1_INDEX]);
 			if (el_flag) {
 				pr_dv_dbg
 					("v %d: %dx%d %d->%d(T:%d-%d), g %d: %dx%d %d->%d, %s\n",
@@ -7731,8 +7746,8 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 					amdv_target_max
 					[src_format][dst_format],
 					!is_graphics_output_off(),
-					osd_graphic_width,
-					osd_graphic_height,
+					osd_graphic_width[OSD1_INDEX],
+					osd_graphic_height[OSD1_INDEX],
 					graphic_min,
 					graphic_max * 10000,
 					pri_mode == V_PRIORITY ?
@@ -7751,8 +7766,8 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 					amdv_target_max
 					[src_format][dst_format],
 					!is_graphics_output_off(),
-					osd_graphic_width,
-					osd_graphic_height,
+					osd_graphic_width[OSD1_INDEX],
+					osd_graphic_height[OSD1_INDEX],
 					graphic_min,
 					graphic_max * 10000,
 					pri_mode == V_PRIORITY ?
@@ -9307,8 +9322,8 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 				dst_format,
 				new_m_dovi_setting.set_target_min_lum,
 				new_m_dovi_setting.set_target_max_lum,
-				osd_graphic_width,
-				osd_graphic_height);
+				osd_graphic_width[OSD1_INDEX],
+				osd_graphic_height[OSD1_INDEX]);
 			}
 		}
 		if (vf)
@@ -9338,8 +9353,8 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 		pr_dv_dbg
 		("osd %d,osd size:%dx%d,g min-max %d-%d,t min-max:%d-%d,pri:%s,flag=%x\n",
 		 !is_graphics_output_off(),
-		 osd_graphic_width,
-		 osd_graphic_height,
+		 osd_graphic_width[OSD1_INDEX],
+		 osd_graphic_height[OSD1_INDEX],
 		 new_m_dovi_setting.set_graphic_min_lum,
 		 new_m_dovi_setting.set_graphic_max_lum,
 		 new_m_dovi_setting.set_target_min_lum,
@@ -9590,6 +9605,9 @@ int amdv_wait_metadata_v1(struct vframe_s *vf)
 			   is_aml_t3() || is_aml_s4d() || is_aml_t5w()) {
 			if (READ_VPP_DV_REG(VD1_BLEND_SRC_CTRL) & (1 << 0))
 				vd1_on = true;
+		} else if (is_aml_s5()) {
+			if (READ_VPP_DV_REG(S5_VD1_BLEND_SRC_CTRL) & (0xf << 0))
+				vd1_on = true;
 		}
 		/* don't use run mode when sdr -> dv and vd1 not disable */
 		if (/*amdv_wait_init && */vd1_on && is_aml_tvmode() && !force_runmode)
@@ -9769,6 +9787,14 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 					vd_on = true;
 			} else if (vd_path == VD2_PATH) {
 				if (READ_VPP_DV_REG(VD2_BLEND_SRC_CTRL) & (1 << 0))
+					vd_on = true;
+			}
+		} else if (is_aml_s5()) {
+			if (vd_path == VD1_PATH) {
+				if (READ_VPP_DV_REG(S5_VD1_BLEND_SRC_CTRL) & (1 << 0))
+					vd_on = true;
+			} else if (vd_path == VD2_PATH) {
+				if (READ_VPP_DV_REG(S5_VD2_BLEND_SRC_CTRL) & (1 << 0))
 					vd_on = true;
 			}
 		}
@@ -10597,8 +10623,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 						 amdv_setting_video_flag,
 						 false,
 						 amdv_mask & 0x4,
-						 0, 0, in_size, 0, pps_state,
-						 osd_graphic_width, osd_graphic_height);
+						 0, 0, in_size, 0, pps_state);
 					}
 					send_hdmi_pkt(amdv_src_format,
 						      FORMAT_SDR, vinfo, vf);
@@ -10786,8 +10811,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 					 reset_flag, 0,
 					 (new_dovi_setting.video_width << 16)
 					 | new_dovi_setting.video_height,
-					 0, pps_state,
-					 osd_graphic_width, osd_graphic_height);
+					 0, pps_state);
 				memcpy(&dovi_setting, &new_dovi_setting,
 					sizeof(dovi_setting));
 				if ((core1_disp_hsize !=
@@ -10848,8 +10872,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 					 reset_flag, 0,
 					 (dovi_setting.video_width << 16)
 					 | dovi_setting.video_height,
-					 0, pps_state,
-					 osd_graphic_width, osd_graphic_height);
+					 0, pps_state);
 				/* force send hdmi pkt */
 				if (dolby_vision_flags & FLAG_FORCE_HDMI_PKT) {
 					if (vinfo)
@@ -10883,8 +10906,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 				 amdv_mask & 0x1,
 				 reset_flag, 0,
 				 (h_size << 16) | v_size,
-				 0, pps_state,
-				 osd_graphic_width, osd_graphic_height);
+				 0, pps_state);
 				bypass_pps_path(pps_state);
 				core1_disp_hsize = h_size;
 				core1_disp_vsize = v_size;
@@ -10953,8 +10975,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 					 amdv_mask & 0x1,
 					 reset_flag, 0,
 					 (core1_disp_hsize << 16) | core1_disp_vsize,
-					 0, pps_state,
-					 osd_graphic_width, osd_graphic_height);
+					 0, pps_state);
 				if (amdv_on_count <
 					amdv_run_mode_delay)
 					pr_dv_dbg("fake frame (%d %d) %d reset %d\n",
@@ -11062,6 +11083,9 @@ static int amdolby_vision_process_v2_stb
 			pr_dv_dbg("[inst%d]process %p on vd%d, toggle %d\n",
 				     dv_id + 1, vf_2, vd_path_2 + 1, toggle_mode_2);
 	}
+	/*pr_info("rdma read 6077 %x, read %x\n",*/
+			/*VSYNC_RD_DV_REG(OSD_DOLBY_BYPASS_EN),*/
+			/*READ_VPP_DV_REG(OSD_DOLBY_BYPASS_EN));*/
 
 	/*update layer info*/
 	if (vd1_dv_id >= 0 && vd2_dv_id >= 0) {
@@ -11333,6 +11357,20 @@ static int amdolby_vision_process_v2_stb
 		}
 		force_set_lut = true;
 	}
+	if (inst_debug[0]) {
+		dv_inst[0].core1_disp_hsize = inst_res_debug[0];
+		dv_inst[0].core1_disp_vsize = inst_res_debug[1];
+	} else if (inst_debug[1]) {
+		dv_inst[1].core1_disp_hsize = inst_res_debug[2];
+		dv_inst[1].core1_disp_vsize = inst_res_debug[3];
+	}
+	if (debug_dolby & 0x1000)
+		pr_dv_dbg("inst0 %d_%d, inst1 %d_%d\n",
+			     dv_inst[0].core1_disp_hsize,
+			     dv_inst[0].core1_disp_vsize,
+			     dv_inst[1].core1_disp_hsize,
+			     dv_inst[1].core1_disp_vsize);
+
 	if (debug_dolby & 0x1000)
 		pr_dv_dbg("vf %p,vd1 %s,st %d,vf_2 %p,vd2 %s,st %d\n",
 			     vf, video_turn_off[0] ? "off" : "on",
@@ -11507,8 +11545,7 @@ static int amdolby_vision_process_v2_stb
 						(dma_paddr, 0, 0,
 						amdv_mask & 0x4,
 						false, 0, in_size, in_size_2,
-						pps_state,
-						osd_graphic_width, osd_graphic_height);
+						pps_state);
 					}
 					if (m_dovi_setting.input[pri_input].src_format ==
 						FORMAT_INVALID)
@@ -11649,8 +11686,7 @@ static int amdolby_vision_process_v2_stb
 				 reset_flag[1],
 				 in_size,
 				 in_size_2,
-				 pps_state,
-				 osd_graphic_width, osd_graphic_height);
+				 pps_state);
 			memcpy(&m_dovi_setting, &new_m_dovi_setting,
 				sizeof(m_dovi_setting));
 #ifdef REMOVE_OLD_DV_FUNC
@@ -11717,8 +11753,7 @@ static int amdolby_vision_process_v2_stb
 				 reset_flag[0],
 				 reset_flag[1],
 				 0, 0,
-				 pps_state,
-				 osd_graphic_width, osd_graphic_height);
+				 pps_state);
 			/* force send hdmi pkt */
 			if ((dolby_vision_flags & FLAG_FORCE_HDMI_PKT) && vinfo) {
 				if (m_dovi_setting.input[pri_input].src_format == FORMAT_INVALID)
@@ -11773,7 +11808,7 @@ static int amdolby_vision_process_v2_stb
 					 dv_inst[0].core1_disp_vsize,
 					 (dv_inst[1].core1_disp_hsize << 16) |
 					 dv_inst[1].core1_disp_vsize,
-					 pps_state, osd_graphic_width, osd_graphic_height);
+					 pps_state);
 
 				for (i = 0; i < NUM_IPCORE1; i++) {
 					if (dv_core1[i].run_mode_count <
@@ -11956,7 +11991,7 @@ EXPORT_SYMBOL(is_multi_dv_mode);
 bool support_multi_core1(void)
 {
 	if (multi_dv_mode && enable_multi_core1 &&
-	    (is_aml_tm2_stbmode() || is_aml_t7_stbmode()))
+	    (is_aml_tm2_stbmode() || is_aml_t7_stbmode() || is_aml_s5()))
 		return true;
 	else
 		return false;
@@ -12234,6 +12269,8 @@ static int get_chip_name(void)
 		snprintf(chip_name, sizeof("s4d"), "%s", "s4d");
 	else if (is_aml_t5w())
 		snprintf(chip_name, sizeof("t5w"), "%s", "t5w");
+	else if (is_aml_s5())
+		snprintf(chip_name, sizeof("s5"), "%s", "s5");
 	else
 		snprintf(chip_name, sizeof("null"), "%s", "null");
 
@@ -12258,7 +12295,8 @@ bool chip_support_dv(void)
 	    is_aml_g12() || is_aml_tm2() ||
 	    is_aml_sc2() || is_aml_t7() ||
 	    is_aml_t3() || is_aml_s4d() ||
-	    is_aml_t5w())
+	    is_aml_t5w() ||
+	    is_aml_s5())
 		return true;
 	else
 		return false;
@@ -12305,7 +12343,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		return ret;
 	}
 	if (is_aml_t7() || is_aml_t3() || is_aml_s4d() ||
-	    is_aml_t5w()) {
+	    is_aml_t5w() || is_aml_s5()) {
 		total_name_len = get_chip_name();
 		get_ko = strstr(func->version_info, total_chip_name);
 
@@ -12395,7 +12433,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		} else if (func->multi_control_path && !p_funcs_stb) {
 			pr_info("*** register_dv_multi_stb_functions.***\n");
 
-			if (!is_aml_tm2revb() && !is_aml_t7_stbmode() && enable_multi_core1) {
+			if (!is_aml_tm2revb() && !is_aml_t7_stbmode() && !is_aml_s5() &&
+				enable_multi_core1) {
 				enable_multi_core1 = false;
 				pr_info("*** only has one core1. please check***\n");
 			}
@@ -12457,6 +12496,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 					return -ENOMEM;
 				}
 			}
+
 			multi_dv_mode = true;
 			hdmi_source_led_as_hdr10 = false; /*not treat hdmi in LL as hdr10*/
 			dolby_vision_hdr10_policy |= HLG_BY_DV_F_SINK;
@@ -12504,7 +12544,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		/*TV core need run mode and the value is 2*/
 		if (is_aml_txlx_stbmode() ||
 		    is_aml_tm2_stbmode() || is_aml_t7_stbmode() ||
-		    is_aml_sc2() || is_aml_s4d())
+		    is_aml_sc2() || is_aml_s4d() || is_aml_s5())
 			amdv_run_mode_delay = 0;
 		else if (is_aml_g12())
 			amdv_run_mode_delay = RUN_MODE_DELAY_G12;
@@ -12515,7 +12555,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		else
 			amdv_run_mode_delay = RUN_MODE_DELAY;
 
-		adjust_vpotch(osd_graphic_width, osd_graphic_height);
+		adjust_vpotch(osd_graphic_width[OSD1_INDEX], osd_graphic_height[OSD1_INDEX]);
 		adjust_vpotch_tv();
 
 		if ((is_aml_tm2_stbmode() || is_aml_t7_stbmode()) &&
@@ -12530,6 +12570,8 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 			}
 		}
 	}
+	if (is_aml_s5())
+		malloc_md_pkt();
 	module_installed = true;
 	return ret;
 }
@@ -12581,6 +12623,9 @@ int unregister_dv_functions(void)
 		p_funcs_tv = NULL;
 		ret = 0;
 	}
+	if (is_aml_s5())
+		free_md_pkt();
+
 	return ret;
 }
 EXPORT_SYMBOL(unregister_dv_functions);
@@ -13127,7 +13172,7 @@ static ssize_t amdolby_vision_debug_store
 		enable_tunnel = val;
 		pr_info("enable_tunnel %d\n", enable_tunnel);
 		if (is_aml_sc2() || is_aml_t7() || is_aml_t3() ||
-		    is_aml_s4d() || is_aml_t5w()) {/*not include tm2*/
+		    is_aml_s4d() || is_aml_t5w() || is_aml_s5()) {/*not include tm2*/
 			/*for vdin1 loop back, 444,12bit->422,12bit->444,8bit*/
 			if (enable_tunnel) {
 				if (vpp_data_422T0444_backup == 0) {
@@ -13900,7 +13945,7 @@ static ssize_t amdolby_vision_core2_sel_store
 {
 	size_t r;
 
-	if (!is_aml_t7())
+	if (!is_aml_t7() && !is_aml_s5())
 		return -EINVAL;
 	r = kstrtoint(buf, 0, &core2_sel);
 	if (r != 0)
@@ -13933,7 +13978,7 @@ static ssize_t amdolby_vision_enable_multi_core1_store
 	size_t r;
 	int ret;
 
-	if (!(is_multi_dv_mode() && (is_aml_t7() || is_aml_tm2()))) {
+	if (!(is_multi_dv_mode() && (is_aml_t7() || is_aml_tm2() || is_aml_s5()))) {
 		pr_info("not supprot mulit core1\n");
 		return -EINVAL;
 	}
@@ -13961,7 +14006,7 @@ static ssize_t amdolby_vision_force_pri_input_store
 	size_t r;
 	int ret;
 
-	if (!(support_multi_core1() && (is_aml_t7() || is_aml_tm2()))) {
+	if (!(support_multi_core1() && (is_aml_t7() || is_aml_tm2() || is_aml_s5()))) {
 		pr_info("not supprot mulit core1\n");
 		return -EINVAL;
 	}
@@ -14105,6 +14150,70 @@ static ssize_t amdolby_vision_inst_status_show
 	 len += sprintf(buf + len, "core1a_core1b_switch %d\n", core1a_core1b_switch);
 
 	return len;
+}
+
+static ssize_t amdolby_vision_inst_debug_show
+		(struct class *cla,
+		 struct class_attribute *attr,
+		 char *buf)
+{
+	ssize_t len = 0;
+
+	len += sprintf(buf + len, "inst0 %d, %x, %x\n",
+				   inst_debug[0], inst_res_debug[0], inst_res_debug[1]);
+	len += sprintf(buf + len, "inst1 %d, %x, %x\n",
+				   inst_debug[1], inst_res_debug[2], inst_res_debug[3]);
+	return len;
+}
+
+static ssize_t amdolby_vision_inst_debug_store
+		(struct class *cla,
+		 struct class_attribute *attr,
+		 const char *buf, size_t count)
+
+{
+	char *buf_orig, *parm[8] = {NULL};
+	long val1 = 0;
+	long val2 = 0;
+
+	if (!buf)
+		return count;
+	buf_orig = kstrdup(buf, GFP_KERNEL);
+	parse_param(buf_orig, (char **)&parm);
+	if (!strcmp(parm[0], "inst0")) {
+		if (kstrtoul(parm[1], 10, &val1) < 0) {
+			kfree(buf_orig);
+			buf_orig =  NULL;
+			return -EINVAL;
+		}
+		if (kstrtoul(parm[2], 10, &val2) < 0) {
+			kfree(buf_orig);
+			buf_orig =  NULL;
+			return -EINVAL;
+		}
+		inst_res_debug[0] = val1;
+		inst_res_debug[1] = val2;
+		inst_debug[0] = 1;
+	} else if (!strcmp(parm[0], "inst1")) {
+		if (kstrtoul(parm[1], 10, &val1) < 0) {
+			kfree(buf_orig);
+			buf_orig =  NULL;
+			return -EINVAL;
+		}
+		if (kstrtoul(parm[2], 10, &val2) < 0) {
+			kfree(buf_orig);
+			buf_orig =  NULL;
+			return -EINVAL;
+		}
+		inst_res_debug[2] = val1;
+		inst_res_debug[3] = val2;
+		inst_debug[1] = 1;
+	}
+	kfree(buf_orig);
+	buf_orig = NULL;
+	return count;
+
+	return count;
 }
 
 static ssize_t amdolby_vision_operate_mode_show
@@ -14390,6 +14499,9 @@ static struct class_attribute amdolby_vision_class_attrs[] = {
 	__ATTR(local_allm, 0644,
 	       amdolby_vision_local_allm_show,
 	       amdolby_vision_local_allm_store),
+	__ATTR(inst_res_debug, 0644,
+	       amdolby_vision_inst_debug_show,
+	       amdolby_vision_inst_debug_store),
 	__ATTR_NULL
 };
 
@@ -14433,6 +14545,10 @@ static struct dv_device_data_s dolby_vision_s4d = {
 
 static struct dv_device_data_s dolby_vision_t5w = {
 	.cpu_id = _CPU_MAJOR_ID_T5W,
+};
+
+static struct dv_device_data_s dolby_vision_s5 = {
+	.cpu_id = _CPU_MAJOR_ID_S5,
 };
 
 static const struct of_device_id amlogic_dolby_vision_match[] = {
@@ -14485,6 +14601,10 @@ static const struct of_device_id amlogic_dolby_vision_match[] = {
 	{
 		.compatible = "amlogic, dolby_vision_t5w",
 		.data = &dolby_vision_t5w,
+	},
+	{
+		.compatible = "amlogic, dolby_vision_s5",
+		.data = &dolby_vision_s5,
 	},
 	{},
 };
@@ -14716,7 +14836,6 @@ __setup("recovery_part=", recovery_mode_check);
 int __init amdolby_vision_init(void)
 {
 	pr_info("%s:module init\n", __func__);
-
 	if (platform_driver_register(&aml_amdolby_vision_driver)) {
 		pr_err("failed to register amdolby_vision module\n");
 		return -ENODEV;
