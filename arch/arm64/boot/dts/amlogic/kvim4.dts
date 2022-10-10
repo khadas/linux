@@ -59,7 +59,6 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		swiotlb = "normal";
 
 		ramdump_bl33z@00000000 {
 			reg = <0x0 0x0 0x0 0x1800000>; /* 0 ~ 24M */

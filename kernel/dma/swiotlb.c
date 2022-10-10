@@ -51,6 +51,7 @@
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 #include <linux/amlogic/tee.h>
+static u32 handle;
 #endif
 
 #define OFFSET(val,align) ((unsigned long)	\
@@ -217,6 +218,9 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 {
 	unsigned long i, bytes;
 	size_t alloc_size;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	int ret = 0;
+#endif
 
 	bytes = nslabs << IO_TLB_SHIFT;
 
@@ -262,6 +266,18 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 		swiotlb_print_info();
 
 	swiotlb_set_max_segment(io_tlb_nslabs << IO_TLB_SHIFT);
+
+#ifdef CONFIG_AMLOGIC_MODIFY
+	pr_info("swiotlb: tee_protect_mem %ld MiB at 0x%llx!\n",
+		(io_tlb_nslabs << IO_TLB_SHIFT) / SZ_1M, io_tlb_start);
+	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_PCIE,
+		io_tlb_start,
+		io_tlb_nslabs << IO_TLB_SHIFT,
+		&handle);
+	if (ret)
+		pr_info("swiotlb: tee_protect_mem %ld MiB at 0x%llx failed! ret=%d!\n",
+		  (io_tlb_nslabs << IO_TLB_SHIFT) / SZ_1M, io_tlb_start, ret);
+#endif
 
 	return 0;
 }
