@@ -274,6 +274,8 @@ void ldc_mem_write_profile(unsigned char *buf, unsigned long mem_paddr, unsigned
 lcd_ldc_axi_rmem_write_end1:
 	LDIMERR("%s buf mapping failed: 0x%lx\n", __func__, mem_paddr);
 }
+EXPORT_SYMBOL(ldc_mem_write_profile);
+
 
 void ldc_mem_clear(unsigned long mem_paddr, unsigned int mem_size)
 {

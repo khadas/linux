@@ -29,8 +29,19 @@
  * **********************************
  */
 #define _VE_LDIM  'C'
-#define AML_LDIM_IOC_NR_GET_INFO	0x51
-#define AML_LDIM_IOC_NR_SET_INFO	0x52
+#define AML_LDIM_IOC_NR_GET_PQ_INIT	0x04
+#define AML_LDIM_IOC_NR_SET_PQ_INIT	0x05
+#define AML_LDIM_IOC_NR_GET_LEVEL_IDX	0x06
+#define AML_LDIM_IOC_NR_SET_LEVEL_IDX	0x07
+#define AML_LDIM_IOC_NR_GET_FUNC_EN	0x08
+#define AML_LDIM_IOC_NR_SET_FUNC_EN	0x09
+#define AML_LDIM_IOC_NR_GET_REMAP_EN	0x0A
+#define AML_LDIM_IOC_NR_SET_REMAP_EN	0x0B
+#define AML_LDIM_IOC_NR_GET_BL_MATRIX	0x0C
+#define AML_LDIM_IOC_NR_SET_BL_MATRIX	0x0D
+#define AML_LDIM_IOC_NR_GET_DEMOMODE	0x0E
+#define AML_LDIM_IOC_NR_SET_DEMOMODE	0x0F
+
 #define AML_LDIM_IOC_NR_GET_INFO_NEW	0x53
 #define AML_LDIM_IOC_NR_SET_INFO_NEW	0x54
 
@@ -39,15 +50,6 @@
 
 #define AML_LDIM_IOC_NR_GET_BL_PROFILE_PATH	0x57
 #define AML_LDIM_IOC_NR_SET_BL_PROFILE	0x58
-
-#define AML_LDIM_IOC_CMD_GET_INFO \
-	_IOR(_VE_LDIM, AML_LDIM_IOC_NR_GET_INFO, struct aml_ldim_info_s)
-#define AML_LDIM_IOC_CMD_SET_INFO \
-	_IOW(_VE_LDIM, AML_LDIM_IOC_NR_SET_INFO, struct aml_ldim_info_s)
-#define AML_LDIM_IOC_CMD_GET_INFO_NEW \
-	_IOR(_VE_LDIM, AML_LDIM_IOC_NR_GET_INFO_NEW, struct aml_ldim_pq_s)
-#define AML_LDIM_IOC_CMD_SET_INFO_NEW \
-	_IOW(_VE_LDIM, AML_LDIM_IOC_NR_SET_INFO_NEW, struct aml_ldim_pq_s)
 
 struct aml_ldim_bin_s {
 	unsigned int index;
@@ -67,96 +69,6 @@ enum ldim_dev_type_e {
 
 struct aml_ldim_driver_s;
 
-struct aml_ldim_info_s {
-	unsigned int func_en;
-	unsigned int remapping_en;
-	unsigned int alpha;
-	unsigned int lpf_method;
-	unsigned int lpf_gain;
-	unsigned int lpf_res;
-	unsigned int side_blk_diff_th;
-	unsigned int bbd_th;
-	unsigned int boost_gain;
-	unsigned int rgb_base;
-	unsigned int ld_remap_bypass;
-	unsigned int ld_tf_step_th;
-	unsigned int tf_blk_fresh_bl;
-	unsigned int tf_fresh_bl;
-	unsigned int fw_ld_thtf_l;
-	unsigned int fw_rgb_diff_th;
-	unsigned int fw_ld_thist;
-	unsigned int bl_remap_curve[17];
-	unsigned int reg_ld_remap_lut[16][32];
-	unsigned int fw_ld_whist[16];
-};
-
-struct aml_ldim_pq_s {
-	unsigned int func_en;
-	unsigned int remapping_en;
-
-	/* switch fw, use for custom fw. 0=aml_hw_fw, 1=aml_sw_fw */
-	unsigned int fw_sel;
-
-	/* fw parameters */
-	unsigned int ldc_hist_mode;
-	unsigned int ldc_hist_blend_mode;
-	unsigned int ldc_hist_blend_alpha;
-	unsigned int ldc_hist_adap_blend_max_gain;
-	unsigned int ldc_hist_adap_blend_diff_th1;
-	unsigned int ldc_hist_adap_blend_diff_th2;
-	unsigned int ldc_hist_adap_blend_th0;
-	unsigned int ldc_hist_adap_blend_thn;
-	unsigned int ldc_hist_adap_blend_gain_0;
-	unsigned int ldc_hist_adap_blend_gain_1;
-	unsigned int ldc_init_bl_min;
-	unsigned int ldc_init_bl_max;
-
-	unsigned int ldc_sf_mode;
-	unsigned int ldc_sf_gain_up;
-	unsigned int ldc_sf_gain_dn;
-	unsigned int ldc_sf_tsf_3x3;
-	unsigned int ldc_sf_tsf_5x5;
-
-	unsigned int ldc_bs_bl_mode;
-	//unsigned int ldc_glb_apl; //read only
-	unsigned int ldc_bs_glb_apl_gain;
-	unsigned int ldc_bs_dark_scene_bl_th;
-	unsigned int ldc_bs_gain;
-	unsigned int ldc_bs_limit_gain;
-	unsigned int ldc_bs_loc_apl_gain;
-	unsigned int ldc_bs_loc_max_min_gain;
-	unsigned int ldc_bs_loc_dark_scene_bl_th;
-
-	unsigned int ldc_tf_en;
-	//unsigned int ldc_tf_sc_flag; //read only
-	unsigned int ldc_tf_low_alpha;
-	unsigned int ldc_tf_high_alpha;
-	unsigned int ldc_tf_low_alpha_sc;
-	unsigned int ldc_tf_high_alpha_sc;
-
-	unsigned int ldc_dimming_curve_en;
-	unsigned int ldc_sc_hist_diff_th;
-	unsigned int ldc_sc_apl_diff_th;
-	unsigned int bl_remap_curve[17];
-
-	/* comp parameters */
-	unsigned int ldc_bl_buf_diff;
-	unsigned int ldc_glb_gain;
-	unsigned int ldc_dth_en;
-	unsigned int ldc_dth_bw;
-	unsigned int ldc_gain_lut[16][64];
-	unsigned int ldc_min_gain_lut[64];
-	unsigned int ldc_dither_lut[32][16];
-};
-
-struct ldim_comp_s {
-	unsigned int ldc_comp_en;
-	unsigned int ldc_bl_buf_diff;
-	unsigned int ldc_glb_gain;
-	unsigned int ldc_dth_en;
-	unsigned int ldc_dth_bw;
-};
-
 struct ldim_config_s {
 	unsigned short hsize;
 	unsigned short vsize;
@@ -164,61 +76,7 @@ struct ldim_config_s {
 	unsigned char seg_col;
 	unsigned char bl_mode;
 	unsigned char func_en;
-	unsigned char remap_en;
-	unsigned char demo_en;
-	unsigned char hvcnt_bypass;
 	unsigned char dev_index;
-	struct aml_ldim_info_s *ldim_info;
-};
-
-struct ldim_profile_s {
-	unsigned int mode;
-	unsigned int ld_lut_hdg[32];
-	unsigned int ld_lut_vdg[32];
-	unsigned int ld_lut_vhk[32];
-	unsigned int profile_k;
-	unsigned int profile_bits;
-	char file_path[256];
-};
-
-struct ldim_rmem_s {
-	unsigned char flag;
-	unsigned int hist_fid;
-	unsigned int duty_fid;
-
-	void *wr_mem_vaddr1;
-	phys_addr_t wr_mem_paddr1;
-	void *wr_mem_vaddr2;
-	phys_addr_t wr_mem_paddr2;
-	void *rd_mem_vaddr1;
-	phys_addr_t rd_mem_paddr1;
-	void *rd_mem_vaddr2;
-	phys_addr_t rd_mem_paddr2;
-	unsigned int wr_mem_size;
-	unsigned int rd_mem_size;
-
-	/* for new ldc */
-	void *rsv_mem_vaddr;
-	phys_addr_t rsv_mem_paddr;
-	unsigned int rsv_mem_size;
-
-	phys_addr_t profile_mem_paddr;
-	unsigned int profile_mem_size;
-
-	unsigned char *global_hist_vaddr;
-	phys_addr_t global_hist_paddr;
-	unsigned int global_hist_mem_size;
-	unsigned int global_hist_highmem_flag;
-
-	unsigned char *seg_hist_vaddr;
-	phys_addr_t seg_hist_paddr;
-	unsigned int seg_hist_mem_size;
-	unsigned int seg_hist_highmem_flag;
-
-	unsigned char *duty_vaddr;
-	phys_addr_t duty_paddr;
-	unsigned int duty_mem_size;
-	unsigned int duty_highmem_flag;
 };
 
 #define LDIM_DEV_NAME_MAX    30
@@ -252,7 +110,6 @@ struct ldim_dev_driver_s {
 	unsigned int zone_num;
 	char bl_mapping_path[256];
 	unsigned short *bl_mapping;
-	struct ldim_profile_s *bl_profile;
 
 	unsigned char init_loaded;
 	unsigned char cmd_size;
@@ -296,14 +153,6 @@ struct ldim_drv_data_s {
 	unsigned int wr_mem_size;
 	unsigned int rd_mem_size;
 
-	int (*alloc_rmem)(void);
-	void (*remap_update)(struct ld_reg_s *nprm,
-			     unsigned int avg_update_en,
-			     unsigned int matrix_update_en);
-	void (*stts_init)(unsigned int pic_h, unsigned int pic_v,
-			  unsigned int blk_vnum, unsigned int blk_hnum);
-	void (*remap_init)(struct ld_reg_s *nprm,
-			   unsigned int bl_en, unsigned int hvcnt_bypass);
 	void (*vs_arithmetic)(struct aml_ldim_driver_s *ldim_drv);
 
 	int (*memory_init)(struct platform_device *pdev,
@@ -311,7 +160,6 @@ struct ldim_drv_data_s {
 			   unsigned int row, unsigned int col);
 	void (*drv_init)(struct aml_ldim_driver_s *ldim_drv);
 	void (*func_ctrl)(struct aml_ldim_driver_s *ldim_drv, int flag);
-	void (*remap_lut_update)(void);
 };
 
 /*******global API******/
@@ -327,27 +175,19 @@ struct aml_ldim_driver_s {
 	unsigned char vsync_change_flag;
 	unsigned char duty_update_flag;
 	unsigned char switch_ld_cnt;
-	unsigned char pq_updating;
 	unsigned char in_vsync_flag;
 
 	unsigned char init_on_flag;
 	unsigned char func_en;
-	unsigned char remap_en;
-	unsigned char demo_en;
+	unsigned char level_idx;
+	unsigned char demo_mode;
 	unsigned char black_frm_en;
 	unsigned char ld_sel;  /* for gd bypass */
 	unsigned char func_bypass;  /* for lcd bist pattern */
 	unsigned char dev_smr_bypass;
 	unsigned char brightness_bypass;
 	unsigned char test_bl_en;
-	unsigned char test_remap_en;
-	unsigned char avg_update_en;
-	unsigned char matrix_update_en;
-	unsigned char alg_en;
-	unsigned char top_en;
-	unsigned char hist_en;
 	unsigned char load_db_en;
-	unsigned char db_print_flag;
 	unsigned char level_update;
 	unsigned char resolution_update;
 
@@ -365,13 +205,9 @@ struct aml_ldim_driver_s {
 	struct ldim_drv_data_s *data;
 	struct ldim_config_s *conf;
 	struct ldim_dev_driver_s *dev_drv;
-	struct ldim_rmem_s *rmem;
 
-	struct ldim_stts_s *stts;
 	struct ldim_fw_s *fw;
-	struct ldim_comp_s *comp;
-	struct ldim_fw_custom_s *fw_cus_pre;
-	struct ldim_fw_custom_s *fw_cus_post;
+	struct ldim_fw_custom_s *cus_fw;
 
 	unsigned int *test_matrix;
 	unsigned int *local_bl_matrix;
@@ -391,6 +227,7 @@ struct aml_ldim_driver_s {
 
 struct aml_ldim_driver_s *aml_ldim_get_driver(void);
 
+char aml_ldim_get_bbd_state(void);
 int aml_ldim_get_config_dts(struct device_node *child);
 int aml_ldim_get_config_unifykey(unsigned char *buf);
 int aml_ldim_probe(struct platform_device *pdev);

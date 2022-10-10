@@ -618,7 +618,7 @@
 				1 0 /*on_value, off_value*/
 				200 200>; /* on_delay(ms), off_delay(ms)*/
 			en_sequence_reverse = <0>; /* 1 for reverse */
-			bl_ldim_zone_row_col = <10 10>;
+			bl_ldim_zone_row_col = <12 10>;
 			bl_ldim_mode = <2>; /* 0=LR, 1=TB, 2=DIRECT */
 			ldim_dev_index = <3>;
 		};
@@ -675,7 +675,7 @@
 			ldim_pwm_port = "PWM_D";
 			ldim_pwm_attr = <1  /* pol */
 				120 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				1000>;/*default duty(x/4095)*/
+				100>;/*default duty(x/4095)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <1000000>; /* unit: hz */
@@ -832,7 +832,7 @@
 			ldim_pwm_port = "PWM_VS";
 			ldim_pwm_attr = <1  /* pol */
 				1 /*freq(pwm:Hz, pwm_vs:multiple of vs)*/
-				1000>;/*default duty(x/4095)*/
+				50>;/*default duty(x/4095)*/
 			spi_bus_num = <2>;
 			spi_chip_select = <0>;
 			spi_max_frequency = <3000000>; /* unit: hz */
@@ -852,7 +852,7 @@
 			ldim_zone_mapping = <0>;
 			ldim_bl_profile_mode = <2>; /*0=no profile*/
 			ldim_bl_profile_k_bits = <
-				3487 24>; /*profile_k, profile_bits*/
+				1844 24>; /*profile_k, profile_bits*/
 			ldim_bl_profile_path =
 				"/odm/etc/tvconfig/panel/UHD_2RG_LDIM_BLMCU/bl_profile.bin";
 
