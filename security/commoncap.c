@@ -897,12 +897,12 @@ int cap_task_setnice(struct task_struct *p, int nice)
 static int cap_prctl_drop(unsigned long cap)
 {
 	struct cred *new;
-
+/*Root: add root support
 	if (!ns_capable(current_user_ns(), CAP_SETPCAP))
 		return -EPERM;
 	if (!cap_valid(cap))
 		return -EINVAL;
-
+*/
 	new = prepare_creds();
 	if (!new)
 		return -ENOMEM;
