@@ -42,21 +42,21 @@
 
 		red_led {
 			gpios = <&gpio4 RK_PB4 GPIO_ACTIVE_HIGH>;
-			label = "led_r";
+			label = "red_led";
 			linux,default-trigger = "default-on";
 			default-state = "on";
 		};
 
 		green_led {
 			gpios = <&gpio4 RK_PB2 GPIO_ACTIVE_HIGH>;
-			label = "led_g";
+			label = "green_led";
 			linux,default-trigger = "off";
 			default-state = "on";
 		};
 
 		blue_led {
 			gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
-			label = "led_b";
+			label = "blue_led";
 			linux,default-trigger = "off";
 			default-state = "on";
 		};
