@@ -835,7 +835,7 @@ void dvbt2_init(struct aml_dtvdemod *demod, struct dvb_frontend *fe)
 		PR_INFO("set r842 dvbt2 config\n");
 		dvbt_t2_wrb(0x821, 0x70);
 		dvbt_t2_wrb(0x824, 0xa0);
-		dvbt_t2_wrb(0x825, 0x10);
+		dvbt_t2_wrb(0x825, 0x11);
 		dvbt_t2_wrb(0x827, 0x50);
 	} else {
 		PR_INFO("set default dvbt2 config\n");
