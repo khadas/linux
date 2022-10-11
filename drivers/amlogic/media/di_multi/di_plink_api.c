@@ -4340,6 +4340,8 @@ static void dpvpph_size_change(struct dim_prevpp_ds_s *ds,
 	bool mc_en = false;//dimp_get(edi_mp_mcpre_en)
 	const struct reg_acc *op;
 	unsigned int width, height, vf_type; //ori input para
+	struct nr_cfg_s cfg_data;
+	struct nr_cfg_s *cfg = &cfg_data;
 
 	/*pr_info("%s:\n", __func__);*/
 	/*debug only:*/
@@ -4350,11 +4352,16 @@ static void dpvpph_size_change(struct dim_prevpp_ds_s *ds,
 	height	= ds->dis_c_para.win.y_size;
 	vf_type = 0; //for p
 	op = op_in;
+	cfg->width = width;
+	cfg->height = height;
+	cfg->linkflag = 1;
+
 	if (!op)
 		op = &di_pre_regset;
 
 	if (nr_op() && !(ds->en_dbg_off_nr & DI_BIT7))
-		nr_op()->nr_all_config(width, height, vf_type, op); //need check if write register.
+		nr_op()->nr_all_config(vf_type, op, cfg);
+	//need check if write register.
 
 	if (pulldown_en) { //dimp_get(edi_mp_pulldown_enable)
 		/*pulldown_init(width, height);*/

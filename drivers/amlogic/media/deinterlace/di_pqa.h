@@ -92,14 +92,19 @@ bool di_attach_ops_3d(const struct detect3d_op_s **ops);
 /**************************
  * nr_drv
  *************************/
+struct nr_cfg_s {
+	unsigned short width;
+	unsigned short height;
+	unsigned int linkflag;
+};
+
 struct nr_op_s {
 	void (*nr_hw_init)(void);
 	void (*nr_gate_control)(bool gate);
 	void (*nr_drv_init)(struct device *dev);
 	void (*nr_drv_uninit)(struct device *dev);
 	void (*nr_process_in_irq)(void);
-	void (*nr_all_config)(unsigned short ncol, unsigned short nrow,
-			      unsigned short type);
+	void (*nr_all_config)(unsigned short type, struct nr_cfg_s *cfg);
 	bool (*set_nr_ctrl_reg_table)(unsigned int addr, unsigned int value);
 	void (*cue_int)(struct vframe_s *vf);
 	void (*adaptive_cue_adjust)(unsigned int frame_diff,
@@ -119,9 +124,9 @@ struct nr_opr_s {
 	void (*nr_drv_init)(struct device *dev);
 	void (*nr_drv_uninit)(struct device *dev);
 	void (*nr_process_in_irq)(const struct reg_acc *op);
-	void (*nr_all_config)(unsigned short ncol, unsigned short nrow,
-			      unsigned short type,
-				const struct reg_acc *op);
+	void (*nr_all_config)(unsigned short type,
+				const struct reg_acc *op,
+				struct nr_cfg_s *cfg);
 	bool (*set_nr_ctrl_reg_table)(unsigned int addr,
 				      unsigned int value); //same
 	void (*cue_int)(struct vframe_s *vf,

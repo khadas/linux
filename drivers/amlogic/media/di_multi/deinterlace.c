@@ -10703,11 +10703,16 @@ void di_pre_size_change(unsigned short width,
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	union hw_sc2_ctr_pre_s *sc2_pre_cfg;
+	struct nr_cfg_s cfg_data;
+	struct nr_cfg_s *cfg = &cfg_data;
 
 	/*pr_info("%s:\n", __func__);*/
 	/*debug only:*/
 	/*di_pause(channel, true);*/
-	get_ops_nr()->nr_all_config(width, height, vf_type);
+	cfg->width = width;
+	cfg->height = height;
+	cfg->linkflag = 0;
+	get_ops_nr()->nr_all_config(vf_type, cfg);
 	#ifdef DET3D
 	/*det3d_config*/
 	get_ops_3d()->det3d_config(dimp_get(edi_mp_det3d_en) ? 1 : 0);

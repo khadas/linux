@@ -139,6 +139,10 @@ int global_bs_calc_sw(int *pGbsVldCnt,
 		*pGbsVldFlg = 1;
 	else
 		*pGbsVldFlg = 0;
+	if (dnr_pr)
+		pr_info("reg:nCurGbs=%d,pGbs=%d, LR/LL/RR=[%d,%d,%d],dif=%d\n",
+				nCurGbs, *pGbs, nGbsStatLR, nGbsStatLL, nGbsStatRR, nDif);
+
 
 	*pGbs = nCurGbs;
 
@@ -183,6 +187,9 @@ int hor_blk_ofst_calc_sw(int *pHbOfVldCnt,
 		} else if (nHbOfStatCnt[i] > nMax2) {
 			nMax2 = nHbOfStatCnt[i];
 		}
+	if (dnr_pr)
+		pr_info("nHbOfStatCnt[i]= %d\n", nHbOfStatCnt[i]);
+
 	} /* i */
 
 	/* decide if offset valid */
@@ -211,9 +218,9 @@ int hor_blk_ofst_calc_sw(int *pHbOfVldCnt,
 	 * }
 	 */
 	if (dnr_pr) {
-		pr_dbg("Max1 = %5d, Max2 = %5d, MaxIdx = %5d, Rat0 = %5d,Rat1 = %5d.\n",
+		pr_info("Max1 = %5d, Max2 = %5d, MaxIdx = %5d, Rat0 = %5d,Rat1 = %5d.\n",
 				nMax1, nMax2, nMaxIdx, nRat0, nRat1);
-		pr_dbg("CurHbOfst = %5d, HbOfVldFlg = %d, HbOfVldCnt = %d.\n",
+		pr_info("CurHbOfst = %5d, HbOfVldFlg = %d, HbOfVldCnt = %d.\n",
 				nCurHbOfst, *pHbOfVldFlg, *pHbOfVldCnt);
 	}
 
@@ -327,8 +334,7 @@ static u32 check_dnr_dm_ctrl(u32 org_val, unsigned short width,
 }
 
 static void dnr_config_op(struct DNR_PARM_s *dnr_parm_p,
-		unsigned short width, unsigned short height,
-		const struct reg_acc *op)
+		const struct reg_acc *op, struct nr_cfg_s *cfg)
 {
 	unsigned short border_offset = dnr_parm_p->dnr_stat_coef;
 
@@ -337,14 +343,15 @@ static void dnr_config_op(struct DNR_PARM_s *dnr_parm_p,
 		return;
 	}
 
-	op->wr(DNR_HVSIZE, (width << 16) | height);
+	op->wr(DNR_HVSIZE, (cfg->width << 16) | cfg->height);
 	op->wr(DNR_STAT_X_START_END,
 	       (((border_offset << 3) & 0x3fff) << 16) |
-	       ((width - ((border_offset << 3) + 1)) & 0x3fff));
+	       ((cfg->width - ((border_offset << 3) + 1)) & 0x3fff));
 	op->wr(DNR_STAT_Y_START_END,
 	       (((border_offset << 3) & 0x3fff) << 16) |
-	       ((height - ((border_offset << 3) + 1)) & 0x3fff));
+	       ((cfg->height - ((border_offset << 3) + 1)) & 0x3fff));
 	op->wr(DNR_DM_CTRL, op->rd(DNR_DM_CTRL) | (1 << 11));
+	op->bwr(DNR_CTRL, cfg->linkflag ? 1 : 0, 17, 1);
 	op->bwr(DNR_CTRL, dnr_en ? 1 : 0, 16, 1);
 	/* dm for sd, hd will slower */
 	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
@@ -361,11 +368,11 @@ static void dnr_config_op(struct DNR_PARM_s *dnr_parm_p,
 	    IS_IC(dil_get_cpuver_flag(), T5D)	||
 	    IS_IC(dil_get_cpuver_flag(), T5DB)  ||
 	    (cpu_after_eq(MESON_CPU_MAJOR_ID_SC2))) {
-		if (width > 1280)
+		if (cfg->width > 1280)
 			op->bwr(DNR_DM_CTRL, 0, 8, 1);
 		else
 			op->bwr(DNR_DM_CTRL, 1, 8, 1);
-		if (width > 1920 || !dnr_dm_en)
+		if (cfg->width > 1920 || !dnr_dm_en)
 			op->bwr(DNR_DM_CTRL, 0, 9, 1);
 		else
 			op->bwr(DNR_DM_CTRL, 1, 9, 1);
@@ -376,7 +383,7 @@ static void dnr_config_op(struct DNR_PARM_s *dnr_parm_p,
 		op->wr(DNR_CTRL, 0x1dd00);
 	} else if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX) || is_meson_gxl_cpu()) {
 		/*disable */
-		if (width > 1280) {
+		if (cfg->width > 1280) {
 			op->bwr(DNR_DM_CTRL, 0, 8, 1);
 			/* disable dm for 1080 which will cause pre timeout*/
 			op->bwr(DNR_DM_CTRL, 0, 9, 1);
@@ -385,7 +392,7 @@ static void dnr_config_op(struct DNR_PARM_s *dnr_parm_p,
 			op->bwr(DNR_DM_CTRL, dnr_dm_en, 9, 1);
 		}
 	} else {
-		if (width >= 1920)
+		if (cfg->width >= 1920)
 			op->bwr(DNR_DM_CTRL, 0, 9, 1);
 		else
 			op->bwr(DNR_DM_CTRL, dnr_dm_en, 9, 1);
@@ -546,16 +553,15 @@ static void cue_config_op(struct CUE_PARM_s *pcue_parm, unsigned short field_typ
 	}
 }
 
-static void nr_all_config_op(unsigned short width, unsigned short height,
-	unsigned short field_type,
-		const struct reg_acc *op)
+static void nr_all_config_op(unsigned short field_type,
+		const struct reg_acc *op, struct nr_cfg_s *cfg)
 {
-	nr_param.width = width;
-	nr_param.height = height;
+	nr_param.width = cfg->width;
+	nr_param.height = cfg->height;
 	nr_param.frame_count = 0;
 	nr_param.prog_flag = field_type?false:true;
-	nr2_config_op(width, height, op);
-	dnr_config_op(nr_param.pdnr_parm, width, height, op);
+	nr2_config_op(cfg->width, cfg->height, op);
+	dnr_config_op(nr_param.pdnr_parm, op, cfg);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_GXLX))
 		cue_config_op(nr_param.pcue_parm, field_type, op);
@@ -566,11 +572,11 @@ static void nr_all_config_op(unsigned short width, unsigned short height,
 		IS_IC(dil_get_cpuver_flag(), T5D)	||
 		IS_IC(dil_get_cpuver_flag(), T5DB)	||
 		cpu_after_eq(MESON_CPU_MAJOR_ID_SC2)) {
-		linebuffer_config_op(width, op);
-		nr4_config_op(nr_param.pnr4_parm, width, height, op);
+		linebuffer_config_op(cfg->width, op);
+		nr4_config_op(nr_param.pnr4_parm, cfg->width, cfg->height, op);
 	}
 	if (is_meson_txhd_cpu())
-		linebuffer_config_op(width, op);
+		linebuffer_config_op(cfg->width, op);
 }
 
 bool secam_cfr_en = true;
@@ -1182,7 +1188,9 @@ static void luma_enhancement_process_op(struct NR4_PARM_s *nr4_param_p,
 }
 
 static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
-			   const struct reg_acc *op)
+			   const struct reg_acc *op,
+			unsigned short nexsizein,
+			unsigned short neysizein)
 {
 	static int ro_gbs_stat_lr = 0, ro_gbs_stat_ll = 0, ro_gbs_stat_rr = 0,
 	ro_gbs_stat_dif = 0, ro_gbs_stat_cnt = 0;
@@ -1191,6 +1199,7 @@ static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
 	 */
 #ifdef DNR_HV_SHIFT
 	int ro_hbof_stat_cnt[32], ro_vbof_stat_cnt[32], i = 0;
+	int nCol, nRow;
 #endif
 	int ll, lr;
 
@@ -1199,10 +1208,7 @@ static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
 		return;
 	}
 
-	if (is_meson_tl1_cpu() || is_meson_tm2_cpu() ||
-	    IS_IC(dil_get_cpuver_flag(), T5)	||
-	    IS_IC(dil_get_cpuver_flag(), T5D)	||
-	    IS_IC(dil_get_cpuver_flag(), T5DB)) {
+	if (is_meson_tl1_cpu()) {
 		ll = op->rd(DNR_RO_GBS_STAT_LR);
 		lr = op->rd(DNR_RO_GBS_STAT_LL);
 	} else {
@@ -1241,22 +1247,25 @@ static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
 			  pdnrprm->prm_gbs_bsdifthd,
 			  pdnrprm->prm_gbs_calcmod);
 #ifdef DNR_HV_SHIFT
+	nCol = nexsizein;
+	nRow = neysizein;
+
 	for (i = 0; i < 32; i++)
 		ro_hbof_stat_cnt[i] = op->rd(DNR_RO_HBOF_STAT_CNT_0 + i);
 	for (i = 0; i < 32; i++)
 		ro_vbof_stat_cnt[i] = op->rd(DNR_RO_VBOF_STAT_CNT_0 + i);
-		hor_blk_ofst_calc_sw(&pdnrprm->sw_hbof_vld_cnt,
-			 &pdnrprm->sw_hbof_vld_flg,
-			 &pdnrprm->sw_hbof,
-			 ro_hbof_stat_cnt,
-			 0,
-			 nCol-1,
-			 pdnrprm->prm_hbof_minthd,
-			 pdnrprm->prm_hbof_ratthd0,
-			 pdnrprm->prm_hbof_ratthd1,
-			 pdnrprm->prm_hbof_vldcntthd,
-			 nRow,
-			 nCol);
+	hor_blk_ofst_calc_sw(&pdnrprm->sw_hbof_vld_cnt,
+		 &pdnrprm->sw_hbof_vld_flg,
+		 &pdnrprm->sw_hbof,
+		 ro_hbof_stat_cnt,
+		 0,
+		 nCol - 1,
+		 pdnrprm->prm_hbof_minthd,
+		 pdnrprm->prm_hbof_ratthd0,
+		 pdnrprm->prm_hbof_ratthd1,
+		 pdnrprm->prm_hbof_vldcntthd,
+		 nRow,
+		 nCol);
 
 	ver_blk_ofst_calc_sw(&pdnrprm->sw_vbof_vld_cnt,
 			 &pdnrprm->sw_vbof_vld_flg,
@@ -1289,7 +1298,7 @@ static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
 		op->wr(DNR_GBS,
 		       (pdnrprm->sw_vbof_vld_flg == 1 &&
 			pdnrprm->sw_gbs_vld_flg == 1) ? pdnrprm->sw_gbs : 0);
-	} else if (pdnrprm->prm_sw_gbs_ctrl == 1) {
+	} else if (pdnrprm->prm_sw_gbs_ctrl == 3) {
 		op->bwr(DNR_BLK_OFFST,
 			pdnrprm->sw_hbof_vld_flg == 1 ?
 			pdnrprm->sw_hbof : 0, 4, 3);
@@ -1301,6 +1310,10 @@ static void dnr_process_op(struct DNR_PARM_s *pdnrprm,
 		       pdnrprm->sw_vbof_vld_flg == 1	&&
 		       pdnrprm->sw_gbs_vld_flg == 1) ? pdnrprm->sw_gbs : 0);
 	}
+	if (dnr_pr)
+		pr_info("reg:nCurGbs=%d,hbof/vld=[%d,%d],sw_gbs_ctrl=%d\n",
+			pdnrprm->sw_gbs, pdnrprm->sw_hbof_vld_flg,
+			pdnrprm->sw_gbs_vld_flg, pdnrprm->prm_sw_gbs_ctrl);
 }
 
 static bool invert_cue_phase;
@@ -1571,7 +1584,8 @@ static void nr_process_in_irq_op(const struct reg_acc *op)
 	    cue_glb_mot_check_en)
 		cue_process_irq_op(op);
 	if (dnr_en)
-		dnr_process_op(&dnr_param, op);
+		dnr_process_op(&dnr_param, op, nr_param.width,
+				     nr_param.height);
 	if (is_meson_txlx_cpu() || is_meson_g12a_cpu()
 		|| is_meson_g12a_cpu() || is_meson_tl1_cpu() ||
 		is_meson_sm1_cpu() || is_meson_tm2_cpu() ||
@@ -2230,7 +2244,7 @@ static void cue_param_init(struct CUE_PARM_s *cue_parm_p)
 }
 static int dnr_prm_init(DNR_PRM_t *pPrm)
 {
-	pPrm->prm_sw_gbs_ctrl = 0;
+	pPrm->prm_sw_gbs_ctrl = 1;
 	/*
 	 * 0: update gbs, 1: update hoffst & gbs,
 	 * 2: update voffst & gbs, 3: update all (hoffst & voffst & gbs).
@@ -2245,7 +2259,7 @@ static int dnr_prm_init(DNR_PRM_t *pPrm)
 	pPrm->prm_gbs_difthd[0]  = 25;
 	pPrm->prm_gbs_difthd[1]  = 75;
 	pPrm->prm_gbs_difthd[2]  = 125;
-	pPrm->prm_gbs_bsdifthd	 = 1;
+	pPrm->prm_gbs_bsdifthd	 = 2;
 	pPrm->prm_gbs_calcmod	 = 1; /* 0:dif0, 1:dif1, 2: dif2 */
 
 	pPrm->sw_gbs = 0;
@@ -2556,10 +2570,9 @@ static void nr_process_in_irq(void)
 	nr_process_in_irq_op(&dio_pre_regset);
 }
 
-static void nr_all_config(unsigned short ncol, unsigned short nrow,
-		      unsigned short type)
+static void nr_all_config(unsigned short type, struct nr_cfg_s *cfg)
 {
-	nr_all_config_op(ncol, nrow, type, &dio_pre_regset);
+	nr_all_config_op(type, &dio_pre_regset, cfg);
 }
 
 static void cue_int(struct vframe_s *vf)

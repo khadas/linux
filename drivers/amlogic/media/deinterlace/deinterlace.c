@@ -6930,8 +6930,13 @@ static void di_pre_size_change(unsigned short width,
 {
 	unsigned int blkhsize = 0;
 	int pps_w = 0, pps_h = 0;
+	struct nr_cfg_s cfg_data;
+	struct nr_cfg_s *cfg = &cfg_data;
 
-	di_nr_opl()->nr_all_config(width, height, vf_type);
+	cfg->width = width;
+	cfg->height = height;
+	cfg->linkflag = 0;
+	di_nr_opl()->nr_all_config(vf_type, cfg);
 	#ifdef DET3D
 	det3d_config(det3d_en ? 1 : 0);
 	#endif
