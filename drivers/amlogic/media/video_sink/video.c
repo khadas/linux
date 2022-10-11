@@ -6771,7 +6771,9 @@ static inline bool is_tunnel_mode(const char *receiver_name)
 	    strstr(provider_name, "vdec.h265") ||
 	    strstr(provider_name, "vdec.h264") ||
 	    strstr(provider_name, "dvbldec") ||
-	    strstr(provider_name, "dvbldec2"))) {
+	    strstr(provider_name, "dvbldec2") ||
+	    strstr(provider_name, "vdec.av1") ||
+	    strstr(provider_name, "vdec.vp9"))) {
 		return true;
 	}
 	return false;

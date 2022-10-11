@@ -290,6 +290,7 @@ static u32 vsync_count;
 static u32 vpp_data_422T0444_backup;
 
 static bool is_osd_off;
+static bool osd_onoff_changed;
 static int core1_switch;
 static int core3_switch;
 bool force_set_lut;
@@ -1192,6 +1193,7 @@ static int is_graphic_changed(void)
 		if (!is_osd_off) {
 			pr_dv_dbg("osd off\n");
 			is_osd_off = true;
+			osd_onoff_changed = true;
 			ret |= 1;
 		}
 	} else if (is_osd_off) {
@@ -1200,6 +1202,7 @@ static int is_graphic_changed(void)
 		force_set_lut = true;
 		pr_dv_dbg("osd on\n");
 		is_osd_off = false;
+		osd_onoff_changed = true;
 		ret |= 2;
 	}
 
@@ -9124,6 +9127,11 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 		new_m_dovi_setting.reserved[4] = 0;/*byte3*/
 	}
 
+	if (osd_onoff_changed) {
+		pr_dv_dbg("osd onoff changed\n");
+		p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
+		osd_onoff_changed = false;
+	}
 	if (enable_multi_core1) {
 		for (i = 0; i < new_m_dovi_setting.num_video; i++) {
 			if (force_two_valid) {
