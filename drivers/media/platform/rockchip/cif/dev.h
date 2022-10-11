@@ -442,8 +442,14 @@ enum rkcif_capture_mode {
 	RKCIF_TO_ISP_DMA,
 };
 
+/*
+ * list: used for buf rotation
+ * list_free: only used to release buf asynchronously
+ */
 struct rkcif_rx_buffer {
 	int buf_idx;
+	struct list_head list;
+	struct list_head list_free;
 	struct rkisp_rx_buf dbufs;
 	struct rkcif_dummy_buffer dummy;
 	struct rkisp_thunderboot_shmem shmem;
@@ -789,6 +795,7 @@ struct rkcif_device {
 	bool				can_be_reset;
 	struct rkmodule_hdr_cfg		hdr;
 	struct rkcif_buffer		*rdbk_buf[RDBK_MAX];
+	struct rkcif_rx_buffer		*rdbk_rx_buf[RDBK_MAX];
 	struct rkcif_luma_vdev		luma_vdev;
 	struct rkcif_lvds_subdev	lvds_subdev;
 	struct rkcif_dvp_sof_subdev	dvp_sof_subdev;

@@ -4,11 +4,14 @@
  */
 
 /dts-v1/;
+#include "px30.dtsi"
+#include "px30-android.dtsi"
 #include "px30-evb-ddr3-v10.dtsi"
+#include "px30-mini-evb-v11.dtsi"
 
 / {
-	model = "Rockchip PX30 evb ddr3 board";
-	compatible = "rockchip,px30-evb-ddr3-v11", "rockchip,px30";
+	model = "Rockchip PX30 mini evb ddr3 board";
+	compatible = "rockchip,px30-mini-evb-ddr3-v11", "rockchip,px30";
 };
 
 &dsi {

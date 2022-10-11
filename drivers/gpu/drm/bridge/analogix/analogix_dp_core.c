@@ -1714,6 +1714,12 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
+void analogix_dp_disable(struct analogix_dp_device *dp)
+{
+	analogix_dp_bridge_disable(&dp->bridge);
+}
+EXPORT_SYMBOL_GPL(analogix_dp_disable);
+
 static void
 analogix_dp_bridge_atomic_disable(struct drm_bridge *bridge,
 				  struct drm_bridge_state *old_bridge_state)
@@ -1779,13 +1785,8 @@ static void analogix_dp_bridge_mode_set(struct drm_bridge *bridge,
 
 	/* Input video interlaces & hsync pol & vsync pol */
 	video->interlaced = !!(mode->flags & DRM_MODE_FLAG_INTERLACE);
-	if (dp->plat_data->dev_type == RK3588_EDP) {
-		video->v_sync_polarity = true;
-		video->h_sync_polarity = true;
-	} else {
-		video->v_sync_polarity = !!(mode->flags & DRM_MODE_FLAG_NVSYNC);
-		video->h_sync_polarity = !!(mode->flags & DRM_MODE_FLAG_NHSYNC);
-	}
+	video->v_sync_polarity = !!(mode->flags & DRM_MODE_FLAG_NVSYNC);
+	video->h_sync_polarity = !!(mode->flags & DRM_MODE_FLAG_NHSYNC);
 
 	/* Input video dynamic_range & colorimetry */
 	vic = drm_match_cea_mode(mode);
@@ -1997,6 +1998,8 @@ static int analogix_dp_dt_parse_pdata(struct analogix_dp_device *dp)
 
 	video_info->video_bist_enable =
 		of_property_read_bool(dp_node, "analogix,video-bist-enable");
+	video_info->force_stream_valid =
+		of_property_read_bool(dp_node, "analogix,force-stream-valid");
 
 	prop = of_find_property(dp_node, "data-lanes", &len);
 	if (!prop) {
@@ -2098,6 +2101,7 @@ static void analogix_dp_link_train_restore(struct analogix_dp_device *dp)
 
 int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 {
+	u8 link_status[DP_LINK_STATUS_SIZE];
 	int ret;
 
 	ret = analogix_dp_phy_power_on(dp);
@@ -2110,15 +2114,31 @@ int analogix_dp_loader_protect(struct analogix_dp_device *dp)
 
 	ret = analogix_dp_fast_link_train_detection(dp);
 	if (ret)
-		return ret;
+		goto err_disable;
 
 	if (analogix_dp_detect_sink_psr(dp)) {
 		ret = analogix_dp_enable_sink_psr(dp);
 		if (ret)
-			return ret;
+			goto err_disable;
+	}
+
+	ret = drm_dp_dpcd_read_link_status(&dp->aux, link_status);
+	if (ret < 0) {
+		dev_err(dp->dev, "Failed to read link status\n");
+		goto err_disable;
+	}
+
+	if (!drm_dp_channel_eq_ok(link_status, dp->link_train.lane_count)) {
+		dev_err(dp->dev, "Channel EQ or CR not ok\n");
+		ret = -EINVAL;
+		goto err_disable;
 	}
 
 	return 0;
+
+err_disable:
+	analogix_dp_disable(dp);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(analogix_dp_loader_protect);
 

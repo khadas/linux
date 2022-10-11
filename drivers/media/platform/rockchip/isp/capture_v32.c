@@ -1253,6 +1253,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
  */
 static int mi_frame_end(struct rkisp_stream *stream)
 {
+	struct rkisp_device *dev = stream->ispdev;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
 	unsigned long lock_flags = 0;
 	u32 i;
@@ -1261,6 +1262,13 @@ static int mi_frame_end(struct rkisp_stream *stream)
 
 	if (stream->curr_buf) {
 		struct vb2_buffer *vb2_buf = &stream->curr_buf->vb.vb2_buf;
+
+		if (dev->skip_frame) {
+			spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+			list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
+			spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+			goto next;
+		}
 
 		for (i = 0; i < isp_fmt->mplanes; i++) {
 			u32 payload_size = stream->out_fmt.plane_fmt[i].sizeimage;
@@ -1273,7 +1281,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		else
 			rkisp_rockit_buf_done(stream, ROCKIT_DVBM_END);
 	}
-
+next:
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	stream->curr_buf = stream->next_buf;
 	stream->next_buf = NULL;
@@ -1299,6 +1307,7 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	unsigned long lock_flags = 0;
 	int ret = 0;
+	bool is_wait = true;
 
 	stream->stopping = true;
 	stream->is_pause = false;
@@ -1307,11 +1316,12 @@ static void rkisp_stream_stop(struct rkisp_stream *stream)
 	if (IS_HDR_RDBK(dev->rd_mode)) {
 		spin_lock_irqsave(&dev->hw_dev->rdbk_lock, lock_flags);
 		if (dev->hw_dev->cur_dev_id != dev->dev_id || dev->hw_dev->is_idle)
+			is_wait = false;
+		if (atomic_read(&dev->cap_dev.refcnt) == 1 && !is_wait)
 			dev->isp_state = ISP_STOP;
 		spin_unlock_irqrestore(&dev->hw_dev->rdbk_lock, lock_flags);
 	}
-	if (dev->isp_state & ISP_START &&
-	    !stream->ops->is_stream_stopped(stream)) {
+	if (is_wait && !stream->ops->is_stream_stopped(stream)) {
 		ret = wait_event_timeout(stream->done,
 					 !stream->streaming,
 					 msecs_to_jiffies(500));

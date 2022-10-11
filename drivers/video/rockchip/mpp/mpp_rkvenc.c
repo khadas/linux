@@ -28,6 +28,7 @@
 #include <linux/nospec.h>
 #include <linux/workqueue.h>
 #include <soc/rockchip/pm_domains.h>
+#include <soc/rockchip/rockchip_iommu.h>
 #include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 #include <soc/rockchip/rockchip_system_monitor.h>
@@ -1143,7 +1144,7 @@ static void rkvenc_iommu_handle_work(struct work_struct *work_s)
 	else
 		enc->aux_iova = page_iova;
 
-	rk_iommu_unmask_irq(mpp->dev);
+	rockchip_iommu_unmask_irq(mpp->dev);
 	mpp_iommu_up_write(mpp->iommu_info);
 
 	mpp_debug_leave();
@@ -1160,7 +1161,7 @@ static int rkvenc_iommu_fault_handle(struct iommu_domain *iommu,
 	mpp_debug(DEBUG_IOMMU, "IOMMU_GET_BUS_ID(status)=%d\n", IOMMU_GET_BUS_ID(status));
 	if (IOMMU_GET_BUS_ID(status)) {
 		enc->fault_iova = iova;
-		rk_iommu_mask_irq(mpp->dev);
+		rockchip_iommu_mask_irq(mpp->dev);
 		queue_work(enc->iommu_wq, &enc->iommu_work);
 	}
 	mpp_debug_leave();
