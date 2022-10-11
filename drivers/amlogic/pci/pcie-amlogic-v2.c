@@ -694,6 +694,7 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 	int gpio_type = 0;
 	int j = 0;
 	u32 val = 0;
+	u32 tee_start, tee_end;
 	static u32 port_num;
 	u32 pm_enable = 1;
 	int pcie_apb_rst_bit = 0;

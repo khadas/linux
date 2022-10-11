@@ -61,11 +61,7 @@
  */
 #define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
 
-#ifdef CONFIG_AMLOGIC_MODIFY
-enum swiotlb_force swiotlb_force = SWIOTLB_NO_FORCE;
-#else
 enum swiotlb_force swiotlb_force;
-#endif
 
 /*
  * Used to do a quick range check in swiotlb_tbl_unmap_single and
@@ -124,10 +120,6 @@ setup_io_tlb_npages(char *str)
 		++str;
 	if (!strcmp(str, "force")) {
 		swiotlb_force = SWIOTLB_FORCE;
-#ifdef CONFIG_AMLOGIC_MODIFY
-	} else if (!strcmp(str, "normal")) {
-		swiotlb_force = SWIOTLB_NORMAL;
-#endif
 	} else if (!strcmp(str, "noforce")) {
 		swiotlb_force = SWIOTLB_NO_FORCE;
 		io_tlb_nslabs = 1;
@@ -160,7 +152,7 @@ void swiotlb_set_max_segment(unsigned int val)
 }
 
 /* default to 64MB */
-#define IO_TLB_DEFAULT_SIZE (64UL<<20)
+#define IO_TLB_DEFAULT_SIZE (256UL<<20)
 unsigned long swiotlb_size_or_default(void)
 {
 	unsigned long size;
@@ -222,23 +214,14 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 	 * between io_tlb_start and io_tlb_end.
 	 */
 	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(int));
-#ifdef CONFIG_AMLOGIC_MODIFY
-	/* align to 64K to meet hw requirement */
-	io_tlb_list = memblock_alloc(alloc_size, SZ_64K);
-#else
 	io_tlb_list = memblock_alloc(alloc_size, PAGE_SIZE);
-#endif
 
 	if (!io_tlb_list)
 		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
 
 	alloc_size = PAGE_ALIGN(io_tlb_nslabs * sizeof(phys_addr_t));
-#ifdef CONFIG_AMLOGIC_MODIFY
-	io_tlb_orig_addr = memblock_alloc(alloc_size, SZ_64K);
-#else
 	io_tlb_orig_addr = memblock_alloc(alloc_size, PAGE_SIZE);
-#endif
 	if (!io_tlb_orig_addr)
 		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
@@ -276,11 +259,7 @@ swiotlb_init(int verbose)
 	bytes = io_tlb_nslabs << IO_TLB_SHIFT;
 
 	/* Get IO TLB memory from the low pages */
-#ifdef CONFIG_AMLOGIC_MODIFY
-	vstart = memblock_alloc_low(PAGE_ALIGN(bytes), SZ_64K);
-#else
 	vstart = memblock_alloc_low(PAGE_ALIGN(bytes), PAGE_SIZE);
-#endif
 	if (vstart && !swiotlb_init_with_tbl(vstart, io_tlb_nslabs, verbose))
 		return;
 
