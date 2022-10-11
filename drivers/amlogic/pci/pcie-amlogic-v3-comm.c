@@ -1164,6 +1164,24 @@ EXPORT_SYMBOL_GPL(amlogic_pcie_get_phys);
 
 void amlogic_pcie_deinit_phys(struct amlogic_pcie *amlogic)
 {
+	struct device *dev = amlogic->dev;
+	u32 val;
+
+	switch (amlogic->phy_type) {
+	case AMLOGIC_PHY:
+		dev_dbg(dev, " pcie deinit AMLOGIC_PHY\n");
+		break;
+	case M31_COMBPHY:
+		dev_dbg(dev, " pcie deinit M31_COMBPHY\n");
+		val = readl(amlogic->rst_base + RESETCTRL0_OFFSET);
+		val &= ~(1 << amlogic->phy_rst_bit);
+		writel(val, amlogic->rst_base + RESETCTRL0_OFFSET);
+		break;
+	case M31_PHY:
+	default:
+		dev_dbg(dev, " pcie deinit M31_PHY\n");
+		break;
+	}
 }
 EXPORT_SYMBOL_GPL(amlogic_pcie_deinit_phys);
 
