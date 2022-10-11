@@ -49,23 +49,15 @@ create_package() {
 	if [ "$3" = "dtb" ]; then
 
 	cat >> $pdir/DEBIAN/preinst <<-EOF
-	rm -rf /boot/dtb-$version; rm -rf /boot/dtb
+	#!/bin/bash
 	exit 0
 	EOF
 
 	cat >> $pdir/DEBIAN/postinst <<-EOF
+	#!/bin/bash
 	cd /boot
 	ln -sfT dtb-$version dtb 2> /dev/null || mv dtb-$version dtb
-	if [ -f /etc/fenix-release ]; then
-		source /etc/fenix-release
-		case \$BOARD in
-		Edge2)
-			DTB=rk3588s-khadas-edge2.dtb
-			;;
-	esac
-	cp /boot/dtb/\${VENDOR,,}/\$DTB /boot/dtb.img
 	cd - > /dev/null
-	fi
 	exit 0
 	EOF
 
