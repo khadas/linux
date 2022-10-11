@@ -22,6 +22,7 @@
 #include <linux/amlogic/media/vicp/vicp.h>
 #include "vicp_process_rdma.h"
 
+extern u32 print_flag;
 extern u32 input_width;
 extern u32 input_height;
 extern u32 output_width;
@@ -31,19 +32,15 @@ extern u32 output_color_format;
 extern u32 input_color_dep;
 extern u32 output_color_dep;
 extern u32 dump_yuv_flag;
-extern u32 dump_fbc_in_cfg;
-extern u32 dump_fbc_out_cfg;
-extern u32 dump_mif_in_cfg;
-extern u32 dump_mif_out_cfg;
-extern u32 dump_scaler_cfg;
-extern u32 dump_hdr_cfg;
-extern u32 dump_crop_cfg;
-extern u32 dump_shrink_cfg;
-extern u32 vicp_scaler_en;
-extern u32 vicp_hdr_en;
-extern u32 vicp_crop_en;
-extern u32 vicp_shrink_en;
+extern u32 scaler_en;
+extern u32 hdr_en;
+extern u32 crop_en;
+extern u32 shrink_en;
 extern struct mutex vicp_mutex;
+extern int cgain_lut1[65];
+extern int cgain_lut0[65];
+extern u32 debug_axis_en;
+extern struct output_axis_t axis;
 /* *********************************************************************** */
 /* ************************* enum definitions **************************.*/
 /* *********************************************************************** */
@@ -282,10 +279,6 @@ struct vid_cmpr_f2v_vphase_t {
 	unsigned char rpt_num; // 0~3
 	unsigned short phase;
 };
-
-extern int cgain_lut1[65];
-extern int cgain_lut0[65];
-
 /* *********************************************************************** */
 /* ************************* function definitions **************************.*/
 /* *********************************************************************** */

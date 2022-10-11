@@ -698,7 +698,7 @@ void set_wrmif_shrk_mode_v(u32 mode)
 
 void set_wrmif_base_addr(u32 index, u64 addr)
 {
-	vicp_print(VICP_DEBUG, "%s: addr = 0x%lx.\n", __func__, addr);
+	vicp_print(VICP_INFO, "%s: addr = 0x%lx.\n", __func__, addr);
 
 	if (index == 0)
 		return vicp_reg_write(VID_CMPR_WRMIF_BADDR0, (addr >> 4));

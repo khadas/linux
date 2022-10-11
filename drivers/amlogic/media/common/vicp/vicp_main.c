@@ -65,18 +65,13 @@ u32 output_color_format;
 u32 input_color_dep = 8;
 u32 output_color_dep = 8;
 u32 dump_yuv_flag;
-u32 dump_fbc_in_cfg;
-u32 dump_fbc_out_cfg;
-u32 dump_mif_in_cfg;
-u32 dump_mif_out_cfg;
-u32 dump_scaler_cfg;
-u32 dump_hdr_cfg;
-u32 dump_crop_cfg;
-u32 dump_shrink_cfg;
-u32 vicp_scaler_en = 1;
-u32 vicp_hdr_en = 1;
-u32 vicp_crop_en = 1;
-u32 vicp_shrink_en = 1;
+u32 scaler_en = 1;
+u32 hdr_en = 1;
+u32 crop_en = 1;
+u32 shrink_en = 1;
+u32 debug_axis_en;
+struct output_axis_t axis;
+
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
 
 static ssize_t print_flag_show(struct class *class,
@@ -456,13 +451,13 @@ static ssize_t dump_yuv_flag_store(struct class *class,
 	return count;
 }
 
-static ssize_t dump_fbc_in_cfg_show(struct class *class,
+static ssize_t scaler_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dump_fbc_in_cfg);
+	return sprintf(buf, "%d\n", scaler_en);
 }
 
-static ssize_t dump_fbc_in_cfg_store(struct class *class,
+static ssize_t scaler_en_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	int val;
@@ -473,21 +468,21 @@ static ssize_t dump_fbc_in_cfg_store(struct class *class,
 		return -EINVAL;
 
 	if (val > 0)
-		dump_fbc_in_cfg = val;
+		scaler_en = val;
 	else
-		dump_fbc_in_cfg = 0;
+		scaler_en = 0;
 
-	pr_info("set dump_fbc_in_cfg to %d\n", dump_fbc_in_cfg);
+	pr_info("set scaler_en to %d\n", scaler_en);
 	return count;
 }
 
-static ssize_t dump_fbc_out_cfg_show(struct class *class,
+static ssize_t hdr_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dump_fbc_in_cfg);
+	return sprintf(buf, "%d\n", hdr_en);
 }
 
-static ssize_t dump_fbc_out_cfg_store(struct class *class,
+static ssize_t hdr_en_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	int val;
@@ -498,21 +493,21 @@ static ssize_t dump_fbc_out_cfg_store(struct class *class,
 		return -EINVAL;
 
 	if (val > 0)
-		dump_fbc_out_cfg = val;
+		hdr_en = val;
 	else
-		dump_fbc_out_cfg = 0;
+		hdr_en = 0;
 
-	pr_info("set dump_fbc_in_cfg to %d\n", dump_fbc_out_cfg);
+	pr_info("set hdr_en to %d\n", hdr_en);
 	return count;
 }
 
-static ssize_t dump_mif_in_cfg_show(struct class *class,
+static ssize_t crop_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dump_mif_in_cfg);
+	return sprintf(buf, "%d\n", crop_en);
 }
 
-static ssize_t dump_mif_in_cfg_store(struct class *class,
+static ssize_t crop_en_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	int val;
@@ -523,21 +518,21 @@ static ssize_t dump_mif_in_cfg_store(struct class *class,
 		return -EINVAL;
 
 	if (val > 0)
-		dump_mif_in_cfg = val;
+		crop_en = val;
 	else
-		dump_mif_in_cfg = 0;
+		crop_en = 0;
 
-	pr_info("set dump_mif_in_cfg to %d\n", dump_mif_in_cfg);
+	pr_info("set crop_en to %d\n", crop_en);
 	return count;
 }
 
-static ssize_t dump_mif_out_cfg_show(struct class *class,
+static ssize_t shrink_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dump_mif_out_cfg);
+	return sprintf(buf, "%d\n", shrink_en);
 }
 
-static ssize_t dump_mif_out_cfg_store(struct class *class,
+static ssize_t shrink_en_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	int val;
@@ -548,21 +543,21 @@ static ssize_t dump_mif_out_cfg_store(struct class *class,
 		return -EINVAL;
 
 	if (val > 0)
-		dump_mif_out_cfg = val;
+		shrink_en = val;
 	else
-		dump_mif_out_cfg = 0;
+		shrink_en = 0;
 
-	pr_info("set dump_mif_out_cfg to %d\n", dump_mif_out_cfg);
+	pr_info("set shrink_en to %d\n", shrink_en);
 	return count;
 }
 
-static ssize_t dump_scaler_cfg_show(struct class *class,
+static ssize_t debug_axis_en_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dump_scaler_cfg);
+	return sprintf(buf, "%d\n", debug_axis_en);
 }
 
-static ssize_t dump_scaler_cfg_store(struct class *class,
+static ssize_t debug_axis_en_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
 	int val;
@@ -573,186 +568,64 @@ static ssize_t dump_scaler_cfg_store(struct class *class,
 		return -EINVAL;
 
 	if (val > 0)
-		dump_scaler_cfg = val;
+		debug_axis_en = val;
 	else
-		dump_scaler_cfg = 0;
+		debug_axis_en = 0;
 
-	pr_info("set dump_scaler_cfg to %d\n", dump_scaler_cfg);
+	pr_info("set debug_axis_en to %d\n", debug_axis_en);
 	return count;
 }
 
-static ssize_t dump_hdr_cfg_show(struct class *class,
+static ssize_t axis_show(struct class *class,
 		struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dump_hdr_cfg);
+	return sprintf(buf, "left: %d, top: %d, width: %d, height: %d.\n",
+		axis.left, axis.top, axis.width, axis.height);
 }
 
-static ssize_t dump_hdr_cfg_store(struct class *class,
+static ssize_t axis_store(struct class *class,
 		struct class_attribute *attr, const char *buf, size_t count)
 {
-	int val;
-	ssize_t ret;
+	char *token = NULL;
+	char *params, *params_base;
+	int value[4];
+	int len = 0, number = 0;
+	int res = 0;
+	int ret = 0;
 
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
+	if (!buf)
+		return 0;
 
-	if (val > 0)
-		dump_hdr_cfg = val;
-	else
-		dump_hdr_cfg = 0;
+	params = kstrdup(buf, GFP_KERNEL);
+	params_base = params;
+	token = params;
+	if (token) {
+		len = strlen(token);
+		do {
+			token = strsep(&params, " ");
+			if (!token)
+				break;
+			while (token && (isspace(*token) || !isgraph(*token)) && len) {
+				token++;
+				len--;
+			}
+			if (len == 0)
+				break;
+			ret = kstrtoint(token, 0, &res);
+			if (ret < 0)
+				break;
+			len = strlen(token);
+			value[number] = res;
+			number++;
+		} while ((number < 4) && (len > 0));
+	}
+	kfree(params_base);
 
-	pr_info("set dump_hdr_cfg to %d\n", dump_hdr_cfg);
-	return count;
-}
+	axis.left = value[0];
+	axis.top = value[1];
+	axis.width = value[2];
+	axis.height = value[3];
 
-static ssize_t dump_crop_cfg_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", dump_crop_cfg);
-}
-
-static ssize_t dump_crop_cfg_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		dump_crop_cfg = val;
-	else
-		dump_crop_cfg = 0;
-
-	pr_info("set dump_crop_cfg to %d\n", dump_crop_cfg);
-	return count;
-}
-
-static ssize_t dump_shrink_cfg_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", dump_shrink_cfg);
-}
-
-static ssize_t dump_shrink_cfg_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		dump_shrink_cfg = val;
-	else
-		dump_shrink_cfg = 0;
-
-	pr_info("set dump_shrink_cfg to %d\n", dump_shrink_cfg);
-	return count;
-}
-
-static ssize_t vicp_scaler_en_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", vicp_scaler_en);
-}
-
-static ssize_t vicp_scaler_en_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		vicp_scaler_en = val;
-	else
-		vicp_scaler_en = 0;
-
-	pr_info("set vicp_scaler_en to %d\n", vicp_scaler_en);
-	return count;
-}
-
-static ssize_t vicp_hdr_en_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", vicp_hdr_en);
-}
-
-static ssize_t vicp_hdr_en_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		vicp_hdr_en = val;
-	else
-		vicp_hdr_en = 0;
-
-	pr_info("set vicp_hdr_en to %d\n", vicp_hdr_en);
-	return count;
-}
-
-static ssize_t vicp_crop_en_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", vicp_crop_en);
-}
-
-static ssize_t vicp_crop_en_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		vicp_crop_en = val;
-	else
-		vicp_crop_en = 0;
-
-	pr_info("set vicp_crop_en to %d\n", vicp_crop_en);
-	return count;
-}
-
-static ssize_t vicp_shrink_en_show(struct class *class,
-		struct class_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", vicp_shrink_en);
-}
-
-static ssize_t vicp_shrink_en_store(struct class *class,
-		struct class_attribute *attr, const char *buf, size_t count)
-{
-	int val;
-	ssize_t ret;
-
-	ret = kstrtoint(buf, 0, &val);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (val > 0)
-		vicp_shrink_en = val;
-	else
-		vicp_shrink_en = 0;
-
-	pr_info("set vicp_shrink_en to %d\n", vicp_shrink_en);
 	return count;
 }
 
@@ -768,18 +641,12 @@ static CLASS_ATTR_RW(input_height);
 static CLASS_ATTR_RW(output_width);
 static CLASS_ATTR_RW(output_height);
 static CLASS_ATTR_RW(dump_yuv_flag);
-static CLASS_ATTR_RW(dump_fbc_in_cfg);
-static CLASS_ATTR_RW(dump_fbc_out_cfg);
-static CLASS_ATTR_RW(dump_mif_in_cfg);
-static CLASS_ATTR_RW(dump_mif_out_cfg);
-static CLASS_ATTR_RW(dump_scaler_cfg);
-static CLASS_ATTR_RW(dump_hdr_cfg);
-static CLASS_ATTR_RW(dump_crop_cfg);
-static CLASS_ATTR_RW(dump_shrink_cfg);
-static CLASS_ATTR_RW(vicp_scaler_en);
-static CLASS_ATTR_RW(vicp_hdr_en);
-static CLASS_ATTR_RW(vicp_crop_en);
-static CLASS_ATTR_RW(vicp_shrink_en);
+static CLASS_ATTR_RW(scaler_en);
+static CLASS_ATTR_RW(hdr_en);
+static CLASS_ATTR_RW(crop_en);
+static CLASS_ATTR_RW(shrink_en);
+static CLASS_ATTR_RW(debug_axis_en);
+static CLASS_ATTR_RW(axis);
 
 static struct attribute *vicp_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -794,18 +661,12 @@ static struct attribute *vicp_class_attrs[] = {
 	&class_attr_input_color_dep.attr,
 	&class_attr_output_color_dep.attr,
 	&class_attr_dump_yuv_flag.attr,
-	&class_attr_dump_fbc_in_cfg.attr,
-	&class_attr_dump_fbc_out_cfg.attr,
-	&class_attr_dump_mif_in_cfg.attr,
-	&class_attr_dump_mif_out_cfg.attr,
-	&class_attr_dump_scaler_cfg.attr,
-	&class_attr_dump_hdr_cfg.attr,
-	&class_attr_dump_crop_cfg.attr,
-	&class_attr_dump_shrink_cfg.attr,
-	&class_attr_vicp_scaler_en.attr,
-	&class_attr_vicp_hdr_en.attr,
-	&class_attr_vicp_crop_en.attr,
-	&class_attr_vicp_shrink_en.attr,
+	&class_attr_scaler_en.attr,
+	&class_attr_hdr_en.attr,
+	&class_attr_crop_en.attr,
+	&class_attr_shrink_en.attr,
+	&class_attr_debug_axis_en.attr,
+	&class_attr_axis.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(vicp_class);
@@ -867,6 +728,17 @@ static const struct of_device_id vicp_dt_match[] = {
 	},
 	{},
 };
+
+static void vicp_param_init(void)
+{
+	mutex_init(&vicp_mutex);
+	memset(&axis, 0, sizeof(struct output_axis_t));
+}
+
+static void vicp_param_uninit(void)
+{
+	pr_info("%s\n", __func__);
+}
 
 static int vicp_probe(struct platform_device *pdev)
 {
@@ -1029,7 +901,7 @@ static int vicp_probe(struct platform_device *pdev)
 		pr_err("runtime get power error.\n");
 
 	//clk_disable_unprepare(clk_gate);
-	mutex_init(&vicp_mutex);
+	vicp_param_init();
 	return 0;
 error:
 	unregister_chrdev(VICP_MAJOR, VICP_DEVICE_NAME);
@@ -1041,6 +913,7 @@ static int vicp_remove(struct platform_device *pdev)
 {
 	pr_info("%s\n", __func__);
 
+	vicp_param_uninit();
 	pm_runtime_put_sync(&pdev->dev);
 	device_destroy(&vicp_class, MKDEV(VICP_MAJOR, 0));
 	unregister_chrdev(VICP_MAJOR, VICP_DEVICE_NAME);
