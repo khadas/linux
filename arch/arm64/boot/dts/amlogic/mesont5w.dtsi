@@ -1465,7 +1465,7 @@
 			compatible = "amlogic, amaudio";
 			reg = <0x0 0xff610000 0x0 0x10000>;
 			reg-names = "otp_tee_base";
-			status = "okay";
+			status = "disabled";
 		};
 		codec_io: codec_io {
 			compatible = "amlogic, meson-t5w, codec-io";
