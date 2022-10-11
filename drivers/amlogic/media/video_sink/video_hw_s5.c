@@ -4075,6 +4075,9 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 	u32 mosaic_mode = 0;
 	u32 vpp_index = VPP0;
 
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		return;
+
 	if (!layer || !dispbuf || !frame_par)
 		return;
 
