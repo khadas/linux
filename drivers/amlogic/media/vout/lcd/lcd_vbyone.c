@@ -42,6 +42,229 @@ static int lcd_vx1_isr_flag;
 /* enable htpdn_fail,lockn_fail,acq_hold */
 #define VBYONE_INTR_UNMASK   0x2bff /* 0x2a00 */
 
+void lcd_vbyone_link_maintain_clear(void)
+{
+	vx1_training_wait_cnt = 0;
+	vx1_timeout_reset_flag = 0;
+}
+
+static unsigned int lcd_vbyone_get_fsm_state(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int reg_status, offset, state;
+
+	if (pdrv->data->chip_type == LCD_CHIP_T5W ||
+	    pdrv->data->chip_type == LCD_CHIP_T7 ||
+	    pdrv->data->chip_type == LCD_CHIP_T3) {
+		offset = pdrv->data->offset_venc_if[pdrv->index];
+		reg_status = VBO_STATUS_L_T7 + offset;
+	} else {
+		reg_status = VBO_STATUS_L;
+	}
+
+	state = lcd_vcbus_read(reg_status) & 0x3f;
+	return state;
+}
+
+static void lcd_vbyone_force_cdr(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int reg_insgn_ctrl, offset;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	if (pdrv->data->chip_type == LCD_CHIP_T7 ||
+	    pdrv->data->chip_type == LCD_CHIP_T3 ||
+	    pdrv->data->chip_type == LCD_CHIP_T5W) {
+		offset = pdrv->data->offset_venc_if[pdrv->index];
+		reg_insgn_ctrl = VBO_INSGN_CTRL_T7 + offset;
+	} else {
+		reg_insgn_ctrl = VBO_INSGN_CTRL;
+	}
+
+	lcd_vcbus_setb(reg_insgn_ctrl, 7, 0, 4);
+}
+
+static void lcd_vbyone_force_lock(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int reg_insgn_ctrl, offset;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	if (pdrv->data->chip_type == LCD_CHIP_T7 ||
+	    pdrv->data->chip_type == LCD_CHIP_T3 ||
+	    pdrv->data->chip_type == LCD_CHIP_T5W) {
+		offset = pdrv->data->offset_venc_if[pdrv->index];
+		reg_insgn_ctrl = VBO_INSGN_CTRL_T7 + offset;
+	} else {
+		reg_insgn_ctrl = VBO_INSGN_CTRL;
+	}
+
+	lcd_vcbus_setb(reg_insgn_ctrl, 7, 0, 4);
+	msleep(100);
+	lcd_vcbus_setb(reg_insgn_ctrl, 5, 0, 4);
+}
+
+static void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
+{
+	unsigned int reg_phy_tx_ctrl0, reg_rst, offset;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+		LCDPR("[%d]: %s\n", pdrv->index, __func__);
+
+	if (pdrv->data->chip_type == LCD_CHIP_T7) {
+		switch (pdrv->index) {
+		case 0:
+			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
+			break;
+		case 1:
+			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
+			break;
+		default:
+			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
+			return;
+		}
+		offset = pdrv->data->offset_venc_if[pdrv->index];
+		reg_rst = VBO_SOFT_RST_T7 + offset;
+
+		/* force PHY to 0 */
+		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 3, 8, 2);
+		lcd_vcbus_write(reg_rst, 0x1ff);
+		udelay(5);
+		/* realease PHY */
+		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 0, 8, 2);
+		lcd_vcbus_write(reg_rst, 0);
+	} else if (pdrv->data->chip_type == LCD_CHIP_T3) {
+		switch (pdrv->index) {
+		case 0:
+			reg_phy_tx_ctrl0 = ANACTRL_LVDS_TX_PHY_CNTL0;
+			break;
+		case 1:
+			reg_phy_tx_ctrl0 = ANACTRL_LVDS_TX_PHY_CNTL2;
+			break;
+		default:
+			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
+			return;
+		}
+		offset = pdrv->data->offset_venc_if[pdrv->index];
+		reg_rst = VBO_SOFT_RST_T7 + offset;
+
+		/* force PHY to 0 */
+		lcd_ana_setb(reg_phy_tx_ctrl0, 3, 8, 2);
+		lcd_vcbus_write(reg_rst, 0x1ff);
+		udelay(5);
+		/* realease PHY */
+		lcd_ana_setb(reg_phy_tx_ctrl0, 0, 8, 2);
+		lcd_vcbus_write(reg_rst, 0);
+	} else if (pdrv->data->chip_type == LCD_CHIP_T5W) {
+		switch (pdrv->index) {
+		case 0:
+			reg_phy_tx_ctrl0 = HHI_LVDS_TX_PHY_CNTL0;
+			break;
+		case 1:
+			reg_phy_tx_ctrl0 = HHI_LVDS_TX_PHY_CNTL2;
+			break;
+		default:
+			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
+			return;
+		}
+		offset = pdrv->data->offset_venc_if[pdrv->index];
+		reg_rst = VBO_SOFT_RST_T7 + offset;
+
+		/* force PHY to 0 */
+		lcd_ana_setb(reg_phy_tx_ctrl0, 3, 8, 2);
+		lcd_vcbus_write(reg_rst, 0x1ff);
+		udelay(5);
+		/* realease PHY */
+		lcd_ana_setb(reg_phy_tx_ctrl0, 0, 8, 2);
+		lcd_vcbus_write(reg_rst, 0);
+	} else {
+		/* force PHY to 0 */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
+		lcd_vcbus_write(VBO_SOFT_RST, 0x1ff);
+		udelay(5);
+		/* realease PHY */
+		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 8, 2);
+		lcd_vcbus_write(VBO_SOFT_RST, 0);
+	}
+}
+
+static void lcd_vbyone_hw_filter(struct aml_lcd_drv_s *pdrv, int flag)
+{
+	struct vbyone_config_s *vx1_conf;
+	unsigned int reg_filter_l, reg_filter_h, reg_ctrl;
+	unsigned int temp, period, offset;
+	unsigned int tick_period[] = {
+		0xfff,
+		0xff,    /* 1: 0.8us */
+		0x1ff,   /* 2: 1.7us */
+		0x3ff,   /* 3: 3.4us */
+		0x7ff,   /* 4: 6.9us */
+		0xfff,   /* 5: 13.8us */
+		0x1fff,  /* 6: 27us */
+		0x3fff,  /* 7: 55us */
+		0x7fff,  /* 8: 110us */
+		0xffff,  /* 9: 221us */
+		0x1ffff, /* 10: 441us */
+		0x3ffff, /* 11: 883us */
+		0x7ffff, /* 12: 1.76ms */
+		0xfffff, /* 13: 3.53ms */
+	};
+
+	if (pdrv->data->chip_type == LCD_CHIP_T5W ||
+	    pdrv->data->chip_type == LCD_CHIP_T7 ||
+	    pdrv->data->chip_type == LCD_CHIP_T3) {
+		offset = pdrv->data->offset_venc_if[pdrv->index];
+		reg_filter_l = VBO_INFILTER_CTRL_T7 + offset;
+		reg_filter_h = VBO_INFILTER_CTRL_H_T7 + offset;
+		reg_ctrl = VBO_INSGN_CTRL_T7 + offset;
+	} else {
+		reg_filter_l = VBO_INFILTER_TICK_PERIOD_L;
+		reg_filter_h = VBO_INFILTER_TICK_PERIOD_H;
+		reg_ctrl = VBO_INSGN_CTRL;
+	}
+
+	vx1_conf = &pdrv->config.control.vbyone_cfg;
+	if (flag) {
+		period = vx1_conf->hw_filter_time & 0xff;
+		if (period >=
+			(sizeof(tick_period) / sizeof(unsigned int)))
+			period = tick_period[0];
+		else
+			period = tick_period[period];
+		temp = period & 0xffff;
+		lcd_vcbus_write(reg_filter_l, temp);
+		temp = (period >> 16) & 0xf;
+		lcd_vcbus_write(reg_filter_h, temp);
+		/* hpd */
+		temp = vx1_conf->hw_filter_cnt & 0xff;
+		if (temp == 0xff) {
+			lcd_vcbus_setb(reg_ctrl, 0, 8, 4);
+		} else {
+			temp = (temp == 0) ? 0x7 : temp;
+			lcd_vcbus_setb(reg_ctrl, temp, 8, 4);
+		}
+		/* lockn */
+		temp = (vx1_conf->hw_filter_cnt >> 8) & 0xff;
+		if (temp == 0xff) {
+			lcd_vcbus_setb(reg_ctrl, 0, 12, 4);
+		} else {
+			temp = (temp == 0) ? 0x7 : temp;
+			lcd_vcbus_setb(reg_ctrl, temp, 12, 4);
+		}
+	} else {
+		temp = (vx1_conf->hw_filter_time >> 8) & 0x1;
+		if (temp) {
+			lcd_vcbus_write(reg_filter_l, 0xff);
+			lcd_vcbus_write(reg_filter_h, 0x0);
+			lcd_vcbus_setb(reg_ctrl, 0, 8, 4);
+			lcd_vcbus_setb(reg_ctrl, 0, 12, 4);
+			LCDPR("[%d]: %s: %d disable for debug\n",
+			      pdrv->index, __func__, flag);
+		}
+	}
+}
+
 static void lcd_vbyone_sync_pol(struct aml_lcd_drv_s *pdrv,
 				int hsync_pol, int vsync_pol)
 {
@@ -334,75 +557,6 @@ void lcd_vbyone_disable_t7(struct aml_lcd_drv_s *pdrv)
 	lcd_vcbus_setb(VBO_INSGN_CTRL_T7 + offset, 0, 0, 1);
 }
 
-void lcd_vbyone_link_maintain_clear(void)
-{
-	vx1_training_wait_cnt = 0;
-	vx1_timeout_reset_flag = 0;
-}
-
-void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv)
-{
-	unsigned int reg_phy_tx_ctrl0, reg_rst, offset;
-
-	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("[%d]: %s\n", pdrv->index, __func__);
-
-	if (pdrv->data->chip_type == LCD_CHIP_T7) {
-		switch (pdrv->index) {
-		case 0:
-			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY0_CNTL0;
-			break;
-		case 1:
-			reg_phy_tx_ctrl0 = COMBO_DPHY_EDP_LVDS_TX_PHY1_CNTL0;
-			break;
-		default:
-			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
-			return;
-		}
-		offset = pdrv->data->offset_venc_if[pdrv->index];
-		reg_rst = VBO_SOFT_RST_T7 + offset;
-
-		/* force PHY to 0 */
-		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 3, 8, 2);
-		lcd_vcbus_write(reg_rst, 0x1ff);
-		udelay(5);
-		/* realease PHY */
-		lcd_combo_dphy_setb(pdrv, reg_phy_tx_ctrl0, 0, 8, 2);
-		lcd_vcbus_write(reg_rst, 0);
-	} else if (pdrv->data->chip_type == LCD_CHIP_T5W ||
-		   pdrv->data->chip_type == LCD_CHIP_T3) {
-		switch (pdrv->index) {
-		case 0:
-			reg_phy_tx_ctrl0 = ANACTRL_LVDS_TX_PHY_CNTL0;
-			break;
-		case 1:
-			reg_phy_tx_ctrl0 = ANACTRL_LVDS_TX_PHY_CNTL2;
-			break;
-		default:
-			LCDERR("[%d]: %s: invalid drv_index\n", pdrv->index, __func__);
-			return;
-		}
-		offset = pdrv->data->offset_venc_if[pdrv->index];
-		reg_rst = VBO_SOFT_RST_T7 + offset;
-
-		/* force PHY to 0 */
-		lcd_ana_setb(reg_phy_tx_ctrl0, 3, 8, 2);
-		lcd_vcbus_write(reg_rst, 0x1ff);
-		udelay(5);
-		/* realease PHY */
-		lcd_ana_setb(reg_phy_tx_ctrl0, 0, 8, 2);
-		lcd_vcbus_write(reg_rst, 0);
-	} else {
-		/* force PHY to 0 */
-		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 3, 8, 2);
-		lcd_vcbus_write(VBO_SOFT_RST, 0x1ff);
-		udelay(5);
-		/* realease PHY */
-		lcd_ana_setb(HHI_LVDS_TX_PHY_CNTL0, 0, 8, 2);
-		lcd_vcbus_write(VBO_SOFT_RST, 0);
-	}
-}
-
 void lcd_vbyone_wait_timing_stable(struct aml_lcd_drv_s *pdrv)
 {
 	unsigned int offset, timing_state;
@@ -586,82 +740,6 @@ void lcd_vbyone_wait_stable(struct aml_lcd_drv_s *pdrv)
 	vx1_training_stable_cnt = 0;
 	vx1_fsm_acq_st = 0;
 	lcd_vbyone_interrupt_enable(pdrv, 1);
-}
-
-void lcd_vbyone_hw_filter(struct aml_lcd_drv_s *pdrv, int flag)
-{
-	struct vbyone_config_s *vx1_conf;
-	unsigned int reg_filter_l, reg_filter_h, reg_ctrl;
-	unsigned int temp, period, offset;
-	unsigned int tick_period[] = {
-		0xfff,
-		0xff,    /* 1: 0.8us */
-		0x1ff,   /* 2: 1.7us */
-		0x3ff,   /* 3: 3.4us */
-		0x7ff,   /* 4: 6.9us */
-		0xfff,   /* 5: 13.8us */
-		0x1fff,  /* 6: 27us */
-		0x3fff,  /* 7: 55us */
-		0x7fff,  /* 8: 110us */
-		0xffff,  /* 9: 221us */
-		0x1ffff, /* 10: 441us */
-		0x3ffff, /* 11: 883us */
-		0x7ffff, /* 12: 1.76ms */
-		0xfffff, /* 13: 3.53ms */
-	};
-
-	if (pdrv->data->chip_type == LCD_CHIP_T5W ||
-	    pdrv->data->chip_type == LCD_CHIP_T7 ||
-	    pdrv->data->chip_type == LCD_CHIP_T3) {
-		offset = pdrv->data->offset_venc_if[pdrv->index];
-		reg_filter_l = VBO_INFILTER_CTRL_T7 + offset;
-		reg_filter_h = VBO_INFILTER_CTRL_H_T7 + offset;
-		reg_ctrl = VBO_INSGN_CTRL_T7 + offset;
-	} else {
-		reg_filter_l = VBO_INFILTER_TICK_PERIOD_L;
-		reg_filter_h = VBO_INFILTER_TICK_PERIOD_H;
-		reg_ctrl = VBO_INSGN_CTRL;
-	}
-
-	vx1_conf = &pdrv->config.control.vbyone_cfg;
-	if (flag) {
-		period = vx1_conf->hw_filter_time & 0xff;
-		if (period >=
-			(sizeof(tick_period) / sizeof(unsigned int)))
-			period = tick_period[0];
-		else
-			period = tick_period[period];
-		temp = period & 0xffff;
-		lcd_vcbus_write(reg_filter_l, temp);
-		temp = (period >> 16) & 0xf;
-		lcd_vcbus_write(reg_filter_h, temp);
-		/* hpd */
-		temp = vx1_conf->hw_filter_cnt & 0xff;
-		if (temp == 0xff) {
-			lcd_vcbus_setb(reg_ctrl, 0, 8, 4);
-		} else {
-			temp = (temp == 0) ? 0x7 : temp;
-			lcd_vcbus_setb(reg_ctrl, temp, 8, 4);
-		}
-		/* lockn */
-		temp = (vx1_conf->hw_filter_cnt >> 8) & 0xff;
-		if (temp == 0xff) {
-			lcd_vcbus_setb(reg_ctrl, 0, 12, 4);
-		} else {
-			temp = (temp == 0) ? 0x7 : temp;
-			lcd_vcbus_setb(reg_ctrl, temp, 12, 4);
-		}
-	} else {
-		temp = (vx1_conf->hw_filter_time >> 8) & 0x1;
-		if (temp) {
-			lcd_vcbus_write(reg_filter_l, 0xff);
-			lcd_vcbus_write(reg_filter_h, 0x0);
-			lcd_vcbus_setb(reg_ctrl, 0, 8, 4);
-			lcd_vcbus_setb(reg_ctrl, 0, 12, 4);
-			LCDPR("[%d]: %s: %d disable for debug\n",
-			      pdrv->index, __func__, flag);
-		}
-	}
 }
 
 void lcd_vbyone_interrupt_enable(struct aml_lcd_drv_s *pdrv, int flag)
@@ -1160,6 +1238,7 @@ static void lcd_vbyone_interrupt_init(struct aml_lcd_drv_s *pdrv)
 
 int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 {
+	struct vbyone_config_s *vx1_conf = &pdrv->config.control.vbyone_cfg;
 	unsigned int venc_vx1_irq = 0;
 
 	lcd_vbyone_interrupt_init(pdrv);
@@ -1188,6 +1267,7 @@ int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv)
 
 	lcd_vx1_intr_request = 1;
 	lcd_vx1_vsync_isr_en = 1;
+	vx1_conf->intr_state = 1;
 	lcd_vbyone_interrupt_enable(pdrv, 1);
 
 	/* add timer to monitor pll frequency */
@@ -1211,4 +1291,61 @@ void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv)
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: free vbyone irq\n", pdrv->index);
+}
+
+void lcd_vbyone_debug_cdr(struct aml_lcd_drv_s *pdrv)
+{
+	struct vbyone_config_s *vx1_conf = &pdrv->config.control.vbyone_cfg;
+	unsigned int state;
+
+	/* disable vx1 interrupt and vx1 vsync interrupt */
+	vx1_conf->intr_en = 0;
+	vx1_conf->vsync_intr_en = 0;
+	lcd_vbyone_interrupt_enable(pdrv, 0);
+
+	lcd_vbyone_force_cdr(pdrv);
+
+	msleep(100);
+	state = lcd_vbyone_get_fsm_state(pdrv);
+	LCDPR("vbyone cdr: fsm state: 0x%02x\n", state);
+}
+
+void lcd_vbyone_debug_lock(struct aml_lcd_drv_s *pdrv)
+{
+	struct vbyone_config_s *vx1_conf = &pdrv->config.control.vbyone_cfg;
+	unsigned int state;
+
+	/* disable vx1 interrupt and vx1 vsync interrupt */
+	vx1_conf->intr_en = 0;
+	vx1_conf->vsync_intr_en = 0;
+	lcd_vbyone_interrupt_enable(pdrv, 0);
+
+	lcd_vbyone_force_lock(pdrv);
+
+	msleep(20);
+	state = lcd_vbyone_get_fsm_state(pdrv);
+	LCDPR("vbyone cdr: fsm state: 0x%02x\n", state);
+}
+
+void lcd_vbyone_debug_reset(struct aml_lcd_drv_s *pdrv)
+{
+	struct vbyone_config_s *vx1_conf = &pdrv->config.control.vbyone_cfg;
+	unsigned int intr_en, vintr_en, state;
+
+	/* disable vx1 interrupt and vx1 vsync interrupt */
+	intr_en = vx1_conf->intr_en;
+	vintr_en = vx1_conf->vsync_intr_en;
+	vx1_conf->intr_en = 0;
+	vx1_conf->vsync_intr_en = 0;
+	lcd_vbyone_interrupt_enable(pdrv, 0);
+
+	lcd_vbyone_sw_reset(pdrv);
+
+	/* recover vx1 interrupt and vx1 vsync interrupt */
+	vx1_conf->intr_en = intr_en;
+	vx1_conf->vsync_intr_en = vintr_en;
+	lcd_vbyone_interrupt_enable(pdrv, vx1_conf->intr_state);
+	msleep(200);
+	state = lcd_vbyone_get_fsm_state(pdrv);
+	LCDPR("vbyone reset: fsm state: 0x%02x\n", state);
 }

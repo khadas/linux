@@ -43,7 +43,8 @@
 /* 20220719: support t5,t5w,t3 set vswing level in low common type*/
 /* 20220729: optimize tcon switch flow before dlg timing change*/
 /* 20220809: fix tcon axi mem mistake for DLG tcon bin*/
-#define LCD_DRV_VERSION    "20220809"
+/* 20221012: correct t5w vbyone reset reg*/
+#define LCD_DRV_VERSION    "20221012"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;
@@ -119,16 +120,17 @@ void lcd_vbyone_disable_dft(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_enable_t7(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_disable_t7(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_link_maintain_clear(void);
-void lcd_vbyone_sw_reset(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_wait_timing_stable(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_cdr_training_hold(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_vbyone_wait_hpd(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_power_on_wait_stable(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_wait_stable(struct aml_lcd_drv_s *pdrv);
-void lcd_vbyone_hw_filter(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_vbyone_interrupt_enable(struct aml_lcd_drv_s *pdrv, int flag);
 int lcd_vbyone_interrupt_up(struct aml_lcd_drv_s *pdrv);
 void lcd_vbyone_interrupt_down(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_debug_cdr(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_debug_lock(struct aml_lcd_drv_s *pdrv);
+void lcd_vbyone_debug_reset(struct aml_lcd_drv_s *pdrv);
 
 /* lcd tcon */
 unsigned int lcd_tcon_reg_read(struct aml_lcd_drv_s *pdrv, unsigned int addr);
@@ -173,7 +175,6 @@ void lcd_venc_vrr_recovery(struct aml_lcd_drv_s *pdrv);
 #ifdef CONFIG_AMLOGIC_LCD_TV
 void lcd_tv_vout_server_init(struct aml_lcd_drv_s *pdrv);
 void lcd_tv_vout_server_remove(struct aml_lcd_drv_s *pdrv);
-void lcd_vbyone_interrupt_enable(struct aml_lcd_drv_s *pdrv, int flag);
 void lcd_tv_clk_config_change(struct aml_lcd_drv_s *pdrv);
 void lcd_tv_clk_update(struct aml_lcd_drv_s *pdrv);
 int lcd_mode_tv_init(struct aml_lcd_drv_s *pdrv);
