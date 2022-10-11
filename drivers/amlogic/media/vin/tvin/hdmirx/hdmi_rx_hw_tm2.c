@@ -212,16 +212,22 @@ int is_low_amplitude_sig_tm2(void)
 
 	if (!rx.open_fg || (hdmirx_rd_top(TOP_MISC_STAT0) & 0x1))
 		return ret;
-	if (rx.phy.phy_bw <= PHY_BW_2)
+	if (rx.phy.phy_bw <= PHY_BW_2) {
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
 				DFE_EN, 1);
+		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
+				DFE_RSTB, 1);
+	}
 	wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL3, DBG_STS_SEL, 0x0);
 	wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2, DFE_DBG_STL, 0x0);
 	usleep_range(100, 110);
 	data32 = rd_reg_hhi(HHI_HDMIRX_PHY_DCHD_STAT);
-	if (rx.phy.phy_bw <= PHY_BW_2)
+	if (rx.phy.phy_bw <= PHY_BW_2) {
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
 				DFE_EN, 0);
+		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
+				DFE_RSTB, 0);
+	}
 	ch0_tap0 = data32 & 0xff;
 	ch1_tap0 = (data32 >> 8) & 0xff;
 	ch2_tap0 = (data32 >> 16) & 0xff;
