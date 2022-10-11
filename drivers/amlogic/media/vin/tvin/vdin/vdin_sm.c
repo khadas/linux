@@ -723,22 +723,6 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 	if (chg & TVIN_SIG_CHG_STS) {
 		devp->event_info.event_sts = TVIN_SIG_CHG_STS;
 	} else {
-		if (chg & TVIN_SIG_CHG_VRR) {
-			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
-
-			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d),vic:%d,fr:%d\n", __func__,
-				devp->vrr_data.vdin_vrr_en_flag,
-				devp->prop.vtem_data.vrr_en,
-				devp->pre_prop.spd_data.data[5],
-				devp->prop.spd_data.data[5],
-				devp->prop.hw_vic,
-				devp->prop.vtem_data.base_framerate);
-			devp->pre_prop.vtem_data.vrr_en =
-				devp->prop.vtem_data.vrr_en;
-			devp->vrr_data.vdin_vrr_en_flag =
-				devp->prop.vtem_data.vrr_en;
-		}
-
 		if (chg & TVIN_SIG_DV_CHG) {
 			devp->event_info.event_sts = (chg & TVIN_SIG_DV_CHG);
 			if (vdin_re_config & RE_CONFIG_DV_EN)
@@ -761,6 +745,19 @@ void tvin_sig_chg_event_process(struct vdin_dev_s *devp, u32 chg)
 				re_cfg = true;
 		} else if (chg & TVIN_SIG_CHG_AFD) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
+		} else if (chg & TVIN_SIG_CHG_VRR) {
+			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
+			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d),vic:%d,fr:%d\n", __func__,
+				devp->vrr_data.vdin_vrr_en_flag,
+				devp->prop.vtem_data.vrr_en,
+				devp->pre_prop.spd_data.data[5],
+				devp->prop.spd_data.data[5],
+				devp->prop.hw_vic,
+				devp->prop.vtem_data.base_framerate);
+			devp->pre_prop.vtem_data.vrr_en =
+				devp->prop.vtem_data.vrr_en;
+			devp->vrr_data.vdin_vrr_en_flag =
+				devp->prop.vtem_data.vrr_en;
 		} else {
 			return;
 		}
