@@ -58,6 +58,7 @@
 /*  V1.1.64  fix atsc static echo test failed in -30us */
 /*  V1.1.65  fix locking qam64 signal failed in j83b */
 /*  V1.1.66  improve dvbs blind scan and support single cable */
+/*  V1.1.67  avoid dvbc missing channel */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -74,8 +75,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.66"
-#define DTVDEMOD_VER	"2022/10/18: improve dvbs blind scan and support single cable"
+#define AMLDTVDEMOD_VER "V1.1.67"
+#define DTVDEMOD_VER	"2022/10/21: avoid dvbc missing channel"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

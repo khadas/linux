@@ -3150,6 +3150,7 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 	unsigned int fsm_state = 0, eq_state = 0;
 	int strength = 0;
 	static unsigned int time_start;
+	static unsigned int sym_speed_high;
 
 	if (re_tune) {
 		/*avoid that the previous channel has not been locked/unlocked*/
@@ -3164,18 +3165,12 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 		demod->sr_val_hw_count = 0;
 		demod->sr_val_uf_count = 0;
 		demod->auto_qam_done = 0;
+		sym_speed_high = 0;
 		demod_dvbc_set_qam(demod, demod->auto_qam_mode);
 		demod_dvbc_fsm_reset(demod);
 
 		if (!demod->auto_sr && demod->auto_qam_mode == QAM_MODE_256)
 			*delay = HZ / 2;//500ms
-
-		if (demod->auto_sr &&
-			(tuner_find_by_name(fe, "r842") ||
-			tuner_find_by_name(fe, "r836") ||
-			tuner_find_by_name(fe, "r850")))
-			dvbc_cfg_sw_hw_sr_max(demod, demod->sr_val_hw);
-
 		time_start = jiffies_to_msecs(jiffies);
 		PR_DVBC("%s: retune reset, sr %d.\n", __func__, demod->sr_val_hw);
 		return 2;
@@ -3220,15 +3215,33 @@ unsigned int dvbc_auto_fast(struct dvb_frontend *fe, unsigned int *delay, bool r
 
 			if (eq_state >= 2 || demod->sr_val_hw_count >= 3) {
 				// slow down auto sr speed and range.
-				dvbc_cfg_sr_scan_speed(demod, 1);
-				dvbc_cfg_sr_cnt(demod, 1);
+				dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_NORMAL);
+				dvbc_cfg_sr_cnt(demod, SYM_SPEED_NORMAL);
 				dvbc_cfg_sw_hw_sr_max(demod, demod->sr_val_hw_stable);
-				dvbc_cfg_tim_sweep_range(demod, 1);
-
+				dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_NORMAL);
 				demod->auto_sr_done = 1;
-				PR_DVBC("%s: auto_sr_done, sr_val_hw_stable %d, cost %d ms.\n",
-						__func__, demod->sr_val_hw_stable,
+				PR_DVBC("%s: auto_sr_done[%d], sr_val_hw_stable %d, cost %d ms.\n",
+						__func__, fe->dtv_property_cache.frequency,
+						demod->sr_val_hw_stable,
 						jiffies_to_msecs(jiffies) - time_start);
+				if (fsm_state != 5) {
+					demod_dvbc_fsm_reset(demod);
+					*delay = HZ / 2;//500ms
+					return 2; // wait qam256 lock.
+				}
+			} else {
+				if (demod->sr_val_hw < 6820 &&
+					sym_speed_high == 0) {
+					// fast down auto sr speed and range.
+					dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_HIGH);
+					dvbc_cfg_sr_cnt(demod, SYM_SPEED_HIGH);
+					dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_HIGH);
+					sym_speed_high = 1;
+					PR_DVBC("%s: fast scan[%d], sr_val_hw %d, cost %d ms.\n",
+						__func__, fe->dtv_property_cache.frequency,
+						demod->sr_val_hw_stable,
+						jiffies_to_msecs(jiffies) - time_start);
+				}
 			}
 
 			/* sr underflow */
@@ -3394,6 +3407,7 @@ static unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *dela
 	static unsigned int time_start;
 	unsigned int fsm_state = 0, eq_state = 0;
 	int strength = 0;
+	static unsigned int sym_speed_high;
 
 	if (re_tune) {
 		/*avoid that the previous channel has not been locked/unlocked*/
@@ -3405,15 +3419,8 @@ static unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *dela
 		demod->sr_val_hw_stable = 0;
 		demod->sr_val_hw_count = 0;
 		demod->sr_val_uf_count = 0;
-
+		sym_speed_high = 0;
 		demod_dvbc_fsm_reset(demod);
-
-		if (demod->auto_sr &&
-			(tuner_find_by_name(fe, "r842") ||
-			tuner_find_by_name(fe, "r836") ||
-			tuner_find_by_name(fe, "r850")))
-			dvbc_cfg_sw_hw_sr_max(demod, demod->sr_val_hw);
-
 		time_start = jiffies_to_msecs(jiffies);
 		PR_DVBC("%s: retune reset, sr %d.\n", __func__, demod->sr_val_hw);
 		return 2;
@@ -3450,15 +3457,27 @@ static unsigned int dvbc_fast_search(struct dvb_frontend *fe, unsigned int *dela
 
 			if (eq_state >= 2 || demod->sr_val_hw_count >= 3) {
 				// slow down auto sr speed and range.
-				dvbc_cfg_sr_scan_speed(demod, 1);
-				dvbc_cfg_sr_cnt(demod, 1);
+				dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_NORMAL);
+				dvbc_cfg_sr_cnt(demod, SYM_SPEED_NORMAL);
 				dvbc_cfg_sw_hw_sr_max(demod, demod->sr_val_hw_stable);
-				dvbc_cfg_tim_sweep_range(demod, 1);
+				dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_NORMAL);
 
 				demod->auto_sr_done = 1;
 				PR_DVBC("%s: auto_sr_done, sr_val_hw_stable %d, cost %d ms.\n",
 						__func__, demod->sr_val_hw_stable,
 						jiffies_to_msecs(jiffies) - time_start);
+			} else {
+				if (demod->sr_val_hw < 6820 &&
+					sym_speed_high == 0) {
+					// fast down auto sr speed and range.
+					dvbc_cfg_sr_scan_speed(demod, SYM_SPEED_HIGH);
+					dvbc_cfg_sr_cnt(demod, SYM_SPEED_HIGH);
+					dvbc_cfg_tim_sweep_range(demod, SYM_SPEED_HIGH);
+					sym_speed_high = 1;
+					PR_DVBC("%s: fast scan, sr_val_hw_stable %d, cost %d ms.\n",
+							__func__, demod->sr_val_hw_stable,
+							jiffies_to_msecs(jiffies) - time_start);
+				}
 			}
 
 			/* sr underflow */
