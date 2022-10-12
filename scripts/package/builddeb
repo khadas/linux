@@ -58,6 +58,11 @@ create_package() {
 	cd /boot
 	ln -sfT dtb-$version dtb 2> /dev/null || mv dtb-$version dtb
 	cd - > /dev/null
+	echo dtb-$version > /boot/.dtb.tmp
+	cd /boot/dtb/rockchip
+	[ ! -L /boot/dtb/rockchip/rk3588s-khadas-edge2.dtb.overlay.env ] && ln -fs ../../overlays/rk3588s-khadas-edge2.dtb.overlay.env rk3588s-khadas-edge2.dtb.overlay.env
+	[ ! -L /boot/dtb/rockchi/rk3588s-khadas-edge2.dtb.overlays ] && ln -fs ../../overlays/rk3588s-khadas-edge2.dtb.overlays rk3588s-khadas-edge2.dtb.overlays
+	cd - > /dev/null
 	exit 0
 	EOF
 
