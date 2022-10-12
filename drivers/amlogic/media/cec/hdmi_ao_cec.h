@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2022/04/21: switch to cec_b and use cec_a pin on t7"
+#define CEC_DRIVER_VERSION     "2022/11/04: save wakeup message for T7"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -45,6 +45,8 @@ enum cec_chip_ver {
 	CEC_CHIP_T7,
 	CEC_CHIP_S4,/*base on sc2*/
 	CEC_CHIP_T3,	/* only have cecb */
+	CEC_CHIP_T5W,	/* from T5D */
+	CEC_CHIP_S5
 };
 
 enum cecaver {
@@ -200,7 +202,7 @@ struct ao_cec_dev {
 	struct mutex cec_tx_mutex;/*pretect tx cec msg*/
 	struct mutex cec_ioctl_mutex;
 	struct mutex cec_uevent_mutex; /* cec uevent */
-	struct cec_wakeup_t wakup_data;
+	struct cec_wakeup_t wakeup_data;
 	/* msg_len + maximum msg len */
 	unsigned char cec_wk_otp_msg[17];
 	unsigned char cec_wk_as_msg[17];
@@ -266,6 +268,7 @@ enum {
 	AO_CECB_INTR_CLR,	/*0xc*/
 	AO_CECB_INTR_STAT,	/*0xd*/
 
+	/* only for old chip CECA clk */
 	AO_RTI_STATUS_REG1,
 	AO_RTI_PWR_CNTL_REG0,
 	AO_CRT_CLK_CNTL1,

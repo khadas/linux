@@ -1207,7 +1207,7 @@ static ssize_t cmdb_store(struct class *cla, struct class_attribute *attr,
 static ssize_t wake_up_show(struct class *cla,
 			    struct class_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%x\n", *((unsigned int *)&cec_dev->wakup_data));
+	return sprintf(buf, "%x\n", *((unsigned int *)&cec_dev->wakeup_data));
 }
 
 /* wakeup reason, 0x8 means wakeup by CEC msg */
@@ -2923,10 +2923,10 @@ static void cec_get_wk_msg(void)
 			 cec_dev->cec_wk_otp_msg[i + 1]);
 	if (cec_dev->cec_wk_otp_msg[2] == CEC_OC_IMAGE_VIEW_ON ||
 	    cec_dev->cec_wk_otp_msg[2] == CEC_OC_TEXT_VIEW_ON) {
-		cec_dev->wakup_data.wk_phy_addr = 0xffff;
-		cec_dev->wakup_data.wk_logic_addr =
+		cec_dev->wakeup_data.wk_phy_addr = 0xffff;
+		cec_dev->wakeup_data.wk_logic_addr =
 			(cec_dev->cec_wk_otp_msg[1] >> 4) & 0xf;
-		cec_dev->wakup_data.wk_port_id = 0xff;
+		cec_dev->wakeup_data.wk_port_id = 0xff;
 	}
 
 	memset(cec_dev->cec_wk_as_msg, 0, sizeof(cec_dev->cec_wk_as_msg));
@@ -2937,13 +2937,13 @@ static void cec_get_wk_msg(void)
 		CEC_INFO("cec_wk_as_msg[%d] %02x\n", i,
 			 cec_dev->cec_wk_as_msg[i + 1]);
 	if (cec_dev->cec_wk_as_msg[2] == CEC_OC_ACTIVE_SOURCE) {
-		cec_dev->wakup_data.wk_phy_addr =
+		cec_dev->wakeup_data.wk_phy_addr =
 			(cec_dev->cec_wk_as_msg[3] << 8) |
 			cec_dev->cec_wk_as_msg[4];
-		cec_dev->wakup_data.wk_logic_addr =
+		cec_dev->wakeup_data.wk_logic_addr =
 			(cec_dev->cec_wk_as_msg[1] >> 4) & 0xf;
-		cec_dev->wakup_data.wk_port_id =
-			cec_get_wk_port_id(cec_dev->wakup_data.wk_phy_addr);
+		cec_dev->wakeup_data.wk_port_id =
+			cec_get_wk_port_id(cec_dev->wakeup_data.wk_phy_addr);
 	}
 }
 

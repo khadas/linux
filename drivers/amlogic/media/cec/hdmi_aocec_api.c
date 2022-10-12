@@ -1778,9 +1778,9 @@ void cec_status(void)
 	CEC_ERR("ee_cec:%d\n", ee_cec);
 	CEC_ERR("cec_num:%d\n", cec_dev->cec_num);
 	CEC_ERR("dev_type:%d\n", (unsigned int)cec_dev->dev_type);
-	CEC_ERR("wk_logic_addr:0x%x\n", cec_dev->wakup_data.wk_logic_addr);
-	CEC_ERR("wk_phy_addr:0x%x\n", cec_dev->wakup_data.wk_phy_addr);
-	CEC_ERR("wk_port_id:0x%x\n", cec_dev->wakup_data.wk_port_id);
+	CEC_ERR("wk_logic_addr:0x%x\n", cec_dev->wakeup_data.wk_logic_addr);
+	CEC_ERR("wk_phy_addr:0x%x\n", cec_dev->wakeup_data.wk_phy_addr);
+	CEC_ERR("wk_port_id:0x%x\n", cec_dev->wakeup_data.wk_port_id);
 	CEC_ERR("wakeup_reason:0x%x\n", cec_dev->wakeup_reason);
 	CEC_ERR("phy_addr:0x%x\n", cec_dev->phy_addr);
 	CEC_ERR("cec_version:0x%x\n", cec_dev->cec_info.cec_version);
@@ -1975,9 +1975,9 @@ void cec_get_wakeup_data(void)
 	unsigned int stick_cec2 = 0;
 	/*temp for mailbox not ready*/
 	/*data = readl(cec_dev->periphs_reg + (0xa6 << 2));*/
-	/*cec_dev->wakup_data.wk_logic_addr = data & 0xff;*/
-	/*cec_dev->wakup_data.wk_phy_addr = (data >> 8) & 0xffff;*/
-	/*cec_dev->wakup_data.wk_port_id = (data >> 24) & 0xff;*/
+	/*cec_dev->wakeup_data.wk_logic_addr = data & 0xff;*/
+	/*cec_dev->wakeup_data.wk_phy_addr = (data >> 8) & 0xffff;*/
+	/*cec_dev->wakeup_data.wk_port_id = (data >> 24) & 0xff;*/
 
 	memset(cec_dev->cec_wk_otp_msg, 0, sizeof(cec_dev->cec_wk_otp_msg));
 	memset(cec_dev->cec_wk_as_msg, 0, sizeof(cec_dev->cec_wk_as_msg));
@@ -1990,6 +1990,49 @@ void cec_get_wakeup_data(void)
 	/* CEC_FUNC_MASK and AUTO_POWER_ON_MASK
 	 * already judge under uboot
 	 */
+	/* T7 no cec sticky register, so use 6 byte of general sticky reg
+	 * only save necessary message witch may affect routing
+	 * SYSCTRL_STICKY_REG6: bit 31~16
+	 * SYSCTRL_STICKY_REG5: bit 31~0
+	 */
+	if (cec_dev->plat_data->chip_id == CEC_CHIP_T7) {
+		switch ((stick_cec1 >> 16) & 0xff) {
+		/* when T7 as playback or soundbar */
+		case CEC_OC_ROUTING_CHANGE:
+			cec_dev->cec_wk_otp_msg[0] = 6;
+			cec_dev->cec_wk_otp_msg[1] = (stick_cec1 >> 24) & 0xff;
+			cec_dev->cec_wk_otp_msg[2] = (stick_cec1 >> 16) & 0xff;
+			cec_dev->cec_wk_otp_msg[3] = (stick_cec1 >> 8) & 0xff;
+			cec_dev->cec_wk_otp_msg[4] = stick_cec1 & 0xff;
+			cec_dev->cec_wk_otp_msg[5] = (stick_cec2 >> 24) & 0xff;
+			cec_dev->cec_wk_otp_msg[6] = (stick_cec2 >> 16) & 0xff;
+			break;
+		/* when T7 as playback or soundbar */
+		case CEC_OC_SET_STREAM_PATH:
+			cec_dev->cec_wk_otp_msg[0] = 4;
+			cec_dev->cec_wk_otp_msg[1] = (stick_cec1 >> 24) & 0xff;
+			cec_dev->cec_wk_otp_msg[2] = (stick_cec1 >> 16) & 0xff;
+			cec_dev->cec_wk_otp_msg[3] = (stick_cec1 >> 8) & 0xff;
+			cec_dev->cec_wk_otp_msg[4] = stick_cec1 & 0xff;
+			break;
+		/* when T7 as TV */
+		case CEC_OC_ACTIVE_SOURCE:
+			cec_dev->cec_wk_as_msg[0] = 4;
+			cec_dev->cec_wk_as_msg[1] = (stick_cec1 >> 24) & 0xff;
+			cec_dev->cec_wk_as_msg[2] = (stick_cec1 >> 16) & 0xff;
+			cec_dev->cec_wk_as_msg[3] = (stick_cec1 >> 8) & 0xff;
+			cec_dev->cec_wk_as_msg[4] = stick_cec1 & 0xff;
+			cec_dev->wakeup_data.wk_phy_addr = stick_cec1 & 0xffff;
+			cec_dev->wakeup_data.wk_logic_addr =
+			(cec_dev->cec_wk_as_msg[1] >> 4) & 0xf;
+			cec_dev->wakeup_data.wk_port_id =
+			cec_get_wk_port_id(cec_dev->wakeup_data.wk_phy_addr);
+			break;
+		default:
+			break;
+		}
+		return;
+	}
 	/* for otp, recovery and compose to msg */
 	switch ((stick_cec1 >> 16) & 0xff) {
 	case CEC_OC_ROUTING_CHANGE:
@@ -2019,10 +2062,10 @@ void cec_get_wakeup_data(void)
 		cec_dev->cec_wk_otp_msg[0] = 2;
 		cec_dev->cec_wk_otp_msg[1] = (stick_cec1 >> 24) & 0xff;
 		cec_dev->cec_wk_otp_msg[2] = (stick_cec1 >> 16) & 0xff;
-		cec_dev->wakup_data.wk_phy_addr = 0xffff;
-		cec_dev->wakup_data.wk_logic_addr =
+		cec_dev->wakeup_data.wk_phy_addr = 0xffff;
+		cec_dev->wakeup_data.wk_logic_addr =
 			(cec_dev->cec_wk_otp_msg[1] >> 4) & 0xf;
-		cec_dev->wakup_data.wk_port_id = 0xff;
+		cec_dev->wakeup_data.wk_port_id = 0xff;
 		break;
 	default:
 		break;
@@ -2037,11 +2080,11 @@ void cec_get_wakeup_data(void)
 		cec_dev->cec_wk_as_msg[2] = (stick_cec2 >> 16) & 0xff;
 		cec_dev->cec_wk_as_msg[3] = (stick_cec2 >> 8) & 0xff;
 		cec_dev->cec_wk_as_msg[4] = stick_cec2 & 0xff;
-		cec_dev->wakup_data.wk_phy_addr = stick_cec2 & 0xffff;
-		cec_dev->wakup_data.wk_logic_addr =
+		cec_dev->wakeup_data.wk_phy_addr = stick_cec2 & 0xffff;
+		cec_dev->wakeup_data.wk_logic_addr =
 			(cec_dev->cec_wk_as_msg[1] >> 4) & 0xf;
-		cec_dev->wakup_data.wk_port_id =
-			cec_get_wk_port_id(cec_dev->wakup_data.wk_phy_addr);
+		cec_dev->wakeup_data.wk_port_id =
+			cec_get_wk_port_id(cec_dev->wakeup_data.wk_phy_addr);
 	}
 }
 
