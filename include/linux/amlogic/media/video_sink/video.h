@@ -352,6 +352,27 @@ static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
 
 #define VIDEO_TESTPATTERN_ON  0
 #define VIDEO_TESTPATTERN_OFF 1
+
+#define POST_SLICE_NUM 4
+#define VD_SLICE_NUM   4
+struct slice_info {
+	u32 hsize;     /*slice hsize*/
+	u32 vsize;     /*slice vsize*/
+};
+
+struct vpp_post_info_t {
+	u32 slice_num;   /*valid slice num*/
+	u32 overlap_hsize;
+	u32 vpp_post_blend_hsize;   /*blend out hsize*/
+	u32 vpp_post_blend_vsize;   /*blend out vsize*/
+	struct slice_info slice[POST_SLICE_NUM];
+};
+
+struct vd_proc_info_t {
+	bool vd2_prebld_4k120_en;
+	struct slice_info slice[VD_SLICE_NUM];
+};
+
 void set_video_mute(bool on);
 int get_video_mute(void);
 void set_output_mute(bool on);
@@ -392,6 +413,8 @@ void vpp_probe_en_set(u32 enable);
 bool is_di_hf_y_reverse(void);
 void set_post_blend_dummy_data(u32 vpp_index,
 	u32 dummy_data, u32 dummy_alpha);
+struct vpp_post_info_t *get_vpp_post_amdv_info(void);
+
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 int tsync_set_tunnel_mode(int mode);
 #endif

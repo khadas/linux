@@ -490,6 +490,7 @@ struct video_layer_s {
 	u8 prelink_skip_cnt;
 	u32 slice_num;
 	u32 pi_enable;
+	u32 vd1s1_vd2_prebld_en;
 	struct sub_slice_s sub_slice[SLICE_NUM - 1];
 };
 

@@ -8540,12 +8540,20 @@ int set_layer_display_canvas_s5(struct video_layer_s *layer,
 	struct vd_mif_reg_s *vd_mif_reg;
 	struct vd_mif_reg_s *vd_mif_reg_mvc;
 	struct vd_afbc_reg_s *vd_afbc_reg;
-	int slice = 0;
+	int slice = 0, temp_slice = 0;
 
 	if (layer->layer_id == 0 && layer->slice_num > 1) {
-		for (slice = 0; slice < layer->slice_num; slice++)
+		for (slice = 0; slice < layer->slice_num; slice++) {
+			if (layer->vd1s1_vd2_prebld_en &&
+				layer->slice_num == 2 &&
+				slice == 1)
+				temp_slice = SLICE_NUM;
+			else
+				temp_slice = slice;
+
 			set_layer_slice_display_canvas_s5(layer, vf,
-				cur_frame_par, disp_info, slice);
+				cur_frame_par, disp_info, temp_slice);
+		}
 		return 0;
 	}
 
@@ -8663,7 +8671,7 @@ int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
 	struct vd_afbc_reg_s *vd_afbc_reg;
 
 	layer_id = layer->layer_id;
-	if (layer->layer_id != 0 || slice >= SLICE_NUM)
+	if (layer->layer_id != 0 || slice > SLICE_NUM)
 		return -1;
 
 	if ((vf->type & VIDTYPE_MVC) && layer_id == 0) {
