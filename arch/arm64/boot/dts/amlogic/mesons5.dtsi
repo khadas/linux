@@ -2324,6 +2324,7 @@
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		power-domains = <&pwrdm PDID_S5_MALI_TOP>;
 	};
 
 	a55_tsensor: a55_tsensor@fe022000 {
@@ -2366,6 +2367,7 @@
 		clocks = <&clkc CLKID_TS_CLK>;
 		clock-names = "ts_comp";
 		#thermal-sensor-cells = <1>;
+		power-domains = <&pwrdm PDID_S5_DOS_TOP_WRAP>;
 	};
 
 	nna_tsensor: nna_tsensor@fe096000 {
@@ -2421,8 +2423,8 @@
 	thermal-zones {
 		gpu_thermal: gpu_thermal {
 			status = "okay";
-			polling-delay = <1000>;
-			polling-delay-passive = <100>;
+			polling-delay = <2000>;
+			polling-delay-passive = <500>;
 			sustainable-power = <5160>;
 			thermal-sensors = <&gpu_tsensor 1>;
 			trips {

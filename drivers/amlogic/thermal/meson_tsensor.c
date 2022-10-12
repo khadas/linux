@@ -15,6 +15,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/cpu_cooling.h>
 #include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/arm-smccc.h>
 #include <linux/amlogic/secmon.h>
 #include "../../thermal/thermal_core.h"
@@ -89,7 +90,7 @@
 #define	R1P1_TS_MAX	0x3500
 #define	R1P1_TS_MIN	0x1500
 #define	R1P1_TS_CLK_RATE	500000
-#define R1P1_TS_WAIT		5
+#define R1P1_TS_WAIT		10
 #define R1P1_PM_MIN_TIMEOUT	5
 #define R1P1_PM_MAX_TIMEOUT	250
 #define TSENSOR_CALI_READ	0x82000047
@@ -464,7 +465,7 @@ static int r1p1_tsensor_read(struct meson_tsensor_data *data)
 		pr_debug("%s  vall: %u, cnt: %u\n",
 			 __func__, value_all, cnt);
 	} else {
-		pr_info("%s  valid cnt is 0, tvalue:%d\n", __func__, tvalue);
+		pr_info("[%s %s]valid cnt is 0, tvalue:%d\n", __func__, data->tzd->type, tvalue);
 		tvalue = 0;
 	}
 	return tvalue;
@@ -522,9 +523,12 @@ static int meson_get_temp(void *p, int *temp)
 	if (!data->tsensor_read)
 		return -EINVAL;
 
+	pm_runtime_get_sync(data->dev);
+	msleep(R1P1_TS_WAIT);
 	mutex_lock(&data->lock);
 	*temp = code_to_temp(data, data->tsensor_read(data));
 	mutex_unlock(&data->lock);
+	pm_runtime_put_sync(data->dev);
 
 	return 0;
 }
@@ -763,6 +767,7 @@ static int meson_tsensor_probe(struct platform_device *pdev)
 	if (thermal_add_hwmon_sysfs(data->tzd))
 		dev_warn(&pdev->dev, "Failed to add hwmon sysfs attributes\n");
 
+	pm_runtime_enable(data->dev);
 	ret = devm_request_irq(&pdev->dev, data->irq, meson_tsensor_irq,
 			       IRQF_TRIGGER_RISING | IRQF_SHARED,
 			       dev_name(&pdev->dev), data);
