@@ -25,10 +25,6 @@
 
 #include "common.h"
 
-// TODO
-#define HDMITX_TOP_OFFSET 0xfe390000
-#define HDMITX_COR_OFFSET 0xfe3a0000
-
 static int hdmi_dbg;
 
 struct reg_map reg21_maps[REG_IDX_END] = {0};
@@ -192,7 +188,7 @@ static u32 hdmitx_rd_top(u32 addr)
 	u32 base_offset;
 	u32 data;
 
-	base_offset = HDMITX_TOP_OFFSET;
+	base_offset = reg21_maps[2].phy_addr;
 
 	data = sec_rd(base_offset + addr);
 	return data;
@@ -203,7 +199,7 @@ static u8 hdmitx_rd_cor(u32 addr)
 	u32 base_offset;
 	u8 data;
 
-	base_offset = HDMITX_COR_OFFSET;
+	base_offset = reg21_maps[1].phy_addr;
 	data = sec_rd8(base_offset + addr);
 	return data;
 } /* hdmitx_rd_cor */
@@ -212,7 +208,7 @@ static void hdmitx_wr_top(u32 addr, u32 data)
 {
 	u32 base_offset;
 
-	base_offset = HDMITX_TOP_OFFSET;
+	base_offset = reg21_maps[2].phy_addr;
 	sec_wr(base_offset + addr, data);
 } /* hdmitx_wr_top */
 
@@ -220,7 +216,7 @@ static void hdmitx_wr_cor(u32 addr, u8 data)
 {
 	u32 base_offset;
 
-	base_offset = HDMITX_COR_OFFSET;
+	base_offset = reg21_maps[1].phy_addr;
 	sec_wr8(base_offset + addr, data);
 } /* hdmitx_wr_cor */
 

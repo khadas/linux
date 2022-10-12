@@ -283,7 +283,7 @@ void set21_t7_hpll_clk_out(u32 frac_rate, u32 clk)
 	}
 }
 
-void set21_hpll_od0_t7(u32 div)
+void set21_hpll_od1_t7(u32 div)
 {
 	switch (div) {
 	case 1:
@@ -303,7 +303,7 @@ void set21_hpll_od0_t7(u32 div)
 	}
 }
 
-void set21_hpll_od1_t7(u32 div)
+void set21_hpll_od2_t7(u32 div)
 {
 	switch (div) {
 	case 1:
@@ -320,7 +320,7 @@ void set21_hpll_od1_t7(u32 div)
 	}
 }
 
-void set21_hpll_od2_t7(u32 div)
+void set21_hpll_od3_t7(u32 div)
 {
 	switch (div) {
 	case 1:
