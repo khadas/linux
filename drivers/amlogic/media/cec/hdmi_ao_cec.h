@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2022/08/21: bringup for s5"
+#define CEC_DRIVER_VERSION     "2022/11/04: save wakeup message for T7"
 
 #define CEC_DEV_NAME		"cec"
 
@@ -202,7 +202,7 @@ struct ao_cec_dev {
 	struct mutex cec_tx_mutex;/*pretect tx cec msg*/
 	struct mutex cec_ioctl_mutex;
 	struct mutex cec_uevent_mutex; /* cec uevent */
-	struct cec_wakeup_t wakup_data;
+	struct cec_wakeup_t wakeup_data;
 	/* msg_len + maximum msg len */
 	unsigned char cec_wk_otp_msg[17];
 	unsigned char cec_wk_as_msg[17];
