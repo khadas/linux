@@ -10,6 +10,7 @@
 
 /*  driver version */
 #define DRIVER_VER "20221020"
+
 #include <linux/types.h>
 #include "amdv_pq_config.h"
 
@@ -55,7 +56,7 @@
 #define FLAG_USE_SINK_MIN_MAX		0x08
 #define FLAG_CLKGATE_WHEN_LOAD_LUT	0x10
 #define FLAG_SINGLE_STEP		0x20
-#define FLAG_CERTIFICAION		0x40
+#define FLAG_CERTIFICATION		0x40
 #define FLAG_CHANGE_SEQ_HEAD		0x80
 #define FLAG_DISABLE_COMPOSER		0x100
 #define FLAG_BYPASS_CSC			0x200

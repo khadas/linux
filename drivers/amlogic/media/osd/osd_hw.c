@@ -8068,6 +8068,7 @@ static int get_viu2_src_format(void)
 	return RGBA;
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 /* -1: invalid osd index
  *  0: osd is disabled
  *  1: osd is enabled
@@ -8085,6 +8086,7 @@ static int get_osd_status(enum OSD_INDEX index)
 
 	return osd_hw.enable[sw_index];
 }
+#endif
 
 static void osd_update_disp_osd_rotate(u32 index)
 {
@@ -14472,7 +14474,9 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 			osd_secure_op,
 			osd_secure_cb);
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	register_osd_func(get_osd_status);
+#endif
 	osd_log_out = 1;
 }
 

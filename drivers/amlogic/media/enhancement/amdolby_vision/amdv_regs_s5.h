@@ -229,7 +229,7 @@
 // Reading file:  ./vpp_post_reg.h
 //
 //===========================================================================
-// Vpp0 postprocesing Registers
+// Vpp0 postprocessing Registers
 //===========================================================================
 //====================top====================
 #define S5_VPP_POST_GCLK_CTRL                         0x1d00
@@ -449,7 +449,7 @@
 // Reading file:  ./vpp_post_unit_reg.h
 //
 //===========================================================================
-// Video postprocesing Registers
+// Video postprocessing Registers
 //===========================================================================
 //====================top====================
 #define S5_VPP_GCLK_CTRL                              0x2500
@@ -519,6 +519,87 @@
 //Bit 31:20 align_fifo_line_len       //unsigned, RW, default = 0
 //Bit 19:14 reserved
 //Bit 13:0  align_fifo_size           //unsigned, RW, default = 2048
+
+//===========================================================================
+// -----------------------------------------------
+// REG_BASE:  VPP_POST_UNIT1_VCBUS_BASE = 0x26
+// -----------------------------------------------
+//===========================================================================
+//`include "disp_if_regs.h"
+
+// Reading file:  ./vpp_post_unit1_reg.h
+//
+//===========================================================================
+// Video postprocessing Registers
+//===========================================================================
+//====================top====================
+#define VPP_SLICE1_GCLK_CTRL                       0x2600
+//Bit 31:8   reserved
+//Bit 7:6    align_fifo_gclk_ctrl//unsigned, RW, default = 0
+//Bit 5:4    ofifo_gclk_ctrl     //unsigned, RW, default = 0
+//Bit 3:2    top_gclk_ctrl       //unsigned, RW, default = 0
+//Bit 1      reg_gclk_ctrl       //unsigned, RW, default = 0, reg_gclk_ctrl high bit, low bit is 0
+//Bit 0      reserved
+#define VPP_SLICE1_DOLBY_CTRL                      0x2601
+//Bit 31:11  reserved
+//Bit 10     VPP_SLICE1_clip_ext_mode   //unsigned, RW, default = 0
+//Bit 3      VPP_SLICE1_dolby3_en       //unsigned, RW, default = 0
+//Bit 2      VPP_SLICE1_dpath_sel       //unsigned, RW, default = 0
+//Bit 1:0    reserved
+
+//===========================================================================
+// -----------------------------------------------
+// REG_BASE:  VPP_POST_UNIT2_VCBUS_BASE = 0x2c
+// -----------------------------------------------
+//===========================================================================
+//`include "disp_if_regs.h"
+//
+// Reading file:  ./vpp_post_unit2_reg.h
+//
+//===========================================================================
+// Video postprocessing Registers
+//===========================================================================
+//====================top====================
+#define VPP_SLICE2_GCLK_CTRL                      0x2c00
+//Bit 31:8   reserved
+//Bit 7:6    align_fifo_gclk_ctrl//unsigned, RW, default = 0
+//Bit 5:4    ofifo_gclk_ctrl     //unsigned, RW, default = 0
+//Bit 3:2    top_gclk_ctrl       //unsigned, RW, default = 0
+//Bit 1      reg_gclk_ctrl       //unsigned, RW, default = 0, reg_gclk_ctrl high bit, low bit is 0
+//Bit 0      reserved
+#define VPP_SLICE2_DOLBY_CTRL                     0x2c01
+//Bit 31:11  reserved
+//Bit 10     VPP_SLICE2_clip_ext_mode   //unsigned, RW, default = 0
+//Bit 3      VPP_SLICE2_dolby3_en       //unsigned, RW, default = 0
+//Bit 2      VPP_SLICE2_dpath_sel       //unsigned, RW, default = 0
+//Bit 1:0    reserved
+
+//===========================================================================
+// -----------------------------------------------
+// REG_BASE:  VPP_POST_UNIT3_VCBUS_BASE = 0x3e
+// -----------------------------------------------
+//===========================================================================
+//`include "disp_if_regs.h"
+//
+// Reading file:  ./vpp_post_unit3_reg.h
+//
+//===========================================================================
+// Video postprocessing Registers
+//===========================================================================
+//====================top====================
+#define VPP_SLICE3_GCLK_CTRL                       0x3e00
+//Bit 31:8   reserved
+//Bit 7:6    align_fifo_gclk_ctrl//unsigned, RW, default = 0
+//Bit 5:4    ofifo_gclk_ctrl     //unsigned, RW, default = 0
+//Bit 3:2    top_gclk_ctrl       //unsigned, RW, default = 0
+//Bit 1      reg_gclk_ctrl       //unsigned, RW, default = 0, reg_gclk_ctrl high bit, low bit is 0
+//Bit 0      reserved
+#define VPP_SLICE3_DOLBY_CTRL                      0x3e01
+//Bit 31:11  reserved
+//Bit 10     VPP_SLICE3_clip_ext_mode   //unsigned, RW, default = 0
+//Bit 3      VPP_SLICE3_dolby3_en       //unsigned, RW, default = 0
+//Bit 2      VPP_SLICE3_dpath_sel       //unsigned, RW, default = 0
+//Bit 1:0    reserved
 
 //===========================================================================
 // -----------------------------------------------

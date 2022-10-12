@@ -575,7 +575,7 @@ void calculate_panel_max_pq(enum signal_format_enum src_format,
 	if (use_target_lum_from_cfg &&
 	    !(src_format == FORMAT_HDR10 && force_hdr_tonemapping))
 		return;
-	if (dolby_vision_flags & FLAG_CERTIFICAION)
+	if (dolby_vision_flags & FLAG_CERTIFICATION)
 		return;
 	if (panel_max_lumin)
 		panel_max = panel_max_lumin;

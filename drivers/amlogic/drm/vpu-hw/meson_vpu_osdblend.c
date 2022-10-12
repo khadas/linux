@@ -267,6 +267,7 @@ static void osd_dv_core_size_set_s5(u32 h_size, u32 v_size, int i)
 #endif
 }
 
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 /* -1: invalid osd index
  *  0: osd is disabled
  *  1: osd is enabled
@@ -278,6 +279,7 @@ int osd_dv_get_osd_status(enum OSD_INDEX index)
 	else
 		return -1;
 }
+#endif
 
 /*osd blend0 & blend1 4 din inputs premult flag config as 0 default*/
 void osd_blend01_premult_config(struct meson_vpu_block *vblk,

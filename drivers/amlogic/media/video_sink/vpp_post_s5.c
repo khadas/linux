@@ -85,6 +85,10 @@
 #include <linux/amlogic/media/di/di_interface.h>
 #endif
 
+static int g_post_overlap_size = 32;
+module_param(g_post_overlap_size, uint, 0664);
+MODULE_PARM_DESC(g_post_overlap_size, "\n g_post_overlap_size\n");
+
 static struct vpp_post_input_s g_vpp_input;
 static struct vpp_post_input_s g_vpp_input_pre;
 #define SIZE_ALIG32(frm_hsize)   ((((frm_hsize) + 31) >> 5) << 5)
@@ -959,7 +963,7 @@ int update_vpp_input_info(const struct vinfo_s *info)
 	struct vd_proc_vd2_info_s *vd_proc_vd2_info;
 
 	vpp_input.slice_num = get_vpp_slice_num(info);
-	vpp_input.overlap_hsize = 32;
+	vpp_input.overlap_hsize = g_post_overlap_size;
 	vpp_input.bld_out_hsize = info->width;
 	vpp_input.bld_out_vsize = info->field_height;
 	/* need set vdx and osd input size */
