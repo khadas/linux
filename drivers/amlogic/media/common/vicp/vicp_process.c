@@ -1047,6 +1047,7 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 	int y_length = 0;
 	int c_length = 0;
 	int hz_rpt = 0;
+	int bit_swap = 0, endian = 0;
 	struct vicp_rdmif_general_reg_t general_reg;
 	struct vicp_rdmif_general_reg2_t general_reg2;
 	struct vicp_rdmif_general_reg3_t general_reg3;
@@ -1077,6 +1078,9 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 		pr_info("vicp: reversion: x %d, y %d.\n", rd_mif->rev_x, rd_mif->rev_y);
 		pr_info("vicp: crop_en = %d.\n", rd_mif->buf_crop_en);
 		pr_info("vicp: hsize = %d.\n", rd_mif->buf_hsize);
+		pr_info("vicp: endian = %d.\n", rd_mif->endian);
+		pr_info("vicp: block_mode = %d.\n", rd_mif->block_mode);
+		pr_info("vicp: burst_len = %d.\n", rd_mif->burst_len);
 		pr_info("vicp: #################################.\n");
 	};
 
@@ -1168,11 +1172,19 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 		cntl_bits_mode = 3;
 	}
 
+	if (rd_mif->endian == 1) {
+		endian = 1;
+		bit_swap = 0;
+	} else {
+		endian = 0;
+		bit_swap = 1;
+	}
+
 	memset(&general_reg3, 0x0, sizeof(struct vicp_rdmif_general_reg3_t));
 	general_reg3.bits_mode = cntl_bits_mode;
 	general_reg3.block_len = 3;
 	general_reg3.burst_len = 2;
-	general_reg3.bit_swap = 0;
+	general_reg3.bit_swap = bit_swap;
 	set_rdmif_general_reg3(general_reg3);
 
 	memset(&general_reg, 0x0, sizeof(struct vicp_rdmif_general_reg_t));
@@ -1187,7 +1199,7 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 	general_reg.ddr_burst_size_cb = rd_mif->burst_size_cb;
 	general_reg.ddr_burst_size_y = rd_mif->burst_size_y;
 	general_reg.chroma_rpt_lastl = chro_rpt_lastl_ctrl;
-	general_reg.little_endian = 1;
+	general_reg.little_endian = endian;
 	if (rd_mif->set_separate_en == 0)
 		general_reg.set_separate_en = 0;
 	else
@@ -1540,6 +1552,9 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		vid_cmpr_rmif.luma_y_end0 = vid_cmpr_top->src_win_end_v;
 		vid_cmpr_rmif.set_separate_en = vid_cmpr_top->rdmif_separate_en;
 		vid_cmpr_rmif.fmt_mode = vid_cmpr_top->src_fmt_mode;
+		vid_cmpr_rmif.endian = vid_cmpr_top->src_endian;
+		vid_cmpr_rmif.block_mode = vid_cmpr_top->src_block_mode;
+		vid_cmpr_rmif.burst_len = vid_cmpr_top->src_burst_len;
 
 		if (vid_cmpr_top->src_fmt_mode == 0) {
 			vid_cmpr_rmif.chrm_x_start0 = vid_cmpr_rmif.luma_x_start0;
@@ -1746,6 +1761,7 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 	struct vframe_s *input_vframe = NULL;
 	struct dma_data_config_t *input_dma = NULL;
 	enum vicp_rotation_mode_e rotation;
+	u32 canvas_width = 0;
 
 	if (IS_ERR_OR_NULL(data_config) || IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: NULL param.\n", __func__);
@@ -1784,16 +1800,30 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		vid_cmpr_top->src_win_end_h = vid_cmpr_top->src_hsize - 1;
 		vid_cmpr_top->src_win_bgn_v = 0;
 		vid_cmpr_top->src_win_end_v = vid_cmpr_top->src_vsize - 1;
+		vid_cmpr_top->src_endian = input_vframe->canvas0_config[0].endian;
+		vid_cmpr_top->src_block_mode = input_vframe->canvas0_config[0].block_mode;
+		canvas_width = canvas_get_width(input_vframe->canvas0Addr & 0xff);
 	} else {
 		input_dma = data_config->input_data.data_dma;
 		vicp_print(VICP_INFO, "%s: src_addr = 0x%lx.\n", __func__, input_dma->buf_addr);
 		vid_cmpr_top->src_compress = 0;
-		vid_cmpr_top->src_hsize = input_dma->buf_width;
-		vid_cmpr_top->src_vsize = input_dma->buf_height;
+		vid_cmpr_top->src_hsize = input_dma->data_width;
+		vid_cmpr_top->src_vsize = input_dma->data_height;
 		vid_cmpr_top->src_fmt_mode = input_dma->color_format;
 		vid_cmpr_top->src_compbits = input_dma->color_depth;
 		vid_cmpr_top->rdmif_canvas0_addr0 = input_dma->buf_addr;
+		vid_cmpr_top->src_endian = 0;
+		vid_cmpr_top->src_block_mode = 0;
+		canvas_width = input_dma->buf_stride;
 	}
+
+	if (canvas_width % 32)
+		vid_cmpr_top->src_burst_len = 0;
+	else if (canvas_width % 64)
+		vid_cmpr_top->src_burst_len = 1;
+
+	if (vid_cmpr_top->src_block_mode)
+		vid_cmpr_top->src_burst_len = vid_cmpr_top->src_block_mode;
 
 	vid_cmpr_top->src_pip_src_mode = 0;
 	vid_cmpr_top->rdmif_canvas0_addr1 = input_vframe->canvas0_config[1].phy_addr;

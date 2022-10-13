@@ -72,7 +72,6 @@ struct vicp_rdmif_general_reg2_t {
 	u32 x_rev1;
 	u32 y_rev0;
 	u32 x_rev0;
-	u32 burst_len;
 	u32 color_map;
 };
 

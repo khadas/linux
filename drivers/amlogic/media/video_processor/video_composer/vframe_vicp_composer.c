@@ -73,8 +73,8 @@ int config_vicp_input_data(struct vframe_s *vf, ulong addr, int stride, int widt
 		memset(&dma_data, 0, sizeof(struct dma_data_config_t));
 		dma_data.buf_addr = addr;
 		dma_data.buf_stride = stride;
-		dma_data.buf_width = width;
-		dma_data.buf_height = height;
+		dma_data.data_width = width;
+		dma_data.data_height = height;
 		dma_data.color_format = color_fmt;
 		dma_data.color_depth = color_depth;
 		dma_data.plane_count = 2;

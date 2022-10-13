@@ -66,8 +66,8 @@ struct data_option_t {
 struct dma_data_config_t {
 	u32 buf_addr;
 	u32 buf_stride;
-	u32 buf_width;
-	u32 buf_height;
+	u32 data_width;
+	u32 data_height;
 	u32 plane_count;
 	enum vicp_color_format_e color_format;
 	u32 color_depth;

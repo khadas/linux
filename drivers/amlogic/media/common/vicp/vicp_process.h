@@ -91,6 +91,9 @@ struct vid_cmpr_top_t {
 	u32 src_win_end_v;
 	u32 src_pip_src_mode;
 	struct vframe_s *src_vf;
+	u32 src_endian;
+	u32 src_block_mode;
+	u32 src_burst_len;
 	// hdr
 	u32 hdr_en;//0:close 1:open
 	// afbce
@@ -157,6 +160,9 @@ struct vid_cmpr_mif_t {
 	u32 rev_y;
 	u32 buf_crop_en;
 	u32 buf_hsize;
+	u32 endian;
+	u32 block_mode;
+	u32 burst_len;
 };
 
 struct vid_cmpr_crop_t {
