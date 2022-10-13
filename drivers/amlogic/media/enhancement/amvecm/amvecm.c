@@ -262,7 +262,7 @@ unsigned int vecm_latch_flag2;
 module_param(vecm_latch_flag2, uint, 0664);
 MODULE_PARM_DESC(vecm_latch_flag2, "\n vecm_latch_flag2\n");
 
-unsigned int pq_load_en;/* load pq table enable/disable */
+unsigned int pq_load_en = 1;/* load pq table enable/disable */
 module_param(pq_load_en, uint, 0664);
 MODULE_PARM_DESC(pq_load_en, "\n pq_load_en\n");
 
@@ -403,6 +403,8 @@ static struct vpp_mtx_info_s mtx_info = {
 static struct pre_gamma_table_s pre_gamma;
 struct eye_protect_s eye_protect;
 static int hist_chl;
+
+static unsigned int cm_slice_idx;
 
 static void str_sapr_to_d(char *s, int *d, int n)
 {
@@ -4320,6 +4322,31 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 	long val;
 	char delim1[3] = " ";
 	char delim2[2] = "\n";
+	struct cm_port_s cm_port;
+
+	if (chip_type_id == chip_s5) {
+		cm_port = get_cm_port();
+		switch (cm_slice_idx) {
+		case SLICE0:
+			addr_port = cm_port.cm_addr_port[0];
+			data_port = cm_port.cm_data_port[0];
+			break;
+		case SLICE1:
+			addr_port = cm_port.cm_addr_port[1];
+			data_port = cm_port.cm_data_port[1];
+			break;
+		case SLICE2:
+			addr_port = cm_port.cm_addr_port[2];
+			data_port = cm_port.cm_data_port[2];
+			break;
+		case SLICE3:
+			addr_port = cm_port.cm_addr_port[3];
+			data_port = cm_port.cm_data_port[3];
+			break;
+		default:
+			break;
+		}
+	}
 
 	buf_orig = kstrdup(buffer, GFP_KERNEL);
 	if (!buf_orig)
@@ -4426,6 +4453,29 @@ static ssize_t amvecm_cm2_store(struct class *cls,
 	}
 	kfree(buf_orig);
 	return count;
+}
+
+/*cm2 v2 cmd used for s5 4slice*/
+static ssize_t amvecm_cm2_idx_show(struct class *cla,
+			       struct class_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", cm_slice_idx);
+}
+
+static ssize_t amvecm_cm2_idx_store(struct class *cls,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	size_t r;
+	int val;
+
+	r = sscanf(buf, "%d\n", &val);
+	if (r != 1 || val > 3)
+		return -EINVAL;
+
+	cm_slice_idx = val;
+	return count;
+
 }
 
 static ssize_t amvecm_cm_reg_show(struct class *cla,
@@ -9961,6 +10011,9 @@ static struct class_attribute amvecm_class_attrs[] = {
 	__ATTR(cm2, 0644,
 	       amvecm_cm2_show,
 		amvecm_cm2_store),
+	__ATTR(cm2_idx, 0644,
+	       amvecm_cm2_idx_show,
+		amvecm_cm2_idx_store),
 	__ATTR(cm_reg, 0644,
 	       amvecm_cm_reg_show,
 		amvecm_cm_reg_store),
