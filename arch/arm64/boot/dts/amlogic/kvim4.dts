@@ -1385,7 +1385,7 @@
 		reg = <0x38>;
 		interrupt_pin = <&gpio GPIOM_8 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio GPIOM_9 GPIO_ACTIVE_HIGH>;
-		status = "disabled";
+		status = "okay";
 	};
 };
 
