@@ -9647,6 +9647,8 @@ u32 get_cur_enc_num(void)
 	u32 venc_type = get_venc_type();
 	u32 bit_offest = 0;
 
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		return 0;
 	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		u32 venc_mux = 3;
 
