@@ -802,7 +802,47 @@
 					<860000 100>;
 			status = "okay";
 		}; /* end of vddcpu0*/
+	sd_emmc_c: emmc@ffe07000 {
+		compatible = "amlogic,meson-axg-mmc";
+		reg = <0x0 0xffe07000 0x0 0x2000>,
+			<0x0 0xff63c000 0x0 0x300>,
+			<0x0 0xff634400 0x0 0x400>;
+		interrupts = <GIC_SPI 218 IRQ_TYPE_EDGE_RISING>;
+		status = "okay";
+		clocks = <&clkc CLKID_CLK81_SD_EMMC_C>,
+				<&clkc CLKID_SD_EMMC_C_CLK0_SEL>,
+				<&clkc CLKID_SD_EMMC_C_CLK0>,
+				<&xtal>,
+				<&clkc CLKID_FCLK_DIV2>,
+				<&clkc CLKID_FCLK_DIV5>;
+		clock-names = "core", "mux0", "mux1",  "clkin0", "clkin1", "clkin2";
+		card_type = <1>;
+	//	src_clk_rate = <1152000000>;
+		mmc_debug_flag;
+		ignore_desc_busy;
+		tx_delay = <8>;
+		nwr_cnt = <12>;
+	};
 
+	sd_emmc_b: sdio@ffe05000 {
+		compatible = "amlogic,meson-axg-mmc";
+		reg = <0x0 0xffe05000 0x0 0x2000>,
+			<0x0 0xff63c000 0x0 0x300>,
+			<0x0 0xff634400 0x0 0x400>;
+		interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>;
+		status = "okay";
+		clocks = <&clkc CLKID_CLK81_SD_EMMC_B>,
+			<&clkc CLKID_SD_EMMC_B_CLK0_SEL>,
+			<&clkc CLKID_SD_EMMC_B_CLK0>,
+			<&xtal>,
+			<&clkc CLKID_FCLK_DIV2>,
+			<&clkc CLKID_FCLK_DIV5>;
+		clock-names = "core", "mux0", "mux1",  "clkin0", "clkin1", "clkin2";
+		card_type = <3>;
+		cap-sdio-irq;
+		keep-power-in-suspend;
+		mmc_debug_flag;
+		};
 	}; /* end of soc*/
 
     pwm_ab: pwm@ffd1b000 {
