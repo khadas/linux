@@ -400,11 +400,11 @@ static void hdmi_hwp_init(struct hdmitx_dev *hdev, u8 reset)
 		// Program core_pin_mux to enable HDMI pins
 		// --------------------------------------------------------
 		// [23:20] GPIOW_13_SEL=1 for hdmitx_sda
-		hdmitx21_set_reg_bits(PADCTRL_PIN_MUX_REGN, 1, 20, 4);
+		hd21_set_reg_bits(PADCTRL_PIN_MUX_REGN, 1, 20, 4);
 		// [27:24] GPIOW_14_SEL=1 for hdmitx_scl
-		hdmitx21_set_reg_bits(PADCTRL_PIN_MUX_REGN, 1, 24, 4);
+		hd21_set_reg_bits(PADCTRL_PIN_MUX_REGN, 1, 24, 4);
 		// [31:28] GPIOW_15_SEL=1 for hdmitx_hpd
-		hdmitx21_set_reg_bits(PADCTRL_PIN_MUX_REGN, 1, 28, 4);
+		hd21_set_reg_bits(PADCTRL_PIN_MUX_REGN, 1, 28, 4);
 	}
 	hdmitx21_set_default_clk();    // set MPEG, audio and default video
 	// [8]      hdcp_topology_err
