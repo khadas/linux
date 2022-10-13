@@ -2007,7 +2007,7 @@
 		       0 0xfe034000 0 0x200
 		       0 0xfe032000 0 0x200
 		       0 0xfe030000 0 0x200
-		       0 0xfe0368a0 0 0x4>;
+		       0 0xfe0368a4 0 0x4>;
 		interrupts = <0 332 IRQ_TYPE_EDGE_RISING
 			      0 336 IRQ_TYPE_EDGE_RISING
 			      0 340 IRQ_TYPE_EDGE_RISING
