@@ -25,8 +25,6 @@ struct evl_thread;
 #define EVL_MUTEX_CEILING	BIT(3)
 
 struct evl_mutex {
-	hard_spinlock_t lock;
-	struct lock_class_key lock_key;	/* lockdep disambiguation */
 	int wprio;
 	int flags;
 	struct evl_thread *owner;
@@ -41,21 +39,14 @@ struct evl_mutex {
 void __evl_init_mutex(struct evl_mutex *mutex,
 		struct evl_clock *clock,
 		atomic_t *fastlock,
-		u32 *ceiling_ref);
+		u32 *ceiling_ref,
+		const char *name);
 
 #define evl_init_mutex_pi(__mutex, __clock, __fastlock)			\
-	do {								\
-		__evl_init_mutex(__mutex, __clock, __fastlock, NULL);	\
-		lockdep_set_class_and_name(&(__mutex)->lock,		\
-				&(__mutex)->lock_key, #__mutex); 	\
-	} while (0)
+	__evl_init_mutex(__mutex, __clock, __fastlock, NULL, #__mutex)
 
 #define evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling)	\
-	do {								\
-		__evl_init_mutex(__mutex, __clock, __fastlock, __ceiling); \
-		lockdep_set_class_and_name(&(__mutex)->lock,		\
-				&(__mutex)->lock_key, #__mutex); 	\
-	} while (0)
+	__evl_init_mutex(__mutex, __clock, __fastlock, __ceiling, #__mutex)
 
 void evl_destroy_mutex(struct evl_mutex *mutex);
 
@@ -102,12 +93,12 @@ struct evl_kmutex {
 			.wprio = -1,					\
 			.ceiling_ref = NULL,				\
 			.clock = &evl_mono_clock,			\
-			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock), \
 			.wchan = {					\
+				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
 				.reorder_wait = evl_reorder_mutex_wait,	\
 				.follow_depend = evl_follow_mutex_depend, \
 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
-				.name = ##__name,			\
+				.name = #__name,			\
 			},						\
 		},							\
 		.fastlock = ATOMIC_INIT(0),				\
