@@ -21,11 +21,12 @@ struct evl_thread;
 struct evl_wait_channel {
 	hard_spinlock_t lock;
 	struct lock_class_key lock_key;	/* lockdep disambiguation */
+	s64 pi_serial;
 	struct evl_thread *owner;
 	int (*reorder_wait)(struct evl_thread *waiter,
 			struct evl_thread *originator);
-	struct evl_thread *(*follow_depend)(struct evl_thread *prev_owner,
-					    struct evl_thread *originator);
+	void (*requeue_wait)(struct evl_wait_channel *wchan,
+			     struct evl_thread *waiter);
 	struct list_head wait_list;
 	const char *name;
 };
@@ -41,9 +42,10 @@ struct evl_wait_queue {
 		.clock = &evl_mono_clock,				\
 		.wchan = {						\
 			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
+			.pi_serial = 0,					\
 			.owner = NULL,					\
 			.reorder_wait = evl_reorder_wait,		\
-			.follow_depend = NULL,				\
+			.requeue_wait = evl_requeue_wait,		\
 			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \
 			.name = #__name,				\
 		},							\
@@ -133,5 +135,8 @@ struct evl_thread *evl_wake_up_head(struct evl_wait_queue *wq)
 
 int evl_reorder_wait(struct evl_thread *waiter,
 		struct evl_thread *originator);
+
+void evl_requeue_wait(struct evl_wait_channel *wchan,
+		struct evl_thread *waiter);
 
 #endif /* !_EVL_WAIT_H_ */

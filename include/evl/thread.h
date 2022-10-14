@@ -406,4 +406,13 @@ evl_current_kthread(void)
 		container_of(t, struct evl_kthread, thread);
 }
 
+struct evl_wait_channel *
+evl_get_thread_wchan(struct evl_thread *thread);
+
+static inline void evl_put_thread_wchan(struct evl_wait_channel *wchan)
+{
+	assert_hard_lock(&wchan->lock);
+	raw_spin_unlock(&wchan->lock);
+}
+
 #endif /* !_EVL_THREAD_H */

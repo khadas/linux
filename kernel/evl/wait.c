@@ -20,9 +20,10 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 
 	wq->flags = wq_flags;
 	wq->clock = clock;
+	wq->wchan.pi_serial = 0;
 	wq->wchan.owner = NULL;
 	wq->wchan.reorder_wait = evl_reorder_wait;
-	wq->wchan.follow_depend = NULL;
+	wq->wchan.requeue_wait = evl_requeue_wait;
 	wq->wchan.name = name;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);
 	raw_spin_lock_init(&wq->wchan.lock);
@@ -165,6 +166,21 @@ int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(evl_reorder_wait);
+
+/* wchan->lock + waiter->lock held, irqs off. */
+void evl_requeue_wait(struct evl_wait_channel *wchan, struct evl_thread *waiter)
+{
+	struct evl_wait_queue *wq = wchan_to_wait_queue(wchan);
+
+	assert_hard_lock(&wchan->lock);
+	assert_hard_lock(&waiter->lock);
+
+	if (wq->flags & EVL_WAIT_PRIO) {
+		list_del(&waiter->wait_next);
+		list_add_priff(waiter, &wq->wchan.wait_list, wprio, wait_next);
+	}
+}
+EXPORT_SYMBOL_GPL(evl_requeue_wait);
 
 int evl_wait_schedule(struct evl_wait_queue *wq)
 {
