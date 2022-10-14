@@ -1051,6 +1051,14 @@ int evl_set_thread_schedparam(struct evl_thread *thread,
 }
 EXPORT_SYMBOL_GPL(evl_set_thread_schedparam);
 
+/*
+ * Update the priority and/or scheduling policy of @thread. This
+ * routine is NOT involved in PI/PP management for mutexes in any way,
+ * specific calls exist for this instead, see
+ * evl_track_thread_policy(), evl_protect_thread_priority().
+ *
+ * On entry: thread->lock + thread->rq->lock held, irqs off.
+ */
 int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 				     struct evl_sched_class *sched_class,
 				     const union evl_sched_param *sched_param)
@@ -1074,7 +1082,7 @@ int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 	 * round-robin effects).
 	 */
 	if (old_wprio != new_wprio && (thread->state & T_PEND))
-		thread->wchan->reorder_wait(thread, thread);
+		thread->wchan->reorder_wait(thread, thread); /* FIXME: evl_adjust_wait_priority(thread), but we hold rq, BAD. */
 
 	thread->info |= T_SCHEDP;
 	/* Ask the target thread to call back if in-band. */
@@ -1428,6 +1436,48 @@ int evl_killall(int mask)
 	return ret < 0 ? -EINTR : 0;
 }
 EXPORT_SYMBOL_GPL(evl_killall);
+
+/* thread->lock held (temporarily dropped), irqs off. */
+struct evl_wait_channel *evl_get_thread_wchan(struct evl_thread *thread)
+{
+	struct evl_wait_channel *wchan = NULL;
+
+	assert_hard_lock(&thread->lock);
+
+	/*
+	 * Chicken-and-egg: the safe locking order imposed on us by PI
+	 * management is,
+	 *
+	 * lock(wchan->lock)
+	 *      lock(thread->lock)
+	 *
+	 * But to safely retrieve the wait channel a thread pends on,
+	 * we need to hold thread->lock.
+	 *
+	 * Escape this ABBA issue between these locks by resorting to
+	 * a trylock pattern until it eventually succeeds.
+	 */
+	for (;;) {
+		wchan = thread->wchan;
+		if (!wchan || raw_spin_trylock(&wchan->lock))
+			break;
+
+		/*
+		 * We need to drop thread->lock temporarily in order
+		 * to allow progress for a concurrent thread
+		 * attempting the opposite locking sequence. Hold a
+		 * reference to prevent @thread from going stale in
+		 * the meantime.
+		 */
+		evl_get_element(&thread->element);
+		raw_spin_unlock(&thread->lock);
+		cpu_relax();
+		raw_spin_lock(&thread->lock);
+		evl_put_element(&thread->element);
+	}
+
+	return wchan;
+}
 
 notrace pid_t evl_get_inband_pid(struct evl_thread *thread)
 {

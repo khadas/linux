@@ -598,24 +598,29 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 	 * thread, forcing it to the FIFO class. Like
 	 * evl_track_thread_policy(), this routine is allowed to lower
 	 * the weighted priority with no restriction, even if a boost
-	 * is undergoing.
+	 * is undergoing. However, we prevent spurious round-robin
+	 * effects in the runqueue by ignoring requests to re-apply
+	 * the same priority.
 	 *
 	 * This routine only deals with active boosts, resetting the
 	 * base priority when leaving a PP boost is obtained by a call
 	 * to evl_track_thread_policy().
 	 */
-	if (thread->state & T_READY)
-		evl_dequeue_thread(thread);
+	if (thread->sched_class != &evl_sched_fifo ||
+	    evl_calc_weighted_prio(&evl_sched_fifo, prio) != thread->wprio) {
+		if (thread->state & T_READY)
+			evl_dequeue_thread(thread);
 
-	thread->sched_class = &evl_sched_fifo;
-	evl_ceil_priority(thread, prio);
+		thread->sched_class = &evl_sched_fifo;
+		evl_ceil_priority(thread, prio);
 
-	if (thread->state & T_READY)
-		evl_enqueue_thread(thread);
+		if (thread->state & T_READY)
+			evl_enqueue_thread(thread);
 
-	trace_evl_thread_set_current_prio(thread);
+		trace_evl_thread_set_current_prio(thread);
 
-	evl_set_resched(thread->rq);
+		evl_set_resched(thread->rq);
+	}
 
 	raw_spin_unlock(&thread->rq->lock);
 }

@@ -41,11 +41,17 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 		u32 *ceiling_ref,
 		const char *name);
 
+#define __evl_init_mutex_pi(__mutex, __clock, __fastlock, __name)	\
+	__evl_init_mutex(__mutex, __clock, __fastlock, NULL, __name)
+
 #define evl_init_mutex_pi(__mutex, __clock, __fastlock)			\
-	__evl_init_mutex(__mutex, __clock, __fastlock, NULL, #__mutex)
+	__evl_init_mutex_pi(__mutex, __clock, __fastlock, #__mutex)
+
+#define __evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling, __name) \
+	__evl_init_mutex(__mutex, __clock, __fastlock, __ceiling, __name)
 
 #define evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling)	\
-	__evl_init_mutex(__mutex, __clock, __fastlock, __ceiling, #__mutex)
+	__evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling, #__mutex)
 
 void evl_destroy_mutex(struct evl_mutex *mutex);
 
@@ -73,9 +79,8 @@ void evl_detect_boost_drop(void);
 int evl_reorder_mutex_wait(struct evl_thread *waiter,
 			struct evl_thread *originator);
 
-struct evl_thread *
-evl_follow_mutex_depend(struct evl_thread *prev_owner,
-			struct evl_thread *originator);
+void evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
+			struct evl_thread *waiter);
 
 void evl_drop_tracking_mutexes(struct evl_thread *curr);
 
@@ -93,9 +98,10 @@ struct evl_kmutex {
 			.clock = &evl_mono_clock,			\
 			.wchan = {					\
 				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
+				.pi_serial = 0,				\
 				.owner = NULL,				\
 				.reorder_wait = evl_reorder_mutex_wait,	\
-				.follow_depend = evl_follow_mutex_depend, \
+				.requeue_wait = evl_requeue_mutex_wait,	\
 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
 				.name = #__name,			\
 			},						\
@@ -136,5 +142,7 @@ void evl_unlock_kmutex(struct evl_kmutex *kmutex)
 {
 	return evl_unlock_mutex(&kmutex->mutex);
 }
+
+void evl_adjust_wait_priority(struct evl_thread *thread);
 
 #endif /* !_EVL_MUTEX_H */

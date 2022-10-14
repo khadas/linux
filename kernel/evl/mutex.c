@@ -16,8 +16,13 @@
 #include <uapi/evl/signal.h>
 #include <trace/events/evl.h>
 
-#define for_each_evl_mutex_waiter(__pos, __mutex) \
+#define for_each_evl_mutex_waiter(__pos, __mutex)	\
 	list_for_each_entry(__pos, &(__mutex)->wchan.wait_list, wait_next)
+
+enum evl_boost_modes {
+	evl_pi_adjust,		/* Adjust the PI chain. */
+	evl_pi_check,		/* Check PI chain only (no change). */
+};
 
 static inline
 void double_thread_lock(struct evl_thread *t1, struct evl_thread *t2)
@@ -90,6 +95,218 @@ static void raise_boost_flag(struct evl_thread *owner)
 	raw_spin_unlock(&owner->rq->lock);
 }
 
+/*
+ * Walking the PI chain deals with the following items:
+ *
+ * waiter := the thread which waits on wchan
+ * wchan := the wait channel being processed
+ * owner := the current owner of wchan
+ *
+ * In order to go fine-grained and escape ABBA situations, we hold
+ * three locks at most while walking the PI chain, keeping a
+ * consistent locking sequence among them as follows:
+ *
+ * lock(wchan)
+ *      lock(waiter, owner)
+ *
+ * Rules:
+ *
+ * 1. holding wchan->lock guarantees that wchan->owner is stable.
+ *
+ * 2. holding thread->lock guarantees that thread->wchan is stable.
+ *
+ * 3. there is no rule #3.
+ *
+ * On entry:
+ * orig_wchan->lock held + orig_waiter->lock held, irqs off.
+ */
+static int walk_pi_chain(struct evl_wait_channel *orig_wchan,
+			struct evl_thread *orig_waiter,
+			enum evl_boost_modes mode)
+{
+	static atomic64_t pi_serial;
+	struct evl_thread *waiter = orig_waiter, *curr = evl_current(), *owner;
+	struct evl_wait_channel *wchan = orig_wchan, *next_wchan;
+	s64 serial = atomic64_inc_return(&pi_serial);
+	bool do_reorder = false;
+	int ret = 0;
+
+	assert_hard_lock(&orig_wchan->lock);
+	assert_hard_lock(&orig_waiter->lock);
+
+	/*
+	 * The loop is always exited with two, and only two locks
+	 * held, namely: wchan->lock and waiter->lock. Also, *wchan
+	 * advances in lock-step with *waiter.
+	 *
+	 * Since we drop locks inside the PI walk, we might have
+	 * concurrent walks on the same chain from different CPUs,
+	 * contradicting each other when it comes to the priority to
+	 * set for a thread. We solve this issue as follows:
+	 *
+	 * - a unique serial number is drawn at each invocation of
+	 * this routine (pi_serial). A wait channel maintains a cached
+	 * copy of this serial number, which is updated under lock.
+	 *
+	 * - before updating the priority of the owner of a wait
+	 * channel, the serial number drawn on entry (pi_serial) is
+	 * compared to the cached value: if this value is lower than
+	 * pi_serial, the change to wchan->owner can proceed, and the
+	 * cached copy is updated into the wait channel. Otherwise,
+	 * this means that a concurrent walk started later must
+	 * override the effect of the current one, in which case the
+	 * current PI walk is aborted.
+	 *
+	 * IOW, we ensure that the latest PI walk always overrides the
+	 * effect of walks started earlier. The initial serialization
+	 * is granted by orig_wchan->lock, which is held on entry to
+	 * this routine.
+	 */
+	for (;;) {
+		owner = wchan->owner;
+		if (!owner) /* End of PI chain, we are done. */
+			break;
+
+		if (owner == orig_waiter) {
+			ret = -EDEADLK;
+			break;
+		}
+
+		/*
+		 * Lock both the waiter and owner by increasing
+		 * address order to escape the ABBA issue.  To this
+		 * end, we have to drop waiter->lock temporarily
+		 * first, so that we can re-lock it at the right place
+		 * in the sequence. In the meantime, the waiter is
+		 * prevented to go stale by holding a reference on it.
+		 */
+		evl_get_element(&waiter->element);
+		raw_spin_unlock(&waiter->lock);
+
+		double_thread_lock(waiter, owner);
+		evl_put_element(&waiter->element);
+
+		/*
+		 * Make sure the waiter did not stop waiting on wchan
+		 * while unlocked (we have been holding wchan->lock
+		 * across the unlocked section, so we know that wchan
+		 * did not go stale). If the waiter is current, it is
+		 * certainly about to block on wchan, so this check
+		 * does not apply (besides, waiter->wchan does not
+		 * point at wchan yet).
+		 */
+		if (waiter != curr && waiter->wchan != wchan)
+			break;
+
+		/*
+		 * The current wait channel may need to reorder its
+		 * internal wait queue due to a priority change for
+		 * the waiter during the previous iteration.
+		 *
+		 * This also means that for a short while, a waiter
+		 * may benefit from a priority boost not yet accounted
+		 * for in the wait queue of the channel its pends on,
+		 * which is ok since there cannot be any rescheduling
+		 * on the current CPU between both events.
+		 */
+		if (do_reorder) {
+			wchan->requeue_wait(wchan, waiter);
+			do_reorder = false;
+		}
+
+		if (mode == evl_pi_adjust) {
+			/*
+			 * If priorities already match, there is no
+			 * more change to propagate downstream. Stop
+			 * the walk now.
+			 */
+			if (waiter->wprio == owner->wprio) {
+				raw_spin_unlock(&owner->lock);
+				break;
+			}
+			/* owner.pri <- waiter.pri */
+			evl_track_thread_policy(owner, waiter);
+			do_reorder = true;
+		}
+
+		next_wchan = owner->wchan;
+		/*
+		 * FIXME: next_wchan might become unsafe as a result of
+		 * unlocking the owner.
+		 */
+		evl_get_element(&owner->element);
+		raw_spin_unlock(&owner->lock);
+		if (!next_wchan) {
+			evl_put_element(&owner->element);
+			break;
+		}
+
+		raw_spin_unlock(&waiter->lock);
+		raw_spin_unlock(&wchan->lock);
+
+		waiter = owner;
+		wchan = next_wchan;
+		raw_spin_lock(&wchan->lock);
+		raw_spin_lock(&waiter->lock);
+		evl_put_element(&waiter->element);
+
+		/*
+		 * Detect and drop overriden PI adjustment walks. This
+		 * might have happened since we drop wchan->lock as we
+		 * progress down the PI chain.
+		 */
+		if (mode == evl_pi_adjust && serial - wchan->pi_serial < 0)
+			break;
+
+		wchan->pi_serial = serial;
+	}
+
+	if (waiter != orig_waiter) {
+		raw_spin_unlock(&waiter->lock);
+		raw_spin_unlock(&wchan->lock);
+		raw_spin_lock(&orig_wchan->lock);
+		raw_spin_lock(&orig_waiter->lock);
+	}
+
+	return ret;
+}
+
+/*
+ * Requeue a thread which changed priority in the wait channel it
+ * pends on, then propagate the change down the PI chain.
+ *
+ * On entry: irqs off.
+ */
+void evl_adjust_wait_priority(struct evl_thread *thread)
+{
+	struct evl_wait_channel *wchan;
+	struct evl_thread *owner;
+
+	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled());
+
+	raw_spin_lock(&thread->lock);
+	wchan = evl_get_thread_wchan(thread);
+	raw_spin_unlock(&thread->lock);
+
+	if (!wchan)
+		return;
+
+	owner = wchan->owner;
+	/* Careful: waitqueues have no owner. */
+	if (owner) {
+		double_thread_lock(thread, owner);
+		wchan->requeue_wait(wchan, thread);
+		raw_spin_unlock(&owner->lock);
+		walk_pi_chain(wchan, thread, evl_pi_adjust);
+	} else {
+		raw_spin_lock(&thread->lock);
+		wchan->requeue_wait(wchan, thread);
+	}
+
+	raw_spin_unlock(&thread->lock);
+	evl_put_thread_wchan(wchan);
+}
+
 /* owner->lock + contender->lock held, irqs off */
 static int inherit_thread_priority(struct evl_thread *owner,
 				struct evl_thread *contender,
@@ -123,9 +340,9 @@ static int inherit_thread_priority(struct evl_thread *owner,
 	} while (0)
 
 /* origin->wchan.owner->lock + contender->lock + origin->wchan.lock held, irqs off */
-static int adjust_boost(struct evl_mutex *origin,
-			struct evl_thread *contender,
-			struct evl_thread *originator)
+static int old_adjust_boost(struct evl_mutex *origin,
+			    struct evl_thread *contender,
+			    struct evl_thread *originator)
 {
 	struct evl_thread *owner = origin->wchan.owner;
 	struct evl_wait_channel *wchan;
@@ -239,7 +456,9 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
 	 * rescheduling opportunity upon return.
 	 *
 	 * However we do want the mutex to be linked to the booster
-	 * list, and T_BOOST must appear in the current thread status.
+	 * list as long as its owner is boosted as a result of holding
+	 * it, and T_BOOST must appear in the current thread status as
+	 * well.
 	 *
 	 * This way, setparam() won't be allowed to decrease the
 	 * current weighted priority below the ceiling value, until we
@@ -252,7 +471,7 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
 	mutex->flags |= EVL_MUTEX_CEILING;
 
 	if (wprio > owner->wprio)
-		adjust_boost(mutex, NULL, originator);
+		old_adjust_boost(mutex, NULL, originator);
 
 	raw_spin_unlock(&owner->lock);
 }
@@ -260,15 +479,15 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
 /* mutex->wchan.lock held, irqs off */
 static void untrack_owner(struct evl_mutex *mutex)
 {
-	struct evl_thread *prev = mutex->wchan.owner;
+	struct evl_thread *owner = mutex->wchan.owner;
 
 	assert_hard_lock(&mutex->wchan.lock);
 
-	if (prev) {
-		raw_spin_lock(&prev->tracking_lock);
+	if (owner) {
+		raw_spin_lock(&owner->tracking_lock);
 		list_del(&mutex->next_tracker);
-		raw_spin_unlock(&prev->tracking_lock);
-		evl_put_element(&prev->element);
+		raw_spin_unlock(&owner->tracking_lock);
+		evl_put_element(&owner->element);
 		mutex->wchan.owner = NULL;
 	}
 }
@@ -332,7 +551,9 @@ static void set_current_owner_locked(struct evl_mutex *mutex,
 	/*
 	 * Update the owner information, and apply priority protection
 	 * for PP mutexes. We may only get there if owner is current,
-	 * or blocked.
+	 * or blocked. FIXME: might not be blocked if called from
+	 * __evl_unlock_mutex -> transfer_ownership, see comment on
+	 * wakeup race.
 	 */
 	ref_and_track_owner(mutex, owner);
 	if (mutex->flags & EVL_MUTEX_PP)
@@ -366,36 +587,160 @@ fundle_t get_owner_handle(fundle_t ownerh, struct evl_mutex *mutex)
 	return ownerh;
 }
 
-/* mutex->wchan.lock + mutex->wchan.owner->lock held, irqs off */
-static void clear_boost_locked(struct evl_mutex *mutex, int flag)
+/*
+ * Adjust the priority of a thread owning some mutex(es) to the
+ * required minimum for avoiding priority inversion.
+ *
+ * On entry: irqs off.
+ */
+static void adjust_owner_boost(struct evl_thread *owner)
+{
+	struct evl_thread *top_waiter;
+	struct evl_mutex *mutex;
+	int pprio;
+
+	raw_spin_lock(&owner->lock);
+
+	EVL_WARN_ON_ONCE(CORE, list_empty(&owner->boosters));
+
+	/*
+	 * Fetch the mutex currently queuing the top waiter, among all
+	 * mutexes being claimed/pp-active held by @owner.
+	 */
+	mutex = list_first_entry(&owner->boosters,
+				struct evl_mutex, next_booster);
+
+	if (mutex->flags & EVL_MUTEX_PP) {
+		/* Get the (SCHED_FIFO) priority (not the weighted one). */
+		pprio = get_ceiling_value(mutex);
+		/*
+		 * Set @owner priority to the ceiling value, this
+		 * implicitly switches it to SCHED_FIFO if need be.
+		 */
+		evl_protect_thread_priority(owner, pprio);
+		raw_spin_unlock(&owner->lock);
+	} else {
+		raw_spin_unlock(&owner->lock);
+		/*
+		 * Again, correct locking order is:
+		 * wchan -> (owner, waiter) [by address]
+		 */
+		raw_spin_lock(&mutex->wchan.lock);
+		if (EVL_WARN_ON(CORE, list_empty(&mutex->wchan.wait_list))) {
+			raw_spin_unlock(&mutex->wchan.lock);
+			return;
+		}
+		top_waiter = list_first_entry(&mutex->wchan.wait_list,
+					struct evl_thread, wait_next);
+		double_thread_lock(owner, top_waiter);
+		/* Prevent spurious round-robin effect in runqueue. */
+		if (top_waiter->wprio != owner->wprio)
+			evl_track_thread_policy(owner, top_waiter);
+		raw_spin_unlock(&top_waiter->lock);
+		raw_spin_unlock(&owner->lock);
+		raw_spin_unlock(&mutex->wchan.lock);
+	}
+}
+
+/* mutex->wchan.lock held (temporarily dropped), irqs off */
+static void drop_booster(struct evl_mutex *mutex)
 {
 	struct evl_thread *owner;
 
 	assert_hard_lock(&mutex->wchan.lock);
 	owner = mutex->wchan.owner;
-	assert_hard_lock(&owner->lock);
 
-	mutex->flags &= ~flag;
-
+	/*
+	 * Unlink the mutex from the list of boosters which cause a
+	 * priority boost for @owner. If this list becomes empty as a
+	 * result, then we know for sure that @owner does not hold any
+	 * claimed PI or PP mutex anymore, therefore it should be
+	 * deboosted.
+	 *
+	 * Caution: EVL_MUTEX_CLAIMED/EVL_MUTEX_CEILING may have been
+	 * cleared earlier by the caller.
+	 */
+	evl_get_element(&owner->element);
+	raw_spin_lock(&owner->lock);
 	list_del(&mutex->next_booster);	/* owner->boosters */
 	if (list_empty(&owner->boosters)) {
 		raw_spin_lock(&owner->rq->lock);
 		owner->state &= ~T_BOOST;
 		raw_spin_unlock(&owner->rq->lock);
-		inherit_thread_priority(owner, owner, owner);
+		evl_track_thread_policy(owner, owner); /* Reset to cprio. */
+		raw_spin_unlock(&owner->lock);
+		raw_spin_unlock(&mutex->wchan.lock);
 	} else {
-		adjust_boost(mutex, NULL, owner);
+		/*
+		 * The owner still holds PI/PP mutex(es) which may
+		 * cause a priority boost: go adjust its priority to
+		 * the new required minimum after dropping @mutex.
+		 *
+		 * Careful:
+		 *
+		 * - adjust_owner_boost() may attempt to lock the next
+		 * mutex in line for boosting the owner; fortunately
+		 * all callers allow us to release mutex->lock
+		 * temporarily to avoid ABBA, since the mutex being
+		 * dropped cannot go stale under us.
+		 *
+		 * - we may drop both wchan->owner->lock and
+		 * wchan->lock temporarily at the same time, without
+		 * @owner going stale, because we maintain a reference
+		 * on it (evl_get_element()).
+		 */
+		raw_spin_unlock(&owner->lock);
+		raw_spin_unlock(&mutex->wchan.lock);
+		adjust_owner_boost(owner);
 	}
-}
 
-/* mutex->wchan.lock held, irqs off */
-static void clear_boost(struct evl_mutex *mutex, int flag)
-{
-	assert_hard_lock(&mutex->wchan.lock);
-
-	raw_spin_lock(&mutex->wchan.owner->lock);
-	clear_boost_locked(mutex, flag);
-	raw_spin_unlock(&mutex->wchan.owner->lock);
+	/*
+	 * Since we dropped both owner->lock and wchan->lock, the
+	 * owner might have been removed from a wait channel
+	 * (thread->wchan) in the meantime, which would be detected
+	 * during the wait priority adjustment.
+	 *
+	 * Because we cannot hold owner->lock across both the thread
+	 * priority adjustment _and_ its wait priority adjustment
+	 * (i.e. requeuing and PI chain walk), the following might
+	 * happen:
+	 *
+	 * CPU0(thread A)                           CPU1(thread B)
+	 * --------------                           --------------
+	 *
+	 * owner->wchan = &foo;
+	 *
+	 * drop_booster(mutex)
+	 *    adjust_owner_boost(owner)[XX]
+	 *                                          acquire(foo)
+	 *    evl_adjust_wait_priority(owner)
+	 *
+	 *
+	 * This is still correct, despite the owner was not requeued
+	 * in its wait channel on CPU0 before some thread on CPU1
+	 * managed to grab 'foo', because drop_booster() can never
+	 * result in the owner being given a priority upgrade. At
+	 * worst, drop_booster() would drop the mutex heading the
+	 * owner's booster list, leading to a priority downgrade,
+	 * otherwise the owner priority would not change.  IOW, CPU1
+	 * could never steal a resource away unduly from the owner as
+	 * a result of a delayed requeuing in the 'foo' wait channel,
+	 * because either thread B now has higher priority than thread
+	 * A in which case it should grab 'foo' first, or it still
+	 * does not and 'foo' would be transferred to A anyway.
+	 *
+	 * Conversely, if ownership of 'foo' is transferred to thread
+	 * A, it would be removed from the wait channel and boosted
+	 * accordingly to the PI requirement as usual.
+	 *
+	 * [XX] evl_track_thread_policy() would reset the priority to
+	 * thread->cprio, which can only be lower than the effective
+	 * priority inherited during PI, so the reasoning about
+	 * adjust_owner_boost() applies in this case too.
+	 */
+	evl_adjust_wait_priority(owner);
+	evl_put_element(&owner->element);
+	raw_spin_lock(&mutex->wchan.lock);
 }
 
 /*
@@ -472,13 +817,14 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 
 	mutex->fastlock = fastlock;
 	atomic_set(fastlock, EVL_NO_HANDLE);
-	mutex->flags = type & ~EVL_MUTEX_CLAIMED;
+	mutex->flags = type & ~(EVL_MUTEX_CLAIMED|EVL_MUTEX_CEILING);
 	mutex->wprio = -1;
 	mutex->ceiling_ref = ceiling_ref;
 	mutex->clock = clock;
+	mutex->wchan.pi_serial = 0;
 	mutex->wchan.owner = NULL;
 	mutex->wchan.reorder_wait = evl_reorder_mutex_wait;
-	mutex->wchan.follow_depend = evl_follow_mutex_depend;
+	mutex->wchan.requeue_wait = evl_requeue_mutex_wait;
 	mutex->wchan.name = name;
 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
 	raw_spin_lock_init(&mutex->wchan.lock);
@@ -508,8 +854,10 @@ static void flush_mutex_locked(struct evl_mutex *mutex, int reason)
 			evl_wakeup_thread(waiter, T_PEND, reason);
 		}
 
-		if (mutex->flags & EVL_MUTEX_CLAIMED)
-			clear_boost(mutex, EVL_MUTEX_CLAIMED);
+		if (mutex->flags & EVL_MUTEX_CLAIMED) {
+			mutex->flags &= ~EVL_MUTEX_CLAIMED;
+			drop_booster(mutex);
+		}
 	}
 }
 
@@ -529,8 +877,8 @@ void evl_destroy_mutex(struct evl_mutex *mutex)
 
 	trace_evl_mutex_destroy(mutex);
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
-	untrack_owner(mutex);
 	flush_mutex_locked(mutex, T_RMID);
+	untrack_owner(mutex);
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 	lockdep_unregister_key(&mutex->wchan.lock_key);
 }
@@ -592,10 +940,10 @@ static int wait_mutex_schedule(struct evl_mutex *mutex)
 	return ret;
 }
 
-/* mutex->wchan.lock held, irqs off */
+/* mutex->wchan.lock held (dropped temporarily), irqs off */
 static void finish_mutex_wait(struct evl_mutex *mutex)
 {
-	struct evl_thread *owner, *contender;
+	struct evl_thread *owner, *top_waiter;
 
 	/*
 	 * Do all the necessary housekeeping chores to stop current
@@ -614,53 +962,41 @@ static void finish_mutex_wait(struct evl_mutex *mutex)
 	if (!(mutex->flags & EVL_MUTEX_CLAIMED))
 		return;
 
-	owner = mutex->wchan.owner;	/* Might not be this_evl_rq()->curr. */
+	/* Might be NULL or different from this_evl_rq()->curr. */
+	owner = mutex->wchan.owner;
+	if (!owner)
+		return;		/* Dropped by __evl_unlock_mutex() */
 
 	if (list_empty(&mutex->wchan.wait_list)) {
-		/* No more waiters: clear the PI boost. */
-		clear_boost(mutex, EVL_MUTEX_CLAIMED);
+		/* No more waiters: drop this PI booster. */
+		mutex->flags &= ~EVL_MUTEX_CLAIMED;
+		drop_booster(mutex);
 		return;
 	}
 
 	/*
 	 * Reorder the booster queue since the wait list was updated,
 	 * then set the priority of the current owner to the new
-	 * minimum required to prevent inversion with any remaining
-	 * contender.
+	 * minimum required to prevent inversion with the waiter
+	 * leading the wait queue by priority order.
 	 */
-	contender = list_first_entry(&mutex->wchan.wait_list,
+	top_waiter = list_first_entry(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
 
-	double_thread_lock(owner, contender);
-	mutex->wprio = contender->wprio;
+	double_thread_lock(owner, top_waiter);
+	mutex->wprio = top_waiter->wprio;
 	list_del(&mutex->next_booster);	/* owner->boosters */
 	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
-	adjust_boost(mutex, contender, owner);
-	raw_spin_unlock(&contender->lock);
+	raw_spin_unlock(&top_waiter->lock);
+	/* Guard against owner going stale as we drop owner->lock. */
+	evl_get_element(&owner->element);
 	raw_spin_unlock(&owner->lock);
-}
-
-/* owner->lock (dropped at exit), irqs off */
-static int check_lock_chain(struct evl_thread *owner,
-			struct evl_thread *originator)
-{
-	struct evl_wait_channel *wchan;
-	struct evl_thread *t = owner;
-
-	assert_hard_lock(&owner->lock);
-
-	for (;;) {
-		wchan = t->wchan;
-		if (!wchan || !wchan->follow_depend)
-			break;
-		t = wchan->follow_depend(t, originator);
-		if (!t)
-			return -EDEADLK;
-	}
-
-	raw_spin_unlock(&t->lock);
-
-	return 0;
+	/* The caller allows us to drop mutex->wchan.lock temporarily. */
+	raw_spin_unlock(&mutex->wchan.lock);
+	adjust_owner_boost(owner);
+	evl_adjust_wait_priority(owner);
+	evl_put_element(&owner->element);
+	raw_spin_lock(&mutex->wchan.lock);
 }
 
 int evl_lock_mutex_timeout(struct evl_mutex *mutex, ktime_t timeout,
@@ -795,7 +1131,11 @@ redo:
 
 		if (mutex->flags & EVL_MUTEX_PI) {
 			raise_boost_flag(owner);
-
+			/*
+			 * The CLAIMED bit is raised in a PI mutex
+			 * which is causing a priority boost for its
+			 * owner. PP mutexes never have this bit set.
+			 */
 			if (mutex->flags & EVL_MUTEX_CLAIMED)
 				list_del(&mutex->next_booster); /* owner->boosters */
 			else
@@ -803,29 +1143,28 @@ redo:
 
 			mutex->wprio = curr->wprio;
 			list_add_priff(mutex, &owner->boosters, wprio, next_booster);
-			/*
-			 * Since boosters are ordered on curr->wprio,
-			 * having curr->wprio > owner->wprio implies
-			 * that mutex must be leading the booster list
-			 * of the owner after insertion. Therefore we
-			 * may call inherit_thread_priority() for
-			 * tracking current's priority directly
-			 * without going through adjust_boost().
-			 */
-			ret = inherit_thread_priority(owner, curr, curr);
-			raw_spin_unlock(&curr->lock);
 			raw_spin_unlock(&owner->lock);
-		} else {
+			ret = walk_pi_chain(&mutex->wchan, curr, evl_pi_adjust);
 			raw_spin_unlock(&curr->lock);
-			ret = check_lock_chain(owner, curr); /* drops owner->lock */
+		} else {
+			raw_spin_unlock(&owner->lock);
+			ret = walk_pi_chain(&mutex->wchan, curr, evl_pi_check);
+			raw_spin_unlock(&curr->lock);
 		}
 	} else {
 		list_add_priff(curr, &mutex->wchan.wait_list, wprio, wait_next);
+		raw_spin_unlock(&owner->lock);
+		ret = walk_pi_chain(&mutex->wchan, curr, evl_pi_check);
 		raw_spin_unlock(&curr->lock);
-		ret = check_lock_chain(owner, curr);
 	}
 
-	if (likely(!ret)) {
+	/*
+	 * Walking the PI chain is preemptible by other CPUs, so we
+	 * might have been transferred ownership of wchan while busy
+	 * progressing down this chain. Check for such event before
+	 * deciding to sleep.
+	 */
+	if (likely(mutex->wchan.owner != curr && !ret)) {
 		evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
 		raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 		ret = wait_mutex_schedule(mutex);
@@ -931,7 +1270,10 @@ static void transfer_ownership(struct evl_mutex *mutex)
 	list_del_init(&n_owner->wait_next);
 	raw_spin_unlock(&n_owner->lock);
 	/*
-	 * FIXME: could n_owner go stale now?
+	 * FIXME: wakeup race in SMP is possible since we dropped
+	 * n_owner->lock, could n_owner go stale in the meantime if
+	 * someone forcibly unblocks it up or a timeout triggers from
+	 * another CPU?
 	 */
 	set_current_owner_locked(mutex, n_owner);
 	evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
@@ -939,6 +1281,8 @@ static void transfer_ownership(struct evl_mutex *mutex)
 	n_ownerh = get_owner_handle(fundle_of(n_owner), mutex);
 	if (!list_empty(&mutex->wchan.wait_list)) /* any waiters? */
 		n_ownerh = mutex_fast_claim(n_ownerh);
+	else if (mutex->flags & EVL_MUTEX_PI)
+		mutex->flags &= ~EVL_MUTEX_CLAIMED;
 
 	atomic_set(lockp, n_ownerh);
 }
@@ -947,7 +1291,6 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
-	int bflag;
 
 	trace_evl_mutex_unlock(mutex);
 
@@ -956,17 +1299,24 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
 
-	bflag = mutex->flags & (EVL_MUTEX_CEILING|EVL_MUTEX_CLAIMED);
-
-	raw_spin_lock(&curr->lock);
-
-	if (bflag) {
-		EVL_WARN_ON_ONCE(CORE,
-			bflag == (EVL_MUTEX_CEILING|EVL_MUTEX_CLAIMED));
-		clear_boost_locked(mutex, bflag);
+	/*
+	 * Priority boost for PP mutex is applied to the owner, unlike
+	 * PI boost which is applied to waiters. Therefore, we have to
+	 * adjust the boost for an owner releasing a PP mutex which
+	 * got boosted (EVL_MUTEX_CEILING).
+	 *
+	 * Likewise, PI de-boosting must be applied at mutex release
+	 * time, so that the correct priority applies when our caller
+	 * reschedules the thread dropping it.
+	 */
+	if (mutex->flags & EVL_MUTEX_CEILING) {
+		EVL_WARN_ON_ONCE(CORE, mutex->flags & EVL_MUTEX_CLAIMED);
+		mutex->flags &= ~EVL_MUTEX_CEILING;
+		drop_booster(mutex);
+	} else if (mutex->flags & EVL_MUTEX_CLAIMED) {
+		EVL_WARN_ON_ONCE(CORE, mutex->flags & EVL_MUTEX_CEILING);
+		drop_booster(mutex);
 	}
-
-	raw_spin_unlock(&curr->lock);
 
 	transfer_ownership(mutex);
 
@@ -995,13 +1345,15 @@ void evl_drop_tracking_mutexes(struct evl_thread *curr)
 	unsigned long flags;
 	fundle_t h;
 
+	/* FIXME: ABBA, tracking_lock vs wchan. */
+
 	raw_spin_lock_irqsave(&curr->tracking_lock, flags);
 
 	/* Release all mutexes tracking @curr. */
 	while (!list_empty(&curr->trackers)) {
 		/*
 		 * Either __evl_unlock_mutex() or untrack_owner() will
-		 * unlink @mutex from the curr's tracker list.
+		 * unlink @mutex from curr->trackers.
 		 */
 		mutex = list_first_entry(&curr->trackers,
 					struct evl_mutex, next_tracker);
@@ -1011,7 +1363,7 @@ void evl_drop_tracking_mutexes(struct evl_thread *curr)
 			__evl_unlock_mutex(mutex);
 		} else {
 			raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
-			if (mutex->wchan.owner == curr)
+			if (mutex->wchan.owner == curr) /* FIXME: infinite loop, not unlinked otherwise?? */
 				untrack_owner(mutex);
 			raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 		}
@@ -1071,7 +1423,7 @@ int evl_reorder_mutex_wait(struct evl_thread *waiter,
 	}
 
 	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
-	ret = adjust_boost(mutex, waiter, originator);
+	ret = old_adjust_boost(mutex, waiter, originator);
 	raw_spin_unlock(&owner->lock);
 out:
 	raw_spin_unlock(&mutex->wchan.lock);
@@ -1080,40 +1432,35 @@ out:
 }
 EXPORT_SYMBOL_GPL(evl_reorder_mutex_wait);
 
-/* prev->lock (dropped), irqs off. */
-struct evl_thread *
-evl_follow_mutex_depend(struct evl_thread *prev,
- 			struct evl_thread *originator)
+/* wchan->lock + wchan->owner->lock + waiter->lock held, irqs off. */
+void evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
+			    struct evl_thread *waiter)
 {
-	struct evl_mutex *mutex = wchan_to_mutex(prev->wchan);
-	struct evl_thread *next;
+	struct evl_thread *owner = wchan->owner, *top_waiter;
+	struct evl_mutex *mutex = wchan_to_mutex(wchan);
+
+	assert_hard_lock(&wchan->lock);
+	assert_hard_lock(&owner->lock);
+	assert_hard_lock(&waiter->lock);
 
 	/*
-	 * Progress into the lock chain by traversing dependent locks
-	 * through the wait channels. On entry, we receive a locked
-	 * waiter, which gives us safe access to its active wait
-	 * channel.
-	 *
-	 * Holding the lock on a mutex prevents any pending waiter to
-	 * leave the wait, so we may drop the thread lock once that
-	 * mutex is acquired. Likewise, we may access and lock its
-	 * owner which we do before dropping the mutex lock.
+	 * Reorder the wait list according to the (updated) priority
+	 * of the waiter.
 	 */
-	raw_spin_lock(&mutex->wchan.lock);
-	raw_spin_unlock(&prev->lock);
+	list_del(&waiter->wait_next);
+	list_add_priff(waiter, &wchan->wait_list, wprio, wait_next);
+	top_waiter = list_first_entry(&mutex->wchan.wait_list,
+				struct evl_thread, wait_next);
 
-	next = mutex->wchan.owner;
-	if (next == originator) { /* Deadlock? */
-		raw_spin_unlock(&mutex->wchan.lock);
-		return NULL;
+	if (mutex->wprio != top_waiter->wprio) {
+		mutex->wprio = top_waiter->wprio;
+		if (mutex->flags & EVL_MUTEX_CLAIMED) {
+			list_del(&mutex->next_booster);
+			list_add_priff(mutex, &owner->boosters, wprio, next_booster);
+		}
 	}
-
-	raw_spin_lock(&next->lock);
-	raw_spin_unlock(&mutex->wchan.lock);
-
-	return next;
 }
-EXPORT_SYMBOL_GPL(evl_follow_mutex_depend);
+EXPORT_SYMBOL_GPL(evl_requeue_mutex_wait);
 
 void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 {
@@ -1156,7 +1503,7 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex)
 		(mutex->flags & EVL_MUTEX_CEILING))
 		goto out;
 
-	set_current_owner_locked(mutex, curr);	
+	set_current_owner_locked(mutex, curr);
 	/*
 	 * Raise FLCEIL, which indicates a kernel entry will be
 	 * required for releasing this resource.
