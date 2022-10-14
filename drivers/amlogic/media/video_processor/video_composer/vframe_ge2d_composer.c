@@ -631,13 +631,9 @@ int config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w, int
 		data->canvas0_config[1].block_mode =
 			CANVAS_BLKMODE_LINEAR;
 		data->canvas0_config[1].endian = 0;
-		data->bitdepth = BITDEPTH_Y8
-				    | BITDEPTH_U8
-				    | BITDEPTH_V8;
+		data->bitdepth = BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 		data->source_type = 0;
-		data->type = VIDTYPE_PROGRESSIVE
-				| VIDTYPE_VIU_FIELD
-				| VIDTYPE_VIU_NV21;
+		data->type = VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21;
 		data->plane_num = 2;
 
 		VIDEOCOM_INFO("crop %d %d %d %d\n", crop_x, crop_y, crop_w, crop_h);

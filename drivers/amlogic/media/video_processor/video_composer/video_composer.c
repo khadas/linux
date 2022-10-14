@@ -1758,7 +1758,7 @@ static void vframe_composer(struct composer_dev *dev)
 
 	if (!composer_use_444) {
 		dst_vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
-		dst_vf->type = (VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV12);
+		dst_vf->type = (VIDTYPE_PROGRESSIVE | VIDTYPE_VIU_FIELD | VIDTYPE_VIU_NV21);
 	} else {
 		dst_vf->type = (VIDTYPE_VIU_444 | VIDTYPE_VIU_SINGLE_PLANE | VIDTYPE_VIU_FIELD);
 	}
