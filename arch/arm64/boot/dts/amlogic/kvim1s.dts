@@ -1398,6 +1398,11 @@
 	uart-has-rtscts;
 };
 
+&uart_E {
+	status = "okay";
+	uart-has-rtscts;
+};
+
 &gpu {
 	tbl =  <&dvfs285_cfg
 		&dvfs400_cfg
