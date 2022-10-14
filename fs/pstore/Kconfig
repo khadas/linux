@@ -136,7 +136,6 @@ config PSTORE_PMSG
 config PSTORE_FTRACE
 	bool "Persistent function tracer"
 	depends on PSTORE
-	depends on FUNCTION_TRACER
 	depends on DEBUG_FS
 	help
 	  With this option kernel traces function calls into a persistent

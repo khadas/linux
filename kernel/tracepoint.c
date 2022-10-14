@@ -525,6 +525,12 @@ typedef void (*pr_lockup_info_t)(int cpu);
 pr_lockup_info_t pr_lockup_info_hook;
 #endif
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+void notrace __pstore_io_save(unsigned long reg, unsigned long val,
+			      unsigned long parent, unsigned int flag,
+			      unsigned long *irq_flag);
+#endif
+
 /**
  * tracepoint_probe_register -  Connect a probe to a tracepoint
  * @tp: tracepoint
@@ -557,6 +563,13 @@ int tracepoint_probe_register(struct tracepoint *tp, void *probe, void *data)
 			pr_lockup_info_hook);
 
 		return 0;
+	}
+#endif
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+	if (!strcmp(tp->name, "inject_pstore_io_save")) {
+		*(unsigned long *)data = (unsigned long)__pstore_io_save;
+		pr_info("tracepoint_probe_register: inject_pstore_io_save: %ps\n", (void *)data);
 	}
 #endif
 
