@@ -114,7 +114,7 @@ out:
 	curr->u_window->pp_pending = EVL_NO_HANDLE;
 }
 
-/* event->gate->lock and event->wait_queue.lock held, irqs off */
+/* event->gate->lock and event->wait_queue.wchan.lock held, irqs off */
 static void __untrack_event(struct evl_monitor *event)
 {
 	/*
@@ -134,13 +134,13 @@ static void untrack_event(struct evl_monitor *event)
 	unsigned long flags;
 
 	raw_spin_lock_irqsave(&gate->lock, flags);
-	raw_spin_lock(&event->wait_queue.lock);
+	raw_spin_lock(&event->wait_queue.wchan.lock);
 	__untrack_event(event);
-	raw_spin_unlock(&event->wait_queue.lock);
+	raw_spin_unlock(&event->wait_queue.wchan.lock);
 	raw_spin_unlock_irqrestore(&gate->lock, flags);
 }
 
-/* event->gate->lock and event->wait_queue.lock held, irqs off */
+/* event->gate->lock and event->wait_queue.wchan.lock held, irqs off */
 static void wakeup_waiters(struct evl_monitor *event)
 {
 	struct evl_monitor_state *state = event->state;
@@ -264,10 +264,10 @@ static int exit_monitor(struct evl_monitor *gate)
 	if (state->flags & EVL_MONITOR_SIGNALED) {
 		state->flags &= ~EVL_MONITOR_SIGNALED;
 		list_for_each_entry_safe(event, n, &gate->events, next) {
-			raw_spin_lock(&event->wait_queue.lock);
+			raw_spin_lock(&event->wait_queue.wchan.lock);
 			if (event->state->flags & EVL_MONITOR_SIGNALED)
 				wakeup_waiters(event);
-			raw_spin_unlock(&event->wait_queue.lock);
+			raw_spin_unlock(&event->wait_queue.wchan.lock);
 		}
 	}
 
@@ -338,17 +338,17 @@ static int wait_monitor_ungated(struct file *filp,
 				}
 			} while (!atomic_try_cmpxchg(at, &val, val - 1));
 		} else {
-			raw_spin_lock_irqsave(&event->wait_queue.lock, flags);
+			raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
 			if (atomic_dec_return(at) < 0) {
 				evl_add_wait_queue(&event->wait_queue,
 						timeout, tmode);
-				raw_spin_unlock_irqrestore(&event->wait_queue.lock,
+				raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock,
 							flags);
 				ret = evl_wait_schedule(&event->wait_queue);
 				if (ret) /* Rollback decrement if failed. */
 					atomic_inc(at);
 			} else
-				raw_spin_unlock_irqrestore(&event->wait_queue.lock,
+				raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock,
 							flags);
 		}
 		break;
@@ -408,21 +408,21 @@ static int signal_monitor_ungated(struct evl_monitor *event, s32 sigval)
 	case EVL_EVENT_COUNT:
 		if (!sigval)
 			break;
-		raw_spin_lock_irqsave(&event->wait_queue.lock, flags);
+		raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
 		if (atomic_inc_return(&state->u.event.value) <= 0) {
 			evl_wake_up_head(&event->wait_queue);
 			pollable = false;
 		}
-		raw_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
+		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
 		break;
 	case EVL_EVENT_MASK:
-		raw_spin_lock_irqsave(&event->wait_queue.lock, flags);
+		raw_spin_lock_irqsave(&event->wait_queue.wchan.lock, flags);
 		val = set_event_mask(state, (int)sigval);
 		if (val)
 			evl_flush_wait_locked(&event->wait_queue, 0);
 		else
 			pollable = false;
-		raw_spin_unlock_irqrestore(&event->wait_queue.lock, flags);
+		raw_spin_unlock_irqrestore(&event->wait_queue.wchan.lock, flags);
 		break;
 	default:
 		return -EINVAL;
@@ -509,9 +509,9 @@ static int wait_monitor(struct file *filp,
 	 * called later on, do not perform the WOLI checks when
 	 * enqueuing.
 	 */
-	raw_spin_lock(&event->wait_queue.lock);
+	raw_spin_lock(&event->wait_queue.wchan.lock);
 	evl_add_wait_queue_unchecked(&event->wait_queue, timeout, tmode);
-	raw_spin_unlock(&event->wait_queue.lock);
+	raw_spin_unlock(&event->wait_queue.wchan.lock);
 
 	rq = evl_get_thread_rq_noirq(curr);
 	curr->info &= ~T_SIGNAL;

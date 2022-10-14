@@ -715,7 +715,7 @@ static int timerfd_release(struct inode *inode, struct file *filp)
 	struct evl_timerfd *timerfd = filp->private_data;
 
 	evl_stop_timer(&timerfd->timer);
-	evl_flush_wait(&timerfd->readers, T_RMID);
+	evl_destroy_wait(&timerfd->readers);
 	evl_release_file(&timerfd->efile);
 	evl_put_element(&timerfd->timer.clock->element);
 	kfree(timerfd);

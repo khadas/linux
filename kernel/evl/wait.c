@@ -13,17 +13,32 @@
 #include <trace/events/evl.h>
 
 void __evl_init_wait(struct evl_wait_queue *wq,
-		struct evl_clock *clock, int flags,
-		const char *name, struct lock_class_key *key)
+		struct evl_clock *clock, int wq_flags,
+		const char *name)
 {
-	wq->flags = flags;
+	unsigned long flags __maybe_unused;
+
+	wq->flags = wq_flags;
 	wq->clock = clock;
-	raw_spin_lock_init(&wq->lock);
 	wq->wchan.reorder_wait = evl_reorder_wait;
 	wq->wchan.follow_depend = NULL;
 	wq->wchan.name = name;
 	INIT_LIST_HEAD(&wq->wchan.wait_list);
-	lockdep_set_class_and_name(&wq->lock, key, name);
+	raw_spin_lock_init(&wq->wchan.lock);
+#ifdef CONFIG_PROVE_LOCKING
+	lockdep_register_key(&wq->wchan.lock_key);
+	lockdep_set_class_and_name(&wq->wchan.lock, &wq->wchan.lock_key, name);
+	/*
+	 * might_lock() forces lockdep to pre-register a dynamic lock
+	 * class, instead of waiting lazily for the first lock
+	 * acquisition, which might happen oob for us. Since that
+	 * registration depends on RCU, we need to make sure this
+	 * happens in-band.
+	 */
+	local_irq_save(flags);
+	might_lock(&wq->wchan.lock);
+	local_irq_restore(flags);
+#endif
 }
 EXPORT_SYMBOL_GPL(__evl_init_wait);
 
@@ -31,15 +46,16 @@ void evl_destroy_wait(struct evl_wait_queue *wq)
 {
 	evl_flush_wait(wq, T_RMID);
 	evl_schedule();
+	lockdep_unregister_key(&wq->wchan.lock_key);
 }
 EXPORT_SYMBOL_GPL(evl_destroy_wait);
 
-/* wq->lock held, hard irqs off */
+/* wq->wchan.lock held, hard irqs off */
 static void __evl_add_wait_queue(struct evl_thread *curr,
 				struct evl_wait_queue *wq,
 				ktime_t timeout, enum evl_tmode timeout_mode)
 {
-	assert_hard_lock(&wq->lock);
+	assert_hard_lock(&wq->wchan.lock);
 
 	trace_evl_wait(wq);
 
@@ -73,12 +89,12 @@ void evl_add_wait_queue_unchecked(struct evl_wait_queue *wq, ktime_t timeout,
 	__evl_add_wait_queue(curr, wq, timeout, timeout_mode);
 }
 
-/* wq->lock held, hard irqs off */
+/* wq->wchan.lock held, hard irqs off */
 struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			struct evl_thread *waiter,
 			int reason)
 {
-	assert_hard_lock(&wq->lock);
+	assert_hard_lock(&wq->wchan.lock);
 
 	trace_evl_wake_up(wq);
 
@@ -96,12 +112,12 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 }
 EXPORT_SYMBOL_GPL(evl_wake_up);
 
-/* wq->lock held, hard irqs off */
+/* wq->wchan.lock held, hard irqs off */
 void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 {
 	struct evl_thread *waiter, *tmp;
 
-	assert_hard_lock(&wq->lock);
+	assert_hard_lock(&wq->wchan.lock);
 
 	trace_evl_flush_wait(wq);
 
@@ -116,9 +132,9 @@ void evl_flush_wait(struct evl_wait_queue *wq, int reason)
 {
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&wq->lock, flags);
+	raw_spin_lock_irqsave(&wq->wchan.lock, flags);
 	evl_flush_wait_locked(wq, reason);
-	raw_spin_unlock_irqrestore(&wq->lock, flags);
+	raw_spin_unlock_irqrestore(&wq->wchan.lock, flags);
 }
 EXPORT_SYMBOL_GPL(evl_flush_wait);
 
@@ -136,14 +152,14 @@ int evl_reorder_wait(struct evl_thread *waiter, struct evl_thread *originator)
 	assert_hard_lock(&waiter->lock);
 	assert_hard_lock(&originator->lock);
 
-	raw_spin_lock(&wq->lock);
+	raw_spin_lock(&wq->wchan.lock);
 
 	if (wq->flags & EVL_WAIT_PRIO) {
 		list_del(&waiter->wait_next);
 		list_add_priff(waiter, &wq->wchan.wait_list, wprio, wait_next);
 	}
 
-	raw_spin_unlock(&wq->lock);
+	raw_spin_unlock(&wq->wchan.lock);
 
 	return 0;
 }
@@ -202,7 +218,7 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 		return -ENOMEM;
 
 	if (info & (T_TIMEO|T_BREAK)) {
-		raw_spin_lock_irqsave(&wq->lock, flags);
+		raw_spin_lock_irqsave(&wq->wchan.lock, flags);
 		if (!list_empty(&curr->wait_next)) {
 			list_del_init(&curr->wait_next);
 			if (info & T_TIMEO)
@@ -210,12 +226,12 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 			else if (info & T_BREAK)
 				ret = -EINTR;
 		}
-		raw_spin_unlock_irqrestore(&wq->lock, flags);
+		raw_spin_unlock_irqrestore(&wq->wchan.lock, flags);
 	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
 		bool empty;
-		raw_spin_lock_irqsave(&wq->lock, flags);
+		raw_spin_lock_irqsave(&wq->wchan.lock, flags);
 		empty = list_empty(&curr->wait_next);
-		raw_spin_unlock_irqrestore(&wq->lock, flags);
+		raw_spin_unlock_irqrestore(&wq->wchan.lock, flags);
 		EVL_WARN_ON_ONCE(CORE, !empty);
 	}
 
@@ -225,7 +241,7 @@ EXPORT_SYMBOL_GPL(evl_wait_schedule);
 
 struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
 {
-	assert_hard_lock(&wq->lock);
+	assert_hard_lock(&wq->wchan.lock);
 	return list_first_entry_or_null(&wq->wchan.wait_list,
 					struct evl_thread, wait_next);
 }

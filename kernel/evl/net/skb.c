@@ -63,7 +63,7 @@ static int recycling_count;
 
 /*
  * CAUTION: Innermost lock, may be nested with
- * oob_netdev_state.pool_wait.lock.
+ * oob_netdev_state.pool_wait.wchan.lock.
  */
 static DEFINE_HARD_SPINLOCK(recycling_lock);
 
@@ -131,7 +131,7 @@ struct sk_buff *evl_net_dev_alloc_skb(struct net_device *dev,
 		return NULL;
 
 	for (;;) {
-		raw_spin_lock_irqsave(&est->pool_wait.lock, flags);
+		raw_spin_lock_irqsave(&est->pool_wait.wchan.lock, flags);
 
 		if (!list_empty(&est->free_skb_pool)) {
 			skb = list_get_entry(&est->free_skb_pool,
@@ -147,14 +147,14 @@ struct sk_buff *evl_net_dev_alloc_skb(struct net_device *dev,
 
 		evl_add_wait_queue(&est->pool_wait, timeout, tmode);
 
-		raw_spin_unlock_irqrestore(&est->pool_wait.lock, flags);
+		raw_spin_unlock_irqrestore(&est->pool_wait.wchan.lock, flags);
 
 		ret = evl_wait_schedule(&est->pool_wait);
 		if (ret)
 			return ERR_PTR(ret);
 	}
 
-	raw_spin_unlock_irqrestore(&est->pool_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&est->pool_wait.wchan.lock, flags);
 
 	return skb;
 }
@@ -180,7 +180,7 @@ static void free_skb_to_dev(struct sk_buff *skb)
 	unsigned long flags;
 
 	est = dev->oob_context.dev_state.estate;
-	raw_spin_lock_irqsave(&est->pool_wait.lock, flags);
+	raw_spin_lock_irqsave(&est->pool_wait.wchan.lock, flags);
 
 	list_add(&skb->list, &est->free_skb_pool);
 	est->pool_free++;
@@ -188,7 +188,7 @@ static void free_skb_to_dev(struct sk_buff *skb)
 	if (evl_wait_active(&est->pool_wait))
 		evl_wake_up_head(&est->pool_wait);
 
-	raw_spin_unlock_irqrestore(&est->pool_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&est->pool_wait.wchan.lock, flags);
 
 	evl_signal_poll_events(&est->poll_head,	POLLOUT|POLLWRNORM);
 }

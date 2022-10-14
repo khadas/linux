@@ -51,10 +51,10 @@ static inline bool evl_read_flag(struct evl_flag *wf)
 }
 
 #define evl_lock_flag(__wf, __flags)		\
-	raw_spin_lock_irqsave(&(__wf)->wait.lock, __flags)
+	raw_spin_lock_irqsave(&(__wf)->wait.wchan.lock, __flags)
 
 #define evl_unlock_flag(__wf, __flags)		\
-	raw_spin_unlock_irqrestore(&(__wf)->wait.lock, __flags)
+	raw_spin_unlock_irqrestore(&(__wf)->wait.wchan.lock, __flags)
 
 static inline
 int evl_wait_flag_timeout(struct evl_flag *wf,
@@ -69,13 +69,13 @@ static inline int evl_wait_flag(struct evl_flag *wf)
 	return evl_wait_flag_timeout(wf, EVL_INFINITE, EVL_REL);
 }
 
-/* wf->wait.lock held, irqs off */
+/* wf->wait.wchan.lock held, irqs off */
 static inline struct evl_thread *evl_wait_flag_head(struct evl_flag *wf)
 {
 	return evl_wait_head(&wf->wait);
 }
 
-/* wf->wait.lock held, irqs off */
+/* wf->wait.wchan.lock held, irqs off */
 static inline void evl_raise_flag_locked(struct evl_flag *wf)
 {
 	wf->raised = true;
@@ -97,7 +97,7 @@ static inline void evl_raise_flag(struct evl_flag *wf)
 	evl_schedule();
 }
 
-/* wf->wait.lock held, irqs off */
+/* wf->wait.wchan.lock held, irqs off */
 static inline void evl_flush_flag_locked(struct evl_flag *wf, int reason)
 {
 	evl_flush_wait_locked(&wf->wait, reason);
@@ -118,7 +118,7 @@ static inline void evl_flush_flag(struct evl_flag *wf, int reason)
 	evl_schedule();
 }
 
-/* wf->wait.lock held, irqs off */
+/* wf->wait.wchan.lock held, irqs off */
 static inline void evl_pulse_flag_locked(struct evl_flag *wf)
 {
 	evl_flush_flag_locked(wf, T_BCAST);

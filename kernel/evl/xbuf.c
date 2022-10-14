@@ -439,7 +439,7 @@ static unsigned long outbound_lock(struct xbuf_ring *ring)
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&xbuf->obnd.i_event.lock, flags);
+	raw_spin_lock_irqsave(&xbuf->obnd.i_event.wchan.lock, flags);
 
 	return flags;
 }
@@ -448,7 +448,7 @@ static void outbound_unlock(struct xbuf_ring *ring, unsigned long flags)
 {
 	struct evl_xbuf *xbuf = container_of(ring, struct evl_xbuf, obnd.ring);
 
-	raw_spin_unlock_irqrestore(&xbuf->obnd.i_event.lock, flags);
+	raw_spin_unlock_irqrestore(&xbuf->obnd.i_event.wchan.lock, flags);
 }
 
 static int outbound_wait_input(struct xbuf_ring *ring, size_t len, size_t avail)
