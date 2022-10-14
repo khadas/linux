@@ -855,10 +855,11 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 		power_switch_to_pcie(amlogic_pcie->phy);
 
 	tee_start = roundup(virt_to_phys((void *)_text), TEE_MEM_ALIGN_SIZE);
-	tee_end = rounddown(virt_to_phys((void *)__bss_stop), TEE_MEM_ALIGN_SIZE);
+	tee_end = rounddown(virt_to_phys((void *)_etext), TEE_MEM_ALIGN_SIZE);
+	dev_dbg(dev, "tee_start = 0x%x, tee_end = 0x%x\n", tee_start, tee_end);
+
 	tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL,
 		tee_start, tee_end - tee_start, &handle);
-	keep_init = 1;
 
 	if (!amlogic_pcie->phy->phy_base) {
 		phy_base = platform_get_resource_byname(
