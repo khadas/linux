@@ -20,6 +20,7 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 
 	wq->flags = wq_flags;
 	wq->clock = clock;
+	wq->wchan.owner = NULL;
 	wq->wchan.reorder_wait = evl_reorder_wait;
 	wq->wchan.follow_depend = NULL;
 	wq->wchan.name = name;

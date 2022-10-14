@@ -122,12 +122,12 @@ static int inherit_thread_priority(struct evl_thread *owner,
 			raw_spin_ ## __op(&(__this_mutex)->wchan.lock);	\
 	} while (0)
 
-/* origin->owner->lock + contender->lock + origin->wchan.lock held, irqs off */
+/* origin->wchan.owner->lock + contender->lock + origin->wchan.lock held, irqs off */
 static int adjust_boost(struct evl_mutex *origin,
 			struct evl_thread *contender,
 			struct evl_thread *originator)
 {
-	struct evl_thread *owner = origin->owner;
+	struct evl_thread *owner = origin->wchan.owner;
 	struct evl_wait_channel *wchan;
 	struct evl_mutex *mutex;
 	int pprio, ret = 0;
@@ -155,7 +155,7 @@ static int adjust_boost(struct evl_mutex *origin,
 	 * +-> owner->lock
 	 * |     mutex->wchan.lock
 	 * |
-	 * |  owner := mutex->owner
+	 * |  owner := mutex->wchan.owner
 	 * |  mutex := owner->wchan -+
 	 * |                         |
 	 * +-------------------------+
@@ -220,7 +220,7 @@ static int adjust_boost(struct evl_mutex *origin,
 static void ceil_owner_priority(struct evl_mutex *mutex,
 				struct evl_thread *originator)
 {
-	struct evl_thread *owner = mutex->owner;
+	struct evl_thread *owner = mutex->wchan.owner;
 	int wprio;
 
 	assert_hard_lock(&mutex->wchan.lock);
@@ -260,7 +260,7 @@ static void ceil_owner_priority(struct evl_mutex *mutex,
 /* mutex->wchan.lock held, irqs off */
 static void untrack_owner(struct evl_mutex *mutex)
 {
-	struct evl_thread *prev = mutex->owner;
+	struct evl_thread *prev = mutex->wchan.owner;
 
 	assert_hard_lock(&mutex->wchan.lock);
 
@@ -269,7 +269,7 @@ static void untrack_owner(struct evl_mutex *mutex)
 		list_del(&mutex->next_tracker);
 		raw_spin_unlock(&prev->tracking_lock);
 		evl_put_element(&prev->element);
-		mutex->owner = NULL;
+		mutex->wchan.owner = NULL;
 	}
 }
 
@@ -277,7 +277,7 @@ static void untrack_owner(struct evl_mutex *mutex)
 static void track_owner(struct evl_mutex *mutex,
 			struct evl_thread *owner)
 {
-	struct evl_thread *prev = mutex->owner;
+	struct evl_thread *prev = mutex->wchan.owner;
 	unsigned long flags;
 
 	assert_hard_lock(&mutex->wchan.lock);
@@ -293,7 +293,7 @@ static void track_owner(struct evl_mutex *mutex,
 	}
 	list_add(&mutex->next_tracker, &owner->trackers);
 	raw_spin_unlock_irqrestore(&owner->tracking_lock, flags);
-	mutex->owner = owner;
+	mutex->wchan.owner = owner;
 }
 
 /* mutex->wchan.lock held, irqs off. */
@@ -302,7 +302,7 @@ static inline void ref_and_track_owner(struct evl_mutex *mutex,
 {
 	assert_hard_lock(&mutex->wchan.lock);
 
-	if (mutex->owner != owner) {
+	if (mutex->wchan.owner != owner) {
 		evl_get_element(&owner->element);
 		track_owner(mutex, owner);
 	}
@@ -366,13 +366,13 @@ fundle_t get_owner_handle(fundle_t ownerh, struct evl_mutex *mutex)
 	return ownerh;
 }
 
-/* mutex->wchan.lock + mutex->owner->lock held, irqs off */
+/* mutex->wchan.lock + mutex->wchan.owner->lock held, irqs off */
 static void clear_boost_locked(struct evl_mutex *mutex, int flag)
 {
 	struct evl_thread *owner;
 
 	assert_hard_lock(&mutex->wchan.lock);
-	owner = mutex->owner;
+	owner = mutex->wchan.owner;
 	assert_hard_lock(&owner->lock);
 
 	mutex->flags &= ~flag;
@@ -393,9 +393,9 @@ static void clear_boost(struct evl_mutex *mutex, int flag)
 {
 	assert_hard_lock(&mutex->wchan.lock);
 
-	raw_spin_lock(&mutex->owner->lock);
+	raw_spin_lock(&mutex->wchan.owner->lock);
 	clear_boost_locked(mutex, flag);
-	raw_spin_unlock(&mutex->owner->lock);
+	raw_spin_unlock(&mutex->wchan.owner->lock);
 }
 
 /*
@@ -407,7 +407,7 @@ static void clear_boost(struct evl_mutex *mutex, int flag)
 static void detect_inband_owner(struct evl_mutex *mutex,
 				struct evl_thread *curr)
 {
-	struct evl_thread *owner = mutex->owner;
+	struct evl_thread *owner = mutex->wchan.owner;
 
 	/*
 	 * @curr == this_evl_rq()->curr so no need to grab
@@ -473,10 +473,10 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 	mutex->fastlock = fastlock;
 	atomic_set(fastlock, EVL_NO_HANDLE);
 	mutex->flags = type & ~EVL_MUTEX_CLAIMED;
-	mutex->owner = NULL;
 	mutex->wprio = -1;
 	mutex->ceiling_ref = ceiling_ref;
 	mutex->clock = clock;
+	mutex->wchan.owner = NULL;
 	mutex->wchan.reorder_wait = evl_reorder_mutex_wait;
 	mutex->wchan.follow_depend = evl_follow_mutex_depend;
 	mutex->wchan.name = name;
@@ -614,7 +614,7 @@ static void finish_mutex_wait(struct evl_mutex *mutex)
 	if (!(mutex->flags & EVL_MUTEX_CLAIMED))
 		return;
 
-	owner = mutex->owner;	/* Might not be this_evl_rq()->curr. */
+	owner = mutex->wchan.owner;	/* Might not be this_evl_rq()->curr. */
 
 	if (list_empty(&mutex->wchan.wait_list)) {
 		/* No more waiters: clear the PI boost. */
@@ -740,10 +740,10 @@ redo:
 	}
 
 	/*
-	 * This is the contended path. If mutex->owner does not match
+	 * This is the contended path. If mutex->wchan.owner does not match
 	 * (is NULL actually) the information we retrieved from the
 	 * atomic handle, it means that such mutex was acquired using
-	 * a fast locking operation: mutex->owner needs update based
+	 * a fast locking operation: mutex->wchan.owner needs update based
 	 * on the atomic handle value, we also have to add the mutex
 	 * to the tracking list of the owner thread.
 	 *
@@ -758,7 +758,7 @@ redo:
 	 * may safely make is that *owner is valid and not current on
 	 * this CPU.
 	 */
-	if (mutex->owner != owner)
+	if (mutex->wchan.owner != owner)
 		track_owner(mutex, owner);
 	else
 		/*
@@ -1011,7 +1011,7 @@ void evl_drop_tracking_mutexes(struct evl_thread *curr)
 			__evl_unlock_mutex(mutex);
 		} else {
 			raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
-			if (mutex->owner == curr)
+			if (mutex->wchan.owner == curr)
 				untrack_owner(mutex);
 			raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 		}
@@ -1039,7 +1039,7 @@ int evl_reorder_mutex_wait(struct evl_thread *waiter,
 
 	raw_spin_lock(&mutex->wchan.lock);
 
-	owner = mutex->owner;
+	owner = mutex->wchan.owner;
 	if (owner == originator) {
 		ret = -EDEADLK;
 		goto out;
@@ -1102,7 +1102,7 @@ evl_follow_mutex_depend(struct evl_thread *prev,
 	raw_spin_lock(&mutex->wchan.lock);
 	raw_spin_unlock(&prev->lock);
 
-	next = mutex->owner;
+	next = mutex->wchan.owner;
 	if (next == originator) { /* Deadlock? */
 		raw_spin_unlock(&mutex->wchan.lock);
 		return NULL;

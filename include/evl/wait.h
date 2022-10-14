@@ -21,6 +21,7 @@ struct evl_thread;
 struct evl_wait_channel {
 	hard_spinlock_t lock;
 	struct lock_class_key lock_key;	/* lockdep disambiguation */
+	struct evl_thread *owner;
 	int (*reorder_wait)(struct evl_thread *waiter,
 			struct evl_thread *originator);
 	struct evl_thread *(*follow_depend)(struct evl_thread *prev_owner,
@@ -40,6 +41,7 @@ struct evl_wait_queue {
 		.clock = &evl_mono_clock,				\
 		.wchan = {						\
 			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
+			.owner = NULL,					\
 			.reorder_wait = evl_reorder_wait,		\
 			.follow_depend = NULL,				\
 			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \

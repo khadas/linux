@@ -27,7 +27,6 @@ struct evl_thread;
 struct evl_mutex {
 	int wprio;
 	int flags;
-	struct evl_thread *owner;
 	struct evl_clock *clock;
 	atomic_t *fastlock;
 	u32 *ceiling_ref;
@@ -89,12 +88,12 @@ struct evl_kmutex {
 		.mutex = {						\
 			.fastlock = &(__name).fastlock,			\
 			.flags = EVL_MUTEX_PI,				\
-			.owner = NULL,					\
 			.wprio = -1,					\
 			.ceiling_ref = NULL,				\
 			.clock = &evl_mono_clock,			\
 			.wchan = {					\
 				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
+				.owner = NULL,				\
 				.reorder_wait = evl_reorder_mutex_wait,	\
 				.follow_depend = evl_follow_mutex_depend, \
 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
