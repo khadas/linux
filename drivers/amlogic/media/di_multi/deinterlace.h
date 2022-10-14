@@ -374,6 +374,7 @@ struct di_buf_s {
 	u32 local_ud_total_size;
 	bool hf_irq;
 	bool dw_have;
+	bool flg_dummy;
 };
 
 #define RDMA_DET3D_IRQ			0x20

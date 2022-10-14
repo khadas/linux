@@ -4584,6 +4584,7 @@ static void recycle_vframe_type_pre(struct di_buf_s *di_buf,
 /*
  * add dummy buffer to pre ready queue
  */
+#ifdef HIS_CODE
 static void add_dummy_vframe_type_pre(struct di_buf_s *src_buf,
 				      unsigned int channel)
 {
@@ -4615,7 +4616,39 @@ static void add_dummy_vframe_type_pre(struct di_buf_s *src_buf,
 		PR_WARN("%s:no local free?\n", __func__);
 	}
 }
+#else
+static void add_dummy_vframe_type_pre(struct di_buf_s *src_buf,
+				      unsigned int channel)
+{
+	struct di_buf_s *di_buf_tmp = NULL;
 
+	if (!di_que_is_empty(channel, QUE_PRE_NO_BUF)) {
+		di_buf_tmp = di_que_out_to_di_buf(channel, QUE_PRE_NO_BUF);
+		if (di_buf_tmp) {
+			di_buf_tmp->pre_ref_count = 0;
+			di_buf_tmp->post_ref_count = 0;
+			di_buf_tmp->post_proc_flag = 3;
+			di_buf_tmp->new_format_flag = 0;
+			di_buf_tmp->buf_hsize =
+				src_buf->buf_hsize;/* chg buf */
+			if (!IS_ERR_OR_NULL(src_buf))
+				memcpy(di_buf_tmp->vframe, src_buf->vframe,
+				       sizeof(vframe_t));
+
+			di_que_in(channel, QUE_PRE_READY, di_buf_tmp);
+
+			di_buf_tmp->flg_dummy = true;
+			dbg_mem2("dummy:%d\n", di_buf_tmp->index);
+		} else {
+			PR_ERR("%s:get nothing\n", __func__);
+		}
+		dbg_reg("%s\n", "insert dummy");
+	} else {
+		PR_WARN("%s:no local free?\n", __func__);
+	}
+}
+
+#endif /* HIS_CODE */
 /* 2021-01-26 for eos out*/
 static void add_eos_in(unsigned int ch, struct dim_nins_s *nin)
 {
@@ -6750,8 +6783,14 @@ int dim_check_recycle_buf(unsigned int channel)
 
 						di_buf->di_wr_linked_buf = NULL;
 					}
-					queue_in(channel,
-						 di_buf, QUEUE_LOCAL_FREE);
+					if (di_buf->flg_dummy) {
+						dbg_mem2("dummy:%d:recycle\n", di_buf->index);
+						di_buf->flg_dummy = false;
+						di_que_in(channel, QUE_PRE_NO_BUF, di_buf);
+					} else {
+						queue_in(channel,
+							 di_buf, QUEUE_LOCAL_FREE);
+					}
 				}
 				ret |= 2;
 			}
