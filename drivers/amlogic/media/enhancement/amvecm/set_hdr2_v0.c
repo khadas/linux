@@ -4243,7 +4243,8 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	case OSD3_HDR:
 		if (get_cpu_type() != MESON_CPU_MAJOR_ID_T3 &&
 			get_cpu_type() != MESON_CPU_MAJOR_ID_T7 &&
-			get_cpu_type() != MESON_CPU_MAJOR_ID_T5W)
+			get_cpu_type() != MESON_CPU_MAJOR_ID_T5W &&
+			get_cpu_type() != MESON_CPU_MAJOR_ID_S5)
 			return hdr_process_select;
 		break;
 	case VD3_HDR:
@@ -4258,6 +4259,15 @@ enum hdr_process_sel hdr10p_func(enum hdr_module_sel module_sel,
 	     get_cpu_type() == MESON_CPU_MAJOR_ID_T5D) &&
 	    (module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
+
+	if (((module_sel == OSD1_HDR && vpp_index == VPP_TOP1) ||
+		(module_sel == OSD3_HDR && vpp_index == VPP_TOP0)) &&
+		(get_cpu_type() == MESON_CPU_MAJOR_ID_T7 ||
+		get_cpu_type() == MESON_CPU_MAJOR_ID_T3)) {
+		pr_csc(12, "%s: module_sel = %d vpp_index = %d not match\n",
+			__func__, module_sel, vpp_index);
+		return hdr_process_select;
+	}
 
 	memset(&hdr_mtx_param, 0, sizeof(struct hdr_proc_mtx_param_s));
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
