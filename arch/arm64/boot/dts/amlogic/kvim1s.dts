@@ -1379,8 +1379,8 @@
 };
 
 &pwm_ef {
-	pinctrl-0 = <&pwm_f_pins2>;
-	pinctrl-names = "default";
+	/*pinctrl-0 = <&pwm_f_pins2>;*/
+	/*pinctrl-names = "default";*/
 	status = "okay";
 };
 
