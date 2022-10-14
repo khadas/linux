@@ -337,8 +337,8 @@ static const unsigned int i2c5_scl_z_pins[]		= { GPIOZ_14 };
 static const unsigned int i2c5_sda_z_pins[]		= { GPIOZ_15};
 
 /* Bank T func1 */
-static const unsigned int i2c2_scl_t_pins[]		= { GPIOT_0 };
-static const unsigned int i2c2_sda_t_pins[]		= { GPIOT_1 };
+static const unsigned int i2c2_scl_t_pins[]		= { GPIOT_1 };
+static const unsigned int i2c2_sda_t_pins[]		= { GPIOT_0 };
 static const unsigned int tsin_b_valid_pins[]		= { GPIOT_2 };
 static const unsigned int tsin_b_sop_pins[]		= { GPIOT_3 };
 static const unsigned int tsin_b_din0_pins[]		= { GPIOT_4 };
