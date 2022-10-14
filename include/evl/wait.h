@@ -19,6 +19,8 @@
 struct evl_thread;
 
 struct evl_wait_channel {
+	hard_spinlock_t lock;
+	struct lock_class_key lock_key;	/* lockdep disambiguation */
 	int (*reorder_wait)(struct evl_thread *waiter,
 			struct evl_thread *originator);
 	struct evl_thread *(*follow_depend)(struct evl_thread *prev_owner,
@@ -31,14 +33,13 @@ struct evl_wait_queue {
 	int flags;
 	struct evl_clock *clock;
 	struct evl_wait_channel wchan;
-	hard_spinlock_t lock;
 };
 
 #define EVL_WAIT_INITIALIZER(__name) {					\
 		.flags = EVL_WAIT_PRIO,					\
 		.clock = &evl_mono_clock,				\
-		.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).lock),	\
 		.wchan = {						\
+			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
 			.reorder_wait = evl_reorder_wait,		\
 			.follow_depend = NULL,				\
 			.wait_list = LIST_HEAD_INIT((__name).wchan.wait_list), \
@@ -62,7 +63,7 @@ struct evl_wait_queue {
 	int __ret = 0, __bcast;						\
 	unsigned long __flags;						\
 									\
-	raw_spin_lock_irqsave(&(__wq)->lock, __flags);			\
+	raw_spin_lock_irqsave(&(__wq)->wchan.lock, __flags);		\
 	if (!(__cond)) {						\
 		if (timeout_nonblock(__timeout)) {			\
 			__ret = -EAGAIN;				\
@@ -70,14 +71,14 @@ struct evl_wait_queue {
 			do {						\
 				evl_add_wait_queue(__wq, __timeout,	\
 						__timeout_mode);	\
-				raw_spin_unlock_irqrestore(&(__wq)->lock, __flags); \
+				raw_spin_unlock_irqrestore(&(__wq)->wchan.lock, __flags); \
 				__ret = evl_wait_schedule(__wq);	\
 				__bcast = evl_current()->info & T_BCAST; \
-				raw_spin_lock_irqsave(&(__wq)->lock, __flags); \
+				raw_spin_lock_irqsave(&(__wq)->wchan.lock, __flags); \
 			} while (!__ret && !__bcast && !(__cond));	\
 		}							\
 	}								\
-	raw_spin_unlock_irqrestore(&(__wq)->lock, __flags);		\
+	raw_spin_unlock_irqrestore(&(__wq)->wchan.lock, __flags);	\
 	__ret;								\
 })
 
@@ -96,21 +97,17 @@ int evl_wait_schedule(struct evl_wait_queue *wq);
 
 static inline bool evl_wait_active(struct evl_wait_queue *wq)
 {
-	assert_hard_lock(&wq->lock);
+	assert_hard_lock(&wq->wchan.lock);
 	return !list_empty(&wq->wchan.wait_list);
 }
 
 void __evl_init_wait(struct evl_wait_queue *wq,
 		struct evl_clock *clock,
 		int flags,
-		const char *name,
-		struct lock_class_key *key);
+		const char *name);
 
-#define evl_init_wait(__wq, __clock, __flags)				\
-	do {								\
-		static struct lock_class_key __key;			\
-		__evl_init_wait(__wq, __clock, __flags, #__wq, &__key); \
-	} while (0)
+#define evl_init_wait(__wq, __clock, __flags)	\
+	__evl_init_wait(__wq, __clock, __flags, #__wq)
 
 void evl_destroy_wait(struct evl_wait_queue *wq);
 

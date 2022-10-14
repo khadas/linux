@@ -300,7 +300,7 @@ void evl_unregister_socket_domain(struct evl_socket_domain *domain)
 
 static inline bool charge_socket_wmem(struct evl_socket *esk,
 				struct sk_buff *skb)
-{				/* esk->wmem_wait.lock held */
+{				/* esk->wmem_wait.wchan.lock held */
 	if (atomic_read(&esk->wmem_count) >= esk->wmem_max)
 		return false;
 
@@ -338,7 +338,7 @@ void evl_uncharge_socket_wmem(struct sk_buff *skb)
 	 * The tracking socket cannot be stale as it has to pass the
 	 * wmem_crossing first before unwinding in sock_oob_detach().
 	 */
-	raw_spin_lock_irqsave(&esk->wmem_wait.lock, flags);
+	raw_spin_lock_irqsave(&esk->wmem_wait.wchan.lock, flags);
 
 	EVL_NET_CB(skb)->tracker = NULL;
 
@@ -348,7 +348,7 @@ void evl_uncharge_socket_wmem(struct sk_buff *skb)
 
 	evl_up_crossing(&esk->wmem_drain);
 
-	raw_spin_unlock_irqrestore(&esk->wmem_wait.lock, flags);
+	raw_spin_unlock_irqrestore(&esk->wmem_wait.wchan.lock, flags);
 
 	EVL_WARN_ON(NET, count < 0);
 }
@@ -486,6 +486,9 @@ void sock_oob_detach(struct socket *sock)
 	evl_pass_crossing(&esk->wmem_drain);
 	/* We are detaching, so rmem_count can be left out of sync. */
 	evl_net_free_skb_list(&esk->input);
+
+	evl_destroy_wait(&esk->input_wait);
+	evl_destroy_wait(&esk->wmem_wait);
 
 	if (esk->proto->detach)
 		esk->proto->detach(esk);

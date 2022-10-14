@@ -32,7 +32,7 @@ find_packet_proto(__be16 protocol,
 		struct evl_net_proto *default_proto);
 
 /*
- * Lock nesting: protocol_lock -> rxq->lock -> esk->input_wait.lock
+ * Lock nesting: protocol_lock -> rxq->lock -> esk->input_wait.wchan.lock
  * We use linear skbs only (no paged data).
  */
 
@@ -109,13 +109,13 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 			}
 		}
 
-		raw_spin_lock(&esk->input_wait.lock);
+		raw_spin_lock(&esk->input_wait.wchan.lock);
 
 		list_add_tail(&qskb->list, &esk->input);
 		if (evl_wait_active(&esk->input_wait))
 			evl_wake_up_head(&esk->input_wait);
 
-		raw_spin_unlock(&esk->input_wait.lock);
+		raw_spin_unlock(&esk->input_wait.wchan.lock);
 
 		evl_signal_poll_events(&esk->poll_head,	POLLIN|POLLRDNORM);
 		delivered = true;
@@ -603,11 +603,11 @@ static ssize_t receive_packet(struct evl_socket *esk,
 		msg_flags |= MSG_DONTWAIT;
 
 	do {
-		raw_spin_lock_irqsave(&esk->input_wait.lock, flags);
+		raw_spin_lock_irqsave(&esk->input_wait.wchan.lock, flags);
 
 		if (!list_empty(&esk->input)) {
 			skb = list_get_entry(&esk->input, struct sk_buff, list);
-			raw_spin_unlock_irqrestore(&esk->input_wait.lock, flags);
+			raw_spin_unlock_irqrestore(&esk->input_wait.wchan.lock, flags);
 			/* Restore the MAC header. */
 			skb_push(skb, skb->data - skb_mac_header(skb));
 			ret = copy_packet_to_user(u_msghdr, iov, iovlen, skb);
@@ -617,12 +617,12 @@ static ssize_t receive_packet(struct evl_socket *esk,
 		}
 
 		if (msg_flags & MSG_DONTWAIT) {
-			raw_spin_unlock_irqrestore(&esk->input_wait.lock, flags);
+			raw_spin_unlock_irqrestore(&esk->input_wait.wchan.lock, flags);
 			return -EWOULDBLOCK;
 		}
 
 		evl_add_wait_queue(&esk->input_wait, timeout, tmode);
-		raw_spin_unlock_irqrestore(&esk->input_wait.lock, flags);
+		raw_spin_unlock_irqrestore(&esk->input_wait.wchan.lock, flags);
 		ret = evl_wait_schedule(&esk->input_wait);
 	} while (!ret);
 
