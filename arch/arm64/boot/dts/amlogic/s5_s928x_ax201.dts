@@ -578,7 +578,7 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s";
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -613,7 +613,7 @@
 				dai-tdm-slot-width = <32>;
 				system-clock-frequency = <12288000>;
 			};
-			codec {
+			tdmdcodec: codec {
 				sound-dai = <&amlogic_codec>;
 			};
 		};
@@ -642,7 +642,25 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+
+		/* spdif_b to hdmi, only playback */
 		aml-audio-card,dai-link@6 {
+			mclk-fs = <128>;
+			continuous-clock;
+			/* suffix-name, sync with android audio hal
+			 * what's the dai link used for
+			 */
+			suffix-name = "alsaPORT-spdifb";
+			cpu {
+				sound-dai = <&spdifb>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
 			suffix-name = "alsaPORT-loopback";
@@ -655,18 +673,17 @@
 			};
 		};
 
-//		aml-audio-card,dai-link@7 {
-//			mclk-fs = <256>;
-//			suffix-name = "alsaPORT-earc";
-//			cpu {
-//				sound-dai = <&earc>;
-//				system-clock-frequency = <12288000>;
-//			};
-//			codec {
-//				sound-dai = <&dummy_codec>;
-//			};
-//		};
-
+		aml-audio-card,dai-link@8 {
+			mclk-fs = <256>;
+			suffix-name = "alsaPORT-earc";
+			cpu {
+				sound-dai = <&earc>;
+				system-clock-frequency = <12288000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
 	};
 	/* Audio Related end */
 
@@ -995,9 +1012,10 @@
 		 * clock-names = "mclk", "mclk_pad", "clk_srcpll";
 		 */
 		 clocks = <&clkaudio CLKID_AUDIO_MCLK_B
-			&clkaudio CLKID_AUDIO_MCLK_PAD0
-			&clkc CLKID_HIFI1_PLL>;
-		clock-names = "mclk", "mclk_pad", "clk_srcpll";
+				&clkaudio CLKID_AUDIO_MCLK_PAD0
+				&clkc CLKID_HIFI_PLL
+				&clkc CLKID_HIFI1_PLL>;
+		clock-names = "mclk", "mclk_pad", "clk_srcpll", "clk_src_cd";
 
 		mclk_pad = <0>;  /* 0: mclk_0; 1: mclk_1 */
 
@@ -1019,6 +1037,7 @@
 		clk_tuning_enable = <1>;
 
 		src-clk-freq = <491520000>;
+		i2s2hdmi = <1>;
 		status = "okay";
 	};
 
@@ -1028,8 +1047,10 @@
 		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <2>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
-				&clkc CLKID_HIFI_PLL>;
-		clock-names = "mclk", "clk_srcpll";
+				&clkc CLKID_HIFI_PLL
+				&clkc CLKID_HIFI1_PLL>;
+		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+		src-clk-freq = <491520000>;
 		i2s2hdmi = <1>;
 		status = "okay";
 	};
@@ -1042,12 +1063,13 @@
 		dai-tdm-clk-sel = <3>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_TDMIND
-			&clkaudio CLKID_AUDIO_GATE_TDMOUTD
-			&clkaudio CLKID_AUDIO_MCLK_D
-			&clkaudio CLKID_AUDIO_MCLK_PAD3
-			&clkc CLKID_HIFI_PLL>;
-		clock-names = "gate_in","gate_out","mclk",
-					"mclk_pad","clk_srcpll";
+				&clkaudio CLKID_AUDIO_GATE_TDMOUTD
+				&clkaudio CLKID_AUDIO_MCLK_D
+				&clkaudio CLKID_AUDIO_MCLK_PAD3
+				&clkc CLKID_HIFI_PLL
+				&clkc CLKID_HIFI1_PLL>;
+		clock-names = "gate_in", "gate_out", "mclk",
+					"mclk_pad", "clk_srcpll", "clk_src_cd";
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -1088,12 +1110,13 @@
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkc CLKID_HIFI_PLL
+				&clkc CLKID_HIFI1_PLL
 				&clkc CLKID_FCLK_DIV4
 				&clkaudio CLKID_AUDIO_GATE_SPDIFIN
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_A
 				&clkaudio CLKID_AUDIO_SPDIFIN
 				&clkaudio CLKID_AUDIO_SPDIFOUT_A>;
-		clock-names = "sysclk", "fixed_clk", "gate_spdifin",
+		clock-names = "sysclk", "clk_src_cd", "fixed_clk", "gate_spdifin",
 				"gate_spdifout", "clk_spdifin", "clk_spdifout";
 		interrupts =
 				<GIC_SPI 35 IRQ_TYPE_EDGE_RISING>;
@@ -1104,18 +1127,20 @@
 		pinctrl-1 = <&spdifout_a_mute>;
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 	spdifb:spdif@1 {
 		compatible = "amlogic, tm2-revb-snd-spdif-b";
 		#sound-dai-cells = <0>;
 		clocks = <&clkc CLKID_HIFI_PLL /*CLKID_HIFI_PLL*/
+				&clkc CLKID_HIFI1_PLL
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_B
 				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
-		clock-names = "sysclk",
+		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
-
-		status = "disabled";
+		src-clk-freq = <491520000>;
+		status = "okay";
 	};
 
 	extn:extn {
@@ -1235,10 +1260,10 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_HIFI1_PLL
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1
-			&clkc CLKID_HIFI1_PLL
+			&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_MCLK_A>;
 		clock-names = "pdm_gate",
 			"pdm_sysclk_srcpll",
@@ -1314,10 +1339,11 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
-		datain_chmask = <0xf>;
+		/* for s5 atv ok google */
+		datain_chnum = <0>;
+		datain_chmask = <0>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 0 1 0>;
+		datain-lane-mask-in = <0 0 0 0>;
 
 		/* tdmin_lb src
 		 * 0: tdmoutA
@@ -1341,7 +1367,7 @@
 }; /* end of audiobus */
 
 &earc {
-	status = "disabled";
+	status = "okay";
 };
 
 &crg21_otg {
@@ -1731,7 +1757,7 @@
 		mux1 {
 			groups = "pdm_dclk_a";
 			function = "pdm";
-			drive-strength-microamp = <500>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 	tdm_a_pins: tdm_a_pin {
@@ -1886,7 +1912,8 @@
 	tdmd_clk_pins: tdmd_clk_pin {
 		mux {
 			groups = "tdm_sclk1", "tdm_lrclk1";
-			function = "tdm_clk_in";
+			//function = "tdm_clk_in";
+			function = "tdm_clk_outd";
 		};
 	};
 };

@@ -577,7 +577,7 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s";
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -641,7 +641,25 @@
 				sound-dai = <&dummy_codec>;
 			};
 		};
+
+		/* spdif_b to hdmi, only playback */
 		aml-audio-card,dai-link@6 {
+			mclk-fs = <128>;
+			continuous-clock;
+			/* suffix-name, sync with android audio hal
+			 * what's the dai link used for
+			 */
+			suffix-name = "alsaPORT-spdifb";
+			cpu {
+				sound-dai = <&spdifb>;
+				system-clock-frequency = <6144000>;
+			};
+			codec {
+				sound-dai = <&dummy_codec>;
+			};
+		};
+
+		aml-audio-card,dai-link@7 {
 			mclk-fs = <256>;
 			continuous-clock;
 			suffix-name = "alsaPORT-loopback";
@@ -654,7 +672,7 @@
 			};
 		};
 
-		aml-audio-card,dai-link@7 {
+		aml-audio-card,dai-link@8 {
 			mclk-fs = <256>;
 			suffix-name = "alsaPORT-earc";
 			cpu {
@@ -1030,12 +1048,12 @@
 		ctrl_gain = <1>;
 		/*tdm clk tuning enable*/
 		clk_tuning_enable = <1>;
-
+		src-clk-freq = <491520000>;
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdm_b_pins
 			&tdm_d5_a_pins
 			&tdmb_clk_pins>;
-
+		i2s2hdmi = <1>;
 		status = "okay";
 	};
 
@@ -1048,6 +1066,7 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
+		src-clk-freq = <491520000>;
 		i2s2hdmi = <1>;
 		status = "okay";
 	};
@@ -1075,7 +1094,7 @@
 		 * 3: spdifout;
 		 * 4: spdifout_b;
 		 */
-
+		src-clk-freq = <491520000>;
 		pinctrl-names = "tdm_pins";
 		pinctrl-0 = <&tdm_d_pins
 			&tdm_d2_t_pins
@@ -1090,14 +1109,12 @@
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
 			&clkc CLKID_FCLK_DIV3
-			&clkc CLKID_HIFI_PLL
 			&clkc CLKID_HIFI1_PLL
 			&clkaudio CLKID_AUDIO_PDMIN0
 			&clkaudio CLKID_AUDIO_PDMIN1>;
 		clock-names = "gate",
 			"sysclk_srcpll",
 			"dclk_srcpll",
-			"clk_src_cd",
 			"pdm_dclk",
 			"pdm_sysclk";
 
@@ -1133,6 +1150,7 @@
 			     &spdifin_a_mute>;
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
+		src-clk-freq = <491520000>;
 		status = "okay";
 	};
 	spdifb:spdif@1 {
@@ -1144,8 +1162,8 @@
 				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
 		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
-
-		status = "disabled";
+		src-clk-freq = <491520000>;
+		status = "okay";
 	};
 
 	extn:extn {
@@ -1186,11 +1204,10 @@
 
 	asrca:resample@0 {
 		compatible = "amlogic, t5-resample-a";
-		clocks = <&clkc CLKID_HIFI_PLL
-			&clkc CLKID_HIFI1_PLL
+		clocks = <&clkc CLKID_HIFI1_PLL
 			&clkaudio CLKID_AUDIO_MCLK_B
 			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
-		clock-names = "resample_pll", "clk_src_cd", "resample_src", "resample_clk";
+		clock-names = "resample_pll", "resample_src", "resample_clk";
 
 		/*same with toddr_src
 		 *	TDMIN_A,    0
@@ -1213,11 +1230,10 @@
 
 	asrcb:resample@1 {
 		compatible = "amlogic, t5-resample-b";
-		clocks = <&clkc CLKID_HIFI_PLL
-			&clkc CLKID_HIFI1_PLL
+		clocks = <&clkc CLKID_HIFI1_PLL
 			&clkaudio CLKID_AUDIO_MCLK_F
 			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
-		clock-names = "resample_pll", "clk_src_cd", "resample_src", "resample_clk";
+		clock-names = "resample_pll", "resample_src", "resample_clk";
 
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
@@ -1346,10 +1362,11 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
-		datain_chmask = <0xf>;
+		/* for s5 atv ok google */
+		datain_chnum = <0>;
+		datain_chmask = <0>;
 		/* config which data pin for loopback */
-		datain-lane-mask-in = <1 0 1 0>;
+		datain-lane-mask-in = <0 0 0 0>;
 
 		/* tdmin_lb src
 		 * 0: tdmoutA
@@ -1739,7 +1756,7 @@
 		mux1 {
 			groups = "pdm_dclk_a";
 			function = "pdm";
-			drive-strength-microamp = <500>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 	tdm_a_pins: tdm_a_pin {
