@@ -278,6 +278,67 @@ unsigned int get_vdin_buffer_num(void)
 		return 0;
 }
 EXPORT_SYMBOL(get_vdin_buffer_num);
+
+void rx_update_vdin_prop(void)
+{
+	struct tvin_state_machine_ops_s *sm_ops;
+	struct vframe_s *update_wr_vf = NULL;
+	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
+	ulong flags;
+
+	if (!vdin0_devp ||
+	    !(vdin0_devp->flags & VDIN_FLAG_ISR_EN))
+		return;
+
+	sm_ops = vdin0_devp->frontend->sm_ops;
+	spin_lock_irqsave(&vdin0_devp->isr_lock, flags);
+	if (!vdin0_devp->last_wr_vfe &&
+	    vdin0_devp->game_mode & VDIN_GAME_MODE_1 &&
+	    vdin0_devp->vdin_function_sel & VDIN_PROP_RX_UPDATE)
+		update_wr_vf = &vdin0_devp->last_wr_vfe->vf;
+	else if (!vdin0_devp->curr_wr_vfe &&
+		   vdin0_devp->game_mode & VDIN_GAME_MODE_2 &&
+		   vdin0_devp->vdin_function_sel & VDIN_PROP_RX_UPDATE)
+		update_wr_vf = &vdin0_devp->curr_wr_vfe->vf;
+	else
+		update_wr_vf = NULL;
+
+	if (update_wr_vf) {
+		sm_ops->get_sig_property(vdin0_devp->frontend, &vdin0_devp->prop);
+		vdin_set_drm_data(vdin0_devp, update_wr_vf);
+		vdin_set_vframe_prop_info(update_wr_vf, vdin0_devp);
+		vdin_set_freesync_data(vdin0_devp, update_wr_vf);
+	}
+	spin_unlock_irqrestore(&vdin0_devp->isr_lock, flags);
+
+	if (vdin_isr_monitor & DBG_RX_UPDATE_VDIN_PROP && update_wr_vf)
+		pr_info("rx update prop index:%d game(%d)\n",
+			update_wr_vf->index, vdin0_devp->game_mode);
+	else if (vdin_isr_monitor & DBG_RX_UPDATE_VDIN_PROP)
+		pr_info("rx update prop game(%d)\n", vdin0_devp->game_mode);
+}
+EXPORT_SYMBOL(rx_update_vdin_prop);
+
+void rx_notify_vdin_skip_frame(void)
+{
+	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
+	ulong flags;
+
+	if (!vdin0_devp || !(vdin0_devp->flags & VDIN_FLAG_ISR_EN))
+		return;
+
+	vdin_vf_skip_all_disp(vdin0_devp->vfp);
+
+	if (vdin0_devp->game_mode) {
+		spin_lock_irqsave(&vdin0_devp->isr_lock, flags);
+		vdin_pause_hw_write(vdin0_devp, 0);
+		spin_unlock_irqrestore(&vdin0_devp->isr_lock, flags);
+	}
+	vdin0_devp->frame_drop_num = 1;
+	vdin_drop_frame_info(vdin0_devp, "rx notify skip frame");
+}
+EXPORT_SYMBOL(rx_notify_vdin_skip_frame);
+
 /*
  * 1. find the corresponding frontend according to the port & save it.
  * 2. set default register, including:
@@ -2527,8 +2588,7 @@ void vdin_frame_write_ctrl_set(struct vdin_dev_s *devp,
 
 void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en)
 {
-	if (devp->afbce_mode == 0 || devp->double_wr)
-		vdin_pause_mif_write(devp, rdma_en);
+	vdin_pause_mif_write(devp, rdma_en);
 
 	if (devp->afbce_mode == 1 || devp->double_wr)
 		vdin_pause_afbce_write(devp, rdma_en);
@@ -2670,7 +2730,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 				if (devp->duration == 960)
 					devp->prop.fps = 100;
 			}
-			if (vdin_isr_monitor & BIT(6))
+			if (vdin_isr_monitor & VDIN_ISR_MONITOR_VRR_DATA)
 				pr_info("vdin vrr_en:%d spd:%d %d\n",
 					devp->prop.vtem_data.vrr_en,
 					devp->prop.spd_data.data[0],
@@ -2739,7 +2799,7 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	spin_lock_irqsave(&devp->isr_lock, flags);
 
 	if (devp->dv.chg_cnt) {
-		if (devp->frame_cnt > 2)
+		if (devp->game_mode)
 			vdin_pause_hw_write(devp,
 				devp->flags & VDIN_FLAG_RDMA_ENABLE);
 		vdin_drop_frame_info(devp, "dv chg");

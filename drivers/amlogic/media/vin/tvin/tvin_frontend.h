@@ -91,4 +91,6 @@ struct tvin_frontend_s *tvin_get_frontend(enum tvin_port_e port, int index);
 struct tvin_decoder_ops_s *tvin_get_fe_ops(enum tvin_port_e port, int index);
 struct tvin_state_machine_ops_s *tvin_get_sm_ops(enum tvin_port_e port,
 						 int index);
+void rx_notify_vdin_skip_frame(void);
+void rx_update_vdin_prop(void);
 #endif

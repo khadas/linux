@@ -116,8 +116,9 @@
 /* 20221010: support buffer keeper */
 /* 20221018: smr state machine optimization */
 /* 20221021: s5 vdin bringup */
+/* 20221028: rx calls interface notify information */
 
-#define VDIN_VER "20221021"
+#define VDIN_VER "20221028"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -259,7 +260,7 @@ struct match_data_s {
 /* #define VDIN_DEBUG */
 #define VDIN_SELF_STOP_START		BIT(0)
 #define VDIN_VADJ1_TO_VD1		BIT(3)
-
+#define VDIN_PROP_RX_UPDATE		BIT(5)
 
 #define IS_HDMI_SRC(src)	\
 		({typeof(src) src_ = src; \
@@ -318,17 +319,19 @@ enum vdin_vf_put_md {
 	VDIN_VF_RECYCLE,
 };
 
-#define VDIN_ISR_MONITOR_HDR        BIT(0)
-#define VDIN_ISR_MONITOR_EMP        BIT(1)
-#define VDIN_ISR_MONITOR_RATIO      BIT(2)
-#define VDIN_ISR_MONITOR_GAME       BIT(4)
-#define VDIN_ISR_MONITOR_VS         BIT(5)
-#define VDIN_ISR_MONITOR_VF         BIT(6)
-#define VDIN_ISR_MONITOR_VRR_DATA   BIT(9)
-#define VDIN_ISR_MONITOR_AFBCE      BIT(10)
-#define VDIN_ISR_MONITOR_BUFFER     BIT(11)
-#define VDIN_ISR_MONITOR_AFBCE_STA  BIT(12)
-#define VDIN_ISR_MONITOR_WRITE_DONE BIT(13)
+#define VDIN_ISR_MONITOR_HDR		BIT(0)
+#define VDIN_ISR_MONITOR_EMP		BIT(1)
+#define VDIN_ISR_MONITOR_RATIO		BIT(2)
+#define VDIN_ISR_MONITOR_GAME		BIT(4)
+#define VDIN_ISR_MONITOR_VS		BIT(5)
+#define VDIN_ISR_MONITOR_VF		BIT(6)
+#define VDIN_ISR_MONITOR_VRR_DATA	BIT(9)
+#define VDIN_ISR_MONITOR_AFBCE		BIT(10)
+#define VDIN_ISR_MONITOR_BUFFER		BIT(11)
+#define VDIN_ISR_MONITOR_AFBCE_STA	BIT(12)
+#define VDIN_ISR_MONITOR_WRITE_DONE	BIT(13)
+#define DBG_RX_UPDATE_VDIN_PROP		BIT(20)
+
 
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
 
@@ -1008,6 +1011,6 @@ void vdin_game_mode_chg(struct vdin_dev_s *devp,
 void vdin_frame_lock_check(struct vdin_dev_s *devp, int state);
 void vdin_v4l2_init(struct vdin_dev_s *devp, struct platform_device *pl_dev);
 int vdin_afbce_compression_ratio_monitor(struct vdin_dev_s *devp, struct vf_entry *vfe);
-
+void vdin_pause_hw_write(struct vdin_dev_s *devp, bool rdma_en);
 #endif /* __TVIN_VDIN_DRV_H */
 
