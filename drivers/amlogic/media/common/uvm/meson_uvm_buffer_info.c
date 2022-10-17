@@ -4,11 +4,20 @@
  */
 
 #include <linux/dma-buf.h>
+#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/amlogic/meson_uvm_core.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 
 #include "meson_uvm_buffer_info.h"
+
+static int mubi_debug_level;
+module_param(mubi_debug_level, int, 0644);
+#define MUBI_PRINTK(level, fmt, arg...) \
+	do { \
+		if (mubi_debug_level >= (level)) \
+			pr_info("MUBI: " fmt, ## arg); \
+	} while (0)
 
 static bool is_dv_video(const struct vframe_s *vfp)
 {
@@ -92,19 +101,19 @@ int get_uvm_video_type(const int fd)
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR_OR_NULL(dmabuf)) {
-		pr_info("MUI: %s, invalid dmabuf fd\n", __func__);
+		MUBI_PRINTK(1, "%s, invalid dmabuf fd\n", __func__);
 		return -EINVAL;
 	}
 
 	if (!dmabuf_is_uvm(dmabuf)) {
-		pr_info("MUI: %s, dmabuf is not uvm. %d\n", __func__, __LINE__);
+		MUBI_PRINTK(1, "%s, dmabuf is not uvm\n", __func__);
 		dma_buf_put(dmabuf);
 		return -EINVAL;
 	}
 
 	vfp = dmabuf_get_vframe(dmabuf);
 	if (IS_ERR_OR_NULL(vfp)) {
-		pr_info("MUI: %s, vframe is null.\n", __func__);
+		MUBI_PRINTK(1, "%s, vframe is null.\n", __func__);
 		ret = -EINVAL;
 		goto exit_ret;
 	}
