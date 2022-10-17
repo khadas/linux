@@ -954,7 +954,8 @@ void hdmirx_get_vsi_info(struct tvin_sig_property_s *prop)
 		prop->hdr10p_info.hdr10p_on = false;
 		last_vsi_state = rx.vs_info_details.vsi_state;
 	}
-	prop->dolby_vision = rx.vs_info_details.dolby_vision_flag;
+	if (rx.pre.colorspace != E_COLOR_YUV420)
+		prop->dolby_vision = rx.vs_info_details.dolby_vision_flag;
 	switch (rx.vs_info_details.vsi_state) {
 	case E_VSI_HDR10PLUS:
 		prop->hdr10p_info.hdr10p_on = rx.vs_info_details.hdr10plus;
@@ -1725,7 +1726,7 @@ static ssize_t edid_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
 {
-	return hdmirx_read_edid_buf(buf, HDCP14_KEY_SIZE);
+	return hdmirx_read_edid_buf(buf, MAX_EDID_BUF_SIZE);
 }
 
 static ssize_t edid_store(struct device *dev,

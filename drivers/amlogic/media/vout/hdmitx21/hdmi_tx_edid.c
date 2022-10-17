@@ -434,7 +434,10 @@ static int edid_parse_check_hdmi_vsdb(struct hdmitx_dev *hdev,
 	blockaddr = CEA_DATA_BLOCK_COLLECTION_ADDR_1STP;
 	while (blockaddr < VSpecificBoundary) {
 		len = buff[blockaddr] & 0x1F;
-		if ((buff[blockaddr] & 0xE0) == VENDOR_TAG)
+		if (((buff[blockaddr] & 0xE0) == VENDOR_TAG) &&
+			buff[blockaddr + 1] == 0x03 &&
+			buff[blockaddr + 2] == 0x0c &&
+			buff[blockaddr + 3] == 0x00)
 			break;
 		temp_addr = blockaddr + len + 1;
 		if (temp_addr >= VSpecificBoundary)
