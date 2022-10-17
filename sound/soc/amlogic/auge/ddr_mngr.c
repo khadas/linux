@@ -2225,6 +2225,21 @@ static struct ddr_chipinfo t5_ddr_chipinfo = {
 	.src_sel_ctrl          = true,
 	.asrc_src_sel_ctrl     = true,
 	.wakeup                = 2,
+	.toddr_num             = 4,
+	.frddr_num             = 4,
+	.fifo_depth            = FIFO_DEPTH_1K,
+	.chnum_sync            = true,
+	.burst_finished_flag   = true,
+	.to_srcs               = &toddr_srcs_v3[0],
+	.use_arb               = true,
+};
+
+static struct ddr_chipinfo t3_ddr_chipinfo = {
+	.same_src_fn           = true,
+	.ugt                   = true,
+	.src_sel_ctrl          = true,
+	.asrc_src_sel_ctrl     = true,
+	.wakeup                = 2,
 	.toddr_num             = 5,
 	.frddr_num             = 5,
 	.fifo_depth            = FIFO_DEPTH_1K,
@@ -2319,6 +2334,10 @@ static const struct of_device_id aml_ddr_mngr_device_id[] = {
 	{
 		.compatible = "amlogic, s5-audio-ddr-manager",
 		.data       = &s5_ddr_chipinfo,
+	},
+	{
+		.compatible = "amlogic, t3-audio-ddr-manager",
+		.data       = &t3_ddr_chipinfo,
 	},
 	{},
 };
