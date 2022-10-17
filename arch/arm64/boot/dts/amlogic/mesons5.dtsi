@@ -2460,7 +2460,7 @@
 				};
 			};
 		};
-		a55_thermal: a55_thermal {
+		soc_thermal: soc_thermal {
 			status = "okay";
 			polling-delay = <2000>;
 			polling-delay-passive = <1000>;
