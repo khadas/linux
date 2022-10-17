@@ -693,8 +693,8 @@ struct vsi_infoframe_st {
 			u8 knee_point_y_hi:2;
 			u8 knee_point_x_lo:6;
 			u8 knee_point_y_lo;
-			/*pb17~26*/
-			u8 data[10]; /* val=0 */
+			/*pb18~26*/
+			u8 data[9]; /* val=0 */
 			u8 rsvd1:6;
 			u8 vsif_timing_mode:1;
 			u8 graphics_overlay_flag:1;
@@ -811,16 +811,16 @@ struct spd_infoframe_st {
 			u8 supported:1;
 			u8 enabled:1;
 			u8 active:1;
-			u8 cs_active:1;
-			u8 rsvd2:2;
-			u8 ld_disable:1;
-			u8 rsvd3:3;
+			//u8 cs_active:1;
+			u8 rsvd2:5;
+			//u8 ld_disable:1;
+			//u8 rsvd3:3;
 			u8 min_frame_rate;
 			u8 max_frame_rate;
 			/*pb9-pb27*/
 			u8 data[19];
 		} __packed freesync;
-		u8 data[28];
+		u8 data[27];
 		struct spd_data_st {
 			/*Vendor Name Character*/
 			u8 vendor_name[8];
