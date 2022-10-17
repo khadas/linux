@@ -4708,6 +4708,10 @@ static void disable_vd3_blend(struct video_layer_s *layer)
 
 	if (!layer)
 		return;
+
+	if (!glayer_info[layer->layer_id].layer_support)
+		return;
+
 	vpp_index = layer->vpp_index;
 
 	if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
@@ -7085,13 +7089,13 @@ void vpp_blend_update_t7(const struct vinfo_s *vinfo)
 	if (vd_layer[2].vpp_index == VPP0 &&
 	    ((vd_layer[2].dispbuf && video3_off_req) ||
 	    (!vd_layer[2].dispbuf &&
-	     (video1_off_req || video3_off_req))))
+	     (video3_off_req))))
 		disable_vd3_blend(&vd_layer[2]);
 
 	if (vd_layer[1].vpp_index == VPP0 &&
 	    ((vd_layer[1].dispbuf && video2_off_req) ||
 	    (!vd_layer[1].dispbuf &&
-	     (video1_off_req || video2_off_req))))
+	     (video2_off_req))))
 		disable_vd2_blend(&vd_layer[1]);
 
 	if (video1_off_req)
@@ -7384,13 +7388,13 @@ static void vpp_blend_update_s5(const struct vinfo_s *vinfo)
 	if (vd_layer[2].vpp_index == VPP0 &&
 	    ((vd_layer[2].dispbuf && video3_off_req) ||
 	    (!vd_layer[2].dispbuf &&
-	     (video1_off_req || video3_off_req))))
+	     (video3_off_req))))
 		disable_vd3_blend(&vd_layer[2]);
 
 	if (vd_layer[1].vpp_index == VPP0 &&
 	    ((vd_layer[1].dispbuf && video2_off_req) ||
 	    (!vd_layer[1].dispbuf &&
-	     (video1_off_req || video2_off_req))))
+	     (video2_off_req))))
 		disable_vd2_blend(&vd_layer[1]);
 
 	if (video1_off_req)
