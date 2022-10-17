@@ -124,7 +124,6 @@ struct hw_osd_reg_s hw_osd_reg_array[HW_OSD_COUNT];
 struct hw_osd_blend_reg_s hw_osd_reg_blend;
 struct hw_osd_slice2ppc_reg_s hw_osd_reg_slice2ppc;
 struct hw_osd_slice2ppc_s osd_slice2ppc;
-static int osd_reg_init = 1;
 
 struct hw_osd_reg_s hw_osd_reg_array_g12a[HW_OSD_COUNT] = {
 	{
@@ -14020,7 +14019,7 @@ void osd_init_hw(u32 logo_loaded, u32 osd_probe,
 		osd_reg_write(L_GAMMA_CNTL_PORT, 0);
 
 	/* here we will init default value ,these value only set once . */
-	if (!logo_loaded || osd_reg_init) {
+	if (!logo_loaded) {
 		if (osd_dev_hw.s5_display)
 			s5_default_path_settings();
 
