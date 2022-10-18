@@ -484,9 +484,9 @@ static void untrack_owner(struct evl_mutex *mutex)
 	assert_hard_lock(&mutex->wchan.lock);
 
 	if (owner) {
-		raw_spin_lock(&owner->tracking_lock);
-		list_del(&mutex->next_tracker);
-		raw_spin_unlock(&owner->tracking_lock);
+		raw_spin_lock(&owner->lock);
+		list_del(&mutex->next_owned);
+		raw_spin_unlock(&owner->lock);
 		evl_put_element(&owner->element);
 		mutex->wchan.owner = NULL;
 	}
@@ -497,21 +497,19 @@ static void track_owner(struct evl_mutex *mutex,
 			struct evl_thread *owner)
 {
 	struct evl_thread *prev = mutex->wchan.owner;
-	unsigned long flags;
 
 	assert_hard_lock(&mutex->wchan.lock);
 
 	if (EVL_WARN_ON_ONCE(CORE, prev == owner))
 		return;
 
-	raw_spin_lock_irqsave(&owner->tracking_lock, flags);
+	raw_spin_lock(&owner->lock);
 	if (prev) {
-		list_del(&mutex->next_tracker);
-		smp_wmb();
+		list_del(&mutex->next_owned);
 		evl_put_element(&prev->element);
 	}
-	list_add(&mutex->next_tracker, &owner->trackers);
-	raw_spin_unlock_irqrestore(&owner->tracking_lock, flags);
+	list_add(&mutex->next_owned, &owner->owned_mutexes);
+	raw_spin_unlock(&owner->lock);
 	mutex->wchan.owner = owner;
 }
 
@@ -1339,38 +1337,27 @@ void evl_unlock_mutex(struct evl_mutex *mutex)
 }
 EXPORT_SYMBOL_GPL(evl_unlock_mutex);
 
-void evl_drop_tracking_mutexes(struct evl_thread *curr)
+/*
+ * Release all mutexes the current (exiting) thread owns.
+ */
+void evl_drop_current_ownership(void)
 {
+	struct evl_thread *curr = evl_current();
 	struct evl_mutex *mutex;
 	unsigned long flags;
-	fundle_t h;
 
-	/* FIXME: ABBA, tracking_lock vs wchan. */
+	raw_spin_lock_irqsave(&curr->lock, flags);
 
-	raw_spin_lock_irqsave(&curr->tracking_lock, flags);
-
-	/* Release all mutexes tracking @curr. */
-	while (!list_empty(&curr->trackers)) {
-		/*
-		 * Either __evl_unlock_mutex() or untrack_owner() will
-		 * unlink @mutex from curr->trackers.
-		 */
-		mutex = list_first_entry(&curr->trackers,
-					struct evl_mutex, next_tracker);
-		raw_spin_unlock_irqrestore(&curr->tracking_lock, flags);
-		h = evl_get_index(atomic_read(mutex->fastlock));
-		if (h == fundle_of(curr)) {
-			__evl_unlock_mutex(mutex);
-		} else {
-			raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
-			if (mutex->wchan.owner == curr) /* FIXME: infinite loop, not unlinked otherwise?? */
-				untrack_owner(mutex);
-			raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
-		}
-		raw_spin_lock_irqsave(&curr->tracking_lock, flags);
+	while (!list_empty(&curr->owned_mutexes)) {
+		mutex = list_first_entry(&curr->owned_mutexes,
+					struct evl_mutex, next_owned);
+		raw_spin_unlock_irqrestore(&curr->lock, flags);
+		/* This removes @mutex from curr->owned_mutexes. */
+		__evl_unlock_mutex(mutex);
+		raw_spin_lock_irqsave(&curr->lock, flags);
 	}
 
-	raw_spin_unlock_irqrestore(&curr->tracking_lock, flags);
+	raw_spin_unlock_irqrestore(&curr->lock, flags);
 }
 
 static inline struct evl_mutex *

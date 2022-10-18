@@ -32,7 +32,7 @@ struct evl_mutex {
 	u32 *ceiling_ref;
 	struct evl_wait_channel wchan;
 	struct list_head next_booster; /* thread->boosters */
-	struct list_head next_tracker;   /* thread->trackers */
+	struct list_head next_owned;   /* thread->owned_mutexes */
 };
 
 void __evl_init_mutex(struct evl_mutex *mutex,
@@ -82,7 +82,7 @@ int evl_reorder_mutex_wait(struct evl_thread *waiter,
 void evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 			struct evl_thread *waiter);
 
-void evl_drop_tracking_mutexes(struct evl_thread *curr);
+void evl_drop_current_ownership(void);
 
 struct evl_kmutex {
 	struct evl_mutex mutex;

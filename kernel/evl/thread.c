@@ -224,8 +224,7 @@ int evl_init_thread(struct evl_thread *thread,
 
 	INIT_LIST_HEAD(&thread->next);
 	INIT_LIST_HEAD(&thread->boosters);
-	INIT_LIST_HEAD(&thread->trackers);
-	raw_spin_lock_init(&thread->tracking_lock);
+	INIT_LIST_HEAD(&thread->owned_mutexes);
 	raw_spin_lock_init(&thread->lock);
 	init_completion(&thread->exited);
 	INIT_LIST_HEAD(&thread->ptsync_next);
@@ -302,10 +301,10 @@ static void do_cleanup_current(struct evl_thread *curr)
 		evl_flush_observable(curr->observable);
 
 	/*
-	 * Drop trackers first since this may alter the rq state for
-	 * current.
+	 * Drop all mutexes first since this may alter the rq state
+	 * for current.
 	 */
-	evl_drop_tracking_mutexes(curr);
+	evl_drop_current_ownership();
 
 	evl_unindex_factory_element(&curr->element);
 
