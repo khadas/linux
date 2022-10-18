@@ -2999,8 +2999,8 @@
 			opp-hz = /bits/ 64 <666666666>;
 			opp-microvolt = <1150>;
 		};
-		opp-846 {
-			opp-hz = /bits/ 64 <846000000>;
+		opp-830 {
+			opp-hz = /bits/ 64 <830000000>;
 			opp-microvolt = <1150>;
 		};
 	};
@@ -3917,8 +3917,8 @@
 		&dvfs400_cfg
 		&dvfs500_cfg
 		&dvfs666_cfg
-		&dvfs850_cfg
-		&dvfs850_cfg>;
+		&dvfs830_cfg
+		&dvfs830_cfg>;
 
 //	reset_cfg:reset_cfg {
 //		reg_level = <0x16>;
