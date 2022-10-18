@@ -1863,14 +1863,13 @@ static void handle_cleanup_event(struct mm_struct *mm)
 	 * cleanup_current_thread() already ran, so check @curr for
 	 * NULL.
 	 *
-	 * Otherwise, release the oob state for the dropped mm if
-	 * any. We may or may not have one, EVL_MM_ACTIVE_BIT tells us
-	 * so.
+	 * Alwausrelease the oob state for the dropped mm if any,
+	 * EVL_MM_ACTIVE_BIT tells us if we have one.
 	 */
 	if (curr && !(current->flags & PF_EXITING))
 		put_current_thread();
-	else
-		flush_oob_mm_state(&mm->oob_state);
+
+	flush_oob_mm_state(&mm->oob_state);
 }
 
 void handle_inband_event(enum inband_event_type event, void *data)
