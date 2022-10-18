@@ -105,6 +105,22 @@ static struct drm_display_mode tv_lcd_mode_ref[] = {
 		.vscan = 0,
 		.vrefresh = 60,
 	},
+	{ /* 3840x1080p120hz */
+		.name = "3840x1080p",
+		.status = 0,
+		.clock = 594000,
+		.hdisplay = 3840,
+		.hsync_start = 4000,
+		.hsync_end = 4060,
+		.htotal = 4400,
+		.hskew = 0,
+		.vdisplay = 1080,
+		.vsync_start = 1100,
+		.vsync_end = 1105,
+		.vtotal = 1125,
+		.vscan = 0,
+		.vrefresh = 120,
+	},
 	{ /* invalid */
 		.name = "invalid",
 		.status = 0,
@@ -131,6 +147,12 @@ static unsigned int lcd_std_frame_rate[] = {
 	47
 };
 
+static unsigned int lcd_std_frame_rate_high[] = {
+	120,
+	119,
+	100
+};
+
 static int get_lcd_tv_modes(struct meson_panel_dev *panel,
 		struct drm_display_mode **modes, int *num)
 {
@@ -138,7 +160,9 @@ static int get_lcd_tv_modes(struct meson_panel_dev *panel,
 	struct aml_lcd_drv_s *pdrv = wrapper->lcd_drv;
 	struct drm_display_mode *native_mode;
 	struct drm_display_mode *nmodes;
-	int i;
+	int num_0, num_1;
+	int i, j, m, k;
+	int find_high = 0;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 		LCDPR("[%d]: %s\n", pdrv->index, __func__);
@@ -150,13 +174,18 @@ static int get_lcd_tv_modes(struct meson_panel_dev *panel,
 		native_mode = &tv_lcd_mode_ref[1];
 		break;
 	case 1080:
+		if (pdrv->config.basic.h_active == 3840) {
+			find_high = 1;
+			native_mode = &tv_lcd_mode_ref[4];
+			break;
+		}
 		native_mode = &tv_lcd_mode_ref[2];
 		break;
 	case 2160:
 		native_mode = &tv_lcd_mode_ref[3];
 		break;
 	default:
-		native_mode = &tv_lcd_mode_ref[4];
+		native_mode = &tv_lcd_mode_ref[5];
 		LCDERR("[%d]: %s: invalid lcd mode\n", pdrv->index, __func__);
 		break;
 	}
@@ -164,6 +193,69 @@ static int get_lcd_tv_modes(struct meson_panel_dev *panel,
 	if (strstr(native_mode->name, "invalid")) {
 		*num = 0;
 		return -ENODEV;
+	}
+
+	if (pdrv->config.cus_ctrl.dlg_flag) {
+		num_0 = ARRAY_SIZE(lcd_std_frame_rate);
+		num_1 = ARRAY_SIZE(lcd_std_frame_rate_high);
+		*num = num_0 + num_1;
+		nmodes = kmalloc_array(*num, sizeof(struct drm_display_mode), GFP_KERNEL);
+		if (!nmodes) {
+			*num = 0;
+			return -ENOMEM;
+		}
+
+		for (i = 0; i < 5; i++) {
+			if (tv_lcd_mode_ref[i].hdisplay == 3840 &&
+			    tv_lcd_mode_ref[i].vdisplay == 2160) {
+				for (j = 0; j < num_0; j++) {
+					memcpy(&nmodes[j], &tv_lcd_mode_ref[i],
+					       sizeof(struct drm_display_mode));
+					memset(nmodes[j].name, 0, DRM_DISPLAY_MODE_LEN);
+					sprintf(nmodes[j].name, "%s%dhz",
+					tv_lcd_mode_ref[i].name, lcd_std_frame_rate[j]);
+					nmodes[j].vrefresh = lcd_std_frame_rate[j];
+				}
+			}
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
+			LCDPR("[%d]: %s add dlg mode\n", pdrv->index, __func__);
+		for (m = 0; m < 5; m++) {
+			if (tv_lcd_mode_ref[m].hdisplay == 3840 &&
+			    tv_lcd_mode_ref[m].vdisplay == 1080) {
+				for (k = 0; k < num_1; k++) {
+					memcpy(&nmodes[j + k], &tv_lcd_mode_ref[m],
+					       sizeof(struct drm_display_mode));
+					memset(nmodes[j + k].name, 0, DRM_DISPLAY_MODE_LEN);
+					sprintf(nmodes[j + k].name, "%s%dhz",
+						tv_lcd_mode_ref[m].name,
+						lcd_std_frame_rate_high[k]);
+					nmodes[j + k].vrefresh = lcd_std_frame_rate_high[k];
+				}
+			}
+		}
+		*modes = nmodes;
+		return 0;
+	}
+
+	if (find_high) {
+		*num = ARRAY_SIZE(lcd_std_frame_rate);
+		nmodes = kmalloc_array(*num, sizeof(struct drm_display_mode), GFP_KERNEL);
+		if (!nmodes) {
+			*num = 0;
+			return -ENOMEM;
+		}
+
+		for (i = 0; i < *num; i++) {
+			memcpy(&nmodes[i], native_mode,
+			       sizeof(struct drm_display_mode));
+			memset(nmodes[i].name, 0, DRM_DISPLAY_MODE_LEN);
+			sprintf(nmodes[i].name, "%s%dhz",
+				native_mode->name, lcd_std_frame_rate_high[i]);
+			nmodes[i].vrefresh = lcd_std_frame_rate_high[i];
+		}
+		*modes = nmodes;
+		return 0;
 	}
 
 	*num = ARRAY_SIZE(lcd_std_frame_rate);
@@ -251,6 +343,7 @@ static int meson_lcd_bind(struct device *dev, struct device *master, void *data)
 	/*set lcd type.*/
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_LVDS:
+	case LCD_MLVDS:
 		if (index == 1)
 			connector_type = DRM_MODE_CONNECTOR_MESON_LVDS_B;
 		else if (index == 2)
@@ -259,6 +352,7 @@ static int meson_lcd_bind(struct device *dev, struct device *master, void *data)
 			connector_type = DRM_MODE_CONNECTOR_MESON_LVDS_A;
 		break;
 	case LCD_VBYONE:
+	case LCD_P2P:
 		if (index)
 			connector_type = DRM_MODE_CONNECTOR_MESON_VBYONE_B;
 		else
