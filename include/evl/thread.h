@@ -145,8 +145,7 @@ struct evl_thread {
 
 	/* Misc stuff. */
 
-	struct list_head trackers; /* Mutexes tracking @thread */
-	hard_spinlock_t tracking_lock;
+	struct list_head owned_mutexes; /* Mutex(es) this thread currently owns */
 	struct evl_element element;
 	struct cpumask affinity;
 	struct completion exited;
