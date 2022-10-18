@@ -858,8 +858,12 @@ static int amlogic_pcie_probe(struct platform_device *pdev)
 	tee_end = rounddown(virt_to_phys((void *)_etext), TEE_MEM_ALIGN_SIZE);
 	dev_dbg(dev, "tee_start = 0x%x, tee_end = 0x%x\n", tee_start, tee_end);
 
-	tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL,
-		tee_start, tee_end - tee_start, &handle);
+	ret = tee_protect_mem_by_type(TEE_MEM_TYPE_KERNEL, tee_start,
+				      tee_end - tee_start, &handle);
+	if (!ret) {
+		dev_err(dev, "pcie tee mem protect failed Error = 0x%x\n", ret);
+		return -ENOMEM;
+	}
 
 	if (!amlogic_pcie->phy->phy_base) {
 		phy_base = platform_get_resource_byname(
