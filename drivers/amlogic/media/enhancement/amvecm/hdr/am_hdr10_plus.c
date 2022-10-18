@@ -29,6 +29,9 @@
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/amlogic/media/amvecm/amvecm.h>
+#include <linux/amlogic/media/amvecm/cuva_alg.h>
+#include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/media/video_sink/video.h>
 
 #include "am_hdr10_plus.h"
@@ -466,6 +469,340 @@ void parser_hdr10_plus_medata(char *metadata, uint32_t size)
 	}
 }
 
+void cuva_metadata_bits_parse(struct cuva_md_bits_s *md_bits)
+{
+	md_bits->system_start_code_bits = 8;
+	md_bits->min_maxrgb_pq_bits = 12;
+	md_bits->avg_maxrgb_pq_bits = 12;
+	md_bits->var_maxrgb_pq_bits = 12;
+	md_bits->max_maxrgb_pq_bits = 12;
+	md_bits->tm_enable_mode_flag_bits = 1;
+	md_bits->tm_param_en_num_bits = 1;
+	md_bits->tgt_system_dsp_max_luma_pq_bits = 12;
+	md_bits->base_en_flag_bits = 1;
+	md_bits->base_param_m_p_bits = 14;
+	md_bits->base_param_m_m_bits = 6;
+	md_bits->base_param_m_a_bits = 10;
+	md_bits->base_param_m_b_bits = 10;
+	md_bits->base_param_m_n_bits = 6;
+	md_bits->base_param_m_k1_bits = 2;
+	md_bits->base_param_m_k2_bits = 2;
+	md_bits->base_param_m_k3_bits = 4;
+	md_bits->base_param_delta_en_mode_bits = 3;
+	md_bits->base_param_en_delta_bits = 7;
+	md_bits->spline_en_flag_bits = 1;
+	md_bits->spline_en_num_bits = 1;
+	md_bits->spline_th_en_mode_bits = 2;
+	md_bits->spline_th_en_mb_bits = 8;
+	md_bits->spline_th_enable_bits = 12;
+	md_bits->spline_th_en_delta1_bits = 10;
+	md_bits->spline_th_en_delta2_bits = 10;
+	md_bits->spline_en_strengch_bits = 8;
+	md_bits->color_sat_mapping_flag_bits = 1;
+	md_bits->color_sat_num_bits = 3;
+	md_bits->clor_sat_gain_bits = 8;
+}
+
+struct cuva_hdr_dynamic_metadata_s cuva_metadata;
+
+void cuva_hdr_metadata_parse(char *metadata, uint32_t size)
+{
+	struct cuva_md_bits_s md_bits;
+	int totbitoffset = 0;
+	int value;
+	int num_wds;
+	int i, j;
+	int tm_param_num;
+	int spline_num;
+
+	cuva_metadata_bits_parse(&md_bits);
+
+	pr_hdr("cuva metadata: size: %d\n", size);
+	for (i = 0; i < size / 8; i++)
+		pr_hdr("%02x, %02x, %02x, %02x, %02x, %02x, %02x, %02x\n",
+			metadata[8 * i], metadata[8 * i + 1],
+			metadata[8 * i + 2], metadata[8 * i + 3],
+			metadata[8 * i + 4], metadata[8 * i + 5],
+			metadata[8 * i + 6], metadata[8 * i + 7]);
+	if (size % 8 > 0) {
+		for (j = 0; j < size % 8; j++)
+			pr_hdr("%02x\n", metadata[8 * i + j]);
+	}
+	pr_hdr("cuva metadata print end\n");
+
+	metadata += 5;
+	size -= 5;
+
+	memset(&cuva_metadata, 0,
+		sizeof(struct cuva_hdr_dynamic_metadata_s));
+
+	getbits(metadata, totbitoffset,
+		&value, size,
+		md_bits.system_start_code_bits);
+	cuva_metadata.system_start_code = value;
+	totbitoffset += md_bits.system_start_code_bits;
+	pr_hdr("system_start_code = %d\n", cuva_metadata.system_start_code);
+
+	if (cuva_metadata.system_start_code == 0x1) {
+		num_wds = 1;
+		/*maxrgb_pq*/
+		getbits(metadata, totbitoffset,
+			&value, size,
+			md_bits.min_maxrgb_pq_bits);
+		cuva_metadata.min_maxrgb_pq = value;
+		totbitoffset += md_bits.min_maxrgb_pq_bits;
+		pr_hdr("min_maxrgb_pq = %d\n", cuva_metadata.min_maxrgb_pq);
+
+		getbits(metadata, totbitoffset,
+			&value, size,
+			md_bits.avg_maxrgb_pq_bits);
+		cuva_metadata.avg_maxrgb_pq = value;
+		totbitoffset += md_bits.avg_maxrgb_pq_bits;
+		pr_hdr("avg_maxrgb_pq = %d\n", cuva_metadata.avg_maxrgb_pq);
+
+		getbits(metadata, totbitoffset,
+			&value, size,
+			md_bits.var_maxrgb_pq_bits);
+		cuva_metadata.var_maxrgb_pq = value;
+		totbitoffset += md_bits.var_maxrgb_pq_bits;
+		pr_hdr("var_maxrgb_pq = %d\n", cuva_metadata.var_maxrgb_pq);
+
+		getbits(metadata, totbitoffset,
+			&value, size,
+			md_bits.max_maxrgb_pq_bits);
+		cuva_metadata.max_maxrgb_pq = value;
+		totbitoffset += md_bits.max_maxrgb_pq_bits;
+		pr_hdr("max_maxrgb_pq = %d\n", cuva_metadata.max_maxrgb_pq);
+		/*maxrgb_pq end*/
+
+		getbits(metadata, totbitoffset,
+			&value, size,
+			md_bits.tm_enable_mode_flag_bits);
+		cuva_metadata.tm_enable_mode_flag = value;
+		totbitoffset += md_bits.tm_enable_mode_flag_bits;
+		pr_hdr("tm_enable_mode_flag = %d\n", cuva_metadata.tm_enable_mode_flag);
+
+		if (cuva_metadata.tm_enable_mode_flag == 1) {
+			getbits(metadata, totbitoffset,
+				&value, size,
+				md_bits.tm_param_en_num_bits);
+			cuva_metadata.tm_param_en_num = value;
+			totbitoffset += md_bits.tm_param_en_num_bits;
+			pr_hdr("tm_param_en_num = %d\n", cuva_metadata.tm_param_en_num);
+
+			if (cuva_metadata.tm_param_en_num > 1)
+				cuva_metadata.tm_param_en_num = 1;
+			tm_param_num = cuva_metadata.tm_param_en_num + 1;
+			for (i = 0; i < tm_param_num; i++) {
+				getbits(metadata, totbitoffset,
+					&value, size,
+					md_bits.tgt_system_dsp_max_luma_pq_bits);
+				cuva_metadata.tgt_system_dsp_max_luma_pq[i] = value;
+				totbitoffset += md_bits.tgt_system_dsp_max_luma_pq_bits;
+				pr_hdr("tgt_system_dsp_max_luma_pq[%d] = %d\n",
+					i, cuva_metadata.tgt_system_dsp_max_luma_pq[i]);
+
+				getbits(metadata, totbitoffset,
+					&value, size,
+					md_bits.base_en_flag_bits);
+				cuva_metadata.base_en_flag[i] = value;
+				totbitoffset += md_bits.base_en_flag_bits;
+				pr_hdr("base_en_flag[%d] = %d\n",
+					i, cuva_metadata.base_en_flag[i]);
+
+				if (cuva_metadata.base_en_flag[i]) {
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_m_p_bits);
+					cuva_metadata.base_param_m_p[i] = value;
+					totbitoffset += md_bits.base_param_m_p_bits;
+					pr_hdr("base_param_m_p[%d] = %d\n",
+						i, cuva_metadata.base_param_m_p[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_m_m_bits);
+					cuva_metadata.base_param_m_m[i] = value;
+					totbitoffset += md_bits.base_param_m_m_bits;
+					pr_hdr("base_param_m_m[%d] = %d\n",
+						i, cuva_metadata.base_param_m_m[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_m_a_bits);
+					cuva_metadata.base_param_m_a[i] = value;
+					totbitoffset += md_bits.base_param_m_a_bits;
+					pr_hdr("base_param_m_a[%d] = %d\n",
+						i, cuva_metadata.base_param_m_a[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_m_b_bits);
+					cuva_metadata.base_param_m_b[i] = value;
+					totbitoffset += md_bits.base_param_m_b_bits;
+					pr_hdr("base_param_m_b[%d] = %d\n",
+						i, cuva_metadata.base_param_m_b[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_m_n_bits);
+					cuva_metadata.base_param_m_n[i] = value;
+					totbitoffset += md_bits.base_param_m_n_bits;
+					pr_hdr("base_param_m_n[%d] = %d\n",
+						i, cuva_metadata.base_param_m_n[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_m_k1_bits);
+					cuva_metadata.base_param_m_k1[i] = value;
+					totbitoffset += md_bits.base_param_m_k1_bits;
+					pr_hdr("base_param_m_k1[%d] = %d\n",
+						i, cuva_metadata.base_param_m_k1[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_m_k2_bits);
+					cuva_metadata.base_param_m_k2[i] = value;
+					totbitoffset += md_bits.base_param_m_k2_bits;
+					pr_hdr("base_param_m_k2[%d] = %d\n",
+						i, cuva_metadata.base_param_m_k2[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_m_k3_bits);
+					cuva_metadata.base_param_m_k3[i] = value;
+					totbitoffset += md_bits.base_param_m_k3_bits;
+					pr_hdr("base_param_m_k3[%d] = %d\n",
+						i, cuva_metadata.base_param_m_k3[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_delta_en_mode_bits);
+					cuva_metadata.base_param_delta_en_mode[i] = value;
+					totbitoffset += md_bits.base_param_delta_en_mode_bits;
+					pr_hdr("base_param_delta_en_mode[%d] = %d\n",
+						i, cuva_metadata.base_param_delta_en_mode[i]);
+
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.base_param_en_delta_bits);
+					cuva_metadata.base_param_en_delta[i] = value;
+					totbitoffset += md_bits.base_param_en_delta_bits;
+					pr_hdr("base_param_en_delta[%d] = %d\n",
+						i, cuva_metadata.base_param_en_delta[i]);
+				}
+
+				getbits(metadata, totbitoffset,
+					&value, size,
+					md_bits.spline_en_flag_bits);
+				cuva_metadata.spline_en_flag[i] = value;
+				totbitoffset += md_bits.spline_en_flag_bits;
+				pr_hdr("spline_en_flag[%d] = %d\n",
+					i, cuva_metadata.spline_en_flag[i]);
+
+				if (cuva_metadata.spline_en_flag[i]) {
+					getbits(metadata, totbitoffset,
+						&value, size,
+						md_bits.spline_en_num_bits);
+					cuva_metadata.spline_en_num[i] = value;
+					totbitoffset += md_bits.spline_en_num_bits;
+					pr_hdr("spline_en_num[%d] = %d\n",
+						i, cuva_metadata.spline_en_num[i]);
+
+					if (cuva_metadata.spline_en_num[i] > 1)
+						cuva_metadata.spline_en_num[i] = 1;
+
+					spline_num = cuva_metadata.spline_en_num[i] + 1;
+					for (j = 0; j < spline_num; j++) {
+						getbits(metadata, totbitoffset,
+							&value, size,
+							md_bits.spline_th_en_mode_bits);
+						cuva_metadata.spline_th_en_mode[j][i] = value;
+						totbitoffset += md_bits.spline_th_en_mode_bits;
+						pr_hdr("spline_th_en_mode[%d][%d] = %d\n",
+						j, i, cuva_metadata.spline_th_en_mode[j][i]);
+
+						if (cuva_metadata.spline_th_en_mode[j][i]
+							== 0 ||
+							cuva_metadata.spline_th_en_mode[j][i]
+							== 2) {
+							getbits(metadata, totbitoffset,
+								&value, size,
+								md_bits.spline_th_en_mb_bits);
+							cuva_metadata.spline_th_en_mb[j][i] = value;
+							totbitoffset +=
+								md_bits.spline_th_en_mb_bits;
+							pr_hdr("spline_th_en_mb[%d][%d] = %d\n",
+							j, i, cuva_metadata.spline_th_en_mb[j][i]);
+						}
+
+						getbits(metadata, totbitoffset,
+							&value, size,
+							md_bits.spline_th_enable_bits);
+						cuva_metadata.spline_th_enable[j][i] = value;
+						totbitoffset += md_bits.spline_th_enable_bits;
+						pr_hdr("spline_th_enable[%d][%d] = %d\n",
+						j, i, cuva_metadata.spline_th_enable[j][i]);
+
+						getbits(metadata, totbitoffset,
+							&value, size,
+							md_bits.spline_th_en_delta1_bits);
+						cuva_metadata.spline_th_en_delta1[j][i] = value;
+						totbitoffset += md_bits.spline_th_en_delta1_bits;
+						pr_hdr("spline_th_en_delta1[%d][%d] = %d\n",
+						j, i, cuva_metadata.spline_th_en_delta1[j][i]);
+
+						getbits(metadata, totbitoffset,
+							&value, size,
+							md_bits.spline_th_en_delta2_bits);
+						cuva_metadata.spline_th_en_delta2[j][i] = value;
+						totbitoffset += md_bits.spline_th_en_delta2_bits;
+						pr_hdr("spline_th_en_delta2[%d][%d] = %d\n",
+						j, i, cuva_metadata.spline_th_en_delta2[j][i]);
+
+						getbits(metadata, totbitoffset,
+							&value, size,
+							md_bits.spline_en_strengch_bits);
+						cuva_metadata.spline_en_strengch[j][i] = value;
+						totbitoffset += md_bits.spline_en_strengch_bits;
+						pr_hdr("spline_en_strengch[%d][%d] = %d\n",
+						j, i, cuva_metadata.spline_en_strengch[j][i]);
+					}
+				}
+			}
+		}
+
+		getbits(metadata, totbitoffset,
+			&value, size,
+			md_bits.color_sat_mapping_flag_bits);
+		cuva_metadata.color_sat_mapping_flag = value;
+		totbitoffset += md_bits.color_sat_mapping_flag_bits;
+		pr_hdr("color_sat_mapping_flag = %d\n",
+			cuva_metadata.color_sat_mapping_flag);
+
+		if (cuva_metadata.color_sat_mapping_flag) {
+			getbits(metadata, totbitoffset,
+				&value, size,
+				md_bits.color_sat_num_bits);
+			cuva_metadata.color_sat_num = value;
+			totbitoffset += md_bits.color_sat_num_bits;
+			pr_hdr("color_sat_num = %d\n", cuva_metadata.color_sat_num);
+
+			if (cuva_metadata.color_sat_num > 8)
+				cuva_metadata.color_sat_num = 8;
+			for (i = 0; i < cuva_metadata.color_sat_num; i++) {
+				getbits(metadata, totbitoffset,
+					&value, size,
+					md_bits.clor_sat_gain_bits);
+				cuva_metadata.clor_sat_gain[i] = value;
+				totbitoffset += md_bits.clor_sat_gain_bits;
+				pr_hdr("clor_sat_gain[%d] = %d\n",
+					i, cuva_metadata.clor_sat_gain[i]);
+			}
+		}
+	}
+}
+
 static int parse_sei(char *sei_buf, uint32_t size)
 {
 	char *p = sei_buf;
@@ -495,7 +832,19 @@ static int parse_sei(char *sei_buf, uint32_t size)
 			switch (payload_type) {
 			case SEI_SYNTAX:
 				p_sei = p;
-				parser_hdr10_plus_medata(p_sei, payload_size);
+				if (p_sei[0] == 0xB5 &&
+					p_sei[1] == 0x00 &&
+					p_sei[2] == 0x3C &&
+					p_sei[3] == 0x00 &&
+					p_sei[4] == 0x01 &&
+					p_sei[5] == 0x04)
+					parser_hdr10_plus_medata(p_sei, payload_size);
+				else if (p_sei[0] == 0x26 &&
+					p_sei[1] == 0x00 &&
+					p_sei[2] == 0x04 &&
+					p_sei[3] == 0x00 &&
+					p_sei[4] == 0x05)
+					cuva_hdr_metadata_parse(p_sei, payload_size);
 				break;
 			default:
 				break;
@@ -660,9 +1009,10 @@ static void hdr10_plus_vf_md_parse(struct vframe_s *vf)
 	hdr_plus_sei.color_saturation_mapping_flag[0] = 0;
 }
 
-void hdr10_plus_parser_metadata(struct vframe_s *vf)
+void parser_dynamic_metadata(struct vframe_s *vf)
 {
 	struct provider_aux_req_s req;
+	struct provider_aux_req_s req_avs2;
 	char *p;
 	unsigned int size = 0;
 	unsigned int type = 0;
@@ -680,11 +1030,28 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 		req.aux_size = 0;
 		req.dv_enhance_exist = 0;
 		req.low_latency = 0;
-		if (get_vframe_src_fmt(vf) ==
-		    VFRAME_SIGNAL_FMT_HDR10PLUS) {
+
+		req_avs2.vf = vf;
+		req_avs2.bot_flag = 0;
+		req_avs2.aux_buf = NULL;
+		req_avs2.aux_size = 0;
+		req_avs2.dv_enhance_exist = 0;
+		req_avs2.low_latency = 0;
+		if (get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_HDR10PLUS ||
+			get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_CUVA_HDR ||
+			get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_CUVA_HLG) {
 			size = 0;
-			req.aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
-			req.aux_size = size;
+			if (vf->codec_vfmt == VFORMAT_AVS2) {
+				if (debug_hdr)
+					pr_info("avs2_md\n");
+				req_avs2.aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
+				req_avs2.aux_size = size;
+			} else {
+				if (debug_hdr)
+					pr_info("hevc_md\n");
+				req.aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
+				req.aux_size = size;
+			}
 		} else {
 			vf_notify_provider_by_name("vdec.h265.00",
 						   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
@@ -693,6 +1060,9 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 				vf_notify_provider_by_name("decoder",
 							   VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
 							   (void *)&req);
+			vf_notify_provider_by_name("vdec.avs2.00",
+				VFRAME_EVENT_RECEIVER_GET_AUX_DATA,
+				(void *)&req_avs2);
 		}
 		if (req.aux_buf && req.aux_size &&
 			(debug_csc & 0x10)) {
@@ -757,6 +1127,10 @@ void hdr10_plus_parser_metadata(struct vframe_s *vf)
 				offest += size;
 				p += size;
 			}
+		} else if (req_avs2.aux_buf && req_avs2.aux_size) {
+			p = req_avs2.aux_buf;
+			size = req_avs2.aux_size;
+			cuva_hdr_metadata_parse(p, size);
 		}
 	}
 
@@ -921,158 +1295,376 @@ void hdr10_plus_hdmitx_vsif_parser(struct hdr10plus_para
 	       sizeof(struct hdr10plus_para));
 }
 
-void hdr10_plus_debug(void)
+struct cuva_hdr_vsif_para dbg_cuva_vsif_pkt;
+struct cuva_hdr_vs_emds_para dbg_cuva_emds_pkt;
+
+void cuva_hdr_vsif_pkt_update(struct cuva_hdr_vsif_para *vsif_para)
+{
+	memset(vsif_para, 0, sizeof(struct cuva_hdr_vsif_para));
+
+	vsif_para->system_start_code = (u8)cuva_metadata.system_start_code;
+	vsif_para->version_code = 0x5;
+	vsif_para->monitor_mode_en = 0;/*metadata have no monitor_mode_en*/
+	vsif_para->transfer_character = 0;/*metadata have no transfer_character*/
+
+	memcpy(&dbg_cuva_vsif_pkt, vsif_para,
+		sizeof(struct cuva_hdr_vsif_para));
+}
+
+void cuva_hdr_emds_pkt_update(struct cuva_hdr_vs_emds_para *edms_para)
+{
+	int i;
+
+	memset(edms_para, 0, sizeof(struct cuva_hdr_vs_emds_para));
+
+	edms_para->system_start_code = (u8)cuva_metadata.system_start_code;
+	edms_para->version_code = 0x5;
+	edms_para->min_maxrgb_pq = (u16)cuva_metadata.min_maxrgb_pq;
+	edms_para->avg_maxrgb_pq = (u16)cuva_metadata.avg_maxrgb_pq;
+	edms_para->var_maxrgb_pq = (u16)cuva_metadata.var_maxrgb_pq;
+	edms_para->max_maxrgb_pq = (u16)cuva_metadata.max_maxrgb_pq;
+	edms_para->targeted_max_lum_pq = (u16)cuva_metadata.tgt_system_dsp_max_luma_pq[0];
+	edms_para->transfer_character = 0;/*metadata have no transfer_character*/
+	edms_para->base_enable_flag = (u8)cuva_metadata.base_en_flag[0];
+	edms_para->base_param_m_p = (u16)cuva_metadata.base_param_m_p[0];
+	edms_para->base_param_m_m = (u16)cuva_metadata.base_param_m_m[0];
+	edms_para->base_param_m_a = (u16)cuva_metadata.base_param_m_a[0];
+	edms_para->base_param_m_n = (u16)cuva_metadata.base_param_m_n[0];
+	edms_para->base_param_k[0] = (u8)cuva_metadata.base_param_m_k1[0];
+	edms_para->base_param_k[1] = (u8)cuva_metadata.base_param_m_k2[0];
+	edms_para->base_param_k[2] = (u8)cuva_metadata.base_param_m_k3[0];
+	edms_para->base_param_delta_enable_mode =
+		(u8)cuva_metadata.base_param_delta_en_mode[0];
+	edms_para->base_param_enable_delta = (u8)cuva_metadata.base_param_en_delta[0];
+	edms_para->_3spline_enable_num = (u8)cuva_metadata.spline_en_num[0];
+	edms_para->_3spline_enable_flag = (u8)cuva_metadata.spline_en_flag[0];
+	if (edms_para->_3spline_enable_flag) {
+		for (i = 0; i < 2; i++) {
+			edms_para->_3spline_data[i].th_enable_mode =
+				(u8)cuva_metadata.spline_th_en_mode[0][i];
+			edms_para->_3spline_data[i].th_enable_mb =
+				(u8)cuva_metadata.spline_th_en_mb[0][i];
+			edms_para->_3spline_data[i].th_enable =
+				(u16)cuva_metadata.spline_th_enable[0][i];
+			edms_para->_3spline_data[i].th_enable_delta[0] =
+				(u16)cuva_metadata.spline_th_en_delta1[0][i];
+			edms_para->_3spline_data[i].th_enable_delta[1] =
+				(u16)cuva_metadata.spline_th_en_delta2[0][i];
+			edms_para->_3spline_data[i].enable_strength =
+				(u8)cuva_metadata.spline_en_strengch[0][i];
+		}
+	}
+
+	if (cuva_metadata.color_sat_mapping_flag) {
+		edms_para->color_saturation_num = (u8)cuva_metadata.color_sat_num;
+		for (i = 0; i < 8; i++)
+			edms_para->color_saturation_gain[i] =
+				(u8)cuva_metadata.clor_sat_gain[i];
+	}
+
+	/*metadata have no graphic_src_display_value*/
+	edms_para->graphic_src_display_value = 0;
+	/*metadata have no max_display_mastering_lum*/
+	edms_para->max_display_mastering_lum = 0;
+
+	memcpy(&dbg_cuva_emds_pkt, edms_para,
+		sizeof(struct cuva_hdr_vs_emds_para));
+}
+
+void hdr10_plus_debug(int csc_type)
 {
 	int i = 0;
 	int j = 0;
-	struct vframe_hdr_plus_sei *p;
 
-	p = &hdr_plus_sei;
+	if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC) {
+		pr_info("itu_t_t35_country_code = 0x%x\n",
+			hdr_plus_sei.itu_t_t35_country_code);
+		pr_info("itu_t_t35_terminal_provider_code = 0x%x\n",
+			hdr_plus_sei.itu_t_t35_terminal_provider_code);
+		pr_info("itu_t_t35_terminal_provider_oriented_code = 0x%x\n",
+			hdr_plus_sei.itu_t_t35_terminal_provider_oriented_code);
+		pr_info("application_identifier = 0x%x\n",
+			hdr_plus_sei.application_identifier);
+		pr_info("application_version = 0x%x\n",
+			hdr_plus_sei.application_version);
+		pr_info("num_windows = 0x%x\n",
+			hdr_plus_sei.num_windows);
+		for (i = 1; i < hdr_plus_sei.num_windows; i++) {
+			pr_info("window_upper_left_corner_x[%d] = 0x%x\n",
+				i, hdr_plus_sei.window_upper_left_corner_x[i]);
+			pr_info("window_upper_left_corner_y[%d] = 0x%x\n",
+				i, hdr_plus_sei.window_upper_left_corner_y[i]);
+			pr_info("window_lower_right_corner_x[%d] = 0x%x\n",
+				i, hdr_plus_sei.window_lower_right_corner_x[i]);
+			pr_info("window_lower_right_corner_y[%d] = 0x%x\n",
+				i, hdr_plus_sei.window_lower_right_corner_y[i]);
+			pr_info("center_of_ellipse_x[%d] = 0x%x\n",
+				i, hdr_plus_sei.center_of_ellipse_x[i]);
+			pr_info("center_of_ellipse_y[%d] = 0x%x\n",
+				i, hdr_plus_sei.center_of_ellipse_y[i]);
+			pr_info("rotation_angle[%d] = 0x%x\n",
+				i, hdr_plus_sei.rotation_angle[i]);
+			pr_info("semimajor_axis_internal_ellipse[%d] = 0x%x\n",
+				i, hdr_plus_sei.semimajor_axis_internal_ellipse[i]);
+			pr_info("semimajor_axis_external_ellipse[%d] = 0x%x\n",
+				i, hdr_plus_sei.semimajor_axis_external_ellipse[i]);
+			pr_info("semiminor_axis_external_ellipse[%d] = 0x%x\n",
+				i, hdr_plus_sei.semiminor_axis_external_ellipse[i]);
+			pr_info("overlap_process_option[%d] = 0x%x\n",
+				i, hdr_plus_sei.overlap_process_option[i]);
+		}
+		pr_info("targeted_system_display_maximum_luminance = 0x%x\n",
+			hdr_plus_sei.tgt_sys_disp_max_lumi);
+		pr_info("targeted_system_display_actual_peak_luminance_flag = 0x%x\n",
+			hdr_plus_sei.tgt_sys_disp_act_pk_lumi_flag);
+		if (hdr_plus_sei.tgt_sys_disp_act_pk_lumi_flag) {
+			for (i = 0;
+				i < hdr_plus_sei.num_rows_tgt_sys_disp_act_pk_lumi;
+				i++) {
+				for (j = 0;
+				j < hdr_plus_sei.num_cols_tgt_sys_disp_act_pk_lumi;
+				j++) {
+					pr_info("tgt_sys_disp_act_pk_lumi");
+					pr_info("[%d][%d] = 0x%x\n",
+					i, j,
+					hdr_plus_sei.tgt_sys_disp_act_pk_lumi[i][j]);
+				}
+			}
+		}
 
-	pr_info("itu_t_t35_country_code = 0x%x\n",
-		hdr_plus_sei.itu_t_t35_country_code);
-	pr_info("itu_t_t35_terminal_provider_code = 0x%x\n",
-		hdr_plus_sei.itu_t_t35_terminal_provider_code);
-	pr_info("itu_t_t35_terminal_provider_oriented_code = 0x%x\n",
-		hdr_plus_sei.itu_t_t35_terminal_provider_oriented_code);
-	pr_info("application_identifier = 0x%x\n",
-		hdr_plus_sei.application_identifier);
-	pr_info("application_version = 0x%x\n",
-		hdr_plus_sei.application_version);
-	pr_info("num_windows = 0x%x\n",
-		hdr_plus_sei.num_windows);
-	for (i = 1; i < hdr_plus_sei.num_windows; i++) {
-		pr_info("window_upper_left_corner_x[%d] = 0x%x\n",
-			i, hdr_plus_sei.window_upper_left_corner_x[i]);
-		pr_info("window_upper_left_corner_y[%d] = 0x%x\n",
-			i, hdr_plus_sei.window_upper_left_corner_y[i]);
-		pr_info("window_lower_right_corner_x[%d] = 0x%x\n",
-			i, hdr_plus_sei.window_lower_right_corner_x[i]);
-		pr_info("window_lower_right_corner_y[%d] = 0x%x\n",
-			i, hdr_plus_sei.window_lower_right_corner_y[i]);
-		pr_info("center_of_ellipse_x[%d] = 0x%x\n",
-			i, hdr_plus_sei.center_of_ellipse_x[i]);
-		pr_info("center_of_ellipse_y[%d] = 0x%x\n",
-			i, hdr_plus_sei.center_of_ellipse_y[i]);
-		pr_info("rotation_angle[%d] = 0x%x\n",
-			i, hdr_plus_sei.rotation_angle[i]);
-		pr_info("semimajor_axis_internal_ellipse[%d] = 0x%x\n",
-			i, hdr_plus_sei.semimajor_axis_internal_ellipse[i]);
-		pr_info("semimajor_axis_external_ellipse[%d] = 0x%x\n",
-			i, hdr_plus_sei.semimajor_axis_external_ellipse[i]);
-		pr_info("semiminor_axis_external_ellipse[%d] = 0x%x\n",
-			i, hdr_plus_sei.semiminor_axis_external_ellipse[i]);
-		pr_info("overlap_process_option[%d] = 0x%x\n",
-			i, hdr_plus_sei.overlap_process_option[i]);
-	}
-	pr_info("targeted_system_display_maximum_luminance = 0x%x\n",
-		hdr_plus_sei.tgt_sys_disp_max_lumi);
-	pr_info("targeted_system_display_actual_peak_luminance_flag = 0x%x\n",
-		hdr_plus_sei.tgt_sys_disp_act_pk_lumi_flag);
-	if (hdr_plus_sei.tgt_sys_disp_act_pk_lumi_flag) {
-		for (i = 0;
-			i < hdr_plus_sei.num_rows_tgt_sys_disp_act_pk_lumi;
-			i++) {
+		for (i = 0; i < hdr_plus_sei.num_windows; i++) {
+			for (j = 0; j < 3; j++)
+				pr_info("maxscl[%d][%d] = 0x%x\n",
+					i, j, hdr_plus_sei.maxscl[i][j]);
+
+			pr_info("average_maxrgb[%d] = 0x%x\n",
+				i, hdr_plus_sei.average_maxrgb[i]);
+			pr_info("num_distribution_maxrgb_percentiles[%d] = 0x%x\n",
+				i, hdr_plus_sei.num_distribution_maxrgb_percentiles[i]);
 			for (j = 0;
-			j < hdr_plus_sei.num_cols_tgt_sys_disp_act_pk_lumi;
+			j < hdr_plus_sei.num_distribution_maxrgb_percentiles[i];
 			j++) {
-				pr_info("tgt_sys_disp_act_pk_lumi");
-				pr_info("[%d][%d] = 0x%x\n",
-					i, j,
-				hdr_plus_sei.tgt_sys_disp_act_pk_lumi[i][j]);
+				pr_info("distribution_maxrgb_pcntages[%d][%d] = 0x%x\n",
+				i, j,
+				hdr_plus_sei.distribution_maxrgb_percentages[i][j]);
+				pr_info("distribution_maxrgb_pcntiles[%d][%d] = 0x%x\n",
+				i, j,
+				hdr_plus_sei.distribution_maxrgb_percentiles[i][j]);
+			}
+			pr_info("fraction_bright_pixels[%d] = 0x%x\n",
+				i, hdr_plus_sei.fraction_bright_pixels[i]);
+		}
+
+		pr_info("mast_disp_act_pk_lumi_flag = 0x%x\n",
+			hdr_plus_sei.mast_disp_act_pk_lumi_flag);
+		if (hdr_plus_sei.mast_disp_act_pk_lumi_flag) {
+			pr_info("num_rows_mast_disp_act_pk_lumi = 0x%x\n",
+				hdr_plus_sei.num_rows_mast_disp_act_pk_lumi);
+			pr_info("num_cols_mast_disp_act_pk_lumi = 0x%x\n",
+				hdr_plus_sei.num_cols_mast_disp_act_pk_lumi);
+			for (i = 0;
+				i < hdr_plus_sei.num_rows_mast_disp_act_pk_lumi;
+				i++) {
+				for (j = 0;
+					j < hdr_plus_sei.num_cols_mast_disp_act_pk_lumi;
+					j++)
+					pr_info("mast_disp_act_pk_lumi[%d][%d] = 0x%x\n",
+					i, j, hdr_plus_sei.mast_disp_act_pk_lumi[i][j]);
 			}
 		}
-	}
 
-	for (i = 0; i < hdr_plus_sei.num_windows; i++) {
-		for (j = 0; j < 3; j++)
-			pr_info("maxscl[%d][%d] = 0x%x\n",
-				i, j, hdr_plus_sei.maxscl[i][j]);
+		for (i = 0; i < hdr_plus_sei.num_windows; i++) {
+			pr_info("tone_mapping_flag[%d] = 0x%x\n",
+				i, hdr_plus_sei.tone_mapping_flag[i]);
+			pr_info("knee_point_x[%d] = 0x%x\n",
+				i, hdr_plus_sei.knee_point_x[i]);
+			pr_info("knee_point_y[%d] = 0x%x\n",
+				i, hdr_plus_sei.knee_point_y[i]);
+			pr_info("num_bezier_curve_anchors[%d] = 0x%x\n",
+				i, hdr_plus_sei.num_bezier_curve_anchors[i]);
+			for (j = 0; j < hdr_plus_sei.num_bezier_curve_anchors[i]; j++)
+				pr_info("bezier_curve_anchors[%d][%d] = 0x%x\n",
+					i, j, hdr_plus_sei.bezier_curve_anchors[i][j]);
 
-		pr_info("average_maxrgb[%d] = 0x%x\n",
-			i, hdr_plus_sei.average_maxrgb[i]);
-		pr_info("num_distribution_maxrgb_percentiles[%d] = 0x%x\n",
-			i, hdr_plus_sei.num_distribution_maxrgb_percentiles[i]);
-		for (j = 0;
-		j < hdr_plus_sei.num_distribution_maxrgb_percentiles[i];
-		j++) {
-			pr_info("distribution_maxrgb_pcntages[%d][%d] = 0x%x\n",
-				i, j,
-			hdr_plus_sei.distribution_maxrgb_percentages[i][j]);
-			pr_info("distribution_maxrgb_pcntiles[%d][%d] = 0x%x\n",
-				i, j,
-			hdr_plus_sei.distribution_maxrgb_percentiles[i][j]);
+			pr_info("color_saturation_mapping_flag[%d] = 0x%x\n",
+				i, hdr_plus_sei.color_saturation_mapping_flag[i]);
+			pr_info("color_saturation_weight[%d] = 0x%x\n",
+				i, hdr_plus_sei.color_saturation_weight[i]);
 		}
-		pr_info("fraction_bright_pixels[%d] = 0x%x\n",
-			i, hdr_plus_sei.fraction_bright_pixels[i]);
-	}
 
-	pr_info("mast_disp_act_pk_lumi_flag = 0x%x\n",
-		hdr_plus_sei.mast_disp_act_pk_lumi_flag);
-	if (hdr_plus_sei.mast_disp_act_pk_lumi_flag) {
-		pr_info("num_rows_mast_disp_act_pk_lumi = 0x%x\n",
-			hdr_plus_sei.num_rows_mast_disp_act_pk_lumi);
-		pr_info("num_cols_mast_disp_act_pk_lumi = 0x%x\n",
-			hdr_plus_sei.num_cols_mast_disp_act_pk_lumi);
-		for (i = 0;
-			i < hdr_plus_sei.num_rows_mast_disp_act_pk_lumi;
-			i++) {
-			for (j = 0;
-			     j < hdr_plus_sei.num_cols_mast_disp_act_pk_lumi;
-			     j++) {
-				pr_info("mast_disp_act_pk_lumi");
-				pr_info("[%d][%d] = 0x%x\n",
-					i, j,
-					p->mast_disp_act_pk_lumi[i][j]);
-			}
-		}
-	}
-
-	for (i = 0; i < hdr_plus_sei.num_windows; i++) {
-		pr_info("tone_mapping_flag[%d] = 0x%x\n",
-			i, hdr_plus_sei.tone_mapping_flag[i]);
-		pr_info("knee_point_x[%d] = 0x%x\n",
-			i, hdr_plus_sei.knee_point_x[i]);
-		pr_info("knee_point_y[%d] = 0x%x\n",
-			i, hdr_plus_sei.knee_point_y[i]);
-		pr_info("num_bezier_curve_anchors[%d] = 0x%x\n",
-			i, hdr_plus_sei.num_bezier_curve_anchors[i]);
-		for (j = 0; j < hdr_plus_sei.num_bezier_curve_anchors[i]; j++)
-			pr_info("bezier_curve_anchors[%d][%d] = 0x%x\n",
-				i, j, hdr_plus_sei.bezier_curve_anchors[i][j]);
-
-		pr_info("color_saturation_mapping_flag[%d] = 0x%x\n",
-			i, hdr_plus_sei.color_saturation_mapping_flag[i]);
-		pr_info("color_saturation_weight[%d] = 0x%x\n",
-			i, hdr_plus_sei.color_saturation_weight[i]);
-	}
-
-	pr_info("\ntx vsif packet data print begin\n");
-	pr_info("application_version = 0x%x\n",
-		dbg_hdr10plus_pkt.application_version);
-	pr_info("targeted_max_lum = 0x%x\n",
-		dbg_hdr10plus_pkt.targeted_max_lum);
-	pr_info("average_maxrgb = 0x%x\n",
-		dbg_hdr10plus_pkt.average_maxrgb);
-	for (i = 0; i < 9; i++)
-		pr_info("distribution_values[%d] = 0x%x\n",
+		pr_info("\ntx vsif packet data print begin\n");
+		pr_info("application_version = 0x%x\n",
+			dbg_hdr10plus_pkt.application_version);
+		pr_info("targeted_max_lum = 0x%x\n",
+			dbg_hdr10plus_pkt.targeted_max_lum);
+		pr_info("average_maxrgb = 0x%x\n",
+			dbg_hdr10plus_pkt.average_maxrgb);
+		for (i = 0; i < 9; i++)
+			pr_info("distribution_values[%d] = 0x%x\n",
 			i, dbg_hdr10plus_pkt.distribution_values[i]);
-	pr_info("num_bezier_curve_anchors = 0x%x\n",
-		dbg_hdr10plus_pkt.num_bezier_curve_anchors);
-	pr_info("knee_point_x = 0x%x\n",
-		dbg_hdr10plus_pkt.knee_point_x);
-	pr_info("knee_point_y = 0x%x\n",
-		dbg_hdr10plus_pkt.knee_point_y);
+		pr_info("num_bezier_curve_anchors = 0x%x\n",
+			dbg_hdr10plus_pkt.num_bezier_curve_anchors);
+		pr_info("knee_point_x = 0x%x\n",
+			dbg_hdr10plus_pkt.knee_point_x);
+		pr_info("knee_point_y = 0x%x\n",
+			dbg_hdr10plus_pkt.knee_point_y);
 
-	for (i = 0; i < 9; i++)
-		pr_info("bezier_curve_anchors[%d] = 0x%x\n",
+		for (i = 0; i < 9; i++)
+			pr_info("bezier_curve_anchors[%d] = 0x%x\n",
 			i, dbg_hdr10plus_pkt.bezier_curve_anchors[i]);
-	pr_info("graphics_overlay_flag = 0x%x\n",
-		dbg_hdr10plus_pkt.graphics_overlay_flag);
-	pr_info("no_delay_flag = 0x%x\n",
-		dbg_hdr10plus_pkt.no_delay_flag);
-	pr_info("\ntx vsif packet data print end\n");
+		pr_info("graphics_overlay_flag = 0x%x\n",
+			dbg_hdr10plus_pkt.graphics_overlay_flag);
+		pr_info("no_delay_flag = 0x%x\n",
+			dbg_hdr10plus_pkt.no_delay_flag);
+		pr_info("\ntx vsif packet data print end\n");
 
-	pr_info(HDR10_PLUS_VERSION);
+		pr_info(HDR10_PLUS_VERSION);
+	} else if (csc_type == VPP_MATRIX_BT2020YUV_BT2020RGB_CUVA) {
+		pr_info("-----cuva dynamic metadata------\n");
+		pr_info("system_start_code = %d\n",
+			cuva_metadata.system_start_code);
+		pr_info("min_maxrgb_pq = %d\n",
+			cuva_metadata.min_maxrgb_pq);
+		pr_info("avg_maxrgb_pq = %d\n",
+			cuva_metadata.avg_maxrgb_pq);
+		pr_info("var_maxrgb_pq = %d\n",
+			cuva_metadata.var_maxrgb_pq);
+		pr_info("max_maxrgb_pq = %d\n",
+			cuva_metadata.max_maxrgb_pq);
+		pr_info("tm_enable_mode_flag = %d\n",
+			cuva_metadata.tm_enable_mode_flag);
+		pr_info("tm_param_en_num = %d\n",
+			cuva_metadata.tm_param_en_num);
+		for (i = 0; i < 2; i++) {
+			pr_info("tgt_system_dsp_max_luma_pq[%d] = %d\n",
+				i, cuva_metadata.tgt_system_dsp_max_luma_pq[i]);
+			pr_info("base_en_flag[%d] = %d\n",
+				i, cuva_metadata.base_en_flag[i]);
+			pr_info("base_param_m_p[%d] = %d\n",
+				i, cuva_metadata.base_param_m_p[i]);
+			pr_info("base_param_m_m[%d] = %d\n",
+				i, cuva_metadata.base_param_m_m[i]);
+			pr_info("base_param_m_a[%d] = %d\n",
+				i, cuva_metadata.base_param_m_a[i]);
+			pr_info("base_param_m_b[%d] = %d\n",
+				i, cuva_metadata.base_param_m_b[i]);
+			pr_info("base_param_m_n[%d] = %d\n",
+				i, cuva_metadata.base_param_m_n[i]);
+			pr_info("base_param_m_k1[%d] = %d\n",
+				i, cuva_metadata.base_param_m_k1[i]);
+			pr_info("base_param_m_k2[%d] = %d\n",
+				i, cuva_metadata.base_param_m_k2[i]);
+			pr_info("base_param_m_k3[%d] = %d\n",
+				i, cuva_metadata.base_param_m_k3[i]);
+			pr_info("base_param_delta_en_mode[%d] = %d\n",
+				i, cuva_metadata.base_param_delta_en_mode[i]);
+			pr_info("base_param_en_delta[%d] = %d\n",
+				i, cuva_metadata.base_param_en_delta[i]);
+			pr_info("spline_en_flag[%d] = %d\n",
+				i, cuva_metadata.spline_en_flag[i]);
+			pr_info("spline_en_num[%d] = %d\n",
+				i, cuva_metadata.spline_en_num[i]);
+			for (j = 0; j < 2; j++) {
+				pr_info("spline_th_en_mode[%d][%d] = %d\n",
+					i, j, cuva_metadata.spline_th_en_mode[i][j]);
+				pr_info("spline_th_en_mb[%d][%d] = %d\n",
+					i, j, cuva_metadata.spline_th_en_mb[i][j]);
+				pr_info("spline_th_enable[%d][%d] = %d\n",
+					i, j, cuva_metadata.spline_th_enable[i][j]);
+				pr_info("spline_th_en_delta1[%d][%d] = %d\n",
+					i, j, cuva_metadata.spline_th_en_delta1[i][j]);
+				pr_info("spline_th_en_delta2[%d][%d] = %d\n",
+					i, j, cuva_metadata.spline_th_en_delta2[i][j]);
+				pr_info("spline_en_strengch[%d][%d] = %d\n",
+					i, j, cuva_metadata.spline_en_strengch[i][j]);
+			}
+		}
+		pr_info("color_sat_mapping_flag = %d\n",
+			cuva_metadata.color_sat_mapping_flag);
+		pr_info("color_sat_num = %d\n",
+			cuva_metadata.color_sat_num);
+		for (i = 0; i < 8; i++)
+			pr_info("clor_sat_gain[%d] = %d\n",
+			i, cuva_metadata.clor_sat_gain[i]);
+
+		pr_info("\n-----cuva hdmitx vsif pkt------\n");
+		pr_info("system_start_code = %d\n",
+			dbg_cuva_vsif_pkt.system_start_code);
+		pr_info("version_code = %d\n",
+			dbg_cuva_vsif_pkt.version_code);
+		pr_info("monitor_mode_en = %d\n",
+			dbg_cuva_vsif_pkt.monitor_mode_en);
+		pr_info("transfer_character = %d\n",
+			dbg_cuva_vsif_pkt.transfer_character);
+
+		pr_info("\n-----cuva hdmitx emds pkt------\n");
+		pr_info("system_start_code = %d\n",
+			dbg_cuva_emds_pkt.system_start_code);
+		pr_info("version_code = %d\n",
+			dbg_cuva_emds_pkt.version_code);
+		pr_info("min_maxrgb_pq = %d\n",
+			dbg_cuva_emds_pkt.min_maxrgb_pq);
+		pr_info("avg_maxrgb_pq = %d\n",
+			dbg_cuva_emds_pkt.avg_maxrgb_pq);
+		pr_info("var_maxrgb_pq = %d\n",
+			dbg_cuva_emds_pkt.var_maxrgb_pq);
+		pr_info("max_maxrgb_pq = %d\n",
+			dbg_cuva_emds_pkt.max_maxrgb_pq);
+		pr_info("targeted_max_lum_pq = %d\n",
+			dbg_cuva_emds_pkt.targeted_max_lum_pq);
+		pr_info("transfer_character = %d\n",
+			dbg_cuva_emds_pkt.transfer_character);
+		pr_info("base_enable_flag = %d\n",
+			dbg_cuva_emds_pkt.base_enable_flag);
+		pr_info("base_param_m_p = %d\n",
+			dbg_cuva_emds_pkt.base_param_m_p);
+		pr_info("base_param_m_m = %d\n",
+			dbg_cuva_emds_pkt.base_param_m_m);
+		pr_info("base_param_m_a = %d\n",
+			dbg_cuva_emds_pkt.base_param_m_a);
+		pr_info("base_param_m_b = %d\n",
+			dbg_cuva_emds_pkt.base_param_m_b);
+		pr_info("base_param_m_n = %d\n",
+			dbg_cuva_emds_pkt.base_param_m_n);
+		pr_info("base_param_k[0] = %d\n",
+			dbg_cuva_emds_pkt.base_param_k[0]);
+		pr_info("base_param_k[1] = %d\n",
+			dbg_cuva_emds_pkt.base_param_k[1]);
+		pr_info("base_param_k[2] = %d\n",
+			dbg_cuva_emds_pkt.base_param_k[2]);
+		pr_info("base_param_delta_enable_mode = %d\n",
+			dbg_cuva_emds_pkt.base_param_delta_enable_mode);
+		pr_info("base_param_enable_delta = %d\n",
+			dbg_cuva_emds_pkt.base_param_enable_delta);
+		pr_info("_3spline_enable_num = %d\n",
+			dbg_cuva_emds_pkt._3spline_enable_num);
+		pr_info("_3spline_enable_flag = %d\n",
+			dbg_cuva_emds_pkt._3spline_enable_flag);
+
+		for (i = 0; i < 2; i++) {
+			pr_info("****_3spline_data[%d] :\n", i);
+			pr_info("th_enable_mode = %d\n",
+			dbg_cuva_emds_pkt._3spline_data[i].th_enable_mode);
+			pr_info("th_enable_mb = %d\n",
+				dbg_cuva_emds_pkt._3spline_data[i].th_enable_mb);
+			pr_info("th_enable = %d\n",
+				dbg_cuva_emds_pkt._3spline_data[i].th_enable);
+			pr_info("th_enable_delta[0] = %d\n",
+				dbg_cuva_emds_pkt._3spline_data[i].th_enable_delta[0]);
+			pr_info("th_enable_delta[1] = %d\n",
+				dbg_cuva_emds_pkt._3spline_data[i].th_enable_delta[1]);
+			pr_info("enable_strength = %d\n",
+				dbg_cuva_emds_pkt._3spline_data[i].enable_strength);
+		}
+		pr_info("color_saturation_num = %d\n",
+			dbg_cuva_emds_pkt.color_saturation_num);
+		for (i = 0; i < 8; i++)
+			pr_info("color_saturation_gain[%d] = %d\n",
+			i, dbg_cuva_emds_pkt.color_saturation_gain[i]);
+		pr_info("graphic_src_display_value = %d\n",
+			dbg_cuva_emds_pkt.graphic_src_display_value);
+		pr_info("max_display_mastering_lum = %d\n",
+			dbg_cuva_emds_pkt.max_display_mastering_lum);
+	}
 }
 

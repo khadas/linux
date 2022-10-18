@@ -34,6 +34,8 @@
 #include "arch/vpp_dolbyvision_regs.h"
 #include "reg_helper.h"
 #include "hdr/gamut_convert.h"
+#include "hdr/am_cuva_hdr_tm.h"
+#include <linux/amlogic/media/amvecm/cuva_alg.h>
 
 u32 disable_flush_flag;
 module_param(disable_flush_flag, uint, 0664);
@@ -4525,10 +4527,10 @@ int cuva_hdr_update(enum hdr_module_sel module_sel,
 	enum hdr_process_sel hdr_process_select, enum vpp_index_e vpp_index)
 {
 	int bit_depth;
-#ifdef NEED_CUVA_ALG
+//#ifdef NEED_CUVA_ALG
 	unsigned int i = 0;
 	struct aml_gain_reg *cuva_gain;
-#endif
+//#endif
 
 	if (disable_flush_flag)
 		return hdr_process_select;
@@ -4561,9 +4563,9 @@ int cuva_hdr_update(enum hdr_module_sel module_sel,
 	    (module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
 
-#ifdef NEED_CUVA_ALG
+//#ifdef NEED_CUVA_ALG
 	cuva_gain = get_gain_lut();
-#endif
+//#endif
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
 	if (module_sel == VD1_HDR ||
@@ -4593,7 +4595,7 @@ int cuva_hdr_update(enum hdr_module_sel module_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 		bit_depth = 10;
 
-#ifdef NEED_CUVA_ALG
+//#ifdef NEED_CUVA_ALG
 	if (hdr_process_select & (CUVA_SDR | CUVA_HDR |
 		CUVAHLG_SDR | CUVAHLG_HLG | CUVAHLG_HDR)) {
 		for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++)
@@ -4608,7 +4610,7 @@ int cuva_hdr_update(enum hdr_module_sel module_sel,
 
 	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
 	set_c_gain(module_sel, &hdr_lut_param, vpp_index);
-#endif
+//#endif
 	return 0;
 }
 

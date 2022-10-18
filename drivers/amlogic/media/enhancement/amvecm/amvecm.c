@@ -84,6 +84,7 @@
 #include "util/enc_dec.h"
 #include "cabc_aadc/cabc_aadc_fw.h"
 #include "hdr/am_hdr10_tmo_fw.h"
+#include "hdr/am_cuva_hdr_tm.h"
 #include "hdr/gamut_convert.h"
 #include "../../video_sink/vpp_pq.h"
 #include "frame_lock_policy.h"
@@ -5720,6 +5721,8 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 			for (i = 0; i < 65; i++)
 				cgain_lut_bypass[i] = curve_val[i];
 		}
+	} else if (!strcmp(parm[0], "cuva_dbg")) {
+		cuva_hdr_dbg();
 	} else if (!strcmp(parm[0], "reg_dump")) {
 		if (!parm[1]) {
 			hdr_reg_dump(0);

@@ -694,6 +694,7 @@ struct vframe_s {
 
 	/* signal format and sei data */
 	struct vframe_src_fmt_s src_fmt;
+	u32 codec_vfmt;
 	/*for di process NR and cts, storage dec vf*/
 	void *vf_ext;
 	u32 di_cm_cnt;

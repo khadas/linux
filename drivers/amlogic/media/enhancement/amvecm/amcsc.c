@@ -35,6 +35,7 @@
 #endif
 #include "arch/vpp_hdr_regs.h"
 #include "arch/hdr_curve.h"
+#include <linux/amlogic/media/amvecm/cuva_alg.h>
 
 /* use osd rdma reg w/r */
 #include "../../osd/osd_rdma.h"
@@ -54,6 +55,7 @@
 #include "reg_helper.h"
 #include <linux/amlogic/gki_module.h>
 #include "color/ai_color.h"
+#include "hdr/am_cuva_hdr_tm.h"
 
 uint debug_csc;
 static int cur_mvc_type[VD_PATH_MAX];
@@ -7123,7 +7125,7 @@ static bool hdr10_plus_metadata_update(struct vframe_s *vf,
 	if (csc_type != VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
 		return false;
 
-	hdr10_plus_parser_metadata(vf);
+	parser_dynamic_metadata(vf);
 
 	if (tx_hdr10_plus_support) {
 		hdr10_plus_hdmitx_vsif_parser(p, vf);
@@ -7176,10 +7178,10 @@ static bool cuva_metadata_update(struct vframe_s *vf,
 		return false;
 
 	/* TODO: add meta update */
-	//parser_dynamic_metadata(vf);
+	parser_dynamic_metadata(vf);
 
-	//cuva_hdr_vsif_pkt_update(vsif_paras);
-	//cuva_hdr_emds_pkt_update(emds_paras);
+	cuva_hdr_vsif_pkt_update(vsif_paras);
+	cuva_hdr_emds_pkt_update(emds_paras);
 
 	//TODO: return false if meta not changed
 	return true;
@@ -7249,7 +7251,7 @@ static void cuva_hdr_process_update(enum hdr_type_e src_type,
 	struct vframe_master_display_colour_s *p,
 	enum vpp_index_e vpp_index)
 {
-#ifdef NEED_CUVA_ALG
+//#ifdef NEED_CUVA_ALG
 	int proc_flag = 0;
 	struct aml_cuva_data_s *cuva_data = get_cuva_data();
 
@@ -7321,7 +7323,7 @@ static void cuva_hdr_process_update(enum hdr_type_e src_type,
 				cuva_hdr_update(VD3_HDR, CUVAHLG_HDR, vpp_index);
 		}
 	}
-#endif
+//#endif
 }
 
 static struct hdr10plus_para hdmitx_hdr10plus_params[VD_PATH_MAX];
@@ -9142,8 +9144,8 @@ hdr_dump:
 	pr_info("tx_hdr10_plus_support = 0x%x\n", tx_hdr10_plus_support);
 
 	//if (signal_transfer_characteristic == 0x30)
-	if (cur_csc_type[0] == VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
-		hdr10_plus_debug();
+	if (cur_csc_type[0] >= VPP_MATRIX_BT2020YUV_BT2020RGB_DYNAMIC)
+		hdr10_plus_debug(cur_csc_type[0]);
 
 	if ((receiver_hdr_info.hdr_support & 0xc) == 0)
 		goto dbg_end;
