@@ -753,29 +753,29 @@
 		compatible = "amlogic, dvb-extern";
 		dev_name = "dvb-extern";
 		/*GPIOT-19 conflict with audio speaker */
-		status = "disabled";
+		status = "okay";
 
 		fe_num = <2>;
 		fe0_demod = "cxd2856";
-		fe0_i2c_adap_id = <&i2c5>;
+		fe0_i2c_adap_id = <&i2c2>;
 		fe0_demod_i2c_addr = <0xD8>;
 		fe0_reset_value = <0>;
-		fe0_reset_gpio = <&gpio GPIOT_19 GPIO_ACTIVE_HIGH>;
-		fe0_reset_dir = <1>; /* 0: out, 1: in. */
-		fe0_ant_poweron_value = <0>;
-		fe0_ant_power_gpio = <&gpio GPIOT_18 GPIO_ACTIVE_HIGH>;
+		fe0_reset_gpio = <&gpio GPIOT_22 GPIO_ACTIVE_LOW>;
+		fe0_reset_dir = <0>; /* 0: out, 1: in. */
+		//fe0_ant_poweron_value = <0>;
+		//fe0_ant_power_gpio = <&gpio GPIOT_18 GPIO_ACTIVE_HIGH>;
 		fe0_ts  = <0>;
 		fe0_tuner0 = <0>; /* T/C */
 		fe0_tuner1 = <1>; /* S */
 
 		fe1_demod = "cxd2856";
-		fe1_i2c_adap_id = <&i2c5>;
+		fe1_i2c_adap_id = <&i2c2>;
 		fe1_demod_i2c_addr = <0xCA>;
 		fe1_reset_value = <0>;
-		fe1_reset_gpio = <&gpio GPIOT_19 GPIO_ACTIVE_HIGH>;
-		fe1_reset_dir = <1>; /* 0: out, 1: in. */
-		fe1_ant_poweron_value = <0>;
-		fe1_ant_power_gpio = <&gpio GPIOT_18 GPIO_ACTIVE_HIGH>;
+		fe1_reset_gpio = <&gpio GPIOT_22 GPIO_ACTIVE_LOW>;
+		fe1_reset_dir = <0>; /* 0: out, 1: in. */
+		//fe1_ant_poweron_value = <0>;
+		//fe1_ant_power_gpio = <&gpio GPIOT_18 GPIO_ACTIVE_HIGH>;
 		fe1_ts  = <1>;
 		fe1_tuner0 = <0>; /* T/C */
 		fe1_tuner1 = <1>; /* S */
@@ -792,7 +792,7 @@
 
 		reg = <0x0 0xfe000000 0x0 0x480000>;
 
-		dmxdev_num = <3>;
+		dmxdev_num = <6>;
 
 		tsn_from = "demod";
 
@@ -1573,6 +1573,13 @@
 	clock-frequency = <100000>; /* default 100k */
 };
 
+&i2c2 {
+	status = "okay";
+	pinctrl-names="default";
+	pinctrl-0=<&i2c2_pins2>;
+	clock-frequency = <300000>;
+};
+
 /* SDIO */
 /* ref board pcie wifi */
 &sd_emmc_a {
@@ -1832,12 +1839,12 @@
 			function = "tdm";
 		};
 	};
-    dvb_s_ts0_pins: dvb_s_ts0_pins {
+	dvb_s_ts0_pins: dvb_s_ts0_pins {
 		tsin_a {
-			groups = "tsin_a_sop_t",
-				   "tsin_a_valid_t",
-				   "tsin_a_clk_t",
-				   "tsin_a_din0_t";
+			groups = "tsin_a_sop",
+				   "tsin_a_valid",
+				   "tsin_a_clk",
+				   "tsin_a_din0";
 			function = "tsin_a";
 		};
 	};
