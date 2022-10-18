@@ -121,7 +121,8 @@
 /* 20221101: vdin1 crash when screen recording and keystone */
 /* 20221103: change pc mode variable to local */
 /* 20221109: interlace min buffer and 23.97 send event */
-#define VDIN_VER "20221109"
+/* 20221114: get sdr range and scale handle */
+#define VDIN_VER "20221114"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -203,6 +204,8 @@ struct match_data_s {
 	u32 vdin1_en;
 	u32 vdin0_line_buff_size;
 	u32 vdin1_line_buff_size;
+	/* default is 4k */
+	u32 vdin0_max_w_h;
 };
 
 /* #define VDIN_CRYSTAL               24000000 */
@@ -266,6 +269,10 @@ struct match_data_s {
 #define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_PROP_RX_UPDATE		BIT(5)
 #define VDIN_GAME_NOT_TANSFER		BIT(6) //control for tx output when game mode
+#define VDIN_FORCE_RGB_NOT_CONVERT	BIT(7) //commercial display control
+
+#define VDIN_2K_SIZE			0x07800438 /* 0x780 = 1920 0x438 = 1080 */
+#define VDIN_4K_SIZE			0x10000870 /* 0x1000 = 4096 0x870 = 2160 */
 
 #define DURATION_VALUE_120_FPS		800
 #define DURATION_VALUE_100_FPS		960

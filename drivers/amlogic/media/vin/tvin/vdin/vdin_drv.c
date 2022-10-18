@@ -1043,6 +1043,44 @@ static u32 vdin_is_delay_vfe2rd_list(struct vdin_dev_s *devp)
 	}
 }
 
+static void vdin_scale_and_cutwin_handle(struct vdin_dev_s *devp)
+{
+	u32 vdin0_max_w_h;
+
+	if (!devp || !devp->fmt_info_p)
+		return;
+
+	vdin0_max_w_h = devp->dtdata->vdin0_max_w_h;
+	if (devp->parm.dest_width != 0 ||
+	    devp->parm.dest_height != 0) {
+		devp->prop.scaling4w = devp->parm.dest_width;
+		devp->prop.scaling4h = devp->parm.dest_height;
+	}
+
+	/* prevent display of resolution beyond specification */
+	if (IS_HDMI_SRC(devp->parm.port) && vdin0_max_w_h) {
+		if (devp->fmt_info_p->h_active > (vdin0_max_w_h >> 16))
+			devp->prop.scaling4w = vdin0_max_w_h >> 16;
+		if (devp->fmt_info_p->v_active > (vdin0_max_w_h & 0xffff))
+			devp->prop.scaling4h = vdin0_max_w_h & 0xffff;
+	}
+
+	if (devp->flags & VDIN_FLAG_MANUAL_CONVERSION) {
+		devp->prop.dest_cfmt = devp->debug.dest_cfmt;
+		devp->prop.scaling4w = devp->debug.scaling4w;
+		devp->prop.scaling4h = devp->debug.scaling4h;
+	}
+	if (devp->debug.cutwin.hs ||
+	    devp->debug.cutwin.he ||
+	    devp->debug.cutwin.vs ||
+	    devp->debug.cutwin.ve) {
+		devp->prop.hs = devp->debug.cutwin.hs;
+		devp->prop.he = devp->debug.cutwin.he;
+		devp->prop.vs = devp->debug.cutwin.vs;
+		devp->prop.ve = devp->debug.cutwin.ve;
+	}
+}
+
 /*
  * 1. config canvas base on  canvas_config_mode
  *		0: canvas_config in driver probe
@@ -1111,25 +1149,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 			devp->prop.spd_data.data[5]);
 		if (!(devp->flags & VDIN_FLAG_V4L2_DEBUG))
 			devp->parm.info.cfmt = devp->prop.color_format;
-		if (devp->parm.dest_width != 0 ||
-		    devp->parm.dest_height != 0) {
-			devp->prop.scaling4w = devp->parm.dest_width;
-			devp->prop.scaling4h = devp->parm.dest_height;
-		}
-		if (devp->flags & VDIN_FLAG_MANUAL_CONVERSION) {
-			devp->prop.dest_cfmt = devp->debug.dest_cfmt;
-			devp->prop.scaling4w = devp->debug.scaling4w;
-			devp->prop.scaling4h = devp->debug.scaling4h;
-		}
-		if (devp->debug.cutwin.hs ||
-		    devp->debug.cutwin.he ||
-		    devp->debug.cutwin.vs ||
-		    devp->debug.cutwin.ve) {
-			devp->prop.hs = devp->debug.cutwin.hs;
-			devp->prop.he = devp->debug.cutwin.he;
-			devp->prop.vs = devp->debug.cutwin.vs;
-			devp->prop.ve = devp->debug.cutwin.ve;
-		}
+
+		vdin_scale_and_cutwin_handle(devp);
 	}
 	/*gxbb/gxl/gxm use clkb as vdin clk,
 	 *for clkb is low speed,which is enough for 1080p process,
@@ -1561,6 +1582,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->cycle = 0;
 	/*reset csc_cfg in case it is enabled before switch out hdmi*/
 	devp->csc_cfg = 0;
+	devp->cut_window_cfg = 0;
 	devp->frame_drop_num = 0;
 	/*unreliable vsync interrupt check*/
 	devp->unreliable_vs_cnt = 0;
@@ -5169,7 +5191,7 @@ const struct match_data_s vdin_dt_tl1 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
-					.vdin1_set_hdr = false,
+	.vdin0_max_w_h = VDIN_4K_SIZE,	.vdin1_set_hdr = false,
 };
 #endif
 
@@ -5179,7 +5201,7 @@ const struct match_data_s vdin_dt_sm1 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
-					.vdin1_set_hdr = true,
+	.vdin0_max_w_h = 0,		.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_tm2 = {
@@ -5188,7 +5210,7 @@ static const struct match_data_s vdin_dt_tm2 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
-					.vdin1_set_hdr = true,
+	.vdin0_max_w_h = VDIN_4K_SIZE,	.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_tm2_ver_b = {
@@ -5197,7 +5219,7 @@ static const struct match_data_s vdin_dt_tm2_ver_b = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0xf00,
-					.vdin1_set_hdr = true,
+	.vdin0_max_w_h = VDIN_4K_SIZE,	.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_sc2 = {
@@ -5206,7 +5228,7 @@ static const struct match_data_s vdin_dt_sc2 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
-					.vdin1_set_hdr = true,
+	.vdin0_max_w_h = 0,		.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_t5 = {
@@ -5215,7 +5237,7 @@ static const struct match_data_s vdin_dt_t5 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0xf00,	.vdin1_line_buff_size = 0x780,
-					.vdin1_set_hdr = false,
+	.vdin0_max_w_h = VDIN_4K_SIZE,	.vdin1_set_hdr = false,
 };
 
 static const struct match_data_s vdin_dt_t5d = {
@@ -5224,7 +5246,7 @@ static const struct match_data_s vdin_dt_t5d = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
-					.vdin1_set_hdr = false,
+	.vdin0_max_w_h = VDIN_2K_SIZE,	.vdin1_set_hdr = false,
 };
 
 static const struct match_data_s vdin_dt_t7 = {
@@ -5233,7 +5255,7 @@ static const struct match_data_s vdin_dt_t7 = {
 	.vdin0_en = 1,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/	.ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
-					.vdin1_set_hdr = true,
+	.vdin0_max_w_h = VDIN_4K_SIZE,	.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_s4 = {
@@ -5242,7 +5264,7 @@ static const struct match_data_s vdin_dt_s4 = {
 	.vdin0_en = 0,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
-					.vdin1_set_hdr = true,
+	.vdin0_max_w_h = 0,		.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_t3 = {
@@ -5251,7 +5273,7 @@ static const struct match_data_s vdin_dt_t3 = {
 	.vdin0_en = 1,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0x1000,  .vdin1_line_buff_size = 0x1000,
-					.vdin1_set_hdr = false,
+	.vdin0_max_w_h = VDIN_4K_SIZE,	.vdin1_set_hdr = false,
 };
 
 static const struct match_data_s vdin_dt_s4d = {
@@ -5260,7 +5282,7 @@ static const struct match_data_s vdin_dt_s4d = {
 	.vdin0_en = 0,			.vdin1_en = 1,
 	.de_tunnel_tunnel = 0,		.ipt444_to_422_12bit = 0,
 	.vdin0_line_buff_size = 0x780,	.vdin1_line_buff_size = 0x780,
-					.vdin1_set_hdr = true,
+	.vdin0_max_w_h = 0,		.vdin1_set_hdr = true,
 };
 
 static const struct match_data_s vdin_dt_t5w = {
@@ -5268,8 +5290,8 @@ static const struct match_data_s vdin_dt_t5w = {
 	.hw_ver = VDIN_HW_T5W,
 	.vdin0_en = 1,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
-	.vdin0_line_buff_size = 0x1000,  .vdin1_line_buff_size = 0x780,
-					.vdin1_set_hdr = false,
+	.vdin0_line_buff_size = 0x1000,	.vdin1_line_buff_size = 0x780,
+	.vdin0_max_w_h = VDIN_4K_SIZE,	.vdin1_set_hdr = false,
 };
 
 static const struct match_data_s vdin_dt_s5 = {
@@ -5278,7 +5300,7 @@ static const struct match_data_s vdin_dt_s5 = {
 	.vdin0_en = 0,                  .vdin1_en = 1,
 	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
 	.vdin0_line_buff_size = 0,      .vdin1_line_buff_size = 0x1000,
-	.vdin1_set_hdr = true,
+	.vdin0_max_w_h = 0,		.vdin1_set_hdr = true,
 };
 
 static const struct of_device_id vdin_dt_match[] = {

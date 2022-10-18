@@ -451,7 +451,7 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		if (devp->flags & VDIN_FLAG_DEC_STARTED &&
 		    (cur_color_fmt != pre_color_fmt ||
 		     vdin_fmt_range != pre_vdin_fmt_range)) {
-			if (sm_debug_enable & VDIN_SM_LOG_L_1)
+			if (sm_debug_enable & VDIN_SM_LOG_L_1 && devp->csc_cfg == 0)
 				pr_info("[smr.%d] fmt(%d->%d), fmt_range(%d->%d), csc_cfg:0x%x\n",
 					devp->index,
 					pre_color_fmt, cur_color_fmt,
@@ -595,7 +595,7 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			    EOTF_SMPTE_ST_2048 ||
 			    prop->hdr_info.hdr_data.eotf == EOTF_HDR) {
 				signal_type |= (1 << 29);
-				signal_type |= (0 << 25);/* 0:limit */
+				signal_type &= ~(1 << 25);/* 0:limit */
 				signal_type = ((9 << 16) |
 					(signal_type & (~0xFF0000)));
 				signal_type = ((16 << 8) |
@@ -605,7 +605,7 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 			} else if (devp->prop.hdr_info.hdr_data.eotf ==
 				   EOTF_HLG) {
 				signal_type |= (1 << 29);
-				signal_type |= (0 << 25);/* 0:limit */
+				signal_type &= ~(1 << 25);/* 0:limit */
 				signal_type = ((9 << 16) |
 					(signal_type & (~0xFF0000)));
 				signal_type = ((14 << 8) |
@@ -630,8 +630,14 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 	} else if (prop->hdr_info.hdr_state == HDR_STATE_NULL) {
 		devp->prop.vdin_hdr_flag = false;
 		signal_type &= ~(1 << 29);
-		signal_type &= ~(1 << 25);
-		signal_type |= (0 << 25);/* 0:limit */
+		if (devp->prop.color_fmt_range == TVIN_RGB_FULL ||
+		    devp->prop.color_fmt_range == TVIN_YUV_FULL)
+			signal_type |= (1 << 25);
+		else if (devp->prop.color_fmt_range == TVIN_RGB_LIMIT ||
+			 devp->prop.color_fmt_range == TVIN_YUV_LIMIT)
+			signal_type &= ~(1 << 25);
+		else
+			signal_type &= ~(1 << 25);/* 0:limit */
 		/* default is bt709,if change need sync */
 		signal_type = ((1 << 16) | (signal_type & (~0xFF0000)));
 		signal_type = ((1 << 8) | (signal_type & (~0xFF00)));
@@ -643,7 +649,7 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 		devp->prop.vdin_hdr_flag = true;
 
 		signal_type |= (1 << 29);/* present_flag */
-		signal_type |= (0 << 25);/* 0:limited */
+		signal_type &= ~(1 << 25);/* 0:limited */
 
 		/* color_primaries */
 		signal_type = ((9 << 16) | (signal_type & (~0xFF0000)));
@@ -658,10 +664,8 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 	if (sm_debug_enable & VDIN_SM_LOG_L_4)
 		pr_info("[sm.%d]dv:%d, hdr state:%d eotf:%d flag:%#x, vrr state:%d type:%#x\n",
 			devp->index,
-			devp->prop.dolby_vision,
-			devp->prop.hdr_info.hdr_state,
-			devp->prop.hdr_info.hdr_data.eotf,
-			devp->prop.vdin_hdr_flag,
+			devp->prop.dolby_vision, devp->prop.hdr_info.hdr_state,
+			devp->prop.hdr_info.hdr_data.eotf, devp->prop.vdin_hdr_flag,
 			devp->prop.vdin_vrr_flag, signal_type);
 
 	if (devp->prop.vdin_hdr_flag &&
@@ -1057,6 +1061,7 @@ void tvin_smr(struct vdin_dev_s *devp)
 				if (!mutex_is_locked(&devp->fe_lock)) {
 					devp->starting_chg = 0;
 					devp->csc_cfg = 0;
+					devp->cut_window_cfg = 0;
 				}
 				if (sm_debug_enable)
 					pr_info("[smr.%d] %ums prestable --> stable\n",

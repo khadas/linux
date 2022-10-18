@@ -178,7 +178,8 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
 
 	devp->stats.meta_wr_done_irq_cnt++;
 
-	if (devp->dtdata->hw_ver != VDIN_HW_T7)
+	if (devp->dtdata->hw_ver != VDIN_HW_T7 ||
+	    !(devp->flags & VDIN_FLAG_ISR_EN))
 		return sts;
 
 	src_dv_meta_vaddr = devp->dv.meta_data_raw_v_buffer0;
@@ -188,12 +189,12 @@ irqreturn_t vdin_wrmif2_dv_meta_wr_done_isr(int irq, void *dev_id)
 	    IS_ERR_OR_NULL(dst_dv_meta_vaddr)) {
 		if (irq_cnt % dv_dbg_log_du)
 			dprintk(0, "%s err: null meta addr\n", __func__);
-		return IRQ_NONE;
+		return sts;
 	}
 
 	/* not dv input */
 	if (!vdin_is_dolby_signal_in(devp))
-		return IRQ_NONE;
+		return sts;
 
 	dma_sync_single_for_device(&devp->this_pdev->dev,
 				   devp->dv.meta_data_raw_p_buffer0,
