@@ -895,6 +895,8 @@ static void set_hdmitx_fe_clk(struct hdmitx_dev *hdev)
 	switch (vic) {
 	case HDMI_720x480i60_16x9:
 	case HDMI_720x576i50_16x9:
+	case HDMI_720x480i60_4x3:
+	case HDMI_720x576i50_4x3:
 		tmp = (hd_read_reg(vid_clk_div) >> 28) & 0xf;
 		break;
 	default:

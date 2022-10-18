@@ -38,6 +38,7 @@
 	"V03.00.00.00.03.03.08 [20220903] [BUG] add DDC reset before do EDID transaction\n" \
 	"V03.00.00.00.03.03.09 [20220919] [BUG] y422 mapping and Enable the dither\n" \
 	"V03.00.00.00.03.03.10 [20220919] [BUG] Don't reset variables when parse a new block\n" \
-	"V03.00.00.00.03.03.11 [20221021] [BUG] not read EDID again if EDID already read done\n"
+	"V03.00.00.00.03.03.11 [20221021] [BUG] not read EDID again if EDID already read done\n" \
+	"V03.00.00.00.03.03.12 [20221025] [COM] when set mode 4x3 and 16x9, return valid mode 1\n"
 
 #endif // __HDMI21_VERSION_H__
