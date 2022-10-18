@@ -115,8 +115,9 @@
 /* 20220930: 4k dv not afbce avoid afbce done */
 /* 20221010: support buffer keeper */
 /* 20221018: smr state machine optimization */
+/* 20221021: s5 vdin bringup */
 
-#define VDIN_VER "20221018"
+#define VDIN_VER "20221021"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -163,6 +164,7 @@ enum vdin_hw_ver_e {
 	VDIN_HW_S4D,
 	VDIN_HW_T3,
 	VDIN_HW_T5W,
+	VDIN_HW_S5,
 };
 
 enum vdin_irq_flg_e {
@@ -316,17 +318,17 @@ enum vdin_vf_put_md {
 	VDIN_VF_RECYCLE,
 };
 
-#define VDIN_ISR_MONITOR_HDR		BIT(0)
-#define VDIN_ISR_MONITOR_EMP		BIT(1)
-#define VDIN_ISR_MONITOR_RATIO		BIT(2)
-#define VDIN_ISR_MONITOR_GAME		BIT(4)
-#define VDIN_ISR_MONITOR_VS		BIT(5)
-#define VDIN_ISR_MONITOR_VF		BIT(6)
-#define VDIN_ISR_MONITOR_VRR_DATA	BIT(9)
-#define VDIN_ISR_MONITOR_AFBCE		BIT(10)
-#define VDIN_ISR_MONITOR_BUFFER		BIT(11)
-#define VDIN_ISR_MONITOR_AFBCE_STA	BIT(12)
-#define VDIN_ISR_MONITOR_WRITE_DONE	BIT(13)
+#define VDIN_ISR_MONITOR_HDR        BIT(0)
+#define VDIN_ISR_MONITOR_EMP        BIT(1)
+#define VDIN_ISR_MONITOR_RATIO      BIT(2)
+#define VDIN_ISR_MONITOR_GAME       BIT(4)
+#define VDIN_ISR_MONITOR_VS         BIT(5)
+#define VDIN_ISR_MONITOR_VF         BIT(6)
+#define VDIN_ISR_MONITOR_VRR_DATA   BIT(9)
+#define VDIN_ISR_MONITOR_AFBCE      BIT(10)
+#define VDIN_ISR_MONITOR_BUFFER     BIT(11)
+#define VDIN_ISR_MONITOR_AFBCE_STA  BIT(12)
+#define VDIN_ISR_MONITOR_WRITE_DONE BIT(13)
 
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
 
@@ -452,14 +454,16 @@ struct vdin_vf_info {
 /*******for debug **********/
 struct vdin_debug_s {
 	struct tvin_cutwin_s cutwin;
+	unsigned int vdin_recycle_num;/* debug for vdin recycle frame by self */
 	unsigned short scaling4h;/* for vertical scaling */
 	unsigned short scaling4w;/* for horizontal scaling */
 	unsigned short dest_cfmt;/* for color fmt conversion */
-	/* vdin1 hdr set bypass */
-	bool vdin1_set_hdr_bypass;
 	unsigned short vdin1_line_buff;
 	unsigned short manual_change_csc;
-	unsigned int vdin_recycle_num;/* debug for vdin recycle frame by self */
+	unsigned char dbg_sel_mat; /* 0x10:mat0,0x11:mat1,0x12:hdr */
+	/* vdin1 hdr set bypass */
+	bool vdin1_set_hdr_bypass;
+	bool dbg_force_shrink_en;
 };
 
 struct vdin_dv_s {
@@ -523,6 +527,11 @@ struct vdin_dts_config_s {
 	bool v4l_en;
 };
 
+struct vdin_s5_s {
+	unsigned short h_scale_out;
+	unsigned short v_scale_out;
+};
+
 struct vdin_v4l2_stat_s {
 	/* frame drop due to framerate control */
 	unsigned int drop_divide;
@@ -580,6 +589,7 @@ struct vdin_dev_s {
 	/*struct extcon_dev *extcon_event;*/
 	struct delayed_work event_dwork;
 	struct vdin_vrr_s vrr_data;
+	struct vdin_s5_s s5_data;
 
 	 /* 0:from gpio A,1:from csi2 , 2:gpio B*/
 	enum bt_path_e bt_path;

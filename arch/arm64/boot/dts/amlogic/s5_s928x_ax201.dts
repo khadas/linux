@@ -186,6 +186,7 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		mfh_fw_reserved:linux,mfh_fw {
@@ -1757,7 +1758,7 @@
 
 &vdin1 {
 	memory-region = <&vdin1_cma_reserved>;
-	status = "disabled";
+	status = "okay";
 };
 
 &periphs_pinctrl {

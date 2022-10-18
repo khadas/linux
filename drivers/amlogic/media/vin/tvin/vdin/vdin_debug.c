@@ -1831,11 +1831,44 @@ static void vdin_write_back_reg(struct vdin_dev_s *devp)
 		rd(devp->addr_offset, VDIN_ASFIFO_CTRL3));
 }
 
+void vdin_dump_regs_s5(struct vdin_dev_s *devp, u32 size)
+{
+	unsigned int reg;
+	unsigned int offset = devp->addr_offset;
+
+	pr_info("vdin%d regs bank0 start----\n", devp->index);
+	for (reg = VDIN_REG_BANK0_START; reg <= VDIN_REG_BANK0_END; reg++)
+		pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	pr_info("vdin%d regs bank0 end----\n\n", devp->index);
+
+	pr_info("vdin%d regs bank1 start----\n", devp->index);
+	for (reg = VDIN_REG_BANK1_START; reg <= VDIN_REG_BANK1_END; reg++)
+		pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	pr_info("vdin%d regs bank1 end----\n\n", devp->index);
+
+	pr_info("vdin%d regs loopback start----\n", devp->index);
+	reg = VIU_WR_BAK_CTRL;
+	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	reg = VPU_VIU2VDIN_HDN_CTRL;
+	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+	reg = VPU_VIU_VDIN_IF_MUX_CTRL;
+	pr_info("0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+//	reg = VPP1_WR_BAK_CTRL;
+//	pr_info("VPP1,0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+//	reg = VPP2_WR_BAK_CTRL;
+//	pr_info("VPP2,0x%04x = 0x%08x\n", (reg + offset), rd(offset, reg));
+//	pr_info("vdin%d regs loopback end----\n\n", devp->index);
+}
+
 static void vdin_dump_regs(struct vdin_dev_s *devp, u32 size)
 {
 	unsigned int reg;
 	unsigned int offset = devp->addr_offset;
 
+	if (is_meson_s5_cpu()) {
+		vdin_dump_regs_s5(devp, size);
+		return;
+	}
 	if (size) {
 		pr_info("vdin dump reg value:%d\n", size);
 		if (size > 256)
@@ -3090,7 +3123,10 @@ start_chk:
 			vdin1_hist.width, vdin1_hist.height,
 			vdin1_hist.ave);
 	} else if (!strcmp(parm[0], "vf_crc")) {
-		pr_info("vf crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
+		if (is_meson_s5_cpu())
+			pr_info("s5 vf crc:0x%x\n", rd(devp->addr_offset, VDIN_TOP_CRC1_OUT));
+		else
+			pr_info("vf crc:0x%x\n", rd(devp->addr_offset, VDIN_RO_CRC));
 	} else if (!strcmp(parm[0], "game_mode")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			devp->game_mode = temp;
@@ -3192,6 +3228,16 @@ start_chk:
 		}
 	} else if (!strcmp(parm[0], "dts_config")) {
 		vdin_dump_dts_config(devp);
+	} else if (!strcmp(parm[0], "force_shrink")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->debug.dbg_force_shrink_en = temp;
+			pr_info("dbg_force_shrink_en:%#x\n", devp->debug.dbg_force_shrink_en);
+		}
+	} else if (!strcmp(parm[0], "select_matrix")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			devp->debug.dbg_sel_mat = temp;
+			pr_info("dbg_sel_mat:%#x\n", devp->debug.dbg_sel_mat);
+		}
 	} else {
 		pr_info("unknown command\n");
 	}

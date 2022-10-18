@@ -19,6 +19,8 @@
 #ifndef __VDIN_REGS_H
 #define __VDIN_REGS_H
 
+#include "vdin_regs_s5.h"
+
 /* mmc */
 #define VPU_VDIN_ASYNC_HOLD_CTRL 0x2743
 #define VPU_VDISP_ASYNC_HOLD_CTRL 0x2744

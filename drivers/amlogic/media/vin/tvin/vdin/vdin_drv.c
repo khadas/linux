@@ -1234,7 +1234,7 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_write_mif_or_afbce_init(devp);
 		pr_info("start:0x12c1:0x%x\n", rd(0, VDIN_WRARB_REQEN_SLV));
 		/* vdin1 hw crash addr when keystone reboot */
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) && !is_meson_s5_cpu())
 			wr_bits(0, VDIN_WRARB_REQEN_SLV, 0x1, 1, 1);
 	}
 
@@ -1571,8 +1571,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	struct vdin_dev_s *vdin0_devp = vdin_devp[0];
 	enum tvin_sig_fmt_e fmt;
 
-	if (IS_ERR_OR_NULL(devp) || IS_ERR_OR_NULL(vdin0_devp)) {
-		pr_err("[vdin]%s vdin%d hasn't registered or vdin0 is NULL\n",
+	if (IS_ERR_OR_NULL(devp)) {
+		pr_err("[vdin]%s vdin%d hasn't registered\n",
 		       __func__, no);
 		return -1;
 	}
@@ -1582,26 +1582,28 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		return -1;
 	}
 
-	vdin0_devp->pre_prop.hdcp_sts = vdin0_devp->prop.hdcp_sts;
-	devp->matrix_pattern_mode = 0;
-	/* check input content is protected */
-	if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
-	    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
-		if (vdin0_devp->prop.hdcp_sts && !(devp->vdin_v4l2.secure_flg)) {
-			pr_err("hdmi hdcp en, non-secure buffer\n");
-			devp->matrix_pattern_mode = 4;
+	if (!IS_ERR_OR_NULL(vdin0_devp)) {
+		vdin0_devp->pre_prop.hdcp_sts = vdin0_devp->prop.hdcp_sts;
+		devp->matrix_pattern_mode = 0;
+		/* check input content is protected */
+		if ((vdin0_devp->flags & VDIN_FLAG_DEC_OPENED) &&
+		    (vdin0_devp->flags & VDIN_FLAG_DEC_STARTED)) {
+			if (vdin0_devp->prop.hdcp_sts && !(devp->vdin_v4l2.secure_flg)) {
+				pr_err("hdmi hdcp en, non-secure buffer\n");
+				devp->matrix_pattern_mode = 4;
+			} else {
+				pr_err("non-hdcp or hdcp with secure buffer.sts:%d,flg:%d\n",
+					vdin0_devp->prop.hdcp_sts, devp->vdin_v4l2.secure_flg);
+				devp->matrix_pattern_mode = 0;
+			}
 		} else {
-			pr_err("non-hdcp or hdcp with secure buffer.sts:%d,flg:%d\n",
-				vdin0_devp->prop.hdcp_sts, devp->vdin_v4l2.secure_flg);
+			vdin0_devp->prop.hdcp_sts = 0;
 			devp->matrix_pattern_mode = 0;
 		}
-	} else {
-		vdin0_devp->prop.hdcp_sts = 0;
-		devp->matrix_pattern_mode = 0;
+		pr_info("vdin0 port:0x%x, flag:0x%x, hdcp sts:%d matrix:%d\n",
+		       vdin0_devp->parm.port, vdin0_devp->flags,
+		       vdin0_devp->prop.hdcp_sts, devp->matrix_pattern_mode);
 	}
-	pr_info("vdin0 port:0x%x, flag:0x%x, hdcp sts:%d matrix:%d\n",
-	       vdin0_devp->parm.port, vdin0_devp->flags,
-	       vdin0_devp->prop.hdcp_sts, devp->matrix_pattern_mode);
 
 	mutex_lock(&devp->fe_lock);
 	fmt = devp->parm.info.fmt;
@@ -1611,8 +1613,8 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 	pr_info("dest_vactive:%d;frame_rate:%d;h_active:%d,",
 		para->dest_v_active, para->frame_rate,
 		para->h_active);
-	pr_info("v_active:%d;scan_mode:%d**\n",
-		para->v_active, para->scan_mode);
+	pr_info("v_active:%d;scan_mode:%d,fmt:%#x**\n",
+		para->v_active, para->scan_mode, fmt);
 
 	if (devp->index == 1) {
 		devp->parm.reserved |= para->reserved;
@@ -3270,9 +3272,10 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
 		return IRQ_HANDLED;
 
-	if ((devp->index == 1 && devp->vdin1_stop_write &&
+	if (!is_meson_s5_cpu() &&
+		((devp->index == 1 && devp->vdin1_stop_write &&
 	     cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) ||
-	    !rd_bits(0, VDIN_WRARB_REQEN_SLV, 1, 1)) {
+	    !rd_bits(0, VDIN_WRARB_REQEN_SLV, 1, 1))) {
 		rdma_write_reg_bits(devp->rdma_handle,
 			VDIN_WRARB_REQEN_SLV, 0, 1, 1);
 		vdin_drop_frame_info(devp, "write reqen off");
@@ -3313,12 +3316,14 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 		/* avoid null pointer oops */
 		stamp  = vdin_get_meas_v_stamp(offset);
 
-	/* check input content is protected */
-	protect_mode = vdin0_devp->prop.hdcp_sts ? 4 : 0;
-	if (protect_mode != devp->matrix_pattern_mode) {
-		devp->matrix_pattern_mode = protect_mode;
-		pr_info("vdin0:hdcp chg to %d\n", vdin0_devp->prop.hdcp_sts);
-		vdin_set_matrix(devp);
+	if (vdin0_devp) { /* May not probe vdin0 */
+		/* check input content is protected */
+		protect_mode = vdin0_devp->prop.hdcp_sts ? 4 : 0;
+		if (protect_mode != devp->matrix_pattern_mode) {
+			devp->matrix_pattern_mode = protect_mode;
+			pr_info("vdin0:hdcp chg to %d\n", vdin0_devp->prop.hdcp_sts);
+			vdin_set_matrix(devp);
+		}
 	}
 
 	/* if win_size changed for video only */
@@ -5192,6 +5197,15 @@ static const struct match_data_s vdin_dt_t5w = {
 					.vdin1_set_hdr = false,
 };
 
+static const struct match_data_s vdin_dt_s5 = {
+	.name = "vdin-s5",
+	.hw_ver = VDIN_HW_S5,
+	.vdin0_en = 0,                  .vdin1_en = 1,
+	.de_tunnel_tunnel = 0, /*0,1*/  .ipt444_to_422_12bit = 0, /*0,1*/
+	.vdin0_line_buff_size = 0,      .vdin1_line_buff_size = 0x1000,
+	.vdin1_set_hdr = true,
+};
+
 static const struct of_device_id vdin_dt_match[] = {
 	{
 		.compatible = "amlogic, vdin",
@@ -5246,6 +5260,10 @@ static const struct of_device_id vdin_dt_match[] = {
 	{
 		.compatible = "amlogic, vdin-t5w",
 		.data = &vdin_dt_t5w,
+	},
+	{
+		.compatible = "amlogic, vdin-s5",
+		.data = &vdin_dt_s5,
 	},
 	/* DO NOT remove to avoid scan error of KASAN */
 	{}
@@ -5653,6 +5671,8 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	if (devp->index == 1) {
 		if (is_meson_gxbb_cpu())
 			vdin_addr_offset[1] = 0x70;
+		else if (is_meson_s5_cpu())
+			vdin_addr_offset[1] = 0;
 		else if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A))
 			vdin_addr_offset[1] = 0x100;
 
