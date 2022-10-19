@@ -567,7 +567,7 @@ int wait_events(struct file *filp,
 		return 0;
 
 	u_set = evl_valptr64(wreq->pollset_ptr, struct evl_poll_event);
-	evl_init_flag(&waiter.flag);
+	evl_init_flag_on_stack(&waiter.flag);
 
 	count = collect_events(group, u_set, wreq->nrset, &waiter.flag);
 	if (count > 0 || (count == -EFAULT || count == -EBADF))
