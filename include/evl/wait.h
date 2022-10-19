@@ -123,8 +123,11 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 		const char *name,
 		struct lock_class_key *lock_key);
 
+#define evl_init_named_wait(__wq, __clock, __flags, __name)	\
+	__evl_init_wait(__wq, __clock, __flags, __name, NULL)
+
 #define evl_init_wait(__wq, __clock, __flags)	\
-	__evl_init_wait(__wq, __clock, __flags, #__wq, NULL)
+	evl_init_named_wait(__wq, __clock, __flags, #__wq)
 
 #define evl_init_wait_on_stack(__wq, __clock, __flags)	\
 	do {								\
