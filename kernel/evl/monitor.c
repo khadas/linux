@@ -874,7 +874,8 @@ monitor_factory_build(struct evl_factory *fac, const char __user *u_name,
 		raw_spin_lock_init(&mon->lock);
 		break;
 	case EVL_MONITOR_EVENT:
-		evl_init_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO);
+		evl_init_named_wait(&mon->wait_queue, clock, EVL_WAIT_PRIO,
+				evl_element_name(&mon->element));
 		state->u.event.gate_offset = EVL_MONITOR_NOGATE;
 		atomic_set(&state->u.event.value, attrs.initval);
 		evl_init_poll_head(&mon->poll_head);
