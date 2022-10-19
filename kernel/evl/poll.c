@@ -605,6 +605,7 @@ out:
 static int poll_open(struct inode *inode, struct file *filp)
 {
 	struct poll_group *group;
+	unsigned long flags;
 	int ret;
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
@@ -622,6 +623,9 @@ static int poll_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&group->waiter_list);
 	evl_init_kmutex(&group->item_lock);
 	raw_spin_lock_init(&group->wait_lock);
+	local_irq_save(flags);
+	might_lock(&group->wait_lock); /* see __evl_init_wait(). */
+	local_irq_restore(flags);
 	filp->private_data = group;
 	stream_open(inode, filp);
 
