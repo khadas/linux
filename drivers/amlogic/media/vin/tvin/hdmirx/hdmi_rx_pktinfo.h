@@ -592,12 +592,12 @@ struct vsi_infoframe_st {
 	/*body by different format*/
 	union vsi_sbpkt_u {
 		struct payload_st {
-			u32 data[7];
+			u32 data[6];
 		} __packed payload;
 
 		/* video format 0x01*/
 		struct vsi_st {
-			u8 data[28];
+			u8 data[24];
 		} __packed vsi_st;
 
 		/* 3D: video format(0x2) */

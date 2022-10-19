@@ -1003,10 +1003,10 @@ void hdmirx_top_sw_reset(void)
 		udelay(1);
 		wr_reg(MAP_ADDR_MODULE_TOP, dev_offset + TOP_SW_RESET, 0);
 	} else if (rx.chip_id >= CHIP_ID_T7) {
-		dev_offset = rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
-		wr_reg(MAP_ADDR_MODULE_TOP, dev_offset + TOP_SW_RESET, 1);
-		udelay(1);
-		wr_reg(MAP_ADDR_MODULE_TOP, dev_offset + TOP_SW_RESET, 0);
+		//dev_offset = rx_reg_maps[MAP_ADDR_MODULE_TOP].phy_addr;
+		//wr_reg(MAP_ADDR_MODULE_TOP, dev_offset + TOP_SW_RESET, 1);
+		//udelay(1);
+		//wr_reg(MAP_ADDR_MODULE_TOP, dev_offset + TOP_SW_RESET, 0);
 	} else {
 		wr_reg(MAP_ADDR_MODULE_TOP,
 		       hdmirx_addr_port | dev_offset, TOP_SW_RESET);
@@ -3098,13 +3098,17 @@ void rx_afifo_monitor(void)
 		return;
 	if (rx.state != FSM_SIG_READY)
 		return;
-	if (rx_afifo_dbg_en)
+	if (rx_afifo_dbg_en) {
+		afifo_overflow_cnt = 0;
+		afifo_underflow_cnt = 0;
 		return;
+	}
 
 	rx.afifo_sts = hdmirx_rd_cor(RX_INTR4_PWD_IVCRX) & 3;
 	hdmirx_wr_cor(RX_INTR4_PWD_IVCRX, 3);
 	if (rx.afifo_sts & 2) {
 		afifo_overflow_cnt++;
+		rx_aud_fifo_rst();
 		if (log_level & AUDIO_LOG)
 			rx_pr("overflow\n");
 	} else if (rx.afifo_sts & 1) {
@@ -3118,14 +3122,14 @@ void rx_afifo_monitor(void)
 		if (afifo_underflow_cnt)
 			afifo_underflow_cnt--;
 	}
-	if (afifo_overflow_cnt > 150) {
-		afifo_overflow_cnt = 0;
-		hdmirx_output_en(false);
-		hdmirx_hbr2spdif(0);
-		rx_set_cur_hpd(0, 5);
-		rx.state = FSM_5V_LOST;
-		rx_pr("!!force reset\n");
-	}
+	//if (afifo_overflow_cnt > 150) {
+		//afifo_overflow_cnt = 0;
+		//hdmirx_output_en(false);
+		//hdmirx_hbr2spdif(0);
+		//rx_set_cur_hpd(0, 5);
+		//rx.state = FSM_5V_LOST;
+		//rx_pr("!!force reset\n");
+	//}
 	//if (afifo_underflow_cnt) {
 		//afifo_underflow_cnt = 0;
 		//rx_aud_fifo_rst();
@@ -3135,22 +3139,42 @@ void rx_afifo_monitor(void)
 
 void rx_hdcp_monitor(void)
 {
+	static u8 sts1, sts2, sts3;
+	u8 tmp;
+
 	if (rx.chip_id < CHIP_ID_T7)
 		return;
-	if (rx.hdcp.hdcp_version != HDCP_VER_NONE &&
-		rx.state == FSM_SIG_READY) {
-		if (rx.ecc_err_frames_cnt >= rx_ecc_err_frames) {
-			skip_frame(5);
-			if (rx.hdcp.hdcp_version == HDCP_VER_22)
-				rx_hdcp_22_sent_reauth();
-			else if (rx.hdcp.hdcp_version == HDCP_VER_14)
-				rx_hdcp_14_sent_reauth();
-			rx_pr("reauth-err:%d\n", rx.ecc_err);
-			if (rx.state >= FSM_SIG_STABLE)
-				rx.state = FSM_SIG_WAIT_STABLE;
-			rx.ecc_err = 0;
-			rx.ecc_err_frames_cnt = 0;
-		}
+	if (rx.hdcp.hdcp_version == HDCP_VER_NONE)
+		return;
+	if (rx.state != FSM_SIG_READY)
+		return;
+
+	if (rx.ecc_err_frames_cnt >= rx_ecc_err_frames) {
+		skip_frame(5);
+		if (rx.hdcp.hdcp_version == HDCP_VER_22)
+			rx_hdcp_22_sent_reauth();
+		else if (rx.hdcp.hdcp_version == HDCP_VER_14)
+			rx_hdcp_14_sent_reauth();
+		rx_pr("reauth-err:%d\n", rx.ecc_err);
+		rx.state = FSM_SIG_WAIT_STABLE;
+		rx.ecc_err = 0;
+		rx.ecc_err_frames_cnt = 0;
+	}
+	//hdcp14 status
+	tmp = hdmirx_rd_cor(RX_HDCP_STAT_HDCP1X_IVCRX);
+	if (tmp == 2 || tmp == 0x0a) {
+		rx_pr("hdcp1sts %x->%x\n", sts1, tmp);
+		sts1 = tmp;
+	}
+	tmp = hdmirx_rd_cor(CP2PAX_AUTH_STAT_HDCP2X_IVCRX);
+	if (tmp != sts2 && (log_level & HDCP_LOG)) {
+		rx_pr("hdcp2sts %x->%x\n", sts2, tmp);
+		sts2 = tmp;
+	}
+	tmp = hdmirx_rd_cor(CP2PAX_STATE_HDCP2X_IVCRX);
+	if (tmp != sts3 && (log_level & HDCP_LOG)) {
+		rx_pr("hdcp2sts3 %x->%x\n", sts3, tmp);
+		sts3 = tmp;
 	}
 }
 
@@ -3559,7 +3583,7 @@ void cor_init(void)
 	//}
 	hdmirx_wr_cor(RX_3D_SW_OW2_AUD_IVCRX, data8);//duplicate
 
-	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x12);//SRST = 1
+	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x1a);//SRST = 1
 	/* BIT0 AUTO RST AUD FIFO when fifo err */
 	hdmirx_wr_cor(RX_PWD_SRST_PWD_IVCRX, 0x01);//SRST = 0
 
@@ -3953,9 +3977,9 @@ u8 rx_get_hdcp_type(void)
 		data_dec = hdmirx_rd_cor(RX_HDCP_STATUS_PWD_IVCRX);
 		rx.cur.hdcp14_state = (hdmirx_rd_cor(RX_HDCP_STAT_HDCP1X_IVCRX) >> 4) & 3;
 		rx.cur.hdcp22_state = ((data_dec & 1) << 1) | (data_auth & 1);
-		if ((rx.cur.hdcp22_state & 3) && rx.cur.hdcp14_state == 0)
+		if (rx.cur.hdcp22_state & 3 && rx.cur.hdcp14_state != 3)
 			rx.hdcp.hdcp_version = HDCP_VER_22;
-		else if (rx.cur.hdcp14_state == 3 && rx.cur.hdcp22_state == 0)
+		else if (rx.cur.hdcp14_state == 3 && rx.cur.hdcp22_state != 3)
 			rx.hdcp.hdcp_version = HDCP_VER_14;
 		else
 			rx.hdcp.hdcp_version = HDCP_VER_NONE;

@@ -3193,6 +3193,9 @@ extern u32 rterm_trim_val_t7;
 extern u32 rterm_trim_flag_t7;
 extern unsigned int rlevel;
 extern u32 dts_debug_flag;
+extern u32 afifo_overflow_cnt;
+extern u32 afifo_underflow_cnt;
+
 void rx_get_best_eq_setting(void);
 void wr_reg_hhi(unsigned int offset, unsigned int val);
 void wr_reg_hhi_bits(unsigned int offset, unsigned int mask,

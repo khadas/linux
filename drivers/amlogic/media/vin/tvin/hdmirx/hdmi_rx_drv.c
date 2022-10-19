@@ -509,7 +509,7 @@ int hdmirx_dec_isr(struct tvin_frontend_s *fe, unsigned int hcnt64)
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
 
-	if (!rx.var.force_pattern) {
+	if (!rx.var.force_pattern && rx.chip_id < CHIP_ID_T7) {
 		/*prevent spurious pops or noise when pw down*/
 		if (rx.state == FSM_SIG_READY) {
 			avmuteflag = rx_get_avmute_sts();
@@ -2131,6 +2131,115 @@ static ssize_t audio_blk_store(struct device *dev,
 	return count;
 }
 
+static ssize_t mode_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	ssize_t len = 0;
+
+	if (abs(rx.cur.hactive - 3840) < 5 && abs(rx.cur.vactive - 2160) < 5) {
+		len += snprintf(buf + len, PAGE_SIZE, "2160");
+	} else if (abs(rx.cur.hactive - 1920) < 5 && abs(rx.cur.vactive - 2160) < 5 &&
+			   rx.cur.colorspace == E_COLOR_YUV420) {
+		len += snprintf(buf + len, PAGE_SIZE, "2160");
+	} else if (abs(rx.cur.hactive - 1920) < 5 && abs(rx.cur.vactive - 1080) < 5) {
+		len += snprintf(buf + len, PAGE_SIZE, "1080");
+	} else if (abs(rx.cur.hactive - 1280) < 5 && abs(rx.cur.vactive - 720) < 5) {
+		len += snprintf(buf + len, PAGE_SIZE, "720");
+	} else if (abs(rx.cur.hactive - 720) < 5 && abs(rx.cur.vactive - 480) < 5) {
+		len += snprintf(buf + len, PAGE_SIZE, "480");
+	} else if (abs(rx.cur.hactive - 720) < 5 && abs(rx.cur.vactive - 576) < 5) {
+		len += snprintf(buf + len, PAGE_SIZE, "576");
+	} else if ((rx.cur.hactive != 0) && (rx.cur.vactive != 0)) {
+		len += snprintf(buf + len, PAGE_SIZE, "%dx%d",
+		rx.cur.hactive, rx.cur.vactive);
+	} else {
+		len += snprintf(buf + len, PAGE_SIZE, "invalid");
+		return len;
+	}
+	len += snprintf(buf + len, PAGE_SIZE, "%s",
+			(rx.cur.interlaced) ? "i" : "p");
+	len += snprintf(buf + len, PAGE_SIZE, "%dhz",
+			(rx.cur.frame_rate + 50) / 100);
+
+	return len;
+}
+
+static ssize_t colorspace_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	ssize_t len = 0;
+
+	if (rx.cur.colorspace == E_COLOR_RGB)
+		len += snprintf(buf + len, PAGE_SIZE, "rgb");
+	else if (rx.cur.colorspace == E_COLOR_YUV422)
+		len += snprintf(buf + len, PAGE_SIZE, "422");
+	else if (rx.cur.colorspace == E_COLOR_YUV444)
+		len += snprintf(buf + len, PAGE_SIZE, "444");
+	else if (rx.cur.colorspace == E_COLOR_YUV420)
+		len += snprintf(buf + len, PAGE_SIZE, "420");
+	else
+		len += snprintf(buf + len, PAGE_SIZE, "invalid\n");
+
+	return len;
+}
+
+static ssize_t colordepth_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	ssize_t len = 0;
+
+	len += snprintf(buf + len, PAGE_SIZE, "%d", rx.cur.colordepth);
+
+	return len;
+}
+
+static ssize_t frac_mode_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	ssize_t len = 0;
+
+	if (rx.cur.frame_rate && (rx.cur.frame_rate % 100 == 0))
+		len += snprintf(buf + len, PAGE_SIZE, "0");
+	else
+		len += snprintf(buf + len, PAGE_SIZE, "1");
+
+	return len;
+}
+
+static ssize_t hdmi_hdr_status_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	ssize_t len = 0;
+	struct drm_infoframe_st *drmpkt;
+
+	drmpkt = (struct drm_infoframe_st *)&rx_pkt.drm_info;
+
+	if (rx.vs_info_details.dolby_vision_flag == 1) {
+		if (rx.vs_info_details.low_latency)
+			len += snprintf(buf + len, PAGE_SIZE, "DolbyVision-Lowlatency");
+		else
+			len += snprintf(buf + len, PAGE_SIZE, "DolbyVision-Std");
+	} else if (rx.vs_info_details.hdr10plus != 0) {
+		len += snprintf(buf + len, PAGE_SIZE, "HDR10Plus");
+	} else if (drmpkt->des_u.tp1.eotf == EOTF_SDR) {
+		len += snprintf(buf + len, PAGE_SIZE, "SDR");
+	} else if (drmpkt->des_u.tp1.eotf == EOTF_HDR) {
+		len += snprintf(buf + len, PAGE_SIZE, "HDR");
+	} else if (drmpkt->des_u.tp1.eotf == EOTF_SMPTE_ST_2048) {
+		len += snprintf(buf + len, PAGE_SIZE, "HDR10-GAMMA_ST2084");
+	} else if (drmpkt->des_u.tp1.eotf == EOTF_HLG) {
+		len += snprintf(buf + len, PAGE_SIZE, "HDR10-GAMMA_HLG");
+	} else {
+		len += snprintf(buf + len, PAGE_SIZE, "SDR");
+	}
+	return len;
+}
+
 static DEVICE_ATTR_RW(debug);
 static DEVICE_ATTR_RW(edid);
 static DEVICE_ATTR_RW(key);
@@ -2153,6 +2262,11 @@ static DEVICE_ATTR_RW(edid_with_port);
 static DEVICE_ATTR_RW(vrr_func_ctrl);
 static DEVICE_ATTR_RO(hdcp14_onoff);
 static DEVICE_ATTR_RO(hdcp22_onoff);
+static DEVICE_ATTR_RO(mode);
+static DEVICE_ATTR_RO(colorspace);
+static DEVICE_ATTR_RO(colordepth);
+static DEVICE_ATTR_RO(frac_mode);
+static DEVICE_ATTR_RO(hdmi_hdr_status);
 
 static int hdmirx_add_cdev(struct cdev *cdevp,
 			   const struct file_operations *fops,
@@ -2743,6 +2857,31 @@ static int hdmirx_probe(struct platform_device *pdev)
 		rx_pr("hdmirx: fail to create hdcp22_onoff file\n");
 		goto fail_create_hdcp22_onoff;
 	}
+	ret = device_create_file(hdevp->dev, &dev_attr_mode);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create mode file\n");
+		goto fail_create_mode;
+	}
+	ret = device_create_file(hdevp->dev, &dev_attr_colorspace);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create colorspace file\n");
+		goto fail_create_colorspace;
+	}
+	ret = device_create_file(hdevp->dev, &dev_attr_colordepth);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create colordepth file\n");
+		goto fail_create_colordepth;
+	}
+	ret = device_create_file(hdevp->dev, &dev_attr_frac_mode);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create frac_mode file\n");
+		goto fail_create_frac_mode;
+	}
+	ret = device_create_file(hdevp->dev, &dev_attr_hdmi_hdr_status);
+	if (ret < 0) {
+		rx_pr("hdmirx: fail to create hdmi_hdr_status file\n");
+		goto fail_create_hdmi_hdr_status;
+	}
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		rx_pr("%s: can't get irq resource\n", __func__);
@@ -3081,6 +3220,17 @@ fail_kmalloc_pd_fifo:
 	return ret;
 fail_get_resource_irq:
 	return ret;
+
+fail_create_hdmi_hdr_status:
+	device_remove_file(hdevp->dev, &dev_attr_hdmi_hdr_status);
+fail_create_frac_mode:
+	device_remove_file(hdevp->dev, &dev_attr_frac_mode);
+fail_create_colordepth:
+	device_remove_file(hdevp->dev, &dev_attr_colordepth);
+fail_create_colorspace:
+	device_remove_file(hdevp->dev, &dev_attr_colorspace);
+fail_create_mode:
+	device_remove_file(hdevp->dev, &dev_attr_mode);
 fail_create_hdcp22_onoff:
 	device_remove_file(hdevp->dev, &dev_attr_hdcp22_onoff);
 fail_create_hdcp14_onoff:
@@ -3155,6 +3305,11 @@ static int hdmirx_remove(struct platform_device *pdev)
 	unregister_early_suspend(&hdmirx_early_suspend_handler);
 #endif
 	mutex_destroy(&hdevp->rx_lock);
+	device_remove_file(hdevp->dev, &dev_attr_hdmi_hdr_status);
+	device_remove_file(hdevp->dev, &dev_attr_frac_mode);
+	device_remove_file(hdevp->dev, &dev_attr_colordepth);
+	device_remove_file(hdevp->dev, &dev_attr_colorspace);
+	device_remove_file(hdevp->dev, &dev_attr_mode);
 	device_remove_file(hdevp->dev, &dev_attr_hdcp22_onoff);
 	device_remove_file(hdevp->dev, &dev_attr_hdcp14_onoff);
 	device_remove_file(hdevp->dev, &dev_attr_scan_mode);
@@ -3184,6 +3339,21 @@ static int hdmirx_remove(struct platform_device *pdev)
 	rx_pr("hdmirx: driver removed ok.\n");
 	return 0;
 }
+
+#ifdef CONFIG_AMLOGIC_HDMITX
+int get_tx_boot_hdr_priority(char *str)
+{
+	unsigned int val = 0;
+
+	if ((strncmp("1", str, 1) == 0) || (strncmp("2", str, 1) == 0)) {
+		val = str[0] - '0';
+		tx_hdr_priority = val;
+		pr_info("tx_hdr_priority: %d\n", val);
+	}
+	return 0;
+}
+__setup("hdr_priority=", get_tx_boot_hdr_priority);
+#endif
 
 static int aml_hdcp22_pm_notify(struct notifier_block *nb,
 				unsigned long event, void *dummy)

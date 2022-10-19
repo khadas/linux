@@ -414,7 +414,8 @@ EQ_RUN:
 				//HHI_HDMIRX_PHY_DCHA_CNTL0,
 				//MSK(15, 0), ((data32 >> 2) & 0x3fff));
 			//}
-			rx_pr("dfe\n");
+			if (log_level & PHY_LOG)
+				rx_pr("dfe\n");
 		}
 		usleep_range(100, 110);
 
@@ -460,7 +461,8 @@ EQ_RUN:
 			usleep_range(100, 110);
 			//wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL2,
 				//_BIT(27), 0);
-			rx_pr("dfe\n");
+			if (log_level & PHY_LOG)
+				rx_pr("dfe\n");
 		}
 		usleep_range(100, 110);
 
@@ -506,7 +508,8 @@ void aml_phy_cfg_tm2(void)
 	u32 term_value =
 		hdmirx_rd_top(TOP_HPD_PWR5V) & 0x7;
 	if (rx.aml_phy.pre_int) {
-		rx_pr("\nphy reg init\n");
+		if (log_level & PHY_LOG)
+			rx_pr("\nphy reg init\n");
 		data32 = phy_misci_b[idx][0];
 		wr_reg_hhi(HHI_HDMIRX_PHY_MISC_CNTL0, data32);
 		usleep_range(5, 10);
@@ -697,7 +700,8 @@ void aml_pll_bw_cfg_tm2(void)
 			      aml_phy_pll_lock());
 		}
 	} while (!is_tmds_clk_stable() && !aml_phy_pll_lock());
-	rx_pr("pll init done\n");
+	if (log_level & PHY_LOG)
+		rx_pr("pll init done\n");
 	if (rx.aml_phy.phy_bwth) {
 		//phy config based on BW
 		/*0xd8???????*/
@@ -733,7 +737,8 @@ void aml_pll_bw_cfg_tm2(void)
 		/* 0xc6 */
 		wr_reg_hhi_bits(HHI_HDMIRX_PHY_DCHD_CNTL3, MSK(13, 17),
 				(phy_dchd_b[idx][3] >> 17) & 0x1fff);
-		rx_pr("phy_bw\n");
+		if (log_level & PHY_LOG)
+			rx_pr("phy_bw\n");
 	}
 }
 
