@@ -3867,7 +3867,7 @@ static struct clk_regmap s5_enc_hdmi_tx_pnx_clk = {
 			&s5_enc_hdmi_tx_pnx_clk_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -3898,7 +3898,7 @@ static struct clk_regmap s5_enc_hdmi_tx_fe_clk = {
 			&s5_enc_hdmi_tx_fe_clk_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -3929,7 +3929,7 @@ static struct clk_regmap s5_enc_hdmi_tx_pixel_clk = {
 			&s5_enc_hdmi_tx_pixel_clk_sel.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4059,7 +4059,7 @@ static struct clk_regmap s5_hdmi_tx_pnx_clk = {
 			&s5_hdmi_tx_pnx_clk_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4075,7 +4075,7 @@ static struct clk_regmap s5_hdmi_tx_fe_clk = {
 			&s5_hdmi_tx_fe_clk_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4091,7 +4091,7 @@ static struct clk_regmap s5_hdmi_tx_pixel_clk = {
 			&s5_hdmi_tx_pixel_clk_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -4146,7 +4146,7 @@ static struct clk_regmap s5_htx_tmds = {
 			&s5_htx_tmds_div.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 
