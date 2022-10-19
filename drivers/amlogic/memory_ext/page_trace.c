@@ -852,7 +852,7 @@ static void show_page_trace(struct seq_file *m, struct zone *zone,
 		seq_printf(m, "total pages:%6ld, %9ld kB, type:%s\n",
 			   total_mt, K(total_mt), migratetype_names[j]);
 		if (page_trace_filter_slab)
-			seq_printf(m, "filter_slab pages:%6ld, %9ld kB\n",
+			seq_printf(m, "filter_slab pages:%6d, %9ld kB\n",
 				pt_sum->filter_slab[j], K(pt_sum->filter_slab[j]));
 		seq_puts(m, "------------------------------\n");
 		total_used += total_mt;
@@ -1047,7 +1047,7 @@ static ssize_t pagetrace_write(struct file *file, const char __user *buffer,
 	}
 
 	if (!strncmp(buf, "filter_slab=", 12)) {	/* option for 'filter=slab' */
-		if (sscanf(buf, "filter_slab=%d", &arg) < 0) {
+		if (sscanf(buf, "filter_slab=%ld", &arg) < 0) {
 			kfree(buf);
 			return -EINVAL;
 		}
