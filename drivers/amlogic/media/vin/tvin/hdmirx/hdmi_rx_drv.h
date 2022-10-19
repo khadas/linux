@@ -633,6 +633,7 @@ struct rx_s {
 	u32 skip;
 	/*avmute*/
 	u32 avmute_skip;
+	bool vpp_mute;
 	/** HDMI RX input port 0 (A) or 1 (B) (or 2(C) or 3 (D)) */
 	u8 port;
 	/* first boot flag */

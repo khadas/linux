@@ -451,6 +451,11 @@ void hdmirx_dec_stop(struct tvin_frontend_s *fe, enum tvin_port_e port)
 
 	devp = container_of(fe, struct hdmirx_dev_s, frontend);
 	parm = &devp->param;
+	if (vpp_mute_enable) {
+		if (get_video_mute() && rx.vpp_mute)
+			set_video_mute(false);
+		rx.vpp_mute = false;
+	}
 	/* parm->info.fmt = TVIN_SIG_FMT_NULL; */
 	/* parm->info.status = TVIN_SIG_STATUS_NULL; */
 	rx_pr("%s ok\n", __func__);
@@ -490,8 +495,9 @@ void hdmirx_dec_close(struct tvin_frontend_s *fe)
 	parm->info.status = TVIN_SIG_STATUS_NULL;
 	/* clear vpp mute, such as after unplug */
 	if (vpp_mute_enable) {
-		if (get_video_mute())
+		if (get_video_mute() && rx.vpp_mute)
 			set_video_mute(false);
+		rx.vpp_mute = false;
 	}
 	rx_pr("%s ok\n", __func__);
 }

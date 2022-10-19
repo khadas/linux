@@ -429,16 +429,21 @@ EXPORT_SYMBOL(unregister_cec_callback);
 
 static bool video_mute_enabled(void)
 {
-	if (rx.state != FSM_SIG_READY)
-		return false;
+	bool ret = false;
 
-	/* for debug with flicker issues, especially
-	 * unplug or switch timing under game mode
-	 */
-	if (vpp_mute_enable)
-		return true;
-	else
-		return false;
+	if (rx.state != FSM_SIG_READY)
+		return ret;
+
+	if (!vpp_mute_enable)
+		return ret;
+
+	if ((rx.cur.it_content && rx.cur.cn_type == 3) ||
+		rx.vs_info_details.hdmi_allm ||
+		rx.vs_info_details.dv_allm ||
+		rx.vtem_info.vrr_en)
+		ret = true;
+
+	return ret;
 }
 
 /*
@@ -1061,6 +1066,7 @@ reisr:hdmirx_top_intr_stat = hdmirx_rd_top(TOP_INTR_STAT);
 	if (rx.chip_id >= CHIP_ID_TL1) {
 		if (hdmirx_top_intr_stat & (1 << 29)) {
 			if (video_mute_enabled()) {
+				rx.vpp_mute = true;
 				set_video_mute(true);
 				rx.var.mute_cnt = 0;
 				if (log_level & 0x100)
@@ -2692,6 +2698,8 @@ void skip_frame(unsigned int cnt)
 		rx.skip = cnt * rx.skip;
 		rx_pr("rx.skip = %d\n", rx.skip);
 	}
+	//do not depent on state mechine condition
+	rx_notify_vdin_skip_frame();
 }
 
 void wait_ddc_idle(void)
@@ -3315,6 +3323,7 @@ void rx_main_state_machine(void)
 		if (!is_tmds_valid()) {
 			if (video_mute_enabled()) {
 				set_video_mute(true);
+				rx.vpp_mute = true;
 				rx.var.mute_cnt = 0;
 				if (log_level & 0x100)
 					rx_pr("vpp mute\n");
@@ -3390,6 +3399,7 @@ void rx_main_state_machine(void)
 					if (rx.var.mute_cnt++ < one_frame_cnt + 1)
 						break;
 					rx.var.mute_cnt = 0;
+					rx.vpp_mute = false;
 					set_video_mute(false);
 				}
 			}
