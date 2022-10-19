@@ -1446,6 +1446,7 @@ void rx_get_vsi_info(void)
 			if ((pkt->sbpkt.payload.data[0] & 0xffff) == 0)
 				pkt->sbpkt.payload.data[0] = 0xffff;
 			rx.vs_info_details.vsi_state = E_VSI_DV10;
+			pkt->ver_st.version = 1;
 		} else if ((pkt->length == E_PKT_LENGTH_5) &&
 			(pkt->sbpkt.payload.data[0] & 0xffff)) {
 			rx.vs_info_details.dolby_vision_flag = DV_NULL;
