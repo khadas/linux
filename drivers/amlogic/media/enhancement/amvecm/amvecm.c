@@ -9867,11 +9867,9 @@ void amvecm_gamma_init(bool en)
 
 	if (cpu_after_eq_t7()) {
 		if (is_meson_t7_cpu()) {
-			for (i = 0; i < 3; i++)
-				lcd_gamma_api(i, video_gamma_table_r.data,
-					video_gamma_table_g.data,
-					video_gamma_table_b.data,
-					0, 0);
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+			vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 		} else {
 			lcd_gamma_api(0, video_gamma_table_r.data,
 				video_gamma_table_g.data,
@@ -9891,9 +9889,9 @@ void amvecm_gamma_init(bool en)
 	}
 
 	if (en)
-		vpp_enable_lcd_gamma_table(0, 0);
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_EN;
 	else
-		vpp_disable_lcd_gamma_table(0, 0);
+		vecm_latch_flag |= FLAG_GAMMA_TABLE_DIS;
 }
 
 static void amvecm_wb_init(bool en)

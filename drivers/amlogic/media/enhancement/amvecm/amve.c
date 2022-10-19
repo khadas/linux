@@ -2491,7 +2491,7 @@ void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h)
 
 int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md)
 {
-	unsigned int i;
+	/*unsigned int i;*/
 
 	switch (md) {
 	case WR_VCB:
@@ -2549,15 +2549,17 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md)
 			gamma_en = pq_cfg.gamma_en;
 			if (gamma_en) {
 				if (is_meson_t7_cpu()) {
-					for (i = 0; i < 3; i++)
-						vpp_enable_lcd_gamma_table(i, 0);
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 				} else {
 					vpp_enable_lcd_gamma_table(0, 0);
 				}
 			} else {
 				if (is_meson_t7_cpu()) {
-					for (i = 0; i < 3; i++)
-						vpp_disable_lcd_gamma_table(i, 0);
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 				} else {
 					vpp_disable_lcd_gamma_table(0, 0);
 				}
@@ -2634,15 +2636,17 @@ int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md)
 			gamma_en = pq_cfg.gamma_en;
 			if (gamma_en) {
 				if (is_meson_t7_cpu()) {
-					for (i = 0; i < 3; i++)
-						vpp_enable_lcd_gamma_table(i, 1);
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 				} else {
 					vpp_enable_lcd_gamma_table(0, 1);
 				}
 			} else {
 				if (is_meson_t7_cpu()) {
-					for (i = 0; i < 3; i++)
-						vpp_disable_lcd_gamma_table(i, 1);
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_R;
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_G;
+					vecm_latch_flag |= FLAG_GAMMA_TABLE_B;
 				} else {
 					vpp_disable_lcd_gamma_table(0, 1);
 				}
