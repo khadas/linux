@@ -143,6 +143,14 @@ __evl_get_element_by_fundle(struct evl_index *map,
 			container_of(__e, __type, element); }) : NULL;	\
 	})
 
+/* Hide the element from sysfs operations. */
+static inline void evl_hide_element(struct evl_element *e)
+{
+	struct device *dev = e->dev;
+	if (dev)
+		dev_set_drvdata(dev, NULL);
+}
+
 static inline bool evl_element_is_public(struct evl_element *e)
 {
 	return !!(e->clone_flags & EVL_CLONE_PUBLIC);
