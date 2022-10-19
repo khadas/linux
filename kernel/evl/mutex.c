@@ -486,9 +486,9 @@ static void untrack_owner(struct evl_mutex *mutex)
 	if (owner) {
 		raw_spin_lock(&owner->lock);
 		list_del(&mutex->next_owned);
+		mutex->wchan.owner = NULL;
 		raw_spin_unlock(&owner->lock);
 		evl_put_element(&owner->element);
-		mutex->wchan.owner = NULL;
 	}
 }
 
@@ -500,17 +500,13 @@ static void track_owner(struct evl_mutex *mutex,
 
 	assert_hard_lock(&mutex->wchan.lock);
 
-	if (EVL_WARN_ON_ONCE(CORE, prev == owner))
+	if (EVL_WARN_ON_ONCE(CORE, prev != NULL))
 		return;
 
 	raw_spin_lock(&owner->lock);
-	if (prev) {
-		list_del(&mutex->next_owned);
-		evl_put_element(&prev->element);
-	}
 	list_add(&mutex->next_owned, &owner->owned_mutexes);
-	raw_spin_unlock(&owner->lock);
 	mutex->wchan.owner = owner;
+	raw_spin_unlock(&owner->lock);
 }
 
 /* mutex->wchan.lock held, irqs off. */
@@ -737,6 +733,9 @@ static void drop_booster(struct evl_mutex *mutex)
 
 	assert_hard_lock(&mutex->wchan.lock);
 	owner = mutex->wchan.owner;
+
+	if (EVL_WARN_ON(CORE, !owner))
+		return;
 
 	/*
 	 * Unlink the mutex from the list of boosters which cause a
@@ -1306,6 +1305,7 @@ redo:
 	if (ret) {
 		raw_spin_unlock(&curr->rq->lock);
 		raw_spin_unlock(&curr->lock);
+		EVL_WARN_ON_ONCE(CORE, curr == mutex->wchan.owner);
 		goto out;
 	}
 
@@ -1344,13 +1344,17 @@ out:
 EXPORT_SYMBOL_GPL(evl_lock_mutex_timeout);
 
 /* mutex->wchan.lock, irqs off */
-static void transfer_ownership(struct evl_mutex *mutex)
+static bool transfer_ownership(struct evl_mutex *mutex)
 {
 	atomic_t *lockp = mutex->fastlock;
 	struct evl_thread *n_owner;
 	fundle_t n_ownerh;
+	bool ret = false;
 
 	assert_hard_lock(&mutex->wchan.lock);
+
+	/* Update the tracking list of the previous owner. */
+	untrack_owner(mutex);
 
 	/*
 	 * FLCEIL may only be raised by the owner, or when the owner
@@ -1369,51 +1373,49 @@ static void transfer_ownership(struct evl_mutex *mutex)
 	 * an assertion for this case.
 	 */
 	if (list_empty(&mutex->wchan.wait_list)) {
-		untrack_owner(mutex);
 		atomic_set(lockp, EVL_NO_HANDLE);
-		return;
+		return false;
 	}
 
 	EVL_WARN_ON(CORE, !(atomic_read(lockp) & EVL_MUTEX_FLCLAIM));
 
 	n_owner = list_first_entry(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
-	/*
-	 * We clear the wait channel early on - instead of waiting for
-	 * evl_wakeup_thread() to do so - because we want to hide
-	 * n_owner from the PI/PP adjustment which takes place over
-	 * set_current_owner_locked().
-	 *
-	 * Beware: we do want set_current_owner_locked() to run before
-	 * evl_wakeup_thread() is called.
-	 */
-	raw_spin_lock(&n_owner->lock);
-	n_owner->wwake = &mutex->wchan;
-	n_owner->wchan = NULL;
-	list_del_init(&n_owner->wait_next);
-	raw_spin_unlock(&n_owner->lock);
-	/*
-	 * FIXME: wakeup race in SMP is possible since we dropped
-	 * n_owner->lock, could n_owner go stale in the meantime if
-	 * someone forcibly unblocks it up or a timeout triggers from
-	 * another CPU?
-	 */
-	set_current_owner_locked(mutex, n_owner);
-	evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
 
+	raw_spin_lock(&n_owner->lock);
+
+	n_owner->wwake = &mutex->wchan;
+	list_del_init(&n_owner->wait_next);
+	/*
+	 * Update mutex->wchan.owner, update the tracking data and
+	 * apply any PP boost if need be.
+	 */
+	ret = set_mutex_owner(mutex, n_owner);
 	n_ownerh = get_owner_handle(fundle_of(n_owner), mutex);
+	/*
+	 * Get a ref. on owner to allow for safe access after
+	 * unlocking, caller will drop it.
+	 */
+	evl_get_element(&n_owner->element);
+
+	raw_spin_unlock(&n_owner->lock);
+
+	/* Update the atomic handle shared with user-space. */
 	if (!list_empty(&mutex->wchan.wait_list)) /* any waiters? */
 		n_ownerh = mutex_fast_claim(n_ownerh);
 	else if (mutex->flags & EVL_MUTEX_PI)
 		mutex->flags &= ~EVL_MUTEX_CLAIMED;
 
 	atomic_set(lockp, n_ownerh);
+
+	return ret;
 }
 
 void __evl_unlock_mutex(struct evl_mutex *mutex)
 {
-	struct evl_thread *curr = evl_current();
+	struct evl_thread *curr = evl_current(), *n_owner;
 	unsigned long flags;
+	bool adjust_wait;
 
 	trace_evl_mutex_unlock(mutex);
 
@@ -1441,9 +1443,35 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 		drop_booster(mutex);
 	}
 
-	transfer_ownership(mutex);
+	adjust_wait = transfer_ownership(mutex);
+	n_owner = mutex->wchan.owner;
+	raw_spin_unlock(&mutex->wchan.lock);
 
-	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
+	/*
+	 * Ok, now let's consider the outcome of ownership transfer:
+	 * if we have a new owner, first requeue it to the wait
+	 * channel it pends on if any, then wake it up. Do the
+	 * refcount dance on n_owner with transfer_ownership() to stay
+	 * safe since we dropped both mutex->wchan.lock and we do not
+	 * hold n_owner->lock.
+	 *
+	 * Caveat: keep local preemption disabled until adjustment
+	 * took place, so that we cannot be preempted on the local CPU
+	 * between the priority boost (set_mutex_owner()) and the wait
+	 * channel requeuing (evl_adjust_wait_priority()).
+	 */
+	if (n_owner) {
+		/*
+		 * Adjust prior to calling evl_wakeup_thread(), since
+		 * the latter clears n_owner->wchan.
+		 */
+		if (adjust_wait)
+			evl_adjust_wait_priority(n_owner);
+
+		evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
+		evl_put_element(&n_owner->element);
+	}
+	hard_local_irq_restore(flags);
 }
 
 void evl_unlock_mutex(struct evl_mutex *mutex)
