@@ -622,6 +622,9 @@ void notrace pstore_ftrace_dump_old(struct persistent_ram_zone *prz)
 	if (!strcmp(reboot_mode, "normal"))
 		return;
 
+	if (!strcmp(reboot_mode, "shutdown_reboot"))
+		return;
+
 	if (!ramoops_io_dump)
 		return;
 
