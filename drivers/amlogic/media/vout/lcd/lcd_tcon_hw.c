@@ -1370,6 +1370,9 @@ int lcd_tcon_reload_pre_t3(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_tcon_config_s *tcon_conf = get_lcd_tcon_config();
 
+	if (!tcon_conf)
+		return -1;
+
 	//off goa clk after mute enable
 	lcd_tcon_write(pdrv, 0x30e, 0);
 	if (tcon_conf->core_reg_width == 8) {
