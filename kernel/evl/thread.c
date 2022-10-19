@@ -277,6 +277,14 @@ static void uninit_thread(struct evl_thread *thread)
 	unsigned long flags;
 	struct evl_rq *rq;
 
+	/*
+	 * Threads are special elements in that they may exit
+	 * independently from the existence of their respective
+	 * backing cdev. Make sure to hide exiting threads from sysfs
+	 * handlers before we dismantle things.
+	 */
+	evl_hide_element(&thread->element);
+
 	evl_destroy_timer(&thread->rtimer);
 	evl_destroy_timer(&thread->ptimer);
 
