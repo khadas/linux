@@ -161,7 +161,7 @@ enum camera_banding_flip_e {
 struct camera_info_s {
 	const char *camera_name;
 	enum camera_saturation_e saturation;
-	enum camera_brightness_e brighrness;
+	enum camera_brightness_e brightness;
 	enum camera_contrast_e contrast;
 	enum camera_hue_e hue;
 	/* enum camera_special_effect_e special_effect; */
@@ -172,7 +172,7 @@ struct camera_info_s {
 	enum camera_wb_flip_e white_balance;
 	enum camera_night_mode_flip_e night_mode;
 	enum camera_effect_flip_e effect;
-	int qulity;
+	int quality;
 };
 
 /* ---------- enum ---------- */
@@ -242,7 +242,7 @@ const char *cam_cmd_to_str(enum cam_command_e cmd);
 struct xml_vcm_s {
 	unsigned short vcm_max;
 	unsigned short vcm_min;
-	unsigned short vcm_reseponding_time;
+	unsigned short vcm_responding_time;
 	/* in the unit of mS, responding_cycle =*/
 	/*responding_time/sensor_frame_rate + 1, 1 for IIC and so on */
 };
