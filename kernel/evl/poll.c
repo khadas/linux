@@ -653,6 +653,7 @@ static int poll_release(struct inode *inode, struct file *filp)
 	evl_schedule();
 
 	flush_items(group);
+	evl_destroy_kmutex(&group->item_lock);
 	evl_release_file(&group->efile);
 	kfree(group);
 
