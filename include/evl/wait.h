@@ -31,15 +31,27 @@ struct evl_wait_channel {
 	const char *name;
 };
 
+#ifdef CONFIG_PROVE_LOCKING
+struct evl_lock_key_addr {
+	struct lock_class_key *addr;
+};
+#define __EVL_LOCK_KEY_ADDR_INITIALIZER  (struct foo){ .addr = NULL }
+#else
+struct evl_lock_key_addr { };
+#define __EVL_LOCK_KEY_ADDR_INITIALIZER  (struct foo){ }
+#endif
+
 struct evl_wait_queue {
 	int flags;
 	struct evl_clock *clock;
 	struct evl_wait_channel wchan;
+	struct evl_lock_key_addr lock_key_addr;
 };
 
 #define EVL_WAIT_INITIALIZER(__name) {					\
 		.flags = EVL_WAIT_PRIO,					\
 		.clock = &evl_mono_clock,				\
+		.lock_key_addr = __EVL_LOCK_KEY_ADDR_INITIALIZER,	\
 		.wchan = {						\
 			.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
 			.pi_serial = 0,					\
@@ -108,10 +120,17 @@ static inline bool evl_wait_active(struct evl_wait_queue *wq)
 void __evl_init_wait(struct evl_wait_queue *wq,
 		struct evl_clock *clock,
 		int flags,
-		const char *name);
+		const char *name,
+		struct lock_class_key *lock_key);
 
 #define evl_init_wait(__wq, __clock, __flags)	\
-	__evl_init_wait(__wq, __clock, __flags, #__wq)
+	__evl_init_wait(__wq, __clock, __flags, #__wq, NULL)
+
+#define evl_init_wait_on_stack(__wq, __clock, __flags)	\
+	do {								\
+		static struct lock_class_key __key;			\
+		__evl_init_wait(__wq, __clock, __flags, #__wq, &__key); \
+	} while (0)
 
 void evl_destroy_wait(struct evl_wait_queue *wq);
 

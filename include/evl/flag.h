@@ -29,6 +29,12 @@ static inline void evl_init_flag(struct evl_flag *wf)
 	wf->raised = false;
 }
 
+static inline void evl_init_flag_on_stack(struct evl_flag *wf)
+{
+	evl_init_wait_on_stack(&wf->wait, &evl_mono_clock, EVL_WAIT_PRIO);
+	wf->raised = false;
+}
+
 static inline void evl_destroy_flag(struct evl_flag *wf)
 {
 	evl_destroy_wait(&wf->wait);
