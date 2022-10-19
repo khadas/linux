@@ -391,8 +391,7 @@ static inline void check_cpu_affinity(struct task_struct *p)
 /* thread->lock + thread->rq->lock held, hard irqs off. */
 void evl_putback_thread(struct evl_thread *thread)
 {
-	assert_hard_lock(&thread->lock);
-	assert_hard_lock(&thread->rq->lock);
+  	assert_thread_pinned(thread);
 
 	if (thread->state & T_READY)
 		evl_dequeue_thread(thread);
@@ -412,8 +411,7 @@ int evl_set_thread_policy_locked(struct evl_thread *thread,
 	bool effective;
 	int ret;
 
-	assert_hard_lock(&thread->lock);
-	assert_hard_lock(&thread->rq->lock);
+	assert_thread_pinned(thread);
 
 	/* Check parameters early on. */
 	ret = evl_check_schedparams(sched_class, thread, p);
@@ -512,8 +510,7 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 {
 	int wprio = evl_calc_weighted_prio(thread->base_class, prio);
 
-	assert_hard_lock(&thread->lock);
-	assert_hard_lock(&thread->rq->lock);
+	assert_thread_pinned(thread);
 
 	thread->bprio = prio;
 	if (wprio == thread->wprio)
