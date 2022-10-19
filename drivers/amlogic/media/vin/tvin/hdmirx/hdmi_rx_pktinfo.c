@@ -1437,8 +1437,6 @@ void rx_get_vsi_info(void)
 				rx_pr("vsi hdr10+ length err\n");
 		/* consider hdr10+ is true when IEEE matched */
 		rx.vs_info_details.hdr10plus = true;
-		rx.vs_info_details.dv_allm = true;
-		pkt->ieee = IEEE_HDR10PLUS;
 		break;
 	case IEEE_VSI14:
 		/* dolbyvision1.0 */

@@ -800,6 +800,9 @@ extern unsigned char edid_temp[MAX_EDID_BUF_SIZE];
 extern unsigned int edid_select;
 extern u32 vsvdb_update_hpd_en;
 extern enum edid_delivery_mothed_e edid_delivery_mothed;
+#ifdef CONFIG_AMLOGIC_HDMITX
+extern u32 tx_hdr_priority;
+#endif
 
 int rx_set_hdr_lumi(unsigned char *data, int len);
 void rx_edid_physical_addr(int a, int b, int c, int d);

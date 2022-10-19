@@ -71,6 +71,7 @@ module_param(new_hdr_lum, bool, 0664);
 int edid_from_tx = 0x2;
 MODULE_PARM_DESC(edid_from_tx, "\n edid_from_tx\n");
 module_param(edid_from_tx, int, 0664);
+u32 tx_hdr_priority;
 
 static unsigned char edid_tx[EDID_SIZE];
 #endif
@@ -763,27 +764,20 @@ void hdmirx_fill_edid_with_port_buf(const char *buf, int size)
 	rx_pr("HDMIRX: fill edid buf, size %d\n", size);
 }
 
-void rx_edid_update_hdr_info(unsigned char *p_edid)
+void rx_edid_update_hdr_dv_info(unsigned char *p_edid)
 {
-	u_char hdr_edid[EDID_HDR_SIZE];
+	//if (hdmirx_repeat_support())
+		//return;
 
-	if (hdmirx_repeat_support())
-		return;
-
-	if (!p_edid || (receive_hdr_lum[0] == 0 &&
-			receive_hdr_lum[1] == 0 &&
-			receive_hdr_lum[2] == 0))
-		return;
-	/*check if data is updated*/
-	if (!(receive_hdr_lum[0] | receive_hdr_lum[1]
-	    | receive_hdr_lum[2]))
-		return;
-	/* update hdr info */
-	hdr_edid[0] = ((EDID_TAG_HDR >> 3) & 0xE0) + (6 & 0x1f);
-	hdr_edid[1] = EDID_TAG_HDR & 0xFF;
-	memcpy(hdr_edid + 4, receive_hdr_lum,
-	       sizeof(receive_hdr_lum));
-	rx_modify_edid(p_edid, EDID_SIZE, hdr_edid);
+	if (tx_hdr_priority == 1) {
+		//remove DV
+		edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | VSVDB_TAG);
+	} else if (tx_hdr_priority == 2) {
+		//remove dv+hdr+hdr10p
+		edid_rm_db_by_tag(p_edid, (USE_EXTENDED_TAG << 8) | HDR_STATIC_TAG);
+		edid_rm_db_by_tag(p_edid, VSVDB_HDR10P_TAG);
+		edid_rm_db_by_tag(p_edid, VSVDB_DV_TAG);
+	}
 }
 
 void rx_edid_update_vrr_info(unsigned char *p_edid)
@@ -2033,44 +2027,44 @@ bool hdmi_rx_top_edid_update(void)
 	 * update capds for eARC, or
 	 * update vsvdb
 	 */
-	rx_edid_update_hdr_info(pedid_data1);
+	rx_edid_update_hdr_dv_info(pedid_data1);
 	rx_edid_update_sad(pedid_data1);
 	rx_edid_update_vsvdb(pedid_data1,
 			     recv_vsvdb, recv_vsvdb_len);
 	rpt_edid_extraction(pedid_data1);
 	if (size == 2 * EDID_SIZE) {
-		rx_edid_update_hdr_info(pedid_data2);
+		rx_edid_update_hdr_dv_info(pedid_data2);
 		rx_edid_update_sad(pedid_data2);
 		rx_edid_update_vsvdb(pedid_data2,
 				     recv_vsvdb, recv_vsvdb_len);
 	} else if (size == 2 * PORT_NUM * EDID_SIZE) {
 		if (vrr_range_dynamic_update_en)
 			rx_edid_update_vrr_info(pedid_data2);
-		rx_edid_update_hdr_info(pedid_data2);
+		rx_edid_update_hdr_dv_info(pedid_data2);
 		rx_edid_update_sad(pedid_data2);
 		rx_edid_update_vsvdb(pedid_data2,
 				     recv_vsvdb, recv_vsvdb_len);
 		rpt_edid_extraction(pedid_data2);
-		rx_edid_update_hdr_info(pedid_data3);
+		rx_edid_update_hdr_dv_info(pedid_data3);
 		rx_edid_update_sad(pedid_data3);
 		rx_edid_update_vsvdb(pedid_data3,
 				     recv_vsvdb, recv_vsvdb_len);
 		rpt_edid_extraction(pedid_data3);
 		if (vrr_range_dynamic_update_en)
 			rx_edid_update_vrr_info(pedid_data4);
-		rx_edid_update_hdr_info(pedid_data4);
+		rx_edid_update_hdr_dv_info(pedid_data4);
 		rx_edid_update_sad(pedid_data4);
 		rx_edid_update_vsvdb(pedid_data4,
 				     recv_vsvdb, recv_vsvdb_len);
 		rpt_edid_extraction(pedid_data4);
-		rx_edid_update_hdr_info(pedid_data5);
+		rx_edid_update_hdr_dv_info(pedid_data5);
 		rx_edid_update_sad(pedid_data5);
 		rx_edid_update_vsvdb(pedid_data5,
 				     recv_vsvdb, recv_vsvdb_len);
 		rpt_edid_extraction(pedid_data5);
 		if (vrr_range_dynamic_update_en)
 			rx_edid_update_vrr_info(pedid_data6);
-		rx_edid_update_hdr_info(pedid_data6);
+		rx_edid_update_hdr_dv_info(pedid_data6);
 		rx_edid_update_sad(pedid_data6);
 		rx_edid_update_vsvdb(pedid_data6,
 				     recv_vsvdb, recv_vsvdb_len);
@@ -5763,10 +5757,9 @@ void rpt_edid_hdr_static_db_extraction(unsigned char *p_edid)
 	db_start = rx_get_cea_tag_offset(p_edid,
 		(USE_EXTENDED_TAG << 8) | HDR_STATIC_TAG);
 	if (!db_start) {
-		if (log_level & EDID_LOG) {
+		if (log_level & EDID_LOG)
 			rx_pr("no HDR!!\n");
-			return;
-		}
+		return;
 	} else {
 		tx_len = (p_edid[db_start]) & 0x1f;
 		memcpy(tx_db, p_edid + db_start + 2, tx_len - 1);

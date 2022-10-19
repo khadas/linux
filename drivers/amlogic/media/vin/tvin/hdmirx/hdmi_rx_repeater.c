@@ -105,6 +105,7 @@ static struct hdcp_topo_s hdcp_convert_topo;
 #define HDMITX_UNPLUG			2
 #define HDMITX_PHY_ADDR_VALID	3
 #define HDMITX_KSVLIST			4
+#define HDMITX_HDR_PRIORITY		5
 int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 				     unsigned long value, void *p)
 {
@@ -136,15 +137,27 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 			rx_pr("%s, HDMITX_UNPLUG, recover primary EDID\n",
 			      __func__);
 		rx.hdcp.repeat = false;
-		if (rpt_only_mode == 1)
+		if (rpt_only_mode == 1) {
 			rx_force_hpd_rxsense_cfg(0);
-		else
+		} else {
 			rx_update_tx_edid_with_audio_block(NULL, NULL);
-		hdmi_rx_top_edid_update();
-		hdcp_init_t7();
+			hdmi_rx_top_edid_update();
+			hdcp_init_t7();
+		}
 		//rx_irq_en(false);
 		//rx_set_cur_hpd(0, 4);
 		//fsm_restart();
+		ret = NOTIFY_OK;
+		break;
+	case HDMITX_HDR_PRIORITY:
+		tx_hdr_priority = *((u32 *)p);
+		if (log_level & EDID_LOG)
+			rx_pr("tx_hdr_priority = %d\n", tx_hdr_priority);
+		rx_irq_en(false);
+		rx_set_cur_hpd(0, 4);
+		if (!rx.open_fg)
+			port_hpd_rst_flag = 7;
+		fsm_restart();
 		ret = NOTIFY_OK;
 		break;
 	case HDMITX_PHY_ADDR_VALID:
@@ -198,15 +211,17 @@ int rx_hdmi_tx_notify_handler(struct notifier_block *nb,
 		} else {
 			rx_update_rpt_sts(&pre_topo);
 		}
-		rx_pr("seq_num_V: 0x%x\n", rx.hdcp.topo_updated);
+		if (log_level & HDCP_LOG)
+			rx_pr("seq_num_V: 0x%x\n", rx.hdcp.topo_updated);
 		if (rx.hdcp.rpt_reauth_event == HDCP_VER_22) {
 			rx.hdcp.topo_updated++;
-			if (rx.hdcp.topo_updated > 0xFFFFFF)
+			if (rx.hdcp.topo_updated > 0xFFFFFFUL)
 				rx.hdcp.topo_updated = 0;
 		}
 		//hdmirx_wr_cor(RX_SHA_ctrl_HDCP1X_IVCRX, 1);
 		mdelay(1);
-		rx_pr("step3\n");
+		if (log_level & HDCP_LOG)
+			rx_pr("step3\n");
 		/* only update topo for corresponding hdcp version */
 		if (rx.hdcp.rpt_reauth_event == HDCP_VER_14)
 			rx.hdcp.hdcp14_ready = true;
@@ -246,14 +261,16 @@ void rx_check_repeat(void)
 	if (rx.hdcp.hdcp14_ready) {
 		//hdmirx_wr_cor(RX_SHA_ctrl_HDCP1X_IVCRX, 1);
 		hdmirx_wr_cor(RX_BCAPS_SET_HDCP1X_IVCRX, 0xe0);
-		rx_pr("step4\n");
+		if (log_level & HDCP_LOG)
+			rx_pr("step4\n");
 		rx.hdcp.hdcp14_ready = false;
 	}
 	if (rx.hdcp.stream_manage_rcvd) {
 		data8 = rx_get_stream_manage_info();
-		rx_pr("step5-%d\n", data8);
+		if (log_level & HDCP_LOG)
+			rx_pr("step5-%d\n", data8);
 		rx.hdcp.stream_type = data8;
-		hdmitx_reauth_request(data8 | 0x10);
+		hdmitx_reauth_request(data8 | STREAMTYPE_UPDATE);
 		rx.hdcp.stream_manage_rcvd = false;
 	}
 }
