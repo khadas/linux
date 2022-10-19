@@ -882,7 +882,7 @@ int vpp_post_param_set(struct vpp_post_input_s *vpp_input,
 }
 
 /* need some logic to calc vpp_input */
-static int get_vpp_slice_num(const struct vinfo_s *info)
+int get_vpp_slice_num(const struct vinfo_s *info)
 {
 	int slice_num = 1;
 

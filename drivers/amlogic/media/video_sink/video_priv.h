@@ -575,6 +575,25 @@ struct pre_scaler_info {
 	u32 pre_vscaler_coef[4];
 	u32 pre_vscaler_coef_set;
 };
+
+enum {
+	VD1_PROBE = 1,
+	VD2_PROBE,
+	VD3_PROBE,
+	OSD1_PROBE,
+	OSD2_PROBE,
+	OSD3_PROBE,
+	OSD4_PROBE,
+	POST_VADJ_PROBE,
+	POSTBLEND_PROBE,
+};
+
+enum {
+	VIDEO_PROBE = 1,
+	OSD_PROBE,
+	POST_PROBE,
+};
+
 /* from video_hw.c */
 extern struct video_layer_s vd_layer[MAX_VD_LAYER];
 extern struct disp_info_s glayer_info[MAX_VD_LAYER];

@@ -354,4 +354,10 @@ void vd_set_alpha_s5(struct video_layer_s *layer,
 			     u32 win_en, struct pip_alpha_scpxn_s *alpha_win);
 void check_afbc_status(void);
 int vpp_crc_check_s5(u32 vpp_crc_en, u8 vpp_index);
+void set_vdx_probe_ctrl_s5(u8 probe_id, u32 output);
+void set_osdx_probe_ctrl_s5(u8 probe_id, u32 output);
+void set_post_probe_ctrl_s5(u8 probe_id, u32 output);
+u32 get_probe_pos_s5(u8 probe_id);
+void set_probe_pos_s5(u32 val_x, u32 val_y, u8 probe_id, u32 output);
+void get_probe_data_s5(u32 *val1, u32 *val2, u8 probe_id);
 #endif

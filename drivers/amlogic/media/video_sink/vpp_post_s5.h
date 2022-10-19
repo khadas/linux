@@ -156,6 +156,7 @@ struct vpp_post_reg_s {
 	struct vpp_post_misc_reg_s vpp_post_misc_reg;
 };
 
+int get_vpp_slice_num(const struct vinfo_s *info);
 int vpp_post_param_set(struct vpp_post_input_s *vpp_input,
 	struct vpp_post_s *vpp_post);
 void vpp_post_set(u32 vpp_index, struct vpp_post_s *vpp_post);

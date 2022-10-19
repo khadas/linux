@@ -3265,4 +3265,11 @@
 #define VPP_SLICE1_DNLP_CTRL_01                       0x2865
 #define VPP_SLICE2_DNLP_CTRL_01                       0x2965
 #define VPP_SLICE3_DNLP_CTRL_01                       0x2a65
+
+#define S5_VPP_PROBE_CTRL                             0x606b
+#define S5_VPP_PROBE_POS                              0x606c
+#define S5_VPP_HL_COLOR                               0x606d
+#define S5_VPP_RO_PROBE_COLOR                         0x6070
+#define S5_VPP_RO_PROBE_COLOR1                        0x6071
+
 #endif

@@ -136,6 +136,8 @@ static int put_di_count;
 static int di_release_count;
 static int get_count_pip;
 static int get_count_pip2;
+static u8 probe_id;
+static u32 probe_output;
 
 #define DEBUG_TMP 0
 
@@ -17999,6 +18001,122 @@ static ssize_t bypass_module_s5_store(struct class *cla,
 	return count;
 }
 
+static ssize_t set_post_matrix_show(struct class *cla,
+					   struct class_attribute *attr,
+					   char *buf)
+{
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		pr_info("Usage:\n");
+		pr_info("echo port > /sys/class/amvecm/matrix_set\n");
+		pr_info("1 : VD1_PROBE\n");
+		pr_info("2 : VD2_PROBE\n");
+		pr_info("3 : VD3_PROBE\n");
+		pr_info("4 : OSD1_PROBE\n");
+		pr_info("5 : OSD2_PROBE\n");
+		pr_info("6 : OSD3_PROBE\n");
+		pr_info("7 : OSD4_PROBE\n");
+		pr_info("8 : POST_VADJ_PROBE\n");
+		pr_info("9 : POSTBLEND_PROBE\n");
+		pr_info("BIT4: 0 INPUT\n");
+		pr_info("BIT4: 1 OUTPUT\n");
+		pr_info("current setting: %d\n", probe_id | probe_output);
+	}
+
+	return 0;
+}
+
+static ssize_t set_post_matrix_store(struct class *cla,
+					    struct class_attribute *attr,
+					    const char *buf, size_t count)
+{
+	int val = 0;
+	u32 output = false;
+
+	if (kstrtoint(buf, 0, &val) < 0)
+		return -EINVAL;
+	output = val & 0x10;
+	val = val & 0xf;
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		probe_id = val;
+		probe_output = output;
+		switch (val) {
+		case OSD1_PROBE:
+		case OSD2_PROBE:
+		case OSD3_PROBE:
+		case OSD4_PROBE:
+			set_osdx_probe_ctrl_s5(val, output);
+			break;
+		case VD1_PROBE:
+		case VD2_PROBE:
+		case VD3_PROBE:
+		case POST_VADJ_PROBE:
+		case POSTBLEND_PROBE:
+			break;
+		default:
+			pr_info("error! please cat /sys/class/video/matrix_set\n");
+			return 0;
+		}
+		pr_info("VPP_MATRIX_CTRL is set\n");
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t post_matrix_pos_show(struct class *cla,
+					   struct class_attribute *attr,
+					   char *buf)
+{
+	int val = 0;
+
+	pr_info("Usage:\n");
+	pr_info("echo x y > /sys/class/video/matrix_pos\n");
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE)
+		val = get_probe_pos_s5(probe_id);
+	pr_info("current position: %d %d\n",
+		(val >> 16) & 0x1fff,
+			(val >> 0) & 0x1fff);
+	return 0;
+}
+
+static ssize_t post_matrix_pos_store(struct class *cla,
+					    struct class_attribute *attr,
+					    const char *buf, size_t count)
+{
+	int val_x, val_y;
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		val_x = parsed[0] & 0x1fff;
+		val_y = parsed[1] & 0x1fff;
+		if (cur_dev->display_module == S5_DISPLAY_MODULE)
+			set_probe_pos_s5(val_x, val_y, probe_id, probe_output);
+	}
+	return strnlen(buf, count);
+}
+
+static ssize_t post_matrix_data_show(struct class *cla,
+					    struct class_attribute *attr,
+					    char *buf)
+{
+	int len = 0, val1 = 0, val2 = 0;
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		get_probe_data_s5(&val1, &val2, probe_id);
+		len += sprintf(buf + len,
+		"VPP_MATRIX_PROBE_COLOR %d, %d, %d\n",
+		((val2 & 0xf) << 8) | ((val1 >> 24) & 0xff),
+		(val1 >> 12) & 0xfff, val1 & 0xfff);
+	}
+	return len;
+}
+
+static ssize_t post_matrix_data_store(struct class *cla,
+					     struct class_attribute *attr,
+					     const char *buf, size_t count)
+{
+	return 0;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -18526,6 +18644,15 @@ static struct class_attribute amvideo_class_attrs[] = {
 		0664,
 		bypass_module_s5_show,
 		bypass_module_s5_store),
+	__ATTR(matrix_set, 0644,
+		set_post_matrix_show,
+		set_post_matrix_store),
+	__ATTR(matrix_pos, 0644,
+		post_matrix_pos_show,
+		post_matrix_pos_store),
+	__ATTR(matrix_data, 0644,
+		post_matrix_data_show,
+		post_matrix_data_store),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
@@ -19749,7 +19876,6 @@ static int amvideom_probe(struct platform_device *pdev)
 	int display_device_cnt = 1;
 	int ex_rdma = 0;
 
-	pr_info("%s\n", __func__);
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
 		struct amvideo_device_data_s *amvideo_meson;
@@ -19917,7 +20043,6 @@ static int amvideom_probe(struct platform_device *pdev)
 		for (j = 0; j < SCENES_VALUE; j++)
 			vpp_scenes[i].pq_values[j] = vpp_pq_data[i][j];
 	}
-	pr_info("rdma probe ok\n");
 	return ret;
 }
 

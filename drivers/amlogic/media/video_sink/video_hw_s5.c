@@ -3676,6 +3676,7 @@ static void vd1_proc_unit_param_set_4s4p(struct vd_proc_s *vd_proc, u32 slice)
 		h_no_scale = ((din_hsize - overlap_hsize) ==
 			dout_hsize[slice]) / (1 << sr_h_scaleup);
 	}
+
 	if (debug_flag_s5 & DEBUG_PPS)
 		pr_info("h_no_scale=0x%x, slice=%d, din_hsize=0x%x, dout_hsize[slice]=0x%x\n",
 			h_no_scale,
@@ -9491,6 +9492,187 @@ void set_video_slice_policy(struct video_layer_s *layer,
 		layer->pi_enable = pi_enable;
 	if (g_vd1s1_vd2_prebld_en != 0xff)
 		layer->vd1s1_vd2_prebld_en = g_vd1s1_vd2_prebld_en;
+}
+
+static u8 get_probe_type(u8 probe_id)
+{
+	u8 probe_type = 0;
+
+	switch (probe_id) {
+	case VD1_PROBE:
+	case VD2_PROBE:
+	case VD3_PROBE:
+		probe_type = VIDEO_PROBE;
+		break;
+	case OSD1_PROBE:
+	case OSD2_PROBE:
+	case OSD3_PROBE:
+	case OSD4_PROBE:
+		probe_type = OSD_PROBE;
+		break;
+	case POST_VADJ_PROBE:
+	case POSTBLEND_PROBE:
+		probe_type = POST_PROBE;
+		break;
+	default:
+		pr_info("probe id %d error!\n", probe_id);
+	}
+	return probe_type;
+}
+
+static void get_vd_probe_pos_info(u32 val_x, u32 *reg_probe_sel, u32 *pos_x)
+{
+	int i = 0, slice_num = 0;
+	u32 vd1_dout_hsize = 0;
+	u32 slice_per_hsize = 0;
+	struct vd_proc_s *vd_proc = get_vd_proc_info();
+
+	if (!vd_proc)
+		return;
+	slice_num = vd_proc->vd_proc_vd1_info.slice_num;
+	vd1_dout_hsize = vd_proc->vd_proc_vd1_info.vd1_dout_hsize;
+	slice_per_hsize = vd1_dout_hsize / slice_num;
+	for (i = 0; i < slice_num; i++) {
+		if (val_x >= slice_per_hsize * i &&
+			val_x < slice_per_hsize * (i + 1)) {
+			/* select slice i */
+			*reg_probe_sel = 1 << i;
+			*pos_x = val_x - slice_per_hsize * i;
+			break;
+		}
+	}
+}
+
+static void get_post_probe_pos_info(u32 val_x, u32 *reg_probe_sel, u32 *pos_x)
+{
+	int i = 0, slice_num = 0;
+	u32 vd1_dout_hsize = 0;
+	u32 slice_per_hsize = 0;
+	struct vd_proc_s *vd_proc = get_vd_proc_info();
+
+	if (!vd_proc)
+		return;
+	slice_num = vd_proc->vd_proc_vd1_info.slice_num;
+	vd1_dout_hsize = vd_proc->vd_proc_vd1_info.vd1_dout_hsize;
+	slice_per_hsize = vd1_dout_hsize / slice_num;
+	for (i = 0; i < slice_num; i++) {
+		if (val_x >= slice_per_hsize * i &&
+			val_x < slice_per_hsize * (i + 1)) {
+			/* select slice i */
+			*reg_probe_sel = 1 << i;
+			*pos_x = val_x - slice_per_hsize * i;
+			break;
+		}
+	}
+}
+
+void set_osdx_probe_ctrl_s5(u8 probe_id, u32 output)
+{
+	u32 val;
+
+	val = ((probe_id - OSD1_PROBE + 1) & 0xf) << 8;
+	if (output)
+		val |= 0x8000;
+	WRITE_VCBUS_REG(S5_VPP_PROBE_CTRL, val);
+}
+
+u32 get_probe_pos_s5(u8 probe_id)
+{
+	u32 val = 0, probe_type;
+
+	probe_type = get_probe_type(probe_id);
+	if (probe_type == OSD_PROBE)
+		val = READ_VCBUS_REG(S5_VPP_PROBE_POS);
+	else if (probe_type == VIDEO_PROBE ||
+		probe_type == POST_PROBE)
+		val = READ_VCBUS_REG(VIU_PROBE_POS);
+	return val;
+}
+
+void set_probe_pos_s5(u32 val_x, u32 val_y, u8 probe_id, u32 output)
+{
+	u32 reg_val = 0, slice_num = 0;
+	u32 reg_probe_sel = 0, pos_x = 0;
+	u32 reg_probe_out = 0;
+	u8 probe_type;
+
+	probe_type = get_probe_type(probe_id);
+	if (probe_type == OSD_PROBE) {
+		reg_val = READ_VCBUS_REG(S5_VPP_PROBE_POS);
+		reg_val = reg_val & 0xe000e000;
+		reg_val = reg_val | (val_x << 16) | val_y;
+		WRITE_VCBUS_REG(S5_VPP_PROBE_POS, reg_val);
+	} else if (probe_type == VIDEO_PROBE) {
+		reg_val = READ_VCBUS_REG(VIU_PROBE_POS);
+		slice_num = get_slice_num(0);
+		switch (slice_num) {
+		case 1:
+			reg_val = reg_val & 0xe000e000;
+			reg_val = reg_val | (val_x << 16) | val_y;
+			WRITE_VCBUS_REG(VIU_PROBE_POS, reg_val);
+			reg_probe_sel = 1;
+			break;
+		case 2:
+		case 4:
+			get_vd_probe_pos_info(val_x, &reg_probe_sel, &pos_x);
+			reg_val = reg_val & 0xe000e000;
+			reg_val = reg_val | (pos_x << 16) | val_y;
+			pr_info("%s:slice_num=%d, pos_x=%d, val_y=%d, reg_val=%x\n",
+				__func__,
+				slice_num,
+				pos_x, val_y, reg_val);
+			WRITE_VCBUS_REG(VIU_PROBE_POS, reg_val);
+			break;
+		}
+		if (output)
+			reg_probe_out = 0x10000;
+		reg_val = reg_probe_sel | reg_probe_out;
+		WRITE_VCBUS_REG(VIU_PROBE_CTRL, reg_val);
+	} else if (probe_type == POST_PROBE) {
+		const struct vinfo_s *vinfo = NULL;
+
+		vinfo = get_current_vinfo();
+		reg_val = READ_VCBUS_REG(VIU_PROBE_POS);
+		slice_num = get_vpp_slice_num(vinfo);
+		switch (slice_num) {
+		case 1:
+			reg_val = reg_val & 0xe000e000;
+			reg_val = reg_val | (val_x << 16) | val_y;
+			WRITE_VCBUS_REG(VIU_PROBE_POS, reg_val);
+			reg_probe_sel = 1;
+			break;
+		case 2:
+		case 4:
+			get_post_probe_pos_info(val_x, &reg_probe_sel, &pos_x);
+			reg_val = reg_val & 0xe000e000;
+			reg_val = reg_val | (pos_x << 16) | val_y;
+			pr_info("%s:slice_num=%d, pos_x=%d, val_y=%d, reg_val=%x\n",
+				__func__,
+				slice_num,
+				pos_x, val_y, reg_val);
+			WRITE_VCBUS_REG(VIU_PROBE_POS, reg_val);
+			break;
+		}
+		if (output)
+			reg_probe_out = 0x10000;
+		reg_val = reg_probe_sel << 8 | reg_probe_out;
+		WRITE_VCBUS_REG(VIU_PROBE_CTRL, reg_val);
+	}
+}
+
+void get_probe_data_s5(u32 *val1, u32 *val2, u8 probe_id)
+{
+	u8 probe_type;
+
+	probe_type = get_probe_type(probe_id);
+	if (probe_type == OSD_PROBE) {
+		*val1 = READ_VCBUS_REG(S5_VPP_RO_PROBE_COLOR);
+		*val2 = READ_VCBUS_REG(S5_VPP_RO_PROBE_COLOR1);
+	} else if (probe_type == VIDEO_PROBE ||
+		probe_type == POST_PROBE) {
+		*val1 = READ_VCBUS_REG(VIU_RO_PROBE0);
+		*val2 = READ_VCBUS_REG(VIU_RO_PROBE1);
+	}
 }
 
 int video_hw_init_s5(void)
