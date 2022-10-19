@@ -503,8 +503,7 @@ void evl_sleep_on_locked(ktime_t timeout, enum evl_tmode timeout_mode,
 	/* Sleeping while preemption is disabled is a bug. */
 	EVL_WARN_ON(CORE, evl_preempt_count() != 0);
 
-	assert_hard_lock(&curr->lock);
-	assert_hard_lock(&rq->lock);
+	assert_thread_pinned(curr);
 
 	trace_evl_sleep_on(timeout, timeout_mode, clock, wchan);
 
@@ -581,8 +580,7 @@ static void evl_wakeup_thread_locked(struct evl_thread *thread,
 	struct evl_rq *rq = thread->rq;
 	unsigned long oldstate;
 
-	assert_hard_lock(&thread->lock);
-	assert_hard_lock(&thread->rq->lock);
+	assert_thread_pinned(thread);
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_DELAY|T_PEND|T_WAIT)))
 		return;
@@ -684,8 +682,7 @@ static void evl_release_thread_locked(struct evl_thread *thread,
 	struct evl_rq *rq = thread->rq;
 	unsigned long oldstate;
 
-	assert_hard_lock(&thread->lock);
-	assert_hard_lock(&thread->rq->lock);
+	assert_thread_pinned(thread);
 
 	if (EVL_WARN_ON(CORE, mask & ~(T_SUSP|T_HALT|T_INBAND|T_DORMANT|T_PTSYNC)))
 		return;
@@ -1970,8 +1967,7 @@ static int set_time_slice(struct evl_thread *thread, ktime_t quantum)
 {
 	struct evl_rq *rq = thread->rq;
 
-	assert_hard_lock(&thread->lock);
-	assert_hard_lock(&rq->lock);
+	assert_thread_pinned(thread);
 
 	thread->rrperiod = quantum;
 
