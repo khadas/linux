@@ -551,11 +551,7 @@ static int bt_probe(struct platform_device *pdev)
 
 	bt_device_init(pdata);
 
-	if (pdata->power_down_disable == 1) {
-		pdata->power_down_disable = 0;
-		bt_device_on(pdata, 100, 0);
-		pdata->power_down_disable = 1;
-	}
+	bt_device_on(pdata, 100, 0);
 
 	/* default to bluetooth off */
 	/* rfkill_switch_all(RFKILL_TYPE_BLUETOOTH, 1); */
