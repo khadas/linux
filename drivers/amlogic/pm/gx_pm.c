@@ -256,6 +256,7 @@ static void __iomem *debug_reg;
 static void __iomem *exit_reg;
 static suspend_state_t pm_state;
 static unsigned int suspend_reason;
+static unsigned int soc_state;
 static unsigned int resume_reason;
 static unsigned int suspend_time_out;
 static unsigned int shutdown_time_out;
@@ -277,8 +278,13 @@ unsigned int get_resume_reason(void)
 	unsigned int val = 0;
 
 	/*For tm2 SoC, we need use scpi to get this reason*/
-	if (exit_reg)
-		val = readl_relaxed(exit_reg) & 0xf;
+	if (exit_reg) {
+		/* soc_state ==1 for old soc such as axg */
+		if (soc_state == 1)
+			val = (readl_relaxed(exit_reg) >> 28) & 0xf;
+		else
+			val = readl_relaxed(exit_reg) & 0xf;
+	}
 	return val;
 }
 EXPORT_SYMBOL_GPL(get_resume_reason);
@@ -559,6 +565,7 @@ static irqreturn_t pm_wakeup_isr(int irq, void *data __maybe_unused)
 static int meson_pm_probe(struct platform_device *pdev)
 {
 	unsigned int irq_pwrctrl;
+	unsigned int soc_state_tmp;
 	struct pm_data *p_data;
 	int err;
 	u32 ret;
@@ -568,6 +575,12 @@ static int meson_pm_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(pdev->dev.of_node,
 				  "irq_pwrctrl", &irq_pwrctrl)) {
 		pwr_ctrl_irq_set(irq_pwrctrl, 1, 0);
+	}
+
+	if (!of_property_read_u32(pdev->dev.of_node,
+				  "soc_state", &soc_state_tmp)) {
+		if (soc_state_tmp)
+			soc_state = 1;
 	}
 
 	debug_reg = of_iomap(pdev->dev.of_node, 0);
