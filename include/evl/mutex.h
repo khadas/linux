@@ -41,17 +41,17 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 		u32 *ceiling_ref,
 		const char *name);
 
-#define __evl_init_mutex_pi(__mutex, __clock, __fastlock, __name)	\
+#define evl_init_named_mutex_pi(__mutex, __clock, __fastlock, __name)	\
 	__evl_init_mutex(__mutex, __clock, __fastlock, NULL, __name)
 
 #define evl_init_mutex_pi(__mutex, __clock, __fastlock)			\
-	__evl_init_mutex_pi(__mutex, __clock, __fastlock, #__mutex)
+	evl_init_named_mutex_pi(__mutex, __clock, __fastlock, #__mutex)
 
-#define __evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling, __name) \
+#define evl_init_named_mutex_pp(__mutex, __clock, __fastlock, __ceiling, __name) \
 	__evl_init_mutex(__mutex, __clock, __fastlock, __ceiling, __name)
 
 #define evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling)	\
-	__evl_init_mutex_pp(__mutex, __clock, __fastlock, __ceiling, #__mutex)
+	evl_init_named_mutex_pp(__mutex, __clock, __fastlock, __ceiling, #__mutex)
 
 void evl_destroy_mutex(struct evl_mutex *mutex);
 
