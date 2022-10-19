@@ -286,15 +286,15 @@ struct vm_area_struct;
 
 /* Room for N __GFP_FOO bits */
 #ifdef CONFIG_CMA
-#ifdef CONFIG_AMLOGIC_CMA
-#define __GFP_BITS_SHIFT (29 + IS_ENABLED(CONFIG_LOCKDEP))
-#else
 #define __GFP_BITS_SHIFT (28 + IS_ENABLED(CONFIG_LOCKDEP))
-#endif
 #else
 #define __GFP_BITS_SHIFT (27 + IS_ENABLED(CONFIG_LOCKDEP))
 #endif
+#ifdef CONFIG_AMLOGIC_CMA
+#define __GFP_BITS_MASK ((__force gfp_t)((1 << (__GFP_BITS_SHIFT + 1)) - 1))
+#else
 #define __GFP_BITS_MASK ((__force gfp_t)((1 << __GFP_BITS_SHIFT) - 1))
+#endif
 
 /**
  * DOC: Useful GFP flag combinations
