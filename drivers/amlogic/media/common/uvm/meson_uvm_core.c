@@ -619,13 +619,12 @@ int meson_uvm_getinfo(struct dma_buf *dmabuf,
 
 	if (uhmod) {
 		ret = uhmod->getinfo(uhmod->arg, buf);
-		dma_buf_put(dmabuf);
 		if (ret < 0)
 			return -EINVAL;
 		return 0;
 	}
 	UVM_PRINTK(1, "%s %px, %d.\n", __func__, uhmod, mode_type);
-	dma_buf_put(dmabuf);
+
 	return -EINVAL;
 }
 EXPORT_SYMBOL(meson_uvm_getinfo);
@@ -688,22 +687,20 @@ int meson_uvm_setinfo(struct dma_buf *dmabuf,
 
 	handle = dmabuf->priv;
 	meson_uvm_core_setinfo(handle, buf);
-	if (mode_type == PROCESS_INVALID) {
-		dma_buf_put(dmabuf);
+	if (mode_type == PROCESS_INVALID)
 		return 0;
-	}
 	mutex_lock(&handle->lock);
 	uhmod = uvm_find_hook_mod(handle, mode_type);
 	mutex_unlock(&handle->lock);
 	if (uhmod) {
 		ret = uhmod->setinfo(uhmod->arg, buf);
-		dma_buf_put(dmabuf);
 		if (ret < 0)
 			return -EINVAL;
 		return 0;
 	}
-	dma_buf_put(dmabuf);
+
 	UVM_PRINTK(1, "%s %px, %d.\n", __func__, uhmod, mode_type);
+
 	return -EINVAL;
 }
 EXPORT_SYMBOL(meson_uvm_setinfo);
