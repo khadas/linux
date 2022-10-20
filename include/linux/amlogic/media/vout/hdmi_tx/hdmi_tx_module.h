@@ -528,6 +528,7 @@ struct hdmitx_dev {
 	struct vpu_dev_s *hdmi_vpu_dev;
 #endif
 	struct st_debug_param debug_param;
+	bool suspend_flag;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -950,4 +951,6 @@ bool hdmitx_find_vendor_null_pkt(struct hdmitx_dev *hdev);
 int hdmitx_uboot_already_display(int type);
 
 int read_phy_status(void);
+int hdmitx_set_uevent_state(enum hdmitx_event type, int state);
+int hdmitx_set_uevent(enum hdmitx_event type, int val);
 #endif

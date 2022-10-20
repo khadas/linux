@@ -3161,6 +3161,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	int ret;
 	unsigned long adr = 0;
 	unsigned long value = 0;
+	static enum hdmitx_event event_type = HDMITX_NONE_EVENT;
 
 	while ((buf[i]) && (buf[i] != ',') && (buf[i] != ' ')) {
 		tmpbuf[i] = buf[i];
@@ -3409,6 +3410,16 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		ret = kstrtoul(tmpbuf + 12, 10, &value);
 		hdev->debug_param.avmute_frame = value;
 		pr_info(HW "avmute_frame = %lu\n", value);
+	} else if (strncmp(tmpbuf, "testtype", 8) == 0) {
+		ret = kstrtoul(tmpbuf + 8, 10, &value);
+		event_type = value;
+		pr_info("test event type :%lu\n", value);
+	} else if (strncmp(tmpbuf, "testevent", 9) == 0) {
+		ret = kstrtoul(tmpbuf + 9, 10, &value);
+		hdmitx_set_uevent(event_type, value);
+	} else if (strncmp(tmpbuf, "teststate", 9) == 0) {
+		ret = kstrtoul(tmpbuf + 9, 10, &value);
+		hdmitx_set_uevent_state(event_type, value);
 	}
 }
 
