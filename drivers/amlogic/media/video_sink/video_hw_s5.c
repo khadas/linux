@@ -1744,6 +1744,7 @@ static void vd_proc_hwin_set(u32 vpp_index,
 		vd_hwin->hwin_end);
 }
 
+#ifdef PI_PQ
 static void vd_proc_pi_set(u32 vpp_index,
 	struct vd_proc_pi_s *vd_pi)
 {
@@ -1754,6 +1755,7 @@ static void vd_proc_pi_set(u32 vpp_index,
 
 	rdma_wr_bits(vd_pi_reg->vd_proc_pi_ctrl, vd_pi->pi_en, 16, 1);
 }
+#endif
 
 static void vd_proc_unit_set(u32 vpp_index,
 	struct vd_proc_unit_s *vd_proc_unit)
@@ -2245,7 +2247,8 @@ static void vd_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 			vd1_dout_hsize);
 		/* vd1 dout pi path */
 		rdma_wr_bits(VPP_VD_SYS_CTRL, 0, 0, 2);
-		vd_proc_pi_set(vpp_index, &vd_proc->vd_proc_pi);
+		/* set by pq db */
+		//vd_proc_pi_set(vpp_index, &vd_proc->vd_proc_pi);
 		break;
 	case VD1_SLICES01_MODE:
 		/* output to vd1 */
@@ -2263,11 +2266,13 @@ static void vd_proc_set(u32 vpp_index, struct vd_proc_s *vd_proc)
 		if (vd1_slices_dout_dpsel == VD1_SLICES_DOUT_PI) {
 			/* vd1 dout pi path */
 			rdma_wr_bits(VPP_VD_SYS_CTRL, 0, 0, 2);
-			vd_proc_pi_set(vpp_index, &vd_proc->vd_proc_pi);
+			/* set by pq db */
+			//vd_proc_pi_set(vpp_index, &vd_proc->vd_proc_pi);
 		} else if (vd1_slices_dout_dpsel == VD1_SLICES_DOUT_1S4P) {
 			/* vd1 dout pi path */
 			rdma_wr_bits(VPP_VD_SYS_CTRL, 0, 0, 2);
-			vd_proc_pi_set(vpp_index, &vd_proc->vd_proc_pi);
+			/* set by pq db */
+			//vd_proc_pi_set(vpp_index, &vd_proc->vd_proc_pi);
 		} else if (vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P) {
 			/* vd1 dout 4s4p path */
 			rdma_wr_bits(VPP_VD_SYS_CTRL, 1, 0, 2);
