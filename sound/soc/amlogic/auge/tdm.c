@@ -4,7 +4,7 @@
  *
  */
 
-#define DEBUG
+//#define DEBUG
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
@@ -380,7 +380,7 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 	else
 		mpll_freq = freq * ratio;
 
-	pr_info("%s:set mpll_freq: %d\n", __func__, mpll_freq);
+	pr_debug("%s:set mpll_freq: %d\n", __func__, mpll_freq);
 
 	if (mpll_freq != p_tdm->last_mpll_freq) {
 		clk_set_rate(p_tdm->clk, mpll_freq);
