@@ -1577,6 +1577,11 @@ int start_tvin_service(int no, struct vdin_parm_s  *para)
 		return -1;
 	}
 
+	if (para->frame_rate == 0) {
+		pr_err("%s vdin%d frame_rate is zero\n", __func__, no);
+		return -1;
+	}
+
 	vdin0_devp->pre_prop.hdcp_sts = vdin0_devp->prop.hdcp_sts;
 	devp->matrix_pattern_mode = 0;
 	/* check input content is protected */
