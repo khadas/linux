@@ -83,3 +83,6 @@ int get_reserve_partition_off_from_tbl(void);
 
 extern struct mmc_partitions_fmt *pt_fmt;
 
+int aml_disable_mmc_cqe(struct mmc_card *card);
+
+int aml_enable_mmc_cqe(struct mmc_card *card);

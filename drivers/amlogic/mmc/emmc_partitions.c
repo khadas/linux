@@ -86,6 +86,32 @@ struct mmc_card *card_dtb;
 static struct aml_dtb_info dtb_infos = {{0, 0}, {0, 0} };
 struct mmc_partitions_fmt *pt_fmt;
 
+int aml_disable_mmc_cqe(struct mmc_card *card)
+{
+	int ret = 0;
+
+	if (card->reenable_cmdq && card->ext_csd.cmdq_en) {
+		pr_debug("[%s] [%d]\n", __func__, __LINE__);
+		ret = mmc_cmdq_disable(card);
+		if (ret)
+			pr_err("[%s] disable cqe mode failed\n", __func__);
+	}
+	return ret;
+}
+
+int aml_enable_mmc_cqe(struct mmc_card *card)
+{
+	int ret = 0;
+
+	if (card->reenable_cmdq && !card->ext_csd.cmdq_en) {
+		pr_debug("[%s] [%d]\n", __func__, __LINE__);
+		ret = mmc_cmdq_enable(card);
+		if (ret)
+			pr_err("[%s] reenable cqe mode failed\n", __func__);
+	}
+	return ret;
+}
+
 /* dtb read&write operation with backup updates */
 static unsigned int _calc_dtb_checksum(struct aml_dtb_rsv *dtb)
 {
@@ -122,6 +148,7 @@ static int _dtb_write(struct mmc_card *mmc, int blk, unsigned char *buf)
 	src = (unsigned char *)buf;
 
 	mmc_claim_host(mmc->host);
+	aml_disable_mmc_cqe(mmc);
 	do {
 		ret = mmc_write_internal(mmc, blk, MAX_TRANS_BLK, src);
 		if (ret) {
@@ -133,6 +160,7 @@ static int _dtb_write(struct mmc_card *mmc, int blk, unsigned char *buf)
 		cnt -= MAX_TRANS_BLK;
 		src = (unsigned char *)buf + MAX_TRANS_SIZE;
 	} while (cnt != 0);
+	aml_enable_mmc_cqe(mmc);
 	mmc_release_host(mmc->host);
 
 	return ret;
@@ -147,6 +175,7 @@ static int _dtb_read(struct mmc_card *mmc, int blk, unsigned char *buf)
 
 	dst = (unsigned char *)buf;
 	mmc_claim_host(mmc->host);
+	aml_disable_mmc_cqe(mmc);
 	do {
 		ret = mmc_read_internal(mmc, blk, MAX_TRANS_BLK, dst);
 		if (ret) {
@@ -158,6 +187,7 @@ static int _dtb_read(struct mmc_card *mmc, int blk, unsigned char *buf)
 		cnt -= MAX_TRANS_BLK;
 		dst = (unsigned char *)buf + MAX_TRANS_SIZE;
 	} while (cnt != 0);
+	aml_enable_mmc_cqe(mmc);
 	mmc_release_host(mmc->host);
 	return ret;
 }
@@ -331,6 +361,7 @@ ssize_t mmc_dtb_read(struct file *file,
 	cnt = read_size >> bit;
 	dst = dtb_ptr;
 	mmc_claim_host(card_dtb->host);
+	aml_disable_mmc_cqe(card_dtb);
 	do {
 		if (cnt > MAX_TRANS_BLK)
 			read_count = MAX_TRANS_BLK;
@@ -351,6 +382,7 @@ ssize_t mmc_dtb_read(struct file *file,
 	*ppos += read_size;
 
 exit:
+	aml_enable_mmc_cqe(card_dtb);
 	mmc_release_host(card_dtb->host);
 	return read_size;
 }
@@ -389,6 +421,7 @@ ssize_t mmc_dtb_write(struct file *file,
 	cnt = write_size >> bit;
 	dst = dtb_ptr;
 	mmc_claim_host(card_dtb->host);
+	aml_disable_mmc_cqe(card_dtb);
 	do {
 		if (cnt > MAX_TRANS_BLK)
 			write_count = MAX_TRANS_BLK;
@@ -422,6 +455,7 @@ ssize_t mmc_dtb_write(struct file *file,
 
 	*ppos += write_size;
 exit:
+	aml_enable_mmc_cqe(card_dtb);
 	mmc_release_host(card_dtb->host);
 	return write_size;
 }
@@ -665,7 +699,9 @@ static int amlmmc_write_tuning_para(struct mmc_card *card,
 	memcpy(buf, parameter, sizeof(struct aml_tuning_para));
 
 	mmc_claim_host(card->host);
+	aml_disable_mmc_cqe(card);
 	mmc_transfer(card, dev_addr, blocks, buf, 1);
+	aml_enable_mmc_cqe(card);
 	mmc_release_host(card->host);
 
 	kfree(buf);
@@ -1250,6 +1286,7 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 		return -ENOMEM;
 
 	mmc_claim_host(card->host);
+	aml_disable_mmc_cqe(card);
 
 	/*self adapting*/
 	ret = mmc_read_internal(card, 1, 1, buffer);
@@ -1267,6 +1304,7 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 		 *	"[%s] malloc failed for struct mmc_partitions_fmt!\n",
 		 *	__func__);
 		 */
+		aml_enable_mmc_cqe(card);
 		mmc_release_host(card->host);
 		return -ENOMEM;
 	}
@@ -1275,6 +1313,7 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 		kfree(buffer);
 		/**/
 		ret = mmc_read_partition_tbl(card, pt_fmt);
+		aml_enable_mmc_cqe(card);
 		mmc_release_host(card->host);
 		if (ret == 0)
 			ret = emmc_key_init(card);
@@ -1298,6 +1337,7 @@ int aml_emmc_partition_ops(struct mmc_card *card, struct gendisk *disk)
 	if (ret == 0) { /* ok */
 		ret = add_emmc_partition(disk, pt_fmt);
 	}
+	aml_enable_mmc_cqe(card);
 	mmc_release_host(card->host);
 
 	if (ret == 0) /* ok */

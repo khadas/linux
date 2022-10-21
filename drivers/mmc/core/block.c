@@ -2955,7 +2955,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 	struct mmc_blk_data *md, *part_md;
 	char cap_str[10];
 #ifdef CONFIG_MMC_MESON_GX
-	int idx = 0, ret = 0;
+	int idx = 0;
 #endif
 
 	/*
@@ -2991,21 +2991,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 	if (mmc_add_disk(md))
 		goto out;
 #ifdef CONFIG_MMC_MESON_GX
-	if (card->ext_csd.cmdq_en) {
-		mmc_claim_host(card->host);
-		ret = mmc_cmdq_disable(card);
-		mmc_release_host(card->host);
-		if (ret)
-			goto out;
-	}
 	aml_emmc_partition_ops(card, md->disk);
-	if (card->reenable_cmdq && !card->ext_csd.cmdq_en) {
-		mmc_claim_host(card->host);
-		ret = mmc_cmdq_enable(card);
-		mmc_release_host(card->host);
-		if (ret)
-			goto out;
-	}
 #endif
 
 	list_for_each_entry(part_md, &md->part, part) {
