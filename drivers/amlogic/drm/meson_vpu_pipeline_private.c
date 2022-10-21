@@ -442,6 +442,8 @@ meson_vpu_slice2ppc_state_init(struct meson_drm *private,
 static struct drm_private_state *
 meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 {
+	int i;
+	struct meson_vpu_osd_layer_info *info;
 	struct meson_vpu_pipeline_state *state;
 	struct meson_vpu_pipeline *pipeline = priv_to_pipeline(obj);
 	struct meson_vpu_pipeline_state *cur_state = priv_to_pipeline_state(obj->state);
@@ -451,6 +453,14 @@ meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 
 	state->pipeline = pipeline;
 	state->global_afbc = 0;
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (state->sub_states[0].more_60 && i == OSD3_SLICE1) {
+			info = &state->plane_info[i];
+			info->enable = 0;
+		}
+	}
+
 	return &state->obj;
 }
 

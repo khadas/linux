@@ -523,8 +523,13 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	mode = &crtc_state->mode;
 	if (mode->hdisplay > 3840 || mode->vdisplay > 2160)
 		mvsps->more_4k = 1;
+	else
+		mvsps->more_4k = 0;
+
 	if (mode->vrefresh > 60)
 		mvsps->more_60 = 1;
+	else
+		mvsps->more_60 = 0;
 
 	/*apply parameters need modeset.*/
 	if (crtc_state->state->allow_modeset) {

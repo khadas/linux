@@ -51,6 +51,7 @@ static void slice2ppc_set_state(struct meson_vpu_block *vblk,
 	struct meson_vpu_sub_pipeline_state *mvsps;
 	struct rdma_reg_ops *reg_ops;
 	struct slice2ppc_reg_s *reg;
+	u32 slice_pad_h_bgn, slice_pad_h_end;
 
 	slice = to_slice2ppc_block(vblk);
 	pipeline = slice->base.pipeline;
@@ -73,16 +74,9 @@ static void slice2ppc_set_state(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg(reg->osd3_proc_out_size, mvsps->scaler_dout_hsize[OSD3_SLICE1] |
 						mvsps->scaler_dout_vsize[OSD3_SLICE1] << 16);
 
-	reg_ops->rdma_write_reg(reg->osd_blend_dout0_size, mvsps->slice2ppc_hsize * 2 |
-						mvsps->slice2ppc_vsize << 16);
-	reg_ops->rdma_write_reg(0x60bb, mvsps->slice2ppc_hsize * 2 |
-						mvsps->slice2ppc_vsize << 16);
-	reg_ops->rdma_write_reg(0x60bc, mvsps->slice2ppc_hsize * 2 |
-						mvsps->slice2ppc_vsize << 16);
-
 	// write OSD_2SLICE2PPC_IN_SIZE
 	// viu_2slice2ppc_hsize = osd_out_hize_real
-	reg_ops->rdma_write_reg(reg->osd_2slice2ppc_in_size, mvsps->slice2ppc_hsize |
+	reg_ops->rdma_write_reg(reg->osd_2slice2ppc_in_size, (mvsps->osd_out_hsize_real / 2) |
 			    mvsps->slice2ppc_vsize << 16);
 
 	//0: 2slice to 2ppc  1: 1 slice to 2ppc
@@ -102,14 +96,29 @@ static void slice2ppc_set_state(struct meson_vpu_block *vblk,
 	reg_ops->rdma_write_reg_bits(reg->osd_sys_hwin1_cut,
 				     mvsps->hwincut_end[OSD3_SLICE1], 0, 13);
 
-	//write pad register
-	reg_ops->rdma_write_reg_bits(reg->osd_sys_pad_ctrl, 0, 0, 1);
+	if (mvsps->osd_out_hsize_raw < mvsps->osd_out_hsize_real) {
+		slice_pad_h_bgn = 0;
+		slice_pad_h_end = mvsps->osd_out_hsize_raw -
+				  mvsps->osd_out_hsize_real / 2 - 1;
+		reg_ops->rdma_write_reg_bits(reg->osd_sys_pad_ctrl, 1, 0, 1);
+		reg_ops->rdma_write_reg(reg->osd_sys_pad_h_size,
+					slice_pad_h_bgn << 16 | slice_pad_h_end);
+		reg_ops->rdma_write_reg(reg->osd_sys_pad_v_size, mvsps->slice2ppc_vsize - 1);
 
-	//write cut register
-	reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 0, 29, 1);
-	reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 0, 16, 13);
-	reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut,
-				     mvsps->slice2ppc_hsize, 0, 13);
+		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 1, 29, 1);
+		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 0, 16, 13);
+		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut,
+					     mvsps->osd_out_hsize_raw / 2 - 1, 0, 13);
+	} else {
+		//write pad register
+		reg_ops->rdma_write_reg_bits(reg->osd_sys_pad_ctrl, 0, 0, 1);
+
+		//write cut register
+		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 0, 29, 1);
+		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut, 0, 16, 13);
+		reg_ops->rdma_write_reg_bits(reg->osd_sys_2slice_hwin_cut,
+					     mvsps->slice2ppc_hsize, 0, 13);
+	}
 
 	// write pi register
 	reg_ops->rdma_write_reg_bits(reg->osd_pi_bypass_en, 1, 0, 1); // 1: bypass, 0: scaler up x2

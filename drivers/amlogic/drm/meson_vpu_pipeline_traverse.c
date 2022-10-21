@@ -689,7 +689,8 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 	int more_4k;
 	int more_60;
 	int i;
-	u32 osd_in_hsize_real, osd_out_hsize_real;
+	u64 tmp;
+	u32 osd_in_hsize_real, osd_out_hsize_real, osd_out_hsize_raw;
 	u32 osd_pps_din_hsize[MESON_MAX_OSDS];
 	u32 osd_pps_dout_hsize[MESON_MAX_OSDS];
 	u32 osd_pps_din_vsize[MESON_MAX_OSDS];
@@ -708,6 +709,7 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 
 	osd_in_hsize_real = 0;
 	osd_out_hsize_real = 0;
+	osd_out_hsize_raw = 0;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
@@ -715,7 +717,7 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 
 		if (more_60) {
 			osd_in_hsize_real += mvps->plane_info[i].src_w;
-			osd_out_hsize_real += mvps->plane_info[i].dst_w;
+			osd_out_hsize_raw += mvps->plane_info[i].dst_w;
 		}
 
 		osd_pps_din_hsize[i] = mvps->plane_info[i].src_w;
@@ -723,46 +725,58 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 		osd_pps_din_vsize[i] = mvps->plane_info[i].src_h;
 	}
 
+	osd_out_hsize_real = ALIGN(osd_out_hsize_raw, 8);
 	mvsps->slice2ppc_hsize = osd_out_hsize_real / 2;
 	mvsps->slice2ppc_vsize = mvps->plane_info[OSD1_SLICE0].dst_h;
+	mvsps->osd_out_hsize_raw = osd_out_hsize_raw;
+	mvsps->osd_out_hsize_real = osd_out_hsize_real;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		memset(&mvps->osd_scope_pre[i], 0, sizeof(mvps->osd_scope_pre[i]));
+
 		if (!mvps->plane_info[i].enable)
 			continue;
 
 		if (more_60) {
+			if (!osd_out_hsize_raw) {
+				DRM_ERROR("invalid osd_out_hsize_raw parameter\n");
+				return -EINVAL;
+			}
 			horz_phase_step =
-				(osd_in_hsize_real << 18) / osd_out_hsize_real;
+				(osd_in_hsize_real << 18) / osd_out_hsize_raw;
 			horz_phase_step = (horz_phase_step << 6);
 			osd_slice_dout_hsize[i] = osd_out_hsize_real / 2;
 
-			if (osd_in_hsize_real == osd_out_hsize_real) {
-				osd_pps_dout_hsize[i] =
-					osd_slice_dout_hsize[i] +
-					SCALER_OVERLAP;
-				osd_pps_din_hsize[i] = osd_pps_dout_hsize[i];
+			if (osd_in_hsize_real == osd_out_hsize_raw) {
 				if (i == OSD1_SLICE0) {
 					hwincut_bgn[i] = 0;
 					hwincut_end[i] =
 						osd_slice_dout_hsize[i] - 1;
+					osd_pps_dout_hsize[i] = osd_slice_dout_hsize[i] +
+						SCALER_OVERLAP;
 				} else if (i == OSD3_SLICE1) {
 					hwincut_bgn[i] = SCALER_OVERLAP;
 					hwincut_end[i] =
 						osd_slice_dout_hsize[i] +
 						SCALER_OVERLAP - 1;
+					osd_pps_dout_hsize[i] = osd_out_hsize_raw -
+						osd_slice_dout_hsize[i] + SCALER_OVERLAP;
 				}
+				osd_pps_din_hsize[i] = osd_pps_dout_hsize[i];
 			} else {
 				if (i == OSD1_SLICE0) {
 					slice_st[i] = 0;
 					osd_pps_din_hsize[i] =
-						((osd_slice_dout_hsize[i]) *
+						(((long long)(osd_slice_dout_hsize
+								      [i]) *
 						  (horz_phase_step >> 4) /
 						  (1 << 20)) +
+						 1) / 2 *
+							2 +
 						SCALER_OVERLAP;
-					osd_pps_dout_hsize[i] =
-						((osd_pps_din_hsize[i]) *
-						   (1 << 24)) /
-						  horz_phase_step;
+					tmp = (u64)osd_pps_din_hsize[i] << 24;
+					do_div(tmp, horz_phase_step);
+					osd_pps_dout_hsize[i] = (tmp + 1) / 2 * 2;
 					hwincut_bgn[i] = 0;
 					hwincut_end[i] =
 						osd_slice_dout_hsize[i] - 1;
@@ -770,16 +784,21 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 					slice_st[i] =
 						osd_pps_din_hsize[OSD1_SLICE0] -
 						2 * SCALER_OVERLAP;
-					slice1_init_phase_out =
-						slice_st[i]
-						<< 24 / horz_phase_step;
+					tmp = (u64)(slice_st[i]) * (1 << 24);
+					do_div(tmp, horz_phase_step);
+					slice1_init_phase_out = tmp;
+
+					osd_slice_dout_hsize[i] = osd_out_hsize_raw -
+						osd_out_hsize_real / 2;
 					osd_pps_din_hsize[i] =
 						osd_in_hsize_real -
 						osd_pps_din_hsize[0] +
 						SCALER_OVERLAP * 2;
 					osd_pps_dout_hsize[i] =
-						osd_out_hsize_real -
+						osd_out_hsize_raw -
 						slice1_init_phase_out;
+					osd_pps_dout_hsize[i] = ALIGN(osd_pps_dout_hsize[i], 2);
+
 					hwincut_bgn[i] =
 						osd_pps_dout_hsize[i] -
 						osd_slice_dout_hsize[i];
@@ -815,12 +834,29 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 		mvps->scaler_param[i].input_height = osd_pps_din_vsize[i];
 		mvps->scaler_param[i].output_width = osd_pps_dout_hsize[i];
 		mvps->scaler_param[i].output_height = osd_pps_dout_vsize[i];
-		mvps->osd_scope_pre[i].h_start = mvps->plane_info[i].dst_x;
-		mvps->osd_scope_pre[i].h_end = mvps->plane_info[i].dst_x +
+
+		if (more_60) {
+			mvps->osd_scope_pre[i].h_start = mvps->plane_info[0].dst_x;
+			mvps->osd_scope_pre[i].h_end = mvps->plane_info[0].dst_x +
+						mvps->plane_info[0].dst_w * 2 - 1;
+			mvps->osd_scope_pre[i].v_start = mvps->plane_info[0].dst_y;
+			mvps->osd_scope_pre[i].v_end = mvps->plane_info[0].dst_y +
+						mvps->plane_info[0].dst_h - 1;
+		} else if (more_4k) {
+			mvps->osd_scope_pre[i].h_start = mvps->plane_info[i].dst_x / 2;
+			mvps->osd_scope_pre[i].h_end = mvps->plane_info[i].dst_x / 2 +
 						osd_pps_dout_hsize[i] - 1;
-		mvps->osd_scope_pre[i].v_start = mvps->plane_info[i].dst_y;
-		mvps->osd_scope_pre[i].v_end = mvps->plane_info[i].dst_y +
+			mvps->osd_scope_pre[i].v_start = mvps->plane_info[i].dst_y / 2;
+			mvps->osd_scope_pre[i].v_end = mvps->plane_info[i].dst_y / 2 +
 						osd_pps_dout_vsize[i] - 1;
+		} else {
+			mvps->osd_scope_pre[i].h_start = mvps->plane_info[i].dst_x;
+			mvps->osd_scope_pre[i].h_end = mvps->plane_info[i].dst_x +
+						osd_pps_dout_hsize[i] - 1;
+			mvps->osd_scope_pre[i].v_start = mvps->plane_info[i].dst_y;
+			mvps->osd_scope_pre[i].v_end = mvps->plane_info[i].dst_y +
+						osd_pps_dout_vsize[i] - 1;
+		}
 		mvsps->slice_dout_hsize[i] = osd_slice_dout_hsize[i];
 		mvsps->hwincut_bgn[i] = hwincut_bgn[i];
 		mvsps->hwincut_end[i] = hwincut_end[i];

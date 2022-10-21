@@ -900,9 +900,11 @@ static void osd_set_state(struct meson_vpu_block *vblk,
 	scope_src.v_end = mvos->src_y + mvos->src_h - 1;
 	if (mvsps->more_60) {
 		if (vblk->index == OSD1_SLICE0)
-			scope_src.h_end = mvos->src_x + mvos->src_w - 1 + SCALER_OVERLAP;
+			scope_src.h_end = mvos->src_x +
+				mvps->scaler_param[vblk->index].input_width - 1;
 		if (vblk->index == OSD3_SLICE1)
-			scope_src.h_start = mvos->src_x - SCALER_OVERLAP;
+			scope_src.h_start = scope_src.h_end -
+				mvps->scaler_param[vblk->index].input_width + 1;
 	}
 
 	pixel_format = mvos->pixel_format;

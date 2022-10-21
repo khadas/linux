@@ -617,7 +617,6 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	struct osdblend_reg_s *reg = osdblend->reg;
 	struct rdma_reg_ops *reg_ops = state->sub->reg_ops;
 	struct osd_scope_s scope_default = {0xffff, 0xffff, 0xffff, 0xffff};
-	struct osd_scope_s scope_default_slice = {0x0, 0xeff, 0x0, 0x86f};
 
 	DRM_DEBUG("%s set_state called.\n", osdblend->base.name);
 	mvobs = to_osdblend_state(state);
@@ -628,8 +627,18 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 	}
 
 	mvsps = &mvps->sub_states[0];
-	if (mvsps->more_60) {
+
+	for (i = 0; i < MAX_DIN_NUM; i++) {
+		memcpy(&mvobs->din_channel_scope[i], &scope_default,
+				sizeof(struct osd_scope_s));
+	}
+
+	if (mvps->plane_info[0].blend_bypass)
+		mvobs->din0_switch = 1;
+	else
 		mvobs->din0_switch = 0;
+
+	if (mvsps->more_60) {
 		mvobs->din3_switch = 0;
 		mvobs->blend1_switch = 0;
 		mvobs->din_channel_mux[0] = OSD_CHANNEL1;
@@ -638,18 +647,17 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 		mvobs->din_channel_mux[3] = OSD_CHANNEL_NUM;
 		mvobs->input_mask |= 1 << DIN0;
 		memcpy(&mvobs->din_channel_scope[0],
-			       &scope_default_slice,
+			       &mvps->osd_scope_pre[0],
 				sizeof(struct osd_scope_s));
 	} else {
-		mvobs->din0_switch = 0;
 		mvobs->din3_switch = 0;
 		mvobs->blend1_switch = 0;
-		mvobs->din_channel_mux[0] = OSD_CHANNEL_NUM;
+		mvobs->din_channel_mux[1] = OSD_CHANNEL_NUM;
 		mvobs->din_channel_mux[2] = OSD_CHANNEL_NUM;
 
 		if (mvps->plane_info[0].enable) {
-			mvobs->din_channel_mux[DIN1] = OSD_CHANNEL2;
-			mvobs->input_mask |= 1 << DIN1;
+			mvobs->din_channel_mux[DIN0] = OSD_CHANNEL2;
+			mvobs->input_mask |= 1 << DIN0;
 			memcpy(&mvobs->din_channel_scope[DIN1],
 				   &mvps->osd_scope_pre[0],
 				   sizeof(struct osd_scope_s));
@@ -657,10 +665,10 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 
 		if (mvps->plane_info[2].enable) {
 			if (mvps->plane_info[2].zorder < mvps->plane_info[0].zorder) {
-				mvobs->din_channel_mux[DIN1] = OSD_CHANNEL4;
+				mvobs->din_channel_mux[DIN0] = OSD_CHANNEL4;
 				mvobs->din_channel_mux[DIN3] = OSD_CHANNEL2;
 			} else {
-				mvobs->din_channel_mux[DIN1] = OSD_CHANNEL2;
+				mvobs->din_channel_mux[DIN0] = OSD_CHANNEL2;
 				mvobs->din_channel_mux[DIN3] = OSD_CHANNEL4;
 			}
 
@@ -675,12 +683,6 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 		DRM_DEBUG("%s, scope: %u, %u, %u, %u\n", __func__, mvps->osd_scope_pre[i].h_start,
 			  mvps->osd_scope_pre[i].h_end, mvps->osd_scope_pre[i].v_start,
 			  mvps->osd_scope_pre[i].v_end);
-		if (mvobs->input_mask & BIT(i))
-			DRM_DEBUG("%s, already copy scope para\n", __func__);
-		else
-			memcpy(&mvobs->din_channel_scope[i],
-			       &scope_default,
-				sizeof(struct osd_scope_s));
 
 		if (max_width < mvps->osd_scope_pre[i].h_end + 1)
 			max_width = mvps->osd_scope_pre[i].h_end + 1;
@@ -688,6 +690,11 @@ static void s5_osdblend_set_state(struct meson_vpu_block *vblk,
 			max_height = mvps->osd_scope_pre[i].v_end + 1;
 	}
 	/*sub blend size check*/
+	if (mvsps->more_4k)
+		align_proc = 2;
+	else
+		align_proc = 4;
+
 	if (align_proc == 4) {
 		mvobs->input_width[OSD_SUB_BLEND0] = ALIGN(max_width, 4);
 		mvobs->input_width[OSD_SUB_BLEND1] = ALIGN(max_width, 4);

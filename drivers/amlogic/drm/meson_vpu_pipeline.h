@@ -525,6 +525,8 @@ struct meson_vpu_sub_pipeline_state {
 	u64 enable_blocks;
 	int more_4k;
 	int more_60;
+	u32 osd_out_hsize_raw;
+	u32 osd_out_hsize_real;
 	u32 scaler_din_hsize[MESON_MAX_OSDS];
 	u32 scaler_dout_hsize[MESON_MAX_OSDS];
 	u32 scaler_din_vsize[MESON_MAX_OSDS];

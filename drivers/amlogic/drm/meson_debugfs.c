@@ -590,8 +590,14 @@ static ssize_t meson_reg_debug_write(struct file *file, const char __user *ubuf,
 	} else if (!strcmp(parm[0], "ow")) {
 		if (parm[1] && !strcmp(parm[1], "1"))
 			overwrite_enable = 1;
-		else if (parm[1] && !strcmp(parm[1], "0"))
+		else if (parm[1] && !strcmp(parm[1], "0")) {
 			overwrite_enable = 0;
+			for (i = 0; i < reg_num; i++) {
+				overwrite_val[i] = 0;
+				overwrite_val[i] = 0;
+			}
+			reg_num = 0;
+		}
 	}
 
 	return len;
