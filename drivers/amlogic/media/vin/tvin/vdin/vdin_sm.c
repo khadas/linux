@@ -57,7 +57,6 @@ static struct tvin_sm_s sm_dev[VDIN_MAX_DEVS];
 
 static int sm_print_nosig;
 static int sm_print_notsup;
-static int sm_print_unstable;
 static int sm_print_fmt_nosig;
 static int sm_print_fmt_chg;
 static int sm_atv_prestable_fmt;
@@ -558,15 +557,6 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 	memcpy(&devp->dv.dv_vsif,
 	       &prop->dv_vsif, sizeof(struct tvin_dv_vsif_s));
 
-	if (sm_debug_enable & VDIN_SM_LOG_L_4)
-		pr_info("[sm.%d]dv:%d, hdr state:%d eotf:%d flag:0x%x, vrr state:%d\n",
-			devp->index,
-			devp->prop.dolby_vision,
-			devp->prop.hdr_info.hdr_state,
-			devp->prop.hdr_info.hdr_data.eotf,
-			devp->prop.vdin_hdr_flag,
-			devp->prop.vdin_vrr_flag);
-
 	if (sm_debug_enable & VDIN_SM_LOG_L_7) {
 		pr_info("[sm.%d]pkttype:%#x,version:%#x,length:%#x,checksum:%#x\n",
 			devp->index,
@@ -666,9 +656,13 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 	}
 
 	if (sm_debug_enable & VDIN_SM_LOG_L_4)
-		pr_info("[sm.%d] hdr flag:0x%x signal_type:0x%x\n",
+		pr_info("[sm.%d]dv:%d, hdr state:%d eotf:%d flag:%#x, vrr state:%d type:%#x\n",
 			devp->index,
-			devp->prop.vdin_hdr_flag, signal_type);
+			devp->prop.dolby_vision,
+			devp->prop.hdr_info.hdr_state,
+			devp->prop.hdr_info.hdr_data.eotf,
+			devp->prop.vdin_hdr_flag,
+			devp->prop.vdin_vrr_flag, signal_type);
 
 	if (devp->prop.vdin_hdr_flag &&
 	    devp->parm.info.signal_type != signal_type) {
@@ -835,7 +829,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 						devp->index);
 					sm_print_nosig = 1;
 				}
-				sm_print_unstable = 0;
 			}
 		} else {
 			if (IS_TVAFE_SRC(port))
@@ -854,7 +847,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 					nosig2_unstable_cnt = 5;
 
 				sm_print_nosig  = 0;
-				sm_print_unstable = 0;
 			}
 		}
 		break;
@@ -875,7 +867,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 					pr_info("[smr.%d] unstable --> no signal\n",
 						devp->index);
 				sm_print_nosig  = 0;
-				sm_print_unstable = 0;
 			}
 		} else {
 			sm_p->back_nosig_cnt = 0;
@@ -892,13 +883,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 					sm_p->state_cnt  = unstable_in;
 					info->status = TVIN_SIG_STATUS_UNSTABLE;
 					/*info->fmt = TVIN_SIG_FMT_NULL;*/
-
-					if (sm_debug_enable &&
-					    !sm_print_unstable) {
-						pr_info("[smr.%d] unstable\n",
-							devp->index);
-						sm_print_unstable = 1;
-					}
 					sm_print_nosig  = 0;
 				}
 			} else {
@@ -952,7 +936,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 					}
 
 					sm_print_nosig  = 0;
-					sm_print_unstable = 0;
 					sm_print_fmt_nosig = 0;
 					sm_print_fmt_chg = 0;
 					sm_print_prestable = 0;
@@ -961,11 +944,8 @@ void tvin_smr(struct vdin_dev_s *devp)
 					info->status = TVIN_SIG_STATUS_UNSTABLE;
 
 					if (sm_debug_enable &&
-					    !sm_print_notsup) {
-						pr_info("[smr.%d] unstable --> not support\n",
-							devp->index);
+					    !sm_print_notsup)
 						sm_print_notsup = 1;
-					}
 				}
 			}
 		}
@@ -1013,7 +993,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 						devp->index);
 				sm_print_nosig  = 0;
 				sm_print_notsup = 0;
-				sm_print_unstable = 0;
 				sm_print_prestable = 0;
 				break;
 			}
@@ -1144,7 +1123,6 @@ void tvin_smr(struct vdin_dev_s *devp)
 						devp->index);
 				sm_print_nosig  = 0;
 				sm_print_notsup = 0;
-				sm_print_unstable = 0;
 				sm_print_fmt_nosig = 0;
 				sm_print_fmt_chg = 0;
 				sm_print_prestable = 0;

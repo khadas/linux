@@ -714,7 +714,7 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 						VDIN_GAME_MODE_2);
 				}
 				phase_lock_flag = 0;
-				if (vdin_isr_monitor & BIT(4))
+				if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME)
 					pr_info("switch(%d) to game mode 0x%x, frame_cnt=%d in fps:%d out fps:%d\n",
 						devp->game_mode_pre, devp->game_mode,
 						devp->frame_cnt, devp->vdin_std_duration,
@@ -737,14 +737,15 @@ static void vdin_game_mode_transfer(struct vdin_dev_s *devp)
 			if (devp->vrr_data.vrr_mode && !(devp->game_mode & VDIN_GAME_MODE_2))
 				vdin_game_mode_dynamic_check(devp);
 		}
-		if (vdin_isr_monitor & BIT(4) && phase_lock_flag && !(phase_lock_flag % 10))
+		if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME &&
+		    phase_lock_flag && !(phase_lock_flag % 10))
 			pr_info("lock_cnt:%d, mode:%x in fps:%d out fps:%d\n",
 				phase_lock_flag, devp->game_mode,
 				devp->vdin_std_duration, devp->vinfo_std_duration);
 	} else {
 		if (devp->frame_cnt >= game_mode_switch_frames &&
 		    (devp->game_mode & VDIN_GAME_MODE_SWITCH_EN)) {
-			if (vdin_isr_monitor & BIT(4)) {
+			if (vdin_isr_monitor & VDIN_ISR_MONITOR_GAME) {
 				pr_info("switch to game mode (0x%x-->0x5), frame_cnt=%d\n",
 					devp->game_mode, devp->frame_cnt);
 			}
@@ -1487,12 +1488,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 
 	devp->flags &= (~VDIN_FLAG_ISR_EN);
 
-	if (vdin_dbg_en)
-		pr_info("%s vdin.%d disable_irq\n", __func__,
-			devp->index);
+	pr_info("%s vdin%d,delay %u us before stop\n",
+		__func__, devp->index, devp->dbg_stop_dec_delay);
 	if (devp->dbg_stop_dec_delay) {
-		pr_info("vdin%d,delay %u us before stop dec!\n",
-			devp->index, devp->dbg_stop_dec_delay);
 		usleep_range(devp->dbg_stop_dec_delay, devp->dbg_stop_dec_delay + 1000);
 	}
 
@@ -2856,6 +2854,12 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	if (devp->last_wr_vfe && (devp->flags & VDIN_FLAG_RDMA_ENABLE) &&
 	    !(devp->game_mode & VDIN_GAME_MODE_1) &&
 	    !(devp->game_mode & VDIN_GAME_MODE_2)) {
+		/* get drm and update prop info */
+		if (devp->debug.change_get_drm == SEND_LAST_FRAME_GET_PROP) {
+			vdin_set_drm_data(devp, &devp->last_wr_vfe->vf);
+			vdin_set_vframe_prop_info(&devp->last_wr_vfe->vf, devp);
+			vdin_set_freesync_data(devp, &devp->last_wr_vfe->vf);
+		}
 		/*dolby vision metadata process*/
 		if (dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK &&
 		    devp->dv.dv_config) {
@@ -2922,14 +2926,16 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	devp->curr_field_type = vdin_get_curr_field_type(devp);
 	devp->curr_dv_flag = devp->dv.dv_flag;
 
-	if (devp->duration) {
-		vlock_delay_jiffies = func_div(96000, devp->duration);
-		vlock_t1 = func_div(HZ, vlock_delay_jiffies);
-		vlock_delay_jiffies = func_div(vlock_t1, 4);
-	} else {
-		vlock_delay_jiffies = msecs_to_jiffies(5);
+	if (devp->vdin_function_sel & VDIN_ADJUST_VLOCK) {
+		if (devp->duration) {
+			vlock_delay_jiffies = func_div(96000, devp->duration);
+			vlock_t1 = func_div(HZ, vlock_delay_jiffies);
+			vlock_delay_jiffies = func_div(vlock_t1, 4);
+		} else {
+			vlock_delay_jiffies = msecs_to_jiffies(5);
+		}
+		schedule_delayed_work(&devp->vlock_dwork, vlock_delay_jiffies);
 	}
-	schedule_delayed_work(&devp->vlock_dwork, vlock_delay_jiffies);
 
 	/* ignore the unstable signal */
 	state = tvin_get_sm_status(devp->index);
@@ -3145,10 +3151,14 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	}
 	curr_wr_vf->type_original = curr_wr_vf->type;
 
-	vdin_set_drm_data(devp, curr_wr_vf);
-	vdin_set_vframe_prop_info(curr_wr_vf, devp);
-	vdin_set_freesync_data(devp, curr_wr_vf);
-
+	//2 is get prop when send frame
+	if (devp->debug.change_get_drm != SEND_LAST_FRAME_GET_PROP ||
+	    devp->game_mode & VDIN_GAME_MODE_1 ||
+	    devp->game_mode & VDIN_GAME_MODE_2) {
+		vdin_set_drm_data(devp, curr_wr_vf);
+		vdin_set_vframe_prop_info(curr_wr_vf, devp);
+		vdin_set_freesync_data(devp, curr_wr_vf);
+	}
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 	if (for_amdv_certification()) {
 		vdin_get_crc_val(curr_wr_vf, devp);
@@ -3196,6 +3206,8 @@ irqreturn_t vdin_isr(int irq, void *dev_id)
 	    !(devp->game_mode & VDIN_GAME_MODE_1)) {
 		devp->last_wr_vfe = curr_wr_vfe;
 	} else if (!(devp->game_mode & VDIN_GAME_MODE_2)) {
+		if (devp->vdin_function_sel & VDIN_PROP_RX_UPDATE)
+			devp->last_wr_vfe = curr_wr_vfe;
 		/*dolby vision metadata process*/
 		if ((dv_dbg_mask & DV_UPDATE_DATA_MODE_DOLBY_WORK) &&
 		    devp->dv.dv_config) {
@@ -5471,7 +5483,8 @@ static int vdin_get_vinfo_notify_callback(struct notifier_block *block,
 	const struct vinfo_s *vinfo = get_current_vinfo();
 
 	devp->vinfo_std_duration = vinfo->sync_duration_num / vinfo->sync_duration_den;
-	pr_info("vdin%d,std_dur:%d\n", devp->index, devp->vinfo_std_duration);
+	if (vdin_dbg_en)
+		pr_info("vdin%d,std_dur:%d\n", devp->index, devp->vinfo_std_duration);
 
 	return 0;
 }

@@ -683,7 +683,8 @@ void vdin_afbce_mode_init(struct vdin_dev_s *devp)
 	 */
 	devp->afbce_mode = 0;
 	devp->afbce_mode_pre = devp->afbce_mode;
-	pr_info("vdin%d init afbce_mode: %d\n", devp->index, devp->afbce_mode);
+	if (vdin_dbg_en)
+		pr_info("vdin%d init afbce_mode: %d\n", devp->index, devp->afbce_mode);
 }
 
 void vdin_afbce_mode_update(struct vdin_dev_s *devp)

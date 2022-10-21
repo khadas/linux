@@ -117,8 +117,9 @@
 /* 20221018: smr state machine optimization */
 /* 20221021: s5 vdin bringup */
 /* 20221028: rx calls interface notify information */
+/* 20221029: update prop info */
 
-#define VDIN_VER "20221028"
+#define VDIN_VER "20221029"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -260,6 +261,7 @@ struct match_data_s {
 /* #define VDIN_DEBUG */
 #define VDIN_SELF_STOP_START		BIT(0)
 #define VDIN_VADJ1_TO_VD1		BIT(3)
+#define VDIN_ADJUST_VLOCK		BIT(4)
 #define VDIN_PROP_RX_UPDATE		BIT(5)
 
 #define IS_HDMI_SRC(src)	\
@@ -319,21 +321,25 @@ enum vdin_vf_put_md {
 	VDIN_VF_RECYCLE,
 };
 
-#define VDIN_ISR_MONITOR_HDR		BIT(0)
+#define VDIN_ISR_MONITOR_FLAG		BIT(0)
 #define VDIN_ISR_MONITOR_EMP		BIT(1)
 #define VDIN_ISR_MONITOR_RATIO		BIT(2)
 #define VDIN_ISR_MONITOR_GAME		BIT(4)
 #define VDIN_ISR_MONITOR_VS		BIT(5)
 #define VDIN_ISR_MONITOR_VF		BIT(6)
+#define VDIN_ISR_MONITOR_HDR_RAW_DATA	BIT(7)
+#define VDIN_ISR_MONITOR_HDR_EMP_DATA	BIT(8)
 #define VDIN_ISR_MONITOR_VRR_DATA	BIT(9)
 #define VDIN_ISR_MONITOR_AFBCE		BIT(10)
 #define VDIN_ISR_MONITOR_BUFFER		BIT(11)
 #define VDIN_ISR_MONITOR_AFBCE_STA	BIT(12)
 #define VDIN_ISR_MONITOR_WRITE_DONE	BIT(13)
+#define VDIN_ISR_MONITOR_HDR_SEI_DATA	BIT(14)
 #define DBG_RX_UPDATE_VDIN_PROP		BIT(20)
 
-
 #define VDIN_DBG_CNTL_IOCTL	BIT(10)
+
+#define SEND_LAST_FRAME_GET_PROP	2
 
 /* *********************************************************************** */
 /* *** enum definitions ********************************************* */
@@ -463,6 +469,7 @@ struct vdin_debug_s {
 	unsigned short dest_cfmt;/* for color fmt conversion */
 	unsigned short vdin1_line_buff;
 	unsigned short manual_change_csc;
+	unsigned short change_get_drm;
 	unsigned char dbg_sel_mat; /* 0x10:mat0,0x11:mat1,0x12:hdr */
 	/* vdin1 hdr set bypass */
 	bool vdin1_set_hdr_bypass;

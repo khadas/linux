@@ -3228,7 +3228,10 @@ start_chk:
 		}
 	} else if (!strcmp(parm[0], "dts_config")) {
 		vdin_dump_dts_config(devp);
-	} else if (!strcmp(parm[0], "force_shrink")) {
+	} else if (!strcmp(parm[0], "change_get_drm")) {
+		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
+			devp->debug.change_get_drm = temp;
+	}  else if (!strcmp(parm[0], "force_shrink")) {
 		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
 			devp->debug.dbg_force_shrink_en = temp;
 			pr_info("dbg_force_shrink_en:%#x\n", devp->debug.dbg_force_shrink_en);
