@@ -157,6 +157,7 @@ struct vsdb_phyaddr *get_hdmitx21_phy_addr(void)
 
 static const struct dv_info dv_dummy;
 static int log21_level;
+static bool hdmitx_edid_done;
 
 static struct vout_device_s hdmitx_vdev = {
 	.dv_info = &hdmitx21_device.rxcap.dv_info,
@@ -324,12 +325,13 @@ static void hdmitx_late_resume(struct early_suspend *h)
 
 	pr_info("hdmitx hpd state: %d\n", hdev->hpd_state);
 
-	/*force to get EDID after resume for Amplifier Power case*/
+	/*force to get EDID after resume*/
 	if (hdev->hpd_state) {
 		/*add i2c soft reset before read EDID */
 		hdev->hwop.cntlddc(hdev, DDC_GLITCH_FILTER_RESET, 0);
 		hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
 		hdmitx_get_edid(hdev);
+		hdmitx_edid_done = true;
 	}
 	if (hdev->tv_usage == 0)
 		hdmitx_notify_hpd(hdev->hpd_state,
@@ -4768,12 +4770,20 @@ static void hdmitx_hpd_plugin_handler(struct work_struct *work)
 		queue_delayed_work(hdev->rxsense_wq, &hdev->work_rxsense, 0);
 	}
 	pr_info("plugin\n");
-	hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
+	/* there's such case: plugin irq->hdmitx resume + read EDID +
+	 * resume uevent->mode setting + hdcp auth->plugin handler read
+	 * EDID, now EDID already read done and hdcp already started,
+	 * not read EDID again.
+	 */
+	if (!hdmitx_edid_done) {
+		hdev->hwop.cntlmisc(hdev, MISC_I2C_RESET, 0);
+		hdmitx_get_edid(hdev);
+		hdmitx_edid_done = true;
+	}
 	hdev->hdmitx_event &= ~HDMI_TX_HPD_PLUGIN;
 	/* start reading E-EDID */
 	if (hdev->repeater_tx)
 		rx_repeat_hpd_state(1);
-	hdmitx_get_edid(hdev);
 	hdev->cedst_policy = hdev->cedst_en & hdev->rxcap.scdc_present;
 	hdmi_physical_size_update(hdev);
 	if (hdev->rxcap.ieeeoui != HDMI_IEEE_OUI)
@@ -4897,6 +4907,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 		hdmitx21_edid_clear(hdev);
 		hdmi_physical_size_update(hdev);
 		hdmitx21_edid_ram_buffer_clear(hdev);
+		hdmitx_edid_done = false;
 		hdev->hpd_state = 0;
 		if (hdev->tv_usage == 0) {
 			rx_edid_physical_addr(0, 0, 0, 0);
@@ -4931,6 +4942,7 @@ static void hdmitx_hpd_plugout_handler(struct work_struct *work)
 	hdmitx21_edid_clear(hdev);
 	hdmi_physical_size_update(hdev);
 	hdmitx21_edid_ram_buffer_clear(hdev);
+	hdmitx_edid_done = false;
 	hdev->hpd_state = 0;
 	if (hdev->tv_usage == 0) {
 		rx_edid_physical_addr(0, 0, 0, 0);
