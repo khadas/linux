@@ -87,7 +87,7 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 	struct evl_thread *curr = evl_current();
 
 	if ((curr->state & T_WOLI) &&
-		atomic_read(&curr->inband_disable_count) > 0)
+		atomic_read(&curr->held_mutex_count) > 0)
 		evl_notify_thread(curr, EVL_HMDIAG_LKSLEEP, evl_nil);
 
 	__evl_add_wait_queue(curr, wq, timeout, timeout_mode);
