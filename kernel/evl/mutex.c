@@ -1326,8 +1326,32 @@ clear:
 
 	n_owner = list_first_entry(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
-
+next:
 	raw_spin_lock(&n_owner->lock);
+
+	/*
+	 * A thread which has been forcibly unblocked while waiting
+	 * for a mutex might still be linked to the wait list, until
+	 * it resumes in wait_mutex_schedule() eventually. We can
+	 * detect this rare case by testing the wait channel it pends
+	 * on, since evl_wakeup_thread() clears it.
+	 *
+	 * CAUTION: a basic invariant is that a thread is removed from
+	 * the wait list only when unblocked on a successful request
+	 * (i.e. the awaited resource was granted), this way the
+	 * opposite case can be detected by checking for
+	 * !list_empty(&thread->wait_next) when resuming. So
+	 * unfortunately, we have to keep that thread in the wait list
+	 * not to break this assumption, until it resumes and figures
+	 * out.
+	 */
+	if (!n_owner->wchan) {
+		raw_spin_unlock(&n_owner->lock);
+		n_owner = list_next_entry(n_owner, wait_next);
+		if (&n_owner->wait_next == &mutex->wchan.wait_list)
+			goto clear;
+		goto next;
+	}
 
 	n_owner->wwake = &mutex->wchan;
 	list_del_init(&n_owner->wait_next);
@@ -1357,8 +1381,10 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 
 	trace_evl_mutex_unlock(mutex);
 
-	if (!enable_inband_switch(curr))
+	if (!enable_inband_switch(curr)) {
+		WARN_ON_ONCE(1);
 		return;
+	}
 
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
 

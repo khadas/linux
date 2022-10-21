@@ -38,9 +38,4 @@ do {										\
 	  __item;						\
   })
 
-#ifndef list_next_entry
-#define list_next_entry(__item, __member)			\
-	list_entry((__item)->__member.next, typeof(*(__item)), __member)
-#endif
-
 #endif /* !_EVL_LIST_H_ */
