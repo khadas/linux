@@ -2438,7 +2438,7 @@ static void lcd_clk_generate_tl1(struct aml_lcd_drv_s *pdrv)
 	unsigned int clk_div_in, clk_div_out;
 	unsigned int clk_div_sel, xd, tcon_div_sel = 0, phy_div = 1;
 	unsigned int od1, od2, od3;
-	unsigned int dsi_bit_rate_max = 0, dsi_bit_rate_min = 0, tmp;
+	unsigned int bit_rate_max = 0, bit_rate_min = 0, tmp;
 	unsigned int tmp_div;
 	int done;
 
@@ -2655,14 +2655,16 @@ static void lcd_clk_generate_tl1(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_MIPI:
 		cconf->xd_max = CRT_VID_DIV_MAX;
-		tmp = pconf->control.mipi_cfg.bit_rate_max;
-		dsi_bit_rate_max = tmp * 1000; /* change to kHz */
-		dsi_bit_rate_min = dsi_bit_rate_max - cconf->fout;
+		bit_rate_max = pconf->control.mipi_cfg.local_bit_rate_max;
+		bit_rate_min = pconf->control.mipi_cfg.local_bit_rate_min;
+		tmp = bit_rate_max - cconf->fout;
+		if (tmp >= bit_rate_min)
+			bit_rate_min = tmp;
 
 		clk_div_sel = CLK_DIV_SEL_1;
 		for (xd = 1; xd <= cconf->xd_max; xd++) {
 			pll_fout = cconf->fout * xd;
-			if (pll_fout > dsi_bit_rate_max || pll_fout < dsi_bit_rate_min)
+			if (pll_fout > bit_rate_max || pll_fout < bit_rate_min)
 				continue;
 			if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
 				LCDPR("fout=%d, xd=%d\n", cconf->fout, xd);
@@ -2868,7 +2870,7 @@ static void lcd_clk_generate_g12a(struct aml_lcd_drv_s *pdrv)
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int pll_fout;
 	unsigned int xd;
-	unsigned int dsi_bit_rate_max = 0, dsi_bit_rate_min = 0;
+	unsigned int bit_rate_max = 0, bit_rate_min = 0;
 	unsigned int tmp;
 	int done = 0;
 
@@ -2887,13 +2889,15 @@ static void lcd_clk_generate_g12a(struct aml_lcd_drv_s *pdrv)
 	switch (pconf->basic.lcd_type) {
 	case LCD_MIPI:
 		cconf->xd_max = CRT_VID_DIV_MAX;
-		tmp = pconf->control.mipi_cfg.bit_rate_max;
-		dsi_bit_rate_max = tmp * 1000; /* change to kHz */
-		dsi_bit_rate_min = dsi_bit_rate_max - cconf->fout;
+		bit_rate_max = pconf->control.mipi_cfg.local_bit_rate_max;
+		bit_rate_min = pconf->control.mipi_cfg.local_bit_rate_min;
+		tmp = bit_rate_max - cconf->fout;
+		if (tmp >= bit_rate_min)
+			bit_rate_min = tmp;
 
 		for (xd = 1; xd <= cconf->xd_max; xd++) {
 			pll_fout = cconf->fout * xd;
-			if (pll_fout > dsi_bit_rate_max || pll_fout < dsi_bit_rate_min)
+			if (pll_fout > bit_rate_max || pll_fout < bit_rate_min)
 				continue;
 			if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
 				LCDPR("fout=%d, xd=%d\n", cconf->fout, xd);
@@ -3007,7 +3011,7 @@ static void lcd_clk_generate_hpll_g12a(struct aml_lcd_drv_s *pdrv)
 	struct lcd_config_s *pconf = &pdrv->config;
 	unsigned int pll_fout;
 	unsigned int clk_div_sel, xd;
-	unsigned int dsi_bit_rate_max = 0, dsi_bit_rate_min = 0;
+	unsigned int bit_rate_max = 0, bit_rate_min = 0;
 	unsigned int tmp;
 	int done = 0;
 
@@ -3024,17 +3028,17 @@ static void lcd_clk_generate_hpll_g12a(struct aml_lcd_drv_s *pdrv)
 	switch (pconf->basic.lcd_type) {
 	case LCD_MIPI:
 		cconf->xd_max = CRT_VID_DIV_MAX;
-		tmp = pconf->control.mipi_cfg.bit_rate_max;
-		dsi_bit_rate_max = tmp * 1000; /* change to kHz */
-		dsi_bit_rate_min = dsi_bit_rate_max - cconf->fout;
+		bit_rate_max = pconf->control.mipi_cfg.local_bit_rate_max;
+		bit_rate_min = pconf->control.mipi_cfg.local_bit_rate_min;
+		tmp = bit_rate_max - cconf->fout;
+		if (tmp >= bit_rate_min)
+			bit_rate_min = tmp;
 
 		clk_div_sel = CLK_DIV_SEL_1;
 		for (xd = 1; xd <= cconf->xd_max; xd++) {
 			pll_fout = cconf->fout * xd;
-			if (pll_fout > dsi_bit_rate_max ||
-			    pll_fout < dsi_bit_rate_min) {
+			if (pll_fout > bit_rate_max || pll_fout < bit_rate_min)
 				continue;
-			}
 			if (lcd_debug_print_flag & LCD_DBG_PR_ADV2)
 				LCDPR("fout=%d, xd=%d\n", cconf->fout, xd);
 

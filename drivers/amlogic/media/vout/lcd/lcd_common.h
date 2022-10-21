@@ -46,7 +46,8 @@
 /* 20221012: correct t5w vbyone reset reg*/
 /* 20221028: fix lane lock && fix t7 mipi lprx reg set*/
 /* 20221111: modify edp transmit_unit_size to 48(temporary)*/
-#define LCD_DRV_VERSION    "20221111"
+/* 20221115: support force unfit mipi-dsi bit_rate_max*/
+#define LCD_DRV_VERSION    "20221115"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

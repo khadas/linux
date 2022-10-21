@@ -288,8 +288,8 @@ struct vbyone_config_s {
 #define SYNC_EVENT               0x1
 #define BURST_MODE               0x2
 
-/* unit: MHz */
-#define MIPI_BIT_RATE_MAX        1000
+/* unit: kHz */
+#define MIPI_BIT_RATE_MAX        1500000
 
 /* command config */
 #define DSI_CMD_SIZE_INDEX       1  /* byte[1] */
@@ -313,7 +313,6 @@ struct dsi_read_s {
 struct dsi_config_s {
 	unsigned char lane_num;
 	unsigned int bit_rate_max; /* MHz */
-	unsigned int bit_rate_min; /* MHz*/
 	unsigned int clk_factor; /* bit_rate/pclk */
 	unsigned int factor_numerator;
 	unsigned int factor_denominator; /* 100 */
@@ -323,6 +322,8 @@ struct dsi_config_s {
 	unsigned char clk_always_hs; /* 0=disable, 1=enable */
 	unsigned char phy_switch; /* 0=auto, 1=standard, 2=slow */
 
+	unsigned int local_bit_rate_max; /* kHz */
+	unsigned int local_bit_rate_min; /* kHz*/
 	unsigned int venc_data_width;
 	unsigned int dpi_data_format;
 	unsigned int data_bits;
