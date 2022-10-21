@@ -64,19 +64,13 @@ static inline void disable_inband_switch(struct evl_thread *curr)
 		atomic_inc(&curr->inband_disable_count);
 }
 
-static inline bool enable_inband_switch(struct evl_thread *curr)
+static inline void enable_inband_switch(struct evl_thread *curr)
 {
-	if (likely(!(curr->state & (T_WEAK|T_WOLI))))
-		return true;
-
-	if (likely(atomic_dec_return(&curr->inband_disable_count) >= 0))
-		return true;
-
-	atomic_set(&curr->inband_disable_count, 0);
-	if (curr->state & T_WOLI)
-		evl_notify_thread(curr, EVL_HMDIAG_LKIMBALANCE, evl_nil);
-
-	return false;
+	if ((curr->state & (T_WEAK|T_WOLI)) &&
+		atomic_dec_return(&curr->inband_disable_count) >= 0) {
+		atomic_set(&curr->inband_disable_count, 0);
+		EVL_WARN_ON_ONCE(CORE, 1);
+	}
 }
 
 /* owner->lock held, irqs off. */
@@ -1381,10 +1375,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 
 	trace_evl_mutex_unlock(mutex);
 
-	if (!enable_inband_switch(curr)) {
-		WARN_ON_ONCE(1);
-		return;
-	}
+	enable_inband_switch(curr);
 
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
 
@@ -1460,8 +1451,15 @@ void evl_unlock_mutex(struct evl_mutex *mutex)
 	oob_context_only();
 
 	h = evl_get_index(atomic_read(mutex->fastlock));
-	if (EVL_WARN_ON_ONCE(CORE, h != currh))
+	if (h != currh) {
+		if (curr->state & T_USER) {
+			if (curr->state & T_WOLI)
+				evl_notify_thread(curr, EVL_HMDIAG_LKIMBALANCE, evl_nil);
+		} else {
+			EVL_WARN_ON_ONCE(CORE, 1);
+		}
 		return;
+	}
 
 	__evl_unlock_mutex(mutex);
 	evl_schedule();
