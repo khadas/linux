@@ -3672,7 +3672,7 @@ int ts_output_update_filter(int dmx_no, int sid)
 				dprint("change dmx id:%d, filter sid:0x%0x, pid:0x%0x\n",
 					dmx_no, pout->sid, es_slot->pid);
 				tsout_config_es_table(es_slot->buff_id, es_slot->pid,
-				      pout->sid, 1, !drop_dup, pout->format);
+				      pout->sid, 0, !drop_dup, pout->format);
 			}
 		}
 	}
