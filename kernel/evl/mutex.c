@@ -53,23 +53,31 @@ static inline int get_ceiling_value(struct evl_mutex *mutex)
 	return clamp(*mutex->ceiling_ref, 1U, (u32)EVL_FIFO_MAX_PRIO);
 }
 
-static inline void disable_inband_switch(struct evl_thread *curr)
+/* mutex->wchan.lock held, irqs off. */
+static inline
+void disable_inband_switch(struct evl_thread *curr, struct evl_mutex *mutex)
 {
 	/*
 	 * Track mutex locking depth: 1) to prevent weak threads from
 	 * being switched back to in-band context on return from OOB
 	 * syscalls, 2) when locking consistency is being checked.
 	 */
-	if (curr->state & (T_WEAK|T_WOLI))
-		atomic_inc(&curr->inband_disable_count);
+	if (unlikely(curr->state & (T_WEAK|T_WOLI))) {
+		atomic_inc(&curr->held_mutex_count);
+		mutex->flags |= EVL_MUTEX_COUNTED;
+	}
 }
 
-static inline void enable_inband_switch(struct evl_thread *curr)
+/* mutex->wchan.lock held, irqs off. */
+static inline
+void enable_inband_switch(struct evl_thread *curr, struct evl_mutex *mutex)
 {
-	if ((curr->state & (T_WEAK|T_WOLI)) &&
-		atomic_dec_return(&curr->inband_disable_count) >= 0) {
-		atomic_set(&curr->inband_disable_count, 0);
-		EVL_WARN_ON_ONCE(CORE, 1);
+	if (unlikely(mutex->flags & EVL_MUTEX_COUNTED)) {
+		mutex->flags &= ~EVL_MUTEX_COUNTED;
+		if (atomic_dec_return(&curr->held_mutex_count) < 0) {
+			atomic_set(&curr->held_mutex_count, 0);
+			EVL_WARN_ON_ONCE(CORE, 1);
+		}
 	}
 }
 
@@ -626,9 +634,8 @@ static int fast_grab_mutex(struct evl_mutex *mutex)
 	 */
 	set_mutex_owner(mutex, curr);
 	raw_spin_unlock(&curr->lock);
+	disable_inband_switch(curr, mutex);
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
-
-	disable_inband_switch(curr);
 
 	return 0;
 }
@@ -1181,7 +1188,7 @@ redo:
 			   */
 			if (set_mutex_owner(mutex, curr)) {
 				raw_spin_unlock(&curr->lock);
-				disable_inband_switch(curr);
+				disable_inband_switch(curr, mutex);
 				finish_slow_grab(mutex, currh);
 				raw_spin_unlock(&mutex->wchan.lock);
 				evl_adjust_wait_priority(curr);
@@ -1273,7 +1280,7 @@ redo:
 	raw_spin_unlock(&curr->rq->lock);
 grab:
 	raw_spin_unlock(&curr->lock);
-	disable_inband_switch(curr);
+	disable_inband_switch(curr, mutex);
 	finish_slow_grab(mutex, currh);
 out:
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
@@ -1375,9 +1382,9 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 
 	trace_evl_mutex_unlock(mutex);
 
-	enable_inband_switch(curr);
-
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
+
+	enable_inband_switch(curr, mutex);
 
 	/*
 	 * Priority boost for PP mutex is applied to the owner, unlike

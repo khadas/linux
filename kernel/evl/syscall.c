@@ -305,7 +305,7 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs,
 		if (signal_pending(tsk) || (curr->info & T_KICKED))
 			prepare_for_signal(tsk, curr, regs);
 		else if ((curr->state & T_WEAK) &&
-			!atomic_read(&curr->inband_disable_count))
+			!atomic_read(&curr->held_mutex_count))
 			evl_switch_inband(EVL_HMDIAG_NONE);
 	}
 
@@ -402,7 +402,7 @@ static int do_inband_syscall(struct pt_regs *regs, unsigned int nr,
 		if (signal_pending(tsk) || (curr->info & T_KICKED))
 			prepare_for_signal(tsk, curr, regs);
 		else if ((curr->state & T_WEAK) &&
-			!atomic_read(&curr->inband_disable_count))
+			!atomic_read(&curr->held_mutex_count))
 			evl_switch_inband(EVL_HMDIAG_NONE);
 	}
 done:

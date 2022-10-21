@@ -216,7 +216,7 @@ int evl_init_thread(struct evl_thread *thread,
 	thread->wait_data = NULL;
 	thread->u_window = NULL;
 	thread->observable = iattr->observable;
-	atomic_set(&thread->inband_disable_count, 0);
+	atomic_set(&thread->held_mutex_count, 0);
 	memset(&thread->poll_context, 0, sizeof(thread->poll_context));
 	memset(&thread->stat, 0, sizeof(thread->stat));
 	memset(&thread->altsched, 0, sizeof(thread->altsched));
@@ -1909,7 +1909,7 @@ static void handle_retuser_event(void)
 	evl_schedule();
 
 	if ((curr->state & T_WEAK) &&
-		atomic_read(&curr->inband_disable_count) == 0)
+		atomic_read(&curr->held_mutex_count) == 0)
 		evl_switch_inband(EVL_HMDIAG_NONE);
 }
 

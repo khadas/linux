@@ -131,7 +131,7 @@ struct evl_thread {
 		int nr;
 		int active;
 	} poll_context;
-	atomic_t inband_disable_count;
+	atomic_t held_mutex_count;
 	struct irq_work inband_work;
 	struct {
 		struct evl_counter isw;	/* in-band switches */

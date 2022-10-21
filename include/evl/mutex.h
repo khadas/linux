@@ -23,6 +23,7 @@ struct evl_thread;
 #define EVL_MUTEX_PP      	BIT(1)
 #define EVL_MUTEX_CLAIMED	BIT(2)
 #define EVL_MUTEX_CEILING	BIT(3)
+#define EVL_MUTEX_COUNTED	BIT(4)
 
 struct evl_mutex {
 	int wprio;
