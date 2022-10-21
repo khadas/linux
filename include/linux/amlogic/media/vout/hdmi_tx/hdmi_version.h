@@ -34,6 +34,7 @@
 	"V03.00.01.00.01.03.05 [20220903] [BUG] add DDC reset before do EDID transaction\n" \
 	"V03.00.01.00.01.03.06 [20220919] [BUG] Don't reset variables when parse a new block\n" \
 	"V03.00.01.00.01.03.07 [20220926] [BUG] enable null packt for special TV\n" \
-	"V01.01.00.00.01.03.04 [20221018] [AUD] optimise the audio setting flow\n"
+	"V01.01.01.00.01.03.07 [20221018] [AUD] optimise the audio setting flow\n" \
+	"V03.01.01.00.01.03.08 [20221021] [BUG] not read EDID again if EDID already read done\n"
 
 #endif // __HDMI20_VERSION_H__
