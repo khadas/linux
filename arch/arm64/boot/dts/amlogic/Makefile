@@ -108,3 +108,4 @@ dtb-y += s5_pxp.dtb
 dtb-y += s5_s928x_ax208.dtb
 dtb-y += s5_s928x_ax209.dtb
 dtb-y += s5_s928x_ax201.dtb
+dtb-y += s5_s928x_ax201_drm.dtb
