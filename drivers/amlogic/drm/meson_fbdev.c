@@ -576,20 +576,11 @@ static const struct drm_fb_helper_funcs meson_drm_fb_helper_funcs = {
 static int am_meson_fbdev_parse_config(struct drm_device *dev)
 {
 	struct meson_drm *private = dev->dev_private;
-	struct drm_display_mode mode = private->primary_plane->state->crtc->state->mode;
 	u32 sizes[5];
-	int ret = 0;
+	int ret;
 
-	if ((strcmp(mode.name, "panel") == 0) || (strcmp(mode.name, "panel1") == 0)) {
-		ret = of_property_read_u32_array(dev->dev->of_node, "fbdev_sizes", sizes, 5);
-	} else if (strstr(mode.name, "hz")) {
-	    sizes[0] = mode.hdisplay;
-		sizes[1] = mode.vdisplay;
-		sizes[2] = mode.hdisplay;
-		sizes[3] = mode.vdisplay * 2;
-		sizes[4] = 32;
-	}
-
+	ret = of_property_read_u32_array(dev->dev->of_node,
+				   "fbdev_sizes", sizes, 5);
 	if (!ret) {
 		private->ui_config.ui_w = sizes[0];
 		private->ui_config.ui_h = sizes[1];
