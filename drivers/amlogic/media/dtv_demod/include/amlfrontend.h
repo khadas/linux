@@ -59,6 +59,7 @@
 /*  V1.1.65  fix locking qam64 signal failed in j83b */
 /*  V1.1.66  improve dvbs blind scan and support single cable */
 /*  V1.1.67  avoid dvbc missing channel */
+/*  V1.1.68  add a function to invert the spectrum in dvbs blind scan */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -75,8 +76,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.67"
-#define DTVDEMOD_VER	"2022/10/21: avoid dvbc missing channel"
+#define AMLDTVDEMOD_VER "V1.1.68"
+#define DTVDEMOD_VER	"2022/10/21: add a function to invert the spectrum in dvbs blind scan"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 

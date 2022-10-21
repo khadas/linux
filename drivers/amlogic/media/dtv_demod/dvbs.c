@@ -6,6 +6,10 @@
 #include "demod_func.h"
 #include "dvbs.h"
 
+static unsigned int dvbs_iq_swap;
+MODULE_PARM_DESC(dvbs_iq_swap, "\n\t\t dvbs IQ swap");
+module_param(dvbs_iq_swap, int, 0644);
+
 static struct stchip_register_t l2a_def_val_local[] = {
 	{0x200,    0x8c},/* REG_RL2A_DVBSX_FSK_FSKTFC2 */
 	{0x201,    0x45},/* REG_RL2A_DVBSX_FSK_FSKTFC1 */
@@ -1709,7 +1713,7 @@ void dvbs_fft_reg_init(unsigned int *reg_val)
 	dvbs_write_bits(0x942, 0x01, 6, 2);
 	dvbs_write_bits(0x940, 0x01, 6, 2);
 	dvbs_write_bits(0x924, 0x02, 0, 5);//demod_mode
-	dvbs_write_bits(0xb31, 0x00, 7, 1);
+	dvbs_write_bits(0xb31, dvbs_iq_swap ? 1 : 0, 7, 1);
 	dvbs_write_bits(0x8a1, 0x02, 4, 2);
 	/* Agc blocked */
 	dvbs_write_bits(0x9a3, 0x1, 7, 1);
@@ -2012,7 +2016,9 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_new(int *next_step_khz)
 	unsigned int agc2_level_tab[20] = { 0 };
 	unsigned char div = 2, wait_for_fall = 0;
 	unsigned int asperity = 0;
-	//int tmp = 0;
+#ifdef DVBS_BLIND_SCAN_DEBUG
+	int tmp = 0;
+#endif
 
 	dvbs_wr_byte(0x924, 0x1c); //demod stop
 	tmp2 = dvbs_rd_byte(0x9b0);
@@ -2248,7 +2254,9 @@ unsigned int dvbs_blind_check_AGC2_bandwidth_old(int *next_step_khz)
 	unsigned int agc2_level_tab[20] = { 0 };
 	unsigned char div = 2, wait_for_fall = 0;
 	unsigned int asperity = 0;
-	//int tmp = 0;
+#ifdef DVBS_BLIND_SCAN_DEBUG
+	int tmp = 0;
+#endif
 
 	dvbs_wr_byte(0x924, 0x1c); //demod stop
 	tmp2 = dvbs_rd_byte(0x9b0);
