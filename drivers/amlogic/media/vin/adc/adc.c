@@ -218,8 +218,9 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 	if (!on) {
 		devp->filter_flg &= ~module_sel;
 		mutex_unlock(&devp->filter_mutex);
-		pr_info("%s: on: %d, module: 0x%x, filter_flg: 0x%x\n",
-			__func__, on, module_sel, devp->filter_flg);
+		if (devp->print_en)
+			pr_info("%s:reon:%d, module:0x%x, filter_flg:0x%x\n",
+				__func__, on, module_sel, devp->filter_flg);
 		return 0;
 	}
 
@@ -307,8 +308,9 @@ int adc_set_filter_ctrl(bool on, enum filter_sel module_sel, void *data)
 					__func__, module_sel);
 		break;
 	}
-	pr_info("%s: on: %d, module: 0x%x, filter_flg: 0x%x\n",
-		__func__, on, module_sel, devp->filter_flg);
+	if (devp->print_en)
+		pr_info("%s: on:%d, module:0x%x, filter_flg:0x%x\n",
+			__func__, on, module_sel, devp->filter_flg);
 	mutex_unlock(&devp->filter_mutex);
 
 	return 0;
@@ -476,8 +478,9 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 		mutex_lock(&devp->pll_mutex);
 		devp->pll_flg &= ~module_sel;
 		mutex_unlock(&devp->pll_mutex);
-		pr_info("%s: init flag on:%d,module:0x%x,flag:0x%x\n",
-			__func__, on, module_sel, devp->pll_flg);
+		if (devp->print_en)
+			pr_info("%s:reinit flag on:%d,module:0x%x,flag:0x%x\n",
+				__func__, on, module_sel, devp->pll_flg);
 		return ret;
 	}
 
@@ -838,8 +841,9 @@ int adc_set_pll_cntl(bool on, enum adc_sel module_sel, void *p_para)
 			       __func__, module_sel);
 		break;
 	}
-	pr_info("%s: init flag on:%d,module:0x%x,flag:0x%x cnt:0x%x\n",
-		__func__, on, module_sel, devp->pll_flg, adc_pll_lock_cnt);
+	if (devp->print_en)
+		pr_info("%s:init flag on:%d,module:0x%x,flag:0x%x cnt:0x%x\n",
+			__func__, on, module_sel, devp->pll_flg, adc_pll_lock_cnt);
 	return ret;
 }
 EXPORT_SYMBOL(adc_set_pll_cntl);
@@ -936,9 +940,12 @@ static void adc_dump_regs(void)
 	pll_addr = &adc_devp->plat_data->pll_addr;
 	chip_id = adc_devp->plat_data->chip_id;
 
-	pr_info("chip_id=0x%x, pll_flag=0x%x is_tv=0x%x\n",
-			chip_id, adc_devp->pll_flg,
-			adc_devp->plat_data->is_tv_chip);
+	pr_info("chip_id=0x%x is_tv=0x%x\n",
+		chip_id, adc_devp->plat_data->is_tv_chip);
+
+	pr_info("pll_flag=0x%x filter_flg=0x%x print_en=0x%x\n",
+		adc_devp->pll_flg, adc_devp->filter_flg,
+		adc_devp->print_en);
 
 	if (chip_id == ADC_CHIP_S4 || chip_id == ADC_CHIP_S4D) {
 		reg_offset = 0x10;
@@ -1013,7 +1020,7 @@ static ssize_t adc_store(struct device *dev, struct device_attribute *attr,
 	adc_parse_para(buf_orig, (char **)&parm);
 
 	if (parm[0] && !strcmp(parm[0], "state")) {
-		pr_info("adc state\n");
+		adc_dump_regs();
 	} else if (parm[0] && !strcmp(parm[0], "down")) {
 		adc_pll_down();
 	} else if (parm[0] && !strcmp(parm[0], "dump_reg")) {
@@ -1055,6 +1062,7 @@ static ssize_t adc_show(struct device *dev,
 		return -1;
 
 	pr_info("debug : %d\n", adc_devp->print_en);
+	pr_info("echo state > /sys/class/adc/adc/adc\n");
 	pr_info("echo dump_reg > /sys/class/adc/adc/adc\n");
 	pr_info("echo down > /sys/class/adc/adc/adc\n");
 	pr_info("echo vafe reg_addr reg_val >  /sys/class/adc/adc/adc\n");

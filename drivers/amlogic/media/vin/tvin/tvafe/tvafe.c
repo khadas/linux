@@ -1269,8 +1269,8 @@ static int tvafe_open(struct inode *inode, struct file *file)
 	file->private_data = devp;
 
 	/* ... */
-
-	tvafe_pr_info("%s: open device\n", __func__);
+	if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+		tvafe_pr_info("%s: open device\n", __func__);
 
 	return 0;
 }
@@ -1283,8 +1283,8 @@ static int tvafe_release(struct inode *inode, struct file *file)
 
 	/* Release some other fields */
 	/* ... */
-
-	tvafe_pr_info("tvafe: device %d release ok.\n", devp->index);
+	if (tvafe_dbg_print & TVAFE_DBG_NORMAL)
+		tvafe_pr_info("tvafe: device %d release ok.\n", devp->index);
 
 	return 0;
 }
