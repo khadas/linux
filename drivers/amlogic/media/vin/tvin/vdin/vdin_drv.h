@@ -118,8 +118,9 @@
 /* 20221021: s5 vdin bringup */
 /* 20221028: rx calls interface notify information */
 /* 20221029: update prop info */
+/* 20221101: vdin1 crash when screen recording and keystone */
 
-#define VDIN_VER "20221029"
+#define VDIN_VER "20221101"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

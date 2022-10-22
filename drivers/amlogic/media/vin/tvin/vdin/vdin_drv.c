@@ -1281,23 +1281,18 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 		vdin_set_dv_tunnel(devp);
 		vdin_write_mif_or_afbce_init(devp);
 	} else if (devp->index == 1) {
+		vdin_set_all_regs(devp);
+		vdin_hw_enable(devp);
 		vfe = provider_vf_peek(devp->vfp);
 		if (vfe) {
 			vdin_frame_write_ctrl_set(devp, vfe, 0);
-			if (devp->index == 1 && devp->set_canvas_manual &&
-			    cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
-				usleep_range(16000, 17000);
+			if (is_meson_t3_cpu() && devp->index == 1 && devp->set_canvas_manual)
+				usleep_range(16600, 18000);
 		} else {
 			pr_info("vdin%d:peek first vframe fail\n", devp->index);
 		}
-		vdin_set_all_regs(devp);
-		vdin_hw_enable(devp);
 		vdin_set_dv_tunnel(devp);
 		vdin_write_mif_or_afbce_init(devp);
-		pr_info("start:0x12c1:0x%x\n", rd(0, VDIN_WRARB_REQEN_SLV));
-		/* vdin1 hw crash addr when keystone reboot */
-		if (cpu_after_eq(MESON_CPU_MAJOR_ID_T7) && !is_meson_s5_cpu())
-			wr_bits(0, VDIN_WRARB_REQEN_SLV, 0x1, 1, 1);
 	}
 
 	sts = vdin_is_delay_vfe2rd_list(devp);
@@ -1354,6 +1349,8 @@ int vdin_start_dec(struct vdin_dev_s *devp)
 	devp->unreliable_vs_cnt_pre = 0;
 	devp->unreliable_vs_idx = 0;
 	devp->drop_hdr_set_sts = 3;
+	devp->vdin1_stop_write = 0;
+	devp->vdin1_stop_write_count = 0;
 	vdin_isr_drop = vdin_isr_drop_num;
 	if (devp->dv.dv_flag)
 		color_range_force = COLOR_RANGE_AUTO;
@@ -1451,7 +1448,7 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 		return;
 	}
 
-	if (devp->index == 1 && cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+	if (is_meson_t3_cpu() && devp->index == 1)
 		devp->vdin1_stop_write = 1;
 
 #ifdef CONFIG_CMA
@@ -1464,9 +1461,9 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 #endif
 
 	/* vdin1 screen capture crash need to stop write */
-	if (devp->index == 1 && cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) {
+	if (is_meson_t3_cpu() && devp->index == 1) {
 		while (rd_bits(0, VDIN_WRARB_REQEN_SLV, 1, 1) &&
-		       devp->vdin1_stop_write_count < 20) {
+		       devp->vdin1_stop_write_count < 40) {
 			usleep_range(2000, 3000);
 			devp->vdin1_stop_write_count++;
 		}
@@ -1570,8 +1567,6 @@ void vdin_stop_dec(struct vdin_dev_s *devp)
 	devp->unreliable_vs_idx = 0;
 	devp->prop.hdcp_sts = 0;
 	devp->starting_chg = 0;
-	devp->vdin1_stop_write = 0;
-	devp->vdin1_stop_write_count = 0;
 	devp->vdin_stable_cnt = 0;
 	devp->game_mode = 0;
 	devp->game_mode_pre = 0;
@@ -3344,16 +3339,6 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
 		return IRQ_HANDLED;
 
-	if (!is_meson_s5_cpu() &&
-		((devp->index == 1 && devp->vdin1_stop_write &&
-	     cpu_after_eq(MESON_CPU_MAJOR_ID_T7)) ||
-	    !rd_bits(0, VDIN_WRARB_REQEN_SLV, 1, 1))) {
-		rdma_write_reg_bits(devp->rdma_handle,
-			VDIN_WRARB_REQEN_SLV, 0, 1, 1);
-		vdin_drop_frame_info(devp, "write reqen off");
-		return IRQ_HANDLED;
-	}
-
 	isr_log(devp->vfp);
 	devp->irq_cnt++;
 	if (vdin_isr_drop) {
@@ -3363,6 +3348,20 @@ irqreturn_t vdin_v4l2_isr(int irq, void *dev_id)
 	}
 
 	spin_lock_irqsave(&devp->isr_lock, flags);
+
+	if (is_meson_t3_cpu() && devp->index == 1 && devp->vdin1_stop_write) {
+		rdma_write_reg_bits(devp->rdma_handle,
+			VDIN_WRARB_REQEN_SLV, 0, 1, 1);
+		vdin_drop_frame_info(devp, "write reqen off");
+		goto irq_handled;
+	}
+
+	if (is_meson_t3_cpu() && !rd_bits(0, VDIN_WRARB_REQEN_SLV, 1, 1)) {
+		rdma_write_reg_bits(devp->rdma_handle,
+			VDIN_WRARB_REQEN_SLV, 1, 1, 1);
+		vdin_drop_frame_info(devp, "write reqen on");
+		goto irq_handled;
+	}
 
 	if (devp->frame_drop_num) {
 		devp->frame_drop_num--;
@@ -5849,8 +5848,7 @@ static int vdin_drv_probe(struct platform_device *pdev)
 	/* register vpu clk control interface */
 	vdin_vpu_dev_register(devp);
 	/*disable vdin hardware*/
-	if (devp->index == 1 && devp->set_canvas_manual &&
-	    cpu_after_eq(MESON_CPU_MAJOR_ID_T7))
+	if (devp->index == 1 && is_meson_t3_cpu())
 		wr_bits(0, VDIN_WRARB_REQEN_SLV, 0x0, 1, 1);
 	vdin_enable_module(devp, false);
 
