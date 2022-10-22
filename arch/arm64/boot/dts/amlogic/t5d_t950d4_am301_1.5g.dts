@@ -665,6 +665,7 @@
 
 		cutwindow_val_h = <0 0 0 0 8>; /* level 0~4 */
 		cutwindow_val_v = <4 8 14 16 24>;  /* level 0~4 */
+		nostd_vs_th = <0xf1 0>; /* val, force_flag */
 	};
 
 	vbi {
