@@ -2158,9 +2158,9 @@ static const struct reg_sequence s5_pcie_pll_init_regs[] = {
 	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x000100c0 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000048 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL5,	.def = 0x68000068, .delay_us = 20 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x008100c0, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL4,	.def = 0x008100c0, .delay_us = 20 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x340c04c8 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x140c04c8, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL0,	.def = 0x140c04c8, .delay_us = 20 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL2,	.def = 0x00001000 }
 };
 
@@ -2368,9 +2368,9 @@ static const struct reg_sequence s5_pcie1_pll_init_regs[] = {
 	{ .reg = ANACTRL_PCIEPLL_CTRL10, .def = 0x000100c0 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL11, .def = 0x68000048 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL11, .def = 0x68000068, .delay_us = 20 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL10, .def = 0x008100c0, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL10, .def = 0x008100c0, .delay_us = 20 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL6,	.def = 0x340c04c8 },
-	{ .reg = ANACTRL_PCIEPLL_CTRL6,	.def = 0x140c04c8, .delay_us = 10 },
+	{ .reg = ANACTRL_PCIEPLL_CTRL6,	.def = 0x140c04c8, .delay_us = 20 },
 	{ .reg = ANACTRL_PCIEPLL_CTRL8,	.def = 0x00001000 }
 };
 
