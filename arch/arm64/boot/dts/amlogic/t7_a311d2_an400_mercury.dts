@@ -1887,6 +1887,11 @@
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
 
+&drm_subsystem {
+	status = "okay";
+	fbdev_sizes = <800 1280 800 2560 32>;
+};
+
 &drm_vpu {
 	status = "okay";
 	logo_addr = "0x3f800000";
