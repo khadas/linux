@@ -330,6 +330,9 @@ static int set_vout3_init_mode(void)
 	return ret;
 }
 
+/* ************************************************************* */
+/* vout sysfs                                                    */
+/* ************************************************************* */
 static ssize_t vout3_mode_show(struct class *class,
 			       struct class_attribute *attr, char *buf)
 {
@@ -461,6 +464,42 @@ static ssize_t vout3_bist_store(struct class *class,
 	return count;
 }
 
+static ssize_t vout3_bl_brightness_show(struct class *class,
+					struct class_attribute *attr, char *buf)
+{
+	unsigned int brightness;
+	int ret = 0;
+
+	mutex_lock(&vout3_serve_mutex);
+	brightness = get_vout3_bl_brightness();
+	ret = sprintf(buf, "%u\n", brightness);
+	mutex_unlock(&vout3_serve_mutex);
+
+	return ret;
+}
+
+static ssize_t vout3_bl_brightness_store(struct class *class,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	unsigned int brightness;
+	int ret = 0;
+
+	mutex_lock(&vout3_serve_mutex);
+
+	ret = kstrtouint(buf, 10, &brightness);
+	if (ret) {
+		pr_info("%s: invalid data\n", __func__);
+		mutex_unlock(&vout3_serve_mutex);
+		return -EINVAL;
+	}
+	set_vout3_bl_brightness(brightness);
+
+	mutex_unlock(&vout3_serve_mutex);
+
+	return count;
+}
+
 static ssize_t vout3_vinfo_show(struct class *class,
 				struct class_attribute *attr, char *buf)
 {
@@ -568,11 +607,11 @@ static ssize_t vout3_cap_show(struct class *class,
 
 static struct class_attribute vout3_class_attrs[] = {
 	__ATTR(mode,      0644, vout3_mode_show, vout3_mode_store),
-	__ATTR(fr_policy, 0644,
-	       vout3_fr_policy_show, vout3_fr_policy_store),
+	__ATTR(fr_policy, 0644, vout3_fr_policy_show, vout3_fr_policy_store),
 	__ATTR(fr_hint,   0644, vout3_fr_hint_show, vout3_fr_hint_store),
 	__ATTR(fr_range,  0644, vout3_fr_range_show, NULL),
 	__ATTR(bist,      0644, vout3_bist_show, vout3_bist_store),
+	__ATTR(bl_brightness, 0644, vout3_bl_brightness_show, vout3_bl_brightness_store),
 	__ATTR(vinfo,     0444, vout3_vinfo_show, NULL),
 	__ATTR(cap,       0644, vout3_cap_show, NULL)
 };
@@ -643,37 +682,72 @@ static long vout3_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int ret = 0;
 	void __user *argp;
 	int mcd_nr;
-	struct vinfo_s *info = NULL;
+	struct vinfo_s *vinfo = NULL;
 	struct vinfo_base_s baseinfo;
+	struct venc_base_s venc_info;
+	unsigned int temp;
 
 	mcd_nr = _IOC_NR(cmd);
-	/*VOUTPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n", __func__, _IOC_DIR(cmd), mcd_nr);*/
+	if (vout_debug_print) {
+		VOUTPR("%s: cmd: 0x%x, cmd_dir = 0x%x, cmd_nr = 0x%x\n",
+			__func__, cmd, _IOC_DIR(cmd), mcd_nr);
+	}
+
+	vinfo = get_current_vinfo3();
+	if (!vinfo) {
+		if (vout_debug_print)
+			VOUTERR("%s: vinfo3 is null\n", __func__);
+		return -EFAULT;
+	}
+	if (vinfo->mode == VMODE_INIT_NULL) {
+		if (vout_debug_print)
+			VOUTERR("%s: VMODE_INIT_NULL\n", __func__);
+		return -EFAULT;
+	}
 
 	argp = (void __user *)arg;
 	switch (mcd_nr) {
 	case VOUT_IOC_NR_GET_VINFO:
-		info = get_current_vinfo3();
-		if (!info) {
+		baseinfo.mode = vinfo->mode;
+		baseinfo.width = vinfo->width;
+		baseinfo.height = vinfo->height;
+		baseinfo.field_height = vinfo->field_height;
+		baseinfo.aspect_ratio_num = vinfo->aspect_ratio_num;
+		baseinfo.aspect_ratio_den = vinfo->aspect_ratio_den;
+		baseinfo.sync_duration_num = vinfo->sync_duration_num;
+		baseinfo.sync_duration_den = vinfo->sync_duration_den;
+		baseinfo.screen_real_width = vinfo->screen_real_width;
+		baseinfo.screen_real_height = vinfo->screen_real_height;
+		baseinfo.video_clk = vinfo->video_clk;
+		baseinfo.viu_color_fmt = vinfo->viu_color_fmt;
+		if (copy_to_user(argp, &baseinfo, sizeof(struct vinfo_base_s)))
 			ret = -EFAULT;
-		} else if (info->mode == VMODE_INIT_NULL) {
+		break;
+	case VOUT_IOC_NR_GET_VENC_INFO:
+		if (vout_debug_print)
+			VOUTPR("%s: VOUT_IOC_NR_GET_VENC_INFO\n", __func__);
+		memset(&venc_info, 0, sizeof(struct venc_base_s));
+		venc_info.venc_index = (vinfo->viu_mux >> 4) & 0xf;
+		venc_info.venc_sel = vinfo->viu_mux & 0xf;
+		if (copy_to_user(argp, &venc_info, sizeof(struct venc_base_s)))
 			ret = -EFAULT;
-		} else {
-			baseinfo.mode = info->mode;
-			baseinfo.width = info->width;
-			baseinfo.height = info->height;
-			baseinfo.field_height = info->field_height;
-			baseinfo.aspect_ratio_num = info->aspect_ratio_num;
-			baseinfo.aspect_ratio_den = info->aspect_ratio_den;
-			baseinfo.sync_duration_num = info->sync_duration_num;
-			baseinfo.sync_duration_den = info->sync_duration_den;
-			baseinfo.screen_real_width = info->screen_real_width;
-			baseinfo.screen_real_height = info->screen_real_height;
-			baseinfo.video_clk = info->video_clk;
-			baseinfo.viu_color_fmt = info->viu_color_fmt;
-			if (copy_to_user(argp, &baseinfo,
-					 sizeof(struct vinfo_base_s)))
-				ret = -EFAULT;
+		break;
+	case VOUT_IOC_NR_GET_BL_BRIGHTNESS:
+		if (vout_debug_print)
+			VOUTPR("%s: VOUT_IOC_NR_GET_BL_BRIGHTNESS\n", __func__);
+
+		temp = get_vout3_bl_brightness();
+		if (copy_to_user(argp, &temp, sizeof(unsigned int)))
+			ret = -EFAULT;
+		break;
+	case VOUT_IOC_NR_SET_BL_BRIGHTNESS:
+		if (vout_debug_print)
+			VOUTPR("%s: VOUT_IOC_NR_SET_BL_BRIGHTNESS\n", __func__);
+		if (copy_from_user(&temp, argp, sizeof(unsigned int))) {
+			ret = -EFAULT;
+			break;
 		}
+		set_vout3_bl_brightness(temp);
 		break;
 	default:
 		ret = -EINVAL;

@@ -355,6 +355,11 @@ struct optical_base_s {
 	u32 dummy_val[8];
 };
 
+struct venc_base_s {
+	u8 venc_index; /*such as 0, 1, 2*/
+	u8 venc_sel;  /*such as 0=encl, 1=enci, 2=encp, 3=invalid*/
+};
+
 #define LATENCY_INVALID_UNKNOWN	0
 #define LATENCY_NOT_SUPPORT		0xffff
 struct rx_av_latency {

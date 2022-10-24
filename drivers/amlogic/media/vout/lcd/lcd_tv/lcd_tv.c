@@ -31,6 +31,7 @@
 #include <linux/amlogic/media/vout/lcd/lcd_vout.h>
 #include <linux/amlogic/media/vout/lcd/lcd_unifykey.h>
 #include <linux/amlogic/media/vout/lcd/lcd_notify.h>
+#include <linux/amlogic/media/vout/lcd/aml_bl.h>
 #include "lcd_tv.h"
 #include "../lcd_reg.h"
 #include "../lcd_common.h"
@@ -1005,6 +1006,30 @@ static void lcd_vout_debug_test(unsigned int num, void *data)
 	lcd_debug_test(pdrv, num);
 }
 
+static void lcd_vout_set_bl_brightness(unsigned int brightness, void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	struct aml_bl_drv_s *bdrv;
+
+	if (!pdrv)
+		return;
+
+	bdrv = aml_bl_get_driver(pdrv->index);
+	aml_bl_set_level_brightness(bdrv, brightness);
+}
+
+static unsigned int lcd_vout_get_bl_brightness(void *data)
+{
+	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	struct aml_bl_drv_s *bdrv;
+
+	if (!pdrv)
+		return 0;
+
+	bdrv = aml_bl_get_driver(pdrv->index);
+	return aml_bl_get_level_brightness(bdrv);
+}
+
 static int lcd_suspend(void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
@@ -1151,6 +1176,8 @@ void lcd_tv_vout_server_init(struct aml_lcd_drv_s *pdrv)
 	vserver->op.set_vframe_rate_hint = lcd_set_vframe_rate_hint;
 	vserver->op.get_vframe_rate_hint = lcd_get_vframe_rate_hint;
 	vserver->op.set_bist = lcd_vout_debug_test;
+	vserver->op.set_bl_brightness = lcd_vout_set_bl_brightness;
+	vserver->op.get_bl_brightness = lcd_vout_get_bl_brightness;
 	vserver->op.vout_suspend = lcd_suspend;
 	vserver->op.vout_resume = lcd_resume;
 	vserver->data = (void *)pdrv;

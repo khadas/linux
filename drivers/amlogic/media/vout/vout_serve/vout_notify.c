@@ -226,6 +226,24 @@ void set_vout_bist(unsigned int bist)
 }
 EXPORT_SYMBOL(set_vout_bist);
 
+/*
+ *interface export to client who want to update backlight brightness.
+ */
+void set_vout_bl_brightness(unsigned int brightness)
+{
+	vout_func_set_bl_brightness(1, brightness);
+}
+EXPORT_SYMBOL(set_vout_bl_brightness);
+
+/*
+ *interface export to client who want to update backlight brightness.
+ */
+unsigned int get_vout_bl_brightness(void)
+{
+	return vout_func_get_bl_brightness(1);
+}
+EXPORT_SYMBOL(get_vout_bl_brightness);
+
 #ifdef CONFIG_SCREEN_ON_EARLY
 static int wake_up_flag;
 void wakeup_early_suspend_proc(void)

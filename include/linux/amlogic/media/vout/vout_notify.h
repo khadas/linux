@@ -36,6 +36,8 @@ struct vout_op_s {
 	int (*set_vframe_rate_hint)(int policy, void *data);
 	int (*get_vframe_rate_hint)(void *data);
 	void (*set_bist)(unsigned int num, void *data);
+	void (*set_bl_brightness)(unsigned int brightness, void *data);
+	unsigned int (*get_bl_brightness)(void *data);
 	int (*vout_suspend)(void *data);
 	int (*vout_resume)(void *data);
 	int (*vout_shutdown)(void *data);
@@ -72,6 +74,8 @@ int get_vframe_rate_hint(void);
 int set_vframe_rate_policy(int policy);
 int get_vframe_rate_policy(void);
 void set_vout_bist(unsigned int bist);
+void set_vout_bl_brightness(unsigned int brightness);
+unsigned int get_vout_bl_brightness(void);
 #else
 static inline int vout_register_client(struct notifier_block *p)
 {
@@ -138,6 +142,16 @@ static inline void set_vout_bist(unsigned int bist)
 	/*return;*/
 }
 
+static inline void set_vout_bl_brightness(unsigned int brightness)
+{
+	/*return;*/
+}
+
+static inline unsigned int get_vout_bl_brightness(void)
+{
+	return 0;
+}
+
 #endif
 
 #ifdef CONFIG_AMLOGIC_VOUT2_SERVE
@@ -155,6 +169,8 @@ int get_vframe2_rate_hint(void);
 int set_vframe2_rate_policy(int policy);
 int get_vframe2_rate_policy(void);
 void set_vout2_bist(unsigned int bist);
+void set_vout2_bl_brightness(unsigned int brightness);
+unsigned int get_vout2_bl_brightness(void);
 
 enum vmode_e validate_vmode2(char *name, unsigned int frac);
 void set_vout2_init(enum vmode_e mode);
@@ -230,6 +246,16 @@ static inline void set_vout2_bist(unsigned int bist)
 	/*return;*/
 }
 
+static inline void set_vout2_bl_brightness(unsigned int brightness)
+{
+	/*return;*/
+}
+
+static inline unsigned int get_vout2_bl_brightness(void)
+{
+	return 0;
+}
+
 static inline int set_vout2_vmode(enum vmode_e mode)
 {
 	return 0;
@@ -262,6 +288,84 @@ int get_vframe3_rate_hint(void);
 int set_vframe3_rate_policy(int policy);
 int get_vframe3_rate_policy(void);
 void set_vout3_bist(unsigned int bist);
+void set_vout3_bl_brightness(unsigned int brightness);
+unsigned int get_vout3_bl_brightness(void);
+
+#else
+static inline int vout3_register_client(struct notifier_block *p)
+{
+	return 0;
+}
+
+static inline int vout3_unregister_client(struct notifier_block *p)
+{
+	return 0;
+}
+
+static inline int vout3_notifier_call_chain(unsigned long val, void *p)
+{
+	return 0;
+}
+
+static inline int vout3_register_server(struct vout_server_s *p)
+{
+	return 0;
+}
+
+static inline int vout3_unregister_server(struct vout_server_s *p)
+{
+	return 0;
+}
+
+static inline int get_vout3_disp_cap(char *buf)
+{
+	return 0;
+}
+
+static inline struct vinfo_s *get_current_vinfo3(void)
+{
+	return 0;
+}
+
+static inline enum vmode_e get_current_vmode3(void)
+{
+	return 0;
+}
+
+static inline int set_vframe3_rate_hint(int duration)
+{
+	return 0;
+}
+
+static inline int get_vframe3_rate_hint(void)
+{
+	return 0;
+}
+
+static inline int set_vframe3_rate_policy(int policy)
+{
+	return 0;
+}
+
+static inline int get_vframe3_rate_policy(void)
+{
+	return 0;
+}
+
+static inline void set_vout3_bist(unsigned int bist)
+{
+	/*return;*/
+}
+
+static inline void set_vout3_bl_brightness(unsigned int brightness)
+{
+	/*return;*/
+}
+
+static inline unsigned int get_vout3_bl_brightness(void)
+{
+	return 0;
+}
 
 #endif
 
@@ -276,11 +380,20 @@ void set_vout3_bist(unsigned int bist);
 #define VOUT_IOC_TYPE                   'C'
 #define VOUT_IOC_NR_GET_VINFO           0x0
 #define VOUT_IOC_NR_GET_OPTICAL_INFO    0x1
+#define VOUT_IOC_NR_GET_VENC_INFO       0x2
+#define VOUT_IOC_NR_GET_BL_BRIGHTNESS   0x3
+#define VOUT_IOC_NR_SET_BL_BRIGHTNESS   0x4
 
 #define VOUT_IOC_CMD_GET_VINFO   \
 		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_VINFO, struct vinfo_base_s)
 #define VOUT_IOC_CMD_GET_OPTICAL_INFO   \
 		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_OPTICAL_INFO, struct optical_base_s)
+#define VOUT_IOC_CMD_GET_VENC_INFO   \
+		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_VENC_INFO, struct venc_base_s)
+#define VOUT_IOC_CMD_GET_BL_BRIGHTNESS   \
+		_IOR(VOUT_IOC_TYPE, VOUT_IOC_NR_GET_BL_BRIGHTNESS, unsigned int)
+#define VOUT_IOC_CMD_SET_BL_BRIGHTNESS   \
+		_IOW(VOUT_IOC_TYPE, VOUT_IOC_NR_SET_BL_BRIGHTNESS, unsigned int)
 /* ******************************** */
 
 char *get_vout_mode_internal(void);

@@ -206,6 +206,24 @@ void set_vout3_bist(unsigned int bist)
 }
 EXPORT_SYMBOL(set_vout3_bist);
 
+/*
+ *interface export to client who want to update backlight brightness.
+ */
+void set_vout3_bl_brightness(unsigned int brightness)
+{
+	vout_func_set_bl_brightness(3, brightness);
+}
+EXPORT_SYMBOL(set_vout3_bl_brightness);
+
+/*
+ *interface export to client who want to update backlight brightness.
+ */
+unsigned int get_vout3_bl_brightness(void)
+{
+	return vout_func_get_bl_brightness(3);
+}
+EXPORT_SYMBOL(get_vout3_bl_brightness);
+
 int vout3_suspend(void)
 {
 	return vout_func_vout_suspend(3);

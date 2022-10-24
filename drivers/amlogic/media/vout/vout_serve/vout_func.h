@@ -45,6 +45,8 @@ int vout_func_get_disp_cap(int index, char *buf);
 int vout_func_set_vframe_rate_hint(int index, int duration);
 int vout_func_get_vframe_rate_hint(int index);
 void vout_func_set_test_bist(int index, unsigned int bist);
+void vout_func_set_bl_brightness(int index, unsigned int brightness);
+unsigned int vout_func_get_bl_brightness(int index);
 int vout_func_vout_suspend(int index);
 int vout_func_vout_resume(int index);
 int vout_func_vout_shutdown(int index);

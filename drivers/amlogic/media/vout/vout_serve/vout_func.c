@@ -564,6 +564,67 @@ void vout_func_set_test_bist(int index, unsigned int bist)
 }
 EXPORT_SYMBOL(vout_func_set_test_bist);
 
+void vout_func_set_bl_brightness(int index, unsigned int brightness)
+{
+	struct vout_server_s *p_server = NULL;
+	void *data;
+
+	mutex_lock(&vout_mutex);
+
+	if (index == 1)
+		p_server = vout_module.curr_vout_server;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	else if (index == 2)
+		p_server = vout2_module.curr_vout_server;
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	else if (index == 3)
+		p_server = vout3_module.curr_vout_server;
+#endif
+
+	if (p_server) {
+		data = p_server->data;
+		if (p_server->op.set_bl_brightness)
+			p_server->op.set_bl_brightness(brightness, data);
+	}
+
+	mutex_unlock(&vout_mutex);
+}
+EXPORT_SYMBOL(vout_func_set_bl_brightness);
+
+/*
+ *interface export to client who want to update backlight brightness.
+ */
+unsigned int vout_func_get_bl_brightness(int index)
+{
+	struct vout_server_s *p_server = NULL;
+	void *data;
+	unsigned int brightness = 0;
+
+	mutex_lock(&vout_mutex);
+
+	if (index == 1)
+		p_server = vout_module.curr_vout_server;
+#ifdef CONFIG_AMLOGIC_VOUT2_SERVE
+	else if (index == 2)
+		p_server = vout2_module.curr_vout_server;
+#endif
+#ifdef CONFIG_AMLOGIC_VOUT3_SERVE
+	else if (index == 3)
+		p_server = vout3_module.curr_vout_server;
+#endif
+
+	if (p_server) {
+		data = p_server->data;
+		if (p_server->op.get_bl_brightness)
+			brightness = p_server->op.get_bl_brightness(data);
+	}
+
+	mutex_unlock(&vout_mutex);
+	return brightness;
+}
+EXPORT_SYMBOL(vout_func_get_bl_brightness);
+
 int vout_func_vout_suspend(int index)
 {
 	int ret = 0;

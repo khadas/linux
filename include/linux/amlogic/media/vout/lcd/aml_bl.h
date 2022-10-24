@@ -224,6 +224,9 @@ struct aml_bl_drv_s {
 struct aml_bl_drv_s *aml_bl_get_driver(int index);
 int aml_bl_index_add(int drv_index, int conf_index);
 
+int aml_bl_set_level_brightness(struct aml_bl_drv_s *bdrv, unsigned int brightness);
+unsigned int aml_bl_get_level_brightness(struct aml_bl_drv_s *bdrv);
+
 void bl_pwm_config_init(struct bl_pwm_config_s *bl_pwm);
 enum bl_pwm_port_e bl_pwm_str_to_pwm(const char *str);
 void bl_pwm_ctrl(struct bl_pwm_config_s *bl_pwm, int status);
