@@ -301,9 +301,9 @@ static void tsync_pcr_recover_with_audio(void)
 
 static void tsync_pcr_recover_with_video(void)
 {
-	u32 vb_level = READ_VREG(VLD_MEM_VIFIFO_LEVEL);
-	u32 vb_size = READ_VREG(VLD_MEM_VIFIFO_END_PTR)
-				  - READ_VREG(VLD_MEM_VIFIFO_START_PTR) + 8;
+	u32 vb_level = READ_DOSREG(VLD_MEM_VIFIFO_LEVEL);
+	u32 vb_size = READ_DOSREG(VLD_MEM_VIFIFO_END_PTR)
+				  - READ_DOSREG(VLD_MEM_VIFIFO_START_PTR) + 8;
 
 	if (vb_level < (vb_size >> PCR_DETECT_MARGIN_SHIFT_VIDEO_LO)) {
 		timestamp_pcrscr_set_adj(-PCR_RECOVER_PCR_ADJ);
