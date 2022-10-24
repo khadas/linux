@@ -9532,32 +9532,6 @@ int calc_hold_line(void)
 		return READ_VCBUS_REG(ENCP_VFIFO2VD_LINE_TOP_START) >> 1;
 }
 
-u32 get_active_start_line(void)
-{
-	u32 active_line_begin = 0;
-
-	switch (READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3) {
-	case 0:
-		active_line_begin =
-			READ_VCBUS_REG(ENCL_VIDEO_VAVON_BLINE);
-		break;
-	case 1:
-		active_line_begin =
-			READ_VCBUS_REG(ENCI_VFIFO2VD_LINE_TOP_START);
-		break;
-	case 2:
-		active_line_begin =
-			READ_VCBUS_REG(ENCP_VIDEO_VAVON_BLINE);
-		break;
-	case 3:
-		active_line_begin =
-			READ_VCBUS_REG(ENCT_VIDEO_VAVON_BLINE);
-		break;
-	}
-
-	return active_line_begin;
-}
-
 static int get_venc_type(void)
 {
 	u32 venc_type = 0;
@@ -9589,6 +9563,64 @@ static int get_venc_type(void)
 	return venc_type;
 }
 
+u32 get_active_start_line(void)
+{
+	int active_line_begin = 0;
+	u32 offset = 0;
+	u32 reg = ENCL_VIDEO_VAVON_BLINE;
+
+	if (cur_dev->display_module == T7_DISPLAY_MODULE ||
+		cur_dev->display_module == S5_DISPLAY_MODULE) {
+		u32 venc_mux = 3;
+
+		venc_mux = READ_VCBUS_REG(VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (get_venc_type()) {
+		case 0:
+			reg = ENCI_VFIFO2VD_LINE_TOP_START;
+			break;
+		case 1:
+			reg = ENCP_VIDEO_VAVON_BLINE;
+			break;
+		case 2:
+			reg = ENCL_VIDEO_VAVON_BLINE;
+			break;
+		}
+
+	} else {
+		switch (get_venc_type()) {
+		case 0:
+			reg = ENCL_VIDEO_VAVON_BLINE;
+			break;
+		case 1:
+			reg = ENCI_VFIFO2VD_LINE_TOP_START;
+			break;
+		case 2:
+			reg = ENCP_VIDEO_VAVON_BLINE;
+			break;
+		case 3:
+			reg = ENCT_VIDEO_VAVON_BLINE;
+			break;
+		}
+	}
+
+	active_line_begin = READ_VCBUS_REG(reg + offset);
+
+	return active_line_begin;
+}
+
 u32 get_cur_enc_line(void)
 {
 	int enc_line = 0;
@@ -9598,7 +9630,7 @@ u32 get_cur_enc_line(void)
 	u32 venc_type = get_venc_type();
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		return 0;
+		return get_cur_enc_line_s5();
 	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		u32 venc_mux = 3;
 
@@ -9660,7 +9692,7 @@ u32 get_cur_enc_num(void)
 	u32 bit_offest = 0;
 
 	if (cur_dev->display_module == S5_DISPLAY_MODULE)
-		return 0;
+		return get_cur_enc_num_s5();
 	if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 		u32 venc_mux = 3;
 

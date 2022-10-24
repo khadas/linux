@@ -360,4 +360,6 @@ void set_post_probe_ctrl_s5(u8 probe_id, u32 output);
 u32 get_probe_pos_s5(u8 probe_id);
 void set_probe_pos_s5(u32 val_x, u32 val_y, u8 probe_id, u32 output);
 void get_probe_data_s5(u32 *val1, u32 *val2, u8 probe_id);
+u32 get_cur_enc_num_s5(void);
+u32 get_cur_enc_line_s5(void);
 #endif

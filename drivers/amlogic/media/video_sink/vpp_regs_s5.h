@@ -3272,4 +3272,11 @@
 #define S5_VPP_RO_PROBE_COLOR                         0x6070
 #define S5_VPP_RO_PROBE_COLOR1                        0x6071
 
+#define S5_ENCI_VIDEO_EN                              0x1b57
+#define S5_VPU_VENCI_STAT                             0x1ceb
+#define S5_VPU_VENCL_STAT                             0x1cec
+#define S5_VPU_VENCP_STAT                             0x1ced
+#define S5_VPU_VENC_CTRL                              0x1cef
+#define S5_VPU_VIU_VENC_MUX_CTRL                      0x271a
+
 #endif

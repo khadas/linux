@@ -9566,6 +9566,111 @@ static void get_post_probe_pos_info(u32 val_x, u32 *reg_probe_sel, u32 *pos_x)
 	}
 }
 
+static int get_venc_type_s5(void)
+{
+	u32 venc_type = 0;
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		u32 venc_mux = 3;
+		u32 venc_addr = S5_VPU_VENC_CTRL;
+
+		venc_mux = READ_VCBUS_REG(S5_VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+
+		if (venc_mux == 0)
+			venc_addr = S5_VPU_VENC_CTRL;
+
+		venc_type = READ_VCBUS_REG(venc_addr);
+	}
+	venc_type &= 0x3;
+
+	return venc_type;
+}
+
+u32 get_cur_enc_line_s5(void)
+{
+	int enc_line = 0;
+	unsigned int reg = VPU_VENCI_STAT;
+	unsigned int reg_val = 0;
+	u32 offset = 0;
+	u32 venc_type = get_venc_type_s5();
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		u32 venc_mux = 3;
+
+		venc_mux = READ_VCBUS_REG(S5_VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (venc_type) {
+		case 0:
+			reg = S5_VPU_VENCI_STAT;
+			break;
+		case 1:
+			reg = S5_VPU_VENCP_STAT;
+			break;
+		case 2:
+			reg = S5_VPU_VENCL_STAT;
+			break;
+		}
+	}
+	reg_val = READ_VCBUS_REG(reg + offset);
+	enc_line = (reg_val >> 16) & 0x1fff;
+	return enc_line;
+}
+
+u32 get_cur_enc_num_s5(void)
+{
+	u32 enc_num = 0;
+	unsigned int reg = S5_VPU_VENCI_STAT;
+	unsigned int reg_val = 0;
+	u32 offset = 0;
+	u32 venc_type = get_venc_type_s5();
+	u32 bit_offest = 0;
+
+	if (cur_dev->display_module == S5_DISPLAY_MODULE) {
+		u32 venc_mux = 3;
+
+		bit_offest = 13;
+		venc_mux = READ_VCBUS_REG(S5_VPU_VIU_VENC_MUX_CTRL) & 0x3f;
+		venc_mux &= 0x3;
+		switch (venc_mux) {
+		case 0:
+			offset = 0;
+			break;
+		case 1:
+			offset = 0x600;
+			break;
+		case 2:
+			offset = 0x800;
+			break;
+		}
+		switch (venc_type) {
+		case 0:
+			reg = S5_VPU_VENCI_STAT;
+			break;
+		case 1:
+			reg = S5_VPU_VENCP_STAT;
+			break;
+		case 2:
+			reg = S5_VPU_VENCL_STAT;
+			break;
+		}
+	}
+	reg_val = READ_VCBUS_REG(reg + offset);
+	enc_num = (reg_val >> bit_offest) & 0x7;
+	return enc_num;
+}
+
 void set_osdx_probe_ctrl_s5(u8 probe_id, u32 output)
 {
 	u32 val;
