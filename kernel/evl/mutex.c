@@ -1231,19 +1231,44 @@ redo:
 	}
 
 	/*
-	 * Walking the PI chain is preemptible by other CPUs, so we
-	 * might have been transferred ownership of wchan while busy
-	 * progressing down this chain. Check for such event before
-	 * deciding to sleep.
+	 * walk_pi_chain() may have dropped mutex->wchan.lock
+	 * temporarily causing the current mutex owner to change under
+	 * us, refresh this information under lock.
 	 */
-	if (likely(mutex->wchan.owner != curr && !ret)) {
+	owner = mutex->wchan.owner;
+
+	/*
+	 * Walking the PI chain is preemptible by other CPUs since
+	 * mutex->wchan.lock may be released during the process, so we
+	 * might have been given ownership of this mutex by
+	 * transfer_ownership(), or the latest owner of this mutex
+	 * might have dropped it while we were busy progressing down
+	 * this chain. Check for those events while we hold
+	 * mutex->wchan.lock, before deciding to sleep.
+	 */
+	if (unlikely(!owner)) {
+		raw_spin_lock(&curr->lock);
+		/*
+		 * transfer_ownership() will ignore us until we call
+		 * evl_sleep_on() which sets curr->wchan, so we can
+		 * drop out from the wait list safely. Note that since
+		 * we have no current owner for mutex, there is no way
+		 * that mutex could be part of anyone's booster list.
+		 */
+		list_del_init(&curr->wait_next);
+		raw_spin_unlock(&curr->lock);
+		raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
+		goto redo;
+	}
+
+	if (likely(owner != curr && !ret)) {
 		evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
 		raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 		ret = wait_mutex_schedule(mutex);
 		raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
 	}
 
-	finish_mutex_wait(mutex);
+	finish_mutex_wait(mutex); /* May drop mutex->wchan.lock temporarily. */
 	raw_spin_lock(&curr->lock);
 	curr->wwake = NULL;
 	raw_spin_lock(&curr->rq->lock);
@@ -1331,11 +1356,23 @@ next:
 	raw_spin_lock(&n_owner->lock);
 
 	/*
-	 * A thread which has been forcibly unblocked while waiting
-	 * for a mutex might still be linked to the wait list, until
-	 * it resumes in wait_mutex_schedule() eventually. We can
-	 * detect this rare case by testing the wait channel it pends
-	 * on, since evl_wakeup_thread() clears it.
+	 * A concurrent thread on a different CPU might not be ready
+	 * to receive the ownership although it is linked to the wait
+	 * list in two (rare) cases:
+	 *
+	 * - it was forcibly unblocked while waiting for the mutex, in
+	 * which case it remains linked to the wait list, until it
+	 * resumes in wait_mutex_schedule() eventually.
+	 *
+	 * - it is in the process of locking the mutex, inserted in
+	 * the wait list but still walking the PI chain and not yet
+	 * sleeping on mutex->wchan.
+	 *
+	 * We can detect the first case by testing the wait channel
+	 * that thread pends on, because evl_wakeup_thread() clears
+	 * this information. We leave evl_lock_mutex_timeout() handle
+	 * the second case, by rechecking the availability of mutex
+	 * under lock before it actually goes sleeping.
 	 *
 	 * CAUTION: a basic invariant is that a thread is removed from
 	 * the wait list only when unblocked on a successful request
