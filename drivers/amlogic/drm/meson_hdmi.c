@@ -697,6 +697,7 @@ static int am_hdmitx_connector_atomic_get_property
 	struct am_hdmitx_connector_state *hdmitx_state =
 		to_am_hdmitx_connector_state(state);
 	char attr_force[16];
+	const struct hdr_info *hdr = am_hdmi_info.hdmitx_dev->get_hdr_info();
 
 	am_hdmi_info.hdmitx_dev->get_attr(attr_force);
 
@@ -726,6 +727,15 @@ static int am_hdmitx_connector_atomic_get_property
 		return 0;
 	} else if (property == am_hdmi->hdcp_mode_property) {
 		*val = get_hdcp_mode();
+		return 0;
+	} else if (property == am_hdmi->lumi_max_property) {
+		*val = hdr->lumi_max;
+		return 0;
+	} else if (property == am_hdmi->lumi_min_property) {
+		*val = hdr->lumi_min;
+		return 0;
+	} else if (property == am_hdmi->lumi_avg_property) {
+		*val = hdr->lumi_avg;
 		return 0;
 	}
 
@@ -1732,6 +1742,54 @@ static void meson_hdmitx_init_hdr_cap_property(struct drm_device *drm_dev,
 	}
 }
 
+static void meson_hdmitx_init_lumi_max_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"lumi_max", 0, 1023);
+
+	if (prop) {
+		am_hdmi->lumi_max_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to lumi_max property\n");
+	}
+}
+
+static void meson_hdmitx_init_lumi_min_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"lumi_min", 0, 1023);
+
+	if (prop) {
+		am_hdmi->lumi_min_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to lumi_min property\n");
+	}
+}
+
+static void meson_hdmitx_init_lumi_avg_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0,
+			"lumi_avg", 0, 1023);
+
+	if (prop) {
+		am_hdmi->lumi_avg_property = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to lumi_avg property\n");
+	}
+}
+
 static void meson_hdmitx_init_dv_cap_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -1915,6 +1973,9 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 	meson_hdmitx_init_dv_cap_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_ver_property(drm, am_hdmi);
 	meson_hdmitx_init_hdcp_mode_property(drm, am_hdmi);
+	meson_hdmitx_init_lumi_max_property(drm, am_hdmi);
+	meson_hdmitx_init_lumi_min_property(drm, am_hdmi);
+	meson_hdmitx_init_lumi_avg_property(drm, am_hdmi);
 	if (!drm_mode_create_aspect_ratio_property(connector->dev)) {
 		aspect_ratio_property = connector->dev->mode_config.aspect_ratio_property;
 		drm_object_attach_property(&connector->base,
