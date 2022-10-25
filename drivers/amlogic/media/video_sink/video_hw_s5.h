@@ -362,4 +362,6 @@ void set_probe_pos_s5(u32 val_x, u32 val_y, u8 probe_id, u32 output);
 void get_probe_data_s5(u32 *val1, u32 *val2, u8 probe_id);
 u32 get_cur_enc_num_s5(void);
 u32 get_cur_enc_line_s5(void);
+int set_vpu_super_urgent_s5(u32 module_id, u32 urgent_level);
+int get_vpu_urgent_info_s5(void);
 #endif

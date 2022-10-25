@@ -193,6 +193,17 @@ enum VPU_MODULE_e {
 	VPU2_R,
 };
 
+enum VPU_MODULE_S5_e {
+	VPP_ARB0_S5,
+	VPP_ARB1_S5,
+	VPP_ARB2_S5,
+	VPU_SUB_READ_S5,
+	DCNTR_GRID_S5,
+	TCON_P1_S5,
+	TCON_P2_S5,
+	TCON_P3_S5
+};
+
 enum display_module_e {
 	OLD_DISPLAY_MODULE,
 	T7_DISPLAY_MODULE,
@@ -834,6 +845,7 @@ bool video_is_meson_s4_cpu(void);
 bool video_is_meson_t5d_revb_cpu(void);
 bool video_is_meson_t3_cpu(void);
 bool video_is_meson_t5w_cpu(void);
+bool video_is_meson_s5_cpu(void);
 void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
@@ -878,8 +890,8 @@ void aisr_demo_axis_set(void);
 void aisr_reshape_output(u32 enable);
 void pre_process_for_3d(struct vframe_s *vf);
 bool tvin_vf_disp_mode_check(struct vframe_s *vf);
-int get_vpu_urgent_info(void);
-int set_vpu_super_urgent(u32 module_id, u32 low_level, u32 high_level);
+int get_vpu_urgent_info_t3(void);
+int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level);
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 void vsync_rdma_process(void);
 #endif

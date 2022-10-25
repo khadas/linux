@@ -9587,6 +9587,71 @@ static int get_venc_type_s5(void)
 	return venc_type;
 }
 
+int get_vpu_urgent_info_s5(void)
+{
+	u32 value;
+
+	value = READ_VCBUS_REG(S5_VPU_RDARB_UGT_L2C1);
+	pr_info("urgent value: 0x%x\n", value);
+	return 0;
+}
+
+int set_vpu_super_urgent_s5(u32 module_id, u32 urgent_level)
+{
+	u32 value = 0, reg_value;
+
+	if (urgent_level >= 3)
+		urgent_level = 3;
+	reg_value = READ_VCBUS_REG(S5_VPU_RDARB_UGT_L2C1);
+	switch (module_id) {
+	case VPP_ARB0_S5:
+		value = urgent_level & 0x3;
+		reg_value &= ~0x3;
+		reg_value |= value;
+		break;
+	case VPP_ARB1_S5:
+		value = (urgent_level & 0x3) << 2;
+		reg_value &= ~0xc;
+		reg_value |= value;
+		break;
+	case VPP_ARB2_S5:
+		value = (urgent_level & 0x3) << 4;
+		reg_value &= ~0x30;
+		reg_value |= value;
+		break;
+	case VPU_SUB_READ_S5:
+		value = (urgent_level & 0x3) << 6;
+		reg_value &= ~0xc0;
+		reg_value |= value;
+		break;
+	case DCNTR_GRID_S5:
+		value = (urgent_level & 0x3) << 8;
+		reg_value &= ~0x300;
+		reg_value |= value;
+		break;
+	case TCON_P1_S5:
+		value = (urgent_level & 0x3) << 10;
+		reg_value &= ~0xc00;
+		reg_value |= value;
+		break;
+	case TCON_P2_S5:
+		value = (urgent_level & 0x3) << 12;
+		reg_value &= ~0x3000;
+		reg_value |= value;
+		break;
+	case TCON_P3_S5:
+		value = (urgent_level & 0x3) << 14;
+		reg_value &= ~0xc000;
+		reg_value |= value;
+		break;
+	default:
+		return -1;
+	}
+	pr_info("value=0x%x, reg_value=0x%x\n", value, reg_value);
+	WRITE_VCBUS_REG(S5_VPU_RDARB_UGT_L2C1, reg_value);
+	return 0;
+}
+
 u32 get_cur_enc_line_s5(void)
 {
 	int enc_line = 0;
@@ -9817,7 +9882,15 @@ int video_hw_init_s5(void)
 	WRITE_VCBUS_REG(VPP_SLICE1_DNLP_CTRL_01, 0x1fff00);
 	WRITE_VCBUS_REG(VPP_SLICE2_DNLP_CTRL_01, 0x1fff00);
 	WRITE_VCBUS_REG(VPP_SLICE3_DNLP_CTRL_01, 0x1fff00);
-	/* Temp force set dmc：todo */
+	/* vpu port map */
+	/* default 0x4120=0x96105000, 0x279d=0x00900000 */
+	/* VPP_RDARB_MODE */
+	/* vpp_arb0： osd1, osd2, osd3, osd4, mali-afbc */
+	/* vpp_arb1:  vd1 slice0-slice1, vd2 */
+	/* vpp_arb2:  vd1 slice2-slice3 aisr */
+	WRITE_VCBUS_REG(S5_VPP_RDARB_MODE, 0x9a205000);
+	/* VPU_RDARB_MODE_L2C1 */
+	WRITE_VCBUS_REG(S5_VPU_RDARB_MODE_L2C1, 0x924000);
 #ifdef CONFIG_AMLOGIC_MEDIA_LUT_DMA
 	for (i = 0; i < MAX_VD_CHAN_S5; i++) {
 		if (glayer_info[i].fgrain_support)

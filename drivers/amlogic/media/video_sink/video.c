@@ -17823,12 +17823,14 @@ static ssize_t frc_delay_show(struct class *class,
 static ssize_t vpu_module_urgent_show(struct class *cla,
 			     struct class_attribute *attr, char *buf)
 {
-	get_vpu_urgent_info();
+	if (video_is_meson_t3_cpu())
+		get_vpu_urgent_info_t3();
+	else if (video_is_meson_s5_cpu())
+		get_vpu_urgent_info_s5();
 	return 0;
-	//return snprintf(buf, 80, "above vpu_module_urgent stat info\n");
 }
 
-static const char vpu_module_urgent_help[] = "Usage:\n"
+static const char vpu_module_urgent_help_t3[] = "Usage:\n"
 "  echo module_id low_level(0-7) high_level(0-7)> /sys/class/video/urgent_set\n"
 "  FRC0_R: 0\n"
 "  FRC0_W: 1\n"
@@ -17841,6 +17843,17 @@ static const char vpu_module_urgent_help[] = "Usage:\n"
 "  VPU1_W: 8\n"
 "  VPU2_R: 9\n\n";
 
+static const char vpu_module_urgent_help_s5[] = "Usage:\n"
+"  echo module_id urgent_level(0-3) > /sys/class/video/urgent_set\n"
+"  VPP_ARB0: 0\n"
+"  VPP_ARB1: 1\n"
+"  VPP_ARB2: 2\n"
+"  VPU_SUB_READ: 3\n"
+"  DCNTR_GRID: 4\n"
+"  TCON_P1: 5\n"
+"  TCON_P2: 6\n"
+"  TCON_P3: 7\n\n";
+
 static ssize_t vpu_module_urgent_set(struct class *class,
 			struct class_attribute *attr,
 			const char *buf, size_t count)
@@ -17848,10 +17861,19 @@ static ssize_t vpu_module_urgent_set(struct class *class,
 	int parsed[3];
 	int ret = -1;
 
-	if (likely(parse_para(buf, 3, parsed) == 3))
-		ret = set_vpu_super_urgent(parsed[0], parsed[1], parsed[2]);
-	if (ret < 0)
-		pr_info("%s", vpu_module_urgent_help);
+	if (video_is_meson_t3_cpu()) {
+		if (likely(parse_para(buf, 3, parsed) == 3))
+			ret = set_vpu_super_urgent_t3(parsed[0], parsed[1], parsed[2]);
+	} else if (video_is_meson_s5_cpu()) {
+		if (likely(parse_para(buf, 2, parsed) == 2))
+			ret = set_vpu_super_urgent_s5(parsed[0], parsed[1]);
+	}
+	if (ret < 0) {
+		if (video_is_meson_t3_cpu())
+			pr_info("%s", vpu_module_urgent_help_t3);
+		else if (video_is_meson_s5_cpu())
+			pr_info("%s", vpu_module_urgent_help_s5);
+	}
 	return count;
 }
 
@@ -19925,16 +19947,16 @@ static int amvideom_probe(struct platform_device *pdev)
 		aisr_en = 1;
 		cur_dev->power_ctrl = true;
 		WRITE_VCBUS_REG(VPU_AXI_CACHE, 0x11111);
-		set_vpu_super_urgent(FRC0_R, 3, 3);
-		set_vpu_super_urgent(FRC0_W, 3, 3);
-		set_vpu_super_urgent(FRC1_R, 2, 2);
-		set_vpu_super_urgent(FRC1_W, 2, 2);
-		set_vpu_super_urgent(FRC2_R, 3, 7);
-		set_vpu_super_urgent(VPU0_R, 3, 5);
-		set_vpu_super_urgent(VPU0_W, 3, 5);
-		set_vpu_super_urgent(VPU1_R, 0, 0);
-		set_vpu_super_urgent(VPU1_W, 0, 0);
-		set_vpu_super_urgent(VPU2_R, 3, 5);
+		set_vpu_super_urgent_t3(FRC0_R, 3, 3);
+		set_vpu_super_urgent_t3(FRC0_W, 3, 3);
+		set_vpu_super_urgent_t3(FRC1_R, 2, 2);
+		set_vpu_super_urgent_t3(FRC1_W, 2, 2);
+		set_vpu_super_urgent_t3(FRC2_R, 3, 7);
+		set_vpu_super_urgent_t3(VPU0_R, 3, 5);
+		set_vpu_super_urgent_t3(VPU0_W, 3, 5);
+		set_vpu_super_urgent_t3(VPU1_R, 0, 0);
+		set_vpu_super_urgent_t3(VPU1_W, 0, 0);
+		set_vpu_super_urgent_t3(VPU2_R, 3, 5);
 	} else if (amvideo_meson_dev.cpu_type == MESON_CPU_MAJOR_ID_T5W_) {
 		memcpy(&amvideo_meson_dev.dev_property, &t5w_dev_property,
 		       sizeof(struct video_device_hw_s));

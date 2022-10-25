@@ -3279,4 +3279,8 @@
 #define S5_VPU_VENC_CTRL                              0x1cef
 #define S5_VPU_VIU_VENC_MUX_CTRL                      0x271a
 
+#define S5_VPU_RDARB_UGT_L2C1                         0x27c2
+#define S5_VPP_RDARB_MODE                             0x4120
+#define S5_VPU_RDARB_MODE_L2C1                        0x279d
+
 #endif

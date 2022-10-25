@@ -11775,7 +11775,7 @@ void di_used_vd1_afbc(bool di_used)
 		WRITE_VCBUS_REG_BITS(VD1_AFBCD0_MISC_CTRL, 0, 1, 1);
 }
 
-int get_vpu_urgent_info(void)
+int get_vpu_urgent_info_t3(void)
 {
 	int i;
 	u32 reg = 0, value;
@@ -11847,7 +11847,7 @@ int get_vpu_urgent_info(void)
 	return 0;
 }
 
-int set_vpu_super_urgent(u32 module_id, u32 low_level, u32 high_level)
+int set_vpu_super_urgent_t3(u32 module_id, u32 low_level, u32 high_level)
 {
 	u32 reg = 0;
 
