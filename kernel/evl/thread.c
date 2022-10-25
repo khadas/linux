@@ -2808,7 +2808,7 @@ static ssize_t wchan_show(struct device *dev,
 
 	raw_spin_lock_irqsave(&thread->lock, flags);
 	wchan = thread->wchan;
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", wchan ? wchan->name : "none");
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", wchan ? wchan->name : "-");
 	raw_spin_unlock_irqrestore(&thread->lock, flags);
 
 	evl_put_element(&thread->element);
