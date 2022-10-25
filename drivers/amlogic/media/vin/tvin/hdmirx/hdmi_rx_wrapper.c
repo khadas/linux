@@ -35,6 +35,10 @@
 #include "hdmi_rx_pktinfo.h"
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
+#include "hdmi_rx_hw_t5.h"
+#include "hdmi_rx_hw_t7.h"
+#include "hdmi_rx_hw_tl1.h"
+#include "hdmi_rx_hw_tm2.h"
 
 static int pll_unlock_cnt;
 static int pll_unlock_max;

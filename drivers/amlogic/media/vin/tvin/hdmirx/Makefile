@@ -14,7 +14,8 @@ $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_r
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_tm2.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_t5.o
 $(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_t7.o
-
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_t3x.o
+$(MEDIA_MODULE_NAME)-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += vin/tvin/hdmirx/hdmi_rx_hw_t5m.o
 #obj-$(CONFIG_AMLOGIC_MEDIA_TVIN_HDMI) += tvin_hdmirx.o
 #tvin_hdmirx-objs := hdmi_rx_wrapper.o hdmi_rx_hw.o hdmi_rx_drv.o \
 #		hdcp_rx_main.o hdmi_rx_eq.o \

@@ -1078,11 +1078,6 @@
 #define HHI_HDMIRX_AXI_CLK_CNTL			(0xb8 << 2)
 
 /* tl1/TM2 HIU apll register */
-#define HHI_HDMIRX_APLL_CNTL0			(0xd2 << 2)
-#define HHI_HDMIRX_APLL_CNTL1			(0xd3 << 2)
-#define HHI_HDMIRX_APLL_CNTL2			(0xd4 << 2)
-#define HHI_HDMIRX_APLL_CNTL3			(0xd5 << 2)
-#define HHI_HDMIRX_APLL_CNTL4			(0xd6 << 2)
 
 /* tl1/TM2 HIU PHY register */
 #define HHI_HDMIRX_PHY_MISC_CNTL0		(0xd7 << 2)
@@ -1090,35 +1085,9 @@
 #define HHI_HDMIRX_PHY_MISC_CNTL1		(0xd8 << 2)
 #define MISCI_MANUAL_MODE				_BIT(22)
 #define HHI_HDMIRX_PHY_MISC_CNTL2		(0xe0 << 2)
-#define HHI_HDMIRX_PHY_MISC_CNTL3		(0xe1 << 2)
-#define HHI_HDMIRX_PHY_DCHA_CNTL0		(0xe2 << 2)
-#define HHI_HDMIRX_PHY_DCHA_CNTL1		(0xe3 << 2)
-	#define DFE_OFSETCAL_START			_BIT(27)
-	#define DFE_TAP1_EN					_BIT(17)
-	#define DEF_SUM_RS_TRIM				MSK(3, 12)
 	/*[4:5] in trim,[6:7] im trim*/
-	#define DFE_SUM_TRIM				MSK(4, 4)
-#define HHI_HDMIRX_PHY_DCHA_CNTL2		(0xe4 << 2)
-	#define DFE_VADC_EN					_BIT(21)
-#define HHI_HDMIRX_PHY_DCHA_CNTL3		(0xc5 << 2)/*for revB*/
 #define HHI_HDMIRX_PHY_DCHD_CNTL0		(0xe5 << 2)
-	#define CDR_LKDET_EN				_BIT(28)
-	/*bit'24:eq rst bit'25:cdr rst*/
-	#define CDR_EQ_RSTB					MSK(2, 24)
-	/*0:manual 1:c only 2:r only 3:both rc*/
-	#define EQ_ADP_MODE					MSK(2, 10)
-	#define EQ_ADP_STG					MSK(2, 8)
 #define HHI_HDMIRX_PHY_DCHD_CNTL1		(0xe6 << 2)
-	/*tm2b*/
-	#define OFST_CAL_START				_BIT(31)
-	#define EQ_BYP_VAL					MSK(5, 12)
-#define HHI_HDMIRX_PHY_DCHD_CNTL2		(0xe7 << 2)
-	#define DFE_DBG_STL					MSK(3, 28)
-	#define	DFE_EN						_BIT(27)
-	#define DFE_RSTB					_BIT(26)
-	#define TAP1_BYP_EN					_BIT(19)
-#define HHI_HDMIRX_PHY_DCHD_CNTL3		(0xc6 << 2)/*for revB*/
-	#define DBG_STS_SEL					MSK(2, 30)
 #define HHI_HDMIRX_PHY_ARC_CNTL			(0xe8 << 2)
 #define HHI_HDMIRX_EARCTX_CNTL0			(0x69 << 2)
 #define HHI_HDMIRX_EARCTX_CNTL1			(0x6a << 2)
@@ -1126,58 +1095,8 @@
 #define HHI_HDMIRX_PHY_DCHD_STAT		(0xef << 2)
 
 /* T5 HIU apll register */
-#define HHI_RX_APLL_CNTL0			(0x0 << 2)/*0x0*/
-#define HHI_RX_APLL_CNTL1			(0x1 << 2)/*0x4*/
-#define HHI_RX_APLL_CNTL2			(0x2 << 2)/*0x8*/
-#define HHI_RX_APLL_CNTL3			(0x3 << 2)/*0xc*/
-#define HHI_RX_APLL_CNTL4			(0x4 << 2)/*0x10*/
 
-/* T5 HIU PHY register */
-#define HHI_RX_PHY_MISC_CNTL0		(0x5 << 2)/*0x14*/
-	#define SQO_GATE				_BIT(30)
-	#define PLL_SRC_SEL				_BIT(29)
-#define HHI_RX_PHY_MISC_CNTL1		(0x6 << 2)/*0x18*/
-#define HHI_RX_PHY_MISC_CNTL2		(0x7 << 2)/*0x1c*/
-#define HHI_RX_PHY_MISC_CNTL3		(0x8 << 2)/*0x20*/
-#define HHI_RX_PHY_DCHA_CNTL0		(0x9 << 2)/*0x24*/
-	#define LEQ_BUF_GAIN			MSK(3, 20)
-	#define LEQ_POLE				MSK(3, 16)
-	#define HYPER_GAIN				MSK(3, 12)
-#define HHI_RX_PHY_DCHA_CNTL1		(0xa << 2)/*0x28*/
-#define HHI_RX_PHY_DCHA_CNTL2		(0xb << 2)/*0x2c*/
-	#define EYE_MONITOR_EN1			_BIT(27)/*The same as dchd_eye[19]*/
-	#define AFE_EN					_BIT(17)
-#define HHI_RX_PHY_DCHA_CNTL3		(0xc << 2)/*0x30*/
-#define HHI_RX_PHY_DCHD_CNTL0		(0xd << 2)/*0x34*/
-	#define CDR_MODE				_BIT(31)
-	#define CDR_FR_EN				_BIT(30)
-	#define EQ_EN					_BIT(29)
-	#define CDR_PH_DIV				MSK(3, 0)
-	#define CDR_RST					_BIT(25)
-	#define EQ_RST					_BIT(24)
-#define HHI_RX_PHY_DCHD_CNTL1		(0xe << 2)/*0x38*/
-	#define IQ_OFST_SIGN			_BIT(27)
-	#define IQ_OFST_VAL				MSK(5, 22)
-	#define EQ_BYP_VAL2				MSK(5, 17)
-	#define EQ_BYP_VAL1				MSK(5, 12)
-#define HHI_RX_PHY_DCHD_CNTL2		(0xf << 2)/*0x3c*/
-	#define DFE_HOLD				_BIT(31)
-	#define DFE_RST					_BIT(26)
-	#define TAP0_BYP				_BIT(23)
-	#define EYE_STATUS				MSK(3, 28)
-	#define ERROR_CNT				0x0
-	#define SCAN_STATE				0x1
-	#define POSITIVE_EYE_HEIGHT		0x2
-	#define NEGATIVE_EYE_HEIGHT		0x3
-	#define LEFT_EYE_WIDTH			0x4
-	#define RIGHT_EYE_WIDTH			0x5
-#define HHI_RX_PHY_DCHD_CNTL3		(0x10 << 2)/*0x40*/
-#define HHI_RX_PHY_DCHD_CNTL4		(0x11 << 2)/*0x44*/
-	#define EYE_MONITOR_EN			_BIT(19)
-	#define EYE_STATUS_EN			_BIT(18)
-	#define EYE_EN_HW_SCAN			_BIT(16)
-#define HHI_RX_PHY_MISC_STAT		(0x12 << 2)/*0x48*/
-#define HHI_RX_PHY_DCHD_STAT		(0x13 << 2)/*0x4c*/
+/* T7 HIU PHY register */
 
 #define TMDS_CLK_MIN			(15000UL)
 #define TMDS_CLK_MAX			(340000UL)
@@ -3337,70 +3256,24 @@ void aml_phy_iq_skew_monitor(void);
 void aml_eq_eye_monitor(void);
 void aml_phy_power_off(void);
 void rx_dig_clk_en(bool en);
-/* tl1 extern */
-void aml_phy_init_tl1(void);
+/* tl1 tl2 extern */
 void dump_reg_phy_tl1_tm2(void);
-void dump_aml_phy_sts_tl1(void);
-void aml_phy_short_bist_tl1(void);
-bool aml_get_tmds_valid_tl1(void);
-void aml_phy_power_off_tl1(void);
-void aml_phy_switch_port_tl1(void);
+void aml_phy_get_trim_val_tl1_tm2(void);
 
-/* tm2 extern */
-void aml_phy_short_bist_tm2(void);
-void aml_phy_init_tm2(void);
-void dump_aml_phy_sts_tm2(void);
-bool aml_get_tmds_valid_tm2(void);
-void aml_phy_power_off_tm2(void);
-void aml_phy_switch_port_tm2(void);
-
-/* t5 extern */
-void dump_reg_phy_t5(void);
-void aml_phy_init_t5(void);
-void dump_aml_phy_sts_t5(void);
-void aml_eq_eye_monitor_t5(void);
-void aml_phy_offset_cal_t5(void);
-void aml_phy_short_bist_t5(void);
-void aml_phy_iq_skew_monitor_t5(void);
-bool aml_get_tmds_valid_t5(void);
 void hdmirx_wr_bits_amlphy(unsigned int addr,
 			   unsigned int mask,
 			   unsigned int value);
 void hdmirx_wr_amlphy(unsigned int addr, unsigned int data);
 u32 hdmirx_rd_bits_amlphy(u16 addr, u32 mask);
 unsigned int hdmirx_rd_amlphy(unsigned int addr);
-void aml_phy_power_off_t5(void);
-void aml_phy_switch_port_t5(void);
-void aml_phy_get_trim_val_t5(void);
-void aml_phy_get_trim_val_tl1_tm2(void);
 
 void hdmirx_irq_hdcp_enable(bool enable);
 u8 rx_get_avmute_sts(void);
-/* T7 */
-u8 rx_get_stream_manage_info(void);
-void rpt_update_hdcp1x(struct hdcp_topo_s *topo);
-void rpt_update_hdcp2x(struct hdcp_topo_s *topo);
-void hdcp_init_t7(void);
 u8 hdmirx_rd_cor(u32 addr);
 void hdmirx_wr_cor(u32 addr, u8 data);
 u8 hdmirx_rd_bits_cor(u32 addr, u32 mask);
 void hdmirx_wr_bits_cor(u32 addr, u32 mask, u8 value);
-void dump_reg_phy_t7(void);
-void aml_phy_init_t7(void);
-void dump_aml_phy_sts_t7(void);
-void aml_eq_eye_monitor_t7(void);
-void aml_phy_offset_cal_t7(void);
-void aml_phy_short_bist_t7(void);
-void aml_phy_iq_skew_monitor_t7(void);
-bool aml_get_tmds_valid_t7(void);
-void aml_phy_power_off_t7(void);
-void aml_phy_switch_port_t7(void);
-unsigned int rx_sec_hdcp_cfg_t7(void);
-void dump_vsi_reg_t7(void);
-void rx_set_irq_t7(bool en);
-void rx_set_aud_output_t7(u32 param);
-void rx_sw_reset_t7(int level);
-void aml_phy_get_trim_val_t7(void);
+
 void rx_hdcp_22_sent_reauth(void);
 void rx_hdcp_14_sent_reauth(void);
 u32 rx_get_ecc_err(void);

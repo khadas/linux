@@ -38,6 +38,12 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_wrapper.h"
 #include "hdmi_rx_pktinfo.h"
+#include "hdmi_rx_hw_t5m.h"
+#include "hdmi_rx_hw_t3x.h"
+#include "hdmi_rx_hw_t5.h"
+#include "hdmi_rx_hw_t7.h"
+#include "hdmi_rx_hw_tl1.h"
+#include "hdmi_rx_hw_tm2.h"
 
 /*------------------------marco define------------------------------*/
 #define SCRAMBLE_SEL 1
@@ -943,14 +949,14 @@ void hdmirx_phy_pddq_tl1_tm2(unsigned int enable, unsigned int term_val)
 
 void hdmirx_phy_pddq_t5(unsigned int enable, unsigned int term_val)
 {
-	hdmirx_wr_bits_amlphy(HHI_RX_PHY_MISC_CNTL2,
+	hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_MISC_CNTL2,
 			      _BIT(1), !enable);
 	/* set rxsense */
 	if (enable)
-		hdmirx_wr_bits_amlphy(HHI_RX_PHY_MISC_CNTL0,
+		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_MISC_CNTL0,
 				      MSK(3, 0), 0);
 	else
-		hdmirx_wr_bits_amlphy(HHI_RX_PHY_MISC_CNTL0,
+		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_MISC_CNTL0,
 				      MSK(3, 0), term_val);
 }
 
@@ -2146,7 +2152,7 @@ bool rx_clr_tmds_valid(void)
 			ret = true;
 		}
 	} else if (rx.phy_ver >= PHY_VER_T5) {
-		hdmirx_wr_bits_amlphy(HHI_RX_PHY_DCHD_CNTL0, CDR_RST, 0);
+		hdmirx_wr_bits_amlphy(T5_HHI_RX_PHY_DCHD_CNTL0, T5_CDR_RST, 0);
 		ret = true;
 		if (log_level & VIDEO_LOG)
 			rx_pr("%s!\n", __func__);
@@ -2203,7 +2209,7 @@ void rx_set_term_value_t5(unsigned char port, bool value)
 {
 	u32 data32;
 
-	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL0);
+	data32 = hdmirx_rd_amlphy(T5_HHI_RX_PHY_MISC_CNTL0);
 	if (port < E_PORT3) {
 		if (value) {
 			data32 |= (1 << port);
@@ -2212,7 +2218,7 @@ void rx_set_term_value_t5(unsigned char port, bool value)
 			data32 &= ~(MSK(3, 7));
 			data32 &= ~(1 << port);
 		}
-		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, data32);
+		hdmirx_wr_amlphy(T5_HHI_RX_PHY_MISC_CNTL0, data32);
 	} else if (port == ALL_PORTS) {
 		if (value) {
 			data32 |= 0x7;
@@ -2222,7 +2228,7 @@ void rx_set_term_value_t5(unsigned char port, bool value)
 			data32 |= (MSK(3, 7));
 			/* data32 &= 0xfffffff8; */
 		}
-		hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, data32);
+		hdmirx_wr_amlphy(T5_HHI_RX_PHY_MISC_CNTL0, data32);
 	}
 }
 
@@ -2336,7 +2342,7 @@ void rx_force_rxsense_cfg_t5(u8 level)
 	unsigned int data32;
 
 	/* enable terminal connect */
-	data32 = hdmirx_rd_amlphy(HHI_RX_PHY_MISC_CNTL0);
+	data32 = hdmirx_rd_amlphy(T5_HHI_RX_PHY_MISC_CNTL0);
 	if (level) {
 		if (disable_port_en)
 			term_ovr_value =
@@ -2347,7 +2353,7 @@ void rx_force_rxsense_cfg_t5(u8 level)
 	} else {
 		data32 &= 0xfffffff8;
 	}
-	hdmirx_wr_amlphy(HHI_RX_PHY_MISC_CNTL0, data32);
+	hdmirx_wr_amlphy(T5_HHI_RX_PHY_MISC_CNTL0, data32);
 }
 
 void rx_force_rxsense_cfg(u8 level)
@@ -5152,8 +5158,12 @@ void aml_phy_init_handler(struct work_struct *work)
 		aml_phy_init_tm2();
 	else if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_init_t5();
-	else if (rx.phy_ver >= PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7 && rx.phy_ver <= PHY_VER_T5W)
 		aml_phy_init_t7();
+	else if (rx.phy_ver == PHY_VER_T5M)
+		aml_phy_init_t5m();
+	else if (rx.phy_ver == PHY_VER_T3X)
+		aml_phy_init_t3x();
 	eq_sts = E_EQ_FINISH;
 }
 
@@ -5182,13 +5192,17 @@ void rx_phy_short_bist(void)
 		aml_phy_short_bist_tm2();
 	else if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_short_bist_t5();
-	else if (rx.phy_ver >= PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7 && rx.phy_ver <= PHY_VER_T5W)
 		aml_phy_short_bist_t7();
+	else if (rx.phy_ver == PHY_VER_T5M)
+		aml_phy_short_bist_t5m();
+	else if (rx.phy_ver == PHY_VER_T3X)
+		aml_phy_short_bist_t3x();
 }
 
 unsigned int aml_phy_pll_lock_tm2(void)
 {
-	if (rd_reg_hhi(HHI_HDMIRX_APLL_CNTL0) & 0x80000000)
+	if (rd_reg_hhi(TM2_HHI_HDMIRX_APLL_CNTL0) & 0x80000000)
 		return true;
 	else
 		return false;
@@ -5196,7 +5210,7 @@ unsigned int aml_phy_pll_lock_tm2(void)
 
 unsigned int aml_phy_pll_lock_t5(void)
 {
-	if (hdmirx_rd_amlphy(HHI_RX_APLL_CNTL0) & 0x80000000)
+	if (hdmirx_rd_amlphy(T5_HHI_RX_APLL_CNTL0) & 0x80000000)
 		return true;
 	else
 		return false;
@@ -5232,8 +5246,12 @@ unsigned int aml_phy_tmds_valid(void)
 		return aml_get_tmds_valid_tm2();
 	else if (rx.phy_ver == PHY_VER_T5)
 		return aml_get_tmds_valid_t5();
-	else if (rx.phy_ver >= PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7 && rx.phy_ver <= PHY_VER_T5W)
 		return aml_get_tmds_valid_t7();
+	else if (rx.phy_ver == PHY_VER_T5M)
+		return aml_get_tmds_valid_t5m();
+	else if (rx.phy_ver == PHY_VER_T3X)
+		return aml_get_tmds_valid_t3x();
 	else
 		return false;
 }
@@ -5262,6 +5280,9 @@ void aml_phy_power_off(void)
 	} else if (rx.phy_ver >= PHY_VER_T7) {
 		/* pll power down */
 		aml_phy_power_off_t7();
+	} else if (rx.phy_ver == PHY_VER_T5M) {
+		/* pll power down */
+		aml_phy_power_off_t5m();
 	}
 	if (log_level & VIDEO_LOG)
 		rx_pr("%s\n", __func__);
@@ -5284,16 +5305,24 @@ void aml_phy_iq_skew_monitor(void)
 {
 	if (rx.phy_ver == PHY_VER_T5)
 		aml_phy_iq_skew_monitor_t5();
-	else if (rx.phy_ver >= PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7 && rx.phy_ver <= PHY_VER_T5W)
 		aml_phy_iq_skew_monitor_t7();
+	else if (rx.phy_ver == PHY_VER_T5M)
+		aml_phy_iq_skew_monitor_t5m();
+	else if (rx.phy_ver == PHY_VER_T3X)
+		aml_phy_iq_skew_monitor_t3x();
 }
 
 void aml_eq_eye_monitor(void)
 {
 	if (rx.phy_ver == PHY_VER_T5)
 		aml_eq_eye_monitor_t5();
-	else if (rx.phy_ver >= PHY_VER_T7)
+	else if (rx.phy_ver >= PHY_VER_T7 && rx.phy_ver <= PHY_VER_T5W)
 		aml_eq_eye_monitor_t7();
+	else if (rx.phy_ver == PHY_VER_T5M)
+		aml_eq_eye_monitor_t5m();
+	else if (rx.phy_ver == PHY_VER_T3X)
+		aml_eq_eye_monitor_t3x();
 }
 
 void rx_emp_to_ddr_init(void)

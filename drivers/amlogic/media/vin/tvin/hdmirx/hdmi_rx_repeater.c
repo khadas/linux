@@ -29,6 +29,7 @@
 #include "hdmi_rx_hw.h"
 #include "hdmi_rx_wrapper.h"
 #include "hdmi_rx_edid.h"
+#include "hdmi_rx_hw_t7.h"
 /*edid original data from device*/
 static unsigned char receive_edid[MAX_RECEIVE_EDID];
 int receive_edid_len = MAX_RECEIVE_EDID;
