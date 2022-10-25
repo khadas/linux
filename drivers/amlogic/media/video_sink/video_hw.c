@@ -12428,7 +12428,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 	memcpy(conv_lbuf_len, p_amvideo->afbc_conv_lbuf_len,
 	       sizeof(u32) * MAX_VD_LAYER);
 
-	//INIT_WORK(&vpu_delay_work, do_vpu_delay_work);
+	int_vpu_delay_work();
 
 	init_layer_canvas(&vd_layer[0], LAYER1_CANVAS_BASE_INDEX);
 	init_layer_canvas(&vd_layer[1], LAYER2_CANVAS_BASE_INDEX);
