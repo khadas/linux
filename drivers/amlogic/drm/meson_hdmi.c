@@ -627,13 +627,11 @@ static int get_dv_info(void)
 
 static int hdcp_rx_ver(void)
 {
-	unsigned int hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
-
 	/* Detect RX support HDCP14
 	 * Here, must assume RX support HDCP14, otherwise affect 1A-03
 	 */
 
-	if (hdcp_rx_type == 0x3)
+	if (am_hdmi_info.hdcp_rx_type == 0x3)
 		return 36;
 	else
 		return 14;
@@ -686,6 +684,9 @@ static int am_hdmitx_connector_atomic_set_property
 	} else if (property == am_hdmi->hdcp_content_type0_pri_prop) {
 		am_hdmi_info.hdcp_content_type0_pri = val;
 		hdmitx_state->hdcp_force = true;
+		return 0;
+	} else if (property == am_hdmi->hdcp_content_type0_pri_store_prop) {
+		am_hdmi_info.hdcp_content_type0_pri = val;
 		return 0;
 	}
 
@@ -742,6 +743,9 @@ static int am_hdmitx_connector_atomic_get_property
 		*val = hdr->lumi_avg;
 		return 0;
 	} else if (property == am_hdmi->hdcp_content_type0_pri_prop) {
+		*val = am_hdmi_info.hdcp_content_type0_pri;
+		return 0;
+	}  else if (property == am_hdmi->hdcp_content_type0_pri_store_prop) {
 		*val = am_hdmi_info.hdcp_content_type0_pri;
 		return 0;
 	}
@@ -1046,6 +1050,9 @@ static int meson_hdmitx_get_hdcp_request(struct am_hdmi_tx *tx,
 	unsigned int hdcp_tx_type = tx_dev->get_tx_hdcp_cap();
 	unsigned int hdcp_rx_type = tx_dev->get_rx_hdcp_cap();
 
+	/*if currently hdcp not enabled, drm should delay getting hdcp_ver here*/
+	am_hdmi_info.hdcp_rx_type = hdcp_rx_type;
+
 	DRM_INFO("%s usr_type: %d, hdcp cap: %d,%d\n",
 			__func__, request_type_mask,
 			hdcp_tx_type, hdcp_rx_type);
@@ -1120,7 +1127,16 @@ void meson_hdmitx_update_hdcp(void)
 		};
 	}
 
-	meson_hdmitx_stop_hdcp();
+	if (am_hdmi_info.hdcp_force) {
+		am_hdmi_info.hdmitx_dev->avmute(1);
+		msleep(100);
+		meson_hdmitx_stop_hdcp();
+		am_hdmi_info.hdmitx_dev->avmute(0);
+		am_hdmi_info.hdcp_force = false;
+		DRM_INFO("need not full mode_seting\n");
+	} else {
+		meson_hdmitx_stop_hdcp();
+	}
 
 	if (hdcp_request_mode != HDCP_NULL)
 		meson_hdmitx_start_hdcp(hdcp_request_mode);
@@ -1173,6 +1189,9 @@ void meson_hdmitx_update(struct drm_connector_state *new_state,
 			new_state->hdcp_content_type;
 		am_hdmi_info.hdcp_request_content_protection =
 			new_state->content_protection;
+
+		if (new_hdmitx_state->hdcp_force)
+			am_hdmi_info.hdcp_force = true;
 
 		if (new_state->crtc && !drm_atomic_crtc_needs_modeset(new_state->crtc->state))
 			meson_hdmitx_update_hdcp();
@@ -1596,6 +1615,7 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 		vmode, EVENT_MODE_SET_FINISH);
 	meson_vout_update_mode_name(amcrtc->vout_index, mode->name, "hdmitx");
 
+	am_hdmi_info.hdmitx_on = 1;
 	if (!am_hdmi_info.android_path) {
 		am_hdmi_info.hdmitx_dev->avmute(0);
 		meson_hdmitx_update_hdcp();
@@ -1608,7 +1628,6 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 			 mode->vrefresh  * 100);
 	}
 
-	am_hdmi_info.hdmitx_on = 1;
 	conn_state->picture_aspect_ratio = am_hdmi_info.hdmitx_dev->get_aspect_ratio();
 }
 
@@ -1843,6 +1862,20 @@ static void meson_hdmitx_init_hdcp_content_type0_pri_property(struct drm_device 
 	}
 }
 
+static void meson_hdmitx_init_hdcp_content_type0_pri_store_property(struct drm_device *drm_dev,
+						  struct am_hdmi_tx *am_hdmi)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "HDCP_CONTENT_TYPE0_PRI_STORE");
+	if (prop) {
+		am_hdmi->hdcp_content_type0_pri_store_prop = prop;
+		drm_object_attach_property(&am_hdmi->base.connector.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to HDCP_CONTENT_TYPE0_PRI_STORE property\n");
+	}
+}
+
 static void meson_hdmitx_init_property(struct drm_device *drm_dev,
 						  struct am_hdmi_tx *am_hdmi)
 {
@@ -1888,6 +1921,12 @@ static void meson_hdmitx_hpd_cb(void *data)
 		am_hdmi_info.hdmitx_on = 0;
 		drm_modeset_unlock(mode_lock);
 	}
+	/*get hdcp ver property immediately after plugin in case hdcp14
+	 *authentication snow screen issue
+	 */
+	if (am_hdmi->hdmitx_dev->detect() == 1)
+		am_hdmi_info.hdcp_rx_type = am_hdmi_info.hdmitx_dev->get_rx_hdcp_cap();
+
 #ifdef CONFIG_CEC_NOTIFIER
 	if (am_hdmi->hdmitx_dev->detect()) {
 		DRM_INFO("%s[%d]\n", __func__, __LINE__);
@@ -2020,6 +2059,7 @@ int meson_hdmitx_dev_bind(struct drm_device *drm,
 					   DRM_MODE_PICTURE_ASPECT_NONE);
 	}
 	meson_hdmitx_init_hdcp_content_type0_pri_property(drm, am_hdmi);
+	meson_hdmitx_init_hdcp_content_type0_pri_store_property(drm, am_hdmi);
 
 	/*TODO:update compat_mode for drm driver, remove later.*/
 	priv->compat_mode = am_hdmi_info.android_path;

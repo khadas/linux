@@ -43,6 +43,8 @@ struct am_hdmi_tx {
 	/*hdcp auth result, HDCP_AUTH_UNKNOWN means havenot finished auth.*/
 	int hdcp_state;
 	bool hdcp_content_type0_pri :1;
+	bool hdcp_force :1;
+	int hdcp_rx_type;
 
 	int hdmitx_on;
 
@@ -65,6 +67,7 @@ struct am_hdmi_tx {
 	struct drm_property *lumi_min_property;
 	struct drm_property *lumi_avg_property;
 	struct drm_property *hdcp_content_type0_pri_prop;
+	struct drm_property *hdcp_content_type0_pri_store_prop;
 
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier	*cec_notifier;
