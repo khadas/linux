@@ -23,7 +23,7 @@
 
 struct amlogic_usb_v2	*g_crg_drd_phy2[2];
 char name_crg[32];
-#define TUNING_DISCONNECT_THRESHOLD 0x3c
+#define TUNING_DISCONNECT_THRESHOLD 0x3f
 
 static void usb_set_calibration_trim
 	(void __iomem *reg, struct amlogic_usb_v2 *phy)

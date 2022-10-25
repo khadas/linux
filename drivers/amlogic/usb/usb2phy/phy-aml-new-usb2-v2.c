@@ -22,7 +22,7 @@
 
 struct amlogic_usb_v2	*g_phy2_v2;
 char name[32];
-#define TUNING_DISCONNECT_THRESHOLD 0x3c
+#define TUNING_DISCONNECT_THRESHOLD 0x3f
 
 void set_usb_phy_host_tuning(int port, int default_val)
 {
