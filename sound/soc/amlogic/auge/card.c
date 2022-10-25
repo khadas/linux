@@ -1037,6 +1037,43 @@ static void aml_init_work(struct work_struct *init_work)
 	aml_card_parse_gpios(np, priv);
 }
 
+static void aml_card_gpio(struct aml_card_data *priv)
+{
+	struct device *dev = aml_priv_to_dev(priv);
+	enum of_gpio_flags flags;
+	bool active_low;
+	int gpio;
+
+	gpio = of_get_named_gpio_flags(dev->of_node, "spk_mute-gpios", 0, &flags);
+	priv->spk_mute_gpio = gpio;
+
+	if (gpio_is_valid(priv->spk_mute_gpio)) {
+		active_low = !!(flags & OF_GPIO_ACTIVE_LOW);
+		flags = active_low ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+		priv->spk_mute_active_low = active_low;
+		if (priv->spk_mute_enable) {
+			gpio_set_value(priv->spk_mute_gpio,
+				(active_low) ? GPIOF_OUT_INIT_LOW :
+				GPIOF_OUT_INIT_HIGH);
+		} else {
+			if (!priv->spk_mute_flag)
+				gpio_set_value(priv->spk_mute_gpio,
+					(active_low) ? GPIOF_OUT_INIT_HIGH :
+					GPIOF_OUT_INIT_LOW);
+		}
+	}
+
+	if (!IS_ERR(priv->avout_mute_desc)) {
+		if (!priv->av_mute_enable) {
+			gpiod_direction_output(priv->avout_mute_desc,
+				GPIOF_OUT_INIT_HIGH);
+		} else {
+			gpiod_direction_output(priv->avout_mute_desc,
+				GPIOF_OUT_INIT_LOW);
+		}
+	}
+}
+
 static int aml_card_parse_of(struct device_node *node,
 				     struct aml_card_data *priv)
 {
@@ -1117,8 +1154,7 @@ static int card_suspend_pre(struct snd_soc_card *card)
 
 	priv->av_mute_enable = 1;
 	priv->spk_mute_enable = 1;
-	INIT_WORK(&priv->init_work, aml_init_work);
-	schedule_work(&priv->init_work);
+	aml_card_gpio(priv);
 	pr_info("it is card_pre_suspend\n");
 	return 0;
 }
@@ -1129,8 +1165,7 @@ static int card_resume_post(struct snd_soc_card *card)
 
 	priv->av_mute_enable = 0;
 	priv->spk_mute_enable = 0;
-	INIT_WORK(&priv->init_work, aml_init_work);
-	schedule_work(&priv->init_work);
+	aml_card_gpio(priv);
 	pr_info("it is card_post_resume\n");
 	return 0;
 
