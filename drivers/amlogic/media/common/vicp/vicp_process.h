@@ -20,7 +20,7 @@
 #define _VICP_PROCESS_H_
 
 #include <linux/amlogic/media/vicp/vicp.h>
-#include "vicp_process_rdma.h"
+#include "vicp_rdma.h"
 #include "vicp_hdr.h"
 
 extern u32 print_flag;
@@ -45,7 +45,8 @@ extern struct output_axis_t axis;
 extern struct vicp_hdr_s *vicp_hdr;
 extern u32 debug_reg_addr;
 extern u32 debug_reg_val;
-
+extern u32 rdma_en;
+extern u32 debug_rdma_en;
 /* *********************************************************************** */
 /* ************************* enum definitions **************************.*/
 /* *********************************************************************** */
@@ -70,6 +71,9 @@ struct vid_cmpr_top_t {
 	u32 src_endian;
 	u32 src_block_mode;
 	u32 src_burst_len;
+	u32 src_count;
+	u32 src_num;
+	bool rdma_enable;
 	// hdr
 	u32 hdr_en;//0:close 1:open
 	// afbce
@@ -270,6 +274,7 @@ struct vid_cmpr_f2v_vphase_t {
 /* ************************* function definitions **************************.*/
 /* *********************************************************************** */
 irqreturn_t vicp_isr_handle(int irq, void *dev_id);
+irqreturn_t vicp_rdma_handle(int irq, void *dev_id);
 int vicp_process_config(struct vicp_data_config_t *data_config,
 	struct vid_cmpr_top_t *vid_cmpr_top);
 int vicp_process_reset(void);
@@ -278,11 +283,12 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top);
 void set_vid_cmpr_crop(struct vid_cmpr_crop_t *crop_param);
 void set_mif_stride(struct vid_cmpr_mif_t *mif, int *stride_y, int *stride_cb, int *stride_cr);
 void set_vid_cmpr_shrink(int is_enable, int size, int mode_h, int mode_v);
-void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce);
+void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce, bool rdma_en);
 void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en);
 void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line);
 void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler);
-void set_vid_cmpr_afbcd(int hold_line_num, struct vid_cmpr_afbcd_t *afbcd);
+void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_t *afbcd);
 void set_vid_cmpr_hdr(int hdr2_top_en);
+void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number);
 void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top);
 #endif //_VICP_PROCESS_H_

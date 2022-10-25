@@ -1738,6 +1738,9 @@ static void vframe_composer(struct composer_dev *dev)
 			data_config.data_option.output_axis.height = display_axis.height;
 			data_config.data_option.shrink_mode =
 				(enum vicp_shrink_mode_e)vicp_shrink_mode;
+			data_config.data_option.rdma_enable = true;
+			data_config.data_option.input_source_count = count;
+			data_config.data_option.input_source_number = i;
 
 			ret = vicp_data_composer(&data_config);
 			if (ret < 0)

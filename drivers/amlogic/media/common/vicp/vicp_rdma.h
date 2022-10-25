@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * drivers/amlogic/media/video_processor/common/vicp/vicp_process_rdma.h
+ * drivers/amlogic/media/video_processor/common/vicp/vicp_rdma.h
  *
  * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
  *
@@ -20,8 +20,9 @@
 #define _VICP_PROCESS_RDMA_H_
 
 #include <linux/types.h>
+#include "vicp_log.h"
 
-#define VID_CMPR_APB_BASE 0xfe03e000
+#define VID_CMPR_APB_BASE	0xfe03e000
 
 #define CMD_JMP  ((u64)8)
 #define CMD_WINT ((u64)9)
@@ -32,14 +33,19 @@
 #define CMD_WR   ((u64)14)
 
 struct rdma_buf_type_t {
-	u64 rdma_cbuf_st_address;
-	u64 rdma_cbuf_end_address;
-	u64 rdma_cbuf_length;
-	u64 rdma_lbuf_st_address;
-	u64 rdma_lbuf_end_address;
-	u64 rdma_lbuf_length;
+	u64 cmd_buf_start_addr;
+	u64 cmd_buf_end_addr;
+	u64 cmd_buf_len;
+	u64 load_buf_start_addr;
+	u64 load_buf_end_addr;
+	u64 load_buf_len;
 };
 
+void vicp_rdma_buf_init(u32 buf_num, u64 cmd_buf_start_addr, u64 load_buf_start_addr);
+void vicp_rdma_buf_load(u32 count);
+void set_vicp_rdma_buf_choice(u32 buf_num);
+struct rdma_buf_type_t *get_vicp_rdma_buf_choice(void);
+void vicp_rdma_buf_dump(u32 buf_count, u32 buf_num);
 void vicp_rdma_init(struct rdma_buf_type_t *rdma_buf);
 void vicp_rdma_reset(void);
 void vicp_rdma_trigger(void);
@@ -55,4 +61,4 @@ struct rdma_buf_type_t *vicp_rdma_wint(struct rdma_buf_type_t *rdma_buf, u64 int
 void vicp_rdma_release(struct rdma_buf_type_t *rdma_buf0, struct rdma_buf_type_t *rdma_buf1,
 	int rdma_lbuf_en, int buf_index);
 
-#endif //_VICP_PROCESS_RDMA_H_
+#endif //_VICP_RDMA_H_

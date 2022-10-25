@@ -18,7 +18,10 @@
 #include <linux/amlogic/media/vfm/vframe.h>
 #include <linux/amlogic/cpu_version.h>
 
-#define MAX_PLANE_MUM    4
+#define MAX_PLANE_MUM		4
+#define RDMA_CMD_BUF_LEN	1024
+#define RDMA_LOAD_BUF_LEN	(1024 * 7)
+#define MAX_INPUTSOURCE_COUNT	9
 
 /* *********************************************************************** */
 /* ************************* enum definitions ****************************.*/
@@ -69,6 +72,9 @@ struct data_option_t {
 	enum vicp_rotation_mode_e rotation_mode;
 	struct output_axis_t output_axis;
 	enum vicp_shrink_mode_e shrink_mode;
+	bool rdma_enable;
+	u32 input_source_count;
+	u32 input_source_number;
 };
 
 struct dma_data_config_t {

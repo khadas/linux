@@ -278,6 +278,56 @@ struct vicp_afbce_enable_reg_t {
 	u32 pls_enc_frm_start;
 };
 
+struct vicp_pre_scaler_ctrl_reg_t {
+	u32 preh_hb_num;
+	u32 preh_vb_num;
+	u32 sc_coef_s11_mode;
+	u32 vsc_nor_rs_bits;
+	u32 hsc_nor_rs_bits;
+	u32 prehsc_flt_num;
+	u32 prevsc_flt_num;
+	u32 prehsc_rate;
+	u32 prevsc_rate;
+};
+
+struct vicp_vsc_phase_ctrl_reg_t {
+	u32 double_line_mode;
+	u32 prog_interlace;
+	u32 bot_l0_out_en;
+	u32 bot_rpt_l0_num;
+	u32 bot_ini_rcv_num;
+	u32 top_l0_out_en;
+	u32 top_rpt_l0_num;
+	u32 top_ini_rcv_num;
+};
+
+struct vicp_hsc_phase_ctrl_reg_t {
+	u32 ini_rcv_num0_exp;
+	u32 rpt_p0_num0;
+	u32 ini_rcv_num0;
+	u32 ini_phase0;
+};
+
+struct vicp_scaler_misc_reg_t {
+	u32 sc_din_mode;
+	u32 reg_l0_out_fix;
+	u32 hf_sep_coef_4srnet_en;
+	u32 repeat_last_line_en;
+	u32 old_prehsc_en;
+	u32 hsc_len_div2_en;
+	u32 prevsc_lbuf_mode;
+	u32 prehsc_en;
+	u32 prevsc_en;
+	u32 vsc_en;
+	u32 hsc_en;
+	u32 sc_top_en;
+	u32 sc_vd_en;
+	u32 hsc_nonlinear_4region_en;
+	u32 hsc_bank_length;
+	u32 vsc_phase_field_mode;
+	u32 vsc_nonlinear_4region_en;
+	u32 vsc_bank_length;
+};
 /* ***********************************************************************.*/
 /* ************************* function definitions ************************.*/
 /* ***********************************************************************.*/
@@ -354,3 +404,26 @@ void set_crop_dimm(u32 dimm_layer_en, u32 dimm_data);
 void set_crop_size_in(u32 size_h, u32 size_v);
 void set_crop_scope_h(u32 begain, u32 end);
 void set_crop_scope_v(u32 begain, u32 end);
+void set_hdr_enable(u32 is_enable);
+void set_top_holdline(void);
+void set_pre_scaler_control(struct vicp_pre_scaler_ctrl_reg_t pre_scaler_ctrl_reg);
+void set_scaler_coef_param(u32 coef_index);
+void set_vsc_region12_start(u32 region1_start, u32 region2_start);
+void set_vsc_region34_start(u32 region3_start, u32 region4_start);
+void set_vsc_region4_end(u32 region4_end);
+void set_vsc_start_phase_step(u32 step);
+void set_vsc_region_phase_slope(u32 region_num, u32 slop_val);
+void set_vsc_phase_control(struct vicp_vsc_phase_ctrl_reg_t vsc_phase_ctrl_reg);
+void set_vsc_ini_phase(u32 bot_ini_phase, u32 top_ini_phase);
+void set_hsc_region12_start(u32 region1_start, u32 region2_start);
+void set_hsc_region34_start(u32 region3_start, u32 region4_start);
+void set_hsc_region4_end(u32 region4_end);
+void set_hsc_start_phase_step(u32 step);
+void set_hsc_region_phase_slope(u32 region_num, u32 slop_val);
+void set_hsc_phase_control(struct vicp_hsc_phase_ctrl_reg_t hsc_phase_ctrl_reg);
+void set_scaler_misc(struct vicp_scaler_misc_reg_t scaler_misc_reg);
+void set_rdma_start(u32 input_count);
+void set_rdma_enable(u32 is_enable);
+int read_vicp_reg(u32 reg);
+void write_vicp_reg(u32 reg, u32 val);
+void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 len);

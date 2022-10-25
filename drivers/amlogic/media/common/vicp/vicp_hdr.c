@@ -15,6 +15,7 @@
 #endif
 #include <linux/amlogic/media/amvecm/hdr2_ext.h>
 #include "vicp_hdr.h"
+#include "vicp_hardware.h"
 
 #define VICP_HDR_IVALID		3
 
@@ -224,35 +225,35 @@ void vicp_hdr_set_matrix(struct vicp_hdr_s *vicp_hdr, enum hdr_matrix_sel mtx_se
 	 *****************************/
 	/* Now only operate osd1/vd1/vd2 hdr core */
 
-	vicp_reg_set_bits(regt[VICP_HDR_CTRL], pmtx->mtx_on, 13, 1);
+	write_vicp_reg_bits(regt[VICP_HDR_CTRL], pmtx->mtx_on, 13, 1);
 
 	/* recover the clock gate as auto gate by rdma op when mtx off */
 	/* Now only operate osd1/vd1/vd2 hdr core */
 
 	if (mtx_sel == HDR_IN_MTX) {
 		if (pmtx->mtx_only == MTX_ONLY && !pmtx->mtx_on)
-			vicp_reg_write(regt[VICP_MATRIXI_EN_CTRL], 1);
+			write_vicp_reg(regt[VICP_MATRIXI_EN_CTRL], 1);
 		else
-			vicp_reg_write(regt[VICP_MATRIXI_EN_CTRL], pmtx->mtx_on);
-		vicp_reg_set_bits(regt[VICP_HDR_CTRL], pmtx->mtx_on, 4, 1);
-		vicp_reg_set_bits(regt[VICP_HDR_CTRL], pmtx->mtx_only, 16, 1);
-		vicp_reg_set_bits(regt[VICP_HDR_CTRL], 1, 14, 1);
+			write_vicp_reg(regt[VICP_MATRIXI_EN_CTRL], pmtx->mtx_on);
+		write_vicp_reg_bits(regt[VICP_HDR_CTRL], pmtx->mtx_on, 4, 1);
+		write_vicp_reg_bits(regt[VICP_HDR_CTRL], pmtx->mtx_only, 16, 1);
+		write_vicp_reg_bits(regt[VICP_HDR_CTRL], 1, 14, 1);
 
-		vicp_reg_write(regt[VICP_MATRIXI_COEF00_01],
+		write_vicp_reg(regt[VICP_MATRIXI_COEF00_01],
 			(pmtx->mtx_in[0 * 3 + 0] << 16) | (pmtx->mtx_in[0 * 3 + 1] & 0x1FFF));
-		vicp_reg_write(regt[VICP_MATRIXI_COEF02_10],
+		write_vicp_reg(regt[VICP_MATRIXI_COEF02_10],
 			(pmtx->mtx_in[0 * 3 + 2] << 16) | (pmtx->mtx_in[1 * 3 + 0] & 0x1FFF));
-		vicp_reg_write(regt[VICP_MATRIXI_COEF11_12],
+		write_vicp_reg(regt[VICP_MATRIXI_COEF11_12],
 			(pmtx->mtx_in[1 * 3 + 1] << 16) | (pmtx->mtx_in[1 * 3 + 2] & 0x1FFF));
-		vicp_reg_write(regt[VICP_MATRIXI_COEF20_21],
+		write_vicp_reg(regt[VICP_MATRIXI_COEF20_21],
 			(pmtx->mtx_in[2 * 3 + 0] << 16) | (pmtx->mtx_in[2 * 3 + 1] & 0x1FFF));
-		vicp_reg_write(regt[VICP_MATRIXI_COEF22], pmtx->mtx_in[2 * 3 + 2]);
-		vicp_reg_write(regt[VICP_MATRIXI_OFFSET0_1],
+		write_vicp_reg(regt[VICP_MATRIXI_COEF22], pmtx->mtx_in[2 * 3 + 2]);
+		write_vicp_reg(regt[VICP_MATRIXI_OFFSET0_1],
 			(pmtx->mtxi_pos_offset[0] << 16) | (pmtx->mtxi_pos_offset[1] & 0xFFF));
-		vicp_reg_write(regt[VICP_MATRIXI_OFFSET2], pmtx->mtxi_pos_offset[2]);
-		vicp_reg_write(regt[VICP_MATRIXI_PRE_OFFSET0_1],
+		write_vicp_reg(regt[VICP_MATRIXI_OFFSET2], pmtx->mtxi_pos_offset[2]);
+		write_vicp_reg(regt[VICP_MATRIXI_PRE_OFFSET0_1],
 			(pmtx->mtxi_pre_offset[0] << 16) | (pmtx->mtxi_pre_offset[1] & 0xFFF));
-		vicp_reg_write(regt[VICP_MATRIXI_PRE_OFFSET2], pmtx->mtxi_pre_offset[2]);
+		write_vicp_reg(regt[VICP_MATRIXI_PRE_OFFSET2], pmtx->mtxi_pre_offset[2]);
 	} else if (mtx_sel == HDR_GAMUT_MTX) {
 		for (i = 0; i < 9; i++)
 			gmut_coef[i / 3][i % 3] = pmtx->mtx_gamut[i];
@@ -279,67 +280,67 @@ void vicp_hdr_set_matrix(struct vicp_hdr_s *vicp_hdr, enum hdr_matrix_sel mtx_se
 		/*gamut mode: 1->gamut before ootf*/
 				/*2->gamut after ootf*/
 				/*other->disable gamut*/
-		vicp_reg_set_bits(regt[VICP_HDR_CTRL], pmtx->mtx_gamut_mode, 6, 2);
-		vicp_reg_write(regt[VICP_GMUT_CTRL], gmut_shift);
-		vicp_reg_write(regt[VICP_GMUT_COEF0],
+		write_vicp_reg_bits(regt[VICP_HDR_CTRL], pmtx->mtx_gamut_mode, 6, 2);
+		write_vicp_reg(regt[VICP_GMUT_CTRL], gmut_shift);
+		write_vicp_reg(regt[VICP_GMUT_COEF0],
 			(gmut_coef[0][1] & 0xffff) << 16 | (gmut_coef[0][0] & 0xffff));
-		vicp_reg_write(regt[VICP_GMUT_COEF1],
+		write_vicp_reg(regt[VICP_GMUT_COEF1],
 			(gmut_coef[1][0] & 0xffff) << 16 | (gmut_coef[0][2] & 0xffff));
-		vicp_reg_write(regt[VICP_GMUT_COEF2],
+		write_vicp_reg(regt[VICP_GMUT_COEF2],
 			(gmut_coef[1][2] & 0xffff) << 16 | (gmut_coef[1][1] & 0xffff));
-		vicp_reg_write(regt[VICP_GMUT_COEF3],
+		write_vicp_reg(regt[VICP_GMUT_COEF3],
 			(gmut_coef[2][1] & 0xffff) << 16 | (gmut_coef[2][0] & 0xffff));
-		vicp_reg_write(regt[VICP_GMUT_COEF4], gmut_coef[2][2] & 0xffff);
+		write_vicp_reg(regt[VICP_GMUT_COEF4], gmut_coef[2][2] & 0xffff);
 
-		vicp_reg_write(regt[VICP_CGAIN_COEF0],
+		write_vicp_reg(regt[VICP_CGAIN_COEF0],
 			c_gain_lim_coef[1] << 16 | c_gain_lim_coef[0]);
-		vicp_reg_set_bits(regt[VICP_CGAIN_COEF1], c_gain_lim_coef[2], 0, 12);
+		write_vicp_reg_bits(regt[VICP_CGAIN_COEF1], c_gain_lim_coef[2], 0, 12);
 
-		vicp_reg_write(regt[VICP_ADPS_CTRL],
+		write_vicp_reg(regt[VICP_ADPS_CTRL],
 			padpscl->adpscl_bypass[2] << 6 |
 			padpscl->adpscl_bypass[1] << 5 |
 			padpscl->adpscl_bypass[0] << 4 |
 			padpscl->adpscl_mode);
-		vicp_reg_write(regt[VICP_ADPS_ALPHA0],
+		write_vicp_reg(regt[VICP_ADPS_ALPHA0],
 			padpscl->adpscl_alpha[1] << 16 | padpscl->adpscl_alpha[0]);
-		vicp_reg_write(regt[VICP_ADPS_ALPHA1],
+		write_vicp_reg(regt[VICP_ADPS_ALPHA1],
 			padpscl->adpscl_shift[0] << 24 |
 			padpscl->adpscl_shift[1] << 20 |
 			padpscl->adpscl_shift[2] << 16 |
 			padpscl->adpscl_alpha[2]);
-		vicp_reg_write(regt[VICP_ADPS_BETA0],
+		write_vicp_reg(regt[VICP_ADPS_BETA0],
 			padpscl->adpscl_beta_s[0] << 20 | padpscl->adpscl_beta[0]);
-		vicp_reg_write(regt[VICP_ADPS_BETA1],
+		write_vicp_reg(regt[VICP_ADPS_BETA1],
 			padpscl->adpscl_beta_s[1] << 20 | padpscl->adpscl_beta[1]);
-		vicp_reg_write(regt[VICP_ADPS_BETA2],
+		write_vicp_reg(regt[VICP_ADPS_BETA2],
 			padpscl->adpscl_beta_s[2] << 20 | padpscl->adpscl_beta[2]);
-		vicp_reg_write(regt[VICP_ADPS_COEF0],
+		write_vicp_reg(regt[VICP_ADPS_COEF0],
 			padpscl->adpscl_ys_coef[1] << 16 | padpscl->adpscl_ys_coef[0]);
-		vicp_reg_write(regt[VICP_ADPS_COEF1], padpscl->adpscl_ys_coef[2]);
+		write_vicp_reg(regt[VICP_ADPS_COEF1], padpscl->adpscl_ys_coef[2]);
 	} else if (mtx_sel == HDR_OUT_MTX) {
-		vicp_reg_write(regt[VICP_CGAIN_OFFT],
+		write_vicp_reg(regt[VICP_CGAIN_OFFT],
 		       (pmtx->mtx_cgain_offset[2] << 16) |
 		       pmtx->mtx_cgain_offset[1]);
-		vicp_reg_write(regt[VICP_MATRIXO_EN_CTRL], pmtx->mtx_on);
-		vicp_reg_set_bits(regt[VICP_HDR_CTRL], 0, 17, 1);
-		vicp_reg_set_bits(regt[VICP_HDR_CTRL], 1, 15, 1);
+		write_vicp_reg(regt[VICP_MATRIXO_EN_CTRL], pmtx->mtx_on);
+		write_vicp_reg_bits(regt[VICP_HDR_CTRL], 0, 17, 1);
+		write_vicp_reg_bits(regt[VICP_HDR_CTRL], 1, 15, 1);
 
-		vicp_reg_write(regt[VICP_MATRIXO_COEF00_01],
+		write_vicp_reg(regt[VICP_MATRIXO_COEF00_01],
 			(pmtx->mtx_out[0 * 3 + 0] << 16) | (pmtx->mtx_out[0 * 3 + 1] & 0x1FFF));
-		vicp_reg_write(regt[VICP_MATRIXO_COEF02_10],
+		write_vicp_reg(regt[VICP_MATRIXO_COEF02_10],
 			(pmtx->mtx_out[0 * 3 + 2] << 16) | (pmtx->mtx_out[1 * 3 + 0] & 0x1FFF));
-		vicp_reg_write(regt[VICP_MATRIXO_COEF11_12],
+		write_vicp_reg(regt[VICP_MATRIXO_COEF11_12],
 			(pmtx->mtx_out[1 * 3 + 1] << 16) | (pmtx->mtx_out[1 * 3 + 2] & 0x1FFF));
-		vicp_reg_write(regt[VICP_MATRIXO_COEF20_21],
+		write_vicp_reg(regt[VICP_MATRIXO_COEF20_21],
 			(pmtx->mtx_out[2 * 3 + 0] << 16) | (pmtx->mtx_out[2 * 3 + 1] & 0x1FFF));
-		vicp_reg_write(regt[VICP_MATRIXO_COEF22], pmtx->mtx_out[2 * 3 + 2]);
+		write_vicp_reg(regt[VICP_MATRIXO_COEF22], pmtx->mtx_out[2 * 3 + 2]);
 
-		vicp_reg_write(regt[VICP_MATRIXO_OFFSET0_1],
+		write_vicp_reg(regt[VICP_MATRIXO_OFFSET0_1],
 			(pmtx->mtxo_pos_offset[0] << 16) | (pmtx->mtxo_pos_offset[1] & 0xFFF));
-		vicp_reg_write(regt[VICP_MATRIXO_OFFSET2], pmtx->mtxo_pos_offset[2]);
-		vicp_reg_write(regt[VICP_MATRIXO_PRE_OFFSET0_1],
+		write_vicp_reg(regt[VICP_MATRIXO_OFFSET2], pmtx->mtxo_pos_offset[2]);
+		write_vicp_reg(regt[VICP_MATRIXO_PRE_OFFSET0_1],
 			(pmtx->mtxo_pre_offset[0] << 16) | (pmtx->mtxo_pre_offset[1] & 0xFFF));
-		vicp_reg_write(regt[VICP_MATRIXO_PRE_OFFSET2], pmtx->mtxo_pre_offset[2]);
+		write_vicp_reg(regt[VICP_MATRIXO_PRE_OFFSET2], pmtx->mtxo_pre_offset[2]);
 	}
 
 	if (mtx_sel == HDR_IN_MTX) {
@@ -399,14 +400,14 @@ void vicp_hdr_set_eotf_lut(enum hdr_module_sel module_sel,
 		return;
 	}
 
-	vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, plut->lut_on, 3, 1);
+	write_vicp_reg_bits(VID_CMPR_HDR2_CTRL, plut->lut_on, 3, 1);
 
 	if (!plut->lut_on)
 		return;
 
-	vicp_reg_write(VID_CMPR_HDR2_EOTF_LUT_ADDR_PORT, 0x0);
+	write_vicp_reg(VID_CMPR_HDR2_EOTF_LUT_ADDR_PORT, 0x0);
 	for (i = 0; i < HDR2_EOTF_LUT_SIZE; i++)
-		vicp_reg_write(VID_CMPR_HDR2_EOTF_LUT_DATA_PORT, (unsigned int)plut->eotf_lut[i]);
+		write_vicp_reg(VID_CMPR_HDR2_EOTF_LUT_DATA_PORT, (unsigned int)plut->eotf_lut[i]);
 }
 
 /************************************************
@@ -424,17 +425,17 @@ void vicp_hdr_set_ootf_lut(enum hdr_module_sel module_sel,
 	}
 
 	vicp_print(VICP_HDR2, "%s: module_sel %d, lut_on %d\n", __func__, module_sel, plut->lut_on);
-	vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, plut->lut_on, 1, 1);
+	write_vicp_reg_bits(VID_CMPR_HDR2_CTRL, plut->lut_on, 1, 1);
 
 	if (!plut->lut_on)
 		return;
 
-	vicp_reg_write(VID_CMPR_HDR2_OGAIN_LUT_ADDR_PORT, 0x0);
+	write_vicp_reg(VID_CMPR_HDR2_OGAIN_LUT_ADDR_PORT, 0x0);
 	for (i = 0; i < HDR2_OOTF_LUT_SIZE / 2; i++)
-		vicp_reg_write(VID_CMPR_HDR2_OGAIN_LUT_DATA_PORT,
+		write_vicp_reg(VID_CMPR_HDR2_OGAIN_LUT_DATA_PORT,
 			((unsigned int)plut->ogain_lut[i * 2 + 1] << 16) +
 			(unsigned int)plut->ogain_lut[i * 2]);
-	vicp_reg_write(VID_CMPR_HDR2_OGAIN_LUT_DATA_PORT, (unsigned int)plut->ogain_lut[148]);
+	write_vicp_reg(VID_CMPR_HDR2_OGAIN_LUT_DATA_PORT, (unsigned int)plut->ogain_lut[148]);
 }
 
 /************************************************
@@ -453,12 +454,12 @@ void vicp_hdr_set_oetf_lut(enum hdr_module_sel module_sel,
 	}
 
 	vicp_print(VICP_HDR2, "%s: module_sel %d, lut_on %d\n", __func__, module_sel, plut->lut_on);
-	vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, plut->lut_on, 2, 1);
+	write_vicp_reg_bits(VID_CMPR_HDR2_CTRL, plut->lut_on, 2, 1);
 
 	if (!plut->lut_on)
 		return;
 
-	vicp_reg_write(VID_CMPR_HDR2_OETF_LUT_ADDR_PORT, 0x0);
+	write_vicp_reg(VID_CMPR_HDR2_OETF_LUT_ADDR_PORT, 0x0);
 	for (i = 0; i < HDR2_OETF_LUT_SIZE / 2; i++) {
 		tmp1 = (unsigned int)plut->oetf_lut[i * 2 + 1];
 		tmp2 = (unsigned int)plut->oetf_lut[i * 2];
@@ -466,13 +467,13 @@ void vicp_hdr_set_oetf_lut(enum hdr_module_sel module_sel,
 			tmp1 = tmp1 >> 2;
 			tmp2 = tmp2 >> 2;
 		}
-		vicp_reg_write(VID_CMPR_HDR2_OETF_LUT_DATA_PORT, (tmp1 << 16) + tmp2);
+		write_vicp_reg(VID_CMPR_HDR2_OETF_LUT_DATA_PORT, (tmp1 << 16) + tmp2);
 	}
 	tmp1 = (unsigned int)plut->oetf_lut[148];
 	if (plut->bitdepth == 10)
-		vicp_reg_write(VID_CMPR_HDR2_OETF_LUT_DATA_PORT, tmp1 >> 2);
+		write_vicp_reg(VID_CMPR_HDR2_OETF_LUT_DATA_PORT, tmp1 >> 2);
 	else
-		vicp_reg_write(VID_CMPR_HDR2_OETF_LUT_DATA_PORT, tmp1);
+		write_vicp_reg(VID_CMPR_HDR2_OETF_LUT_DATA_PORT, tmp1);
 }
 
 /************************************************
@@ -492,25 +493,25 @@ void vicp_hdr_set_c_gain(enum hdr_module_sel module_sel,
 	vicp_print(VICP_HDR2, "%s: module_sel %d, lut_on %d\n", __func__, module_sel, plut->lut_on);
 	/*cgain mode: 0->y domin*/
 	/*cgain mode: 1->rgb domin, use r/g/b max*/
-	vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, 0, 12, 1);
-	vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, plut->cgain_en, 0, 1);
+	write_vicp_reg_bits(VID_CMPR_HDR2_CTRL, 0, 12, 1);
+	write_vicp_reg_bits(VID_CMPR_HDR2_CTRL, plut->cgain_en, 0, 1);
 
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_SM1)) {
 		if (plut->bitdepth == 10)
-			vicp_reg_set_bits(VID_CMPR_HDR2_CGAIN_COEF1, 0x400, 16, 13);
+			write_vicp_reg_bits(VID_CMPR_HDR2_CGAIN_COEF1, 0x400, 16, 13);
 		else if (plut->bitdepth == 12)
-			vicp_reg_set_bits(VID_CMPR_HDR2_CGAIN_COEF1, 0x1000, 16, 13);
+			write_vicp_reg_bits(VID_CMPR_HDR2_CGAIN_COEF1, 0x1000, 16, 13);
 	}
 
 	if (!plut->cgain_en)
 		return;
 
-	vicp_reg_write(VID_CMPR_HDR2_CGAIN_LUT_ADDR_PORT, 0x0);
+	write_vicp_reg(VID_CMPR_HDR2_CGAIN_LUT_ADDR_PORT, 0x0);
 	for (i = 0; i < HDR2_CGAIN_LUT_SIZE / 2; i++)
-		vicp_reg_write(VID_CMPR_HDR2_CGAIN_LUT_DATA_PORT,
+		write_vicp_reg(VID_CMPR_HDR2_CGAIN_LUT_DATA_PORT,
 			((unsigned int)plut->cgain_lut[i * 2 + 1] << 16) +
 			(unsigned int)plut->cgain_lut[i * 2]);
-	vicp_reg_write(VID_CMPR_HDR2_CGAIN_LUT_DATA_PORT, (unsigned int)plut->cgain_lut[64]);
+	write_vicp_reg(VID_CMPR_HDR2_CGAIN_LUT_DATA_PORT, (unsigned int)plut->cgain_lut[64]);
 }
 
 /************************************************
@@ -537,13 +538,13 @@ void vicp_hdr_hist_config(enum hdr_module_sel module_sel,
 		return;
 
 	if (plut->hist_en) {
-		vicp_reg_write(hist_ctrl, 0);
-		vicp_reg_write(hist_hs_he, 0xeff);
-		vicp_reg_write(hist_vs_ve, 0x86f);
+		write_vicp_reg(hist_ctrl, 0);
+		write_vicp_reg(hist_hs_he, 0xeff);
+		write_vicp_reg(hist_vs_ve, 0x86f);
 	} else {
-		vicp_reg_write(hist_ctrl, 0x5510);
-		vicp_reg_write(hist_hs_he, 0x10000);
-		vicp_reg_write(hist_vs_ve, 0x0);
+		write_vicp_reg(hist_ctrl, 0x5510);
+		write_vicp_reg(hist_hs_he, 0x10000);
+		write_vicp_reg(hist_vs_ve, 0x0);
 	}
 }
 

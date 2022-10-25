@@ -45,119 +45,28 @@
 #define ZOOM_BITS       20
 #define PHASE_BITS      16
 
-#define VID_CMPR_PROC_DONE        (10 * 2 + 11)
-#define VID_CMPR_DMA_DONE         (10 * 32 + 10)
+#define VID_CMPR_PROC_DONE        (90)
+#define VID_CMPR_DMA_DONE         (89)
 #define VID_CMPR_ERROR            (10 * 32 + 9)
 
-static int pps_lut_tap8[33][8] = {{0, 0, 0, 128, 0, 0, 0, 0},
-			{-1, 1, 0, 127, 2, -1, 1, -1},
-			{-1, 2, -2, 127, 4, -2, 1, -1},
-			{-2, 3,  -4, 127,  6, -3, 2, -1},
-			{-3, 4,  -7, 127, 10, -4, 3, -2},
-			{-3, 5,  -9, 127, 12, -5, 3, -2},
-			{-4, 6, -11, 127, 15, -6, 4, -3},
-			{-4, 7, -13, 127, 16, -7, 5, -3},
-			{-5, 7, -14, 127, 20, -8, 5, -4},
-			{-5, 8, -16, 127, 21, -9, 6, -4},
-			{-6, 9, -17, 127, 24, -11, 7, -5},
-			{-6, 10, -18, 126, 26, -12, 7, -5},
-			{-7, 10, -20, 127, 29, -13, 8, -6},
-			{-7, 11, -21, 124, 32, -14, 9, -6},
-			{-8, 12, -22, 124, 35, -15, 9, -7},
-			{-8, 12, -23, 123, 37, -16, 10, -7},
-			{-9, 13, -24, 121, 40, -17, 11, -7},
-			{-9, 14, -25, 120, 43, -18, 11, -8},
-			{-10, 14, -26, 119, 46, -19, 12, -8},
-			{-10, 15, -27, 118, 49, -20, 12, -9},
-			{-10, 15, -27, 115, 52, -21, 13, -9},
-			{-10, 15, -28, 114, 55, -22, 13, -9},
-			{-11, 16, -28, 112, 58, -23, 14, -10},
-			{-11, 16, -29, 111, 61, -24, 14, -10},
-			{-11, 16, -29, 107, 64, -24, 15, -10},
-			{-11, 17, -29, 104, 67, -25, 15, -10},
-			{-11, 17, -29, 103, 70, -26, 15, -11},
-			{-12, 17, -29, 100, 73, -26, 16, -11},
-			{-12, 17, -29, 98, 76, -27, 16, -11},
-			{-12, 17, -29, 96, 79, -28, 16, -11},
-			{-12, 17, -29, 92, 82, -28, 17, -11},
-			{-12, 17, -29, 90, 85, -29, 17, -11},
-			{-12, 17, -29, 88, 88, -29, 17, -12}};
-static int pps_lut_tap8_s11[33][8] = {{0, 0, 0, 512, 0, 0, 0, 0},
-			{-1, 3, -7, 512, 7, -3, 1, 0},
-			{-2, 5, -14, 511, 15, -5, 2, 0},
-			{-2, 7, -20, 510, 23, -8, 3, -1},
-			{-3, 10, -27, 509, 31, -11, 3, 0},
-			{-4, 12, -32, 507, 39, -14, 4, 0},
-			{-4, 14, -38, 504, 48, -17, 5, 0},
-			{-5, 16, -43, 501, 57, -19, 6, -1},
-			{-5, 18, -49, 498, 66, -22, 7, -1},
-			{-6, 19, -53, 495, 75, -26, 8, 0},
-			{-6, 21, -58, 490, 85, -29, 10, -1},
-			{-6, 22, -62, 486, 94, -32, 11, -1},
-			{-7, 24, -66, 481, 104, -35, 12, -1},
-			{-7, 25, -69, 476, 114, -38, 13, -2},
-			{-7, 26, -72, 470, 124, -41, 14, -2},
-			{-8, 27, -75, 464, 134, -44, 15, -1},
-			{-8, 28, -78, 458, 145, -47, 16, -2},
-			{-8, 29, -80, 451, 155, -50, 17, -2},
-			{-8, 30, -83, 444, 166, -53, 18, -2},
-			{-8, 31, -84, 437, 177, -56, 19, -4},
-			{-8, 31, -86, 429, 188, -59, 20, -3},
-			{-9, 32, -87, 421, 199, -62, 22, -4},
-			{-8, 32, -88, 413, 209, -64, 23, -5},
-			{-8, 32, -89, 405, 220, -67, 24, -5},
-			{-9, 33, -89, 396, 231, -69, 25, -6},
-			{-8, 33, -90, 387, 242, -72, 25, -5},
-			{-8, 33, -90, 377, 253, -74, 26, -5},
-			{-8, 32, -89, 368, 264, -76, 27, -6},
-			{-8, 32, -89, 358, 275, -78, 28, -6},
-			{-8, 32, -88, 348, 286, -80, 29, -7},
-			{-7, 32, -88, 338, 297, -82, 29, -7},
-			{-7, 31, -86, 328, 307, -84, 30, -7},
-			{-8, 31, -85, 318, 318, -85, 31, -8}};
-
-static int pps_lut_tap4_s11[33][4] =  {{0, 512, 0, 0},
-			{-5, 512, 5, 0},
-			{-10, 511, 11, 0},
-			{-14, 510, 17, -1},
-			{-18, 508, 23, -1},
-			{-22, 506, 29, -1},
-			{-25, 503, 36, -2},
-			{-28, 500, 43, -3},
-			{-32, 496, 51, -3},
-			{-34, 491, 59, -4},
-			{-37, 487, 67, -5},
-			{-39, 482, 75, -6},
-			{-41, 476, 84, -7},
-			{-42, 470, 92, -8},
-			{-44, 463, 102, -9},
-			{-45, 456, 111, -10},
-			{-45, 449, 120, -12},
-			{-47, 442, 130, -13},
-			{-47, 434, 140, -15},
-			{-47, 425, 151, -17},
-			{-47, 416, 161, -18},
-			{-47, 407, 172, -20},
-			{-47, 398, 182, -21},
-			{-47, 389, 193, -23},
-			{-46, 379, 204, -25},
-			{-45, 369, 215, -27},
-			{-44, 358, 226, -28},
-			{-43, 348, 237, -30},
-			{-43, 337, 249, -31},
-			{-41, 326, 260, -33},
-			{-40, 316, 271, -35},
-			{-39, 305, 282, -36},
-			{-37, 293, 293, -37}};
-
-struct completion vicp_isr_done;
-static bool is_rdma_enable;
+struct completion vicp_proc_done;
+struct completion vicp_rdma_done;
+static int rdma_done_count;
+static ulong rdma_buf_phy_addr;
 static int current_dump_flag;
 
 irqreturn_t vicp_isr_handle(int irq, void *dev_id)
 {
-	complete(&vicp_isr_done);
-	vicp_print(VICP_INFO, "vicp: isr\n");
+	complete(&vicp_proc_done);
+	vicp_print(VICP_INFO, "proc done.\n");
+	return IRQ_HANDLED;
+}
+
+irqreturn_t vicp_rdma_handle(int irq, void *dev_id)
+{
+	rdma_done_count++;
+	complete(&vicp_rdma_done);
+	vicp_print(VICP_INFO, "rdma done, count is %d.\n", rdma_done_count);
 	return IRQ_HANDLED;
 }
 
@@ -179,7 +88,7 @@ void set_vid_cmpr_shrink(int is_enable, int size, int mode_h, int mode_v)
 	set_wrmif_shrk_mode_v(mode_v);
 }
 
-void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
+void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce, bool rdma_en)
 {
 	int hold_line_num = 0;
 
@@ -236,7 +145,9 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
 
 	if (!enable) {
 		vicp_print(VICP_INFO, "%s: afbce disable.\n", __func__);
-		vicp_reg_set_bits(VID_CMPR_AFBCE_ENABLE, 0, 8, 1);
+		memset(&enable_reg, 0, sizeof(struct vicp_afbce_enable_reg_t));
+		enable_reg.enc_enable = 0;
+		set_afbce_enable(enable_reg);
 		return;
 	}
 
@@ -273,7 +184,7 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
 		lossy_chrm_en = 1;
 	}
 
-	if (is_rdma_enable)
+	if (rdma_en)
 		hold_line_num = 1;
 	else
 		hold_line_num = 2;
@@ -384,8 +295,7 @@ void set_vid_cmpr_hdr(int hdr2_top_en)
 	if (hdr2_top_en) {
 		vicp_hdr_set(vicp_hdr, 1);
 	} else {
-		vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, 0, 13, 1);
-		vicp_reg_set_bits(VID_CMPR_HDR2_CTRL, 0, 16, 1);
+		set_hdr_enable(0);
 	}
 }
 
@@ -429,7 +339,6 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 	int topbot_conv;
 	int top_conv, bot_conv;
 
-	int i = 0;
 	int hsc_en = 0;
 	int vsc_en = 0;
 	int vsc_double_line_mode = 0;
@@ -443,6 +352,10 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 	int blank_len;
 	/*0:vd1_s0 1:vd1_s1 2:vd1_s2 3:vd1_s3 4:vd2 5:vid_cmp 6:RESHAPE*/
 	int index = 5;
+	struct vicp_pre_scaler_ctrl_reg_t pre_scaler_ctrl_reg;
+	struct vicp_vsc_phase_ctrl_reg_t vsc_phase_ctrl_reg;
+	struct vicp_hsc_phase_ctrl_reg_t hsc_phase_ctrl_reg;
+	struct vicp_scaler_misc_reg_t scaler_misc_reg;
 
 	vicp_print(VICP_INFO, "enter %s.\n", __func__);
 
@@ -510,71 +423,19 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 	else
 		coef_s_bits = 7;
 
-	vicp_reg_write(VID_CMPR_PRE_SCALE_CTRL,
-			(8 << 21) |
-			(8 << 25) |
-			(scaler->high_res_coef_en << 20) |
-			(coef_s_bits << 16) |
-			(coef_s_bits << 12) |
-			(4 << 7) |
-			(4 << 4) |
-			(scaler->prehsc_rate << 2) |
-			(scaler->prevsc_rate << 0)
-			);
+	memset(&pre_scaler_ctrl_reg, 0, sizeof(struct vicp_pre_scaler_ctrl_reg_t));
+	pre_scaler_ctrl_reg.preh_hb_num = 8;
+	pre_scaler_ctrl_reg.preh_vb_num = 8;
+	pre_scaler_ctrl_reg.sc_coef_s11_mode = scaler->high_res_coef_en;
+	pre_scaler_ctrl_reg.vsc_nor_rs_bits = coef_s_bits;
+	pre_scaler_ctrl_reg.hsc_nor_rs_bits = coef_s_bits;
+	pre_scaler_ctrl_reg.prehsc_flt_num = 4;
+	pre_scaler_ctrl_reg.prevsc_flt_num = 4;
+	pre_scaler_ctrl_reg.prehsc_rate = scaler->prehsc_rate;
+	pre_scaler_ctrl_reg.prevsc_rate = scaler->prevsc_rate;
+	set_pre_scaler_control(pre_scaler_ctrl_reg);
 
-	if (scaler->high_res_coef_en == 0) {
-		vicp_reg_write(VID_CMPR_SCALE_COEF_IDX, 0x0100);
-		for (i = 0; i < 33; i++)
-			vicp_reg_write(VID_CMPR_SCALE_COEF,
-				((pps_lut_tap8[i][0] & 0xff) << 24) |
-				((pps_lut_tap8[i][1] & 0xff) << 16) |
-				((pps_lut_tap8[i][2] & 0xff) << 8) |
-				((pps_lut_tap8[i][3] & 0xff) << 0)
-				);
-		vicp_reg_write(VID_CMPR_SCALE_COEF_IDX, 0x0180);
-		for (i = 0; i < 33; i++)
-			vicp_reg_write(VID_CMPR_SCALE_COEF,
-				((pps_lut_tap8[i][4] & 0xff) << 24) |
-				((pps_lut_tap8[i][5] & 0xff) << 16) |
-				((pps_lut_tap8[i][6] & 0xff) << 8) |
-				((pps_lut_tap8[i][7] & 0xff) << 0)
-				);
-	} else {
-		vicp_reg_write(VID_CMPR_SCALE_COEF_IDX, 0x0000);
-		for (i = 0; i < 33; i++) {
-			vicp_reg_write(VID_CMPR_SCALE_COEF,
-				((pps_lut_tap4_s11[i][0] & 0x7ff) << 16) |
-				((pps_lut_tap4_s11[i][1] & 0x7ff) << 0)
-				);
-			vicp_reg_write(VID_CMPR_SCALE_COEF,
-				((pps_lut_tap4_s11[i][2] & 0x7ff) << 16) |
-				((pps_lut_tap4_s11[i][3] & 0x7ff) << 0)
-				);
-		}
-
-		vicp_reg_write(VID_CMPR_SCALE_COEF_IDX, 0x0100);
-		for (i = 0; i < 33; i++) {
-			vicp_reg_write(VID_CMPR_SCALE_COEF,
-				((pps_lut_tap8_s11[i][0] & 0x7ff) << 16) |
-				((pps_lut_tap8_s11[i][1] & 0x7ff) << 0)
-				);
-			vicp_reg_write(VID_CMPR_SCALE_COEF,
-				((pps_lut_tap8_s11[i][2] & 0x7ff) << 16) |
-				((pps_lut_tap8_s11[i][3] & 0x7ff) << 0)
-				);
-		}
-		vicp_reg_write(VID_CMPR_SCALE_COEF_IDX, 0x0180);
-		for (i = 0; i < 33; i++) {
-			vicp_reg_write(VID_CMPR_SCALE_COEF,
-				((pps_lut_tap8_s11[i][4] & 0x7ff) << 16) |
-				((pps_lut_tap8_s11[i][5] & 0x7ff) << 0)
-				);
-			vicp_reg_write(VID_CMPR_SCALE_COEF,
-				((pps_lut_tap8_s11[i][6] & 0x7ff) << 16) |
-				((pps_lut_tap8_s11[i][7] & 0x7ff) << 0)
-				);
-		}
-	}
+	set_scaler_coef_param(scaler->high_res_coef_en);
 
 	is_frame = (top_conv_type == F2V_IT2P) ||
 		(top_conv_type == F2V_IB2P) ||
@@ -602,57 +463,67 @@ void set_vid_cmpr_scale(int is_enable, struct vid_cmpr_scaler_t *scaler)
 		bot_vphase = vphase.phase;
 	}
 
-	vicp_reg_write(VID_CMPR_VSC_REGION12_STARTP, 0);
-	vicp_reg_write(VID_CMPR_VSC_REGION34_STARTP,
-		((scaler->dout_vsize << 16) | scaler->dout_vsize));
-	vicp_reg_write(VID_CMPR_VSC_REGION4_ENDP, scaler->dout_vsize - 1);
+	set_vsc_region12_start(0, 0);
+	set_vsc_region34_start(scaler->dout_vsize, scaler->dout_vsize);
+	set_vsc_region4_end(scaler->dout_vsize - 1);
 
-	vicp_reg_write(VID_CMPR_VSC_START_PHASE_STEP, vert_phase_step);
-	vicp_reg_write(VID_CMPR_VSC_REGION0_PHASE_SLOPE, 0);
-	vicp_reg_write(VID_CMPR_VSC_REGION1_PHASE_SLOPE, 0);
-	vicp_reg_write(VID_CMPR_VSC_REGION3_PHASE_SLOPE, 0);
-	vicp_reg_write(VID_CMPR_VSC_REGION4_PHASE_SLOPE, 0);
+	set_vsc_start_phase_step(vert_phase_step);
+	set_vsc_region_phase_slope(0, 0);
+	set_vsc_region_phase_slope(1, 0);
+	set_vsc_region_phase_slope(3, 0);
+	set_vsc_region_phase_slope(4, 0);
 
-	vicp_reg_write(VID_CMPR_VSC_PHASE_CTRL,
-		((vsc_double_line_mode << 17) | (!is_frame) << 16) |
-		(0 << 15) |
-		(bot_rpt_num << 13) |
-		(bot_rcv_num << 8) |
-		(0 << 7) |
-		(top_rpt_num << 5) |
-		(top_rcv_num)
-		);
-	vicp_reg_write(VID_CMPR_VSC_INI_PHASE, (bot_vphase << 16) | top_vphase);
-	vicp_reg_write(VID_CMPR_HSC_REGION12_STARTP, 0);
-	vicp_reg_write(VID_CMPR_HSC_REGION34_STARTP,
-		(scaler->dout_hsize << 16) | scaler->dout_hsize);
-	vicp_reg_write(VID_CMPR_HSC_REGION4_ENDP, scaler->dout_hsize - 1);
+	memset(&vsc_phase_ctrl_reg, 0, sizeof(struct vicp_vsc_phase_ctrl_reg_t));
+	vsc_phase_ctrl_reg.double_line_mode = vsc_double_line_mode;
+	vsc_phase_ctrl_reg.prog_interlace = (!is_frame);
+	vsc_phase_ctrl_reg.bot_l0_out_en = 0;
+	vsc_phase_ctrl_reg.bot_rpt_l0_num = bot_rpt_num;
+	vsc_phase_ctrl_reg.bot_ini_rcv_num = bot_rcv_num;
+	vsc_phase_ctrl_reg.top_l0_out_en = 0;
+	vsc_phase_ctrl_reg.top_rpt_l0_num = top_rpt_num;
+	vsc_phase_ctrl_reg.top_ini_rcv_num = top_rcv_num;
+	set_vsc_phase_control(vsc_phase_ctrl_reg);
 
-	vicp_reg_write(VID_CMPR_HSC_START_PHASE_STEP, horz_phase_step);
-	vicp_reg_write(VID_CMPR_HSC_REGION0_PHASE_SLOPE, 0);
-	vicp_reg_write(VID_CMPR_HSC_REGION1_PHASE_SLOPE, 0);
-	vicp_reg_write(VID_CMPR_HSC_REGION3_PHASE_SLOPE, 0);
-	vicp_reg_write(VID_CMPR_HSC_REGION4_PHASE_SLOPE, 0);
+	set_vsc_ini_phase(bot_vphase, top_vphase);
+	set_hsc_region12_start(0, 0);
+	set_hsc_region34_start(scaler->dout_hsize, scaler->dout_hsize);
+	set_hsc_region4_end(scaler->dout_hsize - 1);
+	set_hsc_start_phase_step(horz_phase_step);
+	set_hsc_region_phase_slope(0, 0);
+	set_hsc_region_phase_slope(1, 0);
+	set_hsc_region_phase_slope(3, 0);
+	set_hsc_region_phase_slope(4, 0);
 
-	vicp_reg_write(VID_CMPR_HSC_PHASE_CTRL, (3 << 20) | (8 << 16) | 0);
-	vicp_reg_write(VID_CMPR_SC_MISC,
-		(scaler->prevsc_en << 24) |
-		(scaler->prevsc_en << 21) |
-		(scaler->prehsc_en << 20) |
-		(scaler->prevsc_en << 19) |
-		(vsc_en << 18) |
-		(hsc_en << 17) |
-		(is_enable << 16) |
-		(1 << 15) |
-		(0 << 12) |
-		(8 << 8) |
-		(0 << 5) |
-		(0 << 4) |
-		(scaler->vert_bank_length << 0)
-		);
+	memset(&hsc_phase_ctrl_reg, 0, sizeof(struct vicp_hsc_phase_ctrl_reg_t));
+	hsc_phase_ctrl_reg.ini_rcv_num0_exp = 0;
+	hsc_phase_ctrl_reg.rpt_p0_num0 = 3;
+	hsc_phase_ctrl_reg.ini_rcv_num0 = 8;
+	hsc_phase_ctrl_reg.ini_phase0 = 0;
+	set_hsc_phase_control(hsc_phase_ctrl_reg);
+
+	memset(&scaler_misc_reg, 0, sizeof(struct vicp_scaler_misc_reg_t));
+	scaler_misc_reg.sc_din_mode = 0;
+	scaler_misc_reg.reg_l0_out_fix = 0;
+	scaler_misc_reg.hf_sep_coef_4srnet_en = 0;
+	scaler_misc_reg.repeat_last_line_en = scaler->prevsc_en;
+	scaler_misc_reg.old_prehsc_en = 0;
+	scaler_misc_reg.hsc_len_div2_en = 0;
+	scaler_misc_reg.prevsc_lbuf_mode = scaler->prevsc_en;
+	scaler_misc_reg.prehsc_en = scaler->prehsc_en;
+	scaler_misc_reg.prevsc_en = scaler->prevsc_en;
+	scaler_misc_reg.vsc_en = vsc_en;
+	scaler_misc_reg.hsc_en = hsc_en;
+	scaler_misc_reg.sc_top_en = is_enable;
+	scaler_misc_reg.sc_vd_en = 1;
+	scaler_misc_reg.hsc_nonlinear_4region_en = 0;
+	scaler_misc_reg.hsc_bank_length = 8;
+	scaler_misc_reg.vsc_phase_field_mode = 0;
+	scaler_misc_reg.vsc_nonlinear_4region_en = 0;
+	scaler_misc_reg.vsc_bank_length = scaler->vert_bank_length;
+	set_scaler_misc(scaler_misc_reg);
 }
 
-void set_vid_cmpr_afbcd(int hold_line_num, struct vid_cmpr_afbcd_t *afbcd)
+void set_vid_cmpr_afbcd(int hold_line_num, bool rdma_en, struct vid_cmpr_afbcd_t *afbcd)
 {
 	u32 compbits_yuv;
 	u32 conv_lbuf_len;
@@ -702,27 +573,27 @@ void set_vid_cmpr_afbcd(int hold_line_num, struct vid_cmpr_afbcd_t *afbcd)
 		pr_info("vicp: blk_mem_mode = %d.\n", afbcd->blk_mem_mode);
 		pr_info("vicp: index = %d.\n", afbcd->index);
 		pr_info("vicp: size: h %d, v %d.\n", afbcd->hsize, afbcd->vsize);
-		pr_info("vicp: addr: head 0x%x, body 0x%x.\n", afbcd->head_baddr,
+		pr_info("vicp: addr: head:0x%x, body:0x%x.\n", afbcd->head_baddr,
 			afbcd->body_baddr);
-		pr_info("vicp: compbits: y%d, u%d, v%d.\n", afbcd->compbits_y, afbcd->compbits_u,
+		pr_info("vicp: compbits: y:%d, u:%d, v:%d.\n", afbcd->compbits_y, afbcd->compbits_u,
 			afbcd->compbits_v);
 		pr_info("vicp: input_color_format = %d.\n", afbcd->fmt_mode);
 		pr_info("vicp: ddr_sz_mode = %d.\n", afbcd->ddr_sz_mode);
 		pr_info("vicp: fmt444_comb = %d.\n", afbcd->fmt444_comb);
-		pr_info("vicp: v_skip: y%d, uv%d.\n", afbcd->v_skip_y, afbcd->v_skip_uv);
-		pr_info("vicp: h_skip: y%d, uv%d.\n", afbcd->h_skip_y, afbcd->h_skip_uv);
+		pr_info("vicp: v_skip: y:%d, uv:%d.\n", afbcd->v_skip_y, afbcd->v_skip_uv);
+		pr_info("vicp: h_skip: y:%d, uv:%d.\n", afbcd->h_skip_y, afbcd->h_skip_uv);
 		pr_info("vicp: rev_mode %d.\n", afbcd->rev_mode);
 		pr_info("vicp: lossy_en = %d.\n", afbcd->lossy_en);
-		pr_info("vicp: default_color: y%d, u%d, v%d.\n", afbcd->def_color_y,
+		pr_info("vicp: default_color: y:%d, u:%d, v:%d.\n", afbcd->def_color_y,
 			afbcd->def_color_u, afbcd->def_color_v);
 		pr_info("vicp: window_axis: %d %d %d %d.\n", afbcd->win_bgn_h, afbcd->win_end_h,
 			afbcd->win_bgn_v, afbcd->win_end_v);
-		pr_info("vicp: ini_phase: h%d, v%d.\n", afbcd->hz_ini_phase, afbcd->vt_ini_phase);
-		pr_info("vicp: rpt_fst0_en: h%d, v%d.\n", afbcd->hz_rpt_fst0_en,
+		pr_info("vicp: ini_phase: h:%d, v:%d.\n", afbcd->hz_ini_phase, afbcd->vt_ini_phase);
+		pr_info("vicp: rpt_fst0_en: h:%d, v:%d.\n", afbcd->hz_rpt_fst0_en,
 			afbcd->vt_rpt_fst0_en);
 		pr_info("vicp: rotation_en = %d.\n", afbcd->rot_en);
-		pr_info("vicp: rotation_begin: h%d, v%d.\n", afbcd->rot_hbgn, afbcd->rot_vbgn);
-		pr_info("vicp: rotation_shrink: h%d, v%d.\n", afbcd->rot_hshrk, afbcd->rot_vshrk);
+		pr_info("vicp: rotation_begin: h:%d, v:%d.\n", afbcd->rot_hbgn, afbcd->rot_vbgn);
+		pr_info("vicp: rotation_shrink: h:%d, v:%d.\n", afbcd->rot_hshrk, afbcd->rot_vshrk);
 		pr_info("vicp: rotation_drop_mode = %d.\n", afbcd->rot_drop_mode);
 		pr_info("vicp: rotation_output_format = %d.\n", afbcd->rot_ofmt_mode);
 		pr_info("vicp: rotation_output_compbits = %d.\n", afbcd->rot_ocompbit);
@@ -772,9 +643,8 @@ void set_vid_cmpr_afbcd(int hold_line_num, struct vid_cmpr_afbcd_t *afbcd)
 	use_4kram = real_hsize_mt2k || 1;
 
 	set_afbcd_4k_enable(use_4kram);
-	set_input_path(VICP_INPUT_PATH_AFBCD);
 
-	if (is_rdma_enable)
+	if (rdma_en)
 		hold_line_num = 1;
 	else
 		hold_line_num = hold_line_num > 4 ? hold_line_num - 4 : 0;
@@ -1390,6 +1260,54 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en)
 	set_wrmif_control(wrmif_control);
 };
 
+void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number)
+{
+	int i, data_size;
+	u64 cmd_buf_addr, load_buf_addr;
+
+	vicp_print(VICP_RDMA, "%s: %d line.\n", __func__, __LINE__);
+
+	if (print_flag & VICP_RDMA) {
+		pr_info("vicp: ##########RDMA config##########\n");
+		pr_info("vicp: rdma enable: %d.\n", rdma_en);
+		pr_info("vicp: input_count: %d.\n", input_count);
+		pr_info("vicp: input_number: %d.\n", input_number);
+	}
+
+	if (!rdma_en) {
+		vicp_print(VICP_RDMA, "%s: rdma disabled.\n", __func__);
+		vicp_rdma_enable(0, 0, 0);
+		return;
+	}
+
+	if (input_count <= 0 || input_count > MAX_INPUTSOURCE_COUNT ||
+		input_number < 0 || input_number >= MAX_INPUTSOURCE_COUNT) {
+		vicp_print(VICP_ERROR, "%s: invalid param.\n", __func__);
+		vicp_rdma_enable(0, 0, 0);
+		return;
+	}
+
+	if (input_count != 0 && input_number == 0) {//first enter
+		vicp_print(VICP_RDMA, "%s: %d line.\n", __func__, __LINE__);
+		vicp_rdma_enable(1, 0, 0);
+		vicp_rdma_reset();
+		vicp_rdma_trigger();
+		set_rdma_start(input_count);
+
+		data_size = input_count * (RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
+		rdma_buf_phy_addr = codec_mm_alloc_for_dma("vicp", data_size / PAGE_SIZE,
+			0, CODEC_MM_FLAGS_DMA);
+		for (i = 0; i < input_count; i++) {
+			cmd_buf_addr = rdma_buf_phy_addr +
+				(RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN) * i;
+			load_buf_addr = cmd_buf_addr + RDMA_CMD_BUF_LEN;
+			vicp_rdma_buf_init(i, cmd_buf_addr, load_buf_addr);
+		}
+	}
+
+	set_vicp_rdma_buf_choice(input_number);
+}
+
 static void dump_yuv(int flag, struct vframe_s *vframe)
 {
 	struct file *fp = NULL;
@@ -1549,7 +1467,7 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		vid_cmpr_afbcd.rot_ofmt_mode = vid_cmpr_top->out_reg_format_mode;
 		vid_cmpr_afbcd.rot_ocompbit = vid_cmpr_top->out_reg_compbits - 8;
 
-		set_vid_cmpr_afbcd(2, &vid_cmpr_afbcd);
+		set_vid_cmpr_afbcd(2, vid_cmpr_top->rdma_enable, &vid_cmpr_afbcd);
 		vicp_print(VICP_INFO, "AFBCD config done.\n");
 	} else {
 		set_afbcd_enable(0);
@@ -1762,14 +1680,13 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		vid_cmpr_afbce.force_444_comb = 0;
 		vid_cmpr_afbce.rot_en = vid_cmpr_top->out_rot_en;
 		vid_cmpr_afbce.din_swt = 0;
-		set_vid_cmpr_afbce(vid_cmpr_top->out_afbce_enable, &vid_cmpr_afbce);
+		set_vid_cmpr_afbce(1, &vid_cmpr_afbce, vid_cmpr_top->rdma_enable);
 	} else {
-		set_vid_cmpr_afbce(vid_cmpr_top->out_afbce_enable, &vid_cmpr_afbce);
+		set_vid_cmpr_afbce(0, &vid_cmpr_afbce, vid_cmpr_top->rdma_enable);
 	}
 	vicp_print(VICP_INFO, "AFBCE config done\n");
 
-	vicp_reg_set_bits(VID_CMPR_AFBCE_MODE, 0x5, 16, 7);
-	vicp_reg_set_bits(VID_CMPR_HOLD_LINE, 0x5, 0, 16);
+	set_top_holdline();
 }
 
 int vicp_process_config(struct vicp_data_config_t *data_config,
@@ -1973,24 +1890,80 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 	vid_cmpr_top->wrmif_canvas0_addr1 = 0;
 	vid_cmpr_top->wrmif_canvas0_addr2 = 0;
 
+	vid_cmpr_top->rdma_enable = data_config->data_option.rdma_enable;
+	vid_cmpr_top->src_count = data_config->data_option.input_source_count;
+	vid_cmpr_top->src_num = data_config->data_option.input_source_number;
+
 	return 0;
 }
 
 int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 {
 	int ret = 0;
-	int timeout = 0;
+	int time = 0;
+	int i = 0;
+	u8 *temp_addr;
+	int buffer_size;
 
 	vicp_print(VICP_INFO, "enter %s.\n", __func__);
+	if (IS_ERR_OR_NULL(vid_cmpr_top)) {
+		vicp_print(VICP_ERROR, "%s: NULL param, please check.\n", __func__);
+		return -1;
+	}
 
-	set_vid_cmpr(vid_cmpr_top);
-	init_completion(&vicp_isr_done);
-	set_module_enable(1);
-	set_module_start(1);
+	if (!rdma_en)
+		vid_cmpr_top->rdma_enable = false;
 
-	timeout = wait_for_completion_timeout(&vicp_isr_done, msecs_to_jiffies(200));
-	if (!timeout)
-		vicp_print(VICP_ERROR, "vicp_task wait isr timeout\n");
+	set_rdma_enable(vid_cmpr_top->rdma_enable);
+	if (vid_cmpr_top->rdma_enable) {
+		set_vid_cmpr_rdma(vid_cmpr_top->rdma_enable, vid_cmpr_top->src_count,
+			vid_cmpr_top->src_num);
+		set_vid_cmpr(vid_cmpr_top);
+		set_module_enable(1);
+		set_module_start(1);
+		vicp_rdma_end(get_vicp_rdma_buf_choice());
+		if (vid_cmpr_top->src_num + 1 == vid_cmpr_top->src_count) {
+			init_completion(&vicp_proc_done);
+			init_completion(&vicp_rdma_done);
+			buffer_size = vid_cmpr_top->src_count *
+				(RDMA_CMD_BUF_LEN + RDMA_LOAD_BUF_LEN);
+			temp_addr = codec_mm_vmap(rdma_buf_phy_addr, buffer_size);
+			codec_mm_dma_flush(temp_addr, buffer_size, DMA_TO_DEVICE);
+			codec_mm_unmap_phyaddr(temp_addr);
+
+			vicp_rdma_buf_load(vid_cmpr_top->src_count);
+			time = wait_for_completion_timeout(&vicp_proc_done, msecs_to_jiffies(200));
+			if (!time) {
+				vicp_print(VICP_ERROR, "vicp_task wait isr timeout\n");
+				rdma_done_count = 0;
+				if (debug_rdma_en) {
+					for (i = 0; i < 0x1ff; i++)
+						pr_info("[0x%04x] = 0x%08x\n", i, read_vicp_reg(i));
+				}
+				ret = -2;
+			}
+
+			if (rdma_done_count == vid_cmpr_top->src_count)
+				vicp_print(VICP_INFO, "rdma all complete.\n");
+			rdma_done_count = 0;
+			if (debug_rdma_en) {
+				for (i = 0; i < vid_cmpr_top->src_count; i++)
+					vicp_rdma_buf_dump(vid_cmpr_top->src_count, i);
+			}
+			codec_mm_free_for_dma("vicp", rdma_buf_phy_addr);
+			rdma_buf_phy_addr = 0;
+		}
+	} else {
+		set_vid_cmpr(vid_cmpr_top);
+		init_completion(&vicp_proc_done);
+		set_module_enable(1);
+		set_module_start(1);
+		time = wait_for_completion_timeout(&vicp_proc_done, msecs_to_jiffies(200));
+		if (!time) {
+			vicp_print(VICP_ERROR, "vicp_task wait isr timeout\n");
+			ret = -2;
+		}
+	}
 
 	return ret;
 }

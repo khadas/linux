@@ -398,5 +398,4 @@ u32 vicp_reg_get_bits(u32 reg, const u32 start, const u32 len);
 void vicp_reg_set_bits(u32 reg, const u32 value, const u32 start, const u32 len);
 void vicp_reg_write_addr(u64 addr, u64 data);
 u64 vicp_reg_read_addr(u64 addr);
-
 #endif

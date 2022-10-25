@@ -49,9 +49,9 @@
 #include "vicp_reg.h"
 #include "vicp_process.h"
 #include "vicp_test.h"
+#include "vicp_hardware.h"
 
 #define VICP_DEVICE_NAME "vicp"
-int vicp_isr = -ENXIO;
 void __iomem *vicp_reg_map;
 
 u32 print_flag;
@@ -73,6 +73,8 @@ u32 debug_axis_en;
 struct output_axis_t axis;
 u32 debug_reg_addr;
 u32 debug_reg_val;
+u32 rdma_en = 1;
+u32 debug_rdma_en;
 
 struct mutex vicp_mutex; /*used to avoid user space call at the same time*/
 struct vicp_hdr_s *vicp_hdr;
@@ -167,11 +169,11 @@ static ssize_t debug_reg_store(struct class *class,
 			}
 			reg_count = val;
 			for (offset = 0; offset < reg_count; reg_addr++, offset++) {
-				reg_val = vicp_reg_read(reg_addr);
+				reg_val = read_vicp_reg(reg_addr);
 				pr_info("[0x%04x] = 0x%08x\n", reg_addr, reg_val);
 			}
 		} else {
-			reg_val = vicp_reg_read(reg_addr);
+			reg_val = read_vicp_reg(reg_addr);
 			pr_info("[0x%04x] = 0x%08x\n", reg_addr, reg_val);
 		}
 	} else if (!strcmp(parm[0], "wv")) {
@@ -196,7 +198,7 @@ static ssize_t debug_reg_store(struct class *class,
 		reg_val = val;
 		debug_reg_addr = reg_addr;
 		debug_reg_val = reg_val;
-		vicp_reg_write(reg_addr, reg_val);
+		write_vicp_reg(reg_addr, reg_val);
 	}
 	kfree(buf_orig);
 	buf_orig = NULL;
@@ -634,6 +636,48 @@ static ssize_t axis_store(struct class *class,
 	return count;
 }
 
+static ssize_t rdma_en_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 80, "rdma_enable: %d.\n", rdma_en);
+}
+
+static ssize_t rdma_en_store(struct class *cla, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	rdma_en = tmp;
+	return count;
+}
+
+static ssize_t debug_rdma_en_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 80, "debug_rdma_enable: %d.\n", debug_rdma_en);
+}
+
+static ssize_t debug_rdma_en_store(struct class *cla, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	debug_rdma_en = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(print_flag);
 static CLASS_ATTR_RW(debug_reg);
 static CLASS_ATTR_RW(demo_enable);
@@ -652,6 +696,8 @@ static CLASS_ATTR_RW(crop_en);
 static CLASS_ATTR_RW(shrink_en);
 static CLASS_ATTR_RW(debug_axis_en);
 static CLASS_ATTR_RW(axis);
+static CLASS_ATTR_RW(rdma_en);
+static CLASS_ATTR_RW(debug_rdma_en);
 
 static struct attribute *vicp_class_attrs[] = {
 	&class_attr_print_flag.attr,
@@ -672,6 +718,8 @@ static struct attribute *vicp_class_attrs[] = {
 	&class_attr_shrink_en.attr,
 	&class_attr_debug_axis_en.attr,
 	&class_attr_axis.attr,
+	&class_attr_rdma_en.attr,
+	&class_attr_debug_rdma_en.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(vicp_class);
@@ -794,10 +842,25 @@ static int vicp_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	pr_info("vicp driver probe: irq:%d.\n", irq);
+	pr_info("vicp driver probe: irq-1:%d.\n", irq);
 	ret = request_irq(irq, &vicp_isr_handle, IRQF_SHARED, "vicp_proc", (void *)"vicp-dev");
 	if (ret < 0) {
 		pr_err("cannot get vicp irq resource.\n");
+		ret = -ENXIO;
+		goto error;
+	}
+
+	irq = platform_get_irq_byname(pdev, "vicp_rdma");
+	if (irq  == -ENXIO) {
+		pr_err("cannot get vicp rdma resource.\n");
+		ret = -ENXIO;
+		goto error;
+	}
+
+	pr_info("vicp driver probe: irq-2:%d.\n", irq);
+	ret = request_irq(irq, &vicp_rdma_handle, IRQF_SHARED, "vicp_rdma", (void *)"vicp-dev");
+	if (ret < 0) {
+		pr_err("cannot get vicp rdma resource.\n");
 		ret = -ENXIO;
 		goto error;
 	}
