@@ -1188,7 +1188,7 @@
 
 	asrca:resample@0 {
 		compatible = "amlogic, t5-resample-a";
-		clocks = <&clkc CLKID_HIFI1_PLL
+		clocks = <&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_MCLK_B
 			&clkaudio CLKID_AUDIO_RESAMPLE_A>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
@@ -1214,7 +1214,7 @@
 
 	asrcb:resample@1 {
 		compatible = "amlogic, t5-resample-b";
-		clocks = <&clkc CLKID_HIFI1_PLL
+		clocks = <&clkc CLKID_HIFI_PLL
 			&clkaudio CLKID_AUDIO_MCLK_F
 			&clkaudio CLKID_AUDIO_RESAMPLE_B>;
 		clock-names = "resample_pll", "resample_src", "resample_clk";
@@ -1222,7 +1222,7 @@
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
 
-		status = "disabled";
+		status = "okay";
 	};
 
 	vad:vad {
