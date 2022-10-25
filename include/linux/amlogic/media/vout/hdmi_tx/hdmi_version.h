@@ -37,6 +37,7 @@
 	"V01.01.01.00.01.03.07 [20221018] [AUD] optimise the audio setting flow\n" \
 	"V03.01.01.00.01.03.08 [20221021] [BUG] not read EDID again if EDID already read done\n" \
 	"V03.01.01.00.01.03.09 [20221025] [COM] when set mode 4x3 and 16x9, return valid mode 1\n" \
-	"V03.01.01.00.01.03.10 [20221031] [NEW] add new format 2560x1440p60hz\n"
+	"V03.01.01.00.01.03.10 [20221031] [NEW] add new format 2560x1440p60hz\n" \
+	"V03.01.01.00.01.04.10 [20221102] [EDID] adjust edid parsing for tv_ts\n"
 
 #endif // __HDMI20_VERSION_H__
