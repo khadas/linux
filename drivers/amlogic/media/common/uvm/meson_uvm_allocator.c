@@ -139,6 +139,8 @@ static int mua_process_gpu_realloc(struct dma_buf *dmabuf,
 
 	if (!skip_fill_buf)
 		dmabuf->size = buffer->size * scalar * scalar;
+	else
+		dmabuf->size = buffer->byte_stride * buffer->height * 3 / 2;
 	MUA_PRINTK(1, "buffer->size:%zu realloc dmabuf->size=%zu\n",
 			buffer->size, dmabuf->size);
 	if (!buffer->idmabuf[1]) {
@@ -600,6 +602,11 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		MUA_PRINTK(1, "%s. original buf size:%d width:%d height:%d\n",
 					__func__, data.alloc_data.size,
 					data.alloc_data.width, data.alloc_data.height);
+
+		MUA_PRINTK(1, "scaled_buf_size:%d align=%d flags=%d\n",
+			   data.alloc_data.scaled_buf_size,
+			   data.alloc_data.align,
+			   data.alloc_data.flags);
 
 		data.alloc_data.size = PAGE_ALIGN(data.alloc_data.size);
 		data.alloc_data.scaled_buf_size =
