@@ -1662,8 +1662,8 @@ retry:
 #endif
 			if (unlikely(PageTransHuge(page)))
 				flags |= TTU_SPLIT_HUGE_PMD;
-
-			trace_android_vh_page_trylock_set(page);
+			if (!ignore_references)
+				trace_android_vh_page_trylock_set(page);
 			try_to_unmap(page, flags);
 			if (page_mapped(page)) {
 				stat->nr_unmap_fail += nr_pages;
