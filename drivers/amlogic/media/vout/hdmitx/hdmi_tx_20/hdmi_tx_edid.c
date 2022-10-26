@@ -1761,13 +1761,15 @@ static void hdmitx_edid_parse_hdmi14(struct rx_cap *prxcap,
 				     unsigned char count)
 {
 	int idx = 0, tmp = 0;
+	int tmp_tmds_clk1;
 
 	prxcap->ieeeoui = HDMI_IEEEOUI;
 	prxcap->ColorDeepSupport =
 	(count > 5) ? blockbuf[offset + 5] : 0;
 	set_vsdb_dc_cap(prxcap);
-	prxcap->Max_TMDS_Clock1 =
-	(count > 6) ? blockbuf[offset + 6] : 0;
+	tmp_tmds_clk1 = (count > 6) ? blockbuf[offset + 6] : 0;
+	if (tmp_tmds_clk1 >= prxcap->Max_TMDS_Clock1)
+		prxcap->Max_TMDS_Clock1 = tmp_tmds_clk1;
 
 	if (count > 7) {
 		tmp = blockbuf[offset + 7];
@@ -2353,6 +2355,12 @@ static void edid_dtd_parsing(struct rx_cap *prxcap, unsigned char *data)
 		return;
 	memset(t, 0, sizeof(struct dtd));
 	t->pixel_clock = data[0] + (data[1] << 8);
+	if (t->pixel_clock >= prxcap->Max_TMDS_Clock1 * 500) {
+		if (t->pixel_clock % 500 == 0)
+			prxcap->Max_TMDS_Clock1 = t->pixel_clock / 500;
+		else
+			prxcap->Max_TMDS_Clock1 = t->pixel_clock / 500 + 1;
+	}
 	t->h_active = (((data[4] >> 4) & 0xf) << 8) + data[2];
 	t->h_blank = ((data[4] & 0xf) << 8) + data[3];
 	t->v_active = (((data[7] >> 4) & 0xf) << 8) + data[5];
