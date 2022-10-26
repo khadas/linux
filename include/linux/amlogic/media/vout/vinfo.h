@@ -403,6 +403,12 @@ struct vinfo_s {
 	struct hdr_info hdr_info;
 	struct rx_av_latency rx_latency;
 	struct vout_device_s *vout_device;
+	/* new parameters for s5 or later
+	 * if current output is FRL or DSC mode,
+	 * then there may use 2 or 4 slices pixel per clock.
+	 * the default value is 0 or 1.
+	 */
+	u8 cur_enc_ppc;
 };
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
