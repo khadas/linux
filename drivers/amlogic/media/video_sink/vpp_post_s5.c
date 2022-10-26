@@ -890,6 +890,7 @@ int get_vpp_slice_num(const struct vinfo_s *info)
 {
 	int slice_num = 1;
 
+	#ifdef AUTO_CAL
 	/* 8k case 4 slice */
 	if (info->width > 4096 && info->field_height > 2160)
 		slice_num = 4;
@@ -900,6 +901,9 @@ int get_vpp_slice_num(const struct vinfo_s *info)
 		slice_num = 2;
 	else
 		slice_num = 1;
+	#else
+	slice_num = info->cur_enc_ppc;
+	#endif
 	if (g_post_slice_num != 0xff)
 		slice_num = g_post_slice_num;
 	return slice_num;
