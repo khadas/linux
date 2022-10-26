@@ -140,6 +140,7 @@ EXPORT_SYMBOL_GPL(of_get_display_timing);
  * of_get_display_timings - parse all display_timing entries from a device_node
  * @np: device_node with the subnodes
  **/
+extern int khadas_mipi_id;
 struct display_timings *of_get_display_timings(const struct device_node *np)
 {
 	struct device_node *timings_np;
@@ -149,8 +150,13 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 
 	if (!np)
 		return NULL;
-
+//printk("hlm xx of_get_display_timings\n");
+if(1 == khadas_mipi_id){
+	timings_np = of_get_child_by_name(np, "display-timings1");
+}
+else{
 	timings_np = of_get_child_by_name(np, "display-timings");
+}
 	if (!timings_np) {
 		pr_err("%pOF: could not find display-timings node\n", np);
 		return NULL;
