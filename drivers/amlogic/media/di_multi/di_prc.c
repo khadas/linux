@@ -54,6 +54,7 @@ bool dim_dbg_is_force_later(void)
 {
 	return di_forc_pq_load_later;
 }
+
 unsigned int di_dbg = DBG_M_EVENT/*|DBG_M_IC|DBG_M_MEM2|DBG_M_RESET_PRE*/;
 module_param(di_dbg, uint, 0664);
 MODULE_PARM_DESC(di_dbg, "debug print");
@@ -283,6 +284,12 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 				EDI_CFG_AFBCE_LOSS_EN,
 				0,
 				K_DI_CFG_T_FLG_DTS},
+	[EDI_CFG_TB]  = {"tb",
+			/* 0:not en;	*/
+			/* 1:1channel;		*/
+			EDI_CFG_TB,
+			0,
+			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_END]  = {"cfg top end ", EDI_CFG_END, 0,
 			K_DI_CFG_T_FLG_NONE},
 
@@ -448,6 +455,13 @@ void di_cfg_top_dts(void)
 
 	if (cfgg(EN_PRE_LINK) && !IS_IC_SUPPORT(PRE_VPP_LINK))
 		PR_WARN("not support pre_vpp link?\n");
+
+	/* tb */
+	if (cfgg(TB) && !IS_IC_SUPPORT(TB)) {
+		PR_WARN("TB not support\n");
+		cfgs(TB, 0);
+	}
+
 }
 
 static void di_cfgt_show_item_one(struct seq_file *s, unsigned int index)
@@ -692,7 +706,7 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 			edi_mp_pre_enable_mask, 3},
 	[edi_mp_post_refresh]  = {"post_refresh:bool",
 			edi_mp_post_refresh, 0},
-	[edi_mp_nrds_en]  = {"nrds_en:bool",
+	[edi_mp_nrds_en]  = {"nrds_en:uint",
 			edi_mp_nrds_en, 0},
 	[edi_mp_bypass_3d]  = {"bypass_3d:int:def:1",
 			edi_mp_bypass_3d, 1},
@@ -883,6 +897,11 @@ const struct di_mp_uit_s di_mp_ui_top[] = {
 	 ********************/
 	[edi_mp_shr_cfg]  = {"shr_mode_w:uint:0:disable;0",
 				edi_mp_shr_cfg, 0x0},
+	[edi_mp_blend_mode]  = {"edi_mp_blend_mode:uint:0~7coef0,8~15coef1",
+				edi_mp_blend_mode, 0xf2504040},
+	//0~7coef0,8~15coef1,16~23coef2,24~27haa,28~31blendmode
+	[edi_mp_tb_dump]  = {"edi_mp_tb_dump:uint:1",
+				edi_mp_tb_dump, 0},//1400
 	[EDI_MP_SUB_DI_E]  = {"di end-------",
 				EDI_MP_SUB_DI_E, 0},
 	/**************************************/
@@ -2071,7 +2090,8 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 				/*first channel reg*/
 				dpre_init();
 				dpost_init();
-				get_dim_de_devp()->nrds_enable = 0; //nrds cause pre-vpp link crash
+				//get_dim_de_devp()->nrds_enable = 0;
+				//nrds cause pre-vpp link crash
 				di_reg_setting(ch, vframe);
 				get_datal()->pre_vpp_set = false;
 			}

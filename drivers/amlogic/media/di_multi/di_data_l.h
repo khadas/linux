@@ -169,6 +169,7 @@ enum EDI_CFG_TOP_IDX {
 	EDI_CFG_SUB_V,
 	EDI_CFG_EN_PRE_LINK,
 	EDI_CFG_AFBCE_LOSS_EN,
+	EDI_CFG_TB,
 	EDI_CFG_END,
 };
 
@@ -773,6 +774,22 @@ struct di_mtask {
 	unsigned int err_cmd_cnt;
 };
 
+struct di_tbtask {
+	bool flg_init;
+	struct semaphore sem;
+	wait_queue_head_t wait_queue;
+	struct task_struct *thread;
+	unsigned int status;
+
+	unsigned int wakeup;
+	unsigned int delay;
+	bool exit;
+
+	struct dim_fcmd_s fcmd[DI_CHANNEL_NUB];
+	unsigned int err_res; /* 0: no err; other have error */
+	unsigned int err_cmd_cnt;
+};
+
 #define MAX_KFIFO_L_CMD_NUB	32
 
 union   DI_L_CMD_BITS {
@@ -822,6 +839,14 @@ enum ECMD_BLK {
 	ECMD_BLK_RELEASE_ALL, /* ready to release */
 };
 
+enum ECMD_TB {
+	ECMD_TB_NONE,
+	ECMD_TB_REG,
+	ECMD_TB_PROC,
+	ECMD_TB_ALGORITHM,
+	ECMD_TB_RELEASE,
+};
+
 enum EDIM_BLK_TYP {
 	EDIM_BLK_TYP_PST_TEST,
 	EDIM_BLK_TYP_OLDI,
@@ -857,6 +882,17 @@ struct mtsk_cmd_s {
 	unsigned int nub	: 8;
 	unsigned int rev2	: 16;
 	struct blk_flg_s	flg;
+};
+
+struct tbtsk_cmd_s {
+	unsigned int cmd	: 4;
+	unsigned int block_mode : 1;
+	unsigned int hf_need	: 1; //
+	unsigned int ch	: 2;
+	unsigned int nub	: 8;
+	unsigned int rev2	: 16;
+	struct vframe_s in_buf_vf;
+	int field_count;
 };
 
 /**************************************
@@ -1030,6 +1066,8 @@ enum EDI_MP_UI_T {
 	edi_mp_hdr_ctrl,
 	edi_mp_clock_low_ratio,//set low ratio of vpu clkb
 	edi_mp_shr_cfg,
+	edi_mp_blend_mode,
+	edi_mp_tb_dump,
 	EDI_MP_SUB_DI_E,
 	/**************************************/
 	EDI_MP_SUB_NR_B,
@@ -1356,6 +1394,9 @@ struct di_mm_cfg_s {
 	unsigned int size_buf_hf; //from t3
 	unsigned int hf_hsize;
 	unsigned int hf_vsize;
+	unsigned int size_buf_tb; //from t3
+	unsigned int tb_hsize;
+	unsigned int tb_vsize;
 };
 struct dim_mm_t_s {
 	/* use for reserved and alloc all*/
@@ -2017,6 +2058,10 @@ struct di_ch_s {
 	struct kfifo	fifo32[DIM_Q_NUB];
 	bool flg_fifo32[DIM_Q_NUB];
 	unsigned int err;
+	bool en_tb_buf;
+	bool en_tb; //
+	unsigned char tb_owner;	//
+	bool	tb_busy;//
 };
 
 struct dim_policy_s {
@@ -2066,6 +2111,7 @@ struct di_mng_s {
 	/*task:*/
 	struct di_task		tsk;
 	struct di_mtask		mtsk;
+	struct di_tbtask	tbtsk;
 
 	enum EDIM_TMODE		tmode_pre[DI_CHANNEL_MAX];
 	/*channel state: use enum eDI_TOP_STATE */
@@ -2665,6 +2711,9 @@ struct di_data_l_s {
 	unsigned int ic_sub_ver;
 	struct reg_t s4dw_reg[DIM_NRDIS_REG_BACK_NUB];
 	void *mng_hf_buf;
+	unsigned char tb_src_cnt;//
+	//unsigned char tb_owner;	//
+	//bool	tb_busy;//
 	struct dim_dvs_prevpp_s dvs_prevpp;
 	atomic_t	state_cnt_reg;
 	atomic_t	cnt_reg_pre_link;/* pre-vpp link cnt */
@@ -2713,6 +2762,7 @@ struct di_data_l_s {
 #define DBG_M_HDR		DI_BIT27
 #define DBG_M_IC		DI_BIT28
 #define DBG_M_RESET_PRE		DI_BIT29
+#define DBG_M_TB		DI_BIT27
 
 extern unsigned int di_dbg;
 
@@ -2756,6 +2806,7 @@ extern unsigned int di_dbg;
 #define dbg_hdr(fmt, args ...)		dbg_m(DBG_M_HDR, fmt, ##args)
 #define dbg_link(fmt, args ...)		dbg_m(DBG_M_LINK, fmt, ##args)
 #define dbg_tst(fmt, args ...)		dbg_m(DBG_M_TST, fmt, ##args)
+#define dbg_tb(fmt, args ...)		dbg_m(DBG_M_TB, fmt, ##args)
 #define dbg_bypass(fmt, args ...)	dbg_m(DBG_M_BPASS, fmt, ##args)
 #define dbg_ic(fmt, args ...)		dbg_m(DBG_M_IC, fmt, ##args)
 
@@ -3179,6 +3230,11 @@ static inline struct di_mtask *get_mtask(void)
 	return &get_bufmng()->mtsk;
 }
 
+static inline struct di_tbtask *get_tbtask(void)
+{
+	return &get_bufmng()->tbtsk;
+}
+
 /******************************************
  *	pq ops
  *****************************************/
@@ -3354,6 +3410,7 @@ static inline void p_ref_set_buf(struct di_buf_s *buf,
 #define IC_SUPPORT_HDR		DI_BIT1
 #define IC_SUPPORT_DW		DI_BIT2 /* double write */
 #define IC_SUPPORT_PRE_VPP_LINK	DI_BIT3
+#define IC_SUPPORT_TB		DI_BIT4
 
 #define IS_IC_SUPPORT(cc)	(get_datal()->mdata->support & \
 				IC_SUPPORT_##cc ? true : false)

@@ -545,7 +545,7 @@ static void s4dw_reg_variable(struct di_ch_s *pch, struct vframe_s *vframe)
 
 		ppre->bypass_flag = false;
 
-		de_devp->nrds_enable = 0; //??
+		//de_devp->nrds_enable = 0; //??
 		//de_devp->pps_enable = dimp_get(edi_mp_pps_en); // ??
 		/*di pre h scaling down: sm1 tm2*/
 		de_devp->h_sc_down_en = 0; //??
@@ -2081,7 +2081,7 @@ static void s4dw_pre_set(unsigned int channel)
 			       chan2_field_num,
 			       ppre->vdin2nr |
 			       (ppre->is_bypass_mem << 4),
-			       ppre);
+			       ppre, channel);
 
 	//no need for s4dw dcntr_set();
 

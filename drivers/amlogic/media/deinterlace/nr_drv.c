@@ -1398,7 +1398,7 @@ void cue_int_op(struct vframe_s *vf, const struct reg_acc *op)
 			cue_en = false;
 	}
 	if (cue_en_last != cue_en) {
-		di_pr_info("cue:chg1:%d->%d\n", cue_en_last, cue_en);
+		di_print("cue:chg1:%d->%d\n", cue_en_last, cue_en);
 		cue_en_last = cue_en;
 	}
 	/*close cue when cue disable*/
@@ -1493,8 +1493,8 @@ void adaptive_cue_adjust_op(unsigned int frame_diff, unsigned int field_diff,
 			cue_en = false;
 
 		if (cue_en != cue_en_last) {
-			di_pr_info("cue_en:chg2:%d->%d\n", cue_en_last, cue_en);
-			di_pr_info("\t%d,%d,%d\n",
+			di_print("cue_en:chg2:%d->%d\n", cue_en_last, cue_en);
+			di_print("\t%d,%d,%d\n",
 					pcue_parm->frame_count,
 					pcue_parm->field_count1,
 					pcue_parm->glb_mot_fieldnum);

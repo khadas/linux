@@ -19,6 +19,47 @@
 #ifndef _NR_DS_H
 #define _NR_DS_H
 
+#include "deinterlace.h"
+
+#ifdef DIM_TB_DETECT
+#define DIM_TB_BUFFER_MAX_SIZE 16
+#define DIM_TB_DETECT_W 128
+#define DIM_TB_DETECT_H 96
+#define DIM_TB_ALGO_COUNT 4
+
+struct dim_tb_buf_s {
+	ulong vaddr;
+	ulong paddr;
+};
+
+enum dim_tb_status {
+	di_tb_idle,
+	di_tb_running,
+	di_tb_done,
+};
+
+void write_file(void);
+
+void dim_tb_ext_cmd(struct vframe_s *vf, int data1, unsigned int ch,
+		unsigned int cmd);
+
+int dim_tb_detect(struct vframe_s *vf, int data1, unsigned int ch);
+
+int dim_tb_buffer_init(unsigned int ch);
+
+int dim_tb_buffer_uninit(unsigned int ch);
+
+void dim_tb_function(struct vframe_s *vf, int data1, unsigned int ch);
+
+void dim_ds_detect(struct vframe_s *vf, int data1, unsigned int ch);
+
+int dim_tb_task_process(struct vframe_s *vf, u32 data, unsigned int ch);
+
+void dim_tb_status(void);
+
+#endif
+void dim_dump_tb(unsigned int data, unsigned int ch);
+
 #define NR_DS_WIDTH	128
 #define NR_DS_HEIGHT	96
 #define NR_DS_BUF_SIZE	(96 << 7)
@@ -35,10 +76,8 @@ struct nr_ds_s {
 	unsigned long buf[NR_DS_BUF_NUM];
 };
 
-void dim_nr_ds_buf_init(unsigned int cma_flag, unsigned long mem_start,
-			struct device *dev, bool tvp_flg);
-void dim_nr_ds_buf_uninit(unsigned int cma_flag, struct device *dev);
-void dim_nr_ds_init(unsigned int width, unsigned int height);
+void dim_nr_ds_hw_init(unsigned int width, unsigned int height,
+		       unsigned int ch);
 void dim_nr_ds_mif_config(void);
 void dim_nr_ds_hw_ctrl(bool enable);
 void dim_nr_ds_irq(void);

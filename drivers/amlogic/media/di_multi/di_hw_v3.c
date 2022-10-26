@@ -562,6 +562,23 @@ static void di_mif1_linear_wr_cfg(struct DI_SIM_MIF_S *mif,
 	dbg_ic("\treg[0x%x] = 0x%x\n", BADDR, op->rd(BADDR));
 }
 
+void di_mif1_linear_wr_cfgds(unsigned long addr, unsigned int STRIDE,
+			   unsigned int BADDR)
+{
+	unsigned int stride;
+	const struct reg_acc *op = &di_pre_regset;
+
+	//pr_info("%s:\n", __func__);
+	//di_mif1_stride(mif, &stride);
+	di_mif1_stride2(8, 128, &stride);
+	op->wr(STRIDE, (0 << 31) | stride);//stride
+	op->wr(BADDR, addr >> 4);//base_addr
+	//pr_info("\tstride[%d]\n", stride);
+	//pr_info("\taddr[0x%lx]\n", addr);
+	//pr_info("\treg[0x%x] = 0x%x\n", STRIDE, op->rd(STRIDE));
+	//pr_info("\treg[0x%x] = 0x%x\n", BADDR, op->rd(BADDR));
+}
+
 void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,

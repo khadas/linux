@@ -4407,8 +4407,6 @@ static void dpvpph_size_change(struct dim_prevpp_ds_s *ds,
 
 	// below is no use, tmp
 	#ifdef HIS_CODE
-	if (de_devp->nrds_enable)
-		dim_nr_ds_init(width, height);
 	if (de_devp->pps_enable	&& dimp_get(edi_mp_pps_position)) {
 		pps_w = ppre->cur_width;
 		if (vf_type & VIDTYPE_TYPEMASK) {

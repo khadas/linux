@@ -81,6 +81,7 @@
 #include "di_pre.h"
 #include "di_prc.h"
 #include "di_task.h"
+#include "tb_task.h"
 #include "di_vframe.h"
 #include "di_que.h"
 #include "di_api.h"
@@ -1284,8 +1285,6 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		} else {
 			pr_info("war:can't peek post buf\n");
 		}
-	} else if (strcmp(parm[0], "capture_nrds") == 0) {
-		dim_get_nr_ds_buf(&dump_adr, &nr_size);
 	} else {
 		PR_ERR("wrong dump cmd\n");
 		kfree(buf_orig);
@@ -2889,7 +2888,6 @@ static int di_init_buf_new(struct di_ch_s *pch, struct vframe_s *vframe)
 			//move all to wait:
 			di_buf_no2wait(pch, mm->cfg.num_post);
 		}
-
 		mm->sts.flg_alloced = true;
 		mm->cfg.num_rebuild_keep = 0;
 	} else {
@@ -3057,7 +3055,6 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
 	#endif
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	struct di_post_stru_s *ppost = get_post_stru(channel);
-	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_ch_s *pch;
 	struct dim_mm_blk_s *blks[POST_BUF_NUM];
 	unsigned int blk_nub = 0;
@@ -3098,10 +3095,9 @@ void dim_uninit_buf(unsigned int disable_mirror, unsigned int channel)
 		ppost->de_post_process_done = 0;
 		ppost->post_wr_cnt = 0;
 	}
-	if (cfgeq(MEM_FLAG, EDI_MEM_M_REV) && de_devp->nrds_enable) {
-		dim_nr_ds_buf_uninit(cfgg(MEM_FLAG),
-				     &de_devp->pdev->dev);
-	}
+#ifdef DIM_TB_DETECT
+	dim_tb_ext_cmd(NULL, 0, channel, ECMD_TB_RELEASE);
+#endif
 }
 
 #ifdef MARK_HIS
@@ -3582,7 +3578,7 @@ void dim_pre_de_process(unsigned int channel)
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 	int canvases_idex = ppre->field_count_for_cont % 2;
 	unsigned short cur_inp_field_type = VIDTYPE_TYPEMASK;
-	unsigned short int_mask = 0x7f;
+	//unsigned short int_mask = 0x7f;
 	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_cvs_s *cvss;
 	struct vframe_s *vf_i, *vf_mem, *vf_chan2;
@@ -3884,15 +3880,15 @@ void dim_pre_de_process(unsigned int channel)
 			dim_sc2_4k_set(sc2_pre_cfg->b.mode_4k);
 		}
 	}
+	/*
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_G12A)) {
 		if (de_devp->nrds_enable) {
-			dim_nr_ds_mif_config();
-			dim_nr_ds_hw_ctrl(true);
 			int_mask = 0x3f;
 		} else {
 			dim_nr_ds_hw_ctrl(false);
 		}
 	}
+	*/
 	#ifndef TMP_MASK_FOR_T7
 	/*patch for SECAM signal format from vlsi-feijun for all IC*/
 	get_ops_nr()->secam_cfr_adjust(ppre->di_inp_buf->vframe->sig_fmt,
@@ -3964,7 +3960,7 @@ void dim_pre_de_process(unsigned int channel)
 			       chan2_field_num,
 			       ppre->vdin2nr |
 			       (ppre->is_bypass_mem << 4),
-			       ppre);
+			       ppre, channel);
 
 	//dimh_enable_afbc_input(ppre->di_inp_buf->vframe);
 
@@ -5495,7 +5491,16 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		/**************************************************/
 		/*mem check*/
 		memcpy(&ppre->vfm_cpy, vframe, sizeof(ppre->vfm_cpy));
-
+#ifdef DIM_TB_DETECT
+		if (!is_progressive(vframe) && IS_IC_SUPPORT(TB)) {
+			if (pch->en_tb)
+				dim_nr_ds_hw_ctrl(true);
+			else
+				dim_nr_ds_hw_ctrl(false);
+			dim_tb_ext_cmd(vframe, ppre->field_count_for_cont,
+				channel, ECMD_TB_PROC);
+		}
+#endif
 		bypassr = is_bypass2(vframe, channel);//dim_is_bypass(vframe, channel);
 		/*2020-12-02: here use di_buf->vframe is err*/
 		change_type = is_source_change(vframe, channel);
@@ -5554,7 +5559,12 @@ unsigned char dim_pre_de_buf_config(unsigned int channel)
 		}
 
 		vframe = &nins->c.vfm_cp;
-
+#ifdef DIM_TB_DETECT
+		if (!is_progressive(vframe) && IS_IC_SUPPORT(TB)) {
+			dim_tb_ext_cmd(vframe, ppre->field_count_for_cont,
+				channel, ECMD_TB_ALGORITHM);
+		}
+#endif
 		if (vframe->type & VIDTYPE_COMPRESS) {
 			/* backup the original vf->width/height for bypass case */
 			cur_dw_width = vframe->width;
@@ -7025,7 +7035,6 @@ void dim_irq_pre(void)
 {
 	unsigned int channel;
 	struct di_pre_stru_s *ppre;
-	struct di_dev_s *de_devp = get_dim_de_devp();
 	struct di_hpre_s  *pre = get_hw_pre();
 	u64 ctime;
 	unsigned int data32 = RD(DI_INTR_CTRL);
@@ -7083,6 +7092,10 @@ void dim_irq_pre(void)
 		}
 		DIM_DI_WR(DI_INTR_CTRL,
 			  (data32 & 0xfffffffb) | (intr_mode << 30));
+#ifdef DIM_TB_DETECT
+			dim_nr_ds_hw_ctrl(false);
+			dbg_tb("%s:irq done\n", __func__);
+#endif
 	}
 
 	/*if (ppre->pre_de_busy == 0) {*/
@@ -7122,8 +7135,8 @@ void dim_irq_pre(void)
 						  /*ppre->mcinfo_size*/0);
 		}
 		get_ops_nr()->nr_process_in_irq();
-		if ((data32 & 0x200) && de_devp->nrds_enable)
-			dim_nr_ds_irq();
+		//if ((data32 & 0x200) && de_devp->nrds_enable)
+			//dim_nr_ds_irq();
 		/* disable mif */
 		dimh_enable_di_pre_mif(false, dimp_get(edi_mp_mcpre_en));
 		dcntr_dis();
@@ -10599,6 +10612,9 @@ void di_unreg_variable(unsigned int channel)
 	}
 	pch->sumx.flg_rebuild = false;
 	di_hf_t_release(pch);
+#ifdef DIM_TB_DETECT
+	dim_tb_ext_cmd(NULL, 0, channel, ECMD_TB_RELEASE);
+#endif
 	sum_g_clear(channel);
 	sum_p_clear(channel);
 	sum_pst_g_clear(channel);
@@ -10705,7 +10721,9 @@ void di_pre_size_change(unsigned short width,
 	union hw_sc2_ctr_pre_s *sc2_pre_cfg;
 	struct nr_cfg_s cfg_data;
 	struct nr_cfg_s *cfg = &cfg_data;
+	struct di_ch_s *pch;
 
+	pch = get_chdata(channel);
 	/*pr_info("%s:\n", __func__);*/
 	/*debug only:*/
 	/*di_pause(channel, true);*/
@@ -10757,8 +10775,16 @@ void di_pre_size_change(unsigned short width,
 	if (get_reg_flag_all())
 		di_load_pq_table();
 
-	if (de_devp->nrds_enable)
-		dim_nr_ds_init(width, height);
+	if ((vf_type & VIDTYPE_TYPEMASK) &&
+	    ppre->cur_source_type == VFRAME_SOURCE_TYPE_OTHERS &&
+	    ((width * height) <= (1920 * 1088))) {
+#ifdef DIM_TB_DETECT
+		if (cfgg(TB) && de_devp->tbflg_int)
+			dim_nr_ds_hw_init(width, height, channel);
+#endif
+	} else {
+		//de_devp->nrds_enable = 0;
+	}
 	if (ppre->used_pps)
 		dimp_set(edi_mp_pps_position, 1);
 	if ((de_devp->pps_enable	|| ppre->used_pps) &&
@@ -10801,7 +10827,7 @@ void di_pre_size_change(unsigned short width,
 	/*dimh_int_ctr(0, 0, 0, 0, 0, 0);*/
 	dimh_int_ctr(1, ppre->madi_enable,
 		     dimp_get(edi_mp_det3d_en) ? 1 : 0,
-		     de_devp->nrds_enable,
+		     pch->en_tb,
 		     dimp_get(edi_mp_post_wr_en),
 		     ppre->mcdi_enable);
 	#endif
@@ -11121,7 +11147,16 @@ void di_reg_variable(unsigned int channel, struct vframe_s *vframe)
 		} else {
 			dimp_set(edi_mp_use_2_interlace_buff, 0);
 		}
-		de_devp->nrds_enable = dimp_get(edi_mp_nrds_en);
+
+#ifdef DIM_TB_DETECT
+		if (cfgg(TB)) {
+			dim_tb_ext_cmd(vframe, 0,
+				channel, ECMD_TB_REG);
+		} else {
+			//de_devp->nrds_enable = 0;
+		}
+#endif
+
 		de_devp->pps_enable = dimp_get(edi_mp_pps_en);
 		/*di pre h scaling down: sm1 tm2*/
 		de_devp->h_sc_down_en = di_mp_uit_get(edi_mp_pre_hsc_down_en);

@@ -560,7 +560,7 @@ void dimh_enable_di_pre_aml(struct DI_MIF_S	*di_inp_mif,
 			    unsigned char madi_en,
 			    unsigned char pre_field_num,
 			    unsigned char pre_vdin_link,
-			    void *ppre);
+			    void *ppre, unsigned int channel);
 //void dimh_enable_afbc_input(struct vframe_s *vf);
 
 void dimh_mc_pre_mv_irq(void);
@@ -1020,6 +1020,8 @@ void di_mcmif_linear_rd_cfg(struct DI_MC_MIF_s *mif,
 			unsigned int CTRL1,
 			unsigned int CTRL2,
 			unsigned int BADDR);
+void di_mif1_linear_wr_cfgds(unsigned long addr, unsigned int STRIDE,
+			   unsigned int BADDR);
 bool dip_is_linear(void);
 bool dim_dbg_cfg_post_byapss(void);
 void dbg_reg_mem(unsigned int dbgid);

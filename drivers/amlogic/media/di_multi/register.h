@@ -245,12 +245,12 @@ unsigned int DIM_VSC_WR_MPG_BT(unsigned int addr,
 #define DI_VIU_HSC_COEF_IDX				0x37b5
 
 /* NR DOWNSAMPLE */
-#define NRDSWR_X						0x37f9
-#define NRDSWR_Y						0x37fa
-#define NRDSWR_CTRL						0x37fb
+#define NRDSWR_X					0x37f9
+#define NRDSWR_Y					0x37fa
+#define NRDSWR_CTRL					0x37fb
 #define NRDSWR_CAN_SIZE					0x37fc
 #define NR_DS_BUF_SIZE_REG				0x3740
-#define NR_DS_CTRL						0x3741
+#define NR_DS_CTRL					0x3741
 #define NR_DS_OFFSET					0x3742
 #define NR_DS_BLD_COEF					0x3743
 /* di */

@@ -79,8 +79,7 @@
 
 #define VF_POOL_SIZE 10
 
-#define PPMGR_TB_DETECT
-/* #define CANVAS_RESERVED */
+//#define PPMGR_TB_DETECT
 
 #define RECEIVER_NAME "ppmgr"
 #define PROVIDER_NAME   "ppmgr"
@@ -2832,6 +2831,7 @@ static int ppmgr_task(void *data)
 	u32 last_height = 0;
 	u8 reset_tb = 0;
 	u32 init_mute = 0;
+	int ret = 0;
 #endif
 	unsigned int newvideoangle = 0;
 	memset(&ge2d_config, 0, sizeof(struct config_para_ex_s));
@@ -2890,7 +2890,6 @@ static int ppmgr_task(void *data)
 		/* process when we have both input and output space */
 		while (ppmgr_vf_peek_dec() &&
 		       !vfq_empty(&q_free) && (!ppmgr_blocking)) {
-			int ret = 0;
 
 			vf = ppmgr_vf_get_dec();
 			if (!vf)
@@ -3502,7 +3501,7 @@ static int tb_task(void *data)
 				inited = 0;
 			atomic_set(&tb_reset_flag, 0);
 			if (gfunc)
-				gfunc->fwalg_init(inited);
+				gfunc->fwalg_init(inited, 0);
 		}
 		inited = 1;
 		is_top = (tb_buff_rptr & 1) ? 0 : 1;
@@ -3541,7 +3540,7 @@ static int tb_task(void *data)
 						    tb_buff_rptr,
 						    atomic_read(&tb_skip_flag),
 						    (ppmgr_device.tb_detect
-						     & 0x8) ? 1 : 0);
+						     & 0x8) ? 1 : 0, 0);
 
 		if (tb_buff_rptr == 0)
 			atomic_set(&tb_skip_flag, 0);
@@ -3552,7 +3551,7 @@ static int tb_task(void *data)
 		}
 
 		if (tbff_flag == -1 && gfunc)
-			tbff_flag = gfunc->majority_get();
+			tbff_flag = gfunc->majority_get(0);
 
 		if (tbff_flag == -1)
 			tbff_flag = TB_DETECT_NC;
@@ -3643,6 +3642,8 @@ void get_tb_detect_status(void)
 #endif
 }
 
+#ifdef PPMGR_TB_DETECT
+
 int RegisterTB_Function(struct TB_DetectFuncPtr *func, const char *ver)
 {
 	int ret = -1;
@@ -3676,4 +3677,5 @@ int UnRegisterTB_Function(struct TB_DetectFuncPtr *func)
 	return ret;
 }
 EXPORT_SYMBOL(UnRegisterTB_Function);
+#endif
 

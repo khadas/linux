@@ -68,6 +68,7 @@
  ************************************************/
 //#define DIM_EXT_NO_HF	(1)
 
+#define DIM_TB_DETECT
 /*trigger_pre_di_process param*/
 #define TRIGGER_PRE_BY_PUT			'p'
 #define TRIGGER_PRE_BY_DE_IRQ			'i'
@@ -484,7 +485,7 @@ struct di_dev_s {
 	unsigned int	   nr10bit_support;
 	/* is DI support post wr to mem for OMX */
 	unsigned int       post_wr_support;
-	unsigned int nrds_enable;
+	//unsigned int nrds_enable;
 	unsigned int pps_enable;
 	unsigned int h_sc_down_en;/*sm1, tm2 ...*/
 	/*struct	mutex      cma_mutex;*/
@@ -504,6 +505,13 @@ struct di_dev_s {
 	struct vpu_dev_s *dim_vpu_pd_vd1;
 	struct vpu_dev_s *dim_vpu_pd_post;
 	bool is_crc_ic;
+#ifdef DIM_TB_DETECT
+	//unsigned int tb_detect;
+	unsigned int tb_detect_period;
+	unsigned int tb_detect_buf_len;
+	unsigned int tb_detect_init_mute;
+	unsigned int tbflg_int;
+#endif
 };
 
 struct di_pre_stru_s {

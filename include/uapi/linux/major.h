@@ -206,4 +206,5 @@
 #define AFD_MAJOR               (29 + (AML_BASE))
 #define AMEDIA_INFO_MAJOR       (30 + (AML_BASE))
 #define VICP_MAJOR              (31 + (AML_BASE))
+#define TB_MODULES_MAJOR	(32 + (AML_BASE))
 #endif

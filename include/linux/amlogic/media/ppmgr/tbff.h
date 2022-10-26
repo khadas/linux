@@ -44,13 +44,14 @@ struct tbff_stats {
 	int ro_polar5_f4_i3;
 };
 
-typedef void (*tbff_stats_init)(struct tbff_stats *p_reg, int irow, int icol);
-typedef void (*tbff_stats_get)(unsigned long *in, struct tbff_stats *p_reg);
-typedef void (*tbff_fwalg_init)(int init_mode);
-typedef int (*tbff_fwalg_get)(struct tbff_stats *p_reg, int fld_id,
+typedef void (*tbff_stats_init)(struct tbff_stats *pReg, int irow, int icol);
+typedef void (*tbff_stats_get)(unsigned long *in, struct tbff_stats *pReg);
+typedef void (*tbff_fwalg_init)(int init_mode, unsigned int ch);
+typedef int (*tbff_fwalg_get)(struct tbff_stats *pReg, int fld_id,
 			      int is_tff, int frm,
-			      int skip_flg, int print_flg);
-typedef int  (*tbff_majority_get_flg)(void);
+			      int skip_flg, int print_flg,
+			      unsigned int ch);
+typedef int  (*tbff_majority_get_flg)(unsigned int ch);
 
 struct TB_DetectFuncPtr {
 	tbff_stats_init stats_init;
@@ -59,6 +60,10 @@ struct TB_DetectFuncPtr {
 	tbff_fwalg_get fwalg_get;
 	tbff_majority_get_flg majority_get;
 };
+
+int RegisterDITB_Function(struct TB_DetectFuncPtr *func,
+			  const char *ver);
+int UnRegisterDITB_Function(struct TB_DetectFuncPtr *func);
 
 int RegisterTB_Function(struct TB_DetectFuncPtr *func, const char *ver);
 int UnRegisterTB_Function(struct TB_DetectFuncPtr *func);
