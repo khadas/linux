@@ -9548,7 +9548,7 @@ static void get_vd_probe_pos_info(u32 val_x, u32 *reg_probe_sel, u32 *pos_x)
 	}
 }
 
-static void get_post_probe_pos_info(u32 val_x, u32 *reg_probe_sel, u32 *pos_x)
+static void get_post_probe_pos_info(u8 probe_id, u32 val_x, u32 *reg_probe_sel, u32 *pos_x)
 {
 	int i = 0, slice_num = 0;
 	u32 vd1_dout_hsize = 0;
@@ -9564,7 +9564,10 @@ static void get_post_probe_pos_info(u32 val_x, u32 *reg_probe_sel, u32 *pos_x)
 		if (val_x >= slice_per_hsize * i &&
 			val_x < slice_per_hsize * (i + 1)) {
 			/* select slice i */
-			*reg_probe_sel = 1 << i;
+			if (probe_id == POST_VADJ_PROBE)
+				*reg_probe_sel = 1 << i;
+			else if (probe_id == POSTBLEND_PROBE)
+				*reg_probe_sel = 2 << i;
 			*pos_x = val_x - slice_per_hsize * i;
 			break;
 		}
@@ -9814,11 +9817,14 @@ void set_probe_pos_s5(u32 val_x, u32 val_y, u8 probe_id, u32 output)
 			reg_val = reg_val & 0xe000e000;
 			reg_val = reg_val | (val_x << 16) | val_y;
 			WRITE_VCBUS_REG(VIU_PROBE_POS, reg_val);
-			reg_probe_sel = 1;
+			if (probe_id == POST_VADJ_PROBE)
+				reg_probe_sel = 1;
+			else if (probe_id == POSTBLEND_PROBE)
+				reg_probe_sel = 2;
 			break;
 		case 2:
 		case 4:
-			get_post_probe_pos_info(val_x, &reg_probe_sel, &pos_x);
+			get_post_probe_pos_info(probe_id, val_x, &reg_probe_sel, &pos_x);
 			reg_val = reg_val & 0xe000e000;
 			reg_val = reg_val | (pos_x << 16) | val_y;
 			pr_info("%s:slice_num=%d, pos_x=%d, val_y=%d, reg_val=%x\n",
