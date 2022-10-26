@@ -120,7 +120,7 @@ static const struct pll_params_table s5_sys1_pll_params_table[] = {
 	PLL_PARAMS(75, 1, 0), /*DCO=1800M OD=1800M*/
 	PLL_PARAMS(79, 1, 0), /*DCO=1896M OD=1896M*/
 	PLL_PARAMS(84, 1, 0), /*DCO=2016M OD=2016M*/
-	PLL_PARAMS(88, 1, 0), /*DCO=2112M OD=2112M*/
+	PLL_PARAMS(87, 1, 0), /*DCO=2088M OD=2088M*/
 	{ /* sentinel */ }
 };
 #else
@@ -133,7 +133,7 @@ static const struct pll_params_table s5_sys1_pll_params_table[] = {
 	PLL_PARAMS(75, 1), /*DCO=1800M OD=1800M*/
 	PLL_PARAMS(79, 1), /*DCO=1896M OD=1896M*/
 	PLL_PARAMS(84, 1), /*DCO=2016M OD=2016M*/
-	PLL_PARAMS(88, 1), /*DCO=2112M OD=2112M*/
+	PLL_PARAMS(87, 1), /*DCO=2088M OD=2088M*/
 	{ /* sentinel */ }
 };
 #endif
