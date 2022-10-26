@@ -7163,7 +7163,7 @@ void dim_post_irq_sub(int irq)
 		DIM_DI_WR(DI_INTR_CTRL,
 			  (data32 & 0xffff0004) | (intr_mode << 30));
 
-		/* disable wr back avoid pps reay in g12a */
+		/* disable wr back avoid pps read in g12a */
 		/* dim_DI_Wr_reg_bits(DI_POST_CTRL, 0, 7, 1); */
 		if (DIM_IS_IC_EF(SC2))
 			opl1()->pst_set_flow(1, EDI_POST_FLOW_STEP3_IRQ);

@@ -1885,7 +1885,7 @@ bool dimn_que_release(struct dimn_qs_cls_s	*pq)
  * hw timer for wake up
  ************************************************/
 #define DIM_HW_TIMER_MS		(12)
-static void task_send_ready_now(unsigned int reasion)
+static void task_send_ready_now(unsigned int reason)
 {
 	struct dim_dvs_prevpp_s *dv_prevpp;
 
@@ -1895,7 +1895,7 @@ static void task_send_ready_now(unsigned int reasion)
 	atomic_set(&dv_prevpp->wk_need, 0);
 	dv_prevpp->ktimer_lst_wk = ktime_get();
 	atomic_inc(&dv_prevpp->sum_wk_real_cnt);
-	task_send_ready(reasion);
+	task_send_ready(reason);
 }
 
 static enum hrtimer_restart dpvpp_wk_hrtimer_func(struct hrtimer *timer)
@@ -1905,7 +1905,7 @@ static enum hrtimer_restart dpvpp_wk_hrtimer_func(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void task_send_wk_timer(unsigned int reasion)
+static void task_send_wk_timer(unsigned int reason)
 {
 	struct dim_dvs_prevpp_s *dv_prevpp;
 	ktime_t ktimer_now;
@@ -1915,9 +1915,9 @@ static void task_send_wk_timer(unsigned int reasion)
 	dv_prevpp = &get_datal()->dvs_prevpp;
 	atomic_inc(&dv_prevpp->sum_wk_rq);
 
-	if (reasion & DIM_WKUP_TAG_CRITICLE) {
+	if (reason & DIM_WKUP_TAG_CRITICAL) {
 		hrtimer_cancel(&dv_prevpp->hrtimer_wk);
-		task_send_ready_now(reasion);
+		task_send_ready_now(reason);
 		return;
 	}
 
@@ -1929,7 +1929,7 @@ static void task_send_wk_timer(unsigned int reasion)
 	kdiff = ktime_ms_delta(ktimer_now, dv_prevpp->ktimer_lst_wk);
 	if (kdiff > (DIM_HW_TIMER_MS - 3)) {
 		hrtimer_cancel(&dv_prevpp->hrtimer_wk);
-		task_send_ready_now(reasion);
+		task_send_ready_now(reason);
 		return;
 	}
 

@@ -4363,7 +4363,7 @@ void di_post_set_flow(unsigned int post_wr_en, enum EDI_POST_FLOW step)
 	case EDI_POST_FLOW_STEP3_IRQ:
 		WR(DI_POST_GL_CTRL, 0x1);
 		/* DI_POST_CTRL
-		 *	disable wr back avoid pps reay in g12a
+		 *	disable wr back avoid pps read in g12a
 		 *	[7]: set 0;
 		 */
 		WR(DI_POST_CTRL, 0x80000045);

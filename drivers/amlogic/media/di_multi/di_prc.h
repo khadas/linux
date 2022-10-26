@@ -360,7 +360,7 @@ int dbg_dct_contr_show(struct seq_file *s, void *v);
 void dim_dbg_dct_info(struct dcntr_mem_s *pprecfg);
 /* dct pre */
 void dct_pre_prob(struct platform_device *pdev);
-void dct_pre_revome(struct platform_device *pdev);
+void dct_pre_remove(struct platform_device *pdev);
 
 int dct_pre_ch_show(struct seq_file *s, void *v);
 int dct_pre_reg_show(struct seq_file *s, void *v);
@@ -557,7 +557,7 @@ void config_di_pre_mc_mif(struct DI_MC_MIF_s *di_mcinfo_mif,
 
 void dpre_recyc(unsigned int ch);
 
-extern const struct do_table_ops_s s4dw_hw_processt[4];
+extern const struct do_table_ops_s s4dw_hw_process[4];
 void s4dw_parser_infor(struct di_ch_s *pch);
 void check_tvp_state(struct di_ch_s *pch);
 

@@ -44,9 +44,9 @@
 #define INTERLACE_FMT_SCORE_MAX			(63)
 /* range of score in interlace detection */
 #define INTERLACE_FMT_SCORE_MIN			(-63)
-#define CHESSBOAD_FMT_SCORE_MAX			(63)
+#define CHESSBOARD_FMT_SCORE_MAX			(63)
 /* range of score in chessboard detection */
-#define CHESSBOAD_FMT_SCORE_MIN			(-63)
+#define CHESSBOARD_FMT_SCORE_MIN			(-63)
 
 #define LR_SCORE_LOWER_LIMIT			128
 /* if score > this limit, input is sure to be LR format */
@@ -54,7 +54,7 @@
 /* if score > this limit, input is sure to be TB format */
 #define INTERLACE_SCORE_LOWER_LIMIT		30
 /* if score > this limit, input is sure to be interlace format */
-#define CHESSBOADE_SCORE_LOWER_LIMIT		30
+#define CHESSBOARD_SCORE_LOWER_LIMIT		30
 /* if score > this limit, input is sure to be chessboard format */
 
 #define NOT_LR_SCORE_UPPER_LIMIT		(-24)
@@ -63,7 +63,7 @@
 /* if score < this limit, input is sure to be not TB format */
 #define NOT_INTERLACE_SCORE_UPPER_LIMIT		(-12)
 /* if score < this limit, input is sure to be not interlace format */
-#define NOT_CHESSBOAD_SCORE_UPPER_LIMIT		(-12)
+#define NOT_CHESSBOARD_SCORE_UPPER_LIMIT		(-12)
 /* if score < this limit, input is sure to be not chessboard format */
 
 #define LR_SYMMETRY_LOWER_LIMIT		44
@@ -239,11 +239,11 @@ __func__, chessbd_score, int_score,
 det3d_info.score_3d_chs, det3d_info.score_3d_int);
 		/* clipping to s7 */
 		det3d_info.score_3d_chs =
-(det3d_info.score_3d_chs > CHESSBOAD_FMT_SCORE_MAX) ?
-CHESSBOAD_FMT_SCORE_MAX : det3d_info.score_3d_chs;
+(det3d_info.score_3d_chs > CHESSBOARD_FMT_SCORE_MAX) ?
+CHESSBOARD_FMT_SCORE_MAX : det3d_info.score_3d_chs;
 		det3d_info.score_3d_chs =
-(det3d_info.score_3d_chs < CHESSBOAD_FMT_SCORE_MIN) ?
-CHESSBOAD_FMT_SCORE_MIN : det3d_info.score_3d_chs;
+(det3d_info.score_3d_chs < CHESSBOARD_FMT_SCORE_MIN) ?
+CHESSBOARD_FMT_SCORE_MIN : det3d_info.score_3d_chs;
 		det3d_info.score_3d_int =
 (det3d_info.score_3d_int > INTERLACE_FMT_SCORE_MAX) ?
 INTERLACE_FMT_SCORE_MAX : det3d_info.score_3d_int;
@@ -284,14 +284,14 @@ enum tvin_trans_fmt det3d_fmt_detect(void)
 	/* Split line contribution */
 	tmp_sp_lr =
 Rd_reg_bits(DET3D_RO_SPLT_HT,
-	DET3D_SPLIT_HT_VAILID_BIT, DET3D_SPLIT_HT_VAILID_WID)
+	DET3D_SPLIT_HT_VALID_BIT, DET3D_SPLIT_HT_VALID_WID)
 + Rd_reg_bits(DET3D_RO_SPLT_HB,
-	DET3D_SPLIT_HB_VAILID_BIT, DET3D_SPLIT_HB_VAILID_WID);
+	DET3D_SPLIT_HB_VALID_BIT, DET3D_SPLIT_HB_VALID_WID);
 	tmp_sp_tb =
 Rd_reg_bits(DET3D_RO_SPLT_VL,
-	DET3D_SPLIT_VL_VAILID_BIT, DET3D_SPLIT_VL_VAILID_WID)
+	DET3D_SPLIT_VL_VALID_BIT, DET3D_SPLIT_VL_VALID_WID)
 + Rd_reg_bits(DET3D_RO_SPLT_VR,
-	DET3D_SPLIT_VR_VAILID_BIT, DET3D_SPLIT_VR_VAILID_WID);
+	DET3D_SPLIT_VR_VALID_BIT, DET3D_SPLIT_VR_VALID_WID);
 
 	/* protect static graphics pattern */
 	if ((tmp_sp_lr == 2) && (tmp_sp_tb == 2)) {
@@ -367,16 +367,16 @@ DET3D_FRAME_MOTION_BIT, DET3D_FRAME_MOTION_WID) < 100;
 
 	/* ChessBoard/interlace mode score */
 	tmp1 = Rd_reg_bits(DET3D_RO_DET_CB_HOR,
-DET3D_CHESSBD_HOR_VALUE_BIT, DET3D_CHESSBD_HOR_VALUE_WID);
+DET3D_CHESSBOARD_HOR_VALUE_BIT, DET3D_CHESSBOARD_HOR_VALUE_WID);
 	tmp2 = Rd_reg_bits(DET3D_RO_DET_CB_HOR,
-DET3D_CHESSBD_NHOR_VALUE_BIT, DET3D_CHESSBD_NHOR_VALUE_WID);
+DET3D_CHESSBOARD_NHOR_VALUE_BIT, DET3D_CHESSBOARD_NHOR_VALUE_WID);
 	chessbd_hor_valid = tmp1 >
 (((tmp2 * chessbd_hor_rate) >> 4) + chessbd_hor_thrd);
 
 	tmp1 = Rd_reg_bits(DET3D_RO_DET_CB_VER,
-DET3D_CHESSBD_VER_VALUE_BIT, DET3D_CHESSBD_VER_VALUE_WID);
+DET3D_CHESSBOARD_VER_VALUE_BIT, DET3D_CHESSBOARD_VER_VALUE_WID);
 	tmp2 = Rd_reg_bits(DET3D_RO_DET_CB_VER,
-DET3D_CHESSBD_NVER_VALUE_BIT, DET3D_CHESSBD_NVER_VALUE_WID);
+DET3D_CHESSBOARD_NVER_VALUE_BIT, DET3D_CHESSBOARD_NVER_VALUE_WID);
 	chessbd_ver_valid = tmp1 > (((tmp2 * chessbd_vrate) >> 4) +
 chessbd_ver_thrd);
 
@@ -398,15 +398,15 @@ chessbd_ver_thrd);
 (det3d_info.score_3d_tb > 63)))
 		det3d_info.score_3d_tb = 0;
 #if 0 /*mark chessboard 3d detection*/
-	if ((det3d_info.score_3d_chs > CHESSBOADE_SCORE_LOWER_LIMIT) &&
-(det3d_info.score_3d_int < NOT_INTERLACE_SCORE_UPPER_LIMIT)) {
+	if (det3d_info.score_3d_chs > CHESSBOARD_SCORE_LOWER_LIMIT &&
+det3d_info.score_3d_int < NOT_INTERLACE_SCORE_UPPER_LIMIT) {
 		det3d_info.tfw_det3d_fmt = TVIN_TFMT_3D_DET_CHESSBOARD;
 		det3d_info.score_3d_lr = 0;
 		det3d_info.score_3d_tb = 0;
 	} else
 #endif
 	if ((det3d_info.score_3d_int > INTERLACE_SCORE_LOWER_LIMIT) &&
-(det3d_info.score_3d_chs < NOT_CHESSBOAD_SCORE_UPPER_LIMIT)) {
+(det3d_info.score_3d_chs < NOT_CHESSBOARD_SCORE_UPPER_LIMIT)) {
 		det3d_info.tfw_det3d_fmt = TVIN_TFMT_3D_DET_INTERLACE;
 		det3d_info.score_3d_lr = 0;
 		det3d_info.score_3d_tb = 0;

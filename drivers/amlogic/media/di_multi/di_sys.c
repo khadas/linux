@@ -2270,7 +2270,7 @@ void mem_release_one_inused(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf)
 		blk_buf->sct	= NULL;
 		blk_buf->pat_buf = NULL;
 	} else if (blk_buf->pat_buf) {
-		/* recycl pat*/
+		/* recycle pat*/
 		pat_buf = (struct dim_pat_s *)blk_buf->pat_buf;
 		if (blk_buf->sct_keep) { //need check??
 			pat_buf->flg_mode = 0;
@@ -4053,7 +4053,7 @@ static int dim_remove(struct platform_device *pdev)
 
 	dimh_hw_uninit();
 
-	dct_pre_revome(pdev);
+	dct_pre_remove(pdev);
 	if (cpu_after_eq(MESON_CPU_MAJOR_ID_TXLX))
 		clk_disable_unprepare(di_devp->vpu_clkb);
 

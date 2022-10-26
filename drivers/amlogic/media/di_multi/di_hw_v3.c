@@ -5589,7 +5589,7 @@ static void di_post_set_flow_v3(unsigned int post_wr_en,
 	case EDI_POST_FLOW_STEP3_IRQ:
 		op->wr(DI_SC2_POST_GL_CTRL, 0x1);
 		/* DI_POST_CTRL
-		 *	disable wr back avoid pps reay in g12a
+		 *	disable wr back avoid pps read in g12a
 		 *	[7]: set 0;
 		 */
 		op->wr(DI_POST_CTRL, 0x80000001); /*ary sc2 ??*/

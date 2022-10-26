@@ -3427,8 +3427,8 @@ static const struct que_creat_s qbf_nin_cfg_q[] = {//TST_Q_IN_NUB
 		.type	= Q_T_FIFO,
 		.lock	= 0,
 	},
-	[QBF_NINS_Q_RECYCL] = {
-		.name	= "QBF_NINS_Q_RECYCL",
+	[QBF_NINS_Q_RECYCLE] = {
+		.name	= "QBF_NINS_Q_RECYCLE",
 		.type	= Q_T_FIFO,
 		.lock	= 0,
 	},
@@ -3761,7 +3761,7 @@ bool nins_used_some_to_recycle(struct di_ch_s *pch, struct dim_nins_s *ins)
 		ins->header.index,
 		ins->header.code);
 	#endif
-	ret = qbuf_in(pbufq, QBF_NINS_Q_RECYCL, ins->header.index);
+	ret = qbuf_in(pbufq, QBF_NINS_Q_RECYCLE, ins->header.index);
 	if (!ret) {
 		PR_ERR("%s:in failed\n", __func__);
 		return false;
@@ -3812,7 +3812,7 @@ unsigned int nins_cnt_used_all(struct di_ch_s *pch)
 	pbufq = &pch->nin_qb;
 	len_check	= qbufp_count(pbufq, QBF_NINS_Q_CHECK);
 	len_used	= qbufp_count(pbufq, QBF_NINS_Q_USED);
-	len_rc		= qbufp_count(pbufq, QBF_NINS_Q_RECYCL);
+	len_rc		= qbufp_count(pbufq, QBF_NINS_Q_RECYCLE);
 
 	return len_check + len_used + len_rc;
 }

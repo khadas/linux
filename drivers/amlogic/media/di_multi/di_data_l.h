@@ -1801,7 +1801,7 @@ enum QBF_NINS_Q_TYPE {
 	QBF_NINS_Q_IDLE,
 	QBF_NINS_Q_CHECK,
 	QBF_NINS_Q_USED,
-	QBF_NINS_Q_RECYCL,
+	QBF_NINS_Q_RECYCLE,
 	/*for vfm clear, not back dec vf */
 	/* when reset, move used to usedb */
 	QBF_NINS_Q_USEDB,
@@ -2583,7 +2583,7 @@ struct dimn_itf_s {
 };
 
 /* */
-#define DIM_WKUP_TAG_CRITICLE  DI_BIT31
+#define DIM_WKUP_TAG_CRITICAL  DI_BIT31
 enum EDIM_WKUP_REASON {
 	EDIM_WKUP_REASON_IN_HAVE = 50,
 	EDIM_WKUP_REASON_BACK_BUF,

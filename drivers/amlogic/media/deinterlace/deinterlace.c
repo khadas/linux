@@ -5156,7 +5156,7 @@ static irqreturn_t post_irq(int irq, void *dev_instance)
 				di_post_stru.post_wr_cnt,
 				di_post_stru.irq_time);
 		DI_Wr(DI_INTR_CTRL, (data32&0xffff0004)|(intr_mode<<30));
-		/* disable wr back avoid pps reay in g12a */
+		/* disable wr back avoid pps read in g12a */
 		DI_Wr_reg_bits(DI_POST_CTRL, 0, 7, 1);
 	}
 	ddbg_mod_save(eDI_DBG_MOD_POST_IRQE, 0, 0);
@@ -7580,7 +7580,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		di_pre_stru.vdin_source = false;
 
 		/*di_requeset_afbc(false);*/
-		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_UNREG);
+		trigger_pre_di_process(TRIGGER_PRE_BY_PROVIDER_UNREG);
 		di_pre_stru.unreg_req_flag_cnt = 0;
 		//wait 10ms:
 		if (di_pre_stru.pre_de_process_flag
@@ -7828,7 +7828,7 @@ static int di_receiver_event_fun(int type, void *data, void *arg)
 		atomic_set(&di_flag_unreg, 0); //ary
 		bypass_state = 0;
 		di_pre_stru.reg_req_flag = 1;
-		trigger_pre_di_process(TRIGGER_PRE_BY_PROVERDER_REG);
+		trigger_pre_di_process(TRIGGER_PRE_BY_PROVIDER_REG);
 		/*check unreg process*/
 		di_pre_stru.reg_req_flag_cnt = 0;
 		while (di_pre_stru.reg_req_flag) {

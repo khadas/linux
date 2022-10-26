@@ -50,7 +50,7 @@ const char * const di_rev_name[4] = {
 /**************************************
  * nins_m_recycle
  *	op_back_input
- *	_RECYCL -> _IDLE
+ *	_RECYCLE -> _IDLE
  *	back vfm to dec
  *	run in main
  **************************************/
@@ -69,13 +69,13 @@ static void nins_m_recycle(struct di_ch_s *pch)
 	ch = pch->ch_id;
 	pbufq = &pch->nin_qb;
 
-	cnt = qbufp_count(pbufq, QBF_NINS_Q_RECYCL);
+	cnt = qbufp_count(pbufq, QBF_NINS_Q_RECYCLE);
 
 	if (!cnt)
 		return;
 
 	for (i = 0; i < cnt; i++) {
-		ins = nins_move(pch, QBF_NINS_Q_RECYCL, QBF_NINS_Q_IDLE);
+		ins = nins_move(pch, QBF_NINS_Q_RECYCLE, QBF_NINS_Q_IDLE);
 		vfm = (struct vframe_s *)ins->c.ori;
 		if (vfm) {
 			pw_vf_put(vfm, ch);

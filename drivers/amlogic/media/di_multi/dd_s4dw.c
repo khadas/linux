@@ -2452,7 +2452,7 @@ enum EDI_S4DW_MT {
 };
 
 //static
-const struct do_table_ops_s s4dw_hw_processt[4] = {
+const struct do_table_ops_s s4dw_hw_process[4] = {
 	/*fix*/
 	[K_DO_TABLE_ID_PAUSE] = {
 	.id = K_DO_TABLE_ID_PAUSE,

@@ -928,8 +928,8 @@ bool dpre_step4_check(void)
 	pre->idle_cnt = 0;
 	if (mode == EDI_WORK_MODE_S4DW) {
 		do_table_init(&pre->sdt_mode,
-			      &s4dw_hw_processt[0],
-			      ARRAY_SIZE(s4dw_hw_processt));
+			      &s4dw_hw_process[0],
+			      ARRAY_SIZE(s4dw_hw_process));
 		pre->sdt_mode.name = "s4dw";
 	} else if (mode == EDI_WORK_MODE_P_AS_I) {
 		do_table_init(&pre->sdt_mode,
