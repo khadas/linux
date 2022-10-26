@@ -4666,6 +4666,7 @@ static bool of_child_node_is_present(const struct device_node *node,
 	return !!child;
 }
 
+int khadas_mipi_id = 0;
 static int panel_simple_of_get_desc_data(struct device *dev,
 					 struct panel_desc *desc)
 {
@@ -4674,7 +4675,41 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 	const void *data;
 	int len;
 	int err;
+//printk("hlm khadas_mipi_id=%d\n",khadas_mipi_id);
+if(khadas_mipi_id == 1){
+	if (of_child_node_is_present(np, "display-timings1")) {
+		struct drm_display_mode *mode;
 
+		mode = devm_kzalloc(dev, sizeof(*mode), GFP_KERNEL);
+		if (!mode)
+			return -ENOMEM;
+
+		if (!of_get_drm_display_mode(np, mode, &bus_flags,
+					     OF_USE_NATIVE_MODE)) {
+			desc->modes = mode;
+			desc->num_modes = 1;
+			desc->bus_flags = bus_flags;
+		}
+	} else if (of_child_node_is_present(np, "panel-timing")) {
+		struct display_timing *timing;
+		struct videomode vm;
+
+		timing = devm_kzalloc(dev, sizeof(*timing), GFP_KERNEL);
+		if (!timing)
+			return -ENOMEM;
+
+		if (!of_get_display_timing(np, "panel-timing", timing)) {
+			desc->timings = timing;
+			desc->num_timings = 1;
+
+			bus_flags = 0;
+			vm.flags = timing->flags;
+			drm_bus_flags_from_videomode(&vm, &bus_flags);
+			desc->bus_flags = bus_flags;
+		}
+	}
+}
+else{
 	if (of_child_node_is_present(np, "display-timings")) {
 		struct drm_display_mode *mode;
 
@@ -4706,6 +4741,7 @@ static int panel_simple_of_get_desc_data(struct device *dev,
 			desc->bus_flags = bus_flags;
 		}
 	}
+}
 
 	if (desc->num_modes || desc->num_timings) {
 		of_property_read_u32(np, "bpc", &desc->bpc);
@@ -5288,6 +5324,21 @@ static int __init panel_simple_init(void)
 
 	return 0;
 }
+
+static char lcd_propname[1] = "0";
+static int __init khadas_mipi_id_para_setup(char *str)
+{
+        if (str != NULL)
+                sprintf(lcd_propname, "%s", str);
+		if(!strcmp(lcd_propname, "1"))
+			khadas_mipi_id = 1;
+		else
+			khadas_mipi_id = 0;
+        //printk("hlm xx lcd_propname: %s  khadas_mipi_id: %d\n", lcd_propname, khadas_mipi_id);
+        return 0;
+}
+__setup("khadas_mipi_id=", khadas_mipi_id_para_setup);
+
 module_init(panel_simple_init);
 
 static void __exit panel_simple_exit(void)

@@ -465,6 +465,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6m0_xfer>;
 
+	ft5336@38 {
+		compatible = "edt,edt-ft5336", "ft5x06";
+		reg = <0x38>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PC6 IRQ_TYPE_EDGE_FALLING>;
+		reset-gpio = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_rst_gpio>;
+		status = "okay";
+	};
+
 	gt9xx: gt9xx@14 {
 		compatible = "goodix,gt9xx";
 		reg = <0x14>;
@@ -474,7 +485,6 @@
 		max-y = <1200>;
 		tp-size = <89>;
 	};
-
 };
 
 &pcie2x1l2 {
