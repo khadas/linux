@@ -1231,21 +1231,23 @@ redo:
 	}
 
 	/*
-	 * walk_pi_chain() may have dropped mutex->wchan.lock
-	 * temporarily causing the current mutex owner to change under
-	 * us, refresh this information under lock.
+	 * Walking the PI chain is preemptible by other CPUs since
+	 * mutex->wchan.lock may be released during the process, so
+	 * the following might have happened while we were busy
+	 * progressing down the chain:
+	 *
+	 * - the current mutex owner might have changed under us, so
+	 * we have to refresh this information under lock.
+	 *
+	 * - the calling thread might have been given ownership of
+	 * this mutex by transfer_ownership(), in which case we should
+	 * not block for it.
+	 *
+	 * - the latest owner of this mutex might have dropped it, if
+	 * so we should not wait for it but re-run the whole
+	 * acquisition process from the beginning instead.
 	 */
 	owner = mutex->wchan.owner;
-
-	/*
-	 * Walking the PI chain is preemptible by other CPUs since
-	 * mutex->wchan.lock may be released during the process, so we
-	 * might have been given ownership of this mutex by
-	 * transfer_ownership(), or the latest owner of this mutex
-	 * might have dropped it while we were busy progressing down
-	 * this chain. Check for those events while we hold
-	 * mutex->wchan.lock, before deciding to sleep.
-	 */
 	if (unlikely(!owner)) {
 		raw_spin_lock(&curr->lock);
 		/*
@@ -1453,6 +1455,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 			n_ownerh = mutex_fast_claim(n_ownerh);
 
 		atomic_set(lockp, n_ownerh);
+		evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
 	} else {
 		atomic_set(lockp, EVL_NO_HANDLE);
 	}
@@ -1480,7 +1483,6 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 		if (adjust_wait)
 			evl_adjust_wait_priority(n_owner);
 
-		evl_wakeup_thread(n_owner, T_PEND, T_WAKEN);
 		evl_put_element(&n_owner->element);
 	}
 
