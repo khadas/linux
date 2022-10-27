@@ -23,7 +23,7 @@
 #include "hdr/gamut_convert.h"
 #include "arch/vpp_hdr_regs.h"
 
-static uint cpu_write_lut;
+static uint cpu_write_lut = 1;
 module_param(cpu_write_lut, uint, 0664);
 MODULE_PARM_DESC(cpu_write_lut, "\n cpu_write_lut\n");
 

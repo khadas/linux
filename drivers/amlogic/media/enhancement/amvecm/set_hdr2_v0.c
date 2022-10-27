@@ -4153,13 +4153,22 @@ int hdr10p_ebzcurve_update(enum hdr_module_sel module_sel,
 		hdr_mtx_param.gmt_bit_mode = 1;
 	hdr_mtx_param.mtx_on = MTX_ON;
 	hdr_mtx_param.p_sel = hdr_process_select;
+	if (is_meson_s5_cpu()) {
+		enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
 
-	set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
-		       &hdr_mtx_param, p_hdr10pgen_param,
-		       &hdr_lut_param, vpp_index);
+		s5_set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
+			&hdr_mtx_param, p_hdr10pgen_param,
+			&hdr_lut_param, vpp_index);
+		s5_set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
 
-	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
-
+		dma_id = HDR_DMA_ID;
+		vpu_lut_dma(module_sel, &hdr_lut_param, dma_id);
+	} else {
+		set_hdr_matrix(module_sel, HDR_GAMUT_MTX,
+			&hdr_mtx_param, p_hdr10pgen_param,
+			&hdr_lut_param, vpp_index);
+		set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+	}
 	return 0;
 }
 
@@ -4209,9 +4218,15 @@ int hdr10_tm_update(enum hdr_module_sel module_sel,
 	} else {
 		return 0;
 	}
+	if (is_meson_s5_cpu()) {
+		enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
 
-	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
-
+		s5_set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+		dma_id = HDR_DMA_ID;
+		vpu_lut_dma(module_sel, &hdr_lut_param, dma_id);
+	} else {
+		set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+	}
 	return 0;
 }
 
@@ -4527,10 +4542,8 @@ int cuva_hdr_update(enum hdr_module_sel module_sel,
 	enum hdr_process_sel hdr_process_select, enum vpp_index_e vpp_index)
 {
 	int bit_depth;
-//#ifdef NEED_CUVA_ALG
 	unsigned int i = 0;
 	struct aml_gain_reg *cuva_gain;
-//#endif
 
 	if (disable_flush_flag)
 		return hdr_process_select;
@@ -4563,9 +4576,7 @@ int cuva_hdr_update(enum hdr_module_sel module_sel,
 	    (module_sel == VD2_HDR || module_sel == OSD1_HDR))
 		return hdr_process_select;
 
-//#ifdef NEED_CUVA_ALG
 	cuva_gain = get_gain_lut();
-//#endif
 	memset(&hdr_lut_param, 0, sizeof(struct hdr_proc_lut_param_s));
 
 	if (module_sel == VD1_HDR ||
@@ -4595,7 +4606,6 @@ int cuva_hdr_update(enum hdr_module_sel module_sel,
 	    get_cpu_type() == MESON_CPU_MAJOR_ID_T5W)
 		bit_depth = 10;
 
-//#ifdef NEED_CUVA_ALG
 	if (hdr_process_select & (CUVA_SDR | CUVA_HDR |
 		CUVAHLG_SDR | CUVAHLG_HLG | CUVAHLG_HDR)) {
 		for (i = 0; i < HDR2_OOTF_LUT_SIZE; i++)
@@ -4607,10 +4617,18 @@ int cuva_hdr_update(enum hdr_module_sel module_sel,
 	} else {
 		return 0;
 	}
+	if (is_meson_s5_cpu()) {
+		enum LUT_DMA_ID_e dma_id = HDR_DMA_ID;
 
-	set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
-	set_c_gain(module_sel, &hdr_lut_param, vpp_index);
-//#endif
+		s5_set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+		s5_set_c_gain(module_sel, &hdr_lut_param, vpp_index);
+
+		dma_id = HDR_DMA_ID;
+		vpu_lut_dma(module_sel, &hdr_lut_param, dma_id);
+	} else {
+		set_ootf_lut(module_sel, &hdr_lut_param, vpp_index);
+		set_c_gain(module_sel, &hdr_lut_param, vpp_index);
+	}
 	return 0;
 }
 

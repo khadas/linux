@@ -7251,7 +7251,6 @@ static void cuva_hdr_process_update(enum hdr_type_e src_type,
 	struct vframe_master_display_colour_s *p,
 	enum vpp_index_e vpp_index)
 {
-//#ifdef NEED_CUVA_ALG
 	int proc_flag = 0;
 	struct aml_cuva_data_s *cuva_data = get_cuva_data();
 
@@ -7323,7 +7322,6 @@ static void cuva_hdr_process_update(enum hdr_type_e src_type,
 				cuva_hdr_update(VD3_HDR, CUVAHLG_HDR, vpp_index);
 		}
 	}
-//#endif
 }
 
 static struct hdr10plus_para hdmitx_hdr10plus_params[VD_PATH_MAX];
