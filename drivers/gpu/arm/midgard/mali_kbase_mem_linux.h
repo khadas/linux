@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010, 2012-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010, 2012-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,21 +17,16 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
-
-
 /**
- * @file mali_kbase_mem_linux.h
- * Base kernel memory APIs, Linux implementation.
+ * DOC: Base kernel memory APIs, Linux implementation.
  */
 
 #ifndef _KBASE_MEM_LINUX_H_
 #define _KBASE_MEM_LINUX_H_
 
-/** A HWC dump mapping */
+/* A HWC dump mapping */
 struct kbase_hwc_dma_mapping {
 	void       *cpu_va;
 	dma_addr_t  dma_pa;
@@ -43,18 +39,20 @@ struct kbase_hwc_dma_mapping {
  * @kctx:         The kernel context
  * @va_pages:     The number of pages of virtual address space to reserve
  * @commit_pages: The number of physical pages to allocate upfront
- * @extent:       The number of extra pages to allocate on each GPU fault which
+ * @extension:       The number of extra pages to allocate on each GPU fault which
  *                grows the region.
  * @flags:        bitmask of BASE_MEM_* flags to convey special requirements &
  *                properties for the new allocation.
  * @gpu_va:       Start address of the memory region which was allocated from GPU
- *                virtual address space.
+ *                virtual address space. If the BASE_MEM_FLAG_MAP_FIXED is set
+ *                then this parameter shall be provided by the caller.
+ * @mmu_sync_info: Indicates whether this call is synchronous wrt MMU ops.
  *
  * Return: 0 on success or error code
  */
-struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx,
-		u64 va_pages, u64 commit_pages, u64 extent, u64 *flags,
-		u64 *gpu_va);
+struct kbase_va_region *kbase_mem_alloc(struct kbase_context *kctx, u64 va_pages, u64 commit_pages,
+					u64 extension, u64 *flags, u64 *gpu_va,
+					enum kbase_caller_mmu_sync_info mmu_sync_info);
 
 /**
  * kbase_mem_query - Query properties of a GPU memory region
@@ -173,6 +171,7 @@ void kbase_mem_evictable_deinit(struct kbase_context *kctx);
  * @reg:       The GPU region
  * @new_pages: The number of pages after the grow
  * @old_pages: The number of pages before the grow
+ * @mmu_sync_info: Indicates whether this call is synchronous wrt MMU ops.
  *
  * Return: 0 on success, -errno on error.
  *
@@ -182,8 +181,9 @@ void kbase_mem_evictable_deinit(struct kbase_context *kctx);
  * Note: Caller must be holding the region lock.
  */
 int kbase_mem_grow_gpu_mapping(struct kbase_context *kctx,
-		struct kbase_va_region *reg,
-		u64 new_pages, u64 old_pages);
+			       struct kbase_va_region *reg, u64 new_pages,
+			       u64 old_pages,
+			       enum kbase_caller_mmu_sync_info mmu_sync_info);
 
 /**
  * kbase_mem_evictable_make - Make a physical allocation eligible for eviction
@@ -194,8 +194,8 @@ int kbase_mem_grow_gpu_mapping(struct kbase_context *kctx,
  * Take the provided region and make all the physical pages within it
  * reclaimable by the kernel, updating the per-process VM stats as well.
  * Remove any CPU mappings (as these can't be removed in the shrinker callback
- * as mmap_sem might already be taken) but leave the GPU mapping intact as
- * and until the shrinker reclaims the allocation.
+ * as mmap_sem/mmap_lock might already be taken) but leave the GPU mapping
+ * intact as and until the shrinker reclaims the allocation.
  *
  * Note: Must be called with the region lock of the containing context.
  */
@@ -258,7 +258,7 @@ struct kbase_vmap_struct {
  * The checks are also there to help catch access errors on memory where
  * security is not a concern: imported memory that is always RW, and memory
  * that was allocated and owned by the process attached to @kctx. In this case,
- * it helps to identify memory that was was mapped with the wrong access type.
+ * it helps to identify memory that was mapped with the wrong access type.
  *
  * Note: KBASE_REG_GPU_{RD,WR} flags are currently supported for legacy cases
  * where either the security of memory is solely dependent on those flags, or
@@ -426,12 +426,12 @@ void kbase_phy_alloc_mapping_put(struct kbase_context *kctx,
 /**
  * kbase_get_cache_line_alignment - Return cache line alignment
  *
+ * @kbdev: Device pointer.
+ *
  * Helper function to return the maximum cache line alignment considering
  * both CPU and GPU cache sizes.
  *
  * Return: CPU and GPU cache line alignment, in bytes.
- *
- * @kbdev: Device pointer.
  */
 u32 kbase_get_cache_line_alignment(struct kbase_device *kbdev);
 
@@ -460,5 +460,19 @@ static inline vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma,
 	return VM_FAULT_NOPAGE;
 }
 #endif
+
+/**
+ * kbase_mem_get_process_mmap_lock - Return the mmap lock for the current process
+ *
+ * Return: the mmap lock for the current process
+ */
+static inline struct rw_semaphore *kbase_mem_get_process_mmap_lock(void)
+{
+#if KERNEL_VERSION(5, 8, 0) > LINUX_VERSION_CODE
+	return &current->mm->mmap_sem;
+#else /* KERNEL_VERSION(5, 8, 0) > LINUX_VERSION_CODE */
+	return &current->mm->mmap_lock;
+#endif /* KERNEL_VERSION(5, 8, 0) > LINUX_VERSION_CODE */
+}
 
 #endif				/* _KBASE_MEM_LINUX_H_ */

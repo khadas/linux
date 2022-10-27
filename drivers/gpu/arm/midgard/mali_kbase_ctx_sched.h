@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017-2018, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,8 +17,6 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #ifndef _KBASE_CTX_SCHED_H_
@@ -26,7 +25,7 @@
 #include <mali_kbase.h>
 
 /**
- * The Context Scheduler manages address space assignment and reference
+ * DOC: The Context Scheduler manages address space assignment and reference
  * counting to kbase_context. The interface has been designed to minimise
  * interactions between the Job Scheduler and Power Management/MMU to support
  * the existing Job Scheduler interface.
@@ -41,7 +40,7 @@
  */
 
 /**
- * kbase_ctx_sched_init - Initialise the context scheduler
+ * kbase_ctx_sched_init() - Initialise the context scheduler
  * @kbdev: The device for which the context scheduler needs to be initialised
  *
  * This must be called during device initialisation. The number of hardware
@@ -80,7 +79,7 @@ void kbase_ctx_sched_term(struct kbase_device *kbdev);
 int kbase_ctx_sched_retain_ctx(struct kbase_context *kctx);
 
 /**
- * kbase_ctx_sched_retain_ctx_refcount
+ * kbase_ctx_sched_retain_ctx_refcount - Retain a reference to the @ref kbase_context
  * @kctx: The context to which to retain a reference
  *
  * This function only retains a reference to the context. It must be called
@@ -168,13 +167,28 @@ struct kbase_context *kbase_ctx_sched_as_to_ctx(struct kbase_device *kbdev,
 		size_t as_nr);
 
 /**
+ * kbase_ctx_sched_as_to_ctx_nolock - Lookup a context based on its current
+ * address space.
+ * @kbdev: The device for which the returned context must belong
+ * @as_nr: address space assigned to the context of interest
+ *
+ * The following lock must be held by the caller:
+ * * kbase_device::hwaccess_lock
+ *
+ * Return: a valid struct kbase_context on success or NULL on failure,
+ * indicating that no context was found in as_nr.
+ */
+struct kbase_context *kbase_ctx_sched_as_to_ctx_nolock(
+		struct kbase_device *kbdev, size_t as_nr);
+
+/**
  * kbase_ctx_sched_inc_refcount_nolock - Refcount a context as being busy,
  * preventing it from being scheduled out.
  * @kctx: Context to be refcounted
  *
  * The following locks must be held by the caller:
- * * kbase_device::mmu_hw_mutex
- * * kbase_device::hwaccess_lock
+ * &kbase_device.mmu_hw_mutex
+ * &kbase_device.hwaccess_lock
  *
  * Return: true if refcount succeeded, and the context will not be scheduled
  * out, false if the refcount failed (because the context is being/has been
@@ -201,9 +215,27 @@ bool kbase_ctx_sched_inc_refcount(struct kbase_context *kctx);
  * kbase_ctx_sched_release_ctx_lock - Release a reference count of a context
  * @kctx: Context for which refcount should be decreased
  *
- * Effectivelly, this is a wrapper for kbase_ctx_sched_release_ctx, but
+ * Effectively, this is a wrapper for kbase_ctx_sched_release_ctx, but
  * kbase_device::hwaccess_lock is required NOT to be locked.
  */
 void kbase_ctx_sched_release_ctx_lock(struct kbase_context *kctx);
+
+#if MALI_USE_CSF
+/**
+ * kbase_ctx_sched_inc_refcount_if_as_valid - Refcount the context if it has GPU
+ *                                            address space slot assigned to it.
+ *
+ * @kctx: Context to be refcounted
+ *
+ * This function takes a reference on the context if it has a GPU address space
+ * slot assigned to it. The address space slot will not be available for
+ * re-assignment until the reference is released.
+ *
+ * Return: true if refcount succeeded and the address space slot will not be
+ * reassigned, false if the refcount failed (because the address space slot
+ * was not assigned).
+ */
+bool kbase_ctx_sched_inc_refcount_if_as_valid(struct kbase_context *kctx);
+#endif
 
 #endif /* _KBASE_CTX_SCHED_H_ */

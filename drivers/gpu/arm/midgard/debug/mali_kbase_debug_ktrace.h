@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -37,11 +36,20 @@
 #ifndef _KBASE_DEBUG_KTRACE_H_
 #define _KBASE_DEBUG_KTRACE_H_
 
+#if KBASE_KTRACE_TARGET_FTRACE
+#include "mali_linux_trace.h"
+#endif
+
+#if MALI_USE_CSF
+#include "debug/backend/mali_kbase_debug_ktrace_csf.h"
+#else
 #include "debug/backend/mali_kbase_debug_ktrace_jm.h"
+#endif
 
 /**
  * kbase_ktrace_init - initialize kbase ktrace.
  * @kbdev: kbase device
+ * Return: 0 if successful or a negative error code on failure.
  */
 int kbase_ktrace_init(struct kbase_device *kbdev);
 
@@ -58,7 +66,7 @@ void kbase_ktrace_term(struct kbase_device *kbdev);
  */
 void kbase_ktrace_hook_wrapper(void *param);
 
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 /**
  * kbase_ktrace_debugfs_init - initialize kbase ktrace for debugfs usage, if
  *                             the selected targets support it.
@@ -140,10 +148,9 @@ void kbasep_ktrace_dump(struct kbase_device *kbdev);
  * KTrace target for Linux's ftrace
  */
 #if KBASE_KTRACE_TARGET_FTRACE
-#include "mali_linux_trace.h"
 
 #define KBASE_KTRACE_FTRACE_ADD(kbdev, code, kctx, info_val) \
-	trace_mali_##code(info_val)
+	trace_mali_##code(kctx, info_val)
 
 #else /* KBASE_KTRACE_TARGET_FTRACE */
 #define KBASE_KTRACE_FTRACE_ADD(kbdev, code, kctx, info_val) \

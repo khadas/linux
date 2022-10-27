@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014, 2016, 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2014, 2016, 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,10 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
 
 /*
  * Job manager common APIs
@@ -28,6 +26,7 @@
 #ifndef _KBASE_JM_H_
 #define _KBASE_JM_H_
 
+#if !MALI_USE_CSF
 /**
  * kbase_jm_kick() - Indicate that there are jobs ready to run.
  * @kbdev:	Device pointer
@@ -73,7 +72,9 @@ void kbase_jm_try_kick(struct kbase_device *kbdev, u32 js_mask);
  * kbase_jm_kick_all() otherwise it will do nothing.
  */
 void kbase_jm_try_kick_all(struct kbase_device *kbdev);
+#endif /* !MALI_USE_CSF */
 
+#if !MALI_USE_CSF
 /**
  * kbase_jm_idle_ctx() - Mark a context as idle.
  * @kbdev:	Device pointer
@@ -83,7 +84,7 @@ void kbase_jm_try_kick_all(struct kbase_device *kbdev);
  * by kbase_js_use_ctx().
  *
  * The context should have no atoms currently pulled from it
- * (kctx->atoms_pulled == 0).
+ * (kbase_jsctx_atoms_pulled(kctx) == 0).
  *
  * Caller must hold the hwaccess_lock
  */
@@ -111,5 +112,6 @@ struct kbase_jd_atom *kbase_jm_return_atom_to_js(struct kbase_device *kbdev,
  */
 struct kbase_jd_atom *kbase_jm_complete(struct kbase_device *kbdev,
 		struct kbase_jd_atom *katom, ktime_t *end_timestamp);
+#endif /* !MALI_USE_CSF */
 
 #endif /* _KBASE_JM_H_ */

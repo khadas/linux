@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,10 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
 
 /*
  * Register backend context / address space management
@@ -58,8 +56,10 @@ static void assign_and_activate_kctx_addr_space(struct kbase_device *kbdev,
 	lockdep_assert_held(&js_devdata->runpool_mutex);
 	lockdep_assert_held(&kbdev->hwaccess_lock);
 
+#if !MALI_USE_CSF
 	/* Attribute handling */
 	kbasep_js_ctx_attr_runpool_retain_ctx(kbdev, kctx);
+#endif
 
 	/* Allow it to run jobs */
 	kbasep_js_set_submit_allowed(js_devdata, kctx);
@@ -188,8 +188,8 @@ int kbase_backend_find_and_release_free_address_space(
 			}
 
 			/* Context was retained while locks were dropped,
-			 * continue looking for free AS */
-
+			 * continue looking for free AS
+			 */
 			mutex_unlock(&js_devdata->runpool_mutex);
 			mutex_unlock(&as_js_kctx_info->ctx.jsctx_mutex);
 

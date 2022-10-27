@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2017, 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,24 +17,23 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include <mali_kbase.h>
 #include <device/mali_kbase_device.h>
 
-#ifdef CONFIG_DEBUG_FS
-/** Show callback for the @c gpu_memory debugfs file.
+#if IS_ENABLED(CONFIG_DEBUG_FS)
+/**
+ * kbasep_gpu_memory_seq_show - Show callback for the @c gpu_memory debugfs file
+ * @sfile: The debugfs entry
+ * @data: Data associated with the entry
  *
  * This function is called to get the contents of the @c gpu_memory debugfs
  * file. This is a report of current gpu memory usage.
  *
- * @param sfile The debugfs entry
- * @param data Data associated with the entry
- *
- * @return 0 if successfully prints data in debugfs entry file
- *         -1 if it encountered an error
+ * Return:
+ * * 0 if successfully prints data in debugfs entry file
+ * * -1 if it encountered an error
  */
 
 static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
@@ -67,7 +67,6 @@ static int kbasep_gpu_memory_seq_show(struct seq_file *sfile, void *data)
 		}
 		mutex_unlock(&kbdev->kctx_list_lock);
 	}
-
 	kbase_device_put_list(kbdev_list);
 	return 0;
 }
@@ -93,18 +92,13 @@ static const struct file_operations kbasep_gpu_memory_debugfs_fops = {
  */
 void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev)
 {
-	debugfs_create_file("gpu_memory", S_IRUGO,
+	debugfs_create_file("gpu_memory", 0444,
 			kbdev->mali_debugfs_directory, NULL,
 			&kbasep_gpu_memory_debugfs_fops);
-	return;
 }
-
 #else
 /*
  * Stub functions for when debugfs is disabled
  */
-void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev)
-{
-	return;
-}
+void kbasep_gpu_memory_debugfs_init(struct kbase_device *kbdev) {}
 #endif

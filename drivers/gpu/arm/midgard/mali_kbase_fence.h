@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2010-2018, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -35,21 +34,21 @@
 #include "mali_kbase_fence_defs.h"
 #include "mali_kbase.h"
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 extern const struct fence_ops kbase_fence_ops;
 #else
 extern const struct dma_fence_ops kbase_fence_ops;
 #endif
 
 /**
-* struct kbase_fence_cb - Mali dma-fence callback data struct
-* @fence_cb: Callback function
-* @katom:    Pointer to katom that is waiting on this callback
-* @fence:    Pointer to the fence object on which this callback is waiting
-* @node:     List head for linking this callback to the katom
-*/
+ * struct kbase_fence_cb - Mali dma-fence callback data struct
+ * @fence_cb: Callback function
+ * @katom:    Pointer to katom that is waiting on this callback
+ * @fence:    Pointer to the fence object on which this callback is waiting
+ * @node:     List head for linking this callback to the katom
+ */
 struct kbase_fence_cb {
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 	struct fence_cb fence_cb;
 	struct fence *fence;
 #else
@@ -64,9 +63,9 @@ struct kbase_fence_cb {
  * kbase_fence_out_new() - Creates a new output fence and puts it on the atom
  * @katom: Atom to create an output fence for
  *
- * return: A new fence object on success, NULL on failure.
+ * Return: A new fence object on success, NULL on failure.
  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 struct fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
 #else
 struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
@@ -88,6 +87,7 @@ struct dma_fence *kbase_fence_out_new(struct kbase_jd_atom *katom);
 #endif
 
 
+#if !MALI_USE_CSF
 /**
  * kbase_fence_out_remove() - Removes the output fence from atom
  * @katom: Atom to remove output fence for
@@ -104,7 +104,7 @@ static inline void kbase_fence_out_remove(struct kbase_jd_atom *katom)
 
 #if defined(CONFIG_SYNC_FILE)
 /**
- * kbase_fence_out_remove() - Removes the input fence from atom
+ * kbase_fence_in_remove() - Removes the input fence from atom
  * @katom: Atom to remove input fence for
  *
  * This will also release the reference to this fence which the atom keeps
@@ -168,7 +168,7 @@ static inline int kbase_fence_out_signal(struct kbase_jd_atom *katom,
  * Return: 0 on success: fence was either already signaled, or callback was
  * set up. Negative error code is returned on error.
  */
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
+#if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
 int kbase_fence_add_callback(struct kbase_jd_atom *katom,
 			     struct fence *fence,
 			     fence_func_t callback);
@@ -269,6 +269,7 @@ bool kbase_fence_free_callbacks(struct kbase_jd_atom *katom);
  */
 #define kbase_fence_out_get(katom) dma_fence_get((katom)->dma_fence.fence)
 
+#endif /* !MALI_USE_CSF */
 
 /**
  * kbase_fence_put() - Releases a reference to a fence

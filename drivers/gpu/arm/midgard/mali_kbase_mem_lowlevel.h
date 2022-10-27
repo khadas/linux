@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2012-2014,2018 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2014, 2016-2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,11 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
-
 
 #ifndef _KBASE_MEM_LOWLEVEL_H
 #define _KBASE_MEM_LOWLEVEL_H
@@ -31,9 +28,7 @@
 
 #include <linux/dma-mapping.h>
 
-/**
- * @brief Flags for kbase_phy_allocator_pages_alloc
- */
+/* Flags for kbase_phy_allocator_pages_alloc */
 #define KBASE_PHY_PAGES_FLAG_DEFAULT (0)	/** Default allocation flag */
 #define KBASE_PHY_PAGES_FLAG_CLEAR   (1 << 0)	/** Clear the pages after allocation */
 #define KBASE_PHY_PAGES_FLAG_POISON  (1 << 1)	/** Fill the memory with a poison value */
@@ -52,6 +47,8 @@ struct tagged_addr { phys_addr_t tagged_addr; };
 #define HUGE_PAGE    (1u << 0)
 #define HUGE_HEAD    (1u << 1)
 #define FROM_PARTIAL (1u << 2)
+
+#define NUM_4K_PAGES_IN_2MB_PAGE (SZ_2M / SZ_4K)
 
 /*
  * Note: if macro for converting physical address to page is not defined
@@ -107,7 +104,7 @@ static inline struct tagged_addr as_tagged(phys_addr_t phys)
 
 /**
  * as_tagged_tag - Form the tagged address by storing the tag or metadata in the
- *                 lower order 12 bits of physial address
+ *                 lower order 12 bits of physical address
  * @phys: physical address to be converted to tagged address
  * @tag:  tag to be stored along with the physical address.
  *
@@ -161,6 +158,22 @@ static inline bool is_huge_head(struct tagged_addr t)
 static inline bool is_partial(struct tagged_addr t)
 {
 	return t.tagged_addr & FROM_PARTIAL;
+}
+
+/**
+ * index_in_large_page() - Get index of a 4KB page within a 2MB page which
+ *                         wasn't split to be used partially.
+ *
+ * @t:  Tagged physical address of the physical 4KB page that lies within
+ *      the large (or 2 MB) physical page.
+ *
+ * Return: Index of the 4KB page within a 2MB page
+ */
+static inline unsigned int index_in_large_page(struct tagged_addr t)
+{
+	WARN_ON(!is_huge(t));
+
+	return (PFN_DOWN(as_phys_addr_t(t)) & (NUM_4K_PAGES_IN_2MB_PAGE - 1));
 }
 
 #endif /* _KBASE_LOWLEVEL_H */

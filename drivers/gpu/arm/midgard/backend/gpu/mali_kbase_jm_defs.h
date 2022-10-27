@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2016, 2018-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,10 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
 
 /*
  * Register-based HW access backend specific definitions
@@ -49,23 +47,23 @@ struct rb_entry {
 
 /**
  * SLOT_RB_TAG_KCTX() - a function-like macro for converting a pointer to a
- *                      u64 for serving as tagged value.
+ *			u64 for serving as tagged value.
+ * @kctx: Pointer to kbase context.
  */
 #define SLOT_RB_TAG_KCTX(kctx) (u64)((uintptr_t)(kctx))
-
 /**
  * struct slot_rb - Slot ringbuffer
  * @entries:		Ringbuffer entries
  * @last_kctx_tagged:	The last context that submitted a job to the slot's
- * 			HEAD_NEXT register. The value is a tagged variant so
- * 			must not be dereferenced. It is used in operation to
- * 			track when shader core L1 caches might contain a
- * 			previous context's data, and so must only be set to
- * 			SLOT_RB_NULL_TAG_VAL after reset/powerdown of the
- * 			cores. In slot job submission, if there is a kctx
- * 			change, and the relevant katom is configured with
- * 			BASE_JD_REQ_SKIP_CACHE_START, a L1 read only cache
- * 			maintenace operation is enforced.
+ *			HEAD_NEXT register. The value is a tagged variant so
+ *			must not be dereferenced. It is used in operation to
+ *			track when shader core L1 caches might contain a
+ *			previous context's data, and so must only be set to
+ *			SLOT_RB_NULL_TAG_VAL after reset/powerdown of the
+ *			cores. In slot job submission, if there is a kctx
+ *			change, and the relevant katom is configured with
+ *			BASE_JD_REQ_SKIP_CACHE_START, a L1 read only cache
+ *			maintenance operation is enforced.
  * @read_idx:		Current read index of buffer
  * @write_idx:		Current write index of buffer
  * @job_chain_flag:	Flag used to implement jobchain disambiguation
@@ -100,11 +98,12 @@ struct slot_rb {
  * The hwaccess_lock (a spinlock) must be held when accessing this structure
  */
 struct kbase_backend_data {
+#if !MALI_USE_CSF
 	struct slot_rb slot_rb[BASE_JM_MAX_NR_SLOTS];
-
 	struct hrtimer scheduling_timer;
 
 	bool timer_running;
+#endif
 	bool suspend_timer;
 
 	atomic_t reset_gpu;
@@ -114,13 +113,16 @@ struct kbase_backend_data {
 /* kbase_prepare_to_reset_gpu has been called */
 #define KBASE_RESET_GPU_PREPARED        1
 /* kbase_reset_gpu has been called - the reset will now definitely happen
- * within the timeout period */
+ * within the timeout period
+ */
 #define KBASE_RESET_GPU_COMMITTED       2
 /* The GPU reset process is currently occuring (timeout has expired or
- * kbasep_try_reset_gpu_early was called) */
+ * kbasep_try_reset_gpu_early was called)
+ */
 #define KBASE_RESET_GPU_HAPPENING       3
 /* Reset the GPU silently, used when resetting the GPU as part of normal
- * behavior (e.g. when exiting protected mode). */
+ * behavior (e.g. when exiting protected mode).
+ */
 #define KBASE_RESET_GPU_SILENT          4
 	struct workqueue_struct *reset_workq;
 	struct work_struct reset_work;

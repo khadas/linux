@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,16 +17,12 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
-
 
 #ifndef _KBASE_SMC_H_
 #define _KBASE_SMC_H_
 
-#ifdef CONFIG_ARM64
+#if IS_ENABLED(CONFIG_ARM64)
 
 #include <mali_kbase.h>
 
@@ -39,31 +36,31 @@
 
 
 /**
-  * kbase_invoke_smc_fid - Perform a secure monitor call
-  * @fid: The SMC function to call, see SMC Calling convention.
-  * @arg0: First argument to the SMC.
-  * @arg1: Second argument to the SMC.
-  * @arg2: Third argument to the SMC.
-  *
-  * See SMC Calling Convention for details.
-  *
-  * Return: the return value from the SMC.
-  */
+ * kbase_invoke_smc_fid - Perform a secure monitor call
+ * @fid: The SMC function to call, see SMC Calling convention.
+ * @arg0: First argument to the SMC.
+ * @arg1: Second argument to the SMC.
+ * @arg2: Third argument to the SMC.
+ *
+ * See SMC Calling Convention for details.
+ *
+ * Return: the return value from the SMC.
+ */
 u64 kbase_invoke_smc_fid(u32 fid, u64 arg0, u64 arg1, u64 arg2);
 
 /**
-  * kbase_invoke_smc_fid - Perform a secure monitor call
-  * @oen: Owning Entity number (SIP, STD etc).
-  * @function_number: The function number within the OEN.
-  * @smc64: use SMC64 calling convention instead of SMC32.
-  * @arg0: First argument to the SMC.
-  * @arg1: Second argument to the SMC.
-  * @arg2: Third argument to the SMC.
-  *
-  * See SMC Calling Convention for details.
-  *
-  * Return: the return value from the SMC call.
-  */
+ * kbase_invoke_smc - Perform a secure monitor call
+ * @oen: Owning Entity number (SIP, STD etc).
+ * @function_number: The function number within the OEN.
+ * @smc64: use SMC64 calling convention instead of SMC32.
+ * @arg0: First argument to the SMC.
+ * @arg1: Second argument to the SMC.
+ * @arg2: Third argument to the SMC.
+ *
+ * See SMC Calling Convention for details.
+ *
+ * Return: the return value from the SMC call.
+ */
 u64 kbase_invoke_smc(u32 oen, u16 function_number, bool smc64,
 		u64 arg0, u64 arg1, u64 arg2);
 

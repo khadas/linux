@@ -1,21 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
- * mali_kbase_runtime_pm.c
  *
- * Copyright (C) 2017 Amlogic, Inc. All rights reserved.
+ * (C) COPYRIGHT 2015-2022 ARM Limited. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * This program is free software and is provided to you under the terms of the
+ * GNU General Public License version 2 as published by the Free Software
+ * Foundation, and any use by you of this program is subject to the terms
+ * of such GNU license.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, you can access it online at
+ * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  */
 
-//#define DEBUG
 #include <mali_kbase.h>
 #include <mali_kbase_defs.h>
 #include <linux/pm_runtime.h>
@@ -24,7 +27,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+
 #include "mali_kbase_config_platform.h"
 #include "mali_scaling.h"
 #include "mali_clock.h"
@@ -176,7 +179,7 @@ static void mali_reset(void)
 }
 
 /*
- * 1.mali-reset;2.init pwr_override1;3.pwr_on one core manully
+ * 1.mali-reset;2.init pwr_override1;3.pwr_on one core manually
  */
 static void mali_hw_init(struct kbase_device *kbdev)
 {

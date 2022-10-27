@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,13 +17,13 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
 #ifndef _KBASE_GPU_REGMAP_JM_H_
 #define _KBASE_GPU_REGMAP_JM_H_
 
+#if MALI_USE_CSF && defined(__KERNEL__)
+#error "Cannot be compiled with CSF"
+#endif
 
 /* Set to implementation defined, outer caching */
 #define AS_MEMATTR_AARCH64_OUTER_IMPL_DEF 0x88ull
@@ -58,9 +59,6 @@
 
 #define CORE_FEATURES           0x008   /* (RO) Shader Core Features */
 #define JS_PRESENT              0x01C   /* (RO) Job slots present */
-#define LATEST_FLUSH            0x038   /* (RO) Flush ID of latest
-					 * clean-and-invalidate operation
-					 */
 
 #define PRFCNT_BASE_LO   0x060  /* (RW) Performance counter memory
 				 * region base address, low word
@@ -136,8 +134,8 @@
 #define JS_AFFINITY_LO         0x10	/* (RO) Core affinity mask for job slot n, low word */
 #define JS_AFFINITY_HI         0x14	/* (RO) Core affinity mask for job slot n, high word */
 #define JS_CONFIG              0x18	/* (RO) Configuration settings for job slot n */
-#define JS_XAFFINITY           0x1C	/* (RO) Extended affinity mask for job
-					   slot n */
+/* (RO) Extended affinity mask for job slot n*/
+#define JS_XAFFINITY           0x1C
 
 #define JS_COMMAND             0x20	/* (WO) Command register for job slot n */
 #define JS_STATUS              0x24	/* (RO) Status register for job slot n */
@@ -148,8 +146,8 @@
 #define JS_AFFINITY_NEXT_LO    0x50	/* (RW) Next core affinity mask for job slot n, low word */
 #define JS_AFFINITY_NEXT_HI    0x54	/* (RW) Next core affinity mask for job slot n, high word */
 #define JS_CONFIG_NEXT         0x58	/* (RW) Next configuration settings for job slot n */
-#define JS_XAFFINITY_NEXT      0x5C	/* (RW) Next extended affinity mask for
-					   job slot n */
+/* (RW) Next extended affinity mask for job slot n */
+#define JS_XAFFINITY_NEXT      0x5C
 
 #define JS_COMMAND_NEXT        0x60	/* (RW) Next command register for job slot n */
 
@@ -259,5 +257,37 @@
 #define GPU_COMMAND_CLEAN_CACHES       0x07 /* Clean all caches */
 #define GPU_COMMAND_CLEAN_INV_CACHES   0x08 /* Clean and invalidate all caches */
 #define GPU_COMMAND_SET_PROTECTED_MODE 0x09 /* Places the GPU in protected mode */
+
+/* GPU_COMMAND cache flush alias to CSF command payload */
+#define GPU_COMMAND_CACHE_CLN_INV_L2 GPU_COMMAND_CLEAN_INV_CACHES
+#define GPU_COMMAND_CACHE_CLN_INV_L2_LSC GPU_COMMAND_CLEAN_INV_CACHES
+#define GPU_COMMAND_CACHE_CLN_INV_FULL GPU_COMMAND_CLEAN_INV_CACHES
+
+/* Merge cache flush commands */
+#define GPU_COMMAND_FLUSH_CACHE_MERGE(cmd1, cmd2)                              \
+	((cmd1) > (cmd2) ? (cmd1) : (cmd2))
+
+/* IRQ flags */
+#define GPU_FAULT               (1 << 0)    /* A GPU Fault has occurred */
+#define MULTIPLE_GPU_FAULTS     (1 << 7)    /* More than one GPU Fault occurred.  */
+#define RESET_COMPLETED         (1 << 8)    /* Set when a reset has completed.  */
+#define POWER_CHANGED_SINGLE    (1 << 9)    /* Set when a single core has finished powering up or down. */
+#define POWER_CHANGED_ALL       (1 << 10)   /* Set when all cores have finished powering up or down. */
+#define PRFCNT_SAMPLE_COMPLETED (1 << 16)   /* Set when a performance count sample has completed. */
+#define CLEAN_CACHES_COMPLETED  (1 << 17)   /* Set when a cache clean operation has completed. */
+
+/*
+ * In Debug build,
+ * GPU_IRQ_REG_COMMON | POWER_CHANGED_SINGLE is used to clear and enable interrupts sources of GPU_IRQ
+ * by writing it onto GPU_IRQ_CLEAR/MASK registers.
+ *
+ * In Release build,
+ * GPU_IRQ_REG_COMMON is used.
+ *
+ * Note:
+ * CLEAN_CACHES_COMPLETED - Used separately for cache operation.
+ */
+#define GPU_IRQ_REG_COMMON (GPU_FAULT | MULTIPLE_GPU_FAULTS | RESET_COMPLETED \
+		| POWER_CHANGED_ALL | PRFCNT_SAMPLE_COMPLETED)
 
 #endif /* _KBASE_GPU_REGMAP_JM_H_ */

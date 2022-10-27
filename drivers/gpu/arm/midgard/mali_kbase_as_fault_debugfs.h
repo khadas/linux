@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2016, 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -39,12 +38,11 @@ void kbase_as_fault_debugfs_init(struct kbase_device *kbdev);
 static inline void
 kbase_as_fault_debugfs_new(struct kbase_device *kbdev, int as_no)
 {
-#ifdef CONFIG_DEBUG_FS
+#if IS_ENABLED(CONFIG_DEBUG_FS)
 #ifdef CONFIG_MALI_DEBUG
 	kbdev->debugfs_as_read_bitmap |= (1ULL << as_no);
 #endif /* CONFIG_DEBUG_FS */
 #endif /* CONFIG_MALI_DEBUG */
-	return;
 }
 
 #endif  /*_KBASE_AS_FAULT_DEBUG_FS_H*/

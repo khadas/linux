@@ -359,7 +359,7 @@ int mali_dt_info(struct platform_device *pdev, struct mali_plat_info_t *mpdata)
 	clk_sample = mpdata->clk_sample;
 	for (i = 0; i< mpdata->dvfs_table_size; i++) {
 		_dev_info(&pdev->dev, "====================%d====================\n"
-		            "clk_freq=%10d, clk_parent=%9s, voltage=%d, keep_count=%d, threshod=<%d %d>, clk_sample=%d\n",
+		            "clk_freq=%10d, clk_parent=%9s, voltage=%d, keep_count=%d, threshold=<%d %d>, clk_sample=%d\n",
 					i,
 					dvfs_tbl->clk_freq, dvfs_tbl->clk_parent,
 					dvfs_tbl->voltage,  dvfs_tbl->keep_count,
@@ -717,7 +717,7 @@ int mali_dt_info(struct platform_device *pdev, struct mali_plat_info_t *mpdata)
 	clk_sample = mpdata->clk_sample;
 	for (i = 0; i< mpdata->dvfs_table_size; i++) {
 		_dev_info(&pdev->dev, "====================%d====================\n"
-		            "clk_freq=%10d, clk_parent=%9s, voltage=%d, keep_count=%d, threshod=<%d %d>, clk_sample=%d\n",
+		            "clk_freq=%10d, clk_parent=%9s, voltage=%d, keep_count=%d, threshold=<%d %d>, clk_sample=%d\n",
 					i,
 					dvfs_tbl->clk_freq, dvfs_tbl->clk_parent,
 					dvfs_tbl->voltage,  dvfs_tbl->keep_count,

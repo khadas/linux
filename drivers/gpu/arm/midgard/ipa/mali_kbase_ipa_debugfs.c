@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2017-2019 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,21 +17,16 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include <linux/debugfs.h>
+#include <linux/version_compat_defs.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 
 #include "mali_kbase.h"
 #include "mali_kbase_ipa.h"
 #include "mali_kbase_ipa_debugfs.h"
-
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0))
-#define DEFINE_DEBUGFS_ATTRIBUTE DEFINE_SIMPLE_ATTRIBUTE
-#endif
 
 struct kbase_ipa_model_param {
 	char *name;
@@ -129,8 +125,14 @@ static ssize_t param_string_set(struct file *file, const char __user *user_buf,
 
 	err = kbase_ipa_model_recalculate(model);
 	if (err < 0) {
+		u32 string_len = strscpy(param->addr.str, old_str, param->size);
+
+		string_len += sizeof(char);
+		/* Make sure that the source string fit into the buffer. */
+		KBASE_DEBUG_ASSERT(string_len <= param->size);
+		CSTD_UNUSED(string_len);
+
 		ret = err;
-		strlcpy(param->addr.str, old_str, param->size);
 	}
 
 end:
@@ -160,7 +162,8 @@ int kbase_ipa_model_param_add(struct kbase_ipa_model *model, const char *name,
 		return -ENOMEM;
 
 	/* 'name' is stack-allocated for array elements, so copy it into
-	 * heap-allocated storage */
+	 * heap-allocated storage
+	 */
 	param->name = kstrdup(name, GFP_KERNEL);
 
 	if (!param->name) {
@@ -247,7 +250,7 @@ static void kbase_ipa_model_debugfs_init(struct kbase_ipa_model *model)
 	dir = debugfs_create_dir(model->ops->name,
 				 model->kbdev->mali_debugfs_directory);
 
-	if (!dir) {
+	if (IS_ERR_OR_NULL(dir)) {
 		dev_err(model->kbdev->dev,
 			"Couldn't create mali debugfs %s directory",
 			model->ops->name);
@@ -275,7 +278,7 @@ static void kbase_ipa_model_debugfs_init(struct kbase_ipa_model *model)
 				"Type not set for %s parameter %s\n",
 				model->ops->name, param->name);
 		} else {
-			debugfs_create_file(param->name, S_IRUGO | S_IWUSR,
+			debugfs_create_file(param->name, 0644,
 					    dir, param, fops);
 		}
 	}

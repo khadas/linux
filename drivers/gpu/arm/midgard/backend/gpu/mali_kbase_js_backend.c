@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,10 +17,7 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
-
 
 /*
  * Register-based HW access backend specific job scheduler APIs
@@ -31,13 +29,14 @@
 #include <backend/gpu/mali_kbase_jm_internal.h>
 #include <backend/gpu/mali_kbase_js_internal.h>
 
+#if !MALI_USE_CSF
 /*
  * Hold the runpool_mutex for this
  */
 static inline bool timer_callback_should_run(struct kbase_device *kbdev)
 {
 	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
-	s8 nr_running_ctxs;
+	int nr_running_ctxs;
 
 	lockdep_assert_held(&kbdev->js_data.runpool_mutex);
 
@@ -47,7 +46,8 @@ static inline bool timer_callback_should_run(struct kbase_device *kbdev)
 
 	/* nr_contexts_pullable is updated with the runpool_mutex. However, the
 	 * locking in the caller gives us a barrier that ensures
-	 * nr_contexts_pullable is up-to-date for reading */
+	 * nr_contexts_pullable is up-to-date for reading
+	 */
 	nr_running_ctxs = atomic_read(&kbdev->js_data.nr_contexts_runnable);
 
 #ifdef CONFIG_MALI_DEBUG
@@ -69,10 +69,10 @@ static inline bool timer_callback_should_run(struct kbase_device *kbdev)
 		 * don't check KBASEP_JS_CTX_ATTR_NON_COMPUTE).
 		 */
 		{
-			s8 nr_compute_ctxs =
+			int nr_compute_ctxs =
 				kbasep_js_ctx_attr_count_on_runpool(kbdev,
 						KBASEP_JS_CTX_ATTR_COMPUTE);
-			s8 nr_noncompute_ctxs = nr_running_ctxs -
+			int nr_noncompute_ctxs = nr_running_ctxs -
 							nr_compute_ctxs;
 
 			return (bool) (nr_compute_ctxs >= 2 ||
@@ -113,7 +113,8 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 
 		if (atom != NULL) {
 			/* The current version of the model doesn't support
-			 * Soft-Stop */
+			 * Soft-Stop
+			 */
 			if (!kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_5736)) {
 				u32 ticks = atom->ticks++;
 
@@ -141,7 +142,8 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 				 * new soft_stop timeout. This ensures that
 				 * atoms do not miss any of the timeouts due to
 				 * races between this worker and the thread
-				 * changing the timeouts. */
+				 * changing the timeouts.
+				 */
 				if (backend->timeouts_updated &&
 						ticks > soft_stop_ticks)
 					ticks = atom->ticks = soft_stop_ticks;
@@ -171,10 +173,11 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 					 *
 					 * Similarly, if it's about to be
 					 * decreased, the last job from another
-					 * context has already finished, so it's
-					 * not too bad that we observe the older
-					 * value and register a disjoint event
-					 * when we try soft-stopping */
+					 * context has already finished, so
+					 * it's not too bad that we observe the
+					 * older value and register a disjoint
+					 * event when we try soft-stopping
+					 */
 					if (js_devdata->nr_user_contexts_running
 							>= disjoint_threshold)
 						softstop_flags |=
@@ -252,7 +255,7 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 		}
 	}
 	if (reset_needed) {
-		dev_err(kbdev->dev, "JS: Job has been on the GPU for too long (JS_RESET_TICKS_SS/DUMPING timeout hit). Issueing GPU soft-reset to resolve.");
+		dev_err(kbdev->dev, "JS: Job has been on the GPU for too long (JS_RESET_TICKS_SS/DUMPING timeout hit). Issuing GPU soft-reset to resolve.");
 
 		if (kbase_prepare_to_reset_gpu_locked(kbdev, RESET_FLAGS_NONE))
 			kbase_reset_gpu_locked(kbdev);
@@ -270,9 +273,11 @@ static enum hrtimer_restart timer_callback(struct hrtimer *timer)
 
 	return HRTIMER_NORESTART;
 }
+#endif /* !MALI_USE_CSF */
 
 void kbase_backend_ctx_count_changed(struct kbase_device *kbdev)
 {
+#if !MALI_USE_CSF
 	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
 	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
 	unsigned long flags;
@@ -284,11 +289,12 @@ void kbase_backend_ctx_count_changed(struct kbase_device *kbdev)
 		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 		backend->timer_running = false;
 		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-		/* From now on, return value of timer_callback_should_run() will
-		 * also cause the timer to not requeue itself. Its return value
-		 * cannot change, because it depends on variables updated with
-		 * the runpool_mutex held, which the caller of this must also
-		 * hold */
+		/* From now on, return value of timer_callback_should_run()
+		 * will also cause the timer to not requeue itself. Its return
+		 * value cannot change, because it depends on variables updated
+		 * with the runpool_mutex held, which the caller of this must
+		 * also hold
+		 */
 		hrtimer_cancel(&backend->scheduling_timer);
 	}
 
@@ -303,25 +309,36 @@ void kbase_backend_ctx_count_changed(struct kbase_device *kbdev)
 
 		KBASE_KTRACE_ADD_JM(kbdev, JS_POLICY_TIMER_START, NULL, NULL, 0u, 0u);
 	}
+#else /* !MALI_USE_CSF */
+	CSTD_UNUSED(kbdev);
+#endif /* !MALI_USE_CSF */
 }
 
 int kbase_backend_timer_init(struct kbase_device *kbdev)
 {
+#if !MALI_USE_CSF
 	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
 
 	hrtimer_init(&backend->scheduling_timer, CLOCK_MONOTONIC,
 							HRTIMER_MODE_REL);
 	backend->scheduling_timer.function = timer_callback;
 	backend->timer_running = false;
+#else /* !MALI_USE_CSF */
+	CSTD_UNUSED(kbdev);
+#endif /* !MALI_USE_CSF */
 
 	return 0;
 }
 
 void kbase_backend_timer_term(struct kbase_device *kbdev)
 {
+#if !MALI_USE_CSF
 	struct kbase_backend_data *backend = &kbdev->hwaccess.backend;
 
 	hrtimer_cancel(&backend->scheduling_timer);
+#else /* !MALI_USE_CSF */
+	CSTD_UNUSED(kbdev);
+#endif /* !MALI_USE_CSF */
 }
 
 void kbase_backend_timer_suspend(struct kbase_device *kbdev)

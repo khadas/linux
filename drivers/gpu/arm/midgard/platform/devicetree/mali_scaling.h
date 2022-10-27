@@ -65,7 +65,7 @@ typedef struct mali_reset_info_t {
 } mali_reset_info_t;
 
 /**
- * Platform spesific data for meson chips.
+ * Platform specific data for meson chips.
  */
 typedef struct mali_plat_info_t {
 	u32 cfg_pp; /* number of pp. */

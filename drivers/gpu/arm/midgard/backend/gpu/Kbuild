@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2014-2019 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
 # Foundation, and any use by you of this program is subject to the terms
-# of such GNU licence.
+# of such GNU license.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,51 +16,39 @@
 # along with this program; if not, you can access it online at
 # http://www.gnu.org/licenses/gpl-2.0.html.
 #
-# SPDX-License-Identifier: GPL-2.0
-#
 #
 
-BACKEND += \
-	backend/gpu/mali_kbase_cache_policy_backend.c \
-	backend/gpu/mali_kbase_device_hw.c \
-	backend/gpu/mali_kbase_gpuprops_backend.c \
-	backend/gpu/mali_kbase_irq_linux.c \
-	backend/gpu/mali_kbase_instr_backend.c \
-	backend/gpu/mali_kbase_js_backend.c \
-	backend/gpu/mali_kbase_pm_backend.c \
-	backend/gpu/mali_kbase_pm_driver.c \
-	backend/gpu/mali_kbase_pm_metrics.c \
-	backend/gpu/mali_kbase_pm_ca.c \
-	backend/gpu/mali_kbase_pm_always_on.c \
-	backend/gpu/mali_kbase_pm_coarse_demand.c \
-	backend/gpu/mali_kbase_pm_policy.c \
-	backend/gpu/mali_kbase_time.c \
-	backend/gpu/mali_kbase_l2_mmu_config.c
+mali_kbase-y += \
+    backend/gpu/mali_kbase_cache_policy_backend.o \
+    backend/gpu/mali_kbase_gpuprops_backend.o \
+    backend/gpu/mali_kbase_irq_linux.o \
+    backend/gpu/mali_kbase_js_backend.o \
+    backend/gpu/mali_kbase_pm_backend.o \
+    backend/gpu/mali_kbase_pm_driver.o \
+    backend/gpu/mali_kbase_pm_metrics.o \
+    backend/gpu/mali_kbase_pm_ca.o \
+    backend/gpu/mali_kbase_pm_always_on.o \
+    backend/gpu/mali_kbase_pm_coarse_demand.o \
+    backend/gpu/mali_kbase_pm_policy.o \
+    backend/gpu/mali_kbase_time.o \
+    backend/gpu/mali_kbase_l2_mmu_config.o \
+    backend/gpu/mali_kbase_clk_rate_trace_mgr.o
 
-ifeq ($(MALI_USE_CSF),1)
-# empty
-else
-	BACKEND += \
-		backend/gpu/mali_kbase_jm_as.c \
-		backend/gpu/mali_kbase_debug_job_fault_backend.c \
-		backend/gpu/mali_kbase_jm_hw.c \
-		backend/gpu/mali_kbase_jm_rb.c
+ifeq ($(MALI_USE_CSF),0)
+    mali_kbase-y += \
+        backend/gpu/mali_kbase_instr_backend.o \
+        backend/gpu/mali_kbase_jm_as.o \
+        backend/gpu/mali_kbase_debug_job_fault_backend.o \
+        backend/gpu/mali_kbase_jm_hw.o \
+        backend/gpu/mali_kbase_jm_rb.o
 endif
 
-ifeq ($(MALI_CUSTOMER_RELEASE),0)
-BACKEND += \
-	backend/gpu/mali_kbase_pm_always_on_demand.c
-endif
 
-ifeq ($(CONFIG_MALI_DEVFREQ),y)
-BACKEND += \
-	backend/gpu/mali_kbase_devfreq.c
-endif
+mali_kbase-$(CONFIG_MALI_DEVFREQ) += \
+    backend/gpu/mali_kbase_devfreq.o
 
-ifeq ($(CONFIG_MALI_NO_MALI),y)
-	# Dummy model
-	BACKEND += backend/gpu/mali_kbase_model_dummy.c
-	BACKEND += backend/gpu/mali_kbase_model_linux.c
-	# HW error simulation
-	BACKEND += backend/gpu/mali_kbase_model_error_generator.c
-endif
+# Dummy model
+mali_kbase-$(CONFIG_MALI_NO_MALI) += backend/gpu/mali_kbase_model_dummy.o
+mali_kbase-$(CONFIG_MALI_NO_MALI) += backend/gpu/mali_kbase_model_linux.o
+# HW error simulation
+mali_kbase-$(CONFIG_MALI_NO_MALI) += backend/gpu/mali_kbase_model_error_generator.o

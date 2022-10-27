@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,18 +17,16 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include <mali_kbase.h>
 #include <mali_kbase_bits.h>
 #include <mali_kbase_config_defaults.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include "mali_kbase_l2_mmu_config.h"
 
 /**
- * struct l2_mmu_config_limit_region
+ * struct l2_mmu_config_limit_region - L2 MMU limit field
  *
  * @value:    The default value to load into the L2_MMU_CONFIG register
  * @mask:     The shifted mask of the field in the L2_MMU_CONFIG register
@@ -41,7 +39,7 @@ struct l2_mmu_config_limit_region {
 };
 
 /**
- * struct l2_mmu_config_limit
+ * struct l2_mmu_config_limit - L2 MMU read and write limit
  *
  * @product_model:    The GPU for which this entry applies
  * @read:             Values for the read limit field
@@ -56,23 +54,34 @@ struct l2_mmu_config_limit {
 /*
  * Zero represents no limit
  *
- * For LBEX TBEX TTRX and TNAX:
+ * For LBEX TBEX TBAX TTRX and TNAX:
  *   The value represents the number of outstanding reads (6 bits) or writes (5 bits)
  *
  * For all other GPUS it is a fraction see: mali_kbase_config_defaults.h
  */
 static const struct l2_mmu_config_limit limits[] = {
-	 /* GPU                       read                  write            */
-	 {GPU_ID2_PRODUCT_LBEX, {0, GENMASK(10, 5), 5}, {0, GENMASK(16, 12), 12} },
-	 {GPU_ID2_PRODUCT_TBEX, {0, GENMASK(10, 5), 5}, {0, GENMASK(16, 12), 12} },
-	 {GPU_ID2_PRODUCT_TTRX, {0, GENMASK(12, 7), 7}, {0, GENMASK(17, 13), 13} },
-	 {GPU_ID2_PRODUCT_TNAX, {0, GENMASK(12, 7), 7}, {0, GENMASK(17, 13), 13} },
-	 {GPU_ID2_PRODUCT_TGOX,
-	   {KBASE_3BIT_AID_32, GENMASK(14, 12), 12},
-	   {KBASE_3BIT_AID_32, GENMASK(17, 15), 15} },
-	 {GPU_ID2_PRODUCT_TNOX,
-	   {KBASE_3BIT_AID_32, GENMASK(14, 12), 12},
-	   {KBASE_3BIT_AID_32, GENMASK(17, 15), 15} },
+	/* GPU, read, write */
+	{GPU_ID2_PRODUCT_LBEX,
+		{0, GENMASK(10, 5), 5},
+		{0, GENMASK(16, 12), 12} },
+	{GPU_ID2_PRODUCT_TBEX,
+		{0, GENMASK(10, 5), 5},
+		{0, GENMASK(16, 12), 12} },
+	{GPU_ID2_PRODUCT_TBAX,
+		{0, GENMASK(10, 5), 5},
+		{0, GENMASK(16, 12), 12} },
+	{GPU_ID2_PRODUCT_TTRX,
+		{0, GENMASK(12, 7), 7},
+		{0, GENMASK(17, 13), 13} },
+	{GPU_ID2_PRODUCT_TNAX,
+		{0, GENMASK(12, 7), 7},
+		{0, GENMASK(17, 13), 13} },
+	{GPU_ID2_PRODUCT_TGOX,
+		{KBASE_3BIT_AID_32, GENMASK(14, 12), 12},
+		{KBASE_3BIT_AID_32, GENMASK(17, 15), 15} },
+	{GPU_ID2_PRODUCT_TNOX,
+		{KBASE_3BIT_AID_32, GENMASK(14, 12), 12},
+		{KBASE_3BIT_AID_32, GENMASK(17, 15), 15} },
 };
 
 int kbase_set_mmu_quirks(struct kbase_device *kbdev)
@@ -100,7 +109,7 @@ int kbase_set_mmu_quirks(struct kbase_device *kbdev)
 
 	mmu_config = kbase_reg_read(kbdev, GPU_CONTROL_REG(L2_MMU_CONFIG));
 
-	if (kbase_is_gpu_lost(kbdev))
+	if (kbase_is_gpu_removed(kbdev))
 		return -EIO;
 
 	mmu_config &= ~(limit.read.mask | limit.write.mask);
@@ -112,9 +121,9 @@ int kbase_set_mmu_quirks(struct kbase_device *kbdev)
 
 	if (kbdev->system_coherency == COHERENCY_ACE) {
 		/* Allow memory configuration disparity to be ignored,
-		* we optimize the use of shared memory and thus we
-		* expect some disparity in the memory configuration.
-		*/
+		 * we optimize the use of shared memory and thus we
+		 * expect some disparity in the memory configuration.
+		 */
 		kbdev->hw_quirks_mmu |= L2_MMU_CONFIG_ALLOW_SNOOP_DISPARITY;
 	}
 

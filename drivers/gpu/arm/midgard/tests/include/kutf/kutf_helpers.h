@@ -1,11 +1,12 @@
+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2017, 2020-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -34,11 +33,19 @@
 #include <kutf/kutf_suite.h>
 
 /**
+ * kutf_helper_pending_input() - Check any pending lines sent by user space
+ * @context:    KUTF context
+ *
+ * Return: true if there are pending lines, otherwise false
+ */
+bool kutf_helper_pending_input(struct kutf_context *context);
+
+/**
  * kutf_helper_input_dequeue() - Dequeue a line sent by user space
  * @context:    KUTF context
  * @str_size:   Pointer to an integer to receive the size of the string
  *
- * If no line is available then this function will wait (interruptibly) until
+ * If no line is available then this function will wait (interruption) until
  * a line is available.
  *
  * Return: The line dequeued, ERR_PTR(-EINTR) if interrupted or NULL on end

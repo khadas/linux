@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2016,2018-2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2016, 2018-2021 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,17 +17,15 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include <mali_kbase.h>
-#include <backend/gpu/mali_kbase_device_internal.h>
+#include <device/mali_kbase_device.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 
 #include <linux/interrupt.h>
 
-#if !defined(CONFIG_MALI_NO_MALI)
+#if !IS_ENABLED(CONFIG_MALI_NO_MALI)
 
 /* GPU IRQ Tags */
 #define	JOB_IRQ_TAG	0
@@ -72,7 +71,12 @@ static irqreturn_t kbase_job_irq_handler(int irq, void *data)
 
 	dev_dbg(kbdev->dev, "%s: irq %d irqstatus 0x%x\n", __func__, irq, val);
 
+#if MALI_USE_CSF
+	/* call the csf interrupt handler */
+	kbase_csf_interrupt(kbdev, val);
+#else
 	kbase_job_done(kbdev, val);
+#endif
 
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
@@ -170,7 +174,7 @@ static irq_handler_t kbase_handler_table[] = {
  *
  * Handle the GPU device interrupt source requests reflected in the
  * given source bit-pattern. The test code caller is responsible for
- * undertaking the required device power maintenace.
+ * undertaking the required device power maintenance.
  *
  * Return: IRQ_HANDLED if the requests are from the GPU device,
  *         IRQ_NONE otherwise
@@ -210,24 +214,25 @@ int kbase_set_custom_irq_handler(struct kbase_device *kbdev,
 	int result = 0;
 	irq_handler_t requested_irq_handler = NULL;
 
-	KBASE_DEBUG_ASSERT((JOB_IRQ_HANDLER <= irq_type) &&
-						(GPU_IRQ_HANDLER >= irq_type));
+	KBASE_DEBUG_ASSERT((irq_type >= JOB_IRQ_HANDLER) &&
+			   (irq_type <= GPU_IRQ_HANDLER));
 
 	/* Release previous handler */
 	if (kbdev->irqs[irq_type].irq)
 		free_irq(kbdev->irqs[irq_type].irq, kbase_tag(kbdev, irq_type));
 
-	requested_irq_handler = (NULL != custom_handler) ? custom_handler :
-						kbase_handler_table[irq_type];
+	requested_irq_handler = (custom_handler != NULL) ?
+					custom_handler :
+					kbase_handler_table[irq_type];
 
-	if (0 != request_irq(kbdev->irqs[irq_type].irq,
-			requested_irq_handler,
+	if (request_irq(kbdev->irqs[irq_type].irq, requested_irq_handler,
 			kbdev->irqs[irq_type].flags | IRQF_SHARED,
-			dev_name(kbdev->dev), kbase_tag(kbdev, irq_type))) {
+			dev_name(kbdev->dev),
+			kbase_tag(kbdev, irq_type)) != 0) {
 		result = -EINVAL;
 		dev_err(kbdev->dev, "Can't request interrupt %d (index %d)\n",
 					kbdev->irqs[irq_type].irq, irq_type);
-#ifdef CONFIG_SPARSE_IRQ
+#if IS_ENABLED(CONFIG_SPARSE_IRQ)
 		dev_err(kbdev->dev, "You have CONFIG_SPARSE_IRQ support enabled - is the interrupt number correct for this configuration?\n");
 #endif /* CONFIG_SPARSE_IRQ */
 	}
@@ -237,7 +242,7 @@ int kbase_set_custom_irq_handler(struct kbase_device *kbdev,
 
 KBASE_EXPORT_TEST_API(kbase_set_custom_irq_handler);
 
-/* test correct interrupt assigment and reception by cpu */
+/* test correct interrupt assignment and reception by cpu */
 struct kbasep_irq_test {
 	struct hrtimer timer;
 	wait_queue_head_t wait;
@@ -456,7 +461,7 @@ int kbase_install_interrupts(struct kbase_device *kbdev)
 		if (err) {
 			dev_err(kbdev->dev, "Can't request interrupt %d (index %d)\n",
 							kbdev->irqs[i].irq, i);
-#ifdef CONFIG_SPARSE_IRQ
+#if IS_ENABLED(CONFIG_SPARSE_IRQ)
 			dev_err(kbdev->dev, "You have CONFIG_SPARSE_IRQ support enabled - is the interrupt number correct for this configuration?\n");
 #endif /* CONFIG_SPARSE_IRQ */
 			goto release;
@@ -496,4 +501,4 @@ void kbase_synchronize_irqs(struct kbase_device *kbdev)
 
 KBASE_EXPORT_TEST_API(kbase_synchronize_irqs);
 
-#endif /* !defined(CONFIG_MALI_NO_MALI) */
+#endif /* !IS_ENABLED(CONFIG_MALI_NO_MALI) */

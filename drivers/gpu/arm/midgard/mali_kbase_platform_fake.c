@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2011-2014, 2016-2017 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2014, 2016-2017, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -16,8 +17,6 @@
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
  *
- * SPDX-License-Identifier: GPL-2.0
- *
  */
 
 #include <linux/errno.h>
@@ -25,7 +24,6 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
-
 
 /*
  * This file is included only for type definitions and functions belonging to
@@ -41,14 +39,14 @@ static struct platform_device *mali_device;
 
 #ifndef CONFIG_OF
 /**
- * @brief Convert data in struct kbase_io_resources struct to Linux-specific resources
+ * kbasep_config_parse_io_resources - Convert data in struct kbase_io_resources
+ * struct to Linux-specific resources
+ * @io_resources:      Input IO resource data
+ * @linux_resources:  Pointer to output array of Linux resource structures
  *
  * Function converts data in struct kbase_io_resources struct to an array of Linux resource structures. Note that function
  * assumes that size of linux_resource array is at least PLATFORM_CONFIG_RESOURCE_COUNT.
  * Resources are put in fixed order: I/O memory region, job IRQ, MMU IRQ, GPU IRQ.
- *
- * @param[in]  io_resource      Input IO resource data
- * @param[out] linux_resources  Pointer to output array of Linux resource structures
  */
 static void kbasep_config_parse_io_resources(const struct kbase_io_resources *io_resources, struct resource *const linux_resources)
 {

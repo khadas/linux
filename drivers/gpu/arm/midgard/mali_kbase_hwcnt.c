@@ -1,11 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2018, 2020 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
  * Foundation, and any use by you of this program is subject to the terms
- * of such GNU licence.
+ * of such GNU license.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -15,8 +16,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, you can access it online at
  * http://www.gnu.org/licenses/gpl-2.0.html.
- *
- * SPDX-License-Identifier: GPL-2.0
  *
  */
 
@@ -28,9 +27,6 @@
 #include "mali_kbase_hwcnt_accumulator.h"
 #include "mali_kbase_hwcnt_backend.h"
 #include "mali_kbase_hwcnt_types.h"
-#include "mali_malisw.h"
-#include "mali_kbase_debug.h"
-#include "mali_kbase_linux.h"
 
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -51,6 +47,7 @@ enum kbase_hwcnt_accum_state {
 
 /**
  * struct kbase_hwcnt_accumulator - Hardware counter accumulator structure.
+ * @metadata:               Pointer to immutable hwcnt metadata.
  * @backend:                Pointer to created counter backend.
  * @state:                  The current state of the accumulator.
  *                           - State transition from disabled->enabled or
@@ -89,6 +86,7 @@ enum kbase_hwcnt_accum_state {
  *                             accum_lock.
  */
 struct kbase_hwcnt_accumulator {
+	const struct kbase_hwcnt_metadata *metadata;
 	struct kbase_hwcnt_backend *backend;
 	enum kbase_hwcnt_accum_state state;
 	struct kbase_hwcnt_enable_map enable_map;
@@ -117,6 +115,10 @@ struct kbase_hwcnt_accumulator {
  *                    state_lock.
  *                  - Can be read while holding either lock.
  * @accum:         Hardware counter accumulator structure.
+ * @wq:            Centralized workqueue for users of hardware counters to
+ *                 submit async hardware counter related work. Never directly
+ *                 called, but it's expected that a lot of the functions in this
+ *                 API will end up called from the enqueued async work.
  */
 struct kbase_hwcnt_context {
 	const struct kbase_hwcnt_backend_interface *iface;
@@ -125,6 +127,7 @@ struct kbase_hwcnt_context {
 	struct mutex accum_lock;
 	bool accum_inited;
 	struct kbase_hwcnt_accumulator accum;
+	struct workqueue_struct *wq;
 };
 
 int kbase_hwcnt_context_init(
@@ -138,7 +141,7 @@ int kbase_hwcnt_context_init(
 
 	hctx = kzalloc(sizeof(*hctx), GFP_KERNEL);
 	if (!hctx)
-		return -ENOMEM;
+		goto err_alloc_hctx;
 
 	hctx->iface = iface;
 	spin_lock_init(&hctx->state_lock);
@@ -146,11 +149,20 @@ int kbase_hwcnt_context_init(
 	mutex_init(&hctx->accum_lock);
 	hctx->accum_inited = false;
 
+	hctx->wq =
+		alloc_workqueue("mali_kbase_hwcnt", WQ_HIGHPRI | WQ_UNBOUND, 0);
+	if (!hctx->wq)
+		goto err_alloc_workqueue;
+
 	*out_hctx = hctx;
 
 	return 0;
+
+err_alloc_workqueue:
+	kfree(hctx);
+err_alloc_hctx:
+	return -ENOMEM;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_context_init);
 
 void kbase_hwcnt_context_term(struct kbase_hwcnt_context *hctx)
 {
@@ -159,9 +171,13 @@ void kbase_hwcnt_context_term(struct kbase_hwcnt_context *hctx)
 
 	/* Make sure we didn't leak the accumulator */
 	WARN_ON(hctx->accum_inited);
+
+	/* We don't expect any work to be pending on this workqueue.
+	 * Regardless, this will safely drain and complete the work.
+	 */
+	destroy_workqueue(hctx->wq);
 	kfree(hctx);
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_context_term);
 
 /**
  * kbasep_hwcnt_accumulator_term() - Terminate the accumulator for the context.
@@ -197,22 +213,23 @@ static int kbasep_hwcnt_accumulator_init(struct kbase_hwcnt_context *hctx)
 	if (errcode)
 		goto error;
 
+	hctx->accum.metadata = hctx->iface->metadata(hctx->iface->info);
 	hctx->accum.state = ACCUM_STATE_ERROR;
 
-	errcode = kbase_hwcnt_enable_map_alloc(
-		hctx->iface->metadata, &hctx->accum.enable_map);
+	errcode = kbase_hwcnt_enable_map_alloc(hctx->accum.metadata,
+					       &hctx->accum.enable_map);
 	if (errcode)
 		goto error;
 
 	hctx->accum.enable_map_any_enabled = false;
 
-	errcode = kbase_hwcnt_dump_buffer_alloc(
-		hctx->iface->metadata, &hctx->accum.accum_buf);
+	errcode = kbase_hwcnt_dump_buffer_alloc(hctx->accum.metadata,
+						&hctx->accum.accum_buf);
 	if (errcode)
 		goto error;
 
-	errcode = kbase_hwcnt_enable_map_alloc(
-		hctx->iface->metadata, &hctx->accum.scratch_map);
+	errcode = kbase_hwcnt_enable_map_alloc(hctx->accum.metadata,
+					       &hctx->accum.scratch_map);
 	if (errcode)
 		goto error;
 
@@ -242,6 +259,7 @@ static void kbasep_hwcnt_accumulator_disable(
 	bool backend_enabled = false;
 	struct kbase_hwcnt_accumulator *accum;
 	unsigned long flags;
+	u64 dump_time_ns;
 
 	WARN_ON(!hctx);
 	lockdep_assert_held(&hctx->accum_lock);
@@ -271,7 +289,7 @@ static void kbasep_hwcnt_accumulator_disable(
 		goto disable;
 
 	/* Try and accumulate before disabling */
-	errcode = hctx->iface->dump_request(accum->backend);
+	errcode = hctx->iface->dump_request(accum->backend, &dump_time_ns);
 	if (errcode)
 		goto disable;
 
@@ -332,7 +350,7 @@ static void kbasep_hwcnt_accumulator_enable(struct kbase_hwcnt_context *hctx)
  *                                   values of enabled counters possible, and
  *                                   optionally update the set of enabled
  *                                   counters.
- * @hctx :       Non-NULL pointer to the hardware counter context
+ * @hctx:        Non-NULL pointer to the hardware counter context
  * @ts_start_ns: Non-NULL pointer where the start timestamp of the dump will
  *               be written out to on success
  * @ts_end_ns:   Non-NULL pointer where the end timestamp of the dump will
@@ -343,6 +361,8 @@ static void kbasep_hwcnt_accumulator_enable(struct kbase_hwcnt_context *hctx)
  * @new_map:     Pointer to the new counter enable map. If non-NULL, must have
  *               the same metadata as the accumulator. If NULL, the set of
  *               enabled counters will be unchanged.
+ *
+ * Return:       0 on success, else error code.
  */
 static int kbasep_hwcnt_accumulator_dump(
 	struct kbase_hwcnt_context *hctx,
@@ -365,8 +385,8 @@ static int kbasep_hwcnt_accumulator_dump(
 	WARN_ON(!hctx);
 	WARN_ON(!ts_start_ns);
 	WARN_ON(!ts_end_ns);
-	WARN_ON(dump_buf && (dump_buf->metadata != hctx->iface->metadata));
-	WARN_ON(new_map && (new_map->metadata != hctx->iface->metadata));
+	WARN_ON(dump_buf && (dump_buf->metadata != hctx->accum.metadata));
+	WARN_ON(new_map && (new_map->metadata != hctx->accum.metadata));
 	WARN_ON(!hctx->accum_inited);
 	lockdep_assert_held(&hctx->accum_lock);
 
@@ -419,23 +439,16 @@ static int kbasep_hwcnt_accumulator_dump(
 
 	/* Initiate the dump if the backend is enabled. */
 	if ((state == ACCUM_STATE_ENABLED) && cur_map_any_enabled) {
-		/* Disable pre-emption, to make the timestamp as accurate as
-		 * possible.
-		 */
-		preempt_disable();
-		{
+		if (dump_buf) {
+			errcode = hctx->iface->dump_request(
+					accum->backend, &dump_time_ns);
+			dump_requested = true;
+		} else {
 			dump_time_ns = hctx->iface->timestamp_ns(
-				accum->backend);
-			if (dump_buf) {
-				errcode = hctx->iface->dump_request(
 					accum->backend);
-				dump_requested = true;
-			} else {
-				errcode = hctx->iface->dump_clear(
-					accum->backend);
-			}
+			errcode = hctx->iface->dump_clear(accum->backend);
 		}
-		preempt_enable();
+
 		if (errcode)
 			goto error;
 	} else {
@@ -615,7 +628,6 @@ int kbase_hwcnt_accumulator_acquire(
 
 	return 0;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_accumulator_acquire);
 
 void kbase_hwcnt_accumulator_release(struct kbase_hwcnt_accumulator *accum)
 {
@@ -632,7 +644,7 @@ void kbase_hwcnt_accumulator_release(struct kbase_hwcnt_accumulator *accum)
 	/* Double release is a programming error */
 	WARN_ON(!hctx->accum_inited);
 
-	/* Disable the context to ensure the accumulator is inaccesible while
+	/* Disable the context to ensure the accumulator is inaccessible while
 	 * we're destroying it. This performs the corresponding disable count
 	 * increment to the decrement done during acquisition.
 	 */
@@ -650,7 +662,6 @@ void kbase_hwcnt_accumulator_release(struct kbase_hwcnt_accumulator *accum)
 	spin_unlock_irqrestore(&hctx->state_lock, flags);
 	mutex_unlock(&hctx->accum_lock);
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_accumulator_release);
 
 void kbase_hwcnt_context_disable(struct kbase_hwcnt_context *hctx)
 {
@@ -669,7 +680,6 @@ void kbase_hwcnt_context_disable(struct kbase_hwcnt_context *hctx)
 
 	mutex_unlock(&hctx->accum_lock);
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_context_disable);
 
 bool kbase_hwcnt_context_disable_atomic(struct kbase_hwcnt_context *hctx)
 {
@@ -698,7 +708,6 @@ bool kbase_hwcnt_context_disable_atomic(struct kbase_hwcnt_context *hctx)
 
 	return atomic_disabled;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_context_disable_atomic);
 
 void kbase_hwcnt_context_enable(struct kbase_hwcnt_context *hctx)
 {
@@ -718,7 +727,6 @@ void kbase_hwcnt_context_enable(struct kbase_hwcnt_context *hctx)
 
 	spin_unlock_irqrestore(&hctx->state_lock, flags);
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_context_enable);
 
 const struct kbase_hwcnt_metadata *kbase_hwcnt_context_metadata(
 	struct kbase_hwcnt_context *hctx)
@@ -726,9 +734,17 @@ const struct kbase_hwcnt_metadata *kbase_hwcnt_context_metadata(
 	if (!hctx)
 		return NULL;
 
-	return hctx->iface->metadata;
+	return hctx->iface->metadata(hctx->iface->info);
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_context_metadata);
+
+bool kbase_hwcnt_context_queue_work(struct kbase_hwcnt_context *hctx,
+				    struct work_struct *work)
+{
+	if (WARN_ON(!hctx) || WARN_ON(!work))
+		return false;
+
+	return queue_work(hctx->wq, work);
+}
 
 int kbase_hwcnt_accumulator_set_counters(
 	struct kbase_hwcnt_accumulator *accum,
@@ -745,8 +761,8 @@ int kbase_hwcnt_accumulator_set_counters(
 
 	hctx = container_of(accum, struct kbase_hwcnt_context, accum);
 
-	if ((new_map->metadata != hctx->iface->metadata) ||
-	    (dump_buf && (dump_buf->metadata != hctx->iface->metadata)))
+	if ((new_map->metadata != hctx->accum.metadata) ||
+	    (dump_buf && (dump_buf->metadata != hctx->accum.metadata)))
 		return -EINVAL;
 
 	mutex_lock(&hctx->accum_lock);
@@ -758,7 +774,6 @@ int kbase_hwcnt_accumulator_set_counters(
 
 	return errcode;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_accumulator_set_counters);
 
 int kbase_hwcnt_accumulator_dump(
 	struct kbase_hwcnt_accumulator *accum,
@@ -774,7 +789,7 @@ int kbase_hwcnt_accumulator_dump(
 
 	hctx = container_of(accum, struct kbase_hwcnt_context, accum);
 
-	if (dump_buf && (dump_buf->metadata != hctx->iface->metadata))
+	if (dump_buf && (dump_buf->metadata != hctx->accum.metadata))
 		return -EINVAL;
 
 	mutex_lock(&hctx->accum_lock);
@@ -786,7 +801,6 @@ int kbase_hwcnt_accumulator_dump(
 
 	return errcode;
 }
-KBASE_EXPORT_TEST_API(kbase_hwcnt_accumulator_dump);
 
 u64 kbase_hwcnt_accumulator_timestamp_ns(struct kbase_hwcnt_accumulator *accum)
 {
