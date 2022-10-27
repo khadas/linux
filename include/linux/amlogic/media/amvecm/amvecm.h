@@ -30,14 +30,15 @@
 #include <linux/amlogic/media/registers/cpu_version.h>
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include <drm/drmP.h>
+#include <../drivers/amlogic/media/enhancement/amvecm/vlock.h>
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
-bool for_dolby_vision_certification(void);
-bool is_dovi_frame(struct vframe_s *vf);
-void dolby_vision_set_toggle_flag(int flag);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
+bool is_amdv_frame(struct vframe_s *vf);
+void amdv_set_toggle_flag(int flag);
 #endif
 
 #ifndef MAX
@@ -118,6 +119,8 @@ void dolby_vision_set_toggle_flag(int flag);
 #define VPP_DEMO_CM_EN              BIT(0)
 
 /*PQ USER LATCH*/
+#define PQ_USER_PQ_MODULE_CTL      BIT(26)
+#define PQ_USER_OVERSCAN_RESET     BIT(25)
 #define PQ_USER_CMS_SAT_HUE        BIT(24)
 #define PQ_USER_CMS_CURVE_HUE_HS   BIT(23)
 #define PQ_USER_CMS_CURVE_HUE      BIT(22)
@@ -169,6 +172,41 @@ void dolby_vision_set_toggle_flag(int flag);
 #define CM_LUMA_DEBUG_FLAG 0x4
 #define CM_HUE_BY_HIS_DEBUG_FLAG 0x8
 
+#define FREESYNC_DYNAMIC_GAMMA_NUM 10
+#define FREESYNC_DYNAMIC_GAMMA_CHANNEL 3
+
+struct tcon_gamma_table_s {
+	u16 data[256];
+} /*tcon_gamma_table_t */;
+
+struct tcon_rgb_ogo_s {
+	unsigned int en;
+
+	int r_pre_offset;	/* s11.0, range -1024~+1023, default is 0 */
+	int g_pre_offset;	/* s11.0, range -1024~+1023, default is 0 */
+	int b_pre_offset;	/* s11.0, range -1024~+1023, default is 0 */
+	unsigned int r_gain;   /* u1.10, range 0~2047, default is 1024 (1.0x) */
+	unsigned int g_gain;   /* u1.10, range 0~2047, default is 1024 (1.0x) */
+	unsigned int b_gain;   /* u1.10, range 0~2047, default is 1024 (1.0x) */
+	int r_post_offset;	/* s11.0, range -1024~+1023, default is 0 */
+	int g_post_offset;	/* s11.0, range -1024~+1023, default is 0 */
+	int b_post_offset;	/* s11.0, range -1024~+1023, default is 0 */
+} /*tcon_rgb_ogo_t */;
+
+//48-56hz gm_tb[1][3]
+//57-64hz gm_tb[2][3]
+//65-72hz gm_tb[3][3]
+//73-80hz gm_tb[4][3]
+//81-88hz gm_tb[5][3]
+//89-96hz gm_tb[6][3]
+//97-104hz gm_tb[7][3]
+//105-112hz gm_tb[8][3]
+//112-120hz gm_tb[9][3]
+//121-144hz gm_tb[10][3]
+struct gm_tbl_s {
+	struct tcon_gamma_table_s gm_tb[FREESYNC_DYNAMIC_GAMMA_NUM][FREESYNC_DYNAMIC_GAMMA_CHANNEL];
+};
+
 enum cm_hist_e {
 	CM_HUE_HIST = 0,
 	CM_SAT_HIST,
@@ -176,9 +214,15 @@ enum cm_hist_e {
 };
 
 enum dv_pq_ctl_e {
-	DV_PQ_BYPASS = 0,
+	DV_PQ_TV_BYPASS = 0,
+	DV_PQ_STB_BYPASS,
 	DV_PQ_CERT,
 	DV_PQ_REC,
+};
+
+enum wr_md_e {
+	WR_VCB = 0,
+	WR_DMA,
 };
 
 enum pq_table_name_e {
@@ -236,6 +280,7 @@ enum pq_table_name_e {
 #define AMVECM_IOC_VLOCK_EN  _IO(_VE_CM, 0x47)
 #define AMVECM_IOC_VLOCK_DIS _IO(_VE_CM, 0x48)
 
+#define AMVECM_IOC_GAMMA_SET _IOW(_VE_CM, 0X4a, struct gm_tbl_s)
 /*VPP.3D-SYNC IOCTL command list*/
 #define AMVECM_IOC_3D_SYNC_EN  _IO(_VE_CM, 0x49)
 #define AMVECM_IOC_3D_SYNC_DIS _IO(_VE_CM, 0x50)
@@ -455,6 +500,7 @@ enum hdr_type_e {
 	HDRTYPE_HDR10PLUS = HDR10PLUS_SOURCE,
 	HDRTYPE_DOVI = DOVI_SOURCE,
 	HDRTYPE_MVC = MVC_SOURCE,
+	HDRTYPE_PRIMESL = PRIMESL_SOURCE,
 };
 
 enum pd_comb_fix_lvl_e {
@@ -627,6 +673,7 @@ struct vecm_match_data_s {
 	u32 reg_addr_vlock;
 	u32 reg_addr_hiu;
 	u32 reg_addr_anactr;
+	u32 vlk_ctl_for_frc;/*control frc flash patch*/
 };
 
 enum vd_path_e {
@@ -652,13 +699,16 @@ extern unsigned int pd_detect_en;
 extern bool wb_en;
 extern struct pq_ctrl_s pq_cfg;
 
-extern bool wb_en;
 extern struct pq_ctrl_s pq_cfg;
 extern struct pq_ctrl_s dv_cfg_bypass;
 extern unsigned int lc_offset;
+extern unsigned int pq_user_latch_flag;
+
 
 extern enum ecm_color_type cm_cur_work_color_md;
 extern int cm2_debug;
+
+extern unsigned int ct_en;
 
 #define CSC_FLAG_TOGGLE_FRAME	1
 #define CSC_FLAG_CHECK_OUTPUT	2
@@ -679,6 +729,8 @@ void refresh_on_vs(struct vframe_s *vf, struct vframe_s *rpt_vf);
 void pc_mode_process(void);
 void pq_user_latch_process(void);
 void vlock_process(struct vframe_s *vf,
+		   struct vpp_frame_par_s *cur_video_sts);
+void frame_lock_process(struct vframe_s *vf,
 		   struct vpp_frame_par_s *cur_video_sts);
 int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts);
 void get_hdr_process_name(int id, char *name, char *output_fmt);

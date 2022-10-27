@@ -39,6 +39,26 @@ module_param(mua_debug_level, int, 0644);
 			pr_info("MUA: " fmt, ## arg); \
 	} while (0)
 
+static bool mua_is_valid_dmabuf(int fd)
+{
+	struct dma_buf *dmabuf = NULL;
+
+	dmabuf = dma_buf_get(fd);
+	if (IS_ERR_OR_NULL(dmabuf)) {
+		MUA_PRINTK(0, "invalid dmabuf. %s %d\n", __func__, __LINE__);
+		return false;
+	}
+
+	if (!dmabuf_is_uvm(dmabuf)) {
+		MUA_PRINTK(0, "dmabuf is not uvm. %s %d\n", __func__, __LINE__);
+		dma_buf_put(dmabuf);
+		return false;
+	}
+
+	dma_buf_put(dmabuf);
+	return true;
+}
+
 static void mua_handle_free(struct uvm_buf_obj *obj)
 {
 	struct mua_buffer *buffer;
@@ -484,10 +504,11 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct mua_device *md;
 	union uvm_ioctl_arg data;
-	struct dma_buf *dmabuf;
+	struct dma_buf *dmabuf = NULL;
 	int pid;
 	int ret = 0;
 	int fd = 0;
+	size_t usage = 0;
 	int alloc_buf_size = 0;
 
 	md = file->private_data;
@@ -525,7 +546,11 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		}
 		break;
 	case UVM_IOC_GET_INFO:
-		ret = meson_uvm_getinfo(data.hook_data.shared_fd,
+		fd = data.hook_data.shared_fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+		dmabuf = dma_buf_get(fd);
+		ret = meson_uvm_getinfo(dmabuf,
 						data.hook_data.mode_type,
 						data.hook_data.data_buf);
 		if (ret < 0) {
@@ -536,7 +561,11 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		break;
 	case UVM_IOC_SET_INFO:
-		ret = meson_uvm_setinfo(data.hook_data.shared_fd,
+		fd = data.hook_data.shared_fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+		dmabuf = dma_buf_get(fd);
+		ret = meson_uvm_setinfo(dmabuf,
 						data.hook_data.mode_type,
 						data.hook_data.data_buf);
 		if (ret < 0) {
@@ -599,6 +628,32 @@ static long mua_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			MUA_PRINTK(0, "invalid dmabuf fd.\n");
 			return -EINVAL;
 		}
+		break;
+	case UVM_IOC_SET_USAGE:
+		fd = data.usage_data.fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+		dmabuf = dma_buf_get(fd);
+		usage = data.usage_data.uvm_data_usage;
+		ret = meson_uvm_set_usage(dmabuf, usage);
+		if (ret < 0) {
+			MUA_PRINTK(1, "meson_uvm_set_usage fail.\n");
+			return -EINVAL;
+		}
+		break;
+	case UVM_IOC_GET_USAGE:
+		fd = data.usage_data.fd;
+		if (!mua_is_valid_dmabuf(fd))
+			return -EINVAL;
+		dmabuf = dma_buf_get(fd);
+		ret = meson_uvm_get_usage(dmabuf, &usage);
+		if (ret < 0) {
+			MUA_PRINTK(1, "meson_uvm_get_usage fail.\n");
+			return -EINVAL;
+		}
+		data.usage_data.uvm_data_usage = usage;
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
 		break;
 	case UVM_IOC_GET_METADATA:
 		ret = mua_get_meta_data(data.meta_data.fd, arg);

@@ -65,7 +65,8 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x20000>;
+			pmsg-size = <0x10000>;
+			bconsole-size = <0x10000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -120,8 +121,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			size = <0x0 0x0B000000>;
-			//size = <0x0 0x0>;
+			//size = <0x0 0x0B000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 		};
 
@@ -242,7 +243,7 @@
 		 ***************************************************/
 		en_4k = <0>;
 		//keep_dec_vf = <2>;
-		//po_fmt = <6>;
+		po_fmt = <0>;
 		/***************************************************
 		 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
 		 * local 7*4075520 = 28
@@ -475,7 +476,7 @@
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
-			mclk-fs = <512>;
+			mclk-fs = <64>;
 			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -497,7 +498,7 @@
 							<1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				system-clock-frequency = <256000>;
+				system-clock-frequency = <512000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -562,7 +563,7 @@
 		aml-audio-card,dai-link@3 {
 			mclk-fs = <64>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&pdm>;
 			};
@@ -674,7 +675,7 @@
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <0>;/*1:enabel ;0:disable*/
+		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 
 	adc_keypad {
@@ -697,12 +698,21 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
-		dai-tdm-lane-slot-mask-out = <1 1>;
+		dai-tdm-lane-slot-mask-out = <0 1>;
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
+
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
+
+		/*enable default mclk(12.288M), before extern codec start*/
+		//start_clk_enable = <1>;
 
 		status = "okay";
 	};
@@ -725,7 +735,7 @@
 			&tdm_b_pins
 			&tdm_d4_pins
 			&tdm_d5_pins
-			&tdm_clk_pins>;
+			&tdmb_clk_pins>;
 
 		/*
 		 * 0: tdmout_a;
@@ -758,19 +768,20 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
-		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <2>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 		tdmin-src-name = "hdmirx";
+		i2s2hdmi = <1>;
 
 		status = "okay";
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-snd-pdm";
+		compatible = "amlogic, tm2-revb-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1300,6 +1311,16 @@
 		};
 	};
 
+	tdm_a_pins: tdm_a_pin {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+			groups = "tdm_sclk0",
+				"tdm_fs0",
+				"tdm_d0",
+				"tdm_d1";
+			function = "tdm";
+		};
+	};
+
 	tdm_b_pins: tdm_b_pin {
 		mux { /* GPIOT_1, GPIOT_2, GPIOT_5, GPIOT_6 */
 			groups = "tdm_sclk1",
@@ -1367,6 +1388,20 @@
 };
 
 &pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmouta_lane1";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdmina_lane0";
+		};
+	};
+
 	tdm_d4_pins: tdm_d4_pin {
 		mux {
 			groups = "tdm_d4";
@@ -1381,7 +1416,14 @@
 		};
 	};
 
-	tdm_clk_pins: tdm_clk_pin {
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+
+	tdmb_clk_pins: tdmb_clk_pin {
 		mux {
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
@@ -1397,9 +1439,9 @@
 
 &amlvecm {
 	status = "okay";
-	gamma_en = <0>;/*1:enabel ;0:disable*/
-	wb_en = <0>;/*1:enabel ;0:disable*/
-	cm_en = <0>;/*1:enabel ;0:disable*/
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	cm_en = <0>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;

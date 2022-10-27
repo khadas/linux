@@ -8,6 +8,6 @@
 #include "meson_hdmi.h"
 
 extern bool attr_force_debugfs;
-extern struct am_hdmi_tx am_hdmi_info;
+extern char attr_debugfs[16];
 
 #endif

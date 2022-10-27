@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/phy/phy.h>
 #include <linux/amlogic/aml_gpio_consumer.h>
+#include <linux/amlogic/cpu_version.h>
 
 #include <linux/kthread.h>
 
@@ -184,7 +185,7 @@ static void crg_host_exit(struct crg_drd *crg)
 
 static int crg_host_init(struct crg_drd *crg)
 {
-	struct property_entry	props[3];
+	struct property_entry	props[5];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	struct resource		*res;
@@ -255,6 +256,19 @@ static int crg_host_init(struct crg_drd *crg)
 
 	if (crg->super_speed_support)
 		props[prop_idx++].name = "super_speed_support";
+	if (((is_meson_s4_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_s4d_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t3_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t5w_cpu()) && (is_meson_rev_a())))
+		props[prop_idx++].name = "xhci-crg-host-011";
+
+	props[prop_idx++].name = "xhci-crg-drd";
+
+	if (((is_meson_t7_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t7_cpu()) && (is_meson_rev_b())) ||
+		((is_meson_t3_cpu()) && (is_meson_rev_a())) ||
+		((is_meson_t3_cpu()) && (is_meson_rev_b())))
+		props[prop_idx++].name = "xhci-crg-host-010";
 
 	if (prop_idx) {
 		ret = platform_device_add_properties(xhci, props);
@@ -402,6 +416,7 @@ static void crg_shutdown(struct platform_device *pdev)
 
 	pm_runtime_get_sync(&pdev->dev);
 
+	crg_core_exit(crg);
 	crg_host_exit(crg);
 
 	pm_runtime_put_sync(&pdev->dev);
@@ -621,6 +636,8 @@ static struct platform_driver crg_host_driver = {
 
 void crg_exit(void)
 {
+	if (!crg_driver.driver.p)
+		return;
 	platform_driver_unregister(&crg_driver);
 }
 

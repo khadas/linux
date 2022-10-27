@@ -64,6 +64,13 @@ static int meson_writeback_connector_atomic_check(struct drm_connector *conn,
 	crtc_state = drm_atomic_get_new_crtc_state(state, conn_state->crtc);
 	fb = conn_state->writeback_job->fb;
 
+	if (fb->width != crtc_state->mode.hdisplay ||
+	    fb->height != crtc_state->mode.vdisplay) {
+		DRM_ERROR("Invalid framebuffer size %ux%u\n",
+			      fb->width, fb->height);
+		return -EINVAL;
+	}
+
 	for (i = 0; i < ARRAY_SIZE(writeback_fmts); i++) {
 		if (fb->format->format == writeback_fmts[i])
 			break;

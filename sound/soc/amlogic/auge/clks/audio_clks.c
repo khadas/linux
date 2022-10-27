@@ -10,6 +10,8 @@
 #include <linux/of_device.h>
 
 #include "audio_clks.h"
+#include "../regs.h"
+#include "../../common/iomapres.h"
 
 #define DRV_NAME "audio-clocks"
 
@@ -40,6 +42,14 @@ static const struct of_device_id audio_clocks_of_match[] = {
 		.compatible = "amlogic, t3-audio-clocks",
 		.data		= &t3_audio_clks_init,
 	},
+	{
+		.compatible = "amlogic, p1-audio-clocks",
+		.data		= &p1_audio_clks_init,
+	},
+	{
+		.compatible = "amlogic, a5-audio-clocks",
+		.data           = &a5_audio_clks_init,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, audio_clocks_of_match);
@@ -50,9 +60,20 @@ static int audio_clocks_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct clk **clks;
 	struct clk_onecell_data *clk_data;
-	void __iomem *clk_base;
+	void __iomem *clk_base, *clk_base2;
 	struct audio_clk_init *p_audioclk_init;
 	int ret;
+	struct regmap *audio_top_vad_regmap;
+
+	audio_top_vad_regmap = regmap_resource(dev, "audio_vad_top");
+	if (!IS_ERR(audio_top_vad_regmap))
+		/* need gate on vad_top then the audio top could work */
+		regmap_write
+			(audio_top_vad_regmap,
+			(EE_AUDIO2_CLK_GATE_EN0 << 2),
+			0xff);
+	else
+		dev_info(dev, "no audio top vad clk\n");
 
 	p_audioclk_init = (struct audio_clk_init *)
 		of_device_get_match_data(dev);
@@ -69,6 +90,16 @@ static int audio_clocks_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	if (p_audioclk_init->clk2_gates && p_audioclk_init->clks2) {
+		clk_base2 = of_iomap(np, 1);
+		if (!clk_base2) {
+			dev_err(dev,
+				"Unable to map clk base2\n");
+			return -ENXIO;
+		}
+		dev_dbg(dev, "map clk base2\n");
+	}
+
 	clk_data = devm_kmalloc(dev, sizeof(*clk_data), GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
@@ -79,10 +110,15 @@ static int audio_clocks_probe(struct platform_device *pdev)
 	if (!clks)
 		return -ENOMEM;
 
-	if (p_audioclk_init) {
+	if (p_audioclk_init->clk_gates)
 		p_audioclk_init->clk_gates(clks, clk_base);
+	if (p_audioclk_init->clks)
 		p_audioclk_init->clks(clks, clk_base);
-	}
+
+	if (p_audioclk_init->clk2_gates && clk_base2)
+		p_audioclk_init->clk2_gates(clks, clk_base2);
+	if (p_audioclk_init->clks2 && clk_base2)
+		p_audioclk_init->clks2(clks, clk_base2);
 
 	clk_data->clks = clks;
 	clk_data->clk_num = p_audioclk_init->clk_num;

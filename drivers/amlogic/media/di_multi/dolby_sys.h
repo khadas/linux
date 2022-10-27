@@ -27,21 +27,21 @@
 #include <linux/mm.h>
 #include <linux/cdev.h>
 
-#define DOLBY_CORE1C_REG_START                     0x1800
-#define DOLBY_CORE1C_CLKGATE_CTRL                  0x18f2
-#define DOLBY_CORE1C_SWAP_CTRL0                    0x18f3
-#define DOLBY_CORE1C_SWAP_CTRL1                    0x18f4
-#define DOLBY_CORE1C_SWAP_CTRL2                    0x18f5
-#define DOLBY_CORE1C_SWAP_CTRL3                    0x18f6
-#define DOLBY_CORE1C_SWAP_CTRL4                    0x18f7
-#define DOLBY_CORE1C_SWAP_CTRL5                    0x18f8
-#define DOLBY_CORE1C_DMA_CTRL                      0x18f9
-#define DOLBY_CORE1C_DMA_STATUS                    0x18fa
-#define DOLBY_CORE1C_STATUS0                       0x18fb
-#define DOLBY_CORE1C_STATUS1                       0x18fc
-#define DOLBY_CORE1C_STATUS2                       0x18fd
-#define DOLBY_CORE1C_STATUS3                       0x18fe
-#define DOLBY_CORE1C_DMA_PORT                      0x18ff
+#define AMDV_CORE1C_REG_START                     0x1800
+#define AMDV_CORE1C_CLKGATE_CTRL                  0x18f2
+#define AMDV_CORE1C_SWAP_CTRL0                    0x18f3
+#define AMDV_CORE1C_SWAP_CTRL1                    0x18f4
+#define AMDV_CORE1C_SWAP_CTRL2                    0x18f5
+#define AMDV_CORE1C_SWAP_CTRL3                    0x18f6
+#define AMDV_CORE1C_SWAP_CTRL4                    0x18f7
+#define AMDV_CORE1C_SWAP_CTRL5                    0x18f8
+#define AMDV_CORE1C_DMA_CTRL                      0x18f9
+#define AMDV_CORE1C_DMA_STATUS                    0x18fa
+#define AMDV_CORE1C_STATUS0                       0x18fb
+#define AMDV_CORE1C_STATUS1                       0x18fc
+#define AMDV_CORE1C_STATUS2                       0x18fd
+#define AMDV_CORE1C_STATUS3                       0x18fe
+#define AMDV_CORE1C_DMA_PORT                      0x18ff
 
 #define DI_SC_TOP_CTRL                             0x374f
 #define DI_HDR_IN_HSIZE                            0x376e

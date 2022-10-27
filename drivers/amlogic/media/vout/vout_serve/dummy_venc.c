@@ -1776,6 +1776,17 @@ static struct venc_config_s dummy_venc_conf_t7_2 = {
 	.venc_offset = 0x800,
 };
 
+static struct venc_config_s dummy_venc_conf_t5w = {
+	.vid_clk_ctrl_reg = HHI_VID_CLK0_CTRL,
+	.vid_clk_ctrl2_reg = HHI_VID_CLK0_CTRL2,
+	.vid_clk_div_reg = HHI_VID_CLK0_DIV,
+	.vid2_clk_ctrl_reg = HHI_VIID_CLK0_CTRL,
+	.vid2_clk_div_reg = HHI_VIID_CLK0_DIV,
+
+	.venc_index = 0,
+	.venc_offset = 0,
+};
+
 /* ****************************************************
  * dummy venc data
  * ****************************************************
@@ -1822,6 +1833,20 @@ static struct dummy_venc_data_s dummy_venc_match_data_t7 = {
 	.encl_clk_gate_switch = NULL,
 };
 
+static struct dummy_venc_data_s dummy_venc_match_data_t5w = {
+	.vconf = &dummy_venc_conf_t5w,
+
+	.chip_type = DUMMY_VENC_T5W,
+	.default_venc_index = 0,
+	.projection_valid = 1,
+
+	.clktree_probe = NULL,
+	.clktree_remove = NULL,
+	.encp_clk_gate_switch = NULL,
+	.enci_clk_gate_switch = NULL,
+	.encl_clk_gate_switch = NULL,
+};
+
 static const struct of_device_id dummy_venc_dt_match_table[] = {
 	{
 		.compatible = "amlogic, dummy_venc",
@@ -1842,6 +1867,10 @@ static const struct of_device_id dummy_venc_dt_match_table[] = {
 	{
 		.compatible = "amlogic, dummy_venc_t3",
 		.data = &dummy_venc_match_data_t7,
+	},
+	{
+		.compatible = "amlogic, dummy_venc_t5w",
+		.data = &dummy_venc_match_data_t5w,
 	},
 	{}
 };

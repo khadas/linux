@@ -127,6 +127,20 @@ const char *tvin_port_str(enum tvin_port_e port)
 		return "TVIN_PORT_MIPI";
 	case TVIN_PORT_ISP:
 		return "TVIN_PORT_ISP";
+	case TVIN_PORT_VIU1_WB0_VD1:
+		return "VIU1_WB0_VD1";
+	case TVIN_PORT_VIU1_WB0_VD2:
+		return "VIU1_WB0_VD2";
+	case TVIN_PORT_VIU1_WB0_OSD1:
+		return "VIU1_WB0_OSD1";
+	case TVIN_PORT_VIU1_WB0_OSD2:
+		return "VIU1_WB0_OSD2";
+	case TVIN_PORT_VIU1_WB0_VPP:
+		return "VIU1_WB0_VPP";
+	case TVIN_PORT_VIU1_WB0_VDIN_BIST:
+		return "VIU1_WB0_VDIN_BIST";
+	case TVIN_PORT_VIU1_WB0_POST_BLEND:
+		return "VIU1_WB0_POST_BLEND";
 	case TVIN_PORT_MAX:
 		return "TVIN_PORT_MAX";
 	default:

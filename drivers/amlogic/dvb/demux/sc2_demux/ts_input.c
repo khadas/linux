@@ -10,6 +10,8 @@
 #include "ts_input.h"
 #include "mem_desc.h"
 #include "../dmx_log.h"
+#define KERNEL_ATRACE_TAG KERNEL_ATRACE_TAG_DEMUX
+#include <trace/events/meson_atrace.h>
 
 struct in_elem {
 	__u8 used;
@@ -144,6 +146,7 @@ int ts_input_write(struct in_elem *elem, const char *buf, int count)
 
 	ret = SC2_bufferid_write(elem->pchan,
 				 buf, count, elem->mem_level ? 1 : 0);
+	ATRACE_COUNTER("demux_ts_input", ret);
 	return ret;
 }
 

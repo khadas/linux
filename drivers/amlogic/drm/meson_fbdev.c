@@ -157,10 +157,12 @@ static int am_meson_drm_fbdev_ioctl(struct fb_info *info,
 		fbdma.flags = O_CLOEXEC;
 		ret = copy_to_user(argp, &fbdma, sizeof(fbdma)) ? -EFAULT : 0;
 	} else if (cmd == FBIO_WAITFORVSYNC) {
-		if (plane->crtc)
+		if (plane->crtc) {
 			drm_wait_one_vblank(helper->dev, plane->crtc->index);
-		else
-			DRM_ERROR("crtc is not set for plane [%d]\n", plane->index);
+		} else if (fbdev->modeset.crtc) {
+			drm_wait_one_vblank(helper->dev, fbdev->modeset.crtc->index);
+			DRM_DEBUG("crtc is not set for plane [%d]\n", plane->index);
+		}
 	}
 
 	DRM_DEBUG("am_meson_drm_fbdev_ioctl CMD   [%x] - [%d] OUT\n", cmd, plane->index);
@@ -329,6 +331,7 @@ int am_meson_drm_fb_helper_set_par(struct fb_info *info)
 			DRM_DEBUG("%s reallocate success.\n", __func__);
 		}
 	}
+	drm_wait_one_vblank(fb_helper->dev, 0);
 
 	DRM_INFO("%s OUT\n", __func__);
 
@@ -414,6 +417,7 @@ retry:
 		plane_state->zpos, plane_state->crtc_w,
 		plane_state->crtc_h);
 
+	state->legacy_cursor_update = true;
 	ret = drm_atomic_commit(state);
 	if (ret != 0)
 		goto fail;
@@ -611,7 +615,8 @@ static struct device_attribute fbdev_device_attrs[] = {
 	__ATTR(force_free_mem, 0644, show_force_free_mem, store_force_free_mem),
 };
 
-struct meson_drm_fbdev *am_meson_create_drm_fbdev(struct drm_device *dev)
+struct meson_drm_fbdev *am_meson_create_drm_fbdev(struct drm_device *dev,
+					    struct drm_plane *plane)
 {
 	struct meson_drm *drmdev = dev->dev_private;
 	struct meson_drm_fbdev *fbdev;
@@ -626,6 +631,11 @@ struct meson_drm_fbdev *am_meson_create_drm_fbdev(struct drm_device *dev)
 		return NULL;
 
 	helper = &fbdev->base;
+
+	if (plane)
+		fbdev->plane = plane;
+	else
+		return NULL;
 
 	drm_fb_helper_prepare(dev, helper, &meson_drm_fb_helper_funcs);
 
@@ -680,7 +690,7 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 	struct meson_drm *drmdev = dev->dev_private;
 	struct meson_drm_fbdev *fbdev;
 	struct am_osd_plane *osd_plane;
-	int i, fbdev_cnt = 0;
+	int i, fbdev_cnt = 1;
 	int ret = 0;
 
 	DRM_INFO("%s in\n", __func__);
@@ -692,8 +702,7 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 	}
 
 	if (drmdev->primary_plane) {
-		fbdev = am_meson_create_drm_fbdev(dev);
-		fbdev->plane = drmdev->primary_plane;
+		fbdev = am_meson_create_drm_fbdev(dev, drmdev->primary_plane);
 		fbdev->zorder = OSD_PLANE_BEGIN_ZORDER;
 		DRM_INFO("create fbdev for primary plane [%p]\n", fbdev);
 	}
@@ -707,8 +716,7 @@ int am_meson_drm_fbdev_init(struct drm_device *dev)
 		if (osd_plane->base.type == DRM_PLANE_TYPE_PRIMARY)
 			continue;
 
-		fbdev = am_meson_create_drm_fbdev(dev);
-		fbdev->plane = &osd_plane->base;
+		fbdev = am_meson_create_drm_fbdev(dev, &osd_plane->base);
 		fbdev->zorder = OSD_PLANE_BEGIN_ZORDER + fbdev_cnt;
 		fbdev_cnt++;
 		DRM_INFO("create fbdev for plane [%d]-[%p]\n", osd_plane->plane_index, fbdev);

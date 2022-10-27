@@ -23,6 +23,9 @@
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
 #include <sound/control.h>
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+#include <linux/amlogic/pm.h>
+#endif
 #include "card.h"
 
 #include "effects.h"
@@ -31,6 +34,7 @@
 #include "../common/misc.h"
 #include "../common/audio_uevent.h"
 #include "audio_controller.h"
+#include "tdm_hw.h"
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
@@ -185,10 +189,11 @@ static int aml_audio_hal_format_set_enum(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	struct aml_card_data *p_aml_audio;
 	int hal_format = ucontrol->value.integer.value[0];
+	struct snd_card *snd = card->snd_card;
 
 	p_aml_audio = snd_soc_card_get_drvdata(card);
 
-	audio_send_uevent(card->dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
+	audio_send_uevent(&snd->ctl_dev, AUDIO_SPDIF_FMT_EVENT, hal_format);
 	pr_info("update audio atmos flag! audio_type = %d\n", hal_format);
 
 	if (p_aml_audio->hal_fmt != hal_format)
@@ -334,19 +339,25 @@ static void jack_work_func(struct work_struct *work)
 				flag = (flag) ? 0 : 1;
 
 			if (flag) {
+				/*
+				 * pr_info("headphone is pluged, mute speaker!\n");
+				 * aml_tdmout_mute_speaker(TDM_A, 1);
+				 * aml_tdmout_mute_speaker(TDM_B, 1);
+				 */
 				extcon_set_state_sync(audio_extcon_headphone,
 					EXTCON_JACK_HEADPHONE, 1);
 				snd_soc_jack_report(&card_data->hp_jack.jack,
-					status, SND_JACK_HEADPHONE);
-				audio_send_uevent(card_data->snd_card.dev,
-					HEADPHONE_DETECTION_EVENT, 1);
+					1, SND_JACK_HEADPHONE);
 			} else {
 				extcon_set_state_sync(audio_extcon_headphone,
 					EXTCON_JACK_HEADPHONE, 0);
-				snd_soc_jack_report(&card_data->hp_jack.jack, 0,
-					SND_JACK_HEADPHONE);
-				audio_send_uevent(card_data->snd_card.dev,
-					HEADPHONE_DETECTION_EVENT, 0);
+				snd_soc_jack_report(&card_data->hp_jack.jack,
+					0, SND_JACK_HEADPHONE);
+				/*
+				 * pr_info("headphone is unpluged, unmute speaker!\n");
+				 * aml_tdmout_mute_speaker(TDM_A, 0);
+				 * aml_tdmout_mute_speaker(TDM_B, 0);
+				 */
 			}
 		}
 	}
@@ -404,6 +415,9 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 		}
 		priv->hp_det_enable = 1;
 		gpio_request(det, "hp-det-gpio");
+
+		pr_info("find headphone detection pin success! hp_det_flags:%d\n",
+				priv->hp_det_flags);
 	} else {
 		snprintf(prop, sizeof(prop), "%smic-det-gpio", prefix);
 		pin_name	= "Mic Jack";
@@ -438,9 +452,6 @@ static int aml_card_init_jack(struct snd_soc_card *card,
 		snd_soc_card_jack_new(card, pin_name, mask,
 				      &sjack->jack,
 				      &sjack->pin, 1);
-
-		snd_soc_jack_add_gpios(&sjack->jack, 1,
-				       &sjack->gpio);
 	} else {
 		pr_info("detect gpio is invalid\n");
 	}
@@ -832,6 +843,7 @@ static int aml_card_parse_gpios(struct device_node *node,
 	enum of_gpio_flags flags;
 	int gpio;
 	bool active_low;
+	unsigned int sleep_time = 500;
 
 	gpio = of_get_named_gpio_flags(node, "spk_mute-gpios", 0, &flags);
 	priv->spk_mute_gpio = gpio;
@@ -868,7 +880,11 @@ static int aml_card_parse_gpios(struct device_node *node,
 	}
 	if (!IS_ERR(priv->avout_mute_desc)) {
 		if (!priv->av_mute_enable) {
-			msleep(500);
+			if (!of_property_read_u32(node,
+				"av_mute_sleep_time", &sleep_time))
+				msleep(sleep_time);
+			else
+				msleep(500);
 			gpiod_direction_output(priv->avout_mute_desc,
 				GPIOF_OUT_INIT_HIGH);
 			pr_info("av out status: %s\n",
@@ -1037,10 +1053,75 @@ static int register_audio_exception64_isr(int irq_exception64)
 			  NULL);
 
 	if (ret)
-		pr_err("failed claim irq_exception64 %u\n", irq_exception64);
+		pr_err("failed claim irq_exception64 %u, ret: %d\n", irq_exception64, ret);
 
 	return ret;
 }
+
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+static void aml_card_early_suspend(struct early_suspend *h)
+{
+	struct platform_device *pdev = h->param;
+
+	pr_info("entry %s\n", __func__);
+	if (pdev) {
+		struct snd_soc_card *card = platform_get_drvdata(pdev);
+		struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+
+		if (!priv->spk_mute_flag) {
+			int gpio = priv->spk_mute_gpio;
+			bool active_low = priv->spk_mute_active_low;
+			bool value = active_low ? false : true;
+
+			if (gpio_is_valid(gpio))
+				gpio_set_value(gpio, value);
+		}
+
+		if (!IS_ERR(priv->avout_mute_desc)) {
+			gpiod_direction_output(priv->avout_mute_desc,
+					GPIOF_OUT_INIT_LOW);
+				pr_info("%s, av out status: %s\n",
+					__func__,
+					gpiod_get_value(priv->avout_mute_desc) ?
+					"high" : "low");
+		}
+	}
+}
+
+static void aml_card_late_resume(struct early_suspend *h)
+{
+	struct platform_device *pdev = h->param;
+
+	pr_info("entry %s\n", __func__);
+	if (pdev) {
+		struct snd_soc_card *card = platform_get_drvdata(pdev);
+		struct aml_card_data *priv = snd_soc_card_get_drvdata(card);
+
+		if (!priv->spk_mute_flag) {
+			int gpio = priv->spk_mute_gpio;
+			bool active_low = priv->spk_mute_active_low;
+			bool value = active_low ? true : false;
+
+			if (gpio_is_valid(gpio))
+				gpio_set_value(gpio, value);
+		}
+
+		if (!IS_ERR(priv->avout_mute_desc)) {
+			gpiod_direction_output(priv->avout_mute_desc,
+					GPIOF_OUT_INIT_HIGH);
+				pr_info("%s, av out status: %s\n",
+					__func__,
+					gpiod_get_value(priv->avout_mute_desc) ?
+					"high" : "low");
+		}
+	}
+}
+
+static struct early_suspend card_early_suspend_handler = {
+	.suspend = aml_card_early_suspend,
+	.resume  = aml_card_late_resume,
+};
+#endif
 
 static int aml_card_probe(struct platform_device *pdev)
 {
@@ -1170,6 +1251,11 @@ static int aml_card_probe(struct platform_device *pdev)
 	priv->spk_mute_enable = 0;
 	INIT_WORK(&priv->init_work, aml_init_work);
 	schedule_work(&priv->init_work);
+
+#ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
+	card_early_suspend_handler.param = pdev;
+	register_early_suspend(&card_early_suspend_handler);
+#endif
 
 	return 0;
 err:

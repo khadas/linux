@@ -10,6 +10,9 @@ enum di_work_mode {
 	WORK_MODE_PRE = 0,
 	WORK_MODE_POST,
 	WORK_MODE_PRE_POST,
+	/*copy for decoder 1/4 * 1/4 */
+	/*  */
+	WORK_MODE_S4_DCOPY,
 	WORK_MODE_MAX
 };
 

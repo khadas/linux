@@ -104,10 +104,13 @@ extern struct tcon_gamma_table_s video_gamma_table_r_adj;
 extern struct tcon_gamma_table_s video_gamma_table_g_adj;
 extern struct tcon_gamma_table_s video_gamma_table_b_adj;
 extern struct tcon_rgb_ogo_s     video_rgb_ogo;
+extern struct gm_tbl_s gt;
+extern unsigned int gamma_index;
+extern unsigned int gm_par_idx;
 
 extern spinlock_t vpp_lcd_gamma_lock;
 extern struct mutex vpp_lut3d_lock;
-extern int lut3d_en;/*0:disabel;1:enable */
+extern int lut3d_en;/*0:disable;1:enable */
 extern int lut3d_order;/* 0 RGB 1 GBR */
 extern int lut3d_debug;
 
@@ -187,7 +190,6 @@ void amve_fmetersize_config(u32 sr0_w, u32 sr0_h, u32 sr1_w, u32 sr1_h);
 extern int video_rgb_ogo_xvy_mtx;
 
 #define GAMMA_SIZE 256
-extern unsigned int gamma_index;
 
 extern unsigned int dnlp_sel;
 void ve_dnlp_load_reg(void);
@@ -223,7 +225,7 @@ void dump_plut3d_reg_table(void);
 void amvecm_gamma_init(bool en);
 void set_gamma_regs(int en, int sel);
 void amvecm_wb_enable(int enable);
-int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg);
+int vpp_pq_ctrl_config(struct pq_ctrl_s pq_cfg, enum wr_md_e md);
 unsigned int skip_pq_ctrl_load(struct am_reg_s *p);
 void set_pre_gamma_reg(struct pre_gamma_table_s *pre_gma_tb);
 void lcd_gamma_api(unsigned int index, u16 *r_data, u16 *g_data,

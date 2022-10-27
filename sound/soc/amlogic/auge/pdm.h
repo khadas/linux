@@ -29,7 +29,8 @@
 
 #define PDM_TRAIN_VERSION_V1		(1)
 #define PDM_TRAIN_VERSION_V2		(2)
-
+#define PDM_A 0
+#define PDM_B 1
 enum {
 	PDM_RUN_MUTE_VAL = 0,
 	PDM_RUN_MUTE_CHMASK,
@@ -46,6 +47,12 @@ struct pdm_chipinfo {
 	bool train;
 
 	int train_version;
+	int id;
+	bool use_arb;
+	/* vad top */
+	bool vad_top;
+	bool regulator;
+	bool oscin_divide;
 };
 
 struct aml_pdm {
@@ -98,7 +105,13 @@ struct aml_pdm {
 	int pdm_gain_index;
 
 	int train_sample_count;
+	int pdm_id;
 	enum trigger_state pdm_trigger_state;
+	int pdm_train_debug;
+	struct work_struct debug_work;
+	unsigned int syssrc_clk_rate;
+	struct regulator *regulator_vcc3v3;
+	struct regulator *regulator_vcc5v;
 };
 
 int pdm_get_train_sample_count_from_dts(void);

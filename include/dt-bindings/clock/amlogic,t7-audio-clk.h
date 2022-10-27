@@ -53,8 +53,9 @@
 #define CLKID_AUDIO_GATE_EARCRX                 38
 #define CLKID_AUDIO_GATE_RESAMPLEB_OLD          39
 #define CLKID_AUDIO_GATE_LOCKER                 40
+#define CLKID_AUDIO_GATE_TDMOUTD                41
 
-#define CLKID_AUDIO_GATE_MAX                    41
+#define CLKID_AUDIO_GATE_MAX                    42
 
 #define MCLK_BASE                               CLKID_AUDIO_GATE_MAX
 #define CLKID_AUDIO_MCLK_A                      (MCLK_BASE + 0)
@@ -84,6 +85,7 @@
 #define CLKID_AUDIO_MCLK_PAD0                   (MCLK_BASE + 22)
 #define CLKID_AUDIO_MCLK_PAD1                   (MCLK_BASE + 23)
 #define CLKID_AUDIO_MCLK_PAD2                   (MCLK_BASE + 24)
+#define CLKID_AUDIO_MCLK_PAD3                   (MCLK_BASE + 25)
 
-#define NUM_AUDIO_CLKS                          (MCLK_BASE + 25)
+#define NUM_AUDIO_CLKS                          (MCLK_BASE + 26)
 #endif /* __T7_AUDIO_CLK_H__ */

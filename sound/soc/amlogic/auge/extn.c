@@ -33,6 +33,7 @@
 
 #include "../common/misc.h"
 #include "../common/debug.h"
+#include "../common/iec_info.h"
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
@@ -269,14 +270,14 @@ static int extn_open(struct snd_pcm_substream *substream)
 			goto err_ddr;
 		}
 
-		if (toddr_src_get() == FRHDMIRX && !p_extn->irq_on) {
+		if (toddr_src_get() == FRHDMIRX) {
 			ret = request_irq(p_extn->irq_frhdmirx,
-					frhdmirx_isr, 0, "irq_frhdmirx",
-					p_extn);
+					frhdmirx_isr, IRQF_SHARED,
+					"irq_frhdmirx", p_extn);
 			if (ret) {
 				ret = -ENXIO;
-				dev_err(p_extn->dev, "failed to claim irq_frhdmirx %u\n",
-							p_extn->irq_frhdmirx);
+				dev_err(p_extn->dev, "failed to claim irq_frhdmirx %u, ret: %d\n",
+							p_extn->irq_frhdmirx, ret);
 				goto err_irq;
 			}
 			p_extn->irq_on = true;
@@ -306,7 +307,7 @@ static int extn_close(struct snd_pcm_substream *substream)
 	} else {
 		aml_audio_unregister_toddr(p_extn->dev, substream);
 
-		if (toddr_src_get() == FRHDMIRX && p_extn->irq_on) {
+		if (p_extn->irq_on) {
 			frhdmirx_nonpcm2pcm_clr_reset(p_extn);
 			frhdmirx_clr_all_irq_bits(p_extn->frhdmirx_version);
 			free_irq(p_extn->irq_frhdmirx, p_extn);
@@ -742,45 +743,14 @@ static int frhdmirx_set_mode(struct snd_kcontrol *kcontrol,
 
 #if (defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI ||\
 		defined CONFIG_AMLOGIC_MEDIA_TVIN_HDMI_MODULE)
-/* spdif in audio format detect: LPCM or NONE-LPCM */
-struct sppdif_audio_info {
-	unsigned char aud_type;
-	/*IEC61937 package presamble Pc value*/
-	short pc;
-	char *aud_type_str;
-};
-
-static const char *const spdif_audio_type_texts[] = {
-	"LPCM",
-	"AC3",
-	"EAC3",
-	"DTS",
-	"DTS-HD",
-	"TRUEHD",
-	"PAUSE"
-};
-
-static const struct sppdif_audio_info type_texts[] = {
-	{0, 0, "LPCM"},
-	{1, 0x1, "AC3"},
-	{2, 0x15, "EAC3"},
-	{3, 0xb, "DTS-I"},
-	{3, 0x0c, "DTS-II"},
-	{3, 0x0d, "DTS-III"},
-	{4, 0x11, "DTS-IV"},
-	{5, 0x16, "TRUEHD"},
-	{6, 0x103, "PAUSE"},
-	{6, 0x003, "PAUSE"},
-	{6, 0x100, "PAUSE"},
-};
 
 static const struct soc_enum hdmirx_audio_type_enum =
-	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(spdif_audio_type_texts),
-			spdif_audio_type_texts);
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_type_texts),
+			audio_type_texts);
 
 static int hdmiin_check_audio_type(struct extn *p_extn)
 {
-	int total_num = sizeof(type_texts) / sizeof(struct sppdif_audio_info);
+	int total_num = sizeof(type_texts) / sizeof(struct spdif_audio_info);
 	int pc = frhdmirx_get_chan_status_pc(p_extn->hdmirx_mode, p_extn->frhdmirx_version);
 	int audio_type = 0;
 	int i;
@@ -1080,6 +1050,11 @@ static const struct snd_kcontrol_new extn_controls[] = {
 		aml_get_hdmiin_audio_channels,
 		NULL),
 
+	SND_SOC_BYTES_EXT("HDMIIN audio allocation",
+			  1,
+			  aml_get_hdmiin_audio_allocation,
+			  NULL),
+
 	SOC_ENUM_EXT("HDMIIN audio format",
 		hdmi_in_status_enum[3],
 		aml_get_hdmiin_audio_format,
@@ -1093,6 +1068,11 @@ static const struct snd_kcontrol_new extn_controls[] = {
 	SOC_ENUM_EXT("HDMIIN Audio bit width",
 		hdmi_in_status_enum[5],
 		aml_get_hdmiin_audio_bitwidth,
+		NULL),
+
+	SOC_ENUM_EXT("HDMIIN NONAUDIO",
+		hdmi_in_status_enum[6],
+		aml_get_hdmiin_nonaudio,
 		NULL),
 
 	/* normally use "HDMIIN AUDIO EDID" to update audio edid*/

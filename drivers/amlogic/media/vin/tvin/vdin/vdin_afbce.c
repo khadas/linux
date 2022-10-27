@@ -578,6 +578,16 @@ void vdin_afbce_set_next_frame(struct vdin_dev_s *devp,
 	vdin_afbce_clear_writedown_flag(devp);
 }
 
+void vdin_pause_afbce_write(struct vdin_dev_s *devp, unsigned int rdma_enable)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_RDMA
+	if (rdma_enable)
+		rdma_write_reg_bits(devp->rdma_handle, AFBCE_ENABLE, 0,
+				    AFBCE_EN_BIT, AFBCE_EN_WID);
+#endif
+	vdin_afbce_clear_writedown_flag(devp);
+}
+
 void vdin_afbce_clear_writedown_flag(struct vdin_dev_s *devp)
 {
 	rdma_write_reg(devp->rdma_handle, AFBCE_CLR_FLAG, 1);

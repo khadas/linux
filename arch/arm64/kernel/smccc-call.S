@@ -20,10 +20,7 @@
 	cmp	x9, #ARM_SMCCC_QUIRK_QCOM_A6
 	b.ne	1f
 	str	x6, [x4, ARM_SMCCC_QUIRK_STATE_OFFS]
-1:
-#ifndef CONFIG_AMLOGIC_DEBUG_LOCKUP
-	ret
-#endif
+1:	ret
 	.cfi_endproc
 	.endm
 
@@ -34,26 +31,7 @@
  *		  struct arm_smccc_quirk *quirk)
  */
 ENTRY(__arm_smccc_smc)
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
-	stp x0, x1, [sp, #-16]!
-	stp x2, x3, [sp, #-16]!
-	stp x4, x5, [sp, #-16]!
-	stp x6, x7, [sp, #-16]!
-	stp x29, x30, [sp, #-16]!
-	bl smc_trace_start
-	ldp x29, x30, [sp], #16
-	ldp x6, x7, [sp], #16
-	ldp x4, x5, [sp], #16
-	ldp x2, x3, [sp], #16
-	ldp x0, x1, [sp], #16
-#endif
 	SMCCC	smc
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
-	stp x29, x30, [sp, #-16]!
-	bl smc_trace_stop
-	ldp x29, x30, [sp], #16
-	ret
-#endif
 ENDPROC(__arm_smccc_smc)
 EXPORT_SYMBOL(__arm_smccc_smc)
 

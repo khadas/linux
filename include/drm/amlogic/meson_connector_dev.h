@@ -6,7 +6,10 @@
 #ifndef MESON_CONNECTOR_DEV_H_
 #define MESON_CONNECTOR_DEV_H_
 #include <drm/drm_connector.h>
+#include <drm/drm_modes.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
+
+#define MESON_CONNECTOR_TYPE_PROP_NAME "meson.connector_type"
 
 enum {
 	MESON_DRM_CONNECTOR_V10 = 0,
@@ -60,6 +63,14 @@ struct connector_hdcp_cb {
 	void *data;
 };
 
+struct drm_vrr_mode_group {
+	u32 brr_vic;
+	u32 width;
+	u32 height;
+	u32 vrr_min;
+	u32 vrr_max;
+};
+
 struct meson_hdmitx_dev {
 	struct meson_connector_dev base;
 	/*add hdmitx specified function pointer and struct.*/
@@ -94,6 +105,11 @@ struct meson_hdmitx_dev {
 	unsigned int (*get_tx_hdcp_cap)(void);
 	unsigned int (*get_rx_hdcp_cap)(void);
 	void (*register_hdcp_notify)(struct connector_hdcp_cb *cb);
+	/*vrr apis*/
+	bool (*get_vrr_cap)(void);
+	int (*get_vrr_mode_group)(struct drm_vrr_mode_group *groups, int max_group);
+	int (*get_hdcp_ctl_lvl)(void);
+	int (*get_hdmi_hdr_status)(void);
 };
 
 #define to_meson_hdmitx_dev(x)	container_of(x, struct meson_hdmitx_dev, base)
@@ -107,11 +123,37 @@ struct meson_cvbs_dev {
 
 /*cvbs specified struct*/
 
-/*lcd specified struct*/
-struct meson_lcd_dev {
+/*panel specified struct*/
+struct meson_panel_dev {
 	struct meson_connector_dev base;
+	int (*get_modes)(struct meson_panel_dev *panel, struct drm_display_mode **modes, int *num);
 };
 
+#define to_meson_panel_dev(x)	container_of(x, struct meson_panel_dev, base)
+
 /*lcd specified struct*/
+
+/*amlogic extend connector type: for original type is not enough.
+ *start from: 0xff,
+ *extend connector: 0x100 ~ 0xfff,
+ *legacy panel type for non-drm: 0x1000 ~
+ */
+#define DRM_MODE_MESON_CONNECTOR_PANEL_START 0xff
+#define DRM_MODE_MESON_CONNECTOR_PANEL_END   0xfff
+
+enum {
+	DRM_MODE_CONNECTOR_MESON_LVDS_A = 0x100,
+	DRM_MODE_CONNECTOR_MESON_LVDS_B = 0x101,
+	DRM_MODE_CONNECTOR_MESON_LVDS_C = 0x102,
+
+	DRM_MODE_CONNECTOR_MESON_VBYONE_A = 0x110,
+	DRM_MODE_CONNECTOR_MESON_VBYONE_B = 0x111,
+
+	DRM_MODE_CONNECTOR_MESON_MIPI_A = 0x120,
+	DRM_MODE_CONNECTOR_MESON_MIPI_B = 0x121,
+
+	DRM_MODE_CONNECTOR_MESON_EDP_A = 0x130,
+	DRM_MODE_CONNECTOR_MESON_EDP_B = 0x131,
+};
 
 #endif

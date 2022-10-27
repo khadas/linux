@@ -21,6 +21,8 @@
 #include <sound/control.h>
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
+#include <linux/clk-provider.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/amlogic/pm.h>
 #include <linux/amlogic/clk_measure.h>
@@ -39,8 +41,15 @@
 #include "spdif.h"
 #include "../common/misc.h"
 #include "../common/debug.h"
+#include "pcpd_monitor.h"
+#include "../common/iec_info.h"
+#include "iomap.h"
 
 #define DRV_NAME "snd_tdm"
+
+#define TDMOUT_DEFAULT_DELAY 3072
+#define DEFAULT_UNDERRUN_THRESHOLD 960
+#define DEFAULT_DIFF_THRESHOLD 128
 
 static snd_pcm_uframes_t aml_tdm_pointer(struct snd_pcm_substream *substream);
 static void dump_pcm_setting(struct pcm_setting *setting)
@@ -63,6 +72,7 @@ static void dump_pcm_setting(struct pcm_setting *setting)
 	pr_debug("\tlane_mask_out(%#x)\n", setting->lane_mask_out);
 }
 
+#define SRC_LENGTH (32)
 struct aml_tdm {
 	struct pcm_setting setting;
 	struct pinctrl *pin_ctl;
@@ -89,7 +99,7 @@ struct aml_tdm {
 	int lane_ss;
 	/* virtual link for i2s to hdmitx */
 	int i2s2hdmitx;
-	char tdmin_src_name[32];
+	char tdmin_src_name[SRC_LENGTH];
 	uint last_mpll_freq;
 	uint last_mclk_freq;
 	uint last_fmt;
@@ -109,6 +119,18 @@ struct aml_tdm {
 	bool vad_buf_occupation;
 	bool vad_buf_recovery;
 	enum trigger_state tdm_trigger_state;
+	int underrun_threshold;
+	snd_pcm_sframes_t tdmout_last_delay;
+	bool tdmout_gain_mute;
+	int disable_gain_count;
+	int tdm_for_speaker;
+	bool tdm_fade_out_enable;
+	unsigned int syssrc_clk_rate;
+	void *pcpd_monitor_src;
+	int pcpd_monitor_enable;
+	struct regulator *regulator_vcc3v3;
+	struct regulator *regulator_vcc5v;
+	int suspend_clk_off;
 };
 
 #define TDM_BUFFER_BYTES (512 * 1024)
@@ -149,6 +171,9 @@ static inline enum toddr_src aml_tdm_id2src(int id)
 		src = TDMIN_C;
 	break;
 	case 3:
+		src = TDMIN_D;
+	break;
+	case 4:
 		src = TDMIN_LB;
 	break;
 	default:
@@ -183,13 +208,26 @@ static int pcm_setting_init(struct pcm_setting *setting, unsigned int rate,
 	return 0;
 }
 
+/* get counts of '1's in val */
+static unsigned int pop_count(unsigned int val)
+{
+	unsigned int count = 0;
+
+	while (val) {
+		count++;
+		val = val & (val - 1);
+	}
+
+	return count;
+}
+
 static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 				unsigned int channels, int stream)
 {
 	struct pcm_setting *setting = &p_tdm->setting;
 	unsigned int lanes, swap_val = 0, swap_val1 = 0;
 	unsigned int lane_mask;
-	unsigned int i;
+	unsigned int i, mask_count;
 
 	/* calc lanes by channels and slots */
 	lanes = (channels - 1) / setting->slots + 1;
@@ -200,44 +238,64 @@ static int aml_tdm_set_lanes(struct aml_tdm *p_tdm,
 	}
 
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		unsigned int tx_mask = setting->tx_mask;
+
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_out;
+		mask_count = pop_count(tx_mask);
 
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
+				if (channels < mask_count && mask_count > 1)
+					tx_mask = (1 << channels) - 1;
 				aml_tdm_set_channel_mask(p_tdm->actrl,
-					stream, p_tdm->id, i, setting->tx_mask);
+					stream, p_tdm->id, i, tx_mask,
+					p_tdm->chipinfo->use_vadtop);
 				lanes--;
+				if (channels > mask_count)
+					channels = channels - mask_count;
 			}
 		}
 		swap_val = 0x76543210;
 		/* TODO: find why LFE and FC(2ch, 3ch) HDMITX needs swap */
-		if (p_tdm->i2s2hdmitx)
+		if (p_tdm->i2s2hdmitx &&
+			spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
 			swap_val = 0x76542310;
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
-			stream, p_tdm->id, swap_val, swap_val1);
+			stream, p_tdm->id, swap_val, swap_val1,
+			p_tdm->chipinfo->use_vadtop);
 	} else {
+		unsigned int rx_mask = setting->rx_mask;
+		mask_count = pop_count(rx_mask);
+
 		/* set lanes mask acordingly */
 		lane_mask = setting->lane_mask_in;
 
 		if (p_tdm->chipinfo->slot_num_en && setting->slots > 0)
 			aml_tdmin_set_slot_num(p_tdm->actrl, p_tdm->id,
-					       setting->slots);
+					       setting->slots,
+					       p_tdm->chipinfo->use_vadtop);
 
 		for (i = 0; i < p_tdm->lane_cnt; i++) {
 			if (((1 << i) & lane_mask) && lanes) {
+				if (channels < mask_count && mask_count > 1)
+					rx_mask = (1 << channels) - 1;
 				aml_tdm_set_channel_mask(p_tdm->actrl,
-					stream, p_tdm->id, i, setting->rx_mask);
+					stream, p_tdm->id, i, rx_mask,
+					p_tdm->chipinfo->use_vadtop);
 				lanes--;
+				if (channels > mask_count)
+					channels = channels - mask_count;
 			}
 		}
 		swap_val = 0x76543210;
 		if (p_tdm->lane_cnt > LANE_MAX1)
 			swap_val1 = 0xfedcba98;
 		aml_tdm_set_lane_channel_swap(p_tdm->actrl,
-			stream, p_tdm->id, swap_val, swap_val1);
+			stream, p_tdm->id, swap_val, swap_val1,
+			p_tdm->chipinfo->use_vadtop);
 	}
 
 	return 0;
@@ -262,7 +320,8 @@ static int aml_set_bclk_ratio(struct aml_tdm *p_tdm, unsigned int ratio)
 		(p_tdm->actrl,
 		p_tdm->clk_sel,
 		lrclk_hi,
-		bclk_ratio);
+		bclk_ratio,
+		p_tdm->chipinfo->use_vadtop);
 
 	return 0;
 }
@@ -274,7 +333,8 @@ static int aml_tdm_set_clkdiv(struct aml_tdm *p_tdm, int div)
 	pr_debug("%s, div %d, clksel(%d)\n", __func__, div, p_tdm->clk_sel);
 	p_tdm->setting.sysclk_bclk_ratio = div;
 	mclk_ratio = div - 1;
-	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel, mclk_ratio);
+	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel, mclk_ratio,
+			     p_tdm->chipinfo->use_vadtop);
 	return 0;
 }
 
@@ -295,6 +355,10 @@ static unsigned int aml_mpll_mclk_ratio(unsigned int freq)
 		if (mpll_freq > AML_MPLL_FREQ_MIN)
 			break;
 	}
+	//Currently for tdmB/spdifab with the samesource while the tdma running
+	//tdmb sysclk 12288000  tdma sysclk 8192000
+	if (freq % 8000 == 0)
+		ratio = 491520000 / freq;
 
 	return ratio;
 }
@@ -303,10 +367,20 @@ static int aml_set_tdm_mclk(struct aml_tdm *p_tdm, unsigned int freq)
 {
 	unsigned int ratio = aml_mpll_mclk_ratio(freq);
 	unsigned int mpll_freq = 0;
-
+	char *clk_name;
 	p_tdm->setting.sysclk = freq;
 
-	mpll_freq = freq * ratio;
+	clk_name = (char *)__clk_get_name(p_tdm->clk);
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll"))
+		if (p_tdm->syssrc_clk_rate)
+			mpll_freq = p_tdm->syssrc_clk_rate;
+		else
+			mpll_freq = 1806336 * 1000;
+	else
+		mpll_freq = freq * ratio;
+
+	pr_info("%s:set mpll_freq: %d\n", __func__, mpll_freq);
+
 	if (mpll_freq != p_tdm->last_mpll_freq) {
 		clk_set_rate(p_tdm->clk, mpll_freq);
 		p_tdm->last_mpll_freq = mpll_freq;
@@ -362,7 +436,8 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 		tdmin_src_hdmirx = true;
 	aml_tdm_set_format(p_tdm->actrl, &p_tdm->setting,
 			   p_tdm->clk_sel, p_tdm->id, fmt, 1, 1,
-			   tdmin_src_hdmirx);
+			   tdmin_src_hdmirx,
+			   p_tdm->chipinfo->use_vadtop);
 	if (p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		int ret = clk_prepare_enable(p_tdm->mclk);
 
@@ -377,9 +452,11 @@ static int aml_tdm_set_fmt(struct aml_tdm *p_tdm, unsigned int fmt, bool capture
 //	if (capture_active &&
 //	    p_tdm->chipinfo->adc_fn &&
 //	    strncmp(p_tdm->tdmin_src_name, SRC_ACODEC,
-//		    strlen(p_tdm->tdmin_src_name)) == 0) {
-//		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, 4);
-//		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, 0);
+//		    strlen(SRC_ACODEC)) == 0) {
+//		aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, 4,
+//				      p_tdm->chipinfo->use_vadtop);
+//		aml_update_tdmin_rev_ws(p_tdm->actrl, p_tdm->id, 0,
+//					p_tdm->chipinfo->use_vadtop);
 //	}
 
 	return 0;
@@ -390,7 +467,8 @@ void aml_tdm_trigger(struct aml_tdm *p_tdm, int stream, bool enable)
 	if (!p_tdm)
 		return;
 
-	aml_tdm_enable(p_tdm->actrl, stream, p_tdm->id, enable);
+	aml_tdm_enable(p_tdm->actrl, stream, p_tdm->id, enable, p_tdm->tdm_fade_out_enable,
+		       p_tdm->chipinfo->use_vadtop);
 }
 
 int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
@@ -424,7 +502,8 @@ int aml_tdm_hw_setting_init(struct aml_tdm *p_tdm,
 	if (p_tdm->chipinfo->chnum_en &&
 	    stream == SNDRV_PCM_STREAM_CAPTURE &&
 	    vad_tdm_is_running(p_tdm->id))
-		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, true);
+		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, true,
+				   p_tdm->chipinfo->use_vadtop);
 
 	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
 		pr_debug("%s(), enable mclk for tdm-%d\n", __func__, p_tdm->id);
@@ -447,7 +526,8 @@ void aml_tdm_hw_setting_free(struct aml_tdm *p_tdm, int stream)
 
 	for (i = 0; i < p_tdm->lane_cnt; i++)
 		aml_tdm_set_channel_mask(p_tdm->actrl,
-			stream, p_tdm->id, i, 0);
+			stream, p_tdm->id, i, 0,
+			p_tdm->chipinfo->use_vadtop);
 
 	/* disable clock and gate */
 	if (!p_tdm->contns_clk && !IS_ERR(p_tdm->mclk)) {
@@ -468,14 +548,15 @@ unsigned int get_tdmin_src(struct src_table *table, const char *src)
 
 void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 {
-	enum toddr_src src = TDMIN_A;
+	int src_val;
 
 	if (!p_tdm)
 		return;
 
 	/* if tdm* is using internal ADC, reset tdmin src to ACODEC */
 	if (p_tdm->chipinfo->adc_fn && strlen(p_tdm->tdmin_src_name) > 0) {
-		src = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, p_tdm->tdmin_src_name);
+		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs,
+			p_tdm->tdmin_src_name);
 	} else {
 		const char *tdm_src;
 
@@ -489,13 +570,16 @@ void aml_tdmin_set_src(struct aml_tdm *p_tdm)
 		case TDM_C:
 			tdm_src = SRC_TDMIN_C;
 			break;
+		case TDM_D:
+			tdm_src = SRC_TDMIN_D;
+			break;
 		default:
 			tdm_src = SRC_TDMIN_A;
 			break;
 		}
-		src = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, tdm_src);
+		src_val = get_tdmin_src(p_tdm->chipinfo->tdmin_srcs, tdm_src);
 	}
-	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src);
+	aml_update_tdmin_src(p_tdm->actrl, p_tdm->id, src_val, p_tdm->chipinfo->use_vadtop);
 }
 
 void tdm_mute_capture(struct aml_tdm *p_tdm, bool mute)
@@ -504,7 +588,8 @@ void tdm_mute_capture(struct aml_tdm *p_tdm, bool mute)
 		return;
 
 	aml_tdm_mute_capture(p_tdm->actrl, p_tdm->id,
-			mute, p_tdm->lane_cnt);
+			mute, p_tdm->lane_cnt,
+			p_tdm->chipinfo->use_vadtop);
 }
 
 static int tdm_clk_get(struct snd_kcontrol *kcontrol,
@@ -644,11 +729,53 @@ static int tdmin_src_enum_put(struct snd_kcontrol *kcontrol,
 	if (value >= ARRAY_SIZE(tdmin_source_text))
 		return -EINVAL;
 
-	if (p) {
-		pr_info("%s(), strlen = %d\n",
-				__func__, strlen(p));
-		memcpy(p, tdmin_source_text[value],	strlen(p));
-	}
+	if (p)
+		strncpy(p, tdmin_source_text[value],	SRC_LENGTH - 1);
+	return 0;
+}
+
+static const struct soc_enum hdmi_audio_type_enum =
+	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_type_texts),
+			audio_type_texts);
+
+static int hdmiin_audio_type_get_enum(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+
+	if (!pc_pd)
+		return 0;
+	ucontrol->value.enumerated.item[0] =
+		pcpd_monitor_check_audio_type(pc_pd);
+
+	return 0;
+}
+
+static int tdm_port_pcpd_detect_get(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.enumerated.item[0] = p_tdm->pcpd_monitor_enable;
+
+	return 0;
+}
+
+static int tdm_port_pcpd_detect_set(struct snd_kcontrol *kcontrol,
+			   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+	int value = ucontrol->value.enumerated.item[0];
+
+	p_tdm->pcpd_monitor_enable = value;
+	if (pc_pd)
+		aml_pcpd_monitor_enable(pc_pd, value);
+
 	return 0;
 }
 
@@ -666,6 +793,16 @@ static const struct snd_kcontrol_new snd_tdm_b_controls[] = {
 				tdmin_source_enum,
 				tdmin_src_enum_get,
 				tdmin_src_enum_put),
+
+	SOC_ENUM_EXT("HDMI TDM Audio Type",
+				hdmi_audio_type_enum,
+				hdmiin_audio_type_get_enum,
+				NULL),
+	SOC_SINGLE_EXT("TDMB_Port PC_PD Detect enable",
+		       0, 0, 1, 0,
+		       tdm_port_pcpd_detect_get,
+		       tdm_port_pcpd_detect_set),
+
 };
 
 static const struct snd_kcontrol_new snd_tdm_c_controls[] = {
@@ -680,6 +817,17 @@ static const struct snd_kcontrol_new snd_tdm_c_controls[] = {
 			    tdmout_set_mute_enum),
 };
 
+static const struct snd_kcontrol_new snd_tdm_d_controls[] = {
+	/*TDMOUT_C gain, enable data * gain*/
+	SOC_SINGLE_EXT("TDMOUT_D GAIN",
+		       0, 0, 255, 0,
+		       tdmout_gain_get,
+		       tdmout_gain_set),
+	SOC_SINGLE_BOOL_EXT("TDMOUT_D Mute",
+			    0,
+			    tdmout_get_mute_enum,
+			    tdmout_set_mute_enum),
+};
 static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 {
 	struct snd_pcm_substream *substream = (struct snd_pcm_substream *)devid;
@@ -692,9 +840,45 @@ static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 	    p_tdm->chipinfo->reset_tdmin &&
-	    (aml_tdmin_get_status(p_tdm->id) & 0x3ff)) {
+	    (aml_tdmin_get_status(p_tdm->id, p_tdm->chipinfo->use_vadtop) & 0x3ff)) {
 		pr_info("%s(), reset tdmin, jiffies:%lu\n", __func__, jiffies);
 		snd_pcm_stop_xrun(substream);
+	}
+
+	if (p_tdm->tdm_fade_out_enable && substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		snd_pcm_sframes_t delay;
+		int err;
+
+		err = snd_pcm_kernel_ioctl(substream, SNDRV_PCM_IOCTL_DELAY,
+						&delay);
+		if (!err) {
+			int difference = (p_tdm->tdmout_last_delay > delay) ?
+				(p_tdm->tdmout_last_delay - delay) :
+				(delay - p_tdm->tdmout_last_delay);
+
+			if ((delay < p_tdm->underrun_threshold &&
+			    delay < p_tdm->tdmout_last_delay &&
+			    difference > DEFAULT_DIFF_THRESHOLD &&
+			    !p_tdm->tdmout_gain_mute &&
+			    p_tdm->disable_gain_count < 5) ||
+			    (substream->runtime->status->state == SNDRV_PCM_STATE_DRAINING &&
+			     !p_tdm->tdmout_gain_mute)) {
+				pr_info("enable gain step, delay: %ld, last: %ld, threshold: %d\n",
+					delay, p_tdm->tdmout_last_delay, p_tdm->underrun_threshold);
+				aml_tdmout_gain_step(p_tdm->id, true);
+				p_tdm->tdmout_gain_mute = true;
+			} else if (p_tdm->tdmout_gain_mute &&
+				   delay >= p_tdm->tdmout_last_delay &&
+				   substream->runtime->status->state != SNDRV_PCM_STATE_DRAINING) {
+				pr_info("disable gain step, delay: %ld, last: %ld, threshold: %d\n",
+					delay, p_tdm->tdmout_last_delay, p_tdm->underrun_threshold);
+				aml_tdmout_gain_step(p_tdm->id, false);
+				p_tdm->tdmout_gain_mute = false;
+				p_tdm->disable_gain_count++;
+			}
+
+			p_tdm->tdmout_last_delay = delay;
+		}
 	}
 
 #ifdef DEBUG_IRQ
@@ -711,19 +895,6 @@ static irqreturn_t aml_tdm_ddr_isr(int irq, void *devid)
 	snd_pcm_period_elapsed(substream);
 
 	return IRQ_HANDLED;
-}
-
-/* get counts of '1's in val */
-static unsigned int pop_count(unsigned int val)
-{
-	unsigned int count = 0;
-
-	while (val) {
-		count++;
-		val = val & (val - 1);
-	}
-
-	return count;
 }
 
 static int of_parse_tdm_lane_slot_in(struct device_node *np,
@@ -785,7 +956,7 @@ static void tdm_sharebuffer_trigger(struct aml_tdm *p_tdm,
 	if (ops) {
 		int reenable = 0;
 
-		if (channels > 2)
+		if (channels > 2 && !(p_tdm->fddr->chipinfo->chnum_sync))
 			reenable = 1;
 		ops->trigger(cmd,
 			p_tdm->samesource_sel,
@@ -835,7 +1006,7 @@ static void tdm_sharebuffer_reset(struct aml_tdm *p_tdm, int channels)
 		return;
 
 	ops = get_samesrc_ops(p_tdm->samesource_sel);
-	if (ops && channels > 2)
+	if (ops && channels > 2 && !(p_tdm->fddr->chipinfo->chnum_sync))
 		ops->reset(p_tdm->samesource_sel - 3,
 				offset);
 }
@@ -1005,10 +1176,70 @@ static struct snd_pcm_ops aml_tdm_ops = {
 	.mmap = aml_tdm_mmap,
 };
 
+static int tdm_fade_out_enable_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	p_tdm->tdm_fade_out_enable = ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static int tdm_fade_out_enable_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.integer.value[0] = p_tdm->tdm_fade_out_enable;
+	return 0;
+}
+
+static int tdm_underrun_threshold_put(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	p_tdm->underrun_threshold = ucontrol->value.integer.value[0];
+	return 0;
+}
+
+static int tdm_underrun_threshold_get(struct snd_kcontrol *kcontrol,
+		    struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	ucontrol->value.integer.value[0] = p_tdm->underrun_threshold;
+	return 0;
+}
+
+static const struct snd_kcontrol_new tdm_fade_out_controls[] = {
+	SOC_SINGLE_BOOL_EXT("tdm fade out enable",
+			    0,
+			    tdm_fade_out_enable_get,
+			    tdm_fade_out_enable_put),
+	SOC_SINGLE_EXT("tdm underrun auto fade-out threshold",
+		       0, 0, 4096, 0,
+		       tdm_underrun_threshold_get,
+		       tdm_underrun_threshold_put),
+};
+
 static const struct snd_soc_component_driver aml_tdm_component = {
 	.name           = DRV_NAME,
 	.ops            = &aml_tdm_ops,
 };
+
+static void set_aud_param_ch_status(struct iec958_chsts *chsts,
+	struct aud_para *aud_param)
+{
+	aud_param->status[0] = chsts->chstat0_l & 0xff;
+	aud_param->status[1] = (chsts->chstat0_l >> 8) & 0xff;
+	aud_param->status[2] = chsts->chstat1_l & 0xff;
+	aud_param->status[3] = (chsts->chstat1_l >> 8) & 0xff;
+}
 
 static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
@@ -1026,6 +1257,8 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
+	aml_tdm_hw_setting_init(p_tdm, runtime->rate, runtime->channels, substream->stream);
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct frddr *fr = p_tdm->fddr;
 		enum frddr_dest dst;
@@ -1037,15 +1270,27 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 
 		/* i2s source to hdmix */
 		if (p_tdm->i2s2hdmitx) {
-			separated = p_tdm->chipinfo->separate_tohdmitx_en;
-			i2s_to_hdmitx_ctrl(separated, p_tdm->id);
-			if (spdif_get_codec() == AUD_CODEC_TYPE_MULTI_LPCM)
-				aout_notifier_call_chain(AOUT_EVENT_IEC_60958_PCM,
-							 &aud_param);
-			else
-				pr_warn("%s(), i2s2hdmi with wrong fmt,codec_type:%d\n",
-					__func__, spdif_get_codec());
+			enum aud_codec_types codec_type = spdif_get_codec();
+			unsigned int event_type = 0;
+			struct iec958_chsts chsts;
 
+			memset(&chsts, 0, sizeof(chsts));
+			separated = p_tdm->chipinfo->separate_tohdmitx_en;
+			aud_param.aud_src_if = AUD_SRC_IF_I2S;
+			pr_info("notify tdm to hdmitx,id %d codec_type %d",
+				p_tdm->id, codec_type);
+			i2s_to_hdmitx_ctrl(separated, p_tdm->id, p_tdm->clk_sel);
+
+			if (codec_type == AUD_CODEC_TYPE_TRUEHD)
+				event_type = AOUT_EVENT_RAWDATA_MAT_MLP;
+			else if (codec_type == AUD_CODEC_TYPE_DTS_HD_MA)
+				event_type = AOUT_EVENT_RAWDATA_DTS_HD_MA;
+			else
+				event_type = AOUT_EVENT_IEC_60958_PCM;
+			iec_get_channel_status_info(&chsts, codec_type,
+				runtime->rate, 0);
+			set_aud_param_ch_status(&chsts, &aud_param);
+			aout_notifier_call_chain(event_type, &aud_param);
 		}
 
 		fifo_id = aml_frddr_get_fifo_id(fr);
@@ -1064,6 +1309,9 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			break;
 		case 2:
 			dst = TDMOUT_C;
+			break;
+		case 3:
+			dst = TDMOUT_D;
 			break;
 		default:
 			dev_err(p_tdm->dev,	"invalid id: %d\n",
@@ -1117,6 +1365,12 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 		fmt.rate      = runtime->rate;
 		aml_toddr_select_src(to, src);
 		aml_toddr_set_format(to, &fmt);
+		if (p_tdm->pcpd_monitor_src) {
+			struct pcpd_monitor *pc_pd = (struct pcpd_monitor *)p_tdm->pcpd_monitor_src;
+
+			pc_pd->tddr = p_tdm->tddr;
+			aml_pcpd_monitor_init(pc_pd);
+		}
 	}
 
 	return 0;
@@ -1144,7 +1398,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 		/* reset fifo here.
 		 * If not, xrun will cause channel mapping mismatch
 		 */
-		aml_tdm_fifo_reset(p_tdm->actrl, substream->stream, p_tdm->id);
+		aml_tdm_fifo_reset(p_tdm->actrl, substream->stream, p_tdm->id,
+				   p_tdm->chipinfo->use_vadtop);
 
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			/* output START sequence:
@@ -1160,13 +1415,18 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			/*don't change this flow*/
 			aml_aed_top_enable(p_tdm->fddr, true);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, true);
+				substream->stream, p_tdm->id, true, p_tdm->tdm_fade_out_enable,
+				p_tdm->chipinfo->use_vadtop);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_trigger(p_tdm, runtime->channels, cmd);
 
+			p_tdm->tdmout_last_delay = TDMOUT_DEFAULT_DELAY;
+			p_tdm->disable_gain_count = 0;
+			p_tdm->tdmout_gain_mute = false;
 			aml_frddr_enable(p_tdm->fddr, true);
 			udelay(100);
-			aml_tdmout_enable_gain(p_tdm->id, false,
+			if (!p_tdm->tdm_fade_out_enable)
+				aml_tdmout_enable_gain(p_tdm->id, false,
 					p_tdm->chipinfo->gain_ver);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, false);
@@ -1176,7 +1436,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 				 p_tdm->id);
 			aml_toddr_enable(p_tdm->tddr, 1);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, true);
+				substream->stream, p_tdm->id, true, p_tdm->tdm_fade_out_enable,
+				p_tdm->chipinfo->use_vadtop);
 			p_tdm->tdm_trigger_state = TRIGGER_START_ALSA_BUF;
 		}
 		break;
@@ -1204,13 +1465,15 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			dev_dbg(substream->pcm->card->dev,
 				 "TDM[%d] Playback stop\n",
 				 p_tdm->id);
-			aml_tdmout_enable_gain(p_tdm->id, true,
+			if (!p_tdm->tdm_fade_out_enable)
+				aml_tdmout_enable_gain(p_tdm->id, true,
 					p_tdm->chipinfo->gain_ver);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_mute(p_tdm, true);
 			aml_aed_top_enable(p_tdm->fddr, false);
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, false);
+				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable,
+				p_tdm->chipinfo->use_vadtop);
 			if (p_tdm->samesource_sel != SHAREBUFFER_NONE)
 				tdm_sharebuffer_trigger(p_tdm, runtime->channels, cmd);
 
@@ -1224,7 +1487,8 @@ static int aml_dai_tdm_trigger(struct snd_pcm_substream *substream, int cmd,
 			if (p_tdm->tdm_trigger_state == TRIGGER_STOP)
 				break;
 			aml_tdm_enable(p_tdm->actrl,
-				substream->stream, p_tdm->id, false);
+				substream->stream, p_tdm->id, false, p_tdm->tdm_fade_out_enable,
+				p_tdm->chipinfo->use_vadtop);
 			dev_info(substream->pcm->card->dev,
 				 "TDM[%d] Capture stop\n",
 				 p_tdm->id);
@@ -1264,7 +1528,8 @@ static int aml_dai_tdm_hw_free(struct snd_pcm_substream *substream,
 	if (p_tdm->chipinfo->chnum_en &&
 	    substream->stream == SNDRV_PCM_STREAM_CAPTURE &&
 	    vad_tdm_is_running(p_tdm->id))
-		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, false);
+		tdmin_set_chnum_en(p_tdm->actrl, p_tdm->id, false,
+				   p_tdm->chipinfo->use_vadtop);
 
 	/* share buffer free */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -1310,7 +1575,8 @@ static int aml_dai_set_bclk_ratio(struct snd_soc_dai *cpu_dai,
 		pr_debug("%s, select TDM mode\n", __func__);
 	}
 	aml_tdm_set_bclk_ratio(p_tdm->actrl,
-		p_tdm->clk_sel, lrclk_hi, bclk_ratio);
+		p_tdm->clk_sel, lrclk_hi, bclk_ratio,
+		p_tdm->chipinfo->use_vadtop);
 
 	return 0;
 }
@@ -1326,7 +1592,8 @@ static int aml_dai_set_clkdiv(struct snd_soc_dai *cpu_dai,
 
 	p_tdm->setting.sysclk_bclk_ratio = div;
 	mclk_ratio = div - 1;
-	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel, mclk_ratio);
+	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel, mclk_ratio,
+			     p_tdm->chipinfo->use_vadtop);
 
 	return 0;
 }
@@ -1356,7 +1623,8 @@ static int aml_dai_set_tdm_slot(struct snd_soc_dai *cpu_dai,
 
 	if (in_lanes > 0 && in_lanes <= LANE_MAX3)
 		aml_tdm_set_slot_in(p_tdm->actrl,
-			p_tdm->id, p_tdm->id, slot_width);
+			p_tdm->id, p_tdm->id, slot_width,
+			p_tdm->chipinfo->use_vadtop);
 
 	if (out_lanes > 0 && out_lanes <= LANE_MAX3)
 		aml_tdm_set_slot_out(p_tdm->actrl,
@@ -1385,8 +1653,16 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 				__func__);
 	}
 
+	if (p_tdm->tdm_for_speaker) {
+		ret = snd_soc_add_dai_controls(cpu_dai,
+				tdm_fade_out_controls,
+				ARRAY_SIZE(tdm_fade_out_controls));
+		if (ret < 0)
+			pr_err("%s, failed add snd tdm fade out controls\n", __func__);
+	}
+
 	/* config ddr arb */
-	aml_tdm_arb_config(p_tdm->actrl);
+	aml_tdm_arb_config(p_tdm->actrl, p_tdm->chipinfo->use_arb);
 
 	if (p_tdm->ctrl_gain_enable && p_tdm->id == 0) {
 		ret = snd_soc_add_dai_controls(cpu_dai,
@@ -1405,9 +1681,14 @@ static int aml_dai_tdm_probe(struct snd_soc_dai *cpu_dai)
 					       snd_tdm_c_controls,
 					       ARRAY_SIZE(snd_tdm_c_controls));
 		if (ret < 0)
-			pr_err("failed add snd tdmA controls\n");
+			pr_err("failed add snd tdmC controls\n");
+	} else if (p_tdm->ctrl_gain_enable && p_tdm->id == 3) {
+		ret = snd_soc_add_dai_controls(cpu_dai,
+						snd_tdm_d_controls,
+						ARRAY_SIZE(snd_tdm_d_controls));
+		if (ret < 0)
+			pr_err("failed add snd tdmD controls\n");
 	}
-
 	return 0;
 }
 
@@ -1428,30 +1709,48 @@ static int aml_dai_tdm_mute_stream(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-static int aml_set_default_tdm_clk(struct aml_tdm *tdm)
+static int aml_set_default_tdm_clk(struct aml_tdm *p_tdm)
 {
 	unsigned int mclk = 12288000;
 	unsigned int ratio = aml_mpll_mclk_ratio(mclk);
 	unsigned int lrclk_hi;
 	unsigned int pll = mclk * ratio;
+	char *clk_name;
+
+	/*set default i2s  timing sequence*/
+	int fmt = SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S
+	| SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CONT;
+
+	aml_tdm_set_fmt(p_tdm, fmt, 1);
+	/*set default i2s clk for codec sequence*/
 
 	/*set default i2s clk for codec sequence*/
-	tdm->setting.bclk_lrclk_ratio = 64;
-	tdm->setting.sysclk_bclk_ratio = 4;
-	lrclk_hi = tdm->setting.bclk_lrclk_ratio - 1;
+	p_tdm->setting.bclk_lrclk_ratio = 64;
+	p_tdm->setting.sysclk_bclk_ratio = 4;
+	lrclk_hi = p_tdm->setting.bclk_lrclk_ratio - 1;
 
-	aml_tdm_set_lrclkdiv(tdm->actrl, tdm->clk_sel,
-		tdm->setting.sysclk_bclk_ratio - 1);
+	aml_tdm_set_lrclkdiv(p_tdm->actrl, p_tdm->clk_sel,
+		p_tdm->setting.sysclk_bclk_ratio - 1,
+		p_tdm->chipinfo->use_vadtop);
 
-	aml_tdm_set_bclk_ratio(tdm->actrl,
-		tdm->clk_sel, lrclk_hi / 2, lrclk_hi);
+	aml_tdm_set_bclk_ratio(p_tdm->actrl,
+		p_tdm->clk_sel, lrclk_hi / 2, lrclk_hi,
+		p_tdm->chipinfo->use_vadtop);
 
-	clk_prepare_enable(tdm->mclk);
-	clk_set_rate(tdm->clk, pll);
-	clk_set_rate(tdm->mclk, mclk);
+	clk_name = (char *)__clk_get_name(p_tdm->clk);
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		if (p_tdm->syssrc_clk_rate)
+			pll = p_tdm->syssrc_clk_rate;
+		else
+			pll = 1806336 * 1000;
+	}
 
-	tdm->last_mclk_freq = mclk;
-	tdm->last_mpll_freq = pll;
+	clk_prepare_enable(p_tdm->mclk);
+	clk_set_rate(p_tdm->clk, pll);
+	clk_set_rate(p_tdm->mclk, mclk);
+
+	p_tdm->last_mclk_freq = mclk;
+	p_tdm->last_mpll_freq = pll;
 
 	return 0;
 }
@@ -1530,7 +1829,26 @@ static struct snd_soc_dai_driver aml_tdm_dai[] = {
 		},
 		.ops = &aml_dai_tdm_ops,
 		.symmetric_rates = 1,
-	}
+	},
+	{
+		.name = "TDM-D",
+		.id = 4,
+		.probe = aml_dai_tdm_probe,
+		.playback = {
+		      .channels_min = 1,
+		      .channels_max = 32,
+		      .rates = AML_DAI_TDM_RATES,
+		      .formats = AML_DAI_TDM_FORMATS,
+		},
+		.capture = {
+		     .channels_min = 1,
+		     .channels_max = 32,
+		     .rates = AML_DAI_TDM_RATES,
+		     .formats = AML_DAI_TDM_FORMATS,
+		},
+		.ops = &aml_dai_tdm_ops,
+		.symmetric_rates = 1,
+	},
 };
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
@@ -1647,6 +1965,8 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	struct aml_audio_controller *actrl = NULL;
 	struct aml_tdm *p_tdm = NULL;
 	struct tdm_chipinfo *p_chipinfo = NULL;
+	struct device_node *np_src = NULL;
+	struct platform_device *dev_src = NULL;
 	int ret = 0;
 
 	p_tdm = devm_kzalloc(dev, sizeof(struct aml_tdm), GFP_KERNEL);
@@ -1679,6 +1999,20 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	actrl = (struct aml_audio_controller *)
 				platform_get_drvdata(pdev_parent);
 	p_tdm->actrl = actrl;
+	np_src = of_parse_phandle(node, "pcpd_monitor_src", 0);
+	if (np_src) {
+		dev_src = of_find_device_by_node(np_src);
+		of_node_put(np_src);
+		p_tdm->pcpd_monitor_src = platform_get_drvdata(dev_src);
+		pr_info("%s(), pcpd src found\n", __func__);
+	}
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_tdm->syssrc_clk_rate);
+	if (ret < 0)
+		p_tdm->syssrc_clk_rate = 0;
+	else
+		pr_info("%s sys-src clk rate from dts:%d\n",
+			__func__, p_tdm->syssrc_clk_rate);
 
 	/* get tdm mclk sel configs */
 	ret = of_property_read_u32(node, "dai-tdm-clk-sel",
@@ -1686,6 +2020,12 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Can't retrieve dai-tdm-clk-sel\n");
 		return -ENXIO;
+	}
+
+	ret = of_property_read_u32(node, "suspend-clk-off",
+			&p_tdm->suspend_clk_off);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Can't retrieve suspend-clk-off\n");
 	}
 
 	/* default no same source */
@@ -1710,7 +2050,7 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 
 		ret = of_property_read_string(node, "tdmin-src-name", &p);
 		if (p)
-			memcpy(p_tdm->tdmin_src_name, p, strlen(p));
+			strncpy(p_tdm->tdmin_src_name, p, SRC_LENGTH - 1);
 
 		if (!ret)
 			pr_info("TDM id %d supports %s\n",
@@ -1778,13 +2118,20 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		}
 		clk_prepare_enable(p_tdm->mclk2pad);
 	}
+	p_tdm->clk_gate = devm_clk_get(&pdev->dev, "gate_in");
+	if (!IS_ERR(p_tdm->clk_gate))
+		clk_prepare_enable(p_tdm->clk_gate);
+	p_tdm->clk_gate = devm_clk_get(&pdev->dev, "gate_out");
+	if (!IS_ERR(p_tdm->clk_gate))
+		clk_prepare_enable(p_tdm->clk_gate);
 
-	p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
-	if (IS_ERR(p_tdm->pin_ctl)) {
-		dev_info(dev, "aml_tdm_get_pins error!\n");
-		/*return PTR_ERR(p_tdm->pin_ctl);*/
+	if (!p_tdm->i2s2hdmitx) {
+		p_tdm->pin_ctl = devm_pinctrl_get_select(dev, "tdm_pins");
+		if (IS_ERR(p_tdm->pin_ctl)) {
+			dev_info(dev, "aml_tdm_get_pins error!\n");
+			/*return PTR_ERR(p_tdm->pin_ctl);*/
+		}
 	}
-
 	ret = of_property_read_u32(node, "start_clk_enable", &p_tdm->start_clk_enable);
 	if (ret < 0)
 		p_tdm->start_clk_enable = 0;
@@ -1824,9 +2171,57 @@ static int aml_tdm_platform_probe(struct platform_device *pdev)
 		pr_info("TDM id %d tuning clk enable:%d\n",
 			p_tdm->id, p_tdm->clk_tuning_enable);
 
+	ret = of_property_read_u32(node, "tdm_for_speaker",
+				&p_tdm->tdm_for_speaker);
+	if (ret < 0)
+		p_tdm->tdm_for_speaker = 0;
+	else
+		pr_info("TDM id %d tdm_for_speaker\n", p_tdm->id);
+
+	if (p_tdm->chipinfo->regulator) {
+		p_tdm->regulator_vcc3v3 = devm_regulator_get(dev, "tdm3v3");
+		ret = PTR_ERR_OR_ZERO(p_tdm->regulator_vcc3v3);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator tdm3v3 not ready, retry\n");
+				return ret;
+			}
+			dev_err(&pdev->dev, "failed in regulator tdm3v3 %ld\n",
+				PTR_ERR(p_tdm->regulator_vcc3v3));
+			p_tdm->regulator_vcc3v3 = NULL;
+		} else {
+			ret = regulator_enable(p_tdm->regulator_vcc3v3);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"regulator tdm3v3 enable failed:   %d\n", ret);
+				p_tdm->regulator_vcc3v3 = NULL;
+			}
+		}
+		p_tdm->regulator_vcc5v = devm_regulator_get(dev, "tdm5v");
+		ret = PTR_ERR_OR_ZERO(p_tdm->regulator_vcc5v);
+		if (ret) {
+			if (ret == -EPROBE_DEFER) {
+				dev_err(&pdev->dev, "regulator tdm5v not ready, retry\n");
+				return ret;
+			}
+			dev_err(&pdev->dev, "failed in regulator tdm5v %ld\n",
+				PTR_ERR(p_tdm->regulator_vcc5v));
+			p_tdm->regulator_vcc5v = NULL;
+		} else {
+			ret = regulator_enable(p_tdm->regulator_vcc5v);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"regulator tdm5v enable failed:   %d\n", ret);
+				p_tdm->regulator_vcc5v = NULL;
+			}
+		}
+	}
+
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	tdm_register_early_suspend_hdr(p_tdm->id, pdev);
 #endif
+
+	p_tdm->underrun_threshold = DEFAULT_UNDERRUN_THRESHOLD;
 
 	return 0;
 }
@@ -1836,8 +2231,25 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
 
+	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
+		if (!IS_ERR(p_tdm->mclk2pad)) {
+			while (__clk_is_enabled(p_tdm->mclk2pad))
+				clk_disable_unprepare(p_tdm->mclk2pad);
+		}
+
+		if (!IS_ERR(p_tdm->mclk)) {
+			while (__clk_is_enabled(p_tdm->mclk))
+				clk_disable_unprepare(p_tdm->mclk);
+		}
+
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+			regulator_disable(p_tdm->regulator_vcc5v);
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+			regulator_disable(p_tdm->regulator_vcc3v3);
+	}
+
 	/*mute default clk */
-	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
+	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
 		struct pinctrl_state *ps = NULL;
 
 		ps = pinctrl_lookup_state(p_tdm->pin_ctl, "tdmout_a_gpio");
@@ -1854,12 +2266,58 @@ static int aml_tdm_platform_suspend(struct platform_device *pdev,
 static int aml_tdm_platform_resume(struct platform_device *pdev)
 {
 	struct aml_tdm *p_tdm = dev_get_drvdata(&pdev->dev);
+	int ret = 0;
+	unsigned int out_lanes = 0, in_lanes = 0;
+
+	out_lanes = pop_count(p_tdm->setting.lane_mask_out);
+	in_lanes = pop_count(p_tdm->setting.lane_mask_in);
+
+	if (p_tdm->chipinfo->regulator || (p_tdm->suspend_clk_off && !is_pm_s2idle_mode())) {
+
+		audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
+		audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
+
+		if (!IS_ERR(p_tdm->mclk) && !IS_ERR(p_tdm->clk)) {
+			clk_set_parent(p_tdm->mclk, NULL);
+			ret = clk_set_parent(p_tdm->mclk, p_tdm->clk);
+			if (ret)
+				dev_warn(&pdev->dev, "can't set tdm parent clock\n");
+		}
+
+		if (!IS_ERR(p_tdm->mclk2pad)) {
+			clk_set_parent(p_tdm->mclk2pad, NULL);
+			ret = clk_set_parent(p_tdm->mclk2pad, p_tdm->mclk);
+			if (ret)
+				dev_warn(&pdev->dev, "Can't set tdm mclk_pad parent\n");
+			clk_prepare_enable(p_tdm->mclk2pad);
+		}
+
+		if (in_lanes > 0 && in_lanes <= LANE_MAX3)
+			aml_tdm_set_slot_in(p_tdm->actrl,
+				p_tdm->id, p_tdm->id, p_tdm->setting.slot_width,
+				p_tdm->chipinfo->use_vadtop);
+
+		if (out_lanes > 0 && out_lanes <= LANE_MAX3)
+			aml_tdm_set_slot_out(p_tdm->actrl,
+				p_tdm->id, p_tdm->setting.slots, p_tdm->setting.slot_width);
+
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+			ret = regulator_enable(p_tdm->regulator_vcc5v);
+		if (ret)
+			dev_err(&pdev->dev, "regulator tdm5v enable failed:   %d\n", ret);
+
+		if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+			ret = regulator_enable(p_tdm->regulator_vcc3v3);
+		if (ret)
+			dev_err(&pdev->dev, "regulator tdm3v3 enable failed:   %d\n", ret);
+	}
 
 	/*set default clk for output*/
-	if (p_tdm->start_clk_enable == 1 && !IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
-		struct pinctrl_state *state = NULL;
-
+	if (p_tdm->start_clk_enable == 1)
 		aml_set_default_tdm_clk(p_tdm);
+
+	if (!IS_ERR_OR_NULL(p_tdm->pin_ctl)) {
+		struct pinctrl_state *state = NULL;
 		state = pinctrl_lookup_state(p_tdm->pin_ctl, "tdm_pins");
 		if (!IS_ERR_OR_NULL(state)) {
 			pinctrl_select_state(p_tdm->pin_ctl, state);
@@ -1885,6 +2343,11 @@ static void aml_tdm_platform_shutdown(struct platform_device *pdev)
 			pr_info("%s tdm pins disable!\n", __func__);
 		}
 	}
+
+	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc5v))
+		regulator_disable(p_tdm->regulator_vcc5v);
+	if (!IS_ERR_OR_NULL(p_tdm->regulator_vcc3v3))
+		regulator_disable(p_tdm->regulator_vcc3v3);
 
 	pr_info("%s tdm:(%d)\n", __func__, p_tdm->id);
 }

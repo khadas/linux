@@ -51,7 +51,8 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x20000>;
+			pmsg-size = <0x10000>;
+			bconsole-size = <0x10000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -170,7 +171,7 @@
 		compatible = "amlogic, dolby_vision_s4d";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <0>;/*1:enabel ;0:disable*/
+		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 	cvbsout {
 		compatible = "amlogic, cvbsout-s4";
@@ -329,9 +330,9 @@
 		compatible = "amlogic, vecm";
 		dev_name = "aml_vecm";
 		status = "okay";
-		gamma_en = <0>;/*1:enabel ;0:disable*/
-		wb_en = <0>;/*1:enabel ;0:disable*/
-		cm_en = <0>;/*1:enabel ;0:disable*/
+		gamma_en = <0>;/*1:enable ;0:disable*/
+		wb_en = <0>;/*1:enable ;0:disable*/
+		cm_en = <0>;/*1:enable ;0:disable*/
 		/*0: 709/601  1: bt2020*/
 		tx_op_color_primary = <0>;
 	};
@@ -372,7 +373,7 @@
 		/* pinctrl-1=<&diseqc_out>; */
 		/* lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>; */
 		/* lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>; */
-		/* interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>; */
+		/* interrupts = <GIC_SPI 221 IRQ_TYPE_EDGE_RISING>; */
 		/* interrupt-names = "demod_isr"; */
 
 		power-domains = <&pwrdm PDID_S4_DEMOD>;
@@ -905,8 +906,10 @@
 		dai-tdm-clk-sel = <1>;
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_B
 				&clkaudio CLKID_AUDIO_MCLK_PAD0
-				&clkc CLKID_MPLL1>;
-		clock-names = "mclk", "mclk_pad",  "clk_srcpll";
+				&clkc CLKID_HIFI_PLL>;
+		clock-names = "mclk", "mclk_pad", "clk_srcpll";
+		/* hifi pll rate */
+		src-clk-freq = <1966080000>;
 		/*
 		 * 0: tdmout_a;
 		 * 1: tdmout_b;
@@ -940,7 +943,7 @@
 	spdifa: spdif@0 {
 		compatible = "amlogic, tm2-revb-snd-spdif-a";
 		#sound-dai-cells = <0>;
-		clocks = <&clkc CLKID_MPLL0
+		clocks = <&clkc CLKID_HIFI_PLL
 				&clkc CLKID_FCLK_DIV4
 				&clkaudio CLKID_AUDIO_GATE_SPDIFIN
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_A
@@ -964,7 +967,7 @@
 	spdifb: spdif@1 {
 		compatible = "amlogic, tm2-revb-snd-spdif-b";
 		#sound-dai-cells = <0>;
-		clocks = <&clkc CLKID_MPLL1 /*CLKID_HIFI_PLL*/
+		clocks = <&clkc CLKID_HIFI_PLL
 				&clkaudio CLKID_AUDIO_GATE_SPDIFOUT_B
 				&clkaudio CLKID_AUDIO_SPDIFOUT_B>;
 		clock-names = "sysclk",

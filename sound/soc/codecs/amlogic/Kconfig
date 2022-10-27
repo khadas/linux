@@ -69,6 +69,26 @@ config AMLOGIC_SND_SOC_TAS5805
 		Enable support for Texas Instruments TAS5805 CODEC.
 		Select this if your TAS5805 is connected via an I2C bus.
 
+config AMLOGIC_SND_SOC_TAS5805m
+	 tristate "Texas Instruments TAS5805m amplifier"
+	 depends on AMLOGIC_SND_SOC_CODECS
+	 depends on I2C
+	 default n
+	 help
+		Enable support for Texas Instruments TAS5805m CODEC.
+		Select this if your TAS5805 is connected via an I2C bus.
+		Enable support for Texas Instruments TAS5805 CODEC.
+		Select this if your TAS5805 is connected via an I2C bus.
+
+config AMLOGIC_SND_SOC_TLV320ADC5140
+	tristate "Texas Instruments TLV320ADC5140 acodec"
+	depends on AMLOGIC_SND_SOC_CODECS
+	depends on I2C
+	default n
+	help
+		Enable support for Texas Instruments TLV320ADC5140 CODEC.
+		Select this if your TLV320ADC5140 is connected via an I2C bus.
+
 config AMLOGIC_SND_CODEC_TXLX_ACODEC
 	tristate "Amlogic Audio txlx acodec"
 	depends on AMLOGIC_SND_SOC_CODECS
@@ -208,7 +228,14 @@ config AMLOGIC_SND_SOC_AD82587D
 	help
 		Enable Support for ESMT AD82587D CODEC.
 		Select this if your AD82587D is connected via an I2C bus.
-
+config AMLOGIC_SND_SOC_AD82128
+	tristate "ESMT AD82128"
+	depends on AMLOGIC_SND_SOC_CODECS
+	depends on I2C
+	default n
+	help
+		Enable Support for ESMT AD82128 CODEC.
+		Select this if your AD82128 is connected via an I2C bus.
 config AMLOGIC_SND_SOC_CS42528
 	tristate "Cirrus Logic CS42528"
 	depends on AMLOGIC_SND_SOC_CODECS

@@ -44,6 +44,10 @@ extern void usb_release_quirk_list(void);
 extern bool usb_endpoint_is_blacklisted(struct usb_device *udev,
 		struct usb_host_interface *intf,
 		struct usb_endpoint_descriptor *epd);
+#ifdef CONFIG_AMLOGIC_USB
+bool bt_intep_is_blacklist(struct usb_device *udev);
+bool bt_epaddr_is_blacklist(struct usb_endpoint_descriptor *epd);
+#endif
 extern int usb_remove_device(struct usb_device *udev);
 
 extern int usb_get_device_descriptor(struct usb_device *dev,

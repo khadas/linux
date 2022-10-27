@@ -41,13 +41,22 @@ static int lcd_init_on_flag;
  */
 #define ACTIVE_FRAME_RATE_CNT     3
 #define LCD_STD_FRAME_RATE_MAX    5
-static unsigned int lcd_std_frame_rate[][3] = {
-	{60, 60,    1},
-	{59, 60000, 1001},
-	{50, 50,    1},
-	{48, 48,    1},
-	{47, 48000, 1001},
-	{60, 60,    1}
+static struct lcd_duration_s lcd_std_fr[] = {
+	{60,  60,     1,    0},
+	{59,  60000,  1001, 1},
+	{50,  50,     1,    0},
+	{48,  48,     1,    0},
+	{47,  48000,  1001, 1},
+	{60,  60,     1,    0}
+};
+
+static struct lcd_duration_s lcd_std_fr_high[] = {
+	{120, 120,    1,    0},
+	{119, 120000, 1001, 1},
+	{100, 100,    1,    0},
+	{96,  96,     1,    0},
+	{95,  96000,  1001, 1},
+	{120, 120,    1,    0}
 };
 
 struct lcd_vmode_info_s {
@@ -57,6 +66,7 @@ struct lcd_vmode_info_s {
 	unsigned int height;
 	unsigned int frame_rate;
 	unsigned int frac;
+	struct lcd_duration_s *duration;
 };
 
 enum lcd_vmode_e {
@@ -64,6 +74,7 @@ enum lcd_vmode_e {
 	LCD_VMODE_768P,
 	LCD_VMODE_1080P,
 	LCD_VMODE_2160P,
+	LCD_VMODE_3840_1080P,
 	LCD_VMODE_MAX,
 };
 
@@ -75,6 +86,7 @@ static struct lcd_vmode_info_s lcd_vmode_info[] = {
 		.height            = 600,
 		.frame_rate        = 60,
 		.frac              = 0,
+		.duration          = lcd_std_fr,
 	},
 	{
 		.name              = "768p",
@@ -83,6 +95,7 @@ static struct lcd_vmode_info_s lcd_vmode_info[] = {
 		.height            = 768,
 		.frame_rate        = 60,
 		.frac              = 0,
+		.duration          = lcd_std_fr,
 	},
 	{
 		.name              = "1080p",
@@ -91,6 +104,7 @@ static struct lcd_vmode_info_s lcd_vmode_info[] = {
 		.height            = 1080,
 		.frame_rate        = 60,
 		.frac              = 0,
+		.duration          = lcd_std_fr,
 	},
 	{
 		.name              = "2160p",
@@ -99,6 +113,16 @@ static struct lcd_vmode_info_s lcd_vmode_info[] = {
 		.height            = 2160,
 		.frame_rate        = 60,
 		.frac              = 0,
+		.duration          = lcd_std_fr,
+	},
+	{
+		.name              = "3840x1080p",
+		.mode              = VMODE_LCD,
+		.width             = 3840,
+		.height            = 1080,
+		.frame_rate        = 120,
+		.frac              = 0,
+		.duration          = lcd_std_fr_high,
 	},
 	{
 		.name              = "invalid",
@@ -107,43 +131,36 @@ static struct lcd_vmode_info_s lcd_vmode_info[] = {
 		.height            = 1080,
 		.frame_rate        = 60,
 		.frac              = 0,
+		.duration          = lcd_std_fr,
 	},
 };
 
-static int lcd_vmode_is_mached(struct aml_lcd_drv_s *pdrv, int index)
+static int lcd_output_vmode_init(struct aml_lcd_drv_s *pdrv)
 {
+	int i, count = ARRAY_SIZE(lcd_vmode_info) - 1;
+
 	if (!pdrv)
 		return -1;
 
-	if (pdrv->config.basic.h_active == lcd_vmode_info[index].width &&
-	    pdrv->config.basic.v_active == lcd_vmode_info[index].height)
-		return 0;
-	else
-		return -1;
-}
-
-static int lcd_get_vmode(struct aml_lcd_drv_s *pdrv, enum vmode_e mode)
-{
-	int lcd_vmode = LCD_VMODE_MAX;
-	int i, count = ARRAY_SIZE(lcd_vmode_info) - 1;
-	int ret;
-
 	for (i = 0; i < count; i++) {
-		if (mode == lcd_vmode_info[i].mode) {
-			ret = lcd_vmode_is_mached(pdrv, i);
-			if (ret == 0) {
-				lcd_vmode = i;
-				break;
-			}
+		if (pdrv->config.basic.h_active == lcd_vmode_info[i].width &&
+		    pdrv->config.basic.v_active == lcd_vmode_info[i].height) {
+			pdrv->output_vmode = i;
+			pdrv->std_duration = lcd_vmode_info[i].duration;
+			return 0;
 		}
 	}
-	return lcd_vmode;
+
+	pdrv->output_vmode = LCD_VMODE_MAX;
+	pdrv->std_duration = lcd_std_fr;
+	LCDERR("[%d]: %s: unsupport resolution: %dx%d\n",
+	       pdrv->index, __func__,
+	       pdrv->config.basic.h_active, pdrv->config.basic.v_active);
+	return -1;
 }
 
-static int lcd_outputmode_to_vmode(const char *mode)
+static int lcd_outputmode_is_mached(struct aml_lcd_drv_s *pdrv, const char *mode)
 {
-	int lcd_vmode = LCD_VMODE_MAX;
-	int i, count = ARRAY_SIZE(lcd_vmode_info) - 1;
 	char temp[30], *p;
 	int n;
 
@@ -154,18 +171,19 @@ static int lcd_outputmode_to_vmode(const char *mode)
 	strncpy(temp, mode, n);
 	temp[n] = '\0';
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("outputmode=%s, lcd_vmode=%s\n", mode, temp);
+		LCDPR("[%d]: outputmode=%s, lcd_vmode=%s\n", pdrv->index, mode, temp);
 
-	for (i = 0; i < count; i++) {
-		if (strcmp(temp, lcd_vmode_info[i].name) == 0) {
-			lcd_vmode = i;
-			break;
-		}
-	}
-	return lcd_vmode;
+	if (pdrv->output_vmode >= LCD_VMODE_MAX)
+		return -1;
+
+	if (strcmp(temp, lcd_vmode_info[pdrv->output_vmode].name) == 0)
+		return 0;
+
+	LCDERR("[%d]: %s: invalid mode: %s\n", pdrv->index, __func__, mode);
+	return -1;
 }
 
-static int lcd_outputmode_to_frame_rate(const char *mode)
+static int lcd_outputmode_to_frame_rate(struct aml_lcd_drv_s *pdrv, const char *mode)
 {
 	int frame_rate = 0;
 	char temp[30], *p;
@@ -180,29 +198,28 @@ static int lcd_outputmode_to_frame_rate(const char *mode)
 	if (!p)
 		return 0;
 	*p = '\0';
-	ret = kstrtoint(temp, 10, &n);
+	ret = kstrtoint(temp, 10, &frame_rate);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
-		LCDPR("outputmode=%s, frame_rate=%d\n", mode, n);
+		LCDPR("[%d]: outputmode=%s, frame_rate=%d\n", pdrv->index, mode, frame_rate);
 
 	for (i = 0; i < LCD_STD_FRAME_RATE_MAX; i++) {
-		if (n == lcd_std_frame_rate[i][0]) {
-			frame_rate = n;
-			break;
-		}
+		if (frame_rate == pdrv->std_duration[i].frame_rate)
+			return frame_rate;
 	}
-	return frame_rate;
+
+	return 0; /* invalid frame_rate */
 }
 
-static unsigned int lcd_std_frame_rate_index(unsigned int frame_rate)
+static unsigned int lcd_std_frame_rate_index(struct lcd_vmode_info_s *info)
 {
 	unsigned int i;
 
 	for (i = 0; i < LCD_STD_FRAME_RATE_MAX; i++) {
-		if (frame_rate == lcd_std_frame_rate[i][0])
+		if (info->frame_rate == info->duration[i].frame_rate)
 			return i;
 	}
 
-	LCDERR("%s: invalid frame_rate: %d\n", __func__, frame_rate);
+	LCDERR("%s: invalid frame_rate: %d\n", __func__, info->frame_rate);
 	return LCD_STD_FRAME_RATE_MAX;
 }
 
@@ -217,7 +234,6 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv,
 		return;
 
 	pconf = &pdrv->config;
-	pdrv->output_vmode = lcd_get_vmode(pdrv, mode);
 	info = &lcd_vmode_info[pdrv->output_vmode];
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 	sprintf(pdrv->output_name, "%s%dhz", info->name, info->frame_rate);
@@ -229,23 +245,23 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv,
 
 	/* store standard duration */
 	if (lcd_fr_is_fixed(pdrv)) {
-		pdrv->std_duration.duration_num =
+		pdrv->cur_duration.duration_num =
 			((pdrv->config.timing.lcd_clk /
 			pconf->basic.h_period) * 100) /
 			pconf->basic.v_period;
-		pdrv->std_duration.duration_den = 100;
-		pdrv->std_duration.frac = 0;
+		pdrv->cur_duration.duration_den = 100;
+		pdrv->cur_duration.frac = 0;
 	} else {
-		index = lcd_std_frame_rate_index(info->frame_rate);
+		index = lcd_std_frame_rate_index(info);
 		if (info->frac) {
 			if (index < LCD_STD_FRAME_RATE_MAX)
 				index++;
-			pdrv->std_duration.frac = 1;
+			pdrv->cur_duration.frac = 1;
 		} else {
-			pdrv->std_duration.frac = 0;
+			pdrv->cur_duration.frac = 0;
 		}
-		pdrv->std_duration.duration_num = lcd_std_frame_rate[index][1];
-		pdrv->std_duration.duration_den = lcd_std_frame_rate[index][2];
+		pdrv->cur_duration.duration_num = pdrv->std_duration[index].duration_num;
+		pdrv->cur_duration.duration_den = pdrv->std_duration[index].duration_den;
 	}
 
 	/* update vinfo */
@@ -258,9 +274,9 @@ static void lcd_vmode_vinfo_update(struct aml_lcd_drv_s *pdrv,
 	pdrv->vinfo.aspect_ratio_den = pconf->basic.screen_height;
 	pdrv->vinfo.screen_real_width = pconf->basic.screen_width;
 	pdrv->vinfo.screen_real_height = pconf->basic.screen_height;
-	pdrv->vinfo.sync_duration_num = pdrv->std_duration.duration_num;
-	pdrv->vinfo.sync_duration_den = pdrv->std_duration.duration_den;
-	pdrv->vinfo.frac = pdrv->std_duration.frac;
+	pdrv->vinfo.sync_duration_num = pdrv->cur_duration.duration_num;
+	pdrv->vinfo.sync_duration_den = pdrv->cur_duration.duration_den;
+	pdrv->vinfo.frac = pdrv->cur_duration.frac;
 	pdrv->vinfo.video_clk = pdrv->config.timing.lcd_clk;
 	pdrv->vinfo.htotal = pconf->basic.h_period;
 	pdrv->vinfo.vtotal = pconf->basic.v_period;
@@ -317,9 +333,10 @@ static unsigned int lcd_parse_vout_init_name(char *name)
 static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac,
 				       void *data)
 {
-	int lcd_vmode, frame_rate;
-	int ret;
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
+	struct lcd_vmode_info_s *info;
+	int frame_rate;
+	int ret;
 
 	if (!pdrv)
 		return -1;
@@ -331,40 +348,39 @@ static enum vmode_e lcd_validate_vmode(char *mode, unsigned int frac,
 	if (!mode)
 		return VMODE_MAX;
 
-	lcd_vmode = lcd_outputmode_to_vmode(mode);
-	if (lcd_vmode >= LCD_VMODE_MAX)
+	if (pdrv->output_vmode >= LCD_VMODE_MAX)
 		return VMODE_MAX;
 
-	ret = lcd_vmode_is_mached(pdrv, lcd_vmode);
-	if (ret) {
-		LCDERR("[%d]: %s: outputmode is not support\n",
-		       pdrv->index, __func__);
+	ret = lcd_outputmode_is_mached(pdrv, mode);
+	if (ret)
 		return VMODE_MAX;
-	}
+
+	info = &lcd_vmode_info[pdrv->output_vmode];
 	if (lcd_fr_is_fixed(pdrv)) {
 		LCDPR("[%d]: %s: fixed timing\n", pdrv->index, __func__);
-		return lcd_vmode_info[lcd_vmode].mode;
+		return info->mode;
 	}
 
-	frame_rate = lcd_outputmode_to_frame_rate(mode);
+	frame_rate = lcd_outputmode_to_frame_rate(pdrv, mode);
 	if (frame_rate == 0) {
 		LCDERR("[%d]: %s: frame_rate is not support\n",
 		       pdrv->index, __func__);
 		return VMODE_MAX;
 	}
 	if (frac) {
-		if (frame_rate != 60) {
+		if (frame_rate != 60 && frame_rate != 48 &&
+		    frame_rate != 120 && frame_rate != 96) {
 			LCDERR("[%d]: %s: don't support frac under mode %s\n",
 			       pdrv->index, __func__, mode);
 			return VMODE_MAX;
 		}
-		lcd_vmode_info[lcd_vmode].frac = 1;
+		info->frac = 1;
 	} else {
-		lcd_vmode_info[lcd_vmode].frac = 0;
+		info->frac = 0;
 	}
-	lcd_vmode_info[lcd_vmode].frame_rate = frame_rate;
+	info->frame_rate = frame_rate;
 
-	return lcd_vmode_info[lcd_vmode].mode;
+	return info->mode;
 }
 
 static struct vinfo_s *lcd_get_current_info(void *data)
@@ -436,17 +452,18 @@ static int lcd_check_same_vmodeattr(char *mode, void *data)
 static int lcd_vmode_is_supported(enum vmode_e mode, void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
-	int lcd_vmode;
 
 	mode &= VMODE_MODE_BIT_MASK;
-	lcd_vmode = lcd_get_vmode(pdrv, mode);
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
 		LCDPR("[%d]: %s vmode = %d, lcd_vmode = %d(%s)\n",
-		      pdrv->index, __func__, mode, lcd_vmode,
-		      lcd_vmode_info[lcd_vmode].name);
+		      pdrv->index, __func__, mode, pdrv->output_vmode,
+		      lcd_vmode_info[pdrv->output_vmode].name);
 	}
 
-	if (lcd_vmode < LCD_VMODE_MAX)
+	if (mode != lcd_vmode_info[pdrv->output_vmode].mode)
+		return false;
+
+	if (pdrv->output_vmode < LCD_VMODE_MAX)
 		return true;
 	else
 		return false;
@@ -505,33 +522,66 @@ static int lcd_vout_get_disp_cap(char *buf, void *data)
 	int ret = 0, i;
 
 	info = &lcd_vmode_info[pdrv->output_vmode];
-	for (i = 0; i < ACTIVE_FRAME_RATE_CNT; i++)
+	for (i = 0; i < ACTIVE_FRAME_RATE_CNT; i++) {
 		ret += sprintf(buf + ret, "%s%dhz\n", info->name,
-			      lcd_std_frame_rate[i][0]);
+			      pdrv->std_duration[i].frame_rate);
+	}
 
 	return ret;
 }
 
 struct lcd_vframe_match_s {
-	int frame_rate; /* *100 */
-	unsigned int duration_num;
-	unsigned int duration_den;
-	unsigned int frac;
+	int fps; /* *100 */
+	unsigned int frame_rate;
 };
 
 static struct lcd_vframe_match_s lcd_vframe_match_table_1[] = {
-	{6000, 60, 1, 0},
-	{5994, 60000, 1001, 1},
-	{5000, 50, 1, 0}
+	{6000, 60},
+	{5994, 59},
+	{5000, 50}
 };
 
 static struct lcd_vframe_match_s lcd_vframe_match_table_2[] = {
-	{6000, 60, 1, 0},
-	{5994, 60000, 1001, 1},
-	{5000, 50, 1, 0},
-	{4800, 48, 1, 0},
-	{4795, 48000, 1001, 0}
+	{6000, 60},
+	{5994, 59},
+	{5000, 50},
+	{4800, 48},
+	{4795, 47}
 };
+
+static struct lcd_vframe_match_s lcd_vframe_match_table_high_1[] = {
+	{6000, 120},
+	{5994, 119},
+	{5000, 100}
+};
+
+static struct lcd_vframe_match_s lcd_vframe_match_table_high_2[] = {
+	{6000, 120},
+	{5994, 119},
+	{5000, 100},
+	{4800, 96},
+	{4795, 95}
+};
+
+static int lcd_framerate_auto_std_duration_index(struct aml_lcd_drv_s *pdrv,
+						 struct lcd_vframe_match_s *vtable,
+						 int size, int duration)
+{
+	unsigned int frame_rate;
+	int i, j;
+
+	for (i = 0; i < size; i++) {
+		if (duration == vtable[i].fps) {
+			frame_rate = vtable[i].frame_rate;
+			for (j = 0; j < LCD_STD_FRAME_RATE_MAX; j++) {
+				if (frame_rate == pdrv->std_duration[j].frame_rate)
+					return j;
+			}
+		}
+	}
+
+	return LCD_STD_FRAME_RATE_MAX;
+}
 
 static int lcd_framerate_automation_set_mode(struct aml_lcd_drv_s *pdrv)
 {
@@ -563,10 +613,10 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 {
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 	struct vinfo_s *info;
-	unsigned int frame_rate = 6000;
+	unsigned int frame_rate = 60;
 	unsigned int duration_num = 60, duration_den = 1, frac = 0;
-	struct lcd_vframe_match_s *vtable = lcd_vframe_match_table_1;
-	int i, n, find = 0;
+	struct lcd_vframe_match_s *vtable = NULL, *vtable_high = NULL;
+	int n, n_high, find = 0;
 
 	if (!pdrv)
 		return -1;
@@ -598,10 +648,14 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 	case 1:
 		vtable = lcd_vframe_match_table_1;
 		n = ARRAY_SIZE(lcd_vframe_match_table_1);
+		vtable_high = lcd_vframe_match_table_high_1;
+		n_high = ARRAY_SIZE(lcd_vframe_match_table_high_1);
 		break;
 	case 2:
 		vtable = lcd_vframe_match_table_2;
 		n = ARRAY_SIZE(lcd_vframe_match_table_2);
+		vtable_high = lcd_vframe_match_table_high_2;
+		n_high = ARRAY_SIZE(lcd_vframe_match_table_high_2);
 		break;
 	default:
 		LCDPR("[%d]: %s: fr_auto_policy = %d, disabled\n",
@@ -614,34 +668,35 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		      pdrv->index, __func__,
 		      info->name, pdrv->fr_auto_policy);
 
+		pdrv->fr_duration = 0;
 		if (pdrv->fr_mode == 0) {
 			LCDPR("[%d]: %s: fr_mode is invalid, exit\n",
 			      pdrv->index, __func__);
 			return 0;
 		}
 
-		pdrv->fr_duration = 0;
 		/* update vinfo */
-		info->sync_duration_num = pdrv->std_duration.duration_num;
-		info->sync_duration_den = pdrv->std_duration.duration_den;
+		info->sync_duration_num = pdrv->cur_duration.duration_num;
+		info->sync_duration_den = pdrv->cur_duration.duration_den;
 		info->frac = 0;
 		pdrv->fr_mode = 0;
 	} else {
-		for (i = 0; i < n; i++) {
-			if (duration == vtable[i].frame_rate) {
-				frame_rate = vtable[i].frame_rate;
-				duration_num = vtable[i].duration_num;
-				duration_den = vtable[i].duration_den;
-				frac = vtable[i].frac;
-				find = 1;
-				break;
-			}
+		find = lcd_framerate_auto_std_duration_index(pdrv,
+				vtable, n, duration);
+		if (find >= LCD_STD_FRAME_RATE_MAX) {
+			find = lcd_framerate_auto_std_duration_index(pdrv,
+				vtable_high, n_high, duration);
 		}
-		if (find == 0) {
+		if (find >= LCD_STD_FRAME_RATE_MAX) {
 			LCDERR("[%d]: %s: can't support duration %d\n, exit\n",
 			       pdrv->index, __func__, duration);
 			return -1;
 		}
+
+		frame_rate = pdrv->std_duration[find].frame_rate;
+		duration_num = pdrv->std_duration[find].duration_num;
+		duration_den = pdrv->std_duration[find].duration_den;
+		frac = pdrv->std_duration[find].frac;
 
 		LCDPR("[%d]: %s: policy = %d, duration = %d, frame_rate = %d\n",
 		      pdrv->index, __func__, pdrv->fr_auto_policy,
@@ -734,6 +789,7 @@ static int lcd_resume(void *data)
 static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 {
 	struct lcd_config_s *pconf = &pdrv->config;
+	struct lcd_vmode_info_s *info;
 	unsigned int index, frame_rate, frac;
 	char *mode;
 
@@ -744,14 +800,25 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 	if (!mode)
 		return;
 	frac = lcd_parse_vout_init_name(mode);
-	frame_rate = lcd_outputmode_to_frame_rate(mode);
+
+	if (pdrv->status & LCD_STATUS_ENCL_ON) {
+		lcd_output_vmode_init(pdrv);
+	} else {
+		pdrv->output_vmode = LCD_VMODE_MAX;
+		pdrv->std_duration = lcd_std_fr;
+	}
+	info = &lcd_vmode_info[pdrv->output_vmode];
+
+	frame_rate = lcd_outputmode_to_frame_rate(pdrv, mode);
 	if (frac) {
-		if (frame_rate != 60 && frame_rate != 48) {
+		if (frame_rate != 60 && frame_rate != 48 &&
+		    frame_rate != 120 && frame_rate != 96) {
 			LCDERR("[%d]: %s frac error\n", pdrv->index, __func__);
 			kfree(mode);
 			return;
 		}
 	}
+	info->frame_rate = frame_rate;
 
 	memset(pdrv->output_name, 0, sizeof(pdrv->output_name));
 	snprintf(pdrv->output_name, sizeof(pdrv->output_name), "%s", mode);
@@ -764,7 +831,7 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 	pdrv->vinfo.aspect_ratio_den = pconf->basic.v_active;
 	pdrv->vinfo.screen_real_width = pconf->basic.h_active;
 	pdrv->vinfo.screen_real_height = pconf->basic.v_active;
-	index = lcd_std_frame_rate_index(frame_rate);
+	index = lcd_std_frame_rate_index(info);
 	if (frac) {
 		if (index < LCD_STD_FRAME_RATE_MAX)
 			index++;
@@ -772,8 +839,8 @@ static void lcd_vinfo_update_default(struct aml_lcd_drv_s *pdrv)
 	} else {
 		pdrv->vinfo.frac = 0;
 	}
-	pdrv->vinfo.sync_duration_num = lcd_std_frame_rate[index][1];
-	pdrv->vinfo.sync_duration_den = lcd_std_frame_rate[index][2];
+	pdrv->vinfo.sync_duration_num = pdrv->std_duration[index].duration_num;
+	pdrv->vinfo.sync_duration_den = pdrv->std_duration[index].duration_den;
 	pdrv->vinfo.video_clk = 0;
 	pdrv->vinfo.htotal = pconf->basic.h_period;
 	pdrv->vinfo.vtotal = pconf->basic.v_period;
@@ -835,6 +902,7 @@ static void lcd_vmode_init(struct aml_lcd_drv_s *pdrv)
 	if (!mode)
 		return;
 
+	lcd_output_vmode_init(pdrv);
 	LCDPR("[%d]: %s: mode: %s\n", pdrv->index, __func__, mode);
 	frac = lcd_parse_vout_init_name(mode);
 	vmode = lcd_validate_vmode(mode, frac, (void *)pdrv);

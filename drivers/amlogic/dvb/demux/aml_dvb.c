@@ -219,6 +219,22 @@ ssize_t tsn_source_store(struct class *class,
 	return count;
 }
 
+int tsn_set_double_out(int flag)
+{
+	int tsn_in_reg = 0;
+
+	if (tsn_out == flag)
+		return 0;
+
+	tsn_out = flag;
+
+	if (tsn_in == INPUT_DEMOD)
+		tsn_in_reg = 1;
+
+	tee_demux_config_pipeline(tsn_in_reg, tsn_out);
+	return 0;
+}
+
 ssize_t tso_source_show(struct class *class,
 			struct class_attribute *attr, char *buf)
 {

@@ -288,9 +288,10 @@ enum cpuid_type_e {
 	__MESON_CPU_MAJOR_ID_SC2,
 	__MESON_CPU_MAJOR_ID_T5,
 	__MESON_CPU_MAJOR_ID_T5D,
-	__MESON_CPU_MAJOR_ID_T7,
 	__MESON_CPU_MAJOR_ID_S4,
+	__MESON_CPU_MAJOR_ID_T7,
 	__MESON_CPU_MAJOR_ID_T3,
+	__MESON_CPU_MAJOR_ID_T5W,
 	__MESON_CPU_MAJOR_ID_UNKNOWN,
 };
 
@@ -523,6 +524,7 @@ struct osd_layers_fence_map_s {
 	unsigned char cmd;
 	struct display_flip_info_s disp_info;
 	struct layer_fence_map_s layer_map[HW_OSD_COUNT];
+	u32 inc_cnt; /* increase timeline count */
 };
 
 struct afbcd_data_s {
@@ -568,6 +570,9 @@ struct osd_device_hw_s {
 	u32 has_multi_vpp;
 	u32 new_blend_bypass;
 	u32 path_ctrl_independ;
+	u32 remove_afbc;
+	u32 remove_pps;
+	u32 prevsync_support;
 };
 
 struct hw_osd_reg_s {
@@ -808,6 +813,11 @@ struct viu2_osd_reg_item {
 	u32 mask;
 };
 
+struct ffile_info {
+	u32 fget_count;
+	u32 fput_count;
+};
+
 struct hw_para_s {
 	struct pandata_s pandata[HW_OSD_COUNT];
 	struct pandata_s dispdata[HW_OSD_COUNT];
@@ -857,6 +867,7 @@ struct hw_para_s {
 	u32 free_scale_mode_backup[HW_OSD_COUNT];
 	u32 osd_reverse[HW_OSD_COUNT];
 	u32 osd_rotate[HW_OSD_COUNT];
+	u32 force_dimm[HW_OSD_COUNT];
 	u32 dim_layer[HW_OSD_COUNT];
 	u32 dim_color[HW_OSD_COUNT];
 	/* struct osd_rotate_s rotate[HW_OSD_COUNT]; */
@@ -932,5 +943,11 @@ struct hw_para_s {
 	struct osd_rdma_fun_s osd_rdma_func[VIU_COUNT];
 	u32 viu_osd_table[VIU_COUNT];
 	u32 blend_mode[HW_OSD_COUNT];
+	bool afbc_support[HW_OSD_COUNT];
+	bool pps_support[HW_OSD_COUNT];
+	u32 force_save_frame;
+	u32 cur_frame_count;
+	u32 save_frame_number[HW_OSD_COUNT];
+	struct ffile_info file_info_debug[HW_OSD_COUNT];
 };
 #endif /* _OSD_H_ */

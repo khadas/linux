@@ -203,7 +203,8 @@ static struct sec_pm_private_domain t7_pm_domains[] __initdata = {
 	[PDID_T7_USB_COMB] = POWER_DOMAIN(usb, PDID_T7_USB_COMB, DOMAIN_INIT_ON,
 					  GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_PCIE] = POWER_DOMAIN(pcie, PDID_T7_PCIE, DOMAIN_INIT_OFF, 0),
-	[PDID_T7_GE2D] = TOP_DOMAIN(ge2d, PDID_T7_GE2D, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
+	[PDID_T7_GE2D] = TOP_DOMAIN(ge2d, PDID_T7_GE2D, DOMAIN_INIT_ON,
+				    GENPD_FLAG_IGNORE_UNUSED, PDID_T7_NIC3),
 	[PDID_T7_SRAMA] = POWER_DOMAIN(srama, PDID_T7_SRAMA, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_SRAMB] = POWER_DOMAIN(sramb, PDID_T7_SRAMB, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_HDMIRX] = POWER_DOMAIN(hdmirx, PDID_T7_HDMIRX, DOMAIN_INIT_ON,
@@ -216,7 +217,8 @@ static struct sec_pm_private_domain t7_pm_domains[] __initdata = {
 	[PDID_T7_ISP] = POWER_DOMAIN(isp, PDID_T7_ISP, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_MIPI_ISP] = POWER_DOMAIN(mipi_isp, PDID_T7_MIPI_ISP, DOMAIN_INIT_OFF, 0),
 	[PDID_T7_GDC] = TOP_DOMAIN(gdc, PDID_T7_GDC, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
-	[PDID_T7_DEWARP] = TOP_DOMAIN(dewarp, PDID_T7_DEWARP, DOMAIN_INIT_OFF, 0, PDID_T7_NIC3),
+	[PDID_T7_DEWARP] = TOP_DOMAIN(dewarp, PDID_T7_DEWARP, DOMAIN_INIT_ON,
+				      GENPD_FLAG_IGNORE_UNUSED, PDID_T7_NIC3),
 	[PDID_T7_SDIO_A] = POWER_DOMAIN(sdio_a, PDID_T7_SDIO_A,
 					DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 	[PDID_T7_SDIO_B] = POWER_DOMAIN(sdio_b, PDID_T7_SDIO_B,
@@ -323,7 +325,8 @@ static struct sec_pm_private_domain t3_pm_domains[] = {
 	[PDID_T3_NOC_VPU] = POWER_DOMAIN(noc_vpu, PDID_T3_NOC_VPU, DOMAIN_INIT_ON,
 					 GENPD_FLAG_ALWAYS_ON),
 	[PDID_T3_SPICC0] = POWER_DOMAIN(spicc0, PDID_T3_SPICC0, DOMAIN_INIT_OFF, 0),
-	[PDID_T3_SPICC1] = POWER_DOMAIN(spicc1, PDID_T3_SPICC1, DOMAIN_INIT_OFF, 0),
+	[PDID_T3_SPICC1] = POWER_DOMAIN(spicc1, PDID_T3_SPICC1, DOMAIN_INIT_ON,
+					GENPD_FLAG_ALWAYS_ON),
 	[PDID_T3_SPICC2] = POWER_DOMAIN(spicc2, PDID_T3_SPICC2, DOMAIN_INIT_OFF, 0),
 	[PDID_T3_AUDIO] = POWER_DOMAIN(audio, PDID_T3_AUDIO, DOMAIN_INIT_ON, GENPD_FLAG_ALWAYS_ON),
 };
@@ -394,11 +397,11 @@ static int sec_pd_probe(struct platform_device *pdev)
 		init_status = pwr_ctrl_status_psci_smc(private_pd->pd_index);
 
 		if (init_status == DOMAIN_INIT_OFF && private_pd->pd_status == DOMAIN_INIT_ON) {
-			if (pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
+			if (pd[i].base.flags & GENPD_FLAG_ALWAYS_ON)
 				pwr_ctrl_psci_smc(i, PWR_ON);
 		}
 
-		if (init_status == -1 || pd[i].base.flags == GENPD_FLAG_ALWAYS_ON)
+		if (init_status == -1 || pd[i].base.flags & GENPD_FLAG_ALWAYS_ON)
 			init_status = private_pd->pd_status;
 
 		/* Initialize based on pd_status */

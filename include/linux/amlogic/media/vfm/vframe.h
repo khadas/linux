@@ -26,6 +26,7 @@
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/atomic.h>
 #include <linux/amlogic/iomap.h>
+#include <linux/amlogic/media/utils/amstream.h>
 
 #define VIDTYPE_PROGRESSIVE             0x0
 #define VIDTYPE_INTERLACE_TOP           0x1
@@ -340,6 +341,7 @@ struct vframe_src_fmt_s {
 	int comp_size;
 	int parse_ret_flags;
 	u32 play_id;
+	int dv_id;
 };
 
 enum pic_mode_provider_e {
@@ -396,7 +398,23 @@ struct vsif_info {
 	unsigned int size;
 };
 
+/* point to hdr rawdata of prop */
+struct drm_info_t {
+	void *addr;
+	unsigned int size;
+};
+
 struct emp_info {
+	void *addr;
+	unsigned int size;
+};
+
+struct spd_data {
+	void *addr;
+	unsigned int size;
+};
+
+struct vtem_data {
 	void *addr;
 	unsigned int size;
 };
@@ -496,12 +514,25 @@ struct vf_aipq_t {
 };
 
 #define VC_FLAG_AI_SR	0x1
+#define VC_FLAG_FIRST_FRAME	0x2
+
 
 struct video_composer_private {
 	u32 index;
 	u32 flag; /*if  & VC_FLAG_AI_SR, and VPP will get AI_SR_out*/
 	struct vf_nn_sr_t *srout_data;
 	struct vframe_s *src_vf;
+	u32 last_disp_count; /*last frame disp vsync count*/
+	u32 vsync_index;
+};
+
+#define VF_UD_MAX_SIZE 5120 /* 5K size */
+#define UD_MAGIC_CODE 0x55445020 /* UDP */
+#define is_ud_param_valid(ud) ((ud.magic_code) == UD_MAGIC_CODE)
+
+struct vf_ud_param_s {
+	u32 magic_code;
+	struct userdata_param_t ud_param;
 };
 
 struct vframe_s {
@@ -639,7 +670,10 @@ struct vframe_s {
 	u32 crop[4];
 
 	struct vsif_info vsif;
+	struct drm_info_t drm_if;
 	struct emp_info emp;
+	struct spd_data spd;
+	struct vtem_data vtem;
 
 	u32 zorder;
 	u32 repeat_count[2];
@@ -690,6 +724,9 @@ struct vframe_s {
 
 	u32 meta_data_size;
 	char *meta_data_buf;
+
+	/* data address of userdata_param_t structure */
+	struct vf_ud_param_s vf_ud_param;
 } /*vframe_t */;
 
 int get_curren_frame_para(int *top, int *left, int *bottom, int *right);

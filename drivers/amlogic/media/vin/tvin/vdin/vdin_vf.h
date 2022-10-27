@@ -43,8 +43,16 @@
 #define VDIN_CANVAS_MAX_CNT	11
 #define VDIN_VF_POOL_FREEZE              0x00000001
 #define ISR_LOG_EN
-
+#define VDIN_VF_MAX_NUM_PLANES	2
 #define VF_LOG_PRINT_MAX_LEN 100
+#define VDIN_VF_DBG_EN		BIT(0)
+#define VDIN_VF_MOVE_EN		BIT(1)
+
+/* vdin v4l2 defination */
+#define VDIN_PLANES_IDX_Y	0
+#define VDIN_PLANES_IDX_C	1
+#define VDIN_MAX_PLANES		2
+/* v4l2 defination end*/
 
 enum vf_operation_e {
 	VF_OPERATION_INIT = 0,
@@ -149,6 +157,7 @@ struct vf_pool {
 	/*char *dv_buf_ori[VDIN_CANVAS_MAX_CNT];*/
 	unsigned int disp_index[VFRAME_DISP_MAX_NUM];
 	unsigned int skip_vf_num;/*skip pre vframe num*/
+	unsigned int vf_move_prt_cnt;
 	enum vframe_disp_mode_e	disp_mode[VFRAME_DISP_MAX_NUM];
 };
 

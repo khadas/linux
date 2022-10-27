@@ -24,7 +24,7 @@
 #define MESON_MAX_OSD_TO_VPP 2
 #define MESON_MAX_SCALERS 4
 #define MESON_MAX_HDRS 2
-#define MESON_MAX_DOLBYS 2
+#define MESON_MAX_DBS 2
 #define MESON_MAX_POSTBLEND 3
 #define MESON_MAX_BLOCKS 32
 #define MESON_BLOCK_MAX_INPUTS 6
@@ -49,13 +49,6 @@
  */
 #define MESON_OSD_SCLAE_DOWN_LIMIT 10
 #define MESON_OSD_SCLAE_UP_LIMIT ((1 << 24) - 1)
-/*
- *MESON_DRM_VERSION_V0:support modetest and atomictest,
- *backup last commit state
- *MESON_DRM_VERSION_V1:support atomictest,
- *don't support modetest,don't backup last commit state
- */
-#define MESON_DRM_VERSION_V0 0
 
 #define SCALER_RATIO_X_CALC_DONE BIT(0)
 #define SCALER_RATIO_Y_CALC_DONE BIT(1)
@@ -92,9 +85,12 @@ struct meson_vpu_block_ops {
 			   struct meson_vpu_block_state *state,
 		struct meson_vpu_pipeline_state *mvps);
 	void (*update_state)(struct meson_vpu_block *vblk,
-			     struct meson_vpu_block_state *state);
-	void (*enable)(struct meson_vpu_block *vblk);
-	void (*disable)(struct meson_vpu_block *vblk);
+			     struct meson_vpu_block_state *new_state,
+			     struct meson_vpu_block_state *old_state);
+	void (*enable)(struct meson_vpu_block *vblk,
+		       struct meson_vpu_block_state *new_state);
+	void (*disable)(struct meson_vpu_block *vblk,
+			struct meson_vpu_block_state *old_state);
 	void (*dump_register)(struct meson_vpu_block *vblk,
 			      struct seq_file *seq);
 	void (*init)(struct meson_vpu_block *vblk);
@@ -116,6 +112,7 @@ struct meson_vpu_block {
 
 	enum meson_vpu_blk_type type;
 	u8 id;
+	/*index in same type objects arry,update to object_index*/
 	u8 index;
 	u8 max_inputs;
 	u8 max_outputs;
@@ -132,6 +129,7 @@ struct meson_vpu_block {
 struct meson_vpu_block_state {
 	struct drm_private_state obj;
 	struct meson_vpu_block *pblk;
+	struct meson_vpu_sub_pipeline *sub;
 	u32 inputs_mask;
 
 	u32 inputs_changed;
@@ -175,6 +173,8 @@ struct meson_vpu_osd_layer_info {
 	u32 global_alpha;
 	u32 scaling_filter;
 	u32 crtc_index;
+	u32 read_ports;
+	u32 status_changed;
 };
 
 struct meson_vpu_osd {
@@ -216,6 +216,7 @@ struct meson_vpu_osd_state {
 	u32 rotation;
 	u32 blend_bypass;
 	u32 crtc_index;
+	u32 read_ports;
 };
 
 struct meson_vpu_video_layer_info {
@@ -268,6 +269,7 @@ struct meson_vpu_video_state {
 	u32 dimm_enable;
 	u32 mode_3d_enable;
 
+	u32 crtc_index;
 	u32 color_key;
 	u32 alpha;
 	u32 global_alpha;
@@ -406,17 +408,18 @@ struct meson_vpu_hdr_state {
 	struct meson_vpu_block_state base;
 };
 
-struct meson_vpu_dolby {
+struct meson_vpu_db {
 	struct meson_vpu_block base;
 };
 
-struct meson_vpu_dolby_state {
+struct meson_vpu_db_state {
 	struct meson_vpu_block_state base;
 };
 
 struct meson_vpu_postblend {
 	struct meson_vpu_block base;
 	struct postblend_reg_s *reg;
+	struct postblend1_reg_s *reg1;
 };
 
 struct meson_vpu_postblend_state {
@@ -425,10 +428,19 @@ struct meson_vpu_postblend_state {
 };
 
 /* vpu pipeline */
+struct rdma_reg_ops {
+	u32 (*rdma_read_reg)(u32 addr);
+	int (*rdma_write_reg)(u32 addr, u32 val);
+	int (*rdma_write_reg_bits)(u32 addr, u32 val, u32 start, u32 len);
+};
+
 struct meson_vpu_sub_pipeline {
+	//todo:update to vpp_index;
 	int index;
+	//todo: update name
 	struct meson_vpu_pipeline *pipeline;
 	struct drm_display_mode mode;
+	struct rdma_reg_ops *reg_ops;
 };
 
 struct meson_vpu_pipeline {
@@ -440,7 +452,7 @@ struct meson_vpu_pipeline {
 	struct meson_vpu_scaler *scalers[MESON_MAX_SCALERS];
 	struct meson_vpu_osdblend *osdblend;
 	struct meson_vpu_hdr *hdrs[MESON_MAX_HDRS];
-	struct meson_vpu_dolby *dolbys[MESON_MAX_DOLBYS];
+	struct meson_vpu_db *dbs[MESON_MAX_DBS];
 	struct meson_vpu_postblend *postblends[MESON_MAX_POSTBLEND];
 	struct meson_vpu_pipeline_state *state;
 	u32 num_osds;
@@ -448,14 +460,13 @@ struct meson_vpu_pipeline {
 	u32 num_afbc_osds;
 	u32 num_scalers;
 	u32 num_hdrs;
-	u32 num_dolbys;
+	u32 num_dbs;
 	u32 num_postblend;
 	u8 osd_version;
 
 	struct meson_drm *priv;
 	struct meson_vpu_block **mvbs;
 	int num_blocks;
-	int index;
 };
 
 struct meson_vpu_common_state {
@@ -515,7 +526,7 @@ struct meson_vpu_pipeline_state {
 #define to_scaler_block(x) container_of(x, struct meson_vpu_scaler, base)
 #define to_osdblend_block(x) container_of(x, struct meson_vpu_osdblend, base)
 #define to_hdr_block(x) container_of(x, struct meson_vpu_hdr, base)
-#define to_dolby_block(x) container_of(x, struct meson_vpu_dolby, base)
+#define to_db_block(x) container_of(x, struct meson_vpu_db, base)
 #define to_postblend_block(x) container_of(x, struct meson_vpu_postblend, base)
 #define to_video_block(x) container_of(x, struct meson_vpu_video, base)
 
@@ -525,7 +536,7 @@ struct meson_vpu_pipeline_state {
 #define to_osdblend_state(x) container_of(x, \
 		struct meson_vpu_osdblend_state, base)
 #define to_hdr_state(x) container_of(x, struct meson_vpu_hdr_state, base)
-#define to_dolby_state(x) container_of(x, struct meson_vpu_dolby_state, base)
+#define to_db_state(x) container_of(x, struct meson_vpu_db_state, base)
 #define to_postblend_state(x) container_of(x, \
 		struct meson_vpu_postblend_state, base)
 #define to_video_state(x) container_of(x, struct meson_vpu_video_state, base)
@@ -559,23 +570,25 @@ void vpu_pipeline_init(struct meson_vpu_pipeline *pipeline);
 void vpu_pipeline_fini(struct meson_vpu_pipeline *pipeline);
 
 int vpu_pipeline_read_scanout_pos(struct meson_vpu_pipeline *pipeline,
-			int *vpos, int *hpos);
+			int *vpos, int *hpos, int crtc_index);
 void vpu_pipeline_prepare_update(struct meson_vpu_pipeline *pipeline,
-	int vdisplay, int vrefresh);
-void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline);
+	int vdisplay, int vrefresh, int crtc_index);
+void vpu_pipeline_finish_update(struct meson_vpu_pipeline *pipeline, int crtc_index);
 
 /* meson_vpu_pipeline_private.c */
 struct meson_vpu_block_state *
 meson_vpu_block_get_state(struct meson_vpu_block *block,
 			  struct drm_atomic_state *state);
+
+struct meson_vpu_block_state *
+meson_vpu_block_get_old_state(struct meson_vpu_block *mvb,
+			struct drm_atomic_state *state);
+
 struct meson_vpu_pipeline_state *
 meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 			     struct drm_atomic_state *state);
 int meson_vpu_block_state_init(struct meson_drm *private,
 			       struct meson_vpu_pipeline *pipeline);
-#ifdef MESON_DRM_VERSION_V0
-void meson_vpu_pipeline_atomic_backup_state(struct meson_vpu_pipeline_state *mvps);
-#endif
 
 int combination_traverse(struct meson_vpu_pipeline_state *mvps,
 			 struct drm_atomic_state *state);
@@ -586,7 +599,9 @@ int vpu_pipeline_check_osdblend(u32 *out_port, int num_planes,
 					struct drm_atomic_state *state);
 int vpu_video_pipeline_check_block(struct meson_vpu_pipeline_state *mvps,
 				   struct drm_atomic_state *state);
-void vpu_pipeline_check_finish_reg(void);
+void vpu_pipeline_check_finish_reg(int crtc_index);
+
+void meson_rdma_ops_init(struct meson_vpu_pipeline *pipeline, int num_crtc);
 
 extern struct meson_vpu_block_ops video_ops;
 extern struct meson_vpu_block_ops osd_ops;
@@ -594,13 +609,14 @@ extern struct meson_vpu_block_ops afbc_ops;
 extern struct meson_vpu_block_ops scaler_ops;
 extern struct meson_vpu_block_ops osdblend_ops;
 extern struct meson_vpu_block_ops hdr_ops;
-extern struct meson_vpu_block_ops dolby_ops;
+extern struct meson_vpu_block_ops db_ops;
 extern struct meson_vpu_block_ops postblend_ops;
 
 extern struct meson_vpu_block_ops t7_osd_ops;
 extern struct meson_vpu_block_ops t7_afbc_ops;
 extern struct meson_vpu_block_ops t3_afbc_ops;
 extern struct meson_vpu_block_ops t7_postblend_ops;
+extern struct meson_vpu_block_ops t3_postblend_ops;
 
 #ifdef CONFIG_DEBUG_FS
 extern u32 overwrite_reg[256];

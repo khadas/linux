@@ -77,30 +77,42 @@ static void aml_snd_update_bits(u32 base_type, unsigned int reg,
 	pr_err("write snd reg %x error\n", reg);
 }
 
-int aml_pdm_read(unsigned int reg)
+int aml_pdm_read(int id, unsigned int reg)
 {
 	int ret, val = 0;
-
-	ret = aml_snd_read(IO_PDM_BUS, reg, &val);
-
-	if (ret) {
-		pr_err("read pdm reg %x error %d\n", reg, ret);
-		return -1;
+	if (id == 0) {
+		ret = aml_snd_read(IO_PDM_BUS, reg, &val);
+		if (ret) {
+			pr_err("read pdm reg %x error %d\n", reg, ret);
+			return -1;
+		}
+	} else if (id == 1) {
+		ret = aml_snd_read(IO_PDM_BUS_B, reg, &val);
+		if (ret) {
+			pr_err("read pdm reg %x error %d\n", reg, ret);
+			return -1;
+		}
 	}
 	return val;
 }
 EXPORT_SYMBOL(aml_pdm_read);
 
-void aml_pdm_write(unsigned int reg, unsigned int val)
+void aml_pdm_write(int id, unsigned int reg, unsigned int val)
 {
-	aml_snd_write(IO_PDM_BUS, reg, val);
+	if (id == 0)
+		aml_snd_write(IO_PDM_BUS, reg, val);
+	else if (id == 1)
+		aml_snd_write(IO_PDM_BUS_B, reg, val);
 }
 EXPORT_SYMBOL(aml_pdm_write);
 
-void aml_pdm_update_bits(unsigned int reg, unsigned int mask,
+void aml_pdm_update_bits(int id, unsigned int reg, unsigned int mask,
 			 unsigned int val)
 {
-	aml_snd_update_bits(IO_PDM_BUS, reg, mask, val);
+	if (id == 0)
+		aml_snd_update_bits(IO_PDM_BUS, reg, mask, val);
+	else if (id == 1)
+		aml_snd_update_bits(IO_PDM_BUS_B, reg, mask, val);
 }
 EXPORT_SYMBOL(aml_pdm_update_bits);
 
@@ -247,27 +259,66 @@ void new_resample_update_bits(enum resample_idx id, unsigned int reg,
 	new_resample_write(id, reg, tmp);
 }
 
+int vad_top_read(unsigned int reg)
+{
+	int ret, val = 0;
+
+	ret = aml_snd_read(IO_TOP_VAD, reg, &val);
+
+	if (ret) {
+		pr_err("read audio reg %x error %d\n", reg, ret);
+		return -1;
+	}
+	return val;
+}
+EXPORT_SYMBOL(vad_top_read);
+
+void vad_top_write(unsigned int reg, unsigned int val)
+{
+	aml_snd_write(IO_TOP_VAD, reg, val);
+}
+EXPORT_SYMBOL(vad_top_write);
+
+void vad_top_update_bits(unsigned int reg,
+			 unsigned int mask,
+			 unsigned int val)
+{
+	aml_snd_update_bits(IO_TOP_VAD, reg, mask, val);
+}
+EXPORT_SYMBOL(vad_top_update_bits);
+
+void clk_mux_update_bits(unsigned int reg,
+			 unsigned int mask,
+			 unsigned int val)
+{
+	aml_snd_update_bits(IO_CLK_MUX, reg, mask, val);
+}
+EXPORT_SYMBOL(clk_mux_update_bits);
+
 static int snd_iomap_probe(struct platform_device *pdev)
 {
 	struct resource res;
 	struct device_node *np, *child;
-	int i = 0;
+
+	int i;
 	int ret = 0;
 
 	np = pdev->dev.of_node;
-	for_each_child_of_node(np, child) {
-		if (of_address_to_resource(child, 0, &res)) {
-			ret = -1;
-			pr_err("%s could not get resource", __func__);
-			break;
+	for (i = 0; i < IO_MAX; i++) {
+		child = of_get_child_by_name(np, iomap_name[i]);
+		if (child) {
+			if (of_address_to_resource(child, 0, &res)) {
+				ret = -1;
+				pr_err("%s could not get resource", __func__);
+				break;
+			}
+			aml_snd_reg_map[i] =
+				ioremap_nocache(res.start, resource_size(&res));
+			pr_info("aml_snd_reg_map[%d], reg:%x, size:%x\n",
+				i, (u32)res.start, (u32)resource_size(&res));
 		}
-		aml_snd_reg_map[i] =
-			ioremap_nocache(res.start, resource_size(&res));
-		pr_info("aml_snd_reg_map[%d], reg:%x, size:%x\n",
-			i, (u32)res.start, (u32)resource_size(&res));
-
-		i++;
 	}
+
 	pr_info("amlogic %s probe done\n", DEV_NAME);
 
 	return ret;

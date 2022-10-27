@@ -11,28 +11,6 @@
 #include "meson_crtc.h"
 #include "meson_plane.h"
 
-static int get_attached_crtc_index(int osd_index,
-			struct drm_atomic_state *state)
-{
-	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
-	struct drm_crtc *crtc;
-	struct am_meson_crtc *amc;
-	struct meson_drm *priv = state->dev->dev_private;
-
-	plane = &priv->osd_planes[osd_index]->base;
-	plane_state = drm_atomic_get_plane_state(state, plane);
-
-	crtc = plane_state->crtc;
-
-	if (crtc) {
-		amc = to_am_meson_crtc(crtc);
-		return amc->crtc_index;
-	}
-
-	return -EINVAL;
-}
-
 static void stack_init(struct meson_vpu_stack *mvs)
 {
 	mvs->top = 0;
@@ -601,14 +579,15 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
+	struct meson_vpu_block_state *mvbs;
 	struct meson_vpu_sub_pipeline_state *sub_state;
+	struct meson_vpu_pipeline *mvp = mvps->pipeline;
 
 	for (i = 0; i < MESON_MAX_OSDS; i++) {
 		if (!mvps->plane_info[i].enable)
 			continue;
 		osd_index = mvps->plane_index[i];
-		crtc_index = get_attached_crtc_index(osd_index,
-					mvps->obj.state);
+		crtc_index = mvps->plane_info[i].crtc_index;
 		if (crtc_index == -EINVAL) {
 			DRM_ERROR("%s, overbound crtc index\n", __func__);
 			crtc_index = 0;
@@ -621,6 +600,9 @@ void vpu_pipeline_enable_block(int *combination, int num_planes,
 			block = mvb[j];
 			if (!block)
 				break;
+
+			mvbs = meson_vpu_block_get_state(block, mvps->obj.state);
+			mvbs->sub = &mvp->subs[crtc_index];
 			sub_state->enable_blocks |= BIT(block->id);
 		}
 	}
@@ -681,13 +663,18 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 			 struct meson_vpu_pipeline_state *mvps,
 					struct drm_atomic_state *state)
 {
-	int i, j, ret;
+	int i, j, ret, index;
 	bool is_continue = false;
 	/*comb of osd path index or each osd.*/
 	int combination[MESON_MAX_OSDS] = {0};
 
 	i = 0;
 	ret = -1;
+
+	for (index = MESON_MAX_OSDS; index >= 0; index--) {
+		if (mvps->plane_info[index].enable)
+			break;
+	}
 
 	do {
 		DRM_DEBUG("Comb check [%d-%d-%d-%d]\n",
@@ -699,9 +686,12 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 			break;
 		vpu_pipeline_clean_block(combination, num_planes, mvps, state);
 		i++;
-		combination[num_planes - 1] = i;
+		combination[index] = i;
 
-		for (j = num_planes - 1; j >= 0; j--) {
+		for (j = index; j >= 0; j--) {
+			if (!mvps->plane_info[j].enable)
+				continue;
+
 			if (combination[j] >= path_num_array[j]) {
 				combination[j] = 0;
 				i = 0;
@@ -713,8 +703,9 @@ int combinate_layer_path(int *path_num_array, int num_planes,
 
 		is_continue = false;
 
-		for (j = 0; j < num_planes; j++) {
-			if (combination[j] != 0) {
+		for (j = 0; j < MESON_MAX_OSDS; j++) {
+			if (combination[j] != 0 &&
+			    mvps->plane_info[j].enable) {
 				is_continue = true;
 				break;
 			}
@@ -743,6 +734,19 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 	struct meson_vpu_block *start, *end;
 	int path[MESON_MAX_OSDS] = {0};
 	struct meson_vpu_pipeline *mvp = mvps->pipeline;
+	struct meson_vpu_block *mvb;
+	struct meson_vpu_block_state *mvbs;
+
+	/* to dup new state for all blocks.The duped state is empty/disable state.
+	 */
+	for (i = 0; i < BLOCK_ID_MAX; i++) {
+		mvb = mvp->mvbs[i];
+
+		if (!mvb)
+			continue;
+
+		mvbs = meson_vpu_block_get_state(mvb, state);
+	}
 
 	num_planes = mvps->num_plane;
 	if (!num_planes)
@@ -753,7 +757,7 @@ int vpu_pipeline_traverse(struct meson_vpu_pipeline_state *mvps,
 		if (!mvps->plane_info[i].enable)
 			continue;
 		osd_index = mvps->plane_index[i];
-		crtc_index = get_attached_crtc_index(osd_index, state);
+		crtc_index = mvps->plane_info[i].crtc_index;
 		if (crtc_index == -EINVAL) {
 			DRM_ERROR("%s, overbound crtc index\n", __func__);
 			crtc_index = 0;

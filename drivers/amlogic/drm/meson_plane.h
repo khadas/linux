@@ -36,9 +36,13 @@ struct am_osd_plane {
 	int plane_index;
 	int plane_type;
 
+	struct drm_property *occupied_property;
+	bool osd_occupied;
+
 	/*osd extend*/
 	u32 osd_reverse;
 	u32 osd_blend_bypass;
+	u32 osd_read_ports;
 };
 
 struct am_video_plane {
@@ -91,5 +95,6 @@ meson_create_scaling_filter_prop(struct drm_device *dev,
 
 void meson_video_set_vfmmode(struct device_node *of_node,
 	struct meson_drm *priv);
+void meson_osd_plane_async_flush(struct drm_atomic_state *state);
 
 #endif

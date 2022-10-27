@@ -60,6 +60,11 @@
 #include "braille.h"
 #include "internal.h"
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+#include<../../../fs/pstore/internal.h>
+static size_t print_time(u64 ts, char *buf);
+#endif
+
 int console_printk[4] = {
 	CONSOLE_LOGLEVEL_DEFAULT,	/* console_loglevel */
 	MESSAGE_LOGLEVEL_DEFAULT,	/* default_message_loglevel */
@@ -618,6 +623,65 @@ static u32 truncate_msg(u16 *text_len, u16 *trunc_msg_len,
 	return msg_used_size(*text_len + *trunc_msg_len, 0, pad_len);
 }
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+static void record_buf(struct printk_log *msg, const char *text, u16 text_len,
+	enum pstore_type_id record_type, bool first_dump)
+{
+	int len;
+	static u32 bconsole_logsize;
+	static char buf[1500];
+	static bool bconsole_full;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	struct pstore_record record = {
+		.psi = psinfo,
+	};
+#endif
+
+	if (record_type == PSTORE_TYPE_BCONSOLE && bconsole_full)
+		return;
+	len = print_time(msg->ts_nsec, buf);
+	buf[len] = '<';
+	buf[len + 1] = '0' + msg->level;
+	buf[len + 2] = '>';
+	buf[len + 3] = ' ';
+	if (!first_dump) {
+		memcpy(&buf[len + 4], text, text_len + 1);
+	} else {
+		memcpy(&buf[len + 4], text, text_len);
+		buf[len + text_len + 4] = '\n';
+	}
+	record.type = record_type;
+	record.buf = buf;
+	record.size = len + text_len + 5;
+	if (record_type == PSTORE_TYPE_BCONSOLE) {
+		bconsole_logsize += record.size;
+		if (bconsole_logsize > bconsole_size) {
+			bconsole_full = 1;
+			return;
+		}
+	}
+	psinfo->write(&record);
+}
+
+void dump_log_to_bconsole(void)
+{
+	struct printk_log *msg;
+	static u32 bconsole_idx;
+	unsigned long flags;
+
+	logbuf_lock_irqsave(flags);
+	bconsole_idx = log_first_idx;
+	msg = log_from_idx(bconsole_idx);
+	while (bconsole_idx < log_next_idx) {
+		record_buf(msg, log_text(msg), msg->text_len, PSTORE_TYPE_BCONSOLE, 1);
+		bconsole_idx = log_next(bconsole_idx);
+		msg = log_from_idx(bconsole_idx);
+	}
+	logbuf_unlock_irqrestore(flags);
+}
+EXPORT_SYMBOL(dump_log_to_bconsole);
+#endif
+
 /* insert record into the buffer, discard old ones, update heads */
 static int log_store(u32 caller_id, int facility, int level,
 		     enum log_flags flags, u64 ts_nsec,
@@ -680,6 +744,13 @@ static int log_store(u32 caller_id, int facility, int level,
 	log_next_idx += msg->len;
 	log_next_seq++;
 
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (console_enable)
+		record_buf(msg, text, text_len, PSTORE_TYPE_CONSOLE, 0);
+
+	if (bconsole_enable)
+		record_buf(msg, text, text_len, PSTORE_TYPE_BCONSOLE, 0);
+#endif
 	return msg->text_len;
 }
 

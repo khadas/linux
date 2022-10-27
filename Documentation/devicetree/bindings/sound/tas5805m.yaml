@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/tas5805m.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI TAS5805m Stereo Audio amplifier Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <maxime.ripard@bootlin.com>
+
+properties:
+  compatible:
+    const: ti,tas5805m_0
+    const: ti,tas5805m_1
+
+  "#sound-dai-cells":
+    const: 0
+
+  reg:
+    maxItems: 1
+
+  gpio:
+    items:
+      - description: ap
+      - description: reset
+
+examples:
+  - |
+    tas5805m: tas5805m@2d {
+        compatible = "ti,tas5805m_0";
+        #sound-dai-cells = <0>;
+        reg = <0x2d>;
+        reset-gpio = <&gpio GPIOW_12 0>;
+        power-gpio = <&gpio GPIOW_17 0>;
+        speaker-config = <0>;
+        status = "okay";
+    };
+
+...

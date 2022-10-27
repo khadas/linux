@@ -141,7 +141,7 @@ const struct di_cfg_ctr_s di_cfg_top_ctr[K_DI_CFG_NUB] = {
 	/* 5: dynamic: 4k: nv21, other yuv422 10bit */
 	/* 6: dynamic: like 4: 4k: afbce yuv420, other:yuv422 10 */
 			EDI_CFG_POUT_FMT,
-			3,
+			0,
 			K_DI_CFG_T_FLG_DTS},
 	[EDI_CFG_DAT]  = {"en_dat",/*bit 0: pst dat; bit 1: idat */
 			EDI_CFG_DAT,
@@ -1506,6 +1506,7 @@ void dip_chst_process_ch(void)
 			break;
 		case EDI_TOP_STATE_READY:
 			dip_itf_vf_op_polling(pch);
+			s4dw_parser_infor(pch);
 			dip_itf_back_input(pch);
 //ary 2020-12-09			spin_lock_irqsave(&plist_lock, flags);
 			dim_post_keep_back_recycle(pch);
@@ -1573,6 +1574,18 @@ void dip_sum_post_ch(void)
 	}
 }
 
+void dip_out_ch(void)
+{
+	int i;
+	struct di_ch_s *pch;
+
+	for (i = 0; i < DI_CHANNEL_NUB; i++) {
+		pch = get_chdata(i);
+
+		if (pch->itf.op_ready_out)
+			pch->itf.op_ready_out(pch);
+	}
+}
 /************************************************
  * new reg and unreg
  ***********************************************/
@@ -1894,6 +1907,7 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 		break;
 	case EDI_TOP_STATE_REG_STEP1:/*wait peek*/
 		dip_itf_vf_op_polling(pch);
+		s4dw_parser_infor(pch);
 		vframe = nins_peekvfm(pch);
 
 		if (vframe) {
@@ -1916,8 +1930,10 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			reflesh = true;
 			break;
 		}
-
-		di_reg_variable(ch, vframe);
+		if (pch->itf.flg_s4dw && pch->s4dw)
+			pch->s4dw->reg_variable(pch, vframe);
+		else
+			di_reg_variable(ch, vframe);
 		/*di_reg_process_irq(ch);*/ /*check if bypass*/
 		set_reg_setting(ch, true);
 
@@ -1971,8 +1987,10 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			//mem_cfg(pch);
 #endif
 			//mem_cfg_realloc_wait(pch);
-			sct_mng_working(pch);
-			sct_alloc_in_poling(pch->ch_id);
+			//sct_mng_working(pch);
+			//sct_alloc_in_poling(pch->ch_id);
+			sct_polling(pch, 1);
+			PR_INF("s2_1\n");
 			if (di_cfg_top_get(EDI_CFG_FIRST_BYPASS) &&
 			    pch->itf.etype == EDIM_NIN_TYPE_VFM) {
 				if (get_sum_g(ch) == 0) {
@@ -1987,6 +2005,8 @@ static void dip_process_reg_after(struct di_ch_s *pch)
 			dbg_timer(ch, EDBG_TIMER_READY);
 			dip_chst_set(ch, EDI_TOP_STATE_READY);
 			set_reg_flag(ch, true);
+		} else {
+			PR_INF("s2_wait\n");
 		}
 
 		break;
@@ -2117,7 +2137,7 @@ static const struct di_mm_cfg_s c_mm_cfg_normal = {
 	.di_h	=	1088,
 	.di_w	=	1920,
 	.num_local	=	MAX_LOCAL_BUF_NUM,
-	.num_post	=	POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM_DEF,
 	.num_step1_post = 1,
 };
 
@@ -2125,7 +2145,7 @@ static const struct di_mm_cfg_s c_mm_cfg_normal_ponly = {
 	.di_h	=	1088,
 	.di_w	=	1920,
 	.num_local	=	0,
-	.num_post	=	POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM_DEF,
 	.num_step1_post = 1,
 };
 
@@ -2133,7 +2153,7 @@ static const struct di_mm_cfg_s c_mm_cfg_4k = {
 	.di_h	=	2160,
 	.di_w	=	3840,
 	.num_local	=	0,
-	.num_post	=	POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM_DEF,
 	.num_step1_post = 1,
 };
 
@@ -2141,7 +2161,7 @@ static const struct di_mm_cfg_s c_mm_cfg_fix_4k = {
 	.di_h	=	2160,
 	.di_w	=	3840,
 	.num_local	=	MAX_LOCAL_BUF_NUM,
-	.num_post	=	POST_BUF_NUM,
+	.num_post	=	POST_BUF_NUM_DEF,
 	.num_step1_post = 1,
 };
 
@@ -2967,7 +2987,7 @@ void dip_init_value_reg(unsigned int ch, struct vframe_s *vframe)
 		mm->cfg.num_local = 0;
 
 	post_nub = cfggch(pch, POST_NUB);
-	if ((post_nub) && post_nub < POST_BUF_NUM)
+	if ((post_nub) && post_nub <= POST_BUF_NUM)
 		mm->cfg.num_post = post_nub;
 
 	PR_INF("%s:ch[%d]:fix_buf:%d;ponly <%d,%d>\n",
@@ -3246,6 +3266,7 @@ static const struct qbuf_creat_s qbf_nin_cfg_qbuf = {
 	.nub_que	= QBF_NINS_Q_NUB,
 	.nub_buf	= DIM_NINS_NUB,
 	.code		= CODE_NIN,
+	.que_id		= EBUF_QUE_ID_NIN
 };
 
 void bufq_nin_int(struct di_ch_s *pch)
@@ -3679,6 +3700,7 @@ static const struct qbuf_creat_s qbf_ndis_cfg_qbuf = {
 	.nub_que	= QBF_NDIS_Q_NUB,
 	.nub_buf	= DIM_NDIS_NUB,
 	.code		= CODE_NDIS,
+	.que_id		= EBUF_QUE_ID_NDIS
 };
 
 void bufq_ndis_int(struct di_ch_s *pch)
@@ -4330,19 +4352,17 @@ void dip_itf_ndrd_ins_m2_out(struct di_ch_s *pch)
 			if (ndis1 != ndis2)
 				PR_ERR("%s:\n", __func__);
 		}
-		#ifdef MARK_HIS
-		if (dip_itf_is_ins_exbuf(pch)) {
-			buffer->private_data = NULL;
-			ndis1->c.pbuff = NULL;
-			task_send_cmd2(pch->ch_id,
-			LCMD2(ECMD_RL_KEEP,
-			     pch->ch_id,
-			     ndis1->header.index));
-		}
-		#endif
+
 		didbg_vframe_out_save(pch->ch_id, buffer->vf, 1);
 		if (buffer->flag & DI_FLAG_EOS)
 			dbg_reg("%s:ch[%d]:eos\n", __func__, pch->ch_id);
+
+		dim_print("done:0x%px:flag:0x%x\n", buffer, buffer->flag);
+		if (buffer->vf)
+			dim_dbg_vf_cvs(pch, buffer->vf, 10);
+
+		dim_dbg_buffer_ext(pch, buffer, 10);
+
 		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
 		sum_pst_g_inc(pch->ch_id);
 	}
@@ -4381,6 +4401,10 @@ void dip_itf_ndrd_ins_m1_out(struct di_ch_s *pch)
 		didbg_vframe_out_save(pch->ch_id, buffer->vf, 2);
 		if (buffer->flag & DI_FLAG_EOS)
 			PR_INF("%s:ch[%d]:eos\n", __func__, pch->ch_id);
+		dim_print("done:0x%px:flag:0x%x\n", buffer, buffer->flag);
+		if (buffer->vf)
+			dim_dbg_vf_cvs(pch, buffer->vf, 11);
+		dim_dbg_buffer_ext(pch, buffer, 11);
 		pch->itf.u.dinst.parm.ops.fill_output_done(buffer);
 		sum_pst_g_inc(pch->ch_id);
 	}
@@ -4924,6 +4948,7 @@ static bool ndrd_m1_fill_ready_pst(struct di_ch_s *pch, struct di_buf_s *di_buf)
 	}
 	memcpy(buffer->vf, di_buf->vframe, sizeof(*buffer->vf));
 	buffer->caller_data = pch->itf.u.dinst.parm.caller_data;
+	buffer->vf->private_data = NULL; //2022-04-14
 	if (di_buf->c.src_is_i)
 		buffer->flag |= DI_FLAG_I;
 	else
@@ -4962,6 +4987,8 @@ static void dip_itf_prob(struct di_ch_s *pch)
 		return;
 	itf = &pch->itf;
 	mutex_init(&itf->lock_reg);
+	mutex_init(&itf->lock_in);
+	//mutex_init(&itf->lock_buffer);
 }
 
 void dip_itf_vf_op_polling(struct di_ch_s *pch)
@@ -5183,6 +5210,20 @@ void dim_slt_init(void)
 }
 
 /************************************************
+ * ic list for support crc cts test
+ ***********************************************/
+
+bool dim_config_crc_ic(void)
+{
+	struct di_dev_s  *de_devp = get_dim_de_devp();
+
+	if (IS_ERR_OR_NULL(de_devp))
+		return 0;
+	else
+		return de_devp->is_crc_ic;
+}
+EXPORT_SYMBOL(dim_config_crc_ic);
+/************************************************
  * aisr lrhf
  ************************************************/
 unsigned int di_hf_cnt_size(unsigned int w, unsigned int h, bool is_4k)
@@ -5236,7 +5277,7 @@ bool di_hf_t_try_alloc(struct di_ch_s *pch)
 
 	get_datal()->hf_busy = true;
 	get_datal()->hf_owner = pch->ch_id;
-	PR_INF("hf:t:ch[%d]:alloc:ok\n", pch->ch_id);
+	PR_INF("hf:a:ch[%d]:alloc:ok\n", pch->ch_id);
 	return true;
 }
 
@@ -5257,6 +5298,9 @@ void di_hf_t_release(struct di_ch_s *pch)
 		get_datal()->hf_src_cnt--;
 		pch->en_hf_buf = false;
 	}
+	PR_INF("hf:r:ch[%d]:cnt[%d]\n",
+		pch->ch_id,
+		get_datal()->hf_src_cnt);
 }
 
 void di_hf_reg(struct di_ch_s *pch)
@@ -5265,6 +5309,9 @@ void di_hf_reg(struct di_ch_s *pch)
 
 	pch->en_hf	= false;
 	pch->en_hf_buf	= false;
+
+	if (dim_mng_hf_err())
+		return;
 
 	hf_nub = cfgg(HF);
 	if (!hf_nub || dip_itf_is_ins_exbuf(pch))
@@ -5280,6 +5327,14 @@ void di_hf_reg(struct di_ch_s *pch)
 
 	if (di_hf_t_try_alloc(pch))
 		pch->en_hf = true;
+}
+
+void di_hf_polling_active(struct di_ch_s *pch)
+{
+	if (pch->en_hf_buf && !pch->en_hf) {
+		if (di_hf_t_try_alloc(pch))
+			pch->en_hf = true;
+	}
 }
 
 static DEFINE_SPINLOCK(di_hf_lock);
@@ -5856,6 +5911,7 @@ void dip_exit(void)
 	dev_vframe_exit();
 	dip_clean_value();
 	didbg_fs_exit();
+	dim_mng_hf_exit();
 	#ifdef TST_NEW_INS_INTERFACE
 	dtst_exit();
 	#endif
@@ -5949,6 +6005,415 @@ void cvsi_cfg(struct dim_cvsi_s	*pcvsi)
 	}
 }
 
+/************************************************
+ * mng for hf buffer
+ ************************************************/
+#define DIM_MNG_HF_NUB		((POST_BUF_NUM << 1) + 5) /* < 64 */
+#define DIM_MNG_HF_QUE_NUB	(2)
+
+enum EMNG_Q {
+	EMNG_Q_IDLE,
+	EMNG_Q_FREE,
+};
+
+struct dim_mng_hf_s {
+	struct dim_sub_mem_s hf_buf[DIM_MNG_HF_NUB];
+	struct kfifo	fifo[DIM_MNG_HF_QUE_NUB];
+	bool flg_fifo[DIM_MNG_HF_QUE_NUB];
+	bool flg_buf_used[DIM_MNG_HF_NUB];
+	unsigned int err;
+	unsigned int cnt_alloc;
+};
+
+static struct dim_mng_hf_s *dim_mng_is_act(void)
+{
+	struct dim_mng_hf_s *hmng;
+
+	if (!get_datal()->mng_hf_buf)
+		return NULL;
+	hmng = (struct dim_mng_hf_s *)get_datal()->mng_hf_buf;
+	if (hmng->err)
+		return NULL;
+	return hmng;
+}
+
+static struct dim_sub_mem_s *hfmng_q_get(enum EMNG_Q q_id)
+{
+	struct dim_mng_hf_s *hmng;
+	unsigned char val;
+	int ret;
+
+	hmng = dim_mng_is_act();
+	if (!hmng || q_id >= DIM_MNG_HF_QUE_NUB) {
+		PR_INF("hfmng:not act?\n");
+		return NULL;
+	}
+
+	if (kfifo_is_empty(&hmng->fifo[q_id]))
+		return NULL;
+	ret = kfifo_get(&hmng->fifo[q_id], &val);
+	if (!ret) {
+		PR_ERR("%s:get null\n", __func__);
+		hmng->err++; //to-do
+		return NULL;
+	}
+	if (val >= DIM_MNG_HF_NUB) {
+		PR_ERR("%s:get overflow[%d]\n", __func__, (unsigned int)val);
+		hmng->err++;
+		return NULL;
+	}
+
+	return &hmng->hf_buf[val];
+}
+
+static void hfmng_q_put(enum EMNG_Q q_id, struct dim_sub_mem_s *hf_bf)
+{
+	struct dim_mng_hf_s *hmng;
+	unsigned char dd;
+	int ret;
+
+	if (!hf_bf || q_id >= DIM_MNG_HF_QUE_NUB)
+		return;
+
+	hmng = (struct dim_mng_hf_s *)get_datal()->mng_hf_buf;
+	if (hf_bf != &hmng->hf_buf[hf_bf->index]) {
+		/* check index */
+		PR_ERR("%s:idex err:%d:0x%px,0x%px\n",
+			__func__, hf_bf->index,
+			hf_bf, &hmng->hf_buf[hf_bf->index]);
+		hmng->err++;
+		return;
+	}
+	dd = hf_bf->index;
+
+	ret = kfifo_put(&hmng->fifo[q_id], dd);
+	if (!ret) {
+		PR_ERR("%s:put q[%d][%d]\n",
+			__func__,
+			q_id, (unsigned int)dd);
+		hmng->err++;
+	}
+}
+
+/************************************************
+ * return:
+ ************************************************/
+static int hf_release_clear_one_buf(struct dim_mng_hf_s *hmng,
+				    struct dim_sub_mem_s *hf_buff)
+{
+	bool rret = false;
+	unsigned char back_index;
+	int ret = 0;
+
+	if (!hf_buff || !hmng)
+		return ret;
+	rret = dim_mm_release_api(cfgg(MEM_FLAG),
+		hf_buff->pages,
+		hf_buff->cnt,
+		hf_buff->mem_start);
+	if (rret) {
+		back_index = hf_buff->index;
+		memset(hf_buff, 0, sizeof(*hf_buff));
+		hf_buff->index = back_index;
+		hmng->cnt_alloc--;
+		dbg_mem2("hfbuf:r:%d:%d\n", hf_buff->index, hmng->cnt_alloc);
+	} else {
+		PR_ERR("%s:fail.release hf [%d]:\n", __func__,
+		       hf_buff->index);
+		ret = -1;
+	}
+	return ret;
+}
+
+static bool hf_release_from_free(struct di_ch_s *pch)
+{
+	struct dim_mng_hf_s *hmng;
+	struct dim_sub_mem_s	*hf_buff;
+	unsigned char dd, ucnt;
+	//bool ret = false;
+
+	hmng = dim_mng_is_act();
+	if (!hmng)
+		return true;
+
+	if (kfifo_is_empty(&hmng->fifo[EMNG_Q_FREE]))
+		return true;
+	ucnt = kfifo_len(&hmng->fifo[EMNG_Q_FREE]);
+	for (dd = 0; dd < ucnt; dd++) {
+		hf_buff = hfmng_q_get(EMNG_Q_FREE);
+		if (!hf_buff) {
+			PR_ERR("%s:%d:%d\n", __func__, dd, ucnt);
+			hmng->err++;
+			break;
+		}
+		hf_release_clear_one_buf(hmng, hf_buff);
+		hfmng_q_put(EMNG_Q_IDLE, hf_buff);
+	}
+	dbg_mem2("hfbuf:rfree:%d:%d\n", dd, ucnt);
+	return true;
+}
+
+/* */
+unsigned int dim_mng_hf_err(void)
+{
+	struct dim_mng_hf_s *hmng;
+
+	hmng = dim_mng_is_act();
+	if (!hmng)
+		return 100;
+	return hmng->err;
+}
+
+unsigned int dim_mng_hf_sum_alloc_get(void)
+{
+	struct dim_mng_hf_s *hmng;
+
+	hmng = dim_mng_is_act();
+	if (!hmng)
+		return 0;
+	return hmng->cnt_alloc;
+}
+
+unsigned int dim_mng_hf_sum_free_get(void)
+{
+	struct dim_mng_hf_s *hmng;
+
+	hmng = dim_mng_is_act();
+	if (!hmng)
+		return 0;
+	return kfifo_len(&hmng->fifo[EMNG_Q_FREE]);
+}
+
+unsigned int dim_mng_hf_sum_idle_get(void)
+{
+	struct dim_mng_hf_s *hmng;
+
+	hmng = dim_mng_is_act();
+	if (!hmng)
+		return 0;
+	return kfifo_len(&hmng->fifo[EMNG_Q_IDLE]);
+}
+
+bool dim_mng_hf_alloc(struct di_ch_s *pch,
+		      struct dim_mm_blk_s *blk_buf,
+		      unsigned int hf_size)
+{
+	struct dim_mm_s omm;
+	u64 timer_st, timer_end, diff; //debug only
+	bool aret;
+	bool ret = false;
+	struct dim_sub_mem_s	*hf_buff;
+	struct dim_mng_hf_s *hmng;
+	unsigned char cnt_free;
+	struct div2_mm_s *mm;
+
+	hmng = dim_mng_is_act();
+
+	if (!pch || !blk_buf || !hf_size || !hmng) {
+		PR_ERR("%s:\n", __func__);
+		return false;
+	}
+	if (blk_buf->hf_buff) {
+		PR_ERR("%s:hf[%d] exist\n", __func__, blk_buf->hf_buff->index);
+		return false;
+	}
+
+	mm = dim_mm_get(pch->ch_id);
+	/* check if have free */
+	if (mm->cfg.num_post <= hmng->cnt_alloc) {
+		if (mm->cfg.is_4k)
+			return true;
+
+		cnt_free = kfifo_len(&hmng->fifo[EMNG_Q_FREE]);
+		if (cnt_free) {
+			hf_buff = hfmng_q_get(EMNG_Q_FREE);
+			if (!hf_buff) {
+				PR_ERR("%s:hf free get\n", __func__);
+				hmng->err++;
+				return false;
+			}
+			hf_buff->ch = pch->ch_id;
+			blk_buf->hf_buff = hf_buff;
+			blk_buf->flg_hf = true;
+			dbg_mem2("hfbuf:free:get:%d\n", hf_buff->index);
+			return true;
+		}
+	}
+	/*q get */
+	hf_buff = hfmng_q_get(EMNG_Q_IDLE);
+	if (!hf_buff) {
+		PR_ERR("%s:no hf_buff idle?\n", __func__);
+		return false;
+	}
+	//hmng = (struct dim_mng_hf_s *)get_datal()->mng_hf_buf;
+
+	memset(&omm, 0, sizeof(omm));
+
+	timer_st = cur_to_msecs();//dbg
+	aret = dim_mm_alloc_api(cfgg(MEM_FLAG),
+			    hf_size >> PAGE_SHIFT,
+			    &omm,
+			    0);
+	timer_end = cur_to_msecs();//dbg
+	diff = timer_end - timer_st;
+	dbg_mem2("a:b%d:%ums\n", hf_buff->index, (unsigned int)diff);
+	if (!aret) {
+		PR_ERR("2:%s: alloc hf failed %d fail\n",
+		       __func__,
+			blk_buf->header.index);
+		blk_buf->flg_hf = 0;
+		/* q back */
+		hfmng_q_put(EMNG_Q_IDLE, hf_buff);
+	} else {
+		hf_buff->mem_start = omm.addr;
+		hf_buff->cnt = hf_size >> PAGE_SHIFT;
+		hf_buff->pages = omm.ppage;
+
+		hmng->cnt_alloc++;
+		if (mm->cfg.is_4k) {
+			/*to free*/
+			hfmng_q_put(EMNG_Q_FREE, hf_buff);
+			dbg_mem2("hfbuf:a:%d,%d:to free\n", hf_buff->index, hmng->cnt_alloc);
+		} else {
+			hf_buff->ch = pch->ch_id;
+			blk_buf->flg_hf = 1;
+			blk_buf->hf_buff = hf_buff;
+			dbg_mem2("hfbuf:a:%d,%d\n", hf_buff->index, hmng->cnt_alloc);
+		}
+
+		ret = true;
+	}
+	return true;
+}
+
+bool dim_mng_hf_release(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf)
+{
+	//bool ret = false;
+	struct dim_sub_mem_s	*hf_buff;
+//	unsigned char back_index;
+	struct dim_mng_hf_s *hmng;
+	struct div2_mm_s *mm;
+
+	hmng = dim_mng_is_act();
+	if (!hmng)
+		return false;
+	if (blk_buf->flg_hf && blk_buf->hf_buff) {
+		hf_buff = blk_buf->hf_buff;
+		mm = dim_mm_get(pch->ch_id);
+
+		if (pch->itf.reg && mm->cfg.size_buf_hf &&
+		    mm->cfg.num_post >= hmng->cnt_alloc) {
+			hf_buff->ch = 0;
+			dbg_mem2("hfbuf:free:put:%d\n", hf_buff->index);
+			hfmng_q_put(EMNG_Q_FREE, hf_buff);
+		} else {
+			hf_release_clear_one_buf(hmng, hf_buff);
+			hfmng_q_put(EMNG_Q_IDLE, hf_buff);
+		}
+
+		blk_buf->hf_buff = NULL;
+		blk_buf->flg_hf = false;
+	}
+	return true;
+}
+
+/************************************************
+ * dim_mng_hf_release_all
+ * return:
+ *	-true: releas success;
+ *	-false: no need to relase or release failed.
+ ************************************************/
+bool dim_mng_hf_release_all(struct di_ch_s *pch, struct dim_mm_blk_s *blk_buf)
+{
+	bool ret = false;
+	struct dim_sub_mem_s	*hf_buff;
+	struct dim_mng_hf_s *hmng;
+
+	hmng = dim_mng_is_act();
+	if (!hmng)
+		return false;
+	hf_release_from_free(pch);
+	if (blk_buf->flg_hf && blk_buf->hf_buff) {
+		hf_buff = blk_buf->hf_buff;
+		hf_release_clear_one_buf(hmng, hf_buff);
+		hfmng_q_put(EMNG_Q_IDLE, hf_buff);
+
+		blk_buf->flg_hf = 0;
+		blk_buf->hf_buff = NULL;
+		ret = true;
+	}
+	return ret;
+}
+
+void dim_mng_hf_exit(void)
+{
+	struct dim_mng_hf_s *hmng;
+	int i;
+
+	if (!get_datal()->mng_hf_buf)
+		return;
+	hmng = (struct dim_mng_hf_s *)get_datal()->mng_hf_buf;
+
+	for (i = 0; i < DIM_MNG_HF_QUE_NUB; i++) {
+		if (hmng->flg_fifo[i])
+			kfifo_free(&hmng->fifo[i]);
+		hmng->flg_fifo[i] = 0;
+	}
+
+	kfree(hmng);
+	get_datal()->mng_hf_buf = NULL;
+	PR_INF("%s\n", __func__);
+}
+
+void dim_mng_hf_prob(void)
+{
+	struct dim_mng_hf_s *hmng;
+	int i;
+	int ret;
+	unsigned char dd;
+	unsigned int check;
+
+	//to-do not support return;
+	if (!cfgg(HF))
+		return;
+
+	hmng = kzalloc(sizeof(*hmng), GFP_KERNEL);
+	if (!hmng) {
+		PR_ERR("%s fail to allocate memory.\n", __func__);
+		get_datal()->mng_hf_buf = NULL;
+		return;
+	}
+	get_datal()->mng_hf_buf = hmng;
+	for (i = 0; i < DIM_MNG_HF_QUE_NUB; i++) {
+		ret = UFI64_ALLOC(&hmng->fifo[i]);
+		if (ret < 0) {
+			PR_ERR("%s:%d:can't get kfifo\n", __func__, i);
+			goto dim_mng_hf_err;
+		}
+		kfifo_reset(&hmng->fifo[i]);
+		hmng->flg_fifo[i] = 1;
+	}
+	//move all to que 0, idle;
+	check = DIM_MNG_HF_NUB;
+	if (DIM_MNG_HF_NUB > 64) {
+		PR_ERR("%s:DIM_MNG_HF_NUB is overflow\n", __func__);
+		check = 63;
+	}
+
+	for (dd = 0; dd < check; dd++) {
+		kfifo_put(&hmng->fifo[EMNG_Q_IDLE], dd);
+		hmng->hf_buf[dd].index = dd;
+	}
+	//get_datal()->mng_hf_buf = hmng;
+	PR_INF("%s:ok\n", __func__);
+	return;
+
+dim_mng_hf_err:
+	dim_mng_hf_exit();
+}
+
+/*mng for hf buffer end */
+/*************************************************/
 #ifdef TEST_PIP
 
 #define src0_fmt          2   //0:444 1:422 2:420

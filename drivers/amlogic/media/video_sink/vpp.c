@@ -67,6 +67,9 @@
 #define PPS_FRAC_BITS 24
 #define PPS_INT_BITS 4
 
+#define DATA_ALIGNED_4(x)  (((x) + 3) & ~3)
+#define DATA_ALIGNED_DOWN_4(x)  ((x) & ~3)
+
 struct filter_info_s {
 	u32 cur_vert_filter;
 	u32 cur_horz_filter;
@@ -1292,6 +1295,8 @@ static int vpp_set_filters_internal
 	u32 src_width_max, src_height_max;
 	bool afbc_support;
 	bool crop_adjust = false;
+	bool hskip_adjust = false;
+	u32 force_skip_cnt = 0;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1423,6 +1428,12 @@ RESTART_ALL:
 		next_frame_par->vscale_skip_count++;
 
 RESTART:
+	if (next_frame_par->hscale_skip_count && !hskip_adjust) {
+		w_in  = DATA_ALIGNED_DOWN_4(w_in);
+		crop_left = DATA_ALIGNED_4(crop_left);
+		hskip_adjust = true;
+	}
+
 	aspect_factor = (vpp_flags & VPP_FLAG_AR_MASK) >> VPP_FLAG_AR_BITS;
 	/* don't use input->wide_mode */
 	wide_mode = (vpp_flags & VPP_FLAG_WIDEMODE_MASK) >> VPP_WIDEMODE_BITS;
@@ -1501,6 +1512,18 @@ RESTART:
 		} else {
 			wide_mode = VIDEO_WIDEOPTION_NORMAL;
 		}
+	} else if (wide_mode == VIDEO_WIDEOPTION_21_9) {
+		if (vpp_flags & VPP_FLAG_PORTRAIT_MODE)
+			aspect_factor = 0x255;
+		else
+			aspect_factor = 0x6E;
+		if (!(vpp_flags & VPP_FLAG_PORTRAIT_MODE) &&
+		    video_layer_width > 1 && video_layer_height > 1 &&
+		    (9 * video_layer_width == video_layer_height * 21))
+			wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		else
+			wide_mode = VIDEO_WIDEOPTION_NORMAL;
+		ext_sar = false;
 	}
 	/* if use the mode ar, will disable ext ar */
 
@@ -1782,6 +1805,19 @@ RESTART:
 			(end >> 1) : end;
 	}
 
+	if (for_amdv_certification()) {
+		force_skip_cnt = get_force_skip_cnt(VD1_PATH);
+		if (input->layer_id == VD1_PATH && force_skip_cnt > 0) {
+			next_frame_par->vscale_skip_count = force_skip_cnt;
+			next_frame_par->hscale_skip_count = force_skip_cnt;
+		}
+		force_skip_cnt = get_force_skip_cnt(VD2_PATH);
+		if (input->layer_id == VD2_PATH && force_skip_cnt > 0) {
+			next_frame_par->vscale_skip_count = force_skip_cnt;
+			next_frame_par->hscale_skip_count = force_skip_cnt;
+		}
+	}
+
 	/* set filter co-efficients */
 	tmp_ratio_y = ratio_y;
 	ratio_y <<= height_shift;
@@ -1956,9 +1992,24 @@ RESTART:
 				goto RESTART;
 			} else {
 				next_frame_par->hscale_skip_count = 1;
+				goto RESTART;
 			}
 		} else if (skip == SPEED_CHECK_HSKIP) {
 			next_frame_par->hscale_skip_count = 1;
+			goto RESTART;
+		}
+	}
+
+	if (for_amdv_certification()) {
+		force_skip_cnt = get_force_skip_cnt(VD1_PATH);
+		if (input->layer_id == VD1_PATH && force_skip_cnt > 0) {
+			next_frame_par->vscale_skip_count = force_skip_cnt;
+			next_frame_par->hscale_skip_count = force_skip_cnt;
+		}
+		force_skip_cnt = get_force_skip_cnt(VD2_PATH);
+		if (input->layer_id == VD2_PATH && force_skip_cnt > 0) {
+			next_frame_par->vscale_skip_count = force_skip_cnt;
+			next_frame_par->hscale_skip_count = force_skip_cnt;
 		}
 	}
 
@@ -2755,36 +2806,58 @@ void aisr_sr1_nn_enable(u32 enable)
 			0x0, 13, 2);
 }
 
-void aisr_reshape_output(u32 enable)
+void aisr_sr1_nn_enable_sync(u32 enable)
 {
 	struct sr_info_s *sr;
 	u32 sr_reg_offt2;
 
 	if (!cur_dev->aisr_support)
 		return;
+
+	sr = &sr_info;
+	sr_reg_offt2 = sr->sr_reg_offt2;
+	pr_info("%s, enable=%d\n", __func__, enable);
+	if (enable)
+		WRITE_VCBUS_REG_BITS
+			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+			0x3, 13, 2);
+	else
+		WRITE_VCBUS_REG_BITS
+			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
+			0x0, 13, 2);
+}
+void aisr_reshape_output(u32 enable)
+{
+	struct sr_info_s *sr;
+	u32 sr_reg_offt2;
+
+	if (!cur_dev->aisr_support ||
+		!cur_dev->aisr_enable)
+		return;
+
 	sr = &sr_info;
 	sr_reg_offt2 = sr->sr_reg_offt2;
 	if (enable) {
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
 			0x5, 9, 4);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
 			0xa, 12, 4);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
 			0x2, 28, 2);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_SHARP_SR2_CTRL + sr_reg_offt2,
 			0x0, 1, 1);
 	} else {
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_NN_POST_TOP + sr_reg_offt2,
 			0x0, 9, 4);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
 			0x4, 12, 4);
-		cur_dev->rdma_func[VPP0].rdma_wr_bits
+		WRITE_VCBUS_REG_BITS
 			(SRSHARP1_DEMO_MODE_WINDOW_CTRL0 + sr_reg_offt2,
 			0x0, 28, 2);
 		}
@@ -3892,6 +3965,7 @@ static int vpp_set_filters_no_scaler_internal
 	bool no_compress = false;
 	u32 cur_super_debug = 0;
 	bool afbc_support;
+	bool hskip_adjust = false;
 
 	if (!input)
 		return vppfilter_fail;
@@ -3981,6 +4055,12 @@ RESTART_ALL:
 	}
 
 RESTART:
+	if (next_frame_par->hscale_skip_count && !hskip_adjust) {
+		w_in  = DATA_ALIGNED_DOWN_4(w_in);
+		crop_left = DATA_ALIGNED_4(crop_left);
+		hskip_adjust = true;
+	}
+
 	/* don't use input->wide_mode */
 	wide_mode = (vpp_flags & VPP_FLAG_WIDEMODE_MASK) >> VPP_WIDEMODE_BITS;
 
@@ -4250,9 +4330,11 @@ RESTART:
 				goto RESTART;
 			} else {
 				next_frame_par->hscale_skip_count = 1;
+				goto RESTART;
 			}
 		} else if (skip == SPEED_CHECK_HSKIP) {
 			next_frame_par->hscale_skip_count = 1;
+			goto RESTART;
 		}
 	}
 
@@ -4492,7 +4574,6 @@ RERTY:
 	    !disable_adapted) {
 		if (vf->pic_mode.screen_mode != 0xff)
 			wide_mode = vf->pic_mode.screen_mode;
-
 		if (vf->pic_mode.AFD_enable &&
 		    (vf->ratio_control & DISP_RATIO_INFOFRAME_AVAIL))
 			wide_mode = VIDEO_WIDEOPTION_AFD;
@@ -4503,12 +4584,10 @@ RERTY:
 				local_input.custom_ar =
 					vf->pic_mode.custom_ar;
 		}
-
 		local_input.crop_top = vf->pic_mode.vs;
 		local_input.crop_left = vf->pic_mode.hs;
 		local_input.crop_bottom = vf->pic_mode.ve;
 		local_input.crop_right = vf->pic_mode.he;
-
 	}
 
 	if (!local_input.pps_support)
@@ -4521,6 +4600,23 @@ RERTY:
 		local_input.crop_left = vf->crop[1];
 		local_input.crop_bottom = vf->crop[2];
 		local_input.crop_right = vf->crop[3];
+	}
+
+	if (local_input.afd_enable && !disable_adapted) {
+		wide_mode = VIDEO_WIDEOPTION_FULL_STRETCH;
+		local_input.crop_top = local_input.afd_crop.top;
+		local_input.crop_left = local_input.afd_crop.left;
+		local_input.crop_bottom = local_input.afd_crop.bottom;
+		local_input.crop_right = local_input.afd_crop.right;
+		local_input.layer_left = local_input.afd_pos.x_start;
+		local_input.layer_top = local_input.afd_pos.y_start;
+		local_input.layer_width =
+			local_input.afd_pos.x_end -
+			local_input.afd_pos.x_start + 1;
+		local_input.layer_height =
+			local_input.afd_pos.y_end -
+			local_input.afd_pos.y_start + 1;
+		vpp_flags |= VPP_FLAG_FORCE_AFD_ENABLE;
 	}
 
 	/* don't restore the wide mode */

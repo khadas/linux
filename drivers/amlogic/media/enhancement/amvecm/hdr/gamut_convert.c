@@ -416,6 +416,7 @@ int gamut_convert_process(struct vinfo_s *vinfo,
 			}
 	} else if ((source_type[vd_path] == HDRTYPE_HDR10) ||
 		(source_type[vd_path] == HDRTYPE_HLG) ||
+		(source_type[vd_path] == HDRTYPE_PRIMESL) ||
 		(source_type[vd_path] == HDRTYPE_HDR10PLUS)) {
 		if (get_primary_policy() == PRIMARIES_AUTO) {
 			for (i = 0; i < 3; i++)

@@ -47,6 +47,7 @@ enum uvm_alloc_flag {
  * @mod_attached:	list of attached module
  * @n_mod_attached:	num of attached module
  * @mod_attached_mask:	mask of attached module
+ * @usage:	    buffer usage
  */
 struct uvm_handle {
 	struct kref ref;
@@ -68,6 +69,7 @@ struct uvm_handle {
 	struct list_head mod_attached;
 	size_t n_mod_attached;
 	unsigned long mod_attached_mask;
+	size_t usage;
 };
 
 /**
@@ -131,6 +133,12 @@ enum uvm_hook_mod_type {
 	PROCESS_INVALID
 };
 
+enum uvm_data_usage {
+	UVM_USAGE_VIDEO_PLAY,
+	UVM_USAGE_IMAGE_PLAY,
+	UVM_USAGE_INVALID
+};
+
 /**
  * struct uvm_hook_mod - uvm hook module
  *
@@ -189,10 +197,13 @@ int uvm_attach_hook_mod(struct dma_buf *dmabuf,
 int uvm_detach_hook_mod(struct dma_buf *dmabuf,
 			int type);
 
-int meson_uvm_getinfo(int shared_fd,
+int meson_uvm_getinfo(struct dma_buf *dmabuf,
 			int mode_type, char *buf);
-int meson_uvm_setinfo(int shared_fd,
+int meson_uvm_setinfo(struct dma_buf *dmabuf,
 			int mode_type, char *buf);
+
+int meson_uvm_get_usage(struct dma_buf *dmabuf, size_t *usage);
+int meson_uvm_set_usage(struct dma_buf *dmabuf, size_t usage);
 
 struct uvm_hook_mod *uvm_get_hook_mod(struct dma_buf *dmabuf,
 				      int type);

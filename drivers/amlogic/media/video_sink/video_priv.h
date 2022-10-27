@@ -21,6 +21,7 @@
 
 #include <linux/amlogic/media/video_sink/vpp.h>
 #include "video_reg.h"
+#include <linux/amlogic/media/amvecm/amvecm.h>
 
 #define VIDEO_ENABLE_STATE_IDLE       0
 #define VIDEO_ENABLE_STATE_ON_REQ     1
@@ -37,6 +38,7 @@
 #define DEBUG_FLAG_LOG_RDMA_LINE_MAX         0x100
 #define DEBUG_FLAG_BLACKOUT     0x200
 #define DEBUG_FLAG_NO_CLIP_SETTING     0x400
+#define DEBUG_FLAG_VPP_GET_BUFFER_TIME     0x800
 #define DEBUG_FLAG_TOGGLE_SKIP_KEEP_CURRENT  0x10000
 #define DEBUG_FLAG_TOGGLE_FRAME_PER_VSYNC    0x20000
 #define DEBUG_FLAG_RDMA_WAIT_1		     0x40000
@@ -143,9 +145,10 @@ enum pre_hscaler_e {
 };
 
 enum vpp_type_e {
-	VPP0,
-	VPP1,
-	VPP2,
+	VPP0 = 0,
+	VPP1 = 1,
+	VPP2 = 2,
+	VPP_MAX = 3
 };
 
 enum reshape_mode_e {
@@ -429,10 +432,13 @@ struct video_layer_s {
 	bool vd1_vd2_mux;
 	u32 video_en_bg_color;
 	u32 video_dis_bg_color;
+	u32 dummy_alpha;
 	u32 compWidth;
 	u32 compHeight;
 	u32 src_width;
 	u32 src_height;
+	u32 alpha_win_en;
+	struct pip_alpha_scpxn_s alpha_win;
 };
 
 enum {
@@ -451,6 +457,7 @@ enum cpu_type_e {
 	MESON_CPU_MAJOR_ID_S4_,
 	MESON_CPU_MAJOR_ID_T5D_REVB_,
 	MESON_CPU_MAJOR_ID_T3_,
+	MESON_CPU_MAJOR_ID_T5W_,
 	MESON_CPU_MAJOR_ID_UNKNOWN_,
 };
 
@@ -483,7 +490,7 @@ struct amvideo_device_data_s {
 	u32 src_width_max[MAX_VD_LAYER];
 	u32 src_height_max[MAX_VD_LAYER];
 	u32 ofifo_size;
-	u32 afbc_conv_lbuf_len;
+	u32 afbc_conv_lbuf_len[MAX_VD_LAYER];
 	u8 mif_linear;
 	u8 t7_display;
 	u8 max_vd_layers;
@@ -521,12 +528,13 @@ extern int vdec_out_size_threshold_8k;
 extern int vpp_in_size_threshold_8k;
 extern int vdec_out_size_threshold_4k;
 extern int vpp_in_size_threshold_4k;
+extern u64 vsync_cnt[VPP_MAX];
 
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
 bool is_dovi_tv_on(void);
-bool for_dolby_vision_certification(void);
+bool for_amdv_certification(void);
 
 struct video_dev_s *get_video_cur_dev(void);
 u32 get_video_enabled(void);
@@ -548,12 +556,12 @@ void safe_switch_videolayer(u8 layer_id,
 			    bool on, bool async);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-bool is_dolby_vision_enable(void);
-bool is_dolby_vision_on(void);
-bool is_dolby_vision_stb_mode(void);
-bool for_dolby_vision_certification(void);
-bool is_dovi_frame(struct vframe_s *vf);
-void dolby_vision_set_toggle_flag(int flag);
+bool is_amdv_enable(void);
+bool is_amdv_on(void);
+bool is_amdv_stb_mode(void);
+bool for_amdv_certification(void);
+bool is_amdv_frame(struct vframe_s *vf);
+void amdv_set_toggle_flag(int flag);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
@@ -619,6 +627,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     const struct vinfo_s *vinfo);
 int detect_vout_type(const struct vinfo_s *vinfo);
 int calc_hold_line(void);
+u32 get_active_start_line(void);
 u32 get_cur_enc_line(void);
 void vpu_work_process(void);
 int vpp_crc_check(u32 vpp_crc_en, u8 vpp_index);
@@ -647,7 +656,6 @@ extern unsigned int force_3d_scaler;
 extern int toggle_3d_fa_frame;
 #endif
 extern bool reverse;
-extern u32  mirror;
 extern struct vframe_s vf_local;
 extern struct vframe_s vf_local2;
 extern struct vframe_s local_pip;
@@ -665,6 +673,7 @@ extern atomic_t video_unreg_flag_vpp[2];
 extern atomic_t video_inirq_flag;
 extern atomic_t video_inirq_flag_vpp[2];
 extern uint load_pps_coef;
+extern atomic_t video_recv_cnt;
 extern struct video_recv_s *gvideo_recv[3];
 extern struct video_recv_s *gvideo_recv_vpp[2];
 extern uint load_pps_coef;
@@ -699,8 +708,8 @@ int _video_set_disable(u32 val);
 int _videopip_set_disable(u32 index, u32 val);
 struct device *get_video_device(void);
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-struct vframe_s *dvel_toggle_frame(struct vframe_s *vf,
-				   bool new_frame);
+struct vframe_s *dv_toggle_frame(struct vframe_s *vf,
+				enum vd_path_e vd_path, bool new_frame);
 #endif
 
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEOCAPTURE
@@ -713,9 +722,8 @@ bool video_is_meson_t7_cpu(void);
 bool video_is_meson_s4_cpu(void);
 bool video_is_meson_t5d_revb_cpu(void);
 bool video_is_meson_t3_cpu(void);
-void set_alpha(struct video_layer_s *layer,
-	       u32 win_en,
-	       struct pip_alpha_scpxn_s *alpha_win);
+bool video_is_meson_t5w_cpu(void);
+void alpha_win_set(struct video_layer_s *layer);
 void fgrain_config(struct video_layer_s *layer,
 		   struct vpp_frame_par_s *frame_par,
 		   struct mif_pos_s *mif_setting,
@@ -756,6 +764,7 @@ s32 config_aisr_position(struct video_layer_s *layer,
 			     struct aisr_setting_s *aisr_mif_setting);
 void aisr_demo_enable(void);
 void aisr_demo_axis_set(void);
+void aisr_reshape_output(u32 enable);
 void pre_process_for_3d(struct vframe_s *vf);
 bool tvin_vf_disp_mode_check(struct vframe_s *vf);
 int get_vpu_urgent_info(void);
@@ -768,6 +777,8 @@ void vsync_rdma_process(void);
 void amvecm_process(struct path_id_s *path_id, struct video_recv_s *p_gvideo_recv,
 			    struct vframe_s *new_frame);
 #endif
+
+u32 get_force_skip_cnt(enum vd_path_e path);
 
 #ifndef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 enum avevent_e {

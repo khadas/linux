@@ -38,6 +38,10 @@
 #include <linux/sched/clock.h>
 #include <linux/debugfs.h>
 
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+extern int skip_all_clk_disable;
+#endif
+
 struct mmc_gpio {
 	struct gpio_desc *ro_gpio;
 	struct gpio_desc *cd_gpio;
@@ -241,8 +245,16 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 			if (__clk_get_enable_count(host->clk[1]))
 				clk_disable_unprepare(host->clk[1]);
 			host->src_clk_cfg_done = false;
+
+#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+			if (!skip_all_clk_disable) {
+				WARN_ON(__clk_get_enable_count(host->clk[2]));
+				WARN_ON(__clk_get_enable_count(host->clk[1]));
+			}
+#else
 			WARN_ON(__clk_get_enable_count(host->clk[2]));
 			WARN_ON(__clk_get_enable_count(host->clk[1]));
+#endif
 		}
 		return 0;
 	}

@@ -1955,7 +1955,7 @@ static int lcd_config_load_from_unifykey(struct aml_lcd_drv_s *pdrv, char *key_s
 		phy_cfg->vswing_level = pctrl->p2p_cfg.phy_vswing & 0xf;
 		phy_cfg->ext_pullup = (pctrl->p2p_cfg.phy_vswing >> 4) & 0x3;
 		phy_cfg->vswing = lcd_phy_vswing_level_to_value(pdrv, phy_cfg->vswing_level);
-		phy_cfg->preem_level = pctrl->p2p_cfg.phy_vswing;
+		phy_cfg->preem_level = pctrl->p2p_cfg.phy_preem;
 		temp = lcd_phy_preem_level_to_value(pdrv, phy_cfg->preem_level);
 		for (i = 0; i < phy_cfg->lane_num; i++) {
 			phy_cfg->lane[i].amp = 0;
@@ -2555,7 +2555,10 @@ int lcd_vmode_change(struct aml_lcd_drv_s *pdrv)
 		}
 		break;
 	case 4: /* hdmi mode */
-		if ((duration_num / duration_den) == 59) {
+		if (((duration_num / duration_den) == 59) ||
+		    ((duration_num / duration_den) == 47) ||
+		    ((duration_num / duration_den) == 119) ||
+		    ((duration_num / duration_den) == 95)) {
 			/* pixel clk adjust */
 			temp = duration_num;
 			temp = temp * h_period * v_period;

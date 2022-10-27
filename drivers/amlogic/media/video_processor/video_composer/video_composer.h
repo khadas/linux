@@ -45,6 +45,7 @@
 #include "vfq.h"
 #include <linux/amlogic/media/ge2d/ge2d.h>
 #include "vframe_ge2d_composer.h"
+#include "vframe_dewarp_composer.h"
 
 #define MXA_LAYER_COUNT 9
 #define COMPOSER_READY_POOL_SIZE 32
@@ -55,6 +56,7 @@
 #define VIDEO_COMPOSER_ENABLE_NORMAL  1
 #define BUFFER_LEN 4
 #define DMA_BUF_COUNT 4
+#define PATTEN_FACTOR_MAX 5
 
 #define VCOM_MAP_NAME_SIZE 90
 #define VCOM_MAP_STRUCT_SIZE 120
@@ -70,6 +72,11 @@
 #define PRINT_PATTERN	        0X0020
 #define PRINT_OTHER		0X0040
 #define PRINT_NN		0X0080
+#define PRINT_DEWARP	0X0100
+
+#define SOURCE_DTV_FIX_TUNNEL		0x1
+#define SOURCE_HWC_CREAT_ION		0x2
+#define SOURCE_PIC_MODE		0x4
 
 enum vc_transform_t {
 	/* flip source image horizontally */
@@ -86,11 +93,6 @@ enum vc_transform_t {
 	VC_TRANSFORM_FLIP_H_ROT_90 = VC_TRANSFORM_FLIP_H | VC_TRANSFORM_ROT_90,
 	/* flip source image vertically, the rotate 90 degrees clock-wise */
 	VC_TRANSFORM_FLIP_V_ROT_90 = VC_TRANSFORM_FLIP_V | VC_TRANSFORM_ROT_90,
-};
-
-enum source_type_t {
-	DTV_FIX_TUNNEL = 1,
-	HWC_CREAT_ION = 2,
 };
 
 struct frame_info_t {
@@ -145,18 +147,6 @@ struct videocom_frame_s {
 struct vidc_buf_status {
 	int index;
 	int dirty;
-};
-
-struct dst_buf_t {
-	int index;
-	struct vframe_s frame;
-	struct componser_info_t componser_info;
-	bool dirty;
-	u32 phy_addr;
-	u32 buf_w;
-	u32 buf_h;
-	u32 buf_size;
-	bool is_tvp;
 };
 
 struct output_axis {
@@ -242,7 +232,22 @@ struct composer_dev {
 	bool composer_enabled;
 	bool thread_need_stop;
 	bool is_drm_enable;
+	bool is_dewarp_support;
 	u32 video_render_index;
+	u32 vframe_dump_flag;
+	u32 pre_pat_trace;
+	u32 pattern[3];
+	u32 pattern_enter_cnt;
+	u32 pattern_exit_cnt;
+	u32 pattern_detected;
+	u32 continue_hold_count;
+	u32 last_hold_index;
+	u32 last_vsync_index;
+	u32 last_vf_index;
+	bool enable_pulldown;
+	u32 patten_factor[PATTEN_FACTOR_MAX];
+	u32 patten_factor_index;
+	u32 next_factor;
 };
 
 #define VIDEO_COMPOSER_IOC_MAGIC  'V'
@@ -260,5 +265,10 @@ struct video_composer_port_s *video_composer_get_port(u32 index);
 int vc_print(int index, int debug_flag, const char *fmt, ...);
 void videocomposer_vf_put(struct vframe_s *vf, void *op_arg);
 struct vframe_s *videocomposer_vf_peek(void *op_arg);
+void video_dispaly_push_ready(struct composer_dev *dev, struct vframe_s *vf);
+void vc_private_q_init(struct composer_dev *dev);
+void vc_private_q_recycle(struct composer_dev *dev,
+	struct video_composer_private *vc_private);
+struct video_composer_private *vc_private_q_pop(struct composer_dev *dev);
 
 #endif /* VIDEO_COMPOSER_H */

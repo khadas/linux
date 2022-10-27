@@ -99,6 +99,7 @@ enum lcd_chip_e {
 	LCD_CHIP_T5D,   /* 7 */
 	LCD_CHIP_T7,    /* 8 */
 	LCD_CHIP_T3,	/* 9 */
+	LCD_CHIP_T5W,	/* 9 */
 	LCD_CHIP_MAX,
 };
 
@@ -541,6 +542,7 @@ struct lcd_debug_ctrl_s {
 };
 
 struct lcd_duration_s {
+	unsigned int frame_rate;
 	unsigned int duration_num;
 	unsigned int duration_den;
 	unsigned int frac;
@@ -603,7 +605,8 @@ struct aml_lcd_drv_s {
 	struct cdev cdev;
 	struct device *dev;
 	struct lcd_config_s config;
-	struct lcd_duration_s std_duration;
+	struct lcd_duration_s *std_duration;
+	struct lcd_duration_s cur_duration;
 	struct vinfo_s vinfo;
 	void *clk_conf;
 	struct lcd_reg_map_s *reg_map;
@@ -614,7 +617,6 @@ struct aml_lcd_drv_s {
 #ifdef CONFIG_OF
 	struct device_node *of_node;
 #endif
-	void *debug_info;
 
 	unsigned int vout_state;
 	unsigned int fr_auto_policy;
@@ -666,13 +668,34 @@ extern struct mutex lcd_power_mutex;
  * IOCTL define
  * **********************************
  */
+struct aml_lcd_tcon_bin_s {
+	unsigned int index;
+	unsigned int size;
+	union {
+		void *ptr;
+		long long ptr_length;
+	};
+};
+
 #define LCD_IOC_TYPE               'C'
 #define LCD_IOC_NR_GET_HDR_INFO    0x0
 #define LCD_IOC_NR_SET_HDR_INFO    0x1
+#define LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO 0x2
+#define LCD_IOC_SET_TCON_DATA_INDEX_INFO  0x3
+#define LCD_IOC_GET_TCON_BIN_PATH_INFO    0x4
+#define LCD_IOC_SET_TCON_BIN_DATA_INFO    0x5
 
 #define LCD_IOC_CMD_GET_HDR_INFO   \
 	_IOR(LCD_IOC_TYPE, LCD_IOC_NR_GET_HDR_INFO, struct lcd_optical_info_s)
 #define LCD_IOC_CMD_SET_HDR_INFO   \
 	_IOW(LCD_IOC_TYPE, LCD_IOC_NR_SET_HDR_INFO, struct lcd_optical_info_s)
+#define LCD_IOC_CMD_GET_TCON_BIN_MAX_CNT_INFO   \
+	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO, unsigned int)
+#define LCD_IOC_CMD_SET_TCON_DATA_INDEX_INFO   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_TCON_DATA_INDEX_INFO, unsigned int)
+#define LCD_IOC_CMD_GET_TCON_BIN_PATH_INFO   \
+	_IOR(LCD_IOC_TYPE, LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO, long long)
+#define LCD_IOC_CMD_SET_TCON_BIN_DATA_INFO   \
+	_IOW(LCD_IOC_TYPE, LCD_IOC_SET_TCON_BIN_DATA_INFO, struct aml_lcd_tcon_bin_s)
 
 #endif

@@ -27,8 +27,6 @@
 #include "vrr_drv.h"
 #include "vrr_reg.h"
 
-static struct aml_vrr_drv_s *vdrv_active;
-
 /* check viu0 mux enc index */
 static struct aml_vrr_drv_s *vrr_drv_active_sel(void)
 {
@@ -42,7 +40,7 @@ static struct aml_vrr_drv_s *vrr_drv_active_sel(void)
 ssize_t vrr_active_status_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
-	struct aml_vrr_drv_s *vdrv = vdrv_active;
+	struct aml_vrr_drv_s *vdrv = vrr_drv_active_sel();
 	unsigned int offset;
 	ssize_t len = 0;
 
@@ -94,6 +92,8 @@ ssize_t vrr_active_status_show(struct device *dev,
 
 int aml_vrr_state(void)
 {
+	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
+
 	if (!vdrv_active)
 		return 0;
 
@@ -104,6 +104,7 @@ int aml_vrr_state(void)
 
 int aml_vrr_func_en(int flag)
 {
+	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
 	int ret;
 
 	if (!vdrv_active)
@@ -119,37 +120,20 @@ int aml_vrr_func_en(int flag)
 
 static int aml_vrr_drv_update(void)
 {
-	struct aml_vrr_drv_s *vdrv;
+	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
 	struct vrr_notifier_data_s vdata;
-	unsigned int en_pre;
-	int ret = 0;
 
-	vdrv = vrr_drv_active_sel();
-	if (vdrv->vrr_dev) {
-		vdata.dev_vfreq_max = vdrv->vrr_dev->vfreq_max;
-		vdata.dev_vfreq_min = vdrv->vrr_dev->vfreq_min;
+	vdrv_active = vrr_drv_active_sel();
+	if (!vdrv_active)
+		return -1;
+
+	if (vdrv_active->vrr_dev) {
+		vdata.dev_vfreq_max = vdrv_active->vrr_dev->vfreq_max;
+		vdata.dev_vfreq_min = vdrv_active->vrr_dev->vfreq_min;
 		aml_vrr_atomic_notifier_call_chain(VRR_EVENT_UPDATE, &vdata);
 	}
 
-	if (!vdrv_active) {
-		/* no active vrr_drv before, just init here */
-		vdrv_active = vdrv;
-		return 0;
-	}
-
-	if (vdrv_active->index == vdrv->index) {
-		/* same vrr_drv */
-		return 0;
-	}
-
-	en_pre = vdrv_active->enable;
-	if (en_pre) {
-		vrr_drv_func_en(vdrv_active, 0);
-		ret = vrr_drv_func_en(vdrv, 1);
-	}
-	vdrv_active = vdrv;
-
-	return ret;
+	return 0;
 }
 
 static int aml_vrr_vout_notify_callback(struct notifier_block *block,
@@ -163,10 +147,18 @@ static int aml_vrr_vout_notify_callback(struct notifier_block *block,
 }
 
 static int aml_vrr_switch_notify_callback(struct notifier_block *block,
-					unsigned long event, void *para)
+					  unsigned long event, void *para)
 {
+	struct aml_vrr_drv_s *vdrv_active = vrr_drv_active_sel();
+	struct vrr_notifier_data_s *vdata;
+
 	switch (event) {
 	case FRAME_LOCK_EVENT_VRR_ON_MODE:
+		if (!para)
+			break;
+		vdata = (struct vrr_notifier_data_s *)para;
+		if (vdrv_active)
+			vdrv_active->line_dly = vdata->line_dly;
 		aml_vrr_func_en(1);
 		break;
 	case FRAME_LOCK_EVENT_VRR_OFF_MODE:
@@ -179,17 +171,17 @@ static int aml_vrr_switch_notify_callback(struct notifier_block *block,
 	return 0;
 }
 
-static struct notifier_block aml_vrr_switch_notifier = {
-	.notifier_call = aml_vrr_switch_notify_callback,
-};
-
 static struct notifier_block aml_vrr_vout_notifier = {
 	.notifier_call = aml_vrr_vout_notify_callback,
 };
 
+static struct notifier_block aml_vrr_switch_notifier = {
+	.notifier_call = aml_vrr_switch_notify_callback,
+};
+
 int aml_vrr_if_probe(void)
 {
-	vout_register_client(&aml_vrr_vout_notifier);
+	aml_vrr_atomic_notifier_register(&aml_vrr_vout_notifier);
 	aml_vrr_atomic_notifier_register(&aml_vrr_switch_notifier);
 
 	return 0;
@@ -197,8 +189,8 @@ int aml_vrr_if_probe(void)
 
 int aml_vrr_if_remove(void)
 {
-	vout_unregister_client(&aml_vrr_vout_notifier);
 	aml_vrr_atomic_notifier_unregister(&aml_vrr_switch_notifier);
+	aml_vrr_atomic_notifier_unregister(&aml_vrr_vout_notifier);
 
 	return 0;
 }

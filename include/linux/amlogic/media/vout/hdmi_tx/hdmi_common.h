@@ -216,6 +216,7 @@ enum hdmi_vic {
 	HDMIV_2560x1600p60hz,
 	HDMIV_3440x1440p60hz,
 	HDMIV_2400x1200p90hz,
+	HDMIV_3840x1080p60hz,
 	HDMI_VIC_END,
 };
 
@@ -311,6 +312,16 @@ enum hdmi_color_space {
 	COLORSPACE_YUV444 = 2,
 	COLORSPACE_YUV420 = 3,
 	COLORSPACE_RESERVED,
+};
+
+enum hdmi_hdr_status {
+	HDR10PLUS_VSIF = 0,
+	dolbyvision_std = 1,
+	dolbyvision_lowlatency = 2,
+	HDR10_GAMMA_ST2084 = 3,
+	HDR10_others,
+	HDR10_GAMMA_HLG,
+	SDR,
 };
 
 enum hdmi_color_range {

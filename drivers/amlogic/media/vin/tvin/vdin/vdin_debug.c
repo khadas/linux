@@ -295,8 +295,9 @@ static void vdin_dump_one_buf_mem(char *path, struct vdin_dev_s *devp,
 		count = devp->canvas_h;
 
 	if (highmem_flag == 0) {
-		pr_info("low mem area: one line size (%d, active:%d)\n",
-			devp->canvas_w, devp->canvas_active_w);
+		pr_info("low mem area: one line size (%d, active:%d),vfmem_start[%d]:%lx\n",
+			devp->canvas_w, devp->canvas_active_w, buf_num,
+			devp->vfmem_start[buf_num]);
 		if (devp->cma_config_flag & 0x1)
 			buf = codec_mm_phys_to_virt(devp->vfmem_start[buf_num]);
 		else
@@ -449,7 +450,7 @@ static void vdin_dump_mem(char *path, struct vdin_dev_s *devp)
 static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 				    unsigned int buf_num)
 {
-	#define K_PATH_BUFF_LENGTH	150
+	#define K_PATH_BUFF_LENGTH	128
 	struct file *filp = NULL;
 	loff_t pos = 0;
 	void *buf_head = NULL;
@@ -526,14 +527,16 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 	/*write header bin*/
 
 	if (strlen(path) < K_PATH_BUFF_LENGTH) {
-		strcpy(buff, path);
+		//strcpy(buff, path);
+		snprintf(buff, sizeof(buff), "%s/img_%03d", path, buf_num);
 	} else {
 		pr_info("err path len\n");
 		return;
 	}
-	strcat(buff, "_1header.bin");
+	strcat(buff, "header.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
+		set_fs(old_fs);
 		pr_info("create %s header error or filp is NULL.\n", buff);
 		return;
 	}
@@ -551,10 +554,12 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 
 	/*write table bin*/
 	pos = 0;
-	strcpy(buff, path);
-	strcat(buff, "_1table.bin");
+	//strcpy(buff, path);
+	snprintf(buff, sizeof(buff), "%s/img_%03d", path, buf_num);
+	strcat(buff, "table.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
+		set_fs(old_fs);
 		pr_info("create %s table error or filp is NULL.\n", buff);
 		return;
 	}
@@ -571,10 +576,12 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 
 	/*write body bin*/
 	pos = 0;
-	strcpy(buff, path);
-	strcat(buff, "_1body.bin");
+	//strcpy(buff, path);
+	snprintf(buff, sizeof(buff), "%s/img_%03d", path, buf_num);
+	strcat(buff, "body.bin");
 	filp = filp_open(buff, O_RDWR | O_CREAT, 0666);
 	if (IS_ERR_OR_NULL(filp)) {
+		set_fs(old_fs);
 		pr_info("create %s body error or filp is NULL.\n", buff);
 		return;
 	}
@@ -591,6 +598,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 			highaddr = phys + j * span;
 			vbuf = vdin_vmap(highaddr, span);
 			if (!vbuf) {
+				set_fs(old_fs);
 				pr_info("vdin_vmap error\n");
 				return;
 			}
@@ -605,6 +613,7 @@ static void vdin_dump_one_afbce_mem(char *path, struct vdin_dev_s *devp,
 			highaddr = phys + span;
 			vbuf = vdin_vmap(highaddr, remain);
 			if (!vbuf) {
+				set_fs(old_fs);
 				pr_info("vdin_vmap1 error\n");
 				return;
 			}
@@ -780,6 +789,8 @@ const char *vdin_trans_matrix_str(enum vdin_matrix_csc_e csc_idx)
 		return "VDIN_MATRIX_RGB_RGBS";
 	case VDIN_MATRIX_RGB2020_YUV2020:
 		return "VDIN_MATRIX_RGB2020_YUV2020";
+	case VDIN_MATRIX_YUV2020F_YUV2020:
+		return "VDIN_MATRIX_YUV2020F_YUV2020";
 	default:
 		return "VDIN_MATRIX_NULL";
 	}
@@ -852,7 +863,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 	else
 		vframe_size = devp->vfmem_size;
 
-	pr_info("flags=0x%x\n", devp->flags);
+	pr_info("flags=0x%x,flags_isr=0x%x\n", devp->flags, devp->flags_isr);
 	pr_info("h_active = %d, v_active = %d\n",
 		devp->h_active, devp->v_active);
 	pr_info("canvas_w = %d, canvas_h = %d\n",
@@ -904,6 +915,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->prop.pre_he, devp->prop.he,
 		devp->prop.pre_vs, devp->prop.vs,
 		devp->prop.pre_ve, devp->prop.ve);
+	pr_info("scaling4w:%d,scaling4h:%u\n", devp->prop.scaling4w, devp->prop.scaling4h);
 	pr_info("report: hactive %d, vactive:%d, vtotal:%d\n",
 		vdin_get_active_h(offset), vdin_get_active_v(offset),
 		vdin_get_total_v(offset));
@@ -934,7 +946,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		pr_info("current vframe index(%u):\n", vf->index);
 		pr_info("\t buf(w%u, h%u),type(0x%x),flag(0x%x), duration(%d),",
 		vf->width, vf->height, vf->type, vf->flag, vf->duration);
-		pr_info("\t ratio_control(0x%x).\n", vf->ratio_control);
+		pr_info("\t ratio_control(0x%x), signal_type:0x%x\n",
+			vf->ratio_control, vf->signal_type);
 		pr_info("\t trans fmt %u, left_start_x %u,",
 			vf->trans_fmt, vf->left_eye.start_x);
 		pr_info("\t right_start_x %u, width_x %u\n",
@@ -981,7 +994,12 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		vdin_drop_cnt, devp->frame_cnt, devp->ignore_frames);
 	pr_info("game_mode cfg :  0x%x\n", game_mode);
 	pr_info("game_mode cur:  0x%x\n", devp->game_mode);
-	pr_info("vdin_vrr_flag:  %d\n", devp->prop.vdin_vrr_flag);
+	pr_info("vrr_mode:  0x%x,vdin_vrr_en_flag=%d\n", devp->vrr_mode,
+		devp->vrr_data.vdin_vrr_en_flag);
+	pr_info("vrr_en:  pre=%d,cur:%d\n",
+		devp->pre_prop.vtem_data.vrr_en, devp->prop.vtem_data.vrr_en);
+	pr_info("vdin_vrr_flag:  pre=%d,cur:%d\n", devp->pre_prop.vdin_vrr_flag,
+		devp->prop.vdin_vrr_flag);
 
 	pr_info("afbce_flag: 0x%x\n", devp->afbce_flag);
 	pr_info("afbce_mode: %d, afbce_valid: %d\n", devp->afbce_mode,
@@ -1024,7 +1042,7 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 			devp->vfp->dv_buf_size[i], devp->vfp->dv_buf_mem[i]);
 
 	pr_info("dvEn:%d,dv_flag:%d;dv_config:%d,dolby_ver:%d,low_latency:(%d,%d,%d) allm:%d\n",
-		is_dolby_vision_enable(),
+		is_amdv_enable(),
 		devp->dv.dv_flag, devp->dv.dv_config, devp->prop.dolby_vision,
 		devp->dv.low_latency, devp->prop.low_latency,
 		devp->vfp->low_latency, devp->pre_prop.latency.allm_mode);
@@ -1060,6 +1078,8 @@ static void vdin_dump_state(struct vdin_dev_s *devp)
 		devp->vfp->dv_vsif.auxiliary_debug0);
 	pr_info("rdma handle : %d\n", devp->rdma_handle);
 	pr_info("hv reverse enabled: %d\n", devp->hv_reverse_en);
+	pr_info("dbg_dump_frames: %d,dbg_stop_dec_delay:%d\n",
+		devp->dbg_dump_frames, devp->dbg_stop_dec_delay);
 	pr_info("Vdin driver version :  %s\n", VDIN_VER);
 	/*vdin_dump_vs_info(devp);*/
 }
@@ -1421,7 +1441,7 @@ static void vdin_write_mem(struct vdin_dev_s *devp, char *type,
 		highmem_flag = PageHighMem(phys_to_page(devp->mem_start));
 
 	if (highmem_flag == 0) {
-		pr_info("low mem area\n");
+		pr_info("low mem area,addr:%lx\n", addr);
 		dts = phys_to_virt(addr);
 		for (j = 0; j < devp->canvas_h; j++) {
 			vfs_read(filp, dts + (devp->canvas_w * j),
@@ -2319,6 +2339,22 @@ start_chk:
 			pr_info("color_depth_support(%d):%d\n\n", devp->index,
 				devp->color_depth_support);
 		}
+	} else if (!strcmp(parm[0], "force_stop_frame_num")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->dbg_force_stop_frame_num = val;
+			pr_info("force_stop_frame_num(%d):%d\n\n", devp->index,
+				devp->dbg_force_stop_frame_num);
+		}
+	} else if (!strcmp(parm[0], "force_disp_skip_num")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 0, &val) == 0) {
+			devp->force_disp_skip_num = val;
+			pr_info("force_disp_skip_num(%d):%d\n\n", devp->index,
+				devp->force_disp_skip_num);
+		}
 	} else if (!strcmp(parm[0], "full_pack")) {
 		if (!parm[1]) {
 			pr_err("miss parameters .\n");
@@ -2326,6 +2362,14 @@ start_chk:
 			devp->full_pack = val;
 			pr_info("full_pack(%d):%d\n\n", devp->index,
 				devp->full_pack);
+		}
+	} else if (!strcmp(parm[0], "flags_isr")) {
+		if (!parm[1]) {
+			pr_err("miss parameters .\n");
+		} else if (kstrtoul(parm[1], 16, &val) == 0) {
+			devp->flags_isr = val;
+			pr_info("vdin%d,flags_isr:%#x\n\n", devp->index,
+				devp->flags_isr);
 		}
 	} else if (!strcmp(parm[0], "force_malloc_yuv_422_to_444")) {
 		if (!parm[1]) {
@@ -2504,6 +2548,27 @@ start_chk:
 		} else if (parm[1]) {
 			vdin_dump_one_afbce_mem(parm[1], devp, 0);
 		}
+	} else if (!strcmp(parm[0], "dbg_dump_frames")) {
+		if (parm[1]) {
+			if (kstrtol(parm[1], 10, &val) == 0)
+				devp->dbg_dump_frames = val;
+		}
+		pr_info("vdin%d,dbg_dump_frames = %d\n",
+			devp->index, devp->dbg_dump_frames);
+	} else if (!strcmp(parm[0], "no_swap_en")) {
+		if (parm[1]) {
+			if (kstrtol(parm[1], 0, &val) == 0)
+				devp->dbg_no_swap_en = val;
+		}
+		pr_info("vdin%d,dbg_no_swap_en = %d\n",
+			devp->index, devp->dbg_no_swap_en);
+	} else if (!strcmp(parm[0], "dbg_stop_dec_delay")) {
+		if (parm[1]) {
+			if (kstrtol(parm[1], 10, &val) == 0)
+				devp->dbg_stop_dec_delay = val;
+		}
+		pr_info("vdin%d,dbg_stop_dec_delay = %u us\n",
+			devp->index, devp->dbg_stop_dec_delay);
 	} else if (!strcmp(parm[0], "skip_frame_debug")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 10, &skip_frame_debug) == 0)
@@ -2627,6 +2692,11 @@ start_chk:
 			vdin_force_game_mode = temp;
 			pr_info("set game mode: 0x%x\n", temp);
 		}
+	} else if (!strcmp(parm[0], "vrr_mode")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			devp->vrr_mode = temp;
+			pr_info("set vrr_mode: 0x%x\n", temp);
+		}
 	} else if (!strcmp(parm[0], "matrix_pattern")) {
 		/*
 		 * 0:off 1:enable
@@ -2656,6 +2726,26 @@ start_chk:
 	} else if (!strcmp(parm[0], "doublewrite")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &temp) == 0))
 			devp->double_wr_cfg = temp;
+	} else if (!strcmp(parm[0], "secure_mem")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp) {
+				devp->secure_en = 1;
+				devp->cma_config_flag = 0x1;
+			} else {
+				devp->secure_en = 0;
+				devp->cma_config_flag = 0x101;
+			}
+		}
+		pr_info("secure:%d, cma flag:%d\n", devp->secure_en,
+			devp->cma_config_flag);
+	} else if (!strcmp(parm[0], "vdin1_bypass_hdr")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
+			if (temp)
+				devp->debug.vdin1_set_hdr_bypass = true;
+			else
+				devp->debug.vdin1_set_hdr_bypass = false;
+		}
+		pr_info("vdin1_set_bypass:%d\n", devp->debug.vdin1_set_hdr_bypass);
 	} else if (!strcmp(parm[0], "wv")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0)) {
 			if (parm[1] && (kstrtouint(parm[2], 16, &mode) == 0))
@@ -2664,6 +2754,13 @@ start_chk:
 	} else if (!strcmp(parm[0], "rv")) {
 		if (parm[1] && (kstrtouint(parm[1], 16, &temp) == 0))
 			pr_info("addr:0x%x val:0x%x\n", temp, R_VCBUS(temp));
+	} else if (!strcmp(parm[0], "game_mode_chg")) {
+		if (parm[1] && (kstrtouint(parm[1], 0, &temp) == 0)) {
+			pr_info("set new game mode to: 0x%x,pre:%#x\n", temp, game_mode);
+			if (game_mode != temp)
+				vdin_game_mode_chg(devp, game_mode, temp);
+			game_mode = temp;
+		}
 	} else {
 		pr_info("unknown command\n");
 	}
@@ -3316,6 +3413,27 @@ void vdin_debugfs_exit(struct vdin_dev_s *vdevp)
 	}
 
 	debugfs_remove(vdevp->dbg_root);
+}
+
+void vdin_dump_frames(struct vdin_dev_s *devp)
+{
+	char file_path[32];
+	int  i;
+
+	if (devp->dbg_dump_frames) {
+		/* todo:check path available */
+		snprintf(file_path, sizeof(file_path), "%s", "/mnt/img");
+		pr_info("dir:%s\n", file_path);
+		if (devp->afbce_valid == 1) {
+			vdin_pause_dec(devp);
+			for (i = 0; i < devp->canvas_max_num; i++)
+				vdin_dump_one_afbce_mem(file_path, devp, i);
+
+			vdin_resume_dec(devp);
+		} else {
+			/* mif */
+		}
+	}
 }
 
 /*------------------------------------------*/

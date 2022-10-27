@@ -66,8 +66,10 @@
 /* buffer management related */
 #define MAX_IN_BUF_NUM				(15)	/*change 4 to 8*/
 #define MAX_LOCAL_BUF_NUM			(5)//(7)
-#define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
-#define POST_BUF_NUM				(11)
+//#define MAX_POST_BUF_NUM			(20)//(11)	/*(5)*/ /* 16 */
+#define POST_BUF_NUM				(20)
+#define MAX_POST_BUF_NUM			(POST_BUF_NUM + 3)//(11)	/*(5)*/ /* 16 */
+#define POST_BUF_NUM_DEF			(11)	//test only (POST_BUF_NUM)//
 #define VFRAME_TYPE_IN				1
 #define VFRAME_TYPE_LOCAL			2
 #define VFRAME_TYPE_POST			3
@@ -76,8 +78,8 @@
 #define DI_POST_GET_LIMIT			8
 #define DI_PRE_READY_LIMIT			4
 
-#define MAX_CRC_COUNT_NUM				(10)
 #define LOCAL_META_BUFF_SIZE 0x800 /* 2K size */
+#define LOCAL_UD_BUFF_SIZE VF_UD_MAX_SIZE /* 5K size */
 
 /*vframe define*/
 #define vframe_t struct vframe_s
@@ -150,6 +152,28 @@
 				 VIDTYPE_VIU_NV21	|	\
 				 VIDTYPE_VIU_422	|	\
 				 VIDTYPE_RGB_444)
+
+#define DIM_BYPASS_VF_TYPE	(VIDTYPE_MVC | VIDTYPE_VIU_444 | \
+				 VIDTYPE_PIC | VIDTYPE_RGB_444)
+#define VFMT_DIPVPP_CHG_MASK	(VIDTYPE_TYPEMASK	|	\
+				 VIDTYPE_VIU_422	|	\
+				 VIDTYPE_VIU_444	|	\
+				 VIDTYPE_VIU_NV21	|	\
+				 VIDTYPE_VIU_NV12	|	\
+				 VIDTYPE_VIU_SINGLE_PLANE |	\
+				 VIDTYPE_VIU_FIELD	|	\
+				 VIDTYPE_COMPRESS	|	\
+				 VIDTYPE_SCATTER	|	\
+				 VIDTYPE_COMB_MODE	|	\
+				 VIDTYPE_DI_PW)
+
+//need add :VFRAME_FLAG_DI_BYPASS
+#define VFMT_FLG_CHG_MASK	(VFRAME_FLAG_DI_PW_VFM	|	\
+				 VFRAME_FLAG_DI_PW_N_LOCAL |	\
+				 VFRAME_FLAG_DI_PW_N_EXT |	\
+				 VFRAME_FLAG_HF	|		\
+				 VFRAME_FLAG_DI_DW	|	\
+				 VFRAME_FLAG_VIDEO_LINEAR)
 
 enum process_fun_index_e {
 	PROCESS_FUN_NULL = 0,
@@ -312,10 +336,15 @@ struct di_buf_s {
 	struct dsub_bufv_s	c;
 	unsigned int datacrc;
 	unsigned int nrcrc;
+	unsigned int mtncrc;
 	/* local meta buffer */
 	u8 *local_meta;
 	u32 local_meta_used_size;
 	u32 local_meta_total_size;
+	/* local ud buffer */
+	u8 *local_ud;
+	u32 local_ud_used_size;
+	u32 local_ud_total_size;
 	bool hf_irq;
 	bool dw_have;
 };
@@ -404,7 +433,8 @@ struct di_dev_s {
 	unsigned long clkb_max_rate;
 	unsigned long clkb_min_rate;
 	struct list_head   pq_table_list;
-	atomic_t	       pq_flag;
+	atomic_t	       pq_flag; /* 1: idle; 0: busy */
+	atomic_t	       pq_io; /* 1: idle; 0: busy */
 	unsigned char	   di_event;
 	unsigned int	   pre_irq;
 	unsigned int	   post_irq;
@@ -429,14 +459,15 @@ struct di_dev_s {
 	u8 *local_meta_addr;
 	u32 local_meta_size;
 
+	u8 *local_ud_addr;
+	u32 local_ud_size;
+
 	struct vpu_dev_s *dim_vpu_clk_gate_dev;
 	struct vpu_dev_s *dim_vpu_pd_dec;
 	struct vpu_dev_s *dim_vpu_pd_dec1;
 	struct vpu_dev_s *dim_vpu_pd_vd1;
 	struct vpu_dev_s *dim_vpu_pd_post;
-	unsigned int di_pre_nrcrc[MAX_CRC_COUNT_NUM];
-	unsigned int getcrccount;
-	unsigned int setcrccount;
+	bool is_crc_ic;
 };
 
 struct di_pre_stru_s {
@@ -548,7 +579,7 @@ struct di_pre_stru_s {
 //	bool vdin_source; /* ary 2020-06-12: no*/
 	int cma_release_req;
 	/* for performance debug */
-	unsigned long irq_time[2];
+	u64 irq_time[2];
 	/* combing adaptive */
 	struct combing_status_s *mtn_status;
 	bool combing_fix_en;
@@ -562,6 +593,12 @@ struct di_pre_stru_s {
 	unsigned int		v_size;	//real di v_size
 	struct SHRK_S shrk_cfg;
 	struct dvfm_s dw_wr_dvfm;
+	bool timeout_check;
+	bool used_pps;
+	unsigned int afbc_skip_w;
+	unsigned int afbc_skip_h;
+	unsigned int pps_width;
+	unsigned int pps_height;
 };
 
 struct dim_fmt_s;
@@ -868,4 +905,15 @@ void dpre_vdoing(unsigned int ch);
 //#define TMP_TEST	(1)
 
 //#define TMP_MASK_FOR_T7 (1)
+#define TMP_FOR_S4DW	(1)
+/* dimp_get(edi_mp_mcpre_en) */
+//#define TMP_S4DW_MC_EN	(1)
+//#define DBG_BUFFER_FLOW	(1)
+//#define DBG_CLEAR_MEM	(1)
+#define DBG_BUFFER_EXT	(1)
+#define DBG_VFM_CVS	(1)
+//#define DBG_EXTBUFFER_ONLY_ADDR	(1)
+//#define S4D_OLD_SETTING_KEEP (1)
+//#define S4D_OLD_PQ_KEEP (1)
+
 #endif

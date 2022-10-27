@@ -1300,6 +1300,39 @@ bool is_ddc_idle(unsigned char port_id)
 	return false;
 }
 
+bool is_edid_buff_normal(unsigned char port_id)
+{
+	unsigned int edid_sts_temp;
+	unsigned int edid_addr_sts;
+
+	switch (port_id) {
+	case 0:
+		edid_sts_temp = hdmirx_rd_top(TOP_EDID_GEN_STAT);
+		break;
+	case 1:
+		edid_sts_temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_B);
+		break;
+	case 2:
+		edid_sts_temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_C);
+		break;
+	case 3:
+		edid_sts_temp = hdmirx_rd_top(TOP_EDID_GEN_STAT_D);
+		break;
+	default:
+		edid_sts_temp = 0;
+		break;
+	}
+
+	edid_addr_sts = edid_sts_temp & 0xffff;
+	if (edid_addr_sts > 0x200) {
+		if (log_level & 0x100)
+			rx_pr("edid buff flow\n");
+		return false;
+	}
+
+	return true;
+}
+
 enum edid_ver_e rx_parse_edid_ver(u8 *p_edid)
 {
 	if (edid_tag_extract(p_edid, HF_VENDOR_DB_TAG))
@@ -1328,6 +1361,7 @@ enum edid_ver_e get_edid_selection(u8 port)
 
 void rx_edid_fill_to_register(u_char *pedid1,
 			      u_char *pedid2,
+			      u_int *phyaddr_offset,
 			      u_int *pphy_addr,
 			      u_char *pchecksum)
 {
@@ -1388,6 +1422,21 @@ void rx_edid_fill_to_register(u_char *pedid1,
 			hdmirx_wr_top(tmp_addr + 0x100 + i,
 				      pedid[i]);
 		}
+		/* fill first edid*/
+		hdmirx_wr_top(tmp_addr + phyaddr_offset[0],
+				     (pphy_addr[rx.port] & 0xff));
+		hdmirx_wr_top(tmp_addr + phyaddr_offset[0] + 1,
+				     ((pphy_addr[rx.port] >> 8) & 0xFF));
+		hdmirx_wr_top(tmp_addr + 0xff,
+				     pchecksum[rx.port]);
+		/* fill second edid*/
+		hdmirx_wr_top(tmp_addr + phyaddr_offset[0] + 0x100,
+				     (pphy_addr[rx.port] & 0xff));
+		hdmirx_wr_top(tmp_addr + phyaddr_offset[0] + 0x101,
+				     ((pphy_addr[rx.port] >> 8) & 0xFF));
+		hdmirx_wr_top(tmp_addr + 0xff + 0x100,
+				     pchecksum[rx.port]);
+
 		for (i = 0; i < E_PORT_NUM; i++) {
 			pchecksum[i] = (0x100 + checksum -
 				(pphy_addr[i] & 0xFF) -
@@ -1939,7 +1988,8 @@ bool hdmi_rx_top_edid_update(void)
 		rx_edid_update_vsvdb(pedid_data2,
 				     recv_vsvdb, recv_vsvdb_len);
 	} else if (size == 2 * PORT_NUM * EDID_SIZE) {
-		rx_edid_update_vrr_info(pedid_data2);
+		if (vrr_range_dynamic_update_en)
+			rx_edid_update_vrr_info(pedid_data2);
 		rx_edid_update_hdr_info(pedid_data2);
 		rx_edid_update_sad(pedid_data2);
 		rx_edid_update_vsvdb(pedid_data2,
@@ -1949,8 +1999,8 @@ bool hdmi_rx_top_edid_update(void)
 		rx_edid_update_sad(pedid_data3);
 		rx_edid_update_vsvdb(pedid_data3,
 				     recv_vsvdb, recv_vsvdb_len);
-
-		rx_edid_update_vrr_info(pedid_data4);
+		if (vrr_range_dynamic_update_en)
+			rx_edid_update_vrr_info(pedid_data4);
 		rx_edid_update_hdr_info(pedid_data4);
 		rx_edid_update_sad(pedid_data4);
 		rx_edid_update_vsvdb(pedid_data4,
@@ -1960,8 +2010,8 @@ bool hdmi_rx_top_edid_update(void)
 		rx_edid_update_sad(pedid_data5);
 		rx_edid_update_vsvdb(pedid_data5,
 				     recv_vsvdb, recv_vsvdb_len);
-
-		rx_edid_update_vrr_info(pedid_data6);
+		if (vrr_range_dynamic_update_en)
+			rx_edid_update_vrr_info(pedid_data6);
 		rx_edid_update_hdr_info(pedid_data6);
 		rx_edid_update_sad(pedid_data6);
 		rx_edid_update_vsvdb(pedid_data6,
@@ -2071,7 +2121,7 @@ bool hdmi_rx_top_edid_update(void)
 		}
 		/* write edid to register, and calculate checksum */
 		rx_edid_fill_to_register(pedid_data1, pedid_data2,
-					 phy_addr, checksum);
+					phy_addr_offset, phy_addr, checksum);
 		/* update phy addr and checksum */
 		rx_edid_update_overlay(phy_addr_offset,
 				       phy_addr, checksum);
@@ -2081,7 +2131,7 @@ bool hdmi_rx_top_edid_update(void)
 			phy_addr_offset[i] = phy_addr_off1;
 		/* write edid to register, and calculate checksum */
 		rx_edid_fill_to_register(pedid_data1, pedid_data2,
-					 phy_addr, checksum);
+					phy_addr_offset, phy_addr, checksum);
 		/* update phy addr and checksum */
 		rx_edid_update_overlay(phy_addr_offset,
 				       phy_addr, checksum);
@@ -4026,7 +4076,11 @@ EXPORT_SYMBOL(rx_set_hdr_lumi);
 
 void rx_edid_physical_addr(int a, int b, int c, int d)
 {
-	tx_hpd_event = E_RCV;
+	//tx_hpd_event = E_RCV;
+	//if (edid_from_tx & 2) {
+		//rx_pr("whole edid from tx. no need to update physical addr");
+		//return;
+	//}
 	up_phy_addr = ((d & 0xf) << 12) |
 		   ((c & 0xf) <<  8) |
 		   ((b & 0xf) <<  4) |
@@ -4151,18 +4205,17 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 	if (!edid_data || !audio_block) {
 		ret = false;
 		/* recovery primary EDID loaded from bin */
-		memcpy(edid_buf, edid_bin, sizeof(edid_bin));
+		//memcpy(edid_buf, edid_bin, sizeof(edid_bin));
 	} else {
+		if (aud_compose_type == 0)
+			return false;
 		if (edid_from_tx & 2)
 			edid_from_tx |= 1;
 		if (edid_from_tx & 1)
 			edid_select = 0;
 		memcpy(edid_tx, edid_data, EDID_SIZE);
-		/* not mix audio blk */
-		/* rx_modify_edid(edid_tx, EDID_SIZE, audio_block); */
-		if (aud_compose_type == 0) {
-			return false;
-		} else if (aud_compose_type == 1) {
+
+		if (aud_compose_type == 1) {
 			edid_rm_db_by_tag(edid_tx, AUDIO_TAG);
 			/* place aud data blk to blk index = 0x1 */
 			splice_data_blk_to_edid(edid_tx, audio_block, 0x1);
@@ -4173,13 +4226,13 @@ bool rx_update_tx_edid_with_audio_block(unsigned char *edid_data,
 		edid_size = 2 * PORT_NUM * EDID_SIZE;
 		ret = true;
 	}
-	hdmi_rx_top_edid_update();
-	if (rx.open_fg) {
-		rx_pr("rx_send_hpd_pulse\n");
-		rx_send_hpd_pulse();
-	} else {
-		pre_port = 0xff;
-	}
+	//hdmi_rx_top_edid_update();
+	//if (rx.open_fg) {
+		//rx_pr("rx_send_hpd_pulse\n");
+		//rx_send_hpd_pulse();
+	//} else {
+		//pre_port = 0xff;
+	//}
 	return ret;
 }
 EXPORT_SYMBOL(rx_update_tx_edid_with_audio_block);

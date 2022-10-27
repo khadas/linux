@@ -2150,6 +2150,9 @@ int __init resman_init(void)
 	int result;
 	struct device *resman_dev;
 
+	WARN(1, "NEED TO FIX!!! disable for p1 bringup");
+	return 0;
+
 	result = alloc_chrdev_region(&resman_devno, 0, 1, DEVICE_NAME);
 
 	if (result < 0) {

@@ -1,0 +1,174 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+#include "mesont5w.dtsi"
+#include "mesont5w_pxp-panel.dtsi"
+
+/ {
+	model = "Amlogic T5W PXP";
+	amlogic-dt-id = "t5w_pxp";
+	compatible = "amlogic, t5w";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	aliases {
+		serial0 = &uart_B;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+	};
+
+	memory@00000000 {
+		device_type = "memory";
+		linux,usable-memory = <0x0 0x0 0x0 0x40000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		/* global autoconfigured region for contiguous allocations */
+
+		secmon_reserved: linux,secmon {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x0 0x400000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x05000000 0x0 0x400000>;
+		};
+
+		logo_reserved:linux,meson-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* keep sync with fb */
+			/* fox example:logo_addr = "0x3f800000"*/
+			size = <0x0 0x800000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x3f800000 0x0 0x800000>;
+		};
+
+		codec_mm_cma:linux,codec_mm_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* ion_codec_mm max can alloc size 80M*/
+			size = <0x0 0xd000000>;
+			alignment = <0x0 0x400000>;
+			linux,contiguous-region;
+		};
+
+		/* codec shared reserved */
+		codec_mm_reserved:linux,codec_mm_reserved {
+			compatible = "amlogic, codec-mm-reserved";
+			size = <0x0 0x100000>;
+			alignment = <0x0 0x100000>;
+			//no-map;
+		};
+
+		ion_cma_reserved:linux,ion-dev {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* device/amlogic/xxx/BoardConfig.mk
+			 *        |HWC_PRIMARY_FRAMEBUFFER_WIDTH := 1920
+			 *        |HWC_PRIMARY_FRAMEBUFFER_HEIGHT := 1080
+			 *        |NUM_FRAMEBUFFER_SURFACE_BUFFERS := 3
+			 * size = 1920 * 1080 * 3 * 4
+			 * (RGBA: 4 bytes/pixel) + 4M(10% * afbc)
+			 */
+			size = <0x0 0x00400000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+		};
+
+		ion_fb_reserved:linux,ion-fb {
+			compatible = "shared-dma-pool";
+			reusable;
+			/* 1280x720x4x3 round up 4M align */
+			size = <0x0 0xc00000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0x3f400000>;
+		};
+	};
+
+	codec_mm {
+		compatible = "amlogic, codec, mm";
+		memory-region = <&codec_mm_cma &codec_mm_reserved>;
+		dev_name = "codec_mm";
+		status = "okay";
+	};
+
+	ionvideo {
+		compatible = "amlogic, ionvideo";
+		dev_name = "ionvideo";
+		status = "okay";
+	};
+}; /* end of reserved-memory */
+
+/* SD card */
+&sd_emmc_b {
+	status = "okay";
+	pinctrl-0 = <&sd_all_pins>;
+	pinctrl-1 = <&sd_1bit_pins>;
+	pinctrl-2 = <&sd_clk_gate_pins>;
+	pinctrl-names = "sd_default",
+			"sd_1bit_pins",
+			"clk-gate";
+	bus-width = <4>;
+	cap-sd-highspeed;
+//	sd-uhs-sdr12;
+//	sd-uhs-sdr25;
+//	sd-uhs-sdr50;
+//	sd_uhs-sdr104;
+	max-frequency = <200000000>;
+
+	disable-wp;
+	non-removable;
+//	amlogic,dram-access-quirk;
+
+	cd-gpios = <&gpio GPIOC_10 GPIO_ACTIVE_HIGH>;
+//	dat1-gpios = <&gpio GPIOC_1 GPIO_ACTIVE_HIGH>;
+	//vmmc-supply = <&vddao_3v3>;
+	//vqmmc-supply = <&emmc_1v8>;
+};
+
+&sd_emmc_c {
+	status = "okay";
+	pinctrl-names = "default", "clk-gate";
+	pinctrl-0 = <&emmc_clk_cmd_pins>;
+	pinctrl-1 = <&emmc_conf_pull_up &emmc_conf_pull_done>;
+	pinctrl-2 = <&emmc_pins_sleep>;
+
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	//mmc-ddr-1_8v;
+//	mmc-hs200-1_8v;
+//	mmc-hs400-1_8v;
+	max-frequency = <200000000>;
+	non-removable;
+	disable-wp;
+
+//	mmc-pwrseq = <&emmc_pwrseq>;
+//	vmmc-supply = <&vddao_3v3>;
+//	vqmmc-supply = <&vddao_1v8>;
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_ao_pins1>;
+	status = "disabled";
+};
+
+&fb {
+	status = "okay";
+	display_size_default = <1920 1080 1920 2160 32>;
+	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
+	logo_addr = "0x3f800000";
+	/* display_device_cnt = <2>; */ /* for dual screen upport */
+	mem_alloc = <1>;
+	pxp_mode = <1>; /** 0:normal mode 1:pxp mode */
+};

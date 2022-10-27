@@ -924,6 +924,31 @@ size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 }
 EXPORT_SYMBOL(copy_page_from_iter);
 
+size_t copy_page_from_iter_atomic(struct page *page, unsigned int offset, size_t bytes,
+				  struct iov_iter *i)
+{
+	char *kaddr = kmap_atomic(page), *to = kaddr + offset;
+
+	if (unlikely(!page_copy_sane(page, offset, bytes))) {
+		kunmap_atomic(kaddr);
+		return 0;
+	}
+	if (unlikely(iov_iter_is_pipe(i) || iov_iter_is_discard(i))) {
+		kunmap_atomic(kaddr);
+		WARN_ON(1);
+		return 0;
+	}
+	iterate_and_advance(i, bytes, v,
+			copyin((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len),
+			memcpy_from_page((to += v.bv_len) - v.bv_len, v.bv_page,
+				v.bv_offset, v.bv_len),
+			memcpy((to += v.iov_len) - v.iov_len, v.iov_base, v.iov_len)
+	)
+	kunmap_atomic(kaddr);
+	return bytes;
+}
+EXPORT_SYMBOL(copy_page_from_iter_atomic);
+
 static size_t pipe_zero(size_t bytes, struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;

@@ -20,6 +20,7 @@ struct rdma_op_s {
 #define RDMA_TRIGGER_DEBUG1      0x101
 #define RDMA_TRIGGER_DEBUG2      0x102
 #define RDMA_AUTO_START_MASK     0x80000000
+#define RDMA_TRIGGER_OMIT_LOCK   0x100000
 
 /* rdma write: bit[30] = 0
  * rdma read:  bit[30] = 1
@@ -75,4 +76,7 @@ int rdma_clear(int handle);
 s32 rdma_add_read_reg(int handle, u32 adr);
 
 u32 *rdma_get_read_back_addr(int handle);
+
+int rdma_buffer_unlock(int handle);
+int rdma_buffer_lock(int handle);
 #endif

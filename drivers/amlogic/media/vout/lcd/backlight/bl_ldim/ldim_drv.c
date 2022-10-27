@@ -68,10 +68,12 @@ static struct aml_ldim_driver_s ldim_driver;
 
 static spinlock_t ldim_isr_lock;
 static spinlock_t rdma_ldim_isr_lock;
+static spinlock_t ldim_pwm_vs_isr_lock;
 
 static struct workqueue_struct *ldim_queue;
 static struct work_struct ldim_on_vs_work;
 static struct work_struct ldim_off_vs_work;
+static struct work_struct ldim_err_handle_work;
 
 static int ldim_on_init(void);
 static int ldim_power_on(void);
@@ -166,7 +168,7 @@ static struct aml_ldim_driver_s ldim_driver = {
 	.load_db_en = 1,
 	.db_print_flag = 0,
 
-	.state = 0,
+	.state = LDIM_STATE_LD_EN,
 	.data_min = LD_DATA_MIN,
 	.data_max = LD_DATA_MAX,
 	.brightness_level = 0,
@@ -604,6 +606,20 @@ static void ldim_time_sort_save(unsigned long long *table,
 	}
 }
 
+static void ldim_on_vs_brightness(void);
+static void ldim_off_vs_brightness(void);
+
+atomic_t ldim_inirq_flag = ATOMIC_INIT(0);
+
+int is_in_ldim_vsync_isr(void)
+{
+	if (atomic_read(&ldim_inirq_flag) > 0)
+		return 1;
+	else
+		return 0;
+}
+EXPORT_SYMBOL(is_in_ldim_vsync_isr);
+
 static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 {
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
@@ -612,6 +628,7 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 
 	if (ldim_driver.init_on_flag == 0)
 		return IRQ_HANDLED;
+	atomic_set(&ldim_inirq_flag, 1);
 
 	spin_lock_irqsave(&ldim_isr_lock, flags);
 
@@ -623,23 +640,18 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 		ldim_remap_update();
 	}
 
-	if (ldim_driver.func_en) {
+	if (ldim_driver.func_en && ldim_driver.ld_sel) {
 		local_time[0] = sched_clock();
 		if (ldim_dev.data->vs_arithmetic)
 			ldim_dev.data->vs_arithmetic(&ldim_driver);
 		local_time[1] = sched_clock();
 		local_time[2] = local_time[1] - local_time[0];
 		ldim_time_sort_save(ldim_driver.arithmetic_time, local_time[2]);
-		/*schedule_work(&ldim_on_vs_work);*/
-		queue_work(ldim_queue, &ldim_on_vs_work);
+
 		if (bdrv->data->chip_type != LCD_CHIP_T3 &&
 			bdrv->data->chip_type != LCD_CHIP_T7) {
 			ldim_remap_update();
 		}
-
-	} else {
-		/*schedule_work(&ldim_off_vs_work);*/
-		queue_work(ldim_queue, &ldim_off_vs_work);
 	}
 
 	ldim_driver.irq_cnt++;
@@ -647,14 +659,71 @@ static irqreturn_t ldim_vsync_isr(int irq, void *dev_id)
 		ldim_driver.irq_cnt = 0;
 
 	spin_unlock_irqrestore(&ldim_isr_lock, flags);
+	atomic_set(&ldim_inirq_flag, 0);
 
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t ldim_pwm_vs_isr(int irq, void *dev_id)
+{
+	unsigned long flags;
+
+	if (ldim_driver.init_on_flag == 0)
+		return IRQ_HANDLED;
+
+	if (ldim_driver.pwm_vs_irq_cnt == ldim_driver.irq_cnt)
+		return IRQ_HANDLED;
+
+	ldim_driver.pwm_vs_irq_cnt = ldim_driver.irq_cnt;
+
+	spin_lock_irqsave(&ldim_pwm_vs_isr_lock, flags);
+
+	if (ldim_debug_print == 7)
+		LDIMPR("%s: pwm_vs_irq_cnt = %d\n", __func__, ldim_driver.pwm_vs_irq_cnt);
+
+	if (ldim_driver.func_en && ldim_driver.ld_sel) {
+#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
+		ldim_on_vs_brightness();
+#else
+		/*schedule_work(&ldim_on_vs_work);*/
+		queue_work(ldim_queue, &ldim_on_vs_work);
+#endif
+
+	} else {
+#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
+		ldim_off_vs_brightness();
+#else
+		/*schedule_work(&ldim_off_vs_work);*/
+		queue_work(ldim_queue, &ldim_off_vs_work);
+#endif
+	}
+
+	spin_unlock_irqrestore(&ldim_pwm_vs_isr_lock, flags);
+
+	return IRQ_HANDLED;
+}
+
+static void ldim_dev_err_handler(void)
+{
+	struct ldim_dev_driver_s *dev_drv = ldim_driver.dev_drv;
+	int ret;
+
+	if (ldim_driver.dev_smr_bypass)
+		return;
+
+	if (!dev_drv || !dev_drv->dev_err_handler)
+		return;
+
+	ret = dev_drv->dev_err_handler(&ldim_driver);
+	if (ret) {
+		/*force update for next vsync*/
+		ldim_driver.level_update = 1;
+	}
 }
 
 static void ldim_dev_smr(int update_flag, unsigned int size)
 {
 	struct ldim_dev_driver_s *dev_drv = ldim_driver.dev_drv;
-	int ret;
 
 	if (ldim_driver.dev_smr_bypass)
 		return;
@@ -672,16 +741,16 @@ static void ldim_dev_smr(int update_flag, unsigned int size)
 		memcpy(ldim_driver.bl_matrix_pre, ldim_driver.bl_matrix_cur,
 				(size * sizeof(unsigned int)));
 	} else {
-		if (dev_drv->dev_smr_dummy) {
-			ret = dev_drv->dev_smr_dummy(&ldim_driver);
-			if (ret) {
-				/*force update for next vsync*/
-				memset(ldim_driver.bl_matrix_pre, 0xff,
-				       (size * sizeof(unsigned int)));
-				ldim_driver.level_update = 1;
-			}
-		}
+		if (dev_drv->dev_smr_dummy)
+			dev_drv->dev_smr_dummy(&ldim_driver);
 	}
+
+#ifdef LDIM_SPI_DUTY_VSYNC_DIRECT
+	/*schedule_work(&ldim_err_handle_work);*/
+	queue_work(ldim_queue, &ldim_err_handle_work);
+#else
+	ldim_dev_err_handler();
+#endif
 }
 
 static void ldim_on_vs_brightness(void)
@@ -716,8 +785,12 @@ static void ldim_on_vs_brightness(void)
 			}
 		}
 	}
-	update_flag = memcmp(ldim_driver.bl_matrix_cur, ldim_driver.bl_matrix_pre,
+
+	if (ldim_driver.duty_update_flag & 0x01)
+		update_flag = memcmp(ldim_driver.bl_matrix_cur, ldim_driver.bl_matrix_pre,
 			     (size * sizeof(unsigned int)));
+	else
+		update_flag = 1;
 
 	ldim_dev_smr(update_flag, size);
 
@@ -750,11 +823,14 @@ static void ldim_off_vs_brightness(void)
 		ldim_driver.level_update = 0;
 		update_flag = 1;
 	} else {
-		update_flag = memcmp(ldim_driver.bl_matrix_cur,
+		if (ldim_driver.duty_update_flag & 0x02)
+			update_flag = memcmp(ldim_driver.bl_matrix_cur,
 				ldim_driver.bl_matrix_pre,
 				(size * sizeof(unsigned int)));
+		else
+			update_flag = 1;
 	}
-	if (ldim_debug_print && update_flag) {
+	if (ldim_debug_print == 4 && update_flag) {
 		if (ldim_driver.test_bl_en)
 			LDIMPR("%s: test_matrix update\n", __func__);
 		else
@@ -775,6 +851,11 @@ static void ldim_on_update_brightness(struct work_struct *work)
 static void ldim_off_update_brightness(struct work_struct *work)
 {
 	ldim_off_vs_brightness();
+}
+
+static void ldim_err_handler(struct work_struct *work)
+{
+	ldim_dev_err_handler();
 }
 
 /* ******************************************************
@@ -811,7 +892,6 @@ static int ldim_release(struct inode *inode, struct file *file)
 
 static void aml_ldim_info_update(void)
 {
-	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct fw_ctrl_s *fctrl;
 	int i = 0, j = 0;
 
@@ -851,13 +931,9 @@ static void aml_ldim_info_update(void)
 	ldim_config.remap_en = ldim_info.remapping_en;
 	ldim_config.func_en = ldim_info.func_en;
 
-	//LCD_CHIP_T3/T7 update in vsync isr
-	if (bdrv->data->chip_type != LCD_CHIP_T3 &&
-		bdrv->data->chip_type != LCD_CHIP_T7) {
-		if (ldim_driver.data->func_ctrl)
-			ldim_driver.data->func_ctrl(&ldim_driver,
-			ldim_config.func_en);
-	}
+	if (ldim_driver.data->func_ctrl)
+		ldim_driver.data->func_ctrl(&ldim_driver,
+		ldim_config.func_en);
 }
 
 static void ldim_remap_lut_print(char *buf, int len)
@@ -881,7 +957,6 @@ static void ldim_remap_lut_print(char *buf, int len)
 
 static void aml_ldim_pq_update(void)
 {
-	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct fw_ctrl_s *fctrl;
 	struct ldim_comp_s *comp;
 	int i = 0, j = 0;
@@ -966,13 +1041,16 @@ static void aml_ldim_pq_update(void)
 
 	ldim_config.remap_en = ldim_pq.remapping_en;
 	ldim_config.func_en = ldim_pq.func_en;
+	LDIMPR("%s, func_en = %d, remap_en = %d\n", __func__,
+		ldim_config.func_en, ldim_config.remap_en);
 
-	//LCD_CHIP_T3/T7 update in vsync isr
-	if (bdrv->data->chip_type != LCD_CHIP_T3 &&
-		bdrv->data->chip_type != LCD_CHIP_T7) {
-		if (ldim_driver.data->func_ctrl)
-			ldim_driver.data->func_ctrl(&ldim_driver,
-			ldim_config.func_en);
+	if (ldim_driver.init_on_flag) {
+		ldim_driver.pq_updating = 1;
+		ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, 0, 14, 1); //set comp_en off first
+
+	if (ldim_driver.data->func_ctrl)
+		ldim_driver.data->func_ctrl(&ldim_driver,
+		ldim_config.func_en);
 	}
 }
 
@@ -984,6 +1062,8 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	char *lut_buf;
 	void __user *argp;
 	int mcd_nr;
+	unsigned char *buf;
+	struct aml_ldim_bin_s ldim_buff;
 
 	mcd_nr = _IOC_NR(cmd);
 	LDIMPR("%s: cmd_dir = 0x%x, cmd_nr = 0x%x\n",
@@ -1088,6 +1168,89 @@ static long ldim_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 		}
 		aml_ldim_pq_update();
+		break;
+	case AML_LDIM_IOC_NR_GET_BL_MAPPING_PATH:
+		LDIMPR("get bl_mapping_path is(%s)\n", ldim_driver.dev_drv->bl_mapping_path);
+		if (copy_to_user(argp, ldim_driver.dev_drv->bl_mapping_path,
+				 0xff)) {
+			ret = -EFAULT;
+		}
+		break;
+	case AML_LDIM_IOC_NR_SET_BL_MAPPING:
+		if (copy_from_user(&ldim_buff,
+				   (void __user *)arg,
+				   sizeof(struct aml_ldim_bin_s))) {
+			LDIMERR("cp aml_ldim_bin_s fail\n");
+			return -EFAULT;
+		}
+		argp = (void __user *)ldim_buff.ptr;
+		LDIMPR("index =  0x%x, len=  0x%x\n", ldim_buff.index, ldim_buff.len);
+		if (ldim_buff.len != (2 * ldim_driver.dev_drv->zone_num)) {
+			LDIMERR("bl_mapping_size = %d NOT match with zone_num!!!\n", ldim_buff.len);
+			return -EFAULT;
+		}
+		buf = vmalloc(ldim_buff.len);
+		if (!buf) {
+			LDIMERR("%s vmalloc buf for receive bl mapping failed\n", __func__);
+			vfree(buf);
+			return -EFAULT;
+		}
+		if (copy_from_user((void *)buf, argp,
+				   ldim_buff.len)) {
+			LDIMERR("cp aml_ldim_bin_s to buf fail\n");
+			vfree(buf);
+			return -EFAULT;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+			for (i = 0; i < ldim_buff.len; i++)
+				LDIMPR("buf[%d] =  0x%x\n", i, buf[i]);
+		}
+		memset(ldim_driver.dev_drv->bl_mapping, 0, ldim_buff.len);
+		memcpy(ldim_driver.dev_drv->bl_mapping, buf, ldim_buff.len);
+		LDIMPR("%s : write %d bytes zone_mapping done\n", __func__, ldim_buff.len);
+		vfree(buf);
+		break;
+	case AML_LDIM_IOC_NR_GET_BL_PROFILE_PATH:
+		LDIMPR("get profile_path is(%s)\n",
+			ldim_driver.dev_drv->bl_profile->file_path);
+		if (copy_to_user(argp, ldim_driver.dev_drv->bl_profile->file_path,
+				 0xff)) {
+			ret = -EFAULT;
+		}
+		break;
+	case AML_LDIM_IOC_NR_SET_BL_PROFILE:
+		if (copy_from_user(&ldim_buff,
+				   (void __user *)arg,
+				   sizeof(struct aml_ldim_bin_s))) {
+			LDIMERR("cp aml_ldim_bin_s fail\n");
+			return -EFAULT;
+		}
+		argp = (void __user *)ldim_buff.ptr;
+		LDIMPR("index =  0x%x, len=  0x%x\n", ldim_buff.index, ldim_buff.len);
+		if (ldim_buff.len == 0 || ldim_buff.len > 0xC0000) {
+			LDIMERR("profile bin size = %d is invalid!!\n",
+				ldim_buff.len);
+			return -EFAULT;
+		}
+		buf = vmalloc(ldim_buff.len);
+		if (!buf) {
+			LDIMERR("%s vmalloc buf for receive profile failed\n", __func__);
+			vfree(buf);
+			return -EFAULT;
+		}
+		if (copy_from_user((void *)buf, argp,
+				   ldim_buff.len)) {
+			LDIMERR("cp aml_ldim_bin_s to buf fail\n");
+			vfree(buf);
+			return -EFAULT;
+		}
+		if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL) {
+			for (i = 0; i < 100; i++)  //for check profile begins
+				LDIMPR("profile[%d] =  0x%x\n", i, buf[i]);
+		}
+		ldc_mem_write_profile(buf, ldim_driver.rmem->profile_mem_paddr, ldim_buff.len);
+		LDIMPR("%s : write %d bytes profile done\n", __func__, ldim_buff.len);
+		vfree(buf);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1476,30 +1639,35 @@ ldim_malloc_t7_err0:
 static void ldim_remap_update_t3(struct ld_reg_s *nprm,
 		unsigned int avg_update_en, unsigned int matrix_update_en)
 {
-	unsigned int linecnt;
-
-	if (ldim_debug_print == 9) {
-		linecnt = lcd_vcbus_getb(VPU_VENCP_STAT, 16, 13);
-		LDIMPR("%s linecnt = %d\n", __func__, linecnt);
+	if (ldim_driver.ld_sel == 0) {
+		if (ldim_debug_print == 5)
+			LDIMPR("%s: exit for ld_sel=0\n", __func__);
+		return;
 	}
 
 	if (ldim_config.func_en != ldim_driver.func_en) {
-		if (ldim_debug_print)
+		if (ldim_debug_print == 5)
 			LDIMPR("%s  func_en = %d : %d\n", __func__,
 			ldim_driver.func_en, ldim_config.func_en);
 		if (ldim_driver.data && ldim_driver.data->func_ctrl)
 			ldim_driver.data->func_ctrl(&ldim_driver,
 			ldim_config.func_en);
-		ldim_driver.func_en = ldim_config.func_en;
-	} else if (ldim_config.remap_en != ldim_driver.remap_en) {
-		if (ldim_driver.func_en) {
-			if (ldim_debug_print)
-				LDIMPR("%s  func_en = 1,remap_en = %d : %d\n", __func__,
-				ldim_driver.remap_en, ldim_config.remap_en);
-			ldim_config_update_t7(&ldim_driver);
-			ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
-			ldim_driver.remap_en = ldim_config.remap_en;
+	}
+
+	if (ldim_driver.pq_updating && ldim_driver.init_on_flag) {
+		if (ldim_driver.pq_updating == 1) {
+			ldim_driver.pq_updating++;
+			return;
 		}
+		ldc_min_gain_lut_set();
+		ldc_dither_lut_set();
+		ldc_gain_lut_set_t3();
+		ldim_config_update_t7(&ldim_driver);
+		ldim_hw_remap_en_t7(&ldim_driver, ldim_config.remap_en);
+		ldim_driver.pq_updating = 0;
+		if (ldim_debug_print == 5)
+			LDIMPR("%s  pq_updating = %d\n", __func__,
+			ldim_driver.pq_updating);
 	}
 }
 
@@ -1631,6 +1799,7 @@ int aml_ldim_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	unsigned int ldim_vsync_irq = 0;
+	unsigned int ldim_pwm_vs_irq = 0;
 	struct ldim_dev_s *devp = &ldim_dev;
 	struct aml_bl_drv_s *bdrv = aml_bl_get_driver(0);
 	struct ldim_fw_s *fw = aml_ldim_get_fw();
@@ -1676,6 +1845,11 @@ int aml_ldim_probe(struct platform_device *pdev)
 		return -1;
 
 	ldim_driver.level_update = 0;
+	ldim_driver.duty_update_flag = 0;
+	ldim_driver.switch_ld_cnt = 0;
+	ldim_driver.pq_updating = 0;
+	ldim_driver.ld_sel = 1;
+	ldim_driver.state |= LDIM_STATE_LD_EN;
 
 	if (!fw) {
 		LDIMERR("%s: fw is null\n", __func__);
@@ -1764,9 +1938,11 @@ int aml_ldim_probe(struct platform_device *pdev)
 	}
 	INIT_WORK(&ldim_on_vs_work, ldim_on_update_brightness);
 	INIT_WORK(&ldim_off_vs_work, ldim_off_update_brightness);
+	INIT_WORK(&ldim_err_handle_work, ldim_err_handler);
 
 	spin_lock_init(&ldim_isr_lock);
 	spin_lock_init(&rdma_ldim_isr_lock);
+	spin_lock_init(&ldim_pwm_vs_isr_lock);
 
 	bdrv->res_ldim_vsync_irq = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
 	if (!bdrv->res_ldim_vsync_irq) {
@@ -1778,6 +1954,19 @@ int aml_ldim_probe(struct platform_device *pdev)
 	if (request_irq(ldim_vsync_irq, ldim_vsync_isr, IRQF_SHARED,
 		"ldim_vsync", (void *)"ldim_vsync")) {
 		LDIMERR("can't request ldim_vsync_irq(%d)\n", ldim_vsync_irq);
+	}
+
+	bdrv->res_ldim_pwm_vs_irq = platform_get_resource_byname(pdev,
+		IORESOURCE_IRQ, "ldim_pwm_vs");
+	if (!bdrv->res_ldim_pwm_vs_irq) {
+		ret = -ENODEV;
+		LDIMERR("dim_pwm_vs_irq resource error\n");
+		goto err4;
+	}
+	ldim_pwm_vs_irq = bdrv->res_ldim_pwm_vs_irq->start;
+	if (request_irq(ldim_pwm_vs_irq, ldim_pwm_vs_isr, IRQF_TRIGGER_FALLING,
+		"ldim_pwm_vs", (void *)"ldim_pwm_vs")) {
+		LDIMERR("can't request ldim_pwm_vs_irq(%d)\n", ldim_pwm_vs_irq);
 	}
 
 	ldim_driver.valid_flag = 1;

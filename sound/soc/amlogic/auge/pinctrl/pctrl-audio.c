@@ -17,6 +17,7 @@
 
 #include "../regs.h"
 #include "../audio_io.h"
+#include "../iomap.h"
 
 #define DRV_NAME "pinctrl-audio"
 
@@ -65,7 +66,12 @@ static const struct pinctrl_pin_desc audio_pins[] = {
 	AUDIO_PIN(TDM_LRCLK1),
 	AUDIO_PIN(TDM_LRCLK2),
 	AUDIO_PIN(TDM_LRCLK3),
-	AUDIO_PIN(TDM_LRCLK4)
+	AUDIO_PIN(TDM_LRCLK4),
+	AUDIO_PIN(TDM_MCLK0),
+	AUDIO_PIN(TDM_MCLK1),
+	AUDIO_PIN(TDM_MCLK2),
+	AUDIO_PIN(TDM_MCLK3),
+	AUDIO_PIN(TDM_MCLK4)
 };
 
 struct pin_group {
@@ -122,6 +128,13 @@ static const unsigned int tdm_lrclk2_pins[] = {TDM_LRCLK2};
 static const unsigned int tdm_lrclk3_pins[] = {TDM_LRCLK3};
 static const unsigned int tdm_lrclk4_pins[] = {TDM_LRCLK4};
 
+/* tdm mclk pins */
+static const unsigned int tdm_mclk0_pins[] = {TDM_MCLK0};
+static const unsigned int tdm_mclk1_pins[] = {TDM_MCLK1};
+static const unsigned int tdm_mclk2_pins[] = {TDM_MCLK2};
+static const unsigned int tdm_mclk3_pins[] = {TDM_MCLK3};
+static const unsigned int tdm_mclk4_pins[] = {TDM_MCLK4};
+
 #define GROUP(n)  \
 	{			\
 		.name = #n,	\
@@ -173,7 +186,14 @@ static const struct pin_group audio_pin_groups[] = {
 	GROUP(tdm_lrclk1),
 	GROUP(tdm_lrclk2),
 	GROUP(tdm_lrclk3),
-	GROUP(tdm_lrclk4)
+	GROUP(tdm_lrclk4),
+
+	GROUP(tdm_mclk0),
+	GROUP(tdm_mclk1),
+	GROUP(tdm_mclk2),
+	GROUP(tdm_mclk3),
+	GROUP(tdm_mclk4)
+
 };
 
 static int ap_get_groups_count(struct pinctrl_dev *pctldev)
@@ -221,7 +241,12 @@ static const char * const tdm_clk_groups[] = {
 	"tdm_lrclk1",
 	"tdm_lrclk2",
 	"tdm_lrclk3",
-	"tdm_lrclk4"
+	"tdm_lrclk4",
+	"tdm_mclk0",
+	"tdm_mclk1",
+	"tdm_mclk2",
+	"tdm_mclk3",
+	"tdm_mclk4",
 };
 
 #define FUNCTION(n, g)				\
@@ -289,7 +314,43 @@ static const struct audio_pmx_func audio_functions[] = {
 	FUNCTION(tdm_clk_oute, tdm_clk),
 	FUNCTION(tdm_clk_outf, tdm_clk),
 
-	FUNCTION(tdm_clk_in, tdm_clk)
+	FUNCTION(tdm_clk_in, tdm_clk),
+
+	FUNCTION(tdmind_lane0, tdm),
+	FUNCTION(tdmind_lane1, tdm),
+	FUNCTION(tdmind_lane2, tdm),
+	FUNCTION(tdmind_lane3, tdm),
+	FUNCTION(tdmind_lane4, tdm),
+	FUNCTION(tdmind_lane5, tdm),
+	FUNCTION(tdmind_lane6, tdm),
+	FUNCTION(tdmind_lane7, tdm),
+
+	FUNCTION(tdmoutd_lane0, tdm),
+	FUNCTION(tdmoutd_lane1, tdm),
+	FUNCTION(tdmoutd_lane2, tdm),
+	FUNCTION(tdmoutd_lane3, tdm),
+	FUNCTION(tdmoutd_lane4, tdm),
+	FUNCTION(tdmoutd_lane5, tdm),
+	FUNCTION(tdmoutd_lane6, tdm),
+	FUNCTION(tdmoutd_lane7, tdm),
+
+	FUNCTION(vadtop_tdmin_lane0, tdm),
+	FUNCTION(vadtop_tdmin_lane1, tdm),
+	FUNCTION(vadtop_tdmin_lane2, tdm),
+	FUNCTION(vadtop_tdmin_lane3, tdm),
+	FUNCTION(vadtop_tdmin_lane4, tdm),
+	FUNCTION(vadtop_tdmin_lane5, tdm),
+	FUNCTION(vadtop_tdmin_lane6, tdm),
+	FUNCTION(vadtop_tdmin_lane7, tdm),
+
+	FUNCTION(vadtop_tdm_clk_outa, tdm_clk),
+	FUNCTION(vadtop_tdm_clk_outb, tdm_clk),
+	FUNCTION(vadtop_tdm_clk_outc, tdm_clk),
+	FUNCTION(vadtop_tdm_clk_outd, tdm_clk),
+	FUNCTION(vadtop_tdm_clk_oute, tdm_clk),
+	FUNCTION(vadtop_tdm_clk_outf, tdm_clk),
+	FUNCTION(vadtop_tdm_clk_in, tdm_clk),
+
 };
 
 static int ap_get_functions_count(struct pinctrl_dev *pctldev)
@@ -327,6 +388,17 @@ struct ap_data {
 #define FUNC_TDM_CLK_OUT_LAST      53
 #define FUNC_TDM_CLK_IN_START      54
 #define FUNC_TDM_CLK_IN_LAST       54
+#define FUNC_TDMD_DIN_START        55
+#define FUNC_TDMD_DIN_LAST         62
+#define FUNC_TDMD_DOUT_START       63
+#define FUNC_TDMD_DOUT_LAST        70
+#define FUNC_VADTOP_TDM_DIN_START  71
+#define FUNC_VADTOP_TDM_DIN_LAST   78
+#define FUNC_VADTOP_TDM_CLK_OUT_START     79
+#define FUNC_VADTOP_TDM_CLK_OUT_LAST      84
+#define FUNC_VADTOP_TDM_CLK_IN_START      85
+#define FUNC_VADTOP_TDM_CLK_IN_LAST       85
+
 
 #define GRP_TDM_SCLK_START         32
 
@@ -356,7 +428,7 @@ static int ap_set_mux(struct pinctrl_dev *pctldev,
 		aml_audiobus_update_bits(actrl, addr,
 			0x1f << offset, val << offset);
 		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
-			1 << val, 0);
+			1 << group, 0);
 	} else if (selector <= FUNC_TDM_CLK_IN_LAST) {
 		base = EE_AUDIO_SCLK_PAD_CTRL0;
 		addr = (group - GRP_TDM_SCLK_START) / 5 + base;
@@ -371,11 +443,59 @@ static int ap_set_mux(struct pinctrl_dev *pctldev,
 			val |= 1 << 3;
 		aml_audiobus_update_bits(actrl, addr,
 			0xf << offset, val << offset);
+	} else if (selector < FUNC_TDMD_DIN_LAST) {
+		base = EE_AUDIO_DAT_PAD_CTRLG;
+		addr = base + (selector - FUNC_TDMD_DIN_START) / 4;
+		offset = ((selector - FUNC_TDMD_DIN_START) % 4) * 8;
+		val = group;
+		aml_audiobus_update_bits(actrl, addr,
+					0x1f << offset, val << offset);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
+					1 << val, 1 << val);
+	} else if (selector < FUNC_TDMD_DOUT_LAST) {
+		base = EE_AUDIO_DAT_PAD_CTRL6;
+		addr = group / 4 + base;
+		offset = (group % 4) * 8;
+		val = (selector - FUNC_TDMD_DOUT_START) + 24;
+		aml_audiobus_update_bits(actrl, addr,
+			0x1f << offset, val << offset);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
+			1 << group, 0);
+	} else if (selector <= FUNC_VADTOP_TDM_DIN_LAST) {
+		base = EE_AUDIO2_VAD_DAT_PAD_CTRL0;
+		addr = base + (selector - FUNC_VADTOP_TDM_DIN_START) / 4;
+		offset = ((selector - FUNC_VADTOP_TDM_DIN_START) % 4) * 8;
+		val = group;
+		vad_top_update_bits(addr, 0x1f << offset, val << offset);
+		aml_audiobus_update_bits(actrl, EE_AUDIO_DAT_PAD_CTRLF,
+			1 << val, 1 << val);
+	} else if (selector <= FUNC_VADTOP_TDM_CLK_IN_LAST) {
+		base = EE_AUDIO_SCLK_PAD_CTRL0;
+		addr = (group - GRP_TDM_SCLK_START) / 5 + base;
+		offset = ((group - GRP_TDM_SCLK_START) % 5) * 4;
+		if (selector <= FUNC_VADTOP_TDM_CLK_OUT_LAST)
+			val = selector - FUNC_VADTOP_TDM_CLK_OUT_START;
+		else
+			val = selector - FUNC_VADTOP_TDM_CLK_IN_START;
+		if (selector == FUNC_VADTOP_TDM_CLK_IN_START)
+			val |= 1 << 3;
+		aml_audiobus_update_bits(actrl, addr,
+			0xf << offset, val << offset);
+		if ((group - GRP_TDM_SCLK_START) / 5 == 0)
+			clk_mux_update_bits(EE_REG_MUX_CTRL0, 0x7 << 3,
+					    1 << ((group - GRP_TDM_SCLK_START) % 5 + 3));
+		else if ((group - GRP_TDM_SCLK_START) / 5 == 1)
+			clk_mux_update_bits(EE_REG_MUX_CTRL0, 0x7 << 8,
+					    1 << ((group - GRP_TDM_SCLK_START) % 5 + 8));
+		else if ((group - GRP_TDM_SCLK_START) / 5 == 2)
+			clk_mux_update_bits(EE_REG_MUX_CTRL0, 0x7 << 0,
+					    1 << ((group - GRP_TDM_SCLK_START) % 5));
+
+		vad_top_update_bits(EE_AUDIO2_AUD_VAD_PAD_CTRL0, 1 << 15, 1 << 15);
 	} else {
 		dev_err(ap->dev, "%s() unsupport selector: %d, grp %d\n",
 			__func__, selector, group);
 	}
-
 	pr_debug("%s(), addr %#x, offset %d, val %d\n",
 		__func__, addr, offset, val);
 	return 0;

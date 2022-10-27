@@ -27,6 +27,8 @@ struct {
 	TAG_INFO(V4L2),
 	TAG_INFO(CPUFREQ),
 	TAG_INFO(MSYNC),
+	TAG_INFO(DEMUX),
+	TAG_INFO(MEDIA_SYNC),
 	{ NULL, 0 }
 };
 
@@ -116,7 +118,7 @@ static void __exit debug_module_exit(void)
 }
 
 void meson_atrace(int tag, const char *name, unsigned int flags,
-	 unsigned int value)
+	 unsigned long value)
 {
 	if (get_atrace_tag_enabled(tag))
 		trace_tracing_mark_write(name, flags, value);

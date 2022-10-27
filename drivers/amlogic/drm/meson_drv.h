@@ -23,6 +23,7 @@
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 #include <linux/amlogic/media/vfm/vfm_ext.h>
+#include "meson_logo.h"
 
 #define MESON_MAX_CRTC		3
 #define MESON_MAX_OSD		4
@@ -46,6 +47,13 @@ struct meson_connector {
 
 #define connector_to_meson_connector(x) container_of(x, struct meson_connector, connector)
 
+enum vpu_enc_type {
+	ENCODER_HDMI = 0,
+	ENCODER_LCD,
+	ENCODER_CVBS,
+	ENCODER_MAX
+};
+
 struct meson_drm {
 	struct device *dev;
 
@@ -67,12 +75,16 @@ struct meson_drm {
 	struct drm_atomic_state *state;
 
 	u32 num_crtcs;
+	u32 primary_plane_index[MESON_MAX_CRTC];
 	struct am_meson_crtc *crtcs[MESON_MAX_CRTC];
 	struct meson_drm_thread commit_thread[MESON_MAX_CRTC];
 
 	u32 num_planes;
 	struct am_osd_plane *osd_planes[MESON_MAX_OSD];
 	struct am_video_plane *video_planes[MESON_MAX_VIDEO];
+
+	/*for encoder: 0:hdmi 1:lcd 2:cvbs*/
+	u32 crtc_masks[ENCODER_MAX];
 
 	/*CONFIG_DRM_MESON_EMULATE_FBDEV*/
 	struct meson_drm_fbdev_config ui_config;
@@ -81,6 +93,8 @@ struct meson_drm {
 	struct meson_drm_bound_data bound_data;
 
 	bool compat_mode;
+	bool logo_show_done;
+	u32 osd_occupied_index;
 };
 
 /*component bind functions*/
@@ -99,6 +113,5 @@ void meson_atomic_helper_commit_tail(struct drm_atomic_state *old_state);
 #ifdef CONFIG_DEBUG_FS
 int meson_debugfs_init(struct drm_minor *minor);
 #endif
-int __am_meson_drm_set_config(struct drm_mode_set *set,
-			      struct drm_atomic_state *state);
+
 #endif /* __AM_MESON_DRV_H */

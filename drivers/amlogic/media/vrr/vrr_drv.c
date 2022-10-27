@@ -227,6 +227,18 @@ static void vrr_set_venc_vspin(struct aml_vrr_drv_s *vdrv)
 	vrr_reg_setb(0x1202, 1, 28, 1);//vdin vsync input pulse
 }
 
+static void vrr_set_venc_vspin_t5w(struct aml_vrr_drv_s *vdrv)
+{
+	unsigned int offset = 0;
+
+	offset = vdrv->data->offset[vdrv->index];
+
+	if (vdrv->state & VRR_STATE_ENCL)
+		vrr_reg_setb((VENC_VRR_CTRL + offset), 1, 31, 1);
+	else if (vdrv->state & VRR_STATE_ENCP)
+		vrr_reg_setb((VENP_VRR_CTRL + offset), 1, 31, 1);
+}
+
 static int vrr_timert_start(struct aml_vrr_drv_s *vdrv)
 {
 	vdrv->sw_timer.expires = jiffies + msecs_to_jiffies(vdrv->sw_timer_cnt);
@@ -244,9 +256,11 @@ static void vrr_timer_handler(struct timer_list *timer)
 {
 	struct aml_vrr_drv_s *vdrv = from_timer(vdrv, timer, sw_timer);
 
-	vrr_set_venc_vspin(vdrv);
-	if (vrr_debug_print & VRR_DBG_PR_ISR)
-		VRRPR("[%d]: %s\n", vdrv->index, __func__);
+	if (vdrv->data->sw_vspin) {
+		vdrv->data->sw_vspin(vdrv);
+		if (vrr_debug_print & VRR_DBG_PR_ISR)
+			VRRPR("[%d]: %s\n", vdrv->index, __func__);
+	}
 
 	vrr_timert_start(vdrv);
 }
@@ -301,6 +315,8 @@ int vrr_drv_func_en(struct aml_vrr_drv_s *vdrv, int flag)
 
 static int vrr_test_en(struct aml_vrr_drv_s *vdrv, int flag)
 {
+	unsigned int vsp_mode = 0; //hw
+
 	VRRPR("[%d]: %s, flag=%d\n", vdrv->index, __func__, flag);
 	switch (flag) {
 	case 1: /* lcd hw */
@@ -317,7 +333,12 @@ static int vrr_test_en(struct aml_vrr_drv_s *vdrv, int flag)
 	case 2: /* lcd sw */
 		if (vdrv->state & VRR_STATE_EN)
 			vrr_work_disable(vdrv);
-		vrr_lcd_enable(vdrv, 0);
+
+		if (vdrv->data->chip_type >= VRR_CHIP_T5W)
+			vsp_mode = 1;
+		else
+			vsp_mode = 0;
+		vrr_lcd_enable(vdrv, vsp_mode);
 		if (vdrv->sw_timer_flag == 0) {
 			VRRPR("[%d]: %s: start sw_timer\n",
 			      vdrv->index, __func__);
@@ -339,7 +360,12 @@ static int vrr_test_en(struct aml_vrr_drv_s *vdrv, int flag)
 	case 4: /* hdmi sw */
 		if (vdrv->state & VRR_STATE_EN)
 			vrr_work_disable(vdrv);
-		vrr_hdmi_enable(vdrv, 0);
+
+		if (vdrv->data->chip_type >= VRR_CHIP_T5W)
+			vsp_mode = 1;
+		else
+			vsp_mode = 0;
+		vrr_hdmi_enable(vdrv, vsp_mode);
 		if (vdrv->sw_timer_flag == 0) {
 			VRRPR("[%d]: %s: start sw_timer\n",
 			      vdrv->index, __func__);
@@ -646,12 +672,6 @@ static long vrr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (copy_to_user(argp, &temp, sizeof(unsigned int)))
 			ret = -EFAULT;
 		break;
-	case VRR_IOC_ENABLE:
-		vrr_drv_func_en(vdrv, 1);
-		break;
-	case VRR_IOC_DISABLE:
-		vrr_drv_func_en(vdrv, 0);
-		break;
 	case VRR_IOC_GET_EN:
 		if (copy_to_user(argp, &vdrv->enable, sizeof(unsigned int)))
 			ret = -EFAULT;
@@ -810,6 +830,8 @@ static struct vrr_data_s vrr_data_t7 = {
 	.chip_name = "t7",
 	.drv_max = 3,
 	.offset = {0x0, 0x600, 0x800},
+
+	.sw_vspin = vrr_set_venc_vspin,
 };
 
 static struct vrr_data_s vrr_data_t3 = {
@@ -817,6 +839,17 @@ static struct vrr_data_s vrr_data_t3 = {
 	.chip_name = "t3",
 	.drv_max = 1,
 	.offset = {0x0},
+
+	.sw_vspin = vrr_set_venc_vspin,
+};
+
+static struct vrr_data_s vrr_data_t5w = {
+	.chip_type = VRR_CHIP_T5W,
+	.chip_name = "t5w",
+	.drv_max = 1,
+	.offset = {0x0},
+
+	.sw_vspin = vrr_set_venc_vspin_t5w,
 };
 
 static const struct of_device_id vrr_dt_match_table[] = {
@@ -827,6 +860,10 @@ static const struct of_device_id vrr_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vrr-t3",
 		.data = &vrr_data_t3,
+	},
+	{
+		.compatible = "amlogic, vrr-t5w",
+		.data = &vrr_data_t5w,
 	},
 	{}
 };

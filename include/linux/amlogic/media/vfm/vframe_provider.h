@@ -102,6 +102,14 @@ struct vframe_provider_s {
 	void *traceput;
 } /*vframe_provider_t */;
 
+#define PROVIDER_TABLE_NAME_SIZE 64
+
+struct provider_table_s {
+	char name[PROVIDER_TABLE_NAME_SIZE];
+	struct vframe_provider_s *vframe_provider;
+	bool used;
+} /*vframe_provider_table_t */;
+
 struct vframe_provider_s *vf_provider_alloc(void);
 void vf_provider_init(struct vframe_provider_s *prov,
 		      const char *name,
@@ -120,7 +128,7 @@ void vf_light_reg_provider(struct vframe_provider_s *prov);
 void vf_light_unreg_provider(struct vframe_provider_s *prov);
 void vf_ext_light_unreg_provider(struct vframe_provider_s *prov);
 struct vframe_provider_s *vf_get_provider(const char *name);
-
+void provide_table_init(void);
 struct vframe_s *vf_peek(const char *receiver);
 struct vframe_s *vf_get(const char *receiver);
 int vf_put(struct vframe_s *vf, const char *receiver);

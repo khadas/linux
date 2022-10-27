@@ -351,6 +351,7 @@ static int osd_shutdown_flag;
 
 unsigned int osd_log_level;
 unsigned int osd_log_module = 1;
+unsigned int osd_game_mode[VIU_COUNT];
 
 int int_viu_vsync = -ENXIO;
 int int_viu2_vsync = -ENXIO;
@@ -1182,6 +1183,14 @@ void *aml_map_phyaddr_to_virt(dma_addr_t phys, unsigned long size)
 		return phys_to_virt(phys);
 	vaddr = aml_mm_vmap(phys, size);
 	return vaddr;
+}
+
+void aml_unmap_phyaddr(u8 *vaddr)
+{
+	void *addr = (void *)(PAGE_MASK & (ulong)vaddr);
+
+	if (is_vmalloc_or_module_addr(vaddr))
+		vunmap(addr);
 }
 
 static int malloc_osd_memory(struct fb_info *info)
@@ -3752,6 +3761,120 @@ static ssize_t show_fence_count(struct device *device,
 			fence_cnt, timeline_cnt);
 }
 
+static ssize_t show_game_mode(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, 40, "VIU1:%d VIU2:%d VIU3:%d\n",
+			osd_game_mode[VIU1],
+			osd_game_mode[VIU2],
+			osd_game_mode[VIU3]);
+}
+
+static ssize_t store_game_mode(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	int res = 0;
+	int ret = 0;
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 output_index = get_output_device_id(fb_info->node);
+
+	ret = kstrtoint(buf, 0, &res);
+	osd_log_info("VIU%d game_mode: %d->%d\n", output_index + 1,
+		     osd_game_mode[output_index], res);
+	osd_game_mode[output_index] = res;
+	return count;
+}
+
+static ssize_t show_force_dimm(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+
+	return snprintf(buf, 40, "force_dimm:%d dim_color:%d\n",
+			osd_hw.force_dimm[fb_info->node],
+			osd_hw.dim_color[fb_info->node]);
+}
+
+static ssize_t store_force_dimm(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		osd_hw.force_dimm[fb_info->node] = parsed[0];
+		osd_hw.dim_color[fb_info->node] = parsed[1];
+	} else {
+		osd_log_err("set fix target size error\n");
+	}
+
+	return count;
+}
+
+static ssize_t show_save_frames(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+
+	return snprintf(buf, 40, "force_save_frame:%d save_frame_number:%d\n",
+			osd_hw.force_save_frame,
+			osd_hw.save_frame_number[fb_info->node]);
+}
+
+static ssize_t store_save_frames(struct device *device,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	int parsed[2];
+
+	if (likely(parse_para(buf, 2, parsed) == 2)) {
+		osd_hw.force_save_frame = parsed[0];
+		osd_hw.save_frame_number[fb_info->node] = parsed[1];
+		osd_hw.cur_frame_count = 0;
+	} else {
+		osd_log_err("set fix target size error\n");
+	}
+
+	return count;
+}
+
+static ssize_t show_rdma_recovery_stat(struct device *device,
+				struct device_attribute *attr,
+				char *buf)
+{
+	u32 recovery_count, recovery_not_hit_count;
+	struct fb_info *fb_info = dev_get_drvdata(device);
+	u32 output_index = get_output_device_id(fb_info->node);
+
+	recovery_count = get_rdma_recovery_stat(output_index);
+	recovery_not_hit_count = get_rdma_not_hit_recovery_stat(output_index);
+
+	return snprintf(buf, PAGE_SIZE,
+		"recovery_count:%d recovery_not_hit_count:%d\n",
+		recovery_count, recovery_not_hit_count);
+}
+
+static ssize_t show_file_info(struct device *device,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "fget cnt:%d %d %d %d fput cnt:%d %d %d %d\n",
+			osd_hw.file_info_debug[0].fget_count,
+			osd_hw.file_info_debug[1].fget_count,
+			osd_hw.file_info_debug[2].fget_count,
+			osd_hw.file_info_debug[3].fget_count,
+			osd_hw.file_info_debug[0].fput_count,
+			osd_hw.file_info_debug[1].fput_count,
+			osd_hw.file_info_debug[2].fput_count,
+			osd_hw.file_info_debug[3].fput_count);
+}
+
 static inline  int str2lower(char *str)
 {
 	while (*str != '\0') {
@@ -3998,6 +4121,16 @@ static struct device_attribute osd_attrs[] = {
 	       show_display_dev_cnt, store_display_dev_cnt),
 	__ATTR(fence_count, 0440,
 	       show_fence_count, NULL),
+	__ATTR(game_mode, 0644,
+	       show_game_mode, store_game_mode),
+	__ATTR(force_dim, 0644,
+	       show_force_dimm, store_force_dimm),
+	__ATTR(save_frames, 0644,
+	       show_save_frames, store_save_frames),
+	__ATTR(rdma_recovery_stat, 0440,
+	       show_rdma_recovery_stat, NULL),
+	__ATTR(file_info, 0440,
+	       show_file_info, NULL),
 };
 
 static struct device_attribute osd_attrs_viu2[] = {
@@ -4565,6 +4698,9 @@ static struct osd_device_hw_s legcy_dev_property = {
 	.has_multi_vpp = 0,
 	.new_blend_bypass = 0,
 	.path_ctrl_independ = 0,
+	.remove_afbc = 0,
+	.remove_pps = 0,
+	.prevsync_support = 0,
 };
 
 static struct osd_device_hw_s t7_dev_property = {
@@ -4574,6 +4710,9 @@ static struct osd_device_hw_s t7_dev_property = {
 	.has_multi_vpp = 1,
 	.new_blend_bypass = 1,
 	.path_ctrl_independ = 0,
+	.remove_afbc = 0,
+	.remove_pps = 0,
+	.prevsync_support = 0,
 };
 
 static struct osd_device_hw_s t3_dev_property = {
@@ -4583,6 +4722,21 @@ static struct osd_device_hw_s t3_dev_property = {
 	.has_multi_vpp = 1,
 	.new_blend_bypass = 1,
 	.path_ctrl_independ = 1,
+	.remove_afbc = 0,
+	.remove_pps = 0,
+	.prevsync_support = 1,
+};
+
+static struct osd_device_hw_s t5w_dev_property = {
+	.t7_display = 1,
+	.has_8G_addr = 1,
+	.multi_afbc_core = 1,
+	.has_multi_vpp = 1,
+	.new_blend_bypass = 1,
+	.path_ctrl_independ = 1,
+	.remove_afbc = 3,
+	.remove_pps = 3,
+	.prevsync_support = 0,
 };
 
 static struct osd_device_data_s osd_s4 = {
@@ -4607,6 +4761,25 @@ static struct osd_device_data_s osd_t3 = {
 	.afbc_type = MALI_AFBC,
 	.osd_count = 3,
 	.has_deband = 1,
+	.has_lut = 1,
+	.has_rdma = 1,
+	.has_dolby_vision = 1,
+	.osd_fifo_len = 64, /* fifo len 64*8 = 512 */
+	.vpp_fifo_len = 0xfff,/* 2048 */
+	.dummy_data = 0x00808000,
+	.has_viu2 = 0,
+	.osd0_sc_independ = 0,
+	.mif_linear = 1,
+	.has_vpp1 = 1,
+	.has_vpp2 = 0,
+};
+
+static struct osd_device_data_s osd_t5w = {
+	.cpu_id = __MESON_CPU_MAJOR_ID_T5W,
+	.osd_ver = OSD_HIGH_ONE,
+	.afbc_type = MALI_AFBC,
+	.osd_count = 3,
+	.has_deband = 0,
 	.has_lut = 1,
 	.has_rdma = 1,
 	.has_dolby_vision = 1,
@@ -4703,6 +4876,10 @@ static const struct of_device_id meson_fb_dt_match[] = {
 	{
 		.compatible = "amlogic, fb-t3",
 		.data = &osd_t3,
+	},
+	{
+		.compatible = "amlogic, fb-t5w",
+		.data = &osd_t5w,
 	},
 	{},
 };
@@ -4801,6 +4978,9 @@ static int __init osd_probe(struct platform_device *pdev)
 		       sizeof(struct osd_device_hw_s));
 	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T3)
 		memcpy(&osd_dev_hw, &t3_dev_property,
+		       sizeof(struct osd_device_hw_s));
+	else if (osd_meson_dev.cpu_id == __MESON_CPU_MAJOR_ID_T5W)
+		memcpy(&osd_dev_hw, &t5w_dev_property,
 		       sizeof(struct osd_device_hw_s));
 	else
 		memcpy(&osd_dev_hw, &legcy_dev_property,

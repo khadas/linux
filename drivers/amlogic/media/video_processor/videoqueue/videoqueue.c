@@ -29,6 +29,9 @@
 #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+#include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 
 #include "../../common/vfm/vfm.h"
 #include "videoqueue.h"
@@ -407,11 +410,24 @@ static void do_file_thread(struct video_queue_dev *dev)
 
 	if (vf->width == 0 || vf->height == 0) {
 		vq_print(P_ERROR, "vframe param invalid.\n");
-		vf_get(dev->vf_receiver_name);
-		vf_put(vf, dev->vf_receiver_name);
+		vf = vf_get(dev->vf_receiver_name);
+		if (vf)
+			vf_put(vf, dev->vf_receiver_name);
 		vf = vf_peek(dev->vf_receiver_name);
 		if (!vf)
 			return;
+	}
+
+	if (get_video_mute_val()) {
+		vq_print(P_ERROR, "video_mute_on need drop.\n");
+		while (1) {
+			vf = vf_get(dev->vf_receiver_name);
+			if (vf)
+				vf_put(vf, dev->vf_receiver_name);
+			vf = vf_peek(dev->vf_receiver_name);
+			if (!vf)
+				return;
+		}
 	}
 
 	if (dev->provider_name && !(strcmp(dev->provider_name, "dv_vdin"))) {
@@ -592,6 +608,12 @@ static void do_file_thread(struct video_queue_dev *dev)
 	else
 		dev->need_aisr = false;
 
+	//ATV need static frame
+	if (vf->source_type == VFRAME_SOURCE_TYPE_TUNER)
+		dev->need_keep_frame = true;
+	else
+		dev->need_keep_frame = false;
+
 	vframe_get_delay = (int)div_u64(((jiffies_64 -
 			vf->ready_jiffies64) * 1000), HZ);
 	vframe_get_delay -= vf->duration / 96;
@@ -617,6 +639,7 @@ static void do_file_thread(struct video_queue_dev *dev)
 		private_data->vf.timestamp = ktime_to_us(ktime_get());
 		private_data->vf.disp_pts_us64 = dev->ready_time;
 	}
+	private_data->vf.src_fmt.dv_id = dev->dv_inst;
 
 #ifdef COPY_META_DATA
 	v4lvideo_import_sei_data(vf, &private_data->vf, dev->provider_name);
@@ -976,7 +999,16 @@ static int videoqueue_unreg_provider(struct video_queue_dev *dev)
 	wakeup = 1;
 	wake_up_interruptible(&file_wq);
 
-	videoq_notify_to_amvideo(false);
+	if (!dev->need_keep_frame) {
+		vq_print(P_ERROR, "Other source, no need keep frame.\n");
+		videoq_notify_to_amvideo(false);
+		ret = vt_send_cmd(dev->dev_session, dev->tunnel_id,
+			VT_VIDEO_SET_STATUS, 1);
+		if (ret < 0)
+			vq_print(P_ERROR, "set VT_VIDEO_SET_STATUS err\n");
+	} else {
+		vq_print(P_ERROR, "ATV source need keep frame.\n");
+	}
 
 	if (dev->file_thread)
 		kthread_stop(dev->file_thread);
@@ -1076,10 +1108,16 @@ static int video_receiver_event_fun(int type, void *data,
 	case VFRAME_EVENT_PROVIDER_LIGHT_UNREG:
 		videoqueue_unreg_provider(dev);
 		pr_info("%s unreg end!!\n", dev->vf_receiver_name);
+		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		dv_inst_unmap(dev->dv_inst);
+		#endif
 		break;
 	case VFRAME_EVENT_PROVIDER_REG:
 		videoqueue_reg_provider(dev);
 		pr_info("%s reg end!!\n", dev->vf_receiver_name);
+		#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+		dv_inst_map(&dev->dv_inst);
+		#endif
 		break;
 	case VFRAME_EVENT_PROVIDER_QUREY_STATE:
 		ret = RECEIVER_ACTIVE;

@@ -19,4 +19,23 @@
 #ifndef __DI_DATA_H__
 #define __DI_DATA_H__
 
+/**********************************************************
+ * fifo for uchar
+ *
+ **********************************************************/
+#define UFI64_ALLOC(fifo)	\
+kfifo_alloc(fifo,		\
+	    64,			\
+	    GFP_KERNEL)
+
+#define UFI32_ALLOC(fifo)	\
+kfifo_alloc(fifo,		\
+	    32,			\
+	    GFP_KERNEL)
+
+#define UFI8_ALLOC(fifo)	\
+kfifo_alloc(fifo,		\
+	    8,			\
+	    GFP_KERNEL)
+
 #endif	/*__DI_DATA_H__*/

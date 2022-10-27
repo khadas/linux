@@ -77,6 +77,11 @@ struct usb_host_endpoint {
 	int extralen;
 	int enabled;
 	int streams;
+#ifdef CONFIG_AMLOGIC_USB
+	struct work_struct work;
+	struct xhci_hcd *xhci;
+	struct usb_device *udev;
+#endif
 };
 
 /* host-side wrapper for one interface setting's parsed descriptors */
@@ -1613,6 +1618,12 @@ struct urb {
 	usb_complete_t complete;	/* (in) completion routine */
 #ifdef CONFIG_AMLOGIC_USB
 	int need_event_data;
+	int need_event_data_flag;
+	u8 need_div;
+	void *tmp_buf;
+	dma_addr_t tmp_dma;
+	u64 dst_dma[6];
+	u64 dst_buf[6];
 #endif
 	struct usb_iso_packet_descriptor iso_frame_desc[0];
 					/* (in) ISO ONLY */

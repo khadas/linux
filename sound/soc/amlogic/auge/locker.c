@@ -299,7 +299,7 @@ static int audiolocker_platform_probe(struct platform_device *pdev)
 			  p_audiolocker);
 	if (ret < 0) {
 		dev_err(&pdev->dev,
-			"audio audiolocker irq register fail\n");
+			"audio audiolocker irq register fail, ret: %d\n", ret);
 		return -EINVAL;
 	}
 

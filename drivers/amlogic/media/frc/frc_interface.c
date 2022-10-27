@@ -42,6 +42,8 @@
 #include <linux/amlogic/media/vout/vout_notify.h>
 #include <linux/amlogic/media/frc/frc_reg.h>
 #include <linux/amlogic/media/frc/frc_common.h>
+#include <linux/amlogic/media/registers/cpu_version.h>
+
 #include "frc_drv.h"
 #include "frc_proc.h"
 #include "frc_interface.h"
@@ -53,6 +55,7 @@
  * called in vpp vs ir :vsync_fisr_in
  * defined(CONFIG_AMLOGIC_MEDIA_FRC)
  */
+
 int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 {
 	struct frc_dev_s *devp = get_frc_devp();
@@ -75,7 +78,6 @@ int frc_input_handle(struct vframe_s *vf, struct vpp_frame_par_s *cur_video_sts)
 	/*frc work mode handle*/
 	// frc_state_handle_old(devp);
 	frc_state_handle(devp);
-
 	return 0;
 }
 EXPORT_SYMBOL(frc_input_handle);
@@ -138,7 +140,9 @@ EXPORT_SYMBOL(frc_get_video_latency);
 
 int frc_is_on(void)
 {
+	enum chip_id chip;
 	struct frc_dev_s *devp = get_frc_devp();
+	struct frc_data_s *frc_data;
 
 	if (!devp)
 		return 0;
@@ -146,7 +150,11 @@ int frc_is_on(void)
 	if (!devp->probe_ok)
 		return 0;
 
-	if (devp->frc_sts.state == FRC_STATE_ENABLE)
+	frc_data = (struct frc_data_s *)devp->data;
+	chip = frc_data->match_data->chip;
+
+	if (chip == ID_T3 && is_meson_rev_a() &&
+		READ_FRC_BITS(FRC_TOP_CTRL, 0, 1) == FRC_STATE_ENABLE)
 		return 1;
 
 	return 0;

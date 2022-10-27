@@ -35,6 +35,8 @@ enum {
 	KERNEL_ATRACE_TAG_V4L2,
 	KERNEL_ATRACE_TAG_CPUFREQ,
 	KERNEL_ATRACE_TAG_MSYNC,
+	KERNEL_ATRACE_TAG_DEMUX,
+	KERNEL_ATRACE_TAG_MEDIA_SYNC,
 	KERNEL_ATRACE_TAG_MAX = 64,
 	KERNEL_ATRACE_TAG_ALL
 };
@@ -56,12 +58,12 @@ enum {
 	{ (1UL << KERNEL_ATRACE_ASYNC_END),		"|1|" })
 
 TRACE_EVENT(tracing_mark_write,
-	    TP_PROTO(const char *name, unsigned int flags, unsigned int value),
+	    TP_PROTO(const char *name, unsigned int flags, unsigned long value),
 	    TP_ARGS(name, flags, value),
 
 	TP_STRUCT__entry(__string(name, name)
 			 __field(unsigned int, flags)
-			 __field(unsigned int, value)
+			 __field(unsigned long, value)
 	),
 
 	TP_fast_assign(__assign_str(name, name);
@@ -69,14 +71,14 @@ TRACE_EVENT(tracing_mark_write,
 		       __entry->value = value;
 	),
 
-	TP_printk("%s%s%s|%u", print_flags_header(__entry->flags),
+	TP_printk("%s%s%s|%lu", print_flags_header(__entry->flags),
 		  print_flags_delim(__entry->flags),
 		  __get_str(name), __entry->value)
 );
 
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
 void meson_atrace(int tag, const char *name, unsigned int flags,
-		  unsigned int value);
+		  unsigned long value);
 
 #define ATRACE_COUNTER(name, value) \
 	meson_atrace(KERNEL_ATRACE_TAG, name, \

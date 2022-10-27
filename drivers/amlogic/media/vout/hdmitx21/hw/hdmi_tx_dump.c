@@ -13,6 +13,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include "common.h"
+#include <linux/amlogic/media/vout/hdmi_tx21/hdmi_version.h>
 
 #ifdef DEVICE_NAME
 #undef DEVICE_NAME
@@ -183,9 +184,29 @@ static int dump_hdmivpfdet_show(struct seq_file *s, void *p)
 
 	reg = VP_FDET_FRAME_RATE_IVCTX;
 	val = CONNECT3REG(reg);
-	if (val)
-		seq_printf(s, "frame_rate [%x] 0x%x 200000000/%d Hz\n",
-			reg, val, val);
+	if (val) {
+		u32 integer;
+		u32 i;
+		u32 reminder;
+		u32 quotient;
+		u32 result = 0;
+
+		/* due to the vframe rate are always with decimals,
+		 * manually calculate the decimal parts
+		 */
+		val--;
+		integer = 200000000 / val;
+		reminder = 200000000 - integer * val;
+		for (i = 0, result = 0; i < 3; i++) {
+			reminder = reminder * 10;
+			result = result * 10;
+			quotient = reminder / val;
+			reminder = reminder - quotient * val;
+			result += quotient;
+		}
+		seq_printf(s, "frame_rate [%x] 0x%x %d %d.%03d Hz\n",
+			reg, val, val, integer, result);
+	}
 
 	reg = VP_FDET_PIXEL_COUNT_IVCTX;
 	val = CONNECT2REG(reg);
@@ -484,6 +505,27 @@ static const struct file_operations dump_hdmipkt_fops = {
 	.release	= single_release,
 };
 
+static int dump_hdmiver_show(struct seq_file *s, void *p)
+{
+	const char *hdmi_ver = HDMITX21_VERSIONS_LOG;
+
+	seq_puts(s, "\n--------HDMITX version log--------\n");
+	seq_printf(s, "%s", hdmi_ver);
+
+	return 0;
+}
+
+static int dump_hdmiver_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_hdmiver_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmiver_fops = {
+	.open		= dump_hdmiver_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
 static inline unsigned int get_msr_cts(void)
 {
 	unsigned int ret = 0;
@@ -543,6 +585,22 @@ static const struct file_operations dump_audcts_fops = {
 	.release	= single_release,
 };
 
+static int dump_hdmivrr_show(struct seq_file *s, void *p)
+{
+	return hdmitx_dump_vrr_status(s, p);
+}
+
+static int dump_hdmivrr_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_hdmivrr_show, inode->i_private);
+}
+
+static const struct file_operations dump_hdmivrr_fops = {
+	.open		= dump_hdmivrr_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
 struct hdmitx_dbg_files_s {
 	const char *name;
 	const umode_t mode;
@@ -554,7 +612,9 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 	{"hdmi_reg", S_IFREG | 0444, &dump_hdmireg_fops},
 	{"hdmi_vpfdet", S_IFREG | 0444, &dump_hdmivpfdet_fops},
 	{"hdmi_pkt", S_IFREG | 0444, &dump_hdmipkt_fops},
+	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops},
 	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
+	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops},
 };
 
 static struct dentry *hdmitx_dbgfs;

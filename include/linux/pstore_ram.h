@@ -131,6 +131,9 @@ struct ramoops_platform_data {
 	unsigned int	mem_type;
 	unsigned long	record_size;
 	unsigned long	console_size;
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned long	bconsole_size;
+#endif
 	unsigned long	ftrace_size;
 	unsigned long	pmsg_size;
 	int		dump_oops;

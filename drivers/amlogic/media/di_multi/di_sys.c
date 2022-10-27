@@ -266,6 +266,47 @@ bool dim_mm_release(int cma_mode,
 	return ret;
 }
 
+bool cma_alloc_blk_block(struct dim_mm_blk_s *blk_buf,
+		      unsigned int cma_type,
+		      unsigned int tvp,
+		      unsigned int size_page)
+{
+	bool aret;
+	struct dim_mm_s omm;
+
+	aret = dim_mm_alloc_api(cma_type,
+				size_page,
+				&omm, 0); //ary tmp tvp set 0
+	if (!aret) {
+		blk_buf->pages		= NULL;
+		blk_buf->flg_alloc	= false;
+		PR_ERR("%s:fail.\n",	__func__);
+		return false;
+	}
+	blk_buf->pages	= omm.ppage;
+	blk_buf->mem_start	= omm.addr;
+	blk_buf->flg.b.page	= size_page;
+	blk_buf->flg_alloc	= true;
+	return true;
+}
+
+void cma_release_blk_block(struct dim_mm_blk_s *blk_buf,
+				  unsigned int cma_type)
+{
+	if (!blk_buf->pages) {
+		PR_WARN("%s:no pages\n", __func__);
+		return;
+	}
+
+	dim_mm_release_api(cma_type,
+			   blk_buf->pages,
+			   blk_buf->flg.b.page,
+			   blk_buf->mem_start);
+	blk_buf->pages = NULL;
+	blk_buf->flg.d32 = 0;
+	blk_buf->flg_alloc = false;
+}
+
 unsigned int dim_cma_alloc_total(struct di_dev_s *de_devp)
 {
 	struct dim_mm_t_s *mmt = dim_mmt_get();
@@ -462,6 +503,7 @@ static const struct qbuf_creat_s qbf_blk_cfg_qbuf = {
 	.nub_que	= QBF_BLK_Q_NUB,
 	.nub_buf	= DIM_BLK_NUB,
 	.code		= CODE_BLK,
+	.que_id		= EBUF_QUE_ID_BLK
 };
 
 void bufq_blk_int(struct di_ch_s *pch)
@@ -538,6 +580,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 	struct div2_mm_s *mm;
 	unsigned int size_p;
 	enum EDI_TOP_STATE chst;
+	u64 timer_st, timer_end, diff; //debug only
 
 	//struct di_dev_s *de_devp = get_dim_de_devp();
 
@@ -603,23 +646,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				break;
 			blk_buf = (struct dim_mm_blk_s *)pbufq->pbuf[index].qbc;
 			/* hf */
-			if (blk_buf->flg_hf) {
-				//ret = dim_mm_release(EDI_MEM_M_CMA,
-				ret = dim_mm_release(cfgg(MEM_FLAG),
-					blk_buf->hf_buff.pages,
-					blk_buf->hf_buff.cnt,
-					blk_buf->hf_buff.mem_start);
-				if (ret) {
-					fcmd->sum_hf_psize -= blk_buf->hf_buff.cnt;
-					memset(&blk_buf->hf_buff, 0, sizeof(blk_buf->hf_buff));
-					blk_buf->flg_hf = 0;
-					fcmd->sum_hf_alloc--;
-					dbg_mem2("release:hf:%d\n", blk_buf->header.index);
-				} else {
-					PR_ERR("%s:fail.release hf [%d] 0x%x:\n", __func__,
-					       index, fcmd->sum_hf_psize);
-				}
-			}
+			dim_mng_hf_release_all(pch, blk_buf);
 
 			/* hf end */
 			ret = dim_mm_release(cfgg(MEM_FLAG),
@@ -700,23 +727,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				break;
 			blk_buf = (struct dim_mm_blk_s *)pbufq->pbuf[index].qbc;
 			/* hf */
-			if (blk_buf->flg_hf) {
-				//ret = dim_mm_release(EDI_MEM_M_CMA,
-				ret = dim_mm_release(cfgg(MEM_FLAG),
-					blk_buf->hf_buff.pages,
-					blk_buf->hf_buff.cnt,
-					blk_buf->hf_buff.mem_start);
-				if (ret) {
-					fcmd->sum_hf_psize -= blk_buf->hf_buff.cnt;
-					memset(&blk_buf->hf_buff, 0, sizeof(blk_buf->hf_buff));
-					blk_buf->flg_hf = 0;
-					dbg_mem2("release:hf:%d\n", blk_buf->header.index);
-					fcmd->sum_hf_alloc--;
-				} else {
-					PR_ERR("%s:fail.release hf [%d]\n", __func__,
-					       index);
-				}
-			}
+			dim_mng_hf_release(pch, blk_buf);
 			/* hf end */
 
 			ret = dim_mm_release(cfgg(MEM_FLAG),
@@ -764,6 +775,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 	case ECMD_BLK_ALLOC:
 		/* alloc */
 		chst = dip_chst_get(ch);
+		dbg_timer(ch, EDBG_TIMER_MEM_1);
 		dbg_mem2("%s:ch[%d] alloc:nub[%d],size[0x%x],top_sts[%d],block[%d]\n",
 			 __func__, ch, cmd->nub, size_p, chst, cmd->block_mode);
 		cnt = 0;
@@ -779,10 +791,14 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 
 			/*alloc*/
 			omm.flg = 0;
+			timer_st = cur_to_msecs();//dbg
 			aret = dim_mm_alloc(cfgg(MEM_FLAG),
 					    size_p,
 					    &omm,
 					    cmd->flg.b.tvp);
+			timer_end = cur_to_msecs();//dbg
+			diff = timer_end - timer_st;
+			dbg_mem2("a:a%d:%ums\n", i, (unsigned int)diff);
 			if (!aret) {
 				PR_ERR("2:%s: alloc failed %d fail.\n",
 				       __func__,
@@ -813,30 +829,7 @@ void blk_polling(unsigned int ch, struct mtsk_cmd_s *cmd)
 				 blk_buf->mem_start, size_p);
 			/*alloc hf */
 			if (cmd->hf_need && !blk_buf->flg_hf) {
-				memset(&omm, 0, sizeof(omm));
-				//aret = dim_mm_alloc(EDI_MEM_M_CMA,
-				aret = dim_mm_alloc(cfgg(MEM_FLAG),
-						    mm->cfg.size_buf_hf >> PAGE_SHIFT,
-						    &omm,
-						    0);
-				if (!aret) {
-					PR_ERR("2:%s: alloc hf failed %d fail.0x%x;%d\n",
-					       __func__,
-						blk_buf->header.index,
-						fcmd->sum_hf_psize,
-						fcmd->sum_hf_alloc);
-					blk_buf->flg_hf = 0;
-				} else {
-					blk_buf->flg_hf = 1;
-					blk_buf->hf_buff.mem_start = omm.addr;
-					blk_buf->hf_buff.cnt = mm->cfg.size_buf_hf >> PAGE_SHIFT;
-					blk_buf->hf_buff.pages = omm.ppage;
-					fcmd->sum_hf_psize += blk_buf->hf_buff.cnt;
-					fcmd->sum_hf_alloc++;
-					dbg_mem2("alloc:hf:%d:0x%x\n",
-						 blk_buf->header.index, fcmd->sum_hf_psize);
-				}
-
+				dim_mng_hf_alloc(pch, blk_buf, mm->cfg.size_buf_hf);
 			} else if (cmd->hf_need && blk_buf->flg_hf) {
 				PR_ERR("%s:have hf?%d\n", __func__, blk_buf->header.index);
 			} else {
@@ -890,6 +883,7 @@ static const struct qbuf_creat_s qbf_mem_cfg_qbuf = {
 	.nub_que	= QBF_MEM_Q_NUB,
 	.nub_buf	= 0,
 	.code		= 0,
+	.que_id		= EBUF_QUE_ID_MEM,
 };
 
 bool di_pst_afbct_check(struct di_ch_s *pch)
@@ -1108,6 +1102,7 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	//for cma:
 	struct dim_mm_s omm;
 	bool ret;
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	idat = get_idat(pch);
 
@@ -1136,11 +1131,20 @@ void pre_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 		dbg_reg("%s:no size\n", __func__);
 		return;
 	}
+	dbg_timer(pch->ch_id, EDBG_TIMER_SEC_PRE_B);
 	ret = mm_cma_alloc(NULL, idat_size, &omm);
-
+	dbg_timer(pch->ch_id, EDBG_TIMER_SEC_PRE_E);
+	idat->flg_from = 1;
 	if (!ret) {
-		PR_ERR("%s:cma\n", __func__);
-		return;
+		PR_WARN("%s:try:cma di:\n", __func__);
+		//use cam: buffer:
+		idat->flg_from = 2;
+		ret = mm_cma_alloc(&de_devp->pdev->dev, idat_size, &omm);
+		if (!ret) {
+			PR_ERR("%s:cma\n", __func__);
+			idat->flg_from = 0;
+			return;
+		}
 	}
 	idat->addr_st	= omm.addr;
 	//idat->ppage	= omm.ppage;
@@ -1164,6 +1168,7 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 	//for cma:
 	struct dim_mm_s omm;
 	bool ret;
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	pdat = get_pst_afbct(pch);
 
@@ -1195,11 +1200,20 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 		       pdat->flg_alloc, flg);
 		return;
 	}
+	dbg_timer(pch->ch_id, EDBG_TIMER_SEC_PST_B);
 	ret = mm_cma_alloc(NULL, dat_size, &omm);
-
+	dbg_timer(pch->ch_id, EDBG_TIMER_SEC_PST_E);
+	pdat->flg_from = 1;
 	if (!ret) {
-		PR_ERR("%s:cma\n", __func__);
-		return;
+		PR_WARN("%s:try:cma di:\n", __func__);
+		//use cam: buffer:
+		pdat->flg_from = 2;
+		ret = mm_cma_alloc(&de_devp->pdev->dev, dat_size, &omm);
+		if (!ret) {
+			PR_ERR("%s:cma\n", __func__);
+			pdat->flg_from = 0;
+			return;
+		}
 	}
 	pdat->addr_st	= omm.addr;
 	//pdat->ppage	= omm.ppage;
@@ -1219,15 +1233,21 @@ void pst_sec_alloc(struct di_ch_s *pch, unsigned int flg)
 void dim_sec_release(struct di_ch_s *pch)
 {
 	struct di_dat_s *dat;
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	dat = get_idat(pch);
 	if (dat->flg_alloc) {
 #ifdef USE_KALLOC
 		kfree(dat->virt);
 #else
-		dma_release_from_contiguous(NULL,
-					    (struct page *)dat->virt,
-					    dat->cnt);
+		if (dat->flg_from == 2)
+			dma_release_from_contiguous(&de_devp->pdev->dev,
+						    (struct page *)dat->virt,
+						    dat->cnt);
+		else
+			dma_release_from_contiguous(NULL,
+						    (struct page *)dat->virt,
+						    dat->cnt);
 #endif
 
 		dat->virt = NULL;
@@ -1239,7 +1259,12 @@ void dim_sec_release(struct di_ch_s *pch)
 #ifdef USE_KALLOC
 		kfree(dat->virt);
 #else
-		dma_release_from_contiguous(NULL,
+		if (dat->flg_from == 2)
+			dma_release_from_contiguous(&de_devp->pdev->dev,
+						    (struct page *)dat->virt,
+						    dat->cnt);
+		else
+			dma_release_from_contiguous(NULL,
 					    (struct page *)dat->virt,
 					    dat->cnt);
 #endif
@@ -1371,7 +1396,7 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 			buf_p->afbc_adr	= buf_p->adr_start;
 			buf_p->afbct_adr = 0;
 			buf_p->blk_buf->pat_buf = NULL;
-		} else if (mm->cfg.dat_pafbct_flg.b.page) {
+		} else if (/*mm->cfg.dat_pafbct_flg.b.page*/!mm->cfg.dis_afbce) {
 			pat_buf = qpat_out_ready(pch);
 			if (pat_buf) {
 				addr_afbct = pat_buf->mem_start;
@@ -1391,12 +1416,17 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 
 		if (mm->cfg.size_buf_hf) {
 			if (buf_p->blk_buf->flg_hf) {
-				buf_p->hf_adr = buf_p->blk_buf->hf_buff.mem_start;
-				di_hf_set_buffer(buf_p, mm);
+				if (buf_p->blk_buf->hf_buff) {
+					buf_p->hf_adr = buf_p->blk_buf->hf_buff->mem_start;
+					di_hf_set_buffer(buf_p, mm);
+				} else {
+					PR_WARN("%s:%d\n", __func__, buf_p->blk_buf->header.index);
+				}
 			} else {
-				PR_ERR("%s:size:[%d]:flg[%d]\n",
-				       __func__,
-				       mm->cfg.size_buf_hf, buf_p->blk_buf->flg_hf);
+				if (!mm->cfg.is_4k)
+					PR_ERR("%s:size:[%d]:flg[%d]\n",
+					       __func__,
+					       mm->cfg.size_buf_hf, buf_p->blk_buf->flg_hf);
 				buf_p->hf_adr = 0;
 			}
 		} else {
@@ -1438,6 +1468,16 @@ static void dim_buf_set_addr(unsigned int ch, struct di_buf_s *buf_p)
 		buf_p->canvas_width[NR_CANVAS]	= mm->cfg.pst_cvs_w;
 		buf_p->canvas_height	= mm->cfg.pst_cvs_h;
 		buf_p->insert_adr	= 0;
+		#ifdef DBG_CLEAR_MEM
+		afbce_map.tabadd	= buf_p->adr_start;
+		afbce_map.size_tab	= mm->cfg.size_post;
+		dim_int_tab(&devp->pdev->dev,
+							    &afbce_map);
+		PR_INF("%s:addr:0x%lx, canvas_height[%d]\n",
+			__func__,
+			buf_p->nr_adr,
+			buf_p->canvas_height);
+		#endif
 	}
 
 	dbg_mem2("%s:%px,btype[%d]:index[%d]:i[%d]:nr[0x%lx]:hf:[0x%lx]\n", __func__,
@@ -1752,7 +1792,7 @@ bool mem_cfg_2pst(struct di_ch_s *pch)
 	return true;
 }
 
-void di_buf_no2wait(struct di_ch_s *pch)
+void di_buf_no2wait(struct di_ch_s *pch, unsigned int post_nub)
 {
 	unsigned int len, ch;
 	int i;
@@ -1762,8 +1802,8 @@ void di_buf_no2wait(struct di_ch_s *pch)
 	len = di_que_list_count(ch, QUE_PST_NO_BUF);
 	if (!len)
 		return;
-	if (len > 11)
-		len = 11;
+	if (len > post_nub)
+		len = post_nub;
 	for (i = 0; i < len; i++) {
 		di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
 		di_que_in(ch, QUE_PST_NO_BUF_WAIT, di_buf);
@@ -2623,6 +2663,7 @@ static const struct qbuf_creat_s qbf_pat_cfg_qbuf = {
 	.nub_que	= QBF_PAT_Q_NUB,
 	.nub_buf	= DIM_PAT_NUB,
 	.code		= CODE_PAT,
+	.que_id		= EBUF_QUE_ID_PAT,
 };
 
 void bufq_pat_int(struct di_ch_s *pch)
@@ -2859,6 +2900,7 @@ static const struct qbuf_creat_s qbf_iat_cfg_qbuf = {
 	.nub_que	= QBF_IAT_Q_NUB,
 	.nub_buf	= DIM_IAT_NUB,
 	.code		= CODE_IAT,
+	.que_id		= EBUF_QUE_ID_IAT,
 };
 
 void bufq_iat_int(struct di_ch_s *pch)
@@ -3124,7 +3166,8 @@ static const struct qbuf_creat_s qbf_sct_cfg_qbuf = {
 	.name	= "qbuf_sct",
 	.nub_que	= QBF_SCT_Q_NUB,
 	.nub_buf	= DIM_SCT_NUB,
-	.code		= CODE_SCT
+	.code		= CODE_SCT,
+	.que_id		= EBUF_QUE_ID_SCT
 };
 
 void bufq_sct_int(struct di_ch_s *pch)
@@ -3166,7 +3209,7 @@ void bufq_sct_int(struct di_ch_s *pch)
 	qbuf_int(pbufq, &qbf_sct_cfg_q[0], &qbf_sct_cfg_qbuf);
 
 	post_nub = cfgg(POST_NUB);
-	if ((post_nub) && post_nub < POST_BUF_NUM)
+	if ((post_nub) && post_nub <= POST_BUF_NUM)
 		sct_nub = post_nub;
 	else
 		sct_nub = DIM_SCT_NUB;
@@ -3823,7 +3866,8 @@ static int dim_probe(struct platform_device *pdev)
 	/* mutex_init(&di_devp->cma_mutex); */
 	INIT_LIST_HEAD(&di_devp->pq_table_list);
 
-	atomic_set(&di_devp->pq_flag, 0);
+	atomic_set(&di_devp->pq_flag, 1); /* idle */
+	atomic_set(&di_devp->pq_io, 1); /* idle */
 
 	di_devp->pre_irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
 	PR_INF("pre_irq:%d\n", di_devp->pre_irq);
@@ -3872,10 +3916,20 @@ static int dim_probe(struct platform_device *pdev)
 			LOCAL_META_BUFF_SIZE * DI_CHANNEL_NUB *
 			(MAX_IN_BUF_NUM + MAX_POST_BUF_NUM +
 			(MAX_LOCAL_BUF_NUM * 2)) * sizeof(u8);
-		di_pdev->local_meta_addr = vmalloc(di_pdev->local_meta_size);
-		if (!di_pdev->local_meta_addr) {
-			pr_info("DI: allocate local meta buffer fail\n");
-			di_pdev->local_meta_size = 0;
+	di_pdev->local_meta_addr = vmalloc(di_pdev->local_meta_size);
+	if (!di_pdev->local_meta_addr) {
+		PR_INF("alloc local meta buffer fail\n");
+		di_pdev->local_meta_size = 0;
+	}
+
+	di_pdev->local_ud_size =
+			LOCAL_UD_BUFF_SIZE * DI_CHANNEL_NUB *
+			(MAX_IN_BUF_NUM + MAX_POST_BUF_NUM +
+			(MAX_LOCAL_BUF_NUM * 2)) * sizeof(u8);
+	di_pdev->local_ud_addr = vmalloc(di_pdev->local_ud_size);
+	if (!di_pdev->local_ud_addr) {
+		PR_INF("alloc local ud buffer fail\n");
+		di_pdev->local_ud_addr = 0;
 	}
 
 	device_create_file(di_devp->dev, &dev_attr_config);
@@ -3891,7 +3945,8 @@ static int dim_probe(struct platform_device *pdev)
 	//set ic version need before PQ init
 	dil_set_diffver_flag(1);
 	dil_set_cpuver_flag(get_datal()->mdata->ic_id);
-
+	if (DIM_IS_IC(SC2) || DIM_IS_IC(S4))
+		di_devp->is_crc_ic = true;
 	dip_init_pq_ops();
 
 	if (dim_get_canvas()) {
@@ -3935,6 +3990,7 @@ static int dim_probe(struct platform_device *pdev)
 	dim_dw_prob();
 	dip_prob_ch();
 	dim_hdr_prob();
+	dim_mng_hf_prob();
 
 	task_start();
 	mtask_start();
@@ -4039,6 +4095,8 @@ static int dim_remove(struct platform_device *pdev)
 	di_devp->data_l = NULL;
 	vfree(di_pdev->local_meta_addr);
 	di_pdev->local_meta_addr = NULL;
+	vfree(di_pdev->local_ud_addr);
+	di_pdev->local_ud_addr = NULL;
 	kfree(di_pdev);
 	di_pdev = NULL;
 	PR_INF("%s:finish\n", __func__);

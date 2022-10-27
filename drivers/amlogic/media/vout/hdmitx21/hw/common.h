@@ -64,6 +64,7 @@ void init_reg_map(u32 type);
 u32 hdmitx21_rd_reg(u32 addr);
 /* sequence read registers */
 void hdmitx21_seq_rd_reg(u16 offset, u8 *buf, u16 cnt);
+void hdmitx21_fifo_read(u16 offset, u8 *buf, u16 cnt);
 void hdmitx21_wr_reg(u32 addr, u32 val);
 void hdmitx21_poll_reg(u32 addr, u8 exp_data, u8 mask, ulong timeout);
 /* set the value in length from offset */

@@ -145,6 +145,12 @@ enum audio_coding_types {
 
 	/* Pause */
 	AUDIO_CODING_TYPE_PAUSE              = 16,
+	AUDIO_CODING_TYPE_EAC3_LAYOUT_B      = 17,
+	AUDIO_CODING_TYPE_MLP_LAYOUT_B       = 18,
+	AUDIO_CODING_TYPE_DTS_LAYOUT_B       = 19,
+	AUDIO_CODING_TYPE_DTS_HD_LAYOUT_B    = 20,
+	AUDIO_CODING_TYPE_DTS_HD_MA_LAYOUT_B = 21,
+
 };
 
 static const char * const audio_coding_type_names[] = {
@@ -163,9 +169,50 @@ static const char * const audio_coding_type_names[] = {
 	/* 12 */ "DTS-HD",
 	/* 13 */ "DTS-HD MA",
 	/* 14 */ "DSD (One Bit Audio 6CH)",
-	/* 16 */ "DSD (One Bit Audio 12CH)",
+	/* 15 */ "DSD (One Bit Audio 12CH)",
 	/* 16 */ "PAUSE",
+	/* 17 */ "E-AC-3/DD+ (Dolby Digital Plus Layout B)",
+	/* 18 */ "MLP (Dolby TrueHD Layout B)",
+	/* 19 */ "DTS Layout B",
+	/* 20 */ "DTS-HD Layout B",
+	/* 21 */ "DTS-HD MA Layout B",
 };
+
+/* spdif in audio format detect: LPCM or NONE-LPCM */
+struct spdif_audio_info {
+	unsigned char aud_type;
+	/*IEC61937 package presamble Pc value*/
+	short pc;
+	char *aud_type_str;
+};
+
+static const struct spdif_audio_info type_texts[] = {
+	{0, 0, "LPCM"},
+	{1, 0x1, "AC3"},
+	{2, 0x15, "EAC3"},
+	{3, 0xb, "DTS-I"},
+	{3, 0x0c, "DTS-II"},
+	{3, 0x0d, "DTS-III"},
+	{3, 0x11, "DTS-IV"},
+	{4, 0, "DTS-HD"},
+	{5, 0x16, "TRUEHD"},
+	{6, 0x103, "PAUSE"},
+	{6, 0x003, "PAUSE"},
+	{6, 0x100, "PAUSE"},
+};
+
+static const char *const audio_type_texts[] = {
+	"LPCM",
+	"AC3",
+	"EAC3",
+	"DTS",
+	"DTS-HD",
+	"TRUEHD",
+	"PAUSE"
+};
+
+extern const struct spdif_audio_info type_texts[];
+extern const char *const audio_type_texts[];
 
 extern const struct soc_enum audio_coding_type_enum;
 
@@ -196,7 +243,7 @@ enum aud_codec_types {
 };
 
 static const char * const aud_codec_type_names[] = {
-	/* 0 */"2 CH PCM",
+	/* 0 */"Stereo PCM",
 	/* 1 */"DTS RAW Mode",
 	/* 2 */"Dolby Digital",
 	/* 3 */"DTS",
@@ -223,9 +270,11 @@ bool raw_is_4x_clk(enum aud_codec_types codec_type);
 
 unsigned int mpll2sys_clk_ratio_by_type(enum aud_codec_types codec_type);
 unsigned int mpll2dmac_clk_ratio_by_type(enum audio_coding_types coding_type);
+/* l_bit is to set the consumer copyright if copying allowed */
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 				 enum aud_codec_types codec_type,
-				 unsigned int rate);
+				 unsigned int rate,
+				 unsigned int l_bit);
 
 void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 			    enum aud_codec_types codec_type);

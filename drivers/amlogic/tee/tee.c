@@ -60,6 +60,14 @@ static int disable_flag;
 #define TEE_SMC_LOAD_VIDEO_FW \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_LOAD_VIDEO_FW)
 
+#define TEE_SMC_FUNCID_ENABLE_LOGGER               0xE001
+#define TEE_SMC_ENABLE_LOGGER \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_ENABLE_LOGGER)
+
+#define TEE_SMC_FUNCID_UPDATE_TRACE_LEVEL          0xE002
+#define TEE_SMC_UPDATE_TRACE_LEVEL \
+	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_UPDATE_TRACE_LEVEL)
+
 #define TEE_SMC_FUNCID_PROTECT_TVP_MEM             0xE020
 #define TEE_SMC_PROTECT_TVP_MEM \
 	TEE_SMC_FAST_CALL_VAL(TEE_SMC_FUNCID_PROTECT_TVP_MEM)
@@ -203,6 +211,26 @@ static ssize_t api_version_show(struct class *class,
 	return ret;
 }
 
+static ssize_t log_mode_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	ret = sprintf(buf, " 0:uart\n 1:kmsg\n");
+
+	return ret;
+}
+
+static ssize_t log_level_show(struct class *class,
+				struct class_attribute *attr, char *buf)
+{
+	int ret = 0;
+
+	ret = sprintf(buf, " 0:NO LOG\n 1:ERROR\n 2:INFO\n 3:DEBUG\n 4:FLOW\n");
+
+	return ret;
+}
+
 static ssize_t sys_boot_complete_store(struct class *class,
 				struct class_attribute *attr,
 				const char *buf, size_t count)
@@ -222,9 +250,60 @@ static ssize_t sys_boot_complete_store(struct class *class,
 	return count;
 }
 
+static ssize_t log_mode_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct arm_smccc_res res;
+	int val = 0;
+
+	if (memcmp(buf, "1", 1) == 0)
+		val = 1;
+	else if (memcmp(buf, "0", 1) == 0)
+		val = 0;
+	else
+		return count;
+
+	arm_smccc_smc(TEE_SMC_ENABLE_LOGGER,
+			val, 0, 0, 0, 0, 0, 0, &res);
+
+	if (res.a0 == 0) {
+		if (val == 0)
+			pr_err("Set log mode:0\n");
+		else
+			pr_err("Set log mode:1\n");
+	}
+
+	return count;
+}
+
+static ssize_t log_level_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct arm_smccc_res res;
+	int val = 0;
+
+	res.a0 = 0;
+
+	if (kstrtoint(buf, 0, &val))
+		return -EINVAL;
+
+	arm_smccc_smc(TEE_SMC_UPDATE_TRACE_LEVEL,
+			val, 0, 0, 0, 0, 0, 0, &res);
+
+	val = res.a0;
+
+	pr_err("Set log level:%d\n", val);
+
+	return count;
+}
+
 static CLASS_ATTR_RO(os_version);
 static CLASS_ATTR_RO(api_version);
 static CLASS_ATTR_WO(sys_boot_complete);
+static CLASS_ATTR_RW(log_mode);
+static CLASS_ATTR_RW(log_level);
 
 /*
  * index: firmware index
@@ -474,6 +553,18 @@ int tee_create_sysfs(void)
 	ret = class_create_file(tee_sys_class, &class_attr_sys_boot_complete);
 	if (ret != 0) {
 		pr_err("create class file sys_boot_complete fail\n");
+		return ret;
+	}
+
+	ret = class_create_file(tee_sys_class, &class_attr_log_mode);
+	if (ret != 0) {
+		pr_err("create class file log_mode fail\n");
+		return ret;
+	}
+
+	ret = class_create_file(tee_sys_class, &class_attr_log_level);
+	if (ret != 0) {
+		pr_err("create class file log_level fail\n");
 		return ret;
 	}
 

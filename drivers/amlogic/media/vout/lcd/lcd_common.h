@@ -26,6 +26,7 @@
 /* 20210705: add lcd mute and test state protection*/
 /* 20211009: support 59 & 47 frame rate for tv mode*/
 /* 20211106: support vrr config*/
+/* 20211210: support load tcon bin by ioctl*/
 /* 20211216: support phy adjust by lane*/
 #define LCD_DRV_VERSION    "20211216"
 
@@ -162,10 +163,6 @@ int lcd_mipi_test_read(struct aml_lcd_drv_s *pdrv, struct dsi_read_s *dread);
 int dsi_set_operation_mode(struct aml_lcd_drv_s *pdrv, unsigned char op_mode);
 int dptx_edid_dump(struct aml_lcd_drv_s *pdrv);
 int dptx_edid_timing_probe(struct aml_lcd_drv_s *pdrv);
-int dptx_dpcd_read(struct aml_lcd_drv_s *pdrv, unsigned char *buf,
-		   unsigned int reg, int len);
-int dptx_dpcd_write(struct aml_lcd_drv_s *pdrv, unsigned int reg, unsigned char val);
-void dptx_dpcd_dump(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_vout_server_init(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_vout_server_remove(struct aml_lcd_drv_s *pdrv);
 void lcd_tablet_clk_config_change(struct aml_lcd_drv_s *pdrv);
@@ -173,5 +170,8 @@ void lcd_tablet_clk_update(struct aml_lcd_drv_s *pdrv);
 int lcd_mode_tablet_init(struct aml_lcd_drv_s *pdrv);
 int lcd_mode_tablet_remove(struct aml_lcd_drv_s *pdrv);
 #endif
+
+int lcd_drm_add(struct device *dev);
+void lcd_drm_remove(struct device *dev);
 
 #endif

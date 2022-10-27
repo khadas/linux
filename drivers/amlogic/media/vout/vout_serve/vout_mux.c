@@ -28,6 +28,7 @@
 struct vout_mux_data_s {
 	int vdin_meas_id;
 	void (*update_viu_mux)(int index, unsigned int mux_sel);
+	void (*clear_viu_mux)(int index, unsigned int mux_sel);
 };
 
 static struct vout_mux_data_s *vout_mux_data;
@@ -39,6 +40,34 @@ static inline unsigned int vout_do_div(unsigned long long num, unsigned int den)
 	do_div(val, den);
 
 	return (unsigned int)val;
+}
+
+unsigned int vout_frame_rate_measure_for_vrr(void)
+{
+	int clk_mux = 38;
+	unsigned int val[2], fr;
+	unsigned long long msr_clk;
+
+	if (vout_mux_data)
+		clk_mux = vout_mux_data->vdin_meas_id;
+
+	if (clk_mux == -1)
+		return 0;
+	msr_clk = meson_clk_measure(clk_mux);
+
+	val[0] = vout_vcbus_read(VPP_VDO_MEAS_CTRL);
+	if (val[0]) {
+		vout_vcbus_write(VPP_VDO_MEAS_CTRL, 0);
+		//msleep(200);
+	}
+	val[0] = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_HI);
+	val[1] = vout_vcbus_read(VPP_VDO_MEAS_VS_COUNT_LO);
+	msr_clk *= 1000;
+	if (val[0] & 0xffff)
+		return 0;
+	fr = vout_do_div(msr_clk, val[1]);
+
+	return fr;
 }
 
 unsigned int vout_frame_rate_measure(void)
@@ -130,8 +159,7 @@ static void vout_viu_mux_update_t7(int index, unsigned int mux_sel)
 {
 	unsigned int viu_bit = 0xff, venc_idx;
 	unsigned int viu_sel;
-	unsigned int viu_value = 0;
-	unsigned int reg_value = 0;
+	unsigned int reg_value, venc_dmy;
 
 	switch (index) {
 	case 1:
@@ -151,20 +179,16 @@ static void vout_viu_mux_update_t7(int index, unsigned int mux_sel)
 	venc_idx = (mux_sel >> 4) & 0xf;
 
 	/* viu_mux: viu0_sel: 0=venc0, 1=venc1, 2=venc2, 3=invalid */
-	if (viu_bit != 0xff) {
-		if (viu_sel == VIU_MUX_PROJECT) {
-			reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
-			venc_idx = reg_value & 0xc;
-			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx,
-					viu_bit, 2);
-			viu_value = reg_value & 0x3;
-			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, reg_value,
-					2, 2);
-			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 1, 8, 1);
-		} else {
-			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx,
-					viu_bit, 2);
-		}
+
+	if (viu_sel == VIU_MUX_PROJECT) {
+		reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
+		venc_idx = (reg_value >> 2) & 0x3;
+		venc_dmy = reg_value & 0x3;
+		reg_value &= ~(0xf);
+		reg_value |= ((1 << 8) | (venc_dmy << 2) | venc_idx);
+		vout_vcbus_write(VPU_VIU_VENC_MUX_CTRL, reg_value);
+	} else {
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx, viu_bit, 2);
 	}
 
 	/*VOUTPR("%s: index=%d, mux_sel=0x%x, venc_idx=%d\n",
@@ -179,8 +203,7 @@ static void vout_viu_mux_update_t3(int index, unsigned int mux_sel)
 {
 	unsigned int viu_bit = 0xff, venc_idx;
 	unsigned int viu_sel;
-	unsigned int viu_value = 0;
-	unsigned int reg_value = 0;
+	unsigned int reg_value, venc_dmy;
 
 	switch (index) {
 	case 1:
@@ -188,9 +211,6 @@ static void vout_viu_mux_update_t3(int index, unsigned int mux_sel)
 		break;
 	case 2:
 		viu_bit = 2;
-		break;
-	case 3:
-		viu_bit = 4;
 		break;
 	default:
 		VOUTERR("%s: invalid index %d\n", __func__, index);
@@ -200,20 +220,16 @@ static void vout_viu_mux_update_t3(int index, unsigned int mux_sel)
 	venc_idx = (mux_sel >> 4) & 0xf;
 
 	/* viu_mux: viu0_sel: 0=venc0, 1=venc1, 2=venc2, 3=invalid */
-	if (viu_bit != 0xff) {
-		if (viu_sel == VIU_MUX_PROJECT) {
-			reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
-			venc_idx = reg_value & 0xc;
-			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx,
-					viu_bit, 2);
-			viu_value = reg_value & 0x3;
-			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, reg_value,
-					2, 2);
-			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, 1, 8, 1);
-		} else {
-			vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx,
-					viu_bit, 2);
-		}
+
+	if (viu_sel == VIU_MUX_PROJECT) {
+		reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
+		venc_idx = (reg_value >> 2) & 0x3;
+		venc_dmy = reg_value & 0x3;
+		reg_value &= ~(0xf);
+		reg_value |= ((1 << 8) | (venc_dmy << 2) | venc_idx);
+		vout_vcbus_write(VPU_VIU_VENC_MUX_CTRL, reg_value);
+	} else {
+		vout_vcbus_setb(VPU_VIU_VENC_MUX_CTRL, venc_idx, viu_bit, 2);
 	}
 
 	/* VOUTPR("%s: index=%d, mux_sel=0x%x, venc_idx=%d\n",
@@ -222,6 +238,26 @@ static void vout_viu_mux_update_t3(int index, unsigned int mux_sel)
 	 *	__func__, VPU_VIU_VENC_MUX_CTRL,
 	 *	vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL));
 	 */
+}
+
+static void vout_viu_mux_clear_t7(int index, unsigned int mux_sel)
+{
+	unsigned int viu_sel, venc_idx;
+	unsigned int reg_value, venc_dmy;
+
+	reg_value = vout_vcbus_read(VPU_VIU_VENC_MUX_CTRL);
+	VOUTPR("%s: index=%d, mux_sel=0x%x\n", __func__, index, mux_sel);
+	VOUTPR("%s: viu_mux reg=0x%x\n", __func__, reg_value);
+
+	viu_sel = mux_sel & 0xf;
+	if (viu_sel == VIU_MUX_PROJECT) {
+		venc_dmy = (reg_value >> 2) & 0x3;
+		venc_idx = reg_value & 0x3;
+		reg_value &= ~(0x10f);
+		reg_value |= ((venc_idx << 2) | venc_dmy);
+		vout_vcbus_write(VPU_VIU_VENC_MUX_CTRL, reg_value);
+		VOUTPR("%s: update viu_mux reg=0x%x\n", __func__, reg_value);
+	}
 }
 
 void vout_viu_mux_update(int index, unsigned int mux_sel)
@@ -237,20 +273,40 @@ void vout_viu_mux_update(int index, unsigned int mux_sel)
 		vout_mux_data->update_viu_mux(index, mux_sel);
 }
 
+void vout_viu_mux_clear(int index, unsigned int mux_sel)
+{
+	/* for default case */
+	if (!vout_mux_data)
+		return;
+
+	/* for new case */
+	if (vout_mux_data->clear_viu_mux)
+		vout_mux_data->clear_viu_mux(index, mux_sel);
+}
+
 /* ********************************************************* */
 static struct vout_mux_data_s vout_mux_match_data = {
 	.vdin_meas_id = 38,
 	.update_viu_mux = vout_viu_mux_update_default,
+	.clear_viu_mux = NULL,
 };
 
 static struct vout_mux_data_s vout_mux_match_data_t7 = {
 	.vdin_meas_id = 60,
 	.update_viu_mux = vout_viu_mux_update_t7,
+	.clear_viu_mux = vout_viu_mux_clear_t7,
 };
 
 static struct vout_mux_data_s vout_mux_match_data_t3 = {
 	.vdin_meas_id = 60,
 	.update_viu_mux = vout_viu_mux_update_t3,
+	.clear_viu_mux = vout_viu_mux_clear_t7,
+};
+
+static struct vout_mux_data_s vout_mux_match_data_t5w = {
+	.vdin_meas_id = 38,
+	.update_viu_mux = vout_viu_mux_update_t3,
+	.clear_viu_mux = vout_viu_mux_clear_t7,
 };
 
 static const struct of_device_id vout_mux_dt_match_table[] = {
@@ -265,6 +321,10 @@ static const struct of_device_id vout_mux_dt_match_table[] = {
 	{
 		.compatible = "amlogic, vout_mux-t3",
 		.data = &vout_mux_match_data_t3,
+	},
+	{
+		.compatible = "amlogic, vout_mux-t5w",
+		.data = &vout_mux_match_data_t5w,
 	},
 	{}
 };

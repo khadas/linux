@@ -22,6 +22,8 @@
 
 #define HHI_GCLK_MPEG0			(0x50  <<  2) /* (0xC883C000 + 0x140) */
 #define HHI_HDMIRX_CLK_CNTL		0x200 /* (0xC883C000 + 0x200)  */
+#define MODET_CLK_EN			_BIT(24)
+#define CFG_CLK_EN				_BIT(8)
 #define HHI_HDMIRX_AUD_CLK_CNTL	0x204 /* 0x1081 */
 #define HHI_AXI_CLK_CTNL		(0xb8 * 4)
 #define HHI_VDAC_CNTL0			(0xbb * 4)
@@ -1177,7 +1179,7 @@
 #define HHI_RX_PHY_MISC_STAT		(0x12 << 2)/*0x48*/
 #define HHI_RX_PHY_DCHD_STAT		(0x13 << 2)/*0x4c*/
 
-#define TMDS_CLK_MIN			(24000UL)
+#define TMDS_CLK_MIN			(15000UL)
 #define TMDS_CLK_MAX			(340000UL)
 
 /*
@@ -1585,6 +1587,7 @@
 #define  RX_DEPACK_INTR0_MASK_DP2_IVCRX        0x00001131
 #define RX_DEPACK_INTR1_DP2_IVCRX        0x00001132
 #define  RX_DEPACK_INTR1_MASK_DP2_IVCRX        0x00001133
+#define INTR2_BIT1_SPD		0x2
 #define INTR2_BIT2_AUD		0x4
 #define INTR2_BIT4_UNREC	0x10
 #define RX_DEPACK_INTR2_DP2_IVCRX        0x00001134
@@ -3173,7 +3176,7 @@ extern u32 hdcp22_reauth_enable;
 extern int i2c_err_cnt;
 extern u32 rx_ecc_err_thres;
 extern u32 rx_ecc_err_frames;
-extern u8 ddc_dbg_en;
+extern u32 ddc_dbg_en;
 extern int kill_esm_fail;
 
 void rx_get_best_eq_setting(void);
@@ -3247,8 +3250,6 @@ void hdmirx_hdcp22_hpd(bool value);
 void esm_set_reset(bool reset);
 void esm_set_stable(bool stable);
 void rx_hpd_to_esm_handle(struct work_struct *work);
-void rx_hdcp14_resume(void);
-void hdmirx_load_firm_reset(int type);
 unsigned int hdmirx_packet_fifo_rst(void);
 void rx_afifo_store_all_subpkt(bool all_pkt);
 unsigned int hdmirx_audio_fifo_rst(void);
@@ -3318,7 +3319,7 @@ void rx_phy_short_bist(void);
 void aml_phy_iq_skew_monitor(void);
 void aml_eq_eye_monitor(void);
 void aml_phy_power_off(void);
-
+void rx_dig_clk_en(bool en);
 /* tl1 extern */
 void aml_phy_init_tl1(void);
 void dump_reg_phy_tl1_tm2(void);
@@ -3358,6 +3359,10 @@ void aml_phy_get_trim_val_t5(void);
 void hdmirx_irq_hdcp_enable(bool enable);
 u8 rx_get_avmute_sts(void);
 /* T7 */
+u8 rx_get_stream_manage_info(void);
+void rpt_update_hdcp1x(struct hdcp_topo_s *topo);
+void rpt_update_hdcp2x(struct hdcp_topo_s *topo);
+void hdcp_init_t7(void);
 u8 hdmirx_rd_cor(u32 addr);
 void hdmirx_wr_cor(u32 addr, u8 data);
 u8 hdmirx_rd_bits_cor(u32 addr, u32 mask);
@@ -3400,4 +3405,5 @@ void rx_esm_reset(int level);
 void hdmirx_hdcp22_reauth(void);
 void rx_earc_hpd_handler(struct work_struct *work);
 void rx_kill_esm(void);
+int is_t7_former(void);
 #endif

@@ -1347,7 +1347,7 @@ void qbuf_int(struct buf_que_s *pbufq, const struct que_creat_s *cfg,
 	pbufq->name = cfg_qbuf->name;
 	pbufq->nub_buf = cfg_qbuf->nub_buf;
 	pbufq->nub_que = cfg_qbuf->nub_que;
-
+	pbufq->bque_id	= cfg_qbuf->que_id;
 	if (rsc_flg)
 		pbufq->rflg = true;
 	else
@@ -1629,14 +1629,14 @@ bool qbuf_in_all(struct buf_que_s *pqbuf, unsigned int qt)
 	pqt = pqbuf->pque[qt];
 	for (i = 0; i < pqbuf->nub_buf; i++)
 		pqt->ops.in(pqbuf, pqt, pqbuf->pbuf[i]);
-
+#ifdef _HIS_CODE_
 	if (pqt->ops.is_full(pqbuf, pqt)) {
 		PR_ERR_Q("%s:pq[%s]:q[%s] is full %d:%d\n", __func__,
 			 pqbuf->name, pqt->name, i,
 			 pqt->ops.count(pqbuf, pqt));
 		return false;
 	}
-
+#endif
 	return true;
 }
 

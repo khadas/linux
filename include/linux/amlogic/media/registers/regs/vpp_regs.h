@@ -127,7 +127,7 @@
 #define VPP_SRSHARP1_CTRL                 0x1d92
 #define VPP_PEAKING_NLP_1                 0x1d93
 /* gxm has no super-core */
-#define VPP_DOLBY_CTRL                    0x1d93
+#define VPP_AMDV_CTRL                    0x1d93
 #define VPP_PEAKING_NLP_2                 0x1d94
 #define VPP_PEAKING_NLP_3                 0x1d95
 #define VPP_PEAKING_NLP_4                 0x1d96

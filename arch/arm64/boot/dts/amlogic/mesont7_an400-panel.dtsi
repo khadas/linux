@@ -4,7 +4,7 @@
  */
 
 / {
-	lcd {
+	lcd:lcd {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
 		index = <0>;
@@ -128,7 +128,7 @@
 				2 0 0 10 /*signal disable*/
 				0 0 0 500 /*panel power off*/
 				0xff 0 0 0>; /*ending*/
-			backlight_index = <0xff>;
+			backlight_index = <0>;
 		};
 		vbyone_1{
 			model_name = "public_1region";
@@ -330,12 +330,12 @@
 		};
 	};
 
-	lcd1 {
+	lcd1:lcd1 {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
 		index = <1>;
 		mode = "tablet";
-		fr_auto_policy = <0>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
+		fr_auto_policy = <1>; /* 0=disable, 1=60/50hz, 2=60/50/48hz */
 		key_valid = <0>;
 		clocks = <&clkc CLKID_MIPI_DSI_B
 			&clkc CLKID_DSI1_PHY_GATE
@@ -649,6 +649,16 @@
 					0xff 0 0 0>;
 			backlight_index = <0xff>;
 		};
+		ports {
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				lcd1_to_drm: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <0>;
+				};
+			};
+		};
 	};
 
 	backlight1{
@@ -712,7 +722,7 @@
 		};
 	};
 
-	lcd2 {
+	lcd2:lcd2 {
 		compatible = "amlogic, lcd-t7";
 		status = "okay";
 		index = <2>;

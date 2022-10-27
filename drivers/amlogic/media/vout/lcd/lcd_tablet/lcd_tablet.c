@@ -48,7 +48,7 @@ static struct vinfo_s *lcd_get_current_info(void *data)
 
 static int lcd_check_same_vmodeattr(char *mode, void *data)
 {
-	return 0;
+	return 1;
 }
 
 static int lcd_vmode_is_supported(enum vmode_e mode, void *data)
@@ -287,15 +287,15 @@ static int lcd_set_vframe_rate_hint(int duration, void *data)
 		LCDPR("%s: return mode = %s, policy = %d\n", __func__,
 			info->name, pdrv->fr_auto_policy);
 
+		pdrv->fr_duration = 0;
 		if (pdrv->fr_mode == 0) {
 			LCDPR("%s: fr_mode is invalid, exit\n", __func__);
 			return 0;
 		}
 
-		pdrv->fr_duration = 0;
 		/* update vinfo */
-		info->sync_duration_num = pdrv->std_duration.duration_num;
-		info->sync_duration_den = pdrv->std_duration.duration_den;
+		info->sync_duration_num = pdrv->cur_duration.duration_num;
+		info->sync_duration_den = pdrv->cur_duration.duration_den;
 		info->frac = 0;
 		pdrv->fr_mode = 0;
 	} else {
@@ -346,7 +346,7 @@ static int lcd_get_vframe_rate_hint(void *data)
 	if (!pdrv)
 		return 0;
 
-	return pdrv->fr_mode;
+	return pdrv->fr_duration;
 }
 
 static void lcd_vout_debug_test(unsigned int num, void *data)
@@ -412,8 +412,8 @@ static void lcd_tablet_vinfo_update(struct aml_lcd_drv_s *pdrv)
 	pconf = &pdrv->config;
 
 	/* store standard duration */
-	pdrv->std_duration.duration_num = pconf->timing.sync_duration_num;
-	pdrv->std_duration.duration_den = pconf->timing.sync_duration_den;
+	pdrv->cur_duration.duration_num = pconf->timing.sync_duration_num;
+	pdrv->cur_duration.duration_den = pconf->timing.sync_duration_den;
 
 	pdrv->vinfo.width = pconf->basic.h_active;
 	pdrv->vinfo.height = pconf->basic.v_active;

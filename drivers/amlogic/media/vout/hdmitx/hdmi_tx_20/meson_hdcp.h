@@ -16,4 +16,5 @@ void meson_hdcp_disconnect(void);
 
 void meson_hdcp_reg_result_notify(struct connector_hdcp_cb *cb);
 
+bool hdcp_tx22_daemon_ready(void);
 #endif

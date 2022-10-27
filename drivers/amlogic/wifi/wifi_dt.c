@@ -194,6 +194,9 @@ static int set_wifi_power(int is_power)
 {
 	int ret = 0;
 
+	WIFI_INFO("pid: %d comm: %s, power %s!\n", current->pid,
+		current->comm, is_power ? "UP" : "DOWN");
+
 	if (is_power) {
 		if (wifi_info.power_on_pin) {
 			ret = set_power(1);

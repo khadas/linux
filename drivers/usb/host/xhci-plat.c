@@ -366,6 +366,12 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	if (device_property_read_bool(&pdev->dev, "xhci-crg-host"))
 		xhci->quirks |= XHCI_CRG_HOST;
+	if (device_property_read_bool(&pdev->dev, "xhci-crg-host-011"))
+		xhci->quirks |= XHCI_CRG_HOST_011;
+	if (device_property_read_bool(&pdev->dev, "xhci-crg-drd"))
+		xhci->quirks |= XHCI_CRG_DRD;
+	if (device_property_read_bool(&pdev->dev, "xhci-crg-host-010"))
+		xhci->quirks |= XHCI_CRG_HOST_010;
 #endif
 
 	hcd->usb_phy = devm_usb_get_phy_by_phandle(sysdev, "usb-phy", 0);

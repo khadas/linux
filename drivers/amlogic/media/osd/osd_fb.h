@@ -56,6 +56,7 @@ struct fb_dmabuf_export {
 
 void *aml_mm_vmap(phys_addr_t phys, unsigned long size);
 void *aml_map_phyaddr_to_virt(dma_addr_t phys, unsigned long size);
+void aml_unmap_phyaddr(u8 *vaddr);
 phys_addr_t get_fb_rmem_paddr(int index);
 void __iomem *get_fb_rmem_vaddr(int index);
 size_t get_fb_rmem_size(int index);
@@ -64,4 +65,5 @@ const struct color_bit_define_s *
 	_find_color_format(struct fb_var_screeninfo *var);
 extern struct osd_fb_dev_s *gp_fbdev_list[];
 extern const struct color_bit_define_s default_color_format_array[];
+extern unsigned int osd_game_mode[];
 #endif

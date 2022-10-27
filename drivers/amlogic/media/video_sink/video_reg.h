@@ -138,7 +138,7 @@ struct hw_vppx_blend_reg_s {
 	u32 vpp_bld_dummy_alpha;
 };
 
-struct hw_viu_misc_reg_s   {
+struct hw_viu_misc_reg_s     {
 	u32 mali_afbcd_top_ctrl;
 	u32 mali_afbcd1_top_ctrl;
 	u32 mali_afbcd2_top_ctrl;
@@ -149,6 +149,12 @@ struct hw_viu_misc_reg_s   {
 	u32 path_start_sel;
 	u32 vpp_misc;
 	u32 vpp_misc1;
+	u32 vd1_clip_misc0;
+	u32 vd1_clip_misc1;
+	u32 vd2_clip_misc0;
+	u32 vd2_clip_misc1;
+	u32 vd3_clip_misc0;
+	u32 vd3_clip_misc1;
 };
 
 struct hw_vpp_path_size_s {

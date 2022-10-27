@@ -63,7 +63,8 @@ enum {
 	VIDEO_WIDEOPTION_CUSTOM = 14,
 	VIDEO_WIDEOPTION_AFD = 15,
 	VIDEO_WIDEOPTION_NONLINEAR_T = 16,
-	VIDEO_WIDEOPTION_MAX = 17
+	VIDEO_WIDEOPTION_21_9 = 17,
+	VIDEO_WIDEOPTION_MAX = 18
 };
 
 /* TODO: move to register headers */
@@ -304,6 +305,8 @@ enum {
 #define VPP_COEF_INDEX_MASK     0x7f
 #define VPP_COEF_INDEX_BIT      0
 
+#define VIDEO_USE_4K_RAM        0x100
+
 enum {
 	VPP_SEP_COEF_VERT_LUMA         = 0x0 << 17,
 	VPP_SEP_COEF_VERT_CHROMA       = 0x1 << 17,
@@ -343,8 +346,17 @@ static inline int amvideo_notifier_call_chain(unsigned long val, void *v)
 #define VIDEO_MUTE_OFF		0
 #define VIDEO_MUTE_ON_VPP	1
 #define VIDEO_MUTE_ON_DV	2
+
+#define VIDEO_TESTPATTERN_ON  0
+#define VIDEO_TESTPATTERN_OFF 1
 void set_video_mute(bool on);
 int get_video_mute(void);
+void set_output_mute(bool on);
+int get_output_mute(void);
+void set_vdx_test_pattern(u32 index, bool on, u32 color);
+void get_vdx_test_pattern(u32 index, bool *on, u32 *color);
+void set_postblend_test_pattern(bool on, u32 color);
+void get_postblend_test_pattern(bool *on, u32 *color);
 u32 get_first_pic_coming(void);
 u32 get_toggle_frame_count(void);
 
@@ -374,6 +386,8 @@ s32 set_video_path_select(const char *recv_name, u8 layer_id);
 s32 set_sideband_type(s32 type, u8 layer_id);
 void vpp_probe_en_set(u32 enable);
 bool is_di_hf_y_reverse(void);
+void set_post_blend_dummy_data(u32 vpp_index,
+	u32 dummy_data, u32 dummy_alpha);
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 int tsync_set_tunnel_mode(int mode);
 #endif
@@ -418,4 +432,5 @@ bool is_vpp0(u8 layer_id);
 bool is_vpp1(u8 layer_id);
 bool is_vpp2(u8 layer_id);
 int get_receiver_id(u8 layer_id);
+int proc_lowlatency_frame(u8 instance_id);
 #endif /* VIDEO_H */

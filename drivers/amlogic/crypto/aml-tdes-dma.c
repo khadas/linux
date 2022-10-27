@@ -917,7 +917,7 @@ static int aml_tdes_kl_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			      unsigned int keylen);
 static struct crypto_alg des_tdes_algs[] = {
 	{
-		.cra_name        = "ecb(des)",
+		.cra_name        = "ecb(des-aml)",
 		.cra_driver_name = "ecb-des-aml",
 		.cra_priority  =  100,
 		.cra_flags     =  CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
@@ -937,7 +937,7 @@ static struct crypto_alg des_tdes_algs[] = {
 		}
 	},
 	{
-		.cra_name        =  "cbc(des)",
+		.cra_name        =  "cbc(des-aml)",
 		.cra_driver_name =  "cbc-des-aml",
 		.cra_priority  =  100,
 		.cra_flags     =  CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
@@ -958,7 +958,7 @@ static struct crypto_alg des_tdes_algs[] = {
 		}
 	},
 	{
-		.cra_name        = "ecb(des3_ede)",
+		.cra_name        = "ecb(des3_ede-aml)",
 		.cra_driver_name = "ecb-tdes-aml",
 		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
@@ -979,7 +979,7 @@ static struct crypto_alg des_tdes_algs[] = {
 		}
 	},
 	{
-		.cra_name        = "cbc(des3_ede)",
+		.cra_name        = "cbc(des3_ede-aml)",
 		.cra_driver_name = "cbc-tdes-aml",
 		.cra_priority  = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
@@ -1090,6 +1090,7 @@ static int aml_tdes_lite_cra_init(struct crypto_tfm *tfm)
 	const char *alg_name = crypto_tfm_alg_name(tfm);
 	const char *driver_name = crypto_tfm_alg_driver_name(tfm);
 	const u32 flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK;
+	char alg_to_use[16] = {0};
 
 	tfm->crt_ablkcipher.reqsize = sizeof(struct aml_tdes_reqctx);
 
@@ -1098,7 +1099,9 @@ static int aml_tdes_lite_cra_init(struct crypto_tfm *tfm)
 	 */
 	if (!strstr(driver_name, "-kl")) {
 		/* Allocate a fallback and abort if it failed. */
-		ctx->fallback = crypto_alloc_skcipher(alg_name, 0,
+		strncpy(alg_to_use, "xxx(des3_ede)", sizeof(alg_to_use));
+		memcpy(alg_to_use, alg_name, 3);
+		ctx->fallback = crypto_alloc_skcipher(alg_to_use, 0,
 						      flags);
 		if (IS_ERR(ctx->fallback)) {
 			pr_err("aml-tdes: fallback '%s' could not be loaded.\n",
@@ -1173,7 +1176,7 @@ static int aml_tdes_lite_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 
 static struct crypto_alg tdes_lite_algs[] = {
 	{
-		.cra_name        = "ecb(des3_ede)",
+		.cra_name        = "ecb(des3_ede-aml)",
 		.cra_driver_name = "ecb-tdes-lite-aml",
 		.cra_priority   = 100,
 		.cra_flags      = CRYPTO_ALG_TYPE_ABLKCIPHER |
@@ -1194,7 +1197,7 @@ static struct crypto_alg tdes_lite_algs[] = {
 		}
 	},
 	{
-		.cra_name        = "cbc(des3_ede)",
+		.cra_name        = "cbc(des3_ede-aml)",
 		.cra_driver_name = "cbc-tdes-lite-aml",
 		.cra_priority  = 100,
 		.cra_flags     = CRYPTO_ALG_TYPE_ABLKCIPHER |

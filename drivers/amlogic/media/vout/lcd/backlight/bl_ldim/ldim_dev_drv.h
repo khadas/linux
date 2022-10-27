@@ -11,7 +11,16 @@
 #include <linux/amlogic/media/vout/lcd/aml_ldim.h>
 #include "../lcd_bl.h"
 
+#define LDIM_SPI_DUTY_VSYNC_DIRECT
+
+int ldim_spi_dma_cycle_align_byte(int size);
+
 /* ldim spi api*/
+int dirspi_async(struct spi_device *spi, u8 *tx_buf, u8 *rx_buf, int len,
+		 void (*complete)(void *context), void *context);
+
+int ldim_spi_write_async(struct spi_device *spi, unsigned char *tbuf,
+			 unsigned char *rbuf, int tlen, int dma_mode, int max_len);
 int ldim_spi_write(struct spi_device *spi, unsigned char *tbuf, int wlen);
 int ldim_spi_read(struct spi_device *spi, unsigned char *tbuf, int wlen,
 		  unsigned char *rbuf, int rlen);
@@ -29,6 +38,9 @@ void ldim_pwm_off(struct bl_pwm_config_s *ld_pwm);
 /* ldim dev api */
 int ldim_dev_iw7027_probe(struct aml_ldim_driver_s *ldim_drv);
 int ldim_dev_iw7027_remove(struct aml_ldim_driver_s *ldim_drv);
+
+int ldim_dev_blmcu_probe(struct aml_ldim_driver_s *ldim_drv);
+int ldim_dev_blmcu_remove(struct aml_ldim_driver_s *ldim_drv);
 
 int ldim_dev_ob3350_probe(struct aml_ldim_driver_s *ldim_drv);
 int ldim_dev_ob3350_remove(struct aml_ldim_driver_s *ldim_drv);

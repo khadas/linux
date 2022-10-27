@@ -5336,6 +5336,12 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 
 	xhci = hcd_to_xhci(hcd);
 
+#ifdef CONFIG_AMLOGIC_USB
+	/* CRG_SG_NUM */
+	if (xhci->quirks & XHCI_CRG_HOST_010)
+		hcd->self.sg_tablesize = 4;
+#endif
+
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		xhci->main_hcd = hcd;
 		xhci->usb2_rhub.hcd = hcd;
@@ -5508,8 +5514,11 @@ static const struct hc_driver xhci_hc_driver = {
 	 * generic hardware linkage
 	 */
 	.irq =			xhci_irq,
+#ifdef CONFIG_AMLOGIC_USB
+	.flags =		HCD_MEMORY | HCD_DMA | HCD_USB3 | HCD_SHARED | HCD_BH,
+#else
 	.flags =		HCD_MEMORY | HCD_DMA | HCD_USB3 | HCD_SHARED,
-
+#endif
 	/*
 	 * basic lifecycle operations
 	 */

@@ -179,6 +179,22 @@
 		clr_reboot_mode;  /* clr reboot mode in shutdown callback */
 		reg = <0x0 0xfe010288 0x0 0x4>, /*SYSCTRL_STATUS_REG2*/
 			<0x0 0xfe0102dc 0x0 0x4>; /*SYSCTRL_STICKY_REG7*/
+		vad-item-name = "T3";
+		vad_wakeup_disable = <0x1>;
+		meson,dmc_asr-addr = <0xfe036000>,
+				<0xfe034000>; /* dmc_asr */
+		meson,dmc_asr-val = <0x0007fe00>,
+				<0x0007fe00>;
+		clock-names = "sys_clk",
+			"cpu_clk",
+			"dsu_clk",
+			"fixed_pll_dco",
+			"axi_clk";
+		clocks = <&clkc CLKID_SYS_CLK>,
+			<&clkc CLKID_CPU_CLK>,
+			<&clkc CLKID_DSU_CLK>,
+			<&clkc CLKID_FIXED_PLL_DCO>,
+			<&clkc CLKID_AXI_CLK>;
 	};
 
 	aml_reboot {
@@ -246,9 +262,11 @@
 		dev_name = "galcore";
 		status = "okay";
 		clocks = <&clkc CLKID_CTS_NNA_AXI_CLK>,
-		      <&clkc CLKID_CTS_NNA_CORE_CLK>;
+		      <&clkc CLKID_CTS_NNA_CORE_CLK>,
+		      <&clkc CLKID_SYS1_PLL>;
 		clock-names = "cts_vipnanoq_axi_clk_composite",
-		      "cts_vipnanoq_core_clk_composite";
+		      "cts_vipnanoq_core_clk_composite",
+		      "sys1_pll";
 		assigned-clocks =  <&clkc CLKID_SYS1_PLL>;
 		assigned-clock-rates =  <1704000000>;
 		interrupts = <0 59 4>;
@@ -1099,7 +1117,20 @@
 			afbce_bit_mode = <0x11>;
 			/* urgent_en; */
 			double_write_en;
-			v4l_support_en;
+			/* vdin v4l2 */
+			v4l_support_en = <0>;
+			v4l_vd_num = <70>;
+			/* v4l2 capability */
+			driver   = "vdinvideo";
+			card     = "mesont3";
+			bus_info = "vdin0 v4l2";
+			version  = <0x20220120>;
+			/* fe_ports refer to tvin.h */
+			fe_ports = <0x00001001   /* CVBS1 */
+				0x00004000   /* HDMI0 */
+				0x00004001   /* HDMI1 */
+				0x00004002>; /* HDMI2 */
+			/* vdin v4l2 end */
 		};
 
 		vdin1: vdin1 {/*common define*/
@@ -1119,6 +1150,23 @@
 			 */
 			vdin_id = <1>;
 			tv_bit_mode = <0x15>;
+			/* vdin v4l2 */
+			v4l_support_en = <0>;
+			v4l_vd_num = <71>;
+			/* v4l2 capability */
+			driver   = "vdinvideo";
+			card     = "mesont3";
+			bus_info = "vdin1 v4l2";
+			version  = <0x20220120>;
+			/* fe_ports refer to tvin.h */
+			fe_ports = <0x0000a002   /* WB0_VD1 */
+				0x0000a003   /* WB0_VD2 */
+				0x0000a004   /* WB0_OSD1 */
+				0x0000a005   /* WB0_OSD2 */
+				0x0000a006   /* WB0_VPP */
+				0x0000a007   /* WB0_VDIN_BIST */
+				0x0000a008>; /* WB0_POST_BLEND */
+			/* vdin v4l2 end */
 		};
 
 		amvdec_656in {
@@ -1341,7 +1389,7 @@
 		compatible = "amlogic, vrr-t3";
 		status = "okay";
 		index = <0>;
-		line_delay = <150>;
+		line_delay = <600>;
 	};
 
 	canvas: canvas {
@@ -1480,7 +1528,7 @@
 		compatible = "amlogic, dolby_vision_t3";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <1>;/*1:enabel ;0:disable*/
+		tv_mode = <1>;/*1:enable ;0:disable*/
 	};
 
 	mesonstream {
@@ -1586,6 +1634,10 @@
 		nrds-enable = <1>;
 		pps-enable = <1>;
 		dct = <2>;//decontour enable
+		hf	= <2>; //enable aisr
+		en_4k = <1>;
+		alloc_sct = <1>;
+		po_fmt = <6>;
 		/***************************************************
 		 * t3 support 4k ,same with t7 ,no canvas,
 		 * post_nub---default is 11
@@ -1662,13 +1714,35 @@
 				node_name = "bifrost";
 				device_type = "gpufreq";
 			};
+			ddr0_cool {
+				ddr_reg = <0xfe0364b4>;
+				ddr_status = <3>;
+				ddr_bits = <8 15>;
+				ddr_data = <0x4c 0x26 0x13>;
+				node_name = "ddr_cool0";
+				device_type = "ddr";
+			};
+			ddr1_cool {
+				ddr_reg = <0xfe0344b4>;
+				ddr_status = <3>;
+				ddr_bits = <8 15>;
+				ddr_data = <0x4c 0x26 0x13>;
+				node_name = "ddr_cool1";
+				device_type = "ddr";
+			};
+		};
+		ddr_cool0:ddr_cool0 {
+			#cooling-cells = <2>; /* min followed by max */
+		};
+		ddr_cool1:ddr_cool1 {
+			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpucore_cool0:cpucore_cool0 {
 			#cooling-cells = <2>;
 		};
 	};/*meson cooling devices end*/
 
-	thermal-zones {
+	thermal_zones: thermal-zones {
 		soc_thermal: soc_thermal {
 			polling-delay = <1000>;
 			polling-delay-passive = <100>;
@@ -1676,17 +1750,17 @@
 			thermal-sensors = <&cpu_tsensor 0>;
 			trips {
 				cpuswitch_on: trip-point@0 {
-					temperature = <80000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				cpucontrol: trip-point@1 {
-					temperature = <90000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				cpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -1711,17 +1785,17 @@
 			thermal-sensors = <&nna_tsensor 1>;
 			trips {
 				nnaswitch_on: trip-point@0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				nnacontrol: trip-point@1 {
-					temperature = <100000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				nnacritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -1734,17 +1808,17 @@
 			thermal-sensors = <&vpu_tsensor 2>;
 			trips {
 				vpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				vpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				vpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				vpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -1877,7 +1951,7 @@
 			0x0 0xfe02a000 0x0 0x2000
 			0x0 0xfe002044 0x0 0x10>;
 		reg-names = "elbi", "cfg", "config", "phy", "reset";
-		interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
 		#interrupt-cells = <1>;
 		bus-range = <0x0 0xff>;
 		#address-cells = <3>;

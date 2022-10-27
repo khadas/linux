@@ -5,11 +5,13 @@
 
 #include "meson_crtc.h"
 #include "meson_vpu_pipeline.h"
+
 #include <linux/amlogic/media/vout/vout_notify.h>
+#include <vout/vout_serve/vout_func.h>
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
-#include <../drivers/amlogic/media/enhancement/amvecm/amcsc.h>
+#include <enhancement/amvecm/amcsc.h>
 
 #define EOTF_RESERVED 23
 
@@ -29,42 +31,43 @@ module_param(crtc_force_hint, int, 0644);
 static void set_eotf_by_property(struct am_meson_crtc_state *state)
 {
 	if (state->crtc_eotf_by_property_flag) {
-		if (!dv_support() &&  get_dolby_vision_mode() && is_dolby_vision_enable()) {
+		if (!dv_support() &&  get_amdv_mode() && is_amdv_enable()) {
 			DRM_INFO("[%s] support DV\n", __func__);
 			if (state->eotf_type_by_property == 2) {
-				set_dolby_vision_ll_policy(0);
-				set_dolby_vision_policy(2);
-				set_dolby_vision_enable(1);
-				set_dolby_vision_mode(2);
+				set_amdv_ll_policy(0);
+				set_amdv_policy(2);
+				set_amdv_enable(1);
+				set_amdv_mode(2);
 			} else if (state->eotf_type_by_property == 18) {
-				set_dolby_vision_ll_policy(0);
-				set_dolby_vision_policy(2);
-				set_dolby_vision_enable(1);
-				set_dolby_vision_mode(1);
+				set_amdv_ll_policy(0);
+				set_amdv_policy(2);
+				set_amdv_enable(1);
+				set_amdv_mode(1);
 			} else if (state->eotf_type_by_property == 0) {
-				set_dolby_vision_ll_policy(0);
-				set_dolby_vision_policy(2);
-				set_dolby_vision_enable(1);
-				set_dolby_vision_mode(4);
+				set_amdv_ll_policy(0);
+				set_amdv_policy(2);
+				set_amdv_enable(1);
+				set_amdv_mode(4);
 			} else if (state->eotf_type_by_property == 19) {
-				set_dolby_vision_ll_policy(1);
-					set_dolby_vision_policy(2);
-				set_dolby_vision_enable(1);
-				set_dolby_vision_mode(1);
+				set_amdv_ll_policy(1);
+				set_amdv_policy(2);
+				set_amdv_enable(1);
+				set_amdv_mode(1);
+
 			}
 		} else {
 			DRM_INFO("[%s] can not support DV\n", __func__);
 			if (state->eotf_type_by_property == 0) {
-				set_dolby_vision_policy(2);
-				set_dolby_vision_mode(0);
-				set_dolby_vision_enable(0);
+				set_amdv_policy(2);
+				set_amdv_mode(0);
+				set_amdv_enable(0);
 				set_hdr_policy(2);
 				set_force_output(1);
 			}
 			if (state->eotf_type_by_property == 2) {
-				set_dolby_vision_policy(2);
-				set_dolby_vision_mode(0);
-				set_dolby_vision_enable(0);
+				set_amdv_policy(2);
+				set_amdv_mode(0);
+				set_amdv_enable(0);
 				set_hdr_policy(2);
 				set_force_output(3);
 			}
@@ -85,6 +88,7 @@ static void meson_crtc_destroy_state(struct drm_crtc *crtc,
 static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct am_meson_crtc_state *new_state, *cur_state;
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 
 	cur_state = to_am_meson_crtc_state(crtc->state);
 
@@ -103,7 +107,10 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->eotf_type_by_property = cur_state->eotf_type_by_property;
 
 	/*reset dynamic info.*/
-	new_state->uboot_mode_init = 0;
+	if (amcrtc->priv->logo_show_done)
+		new_state->uboot_mode_init = 0;
+	else
+		new_state->uboot_mode_init = cur_state->uboot_mode_init;
 
 	return &new_state->base;
 }
@@ -113,7 +120,7 @@ static void meson_crtc_init_hdr_preference
 {
 	crtc_state->crtc_hdr_process_policy = MESON_HDR_POLICY_FOLLOW_SINK;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
-	crtc_state->crtc_dv_enable = is_dolby_vision_enable();
+	crtc_state->crtc_dv_enable = is_amdv_enable();
 #else
 	crtc_state->crtc_dv_enable = false;
 #endif
@@ -163,6 +170,12 @@ static int meson_crtc_atomic_get_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->hdmi_etof) {
 		*val = crtc_state->eotf_type_by_property;
 		return 0;
+	} else if (property == meson_crtc->dv_enable_property) {
+		*val = crtc_state->crtc_dv_enable;
+		return 0;
+	}  else if (property == meson_crtc->bgcolor_property) {
+		*val = crtc_state->crtc_bgcolor;
+		return 0;
 	}
 
 	return ret;
@@ -184,6 +197,12 @@ static int meson_crtc_atomic_set_property(struct drm_crtc *crtc,
 	} else if (property == meson_crtc->hdmi_etof) {
 		crtc_state->eotf_type_by_property = val;
 		crtc_state->crtc_eotf_by_property_flag = true;
+		return 0;
+	} else if (property == meson_crtc->dv_enable_property) {
+		crtc_state->crtc_dv_enable = val;
+		return 0;
+	} else if (property == meson_crtc->bgcolor_property) {
+		crtc_state->crtc_bgcolor = val;
 		return 0;
 	}
 
@@ -212,6 +231,9 @@ static void meson_crtc_atomic_print_state(struct drm_printer *p,
 		return;
 	}
 
+	drm_printf(p, "\t\tvrr_enabled=%u\n", state->vrr_enabled);
+	drm_printf(p, "\t\tbrr_mode=%s\n", cstate->brr_mode);
+	drm_printf(p, "\t\tbrr=%u\n", cstate->brr);
 	drm_printf(p, "\t\tuboot_mode_init=%u\n", cstate->uboot_mode_init);
 	drm_printf(p, "\t\tcrtc_hdr_policy:[%u,%u]\n",
 		cstate->crtc_hdr_process_policy,
@@ -336,9 +358,10 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 					struct drm_crtc_state *old_state)
 {
 	int ret;
-	char *name;
+	char *name, *brr_name;
 	enum vmode_e mode;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+	struct drm_display_mode *old_mode = &old_state->adjusted_mode;
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
 	struct am_meson_crtc_state *meson_crtc_state =
@@ -352,7 +375,8 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 			  adjusted_mode->name);
 		return;
 	}
-	DRM_INFO("%s: %s, %d\n", __func__, adjusted_mode->name, meson_crtc_state->uboot_mode_init);
+	DRM_INFO("%s: %s, %s, %d\n", __func__, adjusted_mode->name,
+		 old_mode->name, meson_crtc_state->uboot_mode_init);
 
 	if (!priv->compat_mode) {
 		/* update follow source/follow sink to hdr/dv core.
@@ -370,26 +394,32 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 
 			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 			/*enable/disable dv*/
-			if (meson_crtc_state->crtc_eotf_type
-					== HDMI_EOTF_MESON_DOLBYVISION_LL) {
-				set_dolby_vision_ll_policy(1);
-			} else {
-				set_dolby_vision_ll_policy(0);
-			}
-
-			if (meson_crtc_state->crtc_eotf_type
-					== HDMI_EOTF_MESON_DOLBYVISION ||
-				meson_crtc_state->crtc_eotf_type
-					== HDMI_EOTF_MESON_DOLBYVISION_LL) {
-				set_dolby_vision_enable(true);
+			if (meson_crtc_state->crtc_dv_enable) {
+				if (meson_crtc_state->crtc_eotf_type
+						== HDMI_EOTF_MESON_DOLBYVISION_LL) {
+					set_amdv_ll_policy(1);
+				} else {
+					set_amdv_ll_policy(0);
+				}
+				set_amdv_enable(true);
 			}
 			#endif
 		}
+		/*force eotf by property*/
+		set_eotf_by_property(meson_crtc_state);
 	}
 
 	/*update mode*/
-	name = am_meson_crtc_get_voutmode(adjusted_mode);
-	mode = validate_vmode(name, 0);
+	name = adjusted_mode->name;
+	if (crtc->state->vrr_enabled) {
+		DRM_INFO("%s, adjust raw %s to brr %s\n", __func__,
+			 name, meson_crtc_state->brr_mode);
+		brr_name = meson_crtc_state->brr_mode;
+		if (meson_crtc_state->valid_brr)
+			name = brr_name;
+	}
+
+	mode = vout_func_validate_vmode(amcrtc->vout_index, name, 0);
 	if (mode == VMODE_MAX) {
 		DRM_ERROR("no matched vout mode\n");
 		return;
@@ -398,23 +428,32 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (mode == VMODE_DUMMY_ENCL ||
 		mode == VMODE_DUMMY_ENCI ||
 		mode == VMODE_DUMMY_ENCP) {
-		ret = set_current_vmode(mode);
+		ret = vout_func_set_current_vmode(amcrtc->vout_index, mode);
 		if (ret)
 			DRM_ERROR("new mode set error\n");
 	} else {
 		if (meson_crtc_state->uboot_mode_init)
 			mode |= VMODE_INIT_BIT_MASK;
 
-		set_vout_init(mode);
-		update_vout_viu();
-	}
-	set_vout_mode_name(name);
+		if (crtc->state->vrr_enabled &&
+			adjusted_mode->hdisplay == old_mode->hdisplay &&
+			adjusted_mode->vdisplay == old_mode->vdisplay) {
+			set_vframe_rate_hint(adjusted_mode->vrefresh  * 100);
+			DRM_INFO("%s, vrr set crtc enable, %d\n", __func__,
+					 adjusted_mode->vrefresh  * 100);
+			drm_crtc_vblank_on(crtc);
+			return;
+		}
 
-	memcpy(&pipeline->subs[crtc->index].mode, adjusted_mode,
+		vout_func_set_state(amcrtc->vout_index, mode);
+		vout_func_update_viu(amcrtc->vout_index);
+	}
+
+	meson_crtc_state->vmode = mode;
+
+	memcpy(&pipeline->subs[amcrtc->crtc_index].mode, adjusted_mode,
 	       sizeof(struct drm_display_mode));
 
-	/*force eotf by property*/
-	set_eotf_by_property(meson_crtc_state);
 	drm_crtc_vblank_on(crtc);
 	enable_irq(amcrtc->irq);
 
@@ -425,88 +464,20 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct drm_crtc_state *old_state)
 {
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
-	enum vmode_e mode;
-
-	DRM_INFO("%s:in\n", __func__);
-	drm_crtc_vblank_off(crtc);
-	if (crtc->state->event && !crtc->state->active) {
-		spin_lock_irq(&crtc->dev->event_lock);
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		spin_unlock_irq(&crtc->dev->event_lock);
-		crtc->state->event = NULL;
-	}
-	disable_irq(amcrtc->irq);
-	/* disable output by config null
-	 * Todo: replace or delete it if have new method
-	 */
-	mode = validate_vmode("null", 0);
-	if (mode == VMODE_MAX) {
-		DRM_ERROR("no matched vout mode\n");
-		return;
-	}
-	set_vout_init(mode);
-	DRM_DEBUG("%s:out\n", __func__);
-}
-
-static void am_meson_crtc2_atomic_enable(struct drm_crtc *crtc,
-					struct drm_crtc_state *old_state)
-{
-	int ret;
-	char *name;
-	enum vmode_e mode;
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
-	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
-	struct meson_vpu_pipeline *pipeline = amcrtc->pipeline;
-	struct am_meson_crtc_state *meson_crtc_state =
-					to_am_meson_crtc_state(crtc->state);
-
-	DRM_INFO("%s:in\n", __func__);
-	if (!adjusted_mode) {
-		DRM_ERROR("meson_crtc_enable fail, unsupport mode:%s\n",
-			  adjusted_mode->name);
-		return;
-	}
-	DRM_INFO("%s: %s, %d\n", __func__, adjusted_mode->name, meson_crtc_state->uboot_mode_init);
-
-	/*update mode*/
-	name = am_meson_crtc2_get_voutmode(adjusted_mode);
-	mode = validate_vmode2(name, 0);
-	if (mode == VMODE_MAX) {
-		DRM_ERROR("no matched vout mode\n");
-		return;
-	}
-
-	if (mode == VMODE_DUMMY_ENCL ||
-		mode == VMODE_DUMMY_ENCI ||
-		mode == VMODE_DUMMY_ENCP) {
-		ret = set_current_vmode(mode);
-		if (ret)
-			DRM_ERROR("new mode set error\n");
-	} else {
-		if (meson_crtc_state->uboot_mode_init)
-			mode |= VMODE_INIT_BIT_MASK;
-
-		set_vout2_init(mode);
-		update_vout2_viu();
-	}
-	set_vout_mode_name(name);
-
-	memcpy(&pipeline->subs[crtc->index].mode, adjusted_mode,
-	       sizeof(struct drm_display_mode));
-	drm_crtc_vblank_on(crtc);
-	enable_irq(amcrtc->irq);
-
-	DRM_INFO("%s-%d:out\n", __func__, meson_crtc_state->uboot_mode_init);
-}
-
-static void am_meson_crtc2_atomic_disable(struct drm_crtc *crtc,
-	struct drm_crtc_state *old_state)
-{
-	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
+	struct drm_display_mode *old_mode = &old_state->adjusted_mode;
 	enum vmode_e mode;
 
 	DRM_INFO("%s:in\n", __func__);
 	drm_crtc_vblank_off(crtc);
+
+	if (crtc->state->vrr_enabled &&
+		adjusted_mode->hdisplay == old_mode->hdisplay &&
+		adjusted_mode->vdisplay == old_mode->vdisplay) {
+		DRM_INFO("%s, vrr enable, skip crtc disable\n", __func__);
+		return;
+	}
+
 	if (crtc->state->event && !crtc->state->active) {
 		spin_lock_irq(&crtc->dev->event_lock);
 		drm_crtc_send_vblank_event(crtc, crtc->state->event);
@@ -517,18 +488,14 @@ static void am_meson_crtc2_atomic_disable(struct drm_crtc *crtc,
 	/* disable output by config null
 	 * Todo: replace or delete it if have new method
 	 */
-	mode = validate_vmode2("null", 0);
+	mode = vout_func_validate_vmode(amcrtc->vout_index, "null", 0);
 	if (mode == VMODE_MAX) {
 		DRM_ERROR("no matched vout mode\n");
 		return;
 	}
-	set_vout2_init(mode);
+	vout_func_set_state(amcrtc->vout_index, mode);
 	DRM_DEBUG("%s:out\n", __func__);
 }
-
-static bool crtc_dv_enable_value;
-module_param_named(crtc_dv_enable, crtc_dv_enable_value, bool, 0644);
-MODULE_PARM_DESC(crtc_dv_enable, "crtc_dv_enable parameter to set dv");
 
 static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state)
@@ -548,7 +515,7 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 			crtc_state->mode_changed = true;
 			crtc_force_hint = 0;
 		}
-		new_state->crtc_dv_enable = crtc_dv_enable_value;
+
 		if (cur_state->crtc_dv_enable != new_state->crtc_dv_enable)
 			crtc_state->mode_changed = true;
 
@@ -586,7 +553,9 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 	int gamma_lut_size = 0;
 #endif
 
-	sub_pipe = &pipeline->subs[amcrtc->crtc_index];
+	int crtc_index = amcrtc->crtc_index;
+
+	sub_pipe = &pipeline->subs[crtc_index];
 	meson_crtc_state = to_am_meson_crtc_state(crtc->state);
 	if (crtc->state->color_mgmt_changed) {
 		DRM_INFO("%s color_mgmt_changed!\n", __func__);
@@ -625,16 +594,22 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			#endif
 		}
 	}
-	vpu_pipeline_prepare_update(amcrtc->pipeline,
-		crtc->mode.vdisplay, crtc->mode.vrefresh);
-	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	//vpu_pipeline_prepare_update(amcrtc->pipeline,
+	//	crtc->mode.vdisplay, crtc->mode.vrefresh, crtc_index);
 	if (!meson_crtc_state->uboot_mode_init) {
 		vpu_osd_pipeline_update(sub_pipe, old_atomic_state);
-		vpu_pipeline_finish_update(pipeline);
+		spin_lock_irqsave(&crtc->dev->event_lock, flags);
+		vpu_pipeline_finish_update(pipeline, crtc_index);
+		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 	}
 
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 	if (crtc->state->event) {
-		amcrtc->event = crtc->state->event;
+		if (drm_crtc_vblank_get(crtc) == 0)
+			drm_crtc_arm_vblank_event(crtc, crtc->state->event);
+		else
+			amcrtc->event = crtc->state->event;
+
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
@@ -656,15 +631,6 @@ static const struct drm_crtc_helper_funcs am_crtc_helper_funcs = {
 	.atomic_disable	= am_meson_crtc_atomic_disable,
 };
 
-static const struct drm_crtc_helper_funcs am_crtc2_helper_funcs = {
-	.atomic_check	= meson_crtc_atomic_check,
-	.mode_fixup		= am_meson_crtc_mode_fixup,
-	.atomic_begin	= am_meson_crtc_atomic_begin,
-	.atomic_flush	= am_meson_crtc_atomic_flush,
-	.atomic_enable	= am_meson_crtc2_atomic_enable,
-	.atomic_disable	= am_meson_crtc2_atomic_disable,
-};
-
 static int meson_crtc_get_scannout_position(struct am_meson_crtc *crtc,
 	bool in_vblank_irq, int *vpos, int *hpos,
 	ktime_t *stime, ktime_t *etime,
@@ -677,7 +643,7 @@ static int meson_crtc_get_scannout_position(struct am_meson_crtc *crtc,
 	if (stime)
 		*stime = ktime_get();
 
-	ret = vpu_pipeline_read_scanout_pos(crtc->pipeline, vpos, hpos);
+	ret = vpu_pipeline_read_scanout_pos(crtc->pipeline, vpos, hpos, crtc->crtc_index);
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		/* for interlace mode, enc 0 ~ vtotal*2
@@ -733,31 +699,75 @@ static void meson_crtc_init_property(struct drm_device *drm_dev,
 	}
 }
 
-int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
+static void meson_crtc_init_dv_enable_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
 {
-	struct meson_drm *priv = amcrtc->priv;
-	struct drm_crtc *crtc = &amcrtc->base;
+	struct drm_property *prop;
+
+	prop = drm_property_create_bool(drm_dev, 0, "dv_enable");
+	if (prop) {
+		amcrtc->dv_enable_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to dv_enable property\n");
+	}
+}
+
+static void meson_crtc_add_bgcolor_property(struct drm_device *drm_dev,
+						  struct am_meson_crtc *amcrtc)
+{
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(drm_dev, 0, "BACKGROUND_COLOR",
+					0, GENMASK_ULL(63, 0));
+	if (prop) {
+		amcrtc->bgcolor_property = prop;
+		drm_object_attach_property(&amcrtc->base.base, prop, 0);
+	} else {
+		DRM_ERROR("Failed to background color property\n");
+	}
+}
+
+struct am_meson_crtc *meson_crtc_bind(struct meson_drm *priv, int idx)
+{
+	struct am_meson_crtc *amcrtc;
+	struct drm_crtc *crtc;
 	struct meson_vpu_pipeline *pipeline = priv->pipeline;
+	struct drm_plane *primary_plane;
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	int gamma_lut_size = 0;
 #endif
-	int ret;
+	int ret, plane_index;
+	char crtc_name[64];
 
 	DRM_INFO("%s\n", __func__);
+
+	amcrtc = devm_kzalloc(priv->dev, sizeof(*amcrtc), GFP_KERNEL);
+	if (!amcrtc)
+		return NULL;
+
+	amcrtc->priv = priv;
+	amcrtc->dev = priv->dev;
+	amcrtc->drm_dev = priv->drm;
+	amcrtc->crtc_index = idx;
+	amcrtc->vout_index = idx + 1;/*vout index start from 1.*/
+	crtc = &amcrtc->base;
+	plane_index = priv->primary_plane_index[idx];
+	primary_plane = &priv->osd_planes[plane_index]->base;
+
+	snprintf(crtc_name, 64, "%s-%d", "VPP", amcrtc->crtc_index);
+
 	ret = drm_crtc_init_with_planes(priv->drm, crtc,
-					priv->primary_plane, priv->cursor_plane,
-					&am_meson_crtc_funcs, "amlogic vpu");
+					primary_plane, priv->cursor_plane,
+					&am_meson_crtc_funcs, crtc_name);
 	if (ret) {
 		dev_err(amcrtc->drm_dev->dev, "Failed to init CRTC\n");
-		return ret;
+		return NULL;
 	}
 
-	if (amcrtc->crtc_index == 0)
-		drm_crtc_helper_add(crtc, &am_crtc_helper_funcs);
-	else if (amcrtc->crtc_index == 1)
-		drm_crtc_helper_add(crtc, &am_crtc2_helper_funcs);
+	drm_crtc_helper_add(crtc, &am_crtc_helper_funcs);
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
-	meson_vpu_reg_handle_register();
+	meson_vpu_reg_handle_register(amcrtc->crtc_index);
 #endif
 #ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT
 	amvecm_drm_init(0);
@@ -767,35 +777,15 @@ int am_meson_crtc_create(struct am_meson_crtc *amcrtc)
 #endif
 
 	amcrtc->get_scannout_position = meson_crtc_get_scannout_position;
+	amcrtc->force_crc_chk = 8;
 	meson_crtc_init_property(priv->drm, amcrtc);
 	meson_crtc_init_hdmi_eotf_property(priv->drm, amcrtc);
+	meson_crtc_init_dv_enable_property(priv->drm, amcrtc);
+	meson_crtc_add_bgcolor_property(priv->drm, amcrtc);
 	amcrtc->pipeline = pipeline;
 	strcpy(amcrtc->osddump_path, OSD_DUMP_PATH);
 	priv->crtcs[priv->num_crtcs++] = amcrtc;
 
-	return 0;
+	return amcrtc;
 }
 
-int am_meson_crtcs_add(struct meson_drm *private, struct device *dev)
-{
-	int i, ret;
-	struct am_meson_crtc *amcrtc;
-	struct meson_vpu_pipeline *pipeline = private->pipeline;
-
-	for (i = 0; i < pipeline->num_postblend; i++) {
-		amcrtc = devm_kzalloc(dev, sizeof(*amcrtc), GFP_KERNEL);
-		if (!amcrtc)
-			return -ENOMEM;
-
-		amcrtc->priv = private;
-		amcrtc->dev = dev;
-		amcrtc->drm_dev = private->drm;
-		amcrtc->crtc_index = i;
-
-		ret = am_meson_crtc_create(amcrtc);
-		if (ret < 0)
-			return -ENOMEM;
-	}
-
-	return 0;
-}

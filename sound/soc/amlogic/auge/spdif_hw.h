@@ -26,7 +26,7 @@ void aml_spdif_mute(struct aml_audio_controller *actrl,
 void aml_spdifout_mute_without_actrl(int index,
 	bool is_mute);
 
-void aml_spdif_arb_config(struct aml_audio_controller *actrl);
+void aml_spdif_arb_config(struct aml_audio_controller *actrl, bool use_arb);
 
 int aml_spdifin_status_check(struct aml_audio_controller *actrl);
 void aml_spdifin_clr_irq(struct aml_audio_controller *actrl,
@@ -47,6 +47,9 @@ void aml_spdif_fifo_ctrl(struct aml_audio_controller *actrl,
 int spdifin_get_mode(void);
 
 int spdif_get_channel_status(int reg);
+
+unsigned int spdif_get_channel_status0(int spdif_id);
+void spdif_set_channel_status0(int spdif_id, unsigned int status0);
 
 void spdifin_set_channel_status(int ch, int bits);
 

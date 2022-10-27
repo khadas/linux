@@ -385,9 +385,6 @@ meson_vpu_postblend_state_init(struct meson_drm *private,
 
 /*postblend block state ops end
  */
-#ifdef MESON_DRM_VERSION_V0
-static struct meson_vpu_pipeline_state last_mvps;
-#endif
 static struct drm_private_state *
 meson_vpu_pipeline_atomic_duplicate_state(struct drm_private_obj *obj)
 {
@@ -411,14 +408,6 @@ meson_vpu_pipeline_atomic_destroy_state(struct drm_private_obj *obj,
 
 	kfree(mvps);
 }
-
-#ifdef MESON_DRM_VERSION_V0
-void
-meson_vpu_pipeline_atomic_backup_state(struct meson_vpu_pipeline_state *mvps)
-{
-	memcpy(&last_mvps, mvps, sizeof(*mvps));
-}
-#endif
 
 static const struct drm_private_state_funcs meson_vpu_pipeline_obj_funcs = {
 	.atomic_duplicate_state = meson_vpu_pipeline_atomic_duplicate_state,
@@ -452,6 +441,24 @@ meson_vpu_block_get_state(struct meson_vpu_block *block,
 	if (dps) {
 		mvbs = priv_to_block_state(dps);
 		return mvbs;
+	}
+
+	return NULL;
+}
+
+struct meson_vpu_block_state *
+meson_vpu_block_get_old_state(struct meson_vpu_block *mvb,
+			struct drm_atomic_state *state)
+{
+	struct drm_private_obj *obj;
+	struct drm_private_state *old_obj_state;
+	struct meson_vpu_block_state *mvbs = NULL;
+	int i;
+
+	for_each_old_private_obj_in_state(state, obj, old_obj_state, i) {
+		mvbs = priv_to_block_state(old_obj_state);
+		if (mvb == mvbs->pblk)
+			return mvbs;
 	}
 
 	return NULL;

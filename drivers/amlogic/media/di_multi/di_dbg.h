@@ -23,6 +23,9 @@
 #include <linux/amlogic/media/vfm/vframe_provider.h>
 #include <linux/amlogic/media/vfm/vframe_receiver.h>
 
+#define CRC_COUNT_NUB		(20)
+#define CRC_NUB		(3)
+
 void didbg_fs_init(void);
 void didbg_fs_exit(void);
 
@@ -75,6 +78,9 @@ extern const struct dim_tr_ops_s dim_tr_ops;
 void dbg_timer(unsigned int ch, enum EDBG_TIMER item);
 void dbg_timer_clear(unsigned int ch);
 void dim_dump_mif_state(struct DI_MIF_S *mif, char *name);
+void dbg_slt_crc(struct di_buf_s *di_buf);
+void dbg_slt_crc_count(struct di_ch_s *pch, unsigned int postcrc,
+		       unsigned int nrcrc, unsigned int mtncrc);
 
 int seq_file_dvfm(struct seq_file *seq, void *v, struct dvfm_s *pvfm);
 void print_dvfm(struct dvfm_s *pvfm, char *name);

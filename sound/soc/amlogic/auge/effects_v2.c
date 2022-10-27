@@ -12,6 +12,7 @@
 #include <linux/clk.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <linux/clk-provider.h>
 
 #include "effects_v2.h"
 #include "effects_hw_v2.h"
@@ -62,6 +63,7 @@ struct audioeffect {
 
 	/*which module should be effected */
 	int effect_module;
+	unsigned int syssrc_clk_rate;
 };
 
 struct audioeffect *s_effect;
@@ -109,6 +111,7 @@ bool is_aed_reserve_frddr(void)
 static int eqdrc_clk_set(struct audioeffect *p_effect)
 {
 	int ret = 0;
+	char *clk_name = NULL;
 
 	ret = clk_prepare_enable(p_effect->clk);
 	if (ret) {
@@ -117,6 +120,13 @@ static int eqdrc_clk_set(struct audioeffect *p_effect)
 		return -EINVAL;
 	}
 
+	clk_name = (char *)__clk_get_name(p_effect->srcpll);
+	if (!strcmp(clk_name, "hifi_pll") || !strcmp(clk_name, "t5_hifi_pll")) {
+		if (p_effect->syssrc_clk_rate)
+			clk_set_rate(p_effect->srcpll, p_effect->syssrc_clk_rate);
+		else
+			clk_set_rate(p_effect->srcpll, 1806336 * 1000);
+	}
 	ret = clk_prepare_enable(p_effect->srcpll);
 	if (ret) {
 		pr_err("Can't enable eqdrc src pll clock: %d\n",
@@ -585,13 +595,47 @@ static const struct of_device_id effect_device_id[] = {
 };
 MODULE_DEVICE_TABLE(of, effect_device_id);
 
+static void effect_init(struct platform_device *pdev)
+{
+	struct audioeffect *p_effect = dev_get_drvdata(&pdev->dev);
+	int version;
+	/*set eq/drc module lane & channels*/
+	version = check_aed_version();
+	if (version > VERSION2)
+		aed_set_lane_and_channels_v3(p_effect->lane_mask, p_effect->ch_mask);
+	else
+		aed_set_lane_and_channels(p_effect->lane_mask, p_effect->ch_mask);
+
+	/*set master & channel volume gain to 0dB*/
+	aed_set_volume(0xc0, 0x30, 0x30);
+	/*set default mixer gain*/
+	aed_set_mixer_params();
+	/*all 20 bands for EQ1*/
+	aed_eq_taps(EQ_BAND);
+	/*set default filter param*/
+	aed_set_filter_data(version);
+	/*set multi-band drc param*/
+	aed_set_multiband_drc_param();
+	/*set multi/full-band drc data*/
+	aed_set_drc_data();
+	/*set full-band drc param, enable 2 band*/
+	aed_set_fullband_drc_param(2);
+	/*set EQ/DRC module enable*/
+	aml_set_aed(1, p_effect->effect_module);
+
+	if (p_effect->chipinfo &&
+		p_effect->chipinfo->reserved_frddr) {
+		aml_aed_set_frddr_reserved();
+	}
+}
+
 static int effect_platform_probe(struct platform_device *pdev)
 {
 	struct audioeffect *p_effect;
 	struct device *dev = &pdev->dev;
 	struct effect_chipinfo *p_chipinfo;
 	int lane_mask = -1, channel_mask = -1, eqdrc_module = -1;
-	int ret, version;
+	int ret;
 
 	pr_info("%s, line:%d\n", __func__, __LINE__);
 
@@ -609,6 +653,14 @@ static int effect_platform_probe(struct platform_device *pdev)
 	if (!p_chipinfo)
 		dev_warn_once(dev, "check whether to update effect chipinfo\n");
 	p_effect->chipinfo = p_chipinfo;
+
+	ret = of_property_read_u32(dev->of_node, "src-clk-freq",
+				   &p_effect->syssrc_clk_rate);
+	if (ret < 0)
+		p_effect->syssrc_clk_rate = 0;
+	else
+		pr_info("%s sys-src clk rate from dts:%d\n",
+			__func__, p_effect->syssrc_clk_rate);
 
 	p_effect->gate = devm_clk_get(&pdev->dev, "gate");
 	if (IS_ERR(p_effect->gate)) {
@@ -687,35 +739,50 @@ static int effect_platform_probe(struct platform_device *pdev)
 	s_effect = p_effect;
 	dev_set_drvdata(&pdev->dev, p_effect);
 
-	/*set eq/drc module lane & channels*/
-	version = check_aed_version();
-	if (version > VERSION2)
-		aed_set_lane_and_channels_v3(lane_mask, channel_mask);
-	else
-		aed_set_lane_and_channels(lane_mask, channel_mask);
+	effect_init(pdev);
 
-	/*set master & channel volume gain to 0dB*/
-	aed_set_volume(0xc0, 0x30, 0x30);
-	/*set default mixer gain*/
-	aed_set_mixer_params();
-	/*all 20 bands for EQ1*/
-	aed_eq_taps(EQ_BAND);
-	/*set default filter param*/
-	aed_set_filter_data(version);
-	/*set multi-band drc param*/
-	aed_set_multiband_drc_param();
-	/*set multi/full-band drc data*/
-	aed_set_drc_data();
-	/*set full-band drc param, enable 2 band*/
-	aed_set_fullband_drc_param(2);
-	/*set EQ/DRC module enable*/
-	aml_set_aed(1, p_effect->effect_module);
+	return 0;
+}
 
-	if (p_effect->chipinfo &&
-		p_effect->chipinfo->reserved_frddr) {
-		aml_aed_set_frddr_reserved();
+static int effect_platform_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct audioeffect *p_effect = dev_get_drvdata(&pdev->dev);
+
+	aml_set_aed(0, p_effect->effect_module);
+
+	if (!IS_ERR(p_effect->clk)) {
+		while (__clk_is_enabled(p_effect->clk))
+			clk_disable_unprepare(p_effect->clk);
 	}
+	pr_info("%s\n", __func__);
+	return 0;
+}
 
+static int effect_platform_resume(struct platform_device *pdev)
+{
+	struct audioeffect *p_effect = dev_get_drvdata(&pdev->dev);
+	int ret;
+
+	audiobus_write(EE_AUDIO_CLK_GATE_EN0, 0xffffffff);
+	audiobus_update_bits(EE_AUDIO_CLK_GATE_EN1, 0x7, 0x7);
+
+	if (!IS_ERR(p_effect->clk)) {
+		clk_set_parent(p_effect->clk, NULL);
+		ret = clk_set_parent(p_effect->clk, p_effect->srcpll);
+		if (ret) {
+			dev_warn(&pdev->dev, "Can't set eqdrc clock parent clock\n");
+			return ret;
+		}
+
+		ret = eqdrc_clk_set(p_effect);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "set eq drc module clk fail!\n");
+			return -EINVAL;
+		}
+	}
+	effect_init(pdev);
+
+	pr_info("%s\n", __func__);
 	return 0;
 }
 
@@ -726,6 +793,8 @@ static struct platform_driver effect_platform_driver = {
 		.of_match_table = of_match_ptr(effect_device_id),
 	},
 	.probe  = effect_platform_probe,
+	.suspend = effect_platform_suspend,
+	.resume = effect_platform_resume,
 };
 
 int __init effect_platform_init(void)

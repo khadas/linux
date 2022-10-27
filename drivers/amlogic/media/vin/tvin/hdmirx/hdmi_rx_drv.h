@@ -22,8 +22,8 @@
 #include "hdmi_rx_edid.h"
 #include "hdmi_rx_drv_ext.h"
 
-/* fix vsif irq issue */
-#define RX_VER0 "ver.2021/07/13"
+/* repeater */
+#define RX_VER0 "ver.2022/07/26"
 
 /*print type*/
 #define	LOG_EN		0x01
@@ -43,9 +43,10 @@
 #define DBG1_LOG    0x8000
 #define ECC_LOG		0x10000
 #define EDID_DATA_LOG	0x20000
+#define RP_LOG		0x40000
 
-/* sony x700 6g unstable */
-#define RX_VER1 "ver.2021/12/01a"
+/* add aif parsing for t7 */
+#define RX_VER1 "ver.2022/03/04"
 
 /* 50ms timer for hdmirx main loop (HDMI_STATE_CHECK_FREQ is 20) */
 
@@ -55,8 +56,8 @@
 #define pr_var(str, index) rx_pr("%5d %-30s = %#x\n", (index), #str, (str))
 #define var_to_str(var) (#var)
 
-/* calc phy addr for non-independent edid case */
-#define RX_VER2 "ver.2022/01/18"
+/* register edid notify callback for T7 */
+#define RX_VER2 "ver.2022/08/16"
 
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
@@ -190,6 +191,10 @@ enum port_sts_e {
 	E_5V_LOST = 0xfd,
 	E_INIT = 0xff,
 };
+
+/* flag: need to request downstream re-auth */
+#define HDCP_NEED_REQ_DS_AUTH 0x10
+#define HDCP_VER_MASK 0xf
 
 enum hdcp_version_e {
 	HDCP_VER_NONE,
@@ -435,8 +440,13 @@ struct hdmi_rx_hdcp {
 	enum repeater_state_e state;
 	/** Repeater mode else receiver only */
 	bool repeat;
+	bool hdcp14_ready;
 	bool cascade_exceed;
 	bool dev_exceed;
+	unsigned char ds_hdcp_ver;
+	bool stream_manage_rcvd;
+	u32 topo_updated;
+	u8 rpt_reauth_event;
 	/*downstream depth*/
 	unsigned char depth;
 	/*downstream count*/
@@ -458,6 +468,7 @@ struct hdmi_rx_hdcp {
 	enum hdcp_version_e hdcp_version;/* 0 no hdcp;1 hdcp14;2 hdcp22 */
 	/* add for dv cts */
 	enum hdcp_version_e hdcp_pre_ver;
+	u8 stream_type;
 	bool hdcp_source;
 	unsigned char hdcp22_exception;/*esm exception code,reg addr :0x60*/
 };
@@ -591,6 +602,14 @@ struct emp_buff {
 	u8 data_ver;
 };
 
+struct spkts_rcvd_sts {
+	u32 pkt_vsi_rcvd:1;
+	u32 pkt_drm_rcvd:1;
+	u32 pkt_spd_rcvd:1;
+	u32 pkt_vtem_rcvd:1;
+	u32 rsvd:28;
+};
+
 enum hdmirx_event {
 	HDMIRX_NONE_EVENT = 0,
 };
@@ -609,7 +628,7 @@ struct rx_s {
 	enum phy_ver_e phy_ver;
 	struct hdmirx_dev_s *hdmirxdev;
 	/** HDMI RX received signal changed */
-	u8 skip;
+	u32 skip;
 	/*avmute*/
 	u32 avmute_skip;
 	/** HDMI RX input port 0 (A) or 1 (B) (or 2(C) or 3 (D)) */
@@ -625,7 +644,6 @@ struct rx_s {
 	bool open_fg;
 	bool cableclk_stb_flg;
 	u8 irq_flag;
-	bool firm_change;/*hdcp2.2 rp/rx switch time*/
 	/** HDMI RX controller HDCP configuration */
 	struct hdmi_rx_hdcp hdcp;
 	/*report hpd status to app*/
@@ -671,6 +689,7 @@ struct rx_s {
 	bool vrr_en;
 	u8 vrr_min;
 	u8 vrr_max;
+	u8 free_sync_sts;
 	u8 afifo_sts;
 	u32 ecc_err;
 	u32 ecc_err_frames_cnt;
@@ -685,6 +704,7 @@ struct rx_s {
 	struct rx_var_param var;
 	struct rx_aml_phy aml_phy;
 	u8 last_hdcp22_state;
+	//struct spkts_rcvd_sts pkts_sts;
 };
 
 struct _hdcp_ksv {
@@ -717,6 +737,7 @@ extern struct device *hdmirx_dev;
 extern struct rx_s rx;
 extern struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 extern bool downstream_repeat_support;
+extern int vrr_range_dynamic_update_en;
 void rx_tasklet_handler(unsigned long arg);
 void skip_frame(unsigned int cnt);
 
@@ -751,7 +772,8 @@ extern bool hdmi_cec_en;
 extern int hdmi_yuv444_enable;
 extern int vdin_drop_frame_cnt;
 extern int aud_compose_type;
-extern u8 vrr_func_en;
+extern int rpt_only_mode;
+extern u32 vrr_func_en;
 /* debug */
 extern bool hdcp_enable;
 extern int log_level;
@@ -775,7 +797,7 @@ void rx_get_global_variable(const char *buf);
 int rx_pr(const char *fmt, ...);
 unsigned int hdmirx_hw_dump_reg(unsigned char *buf, int size);
 unsigned int hdmirx_show_info(unsigned char *buf, int size);
-bool is_afifo_error(void);
+bool is_aud_fifo_error(void);
 bool is_aud_pll_error(void);
 int hdmirx_debug(const char *buf, int size);
 void dump_reg(void);

@@ -68,7 +68,10 @@ enum toddr_src {
 	RESAMPLEA = 13,   /* t5 */
 	RESAMPLEB = 14,
 	VAD = 15,
-	TODDR_SRC_MAX = 16
+	PDMIN_B = 16,
+	TDMINB_LB = 17,
+	TDMIN_D = 18,
+	TODDR_SRC_MAX = 19
 };
 
 enum resample_idx {
@@ -92,6 +95,7 @@ enum frddr_dest {
 	SPDIFOUT_A,
 	SPDIFOUT_B,
 	EARCTX_DMAC,
+	TDMOUT_D,
 	FRDDR_MAX
 };
 
@@ -116,6 +120,14 @@ struct toddr_fmt {
 };
 
 struct toddr_src_conf {
+	char name[32];
+	unsigned int val;
+	unsigned int reg;
+	unsigned int shift;
+	unsigned int mask;
+};
+
+struct frddr_src_conf {
 	char name[32];
 	unsigned int val;
 	unsigned int reg;
@@ -157,7 +169,8 @@ struct ddr_chipinfo {
 	 * 0: default, 3 toddr, axg, g12a, g12b
 	 * 4: 4 toddr, tl1
 	 */
-	int fifo_num;
+	int toddr_num;
+	int frddr_num;
 	unsigned int fifo_depth;
 
 	/* power detect or VAD
@@ -172,6 +185,8 @@ struct ddr_chipinfo {
 	bool burst_finished_flag;
 
 	struct toddr_src_conf *to_srcs;
+	struct toddr_src_conf *fr_srcs;
+	bool use_arb;
 };
 
 struct toddr {
@@ -275,6 +290,7 @@ void aml_toddr_enable(struct toddr *to, bool enable);
 void aml_toddr_set_fifos(struct toddr *to, unsigned int threshold);
 void aml_toddr_force_finish(struct toddr *to);
 void aml_toddr_set_format(struct toddr *to, struct toddr_fmt *fmt);
+int toddr_src_get_reg(struct toddr *to, enum toddr_src src);
 
 unsigned int aml_toddr_get_status(struct toddr *to);
 unsigned int aml_toddr_get_fifo_cnt(struct toddr *to);
@@ -287,6 +303,15 @@ unsigned int aml_toddr_read1(struct toddr *to);
 void aml_toddr_write1(struct toddr *to, unsigned int val);
 unsigned int aml_toddr_read_status2(struct toddr *to);
 bool aml_toddr_burst_finished(struct toddr *to);
+
+void toddr_vad_enable(bool enable);
+void toddr_vad_set_buf(unsigned int start, unsigned int end);
+void toddr_vad_set_intrpt(unsigned int intrpt);
+void toddr_vad_select_src(enum toddr_src src);
+void toddr_vad_set_fifos(unsigned int thresh);
+void toddr_vad_set_format(struct toddr_fmt *fmt);
+unsigned int toddr_vad_get_status(void);
+unsigned int toddr_vad_get_status2(struct toddr *to);
 
 /* resample */
 void aml_set_resample(enum resample_idx id,

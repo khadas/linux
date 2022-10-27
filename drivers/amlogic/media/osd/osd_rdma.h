@@ -18,12 +18,20 @@ struct rdma_table_item {
 	u32 val;
 };
 
+struct rdma_warn_array {
+	u32 addr;
+	u32 count;
+	u32 cur_line;
+	u32 cur_begine_line;
+};
+
 enum {
 	VPP0,
 	VPP1,
 	VPP2,
 };
 
+#define WARN_TABLE       64
 #define TABLE_SIZE	     PAGE_SIZE
 #define MAX_TABLE_ITEM	 (TABLE_SIZE / sizeof(struct rdma_table_item_t))
 #define OSD_RDMA_CHANNEL_INDEX	osd_rdma_handle[0]
@@ -121,4 +129,7 @@ int osd_rdma_uninit(void);
 void set_reset_rdma_trigger_line(void);
 void enable_line_n_rdma(void);
 void enable_vsync_rdma(u32 vpp_index);
+int get_rdma_recovery_stat(u32 vpp_index);
+int get_rdma_not_hit_recovery_stat(u32 vpp_index);
+int get_rdma_irq_done_line(u32 vpp_index);
 #endif

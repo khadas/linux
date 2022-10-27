@@ -57,7 +57,8 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x20000>;
+			pmsg-size = <0x10000>;
+			bconsole-size = <0x10000>;
 		};
 
 		secmon_reserved: linux,secmon {
@@ -511,9 +512,9 @@
 		compatible = "amlogic, vecm-t5d";
 		dev_name = "aml_vecm";
 		status = "okay";
-		gamma_en = <1>;/*1:enabel ;0:disable*/
-		wb_en = <1>;/*1:enabel ;0:disable*/
-		cm_en = <1>;/*1:enabel ;0:disable*/
+		gamma_en = <1>;/*1:enable ;0:disable*/
+		wb_en = <1>;/*1:enable ;0:disable*/
+		cm_en = <1>;/*1:enable ;0:disable*/
 		wb_sel = <0>;/*1:mtx ;0:gainoff*/
 		hist_sel = <1>;/*1:vd2 ;0:vd1*/
 		vlock_en = <1>;/*1:enable;0:disable*/
@@ -585,7 +586,7 @@
 		/*urgent_en*/
 		double_write_en;
 		/* secure_en; */
-		v4l_support_en;
+		v4l_support_en = <0>;
 	};
 
 	vdin@1 {
@@ -1185,6 +1186,9 @@
 		/* enable control gain */
 		ctrl_gain = <1>;
 
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		status = "okay";
 
 		/* !!!For --TV platform-- ONLY */
@@ -1213,7 +1217,7 @@
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-snd-pdm";
+		compatible = "amlogic, tm2-revb-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1262,6 +1266,10 @@
 
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
+
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
+
 		status = "okay";
 	};
 
@@ -1278,6 +1286,9 @@
 			"spdif_pins_mute";
 		pinctrl-0 = <&spdifout_b>;
 		pinctrl-1 = <&spdifout_b_mute>;
+
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 
 		status = "okay";
 	};

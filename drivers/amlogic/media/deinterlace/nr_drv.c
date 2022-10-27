@@ -31,6 +31,7 @@
 #include "deinterlace.h"
 #include "deinterlace_dbg.h"
 #include "di_pqa.h"
+#include <linux/amlogic/media/di/di.h>
 
 static DNR_PRM_t dnr_param;
 static struct NR_PARM_s nr_param;
@@ -385,6 +386,11 @@ static void nr4_config(struct NR4_PARM_s *nr4_parm_p,
 	/* luma enhancement*/
 	DI_Wr(NR4_MCNR_LUMA_STAT_LIMTX, (val<<16) | (width-val-1));
 	DI_Wr(NR4_MCNR_LUMA_STAT_LIMTY, (val<<16) | (height-val-1));
+	if (dim_config_crc_ic()) {
+		DI_Wr(NR4_MCNR_LUMAPRE_CAL_PRAM, 0);
+		DI_Wr(NR4_MCNR_LUMACUR_CAL_PRAM, 0);
+		DI_Wr(NR4_MCNR_MV_CTRL_REG, 0x2408);
+	} //add for crc @2k22-0102
 	/* noise meter */
 	DI_Wr(NR4_NM_X_CFG, (val<<16) | (width-val-1));
 	DI_Wr(NR4_NM_Y_CFG, (val<<16) | (height-val-1));
@@ -398,6 +404,9 @@ static void nr4_config(struct NR4_PARM_s *nr4_parm_p,
 	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 18, 1);
 	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 3, 1);
 	DI_Wr_reg_bits(NR4_TOP_CTRL, 1, 5, 1);
+	//add for crc @2k22-0102
+	if (dim_config_crc_ic())
+		DI_Wr_reg_bits(NR4_TOP_CTRL, 0, 0, 1);
 	nr4_parm_p->width = width - val - val - 1;
 	nr4_parm_p->height = height - val - val - 1;
 }
@@ -986,9 +995,17 @@ static void luma_enhancement_process(struct NR4_PARM_s *nr4_param_p,
 		reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 0, 8);
 		DI_Wr_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 0, 8);
 	}
-	reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 24, 2);
+	if (dim_config_crc_ic())//add for crc @2k22-0102
+		reg_val = field_cnt <= 1 ? 0 : Rd_reg_bits
+				(NR4_MCNR_LUMACUR_CAL_PRAM, 24, 2);
+	else
+		reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 24, 2);
 	DI_Wr_reg_bits(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 24, 2);
-	reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 16, 2);
+	if (dim_config_crc_ic())//add for crc @2k22-0102
+		reg_val = field_cnt <= 1 ? 0 : Rd_reg_bits
+			(NR4_MCNR_LUMACUR_CAL_PRAM, 16, 2);
+	else
+		reg_val = Rd_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, 16, 2);
 	DI_Wr_reg_bits(NR4_MCNR_LUMAPRE_CAL_PRAM, reg_val, 16, 2);
 	reg_val = (Rd(NR4_MCNR_RO_U_SUM) + (tmp1>>1))/tmp1;
 	DI_Wr_reg_bits(NR4_MCNR_LUMACUR_CAL_PRAM, reg_val, 8, 8);

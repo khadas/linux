@@ -38,6 +38,8 @@
 #include "meson_crtc.h"
 #include "meson_sysfs.h"
 #include "meson_writeback.h"
+#include "meson_logo.h"
+#include "meson_async_atomic.h"
 
 #include <linux/amlogic/media/osd/osd_logo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -45,6 +47,8 @@
 
 #define DRIVER_NAME "meson"
 #define DRIVER_DESC "Amlogic Meson DRM driver"
+#define MESON_VERSION_MAJOR 2
+#define MESON_VERSION_MINOR 0
 
 #define MAX_CONNECTOR_NUM (3)
 
@@ -93,378 +97,14 @@ bool meson_drm_get_scannout_position(struct drm_device *dev,
 	return (ret == 0) ? true : false;
 }
 
-static char *strmode;
-struct am_meson_logo logo;
-
-#ifdef MODULE
-
-MODULE_PARM_DESC(outputmode, "outputmode");
-module_param_named(outputmode, logo.outputmode_t, charp, 0600);
-
-#else
-core_param(fb_width, logo.width, uint, 0644);
-core_param(fb_height, logo.height, uint, 0644);
-core_param(display_bpp, logo.bpp, uint, 0644);
-core_param(outputmode, logo.outputmode_t, charp, 0644);
-#endif
-
-static struct drm_framebuffer *am_meson_logo_init_fb(struct drm_device *dev)
-{
-	struct drm_mode_fb_cmd2 mode_cmd;
-	struct drm_framebuffer *fb;
-	struct am_meson_fb *meson_fb;
-	u32 reverse_type, osd_index;
-
-	/*TODO: get mode from vout api temp.*/
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	strcpy(logo.outputmode, get_vout_mode_uboot());
-#endif
-	logo.width = get_logo_fb_width();
-	logo.height = get_logo_fb_height();
-	logo.bpp = get_logo_display_bpp();
-	if (!logo.bpp)
-		logo.bpp = 16;
-
-	get_logo_osd_reverse(&osd_index, &reverse_type);
-	logo.osd_reverse = reverse_type;
-
-	DRM_INFO("width=%d,height=%d,start_addr=0x%pa,size=%d\n",
-		 logo.width, logo.height, &logo.start, logo.size);
-	DRM_INFO("bpp=%d,alloc_flag=%d, osd_reverse=%d\n",
-		 logo.bpp, logo.alloc_flag, logo.osd_reverse);
-	DRM_INFO("outputmode=%s\n", logo.outputmode);
-	if (logo.bpp == 16)
-		mode_cmd.pixel_format = DRM_FORMAT_RGB565;
-	else if (logo.bpp == 24)
-		mode_cmd.pixel_format = DRM_FORMAT_RGB888;
-	else
-		mode_cmd.pixel_format = DRM_FORMAT_XRGB8888;
-	mode_cmd.offsets[0] = 0;
-	mode_cmd.width = logo.width;
-	mode_cmd.height = logo.height;
-	mode_cmd.modifier[0] = DRM_FORMAT_MOD_LINEAR;
-	/*ToDo*/
-	mode_cmd.pitches[0] = ALIGN(mode_cmd.width * logo.bpp, 32) / 8;
-	fb = am_meson_fb_alloc(dev, &mode_cmd, NULL);
-	if (IS_ERR_OR_NULL(fb))
-		return NULL;
-	meson_fb = to_am_meson_fb(fb);
-	meson_fb->logo = &logo;
-
-	return fb;
-}
-
-/*copy from update_output_state,
- *TODO:sync with update_output_state
- */
-static int am_meson_update_output_state(struct drm_atomic_state *state,
-					struct drm_mode_set *set)
-{
-	struct drm_device *dev = set->crtc->dev;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *new_crtc_state;
-	struct drm_connector *connector;
-	struct drm_connector_state *new_conn_state;
-	int ret, i;
-	char hdmitx_attr[16];
-	struct am_hdmitx_connector_state *hdmitx_state;
-
-	ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
-			       state->acquire_ctx);
-	if (ret)
-		return ret;
-
-	/* First disable all connectors on the target crtc. */
-	ret = drm_atomic_add_affected_connectors(state, set->crtc);
-	if (ret)
-		return ret;
-
-	for_each_new_connector_in_state(state, connector, new_conn_state, i) {
-		if (new_conn_state->crtc == set->crtc) {
-			ret = drm_atomic_set_crtc_for_connector(new_conn_state,
-								NULL);
-			if (ret)
-				return ret;
-
-			/* Make sure legacy setCrtc always re-trains */
-			new_conn_state->link_status = DRM_LINK_STATUS_GOOD;
-		}
-	}
-
-	/* Then set all connectors from set->connectors on the target crtc */
-	for (i = 0; i < set->num_connectors; i++) {
-		new_conn_state =
-			drm_atomic_get_connector_state(state,
-						       set->connectors[i]);
-		if (IS_ERR(new_conn_state))
-			return PTR_ERR(new_conn_state);
-
-		ret = drm_atomic_set_crtc_for_connector(new_conn_state,
-							set->crtc);
-		if (ret)
-			return ret;
-
-		if (new_conn_state->connector->connector_type == DRM_MODE_CONNECTOR_HDMIA) {
-			/*read attr from hdmitx, its from uboot*/
-			am_hdmi_info.hdmitx_dev->get_attr(hdmitx_attr);
-			hdmitx_state = to_am_hdmitx_connector_state(new_conn_state);
-			convert_attrstr(hdmitx_attr, &hdmitx_state->color_attr_para);
-			hdmitx_state->pref_hdr_policy = am_hdmi_info.hdmitx_dev->get_hdr_priority();
-		}
-	}
-
-	for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
-		/* Don't update ->enable for the CRTC in the set_config request,
-		 * since a mismatch would indicate a bug in the upper layers.
-		 * The actual modeset code later on will catch any
-		 * inconsistencies here.
-		 */
-		if (crtc == set->crtc)
-			continue;
-
-		if (!new_crtc_state->connector_mask) {
-			ret = drm_atomic_set_mode_prop_for_crtc(new_crtc_state,
-								NULL);
-			if (ret < 0)
-				return ret;
-
-			new_crtc_state->active = false;
-		}
-	}
-
-	return 0;
-}
-
-/*simaler with __drm_atomic_helper_set_config,
- *TODO:sync with __drm_atomic_helper_set_config
- */
-int __am_meson_drm_set_config(struct drm_mode_set *set,
-			      struct drm_atomic_state *state)
-{
-	struct drm_crtc_state *crtc_state;
-	struct drm_plane_state *primary_state;
-	struct drm_crtc *crtc = set->crtc;
-	struct meson_drm *private = crtc->dev->dev_private;
-	struct am_meson_crtc_state *meson_crtc_state;
-	int hdisplay, vdisplay;
-	int ret;
-
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state))
-		return PTR_ERR(crtc_state);
-
-	meson_crtc_state = to_am_meson_crtc_state(crtc_state);
-#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	meson_crtc_state->uboot_mode_init = get_vout_mode_uboot_state();
-#endif
-
-	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
-	if (IS_ERR(primary_state))
-		return PTR_ERR(primary_state);
-
-	if (!set->mode) {
-		WARN_ON(set->fb);
-		WARN_ON(set->num_connectors);
-
-		ret = drm_atomic_set_mode_for_crtc(crtc_state, NULL);
-		if (ret != 0)
-			return ret;
-
-		crtc_state->active = false;
-
-		ret = drm_atomic_set_crtc_for_plane(primary_state, NULL);
-		if (ret != 0)
-			return ret;
-
-		drm_atomic_set_fb_for_plane(primary_state, NULL);
-
-		goto commit;
-	}
-
-	WARN_ON(!set->fb);
-	WARN_ON(!set->num_connectors);
-
-	ret = drm_atomic_set_mode_for_crtc(crtc_state, set->mode);
-	if (ret != 0)
-		return ret;
-
-	crtc_state->active = true;
-
-	ret = drm_atomic_set_crtc_for_plane(primary_state, crtc);
-	if (ret != 0)
-		return ret;
-
-	drm_mode_get_hv_timing(set->mode, &hdisplay, &vdisplay);
-	drm_atomic_set_fb_for_plane(primary_state, set->fb);
-	primary_state->crtc_x = 0;
-	primary_state->crtc_y = 0;
-	primary_state->crtc_w = hdisplay;
-	primary_state->crtc_h = vdisplay;
-	primary_state->src_x = set->x << 16;
-	primary_state->src_y = set->y << 16;
-	if (logo.osd_reverse)
-		primary_state->rotation = DRM_MODE_REFLECT_MASK;
-	else
-		primary_state->rotation = DRM_MODE_ROTATE_0;
-	if (drm_rotation_90_or_270(primary_state->rotation)) {
-		if (private->ui_config.ui_h)
-			primary_state->src_w = private->ui_config.ui_h << 16;
-		else
-			primary_state->src_w = set->fb->height << 16;
-		if (private->ui_config.ui_w)
-			primary_state->src_h = private->ui_config.ui_w << 16;
-		else
-			primary_state->src_h = set->fb->width << 16;
-	} else {
-		if (private->ui_config.ui_w)
-			primary_state->src_w = private->ui_config.ui_w << 16;
-		else
-			primary_state->src_w = set->fb->width << 16;
-		if (private->ui_config.ui_h)
-			primary_state->src_h = private->ui_config.ui_h << 16;
-		else
-			primary_state->src_h = set->fb->height << 16;
-	}
-
-commit:
-	ret = am_meson_update_output_state(state, set);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-/*copy from drm_atomic_helper_set_config,
- *TODO:sync with drm_atomic_helper_set_config
- */
-static int am_meson_drm_set_config(struct drm_mode_set *set,
-				   struct drm_modeset_acquire_ctx *ctx)
-{
-	struct drm_atomic_state *state;
-	struct drm_crtc *crtc = set->crtc;
-	int ret = 0;
-
-	state = drm_atomic_state_alloc(crtc->dev);
-	if (!state)
-		return -ENOMEM;
-
-	state->acquire_ctx = ctx;
-	ret = __am_meson_drm_set_config(set, state);
-	if (ret != 0)
-		goto fail;
-
-	ret = drm_atomic_commit(state);
-
-fail:
-	drm_atomic_state_put(state);
-	return ret;
-}
-
-static void am_meson_load_logo(struct drm_device *dev)
-{
-	struct drm_mode_set set;
-	struct drm_framebuffer *fb;
-	struct drm_display_mode *mode;
-	struct drm_connector **connector_set;
-	struct drm_connector *connector;
-	struct drm_modeset_acquire_ctx *ctx;
-	struct meson_drm *private = dev->dev_private;
-	u32 found, num_modes;
-	char *vmode_name;
-
-	if (!logo.alloc_flag) {
-		DRM_INFO("%s: logo memory is not cma alloc\n", __func__);
-		return;
-	}
-	fb = am_meson_logo_init_fb(dev);
-	if (!fb) {
-		DRM_INFO("%s:framebuffer is NULL!\n", __func__);
-		return;
-	}
-	if (!strcmp("null", logo.outputmode)) {
-		DRM_INFO("NULL MODE, nothing to do.");
-		return;
-	}
-
-	if (!strcmp("dummy_l", logo.outputmode)) {
-		DRM_INFO("Skip showing logo in dummy mode!");
-		return;
-	}
-
-	/*init all connecotr and found matched uboot mode.*/
-	found = 0;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		drm_modeset_lock_all(dev);
-		if (drm_modeset_is_locked(&dev->mode_config.connection_mutex))
-			drm_modeset_unlock(&dev->mode_config.connection_mutex);
-		num_modes = connector->funcs->fill_modes(connector,
-							 dev->mode_config.max_width,
-							 dev->mode_config.max_height);
-		drm_modeset_unlock_all(dev);
-
-		if (num_modes) {
-			list_for_each_entry(mode, &connector->modes, head) {
-				vmode_name = am_meson_crtc_get_voutmode(mode);
-				if (!strcmp(vmode_name, logo.outputmode)) {
-					found = 1;
-					break;
-				}
-			}
-			if (found)
-				break;
-		}
-
-		DRM_ERROR("Connecotr[%d] status[%d]\n",
-			connector->connector_type, connector->status);
-	}
-
-	if (found) {
-		DRM_ERROR("Found Connecotr[%d] mode[%s]\n",
-			connector->connector_type, mode->name);
-		if (!strcmp("null", mode->name)) {
-			DRM_INFO("NULL MODE, nothing to do.");
-			return;
-		}
-	} else {
-		connector = NULL;
-		mode = NULL;
-		return;
-	}
-
-	connector_set = kmalloc_array(1, sizeof(struct drm_connector *),
-				      GFP_KERNEL);
-	if (!connector_set)
-		return;
-
-	DRM_ERROR("mode private flag %x\n", mode->private_flags);
-
-	connector_set[0] = connector;
-	set.crtc = &private->crtcs[0]->base;
-	set.x = 0;
-	set.y = 0;
-	set.mode = mode;
-	set.crtc->mode = *mode;
-	set.connectors = connector_set;
-	set.num_connectors = 1;
-	set.fb = fb;
-
-	drm_modeset_lock_all(dev);
-	ctx = dev->mode_config.acquire_ctx;
-	if (am_meson_drm_set_config(&set, ctx))
-		DRM_INFO("[%s]am_meson_drm_set_config fail\n", __func__);
-	if (drm_framebuffer_read_refcount(fb) > 1)
-		drm_framebuffer_put(fb);
-	drm_modeset_unlock_all(dev);
-
-	kfree(connector_set);
-}
-
 #ifdef CONFIG_DRM_MESON_USE_ION
 static const struct drm_ioctl_desc meson_ioctls[] = {
 	#ifdef CONFIG_DRM_MESON_USE_ION
 	DRM_IOCTL_DEF_DRV(MESON_GEM_CREATE, am_meson_gem_create_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
 	#endif
+	DRM_IOCTL_DEF_DRV(MESON_ASYNC_ATOMIC, meson_asyc_atomic_ioctl,
+			  0),
 };
 #endif
 
@@ -545,33 +185,41 @@ static struct drm_driver meson_driver = {
 	.fops			= &fops,
 	.name			= DRIVER_NAME,
 	.desc			= DRIVER_DESC,
-	.date			= "20180321",
-	.major			= 1,
-	.minor			= 0,
+	.date			= "20220613",
+	.major			= MESON_VERSION_MAJOR,
+	.minor			= MESON_VERSION_MINOR,
 };
 
-static int meson_worker_thread_init(struct meson_drm *priv)
+static int meson_worker_thread_init(struct meson_drm *priv,
+				    unsigned int num_crtcs)
 {
-	int ret;
+	int i, ret;
 	struct sched_param param;
+	struct kthread_worker *worker;
+	char thread_name[16];
+	struct meson_drm_thread *drm_thread;
 	struct drm_device *drm = priv->drm;
 
 	param.sched_priority = 16;
 
-	kthread_init_worker(&priv->commit_thread[0].worker);
-	priv->commit_thread[0].dev = drm;
-	priv->commit_thread[0].thread = kthread_run(kthread_worker_fn,
-						    &priv->commit_thread[0].worker,
-						    "crtc_commit");
-	if (IS_ERR(priv->commit_thread[0].thread)) {
-		DRM_ERROR("failed to create commit thread\n");
-		priv->commit_thread[0].thread = NULL;
-		return -1;
-	}
+	for (i = 0; i < num_crtcs; i++) {
+		drm_thread = &priv->commit_thread[i];
+		worker = &drm_thread->worker;
+		kthread_init_worker(worker);
+		drm_thread->dev = drm;
+		snprintf(thread_name, 16, "crtc%d_commit", i);
+		drm_thread->thread = kthread_run(kthread_worker_fn,
+						 worker, thread_name);
+		if (IS_ERR(drm_thread->thread)) {
+			DRM_ERROR("failed to create commit thread\n");
+			priv->commit_thread[0].thread = NULL;
+			return -1;
+		}
 
-	ret = sched_setscheduler(priv->commit_thread[0].thread, SCHED_FIFO, &param);
-	if (ret)
-		DRM_ERROR("failed to set priority\n");
+		ret = sched_setscheduler(drm_thread->thread, SCHED_FIFO, &param);
+		if (ret)
+			DRM_ERROR("failed to set priority\n");
+	}
 
 	return 0;
 }
@@ -581,7 +229,8 @@ static int am_meson_drm_bind(struct device *dev)
 	struct meson_drm *priv;
 	struct drm_device *drm;
 	struct platform_device *pdev = to_platform_device(dev);
-	int ret = 0;
+	u32 crtc_masks[ENCODER_MAX];
+	int i, ret = 0;
 
 	meson_driver.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
 		DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_RENDER;
@@ -602,6 +251,19 @@ static int am_meson_drm_bind(struct device *dev)
 	priv->bound_data.drm = drm;
 	priv->bound_data.connector_component_bind = meson_connector_dev_bind;
 	priv->bound_data.connector_component_unbind = meson_connector_dev_unbind;
+	priv->osd_occupied_index = -1;
+	/*initialize encoders crtc_masks, it will replaced by dts*/
+	for (i = 0; i < ENCODER_MAX; i++)
+		priv->crtc_masks[i] = 1;
+
+	ret = of_property_read_u32_array(dev->of_node, "crtc_masks",
+		crtc_masks, ENCODER_MAX);
+	if (ret) {
+		DRM_ERROR("crtc_masks get fail!\n");
+	} else {
+		for (i = 0; i < ENCODER_MAX; i++)
+			priv->crtc_masks[i] = crtc_masks[i];
+	}
 
 	dev_set_drvdata(dev, priv);
 
@@ -635,7 +297,7 @@ static int am_meson_drm_bind(struct device *dev)
 		goto err_gem;
 	DRM_INFO("mode_config crtc number:%d\n", drm->mode_config.num_crtc);
 
-	ret = meson_worker_thread_init(priv);
+	ret = meson_worker_thread_init(priv, drm->mode_config.num_crtc);
 	if (ret)
 		goto err_unbind_all;
 
@@ -652,11 +314,7 @@ static int am_meson_drm_bind(struct device *dev)
 
 	drm_kms_helper_poll_init(drm);
 
-	/*Todo: the condition may need change according to the boot args*/
-	if (strmode && !strcmp("4", strmode))
-		DRM_INFO("current is strmode\n");
-	else
-		am_meson_load_logo(drm);
+	am_meson_logo_init(drm);
 
 #ifdef CONFIG_DRM_MESON_EMULATE_FBDEV
 	ret = am_meson_drm_fbdev_init(drm);
@@ -1037,8 +695,5 @@ module_init(am_meson_drm_init);
 module_exit(am_meson_drm_exit);
 #endif
 
-MODULE_AUTHOR("Jasper St. Pierre <jstpierre@mecheye.net>");
-MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
-MODULE_AUTHOR("MultiMedia Amlogic <multimedia-sh@amlogic.com>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

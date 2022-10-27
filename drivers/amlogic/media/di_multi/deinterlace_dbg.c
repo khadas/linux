@@ -1026,9 +1026,14 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 	struct div2_mm_s *mm = dim_mm_get(channel);	/*mm-0705*/
 	struct di_ch_s *pch = get_chdata(channel);
 	struct di_mng_s *pbm = get_bufmng();
+	struct di_dev_s *de_devp = get_dim_de_devp();
 
 	di_pre_stru_p = get_pre_stru(channel);
 	di_post_stru_p = get_post_stru(channel);
+	if (de_devp)
+		seq_printf(seq, "pq:io[%d],idle[%d]\n",
+			   atomic_read(&de_devp->pq_io),
+			   atomic_read(&de_devp->pq_flag));
 
 	dump_state_flag = 1;
 	seq_printf(seq, "%s:ch[%d]\n", __func__, channel);
@@ -1354,8 +1359,15 @@ int dim_state_show(struct seq_file *seq, void *v, unsigned int channel)
 
 	seq_printf(seq, "%-15s=%d\n", "sum_alloc_release",
 		   get_mtask()->fcmd[channel].sum_alloc);
-	seq_printf(seq, "%-15s=%d\n", "sum_hf",
-		   get_mtask()->fcmd[channel].sum_hf_alloc);
+
+	seq_printf(seq, "%-15s=%u\n", "hf_mng_err",
+		   dim_mng_hf_err());
+	seq_printf(seq, "%-15s=%u\n", "sum_hf",
+		   dim_mng_hf_sum_alloc_get());
+	seq_printf(seq, "%-15s=%u:%u\n", "free/idle",
+		   dim_mng_hf_sum_free_get(),
+		   dim_mng_hf_sum_idle_get());
+
 	seq_printf(seq, "%-15s=%d\n", "npst_cnt",
 		   npst_cnt(pch));
 	dump_state_flag = 0;

@@ -92,10 +92,11 @@ static int hdmitx_notify_callback(struct notifier_block *block,
 		CEC_INFO("[%s] event: %ld\n", __func__, cmd);
 		queue_delayed_work(cec_dev->hdmi_plug_wq,
 				   &cec_dev->work_hdmi_plug, 0);
+		ret = NOTIFY_OK;
 		break;
 	default:
 		CEC_ERR("[%s] unsupported notify:%ld\n", __func__, cmd);
-		ret = -EINVAL;
+		ret = NOTIFY_DONE;
 		break;
 	}
 	return ret;
@@ -2108,7 +2109,7 @@ static const struct cec_platform_data_s cec_t7_data = {
 	.ceca_sts_reg = 1,
 	.ceca_ver = CECA_VER_1,
 	.cecb_ver = CECB_VER_3,
-	.share_io = false,
+	.share_io = true,
 	.reg_tab_group = cec_reg_group_a1,
 };
 

@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "mesont7.dtsi"
-#include "partition_normal_PR_32.dtsi"
+#include "partition_mbox_ab.dtsi"
 #include <dt-bindings/input/input.h>
 #include "mesont7_an400-panel.dtsi"
 
@@ -66,15 +66,8 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x20000>;
-		};
-
-		linux,above_4g_mem {
-			compatible = "shared-dma-pool";
-			reusable;
-			size = <0x0 0x20000000>;
-			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x1 0x0000000 0x0 0x20000000>;
+			pmsg-size = <0x10000>;
+			bconsole-size = <0x10000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -112,7 +105,7 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			/* ion_codec_mm max can alloc size 80M*/
-			size = <0x0 0x1bc00000>;
+			size = <0x0 0x1fc00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
@@ -130,8 +123,8 @@
 			 * 10x4736064=45.2M(0x2e) support 12bit
 			 * 10x4074560=40M(0x28) support 10bit
 			 */
-			size = <0x0 0x0B000000>;
-			//size = <0x0 0x0>;
+			//size = <0x0 0x0B000000>;
+			size = <0x0 0x0>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -156,7 +149,16 @@
 			compatible = "shared-dma-pool";
 			reusable;
 			status = "okay";
-			size = <0x0 0x1800000>;
+			size = <0x0 0x4000000>;
+			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
+		};
+
+		cam_cma_reserved:linux,cam_cma {
+			compatible = "shared-dma-pool";
+			reusable;
+			status = "okay";
+			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
 			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
@@ -277,7 +279,7 @@
 		 ***************************************************/
 		en_4k = <0>;
 		//keep_dec_vf = <2>;
-		//po_fmt = <6>;
+		po_fmt = <0>;
 		/***************************************************
 		 * post_nub: default is 11 (T7/T3/SC2/S4 new path)
 		 * local 7*4075520 = 28
@@ -489,6 +491,8 @@
 		compatible = "soc, sensor";
 		status = "okay";
 		sensor-name = "imx290"; /*imx290;os08a10;imx227*/
+		sensor-name-sub = "imx290sub";
+		sensor-name-ssub = "imx290ssub";
 		pinctrl-names= "default";
 		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
 		clocks = <&clkc CLKID_MCLK_0>,
@@ -499,7 +503,9 @@
 				<&xtal>;
 		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","mclk_p","mclk_x";
 		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		pwdn-sub = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
 		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+		reset-sub = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
 	};
 
 	iq: iq {
@@ -578,7 +584,7 @@
 
 		aml-audio-card,dai-link@0 {
 			format = "dsp_a";
-			mclk-fs = <512>;
+			mclk-fs = <64>;
 			continuous-clock;
 			//bitclock-inversion;
 			//frame-inversion;
@@ -600,7 +606,7 @@
 							<1>;
 				dai-tdm-slot-num = <2>;
 				dai-tdm-slot-width = <16>;
-				system-clock-frequency = <256000>;
+				system-clock-frequency = <512000>;
 			};
 			tdmacodec: codec {
 				sound-dai = <&dummy_codec>;
@@ -665,7 +671,7 @@
 		aml-audio-card,dai-link@3 {
 			mclk-fs = <64>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&pdm>;
 			};
@@ -761,7 +767,7 @@
 		compatible = "amlogic, dolby_vision_t7";
 		dev_name = "aml_amdolby_vision_driver";
 		status = "okay";
-		tv_mode = <0>;/*1:enabel ;0:disable*/
+		tv_mode = <0>;/*1:enable ;0:disable*/
 	};
 
     /* SMC */
@@ -916,12 +922,21 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 0>;
-		dai-tdm-lane-slot-mask-out = <1 1>;
+		dai-tdm-lane-slot-mask-out = <0 1>;
 		dai-tdm-clk-sel = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_A
 				&clkc CLKID_MPLL0>;
 		clock-names = "mclk", "clk_srcpll";
+
+		pinctrl-names = "tdm_pins";
+		pinctrl-0 = <&tdm_a_pins
+			&tdm_d0_pins
+			&tdm_d1_pins
+			&tdma_clk_pins>;
+
+		/*enable default mclk(12.288M), before extern codec start*/
+		//start_clk_enable = <1>;
 
 		status = "okay";
 	};
@@ -944,7 +959,7 @@
 			&tdm_b_pins
 			&tdm_d4_pins
 			&tdm_d5_pins
-			&tdm_clk_pins>;
+			&tdmb_clk_pins>;
 
 		/*
 		 * 0: tdmout_a;
@@ -968,7 +983,7 @@
 		/* !!!For --TV platform-- ONLY */
 		Channel_Mask {
 			/*i2s has 4 pins, 8channel, mux output*/
-			Spdif_samesource_Channel_Mask = "i2s_2/3";
+			Spdif_samesource_Channel_Mask = "i2s_0/1";
 		};
 	};
 
@@ -977,19 +992,20 @@
 		#sound-dai-cells = <0>;
 
 		dai-tdm-lane-slot-mask-in = <1 1 1 1>;
-		dai-tdm-lane-slot-mask-out = <1 0 0 0>;
+		dai-tdm-lane-slot-mask-out = <1 1 1 1>;
 		dai-tdm-clk-sel = <2>;
 
 		clocks = <&clkaudio CLKID_AUDIO_MCLK_C
 				&clkc CLKID_MPLL2>;
 		clock-names = "mclk", "clk_srcpll";
 		tdmin-src-name = "hdmirx";
+		i2s2hdmi = <1>;
 
 		status = "okay";
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-snd-pdm";
+		compatible = "amlogic, tm2-revb-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1341,6 +1357,16 @@
 	status = "okay";
 	pinctrl-names="default";
 	pinctrl-0=<&i2c1_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-ssub";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
 
 	tas5707_36: tas5707_36@1b {
 		compatible = "ti,tas5707";
@@ -1373,6 +1399,120 @@
 		reg-data-type = <1>;
 		link-device = <&phycsi>;
 	};
+	imx290_0: sensor0@1a {
+		compatible = "sony, imx290";
+		index = <0>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <37125000>;
+		clocks = <&clkc CLKID_MCLK_0>;
+		clock-names = "mclk";
+
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+
+		port {
+			imx290_0_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <445500000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+
+	ov5640_0: sensor0@3c {
+		compatible = "ov, ov5640";
+		index = <0>;
+		reg = <0x3c>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <24000000>;
+		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_1>,
+				<&clkc CLKID_MCLK_0_PRE>,
+				<&clkc CLKID_MCLK_1_PRE>,
+				<&xtal>;
+		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","xtal";
+
+		pwdn = <&gpio GPIOM_5 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_11 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5640_0_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <672000000>;
+				remote-endpoint = <&csiphy0_ep>;
+			};
+		};
+	};
+};
+
+&i2c3 {
+	status = "okay";
+	pinctrl-names = "default";//, "sleep"
+	pinctrl-0 = <&i2c3_pins1>;
+	clock-frequency = <100000>; /* default 100k */
+	sensor-i2c@6c {
+		compatible = "arm, i2c-sensor-sub";
+		reg = <0x6c>;
+		reg-names = "i2c-sensor";
+		slave-addr = <0x6c>;
+		reg-type = <2>;
+		reg-data-type = <1>;
+		link-device = <&phycsi>;
+	};
+	imx290_2: sensor1@1a {
+		compatible = "sony, imx290";
+		index = <1>;
+		reg = <0x1a>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <37125000>;
+		clocks = <&clkc CLKID_MCLK_1>;
+		clock-names = "mclk";
+
+		pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			imx290_2_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <445500000>;
+				remote-endpoint = <&csiphy2_ep>;
+			};
+		};
+	};
+
+	ov5640_2: sensor1@3c {
+		compatible = "ov, ov5640";
+		index = <1>;
+		reg = <0x3c>;
+		reg-addr-type = <2>;
+		reg-data-type = <1>;
+
+		clock-frequency = <24000000>;
+		clocks = <&clkc CLKID_MCLK_0>,
+				<&clkc CLKID_MCLK_1>,
+				<&clkc CLKID_MCLK_0_PRE>,
+				<&clkc CLKID_MCLK_1_PRE>,
+				<&xtal>;
+		clock-names = "mclk_0","mclk_1","mclk_0_pre","mclk_1_pre","xtal";
+
+		pwdn = <&gpio GPIOM_4 GPIO_ACTIVE_HIGH>;
+		reset = <&gpio GPIOM_10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			ov5640_2_ep: endpoint {
+				data-lanes = <0 1>;
+				link-frequencies = /bits/ 64 <672000000>;
+				remote-endpoint = <&csiphy2_ep>;
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -1381,6 +1521,26 @@
 	pinctrl-0 = <&i2c5_pins1>;
 	//pinctrl-1 = <&i2c2_sleep_pins2>;
 	clock-frequency = <100000>; /* default 100k */
+};
+
+&csiphy0 {
+	port {
+		csiphy0_ep: endpoint {
+			clock-lanes = <4>;
+			data-lanes = <0 1>;
+			remote-endpoint = <&ov5640_0_ep>;
+		};
+	};
+};
+
+&csiphy2 {
+	port {
+		csiphy2_ep: endpoint {
+			clock-lanes = <4>;
+			data-lanes = <0 1>;
+			remote-endpoint = <&ov5640_2_ep>;
+		};
+	};
 };
 
 /* SDIO */
@@ -1473,16 +1633,36 @@
 &isp {
 	status = "okay";
 	temper-line-offset = <0x1680>;
-	temper-buf-size = <12>;
+	temper-buf-size = <6>;
 	temper-frame-num = <1>;
-	temper-frame-size = <0xBDD800>;
+	temper-frame-size = <0x5EEC00>;
+	temper-line-offset1 = <0x1680>;
+	temper-buf-size1 = <6>;
+	temper-frame-num1 = <1>;
+	temper-frame-size1 = <0x5EEC00>;
+	temper-line-offset2 = <0x1680>;
+	temper-buf-size2 = <6>;
+	temper-frame-num2 = <1>;
+	temper-frame-size2 = <0x5EEC00>;
 	memory-region = <&isp_cma_reserved>;
 };
 
 &adapter {
 	status = "okay";
-	mem_alloc = <24>;
+	mem_alloc = <32>;
+	mem_alloc1 = <16>;
+	mem_alloc2 = <16>;
 	memory-region = <&adapt_cma_reserved>;
+};
+
+&adapter0 {
+	status = "okay";
+	memory-region = <&cam_cma_reserved>;
+};
+
+&adapter2 {
+	status = "okay";
+	memory-region = <&cam_cma_reserved>;
 };
 
 &ir {
@@ -1528,7 +1708,10 @@
 
 &amhdmitx {
 	status = "okay";
+	repeater_tx = <0>;
 	enc_idx = <0>;
+	vrr_type = <2>; /* 1: GAME-VRR, 2: QMS-VRR */
+	tv_usage = <1>;
 };
 
 /*if you want to use vdin just modify status to "ok"*/
@@ -1564,6 +1747,16 @@
 				"pdm_din2",
 				"pdm_din3";
 			function = "pdm";
+		};
+	};
+
+	tdm_a_pins: tdm_a_pin {
+		mux { /* GPIOX_11, GPIOX_10, GPIOX_8, GPIOX_9 */
+			groups = "tdm_sclk0",
+				"tdm_fs0",
+				"tdm_d0",
+				"tdm_d1";
+			function = "tdm";
 		};
 	};
 
@@ -1654,6 +1847,20 @@
 };
 
 &pinctrl_audio {
+	tdm_d0_pins: tdm_d0_pin {
+		mux {
+			groups = "tdm_d0";
+			function = "tdmouta_lane1";
+		};
+	};
+
+	tdm_d1_pins: tdm_d1_pin {
+		mux {
+			groups = "tdm_d1";
+			function = "tdmina_lane0";
+		};
+	};
+
 	tdm_d4_pins: tdm_d4_pin {
 		mux {
 			groups = "tdm_d4";
@@ -1668,7 +1875,14 @@
 		};
 	};
 
-	tdm_clk_pins: tdm_clk_pin {
+	tdma_clk_pins: tdma_clk_pin {
+		mux {
+			groups = "tdm_sclk0", "tdm_lrclk0";
+			function = "tdm_clk_outa";
+		};
+	};
+
+	tdmb_clk_pins: tdmb_clk_pin {
 		mux {
 			groups = "tdm_sclk1", "tdm_lrclk1";
 			function = "tdm_clk_outb";
@@ -1684,11 +1898,11 @@
 
 &amlvecm {
 	status = "okay";
-	gamma_en = <0>;/*1:enabel ;0:disable*/
-	wb_en = <0>;/*1:enabel ;0:disable*/
-	cm_en = <0>;/*1:enabel ;0:disable*/
+	gamma_en = <0>;/*1:enable ;0:disable*/
+	wb_en = <0>;/*1:enable ;0:disable*/
+	cm_en = <0>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
-	vlock_en = <1>;/*1:enable;0:disable*/
+	vlock_en = <0>;/*1:enable;0:disable*/
 	vlock_mode = <0x8>;
 	/*vlock work mode:
 	 *bit0:auto ENC

@@ -28,6 +28,7 @@
 #include <linux/kobject.h>
 #include <../kernel/power/power.h>
 #include <linux/amlogic/power_domain.h>
+#include "vad_power.h"
 #include <linux/syscore_ops.h>
 
 #undef pr_fmt
@@ -393,6 +394,7 @@ static int __init gx_pm_init_ops(void)
 static int meson_pm_probe(struct platform_device *pdev)
 {
 	unsigned int irq_pwrctrl;
+	struct pm_data *p_data;
 	int err;
 
 	pr_info("enter %s!\n", __func__);
@@ -405,6 +407,12 @@ static int meson_pm_probe(struct platform_device *pdev)
 	debug_reg = of_iomap(pdev->dev.of_node, 0);
 	if (!debug_reg)
 		return -ENOMEM;
+	p_data = devm_kzalloc(&pdev->dev, sizeof(struct pm_data), GFP_KERNEL);
+	if (!p_data)
+		return -ENOMEM;
+	p_data->dev = &pdev->dev;
+	platform_set_drvdata(pdev, p_data);
+	vad_wakeup_power_init(pdev, p_data);
 	exit_reg = of_iomap(pdev->dev.of_node, 1);
 	if (!exit_reg)
 		return -ENOMEM;
@@ -433,6 +441,23 @@ static int meson_pm_probe(struct platform_device *pdev)
 	pr_info("%s done\n", __func__);
 	return 0;
 }
+
+int pm_suspend_noirq(struct device *dev)
+{
+	vad_wakeup_power_suspend(dev);
+	return 0;
+}
+
+int pm_resume_noirq(struct device *dev)
+{
+	vad_wakeup_power_resume(dev);
+	return 0;
+}
+
+static const struct dev_pm_ops meson_pm_noirq_ops = {
+	.suspend_noirq = pm_suspend_noirq,
+	.resume_noirq = pm_resume_noirq,
+};
 
 static int __exit meson_pm_remove(struct platform_device *pdev)
 {
@@ -466,6 +491,7 @@ static struct platform_driver meson_pm_driver = {
 		   .name = "pm-meson",
 		   .owner = THIS_MODULE,
 		   .of_match_table = amlogic_pm_dt_match,
+		   .pm = &meson_pm_noirq_ops,
 		   },
 	.remove = __exit_p(meson_pm_remove),
 	.shutdown = meson_pm_shutdown,

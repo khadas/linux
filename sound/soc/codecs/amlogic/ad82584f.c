@@ -638,6 +638,38 @@ struct ad82584f_priv {
 #endif
 };
 
+static int ad82584f_hw_params(struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params,
+			     struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	int rate = params_rate(params);
+
+	if (rate >= 64000 && rate <= 96000) {
+		snd_soc_component_write(component,
+			0x01,
+			0x1 << 7 | /* Bclk system enable */
+			0x1 << 5 | /* 64/88.2/96kHz */
+			0x1 << 0   /* 64x bclk/fs */
+		);
+	} else if (rate >= 128000 && rate <= 192000) {
+		snd_soc_component_write(component,
+			0x01,
+			0x1 << 7 | /* Bclk system enable */
+			0x1 << 6 | /* 128/176.4/192kHz */
+			0x1 << 0   /* 64x bclk/fs */
+		);
+	} else {
+		snd_soc_component_write(component,
+			0x01,
+			0x1 << 7 | /* Bclk system enable */
+			0x1 << 0   /* 32/44.1/48kHz 64x bclk/fs */
+		);
+	}
+
+	return 0;
+}
+
 static int ad82584f_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
 {
@@ -699,9 +731,39 @@ static int ad82584f_set_bias_level(struct snd_soc_component *component,
 	return 0;
 }
 
+static int ad82584f_trigger(struct snd_pcm_substream *substream, int cmd,
+						struct snd_soc_dai *codec_dai)
+{
+	struct ad82584f_priv *ad82584f = snd_soc_dai_get_drvdata(codec_dai);
+	struct snd_soc_component *component = ad82584f->component;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		switch (cmd) {
+		case SNDRV_PCM_TRIGGER_START:
+		case SNDRV_PCM_TRIGGER_RESUME:
+		case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+			pr_debug("%s(), start\n", __func__);
+			if (!ad82584f->mute_val)
+				snd_soc_component_write(component, MUTE, 0x00);
+			break;
+		case SNDRV_PCM_TRIGGER_STOP:
+		case SNDRV_PCM_TRIGGER_SUSPEND:
+		case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+			pr_debug("%s(), stop\n", __func__);
+			ad82584f->mute_val = snd_soc_component_read32(component, MUTE);
+			if (!ad82584f->mute_val)
+				snd_soc_component_write(component, MUTE, 0x7f);
+			break;
+		}
+	}
+	return 0;
+}
+
 static const struct snd_soc_dai_ops ad82584f_dai_ops = {
+	.hw_params  = ad82584f_hw_params,
 	.set_sysclk = ad82584f_set_dai_sysclk,
 	.set_fmt    = ad82584f_set_dai_fmt,
+	.trigger = ad82584f_trigger,
 };
 
 static struct snd_soc_dai_driver ad82584f_dai = {
@@ -930,7 +992,7 @@ static int ad82584f_probe(struct snd_soc_component *component)
 	}
 
 	ad82584f_init(component);
-
+	ad82584f->component = component;
 	return 0;
 }
 

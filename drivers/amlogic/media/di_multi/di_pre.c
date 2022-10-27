@@ -178,6 +178,9 @@ void dpre_clear(void)
 	memset(pre, 0, sizeof(struct di_hpre_s));
 }
 
+static unsigned int dim_pre_tm_thd = 40;
+module_param_named(dim_pre_tm_thd, dim_pre_tm_thd, uint, 0664);
+
 void dpre_init(void)
 {/*reg:*/
 	struct di_hpre_s  *pre = get_hw_pre();
@@ -186,7 +189,7 @@ void dpre_init(void)
 	//bset(&pre->self_trig_mask, 2);//
 
 	/*timer out*/
-	di_tout_int(&pre->tout, 40);	/*ms*/
+	di_tout_int(&pre->tout, dim_pre_tm_thd);	/*ms*/
 }
 
 void pw_use_hw_pre(enum EDI_SUB_ID channel, bool on)
@@ -413,6 +416,9 @@ unsigned int dpre_mtotal_set(void *data)
 {
 	struct di_hpre_s  *pre = get_hw_pre();
 //ary 2020-12-09	ulong flags = 0;
+	struct di_ch_s *pch;
+
+	pch = get_chdata(pre->curr_ch);
 
 	/*dim_print("%s:\n", __func__);*/
 	//trace_printk("%s\n", __func__);
@@ -422,6 +428,7 @@ unsigned int dpre_mtotal_set(void *data)
 //ary 2020-12-09	spin_unlock_irqrestore(&plist_lock, flags);
 	/*begin to count timer*/
 	di_tout_contr(EDI_TOUT_CONTR_EN, &pre->tout);
+	sct_polling(pch, 3);
 
 	return K_DO_R_FINISH;
 }
@@ -543,8 +550,8 @@ void dpre_mtotal_timeout_contr(void)
 			pre->curr_ch,
 			pre->pres->field_count_for_cont,
 			RD(DI_INTR_CTRL),
-			(unsigned int)(cur_to_msecs() -
-			pre->pres->irq_time[1]),
+			(unsigned int)((cur_to_usecs() -
+			pre->pres->irq_time[0]) >> 10),
 			pre->irq_nr);
 	}
 	/*******************************/
@@ -868,6 +875,9 @@ unsigned int dpre_check_mode(unsigned int ch)
 
 	if (!vframe)
 		return EDI_WORK_MODE_NONE;
+	if (pch->itf.flg_s4dw)
+		return EDI_WORK_MODE_S4DW;
+
 	mode = pre_cfg_count_mode(ch, vframe);/*EDI_WORK_MODE_ALL;*/
 
 	return mode;
@@ -916,18 +926,16 @@ bool dpre_step4_check(void)
 		return true;
 	}
 	pre->idle_cnt = 0;
-	if (mode == EDI_WORK_MODE_P_AS_I) {
-		#ifdef MARK_SC2
+	if (mode == EDI_WORK_MODE_S4DW) {
 		do_table_init(&pre->sdt_mode,
-			      &pre_mode_proc[0],
-			      ARRAY_SIZE(pre_mode_proc));
-		pre->sdt_mode.name = "mproc";
-		#else
+			      &s4dw_hw_processt[0],
+			      ARRAY_SIZE(s4dw_hw_processt));
+		pre->sdt_mode.name = "s4dw";
+	} else if (mode == EDI_WORK_MODE_P_AS_I) {
 		do_table_init(&pre->sdt_mode,
 			      &pr_mode_total[0],
 			      ARRAY_SIZE(pr_mode_total));
 		pre->sdt_mode.name = "mtotal";
-		#endif
 
 	} else {
 		do_table_init(&pre->sdt_mode,

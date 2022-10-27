@@ -194,9 +194,10 @@ static struct codec_mm_mgt_s *get_mem_mgt(void)
 		 *which mode
 		 */
 		ret = tee_protect_tvp_mem(0, 0, &handle);
-		if (ret == 0xFFFFFFFF)
+		if (ret == 0xFFFFFFFF) {
 			tvp_mode = 0;
-		else
+			tvp_dynamic_increase_disable = 1;
+		} else
 			tvp_mode = 1;
 		mutex_init(&mgt.tvp_protect_lock);
 		inited++;
@@ -457,7 +458,8 @@ void codec_mm_memset(ulong phys, u32 val, u32 size)
 	/*any data lurking in the kernel direct-mapped region is invalidated.*/
 	if (!PageHighMem(page)) {
 		ptr = page_address(page);
-		codec_mm_dma_flush(ptr, size, DMA_FROM_DEVICE);
+		memset(ptr, val, size);
+		codec_mm_dma_flush(ptr, size, DMA_TO_DEVICE);
 		return;
 	}
 
@@ -991,12 +993,12 @@ void codec_mm_release(struct codec_mm_s *mem, const char *owner)
 	if (index == 0) {
 		struct codec_mm_cb_s *cur, *tmp;
 		list_del(&mem->list);
+		spin_unlock_irqrestore(&mgt->lock, flags);
 		list_for_each_entry_safe(cur,
 			tmp, &mem->release_cb_list, node) {
 			list_del_init(&cur->node);
 			cur->func(mem, cur);
 		}
-		spin_unlock_irqrestore(&mgt->lock, flags);
 		codec_mm_free_in(mgt, mem);
 		kfree(mem);
 		return;

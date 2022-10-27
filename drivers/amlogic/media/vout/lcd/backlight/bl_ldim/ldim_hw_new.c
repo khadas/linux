@@ -286,7 +286,7 @@ void ldc_gain_lut_set_t3(void)
 			data_wr = ((p[j + 1] << 12) + p[j]);
 			data_rd = lcd_vcbus_read(LDC_RO_GAIN_SMP_DATA);
 			if (data_wr != data_rd) {
-				if (ldim_debug_print) {
+				if (ldim_debug_print == 6) {
 					LDIMERR("%s: %d: data_wr=0x%x, data_rd=0x%x\n",
 						__func__, i * 64 + j,
 						data_wr, data_rd);
@@ -838,15 +838,20 @@ static void ldc_rmem_duty_set(struct aml_ldim_driver_s *ldim_drv)
 
 void ldim_hw_remap_en_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 {
+	unsigned int data;
+
+	data = lcd_vcbus_read(LDC_DGB_CTRL);
+	data = data & 0x3E00;
 	if (flag) {
 		ldim_drv->comp->ldc_comp_en = 1;
 		ldim_drv->state |= LDIM_STATE_REMAP_EN;
+		data = data | (1 << 14);
 	} else {
 		ldim_drv->state &= ~LDIM_STATE_REMAP_EN;
 		ldim_drv->comp->ldc_comp_en = 0;
 	}
 
-	ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, ldim_drv->comp->ldc_comp_en, 14, 1);
+	ldim_wr_reg_bits_rdma(LDC_DGB_CTRL, data, 0, 15);
 }
 
 void ldim_config_update_t7(struct aml_ldim_driver_s *ldim_drv)
@@ -941,10 +946,20 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 			return;
 		}
 
-//		ldim_config_update_t7(ldim_drv);
-//		ldim_drv->remap_en = ldim_drv->conf->remap_en;
-//		ldim_hw_remap_en_t7(ldim_drv, ldim_drv->conf->remap_en);
+		if (ldim_drv->func_en == ldim_drv->conf->func_en) {
+			if (ldim_debug_print)
+				LDIMPR("%s: func_en is same as conf.func_en\n", __func__);
+			return;
+		}
+
 		ldim_wr_reg_bits_rdma(LDC_REG_BLOCK_NUM, 1, 20, 1);
+
+		ldim_drv->switch_ld_cnt++;
+		if (ldim_drv->switch_ld_cnt < 4)
+			return;
+		ldim_drv->switch_ld_cnt = 0;
+		ldim_drv->remap_en = ldim_drv->conf->remap_en;
+		ldim_hw_remap_en_t7(ldim_drv, ldim_drv->conf->remap_en);
 
 		ldim_drv->top_en = 1;
 		ldim_drv->hist_en = 1;
@@ -960,6 +975,7 @@ void ldim_func_ctrl_t7(struct aml_ldim_driver_s *ldim_drv, int flag)
 		ldim_drv->top_en = 0;
 		ldim_drv->hist_en = 0;
 		ldim_drv->alg_en = 0;
+		ldim_drv->switch_ld_cnt = 0;
 
 		ldim_wr_reg_bits_rdma(LDC_REG_BLOCK_NUM, 0, 20, 1);
 		ldim_hw_remap_en_t7(ldim_drv, 0);
@@ -1027,6 +1043,7 @@ void ldim_drv_init_t3(struct aml_ldim_driver_s *ldim_drv)
 	ldc_dither_lut_set();
 	ldc_set_t7(ldim_drv, width, height, col_num, row_num);
 	ldc_gain_lut_set_t3();
+	ldim_config_update_t7(ldim_drv);
 
 	LDIMPR("drv_init: col: %d, row: %d, axi paddr: 0x%lx\n",
 		col_num, row_num, (unsigned long)ldim_drv->rmem->rsv_mem_paddr);

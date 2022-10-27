@@ -34,8 +34,6 @@
 #include "gdc_dmabuf.h"
 #include "gdc_wq.h"
 
-#define WAIT_THRESHOLD 1000
-
 u8 __iomem *gdc_map_virt_from_phys(phys_addr_t phys, unsigned long total_size)
 {
 	u32 offset, npages;
@@ -114,17 +112,18 @@ static int write_buf_to_file(char *path, char *buf, int size)
 	return w_size;
 }
 
-static void dump_config_file(struct gdc_config_s *gc, u32 dev_type)
+void dump_config_file(struct gdc_config_s *gc, u32 dev_type)
 {
 	void __iomem *config_virt_addr;
+	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
 	int ret;
 
-	if (GDC_DEV_T(dev_type)->config_out_path_defined) {
+	if (gdc_dev->config_out_path_defined) {
 		/* dump config buffer */
 		config_virt_addr =
 			gdc_map_virt_from_phys(gc->config_addr,
 					       PAGE_ALIGN(gc->config_size * 4));
-		ret = write_buf_to_file(GDC_DEV_T(dev_type)->config_out_file,
+		ret = write_buf_to_file(gdc_dev->config_out_file,
 					config_virt_addr,
 					(gc->config_size * 4));
 		if (ret <= 0)
@@ -136,152 +135,138 @@ static void dump_config_file(struct gdc_config_s *gc, u32 dev_type)
 	}
 }
 
-static void dump_gdc_regs(u32 dev_type)
+void dump_gdc_regs(u32 dev_type, u32 core_id)
 {
 	int i;
 
 	if (dev_type == ARM_GDC) {
-		gdc_log(LOG_INFO, "### ARM GDC ###\n");
+		gdc_log(LOG_INFO, "### ARM GDC core%d ###\n", core_id);
 		for (i = 0; i <= 0xFF; i += 4)
-			gdc_log(LOG_INFO, "reg[0x%x] = 0x%x\n",
-				i, system_gdc_read_32(i));
+			gdc_log(LOG_INFO, "reg[0x%02x] = 0x%x\n", i,
+				system_gdc_read_32(i, core_id));
 	} else {
-		gdc_log(LOG_INFO, "### AML GDC ###\n");
-		for (i = 0; i <= 0x60; i += 4)
-			gdc_log(LOG_INFO, "reg[0x%x] = 0x%x\n",
-				i, system_gdc_read_32(i));
+		gdc_log(LOG_INFO, "### AML GDC core%d ###\n", core_id);
+		for (i = 0; i <= (0x65 << 2); i += 4)
+			gdc_log(LOG_INFO, "reg[0x%03x] = 0x%x\n", i,
+				system_gdc_read_32(i | ISP_DWAP_REG_MARK,
+						   core_id));
 	}
 }
 
-static int gdc_process_work_queue(struct gdc_context_s *wq)
+static inline int find_an_idle_core(u32 dev_type)
 {
-	struct gdc_queue_item_s *pitem;
-	struct list_head  *head = &wq->work_queue, *pos;
-	int ret = 0;
-	unsigned int block_mode;
-	int timeout = 0;
-	ktime_t start_time = 0, stop_time = 0, diff_time = 0;
-	int process_time = 0;
-	int trace_mode_enable = 0;
+	int i;
+	struct meson_gdc_dev_t *gdc_dev = GDC_DEV_T(dev_type);
 
-	if (!wq || wq->gdc_request_exit)
-		goto exit;
-
-	trace_mode_enable = GDC_DEV_T(wq->cmd.dev_type)->trace_mode_enable;
-
-	gdc_manager.gdc_state = GDC_STATE_RUNNING;
-	pos = head->next;
-	if (pos != head) { /* current work queue not empty. */
-		if (wq != gdc_manager.last_wq) { /* maybe */
-			/* modify the first item . */
-			pitem = (struct gdc_queue_item_s *)pos;
-			if (!pitem) {
-				gdc_log(LOG_ERR, "can't get pitem\n");
-				ret = -1;
-				goto  exit;
-			}
-		} else {
-			/* modify the first item . */
-			pitem = (struct gdc_queue_item_s *)pos;
-		}
-
-	} else {
-		ret = -1;
-		goto  exit;
+	for (i = 0; i < gdc_dev->core_cnt; i++) {
+		if (gdc_dev->is_idle[i])
+			break;
 	}
-	do {
-		block_mode = pitem->cmd.wait_done_flag;
-		if (trace_mode_enable >= 1)
-			start_time = ktime_get();
-		ret = gdc_run(&pitem->cmd, &pitem->dma_cfg);
-		if (ret < 0)
-			gdc_log(LOG_ERR, "gdc process failed ret = %d\n", ret);
-		timeout = wait_for_completion_timeout
-					(&gdc_manager.event.d_com,
-					 msecs_to_jiffies(WAIT_THRESHOLD));
-		if (timeout == 0) {
-			if (pitem->cmd.dev_type == ARM_GDC)
-				gdc_log(LOG_ERR, "gdc timeout, status = 0x%x\n",
-					gdc_status_read());
-			else
-				gdc_log(LOG_ERR, "aml gdc timeout\n");
-			/*soft_rst(); */
-			if (trace_mode_enable >= 2) {
-				/* dump regs */
-				dump_gdc_regs(pitem->cmd.dev_type);
-				/* dump config buffer */
-				dump_config_file(&pitem->cmd.gdc_config,
-						 pitem->cmd.dev_type);
-			}
-		}
-		gdc_stop(&pitem->cmd);
-		if (trace_mode_enable >= 1) {
-			stop_time = ktime_get();
-			diff_time = ktime_sub(stop_time, start_time);
-			process_time = ktime_to_ms(diff_time);
-			if (process_time > 50)
-				gdc_log(LOG_ERR, "gdc process time = %d\n",
-					process_time);
-		}
 
-		spin_lock(&wq->lock);
-		pos = pos->next;
-		list_move_tail(&pitem->list, &wq->free_queue);
-		spin_unlock(&wq->lock);
-
-		/* if block mode (cmd) */
-		if (block_mode) {
-			pitem->cmd.wait_done_flag = 0;
-			wake_up_interruptible(&wq->cmd_complete);
-		}
-		pitem = (struct gdc_queue_item_s *)pos;
-	} while (pos != head);
-	gdc_manager.last_wq = wq;
-exit:
-	if (wq && wq->gdc_request_exit)
-		complete(&gdc_manager.event.process_complete);
-	gdc_manager.gdc_state = GDC_STATE_IDLE;
-	return ret;
+	return (i >= gdc_dev->core_cnt ? -1 : i);
 }
 
-static inline
-struct gdc_context_s *get_next_gdc_work_queue(struct gdc_manager_s *manager)
+static inline struct gdc_queue_item_s *find_an_item_from_pool(void)
 {
-	struct gdc_context_s *pcontext;
+	struct gdc_context_s *pcontext = NULL;
+	struct list_head *item = NULL;
+	u32 dev_type = 0;
+	int core_id;
 
-	spin_lock(&manager->event.sem_lock);
-	list_for_each_entry(pcontext, &manager->process_queue, list) {
-		/* not lock maybe delay to next time. */
+	spin_lock(&gdc_manager.event.sem_lock);
+	if (list_empty(&gdc_manager.process_queue))
+		goto unlock;
+	list_for_each_entry(pcontext, &gdc_manager.process_queue, list) {
+		/* hold a item from work_queue */
 		if (!list_empty(&pcontext->work_queue)) {
-			/* move head . */
-			list_move(&manager->process_queue, &pcontext->list);
-			spin_unlock(&manager->event.sem_lock);
-			return pcontext;
+			item = pcontext->work_queue.next;
+			break;
 		}
 	}
-	spin_unlock(&manager->event.sem_lock);
-	return NULL;
+
+	if (item) {
+		dev_type = ((struct gdc_queue_item_s *)item)->cmd.dev_type;
+		core_id = find_an_idle_core(dev_type);
+		if (core_id < 0) {
+			item = NULL;
+			goto unlock;
+		}
+
+		/* get this item and delete it from work_queue */
+		list_del(item);
+
+		/* if work_queue is empty, move process_queue head */
+		if (list_empty(&pcontext->work_queue))
+			list_move(&gdc_manager.process_queue,
+				  &pcontext->list);
+
+		GDC_DEV_T(dev_type)->current_item[core_id] =
+					(struct gdc_queue_item_s *)item;
+		((struct gdc_queue_item_s *)item)->core_id = core_id;
+		gdc_log(LOG_DEBUG, "using core:%d dev_type:%d\n",
+			core_id, dev_type);
+	}
+unlock:
+	spin_unlock(&gdc_manager.event.sem_lock);
+
+	return (struct gdc_queue_item_s *)item;
+}
+
+static inline void start_process(struct gdc_queue_item_s *pitem)
+{
+	int ret = -1;
+	u32 core_id = pitem->core_id;
+	u32 dev_type = pitem->cmd.dev_type;
+	u32 *core_idle = &GDC_DEV_T(pitem->cmd.dev_type)->is_idle[core_id];
+
+	*core_idle = 0;
+	gdc_pwr_config(true, dev_type, core_id);
+
+	GDC_DEV_T(dev_type)->time_stamp[core_id] = ktime_get();
+
+	ret = gdc_run(&pitem->cmd, &pitem->dma_cfg, core_id);
+	if (ret < 0) {
+		gdc_log(LOG_ERR, "gdc process failed ret = %d\n", ret);
+		recycle_resource(pitem, core_id);
+		*core_idle = 1;
+
+		return;
+	}
+}
+
+inline void recycle_resource(struct gdc_queue_item_s *item, u32 core_id)
+{
+	struct gdc_context_s *context = item->context;
+	u32 dev_type = item->cmd.dev_type;
+
+	gdc_stop(&item->cmd, core_id);
+
+	if (!GDC_DEV_T(dev_type)->reg_store_mode_enable)
+		gdc_pwr_config(false, dev_type, core_id);
+
+	spin_lock(&context->lock);
+	list_add_tail(&item->list, &context->free_queue);
+	item->context = NULL;
+	spin_unlock(&context->lock);
 }
 
 static int gdc_monitor_thread(void *data)
 {
 	int ret;
 	struct gdc_manager_s *manager = (struct gdc_manager_s *)data;
+	struct gdc_queue_item_s *item = NULL;
 
 	gdc_log(LOG_INFO, "gdc workqueue monitor start\n");
-	/* setup current_wq here. */
+
 	while (manager->process_queue_state != GDC_PROCESS_QUEUE_STOP) {
+down_wait:
 		ret = down_interruptible(&manager->event.cmd_in_sem);
-		while ((manager->current_wq =
-				get_next_gdc_work_queue(manager)) != NULL) {
-			int dev_type = manager->current_wq->cmd.dev_type;
 
-			gdc_pwr_config(true, dev_type);
-			gdc_process_work_queue(manager->current_wq);
+		item = find_an_item_from_pool();
+		if (!item)
+			goto down_wait;
 
-			if (!GDC_DEV_T(dev_type)->reg_store_mode_enable)
-				gdc_pwr_config(false, dev_type);
-		}
+		start_process(item);
 	}
 	gdc_log(LOG_INFO, "exit %s\n", __func__);
 	return 0;
@@ -404,11 +389,31 @@ fail:
 }
 EXPORT_SYMBOL(create_gdc_work_queue);
 
+static int queue_busy_on_core_id(struct gdc_context_s *gdc_work_queue)
+{
+	struct gdc_context_s *busy_wq = NULL;
+	struct gdc_queue_item_s *busy_item = NULL;
+	u32 dev_type = gdc_work_queue->cmd.dev_type;
+	int i;
+
+	for (i = 0; i < CORE_NUM; i++) {
+		busy_item = GDC_DEV_T(dev_type)->current_item[i];
+		if (busy_item)
+			busy_wq = busy_item->context;
+		if (busy_wq == gdc_work_queue)
+			break;
+	}
+
+	return (i >= CORE_NUM ? -1 : i);
+}
+
 int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue)
 {
 	struct gdc_queue_item_s *pitem, *tmp;
 	struct list_head		*head;
 	int empty, timeout = 0;
+	struct completion *process_com = NULL;
+	int core_index;
 
 	if (gdc_work_queue) {
 		/* first detatch it from the process queue,then delete it . */
@@ -417,12 +422,14 @@ int destroy_gdc_work_queue(struct gdc_context_s *gdc_work_queue)
 		list_del(&gdc_work_queue->list);
 		empty = list_empty(&gdc_manager.process_queue);
 		spin_unlock(&gdc_manager.event.sem_lock);
-		if (gdc_manager.current_wq == gdc_work_queue &&
-		    gdc_manager.gdc_state == GDC_STATE_RUNNING) {
+
+		core_index = queue_busy_on_core_id(gdc_work_queue);
+		if (core_index >= 0) {
+			process_com =
+				&gdc_manager.event.process_complete[core_index];
 			gdc_work_queue->gdc_request_exit = 1;
 			timeout = wait_for_completion_timeout
-					(&gdc_manager.event.process_complete,
-					 msecs_to_jiffies(500));
+					(process_com, msecs_to_jiffies(500));
 			if (!timeout)
 				gdc_log(LOG_ERR, "wait timeout\n");
 			/* condition so complex ,simplify it . */
@@ -468,6 +475,8 @@ void *gdc_prepare_item(struct gdc_context_s *wq)
 
 	memcpy(&pitem->cmd, &wq->cmd, sizeof(struct gdc_cmd_s));
 	memcpy(&pitem->dma_cfg, &wq->dma_cfg, sizeof(struct gdc_dma_cfg_t));
+	pitem->context = wq;
+
 	return pitem;
 }
 
@@ -493,13 +502,16 @@ int gdc_wq_add_work(struct gdc_context_s *wq,
 
 int gdc_wq_init(void)
 {
+	int i;
+
 	gdc_log(LOG_INFO, "init gdc device\n");
 
 	/* prepare bottom half */
 	spin_lock_init(&gdc_manager.event.sem_lock);
 	sema_init(&gdc_manager.event.cmd_in_sem, 1);
 	init_completion(&gdc_manager.event.d_com);
-	init_completion(&gdc_manager.event.process_complete);
+	for (i = 0; i < CORE_NUM; i++)
+		init_completion(&gdc_manager.event.process_complete[i]);
 	INIT_LIST_HEAD(&gdc_manager.process_queue);
 	gdc_manager.last_wq = NULL;
 	gdc_manager.gdc_thread = NULL;

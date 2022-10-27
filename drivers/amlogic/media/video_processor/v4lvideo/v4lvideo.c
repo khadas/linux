@@ -40,7 +40,9 @@
 #include <linux/amlogic/media/di/di.h>
 #include "../../common/vfm/vfm.h"
 #include <linux/amlogic/media/utils/am_com.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
 #include <linux/amlogic/media/amdolbyvision/dolby_vision.h>
+#endif
 #include <linux/amlogic/meson_uvm_core.h>
 
 #define V4LVIDEO_MODULE_NAME "v4lvideo"
@@ -124,6 +126,7 @@ const s32 num_vp9_videos = ARRAY_SIZE(cts_vp9_videos);
 #define PRINT_ERROR		0X0
 #define PRINT_QUEUE_STATUS	0X0001
 #define PRINT_COUNT		0X0002
+#define PRINT_FILE		0X0004
 #define PRINT_OTHER		0X0040
 
 int v4l_print(int index, int debug_flag, const char *fmt, ...)
@@ -250,6 +253,82 @@ static const struct v4lvideo_fmt *get_format(struct v4l2_format *f)
 	return __get_format(f->fmt.pix.pixelformat);
 }
 
+static void init_active_file_list(struct v4lvideo_dev *dev)
+{
+	int i = 0;
+
+	for (i = 0; i < V4LVIDEO_POOL_SIZE; i++) {
+		dev->active_file[i].index = i;
+		atomic_set(&dev->active_file[i].on_use, false);
+		dev->active_file[i].p = NULL;
+	}
+}
+
+static void active_file_list_push(struct v4lvideo_dev *dev,
+			      struct file_private_data *file_private_data)
+{
+	int i;
+
+	for (i = 0; i < V4LVIDEO_POOL_SIZE; i++) {
+		if (!atomic_read(&dev->active_file[i].on_use))
+			break;
+	}
+
+	if (i == V4LVIDEO_POOL_SIZE) {
+		v4l_print(dev->inst, PRINT_ERROR, "active file full!!!\n");
+		return;
+	}
+
+	v4l_print(dev->inst, PRINT_FILE, "active push %d, %p\n",
+		i, file_private_data);
+	atomic_set(&dev->active_file[i].on_use, true);
+	dev->active_file[i].p = file_private_data;
+}
+
+static void active_file_list_pop(struct v4lvideo_dev *dev,
+	struct file_private_data *file_private_data, bool file_release)
+{
+	int i = 0;
+
+	for (i = 0; i < V4LVIDEO_POOL_SIZE; i++) {
+		if (atomic_read(&dev->active_file[i].on_use) &&
+			dev->active_file[i].p == file_private_data) {
+			dev->active_file[i].p = NULL;
+			atomic_set(&dev->active_file[i].on_use, false);
+			break;
+		}
+	}
+	v4l_print(dev->inst, PRINT_FILE, "active pop %d, %p\n",
+		i, file_private_data);
+
+	if (!file_release && i == V4LVIDEO_POOL_SIZE) {
+		v4l_print(dev->inst, PRINT_ERROR, "file not in active list\n");
+		return;
+	}
+}
+
+static bool active_file_list_check(struct v4lvideo_dev *dev,
+	struct file_private_data *file_private_data)
+{
+	int i = 0;
+
+	v4l_print(dev->inst, PRINT_FILE, "active check %p\n",
+		file_private_data);
+
+	for (i = 0; i < V4LVIDEO_POOL_SIZE; i++) {
+		if (atomic_read(&dev->active_file[i].on_use) &&
+			dev->active_file[i].p == file_private_data) {
+			v4l_print(dev->inst, PRINT_FILE,
+				"active pop ok i=%d\n", i);
+			return true;
+		}
+	}
+
+	v4l_print(dev->inst, PRINT_FILE, "active check: freed\n");
+
+	return false;
+}
+
 static void video_keeper_keep_mem(void *mem_handle, int type, int *id)
 {
 	int ret;
@@ -356,8 +435,7 @@ static void vf_keep(struct v4lvideo_dev *dev,
 		return;
 	}
 
-	/*Avoid use freed file_private_data*/
-	if (v4lvideo_file->private_data_freed) {
+	if (!active_file_list_check(dev, file_private_data)) {
 		vf_p = NULL;
 		v4l_print(dev->inst, PRINT_OTHER,
 			"keep, but private has been freed\n");
@@ -582,6 +660,9 @@ int v4lvideo_alloc_map(int *inst)
 			dev->mapped = true;
 			*inst = dev->inst;
 			v4lvideo_devlist_unlock(flags);
+			#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+			dv_inst_map(&dev->dv_inst);
+			#endif
 			return 0;
 		}
 	}
@@ -608,6 +689,10 @@ void v4lvideo_release_map(int inst)
 	}
 
 	v4lvideo_devlist_unlock(flags);
+
+	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	dv_inst_unmap(dev->dv_inst);
+	#endif
 }
 
 void v4lvideo_release_map_force(struct v4lvideo_dev *dev)
@@ -622,6 +707,9 @@ void v4lvideo_release_map_force(struct v4lvideo_dev *dev)
 	}
 
 	v4lvideo_devlist_unlock(flags);
+	#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_DOLBYVISION
+	dv_inst_unmap(dev->dv_inst);
+	#endif
 }
 
 static struct ge2d_context_s *context;
@@ -1239,17 +1327,15 @@ static void v4lvideo_private_data_release(struct file_private_data *data)
 	v4lvideo_file = (struct v4lvideo_file_s *)data->private;
 	if (v4lvideo_file)
 		dev = v4lvideo_file->dev;
-
 	if (data->is_keep)
 		vf_free(data);
 	v4lvideo_release_sei_data(&data->vf);
 
 	if (dev) {
 		mutex_lock(&dev->mutex_input);
-		v4lvideo_file->private_data_freed = true;
+		active_file_list_pop(dev, data, true);
 		mutex_unlock(&dev->mutex_input);
 	}
-
 	if (data->md.p_md) {
 		vfree(data->md.p_md);
 		data->md.p_md = NULL;
@@ -1372,9 +1458,9 @@ s32 v4lvideo_import_sei_data(struct vframe_s *vf,
 	if (!vf || !dup_vf || !provider || !alloc_sei)
 		return ret;
 
-	if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) &&
-	    (vf->type & VIDTYPE_DI_PW))
-		return ret;
+	/*if ((!(vf->flag & VFRAME_FLAG_DOUBLE_FRAM)) &&*/
+	/*    (vf->type & VIDTYPE_DI_PW))*/
+	/*	return ret;*/
 
 	if (!strcmp(provider, "dvbldec") && dup_vf->omx_index < 2)
 		max_count = 10;
@@ -1717,7 +1803,6 @@ static void push_to_display_q(struct v4lvideo_dev *dev,
 	dev->v4lvideo_file[i].vf_type = file_private_data->vf_p->type;
 	dev->v4lvideo_file[i].inst_id = file_private_data->v4l_inst_id;
 	dev->v4lvideo_file[i].dev = dev;
-	dev->v4lvideo_file[i].private_data_freed = false;
 
 	v4l2q_push(&dev->display_queue, &dev->v4lvideo_file[i]);
 }
@@ -1787,6 +1872,7 @@ static int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 			vf_free(file_private_data);
 		} else {
 			if (pop_specific_from_display_q(dev, v4lvideo_file)) {
+				active_file_list_pop(dev, file_private_data, false);
 				if (dev->receiver_register) {
 					if (flag & V4LVIDEO_FLAG_DI_DEC)
 						vf_p = vf_ext_p;
@@ -2040,9 +2126,10 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	file_private_data->vf.src_fmt.md_buf = file_private_data->md.p_md;
 	file_private_data->vf.src_fmt.comp_buf = file_private_data->md.p_comp;
 	file_private_data->v4l_inst_id = dev->inst;
+	file_private_data->vf.src_fmt.dv_id = dev->dv_inst;
 	if ((alloc_sei & 2) && vf)
-		pr_info("vidioc dqbuf: vf %p(index %d), md_buf %p\n",
-			vf, vf->omx_index, file_private_data->vf.src_fmt.md_buf);
+		pr_info("vidioc dqbuf: vf %p(index %d), type %x, md_buf %p\n",
+			vf, vf->omx_index, vf->type, file_private_data->vf.src_fmt.md_buf);
 
 	v4lvideo_import_sei_data(vf,
 		&file_private_data->vf,
@@ -2051,9 +2138,9 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	//pr_err("dqbuf: file_private_data=%p, vf=%p\n", file_private_data, vf);
 
 	push_to_display_q(dev, file_private_data);
+	active_file_list_push(dev, file_private_data);
 
 	fput(file_vf);
-	mutex_unlock(&dev->mutex_input);
 
 	if (vf->pts_us64) {
 		dev->first_frame = 1;
@@ -2097,6 +2184,11 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 		p->timecode.flags = vf->height;
 	}
 	p->sequence = dev->frame_num++;
+
+	if (vf->type_original & VIDTYPE_INTERLACE || vf->type & VIDTYPE_INTERLACE)
+		p->field = V4L2_FIELD_INTERLACED;
+
+	mutex_unlock(&dev->mutex_input);
 	//pr_err("dqbuf: frame_num=%d\n", p->sequence);
 	dq_count[inst_id]++;
 	return 0;
@@ -2202,6 +2294,7 @@ static int video_receiver_event_fun(int type, void *data, void *private_data)
 		dev->frame_num = 0;
 		dev->first_frame = 0;
 		dev->last_pts_us64 = U64_MAX;
+		init_active_file_list(dev);
 		mutex_unlock(&dev->mutex_input);
 		get_count[inst_id] = 0;
 		put_count[inst_id] = 0;

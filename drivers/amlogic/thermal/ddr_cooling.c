@@ -17,8 +17,6 @@ static DEFINE_MUTEX(cooling_ddr_lock);
 static DEFINE_MUTEX(cooling_list_lock);
 static LIST_HEAD(ddr_dev_list);
 
-static void __iomem *ddr_reg0;
-
 /**
  * get_idr - function to get a unique id.
  * @idr: struct idr * handle used to create a id.
@@ -128,7 +126,13 @@ static int ddr_notify_state(void *thermal_instance,
 	tz->ops->get_trip_hyst(tz, trip, &hyst);
 	tz->ops->get_trip_temp(tz, trip, &trip_temp);
 
-	reg_val = readl_relaxed(ddr_reg0);
+	if (!ddr_device->vddr_reg) {
+		pr_err("DDR cooling devices don't map reg.\n");
+		return -EINVAL;
+	}
+
+	reg_val = readl_relaxed(ddr_device->vddr_reg);
+
 	switch (type) {
 	case THERMAL_TRIP_HOT:
 		val = ddr_device->ddr_data[0];
@@ -151,7 +155,7 @@ static int ddr_notify_state(void *thermal_instance,
 		reg_val |= (val << ddr_device->ddr_bits[0]);
 		pr_debug("last set ddr reg val: %x\n", reg_val);
 
-		writel_relaxed(reg_val, ddr_reg0);
+		writel_relaxed(reg_val, ddr_device->vddr_reg);
 	default:
 		break;
 	}
@@ -187,8 +191,8 @@ ddr_cooling_register(struct device_node *np, struct cool_dev *cool)
 		return ERR_PTR(-EINVAL);
 	}
 
-	ddr_reg0 = ioremap(cool->ddr_reg, 1);
-	if (!ddr_reg0) {
+	ddr_dev->vddr_reg = ioremap(cool->ddr_reg, 4);
+	if (!ddr_dev->vddr_reg) {
 		pr_err("thermal ddr cdev: ddr reg0 ioremap fail.\n");
 		release_idr(&ddr_idr, ddr_dev->id);
 		kfree(ddr_dev);
@@ -247,10 +251,9 @@ void ddr_cooling_unregister(struct thermal_cooling_device *cdev)
 	if (!cdev)
 		return;
 
-	iounmap(ddr_reg0);
-
 	ddr_dev = cdev->devdata;
 
+	iounmap(ddr_dev->vddr_reg);
 	mutex_lock(&cooling_list_lock);
 	list_del(&ddr_dev->node);
 	mutex_unlock(&cooling_list_lock);

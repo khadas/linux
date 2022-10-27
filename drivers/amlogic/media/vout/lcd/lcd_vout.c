@@ -38,6 +38,7 @@
 #include "lcd_reg.h"
 #include "lcd_common.h"
 #include "lcd_clk_config.h"
+#include "lcd_tcon.h"
 #ifdef CONFIG_AMLOGIC_VPU
 #include <linux/amlogic/media/vpu/vpu.h>
 #endif
@@ -47,6 +48,7 @@
 #define LCD_CDEV_NAME  "lcd"
 
 unsigned int lcd_debug_print_flag;
+unsigned int lcd_tcon_bin_path_index;
 /* for driver global resource init:
  *  0: none
  *  n: initialized cnt
@@ -171,6 +173,11 @@ static void lcd_power_ctrl(struct aml_lcd_drv_s *pdrv, int status)
 #endif
 	unsigned int i, index, wait;
 	int value = -1;
+
+	if (pdrv->lcd_pxp) {
+		LCDPR("[%d]: %s: lcd_pxp bypass\n", pdrv->index, __func__);
+		return;
+	}
 
 	LCDPR("[%d]: %s: %d\n", pdrv->index, __func__, status);
 	i = 0;
@@ -847,6 +854,14 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	int mcd_nr;
 	struct aml_lcd_drv_s *pdrv;
 	struct lcd_optical_info_s *opt_info;
+	struct aml_lcd_tcon_bin_s lcd_tcon_buff;
+	struct tcon_rmem_s *tcon_rmem = get_lcd_tcon_rmem();
+	struct tcon_mem_map_table_s *mm_table = get_lcd_tcon_mm_table();
+	struct lcd_tcon_data_block_header_s block_header;
+	unsigned int size = 0, temp, m = 0;
+	unsigned char *mem_vaddr = NULL;
+	char *str = NULL;
+	int index = 0;
 
 	pdrv = (struct aml_lcd_drv_s *)file->private_data;
 	if (!pdrv)
@@ -898,6 +913,117 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					opt_info->luma_min,
 					opt_info->luma_avg);
 			}
+		}
+		break;
+	case LCD_IOC_GET_TCON_BIN_MAX_CNT_INFO:
+		if (!mm_table) {
+			ret = -EFAULT;
+			break;
+		}
+		if (copy_to_user(argp, &mm_table->block_cnt, sizeof(unsigned int)))
+			ret = -EFAULT;
+		break;
+	case LCD_IOC_SET_TCON_DATA_INDEX_INFO:
+		if (copy_from_user(&lcd_tcon_bin_path_index, argp,
+				   sizeof(unsigned int)))
+			ret = -EFAULT;
+		break;
+	case LCD_IOC_GET_TCON_BIN_PATH_INFO:
+		if (!mm_table || !tcon_rmem) {
+			ret = -EFAULT;
+			break;
+		}
+
+		mem_vaddr = tcon_rmem->bin_path_rmem.mem_vaddr;
+		if (!mem_vaddr) {
+			LCDERR("[%d]: %s: no tcon bin path rmem\n", pdrv->index, __func__);
+			ret = -EFAULT;
+			break;
+		}
+		if (lcd_tcon_bin_path_index >= mm_table->block_cnt) {
+			ret = -EFAULT;
+			break;
+		}
+		m = 32 + 256 * lcd_tcon_bin_path_index;
+		str = (char *)&mem_vaddr[m + 4];
+		LCDPR("[%d]: get tcon bin_path[%d]: %s\n",
+		      pdrv->index, lcd_tcon_bin_path_index, str);
+
+		if (copy_to_user(argp, str, 256))
+			ret = -EFAULT;
+		break;
+	case LCD_IOC_SET_TCON_BIN_DATA_INFO:
+		if (!mm_table || !tcon_rmem) {
+			ret = -EFAULT;
+			break;
+		}
+
+		mem_vaddr = tcon_rmem->bin_path_rmem.mem_vaddr;
+		if (!mem_vaddr) {
+			LCDERR("[%d]: %s: no tcon bin path rmem\n", pdrv->index, __func__);
+			ret = -EFAULT;
+			break;
+		}
+
+		memset(&lcd_tcon_buff, 0, sizeof(struct aml_lcd_tcon_bin_s));
+		if (copy_from_user(&lcd_tcon_buff, argp, sizeof(struct aml_lcd_tcon_bin_s))) {
+			ret = -EFAULT;
+			break;
+		}
+		if (lcd_tcon_buff.size == 0) {
+			LCDERR("[%d]: %s: invalid data size %d\n",
+			       pdrv->index, __func__, size);
+			ret = -EFAULT;
+			break;
+		}
+		index = lcd_tcon_buff.index;
+		if (index >= mm_table->block_cnt) {
+			LCDERR("[%d]: %s: invalid index %d\n", pdrv->index, __func__, index);
+			ret = -EFAULT;
+			break;
+		}
+		m = 32 + 256 * index;
+		str = (char *)&mem_vaddr[m + 4];
+		temp = *(unsigned int *)&mem_vaddr[m];
+
+		memset(&block_header, 0, sizeof(struct lcd_tcon_data_block_header_s));
+		argp = (void __user *)lcd_tcon_buff.ptr;
+		if (copy_from_user(&block_header, argp,
+			sizeof(struct lcd_tcon_data_block_header_s))) {
+			ret = -EFAULT;
+			break;
+		}
+		size = block_header.block_size;
+		if (size > lcd_tcon_buff.size ||
+		    size < sizeof(struct lcd_tcon_data_block_header_s)) {
+			LCDERR("[%d]: %s: block[%d] size 0x%x error\n",
+			       pdrv->index, __func__, index, size);
+			ret = -EFAULT;
+			break;
+		}
+
+		kfree(mm_table->data_mem_vaddr[index]);
+		mm_table->data_mem_vaddr[index] =
+			kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
+		if (!mm_table->data_mem_vaddr[index]) {
+			ret = -EFAULT;
+			break;
+		}
+		if (copy_from_user(mm_table->data_mem_vaddr[index], argp, size)) {
+			kfree(mm_table->data_mem_vaddr[index]);
+			mm_table->data_mem_vaddr[index] = NULL;
+			ret = -EFAULT;
+			break;
+		}
+
+		LCDPR("[%d]: load tcon bin_path[%d]: %s, size: 0x%x -> 0x%x\n",
+		      pdrv->index, index, str, temp, size);
+
+		ret = lcd_tcon_data_load(pdrv, mm_table->data_mem_vaddr[index], index);
+		if (ret) {
+			kfree(mm_table->data_mem_vaddr[index]);
+			mm_table->data_mem_vaddr[index] = NULL;
+			ret = -EFAULT;
 		}
 		break;
 	default:
@@ -1606,6 +1732,16 @@ static struct lcd_data_s lcd_data_t3 = {
 	.offset_venc_data = {0x0, 0x100, 0x0},
 };
 
+static struct lcd_data_s lcd_data_t5w = {
+	.chip_type = LCD_CHIP_T5W,
+	.chip_name = "t5w",
+	.reg_map_table = &lcd_reg_t5[0],
+	.drv_max = 1,
+	.offset_venc = {0},
+	.offset_venc_if = {0},
+	.offset_venc_data = {0},
+};
+
 static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-g12a",
@@ -1642,6 +1778,10 @@ static const struct of_device_id lcd_dt_match_table[] = {
 	{
 		.compatible = "amlogic, lcd-t3",
 		.data = &lcd_data_t3,
+	},
+	{
+		.compatible = "amlogic, lcd-t5w",
+		.data = &lcd_data_t5w,
 	},
 	{}
 };
@@ -1724,6 +1864,8 @@ static int lcd_probe(struct platform_device *pdev)
 
 	LCDPR("[%d]: %s ok, init_state:0x%x\n", index, __func__, lcd_drv_init_state);
 
+	lcd_drm_add(&pdev->dev);
+
 	return 0;
 
 lcd_probe_err_2:
@@ -1747,6 +1889,8 @@ static int lcd_remove(struct platform_device *pdev)
 
 	if (!pdrv)
 		return 0;
+
+	lcd_drm_remove(&pdev->dev);
 
 	index = pdrv->index;
 

@@ -12,6 +12,7 @@
 #include <linux/amlogic/media/canvas/canvas.h>
 #include <linux/amlogic/media/canvas/canvas_mgr.h>
 #endif
+#include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "../../media/video_processor/video_composer/videodisplay.h"
 #include "meson_vpu_pipeline.h"
@@ -38,7 +39,7 @@ video_vfm_convert_to_vfminfo(struct meson_vpu_video_state *mvvs,
 	vf_info->crop_y = mvvs->src_y;
 	vf_info->crop_w = mvvs->src_w;
 	vf_info->crop_h = mvvs->src_h;
-	vf_info->buffer_w = mvvs->src_w;
+	vf_info->buffer_w = mvvs->byte_stride;
 	vf_info->buffer_h = mvvs->src_h;
 	vf_info->zorder = mvvs->zorder;
 
@@ -157,6 +158,26 @@ static void video_disable_fence(struct meson_vpu_video *video)
 	}
 }
 
+/*background data R[32:47] G[16:31] B[0:15] alpha[48:63]->
+ *dummy data Y[16:23] Cb[8:15] Cr[0:7]
+ */
+static void video_dummy_data_set(struct am_meson_crtc_state *crtc_state)
+{
+	int r, g, b, alpha, y, u, v;
+	u32 vpp_index = 0;
+
+	b = (crtc_state->crtc_bgcolor & 0xffff) / 256;
+	g = ((crtc_state->crtc_bgcolor >> 16) & 0xffff) / 256;
+	r = ((crtc_state->crtc_bgcolor >> 32) & 0xffff) / 256;
+	alpha = ((crtc_state->crtc_bgcolor >> 48) & 0xffff) / 256;
+
+	y = ((47 * r + 157 * g + 16 * b + 128) >> 8) + 16;
+	u = ((-26 * r - 87 * g + 113 * b + 128) >> 8) + 128;
+	v = ((112 * r - 102 * g - 10 * b + 128) >> 8) + 128;
+
+	set_post_blend_dummy_data(vpp_index, 1 << 24 | y << 16 | u << 8 | v, alpha);
+}
+
 /* -----------------------------------------------------------------
  *           provider opeations
  * -----------------------------------------------------------------
@@ -268,6 +289,7 @@ static int video_check_state(struct meson_vpu_block *vblk,
 	mvvs->is_uvm = plane_info->is_uvm;
 	video->vfm_mode = plane_info->vfm_mode;
 	mvvs->dmabuf = plane_info->dmabuf;
+	mvvs->crtc_index = plane_info->crtc_index;
 
 	if (!video->vfm_mode && !video->video_path_reg) {
 		kfifo_reset(&video->ready_q);
@@ -284,8 +306,12 @@ static int video_check_state(struct meson_vpu_block *vblk,
 }
 
 static void video_set_state(struct meson_vpu_block *vblk,
-			    struct meson_vpu_block_state *state)
+			    struct meson_vpu_block_state *state,
+			    struct meson_vpu_block_state *old_state)
 {
+	int crtc_index;
+	struct am_meson_crtc *amc;
+	struct am_meson_crtc_state *meson_crtc_state;
 	struct meson_vpu_video *video = to_video_block(vblk);
 	struct meson_vpu_video_state *mvvs = to_video_state(state);
 	struct video_display_frame_info_t vf_info;
@@ -300,6 +326,11 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		DRM_DEBUG("set_state break for NULL.\n");
 		return;
 	}
+
+	crtc_index = mvvs->crtc_index;
+	amc = vblk->pipeline->priv->crtcs[crtc_index];
+	meson_crtc_state = to_am_meson_crtc_state(amc->base.state);
+	video_dummy_data_set(meson_crtc_state);
 
 	src_h = mvvs->src_h;
 	byte_stride = mvvs->byte_stride;
@@ -411,6 +442,7 @@ static void video_set_state(struct meson_vpu_block *vblk,
 		if (video->vfm_mode) {
 			vf_info.release_fence = video->fence;
 			video_vfm_convert_to_vfminfo(mvvs, &vf_info);
+			vf_info.reserved[0] = video_type_get(pixel_format);
 			dma_resv_add_excl_fence(vf_info.dmabuf->resv, vf_info.release_fence);
 			video_display_setframe(vblk->index, &vf_info, 0);
 		} else {
@@ -487,7 +519,8 @@ static void video_set_state(struct meson_vpu_block *vblk,
 	DRM_DEBUG("%s set_state done.\n", video->base.name);
 }
 
-static void video_hw_enable(struct meson_vpu_block *vblk)
+static void video_hw_enable(struct meson_vpu_block *vblk,
+			    struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 
@@ -495,6 +528,12 @@ static void video_hw_enable(struct meson_vpu_block *vblk)
 		DRM_DEBUG("enable break for NULL.\n");
 		return;
 	}
+
+	if (video->vfm_mode) {
+		DRM_DEBUG("skip, %s enable by video_composer.\n", video->base.name);
+		return;
+	}
+
 	if (!video->video_enabled) {
 		set_video_enabled(1, vblk->index);
 		video->video_enabled = 1;
@@ -502,7 +541,8 @@ static void video_hw_enable(struct meson_vpu_block *vblk)
 	DRM_DEBUG("%s enable done.\n", video->base.name);
 }
 
-static void video_hw_disable(struct meson_vpu_block *vblk)
+static void video_hw_disable(struct meson_vpu_block *vblk,
+			     struct meson_vpu_block_state *state)
 {
 	struct meson_vpu_video *video = to_video_block(vblk);
 
@@ -512,10 +552,8 @@ static void video_hw_disable(struct meson_vpu_block *vblk)
 	}
 
 	if (video->vfm_mode) {
-		if (video->video_enabled) {
-			video_display_setenable(vblk->index, 0);
-			video->video_enabled = 0;
-		}
+		video_display_setenable(vblk->index, 0);
+		video->video_enabled = 0;
 	} else {
 		video_disable_fence(video);
 		video->fence = NULL;

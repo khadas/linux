@@ -24,10 +24,15 @@ struct vrr_device_s {
 	char name[VRR_NAME_LEN_MAX];
 	enum vrr_output_src_e output_src;
 	unsigned int enable;
+	unsigned int vline;
 	unsigned int vline_max;
 	unsigned int vline_min;
 	unsigned int vfreq_max;
 	unsigned int vfreq_min;
+
+	void *dev_data;
+	unsigned int (*lfc_switch)(void *dev_data, int fps);
+	int (*disable_cb)(void *dev_data);
 };
 
 struct vrr_notifier_data_s {
@@ -36,6 +41,10 @@ struct vrr_notifier_data_s {
 	unsigned int target_vfreq_den;
 	unsigned int dev_vfreq_max;
 	unsigned int dev_vfreq_min;
+	unsigned int line_dly;
+
+	unsigned int vrr_mode;
+	unsigned int lfc_en;
 };
 
 /* **********************************

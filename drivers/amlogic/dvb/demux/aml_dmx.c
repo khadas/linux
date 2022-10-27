@@ -1486,9 +1486,15 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 		return -ERESTARTSYS;
 
 	if (hw_source >= DMA_0 && hw_source <= DMA_7) {
-		demux->local_sid = hw_source - DMA_0;
-		ts_output_update_filter(demux->id, demux->local_sid);
+		if (demux->local_sid != hw_source - DMA_0) {
+			demux->local_sid = hw_source - DMA_0;
+			ts_output_update_filter(demux->id, demux->local_sid);
+		}
+		demux->demod_sid = -1;
 		dsc_set_sid(demux->id, INPUT_LOCAL, demux->local_sid);
+		advb->tsn_flag &= (~(1 << demux->id));
+		if (!advb->tsn_flag)
+			tsn_set_double_out(0);
 	} else if (hw_source >= FRONTEND_TS0 && hw_source <= FRONTEND_TS7) {
 		demux->ts_index = hw_source - FRONTEND_TS0;
 		if (advb->ts[demux->ts_index].ts_sid != -1 &&
@@ -1497,6 +1503,30 @@ static int _dmx_set_hw_source(struct dmx_demux *dmx, int hw_source)
 			ts_output_update_filter(demux->id, demux->demod_sid);
 			dsc_set_sid(demux->id, INPUT_DEMOD, demux->demod_sid);
 		}
+		demux->local_sid = -1;
+		advb->tsn_flag &= (~(1 << demux->id));
+		if (!advb->tsn_flag)
+			tsn_set_double_out(0);
+	} else if (hw_source >= DMA_0_1 && hw_source <= DMA_7_1) {
+		if (demux->local_sid != (hw_source - DMA_0_1 + 0x20)) {
+			demux->local_sid = hw_source - DMA_0_1 + 0x20;
+			ts_output_update_filter(demux->id, demux->local_sid);
+		}
+		demux->demod_sid = -1;
+		dsc_set_sid(demux->id, INPUT_LOCAL, hw_source - DMA_0_1);
+		advb->tsn_flag |= (1 << demux->id);
+		tsn_set_double_out(1);
+	} else if (hw_source >= FRONTEND_TS0_1 && hw_source <= FRONTEND_TS7_1) {
+		demux->ts_index = hw_source - FRONTEND_TS0_1;
+		if (advb->ts[demux->ts_index].ts_sid != -1) {
+			demux->demod_sid =
+				advb->ts[demux->ts_index].ts_sid ^ 0x20;
+			ts_output_update_filter(demux->id, demux->demod_sid);
+			dsc_set_sid(demux->id, INPUT_DEMOD, advb->ts[demux->ts_index].ts_sid);
+		}
+		demux->local_sid = -1;
+		advb->tsn_flag |= (1 << demux->id);
+		tsn_set_double_out(1);
 	}
 	mutex_unlock(demux->pmutex);
 	return 0;

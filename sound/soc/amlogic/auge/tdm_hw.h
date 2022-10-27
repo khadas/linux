@@ -12,7 +12,9 @@
 #define TDM_A	0
 #define TDM_B	1
 #define TDM_C	2
-#define TDM_LB	3
+#define TDM_D	3
+
+#define TDM_LB	4
 
 #define LANE_MAX0 2
 #define LANE_MAX1 4
@@ -32,6 +34,7 @@ enum tdmin_src {
 	TDMOUTA = 13,
 	TDMOUTB = 14,
 	TDMOUTC = 15,
+	TDMOUTD = 16,
 };
 
 struct pcm_setting {
@@ -60,12 +63,12 @@ struct pcm_setting {
 
 void aml_tdm_enable(struct aml_audio_controller *actrl,
 	int stream, int index,
-	bool is_enable);
+	bool is_enable, bool fade_out, bool use_vadtop);
 
-void aml_tdm_arb_config(struct aml_audio_controller *actrl);
+void aml_tdm_arb_config(struct aml_audio_controller *actrl, bool use_arb);
 
 void aml_tdm_fifo_reset(struct aml_audio_controller *actrl,
-	int stream, int index);
+	int stream, int index, bool use_vadtop);
 void aml_tdmout_enable_gain(int tdmout_id, int en, int gain_ver);
 
 int tdmout_get_frddr_type(int bitwidth);
@@ -81,37 +84,38 @@ void aml_tdm_set_format(struct aml_audio_controller *actrl,
 	unsigned int fmt,
 	unsigned int capture_active,
 	unsigned int playback_active,
-	bool tdmin_src_hdmirx);
+	bool tdmin_src_hdmirx,
+	bool use_vadtop);
 
 void aml_update_tdmin_skew(struct aml_audio_controller *actrl,
-			   int idx, int skew);
+			   int idx, int skew, bool use_vadtop);
 
 void aml_update_tdmin_rev_ws(struct aml_audio_controller *actrl,
-			     int idx, int is_rev);
+			     int idx, int is_rev, bool use_vadtop);
 
 void aml_tdm_set_slot_out(struct aml_audio_controller *actrl,
 	int index, int slots, int slot_width);
 
 void aml_tdm_set_slot_in(struct aml_audio_controller *actrl,
-	int index, int in_src, int slot_width);
+	int index, int in_src, int slot_width, bool use_vadtop);
 
 void aml_update_tdmin_src(struct aml_audio_controller *actrl,
-	int index, int in_src);
+	int index, int in_src, bool use_vadtop);
 
 void tdmin_set_chnum_en(struct aml_audio_controller *actrl,
-	int index, bool enable);
+	int index, bool enable, bool use_vadtop);
 
 void aml_tdm_set_channel_mask(struct aml_audio_controller *actrl,
-	int stream, int index, int lanes, int mask);
+	int stream, int index, int lanes, int mask, bool use_vadtop);
 
 void aml_tdm_set_lane_channel_swap(struct aml_audio_controller *actrl,
-	int stream, int index, int swap0, int swap1);
+	int stream, int index, int swap0, int swap1, bool use_vadtop);
 
 void aml_tdm_set_bclk_ratio(struct aml_audio_controller *actrl,
-	int clk_sel, int lrclk_hi, int bclk_ratio);
+	int clk_sel, int lrclk_hi, int bclk_ratio, bool use_vadtop);
 
 void aml_tdm_set_lrclkdiv(struct aml_audio_controller *actrl,
-	int clk_sel, int ratio);
+	int clk_sel, int ratio, bool use_vadtop);
 
 void tdm_enable(int tdm_index, int is_enable);
 
@@ -131,7 +135,8 @@ void aml_tdm_mclk_pad_select(struct aml_audio_controller *actrl,
 void aml_tdm_sclk_pad_select(struct aml_audio_controller *actrl,
 			     int mpad_offset, int tdm_index, int clk_sel);
 
-void i2s_to_hdmitx_ctrl(int i2s_tohdmitxen_separated, int tdm_index);
+void i2s_to_hdmitx_ctrl(int i2s_tohdmitxen_separated, int tdm_index,
+		int mclk_sel);
 void aml_tdm_mute_playback(struct aml_audio_controller *actrl,
 		int index,
 		bool mute,
@@ -139,7 +144,8 @@ void aml_tdm_mute_playback(struct aml_audio_controller *actrl,
 void aml_tdm_mute_capture(struct aml_audio_controller *actrl,
 		int tdm_index,
 		bool mute,
-		int lane_cnt);
+		int lane_cnt,
+		bool use_vadtop);
 void aml_tdm_out_reset(unsigned int tdm_id, int offset);
 void aml_tdm_set_oe_v1(struct aml_audio_controller *actrl,
 	int index,
@@ -154,6 +160,10 @@ void aml_tdmout_set_gain(int tdmout_id, int value);
 int aml_tdmout_get_gain(int tdmout_id);
 void aml_tdmout_set_mute(int tdmout_id, int mute);
 int aml_tdmout_get_mute(int tdmout_id);
-int aml_tdmin_get_status(int tdm_id);
-void aml_tdmin_set_slot_num(struct aml_audio_controller *actrl, int index, int slot_num);
+int aml_tdmin_get_status(int tdm_id, bool use_vadtop);
+void aml_tdmin_set_slot_num(struct aml_audio_controller *actrl,
+			    int index, int slot_num, bool use_vadtop);
+void aml_tdmout_gain_step(int index, int enable);
+void aml_tdmout_mute_speaker(int tdmout_id, bool mute);
+
 #endif

@@ -102,6 +102,7 @@
 	| VIDTYPE_RGB_444		\
 	| VIDTYPE_V4L_EOS)
 
+#define DIM_S4DW_REG_BACK_NUB	5
 enum EDI_MEM_M {
 	EDI_MEM_M_REV = 0,
 	EDI_MEM_M_CMA = 1,
@@ -189,16 +190,16 @@ enum EDIM_NIN_TYPE {
 union di_cfg_tdata_u {
 	unsigned int d32;
 	struct {
-		unsigned int val_df:4,/**/
-		val_dts:4,
-		val_dbg:4,
-		val_c:4,
+		unsigned int val_df:6,/**/
+		val_dts:6,
+		val_dbg:6,
+		val_c:6,
 		dts_en:1,
 		dts_have:1,
 		dbg_have:1,
 		rev_en:1,
-		en_update:4,
-		reserved:8;
+		en_update:4;
+		//reserved:0;
 	} b;
 };
 
@@ -277,7 +278,20 @@ enum EDBG_TIMER {
 	EDBG_TIMER_3_PREADY,
 	EDBG_TIMER_1_PSTREADY,
 	EDBG_TIMER_2_PSTREADY,
-
+	/* add 2022-03-16 */
+	EDBG_TIMER_1_PGET,	/* pst get */
+	EDBG_TIMER_2_PGET,
+	EDBG_TIMER_3_PGET,
+	EDBG_TIMER_SEC_PRE_B,
+	EDBG_TIMER_SEC_PRE_E,
+	EDBG_TIMER_SEC_PST_B,
+	EDBG_TIMER_SEC_PST_E,
+	EDBG_TIMER_PRE_BYPASS_0,
+	EDBG_TIMER_PRE_BYPASS_1,
+	EDBG_TIMER_PRE_BYPASS_2,
+	EDBG_TIMER_DCTP_0,
+	EDBG_TIMER_DCTP_1,
+	EDBG_TIMER_DCTP_2,
 	EDBG_TIMER_NUB,
 };
 
@@ -489,6 +503,7 @@ struct dim_wmode_s {
 	unsigned int o_w;
 	unsigned int seq;
 	unsigned int seq_sgn;
+	u32 bypass_reason; //add 2022-04-05
 };
 
 /**************************************/
@@ -557,6 +572,7 @@ struct di_hpre_s {
 	union hw_sc2_ctr_pre_s pre_top_cfg;
 
 	unsigned int self_trig_mask;
+	bool used_pps;
 };
 
 /**************************************/
@@ -1117,6 +1133,7 @@ enum EDI_WORK_MODE {
 	EDI_WORK_MODE_P_AS_P,
 	EDI_WORK_MODE_P_USE_IBUF,
 	EDI_WORK_MODE_NEW_2020, /* ary for test */
+	EDI_WORK_MODE_S4DW,
 	EDI_WORK_MODE_ALL,
 
 };
@@ -1144,7 +1161,8 @@ struct di_dat_s {
 	void	*virt; //for cma: (struct page	*)
 	unsigned int cnt; //for cma
 	bool	flg_alloc;
-
+	/* 0 : no mark; 1: from common; 2: from di's cma */
+	unsigned char flg_from;
 	struct blk_flg_s flg;
 	unsigned long addr_st;
 	unsigned long addr_end;
@@ -1170,6 +1188,14 @@ struct dim_itf_ops_s {
 	void (*put)(void *data, struct di_ch_s *pch);
 };
 
+struct dim_s4dw_data_s {
+	void (*reg_variable)(struct di_ch_s *pch, struct vframe_s *vfm);
+	u32 (*is_bypass)(struct di_ch_s *pch, struct vframe_s *vfm);
+	u32 (*is_bypass_sys)(struct di_ch_s *pch);
+	bool (*fill_2_ready_bynins)(struct di_ch_s *pch,
+				    struct dim_nins_s *nins);
+};
+
 //n struct dim_inter_s {
 struct dim_itf_s {
 	enum EDIM_NIN_TYPE etype;
@@ -1178,8 +1204,11 @@ struct dim_itf_s {
 	unsigned int ch;
 	/*status:*/
 	bool bypass_complete;
+	bool flg_s4dw; /* copy */
 	bool reg;
 	struct mutex lock_reg; /* for reg */
+	struct mutex lock_in; /* for input */
+	//struct mutex lock_buffer; /* for ext buffer*/
 	struct dim_itf_ops_s opsi;
 	struct dim_itf_ops_s opso;
 	void (*op_post_done)(struct di_ch_s *pch);
@@ -1241,6 +1270,7 @@ struct di_mm_cfg_s {
 	unsigned int num_local;
 	unsigned int num_post;
 	unsigned int num_rebuild_keep; //ary add
+	unsigned int num_rebuild_alloc;
 	unsigned int num_step1_post;
 
 	unsigned int size_local;
@@ -1289,7 +1319,8 @@ struct di_mm_cfg_s {
 
 	unsigned int fix_buf	: 1;
 	unsigned int dis_afbce	: 1;
-	unsigned int rev1	: 30;
+	unsigned int is_4k	: 1; //for hf
+	unsigned int rev1	: 29;
 	unsigned int pre_inser_size;
 	unsigned int ibuf_hsize;
 	unsigned int pbuf_hsize;
@@ -1507,6 +1538,16 @@ struct qs_cls_s {
 	struct qs_err_log_s *plog;
 };
 
+enum EBUF_QUE_ID {
+	EBUF_QUE_ID_BLK = 1,
+	EBUF_QUE_ID_MEM,
+	EBUF_QUE_ID_PAT,
+	EBUF_QUE_ID_IAT,
+	EBUF_QUE_ID_SCT,
+	EBUF_QUE_ID_NIN,
+	EBUF_QUE_ID_NDIS
+};
+
 struct buf_que_s;
 
 struct qb_ops_s {
@@ -1526,6 +1567,7 @@ struct buf_que_s {
 	struct qs_cls_s	*pque[MAX_FIFO_SIZE];/**/
 	bool	rflg;	/*resource flg*/
 	char	*name;
+	unsigned int	bque_id; /* 05/26 dbg only */
 	unsigned int	nub_que;
 	unsigned int	nub_buf;
 	struct qs_err_log_s log;
@@ -1550,6 +1592,7 @@ struct qbuf_creat_s {
 	unsigned int nub_que;
 	unsigned int nub_buf;
 	unsigned int code;
+	unsigned int que_id;
 };
 
 /* di_que_buf end */
@@ -1564,12 +1607,14 @@ enum QBF_BLK_Q_TYPE {
 };
 
 struct dim_sub_mem_s {
+	unsigned char	index; //add for mng hf buffer
+	unsigned char	ch;
 	unsigned long	mem_start;
 	struct page	*pages;
 	unsigned int	cnt;
 };
 
-#define DIM_BLK_NUB	20 /* buf number*/
+#define DIM_BLK_NUB	32 /* buf number*/
 struct dim_mm_blk_s {
 	struct qs_buf_s	header;
 
@@ -1585,7 +1630,7 @@ struct dim_mm_blk_s {
 	void *sct;
 	unsigned int sct_keep; //keep number
 	void *buffer; //new_interface
-	struct dim_sub_mem_s	hf_buff;
+	struct dim_sub_mem_s	*hf_buff;
 	bool	flg_hf;
 	atomic_t	p_ref_mem;
 };
@@ -1601,7 +1646,7 @@ enum QBF_PAT_Q_TYPE {
 	QBF_PAT_Q_NUB,
 };
 
-#define DIM_PAT_NUB	16 /* buf number*/
+#define DIM_PAT_NUB	POST_BUF_NUM	//16 /* buf number*/
 struct dim_pat_s {
 	struct qs_buf_s	header;
 
@@ -1761,7 +1806,7 @@ enum QBF_NDIS_Q_TYPE {
 	QBF_NDIS_Q_NUB,
 };
 
-#define DIM_NDIS_NUB	(12) /* buf number*/
+#define DIM_NDIS_NUB	(18) /* buf number*/
 
 struct dsub_ndis_s {
 	struct di_buf_s *di_buf;
@@ -1801,50 +1846,6 @@ enum QBF_MEM_Q_TYPE {
 /************************************************
  * 2020-06-16 test
  ************************************************/
-
-#ifdef MARK_HIS //move up
-struct dim_wmode_s {
-	//enum EDIM_TMODE		tmode;
-	unsigned int	buf_type;	/*add this to split kinds */
-	unsigned int	is_afbc		:1,
-		is_vdin			:1,
-		is_i			:1,
-		need_bypass		:1,
-		is_bypass		:1,
-		pre_bypass		:1,
-		post_bypass		:1,
-		flg_keep		:1, /*keep buf*/
-
-		trick_mode		:1,
-		prog_proc_config	:1, /*debug only: proc*/
-	/**************************************
-	 *prog_proc_config:	same as p_as_i?
-	 *1: process p from decoder as field
-	 *0: process p from decoder as frame
-	 ***************************************/
-		is_invert_tp		:1,
-		p_as_i			:1,
-		p_as_p			:1,
-		p_use_2i		:1,
-		is_angle		:1,
-		is_top			:1, /*include */
-		is_eos			:1,
-		is_eos_insert		:1, /* this is internal eos */
-		bypass			:1, /* is_bypass | need_bypass*/
-		reserved		:13;
-	unsigned int vtype;	/*vfm->type*/
-	//unsigned int h;	/*taget h*/
-	//unsigned int w;	/*taget w*/
-	unsigned int src_h;
-	unsigned int src_w;
-	unsigned int tgt_h;
-	unsigned int tgt_w;
-	unsigned int o_h;
-	unsigned int o_w;
-	unsigned int seq;
-	unsigned int seq_sgn;
-};
-#endif
 
 enum EDIM_TMODE {
 	EDIM_TMODE_NONE,
@@ -1906,6 +1907,7 @@ struct di_ch_s {
 	unsigned int sum_pre;
 	unsigned int sum_pst;
 	unsigned int in_cnt;
+	unsigned int crc_cnt;
 	/*@ary_note:*/
 	unsigned int self_trig_mask;
 	unsigned int self_trig_need;
@@ -1966,6 +1968,7 @@ struct di_ch_s {
 	struct qs_cls_s		npst_que; /*new interface */
 	struct dim_itf_s itf;
 	void *dct_pre; /* struct di_pre_dct_s */
+	const struct dim_s4dw_data_s *s4dw;
 	/**/
 	unsigned char sts_mem_pre_cfg;
 	unsigned char sts_mem_2_local;
@@ -1979,6 +1982,7 @@ struct di_ch_s {
 	bool cst_no_dw;
 	bool en_dw;
 	bool en_dw_mem;
+	unsigned int last_bypass;
 };
 
 struct dim_policy_s {
@@ -2212,6 +2216,8 @@ struct di_data_l_s {
 	unsigned char hf_owner;	//
 	bool	hf_busy;//
 	unsigned int ic_sub_ver;
+	struct reg_t s4dw_reg[DIM_S4DW_REG_BACK_NUB];
+	void *mng_hf_buf;
 };
 
 /**************************************
@@ -2634,8 +2640,14 @@ static inline unsigned int get_sum_pst_g(unsigned int ch)
 	return get_datal()->ch_data[ch].sum_pst_get;
 }
 
+void dbg_timer(unsigned int ch, enum EDBG_TIMER item);
+
 static inline void sum_pst_g_inc(unsigned int ch)
 {
+	if (get_datal()->ch_data[ch].sum_pst_get < 3) {
+		dbg_timer(ch, EDBG_TIMER_1_PGET +
+			  get_datal()->ch_data[ch].sum_pst_get);
+	}
 	get_datal()->ch_data[ch].sum_pst_get++;
 }
 

@@ -1,0 +1,13 @@
+#
+# Deinterlace driver configuration
+#
+
+menu "VPP driver"
+
+config AMLOGIC_MEDIA_VPP
+	tristate "VPP driver"
+	default n
+	help
+		Select to enable AMLOGIC video post process driver
+		process video pq modules
+endmenu

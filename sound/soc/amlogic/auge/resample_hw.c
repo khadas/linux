@@ -75,6 +75,8 @@ void check_ram_coeff_sinc(enum resample_idx id, int len,
 	}
 }
 
+#endif
+
 void new_resample_set_ram_coeff_aa(enum resample_idx id, int len,
 				   unsigned int *params)
 {
@@ -85,9 +87,8 @@ void new_resample_set_ram_coeff_aa(enum resample_idx id, int len,
 	for (i = 0; i < len; i++, p++)
 		new_resample_write(id, AUDIO_RSAMP_AA_COEF_DATA, *p);
 
-	check_ram_coeff_aa(id, len, params);
+	/* check_ram_coeff_aa(id, len, params); */
 }
-#endif
 
 void new_resample_set_ram_coeff_sinc(enum resample_idx id, int len,
 				     unsigned int *params)
@@ -268,6 +269,8 @@ void new_resampleB_set_format(enum resample_idx id, int output_sr, int channel)
 						&sinc8_coef[0]);
 	}
 
+	new_resample_set_ram_coeff_aa(id, AA_FILTER_COEF_SIZE, &aa_coef_a_half[0]);
+
 	new_resample_update_bits(id, AUDIO_RSAMP_CTRL1,
 				 0x1 << 11, 0 << 11);
 
@@ -337,7 +340,17 @@ void new_resample_set_ratio(enum resample_idx id, int input_sr, int output_sr)
 				 0x1 << 11, 0 << 11);
 	new_resample_status_check(id);
 
-	phase_step *= (1 << 28);
+	/* max downsample ratio is 8, if more than 8, enable AA filter */
+	if (div_u64(input_sample_rate, output_sample_rate) > 8) {
+		new_resample_update_bits(id, AUDIO_RSAMP_CTRL2, 0x3 << 16, 0x1 << 16);
+		new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1 << 10, 0x1 << 10);
+		phase_step *= (1 << 27);
+	} else {
+		new_resample_update_bits(id, AUDIO_RSAMP_CTRL2, 0x3 << 16, 0x0 << 16);
+		new_resample_update_bits(id, AUDIO_RSAMP_CTRL1, 0x1 << 10, 0x0 << 10);
+		phase_step *= (1 << 28);
+	}
+
 	phase_step = div_u64(phase_step, output_sample_rate);
 
 	new_resample_write(id, AUDIO_RSAMP_PHSSTEP, (u32)phase_step);

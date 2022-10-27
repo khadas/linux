@@ -56,7 +56,7 @@ static u32 item_count[VPP_NUM];
 static u32 rdma_debug;
 static u32 rdma_hdr_delay;
 static bool osd_rdma_init_flag;
-#define OSD_RDMA_UPDATE_RETRY_COUNT 100
+#define OSD_RDMA_UPDATE_RETRY_COUNT 10
 static unsigned int debug_rdma_status[VPP_NUM];
 static unsigned int rdma_irq_count[VPP_NUM];
 static unsigned int rdma_lost_count[VPP_NUM];
@@ -71,6 +71,14 @@ static bool osd_rdma_done[VPP_NUM];
 static int osd_rdma_handle[VPP_NUM] = {-1, -1, -1};
 static struct rdma_table_item *rdma_temp_tbl[VPP_NUM];
 static int support_64bit_addr = 1;
+static struct rdma_warn_array recovery_table[WARN_TABLE];
+static struct rdma_warn_array recovery_not_hit_table[WARN_TABLE];
+static uint num_reject = 2;
+static int rdma_reject_cnt[2];
+static int rdma_done_line[VPP_NUM];
+module_param_array(rdma_reject_cnt, uint, &num_reject, 0664);
+MODULE_PARM_DESC(rdma_reject_cnt, "\n rdma_reject_cnt\n");
+
 void *memcpy(void *dest, const void *src, size_t len);
 
 static inline void spin_lock_irqsave_vpp(u32 vpp_index, unsigned long *flags)
@@ -334,6 +342,72 @@ inline void osd_rdma_mem_cpy(struct rdma_table_item *dst,
 }
 #endif
 
+static int get_rdma_stat(struct rdma_warn_array *warn_array,
+	u32 vpp_index)
+{
+	int i;
+
+	for (i = 0; i < WARN_TABLE; i++) {
+		if (warn_array[i].addr) {
+			pr_info("table[%d]:addr=%x,count=%d, cur_line=%d, begin_line=%d\n",
+				i,
+				warn_array[i].addr,
+				warn_array[i].count,
+				warn_array[i].cur_line,
+				warn_array[i].cur_begine_line);
+		} else {
+			break;
+		}
+	}
+	return i;
+}
+
+int get_rdma_recovery_stat(u32 vpp_index)
+{
+	pr_info("%s:\n", __func__);
+	return get_rdma_stat(recovery_table, vpp_index);
+}
+
+int get_rdma_not_hit_recovery_stat(u32 vpp_index)
+{
+	pr_info("%s:\n", __func__);
+	return get_rdma_stat(recovery_not_hit_table, vpp_index);
+}
+
+static void update_warn_table(struct rdma_warn_array *warn_array,
+	u32 addr, u32 vpp_index)
+{
+	int i;
+
+	if ((addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2 ||
+	     addr == VPU_MAFBC_IRQ_CLEAR ||
+	     addr == VPU_MAFBC1_IRQ_CLEAR ||
+	     addr == VPU_MAFBC2_IRQ_CLEAR ||
+	     addr == VPU_MAFBC_COMMAND ||
+	     addr == VPU_MAFBC1_COMMAND ||
+	     addr == VPU_MAFBC2_COMMAND))
+		return;
+
+	for (i = 0; i < WARN_TABLE; i++) {
+		if (!warn_array[i].addr) {
+			/* find empty table, update new addr */
+			warn_array[i].addr = addr;
+			warn_array[i].count++;
+			warn_array[i].cur_line = get_encp_line(vpp_index);
+			warn_array[i].cur_begine_line =
+				get_cur_begine_line(vpp_index);
+			break;
+		} else if (warn_array[i].addr == addr) {
+			/* same addr, update count */
+			warn_array[i].count++;
+			warn_array[i].cur_line = get_encp_line(vpp_index);
+			warn_array[i].cur_begine_line =
+				get_cur_begine_line(vpp_index);
+			break;
+		}
+	}
+}
 static inline void reset_rdma_table(u32 vpp_index)
 {
 	struct rdma_table_item request_item;
@@ -421,18 +495,26 @@ static inline void reset_rdma_table(u32 vpp_index)
 
 				for (k = 0; k < trace_num; k++) {
 					if (osd_hw.rdma_trace_reg[k] & 0x10000)
-						pr_info("recovery -- 0x%04x:0x%08x, mask:0x%08x\n",
+						pr_info("recovery -- 0x%04x:0x%08x, mask:0x%08x, org_val:0x%x, old_count=%d, item_count=%d, j=%d\n",
 							rdma_table[vpp_index][i].addr,
-							val, mask);
+							val, mask,
+							osd_reg_read(rdma_table[vpp_index][i].addr),
+							old_count,
+							item_count[vpp_index],
+							j);
 				}
+				update_warn_table(recovery_table,
+					rdma_table[vpp_index][i].addr,
+					vpp_index);
+
 				rdma_recovery_count[vpp_index]++;
-			} else if ((iret < 0) && (i >= old_count)) {
+			} else if (iret < 0 && i >= old_count) {
 				request_item.addr =
 					rdma_table[vpp_index][i].addr;
 				request_item.val =
 					rdma_table[vpp_index][i].val;
 				osd_rdma_mem_cpy(&rdma_temp_tbl[vpp_index][j],
-						 &request_item, 8);
+						&request_item, 8);
 				j++;
 				for (k = 0; k < trace_num; k++) {
 					if (osd_hw.rdma_trace_reg[k] & 0x10000) {
@@ -447,6 +529,11 @@ static inline void reset_rdma_table(u32 vpp_index)
 					}
 				}
 				rdma_recovery_count[vpp_index]++;
+			} else if (iret < 0) {
+				/* record not recovery reg */
+				update_warn_table(recovery_not_hit_table,
+					rdma_table[vpp_index][i].addr,
+					vpp_index);
 			}
 		}
 		for (i = 0; i < j; i++) {
@@ -580,6 +667,7 @@ retry:
 		 * or rdma isr is block
 		 */
 		reject1++;
+		rdma_reject_cnt[0] = reject1;
 		pr_debug("update reg but rdma running, mode: %d,",
 			 irq_mode);
 		pr_debug("retry count:%d (%d), flag: 0x%x, status: 0x%x\n",
@@ -605,6 +693,7 @@ retry:
 		rdma_end_addr_update(vpp_index, paddr, 0);
 	} else if (!irq_mode) {
 		reject2++;
+		rdma_reject_cnt[1] = reject1;
 		pr_debug("need update ---, but rdma running,");
 		pr_debug("retry count:%d (%d), flag: 0x%x, status: 0x%x\n",
 			 retry_count, reject2,
@@ -1015,6 +1104,11 @@ MODULE_PARM_DESC(reset_line, "reset_line");
 static unsigned int disable_osd_rdma_reset;
 module_param(disable_osd_rdma_reset, uint, 0664);
 MODULE_PARM_DESC(disable_osd_rdma_reset, "disable_osd_rdma_reset");
+
+int get_rdma_irq_done_line(u32 vpp_index)
+{
+	return rdma_done_line[VIU1];
+}
 
 #ifdef CONFIG_AMLOGIC_MEDIA_RDMA
 static int osd_reset_rdma_handle = -1;
@@ -1455,6 +1549,7 @@ static void osd_rdma_irq(void *arg)
 
 	if (osd_rdma_handle[0] == -1)
 		return;
+	rdma_done_line[VIU1] = get_encp_line(VIU1);
 
 	rdma_status = osd_reg_read(RDMA_STATUS);
 	debug_rdma_status[VIU1] = rdma_status;
@@ -1940,12 +2035,27 @@ int osd_rdma_reset_and_flush(u32 output_index, u32 reset_bit)
 	if (osd_hw.osd_meson_dev.afbc_type == MALI_AFBC &&
 	    osd_hw.osd_meson_dev.osd_ver == OSD_HIGH_ONE &&
 	    osd_dev_hw.multi_afbc_core) {
-		if (reset_bit & HW_RESET_MALI_AFBCD_REGS)
-			wrtie_reg_internal(output_index, VPU_MAFBC_COMMAND, 1);
-		if (reset_bit & HW_RESET_MALI_AFBCD1_REGS)
-			wrtie_reg_internal(output_index, VPU_MAFBC1_COMMAND, 1);
-		if (reset_bit & HW_RESET_MALI_AFBCD2_REGS)
-			wrtie_reg_internal(output_index, VPU_MAFBC2_COMMAND, 1);
+		struct hw_osd_reg_s *osd_reg;
+		u32 osd_count = osd_hw.osd_meson_dev.osd_count;
+		int afbc0_started = 0;
+
+		for (i = 0; i < osd_count; i++) {
+			if (get_output_device_id(i) != output_index ||
+			    !osd_hw.osd_afbcd[i].enable)
+				continue;
+			if (i == 1 && afbc0_started)
+				continue;
+
+			osd_reg = &hw_osd_reg_array[i];
+
+			wrtie_reg_internal(output_index,
+					   osd_reg->vpu_mafbc_command, 1);
+			osd_log_dbg2(MODULE_BASE,
+				     "%s, AFBC osd%d start command\n",
+				     __func__, i);
+			if (i == 0)
+				afbc0_started = 1;
+		}
 	}
 
 	if (item_count[output_index] < 500) {

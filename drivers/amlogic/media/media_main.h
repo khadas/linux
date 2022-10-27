@@ -639,4 +639,30 @@ void __exit msync_exit(void)
 }
 #endif
 
+#ifdef CONFIG_AMLOGIC_SECURE_DMABUF
+int __init amlogic_system_secure_dma_buf_init(void);
+#else
+static int amlogic_system_secure_dma_buf_init(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_VPP
+int __init vpp_drv_init(void);
+#else
+static int vpp_drv_init(void)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_PRIME_SL
+int amprime_sl_init(void);
+#else
+static inline int amprime_sl_init(void)
+{
+	return 0;
+}
+#endif
 #endif

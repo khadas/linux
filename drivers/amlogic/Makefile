@@ -56,6 +56,14 @@ obj-$(CONFIG_DOLBY_FW) += dolby_fw/
 obj-$(CONFIG_AMLOGIC_CPU_INFO)          += cpu_info/
 obj-$(CONFIG_AMLOGIC_SOC_INFO) 		+= soc_info/
 obj-$(CONFIG_GATOR)	+= gator-driver/
+obj-$(CONFIG_AES_HWKEY_GCM) += aes_hwkey_gcm/
+obj-$(CONFIG_AMLOGIC_MFD) += mfd/
+obj-$(CONFIG_AMLOGIC_REGULATOR) += regulator/
+obj-$(CONFIG_AMLOGIC_MFH_MODULE)     += mfh/
+obj-$(CONFIG_MESON_I2C_SLAVE)     += i2c_slave/
+obj-$(CONFIG_AMLOGIC_HWSPINLOCK)     += aml_hwspinlock/
+obj-$(CONFIG_AMLOGIC_MESON_RTC)     += rtc/
+obj-$(CONFIG_VAD_WAKEUP_ASR) += asr/
 
 KBUILD_CFLAGS_MODULE += $(GKI_EXT_MODULE_PREDEFINE)
 

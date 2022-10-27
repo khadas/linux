@@ -33,7 +33,8 @@
 
 	memory@00000000 {
 		device_type = "memory";
-		linux,usable-memory = <0x0 0x000000 0x0 0xe0000000>;
+		linux,usable-memory = <0x0 0x000000 0x0 0xe0000000
+				       0x1 0x000000 0x0 0x20000000>;
 	};
 
 	reserved-memory {
@@ -47,7 +48,8 @@
 			record-size = <0x20000>;
 			console-size = <0x40000>;
 			ftrace-size = <0x80000>;
-			pmsg-size = <0x20000>;
+			pmsg-size = <0x10000>;
+			bconsole-size = <0x10000>;
 		};
 
 		secmon_reserved:linux,secmon {
@@ -71,10 +73,12 @@
 		logo_reserved:linux,meson-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* keep sync with fb, fox example:logo_addr = "0x7f800000"*/
-			size = <0x0 0x800000>;
+			/* keep sync with fb */
+			/* fox example:size = logo + max fb layer */
+			/* logo_addr = "0x7dc00000" */
+			size = <0x0 0x2400000>;
 			alignment = <0x0 0x400000>;
-			alloc-ranges = <0x0 0x7f800000 0x0 0x800000>;
+			alloc-ranges = <0x0 0x7dc00000 0x0 0x2400000>;
 		};
 
 		lcd_tcon_reserved:linux,lcd_tcon {
@@ -91,6 +95,7 @@
 			reusable;
 			size = <0x0 0x8000000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x8000000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -105,6 +110,7 @@
 			/* 1920x1080x4x3 round up 4M align */
 			size = <0x0 0x1c00000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*  vdin0 CMA pool */
@@ -126,6 +132,7 @@
 			 */
 			size = <0x0 0x01400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		codec_mm_cma:linux,codec_mm_cma {
@@ -135,6 +142,7 @@
 			size = <0x0 0x1BC00000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		/*di CMA pool */
@@ -187,6 +195,7 @@
 			size = <0x0 0x0d400000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 			/*alloc-ranges = <0x0 0x0 0x0 0x3f800000>;*/
 		};
 
@@ -197,6 +206,7 @@
 			size = <0x0 0x02800000>;
 			alignment = <0x0 0x400000>;
 			linux,contiguous-region;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 
 		ldc_mem_reserved:linux,ldc_mem {
@@ -204,6 +214,7 @@
 			reusable;
 			size = <0x0 0x400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 	};
 	codec_mm {
@@ -298,7 +309,7 @@
 		 * 0:not enable;
 		 * 1: enable
 		 ***************************************************/
-		hf = <1>;
+		//hf = <1>;
 	};
 
 	/* for external keypad */
@@ -556,6 +567,7 @@
 		en_4k_2_2k = <0>;
 		hpd_low_cec_off = <0>;
 		arc_port = <1>;
+		vrr_range_dynamic_update_en = <1>;
 		/* bit4: enable feature, bit3~0: port number */
 		disable_port = <0x0>;
 		/* MAP_ADDR_MODULE_CBUS */
@@ -582,7 +594,7 @@
 		compatible = "amlogic, atv-demod";
 		status = "okay";
 		btsc_sap_mode = <1>;
-		interrupts = <0 236 1>;
+		interrupts = <0 94 1>;
 		pinctrl-names="atvdemod_agc_pins";
 		pinctrl-0=<&atvdemod_agc_pins>;
 		reg = <0x0 0xfe0be000 0x0 0x2000 /* demod reg */
@@ -680,7 +692,7 @@
 		pinctrl-2=<&dtvdemod_rf_agc_pins>;
 		lnb_en-gpios = <&gpio GPIOZ_2 GPIO_ACTIVE_HIGH>;
 		lnb_sel-gpios = <&gpio GPIOZ_3 GPIO_ACTIVE_HIGH>;
-		interrupts = <GIC_SPI 142 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 87 IRQ_TYPE_EDGE_RISING>;
 		interrupt-names = "demod_isr";
 		power-domains = <&pwrdm PDID_T3_DEMOD>;
 		clocks = <&clkc CLKID_DEMOD_32K>;
@@ -806,7 +818,7 @@
 		aml-audio-card,dai-link@3 {
 			mclk-fs = <64>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-pdm";
+			suffix-name = "alsaPORT-pdm-builtinmic";
 			cpu {
 				sound-dai = <&pdm>;
 			};
@@ -923,7 +935,7 @@
 		compatible = "amlogic, t3_frc";
 		dev_name = "aml_frc";
 		status = "okay";
-		frc_en = <1>;/*1:enabel ;0:disable*/
+		frc_en = <1>;/*1:enable ;0:disable*/
 		frc_hw_pos = <0>;/*0:before postblend; 1:after postblend*/
 		interrupts = <GIC_SPI 286 IRQ_TYPE_EDGE_RISING
 				GIC_SPI 287 IRQ_TYPE_EDGE_RISING
@@ -939,6 +951,13 @@
 		       0x0 0xFE000000 0x0 0x300
 		       0x0 0xFF000000 0x0 0x10000>; /*frc clk reg*/
 		reg-names = "frc_reg","frc_clk_reg","vpu_reg";
+	};
+
+	aml_vpp {
+		compatible = "amlogic, vpp-t3";
+		dev_name = "aml_vpp";
+		status = "disabled";
+		pq_en = <1>;
 	};
 }; /* end of / */
 
@@ -981,7 +1000,7 @@
 	status = "okay";
 	display_size_default = <1920 1080 1920 2160 32>;
 	mem_size = <0x00800000 0x1980000 0x100000 0x100000>;
-	logo_addr = "0x7f800000";
+	logo_addr = "0x7dc00000";
 	mem_alloc = <0>;
 	pxp_mode = <0>; /** 0:normal mode 1:pxp mode */
 };
@@ -1063,7 +1082,7 @@
 	};
 
 	pdm:pdm {
-		compatible = "amlogic, tm2-snd-pdm";
+		compatible = "amlogic, tm2-revb-snd-pdm";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1237,7 +1256,7 @@
 	};
 
 	loopbacka:loopback@0 {
-		compatible = "amlogic, t5-loopbacka";
+		compatible = "amlogic, p1-loopbacka";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1263,7 +1282,7 @@
 		 * 4: pdmin;
 		 */
 		datain_src = <4>;
-		datain_chnum = <4>;
+		datain_chnum = <0>;
 		datain_chmask = <0xf>;
 		/* config which data pin for loopback */
 		datain-lane-mask-in = <1 0 1 0>;
@@ -1292,7 +1311,7 @@
 	};
 
 	loopbackb:loopback@1 {
-		compatible = "amlogic, t5-loopbackb";
+		compatible = "amlogic, p1-loopbackb";
 		#sound-dai-cells = <0>;
 
 		clocks = <&clkaudio CLKID_AUDIO_GATE_PDM
@@ -1348,6 +1367,7 @@
 }; /* end of audiobus */
 
 &earc {
+	earctx_port = <1>;
 	status = "okay";
 };
 
@@ -1522,11 +1542,12 @@
 
 &amlvecm {
 	status = "okay";
-	gamma_en = <1>;/*1:enabel ;0:disable*/
-	wb_en = <1>;/*1:enabel ;0:disable*/
-	cm_en = <1>;/*1:enabel ;0:disable*/
+	gamma_en = <1>;/*1:enable ;0:disable*/
+	wb_en = <1>;/*1:enable ;0:disable*/
+	cm_en = <1>;/*1:enable ;0:disable*/
 	wb_sel = <0>;/*1:mtx ;0:gainoff*/
 	vlock_en = <1>;/*1:enable;0:disable*/
+	ct_3dlut = <0>;
 	vlock_mode = <0x8>;
 	/*vlock work mode:
 	 *bit0:auto ENC
@@ -1683,4 +1704,10 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spicc2_pins>;
 	cs-gpios = <&gpio GPIOC_3 GPIO_ACTIVE_HIGH>;
+};
+
+&meson_suspend {
+	vad_wakeup_disable = <0x0>;
+	vddio3v3_en = <&gpio GPIOD_10 GPIO_ACTIVE_HIGH>;
+	p5v_en = <&gpio GPIO_TEST_N GPIO_ACTIVE_HIGH>;
 };

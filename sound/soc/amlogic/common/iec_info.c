@@ -220,7 +220,17 @@ enum audio_coding_types iec_61937_pc_to_coding_type(unsigned int pc)
 	case 17:
 		coding_type = AUDIO_CODING_TYPE_DTS_HD;
 		break;
+	case 3:
+		coding_type = AUDIO_CODING_TYPE_PAUSE;
+		pr_debug("get iec_61937 pause package, pc:%#x, data_type:%#x, subdata_type:%#x\n",
+			pc, data_type, subdata_type);
+		break;
 	case 0:
+		/* invalid data */
+		coding_type = AUDIO_CODING_TYPE_PAUSE;
+		pr_debug("get iec_61937 pause package, pc:%#x, data_type:%#x, subdata_type:%#x\n",
+			pc, data_type, subdata_type);
+		break;
 	default:
 		break;
 	}
@@ -316,7 +326,8 @@ unsigned int mpll2dmac_clk_ratio_by_type(enum audio_coding_types coding_type)
 
 void iec_get_channel_status_info(struct iec958_chsts *chsts,
 	enum aud_codec_types codec_type,
-	unsigned int rate)
+	unsigned int rate,
+	unsigned int l_bit)
 {
 	int rate_bit = snd_pcm_rate_to_rate_bit(rate);
 
@@ -382,6 +393,11 @@ void iec_get_channel_status_info(struct iec958_chsts *chsts,
 			chsts->chstat1_r = 0xe00;
 		}
 	}
+
+	if (l_bit) {
+		chsts->chstat0_l |= 1 << 15;
+		chsts->chstat0_r |= 1 << 15;
+	}
 	pr_debug("rate: %d, codec_type:0x%x, channel status L:0x%x, R:0x%x\n",
 		 rate,
 		 codec_type,
@@ -399,6 +415,7 @@ void spdif_notify_to_hdmitx(struct snd_pcm_substream *substream,
 	aud_param.rate = substream->runtime->rate;
 	aud_param.size = substream->runtime->sample_bits;
 	aud_param.chs  = substream->runtime->channels;
+	aud_param.aud_src_if = AUD_SRC_IF_SPDIF;
 
 	if (codec_type == AUD_CODEC_TYPE_AC3) {
 		aout_notifier_call_chain(AOUT_EVENT_RAWDATA_AC_3,

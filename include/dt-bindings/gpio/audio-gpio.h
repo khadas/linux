@@ -54,4 +54,11 @@
 #define	TDM_LRCLK3		40
 #define	TDM_LRCLK4		41
 
+/* tdm mclk pins */
+#define	TDM_MCLK0		42
+#define	TDM_MCLK1		43
+#define	TDM_MCLK2		44
+#define	TDM_MCLK3		45
+#define	TDM_MCLK4		46
+
 #endif

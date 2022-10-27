@@ -77,7 +77,7 @@ static void hdmitx_disable_tx_pixel_clk(struct hdmitx_dev *hdev)
 	//hd21_set_reg_bits(CLKCTRL_VID_CLK_CTRL2, 0, 5, 1);
 }
 
-void hdmitx21_set_audioclk(bool en)
+void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div)
 {
 	u32 data32;
 
@@ -88,10 +88,10 @@ void hdmitx21_set_audioclk(bool en)
 	data32 = 0;
 	data32 |= (2 << 9);
 	data32 |= (0 << 8);
-	data32 |= ((18 - 1) << 0);
+	data32 |= ((hdmitx_aud_clk_div - 1) << 0);
 	hd21_write_reg(CLKCTRL_HTX_CLK_CTRL1, data32);
 	// [    8] clk_en for cts_hdmitx_aud_clk
-	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, en, 8, 1);
+	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 8, 1);
 }
 
 void hdmitx21_set_default_clk(void)

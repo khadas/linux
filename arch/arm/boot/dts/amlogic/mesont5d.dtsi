@@ -1665,7 +1665,7 @@
 		fr_policy = <2>;
 	};
 
-	vdac {
+	vdac: vdac {
 		compatible = "amlogic, vdac-t5d";
 		status = "okay";
 	};
@@ -1769,7 +1769,7 @@
 		reg = <0xff632000 0x1c>;
 		tdmout_index = <1>;
 		tdmin_index = <1>;
-		dat0_ch_sel = <1>;
+		dat0_ch_sel = <2>;
 		reset-names = "acodec";
 		resets = <&reset RESET_AUDIO_CODEC>;
 	};
@@ -1855,7 +1855,7 @@
 					type = "passive";
 				};
 				pcontrol: trip-point@1 {
-					temperature = <100000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};

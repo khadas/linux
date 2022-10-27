@@ -25,7 +25,12 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
+#include <linux/timer.h>
+
 /* Amlogic Headers */
+#ifdef CONFIG_AMLOGIC_FREERTOS
+#include <linux/amlogic/freertos.h>
+#endif
 #include <linux/amlogic/media/ge2d/ge2d.h>
 #include <linux/amlogic/media/ge2d/ge2d_cmd.h>
 #ifdef CONFIG_AMLOGIC_VPU
@@ -122,6 +127,18 @@ static struct class ge2d_class = {
 	.name = GE2D_CLASS_NAME,
 	.class_groups = ge2d_class_groups,
 };
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+struct timer_data_s {
+	int irq;
+	struct clk *clk_gate;
+	struct timer_list timer;
+	struct work_struct work;
+};
+
+static struct timer_data_s timer_data;
+#define TIMER_MS (2000)
+#endif
 
 static ssize_t dump_reg_enable_show(struct class *cla,
 				    struct class_attribute *attr,
@@ -464,6 +481,9 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	}
 #endif
 	switch (cmd) {
+	case GE2D_SET_CLUT:
+	ret = ge2d_set_clut_table(context, args);
+	break;
 	case GE2D_GET_CAP:
 		/* DST_SIGN_MODE   |
 		 * DST_REPEAT      |
@@ -1335,6 +1355,40 @@ static struct ge2d_device_data_s ge2d_s4 = {
 	.src2_repeat = 1,
 };
 
+static struct ge2d_device_data_s ge2d_p1 = {
+	.ge2d_rate = 667000000,
+	.src2_alp = 1,
+	.canvas_status = 2,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 1,
+	.poweron_table = &runtime_poweron_table,
+	.poweroff_table = &runtime_poweroff_table,
+	.chip_type = MESON_CPU_MAJOR_ID_P1,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+	.dst_repeat = 1,
+	.dst_sign_mode = 1,
+	.blk_stride_mode = 1,
+};
+
+static struct ge2d_device_data_s ge2d_t5w = {
+	.ge2d_rate = 500000000,
+	.src2_alp = 1,
+	.canvas_status = 2,
+	.deep_color = 1,
+	.hang_flag = 1,
+	.fifo = 1,
+	.has_self_pwr = 0,
+	.chip_type = MESON_CPU_MAJOR_ID_T5W,
+	.adv_matrix = 1,
+	.src2_repeat = 1,
+	.dst_repeat = 1,
+	.dst_sign_mode = 1,
+	.blk_stride_mode = 1,
+};
+
 static const struct of_device_id ge2d_dt_match[] = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 	{
@@ -1394,8 +1448,46 @@ static const struct of_device_id ge2d_dt_match[] = {
 		.compatible = "amlogic, ge2d-s4",
 		.data = &ge2d_s4,
 	},
+	{
+		.compatible = "amlogic, ge2d-p1",
+		.data = &ge2d_p1,
+	},
+	{
+		.compatible = "amlogic, ge2d-t5w",
+		.data = &ge2d_t5w,
+	},
 	{},
 };
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+static void work_func(struct work_struct *w)
+{
+	struct timer_data_s *timer_data =
+		container_of(w, struct timer_data_s, work);
+
+	ge2d_log_dbg("ge2d %s enter\n", __func__);
+	clk_disable_unprepare(timer_data->clk_gate);
+	if (ge2d_meson_dev.has_self_pwr)
+		ge2d_runtime_pwr(0);
+
+	ge2d_irq_init(timer_data->irq);
+}
+
+static void timer_expire(struct timer_list *t)
+{
+	struct timer_data_s *timer_data = from_timer(timer_data, t, timer);
+
+	ge2d_log_dbg("ge2d %s enter\n", __func__);
+	if (freertos_is_finished()) {
+		del_timer(&timer_data->timer);
+		/* might sleep, use work to process */
+		schedule_work(&timer_data->work);
+	} else {
+		mod_timer(&timer_data->timer,
+			  jiffies + msecs_to_jiffies(TIMER_MS));
+	}
+}
+#endif
 
 static int ge2d_probe(struct platform_device *pdev)
 {
@@ -1444,7 +1536,7 @@ static int ge2d_probe(struct platform_device *pdev)
 		goto failed1;
 	}
 
-	if (clk_cnt == 3) {
+	if (clk_cnt == 3 || clk_cnt == 2) {
 		clk_gate = devm_clk_get(&pdev->dev, "clk_ge2d_gate");
 		if (IS_ERR_OR_NULL(clk_gate)) {
 			ge2d_log_err("cannot get clock\n");
@@ -1453,17 +1545,24 @@ static int ge2d_probe(struct platform_device *pdev)
 			goto failed1;
 		}
 		ge2d_log_dbg("clock source clk_ge2d_gate %p\n", clk_gate);
+		if (clk_cnt == 2) {
+			clk_set_rate(clk_gate, ge2d_meson_dev.ge2d_rate);
+			ge2d_log_info("ge2d gate clock is %lu MHZ\n",
+				       clk_get_rate(clk_gate) / 1000000);
+		}
 		clk_prepare_enable(clk_gate);
 
-		clk = devm_clk_get(&pdev->dev, "clk_ge2d");
-		if (IS_ERR_OR_NULL(clk)) {
-			ge2d_log_err("cannot get clock\n");
-			clk = NULL;
-			ret = -ENOENT;
-			goto failed1;
+		if (clk_cnt == 3) {
+			clk = devm_clk_get(&pdev->dev, "clk_ge2d");
+			if (IS_ERR_OR_NULL(clk)) {
+				ge2d_log_err("cannot get clock\n");
+				clk = NULL;
+				ret = -ENOENT;
+				goto failed1;
+			}
+			ge2d_log_dbg("clock clk_ge2d source %p\n", clk);
+			clk_prepare_enable(clk);
 		}
-		ge2d_log_dbg("clock clk_ge2d source %p\n", clk);
-		clk_prepare_enable(clk);
 
 		clk_vapb0 = devm_clk_get(&pdev->dev, "clk_vapb_0");
 		if (PTR_ERR(clk_vapb0) != -ENOENT) {
@@ -1486,7 +1585,7 @@ static int ge2d_probe(struct platform_device *pdev)
 					vapb_rate = 333333333;
 				else if (vpu_rate == 166660000)
 					vapb_rate = 166666667;
-				else if (vapb_rate > vpu_rate)
+				else if (vpu_rate > 0 && vapb_rate > vpu_rate)
 					vapb_rate = vpu_rate;
 				clk_set_rate(clk_vapb0, vapb_rate);
 				clk_prepare_enable(clk_vapb0);
@@ -1537,10 +1636,32 @@ static int ge2d_probe(struct platform_device *pdev)
 
 	ret = ge2d_wq_init(pdev, irq, clk_gate);
 
-	clk_disable_unprepare(clk_gate);
-
 	if (ge2d_meson_dev.has_self_pwr)
 		pm_runtime_enable(&pdev->dev);
+
+#ifdef CONFIG_AMLOGIC_FREERTOS
+	/* To avoid interfering with RTOS clock/power/interrupt resources,
+	 * turn on and keep power/clk first.
+	 * Poll the status of rtos,
+	 * then turn off power/clk and register interrupt.
+	 */
+	if (freertos_is_run() && !freertos_is_finished()) {
+		INIT_WORK(&timer_data.work, work_func);
+		timer_setup(&timer_data.timer, timer_expire, 0);
+		timer_data.timer.expires = jiffies + msecs_to_jiffies(TIMER_MS);
+		timer_data.clk_gate = clk_gate;
+		timer_data.irq = irq;
+		add_timer(&timer_data.timer);
+
+		if (ge2d_meson_dev.has_self_pwr)
+			ge2d_runtime_pwr(1);
+	} else {
+		ge2d_irq_init(irq);
+		clk_disable_unprepare(clk_gate);
+	}
+#else
+	clk_disable_unprepare(clk_gate);
+#endif
 
 	/* 8g memory support */
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(64);

@@ -159,15 +159,29 @@ struct bl_config_s {
 	unsigned int bl_extern_index;
 };
 
+#define BL_LEVEL_CNT_MAX	      3600 //default 1h
+struct bl_metrics_config_s {
+	unsigned int frame_rate;
+	unsigned int level_count;
+	unsigned int brightness_count;
+	unsigned int level_metrics;
+	unsigned int brightness_metrics;
+	unsigned int cnt;
+	unsigned int sum_cnt;
+	unsigned int times;
+	unsigned int *level_buf;
+	unsigned int *brightness_buf;
+};
+
 /* backlight_properties: state */
 /* Flags used to signal drivers of state changes */
 /* Upper 4 bits in bl props are reserved for driver internal use */
+#define BL_STATE_DEBUG_FORCE_EN       BIT(8)
 #define BL_STATE_GD_EN                BIT(4)
 #define BL_STATE_LCD_ON               BIT(3)
 #define BL_STATE_BL_INIT_ON           BIT(2)
 #define BL_STATE_BL_POWER_ON          BIT(1)
 #define BL_STATE_BL_ON                BIT(0)
-
 /* #define BL_POWER_ON_DELAY_WORK */
 struct aml_bl_drv_s {
 	unsigned int index;
@@ -186,7 +200,9 @@ struct aml_bl_drv_s {
 	unsigned char off_policy_cnt; /* bl_off_policy support */
 	unsigned char pwm_bypass; /*debug flag*/
 	unsigned char pwm_duty_free; /*debug flag*/
+	unsigned char debug_force;
 
+	struct bl_metrics_config_s bl_metrics_conf;
 	struct bl_config_s        bconf;
 	struct cdev               cdev;
 	struct bl_data_s          *data;
@@ -196,6 +212,7 @@ struct aml_bl_drv_s {
 	struct work_struct        config_probe_work;
 	struct delayed_work       delayed_on_work;
 	struct resource *res_ldim_vsync_irq;
+	struct resource *res_ldim_pwm_vs_irq;
 	struct resource *res_vsync_irq[3];
 	/*struct resource *res_ldim_rdma_irq;*/
 

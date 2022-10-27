@@ -144,5 +144,8 @@ source "drivers/amlogic/cpu_info/Kconfig"
 source "drivers/amlogic/ethernet/phy/Kconfig"
 source "drivers/amlogic/soc_info/Kconfig"
 source "drivers/amlogic/gator-driver/Kconfig"
+source "drivers/amlogic/aes_hwkey_gcm/Kconfig"
+source "drivers/amlogic/asr/Kconfig"
+
 endmenu
 endif

@@ -44,8 +44,8 @@
 #define VIU_VD1_PATH_CTRL                  0x1a73
 #define VPP_VD2_DSC_CTRL                   0x1a84
 #define VPP_VD3_DSC_CTRL                   0x1a85
-#define DOLBY_PATH_SWAP_CTRL1              0x1a70
-#define DOLBY_PATH_SWAP_CTRL2              0x1a71
+#define AMDV_PATH_SWAP_CTRL1              0x1a70
+#define AMDV_PATH_SWAP_CTRL2              0x1a71
 #define MALI_AFBCD_TOP_CTRL                0x1a0f
 #define MALI_AFBCD1_TOP_CTRL               0x1a55
 
@@ -63,13 +63,13 @@ enum core3_switch_type {
 };
 
 enum core_type {
-	DOLBY_TVCORE = 0,
-	DOLBY_CORE1A,
-	DOLBY_CORE1B,
-	DOLBY_CORE1C,
-	DOLBY_CORE2A,
-	DOLBY_CORE2B,
-	DOLBY_CORE2C,
+	AMDV_TVCORE = 0,
+	AMDV_CORE1A,
+	AMDV_CORE1B,
+	AMDV_CORE1C,
+	AMDV_CORE2A,
+	AMDV_CORE2B,
+	AMDV_CORE2C,
 };
 
 # pragma pack(push, 1)
@@ -226,7 +226,8 @@ enum signal_format_enum {
 	FORMAT_HLG = 4,
 	FORMAT_HDR10PLUS = 5,
 	FORMAT_SDR_2020 = 6,
-	FORMAT_MVC = 7
+	FORMAT_MVC = 7,
+	FORMAT_PRIMESL = 8,
 };
 
 enum priority_mode_enum  {

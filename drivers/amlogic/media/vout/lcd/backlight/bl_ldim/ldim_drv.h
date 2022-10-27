@@ -92,6 +92,7 @@ void ldc_mem_save(char *path, unsigned long mem_paddr, unsigned int mem_size);
 void ldc_mem_write(char *path, unsigned long mem_paddr, unsigned int mem_size);
 void ldc_mem_clear(unsigned long mem_paddr, unsigned int mem_size);
 void ldc_mem_set(unsigned long mem_paddr, unsigned int mem_size);
+void ldc_mem_write_profile(unsigned char *buf, unsigned long mem_paddr, unsigned int size);
 
 /*==============debug=================*/
 void ldim_remap_ctrl(unsigned char status);

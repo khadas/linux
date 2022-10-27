@@ -5682,8 +5682,14 @@ static int descriptors_changed(struct usb_device *udev,
 			changed = 1;
 			break;
 		}
+#ifdef CONFIG_AMLOGIC_USB
 		if (memcmp(buf, udev->rawdescriptors[index], old_length)
-				!= 0) {
+				!= 0 && !bt_intep_is_blacklist(udev))
+#else
+		if (memcmp(buf, udev->rawdescriptors[index], old_length)
+				!= 0)
+#endif
+		{
 			dev_dbg(&udev->dev, "config index %d changed (#%d)\n",
 				index,
 				((struct usb_config_descriptor *) buf)->

@@ -24,6 +24,13 @@ struct gdc_queue_item_s {
 	struct list_head list;
 	struct gdc_cmd_s cmd;
 	struct gdc_dma_cfg_t dma_cfg;
+	struct gdc_context_s *context;
+	u32 core_id; /* core index for processing */
+};
+
+struct gdc_irq_handle_wq {
+	struct gdc_queue_item_s *current_item;
+	struct work_struct work;
 };
 
 u8 __iomem *gdc_map_virt_from_phys(phys_addr_t phys, unsigned long total_size);
@@ -34,4 +41,8 @@ int gdc_wq_deinit(void);
 void *gdc_prepare_item(struct gdc_context_s *wq);
 int gdc_wq_add_work(struct gdc_context_s *wq,
 		    struct gdc_queue_item_s *pitem);
+inline void recycle_resource(struct gdc_queue_item_s *item, u32 core_id);
+void dump_config_file(struct gdc_config_s *gc, u32 dev_type);
+void dump_gdc_regs(u32 dev_type, u32 core_id);
+
 #endif

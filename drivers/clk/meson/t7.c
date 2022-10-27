@@ -623,17 +623,23 @@ static struct clk_regmap t7_gp0_pll = {
 
 #ifdef CONFIG_ARM
 static const struct pll_params_table t7_gp1_pll_table[] = {
-	PLL_PARAMS(200, 1, 2), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1, 1), /*DCO=4800M OD=1200M*/
 	PLL_PARAMS(125, 1, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #else
 static const struct pll_params_table t7_gp1_pll_table[] = {
-	PLL_PARAMS(200, 1), /*DCO=4800M OD=1200M*/
+	PLL_PARAMS(100, 1), /*DCO=4800M OD=1200M*/
 	PLL_PARAMS(125, 1), /*DCO=3000M OD=1500M*/
 	{ /* sentinel */  }
 };
 #endif
+
+static const struct reg_sequence t7_gp1_init_regs[] = {
+	{ .reg = ANACTRL_GP1PLL_CTRL1,	.def = 0x1420500f },
+	{ .reg = ANACTRL_GP1PLL_CTRL2,	.def = 0x00023001 },
+	{ .reg = ANACTRL_GP1PLL_CTRL3,	.def = 0x0, .delay_us = 20 },
+};
 
 static struct clk_regmap t7_gp1_pll_dco = {
 	.data = &(struct meson_clk_pll_data){
@@ -649,14 +655,17 @@ static struct clk_regmap t7_gp1_pll_dco = {
 		},
 		.n = {
 			.reg_off = ANACTRL_GP1PLL_CTRL0,
-			.shift   = 10,
+			.shift   = 16,
 			.width   = 5,
 		},
-		.frac = {
-			.reg_off = ANACTRL_GP1PLL_CTRL1,
-			.shift   = 0,
-			.width   = 19,
+#ifdef CONFIG_ARM
+		/* od for 32bit */
+		.od = {
+			.reg_off = ANACTRL_GP1PLL_CTRL0,
+			.shift	 = 12,
+			.width	 = 3,
 		},
+#endif
 		.l = {
 			.reg_off = ANACTRL_GP1PLL_CTRL0,
 			.shift   = 31,
@@ -668,10 +677,12 @@ static struct clk_regmap t7_gp1_pll_dco = {
 			.width   = 1,
 		},
 		.table = t7_gp1_pll_table,
+		.init_regs = t7_gp1_init_regs,
+		.init_count = ARRAY_SIZE(t7_gp1_init_regs)
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll_dco",
-		.ops = &meson_secure_clk_pll_ops,
+		.ops = &meson_clk_pll_ops,
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "xtal",
 		},
@@ -684,14 +695,14 @@ static struct clk_regmap t7_gp1_pll_dco = {
 static struct clk_regmap t7_gp1_pll = {
 	.data = &(struct clk_regmap_div_data){
 		.offset = ANACTRL_GP1PLL_CTRL0,
-		.shift = 16,
+		.shift = 12,
 		.width = 3,
 		.flags = (CLK_DIVIDER_POWER_OF_TWO |
 			  CLK_DIVIDER_ROUND_CLOSEST),
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp1_pll",
-		.ops = &clk_regmap_divider_ro_ops,
+		.ops = &clk_regmap_divider_ops,
 		.parent_hws = (const struct clk_hw *[]) {
 			&t7_gp1_pll_dco.hw
 		},
@@ -5450,7 +5461,7 @@ static struct clk_regmap t7_ge2d_gate = {
 		.ops = &clk_regmap_gate_ops,
 		.parent_hws = (const struct clk_hw *[]) { &t7_vapb.hw },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 

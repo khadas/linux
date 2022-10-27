@@ -1103,10 +1103,17 @@ void cec_hw_init(void)
 		ao_cecb_init();
 		cec_ip_share_io(cec_dev->plat_data->share_io, ee_cec);
 	} else {
-		if (ee_cec == CEC_B)
+		if (ee_cec == CEC_B) {
 			ao_cecb_init();
-		else
+			/* on T7, only use CEC_A pin for CEC on board,
+			 * for cec robustness, use cecb controller
+			 * with CEC_A pin(share to CEC_B)
+			 */
+			if (cec_dev->plat_data->chip_id == CEC_CHIP_T7)
+				cec_ip_share_io(true, CEC_A);
+		} else {
 			ao_ceca_init();
+		}
 	}
 }
 
@@ -1368,7 +1375,7 @@ void cec_ip_share_io(u32 share, u32 cec_ip)
 		if (cec_ip == CEC_A) {
 			cec_set_reg_bits(AO_CEC_GEN_CNTL, 1, 4, 1);
 			cec_set_reg_bits(AO_CECB_GEN_CNTL, 0, 4, 1);
-			/*CEC_ERR("share pin mux to b\n");*/
+			CEC_ERR("share pin mux to b\n");
 		} else {
 			cec_set_reg_bits(AO_CEC_GEN_CNTL, 0, 4, 1);
 			cec_set_reg_bits(AO_CECB_GEN_CNTL, 1, 4, 1);

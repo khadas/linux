@@ -20,6 +20,7 @@
 #define VPP_H
 
 #include <linux/amlogic/media/vout/vinfo.h>
+#include <linux/amlogic/media/video_sink/vpp_afd.h>
 
 #define TV_3D_FUNCTION_OPEN
 #define TV_REVERSE
@@ -40,7 +41,8 @@ extern struct sr_info_s sr_info;
 #define VPP_FLAG_FORCE_NO_COMPRESS   0x00200000
 #define VPP_FLAG_FORCE_SWITCH_VF     0x00400000
 #define VPP_FLAG_FORCE_NOT_SWITCH_VF 0x00800000
-#define VPP_FLAG_FROM_TOGGLE_FRAME   0x00000001
+#define VPP_FLAG_FORCE_AFD_ENABLE	 0x00000002
+#define VPP_FLAG_FROM_TOGGLE_FRAME	0x00000001
 
 #define IDX_H           (2 << 8)
 #define IDX_V_Y         BIT(13)
@@ -55,6 +57,7 @@ extern struct sr_info_s sr_info;
 #define SPEED_CHECK_HSKIP	1
 #define SPEED_CHECK_VSKIP	2
 
+#define NO_MIRROR  0
 #define H_MIRROR   1
 #define V_MIRROR   2
 
@@ -234,6 +237,9 @@ struct disp_info_s {
 	u32 mirror;
 	u32 src_width_max;
 	u32 src_height_max;
+	bool afd_enable;
+	struct crop_rect_s afd_crop;
+	struct pos_rect_s afd_pos;
 };
 
 enum select_scaler_path_e {
@@ -377,6 +383,7 @@ int vpp_set_super_scaler_regs
 	int vpp_postblend_out_width,
 	int vpp_postblend_out_height);
 void aisr_sr1_nn_enable(u32 enable);
+void aisr_sr1_nn_enable_sync(u32 enable);
 void aisr_reshape_output(u32 enable);
 void aisr_set_filters(struct disp_info_s *input,
 			struct vpp_frame_par_s *next_frame_par,

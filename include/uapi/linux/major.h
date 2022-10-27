@@ -203,4 +203,5 @@
 #define VIDEOQUEUE_MAJOR    (26 + (AML_BASE))
 #define DI_V4L_MAJOR            (27 + (AML_BASE))
 #define PTSSERVER_MAJOR		(28 + (AML_BASE))
+#define AFD_MAJOR			(29 + (AML_BASE))
 #endif

@@ -24,7 +24,8 @@ enum iter_type {
 	ITER_KVEC = 8,
 	ITER_BVEC = 16,
 	ITER_PIPE = 32,
-	ITER_DISCARD = 64,
+	ITER_XARRAY = 64,
+	ITER_DISCARD = 128,
 };
 
 struct iov_iter {
@@ -34,6 +35,8 @@ struct iov_iter {
 	 * the caller isn't expecting to drop a page reference when done.
 	 */
 	unsigned int type;
+	u8 iter_type;
+	bool data_source;
 	size_t iov_offset;
 	size_t count;
 	union {
@@ -41,13 +44,17 @@ struct iov_iter {
 		const struct kvec *kvec;
 		const struct bio_vec *bvec;
 		struct pipe_inode_info *pipe;
+		struct xarray *xarray;
 	};
 	union {
 		unsigned long nr_segs;
 		struct {
+			unsigned int head;
+			unsigned int start_head;
 			int idx;
 			int start_idx;
 		};
+		loff_t xarray_start;
 	};
 };
 
@@ -79,6 +86,12 @@ static inline bool iov_iter_is_pipe(const struct iov_iter *i)
 static inline bool iov_iter_is_discard(const struct iov_iter *i)
 {
 	return iov_iter_type(i) == ITER_DISCARD;
+}
+
+
+static inline bool iov_iter_is_xarray(const struct iov_iter *i)
+{
+	return iov_iter_type(i) == ITER_XARRAY;
 }
 
 static inline unsigned char iov_iter_rw(const struct iov_iter *i)
@@ -122,7 +135,8 @@ size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i);
 size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i);
-
+size_t copy_page_from_iter_atomic(struct page *page, unsigned offset,
+				size_t bytes, struct iov_iter *i);
 size_t _copy_to_iter(const void *addr, size_t bytes, struct iov_iter *i);
 size_t _copy_from_iter(void *addr, size_t bytes, struct iov_iter *i);
 bool _copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i);
@@ -222,6 +236,8 @@ void iov_iter_bvec(struct iov_iter *i, unsigned int direction, const struct bio_
 void iov_iter_pipe(struct iov_iter *i, unsigned int direction, struct pipe_inode_info *pipe,
 			size_t count);
 void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count);
+void iov_iter_xarray(struct iov_iter *i, unsigned int direction, struct xarray *xarray,
+			loff_t start, size_t count);
 ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
 			size_t maxsize, unsigned maxpages, size_t *start);
 ssize_t iov_iter_get_pages_alloc(struct iov_iter *i, struct page ***pages,

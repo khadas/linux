@@ -40,22 +40,22 @@ u32 rterm_trim_val_t7;
 static const u32 phy_misci_t7[][4] = {
 		 /* 0x05	 0x06	 0x07	 0x08 */
 	{	 /* 24~45M */
-		0x200773ff, 0x000c01c0, 0x0, 0x00000817,
+		0x200773f8, 0x000c01c0, 0x0, 0x00000817,
 	},
 	{	 /* 45~74.5M */
-		0x200773ff, 0x000c01c0, 0x0, 0x00000817,
+		0x200773f8, 0x000c01c0, 0x0, 0x00000817,
 	},
 	{	 /* 77~155M */
-		0x200773ff, 0x000c01c0, 0x0, 0x00000817,
+		0x200773f8, 0x000c01c0, 0x0, 0x00000817,
 	},
 	{	 /* 155~340M */
-		0x200773ff, 0x000c01c0, 0x0, 0x00000817,
+		0x200773f8, 0x000c01c0, 0x0, 0x00000817,
 	},
 	{	 /* 340~525M */
-		0x200773ff, 0x000c01c0, 0x0, 0x00000817,
+		0x200773f8, 0x000c01c0, 0x0, 0x00000817,
 	},
 	{	 /* 525~600M */
-		0x200773ff, 0x000c01c0, 0x0, 0x00000817,
+		0x200773f8, 0x000c01c0, 0x0, 0x00000817,
 	},
 };
 
@@ -1959,6 +1959,7 @@ void rx_set_irq_t7(bool en)
 		data8 = 0;
 		data8 |= 1 << 4; /* intr_new_unrec en */
 		data8 |= 1 << 2; /* intr_new_aud */
+		data8 |= 1 << 1; /* intr_spd */
 		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, data8);
 
 		data8 = 0;
@@ -1967,7 +1968,7 @@ void rx_set_irq_t7(bool en)
 		data8 |= 1 << 2; /* intr_cea_new_vsi */
 		hdmirx_wr_cor(RX_DEPACK_INTR3_MASK_DP2_IVCRX, data8);
 
-		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 5);
+		hdmirx_wr_cor(RX_GRP_INTR1_MASK_PWD_IVCRX, 0x25);
 		hdmirx_wr_cor(RX_INTR1_MASK_PWD_IVCRX, 0x03);//register_address: 0x1050
 		hdmirx_wr_cor(RX_INTR2_MASK_PWD_IVCRX, 0x00);//register_address: 0x1051
 		hdmirx_wr_cor(RX_INTR3_MASK_PWD_IVCRX, 0x00);//register_address: 0x1052
@@ -1987,7 +1988,7 @@ void rx_set_irq_t7(bool en)
 
 		//===for depack interrupt ====
 		//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3);
-		//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
+		hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
 		//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00);//[1] reg_intr_polarity, default = 1
 		//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00);//interrupt mask
 		//hdmirx_wr_cor(RX_DEPACK2_INTR0_MASK_DP0B_IVCRX, 0x0c);//interrupt mask
@@ -2057,8 +2058,6 @@ void rx_set_irq_t7(bool en)
 		//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3);
 		//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// int
 		//hdmirx_wr_cor(RX_PWD_INT_CTRL, 0x00);//[1] reg_intr_polarity, default = 1
-		/* clear enable */
-		hdmirx_wr_cor(RX_DEPACK_INTR2_MASK_DP2_IVCRX, 0);//interrupt mask
 		/* clear status */
 		hdmirx_wr_cor(RX_DEPACK_INTR2_DP2_IVCRX, 0xff);
 		//hdmirx_wr_cor(RX_DEPACK_INTR4_MASK_DP2_IVCRX, 0x00);//interrupt mask
@@ -2109,4 +2108,244 @@ void rx_sw_reset_t7(int level)
 	udelay(1);
 	hdmirx_wr_bits_cor(RX_PWD_SRST_PWD_IVCRX, _BIT(4), 0);
 	//TODO..
+}
+
+void hdcp_init_t7(void)
+{
+	u8 data8;
+	//key config and crc check
+	//rx_sec_hdcp_cfg_t7();
+	//hdcp config
+
+	//======================================
+	// HDCP 2.X Config ---- RX
+	//======================================
+	hdmirx_wr_cor(RX_HPD_C_CTRL_AON_IVCRX, 0x1);//HPD
+	//todo: enable hdcp22 accroding hdcp burning
+	hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x01);//ri_hdcp2x_en
+	//hdmirx_wr_cor(RX_INTR13_MASK_PWD_IVCRX, 0x02);// irq
+	hdmirx_wr_cor(PWD_SW_CLMP_AUE_OIF_PWD_IVCRX, 0x0);
+
+	data8 = 0;
+	data8 |= (hdmirx_repeat_support() && rx.hdcp.repeat) << 1;
+	hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, data8);
+	//depth
+	hdmirx_wr_cor(CP2PAX_RPT_DEPTH_HDCP2X_IVCRX, 0);
+	//dev cnt
+	hdmirx_wr_cor(CP2PAX_RPT_DEVCNT_HDCP2X_IVCRX, 0);
+	//
+	data8 = 0;
+	data8 |= 0 << 0; //hdcp1dev
+	data8 |= 0 << 1; //hdcp1dev
+	data8 |= 0 << 2; //max_casc
+	data8 |= 0 << 3; //max_devs
+	hdmirx_wr_cor(CP2PAX_RPT_DETAIL_HDCP2X_IVCRX, data8);
+
+	hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0x83);
+	hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0x80);
+
+	//======================================
+	// HDCP 1.X Config ---- RX
+	//======================================
+	hdmirx_wr_cor(RX_SYS_SWTCHC_AON_IVCRX, 0x86);//SYS_SWTCHC,Enable HDCP DDC,SCDC DDC
+
+	//----clear ksv fifo rdy --------
+	data8  =  0;
+	data8 |= (1 << 3);//bit[  3] reg_hdmi_clr_en
+	data8 |= (7 << 0);//bit[2:0] reg_fifordy_clr_en
+	hdmirx_wr_cor(RX_RPT_RDY_CTRL_PWD_IVCRX, data8);//register address: 0x1010 (0x0f)
+
+	//----BCAPS config-----
+	data8 = 0;
+	data8 |= (0 << 4);//bit[4] reg_fast I2C transfers speed.
+	data8 |= (0 << 5);//bit[5] reg_fifo_rdy
+	data8 |= ((hdmirx_repeat_support() && rx.hdcp.repeat) << 6);//bit[6] reg_repeater
+	data8 |= (1 << 7);//bit[7] reg_hdmi_capable  HDMI capable
+	hdmirx_wr_cor(RX_BCAPS_SET_HDCP1X_IVCRX, data8);//register address: 0x169e (0x80)
+
+	//for (data8 = 0; data8 < 10; data8++) //ksv list number
+		//hdmirx_wr_cor(RX_KSV_FIFO_HDCP1X_IVCRX, ksvlist[data8]);
+
+	//----Bstatus1 config-----
+	data8 =  0;
+	// data8 |= (2 << 0); //bit[6:0] reg_dev_cnt
+	data8 |= (0 << 7);//bit[  7] reg_dve_exceed
+	hdmirx_wr_cor(RX_SHD_BSTATUS1_HDCP1X_IVCRX, data8);//register address: 0x169f (0x00)
+
+		//----Bstatus2 config-----
+	data8 =  0;
+	// data8 |= (2 << 0);//bit[2:0] reg_depth
+	data8 |= (0 << 3);//bit[  3] reg_casc_exceed
+	hdmirx_wr_cor(RX_SHD_BSTATUS2_HDCP1X_IVCRX, data8);//register address: 0x169f (0x00)
+
+	//----Rx Sha length in bytes----
+	hdmirx_wr_cor(RX_SHA_length1_HDCP1X_IVCRX, 0x0a);//[7:0] 10=2ksv*5byte
+	hdmirx_wr_cor(RX_SHA_length2_HDCP1X_IVCRX, 0x00);//[9:8]
+
+	//----Rx Sha repeater KSV fifo start addr----
+	hdmirx_wr_cor(RX_KSV_SHA_start1_HDCP1X_IVCRX, 0x00);//[7:0]
+	hdmirx_wr_cor(RX_KSV_SHA_start2_HDCP1X_IVCRX, 0x00);//[9:8]
+	//hdmirx_wr_cor(CP2PAX_INTR0_MASK_HDCP2X_IVCRX, 0x3); irq
+	//hdmirx_wr_cor(RX_HDCP2x_CTRL_PWD_IVCRX, 0x1); //same as L3309
+	//hdmirx_wr_cor(CP2PA_TP1_HDCP2X_IVCRX, 0x9e);
+	//hdmirx_wr_cor(CP2PA_TP3_HDCP2X_IVCRX, 0x32);
+	//hdmirx_wr_cor(CP2PA_TP5_HDCP2X_IVCRX, 0x32);
+	//hdmirx_wr_cor(CP2PAX_GP_IN1_HDCP2X_IVCRX, 0x2);
+	//hdmirx_wr_cor(CP2PAX_GP_CTL_HDCP2X_IVCRX, 0xdb);
+	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x8);
+	hdmirx_wr_cor(RX_PWD_SRST2_PWD_IVCRX, 0x2);
+}
+
+void rpt_update_hdcp1x(struct hdcp_topo_s *topo)
+{
+	u8 data8 = 0;
+
+	if (0) {//!topo) {
+		data8 =  0;
+		data8 |= (0 << 4);//bit[4] reg_fast I2C transfers speed.
+		data8 |= (0 << 5);//bit[5] reg_fifo_rdy
+		data8 |= (rx.hdcp.repeat << 6);//bit[6] reg_repeater  Rx Repeater
+		data8 |= (1 << 7);//bit[7] reg_hdmi_capable  HDMI capable
+		hdmirx_wr_cor(RX_BCAPS_SET_HDCP1X_IVCRX, data8);
+
+		//----Bstatus1 config-----
+		data8 =  0;
+		data8 |= (0 << 0);//bit[6:0] reg_dve_cnt
+		data8 |= (0 << 7);//bit[  7] reg_dve_exceed
+		hdmirx_wr_cor(RX_SHD_BSTATUS1_HDCP1X_IVCRX, data8);//register address: 0x169f (0x00)
+
+			//----Bstatus2 config-----
+		data8 =  0;
+		data8 |= (0 << 0);//bit[2:0] reg_depth
+		data8 |= (0 << 3);//bit[  3] reg_casc_exceed
+		hdmirx_wr_cor(RX_SHD_BSTATUS2_HDCP1X_IVCRX, data8);
+
+		data8 = 0;
+		data8 |= 0 << 0; /* sha go start */
+		data8 |= 0 << 2; /* sha mode */
+		hdmirx_wr_cor(RX_SHA_ctrl_HDCP1X_IVCRX, data8);
+
+		hdmirx_wr_cor(RX_KSV_SHA_start1_HDCP1X_IVCRX, 0x00);//[7:0]
+		hdmirx_wr_cor(RX_KSV_SHA_start2_HDCP1X_IVCRX, 0x00);//[9:8]
+		return;
+	}
+
+	rx_pr("step2\n");
+	//----Bstatus1 config-----
+	data8 =  0;
+	data8 |= (topo->dev_cnt << 0);//bit[6:0] reg_dev_cnt
+	data8 |= (topo->max_devs_exceeded << 7);//bit[  7] reg_dev_exceed
+	hdmirx_wr_cor(RX_SHD_BSTATUS1_HDCP1X_IVCRX, data8);//register address: 0x169f (0x00)
+
+		//----Bstatus2 config-----
+	data8 =  0;
+	data8 |= (topo->depth << 0);//bit[2:0] reg_depth
+	data8 |= (topo->max_cascade_exceeded << 3);//bit[  3] reg_casc_exceed
+	hdmirx_wr_cor(RX_SHD_BSTATUS2_HDCP1X_IVCRX, data8);
+
+	for (data8 = 0; data8 < topo->dev_cnt * 5; data8++) //ksv list number
+		hdmirx_wr_cor(RX_KSV_FIFO_HDCP1X_IVCRX, topo->ksv_list[data8]);
+
+	//----Rx Sha length in bytes----
+	hdmirx_wr_cor(RX_SHA_length1_HDCP1X_IVCRX, topo->dev_cnt * 5);//[7:0] 10=2ksv*5byte
+	hdmirx_wr_cor(RX_SHA_length2_HDCP1X_IVCRX, 0x00);//[9:8]
+
+	//----Rx Sha repeater KSV fifo start addr----
+	hdmirx_wr_cor(RX_KSV_SHA_start1_HDCP1X_IVCRX, 0x00);//[7:0]
+	hdmirx_wr_cor(RX_KSV_SHA_start2_HDCP1X_IVCRX, 0x00);//[9:8]
+
+	hdmirx_wr_cor(RX_SHA_ctrl_HDCP1X_IVCRX, 1);
+
+	//if (0) {//(rx.hdcp.hdcp14_ready) {
+	//data8 = 0;
+	//data8 |= 1 << 0; /* sha go start */
+	//data8 |= 0 << 2; /* sha mode */
+	//hdmirx_wr_cor(RX_SHA_ctrl_HDCP1X_IVCRX, data8);
+
+	//data8 =  0;
+	///data8 |= (0 << 4);//bit[4] reg_fast I2C transfers speed.
+	//data8 |= (1 << 5);//bit[5] reg_fifo_rdy
+	///data8 |= (1 << 6);//bit[6] reg_repeater  Rx Repeater
+	//data8 |= (1 << 7);//bit[7] reg_hdmi_capable  HDMI capable
+	//hdmirx_wr_cor(RX_BCAPS_SET_HDCP1X_IVCRX, data8);
+	//rx.hdcp.hdcp14_ready = false;
+	//}
+}
+
+void rpt_update_hdcp2x(struct hdcp_topo_s *topo)
+{
+	u8 data8 = 0;
+
+	if (!topo) {
+		rx_pr("clear dev_cnt & depth\n");
+		hdmirx_wr_cor(CP2PAX_RPT_DEVCNT_HDCP2X_IVCRX, 0);
+		hdmirx_wr_cor(CP2PAX_RPT_DEPTH_HDCP2X_IVCRX, 0);
+		return;
+	}
+
+	if (rx.hdcp.repeat) {
+		data8 = 0;
+		data8 |= rx.hdcp.repeat << 1;
+		hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, data8);
+
+		hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe0);
+		hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe2);
+		hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe0);
+
+		for (data8 = 0; data8 < topo->dev_cnt * 5; data8++) {
+			hdmirx_wr_cor(CP2PAX_RX_RPT_RCVID_IN_HDCP2X_IVCRX, topo->ksv_list[data8]);
+			hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe1);
+			hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe0);
+		}
+	} else {
+		hdmirx_wr_cor(CP2PAX_CTRL_0_HDCP2X_IVCRX, 0xe0);
+	}
+
+	//mdelay(1);
+	//dev cnt
+	hdmirx_wr_cor(CP2PAX_RPT_DEVCNT_HDCP2X_IVCRX, topo->dev_cnt);
+	//
+	data8 = 0;
+	data8 |= topo->hdcp1_dev_ds << 0; //hdcp1dev
+	data8 |= topo->hdcp2_dev_ds << 1; //hdcp2dev
+	data8 |= topo->max_cascade_exceeded << 2; //max_casc
+	data8 |= topo->max_devs_exceeded << 3; //max_devs
+	hdmirx_wr_cor(CP2PAX_RPT_DETAIL_HDCP2X_IVCRX, data8);
+
+	hdmirx_wr_cor(CP2PAX_RX_SEQ_NUM_V_0_HDCP2X_IVCRX, rx.hdcp.topo_updated & 0xFF);
+	hdmirx_wr_cor(CP2PAX_RX_SEQ_NUM_V_1_HDCP2X_IVCRX, (rx.hdcp.topo_updated >> 8) & 0xFF);
+	hdmirx_wr_cor(CP2PAX_RX_SEQ_NUM_V_2_HDCP2X_IVCRX, (rx.hdcp.topo_updated >> 16) & 0xFF);
+	//depth
+	hdmirx_wr_cor(CP2PAX_RPT_DEPTH_HDCP2X_IVCRX, topo->depth);
+	if (rx.hdcp.topo_updated > 0) {
+		hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe4);
+		hdmirx_wr_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, 0xe0);
+	}
+}
+
+u8 rx_get_stream_manage_info(void)
+{
+	u8 stream_type_hi, stream_type_low, k;
+
+	k = hdmirx_rd_cor(CP2PAX_RPT_SMNG_K_HDCP2X_IVCRX); //k
+
+	hdmirx_wr_bits_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, _BIT(4), 1);
+	hdmirx_wr_bits_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, _BIT(4), 0);
+
+	stream_type_hi = hdmirx_rd_cor(CP2PAX_RX_RPT_SMNG_OUT_HDCP2X_IVCRX);
+	hdmirx_wr_bits_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, _BIT(3), 1);
+	hdmirx_wr_bits_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, _BIT(3), 0);
+	stream_type_low = hdmirx_rd_cor(CP2PAX_RX_RPT_SMNG_OUT_HDCP2X_IVCRX);
+	hdmirx_wr_bits_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, _BIT(3), 1);
+	hdmirx_wr_bits_cor(CP2PAX_RX_CTRL_0_HDCP2X_IVCRX, _BIT(3), 0);
+
+	rx_pr("[%s] k: %d, stream_type_hi: %d, stream_type_low: %d\n",
+		__func__, k, stream_type_hi, stream_type_low);
+	return stream_type_low;
+}
+
+/*t7 version*/
+int is_t7_former(void)
+{
+	return (is_meson_t7_cpu() && (is_meson_rev_a() || is_meson_rev_b()));
 }

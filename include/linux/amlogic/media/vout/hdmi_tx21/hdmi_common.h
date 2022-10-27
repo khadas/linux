@@ -29,6 +29,17 @@
 #define GET_OUI_BYTE2(oui)	(((oui) >> 16) & 0xff)
 
 #define HDMI_PACKET_TYPE_GCP 0x3
+
+enum hdmi_hdr_status {
+	HDR10PLUS_VSIF = 0,
+	dolbyvision_std = 1,
+	dolbyvision_lowlatency = 2,
+	HDR10_GAMMA_ST2084 = 3,
+	HDR10_others,
+	HDR10_GAMMA_HLG,
+	SDR,
+};
+
 enum hdmi_tf_type {
 	HDMI_NONE = 0,
 	/* HDMI_HDR_TYPE, HDMI_DV_TYPE, and HDMI_HDR10P_TYPE
@@ -347,7 +358,8 @@ enum hdmi_aspect_ratio {
 
 struct vesa_standard_timing;
 
-struct hdmi_format_para *hdmitx21_match_dtd_paras(struct dtd *t);
+const struct hdmi_timing *hdmitx21_match_dtd_timing(struct dtd *t);
+const struct hdmi_timing *hdmitx21_match_standrd_timing(struct vesa_standard_timing *t);
 struct hdmi_format_para *hdmitx21_get_vesa_paras(struct vesa_standard_timing
 	*t);
 struct hdmi_format_para *hdmitx21_tst_fmt_name(const char *name,

@@ -12,6 +12,7 @@ int __init auge_snd_iomap_init(void);
 int __init auge_hdmirx_arc_iomap_init(void);
 int __init audio_controller_init(void);
 int __init audio_pinctrl_init(void);
+int __init sm1_audio_pinctrl_init(void);
 int __init aml_card_init(void);
 int __init audio_ddr_init(void);
 int __init effect_platform_init(void);
@@ -25,6 +26,7 @@ int __init spdif_init(void);
 int __init tdm_init(void);
 int __init vad_drv_init(void);
 int __init vad_dev_init(void);
+int __init pcpd_monitor_init(void);
 
 void __exit vad_dev_exit(void);
 void __exit vad_drv_exit(void);
@@ -40,9 +42,11 @@ void __exit effect_platform_exit(void);
 void __exit audio_ddr_exit(void);
 void __exit aml_card_exit(void);
 void __exit audio_pinctrl_exit(void);
+void __exit sm1_audio_pinctrl_exit(void);
 void __exit audio_controller_exit(void);
 void __exit auge_snd_iomap_exit(void);
 void __exit auge_hdmirx_arc_iomap_exit(void);
 void __exit audio_clocks_exit(void);
 void __exit earc_exit(void);
+void __exit pcpd_monitor_exit(void);
 #endif

@@ -103,11 +103,16 @@ struct tcon_data_priority_s {
 };
 
 struct tcon_mem_map_table_s {
+	/*header*/
 	unsigned int version;
 	unsigned char tcon_data_flag;
 	unsigned int data_load_level;
 	unsigned int block_cnt;
+	unsigned char init_load;
+
 	unsigned int valid_flag;
+	unsigned char demura_cnt;
+	unsigned int block_bit_flag;
 
 	unsigned int core_reg_table_size;
 	unsigned char *core_reg_table;
@@ -226,7 +231,8 @@ int lcd_tcon_data_multi_add(struct tcon_mem_map_table_s *mm_table,
 			    struct lcd_tcon_data_block_header_s *block_header,
 			    unsigned int index);
 
-int lcd_tcon_data_load(void);
+int lcd_tcon_data_load(struct aml_lcd_drv_s *pdrv, unsigned char *data_buf, int index);
+int lcd_tcon_bin_load(struct aml_lcd_drv_s *pdrv);
 void lcd_tcon_reg_table_print(void);
 void lcd_tcon_reg_readback_print(struct aml_lcd_drv_s *pdrv);
 int lcd_tcon_info_print(char *buf, int offset);

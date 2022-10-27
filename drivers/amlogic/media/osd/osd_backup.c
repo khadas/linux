@@ -391,8 +391,8 @@ static struct reg_item misc_recovery_table[] = {
 	{VIU_OSD2_BLK3_CFG_W4, 0x0, 0xffffffff, 0},
 	{VPU_RDARB_MODE_L1C2, 0x0, 0x00010000, 1},
 	{VIU_MISC_CTRL1, 0x0, 0x0000ff00, 1},
-	{DOLBY_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1}
+	{AMDV_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1}
 };
 
 /* After G12A Chip */
@@ -583,8 +583,6 @@ static struct reg_item osd2_sc_recovery_table_g12a[] = {
 };
 
 static struct reg_item osd3_sc_recovery_table_g12a[] = {
-	{OSD34_SCALE_COEF_IDX, 0x0, 0x0000c37f, 0},
-	{OSD34_SCALE_COEF, 0x0, 0xffffffff, 0},
 	{OSD34_VSC_PHASE_STEP, 0x0, 0x0fffffff, 1},
 	{OSD34_VSC_INI_PHASE, 0x0, 0xffffffff, 1},
 	{OSD34_VSC_CTRL0, 0x0, 0x01fb7b7f, 1},
@@ -597,6 +595,9 @@ static struct reg_item osd3_sc_recovery_table_g12a[] = {
 	{OSD34_SCI_WH_M1, 0x0, 0x1fff1fff, 1},
 	{OSD34_SCO_H_START_END, 0x0, 0x0fff0fff, 1},
 	{OSD34_SCO_V_START_END, 0x0, 0x0fff0fff, 1},
+	{OSD34_SCALE_COEF_IDX, 0x0, 0x0000c37f, 0},
+	{OSD34_SCALE_COEF, 0x0, 0xffffffff, 0},
+
 };
 
 static struct reg_item osd1_sc_recovery_table_t7[] = {
@@ -607,7 +608,7 @@ static struct reg_item osd1_sc_recovery_table_t7[] = {
 	{T7_VPP_OSD_HSC_INI_PHASE, 0x0, 0xffffffff, 1},
 	{T7_VPP_OSD_HSC_CTRL0, 0x0, 0x007b7b7f, 1},
 	{T7_VPP_OSD_HSC_INI_PAT_CTRL, 0x0, 0x0000ff77, 1},
-	{T7_VPP_OSD_SC_DUMMY_DATA, 0x0, 0xffffffff, 0},
+	{T7_VPP_OSD_SC_DUMMY_DATA, 0x0, 0xffffffff, 1},
 	{T7_VPP_OSD_SC_CTRL0, 0x0, 0x0fff3ffc, 1},
 	{T7_VPP_OSD_SCI_WH_M1, 0x0, 0x1fff1fff, 1},
 	{T7_VPP_OSD_SCO_H_START_END, 0x0, 0x0fff0fff, 1},
@@ -624,7 +625,7 @@ static struct reg_item osd2_sc_recovery_table_t7[] = {
 	{T7_OSD2_HSC_INI_PHASE, 0x0, 0xffffffff, 1},
 	{T7_OSD2_HSC_CTRL0, 0x0, 0x007b7b7f, 1},
 	{T7_OSD2_HSC_INI_PAT_CTRL, 0x0, 0x0000ff77, 1},
-	{T7_OSD2_SC_DUMMY_DATA, 0x0, 0xffffffff, 0},
+	{T7_OSD2_SC_DUMMY_DATA, 0x0, 0xffffffff, 1},
 	{T7_OSD2_SC_CTRL0, 0x0, 0x0fff3ffc, 1},
 	{T7_OSD2_SCI_WH_M1, 0x0, 0x1fff1fff, 1},
 	{T7_OSD2_SCO_H_START_END, 0x0, 0x0fff0fff, 1},
@@ -641,7 +642,7 @@ static struct reg_item osd3_sc_recovery_table_t7[] = {
 	{T7_OSD34_HSC_INI_PHASE, 0x0, 0xffffffff, 1},
 	{T7_OSD34_HSC_CTRL0, 0x0, 0x007b7b7f, 1},
 	{T7_OSD34_HSC_INI_PAT_CTRL, 0x0, 0x0000ff77, 1},
-	{T7_OSD34_SC_DUMMY_DATA, 0x0, 0xffffffff, 0},
+	{T7_OSD34_SC_DUMMY_DATA, 0x0, 0xffffffff, 1},
 	{T7_OSD34_SC_CTRL0, 0x0, 0x0fff3ffc, 1},
 	{T7_OSD34_SCI_WH_M1, 0x0, 0x1fff1fff, 1},
 	{T7_OSD34_SCO_H_START_END, 0x0, 0x0fff0fff, 1},
@@ -957,7 +958,7 @@ static struct reg_item post_blend_recovery_table_g12a[] = {
 };
 
 static struct reg_item misc_recovery_table_g12a[] = {
-	{DOLBY_PATH_CTRL, 0x0, 0x000000cc, 1},
+	{AMDV_PATH_CTRL, 0x0, 0x000000cc, 1},
 	{OSD_PATH_MISC_CTRL, 0x0, 0x000000ff, 1},
 	{VIU_OSD1_DIMM_CTRL, 0x0, 0x7fffffff, 1},
 	{VIU_OSD2_DIMM_CTRL, 0x0, 0x7fffffff, 1},
@@ -965,12 +966,12 @@ static struct reg_item misc_recovery_table_g12a[] = {
 	{VIU_OSD2_BLK1_CFG_W4, 0x0, 0xffffffff, 1},
 	{VIU_OSD2_BLK2_CFG_W4, 0x0, 0xffffffff, 1},
 	{VIU_OSD2_MALI_UNPACK_CTRL, 0x0, 0x9f01ffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1},
 };
 
 static struct reg_item misc_recovery_table_t7[] = {
-	{DOLBY_PATH_CTRL, 0x0, 0x000000cc, 1},
+	{AMDV_PATH_CTRL, 0x0, 0x000000cc, 1},
 	{OSD_PATH_MISC_CTRL, 0x0, 0xffff0000, 1},
 	{VIU_OSD1_DIMM_CTRL, 0x0, 0x7fffffff, 1},
 	{VIU_OSD2_DIMM_CTRL, 0x0, 0x7fffffff, 1},
@@ -978,8 +979,8 @@ static struct reg_item misc_recovery_table_t7[] = {
 	{VIU_OSD2_BLK1_CFG_W4, 0x0, 0xffffffff, 1},
 	{VIU_OSD2_BLK2_CFG_W4, 0x0, 0xffffffff, 1},
 	{VIU_OSD2_MALI_UNPACK_CTRL, 0x0, 0x9f01ffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
-	{DOLBY_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL1, 0x0, 0x0fffffff, 1},
+	{AMDV_CORE2A_SWAP_CTRL2, 0x0, 0xffffffff, 1},
 	{OSD1_HDR_IN_SIZE, 0x0, 0x0fff0fff, 1},
 	{OSD2_HDR_IN_SIZE, 0x0, 0x0fff0fff, 1},
 	{OSD3_HDR_IN_SIZE, 0x0, 0x0fff0fff, 1},
@@ -988,6 +989,13 @@ static struct reg_item misc_recovery_table_t7[] = {
 	{MALI_AFBCD1_TOP_CTRL, 0x0, 0x00f7ffff, 1},
 	{MALI_AFBCD2_TOP_CTRL, 0x0, 0x00ffffff, 1},
 	{PATH_START_SEL, 0x0, 0xffff0000, 1},
+	{VIU_OSD1_PATH_CTRL, 0x0, 0xb0030017, 1},
+	{VIU_OSD2_PATH_CTRL, 0x0, 0xb0030017, 1},
+	{VIU_OSD3_PATH_CTRL, 0x0, 0xb0030017, 1},
+	{VPU_MAFBC1_IRQ_MASK, 0x0, 0x0000003f, 1},
+	{VPU_MAFBC1_SURFACE_CFG, 0x0, 0x0001000f, 1},
+	{VPU_MAFBC2_IRQ_MASK, 0x0, 0x0000003f, 1},
+	{VPU_MAFBC2_SURFACE_CFG, 0x0, 0x0001000f, 1},
 };
 
 static void recovery_regs_init_old(void)
@@ -1270,6 +1278,12 @@ static int update_recovery_item_old(u32 addr, u32 value)
 	if (!recovery_enable)
 		return ret;
 
+	if ((addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2) &&
+	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
+	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
+		return ret;
+
 	base = addr & 0xfff0;
 	switch (base) {
 	case VIU_OSD1_CTRL_STAT:
@@ -1336,23 +1350,7 @@ static int update_recovery_item_old(u32 addr, u32 value)
 		}
 		break;
 	default:
-		break;
-	}
-	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2) &&
-	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
-	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
-		return ret;
-	if (addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_BLK3_CFG_W4 ||
-	    addr == VPU_RDARB_MODE_L1C2 ||
-	    addr == VIU_MISC_CTRL1 ||
-	    addr ==
-		DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr ==
-		DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[4].table;
 		for (i = 0; i <  gRecovery[4].size; i++) {
 			if (addr == table[i].addr) {
@@ -1363,7 +1361,9 @@ static int update_recovery_item_old(u32 addr, u32 value)
 				break;
 			}
 		}
+		break;
 	}
+
 	return ret;
 }
 
@@ -1378,6 +1378,12 @@ static s32 get_recovery_item_old(u32 addr, u32 *value, u32 *mask)
 	if (!recovery_enable)
 		return ret;
 
+	if ((addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2) &&
+	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
+	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
+		return ret;
+
 	base = addr & 0xfff0;
 	switch (base) {
 	case VIU_OSD1_CTRL_STAT:
@@ -1436,25 +1442,7 @@ static s32 get_recovery_item_old(u32 addr, u32 *value, u32 *mask)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if ((addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	     addr == DOLBY_CORE2A_SWAP_CTRL2) &&
-	     cpu_id != __MESON_CPU_MAJOR_ID_TXLX &&
-	     cpu_id != __MESON_CPU_MAJOR_ID_GXM)
-		return ret;
-
-	if (addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_BLK3_CFG_W4 ||
-	    addr == VPU_RDARB_MODE_L1C2 ||
-	    addr == VIU_MISC_CTRL1 ||
-	    addr ==
-		DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr ==
-		DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[4].table;
 		for (i = 0; i <  gRecovery[4].size; i++) {
 			if (addr == table[i].addr) {
@@ -1463,7 +1451,9 @@ static s32 get_recovery_item_old(u32 addr, u32 *value, u32 *mask)
 				break;
 			}
 		}
+		break;
 	}
+
 	if (ret == 0 && table) {
 		if (table->recovery == 1) {
 			u32 regmask = table->mask;
@@ -1701,18 +1691,7 @@ static int update_recovery_item_g12a(u32 addr, u32 value)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if (addr == OSD_PATH_MISC_CTRL ||
-	    addr == VIU_OSD1_DIMM_CTRL ||
-	    addr == VIU_OSD2_DIMM_CTRL ||
-	    addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_MALI_UNPACK_CTRL ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[11].table;
 		for (i = 0; i <  gRecovery[11].size; i++) {
 			if (addr == table[i].addr) {
@@ -1723,7 +1702,9 @@ static int update_recovery_item_g12a(u32 addr, u32 value)
 				break;
 			}
 		}
+		break;
 	}
+
 	return ret;
 }
 
@@ -1736,6 +1717,9 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 	int ret = -1;
 
 	if (!recovery_enable)
+		return ret;
+	if (addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2)
 		return ret;
 
 	base = addr & 0xfff0;
@@ -1912,18 +1896,7 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if (addr == OSD_PATH_MISC_CTRL ||
-	    addr == VIU_OSD1_DIMM_CTRL ||
-	    addr == VIU_OSD2_DIMM_CTRL ||
-	    addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_MALI_UNPACK_CTRL ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[11].table;
 		for (i = 0; i <  gRecovery[11].size; i++) {
 			if (addr == table[i].addr) {
@@ -1932,7 +1905,9 @@ static s32 get_recovery_item_g12a(u32 addr, u32 *value, u32 *mask)
 				break;
 			}
 		}
+		break;
 	}
+
 	if (ret == 0 && table) {
 		if (table->recovery == 1) {
 			u32 regmask = table->mask;
@@ -1984,6 +1959,9 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 
 	if (!recovery_enable)
 		return ret;
+	if ((addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2))
+		return ret;
 
 	base = addr & 0xfff0;
 	switch (base) {
@@ -2027,6 +2005,7 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 		break;
 	case VIU_OSD3_CTRL_STAT:
 	case VIU_OSD3_BLK0_CFG_W2:
+	case VIU_OSD3_DIMM_CTRL:
 		/* osd3 */
 		if (backup_enable &
 			HW_RESET_OSD3_REGS) {
@@ -2046,6 +2025,7 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 		break;
 	case VIU_OSD4_CTRL_STAT:
 	case VIU_OSD4_BLK0_CFG_W2:
+	case VIU_OSD4_DIMM_CTRL:
 		/* osd3 */
 		if (backup_enable &
 			HW_RESET_OSD4_REGS) {
@@ -2235,18 +2215,7 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if (addr == OSD_PATH_MISC_CTRL ||
-	    addr == VIU_OSD1_DIMM_CTRL ||
-	    addr == VIU_OSD2_DIMM_CTRL ||
-	    addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_MALI_UNPACK_CTRL ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[14].table;
 		for (i = 0; i <  gRecovery[14].size; i++) {
 			if (addr == table[i].addr) {
@@ -2257,7 +2226,9 @@ static int update_recovery_item_t7(u32 addr, u32 value)
 				break;
 			}
 		}
+		break;
 	}
+
 	return ret;
 }
 
@@ -2269,6 +2240,9 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 	int ret = -1;
 
 	if (!recovery_enable)
+		return ret;
+	if (addr == AMDV_CORE2A_SWAP_CTRL1 ||
+	     addr == AMDV_CORE2A_SWAP_CTRL2)
 		return ret;
 
 	base = addr & 0xfff0;
@@ -2309,6 +2283,7 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 		break;
 	case VIU_OSD3_CTRL_STAT:
 	case VIU_OSD3_BLK0_CFG_W2:
+	case VIU_OSD3_DIMM_CTRL:
 		/* osd3 */
 		if (backup_enable &
 			HW_RESET_OSD3_REGS) {
@@ -2326,6 +2301,7 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 		break;
 	case VIU_OSD4_CTRL_STAT:
 	case VIU_OSD4_BLK0_CFG_W2:
+	case VIU_OSD4_DIMM_CTRL:
 		/* osd4 */
 		if (backup_enable &
 			HW_RESET_OSD4_REGS) {
@@ -2490,18 +2466,7 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 		}
 		break;
 	default:
-		break;
-	}
-
-	if (addr == OSD_PATH_MISC_CTRL ||
-	    addr == VIU_OSD1_DIMM_CTRL ||
-	    addr == VIU_OSD2_DIMM_CTRL ||
-	    addr == VIU_OSD2_BLK0_CFG_W4 ||
-	    addr == VIU_OSD2_BLK1_CFG_W4 ||
-	    addr == VIU_OSD2_BLK2_CFG_W4 ||
-	    addr == VIU_OSD2_MALI_UNPACK_CTRL ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL1 ||
-	    addr == DOLBY_CORE2A_SWAP_CTRL2) {
+		/* recovery misc */
 		table = gRecovery[14].table;
 		for (i = 0; i <  gRecovery[14].size; i++) {
 			if (addr == table[i].addr) {
@@ -2510,7 +2475,9 @@ static s32 get_recovery_item_t7(u32 addr, u32 *value, u32 *mask)
 				break;
 			}
 		}
+		break;
 	}
+
 	if (ret == 0 && table) {
 		if (table->recovery == 1) {
 			u32 regmask = table->mask;

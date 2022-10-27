@@ -161,7 +161,7 @@ hdmi_tx_construct_aud_packet(struct hdmitx_audpara *audio_param,
 			AUD_DB[3] = 0;
 			AUD_DB[4] = 0;
 		}
-	} else if (audio_param->type == CT_DOLBY_D) {
+	} else if (audio_param->type == CT_DD_P) {
 		pr_info(AUD "Audio Type: Dobly Digital +\n");
 		if (AUD_DB) {
 			AUD_DB[0] = FS_REFER_TO_STREAM << 4 |
@@ -230,11 +230,11 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 		     struct hdmitx_audpara *audio_param)
 {
 	int i, ret = -1;
-	struct hdmi_audio_infoframe *info = &hdev->infoframes.aud.audio;
+	/* struct hdmi_audio_infoframe *info = &hdev->infoframes.aud.audio; */
 	u8 CHAN_STAT_BUF[24 * 2];
 	u32 hdmi_ch = hdev->hdmi_ch;
 
-	hdmi_audio_infoframe_init(info);
+	/* hdmi_audio_infoframe_init(info); */
 	for (i = 0; i < (24 * 2); i++)
 		CHAN_STAT_BUF[i] = 0;
 	if (hdev->hwop.setaudmode(hdev, audio_param) >= 0) {
@@ -242,7 +242,7 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 			hdmi_tx_construct_aud_packet(audio_param, NULL,
 					     CHAN_STAT_BUF, hdmi_ch);
 
-		hdmi_audio_infoframe_set(info);
+		/* hdmi_audio_infoframe_set(info); */
 		ret = 0;
 	}
 	return ret;

@@ -434,7 +434,7 @@ dts_check();
 check_module_param();
 
 #Check commit message
-check_commit_msg();
+#check_commit_msg();
 
 #check config and dts in arm and arm64
 #sync_arm64_arm_diff();

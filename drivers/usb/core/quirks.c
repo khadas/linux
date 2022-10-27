@@ -708,3 +708,53 @@ void usb_release_quirk_list(void)
 	quirk_list = NULL;
 	mutex_unlock(&quirk_mutex);
 }
+
+#ifdef CONFIG_AMLOGIC_USB
+#include <linux/amlogic/cpu_version.h>
+
+/*
+ * Entries for bt intr endpoints that should be change to bulk when parsing
+ * configuration descriptors.
+ *
+ * Matched for devices with USB_QUIRK_ENDPOINT_BLACKLIST.
+ */
+static const struct usb_device_id bt_intep_blacklist[] = {
+	{ USB_DEVICE(0x0BDA, 0xC820), .driver_info = 0x81},
+	{ USB_DEVICE(0x0BDA, 0xC82C), .driver_info = 0x81},
+	{ USB_DEVICE(0x0BDA, 0xD723), .driver_info = 0x81},
+	{ USB_DEVICE(0x0BDA, 0xB82C), .driver_info = 0x81},
+	{ }
+};
+
+bool bt_intep_is_blacklist(struct usb_device *udev)
+{
+	const struct usb_device_id *id;
+
+	if (!(is_meson_t3_cpu() && is_meson_rev_a()))
+		return false;
+
+	for (id = bt_intep_blacklist; id->match_flags; ++id) {
+		if (usb_match_device(udev, id))
+			return true;
+	}
+	return false;
+}
+
+bool bt_epaddr_is_blacklist(struct usb_endpoint_descriptor *epd)
+{
+	const struct usb_device_id *id;
+	unsigned int address;
+
+	if (!(is_meson_t3_cpu() && is_meson_rev_a()))
+		return false;
+
+	for (id = usb_endpoint_blacklist; id->match_flags; ++id) {
+		address = id->driver_info;
+		if (address == epd->bEndpointAddress)
+			return true;
+	}
+
+	return false;
+}
+#endif
+

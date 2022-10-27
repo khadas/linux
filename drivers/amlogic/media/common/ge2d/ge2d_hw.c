@@ -352,8 +352,30 @@ static void get_canvas_info(u32 canvas_index, ulong *addr, u32 *stride,
 	}
 }
 
+void ge2d_lut_init(struct ge2d_config_s *cfg)
+{
+	u32 data, i, table_count;
+	u32 *table_data;
+
+	data  = 0;
+	data |= 0;      /* start LUT position 0 */
+	data |= 0 << 8; /* write LUT */
+	ge2d_reg_write(GE2D_SRC1_LUT_ADDR, data);
+
+	if (!cfg->clut8_table.data) {
+		ge2d_log_err("%s clut8_table data is NULL\n", __func__);
+		return;
+	}
+
+	table_count = cfg->clut8_table.count;
+	table_data = cfg->clut8_table.data;
+	for (i = 0; i < table_count; i++)
+		ge2d_reg_write(GE2D_SRC1_LUT_DAT, table_data[i]);
+}
+
 void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg)
 {
+	struct ge2d_config_s *ge2d_config_s;
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->urgent_en,  10, 1);
 
 	ge2d_reg_set_bits(GE2D_GEN_CTRL1, cfg->ddr_burst_size_y,  20, 2);
@@ -394,6 +416,10 @@ void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg)
 	}
 	ge2d_reg_set_bits(GE2D_GEN_CTRL0, cfg->mode_8b_sel, 5, 2);
 	ge2d_reg_set_bits(GE2D_GEN_CTRL0, cfg->lut_en, 3, 1);
+	ge2d_config_s = container_of(cfg, struct ge2d_config_s, src1_data);
+
+	if (cfg->lut_en)
+		ge2d_lut_init(ge2d_config_s);
 
 	ge2d_reg_write(GE2D_SRC1_DEF_COLOR, cfg->def_color);
 	if (cfg->x_yc_ratio)
@@ -1114,7 +1140,10 @@ void ge2d_set_cmd(struct ge2d_cmd_s *cfg)
 	if (cfg->sc_hsc_en && cfg->hsc_div_en) {
 		unsigned int hsc_div_length;
 
-		hsc_div_length = (124 << 24) / cfg->hsc_phase_step;
+		if (ge2d_meson_dev.chip_type < MESON_CPU_MAJOR_ID_G12B)
+			hsc_div_length = (120 << 24) / cfg->hsc_phase_step;
+		else
+			hsc_div_length = (124 << 24) / cfg->hsc_phase_step;
 
 		/* in blend case, for chip after C2
 		 * src2 repeat function needs hsc_div_length 8 alignment
@@ -1436,4 +1465,3 @@ void ge2d_set_gen(struct ge2d_gen_s *cfg)
 				  16, 13);
 	}
 }
-

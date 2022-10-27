@@ -256,20 +256,31 @@
 		min_delta_ns=<10>;
 	};
 
-        arm_pmu {
-                compatible = "arm,armv8-pmuv3";
-		/* private-interrupts; */
-                clusterb-enabled;
-                interrupts = <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
-                        <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
-                reg = <0x0 0xfe00e340 0x0 0x4>,
-                        <0x0 0xfe00e280 0x0 0x04>;
-                cpumasks = <0x0f 0xf0>;
-                /* default 10ms */
-                relax-timer-ns = <10000000>;
-                /* default 10000us */
-                max-wait-cnt = <10000>;
-        };
+	pmu-a73 {
+		compatible = "arm,cortex-a73-pmu";
+		private-interrupts;
+		interrupts = <GIC_SPI 265 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 266 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU0>,
+					<&CPU1>,
+					<&CPU2>,
+					<&CPU3>;
+	};
+
+	pmu-a53 {
+		compatible = "arm,cortex-a53-pmu";
+		private-interrupts;
+		interrupts = <GIC_SPI 233 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 234 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>,
+				<GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU4>,
+					<&CPU5>,
+					<&CPU6>,
+					<&CPU7>;
+	};
 
 	gic: interrupt-controller@fff01000 {
 		compatible = "arm,cortex-a15-gic", "arm,cortex-a9-gic";
@@ -2287,6 +2298,66 @@
 		link-device = <&adapter>;
 	};
 
+	adapter0: adapter0@fe3b0000 {
+		compatible = "amlogic, adapter0";
+		reg = <0x0 0xfe3b0000 0x0 0x00000400>,
+			<0x0 0xfe3b3000 0x0 0x00000800>;
+		reg-names = "adapter", "isp_top";
+		interrupts = <GIC_SPI 0x139 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkc CLKID_MIPI_ISP>;
+		clock-names = "cts_mipi_isp_clk";
+		power-domains = <&pwrdm PDID_T7_ISP>;
+	};
+
+	adapter2: adapter2@fe3b0800 {
+		compatible = "amlogic, adapter2";
+		reg = <0x0 0xfe3b0800 0x0 0x00000400>,
+			<0x0 0xfe3b3000 0x0 0x00000800>;
+		reg-names = "adapter", "isp_top";
+		interrupts = <GIC_SPI 0x137 IRQ_TYPE_EDGE_RISING>;
+		clocks = <&clkc CLKID_MIPI_ISP>;
+		clock-names = "cts_mipi_isp_clk";
+		power-domains = <&pwrdm PDID_T7_ISP>;
+	};
+	csiphy0: csiphy0@fe3bfc00 {
+		compatible = "amlogic, csiphy0";
+		reg = <0x0 0xfe3bfc00 0x0 0x00000400>,
+			<0x0 0xfe3bdc00 0x0 0x00000100>,
+			<0x0 0xfe3bec00 0x0 0x00000400>;
+		reg-names = "csi_phy","csi_aphy", "csi_host";
+		clocks = <&clkc CLKID_MIPI_CSI_PHY0>;
+		clock-names = "cts_mipi_csi_phy_clk0";
+		assigned-clock-parents = <&clkc CLKID_MIPI_CSI_PHY0>;
+		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
+		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
+	};
+
+	csiphy2: csiphy2@fe3bf400 {
+		compatible = "amlogic, csiphy2";
+		reg = <0x0 0xfe3bf400 0x0 0x00000400>,
+			<0x0 0xfe3bdc00 0x0 0x00000100>,
+			<0x0 0xfe3be400 0x0 0x00000400>;
+		reg-names = "csi_phy","csi_aphy", "csi_host";
+		clocks = <&clkc CLKID_MIPI_CSI_PHY0>;
+		clock-names = "cts_mipi_csi_phy_clk0";
+		assigned-clock-parents = <&clkc CLKID_MIPI_CSI_PHY0>;
+		assigned-clocks = <&clkc CLKID_MIPI_CSI_PHY_CLK>;
+		power-domains = <&pwrdm PDID_T7_MIPI_ISP>;
+	};
+	camera0 {
+		compatible = "amlogic, camera";
+		index = <0>;
+		csiphy = <&csiphy0>;
+		adapter = <&adapter0>;
+	};
+
+	camera1 {
+		compatible = "amlogic, camera";
+		index = <1>;
+		csiphy = <&csiphy2>;
+		adapter = <&adapter2>;
+	};
+
 	vdec {
 		compatible = "amlogic, vdec-pm-pd";
 		dev_name = "vdec.0";
@@ -2349,7 +2420,7 @@
 		en_4k = <1>;
 		keep_dec_vf = <2>;
 		po_fmt = <6>;
-		post_nub = <11>;
+		post_nub = <17>;
 		alloc_sct = <1>;
 		hf = <0>;
 		/***************************************************
@@ -2409,8 +2480,9 @@
 		pinctrl-names="hdmitx_hpd", "hdmitx_ddc";
 		pinctrl-0=<&hdmitx_hpd>;
 		pinctrl-1=<&hdmitx_ddc>;
-		interrupts = <0 204 1>;
-		interrupt-names = "hdmitx_hpd";
+		interrupts = <0 204 4
+			0 197 1>;
+		interrupt-names = "hdmitx_hpd", "vrr_vsync";
 		enc_idx = <2>;
 		reg =	<0x0 0xff000000 0x0 0x40000>,
 			<0x0 0xfe380000 0x0 0x10000>,
@@ -2465,15 +2537,16 @@
 		port_num = <4>;
 		output = <1>;
 		cec_sel = <1>;/*1:use one ip, 2:use 2 ip*/
-		/*ee_cec;*/ /*use cec a or b*/
+		ee_cec; /*use cec a or b*/
 		arc_port_mask = <0x2>;
 		interrupts = <GIC_SPI 180 IRQ_TYPE_EDGE_RISING/*0:snps*/
 			GIC_SPI 179 IRQ_TYPE_EDGE_RISING>;/*1:ts*/
 		interrupt-names = "hdmi_aocecb","hdmi_aocec";
+		/* only CEC_A pin on board for CEC */
 		pinctrl-names = "default","hdmitx_aocecb","cec_pin_sleep";
 		pinctrl-0=<&cec_a>;
-		pinctrl-1=<&cec_b>;
-		pinctrl-2=<&cec_b>;
+		pinctrl-1=<&cec_a>;
+		pinctrl-2=<&cec_a>;
 		clocks = <&clkc CLKID_CECA_32K_CLKOUT>,
 			<&clkc CLKID_CECB_32K_CLKOUT>;
 		clock-names = "ceca_clk","cecb_clk";
@@ -2836,17 +2909,17 @@
 			thermal-sensors = <&a73_tsensor 0>;
 			trips {
 				a73switch_on: trip-point@0 {
-					temperature = <80000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a73control: trip-point@1 {
-					temperature = <90000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a73critical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2866,17 +2939,17 @@
 			thermal-sensors = <&a53_tsensor 1>;
 			trips {
 				a53switch_on: trip-point@0 {
-					temperature = <90000>;
+					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a53control: trip-point@1 {
-					temperature = <100000>;
+					temperature = <105000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
 				a53critical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2896,17 +2969,17 @@
 			thermal-sensors = <&gpu_tsensor 2>;
 			trips {
 				gpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				gpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				gpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				gpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2919,17 +2992,17 @@
 			thermal-sensors = <&nna_tsensor 3>;
 			trips {
 				nnaswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				nnacontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				nnacontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				nnacritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2942,17 +3015,17 @@
 			thermal-sensors = <&hevc_tsensor 4>;
 			trips {
 				hevcswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				hevccontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				hevccontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				hevccritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -2965,17 +3038,17 @@
 			thermal-sensors = <&vpu_tsensor 5>;
 			trips {
 				vpuswitch_on: trip-point@0 {
-					temperature = <85000>;
-					hysteresis = <5000>;
-					type = "passive";
-				};
-				vpucontrol: trip-point@1 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
 				};
+				vpucontrol: trip-point@1 {
+					temperature = <105000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 				vpucritical: trip-point@2 {
-					temperature = <110000>;
+					temperature = <115000>;
 					hysteresis = <1000>;
 					type = "critical";
 				};
@@ -3070,6 +3143,20 @@
 		afbce_bit_mode = <0x11>;
 		/* urgent_en; */
 		double_write_en;
+		/* vdin v4l2 */
+		v4l_support_en = <0>;
+		v4l_vd_num = <70>;
+		/* v4l2 capability */
+		driver   = "vdinvideo";
+		card     = "mesont7";
+		bus_info = "vdin0 v4l2";
+		version  = <0x20220120>;
+		/* fe_ports refer to tvin.h */
+		fe_ports = <0x00001001   /* CVBS1 */
+			0x00004000   /* HDMI0 */
+			0x00004001   /* HDMI1 */
+			0x00004002>; /* HDMI2 */
+		/* vdin v4l2 end */
 	};
 
 	vdin1: vdin1 {/*common define*/
@@ -3089,15 +3176,32 @@
 		 */
 		vdin_id = <1>;
 		tv_bit_mode = <0x15>;
+		/* vdin v4l2 */
+		v4l_support_en = <0>;
+		v4l_vd_num = <71>;
+		/* v4l2 capability */
+		driver   = "vdinvideo";
+		card     = "mesont7";
+		bus_info = "vdin1 v4l2";
+		version  = <0x20220120>;
+		/* fe_ports refer to tvin.h */
+		fe_ports = <0x0000a002   /* WB0_VD1 */
+			0x0000a003   /* WB0_VD2 */
+			0x0000a004   /* WB0_OSD1 */
+			0x0000a005   /* WB0_OSD2 */
+			0x0000a006   /* WB0_VPP */
+			0x0000a007   /* WB0_VDIN_BIST */
+			0x0000a008>; /* WB0_POST_BLEND */
+		/* vdin v4l2 end */
 	};
 
 	amlvecm: amlvecm {
 		compatible = "amlogic, vecm-t7";
 		dev_name = "aml_vecm";
 		/*status = "okay";*/
-		/*gamma_en = <1>;*/ /*1:enabel ;0:disable*/
-		/*wb_en = <1>;*/ /*1:enabel ;0:disable*/
-		/*cm_en = <1>;*/ /*1:enabel ;0:disable*/
+		/*gamma_en = <1>;*/ /*1:enable ;0:disable*/
+		/*wb_en = <1>;*/ /*1:enable ;0:disable*/
+		/*cm_en = <1>;*/ /*1:enable ;0:disable*/
 		/*wb_sel = <0>;*/ /*1:mtx ;0:gainoff*/
 		/*vlock_en = <1>;*/ /*1:enable;0:disable*/
 		/*vlock_mode = <0x8>;*/

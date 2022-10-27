@@ -39,6 +39,7 @@
 #define PSCALE_SRCKEY_CTRL1          0x92b
 #define PSCALE_CANVAS_RD_ADDR        0x92c
 #define PSCALE_CANVAS_WR_ADDR        0x92d
+#define PSCALE_CTRL2                 0x92e
 
 /**/
 #define MC_MPORT_CTRL                0x0940

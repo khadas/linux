@@ -325,7 +325,7 @@ static int gsx_gesture_exit(struct goodix_ts_core *core_data,
 
 /**
  * gsx_gesture_ist - Gesture Irq handle
- * This functions is excuted when interrupt happended and
+ * This functions is executed when interrupt happended and
  * ic in doze mode.
  *
  * @core_data: pointer to touch core data
@@ -400,7 +400,7 @@ gesture_ist_exit:
 
 /**
  * gsx_gesture_before_suspend - execute gesture suspend routine
- * This functions is excuted to set ic into gesture mode
+ * This functions is executed to set ic into gesture mode
  *
  * @core_data: pointer to touch core data
  * @module: pointer to goodix_ext_module struct

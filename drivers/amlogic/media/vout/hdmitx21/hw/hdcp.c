@@ -73,6 +73,23 @@ bool get_hdcp2_result(void)
 	return (unsigned int)((res.a0) & 0xffffffff);
 }
 
+bool get_hdcp2_topo(void)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_GET_TOPO, 0, 0, 0, 0, 0, 0, &res);
+
+	return (unsigned int)((res.a0) & 0xffffffff);
+}
+
+void set_hdcp2_topo(u32 topo_type)
+{
+	struct arm_smccc_res res;
+
+	pr_hdcp_info("%s: %d", __func__, topo_type);
+	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_SET_TOPO, topo_type, 0, 0, 0, 0, 0, &res);
+}
+
 void hdcptx_init_reg(void)
 {
 	hdmitx21_set_bit(HDCP_CTRL_IVCTX, BIT(2), false);
@@ -80,6 +97,7 @@ void hdcptx_init_reg(void)
 	hdmitx21_wr_reg(CP2TX_TP1_IVCTX, 0x92);
 	hdmitx21_wr_reg(TPI_MISC_IVCTX, 1);
 	hdmitx21_set_bit(CP2TX_CTRL_2_IVCTX, BIT_CP2TX_CTRL_2_RI_SEQNUMM_AUTO, false);
+	hdmitx21_wr_reg(RI_128_COMP_IVCTX, 0);
 }
 
 u8 hdcptx1_ds_cap_status_get(void)
@@ -108,7 +126,8 @@ void hdcptx1_protection_enable(bool en)
 		hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX, BIT_TPI_COPP_DATA2_CANCEL_PROT_EN, false);
 		hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX, (BIT_TPI_COPP_DATA2_COPP_PROTLEVEL |
 			BIT_TPI_COPP_DATA2_DOUBLE_RI_CHECK |
-			BIT_TPI_COPP_DATA2_INTERM_RI_CHECK_EN), true);
+			BIT_TPI_COPP_DATA2_INTERM_RI_CHECK_EN |
+			BIT_TPI_COPP_DATA2_KSV_FORWARD), true);
 	} else {
 		hdmitx21_set_bit(TPI_COPP_DATA2_IVCTX, (BIT_TPI_COPP_DATA2_COPP_PROTLEVEL |
 			BIT_TPI_COPP_DATA2_DOUBLE_RI_CHECK |
@@ -139,6 +158,7 @@ void hdcptx1_auth_start(void)
 		(BIT_TPI_COPP_DATA2_TPI_HDCP_PREP_EN |
 		BIT_TPI_COPP_DATA2_DOUBLE_RI_CHECK |
 		BIT_TPI_COPP_DATA2_INTERM_RI_CHECK_EN |
+		/* BIT_TPI_COPP_DATA2_KSV_FORWARD | */
 		BIT_TPI_COPP_DATA2_COPP_PROTLEVEL), true);
 	hdmitx21_set_bit(LM_DDC_IVCTX, BIT_LM_DDC_SWTPIEN_B7, false);
 }
@@ -179,6 +199,8 @@ void hdcptx1_get_ds_ksvlists(u8 **p_ksv, u8 count)
 	u8 time_out = 100; /* timeout for reading ds ksv list */
 	u8 fifo_status = 0;
 	int temp = 0;
+	int i = 0;
+	u32 fifo_byte;
 
 	/* Clear hash done interrupt */
 	hdmitx21_set_bit(INTR2_SW_TPI_IVCTX, BIT_INTR2_SW_HASH_DONE_B6, true);
@@ -187,7 +209,13 @@ void hdcptx1_get_ds_ksvlists(u8 **p_ksv, u8 count)
 	while ((fifo_byte_counter != 0) && time_out--) {
 		if (bytes_to_read != 0) {
 			/* get ds bksv list from fifo */
-			hdmitx21_seq_rd_reg(TPI_KSV_FIFO_FORW_IVCTX, *p_ksv, bytes_to_read);
+			/* hdmitx21_fifo_read(TPI_KSV_FIFO_FORW_IVCTX, *p_ksv, bytes_to_read); */
+			for (i = 0; i < bytes_to_read; i++) {
+				fifo_byte = hdmitx21_rd_reg(TPI_KSV_FIFO_FORW_IVCTX);
+				(*p_ksv)[i] = fifo_byte & 0xff;
+				hdmitx21_wr_reg(TPI_KSV_FIFO_FORW_IVCTX, fifo_byte);
+				/* printk("%02x\n", (*p_ksv)[i]); */
+			}
 			temp = temp + bytes_to_read;
 			if ((temp % 64) == 0) {
 				temp = 0;
@@ -203,7 +231,7 @@ void hdcptx1_get_ds_ksvlists(u8 **p_ksv, u8 count)
 		}
 		fifo_status = hdmitx21_rd_reg(TPI_KSV_FIFO_STAT_IVCTX);
 		bytes_to_read = fifo_status & BIT_TPI_KSV_FIFO_STAT_BYTES;
-
+		/* printk("ksv_fifo_status: 0x%x\n", fifo_status); */
 		mdelay(1);
 	}
 }

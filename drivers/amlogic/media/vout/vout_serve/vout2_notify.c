@@ -256,3 +256,4 @@ int vout2_unregister_server(struct vout_server_s *mem_server)
 	return vout_func_vout_unregister_server(2, mem_server);
 }
 EXPORT_SYMBOL(vout2_unregister_server);
+

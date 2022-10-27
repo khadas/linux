@@ -50,11 +50,17 @@ void vad_set_cep(void)
 	vad_write(VAD_DEC_CTRL, 0x10030001);
 }
 
-void vad_set_src(int src)
+void vad_set_src(int src, bool vad_top)
 {
-	audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
-		0x7 << 12,
-		src << 12);
+	if (vad_top) {
+		vad_top_update_bits(EE_AUDIO2_TOVAD_CTRL0,
+			    0x1f << 12,
+			    src << 12);
+	} else {
+		audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
+			0x1f << 12,
+			src << 12);
+	}
 }
 
 void vad_set_in(void)
@@ -66,11 +72,16 @@ void vad_set_in(void)
 	vad_write(VAD_TO_DDR, 0xa0000719);
 }
 
-void vad_set_enable(bool enable)
+void vad_set_enable(bool enable, bool vad_top)
 {
-	audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
-		0x1 << 31 | 0x1 << 30,
-		enable << 31 | 0x1 << 30);
+	if (vad_top)
+		vad_top_update_bits(EE_AUDIO2_TOVAD_CTRL0,
+			0x1 << 31 | 0x1 << 30,
+			enable << 31 | 0x1 << 30);
+	else
+		audiobus_update_bits(EE_AUDIO_TOVAD_CTRL0,
+			0x1 << 31 | 0x1 << 30,
+			enable << 31 | 0x1 << 30);
 
 	if (enable) {
 		vad_write(VAD_TOP_CTRL0, 0x7ff);
@@ -97,9 +108,14 @@ void vad_set_enable(bool enable)
 	}
 }
 
-void vad_force_clk_to_oscin(bool force)
+void vad_force_clk_to_oscin(bool force, bool vad_top)
 {
-	audiobus_update_bits(EE_AUDIO_CLK_VAD_CTRL, 0x1 << 30, force << 30);
+	if (vad_top)
+		vad_top_update_bits(EE_AUDIO2_CLK_VAD_CTRL,
+				0x1 << 30, force << 30);
+	else
+		audiobus_update_bits(EE_AUDIO_CLK_VAD_CTRL,
+				0x1 << 30, force << 30);
 }
 
 void vad_set_two_channel_en(bool en)

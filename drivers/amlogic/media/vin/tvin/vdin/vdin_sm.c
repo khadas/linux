@@ -164,6 +164,10 @@ static unsigned int vdin_hdr_chg_cnt = 1;
 module_param(vdin_hdr_chg_cnt, uint, 0664);
 MODULE_PARM_DESC(vdin_hdr_chg_cnt, "vdin_hdr_chg_cnt");
 
+static unsigned int vdin_vrr_chg_cnt = 1;
+module_param(vdin_vrr_chg_cnt, uint, 0664);
+MODULE_PARM_DESC(vdin_vrr_chg_cnt, "vdin_vrr_chg_cnt");
+
 enum tvin_color_fmt_range_e
 	tvin_get_force_fmt_range(enum tvin_color_fmt_e color_fmt)
 {
@@ -355,16 +359,24 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 			}
 		}
 
-		if (devp->pre_prop.vtem_data.vrr_en !=
-		    devp->prop.vtem_data.vrr_en) {
-			signal_chg |= TVIN_SIG_CHG_VRR;
-			pr_info("%s vrr chg:(%d->%d)\n", __func__,
-				devp->pre_prop.vtem_data.vrr_en,
-				devp->prop.vtem_data.vrr_en);
-			devp->pre_prop.vtem_data.vrr_en =
-				devp->prop.vtem_data.vrr_en;
-			devp->prop.vdin_vrr_flag =
-				devp->prop.vtem_data.vrr_en;
+		if (devp->vrr_data.vdin_vrr_en_flag != devp->prop.vtem_data.vrr_en ||
+			vdin_check_spd_data_chg(devp)) {
+			if (!(devp->flags & VDIN_FLAG_DEC_STARTED))
+				devp->vrr_data.vrr_chg_cnt++;
+			if (devp->vrr_data.vrr_chg_cnt > vdin_vrr_chg_cnt) {
+				devp->vrr_data.vrr_chg_cnt = 0;
+				signal_chg |= TVIN_SIG_CHG_VRR;
+				if (signal_chg && (sm_debug_enable & VDIN_SM_LOG_L_1))
+					pr_info("%s vrr_chg:(%d->%d) spd:([5]%d->%d) [0](%d->%d)\n",
+						__func__,
+						devp->vrr_data.vdin_vrr_en_flag,
+						devp->prop.vtem_data.vrr_en,
+						devp->pre_prop.spd_data.data[5],
+						devp->prop.spd_data.data[5],
+						devp->pre_prop.spd_data.data[0],
+						devp->prop.spd_data.data[0]);
+				devp->pre_prop.spd_data.data[5] = devp->prop.spd_data.data[5];
+			}
 		}
 
 		if (color_range_force)
@@ -373,14 +385,14 @@ static enum tvin_sg_chg_flg vdin_hdmirx_fmt_chg_detect(struct vdin_dev_s *devp)
 		vdin_fmt_range = prop->color_fmt_range;
 		pre_vdin_fmt_range = pre_prop->color_fmt_range;
 
-		if (cur_color_fmt != pre_color_fmt ||
-		    /*(vdin_hdr_flag != pre_vdin_hdr_flag) ||*/
-		    vdin_fmt_range != pre_vdin_fmt_range) {
-			if (sm_debug_enable & VDIN_SM_LOG_L_2)
-				pr_info("[smr.%d] fmt(%d->%d), hdr_flag(%d->%d), csc_cfg:0x%x\n",
+		if (devp->flags & VDIN_FLAG_DEC_STARTED &&
+		    (cur_color_fmt != pre_color_fmt ||
+		     vdin_fmt_range != pre_vdin_fmt_range)) {
+			if (sm_debug_enable & VDIN_SM_LOG_L_1)
+				pr_info("[smr.%d] fmt(%d->%d), fmt_range(%d->%d), csc_cfg:0x%x\n",
 					devp->index,
 					pre_color_fmt, cur_color_fmt,
-					pre_vdin_hdr_flag, vdin_hdr_flag,
+					pre_vdin_fmt_range, vdin_fmt_range,
 					devp->csc_cfg);
 			vdin_get_format_convert(devp);
 			devp->csc_cfg = 1;
@@ -462,8 +474,18 @@ u32 tvin_hdmirx_signal_type_check(struct vdin_dev_s *devp)
 		}
 	}
 
-	if (prop->low_latency != devp->dv.low_latency)
+	if (prop->low_latency != devp->dv.low_latency) {
 		devp->dv.low_latency = prop->low_latency;
+		if ((devp->dtdata->hw_ver == VDIN_HW_TM2 ||
+		     devp->dtdata->hw_ver == VDIN_HW_TM2_B) &&
+		    prop->dolby_vision) {
+			signal_chg |= TVIN_SIG_DV_CHG;
+			if (sm_debug_enable & VDIN_SM_LOG_L_2)
+				pr_info("[sm.%d]dv.ll:%d prop.ll:%d\n",
+					devp->index, devp->dv.low_latency,
+					prop->low_latency);
+		}
+	}
 	memcpy(&devp->dv.dv_vsif,
 	       &prop->dv_vsif, sizeof(struct tvin_dv_vsif_s));
 
@@ -634,6 +656,17 @@ void tvin_sigchg_event_process(struct vdin_dev_s *devp, u32 chg)
 			devp->event_info.event_sts = TVIN_SIG_CHG_AFD;
 		} else if (chg & TVIN_SIG_CHG_VRR) {
 			devp->event_info.event_sts = TVIN_SIG_CHG_VRR;
+			vdin_frame_lock_check(devp, 1);
+
+			pr_info("%s vrr chg:(%d->%d) spd:(%d->%d)\n", __func__,
+				devp->vrr_data.vdin_vrr_en_flag,
+				devp->prop.vtem_data.vrr_en,
+				devp->pre_prop.spd_data.data[5],
+				devp->prop.spd_data.data[5]);
+			devp->pre_prop.vtem_data.vrr_en =
+				devp->prop.vtem_data.vrr_en;
+			devp->vrr_data.vdin_vrr_en_flag =
+				devp->prop.vtem_data.vrr_en;
 		} else {
 			return;
 		}
@@ -908,6 +941,10 @@ void tvin_smr(struct vdin_dev_s *devp)
 			sm_p->state = TVIN_SM_STATUS_STABLE;
 			info->status = TVIN_SIG_STATUS_STABLE;
 			vdin_update_prop(devp);
+			/* tcl vrr case */
+			devp->vrr_data.vdin_vrr_en_flag =
+				devp->pre_prop.vtem_data.vrr_en;
+			devp->csc_cfg = 0;
 			devp->starting_chg = 0;
 			if (sm_debug_enable)
 				pr_info("[smr.%d] %ums prestable --> stable\n",
@@ -1079,6 +1116,7 @@ void vdin_send_event(struct vdin_dev_s *devp, enum tvin_sg_chg_flg sts)
 {
 	/*pr_info("%s :0x%x\n", __func__, sts);*/
 	/*devp->extcon_event->state = sts;*/
-	schedule_delayed_work(&devp->event_dwork, 0);
+	if (devp->dbg_v4l_no_vdin_event == 0)
+		schedule_delayed_work(&devp->event_dwork, 0);
 }
 

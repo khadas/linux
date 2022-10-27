@@ -41,7 +41,7 @@
 #define ENCT_INFO_READ 0x271e
 #define ENCL_INFO_READ 0x271f
 #define VPU_VIU2VDIN_HDN_CTRL 0x2780
-/* t7 enalbe hsync reg */
+/* t7 enable hsync reg */
 #define VIU_FRM_CTRL   0x1a51
 
 /* ENCL/ENCT polarity, positive:begin > end, negative: begin < end */
@@ -215,7 +215,8 @@ static int viuin_open(struct tvin_frontend_s *fe, enum tvin_port_e port)
 	}
 
 	/* enable write back hsync */
-	if  (is_meson_t7_cpu() || is_meson_t3_cpu())
+	if  (is_meson_t7_cpu() || is_meson_t3_cpu() ||
+	     cpu_after_eq(MESON_CPU_MAJOR_ID_T5W))
 		wr_bits_viu(VIU_FRM_CTRL, 3, 24, 2);
 
 	if (is_meson_gxbb_cpu() || is_meson_gxm_cpu() || is_meson_gxl_cpu()) {
