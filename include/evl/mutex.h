@@ -19,11 +19,23 @@
 struct evl_clock;
 struct evl_thread;
 
+/* Priority inheritance protocol enforced. */
 #define EVL_MUTEX_PI      	BIT(0)
+/* Priority protection protocol enforced. */
 #define EVL_MUTEX_PP      	BIT(1)
-#define EVL_MUTEX_CLAIMED	BIT(2)
+/* Causes a priority boost for its owner. */
+#define EVL_MUTEX_PIBOOST	BIT(2)
+/* Causes a priority ceiling for its owner. */
 #define EVL_MUTEX_CEILING	BIT(3)
+/* Counted in thread->held_mutex_count. */
 #define EVL_MUTEX_COUNTED	BIT(4)
+
+/* Modes for PI chain walk. */
+enum evl_walk_mode {
+	evl_pi_adjust,		/* Adjust priority of members. */
+	evl_pi_reset,		/* Revert members to their base priority. */
+	evl_pi_check,		/* Check the PI chain (no change). */
+};
 
 struct evl_mutex {
 	int wprio;
@@ -144,6 +156,7 @@ void evl_unlock_kmutex(struct evl_kmutex *kmutex)
 	return evl_unlock_mutex(&kmutex->mutex);
 }
 
-void evl_adjust_wait_priority(struct evl_thread *thread);
+void evl_adjust_wait_priority(struct evl_thread *thread,
+			      enum evl_walk_mode mode);
 
 #endif /* !_EVL_MUTEX_H */

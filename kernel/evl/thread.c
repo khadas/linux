@@ -212,7 +212,6 @@ int evl_init_thread(struct evl_thread *thread,
 	thread->bprio = EVL_IDLE_PRIO;
 	thread->rrperiod = EVL_INFINITE;
 	thread->wchan = NULL;
-	thread->wwake = NULL;
 	thread->wait_data = NULL;
 	thread->u_window = NULL;
 	thread->observable = iattr->observable;

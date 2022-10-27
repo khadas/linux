@@ -38,4 +38,12 @@ do {										\
 	  __item;						\
   })
 
+#define list_get_entry_init(__head, __type, __member)		\
+  ({								\
+	  __type *__item;					\
+	  __item = list_first_entry(__head, __type, __member);	\
+	  list_del_init(&__item->__member);			\
+	  __item;						\
+  })
+
 #endif /* !_EVL_LIST_H_ */

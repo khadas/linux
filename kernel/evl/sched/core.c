@@ -448,7 +448,7 @@ int evl_set_thread_policy_locked(struct evl_thread *thread,
 	 * Set the base and effective scheduling parameters. However,
 	 * evl_set_schedparam() will deny lowering the effective
 	 * priority if a boost is undergoing, only recording the
-	 * change into the base priority field in such situation.
+	 * change into the base priority field in such case.
 	 */
 	thread->base_class = sched_class;
 	/*
@@ -533,16 +533,23 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 	return true;
 }
 
-/* thread->lock + target->lock held, hard irqs off */
-void evl_track_thread_policy(struct evl_thread *thread,
-			struct evl_thread *target)
+/* dst->lock + src->lock held, hard irqs off */
+void evl_track_thread_policy(struct evl_thread *dst,
+			struct evl_thread *src)
 {
 	union evl_sched_param param;
 
-	assert_hard_lock(&thread->lock);
-	assert_hard_lock(&target->lock);
+	assert_hard_lock(&dst->lock);
+	assert_hard_lock(&src->lock);
 
-	evl_double_rq_lock(thread->rq, target->rq);
+	evl_double_rq_lock(dst->rq, src->rq);
+
+	/*
+	 * We may receive redundant calls for deboosting, this is ok,
+	 * just filter them out.
+	 */
+	if (src == dst && !(dst->state & T_BOOST))
+		goto out;
 
 	/*
 	 * Inherit (or reset) the effective scheduling class and
@@ -550,37 +557,48 @@ void evl_track_thread_policy(struct evl_thread *thread,
 	 * routine is allowed to lower the weighted priority with no
 	 * restriction, even if a boost is undergoing.
 	 */
-	if (thread->state & T_READY)
-		evl_dequeue_thread(thread);
+	if (dst->state & T_READY)
+		evl_dequeue_thread(dst);
+
 	/*
 	 * Self-targeting means to reset the scheduling policy and
-	 * parameters to the base settings. Otherwise, make thread
-	 * inherit the scheduling parameters from target.
+	 * parameters to the base settings. Otherwise, make @dst
+	 * inherit the scheduling parameters from @src.
 	 */
-	if (target == thread) {
-		thread->sched_class = thread->base_class;
-		evl_track_priority(thread, NULL);
+	if (src == dst) {	/* Deboosting? */
+		dst->state &= ~T_BOOST;
+		dst->sched_class = dst->base_class;
+		evl_track_priority(dst, NULL);
 		/*
 		 * Per SuSv2, resetting the base scheduling parameters
 		 * should not move the thread to the tail of its
 		 * priority group, which makes sense.
 		 */
-		if (thread->state & T_READY)
-			evl_requeue_thread(thread);
-
+		if (dst->state & T_READY)
+			evl_requeue_thread(dst);
 	} else {
-		evl_get_schedparam(target, &param);
-		thread->sched_class = target->sched_class;
-		evl_track_priority(thread, &param);
-		if (thread->state & T_READY)
-			evl_enqueue_thread(thread);
+		/*
+		 * Save the base priority at initial boost only, then
+		 * raise the T_BOOST flag so that setparam() won't be
+		 * allowed to decrease the current weighted priority
+		 * below the boost value, until deboosting occurs.
+		 */
+		if (src->wprio > dst->wprio && !(dst->state & T_BOOST)) {
+			dst->bprio = dst->cprio;
+			dst->state |= T_BOOST;
+		}
+		evl_get_schedparam(src, &param);
+		dst->sched_class = src->sched_class;
+		evl_track_priority(dst, &param);
+		if (dst->state & T_READY)
+			evl_enqueue_thread(dst);
 	}
 
-	trace_evl_thread_set_current_prio(thread);
+	trace_evl_thread_set_current_prio(dst);
 
-	evl_set_resched(thread->rq);
-
-	evl_double_rq_unlock(thread->rq, target->rq);
+	evl_set_resched(dst->rq);
+out:
+	evl_double_rq_unlock(dst->rq, src->rq);
 }
 
 /* thread->lock, hard irqs off */
@@ -605,6 +623,11 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 	 */
 	if (thread->sched_class != &evl_sched_fifo ||
 	    evl_calc_weighted_prio(&evl_sched_fifo, prio) != thread->wprio) {
+		if (!(thread->state & T_BOOST)) {
+			thread->bprio = thread->cprio;
+			thread->state |= T_BOOST;
+		}
+
 		if (thread->state & T_READY)
 			evl_dequeue_thread(thread);
 
