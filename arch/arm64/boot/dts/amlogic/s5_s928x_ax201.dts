@@ -167,8 +167,8 @@
 		ion_fb_reserved:linux,ion-fb {
 			compatible = "shared-dma-pool";
 			reusable;
-			/* 3840x2160x4x6 round up 4M align , tmp solution for Android R*/
-			size = <0x0 0xd000000>;
+			/* 3840x2160x4x4 round up 4M align */
+			size = <0x0 0x8400000>;
 			alignment = <0x0 0x400000>;
 		};
 		/* secure ion for gpu,advice size is 0x1c800000 */
