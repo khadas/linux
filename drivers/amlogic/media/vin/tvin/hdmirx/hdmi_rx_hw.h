@@ -3323,7 +3323,7 @@ void rx_get_audio_N_CTS(u32 *N, u32 *CTS);
 void rx_run_eq(void);
 bool rx_eq_done(void);
 bool is_tmds_valid(void);
-void hdmirx_top_irq_en(bool flag);
+void hdmirx_top_irq_en(int en, int lvl);
 void rx_phy_rt_cal(void);
 bool is_ft_trim_done(void);
 void aml_phy_get_trim_val(void);

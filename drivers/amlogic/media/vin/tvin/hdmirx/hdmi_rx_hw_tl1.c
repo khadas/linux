@@ -349,7 +349,12 @@ void aml_pll_bw_cfg_tl1(void)
 	u32 data, data2;
 	u32 cableclk = rx.clk.cable_clk / KHz;
 	int pll_rst_cnt = 0;
+	u32 clk_rate;
 
+	clk_rate = rx_get_scdc_clkrate_sts();
+	bw = aml_phy_pll_band(rx.clk.cable_clk, clk_rate);
+	if (!is_clk_stable() || !cableclk)
+		return;
 	od_div = apll_tab_tl1[bw].od_div;
 	od = apll_tab_tl1[bw].od;
 	M = apll_tab_tl1[bw].M;

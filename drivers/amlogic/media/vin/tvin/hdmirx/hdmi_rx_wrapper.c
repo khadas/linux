@@ -1021,7 +1021,7 @@ irqreturn_t irq_handler(int irq, void *params)
 	}
 	if (irq_err_cnt >= irq_err_max) {
 		rx_pr("DE ERR\n");
-		hdmirx_top_irq_en(false);
+		hdmirx_top_irq_en(0, 0);
 		hdmirx_output_en(false);
 		if (rx.state > FSM_WAIT_CLK_STABLE)
 			rx.state = FSM_WAIT_CLK_STABLE;
@@ -2779,7 +2779,7 @@ void hdmirx_close_port(void)
 	/* when exit hdmi, disable termination & hpd of specific port */
 	if (disable_port_en)
 		rx_set_port_hpd(disable_port_num, 0);
-	hdmirx_top_irq_en(false);
+	hdmirx_top_irq_en(0, 0);
 	if (hdmirx_repeat_support())
 		hdmitx_reauth_request(UPSTREAM_INACTIVE);
 	/* extcon_set_state_sync(rx.rx_excton_open, EXTCON_DISP_HDMI, 0); */
@@ -3169,7 +3169,7 @@ void rx_main_state_machine(void)
 			rx_dwc_reset();
 			hdmirx_output_en(true);
 			rx_irq_en(true);
-			hdmirx_top_irq_en(true);
+			hdmirx_top_irq_en(1, 1);
 			rx.err_code = ERR_NONE;
 			rx.state = FSM_SIG_WAIT_STABLE;
 		} else {
@@ -3342,7 +3342,7 @@ void rx_main_state_machine(void)
 			/* need to clr to none, for dishNXT box */
 			rx.hdcp.hdcp_version = HDCP_VER_NONE;
 			//rx_sw_reset(2);
-			hdmirx_top_irq_en(false);
+			hdmirx_top_irq_en(0, 0);
 			hdmirx_output_en(false);
 			hdmirx_hbr2spdif(0);
 			rx.state = FSM_WAIT_CLK_STABLE;
@@ -3373,7 +3373,7 @@ void rx_main_state_machine(void)
 				/* need to clr to none, for dishNXT box */
 				rx.hdcp.hdcp_version = HDCP_VER_NONE;
 				//rx_sw_reset(2);
-				hdmirx_top_irq_en(false);
+				hdmirx_top_irq_en(0, 0);
 				hdmirx_output_en(false);
 				hdmirx_hbr2spdif(0);
 				rx.state = FSM_WAIT_CLK_STABLE;

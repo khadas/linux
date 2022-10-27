@@ -2433,7 +2433,7 @@ static void rx_phy_suspend(void)
 		/* phy powerdown */
 		rx_phy_power_on(0);
 	}
-	hdmirx_top_irq_en(false);
+	hdmirx_top_irq_en(0, 0);
 }
 
 static void rx_phy_resume(void)
@@ -2455,7 +2455,7 @@ static void rx_phy_resume(void)
 	hdmirx_phy_init();
 	pre_port = 0xff;
 	rx.boot_flag = true;
-	//hdmirx_top_irq_en(true);
+	//hdmirx_top_irq_en(1, 2);
 }
 
 void rx_emp_resource_allocate(struct device *dev)
@@ -3453,7 +3453,7 @@ static int hdmirx_suspend(struct platform_device *pdev, pm_message_t state)
 
 	hdevp = platform_get_drvdata(pdev);
 	del_timer_sync(&hdevp->timer);
-	hdmirx_top_irq_en(false);
+	hdmirx_top_irq_en(0, 0);
 	hdmirx_output_en(false);
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	/* if early suspend not called, need to pw down phy here */
@@ -3512,7 +3512,7 @@ static void hdmirx_shutdown(struct platform_device *pdev)
 	rx_phy_power_on(0);
 	if (hdcp22_on)
 		hdcp_22_off();
-	hdmirx_top_irq_en(false);
+	hdmirx_top_irq_en(0, 0);
 	hdmirx_output_en(false);
 	rx_dig_clk_en(0);
 	rx_pr("%s- success\n", __func__);
