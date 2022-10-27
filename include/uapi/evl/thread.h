@@ -44,8 +44,8 @@
 #define T_RMID    0x00000002 /* Pending on a removed resource */
 #define T_BREAK   0x00000004 /* Forcibly awaken from a wait state */
 #define T_KICKED  0x00000008 /* Forced out of OOB context */
-#define T_WAKEN   0x00000010 /* Thread waken up upon resource availability */
-#define T_ROBBED  0x00000020 /* Robbed from resource ownership */
+/* free: 0x00000010 */
+/* free: 0x00000020 */
 #define T_CANCELD 0x00000040 /* Cancellation request is pending */
 #define T_PIALERT 0x00000080 /* Priority inversion alert (HM notified) */
 #define T_SCHEDP  0x00000100 /* Schedparam propagation is pending */
