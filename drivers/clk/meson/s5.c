@@ -1103,6 +1103,7 @@ static struct clk_regmap s5_gp2_pll_dco = {
 		.table = s5_gp2_pll_table,
 		.init_regs = s5_gp2_init_regs,
 		.init_count = ARRAY_SIZE(s5_gp2_init_regs),
+		.ignore_init = 1,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "gp2_pll_dco",
@@ -1232,6 +1233,7 @@ static struct clk_regmap s5_fpll_dco = {
 		.table = s5_fpll_table,
 		.init_regs = s5_fpll_init_regs,
 		.init_count = ARRAY_SIZE(s5_fpll_init_regs),
+		.ignore_init = 1,
 	},
 	.hw.init = &(struct clk_init_data){
 		.name = "fpll_dco",
