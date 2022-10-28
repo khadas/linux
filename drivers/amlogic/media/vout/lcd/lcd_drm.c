@@ -161,7 +161,7 @@ static int get_lcd_tv_modes(struct meson_panel_dev *panel,
 	struct drm_display_mode *native_mode;
 	struct drm_display_mode *nmodes;
 	int num_0, num_1;
-	int i, j, m, k;
+	int i = 0, j = 0, m = 0, k = 0;
 	int find_high = 0;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
@@ -239,7 +239,7 @@ static int get_lcd_tv_modes(struct meson_panel_dev *panel,
 	}
 
 	if (find_high) {
-		*num = ARRAY_SIZE(lcd_std_frame_rate);
+		*num = ARRAY_SIZE(lcd_std_frame_rate_high);
 		nmodes = kmalloc_array(*num, sizeof(struct drm_display_mode), GFP_KERNEL);
 		if (!nmodes) {
 			*num = 0;
