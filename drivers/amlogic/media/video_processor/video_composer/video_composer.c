@@ -454,7 +454,6 @@ static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, siz
 	int flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
 	int dw_size = 0, afbc_body_size = 0, afbc_head_size = 0, afbc_table_size = 0;
 	u32 *virt_addr = NULL;
-	u32 *src_virt_addr = NULL;
 	u32 temp_body_addr;
 
 	switch (dev->buffer_status) {
@@ -571,13 +570,11 @@ static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, siz
 
 			temp_body_addr = dev->dst_buf[i].afbc_body_addr & 0xffffffff;
 			virt_addr = codec_mm_phys_to_virt(dev->dst_buf[i].afbc_table_addr);
-			src_virt_addr = virt_addr;
+			memset(virt_addr, 0, afbc_table_size);
 			for (j = 0; j < afbc_body_size; j += 4096) {
 				*virt_addr = ((j + temp_body_addr) >> 12) & 0x000fffff;
 				virt_addr++;
 			}
-			/* clean tail data. */
-			memset(virt_addr, 0, afbc_table_size - (afbc_body_size / 4096));
 
 			vc_print(dev->index, PRINT_VICP, "HeadAddr = 0x%lx.\n",
 				dev->dst_buf[i].afbc_head_addr);
