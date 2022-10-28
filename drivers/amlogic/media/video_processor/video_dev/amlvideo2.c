@@ -3497,9 +3497,12 @@ int amlvideo2_ge2d_pre_process(struct vframe_s *vf,
 	}
 
 	canvas_read(output_canvas & 0xff, &cd);
-	if (amlvideo2_dbg_en & 4)
+	if (amlvideo2_dbg_en & 4) {
 		pr_info("amlvideo2: add =%lx, %d*%d\n",
 			cd.addr, cd.width, cd.height);
+		pr_info("amlvideo2: src canvas = %x\n",
+			ge2d_config->src_para.canvas_index);
+	}
 
 	ge2d_config->dst_planes[0].addr = cd.addr;
 	ge2d_config->dst_planes[0].w = cd.width;
@@ -5871,11 +5874,20 @@ static int alloc_canvas(struct amlvideo2_node *node)
 		pr_err("amlvideo2 canvas alloc failed\n");
 		return -1;
 	}
+	pr_info("amlvideo2 canvas alloc done %x, %x, %x\n",
+		node->aml2_canvas[0],
+		node->aml2_canvas[1],
+		node->aml2_canvas[2]);
 	return 0;
 }
 
 static int free_canvas(struct amlvideo2_node *node)
 {
+	pr_info("amlvideo2 canvas free %x, %x, %x\n",
+		node->aml2_canvas[0],
+		node->aml2_canvas[1],
+		node->aml2_canvas[2]);
+
 	if (node->aml2_canvas[0] >= 0) {
 		canvas_pool_map_free_canvas(node->aml2_canvas[0]);
 		node->aml2_canvas[0] = -1;
@@ -5903,19 +5915,12 @@ static int free_canvas(struct amlvideo2_node *node)
 int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 {
 	int flags;
-	int ret;
 	int cma_size = vid_dev->framebuffer_total_size;
 	bool ge2d_multi_process_flag;
 	const char *canvas_owner;
 	int page_count;
 
 	if (!vid_dev->use_reserve) {
-		ret = alloc_canvas(vid_dev->node[node_id]);
-		if (ret < 0) {
-			pr_err("amlvideo2 alloc cma failed!\n");
-			return -1;
-		}
-
 		if (vid_dev->cma_mode == 0) {
 			vid_dev->cma_pages = dma_alloc_from_contiguous
 				(&vid_dev->pdev->dev,
@@ -5974,8 +5979,6 @@ int amlvideo2_cma_buf_init(struct amlvideo2_device *vid_dev,  int node_id)
 
 int amlvideo2_cma_buf_uninit(struct amlvideo2_device *vid_dev, int node_id)
 {
-	int ret;
-
 	if (!vid_dev->use_reserve) {
 		if (vid_dev->cma_mode == 0) {
 			if (vid_dev->cma_pages) {
@@ -5987,10 +5990,6 @@ int amlvideo2_cma_buf_uninit(struct amlvideo2_device *vid_dev, int node_id)
 				vid_dev->cma_pages = NULL;
 			}
 		} else {
-			ret = free_canvas(vid_dev->node[node_id]);
-			if (ret < 0)
-				pr_err("%s free canvas fail! line: %d",
-				       __func__, __LINE__);
 			if (vid_dev->buffer_start != 0) {
 				if (node_id == 0) {
 					codec_mm_free_for_dma
@@ -6039,6 +6038,14 @@ static int amlvideo2_open(struct file *file)
 		node->users--;
 		mutex_unlock(&node->mutex);
 		return -EBUSY;
+	}
+
+	ret = alloc_canvas(node->vid_dev->node[node->vid]);
+	if (ret < 0) {
+		pr_err("amlvideo2 alloc canvas failed!\n");
+		node->users--;
+		mutex_unlock(&node->mutex);
+		return -ENOMEM;
 	}
 
 	ret = amlvideo2_cma_buf_init(node->vid_dev, node->vid);
@@ -6171,6 +6178,7 @@ static int amlvideo2_close(struct file *file)
 
 	videobuf_stop(&fh->vb_vidq);
 	videobuf_mmap_free(&fh->vb_vidq);
+	free_canvas(node->vid_dev->node[node->vid]);
 	amlvideo2_cma_buf_uninit(node->vid_dev, node->vid);
 
 	for (i = 0; i < 2 * BUFFER_COUNT; i++) {
