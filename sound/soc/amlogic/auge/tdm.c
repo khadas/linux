@@ -47,6 +47,7 @@
 #include "../common/iec_info.h"
 #include "iomap.h"
 #include "audio_utils.h"
+#include "card.h"
 
 #define DRV_NAME "snd_tdm"
 
@@ -1382,8 +1383,11 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	int bit_depth, separated = 0;
 	struct aud_para aud_param;
+	int audio_inskew = -1;
+	int audio_tdm_index = -1;
 
 	memset(&aud_param, 0, sizeof(aud_param));
 
@@ -1507,7 +1511,13 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			pc_pd->tddr = p_tdm->tddr;
 			aml_pcpd_monitor_init(pc_pd);
 		}
-	}
+		/*app adjust tdm inskew*/
+		audio_inskew = get_aml_audio_inskew(rtd->card);
+		audio_tdm_index = get_aml_audio_inskew_index(rtd->card);
+		if (audio_inskew >= 0 && p_tdm->id == audio_tdm_index)
+			aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, audio_inskew,
+			p_tdm->chipinfo->use_vadtop);
+		}
 
 	return 0;
 }

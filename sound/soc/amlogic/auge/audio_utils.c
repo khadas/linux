@@ -12,6 +12,7 @@
 #include "effects_v2.h"
 #include "vad.h"
 #include "ddr_mngr.h"
+#include "card.h"
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
@@ -24,7 +25,6 @@ struct snd_elem_info {
 	u32 mask;
 };
 
-static unsigned int audio_inskew;
 /* For S4 HIFI used by EMMC/audio, we need force mpll in DTV */
 static bool force_mpll_clk;
 
@@ -374,7 +374,9 @@ static const struct soc_enum audio_inskew_enum =
 static int audio_inskew_get_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.enumerated.item[0] = audio_inskew;
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = get_aml_audio_inskew(card);
 
 	return 0;
 }
@@ -382,6 +384,7 @@ static int audio_inskew_get_enum(struct snd_kcontrol *kcontrol,
 static int audio_inskew_set_enum(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
 {
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	unsigned int reg_in, off_set;
 	int inskew;
 	int id;
@@ -398,7 +401,8 @@ static int audio_inskew_set_enum(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	audio_inskew = inskew;
+	set_aml_audio_inskew(card, inskew);
+	set_aml_audio_inskew_index(card, id);
 	off_set = EE_AUDIO_TDMIN_B_CTRL - EE_AUDIO_TDMIN_A_CTRL;
 	reg_in = EE_AUDIO_TDMIN_A_CTRL + off_set * id;
 	pr_info("id=%d set inskew=%d\n", id, inskew);

@@ -137,6 +137,8 @@ struct aml_card_data {
 	bool spk_mute_enable;
 	int irq_exception64;
 	enum audio_hal_format hal_fmt;
+	int inskew_tdm_index;
+	int audio_inskew;
 };
 
 #define aml_priv_to_dev(priv) ((priv)->snd_card.dev)
@@ -166,6 +168,36 @@ static const unsigned int microphone_cable[] = {
 
 struct extcon_dev *audio_extcon_headphone;
 struct extcon_dev *audio_extcon_microphone;
+
+int get_aml_audio_inskew(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	return priv->audio_inskew;
+}
+
+int get_aml_audio_inskew_index(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	return priv->inskew_tdm_index;
+}
+
+int set_aml_audio_inskew(struct snd_soc_card *card, int audio_inskew)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	priv->audio_inskew = audio_inskew;
+	return 0;
+}
+
+int set_aml_audio_inskew_index(struct snd_soc_card *card, int inskew_tdm_index)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	priv->inskew_tdm_index = inskew_tdm_index;
+	return 0;
+}
 
 static const struct soc_enum audio_hal_format_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, ARRAY_SIZE(audio_format),
@@ -1167,7 +1199,8 @@ static int aml_card_probe(struct platform_device *pdev)
 	priv->snd_card.num_links	= num;
 	priv->snd_card.suspend_pre	= card_suspend_pre;
 	priv->snd_card.resume_post	= card_resume_post;
-
+	priv->inskew_tdm_index = -1;
+	priv->audio_inskew = -1;
 	if (np && of_device_is_available(np)) {
 		ret = aml_card_parse_of(np, priv);
 		if (ret < 0) {

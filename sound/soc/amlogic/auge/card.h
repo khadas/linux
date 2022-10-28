@@ -23,4 +23,9 @@ struct aml_card_info {
 	struct aml_dai codec_dai;
 };
 
+int get_aml_audio_inskew(struct snd_soc_card *card);
+int get_aml_audio_inskew_index(struct snd_soc_card *card);
+int set_aml_audio_inskew(struct snd_soc_card *card, int audio_inskew);
+int set_aml_audio_inskew_index(struct snd_soc_card *card, int inskew_tdm_index);
+
 #endif /* __SIMPLE_CARD_H */
