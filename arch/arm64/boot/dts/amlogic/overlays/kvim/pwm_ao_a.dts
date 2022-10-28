@@ -6,6 +6,8 @@
 		target = <&pwm_aoab>;
 
 		__overlay__ {
+			pinctrl-names="default";
+			pinctrl-0=<&pwm_ao_a_pin>;
 			status = "okay";
 		};
 	};
