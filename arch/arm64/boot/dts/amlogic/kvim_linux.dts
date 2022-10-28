@@ -1180,8 +1180,6 @@
 
 &pwm_aoab {
 	status = "disabled";
-	pinctrl-names="default";
-	pinctrl-0=<&pwm_ao_a_pin>;
 };
 
 &pwm_ef {
