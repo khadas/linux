@@ -181,6 +181,7 @@ struct earc {
 	int earctx_port;
 	/* get from hdmirx */
 	int earctx_5v;
+	unsigned int standard_tx_dmac;
 };
 
 static struct earc *s_earc;
@@ -980,6 +981,7 @@ static void earctx_update_clk(struct earc *p_earc,
 	unsigned int multi = audio_multi_clk(p_earc->tx_audio_coding_type);
 	unsigned int freq = rate * 128 * EARC_DMAC_MUTIPLIER * multi;
 
+	p_earc->standard_tx_dmac = freq;
 	dev_info(p_earc->dev, "rate %d, set %dX normal dmac clk, p_earc->tx_dmac_freq:%d\n",
 		rate, multi, p_earc->tx_dmac_freq);
 	earctx_set_dmac_freq(p_earc, freq);
@@ -2090,6 +2092,24 @@ static int earctx_clk_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int earctx_clk_ppm_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct earc *p_earc = dev_get_drvdata(component->dev);
+	int freq = p_earc->standard_tx_dmac;
+	int value = ucontrol->value.enumerated.item[0];
+
+	if (value > 2000 || value < 0) {
+		pr_err("Fine earctx dmac ppm tuning range(0~2000), %d\n", value);
+		return -1;
+	}
+	freq = freq + freq * (value - 1000) / 1000000;
+
+	earctx_set_dmac_freq(p_earc, freq);
+	return 0;
+}
+
 static int arc_get_ui_flag(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -2206,6 +2226,11 @@ static const struct snd_kcontrol_new earc_controls[] = {
 	SOC_SINGLE_EXT("eARC_TX CLK Fine Setting",
 		       0, 0, 2000000, 0,
 		       earctx_clk_get, earctx_clk_put),
+
+	SOC_SINGLE_EXT("eARC_TX CLK Fine PPM Tuning",
+		       0, 0, 2000, 0,
+		       earctx_clk_get, earctx_clk_ppm_put),
+
 	SOC_SINGLE_BOOL_EXT("ARC eARC TX enable",
 			    0,
 			    arc_get_ui_flag,

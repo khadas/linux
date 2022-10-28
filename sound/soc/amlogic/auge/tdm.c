@@ -754,6 +754,26 @@ static int tdm_clk_set(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int tdm_clk_ppm_set(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dai *cpu_dai = snd_kcontrol_chip(kcontrol);
+	struct aml_tdm *p_tdm = snd_soc_dai_get_drvdata(cpu_dai);
+
+	int mclk_rate = p_tdm->setting.standard_sysclk;
+	int value = ucontrol->value.enumerated.item[0];
+
+	if (value > 2000 || value < 0) {
+		pr_err("Fine tdm clk ppm tuning range (0~2000), %d\n", value);
+		return 0;
+	}
+	mclk_rate = mclk_rate + mclk_rate * (value - 1000) / 1000000;
+
+	aml_set_tdm_mclk(p_tdm, mclk_rate);
+
+	return 0;
+}
+
 static int tdmout_gain_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
@@ -807,6 +827,10 @@ static const struct snd_kcontrol_new snd_tdm_clk_controls[] = {
 				0, 0, 2000000, 0,
 				tdm_clk_get,
 				tdm_clk_set),
+	SOC_SINGLE_EXT("TDM MCLK Fine PPM Tuning",
+				0, 0, 2000, 0,
+				tdm_clk_get,
+				tdm_clk_ppm_set),
 };
 
 static const struct snd_kcontrol_new snd_tdm_a_controls[] = {

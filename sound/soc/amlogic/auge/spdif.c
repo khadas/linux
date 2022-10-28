@@ -735,9 +735,9 @@ static int spdif_clk_set(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
-
 	int sysclk = p_spdif->sysclk_freq;
 	int value = ucontrol->value.enumerated.item[0];
+
 	if (value > 2000000 || value < 0) {
 		pr_err("Fine spdif sysclk setting range(0~2000000), %d\n",
 				value);
@@ -745,6 +745,25 @@ static int spdif_clk_set(struct snd_kcontrol *kcontrol,
 	}
 	value = value - 1000000;
 	sysclk += value;
+
+	aml_set_spdifclk(p_spdif, sysclk);
+
+	return 0;
+}
+
+static int spdif_clk_ppm_set(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct aml_spdif *p_spdif = snd_soc_component_get_drvdata(component);
+	int sysclk = p_spdif->standard_sysclk;
+	int value = ucontrol->value.enumerated.item[0];
+
+	if (value > 2000 || value < 0) {
+		pr_err("Fine spdif sysclk ppm tuning range(0~2000), %d\n", value);
+		return 0;
+	}
+	sysclk = sysclk + sysclk * (value - 1000) / 1000000;
 
 	aml_set_spdifclk(p_spdif, sysclk);
 
@@ -836,6 +855,10 @@ static const struct snd_kcontrol_new snd_spdif_clk_controls[] = {
 				0, 0, 2000000, 0,
 				spdif_clk_get,
 				spdif_clk_set),
+	SOC_SINGLE_EXT("SPDIF CLK Fine PPM Tuning",
+				0, 0, 2000, 0,
+				spdif_clk_get,
+				spdif_clk_ppm_set),
 };
 
 static int spdif_b_format_get_enum(struct snd_kcontrol *kcontrol,
