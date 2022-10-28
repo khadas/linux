@@ -26,7 +26,7 @@ static void lcd_mipi_phy_set_axg(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int phy_reg, phy_bit, phy_width;
 	unsigned int lane_cnt;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (status) {
@@ -81,7 +81,7 @@ static void lcd_mipi_phy_set_g12a(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int phy_reg, phy_bit, phy_width;
 	unsigned int lane_cnt;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (status) {
@@ -234,7 +234,7 @@ static void lcd_lvds_phy_set_tl1(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int data32 = 0, size;
 	struct lvds_config_s *lvds_conf;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -268,7 +268,7 @@ static void lcd_vbyone_phy_set_tl1(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int data32 = 0, size;
 	struct vbyone_config_s *vbyone_conf;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -311,7 +311,7 @@ static void lcd_mlvds_phy_set_tl1(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int data32 = 0, size, ckdi;
 	struct mlvds_config_s *mlvds_conf;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -346,7 +346,7 @@ static void lcd_p2p_phy_set_tl1(struct aml_lcd_drv_s *pdrv, int status)
 	unsigned int data32 = 0, size;
 	struct p2p_config_s *p2p_conf;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -483,7 +483,7 @@ static void lcd_lvds_phy_set_t5(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -521,7 +521,7 @@ static void lcd_vbyone_phy_set_t5(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -566,7 +566,7 @@ static void lcd_mlvds_phy_set_t5(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int ckdi, cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -609,7 +609,7 @@ static void lcd_p2p_phy_set_t5(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -778,7 +778,7 @@ static void lcd_lvds_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 			return;
 		}
 		lcd_phy_ctrl->lane_lock |= flag;
-		if (status == 2)
+		if (status == LCD_PHY_LOCK_LANE)
 			goto phy_set_done;
 
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -836,7 +836,7 @@ static void lcd_vbyone_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 			return;
 		}
 		lcd_phy_ctrl->lane_lock |= flag;
-		if (status == 2)
+		if (status == LCD_PHY_LOCK_LANE)
 			goto phy_set_done;
 
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -893,7 +893,7 @@ static void lcd_mipi_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 			return;
 		}
 		lcd_phy_ctrl->lane_lock |= flag;
-		if (status == 2)
+		if (status == LCD_PHY_LOCK_LANE)
 			goto phy_set_done;
 
 		data_lane0_aux = 0x022a0028;
@@ -957,7 +957,7 @@ static void lcd_edp_phy_set_t7(struct aml_lcd_drv_s *pdrv, int status)
 			return;
 		}
 		lcd_phy_ctrl->lane_lock |= flag;
-		if (status == 2)
+		if (status == LCD_PHY_LOCK_LANE)
 			goto phy_set_done;
 
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL) {
@@ -998,7 +998,7 @@ static void lcd_phy_cntl_set_t3(struct phy_config_s *phy, int status, int bypass
 	unsigned int cntl15 = 0, cntl16 = 0;
 	unsigned int data = 0, chreg = 0, chctl = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (!lcd_phy_ctrl)
@@ -1066,7 +1066,7 @@ static void lcd_lvds_phy_set_t3(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -1105,7 +1105,7 @@ static void lcd_vbyone_phy_set_t3(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -1150,7 +1150,7 @@ static void lcd_mlvds_phy_set_t3(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int ckdi, cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -1193,7 +1193,7 @@ static void lcd_p2p_phy_set_t3(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -1345,7 +1345,7 @@ static void lcd_lvds_phy_set_t5w(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -1384,7 +1384,7 @@ static void lcd_vbyone_phy_set_t5w(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -1429,7 +1429,7 @@ static void lcd_mlvds_phy_set_t5w(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int ckdi, cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -1472,7 +1472,7 @@ static void lcd_p2p_phy_set_t5w(struct aml_lcd_drv_s *pdrv, int status)
 	struct phy_config_s *phy = &pdrv->config.phy_cfg;
 	unsigned int cntl14 = 0;
 
-	if (status == 2)
+	if (status == LCD_PHY_LOCK_LANE)
 		return;
 
 	if (lcd_debug_print_flag & LCD_DBG_PR_ADV)
@@ -1740,7 +1740,7 @@ int lcd_phy_probe(struct aml_lcd_drv_s *pdrv)
 	}
 
 	if (pdrv->status & LCD_STATUS_IF_ON)
-		lcd_phy_set(pdrv, 2);
+		lcd_phy_set(pdrv, LCD_PHY_LOCK_LANE);
 
 	return 0;
 }

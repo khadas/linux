@@ -493,6 +493,12 @@ struct phy_config_s {
 	unsigned int preem_level;
 };
 
+enum lcd_phy_set_status {
+	LCD_PHY_OFF = 0,
+	LCD_PHY_ON,
+	LCD_PHY_LOCK_LANE,
+};
+
 struct cus_ctrl_config_s {
 	unsigned int flag;
 	unsigned char dlg_flag;

@@ -5530,7 +5530,7 @@ static ssize_t lcd_phy_debug_store(struct device *dev, struct device_attribute *
 		}
 	}
 	if (pdrv->status & LCD_STATUS_IF_ON)
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 
 	return count;
 }

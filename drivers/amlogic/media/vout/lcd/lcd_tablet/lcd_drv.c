@@ -910,22 +910,22 @@ int lcd_tablet_driver_init(struct aml_lcd_drv_s *pdrv)
 		break;
 	case LCD_LVDS:
 		lcd_lvds_control_set(pdrv);
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 		break;
 	case LCD_VBYONE:
 		lcd_vbyone_pinmux_set(pdrv, 1);
 		lcd_vbyone_control_set(pdrv);
 		lcd_vbyone_wait_hpd(pdrv);
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 		lcd_vbyone_power_on_wait_stable(pdrv);
 		break;
 	case LCD_MIPI:
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 		lcd_mipi_control_set(pdrv);
 		break;
 	case LCD_EDP:
 		lcd_edp_pinmux_set(pdrv, 1);
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 		lcd_edp_control_set(pdrv);
 		break;
 	default:
@@ -951,24 +951,24 @@ void lcd_tablet_driver_disable(struct aml_lcd_drv_s *pdrv)
 		lcd_ttl_pinmux_set(pdrv, 0);
 		break;
 	case LCD_LVDS:
-		lcd_phy_set(pdrv, 0);
+		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_lvds_disable(pdrv);
 		break;
 	case LCD_VBYONE:
 		lcd_vbyone_link_maintain_clear();
 		lcd_vbyone_interrupt_enable(pdrv, 0);
-		lcd_phy_set(pdrv, 0);
+		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_vbyone_pinmux_set(pdrv, 0);
 		lcd_vbyone_control_off(pdrv);
 		break;
 	case LCD_MIPI:
 		mipi_dsi_link_off(pdrv);
-		lcd_phy_set(pdrv, 0);
+		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_mipi_disable(pdrv);
 		break;
 	case LCD_EDP:
 		lcd_edp_disable(pdrv);
-		lcd_phy_set(pdrv, 0);
+		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_edp_pinmux_set(pdrv, 0);
 		break;
 	default:

@@ -44,7 +44,8 @@
 /* 20220729: optimize tcon switch flow before dlg timing change*/
 /* 20220809: fix tcon axi mem mistake for DLG tcon bin*/
 /* 20221012: correct t5w vbyone reset reg*/
-#define LCD_DRV_VERSION    "20221012"
+/* 20221028: fix lane lock && fix t7 mipi lprx reg set*/
+#define LCD_DRV_VERSION    "20221028"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

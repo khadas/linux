@@ -964,23 +964,23 @@ int lcd_tv_driver_init(struct aml_lcd_drv_s *pdrv)
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_LVDS:
 		lcd_lvds_control_set(pdrv);
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 		break;
 	case LCD_VBYONE:
 		lcd_vbyone_pinmux_set(pdrv, 1);
 		lcd_vbyone_control_set(pdrv);
 		lcd_vbyone_wait_hpd(pdrv);
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 		lcd_vbyone_power_on_wait_stable(pdrv);
 		break;
 	case LCD_MLVDS:
 		lcd_mlvds_control_set(pdrv);
 		lcd_mlvds_pinmux_set(pdrv, 1);
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 		break;
 	case LCD_P2P:
 		lcd_p2p_pinmux_set(pdrv, 1);
-		lcd_phy_set(pdrv, 1);
+		lcd_phy_set(pdrv, LCD_PHY_ON);
 		lcd_p2p_control_set(pdrv);
 		break;
 	default:
@@ -1008,24 +1008,24 @@ void lcd_tv_driver_disable(struct aml_lcd_drv_s *pdrv)
 
 	switch (pdrv->config.basic.lcd_type) {
 	case LCD_LVDS:
-		lcd_phy_set(pdrv, 0);
+		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_lvds_disable(pdrv);
 		break;
 	case LCD_VBYONE:
 		lcd_vbyone_link_maintain_clear();
 		lcd_vbyone_interrupt_enable(pdrv, 0);
-		lcd_phy_set(pdrv, 0);
+		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_vbyone_pinmux_set(pdrv, 0);
 		lcd_vbyone_control_off(pdrv);
 		break;
 	case LCD_MLVDS:
 		lcd_mlvds_disable(pdrv);
-		lcd_phy_set(pdrv, 0);
+		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_mlvds_pinmux_set(pdrv, 0);
 		break;
 	case LCD_P2P:
 		lcd_p2p_disable(pdrv);
-		lcd_phy_set(pdrv, 0);
+		lcd_phy_set(pdrv, LCD_PHY_OFF);
 		lcd_p2p_pinmux_set(pdrv, 0);
 		break;
 	default:
