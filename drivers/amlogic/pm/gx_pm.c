@@ -308,7 +308,7 @@ static int clr_suspend_notify(struct notifier_block *nb,
 				     unsigned long event, void *dummy)
 {
 	if (event == PM_SUSPEND_PREPARE)
-		set_resume_method(UDEFINED_WAKEUP);
+		set_resume_method(UNDEFINED_WAKEUP);
 
 	return NOTIFY_OK;
 }

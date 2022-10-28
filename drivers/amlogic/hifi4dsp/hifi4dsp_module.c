@@ -886,7 +886,7 @@ static int hifi4dsp_platform_remove(struct platform_device *pdev)
 		goto dsp_cnt_error;
 	}
 
-	hifi_syslog_reomve();
+	hifi_syslog_remove();
 
 	priv = hifi4dsp_privdata();
 	for (id = 0; id < dsp_cnt; id++) {

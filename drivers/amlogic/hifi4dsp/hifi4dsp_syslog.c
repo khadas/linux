@@ -222,7 +222,7 @@ void create_hifi_debugfs_files(struct hifi4dsp_dsp *dsp)
 		pr_err("[%s]debugfs_create_file failed..\n", __func__);
 }
 
-void hifi_syslog_reomve(void)
+void hifi_syslog_remove(void)
 {
 	if (hifi4dsp_p[DSPA] && hifi4dsp_p[DSPA]->dsp)
 		debugfs_remove_recursive(hifi4dsp_p[DSPA]->dsp->debug_dir);

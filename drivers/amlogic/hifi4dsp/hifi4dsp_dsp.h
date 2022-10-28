@@ -223,7 +223,7 @@ struct hifi4dsp_dsp *hifi4dsp_dsp_new(struct hifi4dsp_priv *priv,
 				      struct hifi4dsp_dsp_device *dsp_dev);
 
 void create_hifi_debugfs_files(struct hifi4dsp_dsp *dsp);
-void hifi_syslog_reomve(void);
+void hifi_syslog_remove(void);
 struct hifi4dsp_addr *hifi4dsp_get_share_memory(void);
 unsigned int get_logbuff_loglen(struct dsp_ring_buffer *rb);
 unsigned int show_logbuff_log(struct dsp_ring_buffer *rb, int dspid,
