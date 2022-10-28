@@ -630,9 +630,9 @@ void am_meson_logo_init(struct drm_device *dev)
 		for (i = 0; i < MESON_MAX_CRTC; i++)
 			am_meson_load_logo(dev, fb, i);
 
-	drm_framebuffer_put(fb);
 	DRM_INFO("logo_drm_fb[id:%d,ref:%d]\n", fb->base.id,
 		kref_read(&fb->base.refcount));
+	drm_framebuffer_put(fb);
 
 	private->logo_show_done = true;
 
