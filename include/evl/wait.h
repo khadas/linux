@@ -31,6 +31,13 @@ struct evl_wait_channel {
 	const char *name;
 };
 
+/* Modes for PI chain walk. */
+enum evl_walk_mode {
+	evl_pi_adjust,		/* Adjust priority of members. */
+	evl_pi_reset,		/* Revert members to their base priority. */
+	evl_pi_check,		/* Check the PI chain (no change). */
+};
+
 #ifdef CONFIG_PROVE_LOCKING
 struct evl_lock_key_addr {
 	struct lock_class_key *addr;
@@ -160,5 +167,12 @@ int evl_reorder_wait(struct evl_thread *waiter,
 
 void evl_requeue_wait(struct evl_wait_channel *wchan,
 		struct evl_thread *waiter);
+
+void evl_adjust_wait_priority(struct evl_thread *thread,
+			      enum evl_walk_mode mode);
+
+int evl_walk_pi_chain(struct evl_wait_channel *orig_wchan,
+		struct evl_thread *orig_waiter,
+		enum evl_walk_mode mode);
 
 #endif /* !_EVL_WAIT_H_ */

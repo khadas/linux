@@ -152,6 +152,10 @@ static void pin_to_initial_cpu(struct evl_thread *thread)
 	 * of mapping the current in-band task to it. Therefore
 	 * evl_migrate_thread() can be called for pinning it on an
 	 * out-of-band CPU.
+	 *
+	 * NOTE: we do not need to check for T_WCHAN on return from
+	 * evl_migrate_thread(), there is no way the emerging thread
+	 * could be sleeping on a wait channel.
 	 */
 	rq = evl_cpu_rq(cpu);
 	raw_spin_lock_irqsave(&thread->lock, flags);
@@ -1048,7 +1052,7 @@ int evl_set_thread_schedparam(struct evl_thread *thread,
 
 	rq = evl_get_thread_rq(thread, flags);
 	ret = evl_set_thread_schedparam_locked(thread, sched_class, sched_param);
-	evl_put_thread_rq(thread, rq, flags);
+	evl_put_thread_rq_check(thread, rq, flags);
 
 	return ret;
 }
@@ -1063,8 +1067,8 @@ EXPORT_SYMBOL_GPL(evl_set_thread_schedparam);
  * On entry: thread->lock + thread->rq->lock held, irqs off.
  */
 int evl_set_thread_schedparam_locked(struct evl_thread *thread,
-				     struct evl_sched_class *sched_class,
-				     const union evl_sched_param *sched_param)
+				struct evl_sched_class *sched_class,
+				const union evl_sched_param *sched_param)
 {
 	int old_wprio, new_wprio, ret;
 
@@ -1079,13 +1083,18 @@ int evl_set_thread_schedparam_locked(struct evl_thread *thread,
 	new_wprio = thread->wprio;
 
 	/*
-	 * If the thread is sleeping on a wait channel, update its
-	 * position in the corresponding wait list, unless the
-	 * (weighted) priority has not changed (to prevent spurious
-	 * round-robin effects).
+	 * Only if the (weighted) priority actually changed - so that
+	 * we do not cause any spurious RR side effect - and the
+	 * thread is sleeping on a wait channel, tell the caller to
+	 * requeue it its wait list at the first opportunity. We
+	 * cannot do that here since this would trigger ABBA locking
+	 * issues with wchan->lock and/or thread->lock.
+	 *
+	 * CAVEAT: This must be done prior to rescheduling or
+	 * re-enabling irqs in order to prevent priority inversion.
 	 */
-	if (old_wprio != new_wprio && (thread->state & T_PEND))
-		thread->wchan->reorder_wait(thread, thread); /* FIXME: evl_adjust_wait_priority(thread), but we hold rq, BAD. */
+	if (old_wprio != new_wprio && thread->wchan)
+		thread->info |= T_WCHAN;
 
 	thread->info |= T_SCHEDP;
 	/* Ask the target thread to call back if in-band. */
@@ -1303,7 +1312,7 @@ void evl_demote_thread(struct evl_thread *thread)
 	sched_class = &evl_sched_weak;
 	evl_set_thread_schedparam_locked(thread, sched_class, &param);
 
-	evl_put_thread_rq(thread, rq, flags);
+	evl_put_thread_rq_check(thread, rq, flags);
 
 	/* Then unblock it from any wait state. */
 	evl_kick_thread(thread, 0);
@@ -2016,17 +2025,19 @@ static int set_sched_attrs(struct evl_thread *thread,
 	tslice = thread->rrperiod;
 	sched_class = evl_find_sched_class(&param, attrs, &tslice);
 	if (IS_ERR(sched_class)) {
-		ret = PTR_ERR(sched_class);
-		goto out;
+		evl_put_thread_rq(thread, rq, flags);
+		return PTR_ERR(sched_class);
 	}
 
 	ret = set_time_slice(thread, tslice);
-	if (ret)
-		goto out;
+	if (ret) {
+		evl_put_thread_rq(thread, rq, flags);
+		return ret;
+	}
 
 	ret = evl_set_thread_schedparam_locked(thread, sched_class, &param);
-out:
-	evl_put_thread_rq(thread, rq, flags);
+
+	evl_put_thread_rq_check(thread, rq, flags);
 
 	return ret;
 }

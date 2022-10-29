@@ -264,6 +264,7 @@ void evl_double_rq_unlock(struct evl_rq *rq1, struct evl_rq *rq2)
 		raw_spin_unlock(&rq2->lock);
 }
 
+/* irqs off. */
 static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
 {
 	struct evl_sched_class *sched_class = thread->sched_class;
@@ -300,7 +301,15 @@ static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
 	evl_double_rq_unlock(src_rq, dst_rq);
 }
 
-/* thread->lock held, hard irqs off. @thread must be running in-band. */
+/*
+ * Move a thread to a different runqueue. Some sched_migrate() policy
+ * handlers might change the scheduling class and/or priority of the
+ * target thread, our callers MAY HAVE TO check for T_WCHAN to
+ * determine whether the wait channel it might pend on should be
+ * adjusted accordingly.
+ *
+ * thread->lock held, hard irqs off. @thread must be running in-band.
+ */
 void evl_migrate_thread(struct evl_thread *thread, struct evl_rq *dst_rq)
 {
 	assert_hard_lock(&thread->lock);
@@ -327,11 +336,14 @@ static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off *
 	struct evl_thread *thread = evl_thread_from_task(p);
 	int cpu = task_cpu(p);
 	struct evl_rq *rq = evl_cpu_rq(cpu);
+	bool need_requeue = false;
 
 	raw_spin_lock(&thread->lock);
 
-	if (likely(rq == thread->rq))
-		goto out;
+	if (likely(rq == thread->rq)) {
+		raw_spin_unlock(&thread->lock);
+		return;
+	}
 
 	/*
 	 * Resync the EVL and in-band schedulers upon migration from
@@ -372,8 +384,22 @@ static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off *
 	}
 
 	evl_migrate_thread(thread, rq);
-out:
+
+	/*
+	 * Check for a wait channel requeuing. Open code the portion
+	 * of the evl_put_thread_rq_check_noirq() logic we need.
+	 */
+	if (thread->info & T_WCHAN) {
+		raw_spin_lock(&thread->rq->lock);
+		thread->info &= ~T_WCHAN;
+		raw_spin_unlock(&thread->rq->lock);
+		need_requeue = true;
+	}
+
 	raw_spin_unlock(&thread->lock);
+
+	if (need_requeue)
+		evl_adjust_wait_priority(thread, evl_pi_adjust);
 }
 
 #else
@@ -956,6 +982,12 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	 * a root thread never bears this bit.
 	 */
 	curr = this_rq->curr;
+	/*
+	 * Deferred WCHAN requeuing must be handled prior to
+	 * rescheduling.
+	 */
+	EVL_WARN_ON(CORE, curr->info & T_WCHAN);
+
 	if (curr->state & T_USER)
 		evl_commit_monitor_ceiling();
 
