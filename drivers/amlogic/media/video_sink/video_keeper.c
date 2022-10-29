@@ -1330,7 +1330,8 @@ static unsigned int vf_keep_current_locked(struct vframe_s *cur_buf,
 
 	if (IS_DI_PROCESSED(cur_buf->type)) {
 		ret = 2;
-		if (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+		if (cur_buf->vf_ext &&
+		    (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM)) {
 			ret = video_keeper_frame_keep_locked
 				((struct vframe_s *)cur_buf->vf_ext,
 				cur_buf_el);
@@ -1387,7 +1388,8 @@ unsigned int vf_keep_pip_current_locked(struct vframe_s *cur_buf,
 
 	if (IS_DI_PROCESSED(cur_buf->type)) {
 		ret = 2;
-		if (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+		if (cur_buf->vf_ext &&
+		    cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
 			ret = video_pip_keeper_frame_keep_locked
 				((struct vframe_s *)cur_buf->vf_ext,
 				cur_buf_el);
@@ -1439,7 +1441,8 @@ unsigned int vf_keep_pip2_current_locked(struct vframe_s *cur_buf,
 
 	if (IS_DI_PROCESSED(cur_buf->type)) {
 		ret = 2;
-		if (cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+		if (cur_buf->vf_ext &&
+		    cur_buf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
 			ret = video_pip2_keeper_frame_keep_locked
 				((struct vframe_s *)cur_buf->vf_ext,
 				cur_buf_el);

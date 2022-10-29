@@ -42,6 +42,9 @@
 #include <linux/sync_file.h>
 #include <linux/ctype.h>
 #include <linux/amlogic/media/vfm/amlogic_fbc_hook_v1.h>
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+#include <linux/amlogic/media/di/di_interface.h>
+#endif
 
 #include "videodisplay.h"
 #define VIDEO_COMPOSER_VERSION "1.0"
@@ -1651,6 +1654,14 @@ static struct output_axis output_axis_adjust(struct composer_dev *dev,
 	return axis;
 }
 
+bool vf_is_pre_link(struct vframe_s *vf)
+{
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+	if (vf && pvpp_check_vf(vf) > 0 && vf->vf_ext)
+		return true;
+#endif
+	return false;
+}
 
 static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 					 struct file *file_vf, bool need_dw)
@@ -1690,12 +1701,15 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 				di_vf->type_original);
 			if (!need_dw ||
 			    (need_dw && di_vf->width != 0 &&
-				di_vf->canvas0_config[0].phy_addr != 0)) {
+				di_vf->canvas0_config[0].phy_addr != 0 &&
+				!vf_is_pre_link(di_vf))) {
 				vc_print(dev->index, PRINT_OTHER,
-					"use di vf.\n");
+					"use di vf\n");
 				/* link uvm vf into di_vf->vf_ext */
 				if (!di_vf->vf_ext)
 					di_vf->vf_ext = vf;
+				/* link uvm vf into vf->uvm_vf */
+				di_vf->uvm_vf = vf;
 				vf = di_vf;
 			}
 		}
@@ -1710,9 +1724,14 @@ static struct vframe_s *get_vf_from_file(struct composer_dev *dev,
 				 "invalid fd: no uvm, no v4lvideo!!\n");
 		} else {
 			vf = &file_private_data->vf;
-			if (vf->vf_ext && (vf->flag &
-				VFRAME_FLAG_CONTAIN_POST_FRAME))
-				vf = vf->vf_ext;
+			if (need_dw && (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) && vf->vf_ext) {
+				if (vf->width == 0 ||
+					vf->canvas0_config[0].phy_addr == 0 ||
+					vf_is_pre_link(vf)) {
+					vf = vf->vf_ext;
+					vc_print(dev->index, PRINT_OTHER, "use dec vf.\n");
+				}
+			}
 		}
 	}
 	return vf;
@@ -3291,24 +3310,29 @@ static void video_composer_task(struct composer_dev *dev)
 		vc_print(dev->index, PRINT_AXIS,
 			 "===============================\n");
 
-		if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
-			vf_ext = vf->vf_ext;
-			if (vf_ext) {
-				vf_ext->axis[0] = vf->axis[0];
-				vf_ext->axis[1] = vf->axis[1];
-				vf_ext->axis[2] = vf->axis[2];
-				vf_ext->axis[3] = vf->axis[3];
-				vf_ext->crop[0] = vf->crop[0];
-				vf_ext->crop[1] = vf->crop[1];
-				vf_ext->crop[2] = vf->crop[2];
-				vf_ext->crop[3] = vf->crop[3];
-				vf_ext->zorder = vf->zorder;
-				vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
-					| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
-			} else {
-				vc_print(dev->index, PRINT_ERROR,
-					 "vf_ext is null\n");
+		if (is_dec_vf) {
+			/* copy to uvm vf */
+			vf_ext = vf->uvm_vf;
+		} else if (is_v4l_vf) {
+			if (vf->flag & VFRAME_FLAG_DOUBLE_FRAM) {
+				vf_ext = vf->vf_ext;
+				if (!vf_ext)
+					vc_print(dev->index, PRINT_ERROR, "vf_ext is null\n");
 			}
+		}
+
+		if (vf_ext) {
+			vf_ext->axis[0] = vf->axis[0];
+			vf_ext->axis[1] = vf->axis[1];
+			vf_ext->axis[2] = vf->axis[2];
+			vf_ext->axis[3] = vf->axis[3];
+			vf_ext->crop[0] = vf->crop[0];
+			vf_ext->crop[1] = vf->crop[1];
+			vf_ext->crop[2] = vf->crop[2];
+			vf_ext->crop[3] = vf->crop[3];
+			vf_ext->zorder = vf->zorder;
+			vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
+				| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 		}
 
 		if (is_repeat_vf) {
@@ -3459,6 +3483,7 @@ static int video_composer_thread(void *data)
 			dev->last_file = NULL;
 			dev->fake_vf.flag |= VFRAME_FLAG_FAKE_FRAME;
 			dev->fake_vf.vf_ext = NULL;
+			dev->fake_vf.uvm_vf = NULL;
 			dev->fake_back_vf = dev->fake_vf;
 			if (!kfifo_put(&dev->ready_q,
 				       &dev->fake_back_vf))

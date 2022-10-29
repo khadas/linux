@@ -518,8 +518,10 @@ struct video_layer_s {
 	struct pip_alpha_scpxn_s alpha_win;
 	bool pre_link_en;
 	bool need_disable_prelink;
+	bool prelink_bypass_check;
 	bool mosaic_frame;
 	u8 prelink_skip_cnt;
+	s32 last_di_instance;
 	u32 slice_num;
 	u32 pi_enable;
 	u32 vd1s1_vd2_prebld_en;

@@ -270,11 +270,18 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 
 	if (vd_layer_vpp[vpp_id].switch_vf &&
 	    vd_layer_vpp[vpp_id].dispbuf &&
-	    vd_layer_vpp[vpp_id].dispbuf->vf_ext)
-		vd_layer_vpp[vpp_id].vf_ext =
-			(struct vframe_s *)vd_layer_vpp[vpp_id].dispbuf->vf_ext;
-	else
+	    (vd_layer_vpp[vpp_id].dispbuf->vf_ext ||
+	     vd_layer_vpp[vpp_id].dispbuf->uvm_vf)) {
+		/* select uvm_vf first */
+		if (vd_layer_vpp[vpp_id].dispbuf->uvm_vf)
+			vd_layer_vpp[vpp_id].vf_ext =
+				vd_layer_vpp[vpp_id].dispbuf->uvm_vf;
+		else
+			vd_layer_vpp[vpp_id].vf_ext =
+				(struct vframe_s *)vd_layer_vpp[vpp_id].dispbuf->vf_ext;
+	} else {
 		vd_layer_vpp[vpp_id].vf_ext = NULL;
+	}
 
 	/* vd2/3 config */
 	if (gvideo_recv_vpp[recv_id] &&

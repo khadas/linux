@@ -1005,6 +1005,8 @@ static struct vframe_s *vd_get_vf_from_buf(struct composer_dev *dev,
 			/* link uvm vf into di_vf->vf_ext */
 			if (!di_vf->vf_ext)
 				di_vf->vf_ext = vf;
+			/* link uvm vf into vf->uvm_vf */
+			di_vf->uvm_vf = vf;
 			vf = di_vf;
 		}
 		dmabuf_put_vframe(buf);
@@ -1348,6 +1350,7 @@ int video_display_setframe(int layer_index,
 	bool is_dec_vf = false, is_v4l_vf = false, is_repeat_vf = false;
 	struct vd_prepare_s *vd_prepare = NULL;
 	u64 phy_addr2 = 0;
+	struct vframe_s *vf_ext = NULL;
 
 	if (IS_ERR_OR_NULL(frame_info)) {
 		vc_print(layer_index, PRINT_ERROR,
@@ -1432,6 +1435,23 @@ int video_display_setframe(int layer_index,
 			"%s: repeat frame, repeat_count is %d.\n",
 			__func__, vf->repeat_count);
 		return 0;
+	}
+
+	/* copy to uvm vf */
+	vf_ext = vf->uvm_vf;
+	if (vf_ext) {
+		vf_ext->axis[0] = vf->axis[0];
+		vf_ext->axis[1] = vf->axis[1];
+		vf_ext->axis[2] = vf->axis[2];
+		vf_ext->axis[3] = vf->axis[3];
+		vf_ext->crop[0] = vf->crop[0];
+		vf_ext->crop[1] = vf->crop[1];
+		vf_ext->crop[2] = vf->crop[2];
+		vf_ext->crop[3] = vf->crop[3];
+		vf_ext->zorder = vf->zorder;
+		vf_ext->flag |= VFRAME_FLAG_VIDEO_COMPOSER
+			| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
+		vf_ext->disp_pts = 0;
 	}
 
 	if (!(is_dec_vf || is_v4l_vf)) {

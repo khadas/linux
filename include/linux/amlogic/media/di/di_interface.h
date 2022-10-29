@@ -288,6 +288,7 @@ u32 di_api_get_plink_instance_id(void);
 /* call api from vpp */
 void di_disable_prelink_notify(bool async);
 void di_prelink_state_changed_notify(void);
+void di_prelink_force_dmc_priority(bool urgent, bool wait);
 /* bool is_di_hf_y_reverse(void) */
 /*********************************************************
  * @brief  di_s_bypass_ch  set channel bypass

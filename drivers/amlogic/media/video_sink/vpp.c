@@ -40,6 +40,9 @@
 #if defined(CONFIG_AMLOGIC_MEDIA_ENHANCEMENT_VECM)
 #include <linux/amlogic/media/amvecm/amvecm.h>
 #endif
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+#include <linux/amlogic/media/di/di.h>
+#endif
 
 #include "video_priv.h"
 #include "video_hw_s5.h"
@@ -978,6 +981,10 @@ static int vpp_process_speed_check
 			clk_in_pps = 250000000;
 		else
 			clk_in_pps = 333000000;
+#ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
+		if (vf->di_flag & DI_FLAG_DI_PVPPLINK)
+			clk_in_pps = dim_get_vpuclkb_ext();
+#endif
 	} else {
 #ifdef CONFIG_AMLOGIC_VPU
 		clk_in_pps = vpu_clk_get();
@@ -1057,6 +1064,12 @@ static int vpp_process_speed_check
 			height_out * width_out) / clk_temp;
 		display_time_us = 1000000 * sync_duration_den /
 			vinfo->sync_duration_num;
+		if (super_debug)
+			pr_info("%s:input_time_us=%d, display_time_us=%d, dummy_time_us=%d\n",
+				__func__,
+				input_time_us,
+				display_time_us,
+				dummy_time_us);
 		if (display_time_us > dummy_time_us)
 			display_time_us = display_time_us - dummy_time_us;
 		if (input_time_us > display_time_us)
@@ -1098,7 +1111,8 @@ static int vpp_process_speed_check
 					1000 * freq_ratio,
 					height_out * max_height);
 				/* di process first, need more a bit of ratio */
-				if (IS_DI_POST(vf->type))
+				if (IS_DI_POST(vf->type) &&
+				    !(vf->di_flag & DI_FLAG_DI_PVPPLINK))
 					cur_ratio = (cur_ratio * 105) / 100;
 				if (!is_meson_t7_cpu() &&
 					next_frame_par->vscale_skip_count > 0 &&
@@ -1112,11 +1126,12 @@ static int vpp_process_speed_check
 				    (vpp_flags & VPP_FLAG_FROM_TOGGLE_FRAME))
 					cur_skip_ratio = cur_ratio;
 				if (super_debug)
-					pr_info("%s:line=%d,cur_ratio=%d, min_ratio_1000=%d\n",
+					pr_info("%s:line=%d,cur_ratio=%d, min_ratio_1000=%d, type:%x\n",
 						__func__,
 						__LINE__,
 						cur_ratio,
-						min_ratio_1000);
+						min_ratio_1000,
+						vf->type);
 				if (cur_ratio > min_ratio_1000 &&
 				    vf->source_type !=
 				    VFRAME_SOURCE_TYPE_TUNER &&
@@ -1125,21 +1140,36 @@ static int vpp_process_speed_check
 					return SPEED_CHECK_VSKIP;
 			}
 			if (vf->type & VIDTYPE_VIU_422) {
-				/*TODO vpu */
-				clk_calc = div_u64((u64)VPP_SPEED_FACTOR *
+				u64 cur_vpp_speed_factor;
+				u32 cur_bypass_ratio;
+
+				if (IS_DI_POST(vf->type) &&
+				    (vf->di_flag & DI_FLAG_DI_PVPPLINK)) {
+					cur_vpp_speed_factor = 0x100; //adjust factor for prelink
+					cur_bypass_ratio = bypass_ratio;
+				} else {
+					cur_vpp_speed_factor = VPP_SPEED_FACTOR;
+					cur_bypass_ratio = bypass_ratio;
+				}
+				clk_calc = div_u64((u64)cur_vpp_speed_factor *
 					    (u64)width_in *
 					    (u64)height_in *
 					    (u64)vinfo->sync_duration_num *
 					    (u64)vtotal,
 					    height_out *
 					    sync_duration_den *
-					    bypass_ratio);
+					    cur_bypass_ratio);
 				if (super_debug)
-					pr_info("%s:line=%d,clk_calc=%d, clk_in_pps=%d\n",
+					pr_info("%s:line=%d,clk_calc=%d, clk_in_pps=%d, vtotal=%d, sync_duration_num=%d, sync_duration_den=%d, cur_vpp_speed_factor=%lld, cur_bypass_ratio=%d\n",
 						__func__,
 						__LINE__,
 						clk_calc,
-						clk_in_pps);
+						clk_in_pps,
+						vtotal,
+						vinfo->sync_duration_num,
+						sync_duration_den,
+						cur_vpp_speed_factor,
+						cur_bypass_ratio);
 				if (height_out == 0 ||
 				     clk_calc > clk_in_pps)
 					return SPEED_CHECK_VSKIP;

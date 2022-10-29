@@ -548,6 +548,20 @@ static int lowlatency_vsync(u8 instance_id)
 	    vd_layer[0].dispbuf != gvideo_recv[2]->cur_buf)
 		vd_layer[0].dispbuf = gvideo_recv[2]->cur_buf;
 
+	if (vd_layer[0].switch_vf &&
+	    vd_layer[0].dispbuf &&
+	    (vd_layer[0].dispbuf->vf_ext ||
+	     vd_layer[0].dispbuf->uvm_vf)) {
+		/* select uvm_vf first */
+		if (vd_layer[0].dispbuf->uvm_vf)
+			vd_layer[0].vf_ext =
+				vd_layer[0].dispbuf->uvm_vf;
+		else
+			vd_layer[0].vf_ext =
+				(struct vframe_s *)vd_layer[0].dispbuf->vf_ext;
+	} else {
+		vd_layer[0].vf_ext = NULL;
+	}
 	/* vd1 config */
 	if (gvideo_recv[0] &&
 	    gvideo_recv[0]->path_id == vd1_path_id) {
@@ -987,12 +1001,18 @@ static int lowlatency_vsync(u8 instance_id)
 
 	if (vd_layer[1].switch_vf &&
 	    vd_layer[1].dispbuf &&
-	    vd_layer[1].dispbuf->vf_ext)
-		vd_layer[1].vf_ext =
-			(struct vframe_s *)vd_layer[1].dispbuf->vf_ext;
-	else
+	    (vd_layer[1].dispbuf->vf_ext ||
+	     vd_layer[1].dispbuf->uvm_vf)) {
+		/* select uvm_vf first */
+		if (vd_layer[1].dispbuf->uvm_vf)
+			vd_layer[1].vf_ext =
+				vd_layer[1].dispbuf->uvm_vf;
+		else
+			vd_layer[1].vf_ext =
+				(struct vframe_s *)vd_layer[1].dispbuf->vf_ext;
+	} else {
 		vd_layer[1].vf_ext = NULL;
-
+	}
 	/* vd2 config */
 	if (gvideo_recv[0] &&
 	    gvideo_recv[0]->path_id == vd2_path_id) {
@@ -1272,12 +1292,18 @@ static int lowlatency_vsync(u8 instance_id)
 
 		if (vd_layer[2].switch_vf &&
 		    vd_layer[2].dispbuf &&
-		    vd_layer[2].dispbuf->vf_ext)
-			vd_layer[2].vf_ext =
-				(struct vframe_s *)vd_layer[2].dispbuf->vf_ext;
-		else
+		    (vd_layer[2].dispbuf->vf_ext ||
+		     vd_layer[2].dispbuf->uvm_vf)) {
+			/* select uvm_vf first */
+			if (vd_layer[2].dispbuf->uvm_vf)
+				vd_layer[2].vf_ext =
+					vd_layer[2].dispbuf->uvm_vf;
+			else
+				vd_layer[2].vf_ext =
+					(struct vframe_s *)vd_layer[2].dispbuf->vf_ext;
+		} else {
 			vd_layer[2].vf_ext = NULL;
-
+		}
 		/* vd3 config */
 		if (gvideo_recv[0] &&
 		    gvideo_recv[0]->path_id == vd3_path_id) {

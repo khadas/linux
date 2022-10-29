@@ -1952,6 +1952,7 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 	struct hw_afbc_reg_s *vd_afbc_reg = &layer->vd_afbc_reg;
 	bool di_post = false, di_pre_link = false;
 	u8 vpp_index = layer->vpp_index;
+	bool skip_afbc = false;
 
 	if (!vf) {
 		pr_info("%s vf NULL, return\n", __func__);
@@ -1959,6 +1960,25 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 	}
 
 	type = vf->type;
+#ifdef ENABLE_PRE_LINK
+	if (video_is_meson_t5d_revb_cpu() &&
+	    !layer->vd1_vd2_mux &&
+	    !is_local_vf(vf) &&
+	    is_pre_link_on(layer, vf) &&
+	    is_pre_link_source(vf)) {
+		struct vframe_s *dec_vf;
+
+		if (vf->uvm_vf)
+			dec_vf = vf->uvm_vf;
+		else
+			dec_vf = (struct vframe_s *)vf->vf_ext;
+		if (dec_vf && (dec_vf->type & VIDTYPE_COMPRESS)) {
+			type |= VIDTYPE_COMPRESS;
+			skip_afbc = true;
+		}
+	}
+#endif
+
 	if (type & VIDTYPE_MVC)
 		is_mvc = true;
 
@@ -1985,7 +2005,16 @@ static void vd1_set_dcu(struct video_layer_s *layer,
 	if (frame_par->nocomp)
 		type &= ~VIDTYPE_COMPRESS;
 
-	if (type & VIDTYPE_COMPRESS) {
+	if (skip_afbc && (type & VIDTYPE_COMPRESS)) {
+		vd1_path_select(layer, true, false, di_post, di_pre_link);
+		cur_dev->rdma_func[vpp_index].rdma_wr_bits
+			(VD1_AFBCD0_MISC_CTRL,
+			/* vd1 afbc to di */
+			1, 1, 1);
+		cur_dev->rdma_func[vpp_index].rdma_wr
+			(vd_mif_reg->vd_if0_gen_reg, 0);
+		return;
+	} else if (type & VIDTYPE_COMPRESS) {
 		if (cur_dev->display_module == T7_DISPLAY_MODULE) {
 			if (conv_lbuf_len[layer->layer_id] == VIDEO_USE_4K_RAM)
 				r = 3;
@@ -9270,18 +9299,6 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 		canvas_update_for_mif(layer, vf);
 
 		vpp_trace_vframe("swap_vf", (void *)vf, vf->type, vf->flag, layer_id, 0);
-		if (layer->global_debug & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
-			struct canvas_s tmp;
-
-			canvas_read(cur_canvas_tbl[0], &tmp);
-			pr_info("%s %d: vf:%px, y:%02x, adr:0x%lx, canvas0Addr:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf->vf_ext:%px, line:%d\n",
-				__func__, layer_id, vf,
-				cur_canvas_tbl[0], tmp.addr,
-				vf->canvas0Addr, vf->plane_num,
-				vf->type, vf->flag,
-				vf->compHeadAddr, vf->compBodyAddr,
-				vf->vf_ext, line);
-		}
 		if (layer_id == 0 &&
 		    (is_mvc || process_3d_type))
 			canvas_update_for_3d(layer, vf,
@@ -9336,6 +9353,19 @@ int set_layer_display_canvas(struct video_layer_s *layer,
 #ifdef CONFIG_AMLOGIC_MEDIA_VSYNC_RDMA
 		layer->next_canvas_id = layer->cur_canvas_id ? 0 : 1;
 #endif
+	}
+	if (layer->global_debug & DEBUG_FLAG_PRINT_FRAME_DETAIL) {
+		struct canvas_s tmp;
+
+		canvas_read(cur_canvas_tbl[0], &tmp);
+		pr_info("%s %d: vf:%px, y:%02x, adr:0x%lx, canvas0:%x, pnum:%d, type:%x, flag:%x, afbc:0x%lx-0x%lx, vf_ext:%px uvm_vf:%px di_flag:%x size:%d %d, vframe size:%d line:%d\n",
+			__func__, layer_id, vf,
+			cur_canvas_tbl[0], tmp.addr,
+			vf->canvas0Addr, vf->plane_num,
+			vf->type, vf->flag,
+			vf->compHeadAddr, vf->compBodyAddr,
+			vf->vf_ext, vf->uvm_vf, vf->di_flag,
+			vf->compWidth, vf->width, (u32)sizeof(struct vframe_s), line);
 	}
 	return 0;
 }
@@ -9455,14 +9485,20 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 		return ret;
 
 	if (!layer->need_disable_prelink &&
-	    is_pre_link_on(layer, vf) &&
-	    layer->dispbuf &&
-	    layer->dispbuf->di_instance_id != vf->di_instance_id &&
-	    vf->di_instance_id == di_api_get_plink_instance_id()) {
-		layer->need_disable_prelink = true;
-		pr_info("Error: need trigger need_disable_prelink!!, disp:%px id:%d, vf:%px, id:%d\n",
-			layer->dispbuf, layer->dispbuf->di_instance_id,
-			vf, vf->di_instance_id);
+	    is_pre_link_on(layer, vf)) {
+		if (layer->dispbuf &&
+		    layer->dispbuf->di_instance_id !=
+		    vf->di_instance_id &&
+		    vf->di_instance_id ==
+		    di_api_get_plink_instance_id())
+			layer->need_disable_prelink = true;
+		if (!IS_DI_POST(vf->type))
+			layer->need_disable_prelink = true;
+		if (layer->need_disable_prelink && (layer->global_debug & DEBUG_FLAG_PRELINK))
+			pr_info("warning: need trigger need_disable_prelink!!, disp:%px id:%d, vf:%px, id:%d type:0x%x\n",
+				layer->dispbuf,
+				layer->dispbuf ? layer->dispbuf->di_instance_id : -1,
+				vf, vf->di_instance_id, vf->type);
 	}
 	/* for new pipeline and front-end already unreg->reg */
 	if (layer->need_disable_prelink &&
@@ -9471,8 +9507,10 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 
 		if (!layer->dispbuf ||
 		    layer->dispbuf->di_instance_id !=
-		    vf->di_instance_id) {
+		    vf->di_instance_id ||
+		    layer->last_di_instance != vf->di_instance_id) {
 			layer->need_disable_prelink = false;
+			layer->last_di_instance = -1;
 			trig_flag = true;
 		}
 		if (trig_flag && (layer->global_debug & DEBUG_FLAG_PRELINK))
@@ -9482,6 +9520,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 		/* meet non pre-link vf and set need_disable_prelink as 0 */
 		if (is_local_vf(vf) || !vf->vf_ext) {
 			layer->need_disable_prelink = false;
+			layer->last_di_instance = -1;
 		} else if (vf->vf_ext) {
 			/* is_pre_link_source maybe invalid here */
 			/* check if vf is remained and same instance as before */
@@ -9497,13 +9536,23 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 				if (layer->global_debug & DEBUG_FLAG_PRELINK)
 					pr_info("Disable/Bypass pre-link mode ret %d\n", iret);
 			}
-			ret = true;
+
+			/* just bypass prelink and not switch */
+			/* TODO: if need change the condition to IS_DI_PROCESSED */
+			if (!IS_DI_POST(vf->type) && !is_pre_link_source(vf))
+				ret = false;
+			else
+				ret = true;
 			if (layer->global_debug & DEBUG_FLAG_PRELINK_MORE) {
-				pr_info("warning: keeping need_disable_prelink: vf %px, type:%x, flag:%x\n",
-					vf, vf->type, vf->flag);
-				pr_info("is_pre_link_source:%d, is_pre_link_available:%d\n",
-					is_pre_link_source(vf) ? 1 : 0,
-					is_pre_link_available(vf) ? 1 : 0);
+				pr_info("warning: keeping need_disable_prelink: vf %px type:%x flag:%x di_instance_id:%d last_di_instance:%d\n",
+					vf, vf->type, vf->flag,
+					vf->di_instance_id, layer->last_di_instance);
+				if (!IS_DI_POST(vf->type))
+					pr_info("is not pre_link_source\n");
+				else
+					pr_info("is_pre_link_source:%d, is_pre_link_available:%d\n",
+						is_pre_link_source(vf) ? 1 : 0,
+						is_pre_link_available(vf) ? 1 : 0);
 			}
 		}
 		if (is_pre_link_on(layer, vf)) {
@@ -9516,15 +9565,25 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 					__func__, iret);
 			iret = pvpp_sw(false);
 			layer->pre_link_en = false;
+			layer->prelink_bypass_check = false;
+			layer->last_di_instance = vf->di_instance_id;
 			layer->prelink_skip_cnt = 0;
 		}
 		if (!layer->dispbuf ||
-		    (layer->dispbuf->di_instance_id !=
-		     vf->di_instance_id))
+		    layer->dispbuf->di_instance_id !=
+		    vf->di_instance_id ||
+		    layer->last_di_instance != vf->di_instance_id) {
 			layer->need_disable_prelink = false;
+			layer->last_di_instance = -1;
+		}
 		if (layer->global_debug & DEBUG_FLAG_PRELINK)
-			pr_info("Disable pre-link mode. need_disable_prelink:%d, iret:%d\n",
-				layer->need_disable_prelink ? 1 : 0, iret);
+			pr_info("Disable pre-link mode. need_disable_prelink:%d, iret:%d ret:%d\n",
+				layer->need_disable_prelink ? 1 : 0,
+				iret, ret ? 1 : 0);
+		if (layer->global_debug & DEBUG_FLAG_PRELINK_MORE)
+			pr_info("Disable pre-link mode. dispbuf->di_instance_id:%d, vf->di_instance_id:%d last_di_instance:%d\n",
+				layer->dispbuf ? layer->dispbuf->di_instance_id : -2,
+				vf->di_instance_id, layer->last_di_instance);
 	} else {
 		if (layer->next_frame_par->vscale_skip_count > 0 &&
 		    is_pre_link_on(layer, vf) &&
@@ -9532,7 +9591,8 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			pr_info("Error, no vf_ext to switch for pre-link\n");
 
 		/* dynamic switch when di is in active */
-		if (layer->next_frame_par->vscale_skip_count > 0 &&
+		if ((layer->next_frame_par->vscale_skip_count > 0 ||
+		     layer->prelink_bypass_check) &&
 		    is_pre_link_on(layer, vf) && vf->vf_ext) {
 			memset(&di_in_p, 0, sizeof(struct pvpp_dis_para_in_s));
 			di_in_p.dmode = EPVPP_DISPLAY_MODE_BYPASS;
@@ -9544,6 +9604,8 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 					pr_info("Bypass pre-link mode ret %d\n", iret);
 				ret = true;
 				layer->pre_link_en = false;
+				layer->prelink_bypass_check = false;
+				layer->last_di_instance = vf->di_instance_id;
 				layer->prelink_skip_cnt = 0;
 			} else {
 				pr_info("Bypass pre-link fail %d\n", iret);
@@ -9577,6 +9639,9 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 					layer->pre_link_en = true;
 					layer->prelink_skip_cnt = 1;
 				} else {
+					/* force config in next frame swap */
+					if (ret == 0)
+						layer->force_config_cnt++;
 					layer->prelink_skip_cnt = 0;
 					ret = true;
 				}
@@ -9588,6 +9653,7 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			}
 		} else if (!is_pre_link_on(layer, vf) &&
 				!is_local_vf(vf) &&
+				!layer->next_frame_par->vscale_skip_count &&
 				is_pre_link_source(vf)) {
 			ret = true;
 			if (layer->global_debug & DEBUG_FLAG_PRELINK_MORE)
@@ -9598,17 +9664,31 @@ static bool update_pre_link_state(struct video_layer_s *layer,
 			/* is_pre_link_source maybe invalid here */
 			/* should be not run here */
 			if (layer->global_debug & DEBUG_FLAG_PRELINK)
-				pr_info("Warning: need disable pre-link and switch vf %px, vf->ext:%px\n",
-					vf, vf->vf_ext);
+				pr_info("Warning: need disable pre-link and switch vf %px vf_ext:%px uvm_vf:%px\n",
+					vf, vf->vf_ext, vf->uvm_vf);
 			ret = true;
 			layer->pre_link_en = false;
+			layer->prelink_bypass_check = false;
+			layer->last_di_instance = vf->di_instance_id;
 			layer->prelink_skip_cnt = 0;
 		} else if (!is_pre_link_on(layer, vf) &&
 				vf->vf_ext &&
 				!IS_DI_POSTWRTIE(vf->type)) {
-			/* Just test the execption case */
-			pr_info("Execption case: vf %px, vf->ext:%px, type:%x, flag:%x\n",
-				vf, vf->vf_ext, vf->type, vf->flag);
+			/* Just test the exception case */
+			if (IS_DI_POST(vf->type) &&
+			    layer->next_frame_par->vscale_skip_count > 0) {
+				ret = true;
+			} else if (vf->di_flag & DI_FLAG_DI_PVPPLINK) {
+				ret = true;
+				if (layer->global_debug & DEBUG_FLAG_PRELINK)
+					pr_info("can't enable pre-link, force switch: vf %px vf_ext:%px uvm_vf:%px type:%x flag:%x di_flag:%x\n",
+						vf, vf->vf_ext, vf->uvm_vf,
+						vf->type, vf->flag, vf->di_flag);
+			} else if (layer->global_debug & DEBUG_FLAG_PRELINK) {
+				pr_info("pre-link warning: vf %px vf_ext:%px uvm_vf:%px type:%x flag:%x\n",
+					vf, vf->vf_ext, vf->uvm_vf,
+					vf->type, vf->flag);
+			}
 		}
 	}
 	return ret;
@@ -9628,10 +9708,17 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	bool is_mvc = false;
 	u8 layer_id;
 	bool aisr_update = false;
+	struct vframe_s *vf_ext = NULL;
 
 	if (!vf)
 		return vppfilter_fail;
 
+	if (IS_DI_PROCESSED(vf->type)) {
+		if (vf->uvm_vf)
+			vf_ext = vf->uvm_vf;
+		else
+			vf_ext = (struct vframe_s *)vf->vf_ext;
+	}
 	layer_id = layer->layer_id;
 	layer_info = &glayer_info[layer_id];
 
@@ -9664,7 +9751,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	set_video_slice_policy(layer, vf);
 	set_mosaic_vframe_info(layer, layer_info, vf);
 
-	if (!vf->vf_ext) {
+	if (!vf_ext) {
 		if (layer->switch_vf) {
 			force_toggle = true;
 			if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
@@ -9674,10 +9761,9 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		}
 		layer->switch_vf = false;
 	} else if (layer->switch_vf) {
-		struct vframe_s *tmp = (struct vframe_s *)vf->vf_ext;
-
-		memcpy(&tmp->pic_mode, &vf->pic_mode,
-			sizeof(struct vframe_pic_mode_s));
+		if (vf_ext)
+			memcpy(&vf_ext->pic_mode, &vf->pic_mode,
+				sizeof(struct vframe_pic_mode_s));
 		if (!layer->vf_ext)
 			force_toggle = true;
 	}
@@ -9691,8 +9777,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 	aisr_reshape_addr_set(layer, &layer->aisr_mif_setting);
 	set_layer_display_canvas
 		(layer,
-		layer->switch_vf ?
-		(struct vframe_s *)vf->vf_ext : vf,
+		(layer->switch_vf && vf_ext) ? vf_ext : vf,
 		layer->cur_frame_par, layer_info, __LINE__);
 
 	if (layer->global_debug & DEBUG_FLAG_TRACE_EVENT) {
@@ -9814,6 +9899,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		if (ret != vppfilter_changed_but_hold &&
 		    ret != vppfilter_changed_but_switch)
 			layer->new_vpp_setting = true;
+
 		if (layer->mosaic_mode) {
 			int i;
 			struct mosaic_frame_s *mosaic_frame;
@@ -9848,23 +9934,25 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 					layer->new_vpp_setting = true;
 			}
 		}
-		if (ret == vppfilter_success_and_switched && !vf->vf_ext &&
+
+		if (ret == vppfilter_success_and_switched && !vf_ext &&
 		    (layer->global_debug & DEBUG_FLAG_BASIC_INFO))
 			pr_info
 				("Warning: layer%d: pending switch the display to vf_ext %px\n",
 				layer->layer_id, vf);
-		if (ret == vppfilter_success_and_switched && vf->vf_ext) {
+		if (ret == vppfilter_success_and_switched && vf_ext) {
 			/* first switch, need re-config vf ext canvas */
 			if (!layer->switch_vf) {
 				set_layer_display_canvas
 					(layer,
-					(struct vframe_s *)vf->vf_ext,
+					vf_ext,
 					layer->cur_frame_par,
 					layer_info, __LINE__);
 				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info
-						("layer%d: switch to vf_ext %px->%px\n",
-						layer->layer_id, vf, vf->vf_ext);
+						("layer%d: switch to vf_ext %px->%px(%px %px)\n",
+						layer->layer_id, vf, vf_ext,
+						vf->vf_ext, vf->uvm_vf);
 			}
 			layer->switch_vf = true;
 		} else {
@@ -9877,8 +9965,9 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 					layer_info, __LINE__);
 				if (layer->global_debug & DEBUG_FLAG_BASIC_INFO)
 					pr_info
-						("layer%d: switch to orig vf %px->%px\n",
-						layer->layer_id, vf->vf_ext, vf);
+						("layer%d: switch to orig vf %px(%px %px)->%px\n",
+						layer->layer_id, vf_ext,
+						vf->vf_ext, vf->uvm_vf, vf);
 			}
 			layer->switch_vf = false;
 		}
@@ -9948,7 +10037,7 @@ s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		}
 	}
 	if (layer->switch_vf)
-		layer->vf_ext = (struct vframe_s *)vf->vf_ext;
+		layer->vf_ext = vf_ext;
 	else
 		layer->vf_ext = NULL;
 	return ret;
@@ -12977,6 +13066,7 @@ int video_early_init(struct amvideo_device_data_s *p_amvideo)
 		vd_layer[i].keep_frame_id = 0xff;
 		vd_layer[i].disable_video = VIDEO_DISABLE_FORNEXT;
 		vd_layer[i].vpp_index = VPP0;
+		vd_layer[i].last_di_instance = -1;
 
 		/* clip config */
 		vd_layer[i].clip_setting.id = i;

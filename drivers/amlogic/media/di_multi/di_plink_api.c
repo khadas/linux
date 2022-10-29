@@ -361,10 +361,10 @@ static void ext_vpp_prelink_state_changed_notify(void)
 }
 
 /* allow vpp sw other*/
-static void ext_vpp_prelink_real_sw(bool sw)
+static void ext_vpp_prelink_real_sw(bool sw, bool wait)
 {
 #ifndef VPP_LINK_USED_FUNC
-
+	di_prelink_force_dmc_priority(sw, wait);
 #else
 	PR_WARN("dbg:%s:no this function\n", __func__);
 #endif
@@ -4457,17 +4457,23 @@ static int dpvpp_reg_link_sw(bool vpp_disable_async)
 			       __func__, ton_vpp, ton_di, hw->op_n);
 		}
 	} else {
+		bool sw_done = false;
+
 		//off:
 		/*check if bypass*/
 		if (!ton_di && !hw->has_notify_vpp) {
 			/* non-block */
 			ext_vpp_disable_prelink_notify(vpp_disable_async);
+			ext_vpp_prelink_real_sw(false, false);
 			hw->has_notify_vpp = true;
+			sw_done = true;
 		}
 		if (hw->dis_last_para.dmode != EPVPP_DISPLAY_MODE_BYPASS) {
 			PR_INF("wait for bypass\n");
 			return 0;
 		}
+		if (!sw_done)
+			ext_vpp_prelink_real_sw(false, true);
 		atomic_set(&hw->link_sts, 0);//on
 		get_datal()->pre_vpp_active = false;/* interface */
 		PR_INF("%s:set inactive<%d, %d>\n", __func__, ton_vpp, ton_di);
@@ -7017,7 +7023,7 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 
 	if (p_link) {
 		/* set on*/
-		ext_vpp_prelink_real_sw(true);
+		ext_vpp_prelink_real_sw(true, false);
 		val = op->rd(VD1_AFBCD0_MISC_CTRL);
 		if (DIM_IS_IC_EF(SC2)) {
 			/* ? */
@@ -7043,7 +7049,6 @@ static void dpvpph_prelink_sw(const struct reg_acc *op, bool p_link)
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 8, 1);
 			op->bwr(VD1_AFBCD0_MISC_CTRL, 0, 20, 1);
 		}
-		ext_vpp_prelink_real_sw(false);
 		//prelink_status = false;
 		dbg_plink1("c_sw:bk\n");
 	}
