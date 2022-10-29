@@ -767,7 +767,9 @@ u32 hdmi21_get_aud_n_paras(enum hdmi_audio_fs fs,
 		break;
 	}
 	for (i = 0; i < AUDIO_PARA_MAX_NUM; i++) {
-		if (tmds_clk == p->array[i].tmds_clk)
+		if (tmds_clk == p->array[i].tmds_clk ||
+		    (tmds_clk + 1) == p->array[i].tmds_clk ||
+		    (tmds_clk - 1) == p->array[i].tmds_clk)
 			break;
 	}
 

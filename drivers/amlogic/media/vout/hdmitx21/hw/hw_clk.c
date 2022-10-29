@@ -26,7 +26,6 @@ static u32 frac_rate;
 static void set_crt_video_enc(u32 vidx, u32 in_sel, u32 div_n);
 static void set_crt_video_enc2(u32 vidx, u32 in_sel, u32 div_n);
 static void hdmitx_check_frac_rate(struct hdmitx_dev *hdev);
-static int likely_frac_rate_mode(char *m);
 
 /*
  * HDMITX Clock configuration
@@ -105,8 +104,9 @@ void hdmitx21_set_audioclk(u8 hdmitx_aud_clk_div)
 		data32 |= ((hdmitx_aud_clk_div - 1) << 0);
 		hd21_write_reg(CLKCTRL_HTX_CLK_CTRL1, data32);
 	} else {
-		data32 |= ((hdmitx_aud_clk_div - 1 + 1 + 16) << 0);	//500->511
-		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, data32, 0, 12);
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 8, 1); /* enable */
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 3, 9, 2); /* FIXPLL/5 */
+		hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 0, 8); /* div 2 */
 	}
 	// [    8] clk_en for cts_hdmitx_aud_clk
 	hd21_set_reg_bits(CLKCTRL_HTX_CLK_CTRL1, 1, 8, 1);
@@ -1048,10 +1048,10 @@ next:
 		set_crt_video_enc2(0, 0, 1);
 }
 
-static int likely_frac_rate_mode(char *m)
+int likely_frac_rate_mode(const char *m)
 {
-	if (strstr(m, "24hz") || strstr(m, "30hz") || strstr(m, "60hz") ||
-	    strstr(m, "120hz") || strstr(m, "240hz"))
+	if (strstr(m, "24hz") || strstr(m, "30hz") || strstr(m, "48hz") ||
+	    strstr(m, "60hz") || strstr(m, "120hz") || strstr(m, "240hz"))
 		return 1;
 	else
 		return 0;

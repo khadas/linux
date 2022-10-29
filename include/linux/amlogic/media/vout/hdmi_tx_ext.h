@@ -109,6 +109,8 @@ enum hdmi_audio_type {
 	CT_MAX,
 };
 
+#define CT_DOLBY_D CT_DD_P
+
 enum hdmi_audio_chnnum {
 	CC_REFER_TO_STREAM = 0,
 	CC_2CH,

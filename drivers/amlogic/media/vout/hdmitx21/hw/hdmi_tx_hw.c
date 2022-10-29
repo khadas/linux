@@ -1194,12 +1194,21 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 			    struct hdmitx_audpara *audio_param)
 {
 	u32 aud_n_para;
-	u32 char_rate = 0; /* TODO */
+	u32 char_rate = 0;
+	struct hdmi_format_para *para;
 
-	/* if (hdev->frac_rate_policy && hdev->para->timing.frac_freq) */
-		/* char_rate = hdev->para->timing.frac_freq; */
-	/* else */
-		char_rate = hdev->para->timing.pixel_freq;
+	if (!hdev)
+		return;
+
+	para = hdev->para;
+	if (!para)
+		return;
+
+	/* if current mode is 59.94hz not 60hz, char_rate will shift down 0.1% */
+	char_rate = hdev->para->timing.pixel_freq;
+	if (para && para->timing.name && likely_frac_rate_mode(para->timing.name))
+		if (hdev->frac_rate_policy)
+			char_rate = char_rate * 1000 / 1001;
 
 	if (hdev->para->cs == HDMI_COLORSPACE_YUV422)
 		aud_n_para = hdmi21_get_aud_n_paras(audio_param->sample_rate,
@@ -1212,7 +1221,7 @@ static void set_aud_acr_pkt(struct hdmitx_dev *hdev,
 	hdmitx21_set_reg_bits(ACR_CTS_CLK_DIV_IVCTX, hdev->frl_rate ? 1 : 0, 4, 1);
 	/* N must multiples 4 for DD+ */
 	switch (audio_param->type) {
-	case CT_DD_P:
+	case CT_DOLBY_D:
 		aud_n_para *= 4;
 		break;
 	default:
@@ -1255,13 +1264,14 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		return 0;
 	pr_info(HW "set audio\n");
 
+	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 1, 0, 1);
 	if (audio_param->type == CT_MAT || audio_param->type == CT_DTS_HD_MA) {
 		hbr_audio = true;
 		if (audio_param->aud_src_if != AUD_SRC_IF_I2S)
 			pr_info("warning: hbr with non-i2s\n");
 		//div_n = 4;
 	}
-	if (audio_param->type == CT_DD_P)
+	if (audio_param->type == CT_DOLBY_D)
 		div_n = 4;
 
 	sample_rate_k = aud_sr_idx_to_val(audio_param->sample_rate);
@@ -1290,6 +1300,13 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 		hdev->tx_aud_src = 1;
 	else
 		hdev->tx_aud_src = 0;
+
+	/* if current configuration is I2S, PCM, multi-channel, swap I2S CH1 */
+	if (audio_param->aud_src_if == AUD_SRC_IF_I2S && audio_param->type == CT_PCM &&
+		audio_param->channel_num > 2)
+		hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 1, 5, 1);
+	else
+		hdmitx21_set_reg_bits(SPDIF_SSMPL2_IVCTX, 0, 5, 1);
 
 	/* if hdev->aud_output_ch is true, select I2S as 8ch in, 2ch out */
 	//if (hdev->aud_output_ch)
@@ -1394,6 +1411,7 @@ static int hdmitx_set_audmode(struct hdmitx_dev *hdev,
 	hdmitx21_wr_reg(AUD_EN_IVCTX, 0x03);           //AUD_EN
 
 	set_aud_info_pkt(hdev, audio_param);
+	hdmitx21_set_reg_bits(AIP_RST_IVCTX, 0, 0, 1);
 	audio_mute_op(hdev->tx_aud_cfg);
 	return 1;
 }
