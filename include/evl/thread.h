@@ -21,6 +21,7 @@
 #include <evl/timer.h>
 #include <evl/sched/param.h>
 #include <evl/factory.h>
+#include <evl/assert.h>
 #include <uapi/evl/thread.h>
 #include <uapi/evl/signal.h>
 #include <uapi/evl/sched.h>
@@ -185,6 +186,25 @@ void evl_set_sync_uwindow(struct evl_thread *curr, int state_bits)
 	if (curr->u_window) {
 		curr->u_window->state = curr->state | state_bits;
 		curr->u_window->info = curr->info;
+	}
+}
+
+static inline
+void evl_double_thread_lock(struct evl_thread *t1, struct evl_thread *t2)
+{
+	EVL_WARN_ON_ONCE(CORE, t1 == t2);
+	EVL_WARN_ON_ONCE(CORE, !hard_irqs_disabled());
+
+	/*
+	 * Prevent ABBA deadlock, always lock threads in address
+	 * order. The caller guarantees t1 and t2 are distinct.
+	 */
+	if (t1 < t2) {
+		raw_spin_lock(&t1->lock);
+		raw_spin_lock(&t2->lock);
+	} else {
+		raw_spin_lock(&t2->lock);
+		raw_spin_lock(&t1->lock);
 	}
 }
 

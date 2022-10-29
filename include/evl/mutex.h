@@ -30,13 +30,6 @@ struct evl_thread;
 /* Counted in thread->held_mutex_count. */
 #define EVL_MUTEX_COUNTED	BIT(4)
 
-/* Modes for PI chain walk. */
-enum evl_walk_mode {
-	evl_pi_adjust,		/* Adjust priority of members. */
-	evl_pi_reset,		/* Revert members to their base priority. */
-	evl_pi_check,		/* Check the PI chain (no change). */
-};
-
 struct evl_mutex {
 	int wprio;
 	int flags;
@@ -155,8 +148,5 @@ void evl_unlock_kmutex(struct evl_kmutex *kmutex)
 {
 	return evl_unlock_mutex(&kmutex->mutex);
 }
-
-void evl_adjust_wait_priority(struct evl_thread *thread,
-			      enum evl_walk_mode mode);
 
 #endif /* !_EVL_MUTEX_H */
