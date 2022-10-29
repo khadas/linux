@@ -34,6 +34,15 @@ int codec_io_init(void);
 
 int vdec_reg_ops_init(void);
 
+#ifdef CONFIG_AMLOGIC_DSC
+int dsc_init(void);
+#else
+static inline int dsc_init(void)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_AMLOGIC_VPU
 int vpu_init(void);
 #else

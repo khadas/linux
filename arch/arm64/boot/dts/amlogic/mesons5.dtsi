@@ -2268,6 +2268,12 @@
 		rdma_table_page_count = <16>;
 	};
 
+	dsc: dsc {
+		compatible = "amlogic, dsc-s5";
+		status = "okay";
+		reg = <0x0 0xfe0be000 0x0 0x80>;
+	};
+
 	vclk_serve: vclk_serve {
 		compatible = "amlogic, vclk_serve";
 		status = "okay";
