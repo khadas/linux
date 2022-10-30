@@ -82,9 +82,6 @@ void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
 
 void evl_detect_boost_drop(void);
 
-int evl_reorder_mutex_wait(struct evl_thread *waiter,
-			struct evl_thread *originator);
-
 void evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 			struct evl_thread *waiter);
 
@@ -106,7 +103,6 @@ struct evl_kmutex {
 				.lock = __HARD_SPIN_LOCK_INITIALIZER((__name).wchan.lock), \
 				.pi_serial = 0,				\
 				.owner = NULL,				\
-				.reorder_wait = evl_reorder_mutex_wait,	\
 				.requeue_wait = evl_requeue_mutex_wait,	\
 				.wait_list = LIST_HEAD_INIT((__name).mutex.wchan.wait_list), \
 				.name = #__name,			\
