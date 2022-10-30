@@ -57,177 +57,6 @@ void enable_inband_switch(struct evl_thread *curr, struct evl_mutex *mutex)
 	}
 }
 
-/* owner->lock + contender->lock held, irqs off */
-static int inherit_thread_priority(struct evl_thread *owner,
-				struct evl_thread *contender,
-				struct evl_thread *originator)
-{
-	struct evl_wait_channel *wchan;
-	int ret = 0;
-
-	assert_hard_lock(&owner->lock);
-	assert_hard_lock(&contender->lock);
-
-	/* Apply the scheduling policy of @contender to @owner */
-	evl_track_thread_policy(owner, contender);
-
-	/*
-	 * @owner may be blocked on a mutex, the reordering handler
-	 * propagates the priority update along the PI chain if so.
-	 */
-	wchan = owner->wchan;
-	if (wchan)
-		ret = wchan->reorder_wait(owner, originator);
-
-	return ret;
-}
-
-/* Perform a locking op. to non-origin mutex only. */
-#define cond_lock_op(__op, __this_mutex, __origin_mutex)		\
-	do {								\
-		if ((__this_mutex) != (__origin_mutex))			\
-			raw_spin_ ## __op(&(__this_mutex)->wchan.lock);	\
-	} while (0)
-
-/* origin->wchan.owner->lock + contender->lock + origin->wchan.lock held, irqs off */
-static int old_adjust_boost(struct evl_mutex *origin,
-			    struct evl_thread *contender,
-			    struct evl_thread *originator)
-{
-	struct evl_thread *owner = origin->wchan.owner;
-	struct evl_wait_channel *wchan;
-	struct evl_mutex *mutex;
-	int pprio, ret = 0;
-
-	/*
-	 * Adjust the priority of the owner of the @origin mutex as a
-	 * result of a change in the wait list of the latter.  If no
-	 * contender is specified on entry, we track the priority of
-	 * the thread leading the wait list of the mutex leading the
-	 * booster list of the specified owner.  In any case, we know
-	 * a valid contender cannot go stale since it is part of the
-	 * wait list of the mutex being considered, which is locked
-	 * (i.e. mutex->wchan.lock must be held to read/update
-	 * mutex->wchan.wait_list).
-	 *
-	 * @originator is the thread which initially triggered this PI
-	 * walk originally targeting the @origin mutex - we use this
-	 * information specifically for deadlock detection, making
-	 * sure that @originator never appears in the dependency chain
-	 * more than once.
-	 *
-	 * The safe locking order during the PI chain traversal is:
-	 *
-	 * ... (start of traversal) ...
-	 * +-> owner->lock
-	 * |     mutex->wchan.lock
-	 * |
-	 * |  owner := mutex->wchan.owner
-	 * |  mutex := owner->wchan -+
-	 * |                         |
-	 * +-------------------------+
-	 *
-	 * At each stage, wchan->reorder_wait() fixes up the priority
-	 * for @owner before walking deeper into the PI chain.
-	 */
-	assert_hard_lock(&owner->lock);
-	assert_hard_lock(&origin->wchan.lock);
-
-	/*
-	 * CAUTION: we may have PI and PP-enabled mutexes among the
-	 * boosters, considering the leader of mutex->wchan.wait_list
-	 * is therefore NOT enough for determining the next boost
-	 * priority, since PP is tracked lazily on acquisition, not
-	 * immediately when a contention is detected. Check the head
-	 * of the booster list instead.
-	 */
-	mutex = list_first_entry(&owner->boosters,
-				struct evl_mutex, next_booster);
-	cond_lock_op(lock, mutex, origin);
-	if (mutex->wprio == owner->wprio) {
-		cond_lock_op(unlock, mutex, origin);
-		return 0;
-	}
-
-	if (mutex->flags & EVL_MUTEX_PP) {
-		pprio = get_ceiling_value(mutex);
-		/*
-		 * Raise @owner priority to the ceiling value, this
-		 * implicitly switches it to SCHED_FIFO if need be.
-		 */
-		evl_protect_thread_priority(owner, pprio);
-		wchan = owner->wchan;
-		if (wchan)
-			ret = wchan->reorder_wait(owner, originator);
-		cond_lock_op(unlock, mutex, origin);
-	} else {
-		if (EVL_WARN_ON(CORE, list_empty(&mutex->wchan.wait_list))) {
-			cond_lock_op(unlock, mutex, origin);
-			return 0;
-		}
-		if (contender == NULL) {
-			contender = list_first_entry(&mutex->wchan.wait_list,
-						struct evl_thread, wait_next);
-			raw_spin_lock(&contender->lock);
-			ret = inherit_thread_priority(owner, contender,
-						originator);
-			raw_spin_unlock(&contender->lock);
-		} else {
-			/* Otherwise @contender is already locked. */
-			ret = inherit_thread_priority(owner, contender,
-						originator);
-		}
-		cond_lock_op(unlock, mutex, origin);
-	}
-
-	return ret;
-}
-
-/* mutex->wchan.lock held, irqs off */
-static void untrack_owner(struct evl_mutex *mutex)
-{
-	struct evl_thread *owner = mutex->wchan.owner;
-
-	assert_hard_lock(&mutex->wchan.lock);
-
-	if (owner) {
-		raw_spin_lock(&owner->lock);
-		list_del(&mutex->next_owned);
-		mutex->wchan.owner = NULL;
-		raw_spin_unlock(&owner->lock);
-		evl_put_element(&owner->element);
-	}
-}
-
-/* mutex->wchan.lock held, irqs off. */
-static void track_owner(struct evl_mutex *mutex,
-			struct evl_thread *owner)
-{
-	struct evl_thread *prev = mutex->wchan.owner;
-
-	assert_hard_lock(&mutex->wchan.lock);
-
-	if (EVL_WARN_ON(CORE, prev != NULL))
-		return;
-
-	raw_spin_lock(&owner->lock);
-	list_add(&mutex->next_owned, &owner->owned_mutexes);
-	mutex->wchan.owner = owner;
-	raw_spin_unlock(&owner->lock);
-}
-
-/* mutex->wchan.lock held, irqs off. */
-static inline void ref_and_track_owner(struct evl_mutex *mutex,
-				struct evl_thread *owner)
-{
-	assert_hard_lock(&mutex->wchan.lock);
-
-	if (mutex->wchan.owner != owner) {
-		evl_get_element(&owner->element);
-		track_owner(mutex, owner);
-	}
-}
-
 static inline int fast_mutex_is_claimed(fundle_t handle)
 {
 	return (handle & EVL_MUTEX_FLCLAIM) != 0;
@@ -275,6 +104,22 @@ static void track_mutex_owner(struct evl_mutex *mutex, struct evl_thread *owner)
 
 	list_add(&mutex->next_owned, &owner->owned_mutexes);
 	mutex->wchan.owner = owner;
+}
+
+/* mutex->wchan.lock held, irqs off */
+static void untrack_mutex_owner(struct evl_mutex *mutex)
+{
+	struct evl_thread *owner = mutex->wchan.owner;
+
+	assert_hard_lock(&mutex->wchan.lock);
+
+	if (owner) {
+		raw_spin_lock(&owner->lock);
+		list_del(&mutex->next_owned);
+		mutex->wchan.owner = NULL;
+		raw_spin_unlock(&owner->lock);
+		evl_put_element(&owner->element);
+	}
 }
 
 /*
@@ -632,7 +477,6 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 	mutex->clock = clock;
 	mutex->wchan.pi_serial = 0;
 	mutex->wchan.owner = NULL;
-	mutex->wchan.reorder_wait = evl_reorder_mutex_wait;
 	mutex->wchan.requeue_wait = evl_requeue_mutex_wait;
 	mutex->wchan.name = name;
 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
@@ -688,7 +532,7 @@ void evl_destroy_mutex(struct evl_mutex *mutex)
 	trace_evl_mutex_destroy(mutex);
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
 	flush_mutex_locked(mutex, T_RMID);
-	untrack_owner(mutex);
+	untrack_mutex_owner(mutex);
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 	evl_schedule();
 	lockdep_unregister_key(&mutex->wchan.lock_key);
@@ -849,7 +693,7 @@ retry:
 	 * logic protected by that lock is dead in the water anyway.
 	 */
 	if (owner == NULL) {
-		untrack_owner(mutex);
+		untrack_mutex_owner(mutex);
 		raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 		return -EOWNERDEAD;
 	}
@@ -987,7 +831,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	}
 
 	/* Clear the owner information. */
-	untrack_owner(mutex);
+	untrack_mutex_owner(mutex);
 
 	/*
 	 * Allow the first waiter in line to retry acquiring the
@@ -1063,57 +907,6 @@ wchan_to_mutex(struct evl_wait_channel *wchan)
 {
 	return container_of(wchan, struct evl_mutex, wchan);
 }
-
-/* waiter->lock held, irqs off */
-int evl_reorder_mutex_wait(struct evl_thread *waiter,
-			struct evl_thread *originator)
-{
-	struct evl_mutex *mutex = wchan_to_mutex(waiter->wchan);
-	struct evl_thread *owner;
-	int ret;
-
-	assert_hard_lock(&waiter->lock);
-
-	raw_spin_lock(&mutex->wchan.lock);
-
-	owner = mutex->wchan.owner;
-	if (owner == originator) {
-		ret = -EDEADLK;
-		goto out;
-	}
-
-	/*
-	 * Update the position in the wait list of a thread waiting
-	 * for a lock. This routine propagates the change throughout
-	 * the PI chain if required.
-	 */
-	list_del(&waiter->wait_next);
-	list_add_priff(waiter, &mutex->wchan.wait_list, wprio, wait_next);
-
-	if (!(mutex->flags & EVL_MUTEX_PI)) {
-		raw_spin_unlock(&mutex->wchan.lock);
-		return 0;
-	}
-
-	/* Update the PI chain. */
-
-	mutex->wprio = waiter->wprio;
-	raw_spin_lock(&owner->lock);
-
-	if (mutex->flags & EVL_MUTEX_PIBOOST)
-		list_del(&mutex->next_booster);
-	else
-		mutex->flags |= EVL_MUTEX_PIBOOST;
-
-	list_add_priff(mutex, &owner->boosters, wprio, next_booster);
-	ret = old_adjust_boost(mutex, waiter, originator);
-	raw_spin_unlock(&owner->lock);
-out:
-	raw_spin_unlock(&mutex->wchan.lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(evl_reorder_mutex_wait);
 
 /* wchan->lock + wchan->owner->lock + waiter->lock held, irqs off. */
 void evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
