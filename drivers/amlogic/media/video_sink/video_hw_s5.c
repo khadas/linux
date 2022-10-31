@@ -2203,6 +2203,9 @@ static void vd2_proc_set(u32 vpp_index, struct vd2_proc_s *vd2_proc)
 			(vd2_proc->dout_hsize / 2) << 16 |
 			vd2_proc->dout_vsize / 2);
 	} else {
+		/* clear vd2 pi set */
+		rdma_wr_bits(vd2_proc_misc_reg->vd2_pilite_ctrl,
+			vd2_proc->vd_proc_pi.pi_en, 0, 1);
 		rdma_wr(vd2_proc_misc_reg->vd2_proc_out_size,
 			SIZE_ALIG4(vd2_proc->dout_hsize << 16 |
 			vd2_proc->dout_vsize));
@@ -4149,6 +4152,7 @@ static void vd_proc_param_set_vd2(struct vd_proc_s *vd_proc)
 		dout_hsize = dout_hsize * 2;
 		dout_vsize = dout_vsize * 2;
 	} else {
+		vd2_proc->vd_proc_pi.pi_en = 0;
 		pps_dout_hsize = dout_hsize;
 		pps_dout_vsize = dout_vsize;
 	}
