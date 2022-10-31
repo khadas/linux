@@ -39,7 +39,7 @@
 #define AUCPU_DRVERR_WRONG_STATE		-72
 #define AUCPU_DRVERR_VALID_CONTEXT		-72
 #define AUCPU_DRVERR_MEM_ALLOC			-73
-#define AUCPU_DRVERR_FILE_OEPN			-74
+#define AUCPU_DRVERR_FILE_OPEN			-74
 #define AUCPU_DRVERR_MEM_MAP			-75
 /**
  * struct dma_link_des

@@ -83,7 +83,7 @@ static int debug_dsc;
 module_param(debug_dsc, int, 0644);
 
 static int s_init_flag;
-static unsigned int gloable_ch_id;
+static unsigned int global_ch_id;
 
 static void _init_per_table(struct dsc_pid_table *head, int n)
 {
@@ -264,12 +264,12 @@ static int _dsc_chan_alloc(struct aml_dsc *dsc,
 	ch->index = index;
 	ch->index00 = -1;
 	ch->next = NULL;
-	ch->id = gloable_ch_id;
+	ch->id = global_ch_id;
 
 	_add_chan_to_list(dsc, ch);
-	*ca_index = gloable_ch_id;
+	*ca_index = global_ch_id;
 
-	gloable_ch_id++;
+	global_ch_id++;
 	return 0;
 }
 

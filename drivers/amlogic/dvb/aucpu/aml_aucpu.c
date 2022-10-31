@@ -1029,7 +1029,7 @@ s32 aml_aucpu_strm_get_load_firmware_status(void)
 }
 EXPORT_SYMBOL(aml_aucpu_strm_get_load_firmware_status);
 
-static void clear_aucpu_all_intances(void)
+static void clear_aucpu_all_instances(void)
 {
 	struct aucpu_ctx_t *pctx;
 	struct aucpu_inst_t *pinst;
@@ -1370,7 +1370,7 @@ static s32 aucpu_remove(struct platform_device *pdev)
 {
 	aucpu_pr(LOG_DEBUG, "aupu_remove\n");
 
-	clear_aucpu_all_intances(); //make sure aucpu is idle
+	clear_aucpu_all_instances(); //make sure aucpu is idle
 	stop_aucpu_fw(&pdev->dev /*aucpu_dev */);
 
 	if (s_aucpu_irq_requested) {

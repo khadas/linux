@@ -134,8 +134,8 @@ struct smc_status_reg {
 #ifdef __LITTLE_ENDIAN__
 	unsigned recv_fifo_threshold_status:1;	/* Bit 0*/
 	unsigned send_fifo_last_byte_status:1;	/* Bit 1*/
-	unsigned cwt_expeired_status:1;	/* Bit 2*/
-	unsigned bwt_expeired_status:1;	/* Bit 3*/
+	unsigned cwt_expired_status:1;	/* Bit 2*/
+	unsigned bwt_expired_status:1;	/* Bit 3*/
 	unsigned write_full_send_fifo_status:1;	/* Bit 4*/
 	unsigned send_and_recv_confilt_status:1;	/* Bit 5*/
 	unsigned recv_error_status:1;	/* Bit 6*/
@@ -171,8 +171,8 @@ struct smc_status_reg {
 	unsigned recv_error_status:1;	/* Bit 6*/
 	unsigned send_and_recv_confilt_status:1;	/* Bit 5*/
 	unsigned write_full_send_fifo_status:1;	/* Bit 4*/
-	unsigned bwt_expeired_status:1;	/* Bit 3*/
-	unsigned cwt_expeired_status:1;	/* Bit 2*/
+	unsigned bwt_expired_status:1;	/* Bit 3*/
+	unsigned cwt_expired_status:1;	/* Bit 2*/
 	unsigned send_fifo_last_byte_status:1;	/* Bit 1*/
 	unsigned recv_fifo_threshold_status:1;	/* Bit 0*/
 #endif
@@ -182,8 +182,8 @@ struct smc_interrupt_reg {
 #ifdef __LITTLE_ENDIAN__
 	unsigned recv_fifo_bytes_threshold_int:1;	/* Bit 0*/
 	unsigned send_fifo_last_byte_int:1;	/* Bit 1*/
-	unsigned cwt_expeired_int:1;	/* Bit 2*/
-	unsigned bwt_expeired_int:1;	/* Bit 3*/
+	unsigned cwt_expired_int:1;	/* Bit 2*/
+	unsigned bwt_expired_int:1;	/* Bit 3*/
 	unsigned write_full_fifo_int:1;	/* Bit 4*/
 	unsigned send_and_recv_confilt_int:1;	/* Bit 5*/
 	unsigned recv_error_int:1;		/* Bit 6*/
@@ -193,8 +193,8 @@ struct smc_interrupt_reg {
 	unsigned unused1:6;		/* Bit 15:10*/
 	unsigned recv_fifo_bytes_threshold_int_mask:1;	/* Bit 16*/
 	unsigned send_fifo_last_byte_int_mask:1;	/* Bit 17*/
-	unsigned cwt_expeired_int_mask:1;	/* Bit 18*/
-	unsigned bwt_expeired_int_mask:1;	/* Bit 19*/
+	unsigned cwt_expired_int_mask:1;	/* Bit 18*/
+	unsigned bwt_expired_int_mask:1;	/* Bit 19*/
 	unsigned write_full_fifo_int_mask:1;	/* Bit 20*/
 	unsigned send_and_recv_confilt_int_mask:1;	/* Bit 21*/
 	unsigned recv_error_int_mask:1;	/* Bit 22*/
@@ -210,8 +210,8 @@ struct smc_interrupt_reg {
 	unsigned recv_error_int_mask:1;	/* Bit 22*/
 	unsigned send_and_recv_confilt_int_mask:1;	/* Bit 21*/
 	unsigned write_full_fifo_int_mask:1;	/* Bit 20*/
-	unsigned bwt_expeired_int_mask:1;	/* Bit 19*/
-	unsigned cwt_expeired_int_mask:1;	/* Bit 18*/
+	unsigned bwt_expired_int_mask:1;	/* Bit 19*/
+	unsigned cwt_expired_int_mask:1;	/* Bit 18*/
 	unsigned send_fifo_last_byte_int_mask:1;	/* Bit 17*/
 	unsigned recv_fifo_bytes_threshold_int_mask:1;	/* Bit 16*/
 	unsigned unused1:6;		/* Bit 15:10*/
@@ -221,8 +221,8 @@ struct smc_interrupt_reg {
 	unsigned recv_error_int:1;		/* Bit 6*/
 	unsigned send_and_recv_confilt_int:1;	/* Bit 5*/
 	unsigned write_full_fifo_int:1;	/* Bit 4*/
-	unsigned bwt_expeired_int:1;	/* Bit 3*/
-	unsigned cwt_expeired_int:1;	/* Bit 2*/
+	unsigned bwt_expired_int:1;	/* Bit 3*/
+	unsigned cwt_expired_int:1;	/* Bit 2*/
 	unsigned send_fifo_last_byte_int:1;	/* Bit 1*/
 	unsigned recv_fifo_bytes_threshold_int:1;	/* Bit 0*/
 #endif

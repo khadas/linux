@@ -1358,8 +1358,8 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg_int = (struct smc_interrupt_reg *)&v;
 	reg_int->recv_fifo_bytes_threshold_int_mask = 0;
 	reg_int->send_fifo_last_byte_int_mask = 1;
-	reg_int->cwt_expeired_int_mask = 1;
-	reg_int->bwt_expeired_int_mask = 1;
+	reg_int->cwt_expired_int_mask = 1;
+	reg_int->bwt_expired_int_mask = 1;
 	reg_int->write_full_fifo_int_mask = 1;
 	reg_int->send_and_recv_confilt_int_mask = 1;
 	reg_int->recv_error_int_mask = 1;
@@ -1551,7 +1551,7 @@ static int smc_hw_get(struct smc_dev *smc, int cnt, int timeout)
 		if (sc_status_reg->rst_expired_status)
 			pr_error("atr timeout\n");
 
-		if (sc_status_reg->cwt_expeired_status) {
+		if (sc_status_reg->cwt_expired_status) {
 			pr_error("cwt timeout when get atr,");
 			pr_error("but maybe it is natural!\n");
 		}

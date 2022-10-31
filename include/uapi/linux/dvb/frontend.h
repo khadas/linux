@@ -1155,7 +1155,7 @@ enum tuner_param_cmd_e {
 struct tuner_param_s {
 	enum tuner_param_cmd_e cmd;
 	unsigned int      parm;
-	unsigned int	resvred;
+	unsigned int	reserved;
 };
 
 // typedef struct dvb_analog_parameters dvb_analog_parameters_t;
