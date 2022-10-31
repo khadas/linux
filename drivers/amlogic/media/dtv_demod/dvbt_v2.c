@@ -1810,7 +1810,7 @@ void dvbt_info(struct aml_dtvdemod *demod, struct seq_file *seq)
 		str_sm_cst = "W_TPS_lock";
 		break;
 	case 9:
-		str_sm_cst = "TPS_Monitr";
+		str_sm_cst = "TPS_Monitor";
 		break;
 	case 12:
 		str_sm_cst = "G_AGC_lock";

@@ -136,7 +136,7 @@ struct fft_total_result {
 #define DVBS_REG_ACRPRESC	0x31E
 #define DVBS_REG_ACRDIV		0x31F
 
-#define DVBS_REG_DSQADCICFG	0x121
+#define DVBS_REG_DSQADCINCFG	0x121
 
 #define DSTATUS		0x934
 

@@ -254,9 +254,9 @@ void atv_dmd_misc(void)
 	 * then unmute in detection.
 	 */
 	if ((audio_atv_ov || atv_audio_overmodulated_en) && non_std_en == 0)
-		aml_audio_valume_gain_set(0);
+		aml_audio_volume_gain_set(0);
 	else
-		aml_audio_valume_gain_set(audio_gain_val);
+		aml_audio_volume_gain_set(audio_gain_val);
 
 	/* 20160121 fix audio demodulation over */
 	atv_dmd_wr_long(APB_BLOCK_ADDR_SIF_STG_2, 0x00, 0x1030501);
@@ -1685,7 +1685,7 @@ static int atvdemod_get_snr(void)
 	return ret;
 }
 
-void atvdemod_det_snr_serice(void)
+void atvdemod_det_snr_series(void)
 {
 	snr_val = atvdemod_get_snr();
 
@@ -2445,7 +2445,7 @@ int aml_audiomode_autodet(struct v4l2_frontend *v4l2_fe)
 	return broad_std;
 }
 
-void aml_audio_valume_gain_set(unsigned int audio_gain)
+void aml_audio_volume_gain_set(unsigned int audio_gain)
 {
 	unsigned long audio_gain_data = 0, temp_data = 0;
 
@@ -2460,7 +2460,7 @@ void aml_audio_valume_gain_set(unsigned int audio_gain)
 	atv_dmd_wr_word(APB_BLOCK_ADDR_MONO_PROC, 0x52, temp_data);
 }
 
-unsigned int aml_audio_valume_gain_get(void)
+unsigned int aml_audio_volume_gain_get(void)
 {
 	unsigned long audio_gain_data = 0;
 
@@ -2525,7 +2525,7 @@ void aml_audio_overmodulation(int enable)
 			audio_source_select(0);
 
 			/* val = 0x200 * (1 + Vstd/Vo) */
-			aml_audio_valume_gain_set(audio_ov_gain_val);
+			aml_audio_volume_gain_set(audio_ov_gain_val);
 
 			audio_atv_ov_flag = 1;
 			pr_info("tmp_v[0x%lx] > 0x%x && audio_atv_ov_flag == 0.\n",

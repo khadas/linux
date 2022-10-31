@@ -4791,7 +4791,7 @@ static bool enter_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsy
 
 static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys)
 {
-	bool realy_leave = true;
+	bool really_leave = true;
 	struct aml_dtvdemod *tmp = NULL;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -4806,12 +4806,12 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 
 	list_for_each_entry(tmp, &devp->demod_list, list) {
 		if (tmp->id != demod->id && tmp->inited) {
-			realy_leave = false;
+			really_leave = false;
 			break;
 		}
 	}
 
-	if (realy_leave)
+	if (really_leave)
 		dtvpll_init_flag(0);
 
 	/*dvbc_timer_exit();*/
@@ -4822,7 +4822,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		demod->last_qam_mode = QAM_MODE_NUM;
-		if (realy_leave && devp->dvbc_inited)
+		if (really_leave && devp->dvbc_inited)
 			devp->dvbc_inited = false;
 
 		break;
@@ -4873,7 +4873,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 		break;
 	}
 
-	if (realy_leave) {
+	if (really_leave) {
 #ifdef CONFIG_AMLOGIC_MEDIA_ADC
 		adc_set_pll_cntl(0, ADC_DTV_DEMOD, NULL);
 		adc_set_pll_cntl(0, ADC_DTV_DEMODPLL, NULL);
@@ -4889,7 +4889,7 @@ static int leave_mode(struct aml_dtvdemod *demod, enum fe_delivery_system delsys
 			devp->flg_cma_allc = false;
 		}
 
-		PR_INFO("%s: realy_leave.\n", __func__);
+		PR_INFO("%s: really_leave.\n", __func__);
 	}
 
 	demod->inited = false;

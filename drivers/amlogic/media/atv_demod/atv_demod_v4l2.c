@@ -1126,7 +1126,7 @@ v4l2_fail:
 	return ret;
 }
 
-int v4l2_unresister_frontend(struct v4l2_frontend *v4l2_fe)
+int v4l2_unregister_frontend(struct v4l2_frontend *v4l2_fe)
 {
 	struct v4l2_frontend_private *fepriv = v4l2_fe->frontend_priv;
 

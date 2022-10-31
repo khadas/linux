@@ -62,7 +62,7 @@ static void atv_demod_monitor_do_work(struct work_struct *work)
 	}
 
 	if (atvdemod_det_snr_en)
-		atvdemod_det_snr_serice();
+		atvdemod_det_snr_series();
 
 	if (audio_thd_en)
 		audio_thd_det();

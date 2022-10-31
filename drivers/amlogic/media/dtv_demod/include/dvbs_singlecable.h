@@ -94,7 +94,7 @@ struct SINGLECABLE_CONFIG_NB {
 	enum SINGLECABLE_UB_SLOTS ub_slots; /**< Number of User band (UB) slots. */
 };
 
-enum SINGLECABLE_BANK aml_singlecable_get_bank(enum SINGLECABLE_SAT_POS satpos,
+enum SINGLECABLE_BANK aml_singlecable_get_bank(enum SINGLECABLE_SAT_POS sat_pos,
 		unsigned char polarity, unsigned char lnb_band);
 int aml_singlecable_command_ODU_channel_change(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband,
@@ -102,12 +102,12 @@ int aml_singlecable_command_ODU_channel_change(struct dvb_diseqc_master_cmd *cmd
 		unsigned int center_freq_khz);
 int aml_singlecable_command_ODU_poweroff(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband);
-int aml_singlecable_command_ODU_ubxsignal_on(struct dvb_diseqc_master_cmd *cmd,
+int aml_singlecable_command_ODU_ubx_signal_on(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address);
 int aml_singlecable_command_ODU_config(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband,
-		enum SINGLECABLE_SAT_POS satpos, enum SINGLECABLE_RF_BAND rfband,
-		enum SINGLECABLE_UB_SLOTS ubslots);
+		enum SINGLECABLE_SAT_POS sat_pos, enum SINGLECABLE_RF_BAND rfband,
+		enum SINGLECABLE_UB_SLOTS ub_slots);
 int aml_singlecable_command_ODU_lofreq(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband,
 		enum SINGLECABLE_LOFREQ lofreq);
@@ -117,12 +117,12 @@ int aml_singlecable_command_ODU_channel_change_MDU(struct dvb_diseqc_master_cmd 
 		unsigned int center_freq_khz, unsigned char pin);
 int aml_singlecable_command_ODU_poweroff_MDU(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband, unsigned char pin);
-int aml_singlecable_command_ODU_ubxsignal_on_MDU(struct dvb_diseqc_master_cmd *cmd,
+int aml_singlecable_command_ODU_ubx_signal_on_MDU(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char pin);
 int aml_singlecable_command_ODU_config_MDU(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband,
-		enum SINGLECABLE_SAT_POS satpos, enum SINGLECABLE_RF_BAND rfband,
-		enum SINGLECABLE_UB_SLOTS ubslots, unsigned char pin);
+		enum SINGLECABLE_SAT_POS sat_pos, enum SINGLECABLE_RF_BAND rfband,
+		enum SINGLECABLE_UB_SLOTS ub_slots, unsigned char pin);
 int aml_singlecable_command_ODU_lofreq_MDU(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband,
 		enum SINGLECABLE_LOFREQ lofreq, unsigned char pin);

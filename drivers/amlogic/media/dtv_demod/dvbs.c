@@ -393,7 +393,7 @@ static struct stchip_register_t l2a_def_val_local[] = {
 	{0x8a4,    0x00},/* REG_RL2A_DVBSX_HWARE_GEN_TSTTSRS */
 	{0x8c0,    0x06},/* REG_RL2A_DVBSX_HWARE_GEN_GCTRL */
 	{0x8c1,    0xc8},/* REG_RL2A_DVBSX_HWARE_GEN_FFTCTRL */
-	{0x8c2,    0x0a},/* REG_RL2A_DVBSX_HWARE_GEN_FFTACC */
+	{0x8c2,    0x0a},/* REG_RL2A_DVBSX_HWARE_GEN_FFT_ACC */
 	{0x8c3,    0x04},/* REG_RL2A_DVBSX_HWARE_GEN_THRESHOLD */
 	{0x8c4,    0x00},/* REG_RL2A_DVBSX_HWARE_GEN_GAINCONT */
 	{0x8c5,    0x00},/* REG_RL2A_DVBSX_HWARE_GEN_UPDCONT */
@@ -1375,7 +1375,7 @@ void dvbs2_diseqc_init(void)
 
 	/* number of bit to wait before starting the transmission */
 	dvbs_wr_byte(DVBS_REG_DISTXWAIT, 0x1);
-	dvbs_wr_byte(DVBS_REG_DSQADCICFG, 0x67);
+	dvbs_wr_byte(DVBS_REG_DSQADCINCFG, 0x67);
 }
 
 void dvbs2_diseqc_recv_en(bool onoff)

@@ -8,12 +8,12 @@
 
 static int add_pin_code(struct dvb_diseqc_master_cmd *cmd, unsigned char pin);
 
-enum SINGLECABLE_BANK aml_singlecable_get_bank(enum SINGLECABLE_SAT_POS satpos,
+enum SINGLECABLE_BANK aml_singlecable_get_bank(enum SINGLECABLE_SAT_POS sat_pos,
 		unsigned char polarity, unsigned char lnb_band)
 {
 	enum SINGLECABLE_BANK bank = 0;
 
-	if (satpos == SINGLECABLE_SAT_POS_1) {
+	if (sat_pos == SINGLECABLE_SAT_POS_1) {
 		if (polarity == SINGLECABLE_POLAR_V) {
 			if (lnb_band == SINGLECABLE_LNB_BAND_L)
 				bank = SINGLECABLE_BANK_0;
@@ -96,7 +96,7 @@ int aml_singlecable_command_ODU_poweroff(struct dvb_diseqc_master_cmd *cmd,
 	return 0;
 }
 
-int aml_singlecable_command_ODU_ubxsignal_on(struct dvb_diseqc_master_cmd *cmd,
+int aml_singlecable_command_ODU_ubx_signal_on(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address)
 {
 	if (!cmd)
@@ -114,16 +114,16 @@ int aml_singlecable_command_ODU_ubxsignal_on(struct dvb_diseqc_master_cmd *cmd,
 
 int aml_singlecable_command_ODU_config(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband,
-		enum SINGLECABLE_SAT_POS satpos,
+		enum SINGLECABLE_SAT_POS sat_pos,
 		enum SINGLECABLE_RF_BAND rfband,
-		enum SINGLECABLE_UB_SLOTS ubslots)
+		enum SINGLECABLE_UB_SLOTS ub_slots)
 {
 	unsigned int index = 0;
 	static const struct
 	{
-		enum SINGLECABLE_SAT_POS satpos;
+		enum SINGLECABLE_SAT_POS sat_pos;
 		enum SINGLECABLE_RF_BAND rfband;
-		enum SINGLECABLE_UB_SLOTS ubslots;
+		enum SINGLECABLE_UB_SLOTS ub_slots;
 		unsigned char Config_Nb;
 	} ODU_config_table[] = {
 	{ SINGLECABLE_SAT_POS_1, SINGLECABLE_RF_BAND_STANDARD,
@@ -172,9 +172,9 @@ int aml_singlecable_command_ODU_config(struct dvb_diseqc_master_cmd *cmd,
 
 	for (index = 0; index < (unsigned int)(sizeof(ODU_config_table)
 							/ sizeof(ODU_config_table[0])); index++) {
-		if (satpos == ODU_config_table[index].satpos &&
+		if (sat_pos == ODU_config_table[index].sat_pos &&
 			rfband == ODU_config_table[index].rfband &&
-			ubslots == ODU_config_table[index].ubslots) {
+			ub_slots == ODU_config_table[index].ub_slots) {
 			cmd->msg[4] = ODU_config_table[index].Config_Nb;
 			cmd->msg_len = 5;
 			/* Success */
@@ -249,7 +249,7 @@ int aml_singlecable_command_ODU_poweroff_MDU(struct dvb_diseqc_master_cmd *cmd,
 	return add_pin_code(cmd, pin);
 }
 
-int aml_singlecable_command_ODU_ubxsignal_on_MDU(struct dvb_diseqc_master_cmd *cmd,
+int aml_singlecable_command_ODU_ubx_signal_on_MDU(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char pin)
 {
 	int ret = 0;
@@ -257,7 +257,7 @@ int aml_singlecable_command_ODU_ubxsignal_on_MDU(struct dvb_diseqc_master_cmd *c
 	if (!cmd)
 		return -ENXIO;
 
-	ret = aml_singlecable_command_ODU_ubxsignal_on(cmd, address);
+	ret = aml_singlecable_command_ODU_ubx_signal_on(cmd, address);
 	if (!ret)
 		return ret;
 
@@ -268,9 +268,9 @@ int aml_singlecable_command_ODU_ubxsignal_on_MDU(struct dvb_diseqc_master_cmd *c
 
 int aml_singlecable_command_ODU_config_MDU(struct dvb_diseqc_master_cmd *cmd,
 		unsigned char address, unsigned char userband,
-		enum SINGLECABLE_SAT_POS satpos,
+		enum SINGLECABLE_SAT_POS sat_pos,
 		enum SINGLECABLE_RF_BAND rfband,
-		enum SINGLECABLE_UB_SLOTS ubslots, unsigned char pin)
+		enum SINGLECABLE_UB_SLOTS ub_slots, unsigned char pin)
 {
 	int ret = 0;
 
@@ -281,7 +281,7 @@ int aml_singlecable_command_ODU_config_MDU(struct dvb_diseqc_master_cmd *cmd,
 		return -EINVAL;
 
 	ret = aml_singlecable_command_ODU_config(cmd, address, userband,
-			satpos, rfband, ubslots);
+			sat_pos, rfband, ub_slots);
 	if (!ret)
 		return ret;
 

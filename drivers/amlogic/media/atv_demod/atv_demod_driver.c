@@ -216,10 +216,10 @@ static ssize_t atvdemod_debug_store(struct class *class,
 	} else if (!strncmp(parm[0], "audio_gain_set", 14)) {
 		if (kstrtoul(buf + strlen("audio_gain_set") + 1, 16, &tmp) == 0)
 			val = tmp;
-		aml_audio_valume_gain_set(val);
+		aml_audio_volume_gain_set(val);
 		pr_info("audio_gain_set : %d\n", val);
 	} else if (!strncmp(parm[0], "audio_gain_get", 14)) {
-		val = aml_audio_valume_gain_get();
+		val = aml_audio_volume_gain_get();
 		pr_info("audio_gain_get : %d\n", val);
 	} else if (!strncmp(parm[0], "audio_gain_shift", 16)) {
 		/* int db[] = {12, 6, 0, -6, -12, -18, -24, -30}; */
@@ -807,7 +807,7 @@ static int aml_atvdemod_remove(struct platform_device *pdev)
 	if (dev == NULL)
 		return -1;
 
-	v4l2_unresister_frontend(&dev->v4l2_fe);
+	v4l2_unregister_frontend(&dev->v4l2_fe);
 	aml_detach_demod_tuner(dev);
 
 	class_unregister(&dev->cls);
