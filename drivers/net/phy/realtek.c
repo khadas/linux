@@ -219,10 +219,6 @@ static void setup_wol(int enable, bool is_shutdown)
 			/*pad isolation*/
 			value = phy_read(g_phydev, 0x13);
 			phy_write(g_phydev, 0x13, value | (0x1 << 15));
-			/*pin 31 pull high*/
-			phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd40);
-			value = phy_read(g_phydev, 0x16);
-			phy_write(g_phydev, 0x16, value | (1 << 5));
 			phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0);
 
 			mutex_unlock(&g_phydev->lock);
@@ -237,10 +233,6 @@ static void setup_wol(int enable, bool is_shutdown)
 			/*pad isolantion*/
 			value = phy_read(g_phydev, 0x13);
 			phy_write(g_phydev, 0x13, value & ~(0x1 << 15));
-
-			phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd40);
-			value = phy_read(g_phydev, 0x16);
-			phy_write(g_phydev, 0x16, value & ~(1 << 5));
 
 			phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0);
 			mutex_unlock(&g_phydev->lock);
@@ -261,17 +253,8 @@ void realtek_enable_wol(int enable, bool suspend)
 
 int rtl8211f_suspend(struct phy_device *phydev)
 {
-	if (!is_wol_enable()) {
-		int value;
-
-		/*pin 31 pull high*/
-		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0xd40);
-		value = phy_read(g_phydev, 0x16);
-		phy_write(g_phydev, 0x16, value | (1 << 5));
-		phy_write(g_phydev, RTL8211F_PAGE_SELECT, 0);
-
+	if (!is_wol_enable())
 		genphy_suspend(phydev);
-	}
 
 	return 0;
 }
@@ -331,13 +314,18 @@ static int rtl8211f_config_init(struct phy_device *phydev)
 	reg = phy_read(phydev, 0x19);
 	/*set reg25 bit0 as 0*/
 	reg = phy_write(phydev, 0x19, reg & 0xfffe);
+
+	/*pin 31 pull high*/
+	phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd40);
+	reg = phy_read(phydev, 0x16);
+	phy_write(phydev, 0x16, reg | (1 << 5));
 	/* switch to page 0 */
 	phy_write(phydev, RTL8211F_PAGE_SELECT, 0x0);
 	/*reset phy to apply*/
 	reg = phy_write(phydev, 0x0, 0x9200);
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
-	   if (phydev->attached_dev) {
+	   if (phydev->attached_dev && is_wol_enable()) {
 			   mac_addr = phydev->attached_dev->dev_addr;
 			   phy_write(phydev, RTL8211F_PAGE_SELECT, 0xd8c);
 			   phy_write(phydev, 0x10, mac_addr[0] | (mac_addr[1] << 8));
