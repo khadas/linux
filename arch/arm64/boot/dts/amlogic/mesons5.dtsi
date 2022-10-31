@@ -2815,8 +2815,9 @@
 		compatible = "amlogic, amvideom-s5";
 		dev_name = "amvideom";
 		status = "okay";
-		interrupts = <GIC_SPI 115 IRQ_TYPE_EDGE_RISING>;
-		interrupt-names = "vsync";
+		interrupts = <GIC_SPI 115 IRQ_TYPE_EDGE_RISING
+			GIC_SPI 279 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vsync", "frame_done";
 	};
 
 	vpu_security {

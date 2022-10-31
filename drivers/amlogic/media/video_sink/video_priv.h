@@ -502,10 +502,12 @@ struct video_layer_s {
 	struct pip_alpha_scpxn_s alpha_win;
 	bool pre_link_en;
 	bool need_disable_prelink;
+	bool mosaic_frame;
 	u8 prelink_skip_cnt;
 	u32 slice_num;
 	u32 pi_enable;
 	u32 vd1s1_vd2_prebld_en;
+	u32 mosaic_mode;
 	struct sub_slice_s sub_slice[SLICE_NUM - 1];
 };
 
@@ -723,6 +725,12 @@ int set_layer_slice_display_canvas_s5(struct video_layer_s *layer,
 			     struct vpp_frame_par_s *cur_frame_par,
 			     struct disp_info_s *disp_info,
 			     u32 slice, u32 line);
+int set_layer_mosaic_display_canvas_s5(struct video_layer_s *layer,
+			     struct vframe_s *vf,
+			     struct vpp_frame_par_s *cur_frame_par,
+			     struct disp_info_s *disp_info,
+			     u32 slice,
+			     u8 frame_id);
 u32 *get_canvase_tbl(u8 layer_id);
 s32 layer_swap_frame(struct vframe_s *vf, struct video_layer_s *layer,
 		     bool force_toggle,
@@ -772,6 +780,14 @@ void adjust_vpp_filter_parm(struct vpp_frame_par_s *frame_par,
 	u32 horz_phase_step,
 	u32 vert_phase_step);
 struct video_layer_s *get_vd_layer(u8 layer_id);
+void _set_video_mirror(struct disp_info_s *layer, int mirror);
+void _set_video_window(struct disp_info_s *layer, int *p);
+void _set_video_crop(struct disp_info_s *layer, int *p);
+struct mosaic_frame_s *get_mosaic_vframe_info(u32 slice);
+void get_mosaic_axis(void);
+void set_mosaic_axis(u32 pic_index, u32 x_start, u32 y_start,
+	u32 x_end, u32 y_end);
+void init_mosaic_axis(void);
 
 /* from video.c */
 extern u32 osd_vpp_misc;

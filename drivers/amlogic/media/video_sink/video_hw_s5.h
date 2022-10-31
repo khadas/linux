@@ -187,14 +187,20 @@ struct vd_proc_unit_s {
 
 struct vd_proc_mosaic_s {
 	u32 vd1_proc_slice_pad_en[SLICE_NUM];
-	u32 vd1_proc_slice_pad_h_bgn[SLICE_NUM];
-	u32 vd1_proc_slice_pad_h_end[SLICE_NUM];
-	u32 vd1_proc_slice_pad_v_bgn[SLICE_NUM];
-	u32 vd1_proc_slice_pad_v_end[SLICE_NUM];
+	u32 vd1_proc_slice_pad_h_bgn_0[SLICE_NUM];
+	u32 vd1_proc_slice_pad_h_end_0[SLICE_NUM];
+	u32 vd1_proc_slice_pad_v_bgn_0[SLICE_NUM];
+	u32 vd1_proc_slice_pad_v_end_0[SLICE_NUM];
+	u32 vd1_proc_slice_pad_h_bgn_1[SLICE_NUM];
+	u32 vd1_proc_slice_pad_h_end_1[SLICE_NUM];
+	u32 vd1_proc_slice_pad_v_bgn_1[SLICE_NUM];
+	u32 vd1_proc_slice_pad_v_end_1[SLICE_NUM];
 	u32 mosaic_vd1_dout_hsize;
 	u32 mosaic_vd1_dout_vsize;
 	u32 mosaic_vd2_dout_hsize;
 	u32 mosaic_vd2_dout_vsize;
+	u32 h_padding;
+	u32 v_padding;
 };
 
 struct vd_proc_slice_info_s {
@@ -240,6 +246,10 @@ struct vd_proc_vd1_info_s {
 	u32 vd1_dout_vsize[SLICE_NUM];
 	u32 vd1_dout_x_start[SLICE_NUM];
 	u32 vd1_dout_y_start[SLICE_NUM];
+	u32 vd1_whole_dout_x_start;
+	u32 vd1_whole_dout_y_start;
+	u32 vd1_whole_hsize;
+	u32 vd1_whole_vsize;
 	u32 crop_left;
 };
 
@@ -312,7 +322,28 @@ struct vd_proc_reg_s {
 	struct vd_pip_alpha_reg_s vd_pip_alpha_reg[MAX_VD_CHAN_S5];
 };
 
+struct vd_pps_val_s {
+	u32 vd_vsc_phase_ctrl_val;
+	u32 vd_hsc_phase_ctrl_val;
+	u32 vd_sc_misc_val;
+	u32 vd_hsc_phase_ctrl1_val;
+	u32 vd_prehsc_coef_val;
+	u32 vd_pre_scale_ctrl_val;/* sc2 VPP_PREHSC_CTRL */
+	u32 vd_prevsc_coef_val;
+	u32 vd_prehsc_coef1_val;
+};
+
+struct mosaic_frame_s {
+	u8 slice_id;
+	u32 canvas_tbl[CANVAS_TABLE_CNT][3];
+	u32 disp_canvas[CANVAS_TABLE_CNT];
+	struct vframe_s *vf;
+	struct disp_info_s virtual_layer_info;
+	struct video_layer_s virtual_layer;
+};
+
 extern u32 debug_flag_s5;
+extern struct mosaic_frame_s g_mosaic_frame[4];
 struct vd_proc_s *get_vd_proc_info(void);
 void dump_s5_vd_proc_regs(void);
 void set_video_slice_policy(struct video_layer_s *layer,
@@ -344,6 +375,9 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 void canvas_update_for_mif_slice(struct video_layer_s *layer,
 			     struct vframe_s *vf,
 			     u32 slice);
+void canvas_update_for_mif_mosaic(struct video_layer_s *layer,
+			     struct vframe_s *vf,
+			     u32 slice);
 ssize_t video_vd_proc_state_dump(char *buf);
 void set_module_bypass_s5(u32 bypass_module);
 int get_module_bypass_s5(void);
@@ -371,5 +405,8 @@ void set_vd_pi_input_size(void);
 void adjust_video_slice_policy(u32 layer_id,
 	struct vframe_s *vf, bool no_compress);
 void vd_set_blk_mode_s5(struct video_layer_s *layer, u8 block_mode);
-
+void vd_switch_frm_idx(u32 vpp_index, u32 frm_idx);
+void enable_mosaic_mode(u32 vpp_index, u8 enable);
+void dump_mosaic_pps(void);
+void set_frm_idx(u32 vpp_index, u32 frm_idx);
 #endif
