@@ -1305,7 +1305,7 @@ static MESON_GATE(t5d_clk81_vclk2_enci,	HHI_GCLK_OTHER, 8);
 static MESON_GATE(t5d_clk81_vclk2_encp,	HHI_GCLK_OTHER, 9);
 static MESON_GATE(t5d_clk81_dac_clk,	HHI_GCLK_OTHER, 10);
 static MESON_GATE(t5d_clk81_enc480p,	HHI_GCLK_OTHER, 20);
-static MESON_GATE(t5d_clk81_ramdom,	HHI_GCLK_OTHER, 21);
+static MESON_GATE(t5d_clk81_random,	HHI_GCLK_OTHER, 21);
 static MESON_GATE(t5d_clk81_vclk2_enct,	HHI_GCLK_OTHER, 22);
 static MESON_GATE(t5d_clk81_vclk2_encl,	HHI_GCLK_OTHER, 23);
 static MESON_GATE(t5d_clk81_vclk2_venclmmc,	HHI_GCLK_OTHER, 24);
@@ -1418,7 +1418,7 @@ static struct clk_hw_onecell_data t5d_hw_onecell_data = {
 		[CLKID_VCLK2_ENCP]	= &t5d_clk81_vclk2_encp.hw,
 		[CLKID_DAC_CLK]		= &t5d_clk81_dac_clk.hw,
 		[CLKID_ENC480P]		= &t5d_clk81_enc480p.hw,
-		[CLKID_RAMDOM]		= &t5d_clk81_ramdom.hw,
+		[CLKID_RANDOM]		= &t5d_clk81_random.hw,
 		[CLKID_VCLK2_ENCT]	= &t5d_clk81_vclk2_enct.hw,
 		[CLKID_VCLK2_ENCL]	= &t5d_clk81_vclk2_encl.hw,
 		[CLKID_VCLK2_VENCLMMC]	= &t5d_clk81_vclk2_venclmmc.hw,
@@ -1516,7 +1516,7 @@ static struct clk_regmap *const t5d_clk_regmaps[] __initconst = {
 	&t5d_clk81_vclk2_encp,
 	&t5d_clk81_dac_clk,
 	&t5d_clk81_enc480p,
-	&t5d_clk81_ramdom,
+	&t5d_clk81_random,
 	&t5d_clk81_vclk2_enct,
 	&t5d_clk81_vclk2_encl,
 	&t5d_clk81_vclk2_venclmmc,

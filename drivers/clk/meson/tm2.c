@@ -4992,7 +4992,7 @@ static MESON_GATE(tm2_vclk2_other1, HHI_GCLK_OTHER, 26);
 static MESON_GATE(tm2_vipnanoq, HHI_GCLK_MPEG1, 19);
 static MESON_GATE(tm2_pcie1, HHI_GCLK_MPEG1, 24);
 static MESON_GATE(tm2_pcie1phy, HHI_GCLK_MPEG1, 27);
-static MESON_GATE(tm2_parserl, HHI_GCLK_MPEG1, 28);
+static MESON_GATE(tm2_parser1, HHI_GCLK_MPEG1, 28);
 static MESON_GATE(tm2_hdcp22_pclk, HHI_GCLK_MPEG2, 3);
 static MESON_GATE(tm2_hdmitx_pclk, HHI_GCLK_MPEG2, 4);
 static MESON_GATE(tm2_pcie0, HHI_GCLK_MPEG2, 6);
@@ -5098,7 +5098,7 @@ static struct clk_hw_onecell_data tm2_hw_onecell_data = {
 		[CLKID_PCIE1]			= &tm2_pcie1.hw,
 		[CLKID_PCIE0PHY]		= &tm2_pcie0phy.hw,
 		[CLKID_PCIE1PHY]		= &tm2_pcie1phy.hw,
-		[CLKID_PARSER1]			= &tm2_parserl.hw,
+		[CLKID_PARSER1]			= &tm2_parser1.hw,
 		[CLKID_HDCP22_PCLK]		= &tm2_hdcp22_pclk.hw,
 		[CLKID_HDMITX_PCLK]		= &tm2_hdmitx_pclk.hw,
 		[CLKID_HDMITX_AXI_PCLK]		= &tm2_hdmirx_axi_pclk.hw,
@@ -5570,7 +5570,7 @@ static struct clk_regmap *const tm2_clk_regmaps[] __initconst = {
 	&tm2_pcie1,
 	&tm2_pcie0,
 	&tm2_pcie1phy,
-	&tm2_parserl,
+	&tm2_parser1,
 	&tm2_hdcp22_pclk,
 	&tm2_hdmitx_pclk,
 	&tm2_pcie0phy,
