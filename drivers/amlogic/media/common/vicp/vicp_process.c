@@ -980,7 +980,7 @@ void set_mif_stride(struct vid_cmpr_mif_t *mif, int *stride_y, int *stride_cb, i
 	if (mif->bits_mode == 0)
 		comp_bits = 8;
 	else if (mif->bits_mode == 1)
-		comp_bits = 12;
+		comp_bits = 10; /*di output(full pack) 422 10 bit*/
 	else
 		comp_bits = 10;
 
@@ -1071,7 +1071,7 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 		pr_info("vicp: set_separate_en = %d.\n", rd_mif->set_separate_en);
 		pr_info("vicp: src_field_mode = %d.\n", rd_mif->src_field_mode);
 		pr_info("vicp: input_fmt = %d.\n", rd_mif->fmt_mode);
-		pr_info("vicp: input_field_num = %d.\n", rd_mif->output_field_num);
+		pr_info("vicp: output_field_num = %d.\n", rd_mif->output_field_num);
 		pr_info("vicp: input_color_dep = %d.\n", rd_mif->bits_mode);
 		pr_info("vicp: stride: y %d, u %d, v %d.\n", rd_mif->burst_size_y,
 			rd_mif->burst_size_cb, rd_mif->burst_size_cr);
@@ -1142,7 +1142,7 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 			chroma0_rpt_loop_start = 1;
 			chroma0_rpt_loop_end = 1;
 			luma0_rpt_loop_pat = 0x80;
-			chroma0_rpt_loop_pat = 0x80;
+			chroma0_rpt_loop_pat = 0x8;
 		} else {
 			chro_rpt_lastl_ctrl = 0;
 			luma0_rpt_loop_start = 0;
@@ -1165,7 +1165,7 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 		cntl_bits_mode = 0;
 	} else if (rd_mif->bits_mode == 1) {
 		if (rd_mif->fmt_mode == 1)
-			cntl_bits_mode = 1;
+			cntl_bits_mode = 3; /*422 10 bit full pack*/
 		else if (rd_mif->fmt_mode == 0)
 			cntl_bits_mode = 2;
 		else
@@ -1186,8 +1186,19 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 	memset(&general_reg3, 0x0, sizeof(struct vicp_rdmif_general_reg3_t));
 	general_reg3.bits_mode = cntl_bits_mode;
 	general_reg3.block_len = 3;
-	general_reg3.burst_len = 2;
+	general_reg3.burst_len = rd_mif->burst_len;
 	general_reg3.bit_swap = bit_swap;
+
+	general_reg3.f0_cav_blk_mode2 = rd_mif->block_mode;
+	general_reg3.f0_cav_blk_mode1 = rd_mif->block_mode;
+	general_reg3.f0_cav_blk_mode0 = rd_mif->block_mode;
+
+	if (rd_mif->block_mode) {
+		general_reg3.f0_stride32aligned2 = 1;
+		general_reg3.f0_stride32aligned1 = 1;
+		general_reg3.f0_stride32aligned1 = 1;
+	}
+
 	set_rdmif_general_reg3(general_reg3);
 
 	memset(&general_reg, 0x0, sizeof(struct vicp_rdmif_general_reg_t));
@@ -1219,18 +1230,17 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 	general_reg2.y_rev0 = rd_mif->rev_x;
 	set_rdmif_general_reg2(general_reg2);
 
-	u32 stride_y;
-	u32 stride_cb;
-	u32 stride_cr;
-
-	set_mif_stride(rd_mif, &stride_y, &stride_cb, &stride_cr);
-
+	vicp_print(VICP_INFO, "rdmif baddr=%x, stride=%d, %d, %d\n",
+		rd_mif->canvas0_addr0 >> 4,
+		rd_mif->stride_y,
+		rd_mif->stride_cb,
+		rd_mif->stride_cr);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_Y, rd_mif->canvas0_addr0);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_CB, rd_mif->canvas0_addr1);
 	set_rdmif_base_addr(RDMIF_BASEADDR_TYPE_CR, rd_mif->canvas0_addr2);
-	set_rdmif_stride(RDMIF_STRIDE_TYPE_Y, stride_y);
-	set_rdmif_stride(RDMIF_STRIDE_TYPE_CB, stride_cb);
-	set_rdmif_stride(RDMIF_STRIDE_TYPE_CR, stride_cr);
+	set_rdmif_stride(RDMIF_STRIDE_TYPE_Y, (rd_mif->stride_y + 15) >> 4);
+	set_rdmif_stride(RDMIF_STRIDE_TYPE_CB, (rd_mif->stride_cb + 15) >> 4);
+	set_rdmif_stride(RDMIF_STRIDE_TYPE_CR, (rd_mif->stride_cr + 15) >> 4);
 
 	set_rdmif_luma_position(0, 1, rd_mif->luma_x_start0, rd_mif->luma_x_end0);
 	set_rdmif_luma_position(0, 0, rd_mif->luma_y_start0, rd_mif->luma_y_end0);
@@ -1281,6 +1291,14 @@ void set_vid_cmpr_rmif(struct vid_cmpr_mif_t *rd_mif, int urgent, int hold_line)
 		y_length = rd_mif->luma_x_end0 - rd_mif->luma_x_start0 + 1;
 		c_length = rd_mif->luma_x_end0 - rd_mif->luma_x_start0 + 1;
 		hz_rpt = 0;
+	}
+
+	vt_ini_phase = 0xc;
+	if (rd_mif->src_field_mode == 1) {
+		if (rd_mif->output_field_num == 0)
+			vt_ini_phase = 0xe; /*interlace top*/
+		else if (rd_mif->output_field_num == 1)
+			vt_ini_phase = 0xa; /*interlace bottom*/
 	}
 
 	memset(&color_format, 0, sizeof(struct vicp_rdmif_color_format_t));
@@ -1465,6 +1483,8 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 	int output_begin_h, output_begin_v, output_end_h, output_end_v;
 	int shrink_enable, shrink_size, shrink_mode;
 	int scaler_enable;
+	u32 type;
+	bool is_interlace = false;
 
 	if (IS_ERR_OR_NULL(vid_cmpr_top)) {
 		vicp_print(VICP_ERROR, "%s: invalid param,return.\n", __func__);
@@ -1578,15 +1598,39 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 		vid_cmpr_rmif.src_field_mode = 0;
 		vid_cmpr_rmif.output_field_num = 1;
 
+		if (vid_cmpr_top->src_vf) {
+			type = vid_cmpr_top->src_vf->type;
+			if (type & VIDTYPE_TYPEMASK) {
+				/* interlace source */
+				is_interlace = true;
+				vid_cmpr_rmif.src_field_mode = 1;
+				if ((type & VIDTYPE_TYPEMASK) == VIDTYPE_INTERLACE_TOP)
+					vid_cmpr_rmif.output_field_num = 0;
+				else
+					vid_cmpr_rmif.output_field_num = 1;
+			}
+		}
+
+		vid_cmpr_rmif.stride_y = vid_cmpr_top->canvas_width[0];
+		vid_cmpr_rmif.stride_cb = vid_cmpr_top->canvas_width[1];
+		vid_cmpr_rmif.stride_cr = vid_cmpr_top->canvas_width[2];
+
 		set_vid_cmpr_rmif(&vid_cmpr_rmif, 0, 2);
 		vicp_print(VICP_INFO, "RDMIF config done.\n");
 	}
 	memset(&vid_cmpr_scaler, 0, sizeof(struct vid_cmpr_scaler_t));
 	vid_cmpr_scaler.din_hsize = vid_cmpr_top->src_hsize;
-	vid_cmpr_scaler.din_vsize = vid_cmpr_top->src_vsize;
+	if (is_interlace)
+		vid_cmpr_scaler.din_vsize = vid_cmpr_top->src_vsize >> 1;
+	else
+		vid_cmpr_scaler.din_vsize = vid_cmpr_top->src_vsize;
+
 	if (vid_cmpr_top->out_rot_en == 1) {
 		vid_cmpr_scaler.dout_hsize = vid_cmpr_top->src_hsize;
-		vid_cmpr_scaler.dout_vsize = vid_cmpr_top->src_vsize;
+		if (is_interlace)
+			vid_cmpr_scaler.dout_vsize = vid_cmpr_top->src_vsize >> 1;
+		else
+			vid_cmpr_scaler.dout_vsize = vid_cmpr_top->src_vsize;
 	} else {
 		vid_cmpr_scaler.dout_hsize = vid_cmpr_top->out_hsize_in;
 		vid_cmpr_scaler.dout_vsize = vid_cmpr_top->out_vsize_in;
@@ -1769,6 +1813,22 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 			vid_cmpr_top->src_body_baddr = 0;
 			vid_cmpr_top->rdmif_canvas0_addr0 =
 				input_vframe->canvas0_config[0].phy_addr;
+
+			if (input_vframe->canvas0Addr == (u32)-1) {
+				vid_cmpr_top->canvas_width[0] =
+					input_vframe->canvas0_config[0].width;
+				vid_cmpr_top->canvas_width[1] =
+					input_vframe->canvas0_config[1].width;
+				vid_cmpr_top->canvas_width[2] =
+					input_vframe->canvas0_config[2].width;
+			} else {
+				vid_cmpr_top->canvas_width[0] =
+					canvas_get_width(input_vframe->canvas0Addr & 0xff);
+				vid_cmpr_top->canvas_width[1] =
+					canvas_get_width(input_vframe->canvas0Addr >> 8 & 0xff);
+				vid_cmpr_top->canvas_width[2] =
+					canvas_get_width(input_vframe->canvas0Addr >> 16 & 0xff);
+			}
 		}
 		vid_cmpr_top->src_vf = input_vframe;
 		vid_cmpr_top->src_fmt_mode = get_input_color_format(input_vframe);
@@ -1777,9 +1837,12 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		vid_cmpr_top->src_win_end_h = vid_cmpr_top->src_hsize - 1;
 		vid_cmpr_top->src_win_bgn_v = 0;
 		vid_cmpr_top->src_win_end_v = vid_cmpr_top->src_vsize - 1;
-		vid_cmpr_top->src_endian = input_vframe->canvas0_config[0].endian;
+		if (input_vframe->flag & VFRAME_FLAG_VIDEO_LINEAR)
+			vid_cmpr_top->src_endian = 1;
+		else
+			vid_cmpr_top->src_endian = 0;
 		vid_cmpr_top->src_block_mode = input_vframe->canvas0_config[0].block_mode;
-		canvas_width = canvas_get_width(input_vframe->canvas0Addr & 0xff);
+		canvas_width = vid_cmpr_top->canvas_width[0];
 		signal_fmt = get_vframe_src_fmt(input_vframe);
 		if (signal_fmt != VFRAME_SIGNAL_FMT_INVALID && signal_fmt != VFRAME_SIGNAL_FMT_SDR)
 			vid_cmpr_top->hdr_en = 1;
@@ -1793,12 +1856,31 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		vid_cmpr_top->src_fmt_mode = input_dma->color_format;
 		vid_cmpr_top->src_compbits = input_dma->color_depth;
 		vid_cmpr_top->rdmif_canvas0_addr0 = input_dma->buf_addr;
-		vid_cmpr_top->src_endian = 0;
+		vid_cmpr_top->src_endian = 1;
 		vid_cmpr_top->src_block_mode = 0;
 		canvas_width = input_dma->buf_stride;
 		vid_cmpr_top->hdr_en = 0;
+
+		if (input_dma->color_format == 2) { //2:yuv420
+			vid_cmpr_top->canvas_width[0] = input_dma->buf_stride;
+			vid_cmpr_top->canvas_width[1] = input_dma->buf_stride;
+			vid_cmpr_top->canvas_width[2] = 0;
+		} else if (input_dma->color_format == 1) { //1:yuv422 one plane
+			vid_cmpr_top->canvas_width[0] = input_dma->buf_stride;
+			vid_cmpr_top->canvas_width[1] = 0;
+			vid_cmpr_top->canvas_width[2] = 0;
+		} else if (input_dma->color_format == 0) { //0:yuv444 one plane
+			vid_cmpr_top->canvas_width[0] = input_dma->buf_stride;
+			vid_cmpr_top->canvas_width[1] = 0;
+			vid_cmpr_top->canvas_width[2] = 0;
+		} else {
+			vicp_print(VICP_ERROR, "unsupport fmt %d\n", input_dma->color_format);
+		}
+
 	}
 
+	/* vd mif burst len is 2 as default */
+	vid_cmpr_top->src_burst_len = 2;
 	if (canvas_width % 32)
 		vid_cmpr_top->src_burst_len = 0;
 	else if (canvas_width % 64)

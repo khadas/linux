@@ -99,6 +99,8 @@ static u32 tv_fence_creat_count;
 static u32 dump_vframe;
 static u32 vicp_fbcout_en = 1;
 static u32 vicp_mifout_en = 1;
+static u32 force_comp_w;
+static u32 force_comp_h;
 
 u32 vd_pulldown_level = 2;
 u32 vd_max_hold_count = 300;
@@ -1524,6 +1526,14 @@ static void vframe_composer(struct composer_dev *dev)
 	}
 
 	frames_info = &received_frames->frames_info;
+
+	if (force_comp_w != 0) {
+		frames_info->frame_info[0].dst_x = 0;
+		frames_info->frame_info[0].dst_y = 0;
+		frames_info->frame_info[0].dst_w = force_comp_w;
+		frames_info->frame_info[0].dst_h = force_comp_h;
+	}
+
 	count = frames_info->frame_count;
 	check_window_change(dev, &received_frames->frames_info);
 	is_tvp = received_frames->is_tvp;
@@ -1680,8 +1690,8 @@ static void vframe_composer(struct composer_dev *dev)
 			}
 
 			if (count == 1) {
-				fbc_init_ctrl = 0;
-				fbc_pip_mode = 0;
+				fbc_init_ctrl = 1;
+				fbc_pip_mode = 1;
 			} else {
 				if (i == 0) {
 					fbc_init_ctrl = 1;
@@ -3939,6 +3949,50 @@ static ssize_t composer_dev_choice_store(struct class *cla, struct class_attribu
 	return count;
 }
 
+static ssize_t force_comp_w_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 80,
+		"force_comp_w %d.\n", force_comp_w);
+}
+
+static ssize_t force_comp_w_store(struct class *cla, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	force_comp_w = tmp;
+	return count;
+}
+
+static ssize_t force_comp_h_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	return snprintf(buf, 80,
+		"force_comp_h %d.\n", force_comp_h);
+}
+
+static ssize_t force_comp_h_store(struct class *cla, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+	force_comp_h = tmp;
+	return count;
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -3981,6 +4035,8 @@ static CLASS_ATTR_RO(actual_delay_count);
 static CLASS_ATTR_RW(vicp_fbcout_en);
 static CLASS_ATTR_RW(vicp_mifout_en);
 static CLASS_ATTR_RW(composer_dev_choice);
+static CLASS_ATTR_RW(force_comp_w);
+static CLASS_ATTR_RW(force_comp_h);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -4025,6 +4081,8 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_vicp_fbcout_en.attr,
 	&class_attr_vicp_mifout_en.attr,
 	&class_attr_composer_dev_choice.attr,
+	&class_attr_force_comp_w.attr,
+	&class_attr_force_comp_h.attr,
 	NULL
 };
 

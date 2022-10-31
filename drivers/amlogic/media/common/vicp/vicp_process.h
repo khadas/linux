@@ -109,6 +109,7 @@ struct vid_cmpr_top_t {
 	u32 rot_rev_mode;
 	u32 rot_hshrk_ratio;//0:no shrink 1:1/2 shrink 2:1/4 shrink
 	u32 rot_vshrk_ratio;//0:no shrink 1:1/2 shrink 2:1/4 shrink
+	u32 canvas_width[3];
 };
 
 struct vid_cmpr_mif_t {
@@ -132,6 +133,9 @@ struct vid_cmpr_mif_t {
 	u64 canvas0_addr0; //base addr
 	u64 canvas0_addr1; //base addr
 	u64 canvas0_addr2; //base addr
+	u32 stride_y;
+	u32 stride_cb;
+	u32 stride_cr;
 	u32 rev_x;
 	u32 rev_y;
 	u32 buf_crop_en;
