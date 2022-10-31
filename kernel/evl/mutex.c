@@ -753,14 +753,8 @@ retry:
 	assert_hard_lock(&mutex->wchan.lock);
 	assert_hard_lock(&curr->lock);
 	if (ret) {
-		/*
-		 * On error, we may have done a partial boost of the
-		 * PI chain, so we need to carefully revert this.
-		 */
 		raw_spin_unlock(&curr->lock);
-		undo_pi_walk(mutex);
-		hard_local_irq_enable();
-		return ret;
+		goto fail;
 	}
 
 	/*
@@ -786,8 +780,10 @@ retry:
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 	ret = wait_mutex_schedule(mutex);
 	/* If something went wrong while sleeping, bail out. */
-	if (ret)
-		return ret;
+	if (ret) {
+		raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
+		goto fail;
+	}
 
 	/*
 	 * Otherwise, this means __evl_unlock_mutex() unblocked us, so
@@ -796,6 +792,15 @@ retry:
 	 */
 	evl_schedule();
 	goto retry;
+fail:
+	/*
+	 * On error, we may have done a partial boost of the PI chain,
+	 * so we need to carefully revert this.
+	 */
+	undo_pi_walk(mutex);
+	hard_local_irq_enable();
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(evl_lock_mutex_timeout);
 
