@@ -36,7 +36,7 @@ enum evl_walk_mode {
 	evl_pi_check,		/* Check the PI chain (no change). */
 };
 
-#ifdef CONFIG_PROVE_LOCKING
+#ifdef CONFIG_LOCKDEP
 struct evl_lock_key_addr {
 	struct lock_class_key *addr;
 };

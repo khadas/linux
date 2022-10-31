@@ -481,7 +481,7 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 	mutex->wchan.name = name;
 	INIT_LIST_HEAD(&mutex->wchan.wait_list);
 	raw_spin_lock_init(&mutex->wchan.lock);
-#ifdef CONFIG_PROVE_LOCKING
+#ifdef CONFIG_LOCKDEP
 	lockdep_register_key(&mutex->wchan.lock_key);
 	lockdep_set_class_and_name(&mutex->wchan.lock, &mutex->wchan.lock_key, name);
 	local_irq_save(flags);
