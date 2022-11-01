@@ -438,7 +438,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 				if (is_same_pid == 1)
 					ts_output_free_pcr_temi_entry(feed->temi_index);
 				mutex_unlock(demux->pmutex);
-				return -1;
+				return -EBUSY;
 			}
 		}
 
@@ -447,7 +447,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			if (ret == MAX_PCR_NUM) {
 				dprint("%s error pcr full\n", __func__);
 				mutex_unlock(demux->pmutex);
-				return -1;
+				return -EBUSY;
 			}
 
 			if (is_same_pid == 1) {
@@ -484,7 +484,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			if (ret != 0) {
 				dprint("%s error TEMI full\n", __func__);
 				mutex_unlock(demux->pmutex);
-				return -1;
+				return -EBUSY;
 			}
 		}
 
@@ -496,7 +496,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			if (is_temi_and_pcr == 1)
 				ts_output_free_pcr_temi_entry(pcr_index);
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -EBUSY;
 		}
 
 		ret = ts_output_set_mem(feed->ts_out_elem,
@@ -511,7 +511,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_close(feed->ts_out_elem);
 			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -ENOMEM;
 		}
 
 		ret = ts_output_add_temi_pid(feed->ts_out_elem, feed->pid,
@@ -525,7 +525,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_close(feed->ts_out_elem);
 			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -EBUSY;
 		}
 
 		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
@@ -687,7 +687,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_close(feed->ts_out_elem);
 			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -ENOMEM;
 		}
 		if (feed->pid == 0x2000)
 			ret = ts_output_add_pid(feed->ts_out_elem, feed->pid, 0x1fff,
@@ -699,7 +699,7 @@ static int _dmx_ts_feed_set(struct dmx_ts_feed *ts_feed, u16 pid, int ts_type,
 			ts_output_close(feed->ts_out_elem);
 			feed->ts_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -EBUSY;
 		}
 		ts_output_add_cb(feed->ts_out_elem, out_ts_elem_cb, feed,
 			cb_id, format, 0, demux->id);
@@ -930,7 +930,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 	if (start_flag != 1) {
 		dprint("%s fail\n", __func__);
 		mutex_unlock(demux->pmutex);
-		return -1;
+		return -EBUSY;
 	}
 
 	sec_feed->state = DMX_STATE_GO;
@@ -997,7 +997,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			ts_output_close(sec_feed->sec_out_elem);
 			sec_feed->sec_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -ENOMEM;
 		}
 		ret = ts_output_add_pid(sec_feed->sec_out_elem, sec_feed->pid, 0,
 				  demux->id, &cb_id);
@@ -1005,7 +1005,7 @@ static int _dmx_section_feed_start_filtering(struct dmx_section_feed *feed)
 			ts_output_close(sec_feed->sec_out_elem);
 			sec_feed->sec_out_elem = NULL;
 			mutex_unlock(demux->pmutex);
-			return -1;
+			return -EBUSY;
 		}
 		ts_output_add_cb(sec_feed->sec_out_elem,
 				 _ts_out_sec_cb, sec_feed, cb_id,
