@@ -6122,6 +6122,55 @@ enum DI_ERRORTYPE dpvpp_empty_input_buffer(int index, struct di_buffer *buffer)
 	return DI_ERR_NONE;
 }
 
+void dpvpp_patch_first_buffer(int index, struct di_ch_s *pch)
+{
+	int i;
+	unsigned int cnt;
+
+	struct buf_que_s *pbufq;
+	union q_buf_u q_buf;
+	struct dim_nins_s *ins;
+	bool ret;
+	unsigned int qt_in;
+	unsigned int bindex;
+	struct di_buffer *buffer;
+
+	pbufq = &pch->nin_qb;
+	//qbuf_peek_s(pbufq, QBF_INS_Q_IN, q_buf);
+	if (get_datal()->dct_op && get_datal()->dct_op->is_en(pch))
+		qt_in = QBF_NINS_Q_DCT;
+	else
+		qt_in = QBF_NINS_Q_CHECK;
+
+	cnt = nins_cnt(pch, qt_in);
+
+	if (!cnt)
+		return;
+	for (i = 0; i < cnt; i++) {
+		ret = qbuf_out(pbufq, qt_in, &bindex);
+		if (!ret) {
+			PR_ERR("%s:1:%d:can't get out\n", __func__, i);
+			continue;
+		}
+		if (bindex >= DIM_NINS_NUB) {
+			PR_ERR("%s:2:%d:%d\n", __func__, i, bindex);
+			continue;
+		}
+		q_buf = pbufq->pbuf[bindex];
+		ins = (struct dim_nins_s *)q_buf.qbc;
+		buffer = (struct di_buffer *)ins->c.ori;
+		if (!buffer) {
+			PR_ERR("%s:3:%d,%d\n", __func__, i, bindex);
+			continue;
+		}
+		memset(&ins->c, 0, sizeof(ins->c));
+		qbuf_in(pbufq, QBF_NINS_Q_IDLE, bindex);
+
+		dpvpp_empty_input_buffer(DIM_PRE_VPP_NUB, buffer);
+	}
+	PR_INF("%s:%d\n", __func__, cnt);
+}
+
 /* @ary_note: buffer alloc by di			*/
 /* @ary_note: use this api to put back display buffer	*/
 /* @ary_note: same as vfm put */

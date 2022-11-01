@@ -585,6 +585,7 @@ int dim_pre_vpp_link_display(struct vframe_s *vfm,
 			  struct pvpp_dis_para_in_s *in_para, void *out_para);
 enum DI_ERRORTYPE dpvpp_fill_output_buffer(int index, struct di_buffer *buffer);
 enum DI_ERRORTYPE dpvpp_empty_input_buffer(int index, struct di_buffer *buffer);
+void dpvpp_patch_first_buffer(int index, struct di_ch_s *pch);
 int dpvpp_destroy_instance(int index);
 int dpvpp_create_instance(struct di_init_parm *parm);
 int dpvpp_check_vf(struct vframe_s *vfm);

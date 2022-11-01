@@ -588,8 +588,11 @@ enum DI_ERRORTYPE new_empty_input_buffer(int index, struct di_buffer *buffer)
 		return DI_ERR_INDEX_OVERFLOW;
 	}
 	pch = get_chdata(ch);
-	if (pch->itf.pre_vpp_link && dpvpp_vf_ops())
+
+	if (pch->itf.pre_vpp_link && dpvpp_vf_ops()) {
+		dpvpp_patch_first_buffer(index, pch);
 		return dpvpp_empty_input_buffer(DIM_PRE_VPP_NUB, buffer);
+	}
 	pintf = &pch->itf;
 	if (!pintf->reg) {
 		PR_WARN("%s:ch[%d] not reg\n", __func__, ch);
