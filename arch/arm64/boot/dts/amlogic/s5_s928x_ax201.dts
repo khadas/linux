@@ -170,6 +170,7 @@
 			/* 3840x2160x4x4 round up 4M align */
 			size = <0x0 0x8400000>;
 			alignment = <0x0 0x400000>;
+			alloc-ranges = <0x0 0x0 0x0 0xe0000000>;
 		};
 		/* secure ion for gpu,advice size is 0x1c800000 */
 		ion_secure_reserved:linux,ion-secure {
@@ -230,6 +231,15 @@
 		memory-region = <&vc9000e_reserved>;
 		dev_name = "vc9000e";
 		status = "okay";
+		interrupts = <GIC_SPI 157 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 158 IRQ_TYPE_EDGE_RISING
+				GIC_SPI 159 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "vc9000e_irq0", "vc9000e_irq1", "vc9000e_irq1";
+		power-domains = <&pwrdm PDID_S5_VC9000E>;
+		clock-names = "vers_sys_clk", "vers_core_clk", "vers_aclk";
+		clocks = <&clkc CLKID_SYS_CLK_VC9000E>,
+				<&clkc CLKID_VC9000E_CORE>,
+				<&clkc CLKID_VC9000E_AXI>;
 	};
 
 	encmem_rev {
