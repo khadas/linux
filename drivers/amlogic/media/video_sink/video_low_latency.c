@@ -792,7 +792,7 @@ static int lowlatency_vsync(u8 instance_id)
 		if (vd_layer[0].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
 			mirror = V_MIRROR;
 		_set_video_mirror(&glayer_info[0], mirror);
-		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->componser_info);
+		set_alpha_scpxn(&vd_layer[0], vd_layer[0].dispbuf->composer_info);
 		glayer_info[0].zorder = vd_layer[0].dispbuf->zorder;
 	}
 
@@ -1169,7 +1169,7 @@ static int lowlatency_vsync(u8 instance_id)
 		if (vd_layer[1].dispbuf->flag & VFRAME_FLAG_MIRROR_V)
 			mirror = V_MIRROR;
 		_set_video_mirror(&glayer_info[1], mirror);
-		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->componser_info);
+		set_alpha_scpxn(&vd_layer[1], vd_layer[1].dispbuf->composer_info);
 		glayer_info[1].zorder = vd_layer[1].dispbuf->zorder;
 	}
 
@@ -1446,7 +1446,7 @@ static int lowlatency_vsync(u8 instance_id)
 				source_type != VFRAME_SOURCE_TYPE_TUNER &&
 				source_type != VFRAME_SOURCE_TYPE_HWC)
 				_set_video_crop(&glayer_info[2], crop);
-			set_alpha_scpxn(&vd_layer[2], vd_layer[2].dispbuf->componser_info);
+			set_alpha_scpxn(&vd_layer[2], vd_layer[2].dispbuf->composer_info);
 			glayer_info[2].zorder = vd_layer[2].dispbuf->zorder;
 		}
 

@@ -785,7 +785,7 @@ static void dump_vd2_pre_blend_reg(void)
 
 	vd2_pre_blend_reg = &vd_proc_reg.vd2_pre_blend_reg;
 	pr_info("vd2 preblend regs:\n");
-	reg_addr = vd2_pre_blend_reg->vpp_vd_preblnd_h_v_size;
+	reg_addr = vd2_pre_blend_reg->vpp_vd_preblend_h_v_size;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
@@ -829,7 +829,7 @@ static void dump_vd2_pre_blend_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = vd2_pre_blend_reg->vpp_vd_preblnd_ctrl;
+	reg_addr = vd2_pre_blend_reg->vpp_vd_preblend_ctrl;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
@@ -2075,7 +2075,7 @@ static void vd_proc_blend_set(u32 vpp_index,
 	}
 }
 
-/* for vd2 preblen */
+/* for vd2 preblend */
 static void vd2_pre_blend_set(u32 vpp_index,
 	struct vd_proc_blend_s *vd2_preblend)
 {
@@ -2084,10 +2084,10 @@ static void vd2_pre_blend_set(u32 vpp_index,
 	struct vd2_pre_blend_reg_s *vd2_preblend_reg = &vd_proc_reg.vd2_pre_blend_reg;
 
 	//vd blend en
-	rdma_wr_bits(vd2_preblend_reg->vpp_vd_preblnd_ctrl,
+	rdma_wr_bits(vd2_preblend_reg->vpp_vd_preblend_ctrl,
 		vd2_preblend->bld_out_en, 0, 1);
 
-	rdma_wr(vd2_preblend_reg->vpp_vd_preblnd_h_v_size,
+	rdma_wr(vd2_preblend_reg->vpp_vd_preblend_h_v_size,
 		vd2_preblend->bld_out_w |
 		vd2_preblend->bld_out_h << 16);
 

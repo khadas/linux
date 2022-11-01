@@ -160,7 +160,7 @@ static void dump_vpp_blend_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = vpp_post_blend_reg->vpp_postblnd_h_v_size;
+	reg_addr = vpp_post_blend_reg->vpp_postblend_h_v_size;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
@@ -209,7 +209,7 @@ static void dump_vpp_blend_reg(void)
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
-	reg_addr = vpp_post_blend_reg->vpp_postblnd_ctrl;
+	reg_addr = vpp_post_blend_reg->vpp_postblend_ctrl;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
@@ -223,7 +223,7 @@ static void dump_vpp_post_misc_reg(void)
 
 	vpp_post_misc_reg = &vpp_post_reg.vpp_post_misc_reg;
 	pr_info("vpp post misc regs:\n");
-	reg_addr = vpp_post_misc_reg->vpp_postblnd_ctrl;
+	reg_addr = vpp_post_misc_reg->vpp_postblend_ctrl;
 	reg_val = READ_VCBUS_REG(reg_addr);
 	pr_info("[0x%x] = 0x%X\n",
 		   reg_addr, reg_val);
@@ -349,7 +349,7 @@ static void vpp_post_blend_set(u32 vpp_index,
 	rdma_wr_bits(vpp_reg->vpp_postblend_vd3_v_start_end,
 		(vpp_blend->bld_din2_v_start << 16) |
 		vpp_blend->bld_din2_v_end, 0, 32);
-	rdma_wr(vpp_reg->vpp_postblnd_h_v_size,
+	rdma_wr(vpp_reg->vpp_postblend_h_v_size,
 		vpp_blend->bld_out_w | vpp_blend->bld_out_h << 16);
 	rdma_wr(vpp_reg->vpp_post_blend_blend_dummy_data,
 		vpp_blend->bld_dummy_data);
@@ -388,10 +388,10 @@ static void vpp_post_blend_set(u32 vpp_index,
 	rdma_wr(vpp_reg->vd3_postblend_alpha,
 		vpp_blend->bld_din2_alpha);
 
-	rdma_wr_bits(vpp_reg->vpp_postblnd_ctrl,
+	rdma_wr_bits(vpp_reg->vpp_postblend_ctrl,
 		vpp_blend->bld_out_en, 8, 1);
 	if (debug_flag_s5 & DEBUG_VPP_POST) {
-		pr_info("%s: vpp_postblnd_h_v_size=%x\n",
+		pr_info("%s: vpp_postblend_h_v_size=%x\n",
 			__func__, vpp_blend->bld_out_w | vpp_blend->bld_out_h << 16);
 		pr_info("%s: vpp_postblend_vd1_h_start_end=%x\n",
 			__func__, vpp_blend->bld_din0_h_start << 16 |
@@ -416,7 +416,7 @@ static void vpp_post_slice_set(u32 vpp_index,
 	u32 slice_set;
 
 	/* 2ppc2slice overlap size */
-	rdma_wr_bits(vpp_reg->vpp_postblnd_ctrl,
+	rdma_wr_bits(vpp_reg->vpp_postblend_ctrl,
 		vpp_post->overlap_hsize, 0, 8);
     /* slice mode */
 	rdma_wr_bits(vpp_reg->vpp_obuf_ram_ctrl,

@@ -101,7 +101,7 @@ struct lut_dma_device_info {
 };
 
 enum cpu_type_e {
-	MESON_CPU_MAJOR_ID_COMPATIBALE = 0x1,
+	MESON_CPU_MAJOR_ID_COMPATIBLE = 0x1,
 	MESON_CPU_MAJOR_ID_SC2_,
 	MESON_CPU_MAJOR_ID_T7_,
 	MESON_CPU_MAJOR_ID_S5_,

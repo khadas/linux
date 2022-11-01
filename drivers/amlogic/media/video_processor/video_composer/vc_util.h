@@ -22,7 +22,7 @@ enum videocom_source_type {
 struct dst_buf_t {
 	int index;
 	struct vframe_s frame;
-	struct componser_info_t componser_info;
+	struct composer_info_t composer_info;
 	bool dirty;
 	u32 phy_addr;
 	u32 buf_w;

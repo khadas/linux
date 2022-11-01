@@ -322,12 +322,12 @@
 //Bit 5:4    reg_4p4s_gc_ctrl                  //unsigned, RW, default = 0, 4ppc4slice clk gating ctrl
 //Bit 3:2    reg_2p2s_gc_ctrl                  //unsigned, RW, default = 0, 2ppc2slice clk gating ctrl
 //Bit 0      reg_gclk_ctrl_h                   //unsigned, RW, default = 0, reg_gclk_ctrl high bit, low bit is 0
-#define S5_VPP_POSTBLND_H_V_SIZE                      0x1d01
+#define S5_VPP_POSTBLEND_H_V_SIZE                      0x1d01
 //Bit 31:30  reserved
-//Bit 29:16  vpp_postblnd_vsize                //unsigned, RW, default = 1080
+//Bit 29:16  vpp_postblend_vsize               //unsigned, RW, default = 1080
 //Bit 15:14  reserved
-//Bit 13:0   vpp_postblnd_hsize                //unsigned, RW, default = 1920
-#define S5_VPP_POSTBLND_CTRL                          0x1d02
+//Bit 13:0   vpp_postblend_hsize               //unsigned, RW, default = 1920
+#define S5_VPP_POSTBLEND_CTRL                          0x1d02
 //Bit 31:10  reserved
 //Bit 9      reg_cbus_mode                     //unsigned, RW, default = 0
 //Bit 8      vpp_post_blend_en                 //unsigned, RW, default = 0
@@ -336,7 +336,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd1xn_scope_hs                    //unsigned, RW, default = 1920, vd1 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1xn_scope_he                    //unsigned, RW, default = 0, vd1 scope horizontal ending 
+//Bit 12:0   vd1xn_scope_he                    //unsigned, RW, default = 0, vd1 scope horizontal ending
 #define S5_VPP_POSTBLEND_VD1_V_START_END              0x1d04
 //Bit 31:29  reserved
 //Bit 28:16  vd1xn_scope_vs                    //unsigned, RW, default = 1080, vd1 scope vertical starting
@@ -346,7 +346,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd2xn_scope_hs                    //unsigned, RW, default = 1920, vd2 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd2xn_scope_he                    //unsigned, RW, default = 0, vd2 scope horizontal ending 
+//Bit 12:0   vd2xn_scope_he                    //unsigned, RW, default = 0, vd2 scope horizontal ending
 #define S5_VPP_POSTBLEND_VD2_V_START_END              0x1d06
 //Bit 31:29  reserved
 //Bit 28:16  vd2xn_scope_vs                    //unsigned, RW, default = 1080, vd2 scope vertical starting
@@ -356,7 +356,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd3xn_scope_hs                    //unsigned, RW, default = 1920, vd3 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd3xn_scope_he                    //unsigned, RW, default = 0, vd3 scope horizontal ending 
+//Bit 12:0   vd3xn_scope_he                    //unsigned, RW, default = 0, vd3 scope horizontal ending
 #define S5_VPP_POSTBLEND_VD3_V_START_END              0x1d08
 //Bit 31:29  reserved
 //Bit 28:16  vd3xn_scope_vs                    //unsigned, RW, default = 1080, vd3 scope vertical starting
@@ -366,7 +366,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  osd1xn_scope_hs                    //unsigned, RW, default = 1920, osd1 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   osd1xn_scope_he                    //unsigned, RW, default = 0, osd1 scope horizontal ending 
+//Bit 12:0   osd1xn_scope_he                    //unsigned, RW, default = 0, osd1 scope horizontal ending
 #define S5_VPP_OSD1_BLD_V_SCOPE                       0x1d0a
 //Bit 31:29  reserved
 //Bit 28:16  osd1xn_scope_vs                    //unsigned, RW, default = 1080, osd1 scope vertical starting
@@ -376,7 +376,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  osd2xn_scope_hs                    //unsigned, RW, default = 1920, osd2 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   osd2xn_scope_he                    //unsigned, RW, default = 0, osd2 scope horizontal ending 
+//Bit 12:0   osd2xn_scope_he                    //unsigned, RW, default = 0, osd2 scope horizontal ending
 #define S5_VPP_OSD2_BLD_V_SCOPE                       0x1d0c
 //Bit 31:29  reserved
 //Bit 28:16  osd2xn_scope_vs                    //unsigned, RW, default = 1080, osd2 scope vertical starting
@@ -448,7 +448,7 @@
 #define S5_VPP_POST_PAD_HSIZE                         0x1df2
 //Bit 31:14  reserved
 //Bit 13:0   reg_pad_hsize                    //unsigned, RW, default = 0
-//====================postblnd====================
+//====================postblend====================
 #define S5_VPP_POST_BLEND_CTRL                        0x1d19
 //Bit 31:28  reserved
 //Bit 27:20  hold_lines                        //unsigned ,RW, default = 4
@@ -566,19 +566,19 @@
 //Bit 5:4    reg_pad_gc_ctrl                     //unsigned, RW, default = 0, padding module gating ctrl
 //Bit 3:2    reg_4s4p_gc_ctrl                    //unsigned, RW, default = 0, 4slice4ppc clk gating ctrl
 //Bit 0      reg_gclk_ctrl_h                     //unsigned, RW, default = 0, reg_gclk_ctrl high bit, low bit is 0
-#define VPP_VD_PREBLND_H_V_SIZE                    0x3201
+#define VPP_VD_PREBLEND_H_V_SIZE                    0x3201
 //Bit 31:30  reserved
-//Bit 29:16  vpp_vd_preblnd_vsize                //unsigned, RW, default = 1080
+//Bit 29:16  vpp_vd_preblend_vsize                //unsigned, RW, default = 1080
 //Bit 15:14  reserved
-//Bit 13:0   vpp_vd_preblnd_hsize                //unsigned, RW, default = 1920
-#define VPP_VD_PREBLND_CTRL                        0x3202
+//Bit 13:0   vpp_vd_preblend_hsize                //unsigned, RW, default = 1920
+#define VPP_VD_PREBLEND_CTRL                        0x3202
 //Bit 31:1   reserved
 //Bit 0      vpp_vd_preblend_en                  //unsigned, RW, default = 0
 #define S5_VPP_PREBLEND_VD1_H_START_END               0x3203
 //Bit 31:29  reserved
 //Bit 28:16  vd1_prebld_scope_hs                 //unsigned, RW, default = 0, vd1 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_prebld_scope_he                 //unsigned, RW, default = 1920, vd1 scope horizontal ending 
+//Bit 12:0   vd1_prebld_scope_he                 //unsigned, RW, default = 1920, vd1 scope horizontal ending
 #define S5_VPP_PREBLEND_VD1_V_START_END               0x3204
 //Bit 31:29  reserved
 //Bit 28:16  vd1_prebld_scope_vs                 //unsigned, RW, default = 0, vd1 scope vertical starting
@@ -588,7 +588,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd2_prebld_scope_hs                 //unsigned, RW, default = 0, vd2 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd2_prebld_scope_he                 //unsigned, RW, default = 1920, vd2 scope horizontal ending 
+//Bit 12:0   vd2_prebld_scope_he                 //unsigned, RW, default = 1920, vd2 scope horizontal ending
 #define S5_VPP_PREBLEND_VD2_V_START_END               0x3206
 //Bit 31:29  reserved
 //Bit 28:16  vd2_prebld_scope_vs                 //unsigned, RW, default = 0, vd2 scope vertical starting
@@ -614,7 +614,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s0_blend_scope_hs               //unsigned, RW, default = 0, vd1 slice0 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s0_blend_scope_he               //unsigned, RW, default = 1920, vd1 slice0 scope horizontal ending 
+//Bit 12:0   vd1_s0_blend_scope_he               //unsigned, RW, default = 1920, vd1 slice0 scope horizontal ending
 #define VPP_BLEND_VD1_S0_V_START_END               0x320c
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s0_blend_scope_vs               //unsigned, RW, default = 0, vd1 slice0 scope vertical starting
@@ -624,7 +624,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s1_blend_scope_hs               //unsigned, RW, default = 0, vd1 slice1 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s1_blend_scope_he               //unsigned, RW, default = 1920, vd1 slice1 scope horizontal ending 
+//Bit 12:0   vd1_s1_blend_scope_he               //unsigned, RW, default = 1920, vd1 slice1 scope horizontal ending
 #define VPP_BLEND_VD1_S1_V_START_END               0x320e
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s1_blend_scope_vs               //unsigned, RW, default = 0, vd1 slice1 scope vertical starting
@@ -634,7 +634,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s2_blend_scope_hs               //unsigned, RW, default = 0, vd1 slice2 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s2_blend_scope_he               //unsigned, RW, default = 1920, vd1 slice2 scope horizontal ending 
+//Bit 12:0   vd1_s2_blend_scope_he               //unsigned, RW, default = 1920, vd1 slice2 scope horizontal ending
 #define VPP_BLEND_VD1_S2_V_START_END               0x3210
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s2_blend_scope_vs               //unsigned, RW, default = 0, vd1 slice2 scope vertical starting
@@ -644,7 +644,7 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s3_blend_scope_hs               //unsigned, RW, default = 0, vd1 slice3 scope horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s3_blend_scope_he               //unsigned, RW, default = 1920, vd1 slice3 scope horizontal ending 
+//Bit 12:0   vd1_s3_blend_scope_he               //unsigned, RW, default = 1920, vd1 slice3 scope horizontal ending
 #define VPP_BLEND_VD1_S3_V_START_END               0x3212
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s3_blend_scope_vs               //unsigned, RW, default = 0, vd1 slice3 scope vertical starting
@@ -715,88 +715,88 @@
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s0_pad_hs0                      //unsigned, RW, default = 0, vd1 slice0 padding module horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s0_pad_he0                      //unsigned, RW, default = 1920, vd1 slice0 padding module horizontal ending 
+//Bit 12:0   vd1_s0_pad_he0                      //unsigned, RW, default = 1920, vd1 slice0 padding module horizontal ending
 #define VD1_S0_PAD_V_SIZE0                         0x3221
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s0_pad_vs0                      //unsigned, RW, default = 0, vd1 slice0 padding module vertical starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s0_pad_ve0                      //unsigned, RW, default = 1080, vd1 slice0 padding module vertical ending 
+//Bit 12:0   vd1_s0_pad_ve0                      //unsigned, RW, default = 1080, vd1 slice0 padding module vertical ending
 #define VD1_S1_PAD_H_SIZE0                         0x3222
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s1_pad_hs0                      //unsigned, RW, default = 0, vd1 slice1 padding module horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s1_pad_he0                      //unsigned, RW, default = 1920, vd1 slice1 padding module horizontal ending 
+//Bit 12:0   vd1_s1_pad_he0                      //unsigned, RW, default = 1920, vd1 slice1 padding module horizontal ending
 #define VD1_S1_PAD_V_SIZE0                         0x3223
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s1_pad_vs0                      //unsigned, RW, default = 0, vd1 slice1 padding module vertical starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s1_pad_ve0                      //unsigned, RW, default = 1080, vd1 slice1 padding module vertical ending 
+//Bit 12:0   vd1_s1_pad_ve0                      //unsigned, RW, default = 1080, vd1 slice1 padding module vertical ending
 #define VD1_S2_PAD_H_SIZE0                         0x3224
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s2_pad_hs0                      //unsigned, RW, default = 0, vd1 slice2 padding module horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s2_pad_he0                      //unsigned, RW, default = 1920, vd1 slice2 padding module horizontal ending 
+//Bit 12:0   vd1_s2_pad_he0                      //unsigned, RW, default = 1920, vd1 slice2 padding module horizontal ending
 #define VD1_S2_PAD_V_SIZE0                         0x3225
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s2_pad_vs0                      //unsigned, RW, default = 0, vd1 slice2 padding module vertical starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s2_pad_ve0                      //unsigned, RW, default = 1080, vd1 slice2 padding module vertical ending 
+//Bit 12:0   vd1_s2_pad_ve0                      //unsigned, RW, default = 1080, vd1 slice2 padding module vertical ending
 #define VD1_S3_PAD_H_SIZE0                         0x3226
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s3_pad_hs0                      //unsigned, RW, default = 0, vd1 slice3 padding module horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s3_pad_he0                      //unsigned, RW, default = 1920, vd1 slice3 padding module horizontal ending 
+//Bit 12:0   vd1_s3_pad_he0                      //unsigned, RW, default = 1920, vd1 slice3 padding module horizontal ending
 #define VD1_S3_PAD_V_SIZE0                         0x3227
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s3_pad_vs0                      //unsigned, RW, default = 0, vd1 slice3 padding module vertical starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s3_pad_ve0                      //unsigned, RW, default = 1080, vd1 slice3 padding module vertical ending 
+//Bit 12:0   vd1_s3_pad_ve0                      //unsigned, RW, default = 1080, vd1 slice3 padding module vertical ending
 #define VD1_S0_PAD_H_SIZE1                         0x3228
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s0_pad_hs1                      //unsigned, RW, default = 0, vd1 slice0 padding module horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s0_pad_he1                      //unsigned, RW, default = 1920, vd1 slice0 padding module horizontal ending 
+//Bit 12:0   vd1_s0_pad_he1                      //unsigned, RW, default = 1920, vd1 slice0 padding module horizontal ending
 #define VD1_S0_PAD_V_SIZE1                         0x3229
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s0_pad_vs1                      //unsigned, RW, default = 0, vd1 slice0 padding module vertical starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s0_pad_ve1                      //unsigned, RW, default = 1080, vd1 slice0 padding module vertical ending 
+//Bit 12:0   vd1_s0_pad_ve1                      //unsigned, RW, default = 1080, vd1 slice0 padding module vertical ending
 #define VD1_S1_PAD_H_SIZE1                         0x322a
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s1_pad_hs1                      //unsigned, RW, default = 0, vd1 slice1 padding module horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s1_pad_he1                      //unsigned, RW, default = 1920, vd1 slice1 padding module horizontal ending 
+//Bit 12:0   vd1_s1_pad_he1                      //unsigned, RW, default = 1920, vd1 slice1 padding module horizontal ending
 #define VD1_S1_PAD_V_SIZE1                         0x322b
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s1_pad_vs1                      //unsigned, RW, default = 0, vd1 slice1 padding module vertical starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s1_pad_ve1                      //unsigned, RW, default = 1080, vd1 slice1 padding module vertical ending 
+//Bit 12:0   vd1_s1_pad_ve1                      //unsigned, RW, default = 1080, vd1 slice1 padding module vertical ending
 #define VD1_S2_PAD_H_SIZE1                         0x322c
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s2_pad_hs1                      //unsigned, RW, default = 0, vd1 slice2 padding module horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s2_pad_he1                      //unsigned, RW, default = 1920, vd1 slice2 padding module horizontal ending 
+//Bit 12:0   vd1_s2_pad_he1                      //unsigned, RW, default = 1920, vd1 slice2 padding module horizontal ending
 #define VD1_S2_PAD_V_SIZE1                         0x322d
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s2_pad_vs1                      //unsigned, RW, default = 0, vd1 slice2 padding module vertical starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s2_pad_ve1                      //unsigned, RW, default = 1080, vd1 slice2 padding module vertical ending 
+//Bit 12:0   vd1_s2_pad_ve1                      //unsigned, RW, default = 1080, vd1 slice2 padding module vertical ending
 #define VD1_S3_PAD_H_SIZE1                         0x322e
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s3_pad_hs1                      //unsigned, RW, default = 0, vd1 slice3 padding module horizontal starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s3_pad_he1                      //unsigned, RW, default = 1920, vd1 slice3 padding module horizontal ending 
+//Bit 12:0   vd1_s3_pad_he1                      //unsigned, RW, default = 1920, vd1 slice3 padding module horizontal ending
 #define VD1_S3_PAD_V_SIZE1                         0x322f
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s3_pad_vs1                      //unsigned, RW, default = 0, vd1 slice3 padding module vertical starting
 //Bit 15:13  reserved
-//Bit 12:0   vd1_s3_pad_ve1                      //unsigned, RW, default = 1080, vd1 slice3 padding module vertical ending 
+//Bit 12:0   vd1_s3_pad_ve1                      //unsigned, RW, default = 1080, vd1 slice3 padding module vertical ending
 #define VD1_S2S3_S2P_SIZE                          0x3230
 //Bit 31:29  reserved
 //Bit 28:16  vd1_s2s3_s2p_vsize                  //unsigned, RW, default = 1080
 //Bit 15:13  reserved
 //Bit 12:0   vd1_s2s3_s2p_hsize                  //unsigned, RW, default = 1920
-//====================preblnd====================
+//====================preblend====================
 #define VPP_VD_PRE_BLEND_CTRL                      0x3240
 //Bit 31:28  reserved
 //Bit 27:20  hold_lines                        //unsigned ,RW, default = 4
@@ -1116,7 +1116,7 @@
 //                                  bit 1:0,: y  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 3:2,: u  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 5:4,: v  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
-//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2 
+//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   5:4       horz_skip_y       unsigned, default = 0 , luma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   3:2       vert_skip_uv      unsigned, default = 0 , chroma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   1:0       horz_skip_uv      unsigned, default = 0 , chroma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
@@ -1171,8 +1171,8 @@
 //Bit 20    chfmt_en               unsigned, default = 0 ; //  horizontal formatter enable
 //Bit 19    cvfmt_phase0_always_en unsigned, default = 0 ; //if true, always use phase0 while vertical formater, meaning always //repeat data, no interpolation
 //Bit 18    cvfmt_rpt_last_dis     unsigned, default = 0 ; //if true, disable vertical formatter chroma repeat last line
-//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //veritcal formatter dont need repeat line on phase0, 1: enable, 0: disable
-//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //veritcal formatter repeat line 0 enable
+//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //vertical formatter dont need repeat line on phase0, 1: enable, 0: disable
+//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //vertical formatter repeat line 0 enable
 //Bit 15:12 cvfmt_skip_line_num    unsigned, default = 0 ; //vertical formatter skip line num at the beginning
 //Bit 11:8  cvfmt_ini_phase        unsigned, default = 0 ; //vertical formatter initial phase
 //Bit 7:1   cvfmt_phase_step       unsigned, default = 0 ; //vertical formatter phase step (3.4)
@@ -1232,7 +1232,7 @@
 //Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_0_4      // unsigned ,    RW, default = 4  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD1_AFBCDM_IQUANT_LUT_2                        0x4354
-//Bit 31:16        reserved  
+//Bit 31:16        reserved
 //Bit 15           reserved
 //Bit 14:12        reg_iquant_yclut_0_3      // unsigned ,    RW, default = 3  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 //Bit 11           reserved
@@ -1269,10 +1269,10 @@
 //Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_1_0      // unsigned ,    RW, default = 0  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD1_AFBCDM_ROT_CTRL                            0x4360
-//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1  
-//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1  
+//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1
+//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1
 //Bit   27      reg_pip_mode                        //unsigned, RW, default = 0 , 0:dec_src from vdin/dos  1:dec_src from pip
-//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)  
+//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   23      reserved
 //Bit   22:20   reg_rot_uv_hshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   19:18   reg_rot_uv_vshrk_ratio              //unsigned, RW, default = 0 , 0:no shrink  1:1/2 shrink  2:1/4 shrink
@@ -1292,18 +1292,18 @@
 //Bit   19      reg_rot_dout_ds_mode_sw  //unsigned, RW , default = 0, 0:use hardware mode 1:use software mode
 //Bit   18:17   reg_rot_dout_ds_mode     //unsigned, RW , default = 0, rot output fmt_down mode: [0]:h_downscale [1]:v_downscale
 //Bit   16      reg_rot_ifmt_force444    //unsigned, RW , default = 1, 1: rot input fmt force as 444
-//Bit   15:14   reg_rot_ofmt_mode        //unsigned, RW , default = 0, rot output fmt mode 
+//Bit   15:14   reg_rot_ofmt_mode        //unsigned, RW , default = 0, rot output fmt mode
 //Bit   13:12   reg_rot_compbits_out_y   //unsigned, RW , default = 0, rot output compbit y
 //Bit   11:10   reg_rot_compbits_out_uv  //unsigned, RW , default = 0, rot output compbit uv
 //Bit   9:8     reg_rot_wrbgn_v          //unsigned, RW , default = 0, rot pic vert size window begin pixel
-//Bit   7:5     reserved                                                      
-//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel 
+//Bit   7:5     reserved
+//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel
 #define S5_VD1_AFBCDM_RPLC_CTRL                           0x4362
 //Bit   31        reg_rplc_inter_corr_en //unsigned, RW , default = 0   , //pip replace inte-frame edge correct enable
 //Bit   30        reg_rplc_dummy_corr_en //unsigned, RW , default = 0   , //pip replace outsize of real-pipframe edge correct enable
 //Bit   29        reg_rplc_byps          //unsigned, RW , default = 1   , //pip replace module bypass
 //Bit   28:16     reg_rplc_vsize_in      //unsigned, RW , default = 1080, //
-//Bit   15:13     reserved                                                
+//Bit   15:13     reserved
 //Bit   12:0      reg_rplc_hsize_in      //unsigned, RW , default = 1920,
 #define S5_VD1_AFBCDM_RPLC_PICEN                          0x4363
 //Bit  31:28      reserved
@@ -1331,7 +1331,7 @@
 //Bit 18,        reg_dma_st_clr,            .usigned  , clear DMA error status
 //Bit 17,        reg_hold4dma_scale,        .usigned  , wait DMA scale data ready before accept input data        default = 0
 //Bit 16,        reg_hold4dma_tbl,          .usigned  , wait DMA grain table data ready before accept input data  default = 0
-//Bit 15,        reserved 
+//Bit 15,        reserved
 //Bit 14,        reg_cin_uv_swap,           .unsigned , swap uv input data order. default = 0
 //Bit 13,        reg_cin_rev,               .unsigned , reverse c order.  default = 0
 //Bit 12,        reg_yin_rev,               .unsigned , reverse y orderdefault = 0
@@ -1339,8 +1339,8 @@
 //Bit 10,        reg_fgrain_use_sat4bp      .unsigned , only for debug. default = 0
 //Bit  9,        reg_fgrain_tbl_ext_mode    .unsigned , default = 1
 //Bit  8,        reg_fgrain_ext_imode       .unsigned , default = 1
-//Bit  7: 6      reg_fmt_mode               .unsigned , default = 2, 0:444; 1:422; 2:420; 3:reserved    
-//Bit  5: 4      reg_comp_bits              .unsigned , default = 1, 0:8bits; 1:10bits, else 12 bits    
+//Bit  7: 6      reg_fmt_mode               .unsigned , default = 2, 0:444; 1:422; 2:420; 3:reserved
+//Bit  5: 4      reg_comp_bits              .unsigned , default = 1, 0:8bits; 1:10bits, else 12 bits
 //Bit  3: 2      reg_rev_mode               .unsigned . default = 0, 0:h_rev; 1:v_rev;
 //Bit  1,        reg_block_mode             .unsigned , default = 1
 //Bit  0,        reg_fgrain_en              .unsigned , default = 0
@@ -1459,7 +1459,7 @@
 //                                  bit 1:0,: y  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 3:2,: u  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 5:4,: v  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
-//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2 
+//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   5:4       horz_skip_y       unsigned, default = 0 , luma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   3:2       vert_skip_uv      unsigned, default = 0 , chroma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   1:0       horz_skip_uv      unsigned, default = 0 , chroma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
@@ -1514,8 +1514,8 @@
 //Bit 20    chfmt_en               unsigned, default = 0 ; //  horizontal formatter enable
 //Bit 19    cvfmt_phase0_always_en unsigned, default = 0 ; //if true, always use phase0 while vertical formater, meaning always //repeat data, no interpolation
 //Bit 18    cvfmt_rpt_last_dis     unsigned, default = 0 ; //if true, disable vertical formatter chroma repeat last line
-//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //veritcal formatter dont need repeat line on phase0, 1: enable, 0: disable
-//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //veritcal formatter repeat line 0 enable
+//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //vertical formatter dont need repeat line on phase0, 1: enable, 0: disable
+//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //vertical formatter repeat line 0 enable
 //Bit 15:12 cvfmt_skip_line_num    unsigned, default = 0 ; //vertical formatter skip line num at the beginning
 //Bit 11:8  cvfmt_ini_phase        unsigned, default = 0 ; //vertical formatter initial phase
 //Bit 7:1   cvfmt_phase_step       unsigned, default = 0 ; //vertical formatter phase step (3.4)
@@ -1612,10 +1612,10 @@
 //Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_1_0      // unsigned ,    RW, default = 0  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD2_AFBCDM_ROT_CTRL                            0x43e0
-//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1  
-//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1  
+//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1
+//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1
 //Bit   27      reg_pip_mode                        //unsigned, RW, default = 0 , 0:dec_src from vdin/dos  1:dec_src from pip
-//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)  
+//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   23      reserved
 //Bit   22:20   reg_rot_uv_hshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   19:18   reg_rot_uv_vshrk_ratio              //unsigned, RW, default = 0 , 0:no shrink  1:1/2 shrink  2:1/4 shrink
@@ -1635,12 +1635,12 @@
 //Bit   19      reg_rot_dout_ds_mode_sw  //unsigned, RW , default = 0, 0:use hardware mode 1:use software mode
 //Bit   18:17   reg_rot_dout_ds_mode     //unsigned, RW , default = 0, rot output fmt_down mode: [0]:h_downscale [1]:v_downscale
 //Bit   16      reg_rot_ifmt_force444    //unsigned, RW , default = 1, 1: rot input fmt force as 444
-//Bit   15:14   reg_rot_ofmt_mode        //unsigned, RW , default = 0, rot output fmt mode 
+//Bit   15:14   reg_rot_ofmt_mode        //unsigned, RW , default = 0, rot output fmt mode
 //Bit   13:12   reg_rot_compbits_out_y   //unsigned, RW , default = 0, rot output compbit y
 //Bit   11:10   reg_rot_compbits_out_uv  //unsigned, RW , default = 0, rot output compbit uv
 //Bit   9:8     reg_rot_wrbgn_v          //unsigned, RW , default = 0, rot pic vert size window begin pixel
 //Bit   7:5     reserved
-//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel 
+//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel
 #define S5_VD2_AFBCDM_RPLC_CTRL                           0x43e2
 //Bit   31        reg_rplc_inter_corr_en //unsigned, RW , default = 0   , //pip replace inte-frame edge correct enable
 //Bit   30        reg_rplc_dummy_corr_en //unsigned, RW , default = 0   , //pip replace outsize of real-pipframe edge correct enable
@@ -1674,7 +1674,7 @@
 //Bit 18,        reg_dma_st_clr,            .usigned  , clear DMA error status
 //Bit 17,        reg_hold4dma_scale,        .usigned  , wait DMA scale data ready before accept input data        default = 0
 //Bit 16,        reg_hold4dma_tbl,          .usigned  , wait DMA grain table data ready before accept input data  default = 0
-//Bit 15,        reserved 
+//Bit 15,        reserved
 //Bit 14,        reg_cin_uv_swap,           .unsigned , swap uv input data order. default = 0
 //Bit 13,        reg_cin_rev,               .unsigned , reverse c order.  default = 0
 //Bit 12,        reg_yin_rev,               .unsigned , reverse y orderdefault = 0
@@ -1682,8 +1682,8 @@
 //Bit 10,        reg_fgrain_use_sat4bp      .unsigned , only for debug. default = 0
 //Bit  9,        reg_fgrain_tbl_ext_mode    .unsigned , default = 1
 //Bit  8,        reg_fgrain_ext_imode       .unsigned , default = 1
-//Bit  7: 6      reg_fmt_mode               .unsigned , default = 2, 0:444; 1:422; 2:420; 3:reserved    
-//Bit  5: 4      reg_comp_bits              .unsigned , default = 1, 0:8bits; 1:10bits, else 12 bits    
+//Bit  7: 6      reg_fmt_mode               .unsigned , default = 2, 0:444; 1:422; 2:420; 3:reserved
+//Bit  5: 4      reg_comp_bits              .unsigned , default = 1, 0:8bits; 1:10bits, else 12 bits
 //Bit  3: 2      reg_rev_mode               .unsigned . default = 0, 0:h_rev; 1:v_rev;
 //Bit  1,        reg_block_mode             .unsigned , default = 1
 //Bit  0,        reg_fgrain_en              .unsigned , default = 0
@@ -1696,7 +1696,7 @@
 #define S5_VD2_FGRAIN_SW_Y_RANNGE                     0x43f3
 //Bit 31,        reg_fgrain_sw_yrange   .unsigned , default = 0
 //Bit 30:26,     reserved
-//Bit 25:16,     reg_fgrain_ymax        .unsigned , default = 1023 
+//Bit 25:16,     reg_fgrain_ymax        .unsigned , default = 1023
 //Bit 15:10,     reserved
 //Bit  9: 0,     reg_fgrain_ymin        .unsigned , default = 0
 #define S5_VD2_FGRAIN_SW_C_RANNGE                     0x43f4
@@ -1792,7 +1792,7 @@
 //Bit  14          reg_use_4kram         // unsigned, RW, default = 0
 //Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
 //Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
-//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512 
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
 //==========================================================================
 // AFBC_DEC
 //==========================================================================
@@ -1801,16 +1801,16 @@
 //Bit   28:23     reg_gclk_ctrl_core     unsigned, default = 0
 //Bit   22        reg_fmt_size_sw_mode   unsigned, default = 0, 0:hw mode 1:sw mode for format size
 //Bit   21        reg_addr_link_en  unsigned, default = 1, 1:enable
-//Bit   20        reg_fmt444_comb   unsigned, default = 0, 0: 444 8bit uncomb   
+//Bit   20        reg_fmt444_comb   unsigned, default = 0, 0: 444 8bit uncomb
 //Bit   19        reg_dos_uncomp_mode   unsigned  , default = 0
 //Bit   18:16     soft_rst          unsigned  , default = 4
 //Bit   15:14     reserved
 //Bit   13:12     ddr_blk_size      unsigned  , default = 1
 //Bit   11:9      cmd_blk_size      unsigend  , default = 3
 //Bit   8         dec_enable        unsigned  , default = 0
-//Bit   7:2       reserved                            
+//Bit   7:2       reserved
 //Bit   1         head_len_sel      unsigned  , default = 1
-//Bit   0         reserved          unsigned  , pulse dec_frm_start     
+//Bit   0         reserved          unsigned  , pulse dec_frm_start
 #define S5_VD3_AFBCDM_MODE                                0x4441
 //Bit   31:30     reserved
 //Bit   29        ddr_sz_mode       unsigned, default = 0 , 0: fixed block ddr size 1 : unfixed block ddr size;
@@ -1818,13 +1818,13 @@
 //Bit   27:26     rev_mode          unsigned, default = 0 , reverse mode
 //Bit   25:24     mif_urgent        unsigned, default = 3 , info mif and data mif urgent
 //Bit   23        reserved
-//Bit   22:16     hold_line_num     unsigned, default = 0 , 
+//Bit   22:16     hold_line_num     unsigned, default = 0 ,
 //Bit   15:14     burst_len         unsigned, default = 2, 0: burst1 1:burst2 2:burst4
-//Bit   13:8      compbits_yuv      unsigned, default = 0 , 
+//Bit   13:8      compbits_yuv      unsigned, default = 0 ,
 //                                  bit 1:0,: y  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 3:2,: u  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 5:4,: v  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
-//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2 
+//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   5:4       horz_skip_y       unsigned, default = 0 , luma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   3:2       vert_skip_uv      unsigned, default = 0 , chroma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   1:0       horz_skip_uv      unsigned, default = 0 , chroma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
@@ -1840,7 +1840,7 @@
 //Bit    9: 0    def_color_v        unsigned, default = 128, afbc dec v default setting value
 #define S5_VD3_AFBCDM_CONV_CTRL                           0x4444
 //Bit   31:14    reserved
-//Bit   13:12    fmt_mode            unsigned, default = 2, 0:yuv444 1:yuv422 2:yuv420 
+//Bit   13:12    fmt_mode            unsigned, default = 2, 0:yuv444 1:yuv422 2:yuv420
 //Bit   11: 0    conv_lbuf_len       unsigned, default = 256, unit=16 pixel need to set = 2^n
 #define S5_VD3_AFBCDM_LBUF_DEPTH                          0x4445
 //Bit   31:28    reserved
@@ -1867,7 +1867,7 @@
 //Bit   15:14   reserved
 //Bit   13:8    ro_dbg_frm_cnt       unsigned,RO, default = 0
 //Bit   7 :1    ro_dbg_go_line_cnt   unsigned,RO, default = 0
-//Bit      0    frm_end_stat         unsigned, default = 0 frame end status 
+//Bit      0    frm_end_stat         unsigned, default = 0 frame end status
 #define S5_VD3_AFBCDM_VD_CFMT_CTRL                        0x444b
 //Bit 31    cfmt_gclk_bit_dis      unsigned, default = 0 ; //  it true, disable clock, otherwise enable clock
 //Bit 30    cfmt_soft_rst_bit      unsigned, default = 0 ; //  soft rst bit
@@ -1879,11 +1879,11 @@
 //Bit 20    chfmt_en               unsigned, default = 0 ; //  horizontal formatter enable
 //Bit 19    cvfmt_phase0_always_en unsigned, default = 0 ; //if true, always use phase0 while vertical formater, meaning always //repeat data, no interpolation
 //Bit 18    cvfmt_rpt_last_dis     unsigned, default = 0 ; //if true, disable vertical formatter chroma repeat last line
-//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //veritcal formatter dont need repeat line on phase0, 1: enable, 0: disable
-//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //veritcal formatter repeat line 0 enable
+//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //vertical formatter dont need repeat line on phase0, 1: enable, 0: disable
+//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //vertical formatter repeat line 0 enable
 //Bit 15:12 cvfmt_skip_line_num    unsigned, default = 0 ; //vertical formatter skip line num at the beginning
 //Bit 11:8  cvfmt_ini_phase        unsigned, default = 0 ; //vertical formatter initial phase
-//Bit 7:1   cvfmt_phase_step       unsigned, default = 0 ; //vertical formatter phase step (3.4)  
+//Bit 7:1   cvfmt_phase_step       unsigned, default = 0 ; //vertical formatter phase step (3.4)
 //Bit 0     cvfmt_en               unsigned, default = 0 ; //vertical formatter enable
 #define S5_VD3_AFBCDM_VD_CFMT_W                           0x444c
 //Bit 31:29 reserved
@@ -1914,73 +1914,73 @@
 //Bit 31:13     reserved
 //Bit 12:0      cfmt_h                 unsigned, default = 142  ; //vertical formatter height
 #define S5_VD3_AFBCDM_IQUANT_ENABLE                       0x4452
-//Bit 31:12        reserved                           
+//Bit 31:12        reserved
 //Bit  11          reg_quant_expand_en_1     //unsigned,      RW, default = 0  enable for quantization value expansion
 //Bit  10          reg_quant_expand_en_0     //unsigned,      RW, default = 0  enable for quantization value expansion
 //Bit  9: 8        reg_bcleav_ofst           //signed ,       RW, default = 0  bcleave ofset to get lower range, especially under lossy, for v1/v2, x=0 is equivalent, default = -1;
-//Bit  7: 5        reserved                           
+//Bit  7: 5        reserved
 //Bit  4           reg_quant_enable_1        // unsigned ,    RW, default = 0  enable for quant to get some lossy
-//Bit  3: 1        reserved                           
+//Bit  3: 1        reserved
 //Bit  0           reg_quant_enable_0        // unsigned ,    RW, default = 0  enable for quant to get some lossy
 #define S5_VD3_AFBCDM_IQUANT_LUT_1                        0x4453
-//Bit 31           reserved                           
+//Bit 31           reserved
 //Bit 30:28        reg_iquant_yclut_0_11     // unsigned ,    RW, default = 0  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 27           reserved                           
+//Bit 27           reserved
 //Bit 26:24        reg_iquant_yclut_0_10     // unsigned ,    RW, default = 1  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 23           reserved                           
+//Bit 23           reserved
 //Bit 22:20        reg_iquant_yclut_0_9      // unsigned ,    RW, default = 2  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 19           reserved                           
+//Bit 19           reserved
 //Bit 18:16        reg_iquant_yclut_0_8      // unsigned ,    RW, default = 3  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 15           reserved                           
+//Bit 15           reserved
 //Bit 14:12        reg_iquant_yclut_0_7      // unsigned ,    RW, default = 4  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 11           reserved                           
+//Bit 11           reserved
 //Bit 10: 8        reg_iquant_yclut_0_6      // unsigned ,    RW, default = 5  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit  7           reserved                           
+//Bit  7           reserved
 //Bit  6: 4        reg_iquant_yclut_0_5      // unsigned ,    RW, default = 5  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit  3           reserved                           
+//Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_0_4      // unsigned ,    RW, default = 4  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD3_AFBCDM_IQUANT_LUT_2                        0x4454
-//Bit 31:16        reserved                           
-//Bit 15           reserved                           
+//Bit 31:16        reserved
+//Bit 15           reserved
 //Bit 14:12        reg_iquant_yclut_0_3      // unsigned ,    RW, default = 3  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 11           reserved                           
+//Bit 11           reserved
 //Bit 10: 8        reg_iquant_yclut_0_2      // unsigned ,    RW, default = 2  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit  7           reserved                           
+//Bit  7           reserved
 //Bit  6: 4        reg_iquant_yclut_0_1      // unsigned ,    RW, default = 1  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit  3           reserved                           
+//Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_0_0      // unsigned ,    RW, default = 0  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD3_AFBCDM_IQUANT_LUT_3                        0x4455
-//Bit 31           reserved                           
+//Bit 31           reserved
 //Bit 30:28        reg_iquant_yclut_1_11     // unsigned ,    RW, default = 0  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 27           reserved                           
+//Bit 27           reserved
 //Bit 26:24        reg_iquant_yclut_1_10     // unsigned ,    RW, default = 1  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 23           reserved                           
+//Bit 23           reserved
 //Bit 22:20        reg_iquant_yclut_1_9      // unsigned ,    RW, default = 2  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 19           reserved                           
+//Bit 19           reserved
 //Bit 18:16        reg_iquant_yclut_1_8      // unsigned ,    RW, default = 3  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 15           reserved                           
+//Bit 15           reserved
 //Bit 14:12        reg_iquant_yclut_1_7      // unsigned ,    RW, default = 4  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 11           reserved                           
+//Bit 11           reserved
 //Bit 10: 8        reg_iquant_yclut_1_6      // unsigned ,    RW, default = 5  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit  7           reserved                           
+//Bit  7           reserved
 //Bit  6: 4        reg_iquant_yclut_1_5      // unsigned ,    RW, default = 5  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit  3           reserved                           
+//Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_1_4      // unsigned ,    RW, default = 4  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD3_AFBCDM_IQUANT_LUT_4                        0x4456
-//Bit 31:16        reserved                           
-//Bit 15           reserved                           
+//Bit 31:16        reserved
+//Bit 15           reserved
 //Bit 14:12        reg_iquant_yclut_1_3      // unsigned ,    RW, default = 3  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit 11           reserved                           
+//Bit 11           reserved
 //Bit 10: 8        reg_iquant_yclut_1_2      // unsigned ,    RW, default = 2  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit  7           reserved                           
+//Bit  7           reserved
 //Bit  6: 4        reg_iquant_yclut_1_1      // unsigned ,    RW, default = 1  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
-//Bit  3           reserved                           
+//Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_1_0      // unsigned ,    RW, default = 0  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD3_AFBCDM_ROT_CTRL                            0x4460
-//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1  
-//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1  
+//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1
+//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1
 //Bit   27      reg_pip_mode                        //unsigned, RW, default = 0 , 0:dec_src from vdin/dos  1:dec_src from pip
-//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)  
+//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   23      reserved
 //Bit   22:20   reg_rot_uv_hshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   19:18   reg_rot_uv_vshrk_ratio              //unsigned, RW, default = 0 , 0:no shrink  1:1/2 shrink  2:1/4 shrink
@@ -2000,18 +2000,18 @@
 //Bit   19      reg_rot_dout_ds_mode_sw  //unsigned, RW , default = 0, 0:use hardware mode 1:use software mode
 //Bit   18:17   reg_rot_dout_ds_mode     //unsigned, RW , default = 0, rot output fmt_down mode: [0]:h_downscale [1]:v_downscale
 //Bit   16      reg_rot_ifmt_force444    //unsigned, RW , default = 1, 1: rot input fmt force as 444
-//Bit   15:14   reg_rot_ofmt_mode        //unsigned, RW , default = 0, rot output fmt mode 
+//Bit   15:14   reg_rot_ofmt_mode        //unsigned, RW , default = 0, rot output fmt mode
 //Bit   13:12   reg_rot_compbits_out_y   //unsigned, RW , default = 0, rot output compbit y
 //Bit   11:10   reg_rot_compbits_out_uv  //unsigned, RW , default = 0, rot output compbit uv
 //Bit   9:8     reg_rot_wrbgn_v          //unsigned, RW , default = 0, rot pic vert size window begin pixel
-//Bit   7:5     reserved                                                                            
-//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel 
+//Bit   7:5     reserved
+//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel
 #define S5_VD3_AFBCDM_RPLC_CTRL                           0x4462
 //Bit   31        reg_rplc_inter_corr_en //unsigned, RW , default = 0   , //pip replace inte-frame edge correct enable
 //Bit   30        reg_rplc_dummy_corr_en //unsigned, RW , default = 0   , //pip replace outsize of real-pipframe edge correct enable
 //Bit   29        reg_rplc_byps          //unsigned, RW , default = 1   , //pip replace module bypass
 //Bit   28:16     reg_rplc_vsize_in      //unsigned, RW , default = 1080, //
-//Bit   15:13     reserved                                                                            
+//Bit   15:13     reserved
 //Bit   12:0      reg_rplc_hsize_in      //unsigned, RW , default = 1920,
 #define S5_VD3_AFBCDM_RPLC_PICEN                          0x4463
 //Bit  31:28      reserved
@@ -2033,40 +2033,40 @@
 //8'h70-8'h7f   for vd3_fgrain
 #define S5_VD3_FGRAIN_CTRL                            0x4470
 //Bit 31:19      reserved
-//Bit 18,        reg_dma_st_clr,            .usigned  , clear DMA error status 
+//Bit 18,        reg_dma_st_clr,            .usigned  , clear DMA error status
 //Bit 17,        reg_hold4dma_scale,        .usigned  , wait DMA scale data ready before accept input data        default = 0
 //Bit 16,        reg_hold4dma_tbl,          .usigned  , wait DMA grain table data ready before accept input data  default = 0
-//Bit 15,        reserved 
-//Bit 14,        reg_cin_uv_swap,           .unsigned , swap uv input data order. default = 0                  
-//Bit 13,        reg_cin_rev,               .unsigned , reverse c order.  default = 0                  
-//Bit 12,        reg_yin_rev,               .unsigned , reverse y orderdefault = 0                  
+//Bit 15,        reserved
+//Bit 14,        reg_cin_uv_swap,           .unsigned , swap uv input data order. default = 0
+//Bit 13,        reg_cin_rev,               .unsigned , reverse c order.  default = 0
+//Bit 12,        reg_yin_rev,               .unsigned , reverse y orderdefault = 0
 //Bit 11,        reserved
-//Bit 10,        reg_fgrain_use_sat4bp      .unsigned , only for debug. default = 0 
+//Bit 10,        reg_fgrain_use_sat4bp      .unsigned , only for debug. default = 0
 //Bit  9,        reg_fgrain_tbl_ext_mode    .unsigned , default = 1
 //Bit  8,        reg_fgrain_ext_imode       .unsigned , default = 1
-//Bit  7: 6      reg_fmt_mode               .unsigned , default = 2, 0:444; 1:422; 2:420; 3:reserved    
-//Bit  5: 4      reg_comp_bits              .unsigned , default = 1, 0:8bits; 1:10bits, else 12 bits    
-//Bit  3: 2      reg_rev_mode               .unsigned . default = 0, 0:h_rev; 1:v_rev;  
+//Bit  7: 6      reg_fmt_mode               .unsigned , default = 2, 0:444; 1:422; 2:420; 3:reserved
+//Bit  5: 4      reg_comp_bits              .unsigned , default = 1, 0:8bits; 1:10bits, else 12 bits
+//Bit  3: 2      reg_rev_mode               .unsigned . default = 0, 0:h_rev; 1:v_rev;
 //Bit  1,        reg_block_mode             .unsigned , default = 1
 //Bit  0,        reg_fgrain_en              .unsigned , default = 0
 #define S5_VD3_FGRAIN_WIN_H                           0x4471
-//Bit  31:16     reg_win_end_h      .unsigned , default = 3812 
+//Bit  31:16     reg_win_end_h      .unsigned , default = 3812
 //Bit  15: 0,    reg_win_bgn_h      .unsigned , default = 0
 #define S5_VD3_FGRAIN_WIN_V                           0x4472
-//Bit  31:16     reg_win_end_v      .unsigned , default = 2156 
+//Bit  31:16     reg_win_end_v      .unsigned , default = 2156
 //Bit  15: 0,    reg_win_bgn_v      .unsigned , default = 0
 #define S5_VD3_FGRAIN_SW_Y_RANNGE                     0x4473
 //Bit 31,        reg_fgrain_sw_yrange   .unsigned , default = 0
 //Bit 30:26,     reserved
-//Bit 25:16,     reg_fgrain_ymax        .unsigned , default = 1023                         
+//Bit 25:16,     reg_fgrain_ymax        .unsigned , default = 1023
 //Bit 15:10,     reserved
-//Bit  9: 0,     reg_fgrain_ymin        .unsigned , default = 0                         
+//Bit  9: 0,     reg_fgrain_ymin        .unsigned , default = 0
 #define S5_VD3_FGRAIN_SW_C_RANNGE                     0x4474
 //Bit 31,        reg_fgrain_sw_crange   .unsigned , default = 0
 //Bit 30:26,     reserved
-//Bit 25:16,     reg_fgrain_cmax        .unsigned , default = 1023                         
+//Bit 25:16,     reg_fgrain_cmax        .unsigned , default = 1023
 //Bit 15:10,     reserved
-//Bit  9: 0,     reg_fgrain_cmin        .unsigned , default = 0                         
+//Bit  9: 0,     reg_fgrain_cmin        .unsigned , default = 0
 #define S5_VD3_FGRAIN_GCLK_CTRL_0                     0x4475
 //Bit 31:0,      reg_fgrain_gclk_ctrl0  .unsigned , default = 0
 #define S5_VD3_FGRAIN_GCLK_CTRL_1                     0x4476
@@ -2130,7 +2130,7 @@
 //Bit  14          reg_use_4kram         // unsigned, RW, default = 0
 //Bit  13          reg_afbc_vd_sel       // unsigned, RW, default = 0, 0:nor_rdmif 1:afbc_dec
 //Bit  12          reg_rdmif_lbuf_bypas  // unsigned, RW, default = 1, 1:rdmif lbuf bypass
-//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512 
+//Bit  11:0        reg_rdmif_lbuf_depth  // unsigned, RW, default = 512
 //==========================================================================
 // AFBC_DEC
 //==========================================================================
@@ -2139,16 +2139,16 @@
 //Bit   28:23     reg_gclk_ctrl_core     unsigned, default = 0
 //Bit   22        reg_fmt_size_sw_mode   unsigned, default = 0, 0:hw mode 1:sw mode for format size
 //Bit   21        reg_addr_link_en  unsigned, default = 1, 1:enable
-//Bit   20        reg_fmt444_comb   unsigned, default = 0, 0: 444 8bit uncomb   
+//Bit   20        reg_fmt444_comb   unsigned, default = 0, 0: 444 8bit uncomb
 //Bit   19        reg_dos_uncomp_mode   unsigned  , default = 0
 //Bit   18:16     soft_rst          unsigned  , default = 4
 //Bit   15:14     reserved
 //Bit   13:12     ddr_blk_size      unsigned  , default = 1
 //Bit   11:9      cmd_blk_size      unsigend  , default = 3
 //Bit   8         dec_enable        unsigned  , default = 0
-//Bit   7:2       reserved                            
+//Bit   7:2       reserved
 //Bit   1         head_len_sel      unsigned  , default = 1
-//Bit   0         reserved          unsigned  , pulse dec_frm_start     
+//Bit   0         reserved          unsigned  , pulse dec_frm_start
 #define S5_VD4_AFBCDM_MODE                                0x44c1
 //Bit   31:30     reserved
 //Bit   29        ddr_sz_mode       unsigned, default = 0 , 0: fixed block ddr size 1 : unfixed block ddr size;
@@ -2156,13 +2156,13 @@
 //Bit   27:26     rev_mode          unsigned, default = 0 , reverse mode
 //Bit   25:24     mif_urgent        unsigned, default = 3 , info mif and data mif urgent
 //Bit   23        reserved
-//Bit   22:16     hold_line_num     unsigned, default = 0 , 
+//Bit   22:16     hold_line_num     unsigned, default = 0 ,
 //Bit   15:14     burst_len         unsigned, default = 2, 0: burst1 1:burst2 2:burst4
-//Bit   13:8      compbits_yuv      unsigned, default = 0 , 
+//Bit   13:8      compbits_yuv      unsigned, default = 0 ,
 //                                  bit 1:0,: y  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 3:2,: u  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 5:4,: v  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
-//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2 
+//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   5:4       horz_skip_y       unsigned, default = 0 , luma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   3:2       vert_skip_uv      unsigned, default = 0 , chroma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   1:0       horz_skip_uv      unsigned, default = 0 , chroma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
@@ -2178,7 +2178,7 @@
 //Bit    9: 0    def_color_v        unsigned, default = 128, afbc dec v default setting value
 #define S5_VD4_AFBCDM_CONV_CTRL                           0x44c4
 //Bit   31:14    reserved
-//Bit   13:12    fmt_mode            unsigned, default = 2, 0:yuv444 1:yuv422 2:yuv420 
+//Bit   13:12    fmt_mode            unsigned, default = 2, 0:yuv444 1:yuv422 2:yuv420
 //Bit   11: 0    conv_lbuf_len       unsigned, default = 256, unit=16 pixel need to set = 2^n
 #define S5_VD4_AFBCDM_LBUF_DEPTH                          0x44c5
 //Bit   31:28    reserved
@@ -2205,7 +2205,7 @@
 //Bit   15:14   reserved
 //Bit   13:8    ro_dbg_frm_cnt       unsigned,RO, default = 0
 //Bit   7 :1    ro_dbg_go_line_cnt   unsigned,RO, default = 0
-//Bit      0    frm_end_stat         unsigned, default = 0 frame end status 
+//Bit      0    frm_end_stat         unsigned, default = 0 frame end status
 #define S5_VD4_AFBCDM_VD_CFMT_CTRL                        0x44cb
 //Bit 31    cfmt_gclk_bit_dis      unsigned, default = 0 ; //  it true, disable clock, otherwise enable clock
 //Bit 30    cfmt_soft_rst_bit      unsigned, default = 0 ; //  soft rst bit
@@ -2217,11 +2217,11 @@
 //Bit 20    chfmt_en               unsigned, default = 0 ; //  horizontal formatter enable
 //Bit 19    cvfmt_phase0_always_en unsigned, default = 0 ; //if true, always use phase0 while vertical formater, meaning always //repeat data, no interpolation
 //Bit 18    cvfmt_rpt_last_dis     unsigned, default = 0 ; //if true, disable vertical formatter chroma repeat last line
-//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //veritcal formatter dont need repeat line on phase0, 1: enable, 0: disable
-//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //veritcal formatter repeat line 0 enable
+//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //vertical formatter dont need repeat line on phase0, 1: enable, 0: disable
+//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //vertical formatter repeat line 0 enable
 //Bit 15:12 cvfmt_skip_line_num    unsigned, default = 0 ; //vertical formatter skip line num at the beginning
 //Bit 11:8  cvfmt_ini_phase        unsigned, default = 0 ; //vertical formatter initial phase
-//Bit 7:1   cvfmt_phase_step       unsigned, default = 0 ; //vertical formatter phase step (3.4)  
+//Bit 7:1   cvfmt_phase_step       unsigned, default = 0 ; //vertical formatter phase step (3.4)
 //Bit 0     cvfmt_en               unsigned, default = 0 ; //vertical formatter enable
 #define S5_VD4_AFBCDM_VD_CFMT_W                           0x44cc
 //Bit 31:29 reserved
@@ -2252,7 +2252,7 @@
 //Bit 31:13     reserved
 //Bit 12:0      cfmt_h                 unsigned, default = 142  ; //vertical formatter height
 #define S5_VD4_AFBCDM_IQUANT_ENABLE                       0x44d2
-//Bit 31:12        reserved  
+//Bit 31:12        reserved
 //Bit  11          reg_quant_expand_en_1     //unsigned,      RW, default = 0  enable for quantization value expansion
 //Bit  10          reg_quant_expand_en_0     //unsigned,      RW, default = 0  enable for quantization value expansion
 //Bit  9: 8        reg_bcleav_ofst           //signed ,       RW, default = 0  bcleave ofset to get lower range, especially under lossy, for v1/v2, x=0 is equivalent, default = -1;
@@ -2315,10 +2315,10 @@
 //Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_1_0      // unsigned ,    RW, default = 0  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD4_AFBCDM_ROT_CTRL                            0x44e0
-//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1  
-//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1  
+//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1
+//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1
 //Bit   27      reg_pip_mode                        //unsigned, RW, default = 0 , 0:dec_src from vdin/dos  1:dec_src from pip
-//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)  
+//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   23      reserved
 //Bit   22:20   reg_rot_uv_hshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   19:18   reg_rot_uv_vshrk_ratio              //unsigned, RW, default = 0 , 0:no shrink  1:1/2 shrink  2:1/4 shrink
@@ -2338,12 +2338,12 @@
 //Bit   19      reg_rot_dout_ds_mode_sw  //unsigned, RW , default = 0, 0:use hardware mode 1:use software mode
 //Bit   18:17   reg_rot_dout_ds_mode     //unsigned, RW , default = 0, rot output fmt_down mode: [0]:h_downscale [1]:v_downscale
 //Bit   16      reg_rot_ifmt_force444    //unsigned, RW , default = 1, 1: rot input fmt force as 444
-//Bit   15:14   reg_rot_ofmt_mode        //unsigned, RW , default = 0, rot output fmt mode 
+//Bit   15:14   reg_rot_ofmt_mode        //unsigned, RW , default = 0, rot output fmt mode
 //Bit   13:12   reg_rot_compbits_out_y   //unsigned, RW , default = 0, rot output compbit y
 //Bit   11:10   reg_rot_compbits_out_uv  //unsigned, RW , default = 0, rot output compbit uv
 //Bit   9:8     reg_rot_wrbgn_v          //unsigned, RW , default = 0, rot pic vert size window begin pixel
 //Bit   7:5     reserved
-//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel 
+//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel
 #define S5_VD4_AFBCDM_RPLC_CTRL                           0x44e2
 //Bit   31        reg_rplc_inter_corr_en //unsigned, RW , default = 0   , //pip replace inte-frame edge correct enable
 //Bit   30        reg_rplc_dummy_corr_en //unsigned, RW , default = 0   , //pip replace outsize of real-pipframe edge correct enable
@@ -2375,15 +2375,15 @@
 //Bit 17,        reg_hold4dma_scale,        .usigned  , wait DMA scale data ready before accept input data        default = 0
 //Bit 16,        reg_hold4dma_tbl,          .usigned  , wait DMA grain table data ready before accept input data  default = 0
 //Bit 15,        reserved
-//Bit 14,        reg_cin_uv_swap,           .unsigned , swap uv input data order. default = 0  
+//Bit 14,        reg_cin_uv_swap,           .unsigned , swap uv input data order. default = 0
 //Bit 13,        reg_cin_rev,               .unsigned , reverse c order.  default = 0
 //Bit 12,        reg_yin_rev,               .unsigned , reverse y orderdefault = 0
 //Bit 11,        reserved
 //Bit 10,        reg_fgrain_use_sat4bp      .unsigned , only for debug. default = 0
 //Bit  9,        reg_fgrain_tbl_ext_mode    .unsigned , default = 1
 //Bit  8,        reg_fgrain_ext_imode       .unsigned , default = 1
-//Bit  7: 6      reg_fmt_mode               .unsigned , default = 2, 0:444; 1:422; 2:420; 3:reserved    
-//Bit  5: 4      reg_comp_bits              .unsigned , default = 1, 0:8bits; 1:10bits, else 12 bits    
+//Bit  7: 6      reg_fmt_mode               .unsigned , default = 2, 0:444; 1:422; 2:420; 3:reserved
+//Bit  5: 4      reg_comp_bits              .unsigned , default = 1, 0:8bits; 1:10bits, else 12 bits
 //Bit  3: 2      reg_rev_mode               .unsigned . default = 0, 0:h_rev; 1:v_rev;
 //Bit  1,        reg_block_mode             .unsigned , default = 1
 //Bit  0,        reg_fgrain_en              .unsigned , default = 0
@@ -2396,13 +2396,13 @@
 #define S5_VD4_FGRAIN_SW_Y_RANNGE                     0x44f3
 //Bit 31,        reg_fgrain_sw_yrange   .unsigned , default = 0
 //Bit 30:26,     reserved
-//Bit 25:16,     reg_fgrain_ymax        .unsigned , default = 1023            
+//Bit 25:16,     reg_fgrain_ymax        .unsigned , default = 1023
 //Bit 15:10,     reserved
-//Bit  9: 0,     reg_fgrain_ymin        .unsigned , default = 0     
+//Bit  9: 0,     reg_fgrain_ymin        .unsigned , default = 0
 #define S5_VD4_FGRAIN_SW_C_RANNGE                     0x44f4
 //Bit 31,        reg_fgrain_sw_crange   .unsigned , default = 0
 //Bit 30:26,     reserved
-//Bit 25:16,     reg_fgrain_cmax        .unsigned , default = 1023  
+//Bit 25:16,     reg_fgrain_cmax        .unsigned , default = 1023
 //Bit 15:10,     reserved
 //Bit  9: 0,     reg_fgrain_cmin        .unsigned , default = 0
 #define S5_VD4_FGRAIN_GCLK_CTRL_0                     0x44f5
@@ -2522,7 +2522,7 @@
 //                                  bit 1:0,: y  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 3:2,: u  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
 //                                  bit 5:4,: v  component bitwidth : 00-8bit 01-9bit 10-10bit 11-12bit
-//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2 
+//Bit   7:6       vert_skip_y       unsigned, default = 0 , luma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   5:4       horz_skip_y       unsigned, default = 0 , luma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   3:2       vert_skip_uv      unsigned, default = 0 , chroma vert skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
 //Bit   1:0       horz_skip_uv      unsigned, default = 0 , chroma horz skip mode : 00-y0y1, 01-y0, 10-y1, 11-(y0+y1)/2
@@ -2570,15 +2570,15 @@
 //Bit 31    cfmt_gclk_bit_dis      unsigned, default = 0 ; //  it true, disable clock, otherwise enable clock
 //Bit 30    cfmt_soft_rst_bit      unsigned, default = 0 ; //  soft rst bit
 //Bit 29    reserved
-//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generete pixel, otherwise use bilinear interpolation
+//Bit 28    chfmt_rpt_pix          unsigned, default = 0 ; //  if true, horizontal formatter use repeating to generate pixel, otherwise use bilinear interpolation
 //Bit 27:24 chfmt_ini_phase        unsigned, default = 0 ; //  horizontal formatter initial phase
 //Bit 23    chfmt_rpt_p0_en        unsigned, default = 0 ; //  horizontal formatter repeat pixel 0 enable
 //Bit 22:21 chfmt_yc_ratio         unsigned, default = 0 ; //  horizontal Y/C ratio, 00: 1:1, 01: 2:1, 10: 4:1
 //Bit 20    chfmt_en               unsigned, default = 0 ; //  horizontal formatter enable
 //Bit 19    cvfmt_phase0_always_en unsigned, default = 0 ; //if true, always use phase0 while vertical formater, meaning always //repeat data, no interpolation
 //Bit 18    cvfmt_rpt_last_dis     unsigned, default = 0 ; //if true, disable vertical formatter chroma repeat last line
-//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //veritcal formatter dont need repeat line on phase0, 1: enable, 0: disable
-//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //veritcal formatter repeat line 0 enable
+//Bit 17    cvfmt_phase0_nrpt_en   unsigned, default = 0 ; //vertical formatter dont need repeat line on phase0, 1: enable, 0: disable
+//Bit 16    cvfmt_rpt_line0_en     unsigned, default = 0 ; //vertical formatter repeat line 0 enable
 //Bit 15:12 cvfmt_skip_line_num    unsigned, default = 0 ; //vertical formatter skip line num at the beginning
 //Bit 11:8  cvfmt_ini_phase        unsigned, default = 0 ; //vertical formatter initial phase
 //Bit 7:1   cvfmt_phase_step       unsigned, default = 0 ; //vertical formatter phase step (3.4)
@@ -2612,7 +2612,7 @@
 //Bit 31:13     reserved
 //Bit 12:0      cfmt_h                 unsigned, default = 142  ; //vertical formatter height
 #define S5_VD5_AFBCDM_IQUANT_ENABLE                       0x4552
-//Bit 31:12        reserved 
+//Bit 31:12        reserved
 //Bit  11          reg_quant_expand_en_1     //unsigned,      RW, default = 0  enable for quantization value expansion
 //Bit  10          reg_quant_expand_en_0     //unsigned,      RW, default = 0  enable for quantization value expansion
 //Bit  9: 8        reg_bcleav_ofst           //signed ,       RW, default = 0  bcleave ofset to get lower range, especially under lossy, for v1/v2, x=0 is equivalent, default = -1;
@@ -2675,10 +2675,10 @@
 //Bit  3           reserved
 //Bit  2: 0        reg_iquant_yclut_1_0      // unsigned ,    RW, default = 0  quantization lut for mintree leavs, iquant=2^lut(bc_leav_q+1)
 #define S5_VD5_AFBCDM_ROT_CTRL                            0x4560
-//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1  
-//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1  
+//Bit   31:30   reg_rot_ohds2_mode                  //unsigned, RW, default = 0 , rot output format down hor drop mode,0:average 1:use 0 2:use 1
+//Bit   29:28   reg_rot_ovds2_mode                  //unsigned, RW, default = 0 , rot output format down ver drop mode,0:average 1:use 0 2:use 1
 //Bit   27      reg_pip_mode                        //unsigned, RW, default = 0 , 0:dec_src from vdin/dos  1:dec_src from pip
-//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)  
+//Bit   26:24   reg_rot_uv_vshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   23      reserved
 //Bit   22:20   reg_rot_uv_hshrk_drop_mode          //unsigned, RW, default = 0 , 0:average (1/2: 1:left 2:right) (1/4: 1:[0] 2:[1] 3:[2] 4:[3], 5:left_121 6:right_121)
 //Bit   19:18   reg_rot_uv_vshrk_ratio              //unsigned, RW, default = 0 , 0:no shrink  1:1/2 shrink  2:1/4 shrink
@@ -2703,7 +2703,7 @@
 //Bit   11:10   reg_rot_compbits_out_uv  //unsigned, RW , default = 0, rot output compbit uv
 //Bit   9:8     reg_rot_wrbgn_v          //unsigned, RW , default = 0, rot pic vert size window begin pixel
 //Bit   7:5     reserved
-//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel 
+//Bit   4:0     reg_rot_wrbgn_h          //unsigned, RW , default = 0, rot pic hori size window begin pixel
 #define S5_VD5_AFBCDM_RPLC_CTRL                           0x4562
 //Bit   31        reg_rplc_inter_corr_en //unsigned, RW , default = 0   , //pip replace inte-frame edge correct enable
 //Bit   30        reg_rplc_dummy_corr_en //unsigned, RW , default = 0   , //pip replace outsize of real-pipframe edge correct enable
@@ -2735,7 +2735,7 @@
 //Bit 18,        reg_dma_st_clr,            .usigned  , clear DMA error status
 //Bit 17,        reg_hold4dma_scale,        .usigned  , wait DMA scale data ready before accept input data        default = 0
 //Bit 16,        reg_hold4dma_tbl,          .usigned  , wait DMA grain table data ready before accept input data  default = 0
-//Bit 15,        reserved 
+//Bit 15,        reserved
 //Bit 14,        reg_cin_uv_swap,           .unsigned , swap uv input data order. default = 0
 //Bit 13,        reg_cin_rev,               .unsigned , reverse c order.  default = 0
 //Bit 12,        reg_yin_rev,               .unsigned , reverse y orderdefault = 0
@@ -2757,7 +2757,7 @@
 #define S5_VD5_FGRAIN_SW_Y_RANNGE                     0x4573
 //Bit 31,        reg_fgrain_sw_yrange   .unsigned , default = 0
 //Bit 30:26,     reserved
-//Bit 25:16,     reg_fgrain_ymax        .unsigned , default = 1023     
+//Bit 25:16,     reg_fgrain_ymax        .unsigned , default = 1023
 //Bit 15:10,     reserved
 //Bit  9: 0,     reg_fgrain_ymin        .unsigned , default = 0
 #define S5_VD5_FGRAIN_SW_C_RANNGE                     0x4574
@@ -2973,7 +2973,7 @@
 //VCBUS_BASE                   8'h41
 #define S5_AISR_RESHAP_CTRL0                          0x4140
 //Bit 31:15 reserved
-//Bit 14:12 reg_cmd_intr_len  // unsigned , default = 1, interrupt send cmd when how many series axi cmd, 
+//Bit 14:12 reg_cmd_intr_len  // unsigned , default = 1, interrupt send cmd when how many series axi cmd,
                               // 0=12 1=16 2=24 3=32 4=40 5=48 6=56 7=64
 //Bit 11:10 reg_cmd_req_size  // unsigned , default = 1, how many room fifo have, then axi send series req, 0=16 1=32 2=24 3=64
 //Bit 9:8   reg_burst_len     // unsigned , default = 2, burst type: 0-single 1-bst2 2-bst4
@@ -2992,7 +2992,7 @@
 //Bit 15:13 reserved
 //Bit 12:0  reg_stride        // unsigned , default = 4096
 #define S5_AISR_RESHAP_CTRL2                          0x4142
-//Bit 31    reserved 
+//Bit 31    reserved
 //Bit 30    reg_hold_en       // unsigned , default = 0
 //Bit 29:24 reg_pass_num      // unsigned , default = 1
 //Bit 23:18 reg_hold_num      // unsigned , default = 0
@@ -3228,9 +3228,9 @@
 //Bit  9: 0        reg_prevsc_coef_0         // signed ,    RW, default = 256  default	=	0x40	,	coefficient3	pre vertical	filter
 #define S5_SCHN_PRE_SCALE_CTRL                        0x418c
 //Bit 31:29        reserved
-//Bit 28:25        reg_preh_hb_num           // unsigned ,    RW, default = 8  defalut = 8, prehsc rtl h blank number 
-//Bit 24:21        reg_preh_vb_num           // unsigned ,    RW, default = 8  defalut = 8, prehsc rtl v blank number
-//Bit 20           reg_sc_coef_s11_mode      // unsigned ,    RW, default = 0  defalut = 0, sc coef bit-width 0:s9, 1:s11
+//Bit 28:25        reg_preh_hb_num           // unsigned ,    RW, default = 8  default = 8, prehsc rtl h blank number
+//Bit 24:21        reg_preh_vb_num           // unsigned ,    RW, default = 8  default = 8, prehsc rtl v blank number
+//Bit 20           reg_sc_coef_s11_mode      // unsigned ,    RW, default = 0  default = 0, sc coef bit-width 0:s9, 1:s11
 //Bit 19:16        reg_vsc_nor_rs_bits       // unsigned ,    RW, default = 7  default = 7, normalize right shift bits of vsc
 //Bit 15:12        reg_hsc_nor_rs_bits       // unsigned ,    RW, default = 7  default = 7, normalize right shift bits of hsc
 //Bit 11: 8        reg_prehsc_flt_num        // unsigned ,    RW, default = 2  default = 2, prehsc filter tap num

@@ -619,7 +619,7 @@ struct vpp_post_blend_reg_s vpp_post_blend_reg_s5 = {
 	S5_VPP_POSTBLEND_VD2_V_START_END,
 	S5_VPP_POSTBLEND_VD3_H_START_END,
 	S5_VPP_POSTBLEND_VD3_V_START_END,
-	S5_VPP_POSTBLND_H_V_SIZE,
+	S5_VPP_POSTBLEND_H_V_SIZE,
 	S5_VPP_POST_BLEND_BLEND_DUMMY_DATA,
 	S5_VPP_POST_BLEND_DUMMY_ALPHA,
 	S5_VPP_POST_BLEND_DUMMY_ALPHA1,
@@ -631,11 +631,11 @@ struct vpp_post_blend_reg_s vpp_post_blend_reg_s5 = {
 	S5_VD1_POSTBLEND_ALPHA,
 	S5_VD2_POSTBLEND_ALPHA,
 	S5_VD3_POSTBLEND_ALPHA,
-	S5_VPP_POSTBLND_CTRL,
+	S5_VPP_POSTBLEND_CTRL,
 };
 
 struct vpp_post_misc_reg_s vpp_post_misc_reg_s5 = {
-	S5_VPP_POSTBLND_CTRL,
+	S5_VPP_POSTBLEND_CTRL,
 	S5_VPP_OBUF_RAM_CTRL,
 	S5_VPP_4P4S_CTRL,
 	S5_VPP_4S4P_CTRL,
@@ -709,7 +709,7 @@ struct vd1_slice_pad_reg_s vd1_slice_pad_size1_reg_s5[SLICE_NUM] = {
 };
 
 struct vd2_pre_blend_reg_s vd2_pre_blend_reg_s5 = {
-	VPP_VD_PREBLND_H_V_SIZE,
+	VPP_VD_PREBLEND_H_V_SIZE,
 	VPP_VD_PRE_BLEND_DUMMY_DATA,
 	VPP_VD_PRE_BLEND_DUMMY_ALPHA,
 	S5_VPP_PREBLEND_VD1_H_START_END,
@@ -720,7 +720,7 @@ struct vd2_pre_blend_reg_s vd2_pre_blend_reg_s5 = {
 	VD2_PREBLEND_SRC_CTRL,
 	VD1_PREBLEND_ALPHA,
 	VD2_PREBLEND_ALPHA,
-	VPP_VD_PREBLND_CTRL,
+	VPP_VD_PREBLEND_CTRL,
 };
 
 struct vd_pip_alpha_reg_s vd_pip_alpha_reg_s5[MAX_VD_CHAN_S5] = {

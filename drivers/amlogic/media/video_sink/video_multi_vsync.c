@@ -335,7 +335,7 @@ irqreturn_t vsync_isr_viux(u8 vpp_index, const struct vinfo_s *info)
 		_set_video_window(&glayer_info[layer_id], axis);
 		_set_video_crop(&glayer_info[layer_id], crop);
 		set_alpha_scpxn(&vd_layer_vpp[vpp_id],
-				vd_layer_vpp[vpp_id].dispbuf->componser_info);
+				vd_layer_vpp[vpp_id].dispbuf->composer_info);
 		glayer_info[layer_id].zorder = vd_layer_vpp[vpp_id].dispbuf->zorder;
 	}
 

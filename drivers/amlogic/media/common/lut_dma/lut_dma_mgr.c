@@ -64,7 +64,7 @@ static int lut_dma_probed;
 static struct lutdma_device_data_s lutdma_meson_dev;
 
 static struct lutdma_device_data_s lut_dma = {
-	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBALE,
+	.cpu_type = MESON_CPU_MAJOR_ID_COMPATIBLE,
 	.support_8G_addr = 0,
 	.lut_dma_ver = 1,
 };

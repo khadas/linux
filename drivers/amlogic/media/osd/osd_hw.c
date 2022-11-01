@@ -1440,7 +1440,7 @@ static unsigned int osd_filter_coefs_bilinear[] = { /* 2 point bilinear	coef1 */
 	0x00443c00, 0x00423e00, 0x00404000
 };
 
-static unsigned int osd_filter_coefs_2point_binilear[] = {
+static unsigned int osd_filter_coefs_2point_bilinear[] = {
 	/* 2 point bilinear, bank_length == 2	coef2 */
 	0x80000000, 0x7e020000, 0x7c040000, 0x7a060000, 0x78080000, 0x760a0000,
 	0x740c0000, 0x720e0000, 0x70100000, 0x6e120000, 0x6c140000, 0x6a160000,
@@ -1527,7 +1527,7 @@ static unsigned int *filter_table[] = {
 	osd_filter_coefs_bicubic_sharp,
 	osd_filter_coefs_bicubic,
 	osd_filter_coefs_bilinear,
-	osd_filter_coefs_2point_binilear,
+	osd_filter_coefs_2point_bilinear,
 	osd_filter_coefs_3point_triangle_sharp,
 	osd_filter_coefs_3point_triangle,
 	osd_filter_coefs_4point_triangle,

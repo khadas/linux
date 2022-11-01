@@ -2121,8 +2121,8 @@
 
 /* vpp post regs */
 #define VPP_POST_GCLK_CTRL                  0x1d00
-#define VPP_POSTBLND_H_V_SIZE               0x1d01
-#define VPP_POSTBLND_CTRL                   0x1d02
+#define VPP_POSTBLEND_H_V_SIZE               0x1d01
+#define VPP_POSTBLEND_CTRL                   0x1d02
 
 #define S5_VPP_OSD1_BLD_H_SCOPE             0x1d09
 #define S5_VPP_OSD1_BLD_V_SCOPE             0x1d0a

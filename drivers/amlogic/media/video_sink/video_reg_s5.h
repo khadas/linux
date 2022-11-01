@@ -186,7 +186,7 @@ struct vpp_post_blend_reg_s {
 	u32 vpp_postblend_vd2_v_start_end;
 	u32 vpp_postblend_vd3_h_start_end;
 	u32 vpp_postblend_vd3_v_start_end;
-	u32 vpp_postblnd_h_v_size;
+	u32 vpp_postblend_h_v_size;
 	u32 vpp_post_blend_blend_dummy_data;
 	u32 vpp_post_blend_dummy_alpha;
 	u32 vpp_post_blend_dummy_alpha1;
@@ -200,7 +200,7 @@ struct vpp_post_blend_reg_s {
 	u32 vd2_postblend_alpha;
 	u32 vd3_postblend_alpha;
 
-	u32 vpp_postblnd_ctrl;
+	u32 vpp_postblend_ctrl;
 };
 
 struct vd_proc_blend_reg_s {
@@ -228,7 +228,7 @@ struct vd1_slice_pad_reg_s {
 };
 
 struct vd2_pre_blend_reg_s {
-	u32 vpp_vd_preblnd_h_v_size;
+	u32 vpp_vd_preblend_h_v_size;
 	u32 vpp_vd_pre_blend_dummy_data;
 	u32 vpp_vd_pre_blend_dummy_alpha;
 	u32 vpp_preblend_vd1_h_start_end;
@@ -239,7 +239,7 @@ struct vd2_pre_blend_reg_s {
 	u32 vd2_preblend_src_ctrl;
 	u32 vd1_preblend_alpha;
 	u32 vd2_preblend_alpha;
-	u32 vpp_vd_preblnd_ctrl;
+	u32 vpp_vd_preblend_ctrl;
 };
 
 struct vd_pip_alpha_reg_s {
@@ -276,7 +276,7 @@ struct vd_aisr_reshape_reg_s {
 };
 
 struct vpp_post_misc_reg_s {
-	u32 vpp_postblnd_ctrl;
+	u32 vpp_postblend_ctrl;
 	u32 vpp_obuf_ram_ctrl;
 	u32 vpp_4p4s_ctrl;
 	u32 vpp_4s4p_ctrl;

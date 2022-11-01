@@ -1467,7 +1467,7 @@ static void vframe_composer(struct composer_dev *dev)
 	struct output_axis display_axis;
 	int min_left = 0, min_top = 0;
 	int max_right = 0, max_bottom = 0;
-	struct componser_info_t *componser_info;
+	struct composer_info_t *composer_info;
 	bool is_dec_vf = false, is_v4l_vf = false;
 	bool is_tvp = false;
 	bool need_dw = false;
@@ -1509,8 +1509,8 @@ static void vframe_composer(struct composer_dev *dev)
 
 	memset(dst_vf, 0, sizeof(struct vframe_s));
 	dst_buf = to_dst_buf(dst_vf);
-	componser_info = &dst_buf->componser_info;
-	memset(componser_info, 0, sizeof(struct componser_info_t));
+	composer_info = &dst_buf->composer_info;
+	memset(composer_info, 0, sizeof(struct composer_info_t));
 
 	while (1) {
 		if (!kfifo_get(&dev->receive_q, &received_frames)) {
@@ -1790,21 +1790,21 @@ static void vframe_composer(struct composer_dev *dev)
 		dst_vf->axis[2] = max_right - 1;
 		dst_vf->axis[3] = max_bottom - 1;
 	}
-	componser_info->count = count;
+	composer_info->count = count;
 	for (i = 0; i < count; i++) {
-		componser_info->axis[i][0] = vframe_info[vf_dev[i]]->dst_x - dst_vf->axis[0];
-		componser_info->axis[i][1] = vframe_info[vf_dev[i]]->dst_y - dst_vf->axis[1];
-		componser_info->axis[i][2] = vframe_info[vf_dev[i]]->dst_w
-			+ componser_info->axis[i][0] - 1;
-		componser_info->axis[i][3] = vframe_info[vf_dev[i]]->dst_h
-			+ componser_info->axis[i][1] - 1;
+		composer_info->axis[i][0] = vframe_info[vf_dev[i]]->dst_x - dst_vf->axis[0];
+		composer_info->axis[i][1] = vframe_info[vf_dev[i]]->dst_y - dst_vf->axis[1];
+		composer_info->axis[i][2] = vframe_info[vf_dev[i]]->dst_w
+			+ composer_info->axis[i][0] - 1;
+		composer_info->axis[i][3] = vframe_info[vf_dev[i]]->dst_h
+			+ composer_info->axis[i][1] - 1;
 		vc_print(dev->index, PRINT_AXIS,
 			 "alpha index=%d %d %d %d %d\n",
 			 i,
-			 componser_info->axis[i][0],
-			 componser_info->axis[i][1],
-			 componser_info->axis[i][2],
-			 componser_info->axis[i][3]);
+			 composer_info->axis[i][0],
+			 composer_info->axis[i][1],
+			 composer_info->axis[i][2],
+			 composer_info->axis[i][3]);
 	}
 	if (debug_crop_pip) {
 		dst_vf->crop[0] = 0;
@@ -1875,7 +1875,7 @@ static void vframe_composer(struct composer_dev *dev)
 			 "composer:canvas_w: %d, canvas_h: %d\n",
 			 dst_vf->canvas0_config[0].width, dst_vf->canvas0_config[0].height);
 	dst_vf->repeat_count[dev->index] = 0;
-	dst_vf->componser_info = componser_info;
+	dst_vf->composer_info = composer_info;
 
 	if (dev->last_dst_vf)
 		dev->last_dst_vf->repeat_count[dev->index] += drop_count;

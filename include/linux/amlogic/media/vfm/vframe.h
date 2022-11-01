@@ -428,7 +428,7 @@ struct vtem_data {
 #define MAX_COMPOSER_COUNT 9
 #define AXIS_INFO_COUNT    4
 
-struct componser_info_t {
+struct composer_info_t {
 	int count;
 	int axis[MAX_COMPOSER_COUNT][AXIS_INFO_COUNT];
 };
@@ -723,7 +723,7 @@ struct vframe_s {
 	/* currently only for keystone use */
 	unsigned int crc;
 	bool ai_pq_enable;
-	struct componser_info_t *componser_info;
+	struct composer_info_t *composer_info;
 	void *decontour_pre;
 
 	u32 hdr10p_data_size;

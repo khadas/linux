@@ -31,14 +31,14 @@ struct canvas_pool *get_canvas_pool(void)
  */
 #define VALID_CANVAS(n) ((n) >= 0 && (n) < canvas_pool_canvas_num())
 
-static inline void cavas_pool_lock(struct canvas_pool *pool)
+static inline void canvas_pool_lock(struct canvas_pool *pool)
 {
 	/* /raw_local_save_flags(pool->fiq_flags); */
 	/* /local_fiq_disable(); */
 	spin_lock_irqsave(&pool->lock, pool->flags);
 }
 
-static inline void cavas_pool_unlock(struct canvas_pool *pool)
+static inline void canvas_pool_unlock(struct canvas_pool *pool)
 {
 	spin_unlock_irqrestore(&pool->lock, pool->flags);
 	/* /raw_local_irq_restore(pool->fiq_flags); */
@@ -65,23 +65,23 @@ canvas_pool_map_alloc_canvas_in(struct canvas_pool *pool, const char *owner)
 				return -1;
 			}
 		}
-		cavas_pool_lock(pool);
+		canvas_pool_lock(pool);
 		if (!test_and_set_bit(i, pool->canvas_map)) {
 			index = i;
 			pool->info[index].oldowner = owner;
 			pool->info[index].owner = owner;
 			pool->info[index].alloc_time = jiffies;
 		}
-		cavas_pool_unlock(pool);
+		canvas_pool_unlock(pool);
 	} while (index < 0);
 	if (index > 0) {
-		cavas_pool_lock(pool);
+		canvas_pool_lock(pool);
 		if (index + 1 < pool->canvas_max)
 			pool->next_alloced_index = index + 1;
 		else
 			pool->next_alloced_index = 1;	/* /ignore canvas 0; */
 		pool->free_num--;
-		cavas_pool_unlock(pool);
+		canvas_pool_unlock(pool);
 	}
 	return index;
 }
@@ -170,14 +170,14 @@ canvas_pool_map_alloc_canvas_continue_set(struct canvas_pool *pool,
 				canvas_pool_map_free_canvas(canvas3);
 			if (canvas4 > 0)
 				canvas_pool_map_free_canvas(canvas4);
-			cavas_pool_lock(pool);
+			canvas_pool_lock(pool);
 			if (start + 1 < pool->canvas_max - type) {
 				pool->next_alloced_index = start + 1;
 			} else {
 				pool->next_alloced_index = 1;
 				/* /ignore canvas 0; */
 			}
-			cavas_pool_unlock(pool);
+			canvas_pool_unlock(pool);
 			canvasval = 0;
 		}
 
@@ -193,14 +193,14 @@ static int canvas_pool_map_free_canvas_in(struct canvas_pool *pool, int index)
 {
 	if (!VALID_CANVAS(index))
 		return -1;
-	cavas_pool_lock(pool);
+	canvas_pool_lock(pool);
 	if (!test_and_clear_bit(index, pool->canvas_map))
 		pr_warn("canvas is free and freed again! index =%d\n", index);
 	pool->info[index].oldowner = pool->info[index].owner;
 	pool->info[index].owner = NULL;
 	pool->info[index].alloc_time = 0;
 	pool->free_num++;
-	cavas_pool_unlock(pool);
+	canvas_pool_unlock(pool);
 	return 0;
 }
 
@@ -248,7 +248,7 @@ canvas_pool_register_const_canvas(int start_index, int end, const char *owner)
 		pool->info[index].owner = owner;
 		pool->info[index].oldowner = NULL;
 		pool->info[index].alloc_time = jiffies;
-		pool->info[index].fixed_onwer = 1;
+		pool->info[index].fixed_owner = 1;
 	}
 	return 0;
 }
@@ -260,9 +260,9 @@ int canvas_pool_get_canvas_info(int index, struct canvas_info *info)
 
 	if (!VALID_CANVAS(index))
 		return -1;
-	cavas_pool_lock(pool);
+	canvas_pool_lock(pool);
 	*info = pool->info[index];
-	cavas_pool_unlock(pool);
+	canvas_pool_unlock(pool);
 	return 0;
 }
 EXPORT_SYMBOL(canvas_pool_get_canvas_info);
@@ -283,7 +283,7 @@ void canvas_pool_dump_canvas_info(void)
 				(unsigned int)i,
 				test_bit(i, pool->canvas_map), o1);
 			pr_info("owner=%s,oldowner =%s,time=%ld,fixed=%d\n",
-				o1, o2, info.alloc_time, info.fixed_onwer);
+				o1, o2, info.alloc_time, info.fixed_owner);
 		}
 	}
 }
@@ -384,7 +384,7 @@ canvas_pool_map_show(struct class *class,
 			"canvas[%02x],used=%d,fix=%d\town=%s,\town=%s,\tt=%ld,",
 			(unsigned int)i,
 			test_bit(i, pool->canvas_map),
-			info.fixed_onwer, o1, o2, info.alloc_time);
+			info.fixed_owner, o1, o2, info.alloc_time);
 		size += snprintf(buf + size, PAGE_SIZE - size,
 				"\taddr=%08x,\ts=%d X %d,\trap=%d,\tmod=%d,\tend=%d\n",
 				(unsigned int)canvas.addr,
@@ -484,7 +484,7 @@ int canvas_pool_get_static_canvas_by_name(const char *owner, u8 *tab, int size)
 	for (i = 0; i < pool->canvas_max && j < size; i++) {
 		info = &pool->info[i];
 		if (test_bit(i, pool->canvas_map) &&
-		    info->fixed_onwer && !strcmp(info->owner, owner)) {
+		    info->fixed_owner && !strcmp(info->owner, owner)) {
 			tab[j] = i;
 			j++;
 		}
