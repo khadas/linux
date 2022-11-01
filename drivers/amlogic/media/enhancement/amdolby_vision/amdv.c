@@ -6352,7 +6352,7 @@ int vsem_check(unsigned char *control_data, unsigned char *vsem_payload)
 /*so need to check  few more frames*/
 bool check_vf_changed(struct vframe_s *vf)
 {
-#define MAX_VF_CRC_CHECK_CUONT 4
+#define MAX_VF_CRC_CHECK_COUNT 4
 
 	static u32 new_vf_crc;
 	static u32 vf_crc_repeat_cnt;
@@ -6381,7 +6381,7 @@ bool check_vf_changed(struct vframe_s *vf)
 		else
 			++vf_crc_repeat_cnt;
 
-		if (vf_crc_repeat_cnt >= MAX_VF_CRC_CHECK_CUONT) {
+		if (vf_crc_repeat_cnt >= MAX_VF_CRC_CHECK_COUNT) {
 			vf_crc_repeat_cnt = 0;
 			last_vf_valid_crc = vf->crc;
 			changed = true;

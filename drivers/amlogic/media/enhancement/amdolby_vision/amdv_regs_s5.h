@@ -193,26 +193,26 @@
 #define VD1_S3_PPS_DUMMY_DATA                      0x2820
 //Bit 31:24  reserved
 //Bit 23:0   vd1_s3_pps_dummy_data                //unsigned, RW, default = 0
-#define VD1_S0_DETUNL_CTRL                         0x2821
-//Bit 31:0   vd1_s0_dtunl_ctrl                    //unsigned, RW, default = 0
+#define VD1_S0_DETUNNEL_CTRL                       0x2821
+//Bit 31:0   vd1_s0_detunnel_ctrl                    //unsigned, RW, default = 0
 #define VD1_S0_DV_BYPASS_CTRL                      0x2822
 //Bit 31:2   reserved
 //Bit 1      vd1_s0_dv_ext_mode                   //unsigned, RW, default = 0
 //Bit 0      vd1_s0_dv_en                         //unsigned, RW, default = 0
-#define VD1_S1_DETUNL_CTRL                         0x2823
-//Bit 31:0   vd1_s1_dtunl_ctrl                    //unsigned, RW, default = 0
+#define VD1_S1_DETUNNEL_CTRL                         0x2823
+//Bit 31:0   vd1_s1_detunnel_ctrl                    //unsigned, RW, default = 0
 #define VD1_S1_DV_BYPASS_CTRL                      0x2824
 //Bit 31:2   reserved
 //Bit 1      vd1_s1_dv_ext_mode                   //unsigned, RW, default = 0
 //Bit 0      vd1_s1_dv_en                         //unsigned, RW, default = 0
-#define VD1_S2_DETUNL_CTRL                         0x2825
-//Bit 31:0   vd1_s2_dtunl_ctrl                    //unsigned, RW, default = 0
+#define VD1_S2_DETUNNEL_CTRL                         0x2825
+//Bit 31:0   vd1_s2_detunnel_ctrl                    //unsigned, RW, default = 0
 #define VD1_S2_DV_BYPASS_CTRL                      0x2826
 //Bit 31:2   reserved
 //Bit 1      vd1_s2_dv_ext_mode                   //unsigned, RW, default = 0
 //Bit 0      vd1_s2_dv_en                         //unsigned, RW, default = 0
-#define VD1_S3_DETUNL_CTRL                         0x2827
-//Bit 31:0   vd1_s3_dtunl_ctrl                    //unsigned, RW, default = 0
+#define VD1_S3_DETUNNEL_CTRL                         0x2827
+//Bit 31:0   vd1_s3_detunnel_ctrl                    //unsigned, RW, default = 0
 #define VD1_S3_DV_BYPASS_CTRL                      0x2828
 //Bit 31:2   reserved
 //Bit 1      vd1_s3_dv_ext_mode                   //unsigned, RW, default = 0
@@ -238,12 +238,12 @@
 //Bit 5:4    reg_4p4s_gc_ctrl  //unsigned, RW, default = 0, 4ppc4slice clk gating ctrl
 //Bit 3:2    reg_2p2s_gc_ctrl  //unsigned, RW, default = 0, 2ppc2slice clk gating ctrl
 //Bit 0      reg_gclk_ctrl_h   //unsigned, RW, default = 0, reg_gclk_ctrl high bit, low bit is 0
-#define S5_VPP_POSTBLND_H_V_SIZE                      0x1d01
+#define S5_VPP_POSTBLEND_H_V_SIZE                      0x1d01
 //Bit 31:30  reserved
-//Bit 29:16  vpp_postblnd_vsize                //unsigned, RW, default = 1080
+//Bit 29:16  vpp_postblend_vsize                //unsigned, RW, default = 1080
 //Bit 15:14  reserved
-//Bit 13:0   vpp_postblnd_hsize                //unsigned, RW, default = 1920
-#define S5_VPP_POSTBLND_CTRL                          0x1d02
+//Bit 13:0   vpp_postblend_hsize                //unsigned, RW, default = 1920
+#define S5_VPP_POSTBLEND_CTRL                          0x1d02
 //Bit 31:10  reserved
 //Bit 9      reg_cbus_mode                     //unsigned, RW, default = 0
 //Bit 8      vpp_post_blend_en                 //unsigned, RW, default = 0
@@ -366,7 +366,7 @@
 #define S5_VPP_POST_PAD_HSIZE                         0x1df2
 //Bit 31:14  reserved
 //Bit 13:0   reg_pad_hsize                    //unsigned, RW, default = 0
-//====================postblnd====================
+//====================postblend====================
 #define S5_VPP_POST_BLEND_CTRL                        0x1d19
 //Bit 31:28  reserved
 //Bit 27:20  hold_lines                        //unsigned ,RW, default = 4
@@ -426,8 +426,8 @@
 #define VD2_PPS_DUMMY_DATA                         0x3886
 //Bit 31:24  reserved
 //Bit 23:0   vd2_pps_dummy_data                 //unsigned, RW, default = 0
-#define VD2_DETUNL_CTRL                            0x3887
-//Bit 31:0   vd2_dtunl_ctrl                    //unsigned, RW, default = 0
+#define VD2_DETUNNEL_CTRL                            0x3887
+//Bit 31:0   vd2_detunnel_ctrl                    //unsigned, RW, default = 0
 #define VD2_DV_BYPASS_CTRL                         0x3888
 //Bit 31:2   reserved
 //Bit 1      vd2_dv_ext_mode                    //unsigned, RW, default = 0
@@ -615,7 +615,7 @@
 //Bit 11  "reg_dv3_en       // RW, default = 0, dolby core3 enable
 //Bit 10  "reg_prime_enable // RW, default = 0, primesl enable
 //Bit 9   "reg_dv_di_en     // RW, default = 0, di dolby enable
-//Bit 8   "reg_dvtv_en      // RW, default = 0, dolby tv enable
+//Bit 8   "reg_dv_tv_en      // RW, default = 0, dolby tv enable
 //Bit 7:0 "reg_gclk_ctrl    // RW, default = 0, bit1:0 reg_pm_vd2_ctrl
 //bit3:2 reg_arb_ctrl bit5:4 reg_pm_gclk bit7:6 reg_ram_gclk
 
@@ -630,7 +630,7 @@
 //Bit 3    "gclk_vd1s2_en             // unsigned, RW, default = 0
 //Bit 2    "gclk_vd1s1_en             // unsigned, RW, default = 0
 //Bit 1    "gclk_vd1s0_en             // unsigned, RW, default = 0
-//Bit 0    "gclk_dvtv_en              // unsigned, RW, default = 0
+//Bit 0    "gclk_dv_tv_en              // unsigned, RW, default = 0
 
 #define VPU_DOLBY_INT_STAT                         0x10ff
 // synopsys translate_off
