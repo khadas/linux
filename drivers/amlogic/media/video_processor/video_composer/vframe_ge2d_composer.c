@@ -31,6 +31,9 @@
 #include <linux/amlogic/media/codec_mm/codec_mm.h>
 #include "vc_util.h"
 
+#define WIDTH_8K 7680
+#define HEIGHT_8K 7680
+
 static int dump_src_count;
 static int dump_before_dst_count;
 static int dump_dst_count;
@@ -597,8 +600,31 @@ int config_ge2d_data(struct vframe_s *src_vf, unsigned long addr, int buf_w, int
 		data->source_type = vf->source_type;
 		data->type = vf->type;
 		data->plane_num = vf->plane_num;
-		data->width = vf->width;
-		data->height = vf->height;
+
+		if (vf->type & VIDTYPE_COMPRESS) {
+			if ((crop_w > WIDTH_8K  || crop_w < 0) ||
+				(crop_h > HEIGHT_8K || crop_h < 0)) {
+				data->width = vf->width;
+				data->height = vf->height;
+			} else {
+				data->position_x = crop_x * vf->width / vf->compWidth;
+				data->position_y = crop_y * vf->height / vf->compHeight;
+				data->width = crop_w * vf->width / vf->compWidth;
+				data->height = crop_h * vf->height / vf->compHeight;
+			}
+		} else {
+			if ((crop_w > WIDTH_8K  || crop_w < 0) ||
+				(crop_h > HEIGHT_8K || crop_h < 0)) {
+				data->width = vf->width;
+				data->height = vf->height;
+			} else {
+				data->position_x = crop_x;
+				data->position_y = crop_y;
+				data->width = crop_w;
+				data->height = crop_h;
+			}
+		}
+
 		if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 			data->is_vframe = false;
 		else
