@@ -20,6 +20,7 @@
 #define __REG_HELPER_H
 
 //#include "arch/vpp_regs.h"
+#include <linux/amlogic/media/amvecm/amvecm.h>
 #include "arch/ve_regs.h"
 #include "arch/cm_regs.h"
 
@@ -72,6 +73,12 @@ static inline bool is_lc_reg(u32 addr)
 
 static inline bool is_sr0_dnlpv2_reg(u32 addr)
 {
+	/*because s5 have no sr0 dnlp
+	 *old sr0 reg overlap with slice3 hdr reg
+	 */
+	if (chip_type_id == chip_s5)
+		return 0;
+
 	return (addr >= SRSHARP0_DNLP2_00 &&
 		addr <= SRSHARP0_DNLP2_31);
 }
@@ -151,8 +158,6 @@ static inline u32 get_sr1_dnlp2_offset(void)
 
 static u32 offset_addr(u32 addr)
 {
-	if (is_meson_s5_cpu())
-		return addr; /*s5 sr lc reg change, todo*/
 	if (is_sr0_reg(addr))
 		return addr + get_sr0_offset();
 	else if (is_sr1_reg(addr))
@@ -176,7 +181,7 @@ static inline void WRITE_VPP_REG(u32 reg,
 static inline void WRITE_VPP_REG_S5(u32 reg,
 				 const u32 value)
 {
-	aml_write_vcbus(offset_addr(reg), value);
+	aml_write_vcbus(reg, value);
 }
 
 static inline u32 READ_VPP_REG(u32 reg)

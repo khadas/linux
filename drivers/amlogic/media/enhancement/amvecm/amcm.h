@@ -44,7 +44,8 @@ void am_set_regmap(struct am_regs_s *p);
 void amcm_disable(enum wr_md_e md);
 void amcm_enable(enum wr_md_e md);
 void amcm_level_sel(unsigned int cm_level);
-void cm2_frame_size_patch(unsigned int width, unsigned int height);
+void cm2_frame_size_patch(struct vframe_s *vf,
+	unsigned int width, unsigned int height);
 void cm2_frame_switch_patch(void);
 void cm_latch_process(void);
 int cm_load_reg(struct am_regs_s *arg);

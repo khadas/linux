@@ -872,5 +872,6 @@ extern int freerun_en;
 u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index_e vpp_index);
 int vinfo_lcd_support(void);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
+int cm_force_update_flag(void);
 #endif /* AMVECM_H */
 

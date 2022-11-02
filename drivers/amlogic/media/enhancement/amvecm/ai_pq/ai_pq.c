@@ -118,6 +118,7 @@ int blue_scene_process(int offset, int enable)
 	int bld_offset;
 	static int first_frame = 1;
 	struct cm_color_md aipq_color_md;
+	int force_flag;
 
 	if (!enable || !(aipq_en & (1 << BLUE_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
@@ -142,7 +143,10 @@ int blue_scene_process(int offset, int enable)
 
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
 
-	if (bld_offset == 0) {
+	/*for s5, because size delay*/
+	force_flag = cm_force_update_flag();
+
+	if (bld_offset == 0 && force_flag == 0) {
 		if (aipq_debug) {
 			pr_aipq_dbg("%s, bld_ofst = 0, keep setting, baseval: %d, regval: %d, offset: %d, bld_rs %d\n",
 				    __func__, base_val, reg_val,
@@ -193,6 +197,7 @@ int green_scene_process(int offset, int enable)
 	int bld_offset;
 	static int first_frame = 1;
 	struct cm_color_md aipq_color_md;
+	int force_flag;
 
 	if (!enable || !(aipq_en & (1 << GREEN_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
@@ -212,7 +217,10 @@ int green_scene_process(int offset, int enable)
 
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
 
-	if (bld_offset == 0) {
+	/*for s5, because size delay*/
+	force_flag = cm_force_update_flag();
+
+	if (bld_offset == 0 && force_flag == 0) {
 		if (aipq_debug) {
 			pr_aipq_dbg("%s, bld_ofst = 0, keep setting, baseval: %d, regval: %d, offset: %d, bld_rs %d\n",
 				    __func__, base_val, reg_val,
@@ -395,6 +403,7 @@ int skintone_scene_process(int offset, int enable)
 	int bld_offset;
 	static int first_frame = 1;
 	struct cm_color_md aipq_color_md;
+	int force_flag;
 
 	if (!enable || !(aipq_en & (1 << SKIN_TONE_SCENE))) {
 		aipq_color_md.color_type	 = cm_9_color;
@@ -414,7 +423,10 @@ int skintone_scene_process(int offset, int enable)
 
 	bld_offset = smooth_process(base_val, reg_val, offset, bld_rs);
 
-	if (bld_offset == 0) {
+	/*for s5, because size delay*/
+	force_flag = cm_force_update_flag();
+
+	if (bld_offset == 0 && force_flag == 0) {
 		if (aipq_debug) {
 			pr_aipq_dbg("%s, bld_ofst = 0, keep setting, baseval: %d, regval: %d, offset: %d, bld_rs %d\n",
 				    __func__, base_val, reg_val,

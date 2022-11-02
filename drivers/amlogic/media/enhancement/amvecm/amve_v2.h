@@ -34,5 +34,8 @@ void ve_ble_ctl(enum wr_md_e mode, int en);
 void ve_cc_ctl(enum wr_md_e mode, int en);
 void post_wb_ctl(enum wr_md_e mode, int en);
 void post_pre_gamma_set(int *lut);
+void vpp_luma_hist_init(void);
+void get_luma_hist(struct vframe_s *vf);
+void cm_top_ctl(enum wr_md_e mode, int en);
 #endif
 

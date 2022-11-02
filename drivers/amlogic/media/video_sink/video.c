@@ -194,6 +194,9 @@ u32 get_timer_filter_en(void)
 
 u32 get_aipq_set_policy(void)
 {
+	if (video_is_meson_s5_cpu())
+		aipq_set_policy = 2;
+
 	return aipq_set_policy;
 }
 

@@ -589,10 +589,19 @@ static int amvecm_set_brightness2(int val)
 	return 0;
 }
 
-static void amvecm_size_patch(unsigned int cm_in_w,
-			      unsigned int cm_in_h)
+static void amvecm_size_patch(struct vframe_s *vf,
+	unsigned int cm_in_w,
+	unsigned int cm_in_h)
 {
 	unsigned int hs, he, vs, ve;
+
+	if (chip_type_id == chip_s5) {
+		cm2_frame_size_patch(vf, cm_in_w, cm_in_h);
+		return;
+	}
+
+	if (!vf)
+		return;
 
 	if (cm_in_w == 0 && cm_in_h == 0) {
 		hs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_H_START_END, 16, 13);
@@ -600,9 +609,9 @@ static void amvecm_size_patch(unsigned int cm_in_w,
 
 		vs = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 16, 13);
 		ve = READ_VPP_REG_BITS(VPP_POSTBLEND_VD1_V_START_END, 0, 13);
-		cm2_frame_size_patch(he - hs + 1, ve - vs + 1);
+		cm2_frame_size_patch(vf, he - hs + 1, ve - vs + 1);
 	} else {
-		cm2_frame_size_patch(cm_in_w, cm_in_h);
+		cm2_frame_size_patch(vf, cm_in_w, cm_in_h);
 	}
 }
 
@@ -1037,8 +1046,10 @@ static void vpp_dump_histgram(void)
 
 void vpp_get_hist_en(void)
 {
-	if (chip_type_id == chip_s5)
+	if (chip_type_id == chip_s5) {
+		vpp_luma_hist_init();
 		return;
+	}
 
 	if (hist_chl)
 		WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0x2, 11, 3);
@@ -1050,13 +1061,45 @@ void vpp_get_hist_en(void)
 }
 
 static unsigned int vpp_luma_max;
-void vpp_get_vframe_hist_info(struct vframe_s *vf)
-{
-	unsigned int hist_height, hist_width, i;
-	u64 divid;
 
+void get_cm_hist(struct vframe_s *vf)
+{
+	int i;
+	int addr_port;
+	int data_port;
+
+	/*s5 not support color hist*/
 	if (chip_type_id == chip_s5)
 		return;
+
+	addr_port = VPP_CHROMA_ADDR_PORT;
+	data_port = VPP_CHROMA_DATA_PORT;
+
+	if (enable_pattern_detect == 1) {
+		for (i = 0; i < 32; i++) {
+			WRITE_VPP_REG(addr_port,
+				      RO_CM_HUE_HIST_BIN0 + i);
+			vf->prop.hist.vpp_hue_gamma[i] =
+				READ_VPP_REG(data_port);
+		}
+		for (i = 0; i < 32; i++) {
+			WRITE_VPP_REG(addr_port,
+				      RO_CM_SAT_HIST_BIN0 + i);
+			vf->prop.hist.vpp_sat_gamma[i] =
+				READ_VPP_REG(data_port);
+		}
+	}
+}
+
+void vpp_get_vframe_hist_info(struct vframe_s *vf)
+{
+	unsigned int hist_height, hist_width;
+	u64 divid;
+
+	if (chip_type_id == chip_s5) {
+		get_luma_hist(vf);
+		return;
+	}
 
 	if (get_cpu_type() >= MESON_CPU_MAJOR_ID_G12A) {
 		/*TL1 remove VPP_IN_H_V_SIZE register*/
@@ -1320,20 +1363,8 @@ void vpp_get_vframe_hist_info(struct vframe_s *vf)
 			vf->fmeter1_hcnt[1], vf->fmeter1_hcnt[2]);
 	}
 
-	if (enable_pattern_detect == 1) {
-		for (i = 0; i < 32; i++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      RO_CM_HUE_HIST_BIN0 + i);
-			vf->prop.hist.vpp_hue_gamma[i] =
-				READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-		}
-		for (i = 0; i < 32; i++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
-				      RO_CM_SAT_HIST_BIN0 + i);
-			vf->prop.hist.vpp_sat_gamma[i] =
-				READ_VPP_REG(VPP_CHROMA_DATA_PORT);
-		}
-	}
+	get_cm_hist(vf);
+
 	if (debug_game_mode_1 &&
 	    vpp_luma_max != vf->prop.hist.vpp_luma_max) {
 		divid = sched_clock();
@@ -2015,7 +2046,7 @@ int amvecm_on_vs(struct vframe_s *vf,
 		if (toggle_vf && vd_path == VD1_PATH) {
 			lc_process(toggle_vf, sps_h_en, sps_v_en,
 				   sps_w_in, sps_h_in);
-			amvecm_size_patch(cm_in_w, cm_in_h);
+			amvecm_size_patch(toggle_vf, cm_in_w, cm_in_h);
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(toggle_vf);
 			if ((get_cpu_type() == MESON_CPU_MAJOR_ID_T3) ||
@@ -2042,6 +2073,7 @@ int amvecm_on_vs(struct vframe_s *vf,
 				   sps_w_in, sps_h_in);
 			/*1080i pulldown combing workaround*/
 			amvecm_dejaggy_patch(NULL);
+			amvecm_size_patch(NULL, 0, 0);
 		}
 		vf_state = cabc_add_hist_proc(NULL);
 	}
@@ -4498,6 +4530,7 @@ static ssize_t amvecm_cm_reg_store(struct class *cls,
 	unsigned int addr_port = VPP_CHROMA_ADDR_PORT;/* 0x1d70; */
 	unsigned int data_port = VPP_CHROMA_DATA_PORT;/* 0x1d71; */
 	char *buf_orig, *parm[2] = {NULL};
+	struct cm_port_s cm_port;
 
 	if (!buffer)
 		return count;
@@ -4505,6 +4538,30 @@ static ssize_t amvecm_cm_reg_store(struct class *cls,
 	if (!buf_orig)
 		return -ENOMEM;
 	parse_param_amvecm(buf_orig, (char **)&parm);
+
+	if (chip_type_id == chip_s5) {
+		cm_port = get_cm_port();
+		switch (cm_slice_idx) {
+		case SLICE0:
+			addr_port = cm_port.cm_addr_port[0];
+			data_port = cm_port.cm_data_port[0];
+			break;
+		case SLICE1:
+			addr_port = cm_port.cm_addr_port[1];
+			data_port = cm_port.cm_data_port[1];
+			break;
+		case SLICE2:
+			addr_port = cm_port.cm_addr_port[2];
+			data_port = cm_port.cm_data_port[2];
+			break;
+		case SLICE3:
+			addr_port = cm_port.cm_addr_port[3];
+			data_port = cm_port.cm_data_port[3];
+			break;
+		default:
+			break;
+		}
+	}
 
 	if (kstrtoul(parm[0], 16, &val) < 0) {
 		kfree(buf_orig);
@@ -7608,10 +7665,24 @@ static void cm_luma_bri_con(int r, int brightness, int contrast,
 	}
 }
 
-static void get_cm_hist(enum cm_hist_e hist_sel)
+static void pr_cm_hist(enum cm_hist_e hist_sel)
 {
 	unsigned int *hist;
-	unsigned int i;
+	int i;
+	int addr_port;
+	int data_port;
+	//struct cm_port_s cm_port;
+
+	if (chip_type_id == chip_s5) {
+		/*s5 not support color hist*/
+		//cm_port = get_cm_port();
+		//addr_port = cm_port.cm_addr_port[SLICE0];
+		//data_port = cm_port.cm_data_port[SLICE0];
+		pr_info("not support\n");
+	} else {
+		addr_port = VPP_CHROMA_ADDR_PORT;
+		data_port = VPP_CHROMA_DATA_PORT;
+	}
 
 	hist = kmalloc(32 * sizeof(unsigned int), GFP_KERNEL);
 	memset(hist, 0, 32 * sizeof(unsigned int));
@@ -7619,17 +7690,17 @@ static void get_cm_hist(enum cm_hist_e hist_sel)
 	switch (hist_sel) {
 	case CM_HUE_HIST:
 		for (i = 0; i < 32; i++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+			WRITE_VPP_REG(addr_port,
 				      RO_CM_HUE_HIST_BIN0 + i);
-			hist[i] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+			hist[i] = READ_VPP_REG(data_port);
 			pr_info("hist[%d] = 0x%8x\n", i, hist[i]);
 		}
 		break;
 	case CM_SAT_HIST:
 		for (i = 0; i < 32; i++) {
-			WRITE_VPP_REG(VPP_CHROMA_ADDR_PORT,
+			WRITE_VPP_REG(addr_port,
 				      RO_CM_SAT_HIST_BIN0 + i);
-			hist[i] = READ_VPP_REG(VPP_CHROMA_DATA_PORT);
+			hist[i] = READ_VPP_REG(data_port);
 			pr_info("hist[%d] = 0x%8x\n", i, hist[i]);
 		}
 		break;
@@ -7641,7 +7712,7 @@ static void get_cm_hist(enum cm_hist_e hist_sel)
 
 static void cm_init_config(int bitdepth)
 {
-	int i, j, reg;
+	int i, j, m, reg;
 	struct cm_port_s cm_port;
 	unsigned int addr_port;
 	unsigned int data_port;
@@ -7652,10 +7723,10 @@ static void cm_init_config(int bitdepth)
 		am_set_regmap(&cm_default_legacy);
 
 	if (chip_type_id == chip_s5) {
-		for (i = SLICE0; i < SLICE_MAX; i++) {
+		for (m = SLICE0; m < SLICE_MAX; m++) {
 			cm_port = get_cm_port();
-			addr_port = cm_port.cm_addr_port[i];
-			data_port = cm_port.cm_data_port[i];
+			addr_port = cm_port.cm_addr_port[m];
+			data_port = cm_port.cm_data_port[m];
 
 			WRITE_VPP_REG(addr_port, XVYCC_YSCP_REG);
 			WRITE_VPP_REG(data_port, 0xfff0000);
@@ -8448,9 +8519,9 @@ static ssize_t amvecm_debug_store(struct class *cla,
 			goto free_buf;
 		}
 		if (!strcmp(parm[1], "hue"))
-			get_cm_hist(CM_HUE_HIST);
+			pr_cm_hist(CM_HUE_HIST);
 		else if (!strcmp(parm[1], "sat"))
-			get_cm_hist(CM_SAT_HIST);
+			pr_cm_hist(CM_SAT_HIST);
 		else
 			pr_info("unsupport cmd\n");
 	}  else if (!strcmp(parm[0], "cm_hist_config")) {
@@ -9760,6 +9831,7 @@ void init_pq_setting(void)
 		pq_reg_wr_rdma = 1;
 	} else if (chip_type_id == chip_s5) {
 		bitdepth = 12;
+		cm_top_ctl(WR_VCB, 1);
 		cm_init_config(bitdepth);
 		vpp_pq_ctrl_config(pq_cfg, WR_VCB);
 

@@ -398,6 +398,26 @@ void vpp_mtx_config_v2(struct matrix_coef_s *coef,
 	}
 }
 
+void cm_top_ctl(enum wr_md_e mode, int en)
+{
+	switch (mode) {
+	case WR_VCB:
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, en, 4, 1);
+		WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL, en, 4, 1);
+		WRITE_VPP_REG_BITS(VPP_SLICE2_VE_ENABLE_CTRL, en, 4, 1);
+		WRITE_VPP_REG_BITS(VPP_SLICE3_VE_ENABLE_CTRL, en, 4, 1);
+		break;
+	case WR_DMA:
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, en, 4, 1);
+		VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL, en, 4, 1);
+		VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE2_VE_ENABLE_CTRL, en, 4, 1);
+		VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE3_VE_ENABLE_CTRL, en, 4, 1);
+		break;
+	default:
+		break;
+	}
+}
+
 struct cm_port_s get_cm_port(void)
 {
 	struct cm_port_s port;
@@ -575,15 +595,15 @@ void ve_cc_ctl(enum wr_md_e mode, int en)
 	int i;
 
 	if (mode == WR_VCB) {
-		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, en, 4, 1);
+		WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, en, 1, 1);
 		for (i = SLICE1; i < SLICE_MAX; i++)
 			WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL +
-				ve_reg_ofst[i - 1], en, 4, 1);
+				ve_reg_ofst[i - 1], en, 1, 1);
 	} else if (mode == WR_DMA) {
-		VSYNC_WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, en, 4, 1);
+		VSYNC_WRITE_VPP_REG_BITS(VPP_VE_ENABLE_CTRL, en, 1, 1);
 		for (i = SLICE1; i < SLICE_MAX; i++)
 			VSYNC_WRITE_VPP_REG_BITS(VPP_SLICE1_VE_ENABLE_CTRL +
-				ve_reg_ofst[i - 1], en, 4, 1);
+				ve_reg_ofst[i - 1], en, 1, 1);
 	}
 }
 
@@ -600,5 +620,240 @@ void post_wb_ctl(enum wr_md_e mode, int en)
 			VSYNC_WRITE_VPP_REG_BITS(VPP_GAMMA_CTRL +
 				pst_reg_ofst[i], en, 31, 1);
 	}
+}
+
+void vpp_luma_hist_init(void)
+{
+	WRITE_VPP_REG_BITS(VI_HIST_CTRL, 2, 5, 3);
+	/*select slice0,  all selection: vpp post, slc0~slc3,vd2, osd1,osd2,vd1 post*/
+	WRITE_VPP_REG_BITS(VI_HIST_CTRL, 1, 11, 3);
+	WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0, 2, 1);
+	/*full picture*/
+	WRITE_VPP_REG_BITS(VI_HIST_CTRL, 0, 1, 1);
+	/*enable*/
+	WRITE_VPP_REG_BITS(VI_HIST_CTRL, 1, 0, 1);
+}
+
+void get_luma_hist(struct vframe_s *vf)
+{
+	static int pre_w, pre_h;
+	int width, height;
+
+	width = vf->width;
+	height = vf->height;
+
+	if (pre_w != width || pre_h != height) {
+		WRITE_VPP_REG(VI_HIST_PIC_SIZE, width | (height << 16));
+		pre_w = width;
+		pre_h = height;
+	}
+
+	vf->prop.hist.vpp_luma_sum = READ_VPP_REG(VI_HIST_SPL_VAL);
+	vf->prop.hist.vpp_pixel_sum = READ_VPP_REG(VI_HIST_SPL_PIX_CNT);
+	vf->prop.hist.vpp_chroma_sum = READ_VPP_REG(VI_HIST_CHROMA_SUM);
+	vf->prop.hist.vpp_height     =
+	READ_VPP_REG_BITS(VI_HIST_PIC_SIZE,
+			  VI_HIST_PIC_HEIGHT_BIT, VI_HIST_PIC_HEIGHT_WID);
+	vf->prop.hist.vpp_width      =
+	READ_VPP_REG_BITS(VI_HIST_PIC_SIZE,
+			  VI_HIST_PIC_WIDTH_BIT, VI_HIST_PIC_WIDTH_WID);
+	vf->prop.hist.vpp_luma_max   =
+	READ_VPP_REG_BITS(VI_HIST_MAX_MIN,
+			  VI_HIST_MAX_BIT, VI_HIST_MAX_WID);
+	vf->prop.hist.vpp_luma_min   =
+	READ_VPP_REG_BITS(VI_HIST_MAX_MIN,
+			  VI_HIST_MIN_BIT, VI_HIST_MIN_WID);
+	vf->prop.hist.vpp_gamma[0]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST00,
+			  VI_HIST_ON_BIN_00_BIT, VI_HIST_ON_BIN_00_WID);
+	vf->prop.hist.vpp_gamma[1]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST00,
+			  VI_HIST_ON_BIN_01_BIT, VI_HIST_ON_BIN_01_WID);
+	vf->prop.hist.vpp_gamma[2]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST01,
+			  VI_HIST_ON_BIN_02_BIT, VI_HIST_ON_BIN_02_WID);
+	vf->prop.hist.vpp_gamma[3]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST01,
+			  VI_HIST_ON_BIN_03_BIT, VI_HIST_ON_BIN_03_WID);
+	vf->prop.hist.vpp_gamma[4]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST02,
+			  VI_HIST_ON_BIN_04_BIT, VI_HIST_ON_BIN_04_WID);
+	vf->prop.hist.vpp_gamma[5]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST02,
+			  VI_HIST_ON_BIN_05_BIT, VI_HIST_ON_BIN_05_WID);
+	vf->prop.hist.vpp_gamma[6]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST03,
+			  VI_HIST_ON_BIN_06_BIT, VI_HIST_ON_BIN_06_WID);
+	vf->prop.hist.vpp_gamma[7]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST03,
+			  VI_HIST_ON_BIN_07_BIT, VI_HIST_ON_BIN_07_WID);
+	vf->prop.hist.vpp_gamma[8]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST04,
+			  VI_HIST_ON_BIN_08_BIT, VI_HIST_ON_BIN_08_WID);
+	vf->prop.hist.vpp_gamma[9]   =
+	READ_VPP_REG_BITS(VI_DNLP_HIST04,
+			  VI_HIST_ON_BIN_09_BIT, VI_HIST_ON_BIN_09_WID);
+	vf->prop.hist.vpp_gamma[10]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST05,
+			  VI_HIST_ON_BIN_10_BIT, VI_HIST_ON_BIN_10_WID);
+	vf->prop.hist.vpp_gamma[11]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST05,
+			  VI_HIST_ON_BIN_11_BIT, VI_HIST_ON_BIN_11_WID);
+	vf->prop.hist.vpp_gamma[12]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST06,
+			  VI_HIST_ON_BIN_12_BIT, VI_HIST_ON_BIN_12_WID);
+	vf->prop.hist.vpp_gamma[13]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST06,
+			  VI_HIST_ON_BIN_13_BIT, VI_HIST_ON_BIN_13_WID);
+	vf->prop.hist.vpp_gamma[14]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST07,
+			  VI_HIST_ON_BIN_14_BIT, VI_HIST_ON_BIN_14_WID);
+	vf->prop.hist.vpp_gamma[15]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST07,
+			  VI_HIST_ON_BIN_15_BIT, VI_HIST_ON_BIN_15_WID);
+	vf->prop.hist.vpp_gamma[16]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST08,
+			  VI_HIST_ON_BIN_16_BIT, VI_HIST_ON_BIN_16_WID);
+	vf->prop.hist.vpp_gamma[17]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST08,
+			  VI_HIST_ON_BIN_17_BIT, VI_HIST_ON_BIN_17_WID);
+	vf->prop.hist.vpp_gamma[18]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST09,
+			  VI_HIST_ON_BIN_18_BIT, VI_HIST_ON_BIN_18_WID);
+	vf->prop.hist.vpp_gamma[19]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST09,
+			  VI_HIST_ON_BIN_19_BIT, VI_HIST_ON_BIN_19_WID);
+	vf->prop.hist.vpp_gamma[20]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST10,
+			  VI_HIST_ON_BIN_20_BIT, VI_HIST_ON_BIN_20_WID);
+	vf->prop.hist.vpp_gamma[21]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST10,
+			  VI_HIST_ON_BIN_21_BIT, VI_HIST_ON_BIN_21_WID);
+	vf->prop.hist.vpp_gamma[22]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST11,
+			  VI_HIST_ON_BIN_22_BIT, VI_HIST_ON_BIN_22_WID);
+	vf->prop.hist.vpp_gamma[23]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST11,
+			  VI_HIST_ON_BIN_23_BIT, VI_HIST_ON_BIN_23_WID);
+	vf->prop.hist.vpp_gamma[24]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST12,
+			  VI_HIST_ON_BIN_24_BIT, VI_HIST_ON_BIN_24_WID);
+	vf->prop.hist.vpp_gamma[25]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST12,
+			  VI_HIST_ON_BIN_25_BIT, VI_HIST_ON_BIN_25_WID);
+	vf->prop.hist.vpp_gamma[26]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST13,
+			  VI_HIST_ON_BIN_26_BIT, VI_HIST_ON_BIN_26_WID);
+	vf->prop.hist.vpp_gamma[27]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST13,
+			  VI_HIST_ON_BIN_27_BIT, VI_HIST_ON_BIN_27_WID);
+	vf->prop.hist.vpp_gamma[28]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST14,
+			  VI_HIST_ON_BIN_28_BIT, VI_HIST_ON_BIN_28_WID);
+	vf->prop.hist.vpp_gamma[29]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST14,
+			  VI_HIST_ON_BIN_29_BIT, VI_HIST_ON_BIN_29_WID);
+	vf->prop.hist.vpp_gamma[30]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST15,
+			  VI_HIST_ON_BIN_30_BIT, VI_HIST_ON_BIN_30_WID);
+	vf->prop.hist.vpp_gamma[31]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST15,
+			  VI_HIST_ON_BIN_31_BIT, VI_HIST_ON_BIN_31_WID);
+	vf->prop.hist.vpp_gamma[32]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST16,
+			  VI_HIST_ON_BIN_32_BIT, VI_HIST_ON_BIN_32_WID);
+	vf->prop.hist.vpp_gamma[33]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST16,
+			  VI_HIST_ON_BIN_33_BIT, VI_HIST_ON_BIN_33_WID);
+	vf->prop.hist.vpp_gamma[34]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST17,
+			  VI_HIST_ON_BIN_34_BIT, VI_HIST_ON_BIN_34_WID);
+	vf->prop.hist.vpp_gamma[35]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST17,
+			  VI_HIST_ON_BIN_35_BIT, VI_HIST_ON_BIN_35_WID);
+	vf->prop.hist.vpp_gamma[36]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST18,
+			  VI_HIST_ON_BIN_36_BIT, VI_HIST_ON_BIN_36_WID);
+	vf->prop.hist.vpp_gamma[37]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST18,
+			  VI_HIST_ON_BIN_37_BIT, VI_HIST_ON_BIN_37_WID);
+	vf->prop.hist.vpp_gamma[38]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST19,
+			  VI_HIST_ON_BIN_38_BIT, VI_HIST_ON_BIN_38_WID);
+	vf->prop.hist.vpp_gamma[39]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST19,
+			  VI_HIST_ON_BIN_39_BIT, VI_HIST_ON_BIN_39_WID);
+	vf->prop.hist.vpp_gamma[40]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST20,
+			  VI_HIST_ON_BIN_40_BIT, VI_HIST_ON_BIN_40_WID);
+	vf->prop.hist.vpp_gamma[41]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST20,
+			  VI_HIST_ON_BIN_41_BIT, VI_HIST_ON_BIN_41_WID);
+	vf->prop.hist.vpp_gamma[42]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST21,
+			  VI_HIST_ON_BIN_42_BIT, VI_HIST_ON_BIN_42_WID);
+	vf->prop.hist.vpp_gamma[43]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST21,
+			  VI_HIST_ON_BIN_43_BIT, VI_HIST_ON_BIN_43_WID);
+	vf->prop.hist.vpp_gamma[44]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST22,
+			  VI_HIST_ON_BIN_44_BIT, VI_HIST_ON_BIN_44_WID);
+	vf->prop.hist.vpp_gamma[45]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST22,
+			  VI_HIST_ON_BIN_45_BIT, VI_HIST_ON_BIN_45_WID);
+	vf->prop.hist.vpp_gamma[46]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST23,
+			  VI_HIST_ON_BIN_46_BIT, VI_HIST_ON_BIN_46_WID);
+	vf->prop.hist.vpp_gamma[47]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST23,
+			  VI_HIST_ON_BIN_47_BIT, VI_HIST_ON_BIN_47_WID);
+	vf->prop.hist.vpp_gamma[48]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST24,
+			  VI_HIST_ON_BIN_48_BIT, VI_HIST_ON_BIN_48_WID);
+	vf->prop.hist.vpp_gamma[49]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST24,
+			  VI_HIST_ON_BIN_49_BIT, VI_HIST_ON_BIN_49_WID);
+	vf->prop.hist.vpp_gamma[50]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST25,
+			  VI_HIST_ON_BIN_50_BIT, VI_HIST_ON_BIN_50_WID);
+	vf->prop.hist.vpp_gamma[51]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST25,
+			  VI_HIST_ON_BIN_51_BIT, VI_HIST_ON_BIN_51_WID);
+	vf->prop.hist.vpp_gamma[52]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST26,
+			  VI_HIST_ON_BIN_52_BIT, VI_HIST_ON_BIN_52_WID);
+	vf->prop.hist.vpp_gamma[53]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST26,
+			  VI_HIST_ON_BIN_53_BIT, VI_HIST_ON_BIN_53_WID);
+	vf->prop.hist.vpp_gamma[54]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST27,
+			  VI_HIST_ON_BIN_54_BIT, VI_HIST_ON_BIN_54_WID);
+	vf->prop.hist.vpp_gamma[55]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST27,
+			  VI_HIST_ON_BIN_55_BIT, VI_HIST_ON_BIN_55_WID);
+	vf->prop.hist.vpp_gamma[56]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST28,
+			  VI_HIST_ON_BIN_56_BIT, VI_HIST_ON_BIN_56_WID);
+	vf->prop.hist.vpp_gamma[57]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST28,
+			  VI_HIST_ON_BIN_57_BIT, VI_HIST_ON_BIN_57_WID);
+	vf->prop.hist.vpp_gamma[58]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST29,
+			  VI_HIST_ON_BIN_58_BIT, VI_HIST_ON_BIN_58_WID);
+	vf->prop.hist.vpp_gamma[59]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST29,
+			  VI_HIST_ON_BIN_59_BIT, VI_HIST_ON_BIN_59_WID);
+	vf->prop.hist.vpp_gamma[60]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST30,
+			  VI_HIST_ON_BIN_60_BIT, VI_HIST_ON_BIN_60_WID);
+	vf->prop.hist.vpp_gamma[61]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST30,
+			  VI_HIST_ON_BIN_61_BIT, VI_HIST_ON_BIN_61_WID);
+	vf->prop.hist.vpp_gamma[62]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST31,
+			  VI_HIST_ON_BIN_62_BIT, VI_HIST_ON_BIN_62_WID);
+	vf->prop.hist.vpp_gamma[63]  =
+	READ_VPP_REG_BITS(VI_DNLP_HIST31,
+			  VI_HIST_ON_BIN_63_BIT, VI_HIST_ON_BIN_63_WID);
 }
 
