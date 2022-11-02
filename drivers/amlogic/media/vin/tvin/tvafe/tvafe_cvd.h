@@ -45,6 +45,7 @@
 /* audo de threshold */
 #define TVAFE_CVD2_PAL_DE_START	0x17
 /* default de start value for pal */
+#define TVAFE_H_UNLOCK_CNT_THRESHOLD	20
 
 /* test with vlsi guys */
 #define TVAFE_VS_VE_VAL		20

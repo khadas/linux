@@ -1168,6 +1168,15 @@ static void tvafe_cvd2_get_signal_status(struct tvafe_cvd2_s *cvd2)
 
 	data /= 3;
 	cvd2->hw.cordic  = (unsigned char)(data & 0xff);
+	if (tvafe_dbg_print & TVAFE_DBG_SMR2)
+		tvafe_pr_info("%s %#x:%#x %#x:%#x %#x:%#x %#x:%#x %#x:%#x %#x:%#x %#x:%#x\n",
+			__func__, CVD2_STATUS_REGISTER1, R_APB_REG(CVD2_STATUS_REGISTER1),
+			CVD2_STATUS_REGISTER2, R_APB_REG(CVD2_STATUS_REGISTER2),
+			CVD2_STATUS_REGISTER3, R_APB_REG(CVD2_STATUS_REGISTER3),
+			CVD2_SYNC_NOISE_STATUS, R_APB_REG(CVD2_SYNC_NOISE_STATUS),
+			ACD_REG_83, R_APB_REG(ACD_REG_83),
+			ACD_REG_84, R_APB_REG(ACD_REG_84),
+			ACD_REG_3D, R_APB_REG(ACD_REG_3D));
 }
 
 /*tvafe cvd2 get cvd2 signal lock status*/
@@ -1356,6 +1365,15 @@ static bool tvafe_cvd2_condition_shift(struct tvafe_cvd2_s *cvd2)
 		if (tvafe_dbg_print & TVAFE_DBG_SMR)
 			tvafe_pr_info("%s: sig unstable, nosig:%d,h-lock:%d,v-lock:%d\n",
 			__func__,
+			cvd2->hw.no_sig, cvd2->hw.h_lock, cvd2->hw.v_lock);
+		return true;
+	}
+
+	if (IS_TVAFE_AVIN_SRC(cvd2->vd_port) && !cvd2->hw.no_sig &&
+	    cvd2->info.h_unlock_cnt > TVAFE_H_UNLOCK_CNT_THRESHOLD) {
+		if (cvd2->info.h_unlock_cnt > TVAFE_H_UNLOCK_CNT_THRESHOLD)
+			tvafe_pr_info("%s: sig H unlock(%d) nosig:%d,h-lock:%d,v-lock:%d\n",
+			__func__, cvd2->info.h_unlock_cnt,
 			cvd2->hw.no_sig, cvd2->hw.h_lock, cvd2->hw.v_lock);
 		return true;
 	}

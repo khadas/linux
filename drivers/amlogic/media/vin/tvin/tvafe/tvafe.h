@@ -28,7 +28,8 @@
 /* 20220613: tvafe shutdown not close clk stuck */
 /* 20220708: ntsc-m set 0x2e to default value */
 /* 20220812: avin 0% white cannot detect signal */
-#define TVAFE_VER "20220812:avin 0% white cannot detect signal"
+/* 20221105: av detect failure and av black screen */
+#define TVAFE_VER "20221105: av detect failure and av black screen"
 
 /* used to set the flag of tvafe_dev_s */
 #define TVAFE_FLAG_DEV_OPENED 0x00000010

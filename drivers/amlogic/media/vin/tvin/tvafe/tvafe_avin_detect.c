@@ -222,12 +222,8 @@ static int tvafe_avin_dts_parse(struct platform_device *pdev)
 		av_dev->dts_param.irq[i] = res->start;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node,
-		"function_select", &value);
-	if (ret) {
-		tvafe_pr_info("Failed to get device_mask.\n");
-		goto get_avin_param_failed;
-	} else {
+	ret = of_property_read_u32(pdev->dev.of_node, "function_select", &value);
+	if (!ret) {
 		av_dev->function_select = value;
 		tvafe_pr_info("function_select:0x%x\n", av_dev->function_select);
 	}
@@ -1020,7 +1016,7 @@ static ssize_t debug_store(struct device *dev,
 
 			tvafe_pr_info("write done 0x%x\n", val);
 		}
-	} else if (!strcmp(parm[0], "white0_detect")) {
+	} else if (!strcmp(parm[0], "function_select")) {
 		if (parm[1]) {
 			if (kstrtouint(parm[1], 16, &av_dev->function_select)) {
 				tvafe_pr_info("[%s]:invalid parameter\n", __func__);
