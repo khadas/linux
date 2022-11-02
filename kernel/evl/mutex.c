@@ -597,6 +597,8 @@ static int wait_mutex_schedule(struct evl_mutex *mutex)
  * owner's booster list, adjusting the boost value accordingly too.
  *
  * mutex->wchan.lock held (dropped at exit), irqs off
+ *
+ * NOTE: the caller MUST reschedule.
  */
 static void undo_pi_walk(struct evl_mutex *mutex)
 {
@@ -787,18 +789,22 @@ retry:
 
 	/*
 	 * Otherwise, this means __evl_unlock_mutex() unblocked us, so
-	 * we just need to retry grabbing the mutex. Check for any
-	 * rescheduling opportunity before doing so.
+	 * we just need to retry grabbing the mutex. Keep in mind that
+	 * __evl_unlock_mutex() dropped the mutex from the previous
+	 * owner's booster list before unblocking us, so we do not
+	 * have to revert the effects of our PI walk.
 	 */
 	evl_schedule();
 	goto retry;
 fail:
 	/*
 	 * On error, we may have done a partial boost of the PI chain,
-	 * so we need to carefully revert this.
+	 * so we need to carefully revert this, then reschedule to
+	 * apply any priority change.
 	 */
 	undo_pi_walk(mutex);
 	hard_local_irq_enable();
+	evl_schedule();
 
 	return ret;
 }
