@@ -33,7 +33,7 @@ struct key_item_info_t {
 	char	     name[KEY_UNIFY_NAME_LEN];
 	unsigned int size;
 	unsigned int perm;
-	unsigned int flag;	/*bit 0: 1 exsit, 0-none;*/
+	unsigned int flag;	/*bit 0: 1 exist, 0-none;*/
 	unsigned int reserve;
 };
 

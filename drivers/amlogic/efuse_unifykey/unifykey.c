@@ -383,7 +383,7 @@ int key_unify_query(struct aml_uk_dev *ukdev, char *name,
 	case KEY_SECURE:
 	case KEY_NORMAL:
 		if (state)
-			*state = amlkey_exsit((u8 *)name) ?
+			*state = amlkey_exist((u8 *)name) ?
 					KEY_BURNED : KEY_EMPTY;
 		if (perm)
 			*perm = key->perm;

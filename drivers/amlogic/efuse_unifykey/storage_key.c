@@ -162,7 +162,7 @@ void securekey_prebuf_deinit(void)
 	kfree(securekey_prebuf);
 }
 
-static u32 _amlkey_exsit(const u8 *name)
+static u32 _amlkey_exist(const u8 *name)
 {
 	unsigned long ret = 0;
 	u32	retval;
@@ -496,7 +496,7 @@ enum amlkey_if_type {
 struct amlkey_if amlkey_ifs[] = {
 	[IFTYPE_SECURE_STORAGE] = {
 		.init = _amlkey_init,
-		.exsit = _amlkey_exsit,
+		.exist = _amlkey_exist,
 		.get_attr = _amlkey_get_attr,
 		.size = _amlkey_size,
 		.read = _amlkey_read,
@@ -505,7 +505,7 @@ struct amlkey_if amlkey_ifs[] = {
 	},
 	[IFTYPE_NORMAL_STORAGE] = {
 		.init = _amlkey_init_normal,
-		.exsit = _amlkey_exist_normal,
+		.exist = _amlkey_exist_normal,
 		.get_attr = _amlkey_get_attr_normal,
 		.size = _amlkey_size_normal,
 		.read = _amlkey_read_normal,

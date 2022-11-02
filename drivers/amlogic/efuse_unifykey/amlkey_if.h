@@ -8,7 +8,7 @@
 
 struct amlkey_if {
 	s32 (*init)(u8 *seed, u32 len, int encrypt_type);
-	u32 (*exsit)(const u8 *name);
+	u32 (*exist)(const u8 *name);
 	unsigned int (*size)(const u8 *name);
 	u32 (*get_attr)(const u8 *name);
 	unsigned int (*read)(const u8 *name, u8 *buffer, u32 len);
@@ -23,9 +23,9 @@ static inline s32 amlkey_init(u8 *seed, u32 len, int encrypt_type)
 	return amlkey_if->init(seed, len, encrypt_type);
 }
 
-static inline u32 amlkey_exsit(const u8 *name)
+static inline u32 amlkey_exist(const u8 *name)
 {
-	return amlkey_if->exsit(name);
+	return amlkey_if->exist(name);
 }
 
 static inline unsigned int amlkey_size(const u8 *name)
