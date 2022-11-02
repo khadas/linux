@@ -485,6 +485,11 @@ void vrrlock_process(struct vframe_s *vf,
 	struct vrr_notifier_data_s vdata;
 	struct vinfo_s *vinfo = NULL;
 	int state;
+	unsigned int ret_hz = 0;
+	unsigned int duration = 0;
+
+	duration = vf->duration;
+	ret_hz = (96000 / duration);
 
 	memset(&vdata, 0, sizeof(struct vrr_notifier_data_s));
 
@@ -492,7 +497,10 @@ void vrrlock_process(struct vframe_s *vf,
 	if (!vinfo)
 		return;
 
-	vdata.line_dly = vrr_delay_line;
+	if (ret_hz == 50 || ret_hz == 100)
+		vdata.line_dly = 500;
+	else
+		vdata.line_dly = vrr_delay_line;
 
 	if (vrr_en) {
 		frame_lock_calc_lcnt_variance_val(vf);
