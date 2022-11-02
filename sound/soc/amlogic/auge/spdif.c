@@ -1743,6 +1743,7 @@ static int aml_dai_set_spdif_sysclk(struct snd_soc_dai *cpu_dai,
 		pr_debug("%s() set normal 512 fs /4 fs\n", __func__);
 	}
 
+	p_spdif->sysclk_freq = freq;
 	p_spdif->standard_sysclk = freq;
 	aml_set_spdifclk(p_spdif, freq);
 
