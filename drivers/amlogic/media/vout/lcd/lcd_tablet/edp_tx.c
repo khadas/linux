@@ -301,7 +301,7 @@ static int dptx_edid_valid_check(unsigned char *edid_buf)
 	return 0;
 }
 
-static void dptx_edid_parase(unsigned char *edid_buf, struct dptx_edid_s *edp_edid)
+static void dptx_edid_parse(unsigned char *edid_buf, struct dptx_edid_s *edp_edid)
 {
 	struct dptx_edid_range_limit_s *range;
 	struct dptx_edid_timing_s *timing;
@@ -507,7 +507,7 @@ dptx_edid_dump_retry:
 		kfree(str);
 	}
 
-	dptx_edid_parase(edid_buf, &edp_edid);
+	dptx_edid_parse(edid_buf, &edp_edid);
 	dptx_edid_print(&edp_edid);
 
 	kfree(edid_buf);
@@ -573,7 +573,7 @@ dptx_edid_timing_probe_retry:
 	if ((edp_cfg->edid_state & EDP_EDID_STATE_APPLY) == 0) {
 		if (edp_cfg->edid_retry_cnt++ > EDP_EDID_RETRY_MAX)
 			return -1;
-		dptx_edid_parase(edid_buf, &edp_edid);
+		dptx_edid_parse(edid_buf, &edp_edid);
 		if (lcd_debug_print_flag & LCD_DBG_PR_NORMAL)
 			dptx_edid_print(&edp_edid);
 		edp_edid_timing_update(pdrv, &edp_edid);
