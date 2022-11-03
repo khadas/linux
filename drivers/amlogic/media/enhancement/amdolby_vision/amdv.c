@@ -12819,12 +12819,13 @@ void amdv_insert_crc(bool print)
 	crc_count++;
 
 	if ((debug_dolby & 0x10000)) {
-		pr_info("core1 bl crc 0x%x,dm crc 0x%x,core3 in crc 0x%x, out crc 0x%x, crc enable %d\n",
+		pr_info("core1 bl crc 0x%x,dm 0x%x,core3 in 0x%x,out 0x%x,enable %d,off %d\n",
 			READ_VPP_DV_REG(AMDV_CORE1_BL_CRC),
 			READ_VPP_DV_REG(AMDV_CORE1_CSC_OUTPUT_CRC),
 			READ_VPP_DV_REG(AMDV_CORE3_INPUT_CSC_CRC),
 			READ_VPP_DV_REG(AMDV_CORE3_OUTPUT_CSC_CRC),
-			READ_VPP_DV_REG(0x36fb));
+			READ_VPP_DV_REG(AMDV_CORE3_CRC_CTRL),
+			crc_output_buff_off);
 	}
 
 	snprintf(cur_crc, sizeof(cur_crc), "0x%08x", crc);

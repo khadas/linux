@@ -76,7 +76,7 @@ static bool bypass_all_vpp_pq;
 /*0: not debug mode; 1:force bypass vpp pq; 2:force enable vpp pq*/
 static u32 debug_bypass_vpp_pq;
 
-static bool force_reset_core2;/*reset total core2*/
+static bool force_reset_core2[2];/*reset total core2*/
 static bool update_core2_reg;/*only set core2 reg*/
 
 /*bit0:reset core1a reg; bit1:reset core2 reg;bit2:reset core3 reg*/
@@ -2423,17 +2423,17 @@ static int dv_core2c_set
 	if (force_update_reg & 0x2000)
 		return 0;
 
-	if (!dolby_vision_on || force_reset_core2) {
+	if (!dolby_vision_on || force_reset_core2[1]) {
 		amdv_core_reset(AMDV_CORE2C);
-		force_reset_core2 = false;
+		force_reset_core2[1] = false;
 		reset = true;
-		pr_dv_dbg("reset core2a\n");
+		pr_dv_dbg("reset core2c\n");
 	}
 
 	if (osd_enable &&
 	    amdv_core2_on_cnt < DV_CORE2_RECONFIG_CNT) {
 		reset = true;
-		amdv_core2_on_cnt++;
+		/*amdv_core2_on_cnt++;*/
 	}
 
 	if (dolby_vision_flags & FLAG_CERTIFICATION)
@@ -2507,6 +2507,9 @@ static int dv_core2c_set
 				(AMDV_CORE2C_REG_START + 6 + i,
 				 p_core2_dm_regs[i]);
 			set_lut = true;
+			if ((debug_dolby & 0x20000000))
+				pr_dv_dbg("core2c dm change dm_regs[%d] %x->%x\n",
+					     i, last_dm[i], p_core2_dm_regs[i]);
 		}
 	}
 	/*CP_FLAG_CHANGE_TC2 is not set in idk2.6, need to check change*/
@@ -2515,8 +2518,8 @@ static int dv_core2c_set
 			if (p_core2_lut[i] != last_lut[i] ||
 			    p_core2_lut[lut_size - 1 - i] != last_lut[lut_size - 1 - i]) {
 				set_lut = true;
-				if ((debug_dolby & 2))
-					pr_dv_dbg("core2 lut change lut[%d] %x->%x\n",
+				if ((debug_dolby & 0x20000000))
+					pr_dv_dbg("core2c lut change lut[%d] %x->%x\n",
 					i, last_lut[i], p_core2_lut[i]);
 				break;
 			}
@@ -2533,7 +2536,7 @@ static int dv_core2c_set
 		set_lut = false;
 
 	if (debug_dolby & 2)
-		pr_dv_dbg("core2c potch %x %x, reset %d, %d, flag %x, size %d %d\n",
+		pr_dv_dbg("core2c %x %x, reset %d, %d, flag %x, size %d %d\n",
 			     g_hpotch, g_vpotch, reset, set_lut,
 			     stb_core_setting_update_flag, hsize, vsize);
 
@@ -2551,7 +2554,10 @@ static int dv_core2c_set
 			VSYNC_WR_DV_REG_BITS(AMDV_CORE2C_CLKGATE_CTRL,
 				2, 2, 2);
 #endif
-		VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x1401);
+		if (is_aml_s5() && (debug_dolby & 0x10000000))
+			VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x1409);
+		else
+			VSYNC_WR_DV_REG(AMDV_CORE2C_DMA_CTRL, 0x1401);
 
 		if (lut_endian) {
 			for (i = 0; i < count; i += 4) {
@@ -2630,9 +2636,9 @@ static int dv_core2a_set
 	if (force_update_reg & 0x2000)
 		return 0;
 
-	if (!dolby_vision_on || force_reset_core2) {
+	if (!dolby_vision_on || force_reset_core2[0]) {
 		amdv_core_reset(AMDV_CORE2A);
-		force_reset_core2 = false;
+		force_reset_core2[0] = false;
 		reset = true;
 		pr_dv_dbg("reset core2a\n");
 	}
@@ -2720,8 +2726,8 @@ static int dv_core2a_set
 				(AMDV_CORE2A_REG_START + 6 + i,
 				 p_core2_dm_regs[i]);
 			set_lut = true;
-			if ((debug_dolby & 2))
-				pr_dv_dbg("core2 dm change dm_regs[%d] %x->%x\n",
+			if ((debug_dolby & 0x20000000))
+				pr_dv_dbg("core2a dm change dm_regs[%d] %x->%x\n",
 					     i, last_dm[i], p_core2_dm_regs[i]);
 		}
 	}
@@ -2731,8 +2737,8 @@ static int dv_core2a_set
 			if (p_core2_lut[i] != last_lut[i] ||
 			    p_core2_lut[lut_size - 1 - i] != last_lut[lut_size - 1 - i]) {
 				set_lut = true;
-				if ((debug_dolby & 2))
-					pr_dv_dbg("core2 lut change lut[%d] %x->%x\n",
+				if ((debug_dolby & 0x20000000))
+					pr_dv_dbg("core2a lut change lut[%d] %x->%x\n",
 					i, last_lut[i], p_core2_lut[i]);
 				break;
 			}
@@ -2977,6 +2983,10 @@ static int dv_core3_set
 	else if (need_send_emp_meta(vinfo))
 		diag_mode = 1;
 #endif
+
+	if (debug_dolby & 1)
+		pr_dv_dbg("diag_mode %d %d %d\n",
+				  diag_mode, diag_enable, diagnostic_enable);
 
 	if (dolby_vision_on &&
 		(last_dolby_vision_ll_policy !=
@@ -3859,7 +3869,8 @@ void set_bypass_all_vpp_pq(int flag)
 
 void set_force_reset_core2(bool flag)
 {
-	force_reset_core2 = flag;
+	force_reset_core2[0] = flag;
+	force_reset_core2[1] = flag;
 }
 
 /*flag bit0: bypass from preblend to VADJ1, skip sr/pps/cm2*/
@@ -5382,7 +5393,7 @@ void enable_amdv_v1(int enable)
 			VSYNC_WR_DV_REG(VPP_DUMMY_DATA1,
 					vpp_dummy1_backup);
 		}
-		force_reset_core2 = true;
+		force_reset_core2[0] = true;
 		set_vf_crc_valid(0);
 		reset_dv_param();
 		clear_dolby_vision_wait();
@@ -6232,7 +6243,8 @@ void enable_amdv_v2_stb(int enable)
 			video_effect_bypass(0);
 			reset_dovi_setting();
 		}
-		force_reset_core2 = true;
+		force_reset_core2[0] = true;
+		force_reset_core2[1] = true;
 		reset_dv_param();
 		clear_dolby_vision_wait();
 		if (!is_aml_gxm() && !is_aml_txlx()) {
