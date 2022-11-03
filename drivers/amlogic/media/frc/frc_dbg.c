@@ -604,7 +604,7 @@ void frc_reg_io(const char *buf)
 		if (kstrtoul(parm[2], 16, &val) < 0)
 			goto free_buf;
 		regvalue = val;
-		WRITE_FRC_REG(reg, regvalue);
+		WRITE_FRC_REG_BY_CPU(reg, regvalue);
 		pr_frc(0, "[0x%x] = 0x%x\n", reg, regvalue);
 	} else if (!strcmp(parm[0], "d")) {
 		if (!parm[1] || !parm[2])

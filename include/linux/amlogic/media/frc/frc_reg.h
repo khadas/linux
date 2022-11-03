@@ -13105,8 +13105,6 @@ extern u32 regdata_fwd_table_cnt_phaofs_016c; //  FRC_REG_FWD_TABLE_CNT_PHAOFS 0
 extern u32 regdata_fwd_sign_ro_016e;          //  FRC_REG_FWD_SIGN_RO  x016e
 extern u32 regdata_fwd_fid_0147;              // FRC_REG_FWD_FID     0x0147
 extern u32 regdata_fwd_fid_posi_0148;         // FRC_REG_FWD_FID_POSI   0x0148
-extern u32 regdata_fwd_fid_lut1[16];          // FRC_REG_FWD_FID_LUT_1_0    0x014b
-extern u32 regdata_fwd_fid_lut2[16];          // FRC_REG_FWD_FID_LUT_2_0    0x014c
 
 extern int fw_idx;
 

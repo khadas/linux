@@ -81,8 +81,9 @@
 // frc_20220801 set force_mode and ctrl freq
 // frc_20220919 sync 24p and frm reset check
 // frc_20220920 add frc rdma access reg
+// frc_20220927 film tell alg under hdmi
 
-#define FRC_FW_VER			"2022-0927 film tell alg under hdmi"
+#define FRC_FW_VER			"2022-1102 frc clean up typo err"
 #define FRC_KERDRV_VER                  2339
 
 #define FRC_DEVNO	1

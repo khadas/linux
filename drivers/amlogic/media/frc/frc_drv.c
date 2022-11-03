@@ -236,12 +236,12 @@ static long frc_ioctl(struct file *file,
 			ret = -EFAULT;
 		break;
 
-	case FRC_IOC_SET_FRC_CANDENCE:
+	case FRC_IOC_SET_FRC_CADENCE:
 		if (copy_from_user(&data, argp, sizeof(u32))) {
 			ret = -EFAULT;
 			break;
 		}
-		pr_frc(1, "SET_FRC_CANDENCE:%d\n", data);
+		pr_frc(1, "SET_FRC_CADENCE:%d\n", data);
 		break;
 
 	case FRC_IOC_GET_VIDEO_LATENCY:

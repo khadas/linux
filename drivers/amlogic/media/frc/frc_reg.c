@@ -138,11 +138,6 @@ EXPORT_SYMBOL(regdata_fwd_phs_ro_016f);
 u32 regdata_fwd_phs_adj_016b;              // FRC_REG_FWD_PHS_ADJ       0x016b
 EXPORT_SYMBOL(regdata_fwd_phs_adj_016b);
 
-u32 regdata_fwd_fid_lut1[16];  // FRC_REG_FWD_FID_LUT_1_0 ~ FRC_REG_FWD_FID_LUT_1_15
-EXPORT_SYMBOL(regdata_fwd_fid_lut1);
-u32 regdata_fwd_fid_lut2[16];  // FRC_REG_FWD_FID_LUT_2_0 ~ FRC_REG_FWD_FID_LUT_2_15
-EXPORT_SYMBOL(regdata_fwd_fid_lut2);
-
 u32 regdata_fd_enable_0700;     // FRC_FD_ENABLE     0x0700
 EXPORT_SYMBOL(regdata_fd_enable_0700);
 
