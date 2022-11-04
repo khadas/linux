@@ -410,7 +410,7 @@ static int _dsc_chan_set_scb(struct dsc_channel *ch, u8 scb_out, u8 scb_as_is)
 	if (ptmp->valid)
 		dsc_config_pid_table(ptmp, ch->dsc_type);
 
-	if (ch->index00) {
+	if (ch->index00 != -1) {
 		ptmp = _get_dsc_pid_table(ch->index00, ch->dsc_type);
 		if (!ptmp) {
 			dprint("%s _get_dsc_pid_table fail\n", __func__);
@@ -575,7 +575,7 @@ static int handle_desc_ext(struct aml_dsc *dsc, struct ca_sc2_descr_ex *d)
 			struct dsc_channel *ch;
 
 			ch = _get_chan_from_list(dsc,
-						 d->params.key_params.ca_index);
+						 d->params.scb_params.ca_index);
 			if (ch) {
 				pr_dbg("%s scb:%d, scb_as_is:%d\n",
 				       __func__,
