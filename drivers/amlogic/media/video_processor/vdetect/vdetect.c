@@ -328,6 +328,7 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 	dev->vf_num++;
 	post_get_count++;
 
+	spin_lock_irqsave(&lock, flags);
 	if (vf->flag & VFRAME_FLAG_GAME_MODE ||
 		vf->width > 3840 ||
 		vf->height > 2160) {
@@ -337,7 +338,6 @@ static struct vframe_s *vdetect_vf_get(void *op_arg)
 		vf->flag |= VFRAME_FLAG_THROUGH_VDETECT;
 	}
 
-	spin_lock_irqsave(&lock, flags);
 	if (!bypass_flag &&
 	    (atomic_read(&dev->vdect_status) != VDETECT_PREPARE))
 		dev->last_vf = vf;
@@ -635,6 +635,10 @@ static int vdetect_ge2d_process(struct config_para_ex_s *ge2d_config,
 		atomic_set(&dev->vdect_status, VDETECT_INIT);
 		vdetect_print(dev->inst, PRINT_ERROR,
 			      "%s exit\n", __func__);
+		return -2;
+	}
+	if (IS_ERR_OR_NULL(vf)) {
+		vdetect_print(dev->inst, PRINT_ERROR, "%s: vf is NULL!\n", __func__);
 		return -2;
 	}
 
@@ -1368,6 +1372,7 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	struct timeval time_end;
 	int use_time;
 	int ret;
+	unsigned long flags;
 
 	if (atomic_read(&dev->is_playing) == 0) {
 		vdetect_print(dev->inst, PRINT_CAP_OTHER,
@@ -1396,8 +1401,12 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 	if (ret >= 0) {
 		mutex_lock(&dev->vf_mutex);
 		if (atomic_read(&dev->is_dev_reged) == 1) {
-			frame_number =
-				dev->last_vf->nn_value[AI_PQ_TOP - 1].maxclass;
+			spin_lock_irqsave(&lock, flags);
+			if (IS_ERR_OR_NULL(dev->last_vf))
+				frame_number = 0;
+			else
+				frame_number = dev->last_vf->nn_value[AI_PQ_TOP - 1].maxclass;
+			spin_unlock_irqrestore(&lock, flags);
 			vdetect_print(dev->inst, PRINT_MN_SET_FLOW,
 					"%d: sdk get nn info from %d frame\n",
 					__LINE__, frame_number);
