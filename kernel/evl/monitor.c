@@ -58,10 +58,10 @@ struct evl_monitor *get_monitor_by_fd(int efd, struct evl_file **efilpp)
 
 int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 {
+	struct evl_wait_channel *wchan;
 	struct evl_monitor *event;
 	struct evl_file *efilp;
 	unsigned long flags;
-	struct evl_rq *rq;
 	int ret = 0;
 
 	event = get_monitor_by_fd(monfd, &efilp);
@@ -74,17 +74,25 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 	}
 
 	/*
-	 * Current ought to hold the gate lock before calling us; if
-	 * not, we might race updating the state flags, possibly
-	 * loosing events. Too bad.
+	 * Current must hold the gate lock before calling us; if not,
+	 * we might race updating state->flags, possibly loosing
+	 * events. Too bad.
 	 */
-	if (target->wchan == &event->wait_queue.wchan) {
+	raw_spin_lock_irqsave(&target->lock, flags);
+
+	wchan = evl_get_thread_wchan(target);
+	if (wchan == &event->wait_queue.wchan) {
 		event->state->flags |= (EVL_MONITOR_TARGETED|
 					EVL_MONITOR_SIGNALED);
-		rq = evl_get_thread_rq(target, flags);
+		raw_spin_lock(&target->rq->lock);
 		target->info |= T_SIGNAL;
-		evl_put_thread_rq(target, rq, flags);
+		raw_spin_unlock(&target->rq->lock);
 	}
+
+	if (wchan)
+		evl_put_thread_wchan(wchan);
+
+	raw_spin_unlock_irqrestore(&target->lock, flags);
 out:
 	evl_put_file(efilp);
 
