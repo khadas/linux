@@ -441,13 +441,7 @@ void lcd_vbyone_enable_dft(struct aml_lcd_drv_s *pdrv)
 	/* VBO_RGN_GEN clk always on */
 	lcd_vcbus_setb(VBO_GCLK_MAIN, 2, 2, 2);
 
-	/* PAD select: */
-	if (lane_count == 1 || lane_count == 2)
-		lcd_vcbus_setb(LCD_PORT_SWAP, 1, 9, 2);
-	else if (lane_count == 4)
-		lcd_vcbus_setb(LCD_PORT_SWAP, 2, 9, 2);
-	else
-		lcd_vcbus_setb(LCD_PORT_SWAP, 0, 9, 2);
+	lcd_vcbus_setb(LCD_PORT_SWAP, 0, 9, 2);
 	/* lcd_vcbus_setb(LCD_PORT_SWAP, 1, 8, 1);//reverse lane output order */
 
 	lcd_vbyone_hw_filter(pdrv, 1);
@@ -523,13 +517,7 @@ void lcd_vbyone_enable_t7(struct aml_lcd_drv_s *pdrv)
 	/* VBO_RGN_GEN clk always on */
 	lcd_vcbus_setb(VBO_GCLK_MAIN_T7 + offset, 2, 2, 2);
 
-	/* PAD select: */
-	if (lane_count == 1 || lane_count == 2)
-		lcd_vcbus_setb(LCD_PORT_SWAP_T7 + offset, 1, 9, 2);
-	else if (lane_count == 4)
-		lcd_vcbus_setb(LCD_PORT_SWAP_T7 + offset, 2, 9, 2);
-	else
-		lcd_vcbus_setb(LCD_PORT_SWAP_T7 + offset, 0, 9, 2);
+	lcd_vcbus_setb(LCD_PORT_SWAP_T7 + offset, 0, 9, 2);
 	/* lcd_vcbus_setb(LCD_PORT_SWAP + offset, 1, 8, 1);//reverse lane output order */
 
 	lcd_vbyone_hw_filter(pdrv, 1);
