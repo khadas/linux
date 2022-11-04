@@ -1914,6 +1914,9 @@ struct xhci_hcd {
 #define XHCI_NO_SOFT_RETRY	BIT_ULL(40)
 #define XHCI_BROKEN_D3COLD	BIT_ULL(41)
 #define XHCI_EP_CTX_BROKEN_DCS	BIT_ULL(42)
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+#define XHCI_DISABLE_IDT	BIT_ULL(43)
+#endif
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
@@ -2233,6 +2236,14 @@ static inline struct xhci_ring *xhci_urb_to_transfer_ring(struct xhci_hcd *xhci,
  */
 static inline bool xhci_urb_suitable_for_idt(struct urb *urb)
 {
+#if IS_ENABLED(CONFIG_AMLOGIC_COMMON_USB)
+	struct usb_hcd	*hcd = bus_to_hcd(urb->dev->bus);
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+
+	if (xhci->quirks & XHCI_DISABLE_IDT)
+		return false;
+#endif
+
 	if (!usb_endpoint_xfer_isoc(&urb->ep->desc) && usb_urb_dir_out(urb) &&
 	    usb_endpoint_maxp(&urb->ep->desc) >= TRB_IDT_MAX_SIZE &&
 	    urb->transfer_buffer_length <= TRB_IDT_MAX_SIZE &&
