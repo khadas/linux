@@ -582,8 +582,10 @@
 			/* slave mode */
 			//bitclock-master = <&tdmbcodec>;
 			//frame-master = <&tdmbcodec>;
-			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s";
+			/* suffix-name, sync with android audio hal
+			 * what's the dai link used for
+			 */
+			suffix-name = "alsaPORT-i2s2hdmi";
 			cpu {
 				sound-dai = <&tdmb>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -600,7 +602,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmbcodec: codec {
-				sound-dai = <&amlogic_codec>;
+				sound-dai = <&dummy_codec>;
 			};
 		};
 
@@ -617,7 +619,7 @@
 			//bitclock-master = <&tdmccodec>;
 			//frame-master = <&tdmccodec>;
 			/* suffix-name, sync with android audio hal used for */
-			suffix-name = "alsaPORT-i2s2hdmi";
+			suffix-name = "alsaPORT-i2s";
 			cpu {
 				sound-dai = <&tdmc>;
 				dai-tdm-slot-tx-mask = <1 1>;
@@ -627,7 +629,7 @@
 				system-clock-frequency = <12288000>;
 			};
 			tdmccodec: codec {
-				sound-dai = <&dummy_codec>;
+				sound-dai = <&amlogic_codec>;
 			};
 		};
 		aml-audio-card,dai-link@3 {
@@ -671,6 +673,7 @@
 		};
 		aml-audio-card,dai-link@5 {
 			mclk-fs = <128>;
+			continuous-clock;
 			/* suffix-name, sync with android audio hal used for */
 			suffix-name = "alsaPORT-spdif";
 			cpu {
@@ -1048,7 +1051,8 @@
 			&tdm_d0_pins
 			&tdm_d1_pins
 			&tdma_clk_pins>;
-
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 
 	};
@@ -1095,6 +1099,8 @@
 			&tdm_d5_a_pins
 			&tdmb_clk_pins>;
 		i2s2hdmi = <1>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1140,6 +1146,8 @@
 		pinctrl-0 = <&tdm_d_pins
 			&tdm_d2_t_pins
 			&tdmd_clk_pins>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		start_clk_enable = <1>;
 		status = "okay";
 	};
@@ -1192,6 +1200,8 @@
 		/*spdif clk tuning enable*/
 		clk_tuning_enable = <1>;
 		src-clk-freq = <491520000>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 	spdifb:spdif@1 {
@@ -1204,6 +1214,8 @@
 		clock-names = "sysclk", "clk_src_cd",
 				"gate_spdifout", "clk_spdifout";
 		src-clk-freq = <491520000>;
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1265,7 +1277,8 @@
 		 *	EARC_RX,    11
 		 */
 		resample_module = <6>;
-
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1278,7 +1291,8 @@
 
 		/*this resample is only used for loopback_A.*/
 		capture_sample_rate = <16000>;
-
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1369,7 +1383,8 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
-
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "okay";
 	};
 
@@ -1425,7 +1440,8 @@
 		datalb_chmask = <0x3>;
 		/* config which data pin as loopback */
 		datalb-lane-mask-in = <1 0 0 0>;
-
+		/* suspend disable clk */
+		suspend-clk-off = <1>;
 		status = "disabled";
 	};
 }; /* end of audiobus */
