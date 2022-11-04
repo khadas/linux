@@ -433,7 +433,17 @@ next:
 	return 0;
 }
 
-DECLARE_BITMAP(online_cpu, sizeof(int));
+static DECLARE_BITMAP(online_cpu, sizeof(int));
+
+void aml_wakeup_cma_task(unsigned long cpu)
+{
+	struct cma_pcp *work;
+
+	work = &per_cpu(cma_pcp_thread, cpu);
+	if (test_and_clear_bit(cpu, online_cpu))
+		wake_up_process(work->task);
+}
+EXPORT_SYMBOL(aml_wakeup_cma_task);
 
 static int __init init_cma_boost_task(void)
 {

@@ -74,6 +74,7 @@ void cma_page_count_update(long size);
 void aml_cma_alloc_pre_hook(int *a, int b);
 void aml_cma_alloc_post_hook(int *a, int b, struct page *p);
 void aml_cma_release_hook(int a, struct page *p);
+void aml_wakeup_cma_task(unsigned long cpu);
 struct page *get_cma_page(struct zone *zone, unsigned int order);
 unsigned long compact_to_free_cma(struct zone *zone);
 int cma_alloc_ref(void);

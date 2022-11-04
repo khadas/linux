@@ -34,6 +34,10 @@
 #include <linux/amlogic/debug_ftrace_ramoops.h>
 #endif
 
+#ifdef CONFIG_AMLOGIC_FREERTOS
+#include <linux/amlogic/aml_cma.h>
+#endif
+
 /*
  * Export tracepoints that act as a bare tracehook (ie: have no trace event
  * associated with them) to allow external modules to probe them.
@@ -6653,6 +6657,9 @@ int sched_cpu_activate(unsigned int cpu)
 	}
 	rq_unlock_irqrestore(rq, &rf);
 
+#ifdef CONFIG_AMLOGIC_FREERTOS
+	aml_wakeup_cma_task(cpu);
+#endif
 	return 0;
 }
 
