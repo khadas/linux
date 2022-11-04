@@ -140,6 +140,7 @@ struct vid_cmpr_mif_t {
 	u32 rev_y;
 	u32 buf_crop_en;
 	u32 buf_hsize;
+	u32 buf_vsize;
 	u32 endian;
 	u32 block_mode;
 	u32 burst_len;

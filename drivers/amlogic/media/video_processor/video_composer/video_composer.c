@@ -97,8 +97,8 @@ static u64 nn_margin_time = 9000;
 static u32 nn_bypass;
 static u32 tv_fence_creat_count;
 static u32 dump_vframe;
-static u32 vicp_fbcout_en = 1;
-static u32 vicp_mifout_en = 1;
+static u32 vicp_output_dev = 3; /*1 mif, 2 fbc, 3 fbc+mif*/
+static u32 vicp_shrink_mode = 1; /*0 2x, 1 4x, 2 8x*/
 static u32 force_comp_w;
 static u32 force_comp_h;
 
@@ -504,7 +504,7 @@ static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, siz
 
 	buf_width = 3840;
 	buf_height = 2160;
-	if (vicp_fbcout_en && is_vicp_supported()) {
+	if (vicp_output_dev != 1 && is_vicp_supported()) {
 		if (composer_use_444) {
 			dw_size = roundup(buf_width >> 2, 32) * roundup(buf_height >> 2, 2);
 			afbc_body_size = buf_width * buf_height + (1024 * 1658);
@@ -554,7 +554,7 @@ static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, siz
 		dev->dst_buf[i].buf_h = buf_height;
 		dev->dst_buf[i].buf_size = buf_size;
 		dev->dst_buf[i].is_tvp = is_tvp;
-		if (vicp_fbcout_en && is_vicp_supported()) {
+		if (vicp_output_dev != 1 && is_vicp_supported()) {
 			vc_print(dev->index, PRINT_VICP, "dw_size = %d.\n", dw_size);
 			vc_print(dev->index, PRINT_VICP, "headsize = %d.\n", afbc_head_size);
 			vc_print(dev->index, PRINT_VICP, "bodysize = %d.\n", afbc_body_size);
@@ -1476,6 +1476,7 @@ static void vframe_composer(struct composer_dev *dev)
 	struct crop_info_t crop_info;
 	ulong buf_addr[3];
 	int fbc_init_ctrl, fbc_pip_mode;
+	int mifout_en = 1, fbcout_en = 1;
 
 	if (IS_ERR_OR_NULL(dev)) {
 		vc_print(dev->index, PRINT_ERROR, "%s: invalid param.\n", __func__);
@@ -1678,12 +1679,21 @@ static void vframe_composer(struct composer_dev *dev)
 					8,
 					&data_config.input_data);
 
-			if (vicp_fbcout_en) {
-				buf_addr[0] = (ulong)dst_buf->phy_addr;
+			if (vicp_output_dev == 1) {
+				mifout_en = 1;
+				fbcout_en = 0;
+			} else if (vicp_output_dev == 2) {
+				mifout_en = 0;
+				fbcout_en = 1;
+			} else {
+				mifout_en = 1;
+				fbcout_en = 1;
+			}
+
+			buf_addr[0] = (ulong)dst_buf->phy_addr;
+			if (fbcout_en) {
 				buf_addr[1] = dst_buf->afbc_head_addr;
 				buf_addr[2] = dst_buf->afbc_table_addr;
-			} else {
-				buf_addr[0] = (ulong)dst_buf->phy_addr;
 			}
 
 			if (count == 1) {
@@ -1698,8 +1708,9 @@ static void vframe_composer(struct composer_dev *dev)
 					fbc_pip_mode = 1;
 				}
 			}
-			config_vicp_output_data(vicp_fbcout_en,
-				vicp_mifout_en,
+
+			config_vicp_output_data(fbcout_en,
+				mifout_en,
 				buf_addr,
 				dst_buf->buf_w,
 				dst_buf->buf_w,
@@ -1721,6 +1732,8 @@ static void vframe_composer(struct composer_dev *dev)
 			data_config.data_option.output_axis.top = display_axis.top;
 			data_config.data_option.output_axis.width = display_axis.width;
 			data_config.data_option.output_axis.height = display_axis.height;
+			data_config.data_option.shrink_mode =
+				(enum vicp_shrink_mode_e)vicp_shrink_mode;
 
 			ret = vicp_data_composer(&data_config);
 			if (ret < 0)
@@ -1835,14 +1848,22 @@ static void vframe_composer(struct composer_dev *dev)
 	dst_vf->zorder = frames_info->disp_zorder;
 	dst_vf->canvas0Addr = -1;
 	dst_vf->canvas1Addr = -1;
-	if (vicp_fbcout_en && is_vicp_supported() && composer_dev_choice == 1 && transform == 0) {
-		dst_vf->type |= (VIDTYPE_COMPRESS | VIDTYPE_SCATTER);
-		dst_vf->compWidth = dst_buf->buf_w;
-		dst_vf->compHeight = dst_buf->buf_h;
-		dst_vf->compHeadAddr = dst_buf->afbc_head_addr;
-		dst_vf->compBodyAddr = dst_buf->afbc_body_addr;
-		dst_vf->width = dst_buf->buf_w / 4;
-		dst_vf->height = dst_buf->buf_h / 4;
+	if (is_vicp_supported() && composer_dev_choice == 1 && transform == 0) {
+		if (fbcout_en) {
+			dst_vf->type |= (VIDTYPE_COMPRESS | VIDTYPE_SCATTER);
+			dst_vf->compWidth = dst_buf->buf_w;
+			dst_vf->compHeight = dst_buf->buf_h;
+			dst_vf->compHeadAddr = dst_buf->afbc_head_addr;
+			dst_vf->compBodyAddr = dst_buf->afbc_body_addr;
+		}
+
+		if (vicp_shrink_mode >= VICP_SHRINK_MODE_MAX) {
+			dst_vf->width = dst_buf->buf_w;
+			dst_vf->height = dst_buf->buf_h;
+		} else {
+			dst_vf->width = dst_buf->buf_w >> (1 + vicp_shrink_mode);
+			dst_vf->height = dst_buf->buf_h >> (1 + vicp_shrink_mode);
+		}
 	} else {
 		dst_vf->width = dst_buf->buf_w;
 		dst_vf->height = dst_buf->buf_h;
@@ -1885,7 +1906,7 @@ static void vframe_composer(struct composer_dev *dev)
 	if (dump_vframe != dev->vframe_dump_flag) {
 		dump_vf(scr_vf, 0);
 		dump_vf(dst_vf, 1);
-		if (vicp_fbcout_en &&
+		if (fbcout_en &&
 			is_vicp_supported() &&
 			composer_dev_choice == 1 &&
 			transform == 0) {
@@ -3884,12 +3905,13 @@ static ssize_t actual_delay_count_show(struct class *class,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t vicp_fbcout_en_show(struct class *cla, struct class_attribute *attr, char *buf)
+static ssize_t vicp_output_dev_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
-	return snprintf(buf, 80, "vicp_fbcout_en: %d.\n", vicp_fbcout_en);
+	return snprintf(buf, 80,
+		"1 mif, 2 fbc, 3 mif+fbc. current choice is %d.\n", vicp_output_dev);
 }
 
-static ssize_t vicp_fbcout_en_store(struct class *cla, struct class_attribute *attr,
+static ssize_t vicp_output_dev_store(struct class *cla, struct class_attribute *attr,
 				const char *buf, size_t count)
 {
 	long tmp;
@@ -3900,16 +3922,17 @@ static ssize_t vicp_fbcout_en_store(struct class *cla, struct class_attribute *a
 		pr_info("ERROR converting %s to long int!\n", buf);
 		return ret;
 	}
-	vicp_fbcout_en = tmp;
+	vicp_output_dev = tmp;
 	return count;
 }
 
-static ssize_t vicp_mifout_en_show(struct class *cla, struct class_attribute *attr, char *buf)
+static ssize_t vicp_shrink_mode_show(struct class *cla, struct class_attribute *attr, char *buf)
 {
-	return snprintf(buf, 80, "vicp_mifout_en: %d.\n", vicp_mifout_en);
+	return snprintf(buf, 80,
+		"0 2x, 1 4x, 2 8x. current choice is %d.\n", vicp_shrink_mode);
 }
 
-static ssize_t vicp_mifout_en_store(struct class *cla, struct class_attribute *attr,
+static ssize_t vicp_shrink_mode_store(struct class *cla, struct class_attribute *attr,
 				const char *buf, size_t count)
 {
 	long tmp;
@@ -3920,7 +3943,7 @@ static ssize_t vicp_mifout_en_store(struct class *cla, struct class_attribute *a
 		pr_info("ERROR converting %s to long int!\n", buf);
 		return ret;
 	}
-	vicp_mifout_en = tmp;
+	vicp_shrink_mode = tmp;
 	return count;
 }
 
@@ -4029,8 +4052,8 @@ static CLASS_ATTR_RW(vd_max_hold_count);
 static CLASS_ATTR_RW(vd_set_frame_delay);
 static CLASS_ATTR_RW(vd_dump_vframe);
 static CLASS_ATTR_RO(actual_delay_count);
-static CLASS_ATTR_RW(vicp_fbcout_en);
-static CLASS_ATTR_RW(vicp_mifout_en);
+static CLASS_ATTR_RW(vicp_output_dev);
+static CLASS_ATTR_RW(vicp_shrink_mode);
 static CLASS_ATTR_RW(composer_dev_choice);
 static CLASS_ATTR_RW(force_comp_w);
 static CLASS_ATTR_RW(force_comp_h);
@@ -4075,8 +4098,8 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_vd_set_frame_delay.attr,
 	&class_attr_vd_dump_vframe.attr,
 	&class_attr_actual_delay_count.attr,
-	&class_attr_vicp_fbcout_en.attr,
-	&class_attr_vicp_mifout_en.attr,
+	&class_attr_vicp_output_dev.attr,
+	&class_attr_vicp_shrink_mode.attr,
 	&class_attr_composer_dev_choice.attr,
 	&class_attr_force_comp_w.attr,
 	&class_attr_force_comp_h.attr,

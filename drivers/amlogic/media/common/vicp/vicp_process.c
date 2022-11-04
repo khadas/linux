@@ -1347,7 +1347,7 @@ void set_vid_cmpr_wmif(struct vid_cmpr_mif_t *wr_mif, int wrmif_en)
 		pr_info("vicp: output addr2: 0x%llx.\n", wr_mif->canvas0_addr2);
 		pr_info("vicp: reversion: x %d, y %d.\n", wr_mif->rev_x, wr_mif->rev_y);
 		pr_info("vicp: crop_en = %d.\n", wr_mif->buf_crop_en);
-		pr_info("vicp: hsize = %d.\n", wr_mif->buf_hsize);
+		pr_info("vicp: hsize = %d, vsize = %d.\n", wr_mif->buf_hsize, wr_mif->buf_vsize);
 		pr_info("vicp: #################################.\n");
 	};
 
@@ -1695,14 +1695,15 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 				(1 << (1 + shrink_mode))) >> (1 + shrink_mode)) - 1;
 			vid_cmpr_wmif.luma_x_end0 += vid_cmpr_wmif.luma_x_start0;
 			vid_cmpr_wmif.luma_y_end0 += vid_cmpr_wmif.luma_y_start0;
-			vid_cmpr_wmif.buf_hsize =
-				(vid_cmpr_top->out_hsize_bgnd + 1) >> (1 + shrink_mode);
+			vid_cmpr_wmif.buf_hsize = vid_cmpr_top->out_hsize_bgnd >> (1 + shrink_mode);
+			vid_cmpr_wmif.buf_vsize = vid_cmpr_top->out_vsize_bgnd >> (1 + shrink_mode);
 		} else {
 			vid_cmpr_wmif.luma_x_start0 = output_begin_h;
 			vid_cmpr_wmif.luma_x_end0 = output_end_h;
 			vid_cmpr_wmif.luma_y_start0 = output_begin_v;
 			vid_cmpr_wmif.luma_y_end0 = output_end_v;
 			vid_cmpr_wmif.buf_hsize = vid_cmpr_top->out_hsize_bgnd;
+			vid_cmpr_wmif.buf_vsize = vid_cmpr_top->out_vsize_bgnd;
 		}
 		vid_cmpr_wmif.set_separate_en = vid_cmpr_top->wrmif_set_separate_en;
 		vid_cmpr_wmif.fmt_mode = vid_cmpr_top->wrmif_fmt_mode;
@@ -1716,7 +1717,7 @@ void set_vid_cmpr(struct vid_cmpr_top_t *vid_cmpr_top)
 
 		vid_cmpr_wmif.canvas0_addr0 = vid_cmpr_top->wrmif_canvas0_addr0;
 		vid_cmpr_wmif.canvas0_addr1 = vid_cmpr_top->wrmif_canvas0_addr0 +
-			((vid_cmpr_wmif.luma_x_end0 + 1) * (vid_cmpr_wmif.luma_y_end0 + 1));
+			(vid_cmpr_wmif.buf_hsize * vid_cmpr_wmif.buf_vsize);
 		vid_cmpr_wmif.canvas0_addr2 = vid_cmpr_top->wrmif_canvas0_addr2;
 		vid_cmpr_wmif.rev_x = 0;
 		vid_cmpr_wmif.rev_y = 0;
@@ -1861,15 +1862,15 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		canvas_width = input_dma->buf_stride;
 		vid_cmpr_top->hdr_en = 0;
 
-		if (input_dma->color_format == 2) { //2:yuv420
+		if (input_dma->color_format == VICP_COLOR_FORMAT_YUV420) {
 			vid_cmpr_top->canvas_width[0] = input_dma->buf_stride;
 			vid_cmpr_top->canvas_width[1] = input_dma->buf_stride;
 			vid_cmpr_top->canvas_width[2] = 0;
-		} else if (input_dma->color_format == 1) { //1:yuv422 one plane
+		} else if (input_dma->color_format == VICP_COLOR_FORMAT_YUV422) {
 			vid_cmpr_top->canvas_width[0] = input_dma->buf_stride;
 			vid_cmpr_top->canvas_width[1] = 0;
 			vid_cmpr_top->canvas_width[2] = 0;
-		} else if (input_dma->color_format == 0) { //0:yuv444 one plane
+		} else if (input_dma->color_format == VICP_COLOR_FORMAT_YUV444) {
 			vid_cmpr_top->canvas_width[0] = input_dma->buf_stride;
 			vid_cmpr_top->canvas_width[1] = 0;
 			vid_cmpr_top->canvas_width[2] = 0;
@@ -1927,8 +1928,12 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 	vid_cmpr_top->out_win_bgn_v = data_config->data_option.output_axis.top;
 	vid_cmpr_top->out_win_end_v = vid_cmpr_top->out_win_bgn_v +
 		data_config->data_option.output_axis.height - 1;
-	vid_cmpr_top->out_shrk_en = 1;
-	vid_cmpr_top->out_shrk_mode = 1;
+
+	if (data_config->data_option.shrink_mode < VICP_SHRINK_MODE_MAX)
+		vid_cmpr_top->out_shrk_en = 1;
+	else
+		vid_cmpr_top->out_shrk_en = 0;
+	vid_cmpr_top->out_shrk_mode = data_config->data_option.shrink_mode;
 
 	rotation = data_config->data_option.rotation_mode;
 	if (rotation == VICP_ROTATION_90) {
@@ -1961,14 +1966,11 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 	vid_cmpr_top->wrmif_fmt_mode = data_config->output_data.mif_color_fmt;
 	vid_cmpr_top->wrmif_bits_mode = data_config->output_data.mif_color_dep;
 	vid_cmpr_top->wrmif_canvas0_addr0 = data_config->output_data.phy_addr[0];
-	if (vid_cmpr_top->wrmif_fmt_mode == VICP_COLOR_FORMAT_YUV420) {
+	if (vid_cmpr_top->wrmif_fmt_mode == VICP_COLOR_FORMAT_YUV420)
 		vid_cmpr_top->wrmif_set_separate_en = 2;
-		vid_cmpr_top->wrmif_canvas0_addr1 = vid_cmpr_top->wrmif_canvas0_addr0 +
-			(data_config->output_data.width * data_config->output_data.height);
-	} else {
+	else
 		vid_cmpr_top->wrmif_set_separate_en = 0;
-		vid_cmpr_top->wrmif_canvas0_addr1 = 0;
-	}
+	vid_cmpr_top->wrmif_canvas0_addr1 = 0;
 	vid_cmpr_top->wrmif_canvas0_addr2 = 0;
 
 	return 0;

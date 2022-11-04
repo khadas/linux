@@ -40,6 +40,13 @@ enum vicp_color_format_e {
 	VICP_COLOR_FORMAT_MAX,
 };
 
+enum vicp_shrink_mode_e {
+	VICP_SHRINK_MODE_2X = 0,
+	VICP_SHRINK_MODE_4X,
+	VICP_SHRINK_MODE_8X,
+	VICP_SHRINK_MODE_MAX,
+};
+
 /* *********************************************************************** */
 /* ************************* struct definitions **************************.*/
 /* *********************************************************************** */
@@ -61,6 +68,7 @@ struct data_option_t {
 	struct crop_info_t crop_info;
 	enum vicp_rotation_mode_e rotation_mode;
 	struct output_axis_t output_axis;
+	enum vicp_shrink_mode_e shrink_mode;
 };
 
 struct dma_data_config_t {
