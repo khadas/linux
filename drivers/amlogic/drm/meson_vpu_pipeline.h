@@ -150,7 +150,6 @@ struct meson_vpu_block_state {
 	u32 checked;
 
 	u32 state_changed;
-
 	struct meson_vpu_block_link inputs[MESON_BLOCK_MAX_INPUTS];
 	struct meson_vpu_block_link outputs[MESON_BLOCK_MAX_OUTPUTS];
 	int in_stack;
@@ -394,6 +393,7 @@ struct meson_vpu_scaler_param {
 	u32 plane_mask;
 	u32 enable;
 	u32 before_osdblend;
+	u32 global;
 };
 
 struct meson_vpu_osdblend {
@@ -571,6 +571,8 @@ struct meson_vpu_pipeline_state {
 	struct meson_vpu_scaler_param scaler_param[MESON_MAX_SCALERS];
 	/*pre_osd_scope is before DIN*/
 	struct osd_scope_s osd_scope_pre[MAX_DIN_NUM];
+	int vpp_scope_x;
+	int vpp_scope_y;
 
 	/*some traverse help structure*/
 	struct meson_vpu_stack osd_stack[MESON_MAX_OSDS];

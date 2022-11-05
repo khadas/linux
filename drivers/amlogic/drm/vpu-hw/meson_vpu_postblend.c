@@ -257,15 +257,15 @@ static void postblend_set_state(struct meson_vpu_block *vblk,
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	scope.h_start = 0;
-	scope.h_end = mvps->scaler_param[0].output_width - 1;
-	scope.v_start = 0;
-	scope.v_end = mvps->scaler_param[0].output_height - 1;
+
+	scope.h_start = mvps->vpp_scope_x;
+	scope.v_start = mvps->vpp_scope_y;
+	scope.h_end = scope.h_start + mvps->scaler_param[0].output_width - 1;
+	scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 		secure_config(OSD_MODULE, mvps->sec_src, crtc_index);
 #endif
-
 	if (crtc_index == 0) {
 		vpp_osd1_blend_scope_set(vblk, reg_ops, reg, scope);
 
@@ -312,10 +312,10 @@ static void t7_postblend_set_state(struct meson_vpu_block *vblk,
 
 	MESON_DRM_BLOCK("%s set_state called.\n", postblend->base.name);
 	mvps = priv_to_pipeline_state(pipeline->obj.state);
-	scope.h_start = 0;
-	scope.h_end = mvps->scaler_param[0].output_width - 1;
-	scope.v_start = 0;
-	scope.v_end = mvps->scaler_param[0].output_height - 1;
+	scope.h_start = mvps->vpp_scope_x;
+	scope.h_end = scope.h_start + mvps->scaler_param[0].output_width - 1;
+	scope.v_start = mvps->vpp_scope_y;
+	scope.v_end = scope.v_start + mvps->scaler_param[0].output_height - 1;
 
 #ifdef CONFIG_AMLOGIC_MEDIA_SECURITY
 		secure_config(OSD_MODULE, mvps->sec_src, crtc_index);

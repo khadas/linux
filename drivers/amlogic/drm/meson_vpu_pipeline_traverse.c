@@ -225,7 +225,11 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 			mvps->osd_scope_pre[osd_index].v_end =
 				mvps->osd_scope_pre[osd_index].v_start
 				+ scaler_param->output_height - 1;
-		} else {/*scaler position is after osd land*/
+		} else {
+			/*scaler position is after osdlend*/
+			/*osdblend scope size depends on other din,
+			 *so calc firstly
+			 */
 			mvps->osd_scope_pre[osd_index].h_start =
 				mvps->plane_info[osd_index].dst_x *
 				scaler_param->ratio_w_num /
@@ -242,16 +246,19 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 				mvps->plane_info[osd_index].src_h - 1;
 
 			/*scale size follow blend scope.*/
-			scaler_param->input_width =
-				mvps->osd_scope_pre[osd_index].h_end + 1;
-			scaler_param->input_height =
-				mvps->osd_scope_pre[osd_index].v_end + 1;
 			scaler_param->output_width =
 				mvps->plane_info[osd_index].dst_w +
 				mvps->plane_info[osd_index].dst_x;
 			scaler_param->output_height =
 				mvps->plane_info[osd_index].dst_h +
 				mvps->plane_info[osd_index].dst_y;
+
+			/*scale input size follow blend scope.*/
+			scaler_param->input_width =
+				mvps->osd_scope_pre[osd_index].h_end + 1;
+			scaler_param->input_height =
+				mvps->osd_scope_pre[osd_index].v_end + 1;
+			scaler_param->global = 1;
 		}
 
 		scaler_param->calc_done_mask |=
@@ -322,6 +329,7 @@ void vpu_pipeline_scaler_scope_size_calc(u8 index, u8 osd_index,
 			mvps->osd_scope_pre[osd_index].v_end =
 				mvps->osd_scope_pre[osd_index].v_start
 				+ scaler_param->output_height - 1;
+			scaler_param->global = 0;
 		} else {
 			/*TODO*/
 			DRM_ERROR("two scaler after blend?!\n");
@@ -373,10 +381,78 @@ static void vpu_osd_shift_recalc(struct meson_vpu_pipeline_state *state)
 	state->scaler_param[0].input_height += 1;
 }
 
+/*only effect on vpp0, which include the osdblend block*/
+static void vpu_pipeline_recalc_global_scaler(int crtc_idx,
+		struct meson_vpu_pipeline_state *mvps)
+{
+	int i;
+	bool found = false;
+	u32 scope_x = INT_MAX, scope_y = INT_MAX;
+
+	for (i = 0; i < MESON_MAX_SCALERS; i++) {
+		if (!mvps->scaler_param[i].global)
+			continue;
+
+		found = true;
+		break;
+	}
+
+	if (!found) {
+		MESON_DRM_TRAVERSE("no need to recalc scaler size!");
+		return;
+	}
+
+	found = false;
+	mvps->vpp_scope_x = INT_MAX;
+	mvps->vpp_scope_y = INT_MAX;
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (!mvps->plane_info[i].enable ||
+			mvps->plane_info[i].crtc_index != crtc_idx)
+			continue;
+
+		found = true;
+		if (mvps->vpp_scope_x > mvps->plane_info[i].dst_x)
+			mvps->vpp_scope_x = mvps->plane_info[i].dst_x;
+		if (mvps->vpp_scope_y > mvps->plane_info[i].dst_y)
+			mvps->vpp_scope_y = mvps->plane_info[i].dst_y;
+		if (scope_x > mvps->osd_scope_pre[mvps->plane_index[i]].h_start)
+			scope_x = mvps->osd_scope_pre[mvps->plane_index[i]].h_start;
+		if (scope_y > mvps->osd_scope_pre[mvps->plane_index[i]].v_start)
+			scope_y = mvps->osd_scope_pre[mvps->plane_index[i]].v_start;
+	}
+
+	if (!found) {
+		mvps->vpp_scope_x = 0;
+		mvps->vpp_scope_y = 0;
+		return;
+	}
+
+	for (i = 0; i < MESON_MAX_OSDS; i++) {
+		if (!mvps->plane_info[i].enable ||
+			mvps->plane_info[i].crtc_index != crtc_idx)
+			continue;
+
+		mvps->osd_scope_pre[mvps->plane_index[i]].h_start -= scope_x;
+		mvps->osd_scope_pre[mvps->plane_index[i]].v_start -= scope_y;
+		mvps->osd_scope_pre[mvps->plane_index[i]].h_end -= scope_x;
+		mvps->osd_scope_pre[mvps->plane_index[i]].v_end -= scope_y;
+	}
+
+	for (i = 0; i < MESON_MAX_SCALERS; i++) {
+		if (!mvps->scaler_param[i].global)
+			continue;
+
+		mvps->scaler_param[i].input_width -= scope_x;
+		mvps->scaler_param[i].input_height -= scope_y;
+		mvps->scaler_param[i].output_width -= mvps->vpp_scope_x;
+		mvps->scaler_param[i].output_height -= mvps->vpp_scope_y;
+	}
+}
+
 int vpu_pipeline_scaler_check(int *combination, int num_planes,
 			      struct meson_vpu_pipeline_state *mvps)
 {
-	int i, j, osd_index, ret, m;
+	int i, j, osd_index, ret, m, osdblend_crtc_idx = 0;
 	struct meson_vpu_traverse *mvt;
 	struct meson_vpu_block **mvb;
 	struct meson_vpu_block *block;
@@ -414,6 +490,8 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
 				mvps->scaler_param[m].before_osdblend =
 					have_blend ? 0 : 1;
 			}
+			if (block->type == MESON_BLK_VPPBLEND && have_blend)
+				osdblend_crtc_idx = block->index;
 		}
 
 		if (mvps->scaler_cnt[i] == 0) {
@@ -447,6 +525,9 @@ int vpu_pipeline_scaler_check(int *combination, int num_planes,
 			*/
 		}
 	}
+
+	vpu_pipeline_recalc_global_scaler(osdblend_crtc_idx, mvps);
+
 	if (ret == 0 && mvps->num_plane > 0 &&
 	    mvps->pipeline->osd_version <= OSD_V2)
 		vpu_osd_shift_recalc(mvps);
@@ -836,6 +917,7 @@ int s5_set_pipeline_para(int *combination, int num_planes,
 		mvps->scaler_param[i].input_height = osd_pps_din_vsize[i];
 		mvps->scaler_param[i].output_width = osd_pps_dout_hsize[i];
 		mvps->scaler_param[i].output_height = osd_pps_dout_vsize[i];
+		mvps->scaler_param[i].global = 0;
 
 		if (more_60) {
 			mvps->osd_scope_pre[i].h_start = mvps->plane_info[0].dst_x;
