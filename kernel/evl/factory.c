@@ -72,15 +72,13 @@ int evl_init_element(struct evl_element *e,
 
 	e->factory = fac;
 	e->minor = minor;
-	e->refs = 1;
+	refcount_set(&e->refs, 1);
 	e->dev = NULL;
 	e->fpriv.filp = NULL;
 	e->fpriv.efd = -1;
-	e->zombie = false;
 	e->fundle = EVL_NO_HANDLE;
 	e->devname = NULL;
 	e->clone_flags = clone_flags;
-	raw_spin_lock_init(&e->ref_lock);
 
 	return 0;
 }
@@ -123,17 +121,6 @@ void evl_destroy_element(struct evl_element *e)
 		putname(e->devname);
 }
 
-void evl_get_element(struct evl_element *e)
-{
-	unsigned long flags;
-	int old_refs;
-
-	raw_spin_lock_irqsave(&e->ref_lock, flags);
-	old_refs = e->refs++;
-	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
-	EVL_WARN_ON(CORE, old_refs == 0);
-}
-
 static int bind_file_to_element(struct file *filp, struct evl_element *e)
 {
 	struct evl_file_binding *fbind;
@@ -166,26 +153,35 @@ static struct evl_element *unbind_file_from_element(struct file *filp)
 	return e;
 }
 
+/*
+ * Multiple files may reference a single element on open().
+ *
+ * e->refs tracks the outstanding references to the element, saturates
+ * to zero in evl_open_element(), which might race with
+ * evl_put_element() for the same element. If the refcount is zero on
+ * entry, evl_open_element() knows that __evl_put_element() is
+ * scheduling a deletion of @e, returning -ESTALE if so.
+ *
+ * evl_open_element() is protected against referencing stale memory
+ * enclosing all potentially unsafe references to @e into a read-side
+ * RCU section. Meanwhile we wait for all read-sides to complete after
+ * calling cdev_del().  Once cdev_del() returns, the device cannot be
+ * opened anymore, which does not affect the files that might still be
+ * active on this device though.
+ */
 int evl_open_element(struct inode *inode, struct file *filp)
 {
 	struct evl_element *e;
-	unsigned long flags;
 	int ret = 0;
 
 	e = container_of(inode->i_cdev, struct evl_element, cdev);
 
 	rcu_read_lock();
 
-	raw_spin_lock_irqsave(&e->ref_lock, flags);
-
-	if (e->zombie) {
+	if (!refcount_read(&e->refs))
 		ret = -ESTALE;
-	} else {
-		EVL_WARN_ON(CORE, e->refs == 0);
-		e->refs++;
-	}
-
-	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
+	else
+		evl_get_element(e);
 
 	rcu_read_unlock();
 
@@ -255,7 +251,7 @@ static void do_put_element_irq(struct irq_work *work)
 	schedule_work(&e->work);
 }
 
-static void do_put_element(struct evl_element *e)
+void __evl_put_element(struct evl_element *e)
 {
 	/*
 	 * These trampolines may look like a bit cheesy but we have no
@@ -271,54 +267,11 @@ static void do_put_element(struct evl_element *e)
 	if (unlikely(running_oob() || hard_irqs_disabled())) {
 		init_irq_work(&e->irq_work, do_put_element_irq);
 		irq_work_queue(&e->irq_work);
-	} else
+	} else {
 		__do_put_element(e);
-}
-
-void evl_put_element(struct evl_element *e) /* in-band or OOB */
-{
-	unsigned long flags;
-
-	/*
-	 * Multiple files may reference a single element on
-	 * open(). The element release logic competes with
-	 * evl_open_element() as follows:
-	 *
-	 * a) evl_put_element() grabs the ->ref_lock first and raises
-	 * the zombie flag iff the refcount drops to zero, or
-	 * evl_open_element() gets it first.
-
-	 * b) evl_open_element() races with evl_put_element() and
-	 * detects an ongoing deletion of @ent, returning -ESTALE.
-
-	 * c) evl_open_element() is first and increments the refcount
-	 * which should lead us to skip the whole release process
-	 * in evl_put_element() when it runs next.
-	 *
-	 * In any case, evl_open_element() is protected against
-	 * referencing stale @ent memory by a read-side RCU
-	 * section. Meanwhile we wait for all read-sides to complete
-	 * after calling cdev_del().  Once cdev_del() returns, the
-	 * device cannot be opened anymore, which does not affect the
-	 * files that might still be active on this device though.
-	 *
-	 * In the c) case, the last file release will dispose of the
-	 * element eventually.
-	 */
-	raw_spin_lock_irqsave(&e->ref_lock, flags);
-
-	if (EVL_WARN_ON(CORE, e->refs == 0))
-		goto out;
-
-	if (--e->refs == 0) {
-		e->zombie = true;
-		raw_spin_unlock_irqrestore(&e->ref_lock, flags);
-		do_put_element(e);
-		return;
 	}
-out:
-	raw_spin_unlock_irqrestore(&e->ref_lock, flags);
 }
+EXPORT_SYMBOL_GPL(__evl_put_element);
 
 int evl_release_element(struct inode *inode, struct file *filp)
 {
@@ -494,7 +447,7 @@ static int create_element_device(struct evl_element *e,
 	 * reference then install fd (which is a membar).
 	 */
 	if (!evl_element_is_public(e) && !evl_element_has_coredev(e)) {
-		e->refs++;
+		refcount_inc(&e->refs);
 		fd_install(e->fpriv.efd, e->fpriv.filp);
 	}
 
@@ -741,27 +694,20 @@ __evl_get_element_by_fundle(struct evl_index *map, fundle_t fundle)
 	rb = map->root.rb_node;
 	while (rb) {
 		e = rb_entry(rb, struct evl_element, index_node);
-		if (fundle < e->fundle)
+		if (fundle < e->fundle) {
 			rb = rb->rb_left;
-		else if (fundle > e->fundle)
+		} else if (fundle > e->fundle) {
 			rb = rb->rb_right;
-		else {
-			raw_spin_lock(&e->ref_lock);
-			if (unlikely(e->zombie))
+		} else {
+			if (unlikely(!refcount_inc_not_zero(&e->refs)))
 				e = NULL;
-			else {
-				EVL_WARN_ON(CORE, e->refs == 0);
-				e->refs++;
-			}
-			raw_spin_unlock(&e->ref_lock);
-			raw_spin_unlock_irqrestore(&map->lock, flags);
-			return e;
+			break;
 		}
 	}
 
 	raw_spin_unlock_irqrestore(&map->lock, flags);
 
-	return NULL;
+	return rb ? e : NULL;
 }
 
 static char *factory_type_devnode(struct device *dev, umode_t *mode,
