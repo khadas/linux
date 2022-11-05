@@ -824,7 +824,8 @@ DEFINE_EVENT(evl_sched_attrs, evl_thread_getsched,
 		{T_HMSIG, "hmsig"},	\
 		{T_WOSX, "wosx"},	\
 		{T_WOSS, "woss"},	\
-		{T_WOLI, "woli"})
+		{T_WOLI, "woli"},	\
+		{T_WOSO, "woso"})
 
 TRACE_EVENT(evl_thread_update_mode,
 	TP_PROTO(struct evl_thread *thread, int mode, bool set),

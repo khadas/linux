@@ -32,7 +32,7 @@
 /* Information bits an EVL thread may receive from a blocking op. */
 #define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_KICKED|T_BCAST|T_NOMEM)
 /* Mode bits configurable via EVL_THRIOC_SET/CLEAR_MODE. */
-#define EVL_THREAD_MODE_BITS	(T_WOSS|T_WOLI|T_WOSX|T_HMSIG|T_HMOBS)
+#define EVL_THREAD_MODE_BITS	(T_WOSS|T_WOLI|T_WOSX|T_WOSO|T_HMSIG|T_HMOBS)
 
 /*
  * These are special internal values of HM diags which are never sent

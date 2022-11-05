@@ -2145,10 +2145,10 @@ static int update_mode(struct evl_thread *thread, __u32 mask,
 			thread->state |= mask;
 		} else {
 			thread->state &= ~mask;
-			if (!(thread->state & (T_WOSS|T_WOLI|T_WOSX)))
+			if (!(thread->state & (T_WOSS|T_WOLI|T_WOSX|T_WOSO)))
 				thread->state &= ~(T_HMSIG|T_HMOBS);
 			else if (!(thread->state & (T_HMSIG|T_HMOBS)))
-				thread->state &= ~(T_WOSS|T_WOLI|T_WOSX);
+				thread->state &= ~(T_WOSS|T_WOLI|T_WOSX|T_WOSO);
 		}
 	}
 
