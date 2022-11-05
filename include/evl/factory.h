@@ -19,6 +19,8 @@
 #include <linux/irq_work.h>
 #include <linux/mutex.h>
 #include <linux/hashtable.h>
+#include <linux/refcount.h>
+#include <evl/assert.h>
 #include <evl/file.h>
 #include <uapi/evl/types.h>
 #include <uapi/evl/factory.h>
@@ -78,9 +80,8 @@ struct evl_element {
 	struct device *dev;
 	struct filename *devname;
 	unsigned int minor;
-	int refs;
+	refcount_t refs;
 	bool zombie;
-	hard_spinlock_t ref_lock;
 	fundle_t fundle;
 	int clone_flags;
 	struct rb_node index_node;
@@ -113,7 +114,11 @@ int evl_init_user_element(struct evl_element *e,
 
 void evl_destroy_element(struct evl_element *e);
 
-void evl_get_element(struct evl_element *e);
+static inline void evl_get_element(struct evl_element *e)
+{
+	bool ret = refcount_inc_not_zero(&e->refs);
+	EVL_WARN_ON(CORE, !ret);
+}
 
 struct evl_element *
 __evl_get_element_by_fundle(struct evl_index *map,
@@ -166,7 +171,13 @@ static inline bool evl_element_is_observable(struct evl_element *e)
 	return !!(e->clone_flags & EVL_CLONE_OBSERVABLE);
 }
 
-void evl_put_element(struct evl_element *e);
+void __evl_put_element(struct evl_element *e);
+
+static inline void evl_put_element(struct evl_element *e) /* in-band or OOB */
+{
+	if (refcount_dec_and_test(&e->refs))
+		__evl_put_element(e);
+}
 
 int evl_open_element(struct inode *inode,
 		struct file *filp);
