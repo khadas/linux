@@ -37,6 +37,7 @@
 #define T_OBSERV  0x00080000 /* Observable (only for export to userland) */
 #define T_HMSIG   0x00100000 /* Notify HM events via SIGDEBUG */
 #define T_HMOBS   0x00200000 /* Notify HM events via observable */
+#define T_WOSO    0x00400000 /* Schedule overrun */
 
 /* Information flags (shared) */
 
@@ -95,6 +96,7 @@
 #define EVL_HMDIAG_LKIMBALANCE	6
 #define EVL_HMDIAG_LKSLEEP	7
 #define EVL_HMDIAG_STAGEX	8
+#define EVL_HMDIAG_OVERRUN	9
 
 struct evl_user_window {
 	__u32 state;
