@@ -341,6 +341,9 @@ struct hdmitx_dev {
 #endif
 	struct timer_list hdcp_timer;
 	struct amhdmitx_data_s *data;
+	int hdmitx_gpios_hpd;
+	int hdmitx_gpios_scl;
+	int hdmitx_gpios_sda;
 	int hdmi_init;
 	int hpdmode;
 	/* -1, no hdcp; 0, NULL; 1, 1.4; 2, 2.2 */

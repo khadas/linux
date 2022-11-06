@@ -34,6 +34,9 @@
 #include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/miscdevice.h>
+#include <linux/of_gpio.h>
+#include <linux/rtc.h>
+#include <linux/timekeeping.h>
 //#include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/vout_notify.h>
@@ -6149,7 +6152,19 @@ static void hdmitx_get_edid(struct hdmitx_dev *hdev)
 	}
 	/* If EDID is not correct at first time, then retry */
 	if (!check_dvi_hdmi_edid_valid(hdev->EDID_buf)) {
-		msleep(100);
+		struct timespec64 kts;
+		struct rtc_time tm;
+
+		msleep(20);
+		ktime_get_real_ts64(&kts);
+		rtc_time64_to_tm(kts.tv_sec, &tm);
+		if (hdev->hdmitx_gpios_scl != -EPROBE_DEFER)
+			pr_info("UTC+0 %ptRd %ptRt DDC SCL %s\n", &tm, &tm,
+				gpio_get_value(hdev->hdmitx_gpios_scl) ? "HIGH" : "LOW");
+		if (hdev->hdmitx_gpios_sda != -EPROBE_DEFER)
+			pr_info("UTC+0 %ptRd %ptRt DDC SDA %s\n", &tm, &tm,
+				gpio_get_value(hdev->hdmitx_gpios_sda) ? "HIGH" : "LOW");
+		msleep(80);
 		/* start reading edid second time */
 		hdev->hwop.cntlddc(hdev, DDC_EDID_READ_DATA, 0);
 		hdev->hwop.cntlddc(hdev, DDC_EDID_GET_DATA, 1);
@@ -6849,6 +6864,7 @@ static int amhdmitx_device_init(struct hdmitx_dev *hdmi_dev)
 static int amhdmitx_get_dt_info(struct platform_device *pdev)
 {
 	int ret = 0;
+	struct hdmitx_dev *hdev = get_hdmitx_device();
 
 #ifdef CONFIG_OF
 	int val;
@@ -6874,6 +6890,18 @@ static int amhdmitx_get_dt_info(struct platform_device *pdev)
 		pinctrl_select_state(pdev->dev.pins->p,
 				     hdmitx_device.pinctrl_default);
 	}
+	hdev->hdmitx_gpios_hpd = of_get_named_gpio_flags(pdev->dev.of_node,
+		"hdmitx-gpios-hpd", 0, NULL);
+	if (hdev->hdmitx_gpios_hpd == -EPROBE_DEFER)
+		pr_err("get hdmitx-gpios-hpd error\n");
+	hdev->hdmitx_gpios_scl = of_get_named_gpio_flags(pdev->dev.of_node,
+		"hdmitx-gpios-scl", 0, NULL);
+	if (hdev->hdmitx_gpios_scl == -EPROBE_DEFER)
+		pr_err("get hdmitx-gpios-scl error\n");
+	hdev->hdmitx_gpios_sda = of_get_named_gpio_flags(pdev->dev.of_node,
+		"hdmitx-gpios-sda", 0, NULL);
+	if (hdev->hdmitx_gpios_sda == -EPROBE_DEFER)
+		pr_err("get hdmitx-gpios-sda error\n");
 
 #ifdef CONFIG_OF
 	if (pdev->dev.of_node) {

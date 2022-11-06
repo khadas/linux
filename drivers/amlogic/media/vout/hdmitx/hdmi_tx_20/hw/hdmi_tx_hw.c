@@ -24,6 +24,9 @@
 #include <linux/reset.h>
 #include <linux/compiler.h>
 #include <linux/arm-smccc.h>
+#include <linux/rtc.h>
+#include <linux/timekeeping.h>
+#include <linux/gpio.h>
 
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmi_tx/enc_clk_config.h>
@@ -687,6 +690,16 @@ static irqreturn_t intr_handler(int irq, void *dev)
 	hdmitx_wr_reg(HDMITX_DWC_HDCP22REG_STAT, 0xff);
 
 	pr_info(SYS "irq %x %x\n", dat_top, dat_dwc);
+	/* bit[2:1] of dat_top means HPD falling and rising */
+	if ((dat_top & 0x6) && hdev->hdmitx_gpios_hpd != -EPROBE_DEFER) {
+		struct timespec64 kts;
+		struct rtc_time tm;
+
+		ktime_get_real_ts64(&kts);
+		rtc_time64_to_tm(kts.tv_sec, &tm);
+		pr_info("UTC+0 %ptRd %ptRt HPD %s\n", &tm, &tm,
+			gpio_get_value(hdev->hdmitx_gpios_hpd) ? "HIGH" : "LOW");
+	}
 
 	if (hdev->hpd_lock == 1) {
 		pr_info(HW "HDMI hpd locked\n");

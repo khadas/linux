@@ -1576,6 +1576,9 @@
 		vend-data = <&vend_data>;
 		pinctrl-names="default";
 		pinctrl-0=<&hdmitx_hpd &hdmitx_ddc>;
+		hdmitx-gpios-hpd = <&gpio GPIOH_2 0>;
+		hdmitx-gpios-scl = <&gpio GPIOH_1 0>;
+		hdmitx-gpios-sda = <&gpio GPIOH_0 0>;
 		clock-names = "venci_top_gate",
 			"venci_0_gate",
 			"venci_1_gate",
