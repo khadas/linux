@@ -58,13 +58,29 @@ static void tp_schedule_next(struct evl_sched_tp *tp)
 static void tp_tick_handler(struct evl_timer *timer)
 {
 	struct evl_rq *rq = container_of(timer, struct evl_rq, tp.tf_timer);
+	struct evl_thread *curr = rq->curr;
 	struct evl_sched_tp *tp = &rq->tp;
+	int overrun_frame = -1;
 
 	raw_spin_lock(&rq->lock);
 
 	/*
-	 * Advance beginning date of time frame by a full period if we
-	 * are processing the last window.
+	 * If the current thread on this CPU was still active at the
+	 * end of its time frame, we may have to notify an overrun.
+	 */
+	if ((curr->state & (T_WOSO|EVL_THREAD_BLOCK_BITS)) == T_WOSO) {
+		/*
+		 * tp->wnext is pointing at the next window already,
+		 * move back to one which is being overrun.
+		 */
+		overrun_frame = tp->wnext - 1;
+		if (overrun_frame < 0)
+			overrun_frame = tp->gps->pwin_nr - 1;
+	}
+
+	/*
+	 * Advance the start date for the next time frame by a full
+	 * period if we are processing the last window.
 	 */
 	if (tp->wnext + 1 == tp->gps->pwin_nr)
 		tp->tf_start = ktime_add(tp->tf_start, tp->gps->tf_duration);
@@ -72,6 +88,10 @@ static void tp_tick_handler(struct evl_timer *timer)
 	tp_schedule_next(tp);
 
 	raw_spin_unlock(&rq->lock);
+
+	if (overrun_frame >= 0)
+		evl_notify_thread(curr, EVL_HMDIAG_OVERRUN,
+				evl_intval(overrun_frame));
 }
 
 static void tp_init(struct evl_rq *rq)
