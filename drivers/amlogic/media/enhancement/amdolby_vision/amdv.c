@@ -10330,11 +10330,15 @@ void calculate_crc(void)
 
 /*In some cases, from full screen to small window, the L5 metadata of the stream does*/
 /*not change, and the AOI area does not change, lead to the display to be incomplete*/
-/*if vpp disp size smaller than stream source size,  ignore AOI info*/
+/*if vpp disp size smaller than stream source size,  update AOI info*/
 static void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 {
 	int tmp_h;
 	int tmp_v;
+	int h_ratio = 1;
+	int v_ratio = 1;
+	int disp_h;
+	int disp_v;
 
 	tmp_h = (vf->type & VIDTYPE_COMPRESS) ?
 		vf->compWidth : vf->width;
@@ -10342,15 +10346,75 @@ static void update_aoi_flag(struct vframe_s *vf, u32 display_size)
 		vf->compHeight : vf->height;
 	if (tmp_h != ((display_size >> 16) & 0xffff) ||
 		tmp_v != (display_size & 0xffff)) {
-		disable_aoi = true;
+		disp_h = (display_size >> 16) & 0xffff;
+		disp_v = display_size & 0xffff;
 		if (debug_dolby & 1)
 			pr_dv_dbg
 			("disp size != src size %d %d->%d %d\n",
 			 tmp_h, tmp_v,
 			 (display_size >> 16) & 0xffff,
 			 display_size & 0xffff);
+		aoi_info[0][0] = (tv_dovi_setting->core1_reg_lut[44] >> 12) & 0xfff;
+		aoi_info[0][1] = (tv_dovi_setting->core1_reg_lut[44]) & 0xfff;
+		aoi_info[0][2] = (tv_dovi_setting->core1_reg_lut[45] >> 12) & 0xfff;
+		aoi_info[0][3] = (tv_dovi_setting->core1_reg_lut[45]) & 0xfff;
+
+		if (debug_dolby & 1)
+			pr_dv_dbg
+			("ori AOI info %d %d %d %d\n",
+			 aoi_info[0][0], aoi_info[0][1],
+			 aoi_info[0][2], aoi_info[0][3]);
+
+		aoi_info[0][2] = tmp_v - 1 > aoi_info[0][2] ? tmp_v - 1 - aoi_info[0][2] : 0;
+		aoi_info[0][3] = tmp_h - 1 > aoi_info[0][3] ? tmp_h - 1 - aoi_info[0][3] : 0;
+
+		h_ratio = tmp_h / ((display_size >> 16) & 0xffff);
+		v_ratio = tmp_v / (display_size & 0xffff);
+		if (debug_dolby & 1)
+			pr_dv_dbg
+			("ori crop info %d %d %d %d, ratio %d %d\n",
+			 aoi_info[0][0], aoi_info[0][1],
+			 aoi_info[0][2], aoi_info[0][3],
+			 h_ratio, v_ratio);
+
+		if ((h_ratio >= 2 || v_ratio >= 2) &&
+			(aoi_info[0][0] || aoi_info[0][1] || aoi_info[0][2] || aoi_info[0][3])) {
+			if (h_ratio >= 2) {
+				aoi_info[1][1] = aoi_info[0][1] / h_ratio;
+				aoi_info[1][3] = aoi_info[0][3] / h_ratio;
+			} else {
+				aoi_info[1][1] = aoi_info[0][1];
+				aoi_info[1][3] = aoi_info[0][3];
+			}
+			if (v_ratio >= 2) {
+				aoi_info[1][0] = aoi_info[0][0] / v_ratio;
+				aoi_info[1][2] = aoi_info[0][2] / v_ratio;
+			} else {
+				aoi_info[1][0] = aoi_info[0][0];
+				aoi_info[1][2] = aoi_info[0][2];
+			}
+			if (debug_dolby & 1)
+				pr_dv_dbg("update crop info %d %d %d %d\n",
+						aoi_info[1][0], aoi_info[1][1],
+						aoi_info[1][2], aoi_info[1][3]);
+
+			aoi_info[1][2] = disp_v - 1 > aoi_info[1][2] ?
+				disp_v - 1 - aoi_info[1][2] : disp_v - 1;
+			aoi_info[1][3] = disp_h - 1 > aoi_info[1][3] ?
+				disp_h - 1 - aoi_info[1][3] : disp_h - 1;
+
+			if (debug_dolby & 1)
+				pr_dv_dbg("update AOI info %d %d %d %d\n",
+						aoi_info[1][0], aoi_info[1][1],
+						aoi_info[1][2], aoi_info[1][3]);
+			update_aoi_info = true;
+		} else {
+			disable_aoi = true;
+			update_aoi_info = false;
+		}
 	} else {
 		disable_aoi = false;
+		update_aoi_info = false;
 	}
 }
 
@@ -10425,6 +10489,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 	static u8 last_toggle_mode;
 	u32 in_size;
 	struct vout_device_s *p_vout = NULL;
+	static struct vframe_s *last_vf;
 
 	if (dolby_vision_flags & FLAG_CERTIFICATION) {
 		if (vf) {
@@ -10442,8 +10507,9 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 		if (is_aml_tm2())
 			enable_tunnel_for_capture();
 	} else {
-		if (vf)
+		if (vf && vf != last_vf)
 			update_aoi_flag(vf, display_size);
+		last_vf = vf;
 	}
 
 	if (vf && (debug_dolby & 0x8))

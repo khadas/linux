@@ -69,6 +69,8 @@ static unsigned int dma_start_line = 0x400;
 int debug_dma_start_line;
 bool disable_aoi;
 int debug_disable_aoi;
+u32 aoi_info[2][4];/*top,left,bottom,right*/
+bool update_aoi_info;
 
 #define MAX_CORE3_MD_SIZE 128 /*512byte*/
 
@@ -652,12 +654,22 @@ int tv_dv_core1_set(u64 *dma_data,
 	tv_dovi_setting->core1_reg_lut[1] =
 		0x0000000100000000 | run_mode;
 	if (debug_disable_aoi) {
-		if (debug_disable_aoi == 1)
+		if (debug_disable_aoi == 1) {
 			tv_dovi_setting->core1_reg_lut[44] =
 			0x0000002e00000000;
+			tv_dovi_setting->core1_reg_lut[45] =
+			0x0000002f00000000 | (vsize << 12) | hsize;
+		}
+	} else if (update_aoi_info) {
+		tv_dovi_setting->core1_reg_lut[44] =
+		0x0000002e00000000 | (aoi_info[1][0] << 12) | aoi_info[1][1];
+		tv_dovi_setting->core1_reg_lut[45] =
+		0x0000002f00000000 | (aoi_info[1][2] << 12) | aoi_info[1][3];
 	} else if (disable_aoi) {
 		tv_dovi_setting->core1_reg_lut[44] =
 		0x0000002e00000000;
+		tv_dovi_setting->core1_reg_lut[45] =
+		0x0000002f00000000 | (vsize << 12) | hsize;
 	}
 	if (reset)
 		VSYNC_WR_DV_REG(AMDV_TV_REG_START + 1, run_mode);

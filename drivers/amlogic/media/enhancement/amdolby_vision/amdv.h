@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "20221020"
+#define DRIVER_VER "20221108"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -659,7 +659,9 @@ extern bool force_set_lut;
 extern int use_target_lum_from_cfg;
 extern s16 brightness_off[8][2];
 extern bool disable_aoi;
+extern u32 aoi_info[2][4];
 extern int debug_disable_aoi;
+extern bool update_aoi_info;
 extern int debug_dma_start_line;
 extern int copy_core1a;
 extern int core2_sel;
