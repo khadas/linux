@@ -519,11 +519,11 @@ MODULE_PARM_DESC(set_backlight_delay_vsync,    "\n set_backlight_delay_vsync\n")
 
 static int debug_cp_res;
 s16 brightness_off[8][2] = {
-	{0, 150},   /* DV OTT DM3, DM4  */
-	{0, 150}, /* DV Sink-led DM3, DM4 */
-	{0, 0},   /* DV Source-led DM3, DM4, actually no dm3 for source-led*/
-	{0, 300},   /* HDR OTT DM3, DM4, actually no dm3 for HDR  */
-	{0, 0},    /* HLG OTT DM3, DM4, actually no dm3 for HLG  */
+	{0, 150}, /* DV OTT DM3, DV OTT DM4  */
+	{0, 150}, /* DV Sink-led DM3, DV Sink-led DM4 */
+	{0, 0},   /* DV Source-led DM3, DM4, actually no DM3 for source-led*/
+	{0, 300}, /* HDR10 HDMI DM4, OTT HDR10 DM4, no DM3 for HDR10 */
+	{0, 0},   /* HLG HDMI DM4, OTT HLG DM4, no DM3 for HDR10 */
 	{0, 0},    /* reserved1 */
 	{0, 0},    /* reserved2 */
 	{0, 0},    /* reserved3 */
@@ -7302,6 +7302,14 @@ int amdv_parse_metadata_v1(struct vframe_s *vf,
 			memcpy(tv_input_info,
 			       brightness_off,
 			       sizeof(brightness_off));
+			/*for HDR10/HLG, only has DM4, ko only use value from tv_input_info[3][1]*/
+			/*and tv_input_info[4][1]. To avoid ko code changed, we reuse these*/
+			/*parameter for both HDMI and OTT mode, that means need copy HDR10 to */
+			/*tv_input_info[3][1] and copy HLG to tv_input_info[4][1] for HDMI mode*/
+			if (input_mode == IN_MODE_HDMI) {
+				tv_input_info->brightness_off[3][1] = brightness_off[3][0];
+				tv_input_info->brightness_off[4][1] = brightness_off[4][0];
+			}
 		} else {
 			memset(tv_input_info, 0, sizeof(brightness_off));
 		}
@@ -13601,11 +13609,20 @@ static ssize_t	amdolby_vision_brightness_off_show
 	(struct class *cla,
 	struct class_attribute *attr, char *buf)
 {
-	return snprintf(buf, 100, "brightness_off %d %d,%d %d,%d %d,%d %d\n",
-			brightness_off[0][0], brightness_off[0][1],
-			brightness_off[1][0], brightness_off[1][1],
-			brightness_off[2][0], brightness_off[2][1],
+	ssize_t len = 0;
+
+	len += sprintf(buf + len, "DV OTT DM3, DM4: %d %d\n",
+			brightness_off[0][0], brightness_off[0][1]);
+	len += sprintf(buf + len, "DV Sink-led DM3, DM4: %d %d\n",
+			brightness_off[1][0], brightness_off[1][1]);
+	len += sprintf(buf + len, "DV Source-led DM3, DM4: %d %d\n",
+			brightness_off[2][0], brightness_off[2][1]);
+	len += sprintf(buf + len, "HDR10 HDMI, OTT: %d %d\n",
 			brightness_off[3][0], brightness_off[3][1]);
+	len += sprintf(buf + len, "HLG HDMI, OTT: %d %d\n",
+			brightness_off[4][0], brightness_off[4][1]);
+
+	return len;
 }
 
 /* supported mode: IPT_TUNNEL/HDR10/SDR10 */
