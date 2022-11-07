@@ -30,7 +30,7 @@ static DEFINE_MUTEX(video_display_mutex);
 static struct composer_dev *mdev[3];
 
 static int get_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
-static unsigned int countinue_vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
+static unsigned int continue_vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 int actual_delay_count[MAX_VD_LAYERS];
 
 #define PATTERN_32_DETECT_RANGE 7
@@ -67,7 +67,7 @@ void vsync_notify_video_composer(void)
 			vpp_drop_count += (get_count[i] - 1);
 		vsync_count[i]++;
 		get_count[i] = 0;
-		countinue_vsync_count[i]++;
+		continue_vsync_count[i]++;
 		patten_trace[i]++;
 	}
 	do_gettimeofday(&vsync_time);
@@ -725,7 +725,7 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			 vf->index_disp,
 			 get_count[dev->index],
 			 dev->fget_count,
-			 countinue_vsync_count[dev->index],
+			 continue_vsync_count[dev->index],
 			 vsync_index_diff,
 			 vf->duration);
 
@@ -743,7 +743,7 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 
 		if (vf->vc_private) {
 			vf->vc_private->last_disp_count =
-				countinue_vsync_count[dev->index];
+				continue_vsync_count[dev->index];
 			actual_delay_count[dev->index] = vsync_count[dev->index]
 				- vf->vc_private->vsync_index + 1;
 		}
@@ -759,7 +759,7 @@ static struct vframe_s *vc_vf_get(void *op_arg)
 			patten_trace[dev->index] = 0;
 		}
 
-		countinue_vsync_count[dev->index] = 0;
+		continue_vsync_count[dev->index] = 0;
 		dev->last_vf_index = vf->omx_index;
 		current_display_vf = vf;
 #ifdef CONFIG_AMLOGIC_DEBUG_ATRACE
@@ -969,7 +969,7 @@ struct vd_prepare_s *vd_prepare_data_q_get(struct composer_dev *dev)
 
 int vd_render_index_get(struct composer_dev *dev)
 {
-	int reveiver_id = 0;
+	int receiver_id = 0;
 	int render_index = 0;
 
 	if (!dev) {
@@ -980,11 +980,11 @@ int vd_render_index_get(struct composer_dev *dev)
 				"%s: invalid param.\n",
 				__func__);
 		} else {
-			reveiver_id = get_receiver_id(dev->index);
-			if (reveiver_id >= 5)
-				render_index = reveiver_id - 3;
-			else if (reveiver_id <= 3)
-				render_index = reveiver_id - 2;
+			receiver_id = get_receiver_id(dev->index);
+			if (receiver_id >= 5)
+				render_index = receiver_id - 3;
+			else if (receiver_id <= 3)
+				render_index = receiver_id - 2;
 			else
 				render_index = 0;
 		}

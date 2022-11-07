@@ -43,7 +43,7 @@ void vicp_rdma_init(struct rdma_buf_type_t *rdma_buf)
 
 void vicp_rdma_trigger(void)
 {
-	/*0:link mode 1: trigle mode*/
+	/*0:link mode 1: trigger mode*/
 	vicp_reg_set_bits(VID_CMPR_DMA_MODE, 0, 0, 1);
 	vicp_reg_set_bits(VID_CMPR_DMA_START, 1, 0, 1);
 }

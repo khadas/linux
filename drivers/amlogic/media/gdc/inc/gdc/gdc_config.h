@@ -1364,17 +1364,17 @@ static inline u32 gdc_capability_mask_read(void)
 }
 
 // ----------------------------------- //
-// Register: Eight bit data suppoirted
+// Register: Eight bit data supported
 // ----------------------------------- //
 
 // ----------------------------------- //
 // 8 bit data supported
 // ----------------------------------- //
 
-#define GDC_EIGHT_BIT_DATA_SUPPOIRTED_DEFAULT (0x0)
-#define GDC_EIGHT_BIT_DATA_SUPPOIRTED_DATASIZE (1)
-#define GDC_EIGHT_BIT_DATA_SUPPOIRTED_OFFSET (0x68)
-#define GDC_EIGHT_BIT_DATA_SUPPOIRTED_MASK (0x1)
+#define GDC_EIGHT_BIT_DATA_SUPPORTED_DEFAULT (0x0)
+#define GDC_EIGHT_BIT_DATA_SUPPORTED_DATASIZE (1)
+#define GDC_EIGHT_BIT_DATA_SUPPORTED_OFFSET (0x68)
+#define GDC_EIGHT_BIT_DATA_SUPPORTED_MASK (0x1)
 
 // args: data (1-bit)
 static inline void gdc_eight_bit_data_suppoirted_write(uint8_t data)
@@ -1769,20 +1769,20 @@ static inline uint8_t gdc_size_of_tile_cache_read(void)
 }
 
 // ----------------------------------- //
-// Register: Nuimber of polyphase filter banks
+// Register: Number of polyphase filter banks
 // ----------------------------------- //
 
 // ----------------------------------- //
 // log2(number of polyphase filter banks)
 // ----------------------------------- //
 
-#define GDC_NUIMBER_OF_POLYPHASE_FILTER_BANKS_DEFAULT (0x0)
-#define GDC_NUIMBER_OF_POLYPHASE_FILTER_BANKS_DATASIZE (3)
-#define GDC_NUIMBER_OF_POLYPHASE_FILTER_BANKS_OFFSET (0x68)
-#define GDC_NUIMBER_OF_POLYPHASE_FILTER_BANKS_MASK (0x7000000)
+#define GDC_NUMBER_OF_POLYPHASE_FILTER_BANKS_DEFAULT (0x0)
+#define GDC_NUMBER_OF_POLYPHASE_FILTER_BANKS_DATASIZE (3)
+#define GDC_NUMBER_OF_POLYPHASE_FILTER_BANKS_OFFSET (0x68)
+#define GDC_NUMBER_OF_POLYPHASE_FILTER_BANKS_MASK (0x7000000)
 
 // args: data (3-bit)
-static inline void gdc_nuimber_of_polyphase_filter_banks_write(uint8_t data)
+static inline void gdc_number_of_polyphase_filter_banks_write(uint8_t data)
 {
 	u32 curr = system_gdc_read_32(0x68L, 0);
 	u32 val = ((data & 0x7) << 24) | (curr & 0xf8ffffff);
@@ -1790,7 +1790,7 @@ static inline void gdc_nuimber_of_polyphase_filter_banks_write(uint8_t data)
 	system_gdc_write_32(0x68L, val, 0);
 }
 
-static inline uint8_t gdc_nuimber_of_polyphase_filter_banks_read(void)
+static inline uint8_t gdc_number_of_polyphase_filter_banks_read(void)
 {
 	return (uint8_t)((system_gdc_read_32(0x68L, 0) & 0x7000000) >> 24);
 }

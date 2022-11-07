@@ -592,7 +592,7 @@ static int do_file_thread(struct video_queue_dev *dev)
 	}
 
 	if (dev->frame_skip_check_cnt == 4)
-		vq_print(P_ERROR, "countinue 4 vsync unknown\n");
+		vq_print(P_ERROR, "continue 4 vsync unknown\n");
 
 	dev->frame_skip_check_cnt = 0;
 

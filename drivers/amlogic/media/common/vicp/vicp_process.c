@@ -213,7 +213,7 @@ void set_vid_cmpr_afbce(int enable, struct vid_cmpr_afbce_t *afbce)
 
 	if (print_flag & VICP_AFBCE) {
 		pr_info("vicp: ##########fbc_out config##########\n");
-		pr_info("vicp: headaddr: 0x%llx, tableaddr: 0x%llx.\n", afbce->head_baddr,
+		pr_info("vicp: headaddr: 0x%llx, table_addr: 0x%llx.\n", afbce->head_baddr,
 			afbce->table_baddr);
 		pr_info("vicp: pip: init_flag=%d, mode=%d.\n", afbce->reg_init_ctrl,
 			afbce->reg_pip_mode);
