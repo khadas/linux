@@ -281,6 +281,7 @@
 
 #define SHARP_SR2_CTRL                             0x5057
 #define SHARP_SR2_CTRL2                            0x5164
+#define SHARP_SYNC_CTRL                            0x50b0
 #define DEMO_MODE_WINDOW_CTRL0                     0x5180
 //Bit 31:30        reserved
 //Bit 29           reg_demo_mode_enable      // unsigned ,    RW, default = 0  enable demo mode
@@ -302,6 +303,8 @@
 #define S5_SRSHARP1_SHARP_SR2_CTRL2                   (SRSHARP1_OFFSET + SHARP_SR2_CTRL2)
 #define S5_SRSHARP1_DEMO_MODE_WINDOW_CTRL0            (SRSHARP1_OFFSET + DEMO_MODE_WINDOW_CTRL0) // 0x80  //
 #define S5_SRSHARP1_DEMO_MODE_WINDOW_CTRL1            (SRSHARP1_OFFSET + DEMO_MODE_WINDOW_CTRL1) // 0x81  //
+#define S5_SRSHARP0_SHARP_SYNC_CTRL                   (SRSHARP0_OFFSET + SHARP_SYNC_CTRL)
+#define S5_SRSHARP1_SHARP_SYNC_CTRL                   (SRSHARP1_OFFSET + SHARP_SYNC_CTRL)
 #define S5_SRSHARP1_NN_POST_TOP                       (SRSHARP1_OFFSET + NN_POST_TOP) // 0x82  //
 
 //===========================================================================

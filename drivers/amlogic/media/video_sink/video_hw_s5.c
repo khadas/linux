@@ -98,6 +98,8 @@ static u32 conv_lbuf_len_s5[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
 static u32 g_bypass_module = 5;
 static struct vpp_post_info_t vpp_post_amdv;
 static struct vd_proc_info_t vd_proc_amdv;
+static bool vd1_pi_input_size_update;
+static bool vd2_pi_input_size_update;
 #define SIZE_ALIG32(frm_hsize)   ((((frm_hsize) + 31) >> 5) << 5)
 #define SIZE_ALIG16(frm_hsize)   ((((frm_hsize) + 15) >> 4) << 4)
 #define SIZE_ALIG8(frm_hsize)    ((((frm_hsize) + 7) >> 3) << 3)
@@ -2010,14 +2012,20 @@ static void vd_proc_blend_set(u32 vpp_index,
 	rdma_wr_op rdma_wr = cur_dev->rdma_func[vpp_index].rdma_wr;
 	rdma_wr_bits_op rdma_wr_bits = cur_dev->rdma_func[vpp_index].rdma_wr_bits;
 	struct vd_proc_blend_reg_s *vd_blend_reg = &vd_proc_reg.vd_proc_blend_reg;
+	struct vd_proc_s *vd_proc = get_vd_proc_info();
 
 	//vd blend en
 	rdma_wr_bits(vd_blend_reg->vpp_vd_blnd_ctrl,
 		vd_blend->bld_out_en, 0, 1);
 
-	rdma_wr(vd_blend_reg->vpp_vd_blnd_h_v_size,
-		vd_blend->bld_out_w |
-		vd_blend->bld_out_h << 16);
+	/* pi input size is latched, update later */
+	if (vd_proc->vd_proc_pi.pi_en)
+		vd1_pi_input_size_update = true;
+	else
+		rdma_wr(vd_blend_reg->vpp_vd_blnd_h_v_size,
+			vd_blend->bld_out_w |
+			vd_blend->bld_out_h << 16);
+
 	rdma_wr(vd_blend_reg->vpp_vd_blend_dummy_data, vd_blend->bld_dummy_data);
 	rdma_wr_bits(vd_blend_reg->vpp_vd_blend_dummy_alpha, 0x100, 0, 32);
 
@@ -2199,16 +2207,15 @@ static void vd2_proc_set(u32 vpp_index, struct vd2_proc_s *vd2_proc)
 		/* vd2 pi set */
 		rdma_wr_bits(vd2_proc_misc_reg->vd2_pilite_ctrl,
 			vd2_proc->vd_proc_pi.pi_en, 0, 1);
-		rdma_wr(vd2_proc_misc_reg->vd2_proc_out_size,
-			(vd2_proc->dout_hsize / 2) << 16 |
-			vd2_proc->dout_vsize / 2);
+		/* pi input size is latched, update later */
+		vd2_pi_input_size_update = true;
 	} else {
 		/* clear vd2 pi set */
 		rdma_wr_bits(vd2_proc_misc_reg->vd2_pilite_ctrl,
 			vd2_proc->vd_proc_pi.pi_en, 0, 1);
 		rdma_wr(vd2_proc_misc_reg->vd2_proc_out_size,
-			SIZE_ALIG4(vd2_proc->dout_hsize << 16 |
-			vd2_proc->dout_vsize));
+			vd2_proc->dout_hsize << 16 |
+			vd2_proc->dout_vsize);
 	}
 	vd2_proc_bypass_dv(vpp_index, vd2_proc->bypass_dv);
 }
@@ -9860,6 +9867,35 @@ void get_probe_data_s5(u32 *val1, u32 *val2, u8 probe_id)
 	}
 }
 
+void set_vd_pi_input_size(void)
+{
+	struct vd_proc_blend_reg_s *vd_blend_reg = &vd_proc_reg.vd_proc_blend_reg;
+	struct vd2_proc_misc_reg_s *vd2_proc_misc_reg = NULL;
+	struct vd_proc_s *vd_proc = get_vd_proc_info();
+	struct vd2_proc_s *vd2_proc = &vd_proc->vd2_proc;
+
+	if (cur_dev->display_module != S5_DISPLAY_MODULE)
+		return;
+	if (vd1_pi_input_size_update) {
+		if (vd_proc->vd_proc_pi.pi_en) {
+			WRITE_VCBUS_REG(vd_blend_reg->vpp_vd_blnd_h_v_size,
+				vd_proc->vd_proc_blend.bld_out_w |
+				vd_proc->vd_proc_blend.bld_out_h << 16);
+			vd1_pi_input_size_update = false;
+		}
+	}
+
+	if (vd2_pi_input_size_update) {
+		vd2_proc_misc_reg = &vd_proc_reg.vd2_proc_misc_reg;
+		if (vd2_proc->vd2_dout_dpsel == VD2_DOUT_PI) {
+			WRITE_VCBUS_REG(vd2_proc_misc_reg->vd2_proc_out_size,
+				(vd2_proc->dout_hsize / 2) << 16 |
+				vd2_proc->dout_vsize / 2);
+			vd2_pi_input_size_update = false;
+		}
+	}
+}
+
 int video_hw_init_s5(void)
 {
 	//u32 cur_hold_line;
@@ -9885,6 +9921,20 @@ int video_hw_init_s5(void)
 	/*disable sr default when power up*/
 	WRITE_VCBUS_REG(VD_PROC_SR0_CTRL, 0);
 	WRITE_VCBUS_REG(VD_PROC_SR1_CTRL, 0);
+	/* disable latch for sr core0/1 scaler */
+	WRITE_VCBUS_REG_BITS
+		(S5_SRSHARP0_SHARP_SYNC_CTRL,
+		1, 0, 1);
+	WRITE_VCBUS_REG_BITS
+		(S5_SRSHARP0_SHARP_SYNC_CTRL,
+		1, 8, 1);
+	WRITE_VCBUS_REG_BITS
+		(S5_SRSHARP1_SHARP_SYNC_CTRL,
+		1, 8, 1);
+	if (cur_dev->aisr_support)
+		WRITE_VCBUS_REG_BITS
+		(S5_SRSHARP1_SHARP_SYNC_CTRL,
+		1, 17, 1);
 	/* disable aisr_sr1_nn func */
 	if (cur_dev->aisr_support)
 		aisr_sr1_nn_enable_s5(0);
