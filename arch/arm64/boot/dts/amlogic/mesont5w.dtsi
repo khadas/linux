@@ -197,8 +197,8 @@
 		compatible = "aml, reboot";
 		sys_reset = <0x84000009>;
 		sys_poweroff = <0x84000008>;
-		reg = <0x0 0xff80023c 0x0 0x4>; /* AO_SEC_SD_CFG15 */
 		dis_nb_cpus_in_shutdown;
+		reg = <0x0 0xff80023c 0x0 0x4>; /* SEC_AO_SEC_SD_CFG15 */
 		status = "okay";
 	};
 
