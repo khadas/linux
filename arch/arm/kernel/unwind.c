@@ -397,12 +397,19 @@ int notrace unwind_frame(struct stackframe *frame)
 		return -URC_FAILURE;
 
 	idx = unwind_find_idx(frame->pc);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if (!idx)
+		idx = unwind_find_idx(frame->lr);
 	if (!idx) {
-	#ifndef CONFIG_KASAN
-		pr_warn("unwind: Index not found %08lx\n", frame->pc);
-	#endif
+		pr_warn("unwind: Index not found, pc=%08lx, lr=%08lx\n", frame->pc, frame->lr);
 		return -URC_FAILURE;
 	}
+#else /* !CONFIG_AMLOGIC_MODIFY */
+	if (!idx) {
+		pr_warn("unwind: Index not found %08lx\n", frame->pc);
+		return -URC_FAILURE;
+	}
+#endif /* CONFIG_AMLOGIC_MODIFY */
 
 	ctrl.vrs[FP] = frame->fp;
 	ctrl.vrs[SP] = frame->sp;
