@@ -109,6 +109,11 @@ u32 vd_dump_vframe;
 u32 vpp_drop_count;
 u32 composer_dev_choice = 1; /*0 dewarp, 1 vicp, 2 ge2d*/
 struct vframe_s *current_display_vf;
+struct composer_dev *vc_dev[MAX_VD_LAYERS];
+u32 vd_test_fps;
+u32 vd_test_fps_pip;
+u64 vd_test_fps_val[MAX_VD_LAYERS];
+u64 vd_test_vsync_val[MAX_VD_LAYERS];
 
 #define to_dst_buf(vf)	\
 	container_of(vf, struct dst_buf_t, frame)
@@ -2476,6 +2481,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 		       port->index);
 		return -ENOMEM;
 	}
+	vc_dev[port->index] = dev;
 	dev->ge2d_para.context = NULL;
 
 	dev->ge2d_para.count = 0;
@@ -4013,6 +4019,66 @@ static ssize_t force_comp_h_store(struct class *cla, struct class_attribute *att
 	return count;
 }
 
+static ssize_t vd_test_fps_store(struct class *cla, struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+
+	vd_test_fps = tmp;
+	return count;
+}
+
+static ssize_t vd_test_fps_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	u64 fps_h, vsync_h = 0;
+	u32 fps_l, vsync_l = 0;
+
+	fps_h = div_s64_rem(vd_test_fps_val[0], 100000, &fps_l);
+	vsync_h = div_s64_rem(vd_test_vsync_val[0], 100000, &vsync_l);
+
+	return snprintf(buf, 80,
+		"test_fps_val=%llu.%u, test_vsyn_val=%llu.%u\n",
+		fps_h, fps_l, vsync_h, vsync_l);
+}
+
+static ssize_t vd_test_fps_pip_store(struct class *cla, struct class_attribute *attr,
+	const char *buf, size_t count)
+{
+	long tmp;
+	int ret;
+
+	ret = kstrtol(buf, 0, &tmp);
+	if (ret != 0) {
+		pr_info("ERROR converting %s to long int!\n", buf);
+		return ret;
+	}
+
+	vd_test_fps_pip = tmp;
+	return count;
+}
+
+static ssize_t vd_test_fps_pip_show(struct class *cla, struct class_attribute *attr,
+	char *buf)
+{
+	u64 fps_h, vsync_h = 0;
+	u32 fps_l, vsync_l = 0;
+
+	fps_h = div_s64_rem(vd_test_fps_val[1], 100000, &fps_l);
+	vsync_h = div_s64_rem(vd_test_vsync_val[1], 100000, &vsync_l);
+
+	return snprintf(buf, 80,
+		"test_fps_pip_val=%llu.%u, test_vsyn_pip_val=%llu.%u\n",
+		fps_h, fps_l, vsync_h, vsync_l);
+}
+
 static CLASS_ATTR_RW(debug_axis_pip);
 static CLASS_ATTR_RW(debug_crop_pip);
 static CLASS_ATTR_RW(force_composer);
@@ -4057,6 +4123,8 @@ static CLASS_ATTR_RW(vicp_shrink_mode);
 static CLASS_ATTR_RW(composer_dev_choice);
 static CLASS_ATTR_RW(force_comp_w);
 static CLASS_ATTR_RW(force_comp_h);
+static CLASS_ATTR_RW(vd_test_fps);
+static CLASS_ATTR_RW(vd_test_fps_pip);
 
 static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_debug_crop_pip.attr,
@@ -4103,6 +4171,8 @@ static struct attribute *video_composer_class_attrs[] = {
 	&class_attr_composer_dev_choice.attr,
 	&class_attr_force_comp_w.attr,
 	&class_attr_force_comp_h.attr,
+	&class_attr_vd_test_fps.attr,
+	&class_attr_vd_test_fps_pip.attr,
 	NULL
 };
 

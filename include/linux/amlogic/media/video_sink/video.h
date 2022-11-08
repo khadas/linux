@@ -400,6 +400,7 @@ void vsync_notify_videosync(void);
 bool get_video_reverse(void);
 /* int get_osd_reverse(void); */
 void vsync_notify_video_composer(void);
+void multi_vsync_notify_video_composer(void);
 int _video_set_disable(u32 val);
 int _videopip_set_disable(u32 index, u32 val);
 void video_set_global_output(u32 index, u32 val);

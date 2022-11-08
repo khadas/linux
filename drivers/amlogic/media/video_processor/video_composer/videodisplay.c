@@ -26,13 +26,18 @@
 #include "videodisplay.h"
 #include "video_composer.h"
 
-static struct timeval vsync_time;
+static struct timeval vsync_time[MAX_VD_LAYERS];
 static DEFINE_MUTEX(video_display_mutex);
 static struct composer_dev *mdev[3];
 
 static int get_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 static unsigned int continue_vsync_count[MAX_VIDEO_COMPOSER_INSTANCE_NUM];
 int actual_delay_count[MAX_VD_LAYERS];
+
+static struct timeval start_time[MAX_VD_LAYERS];
+static struct timeval end_time[MAX_VD_LAYERS];
+static int start_vsync_count[MAX_VD_LAYERS];
+static int end_vsync_count[MAX_VD_LAYERS];
 
 #define PATTERN_32_DETECT_RANGE 7
 #define PATTERN_22_DETECT_RANGE 7
@@ -58,20 +63,99 @@ void video_display_para_reset(int layer_index)
 	actual_delay_count[layer_index] = 0;
 }
 
+static void calculate_real_fps_and_vsync(struct timeval *start, struct timeval *end,
+	u32 *start_count, u32 *end_count, int i)
+{
+	u64 diff_time = 0;
+
+	diff_time = (1000000 * (end->tv_sec - start->tv_sec) +
+		(end->tv_usec - start->tv_usec));
+	vd_test_vsync_val[i] = div64_u64(100 * diff_time, (*end_count - *start_count));
+	vd_test_fps_val[i] = div64_u64((u64)100000 * 100000 * 1000, vd_test_vsync_val[i]);
+}
+
 void vsync_notify_video_composer(void)
 {
 	int i;
 	int count = MAX_VIDEO_COMPOSER_INSTANCE_NUM;
 
 	for (i = 0; i < count; i++) {
+		if (!vc_dev[i])
+			return;
+		if (vc_dev[i]->index == 1 && vc_dev[i]->video_render_index == 5)
+			continue;
 		if (get_count[i] > 0)
 			vpp_drop_count += (get_count[i] - 1);
 		vsync_count[i]++;
 		get_count[i] = 0;
 		continue_vsync_count[i]++;
 		patten_trace[i]++;
+
+		do_gettimeofday(&vsync_time[i]);
 	}
-	do_gettimeofday(&vsync_time);
+
+	switch (vd_test_fps) {
+	case 0:
+		break;
+	case 1: {
+		start_time[0] = vsync_time[0];
+		start_vsync_count[0] = vsync_count[0];
+		vd_test_fps = 0;
+		break;
+	}
+	case 2: {
+		end_time[0] = vsync_time[0];
+		end_vsync_count[0] = vsync_count[0];
+		calculate_real_fps_and_vsync(&start_time[0], &end_time[0],
+			&start_vsync_count[0], &end_vsync_count[0], 0);
+		vd_test_fps = 0;
+		break;
+	}
+	default:
+		break;
+	}
+}
+
+void multi_vsync_notify_video_composer(void)
+{
+	int i;
+	int count = MAX_VIDEO_COMPOSER_INSTANCE_NUM;
+
+	for (i = 0; i < count; i++) {
+		if (!vc_dev[i])
+			return;
+		if (vc_dev[i]->index != 1 && vc_dev[i]->video_render_index != 5)
+			continue;
+		if (get_count[i] > 0)
+			vpp_drop_count += (get_count[i] - 1);
+		vsync_count[i]++;
+		get_count[i] = 0;
+		continue_vsync_count[i]++;
+		patten_trace[i]++;
+
+		do_gettimeofday(&vsync_time[i]);
+	}
+
+	switch (vd_test_fps_pip) {
+	case 0:
+		break;
+	case 1: {
+		start_time[1] = vsync_time[1];
+		start_vsync_count[1] = vsync_count[1];
+		vd_test_fps_pip = 0;
+		break;
+	}
+	case 2: {
+		end_time[1] = vsync_time[1];
+		end_vsync_count[1] = vsync_count[1];
+		calculate_real_fps_and_vsync(&start_time[1], &end_time[1],
+			&start_vsync_count[1], &end_vsync_count[1], 1);
+		vd_test_fps_pip = 0;
+		break;
+	}
+	default:
+		break;
+	}
 }
 
 static bool vd_vf_is_tvin(struct vframe_s *vf)
@@ -569,7 +653,7 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 	int input_fps, output_fps, output_pts_inc_scale = 0, output_pts_inc_scale_base = 0;
 
 	time1 = dev->start_time;
-	time2 = vsync_time;
+	time2 = vsync_time[dev->index];
 
 	if (kfifo_peek(&dev->ready_q, &vf)) {
 		if (vf->vc_private && vd_set_frame_delay[dev->index] > 0) {
