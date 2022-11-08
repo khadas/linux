@@ -862,8 +862,13 @@ int meson_hdmitx_atomic_check(struct drm_connector *connector,
 		if (new_hdmitx_state->update)
 			new_crtc_state->connectors_changed = true;
 
-		if (new_hdmitx_state->color_force)
-			new_crtc_state->mode_changed = true;
+		if (new_hdmitx_state->color_force) {
+			if (new_hdmitx_state->color_attr_para.colorformat !=
+				old_hdmitx_state->color_attr_para.colorformat ||
+				new_hdmitx_state->color_attr_para.bitdepth !=
+				old_hdmitx_state->color_attr_para.bitdepth)
+				new_crtc_state->mode_changed = true;
+		}
 	}
 
 	return 0;
@@ -885,8 +890,8 @@ struct drm_connector_state *meson_hdmitx_atomic_duplicate_state
 
 	new_state->update = false;
 	new_state->color_force = false;
-	new_state->color_attr_para.colorformat = COLORSPACE_RESERVED;
-	new_state->color_attr_para.bitdepth = COLORDEPTH_RESERVED;
+	new_state->color_attr_para.colorformat = cur_state->color_attr_para.colorformat;
+	new_state->color_attr_para.bitdepth = cur_state->color_attr_para.bitdepth;
 	new_state->pref_hdr_policy = cur_state->pref_hdr_policy;
 
 	return &new_state->base;
@@ -1453,6 +1458,9 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	DRM_INFO("%s enter:attr[%d-%d]\n", __func__,
 		attr->colorformat, attr->bitdepth);
 	meson_hdmitx_decide_eotf_type(meson_crtc_state, hdmitx_state);
+
+	if (!hdmitx_state->color_force && !meson_crtc_state->uboot_mode_init)
+		attr->colorformat = COLORSPACE_RESERVED;
 
 	/*check force attr info: from uboot set or debugfs;
 	 *for uboot: it may not support dv, but kernel support dv, the attr
