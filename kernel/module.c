@@ -1252,6 +1252,11 @@ static u32 resolve_rel_crc(const s32 *crc)
 	return *(u32 *)((void *)crc + *crc);
 }
 
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
+static int ignore_check_version = 1;
+core_param(ignore_check_version, ignore_check_version, int, 0644);
+#endif
+
 static int check_version(const struct load_info *info,
 			 const char *symname,
 			 struct module *mod,
@@ -1298,7 +1303,14 @@ static int check_version(const struct load_info *info,
 bad_version:
 	pr_warn("%s: disagrees about version of symbol %s\n",
 	       info->name, symname);
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
+	pr_warn("!!!MUST FIX!!! %s: ko need recompile.\n", info->name);
+	dump_stack();
+	return ignore_check_version;
+#else
 	return 0;
+#endif
+
 }
 
 static inline int check_modstruct_version(const struct load_info *info,
