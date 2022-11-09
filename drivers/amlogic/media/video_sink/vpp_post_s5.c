@@ -978,13 +978,13 @@ int update_vpp_input_info(const struct vinfo_s *info)
 	vd_proc_vd2_info = &vd_proc->vd_proc_vd2_info;
 	/* vd1 */
 	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P) {
-		vpp_input.din_hsize[0] = SIZE_ALIG32(vd_proc_vd1_info->vd1_dout_hsize);
-		vpp_input.din_vsize[0] = vd_proc_vd1_info->vd1_dout_vsize;
+		vpp_input.din_hsize[0] = SIZE_ALIG32(vd_proc_vd1_info->vd1_dout_hsize[0]);
+		vpp_input.din_vsize[0] = vd_proc_vd1_info->vd1_dout_vsize[0];
 		vpp_input.din_x_start[0] = vd_proc_vd1_info->vd1_dout_x_start[0];
 		vpp_input.din_y_start[0] = vd_proc_vd1_info->vd1_dout_y_start[0];
 	} else if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_2S4P) {
-		vpp_input.din_hsize[0] = SIZE_ALIG16(vd_proc_vd1_info->vd1_dout_hsize);
-		vpp_input.din_vsize[0] = vd_proc_vd1_info->vd1_dout_vsize;
+		vpp_input.din_hsize[0] = SIZE_ALIG16(vd_proc_vd1_info->vd1_dout_hsize[0]);
+		vpp_input.din_vsize[0] = vd_proc_vd1_info->vd1_dout_vsize[0];
 		vpp_input.din_x_start[0] = vd_proc_vd1_info->vd1_dout_x_start[0];
 		vpp_input.din_y_start[0] = vd_proc_vd1_info->vd1_dout_y_start[0];
 	} else {
@@ -1017,7 +1017,7 @@ int update_vpp_input_info(const struct vinfo_s *info)
 	if (vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_4S4P ||
 		vd_proc_vd1_info->vd1_slices_dout_dpsel == VD1_SLICES_DOUT_2S4P) {
 		vpp_input.vd1_padding_en = 1;
-		vpp_input.vd1_size_before_padding = vd_proc_vd1_info->vd1_dout_hsize;
+		vpp_input.vd1_size_before_padding = vd_proc_vd1_info->vd1_dout_hsize[0];
 		vpp_input.vd1_size_after_padding = vpp_input.din_hsize[0];
 	} else {
 		vpp_input.vd1_padding_en = 0;

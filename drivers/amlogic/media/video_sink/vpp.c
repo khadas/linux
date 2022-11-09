@@ -1618,7 +1618,7 @@ static int vpp_set_filters_internal_s5
 	bool afbc_support;
 	bool crop_adjust = false;
 	bool hskip_adjust = false;
-	u32 force_skip_cnt = 0;
+	u32 force_skip_cnt = 0, slice_num = 0;
 
 	if (!input)
 		return vppfilter_fail;
@@ -1720,6 +1720,17 @@ RESTART_ALL:
 	crop_right = video_source_crop_right / crop_ratio;
 	crop_top = video_source_crop_top / crop_ratio;
 	crop_bottom = video_source_crop_bottom / crop_ratio;
+
+	slice_num = get_slice_num(input->layer_id);
+	if (slice_num == 2) {
+		/* crop left must 2 aligned */
+		crop_left = (crop_left + 1) & ~0x01;
+		crop_right = (crop_right + 1) & ~0x01;
+	} else if (slice_num == 4) {
+		/* crop left must 4 aligned */
+		crop_left = (crop_left + 3) & ~0x03;
+		crop_right = (crop_right + 3) & ~0x03;
+	}
 
 	/* fix both h/w crop odd issue */
 	if (crop_adjust) {

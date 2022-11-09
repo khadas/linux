@@ -221,6 +221,7 @@ struct vd_proc_vd2_info_s {
 	u32 vd2_dout_vsize;
 	u32 vd2_dout_x_start;
 	u32 vd2_dout_y_start;
+	u32 crop_left;
 };
 
 struct vd_proc_vd1_info_s {
@@ -235,10 +236,11 @@ struct vd_proc_vd1_info_s {
 	u32 vd1_proc_unit_dout_hsize[SLICE_NUM];
 	u32 vd1_proc_unit_dout_vsize[SLICE_NUM];
 	/* whole vd1 output size */
-	u32 vd1_dout_hsize;
-	u32 vd1_dout_vsize;
+	u32 vd1_dout_hsize[SLICE_NUM];
+	u32 vd1_dout_vsize[SLICE_NUM];
 	u32 vd1_dout_x_start[SLICE_NUM];
 	u32 vd1_dout_y_start[SLICE_NUM];
+	u32 crop_left;
 };
 
 struct vd2_proc_s {
