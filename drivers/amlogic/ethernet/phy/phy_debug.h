@@ -29,6 +29,7 @@
 //extern unsigned int tx_amp_bl2;
 //extern unsigned int enet_type;
 //extern void __iomem *ioaddr_dbg;
+extern unsigned int support_gpio_wol;
 int gmac_create_sysfs(struct phy_device *phydev, void __iomem *ioaddr);
 int gmac_remove_sysfs(struct phy_device *phydev);
 #endif

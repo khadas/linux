@@ -25,6 +25,7 @@
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 #include <linux/input.h>
 #include <linux/amlogic/pm.h>
+#include "../../../../amlogic/ethernet/phy/phy_debug.h"
 #endif
 
 #define PRG_ETH0			0x0
@@ -56,7 +57,6 @@
 
 unsigned int support_mac_wol;
 unsigned int support_nfx_doze;
-
 struct meson8b_dwmac;
 
 struct meson8b_dwmac_data {
@@ -416,6 +416,11 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 	if (of_property_read_u32(np, "mac_wol", &support_mac_wol) != 0)
 		pr_info("no mac_wol\n");
 
+	if (of_property_read_u32(np, "wol", &support_gpio_wol) != 0)
+		pr_info("no gpio wol %d\n", support_gpio_wol);
+	else
+		pr_info("gpio %d\n", support_gpio_wol);
+
 	if (of_property_read_u32(np, "keep-alive", &support_nfx_doze) != 0)
 		pr_info("no keep-alive\n");
 	/*nfx doze setting ASAP WOL, if not set, do nothing*/
@@ -522,6 +527,17 @@ static int aml_dwmac_resume(struct device *dev)
 			}
 		}
 	}
+	if (support_gpio_wol) {
+		if (get_resume_method() == ETH_PHY_GPIO) {
+			pr_info("wzh gpio wol rx--KEY_POWER\n");
+			input_event(dwmac->input_dev,
+				EV_KEY, KEY_POWER, 1);
+			input_sync(dwmac->input_dev);
+			input_event(dwmac->input_dev,
+				EV_KEY, KEY_POWER, 0);
+			input_sync(dwmac->input_dev);
+		}
+	}
 	return 0;
 }
 
@@ -614,7 +630,9 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 			pr_info("feature mdns_wkup\n");
 
 		device_init_wakeup(&pdev->dev, 1);
+	}
 
+	if ((support_mac_wol) || (support_gpio_wol)) {
 	/*input device to send virtual pwr key for android*/
 		input_dev = input_allocate_device();
 		if (!input_dev) {
