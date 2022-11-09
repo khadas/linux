@@ -1072,11 +1072,25 @@
 				&clkc CLKID_HIFI_PLL
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "mclk", "clk_srcpll", "clk_src_cd";
-		i2s2hdmi = <1>;
+		/*
+		 * 0: tdmout_a;
+		 * 1: tdmout_b;
+		 * 2: tdmout_c;
+		 * 3: spdifout;
+		 * 4: spdifout_b;
+		 */
+		samesource_sel = <3>;
+
+		/*enable default mclk(12.288M), before extern codec start*/
+		start_clk_enable = <1>;
+
+		/*tdm clk tuning enable*/
+		clk_tuning_enable = <1>;
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
+
 	tdmd:tdm@3 {
 		compatible = "amlogic, p1-snd-tdmd";
 		#sound-dai-cells = <0>;
@@ -1093,13 +1107,6 @@
 				&clkc CLKID_HIFI1_PLL>;
 		clock-names = "gate_in", "gate_out", "mclk",
 					"mclk_pad", "clk_srcpll", "clk_src_cd";
-		/*
-		 * 0: tdmout_a;
-		 * 1: tdmout_b;
-		 * 2: tdmout_c;
-		 * 3: spdifout;
-		 * 4: spdifout_b;
-		 */
 		/* suspend disable clk */
 		suspend-clk-off = <1>;
 		start_clk_enable = <1>;
@@ -1129,6 +1136,7 @@
 
 		status = "okay";
 	};
+
 	spdifa:spdif@0 {
 		compatible = "amlogic, tm2-revb-snd-spdif-a";
 		#sound-dai-cells = <0>;
@@ -1155,6 +1163,7 @@
 		suspend-clk-off = <1>;
 		status = "okay";
 	};
+
 	spdifb:spdif@1 {
 		compatible = "amlogic, tm2-revb-snd-spdif-b";
 		#sound-dai-cells = <0>;
