@@ -94,6 +94,9 @@
 #define MEM_ALLOC_DISCRETE	(BIT(8))
 #define MEM_ALLOC_FROM_CODEC	(BIT(0))
 
+/* 8 is filter the abnormal frame rate diff */
+#define VDIN_DURATION_FILTER_VALUE	8
+
 enum vdin_output_mif_e {
 	VDIN_OUTPUT_TO_MIF = 0,
 	VDIN_OUTPUT_TO_AFBCE = 1,

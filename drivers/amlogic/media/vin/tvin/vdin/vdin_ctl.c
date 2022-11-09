@@ -3960,6 +3960,7 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 	const struct tvin_format_s *fmt_info = devp->fmt_info_p;
 	enum tvin_port_e port = devp->parm.port;
 	unsigned int fps;
+	int duration_diff;
 
 	curr_wr_vf = &devp->curr_wr_vfe->vf;
 	last_field_type = devp->curr_field_type;
@@ -3972,14 +3973,18 @@ void vdin_calculate_duration(struct vdin_dev_s *devp)
 		/* 59.94 for 1601 so need special handling */
 		/* value is 834170 add 56 and minus 56 */
 		if (devp->cycle > 834114 && devp->cycle < 834226) {
-			devp->duration = 1601;
+			curr_wr_vf->duration = 1601;
 		} else if (devp->cycle) {
 			fps = devp->cycle * 96;
-			devp->duration = DIV_ROUND_CLOSEST(fps, (devp->msr_clk_val / 1000));
+			curr_wr_vf->duration = DIV_ROUND_CLOSEST(fps, (devp->msr_clk_val / 1000));
 		} else {
-			/* null branch */
+			curr_wr_vf->duration = devp->duration;
 		}
-		curr_wr_vf->duration = devp->duration;
+		if (!devp->game_mode) {
+			duration_diff = curr_wr_vf->duration - devp->duration;
+			if (abs(duration_diff) > VDIN_DURATION_FILTER_VALUE)
+				curr_wr_vf->duration = devp->duration;
+		}
 	} else {
 #ifdef VDIN_DYNAMIC_DURATION
 		devp->curr_wr_vf->duration =

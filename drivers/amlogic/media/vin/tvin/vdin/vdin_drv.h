@@ -121,8 +121,8 @@
 /* 20221101: vdin1 crash when screen recording and keystone */
 /* 20221103: change pc mode variable to local */
 /* 20221109: interlace min buffer and 23.97 send event */
-/* 20221114: get sdr range and scale handle */
-#define VDIN_VER "20221114"
+/* 20221118: add path not lock and filter frame rate */
+#define VDIN_VER "20221118"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK
@@ -869,6 +869,7 @@ struct vdin_dev_s {
 	unsigned int dbg_v4l_no_vdin_event;
 	struct vdin_set_canvas_addr_s st_vdin_set_canvas_addr[VDIN_CANVAS_MAX_CNT][VDIN_MAX_PLANES];
 	bool vdin_set_canvas_flag;
+	bool mutex_need_lock;
 	enum tvin_port_e v4l2_port_cur;
 	unsigned int v4l2_port_num;
 	enum tvin_port_e v4l2_port[VDIN_V4L2_INPUT_MAX];
