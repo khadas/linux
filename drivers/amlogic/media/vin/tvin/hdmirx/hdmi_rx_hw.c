@@ -4951,7 +4951,7 @@ u32 aml_phy_pll_band(u32 cableclk, u32 clkrate)
 		bw = PLL_BW_1;
 	else if (cab_clk < (155 * MHz))
 		bw = PLL_BW_2;
-	else if (cab_clk < (300 * MHz))
+	else if (cab_clk < (340 * MHz))
 		bw = PLL_BW_3;
 	else if (cab_clk < (600 * MHz))
 		bw = PLL_BW_4;

@@ -3125,7 +3125,7 @@ enum pll_frq_band {
 	PLL_BW_0 = 0,	/*35Mhz*/
 	PLL_BW_1,		/*77Mhz*/
 	PLL_BW_2,		/*155Mhz*/
-	PLL_BW_3,		/*300Mhz*/
+	PLL_BW_3,		/*340Mhz*/
 	PLL_BW_4,		/*600Mhz*/
 	PLL_BW_NULL = 0xf,
 };
