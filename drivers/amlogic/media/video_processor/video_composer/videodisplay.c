@@ -1405,7 +1405,6 @@ int video_display_setframe(int layer_index,
 
 	vf = &vd_prepare->dst_frame;
 
-	vf->vc_private = vc_private_q_pop(dev);
 	vf->axis[0] = frame_info->dst_x;
 	vf->axis[1] = frame_info->dst_y;
 	vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
@@ -1422,6 +1421,14 @@ int video_display_setframe(int layer_index,
 	vf->flag |= VFRAME_FLAG_VIDEO_COMPOSER
 		| VFRAME_FLAG_VIDEO_COMPOSER_BYPASS;
 	vf->disp_pts = 0;
+
+	if (is_repeat_vf) {
+		vf->repeat_count[dev->index]++;
+		vc_print(layer_index, PRINT_OTHER,
+			"%s: repeat frame, repeat_count is %d.\n",
+			__func__, vf->repeat_count[dev->index]);
+		return 0;
+	}
 
 	if (!(is_dec_vf || is_v4l_vf)) {
 		vf->flag |= VFRAME_FLAG_VIDEO_LINEAR;
@@ -1462,14 +1469,8 @@ int video_display_setframe(int layer_index,
 			BITDEPTH_Y8 | BITDEPTH_U8 | BITDEPTH_V8;
 	}
 
-	if (is_repeat_vf) {
-		vf->repeat_count[dev->index]++;
-		vc_print(layer_index, PRINT_ERROR,
-			"%s: repeat frame, repeat_count is %d.\n",
-			__func__, vf->repeat_count[dev->index]);
-		return 0;
-	}
 	dev->last_file = (struct file *)frame_info->dmabuf;
+	vf->vc_private = vc_private_q_pop(dev);
 	vf->file_vf = (struct file *)(frame_info->dmabuf);
 	vf->repeat_count[dev->index] = 0;
 	dev->vd_prepare_last = vd_prepare;
@@ -1538,9 +1539,6 @@ int mbd_video_display_setframe(int layer_index,
 	}
 
 	vf = &vd_prepare->dst_frame;
-	vf->vc_private->lock_buffer_cb = frame_info->lock_buffer_cb;
-	vf->vc_private->unlock_buffer_cb = frame_info->unlock_buffer_cb;
-	vf->vc_private->lock_buffer_cb((void *)frame_info->buffer_info);
 	vf->axis[0] = frame_info->dst_x;
 	vf->axis[1] = frame_info->dst_y;
 	vf->axis[2] = frame_info->dst_w + frame_info->dst_x - 1;
@@ -1575,11 +1573,16 @@ int mbd_video_display_setframe(int layer_index,
 
 	if (is_repeat_vf) {
 		vf->repeat_count[dev->index]++;
-		vc_print(layer_index, PRINT_ERROR,
+		vc_print(layer_index, PRINT_OTHER,
 			"%s: repeat frame, repeat_count is %d.\n",
 			__func__, vf->repeat_count[dev->index]);
 		return 0;
 	}
+
+	vf->vc_private = vc_private_q_pop(dev);
+	vf->vc_private->lock_buffer_cb = frame_info->lock_buffer_cb;
+	vf->vc_private->unlock_buffer_cb = frame_info->unlock_buffer_cb;
+	vf->vc_private->lock_buffer_cb((void *)frame_info->buffer_info);
 	dev->last_file = (struct file *)frame_info->buffer_info;
 	vf->file_vf = (struct file *)(frame_info->buffer_info);
 	vf->repeat_count[dev->index] = 0;
