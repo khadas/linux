@@ -22,6 +22,7 @@
  #ifdef CONFIG_AMLOGIC_MEDIA_VIDEO
 #include <linux/amlogic/media/video_sink/video.h>
 #endif
+#include <linux/amlogic/media/registers/cpu_version.h>
 #include "videodisplay.h"
 #include "video_composer.h"
 
@@ -606,11 +607,25 @@ static struct vframe_s *vc_vf_peek(void *op_arg)
 				 dev->video_render_index);
 			return NULL;
 		}
+
+		time_vsync = (u64)1000000
+			* (time2.tv_sec - time1.tv_sec)
+			+ time2.tv_usec - time1.tv_usec;
+
+		/*dv video on TV platform tog more then 2ms, if hwc set frame after HW vsync 1ms,*/
+		/*this vf will be get by current vsync;*/
+		/*only enable for android, if linux set frame also set pts_us64, we can enable it */
+		if (!is_meson_t7_cpu() && !dev->is_drm_enable) {
+			if (vf->pts_us64 >= time_vsync && vf->pts_us64 < (time_vsync + 10000)) {
+				vc_print(dev->index, PRINT_PATTERN,
+					 "display next vsync: pts_us64=%lld, time_vsync=%lld\n",
+					 vf->pts_us64, time_vsync);
+				return NULL;
+			}
+		}
+
 		if (get_count[dev->index] > 0 &&
 			!(vf->flag & VFRAME_FLAG_GAME_MODE)) {
-			time_vsync = (u64)1000000
-				* (time2.tv_sec - time1.tv_sec)
-				+ time2.tv_usec - time1.tv_usec;
 			interval_time = abs(time_vsync - vf->pts_us64);
 			vc_print(dev->index, PRINT_PERFORMANCE,
 				 "time_vsync=%lld, vf->pts_us64=%lld\n",
