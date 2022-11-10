@@ -2445,6 +2445,13 @@ RESTART:
 		}
 	}
 
+	/* apply line skip */
+	if (next_frame_par->hscale_skip_count) {
+		filter->vpp_hf_start_phase_step >>= 1;
+		filter->vpp_hsc_start_phase_step >>= 1;
+		next_frame_par->VPP_line_in_length_ >>= 1;
+	}
+
 	/* only check vd1 */
 	if (!input->layer_id)
 		align_vd1_mif_size_for_DV(next_frame_par,
@@ -2458,8 +2465,6 @@ RESTART:
 		next_frame_par->VPP_hd_start_lines_ + 1;
 	next_frame_par->video_input_w = next_frame_par->video_input_w /
 		(next_frame_par->hscale_skip_count + 1);
-
-	filter->vpp_hsc_start_phase_step = ratio_x << 6;
 
 	/* coeff selection before skip and apply pre_scaler */
 	filter->vpp_vert_filter =
@@ -2527,12 +2532,6 @@ RESTART:
 	} else {
 		filter->vpp_horz_coeff =
 			filter_table[filter->vpp_horz_filter];
-	}
-	/* apply line skip */
-	if (next_frame_par->hscale_skip_count) {
-		filter->vpp_hf_start_phase_step >>= 1;
-		filter->vpp_hsc_start_phase_step >>= 1;
-		next_frame_par->VPP_line_in_length_ >>= 1;
 	}
 
 	/*pre hsc&vsc in pps for scaler down*/
@@ -3590,6 +3589,18 @@ RESTART:
 		}
 	}
 
+	/* apply line skip */
+	if (next_frame_par->hscale_skip_count) {
+		filter->vpp_hf_start_phase_step >>= 1;
+		filter->vpp_hsc_start_phase_step >>= 1;
+		next_frame_par->VPP_line_in_length_ >>= 1;
+	}
+
+	/* only check vd1 */
+	if (!input->layer_id)
+		align_vd1_mif_size_for_DV(next_frame_par,
+			(vpp_flags & VPP_FLAG_HAS_DV_EL) ? true : false, reverse);
+
 	next_frame_par->video_input_h = next_frame_par->VPP_vd_end_lines_ -
 		next_frame_par->VPP_vd_start_lines_ + 1;
 	next_frame_par->video_input_h = next_frame_par->video_input_h /
@@ -3598,8 +3609,6 @@ RESTART:
 		next_frame_par->VPP_hd_start_lines_ + 1;
 	next_frame_par->video_input_w = next_frame_par->video_input_w /
 		(next_frame_par->hscale_skip_count + 1);
-
-	filter->vpp_hsc_start_phase_step = ratio_x << 6;
 
 	/* coeff selection before skip and apply pre_scaler */
 	filter->vpp_vert_filter =
@@ -3667,12 +3676,6 @@ RESTART:
 	} else {
 		filter->vpp_horz_coeff =
 			filter_table[filter->vpp_horz_filter];
-	}
-	/* apply line skip */
-	if (next_frame_par->hscale_skip_count) {
-		filter->vpp_hf_start_phase_step >>= 1;
-		filter->vpp_hsc_start_phase_step >>= 1;
-		next_frame_par->VPP_line_in_length_ >>= 1;
 	}
 
 	/*pre hsc&vsc in pps for scaler down*/
@@ -6655,6 +6658,13 @@ RESTART:
 		}
 	}
 
+	/* apply line skip */
+	if (next_frame_par->hscale_skip_count) {
+		filter->vpp_hf_start_phase_step >>= 1;
+		filter->vpp_hsc_start_phase_step >>= 1;
+		next_frame_par->VPP_line_in_length_ >>= 1;
+	}
+
 	next_frame_par->video_input_h = next_frame_par->VPP_vd_end_lines_ -
 		next_frame_par->VPP_vd_start_lines_ + 1;
 	next_frame_par->video_input_h = next_frame_par->video_input_h /
@@ -6663,15 +6673,6 @@ RESTART:
 		next_frame_par->VPP_hd_start_lines_ + 1;
 	next_frame_par->video_input_w = next_frame_par->video_input_w /
 		(next_frame_par->hscale_skip_count + 1);
-
-	filter->vpp_hsc_start_phase_step = 0x1000000;
-
-	/* apply line skip */
-	if (next_frame_par->hscale_skip_count) {
-		filter->vpp_hf_start_phase_step >>= 1;
-		filter->vpp_hsc_start_phase_step >>= 1;
-		next_frame_par->VPP_line_in_length_ >>= 1;
-	}
 
 	if (next_frame_par->vscale_skip_count > 1 &&
 	    (vf->type & VIDTYPE_COMPRESS) &&
