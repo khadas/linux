@@ -1704,7 +1704,6 @@ static void hdr_work_func(struct work_struct *work)
 			mute_us = hdr_mute_frame * hdmitx_get_frame_duration();
 			usleep_range(mute_us, mute_us + 10);
 			hdmitx_video_mute_op(1);
-			hdmitx_audio_mute_op(1);
 		}
 		hdmitx_sdr_hdr_uevent(hdev);
 	}
@@ -1951,10 +1950,8 @@ static void hdmitx_set_drm_pkt(struct master_display_info_s *data)
 
 	/* if sdr/hdr mode change ,notify uevent to userspace*/
 	if (hdev->hdmi_current_hdr_mode != hdev->hdmi_last_hdr_mode) {
-		if (hdr_mute_frame) {
+		if (hdr_mute_frame)
 			hdmitx_video_mute_op(0);
-			hdmitx_audio_mute_op(0);
-		}
 		schedule_work(&hdev->work_hdr);
 	}
 	spin_unlock_irqrestore(&hdev->edid_spinlock, flags);
