@@ -177,6 +177,7 @@ struct sync_session {
 	u64 d_vsync_last;
 	char atrace_v[8];
 	char atrace_a[8];
+	int sync_status_cnt;
 
 	/* audio disc recovery */
 	int audio_drop_cnt;
@@ -222,6 +223,7 @@ enum {
 	LOG_INFO = 2,
 	LOG_DEBUG = 3,
 	LOG_TRACE = 4,
+	LOG_AVSYNC = 5,
 };
 
 #define msync_dbg(level, x...) \
@@ -1794,6 +1796,21 @@ static long session_ioctl(struct file *file, unsigned int cmd, ulong arg)
 					session->wall_clock);
 			session->last_apts = ts;
 			session_update_apts(session);
+
+			session->sync_status_cnt++;
+			if (session->sync_status_cnt > 4) {
+				session->sync_status_cnt = 0;
+				msync_dbg(LOG_AVSYNC,
+					"last v/%x a/%x,diff-ms a-w %d v-w %d a-v %d\n",
+					session->last_vpts.pts - session->last_vpts.delay,
+					session->last_apts.pts,
+					(int)(session->last_apts.pts - session->wall_clock) / 90,
+					(int)(session->last_vpts.pts - session->wall_clock -
+						session->last_vpts.delay) / 90,
+					(int)(session->last_apts.pts - session->last_vpts.pts +
+						session->last_vpts.delay) / 90);
+			}
+
 			ATRACE_COUNTER(session->atrace_a, ts.pts);
 		}
 		break;
@@ -2305,6 +2322,7 @@ static int create_session(u32 id)
 	session->audio_drop_start = 0;
 	session->start_policy.policy = AMSYNC_START_ASAP;
 	session->start_policy.timeout = WAIT_INTERVAL;
+	session->sync_status_cnt = 0;
 	INIT_DELAYED_WORK(&session->wait_work, wait_work_func);
 	INIT_DELAYED_WORK(&session->transit_work, transit_work_func);
 	INIT_DELAYED_WORK(&session->pcr_start_work, pcr_start_work_func);
