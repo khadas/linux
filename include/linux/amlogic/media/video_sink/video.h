@@ -373,6 +373,19 @@ struct vd_proc_info_t {
 	struct slice_info slice[VD_SLICE_NUM];
 };
 
+struct vd_proc_amvecm_info_t {
+	u32 slice_num;
+	u32 vd1_in_hsize;
+	u32 vd1_in_vsize;
+	u32 vd1_dout_hsize;
+	u32 vd1_dout_vsize;
+	struct slice_info slice[VD_SLICE_NUM];
+	u32 vd2_in_hsize;
+	u32 vd2_in_vsize;
+	u32 vd2_dout_hsize;
+	u32 vd2_dout_vsize;
+};
+
 void set_video_mute(bool on);
 int get_video_mute(void);
 void set_output_mute(bool on);
@@ -420,6 +433,7 @@ void set_post_blend_dummy_data(u32 vpp_index,
 	u32 dummy_data, u32 dummy_alpha);
 struct vpp_post_info_t *get_vpp_post_amdv_info(void);
 struct vd_proc_info_t *get_vd_proc_amdv_info(void);
+struct vd_proc_amvecm_info_t *get_vd_proc_amvecm_info(void);
 
 #ifdef CONFIG_AMLOGIC_MEDIA_FRAME_SYNC
 int tsync_set_tunnel_mode(int mode);

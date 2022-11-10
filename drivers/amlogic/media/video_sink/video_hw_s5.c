@@ -98,6 +98,7 @@ static u32 conv_lbuf_len_s5[MAX_VD_LAYER] = {0x100, 0x100, 0x100};
 static u32 g_bypass_module = 5;
 static struct vpp_post_info_t vpp_post_amdv;
 static struct vd_proc_info_t vd_proc_amdv;
+static struct vd_proc_amvecm_info_t vd_proc_amvecm;
 static bool vd1_pi_input_size_update;
 static bool vd2_pi_input_size_update;
 #define SIZE_ALIG32(frm_hsize)   ((((frm_hsize) + 31) >> 5) << 5)
@@ -4523,6 +4524,59 @@ struct vpp_post_info_t *get_vpp_post_amdv_info(void)
 	return &vpp_post_amdv;
 }
 
+static void update_vd_proc_amvecm_info(struct vd_proc_s *vd_proc)
+{
+	int i;
+	struct vd_proc_vd1_info_s *vd_proc_vd1_info = NULL;
+	struct vd_proc_vd2_info_s *vd_proc_vd2_info = NULL;
+	struct vd_proc_unit_s *vd_proc_unit = NULL;
+	struct vd_proc_pps_s *vd_proc_pps = NULL;
+	struct vd_proc_sr_s *vd_proc_sr1 = NULL;
+	struct vd_proc_sr_s *vd_proc_sr0 = NULL;
+
+	vd_proc_vd1_info = &vd_proc->vd_proc_vd1_info;
+	vd_proc_vd2_info = &vd_proc->vd_proc_vd2_info;
+
+	vd_proc_amvecm.slice_num = vd_proc_vd1_info->slice_num;
+	vd_proc_amvecm.vd1_in_hsize = vd_proc_vd1_info->vd1_src_din_hsize[0];
+	vd_proc_amvecm.vd1_in_vsize = vd_proc_vd1_info->vd1_src_din_vsize[0];
+	vd_proc_amvecm.vd1_dout_hsize = vd_proc_vd1_info->vd1_dout_hsize[0];
+	vd_proc_amvecm.vd1_dout_vsize = vd_proc_vd1_info->vd1_dout_vsize[0];
+	for (i = 0; i < vd_proc_vd1_info->slice_num; i++) {
+		vd_proc_unit = &vd_proc->vd_proc_unit[i];
+		vd_proc_pps = &vd_proc_unit->vd_proc_pps;
+		vd_proc_sr1 = &vd_proc_unit->vd_proc_sr1;
+		vd_proc_sr0 = &vd_proc_unit->vd_proc_sr0;
+		if (vd_proc_sr1->sr_en && i == 0) {
+			vd_proc_amvecm.slice[i].hsize =
+				vd_proc_sr1->dout_hsize;
+			vd_proc_amvecm.slice[i].vsize =
+				vd_proc_sr1->dout_vsize;
+		} else if (vd_proc_unit->sr0_dpath_sel == SR0_IN_SLICE1 &&
+			vd_proc_sr0->sr_en &&
+			i == 1) {
+			vd_proc_amvecm.slice[i].hsize =
+				vd_proc_sr0->dout_hsize;
+			vd_proc_amvecm.slice[i].vsize =
+				vd_proc_sr0->dout_vsize;
+		} else {
+			vd_proc_amvecm.slice[i].hsize =
+				vd_proc_pps->dout_hsize;
+			vd_proc_amvecm.slice[i].vsize =
+				vd_proc_pps->dout_vsize;
+		}
+	}
+	vd_proc_amvecm.vd2_in_hsize = vd_proc_vd2_info->vd2_din_hsize;
+	vd_proc_amvecm.vd2_in_vsize = vd_proc_vd2_info->vd2_din_vsize;
+	vd_proc_amvecm.vd2_dout_hsize = vd_proc_vd2_info->vd2_dout_hsize;
+	vd_proc_amvecm.vd2_dout_vsize = vd_proc_vd2_info->vd2_dout_vsize;
+}
+
+struct vd_proc_amvecm_info_t *get_vd_proc_amvecm_info(void)
+{
+	return &vd_proc_amvecm;
+}
+
 void vd_s5_hw_set(struct video_layer_s *layer,
 	struct vframe_s *dispbuf, struct vpp_frame_par_s *frame_par)
 {
@@ -4553,6 +4607,8 @@ void vd_s5_hw_set(struct video_layer_s *layer,
 	}
 	/* update info for dv */
 	update_vd_proc_amdv_info(vd_proc);
+	/* update info for amvecm */
+	update_vd_proc_amvecm_info(vd_proc);
 
 	vd_proc_set(vpp_index, vd_proc);
 	if (mosaic_mode) {
