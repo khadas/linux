@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/seq_file.h>
+#include <linux/arm-smccc.h>
 
 #include <linux/amlogic/media/vfm/vframe.h>
 #include "deinterlace.h"
@@ -7045,6 +7046,31 @@ dim_mng_hf_err:
 }
 
 /*mng for hf buffer end */
+
+/* for secure mode hf,from vlsi feijun*/
+static noinline int __invoke_psci_fn_vpubsmc(u64 function_id, u64 arg0,
+						u64 arg1, u64 arg2)
+{
+	struct arm_smccc_res res;
+
+	arm_smccc_smc((unsigned long)function_id,
+		      (unsigned long)arg0,
+		      (unsigned long)arg1,
+		      (unsigned long)arg2,
+		      0, 0, 0, 0, &res);
+	return res.a0;
+}
+
+void di_probe_vpub_en_set(u32 enable)
+{
+	if (DIM_IS_IC(S5) && cfgg(HF)) {
+		if (enable)
+			__invoke_psci_fn_vpubsmc(0x82000080, 1, 0, 0);
+		else
+			__invoke_psci_fn_vpubsmc(0x82000080, 0, 0, 0);
+	}
+}
+
 /*************************************************/
 #ifdef TEST_PIP
 

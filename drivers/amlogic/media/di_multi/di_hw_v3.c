@@ -5777,6 +5777,13 @@ void dim_secure_pre_en(unsigned char ch)
 			tee_config_device_state(16, 1);
 		#endif
 		}
+		if (DIM_IS_IC(S5)) {
+		#ifdef CONFIG_AMLOGIC_TEE
+			tee_write_reg_bits
+				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
+				 1, 8, 1);// HF secure Polarity
+		#endif
+		}
 		get_datal()->is_secure_pre = 2;
 		//dbg_mem2("%s:tvp3 pre SECURE:%d\n", __func__, ch);
 	} else {
@@ -5785,6 +5792,13 @@ void dim_secure_pre_en(unsigned char ch)
 		} else {
 		#ifdef CONFIG_AMLOGIC_TEE
 			tee_config_device_state(16, 0);
+		#endif
+		}
+		if (DIM_IS_IC(S5)) {
+		#ifdef CONFIG_AMLOGIC_TEE
+			tee_write_reg_bits
+				(((DI_VIUB_SECURE_REG << 2) + 0xff800000),
+				 0, 8, 1);// HF secure Polarity
 		#endif
 		}
 		get_datal()->is_secure_pre = 1;

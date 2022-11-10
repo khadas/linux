@@ -610,4 +610,7 @@ bool dim_is_creat_p_vpp_link(void);
 void dvpp_dbg_trig_sw(unsigned int cmd);
 int di_ls_bypass_ch(int index, bool on);
 bool dim_dbg_post_crash_check(unsigned int bit_mask);
+
+/* for secure mode hf,from vlsi feijun*/
+void di_probe_vpub_en_set(u32 enable);
 #endif	/*__DI_PRC_H__*/

@@ -2415,6 +2415,8 @@
 #define DI_PRE_SEC_IN				0x2010
 #define DI_POST_SEC_IN				0x2011
 #define DI_VIU_DATA_SEC				0x1A50
+#define DI_VIUB_SECURE_REG			0x200F
+//for s5 from vlsi feijun HF secure Polarity
 
 //t7
 #define CONTRD_BADDR                               0x3729
