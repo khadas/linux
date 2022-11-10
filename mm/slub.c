@@ -3835,6 +3835,9 @@ static inline unsigned int slab_order(unsigned int size,
 
 static inline int calculate_order(unsigned int size)
 {
+#ifdef CONFIG_AMLOGIC_MEMORY_OPT
+	return get_order(size);
+#else
 	unsigned int order;
 	unsigned int min_objects;
 	unsigned int max_objects;
@@ -3896,6 +3899,7 @@ static inline int calculate_order(unsigned int size)
 	if (order < MAX_ORDER)
 		return order;
 	return -ENOSYS;
+#endif
 }
 
 static void
