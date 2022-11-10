@@ -5461,7 +5461,8 @@ void rx_emp_field_done_irq(void)
 		recv_pkt_cnt = EMP_BUFF_MAX_PKT_CNT - 1;
 		rx_pr("pkt cnt err:%d\n", recv_pkt_cnt);
 	}
-
+	if (!rx.emp_pkt_rev)
+		rx.emp_pkt_rev = true;
 	for (i = 0; i < recv_pagenum;) {
 		/*one page 4k*/
 		cur_start_pg_addr = phys_to_page(p_addr + i * PAGE_SIZE);

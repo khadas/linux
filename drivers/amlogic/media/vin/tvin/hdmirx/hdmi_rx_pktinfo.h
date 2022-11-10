@@ -574,7 +574,8 @@ struct emp_pkt_st {
 		u8 data_set_tag_lo;
 		u8 data_set_length_hi;
 		u8 data_set_length_lo;
-		u8 md[21];
+		u32 ieee:24;
+		u8 md[18];
 	} __packed cnt;
 } __packed;
 
@@ -1057,6 +1058,13 @@ struct pd_infoframe_s {
 	u32 PB6;
 };
 
+enum emp_pkt_type_e {
+	EMP_VTEM,
+	EMP_SBTM,
+	EMP_DV,
+	EMP_CUVA
+};
+
 struct packet_info_s {
 	/* packet type 0x81 vendor-specific */
 	struct pd_infoframe_s vs_info;
@@ -1178,7 +1186,7 @@ u32 rx_pkt_chk_busy_drm(void);
 void rx_get_pd_fifo_param(enum pkt_type_e pkt_type,
 			  struct pd_infoframe_s *pkt_info);
 void rx_get_avi_info(struct avi_infoframe_st *st_pkt);
-void rx_get_vtem_info(void);
+void rx_get_em_info(void);
 void rx_get_aif_info(void);
 void dump_pktinfo_status(void);
 bool rx_is_specific_20_dev(void);

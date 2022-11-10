@@ -450,16 +450,63 @@ struct tvin_vtem_data_s {
 	u8 base_v_front;
 	u8 rb;
 	u16 base_framerate;
-	//real structure
-	//u8 vrr_en:1;
-	//u8 m_const:1;
-	//u8 qms:2;
-	//u8 fva_factor_m1:4;
-	//u8 base_vfront;
-	//u8 base_fr_high:2;
-	//u8 rb:1;
-	//u8 rsvd1:5;
-	//u8 base_fr_low;
+};
+
+struct tvin_cuva_emds_data_s {
+	/* Sequence_Index:0 */
+	u8 pkt_type_0;
+	u8 hb1_0;
+	u8 sequence_index_0;
+	u8 pb0;
+	u16 organization_id;
+	u16 data_tag;
+	u16 data_length;
+	u32 ieee:24;
+	u32 system_start_code:8;
+	u16 min_maxrgb_pq;
+	u16 avg_maxrgb_pq;
+	u16 var_maxrgb_pq;
+	u16 max_maxrgb_pq;
+	u16 targeted_max_lum_pq;
+	u16 base_param_m_p;
+	u8 base_param_m_m;
+	u16 base_param_m_a;
+	u16 base_param_m_b;
+	/* Sequence_Index:1 */
+	u8 pkt_type_1;
+	u8 hb1_1;
+	u8 sequence_index_1;
+	u8 base_param_m_n;
+	u8 base_param_k;
+	u8 base_param_delta_enable_mode;
+	u8 base_param_enable_delta;
+	struct {
+		u8 th_enable_mode;
+		u8 th_enable_mb;
+		u16 th_enable;
+		u16 th_enable_delta[2];
+		u8 enable_strength;
+	} _3spline_data[2];
+	u8 color_saturation_num;
+	u8 color_saturation_gain0[5];
+	/* Sequence_Index:2 */
+	u8 pkt_type_2;
+	u8 hb1_2;
+	u8 sequence_index_2;
+	u8 color_saturation_gain1[3];
+	u8 graphic_src_display_value;
+	u8 rvd;
+	u16 max_display_mastering_lum;
+	u8 rvd1[21];
+};
+
+struct tvin_sbtm_data_s {
+	u8 sbtm_ver;
+	u8 sbtm_mode;
+	u8 sbtm_type;
+	u8 grdm_min;
+	u8 grdm_lum;
+	u16 frm_pb_limit_int;
 };
 
 struct tvin_spd_data_s {
@@ -546,6 +593,8 @@ struct tvin_sig_property_s {
 	struct tvin_hdr10plus_info_s hdr10p_info;
 	struct tvin_emp_data_s emp_data;
 	struct tvin_vtem_data_s vtem_data;
+	struct tvin_sbtm_data_s sbtm_data;
+	struct tvin_cuva_emds_data_s cuva_emds_data;
 	struct tvin_spd_data_s spd_data;
 	unsigned int cnt;
 	unsigned int hw_vic;

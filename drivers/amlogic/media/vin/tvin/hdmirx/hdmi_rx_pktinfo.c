@@ -2251,6 +2251,24 @@ int rx_pkt_fifodecode(struct packet_info_s *prx,
 	return 0;
 }
 
+static void rx_parse_dsf(unsigned char *src_addr)
+{
+	bool first, last;
+	u8 sequence_index;
+
+	if (log_level & PACKET_LOG)
+		rx_pr("dst_addr:0x%x", *src_addr);
+	first = *(src_addr + 1) >> 7;
+	last = (*(src_addr + 1) >> 6) & 0x1;
+	sequence_index = *(src_addr + 2);
+	if (first)
+		rx.emp_dsf_info[rx.emp_dsf_cnt].pkt_addr = src_addr;
+	if (last) {
+		rx.emp_dsf_info[rx.emp_dsf_cnt].pkt_cnt = sequence_index + 1;
+		rx.emp_dsf_cnt++;
+	}
+}
+
 int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 {
 	//u32 i = 0;
@@ -2383,6 +2401,8 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 					pkt_num, pd_fifo_buf[0], pkt_num, pd_fifo_buf[1]);
 			pktdata = (union infoframe_u *)pd_fifo_buf;
 			rx_pkt_fifodecode(prx, pktdata, &rxpktsts);
+			if ((pd_fifo_buf[0] & 0xff) == PKT_TYPE_EMP)
+				rx_parse_dsf((u8 *)pd_fifo_buf);
 			if ((pd_fifo_buf[0] & 0xff) == PKT_TYPE_EMP && !find_emp_header) {
 				find_emp_header = true;
 				rx.empbuff.ogi_id =
@@ -2415,70 +2435,105 @@ int rx_pkt_handler(enum pkt_decode_type pkt_int_src)
 	return 0;
 }
 
-#define VTEM_OGI_ID 1
-#define VTEM_TAG_ID	1
-void rx_get_vtem_info(void)
+void rx_get_em_info(void)
 {
-	u8 tmp;
+	u8 i, tmp;
+	int emp_type = -1;
 	struct emp_pkt_st *pkt;
 
-	pkt = (struct emp_pkt_st *)&rx_pkt.emp_info;
-
-	if (rx.chip_id < CHIP_ID_T7)
+	if (rx.chip_id < CHIP_ID_T7 || !rx.emp_pkt_rev)
 		return;
-	if (log_level == 0x121) {
-		rx_pr("pkt->pkttype = %d", pkt->pkttype);
-		rx_pr("pkt->cnt.organization_id = %x", pkt->cnt.organization_id);
-		rx_pr("pkt->cnt.data_set_tag_lo = %x", pkt->cnt.data_set_tag_lo);
-		rx_pr("pkt->cnt.md[0] = %d", pkt->cnt.md[0]);
-		rx_pr("pkt->cnt.md[1] = %d", pkt->cnt.md[1]);
-		rx_pr("pkt->cnt.md[2] = %d", pkt->cnt.md[2]);
-		rx_pr("pkt->cnt.md[3] = %d", pkt->cnt.md[3]);
-		log_level = 1;
+	rx.sbtm_info.flag = false;
+
+	if (log_level == 0x121 && rx.emp_dsf_cnt)
+		rx_pr("emp_dsf_cnt:0x%x\n", rx.emp_dsf_cnt);
+	for (i = 0; i < rx.emp_dsf_cnt; i++) {
+		pkt = (struct emp_pkt_st *)&rx.emp_dsf_info[i].pkt_addr;
+		if (log_level == 0x121) {
+			rx_pr("---emp dsf params---\n");
+			rx_pr("pkttype = %d", pkt->pkttype);
+			rx_pr("ds_type=0x%x, sync=0x%x, vfr=0x%x, afr=0x%x\n",
+				pkt->cnt.ds_type, pkt->cnt.sync,
+				pkt->cnt.vfr, pkt->cnt.afr);
+			rx_pr("org_id = %x", pkt->cnt.organization_id);
+			rx_pr("data_tag = %x", pkt->cnt.data_set_tag_lo);
+			rx_pr("length = %x", pkt->cnt.data_set_length_lo);
+			if (!pkt->cnt.organization_id)
+				rx_pr("ieee = 0x%x", pkt->cnt.ieee);
+			rx_pr("md[0] = %d", pkt->cnt.md[0]);
+			rx_pr("md[1] = %d", pkt->cnt.md[1]);
+			rx_pr("md[2] = %d", pkt->cnt.md[2]);
+			rx_pr("md[3] = %d", pkt->cnt.md[3]);
+			log_level = LOG_EN;
+		}
+
+		if (pkt->cnt.organization_id == 0) {
+			if (pkt->cnt.data_set_tag_lo == 2 &&
+				pkt->cnt.ieee == 0x047503) //cuva
+				emp_type = EMP_CUVA;
+			else if (pkt->cnt.ieee == 0x00d046) //dv
+				emp_type = EMP_DV;
+		} else if (pkt->cnt.organization_id == 1 &&
+			pkt->cnt.data_set_tag_lo == 1) {
+			emp_type = EMP_VTEM;//vtem
+		} else if (pkt->cnt.organization_id == 1 &&
+			pkt->cnt.data_set_tag_lo == 3 &&
+			pkt->cnt.ds_type == 1 &&
+			pkt->cnt.sync == 1 &&
+			pkt->cnt.vfr == 1 &&
+			pkt->cnt.afr == 0) {
+			emp_type = EMP_SBTM;//sbtm
+		}
+
+		switch (emp_type) {
+		case EMP_VTEM:
+			tmp = pkt->cnt.md[0];
+			rx.vtem_info.vrr_en = tmp & 1;
+			rx.vtem_info.m_const = (tmp >> 1) & 1;
+			rx.vtem_info.qms_en = (tmp >> 2) & 1;
+			rx.vtem_info.fva_factor_m1 = (tmp >> 4) & 0x0f;
+			tmp = pkt->cnt.md[1];
+			rx.vtem_info.base_vfront = tmp;
+			tmp = pkt->cnt.md[2];
+			rx.vtem_info.rb = (tmp > 2) & 1;
+			rx.vtem_info.base_framerate = pkt->cnt.md[3];
+			rx.vtem_info.base_framerate |= (tmp & 3) << 8;
+			pkt->pkttype = 0;
+			break;
+		case EMP_SBTM:
+			tmp = pkt->cnt.md[0];
+			rx.sbtm_info.sbtm_ver = tmp & 0x0f;
+			tmp = pkt->cnt.md[1];
+			rx.sbtm_info.sbtm_mode = tmp & 3;
+			rx.sbtm_info.sbtm_type = (tmp >> 2) & 3;
+			rx.sbtm_info.grdm_min = (tmp >> 4) & 3;
+			rx.sbtm_info.grdm_lum = (tmp >> 6) & 3;
+			tmp = pkt->cnt.md[2];
+			rx.sbtm_info.frm_pb_limit_int = tmp & 0x1f;
+			rx.sbtm_info.frm_pb_limit_int <<= 8;
+			tmp = pkt->cnt.md[3];
+			rx.sbtm_info.frm_pb_limit_int |= tmp;
+			pkt->pkttype = 0;
+			rx.sbtm_info.flag = true;
+			break;
+		case EMP_DV:
+			rx.emp_dv_info.flag = true;
+			rx.emp_dv_info.dv_addr = (u8 *)pkt;
+			rx.emp_dv_info.dv_size = rx.emp_dsf_info[i].pkt_cnt;
+			break;
+		case EMP_CUVA:
+			rx.emp_cuva_info.flag = true;
+			rx.emp_cuva_info.emds_addr = (u8 *)pkt;
+			rx.emp_cuva_info.cuva_emds_size =
+				rx.emp_dsf_info[i].pkt_cnt;
+			break;
+		default:
+			memset(&rx.vtem_info, 0, sizeof(struct vtem_info_s));
+			memset(&rx.sbtm_info, 0, sizeof(struct sbtm_info_s));
+			break;
+		};
 	}
-	if (pkt->pkttype == PKT_TYPE_EMP &&
-		pkt->cnt.organization_id == VTEM_OGI_ID &&
-		pkt->cnt.data_set_tag_lo == VTEM_TAG_ID) {
-		tmp = pkt->cnt.md[0];
-		rx.vtem_info.vrr_en = tmp & 1;
-		rx.vtem_info.m_const = (tmp >> 1) & 1;
-		rx.vtem_info.qms_en = (tmp >> 2) & 1;
-		rx.vtem_info.fva_factor_m1 = (tmp >> 4) & 0x0f;
-		tmp = pkt->cnt.md[1];
-		rx.vtem_info.base_vfront = tmp;
-		tmp = pkt->cnt.md[2];
-		rx.vtem_info.rb = (tmp > 2) & 1;
-		rx.vtem_info.base_framerate = pkt->cnt.md[3];
-		rx.vtem_info.base_framerate |= (tmp & 3) << 8;
-		pkt->pkttype = 0;
-	} else {
-		rx.vtem_info.vrr_en = 0;
-		rx.vtem_info.m_const = 0;
-		rx.vtem_info.fva_factor_m1 = 0;
-		rx.vtem_info.base_vfront = 0;
-		rx.vtem_info.rb = 0;
-		rx.vtem_info.base_framerate = 0;
-	}
-	//if (rx.vrr_en) {
-		//tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE0_DP0B_IVCRX);
-		//rx.vtem_info.vrr_en = tmp & 1;
-		//rx.vtem_info.m_const = (tmp >> 1) & 1;
-		//rx.vtem_info.qms_en = (tmp >> 2) & 1;
-		//rx.vtem_info.fva_factor_m1 = (tmp >> 4) & 0x0f;
-		//tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE1_DP0B_IVCRX);
-		//rx.vtem_info.base_vfront = tmp;
-		//tmp = hdmirx_rd_cor(RX_VT_EMP_DBYTE2_DP0B_IVCRX);
-		//rx.vtem_info.rb = (tmp > 2) & 1;
-		//rx.vtem_info.base_framerate = hdmirx_rd_cor(RX_VT_EMP_DBYTE3_DP0B_IVCRX);
-		//rx.vtem_info.base_framerate |= (tmp & 3) << 8;
-	//} else {
-		//rx.vtem_info.vrr_en = 0;
-		//rx.vtem_info.m_const = 0;
-		//rx.vtem_info.fva_factor_m1 = 0;
-		///rx.vtem_info.base_vfront = 0;
-		///rx.vtem_info.rb = 0;
-		///rx.vtem_info.base_framerate = 0;
-	//}
+	rx.emp_pkt_rev = false;
 }
 
 void rx_get_aif_info(void)

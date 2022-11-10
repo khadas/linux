@@ -70,6 +70,9 @@
 #define PFIFO_SIZE 160
 #define HDCP14_KEY_SIZE 368
 
+/* sizeof(emp_buf) / sizeof(sizeof(struct pd_infoframe_s) + 1) = 1024/32 */
+#define EMP_DSF_CNT_MAX 32
+
 //#define SPECIAL_FUNC_EN
 #ifdef SPECIAL_FUNC_EN
 //bit0 portA bit1 portB bit2 portC
@@ -513,6 +516,7 @@ struct vsi_info_s {
 	u8 cuva_version_code;
 };
 
+//===============emp start
 struct vtem_info_s {
 	u8 vrr_en;
 	u8 m_const;
@@ -521,18 +525,36 @@ struct vtem_info_s {
 	u8 base_vfront;
 	u8 rb;
 	u16 base_framerate;
-	//real structure
-	//u8 vrr_en:1;
-	//u8 m_const:1;
-	//u8 qms_en;
-	//u8 rsvd0:1;
-	//u8 fva_factor_m1:4;
-	//u8 base_vfront;
-	//u8 base_fr_high:2;
-	//u8 rb:1;
-	//u8 rsvd1:5;
-	//u8 base_fr_low;
 };
+
+struct sbtm_info_s {
+	u8 flag;
+	u8 sbtm_ver;
+	u8 sbtm_mode;
+	u8 sbtm_type;
+	u8 grdm_min;
+	u8 grdm_lum;
+	u16 frm_pb_limit_int;
+};
+
+struct cuva_emds_s {
+	bool flag;
+	unsigned char *emds_addr;
+	u8 cuva_emds_size;
+};
+
+struct dv_info_s {
+	bool flag;
+	unsigned char *dv_addr;
+	u8 dv_size;
+};
+
+struct emp_dsf_st {
+	int pkt_cnt;
+	u8 *pkt_addr;
+};
+
+//================emp end
 
 #define CHANNEL_STATUS_SIZE   24
 
@@ -694,6 +716,12 @@ struct rx_s {
 	struct vsi_info_s vs_info_details;
 	struct tvin_hdr_info_s hdr_info;
 	struct vtem_info_s vtem_info;
+	struct sbtm_info_s sbtm_info;
+	struct cuva_emds_s emp_cuva_info;
+	struct dv_info_s emp_dv_info;
+	u8 emp_dsf_cnt;
+	bool emp_pkt_rev;
+	struct emp_dsf_st emp_dsf_info[EMP_DSF_CNT_MAX];
 	unsigned char edid_mix_buf[EDID_MIX_MAX_SIZE];
 	unsigned int pwr_sts;
 	/* for debug */

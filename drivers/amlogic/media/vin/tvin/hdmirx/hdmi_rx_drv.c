@@ -1193,7 +1193,7 @@ void hdmirx_get_latency_info(struct tvin_sig_property_s *prop)
 }
 
 static u32 emp_irq_cnt;
-void hdmirx_get_emp_info(struct tvin_sig_property_s *prop)
+void hdmirx_get_emp_dv_info(struct tvin_sig_property_s *prop)
 {
 	//emp buffer not only stores DV_EMP packet, but also other packets.
 	//only DV_EMP is needed here
@@ -1201,9 +1201,9 @@ void hdmirx_get_emp_info(struct tvin_sig_property_s *prop)
 		return;
 
 	prop->emp_data.size = rx.vs_info_details.emp_pkt_cnt;
-	if (rx.vs_info_details.emp_pkt_cnt)
+	if (rx.emp_dv_info.dv_size)
 		memcpy(&prop->emp_data.empbuf,
-		       emp_buf, rx.vs_info_details.emp_pkt_cnt * 32);
+		       rx.emp_dv_info.dv_addr, rx.emp_dv_info.dv_size * 32);
 #ifndef HDMIRX_SEND_INFO_TO_VDIN
 	if (emp_irq_cnt == rx.empbuff.irqcnt)
 		rx.vs_info_details.emp_pkt_cnt = 0;
@@ -1217,6 +1217,24 @@ void hdmirx_get_vtem_info(struct tvin_sig_property_s *prop)
 	if (rx.vtem_info.vrr_en)
 		memcpy(&prop->vtem_data,
 			   &rx.vtem_info, sizeof(struct vtem_info_s));
+}
+
+void hdmirx_get_sbtm_info(struct tvin_sig_property_s *prop)
+{
+	memset(&prop->sbtm_data, 0, sizeof(struct tvin_sbtm_data_s));
+	if (rx.sbtm_info.flag)
+		memcpy(&prop->sbtm_data,
+			   &rx.sbtm_info, sizeof(struct sbtm_info_s));
+}
+
+void hdmirx_get_cuva_emds_info(struct tvin_sig_property_s *prop)
+{
+	if (rx.emp_cuva_info.cuva_emds_size > sizeof(prop->cuva_emds_data))
+		rx_pr("cuva emds size exceeds 96 bytes\n");
+	memset(&prop->cuva_emds_data, 0, sizeof(prop->cuva_emds_data));
+	if (rx.emp_cuva_info.flag)
+		memcpy(&prop->cuva_emds_data, rx.emp_cuva_info.emds_addr,
+			sizeof(prop->cuva_emds_data));
 }
 
 void rx_set_sig_info(void)
@@ -1233,7 +1251,7 @@ void rx_set_sig_info(void)
 void rx_update_sig_info(void)
 {
 	rx_get_vsi_info();
-	rx_get_vtem_info();
+	rx_get_em_info();
 	rx_get_aif_info();
 	rx_set_sig_info();
 }
@@ -1326,6 +1344,8 @@ void hdmirx_get_hdr_info(struct tvin_sig_property_s *prop)
 void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 			     struct tvin_sig_property_s *prop)
 {
+	int i;
+
 	hdmirx_get_dvi_info(prop);
 	hdmirx_get_colordepth(prop);
 	hdmirx_get_fps_info(prop);
@@ -1336,12 +1356,17 @@ void hdmirx_get_sig_property(struct tvin_frontend_s *fe,
 	hdmirx_get_vsi_info(prop);
 	hdmirx_get_spd_info(prop);
 	hdmirx_get_latency_info(prop);
-	hdmirx_get_emp_info(prop);
+	hdmirx_get_emp_dv_info(prop);
 	hdmirx_get_vtem_info(prop);
+	hdmirx_get_sbtm_info(prop);
+	hdmirx_get_cuva_emds_info(prop);
 	hdmirx_get_active_aspect_ratio(prop);
 	hdmirx_get_hdcp_sts(prop);
 	hdmirx_get_hw_vic(prop);
 	prop->skip_vf_num = vdin_drop_frame_cnt;
+	rx.emp_dsf_cnt = 0;
+	for (i = 0; i < EMP_DSF_CNT_MAX; i++)
+		memset(&rx.emp_dsf_info[i], 0, sizeof(struct pd_infoframe_s));
 }
 
 /*
