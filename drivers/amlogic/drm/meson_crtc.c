@@ -17,10 +17,6 @@
 
 #define OSD_DUMP_PATH		"/tmp/osd_dump/"
 
-int crtc_force_hint;
-MODULE_PARM_DESC(crtc_force_hint, "\n force modesetting hint\n");
-module_param(crtc_force_hint, int, 0644);
-
 /*
  **********TV SUPPROT DV****************
  *HDR			2
@@ -533,12 +529,6 @@ static int meson_crtc_atomic_check(struct drm_crtc *crtc,
 
 	/*apply parameters need modeset.*/
 	if (crtc_state->state->allow_modeset) {
-		/*apply state value not set from property.*/
-		DRM_DEBUG_KMS("%s force modeset.\n", __func__);
-		if (crtc_force_hint > 0) {
-			crtc_state->mode_changed = true;
-			crtc_force_hint = 0;
-		}
 
 		if (cur_state->crtc_dv_enable != new_state->crtc_dv_enable)
 			crtc_state->mode_changed = true;

@@ -162,6 +162,11 @@ void am_cvbs_encoder_enable(struct drm_encoder *encoder,
 	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	enum vmode_e vmode = meson_crtc_state->vmode;
 
+	if ((vmode & VMODE_MODE_BIT_MASK) != VMODE_CVBS) {
+		DRM_INFO("[%s] not cvbs, return\n", __func__);
+		return;
+	}
+
 	if (meson_crtc_state->uboot_mode_init == 1)
 		vmode |= VMODE_INIT_BIT_MASK;
 
