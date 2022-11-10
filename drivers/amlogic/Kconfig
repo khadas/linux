@@ -13,6 +13,14 @@ config AMLOGIC_MODIFY
 		kernel source code. All modify of kernel standard code
 		should be wrapped by this config
 
+config AMLOGIC_RDK
+	bool "Amlogic's kernel modification for RDK"
+	depends on AMLOGIC_MODIFY
+	default n
+	help
+		This option is set up for AMLOGIC modification of standard
+		kernel source code for project RDK.
+
 config AMLOGIC_ANDROIDP
 	bool "Amlogic modify kernel in project androidp"
 	default n

@@ -66,9 +66,16 @@ static int trusted_tee_seal(struct trusted_key_payload *p, char *datablob)
 	struct tee_ioctl_invoke_arg inv_arg;
 	struct tee_param param[4];
 	struct tee_shm *reg_shm_in = NULL, *reg_shm_out = NULL;
-
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	struct tee_shm *reg_shm_extra_in = NULL;
+	u8 extra[MAX_EXTRA_SIZE];
+	u32 extra_sz = 0;
+#endif
 	memset(&inv_arg, 0, sizeof(inv_arg));
 	memset(&param, 0, sizeof(param));
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	memset(extra, 0, sizeof(extra));
+#endif
 
 	reg_shm_in = tee_shm_register_kernel_buf(pvt_data.ctx, p->key,
 						 p->key_len);
@@ -84,7 +91,22 @@ static int trusted_tee_seal(struct trusted_key_payload *p, char *datablob)
 		ret = PTR_ERR(reg_shm_out);
 		goto out;
 	}
-
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	/* set uid as extra */
+	if (sizeof(extra) >= sizeof(uid_t)) {
+		memcpy(extra, &(current_uid().val), sizeof(uid_t));
+		extra_sz += sizeof(uid_t);
+	} else {
+		dev_err(pvt_data.dev, "extra buf is too small\n");
+	}
+	reg_shm_extra_in = tee_shm_register_kernel_buf(pvt_data.ctx, extra,
+						 sizeof(extra));
+	if (IS_ERR(reg_shm_extra_in)) {
+		dev_err(pvt_data.dev, "extra shm register failed\n");
+		ret = PTR_ERR(reg_shm_extra_in);
+		goto out;
+	}
+#endif
 	inv_arg.func = TA_CMD_SEAL;
 	inv_arg.session = pvt_data.session_id;
 	inv_arg.num_params = 4;
@@ -97,7 +119,12 @@ static int trusted_tee_seal(struct trusted_key_payload *p, char *datablob)
 	param[1].u.memref.shm = reg_shm_out;
 	param[1].u.memref.size = sizeof(p->blob);
 	param[1].u.memref.shm_offs = 0;
-
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT;
+	param[2].u.memref.shm = reg_shm_extra_in;
+	param[2].u.memref.size = extra_sz;
+	param[2].u.memref.shm_offs = 0;
+#endif
 	ret = tee_client_invoke_func(pvt_data.ctx, &inv_arg, param);
 	if ((ret < 0) || (inv_arg.ret != 0)) {
 		dev_err(pvt_data.dev, "TA_CMD_SEAL invoke err: %x\n",
@@ -112,7 +139,10 @@ out:
 		tee_shm_free(reg_shm_out);
 	if (reg_shm_in)
 		tee_shm_free(reg_shm_in);
-
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	if (reg_shm_extra_in)
+		tee_shm_free(reg_shm_extra_in);
+#endif
 	return ret;
 }
 
@@ -125,9 +155,16 @@ static int trusted_tee_unseal(struct trusted_key_payload *p, char *datablob)
 	struct tee_ioctl_invoke_arg inv_arg;
 	struct tee_param param[4];
 	struct tee_shm *reg_shm_in = NULL, *reg_shm_out = NULL;
-
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	struct tee_shm *reg_shm_extra_in = NULL;
+	u8 extra[MAX_EXTRA_SIZE];
+	u32 extra_sz = 0;
+#endif
 	memset(&inv_arg, 0, sizeof(inv_arg));
 	memset(&param, 0, sizeof(param));
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	memset(extra, 0, sizeof(extra));
+#endif
 
 	reg_shm_in = tee_shm_register_kernel_buf(pvt_data.ctx, p->blob,
 						 p->blob_len);
@@ -143,7 +180,20 @@ static int trusted_tee_unseal(struct trusted_key_payload *p, char *datablob)
 		ret = PTR_ERR(reg_shm_out);
 		goto out;
 	}
-
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	if (sizeof(extra) >= sizeof(uid_t)) {
+		memcpy(extra, &(current_uid().val), sizeof(uid_t));
+		extra_sz += sizeof(uid_t);
+	} else {
+		dev_err(pvt_data.dev, "extra buf is too small\n");
+	}
+	reg_shm_extra_in = tee_shm_register_kernel_buf(pvt_data.ctx, extra,
+						 sizeof(extra));
+	if (IS_ERR(reg_shm_extra_in)) {
+		dev_err(pvt_data.dev, "extra shm register failed\n");
+		return PTR_ERR(reg_shm_extra_in);
+	}
+#endif
 	inv_arg.func = TA_CMD_UNSEAL;
 	inv_arg.session = pvt_data.session_id;
 	inv_arg.num_params = 4;
@@ -156,7 +206,12 @@ static int trusted_tee_unseal(struct trusted_key_payload *p, char *datablob)
 	param[1].u.memref.shm = reg_shm_out;
 	param[1].u.memref.size = sizeof(p->key);
 	param[1].u.memref.shm_offs = 0;
-
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	param[2].attr = TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT;
+	param[2].u.memref.shm = reg_shm_extra_in;
+	param[2].u.memref.size = extra_sz;
+	param[2].u.memref.shm_offs = 0;
+#endif
 	ret = tee_client_invoke_func(pvt_data.ctx, &inv_arg, param);
 	if ((ret < 0) || (inv_arg.ret != 0)) {
 		dev_err(pvt_data.dev, "TA_CMD_UNSEAL invoke err: %x\n",
@@ -171,7 +226,10 @@ out:
 		tee_shm_free(reg_shm_out);
 	if (reg_shm_in)
 		tee_shm_free(reg_shm_in);
-
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+	if (reg_shm_extra_in)
+		tee_shm_free(reg_shm_extra_in);
+#endif
 	return ret;
 }
 

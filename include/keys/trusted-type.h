@@ -23,6 +23,10 @@
 #define MAX_PCRINFO_SIZE		64
 #define MAX_DIGEST_SIZE			64
 
+#if defined(CONFIG_AMLOGIC_MODIFY) && defined(CONFIG_AMLOGIC_RDK)
+#define MAX_EXTRA_SIZE			32
+#endif
+
 struct trusted_key_payload {
 	struct rcu_head rcu;
 	unsigned int key_len;
