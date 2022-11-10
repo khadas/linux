@@ -94,6 +94,8 @@ static void tee_comm_dev_reg(struct hdmitx_dev *hdev);
 static void tee_comm_dev_unreg(struct hdmitx_dev *hdev);
 static bool is_cur_tmds_div40(struct hdmitx_dev *hdev);
 static void hdmitx_resend_div40(struct hdmitx_dev *hdev);
+static int hdmitx_check_vic(int vic);
+
 /*
  * Normally, after the HPD in or late resume, there will reading EDID, and
  * notify application to select a hdmi mode output. But during the mode
@@ -706,6 +708,27 @@ static void hdmitx_start_hdcp_handler(struct work_struct *work)
 	is_passthrough_switch = 0;
 }
 
+static int check_vic_4x3_and_16x9(struct hdmitx_dev *hdev, enum hdmi_vic vic)
+{
+	if (vic == HDMI_3_720x480p60_16x9 ||
+		vic == HDMI_7_720x480i60_16x9 ||
+		vic == HDMI_18_720x576p50_16x9 ||
+		vic == HDMI_22_720x576i50_16x9) {
+		if (hdmitx_check_vic(vic))
+			return vic;
+		return vic - 1;
+	} else if (vic == HDMI_2_720x480p60_4x3 ||
+		vic == HDMI_6_720x480i60_4x3 ||
+		vic == HDMI_17_720x576p50_4x3 ||
+		vic == HDMI_21_720x576i50_4x3) {
+		if (hdmitx_check_vic(vic))
+			return vic;
+		return vic + 1;
+	}
+
+	return vic;
+}
+
 static int set_disp_mode_auto(void)
 {
 	int ret =  -1;
@@ -813,6 +836,7 @@ static int set_disp_mode_auto(void)
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
 /* if vic is HDMI_0_UNKNOWN, hdmitx21_set_display will disable HDMI */
 	edidinfo_detach_to_vinfo(hdev);
+	vic = check_vic_4x3_and_16x9(hdev, vic);
 	ret = hdmitx21_set_display(hdev, vic);
 
 	if (ret >= 0) {
@@ -2827,7 +2851,16 @@ static ssize_t disp_cap_show(struct device *dev,
 
 	for (i = 0; i < prxcap->VIC_count; i++) {
 		vic = prxcap->VIC[i];
-		timing = hdmitx21_gettiming_from_vic(vic);
+		if (vic == HDMI_2_720x480p60_4x3 ||
+			vic == HDMI_6_720x480i60_4x3 ||
+			vic == HDMI_17_720x576p50_4x3 ||
+			vic == HDMI_21_720x576i50_4x3) {
+			if (hdmitx_check_vic(vic + 1))
+				continue;
+			timing = hdmitx21_gettiming_from_vic(vic + 1);
+		} else {
+			timing = hdmitx21_gettiming_from_vic(vic);
+		}
 		if (timing) {
 			pos += snprintf(buf + pos, PAGE_SIZE, "%s",
 				timing->sname ? timing->sname : timing->name);
@@ -7102,6 +7135,15 @@ static int drm_hdmitx_get_vic_list(int **vics)
 static int drm_hdmitx_get_timing_para(int vic, struct drm_hdmitx_timing_para *para)
 {
 	const struct hdmi_timing *timing;
+
+	if (vic == HDMI_2_720x480p60_4x3 ||
+		vic == HDMI_6_720x480i60_4x3 ||
+		vic == HDMI_17_720x576p50_4x3 ||
+		vic == HDMI_21_720x576i50_4x3) {
+		if (hdmitx_check_vic(vic + 1))
+			return -1;
+		vic++;
+	}
 
 	timing = hdmitx21_gettiming_from_vic(vic);
 	if (!timing)

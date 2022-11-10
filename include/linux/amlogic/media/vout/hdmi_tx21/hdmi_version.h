@@ -48,6 +48,7 @@
 	"V03.01.00.01.03.03.16 [20221219] [PHY] refine phy setting sequence\n" \
 	"V03.01.00.01.03.03.17 [20221226] [CLK] refine clock setting sequence\n" \
 	"V03.02.00.01.03.03.17 [20221221] [PHY] test pixel clk and adj phy reg for 70hz issue\n" \
-	"V03.02.00.01.03.03.18 [20221230] [COM] hdmitx_setup_attr slab out of bounds\n"
+	"V03.02.00.01.03.03.18 [20221230] [COM] hdmitx_setup_attr slab out of bounds\n" \
+	"V03.02.00.01.03.03.19 [20230104] [COM] set the same sname and send H14b-VSIF\n"
 
 #endif // __HDMI21_VERSION_H__
