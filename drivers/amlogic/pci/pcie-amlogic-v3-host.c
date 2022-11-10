@@ -33,6 +33,10 @@
 #include "../../pci/pci.h"
 #include "pcie-amlogic-v3.h"
 
+static int pcie_test;
+module_param(pcie_test, int, 0444);
+MODULE_PARM_DESC(pcie_test, "Facilitate pcie hardware signal test");
+
 /* MSI information */
 struct amlogic_msi {
 	DECLARE_BITMAP(used, INT_PCI_MSI_NR);
@@ -604,6 +608,9 @@ err_deinit_irq_domain:
 err_deinit_port:
 	amlogic_pcie_deinit_phys(amlogic);
 err_disable_clk:
+	if (pcie_test)
+		return 0;
+
 	amlogic_pcie_disable_clocks(amlogic);
 	return err;
 }
