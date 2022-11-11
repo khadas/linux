@@ -2471,6 +2471,9 @@ static void cal_pps_din_hsize(u32 *o_din_hsize,
 	 *	1 << 20);
 	 */
 	*o_din_hsize = vd_src_din_hsize * dout_hsize / vd_dout_hsize;
+	if (pre_hsc_en)
+		*o_din_hsize >>= 1;
+
 #ifndef NEW_PRE_SCALER
 	if (pre_hsc_en)
 		*o_din_hsize <<= 1;
