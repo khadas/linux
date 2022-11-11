@@ -924,6 +924,7 @@
 		/* bit 4: tdr enable bit */
 		/* bit [3:0]: tdr level control */
 		term_lvl = <0x10>;
+		disable_hdr = <0>;
 		interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&peripheral_clkc CLKID_HDMIRX_MODET_GATE>,
 				<&peripheral_clkc CLKID_HDMIRX_CFG_GATE>,

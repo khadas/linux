@@ -168,6 +168,9 @@ struct reg_map rx_reg_maps[MAP_ADDR_MODULE_NUM];
 //2.  works on receiver mode
 int rpt_only_mode;
 
+/* disable hdr function in dts */
+int disable_hdr;
+
 /* audio block compose method for hdmitx/rx:
  * 1: for soundbar:
  * EDID = downstream TV's video + soundbar's audio capability.
@@ -3242,6 +3245,13 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret) {
 		rpt_only_mode = 0;
 		rx_pr("not find rpt_only_mode, soundbar by default\n");
+	}
+	ret = of_property_read_u32(pdev->dev.of_node,
+				   "disable_hdr",
+				   &disable_hdr);
+	if (ret) {
+		disable_hdr = 0;
+		rx_pr("not find disable_hdr, hdr enable by default\n");
 	}
 	ret = of_reserved_mem_device_init(&pdev->dev);
 	if (ret != 0)

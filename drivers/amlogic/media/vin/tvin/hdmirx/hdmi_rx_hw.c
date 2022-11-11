@@ -5354,7 +5354,10 @@ void rx_emp_to_ddr_init(void)
 		}
 		/* enable store EMP pkt type */
 		data32 = 0;
-		data32 |= 1 << 22;/* ddr_store_drm */
+		if (disable_hdr)
+			data32 |= 0 << 22;/* ddr_store_drm */
+		else
+			data32 |= 1 << 22;/* ddr_store_drm */
 		data32 |= 1 << 19;/* ddr_store_aif */
 		data32 |= 0 << 18;/* ddr_store_spd */
 		data32 |= 0 << 16;/* ddr_store_vsi */
