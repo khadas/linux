@@ -45,7 +45,8 @@
 /* 20220809: fix tcon axi mem mistake for DLG tcon bin*/
 /* 20221012: correct t5w vbyone reset reg*/
 /* 20221028: fix lane lock && fix t7 mipi lprx reg set*/
-#define LCD_DRV_VERSION    "20221028"
+/* 20221111: modify edp transmit_unit_size to 48(temporary)*/
+#define LCD_DRV_VERSION    "20221111"
 
 extern struct mutex lcd_vout_mutex;
 extern spinlock_t lcd_reg_spinlock;

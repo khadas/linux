@@ -757,7 +757,8 @@ static void dptx_set_msa(struct aml_lcd_drv_s *pdrv)
 	dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_MISC1, 0x00000000);
 	dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_M_VID, m_vid); /*unit: 1kHz */
 	dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_N_VID, n_vid); /*unit: 10kHz */
-	dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_TRANSFER_UNIT_SIZE, 32);
+	dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_TRANSFER_UNIT_SIZE, 48);
+		/*Temporary change to 48 */
 	dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_DATA_COUNT_PER_LANE,
 		       data_per_lane);
 	dptx_reg_write(pdrv, EDP_TX_MAIN_STREAM_USER_PIXEL_WIDTH, ppc);
