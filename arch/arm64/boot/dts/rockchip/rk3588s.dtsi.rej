@@ -1,0 +1,14 @@
+--- arch/arm64/boot/dts/rockchip/rk3588s.dtsi
++++ arch/arm64/boot/dts/rockchip/rk3588s.dtsi
+@@ -5058,10 +5058,7 @@
+ 		dma-names = "rx";
+ 		pinctrl-names = "default";
+ 		pinctrl-0 = <&pdm0m0_clk
+-			     &pdm0m0_clk1
+-			     &pdm0m0_sdi0
+-			     &pdm0m0_sdi1
+-			     &pdm0m0_sdi2>;
++			     &pdm0m0_sdi0>;
+ 		#sound-dai-cells = <0>;
+ 		status = "disabled";
+ 	};

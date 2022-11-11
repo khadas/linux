@@ -5737,12 +5737,9 @@
 		dmas = <&dmac0 4>;
 		dma-names = "rx";
 		pinctrl-names = "default", "idle", "clk";
-		pinctrl-0 = <&pdm0m0_sdi0
-			     &pdm0m0_sdi1
-			     &pdm0m0_sdi2>;
+		pinctrl-0 = <&pdm0m0_sdi0>;
 		pinctrl-1 = <&pdm0m0_idle>;
-		pinctrl-2 = <&pdm0m0_clk
-			     &pdm0m0_clk1>;
+		pinctrl-2 = <&pdm0m0_clk>;
 		#sound-dai-cells = <0>;
 		status = "disabled";
 	};
