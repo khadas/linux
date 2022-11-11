@@ -39,7 +39,7 @@
 	__ret;							\
 })
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #include <linux/amlogic/debug_ftrace_ramoops.h>
 #define SKIP_PD_MAX_NUM 10
 #define SKIP_PD_MAX_NAME_LEN 16
@@ -551,7 +551,7 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 	if (!genpd->power_on)
 		goto out;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	pstore_ftrace_pd_power_on((unsigned long)genpd->name);
 	if (ramoops_io_en && meson_pd_debug)
 		pr_info("power_on pd %s\n", genpd->name);
@@ -593,7 +593,7 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 	ktime_t time_start;
 	s64 elapsed_ns;
 	int ret;
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	int i;
 #endif
 
@@ -608,7 +608,7 @@ static int _genpd_power_off(struct generic_pm_domain *genpd, bool timed)
 	if (!genpd->power_off)
 		goto out;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	for (i = 0; i < skip_pd_num; i++) {
 		if (strstr(genpd->name, pd_skip_power_off_list[i])) {
 			pr_info("%s pd in white list, skip power_off\n", genpd->name);

@@ -11,7 +11,7 @@
 #include <linux/io.h>
 #undef SKIP_IO_TRACE
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #include <linux/amlogic/debug_ftrace_ramoops.h>
 #endif
 
@@ -20,7 +20,7 @@
  */
 void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 {
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	pstore_ftrace_io_copy_from((unsigned long)from, (unsigned long)count);
 #endif
 	while (count && !IS_ALIGNED((unsigned long)from, 8)) {
@@ -43,7 +43,7 @@ void __memcpy_fromio(void *to, const volatile void __iomem *from, size_t count)
 		to++;
 		count--;
 	}
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	pstore_ftrace_io_copy_from_end((unsigned long)from, (unsigned long)count);
 #endif
 }
@@ -54,7 +54,7 @@ EXPORT_SYMBOL(__memcpy_fromio);
  */
 void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
 {
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	pstore_ftrace_io_copy_to((unsigned long)to, (unsigned long)count);
 #endif
 	while (count && !IS_ALIGNED((unsigned long)to, 8)) {
@@ -77,7 +77,7 @@ void __memcpy_toio(volatile void __iomem *to, const void *from, size_t count)
 		to++;
 		count--;
 	}
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	pstore_ftrace_io_copy_to_end((unsigned long)to, (unsigned long)count);
 #endif
 }
@@ -90,7 +90,7 @@ void __memset_io(volatile void __iomem *dst, int c, size_t count)
 {
 	u64 qc = (u8)c;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	pstore_ftrace_io_memset((unsigned long)dst, (unsigned long)count);
 #endif
 
@@ -115,7 +115,7 @@ void __memset_io(volatile void __iomem *dst, int c, size_t count)
 		dst++;
 		count--;
 	}
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	pstore_ftrace_io_memset_end((unsigned long)dst, (unsigned long)count);
 #endif
 }

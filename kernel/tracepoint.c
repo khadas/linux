@@ -514,23 +514,6 @@ int tracepoint_probe_register_prio(struct tracepoint *tp, void *probe,
 }
 EXPORT_SYMBOL_GPL(tracepoint_probe_register_prio);
 
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
-#include <linux/amlogic/debug_irqflags.h>
-irq_trace_fn_t irq_trace_start_hook_gki_builtin;
-irq_trace_fn_t irq_trace_stop_hook_gki_builtin;
-#endif
-
-#if defined(CONFIG_AMLOGIC_DEBUG_LOCKUP) && defined(CONFIG_AMLOGIC_HARDLOCKUP_DETECTOR)
-typedef void (*pr_lockup_info_t)(int cpu);
-pr_lockup_info_t pr_lockup_info_hook;
-#endif
-
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
-void notrace __pstore_io_save(unsigned long reg, unsigned long val,
-			      unsigned long parent, unsigned int flag,
-			      unsigned long *irq_flag);
-#endif
-
 /**
  * tracepoint_probe_register -  Connect a probe to a tracepoint
  * @tp: tracepoint
@@ -545,34 +528,6 @@ void notrace __pstore_io_save(unsigned long reg, unsigned long val,
  */
 int tracepoint_probe_register(struct tracepoint *tp, void *probe, void *data)
 {
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
-	if (!strcmp(tp->name, "inject_irq_hooks")) {
-		irq_trace_start_hook_gki_builtin = ((irq_trace_fn_t *)data)[0];
-		irq_trace_stop_hook_gki_builtin = ((irq_trace_fn_t *)data)[1];
-		pr_info("tracepoint_probe_register: inject_irq_hooks: %ps %ps\n",
-			irq_trace_start_hook_gki_builtin, irq_trace_stop_hook_gki_builtin);
-
-		return 0;
-	}
-#endif
-
-#if defined(CONFIG_AMLOGIC_DEBUG_LOCKUP) && defined(CONFIG_AMLOGIC_HARDLOCKUP_DETECTOR)
-	if (!strcmp(tp->name, "inject_pr_lockup_info")) {
-		pr_lockup_info_hook = (pr_lockup_info_t)data;
-		pr_info("tracepoint_probe_register: inject_pr_lockup_info: %ps\n",
-			pr_lockup_info_hook);
-
-		return 0;
-	}
-#endif
-
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
-	if (!strcmp(tp->name, "inject_pstore_io_save")) {
-		*(unsigned long *)data = (unsigned long)__pstore_io_save;
-		pr_info("tracepoint_probe_register: inject_pstore_io_save: %ps\n", (void *)data);
-	}
-#endif
-
 	return tracepoint_probe_register_prio(tp, probe, data, TRACEPOINT_DEFAULT_PRIO);
 }
 EXPORT_SYMBOL_GPL(tracepoint_probe_register);

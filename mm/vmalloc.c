@@ -45,7 +45,7 @@
 #include "internal.h"
 #include "pgalloc-track.h"
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #include <linux/moduleparam.h>
 #include <linux/amlogic/debug_ftrace_ramoops.h>
 #endif
@@ -317,7 +317,7 @@ static int vmap_range_noflush(unsigned long addr, unsigned long end,
 	return err;
 }
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 bool is_normal_memory(pgprot_t p)
 {
 #if defined(CONFIG_ARM)
@@ -335,7 +335,7 @@ int ioremap_page_range(unsigned long addr, unsigned long end,
 {
 	int err;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	phys_addr_t phys_addr_save = phys_addr;
 #endif
 	prot = pgprot_nx(prot);
@@ -343,7 +343,7 @@ int ioremap_page_range(unsigned long addr, unsigned long end,
 				 ioremap_max_page_shift);
 	flush_cache_vmap(addr, end);
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	if (need_dump_iomap() && !is_normal_memory(prot)) {
 		pr_err("io__map <va:0x%08lx-0x%08lx> pa:0x%lx,port:0x%lx\n",
 		       addr, end, (unsigned long)phys_addr_save,
@@ -2667,7 +2667,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
 		return;
 	}
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	delete_iomap_info((unsigned long)addr);
 #endif
 	debug_check_no_locks_freed(area->addr, get_vm_area_size(area));

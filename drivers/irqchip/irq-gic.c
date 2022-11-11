@@ -17,7 +17,7 @@
  * As such, the enable set/clear, pending set/clear and active bit
  * registers are banked per-cpu for these sources.
  */
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #define SKIP_IO_TRACE
 #endif
 #include <linux/init.h>

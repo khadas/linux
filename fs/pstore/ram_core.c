@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2012 Google, Inc.
  */
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #define SKIP_IO_TRACE
 #endif
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

@@ -130,7 +130,7 @@ static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
 {
 	struct arm_smccc_res res;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
 	/* idle smc will not return, do not trace it */
 	__arm_smccc_smc(function_id, arg0, arg1, arg2, 0, 0, 0, 0, &res, NULL);
 #else

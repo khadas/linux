@@ -6,7 +6,7 @@
 
 #include <asm/ptrace.h>
 
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG)
 #include <linux/amlogic/irqflags_debug_arm.h>
 #else
 
@@ -187,6 +187,6 @@ static inline int arch_irqs_disabled_flags(unsigned long flags)
 
 #include <asm-generic/irqflags.h>
 
-#endif /* CONFIG_AMLOGIC_DEBUG_LOCKUP */
+#endif /* CONFIG_AMLOGIC_DEBUG */
 #endif /* ifdef __KERNEL__ */
 #endif /* ifndef __ASM_ARM_IRQFLAGS_H */

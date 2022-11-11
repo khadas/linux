@@ -20,7 +20,7 @@
 #include <asm/barrier.h>
 #include "internal.h"
 
-#ifndef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if !IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 
 /* This doesn't need to be atomic: speed is chosen over correctness here. */
 static u64 pstore_ftrace_stamp;
@@ -122,7 +122,7 @@ static struct dentry *pstore_ftrace_dir;
 
 void pstore_register_ftrace(void)
 {
-#ifndef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if !IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	/*
 	 * Amlogic reuse pstore ftrace for IO(register access) trace,
 	 * original pstore ftrace function is not so helpful, just ignore
@@ -141,7 +141,7 @@ void pstore_register_ftrace(void)
 
 void pstore_unregister_ftrace(void)
 {
-#ifndef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if !IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	mutex_lock(&pstore_ftrace_lock);
 	if (pstore_ftrace_enabled) {
 		unregister_ftrace_function(&pstore_ftrace_ops);

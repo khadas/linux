@@ -57,7 +57,7 @@ static LIST_HEAD(deferred_probe_active_list);
 static atomic_t deferred_trigger_count = ATOMIC_INIT(0);
 static bool initcalls_done;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
 static int deferred_probe_printk;
 core_param(deferred_probe_printk, deferred_probe_printk, int, 0644);
 #endif
@@ -188,7 +188,7 @@ static void driver_deferred_probe_trigger(void)
 	 */
 	mutex_lock(&deferred_probe_mutex);
 	atomic_inc(&deferred_trigger_count);
-#ifdef CONFIG_AMLOGIC_DEBUG_LOCKUP
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_MISC)
 	if (deferred_probe_printk && !list_empty(&deferred_probe_pending_list)) {
 		struct device_private *p;
 

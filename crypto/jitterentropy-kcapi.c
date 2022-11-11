@@ -197,7 +197,7 @@ static struct rng_alg jent_alg = {
 	}
 };
 
-#ifndef CONFIG_AMLOGIC_BOOT_TIME
+#if !IS_ENABLED(CONFIG_AMLOGIC_BOOT_TIME)
 static int __init jent_mod_init(void)
 {
 	int ret = 0;

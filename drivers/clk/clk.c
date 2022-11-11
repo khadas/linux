@@ -24,7 +24,7 @@
 
 #include "clk.h"
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #include <linux/amlogic/debug_ftrace_ramoops.h>
 #define SKIP_CLK_MAX_NUM 10
 #define SKIP_CLK_MAX_NAME_LEN 16
@@ -867,7 +867,7 @@ EXPORT_SYMBOL_GPL(clk_rate_exclusive_get);
 
 static void clk_core_unprepare(struct clk_core *core)
 {
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	int i;
 #endif
 
@@ -887,7 +887,7 @@ static void clk_core_unprepare(struct clk_core *core)
 	if (core->flags & CLK_SET_RATE_GATE)
 		clk_core_rate_unprotect(core);
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	for (i = 0; i < skip_clk_num; i++) {
 		if (strstr(core->name, clk_skip_disable_list[i]))
 			return;
@@ -1023,7 +1023,7 @@ EXPORT_SYMBOL_GPL(clk_prepare);
 
 static void clk_core_disable(struct clk_core *core)
 {
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	int i;
 #endif
 
@@ -1039,7 +1039,7 @@ static void clk_core_disable(struct clk_core *core)
 	    "Disabling critical %s\n", core->name))
 		return;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	for (i = 0; i < skip_clk_num; i++) {
 		if (strstr(core->name, clk_skip_disable_list[i])) {
 			pr_info("%s clk in white list, skip disable\n", core->name);
@@ -1056,7 +1056,7 @@ static void clk_core_disable(struct clk_core *core)
 	if (--core->enable_count > 0)
 		return;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	pstore_ftrace_clk_disable((unsigned long)core->name);
 	if (ramoops_io_en && meson_clk_debug)
 		pr_info("disable clk %s\n", core->name);
@@ -1123,7 +1123,7 @@ static int clk_core_enable(struct clk_core *core)
 
 		trace_clk_enable_rcuidle(core);
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 		if (core->ops->enable) {
 			ret = core->ops->enable(core->hw);
 			if (ramoops_io_en && meson_clk_debug)

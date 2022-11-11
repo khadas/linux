@@ -10,7 +10,7 @@
 #include <asm/ptrace.h>
 #include <asm/sysreg.h>
 
-#if defined(CONFIG_AMLOGIC_DEBUG_LOCKUP) && !defined(SKIP_LOCKUP_CHECK)
+#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG) && !defined(SKIP_LOCKUP_CHECK)
 #include <linux/amlogic/irqflags_debug_arm64.h>
 #else
 
@@ -133,6 +133,6 @@ static inline void arch_local_irq_restore(unsigned long flags)
 
 	pmr_sync();
 }
-#endif /* CONFIG_AMLOGIC_DEBUG_LOCKUP */
+#endif /* CONFIG_AMLOGIC_DEBUG */
 
 #endif /* __ASM_IRQFLAGS_H */

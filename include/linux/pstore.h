@@ -43,7 +43,7 @@ enum pstore_type_id {
 	PSTORE_TYPE_MAX
 };
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #include <linux/amlogic/debug_ftrace_ramoops.h>
 #endif
 
@@ -214,7 +214,7 @@ struct pstore_ftrace_record {
 	unsigned long ip;
 	unsigned long parent_ip;
 	u64 ts;
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	int pid;
 	union {
 		char name[16];
@@ -233,7 +233,7 @@ struct pstore_ftrace_record {
 #endif
 };
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 void notrace pstore_ftrace_dump(struct pstore_ftrace_record *rec,
 				struct seq_file *s);
 #endif

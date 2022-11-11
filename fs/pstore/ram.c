@@ -23,7 +23,7 @@
 #include <linux/of_address.h>
 #include <linux/of_reserved_mem.h>
 #include "internal.h"
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 #include <linux/workqueue.h>
 
 /* ramoops_io_dump_delay_secs : iotrace dump delayed time, s */
@@ -721,7 +721,7 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 	return 0;
 }
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 static struct ramoops_context *cxt_saved;
 static unsigned long ramoops_ftrace_size_saved;
 
@@ -876,7 +876,7 @@ static int ramoops_probe(struct platform_device *pdev)
 	ramoops_pmsg_size = pdata->pmsg_size;
 	ramoops_ftrace_size = pdata->ftrace_size;
 
-#ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
+#if IS_ENABLED(CONFIG_AMLOGIC_BGKI_DEBUG_IOTRACE)
 	cxt_saved = cxt;
 	ramoops_ftrace_size_saved = ramoops_ftrace_size;
 	if (ramoops_ftrace_size) {
