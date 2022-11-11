@@ -925,7 +925,7 @@ static int update_page_trace(struct seq_file *m, struct zone *zone,
 		page = pfn_to_page(pfn);
 
 		/* Watch for unexpected holes punched in the memmap */
-		if (!memmap_valid_within(pfn, page, zone))
+		if (!pfn_valid(pfn))
 			continue;
 
 		trace = find_page_base(page);

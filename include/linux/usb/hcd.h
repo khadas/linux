@@ -126,6 +126,7 @@ struct usb_hcd {
 #define HCD_FLAG_RH_RUNNING		5	/* root hub is running? */
 #define HCD_FLAG_DEAD			6	/* controller has died? */
 #define HCD_FLAG_INTF_AUTHORIZED	7	/* authorize interfaces? */
+#define HCD_FLAG_DEFER_RH_REGISTER	8	/* Defer roothub registration */
 
 #ifdef CONFIG_AMLOGIC_USB
 #define HCD_FLAG_DWC_OTG		28  /* dwc_otg controller */
@@ -145,6 +146,7 @@ struct usb_hcd {
 #define HCD_DWC_OTG(hcd)	((hcd)->flags & (1U << HCD_FLAG_DWC_OTG))
 #define HCD_DWC3(hcd)		((hcd)->flags & (1U << HCD_FLAG_DWC3))
 #endif
+#define HCD_DEFER_RH_REGISTER(hcd) ((hcd)->flags & (1U << HCD_FLAG_DEFER_RH_REGISTER))
 
 	/*
 	 * Specifies if interfaces are authorized by default

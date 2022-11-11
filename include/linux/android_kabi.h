@@ -89,11 +89,14 @@
  *   1 and go up.
  */
 #ifdef CONFIG_AMLOGIC_MODIFY
+#ifdef CONFIG_ANDROID_KABI_RESERVE
+#define ANDROID_KABI_RESERVE(number)	_ANDROID_KABI_RESERVE(number)
+#else
 #define ANDROID_KABI_RESERVE(number)
+#endif
 #else
 #define ANDROID_KABI_RESERVE(number)	_ANDROID_KABI_RESERVE(number)
 #endif /* CONFIG_AMLOGIC_MODIFY */
-
 
 /*
  * Macros to use _after_ the ABI is frozen

@@ -710,9 +710,9 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		mutex_unlock(&cma->lock);
 
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
-	#ifdef CONFIG_AMLOGIC_CMA
+#ifdef CONFIG_AMLOGIC_CMA
 		mutex_lock(&cma_mutex);
-	#ifndef CONFIG_ARM64
+#ifndef CONFIG_ARM64
 		if (!PageHighMem(pfn_to_page(pfn)) &&
 			PageHighMem(pfn_to_page(pfn + count - 1))) {
 			pfn_limit = ((unsigned long)high_memory - PAGE_OFFSET)
@@ -735,7 +735,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 #else
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
 				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
-	#endif /* CONFIG_AMLOGIC_CMA */
+#endif /* CONFIG_AMLOGIC_CMA */
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
 			break;

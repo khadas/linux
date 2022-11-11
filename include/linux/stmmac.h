@@ -182,5 +182,6 @@ struct plat_stmmacenet_data {
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
 	int mdns_wkup;
 #endif
+	bool sph_disable;
 };
 #endif
