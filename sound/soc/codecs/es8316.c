@@ -112,9 +112,15 @@ static void es8316_enable_spk(struct es8316_priv *es8316, bool enable)
 {
 	bool level;
 
+	if (es8316->hp_inserted)
+		enable = 0;
+
 	level = enable ? es8316->spk_active_level : !es8316->spk_active_level;
 	//printk("es8316 spk_ctl_gpio %d\n",level);
-	gpio_set_value(es8316->spk_ctl_gpio, level);
+	if(enable != gpio_get_value(es8316->spk_ctl_gpio)){
+		gpio_set_value(es8316->spk_ctl_gpio, level);
+		printk("es8316 spk_ctl_gpio level=%d\n",level);
+	}
 }
 
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -9600, 50, 1);
@@ -833,7 +839,7 @@ static int es8316_set_bias_level(struct snd_soc_component *component,
 {
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 	int ret;
-printk("hlm level=%d\n", level);
+//printk("hlm level=%d\n", level);
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -1026,7 +1032,19 @@ static irqreturn_t es8316_irq_handler(int irq, void *data)
 //printk("hlm es8316_irq_handler\n");
 	queue_delayed_work(system_power_efficient_wq, &es8316->work,
 			   msecs_to_jiffies(es8316->debounce_time));
+	/*es8316->hp_inserted = !(es8316->hp_inserted);
+	if (!es8316->muted) {
+		if (es8316->hp_inserted)
+			es8316_enable_spk(es8316, false);
+		else
+			es8316_enable_spk(es8316, true);
+		printk("hlm es8316_enable_spk %d\n",__LINE__);
+	}
 
+	if(es8316->hp_inserted)
+		irq_set_irq_type(gpio_to_irq(es8316->hp_det_gpio),IRQF_TRIGGER_HIGH);
+	else
+		irq_set_irq_type(gpio_to_irq(es8316->hp_det_gpio),IRQF_TRIGGER_LOW);*/
 	return IRQ_HANDLED;
 }
 
@@ -1193,24 +1211,6 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 		return error;
 
 
-	es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
-						       "spk-con-gpio",
-						       0,
-						       &flags);
-	if (es8316->spk_ctl_gpio < 0) {
-		dev_info(&i2c->dev, "Can not read property spk_ctl_gpio\n");
-		es8316->spk_ctl_gpio = INVALID_GPIO;
-	} else {
-		es8316->spk_active_level = !(flags & OF_GPIO_ACTIVE_LOW);
-		ret = devm_gpio_request_one(&i2c->dev, es8316->spk_ctl_gpio,
-					    GPIOF_DIR_OUT, NULL);
-		if (ret) {
-			dev_err(&i2c->dev, "Failed to request spk_ctl_gpio\n");
-			return ret;
-		}
-		es8316_enable_spk(es8316, true);
-	}
-
 	es8316->hp_det_gpio = of_get_named_gpio_flags(np,
 						      "hp-det-gpio",
 						      0,
@@ -1239,6 +1239,26 @@ static int es8316_i2c_probe(struct i2c_client *i2c,
 		schedule_delayed_work(&es8316->work,
 				      msecs_to_jiffies(es8316->debounce_time));
 	}
+	es8316->spk_ctl_gpio = of_get_named_gpio_flags(np,
+						       "spk-con-gpio",
+						       0,
+						       &flags);
+	if (es8316->spk_ctl_gpio < 0) {
+		dev_info(&i2c->dev, "Can not read property spk_ctl_gpio\n");
+		es8316->spk_ctl_gpio = INVALID_GPIO;
+	} else {
+		es8316->spk_active_level = !(flags & OF_GPIO_ACTIVE_LOW);
+		ret = devm_gpio_request_one(&i2c->dev, es8316->spk_ctl_gpio,
+					    GPIOF_DIR_OUT, NULL);
+		if (ret) {
+			dev_err(&i2c->dev, "Failed to request spk_ctl_gpio\n");
+			return ret;
+		}
+		if(gpio_get_value(es8316->hp_det_gpio))
+			es8316_enable_spk(es8316, true);
+	}
+
+
 	//printk("es8316_i2c_probe %d\n",__LINE__);
 	ret = snd_soc_register_component(&i2c->dev,
 				     &soc_component_dev_es8316,
