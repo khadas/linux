@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef _AMLFRONTEND_H
 #define _AMLFRONTEND_H
 
-/**/
-#include "depend.h" /**/
+#include "depend.h"
 #include "dvbc_func.h"
+#include "dvbs_diseqc.h"
 #include <linux/amlogic/cpu_version.h>
 #include <linux/amlogic/aml_dtvdemod.h>
 
@@ -61,6 +61,7 @@
 /*  V1.1.67  avoid dvbc missing channel */
 /*  V1.1.68  add a function to invert the spectrum in dvbs blind scan */
 /*  V1.1.69  fixed atsc agc speed test */
+/*  V1.1.70  improve diseqc lnb control */
 /****************************************************/
 /****************************************************************/
 /*               AMLDTVDEMOD_VER  Description:                  */
@@ -77,8 +78,8 @@
 /*->The last four digits indicate the release time              */
 /****************************************************************/
 #define KERNEL_4_9_EN		1
-#define AMLDTVDEMOD_VER "V1.1.69"
-#define DTVDEMOD_VER	"2022/11/09: fixed atsc agc speed test"
+#define AMLDTVDEMOD_VER "V1.1.70"
+#define DTVDEMOD_VER	"2022/11/17: improve diseqc lnb control"
 #define AMLDTVDEMOD_T2_FW_VER "V1551.20220524"
 #define DEMOD_DEVICE_NAME  "dtvdemod"
 
@@ -397,11 +398,8 @@ struct amldtvdemod_device_s {
 	struct work_struct blind_scan_work;
 
 	/* diseqc */
-	const char *diseqc_name;
-	unsigned int demod_irq_num;
-	unsigned int demod_irq_en;
-	struct mutex mutex_tx_msg;/*pretect tx cec msg*/
-	struct mutex mutex_rx_msg;/*pretect rx cec msg*/
+	struct aml_diseqc diseqc;
+
 	unsigned int print_on;
 	int tuner_strength_limit;
 	unsigned int debug_on;

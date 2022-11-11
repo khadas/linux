@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #include "demod_func.h"
@@ -1355,11 +1355,16 @@ void dvbs2_diseqc_recv_irq_en(bool onoff)
 
 void dvbs2_diseqc_init(void)
 {
+	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
+
 	/* set high resistance for diseqc input */
 	dvbs_wr_byte(DVBS_REG_GPIO0CFG, 0xcc);
+
 	/* DiSEqC transmission configuration 2:DiSEqC 2/3 */
-	/*dvbs_wr_byte(DVBS_REG_DISTXCFG, 0x2);*/
-	dvbs2_diseqc_continuous_tone(0);
+	if (devp && devp->diseqc.lnbc.is_internal_tone)
+		dvbs_wr_byte(DVBS_REG_DISTXCFG, dvbs_rd_byte(DVBS_REG_DISTXCFG) | 0x8);
+
+	dvbs2_diseqc_continuous_tone(false);
 	/* rx 22k tone, 125Mhz:b0, default 135Mhz:c0*/
 	//dvbs_wr_byte(DVBS_REG_DISTXF22, 0xb0); //t5d
 	/* number of bit to wait before starting the transmission */
@@ -1390,7 +1395,7 @@ void dvbs2_diseqc_recv_en(bool onoff)
 		dvbs_wr_byte(DVBS_REG_DISRXCFG, val & (~0x1));
 }
 
-void dvbs2_diseqc_continuous_tone(unsigned int onoff)
+void dvbs2_diseqc_continuous_tone(bool onoff)
 {
 	unsigned char val = 0;
 

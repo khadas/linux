@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #ifndef __DVBS_FUNC_H__
@@ -156,7 +156,7 @@ void dvbs2_diseqc_send_irq_en(bool onoff);
 void dvbs2_diseqc_recv_irq_en(bool onoff);
 void dvbs2_diseqc_init(void);
 void dvbs2_diseqc_recv_en(bool onoff);
-void dvbs2_diseqc_continuous_tone(unsigned int onoff);
+void dvbs2_diseqc_continuous_tone(bool onoff);
 void dvbs_check_status(struct seq_file *seq);
 unsigned int dvbs_get_freq_offset(unsigned int *polarity);
 unsigned int dvbs_get_symbol_rate(void);

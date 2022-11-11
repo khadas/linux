@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -954,7 +954,7 @@ static void info_show(void)
 	get_chip_name(devp, chip_name);
 	PR_INFO("hw version chip: %d, %s.\n", devp->data->hw_ver, chip_name);
 	PR_INFO("version: %s.\n", DTVDEMOD_VER);
-	aml_diseqc_status();
+	aml_diseqc_status(&devp->diseqc);
 
 	list_for_each_entry(demod, &devp->demod_list, list) {
 		strength = tuner_get_ch_power(&demod->frontend);
@@ -1143,9 +1143,8 @@ static void dump_regs(struct aml_dtvdemod *demod)
 	}
 }
 
-static ssize_t attr_store(struct class *cls,
-				  struct class_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t attr_store(struct class *cls, struct class_attribute *attr,
+		const char *buf, size_t count)
 {
 	char *buf_orig, *parm[47] = {NULL};
 	struct amldtvdemod_device_s *devp = dtvdemod_get_dev();
@@ -1301,18 +1300,16 @@ static ssize_t attr_store(struct class *cls,
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			dtvdemod_set_plpid(val);
 	} else if (!strcmp(parm[0], "lnb_en")) {
-		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			aml_def_set_lnb_en(val);
 	} else if (!strcmp(parm[0], "lnb_sel")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
-			aml_def_set_lnb_sel(val);
+			aml_diseqc_set_voltage(fe, (enum fe_sec_voltage)val);
 	} else if (!strcmp(parm[0], "diseqc_reg")) {
 		demod_dump_reg_diseqc();
 	} else if (!strcmp(parm[0], "diseqc_dbg")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			aml_diseqc_dbg_en(val);
 	} else if (!strcmp(parm[0], "diseqc_sts")) {
-		aml_diseqc_status();
+		aml_diseqc_status(&devp->diseqc);
 	} else if (!strcmp(parm[0], "diseqc_cmd")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			diseqc_cmd_bypass = val;
@@ -1327,8 +1324,7 @@ static ssize_t attr_store(struct class *cls,
 		aml_diseqc_toneburst_sb();
 	} else if (!strcmp(parm[0], "diseqc_toneon")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0) {
-			aml_diseqc_tone_on(val);
-			aml_diseqc_flag_tone_on(val);
+			aml_diseqc_tone_on(&devp->diseqc, val);
 			PR_INFO("continuous_tone %d\n", val);
 		}
 	} else if (!strcmp(parm[0], "monitor")) {
@@ -1420,7 +1416,31 @@ static ssize_t attr_store(struct class *cls,
 		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
 			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
 				qam_write_reg(demod, addr, val);
-				PR_INFO("atsc wr addr:0x%x, val:0x%x\n", addr, val);
+				PR_INFO("dvbc wr addr:0x%x, val:0x%x\n", addr, val);
+			}
+		}
+	} else if (!strcmp(parm[0], "dtmbr")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			val = dtmb_read_reg(addr);
+			PR_INFO("dtmb rd addr:0x%x, val:0x%x\n", addr, val);
+		}
+	} else if (!strcmp(parm[0], "dtmbw")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+				dtmb_write_reg(addr, val);
+				PR_INFO("dtmb wr addr:0x%x, val:0x%x\n", addr, val);
+			}
+		}
+	} else if (!strcmp(parm[0], "isdbtr")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			val = dvbt_isdbt_rd_reg(addr);
+			PR_INFO("isdbt rd addr:0x%x, val:0x%x\n", addr, val);
+		}
+	} else if (!strcmp(parm[0], "isdbtw")) {
+		if (parm[1] && (kstrtouint(parm[1], 16, &addr)) == 0) {
+			if (parm[2] && (kstrtouint(parm[2], 16, &val)) == 0) {
+				dvbt_isdbt_wr_reg(addr, val);
+				PR_INFO("isdbt wr addr:0x%x, val:0x%x\n", addr, val);
 			}
 		}
 	} else if (!strcmp(parm[0], "demod_thread")) {
@@ -1463,6 +1483,8 @@ static ssize_t attr_store(struct class *cls,
 	} else if (!strcmp(parm[0], "timeout_ddr_leave")) {
 		if (parm[1] && (kstrtouint(parm[1], 10, &val)) == 0)
 			demod->timeout_ddr_leave = val;
+	} else {
+		PR_INFO("invalid command: %s.\n", parm[0]);
 	}
 
 fail_exec_cmd:
@@ -1548,7 +1570,7 @@ static ssize_t dtmb_para_show(struct class *cls,
 }
 
 static ssize_t dtmb_para_store(struct class *cls, struct class_attribute *attr,
-			       const char *buf, size_t count)
+		const char *buf, size_t count)
 {
 	if (buf[0] == '0')
 		dtmb_mode = DTMB_READ_STRENGTH;
@@ -1558,12 +1580,14 @@ static ssize_t dtmb_para_store(struct class *cls, struct class_attribute *attr,
 		dtmb_mode = DTMB_READ_LOCK;
 	else if (buf[0] == '3')
 		dtmb_mode = DTMB_READ_BCH;
+	else
+		PR_INFO("invalid command.\n");
 
 	return count;
 }
 
 static ssize_t atsc_para_show(struct class *cls,
-			      struct class_attribute *attr, char *buf)
+		struct class_attribute *attr, char *buf)
 {
 	int snr, lock_status;
 	unsigned int ser, ck;
@@ -1615,13 +1639,15 @@ static ssize_t atsc_para_show(struct class *cls,
 		} else {
 			return sprintf(buf, "atsc_para_shows can't match mode\n");
 		}
+	} else {
+		return sprintf(buf, "atsc_para_shows can't match mode.\n");
 	}
 
 	return 0;
 }
 
 static ssize_t atsc_para_store(struct class *cls, struct class_attribute *attr,
-			       const char *buf, size_t count)
+		const char *buf, size_t count)
 {
 	if (buf[0] == '0')
 		atsc_mode_para = ATSC_READ_STRENGTH;
@@ -1633,12 +1659,14 @@ static ssize_t atsc_para_store(struct class *cls, struct class_attribute *attr,
 		atsc_mode_para = ATSC_READ_SER;
 	else if (buf[0] == '4')
 		atsc_mode_para = ATSC_READ_FREQ;
+	else
+		PR_INFO("invalid command.\n");
 
 	return count;
 }
 
 static ssize_t diseq_cmd_store(struct class *cla, struct class_attribute *attr,
-	const char *bu, size_t count)
+		const char *bu, size_t count)
 {
 	int tmpbuf[20] = {};
 	int i;
@@ -1683,7 +1711,7 @@ static ssize_t diseq_cmd_store(struct class *cla, struct class_attribute *attr,
 	}
 	cmd.msg_len = cnt;
 	/* send diseqc msg */
-	aml_diseqc_send_cmd(fe, &cmd);
+	aml_diseqc_send_cmd(&devp->diseqc, &cmd);
 
 	return count;
 }

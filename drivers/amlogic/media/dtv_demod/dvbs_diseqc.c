@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -21,20 +21,17 @@
 #include <linux/of_reserved_mem.h>
 #include <linux/of_irq.h>
 #include <linux/interrupt.h>
-/*#include <linux/gpio/consumer.h>*/
-#include <linux/i2c.h>
-#include <linux/gpio.h>
 
 #include "demod_func.h"
 #include "dvbs.h"
 #include "dvbs_diseqc.h"
+#include "gpio_lnbc.h"
+#include "wt20_1811.h"
 //#include "meson_saradc.h"
 
-struct aml_def_diseqc_lnb aml_lnb;
 static int diseqc_debug;
-static unsigned int diseqc_attached;
 
-#define AML_DISEQC_VER		"20220722"
+#define AML_DISEQC_VER		"20221111"
 #define DISEQC_EN_ON_DELAY	60
 
 #define dprintk(level, fmt, arg...)				\
@@ -43,58 +40,24 @@ static unsigned int diseqc_attached;
 			pr_info("diseqc: " fmt, ## arg);	\
 	} while (0)
 
-#define aml_lnb_sgm41286
-
 u32 sendburst_on;
 u32 diseqc_cmd_bypass;
+
+int lnb_high_voltage;
+module_param(lnb_high_voltage, int, 0644);
+MODULE_PARM_DESC(lnb_high_voltage, "\nlnb_high_voltage\n");
 
 void aml_diseqc_dbg_en(unsigned int val)
 {
 	diseqc_debug = val;
 }
 
-void aml_def_set_lnb_en(int high_low)
-{
-	if (IS_ERR_OR_NULL(aml_lnb.gpio_lnb_en)) {
-		dprintk(0, "err lnb en gpio dest\n");
-		return;
-	}
-
-	if (aml_lnb.lnb_en == high_low)
-		return;
-
-	aml_lnb.lnb_en = high_low;
-	if (high_low)
-		gpiod_set_value(aml_lnb.gpio_lnb_en, 1);
-	else
-		gpiod_set_value(aml_lnb.gpio_lnb_en, 0);
-	dprintk(1, "lnb en:%d\n", high_low);
-}
-
-void aml_def_set_lnb_sel(int high_low)
-{
-	if (IS_ERR_OR_NULL(aml_lnb.gpio_lnb_sel)) {
-		dprintk(0, "err lnb sel gpio dest\n");
-		return;
-	}
-
-	if (aml_lnb.lnb_sel == high_low)
-		return;
-
-	aml_lnb.lnb_sel = high_low;
-	if (high_low)
-		gpiod_set_value(aml_lnb.gpio_lnb_sel, 1);
-	else
-		gpiod_set_value(aml_lnb.gpio_lnb_sel, 0);
-	dprintk(1, "lnb sel:%d\n", high_low);
-}
-
 void aml_diseqc_toneburst_sa(void)
 {
 	/* tone burst a is 12.5ms continus tone*/
-	dvbs2_diseqc_continuous_tone(1);
+	dvbs2_diseqc_continuous_tone(true);
 	mdelay(13);
-	dvbs2_diseqc_continuous_tone(0);
+	dvbs2_diseqc_continuous_tone(false);
 }
 
 void aml_diseqc_toneburst_sb(void)
@@ -107,39 +70,58 @@ void aml_diseqc_toneburst_sb(void)
 	dvbs2_diseqc_send_msg(cmd.msg_len, &cmd.msg[0]);
 }
 
-void aml_diseqc_tone_on(u32 onoff)
+void aml_diseqc_tone_on(struct aml_diseqc *diseqc, bool onoff)
 {
-	if (onoff)
-		dvbs2_diseqc_continuous_tone(1);
-	else
-		dvbs2_diseqc_continuous_tone(0);
+	dvbs2_diseqc_continuous_tone(onoff);
 
-	dprintk(1, "%s %d\n", __func__, onoff);
+	diseqc->tone_on = onoff;
 }
 
-void aml_diseqc_flag_tone_on(u32 onoff)
+static int aml_diseqc_set_lnb_voltage(struct aml_diseqc *diseqc,
+		enum fe_sec_voltage voltage)
 {
-	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
+	int ret = 0;
 
-	lnb->tone_on = onoff;
+	if (diseqc->voltage == voltage)
+		return 0;
+
+	switch (voltage) {
+	case SEC_VOLTAGE_OFF:
+		if (diseqc->lnbc.set_voltage)
+			ret = diseqc->lnbc.set_voltage(&diseqc->lnbc, LNBC_VOLTAGE_OFF);
+		break;
+	case SEC_VOLTAGE_13:
+		if (diseqc->lnbc.set_voltage)
+			ret = diseqc->lnbc.set_voltage(&diseqc->lnbc, LNBC_VOLTAGE_LOW);
+		break;
+	case SEC_VOLTAGE_18:
+		if (diseqc->lnbc.set_voltage)
+			ret = diseqc->lnbc.set_voltage(&diseqc->lnbc, LNBC_VOLTAGE_HIGH);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	diseqc->voltage = voltage;
+
+	return ret;
 }
 
-u32 aml_diseqc_send_cmd(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *cmd)
+u32 aml_diseqc_send_cmd(struct aml_diseqc *diseqc,
+		struct dvb_diseqc_master_cmd *cmd)
 {
 	unsigned int timeout;
 	unsigned long ret = 0;
+	bool tone = diseqc->tone_on;
 	bool unicable_cmd = false;
-	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
 
-	mutex_lock(&lnb->demod->mutex_tx_msg);
-	dprintk(1, "  -->%s: %#x %#x %#x %#x %#x %#x\n", __func__, cmd->msg[0], cmd->msg[1],
-			cmd->msg[2], cmd->msg[3], cmd->msg[4], cmd->msg_len);
+	mutex_lock(&diseqc->mutex_tx_msg);
 
-	reinit_completion(&lnb->tx_msg_ok);
+	reinit_completion(&diseqc->tx_msg_ok);
 
 	/* disable continuous tone */
-	if (lnb->tone_on) {
-		aml_diseqc_tone_on(0);
+	if (tone) {
+		aml_diseqc_tone_on(diseqc, false);
 		mdelay(12);
 	}
 
@@ -169,8 +151,8 @@ u32 aml_diseqc_send_cmd(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *c
 		unicable_cmd = true;
 
 	if (unicable_cmd) {
-		if (lnb->voltage != SEC_VOLTAGE_18)
-			aml_diseqc_set_voltage(fe, SEC_VOLTAGE_18);
+		if (diseqc->voltage != SEC_VOLTAGE_18)
+			aml_diseqc_set_lnb_voltage(diseqc, SEC_VOLTAGE_18);
 
 		mdelay(10);
 	}
@@ -178,9 +160,9 @@ u32 aml_diseqc_send_cmd(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *c
 	/* diseqc2.0 with reply. */
 	if (cmd->msg[0] == 0xE2 || cmd->msg[0] == 0xE3 ||
 		(0x7A <= cmd->msg[0] && 0x7E >= cmd->msg[0])) {
-		if (!lnb->sar_adc_enable) {
+		if (!diseqc->sar_adc_enable) {
 			//meson_sar_adc_diseqc_in_mode_enable();
-			//lnb->sar_adc_enable = true;
+			//diseqc->sar_adc_enable = true;
 		}
 	}
 
@@ -194,7 +176,7 @@ u32 aml_diseqc_send_cmd(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *c
 		goto cmd_exit;
 	}
 
-	ret = wait_for_completion_timeout(&lnb->tx_msg_ok, timeout);
+	ret = wait_for_completion_timeout(&diseqc->tx_msg_ok, timeout);
 	if (ret <= 0)	/* time out */
 		dprintk(0, "send cmd time out, ret %ld.\n", ret);
 
@@ -215,21 +197,18 @@ cmd_exit:
 	if (unicable_cmd) {
 		mdelay(10);
 
-		aml_def_set_lnb_en(1);
-		aml_def_set_lnb_sel(0);
-		lnb->voltage = SEC_VOLTAGE_13;
-		fe->dtv_property_cache.voltage = SEC_VOLTAGE_13;
+		aml_diseqc_set_lnb_voltage(diseqc, SEC_VOLTAGE_13);
 	}
 
 	/* Is tone on, need set tone on */
-	if (lnb->tone_on) {
+	if (tone) {
 		mdelay(16);
-		aml_diseqc_tone_on(lnb->tone_on);
+		aml_diseqc_tone_on(diseqc, true);
 	}
 
 	dvbs2_diseqc_send_irq_en(false);
 
-	if (lnb->sar_adc_enable) {
+	if (diseqc->sar_adc_enable) {
 		dvbs2_diseqc_recv_en(true);
 		dvbs2_diseqc_recv_irq_en(true);
 	}
@@ -237,7 +216,7 @@ cmd_exit:
 	dprintk(0, "%s unicable_cmd:%d, burst_on:%d done.\n",
 			__func__, unicable_cmd, sendburst_on);
 
-	mutex_unlock(&lnb->demod->mutex_tx_msg);
+	mutex_unlock(&diseqc->mutex_tx_msg);
 
 	return ret;
 }
@@ -270,8 +249,6 @@ int aml_diseqc_send_burst(struct dvb_frontend *fe,
 	return 0;
 }
 
-#ifdef aml_lnb_sgm41286
-
 /*
  * This callback function to implement the
  *	FE_SET_TONE ioctl (only Satellite).
@@ -283,7 +260,7 @@ int aml_diseqc_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 	int ret = 0;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
+	struct aml_diseqc *diseqc = &devp->diseqc;
 
 	mutex_lock(&devp->lock);
 
@@ -301,26 +278,26 @@ int aml_diseqc_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
 		return 1;
 	}
 
-	dprintk(1, "%s: %d\n", __func__, tone ? 0 : 1);
-
 	switch (tone) {
 	case SEC_TONE_OFF:
-		aml_diseqc_flag_tone_on(0);
-		aml_diseqc_tone_on(0);
+		aml_diseqc_tone_on(diseqc, false);
 
-		if (lnb->voltage != SEC_VOLTAGE_OFF)
+		if (diseqc->voltage != SEC_VOLTAGE_OFF)
 			mdelay(23);
 		break;
-	case SEC_TONE_ON:
-		aml_diseqc_flag_tone_on(1);
-		aml_diseqc_tone_on(1);
 
-		if (lnb->voltage != SEC_VOLTAGE_OFF)
+	case SEC_TONE_ON:
+		aml_diseqc_tone_on(diseqc, true);
+
+		if (diseqc->voltage != SEC_VOLTAGE_OFF)
 			mdelay(DISEQC_EN_ON_DELAY);
 		break;
+
 	default:
 		ret = -EINVAL;
 	}
+
+	dprintk(1, "%s: tone %d, ret %d.\n", __func__, tone, ret);
 
 	mutex_unlock(&devp->lock);
 
@@ -334,13 +311,13 @@ int aml_diseqc_set_tone(struct dvb_frontend *fe, enum fe_sec_tone_mode tone)
  *
  */
 int aml_diseqc_set_voltage(struct dvb_frontend *fe,
-			   enum fe_sec_voltage voltage)
+		enum fe_sec_voltage voltage)
 {
 	int ret = 0;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
-	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
+	struct aml_diseqc *diseqc = &devp->diseqc;
 
 	mutex_lock(&devp->lock);
 
@@ -352,30 +329,11 @@ int aml_diseqc_set_voltage(struct dvb_frontend *fe,
 		return 0;
 	}
 
-	dprintk(1, "%s: %d\n", __func__, voltage);
-	c->voltage = voltage;
-	if (lnb->voltage == voltage) {
-		mutex_unlock(&devp->lock);
-		return 0;
-	}
+	ret = aml_diseqc_set_lnb_voltage(diseqc, voltage);
 
-	lnb->voltage = voltage;
-	switch (voltage) {
-	case SEC_VOLTAGE_OFF:
-		aml_def_set_lnb_en(0);
-		aml_def_set_lnb_sel(0);
-		break;
-	case SEC_VOLTAGE_13:
-		aml_def_set_lnb_en(1);
-		aml_def_set_lnb_sel(0);
-		break;
-	case SEC_VOLTAGE_18:
-		aml_def_set_lnb_en(1);
-		aml_def_set_lnb_sel(1);
-		break;
-	default:
-		ret = -EINVAL;
-	}
+	c->voltage = voltage;
+
+	dprintk(1, "%s: voltage %d, ret %d.\n", __func__, voltage, ret);
 
 	mutex_unlock(&devp->lock);
 
@@ -394,6 +352,7 @@ int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	int ret = 0, i = 0;
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct aml_diseqc *diseqc = &devp->diseqc;
 
 	mutex_lock(&devp->lock);
 
@@ -420,33 +379,34 @@ int aml_diseqc_send_master_cmd(struct dvb_frontend *fe,
 	for (i = 0; i < cmd->msg_len; i++)
 		dprintk(1, "0x%02X\n", cmd->msg[i]);
 
-	ret = aml_diseqc_send_cmd(fe, cmd);
+	ret = aml_diseqc_send_cmd(diseqc, cmd);
+
+	fe->dtv_property_cache.voltage = diseqc->voltage;
 
 	mutex_unlock(&devp->lock);
 
 	return ret;
 }
 
-u32 aml_diseqc_recv_cmd(unsigned char *buf, int len)
+u32 aml_diseqc_recv_cmd(struct aml_diseqc *diseqc, unsigned char *buf, int len)
 {
 	unsigned long ret = 0;
 	unsigned int size = 0, timeout = 0, rx_ready = 0;
-	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
 
-	mutex_lock(&lnb->demod->mutex_rx_msg);
+	mutex_lock(&diseqc->mutex_rx_msg);
 
-	reinit_completion(&lnb->rx_msg_ok);
+	reinit_completion(&diseqc->rx_msg_ok);
 
 	timeout = msecs_to_jiffies(2000);
 
 	rx_ready = dvbs2_diseqc_rx_check();
 	if (rx_ready) {
-		ret = wait_for_completion_timeout(&lnb->rx_msg_ok, timeout);
+		ret = wait_for_completion_timeout(&diseqc->rx_msg_ok, timeout);
 		if (ret <= 0) /* time out */
 			dprintk(0, "recv cmd time out, ret %ld.\n", ret);
 		size = dvbs2_diseqc_read_msg(len, buf);
 	} else {
-		ret = wait_for_completion_timeout(&lnb->rx_msg_ok, timeout);
+		ret = wait_for_completion_timeout(&diseqc->rx_msg_ok, timeout);
 		if (ret <= 0) /* time out */
 			dprintk(0, "recv cmd time out, ret %ld.\n", ret);
 
@@ -458,12 +418,12 @@ u32 aml_diseqc_recv_cmd(unsigned char *buf, int len)
 					__func__);
 	}
 
-	if (lnb->sar_adc_enable) {
+	if (diseqc->sar_adc_enable) {
 		//meson_sar_adc_diseqc_in_mode_disable();
-		lnb->sar_adc_enable = false;
+		diseqc->sar_adc_enable = false;
 	}
 
-	mutex_unlock(&lnb->demod->mutex_rx_msg);
+	mutex_unlock(&diseqc->mutex_rx_msg);
 
 	return size;
 }
@@ -475,6 +435,7 @@ int aml_diseqc_recv_slave_reply(struct dvb_frontend *fe,
 	unsigned char buf[4] = { 0 };
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct aml_diseqc *diseqc = &devp->diseqc;
 
 	mutex_lock(&devp->lock);
 
@@ -492,7 +453,7 @@ int aml_diseqc_recv_slave_reply(struct dvb_frontend *fe,
 		return 1;
 	}
 
-	size = aml_diseqc_recv_cmd(buf, sizeof(buf));
+	size = aml_diseqc_recv_cmd(diseqc, buf, sizeof(buf));
 	reply->msg_len = 0;
 	for (i = 0; i < size; ++i) {
 		if (i < sizeof(reply->msg)) {
@@ -520,10 +481,8 @@ int aml_diseqc_recv_slave_reply(struct dvb_frontend *fe,
  *	FE_ENABLE_HIGH_LNB_VOLTAGE ioctl (only Satellite).
  *
  */
-int
-aml_diseqc_en_high_lnb_voltage(struct dvb_frontend *fe, long arg)
+int aml_diseqc_en_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 {
-	/*struct aml_def_diseqc_lnb *lnb = &aml_lnb;*/
 	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
 	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
 
@@ -538,10 +497,6 @@ aml_diseqc_en_high_lnb_voltage(struct dvb_frontend *fe, long arg)
 	}
 
 	dprintk(1, "%s %d\n", __func__, (u32)arg);
-	if (arg)
-		aml_diseqc_set_voltage(fe, SEC_VOLTAGE_18);
-	else
-		aml_diseqc_set_voltage(fe, SEC_VOLTAGE_13);
 
 	mutex_unlock(&devp->lock);
 
@@ -568,63 +523,88 @@ void aml_diseqc_release_sec(struct dvb_frontend *fe)
 	/* if necessary free memory*/
 }
 
-#endif
-
-void aml_diseqc_attach(struct amldtvdemod_device_s *devp,
-		       struct dvb_frontend *fe)
+void aml_diseqc_attach(struct device *dev, struct dvb_frontend *fe)
 {
-	struct aml_def_diseqc_lnb *diseqc = &aml_lnb;
+	struct aml_dtvdemod *demod = (struct aml_dtvdemod *)fe->demodulator_priv;
+	struct amldtvdemod_device_s *devp = (struct amldtvdemod_device_s *)demod->priv;
+	struct gpio_desc *gpio_en = NULL, *gpio_sel = NULL;
+	struct device_node *node = NULL;
+	struct i2c_adapter *i2c_adap = NULL;
+	unsigned char i2c_addr = 0;
+	u32 value = 0;
+	int ret = 0;
+	struct aml_diseqc *diseqc = &devp->diseqc;
 
-	if (diseqc_attached) {
+	if (diseqc->attached) {
 		dprintk(0, "diseqc had attached\n");
 		return;
 	}
 
-	memset(&aml_lnb, 0, sizeof(struct aml_def_diseqc_lnb));
-	diseqc->demod = devp;
-
 	init_completion(&diseqc->tx_msg_ok);
 	init_completion(&diseqc->rx_msg_ok);
-	diseqc->gpio_lnb_en = NULL;
-	diseqc->gpio_lnb_sel = NULL;
-	if (!strcmp(devp->diseqc_name, "sgm_41286")) {
-		diseqc = &aml_lnb;
-		/*
-		 * Diseqc 1.x compatible
-		 */
-		diseqc->gpio_lnb_en = devm_gpiod_get(devp->dev, "lnb_en",
-						GPIOD_OUT_LOW);
-		if (IS_ERR_OR_NULL(diseqc->gpio_lnb_en))
-			dprintk(0, "get lnb en fail\n");
-		diseqc->gpio_lnb_sel = devm_gpiod_get(devp->dev, "lnb_sel",
-						 GPIOD_OUT_LOW);
-		if (IS_ERR_OR_NULL(diseqc->gpio_lnb_sel))
-			dprintk(0, "get lnb sel fail\n");
 
-		fe->ops.release_sec = aml_diseqc_release_sec;
-		fe->ops.set_tone = aml_diseqc_set_tone;
-		fe->ops.set_voltage = aml_diseqc_set_voltage;
-		fe->ops.diseqc_send_master_cmd = aml_diseqc_send_master_cmd;
-		fe->ops.diseqc_recv_slave_reply = aml_diseqc_recv_slave_reply;
-		fe->ops.enable_high_lnb_voltage = aml_diseqc_en_high_lnb_voltage;
-		fe->ops.diseqc_send_burst = aml_diseqc_send_burst;
-		diseqc->lnb_en = 1;
-		diseqc->lnb_sel = 1;
-		diseqc->voltage = SEC_VOLTAGE_OFF;
-		fe->dtv_property_cache.voltage = SEC_VOLTAGE_OFF;
-		aml_def_set_lnb_en(0);
-		aml_def_set_lnb_sel(0);
-		/*aml_diseqc_tone_on(0);*/
+	fe->ops.release_sec = aml_diseqc_release_sec;
+	fe->ops.set_tone = aml_diseqc_set_tone;
+	fe->ops.set_voltage = aml_diseqc_set_voltage;
+	fe->ops.diseqc_send_master_cmd = aml_diseqc_send_master_cmd;
+	fe->ops.diseqc_recv_slave_reply = aml_diseqc_recv_slave_reply;
+	fe->ops.enable_high_lnb_voltage = aml_diseqc_en_high_lnb_voltage;
+	fe->ops.diseqc_send_burst = aml_diseqc_send_burst;
+
+	fe->dtv_property_cache.voltage = SEC_VOLTAGE_OFF;
+	fe->dtv_property_cache.sectone = SEC_TONE_OFF;
+	diseqc->voltage = SEC_VOLTAGE_OFF;
+	diseqc->tone_on = 0;
+
+	if (!strcmp(diseqc->name, "wt20_1811")) {
+		node = of_parse_phandle(dev->of_node, "lnbc_i2c_adap", 0);
+		if (!IS_ERR_OR_NULL(node)) {
+			i2c_adap = of_find_i2c_adapter_by_node(node);
+			of_node_put(node);
+			if (IS_ERR_OR_NULL(i2c_adap)) {
+				i2c_adap = NULL;
+				dprintk(0, "get lnbc i2c adapter fail.\n");
+			}
+		}
+
+		if (of_property_read_u32(dev->of_node, "lnbc_i2c_addr", &value)) {
+			i2c_addr = 0;
+			dprintk(0, "get lnbc i2c addr fail.\n");
+		} else {
+			i2c_addr = value;
+		}
+
+		ret = wt20_1811_create(&diseqc->lnbc, i2c_adap, i2c_addr);
+
+		if (diseqc->lnbc.init)
+			diseqc->lnbc.init(&diseqc->lnbc);
+	} else {
+		gpio_en = devm_gpiod_get(dev, "lnb_en", GPIOD_OUT_LOW);
+		if (IS_ERR_OR_NULL(gpio_en)) {
+			gpio_en = NULL;
+			dprintk(0, "get lnbc en gpio fail.\n");
+		}
+
+		gpio_sel = devm_gpiod_get(dev, "lnb_sel", GPIOD_OUT_LOW);
+		if (IS_ERR_OR_NULL(gpio_sel)) {
+			gpio_sel = NULL;
+			dprintk(0, "get lnbc sel gpio fail.\n");
+		}
+
+		ret = gpio_lnbc_create(&diseqc->lnbc, gpio_en, gpio_sel);
+
+		if (diseqc->lnbc.init)
+			diseqc->lnbc.init(&diseqc->lnbc);
 	}
 
-	diseqc_attached = 1;
-	dprintk(0, "%s flag:%d\n", __func__, diseqc_attached);
+	diseqc->attached = true;
+
+	dprintk(0, "%s: flag %d, ret %d.\n", __func__, diseqc->attached, ret);
 }
 
-void aml_diseqc_isr(void)
+void aml_diseqc_isr(struct aml_diseqc *diseqc)
 {
 	unsigned int diseq_irq_sts = 0;
-	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
 
 	diseq_irq_sts = dvbs2_diseqc_irq_check();
 	if (diseq_irq_sts) {
@@ -635,7 +615,7 @@ void aml_diseqc_isr(void)
 			dprintk(2, "isr IRQTXFIFO64B\n");
 
 		if (diseq_irq_sts & IRQ_STS_TXEND) {
-			complete(&lnb->tx_msg_ok);
+			complete(&diseqc->tx_msg_ok);
 			dprintk(2, "isr IRQTXEND\n");
 		}
 
@@ -649,21 +629,60 @@ void aml_diseqc_isr(void)
 			dprintk(2, "isr IRQRXFIFO8B\n");
 
 		if (diseq_irq_sts & IRQ_STS_RXEND) {
-			if (dvbs2_diseqc_rx_check() && lnb->sar_adc_enable)
-				complete(&lnb->rx_msg_ok);
+			if (dvbs2_diseqc_rx_check() && diseqc->sar_adc_enable)
+				complete(&diseqc->rx_msg_ok);
 			dprintk(2, "isr IRQRXEND\n");
 		}
 	}
 }
 
-void aml_diseqc_status(void)
+void aml_diseqc_status(struct aml_diseqc *diseqc)
 {
-	struct aml_def_diseqc_lnb *lnb = &aml_lnb;
-
 	dprintk(0, "AML_DISEQC_VER: %s.\n", AML_DISEQC_VER);
-	dprintk(0, "diseqc_attached=%d\n", diseqc_attached);
-	dprintk(0, "lnb_en=%d\n", lnb->lnb_en);
-	dprintk(0, "lnb_sel=%d\n", lnb->lnb_sel);
-	dprintk(0, "tone_on=%d\n", lnb->tone_on);
-	dprintk(0, "voltage=%d\n", lnb->voltage);
+	dprintk(0, "diseqc name: %s.\n", diseqc->name);
+	dprintk(0, "irq_num: %d.\n", diseqc->irq_num);
+	dprintk(0, "irq_en: %d.\n", diseqc->irq_en);
+	dprintk(0, "attached: %d.\n", diseqc->attached);
+	dprintk(0, "tone_on: %d.\n", diseqc->tone_on);
+	dprintk(0, "voltage: %d.\n", diseqc->voltage);
+}
+
+irqreturn_t aml_diseqc_isr_handler(int irq, void *data)
+{
+	struct amldtvdemod_device_s *devp = data;
+	struct aml_dtvdemod *demod = NULL, *tmp = NULL;
+
+	list_for_each_entry(tmp, &devp->demod_list, list) {
+		if (tmp->id == 0) {
+			demod = tmp;
+			break;
+		}
+	}
+
+	if (!demod) {
+		dprintk(0, "%s: demod == NULL.\n", __func__);
+		return IRQ_NONE;
+	}
+
+	if (demod->last_delsys == SYS_DVBS || demod->last_delsys == SYS_DVBS2)
+		aml_diseqc_isr(&devp->diseqc);
+
+	return IRQ_HANDLED;
+}
+
+void aml_diseqc_isr_en(struct aml_diseqc *diseqc, bool en)
+{
+	if (en) {
+		if (!diseqc->irq_en && diseqc->irq_num > 0) {
+			enable_irq(diseqc->irq_num);
+			diseqc->irq_en = true;
+			dprintk(0, "enable diseqc_irq.\n");
+		}
+	} else {
+		if (diseqc->irq_en && diseqc->irq_num > 0) {
+			disable_irq(diseqc->irq_num);
+			diseqc->irq_en = false;
+			dprintk(0, "disable diseqc_irq.\n");
+		}
+	}
 }
