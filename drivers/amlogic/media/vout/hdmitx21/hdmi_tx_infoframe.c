@@ -32,46 +32,99 @@
 
 #include "hdmi_tx.h"
 
+/* now this interface should be not used, otherwise need
+ * adjust as hdmi_vend_infoframe_rawset fistly
+ */
 void hdmi_vend_infoframe_set(struct hdmi_vendor_infoframe *info)
 {
 	u8 body[31] = {0};
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	if (!info) {
-		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+		if (hdev->rxcap.ifdb_present)
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+		else
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
 		return;
 	}
 
 	hdmi_vendor_infoframe_pack(info, body, sizeof(body));
-	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	if (hdev->rxcap.ifdb_present)
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	else
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
 }
 
+/* refer to DV Consumer Decoder for Source Devices
+ * System Development Guide Kit version chapter 4.4.8 Game
+ * content signaling:
+ * 1.if DV sink device that supports ALLM with
+ * InfoFrame Data Block (IFDB), HF-VSIF with ALLM_Mode = 1
+ * should comes after Dolby VSIF with L11_MD_Present = 1 and
+ * Content_Type[3:0] = 0x2(case B1)
+ * 2.DV sink device that supports ALLM without
+ * InfoFrame Data Block (IFDB), Dolby VSIF with L11_MD_Present
+ * = 1 and Content_Type[3:0] = 0x2 should comes after HF-VSIF
+ * with  ALLM_Mode = 1(case B2), or should only send Dolby VSIF,
+ * not send HF-VSIF(case A)
+ */
+/* only used for DV_VSIF / HDMI1.4b_VSIF / HDR10+ VSIF */
 void hdmi_vend_infoframe_rawset(u8 *hb, u8 *pb)
 {
 	u8 body[31] = {0};
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	if (!hb || !pb) {
-		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+		if (!hdev->rxcap.ifdb_present)
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		else
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
 		return;
 	}
 
 	memcpy(body, hb, 3);
 	memcpy(&body[3], pb, 28);
-	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	if (hdev->rxcap.ifdb_present && hdev->rxcap.additional_vsif_num >= 1) {
+		/* dolby cts case93 B1 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	} else if (!hdev->rxcap.ifdb_present) {
+		/* dolby cts case92 B2 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	} else {
+		/* case89 ifdb_present but no additional_vsif, should not send HF-VSIF */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	}
 }
 
 /* only used for HF-VSIF */
 void hdmi_vend_infoframe2_rawset(u8 *hb, u8 *pb)
 {
 	u8 body[31] = {0};
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
 	if (!hb || !pb) {
-		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
+		if (!hdev->rxcap.ifdb_present)
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, NULL);
+		else
+			hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, NULL);
 		return;
 	}
 
 	memcpy(body, hb, 3);
 	memcpy(&body[3], pb, 28);
-	hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	if (hdev->rxcap.ifdb_present && hdev->rxcap.additional_vsif_num >= 1) {
+		/* dolby cts case93 B1 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	} else if (!hdev->rxcap.ifdb_present) {
+		/* dolby cts case92 B2 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	} else {
+		/* case89 ifdb_present but no additional_vsif, currently
+		 * no DV-VSIF enabled, then send HF-VSIF
+		 */
+		hdmitx_infoframe_send(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	}
 }
 
 void hdmi_avi_infoframe_set(struct hdmi_avi_infoframe *info)

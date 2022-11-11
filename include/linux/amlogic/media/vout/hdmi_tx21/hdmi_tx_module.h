@@ -128,6 +128,7 @@ struct rx_cap {
 	u32 Max_TMDS_Clock2; /* HDMI2.0 TMDS_CLK */
 	/* CEA861-F, Table 56, Colorimetry Data Block */
 	u32 colorimetry_data;
+	u32 colorimetry_data2;
 	u32 scdc_present:1;
 	u32 scdc_rr_capable:1; /* SCDC read request */
 	u32 lte_340mcsc_scramble:1;
@@ -196,6 +197,10 @@ struct rx_cap {
 	u8 number_of_dtd;
 	struct raw_block asd;
 	struct raw_block vsd;
+	/* for DV cts */
+	bool ifdb_present;
+	/* IFDB, currently only use below node */
+	u8 additional_vsif_num;
 	/*blk0 check sum*/
 	u8 blk0_chksum;
 	u8 chksum[10];
@@ -315,6 +320,12 @@ struct hdmitx_clk_tree_s {
 struct hdmitx_match_frame_table_s {
 	int duration;
 	int max_lncnt;
+};
+
+enum hdmi_ll_mode {
+	HDMI_LL_MODE_AUTO = 0,
+	HDMI_LL_MODE_DISABLE,
+	HDMI_LL_MODE_ENABLE,
 };
 
 #define EDID_MAX_BLOCK              8
@@ -439,6 +450,8 @@ struct hdmitx_dev {
 	struct ced_cnt ced_cnt;
 	struct scdc_locked_st chlocked_st;
 	u32 allm_mode; /* allm_mode: 1/on 0/off */
+	enum hdmi_ll_mode ll_user_set_mode; /* ll setting: 0/AUTOMATIC, 1/Always OFF, 2/ALWAYS ON */
+	bool ll_enabled_in_auto_mode; /* ll_mode enabled in auto or not */
 	u32 ct_mode; /* 0/off 1/game, 2/graphics, 3/photo, 4/cinema */
 	bool it_content;
 	u32 sspll;
@@ -472,6 +485,7 @@ struct hdmitx_dev {
 	u32 dongle_mode:1;
 	u32 pxp_mode:1;
 	u32 cedst_en:1; /* configure in DTS */
+	u32 aon_output:1; /* always output in bl30 */
 	u32 hdr_priority;
 	u32 bist_lock:1;
 	u32 vend_id_hit:1;
@@ -490,6 +504,17 @@ struct hdmitx_dev {
 	u8 def_stream_type;
 	u8 tv_usage;
 	bool systemcontrol_on;
+	bool suspend_flag;
+	u32 arc_rx_en;
+	bool need_filter_hdcp_off;
+	u32 filter_hdcp_off_period;
+	bool not_restart_hdcp;
+	/* mutex for mode setting, note hdcp should also
+	 * mutex with hdmi mode setting
+	 */
+	struct mutex hdmimode_mutex;
+	unsigned long up_hdcp_timeout_sec;
+	struct delayed_work work_up_hdcp_timeout;
 };
 
 #define CMD_DDC_OFFSET          (0x10 << 24)
@@ -512,6 +537,7 @@ struct hdmitx_dev {
 #define DDC_EDID_CLEAR_RAM      (CMD_DDC_OFFSET + 0x0d)
 #define DDC_GLITCH_FILTER_RESET	(CMD_DDC_OFFSET + 0x11)
 #define DDC_SCDC_DIV40_SCRAMB	(CMD_DDC_OFFSET + 0x20)
+#define DDC_HDCP_SET_TOPO_INFO (CMD_DDC_OFFSET + 0x32)
 
 /***********************************************************************
  *             CONFIG CONTROL //cntlconfig
@@ -713,6 +739,7 @@ int hdmitx21_set_audio(struct hdmitx_dev *hdev,
 #define HDMITX_UNPLUG			2
 #define HDMITX_PHY_ADDR_VALID		3
 #define HDMITX_KSVLIST	4
+/* #define HDMITX_HDR_PRIORITY		5 */
 
 #define HDMI_SUSPEND    0
 #define HDMI_WAKEUP     1
@@ -736,6 +763,7 @@ struct hdmitx_uevent {
 };
 
 int hdmitx21_set_uevent(enum hdmitx_event type, int val);
+int hdmitx21_set_uevent_state(enum hdmitx_event type, int state);
 
 void hdmi_set_audio_para(int para);
 int get21_cur_vout_index(void);

@@ -1619,7 +1619,7 @@ static int hdmi_avi_infoframe_unpack(struct hdmi_avi_infoframe *frame,
 #ifdef CONFIG_AMLOGIC_MODIFY
 	frame->video_code = ptr[3];
 #else
-	ptr[3] = frame->video_code & 0x7f;
+	frame->video_code = ptr[3] & 0x7f;
 #endif
 	frame->ycc_quantization_range = (ptr[4] >> 6) & 0x3;
 	frame->content_type = (ptr[4] >> 4) & 0x3;

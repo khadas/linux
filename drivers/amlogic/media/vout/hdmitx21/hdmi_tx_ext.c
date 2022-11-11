@@ -105,8 +105,9 @@ void hdmitx_audio_mute_op(unsigned int flag)
 		hdmitx20_audio_mute_op(flag);
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
+	/* 0x8000000: AUDIO_MUTE_PATH_1 */
 	if (get_hdmitx21_init() == 1)
-		hdmitx21_audio_mute_op(flag);
+		hdmitx21_audio_mute_op(flag, 0x8000000);
 #endif
 }
 EXPORT_SYMBOL(hdmitx_audio_mute_op);
@@ -117,9 +118,10 @@ void hdmitx_video_mute_op(u32 flag)
 	if (get_hdmitx20_init() == 1)
 		hdmitx20_video_mute_op(flag);
 #endif
+/* just for debug, path = 0 */
 #if defined(CONFIG_AMLOGIC_HDMITX21)
 	if (get_hdmitx21_init() == 1)
-		hdmitx21_video_mute_op(flag);
+		hdmitx21_video_mute_op(flag, 0);
 #endif
 }
 EXPORT_SYMBOL(hdmitx_video_mute_op);
@@ -186,7 +188,15 @@ int register_earcrx_callback(pf_callback callback)
 		hdmitx_earc_hpdst(callback);
 #endif
 #if defined(CONFIG_AMLOGIC_HDMITX21)
-	if (get_hdmitx21_init() == 1)
+	/* ARC IN audio capture not working due to init
+	 * sequence issue of eARC driver and HDMI Tx driver.
+	 * when eARC driver try to register_earcrx_callback,
+	 * HDMI Tx driver probe/init is not finish, that lead
+	 * register_earcrx_callback fail and eARC driver
+	 * doesn't know if HDMI Tx cable plug in/out.
+	 * so don't check hdmitx21 init or not
+	 */
+	/*if (get_hdmitx21_init() == 1)*/
 		hdmitx21_earc_hpdst(callback);
 #endif
 	return 0;

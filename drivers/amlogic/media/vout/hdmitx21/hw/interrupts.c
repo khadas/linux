@@ -231,13 +231,27 @@ static void intr_status_save_and_clear(void)
 
 static irqreturn_t intr_handler(int irq, void *dev)
 {
+	unsigned int top_intr_state;
 	struct hdmitx_dev *hdev = (struct hdmitx_dev *)dev;
 
+RE_ISR:
 	intr_status_save_and_clear();
+	top_intr_state = hdmitx21_rd_reg(HDMITX_TOP_INTR_STAT);
 
 	/* for hdcp cts test, need handle ASAP w/o any delay */
 	queue_delayed_work(hdev->hdmi_wq, &hdev->work_internal_intr, 0);
 
+	/* if TX Controller interrupt shadowing is true,
+	 * it means there's interrupt not cleared/handled
+	 * so need to handle it before exit interrupt handler
+	 */
+	if (top_intr_state & BIT(31) ||
+		top_intr_state & BIT(2) ||
+		top_intr_state & BIT(1) ||
+		top_intr_state & BIT(0)) {
+		pr_info("interrupt not cleared, re-handle intr\n");
+		goto RE_ISR;
+	}
 	return IRQ_HANDLED;
 }
 

@@ -157,10 +157,7 @@ static int _tpi_infoframe_wrrd(u8 wr, u16 info_type, u8 *body)
 		sel = 7;
 		tpi_packet_send(sel, body);
 		return 0;
-	/* specially for HF-VSIF
-	 * note when DV_VSIF + HF_VSIF both enabled,
-	 * DV_VSIF should come later
-	 */
+	/* specially for HF-VSIF */
 	case HDMI_INFOFRAME_TYPE_VENDOR2:
 		sel = 8;
 		break;
@@ -191,7 +188,7 @@ void hdmitx_infoframe_send(u16 info_type, u8 *body)
 	_tpi_infoframe_wrrd(1, info_type, body);
 }
 
-int hdmitx_infoframe_rawget(u8 info_type, u8 *body)
+int hdmitx_infoframe_rawget(u16 info_type, u8 *body)
 {
 	return _tpi_infoframe_wrrd(0, info_type, body);
 }

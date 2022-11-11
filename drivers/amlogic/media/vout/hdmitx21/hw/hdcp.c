@@ -86,7 +86,7 @@ void set_hdcp2_topo(u32 topo_type)
 {
 	struct arm_smccc_res res;
 
-	pr_hdcp_info("%s: %d", __func__, topo_type);
+	pr_info("%s: %d", __func__, topo_type);
 	arm_smccc_smc(HDCPTX_IOOPR, HDCP22_SET_TOPO, topo_type, 0, 0, 0, 0, 0, &res);
 }
 
@@ -98,6 +98,7 @@ void hdcptx_init_reg(void)
 	hdmitx21_wr_reg(TPI_MISC_IVCTX, 1);
 	hdmitx21_set_bit(CP2TX_CTRL_2_IVCTX, BIT_CP2TX_CTRL_2_RI_SEQNUMM_AUTO, false);
 	hdmitx21_wr_reg(RI_128_COMP_IVCTX, 0);
+	hdcptx2_smng_auto(false);
 }
 
 u8 hdcptx1_ds_cap_status_get(void)
@@ -323,6 +324,8 @@ void hdcptx2_reauth_send(void)
 
 	hdmitx21_wr_reg(CP2TX_CTRL_1_IVCTX, 0x21);
 	hdmitx21_wr_reg(CP2TX_CTRL_1_IVCTX, 0x20);
+
+	hdmitx21_set_bit(AON_CYP_CTL_IVCTX, BIT(3), false);
 }
 
 u8 hdcptx2_topology_get(void)
@@ -369,13 +372,25 @@ void hdcptx2_ds_rcv_id_read(u8 *p_rcv_id)
 
 void hdcptx2_src_auth_start(u8 content_type)
 {
+	u32 reset_val = 0;
+
 	if (content_type != 0 && content_type != 1)
 		content_type = 0;
+	/* reset hdcp2x logic and HW state machine */
+	reset_val = hdmitx21_rd_reg(HDCP2X_TX_SRST_IVCTX);
+	//hdmitx21_set_bit(HDCP2X_TX_SRST_IVCTX, BIT(5), true);
+	hdmitx21_wr_reg(HDCP2X_TX_SRST_IVCTX, reset_val | 0x20);
+	//hdmitx21_set_bit(HDCP2X_TX_SRST_IVCTX, BIT(5), false);
+	hdmitx21_wr_reg(HDCP2X_TX_SRST_IVCTX, reset_val &  (~0x20));
+
+	hdmitx21_set_bit(AON_CYP_CTL_IVCTX, BIT(3), true);
+
 	hdmitx21_set_bit(HDCP2X_CTL_1_IVCTX, BIT_HDCP2X_CTL_1_HPD_SW, true);
 	hdmitx21_set_bit(HDCP2X_CTL_1_IVCTX, BIT_HDCP2X_CTL_1_HPD_OVR, true);
 	hdmitx21_wr_reg(CP2TX_GP_IN2_IVCTX,
 		BIT_CP2TX_TIMEOUT_DISABLE_B2 | BIT_CP2TX_IGNORE_RXSTATUS_B0);
-	hdmitx21_set_bit(HDCP2X_CTL_0_IVCTX, BIT_HDCP2X_CTL_0_EN, true);
+	hdmitx21_set_bit(HDCP2X_CTL_0_IVCTX,
+		BIT_HDCP2X_CTL_0_EN | BIT_HDCP2X_CTL_0_ENCRYPT_EN, true);
 }
 
 void hdcptx2_smng_auto(bool en)

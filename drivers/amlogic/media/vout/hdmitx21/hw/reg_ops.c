@@ -220,29 +220,48 @@ static void hdmitx_wr_cor(u32 addr, u8 data)
 	sec_wr8(base_offset + addr, data);
 } /* hdmitx_wr_cor */
 
+static DEFINE_SPINLOCK(reg_lock);
+
 u32 hdmitx21_rd_reg(u32 addr)
 {
-	u32 offset = (addr & TOP_OFFSET_MASK) >> 24;
+	u32 offset;
 	u32 data;
+	unsigned long flags;
+
+	spin_lock_irqsave(&reg_lock, flags);
+	offset = (addr & TOP_OFFSET_MASK) >> 24;
 
 	addr = addr & 0xffff;
 	if (offset)
 		data = hdmitx_rd_top(addr);
 	else
 		data = hdmitx_rd_cor(addr);
+	spin_unlock_irqrestore(&reg_lock, flags);
 
 	return data;
 }
 
 void hdmitx21_wr_reg(u32 addr, u32 val)
 {
-	u32 offset = (addr & TOP_OFFSET_MASK) >> 24;
+	unsigned long flags;
+	u32 offset;
+
+	spin_lock_irqsave(&reg_lock, flags);
+	offset = (addr & TOP_OFFSET_MASK) >> 24;
 
 	addr = addr & 0xffff;
-	if (offset)
+	if (offset) {
 		hdmitx_wr_top(addr, val);
-	else
-		hdmitx_wr_cor(addr, val);
+	} else {
+		/* don't clear hdcp2.2 interrupt if hdcp22 core is under reset */
+		if ((addr != CP2TX_INTR0_IVCTX &&
+			addr != CP2TX_INTR1_IVCTX &&
+			addr != CP2TX_INTR2_IVCTX &&
+			addr != CP2TX_INTR3_IVCTX) ||
+			!(hdmitx_rd_cor(HDCP2X_TX_SRST_IVCTX) & 0x30))
+			hdmitx_wr_cor(addr, val);
+	}
+	spin_unlock_irqrestore(&reg_lock, flags);
 }
 
 bool hdmitx21_get_bit(u32 addr, u32 bit_nr)

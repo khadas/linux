@@ -25,6 +25,7 @@
 #include <linux/compiler.h>
 #include <linux/arm-smccc.h>
 
+#include <linux/amlogic/media/video_sink/video.h>
 #include <linux/amlogic/media/vout/vinfo.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/enc_clk_config.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_info_global.h>
@@ -991,11 +992,22 @@ enum hdmi_tf_type hdmitx21_get_cur_hdr_st(void)
 	return mytype;
 }
 
+/* used for DV VSIF/HDR10+ check
+ * note: DV_VSIF/HDR10+_VSIF/HDMI14_VSIF and HF_VSIF use
+ * different VSIF per DV CTS spec, use ifdb_present and
+ * additional_vsif_num to decide the position of HF_VSIF
+ */
 static bool hdmitx_vsif_en(u8 *body)
 {
 	int ret;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
 
-	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	if (hdev->rxcap.ifdb_present && hdev->rxcap.additional_vsif_num >= 1)
+		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
+	else if (!hdev->rxcap.ifdb_present)
+		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR2, body);
+	else
+		ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_VENDOR, body);
 	if (ret == -1 || ret == 0)
 		return 0;
 	else
@@ -1008,7 +1020,7 @@ enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 	u8 body[31] = {0};
 	enum hdmi_tf_type type = HDMI_NONE;
 	union hdmi_infoframe info;
-	struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info;
+	/* struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info; */
 	struct hdmi_avi_infoframe *avi = (struct hdmi_avi_infoframe *)&info;
 	unsigned int ieee_code = 0;
 	unsigned int size = 0;
@@ -1017,11 +1029,19 @@ enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 	if (!hdmitx_vsif_en(body))
 		return type;
 
-	ret = hdmi_infoframe_unpack(&info, body, sizeof(body));
-	if (ret)
+	/* ret = hdmi_infoframe_unpack(&info, body, sizeof(body)); */
+	/* if (ret) */
+		/* return type; */
+	/* ieee_code = vend->oui; */
+	/* size = vend->length; */
+
+	/* check Packet type */
+	if (body[0] != 0x81)
 		return type;
-	ieee_code = vend->oui;
-	size = vend->length;
+
+	size = body[2];
+	ieee_code = body[4] | (body[5] << 8) | (body[6] << 16);
+	/* dolby_vision_signal == body[7] & 0x3 */
 
 	ret = hdmitx_infoframe_rawget(HDMI_INFOFRAME_TYPE_AVI, body);
 	if (ret <= 0)
@@ -1043,20 +1063,26 @@ enum hdmi_tf_type hdmitx21_get_cur_dv_st(void)
 
 enum hdmi_tf_type hdmitx21_get_cur_hdr10p_st(void)
 {
-	int ret;
+	/* int ret; */
 	unsigned int ieee_code = 0;
 	u8 body[31] = {0};
 	enum hdmi_tf_type type = HDMI_NONE;
-	union hdmi_infoframe info;
-	struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info;
+	/* union hdmi_infoframe info; */
+	/* struct hdmi_vendor_infoframe *vend = (struct hdmi_vendor_infoframe *)&info; */
 
 	if (!hdmitx_vsif_en(body))
 		return type;
 
-	ret = hdmi_infoframe_unpack(&info, body, sizeof(body));
-	if (ret)
+	/* ret = hdmi_infoframe_unpack(&info, body, sizeof(body)); */
+	/* if (ret) */
+		/* return type; */
+	/* ieee_code = vend->oui; */
+
+	/* check Packet type */
+	if (body[0] != 0x81)
 		return type;
-	ieee_code = vend->oui;
+
+	ieee_code = body[4] | (body[5] << 8) | (body[6] << 16);
 	if (ieee_code == HDR10PLUS_IEEEOUI)
 		type = HDMI_HDR10P_DV_VSIF;
 
@@ -1532,6 +1558,7 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 	int ret;
 	unsigned long adr = 0;
 	unsigned long value = 0;
+	static enum hdmitx_event event_type = HDMITX_NONE_EVENT;
 
 	if (!buf)
 		return;
@@ -1792,6 +1819,33 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 		ret = kstrtoul(tmpbuf + 8, 10, &value);
 		hdmitx21_ext_set_audio_output(value);
 		pr_info("aud_mute :%lu\n", value);
+	} else if (strncmp(tmpbuf, "testtype", 8) == 0) {
+		ret = kstrtoul(tmpbuf + 8, 10, &value);
+		event_type = value;
+		pr_info("test event type :%lu\n", value);
+	} else if (strncmp(tmpbuf, "testevent", 9) == 0) {
+		ret = kstrtoul(tmpbuf + 9, 10, &value);
+		hdmitx21_set_uevent(event_type, value);
+	} else if (strncmp(tmpbuf, "teststate", 9) == 0) {
+		ret = kstrtoul(tmpbuf + 9, 10, &value);
+		hdmitx21_set_uevent_state(event_type, value);
+	} else if (strncmp(tmpbuf, "hdcp_timeout", 12) == 0) {
+		ret = kstrtoul(tmpbuf + 12, 10, &value);
+		hdev->up_hdcp_timeout_sec = value;
+	} else if (strncmp(tmpbuf, "avmute_ms", 10) == 0) {
+		ret = kstrtoul(tmpbuf + 10, 10, &value);
+		avmute_ms = value;
+		pr_info("set avmute_ms :%lu\n", avmute_ms);
+	} else if (strncmp(tmpbuf, "vid_mute_ms", 10) == 0) {
+		ret = kstrtoul(tmpbuf + 10, 10, &value);
+		vid_mute_ms = value;
+		pr_info("set vid_mute_ms :%lu\n", vid_mute_ms);
+	} else if (strncmp(tmpbuf, "get_output_mute", 15) == 0) {
+		pr_info("VPP output mute :%d\n", get_output_mute());
+	} else if (strncmp(tmpbuf, "set_output_mute", 15) == 0) {
+		ret = kstrtoul(tmpbuf + 15, 10, &value);
+		set_output_mute(!!value);
+		pr_info("set VPP output mute :%d\n", !!value);
 	}
 }
 
@@ -1950,9 +2004,7 @@ static void hdmitx_debug_bist(struct hdmitx_dev *hdev, u32 num)
 static void hdmitx_getediddata(u8 *des, u8 *src)
 {
 	int i = 0;
-	u32 blk;
-
-	blk = src[126] + 1;
+	u32 blk = src[126] + 1;
 
 	if (blk == 2)
 		if (src[128 + 4] == 0xe2 && src[128 + 5] == 0x78)
@@ -2115,6 +2167,9 @@ static int hdmitx_cntl_ddc(struct hdmitx_dev *hdev, u32 cmd,
 		hdmitx_set_scdc_div40(argv == 1);
 		hdev->div40 = (argv == 1);
 		break;
+	case DDC_HDCP_SET_TOPO_INFO:
+		set_hdcp2_topo(!!argv);
+		break;
 	default:
 		break;
 	}
@@ -2158,17 +2213,22 @@ static int hdmitx_cntl_config(struct hdmitx_dev *hdev, u32 cmd,
 		break;
 	case CONF_VIDEO_MUTE_OP:
 		if (argv == VIDEO_MUTE) {
+			/*
 			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
 			hd21_write_reg(VENC_VIDEO_TST_EN, 1);
 			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 0);
-			/*_Y/CB/CR, 10bits Unsigned/Signed/Signed */
 			hd21_write_reg(VENC_VIDEO_TST_Y, 0x0);
 			hd21_write_reg(VENC_VIDEO_TST_CB, 0x200);
 			hd21_write_reg(VENC_VIDEO_TST_CR, 0x200);
+			*/
+			set_output_mute(true);
 		}
 		if (argv == VIDEO_UNMUTE) {
+			/*
 			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 1, 3, 1);
 			hd21_write_reg(VENC_VIDEO_TST_EN, 0);
+			*/
+			set_output_mute(false);
 		}
 		break;
 	case CONF_CLR_AVI_PACKET:
@@ -2259,9 +2319,8 @@ static int hdmitx_cntl_misc(struct hdmitx_dev *hdev, u32 cmd,
 		if (argv == TMDS_PHY_ENABLE)
 			hdmi_phy_wakeup(hdev);  /* TODO */
 		if (argv == TMDS_PHY_DISABLE) {
-			hdev->hdcp_mode = 0x00;
-			if (get_hdcp2_lstore() || get_hdcp1_lstore())
-				hdcp_mode_set(0);
+			/* as did in echo -1 > hdcp_mode in hdmitx20 */
+			hdmitx21_disable_hdcp(hdev);
 			hdmi_phy_suspend();
 		}
 		break;
@@ -2331,8 +2390,14 @@ static void hdmi_phy_suspend(void)
 		phy_cntl5 = ANACTRL_HDMIPHY_CTRL5;
 	else
 		phy_cntl5 = ANACTRL_HDMIPHY_CTRL6;
-
-	hd21_write_reg(phy_cntl0, 0x0);
+	/* When HDMI PHY is turned off, the arc power
+	 * supply module still need to work, otherwise
+	 * hdmi arc disables, no audio during HEACT 5-18
+	 */
+	if (!hdev->suspend_flag && hdev->arc_rx_en)
+		hd21_write_reg(phy_cntl0, 0x10000);
+	else
+		hd21_write_reg(phy_cntl0, 0x0);
 	/* keep PHY_CNTL3 bit[1:0] as 0b11,
 	 * otherwise may cause HDCP22 boot failed
 	 */

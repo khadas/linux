@@ -10,13 +10,30 @@
 #include <linux/spinlock.h>
 #include <linux/amlogic/media/vout/hdmi_tx21/hdmi_tx_module.h>
 
-#define HDCP_STAGE1_RETRY_TIMER 2000//400 /* unit: ms */
+/* L_0 will always be printed, set log level to L_1/2/3 for detail */
+#define L_0 0
+#define L_1 1
+#define L_2 2
+#define L_3 3
+
+#define HDCP_STAGE1_RETRY_TIMER 2000 /* unit: ms */
 #define HDCP_BSKV_CHECK_TIMER 100
 #define HDCP_FAILED_RETRY_TIMER 200
 #define HDCP_DS_KSVLIST_RETRY_TIMER 5000//200
 #define HDCP_RCVIDLIST_CHECK_TIMER 3000//200
 #define HDMI_INFOFRAME_TYPE_EMP 0x7f
 #define DEFAULT_STREAM_TYPE 0
+#define VIDEO_MUTE_PATH_1 0x8000000 //mute by vid_mute sysfs node
+#define VIDEO_MUTE_PATH_2 0x4000000 //mute by stream type 1
+#define VIDEO_MUTE_PATH_3 0x2000000 //mute by rx request auth
+
+#define AUDIO_MUTE_PATH_1 0x8000000 //mute by audio module
+#define AUDIO_MUTE_PATH_2 0x4000000 //mute by aud_mote sysfs node
+#define AUDIO_MUTE_PATH_3 0x2000000 //mute by stream type 1
+#define AUDIO_MUTE_PATH_4 0x1000000 //mute by rx request auth
+
+#define AVMUTE_PATH_1 0x80 //mute by avmute sysfs node
+#define AVMUTE_PATH_2 0x40 //mute by upstream side request re-auth
 
 struct emp_packet_st;
 enum vrr_component_conf;
@@ -262,7 +279,7 @@ enum vrr_component_conf {
 #define YCC_RANGE_RSVD		2
 void hdmi_avi_infoframe_config(enum avi_component_conf conf, u8 val);
 
-int hdmitx_infoframe_rawget(u8 info_type, u8 *body);
+int hdmitx_infoframe_rawget(u16 info_type, u8 *body);
 
 void hdmi_gcppkt_manual_set(bool en);
 
@@ -335,6 +352,26 @@ struct hdcp_t {
 	struct hdcp_work timer_update_csm;
 	struct delayed_work ksv_notify_wk;
 	struct delayed_work req_reauth_wk;
+	struct delayed_work stream_mute_wk;
+	struct delayed_work stream_type_wk;
+	/* audio/video mute if upstream type = 1 */
+	bool stream_mute;
+	/* hdmirx side request flag, see hdmi_rx_repeater.h
+	 * STREAMTYPE_UPDATE 0x10
+	 * UPSTREAM_INACTIVE 0x20
+	 * UPSTREAM_ACTIVE 0x40
+	 * 0: notify reauth
+	 */
+	u8 rx_update_flag;
+	/* the stream type notified by upstream side
+	 * bit4: if 1, upstream may send stream type before
+	 * hdmitx start hdcp(passthrough enabled), need
+	 * to save it, and cover the stream type with bit3:0
+	 * when hdmitx hdcp propagate stream type. else
+	 * hdmitx is the active source and should decide
+	 * the stream type itself
+	 */
+	u8 saved_upstream_type;
 	/* 0: auto hdcp version, 1: hdcp1.4, 2: hdcp2.3 */
 	u8 req_reauth_ver;
 	u8 cont_smng_method;
@@ -343,6 +380,7 @@ struct hdcp_t {
 	bool hdcp14_second_part_pass;
 };
 
+extern unsigned int rx_hdcp2_ver;
 bool get_hdcp1_lstore(void);
 bool get_hdcp2_lstore(void);
 bool get_hdcp1_result(void);
@@ -406,18 +444,22 @@ int hdmitx_dump_vrr_status(struct seq_file *s, void *p);
 void hdmitx_vrr_enable(void);
 void hdmitx_vrr_disable(void);
 u8 hdmitx_reauth_request(u8 hdcp_version);
+void set_hdcp2_topo(u32 topo_type);
+bool get_hdcp2_topo(void);
+bool is_current_4k_format(void);
 void hdmitx21_enable_hdcp(struct hdmitx_dev *hdev);
+void hdmitx21_disable_hdcp(struct hdmitx_dev *hdev);
 void hdmitx21_rst_stream_type(struct hdcp_t *hdcp);
 bool hdcp_need_control_by_upstream(struct hdmitx_dev *hdev);
 int likely_frac_rate_mode(const char *m);
-
+u32 hdmitx21_get_hdcp_mode(void);
 extern unsigned long hdcp_reauth_dbg;
 extern unsigned long streamtype_dbg;
 extern unsigned long en_fake_rcv_id;
-
-void pr_hdcp_info(const char *fmt, ...);
-void set_hdcp2_topo(u32 topo_type);
-bool get_hdcp2_topo(void);
-
+extern unsigned long avmute_ms;
+extern unsigned long vid_mute_ms;
+bool hdmitx21_edid_only_support_sd(struct hdmitx_dev *hdev);
+bool is_4k_sink(struct hdmitx_dev *hdev);
+void hdmitx21_av_mute_op(u32 flag, unsigned int path);
 #endif /* __HDMI_TX_H__ */
 
