@@ -1605,6 +1605,7 @@ void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 {
 	struct evl_thread *curr = evl_current();
 	bool is_bp = false;
+	int ret;
 
 	if (in_nmi())
 		return;
@@ -1626,9 +1627,11 @@ void handle_oob_trap_exit(unsigned int trapnr, struct pt_regs *regs)
 	 * need be.
 	 */
 	if (!user_mode(regs)) {
-		evl_switch_oob();
+		ret = evl_switch_oob();
 		if ((EVL_DEBUG(CORE) || (curr->state & T_WOSS)) && !is_bp)
-			note_trap(curr, trapnr, regs, "resuming out-of-band");
+			note_trap(curr, trapnr, regs,
+				ret ? "failed to resume out-of-band" :
+				"resuming out-of-band");
 	}
 
 	hard_local_irq_disable();
