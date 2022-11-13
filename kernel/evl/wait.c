@@ -70,7 +70,7 @@ static void __evl_add_wait_queue(struct evl_thread *curr,
 {
 	assert_hard_lock(&wq->wchan.lock);
 
-	trace_evl_wait(wq);
+	trace_evl_wait(&wq->wchan);
 
 	if (!(wq->flags & EVL_WAIT_PRIO))
 		list_add_tail(&curr->wait_next, &wq->wchan.wait_list);
@@ -109,7 +109,7 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 {
 	assert_hard_lock(&wq->wchan.lock);
 
-	trace_evl_wake_up(wq);
+	trace_evl_wake_up(&wq->wchan);
 
 	if (list_empty(&wq->wchan.wait_list)) {
 		waiter = NULL;
@@ -132,7 +132,7 @@ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 
 	assert_hard_lock(&wq->wchan.lock);
 
-	trace_evl_flush_wait(wq);
+	trace_evl_flush_wait(&wq->wchan);
 
 	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next) {
 		list_del_init(&waiter->wait_next);
@@ -172,7 +172,7 @@ void evl_requeue_wait(struct evl_wait_channel *wchan, struct evl_thread *waiter)
 }
 EXPORT_SYMBOL_GPL(evl_requeue_wait);
 
-int evl_wait_schedule(struct evl_wait_queue *wq)
+int __evl_wait_schedule(struct evl_wait_channel *wchan)
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
@@ -180,7 +180,7 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 
 	evl_schedule();
 
-	trace_evl_finish_wait(wq);
+	trace_evl_finish_wait(wchan);
 
 	/*
 	 * Upon return from schedule, we may or may not have been
@@ -225,7 +225,7 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 		return -ENOMEM;
 
 	if (info & (T_TIMEO|T_BREAK)) {
-		raw_spin_lock_irqsave(&wq->wchan.lock, flags);
+		raw_spin_lock_irqsave(&wchan->lock, flags);
 		if (!list_empty(&curr->wait_next)) {
 			list_del_init(&curr->wait_next);
 			if (info & T_TIMEO)
@@ -233,18 +233,18 @@ int evl_wait_schedule(struct evl_wait_queue *wq)
 			else if (info & T_BREAK)
 				ret = -EINTR;
 		}
-		raw_spin_unlock_irqrestore(&wq->wchan.lock, flags);
+		raw_spin_unlock_irqrestore(&wchan->lock, flags);
 	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
 		bool empty;
-		raw_spin_lock_irqsave(&wq->wchan.lock, flags);
+		raw_spin_lock_irqsave(&wchan->lock, flags);
 		empty = list_empty(&curr->wait_next);
-		raw_spin_unlock_irqrestore(&wq->wchan.lock, flags);
+		raw_spin_unlock_irqrestore(&wchan->lock, flags);
 		EVL_WARN_ON_ONCE(CORE, !empty);
 	}
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(evl_wait_schedule);
+EXPORT_SYMBOL_GPL(__evl_wait_schedule);
 
 struct evl_thread *evl_wait_head(struct evl_wait_queue *wq)
 {

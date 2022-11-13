@@ -66,19 +66,19 @@ DECLARE_EVENT_CLASS(curr_thread_event,
 		  __entry->state, __entry->info)
 );
 
-DECLARE_EVENT_CLASS(wq_event,
-	TP_PROTO(struct evl_wait_queue *wq),
-	TP_ARGS(wq),
+DECLARE_EVENT_CLASS(wchan_event,
+	TP_PROTO(struct evl_wait_channel *wchan),
+	TP_ARGS(wchan),
 
 	TP_STRUCT__entry(
-		__string(name, wq->wchan.name)
+		__string(name, wchan->name)
 	),
 
 	TP_fast_assign(
-		__assign_str(name, wq->wchan.name);
+		__assign_str(name, wchan->name);
 	),
 
-	TP_printk("wq=%s", __get_str(name))
+	TP_printk("wchan=%s", __get_str(name))
 );
 
 DECLARE_EVENT_CLASS(mutex_event,
@@ -728,24 +728,24 @@ TRACE_EVENT(evl_timer_shot,
 		  __entry->cycles)
 );
 
-DEFINE_EVENT(wq_event, evl_wait,
-	TP_PROTO(struct evl_wait_queue *wq),
-	TP_ARGS(wq)
+DEFINE_EVENT(wchan_event, evl_wait,
+	TP_PROTO(struct evl_wait_channel *wchan),
+	TP_ARGS(wchan)
 );
 
-DEFINE_EVENT(wq_event, evl_wake_up,
-	TP_PROTO(struct evl_wait_queue *wq),
-	TP_ARGS(wq)
+DEFINE_EVENT(wchan_event, evl_wake_up,
+	TP_PROTO(struct evl_wait_channel *wchan),
+	TP_ARGS(wchan)
 );
 
-DEFINE_EVENT(wq_event, evl_flush_wait,
-	TP_PROTO(struct evl_wait_queue *wq),
-	TP_ARGS(wq)
+DEFINE_EVENT(wchan_event, evl_flush_wait,
+	TP_PROTO(struct evl_wait_channel *wchan),
+	TP_ARGS(wchan)
 );
 
-DEFINE_EVENT(wq_event, evl_finish_wait,
-	TP_PROTO(struct evl_wait_queue *wq),
-	TP_ARGS(wq)
+DEFINE_EVENT(wchan_event, evl_finish_wait,
+	TP_PROTO(struct evl_wait_channel *wchan),
+	TP_ARGS(wchan)
 );
 
 DEFINE_EVENT(mutex_event, evl_mutex_trylock,

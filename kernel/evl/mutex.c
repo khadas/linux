@@ -551,39 +551,6 @@ int evl_trylock_mutex(struct evl_mutex *mutex)
 }
 EXPORT_SYMBOL_GPL(evl_trylock_mutex);
 
-static int wait_mutex_schedule(struct evl_mutex *mutex)
-{
-	struct evl_thread *curr = evl_current();
-	unsigned long flags;
-	int ret = 0, info;
-
-	evl_schedule();
-
-	info = curr->info;
-	if (info & T_RMID)
-		return -EIDRM;
-
-	if (info & (T_TIMEO|T_BREAK)) {
-		raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
-		if (!list_empty(&curr->wait_next)) {
-			list_del_init(&curr->wait_next);
-			if (info & T_TIMEO)
-				ret = -ETIMEDOUT;
-			else if (info & T_BREAK)
-				ret = -EINTR;
-		}
-		raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
-	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
-		bool empty;
-		raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
-		empty = list_empty(&curr->wait_next);
-		raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
-		EVL_WARN_ON_ONCE(CORE, !empty);
-	}
-
-	return ret;
-}
-
 /*
  * Undo a PI chain walk due to a locking abort. The mutex state might
  * have changed under us since we dropped mutex->wchan.lock during the
@@ -780,7 +747,7 @@ retry:
 	list_add_priff(curr, &mutex->wchan.wait_list, wprio, wait_next);
 	evl_sleep_on(timeout, timeout_mode, mutex->clock, &mutex->wchan);
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
-	ret = wait_mutex_schedule(mutex);
+	ret = __evl_wait_schedule(&mutex->wchan);
 	/* If something went wrong while sleeping, bail out. */
 	if (ret) {
 		raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
