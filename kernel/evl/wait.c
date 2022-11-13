@@ -176,73 +176,68 @@ int __evl_wait_schedule(struct evl_wait_channel *wchan)
 {
 	struct evl_thread *curr = evl_current();
 	unsigned long flags;
-	int ret = 0, info;
+	int info;
 
 	evl_schedule();
 
 	trace_evl_finish_wait(wchan);
 
 	/*
-	 * Upon return from schedule, we may or may not have been
-	 * unlinked from the wait channel, depending on whether we
-	 * actually resumed as a result of receiving a wakeup signal
-	 * from evl_wake_up() or evl_flush_wait(). The following logic
-	 * applies in order, depending on the information flags:
+	 * Upon return from a wait state, the following logic applies
+	 * depending on the information flags:
+	 *
+	 * - if none of T_RMID, T_NOMEM, T_TIMEO or T_BREAK is set, we
+	 * got a wakeup upon a successful operation. In this case, we
+	 * should not be linked to the waitqueue anymore. NOTE: the
+	 * caller may need to check for T_BCAST if the signal is not
+	 * paired with a condition but works as a pulse instead.
 	 *
 	 * - if T_RMID is set, evl_flush_wait() removed us from the
 	 * waitqueue before the wait channel got destroyed, and
 	 * therefore cannot be referred to anymore since it may be
 	 * stale: -EIDRM is returned.
 	 *
-	 * - if neither T_TIMEO or T_BREAK are set, we got a wakeup
-	 * and success (zero) or -ENOMEM is returned, depending on
-	 * whether T_NOMEM is set (i.e. the operation was aborted due
-	 * to a memory shortage). In addition, the caller may need to
-	 * check for T_BCAST if the signal is not paired with a
-	 * condition but works as a pulse instead.
+	 * - otherwise, we may still be linked to the waitqueue if the
+	 * wait was aborted prior to receiving any wakeup, in which
+	 * case we have to drop out from there. Timeout or break
+	 * condition might be followed by a normal wakeup, in which
+	 * case the former prevails wrt the status returned to the
+	 * caller.
 	 *
-	 * - otherwise, if any of T_TIMEO or T_BREAK is set:
-	 *
-	 *   + if we are still linked to the waitqueue, the wait was
-	 * aborted prior to receiving any wakeup so we translate the
-	 * information bit to the corresponding error status,
-	 * i.e. -ETIMEDOUT or -EINTR respectively.
-	 *
-	 *  + in the rare case where we have been unlinked and we also
-	 * got any of T_TIMEO|T_BREAK, then both the wakeup signal and
-	 * some abort condition have occurred simultaneously on
-	 * different cores, in which case we ignore the latter. In the
-	 * particular case of T_BREAK caused by
-	 * handle_sigwake_event(), T_KICKED will be detected on the
-	 * return path from the OOB syscall, yielding -ERESTARTSYS as
-	 * expected.
+	 * INVARIANT: only the sleep-and-retry scheme to grab a
+	 * resource is safe and assumed throughout the
+	 * implementation. On the contrary, passing a resource from
+	 * the thread which releases it directly to the one it is
+	 * being granted to would be UNSAFE, since we could have a
+	 * stale resource left over upon a timeout or break condition
+	 * returned to the caller.
 	 */
 	info = evl_current()->info;
+	if (likely(!(info & (T_RMID|T_NOMEM|T_TIMEO|T_BREAK)))) { /* Fast path. */
+		if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
+			bool empty;
+			raw_spin_lock_irqsave(&wchan->lock, flags);
+			empty = list_empty(&curr->wait_next);
+			raw_spin_unlock_irqrestore(&wchan->lock, flags);
+			EVL_WARN_ON_ONCE(CORE, !empty);
+		}
+		return 0;
+	}
+
 	if (info & T_RMID)
 		return -EIDRM;
+
+	raw_spin_lock_irqsave(&wchan->lock, flags);
+
+	if (!list_empty(&curr->wait_next))
+		list_del_init(&curr->wait_next);
+
+	raw_spin_unlock_irqrestore(&wchan->lock, flags);
 
 	if (info & T_NOMEM)
 		return -ENOMEM;
 
-	if (info & (T_TIMEO|T_BREAK)) {
-		raw_spin_lock_irqsave(&wchan->lock, flags);
-		if (!list_empty(&curr->wait_next)) {
-			list_del_init(&curr->wait_next);
-			if (info & T_TIMEO)
-				ret = -ETIMEDOUT;
-			else if (info & T_BREAK)
-				ret = -EINTR;
-		}
-		raw_spin_unlock_irqrestore(&wchan->lock, flags);
-	} else if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
-		bool empty;
-		raw_spin_lock_irqsave(&wchan->lock, flags);
-		empty = list_empty(&curr->wait_next);
-		raw_spin_unlock_irqrestore(&wchan->lock, flags);
-		EVL_WARN_ON_ONCE(CORE, !empty);
-	}
-
-	return ret;
+	return info & T_TIMEO ? -ETIMEDOUT : -EINTR;
 }
 EXPORT_SYMBOL_GPL(__evl_wait_schedule);
 
