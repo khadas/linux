@@ -122,34 +122,25 @@ out:
 	curr->u_window->pp_pending = EVL_NO_HANDLE;
 }
 
-/* event->gate->lock and event->wait_queue.wchan.lock held, irqs off */
-static void __untrack_event(struct evl_monitor *event)
+/* gate->lock + event->wait_queue.wchan.lock held, irqs off */
+static void untrack_event(struct evl_monitor *event, struct evl_monitor *gate)
 {
+	assert_hard_lock(&gate->lock);
+	assert_hard_lock(&event->wait_queue.wchan.lock);
+
 	/*
 	 * If no more waiter is pending on this event, have the gate
 	 * stop tracking it.
 	 */
-	if (!evl_wait_active(&event->wait_queue)) {
+	if (event->gate == gate && !evl_wait_active(&event->wait_queue)) {
 		list_del(&event->next);
 		event->gate = NULL;
 		event->state->u.event.gate_offset = EVL_MONITOR_NOGATE;
 	}
 }
 
-static void untrack_event(struct evl_monitor *event)
-{
-	struct evl_monitor *gate = event->gate;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&gate->lock, flags);
-	raw_spin_lock(&event->wait_queue.wchan.lock);
-	__untrack_event(event);
-	raw_spin_unlock(&event->wait_queue.wchan.lock);
-	raw_spin_unlock_irqrestore(&gate->lock, flags);
-}
-
-/* event->gate->lock and event->wait_queue.wchan.lock held, irqs off */
-static void wakeup_waiters(struct evl_monitor *event)
+/* gate->lock + event->wait_queue.wchan.lock held, irqs off */
+static void wakeup_waiters(struct evl_monitor *event, struct evl_monitor *gate)
 {
 	struct evl_monitor_state *state = event->state;
 	struct evl_thread *waiter, *n;
@@ -160,16 +151,16 @@ static void wakeup_waiters(struct evl_monitor *event)
 	/*
 	 * We are called upon exiting a gate which serializes access
 	 * to a signaled event. Unblock the thread(s) satisfied by the
-	 * signal, either all, some or only one of them, depending on
-	 * whether this is due to a broadcast, targeted or regular
-	 * notification.
+	 * signal, either all of them, a designated set or the first
+	 * waiter in line, depending on whether this is due to a
+	 * broadcast, targeted or regular notification.
 	 *
 	 * Precedence order for event delivery is as follows:
 	 * broadcast > targeted > regular.  This means that a
 	 * broadcast notification is considered first and applied if
 	 * detected. Otherwise, and in presence of a targeted wake up
-	 * request, only the target thread(s) are woken up. Otherwise,
-	 * the thread heading the wait queue is readied.
+	 * request, only target threads are resumed. Otherwise, the
+	 * thread heading the wait queue is readied.
 	 */
 	if (evl_wait_active(&event->wait_queue)) {
 		if (bcast) {
@@ -184,7 +175,7 @@ static void wakeup_waiters(struct evl_monitor *event)
 		} else {
 			evl_wake_up_head(&event->wait_queue);
 		}
-		__untrack_event(event);
+		untrack_event(event, gate);
 	} /* Otherwise, spurious wakeup (fine, might happen). */
 
 	state->flags &= ~(EVL_MONITOR_SIGNALED|
@@ -274,7 +265,7 @@ static int exit_monitor(struct evl_monitor *gate)
 		list_for_each_entry_safe(event, n, &gate->events, next) {
 			raw_spin_lock(&event->wait_queue.wchan.lock);
 			if (event->state->flags & EVL_MONITOR_SIGNALED)
-				wakeup_waiters(event);
+				wakeup_waiters(event, gate);
 			raw_spin_unlock(&event->wait_queue.wchan.lock);
 		}
 	}
@@ -545,7 +536,12 @@ static int wait_monitor(struct file *filp,
 	 */
 	ret = evl_wait_schedule(&event->wait_queue);
 	if (ret) {
-		untrack_event(event);
+		raw_spin_lock_irqsave(&gate->lock, flags);
+		raw_spin_lock(&event->wait_queue.wchan.lock);
+		untrack_event(event, gate);
+		raw_spin_unlock(&event->wait_queue.wchan.lock);
+		raw_spin_unlock_irqrestore(&gate->lock, flags);
+
 		/*
 		 * Disable syscall restart upon signal (only), user
 		 * receives -EINTR and a zero status in this case. If
