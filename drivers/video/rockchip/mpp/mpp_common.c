@@ -2057,6 +2057,17 @@ void mpp_reg_show(struct mpp_dev *mpp, u32 offset)
 		offset >> 2, offset, mpp_read_relaxed(mpp, offset));
 }
 
+void mpp_reg_show_range(struct mpp_dev *mpp, u32 start, u32 end)
+{
+	u32 offset;
+
+	if (!mpp)
+		return;
+
+	for (offset = start; offset < end; offset += sizeof(u32))
+		mpp_reg_show(mpp, offset);
+}
+
 /* The device will do more probing work after this */
 int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev)
@@ -2326,27 +2337,53 @@ int mpp_time_record(struct mpp_task *task)
 
 int mpp_time_part_diff(struct mpp_task *task)
 {
-	ktime_t end;
-	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
+	if (mpp_debug_unlikely(DEBUG_TIMING)) {
+		ktime_t end;
+		struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
 
-	end = ktime_get();
-	mpp_debug(DEBUG_PART_TIMING, "%s:%d session %d:%d part time: %lld us\n",
-		  dev_name(mpp->dev), task->core_id, task->session->pid,
-		  task->session->index, ktime_us_delta(end, task->part));
-	task->part = end;
+		end = ktime_get();
+		mpp_debug(DEBUG_PART_TIMING, "%s:%d session %d:%d part time: %lld us\n",
+			dev_name(mpp->dev), task->core_id, task->session->pid,
+			task->session->index, ktime_us_delta(end, task->part));
+		task->part = end;
+	}
 
 	return 0;
 }
 
 int mpp_time_diff(struct mpp_task *task)
 {
-	ktime_t end;
-	struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
+	if (mpp_debug_unlikely(DEBUG_TIMING)) {
+		ktime_t end;
+		struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
 
-	end = ktime_get();
-	mpp_debug(DEBUG_TIMING, "%s:%d session %d:%d time: %lld us\n",
-		  dev_name(mpp->dev), task->core_id, task->session->pid,
-		  task->session->index, ktime_us_delta(end, task->start));
+		end = ktime_get();
+		mpp_debug(DEBUG_TIMING, "%s:%d session %d:%d time: %lld us\n",
+			dev_name(mpp->dev), task->core_id, task->session->pid,
+			task->session->index, ktime_us_delta(end, task->start));
+	}
+
+	return 0;
+}
+
+int mpp_time_diff_with_hw_time(struct mpp_task *task, u32 clk_hz)
+{
+	if (mpp_debug_unlikely(DEBUG_TIMING)) {
+		ktime_t end;
+		struct mpp_dev *mpp = mpp_get_task_used_device(task, task->session);
+
+		end = ktime_get();
+
+		if (clk_hz)
+			mpp_debug(DEBUG_TIMING, "%s:%d session %d:%d time: %lld us hw %d us\n",
+				dev_name(mpp->dev), task->core_id, task->session->pid,
+				task->session->index, ktime_us_delta(end, task->start),
+				task->hw_cycles / (clk_hz / 1000000));
+		else
+			mpp_debug(DEBUG_TIMING, "%s:%d session %d:%d time: %lld us\n",
+				dev_name(mpp->dev), task->core_id, task->session->pid,
+				task->session->index, ktime_us_delta(end, task->start));
+	}
 
 	return 0;
 }
@@ -2512,6 +2549,7 @@ int mpp_clk_set_rate(struct mpp_clk_info *clk_info,
 	if (clk_rate_hz) {
 		clk_info->used_rate_hz = clk_rate_hz;
 		clk_set_rate(clk_info->clk, clk_rate_hz);
+		clk_info->real_rate_hz = clk_get_rate(clk_info->clk);
 	}
 
 	return 0;

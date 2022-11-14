@@ -189,21 +189,6 @@ struct rkcif_buffer {
 	struct dma_buf *dbuf;
 };
 
-struct rkcif_dummy_buffer {
-	struct list_head list;
-	struct dma_buf *dbuf;
-	dma_addr_t dma_addr;
-	struct page **pages;
-	void *mem_priv;
-	void *vaddr;
-	u32 size;
-	int dma_fd;
-	bool is_need_vaddr;
-	bool is_need_dbuf;
-	bool is_need_dmafd;
-	bool is_free;
-};
-
 struct rkcif_tools_buffer {
 	struct vb2_v4l2_buffer *vb;
 	struct list_head list;
@@ -816,7 +801,6 @@ struct rkcif_device {
 	unsigned int			wait_line;
 	unsigned int			wait_line_bak;
 	unsigned int			wait_line_cache;
-	struct rkcif_dummy_buffer	dummy_buf;
 	struct completion		cmpl_ntf;
 	struct csi2_dphy_hw		*dphy_hw;
 	phys_addr_t			resmem_pa;
@@ -828,6 +812,7 @@ struct rkcif_device {
 	bool				is_use_dummybuf;
 	bool				is_notifier_isp;
 	bool				is_thunderboot;
+	bool				is_rdbk_to_online;
 	int				rdbk_debug;
 	int				sync_type;
 	int				sditf_cnt;
@@ -916,5 +901,7 @@ int rkcif_get_linetime(struct rkcif_stream *stream);
 void rkcif_assign_check_buffer_update_toisp(struct rkcif_stream *stream);
 
 struct rkcif_rx_buffer *to_cif_rx_buf(struct rkisp_rx_buf *dbufs);
+
+int rkcif_clr_unready_dev(void);
 
 #endif

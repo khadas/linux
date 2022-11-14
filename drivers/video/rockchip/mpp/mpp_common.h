@@ -285,6 +285,7 @@ struct mpp_clk_info {
 	u32 reduce_rate_hz;
 	/* record last used rate */
 	u32 used_rate_hz;
+	u32 real_rate_hz;
 };
 
 struct mpp_dev_var {
@@ -493,6 +494,8 @@ struct mpp_task {
 	/* for multi-core */
 	struct mpp_dev *mpp;
 	s32 core_id;
+	/* hw cycles */
+	u32 hw_cycles;
 };
 
 struct mpp_taskqueue {
@@ -678,6 +681,7 @@ int mpp_task_dump_hw_reg(struct mpp_dev *mpp);
 void mpp_task_dump_timing(struct mpp_task *task, s64 time_diff);
 
 void mpp_reg_show(struct mpp_dev *mpp, u32 offset);
+void mpp_reg_show_range(struct mpp_dev *mpp, u32 start, u32 end);
 void mpp_free_task(struct kref *ref);
 
 void mpp_session_deinit(struct mpp_session *session);
@@ -707,6 +711,7 @@ int mpp_set_grf(struct mpp_grf_info *grf_info);
 
 int mpp_time_record(struct mpp_task *task);
 int mpp_time_diff(struct mpp_task *task);
+int mpp_time_diff_with_hw_time(struct mpp_task *task, u32 clk_hz);
 int mpp_time_part_diff(struct mpp_task *task);
 
 int mpp_write_req(struct mpp_dev *mpp, u32 *regs,
