@@ -62,6 +62,7 @@ static long efuse_burn_unlocked_ioctl(struct file *file,
 			pr_err("%s: copy_from_user fail\n", __func__);
 			return -EFAULT;
 		}
+		info.itemname[31] = '\0';
 		if (efuse_burn_lockable_is_cfg(info.itemname) == 0) {
 			info.status = efuse_burn_check_burned(info.itemname);
 		} else {

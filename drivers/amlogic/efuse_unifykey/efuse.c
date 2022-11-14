@@ -1205,7 +1205,7 @@ static int efuse_probe(struct platform_device *pdev)
 	struct aml_efuse_dev *efuse_dev;
 	struct resource *reg_mem = NULL;
 	void __iomem *reg_base = NULL;
-	unsigned int  secureboot_mask;
+	unsigned int  secureboot_mask = 0;
 
 	efuse_dev = devm_kzalloc(&pdev->dev, sizeof(*efuse_dev), GFP_KERNEL);
 	if (!efuse_dev) {
