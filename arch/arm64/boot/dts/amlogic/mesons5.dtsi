@@ -199,10 +199,10 @@
 			operating-points-v2 = <&a76_opp_table0>;
 			voltage-tolerance = <0>;
 			cpu-supply = <&vddcpub>;
+			dsu-supply = <&vddcpua>;
 			clock-latency = <50000>;
 			capacity-dmips-mhz = <1024>;
 			dynamic-power-coefficient = <512>;
-			cpu_supply_external_used;
 			dsu-opp-table = <1200000 879000 1500000 939000>;
 			dsu_clock_shared;
 			dsu-low-rate = <1000000>;
