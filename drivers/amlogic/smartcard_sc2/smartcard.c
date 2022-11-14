@@ -254,6 +254,30 @@ MODULE_PARM_DESC(clock_source, "\n\t\t clock_source");
 static int clock_source;
 module_param(clock_source, int, 0644);
 
+MODULE_PARM_DESC(atr_timeout, "\n\t\t atr_timeout");
+static int atr_timeout = 200000;
+module_param(atr_timeout, int, 0644);
+
+MODULE_PARM_DESC(atr1_timeout, "\n\t\t atr1_timeout");
+static int atr1_timeout = 1000000;
+module_param(atr1_timeout, int, 0644);
+
+MODULE_PARM_DESC(atr_reset, "\n\t\t atr_reset");
+static int atr_reset = 1;
+module_param(atr_reset, int, 0644);
+
+MODULE_PARM_DESC(bwt_time, "\n\t\t bwt_time");
+static int bwt_time = BWT_BASE_DEFAULT;
+module_param(bwt_time, int, 0644);
+
+MODULE_PARM_DESC(atr_clk_mux, "\n\t\t atr_clk_mux");
+static int atr_clk_mux = ATR_CLK_MUX_DEFAULT;
+module_param(atr_clk_mux, int, 0644);
+
+MODULE_PARM_DESC(atr_final_tcnt, "\n\t\t atr_final_tcnt");
+static int atr_final_tcnt = ATR_FINAL_TCNT_DEFAULT;
+module_param(atr_final_tcnt, int, 0644);
+
 #define NO_HOT_RESET
 /*#define DISABLE_RECV_INT*/
 /*#define ATR_FROM_INT*/
@@ -1084,6 +1108,8 @@ static void smc_mp0_clk_set(int clk)
 		data |= 0x049;
 	else if (clk == 13500)
 		data |= 0x024;
+	else
+		data |= 500000 / clk - 1;
 
 	sc2_write_sys(SMARTCARD_CLK_CTRL, data);
 	pr_error("%s data:0x%0x\n", __func__, data);
@@ -1116,6 +1142,10 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	unsigned long freq_cpu = 0;
 
 	pr_error("hw set param\n");
+	if (smc->param.freq == 0) {
+		pr_error("hw set param, freq = 0 invalid\n");
+		return 0;
+	}
 
 	if (smartcard_mpll0) {
 		smc_mp0_clk_set(smc->param.freq);
@@ -1194,7 +1224,7 @@ static int smc_hw_set_param(struct smc_dev *smc)
 	v = SMC_READ_REG(REG5);
 	reg5 = (struct smccard_hw_reg5 *)&v;
 	reg5->cwt_detect_en = cwt_det_en;
-	reg5->bwt_base_time_gnt = BWT_BASE_DEFAULT;
+	reg5->bwt_base_time_gnt = bwt_time;
 	SMC_WRITE_REG(REG5, v);
 	pr_error("REG5: 0x%08lx\n", v);
 
@@ -1269,11 +1299,11 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 			freq_cpu = 500000;
 			break;
 		}
+		pr_error("SMC CLK SOURCE - %luKHz\n", freq_cpu);
 	} else {
 		if (!smartcard_mpll0)
-			clk_set_rate(aml_smartcard_clk, FREQ_DEFAULT * 1000);
+			clk_set_rate(aml_smartcard_clk, smc->param.freq * 1000);
 	}
-	pr_error("SMC CLK SOURCE - %luKHz\n", freq_cpu);
 
 #ifdef RST_FROM_PIO
 	_gpio_out(smc->reset_pin, RESET_ENABLE, SMC_RESET_PIN_NAME);
@@ -1313,12 +1343,12 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 
 	v = SMC_READ_REG(REG1);
 	reg1 = (struct smc_answer_t0_rst *)&v;
-	reg1->atr_final_tcnt = ATR_FINAL_TCNT_DEFAULT;
+	reg1->atr_final_tcnt = atr_final_tcnt;
 	reg1->atr_holdoff_tcnt = ATR_HOLDOFF_TCNT_DEFAULT;
-	reg1->atr_clk_mux = ATR_CLK_MUX_DEFAULT;
+	reg1->atr_clk_mux = atr_clk_mux;
 	reg1->atr_holdoff_en = atr_holdoff;	/*ATR_HOLDOFF_EN; */
 	reg1->etu_clk_sel = ETU_CLK_SEL;
-	reg1->atr_reset = 1;
+	reg1->atr_reset = atr_reset;
 	SMC_WRITE_REG(REG1, v);
 	pr_error("REG1: 0x%08lx\n", v);
 
@@ -1374,7 +1404,7 @@ static int smc_hw_setup(struct smc_dev *smc, int clk_out)
 	reg5->cwt_detect_en = cwt_det_en;
 	reg5->btw_detect_en = btw_det_en;
 	reg5->etu_msr_en = etu_msr_en;
-	reg5->bwt_base_time_gnt = BWT_BASE_DEFAULT;
+	reg5->bwt_base_time_gnt = bwt_time;
 	SMC_WRITE_REG(REG5, v);
 	pr_error("REG5: 0x%08lx\n", v);
 
@@ -1536,20 +1566,27 @@ static int smc_hw_get(struct smc_dev *smc, int cnt, int timeout)
 {
 	unsigned int sc_status;
 	unsigned int rev_status;
-	int times = timeout * 100;
+	s64 char_nsec = timeout * 1000;
+	s64 prev_time_nsec;
+	int times = timeout / 10;
 	struct smc_status_reg *sc_status_reg =
 	    (struct smc_status_reg *)&sc_status;
 	struct smccard_hw_reg8 *rev_status_reg =
 	    (struct smccard_hw_reg8 *)&rev_status;
 
+	prev_time_nsec = ktime_to_ns(ktime_get());
+
 	while ((times > 0) && (cnt > 0)) {
 		sc_status = SMC_READ_REG(STATUS);
 		rev_status = SMC_READ_REG(REG8);
 
-		/*pr_dbg("read atr status %08x\n", sc_status); */
+//		if (times % 1000 == 0)
+//			pr_dbg("read atr status %08x\n", sc_status);
 
-		if (sc_status_reg->rst_expired_status)
+		if (sc_status_reg->rst_expired_status) {
 			pr_error("atr timeout\n");
+			return -1;
+		}
 
 		if (sc_status_reg->cwt_expired_status) {
 			pr_error("cwt timeout when get atr,");
@@ -1577,9 +1614,11 @@ static int smc_hw_get(struct smc_dev *smc, int cnt, int timeout)
 				}
 			}
 		}
+		if ((ktime_to_ns(ktime_get()) - prev_time_nsec) > char_nsec)
+			break;
 	}
 
-	pr_error("read atr failed\n");
+	pr_error("read atr failed cnt:%d\n", cnt);
 	return -1;
 }
 
@@ -1644,7 +1683,6 @@ static int smc_hw_read_atr(struct smc_dev *smc)
 	int i;
 
 	pr_dbg("read atr\n");
-
 #ifdef ATR_FROM_INT
 #define smc_hw_get smc_fiq_get
 #endif
@@ -1652,8 +1690,16 @@ static int smc_hw_read_atr(struct smc_dev *smc)
 	smc->atr.atr_len = 0;
 	//from 2000 to 100 for reducing to get
 	//ATR time
-	if (smc_hw_get(smc, 2, 100) < 0)
-		goto end;
+	if (atr_timeout == 200000) {
+		if (smc_hw_get(smc, 2, atr_timeout) < 0)
+			goto end;
+	} else {
+		if (smc_hw_get(smc, 1, atr_timeout) < 0)
+			goto end;
+
+		if (smc_hw_get(smc, 1, atr_timeout) < 0)
+			goto end;
+	}
 
 #ifdef SW_INVERT
 	if (ptr[0] == 0x03) {
@@ -1682,19 +1728,19 @@ static int smc_hw_read_atr(struct smc_dev *smc)
 		tnext = 0;
 		loop_cnt++;
 		if (ptr[0] & 0x10) {
-			if (smc_hw_get(smc, 1, 1000) < 0)
+			if (smc_hw_get(smc, 1, atr1_timeout) < 0)
 				goto end;
 		}
 		if (ptr[0] & 0x20) {
-			if (smc_hw_get(smc, 1, 1000) < 0)
+			if (smc_hw_get(smc, 1, atr1_timeout) < 0)
 				goto end;
 		}
 		if (ptr[0] & 0x40) {
-			if (smc_hw_get(smc, 1, 1000) < 0)
+			if (smc_hw_get(smc, 1, atr1_timeout) < 0)
 				goto end;
 		}
 		if (ptr[0] & 0x80) {
-			if (smc_hw_get(smc, 1, 1000) < 0)
+			if (smc_hw_get(smc, 1, atr1_timeout) < 0)
 				goto end;
 
 			ptr = &smc->atr.atr[smc->atr.atr_len - 1];
@@ -1708,7 +1754,9 @@ static int smc_hw_read_atr(struct smc_dev *smc)
 
 	if (!only_t0)
 		his_len++;
-	smc_hw_get(smc, his_len, 2000);
+	for (i = 0; i < his_len; i++)
+		if (smc_hw_get(smc, 1, atr1_timeout) < 0)
+			goto end;
 
 	pr_dbg("get atr len:%d data: ", smc->atr.atr_len);
 	for (i = 0; i < smc->atr.atr_len; i++)
@@ -1808,10 +1856,14 @@ static int smc_hw_reset(struct smc_dev *smc)
 			/*disable receive interrupt */
 			sc_int = SMC_READ_REG(INTR);
 			sc_int_reg->recv_fifo_bytes_threshold_int_mask = 0;
+			sc_int_reg->rst_expired_int_mask = 0;
 			SMC_WRITE_REG(INTR, sc_int | 0x3FF);
 
 			sc_reg0_reg->rst_level = RESET_DISABLE;
 			sc_reg0_reg->start_atr = 1;
+			SMC_WRITE_REG(REG0, sc_reg0);
+
+			/*write again for atr count*/
 			SMC_WRITE_REG(REG0, sc_reg0);
 #ifdef RST_FROM_PIO
 			_gpio_out(smc->reset_pin,
@@ -1850,6 +1902,7 @@ static int smc_hw_reset(struct smc_dev *smc)
 			/*disable receive interrupt */
 			sc_int = SMC_READ_REG(INTR);
 			sc_int_reg->recv_fifo_bytes_threshold_int_mask = 0;
+			sc_int_reg->rst_expired_int_mask = 0;
 			SMC_WRITE_REG(INTR, sc_int | 0x3FF);
 
 			sc_reg0_reg->rst_level = RESET_DISABLE;
@@ -1862,6 +1915,9 @@ static int smc_hw_reset(struct smc_dev *smc)
 #else
 			sc_reg0_reg->etu_divider = smc->param.f / smc->param.d - 1;
 #endif
+			SMC_WRITE_REG(REG0, sc_reg0);
+
+			/*write again for atr count*/
 			SMC_WRITE_REG(REG0, sc_reg0);
 #ifdef RST_FROM_PIO
 
@@ -1945,11 +2001,15 @@ static int smc_hw_hot_reset(struct smc_dev *smc)
 			/*disable receive interrupt */
 			sc_int = SMC_READ_REG(INTR);
 			sc_int_reg->recv_fifo_bytes_threshold_int_mask = 0;
+			sc_int_reg->rst_expired_int_mask = 0;
 			SMC_WRITE_REG(INTR, sc_int | 0x3FF);
 
 			sc_reg0_reg->rst_level = RESET_DISABLE;
 			sc_reg0_reg->start_atr = 1;
 			sc_reg0_reg->enable = 1;
+			SMC_WRITE_REG(REG0, sc_reg0);
+
+			/*write again for atr count*/
 			SMC_WRITE_REG(REG0, sc_reg0);
 #ifdef RST_FROM_PIO
 			_gpio_out(smc->reset_pin, RESET_DISABLE,

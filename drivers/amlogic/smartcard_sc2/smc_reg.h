@@ -32,7 +32,7 @@
 #define IO_FILTER_SEL_DEFAULT 0
 #define BWT_BASE_DEFAULT 999
 #define N_DEFAULT 0
-#define CWI_DEFAULT 13
+#define CWI_DEFAULT 14
 #define BWI_DEFAULT 4
 #define BGT_DEFAULT 22
 
