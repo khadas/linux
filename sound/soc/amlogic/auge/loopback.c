@@ -591,6 +591,8 @@ static int loopback_set_ctrl(struct loopback *p_loopback, int bitwidth)
 		if (p_loopback->id == 0)
 			datalb_cfg.resample_enable =
 				(unsigned int)get_resample_enable(RESAMPLE_B);
+		else
+			datalb_cfg.resample_enable = 0;
 
 		lb_set_datalb_cfg(p_loopback->id,
 			&datalb_cfg,
