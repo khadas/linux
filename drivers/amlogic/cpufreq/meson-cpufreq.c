@@ -559,6 +559,7 @@ static void get_cluster_cores(unsigned int cpuid, struct cpumask *dstp, u32 *cur
 	}
 
 	for_each_possible_cpu(cpu) {
+		//coverity [overrun-local]
 		if (topology_physical_package_id(cpuid) ==
 			topology_physical_package_id(cpu))
 			cpumask_set_cpu(cpu, dstp);
@@ -1130,7 +1131,7 @@ static void meson_get_cluster_cores(void)
 	struct device *cpu_dev;
 	struct device_node *np;
 	int cpu = 0, cluster_id = 0, i;
-	u32 core_num, *cores;
+	u32 core_num, *cores = NULL;
 
 	for (i = 0; i < MAX_CLUSTERS; i++)
 		cpumask_clear(&cluster_cpus[i]);
@@ -1159,7 +1160,7 @@ static void meson_get_cluster_cores(void)
 				}
 			}
 		}
-		if (cpu >= cores[core_num - 1]) {
+		if (cores && cpu >= cores[core_num - 1]) {
 			cluster_id++;
 			kfree(cores);
 			cores = NULL;
