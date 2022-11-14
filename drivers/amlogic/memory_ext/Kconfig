@@ -119,3 +119,11 @@ config AMLOGIC_PIN_LOCKED_FILE
 		may not be used, this caused memory waste.
 		delay mark mlocked flags for unevictable pages until
 		it has been faulted.
+
+config AMLOGIC_PCIE_DMA_OPS
+	tristate "Amlogic PCIE dma_ops"
+	depends on AMLOGIC_MEMORY_EXTEND
+	default n
+	help
+		custom a dma_ops to limit the memory for PCIE device
+		operations to a fixed area

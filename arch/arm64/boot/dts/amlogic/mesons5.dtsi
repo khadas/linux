@@ -343,18 +343,6 @@
 		#clock-cells = <0>;
 	};
 
-	smmu: smmu@fe600000 {
-		compatible = "arm,smmu-v3";
-		status = "okay";
-		reg = <0x0 0xfe600000 0x0 0x200000
-		       0x0 0xfe098000 0x0 0x80
-		       0x0 0xfe098140 0x0 0x74>;
-		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "combined";
-		smc_irq_cmd = <0x82000078>;
-		#iommu-cells = <1>;
-	};
-
 	cpu_info {
 		compatible = "amlogic, cpuinfo";
 		status = "okay";

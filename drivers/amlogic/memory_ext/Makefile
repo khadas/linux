@@ -7,3 +7,4 @@ obj-$(CONFIG_AMLOGIC_WATCHPOINT)        += watch_point.o
 obj-$(CONFIG_AMLOGIC_MEM_DEBUG)         += mem_debug.o
 obj-$(CONFIG_AMLOGIC_MEMORY_EXTEND)     += memory.o
 obj-$(CONFIG_AMLOGIC_VMALLOC_SHRINKER)  += vmalloc_shrinker.o
+obj-$(CONFIG_AMLOGIC_PCIE_DMA_OPS)	+= aml_smmu.o dma_pcie_mapping.o
