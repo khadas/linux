@@ -1246,7 +1246,7 @@ out_guest_err:
 
 static bool pkvm_install_ioguard_page(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
-	u32 retval = SMCCC_RET_SUCCESS;
+	u64 retval = SMCCC_RET_SUCCESS;
 	u64 ipa = smccc_get_arg1(vcpu);
 	int ret;
 
@@ -1338,6 +1338,8 @@ bool kvm_handle_pvm_hvc64(struct kvm_vcpu *vcpu, u64 *exit_code)
 		return pkvm_install_ioguard_page(vcpu, exit_code);
 	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_UNMAP_FUNC_ID:
 		if (__pkvm_remove_ioguard_page(vcpu, vcpu_get_reg(vcpu, 1)))
+			val[0] = SMCCC_RET_INVALID_PARAMETER;
+		else
 			val[0] = SMCCC_RET_SUCCESS;
 		break;
 	case ARM_SMCCC_VENDOR_HYP_KVM_MMIO_GUARD_INFO_FUNC_ID:
