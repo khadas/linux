@@ -756,7 +756,7 @@ void *aml_stack_alloc(int node, struct task_struct *tsk)
 		 * if vmap address space is full, we still need to try
 		 * to get stack from kmalloc
 		 */
-		addr = __get_free_pages(THREAD_SIZE_ORDER, GFP_KERNEL);
+		addr = __get_free_pages(GFP_KERNEL, THREAD_SIZE_ORDER);
 		E("BITMAP FULL, kmalloc task stack:%lx\n", addr);
 		return (void *)addr;
 	}
