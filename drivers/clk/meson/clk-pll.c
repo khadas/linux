@@ -585,6 +585,9 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 #if defined CONFIG_AMLOGIC_MODIFY && defined CONFIG_ARM
 	unsigned int od;
 #endif
+#ifdef CONFIG_AMLOGIC_MODIFY
+	unsigned int m_r, n_r;
+#endif
 
 	if (parent_rate == 0 || rate == 0)
 		return -EINVAL;
@@ -600,8 +603,15 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		return ret;
 
 	enabled = meson_parm_read(clk->map, &pll->en);
+#ifdef CONFIG_AMLOGIC_MODIFY
+	m_r = meson_parm_read(clk->map, &pll->m);
+	n_r = meson_parm_read(clk->map, &pll->n);
+	if ((m_r != m || n_r != n) && enabled)
+		meson_clk_pll_disable(hw);
+#else
 	if (enabled)
 		meson_clk_pll_disable(hw);
+#endif
 
 	meson_parm_write(clk->map, &pll->n, n);
 	meson_parm_write(clk->map, &pll->m, m);
@@ -631,6 +641,10 @@ static int meson_clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* If the pll is stopped, bail out now */
 #ifndef CONFIG_AMLOGIC_MODIFY
 	if (!enabled)
+		return 0;
+#endif
+#ifdef CONFIG_AMLOGIC_MODIFY
+	if ((m_r == m && n_r == n) && enabled)
 		return 0;
 #endif
 
