@@ -114,13 +114,14 @@ struct amlkl_usage {
 struct amlkl_params {
 	__u32 kt_handle;
 	__u8 levels;
-	struct amlkl_usage usage;
 	__u8 module_id;
 	__u8 kl_algo;
 	__u8 kl_mode;
+	struct amlkl_usage usage;
 	__u8 mrk_cfg_index;
 	__u8 kl_num;
 	__u8 func_id;
+	__u8 reserved1;
 	__u8 eks[6][16];
 	__u8 reserved[16];
 };
