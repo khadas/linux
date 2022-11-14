@@ -391,7 +391,7 @@ static void dump_backtrace_entry(unsigned long ip, unsigned long fp,
 
 static noinline void show_fault_stack(unsigned long addr, struct pt_regs *regs)
 {
-	struct stackframe frame;
+	struct stackframe frame = {};
 	unsigned long sp;
 
 #ifdef CONFIG_ARM64
@@ -962,6 +962,10 @@ void __init thread_stack_cache_init(void)
 	avmap->cached_pages = VMAP_CACHE_PAGE;
 
 #ifdef CONFIG_ARM64
+	/*
+	 * the for_each_possible_cpu() traversed index of cpu does not out of bounds.
+	 */
+	// coverity[Out-of-bounds read]
 	for_each_possible_cpu(i) {
 		unsigned long addr;
 

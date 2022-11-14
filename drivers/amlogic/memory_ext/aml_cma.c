@@ -527,6 +527,10 @@ int cma_alloc_contig_boost(unsigned long start_pfn, unsigned long count)
 	}
 	local_irq_restore(flags);
 
+	/*
+	 * the for_each_cpu() traversed index of cpu does not out of bounds.
+	 */
+	// coverity[Out-of-bounds read]
 	for_each_cpu(cpu, &has_work) {
 		work = &per_cpu(cma_pcp_thread, cpu);
 		wait_for_completion(&work->end);
