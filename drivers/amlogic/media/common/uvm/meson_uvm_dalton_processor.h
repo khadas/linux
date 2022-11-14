@@ -6,8 +6,8 @@
 #include <linux/amlogic/meson_uvm_core.h>
 
 enum dalton_get_info_type_e {
-	AIFACE_GET_INVALID = 0,
-	AIFACE_GET_RGB_DATA = 1,
+	DATTON_GET_INVALID = 0,
+	DATTON_GET_RGB_DATA = 1,
 };
 
 /*hwc attach dalton info*/

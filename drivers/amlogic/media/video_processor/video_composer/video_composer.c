@@ -945,6 +945,35 @@ static struct vf_dalton_t *vc_get_dalton_info(struct composer_dev *dev,
 	return dalton_info;
 }
 
+static struct vf_aiface_t *vc_get_aiface_info(struct composer_dev *dev,
+						     struct file *file_vf)
+{
+	struct vf_aiface_t *aiface_info;
+	struct uvm_hook_mod *uhmod;
+
+	if (!file_vf) {
+		vc_print(dev->index, PRINT_ERROR, "vc get aiface_info fail\n");
+
+		return NULL;
+	}
+	uhmod = uvm_get_hook_mod((struct dma_buf *)(file_vf->private_data),
+				 PROCESS_AIFACE);
+	if (!uhmod) {
+		vc_print(dev->index, PRINT_OTHER, "dma file file_private_data is NULL 1\n");
+		return NULL;
+	}
+
+	if (IS_ERR_VALUE(uhmod) || !uhmod->arg) {
+		vc_print(dev->index, PRINT_ERROR, "dma file file_private_data is NULL 2\n");
+		return NULL;
+	}
+	aiface_info = uhmod->arg;
+	uvm_put_hook_mod((struct dma_buf *)(file_vf->private_data),
+			 PROCESS_AIFACE);
+
+	return aiface_info;
+}
+
 static void frames_put_file(struct composer_dev *dev,
 			    struct received_frames_t *current_frames)
 {
@@ -2595,7 +2624,29 @@ static void video_wait_dalton_ready(struct composer_dev *dev,
 		}
 	}
 	vc_print(dev->index, PRINT_PATTERN | PRINT_DALTON,
-		 "aiface wait %dms nn_status=%d\n", 2 * wait_count, dalton_info->nn_status);
+		 "dalton wait %dms nn_status=%d\n", 2 * wait_count, dalton_info->nn_status);
+}
+
+static void video_wait_aiface_ready(struct composer_dev *dev,
+				struct vf_aiface_t *aiface_info)
+{
+	int wait_count = 0;
+
+	while (1) {
+		if (aiface_info->nn_status != NN_DONE &&
+			(aiface_info->nn_status == NN_WAIT_DOING ||
+			aiface_info->nn_status == NN_START_DOING)) {
+			usleep_range(2000, 2100);
+			wait_count++;
+			vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
+				"aiface wait count %d, nn_status=%d\n",
+				wait_count, aiface_info->nn_status);
+		} else {
+			break;
+		}
+	}
+	vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
+		 "aiface wait %dms nn_status=%d\n", 2 * wait_count, aiface_info->nn_status);
 }
 
 static bool check_vf_has_afbc(struct composer_dev *dev, struct file *file_vf)
@@ -2736,6 +2787,7 @@ static void video_composer_task(struct composer_dev *dev)
 	size_t usage = 0;
 	struct vf_dalton_t *dalton_info = NULL;
 	bool do_mosaic_22 = false;
+	struct vf_aiface_t *aiface_info = NULL;
 
 	if (!kfifo_peek(&dev->receive_q, &received_frames)) {
 		vc_print(dev->index, PRINT_ERROR, "task: peek failed\n");
@@ -3089,6 +3141,24 @@ static void video_composer_task(struct composer_dev *dev)
 					dalton_info->nn_status = NN_DISPLAYED;
 					vf->vc_private->dalton_info = dalton_info;
 					vc_private->flag |= VC_FLAG_DALTON;
+				}
+
+				aiface_info = vc_get_aiface_info(dev, file_vf);
+				if (aiface_info) {
+					video_wait_aiface_ready(dev, aiface_info);
+					if (aiface_info->nn_status == NN_DONE) {
+						vc_print(dev->index, PRINT_PATTERN | PRINT_AIFACE,
+							"omx_index=%d:x=%d,y=%d,w=%d,h=%d,%d\n",
+							vf->omx_index,
+							aiface_info->face_value[0].x,
+							aiface_info->face_value[0].y,
+							aiface_info->face_value[0].w,
+							aiface_info->face_value[0].h,
+							aiface_info->face_value[0].score);
+						aiface_info->nn_status = NN_DISPLAYED;
+						vf->vc_private->aiface_info = aiface_info;
+						vc_private->flag |= VC_FLAG_AI_FACE;
+					}
 				}
 			}
 			dev->last_file = file_vf;

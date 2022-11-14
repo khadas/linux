@@ -26,6 +26,7 @@
 #include "meson_uvm_nn_processor.h"
 #include "meson_uvm_aipq_processor.h"
 #include "meson_uvm_dalton_processor.h"
+#include "meson_uvm_aiface_processor.h"
 #include "meson_uvm_buffer_info.h"
 
 static struct mua_device *mdev;
@@ -468,6 +469,11 @@ static int mua_attach(int fd, int type, char *buf)
 		break;
 	case PROCESS_DALTON:
 		ret = attach_dalton_hook_mod_info(fd, buf, &info);
+		if (ret)
+			return -EINVAL;
+		break;
+	case PROCESS_AIFACE:
+		ret = attach_aiface_hook_mod_info(fd, buf, &info);
 		if (ret)
 			return -EINVAL;
 		break;

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (c) 2019 Amlogic, Inc. All rights reserved.
+ * Copyright (c) 2021 Amlogic, Inc. All rights reserved.
  */
+
 #include <linux/dma-buf.h>
 #include <linux/sync_file.h>
 #include <linux/fs.h>
@@ -19,20 +20,20 @@
 #include <linux/amlogic/media/ge2d/ge2d_func.h>
 #include <linux/amlogic/media/video_processor/video_pp_common.h>
 
-#include "meson_uvm_dalton_processor.h"
+#include "meson_uvm_aiface_processor.h"
 static struct dma_buf *dmabuf_last;
 
-static int uvm_dalton_debug;
-module_param(uvm_dalton_debug, int, 0644);
+static int uvm_aiface_debug;
+module_param(uvm_aiface_debug, int, 0644);
 
-static int uvm_open_dalton;
-module_param(uvm_open_dalton, int, 0644);
+static int uvm_open_aiface;
+module_param(uvm_open_aiface, int, 0644);
 
-static int uvm_dalton_dump;
-module_param(uvm_dalton_dump, int, 0644);
+static int uvm_aiface_dump;
+module_param(uvm_aiface_dump, int, 0644);
 
-static int uvm_dalton_skip_height = 1088;
-module_param(uvm_dalton_skip_height, int, 0644);
+static int uvm_aiface_skip_height = 1088;
+module_param(uvm_aiface_skip_height, int, 0644);
 
 #define PRINT_ERROR     0X0
 #define PRINT_OTHER     0X0001
@@ -45,16 +46,16 @@ struct ge2d_output_t {
 	phys_addr_t addr;
 };
 
-int dalton_print(int debug_flag, const char *fmt, ...)
+int aiface_print(int debug_flag, const char *fmt, ...)
 {
-	if ((uvm_dalton_debug & debug_flag) ||
+	if ((uvm_aiface_debug & debug_flag) ||
 	    debug_flag == PRINT_ERROR) {
 		unsigned char buf[256];
 		int len = 0;
 		va_list args;
 
 		va_start(args, fmt);
-		len = sprintf(buf, "uvm_dalton:[%d]", 0);
+		len = sprintf(buf, "uvm_aiface:[%d]", 0);
 		vsnprintf(buf + len, 256 - len, fmt, args);
 		pr_info("%s", buf);
 		va_end(args);
@@ -62,7 +63,7 @@ int dalton_print(int debug_flag, const char *fmt, ...)
 	return 0;
 }
 
-struct vframe_s *dalton_get_dw_vf(struct uvm_dalton_info *dalton_info)
+struct vframe_s *aiface_get_dw_vf(struct uvm_aiface_info *aiface_info)
 {
 	struct uvm_hook_mod *uhmod = NULL;
 	struct dma_buf *dmabuf = NULL;
@@ -70,19 +71,19 @@ struct vframe_s *dalton_get_dw_vf(struct uvm_dalton_info *dalton_info)
 	struct vframe_s *vf = NULL;
 	struct vframe_s *di_vf = NULL;
 	struct file_private_data *file_private_data = NULL;
-	int shared_fd = dalton_info->shared_fd;
+	int shared_fd = aiface_info->shared_fd;
 	int interlace_mode = 0;
 
 	dmabuf = dma_buf_get(shared_fd);
 
 	if (IS_ERR_OR_NULL(dmabuf)) {
-		dalton_print(PRINT_ERROR,
+		aiface_print(PRINT_ERROR,
 			"Invalid dmabuf %s %d\n", __func__, __LINE__);
 		return NULL;
 	}
 
 	if (!dmabuf_is_uvm(dmabuf)) {
-		dalton_print(PRINT_ERROR,
+		aiface_print(PRINT_ERROR,
 			"%s: dmabuf is not uvm.dmabuf=%px, shared_fd=%d\n",
 			__func__, dmabuf, shared_fd);
 		dma_buf_put(dmabuf);
@@ -95,11 +96,11 @@ struct vframe_s *dalton_get_dw_vf(struct uvm_dalton_info *dalton_info)
 	if (is_dec_vf) {
 		vf = dmabuf_get_vframe(dmabuf);
 		if (IS_ERR_OR_NULL(vf)) {
-			dalton_print(PRINT_ERROR, "%s: vf is NULL.\n", __func__);
+			aiface_print(PRINT_ERROR, "%s: vf is NULL.\n", __func__);
 			return NULL;
 		}
 
-		dalton_print(PRINT_OTHER,
+		aiface_print(PRINT_OTHER,
 			"vf: %d*%d,flag=%x,type=%x\n",
 			vf->width,
 			vf->height,
@@ -111,7 +112,7 @@ struct vframe_s *dalton_get_dw_vf(struct uvm_dalton_info *dalton_info)
 		if (di_vf && (vf->flag & VFRAME_FLAG_CONTAIN_POST_FRAME)) {
 			if (interlace_mode != VIDTYPE_PROGRESSIVE) {
 				/*for interlace*/
-				dalton_print(PRINT_OTHER,
+				aiface_print(PRINT_OTHER,
 					"use di vf: %d*%d,flag=%x,type=%x\n",
 					di_vf->width,
 					di_vf->height,
@@ -124,14 +125,14 @@ struct vframe_s *dalton_get_dw_vf(struct uvm_dalton_info *dalton_info)
 	} else {
 		uhmod = uvm_get_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 		if (IS_ERR_OR_NULL(uhmod) || !uhmod->arg) {
-			dalton_print(PRINT_OTHER, "get dw vf err: no v4lvideo\n");
+			aiface_print(PRINT_OTHER, "get dw vf err: no v4lvideo\n");
 			dma_buf_put(dmabuf);
 			return NULL;
 		}
 		file_private_data = uhmod->arg;
 		uvm_put_hook_mod(dmabuf, VF_PROCESS_V4LVIDEO);
 		if (!file_private_data) {
-			dalton_print(PRINT_ERROR, "invalid fd no uvm/v4lvideo\n");
+			aiface_print(PRINT_ERROR, "invalid fd no uvm/v4lvideo\n");
 		} else {
 			vf = &file_private_data->vf;
 			if (vf->vf_ext)
@@ -139,7 +140,7 @@ struct vframe_s *dalton_get_dw_vf(struct uvm_dalton_info *dalton_info)
 		}
 	}
 	if (!vf) {
-		dalton_print(PRINT_ERROR, "not find vf\n");
+		aiface_print(PRINT_ERROR, "not find vf\n");
 		dma_buf_put(dmabuf);
 		return NULL;
 	}
@@ -147,19 +148,19 @@ struct vframe_s *dalton_get_dw_vf(struct uvm_dalton_info *dalton_info)
 	return vf;
 }
 
-static int dalton_canvas[4] = {-1, -1, -1, -1};
+static int aiface_canvas[4] = {-1, -1, -1, -1};
 static struct ge2d_context_s *context;
 
 static int get_canvas(u32 index)
 {
-	const char *owner = "dalton";
+	const char *owner = "aiface";
 
-	if (dalton_canvas[index] < 0)
-		dalton_canvas[index] = canvas_pool_map_alloc_canvas(owner);
+	if (aiface_canvas[index] < 0)
+		aiface_canvas[index] = canvas_pool_map_alloc_canvas(owner);
 
-	if (dalton_canvas[index] < 0)
-		dalton_print(PRINT_ERROR, "no canvas\n");
-	return dalton_canvas[index];
+	if (aiface_canvas[index] < 0)
+		aiface_print(PRINT_ERROR, "no canvas\n");
+	return aiface_canvas[index];
 }
 
 static int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
@@ -174,7 +175,7 @@ static int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	if (!context) {
 		context = create_ge2d_work_queue();
 		if (IS_ERR_OR_NULL(context)) {
-			dalton_print(PRINT_ERROR, "creat ge2d work failed\n");
+			aiface_print(PRINT_ERROR, "creat ge2d work failed\n");
 			return -1;
 		}
 	}
@@ -235,7 +236,7 @@ static int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 		ge2d_config->src_para.canvas_index = vf->canvas0Addr;
 	}
 
-	dalton_print(PRINT_OTHER, "src width: %d, height: %d\n",
+	aiface_print(PRINT_OTHER, "src width: %d, height: %d\n",
 		input_width, input_height);
 
 	src_format = get_ge2d_input_format(vf);
@@ -243,9 +244,9 @@ static int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	if (interlace_mode == VIDTYPE_INTERLACE_BOTTOM ||
 	    interlace_mode == VIDTYPE_INTERLACE_TOP) {
 		input_height >>= 1;
-	} else if (vf->height > uvm_dalton_skip_height) {
+	} else if (vf->height > uvm_aiface_skip_height) {
 		/*used to reduce bandwidth by change format to interlace*/
-		dalton_print(PRINT_OTHER, "use interlace format.\n");
+		aiface_print(PRINT_OTHER, "use interlace format.\n");
 		input_height >>= 1;
 		src_format |= (GE2D_FMT_M24_YUV420T & (3 << 3));
 	}
@@ -255,14 +256,14 @@ static int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	if (vf->flag & VFRAME_FLAG_VIDEO_LINEAR)
 		ge2d_config->src_para.format |= GE2D_LITTLE_ENDIAN;
 
-	dalton_print(PRINT_OTHER, "src width: %d, height: %d format =%x\n",
+	aiface_print(PRINT_OTHER, "src width: %d, height: %d format =%x\n",
 		input_width, input_height, ge2d_config->src_para.format);
 
 	if (output->format == GE2D_FORMAT_S8_Y) {
 		canvas_config(output_canvas, output->addr, output->width,
 			output->height, CANVAS_ADDR_NOWRAP,
 			CANVAS_BLKMODE_LINEAR);
-	} else if (output->format == GE2D_FORMAT_S24_RGB) {
+	} else {
 		canvas_config(output_canvas, output->addr, output->width * 3,
 			output->height, CANVAS_ADDR_NOWRAP,
 			CANVAS_BLKMODE_LINEAR);
@@ -306,7 +307,7 @@ static int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	ge2d_config->dst_xy_swap = 0;
 
 	if (ge2d_context_config_ex(context, ge2d_config) < 0) {
-		dalton_print(PRINT_ERROR,
+		aiface_print(PRINT_ERROR,
 			      "++ge2d configing error.\n");
 		return -1;
 	}
@@ -317,59 +318,63 @@ static int ge2d_vf_process(struct vframe_s *vf, struct ge2d_output_t *output)
 	return 0;
 }
 
-void free_dalton_data(void *arg)
+void free_aiface_data(void *arg)
 {
 	if (arg) {
-		dalton_print(PRINT_OTHER, "%s\n", __func__);
-		kfree((u8 *)arg);
+		aiface_print(PRINT_OTHER, "%s\n", __func__);
+		vfree(arg);
 	} else {
-		dalton_print(PRINT_ERROR, "%s NULL\n", __func__);
+		aiface_print(PRINT_ERROR, "%s NULL\n", __func__);
 	}
 }
 
-int attach_dalton_hook_mod_info(int shared_fd,
+int attach_aiface_hook_mod_info(int shared_fd,
 		char *buf, struct uvm_hook_mod_info *info)
 {
-	struct vf_dalton_t *nn_dalton = NULL;
+	struct vf_aiface_t *nn_aiface = NULL;
 	struct uvm_hook_mod *uhmod = NULL;
 	struct dma_buf *dmabuf = NULL;
 	struct uvm_handle *handle;
 	bool attached = false;
-	struct uvm_dalton_info *dalton_info = (struct uvm_dalton_info *)buf;
+	struct uvm_aiface_info *aiface_info = (struct uvm_aiface_info *)buf;
 	struct vframe_s *vf = NULL;
-	bool enable_dalton = true;
+	bool enable_aiface = true;
 
-	dalton_info->need_do_dalton = 1;
+	aiface_info->need_do_aiface = 1;
+	aiface_info->dw_height = 0;
+	aiface_info->dw_width = 0;
 
-	if (!uvm_open_dalton) {
-		dalton_info->need_do_dalton = 0;
-		enable_dalton = false;
+	if (!uvm_open_aiface) {
+		aiface_info->need_do_aiface = 0;
+		enable_aiface = false;
 	} else {
-		vf = dalton_get_dw_vf(dalton_info);
+		vf = aiface_get_dw_vf(aiface_info);
 		if (IS_ERR_OR_NULL(vf)) {
-			dalton_print(PRINT_OTHER, "get no vf\n");
+			aiface_print(PRINT_OTHER, "get no vf\n");
 			return -EINVAL;
 		}
+		aiface_info->dw_height = vf->height;
+		aiface_info->dw_width = vf->width;
 		if (vf->width > 3840 ||
 		    vf->height > 2160 ||
 		    vf->flag & VFRAME_FLAG_VIDEO_SECURE) {
-			dalton_print(PRINT_OTHER, "bypass %d %d\n",
+			aiface_print(PRINT_OTHER, "bypass %d %d\n",
 				vf->width, vf->height);
-			dalton_info->need_do_dalton = 0;
-			enable_dalton = false;
+			aiface_info->need_do_aiface = 0;
+			enable_aiface = false;
 		}
 	}
 
 	dmabuf = dma_buf_get(shared_fd);
 
 	if (IS_ERR_OR_NULL(dmabuf)) {
-		dalton_print(PRINT_ERROR,
+		aiface_print(PRINT_ERROR,
 			"Invalid dmabuf %s %d\n", __func__, __LINE__);
 		return -EINVAL;
 	}
 
 	if (!dmabuf_is_uvm(dmabuf)) {
-		dalton_print(PRINT_ERROR,
+		aiface_print(PRINT_ERROR,
 			"attach:dmabuf is not uvm.dmabuf=%px, shared_fd=%d\n",
 			dmabuf, shared_fd);
 		dma_buf_put(dmabuf);
@@ -377,74 +382,97 @@ int attach_dalton_hook_mod_info(int shared_fd,
 	}
 
 	handle = dmabuf->priv;
-	uhmod = uvm_get_hook_mod(dmabuf, PROCESS_DALTON);
+	uhmod = uvm_get_hook_mod(dmabuf, PROCESS_AIFACE);
 	if (IS_ERR_OR_NULL(uhmod)) {
-		nn_dalton = kzalloc(sizeof(*nn_dalton), GFP_KERNEL);
-		dalton_print(PRINT_OTHER, "attach:first attach, need alloc\n");
-		if (!nn_dalton) {
+		nn_aiface = vmalloc(sizeof(*nn_aiface));
+		memset(nn_aiface, 0, sizeof(*nn_aiface));
+		aiface_print(PRINT_OTHER, "attach:first attach, need alloc\n");
+		if (!nn_aiface) {
 			dma_buf_put(dmabuf);
 			return -ENOMEM;
 		}
 	} else {
-		uvm_put_hook_mod(dmabuf, PROCESS_DALTON);
+		uvm_put_hook_mod(dmabuf, PROCESS_AIFACE);
 		attached = true;
-		nn_dalton = uhmod->arg;
-		if (!nn_dalton) {
-			dalton_print(PRINT_ERROR,
-				"attach:dalton is null, dmabuf=%p\n", dmabuf);
+		nn_aiface = uhmod->arg;
+		if (!nn_aiface) {
+			aiface_print(PRINT_ERROR,
+				"attach:aiface is null, dmabuf=%p\n", dmabuf);
 			dma_buf_put(dmabuf);
 			return -EINVAL;
 		}
-		if (vf)
-			dalton_print(PRINT_OTHER, "nn_dalton=%px, omx_index=%d\n",
-				nn_dalton, vf->omx_index);
 	}
 
 	dma_buf_put(dmabuf);
 
 	if (dmabuf_last == dmabuf) {
-		dalton_info->repeat_frame = 1;
+		aiface_info->repeat_frame = 1;
 	} else {
-		memset(nn_dalton, 0, sizeof(struct vf_dalton_t));
-		dalton_info->repeat_frame = 0;
+		memset(nn_aiface, 0, sizeof(struct vf_aiface_t));
+		aiface_info->repeat_frame = 0;
 		dmabuf_last = dmabuf;
 	}
 	if (vf)
-		dalton_info->omx_index = vf->omx_index;
+		aiface_info->omx_index = vf->omx_index;
+	else
+		aiface_info->omx_index = -1;
+
+	if (enable_aiface)
+		aiface_print(PRINT_OTHER, "nn_aiface=%px, omx_index=%d\n",
+			nn_aiface, aiface_info->omx_index);
 
 	if (attached)
 		return 0;
 
-	info->type = PROCESS_DALTON;
-	info->arg = nn_dalton;
-	info->free = free_dalton_data;
+	info->type = PROCESS_AIFACE;
+	info->arg = nn_aiface;
+	info->free = free_aiface_data;
 	info->acquire_fence = NULL;
-	info->getinfo = dalton_getinfo;
-	info->setinfo = dalton_setinfo;
+	info->getinfo = aiface_getinfo;
+	info->setinfo = aiface_setinfo;
 
 	return 0;
 }
 
-int dalton_setinfo(void *arg, char *buf)
+int aiface_setinfo(void *arg, char *buf)
 {
-	struct uvm_dalton_info *dalton_info = NULL;
-	struct vf_dalton_t *vf_dalton = NULL;
+	struct uvm_aiface_info *aiface_info = NULL;
+	struct vf_aiface_t *vf_aiface = NULL;
+	int i;
 
-	dalton_info = (struct uvm_dalton_info *)buf;
-	vf_dalton = (struct vf_dalton_t *)arg;
+	aiface_info = (struct uvm_aiface_info *)buf;
+	vf_aiface = (struct vf_aiface_t *)arg;
 
-	if (dalton_info->nn_status == NN_START_DOING)
-		do_gettimeofday(&vf_dalton->start_time);
+	if (aiface_info->nn_status == NN_START_DOING) {
+		do_gettimeofday(&vf_aiface->start_time);
+	} else if (aiface_info->nn_status == NN_DONE) {
+		for (i = 0; i < AI_FACE_COUNT; i++) {
+			vf_aiface->face_value[i].x = aiface_info->face_value[i].x;
+			vf_aiface->face_value[i].y = aiface_info->face_value[i].y;
+			vf_aiface->face_value[i].w = aiface_info->face_value[i].w;
+			vf_aiface->face_value[i].h = aiface_info->face_value[i].h;
+			vf_aiface->face_value[i].score = aiface_info->face_value[i].score;
+			aiface_print(PRINT_OTHER,
+				"NN_DONE: omx_index=%d: i=%d: x=%d, y=%d, w=%d, h=%d, score=%d\n",
+				aiface_info->omx_index,
+				i,
+				vf_aiface->face_value[i].x,
+				vf_aiface->face_value[i].y,
+				vf_aiface->face_value[i].w,
+				vf_aiface->face_value[i].h,
+				vf_aiface->face_value[i].score);
+		}
+	}
 
 	/*this must at the last line of this function*/
-	vf_dalton->nn_status = dalton_info->nn_status;
+	vf_aiface->nn_status = aiface_info->nn_status;
 
-	dalton_print(PRINT_OTHER, "%s: omx_index=%d, status=%d\n",
-		__func__, dalton_info->omx_index, dalton_info->nn_status);
+	aiface_print(PRINT_OTHER, "%s: omx_index=%d, status=%d\n",
+		__func__, aiface_info->omx_index, aiface_info->nn_status);
 	return 0;
 }
 
-static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_dalton_info *info)
+static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_aiface_info *info)
 {
 	struct file *fp;
 	char name_buf[32];
@@ -454,15 +482,15 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_dalton_inf
 	loff_t pos;
 
 	if (IS_ERR_OR_NULL(vf) || IS_ERR_OR_NULL(info)) {
-		dalton_print(PRINT_ERROR, "dump param invalid.\n");
+		aiface_print(PRINT_ERROR, "dump param invalid.\n");
 		return;
 	}
 
-	snprintf(name_buf, sizeof(name_buf), "/data/ge2dOut.rgb");
+	snprintf(name_buf, sizeof(name_buf), "/data/tmp/ge2dOut.rgb");
 	fp = filp_open(name_buf, O_CREAT | O_RDWR, 0644);
 	if (IS_ERR(fp))
 		return;
-	write_size = info->dalton_frame_height * info->dalton_frame_width * 3;
+	write_size = info->nn_input_frame_height * info->nn_input_frame_width * 3;
 	data = codec_mm_vmap(addr, write_size);
 	if (!data)
 		return;
@@ -471,7 +499,7 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_dalton_inf
 	pos = 0;
 	vfs_write(fp, data, write_size, &pos);
 	vfs_fsync(fp, 0);
-	dalton_print(PRINT_ERROR, "dalton: write %u size to addr%p\n",
+	aiface_print(PRINT_ERROR, "aiface: write %u size to addr%p\n",
 		write_size, data);
 	codec_mm_unmap_phyaddr(data);
 	filp_close(fp, NULL);
@@ -491,77 +519,68 @@ static void dump_vf(struct vframe_s *vf, phys_addr_t addr, struct uvm_dalton_inf
 	pos = 0;
 	vfs_write(fp, data, write_size, &pos);
 	vfs_fsync(fp, 0);
-	dalton_print(PRINT_ERROR, "dalton: write %u size to addr%p\n",
+	aiface_print(PRINT_ERROR, "aiface: write %u size to addr%p\n",
 		write_size, data);
 	codec_mm_unmap_phyaddr(data);
 	filp_close(fp, NULL);
 	set_fs(fs);
 }
 
-int dalton_getinfo(void *arg, char *buf)
+int aiface_getinfo(void *arg, char *buf)
 {
-	struct uvm_dalton_info *dalton_info = NULL;
-	struct vf_dalton_t *vf_dalton = NULL;
+	struct uvm_aiface_info *aiface_info = NULL;
 	int ret = -1;
 	phys_addr_t addr = 0;
 	struct vframe_s *vf = NULL;
-	s32 dalton_fd;
+	s32 aiface_fd;
 	size_t len = 0;
 	struct ge2d_output_t output;
 	struct timeval begin_time;
 	struct timeval end_time;
 	int cost_time;
 
-	dalton_info = (struct uvm_dalton_info *)buf;
-	vf_dalton = (struct vf_dalton_t *)arg;
+	aiface_info = (struct uvm_aiface_info *)buf;
 
-	if (dalton_info->get_info_type == DATTON_GET_RGB_DATA) {
-		vf_dalton->nn_status = NN_START_DOING;
-		do_gettimeofday(&vf_dalton->start_time);
-
-		vf = dalton_get_dw_vf(dalton_info);
+	if (aiface_info->get_info_type == AIFACE_GET_RGB_DATA) {
+		vf = aiface_get_dw_vf(aiface_info);
 		if (IS_ERR_OR_NULL(vf)) {
-			dalton_print(PRINT_ERROR, "get no vf\n");
+			aiface_print(PRINT_ERROR, "get no vf\n");
 			return -EINVAL;
 		}
 
-		dalton_fd = dalton_info->dalton_fd;
-		if (dalton_fd != -1) {
-			ret = meson_ion_share_fd_to_phys(dalton_fd, &addr, &len);
+		aiface_fd = aiface_info->aiface_fd;
+		if (aiface_fd != -1) {
+			ret = meson_ion_share_fd_to_phys(aiface_fd, &addr, &len);
 			if (ret < 0) {
-				dalton_print(PRINT_ERROR,
-					"import fd %d failed\n", dalton_fd);
+				aiface_print(PRINT_ERROR,
+					"import fd %d failed\n", aiface_fd);
 				return -EINVAL;
 			}
 		}
 		memset(&output, 0, sizeof(struct ge2d_output_t));
-		output.width = dalton_info->dalton_frame_width;
-		output.height = dalton_info->dalton_frame_height;
-		dalton_info->omx_index = vf->omx_index;
-		dalton_print(PRINT_OTHER,
-			"output.width=%d, output.height=%d, addr=%lld, dalton_fd=%d, omx_index=%d\n",
-			output.width, output.height, addr, dalton_fd, vf->omx_index);
+		output.width = aiface_info->nn_input_frame_width;
+		output.height = aiface_info->nn_input_frame_height;
+		aiface_info->omx_index = vf->omx_index;
+		aiface_print(PRINT_OTHER,
+			"output.width=%d, output.height=%d, addr=%lld, len=%d, aiface_fd=%d, omx_index=%d\n",
+			output.width, output.height, addr, len, aiface_fd, vf->omx_index);
 
-		output.format = GE2D_FORMAT_S24_RGB;
+		output.format = GE2D_FORMAT_S8_Y;
 		output.addr = addr;
 		do_gettimeofday(&begin_time);
 		ret = ge2d_vf_process(vf, &output);
 		if (ret < 0) {
-			dalton_print(PRINT_ERROR, "ge2d err\n");
+			aiface_print(PRINT_ERROR, "ge2d err\n");
 			return -EINVAL;
 		}
 		do_gettimeofday(&end_time);
 		cost_time = (1000000 * (end_time.tv_sec - begin_time.tv_sec)
 			+ (end_time.tv_usec - begin_time.tv_usec)) / 1000;
-		dalton_print(PRINT_OTHER, "ge2d cost: %d ms\n", cost_time);
-		if (uvm_dalton_dump) {
-			uvm_dalton_dump = 0;
-			dump_vf(vf, addr, dalton_info);
+		aiface_print(PRINT_OTHER, "ge2d cost: %d ms\n", cost_time);
+		if (uvm_aiface_dump) {
+			uvm_aiface_dump = 0;
+			dump_vf(vf, addr, aiface_info);
 		}
-		vf_dalton->width = dalton_info->dalton_frame_width;
-		vf_dalton->height = dalton_info->dalton_frame_height;
-		vf_dalton->phy_addr = addr;
-		vf_dalton->nn_status = NN_DONE;
 	}
 	return 0;
 }

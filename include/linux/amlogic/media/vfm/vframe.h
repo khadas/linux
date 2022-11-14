@@ -531,6 +531,24 @@ struct vf_dalton_t {
 	ulong phy_addr;
 };
 
+#define AI_FACE_COUNT 5
+
+struct face_value_t {
+	u32 x;
+	u32 y;
+	u32 w;
+	u32 h;
+	u32 score;
+};
+
+struct vf_aiface_t {
+	struct face_value_t face_value[AI_FACE_COUNT];
+	s32 aiface_buf_index;
+	s32 aiface_value_index;
+	u32 nn_status;
+	struct timeval start_time;
+};
+
 #define VF_UD_MAX_SIZE 5120 /* 5K size */
 #define UD_MAGIC_CODE 0x55445020 /* UDP */
 #define is_ud_param_valid(ud) ((ud.magic_code) == UD_MAGIC_CODE)
@@ -743,6 +761,7 @@ struct vframe_s {
 #define VC_FLAG_FIRST_FRAME	0x2
 #define VC_FLAG_DALTON	0x4
 #define VC_FLAG_MOSAIC_22	0x8
+#define VC_FLAG_AI_FACE	0x10
 
 struct video_composer_private {
 	u32 index;
@@ -755,6 +774,7 @@ struct video_composer_private {
 	void (*lock_buffer_cb)(void *arg);
 	void (*unlock_buffer_cb)(void *arg);
 	struct vf_dalton_t *dalton_info;
+	struct vf_aiface_t *aiface_info;
 	struct vframe_s *mosaic_vf[4];
 	struct vframe_s *mosaic_src_vf[4];
 	struct vframe_s mosaic_dst_vf[4];

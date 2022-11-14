@@ -250,6 +250,7 @@ static struct video_frame_detect_s video_frame_detect;
 static long long time_setomxpts;
 static long long time_setomxpts_last;
 struct nn_value_t nn_scenes_value[AI_PQ_TOP];
+struct face_value_t ai_face_value[AI_FACE_COUNT];
 
 /*----omx_info  bit0: keep_last_frame, bit1~31: unused----*/
 static u32 omx_info = 0x1;
@@ -9622,6 +9623,11 @@ SET_FILTER:
 		}
 		memcpy(nn_scenes_value, vd_layer[0].dispbuf->nn_value,
 		       sizeof(nn_scenes_value));
+		if (vd_layer[0].dispbuf->vc_private &&
+			vd_layer[0].dispbuf->vc_private->flag & VC_FLAG_AI_FACE) {
+			memcpy(ai_face_value, vd_layer[0].dispbuf->vc_private->aiface_info,
+			       sizeof(ai_face_value));
+		}
 	}
 exit:
 #ifdef CONFIG_AMLOGIC_MEDIA_DEINTERLACE
@@ -18240,6 +18246,42 @@ static ssize_t mosaic_axis_pic_store(struct class *cla,
 	return strnlen(buf, count);
 }
 
+static ssize_t cur_ai_face_show(struct class *cla,
+				  struct class_attribute *attr, char *buf)
+{
+	ssize_t count;
+	int i = 0;
+	int x, y, w, h;
+	struct disp_info_s *layer = &glayer_info[0];
+
+	if (!vd_layer[0].dispbuf)
+		return 0;
+
+	if (!vd_layer[0].dispbuf->vc_private)
+		return 0;
+
+	if ((vd_layer[0].dispbuf->vc_private->flag & VC_FLAG_AI_FACE) == 0)
+		return 0;
+
+	if (vd_layer[0].disable_video == 1 ||
+	    vd_layer[0].global_output == 0)
+		return 0;
+	count = 0;
+	while (i < AI_FACE_COUNT) {
+		x = layer->layer_width * ai_face_value[i].x / 640;
+		y = layer->layer_height * ai_face_value[i].y / 360;
+		w = layer->layer_width * ai_face_value[i].w / 640;
+		h = layer->layer_height * ai_face_value[i].h / 360;
+		count += sprintf(buf + count,
+			"omx_index=%d: i=%d: x=%d; y=%d; w=%d; h=%d; score=%d\n",
+			vd_layer[0].dispbuf->omx_index, i, x, y, w, h, ai_face_value[i].score);
+
+		i++;
+	}
+	count += sprintf(buf + count, "\n");
+	return count;
+}
+
 static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(axis,
 	       0664,
@@ -18779,6 +18821,7 @@ static struct class_attribute amvideo_class_attrs[] = {
 	__ATTR(mosaic_axis_pic, 0644,
 		mosaic_axis_pic_show,
 		mosaic_axis_pic_store),
+	__ATTR_RO(cur_ai_face),
 };
 
 static struct class_attribute amvideo_poll_class_attrs[] = {
