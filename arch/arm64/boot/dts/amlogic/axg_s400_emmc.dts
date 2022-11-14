@@ -208,7 +208,7 @@
 		//	"usb1_to_ddr";
 	};
 
-	pcie_A: pcieA@f9800000 {
+	pcie_A: pcie@f9800000 {
 		compatible = "amlogic, amlogic-pcie", "snps,dw-pcie";
 		reg = <0x0 0xf9800000 0x0 0x400000
 				0x0 0xff646000 0x0 0x2000
@@ -246,7 +246,7 @@
 		status = "disabled";
 	};
 
-	 pcie_B: pcieB@fa000000 {
+	 pcie_B: pcie@fa000000 {
 		compatible = "amlogic, amlogic-pcie", "snps,dw-pcie";
 		reg = <0x0 0xfa000000 0x0 0x400000
 				0x0 0xff648000 0x0 0x2000

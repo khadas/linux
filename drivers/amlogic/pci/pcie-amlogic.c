@@ -582,7 +582,7 @@ static int  amlogic_add_pcie_port(struct amlogic_pcie *amlogic_pcie,
 	return 0;
 }
 
-static int __init amlogic_pcie_probe(struct platform_device *pdev)
+static int amlogic_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct amlogic_pcie *amlogic_pcie;
