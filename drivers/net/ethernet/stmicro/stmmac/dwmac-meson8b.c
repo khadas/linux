@@ -416,11 +416,12 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 	if (of_property_read_u32(np, "mac_wol", &support_mac_wol) != 0)
 		pr_info("no mac_wol\n");
 
+#ifdef CONFIG_REALTEK_PHY
 	if (of_property_read_u32(np, "wol", &support_gpio_wol) != 0)
 		pr_info("no gpio wol %d\n", support_gpio_wol);
 	else
 		pr_info("gpio %d\n", support_gpio_wol);
-
+#endif
 	if (of_property_read_u32(np, "keep-alive", &support_nfx_doze) != 0)
 		pr_info("no keep-alive\n");
 	/*nfx doze setting ASAP WOL, if not set, do nothing*/
@@ -527,6 +528,7 @@ static int aml_dwmac_resume(struct device *dev)
 			}
 		}
 	}
+#ifdef CONFIG_REALTEK_PHY
 	if (support_gpio_wol) {
 		if (get_resume_method() == ETH_PHY_GPIO) {
 			pr_info("wzh gpio wol rx--KEY_POWER\n");
@@ -538,6 +540,7 @@ static int aml_dwmac_resume(struct device *dev)
 			input_sync(dwmac->input_dev);
 		}
 	}
+#endif
 	return 0;
 }
 
@@ -632,7 +635,12 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, 1);
 	}
 
-	if ((support_mac_wol) || (support_gpio_wol)) {
+#ifdef CONFIG_REALTEK_PHY
+	if ((support_mac_wol) || (support_gpio_wol))
+#else
+	if (support_mac_wol)
+#endif
+	{
 	/*input device to send virtual pwr key for android*/
 		input_dev = input_allocate_device();
 		if (!input_dev) {
