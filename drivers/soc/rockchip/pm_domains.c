@@ -52,6 +52,7 @@ struct rockchip_domain_info {
 	int mem_status_mask;
 	int repair_status_mask;
 	bool keepon_startup;
+	bool always_on;
 	u32 pwr_offset;
 	u32 mem_offset;
 	u32 req_offset;
@@ -116,6 +117,35 @@ static bool pm_domain_always_on;
 module_param_named(always_on, pm_domain_always_on, bool, 0644);
 MODULE_PARM_DESC(always_on,
 		 "Always keep pm domains power on except for system suspend.");
+
+#ifdef MODULE
+static bool keepon_startup = true;
+static void rockchip_pd_keepon_do_release(void);
+
+static int pd_param_set_keepon_startup(const char *val,
+				       const struct kernel_param *kp)
+{
+	int ret;
+
+	ret = param_set_bool(val, kp);
+	if (ret)
+		return ret;
+
+	if (!keepon_startup)
+		rockchip_pd_keepon_do_release();
+
+	return 0;
+}
+
+static const struct kernel_param_ops pd_keepon_startup_ops = {
+	.set	= pd_param_set_keepon_startup,
+	.get	= param_get_bool,
+};
+
+module_param_cb(keepon_startup, &pd_keepon_startup_ops, &keepon_startup, 0644);
+MODULE_PARM_DESC(keepon_startup,
+		 "Keep pm domains power on during system startup.");
+#endif
 
 static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
 {
@@ -847,6 +877,26 @@ static void rockchip_pd_qos_init(struct rockchip_pm_domain *pd)
 	}
 }
 
+static int rockchip_pd_add_alwasy_on_flag(struct rockchip_pm_domain *pd)
+{
+	int error;
+
+	if (pd->genpd.flags & GENPD_FLAG_ALWAYS_ON)
+		return 0;
+	pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
+	if (!rockchip_pmu_domain_is_on(pd)) {
+		error = rockchip_pd_power(pd, true);
+		if (error) {
+			dev_err(pd->pmu->dev,
+				"failed to power on domain '%s': %d\n",
+				pd->genpd.name, error);
+			return error;
+		}
+	}
+
+	return 0;
+}
+
 static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 				      struct device_node *node)
 {
@@ -1033,20 +1083,11 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pd->genpd.detach_dev = rockchip_pd_detach_dev;
 	if (pd_info->active_wakeup)
 		pd->genpd.flags |= GENPD_FLAG_ACTIVE_WAKEUP;
-#ifndef MODULE
-	if (pd_info->keepon_startup) {
-		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
-		if (!rockchip_pmu_domain_is_on(pd)) {
-			error = rockchip_pd_power(pd, true);
-			if (error) {
-				dev_err(pmu->dev,
-					"failed to power on domain '%s': %d\n",
-					node->name, error);
-				goto err_unprepare_clocks;
-			}
-		}
+	if (pd_info->always_on || pd_info->keepon_startup) {
+		error = rockchip_pd_add_alwasy_on_flag(pd);
+		if (error)
+			goto err_unprepare_clocks;
 	}
-#endif
 	rockchip_pd_qos_init(pd);
 
 	pm_genpd_init(&pd->genpd, NULL, !rockchip_pmu_domain_is_on(pd));
@@ -1181,46 +1222,36 @@ err_out:
 	return error;
 }
 
-#ifndef MODULE
-static void rockchip_pd_keepon_do_release(struct generic_pm_domain *genpd,
-					  struct rockchip_pm_domain *pd)
-{
-	struct pm_domain_data *pm_data;
-	int enable_count;
-
-	pd->genpd.flags &= (~GENPD_FLAG_ALWAYS_ON);
-	list_for_each_entry(pm_data, &genpd->dev_list, list_node) {
-		if (!atomic_read(&pm_data->dev->power.usage_count)) {
-			enable_count = 0;
-			if (!pm_runtime_enabled(pm_data->dev)) {
-				pm_runtime_enable(pm_data->dev);
-				enable_count = 1;
-			}
-			pm_runtime_get_sync(pm_data->dev);
-			pm_runtime_put_sync(pm_data->dev);
-			if (enable_count)
-				pm_runtime_disable(pm_data->dev);
-		}
-	}
-}
-
-static int __init rockchip_pd_keepon_release(void)
+static void rockchip_pd_keepon_do_release(void)
 {
 	struct generic_pm_domain *genpd;
 	struct rockchip_pm_domain *pd;
 	int i;
 
 	if (!g_pmu)
-		return 0;
+		return;
 
 	for (i = 0; i < g_pmu->genpd_data.num_domains; i++) {
 		genpd = g_pmu->genpd_data.domains[i];
 		if (genpd) {
 			pd = to_rockchip_pd(genpd);
-			if (pd->info->keepon_startup)
-				rockchip_pd_keepon_do_release(genpd, pd);
+			if (pd->info->always_on)
+				continue;
+			if (!pd->info->keepon_startup)
+				continue;
+			if (!(genpd->flags & GENPD_FLAG_ALWAYS_ON))
+				continue;
+			genpd->flags &= (~GENPD_FLAG_ALWAYS_ON);
+			queue_work(pm_wq, &genpd->power_off_work);
 		}
 	}
+}
+
+#ifndef MODULE
+static int __init rockchip_pd_keepon_release(void)
+{
+	rockchip_pd_keepon_do_release();
+
 	return 0;
 }
 late_initcall_sync(rockchip_pd_keepon_release);
