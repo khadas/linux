@@ -1553,6 +1553,38 @@ static void align_vd1_mif_size_for_DV(struct vpp_frame_par_s *par,
 }
 #endif
 
+static bool is_8k_in_4k120hz_out(u32 width_in,
+	u32 height_in,
+	const struct vinfo_s *vinfo)
+{
+	/* input: (4k-8k] */
+	if (width_in > 4096 && height_in > 2160) {
+		/* > 4kp60 output, for 4k120hz */
+		if ((vinfo->width >= 3840 && vinfo->height >= 2160 &&
+			(vinfo->sync_duration_num /
+			vinfo->sync_duration_den > 60)) &&
+			(vinfo->width < 7680 && vinfo->height < 3840))
+			return true;
+	}
+	return false;
+}
+
+static bool is_8k_in_1080p120hz_out(u32 width_in,
+	u32 height_in,
+	const struct vinfo_s *vinfo)
+{
+	/* input: (4k-8k] */
+	if (width_in > 4096 && height_in > 2160) {
+		/* > 1080p60 output, for 1080p120hz */
+		if ((vinfo->width >= 1920 && vinfo->height >= 1080 &&
+			(vinfo->sync_duration_num /
+			vinfo->sync_duration_den > 60)) &&
+			(vinfo->width < 3840 && vinfo->height < 2160))
+			return true;
+	}
+	return false;
+}
+
 static int vpp_set_filters_internal_s5
 	(struct disp_info_s *input,
 	u32 width_in,
@@ -1700,6 +1732,9 @@ static int vpp_set_filters_internal_s5
 #endif
 	else
 		vskip_step = 1;
+	/* for 4k120hz output */
+	if (is_8k_in_4k120hz_out(width_in, height_in, vinfo))
+		next_frame_par->vscale_skip_count++;
 
 	if (cur_super_debug)
 		pr_info("sar_width=%d, sar_height = %d, %d\n",
@@ -2356,6 +2391,8 @@ RESTART:
 		if ((vpp_flags & VPP_FLAG_FORCE_NO_COMPRESS) ||
 		    next_frame_par->vscale_skip_count > 1 ||
 		    !afbc_support ||
+		    is_8k_in_1080p120hz_out(width_in,
+		    height_in, vinfo) ||
 		    force_no_compress)
 			no_compress = true;
 	} else {
