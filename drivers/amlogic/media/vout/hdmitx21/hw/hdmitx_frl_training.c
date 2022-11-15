@@ -137,6 +137,46 @@ enum frl_rate_enum hdmitx21_select_frl_rate(bool dsc_en, enum hdmi_vic vic,
 	return FRL_NONE;
 }
 
+/*
+ * Config hdmitx Data Flow metering
+ * bw_type: 1: Full BW
+ *          2: non Full BW
+ *          0: default
+ */
+void hdmitx_dfm_cfg(u8 bw_type, u16 val)
+{
+	switch (bw_type) {
+	case 1:
+		hdmitx21_wr_reg(H21TXSB_SPARE_0_IVCTX, 0xf3);
+		hdmitx21_wr_reg(H21TXSB_SPARE_1_IVCTX, 0x7d);
+		hdmitx21_wr_reg(H21TXSB_SPARE_3_IVCTX, 0xff);
+		hdmitx21_wr_reg(H21TXSB_SPARE_2_IVCTX, 0xd0);
+		hdmitx21_wr_reg(H21TXSB_SPARE_4_IVCTX, val & 0xff);
+		hdmitx21_wr_reg(H21TXSB_SPARE_5_IVCTX, (val >> 8) & 0xff);
+		hdmitx21_wr_reg(H21TXSB_SPARE_6_IVCTX, 0xf3);
+		break;
+	case 2:
+		hdmitx21_wr_reg(H21TXSB_SPARE_0_IVCTX, 0xf0);
+		hdmitx21_wr_reg(H21TXSB_SPARE_1_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_3_IVCTX, 0xff);
+		hdmitx21_wr_reg(H21TXSB_SPARE_2_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_4_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_5_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_6_IVCTX, 0x00);
+		break;
+	case 0:
+	default:
+		hdmitx21_wr_reg(H21TXSB_SPARE_0_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_1_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_3_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_2_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_4_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_5_IVCTX, 0x00);
+		hdmitx21_wr_reg(H21TXSB_SPARE_6_IVCTX, 0x00);
+		break;
+	}
+}
+
 //================== LTS 1============================
 static void TX_LTS_1_HDMI21_CONFIG(enum frl_rate_enum frl_rate)
 {

@@ -175,4 +175,7 @@ void set21_hpll_sspll_s5(enum hdmi_vic vic);
 void dump_hdmitx_reg(void);
 void dump_infoframe_packets(struct seq_file *s);
 
+/* data flow metering config */
+void hdmitx_dfm_cfg(u8 bw_type, u16 h_active);
+
 #endif

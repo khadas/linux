@@ -26,9 +26,8 @@ static void dump32(struct seq_file *s, u32 start, u32 end)
 
 	for (; start <= end; start += 4) {
 		value = hd21_read_reg(start);
-		if (value)
-			seq_printf(s, "[0x%08x] 0x%08x\n",
-				TO21_PHY_ADDR(start), value);
+		seq_printf(s, "[0x%08x] 0x%08x\n",
+			TO21_PHY_ADDR(start), value);
 	}
 }
 
@@ -85,8 +84,7 @@ static void dumptop(struct seq_file *s, u32 start, u32 end)
 	end = (((end) & 0xffff) | TOP_OFFSET_MASK);
 	for (; start <= end; start += 4) {
 		value = hdmitx21_rd_reg(start);
-		if (value)
-			seq_printf(s, "[0x%08x] 0x%02x\n", start, value);
+		seq_printf(s, "[0x%08x] 0x%02x\n", start, value);
 	}
 }
 
@@ -96,8 +94,7 @@ static void dumpcor(struct seq_file *s, u32 start, u32 end)
 
 	for (; start <= end; start++) {
 		value = hdmitx21_rd_reg(start);
-		if (value)
-			seq_printf(s, "[0x%08x] 0x%02x\n", start, value);
+		seq_printf(s, "[0x%08x] 0x%02x\n", start, value);
 	}
 }
 
@@ -118,6 +115,8 @@ static int dump_hdmireg_show(struct seq_file *s, void *p)
 	dumpcor(s, BIST_RST_IVCTX, CR_BLACK_HIGH_IVCTX);
 	// 0x00000607 - 0x000006ff
 	dumpcor(s, TPI_MISC_IVCTX, RSVD11_HW_TPI_IVCTX);
+	// 0x00000700 - 0x00000777
+	dumpcor(s, HT_TOP_CTL_PHY_IVCTX, HT_LTP_ST_PHY_IVCTX);
 	// 0x00000800 - 0x00000876
 	dumpcor(s, CP2TX_CTRL_0_IVCTX, CP2TX_GP1_IVCTX);
 	// 0x000008a0 - 0x000008d0
@@ -602,6 +601,132 @@ static const struct file_operations dump_hdmivrr_fops = {
 	.release	= single_release,
 };
 
+static void dump_clkctrl_regs(struct seq_file *s, const u32 *val)
+{
+	seq_printf(s, "VID_CLK0_CTRL[0x%x]=0x%x\n",
+		TO21_PHY_ADDR(CLKCTRL_VID_CLK0_CTRL), val[0]);
+	seq_printf(s, "VIID_CLK0_CTRL[0x%x]=0x%x\n",
+		TO21_PHY_ADDR(CLKCTRL_VIID_CLK0_CTRL), val[1]);
+	seq_printf(s, "ENC0_HDMI_CLK_CTRL[0x%x]=0x%x\n",
+		TO21_PHY_ADDR(CLKCTRL_ENC0_HDMI_CLK_CTRL), val[2]);
+	seq_printf(s, "VID_CLK0_CTRL2[0x%x]=0x%x\n",
+		TO21_PHY_ADDR(CLKCTRL_VID_CLK0_CTRL2), val[3]);
+	seq_printf(s, "VIID_CLK0_DIV[0x%x]=0x%x\n",
+		TO21_PHY_ADDR(CLKCTRL_VIID_CLK0_DIV), val[4]);
+}
+
+static int hdmitx_dump_cts_enc_clk_status(struct seq_file *s, void *p)
+{
+	u32 val[5];
+	u32 div;
+	struct hdmitx_dev *hdev = get_hdmitx21_device();
+	const char *crt_video_src_des[8] = {
+		[0] = "[16]vid_pll0_clk",
+		[1] = "[27]gp2_pll_clk",
+		[2] = "[19]hifi_pll_clk",
+		[3] = "[45]nna_pll_clk",
+		[4] = "[8]fpll_pixel_clk",
+		[5] = "fclk_div4",
+		[6] = "fclk_div5",
+		[7] = "fclk_div7",
+	};
+
+	if (hdev->data->chip_type == MESON_CPU_ID_T7)
+		return 0;
+
+	val[0] = hd21_read_reg(CLKCTRL_VID_CLK0_CTRL);
+	val[1] = hd21_read_reg(CLKCTRL_VIID_CLK0_CTRL);
+	val[2] = hd21_read_reg(CLKCTRL_ENC0_HDMI_CLK_CTRL);
+	val[3] = hd21_read_reg(CLKCTRL_VID_CLK0_CTRL2);
+	val[4] = hd21_read_reg(CLKCTRL_VIID_CLK0_DIV);
+
+	seq_puts(s, "cts_enc_clk: ");
+	if ((val[3] & BIT(3)) == 0) {
+		seq_puts(s, "\nCLKCTRL_VID_CLK0_CTRL2[3] gate is 0\n");
+		dump_clkctrl_regs(s, val);
+	}
+
+	div = (val[4] >> 12) & 0xf;
+	if (div < 8) {
+		seq_puts(s, "master_clk ");
+		if ((val[0] & BIT(19)) == 0) {
+			seq_puts(s, "\nCLKCTRL_VID_CLK0_CTRL[19] gate is 0\n");
+			dump_clkctrl_regs(s, val);
+		}
+		seq_printf(s, "%s ", crt_video_src_des[(val[0] >> 16) & 0x7]);
+	} else {
+		seq_puts(s, "v2_master_clk ");
+		if ((val[1] & BIT(19)) == 0) {
+			seq_puts(s, "\nCLKCTRL_VIID_CLK0_CTRL[19] gate is 0\n");
+			dump_clkctrl_regs(s, val);
+		}
+		seq_printf(s, "%s ", crt_video_src_des[(val[1] >> 16) & 0x7]);
+	}
+	switch (div) {
+	case 0:
+		if (val[0] & (1 << 0))
+			seq_puts(s, "div1\n");
+		break;
+	case 1:
+		if (val[0] & (1 << 1))
+			seq_puts(s, "div2\n");
+		break;
+	case 2:
+		if (val[0] & (1 << 2))
+			seq_puts(s, "div4\n");
+		break;
+	case 3:
+		if (val[0] & (1 << 3))
+			seq_puts(s, "div6\n");
+		break;
+	case 4:
+		if (val[0] & (1 << 4))
+			seq_puts(s, "div12\n");
+		break;
+	case 8:
+		if (val[1] & (1 << 0))
+			seq_puts(s, "div1\n");
+		break;
+	case 9:
+		if (val[1] & (1 << 1))
+			seq_puts(s, "div2\n");
+		break;
+	case 10:
+		if (val[1] & (1 << 2))
+			seq_puts(s, "div4\n");
+		break;
+	case 11:
+		if (val[1] & (1 << 3))
+			seq_puts(s, "div6\n");
+		break;
+	case 12:
+		if (val[1] & (1 << 4))
+			seq_puts(s, "div12\n");
+		break;
+	default:
+		seq_puts(s, "invalid div\n");
+		break;
+	}
+
+	return 0;
+}
+
+static int dump_cts_enc_clk_show(struct seq_file *s, void *p)
+{
+	return hdmitx_dump_cts_enc_clk_status(s, p);
+}
+
+static int dump_cts_enc_clk_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dump_cts_enc_clk_show, inode->i_private);
+}
+
+static const struct file_operations dump_cts_enc_clk_fops = {
+	.open		= dump_cts_enc_clk_open,
+	.read		= seq_read,
+	.release	= single_release,
+};
+
 struct hdmitx_dbg_files_s {
 	const char *name;
 	const umode_t mode;
@@ -616,6 +741,7 @@ static struct hdmitx_dbg_files_s hdmitx_dbg_files[] = {
 	{"hdmi_ver", S_IFREG | 0444, &dump_hdmiver_fops},
 	{"aud_cts", S_IFREG | 0444, &dump_audcts_fops},
 	{"hdmi_vrr", S_IFREG | 0444, &dump_hdmivrr_fops},
+	{"cts_enc_clk", S_IFREG | 0444, &dump_cts_enc_clk_fops},
 };
 
 static struct dentry *hdmitx_dbgfs;

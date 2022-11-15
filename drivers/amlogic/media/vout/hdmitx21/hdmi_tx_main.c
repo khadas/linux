@@ -674,6 +674,9 @@ static int set_disp_mode_auto(void)
 	if (hdev->rxcap.max_frl_rate)
 		hdev->frl_rate = hdmitx21_select_frl_rate(hdev->dsc_en, vic,
 			hdev->para->cs, hdev->para->cd);
+	/* if manual_frl_rate is true, set to force frl_rate */
+	if (hdev->manual_frl_rate)
+		hdev->frl_rate = hdev->manual_frl_rate;
 	hdev->cur_VIC = HDMI_0_UNKNOWN;
 /* if vic is HDMI_0_UNKNOWN, hdmitx21_set_display will disable HDMI */
 	edidinfo_detach_to_vinfo(hdev);
@@ -4048,7 +4051,7 @@ static ssize_t frl_rate_store(struct device *dev,
 
 	/* if rx don't support FRL, return */
 	if (!hdev->rxcap.max_frl_rate) {
-		hdev->frl_rate = 0;
+		hdev->manual_frl_rate = 0;
 		pr_info("rx not support FRL\n");
 		return count;
 	}
@@ -4060,9 +4063,8 @@ static ssize_t frl_rate_store(struct device *dev,
 			pr_info("set frl_rate in 0 ~ 6\n");
 			return count;
 		}
-		hdev->frl_rate = val;
+		hdev->manual_frl_rate = val;
 		pr_info("set frl_rate as %d\n", val);
-		return count;
 	}
 
 	return count;

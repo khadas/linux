@@ -956,6 +956,10 @@ pr_info("%s[%d]\n", __func__, __LINE__);
 	hdmitx_set_phy(hdev);
 	if (hdev->data->chip_type >= MESON_CPU_ID_S5) {
 		hdmitx_set_clkdiv(hdev);
+		if (!hdev->frl_rate)
+			hdmitx_dfm_cfg(0, 0);
+		else
+			hdmitx_dfm_cfg(1, 0);
 		if (hdev->rxcap.max_frl_rate)
 			hdmitx_frl_training_main(hdev->frl_rate);
 	}
@@ -1640,13 +1644,45 @@ static void hdmitx_debug(struct hdmitx_dev *hdev, const char *buf)
 				if (hdev->para->cs == HDMI_COLORSPACE_YUV420)
 					value /= 2;
 			}
+			hd21_write_reg(VENC_VIDEO_TST_CLRBAR_STRT, 0x113);
 			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 1);
 			hd21_write_reg(VENC_VIDEO_TST_CLRBAR_WIDTH, value / 8);
+			return;
+		}
+		if ((strncmp(tmpbuf + 4, "X", 1) == 0) || (strncmp(tmpbuf + 4, "x", 1) == 0)) {
+			const struct hdmi_timing *t;
+			u32 width = 1920;
+			u32 height = 1080;
+
+			if (!hdev->para)
+				return;
+			if (hdev->data->chip_type < MESON_CPU_ID_S5) {
+				pr_info("s5 or later support x pattern\n");
+				return;
+			}
+			t = &hdev->para->timing;
+			width = t->h_active;
+			/* when FRL works, here will be half rate */
+			if (hdev->frl_rate) {
+				width /= 2;
+				if (hdev->para->cs == HDMI_COLORSPACE_YUV420)
+					width /= 2;
+			}
+			height = t->v_active;
+			hd21_write_reg(VENC_VIDEO_TST_Y, 0x3ff);
+			hd21_write_reg(VENC_VIDEO_TST_CB, 0x1);
+			hd21_write_reg(VENC_VIDEO_TST_CR, 0x1);
+			hd21_write_reg(VENC_VIDEO_TST_CLRBAR_STRT, height);
+			hd21_write_reg(VENC_VIDEO_TST_CLRBAR_WIDTH, width);
+			hd21_set_reg_bits(ENCP_VIDEO_MODE_ADV, 0, 3, 1);
+			hd21_write_reg(VENC_VIDEO_TST_MDSEL, 4);
+			hd21_write_reg(VENC_VIDEO_TST_EN, 1);
 			return;
 		}
 		hd21_write_reg(VENC_VIDEO_TST_MDSEL, 1);
 		value = 1920;
 		ret = kstrtoul(tmpbuf + 4, 10, &value);
+		hd21_write_reg(VENC_VIDEO_TST_CLRBAR_STRT, 0x113);
 		hd21_write_reg(VENC_VIDEO_TST_CLRBAR_WIDTH, value / 8);
 		return;
 	} else if (strncmp(tmpbuf, "testaudio", 9) == 0) {
