@@ -438,7 +438,7 @@ static int tsync_mode_switch(int mode, unsigned long diff_pts, int jump_pts)
 			pr_info("mode changes:tsync_mode:%c->%c,state:%c->%c,",
 				VA[old_tsync_mode], VA[tsync_mode],
 				old_tsync_av_mode, tsync_av_mode);
-			pr_info("debugcnt=0x%x,diff_pts=%lu\n",
+		pr_info("debugcnt=0x%x,diff_pts=%lu\n",
 				debugcnt,
 				diff_pts);
 		return 0;

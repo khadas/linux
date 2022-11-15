@@ -5715,7 +5715,7 @@ static ssize_t amvecm_hdr_dbg_store(struct class *cla,
 			for (i = 0; i < 65; i++)
 				d_convert_str(cgain_lut_bypass[i],
 					      i, stemp, 4, 10);
-				pr_info("%s\n", stemp);
+			pr_info("%s\n", stemp);
 		} else if (!strncmp(parm[1], "wv", 2)) {
 			str_sapr_to_d(parm[2], curve_val, 5);
 			for (i = 0; i < 65; i++)

@@ -5144,7 +5144,7 @@ static irqreturn_t post_irq(int irq, void *dev_instance)
 	if ((data32 & 4) == 0) {
 	if (di_dbg_mask&8)
 		pr_info("irq[%d]post write undone.\n", irq);
-		return IRQ_HANDLED;
+	return IRQ_HANDLED;
 	}
 	ddbg_mod_save(eDI_DBG_MOD_POST_IRQB, 0, 0);
 	if ((post_wr_en && post_wr_support) && (data32&0x4)) {

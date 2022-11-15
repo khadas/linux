@@ -4317,7 +4317,7 @@ do { \
 									/* Delay is needed for core to update setup
 									 * packet count from 3 to 2 after receiving
 									 * setup packet*/
-									dwc_udelay(100);
+								dwc_udelay(100);
 									doepint.d32 = DWC_READ_REG32(&core_if->dev_if->
 																	out_ep_regs[0]->doepint);
 									if (doeptsize0.b.supcnt == 3) {

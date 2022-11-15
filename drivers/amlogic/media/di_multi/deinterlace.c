@@ -7173,7 +7173,7 @@ void dim_post_irq_sub(int irq)
 	if ((data32 & 4) == 0) {
 		if (dimp_get(edi_mp_di_dbg_mask) & 8)
 			pr_info("irq[%d]post write undone.\n", irq);
-			return;
+		return;
 	}
 	if (pst->state == EDI_PST_ST_SET && pst->flg_have_set)
 		flg_right = true;
