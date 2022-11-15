@@ -645,15 +645,20 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	struct aml_lcd_drv_s *pdrv = (struct aml_lcd_drv_s *)data;
 	unsigned long long local_time[3];
 
-	lcd_dlg_time_init(pdrv);
-	local_time[0] = sched_clock();
-
 	if (!pdrv)
 		return -1;
+
+	lcd_dlg_time_init(pdrv);
+	local_time[0] = sched_clock();
 
 	if (lcd_vout_serve_bypass) {
 		LCDPR("[%d]: vout_serve bypass\n", pdrv->index);
 		return 0;
+	}
+
+	if ((mode & VMODE_MODE_BIT_MASK) != VMODE_LCD) {
+		LCDPR("[%d]: unsupport mode 0x%x\n", pdrv->index, mode & VMODE_MODE_BIT_MASK);
+		return -1;
 	}
 
 	if (lcd_fr_is_fixed(pdrv)) {
@@ -669,34 +674,38 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 
 	/* do not change mode value here, for bit mask is useful */
 	lcd_vmode_vinfo_update(pdrv, mode & VMODE_MODE_BIT_MASK);
-	if (VMODE_LCD == (mode & VMODE_MODE_BIT_MASK)) {
-		if (mode & VMODE_INIT_BIT_MASK) {
-			lcd_clk_gate_switch(pdrv, 1);
-		} else if (lcd_init_on_flag == 0) {
-			lcd_init_on_flag = 1;
-			if (pdrv->key_valid == 0 &&
-			    !(pdrv->status & LCD_STATUS_ENCL_ON)) {
-				aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
-				lcd_if_enable_retry(pdrv);
-			} else if (pdrv->driver_change) {
+	if (mode & VMODE_INIT_BIT_MASK) {
+		lcd_clk_gate_switch(pdrv, 1);
+	} else if (lcd_init_on_flag == 0) {
+		lcd_init_on_flag = 1;
+		if (pdrv->key_valid == 0 && (pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
+			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+			lcd_if_enable_retry(pdrv);
+		} else {
+			if (pdrv->driver_change) {
 				lcd_vmode_switch(pdrv, 0);
 				mutex_lock(&lcd_vout_mutex);
 				ret = pdrv->driver_change(pdrv);
 				mutex_unlock(&lcd_vout_mutex);
 				lcd_vmode_switch(pdrv, 1);
 			}
-		} else if (lcd_init_on_flag == 1) {
-			lcd_vmode_switch(pdrv, 0);
-			mutex_lock(&lcd_vout_mutex);
-			if (pdrv->driver_change)
-				ret = pdrv->driver_change(pdrv);
-			else
-				ret = -1;
-			mutex_unlock(&lcd_vout_mutex);
-			lcd_vmode_switch(pdrv, 1);
 		}
-	} else {
-		ret = -EINVAL;
+	} else if (lcd_init_on_flag == 1) {
+		if ((pdrv->status & LCD_STATUS_ENCL_ON) == 0) {
+			//workaround for drm resume
+			aml_lcd_notifier_call_chain(LCD_EVENT_ENCL_ON, (void *)pdrv);
+		} else {
+			if (pdrv->driver_change) {
+				lcd_vmode_switch(pdrv, 0);
+				mutex_lock(&lcd_vout_mutex);
+				if (pdrv->driver_change)
+					ret = pdrv->driver_change(pdrv);
+				else
+					ret = -1;
+				mutex_unlock(&lcd_vout_mutex);
+				lcd_vmode_switch(pdrv, 1);
+			}
+		}
 	}
 
 	/* must update vrr dev after driver change for panel parameters update */
@@ -1038,6 +1047,7 @@ static int lcd_suspend(void *data)
 		return -1;
 
 	mutex_lock(&lcd_power_mutex);
+	lcd_init_on_flag = 1; //align lcd_init flag
 	pdrv->resume_flag &= ~LCD_RESUME_ENABLE;
 	aml_lcd_notifier_call_chain(LCD_EVENT_DISABLE, (void *)pdrv);
 	LCDPR("[%d]: early_suspend finished\n", pdrv->index);

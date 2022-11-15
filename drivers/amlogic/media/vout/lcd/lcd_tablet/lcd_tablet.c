@@ -91,6 +91,11 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 	if (!pdrv)
 		return -1;
 
+	if ((mode & VMODE_MODE_BIT_MASK) != VMODE_LCD) {
+		LCDPR("[%d]: unsupport mode 0x%x\n", pdrv->index, mode & VMODE_MODE_BIT_MASK);
+		return -1;
+	}
+
 	mutex_lock(&lcd_power_mutex);
 
 	pdrv->vrr_dev = kzalloc(sizeof(*pdrv->vrr_dev), GFP_KERNEL);
@@ -108,15 +113,11 @@ static int lcd_set_current_vmode(enum vmode_e mode, void *data)
 		LCDPR("[%d]: %s: drv_mode=%s\n",
 		      pdrv->index, __func__, pdrv->vinfo.name);
 	}
-	if (VMODE_LCD == (mode & VMODE_MODE_BIT_MASK)) {
-		if (mode & VMODE_INIT_BIT_MASK) {
-			lcd_clk_gate_switch(pdrv, 1);
-		} else {
-			aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
-			lcd_if_enable_retry(pdrv);
-		}
+	if (mode & VMODE_INIT_BIT_MASK) {
+		lcd_clk_gate_switch(pdrv, 1);
 	} else {
-		ret = -EINVAL;
+		aml_lcd_notifier_call_chain(LCD_EVENT_POWER_ON, (void *)pdrv);
+		lcd_if_enable_retry(pdrv);
 	}
 
 	pdrv->status |= LCD_STATUS_VMODE_ACTIVE;

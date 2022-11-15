@@ -47,6 +47,7 @@
 /* 20221028: fix lane lock && fix t7 mipi lprx reg set*/
 /* 20221111: modify edp transmit_unit_size to 48(temporary)*/
 /* 20221115: support force unfit mipi-dsi bit_rate_max*/
+/* 20221116: enable lcd clk for drm resume*/
 /* 20221123: add ioctl functions, include power, mute, phy, ss*/
 /* 20221215: remove unnecessary tcon top reset*/
 #define LCD_DRV_VERSION    "20221215"

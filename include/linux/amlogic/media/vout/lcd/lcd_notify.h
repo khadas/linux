@@ -27,12 +27,12 @@
 
 /* original event */
 #define LCD_EVENT_SCREEN_BLACK         BIT(0)
-#define LCD_EVENT_BL_OFF               BIT(1)
+#define LCD_EVENT_BL_OFF               BIT(1)  //clr LCD_ON bl_state
 #define LCD_EVENT_IF_OFF               BIT(2)
 #define LCD_EVENT_ENCL_OFF             BIT(3)
 #define LCD_EVENT_ENCL_ON              BIT(4)
 #define LCD_EVENT_IF_ON                BIT(5)
-#define LCD_EVENT_BL_ON                BIT(6)
+#define LCD_EVENT_BL_ON                BIT(6)  //with LCD_ON bl_state
 #define LCD_EVENT_SCREEN_RESTORE       BIT(7)
 #define LCD_EVENT_DLG_POWER_ON         BIT(8)
 #define LCD_EVENT_DLG_POWER_OFF        BIT(9)
@@ -62,6 +62,9 @@
 #define LCD_EVENT_GAMMA_UPDATE         BIT(12)
 /* lcd bist pattern test occurred */
 #define LCD_EVENT_TEST_PATTERN         BIT(13)
+/* backlight power ctrl with POWER_ON bl_state, without LCD_ON bl_state */
+#define LCD_EVENT_BL_POWER_ON          BIT(14)
+#define LCD_EVENT_BL_POWER_OFF         BIT(15)
 
 #define LCD_VLOCK_PARAM_NUM            5
 #define LCD_VLOCK_PARAM_BIT_UPDATE     BIT(4)

@@ -1903,6 +1903,44 @@ static struct notifier_block bl_lcd_off_nb = {
 	.priority = LCD_PRIORITY_POWER_BL_OFF,
 };
 
+static int bl_power_ctrl_notifier(struct notifier_block *nb,
+				  unsigned long event, void *data)
+{
+	struct aml_bl_drv_s *bdrv = (struct aml_bl_drv_s *)data;
+	unsigned int temp = 0;
+
+	if (event & LCD_EVENT_BL_POWER_ON)
+		temp = 1;
+	else if (event & LCD_EVENT_BL_POWER_OFF)
+		temp = 0;
+	else
+		return NOTIFY_DONE;
+
+	if (aml_bl_check_driver(bdrv))
+		return NOTIFY_DONE;
+	if (bdrv->probe_done == 0)
+		return NOTIFY_DONE;
+
+	if (lcd_debug_print_flag & LCD_DBG_PR_BL_NORMAL)
+		BLPR("[%d]: %s: %d\n", bdrv->index, __func__, temp);
+
+	if (temp == 0) {
+		bdrv->state &= ~BL_STATE_BL_POWER_ON;
+		if (bdrv->state & BL_STATE_BL_ON)
+			bl_power_off(bdrv);
+	} else {
+		bdrv->state |= BL_STATE_BL_POWER_ON;
+		if ((bdrv->state & BL_STATE_BL_ON) == 0)
+			bl_power_on(bdrv);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block bl_power_ctrl_nb = {
+	.notifier_call = bl_power_ctrl_notifier,
+};
+
 static inline int bl_pwm_vs_lcd_update(struct aml_bl_drv_s *bdrv,
 				       struct bl_pwm_config_s *bl_pwm)
 {
@@ -2251,6 +2289,9 @@ static void bl_notifier_init(void)
 	ret = aml_lcd_notifier_register(&bl_lcd_off_nb);
 	if (ret)
 		BLERR("register bl_lcd_off_nb failed\n");
+	ret = aml_lcd_notifier_register(&bl_power_ctrl_nb);
+	if (ret)
+		BLERR("register bl_power_ctrl_nb failed\n");
 	ret = aml_lcd_notifier_register(&bl_lcd_update_nb);
 	if (ret)
 		BLERR("register bl_lcd_update_nb failed\n");
@@ -2275,6 +2316,7 @@ static void bl_notifier_remove(void)
 	aml_lcd_atomic_notifier_unregister(&bl_bri_dimming_nb);
 	aml_lcd_notifier_unregister(&bl_lcd_test_nb);
 	aml_lcd_notifier_unregister(&bl_lcd_update_nb);
+	aml_lcd_notifier_unregister(&bl_power_ctrl_nb);
 	aml_lcd_notifier_unregister(&bl_lcd_on_nb);
 	aml_lcd_notifier_unregister(&bl_lcd_off_nb);
 }
@@ -3855,6 +3897,8 @@ static void bl_init_status_update(struct aml_bl_drv_s *bdrv)
 	if (!pdrv)
 		return;
 
+	/* default power state on */
+	bdrv->state = BL_STATE_BL_POWER_ON;
 	/* default disable lcd & backlight */
 	if ((pdrv->status & LCD_STATUS_IF_ON) == 0)
 		return;
