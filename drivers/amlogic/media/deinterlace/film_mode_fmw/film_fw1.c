@@ -315,7 +315,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 	static int num;
 	static int num32;
 	static int flag_pre;
-	static int comsumpre;
+	static int com_sum_pre;
 	static int nS1pre;
 	static int dif01_flag;
 	static int pre_old_dif01;
@@ -674,11 +674,11 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 				else
 					pRDat.mNum22[HISDETNUM - 1] = 0;
 			}
-			comdif = (comsumpre < comsum) ?  (comsum - comsumpre)
-				: (comsumpre - comsum);
+			comdif = (com_sum_pre < comsum) ?  (comsum - com_sum_pre)
+				: (com_sum_pre - comsum);
 			if (pr_pd)
-				pr_info("comsum=%d, comsumpre=%d, flev=%d\n",
-					comsum, comsumpre, nS1);
+				pr_info("comsum=%d, com_sum_pre=%d, flev=%d\n",
+					comsum, com_sum_pre, nS1);
 			if ((comsum < 200) && (comsum > pPar->flm22_comnum)
 				&& (comdif < flm22_comth) &&
 				flm22_dif01a_flag) {
@@ -695,7 +695,7 @@ int FlmVOFSftTop(UINT8 *rCmb32Spcl, unsigned short *rPstCYWnd0,
 			}
 			if (pr_pd)
 				pr_info("flev=%d\n", nS1);
-			comsumpre = comsum;
+			com_sum_pre = comsum;
 		} else if (nS1pre < 100) {
 			if (nS1 < pPar->flm22_comlev2)
 				nS1 = 0;
