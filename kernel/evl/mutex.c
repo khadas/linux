@@ -271,7 +271,14 @@ static void adjust_owner_boost(struct evl_thread *owner)
 		 * wchan -> (owner, waiter) [by address]
 		 */
 		raw_spin_lock(&mutex->wchan.lock);
-		if (EVL_WARN_ON(CORE, list_empty(&mutex->wchan.wait_list))) {
+		/*
+		 * The last waiter might have dropped out under us
+		 * since the wait channel was unlocked until now, if
+		 * so expect a call to undo_pi_walk() to drop the
+		 * mutex from the owner's booster list if need be,
+		 * triggering an adjustment.
+		 */
+		if (list_empty(&mutex->wchan.wait_list)) {
 			raw_spin_unlock(&mutex->wchan.lock);
 			return;
 		}
