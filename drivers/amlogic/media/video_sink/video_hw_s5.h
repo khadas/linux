@@ -366,4 +366,5 @@ u32 get_cur_enc_num_s5(void);
 u32 get_cur_enc_line_s5(void);
 int set_vpu_super_urgent_s5(u32 module_id, u32 urgent_level);
 int get_vpu_urgent_info_s5(void);
+void set_vd_pi_input_size(void);
 #endif

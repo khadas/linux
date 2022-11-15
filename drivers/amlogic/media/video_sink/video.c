@@ -9622,6 +9622,7 @@ exit:
 		update_over_field_states(OVER_FIELD_NEW_VF, false);
 RUN_FIRST_RDMA:
 	vsync_rdma_process();
+	set_vd_pi_input_size();
 
 	enc_line = get_cur_enc_line();
 
