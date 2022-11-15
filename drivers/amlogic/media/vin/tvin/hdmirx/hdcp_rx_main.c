@@ -241,6 +241,8 @@ struct dentry *esm_rx_blob;
 static int alloc_dma_areas(struct esm_device *esm,
 			   const struct esm_ioc_meminfo *info)
 {
+	if (info->code_size > ESM_MEMINFO_CODE_SIZE_MAX)
+		return -EINVAL;
 	esm->code_size = info->code_size;
 	esm->code_is_phys_mem = (info->code_base != 0);
 

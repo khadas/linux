@@ -25,6 +25,8 @@
 #define ESM_HL_DRIVER_TOO_MANY_ESM_DEVICES (-5)
 #define ESM_HL_DRIVER_USER_DEFINED_ERROR   (-6)
 
+#define ESM_MEMINFO_CODE_SIZE_MAX 0x30000
+
 /* ioctl numbers */
 enum {
 	ESM_NR_MIN = 0x10,
