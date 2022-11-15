@@ -109,7 +109,6 @@ u32 vd_dump_vframe;
 u32 vpp_drop_count;
 u32 composer_dev_choice = 1; /*0 dewarp, 1 vicp, 2 ge2d*/
 struct vframe_s *current_display_vf;
-struct composer_dev *vc_dev[MAX_VD_LAYERS];
 u32 vd_test_fps;
 u32 vd_test_fps_pip;
 u64 vd_test_fps_val[MAX_VD_LAYERS];
@@ -351,7 +350,7 @@ int vc_print(int index, int debug_flag, const char *fmt, ...)
 
 static DEFINE_MUTEX(video_composer_mutex);
 
-static struct video_composer_port_s ports[] = {
+struct video_composer_port_s ports[] = {
 	{
 		.name = "video_composer.0",
 		.index = 0,
@@ -2481,7 +2480,6 @@ static int video_composer_open(struct inode *inode, struct file *file)
 		       port->index);
 		return -ENOMEM;
 	}
-	vc_dev[port->index] = dev;
 	dev->ge2d_para.context = NULL;
 
 	dev->ge2d_para.count = 0;
@@ -2508,6 +2506,7 @@ static int video_composer_open(struct inode *inode, struct file *file)
 	memcpy(dev->vf_provider_name, port->name,
 	       strlen(port->name) + 1);
 	dev->video_render_index = vd_render_index_get(dev);
+	port->video_render_index = dev->video_render_index;
 	port->open_count++;
 	do_gettimeofday(&dev->start_time);
 
@@ -2575,6 +2574,7 @@ static int video_composer_release(struct inode *inode, struct file *file)
 		}
 	}
 	vfree(dev);
+	dev = NULL;
 	return 0;
 }
 

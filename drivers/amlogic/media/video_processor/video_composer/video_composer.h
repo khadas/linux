@@ -148,6 +148,7 @@ struct video_composer_port_s {
 	u32 open_count;
 	struct device *class_dev;
 	struct device *pdev;
+	u32 video_render_index;
 };
 
 struct videocom_frame_s {

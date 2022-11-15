@@ -80,9 +80,7 @@ void vsync_notify_video_composer(void)
 	int count = MAX_VIDEO_COMPOSER_INSTANCE_NUM;
 
 	for (i = 0; i < count; i++) {
-		if (!vc_dev[i])
-			return;
-		if (vc_dev[i]->index == 1 && vc_dev[i]->video_render_index == 5)
+		if (ports[i].index == 1 && ports[i].video_render_index == 5)
 			continue;
 		if (get_count[i] > 0)
 			vpp_drop_count += (get_count[i] - 1);
@@ -122,9 +120,7 @@ void multi_vsync_notify_video_composer(void)
 	int count = MAX_VIDEO_COMPOSER_INSTANCE_NUM;
 
 	for (i = 0; i < count; i++) {
-		if (!vc_dev[i])
-			return;
-		if (vc_dev[i]->index != 1 && vc_dev[i]->video_render_index != 5)
+		if (ports[i].index != 1 && ports[i].video_render_index != 5)
 			continue;
 		if (get_count[i] > 0)
 			vpp_drop_count += (get_count[i] - 1);
