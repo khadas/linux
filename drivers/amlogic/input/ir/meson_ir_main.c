@@ -821,6 +821,7 @@ static int meson_ir_resume(struct device *dev)
 		regmap_read(chip->ir_contr[cnt].base, REG_STATUS, &val);
 		regmap_read(chip->ir_contr[cnt].base, REG_FRAME, &val);
 	}
+	regmap_read(chip->ir_contr[MULTI_IR_ID].base, REG_FRAME1, &val);
 	spin_unlock_irqrestore(&chip->slock, flags);
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND

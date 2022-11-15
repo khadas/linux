@@ -118,9 +118,10 @@ static struct meson_ir_reg_map regs_default_rc6[] = {
 	/*it may get the wrong customer value and key value from register if
 	 *the value is set to 0x4,so the register value must set to 0x104
 	 */
-	{REG_REG2,          0x2909},
+	{REG_REG2,          0x3909},
 	{REG_DURATN2,       ((28 << 16) | (16 << 0))},
 	{REG_DURATN3,       ((51 << 16) | (38 << 0))},
+	{REG_REG3,          2000}
 };
 
 static struct meson_ir_reg_map regs_default_toshiba[] = {
