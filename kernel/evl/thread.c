@@ -168,20 +168,21 @@ int evl_init_thread(struct evl_thread *thread,
 		struct evl_rq *rq,
 		const char *fmt, ...)
 {
-	int flags = iattr->flags & ~T_SUSP, ret, gravity;
+	int state = iattr->flags & ~T_SUSP, ret, gravity;
 	cpumask_var_t affinity;
+	unsigned long flags;
 	va_list args;
 
 	inband_context_only();
 
-	if (!(flags & T_ROOT))
-		flags |= T_DORMANT | T_INBAND;
+	if (!(state & T_ROOT))
+		state |= T_DORMANT | T_INBAND;
 
-	if ((flags & T_USER) && IS_ENABLED(CONFIG_EVL_DEBUG_WOLI))
-		flags |= T_WOLI;
+	if ((state & T_USER) && IS_ENABLED(CONFIG_EVL_DEBUG_WOLI))
+		state |= T_WOLI;
 
 	if (iattr->observable)
-		flags |= T_OBSERV;
+		state |= T_OBSERV;
 
 	/*
 	 * If no rq was given, pick an initial CPU for the new thread
@@ -208,7 +209,7 @@ int evl_init_thread(struct evl_thread *thread,
 
 	cpumask_and(&thread->affinity, iattr->affinity, &evl_cpu_affinity);
 	thread->rq = rq;
-	thread->state = flags;
+	thread->state = state;
 	thread->info = 0;
 	thread->local_info = 0;
 	thread->wprio = EVL_IDLE_PRIO;
@@ -233,7 +234,7 @@ int evl_init_thread(struct evl_thread *thread,
 	INIT_LIST_HEAD(&thread->ptsync_next);
 	thread->oob_mm = NULL;
 
-	gravity = flags & T_USER ? EVL_TIMER_UGRAVITY : EVL_TIMER_KGRAVITY;
+	gravity = state & T_USER ? EVL_TIMER_UGRAVITY : EVL_TIMER_KGRAVITY;
 	evl_init_timer_on_rq(&thread->rtimer, &evl_mono_clock, timeout_handler,
 			rq, gravity);
 	evl_set_timer_name(&thread->rtimer, thread->name);
@@ -251,7 +252,8 @@ int evl_init_thread(struct evl_thread *thread,
 	if (ret)
 		goto err_out;
 
-	if (flags & T_ROOT) {
+#ifdef CONFIG_LOCKDEP
+	if (state & T_ROOT) {
 		lockdep_set_class_and_name(&thread->lock, &rq->root_lock_key,
 					thread->name);
 	} else {
@@ -259,6 +261,10 @@ int evl_init_thread(struct evl_thread *thread,
 		lockdep_set_class_and_name(&thread->lock, &thread->lock_key,
 					thread->name);
 	}
+	local_irq_save_full(flags);
+	might_lock(&thread->lock);
+	local_irq_restore_full(flags);
+#endif
 
 	trace_evl_init_thread(thread, iattr, ret);
 
