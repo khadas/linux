@@ -3446,7 +3446,7 @@
 		mux {
 			groups = "pwm_a_e";
 			function = "pwm_a";
-			drive-strength-microamp = <500>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3454,7 +3454,7 @@
 		mux {
 			groups = "pwm_a_x";
 			function = "pwm_a";
-			drive-strength-microamp = <500>;
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3462,6 +3462,7 @@
 		mux {
 			groups = "pwm_b_e";
 			function = "pwm_b";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3469,6 +3470,7 @@
 		mux {
 			groups = "pwm_b_h";
 			function = "pwm_b";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3476,6 +3478,7 @@
 		mux {
 			groups = "pwm_c_e";
 			function = "pwm_c";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3483,6 +3486,7 @@
 		mux {
 			groups = "pwm_c_c";
 			function = "pwm_c";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3490,6 +3494,7 @@
 		mux {
 			groups = "pwm_d_d";
 			function = "pwm_d";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3497,6 +3502,7 @@
 		mux {
 			groups = "pwm_d_e";
 			function = "pwm_d";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3504,6 +3510,7 @@
 		mux {
 			groups = "pwm_e";
 			function = "pwm_e";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3511,6 +3518,7 @@
 		mux {
 			groups = "pwm_f";
 			function = "pwm_f";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3518,6 +3526,7 @@
 		mux {
 			groups = "pwm_g_d";
 			function = "pwm_g";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3525,6 +3534,7 @@
 		mux {
 			groups = "pwm_g_x";
 			function = "pwm_g";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3532,6 +3542,7 @@
 		mux {
 			groups = "pwm_h_d";
 			function = "pwm_h";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3539,6 +3550,7 @@
 		mux {
 			groups = "pwm_h_t";
 			function = "pwm_h";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3546,6 +3558,7 @@
 		mux {
 			groups = "pwm_i_d";
 			function = "pwm_i";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3553,6 +3566,7 @@
 		mux {
 			groups = "pwm_i_t";
 			function = "pwm_i";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3560,6 +3574,7 @@
 		mux {
 			groups = "pwm_j_d";
 			function = "pwm_j";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
@@ -3567,6 +3582,7 @@
 		mux {
 			groups = "pwm_j_t";
 			function = "pwm_j";
+			drive-strength-microamp = <3000>;
 		};
 	};
 
