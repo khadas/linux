@@ -5679,26 +5679,26 @@ void dim_dbg_seq_hf(struct hf_info_t *hf, struct seq_file *seq)
 }
 
 /**********************************/
-struct vframe_s *vf_get_dpost_by_indx(unsigned int ch, unsigned int indx)
+struct vframe_s *vf_get_dpost_by_index(unsigned int ch, unsigned int index)
 {
 	struct vframe_s *vf;
 
-	if (ch >= DI_CHANNEL_NUB || indx >= MAX_POST_BUF_NUM)
+	if (ch >= DI_CHANNEL_NUB || index >= MAX_POST_BUF_NUM)
 		return NULL;
-	vf = &get_orsc(ch)->vframe_post[indx];
+	vf = &get_orsc(ch)->vframe_post[index];
 	return vf;
 }
 
-struct vframe_s *vf_get_nin_by_indx(unsigned int ch, unsigned int indx)
+struct vframe_s *vf_get_nin_by_index(unsigned int ch, unsigned int index)
 {
 	struct vframe_s *vf;
 	struct di_ch_s *pch;
 
-	if (ch >= DI_CHANNEL_NUB || indx >= DIM_NINS_NUB)
+	if (ch >= DI_CHANNEL_NUB || index >= DIM_NINS_NUB)
 		return NULL;
 	pch = get_chdata(ch);
 
-	vf = &pch->nin_bf[indx].c.vfm_cp;
+	vf = &pch->nin_bf[index].c.vfm_cp;
 	return vf;
 }
 
@@ -5766,7 +5766,7 @@ bool vf_from_subvf(struct vframe_s *vfm, struct dsub_vf_s *vfms)
 	return true;
 }
 
-void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int indx)
+void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int index)
 {
 	if (!dvfm || !vfm)
 		return;
@@ -8639,7 +8639,7 @@ void dbg_buffer(struct seq_file *s, void *in)
 
 	buffer = (struct di_buffer *)in;
 	seq_printf(s, "%s:%px\n", "dbg_buffer", buffer);
-	seq_printf(s, "\t:code:0x%x,ch[%d],indx[%d], type[%d]\n",
+	seq_printf(s, "\t:code:0x%x,ch[%d],index[%d], type[%d]\n",
 		buffer->mng.code, buffer->mng.ch,
 		buffer->mng.index, buffer->mng.type);
 	if (buffer->vf)
@@ -8654,7 +8654,7 @@ void dbg_buffer_print(void *in)
 
 	buffer = (struct di_buffer *)in;
 	PR_INF("%s:%px\n", "dbg_buffer", buffer);
-	PR_INF("\t:code:0x%x,ch[%d],indx[%d], type[%d]\n",
+	PR_INF("\t:code:0x%x,ch[%d],index[%d], type[%d]\n",
 		buffer->mng.code,
 		buffer->mng.ch, buffer->mng.index, buffer->mng.type);
 	if (buffer->vf)

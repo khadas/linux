@@ -297,7 +297,7 @@ static unsigned int index_2_ch(int index)
 void dim_dbg_buffer(struct di_buffer *buffer, unsigned int id)
 {
 	PR_INF("%s:%d:%px\n", __func__, id, buffer);
-	PR_INF("\t:code:0x%x,ch[%d],indx[%d], type[%d]\n",
+	PR_INF("\t:code:0x%x,ch[%d],index[%d], type[%d]\n",
 	       buffer->mng.code, buffer->mng.ch,
 	       buffer->mng.index, buffer->mng.type);
 	if (buffer->vf)

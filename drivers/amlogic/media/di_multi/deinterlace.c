@@ -1033,7 +1033,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 	struct di_pre_stru_s *ppre = get_pre_stru(channel);
 //	struct di_dev_s  *de_devp = get_dim_de_devp();
 	/*ary add 2019-07-2 being*/
-	unsigned int indx;
+	unsigned int index;
 	struct di_buf_s *pbuf_post;
 	struct di_buf_s *pbuf_local;
 	struct di_post_stru_s *ppost;
@@ -1066,30 +1066,30 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			kfree(buf_orig);
 			return 0;
 		}
-		if (kstrtouint(parm[3], 0, &indx)) {
+		if (kstrtouint(parm[3], 0, &index)) {
 			PR_ERR("c_post:ch is not number\n");
 			kfree(buf_orig);
 			return 0;
 		}
-		di_pr_info("c_post:ch[%d],index[%d]\n", channel, indx);
+		di_pr_info("c_post:ch[%d],index[%d]\n", channel, index);
 		mm = dim_mm_get(channel);
 
 		ppre = get_pre_stru(channel);
 		ppost = get_post_stru(channel);
 		#ifdef MARK_SC2
-		/*mm-0705	if (indx >= ppost->di_post_num) {*/
-		if (indx >= mm->sts.num_post) {
-			PR_ERR("c_post:index is overflow:%d[%d]\n", indx,
+		/*mm-0705	if (index >= ppost->di_post_num) {*/
+		if (index >= mm->sts.num_post) {
+			PR_ERR("c_post:index is overflow:%d[%d]\n", index,
 			       mm->sts.num_post);
 			kfree(buf_orig);
 			return 0;
 		}
 		#endif
 		pbuf_post = get_buf_post(channel);
-		di_buf = &pbuf_post[indx];
+		di_buf = &pbuf_post[index];
 	} else if (strcmp(parm[0], "c_pvpp") == 0) {
 		/*ary add 2021-10-02 for pre vpp buffer */
-		/* use channel for buf indx */
+		/* use channel for buf index */
 		if (kstrtouint(parm[2], 0, &channel)) {
 			PR_ERR("c_pvpp:ch is not number\n");
 			kfree(buf_orig);
@@ -1097,7 +1097,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		}
 		if (channel >= 2)
 			channel = 0;
-		PR_INF("c_pvpp:indx[%d]\n", channel);
+		PR_INF("c_pvpp:index[%d]\n", channel);
 		if (!get_datal()->dvs_prevpp.ds) {
 			PR_ERR("c_pvpp:no ds do nothing\n");
 			kfree(buf_orig);
@@ -1126,7 +1126,7 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 		}
 		if (channel >= DIM_LKIN_NUB)
 			channel = 0;
-		PR_INF("c_pvpp:indx[%d]\n", channel);
+		PR_INF("c_pvpp:index[%d]\n", channel);
 		if (!get_datal()->dvs_prevpp.ds) {
 			PR_ERR("c_vfm_buf:no ds do nothing\n");
 			kfree(buf_orig);
@@ -1153,15 +1153,15 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			kfree(buf_orig);
 			return 0;
 		}
-		if (kstrtouint(parm[3], 0, &indx)) {
-			PR_ERR("cp_in:indx is not number\n");
+		if (kstrtouint(parm[3], 0, &index)) {
+			PR_ERR("cp_in:index is not number\n");
 			kfree(buf_orig);
 			return 0;
 		}
 		if (channel >= DI_CHANNEL_NUB)
 			channel = 0;
-		PR_INF("cp_in:ch[%d] indx[%d]\n", channel, indx);
-		vf = vf_get_nin_by_indx(channel, indx);
+		PR_INF("cp_in:ch[%d] index[%d]\n", channel, index);
+		vf = vf_get_nin_by_index(channel, index);
 		if (!vf) {
 			PR_ERR("vf is none\n");
 			kfree(buf_orig);
@@ -1185,18 +1185,18 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			kfree(buf_orig);
 			return 0;
 		}
-		if (kstrtouint(parm[3], 0, &indx)) {
+		if (kstrtouint(parm[3], 0, &index)) {
 			PR_ERR("c_phf:ch is not number\n");
 			kfree(buf_orig);
 			return 0;
 		}
-		di_pr_info("c_phf:ch[%d],index[%d]\n", channel, indx);
+		di_pr_info("c_phf:ch[%d],index[%d]\n", channel, index);
 		mm = dim_mm_get(channel);
 
 		ppre = get_pre_stru(channel);
 		ppost = get_post_stru(channel);
 		pbuf_post = get_buf_post(channel);
-		di_buf = &pbuf_post[indx];
+		di_buf = &pbuf_post[index];
 		if (!di_buf->hf_done) {
 			PR_ERR("c_phf: no hf\n");
 			kfree(buf_orig);
@@ -1217,25 +1217,25 @@ store_dump_mem(struct device *dev, struct device_attribute *attr,
 			kfree(buf_orig);
 			return 0;
 		}
-		if (kstrtouint(parm[3], 0, &indx)) {
+		if (kstrtouint(parm[3], 0, &index)) {
 			PR_ERR("c_local:ch is not number\n");
 			kfree(buf_orig);
 			return 0;
 		}
-		di_pr_info("c_local:ch[%d],index[%d]\n", channel, indx);
+		di_pr_info("c_local:ch[%d],index[%d]\n", channel, index);
 
 		ppre = get_pre_stru(channel);
 		ppost = get_post_stru(channel);
 		#ifdef MARK_HIS
-		if (indx >= ppost->di_post_num) {
+		if (index >= ppost->di_post_num) {
 			PR_ERR("c_local:index is overflow:%d[%d]\n",
-			       indx, ppost->di_post_num);
+			       index, ppost->di_post_num);
 			kfree(buf_orig);
 			return 0;
 		}
 		#endif
 		pbuf_local = get_buf_local(channel);
-		di_buf = &pbuf_local[indx];
+		di_buf = &pbuf_local[index];
 
 		canvas_w = di_buf->canvas_width[NR_CANVAS];
 		canvas_h = di_buf->canvas_height;
@@ -9471,7 +9471,7 @@ static void drop_frame(int check_drop, int throw_flag, struct di_buf_s *di_buf,
 		}
 	}
 	if (drop_flag) {
-		dim_print("%s:drop:t[%d],indx[%d]\n", __func__,
+		dim_print("%s:drop:t[%d],index[%d]\n", __func__,
 			  di_buf->type, di_buf->index);
 
 		/*dec vf keep*/

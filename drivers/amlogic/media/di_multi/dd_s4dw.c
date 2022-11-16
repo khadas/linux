@@ -311,7 +311,7 @@ static int s4dw_init_buf_simple(struct di_ch_s *pch)
 	length = di_que_list_count(ch, QUE_PST_NO_BUF);
 
 	di_buf = di_que_out_to_di_buf(ch, QUE_PST_NO_BUF);
-	dbg_mem2("%s:ch[%d]:pst_no_buf:%d, indx[%d]\n", __func__,
+	dbg_mem2("%s:ch[%d]:pst_no_buf:%d, index[%d]\n", __func__,
 		 ch, length, di_buf->index);
 	return 0;
 }

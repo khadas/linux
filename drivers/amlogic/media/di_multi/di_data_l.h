@@ -1175,7 +1175,7 @@ struct dev_vfram_t {
 	/*provider:*/
 	struct vframe_provider_s di_vf_prov;
 
-	unsigned int indx;
+	unsigned int index;
 	/*status:*/
 	bool bypass_complete;
 	bool reg;	/*use this for vframe reg/unreg*/

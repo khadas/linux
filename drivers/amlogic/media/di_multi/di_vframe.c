@@ -1387,17 +1387,17 @@ void dev_vframe_init(void)
 		pch->itf.ch = ch; //2020-12-21
 		pvfm = &pch->itf.dvfm;
 		pvfm->name = di_rev_name[ch];
-		pvfm->indx = ch;
+		pvfm->index = ch;
 		/*set_bypass_complete(pvfm, true);*/ /*test only*/
 
 		/*receiver:*/
 		vf_receiver_init(&pvfm->di_vf_recv, pvfm->name,
-				 &di_vf_receiver, &pvfm->indx);
+				 &di_vf_receiver, &pvfm->index);
 		vf_reg_receiver(&pvfm->di_vf_recv);
 
 		/*provider:*/
 		vf_provider_init(&pvfm->di_vf_prov, pvfm->name,
-				 &deinterlace_vf_provider, &pvfm->indx);
+				 &deinterlace_vf_provider, &pvfm->index);
 	}
 	dbg_mem("%s finish\n", __func__);
 }

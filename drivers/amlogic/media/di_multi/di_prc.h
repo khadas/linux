@@ -375,11 +375,11 @@ bool nins_dct_2_done(struct di_ch_s *pch, struct dim_nins_s *nins);
 void dim_hdr_prob(void);
 void dim_hdr_remove(void);
 const struct di_hdr_ops_s *dim_hdr_ops(void);
-int dim_dbg_hdr_reg1(struct seq_file *s, void *v, unsigned int indx);
+int dim_dbg_hdr_reg1(struct seq_file *s, void *v, unsigned int index);
 int dim_dbg_hdr_para_show(struct seq_file *s, void *v);
 
 /* double write and dvf */
-void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int indx);
+void dim_dvf_cp(struct dvfm_s *dvfm, struct vframe_s *vfm, unsigned int index);
 void dim_dvf_type_p_chage(struct dvfm_s *dvfm, unsigned int type);
 void dim_dvf_config_canvas(struct dvfm_s *dvfm);
 
@@ -391,8 +391,8 @@ void dim_dw_pre_para_init(struct di_ch_s *pch, struct dim_nins_s *nins);
 void dw_pre_sync_addr(struct dvfm_s *wdvfm, struct di_buf_s *di_buf);
 
 /*************************************************/
-struct vframe_s *vf_get_dpost_by_indx(unsigned int ch, unsigned int indx);
-struct vframe_s *vf_get_nin_by_indx(unsigned int ch, unsigned int indx);
+struct vframe_s *vf_get_dpost_by_index(unsigned int ch, unsigned int index);
+struct vframe_s *vf_get_nin_by_index(unsigned int ch, unsigned int index);
 bool vf_2_subvf(struct dsub_vf_s *vfms, struct vframe_s *vfm);
 bool vf_from_subvf(struct vframe_s *vfm, struct dsub_vf_s *vfms);
 void vfs_print(struct dsub_vf_s *pvfs, char *name);

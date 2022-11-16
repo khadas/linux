@@ -904,7 +904,7 @@ int dbg_afbc_cfg_v3_show(struct seq_file *s, void *v)
 }
 EXPORT_SYMBOL(dbg_afbc_cfg_v3_show);
 
-static u32 di_requeset_afbc(bool onoff)
+static u32 di_request_afbc(bool onoff)
 {
 	u32 afbc_busy;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
@@ -923,7 +923,7 @@ static u32 di_requeset_afbc(bool onoff)
 	return afbc_busy;
 }
 
-static u32 dbg_requeset_afbc(bool onoff)
+static u32 dbg_request_afbc(bool onoff)
 {
 	u32 afbc_busy;
 	struct afbcd_ctr_s *pafd_ctr = di_get_afd_ctr();
@@ -4729,10 +4729,10 @@ struct afd_ops_s di_afd_ops_v3 = {
 	.cnt_tab_size		= afbc_count_tab_size,
 	.cnt_buf_size		= v2_afbc_count_buffer_size,
 	.dump_reg		= dump_afbcd_reg,
-	.rqst_share		= di_requeset_afbc,
+	.rqst_share		= di_request_afbc,
 	.get_d_addrp		= afbc_get_addrp,
 	.get_e_addrp		= afbce_get_addrp,
-	.dbg_rqst_share		= dbg_requeset_afbc,
+	.dbg_rqst_share		= dbg_request_afbc,
 	.dbg_afbc_blk		= dbg_afbc_blk,
 	.int_tab		= afbc_int_tab,
 	.tab_cnt_crc		= afbc_tab_cnt_crc,
