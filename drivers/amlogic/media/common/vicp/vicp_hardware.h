@@ -424,6 +424,7 @@ void set_hsc_phase_control(struct vicp_hsc_phase_ctrl_reg_t hsc_phase_ctrl_reg);
 void set_scaler_misc(struct vicp_scaler_misc_reg_t scaler_misc_reg);
 void set_rdma_start(u32 input_count);
 void set_rdma_flag(u32 is_enable);
+void set_security_enable(u32 dma_en, u32 mmu_en, u32 input_en);
 int read_vicp_reg(u32 reg);
 void write_vicp_reg(u32 reg, u32 val);
 void write_vicp_reg_bits(u32 reg, const u32 value, const u32 start, const u32 len);

@@ -74,6 +74,7 @@ struct vid_cmpr_top_t {
 	u32 src_count;
 	u32 src_num;
 	bool rdma_enable;
+	bool security_en;
 	// hdr
 	u32 hdr_en;//0:close 1:open
 	// afbce

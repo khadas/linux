@@ -34,20 +34,8 @@
 #include "vicp_hardware.h"
 #include "vicp_process.h"
 
-#define IE_BW      10
-#define FLTZERO 0xfc000
-#define VD1_S0_HDR2_MAT 0
-#define VD1_S1_HDR2_MAT 1
-#define VD1_S2_HDR2_MAT 2
-#define VD1_S3_HDR2_MAT 3
-#define VD2_HDR2_MAT    4
-
 #define ZOOM_BITS       20
 #define PHASE_BITS      16
-
-#define VID_CMPR_PROC_DONE        (90)
-#define VID_CMPR_DMA_DONE         (89)
-#define VID_CMPR_ERROR            (10 * 32 + 9)
 
 struct completion vicp_proc_done;
 struct completion vicp_rdma_done;
@@ -1311,6 +1299,21 @@ void set_vid_cmpr_rdma(bool rdma_en, int input_count, int input_number)
 	set_vicp_rdma_buf_choice(input_number);
 }
 
+static void set_vid_cmpr_security(bool sec_en)
+{
+	u32 dma_sec = 0, mmu_sec = 0, input_sec = 0;
+
+	if (sec_en) {
+		input_sec = 1;
+	} else {
+		dma_sec = 0;
+		mmu_sec = 0;
+		input_sec = 0;
+	}
+
+	return set_security_enable(dma_sec, mmu_sec, input_sec);
+}
+
 static void dump_yuv(int flag, struct vframe_s *vframe)
 {
 	struct file *fp = NULL;
@@ -1797,7 +1800,6 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 		} else {
 			vicp_print(VICP_ERROR, "unsupport fmt %d\n", input_dma->color_format);
 		}
-
 	}
 
 	/* vd mif burst len is 2 as default */
@@ -1893,9 +1895,15 @@ int vicp_process_config(struct vicp_data_config_t *data_config,
 	vid_cmpr_top->wrmif_canvas0_addr1 = 0;
 	vid_cmpr_top->wrmif_canvas0_addr2 = 0;
 
-	vid_cmpr_top->rdma_enable = data_config->data_option.rdma_enable;
+	if (!rdma_en)
+		vid_cmpr_top->rdma_enable = false;
+	else
+		vid_cmpr_top->rdma_enable = data_config->data_option.rdma_enable;
+
 	vid_cmpr_top->src_count = data_config->data_option.input_source_count;
 	vid_cmpr_top->src_num = data_config->data_option.input_source_number;
+
+	vid_cmpr_top->security_en = data_config->data_option.security_enable;
 
 	return 0;
 }
@@ -1914,8 +1922,7 @@ int vicp_process_task(struct vid_cmpr_top_t *vid_cmpr_top)
 		return -1;
 	}
 
-	if (!rdma_en)
-		vid_cmpr_top->rdma_enable = false;
+	set_vid_cmpr_security(vid_cmpr_top->security_en);
 
 	set_vid_cmpr_rdma(vid_cmpr_top->rdma_enable, vid_cmpr_top->src_count,
 		vid_cmpr_top->src_num);

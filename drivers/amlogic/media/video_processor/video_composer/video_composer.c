@@ -79,6 +79,8 @@ static u32 rotate_width = 1280;
 static u32 rotate_height = 720;
 static u32 dewarp_rotate_width = 3840;
 static u32 dewarp_rotate_height = 2160;
+static u32 vicp_max_width = 3840;
+static u32 vicp_max_height = 2160;
 static u32 close_black;
 static u32 debug_axis_pip;
 static u32 debug_crop_pip;
@@ -448,99 +450,67 @@ static void video_timeline_increase(struct composer_dev *dev,
 		dev->fence_release_count);
 }
 
-static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, size_t usage)
+static int vc_init_ge2d_buffer(struct composer_dev *dev, bool is_tvp, size_t usage)
 {
-	int i, j, ret = 0;
-	u32 buf_width, buf_height;
-	u32 buf_size;
+	int i, flags;
+	u32 buf_width, buf_height, buf_size;
 	struct vinfo_s *video_composer_vinfo;
 	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
-	int flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
-	int dw_size = 0, afbc_body_size = 0, afbc_head_size = 0, afbc_table_size = 0;
-	u32 *virt_addr = NULL;
-	u32 temp_body_addr;
-
-	switch (dev->buffer_status) {
-	case UNINITIAL:/*not config*/
-		break;
-	case INIT_SUCCESS:/*config before , return ok*/
-		return 0;
-	case INIT_ERROR:/*config fail, won't retry , return failure*/
-		return -1;
-	default:
-		return -1;
-	}
+	u64 output_duration;
 
 	video_composer_vinfo = get_current_vinfo();
-
 	if (IS_ERR_OR_NULL(video_composer_vinfo))
 		video_composer_vinfo = &vinfo;
+
 	dev->vinfo_w = video_composer_vinfo->width;
 	dev->vinfo_h = video_composer_vinfo->height;
 	buf_width = (video_composer_vinfo->width + 0x1f) & ~0x1f;
 	buf_height = video_composer_vinfo->height;
 
-
-	vc_print(dev->index, PRINT_OTHER, "%s: usage: %lld\n", __func__, usage);
-	if (dev->need_rotate && usage != UVM_USAGE_IMAGE_PLAY) {
-		if (dev->is_dewarp_support) {
-			buf_width = dewarp_rotate_width;
-			buf_height = dewarp_rotate_height;
-		} else {
-			buf_width = rotate_width;
-			buf_height = rotate_height;
-		}
+	output_duration = div64_u64(video_composer_vinfo->sync_duration_num,
+		video_composer_vinfo->sync_duration_den);
+	vc_print(dev->index, PRINT_OTHER,
+		"%s: output_duration is %lld.\n", __func__, output_duration);
+	if (output_duration > 60) {
+		buf_width = 1920;
+		buf_height = 1080;
 	}
 
+	vc_print(dev->index, PRINT_OTHER, "%s: usage: %lld\n", __func__, usage);
 	if (usage == UVM_USAGE_IMAGE_PLAY) {
 		if (buf_width > pic_mode_max_width)
 			buf_width = pic_mode_max_width;
 		if (buf_height > pic_mode_max_height)
 			buf_height = pic_mode_max_height;
 	} else {
-		if (!dev->is_dewarp_support) {
-			if (buf_width > max_width)
-				buf_width = max_width;
-			if (buf_height > max_height)
-				buf_height = max_height;
+		if (dev->need_rotate) {
+			buf_width = rotate_width;
+			buf_height = rotate_height;
 		}
+
+		if (buf_width > max_width)
+			buf_width = max_width;
+		if (buf_height > max_height)
+			buf_height = max_height;
 	}
 
-	buf_width = 3840;
-	buf_height = 2160;
-	if (vicp_output_dev != 1 && is_vicp_supported()) {
-		if (composer_use_444) {
-			dw_size = roundup(buf_width >> 2, 32) * roundup(buf_height >> 2, 2);
-			afbc_body_size = buf_width * buf_height + (1024 * 1658);
-		} else {
-			dw_size = roundup(buf_width >> 2, 32) * roundup(buf_height >> 2, 2) * 3 / 2;
-			afbc_body_size = (buf_width * buf_height + (1024 * 1658)) * 3 / 2;
-		}
-		dw_size = PAGE_ALIGN(dw_size);
-		afbc_body_size = roundup(PAGE_ALIGN(afbc_body_size), PAGE_SIZE);
-		afbc_head_size = (roundup(buf_width, 64) * roundup(buf_height, 64)) / 32;
-		afbc_head_size = PAGE_ALIGN(afbc_head_size);
-		afbc_table_size = PAGE_ALIGN((afbc_body_size * 4) / PAGE_SIZE);
-		buf_size = dw_size + afbc_body_size + afbc_head_size + afbc_table_size;
-	} else {
-		if (composer_use_444)
-			buf_size = buf_width * buf_height * 3;
-		else
-			buf_size = buf_width * buf_height * 3 / 2;
-	}
+	if (composer_use_444)
+		buf_size = buf_width * buf_height * 3;
+	else
+		buf_size = buf_width * buf_height * 3 / 2;
 
 	buf_size = PAGE_ALIGN(buf_size);
 	dev->composer_buf_w = buf_width;
 	dev->composer_buf_h = buf_height;
 	if (is_tvp)
-		flags = CODEC_MM_FLAGS_TVP | CODEC_MM_FLAGS_DMA;
+		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_TVP;
+	else
+		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
 
 	for (i = 0; i < BUFFER_LEN; i++) {
 		if (dev->dst_buf[i].phy_addr == 0)
-			dev->dst_buf[i].phy_addr =
-				codec_mm_alloc_for_dma(ports[dev->index].name,
-						       buf_size / PAGE_SIZE,
-						       0, flags);
+			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
+				buf_size / PAGE_SIZE, 0, flags);
 		vc_print(dev->index, PRINT_ERROR,
 			 "%s: cma memory is %x , size is  %x\n",
 			 ports[dev->index].name,
@@ -558,19 +528,217 @@ static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, siz
 		dev->dst_buf[i].buf_h = buf_height;
 		dev->dst_buf[i].buf_size = buf_size;
 		dev->dst_buf[i].is_tvp = is_tvp;
-		if (vicp_output_dev != 1 && is_vicp_supported()) {
+
+		if (!kfifo_put(&dev->free_q, &dev->dst_buf[i].frame))
+			vc_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
+	}
+
+	return 0;
+}
+
+static int vc_init_dewarp_buffer(struct composer_dev *dev, bool is_tvp, size_t usage)
+{
+	int i, flags;
+	u32 buf_width, buf_height, buf_size;
+	struct vinfo_s *video_composer_vinfo;
+	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
+	u64 output_duration;
+
+	video_composer_vinfo = get_current_vinfo();
+	if (IS_ERR_OR_NULL(video_composer_vinfo))
+		video_composer_vinfo = &vinfo;
+	dev->vinfo_w = video_composer_vinfo->width;
+	dev->vinfo_h = video_composer_vinfo->height;
+	buf_width = (video_composer_vinfo->width + 0x1f) & ~0x1f;
+	buf_height = video_composer_vinfo->height;
+
+	output_duration = div64_u64(video_composer_vinfo->sync_duration_num,
+		video_composer_vinfo->sync_duration_den);
+	vc_print(dev->index, PRINT_OTHER,
+		"%s: output_duration is %lld.\n", __func__, output_duration);
+	if (output_duration > 60) {
+		buf_width = 1920;
+		buf_height = 1080;
+	}
+
+	vc_print(dev->index, PRINT_OTHER, "%s: usage: %lld\n", __func__, usage);
+	if (usage == UVM_USAGE_IMAGE_PLAY) {
+		if (buf_width > pic_mode_max_width)
+			buf_width = pic_mode_max_width;
+		if (buf_height > pic_mode_max_height)
+			buf_height = pic_mode_max_height;
+	} else {
+		if (dev->need_rotate) {
+			buf_width = dewarp_rotate_width;
+			buf_height = dewarp_rotate_height;
+		}
+	}
+
+	if (composer_use_444)
+		buf_size = buf_width * buf_height * 3;
+	else
+		buf_size = buf_width * buf_height * 3 / 2;
+
+	buf_size = PAGE_ALIGN(buf_size);
+	dev->composer_buf_w = buf_width;
+	dev->composer_buf_h = buf_height;
+	if (is_tvp)
+		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_TVP;
+	else
+		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
+
+	for (i = 0; i < BUFFER_LEN; i++) {
+		if (dev->dst_buf[i].phy_addr == 0)
+			dev->dst_buf[i].phy_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
+				buf_size / PAGE_SIZE, 0, flags);
+		vc_print(dev->index, PRINT_ERROR,
+			 "%s: cma memory is %x , size is  %x\n",
+			 ports[dev->index].name,
+			 (unsigned int)dev->dst_buf[i].phy_addr,
+			 (unsigned int)buf_size);
+
+		if (dev->dst_buf[i].phy_addr == 0) {
+			dev->buffer_status = INIT_ERROR;
+			vc_print(dev->index, PRINT_ERROR, "cma memory config fail\n");
+			return -1;
+		}
+		dev->dst_buf[i].index = i;
+		dev->dst_buf[i].dirty = true;
+		dev->dst_buf[i].buf_w = buf_width;
+		dev->dst_buf[i].buf_h = buf_height;
+		dev->dst_buf[i].buf_size = buf_size;
+		dev->dst_buf[i].is_tvp = is_tvp;
+
+		if (!kfifo_put(&dev->free_q, &dev->dst_buf[i].frame))
+			vc_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
+	}
+
+	return 0;
+}
+
+static int vc_init_vicp_buffer(struct composer_dev *dev, bool is_tvp, size_t usage)
+{
+	int i, j, flags;
+	u32 buf_addr;
+	u32 buf_width, buf_height, buf_size;
+	struct vinfo_s *video_composer_vinfo;
+	struct vinfo_s vinfo = {.width = 1280, .height = 720, };
+	int dw_size = 0, afbc_body_size = 0, afbc_head_size = 0, afbc_table_size = 0;
+	u32 *virt_addr = NULL;
+	u32 temp_body_addr;
+	u64 output_duration;
+
+	video_composer_vinfo = get_current_vinfo();
+	if (IS_ERR_OR_NULL(video_composer_vinfo))
+		video_composer_vinfo = &vinfo;
+	dev->vinfo_w = video_composer_vinfo->width;
+	dev->vinfo_h = video_composer_vinfo->height;
+	buf_width = (video_composer_vinfo->width + 0x1f) & ~0x1f;
+	buf_height = video_composer_vinfo->height;
+
+	output_duration = div64_u64(video_composer_vinfo->sync_duration_num,
+		video_composer_vinfo->sync_duration_den);
+	vc_print(dev->index, PRINT_OTHER,
+		"%s: output_duration is %lld.\n", __func__, output_duration);
+	if (output_duration > 60) {
+		buf_width = 1920;
+		buf_height = 1080;
+	}
+
+	vc_print(dev->index, PRINT_OTHER, "%s: usage: %lld\n", __func__, usage);
+	if (usage == UVM_USAGE_IMAGE_PLAY) {
+		if (buf_width > pic_mode_max_width)
+			buf_width = pic_mode_max_width;
+		if (buf_height > pic_mode_max_height)
+			buf_height = pic_mode_max_height;
+	} else {
+		if (dev->need_rotate) {
+			buf_width = rotate_width;
+			buf_height = rotate_height;
+		}
+
+		if (buf_width > vicp_max_width)
+			buf_width = vicp_max_width;
+		if (buf_height > vicp_max_height)
+			buf_height = vicp_max_height;
+	}
+
+	if (vicp_output_dev != 1) {
+		if (composer_use_444) {
+			dw_size = roundup(buf_width >> 2, 32) * roundup(buf_height >> 2, 2);
+			afbc_body_size = buf_width * buf_height + (1024 * 1658);
+		} else {
+			dw_size = roundup(buf_width >> 2, 32) * roundup(buf_height >> 2, 2) * 3 / 2;
+			afbc_body_size = (buf_width * buf_height + (1024 * 1658)) * 3 / 2;
+		}
+		dw_size = PAGE_ALIGN(dw_size);
+		afbc_body_size = roundup(PAGE_ALIGN(afbc_body_size), PAGE_SIZE);
+		afbc_head_size = (roundup(buf_width, 64) * roundup(buf_height, 64)) / 32;
+		afbc_head_size = PAGE_ALIGN(afbc_head_size);
+		afbc_table_size = PAGE_ALIGN((afbc_body_size * 4) / PAGE_SIZE);
+		buf_size = dw_size + afbc_body_size + afbc_head_size;
+	} else {
+		if (composer_use_444)
+			buf_size = buf_width * buf_height * 3;
+		else
+			buf_size = buf_width * buf_height * 3 / 2;
+	}
+
+	buf_size = PAGE_ALIGN(buf_size);
+	dev->composer_buf_w = buf_width;
+	dev->composer_buf_h = buf_height;
+
+	if (is_tvp)
+		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_TVP;
+	else
+		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
+
+	for (i = 0; i < BUFFER_LEN; i++) {
+		if (dev->dst_buf[i].phy_addr == 0)
+			buf_addr = codec_mm_alloc_for_dma(ports[dev->index].name,
+				buf_size / PAGE_SIZE, 0, flags);
+
+		if (buf_addr == 0) {
+			dev->buffer_status = INIT_ERROR;
+			vc_print(dev->index, PRINT_ERROR, "cma memory config fail\n");
+			return -1;
+		}
+
+		dev->dst_buf[i].phy_addr = buf_addr;
+		vc_print(dev->index, PRINT_ERROR,
+			"%s: cma memory is 0x%x , size is 0x%x.\n",
+			ports[dev->index].name, dev->dst_buf[i].phy_addr, buf_size);
+
+		dev->dst_buf[i].index = i;
+		dev->dst_buf[i].dirty = true;
+		dev->dst_buf[i].buf_w = buf_width;
+		dev->dst_buf[i].buf_h = buf_height;
+		dev->dst_buf[i].buf_size = buf_size;
+		dev->dst_buf[i].is_tvp = is_tvp;
+
+		if (vicp_output_dev != 1) {
 			vc_print(dev->index, PRINT_VICP, "dw_size = %d.\n", dw_size);
 			vc_print(dev->index, PRINT_VICP, "headsize = %d.\n", afbc_head_size);
 			vc_print(dev->index, PRINT_VICP, "bodysize = %d.\n", afbc_body_size);
 			vc_print(dev->index, PRINT_VICP, "tablesize = %d.\n", afbc_table_size);
+			dev->dst_buf[i].dw_size = dw_size;
 			dev->dst_buf[i].afbc_body_addr = dev->dst_buf[i].phy_addr + dw_size;
 			dev->dst_buf[i].afbc_body_size = afbc_body_size;
 			dev->dst_buf[i].afbc_head_addr = dev->dst_buf[i].afbc_body_addr +
 				afbc_body_size;
 			dev->dst_buf[i].afbc_head_size = afbc_head_size;
-			dev->dst_buf[i].afbc_table_addr = dev->dst_buf[i].afbc_head_addr +
-				afbc_head_size;
+
+			dev->dst_buf[i].afbc_table_addr =
+				codec_mm_alloc_for_dma(ports[dev->index].name,
+						afbc_table_size / PAGE_SIZE,
+						0,
+						CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR);
 			dev->dst_buf[i].afbc_table_size = afbc_table_size;
+			if (dev->dst_buf[i].afbc_table_addr == 0) {
+				dev->buffer_status = INIT_ERROR;
+				vc_print(dev->index, PRINT_ERROR, "alloc table buf fail.\n");
+				return -1;
+			}
 
 			temp_body_addr = dev->dst_buf[i].afbc_body_addr & 0xffffffff;
 			virt_addr = codec_mm_phys_to_virt(dev->dst_buf[i].afbc_table_addr);
@@ -592,12 +760,40 @@ static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, siz
 			vc_print(dev->index, PRINT_ERROR, "init buffer free_q is full\n");
 	}
 
+	return 0;
+}
+
+static int video_composer_init_buffer(struct composer_dev *dev, bool is_tvp, size_t usage)
+{
+	int ret = 0;
+
+	switch (dev->buffer_status) {
+	case UNINITIAL:/*not config*/
+		break;
+	case INIT_SUCCESS:/*config before , return ok*/
+		return 0;
+	case INIT_ERROR:/*config fail, won't retry , return failure*/
+		return -1;
+	default:
+		return -1;
+	}
+
+	if (dev->is_dewarp_support)
+		ret = vc_init_dewarp_buffer(dev, is_tvp, usage);
+	else if (is_vicp_supported())
+		ret = vc_init_vicp_buffer(dev, is_tvp, usage);
+	else
+		ret = vc_init_ge2d_buffer(dev, is_tvp, usage);
+
+	if (ret < 0) {
+		vc_print(dev->index, PRINT_ERROR, "config vc buf failed!\n");
+		return -1;
+	}
 	if (IS_ERR_OR_NULL(dev->ge2d_para.context))
 		ret = init_ge2d_composer(&dev->ge2d_para);
-
 	if (ret < 0)
 		vc_print(dev->index, PRINT_ERROR, "create ge2d composer fail!\n");
-	//vf_local_init(dev);
+
 	dev->buffer_status = INIT_SUCCESS;
 
 	return 0;
@@ -622,6 +818,11 @@ static void video_composer_uninit_buffer(struct composer_dev *dev)
 			codec_mm_free_for_dma(ports[dev->index].name,
 					      dev->dst_buf[i].phy_addr);
 			dev->dst_buf[i].phy_addr = 0;
+			if (vicp_output_dev != 1 && is_vicp_supported()) {
+				codec_mm_free_for_dma(ports[dev->index].name,
+					dev->dst_buf[i].afbc_table_addr);
+				dev->dst_buf[i].afbc_table_addr = 0;
+			}
 		}
 	}
 
@@ -1104,26 +1305,57 @@ static struct vframe_s *get_dst_vframe_buffer(struct composer_dev *dev)
 	return dst_vf;
 }
 
-static u32 need_switch_buffer(u32 buf_addr, int size, bool is_tvp, int index)
+static u32 need_switch_buffer(struct dst_buf_t *buf, bool is_tvp, int index)
 {
-	int flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
-	u32 buffer_addr = 0;
+	int flags, ret;
+	bool vicp_fbc_out_en = false;
 
-	if (is_tvp)
-		flags = CODEC_MM_FLAGS_TVP | CODEC_MM_FLAGS_DMA;
-
-	if (buf_addr > 0) {
-		pr_info("vc: %s free %s buffer %x\n",
-			__func__, is_tvp ? "non tvp" : "tvp", buf_addr);
-		codec_mm_free_for_dma(ports[index].name, buf_addr);
+	if (IS_ERR_OR_NULL(buf)) {
+		vc_print(index, PRINT_ERROR, "%s: dst_buf is NULL.\n", __func__);
+		return -1;
 	}
 
-	buffer_addr = codec_mm_alloc_for_dma(ports[index].name,
-					     size / PAGE_SIZE, 0, flags);
-	pr_info("vc: %s alloc %s buffer %x\n",
-		__func__, is_tvp ? "tvp" : "non tvp", buffer_addr);
+	vc_print(index, PRINT_OTHER, "%s: about %s buffer\n", __func__, is_tvp ? "non tvp" : "tvp");
+	if (is_tvp)
+		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_TVP;
+	else
+		flags = CODEC_MM_FLAGS_DMA | CODEC_MM_FLAGS_CMA_CLEAR;
 
-	return buffer_addr;
+	if (vicp_output_dev != 1 && is_vicp_supported())
+		vicp_fbc_out_en = true;
+
+	if (buf->phy_addr > 0) {
+		vc_print(index, PRINT_OTHER, "%s: free buffer 0x%x\n", __func__, buf->phy_addr);
+		codec_mm_free_for_dma(ports[index].name, buf->phy_addr);
+	}
+
+	buf->phy_addr = codec_mm_alloc_for_dma(ports[index].name,
+					buf->buf_size / PAGE_SIZE, 0, flags);
+	vc_print(index, PRINT_ERROR, "%s: alloc buffer 0x%x\n", __func__, buf->phy_addr);
+
+	if (vicp_fbc_out_en) {
+		buf->afbc_body_addr = buf->phy_addr + buf->dw_size;
+		buf->afbc_head_addr = buf->afbc_body_addr + buf->afbc_body_size;
+
+		if (buf->afbc_table_addr > 0) {
+			vc_print(index, PRINT_OTHER, "%s: free table buffer 0x%x\n", __func__,
+				buf->afbc_table_addr);
+			codec_mm_free_for_dma(ports[index].name, buf->afbc_table_addr);
+		}
+		buf->afbc_table_addr = codec_mm_alloc_for_dma(ports[index].name,
+					buf->afbc_table_size / PAGE_SIZE, 0, flags);
+		vc_print(index, PRINT_ERROR, "%s: alloc buffer 0x%x\n", __func__,
+			buf->afbc_table_addr);
+	}
+
+	buf->is_tvp = is_tvp;
+
+	if (buf->phy_addr == 0 || (vicp_fbc_out_en && buf->afbc_table_addr == 0))
+		ret = 0;
+	else
+		ret = 1;
+
+	return ret;
 }
 
 static void check_window_change(struct composer_dev *dev,
@@ -1463,7 +1695,6 @@ static void vframe_composer(struct composer_dev *dev)
 	struct src_data_para src_data;
 	u32 drop_count = 0;
 	unsigned long addr = 0;
-	u32 switch_buffer = 0;
 	struct output_axis dst_axis;
 	struct output_axis display_axis;
 	int min_left = 0, min_top = 0;
@@ -1540,17 +1771,14 @@ static void vframe_composer(struct composer_dev *dev)
 	check_window_change(dev, &received_frames->frames_info);
 	is_tvp = received_frames->is_tvp;
 	if (is_tvp != dst_buf->is_tvp) {
-		switch_buffer = need_switch_buffer(dst_buf->phy_addr,
-					dst_buf->buf_size, is_tvp, dev->index);
-		if (switch_buffer == 0) {
+		ret = need_switch_buffer(dst_buf, is_tvp, dev->index);
+		if (ret == 0) {
 			vc_print(dev->index, PRINT_ERROR,
 				 "switch buffer from %s to %s failed\n",
 				 dst_buf->is_tvp ? "tvp" : "non tvp",
 				 is_tvp ? "tvp" : "non tvp");
 			return;
 		}
-		dst_buf->phy_addr = switch_buffer;
-		dst_buf->is_tvp = is_tvp;
 	}
 	if (composer_use_444) {
 		dev->ge2d_para.format = GE2D_FORMAT_S24_YUV444;
@@ -1745,6 +1973,7 @@ static void vframe_composer(struct composer_dev *dev)
 				data_config.data_option.rdma_enable = false;
 			data_config.data_option.input_source_count = count;
 			data_config.data_option.input_source_number = i;
+			data_config.data_option.security_enable = is_tvp;
 
 			ret = vicp_data_composer(&data_config);
 			if (ret < 0)

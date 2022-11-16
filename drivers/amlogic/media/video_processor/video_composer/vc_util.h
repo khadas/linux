@@ -29,6 +29,7 @@ struct dst_buf_t {
 	u32 buf_h;
 	u32 buf_size;
 	bool is_tvp;
+	u32 dw_size;
 	ulong afbc_head_addr;
 	u32 afbc_head_size;
 	ulong afbc_body_addr;

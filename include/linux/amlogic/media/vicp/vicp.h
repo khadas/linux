@@ -75,6 +75,7 @@ struct data_option_t {
 	bool rdma_enable;
 	u32 input_source_count;
 	u32 input_source_number;
+	bool security_enable;
 };
 
 struct dma_data_config_t {

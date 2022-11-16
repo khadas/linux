@@ -1135,6 +1135,17 @@ void set_scaler_misc(struct vicp_scaler_misc_reg_t scaler_misc_reg)
 	return write_vicp_reg(VID_CMPR_SC_MISC, 0x00078804);
 }
 
+void set_security_enable(u32 dma_en, u32 mmu_en, u32 input_en)
+{
+	u32 value = 0;
+
+	value = ((dma_en & 0x1) << 2) |
+		((mmu_en & 0x1) << 1) |
+		((input_en & 0x1) << 0);
+
+	return write_vicp_reg(VID_CMPR_SEC_CTRL, value);
+}
+
 int read_vicp_reg(u32 reg)
 {
 	return vicp_reg_read(reg);
