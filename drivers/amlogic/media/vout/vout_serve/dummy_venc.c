@@ -481,23 +481,23 @@ static enum vmode_e dummy_encp_validate_vmode(char *name, unsigned int frac, voi
 	struct dummy_venc_driver_s *venc_drv;
 	enum vmode_e vmode = VMODE_MAX;
 	unsigned int venc_index;
-	int i;
+	int i, find_mode = 0;
 
 	venc_drv = (struct dummy_venc_driver_s *)data;
-	if (!venc_drv || !venc_drv->vdata || !venc_drv->vinfo)
+	if (!venc_drv || !venc_drv->vdata)
 		return VMODE_MAX;
 
 	if (frac)
 		return VMODE_MAX;
 
 	venc_index = venc_drv->vdata->default_venc_index;
-	venc_drv->vinfo = NULL;
 	if (venc_drv->vdata->projection_valid) {
 		for (i = 0; i < 2; i++) {
 			if (strcmp(dummy_encp_vinfo_t7[i].name, name) == 0) {
 				venc_drv->vinfo = &dummy_encp_vinfo_t7[i];
 				vmode = venc_drv->vinfo->mode;
 				venc_drv->vinfo_index = i;
+				find_mode = 1;
 				if (venc_drv->vinfo_index == 1)
 					venc_drv->projection_state = 1;
 				else
@@ -505,19 +505,19 @@ static enum vmode_e dummy_encp_validate_vmode(char *name, unsigned int frac, voi
 				break;
 			}
 		}
-
 	} else {
 		for (i = 0; i < 2; i++) {
 			if (strcmp(dummy_encp_vinfo[i].name, name) == 0) {
 				venc_drv->vinfo = &dummy_encp_vinfo[i];
 				vmode = venc_drv->vinfo->mode;
 				venc_drv->vinfo_index = i;
+				find_mode = 1;
 				break;
 			}
 		}
 	}
 
-	if (!venc_drv->vinfo)
+	if (!find_mode)
 		return VMODE_MAX;
 
 	venc_drv->vinfo->viu_mux &= ~(0xf << 4);
