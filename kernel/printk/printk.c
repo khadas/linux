@@ -63,10 +63,6 @@
 #include "braille.h"
 #include "internal.h"
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_PRINTK)
-#include <linux/amlogic/debug_printk.h>
-#endif
-
 int console_printk[4] = {
 	CONSOLE_LOGLEVEL_DEFAULT,	/* console_loglevel */
 	MESSAGE_LOGLEVEL_DEFAULT,	/* default_message_loglevel */
@@ -2191,10 +2187,6 @@ int vprintk_store(int facility, int level,
 		}
 	}
 
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_PRINTK)
-	debug_printk_modify_len(&reserve_size, irqflags, LOG_LINE_MAX);
-#endif
-
 	/*
 	 * Explicitly initialize the record before every prb_reserve() call.
 	 * prb_reserve_in_last() and prb_reserve() purposely invalidate the
@@ -2212,9 +2204,6 @@ int vprintk_store(int facility, int level,
 
 	/* fill message */
 	text_len = printk_sprint(&r.text_buf[0], reserve_size, facility, &flags, fmt, args);
-#if IS_ENABLED(CONFIG_AMLOGIC_DEBUG_PRINTK)
-	debug_printk_insert_info(&r.text_buf[0], &text_len, LOG_LINE_MAX);
-#endif
 	if (trunc_msg_len)
 		memcpy(&r.text_buf[text_len], trunc_msg, trunc_msg_len);
 	r.info->text_len = text_len + trunc_msg_len;
