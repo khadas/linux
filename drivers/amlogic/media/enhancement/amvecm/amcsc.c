@@ -1055,7 +1055,7 @@ static void load_knee_lut(int on)
 {
 	int i, j, k, mu;
 	int value, addr_tmp, data_temp;
-	int final_knee_setting[MAX_KNEE_SETTING];
+	int final_knee_setting[MAX_KNEE_SETTING] = {0};
 	int *plist;
 
 	plist = final_knee_setting;

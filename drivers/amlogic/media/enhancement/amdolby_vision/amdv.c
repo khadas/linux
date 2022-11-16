@@ -10154,6 +10154,7 @@ int amdv_update_src_format_v2(struct vframe_s *vf, u8 toggle_mode, enum vd_path_
 	if (vf)
 		update_src_format(check_format, vf);
 
+	/*coverity[overrun-local] layer_id<2,dv_core1[layer_id] will not be out of bounds.*/
 	if (!dv_inst[dv_id].amdv_wait_init &&
 	    !dv_core1[layer_id].core1_on &&
 	    dv_inst[dv_id].amdv_src_format != 0) {
@@ -11280,6 +11281,7 @@ static int amdolby_vision_process_v2_stb
 			/*READ_VPP_DV_REG(OSD_DOLBY_BYPASS_EN));*/
 
 	/*update layer info*/
+	/*coverity[check_after_sink] No negative array index reading occurred.*/
 	if (vd1_dv_id >= 0 && vd2_dv_id >= 0) {
 		if (!(dolby_vision_flags & FLAG_CERTIFICATION))
 			pri_input = vd1_dv_id;
