@@ -1661,7 +1661,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		else
 			tmp &= ~(CEC_FUNC_CFG_AUTO_POWER_ON);
 
-		if (tmp & CEC_IOC_SET_OPTION_ENALBE_CEC) {
+		if (tmp & CEC_FUNC_CFG_CEC_ON) {
 			if (tmp & CEC_FUNC_CFG_AUTO_POWER_ON)
 				hdmirx_set_cec_cfg(2);
 			else
@@ -1689,7 +1689,7 @@ static long hdmitx_cec_ioctl(struct file *f,
 		else
 			a &= ~(CEC_FUNC_CFG_CEC_ON);
 
-		if (a & CEC_IOC_SET_OPTION_ENALBE_CEC) {
+		if (a & CEC_FUNC_CFG_CEC_ON) {
 			if (a & CEC_FUNC_CFG_AUTO_POWER_ON)
 				hdmirx_set_cec_cfg(2);
 			else

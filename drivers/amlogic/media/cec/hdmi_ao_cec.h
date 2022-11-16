@@ -9,7 +9,7 @@
 #include <linux/clk.h>
 #include "hdmi_tx_cec_20.h"
 
-#define CEC_DRIVER_VERSION     "2022/11/05: add detail log and dump interface"
+#define CEC_DRIVER_VERSION     "2022/11/21: correct writing error"
 
 #define CEC_DEV_NAME		"cec"
 
