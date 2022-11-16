@@ -38,16 +38,16 @@ int get_atrace_tag_enabled(unsigned short tag)
 {
 	if (tag == KERNEL_ATRACE_TAG_ALL)
 		return 1;
-	return atrace_tag & (1 << tag);
+	return atrace_tag & ((u64)1 << tag);
 }
 EXPORT_SYMBOL(get_atrace_tag_enabled);
 
 void set_atrace_tag_enabled(unsigned short tag, int enable)
 {
 	if (enable)
-		atrace_tag |= 1 << tag;
+		atrace_tag |= (u64)1 << tag;
 	else
-		atrace_tag &= ~(1 << tag);
+		atrace_tag &= ~((u64)1 << tag);
 }
 EXPORT_SYMBOL(set_atrace_tag_enabled);
 
