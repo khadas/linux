@@ -342,11 +342,6 @@ void am_set_regmap(struct am_regs_s *p)
 			} else {
 				if (addr == VPP_MISC)
 					break;
-				if (sr_demo_flag) {
-					if (addr == offset_addr(SRSHARP0_DEMO_CRTL) ||
-					    addr == offset_addr(SRSHARP1_DEMO_CRTL))
-						break;
-				}
 
 				if (addr == offset_addr(SRSHARP1_LC_TOP_CTRL)) {
 					if (!lc_en)
@@ -805,10 +800,10 @@ void cm2_frame_size_patch(struct vframe_s *vf,
 	if (cm_size != vpp_size) {
 		VSYNC_WRITE_VPP_REG(addr_port, 0x205);
 		VSYNC_WRITE_VPP_REG(data_port, vpp_size);
-		VSYNC_WRITE_VPP_REG(addr_port, 0x209);
-		VSYNC_WRITE_VPP_REG(data_port, width << 16);
-		VSYNC_WRITE_VPP_REG(addr_port, 0x20a);
-		VSYNC_WRITE_VPP_REG(data_port, height << 16);
+		//VSYNC_WRITE_VPP_REG(addr_port, 0x209);
+		//VSYNC_WRITE_VPP_REG(data_port, width << 16);
+		//VSYNC_WRITE_VPP_REG(addr_port, 0x20a);
+		//VSYNC_WRITE_VPP_REG(data_port, height << 16);
 		/* default set full size for CM histogram */
 		VSYNC_WRITE_VPP_REG(addr_port, STA_WIN_XYXY0_REG);
 		VSYNC_WRITE_VPP_REG(data_port, 0 | (width << 16));

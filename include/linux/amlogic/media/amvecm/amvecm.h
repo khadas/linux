@@ -117,10 +117,6 @@ void amdv_set_toggle_flag(int flag);
 #define VPP_PRE_GAMMA_UPDATE        BIT(6)
 #define VPP_MARTIX_GET              BIT(5)
 #define VPP_MARTIX_UPDATE           BIT(4)
-#define VPP_DEMO_DNLP_DIS           BIT(3)
-#define VPP_DEMO_DNLP_EN            BIT(2)
-#define VPP_DEMO_CM_DIS             BIT(1)
-#define VPP_DEMO_CM_EN              BIT(0)
 
 /*PQ USER LATCH*/
 #define PQ_USER_PQ_MODULE_CTL      BIT(26)
@@ -770,7 +766,6 @@ struct vdj_parm_s {
 extern signed int vd1_brightness, vd1_contrast;
 extern bool gamma_en;
 extern unsigned int atv_source_flg;
-extern unsigned int sr_demo_flag;
 extern enum hdr_type_e hdr_source_type;
 extern unsigned int pd_detect_en;
 extern bool wb_en;
@@ -873,5 +868,31 @@ u32 hdr_set(u32 module_sel, u32 hdr_process_select, enum vpp_index_e vpp_index);
 int vinfo_lcd_support(void);
 int dv_pq_ctl(enum dv_pq_ctl_e ctl);
 int cm_force_update_flag(void);
+
+enum demo_module_e {
+	E_DEMO_SR = 0,/*SHARPNESS/DEJEGGAY/DNLP/LC*/
+	E_DEMO_CM,
+	E_DEMO_LC,
+	E_DEMO_MAX
+};
+
+struct demo_size_s {
+	int sr_hsize;
+	int sr_vsize;
+	int cm_hsize;
+	int cm_vsize;
+};
+
+enum enable_state_e {
+	E_DISABLE = 0,
+	E_ENABLE
+};
+
+struct demo_data_s {
+	int update_flag[E_DEMO_MAX];
+	enum demo_module_e mod[E_DEMO_MAX];
+	struct demo_size_s in_size;
+	enum enable_state_e en_st[E_DEMO_MAX];
+};
 #endif /* AMVECM_H */
 
