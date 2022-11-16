@@ -422,6 +422,11 @@ int mmc_of_parse(struct mmc_host *host)
 	else
 		mmc->ignore_desc_busy = false;
 
+	if (device_property_read_bool(dev, "ignore_clk_warn"))
+		mmc->ignore_clk_warn = true;
+	else
+		mmc->ignore_clk_warn = false;
+
 	if (device_property_read_bool(dev, "use_intf3_tuning"))
 		mmc->use_intf3_tuning = true;
 	else

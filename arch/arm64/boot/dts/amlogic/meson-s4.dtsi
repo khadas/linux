@@ -1319,6 +1319,7 @@
 					"clkin0", "clkin1", "clkin2";
 			card_type = <1>;
 			ignore_desc_busy;
+			ignore_clk_warn;
 			mmc_debug_flag;
 			tx_delay = <10>;
 			src_clk_rate = <1179648000>;

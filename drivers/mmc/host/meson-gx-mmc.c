@@ -251,13 +251,15 @@ static int meson_mmc_clk_set(struct meson_host *host, unsigned long rate,
 			host->src_clk_cfg_done = false;
 
 #ifdef CONFIG_AMLOGIC_DEBUG_FTRACE_PSTORE
-			if (!skip_all_clk_disable) {
+			if (!host->ignore_clk_warn && !skip_all_clk_disable) {
 				WARN_ON(__clk_get_enable_count(host->clk[2]));
 				WARN_ON(__clk_get_enable_count(host->clk[1]));
 			}
 #else
-			WARN_ON(__clk_get_enable_count(host->clk[2]));
-			WARN_ON(__clk_get_enable_count(host->clk[1]));
+			if (!host->ignore_clk_warn) {
+				WARN_ON(__clk_get_enable_count(host->clk[2]));
+				WARN_ON(__clk_get_enable_count(host->clk[1]));
+			}
 #endif
 		}
 		return 0;

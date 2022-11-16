@@ -200,6 +200,7 @@ struct meson_host {
 	int run_pxp_flag;
 	int nwr_cnt;
 	bool ignore_desc_busy;
+	bool ignore_clk_warn;
 	bool use_intf3_tuning;
 	bool enable_hwcq;
 	int flags;
