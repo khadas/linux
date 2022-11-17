@@ -656,6 +656,8 @@ struct vframe_s {
 	 * used by memory owner.
 	 */
 	void *mem_handle;
+	/* for s5 */
+	void *mem_handle_1;
 	/* in secure memory */
 	int mem_sec;
 	/*for MMU H265/VP9 compress header*/

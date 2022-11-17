@@ -45,6 +45,7 @@ struct file_private_data {
 	struct vframe_s *vf_p;
 	bool is_keep;
 	int keep_id;
+	int keep_id_1;
 	int keep_head_id;
 	struct file *file;
 	ulong vb_handle;
