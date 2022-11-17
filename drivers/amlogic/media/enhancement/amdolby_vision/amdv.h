@@ -9,7 +9,7 @@
 /*#define V2_4_3*/
 
 /*  driver version */
-#define DRIVER_VER "20221108"
+#define DRIVER_VER "20221117"
 
 #include <linux/types.h>
 #include "amdv_pq_config.h"
@@ -393,6 +393,7 @@ struct dovi_setting_s {
 	u32 mode_changed;
 };
 
+#define NUM_INST 15
 #define NUM_IPCORE1 2
 #define NUM_IPCORE2 1
 #define IPCORE2_ID NUM_IPCORE1
@@ -537,24 +538,43 @@ struct dv_inst_s {
 	bool last_mel_mode;
 	struct hdr10_parameter hdr10_param;
 	struct vframe_s *dv_vf[16][2];
-	u32 core1_disp_hsize;
-	u32 core1_disp_vsize;
 	u32 frame_count;
-	u32 amdv_src_format;
+	u32 amdv_src_format;/*kernel side*/
+	enum signal_format_enum src_format;/*ko side*/
 	int amdv_wait_count;
 	bool amdv_wait_init;
 	bool dv_unique_drm;
 	void *metadata_parser;
-	int inst; /*dv instance*/
 	bool mapped;
 	int layer_id;/*display on vd1 or vd2*/
+	int valid;
+	/* enhanced layer */
+	bool el_flag;
+	bool el_halfsize_flag;
+	/* frame width & height */
+	u32 video_width;
+	u32 video_height;
+	/* Dovi LL or non Dovi */
+	int set_bit_depth;
+	enum cp_chroma_format_enum set_chroma_format;
+	enum cp_signal_range_enum set_yuv_range;
+	enum cp_clr_enum color_format;
+	char *in_comp;
+	int in_comp_size;
+	char *in_md;
+	int in_md_size;
+	char *vsem_if;
+	int vsem_if_size;
+	enum input_mode_enum input_mode;
 };
 
 struct dv_core1_inst_s {
 	bool core1_on;
+	bool amdv_setting_video_flag;
 	u32 core1_on_cnt;
 	u32 run_mode_count;
-	bool amdv_setting_video_flag;
+	u32 core1_disp_hsize;
+	u32 core1_disp_vsize;
 };
 
 struct tv_input_info_s {
@@ -651,7 +671,7 @@ extern u32 dolby_vision_ll_policy;
 extern u32 last_dolby_vision_ll_policy;
 extern bool amdv_setting_video_flag;
 extern void *pq_config_fake;
-extern struct dv_inst_s dv_inst[NUM_IPCORE1];
+extern struct dv_inst_s dv_inst[NUM_INST];
 extern int hdmi_path_id;
 extern u32 dv_cert_graphic_width;
 extern u32 dv_cert_graphic_height;
@@ -875,5 +895,6 @@ void calculate_panel_max_pq
 	 struct target_config *config);
 int layer_id_to_dv_id(enum vd_path_e vd_path);
 bool layerid_valid(int layerid);
+bool dv_inst_valid(int id);
 
 #endif

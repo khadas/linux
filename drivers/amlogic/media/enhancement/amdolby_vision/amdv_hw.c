@@ -3347,6 +3347,8 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 	int cur_core_switch = 0;
 	bool dv_unique_drm = false;
 	enum signal_format_enum format[NUM_IPCORE1];/*core1a core1b input fmt*/
+	int vd1_dv_id;
+	int vd2_dv_id;
 	u32 graphics_w[2];
 	u32 graphics_h[2];
 	int osd_enable[2];
@@ -3406,7 +3408,10 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 		v_size[0] = frame_size_2 & 0xffff;
 		format[0] = new_m_dovi_setting.input[1].src_format;
 		format[1] = new_m_dovi_setting.input[0].src_format;
-		dv_unique_drm = dv_inst[1].dv_unique_drm;
+		vd2_dv_id = layer_id_to_dv_id(VD2_PATH);
+		if (!dv_inst_valid(vd2_dv_id))
+			vd2_dv_id = 0;
+		dv_unique_drm = dv_inst[vd2_dv_id].dv_unique_drm;
 	} else {
 		h_size[0] = (frame_size >> 16) & 0xffff;
 		v_size[0] = frame_size & 0xffff;
@@ -3415,7 +3420,10 @@ void apply_stb_core_settings(dma_addr_t dma_paddr,
 		if (multi_dv_mode) {
 			format[0] = new_m_dovi_setting.input[0].src_format;
 			format[1] = new_m_dovi_setting.input[1].src_format;
-			dv_unique_drm = dv_inst[0].dv_unique_drm;
+			vd1_dv_id = layer_id_to_dv_id(VD1_PATH);
+			if (!dv_inst_valid(vd1_dv_id))
+				vd1_dv_id = 0;
+			dv_unique_drm = dv_inst[vd1_dv_id].dv_unique_drm;
 		}
 	}
 
@@ -5437,7 +5445,8 @@ void enable_amdv_v2_stb(int enable)
 	u32 core_flag = 0;
 	u32 diagnostic_enable = m_dovi_setting.diagnostic_enable;
 	bool dovi_ll_enable = m_dovi_setting.dovi_ll_enable;
-	/*int dv_id = 0;*/
+	int vd1_dv_id = 0;
+	int vd2_dv_id = 1;
 
 	if (debug_dolby & 8)
 		pr_dv_dbg("enable %d, dv on %d, mode %d %d\n",
@@ -6040,8 +6049,12 @@ void enable_amdv_v2_stb(int enable)
 				dv_core1[0].core1_on_cnt = 0;
 				dv_core1[1].core1_on = false;
 				dv_core1[1].core1_on_cnt = 0;
-				dv_inst[0].frame_count = 0;
-				dv_inst[1].frame_count = 0;
+				vd1_dv_id = layer_id_to_dv_id(VD1_PATH);
+				vd2_dv_id = layer_id_to_dv_id(VD2_PATH);
+				if (dv_inst_valid(vd1_dv_id))
+					dv_inst[vd1_dv_id].frame_count = 0;
+				if (dv_inst_valid(vd2_dv_id))
+					dv_inst[vd2_dv_id].frame_count = 0;
 				pr_dv_dbg("DV core1 turn off\n");
 			} else if (dv_core1[0].core1_on &&
 				(!(amdv_mask & 1) ||

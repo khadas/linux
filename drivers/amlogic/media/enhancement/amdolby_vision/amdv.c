@@ -233,6 +233,7 @@ static bool force_support_emp;
 
 static unsigned int amdv_src_format;
 static enum signal_format_enum graphic_fmt = FORMAT_SDR;
+static enum signal_format_enum g_dst_format;
 
 static unsigned int force_mel;
 module_param(force_mel, uint, 0664);
@@ -549,13 +550,17 @@ static bool core1a_core1b_switch;
 struct m_dovi_setting_s m_dovi_setting;
 struct m_dovi_setting_s new_m_dovi_setting;
 struct m_dovi_setting_s invalid_m_dovi_setting;
-struct dv_inst_s dv_inst[NUM_IPCORE1];
+struct dv_inst_s dv_inst[NUM_INST];
 static int last_unmap_id;
 static int hdmi_inst_id;
+enum priority_mode_enum pri_mode = V_PRIORITY;
 int hdmi_path_id;
 
 static u32 inst_debug[2];
 static u32 inst_res_debug[4];/*force set inst0 w/h inst1 w/h*/
+
+static int vd1_inst_id = -1;
+static int vd2_inst_id = -1;
 
 static int force_two_valid;
 module_param(force_two_valid, int, 0664);
@@ -918,31 +923,48 @@ static unsigned int amdolby_vision_poll(struct file *file, poll_table *wait)
 	return mask;
 }
 
-static inline bool single_step_enable_v2(u8 dv_id)
+bool dv_inst_valid(int id)
 {
-	if (dv_id == 0) {
+	if (id < 0 || id >= NUM_INST)
+		return false;
+	return true;
+}
+
+bool layerid_valid(int layerid)
+{
+	if (layerid < 0 || layerid >= NUM_IPCORE1)
+		return false;
+	return true;
+}
+
+static inline bool single_step_enable_v2(int inst_id, u8 layer_id)
+{
+	if (!dv_inst_valid(inst_id))
+		inst_id = 0;
+	if (layer_id == VD1_PATH) {
 		return (((debug_dolby_frame >= 0xffff) ||
-			((debug_dolby_frame + 1) == dv_inst[0].frame_count)) &&
+			((debug_dolby_frame + 1) == dv_inst[inst_id].frame_count)) &&
 			(debug_dolby & 0x80));
-	} else if (dv_id == 1) {
+	} else if (layer_id == VD2_PATH) {
 		return (((debug_dolby_frame >= 0xffff) ||
-			((debug_dolby_frame + 1) == dv_inst[1].frame_count)) &&
+			((debug_dolby_frame + 1) == dv_inst[inst_id].frame_count)) &&
 			(debug_dolby & 0x800));
 	} else {
-		pr_info("not support %d\n", dv_id);
+		pr_dv_dbg("not support vd%d\n", layer_id);
 		return false;
 	}
 }
 
-static inline bool dump_enable_f(u8 dv_id)
+static inline bool dump_enable_f(int inst_id)
 {
 	u32 count = frame_count;
 
-	if (multi_dv_mode && dv_id < NUM_IPCORE1)
-		count = dv_inst[dv_id].frame_count;
+	if (multi_dv_mode && dv_inst_valid(inst_id))
+		count = dv_inst[inst_id].frame_count;
 
 	return ((debug_dolby_frame >= 0xffff) ||
-		(debug_dolby_frame + 1 == count));
+			(debug_dolby_frame == count) ||
+			(debug_dolby_frame + 1 == count));
 }
 
 static void dump_tv_setting
@@ -1352,20 +1374,6 @@ static inline void switch_to_tv_mode(void)
 		RUN_MODE_DELAY;
 }
 
-static inline bool dv_inst_valid(int id)
-{
-	if (id < 0 || id >= NUM_IPCORE1)
-		return false;
-	return true;
-}
-
-bool layerid_valid(int layerid)
-{
-	if (layerid < 0 || layerid >= NUM_IPCORE1)
-		return false;
-	return true;
-}
-
 int amdv_update_setting(struct vframe_s *vf)
 {
 	u64 *dma_data;
@@ -1465,7 +1473,7 @@ void clear_dolby_vision_wait(void)
 
 	amdv_wait_on = false;
 	if (multi_dv_mode) {
-		for (i = 0; i < NUM_IPCORE1; i++) {
+		for (i = 0; i < NUM_INST; i++) {
 			dv_inst[i].amdv_wait_init = false;
 			dv_inst[i].amdv_wait_count = 0;
 		}
@@ -1509,16 +1517,18 @@ void reset_dv_param(void)
 	hdmi_frame_count = 0;
 	force_bypass_from_prebld_to_vadj1 = 0;
 	if (multi_dv_mode) {
-		for (i = 0; i < NUM_IPCORE1; i++) {
-			dv_inst[i].core1_disp_hsize = 0;
-			dv_inst[i].core1_disp_vsize = 0;
+		for (i = 0; i < NUM_INST; i++) {
 			dv_inst[i].amdv_src_format = 0;
 			dv_inst[i].amdv_wait_init = false;
 			dv_inst[i].amdv_wait_count = 0;
 			dv_inst[i].frame_count = 0;
+		}
+		for (i = 0; i < NUM_IPCORE1; i++) {
 			dv_core1[i].run_mode_count = 0;
 			dv_core1[i].core1_on = false;
 			dv_core1[i].core1_on_cnt = 0;
+			dv_core1[i].core1_disp_hsize = 0;
+			dv_core1[i].core1_disp_vsize = 0;
 		}
 		amdv_core2_on_cnt = 0;
 	} else {
@@ -1655,7 +1665,7 @@ void dv_vf_light_reg_provider(void)
 			//	dv_inst[dv_id].dv_vf[i][1] = NULL;
 			//}
 			//dv_inst[dv_id].frame_count = 0;
-			//for (i = 0; i < NUM_IPCORE1; i++)
+			//for (i = 0; i < NUM_INST; i++)
 			//memset(&dv_inst[i].hdr10_param, 0, sizeof(dv_inst[i].hdr10_param));
 		} else {
 			for (i = 0; i < 16; i++) {
@@ -1756,7 +1766,7 @@ void amdv_clear_buf(u8 dv_id)
 		pr_dv_dbg("[inst%d]%s\n", dv_id + 1, __func__);
 
 	if (multi_dv_mode) {
-		if (dv_id < NUM_IPCORE1) {
+		if (dv_id < NUM_INST) {
 			for (i = 0; i < 16; i++) {
 				if ((debug_dolby & 0x1000) && dv_inst[dv_id].dv_vf[i][0])
 					pr_dv_dbg("[inst%d]clear dv_vf %p\n",
@@ -1778,7 +1788,7 @@ void amdv_create_inst(void)
 {
 	int i;
 
-	for (i = 0; i < NUM_IPCORE1; i++) {
+	for (i = 0; i < NUM_INST; i++) {
 		dv_inst[i].md_buf[0] = vmalloc(MD_BUF_SIZE);
 		if (dv_inst[i].md_buf[0])
 			memset(dv_inst[0].md_buf[0], 0, MD_BUF_SIZE);
@@ -1794,13 +1804,13 @@ void amdv_create_inst(void)
 			memset(dv_inst[i].comp_buf[1], 0, COMP_BUF_SIZE);
 
 		dv_inst[i].current_id = 0;
-		dv_inst[i].core1_disp_hsize = 0;
-		dv_inst[i].core1_disp_vsize = 0;
 		dv_inst[i].metadata_parser = NULL;
 		dv_inst[i].layer_id = VD_PATH_MAX;
-		dv_inst[i].inst = i;
 		dv_inst[i].mapped = false;
-
+	}
+	for (i = 0; i < NUM_IPCORE1; i++) {
+		dv_core1[i].core1_disp_hsize = 0;
+		dv_core1[i].core1_disp_vsize = 0;
 		dv_core1[i].amdv_setting_video_flag = false;
 		dv_core1[i].core1_on = false;
 		dv_core1[i].core1_on_cnt = 0;
@@ -1829,7 +1839,11 @@ int dv_inst_map(int *inst)
 
 	spin_lock_irqsave(&dv_inst_lock, flags);
 
-	if (dv_inst[0].mapped && dv_inst[1].mapped) {
+	for (i = 0; i < NUM_INST; i++) {
+		if (!dv_inst[i].mapped)
+			break;
+	}
+	if (i == NUM_INST) {
 		ret = -1;
 		pr_info("dv_inst all mapped!");
 	}
@@ -1840,23 +1854,23 @@ int dv_inst_map(int *inst)
 		pr_info("%s failed\n", __func__);
 		return -ENODEV;
 	}
-	for (i = 0; i < NUM_IPCORE1; i++) {
-		pr_dv_dbg("[%s]layer_id %d, mapped %d\n", __func__,
-			     dv_inst[i].layer_id, dv_inst[i].mapped);
-		if (dv_inst[i].layer_id == i && dv_inst[i].mapped == false) {
-			keep_last_frame = true;
-		} else {
-			keep_last_frame = false;
-			break;
-		}
-	}
+	/*for (i = 0; i < NUM_IPCORE1; i++) {*/
+	/*	pr_dv_dbg("[%s]layer_id %d, mapped %d\n", __func__,*/
+	/*		     dv_inst[i].layer_id, dv_inst[i].mapped);*/
+	/*	if (dv_inst[i].layer_id == i && dv_inst[i].mapped == false) {*/
+	/*		keep_last_frame = true;*/
+	/*	} else {*/
+	/*		keep_last_frame = false;*/
+	/*		break;*/
+	/*	}*/
+	/*}*/
 	if (keep_last_frame) {
 		new_map_id = last_unmap_id;
 		pr_dv_dbg("[%s]new map id: %d\n",
 			     __func__, new_map_id);
 	} else {
-		for (i = 0; i < NUM_IPCORE1; i++) {
-			if (dv_inst[i].inst >= 0 && !dv_inst[i].mapped) {
+		for (i = 0; i < NUM_INST; i++) {
+			if (!dv_inst[i].mapped) {
 				new_map_id = i;
 				pr_info("[%s]map id %d\n", __func__, new_map_id);
 				break;
@@ -1865,8 +1879,13 @@ int dv_inst_map(int *inst)
 	}
 	if (new_map_id >= 0) {
 		dv_inst[new_map_id].mapped = true;
-		*inst = dv_inst[new_map_id].inst;
-		/* release metadata_parser */
+		*inst = new_map_id;
+
+		if (!dv_inst[*inst].metadata_parser && p_funcs_stb)
+			dv_inst[*inst].metadata_parser =
+				p_funcs_stb->multi_mp_init(dolby_vision_flags
+								& FLAG_CHANGE_SEQ_HEAD
+								? 1 : 0);
 		if (dv_inst[*inst].metadata_parser) {
 			p_funcs_stb->multi_mp_reset(dv_inst[*inst].metadata_parser, 1);
 			pr_dv_dbg("reset mp\n");
@@ -1879,6 +1898,15 @@ int dv_inst_map(int *inst)
 		dv_inst[*inst].last_total_md_size = 0;
 		dv_inst[*inst].last_total_comp_size = 0;
 		dv_inst[*inst].layer_id = VD_PATH_MAX;
+		dv_inst[*inst].video_height = 0;
+		dv_inst[*inst].video_width = 0;
+		dv_inst[*inst].src_format = FORMAT_SDR;
+		dv_inst[*inst].valid = 0;
+		dv_inst[*inst].current_id = 0;
+		dv_inst[*inst].in_md = NULL;
+		dv_inst[*inst].in_md_size = 0;
+		dv_inst[*inst].in_comp = NULL;
+		dv_inst[*inst].in_comp_size = 0;
 		return 0;
 	}
 	spin_unlock_irqrestore(&dv_inst_lock, flags);
@@ -1891,23 +1919,54 @@ EXPORT_SYMBOL(dv_inst_map);
 void dv_inst_unmap(int inst)
 {
 	unsigned long flags;
+
+	if (!multi_dv_mode)
+		return;
+
+	pr_info("%s %d\n", __func__, inst);
+
+	spin_lock_irqsave(&dv_inst_lock, flags);
+
+	if (dv_inst_valid(inst) && dv_inst[inst].mapped) {
+		dv_inst[inst].mapped = false;
+		last_unmap_id = inst;
+		if (dv_inst[inst].metadata_parser && p_funcs_stb) {
+			p_funcs_stb->multi_mp_release
+				(&dv_inst[inst].metadata_parser);
+			dv_inst[inst].metadata_parser = NULL;
+		}
+		pr_info("%s %d OK\n", __func__, inst);
+	}
+	spin_unlock_irqrestore(&dv_inst_lock, flags);
+}
+EXPORT_SYMBOL(dv_inst_unmap);
+
+void force_unmap_all_inst(void)
+{
 	int i;
 
 	if (!multi_dv_mode)
 		return;
 
-	spin_lock_irqsave(&dv_inst_lock, flags);
-	for (i = 0; i < NUM_IPCORE1; i++) {
-		if (dv_inst[i].inst == inst && dv_inst[i].mapped) {
-			dv_inst[i].mapped = false;
-			last_unmap_id = inst;
-			pr_info("%s %d OK\n", __func__, inst);
-			break;
-		}
+	for (i = 0; i < NUM_INST; i++) {
+		amdv_clear_buf(i);
+		dv_inst[i].mapped = 0;
+		dv_inst[i].frame_count = 0;
+		dv_inst[i].last_mel_mode = 0;
+		dv_inst[i].last_total_md_size = 0;
+		dv_inst[i].last_total_comp_size = 0;
+		dv_inst[i].layer_id = VD_PATH_MAX;
+		dv_inst[i].video_height = 0;
+		dv_inst[i].video_width = 0;
+		dv_inst[i].src_format = FORMAT_INVALID;
+		dv_inst[i].valid = 0;
+		dv_inst[i].current_id = 0;
+		dv_inst[i].in_md = NULL;
+		dv_inst[i].in_md_size = 0;
+		dv_inst[i].in_comp = NULL;
+		dv_inst[i].in_comp_size = 0;
 	}
-	spin_unlock_irqrestore(&dv_inst_lock, flags);
 }
-EXPORT_SYMBOL(dv_inst_unmap);
 
 #define MAX_FILENAME_LENGTH 64
 static const char comp_file[] = "%s_comp.%04d.reg";
@@ -2266,13 +2325,13 @@ static void dump_setting(struct dovi_setting_s *setting,
 }
 
 static void dump_m_setting(struct m_dovi_setting_s *m_setting,
-				  int frame_cnt, int debug_flag)
+				  int frame_cnt, int debug_flag, int inst_id)
 {
 	int i;
 	int j;
 	u32 *p;
 
-	if ((debug_flag & 0x10)) {
+	if ((debug_flag & 0x10) && dump_enable_f(inst_id)) {
 		if (is_aml_txlx_stbmode()) {
 			pr_info("txlx dv core1/2 reg: 0x1a07 = 0x%x\n",
 				READ_VPP_DV_REG(VIU_MISC_CTRL1));
@@ -2317,7 +2376,7 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 	}
 
 	for (j = 0; j < NUM_IPCORE1; j++) {
-		if ((debug_flag & 0x10) && dump_enable_f(j)) {
+		if ((debug_flag & 0x10) && dump_enable_f(inst_id)) {
 			pr_info("video-%d\n", j + 1);
 			p = (u32 *)&m_setting->core1[j].dm_reg;
 			for (i = 0; i < 27; i++)
@@ -2327,7 +2386,7 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 			for (i = 0; i < 173; i++)
 				pr_info("%08x\n", p[i]);
 		}
-		if ((debug_flag & 0x20) && dump_enable_f(j)) {
+		if ((debug_flag & 0x10) && dump_enable_f(inst_id)) {
 			pr_info("\nvideo-%d lut\n", j + 1);
 			p = (uint32_t *)&m_setting->core1[j].dm_lut.tm_lut_i;
 			for (i = 0; i < 64; i++)
@@ -2357,7 +2416,7 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 		}
 	}
 
-	if ((debug_flag & 0x10) && dump_enable_f(0) && !is_graphics_output_off()) {
+	if ((debug_flag & 0x20) && dump_enable_f(0) && !is_graphics_output_off()) {
 		pr_info("core2\n");
 		p = (uint32_t *)&m_setting->dm_reg2;
 		for (i = 0; i < 24; i++)
@@ -2415,7 +2474,7 @@ static void dump_m_setting(struct m_dovi_setting_s *m_setting,
 		pr_info("\n");
 	}
 
-	if ((debug_flag & 0x10) && dump_enable_f(0)) {
+	if ((debug_flag & 0x40) && dump_enable_f(0)) {
 		pr_info("core3\n");
 		p = (uint32_t *)&m_setting->dm_reg3;
 		for (i = 0; i < 26; i++)
@@ -2487,7 +2546,8 @@ void amdv_dump_setting(int debug_flag)
 			frame_count, debug_flag);
 	} else {
 		if (multi_dv_mode)
-			dump_m_setting(&new_m_dovi_setting, dv_inst[0].frame_count, debug_flag);
+			dump_m_setting(&new_m_dovi_setting, dv_inst[0].frame_count,
+						   debug_flag, vd1_inst_id);
 		else
 			dump_setting(&new_dovi_setting, frame_count, debug_flag);
 	}
@@ -2822,14 +2882,24 @@ static void update_src_format(enum signal_format_enum src_format, struct vframe_
 
 int layer_id_to_dv_id(enum vd_path_e vd_path)
 {
+	int i;
+	int dv_id = -1;
+
 	if (multi_dv_mode) {
-		if (dv_inst[0].layer_id == vd_path)
-			return 0;
-		else if (dv_inst[1].layer_id == vd_path)
-			return 1;
-		if (debug_dolby & 1)
-			pr_dv_dbg("inst1 on vd%d, inst2 on vd%d, not found vd%d\n",
-				dv_inst[0].layer_id + 1, dv_inst[1].layer_id + 1, vd_path + 1);
+		for (i = 0; i < NUM_INST; i++) {
+			if (dv_inst[i].layer_id == vd_path) {
+				dv_id = i;
+				break;
+			}
+		}
+		if (debug_dolby & 0x1000)
+			pr_dv_dbg("vd%d <=> inst%d\n", vd_path + 1, dv_id + 1);
+
+		if (dv_id >= 0)
+			return dv_id;
+
+		pr_dv_dbg("vd%d not found dv_id, please check\n", vd_path + 1);
+		return dv_id;
 
 		/*If no dv inst display on vd_path, */
 		/*Return inst1 if inst0 is being used and inst1 is free*/
@@ -2841,15 +2911,20 @@ int layer_id_to_dv_id(enum vd_path_e vd_path)
 
 int get_amdv_src_format(enum vd_path_e vd_path)
 {
-	int dv_id = layer_id_to_dv_id(vd_path);
+	int dv_id = 0;
 
-	if (vd_path >= VD_PATH_MAX || dv_id >= NUM_IPCORE1 || dv_id < 0)
-		return UNKNOWN_SOURCE;
+	if (multi_dv_mode) {
+		dv_id = layer_id_to_dv_id(vd_path);
+		if (vd_path >= VD_PATH_MAX || !dv_inst_valid(dv_id))
+			return UNKNOWN_SOURCE;
 
-	if (multi_dv_mode)
-		return dv_inst[dv_id].amdv_src_format;
-	else
+		if (!enable_multi_core1 && vd_path > VD1_PATH)
+			return UNKNOWN_SOURCE;
+		else
+			return dv_inst[dv_id].amdv_src_format;
+	} else {
 		return amdv_src_format;
+	}
 }
 EXPORT_SYMBOL(get_amdv_src_format);
 
@@ -3682,6 +3757,9 @@ int is_amdv_frame(struct vframe_s *vf)
 		return 0;
 
 	dv_id = vf->src_fmt.dv_id;
+	if (!dv_inst_valid(dv_id))
+		dv_id = 0;
+
 	fmt = get_vframe_src_fmt(vf);
 	if (fmt == VFRAME_SIGNAL_FMT_DOVI)
 		return true;
@@ -4691,8 +4769,7 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 		type = (type << 8) | *p++;
 		type = (type << 8) | *p++;
 		type = (type << 8) | *p++;
-		if (((debug_dolby & 4) && dv_id == 0) ||
-			((debug_dolby & 0x40000) && dv_id == 1))
+		if (debug_dolby & 4)
 			pr_dv_dbg("[inst%d]metadata type=%08x, size=%d:\n",
 				     dv_id + 1, type, size);
 		if (size == 0 || size > aux_size) {
@@ -4760,8 +4837,7 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 				memcpy(&meta_buf[3], p + 1, size - 1);
 				rpu_size = size + 2;
 			}
-			if (((debug_dolby & 4) && dump_enable_f(dv_id) && dv_id == 0) ||
-				((debug_dolby & 0x40000) && dump_enable_f(dv_id) && dv_id == 1)) {
+			if ((debug_dolby & 4) && dump_enable_f(dv_id)) {
 				pr_dv_dbg("[inst%d]metadata(%d):\n", dv_id + 1, rpu_size);
 				for (i = 0; i < size; i += 16)
 					pr_info("%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -4892,7 +4968,7 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 		p = aux_buf;
 
 		if ((debug_dolby & 0x200) && dump_enable_f(dv_id)) {
-			pr_dv_dbg("aux_buf(%d):\n", aux_size);
+			pr_dv_dbg("[inst%d]aux_buf(%d):\n", dv_id + 1, aux_size);
 			for (i = 0; i < aux_size; i += 8)
 				pr_info("\t%02x %02x %02x %02x %02x %02x %02x %02x\n",
 					p[i],
@@ -4969,7 +5045,7 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 				size = sizeof(meta_buf);
 			memcpy(meta_buf, (unsigned char *)(&p_atsc_md), size);
 			if ((debug_dolby & 4) && dump_enable_f(dv_id)) {
-				pr_dv_dbg("metadata(%d):\n", size);
+				pr_dv_dbg("[inst%d]metadata(%d):\n", dv_id + 1, size);
 				for (i = 0; i < size; i += 8)
 					pr_info("\t%02x %02x %02x %02x %02x %02x %02x %02x\n",
 						meta_buf[i],
@@ -5060,8 +5136,7 @@ int parse_sei_and_meta_ext_v2(struct vframe_s *vf,
 			dv_id + 1,
 			size, vf->pts_us64,
 			*total_md_size, *total_comp_size);
-		if (((debug_dolby & 4) && dump_enable_f(dv_id) && dv_id == 0) ||
-			((debug_dolby & 0x40000) && dump_enable_f(dv_id) && dv_id == 1))  {
+		if ((debug_dolby & 4) && dump_enable_f(dv_id))  {
 			pr_dv_dbg("[inst%d]parsed md(%d):\n", dv_id + 1, *total_md_size);
 			for (i = 0; i < *total_md_size + 7; i += 8) {
 				pr_info("\t%02x %02x %02x %02x %02x %02x %02x %02x\n",
@@ -8146,8 +8221,6 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	enum signal_format_enum tmp_fmt = FORMAT_SDR;
 	enum signal_format_enum check_format;
 	enum signal_format_enum dst_format;
-	enum signal_format_enum cur_src_format;
-	enum signal_format_enum cur_dst_format;
 	int total_md_size = 0;
 	int total_comp_size = 0;
 	int vsem_size = 0;
@@ -8167,8 +8240,6 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	unsigned int current_mode = dolby_vision_mode;
 	u32 target_lumin_max = 0;
 	enum input_mode_enum input_mode = IN_MODE_OTT;
-	enum priority_mode_enum pri_mode = V_PRIORITY;
-	enum input_mode_enum cur_input_mode = IN_MODE_OTT;
 	u32 graphic_min = 50; /* 0.0001 */
 	static u32 graphic_max = 100; /* 1 */
 	int ret_flags = 0;
@@ -8179,7 +8250,6 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 	u32 cur_md_id;
 	int dv_id = -1;
 	char *dvel_provider = NULL;
-	bool res_change = false;
 	u32 cur_use_ll_flag;
 	u32 cur_ll_rgb_desired;
 
@@ -8272,6 +8342,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			if (ret == 1) { /*parse succeeded*/
 				meta_flag_bl = 0;
 				src_format = FORMAT_DOVI;
+				dv_inst[dv_id].current_id = dv_inst[dv_id].current_id ^ 1;
 				cur_md_id = dv_inst[dv_id].current_id;
 				memcpy(dv_inst[dv_id].md_buf[cur_md_id],
 				       vf->src_fmt.md_buf,
@@ -8283,8 +8354,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 				total_md_size =  vf->src_fmt.md_size;
 				total_comp_size =  vf->src_fmt.comp_size;
 				ret_flags = vf->src_fmt.parse_ret_flags;
-				if (((debug_dolby & 4) && dump_enable && dv_id == 0) ||
-					((debug_dolby & 0x40000) && dump_enable && dv_id == 1)) {
+				if ((debug_dolby & 4) && dump_enable_f(dv_id))  {
 					pr_dv_dbg("[inst%d]get md_buf %p, size(%d):\n",
 						dv_id + 1, vf->src_fmt.md_buf,
 						vf->src_fmt.md_size);
@@ -8298,6 +8368,21 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 						dv_inst[dv_id].md_buf[cur_md_id][i + 5],
 						dv_inst[dv_id].md_buf[cur_md_id][i + 6],
 						dv_inst[dv_id].md_buf[cur_md_id][i + 7]);
+				}
+				if ((debug_dolby & 0x40000) && dump_enable_f(dv_id))  {
+					pr_dv_dbg("[inst%d]get comp_buf %p, size(%d):\n",
+						dv_id + 1, vf->src_fmt.comp_buf,
+						vf->src_fmt.comp_size);
+					for (i = 0; i < 100; i += 8)
+						pr_info("%02x %02x %02x %02x %02x %02x %02x %02x\n",
+						dv_inst[dv_id].comp_buf[cur_md_id][i],
+						dv_inst[dv_id].comp_buf[cur_md_id][i + 1],
+						dv_inst[dv_id].comp_buf[cur_md_id][i + 2],
+						dv_inst[dv_id].comp_buf[cur_md_id][i + 3],
+						dv_inst[dv_id].comp_buf[cur_md_id][i + 4],
+						dv_inst[dv_id].comp_buf[cur_md_id][i + 5],
+						dv_inst[dv_id].comp_buf[cur_md_id][i + 6],
+						dv_inst[dv_id].comp_buf[cur_md_id][i + 7]);
 				}
 			} else {  /*no parse or parse failed*/
 				if (get_vframe_src_fmt(vf) ==
@@ -9012,7 +9097,7 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		}
 	}
 
-	if (is_osd_off) {
+	if (is_osd_off && !multi_dv_mode) {
 		graphic_min = 0;
 		graphic_max = 0;
 	}
@@ -9101,78 +9186,44 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			new_m_dovi_setting.vsvdb_len = 0;
 		}
 	}
+
 	if (vf && dv_inst_valid(dv_id)) {
-		if (new_m_dovi_setting.input[dv_id].video_width &&
-		    new_m_dovi_setting.input[dv_id].video_height) {
-			/* Toggle multiple frames in one vsync case: */
-			/* new_dovi_setting.video_width will be available, but not be applied */
-			/* So use new_dovi_setting as reference instead of dovi_setting. */
-			/* To avoid unnecessary reset control_path. */
-			cur_src_format = new_m_dovi_setting.input[dv_id].src_format;
-			cur_dst_format = new_m_dovi_setting.dst_format;
-		} else {
-			cur_src_format = m_dovi_setting.input[dv_id].src_format;
-			cur_dst_format = m_dovi_setting.dst_format;
-		}
-		cur_input_mode = new_m_dovi_setting.input[dv_id].input_mode;
-		if (new_m_dovi_setting.input[dv_id].video_width != w ||
-		    new_m_dovi_setting.input[dv_id].video_height != h) {
-			res_change = true;
-			pr_dv_dbg("res changed %dx%d=> %dx%d\n",
-				  new_m_dovi_setting.input[dv_id].video_width,
-				  new_m_dovi_setting.input[dv_id].video_height,
-				  w, h);
-		}
-		if (src_format != cur_src_format ||
-		    dst_format != cur_dst_format ||
-		    input_mode != cur_input_mode ||
-		    res_change) {
-			if (vd_path == VD1_PATH || support_multi_core1()) {
-				pr_dv_dbg
-				("[inst%d]reset cp,src:%d-%d,dst:%d-%d,m:%d-%d,c:%d,f:%x\n",
-				dv_id + 1,
-				cur_src_format, src_format,
-				cur_dst_format, dst_format,
-				cur_input_mode, input_mode,
-				dv_inst[dv_id].frame_count, dolby_vision_flags);
-				p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
-			}
-		}
-		new_m_dovi_setting.input[dv_id].in_md =
+		dv_inst[dv_id].in_md =
 			dv_inst[dv_id].md_buf[dv_inst[dv_id].current_id];
-		new_m_dovi_setting.input[dv_id].in_comp =
+		dv_inst[dv_id].in_comp =
 			dv_inst[dv_id].comp_buf[dv_inst[dv_id].current_id];
 		if (src_format == FORMAT_DOVI) {
-			new_m_dovi_setting.input[dv_id].in_md_size = total_md_size;
-			new_m_dovi_setting.input[dv_id].in_comp_size = total_comp_size;
+			dv_inst[dv_id].in_md_size = total_md_size;
+			dv_inst[dv_id].in_comp_size = total_comp_size;
 		} else {
-			new_m_dovi_setting.input[dv_id].in_md_size = 0;
-			new_m_dovi_setting.input[dv_id].in_comp_size = 0;
+			dv_inst[dv_id].in_md_size = total_md_size;
+			dv_inst[dv_id].in_comp_size = total_comp_size;
 		}
-		new_m_dovi_setting.input[dv_id].src_format = src_format;
-		new_m_dovi_setting.input[dv_id].p_hdr10_param = &dv_inst[dv_id].hdr10_param;
-		new_m_dovi_setting.input[dv_id].set_chroma_format = CP_P420;
-		new_m_dovi_setting.input[dv_id].set_yuv_range = SIGNAL_RANGE_SMPTE;
-		new_m_dovi_setting.input[dv_id].color_format = CP_YUV;
+
+		dv_inst[dv_id].src_format = src_format;
+		dv_inst[dv_id].set_chroma_format = CP_P420;
+		dv_inst[dv_id].set_yuv_range = SIGNAL_RANGE_SMPTE;
+		dv_inst[dv_id].color_format = CP_YUV;
 		/*set_bit_depth is used to calc Yuv2Rgb  for hdr/hlg/sdr case */
-		new_m_dovi_setting.input[dv_id].set_bit_depth = 12;/*fixed 12bit, no use src_bdp*/
+		dv_inst[dv_id].set_bit_depth = 12;/*fixed 12bit, no use src_bdp*/
 
 		if (input_mode == IN_MODE_HDMI) {
 			if (src_format == FORMAT_DOVI_LL) {
 				/*color_format and set_chroma_format are only*/
 				/*used for Dovi low latency or non DoVi input.*/
-				new_m_dovi_setting.input[dv_id].color_format = CP_YUV; //rgb case?
-				new_m_dovi_setting.input[dv_id].set_chroma_format = CP_UYVY;
+				dv_inst[dv_id].color_format = CP_YUV; //rgb case?
+				dv_inst[dv_id].set_chroma_format = CP_UYVY;
 			}
-			new_m_dovi_setting.input[dv_id].vsem_if_size = vsem_if_size;
-			new_m_dovi_setting.input[dv_id].vsem_if = vsem_if_buf;
+			dv_inst[dv_id].vsem_if_size = vsem_if_size;
+			dv_inst[dv_id].vsem_if = vsem_if_buf;
 		}
-		new_m_dovi_setting.input[dv_id].input_mode = input_mode;
-		new_m_dovi_setting.input[dv_id].el_flag = el_flag;
-		new_m_dovi_setting.input[dv_id].el_halfsize_flag = el_halfsize_flag;
-		new_m_dovi_setting.input[dv_id].video_width = w;
-		new_m_dovi_setting.input[dv_id].video_height = h;
+		dv_inst[dv_id].input_mode = input_mode;
+		dv_inst[dv_id].el_flag = el_flag;
+		dv_inst[dv_id].el_halfsize_flag = el_halfsize_flag;
+		dv_inst[dv_id].video_width = w;
+		dv_inst[dv_id].video_height = h;
 	}
+
 	/* cert: some graphic test also need video pri 5223,5243,5253,5263 */
 	if (dolby_vision_flags & FLAG_CERTIFICATION) {
 		if ((dolby_vision_flags & FLAG_PRIORITY_GRAPHIC))
@@ -9256,7 +9307,6 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 		new_m_dovi_setting.input[IPCORE2_ID].in_md_size = 0;
 	}
 
-	new_m_dovi_setting.dst_format = dst_format;
 	new_m_dovi_setting.set_graphic_min_lum = graphic_min;
 	new_m_dovi_setting.set_graphic_max_lum = graphic_max * 10000;
 	new_m_dovi_setting.set_target_min_lum = amdv_target_min;
@@ -9268,10 +9318,10 @@ int amdv_parse_metadata_v2_stb(struct vframe_s *vf,
 			new_m_dovi_setting.set_target_max_lum =
 			amdv_target_max[src_format][dst_format] * 10000;
 	}
-	new_m_dovi_setting.set_priority = pri_mode;
 	new_m_dovi_setting.input[IPCORE2_ID].video_width = dv_cert_graphic_width;
 	new_m_dovi_setting.input[IPCORE2_ID].video_height = dv_cert_graphic_height;
 	dv_core1[vd_path].amdv_setting_video_flag = video_frame;
+	g_dst_format = dst_format;
 
 	if (debug_dolby & 0x1000)
 		pr_dv_dbg("[inst%d]parse_metadata done, video %d_%d, %d\n",
@@ -9290,48 +9340,159 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 	struct timeval end;
 	int flag;
 	int ret = -1;
-	int dv_id = 0;
-	int dv_id_2 = 0;
-	u32 w = 0xffff;
-	u32 h = 0xffff;
+	int id = 0;
+	int inst_id_1 = 0;
+	int inst_id_2 = 0;
+	static int last_inst_id_1 = -1;
+	static int last_inst_id_2 = -1;
 	int i;
-	enum signal_format_enum dst_format = new_m_dovi_setting.dst_format;
-	/*int vd1_dv_id = layer_id_to_dv_id(VD1_PATH);*/
-	int valid_dv_id = -1;
-	static int last_valid_dv_id = -1;
+	enum signal_format_enum dst_format = g_dst_format;
+	enum signal_format_enum src_format;
 	int valid_video_num = 0;
 	static int last_valid_video_num;
 	static int last_pri_input;
 	bool video_num_change = false;
 	bool pri_change = false;
+	bool res_change = false;
+	bool input_inst_change = false;
+
+	enum signal_format_enum cur_src_format;
+	enum signal_format_enum cur_dst_format;
+	enum input_mode_enum input_mode = IN_MODE_OTT;
+	enum input_mode_enum cur_input_mode = IN_MODE_OTT;
+	struct vframe_s *p_vf;
 
 	if (!dolby_vision_enable || !module_installed || !p_funcs_stb)
 		return -1;
 
-	if (vf) {
-		dv_id = vf->src_fmt.dv_id;
-		w = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compWidth : vf->width;
-		h = (vf->type & VIDTYPE_COMPRESS) ?
-			vf->compHeight : vf->height;
-		/*video_width is updated in parse_metadata and is set to 0 after process,*/
-		/*should also update here because sometimes no parse_metadata but only*/
-		/*process for one video the two video  in  multi instance mode*/
-		new_m_dovi_setting.input[dv_id].video_width = w;
-		new_m_dovi_setting.input[dv_id].video_height = h;
-	}
+	new_m_dovi_setting.input[0].valid = 0;
+	new_m_dovi_setting.input[1].valid = 0;
+	for (i = 0; i < NUM_INST; i++)
+		dv_inst[i].valid = 0;
+	/*update new_m_dovi_setting.input, choose the two inst that display on vd1/vd2*/
+	for (i = 0; i < NUM_IPCORE1; i++) {
+		if (i == 0)	{
+			if (!vf)
+				continue;
+			p_vf = vf;
+			id = vf->src_fmt.dv_id;
+			inst_id_1 = vf->src_fmt.dv_id;
+			if (id != vd1_inst_id)
+				pr_dv_dbg("check id1 %d %d\n", id, vd1_inst_id);
+		}
+		if (i == 1)	{
+			if (!vf_2 || (!support_multi_core1() && !force_two_valid))
+				break;
+			p_vf = vf_2;
+			id = vf_2->src_fmt.dv_id;
+			inst_id_2 = vf_2->src_fmt.dv_id;
+			if (id != vd2_inst_id)
+				pr_dv_dbg("check id2 %d %d\n", id, vd2_inst_id);
+		}
+		new_m_dovi_setting.input[i].valid = 1;
+		++valid_video_num;
+		if (dv_inst_valid(id)) {
+			dv_inst[id].valid = 1;
+			input_mode = dv_inst[id].input_mode;
+			src_format = dv_inst[id].src_format;
 
-	if (vf_2) {
-		dv_id_2 = vf_2->src_fmt.dv_id;
-		w = (vf_2->type & VIDTYPE_COMPRESS) ?
-			vf_2->compWidth : vf_2->width;
-		h = (vf_2->type & VIDTYPE_COMPRESS) ?
-			vf_2->compHeight : vf_2->height;
-		/*video_width is updated in parse_metadata and is set to 0 after process,*/
-		/*should also update here because sometimes no parse_metadata but only*/
-		/*process for one video the two video  in  multi instance mode*/
-		new_m_dovi_setting.input[dv_id_2].video_width = w;
-		new_m_dovi_setting.input[dv_id_2].video_height = h;
+			if (new_m_dovi_setting.input[i].video_width &&
+			    new_m_dovi_setting.input[i].video_height) {
+				/* Toggle multiple frames in one vsync case: */
+				/* new_dovi_setting.video_width will be available,*/
+				/* but not be applied. So use new_dovi_setting as */
+				/* reference instead of dovi_setting. */
+				/* To avoid unnecessary reset control_path. */
+				cur_dst_format = new_m_dovi_setting.dst_format;
+				cur_src_format = new_m_dovi_setting.input[i].src_format;
+				cur_input_mode = new_m_dovi_setting.input[i].input_mode;
+			} else {
+				cur_dst_format = m_dovi_setting.dst_format;
+				cur_src_format = m_dovi_setting.input[i].src_format;
+				cur_input_mode = m_dovi_setting.input[i].input_mode;
+			}
+
+			if (new_m_dovi_setting.input[i].video_width != dv_inst[id].video_width ||
+			    new_m_dovi_setting.input[i].video_height != dv_inst[id].video_height) {
+				res_change = true;
+				pr_dv_dbg("[inst%d vd%d]res changed %dx%d=> %dx%d\n",
+					  id + 1, i + 1,
+					  new_m_dovi_setting.input[i].video_width,
+					  new_m_dovi_setting.input[i].video_height,
+					  dv_inst[id].video_width, dv_inst[id].video_height);
+			}
+			if (i == 0 && inst_id_1 != last_inst_id_1) {
+				input_inst_change = true;
+				pr_dv_dbg("[inst%d vd%d]input inst %d=>%d\n",
+					  id + 1, i + 1,
+					  last_inst_id_1,
+					  inst_id_1);
+				last_inst_id_1 = inst_id_1;
+			}
+			if (i == 1 && inst_id_2 != last_inst_id_2) {
+				input_inst_change = true;
+				pr_dv_dbg("[inst%d vd%d]input inst %d=>%d\n",
+					  id + 1, i + 1,
+					  last_inst_id_2,
+					  inst_id_2);
+				last_inst_id_2 = inst_id_2;
+			}
+			if (src_format != cur_src_format ||
+			    dst_format != cur_dst_format ||
+			    input_mode != cur_input_mode ||
+			    res_change ||
+			    input_inst_change) {
+				pr_dv_dbg
+				("[inst%d]reset cp,src:%d-%d,dst:%d-%d,m:%d-%d,c:%d,f:%x\n",
+				id + 1,
+				cur_src_format, src_format,
+				cur_dst_format, dst_format,
+				cur_input_mode, input_mode,
+				dv_inst[id].frame_count, dolby_vision_flags);
+				p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
+			}
+			new_m_dovi_setting.dst_format = dst_format;
+			new_m_dovi_setting.input[i].input_mode = dv_inst[id].input_mode;
+			new_m_dovi_setting.input[i].video_width = dv_inst[id].video_width;
+			new_m_dovi_setting.input[i].video_height = dv_inst[id].video_height;
+			new_m_dovi_setting.input[i].in_md =
+				dv_inst[id].in_md;
+			new_m_dovi_setting.input[i].in_comp =
+				dv_inst[id].in_comp;
+
+			if (src_format == FORMAT_DOVI) {
+				new_m_dovi_setting.input[i].in_md_size = dv_inst[id].in_md_size;
+				new_m_dovi_setting.input[i].in_comp_size = dv_inst[id].in_comp_size;
+			} else {
+				new_m_dovi_setting.input[i].in_md_size = 0;
+				new_m_dovi_setting.input[i].in_comp_size = 0;
+			}
+			new_m_dovi_setting.input[i].src_format = dv_inst[id].src_format;
+			new_m_dovi_setting.input[i].p_hdr10_param = &dv_inst[id].hdr10_param;
+			new_m_dovi_setting.input[i].set_chroma_format =
+				dv_inst[id].set_chroma_format;
+			new_m_dovi_setting.input[i].set_yuv_range = dv_inst[id].set_yuv_range;
+			new_m_dovi_setting.input[i].color_format = dv_inst[id].color_format;
+			/*set_bit_depth is used to calc Yuv2Rgb  for hdr/hlg/sdr case */
+			/*fixed 12bit, no use src_bdp*/
+			new_m_dovi_setting.input[i].set_bit_depth = dv_inst[id].set_bit_depth;
+
+			if (input_mode == IN_MODE_HDMI) {
+				if (src_format == FORMAT_DOVI_LL) {
+					/*color_format and set_chroma_format are only*/
+					/*used for Dovi low latency or non DoVi input.*/
+					new_m_dovi_setting.input[i].color_format =
+						dv_inst[id].color_format;
+					new_m_dovi_setting.input[i].set_chroma_format =
+						dv_inst[id].set_chroma_format;
+				}
+				new_m_dovi_setting.input[i].vsem_if_size = dv_inst[id].vsem_if_size;
+				new_m_dovi_setting.input[i].vsem_if = dv_inst[id].vsem_if;
+			}
+			new_m_dovi_setting.input[i].input_mode = input_mode;
+			new_m_dovi_setting.input[i].el_flag = dv_inst[id].el_flag;
+			new_m_dovi_setting.input[i].el_halfsize_flag = dv_inst[id].el_halfsize_flag;
+		}
 	}
 	new_m_dovi_setting.enable_debug = debug_ko;
 	new_m_dovi_setting.enable_multi_core1 = enable_multi_core1;
@@ -9352,26 +9513,13 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 		new_m_dovi_setting.reserved[4] = 0;/*byte3*/
 	}
 
-	if (osd_onoff_changed) {
-		pr_dv_dbg("osd onoff changed\n");
+	if (new_m_dovi_setting.set_priority != pri_mode) {
+		pr_dv_dbg("pri_mode changed %d=>%d\n", new_m_dovi_setting.set_priority, pri_mode);
 		p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
-		osd_onoff_changed = false;
+		new_m_dovi_setting.set_priority = pri_mode;
 	}
+
 	if (enable_multi_core1) {
-		for (i = 0; i < new_m_dovi_setting.num_video; i++) {
-			if (force_two_valid) {
-				new_m_dovi_setting.input[i].valid = 1;
-				++valid_video_num;
-			} else {
-				if (dv_inst[i].layer_id == VD1_PATH ||
-					dv_inst[i].layer_id == VD2_PATH) {
-					new_m_dovi_setting.input[i].valid = 1;
-					++valid_video_num;
-				} else {
-					new_m_dovi_setting.input[i].valid = 0;
-				}
-			}
-		}
 		cur_valid_video_num = valid_video_num;
 		if (last_pri_input != pri_input) {
 			pri_change = true;
@@ -9385,51 +9533,29 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 				  last_valid_video_num, valid_video_num);
 			last_valid_video_num = valid_video_num;
 		}
-		if (video_num_change || pri_change) {
+		if (video_num_change || pri_change)
 			p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
-		}
 	} else {/*only choose primary video to dv*/
-		if (dv_inst[1].layer_id == VD1_PATH) {/*inst2 is displayed on vd1*/
-			new_m_dovi_setting.input[0].valid = 0;
-			new_m_dovi_setting.input[1].valid = 1;
-			valid_dv_id = 1;
-		} else if (dv_inst[0].layer_id == VD1_PATH) {/*inst1 is displayed on vd1*/
-			new_m_dovi_setting.input[0].valid = 1;
-			new_m_dovi_setting.input[1].valid = 0;
-			valid_dv_id = 0;
-		} else {
-			new_m_dovi_setting.input[0].valid = 0;
-			new_m_dovi_setting.input[1].valid = 0;
-			valid_dv_id = -1;
-			/*new_m_dovi_setting.input[0].valid = 1;*/
-			/*new_m_dovi_setting.input[1].valid = 0;*/
-			/*valid_dv_id = 0;*/
-			/*new_m_dovi_setting.input[0].src_format = FORMAT_SDR;*/
-		}
-		cur_valid_video_num = 1;
-		if (last_valid_dv_id != valid_dv_id) {
-			pr_dv_dbg("valid_dv_id changed %d->%d, reset cp\n",
-					last_valid_dv_id, valid_dv_id);
-			last_valid_dv_id = valid_dv_id;
-			p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
-		}
+		new_m_dovi_setting.input[0].valid = 1;
+		new_m_dovi_setting.input[1].valid = 0;
 	}
 	new_m_dovi_setting.input[IPCORE2_ID].valid = 1;
 
 	if (debug_dolby & 0x400)
 		do_gettimeofday(&start);
 
-	if (is_aml_stb_hdmimode() && dv_inst_valid(hdmi_inst_id)) {
+	if (is_aml_stb_hdmimode() && dv_inst_valid(hdmi_inst_id) &&
+		hdmi_path_id <= NUM_IPCORE1) {
 		/*new_m_dovi_setting.set_priority = V_PRIORITY;*/
 		flag = p_funcs_stb->multi_control_path(&new_m_dovi_setting);
 		/* overwrite core3 meta by hdmi sink-led input */
 		if (0 && dst_format == FORMAT_DOVI &&
-		    new_m_dovi_setting.input[hdmi_inst_id].src_format == FORMAT_DOVI &&
+		    new_m_dovi_setting.input[hdmi_path_id].src_format == FORMAT_DOVI &&
 		    dolby_vision_ll_policy == DOLBY_VISION_LL_DISABLE)
 			prepare_dv_meta
 				(&new_m_dovi_setting.md_reg3,
-				 dv_inst[hdmi_inst_id].md_buf[dv_inst[0].current_id],
-				 new_m_dovi_setting.input[hdmi_inst_id].in_md_size);
+				 dv_inst[hdmi_inst_id].md_buf[dv_inst[inst_id_1].current_id],
+				 new_m_dovi_setting.input[hdmi_path_id].in_md_size);
 	} else {
 		flag = p_funcs_stb->multi_control_path(&new_m_dovi_setting);
 	}
@@ -9443,8 +9569,8 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 		if (is_video_output_off(vf)) {
 			if (vf && vf_2) {
 				pr_dv_dbg("setting %d/%d->%d(T:%d-%d), osd:%d x %d\n",
-				new_m_dovi_setting.input[dv_id].src_format,
-				new_m_dovi_setting.input[dv_id_2].src_format,
+				new_m_dovi_setting.input[0].src_format,
+				new_m_dovi_setting.input[1].src_format,
 				dst_format,
 				new_m_dovi_setting.set_target_min_lum,
 				new_m_dovi_setting.set_target_max_lum,
@@ -9455,27 +9581,27 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 		if (vf)
 			pr_dv_dbg
 			("[inst%d]video:%dx%d,fmt:%d->%d,md:%d,comp:%d,fr:%d,allm %d %d\n",
-			 dv_id + 1,
-			 new_m_dovi_setting.input[dv_id].video_width,
-			 new_m_dovi_setting.input[dv_id].video_height,
-			 new_m_dovi_setting.input[dv_id].src_format,
+			 inst_id_1 + 1,
+			 new_m_dovi_setting.input[0].video_width,
+			 new_m_dovi_setting.input[0].video_height,
+			 new_m_dovi_setting.input[0].src_format,
 			 dst_format,
-			 new_m_dovi_setting.input[dv_id].in_md_size,
-			 new_m_dovi_setting.input[dv_id].in_comp_size,
-			 dv_inst[dv_id].frame_count,
+			 new_m_dovi_setting.input[0].in_md_size,
+			 new_m_dovi_setting.input[0].in_comp_size,
+			 dv_inst[inst_id_1].frame_count,
 			 hdmi_in_allm,
 			 local_allm);
 		if (vf_2)
 			pr_dv_dbg
 			("[inst%d]video:%dx%d,fmt:%d->%d,md:%d,comp:%d,fr:%d\n",
-			 dv_id_2 + 1,
-			 new_m_dovi_setting.input[dv_id_2].video_width,
-			 new_m_dovi_setting.input[dv_id_2].video_height,
-			 new_m_dovi_setting.input[dv_id_2].src_format,
+			 inst_id_2 + 1,
+			 new_m_dovi_setting.input[1].video_width,
+			 new_m_dovi_setting.input[1].video_height,
+			 new_m_dovi_setting.input[1].src_format,
 			 dst_format,
-			 new_m_dovi_setting.input[dv_id_2].in_md_size,
-			 new_m_dovi_setting.input[dv_id_2].in_comp_size,
-			 dv_inst[dv_id_2].frame_count);
+			 new_m_dovi_setting.input[1].in_md_size,
+			 new_m_dovi_setting.input[1].in_comp_size,
+			 dv_inst[inst_id_2].frame_count);
 		pr_dv_dbg
 		("osd %d,osd size:%dx%d,g min-max %d-%d,t min-max:%d-%d,pri:%s,flag=%x\n",
 		 !is_graphics_output_off(),
@@ -9498,22 +9624,23 @@ int amdv_control_path(struct vframe_s *vf, struct vframe_s *vf_2)
 				 new_m_dovi_setting.dovi_ll_enable,
 				 new_m_dovi_setting.diagnostic_enable,
 				 dolby_vision_ll_policy);
-		dump_m_setting(&new_m_dovi_setting, dv_inst[pri_input].frame_count, debug_dolby);
+		dump_m_setting(&new_m_dovi_setting, dv_inst[pri_input].frame_count,
+					   debug_dolby, inst_id_1);
 		ret = 0; /* setting updated */
 	}
 
 	if (flag < 0) {
 		ret = -1;
 		if (vf) {
-			new_m_dovi_setting.input[dv_id].video_width = 0;
-			new_m_dovi_setting.input[dv_id].video_height = 0;
+			new_m_dovi_setting.input[0].video_width = 0;
+			new_m_dovi_setting.input[0].video_height = 0;
 		} else if (vf_2) {
-			new_m_dovi_setting.input[dv_id_2].video_width = 0;
-			new_m_dovi_setting.input[dv_id_2].video_height = 0;
+			new_m_dovi_setting.input[1].video_width = 0;
+			new_m_dovi_setting.input[1].video_height = 0;
 		}
 		pr_dv_error("control_path(%d/%d, %d) failed %d\n",
-			       new_m_dovi_setting.input[dv_id].src_format,
-			       new_m_dovi_setting.input[dv_id_2].src_format,
+			       new_m_dovi_setting.input[0].src_format,
+			       new_m_dovi_setting.input[1].src_format,
 			       dst_format, flag);
 	}
 	return ret;
@@ -9808,7 +9935,7 @@ int amdv_wait_metadata_v2(struct vframe_s *vf, enum vd_path_e vd_path)
 			     dolby_vision_flags, debug_dolby,
 			     setting_update_count, crc_count);
 
-	if (single_step_enable_v2(dv_id)) {
+	if (single_step_enable_v2(dv_id, layer_id)) {
 		if (vd_path == VD1_PATH) {
 			if (dolby_vision_flags & FLAG_SINGLE_STEP)
 				return 1;
@@ -10794,7 +10921,7 @@ int amdolby_vision_process_v1(struct vframe_s *vf,
 					enable_amdv(0);
 				} else {
 					/* disable dv after sdr delay:
-					 * dv alwyas hdr to adaptive or dv
+					 * dv always hdr to adaptive or dv
 					 * playback exit in adaptive mode on
 					 * a dv tv
 					 */
@@ -11235,8 +11362,6 @@ static int amdolby_vision_process_v2_stb
 	enum vd_path_e vd_path_2 = VD2_PATH;
 	static bool stb_hdmi_mode;
 	bool cur_stb_hdmi_mode;
-	int vd1_dv_id = -1;
-	int vd2_dv_id = -1;
 	bool need_cp = false;
 	enum signal_format_enum cur_src_format;
 	static int last_pri_input;
@@ -11247,11 +11372,11 @@ static int amdolby_vision_process_v2_stb
 			dv_id = vf->src_fmt.dv_id;
 		else
 			dv_id = 0;
-		if (dv_id != vd_path)
-			path_switch = true;
+		//if (dv_id != vd_path)
+			//path_switch = true;
 
 		dv_inst[dv_id].layer_id = vd_path;
-		vd1_dv_id = dv_id;
+		vd1_inst_id = dv_id;
 
 		/*in one_core1 case, set layer id invalid for other instance*/
 		/*if (!support_multi_core1())*/
@@ -11260,66 +11385,77 @@ static int amdolby_vision_process_v2_stb
 		if (debug_dolby & 0x1000)
 			pr_dv_dbg("[inst%d]process %p on vd%d, toggle %d\n",
 				     dv_id + 1, vf, vd_path + 1, toggle_mode_1);
+	} else {
+		vd1_inst_id = -1;
 	}
 	if (vf_2) {
 		if (dv_inst_valid(vf_2->src_fmt.dv_id))
 			dv_id = vf_2->src_fmt.dv_id;
 		else
 			dv_id = 1;
-		if (dv_id != vd_path_2)
-			path_switch = true;
+		//if (dv_id != vd_path_2)
+			//path_switch = true;
 
 		dv_inst[dv_id].layer_id = vd_path_2;
-		vd2_dv_id = dv_id;
+		vd2_inst_id = dv_id;
 
 		if (debug_dolby & 0x1000)
 			pr_dv_dbg("[inst%d]process %p on vd%d, toggle %d\n",
 				     dv_id + 1, vf_2, vd_path_2 + 1, toggle_mode_2);
+	} else {
+		vd2_inst_id = -1;
 	}
-	/*pr_info("rdma read 6077 %x, read %x\n",*/
-			/*VSYNC_RD_DV_REG(OSD_DOLBY_BYPASS_EN),*/
-			/*READ_VPP_DV_REG(OSD_DOLBY_BYPASS_EN));*/
 
 	/*update layer info*/
 	/*coverity[check_after_sink] No negative array index reading occurred.*/
-	if (vd1_dv_id >= 0 && vd2_dv_id >= 0) {
+	if (vd1_inst_id >= 0 && vd2_inst_id >= 0) {
+		for (i = 0; i < NUM_INST; i++) {
+			if (i != vd1_inst_id && i != vd2_inst_id)
+				dv_inst[i].layer_id = VD_PATH_MAX;
+		}
 		if (!(dolby_vision_flags & FLAG_CERTIFICATION))
-			pri_input = vd1_dv_id;
+			pri_input = 0;
 		if (vf && vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
 			hdmi_path_id = VD1_PATH;
-			hdmi_inst_id = vd1_dv_id;
+			hdmi_inst_id = vd1_inst_id;
 		} else if (vf_2 && vf_2->source_type == VFRAME_SOURCE_TYPE_HDMI) {
 			hdmi_path_id = VD2_PATH;
-			hdmi_inst_id = vd2_dv_id;
+			hdmi_inst_id = vd2_inst_id;
 		} else {
 			hdmi_path_id = VD_PATH_MAX;
 			hdmi_inst_id = -1;
 		}
-	} else if (vd1_dv_id == -1 && vd2_dv_id >= 0) {
-		dv_inst[vd2_dv_id ^ 1].layer_id = VD_PATH_MAX;
+	} else if (vd1_inst_id == -1 && vd2_inst_id >= 0) {
+		for (i = 0; i < NUM_INST; i++) {
+			if (i != vd2_inst_id)
+				dv_inst[i].layer_id = VD_PATH_MAX;
+		}
 		if (!(dolby_vision_flags & FLAG_CERTIFICATION))
-			pri_input = vd2_dv_id;
+			pri_input = 1;
 		if (vf_2 && vf_2->source_type == VFRAME_SOURCE_TYPE_HDMI) {
 			hdmi_path_id = VD2_PATH;
-			hdmi_inst_id = vd2_dv_id;
+			hdmi_inst_id = vd2_inst_id;
 		} else {
 			hdmi_path_id = VD_PATH_MAX;
 			hdmi_inst_id = -1;
 		}
-	} else if (vd2_dv_id == -1 && vd1_dv_id >= 0) {
-		dv_inst[vd1_dv_id ^ 1].layer_id = VD_PATH_MAX;
+	} else if (vd2_inst_id == -1 && vd1_inst_id >= 0) {
+		for (i = 0; i < NUM_INST; i++) {
+			if (i != vd1_inst_id)
+				dv_inst[i].layer_id = VD_PATH_MAX;
+		}
 		if (!(dolby_vision_flags & FLAG_CERTIFICATION))
-			pri_input = vd1_dv_id;
+			pri_input = 0;
 		if (vf && vf->source_type == VFRAME_SOURCE_TYPE_HDMI) {
 			hdmi_path_id = VD1_PATH;
-			hdmi_inst_id = vd1_dv_id;
+			hdmi_inst_id = vd1_inst_id;
 		} else {
 			hdmi_path_id = VD_PATH_MAX;
 			hdmi_inst_id = -1;
 		}
-	} else if (vd1_dv_id == -1 && vd2_dv_id == -1) {
-		dv_inst[0].layer_id = VD_PATH_MAX;
-		dv_inst[1].layer_id = VD_PATH_MAX;
+	} else if (vd1_inst_id == -1 && vd2_inst_id == -1) {
+		for (i = 0; i < NUM_INST; i++)
+			dv_inst[i].layer_id = VD_PATH_MAX;
 		hdmi_path_id = VD_PATH_MAX;
 		hdmi_inst_id = -1;
 		if (!(dolby_vision_flags & FLAG_CERTIFICATION))
@@ -11340,8 +11476,8 @@ static int amdolby_vision_process_v2_stb
 
 	if (path_switch != core1a_core1b_switch) {
 		core1a_core1b_switch = path_switch;
-		pr_dv_dbg("core1a core1b setting switched %d, vd1_dv_id %d, pri_input %d\n",
-		core1a_core1b_switch, vd1_dv_id, pri_input);
+		pr_dv_dbg("core1a core1b setting switched %d, vd1_inst_id %d, pri_input %d\n",
+		core1a_core1b_switch, vd1_inst_id, pri_input);
 	}
 
 	if (update_control_path_flag) {
@@ -11351,17 +11487,15 @@ static int amdolby_vision_process_v2_stb
 
 	if (dolby_vision_flags & FLAG_CERTIFICATION) {
 		if (vf) {
-			dv_id = vf->src_fmt.dv_id;
-			h_size[dv_id] = (vf->type & VIDTYPE_COMPRESS) ?
+			h_size[0] = (vf->type & VIDTYPE_COMPRESS) ?
 				vf->compWidth : vf->width;
-			v_size[dv_id] = (vf->type & VIDTYPE_COMPRESS) ?
+			v_size[0] = (vf->type & VIDTYPE_COMPRESS) ?
 				vf->compHeight : vf->height;
 		}
 		if (vf_2) {
-			dv_id = vf_2->src_fmt.dv_id;
-			h_size[dv_id] = (vf_2->type & VIDTYPE_COMPRESS) ?
+			h_size[1] = (vf_2->type & VIDTYPE_COMPRESS) ?
 				vf_2->compWidth : vf_2->width;
-			v_size[dv_id] = (vf_2->type & VIDTYPE_COMPRESS) ?
+			v_size[1] = (vf_2->type & VIDTYPE_COMPRESS) ?
 				vf_2->compHeight : vf_2->height;
 		}
 
@@ -11382,48 +11516,46 @@ static int amdolby_vision_process_v2_stb
 
 	if (dolby_vision_flags & FLAG_TOGGLE_FRAME) {
 		if (vf) {
-			dv_id = vf->src_fmt.dv_id;
-			h_size[dv_id] = (display_size >> 16) & 0xffff;
-			v_size[dv_id] = display_size & 0xffff;
+			h_size[0] = (display_size >> 16) & 0xffff;
+			v_size[0] = display_size & 0xffff;
 		}
 		if (vf_2) {
-			dv_id = vf_2->src_fmt.dv_id;
-			h_size[dv_id] = (display_size_2 >> 16) & 0xffff;
-			v_size[dv_id] = display_size_2 & 0xffff;
+			h_size[1] = (display_size_2 >> 16) & 0xffff;
+			v_size[1] = display_size_2 & 0xffff;
 		}
 
 		for (i = 0; i < NUM_IPCORE1; i++) {
-			if (dv_inst[i].core1_disp_hsize != h_size[i] ||
-				dv_inst[i].core1_disp_vsize != v_size[i]) {
+			if (dv_core1[i].core1_disp_hsize != h_size[i] ||
+				dv_core1[i].core1_disp_vsize != v_size[i]) {
 				if (debug_dolby & 1)
 					pr_dv_dbg
 					("stb update core1_%s disp size %d %d -> %d %d\n",
-					 dv_inst[i].layer_id == VD1_PATH ? "a" : "b",
-					 dv_inst[i].core1_disp_hsize,
-					 dv_inst[i].core1_disp_vsize,
+					 i == 0 ? "a" : "b",
+					 dv_core1[i].core1_disp_hsize,
+					 dv_core1[i].core1_disp_vsize,
 					 h_size[i], v_size[i]);
 #ifdef REMOVE_OLD_DV_FUNC
 				/* tvcore need a force config for resolution change */
 				if (is_aml_stb_hdmimode() &&
-				    (dv_inst[i].core1_disp_hsize != h_size[i] ||
-				     dv_inst[i].core1_disp_vsize != v_size[i])) {
+				    (dv_core1[i].core1_disp_hsize != h_size[i] ||
+				     dv_core1[i].core1_disp_vsize != v_size[i])) {
 					force_set = true;
 					if (debug_dolby & 1)
 						pr_dv_dbg
 						("core1_%s display size %d %d -> %d %d\n",
-						 dv_inst[i].layer_id == VD1_PATH ? "a" : "b",
-						 dv_inst[i].core1_disp_hsize,
-						 dv_inst[i].core1_disp_vsize,
+						 i == 0 ? "a" : "b",
+						 dv_core1[i].core1_disp_hsize,
+						 dv_core1[i].core1_disp_vsize,
 						 h_size[i], v_size[i]);
 				}
 #endif
 			}
 			if (h_size[i] && v_size[i]) {
-				dv_inst[i].core1_disp_hsize = h_size[i];
-				dv_inst[i].core1_disp_vsize = v_size[i];
+				dv_core1[i].core1_disp_hsize = h_size[i];
+				dv_core1[i].core1_disp_vsize = v_size[i];
 			} else {
-				dv_inst[i].core1_disp_hsize = 0xffff;
-				dv_inst[i].core1_disp_vsize = 0xffff;
+				dv_core1[i].core1_disp_hsize = 0xffff;
+				dv_core1[i].core1_disp_vsize = 0xffff;
 			}
 		}
 		if (((!vf && !vf_2) || (toggle_mode_1 != 1 && toggle_mode_2 != 1)) && !sdr_delay) {
@@ -11526,44 +11658,42 @@ static int amdolby_vision_process_v2_stb
 			amdv_control_path(vf, vf_2);
 
 		if (vf) {
-			dv_id = vf->src_fmt.dv_id;
-			h_size[dv_id] = (display_size >> 16) & 0xffff;
-			v_size[dv_id] = display_size & 0xffff;
-			if (h_size[dv_id] && v_size[dv_id]) {
-				dv_inst[dv_id].core1_disp_hsize = h_size[dv_id];
-				dv_inst[dv_id].core1_disp_vsize = v_size[dv_id];
+			h_size[0] = (display_size >> 16) & 0xffff;
+			v_size[0] = display_size & 0xffff;
+			if (h_size[0] && v_size[0]) {
+				dv_core1[0].core1_disp_hsize = h_size[0];
+				dv_core1[0].core1_disp_vsize = v_size[0];
 			} else {
-				dv_inst[dv_id].core1_disp_hsize = 0xffff;
-				dv_inst[dv_id].core1_disp_vsize = 0xffff;
+				dv_core1[0].core1_disp_hsize = 0xffff;
+				dv_core1[0].core1_disp_vsize = 0xffff;
 			}
 		}
 		if (vf_2) {
-			dv_id = vf_2->src_fmt.dv_id;
-			h_size[dv_id] = (display_size_2 >> 16) & 0xffff;
-			v_size[dv_id] = display_size_2 & 0xffff;
-			if (h_size[dv_id] && v_size[dv_id]) {
-				dv_inst[dv_id].core1_disp_hsize = h_size[dv_id];
-				dv_inst[dv_id].core1_disp_vsize = v_size[dv_id];
+			h_size[1] = (display_size_2 >> 16) & 0xffff;
+			v_size[1] = display_size_2 & 0xffff;
+			if (h_size[1] && v_size[1]) {
+				dv_core1[1].core1_disp_hsize = h_size[1];
+				dv_core1[1].core1_disp_vsize = v_size[1];
 			} else {
-				dv_inst[dv_id].core1_disp_hsize = 0xffff;
-				dv_inst[dv_id].core1_disp_vsize = 0xffff;
+				dv_core1[1].core1_disp_hsize = 0xffff;
+				dv_core1[1].core1_disp_vsize = 0xffff;
 			}
 		}
 		force_set_lut = true;
 	}
 	if (inst_debug[0]) {
-		dv_inst[0].core1_disp_hsize = inst_res_debug[0];
-		dv_inst[0].core1_disp_vsize = inst_res_debug[1];
+		dv_core1[0].core1_disp_hsize = inst_res_debug[0];
+		dv_core1[0].core1_disp_vsize = inst_res_debug[1];
 	} else if (inst_debug[1]) {
-		dv_inst[1].core1_disp_hsize = inst_res_debug[2];
-		dv_inst[1].core1_disp_vsize = inst_res_debug[3];
+		dv_core1[1].core1_disp_hsize = inst_res_debug[2];
+		dv_core1[1].core1_disp_vsize = inst_res_debug[3];
 	}
 	if (debug_dolby & 0x1000)
-		pr_dv_dbg("inst0 %d_%d, inst1 %d_%d\n",
-			     dv_inst[0].core1_disp_hsize,
-			     dv_inst[0].core1_disp_vsize,
-			     dv_inst[1].core1_disp_hsize,
-			     dv_inst[1].core1_disp_vsize);
+		pr_dv_dbg("dv_core %d_%d,  %d_%d\n",
+			     dv_core1[0].core1_disp_hsize,
+			     dv_core1[0].core1_disp_vsize,
+			     dv_core1[1].core1_disp_hsize,
+			     dv_core1[1].core1_disp_vsize);
 
 	if (debug_dolby & 0x1000)
 		pr_dv_dbg("vf %p,vd1 %s,st %d,vf_2 %p,vd2 %s,st %d\n",
@@ -11609,6 +11739,9 @@ static int amdolby_vision_process_v2_stb
 									 1, false, false)) {
 						amdv_set_toggle_flag(1);
 						need_cp = true;
+						pr_dv_dbg("vd1 off, reset cp\n");
+						p_funcs_stb->multi_control_path
+							(&invalid_m_dovi_setting);
 					}
 				}
 			}
@@ -11621,6 +11754,9 @@ static int amdolby_vision_process_v2_stb
 									1, false, false)) {
 						amdv_set_toggle_flag(1);
 						need_cp = true;
+						pr_dv_dbg("vd2 off, reset cp\n");
+						p_funcs_stb->multi_control_path
+							(&invalid_m_dovi_setting);
 					}
 				}
 			}
@@ -11657,8 +11793,11 @@ static int amdolby_vision_process_v2_stb
 					need_cp = true;
 				}
 			}
-			if (need_cp)
+			if (need_cp) {
+				pr_dv_dbg("vd1 off, reset cp\n");
+				p_funcs_stb->multi_control_path(&invalid_m_dovi_setting);
 				amdv_control_path(vf, vf_2);
+			}
 		}
 	}
 
@@ -11698,7 +11837,7 @@ static int amdolby_vision_process_v2_stb
 					enable_amdv(0);
 				} else if (last_dst_format != FORMAT_DOVI) {
 					/* disable dv immediately:
-					 * non-dv alwyas hdr to adaptive
+					 * non-dv always hdr to adaptive
 					 */
 					pr_dv_dbg("DV bypass: Switched %d to SDR\n",
 						     last_dst_format);
@@ -11713,7 +11852,7 @@ static int amdolby_vision_process_v2_stb
 					enable_amdv(0);
 				} else {
 					/* disable dv after sdr delay:
-					 * dv alwyas hdr to adaptive or dv
+					 * dv always hdr to adaptive or dv
 					 * playback exit in adaptive mode on
 					 * a dv tv
 					 */
@@ -11787,8 +11926,8 @@ static int amdolby_vision_process_v2_stb
 		for (i = 0; i < NUM_IPCORE1; i++) {
 			new_m_dovi_setting.input[i].video_width = 0;
 			new_m_dovi_setting.input[i].video_height = 0;
-			dv_inst[i].core1_disp_hsize = 0;
-			dv_inst[i].core1_disp_vsize = 0;
+			dv_core1[i].core1_disp_hsize = 0;
+			dv_core1[i].core1_disp_vsize = 0;
 		}
 		update_amdv_core2_reg();
 		return 0;
@@ -11835,19 +11974,19 @@ static int amdolby_vision_process_v2_stb
 					(dv_core1[i].run_mode_count == 0);
 			}
 		}
-		if (((dv_inst[0].core1_disp_hsize & 0xffff) &&
-		    (dv_inst[0].core1_disp_vsize & 0xffff)) ||
-		    ((dv_inst[1].core1_disp_hsize & 0xffff) &&
-		    (dv_inst[1].core1_disp_vsize & 0xffff)) ||
+		if (((dv_core1[0].core1_disp_hsize & 0xffff) &&
+		    (dv_core1[0].core1_disp_vsize & 0xffff)) ||
+		    ((dv_core1[1].core1_disp_hsize & 0xffff) &&
+		    (dv_core1[1].core1_disp_vsize & 0xffff)) ||
 		    force_set_lut) {
-			if (dv_inst[0].core1_disp_hsize == 0xffff)
-				dv_inst[0].core1_disp_hsize = 0;
-			if (dv_inst[0].core1_disp_vsize == 0xffff)
-				dv_inst[0].core1_disp_vsize = 0;
-			if (dv_inst[1].core1_disp_hsize == 0xffff)
-				dv_inst[1].core1_disp_hsize = 0;
-			if (dv_inst[1].core1_disp_vsize == 0xffff)
-				dv_inst[1].core1_disp_vsize = 0;
+			if (dv_core1[0].core1_disp_hsize == 0xffff)
+				dv_core1[0].core1_disp_hsize = 0;
+			if (dv_core1[0].core1_disp_vsize == 0xffff)
+				dv_core1[0].core1_disp_vsize = 0;
+			if (dv_core1[1].core1_disp_hsize == 0xffff)
+				dv_core1[1].core1_disp_hsize = 0;
+			if (dv_core1[1].core1_disp_vsize == 0xffff)
+				dv_core1[1].core1_disp_vsize = 0;
 
 			if (is_aml_stb_hdmimode() && !core1_detunnel() &&
 				layerid_valid(hdmi_path_id) && dv_inst_valid(hdmi_inst_id)) {
@@ -11855,8 +11994,8 @@ static int amdolby_vision_process_v2_stb
 				tv_dv_core1_set
 				(tv_dovi_setting->core1_reg_lut,
 				 dma_paddr,
-				 dv_inst[hdmi_inst_id].core1_disp_hsize,
-				 dv_inst[hdmi_inst_id].core1_disp_vsize,
+				 dv_core1[hdmi_path_id].core1_disp_hsize,
+				 dv_core1[hdmi_path_id].core1_disp_vsize,
 				 dv_core1[hdmi_path_id].amdv_setting_video_flag,
 				 false, false, 2, true, false,
 				 reset_flag[hdmi_path_id]);
@@ -11867,10 +12006,10 @@ static int amdolby_vision_process_v2_stb
 				for (i = 0; i < NUM_IPCORE1; i++)
 					reset_flag[i] = true;
 			}
-			in_size = (dv_inst[0].core1_disp_hsize << 16) |
-					(dv_inst[0].core1_disp_vsize);
-			in_size_2 = (dv_inst[1].core1_disp_hsize << 16) |
-					(dv_inst[1].core1_disp_vsize);
+			in_size = (dv_core1[0].core1_disp_hsize << 16) |
+					(dv_core1[0].core1_disp_vsize);
+			in_size_2 = (dv_core1[1].core1_disp_hsize << 16) |
+					(dv_core1[1].core1_disp_vsize);
 			apply_stb_core_settings
 				(dma_paddr,
 				 dv_core1[0].amdv_setting_video_flag,
@@ -11979,8 +12118,8 @@ static int amdolby_vision_process_v2_stb
 					tv_dv_core1_set
 					(tv_dovi_setting->core1_reg_lut,
 					  dma_paddr,
-					  dv_inst[hdmi_inst_id].core1_disp_hsize,
-					  dv_inst[hdmi_inst_id].core1_disp_vsize,
+					  dv_core1[hdmi_path_id].core1_disp_hsize,
+					  dv_core1[hdmi_path_id].core1_disp_vsize,
 					  dv_core1[hdmi_path_id].amdv_setting_video_flag,
 					  false,
 					  false,
@@ -11998,18 +12137,18 @@ static int amdolby_vision_process_v2_stb
 					 amdv_mask & 0x1,
 					 reset_flag[0],
 					 reset_flag[1],
-					 (dv_inst[0].core1_disp_hsize << 16) |
-					 dv_inst[0].core1_disp_vsize,
-					 (dv_inst[1].core1_disp_hsize << 16) |
-					 dv_inst[1].core1_disp_vsize,
+					 (dv_core1[0].core1_disp_hsize << 16) |
+					 dv_core1[0].core1_disp_vsize,
+					 (dv_core1[1].core1_disp_hsize << 16) |
+					 dv_core1[1].core1_disp_vsize,
 					 pps_state);
 
 				for (i = 0; i < NUM_IPCORE1; i++) {
 					if (dv_core1[i].run_mode_count <
 					    amdv_run_mode_delay)
 						pr_dv_dbg("fake frame (%d %d) %d reset %d\n",
-							     dv_inst[i].core1_disp_hsize,
-							     dv_inst[i].core1_disp_vsize,
+							     dv_core1[i].core1_disp_hsize,
+							     dv_core1[i].core1_disp_vsize,
 							     dv_core1[i].run_mode_count,
 							     reset_flag[i]);
 				}
@@ -12528,7 +12667,7 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 		amdv_wait_on = false;
 		amdv_wait_init = false;
 		amdv_on_in_uboot = 0;
-		for (i = 0; i < NUM_IPCORE1; i++)
+		for (i = 0; i < NUM_INST; i++)
 			dv_inst[i].amdv_wait_init = false;
 	}
 
@@ -12665,16 +12804,19 @@ int register_dv_functions(const struct dolby_vision_func_s *func)
 				pr_info("output_ctrl_data malloc error\n");
 				return -ENOMEM;
 			}
+			/*initialize parser for two inst in advance to prevent some cases*/
+			/*where the decoder does not call the map and dv can also work normally.*/
+			/*Usually parser will be automatically created when play and map*/
+			for (i = 0; i < 2; i++) {
+				dv_inst[i].metadata_parser =
+				p_funcs_stb->multi_mp_init(dolby_vision_flags
+							   & FLAG_CHANGE_SEQ_HEAD
+							   ? 1 : 0);
+				p_funcs_stb->multi_mp_reset
+					(dv_inst[i].metadata_parser, 1);
+			}
 
 			for (i = 0; i < new_m_dovi_setting.num_input; i++) {
-				if (i < NUM_IPCORE1) {
-					dv_inst[i].metadata_parser =
-					p_funcs_stb->multi_mp_init(dolby_vision_flags
-								   & FLAG_CHANGE_SEQ_HEAD
-								   ? 1 : 0);
-					p_funcs_stb->multi_mp_reset
-						(dv_inst[i].metadata_parser, 1);
-				}
 				invalid_m_dovi_setting.input[i].src_format = FORMAT_INVALID;
 				new_m_dovi_setting.input[i].src_format = FORMAT_INVALID;
 				m_dovi_setting.input[i].src_format = FORMAT_INVALID;
@@ -12803,12 +12945,14 @@ int unregister_dv_functions(void)
 		}
 
 		if (multi_dv_mode) {
-			for (i = 0; i < NUM_IPCORE1; i++) {
+			for (i = 0; i < NUM_INST; i++) {
 				if (dv_inst[i].metadata_parser && p_funcs_stb) {
 					p_funcs_stb->multi_mp_release
 						(&dv_inst[i].metadata_parser);
 					dv_inst[i].metadata_parser = NULL;
 				}
+				if (dv_inst[i].mapped)
+					dv_inst[i].mapped = false;
 			}
 			if (new_m_dovi_setting.output_ctrl_data) {
 				vfree(new_m_dovi_setting.output_ctrl_data);
@@ -12835,7 +12979,7 @@ void amdv_crc_clear(int flag)
 	crc_bypass_count = 0;
 	setting_update_count = 0;
 	if (multi_dv_mode) {
-		for (i = 0; i < NUM_IPCORE1; i++)
+		for (i = 0; i < NUM_INST; i++)
 			dv_inst[i].frame_count = 0;
 	}
 	if (!crc_output_buf)
@@ -13276,6 +13420,7 @@ static const char *amdolby_vision_debug_usage_str = {
 	"echo debug_disable_aoi value > /sys/class/amdolby_vision/debug; 1:disable aoi;>1 not disable\n"
 	"echo debug_dma_start_line value > /sys/class/amdolby_vision/debug;\n"
 	"echo debug_ko value > /sys/class/amdolby_vision/debug;\n"
+	"echo force_unmap > /sys/class/amdolby_vision/debug;\n"
 };
 
 static ssize_t  amdolby_vision_debug_show
@@ -13442,6 +13587,9 @@ static ssize_t amdolby_vision_debug_store
 			force_runmode = 1;
 		pr_info("set force_runmode %d\n",
 			force_runmode);
+	} else if (!strcmp(parm[0], "force_unmap")) {
+		pr_info("force unmap\n");
+		force_unmap_all_inst();
 	} else {
 		pr_info("unsupport cmd\n");
 	}
@@ -14185,7 +14333,7 @@ static ssize_t amdolby_vision_enable_multi_core1_store
 	int ret;
 
 	if (!(is_multi_dv_mode() && (is_aml_t7() || is_aml_tm2() || is_aml_s5()))) {
-		pr_info("not supprot mulit core1\n");
+		pr_info("not support mulit core1\n");
 		return -EINVAL;
 	}
 	r = kstrtoint(buf, 0, &ret);
@@ -14213,7 +14361,7 @@ static ssize_t amdolby_vision_force_pri_input_store
 	int ret;
 
 	if (!(support_multi_core1() && (is_aml_t7() || is_aml_tm2() || is_aml_s5()))) {
-		pr_info("not supprot mulit core1\n");
+		pr_info("not support mulit core1\n");
 		return -EINVAL;
 	}
 	r = kstrtoint(buf, 0, &ret);
@@ -14257,10 +14405,21 @@ static ssize_t amdolby_vision_src_format_show
 	int i;
 	int fmt;
 	int fmt_inside;
+	int dv_id;
 
 	if (multi_dv_mode) {
 		for (i = 0; i < NUM_IPCORE1; i++) {
-			fmt = dv_inst[i].amdv_src_format;
+			if (i == 0)
+				dv_id = layer_id_to_dv_id(VD1_PATH);
+			else
+				dv_id = layer_id_to_dv_id(VD2_PATH);
+
+			if (i == 1 && !enable_multi_core1)
+				break;
+
+			if (dv_inst_valid(dv_id))
+				fmt = dv_inst[dv_id].amdv_src_format;
+
 			if (fmt < 0 || fmt >= sizeof(debug_format_str) /
 				sizeof(debug_format_str[0]))
 				fmt = 0;
@@ -14269,7 +14428,7 @@ static ssize_t amdolby_vision_src_format_show
 				fmt_inside >= sizeof(signal_format_str) /
 				sizeof(signal_format_str[0]))
 				fmt_inside = 0;
-			len += sprintf(buf + len, "inst%d: %s %s\n", i + 1,
+			len += sprintf(buf + len, "vd%d(inst%d): %s %s\n", i + 1, dv_id + 1,
 				       debug_format_str[fmt],
 				       signal_format_str[fmt_inside]);
 		}
@@ -14333,18 +14492,21 @@ static ssize_t amdolby_vision_inst_status_show
 	len += sprintf(buf + len, "enable multi core1: %d\n", enable_multi_core1);
 	len += sprintf(buf + len, "valid num %d, pri_input: %d\n",
 		       cur_valid_video_num, pri_input);
+	len += sprintf(buf + len, "vd1_inst_id %d, vd2_inst_id: %d\n",
+		       vd1_inst_id + 1, vd2_inst_id + 1);
 
 	len += sprintf(buf + len, "%s\n", str1);
-	for (i = 0; i < NUM_IPCORE1; i++) {
+	for (i = 0; i < NUM_INST; i++) {
 		fmt = dv_inst[i].amdv_src_format;
 		if (fmt < 0 || fmt >= sizeof(debug_format_str) /
 			sizeof(debug_format_str[0]))
 			fmt = 0;
-		len += sprintf(buf + len, "[inst%d]:mapped %d,valid %d,fmt %s,size %dx%d\n",
-			       i + 1, dv_inst[i].mapped, new_m_dovi_setting.input[i].valid,
+		len += sprintf(buf + len, "[inst%d]:mapped %d,valid %d,vd%d,fmt %s,%dx%d\n",
+			       i + 1, dv_inst[i].mapped, dv_inst[i].valid,
+			       dv_inst[i].layer_id + 1,
 				   debug_format_str[fmt],
-			       new_m_dovi_setting.input[i].video_width,
-			       new_m_dovi_setting.input[i].video_height);
+			       dv_inst[i].video_width,
+			       dv_inst[i].video_height);
 	}
 
 	len += sprintf(buf + len, "%s\n", str2);
@@ -14963,7 +15125,7 @@ static int __exit amdolby_vision_remove(struct platform_device *pdev)
 		vsem_md_buf = NULL;
 	}
 
-	for (i = 0; i < NUM_IPCORE1; i++) {
+	for (i = 0; i < NUM_INST; i++) {
 		if (dv_inst[i].metadata_parser) {
 			p_funcs_stb->multi_mp_release
 				(&dv_inst[i].metadata_parser);
