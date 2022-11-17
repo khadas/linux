@@ -1041,9 +1041,10 @@ void parser_dynamic_metadata(struct vframe_s *vf)
 			get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_CUVA_HDR ||
 			get_vframe_src_fmt(vf) == VFRAME_SIGNAL_FMT_CUVA_HLG) {
 			size = 0;
-			if (vf->codec_vfmt == VFORMAT_AVS2) {
+			if (vf->codec_vfmt == VFORMAT_AVS2 ||
+				vf->codec_vfmt == VFORMAT_AVS3) {
 				if (debug_hdr)
-					pr_info("avs2_md\n");
+					pr_info("avs2/avs3 metadata\n");
 				req_avs2.aux_buf = (char *)get_sei_from_src_fmt(vf, &size);
 				req_avs2.aux_size = size;
 			} else {
