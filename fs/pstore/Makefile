@@ -5,7 +5,11 @@
 
 obj-$(CONFIG_PSTORE) += pstore.o
 
+ifdef CONFIG_AMLOGIC_ZSTD
+pstore-objs += inode.o aml_platform.o
+else
 pstore-objs += inode.o platform.o
+endif
 pstore-$(CONFIG_PSTORE_FTRACE)	+= ftrace.o
 
 pstore-$(CONFIG_PSTORE_PMSG)	+= pmsg.o

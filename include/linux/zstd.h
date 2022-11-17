@@ -17,6 +17,9 @@
 #ifndef ZSTD_H
 #define ZSTD_H
 
+#ifdef CONFIG_AMLOGIC_ZSTD
+#include <linux/aml_zstd.h>
+#else
 /* ======   Dependency   ======*/
 #include <linux/types.h>   /* size_t */
 
@@ -1154,4 +1157,5 @@ size_t ZSTD_decompressBlock(ZSTD_DCtx *dctx, void *dst, size_t dstCapacity,
 size_t ZSTD_insertBlock(ZSTD_DCtx *dctx, const void *blockStart,
 	size_t blockSize);
 
+#endif /* CONFIG_AMLOGIC_ZSTD */
 #endif  /* ZSTD_H */

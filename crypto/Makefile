@@ -174,7 +174,11 @@ obj-$(CONFIG_CRYPTO_USER_API_HASH) += algif_hash.o
 obj-$(CONFIG_CRYPTO_USER_API_SKCIPHER) += algif_skcipher.o
 obj-$(CONFIG_CRYPTO_USER_API_RNG) += algif_rng.o
 obj-$(CONFIG_CRYPTO_USER_API_AEAD) += algif_aead.o
+ifdef CONFIG_AMLOGIC_ZSTD
+obj-$(CONFIG_CRYPTO_ZSTD) += aml_zstd.o
+else
 obj-$(CONFIG_CRYPTO_ZSTD) += zstd.o
+endif
 obj-$(CONFIG_CRYPTO_OFB) += ofb.o
 obj-$(CONFIG_CRYPTO_ECC) += ecc.o
 obj-$(CONFIG_CRYPTO_ESSIV) += essiv.o
