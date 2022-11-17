@@ -69,17 +69,16 @@ static int ad82128_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	unsigned int rate = params_rate(params);
-	bool ssz_ds;
+	unsigned int ssz_ds = 0;
 	int ret;
-
 	switch (rate) {
 	case 44100:
 	case 48000:
-		ssz_ds = false;
+		ssz_ds = 0;
 		break;
 	case 88200:
 	case 96000:
-		ssz_ds = true;
+		ssz_ds = AD82128_SSZ_DS;
 		break;
 	default:
 		dev_err(component->dev, "unsupported sample rate: %u\n", rate);
