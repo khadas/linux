@@ -1483,10 +1483,14 @@ bool is_clk_stable(void)
 		clk = hdmirx_rd_phy(PHY_MAINFSM_STATUS1) & 0x100;
 	}
 
-	if (clk && rx.clk.cable_clk > TMDS_CLK_MIN * KHz)
+	if (clk && rx.clk.cable_clk > TMDS_CLK_MIN * KHz) {
+		if (rx.state >= FSM_EQ_START &&
+			(abs(rx.clk.cable_clk - rx.clk.cable_clk_pre) > 5 * MHz))
+			return false;
 		return true;
-	else
+	} else {
 		return false;
+	}
 }
 
 void rx_afifo_store_all_subpkt(bool all_pkt)
