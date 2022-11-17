@@ -10193,6 +10193,9 @@ int video_hw_init_s5(void)
 		1, 8, 1);
 	WRITE_VCBUS_REG_BITS
 		(S5_SRSHARP1_SHARP_SYNC_CTRL,
+		1, 0, 1);
+	WRITE_VCBUS_REG_BITS
+		(S5_SRSHARP1_SHARP_SYNC_CTRL,
 		1, 8, 1);
 	if (cur_dev->aisr_support)
 		WRITE_VCBUS_REG_BITS
