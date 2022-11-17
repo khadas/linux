@@ -13,6 +13,7 @@
 #include <evl/mutex.h>
 #include <evl/monitor.h>
 #include <evl/wait.h>
+#include <evl/lock.h>
 #include <uapi/evl/signal.h>
 #include <trace/events/evl.h>
 
@@ -474,7 +475,6 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 		const char *name)
 {
 	int type = ceiling_ref ? EVL_MUTEX_PP : EVL_MUTEX_PI;
-	unsigned long flags __maybe_unused;
 
 	mutex->fastlock = fastlock;
 	atomic_set(fastlock, EVL_NO_HANDLE);
@@ -491,9 +491,7 @@ void __evl_init_mutex(struct evl_mutex *mutex,
 #ifdef CONFIG_LOCKDEP
 	lockdep_register_key(&mutex->wchan.lock_key);
 	lockdep_set_class_and_name(&mutex->wchan.lock, &mutex->wchan.lock_key, name);
-	local_irq_save(flags);
-	might_lock(&mutex->wchan.lock);
-	local_irq_restore(flags);
+	might_hard_lock(&mutex->wchan.lock);
 #endif
 }
 EXPORT_SYMBOL_GPL(__evl_init_mutex);

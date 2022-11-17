@@ -40,6 +40,7 @@
 #include <evl/factory.h>
 #include <evl/observable.h>
 #include <evl/uaccess.h>
+#include <evl/lock.h>
 #include <trace/events/evl.h>
 
 #define EVL_THREAD_CLONE_FLAGS	\
@@ -170,7 +171,6 @@ int evl_init_thread(struct evl_thread *thread,
 {
 	int state = iattr->flags & ~T_SUSP, ret, gravity;
 	cpumask_var_t affinity;
-	unsigned long flags;
 	va_list args;
 
 	inband_context_only();
@@ -261,9 +261,7 @@ int evl_init_thread(struct evl_thread *thread,
 		lockdep_set_class_and_name(&thread->lock, &thread->lock_key,
 					thread->name);
 	}
-	local_irq_save_full(flags);
-	might_lock(&thread->lock);
-	local_irq_restore_full(flags);
+	might_hard_lock(&thread->lock);
 #endif
 
 	trace_evl_init_thread(thread, iattr, ret);

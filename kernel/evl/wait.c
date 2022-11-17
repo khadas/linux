@@ -5,6 +5,7 @@
  * Copyright (C) 2001, 2019 Philippe Gerum  <rpm@xenomai.org>
  */
 
+#include <evl/lock.h>
 #include <evl/sched.h>
 #include <evl/wait.h>
 #include <evl/thread.h>
@@ -17,8 +18,6 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 		const char *name,
 		struct lock_class_key *lock_key)
 {
-	unsigned long flags __maybe_unused;
-
 	wq->flags = wq_flags;
 	wq->clock = clock;
 	wq->wchan.pi_serial = 0;
@@ -36,16 +35,7 @@ void __evl_init_wait(struct evl_wait_queue *wq,
 		wq->lock_key_addr.addr = lock_key;
 		lockdep_register_key(lock_key);
 		lockdep_set_class_and_name(&wq->wchan.lock, lock_key, name);
-		/*
-		 * might_lock() forces lockdep to pre-register a
-		 * dynamic lock class, instead of waiting lazily for
-		 * the first lock acquisition, which might happen oob
-		 * for us. Since that registration depends on RCU, we
-		 * need to make sure this happens in-band.
-		 */
-		local_irq_save(flags);
-		might_lock(&wq->wchan.lock);
-		local_irq_restore(flags);
+		might_hard_lock(&wq->wchan.lock);
 	}
 #endif
 }
