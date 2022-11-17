@@ -118,7 +118,7 @@ void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 		if (!ctx->cd_gpio_isr)
 			ctx->cd_gpio_isr = mmc_gpio_cd_irqt;
 #ifdef CONFIG_AMLOGIC_MODIFY
-		if (ctx->data1_gpio)
+		if (!IS_ERR(ctx->data1_gpio))
 			ret = devm_request_threaded_irq(host->parent, irq,
 							NULL, ctx->cd_gpio_irq,
 							IRQF_TRIGGER_RISING |
