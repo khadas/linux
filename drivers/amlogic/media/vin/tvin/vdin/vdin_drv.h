@@ -79,7 +79,8 @@
 /* 20220416: dv game mode picture display abnormal */
 /* 20220425: keystone function modify */
 /* 20220608: t7 screenshot picture abnormal when width greater than vdin1_line_buff_size */
-#define VDIN_VER "20220425:keystone function modify"
+/* 20220915: dv not support manual set game mode */
+#define VDIN_VER "20220425:dv not support manual set game mode"
 
 //#define VDIN_BRINGUP_NO_VF
 //#define VDIN_BRINGUP_NO_VLOCK

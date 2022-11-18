@@ -454,6 +454,11 @@ static void vdin_game_mode_check(struct vdin_dev_s *devp)
 		devp->game_mode = 0;
 	}
 
+	/* dv is auto game not support manual set game */
+	if (devp->dv.dv_flag && !devp->prop.latency.allm_mode &&
+	    !devp->prop.low_latency && !devp->vrr_data.vdin_vrr_en_flag)
+		devp->game_mode = 0;
+
 	if (vdin_force_game_mode)
 		devp->game_mode = vdin_force_game_mode;
 	devp->game_mode_pre = devp->game_mode;
