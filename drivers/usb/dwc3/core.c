@@ -346,6 +346,11 @@ static int dwc3_core_soft_reset(struct dwc3 *dwc)
 
 	ret = phy_init(dwc->usb3_generic_phy);
 	if (ret < 0) {
+		/*
+		 * the phy_exit() has different control flows
+		 * according to the macro CONFIG_GENERIC_PHY.
+		 */
+		/* coverity[side_effect_free:SUPPRESS] */
 		phy_exit(dwc->usb2_generic_phy);
 		return ret;
 	}

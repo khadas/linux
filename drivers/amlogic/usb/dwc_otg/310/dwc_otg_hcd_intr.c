@@ -664,7 +664,7 @@ void dwc_otg_hcd_save_data_toggle(dwc_hc_t *hc,
 			qh->data_toggle = DWC_OTG_HC_PID_DATA0;
 		else
 			qh->data_toggle = DWC_OTG_HC_PID_DATA1;
-	} else {
+	} else if (qtd) {
 		if (hctsiz.b.pid == DWC_HCTSIZ_DATA0)
 			qtd->data_toggle = DWC_OTG_HC_PID_DATA0;
 		else

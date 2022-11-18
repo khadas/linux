@@ -39,10 +39,10 @@ static int dwc3_of_simple_clk_init(struct dwc3_of_simple *simple, int count)
 	int			i;
 
 	simple->num_clocks = count;
-	if (!count)
+	if (count <= 0)
 		return 0;
 
-	simple->clks = devm_kcalloc(dev, simple->num_clocks,
+	simple->clks = devm_kcalloc(dev, (size_t)simple->num_clocks,
 			sizeof(struct clk *), GFP_KERNEL);
 	if (!simple->clks)
 		return -ENOMEM;

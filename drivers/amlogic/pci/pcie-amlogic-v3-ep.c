@@ -167,6 +167,10 @@ static int amlogic_pcie_ep_map_addr(struct pci_epc *epc, u8 fn,
 	struct amlogic_pcie *amlogic = &ep->amlogic;
 	u32 r;
 
+	/*
+	 * find_first_zero_bit() is an arch-specific function controlled by marco find_first_bit.
+	 */
+	/* coverity[callee_ptr_arith:SUPPRESS] */
 	r = find_first_zero_bit(&ep->ob_region_map,
 				sizeof(ep->ob_region_map) * BITS_PER_LONG);
 	if (r >= ep->max_regions - 1) {
