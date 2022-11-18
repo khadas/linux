@@ -11,7 +11,7 @@ dtbo-y += uart3.dtbo \
 		  can.dtbo \
 		  mpu6050-i2c.dtbo \
 		  ext_board.dtbo \
-		  spdifin.dtbo
+		  spdif.dtbo
 
 targets += $(dtbo-y)
 always  := $(dtbo-y)
