@@ -629,7 +629,7 @@ static void record_buf(struct printk_log *msg, const char *text, u16 text_len,
 {
 	int len;
 	static u32 bconsole_logsize;
-	static char buf[1500];
+	static char buf[1600];
 	static bool bconsole_full;
 #ifdef CONFIG_AMLOGIC_MODIFY
 	struct pstore_record record = {
