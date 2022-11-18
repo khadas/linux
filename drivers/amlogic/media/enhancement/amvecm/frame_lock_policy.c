@@ -38,6 +38,7 @@ int lcnt_reg_val[VRR_VARIANCE_CNT] = {0};
 unsigned int frame_lock_en = 1;
 unsigned int vrr_priority;
 unsigned int vrr_delay_line = 200;
+unsigned int vrr_delay_line_50hz = 600;
 
 static unsigned int vrrlock_support = VRRLOCK_SUP_MODE;
 static unsigned int vrr_dis_cnt_no_vf_limit = 5;
@@ -498,7 +499,7 @@ void vrrlock_process(struct vframe_s *vf,
 		return;
 
 	if (ret_hz == 50 || ret_hz == 100)
-		vdata.line_dly = 500;
+		vdata.line_dly = vrr_delay_line_50hz;
 	else
 		vdata.line_dly = vrr_delay_line;
 
@@ -645,6 +646,12 @@ ssize_t frame_lock_debug_store(struct class *cla,
 		vrr_delay_line = val;
 		frame_sts.vrr_frame_lock_type = FRAMELOCK_INVALID;
 		pr_info("\n vrr_delay_line = %d\n", vrr_delay_line);
+	} else if (!strncmp(parm[0], "delay_line_50hz", 10)) {
+		if (kstrtol(parm[1], 10, &val) < 0)
+			return -EINVAL;
+		vrr_delay_line_50hz = val;
+		frame_sts.vrr_frame_lock_type = FRAMELOCK_INVALID;
+		pr_info("\n vrr_delay_line_50hz = %d\n", vrr_delay_line_50hz);
 	} else {
 		pr_info("\n frame lock debug cmd invalid\n");
 	}
