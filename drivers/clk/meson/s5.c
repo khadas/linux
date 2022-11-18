@@ -1115,7 +1115,7 @@ static struct clk_regmap s5_gp2_pll_dco = {
 		/*
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
@@ -1128,7 +1128,7 @@ static struct clk_regmap s5_gp2_pll = {
 			&s5_gp2_pll_dco.hw
 		},
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT,
+		.flags = CLK_SET_RATE_PARENT | CLK_IGNORE_UNUSED,
 	},
 };
 #else
@@ -1161,7 +1161,7 @@ static struct clk_regmap s5_gp2_pll = {
 		 * parent rate needs to be modified
 		 * Register has the risk of being directly operated.
 		 */
-		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE,
+		.flags = CLK_SET_RATE_PARENT | CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 #endif
@@ -1245,7 +1245,7 @@ static struct clk_regmap s5_fpll_dco = {
 		/*
 		 * Register has the risk of being directly operated
 		 */
-		.flags = CLK_GET_RATE_NOCACHE,
+		.flags = CLK_GET_RATE_NOCACHE | CLK_IGNORE_UNUSED,
 	},
 };
 
