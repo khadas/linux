@@ -440,6 +440,9 @@ struct phy_device {
 
 	u8 mdix;
 	u8 mdix_ctrl;
+#ifdef CONFIG_AMLOGIC_ETH_PRIVE
+	u8 wol_switch_from_user;
+#endif
 
 	void (*phy_link_change)(struct phy_device *, bool up, bool do_carrier);
 	void (*adjust_link)(struct net_device *dev);

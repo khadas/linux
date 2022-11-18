@@ -57,6 +57,7 @@
 
 unsigned int support_mac_wol;
 unsigned int support_nfx_doze;
+unsigned int mac_wol_enable;
 struct meson8b_dwmac;
 
 struct meson8b_dwmac_data {
@@ -340,51 +341,28 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 }
 
 #ifdef CONFIG_AMLOGIC_ETH_PRIVE
-struct early_suspend dwmac_early_suspend;
 int backup_adv;
-static void dwmac_early_suspend_func(struct early_suspend *h)
-{
-	struct platform_device *pdev = (struct platform_device *)h->param;
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct phy_device *phydev = ndev->phydev;
-
-	if (support_mac_wol) {
-		if (phydev->link && phydev->speed != SPEED_10) {
-			backup_adv = phy_read(phydev, MII_ADVERTISE);
-			phy_write(phydev, MII_ADVERTISE, 0x61);
-			genphy_restart_aneg(phydev);
-			msleep(3000);
-		} else {
-			backup_adv = 0;
-		}
-	}
-}
-
-static void dwmac_early_resume_func(struct early_suspend *h)
-{
-	struct platform_device *pdev = (struct platform_device *)h->param;
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct phy_device *phydev = ndev->phydev;
-
-	if (support_mac_wol) {
-		if (backup_adv) {
-			phy_write(phydev, MII_ADVERTISE, backup_adv);
-			genphy_restart_aneg(phydev);
-		}
-	}
-}
-
 void set_wol_notify_bl31(void)
 {
 	struct arm_smccc_res res;
 
-	arm_smccc_smc(0x8200009D, support_mac_wol,
+	arm_smccc_smc(0x8200009D, mac_wol_enable,
 					0, 0, 0, 0, 0, 0, &res);
 }
 
 static void set_wol_notify_bl30(void)
 {
-	scpi_set_ethernet_wol(support_mac_wol);
+	scpi_set_ethernet_wol(mac_wol_enable);
+}
+
+struct platform_device *pdev_L;
+void set_wol_flag(unsigned int flag)
+{
+	if (flag == mac_wol_enable)
+		return;
+
+	device_init_wakeup(&pdev_L->dev, flag);
+	mac_wol_enable = flag;
 }
 
 void __iomem *ee_reset_base;
@@ -451,7 +429,7 @@ static int aml_custom_setting(struct platform_device *pdev, struct meson8b_dwmac
 
 static int dwmac_meson_disable_analog(struct device *dev)
 {
-	if (support_mac_wol)
+	if (mac_wol_enable)
 		return 0;
 	writel(0x00000000, phy_analog_config_addr + 0x0);
 	writel(0x003e0000, phy_analog_config_addr + 0x4);
@@ -466,7 +444,7 @@ static int dwmac_meson_disable_analog(struct device *dev)
 
 static int dwmac_meson_recover_analog(struct device *dev)
 {
-	if (support_mac_wol)
+	if (mac_wol_enable)
 		return 0;
 	writel(0x19c0040a, phy_analog_config_addr + 0x44);
 	writel(0x0, phy_analog_config_addr + 0x4);
@@ -477,9 +455,38 @@ extern int stmmac_pltfr_suspend(struct device *dev);
 static int aml_dwmac_suspend(struct device *dev)
 {
 	int ret = 0;
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct phy_device *phydev = ndev->phydev;
 
-	set_wol_notify_bl31();
-	set_wol_notify_bl30();
+	if (support_mac_wol) {
+		if (!phydev)
+			return 0;
+		backup_adv = 0;
+		if (phydev->wol_switch_from_user) {
+			if (phydev->link) {
+				if (phydev->speed != SPEED_10) {
+					/*phy is 100M, change to 10M*/
+					pr_info("link 100M -> 10M\n");
+					backup_adv = phy_read(phydev, MII_ADVERTISE);
+					phy_write(phydev, MII_ADVERTISE, 0x61);
+					genphy_restart_aneg(phydev);
+					msleep(3000);
+				}
+				/*phy is linkup, wol need on*/
+				mac_wol_enable = 1;
+			} else {
+				/*phy is linkdown, wol need off */
+				mac_wol_enable = 0;
+			}
+		} else {
+			/*sysfile switch to off, wol need off*/
+			mac_wol_enable = 0;
+		}
+		set_wol_flag(mac_wol_enable);
+		set_wol_notify_bl31();
+		set_wol_notify_bl30();
+	}
+
 	/*nfx doze do nothing for suspend*/
 	if (support_nfx_doze) {
 		pr_info("doze is running\n");
@@ -500,6 +507,7 @@ static int aml_dwmac_resume(struct device *dev)
 	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(dev);
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
 
 	/*nfx doze do nothing for resume*/
 	if (support_nfx_doze) {
@@ -512,7 +520,16 @@ static int aml_dwmac_resume(struct device *dev)
 		dwmac_meson_recover_analog(dev);
 
 	ret = stmmac_pltfr_resume(dev);
-	if (support_mac_wol) {
+	if (mac_wol_enable) {
+		if (backup_adv && phydev) {
+			phy_write(phydev, MII_ADVERTISE, backup_adv);
+			genphy_restart_aneg(phydev);
+			backup_adv = 0;
+		}
+
+		pr_info("eth hold wakelock 5s\n");
+		pm_wakeup_event(dev, 5000);
+
 		if (get_resume_method() == ETH_PHY_WAKEUP) {
 			if (!priv->plat->mdns_wkup) {
 				pr_info("evan---wol rx--KEY_POWER\n");
@@ -524,7 +541,7 @@ static int aml_dwmac_resume(struct device *dev)
 				input_sync(dwmac->input_dev);
 			} else {
 				pr_info("evan---wol rx--pm event\n");
-				pm_wakeup_event(dev, 2000);
+				pm_wakeup_event(dev, 5000);
 			}
 		}
 	}
@@ -632,7 +649,9 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		if (of_property_read_u32(pdev->dev.of_node, "mdns_wkup", &plat_dat->mdns_wkup) == 0)
 			pr_info("feature mdns_wkup\n");
 
-		device_init_wakeup(&pdev->dev, 1);
+		pdev_L = pdev;
+		device_init_wakeup(&pdev_L->dev, 1);
+		mac_wol_enable = 1;
 	}
 
 #ifdef CONFIG_REALTEK_PHY
@@ -641,7 +660,7 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	if (support_mac_wol)
 #endif
 	{
-	/*input device to send virtual pwr key for android*/
+		/*input device to send virtual pwr key for android*/
 		input_dev = input_allocate_device();
 		if (!input_dev) {
 			pr_err("[abner test]input_allocate_device failed: %d\n", ret);
@@ -671,12 +690,6 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		dwmac->input_dev = input_dev;
 
 	}
-
-	dwmac_early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB;
-	dwmac_early_suspend.suspend = dwmac_early_suspend_func;
-	dwmac_early_suspend.resume = dwmac_early_resume_func;
-	dwmac_early_suspend.param = pdev;
-	register_early_suspend(&dwmac_early_suspend);
 #endif
 	return 0;
 

@@ -970,6 +970,11 @@ static void stmmac_mac_link_up(struct phylink_config *config,
 {
 	struct stmmac_priv *priv = netdev_priv(to_net_dev(config->dev));
 
+	if (device_may_wakeup(priv->device)) {
+		if (!priv->plat->mdns_wkup)
+			pm_relax(priv->device);
+	}
+
 	stmmac_mac_set(priv, priv->ioaddr, true);
 	if (phy && priv->dma_cap.eee) {
 		priv->eee_active = phy_init_eee(phy, 1) >= 0;
