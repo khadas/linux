@@ -2285,9 +2285,16 @@ void video_post_process(struct vframe_s *vf,
 				hdr_proc(vf, VD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
 			else if (vd_path == VD3_PATH)
 				hdr_proc(vf, VD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
-			hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+			if (chip_cls_id == TV_CHIP) {
+				/*for tv chip need sd2hdr function*/
+				hdr_proc(vf, OSD1_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD2_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD3_HDR, HDR_BYPASS, vinfo, NULL, vpp_index);
+			} else {
+				hdr_proc(vf, OSD1_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD2_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+				hdr_proc(vf, OSD3_HDR, SDR_HDR, vinfo, NULL, vpp_index);
+			}
 		} else if (sdr_process_mode[vd_path] == PROC_SDR_TO_HLG) {
 			if (vd_path == VD1_PATH)
 				hdr_proc_multi_slices(vf, VD1_HDR, SDR_HLG,

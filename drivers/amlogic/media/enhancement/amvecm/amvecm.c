@@ -129,6 +129,7 @@ static struct work_struct cabc_proc_work;
 static struct work_struct cabc_bypass_work;
 
 enum chip_type chip_type_id;
+enum chip_cls_e chip_cls_id;
 
 struct demo_data_s demo_data;
 
@@ -10268,6 +10269,7 @@ static const struct file_operations amvecm_fops = {
 
 static const struct vecm_match_data_s vecm_dt_xxx = {
 	.chip_id = chip_other,
+	.chip_cls = OTHER_CLS,
 	.vlk_chip = vlock_chip_txlx,
 	.vlk_support = true,
 	.vlk_new_fsm = 0,
@@ -10279,6 +10281,7 @@ static const struct vecm_match_data_s vecm_dt_xxx = {
 #ifndef CONFIG_AMLOGIC_REMOVE_OLD
 static const struct vecm_match_data_s vecm_dt_tl1 = {
 	.chip_id = chip_other,
+	.chip_cls = TV_CHIP,
 	.vlk_chip = vlock_chip_tl1,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10290,6 +10293,7 @@ static const struct vecm_match_data_s vecm_dt_tl1 = {
 
 static const struct vecm_match_data_s vecm_dt_sm1 = {
 	.chip_id = chip_other,
+	.chip_cls = STB_CHIP,
 	.vlk_chip = vlock_chip_sm1,
 	.vlk_support = false,
 	.vlk_new_fsm = 1,
@@ -10300,6 +10304,7 @@ static const struct vecm_match_data_s vecm_dt_sm1 = {
 
 static const struct vecm_match_data_s vecm_dt_tm2 = {
 	.chip_id = chip_other,
+	.chip_cls = STB_CHIP,
 	.vlk_chip = vlock_chip_tm2,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10310,6 +10315,7 @@ static const struct vecm_match_data_s vecm_dt_tm2 = {
 
 static const struct vecm_match_data_s vecm_dt_tm2_verb = {
 	.chip_id = chip_other,
+	.chip_cls = STB_CHIP,
 	.vlk_chip = vlock_chip_tm2,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10320,6 +10326,7 @@ static const struct vecm_match_data_s vecm_dt_tm2_verb = {
 
 static const struct vecm_match_data_s vecm_dt_t5 = {
 	.chip_id = chip_other,
+	.chip_cls = TV_CHIP,
 	.vlk_chip = vlock_chip_t5,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10330,6 +10337,7 @@ static const struct vecm_match_data_s vecm_dt_t5 = {
 
 static const struct vecm_match_data_s vecm_dt_t5d = {
 	.chip_id = chip_other,
+	.chip_cls = TV_CHIP,
 	.vlk_chip = vlock_chip_t5,/*same as t5d*/
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10340,6 +10348,7 @@ static const struct vecm_match_data_s vecm_dt_t5d = {
 
 static const struct vecm_match_data_s vecm_dt_t7 = {
 	.chip_id = chip_other,
+	.chip_cls = SMT_CHIP,
 	.vlk_chip = vlock_chip_t7,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10351,6 +10360,7 @@ static const struct vecm_match_data_s vecm_dt_t7 = {
 
 static const struct vecm_match_data_s vecm_dt_t3 = {
 	.chip_id = chip_t3,
+	.chip_cls = TV_CHIP,
 	.vlk_chip = vlock_chip_t3,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10364,6 +10374,7 @@ static const struct vecm_match_data_s vecm_dt_t3 = {
 /*t5w vlock follow t5 */
 static const struct vecm_match_data_s vecm_dt_t5w = {
 	.chip_id = chip_t5w,
+	.chip_cls = TV_CHIP,
 	.vlk_chip = vlock_chip_t5,
 	.vlk_support = true,
 	.vlk_new_fsm = 1,
@@ -10375,6 +10386,7 @@ static const struct vecm_match_data_s vecm_dt_t5w = {
 
 static const struct vecm_match_data_s vecm_dt_s5 = {
 	.chip_id = chip_s5,
+	.chip_cls = STB_CHIP,
 	.vlk_chip = vlock_chip_t5,
 	.vlk_support = false,
 	.vlk_new_fsm = 1,
@@ -10436,7 +10448,8 @@ static const struct of_device_id aml_vecm_dt_match[] = {
 static void aml_vecm_match_init(struct vecm_match_data_s *pdata)
 {
 	chip_type_id = pdata->chip_id;
-	pr_info("vecm chip id: %d", chip_type_id);
+	chip_cls_id = pdata->chip_cls;
+	pr_info("vecm chip id: %d, chip_cls : %d\n", chip_type_id, chip_cls_id);
 }
 
 static void aml_vecm_dt_parse(struct platform_device *pdev)

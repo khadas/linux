@@ -687,6 +687,13 @@ enum chip_type {
 	chip_s5
 };
 
+enum chip_cls_e {
+	OTHER_CLS = 0,
+	TV_CHIP,
+	STB_CHIP,
+	SMT_CHIP
+};
+
 enum vlock_hw_ver_e {
 	/*gxtvbb*/
 	vlock_hw_org = 0,
@@ -710,6 +717,7 @@ enum vlock_hw_ver_e {
 
 struct vecm_match_data_s {
 	enum chip_type chip_id;
+	enum chip_cls_e chip_cls;
 	enum vlk_chiptype vlk_chip;
 	u32 vlk_support;
 	u32 vlk_new_fsm;
@@ -783,6 +791,7 @@ extern int cm2_debug;
 
 extern unsigned int ct_en;
 extern enum chip_type chip_type_id;
+extern enum chip_cls_e chip_cls_id;
 
 int amvecm_on_vs(struct vframe_s *display_vf,
 		 struct vframe_s *toggle_vf,
