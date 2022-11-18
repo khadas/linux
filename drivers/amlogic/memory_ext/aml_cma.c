@@ -456,6 +456,11 @@ static int __init init_cma_boost_task(void)
 		memset(task_name, 0, sizeof(task_name));
 		sprintf(task_name, "cma_task%d", cpu);
 		work = &per_cpu(cma_pcp_thread, cpu);
+		/*
+		 * We don't have more than 8 cores,
+		 * so for_each_online_cpu() doesn't go out of bounds.
+		 */
+		/* coverity[overrun-local:SUPPRESS] */
 		init_completion(&work->start);
 		init_completion(&work->end);
 		INIT_LIST_HEAD(&work->list);
@@ -895,6 +900,11 @@ static ssize_t cma_debug_write(struct file *file, const char __user *buffer,
 			goto exit;
 		if (arg >= MIN_NICE && arg < MAX_NICE) {
 			for_each_possible_cpu(cpu) {
+				/*
+				 * We don't have more than 8 cores,
+				 * so for_each_online_cpu() doesn't go out of bounds.
+				 */
+				/* coverity[overrun-local:SUPPRESS] */
 				work = &per_cpu(cma_pcp_thread, cpu);
 				set_user_nice(work->task, arg);
 			}

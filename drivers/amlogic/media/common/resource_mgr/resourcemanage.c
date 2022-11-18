@@ -1979,6 +1979,10 @@ static long resman_ioctl_load_res(struct resman_session *sess,
 				arglen = strlen(item.arg);
 			if (arglen > 0 && arglen < STR_MAX_SIZE)
 				itemarg = item.arg;
+			/*
+			 * The errors caused by copy_from_user have always been ignored.
+			 */
+			/* coverity[tainted_data:SUPPRESS] */
 			if (!resman_create_resource(item.name, item.type, itemarg))
 				r = -1;
 		}

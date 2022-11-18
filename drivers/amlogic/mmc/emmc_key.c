@@ -42,6 +42,10 @@ int32_t emmc_read_valid_key(void *buffer, int valid_flag)
 	int bit = card->csd.read_blkbits;
 
 	size = EMMC_KEYAREA_SIZE;
+	/*
+	 * The lib functions don't need to be modified.
+	 */
+	/* coverity[overflow_before_widen:SUPPRESS] */
 	addr = get_reserve_partition_off_from_tbl() + EMMCKEY_RESERVE_OFFSET
 		+ (valid_flag - 1) * EMMC_KEYAREA_SIZE;
 	blk = addr >> bit;

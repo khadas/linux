@@ -413,6 +413,10 @@ void pr_lockup_info(int c)
 	pr_err("\n\n\nHARDLOCKUP____ERR.CPU[%d] <irqen:%d isren%d>START\n",
 	       c, virq, visr);
 	for_each_online_cpu(cpu) {
+		/*
+		 * The error is caused by using for_each_cpu type macros.
+		 */
+		/* coverity[overrun-local:SUPPRESS] */
 		unsigned long long t_cur = sched_clock();
 		struct task_struct *p = get_current_cpu_task(cpu);
 		int preempt = task_thread_info(p)->preempt_count;
@@ -436,6 +440,7 @@ void pr_lockup_info(int c)
 			stack_trace_print(irq_trace[cpu].entries,
 					  irq_trace[cpu].nr_entries, 0);
 		}
+
 		if (t_s_d[cpu] || smc_comd[cpu]) {
 			t_i_diff = t_cur - t_s_d[cpu];
 			do_div(t_i_diff, ns2ms);

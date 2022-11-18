@@ -889,6 +889,10 @@ static u32 _find_fixed_adj_mid(unsigned long map,
 
 	left = find_last_bit(&map, div);
 	right = find_first_bit(&map, div);
+	/*
+	 * The lib functions don't need to be modified.
+	 */
+	/* coverity[callee_ptr_arith:SUPPRESS] */
 	mid = find_first_zero_bit(&map, div);
 	size = left - right + 1;
 	pr_debug("left:%u, right:%u, mid:%u, size:%u\n",
@@ -909,6 +913,10 @@ static unsigned long _swap_fixed_adj_win(unsigned long map,
 {
 	unsigned long left, right;
 
+	/*
+	 * The lib functions don't need to be modified.
+	 */
+	/* coverity[callee_ptr_arith:SUPPRESS] */
 	bitmap_shift_right(&right, &map,
 			shift, div);
 	bitmap_shift_left(&left, &map,

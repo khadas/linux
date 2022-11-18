@@ -191,6 +191,10 @@ static ssize_t tuner_debug_store(struct class *class,
 			goto EXIT;
 		}
 
+		/*
+		 * The code logic guarantees that the variables are not null.
+		 */
+		/* coverity[var_deref_op:SUPPRESS] */
 		if (fe->ops.info.type == FE_ANALOG) {
 			p->frequency = freq;
 			if (fe->ops.tuner_ops.set_analog_params)

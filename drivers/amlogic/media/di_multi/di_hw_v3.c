@@ -4532,7 +4532,11 @@ void set_di_memcpy(struct mem_cpy_s *cfg)
 		(1		<< 30));
 	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
 	    (!IS_ERR_OR_NULL(in_afbcd))) {
-		/*coverity[var_deref_op] in_afbcd has been judged*/
+		/*
+		 * IIS_ERR_OR_NULL() is a function to determine
+		 * whether it is empty or not, but script doesn't recognize it.
+		 */
+		/* coverity[var_deref_op:SUPPRESS] */
 		if (in_afbcd->index == EAFBC_DEC_IF0) {
 			//op->bwr(AFBCDM_IF0_CTRL0,cfg->b.is_if0_4k,14,1);
 			//reg_use_4kram

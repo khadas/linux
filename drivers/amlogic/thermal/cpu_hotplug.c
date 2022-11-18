@@ -187,6 +187,10 @@ static void set_hotplug_offline(unsigned int cluster)
 			break;
 
 		dev = get_cpu_device(target);
+		/*
+		 * The error is caused by using for_each_cpu type macros.
+		 */
+		/* coverity[overrun-local:SUPPRESS] */
 		cpu_down(target);
 		kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
 		dev->offline = true;

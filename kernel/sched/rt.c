@@ -1782,6 +1782,10 @@ static int find_lowest_rq(struct task_struct *task)
 
 #ifdef CONFIG_AMLOGIC_MODIFY
 	for_each_cpu(tmp_cpu, lowest_mask) {
+		/*
+		 * The error is caused by using for_each_cpu type macros.
+		 */
+		/* coverity[overrun-local:SUPPRESS] */
 		struct task_struct *curr = READ_ONCE(cpu_rq(tmp_cpu)->curr);
 
 		if (curr && curr->pid == 0)

@@ -1740,7 +1740,11 @@ static void vframe_composer(struct composer_dev *dev)
 		vc_print(dev->index, PRINT_PATTERN, "dst vf is NULL\n");
 		return;
 	}
-
+	/*
+	 * IIS_ERR_OR_NULL() is a function to determine
+	 * whether it is empty or not, but script doesn't recognize it.
+	 */
+	/* coverity[var_deref_model:SUPPRESS] */
 	memset(dst_vf, 0, sizeof(struct vframe_s));
 	dst_buf = to_dst_buf(dst_vf);
 	composer_info = &dst_buf->composer_info;

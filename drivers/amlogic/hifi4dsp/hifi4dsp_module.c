@@ -1560,6 +1560,10 @@ static int hifi4dsp_platform_probe(struct platform_device *pdev)
 	dsp = kcalloc(dsp_cnt, sizeof(*dsp), GFP_KERNEL);
 	if (!dsp)
 		goto err2;
+	/*
+	 * The driver always uses memory and doesn't need to be freed.
+	 */
+	/* coverity[leaked_storage:SUPPRESS] */
 
 	/*init hifi4dsp_info_t*/
 	hifi_info = kzalloc(sizeof(*hifi_info), GFP_KERNEL);

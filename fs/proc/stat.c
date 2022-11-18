@@ -124,7 +124,11 @@ u64 get_iow_time(u64 *cpu)
 
 	for_each_possible_cpu(i) {
 		struct kernel_cpustat *kcs = &kcpustat_cpu(i);
-
+		/*
+		 * When runtime, it will reallocate a
+		 * new buffer based on the number of CPUs.
+		 */
+		/* coverity[overrun-local:SUPPRESS] */
 		user += kcpustat_cpu(i).cpustat[CPUTIME_USER];
 		nice += kcpustat_cpu(i).cpustat[CPUTIME_NICE];
 		system += kcpustat_cpu(i).cpustat[CPUTIME_SYSTEM];
