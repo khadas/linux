@@ -833,6 +833,20 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	atomic_set(mutex->fastlock, EVL_NO_HANDLE);
 
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
+
+	/*
+	 * Check for spuriously lingering PI/PP boosts. This check
+	 * happens here and in the rescheduling procedure too in order
+	 * to cover cases which would -wrongly- skip the in-kernel
+	 * unlock path.
+	 */
+	if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
+		bool bad;
+		raw_spin_lock_irqsave(&curr->lock, flags);
+		bad = curr->state & T_BOOST && list_empty(&curr->boosters);
+		raw_spin_unlock_irqrestore(&curr->lock, flags);
+		EVL_WARN_ON_ONCE(CORE, bad);
+	}
 }
 
 void evl_unlock_mutex(struct evl_mutex *mutex)
