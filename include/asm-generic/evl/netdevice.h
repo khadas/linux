@@ -2,7 +2,7 @@
 #ifndef _ASM_GENERIC_EVL_NETDEVICE_H
 #define _ASM_GENERIC_EVL_NETDEVICE_H
 
-#ifdef CONFIG_EVL
+#ifdef CONFIG_EVL_NET
 
 #include <linux/list.h>
 #include <evl/wait.h>
@@ -49,6 +49,6 @@ struct oob_netdev_state {
 struct oob_netdev_state {
 };
 
-#endif	/* !CONFIG_EVL */
+#endif	/* !CONFIG_EVL_NET */
 
 #endif /* !_ASM_GENERIC_EVL_NETDEVICE_H */
