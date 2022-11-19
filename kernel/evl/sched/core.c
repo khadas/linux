@@ -988,6 +988,11 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	 */
 	EVL_WARN_ON(CORE, curr->info & T_WCHAN);
 
+	/*
+	 * Priority protection for mutexes is only available to
+	 * applications. Kernel users stick with the priority
+	 * inheritance protocol (see evl_init_kmutex()).
+	 */
 	if (curr->state & T_USER)
 		evl_commit_monitor_ceiling();
 
@@ -997,6 +1002,20 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	 * locking order safe from ABBA deadlocking.
 	 */
 	raw_spin_lock(&curr->lock);
+
+	/*
+	 * Detect any lingering priority boost which should not be in
+	 * effect anymore. Since this situation is likely to stick,
+	 * warn only once. If that message ever appears, something
+	 * would be really wrong in the PI/PP implementation anyway.
+	 */
+	if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE) &&
+		curr->state & T_BOOST && list_empty(&curr->boosters)) {
+		raw_spin_unlock(&curr->lock);
+		EVL_WARN_ON_ONCE(CORE, 1);
+		raw_spin_lock(&curr->lock);
+	}
+
 	raw_spin_lock(&this_rq->lock);
 
 	if (unlikely(!test_resched(this_rq))) {
