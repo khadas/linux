@@ -157,12 +157,6 @@ struct evl_thread {
 	char *name;
 };
 
-#define for_each_evl_booster(__pos, __thread)			\
-	list_for_each_entry(__pos, &(__thread)->boosters, next_booster)
-
-#define for_each_evl_tracker_safe(__pos, __tmp, __thread)	\
-	list_for_each_entry_safe(__pos, __tmp, &(__thread)->trackers, next_tracker)
-
 static inline void evl_sync_uwindow(struct evl_thread *curr)
 {
 	if (curr->u_window) {
