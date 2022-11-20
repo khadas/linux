@@ -102,6 +102,7 @@ static struct drm_crtc_state *meson_crtc_duplicate_state(struct drm_crtc *crtc)
 	new_state->crtc_eotf_by_property_flag = cur_state->crtc_eotf_by_property_flag;
 	new_state->eotf_type_by_property = cur_state->eotf_type_by_property;
 	new_state->dv_mode = cur_state->dv_mode;
+	new_state->preset_vmode = VMODE_INVALID;
 
 	/*reset dynamic info.*/
 	if (amcrtc->priv->logo_show_done)
@@ -372,14 +373,16 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	struct meson_drm *priv = amcrtc->priv;
 	int hdrpolicy = 0;
 
-	DRM_INFO("%s:in\n", __func__);
 	if (!adjusted_mode) {
-		DRM_ERROR("meson_crtc_enable fail, unsupport mode:%s\n",
-			  adjusted_mode->name);
+		DRM_ERROR("meson_crtc_enable NULL mode failed.\n");
 		return;
 	}
-	DRM_INFO("%s: %s, %s, %d\n", __func__, adjusted_mode->name,
-		 old_mode->name, meson_crtc_state->uboot_mode_init);
+
+	DRM_INFO("%s-[%d] in: new[%s], old[%s], vmode[%d-%d], uboot[%d]\n",
+		__func__, amcrtc->crtc_index,
+		adjusted_mode->name, old_mode->name,
+		meson_crtc_state->vmode, meson_crtc_state->preset_vmode,
+		meson_crtc_state->uboot_mode_init);
 
 	if (!priv->compat_mode) {
 		/* update follow source/follow sink to hdr/dv core.
@@ -415,25 +418,36 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	/*update mode*/
 	name = adjusted_mode->name;
 	if (crtc->state->vrr_enabled) {
-		DRM_INFO("%s, adjust raw %s to brr %s\n", __func__,
-			 name, meson_crtc_state->brr_mode);
+		DRM_INFO("%s-[%d], adjust raw %s to brr %s\n",
+			__func__, amcrtc->crtc_index,
+			name, meson_crtc_state->brr_mode);
 		brr_name = meson_crtc_state->brr_mode;
 		if (meson_crtc_state->valid_brr)
 			name = brr_name;
 	}
 
-	mode = vout_func_validate_vmode(amcrtc->vout_index, name, 0);
-	if (mode == VMODE_MAX) {
-		DRM_ERROR("no matched vout mode\n");
-		return;
+	if (meson_crtc_state->preset_vmode == VMODE_INVALID) {
+		mode = vout_func_validate_vmode(amcrtc->vout_index, name, 0);
+		if (mode == VMODE_MAX) {
+			DRM_ERROR("crtc [%d]: no matched vout mode\n", amcrtc->crtc_index);
+			return;
+		}
+	} else {
+		mode = meson_crtc_state->preset_vmode;
+		if (mode != VMODE_DUMMY_ENCL)
+			DRM_ERROR("crtc [%d]: only support dummyl.\n", amcrtc->crtc_index);
 	}
+
+	DRM_INFO("%s-[%d]: enable mode %s final vmode %d\n",
+		__func__, amcrtc->crtc_index, name, mode);
 
 	if (mode == VMODE_DUMMY_ENCL ||
 		mode == VMODE_DUMMY_ENCI ||
 		mode == VMODE_DUMMY_ENCP) {
 		ret = vout_func_set_current_vmode(amcrtc->vout_index, mode);
 		if (ret)
-			DRM_ERROR("new mode set error\n");
+			DRM_ERROR("crtc[%d]: new mode[%d] set error\n",
+				amcrtc->crtc_index, mode);
 	} else {
 		if (meson_crtc_state->uboot_mode_init)
 			mode |= VMODE_INIT_BIT_MASK;
@@ -442,8 +456,9 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 			adjusted_mode->hdisplay == old_mode->hdisplay &&
 			adjusted_mode->vdisplay == old_mode->vdisplay) {
 			set_vframe_rate_hint(adjusted_mode->vrefresh  * 100);
-			DRM_INFO("%s, vrr set crtc enable, %d\n", __func__,
-					 adjusted_mode->vrefresh  * 100);
+			DRM_INFO("%s-[%d], vrr set crtc enable, %d\n",
+					__func__, amcrtc->crtc_index,
+					adjusted_mode->vrefresh * 100);
 			drm_crtc_vblank_on(crtc);
 			return;
 		}
@@ -460,7 +475,7 @@ static void am_meson_crtc_atomic_enable(struct drm_crtc *crtc,
 	drm_crtc_vblank_on(crtc);
 	enable_irq(amcrtc->irq);
 
-	DRM_INFO("%s-%d:out\n", __func__, meson_crtc_state->uboot_mode_init);
+	DRM_INFO("%s-[%d]: out\n", __func__, amcrtc->crtc_index);
 }
 
 static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -469,9 +484,11 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(crtc);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 	struct drm_display_mode *old_mode = &old_state->adjusted_mode;
+	struct am_meson_crtc_state *meson_crtc_state =
+		to_am_meson_crtc_state(crtc->state);
 	enum vmode_e mode;
 
-	DRM_INFO("%s:in\n", __func__);
+	DRM_INFO("%s-[%d]:in\n", __func__, amcrtc->crtc_index);
 	drm_crtc_vblank_off(crtc);
 
 	if (crtc->state->vrr_enabled &&
@@ -488,6 +505,8 @@ static void am_meson_crtc_atomic_disable(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 	}
 	disable_irq(amcrtc->irq);
+
+	meson_crtc_state->vmode = VMODE_INVALID;
 	/* disable output by config null
 	 * Todo: replace or delete it if have new method
 	 */

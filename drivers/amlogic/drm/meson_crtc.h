@@ -31,6 +31,7 @@ struct am_meson_crtc_state {
 
 	/*vout mode indicate connector type*/
 	enum vmode_e vmode;
+	enum vmode_e preset_vmode;
 
 	int uboot_mode_init;
 	/*policy update by y property*/

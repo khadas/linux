@@ -535,9 +535,11 @@ meson_vpu_pipeline_get_state(struct meson_vpu_pipeline *pipeline,
 	struct drm_private_state *dps;
 
 	dps = drm_atomic_get_private_obj_state(state, &pipeline->obj);
-	if (dps) {
+	if (!IS_ERR(dps)) {
 		dps->state = state;
 		return priv_to_pipeline_state(dps);
+	} else {
+		DRM_ERROR("vpu pipeline state ERROR (%ld)\n", PTR_ERR(dps));
 	}
 
 	return NULL;

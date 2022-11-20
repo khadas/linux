@@ -1476,6 +1476,38 @@ static void meson_hdmitx_cal_brr(struct am_hdmi_tx *hdmitx,
 	kfree(groups);
 }
 
+static int meson_hdmitx_choose_preset_mode(struct am_hdmi_tx *hdmitx,
+	struct am_meson_crtc *amcrtc,
+	struct am_meson_crtc_state *meson_crtc_state,
+	char *modename)
+{
+	enum vmode_e vout_mode;
+	struct hdmitx_color_attr matched_attr;
+	char attr_str[16];
+
+	meson_crtc_state->preset_vmode = VMODE_INVALID;
+
+	/* check if hdmi can support this mode. if not, set vmode to dummy*/
+	vout_mode = vout_func_validate_vmode(amcrtc->vout_index, modename, 0);
+	DRM_INFO(" %s validate vmode %s, %x\n", __func__, modename, vout_mode);
+	if (vout_mode != VMODE_HDMI) {
+		DRM_ERROR("no matched hdmi mode\n");
+		return -EINVAL;
+	}
+
+	/*traverse all color format and test.*/
+	meson_hdmitx_decide_color_attr(meson_crtc_state, HDMITX_MAX_BPC, &matched_attr);
+	build_hdmitx_attr_str(attr_str, matched_attr.colorformat, matched_attr.bitdepth);
+	if (!hdmitx->hdmitx_dev->test_attr(modename, attr_str)) {
+		DRM_ERROR("mode %s NOT supporteds\n", modename);
+		vout_mode = vout_func_validate_vmode(amcrtc->vout_index, dummy_mode.name, 0);
+		meson_crtc_state->preset_vmode = vout_mode;
+	}
+
+	DRM_INFO("%s update %s expect %x\n", __func__, modename, vout_mode);
+	return 0;
+}
+
 /*Calculate parameters before enable crtc&encoder.*/
 void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct drm_crtc_state *crtc_state,
@@ -1488,9 +1520,16 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	struct hdmitx_color_attr *attr = &hdmitx_state->color_attr_para;
 	struct drm_display_mode *adj_mode = &crtc_state->adjusted_mode;
 	struct am_hdmi_tx *hdmitx = encoder_to_am_hdmi(encoder);
+	struct am_meson_crtc *amcrtc = to_am_meson_crtc(encoder->crtc);
 	bool update_attr = false;
+	char *modename = adj_mode->name;
 
 	DRM_INFO("%s: enter\n", __func__);
+
+	if (meson_hdmitx_choose_preset_mode(hdmitx, amcrtc,
+		meson_crtc_state, modename) < 0)
+		return;
+
 	if (crtc_state->vrr_enabled)
 		meson_hdmitx_cal_brr(hdmitx, meson_crtc_state, adj_mode);
 
@@ -1516,11 +1555,10 @@ void meson_hdmitx_encoder_atomic_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (hdmitx_state->color_force) {
-		char attr_char[16];
-		char *name = meson_crtc_state->base.adjusted_mode.name;
+		char attr_str[16];
 
-		build_hdmitx_attr_str(attr_char, attr->colorformat, attr->bitdepth);
-		if (am_hdmi_info.hdmitx_dev->test_attr(name, attr_char)) {
+		build_hdmitx_attr_str(attr_str, attr->colorformat, attr->bitdepth);
+		if (am_hdmi_info.hdmitx_dev->test_attr(modename, attr_str)) {
 			DRM_INFO("color property setting successfully\n");
 		} else {
 			hdmitx_state->color_force = false;
@@ -1600,13 +1638,10 @@ void meson_hdmitx_encoder_atomic_enable(struct drm_encoder *encoder,
 	struct am_meson_crtc *amcrtc = to_am_meson_crtc(encoder->crtc);
 	enum vmode_e vmode = meson_crtc_state->vmode;
 
-	if (vmode == VMODE_HDMI) {
-		DRM_INFO("[%s]\n", __func__);
-	} else {
-		if (vmode == (VMODE_HDMI | VMODE_INIT_BIT_MASK))
-			am_hdmi_info.hdmitx_on = 1;
+	DRM_INFO("[%s]\n", __func__);
 
-		DRM_INFO("[%s] fail! vmode:%d\n", __func__, vmode);
+	if ((vmode & VMODE_MODE_BIT_MASK) != VMODE_HDMI) {
+		DRM_INFO("[%s] skip vmode [%d]\n", __func__, vmode);
 		return;
 	}
 
