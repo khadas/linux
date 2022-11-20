@@ -253,7 +253,10 @@ static void adjust_owner_boost(struct evl_thread *owner)
 
 	raw_spin_lock(&owner->lock);
 
-	EVL_WARN_ON(CORE, list_empty(&owner->boosters));
+	if (EVL_WARN_ON_ONCE(CORE, list_empty(&owner->boosters))) {
+		raw_spin_unlock(&owner->lock);
+		return;
+	}
 
 	/*
 	 * Fetch the mutex currently queuing the top waiter, among all
