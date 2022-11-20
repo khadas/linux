@@ -80,7 +80,7 @@ void evl_flush_mutex(struct evl_mutex *mutex,
 
 void evl_commit_mutex_ceiling(struct evl_mutex *mutex);
 
-void evl_detect_boost_drop(void);
+void evl_check_no_mutex(void);
 
 void evl_requeue_mutex_wait(struct evl_wait_channel *wchan,
 			struct evl_thread *waiter);

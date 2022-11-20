@@ -20,9 +20,6 @@
 #define for_each_evl_mutex_waiter(__pos, __mutex)			\
 	list_for_each_entry(__pos, &(__mutex)->wchan.wait_list, wait_next)
 
-#define for_each_evl_booster(__pos, __thread)			\
-	list_for_each_entry(__pos, &(__thread)->boosters, next_booster)
-
 static inline int get_ceiling_value(struct evl_mutex *mutex)
 {
 	/*
@@ -409,67 +406,29 @@ static void drop_booster(struct evl_mutex *mutex)
 }
 
 /*
- * Detect when current which is running out-of-band is about to sleep
- * on a mutex currently owned by another thread running in-band.
- *
- * mutex->wchan.lock held, irqs off, curr == this_evl_rq()->curr.
+ * Detect when current is about to switch in-band while owning a
+ * mutex, which is plain wrong since this would create a priority
+ * inversion. T_WOLI is set for current.
  */
-static void detect_inband_owner(struct evl_mutex *mutex,
-				struct evl_thread *curr)
-{
-	struct evl_thread *owner = mutex->wchan.owner;
-
-	/*
-	 * @curr == this_evl_rq()->curr so no need to grab
-	 * @curr->lock.
-	 */
-	raw_spin_lock(&curr->rq->lock);
-
-	if (curr->info & T_PIALERT) {
-		curr->info &= ~T_PIALERT;
-	} else if (owner->state & T_INBAND) {
-		curr->info |= T_PIALERT;
-		raw_spin_unlock(&curr->rq->lock);
-		evl_notify_thread(curr, EVL_HMDIAG_LKDEPEND, evl_nil);
-		return;
-	}
-
-	raw_spin_unlock(&curr->rq->lock);
-}
-
-/*
- * Detect when current is about to switch in-band while holding a
- * mutex which is causing an active PI or PP boost. Since such a
- * dependency on in-band would cause a priority inversion for the
- * waiter(s), the latter is sent a HM notification if T_WOLI is set.
- */
-void evl_detect_boost_drop(void)
+void evl_check_no_mutex(void)
 {
 	struct evl_thread *curr = evl_current();
-	struct evl_thread *waiter;
-	struct evl_mutex *mutex;
 	unsigned long flags;
+	bool notify;
 
 	raw_spin_lock_irqsave(&curr->lock, flags);
-
-	/*
-	 * Iterate over waiters of each mutex we got boosted for due
-	 * to PI/PP.
-	 */
-	for_each_evl_booster(mutex, curr) {
-		raw_spin_lock(&mutex->wchan.lock);
-		for_each_evl_mutex_waiter(waiter, mutex) {
-			if (!(waiter->state & (T_WOLI|T_PIALERT)))
-				continue;
-			raw_spin_lock(&waiter->rq->lock);
-			waiter->info |= T_PIALERT;
-			raw_spin_unlock(&waiter->rq->lock);
-			evl_notify_thread(waiter, EVL_HMDIAG_LKDEPEND, evl_nil);
+	if (!(curr->info & T_PIALERT)) {
+		notify = !list_empty(&curr->owned_mutexes);
+		if (notify) {
+			raw_spin_lock(&curr->rq->lock);
+			curr->info |= T_PIALERT;
+			raw_spin_unlock(&curr->rq->lock);
 		}
-		raw_spin_unlock(&mutex->wchan.lock);
 	}
-
 	raw_spin_unlock_irqrestore(&curr->lock, flags);
+
+	if (notify)
+		evl_notify_thread(curr, EVL_HMDIAG_LKDEPEND, evl_nil);
 }
 
 void __evl_init_mutex(struct evl_mutex *mutex,
@@ -706,9 +665,6 @@ retry:
 	} else {
 		evl_put_element(&owner->element);
 	}
-
-	if (unlikely(curr->state & T_WOLI))
-		detect_inband_owner(mutex, curr);
 
 	evl_double_thread_lock(curr, owner);
 

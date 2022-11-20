@@ -1292,7 +1292,7 @@ void evl_switch_inband(int cause)
 
 		/* May check for locking inconsistency too. */
 		if (curr->state & T_WOLI)
-			evl_detect_boost_drop();
+			evl_check_no_mutex();
 	}
 
 	/* @curr is now running inband. */
