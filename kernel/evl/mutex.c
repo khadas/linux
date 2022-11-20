@@ -20,6 +20,9 @@
 #define for_each_evl_mutex_waiter(__pos, __mutex)			\
 	list_for_each_entry(__pos, &(__mutex)->wchan.wait_list, wait_next)
 
+#define for_each_evl_booster(__pos, __thread)			\
+	list_for_each_entry(__pos, &(__thread)->boosters, next_booster)
+
 static inline int get_ceiling_value(struct evl_mutex *mutex)
 {
 	/*
@@ -456,7 +459,7 @@ void evl_detect_boost_drop(void)
 	for_each_evl_booster(mutex, curr) {
 		raw_spin_lock(&mutex->wchan.lock);
 		for_each_evl_mutex_waiter(waiter, mutex) {
-			if (!(waiter->state & T_WOLI))
+			if (!(waiter->state & (T_WOLI|T_PIALERT)))
 				continue;
 			raw_spin_lock(&waiter->rq->lock);
 			waiter->info |= T_PIALERT;
