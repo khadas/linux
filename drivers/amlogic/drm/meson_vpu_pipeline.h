@@ -113,6 +113,11 @@ struct meson_vpu_block_link {
 	int edges_visited;
 };
 
+struct meson_rdma_done_detect {
+	u32 reg;
+	u32 val;
+};
+
 /* vpu block */
 struct meson_vpu_block {
 	struct drm_private_obj obj;

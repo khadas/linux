@@ -27,9 +27,12 @@ MODULE_PARM_DESC(osd_slice_mode, "osd_slice_mode");
 #define MAX_LINKS 5
 #define MAX_PORTS 6
 #define MAX_PORT_ID 32
-#define RDMA_DETECT_REG VIU_OSD2_TCOLOR_AG2
 
-static u32 drm_rdma_dt_cnt[3];
+static struct meson_rdma_done_detect drm_rdma_cnt[MESON_MAX_CRTC] = {
+	{VIU_OSD2_TCOLOR_AG1, 0},
+	{VIU_OSD2_TCOLOR_AG2, 0},
+	{VIU_OSD2_TCOLOR_AG3, 0},
+};
 static struct meson_vpu_block **vpu_blocks;
 
 struct meson_vpu_link_para {
@@ -471,20 +474,21 @@ int vpu_pipeline_video_check(struct meson_vpu_pipeline *pipeline,
 	return 0;
 }
 
-void vpu_pipeline_append_finish_reg(int crtc_index)
+/*for VIU_OSD2_TCOLOR_AGx, alpha channel [7:0] need keep 0xff in case color key is enabled*/
+void vpu_pipeline_append_finish_reg(int crtc_index, struct rdma_reg_ops *reg_ops)
 {
-	drm_rdma_dt_cnt[crtc_index]++;
-	meson_vpu_write_reg(RDMA_DETECT_REG, drm_rdma_dt_cnt[crtc_index]);
+	drm_rdma_cnt[crtc_index].val += 0xff;
+	reg_ops->rdma_write_reg(drm_rdma_cnt[crtc_index].reg, drm_rdma_cnt[crtc_index].val);
 }
 
 void vpu_pipeline_check_finish_reg(int crtc_index)
 {
 	u32  val;
 
-	val = meson_vpu_read_reg(RDMA_DETECT_REG);
-	if (val != drm_rdma_dt_cnt[crtc_index])
-		DRM_ERROR("request crtc%d, drm_rdma_dt_cnt [%d] current [%d]\n",
-			  crtc_index, drm_rdma_dt_cnt[crtc_index], val);
+	val = meson_drm_read_reg(drm_rdma_cnt[crtc_index].reg);
+	if (val != drm_rdma_cnt[crtc_index].val)
+		DRM_DEBUG("request crtc%d, drm_rdma_dt_cnt [%d] current [%d]\n",
+			  crtc_index, drm_rdma_cnt[crtc_index].val >> 8, val >> 8);
 }
 
 int vpu_pipeline_check(struct meson_vpu_pipeline *pipeline,
@@ -644,7 +648,7 @@ int vpu_pipeline_osd_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	}
 #endif
 
-	vpu_pipeline_append_finish_reg(crtc_index);
+	vpu_pipeline_append_finish_reg(crtc_index, sub_pipeline->reg_ops);
 
 	return 0;
 }
@@ -751,7 +755,7 @@ int vpu_osd_pipeline_update(struct meson_vpu_sub_pipeline *sub_pipeline,
 	}
 #endif
 
-	vpu_pipeline_append_finish_reg(crtc_index);
+	vpu_pipeline_append_finish_reg(crtc_index, sub_pipeline->reg_ops);
 
 	return 0;
 }

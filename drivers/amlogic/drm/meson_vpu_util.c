@@ -23,32 +23,35 @@ static int drm_vsync_rdma_handle[RDMA_COUNT] = {-1, -1, -1};
 
 static void meson_vpu_vsync_rdma_irq(void *arg)
 {
-	u32 *vpp_index = (u32 *)arg;
+	//u32 *vpp_index = (u32 *)arg;
+	u32 vpp_index = 0;
 
-	if (drm_vsync_rdma_handle[*vpp_index] == -1)
+	if (drm_vsync_rdma_handle[vpp_index] == -1)
 		return;
 
-	//vpu_pipeline_check_finish_reg(vpp_index);
+	vpu_pipeline_check_finish_reg(vpp_index);
 }
 
 static void meson_vpu1_vsync_rdma_irq(void *arg)
 {
-	u32 *vpp_index = (u32 *)arg;
+	//u32 *vpp_index = (u32 *)arg;
+	u32 vpp_index = 1;
 
-	if (drm_vsync_rdma_handle[*vpp_index] == -1)
+	if (drm_vsync_rdma_handle[vpp_index] == -1)
 		return;
 
-	//vpu_pipeline_check_finish_reg(vpp_index);
+	vpu_pipeline_check_finish_reg(vpp_index);
 }
 
 static void meson_vpu2_vsync_rdma_irq(void *arg)
 {
-	u32 *vpp_index = (u32 *)arg;
+	//u32 *vpp_index = (u32 *)arg;
+	u32 vpp_index = 2;
 
-	if (drm_vsync_rdma_handle[*vpp_index] == -1)
+	if (drm_vsync_rdma_handle[vpp_index] == -1)
 		return;
 
-	//vpu_pipeline_check_finish_reg(vpp_index);
+	vpu_pipeline_check_finish_reg(vpp_index);
 }
 
 static struct rdma_op_s meson_vpu_vsync_rdma_op = {

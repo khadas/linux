@@ -611,8 +611,9 @@ static void am_meson_crtc_atomic_flush(struct drm_crtc *crtc,
 			#endif
 		}
 	}
-	//vpu_pipeline_prepare_update(amcrtc->pipeline,
-	//	crtc->mode.vdisplay, crtc->mode.vrefresh, crtc_index);
+
+	vpu_pipeline_prepare_update(amcrtc->pipeline,
+			crtc->mode.vdisplay, crtc->mode.vrefresh, crtc_index);
 	if (!meson_crtc_state->uboot_mode_init) {
 		vpu_osd_pipeline_update(sub_pipe, old_atomic_state);
 		spin_lock_irqsave(&crtc->dev->event_lock, flags);
