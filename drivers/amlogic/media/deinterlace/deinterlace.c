@@ -2962,6 +2962,7 @@ static void di_uninit_buf(unsigned int disable_mirror)
 		pr_dbg("%s keep cur di_buf %d (",
 			__func__, keep_buf->index);
 		for (i = 0; i < USED_LOCAL_BUF_MAX; i++) {
+			/*coverity[var_deref_op] null pointer has been judged*/
 			if (!IS_ERR_OR_NULL(keep_buf->di_buf_dup_p[i]))
 				pr_dbg("%d\t",
 					keep_buf->di_buf_dup_p[i]->index);
@@ -3835,6 +3836,7 @@ static void pre_de_done_buf_config(void)
 
 			if (di_pre_stru.source_change_flag) {
 				/* add dummy buf, will not be displayed */
+				/*coverity[var_deref_model] post_wr_buf has been judged*/
 				add_dummy_vframe_type_pre(post_wr_buf);
 			}
 			di_pre_stru.di_wr_buf->seq =

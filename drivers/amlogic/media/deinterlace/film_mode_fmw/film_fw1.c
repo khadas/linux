@@ -1194,6 +1194,7 @@ int Flm32DetSft(struct sFlmDatSt *pRDat, int *nDif02,
 		if (nFlgChk4 < 0)
 			nFlgChk4 = -nFlgChk4;
 		//nFlgChk4 = nFlgChk4;
+		/*coverity[copy_paste_error] not a copy_paste_error*/
 		nMean = (nDif02[HISDIFNUM - 1] + nDif01[HISDIFNUM - 6]) / 2;
 		nFlgChk4 = nflagch4_ratio * nFlgChk4 / nMean;
 	} else {
