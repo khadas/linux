@@ -1162,6 +1162,7 @@ static int osd_compat_ioctl(struct fb_info *info,
 
 	arg = (unsigned long)compat_ptr(arg);
 	/* handle fbio cursor command for 32-bit app */
+	/*coverity[result_independent_of_operands] */
 	if ((cmd & 0xFFFF) == (FBIOPUT_OSD_CURSOR & 0xFFFF))
 		ret = osd_compat_cursor(info, arg);
 	else

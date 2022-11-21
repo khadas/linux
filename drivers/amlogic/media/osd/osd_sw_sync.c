@@ -176,6 +176,7 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 	unsigned long flags;
 
 	spin_lock_irqsave(&obj->lock, flags);
+	/*coverity[missing_lock] It's locked here*/
 	obj->value += inc;
 	list_for_each_entry_safe(pt, next, &obj->active_list_head,
 				 active_list) {

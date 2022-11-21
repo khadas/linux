@@ -130,6 +130,7 @@ static ssize_t logmodule_write_file(struct file *file,
 	}
 	if (buf[count - 1] == '\n')
 		buf[count - 1] = '\0';
+	/*coverity[tainted_data] buf from user without tainted*/
 	ret = kstrtoint(buf, 0, &log_module);
 	osd_log_info("log_level: %d->%d\n", osd_log_module, log_module);
 	osd_log_module = log_module;
@@ -194,6 +195,7 @@ static ssize_t osd_display_debug_write_file(struct file *file,
 		kfree(buf);
 		return -EFAULT;
 	}
+	/*coverity[tainted_data] buf from user without tainted*/
 	ret = kstrtoint(buf, 0, &osd_display_debug_enable);
 	osd_set_display_debug(osd_id, osd_display_debug_enable);
 	kfree(buf);
@@ -239,6 +241,7 @@ static ssize_t blank_write_file(struct file *file, const char __user *userbuf,
 		kfree(buf);
 		return -EFAULT;
 	}
+	/*coverity[tainted_data] buf from user without tainted*/
 	ret = kstrtoint(buf, 0, &osd_enable[osd_id]);
 	osd_enable_hw(osd_id, (osd_enable[osd_id] != 0) ? 0 : 1);
 	kfree(buf);
@@ -277,6 +280,7 @@ static ssize_t free_scale_write_file(struct file *file,
 		kfree(buf);
 		return -EFAULT;
 	}
+	/*coverity[tainted_data] buf from user without tainted*/
 	ret = kstrtoint(buf, 0, &free_scale_enable);
 	osd_set_free_scale_enable_hw(osd_id, free_scale_enable);
 	kfree(buf);
@@ -358,6 +362,7 @@ static ssize_t window_axis_write_file(struct file *file,
 		return -EFAULT;
 	}
 	buf[count] = 0;
+	/*coverity[tainted_data] buf from user without tainted*/
 	if (likely(parse_para(buf, 4, parsed) == 4))
 		osd_set_window_axis_hw(osd_id,
 				       parsed[0], parsed[1],
@@ -444,6 +449,7 @@ static ssize_t osd_order_write_file(struct file *file,
 		kfree(buf);
 		return -EFAULT;
 	}
+	/*coverity[tainted_data] buf from user without tainted*/
 	ret = kstrtoint(buf, 0, &order);
 	osd_set_order_hw(osd_id, order);
 	kfree(buf);
