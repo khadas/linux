@@ -53,7 +53,7 @@
 #define HHI_VID_PLL_CNTL2		0x324 /* 0xc9 offset in data sheet */
 
 /*
- * MPLL register offeset taken from the S905 datasheet. Vendor kernel source
+ * MPLL register offset taken from the S905 datasheet. Vendor kernel source
  * confirm these are the same for the S805.
  */
 #define HHI_MPLL_CNTL			0x280 /* 0xa0 offset in data sheet */

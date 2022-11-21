@@ -1704,7 +1704,7 @@ static struct meson_axg_pmx_data meson_t5w_analog_pmx_banks_data = {
 };
 
 static struct meson_pmx_bank meson_t5w_periphs_pmx_banks[] = {
-	/*	 name	 first		lask	   reg	offset  */
+	/*	 name	 first		last	   reg	offset  */
 	BANK_PMX("B",    GPIOB_0,  GPIOB_13, 0x0,  0),
 	BANK_PMX("W",    GPIOW_0,  GPIOW_12, 0x2,  0),
 	BANK_PMX("Z1",   GPIOZ_0,  GPIOZ_7,  0x4,  0),

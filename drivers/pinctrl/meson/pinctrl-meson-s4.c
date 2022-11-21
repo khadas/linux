@@ -1182,7 +1182,7 @@ static struct meson_bank meson_s4_periphs_banks[] = {
 };
 
 static struct meson_pmx_bank meson_s4_periphs_pmx_banks[] = {
-	/*name	            first	 lask        reg offset*/
+	/*name	            first	 last        reg offset*/
 	BANK_PMX("B",      GPIOB_0,     GPIOB_13,    0x00, 0),
 	BANK_PMX("C",      GPIOC_0,     GPIOC_7,     0x9,  0),
 	BANK_PMX("E",      GPIOE_0,     GPIOE_1,     0x12, 0),

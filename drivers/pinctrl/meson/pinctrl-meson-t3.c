@@ -1735,7 +1735,7 @@ static struct meson_bank meson_t3_periphs_banks[] = {
 };
 
 static struct meson_pmx_bank meson_t3_periphs_pmx_banks[] = {
-	/*name	            first	 lask        reg offset*/
+	/*name	            first	 last        reg offset*/
 	BANK_PMX("D",      GPIOD_0,     GPIOD_10,    0xb,  0),
 	BANK_PMX("E",      GPIOE_0,     GPIOE_1,     0xd,  0),
 	BANK_PMX("Z",      GPIOZ_0,     GPIOZ_19,    0x4,  0),
@@ -1754,7 +1754,7 @@ static struct meson_bank meson_t3_analog_banks[] = {
 };
 
 static struct meson_pmx_bank meson_t3_analog_pmx_banks[] = {
-	/*name	            first	 lask        reg offset*/
+	/*name	            first	 last        reg offset*/
 	BANK_PMX("ANALOG", CDAC_IOUT,   CVBS1,    0x0,  29)
 };
 
