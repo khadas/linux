@@ -1210,6 +1210,23 @@ struct ge2d_device_data_s {
 	unsigned int cmd_queue_mode;  /* cmd queue mode */
 };
 
+/* To enable onoff_mode, set the following values for onoff_mode/on_cnt/off_cnt.
+ * onoff_mode:
+ * 0. on_counter means how many pixels will output before ge2d turns off.
+ * 1. on_counter means how many clocks will ge2d turn on before ge2d turns off.
+ *
+ * on_cnt:   on counter value, range (0, 32767].
+ * off_cnt: off counter value, range (0, 32767].
+ *
+ * To disable onoff_mode, set all 0 for onoff_mode/on_cnt/off_cnt.
+ *
+ */
+struct ge2d_onoff_mode_para_s {
+	u32 onoff_mode;
+	u32 on_cnt;
+	u32 off_cnt;
+};
+
 extern struct ge2d_device_data_s ge2d_meson_dev;
 
 #define GE2D_IOC_MAGIC  'G'
@@ -1280,6 +1297,10 @@ extern struct ge2d_device_data_s ge2d_meson_dev;
 	_IO(GE2D_IOC_MAGIC, 0x14)
 #define GE2D_POST_QUEUE_NOBLOCK    \
 	_IO(GE2D_IOC_MAGIC, 0x15)
+#define GE2D_SET_ONOFF_MODE    \
+	_IOW(GE2D_IOC_MAGIC, 0x16, struct ge2d_onoff_mode_para_s)
+#define GE2D_GET_ONOFF_MODE    \
+	_IOR(GE2D_IOC_MAGIC, 0x17, struct ge2d_onoff_mode_para_s)
 
 void ge2d_set_src1_data(struct ge2d_src1_data_s *cfg, u32 mask);
 void ge2d_set_src1_gen(struct ge2d_src1_gen_s *cfg, u32 mask);
@@ -1335,6 +1356,9 @@ void adjust_cmd_queue_buf(u32 queue_index);
 void start_cmd_queue_process(u32 queue_cnt);
 void stop_cmd_queue_process(void);
 void dump_cmd_queue_regs(u32 queue_index);
+
+int ge2d_set_onoff_mode(u32 onoff_mode, u32 on_cnt, u32 off_cnt);
+void ge2d_get_onoff_mode(u32 *onoff_mode, u32 *on_cnt, u32 *off_cnt);
 
 #include "ge2d_func.h"
 

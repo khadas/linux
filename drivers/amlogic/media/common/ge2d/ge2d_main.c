@@ -102,6 +102,12 @@ static ssize_t dump_reg_cnt_show(struct class *cla,
 static ssize_t dump_reg_cnt_store(struct class *cla,
 				  struct class_attribute *attr,
 				  const char *buf, size_t count);
+static ssize_t onoff_mode_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf);
+static ssize_t onoff_mode_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count);
 
 static const struct file_operations ge2d_fops = {
 	.owner = THIS_MODULE,
@@ -118,6 +124,8 @@ static CLASS_ATTR_RO(free_queue_status);
 static CLASS_ATTR_RW(log_level);
 static CLASS_ATTR_RW(dump_reg_enable);
 static CLASS_ATTR_RW(dump_reg_cnt);
+static CLASS_ATTR_RW(onoff_mode);
+
 
 static struct attribute *ge2d_class_attrs[] = {
 	&class_attr_work_queue_status.attr,
@@ -125,6 +133,7 @@ static struct attribute *ge2d_class_attrs[] = {
 	&class_attr_log_level.attr,
 	&class_attr_dump_reg_enable.attr,
 	&class_attr_dump_reg_cnt.attr,
+	&class_attr_onoff_mode.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(ge2d_class);
@@ -145,6 +154,45 @@ struct timer_data_s {
 static struct timer_data_s timer_data;
 #define TIMER_MS (2000)
 #endif
+
+static int parse_para(const char *para, int para_num, int *result)
+{
+	char *token = NULL;
+	char *params, *params_base;
+	int *out = result;
+	int len = 0, count = 0;
+	int res = 0;
+	int ret = 0;
+
+	if (!para)
+		return 0;
+
+	params = kstrdup(para, GFP_KERNEL);
+	params_base = params;
+	token = params;
+	if (!token)
+		return 0;
+	len = strlen(token);
+	do {
+		token = strsep(&params, " ");
+		while (token && (isspace(*token) ||
+				 !isgraph(*token)) && len) {
+			token++;
+			len--;
+		}
+		if (len == 0 || !token)
+			break;
+		ret = kstrtoint(token, 0, &res);
+		if (ret < 0)
+			break;
+		len = strlen(token);
+		*out++ = res;
+		count++;
+	} while ((token) && (count < para_num) && (len > 0));
+
+	kfree(params_base);
+	return count;
+}
 
 static ssize_t dump_reg_enable_show(struct class *cla,
 				    struct class_attribute *attr,
@@ -205,6 +253,35 @@ static ssize_t log_level_store(struct class *cla,
 	ret = kstrtoint(buf, 0, &res);
 	ge2d_log_info("ge2d log_level: %d->%d\n", ge2d_log_level, res);
 	ge2d_log_level = res;
+
+	return count;
+}
+
+static ssize_t onoff_mode_show(struct class *cla,
+			       struct class_attribute *attr,
+			       char *buf)
+{
+	u32 onoff_mode, on_cnt, off_cnt;
+
+	ge2d_get_onoff_mode(&onoff_mode, &on_cnt, &off_cnt);
+
+	return snprintf(buf, 80, "onoff_mode:%u on_cnt:%u off_cnt:%u\n",
+			onoff_mode, on_cnt, off_cnt);
+}
+
+static ssize_t onoff_mode_store(struct class *cla,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	u32 parsed[3];
+
+	if (likely(parse_para(buf, 3, parsed) == 3)) {
+		ge2d_set_onoff_mode(parsed[0], parsed[1], parsed[2]);
+		ge2d_log_info("onoff_mode:%u on_cnt:%u off_cnt:%u\n",
+			      parsed[0], parsed[1], parsed[2]);
+	} else {
+		ge2d_log_err("usage: echo onoff_mode on_cnt off_cnt > onoff_mode\n");
+	}
 
 	return count;
 }
@@ -447,6 +524,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	struct config_para_ex_ion_s *ge2d_config_ex_ion;
 	struct ge2d_dmabuf_req_s ge2d_req_buf;
 	struct ge2d_dmabuf_exp_s ge2d_exp_buf;
+	struct ge2d_onoff_mode_para_s ge2d_onoff_mode;
 	int ret = 0;
 #ifdef CONFIG_COMPAT
 	struct compat_config_para_s __user *uf;
@@ -475,6 +553,7 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 	memset(&ge2d_config, 0, sizeof(struct config_para_s));
 	memset(&ge2d_req_buf, 0, sizeof(struct ge2d_dmabuf_req_s));
 	memset(&ge2d_exp_buf, 0, sizeof(struct ge2d_dmabuf_exp_s));
+	memset(&ge2d_onoff_mode, 0, sizeof(struct ge2d_onoff_mode_para_s));
 #ifdef CONFIG_AMLOGIC_MEDIA_GE2D_MORE_SECURITY
 	switch (cmd) {
 	case GE2D_CONFIG:
@@ -864,6 +943,15 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		pr_err("ioctl not support yed.\n");
 		ret = -EINVAL;
 		goto release1;
+	case GE2D_SET_ONOFF_MODE:
+		ret = copy_from_user(&ge2d_onoff_mode, argp,
+				     sizeof(struct ge2d_onoff_mode_para_s));
+		if (ret < 0) {
+			pr_err("Error user param, %s %d\n", __func__, __LINE__);
+			ret = -EINVAL;
+			goto release1;
+		}
+		break;
 	default:
 		ret = copy_from_user(&para, argp, sizeof(struct ge2d_para_s));
 		break;
@@ -1096,6 +1184,19 @@ static long ge2d_ioctl(struct file *filp, unsigned int cmd, unsigned long args)
 		break;
 	case GE2D_DETACH_DMA_FD:
 		ge2d_ioctl_detach_dma_fd(context, data_type);
+		break;
+	case GE2D_SET_ONOFF_MODE:
+		ret = ge2d_set_onoff_mode(ge2d_onoff_mode.onoff_mode,
+					  ge2d_onoff_mode.on_cnt,
+					  ge2d_onoff_mode.off_cnt);
+		break;
+	case GE2D_GET_ONOFF_MODE:
+		ge2d_get_onoff_mode(&ge2d_onoff_mode.onoff_mode,
+					  &ge2d_onoff_mode.on_cnt,
+					  &ge2d_onoff_mode.off_cnt);
+
+		ret = copy_to_user(argp, &ge2d_onoff_mode,
+				   sizeof(struct ge2d_onoff_mode_para_s));
 		break;
 	/* enqueue one cmd */
 	case GE2D_FILLRECTANGLE_ENQUEUE:

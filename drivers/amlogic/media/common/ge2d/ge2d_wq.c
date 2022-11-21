@@ -51,11 +51,13 @@
 
 #define GE2D_NO_POWER_OFF_OP 0x8
 #define GE2D_NO_POWER_ON_OP  0x4
+#define GE2D_ONOFF_MODE_MAX_COUNT 32767
 
 static struct ge2d_manager_s ge2d_manager;
 static int ge2d_irq = -ENXIO;
 static struct clk *ge2d_clk;
 static int backup_init_regs = 1;
+static DEFINE_MUTEX(dp_ctrl_mutex);
 
 static const int bpp_type_lut[] = {
 #ifdef CONFIG_AMLOGIC_MEDIA_FB
@@ -125,14 +127,58 @@ static const int default_ge2d_color_lut[] = {
 static int ge2d_buffer_get_phys(struct aml_dma_cfg *cfg,
 				unsigned long *addr);
 
+static u32 ge2d_onoff_mode, ge2d_on_cnt, ge2d_off_cnt;
+
+/* onoff_mode:
+ * 0. on_counter means how many pixels will output before ge2d turns off.
+ * 1. on_counter means how many clocks will ge2d turn on before ge2d turns off.
+ *
+ * on_cnt:   on counter, range (0, 32767].
+ * off_cnt: off counter, range (0, 32767].
+ */
+int ge2d_set_onoff_mode(u32 onoff_mode, u32 on_cnt, u32 off_cnt)
+{
+	if ((onoff_mode != 0 && onoff_mode != 1) ||
+	    on_cnt > GE2D_ONOFF_MODE_MAX_COUNT ||
+	    off_cnt > GE2D_ONOFF_MODE_MAX_COUNT) {
+		ge2d_log_err("%s out of range, %u %u %u\n",
+			     __func__, onoff_mode, on_cnt, off_cnt);
+		return -EINVAL;
+	}
+	mutex_lock(&dp_ctrl_mutex);
+	ge2d_onoff_mode = onoff_mode;
+	ge2d_on_cnt = on_cnt;
+	ge2d_off_cnt = off_cnt;
+	ge2d_log_dbg("%s, onoff_mode:%d on_cnt:%d off_cnt:%d\n",
+		     __func__, onoff_mode, on_cnt, off_cnt);
+	mutex_unlock(&dp_ctrl_mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL(ge2d_set_onoff_mode);
+
+void ge2d_get_onoff_mode(u32 *onoff_mode, u32 *on_cnt, u32 *off_cnt)
+{
+	if (!onoff_mode || !on_cnt || !off_cnt) {
+		ge2d_log_err("%s err, onoff_mode:%p on_cnt:%p off_cnt:%p\n",
+			     __func__, onoff_mode, on_cnt, off_cnt);
+		return;
+	}
+
+	*onoff_mode = ge2d_onoff_mode;
+	*on_cnt = ge2d_on_cnt;
+	*off_cnt = ge2d_off_cnt;
+}
+EXPORT_SYMBOL(ge2d_get_onoff_mode);
+
 static void ge2d_pre_init(void)
 {
 	struct ge2d_gen_s ge2d_gen_cfg;
 
 	ge2d_gen_cfg.interrupt_ctrl = 0x02;
-	ge2d_gen_cfg.dp_on_cnt       = 0;
-	ge2d_gen_cfg.dp_off_cnt      = 0;
-	ge2d_gen_cfg.dp_onoff_mode   = 0;
+	ge2d_gen_cfg.dp_on_cnt       = ge2d_on_cnt;
+	ge2d_gen_cfg.dp_off_cnt      = ge2d_off_cnt;
+	ge2d_gen_cfg.dp_onoff_mode   = ge2d_onoff_mode;
 	ge2d_gen_cfg.vfmt_onoff_en   = 0;
 	/*  fifo size control, 00: 512, 01: 256, 10: 128 11: 96 */
 	ge2d_gen_cfg.fifo_size = 0;
