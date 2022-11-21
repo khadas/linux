@@ -247,7 +247,7 @@ static int am_meson_drm_bind(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	u32 crtc_masks[ENCODER_MAX];
 	u32 max_width, max_height;
-	int i, vpu_dma_mask, ret = 0;
+	int i, vpu_dma_mask, logo_skip, ret = 0;
 
 	meson_driver.driver_features = DRIVER_HAVE_IRQ | DRIVER_GEM |
 		DRIVER_MODESET | DRIVER_ATOMIC | DRIVER_RENDER;
@@ -343,7 +343,13 @@ static int am_meson_drm_bind(struct device *dev)
 
 	drm_kms_helper_poll_init(drm);
 
-	am_meson_logo_init(drm);
+	logo_skip = 0;
+	ret = of_property_read_u32(dev->of_node, "logo_skip", &logo_skip);
+	DRM_INFO("logo_skip = %d\n", logo_skip);
+	if (!ret && logo_skip == 1)
+		DRM_INFO("skip logo commit!\n");
+	else
+		am_meson_logo_init(drm);
 
 #ifdef CONFIG_DRM_MESON_EMULATE_FBDEV
 	ret = am_meson_drm_fbdev_init(drm);
