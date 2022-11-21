@@ -975,6 +975,7 @@ struct tsdemux_ops {
 void tsdemux_set_ops(struct tsdemux_ops *ops);
 int tsdemux_set_reset_flag(void);
 int amports_switch_gate(const char *name, int enable);
+int tsdemux_get_pcr(int demux_device_index, int index, u64 *pcr);
 
 void set_adec_func(int (*adec_func)(struct adec_status *));
 void wakeup_sub_poll(void);
