@@ -258,7 +258,7 @@ static void disable_oob_port(struct net_device *dev)
 	 */
 
 	evl_signal_poll_events(&est->poll_head, POLLERR);
-	evl_flush_wait(&est->pool_wait, T_RMID);
+	evl_flush_wait(&est->pool_wait, EVL_T_RMID);
 	evl_schedule();
 
 	netif_disable_oob_diversion(real_dev);

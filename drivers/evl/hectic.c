@@ -97,7 +97,7 @@ static void handle_fpu_error(struct rtswitch_context *ctx,
 				break;
 			}
 
-			evl_hold_thread(&cur->kthread.thread, T_SUSP);
+			evl_hold_thread(&cur->kthread.thread, EVL_T_SUSP);
 		}
 }
 

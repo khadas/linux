@@ -39,7 +39,7 @@ void disable_inband_switch(struct evl_thread *curr, struct evl_mutex *mutex)
 	 * being switched back to in-band context on return from OOB
 	 * syscalls, 2) when locking consistency is being checked.
 	 */
-	if (unlikely(curr->state & (T_WEAK|T_WOLI))) {
+	if (unlikely(curr->state & (EVL_T_WEAK|EVL_T_WOLI))) {
 		atomic_inc(&curr->held_mutex_count);
 		mutex->flags |= EVL_MUTEX_COUNTED;
 	}
@@ -254,7 +254,7 @@ static void adjust_owner_boost(struct evl_thread *owner)
 	raw_spin_lock(&owner->lock);
 
 	if (list_empty(&owner->boosters)) {
-		EVL_WARN_ON_ONCE(CORE, owner->state & T_BOOST);
+		EVL_WARN_ON_ONCE(CORE, owner->state & EVL_T_BOOST);
 		raw_spin_unlock(&owner->lock);
 		return;
 	}
@@ -412,7 +412,7 @@ static void drop_booster(struct evl_mutex *mutex)
 /*
  * Detect when current is about to switch in-band while owning a
  * mutex, which is plain wrong since this would create a priority
- * inversion. T_WOLI is set for current.
+ * inversion. EVL_T_WOLI is set for current.
  */
 void evl_check_no_mutex(void)
 {
@@ -421,11 +421,11 @@ void evl_check_no_mutex(void)
 	bool notify;
 
 	raw_spin_lock_irqsave(&curr->lock, flags);
-	if (!(curr->info & T_PIALERT)) {
+	if (!(curr->info & EVL_T_PIALERT)) {
 		notify = !list_empty(&curr->owned_mutexes);
 		if (notify) {
 			raw_spin_lock(&curr->rq->lock);
-			curr->info |= T_PIALERT;
+			curr->info |= EVL_T_PIALERT;
 			raw_spin_unlock(&curr->rq->lock);
 		}
 	}
@@ -475,7 +475,7 @@ static void flush_mutex_locked(struct evl_mutex *mutex, int reason)
 		list_for_each_entry_safe(waiter, tmp,
 					&mutex->wchan.wait_list, wait_next) {
 			list_del_init(&waiter->wait_next);
-			evl_wakeup_thread(waiter, T_PEND, reason);
+			evl_wakeup_thread(waiter, EVL_T_PEND, reason);
 		}
 
 		if (mutex->flags & EVL_MUTEX_PIBOOST) {
@@ -502,7 +502,7 @@ void evl_destroy_mutex(struct evl_mutex *mutex)
 
 	trace_evl_mutex_destroy(mutex);
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
-	flush_mutex_locked(mutex, T_RMID);
+	flush_mutex_locked(mutex, EVL_T_RMID);
 	untrack_mutex_owner(mutex);
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 	evl_schedule();
@@ -789,7 +789,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	if (!list_empty(&mutex->wchan.wait_list)) {
 		top_waiter = list_get_entry_init(&mutex->wchan.wait_list,
 				struct evl_thread, wait_next);
-		evl_wakeup_thread(top_waiter, T_PEND, 0);
+		evl_wakeup_thread(top_waiter, EVL_T_PEND, 0);
 	}
 
 	/*
@@ -809,7 +809,7 @@ out:
 	if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
 		bool bad;
 		raw_spin_lock_irqsave(&curr->lock, flags);
-		bad = curr->state & T_BOOST && list_empty(&curr->boosters);
+		bad = curr->state & EVL_T_BOOST && list_empty(&curr->boosters);
 		raw_spin_unlock_irqrestore(&curr->lock, flags);
 		EVL_WARN_ON_ONCE(CORE, bad);
 	}
@@ -824,8 +824,8 @@ void evl_unlock_mutex(struct evl_mutex *mutex)
 
 	h = evl_get_index(atomic_read(mutex->fastlock));
 	if (h != currh) {
-		if (curr->state & T_USER) {
-			if (curr->state & T_WOLI)
+		if (curr->state & EVL_T_USER) {
+			if (curr->state & EVL_T_WOLI)
 				evl_notify_thread(curr, EVL_HMDIAG_LKIMBALANCE, evl_nil);
 		} else {
 			EVL_WARN_ON(CORE, 1);

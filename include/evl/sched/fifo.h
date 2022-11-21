@@ -43,7 +43,7 @@ int __evl_chk_fifo_schedparam(struct evl_thread *thread,
 {
 	int min = EVL_FIFO_MIN_PRIO, max = EVL_FIFO_MAX_PRIO;
 
-	if (!(thread->state & T_USER)) {
+	if (!(thread->state & EVL_T_USER)) {
 		min = EVL_CORE_MIN_PRIO;
 		max = EVL_CORE_MAX_PRIO;
 	}
@@ -60,8 +60,8 @@ bool __evl_set_fifo_schedparam(struct evl_thread *thread,
 {
 	bool ret = evl_set_effective_thread_priority(thread, p->fifo.prio);
 
-	if (!(thread->state & T_BOOST))
-		thread->state &= ~T_WEAK;
+	if (!(thread->state & EVL_T_BOOST))
+		thread->state &= ~EVL_T_WEAK;
 
 	return ret;
 }
@@ -82,7 +82,7 @@ void __evl_track_fifo_priority(struct evl_thread *thread,
 	else {
 		thread->cprio = thread->bprio;
 		/* Leaving PI/PP, so neither boosted nor weak. */
-		thread->state &= ~T_WEAK;
+		thread->state &= ~EVL_T_WEAK;
 	}
 }
 

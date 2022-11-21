@@ -367,7 +367,7 @@ void evl_core_tick(struct clock_event_device *dummy) /* hard irqs off */
 	 * evl_exit_irq(), so we may have to propagate the in-band
 	 * tick immediately only if the in-band context was preempted.
 	 */
-	if ((this_rq->local_flags & RQ_TPROXY) && (this_rq->curr->state & T_ROOT))
+	if ((this_rq->local_flags & RQ_TPROXY) && (this_rq->curr->state & EVL_T_ROOT))
 		evl_notify_proxy_tick(this_rq);
 }
 
@@ -482,8 +482,8 @@ static int clock_sleep(struct evl_clock *clock,
 	struct restart_block *restart;
 	ktime_t timeout, rem;
 
-	if (curr->local_info & T_SYSRST) {
-		curr->local_info &= ~T_SYSRST;
+	if (curr->local_info & EVL_T_SYSRST) {
+		curr->local_info &= ~EVL_T_SYSRST;
 		restart = &current->restart_block;
 		if (restart->fn != restart_clock_sleep)
 			return -EINTR;
@@ -499,7 +499,7 @@ static int clock_sleep(struct evl_clock *clock,
 		restart = &current->restart_block;
 		restart->nanosleep.expires = timeout;
 		restart->fn = restart_clock_sleep;
-		curr->local_info |= T_SYSRST;
+		curr->local_info |= EVL_T_SYSRST;
 		return -ERESTARTSYS;
 	}
 

@@ -103,7 +103,7 @@ static bool __packet_deliver(struct evl_net_rxqueue *rxq,
 		if (protocol == htons(ETH_P_ALL)) {
 			qskb = evl_net_clone_skb(skb);
 			if (qskb == NULL) {
-				evl_flush_wait(&esk->input_wait, T_NOMEM);
+				evl_flush_wait(&esk->input_wait, EVL_T_NOMEM);
 				evl_uncharge_socket_rmem(esk, skb);
 				break;
 			}

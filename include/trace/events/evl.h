@@ -329,7 +329,7 @@ TRACE_EVENT(evl_init_thread,
 	TP_fast_assign(
 		__entry->thread = thread;
 		__assign_str(thread_name, thread->name);
-		__entry->flags = iattr->flags | (iattr->observable ? T_OBSERV : 0);
+		__entry->flags = iattr->flags | (iattr->observable ? EVL_T_OBSERV : 0);
 		__assign_str(class_name, iattr->sched_class->name);
 		__entry->cprio = thread->cprio;
 		__entry->status = status;
@@ -820,12 +820,12 @@ DEFINE_EVENT(evl_sched_attrs, evl_thread_getsched,
 
 #define evl_print_thread_mode(__mode)	\
 	__print_flags(__mode, "|",	\
-		{T_HMOBS, "hmobs"},	\
-		{T_HMSIG, "hmsig"},	\
-		{T_WOSX, "wosx"},	\
-		{T_WOSS, "woss"},	\
-		{T_WOLI, "woli"},	\
-		{T_WOSO, "woso"})
+		{EVL_T_HMOBS, "hmobs"},	\
+		{EVL_T_HMSIG, "hmsig"},	\
+		{EVL_T_WOSX, "wosx"},	\
+		{EVL_T_WOSS, "woss"},	\
+		{EVL_T_WOLI, "woli"},	\
+		{EVL_T_WOSO, "woso"})
 
 TRACE_EVENT(evl_thread_update_mode,
 	TP_PROTO(struct evl_thread *thread, int mode, bool set),

@@ -68,7 +68,7 @@ static void tp_tick_handler(struct evl_timer *timer)
 	 * If the current thread on this CPU was still active at the
 	 * end of its time frame, we may have to notify an overrun.
 	 */
-	if ((curr->state & (T_WOSO|EVL_THREAD_BLOCK_BITS)) == T_WOSO) {
+	if ((curr->state & (EVL_T_WOSO|EVL_THREAD_BLOCK_BITS)) == EVL_T_WOSO) {
 		/*
 		 * tp->wnext is pointing at the next window already,
 		 * move back to one which is being overrun.
@@ -117,7 +117,7 @@ static bool tp_setparam(struct evl_thread *thread,
 	struct evl_rq *rq = evl_thread_rq(thread);
 
 	thread->tps = &rq->tp.partitions[p->tp.ptid];
-	thread->state &= ~T_WEAK;
+	thread->state &= ~EVL_T_WEAK;
 
 	return evl_set_effective_thread_priority(thread, p->tp.prio);
 }

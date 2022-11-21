@@ -646,7 +646,7 @@ static int poll_release(struct inode *inode, struct file *filp)
 
 	raw_spin_lock_irqsave(&group->wait_lock, flags);
 	list_for_each_entry(waiter, &group->waiter_list, next)
-		evl_flush_flag_nosched(&waiter->flag, T_RMID);
+		evl_flush_flag_nosched(&waiter->flag, EVL_T_RMID);
 	raw_spin_unlock_irqrestore(&group->wait_lock, flags);
 	evl_schedule();
 

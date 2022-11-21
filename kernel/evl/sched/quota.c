@@ -69,7 +69,7 @@ static inline bool thread_on_quota(struct evl_thread *thread,
 	 * to quota group @tg.
 	 */
 	return thread->quota == tg &&
-		!(thread->state & (T_READY|EVL_THREAD_BLOCK_BITS));
+		!(thread->state & (EVL_T_READY|EVL_THREAD_BLOCK_BITS));
 }
 
 static inline bool group_is_active(struct evl_quota_group *tg)
@@ -78,7 +78,7 @@ static inline bool group_is_active(struct evl_quota_group *tg)
 		return true;
 
 	/*
-	 * T_READY set for @thread would mean that it is linked to the
+	 * EVL_T_READY set for @thread would mean that it is linked to the
 	 * runqueue, in which case tg->nr_active already accounted for
 	 * it.
 	 */
@@ -242,7 +242,7 @@ static bool quota_setparam(struct evl_thread *thread,
 	struct evl_sched_quota *qs;
 	bool effective;
 
-	thread->state &= ~T_WEAK;
+	thread->state &= ~EVL_T_WEAK;
 	effective = evl_set_effective_thread_priority(thread, p->quota.prio);
 
 	qs = &thread->rq->quota;
@@ -352,7 +352,7 @@ static void quota_kick(struct evl_thread *thread)
 
 static inline int thread_is_runnable(struct evl_thread *thread)
 {
-	return thread->quota->run_budget > 0 || (thread->info & T_KICKED);
+	return thread->quota->run_budget > 0 || (thread->info & EVL_T_KICKED);
 }
 
 static void quota_enqueue(struct evl_thread *thread)
@@ -436,7 +436,7 @@ pick:
 	 * thread to run until it eventually switches to in-band
 	 * context.
 	 */
-	if (next->info & T_KICKED) {
+	if (next->info & EVL_T_KICKED) {
 		evl_stop_timer(&qs->limit_timer);
 		goto out;
 	}

@@ -252,7 +252,7 @@ config EVL_DEBUG_WOLI
 	help
 	  This option enables a set of consistency checks by default
 	  for every new EVL thread for detecting wrong mutex-based
-	  locking patterns (aka T_WOLI flag), which are otherwise
+	  locking patterns (aka EVL_T_WOLI flag), which are otherwise
 	  opted-in programmatically on a per-thread basis when this
 	  option is off. This feature may induce overhead in some
 	  cases, so you should enable it for debugging purposes only.

@@ -56,7 +56,7 @@ static void evl_fifo_ceilprio(struct evl_thread *thread, int prio)
 static ssize_t evl_fifo_show(struct evl_thread *thread,
 			char *buf, ssize_t count)
 {
-	if (thread->state & T_RRB)
+	if (thread->state & EVL_T_RRB)
 		return snprintf(buf, count, "%Ld\n",
 				ktime_to_ns(thread->rrperiod));
 	return 0;

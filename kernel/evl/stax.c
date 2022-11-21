@@ -72,7 +72,7 @@ static int claim_stax_from_oob(struct evl_stax *stax, int gateval)
 			goto out;
 	} while (!(prev & STAX_CLAIMED_BIT));
 
-	if (curr->state & T_WOSX)
+	if (curr->state & EVL_T_WOSX)
 		notify = true;
 
 	do {

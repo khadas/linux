@@ -83,7 +83,7 @@ static int stop_services(void)
 	case EVL_STATE_STOPPED:
 		break;
 	case EVL_STATE_RUNNING:
-		ret = evl_killall(T_USER);
+		ret = evl_killall(EVL_T_USER);
 		if (ret) {
 			set_evl_state(state);
 			return ret;

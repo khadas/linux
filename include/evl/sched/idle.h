@@ -20,7 +20,7 @@ extern struct evl_sched_class evl_sched_idle;
 static inline bool __evl_set_idle_schedparam(struct evl_thread *thread,
 					     const union evl_sched_param *p)
 {
-	thread->state &= ~T_WEAK;
+	thread->state &= ~EVL_T_WEAK;
 	return evl_set_effective_thread_priority(thread, p->idle.prio);
 }
 

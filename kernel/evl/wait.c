@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(__evl_init_wait);
 
 void evl_destroy_wait(struct evl_wait_queue *wq)
 {
-	evl_flush_wait(wq, T_RMID);
+	evl_flush_wait(wq, EVL_T_RMID);
 	evl_schedule();
 #ifdef CONFIG_LOCKDEP
 	/* Drop dynamic key. */
@@ -75,7 +75,7 @@ void evl_add_wait_queue(struct evl_wait_queue *wq, ktime_t timeout,
 {
 	struct evl_thread *curr = evl_current();
 
-	if ((curr->state & T_WOLI) &&
+	if ((curr->state & EVL_T_WOLI) &&
 		atomic_read(&curr->held_mutex_count) > 0)
 		evl_notify_thread(curr, EVL_HMDIAG_LKSLEEP, evl_nil);
 
@@ -108,7 +108,7 @@ struct evl_thread *evl_wake_up(struct evl_wait_queue *wq,
 			waiter = list_first_entry(&wq->wchan.wait_list,
 						struct evl_thread, wait_next);
 		list_del_init(&waiter->wait_next);
-		evl_wakeup_thread(waiter, T_PEND, reason);
+		evl_wakeup_thread(waiter, EVL_T_PEND, reason);
 	}
 
 	return waiter;
@@ -126,7 +126,7 @@ void evl_flush_wait_locked(struct evl_wait_queue *wq, int reason)
 
 	list_for_each_entry_safe(waiter, tmp, &wq->wchan.wait_list, wait_next) {
 		list_del_init(&waiter->wait_next);
-		evl_wakeup_thread(waiter, T_PEND, reason);
+		evl_wakeup_thread(waiter, EVL_T_PEND, reason);
 	}
 }
 EXPORT_SYMBOL_GPL(evl_flush_wait_locked);
@@ -176,13 +176,13 @@ int __evl_wait_schedule(struct evl_wait_channel *wchan)
 	 * Upon return from a wait state, the following logic applies
 	 * depending on the information flags:
 	 *
-	 * - if none of T_RMID, T_NOMEM, T_TIMEO or T_BREAK is set, we
+	 * - if none of EVL_T_RMID, EVL_T_NOMEM, EVL_T_TIMEO or EVL_T_BREAK is set, we
 	 * got a wakeup upon a successful operation. In this case, we
 	 * should not be linked to the waitqueue anymore. NOTE: the
-	 * caller may need to check for T_BCAST if the signal is not
+	 * caller may need to check for EVL_T_BCAST if the signal is not
 	 * paired with a condition but works as a pulse instead.
 	 *
-	 * - if T_RMID is set, evl_flush_wait() removed us from the
+	 * - if EVL_T_RMID is set, evl_flush_wait() removed us from the
 	 * waitqueue before the wait channel got destroyed, and
 	 * therefore cannot be referred to anymore since it may be
 	 * stale: -EIDRM is returned.
@@ -203,7 +203,7 @@ int __evl_wait_schedule(struct evl_wait_channel *wchan)
 	 * returned to the caller.
 	 */
 	info = evl_current()->info;
-	if (likely(!(info & (T_RMID|T_NOMEM|T_TIMEO|T_BREAK)))) { /* Fast path. */
+	if (likely(!(info & (EVL_T_RMID|EVL_T_NOMEM|EVL_T_TIMEO|EVL_T_BREAK)))) { /* Fast path. */
 		if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE)) {
 			bool empty;
 			raw_spin_lock_irqsave(&wchan->lock, flags);
@@ -214,7 +214,7 @@ int __evl_wait_schedule(struct evl_wait_channel *wchan)
 		return 0;
 	}
 
-	if (info & T_RMID)
+	if (info & EVL_T_RMID)
 		return -EIDRM;
 
 	raw_spin_lock_irqsave(&wchan->lock, flags);
@@ -224,10 +224,10 @@ int __evl_wait_schedule(struct evl_wait_channel *wchan)
 
 	raw_spin_unlock_irqrestore(&wchan->lock, flags);
 
-	if (info & T_NOMEM)
+	if (info & EVL_T_NOMEM)
 		return -ENOMEM;
 
-	return info & T_TIMEO ? -ETIMEDOUT : -EINTR;
+	return info & EVL_T_TIMEO ? -ETIMEDOUT : -EINTR;
 }
 EXPORT_SYMBOL_GPL(__evl_wait_schedule);
 
@@ -420,7 +420,7 @@ int evl_walk_pi_chain(struct evl_wait_channel *orig_wchan,
 			do_reorder = true;
 		} else if (mode == evl_pi_reset) {
 			/* owner.cprio <- owner.bprio */
-			if (owner->state & T_BOOST)
+			if (owner->state & EVL_T_BOOST)
 				evl_track_thread_policy(owner, owner);
 			do_reorder = true;
 		}
