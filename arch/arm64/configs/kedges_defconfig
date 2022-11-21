@@ -3886,6 +3886,7 @@ CONFIG_DVB_SP2=m
 #
 # Graphics support
 #
+CONFIG_VIDEO_DW9714=y
 # CONFIG_VGA_ARB is not set
 CONFIG_DRM=y
 CONFIG_DRM_EDID=y
