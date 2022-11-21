@@ -253,7 +253,8 @@ static void adjust_owner_boost(struct evl_thread *owner)
 
 	raw_spin_lock(&owner->lock);
 
-	if (EVL_WARN_ON_ONCE(CORE, list_empty(&owner->boosters))) {
+	if (list_empty(&owner->boosters)) {
+		EVL_WARN_ON_ONCE(CORE, owner->state & T_BOOST);
 		raw_spin_unlock(&owner->lock);
 		return;
 	}
