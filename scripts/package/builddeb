@@ -89,7 +89,7 @@ create_package() {
 
 	# Create the package
 	dpkg-gencontrol -p$pname -P"$pdir"
-	dpkg --build "$pdir" ..
+	dpkg-deb --build -Zxz "$pdir" ..
 }
 
 version=$KERNELRELEASE
