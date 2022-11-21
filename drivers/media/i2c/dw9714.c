@@ -52,6 +52,8 @@ struct dw9714_device {
 	struct __kernel_old_timeval end_move_tv;
 	unsigned long move_ms;
 
+	struct gpio_desc    *focus_gpio;
+
 	u32 module_index;
 	const char *module_facing;
 	struct rk_cam_vcm_cfg vcm_cfg;
@@ -620,6 +622,7 @@ static int dw9714_init_controls(struct dw9714_device *dev_vcm)
 static int dw9714_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct device_node *np = of_node_get(client->dev.of_node);
 	struct dw9714_device *dw9714_dev;
 	unsigned int max_ma, start_ma, rated_ma, step_mode;
@@ -693,6 +696,13 @@ static int dw9714_probe(struct i2c_client *client,
 				  GFP_KERNEL);
 	if (dw9714_dev == NULL)
 		return -ENOMEM;
+
+	dw9714_dev->focus_gpio = devm_gpiod_get(dev, "focus", GPIOD_ASIS);
+	if (IS_ERR(dw9714_dev->focus_gpio))
+		dev_warn(dev, "Failed to get focus-gpios\n");
+
+	if (!IS_ERR(dw9714_dev->focus_gpio))
+		gpiod_direction_output(dw9714_dev->focus_gpio, 1);
 
 	ret = of_property_read_u32(np, RKMODULE_CAMERA_MODULE_INDEX,
 				   &dw9714_dev->module_index);
