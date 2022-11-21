@@ -1063,6 +1063,8 @@ void *codec_mm_dma_alloc_coherent(ulong *handle,
 	}
 	mgt->alloced_from_coherent	+= buf_size;
 	mgt->total_alloced_size		+= buf_size;
+	if (mgt->total_alloced_size > mgt->max_used_mem_size)
+		mgt->max_used_mem_size = mgt->total_alloced_size;
 	*handle				= (ulong)mem;
 	*phy_out			= mem->phy_addr;
 	list_add_tail(&mem->list, &mgt->mem_list);
