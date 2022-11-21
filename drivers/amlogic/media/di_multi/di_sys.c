@@ -3998,7 +3998,7 @@ static int dim_probe(struct platform_device *pdev)
 		     dimp_get(edi_mp_mcpre_en));
 
 	dim_set_di_flag();
-	di_probe_vpub_en_set(1);
+	//di_probe_vpub_en_set(1);
 	dim_polic_prob();
 	dct_pre_prob(pdev);
 	dcntr_prob();
