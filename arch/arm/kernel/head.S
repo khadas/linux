@@ -49,7 +49,12 @@
 	.equ	swapper_pg_dir, KERNEL_RAM_VADDR - PG_DIR_SIZE
 
 	.macro	pgtbl, rd, phys
+#ifdef CONFIG_AMLOGIC_RAMDUMP
+	ldr	r12, =#TEXT_OFFSET
+	add	\rd, \phys, r12
+#else
 	add	\rd, \phys, #TEXT_OFFSET
+#endif
 	sub	\rd, \rd, #PG_DIR_SIZE
 	.endm
 

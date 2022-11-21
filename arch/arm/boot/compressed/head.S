@@ -252,7 +252,12 @@ not_angel:
 		mov	r4, pc
 		and	r4, r4, #0xf8000000
 		/* Determine final kernel image address. */
+#ifdef CONFIG_AMLOGIC_RAMDUMP
+		ldr	r0, =#TEXT_OFFSET
+		add	r4, r4, r0
+#else
 		add	r4, r4, #TEXT_OFFSET
+#endif
 #else
 		ldr	r4, =zreladdr
 #endif
