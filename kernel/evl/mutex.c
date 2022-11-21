@@ -754,6 +754,9 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 
 	raw_spin_lock_irqsave(&mutex->wchan.lock, flags);
 
+	if (EVL_WARN_ON(CORE, mutex->wchan.owner != curr))
+		goto out;
+
 	enable_inband_switch(curr, mutex);
 
 	/*
@@ -794,7 +797,7 @@ void __evl_unlock_mutex(struct evl_mutex *mutex)
 	 * once the kernel state is in sync.
 	 */
 	atomic_set(mutex->fastlock, EVL_NO_HANDLE);
-
+out:
 	raw_spin_unlock_irqrestore(&mutex->wchan.lock, flags);
 
 	/*
