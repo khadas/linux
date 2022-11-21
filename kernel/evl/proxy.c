@@ -598,10 +598,10 @@ static int proxy_release(struct inode *inode, struct file *filp)
 	struct evl_proxy *proxy = element_of(filp, struct evl_proxy);
 
 	if (proxy_is_writable(proxy))
-		evl_flush_flag(&proxy->output.ring.oob_wait, T_RMID);
+		evl_flush_flag(&proxy->output.ring.oob_wait, EVL_T_RMID);
 
 	if (proxy_is_readable(proxy))
-		evl_flush_flag(&proxy->input.ring.oob_wait, T_RMID);
+		evl_flush_flag(&proxy->input.ring.oob_wait, EVL_T_RMID);
 
 	return evl_release_element(inode, filp);
 }

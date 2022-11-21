@@ -448,7 +448,7 @@ done:
 	 * the caller.
 	 */
 	thread = evl_current();
-	if (thread->local_info & T_IGNOVR)
+	if (thread->local_info & EVL_T_IGNOVR)
 		return 0;
 
 	return overruns;

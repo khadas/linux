@@ -85,7 +85,7 @@ int evl_signal_monitor_targeted(struct evl_thread *target, int monfd)
 		event->state->flags |= (EVL_MONITOR_TARGETED|
 					EVL_MONITOR_SIGNALED);
 		raw_spin_lock(&target->rq->lock);
-		target->info |= T_SIGNAL;
+		target->info |= EVL_T_SIGNAL;
 		raw_spin_unlock(&target->rq->lock);
 	}
 
@@ -105,7 +105,7 @@ void __evl_commit_monitor_ceiling(void)
 	struct evl_monitor *gate;
 
 	/*
-	 * curr->u_window has to be valid since curr bears T_USER.  If
+	 * curr->u_window has to be valid since curr bears EVL_T_USER.  If
 	 * pp_pending is a bad handle, just skip ceiling.
 	 */
 	gate = evl_get_factory_element_by_fundle(&evl_monitor_factory,
@@ -168,7 +168,7 @@ static void wakeup_waiters(struct evl_monitor *event, struct evl_monitor *gate)
 		} else if (state->flags & EVL_MONITOR_TARGETED) {
 			evl_for_each_waiter_safe(waiter, n,
 						&event->wait_queue) {
-				if (waiter->info & T_SIGNAL)
+				if (waiter->info & EVL_T_SIGNAL)
 					evl_wake_up(&event->wait_queue,
 						waiter, 0);
 			}
@@ -513,7 +513,7 @@ static int wait_monitor(struct file *filp,
 	raw_spin_unlock(&event->wait_queue.wchan.lock);
 
 	rq = evl_get_thread_rq_noirq(curr);
-	curr->info &= ~T_SIGNAL;
+	curr->info &= ~EVL_T_SIGNAL;
 	evl_put_thread_rq_noirq(curr, rq);
 
 	__exit_monitor(gate, curr); /* See comment in exit_monitor(). */
@@ -550,7 +550,7 @@ static int wait_monitor(struct file *filp,
 		 * are set to -EINTR.
 		 */
 		if (ret == -EINTR && signal_pending(current)) {
-			curr->local_info |= T_NORST;
+			curr->local_info |= EVL_T_NORST;
 			goto put;
 		}
 		op_ret = ret;
@@ -561,7 +561,7 @@ static int wait_monitor(struct file *filp,
 	ret = __enter_monitor(gate, NULL);
 	if (ret == -EINTR) {
 		if (signal_pending(current))
-			curr->local_info |= T_NORST;
+			curr->local_info |= EVL_T_NORST;
 		op_ret = -EAGAIN;
 	}
 put:
@@ -770,9 +770,9 @@ static int monitor_release(struct inode *inode, struct file *filp)
 	struct evl_monitor *mon = element_of(filp, struct evl_monitor);
 
 	if (mon->type == EVL_MONITOR_EVENT)
-		evl_flush_wait(&mon->wait_queue, T_RMID);
+		evl_flush_wait(&mon->wait_queue, EVL_T_RMID);
 	else
-		evl_flush_mutex(&mon->mutex, T_RMID);
+		evl_flush_mutex(&mon->mutex, EVL_T_RMID);
 
 	return evl_release_element(inode, filp);
 }

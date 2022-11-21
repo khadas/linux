@@ -173,22 +173,22 @@ static void prepare_for_signal(struct task_struct *p,
 	/*
 	 * We are called from out-of-band mode only to act upon a
 	 * pending signal receipt. We may observe signal_pending(p)
-	 * which implies that T_KICKED was set too
-	 * (handle_sigwake_event()), or T_KICKED alone which means
+	 * which implies that EVL_T_KICKED was set too
+	 * (handle_sigwake_event()), or EVL_T_KICKED alone which means
 	 * that we have been unblocked from a wait for some other
 	 * reason.
 	 */
-	if (curr->info & T_KICKED) {
+	if (curr->info & EVL_T_KICKED) {
 		if (signal_pending(p)) {
 			int retval = -ERESTARTSYS;
-			if (curr->local_info & T_NORST) {
+			if (curr->local_info & EVL_T_NORST) {
 				retval = -EINTR;
-				curr->local_info &= ~T_NORST;
+				curr->local_info &= ~EVL_T_NORST;
 			}
 			syscall_set_return_value(current, regs, retval, 0);
-			curr->info &= ~T_BREAK;
+			curr->info &= ~EVL_T_BREAK;
 		}
-		curr->info &= ~T_KICKED;
+		curr->info &= ~EVL_T_KICKED;
 	}
 
 	raw_spin_unlock_irqrestore(&curr->rq->lock, flags);
@@ -302,9 +302,9 @@ static int do_oob_syscall(struct irq_stage *stage, struct pt_regs *regs,
 
 	/* Syscall might have switched in-band, recheck. */
 	if (!evl_is_inband()) {
-		if (signal_pending(tsk) || (curr->info & T_KICKED))
+		if (signal_pending(tsk) || (curr->info & EVL_T_KICKED))
 			prepare_for_signal(tsk, curr, regs);
-		else if ((curr->state & T_WEAK) &&
+		else if ((curr->state & EVL_T_WEAK) &&
 			!atomic_read(&curr->held_mutex_count))
 			evl_switch_inband(EVL_HMDIAG_NONE);
 	}
@@ -389,7 +389,7 @@ static int do_inband_syscall(struct pt_regs *regs, unsigned int nr,
 	 * by a pending signal, otherwise -EINTR might be received
 	 * upon signal detection after the transition to oob context,
 	 * in which case the common logic applies (i.e. based on
-	 * T_KICKED and/or signal_pending()).
+	 * EVL_T_KICKED and/or signal_pending()).
 	 */
 	if (ret == -ERESTARTSYS) {
 		syscall_set_return_value(tsk, regs, ret, 0);
@@ -399,15 +399,15 @@ static int do_inband_syscall(struct pt_regs *regs, unsigned int nr,
 	invoke_syscall(nr, regs, args);
 
 	if (!evl_is_inband()) {
-		if (signal_pending(tsk) || (curr->info & T_KICKED))
+		if (signal_pending(tsk) || (curr->info & EVL_T_KICKED))
 			prepare_for_signal(tsk, curr, regs);
-		else if ((curr->state & T_WEAK) &&
+		else if ((curr->state & EVL_T_WEAK) &&
 			!atomic_read(&curr->held_mutex_count))
 			evl_switch_inband(EVL_HMDIAG_NONE);
 	}
 done:
-	if (curr->local_info & T_IGNOVR)
-		curr->local_info &= ~T_IGNOVR;
+	if (curr->local_info & EVL_T_IGNOVR)
+		curr->local_info &= ~EVL_T_IGNOVR;
 
 	evl_inc_counter(&curr->stat.sc);
 	evl_sync_uwindow(curr);

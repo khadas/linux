@@ -28,11 +28,15 @@
 #include <asm/evl/thread.h>
 
 /* All bits which may cause an EVL thread to block in oob context. */
-#define EVL_THREAD_BLOCK_BITS   (T_SUSP|T_PEND|T_DELAY|T_WAIT|T_DORMANT|T_INBAND|T_HALT|T_PTSYNC)
+#define EVL_THREAD_BLOCK_BITS	(EVL_T_SUSP|EVL_T_PEND|EVL_T_DELAY|	\
+				EVL_T_WAIT|EVL_T_DORMANT|		\
+				EVL_T_INBAND|EVL_T_HALT|EVL_T_PTSYNC)
 /* Information bits an EVL thread may receive from a blocking op. */
-#define EVL_THREAD_INFO_MASK	(T_RMID|T_TIMEO|T_BREAK|T_KICKED|T_BCAST|T_NOMEM)
+#define EVL_THREAD_INFO_MASK	(EVL_T_RMID|EVL_T_TIMEO|EVL_T_BREAK|	\
+				EVL_T_KICKED|EVL_T_BCAST|EVL_T_NOMEM)
 /* Mode bits configurable via EVL_THRIOC_SET/CLEAR_MODE. */
-#define EVL_THREAD_MODE_BITS	(T_WOSS|T_WOLI|T_WOSX|T_WOSO|T_HMSIG|T_HMOBS)
+#define EVL_THREAD_MODE_BITS	(EVL_T_WOSS|EVL_T_WOLI|EVL_T_WOSX|	\
+				EVL_T_WOSO|EVL_T_HMSIG|EVL_T_HMOBS)
 
 /*
  * These are special internal values of HM diags which are never sent
@@ -236,7 +240,7 @@ static inline void evl_test_cancel(void)
 {
 	struct evl_thread *curr = evl_current();
 
-	if (curr && (curr->info & T_CANCELD))
+	if (curr && (curr->info & EVL_T_CANCELD))
 		__evl_test_cancel(curr);
 }
 
@@ -330,7 +334,7 @@ void __evl_propagate_schedparam_change(struct evl_thread *curr);
 
 static inline void evl_propagate_schedparam_change(struct evl_thread *curr)
 {
-	if (curr->info & T_SCHEDP)
+	if (curr->info & EVL_T_SCHEDP)
 		__evl_propagate_schedparam_change(curr);
 }
 
@@ -392,7 +396,7 @@ static inline void evl_stop_kthread(struct evl_kthread *kthread)
 
 static inline bool evl_kthread_should_stop(void)
 {
-	return !!(evl_current()->info & T_CANCELD);
+	return !!(evl_current()->info & EVL_T_CANCELD);
 }
 
 static inline
@@ -414,7 +418,7 @@ evl_current_kthread(void)
 {
 	struct evl_thread *t = evl_current();
 
-	return !t || t->state & T_USER ? NULL :
+	return !t || t->state & EVL_T_USER ? NULL :
 		container_of(t, struct evl_kthread, thread);
 }
 

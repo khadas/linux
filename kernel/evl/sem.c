@@ -64,7 +64,7 @@ void evl_broadcast(struct evl_ksem *ksem)
 
 	raw_spin_lock_irqsave(&ksem->wait.wchan.lock, flags);
 	ksem->value = 0;
-	evl_flush_wait_locked(&ksem->wait, T_BCAST);
+	evl_flush_wait_locked(&ksem->wait, EVL_T_BCAST);
 	raw_spin_unlock_irqrestore(&ksem->wait.wchan.lock, flags);
 	evl_schedule();
 }

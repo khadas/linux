@@ -248,7 +248,7 @@ void evl_program_proxy_tick(struct evl_clock *clock)
 	timer = container_of(tn, struct evl_timer, node);
 	if (timer == &this_rq->inband_timer) {
 		if (evl_need_resched(this_rq) ||
-			!(this_rq->curr->state & T_ROOT)) {
+			!(this_rq->curr->state & EVL_T_ROOT)) {
 			tn = evl_get_tqueue_next(&tmb->q, tn);
 			if (tn) {
 				this_rq->local_flags |= RQ_TDEFER;

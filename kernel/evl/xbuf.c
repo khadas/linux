@@ -553,8 +553,8 @@ static int xbuf_release(struct inode *inode, struct file *filp)
 {
 	struct evl_xbuf *xbuf = element_of(filp, struct evl_xbuf);
 
-	evl_flush_wait(&xbuf->obnd.i_event, T_RMID);
-	evl_flush_flag(&xbuf->ibnd.o_event, T_RMID);
+	evl_flush_wait(&xbuf->obnd.i_event, EVL_T_RMID);
+	evl_flush_flag(&xbuf->ibnd.o_event, EVL_T_RMID);
 
 	return evl_release_element(inode, filp);
 }

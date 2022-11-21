@@ -93,7 +93,7 @@ struct evl_wait_queue {
 						__timeout_mode);	\
 				raw_spin_unlock_irqrestore(&(__wq)->wchan.lock, __flags); \
 				__ret = evl_wait_schedule(__wq);	\
-				__bcast = evl_current()->info & T_BCAST; \
+				__bcast = evl_current()->info & EVL_T_BCAST; \
 				raw_spin_lock_irqsave(&(__wq)->wchan.lock, __flags); \
 			} while (!__ret && !__bcast && !(__cond));	\
 		}							\

@@ -15,55 +15,55 @@
 
 /* State flags (shared) */
 
-#define T_SUSP    0x00000001 /* Suspended */
-#define T_PEND    0x00000002 /* Blocked on a wait_queue/mutex */
-#define T_DELAY   0x00000004 /* Delayed/timed */
-#define T_WAIT    0x00000008 /* Periodic wait */
-#define T_READY   0x00000010 /* Ready to run (in rq) */
-#define T_DORMANT 0x00000020 /* Not started yet */
-#define T_ZOMBIE  0x00000040 /* Dead, waiting for disposal */
-#define T_INBAND  0x00000080 /* Running in-band */
-#define T_HALT    0x00000100 /* Halted */
-#define T_BOOST   0x00000200 /* PI/PP boost undergoing */
-#define T_PTSYNC  0x00000400 /* Synchronizing on ptrace event */
-#define T_RRB     0x00000800 /* Undergoes round-robin scheduling */
-#define T_ROOT    0x00001000 /* Root thread (in-band kernel placeholder) */
-#define T_WEAK    0x00002000 /* Weak scheduling (in-band) */
-#define T_USER    0x00004000 /* Userland thread */
-#define T_WOSS    0x00008000 /* Warn on stage switch (HM) */
-#define T_WOLI    0x00010000 /* Warn on locking inconsistency (HM) */
-#define T_WOSX    0x00020000 /* Warn on stage exclusion (HM) */
-#define T_PTRACE  0x00040000 /* Stopped on ptrace event */
-#define T_OBSERV  0x00080000 /* Observable (only for export to userland) */
-#define T_HMSIG   0x00100000 /* Notify HM events via SIGDEBUG */
-#define T_HMOBS   0x00200000 /* Notify HM events via observable */
-#define T_WOSO    0x00400000 /* Schedule overrun */
+#define EVL_T_SUSP    0x00000001 /* Suspended */
+#define EVL_T_PEND    0x00000002 /* Blocked on a wait_queue/mutex */
+#define EVL_T_DELAY   0x00000004 /* Delayed/timed */
+#define EVL_T_WAIT    0x00000008 /* Periodic wait */
+#define EVL_T_READY   0x00000010 /* Ready to run (in rq) */
+#define EVL_T_DORMANT 0x00000020 /* Not started yet */
+#define EVL_T_ZOMBIE  0x00000040 /* Dead, waiting for disposal */
+#define EVL_T_INBAND  0x00000080 /* Running in-band */
+#define EVL_T_HALT    0x00000100 /* Halted */
+#define EVL_T_BOOST   0x00000200 /* PI/PP boost undergoing */
+#define EVL_T_PTSYNC  0x00000400 /* Synchronizing on ptrace event */
+#define EVL_T_RRB     0x00000800 /* Undergoes round-robin scheduling */
+#define EVL_T_ROOT    0x00001000 /* Root thread (in-band kernel placeholder) */
+#define EVL_T_WEAK    0x00002000 /* Weak scheduling (in-band) */
+#define EVL_T_USER    0x00004000 /* Userland thread */
+#define EVL_T_WOSS    0x00008000 /* Warn on stage switch (HM) */
+#define EVL_T_WOLI    0x00010000 /* Warn on locking inconsistency (HM) */
+#define EVL_T_WOSX    0x00020000 /* Warn on stage exclusion (HM) */
+#define EVL_T_PTRACE  0x00040000 /* Stopped on ptrace event */
+#define EVL_T_OBSERV  0x00080000 /* Observable (only for export to userland) */
+#define EVL_T_HMSIG   0x00100000 /* Notify HM events via SIGDEBUG */
+#define EVL_T_HMOBS   0x00200000 /* Notify HM events via observable */
+#define EVL_T_WOSO    0x00400000 /* Schedule overrun */
 
 /* Information flags (shared) */
 
-#define T_TIMEO   0x00000001 /* Woken up due to a timeout condition */
-#define T_RMID    0x00000002 /* Pending on a removed resource */
-#define T_BREAK   0x00000004 /* Forcibly awaken from a wait state */
-#define T_KICKED  0x00000008 /* Forced out of OOB context */
-#define T_WCHAN   0x00000010 /* Need to requeue in wait channel */
+#define EVL_T_TIMEO   0x00000001 /* Woken up due to a timeout condition */
+#define EVL_T_RMID    0x00000002 /* Pending on a removed resource */
+#define EVL_T_BREAK   0x00000004 /* Forcibly awaken from a wait state */
+#define EVL_T_KICKED  0x00000008 /* Forced out of OOB context */
+#define EVL_T_WCHAN   0x00000010 /* Need to requeue in wait channel */
 /* free: 0x00000020 */
-#define T_CANCELD 0x00000040 /* Cancellation request is pending */
-#define T_PIALERT 0x00000080 /* Priority inversion alert (HM notified) */
-#define T_SCHEDP  0x00000100 /* Schedparam propagation is pending */
-#define T_BCAST   0x00000200 /* Woken up upon resource broadcast */
-#define T_SIGNAL  0x00000400 /* Event monitor signaled */
-#define T_SXALERT 0x00000800 /* Stage exclusion alert (HM notified) */
-#define T_PTSIG   0x00001000 /* Ptrace signal is pending */
-#define T_PTSTOP  0x00002000 /* Ptrace stop is ongoing */
-#define T_PTJOIN  0x00004000 /* Ptracee should join ptsync barrier */
-#define T_NOMEM   0x00008000 /* No memory to complete the operation */
+#define EVL_T_CANCELD 0x00000040 /* Cancellation request is pending */
+#define EVL_T_PIALERT 0x00000080 /* Priority inversion alert (HM notified) */
+#define EVL_T_SCHEDP  0x00000100 /* Schedparam propagation is pending */
+#define EVL_T_BCAST   0x00000200 /* Woken up upon resource broadcast */
+#define EVL_T_SIGNAL  0x00000400 /* Event monitor signaled */
+#define EVL_T_SXALERT 0x00000800 /* Stage exclusion alert (HM notified) */
+#define EVL_T_PTSIG   0x00001000 /* Ptrace signal is pending */
+#define EVL_T_PTSTOP  0x00002000 /* Ptrace stop is ongoing */
+#define EVL_T_PTJOIN  0x00004000 /* Ptracee should join ptsync barrier */
+#define EVL_T_NOMEM   0x00008000 /* No memory to complete the operation */
 
 /* Local information flags (private to current thread) */
 
-#define T_SYSRST  0x00000001 /* Thread awaiting syscall restart after signal */
-#define T_IGNOVR  0x00000002 /* Overrun detection temporarily disabled */
-#define T_INFAULT 0x00000004 /* In fault handling */
-#define T_NORST   0x00000008 /* Disable syscall restart */
+#define EVL_T_SYSRST  0x00000001 /* Thread awaiting syscall restart after signal */
+#define EVL_T_IGNOVR  0x00000002 /* Overrun detection temporarily disabled */
+#define EVL_T_INFAULT 0x00000004 /* In fault handling */
+#define EVL_T_NORST   0x00000008 /* Disable syscall restart */
 
 /*
  * Must follow strictly the declaration order of the state flags
@@ -81,7 +81,7 @@
  * 'b' -> Priority boost undergoing
  * '#' -> Ptrace sync ongoing
  * 'r' -> Undergoes round-robin
- * 't' -> Warned on stage switch (T_WOSS)
+ * 't' -> Warned on stage switch (EVL_T_WOSS)
  * 'T' -> Stopped on ptrace event
  * 'o' -> Observable
  */

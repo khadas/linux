@@ -46,8 +46,8 @@ static int weak_chkparam(struct evl_thread *thread,
 static bool weak_setparam(struct evl_thread *thread,
 			const union evl_sched_param *p)
 {
-	if (!(thread->state & T_BOOST))
-		thread->state |= T_WEAK;
+	if (!(thread->state & EVL_T_BOOST))
+		thread->state |= EVL_T_WEAK;
 
 	return evl_set_effective_thread_priority(thread, p->weak.prio);
 }

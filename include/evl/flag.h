@@ -127,17 +127,17 @@ static inline void evl_flush_flag(struct evl_flag *wf, int reason)
 /* wf->wait.wchan.lock held, irqs off */
 static inline void evl_pulse_flag_locked(struct evl_flag *wf)
 {
-	evl_flush_flag_locked(wf, T_BCAST);
+	evl_flush_flag_locked(wf, EVL_T_BCAST);
 }
 
 static inline void evl_pulse_flag_nosched(struct evl_flag *wf)
 {
-	evl_flush_flag_nosched(wf, T_BCAST);
+	evl_flush_flag_nosched(wf, EVL_T_BCAST);
 }
 
 static inline void evl_pulse_flag(struct evl_flag *wf)
 {
-	evl_flush_flag(wf, T_BCAST);
+	evl_flush_flag(wf, EVL_T_BCAST);
 }
 
 static inline void evl_clear_flag(struct evl_flag *wf)

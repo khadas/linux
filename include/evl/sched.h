@@ -363,7 +363,7 @@ static inline bool evl_in_irq(void)
 
 static inline bool evl_is_inband(void)
 {
-	return !!(this_evl_rq_thread()->state & T_ROOT);
+	return !!(this_evl_rq_thread()->state & EVL_T_ROOT);
 }
 
 static inline bool evl_cannot_block(void)
@@ -418,9 +418,9 @@ static inline bool evl_cannot_block(void)
  */
 #define evl_put_thread_rq_check_noirq(__thread, __rq)			\
 	do {								\
-		bool __need_requeue = (__thread)->info & T_WCHAN;	\
+		bool __need_requeue = (__thread)->info & EVL_T_WCHAN;	\
 		if (__need_requeue)					\
-			(__thread)->info &= ~T_WCHAN;			\
+			(__thread)->info &= ~EVL_T_WCHAN;			\
 		evl_put_thread_rq_noirq(__thread, __rq);		\
 		if (__need_requeue)					\
 			evl_adjust_wait_priority(__thread, evl_pi_adjust); \
@@ -483,7 +483,7 @@ static inline void evl_sched_tick(struct evl_rq *rq)
 	 */
 	if (sched_class == curr->base_class &&
 	    sched_class->sched_tick &&
-	    (curr->state & (EVL_THREAD_BLOCK_BITS|T_RRB)) == T_RRB &&
+	    (curr->state & (EVL_THREAD_BLOCK_BITS|EVL_T_RRB)) == EVL_T_RRB &&
 	    evl_preempt_count() == 0)
 		sched_class->sched_tick(rq);
 }

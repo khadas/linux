@@ -97,13 +97,13 @@ static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 	 * trigger date eventually. Make sure that we are not about to
 	 * kick the incoming root thread.
 	 */
-	if (curr->state & T_ROOT)
+	if (curr->state & EVL_T_ROOT)
 		return;
 
-	if (curr->state & T_USER) {
+	if (curr->state & EVL_T_USER) {
 		raw_spin_lock(&curr->lock);
 		raw_spin_lock(&this_rq->lock);
-		curr->info |= T_KICKED;
+		curr->info |= EVL_T_KICKED;
 		raw_spin_unlock(&this_rq->lock);
 		raw_spin_unlock(&curr->lock);
 		evl_notify_thread(curr, EVL_HMDIAG_WATCHDOG, evl_nil);
@@ -116,14 +116,14 @@ static void watchdog_handler(struct evl_timer *timer) /* oob stage stalled */
 		/*
 		 * On behalf on an IRQ handler, evl_cancel_thread()
 		 * would go half way cancelling the preempted
-		 * thread. Therefore we manually raise T_KICKED to
+		 * thread. Therefore we manually raise EVL_T_KICKED to
 		 * cause the next blocking call to return early in
-		 * T_BREAK condition, and T_CANCELD so that @curr
+		 * EVL_T_BREAK condition, and EVL_T_CANCELD so that @curr
 		 * exits next time it invokes evl_test_cancel().
 		 */
 		raw_spin_lock(&curr->lock);
 		raw_spin_lock(&this_rq->lock);
-		curr->info |= (T_KICKED|T_CANCELD);
+		curr->info |= (EVL_T_KICKED|EVL_T_CANCELD);
 		raw_spin_unlock(&this_rq->lock);
 		raw_spin_unlock(&curr->lock);
 	}
@@ -194,7 +194,7 @@ static void init_rq(struct evl_rq *rq, int cpu)
 	 * enough of the runqueue initialized, so that attempting to
 	 * reschedule from evl_exit_irq() later on is harmless.
 	 */
-	iattr.flags = T_ROOT;
+	iattr.flags = EVL_T_ROOT;
 	iattr.affinity = cpumask_of(cpu);
 	iattr.observable = NULL;
 	iattr.sched_class = &evl_sched_idle;
@@ -278,9 +278,9 @@ static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
 	 */
 	evl_double_rq_lock(src_rq, dst_rq);
 
-	if (thread->state & T_READY) {
+	if (thread->state & EVL_T_READY) {
 		evl_dequeue_thread(thread);
-		thread->state &= ~T_READY;
+		thread->state &= ~EVL_T_READY;
 	}
 
 	if (sched_class->sched_migrate)
@@ -293,7 +293,7 @@ static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
 
 	if (!(thread->state & EVL_THREAD_BLOCK_BITS)) {
 		evl_requeue_thread(thread);
-		thread->state |= T_READY;
+		thread->state |= EVL_T_READY;
 		evl_set_resched(dst_rq);
 		evl_set_resched(src_rq);
 	}
@@ -304,7 +304,7 @@ static void migrate_rq(struct evl_thread *thread, struct evl_rq *dst_rq)
 /*
  * Move a thread to a different runqueue. Some sched_migrate() policy
  * handlers might change the scheduling class and/or priority of the
- * target thread, our callers MAY HAVE TO check for T_WCHAN to
+ * target thread, our callers MAY HAVE TO check for EVL_T_WCHAN to
  * determine whether the wait channel it might pend on should be
  * adjusted accordingly.
  *
@@ -366,11 +366,11 @@ static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off *
 		/*
 		 * Can't call evl_cancel_thread() from a CPU migration
 		 * point, that would break. Since we are on the wakeup
-		 * path to oob context, just raise T_CANCELD to catch
+		 * path to oob context, just raise EVL_T_CANCELD to catch
 		 * it in evl_switch_oob().
 		 */
 		raw_spin_lock(&thread->rq->lock);
-		thread->info |= T_CANCELD;
+		thread->info |= EVL_T_CANCELD;
 		raw_spin_unlock(&thread->rq->lock);
 	} else {
 		/*
@@ -389,9 +389,9 @@ static void check_cpu_affinity(struct task_struct *p) /* inband, hard irqs off *
 	 * Check for a wait channel requeuing. Open code the portion
 	 * of the evl_put_thread_rq_check_noirq() logic we need.
 	 */
-	if (thread->info & T_WCHAN) {
+	if (thread->info & EVL_T_WCHAN) {
 		raw_spin_lock(&thread->rq->lock);
-		thread->info &= ~T_WCHAN;
+		thread->info &= ~EVL_T_WCHAN;
 		raw_spin_unlock(&thread->rq->lock);
 		need_requeue = true;
 	}
@@ -419,10 +419,10 @@ void evl_putback_thread(struct evl_thread *thread)
 {
   	assert_thread_pinned(thread);
 
-	if (thread->state & T_READY)
+	if (thread->state & EVL_T_READY)
 		evl_dequeue_thread(thread);
 	else
-		thread->state |= T_READY;
+		thread->state |= EVL_T_READY;
 
 	evl_enqueue_thread(thread);
 	evl_set_resched(thread->rq);
@@ -463,7 +463,7 @@ int evl_set_thread_policy_locked(struct evl_thread *thread,
 	 * with no previous scheduling class at all.
 	 */
 	if (likely(thread->base_class != NULL)) {
-		if (thread->state & T_READY)
+		if (thread->state & EVL_T_READY)
 			evl_dequeue_thread(thread);
 
 		if (sched_class != thread->base_class)
@@ -497,21 +497,21 @@ int evl_set_thread_policy_locked(struct evl_thread *thread,
 	} else if (EVL_DEBUG(CORE))
 		thread->sched_class = orig_effective_class;
 
-	if (thread->state & T_READY)
+	if (thread->state & EVL_T_READY)
 		evl_enqueue_thread(thread);
 
 	/*
 	 * Make sure not to raise RQ_SCHED when setting up the root
 	 * thread, so that we can't start rescheduling from
 	 * evl_exit_irq() before all CPUs have their runqueue fully
-	 * built. Filtering on T_ROOT here is correct because the root
+	 * built. Filtering on EVL_T_ROOT here is correct because the root
 	 * thread enters the idle class once as part of the runqueue
 	 * setup process and never leaves it afterwards.
 	 */
-	if (!(thread->state & (T_DORMANT|T_ROOT)))
+	if (!(thread->state & (EVL_T_DORMANT|EVL_T_ROOT)))
 		evl_set_resched(thread->rq);
 	else
-		EVL_WARN_ON(CORE, (thread->state & T_ROOT) &&
+		EVL_WARN_ON(CORE, (thread->state & EVL_T_ROOT) &&
 			sched_class != &evl_sched_idle);
 	return 0;
 }
@@ -549,7 +549,7 @@ bool evl_set_effective_thread_priority(struct evl_thread *thread, int prio)
 	 * evl_protect_thread_priority() may do so when dealing with PI
 	 * and PP synchs resp.
 	 */
-	if (wprio < thread->wprio && (thread->state & T_BOOST))
+	if (wprio < thread->wprio && (thread->state & EVL_T_BOOST))
 		return false;
 
 	thread->cprio = prio;
@@ -574,7 +574,7 @@ void evl_track_thread_policy(struct evl_thread *dst,
 	 * We may receive redundant calls for deboosting, this is ok,
 	 * just filter them out.
 	 */
-	if (src == dst && !(dst->state & T_BOOST))
+	if (src == dst && !(dst->state & EVL_T_BOOST))
 		goto out;
 
 	/*
@@ -583,7 +583,7 @@ void evl_track_thread_policy(struct evl_thread *dst,
 	 * routine is allowed to lower the weighted priority with no
 	 * restriction, even if a boost is undergoing.
 	 */
-	if (dst->state & T_READY)
+	if (dst->state & EVL_T_READY)
 		evl_dequeue_thread(dst);
 
 	/*
@@ -592,7 +592,7 @@ void evl_track_thread_policy(struct evl_thread *dst,
 	 * inherit the scheduling parameters from @src.
 	 */
 	if (src == dst) {	/* Deboosting? */
-		dst->state &= ~T_BOOST;
+		dst->state &= ~EVL_T_BOOST;
 		dst->sched_class = dst->base_class;
 		evl_track_priority(dst, NULL);
 		/*
@@ -600,23 +600,23 @@ void evl_track_thread_policy(struct evl_thread *dst,
 		 * should not move the thread to the tail of its
 		 * priority group, which makes sense.
 		 */
-		if (dst->state & T_READY)
+		if (dst->state & EVL_T_READY)
 			evl_requeue_thread(dst);
 	} else {
 		/*
 		 * Save the base priority at initial boost only, then
-		 * raise the T_BOOST flag so that setparam() won't be
+		 * raise the EVL_T_BOOST flag so that setparam() won't be
 		 * allowed to decrease the current weighted priority
 		 * below the boost value, until deboosting occurs.
 		 */
-		if (src->wprio > dst->wprio && !(dst->state & T_BOOST)) {
+		if (src->wprio > dst->wprio && !(dst->state & EVL_T_BOOST)) {
 			dst->bprio = dst->cprio;
-			dst->state |= T_BOOST;
+			dst->state |= EVL_T_BOOST;
 		}
 		evl_get_schedparam(src, &param);
 		dst->sched_class = src->sched_class;
 		evl_track_priority(dst, &param);
-		if (dst->state & T_READY)
+		if (dst->state & EVL_T_READY)
 			evl_enqueue_thread(dst);
 	}
 
@@ -649,18 +649,18 @@ void evl_protect_thread_priority(struct evl_thread *thread, int prio)
 	 */
 	if (thread->sched_class != &evl_sched_fifo ||
 	    evl_calc_weighted_prio(&evl_sched_fifo, prio) != thread->wprio) {
-		if (!(thread->state & T_BOOST)) {
+		if (!(thread->state & EVL_T_BOOST)) {
 			thread->bprio = thread->cprio;
-			thread->state |= T_BOOST;
+			thread->state |= EVL_T_BOOST;
 		}
 
-		if (thread->state & T_READY)
+		if (thread->state & EVL_T_READY)
 			evl_dequeue_thread(thread);
 
 		thread->sched_class = &evl_sched_fifo;
 		evl_ceil_priority(thread, prio);
 
-		if (thread->state & T_READY)
+		if (thread->state & EVL_T_READY)
 			evl_enqueue_thread(thread);
 
 		trace_evl_thread_set_current_prio(thread);
@@ -787,8 +787,8 @@ static irqreturn_t oob_reschedule_interrupt(int irq, void *dev_id)
 static inline void set_next_running(struct evl_rq *rq,
 				struct evl_thread *next)
 {
-	next->state &= ~T_READY;
-	if (next->state & T_RRB)
+	next->state &= ~EVL_T_READY;
+	if (next->state & EVL_T_RRB)
 		evl_start_timer(&rq->rrbtimer,
 				evl_abs_timeout(&rq->rrbtimer, next->rrperiod),
 				EVL_INFINITE);
@@ -807,7 +807,7 @@ static struct evl_thread *__pick_next_thread(struct evl_rq *rq)
 	 * condition is raised for it. Otherwise, check whether
 	 * preemption is allowed.
 	 */
-	if (!(curr->state & (EVL_THREAD_BLOCK_BITS | T_ZOMBIE))) {
+	if (!(curr->state & (EVL_THREAD_BLOCK_BITS | EVL_T_ZOMBIE))) {
 		if (evl_preempt_count() > 0) {
 			evl_set_self_resched(rq);
 			return curr;
@@ -815,11 +815,11 @@ static struct evl_thread *__pick_next_thread(struct evl_rq *rq)
 		/*
 		 * Push the current thread back to the run queue of
 		 * the scheduling class it belongs to, if not yet
-		 * linked to it (T_READY tells us if it is).
+		 * linked to it (EVL_T_READY tells us if it is).
 		 */
-		if (!(curr->state & T_READY)) {
+		if (!(curr->state & EVL_T_READY)) {
 			evl_requeue_thread(curr);
-			curr->state |= T_READY;
+			curr->state |= EVL_T_READY;
 		}
 	}
 
@@ -857,23 +857,23 @@ static struct evl_thread *pick_next_thread(struct evl_rq *rq)
 		/*
 		 * Obey any pending request for a ptsync freeze.
 		 * Either we freeze @next before a sigwake event lifts
-		 * T_PTSYNC, setting T_PTSTOP, or after in which case
-		 * we already have T_PTSTOP set so we don't have to
-		 * raise T_PTSYNC. The basic assumption is that we
+		 * EVL_T_PTSYNC, setting EVL_T_PTSTOP, or after in which case
+		 * we already have EVL_T_PTSTOP set so we don't have to
+		 * raise EVL_T_PTSYNC. The basic assumption is that we
 		 * should get SIGSTOP/SIGTRAP for any thread involved.
 		 */
 		if (likely(!test_bit(EVL_MM_PTSYNC_BIT, &oob_mm->flags)))
 			break;	/* Fast and most likely path. */
-		if (next->info & (T_PTSTOP|T_PTSIG|T_KICKED))
+		if (next->info & (EVL_T_PTSTOP|EVL_T_PTSIG|EVL_T_KICKED))
 			break;
 		/*
 		 * NOTE: We hold next->rq->lock by construction, so
 		 * changing next->state is ok despite that we don't
 		 * hold next->lock. This properly serializes with
-		 * evl_kick_thread() which might raise T_PTSTOP.
+		 * evl_kick_thread() which might raise EVL_T_PTSTOP.
 		 */
-		next->state |= T_PTSYNC;
-		next->state &= ~T_READY;
+		next->state |= EVL_T_PTSYNC;
+		next->state &= ~EVL_T_READY;
 	}
 
 	set_next_running(rq, next);
@@ -978,7 +978,7 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	 * Check whether we have a pending priority ceiling request to
 	 * commit before putting the current thread to sleep.
 	 * evl_current() may differ from rq->curr only if rq->curr ==
-	 * &rq->root_thread. Testing T_USER eliminates this case since
+	 * &rq->root_thread. Testing EVL_T_USER eliminates this case since
 	 * a root thread never bears this bit.
 	 */
 	curr = this_rq->curr;
@@ -986,14 +986,14 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	 * Deferred WCHAN requeuing must be handled prior to
 	 * rescheduling.
 	 */
-	EVL_WARN_ON(CORE, curr->info & T_WCHAN);
+	EVL_WARN_ON(CORE, curr->info & EVL_T_WCHAN);
 
 	/*
 	 * Priority protection for mutexes is only available to
 	 * applications. Kernel users stick with the priority
 	 * inheritance protocol (see evl_init_kmutex()).
 	 */
-	if (curr->state & T_USER)
+	if (curr->state & EVL_T_USER)
 		evl_commit_monitor_ceiling();
 
 	/*
@@ -1010,7 +1010,7 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	 * would be really wrong in the PI/PP implementation anyway.
 	 */
 	if (IS_ENABLED(CONFIG_EVL_DEBUG_CORE) &&
-		curr->state & T_BOOST && list_empty(&curr->boosters)) {
+		curr->state & EVL_T_BOOST && list_empty(&curr->boosters)) {
 		raw_spin_unlock(&curr->lock);
 		EVL_WARN_ON_ONCE(CORE, 1);
 		raw_spin_lock(&curr->lock);
@@ -1027,7 +1027,7 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	next = pick_next_thread(this_rq);
 	trace_evl_pick_thread(next);
 	if (next == curr) {
-		if (unlikely(next->state & T_ROOT)) {
+		if (unlikely(next->state & EVL_T_ROOT)) {
 			if (this_rq->local_flags & RQ_TPROXY)
 				evl_notify_proxy_tick(this_rq);
 			if (this_rq->local_flags & RQ_TDEFER)
@@ -1042,10 +1042,10 @@ void __evl_schedule(void) /* oob or/and hard irqs off (CPU migration-safe) */
 	this_rq->curr = next;
 	leaving_inband = false;
 
-	if (prev->state & T_ROOT) {
+	if (prev->state & EVL_T_ROOT) {
 		leave_inband(prev);
 		leaving_inband = true;
-	} else if (next->state & T_ROOT) {
+	} else if (next->state & EVL_T_ROOT) {
 		if (this_rq->local_flags & RQ_TPROXY)
 			evl_notify_proxy_tick(this_rq);
 		if (this_rq->local_flags & RQ_TDEFER)
@@ -1084,7 +1084,7 @@ void evl_start_ptsync(struct evl_thread *stopper)
 	struct evl_rq *this_rq;
 	unsigned long flags;
 
-	if (EVL_WARN_ON(CORE, !(stopper->state & T_USER)))
+	if (EVL_WARN_ON(CORE, !(stopper->state & EVL_T_USER)))
 		return;
 
 	flags = hard_local_irq_save();
@@ -1105,9 +1105,9 @@ void resume_oob_task(struct task_struct *p) /* inband, oob stage stalled */
 	 */
 	unstall_oob();
 	check_cpu_affinity(p);
-	evl_release_thread(thread, T_INBAND, 0);
+	evl_release_thread(thread, EVL_T_INBAND, 0);
 	/*
-	 * If T_PTSTOP is set, pick_next_thread() is not allowed to
+	 * If EVL_T_PTSTOP is set, pick_next_thread() is not allowed to
 	 * freeze @thread while in flight to the out-of-band stage.
 	 */
 	evl_schedule();
@@ -1131,12 +1131,12 @@ int evl_switch_oob(void)
 
 	trace_evl_switch_oob(curr);
 
-	evl_clear_sync_uwindow(curr, T_INBAND);
+	evl_clear_sync_uwindow(curr, EVL_T_INBAND);
 
 	ret = dovetail_leave_inband();
 	if (ret) {
 		evl_test_cancel();
-		evl_set_sync_uwindow(curr, T_INBAND);
+		evl_set_sync_uwindow(curr, EVL_T_INBAND);
 		return ret;
 	}
 
@@ -1161,23 +1161,23 @@ int evl_switch_oob(void)
 
 	/*
 	 * In case check_cpu_affinity() caught us resuming oob from a
-	 * wrong CPU (i.e. outside of the oob set), we have T_CANCELD
+	 * wrong CPU (i.e. outside of the oob set), we have EVL_T_CANCELD
 	 * set. Check and bail out if so.
 	 */
-	if (curr->info & T_CANCELD)
+	if (curr->info & EVL_T_CANCELD)
 		evl_test_cancel();
 
 	/*
 	 * Since handle_sigwake_event()->evl_kick_thread() won't set
-	 * T_KICKED unless T_INBAND is cleared, a signal received
+	 * EVL_T_KICKED unless EVL_T_INBAND is cleared, a signal received
 	 * during the stage transition process might have gone
-	 * unnoticed. Recheck for signals here and raise T_KICKED if
+	 * unnoticed. Recheck for signals here and raise EVL_T_KICKED if
 	 * some are pending, so that we switch back in-band asap for
 	 * handling them.
 	 */
 	if (signal_pending(p)) {
 		raw_spin_lock_irqsave(&curr->rq->lock, flags);
-		curr->info |= T_KICKED;
+		curr->info |= EVL_T_KICKED;
 		raw_spin_unlock_irqrestore(&curr->rq->lock, flags);
 	}
 
@@ -1196,7 +1196,7 @@ void evl_switch_inband(int cause)
 	trace_evl_switch_inband(cause);
 
 	/*
-	 * This is the only location where we may assert T_INBAND for
+	 * This is the only location where we may assert EVL_T_INBAND for
 	 * a thread. Basic assumption: switching to the inband stage
 	 * only applies to the current thread running out-of-band on
 	 * this CPU. See caveat about dovetail_leave_oob() below.
@@ -1208,14 +1208,14 @@ void evl_switch_inband(int cause)
 	this_rq = curr->rq;
 	raw_spin_lock(&this_rq->lock);
 
-	if (curr->state & T_READY) {
+	if (curr->state & EVL_T_READY) {
 		evl_dequeue_thread(curr);
-		curr->state &= ~T_READY;
+		curr->state &= ~EVL_T_READY;
 	}
 
-	curr->state |= T_INBAND;
-	curr->local_info &= ~T_SYSRST;
-	notify = curr->state & T_USER && cause > EVL_HMDIAG_NONE;
+	curr->state |= EVL_T_INBAND;
+	curr->local_info &= ~EVL_T_SYSRST;
+	notify = curr->state & EVL_T_USER && cause > EVL_HMDIAG_NONE;
 
 	/*
 	 * If we are initiating the ptsync sequence on breakpoint or
@@ -1223,11 +1223,11 @@ void evl_switch_inband(int cause)
 	 * since switching in-band is ok.
 	 */
 	if (cause == EVL_HMDIAG_TRAP) {
-		curr->info |= T_PTSTOP;
-		curr->info &= ~T_PTJOIN;
+		curr->info |= EVL_T_PTSTOP;
+		curr->info &= ~EVL_T_PTJOIN;
 		start_ptsync_locked(curr, this_rq);
-	} else if (curr->info & T_PTSIG) {
-		curr->info &= ~T_PTSIG;
+	} else if (curr->info & EVL_T_PTSIG) {
+		curr->info &= ~EVL_T_PTSIG;
 		notify = false;
 	}
 
@@ -1287,11 +1287,11 @@ void evl_switch_inband(int cause)
 		 * Help debugging spurious stage switches by sending
 		 * an HM event.
 		 */
-		if (curr->state & T_WOSS)
+		if (curr->state & EVL_T_WOSS)
 			evl_notify_thread(curr, cause, evl_nil);
 
 		/* May check for locking inconsistency too. */
-		if (curr->state & T_WOLI)
+		if (curr->state & EVL_T_WOLI)
 			evl_check_no_mutex();
 	}
 
