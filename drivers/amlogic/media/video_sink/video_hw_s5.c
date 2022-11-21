@@ -4823,10 +4823,17 @@ static void vd1_set_dcu_s5(struct video_layer_s *layer,
 			(burst_len << 14) | /* burst1 */
 			(vf->bitdepth & BITDEPTH_MASK);
 
-		if (frame_par->hscale_skip_count)
-			r |= 0x33;
-		if (frame_par->vscale_skip_count)
-			r |= 0xcc;
+		if (for_amdv_certification()) {
+			if (frame_par->hscale_skip_count)
+				r |= 0x11;
+			if (frame_par->vscale_skip_count)
+				r |= 0x44;
+		} else {
+			if (frame_par->hscale_skip_count)
+				r |= 0x33;
+			if (frame_par->vscale_skip_count)
+				r |= 0xcc;
+		}
 
 		/* FIXME: don't use glayer_info[0].reverse */
 		if (glayer_info[0].reverse)
@@ -5319,10 +5326,17 @@ static void vd1_set_slice_dcu_s5(struct video_layer_s *layer,
 			(burst_len << 14) | /* burst1 */
 			(vf->bitdepth & BITDEPTH_MASK);
 
-		if (frame_par->hscale_skip_count)
-			r |= 0x33;
-		if (frame_par->vscale_skip_count)
-			r |= 0xcc;
+		if (for_amdv_certification()) {
+			if (frame_par->hscale_skip_count)
+				r |= 0x11;
+			if (frame_par->vscale_skip_count)
+				r |= 0x44;
+		} else {
+			if (frame_par->hscale_skip_count)
+				r |= 0x33;
+			if (frame_par->vscale_skip_count)
+				r |= 0xcc;
+		}
 
 		/* FIXME: don't use glayer_info[0].reverse */
 		if (glayer_info[0].reverse)
@@ -5721,10 +5735,17 @@ static void vdx_set_dcu_s5(struct video_layer_s *layer,
 		    (burst_len << 14) | /* burst1 */
 		    (vf->bitdepth & BITDEPTH_MASK);
 
-		if (frame_par->hscale_skip_count)
-			r |= 0x33;
-		if (frame_par->vscale_skip_count)
-			r |= 0xcc;
+		if (for_amdv_certification()) {
+			if (frame_par->hscale_skip_count)
+				r |= 0x11;
+			if (frame_par->vscale_skip_count)
+				r |= 0x44;
+		} else {
+			if (frame_par->hscale_skip_count)
+				r |= 0x33;
+			if (frame_par->vscale_skip_count)
+				r |= 0xcc;
+		}
 
 		/* FIXME: don't use glayer_info[1].reverse */
 		if (glayer_info[layer_id].reverse)
