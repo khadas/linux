@@ -135,7 +135,7 @@ static int dmabuf_manage_attach(struct dma_buf *dbuf, struct dma_buf_attachment 
 		pr_error("kzalloc failed\n");
 		goto error;
 	}
-	if (block->type == DMA_BUF_TYPE_DMXES) {
+	if (block->type == DMA_BUF_TYPE_DMX_ES) {
 		es = (struct dmabuf_dmx_sec_es_data *)block->priv;
 		if (es->data_end < es->data_start)
 			sgnum = 2;
@@ -234,7 +234,7 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 
 	pr_enter();
 	block = (struct dmabuf_manage_block *)dbuf->priv;
-	if (block && block->priv && block->type == DMA_BUF_TYPE_DMXES) {
+	if (block && block->priv && block->type == DMA_BUF_TYPE_DMX_ES) {
 		es = (struct dmabuf_dmx_sec_es_data *)block->priv;
 		list_for_each_safe(pos, tmp, &dmx_filter_list) {
 			node = list_entry(pos, struct dmx_filter_info, list);
@@ -252,6 +252,9 @@ static void dmabuf_manage_buf_release(struct dma_buf *dbuf)
 				node->decode_info_func(node->demux, &rp_info);
 			}
 		}
+	} else if (block && block->type == DMA_BUF_TYPE_DMABUF) {
+		if (block->flags & DMABUF_ALLOC_FROM_CMA)
+			codec_mm_free_for_dma("dmabuf", block->paddr);
 	}
 	if (block) {
 		pr_dbg("dma release handle:%x\n", block->handle);
@@ -271,7 +274,7 @@ static int dmabuf_manage_mmap(struct dma_buf *dbuf, struct vm_area_struct *vma)
 	pr_enter();
 	block = (struct dmabuf_manage_block *)dbuf->priv;
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	if (block->type == DMA_BUF_TYPE_DMXES) {
+	if (block->type == DMA_BUF_TYPE_DMX_ES) {
 		es = (struct dmabuf_dmx_sec_es_data *)block->priv;
 		if (es->data_end >= es->data_start) {
 			len = PAGE_ALIGN(es->data_end - es->data_start);
@@ -485,6 +488,7 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 	struct dmabuf_manage_buffer info;
 	struct dmabuf_manage_block *block;
 	struct dmabuf_dmx_sec_es_data *dmxes;
+	struct dmabuf_videodec_es_data *vdecdata;
 	struct dma_buf *dbuf;
 	int fd = -1;
 	int fd_flags = 0;
@@ -508,7 +512,7 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 	case DMA_BUF_TYPE_SECMEM:
 		fd_flags = O_CLOEXEC;
 		break;
-	case DMA_BUF_TYPE_DMXES:
+	case DMA_BUF_TYPE_DMX_ES:
 		fd_flags = O_CLOEXEC;
 		dmxes = kzalloc(sizeof(*dmxes), GFP_KERNEL);
 		if (!dmxes) {
@@ -520,6 +524,16 @@ static long dmabuf_manage_export_dmabuf(unsigned long args)
 		break;
 	case DMA_BUF_TYPE_DMABUF:
 		fd_flags = O_RDWR | O_CLOEXEC;
+		break;
+	case DMA_BUF_TYPE_VIDEODEC_ES:
+		fd_flags = O_RDWR | O_CLOEXEC;
+		vdecdata = kzalloc(sizeof(*vdecdata), GFP_KERNEL);
+		if (!vdecdata) {
+			pr_error("kmalloc failed\n");
+			goto error_alloc_object;
+		}
+		memcpy(vdecdata, &info.buffer.vdecdata, sizeof(*vdecdata));
+		block->priv = vdecdata;
 		break;
 	default:
 		block->priv = NULL;
@@ -573,9 +587,13 @@ static long dmabuf_manage_get_dmabufinfo(unsigned long args)
 		info.size = block->size;
 		info.handle = block->handle;
 		switch (info.type) {
-		case DMA_BUF_TYPE_DMXES:
+		case DMA_BUF_TYPE_DMX_ES:
 			memcpy(&info.buffer.dmxes, block->priv,
 				sizeof(struct dmabuf_dmx_sec_es_data));
+			break;
+		case DMA_BUF_TYPE_VIDEODEC_ES:
+			memcpy(&info.buffer.vdecdata, block->priv,
+				sizeof(struct dmabuf_videodec_es_data));
 			break;
 		default:
 			break;
@@ -673,50 +691,61 @@ error:
 	return -EFAULT;
 }
 
-static long dmabuf_manage_alloc_dmabuf(unsigned long args)
+static int dmabuf_manage_alloc_dmabuf(unsigned long args)
 {
-	long res = -EFAULT;
+	int res = -EFAULT;
 	struct dmabuf_manage_buffer info;
-
-	pr_enter();
-	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
-	if (res) {
-		pr_error("copy_from_user failed\n");
-		goto error_copy;
-	}
-	if (info.size <= 0 || info.size % 4096 != 0) {
-		pr_error("Invalid size isn't 4K align %d", info.size);
-		return -1;
-	}
-	res = codec_mm_alloc_for_dma("dmabuf", info.size / PAGE_SIZE,
-		SECURE_MM_BLOCK_ALIGNED_2N, CODEC_MM_FLAGS_DMA);
-error_copy:
-	return res;
-}
-
-static long dmabuf_manager_free_dmabuf(unsigned long args)
-{
-	long res = -EFAULT;
-	struct dmabuf_manage_buffer info;
-
-	pr_enter();
-	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
-	if (res) {
-		pr_error("copy_from_user failed\n");
-		goto error_copy;
-	}
-	res = codec_mm_free_for_dma("dmabuf", info.paddr);
-error_copy:
-	return res;
-}
-
-unsigned int dmabuf_manage_get_type(unsigned int fd)
-{
-	int ret = DMA_BUF_TYPE_INVALID;
+	int fd_flags = O_RDWR | O_CLOEXEC;
 	struct dmabuf_manage_block *block;
 	struct dma_buf *dbuf;
 
-	dbuf = dma_buf_get(fd);
+	pr_enter();
+	res = copy_from_user((void *)&info, (void __user *)args, sizeof(info));
+	if (res)
+		goto error_copy;
+	if (info.size <= 0 || info.size % 4096 != 0) {
+		pr_error("Invalid size isn't 4K align %d", info.size);
+		goto error_copy;
+	}
+	block = kzalloc(sizeof(*block), GFP_KERNEL);
+	if (!block) {
+		pr_error("kmalloc failed\n");
+		goto error_copy;
+	}
+	block->paddr = codec_mm_alloc_for_dma("dmabuf", info.size / PAGE_SIZE,
+		SECURE_MM_BLOCK_ALIGNED_2N, CODEC_MM_FLAGS_DMA);
+	if (block->paddr <= 0)
+		goto error_alloc_object;
+	block->size = PAGE_ALIGN(info.size);
+	block->handle = info.handle;
+	block->type = info.type;
+	block->flags |= DMABUF_ALLOC_FROM_CMA;
+	dbuf = get_dmabuf(block, fd_flags);
+	if (!dbuf) {
+		pr_error("get_dmabuf failed\n");
+		goto error_alloc;
+	}
+	res = dma_buf_fd(dbuf, fd_flags);
+	if (res < 0) {
+		pr_error("dma_buf_fd failed\n");
+		goto error_fd;
+	}
+	return res;
+error_fd:
+	dma_buf_put(dbuf);
+error_alloc:
+	codec_mm_free_for_dma("dmabuf", block->paddr);
+error_alloc_object:
+	kfree(block);
+error_copy:
+	return -EFAULT;
+}
+
+unsigned int dmabuf_manage_get_type(struct dma_buf *dbuf)
+{
+	int ret = DMA_BUF_TYPE_INVALID;
+	struct dmabuf_manage_block *block;
+
 	if (!dbuf) {
 		pr_dbg("acquire dma_buf failed");
 		goto error;
@@ -726,21 +755,18 @@ unsigned int dmabuf_manage_get_type(unsigned int fd)
 		if (block)
 			ret = block->type;
 	}
-	dma_buf_put(dbuf);
 error:
 	return ret;
 }
 EXPORT_SYMBOL(dmabuf_manage_get_type);
 
-void *dmabuf_manage_get_info(unsigned int fd, unsigned int type)
+void *dmabuf_manage_get_info(struct dma_buf *dbuf, unsigned int type)
 {
 	void *buf = NULL;
 	struct dmabuf_manage_block *block;
-	struct dma_buf *dbuf;
 
 	if (type == DMA_BUF_TYPE_INVALID)
 		goto error;
-	dbuf = dma_buf_get(fd);
 	if (!dbuf) {
 		pr_dbg("acquire dma_buf failed");
 		goto error;
@@ -751,17 +777,19 @@ void *dmabuf_manage_get_info(unsigned int fd, unsigned int type)
 		case DMA_BUF_TYPE_SECMEM:
 			buf = block;
 			break;
-		case DMA_BUF_TYPE_DMXES:
+		case DMA_BUF_TYPE_DMX_ES:
 			buf = block->priv;
 			break;
 		case DMA_BUF_TYPE_DMABUF:
 			buf = block;
 			break;
+		case DMA_BUF_TYPE_VIDEODEC_ES:
+			buf = block->priv;
+			break;
 		default:
 			break;
 		}
 	}
-	dma_buf_put(dbuf);
 error:
 	return buf;
 }
@@ -1302,9 +1330,6 @@ static long dmabuf_manage_ioctl(struct file *filep, unsigned int cmd,
 		break;
 	case DMABUF_MANAGE_ALLOCDMABUF:
 		ret = dmabuf_manage_alloc_dmabuf(args);
-		break;
-	case DMABUF_MANAGE_FREEDMABUF:
-		ret = dmabuf_manager_free_dmabuf(args);
 		break;
 	default:
 		break;

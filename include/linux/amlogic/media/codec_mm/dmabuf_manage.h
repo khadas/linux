@@ -8,15 +8,18 @@
 
 #include <linux/ioctl.h>
 #include <linux/types.h>
+#include <linux/dma-buf.h>
 
 #define AML_DMA_BUF_MANAGER_VERSION  1
-#define DMA_BUF_MANAGER_MAX_BUFFER_LEN 128
+#define VIDEODEC_DATA_MAX_LEN 256
+#define DMA_BUF_MANAGER_MAX_BUFFER_LEN 320
 
 enum dmabuf_manage_type {
 	DMA_BUF_TYPE_INVALID,
 	DMA_BUF_TYPE_SECMEM,
-	DMA_BUF_TYPE_DMXES,
+	DMA_BUF_TYPE_DMX_ES,
 	DMA_BUF_TYPE_DMABUF,
+	DMA_BUF_TYPE_VIDEODEC_ES,
 	DMA_BUF_TYPE_MAX
 };
 
@@ -49,6 +52,16 @@ struct secmem_block {
 	__u32 handle;
 };
 
+enum dmabuf_manage_videodec_type {
+	DMA_BUF_VIDEODEC_HDR10PLUS = 1
+};
+
+struct dmabuf_videodec_es_data {
+	__u32 data_type;
+	__u8  data[VIDEODEC_DATA_MAX_LEN];
+	__u32 data_len;
+};
+
 struct dmabuf_manage_buffer {
 	__u32 type;
 	__u32 fd;
@@ -59,15 +72,19 @@ struct dmabuf_manage_buffer {
 	__u32 extend;
 	union {
 		struct dmabuf_dmx_sec_es_data dmxes;
+		struct dmabuf_videodec_es_data vdecdata;
 		__u8 data[DMA_BUF_MANAGER_MAX_BUFFER_LEN];
 	} buffer;
 };
+
+#define DMABUF_ALLOC_FROM_CMA   1
 
 struct dmabuf_manage_block {
 	__u32 paddr;
 	__u32 size;
 	__u32 handle;
 	__u32 type;
+	__u32 flags;
 	void *priv;
 };
 
@@ -82,8 +99,8 @@ unsigned int dmabuf_manage_get_can_alloc_blocknum(unsigned long id, unsigned lon
 	unsigned long predictedsize, unsigned long paddr);
 unsigned int dmabuf_manage_get_allocated_blocknum(unsigned long id);
 unsigned int dmabuf_manage_get_secure_heap_version(void);
-unsigned int dmabuf_manage_get_type(unsigned int fd);
-void *dmabuf_manage_get_info(unsigned int fd, unsigned int type);
+unsigned int dmabuf_manage_get_type(struct dma_buf *dbuf);
+void *dmabuf_manage_get_info(struct dma_buf *dbuf, unsigned int type);
 
 #define DMABUF_MANAGE_IOC_MAGIC			'S'
 
