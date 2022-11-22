@@ -933,11 +933,13 @@ static int meson_spicc_transfer_one(struct spi_controller *ctlr,
 		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
 				    spicc->base + SPICC_CONREG);
 	} else {
-		writel_relaxed(spi_controller_is_slave(spicc->controller) ?
-			SPICC_RR_EN : SPICC_TC_EN, spicc->base + SPICC_INTREG);
 		writel_bits_relaxed(SPICC_SMC, SPICC_SMC,
 				    spicc->base + SPICC_CONREG);
 		meson_spicc_txrx(spicc);
+		if (!spicc->tx_remain && !spicc->rx_remain)
+			return 0;
+		writel_relaxed(spi_controller_is_slave(spicc->controller) ?
+			SPICC_RR_EN : SPICC_TC_EN, spicc->base + SPICC_INTREG);
 	}
 
 	return 1;
