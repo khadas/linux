@@ -48,33 +48,29 @@ static int spinand_mtd_block_isbad(struct mtd_info *mtd, loff_t offs)
 	struct spinand_device *spinand = meson_spinand->spinand;
 	struct nand_device *nand = mtd_to_nanddev(mtd);
 	struct nand_pos pos;
-	u8 bad_block;
+	u8 block_status;
 
 	nanddev_offs_to_pos(nand, offs, &pos);
 	mutex_lock(&spinand->lock);
 	if (meson_spinand->block_status) {
 		/* TODO: Keep one plane */
-		bad_block = meson_spinand->block_status[pos.eraseblock];
-		if (bad_block != NAND_BLOCK_BAD &&
-		    bad_block != NAND_FACTORY_BAD &&
-		    bad_block != NAND_BLOCK_GOOD) {
+		block_status = meson_spinand->block_status[pos.eraseblock];
+		if (block_status != NAND_BLOCK_BAD &&
+		    block_status != NAND_FACTORY_BAD &&
+		    block_status != NAND_BLOCK_GOOD) {
 			pr_err("bad block table is mixed\n");
 			mutex_unlock(&spinand->lock);
-			return true;
+			return NAND_BLOCK_BAD;
 		}
-		if (bad_block == NAND_BLOCK_GOOD) {
-			mutex_unlock(&spinand->lock);
-			return false;
-		}
-		pr_info("%s bad block at 0x%x\n",
-			(bad_block == NAND_FACTORY_BAD) ? "factory" : "user",
-			(u32)offs);
+		if (block_status != NAND_BLOCK_GOOD)
+			pr_info("bad block at 0x%x\n", (u32)offs);
 		mutex_unlock(&spinand->lock);
-		return true;
+		return block_status;
 	}
 	pr_info("bbt table is not initial");
+	block_status = nand->ops->isbad(nand, &pos);
 	mutex_unlock(&spinand->lock);
-	return false;
+	return block_status ? NAND_FACTORY_BAD : NAND_BLOCK_GOOD;
 }
 
 static int spinand_mtd_block_markbad(struct mtd_info *mtd, loff_t offs)
@@ -306,7 +302,7 @@ static void meson_partition_relocate(struct mtd_info *mtd,
 	loff_t end = offset + part->size;
 
 	while (offset < end) {
-		if (mtd->_block_isbad(mtd, offset)) {
+		if (mtd->_block_isbad(mtd, offset) == NAND_FACTORY_BAD) {
 			part->size += mtd->erasesize;
 			end += mtd->erasesize;
 			if (end > mtd->size)
