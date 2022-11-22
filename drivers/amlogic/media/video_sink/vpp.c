@@ -4788,9 +4788,13 @@ static void vpp_set_super_scaler_s5
 		next_frame_par->VPP_vsc_startp + 1;
 	u32 src_width = next_frame_par->video_input_w;
 	u32 src_height = next_frame_par->video_input_h;
+	u32 src_width_limit = src_width;
+	u32 width_out_limit = width_out;
 	u32 sr_path;
 	struct sr_info_s *sr;
 	u32 sr_support, slice_num = 1;
+	u32 core0_v_enable_width_max = 0, core0_v_disable_width_max = 0;
+	u32 core1_v_enable_width_max = 0, core1_v_disable_width_max = 0;
 
 	sr = &sr_info;
 	sr_support = sr->sr_support;
@@ -4800,13 +4804,27 @@ static void vpp_set_super_scaler_s5
 		sr_support &= ~SUPER_CORE1_SUPPORT;
 	}
 	next_frame_par->sr_core_support = sr->sr_support;
+	slice_num = get_slice_num(input->layer_id);
 
 	hor_sc_multiple_num = (1 << PPS_FRAC_BITS) /
 		next_frame_par->vpp_filter.vpp_hsc_start_phase_step;
 	ver_sc_multiple_num = SUPER_SCALER_V_FACTOR *
 		(1 << PPS_FRAC_BITS) /
 		next_frame_par->vpp_filter.vpp_vsc_start_phase_step;
-
+	core0_v_enable_width_max = sr->core0_v_enable_width_max;
+	core0_v_disable_width_max = sr->core0_v_disable_width_max;
+	core1_v_enable_width_max = sr->core1_v_enable_width_max;
+	core1_v_disable_width_max = sr->core1_v_disable_width_max;
+	/* if 2 slice mode, sr0 in slice1, sr1 in slice 0 */
+	if (slice_num == 2) {
+		u32 overlap_size = 32;
+		/* 2slice case: sr after pps, sr1 limit used sr0 */
+		sr_support &= ~SUPER_CORE0_SUPPORT;
+		core1_v_enable_width_max = core0_v_enable_width_max;
+		core1_v_disable_width_max = core0_v_disable_width_max;
+		src_width_limit = src_width / 2 + overlap_size;
+		width_out_limit = width_out / 2;
+	}
 	/* just calculate the enable scaler module */
 	/*
 	 *note:if first check h may cause v can't do scaling;
@@ -4816,11 +4834,11 @@ static void vpp_set_super_scaler_s5
 	/* step1: judge core0&core1 vertical enable or disable*/
 	if (ver_sc_multiple_num >= 2 * SUPER_SCALER_V_FACTOR) {
 		next_frame_par->supsc0_vert_ratio =
-			((src_width < sr->core0_v_enable_width_max) &&
+			((src_width_limit < core0_v_enable_width_max) &&
 			(sr_support & SUPER_CORE0_SUPPORT)) ? 1 : 0;
 		next_frame_par->supsc1_vert_ratio =
-			((width_out < sr->core1_v_disable_width_max) &&
-			(src_width < sr->core1_v_enable_width_max) &&
+			((width_out_limit < core1_v_disable_width_max) &&
+			(src_width_limit < core1_v_enable_width_max) &&
 			(sr_support & SUPER_CORE1_SUPPORT)) ? 1 : 0;
 		if (next_frame_par->supsc0_vert_ratio &&
 		    (ver_sc_multiple_num < 4 * SUPER_SCALER_V_FACTOR))
@@ -4840,16 +4858,16 @@ static void vpp_set_super_scaler_s5
 	if (hor_sc_multiple_num >= 2 &&
 	    (vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR &&
 	    vpp_wide_mode != VIDEO_WIDEOPTION_NONLINEAR_T)) {
-		if (src_width > sr->core0_v_disable_width_max ||
-		    (src_width > sr->core0_v_enable_width_max &&
+		if (src_width_limit > core0_v_disable_width_max ||
+		    (src_width_limit > core0_v_enable_width_max &&
 		     next_frame_par->supsc0_vert_ratio) ||
-		    (((src_width << 1) > sr->core1_v_enable_width_max) &&
+		    (((src_width_limit << 1) > core1_v_enable_width_max) &&
 		     next_frame_par->supsc1_vert_ratio))
 			next_frame_par->supsc0_hori_ratio = 0;
 		else if (sr_support & SUPER_CORE0_SUPPORT)
 			next_frame_par->supsc0_hori_ratio = 1;
-		if (((width_out >> 1) > sr->core1_v_disable_width_max) ||
-		    (((width_out >> 1) > sr->core1_v_enable_width_max) &&
+		if (((width_out_limit >> 1) > core1_v_disable_width_max) ||
+		    (((width_out_limit >> 1) > core1_v_enable_width_max) &&
 		     next_frame_par->supsc1_vert_ratio) ||
 		    (next_frame_par->supsc0_hori_ratio &&
 		    hor_sc_multiple_num < 4))
@@ -4873,7 +4891,7 @@ static void vpp_set_super_scaler_s5
 
 	/*double check core0 input width for core0_vert_ratio!!!*/
 	if (next_frame_par->supsc0_vert_ratio &&
-	    src_width > sr->core0_v_enable_width_max) {
+	    src_width_limit > core0_v_enable_width_max) {
 		next_frame_par->supsc0_vert_ratio = 0;
 		if (next_frame_par->supsc0_hori_ratio == 0)
 			next_frame_par->supsc0_enable = 0;
@@ -4881,8 +4899,8 @@ static void vpp_set_super_scaler_s5
 
 	/*double check core1 input width for core1_vert_ratio!!!*/
 	if (next_frame_par->supsc1_vert_ratio &&
-	    ((width_out >> next_frame_par->supsc1_hori_ratio) >
-	     sr->core1_v_enable_width_max)) {
+	    ((width_out_limit >> next_frame_par->supsc1_hori_ratio) >
+	     core1_v_enable_width_max)) {
 		next_frame_par->supsc1_vert_ratio = 0;
 		if (next_frame_par->supsc1_hori_ratio == 0)
 			next_frame_par->supsc1_enable = 0;
@@ -4890,7 +4908,7 @@ static void vpp_set_super_scaler_s5
 
 	/* option add patch */
 	if (ver_sc_multiple_num <= super_scaler_v_ratio &&
-	    src_height >= sr->core0_v_enable_width_max &&
+	    src_height >= core0_v_enable_width_max &&
 	    src_height <= 1088 &&
 	    ver_sc_multiple_num > SUPER_SCALER_V_FACTOR &&
 	    vinfo->height >= 2000) {
@@ -4976,7 +4994,7 @@ static void vpp_set_super_scaler_s5
 		if (next_frame_par->supscl_path == CORE0_AFTER_PPS &&
 			next_frame_par->supsc0_hori_ratio == 0) {
 			src_width = width_out;
-			if (src_width > sr->core0_v_enable_width_max) {
+			if (src_width > core0_v_enable_width_max) {
 				next_frame_par->supsc0_vert_ratio = 0;
 				next_frame_par->supsc0_enable = 0;
 			}
@@ -5106,12 +5124,11 @@ static void vpp_set_super_scaler_s5
 		}
 		height_out++;
 	}
-	slice_num = get_slice_num(input->layer_id);
 	if (input->layer_id == 0) {
 		if (slice_num == 2) {
-			//if sr1 enable, switch to sr0
+			/* if both sr0 and sr1 enable, just enable sr0 */
 			if (next_frame_par->supsc1_enable &&
-				!next_frame_par->supsc0_enable) {
+				next_frame_par->supsc0_enable) {
 				next_frame_par->supsc0_enable =
 				next_frame_par->supsc1_enable;
 				next_frame_par->supsc0_hori_ratio =
@@ -5379,6 +5396,27 @@ static void vpp_set_super_scaler_s5
 			next_frame_par->nnhf_input_w,
 			next_frame_par->nnhf_input_h);
 	}
+}
+
+void adjust_vpp_filter_parm(struct vpp_frame_par_s *frame_par,
+	u32 supsc1_hori_ratio,
+	u32 supsc1_vert_ratio,
+	u32 horz_phase_step,
+	u32 vert_phase_step)
+{
+	if (frame_par->supsc1_hori_ratio != supsc1_hori_ratio) {
+		frame_par->supsc1_hori_ratio = supsc1_hori_ratio;
+		frame_par->spsc1_w_in <<= frame_par->supsc1_hori_ratio;
+		frame_par->vpp_filter.vpp_hsc_start_phase_step = horz_phase_step;
+	}
+	if (frame_par->supsc1_vert_ratio != supsc1_vert_ratio) {
+		frame_par->spsc1_h_in <<= frame_par->supsc1_vert_ratio;
+		frame_par->supsc1_vert_ratio = supsc1_vert_ratio;
+		frame_par->vpp_filter.vpp_vsc_start_phase_step = vert_phase_step;
+	}
+	if (frame_par->supsc1_hori_ratio == 0 &&
+		frame_par->supsc1_vert_ratio == 0)
+		frame_par->supsc1_enable = 0;
 }
 
 static void vpp_set_super_scaler

@@ -991,12 +991,14 @@ int update_vpp_input_info(const struct vinfo_s *info)
 		if (vd_proc->vd_proc_pi.pi_en) {
 			vpp_input.din_hsize[0] = vd_proc->vd_proc_blend.bld_out_w * 2;
 			vpp_input.din_vsize[0] = vd_proc->vd_proc_blend.bld_out_h * 2;
+			vpp_input.din_x_start[0] = 0;
+			vpp_input.din_y_start[0] = 0;
 		} else {
 			vpp_input.din_hsize[0] = vd_proc->vd_proc_blend.bld_out_w;
 			vpp_input.din_vsize[0] = vd_proc->vd_proc_blend.bld_out_h;
+			vpp_input.din_x_start[0] = vd_proc_vd1_info->vd1_dout_x_start[0];
+			vpp_input.din_y_start[0] = vd_proc_vd1_info->vd1_dout_y_start[0];
 		}
-		vpp_input.din_x_start[0] = 0;
-		vpp_input.din_y_start[0] = 0;
 	}
 	/* vd2 */
 	vpp_input.din_hsize[1] = vd_proc->vd2_proc.dout_hsize;

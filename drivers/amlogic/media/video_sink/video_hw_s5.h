@@ -290,6 +290,7 @@ struct vd_proc_s {
 	struct vd_proc_blend_s vd_proc_preblend;
 	/* vd2 proc */
 	struct vd2_proc_s vd2_proc;
+	struct video_layer_s *layer;
 };
 
 struct vd_proc_reg_s {
