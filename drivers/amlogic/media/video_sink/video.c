@@ -3026,9 +3026,29 @@ static void update_process_hdmi_avsync_flag(bool flag)
 	}
 }
 
+static int video_vdin_buf_info_get(void)
+{
+	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
+	int max_buf_cnt = -1;
+
+	while (provider_name) {
+		if (!vf_get_provider_name(provider_name))
+			break;
+		provider_name =
+			vf_get_provider_name(provider_name);
+	}
+	if (provider_name && (!strcmp(provider_name, "dv_vdin") ||
+		!strcmp(provider_name, "vdin0")))
+		vf_notify_provider_by_name(provider_name,
+			VFRAME_EVENT_RECEIVER_BUF_COUNT, (void *)&max_buf_cnt);
+	return max_buf_cnt;
+}
+
 static inline bool is_valid_drop_count(int drop_count)
 {
-	if (drop_count > 0 && drop_count < 8)
+	int buf_cnt = video_vdin_buf_info_get();
+
+	if (drop_count > 0 && drop_count < (buf_cnt - 2))
 		return true;
 	return false;
 }
@@ -4132,24 +4152,6 @@ static enum vframe_disp_mode_e video_vf_disp_mode_get(struct vframe_s *vf)
 		vf_notify_provider_by_name(provider_name,
 			VFRAME_EVENT_RECEIVER_DISP_MODE, (void *)&req);
 	return req.disp_mode;
-}
-
-static int video_vdin_buf_info_get(void)
-{
-	char *provider_name = vf_get_provider_name(RECEIVER_NAME);
-	int max_buf_cnt = -1;
-
-	while (provider_name) {
-		if (!vf_get_provider_name(provider_name))
-			break;
-		provider_name =
-			vf_get_provider_name(provider_name);
-	}
-	if (provider_name && (!strcmp(provider_name, "dv_vdin") ||
-		!strcmp(provider_name, "vdin0")))
-		vf_notify_provider_by_name(provider_name,
-			VFRAME_EVENT_RECEIVER_BUF_COUNT, (void *)&max_buf_cnt);
-	return max_buf_cnt;
 }
 
 static inline bool video_vf_dirty_put(struct vframe_s *vf)
