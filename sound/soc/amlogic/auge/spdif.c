@@ -898,7 +898,7 @@ static const struct snd_kcontrol_new snd_spdif_b_controls[] = {
 	SOC_SINGLE_EXT("SPDIF_B CLK Fine Setting",
 		       0, 0, 2000000, 0,
 		       spdif_clk_get, spdif_clk_set),
-	SOC_SINGLE_EXT("SPDIF_B CLK PPM Tuning",
+	SOC_SINGLE_EXT("SPDIF_B CLK Fine PPM Tuning",
 		       0, 0, 2000, 0,
 		       spdif_clk_get, spdif_clk_ppm_set),
 	SOC_SINGLE_EXT("spdif_b out channel status",
