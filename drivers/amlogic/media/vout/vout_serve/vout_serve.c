@@ -215,7 +215,7 @@ static irqreturn_t vout_vsync_irq_handler(int irq, void *data)
 	case VMODE_DUMMY_ENCP:
 	case VMODE_DUMMY_ENCI:
 	case VMODE_DUMMY_ENCL:
-		fr = vout_frame_rate_measure();
+		fr = vout_frame_rate_measure(1);
 		vinfo->sync_duration_num = fr;
 		vinfo->sync_duration_den = 1000;
 		break;
@@ -497,7 +497,7 @@ static ssize_t vout_frame_rate_show(struct class *class,
 	unsigned int fr;
 	int ret = 0;
 
-	fr = vout_frame_rate_measure();
+	fr = vout_frame_rate_measure(1);
 	ret = sprintf(buf, "%d.%03d\n", (fr / 1000), (fr % 1000));
 
 	return ret;
@@ -546,7 +546,7 @@ static ssize_t vout_vinfo_show(struct class *class,
 	if (!info)
 		return sprintf(buf, "current vinfo is null\n");
 
-	fr = vout_frame_rate_measure();
+	fr = vout_frame_rate_measure(1);
 	len = sprintf(buf, "current vinfo:\n"
 		       "    name:                  %s\n"
 		       "    mode:                  %d\n"
@@ -1079,7 +1079,6 @@ static int aml_vout_probe(struct platform_device *pdev)
 	vout_dev = &pdev->dev;
 
 	aml_vout_get_dt_info(pdev);
-	vout_vdo_meas_ctrl_init();
 
 #ifdef CONFIG_AMLOGIC_LEGACY_EARLY_SUSPEND
 	early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN;

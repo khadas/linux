@@ -301,5 +301,5 @@ int set_vout_mode_name(char *name);
 enum vmode_e validate_vmode(char *name, unsigned int frac);
 int set_current_vmode(enum vmode_e mode);
 void disable_vout_mode_set_sysfs(void);
-unsigned int vout_frame_rate_measure(void);
+unsigned int vout_frame_rate_measure(int index);
 #endif /* _VOUT_NOTIFY_H_ */

@@ -485,7 +485,7 @@ static inline void vdin_get_in_out_fps(struct vdin_dev_s *devp)
 		}
 		/* get vout fps */
 #ifdef CONFIG_AMLOGIC_VOUT_SERVE
-		vinfo_out_fps = vout_frame_rate_measure();
+		vinfo_out_fps = vout_frame_rate_measure(1);
 #endif
 		if (vinfo_out_fps != 0) {
 			devp->vinfo_std_duration = vinfo_out_fps / 1000;

@@ -237,6 +237,9 @@
 #define VPP_VDO_MEAS_CTRL                          0x1da8
 #define VPP_VDO_MEAS_VS_COUNT_HI                   0x1da9
 #define VPP_VDO_MEAS_VS_COUNT_LO                   0x1daa
+/* S5 */
+#define VPU_VENC_RO_MEAS0                          0x1cfe
+#define VPU_VENC_RO_MEAS1                          0x1cff
 
 /* HIU */
 #define HHI_VIID_CLK_DIV                           0x4a

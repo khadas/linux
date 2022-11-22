@@ -91,7 +91,7 @@ unsigned int frame_lock_show_vout_framerate(void)
 	unsigned int fr = 0;
 
 	#ifdef CONFIG_AMLOGIC_VOUT_SERVE
-	fr = vout_frame_rate_measure();
+	fr = vout_frame_rate_measure(1);
 	#endif
 
 	return fr;
