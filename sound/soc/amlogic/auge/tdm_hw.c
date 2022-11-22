@@ -1364,3 +1364,19 @@ void aml_tdmout_mute_speaker(int tdmout_id, bool mute)
 		audiobus_write(reg, 0);
 }
 
+void aml_update_tdmin_binv(struct aml_audio_controller *actrl,
+	 int idx, int binv)
+{
+	unsigned int reg;
+
+	if (idx == 3) {
+		reg = EE_AUDIO_CLK_TDMOUT_D_CTRL;
+	} else if (idx < 3) {
+		reg = EE_AUDIO_CLK_TDMOUT_A_CTRL + idx;
+	} else {
+		pr_err("%s: wrong idx parameter:%d\n", __func__, idx);
+		reg = EE_AUDIO_CLK_TDMOUT_A_CTRL;
+	}
+
+	aml_audiobus_update_bits(actrl, reg, 0x1 << 29, binv << 29);
+}

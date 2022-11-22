@@ -33,6 +33,10 @@ struct aml_card_info {
 	struct aml_dai codec_dai;
 };
 
+int get_aml_audio_binv(struct snd_soc_card *card);
+int get_aml_audio_binv_index(struct snd_soc_card *card);
+int set_aml_audio_binv(struct snd_soc_card *card, int audio_binv);
+int set_aml_audio_binv_index(struct snd_soc_card *card, int binv_tdm_index);
 int get_aml_audio_inskew(struct snd_soc_card *card);
 int get_aml_audio_inskew_index(struct snd_soc_card *card);
 int set_aml_audio_inskew(struct snd_soc_card *card, int audio_inskew);

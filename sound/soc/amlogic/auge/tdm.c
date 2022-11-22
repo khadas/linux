@@ -1407,6 +1407,8 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 	int bit_depth, separated = 0;
 	int audio_inskew = -1;
 	int audio_tdm_index = -1;
+	int audio_binv = -1;
+	int audio_binv_tdm_index = -1;
 
 	bit_depth = snd_pcm_format_width(runtime->format);
 
@@ -1544,6 +1546,10 @@ static int aml_dai_tdm_prepare(struct snd_pcm_substream *substream,
 			aml_update_tdmin_skew(p_tdm->actrl, p_tdm->id, audio_inskew,
 			p_tdm->chipinfo->use_vadtop);
 		}
+		audio_binv = get_aml_audio_binv(rtd->card);
+		audio_binv_tdm_index = get_aml_audio_binv_index(rtd->card);
+		if (audio_binv >= 0 && p_tdm->id == audio_binv_tdm_index)
+			aml_update_tdmin_binv(p_tdm->actrl, p_tdm->id, audio_binv);
 
 	return 0;
 }

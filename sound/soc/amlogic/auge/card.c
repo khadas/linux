@@ -140,6 +140,8 @@ struct aml_card_data {
 	enum audio_hal_format hal_fmt;
 	int inskew_tdm_index;
 	int audio_inskew;
+	int binv_tdm_index;
+	int audio_binv;
 	/* for I2S to HDMI output audio type */
 	enum aud_codec_types hdmi_audio_type;
 	enum hdmitx_src hdmitx_src;
@@ -186,6 +188,36 @@ static const unsigned int microphone_cable[] = {
 
 struct extcon_dev *audio_extcon_headphone;
 struct extcon_dev *audio_extcon_microphone;
+
+int get_aml_audio_binv(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	return priv->audio_binv;
+}
+
+int get_aml_audio_binv_index(struct snd_soc_card *card)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	return priv->binv_tdm_index;
+}
+
+int set_aml_audio_binv(struct snd_soc_card *card, int audio_binv)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	priv->audio_binv = audio_binv;
+	return 0;
+}
+
+int set_aml_audio_binv_index(struct snd_soc_card *card, int binv_tdm_index)
+{
+	struct aml_card_data *priv = aml_card_to_priv(card);
+
+	priv->binv_tdm_index = binv_tdm_index;
+	return 0;
+}
 
 int get_aml_audio_inskew(struct snd_soc_card *card)
 {
@@ -1326,6 +1358,8 @@ static int aml_card_probe(struct platform_device *pdev)
 	priv->snd_card.resume_post	= card_resume_post;
 	priv->inskew_tdm_index = -1;
 	priv->audio_inskew = -1;
+	priv->binv_tdm_index = -1;
+	priv->audio_binv = -1;
 	if (np && of_device_is_available(np)) {
 		ret = aml_card_parse_of(np, priv);
 		if (ret < 0) {

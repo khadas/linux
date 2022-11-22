@@ -13,6 +13,7 @@
 #include "vad.h"
 #include "ddr_mngr.h"
 #include "card.h"
+#include "tdm_hw.h"
 
 #include <linux/amlogic/iomap.h>
 #include <linux/amlogic/media/sound/auge_utils.h>
@@ -424,9 +425,15 @@ static int tdmout_c_binv_get_enum(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	unsigned int val;
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
-	val = audiobus_read(EE_AUDIO_CLK_TDMOUT_C_CTRL);
-	ucontrol->value.enumerated.item[0] = ((val >> 29) & 0x1);
+	val = get_aml_audio_binv(card);
+	if (val < 0) {
+		val = audiobus_read(EE_AUDIO_CLK_TDMOUT_C_CTRL);
+		ucontrol->value.enumerated.item[0] = ((val >> 29) & 0x1);
+	} else {
+		ucontrol->value.enumerated.item[0] = val;
+	}
 
 	return 0;
 }
@@ -435,8 +442,11 @@ static int tdmout_c_binv_set_enum(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	int binv;
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 
 	binv = ucontrol->value.enumerated.item[0];
+	set_aml_audio_binv(card, binv);
+	set_aml_audio_binv_index(card, TDM_C);
 	audiobus_update_bits(EE_AUDIO_CLK_TDMOUT_C_CTRL, 0x1 << 29, binv << 29);
 
 	return 0;
