@@ -2922,11 +2922,6 @@ static int aml_cec_suspend_noirq(struct device *dev)
 	} else {
 	#endif
 	{
-		if (cec_dev->cec_num > ENABLE_ONE_CEC)
-			cec_clear_all_logical_addr(CEC_B);
-		else
-			cec_clear_all_logical_addr(ee_cec);
-
 		if (!IS_ERR(cec_dev->dbg_dev->pins->sleep_state))
 			ret = pinctrl_pm_select_sleep_state(cec_dev->dbg_dev);
 	}
