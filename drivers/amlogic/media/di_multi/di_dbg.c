@@ -1413,6 +1413,7 @@ ssize_t seq_file_vtype_store(struct file *file, const char __user *userbuf,
 	}
 
 	#else
+	/*coverity[tainted_data] Misjudged buf not tainted*/
 	ret = kstrtouint(buf, 0, &vtype);
 	if (ret) {
 		pr_info("war:please enter vtype\n");
@@ -1750,7 +1751,7 @@ static ssize_t dbg_crc_store(struct file *file, const char __user *userbuf,
 	chp = (int *)file->private_data;
 	//pr_info("%s:ch[%d]\n", __func__, *chp);
 	ch = *chp;
-
+	/*coverity[tainted_data] Misjudged buf not tainted*/
 	ret = kstrtouint(buf, 0, &val);
 	if (ret) {
 		//pr_info("war:please enter val\n");
@@ -2113,6 +2114,7 @@ static ssize_t cfgtw_id_store(struct file *file, const char __user *userbuf,
 	case 2:
 		if (!di_cfg_top_check(index))
 			break;
+		/*coverity[tainted_data] Misjudged buf not tainted*/
 		pr_info("%s:%d->%d\n",
 			di_cfg_top_get_name(index),
 			di_cfg_top_get(index),
@@ -2137,6 +2139,7 @@ static ssize_t cfgt_one_store(struct file *file, const char __user *userbuf,
 	if (copy_from_user(buf, userbuf, count))
 		return -EFAULT;
 	buf[count] = 0;
+	/*coverity[tainted_data] Misjudged buf not tainted*/
 	ret = kstrtouint(buf, 0, &val);
 	if (ret) {
 		pr_info("war:please enter val\n");
@@ -3193,6 +3196,7 @@ void didbg_fs_init(void)
 	if (IS_ERR_OR_NULL(*root_ent))
 		return;
 	for (i = 0; i < ARRAY_SIZE(di_debugfs_files_top); i++) {
+		/*coverity[var_deref_model] *root_ent has been judged*/
 		ent = debugfs_create_file(di_debugfs_files_top[i].name,
 					  di_debugfs_files_top[i].mode,
 					  *root_ent, NULL,

@@ -4370,6 +4370,7 @@ void set_di_memcpy_rot(struct mem_cpy_s *cfg)
 
 	if ((DIM_IS_IC_EF(T7) || DIM_IS_IC(S4)) &&
 	    (!IS_ERR_OR_NULL(in_afbcd))) {
+		/*coverity[var_deref_op] in_afbcd has been judged*/
 		if (in_afbcd->index == EAFBC_DEC_IF0) {
 			//op->bwr(AFBCDM_IF0_CTRL0,cfg->b.is_if0_4k,14,1);
 			//reg_use_4kram

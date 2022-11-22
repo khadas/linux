@@ -4481,6 +4481,7 @@ void dim_pre_de_done_buf_config(unsigned int channel, bool flg_timeout)
 
 			if (ppre->source_change_flag) {
 				/* add dummy buf, will not be displayed */
+				/*coverity[var_deref_model] post_wr_buf has been judged*/
 				add_dummy_vframe_type_pre(post_wr_buf,
 							  channel);
 			}
@@ -4723,6 +4724,7 @@ static struct di_buf_s *get_free_linked_buf(int idx, unsigned int channel)
 			}
 		}
 		if (!IS_ERR_OR_NULL(di_buf))
+			/*coverity[var_deref_op] di_buf has been judged*/
 			di_buf->di_wr_linked_buf = linkp;
 		else
 			return NULL;
