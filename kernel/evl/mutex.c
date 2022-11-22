@@ -242,15 +242,19 @@ static int fast_grab_mutex(struct evl_mutex *mutex, fundle_t *oldh)
 
 /*
  * Adjust the priority of a thread owning some mutex(es) to the
- * required minimum for avoiding priority inversion.
+ * required minimum for avoiding priority inversion. Since we enter
+ * this routine holding no lock, things might have changed under us,
+ * therefore we (re)check for the owner status carefully under lock.
  *
- * On entry: irqs off.
+ * On entry: irqs off, ref(owner).
  */
 static void adjust_owner_boost(struct evl_thread *owner)
 {
 	struct evl_thread *top_waiter;
 	struct evl_mutex *mutex;
+	bool redo;
 
+redo:
 	raw_spin_lock(&owner->lock);
 
 	if (list_empty(&owner->boosters)) {
@@ -290,12 +294,25 @@ static void adjust_owner_boost(struct evl_thread *owner)
 		top_waiter = list_first_entry(&mutex->wchan.wait_list,
 					struct evl_thread, wait_next);
 		evl_double_thread_lock(owner, top_waiter);
-		/* Prevent spurious round-robin effect in runqueue. */
-		if (top_waiter->wprio != owner->wprio)
-			evl_track_thread_policy(owner, top_waiter);
+		/*
+		 * The owner's booster list might have changed under
+		 * us, re-check under owner->lock if mutex is still
+		 * the leading booster.
+		 */
+		redo = true;
+		if (!list_empty(&owner->boosters) &&
+			mutex == list_first_entry(&owner->boosters,
+						struct evl_mutex, next_booster)) {
+			/* Prevent spurious round-robin effect in runqueue. */
+			if (top_waiter->wprio != owner->wprio)
+				evl_track_thread_policy(owner, top_waiter);
+			redo = false;
+		}
 		raw_spin_unlock(&top_waiter->lock);
 		raw_spin_unlock(&owner->lock);
 		raw_spin_unlock(&mutex->wchan.lock);
+		if (redo)
+			goto redo;
 	}
 }
 
@@ -526,7 +543,7 @@ EXPORT_SYMBOL_GPL(evl_trylock_mutex);
  * Undo a PI chain walk due to a locking abort. The mutex state might
  * have changed under us since we dropped mutex->wchan.lock during the
  * walk. If we still have an owner at this point, and the mutex is
- * still part its booster list, then we need to consider two cases:
+ * still part of its booster list, then we need to consider two cases:
  *
  * - the mutex still has waiters, in which case we need to adjust the
  * boost value to the top waiter priority.
