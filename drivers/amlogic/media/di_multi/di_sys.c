@@ -3060,6 +3060,8 @@ bool qiat_all_back2_ready(struct di_ch_s *pch)
 	unsigned int len;
 	struct buf_que_s *pbufq;
 	int i;
+	bool ret;
+	bool err = false;
 	unsigned int index;
 	union q_buf_u q_buf;
 
@@ -3067,13 +3069,19 @@ bool qiat_all_back2_ready(struct di_ch_s *pch)
 
 	len = qbufp_count(pbufq, QBF_IAT_Q_IN_USED);
 	for (i = 0; i < len; i++) {
-		qbuf_out(pbufq, QBF_IAT_Q_IN_USED, &index);
+		ret = qbuf_out(pbufq, QBF_IAT_Q_IN_USED, &index);
+		if (!ret) {
+			PR_ERR("%s:%d\n", __func__, i);
+			err = true;
+			break;
+		}
 		q_buf = pbufq->pbuf[index];
 		qbuf_in(pbufq, QBF_IAT_Q_READY, index);
 	}
 	len = qbufp_count(pbufq, QBF_IAT_Q_READY);
 	dbg_reg("%s:len[%d]\n", __func__, len);
-
+	if (err)
+		return false;
 	return true;
 }
 
