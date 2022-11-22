@@ -1786,6 +1786,12 @@ static int vpp_set_filters_internal_s5
 			(video_source_crop_right + 3) & ~0x03;
 	}
 
+	if (is_bandwidth_policy_hit(input->layer_id))
+		next_frame_par->vscale_skip_count++;
+	if (super_debug)
+		pr_info("layer_id=%d, next_frame_par->vscale_skip_count=%d\n",
+			input->layer_id,
+			next_frame_par->vscale_skip_count);
 RESTART_ALL:
 	crop_left = video_source_crop_left / crop_ratio;
 	crop_right = video_source_crop_right / crop_ratio;

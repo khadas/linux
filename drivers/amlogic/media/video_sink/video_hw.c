@@ -1117,6 +1117,8 @@ bool is_bandwidth_policy_hit(u8 layer_id)
 			if (!re_trigger) {
 				vd_layer[0].property_changed = true;
 				re_trigger = true;
+				pr_info("vd%d hit larger than 4k to 4k input! hit_vskip[1]=%d\n",
+					layer_id, hit_vskip[1]);
 			}
 		}
 		layer = get_vd_layer(2);
@@ -1127,21 +1129,37 @@ bool is_bandwidth_policy_hit(u8 layer_id)
 			if (!re_trigger) {
 				vd_layer[0].property_changed = true;
 				re_trigger = true;
+				pr_info("vd%d hit larger than 4k to 4k input! hit_vskip[2]=%d\n",
+					layer_id, hit_vskip[2]);
 			}
 		}
-
-		if (hit_vskip[0] && (hit_vskip[1] || hit_vskip[2])) {
-			if (layer_id == 0) {
-				re_trigger = false;
-				vd_layer[0].property_changed = false;
-			}
-			pr_info("vd%d hit larger than 4k to 4k input!\n", layer_id);
+		if (layer_id == 0 && hit_vskip[0] &&
+			(hit_vskip[1] ||
+			hit_vskip[2])) {
+			re_trigger = false;
+			vd_layer[0].property_changed = false;
+			pr_info("line=%d,vd%d hit larger than 4k to 4k input! hit_vskip=%d, %d, %d\n",
+				__LINE__,
+				layer_id,
+				hit_vskip[0],
+				hit_vskip[1],
+				hit_vskip[2]);
+			return true;
+		}
+		if ((layer_id == 1 && hit_vskip[1]) &&
+			(hit_vskip[0] ||
+			hit_vskip[2])) {
+			pr_info("line=%d,vd%d hit larger than 4k to 4k input! hit_vskip=%d, %d, %d\n",
+				__LINE__,
+				layer_id,
+				hit_vskip[0],
+				hit_vskip[1],
+				hit_vskip[2]);
 			return true;
 		}
 	}
 	return false;
 }
-
 #endif
 
 bool is_di_on(void)
